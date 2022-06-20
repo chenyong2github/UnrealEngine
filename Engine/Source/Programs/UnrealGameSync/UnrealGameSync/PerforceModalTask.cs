@@ -17,114 +17,114 @@ namespace UnrealGameSync
 	{
 		public PerforceResponse<LoginRecord> Response { get; }
 
-		public PerforceLoginException(PerforceResponse<LoginRecord> Response) : base($"Login failed: {Response}")
+		public PerforceLoginException(PerforceResponse<LoginRecord> response) : base($"Login failed: {response}")
 		{
-			this.Response = Response;
+			this.Response = response;
 		}
 	}
 
 	static class PerforceModalTask
 	{
-		public static ModalTask? Execute(IWin32Window? Owner, string Title, string Message, IPerforceSettings PerforceSettings, Func<IPerforceConnection, CancellationToken, Task> ExecuteAsync, ILogger Logger, ModalTaskFlags Flags = ModalTaskFlags.None)
+		public static ModalTask? Execute(IWin32Window? owner, string title, string message, IPerforceSettings perforceSettings, Func<IPerforceConnection, CancellationToken, Task> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			Func<IPerforceConnection, CancellationToken, Task<int>> ExecuteTypedAsync = async (p, c) => { await ExecuteAsync(p, c); return 0; };
-			return Execute(Owner, Title, Message, PerforceSettings, ExecuteTypedAsync, Logger, Flags);
+			Func<IPerforceConnection, CancellationToken, Task<int>> executeTypedAsync = async (p, c) => { await executeAsync(p, c); return 0; };
+			return Execute(owner, title, message, perforceSettings, executeTypedAsync, logger, flags);
 		}
 
-		public static ModalTask<T>? Execute<T>(IWin32Window? Owner, string Title, string Message, IPerforceSettings PerforceSettings, Func<IPerforceConnection, CancellationToken, Task<T>> ExecuteAsync, ILogger Logger, ModalTaskFlags Flags = ModalTaskFlags.None)
+		public static ModalTask<T>? Execute<T>(IWin32Window? owner, string title, string message, IPerforceSettings perforceSettings, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			IPerforceConnection? Connection = null;
+			IPerforceConnection? connection = null;
 			try
 			{
-				Func<Task<IPerforceConnection>> ConnectAsync = async () =>
+				Func<Task<IPerforceConnection>> connectAsync = async () =>
 				{
-					Connection ??= await PerforceConnection.CreateAsync(PerforceSettings, Logger);
-					return Connection;
+					connection ??= await PerforceConnection.CreateAsync(perforceSettings, logger);
+					return connection;
 				};
-				return ExecuteInternal(Owner, Title, Message, PerforceSettings, ConnectAsync, ExecuteAsync, Flags);
+				return ExecuteInternal(owner, title, message, perforceSettings, connectAsync, executeAsync, flags);
 			}
 			finally
 			{
-				Connection?.Dispose();
+				connection?.Dispose();
 			}
 		}
 
-		public static ModalTask? Execute(IWin32Window? Owner, string Title, string Message, IPerforceConnection PerforceConnection, Func<IPerforceConnection, CancellationToken, Task> ExecuteAsync, ILogger Logger, ModalTaskFlags Flags = ModalTaskFlags.None)
+		public static ModalTask? Execute(IWin32Window? owner, string title, string message, IPerforceConnection perforceConnection, Func<IPerforceConnection, CancellationToken, Task> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			Func<IPerforceConnection, CancellationToken, Task<int>> ExecuteTypedAsync = async (p, c) => { await ExecuteAsync(p, c); return 0; };
-			return Execute(Owner, Title, Message, PerforceConnection, ExecuteTypedAsync, Logger, Flags);
+			Func<IPerforceConnection, CancellationToken, Task<int>> executeTypedAsync = async (p, c) => { await executeAsync(p, c); return 0; };
+			return Execute(owner, title, message, perforceConnection, executeTypedAsync, logger, flags);
 		}
 
-		public static ModalTask<T>? Execute<T>(IWin32Window? Owner, string Title, string Message, IPerforceConnection PerforceConnection, Func<IPerforceConnection, CancellationToken, Task<T>> ExecuteAsync, ILogger Logger, ModalTaskFlags Flags = ModalTaskFlags.None)
+		public static ModalTask<T>? Execute<T>(IWin32Window? owner, string title, string message, IPerforceConnection perforceConnection, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, ILogger logger, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			return ExecuteInternal(Owner, Title, Message, PerforceConnection.Settings, () => Task.FromResult(PerforceConnection), ExecuteAsync, Flags);
+			return ExecuteInternal(owner, title, message, perforceConnection.Settings, () => Task.FromResult(perforceConnection), executeAsync, flags);
 		}
 
-		private static ModalTask<T>? ExecuteInternal<T>(IWin32Window? Owner, string Title, string Message, IPerforceSettings PerforceSettings, Func<Task<IPerforceConnection>> ConnectAsync, Func<IPerforceConnection, CancellationToken, Task<T>> ExecuteAsync, ModalTaskFlags Flags = ModalTaskFlags.None)
+		private static ModalTask<T>? ExecuteInternal<T>(IWin32Window? owner, string title, string message, IPerforceSettings perforceSettings, Func<Task<IPerforceConnection>> connectAsync, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, ModalTaskFlags flags = ModalTaskFlags.None)
 		{
-			string? Password = PerforceSettings.Password;
+			string? password = perforceSettings.Password;
 			for(;;)
 			{
-				Func<CancellationToken, Task<T>> RunAsync = CancellationToken => LoginAndExecuteAsync(Password, ConnectAsync, ExecuteAsync, CancellationToken);
+				Func<CancellationToken, Task<T>> runAsync = cancellationToken => LoginAndExecuteAsync(password, connectAsync, executeAsync, cancellationToken);
 
-				ModalTask<T>? Result = ModalTask.Execute(Owner, Title, Message, RunAsync, ModalTaskFlags.Quiet);
-				if (Result != null && Result.Failed && (Flags & ModalTaskFlags.Quiet) == 0)
+				ModalTask<T>? result = ModalTask.Execute(owner, title, message, runAsync, ModalTaskFlags.Quiet);
+				if (result != null && result.Failed && (flags & ModalTaskFlags.Quiet) == 0)
 				{
-					if (Result.Exception is PerforceLoginException)
+					if (result.Exception is PerforceLoginException)
 					{
-						string PasswordPrompt;
-						if (String.IsNullOrEmpty(Password))
+						string passwordPrompt;
+						if (String.IsNullOrEmpty(password))
 						{
-							PasswordPrompt = $"Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
+							passwordPrompt = $"Enter the password for user '{perforceSettings.UserName}' on server '{perforceSettings.ServerAndPort}'.";
 						}
 						else
 						{
-							PasswordPrompt = $"Authentication failed. Enter the password for user '{PerforceSettings.UserName}' on server '{PerforceSettings.ServerAndPort}'.";
+							passwordPrompt = $"Authentication failed. Enter the password for user '{perforceSettings.UserName}' on server '{perforceSettings.ServerAndPort}'.";
 						}
 
-						PasswordWindow PasswordWindow = new PasswordWindow(PasswordPrompt, Password ?? String.Empty);
-						if (Owner == null)
+						PasswordWindow passwordWindow = new PasswordWindow(passwordPrompt, password ?? String.Empty);
+						if (owner == null)
 						{
-							PasswordWindow.ShowInTaskbar = true;
-							PasswordWindow.StartPosition = FormStartPosition.CenterScreen;
+							passwordWindow.ShowInTaskbar = true;
+							passwordWindow.StartPosition = FormStartPosition.CenterScreen;
 						}
-						if (PasswordWindow.ShowDialog(Owner) != DialogResult.OK)
+						if (passwordWindow.ShowDialog(owner) != DialogResult.OK)
 						{
 							return null;
 						}
 
-						Password = PasswordWindow.Password;
+						password = passwordWindow.Password;
 						continue;
 					}
-					MessageBox.Show(Owner, Result.Error, Title, MessageBoxButtons.OK);
+					MessageBox.Show(owner, result.Error, title, MessageBoxButtons.OK);
 				}
 
-				return Result;
+				return result;
 			}
 		}
 
-		private static async Task<T> LoginAndExecuteAsync<T>(string? Password, Func<Task<IPerforceConnection>> ConnectAsync, Func<IPerforceConnection, CancellationToken, Task<T>> ExecuteAsync, CancellationToken CancellationToken)
+		private static async Task<T> LoginAndExecuteAsync<T>(string? password, Func<Task<IPerforceConnection>> connectAsync, Func<IPerforceConnection, CancellationToken, Task<T>> executeAsync, CancellationToken cancellationToken)
 		{
-			IPerforceConnection Perforce = await ConnectAsync();
+			IPerforceConnection perforce = await connectAsync();
 
 			// If we've got a password, execute the login command
-			PerforceResponse<LoginRecord> Response;
-			if (String.IsNullOrEmpty(Password))
+			PerforceResponse<LoginRecord> response;
+			if (String.IsNullOrEmpty(password))
 			{
-				Response = await Perforce.TryGetLoginStateAsync(CancellationToken);
+				response = await perforce.TryGetLoginStateAsync(cancellationToken);
 			}
 			else
 			{
-				Response = await Perforce.TryLoginAsync(Password, CancellationToken);
+				response = await perforce.TryLoginAsync(password, cancellationToken);
 			}
 
-			if (!Response.Succeeded)
+			if (!response.Succeeded)
 			{
-				throw new PerforceLoginException(Response);
+				throw new PerforceLoginException(response);
 			}
 
 			// Execute the inner task
-			return await ExecuteAsync(Perforce, CancellationToken);
+			return await executeAsync(perforce, cancellationToken);
 		}
 	}
 }

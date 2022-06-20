@@ -15,14 +15,14 @@ namespace UnrealGameSync
 	static class VisualStudioHandler
 	{
 		[UriHandler(true)]
-		public static UriResult VSOpen(string DepotPath, int Line = -1)
+		public static UriResult VsOpen(string depotPath, int line = -1)
 		{
-			string TempFileName = P4Automation.PrintToTempFile(null, DepotPath, NullLogger.Instance).GetAwaiter().GetResult();
+			string tempFileName = P4Automation.PrintToTempFile(null, depotPath, NullLogger.Instance).GetAwaiter().GetResult();
 
-			string? ErrorMessage;
-			if (!VisualStudioAutomation.OpenFile(TempFileName, out ErrorMessage, Line))
+			string? errorMessage;
+			if (!VisualStudioAutomation.OpenFile(tempFileName, out errorMessage, line))
 			{
-				return new UriResult() { Error = ErrorMessage ?? "Unknown Visual Studio Error" };
+				return new UriResult() { Error = errorMessage ?? "Unknown Visual Studio Error" };
 			}
 
 			return new UriResult() { Success = true };

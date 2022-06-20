@@ -17,60 +17,60 @@ namespace UnrealGameSync
 		public static IPerforceSettings GetConnectionSettings()
 		{
 			// Read the settings
-			string? ServerAndPort = null;
-			string? UserName = null;
-			string? DepotPathSettings = null;
-			bool bPreview = false;
+			string? serverAndPort = null;
+			string? userName = null;
+			string? depotPathSettings = null;
+			bool preview = false;
 
-			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPathSettings, ref bPreview);
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref serverAndPort, ref userName, ref depotPathSettings, ref preview);
 
-			return Utility.OverridePerforceSettings(PerforceSettings.Default, ServerAndPort, UserName);
+			return Utility.OverridePerforceSettings(PerforceSettings.Default, serverAndPort, userName);
 
 		}
 
-		public static Task<string> PrintToTempFile(IPerforceConnection? Connection, string DepotPath, ILogger Logger)
+		public static Task<string> PrintToTempFile(IPerforceConnection? connection, string depotPath, ILogger logger)
 		{
-			return PrintToTempFileAsync(Connection, DepotPath, CancellationToken.None, Logger);
+			return PrintToTempFileAsync(connection, depotPath, CancellationToken.None, logger);
 		}
 
-		public static async Task<string> PrintToTempFileAsync(IPerforceConnection? Connection, string DepotPath, CancellationToken CancellationToken, ILogger Logger)
+		public static async Task<string> PrintToTempFileAsync(IPerforceConnection? connection, string depotPath, CancellationToken cancellationToken, ILogger logger)
 		{
-			bool bCreateNewConnection = (Connection == null);
+			bool createNewConnection = (connection == null);
 
 			try
 			{
-				if (Connection == null)
+				if (connection == null)
 				{
-					IPerforceSettings Settings = GetConnectionSettings();
-					Connection = await PerforceConnection.CreateAsync(Logger);
+					IPerforceSettings settings = GetConnectionSettings();
+					connection = await PerforceConnection.CreateAsync(logger);
 				}
 
-				string DepotFileName = Path.GetFileName(DepotPath);
+				string depotFileName = Path.GetFileName(depotPath);
 
 				// Reorder CL and extension
-				int Index = DepotFileName.IndexOf('@');
-				if (Index == -1)
+				int index = depotFileName.IndexOf('@');
+				if (index == -1)
 				{
-					DepotFileName += "@Latest";
-					Index = DepotFileName.IndexOf('@');
+					depotFileName += "@Latest";
+					index = depotFileName.IndexOf('@');
 				}
 
-				string CL = DepotFileName.Substring(Index + 1);
-				string FileName = DepotFileName.Substring(0, Index);
-				string TempFileName = string.Format("{0}@{1}{2}", Path.GetFileNameWithoutExtension(FileName), CL, Path.GetExtension(FileName));
+				string cl = depotFileName.Substring(index + 1);
+				string fileName = depotFileName.Substring(0, index);
+				string tempFileName = string.Format("{0}@{1}{2}", Path.GetFileNameWithoutExtension(fileName), cl, Path.GetExtension(fileName));
 
-				TempFileName = Path.Combine(Path.GetTempPath(), TempFileName);
-				await Connection.PrintAsync(TempFileName, DepotFileName, CancellationToken);
+				tempFileName = Path.Combine(Path.GetTempPath(), tempFileName);
+				await connection.PrintAsync(tempFileName, depotFileName, cancellationToken);
 
-				return TempFileName;
+				return tempFileName;
 			}
 			finally
 			{
 				// If we created a new connection, tear it down now.
-				if (bCreateNewConnection)
+				if (createNewConnection)
 				{
-					Connection?.Dispose();
-					Connection = null;
+					connection?.Dispose();
+					connection = null;
 				}
 			}
 		}

@@ -31,51 +31,51 @@ namespace UnrealGameSync
 				"....uprojectdirs",
 			};
 
-			public static async Task<List<string>> RunAsync(IPerforceConnection Perforce, string ClientName, CancellationToken CancellationToken)
+			public static async Task<List<string>> RunAsync(IPerforceConnection perforce, string clientName, CancellationToken cancellationToken)
 			{
-				ClientRecord ClientSpec = await Perforce.GetClientAsync(Perforce.Settings.ClientName, CancellationToken);
+				ClientRecord clientSpec = await perforce.GetClientAsync(perforce.Settings.ClientName, cancellationToken);
 
-				string ClientRoot = ClientSpec.Root.TrimEnd(Path.DirectorySeparatorChar);
-				if (String.IsNullOrEmpty(ClientRoot))
+				string clientRoot = clientSpec.Root.TrimEnd(Path.DirectorySeparatorChar);
+				if (String.IsNullOrEmpty(clientRoot))
 				{
-					throw new UserErrorException($"Client '{ClientName}' does not have a valid root directory.");
+					throw new UserErrorException($"Client '{clientName}' does not have a valid root directory.");
 				}
 
-				List<FStatRecord> FileRecords = new List<FStatRecord>();
-				foreach(string Pattern in Patterns)
+				List<FStatRecord> fileRecords = new List<FStatRecord>();
+				foreach(string pattern in Patterns)
 				{
-					string Filter = String.Format("//{0}/{1}", ClientName, Pattern);
+					string filter = String.Format("//{0}/{1}", clientName, pattern);
 
-					List<FStatRecord> WildcardFileRecords = await Perforce.FStatAsync(Filter, CancellationToken).ToListAsync(CancellationToken);
-					WildcardFileRecords.RemoveAll(x => x.HeadAction == FileAction.Delete || x.HeadAction == FileAction.MoveDelete);
+					List<FStatRecord> wildcardFileRecords = await perforce.FStatAsync(filter, cancellationToken).ToListAsync(cancellationToken);
+					wildcardFileRecords.RemoveAll(x => x.HeadAction == FileAction.Delete || x.HeadAction == FileAction.MoveDelete);
 
-					FileRecords.AddRange(WildcardFileRecords);
+					fileRecords.AddRange(wildcardFileRecords);
 				}
 
-				string ClientPrefix = ClientRoot;
-				if (!ClientPrefix.EndsWith(Path.DirectorySeparatorChar))
+				string clientPrefix = clientRoot;
+				if (!clientPrefix.EndsWith(Path.DirectorySeparatorChar))
 				{
-					ClientPrefix += Path.DirectorySeparatorChar;
+					clientPrefix += Path.DirectorySeparatorChar;
 				}
 
-				List<string> Paths = new List<string>();
-				foreach(FStatRecord FileRecord in FileRecords)
+				List<string> paths = new List<string>();
+				foreach(FStatRecord fileRecord in fileRecords)
 				{
-					if(FileRecord.ClientFile != null && FileRecord.ClientFile.StartsWith(ClientPrefix, StringComparison.OrdinalIgnoreCase))
+					if(fileRecord.ClientFile != null && fileRecord.ClientFile.StartsWith(clientPrefix, StringComparison.OrdinalIgnoreCase))
 					{
-						Paths.Add(FileRecord.ClientFile.Substring(ClientRoot.Length).Replace(Path.DirectorySeparatorChar, '/'));
+						paths.Add(fileRecord.ClientFile.Substring(clientRoot.Length).Replace(Path.DirectorySeparatorChar, '/'));
 					}
 				}
 
-				return Paths;
+				return paths;
 			}
 		}
 
 		[DllImport("Shell32.dll", EntryPoint = "ExtractIconExW", CharSet = CharSet.Unicode, ExactSpelling = true, CallingConvention = CallingConvention.StdCall)]
 		private static extern int ExtractIconEx(string sFile, int iIndex, IntPtr piLargeVersion, out IntPtr piSmallVersion, int amountIcons);
 
-		List<string> ProjectFiles;
-		string SelectedProjectFile;
+		List<string> _projectFiles;
+		string _selectedProjectFile;
 
 		class ProjectNode
 		{
@@ -83,49 +83,49 @@ namespace UnrealGameSync
 			public string Folder;
 			public string Name;
 
-			public ProjectNode(string FullName)
+			public ProjectNode(string fullName)
 			{
-				this.FullName = FullName;
+				this.FullName = fullName;
 
-				int SlashIdx = FullName.LastIndexOf('/');
-				Folder = FullName.Substring(0, SlashIdx);
-				Name = FullName.Substring(SlashIdx + 1);
+				int slashIdx = fullName.LastIndexOf('/');
+				Folder = fullName.Substring(0, slashIdx);
+				Name = fullName.Substring(slashIdx + 1);
 			}
 		}
 		
-		public SelectProjectFromWorkspaceWindow(string WorkspaceName, List<string> ProjectFiles, string SelectedProjectFile)
+		public SelectProjectFromWorkspaceWindow(string workspaceName, List<string> projectFiles, string selectedProjectFile)
 		{
 			InitializeComponent();
 			
-			this.ProjectFiles = ProjectFiles;
-			this.SelectedProjectFile = SelectedProjectFile;
+			this._projectFiles = projectFiles;
+			this._selectedProjectFile = selectedProjectFile;
 
 			// Make the image strip containing icons for nodes in the tree
-			IntPtr FolderIconPtr;
-			ExtractIconEx("imageres.dll", 3, IntPtr.Zero, out FolderIconPtr, 1);
+			IntPtr folderIconPtr;
+			ExtractIconEx("imageres.dll", 3, IntPtr.Zero, out folderIconPtr, 1);
 
-			Icon[] Icons = new Icon[]{ Icon.FromHandle(FolderIconPtr), Properties.Resources.Icon };
+			Icon[] icons = new Icon[]{ Icon.FromHandle(folderIconPtr), Properties.Resources.Icon };
 
-			Bitmap TypeImageListBitmap = new Bitmap(Icons.Length * 16, 16, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
-			using(Graphics Graphics = Graphics.FromImage(TypeImageListBitmap))
+			Bitmap typeImageListBitmap = new Bitmap(icons.Length * 16, 16, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+			using(Graphics graphics = Graphics.FromImage(typeImageListBitmap))
 			{
-				for(int IconIdx = 0; IconIdx < Icons.Length; IconIdx++)
+				for(int iconIdx = 0; iconIdx < icons.Length; iconIdx++)
 				{
-					Graphics.DrawIcon(Icons[IconIdx], new Rectangle(IconIdx * 16, 0, 16, 16));
+					graphics.DrawIcon(icons[iconIdx], new Rectangle(iconIdx * 16, 0, 16, 16));
 				}
 			}
 
-			ImageList TypeImageList = new ImageList();
-			TypeImageList.ImageSize = new Size(16, 16);
-			TypeImageList.ColorDepth = ColorDepth.Depth32Bit;
-			TypeImageList.Images.AddStrip(TypeImageListBitmap);
-			ProjectTreeView.ImageList = TypeImageList;
+			ImageList typeImageList = new ImageList();
+			typeImageList.ImageSize = new Size(16, 16);
+			typeImageList.ColorDepth = ColorDepth.Depth32Bit;
+			typeImageList.Images.AddStrip(typeImageListBitmap);
+			ProjectTreeView.ImageList = typeImageList;
 
 			// Create the root node
-			TreeNode RootNode = new TreeNode();
-			RootNode.Text = WorkspaceName;
-			RootNode.Expand();
-			ProjectTreeView.Nodes.Add(RootNode);
+			TreeNode rootNode = new TreeNode();
+			rootNode.Text = workspaceName;
+			rootNode.Expand();
+			ProjectTreeView.Nodes.Add(rootNode);
 
 			// Populate the tree
 			Populate();
@@ -134,91 +134,91 @@ namespace UnrealGameSync
 		private void Populate()
 		{
 			// Clear out the existing nodes
-			TreeNode RootNode = ProjectTreeView.Nodes[0];
-			RootNode.Nodes.Clear();
+			TreeNode rootNode = ProjectTreeView.Nodes[0];
+			rootNode.Nodes.Clear();
 
 			// Filter the project files
-			List<string> FilteredProjectFiles = new List<string>(ProjectFiles); 
+			List<string> filteredProjectFiles = new List<string>(_projectFiles); 
 			if(!ShowProjectDirsFiles.Checked)
 			{
-				FilteredProjectFiles.RemoveAll(x => x.EndsWith(".uprojectdirs", StringComparison.OrdinalIgnoreCase));
+				filteredProjectFiles.RemoveAll(x => x.EndsWith(".uprojectdirs", StringComparison.OrdinalIgnoreCase));
 			}
 
 			// Sort by paths, then files
-			List<ProjectNode> ProjectNodes = FilteredProjectFiles.Select(x => new ProjectNode(x)).OrderBy(x => x.Folder).ThenBy(x => x.Name).ToList();
+			List<ProjectNode> projectNodes = filteredProjectFiles.Select(x => new ProjectNode(x)).OrderBy(x => x.Folder).ThenBy(x => x.Name).ToList();
 
 			// Add the folders for each project
-			TreeNode[] ProjectParentNodes = new TreeNode[ProjectNodes.Count];
-			for(int Idx = 0; Idx < ProjectNodes.Count; Idx++)
+			TreeNode[] projectParentNodes = new TreeNode[projectNodes.Count];
+			for(int idx = 0; idx < projectNodes.Count; idx++)
 			{
-				TreeNode ParentNode = RootNode;
-				if(ProjectNodes[Idx].Folder.Length > 0)
+				TreeNode parentNode = rootNode;
+				if(projectNodes[idx].Folder.Length > 0)
 				{
-					string[] Fragments = ProjectNodes[Idx].Folder.Split(new char[]{ '/' }, StringSplitOptions.RemoveEmptyEntries);
-					foreach(string Fragment in Fragments)
+					string[] fragments = projectNodes[idx].Folder.Split(new char[]{ '/' }, StringSplitOptions.RemoveEmptyEntries);
+					foreach(string fragment in fragments)
 					{
-						ParentNode = FindOrAddChildNode(ParentNode, Fragment, 0);
+						parentNode = FindOrAddChildNode(parentNode, fragment, 0);
 					}
 				}
-				ProjectParentNodes[Idx] = ParentNode;
+				projectParentNodes[idx] = parentNode;
 			}
 
 			// Add the actual project nodes themselves
-			for(int Idx = 0; Idx < ProjectNodes.Count; Idx++)
+			for(int idx = 0; idx < projectNodes.Count; idx++)
 			{
-				TreeNode Node = FindOrAddChildNode(ProjectParentNodes[Idx], ProjectNodes[Idx].Name, 1);
-				Node.Tag = ProjectNodes[Idx].FullName;
+				TreeNode node = FindOrAddChildNode(projectParentNodes[idx], projectNodes[idx].Name, 1);
+				node.Tag = projectNodes[idx].FullName;
 
-				if(String.Compare(ProjectNodes[Idx].FullName, SelectedProjectFile, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(String.Compare(projectNodes[idx].FullName, _selectedProjectFile, StringComparison.InvariantCultureIgnoreCase) == 0)
 				{
-					ProjectTreeView.SelectedNode = Node;
-					for(TreeNode ParentNode = Node.Parent; ParentNode != RootNode; ParentNode = ParentNode.Parent)
+					ProjectTreeView.SelectedNode = node;
+					for(TreeNode parentNode = node.Parent; parentNode != rootNode; parentNode = parentNode.Parent)
 					{
-						ParentNode.Expand();
+						parentNode.Expand();
 					}
 				}
 			}
 		}
 
-		static TreeNode FindOrAddChildNode(TreeNode ParentNode, string Text, int ImageIndex)
+		static TreeNode FindOrAddChildNode(TreeNode parentNode, string text, int imageIndex)
 		{
-			foreach(TreeNode? ChildNode in ParentNode.Nodes)
+			foreach(TreeNode? childNode in parentNode.Nodes)
 			{
-				if(ChildNode != null && String.Compare(ChildNode.Text, Text, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(childNode != null && String.Compare(childNode.Text, text, StringComparison.InvariantCultureIgnoreCase) == 0)
 				{
-					return ChildNode;
+					return childNode;
 				}
 			}
 
-			TreeNode NextNode = new TreeNode(Text);
-			NextNode.ImageIndex = ImageIndex;
-			NextNode.SelectedImageIndex = ImageIndex;
-			ParentNode.Nodes.Add(NextNode);
-			return NextNode;
+			TreeNode nextNode = new TreeNode(text);
+			nextNode.ImageIndex = imageIndex;
+			nextNode.SelectedImageIndex = imageIndex;
+			parentNode.Nodes.Add(nextNode);
+			return nextNode;
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, string WorkspacePath, IServiceProvider ServiceProvider, [NotNullWhen(true)] out string? NewWorkspacePath)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings perforce, string workspaceName, string workspacePath, IServiceProvider serviceProvider, [NotNullWhen(true)] out string? newWorkspacePath)
 		{
-			Perforce = new PerforceSettings(Perforce) { ClientName = WorkspaceName };
+			perforce = new PerforceSettings(perforce) { ClientName = workspaceName };
 
-			ILogger Logger = ServiceProvider.GetRequiredService<ILogger<SelectProjectFromWorkspaceWindow>>();
+			ILogger logger = serviceProvider.GetRequiredService<ILogger<SelectProjectFromWorkspaceWindow>>();
 
-			ModalTask<List<string>>? PathsTask = PerforceModalTask.Execute(Owner, "Finding Projects", "Finding projects, please wait...", Perforce, (p, c) => EnumerateWorkspaceProjectsTask.RunAsync(p, WorkspaceName, c), Logger);
-			if(PathsTask == null || !PathsTask.Succeeded)
+			ModalTask<List<string>>? pathsTask = PerforceModalTask.Execute(owner, "Finding Projects", "Finding projects, please wait...", perforce, (p, c) => EnumerateWorkspaceProjectsTask.RunAsync(p, workspaceName, c), logger);
+			if(pathsTask == null || !pathsTask.Succeeded)
 			{
-				NewWorkspacePath = null;
+				newWorkspacePath = null;
 				return false;
 			}
 
-			SelectProjectFromWorkspaceWindow SelectProjectWindow = new SelectProjectFromWorkspaceWindow(WorkspaceName, PathsTask.Result, WorkspacePath);
-			if(SelectProjectWindow.ShowDialog() == DialogResult.OK && !String.IsNullOrEmpty(SelectProjectWindow.SelectedProjectFile))
+			SelectProjectFromWorkspaceWindow selectProjectWindow = new SelectProjectFromWorkspaceWindow(workspaceName, pathsTask.Result, workspacePath);
+			if(selectProjectWindow.ShowDialog() == DialogResult.OK && !String.IsNullOrEmpty(selectProjectWindow._selectedProjectFile))
 			{
-				NewWorkspacePath = SelectProjectWindow.SelectedProjectFile;
+				newWorkspacePath = selectProjectWindow._selectedProjectFile;
 				return true;
 			}
 			else
 			{
-				NewWorkspacePath = null;
+				newWorkspacePath = null;
 				return false;
 			}
 		}
@@ -232,7 +232,7 @@ namespace UnrealGameSync
 		{
 			if(ProjectTreeView.SelectedNode != null && ProjectTreeView.SelectedNode.Tag != null)
 			{
-				SelectedProjectFile = (string)ProjectTreeView.SelectedNode.Tag;
+				_selectedProjectFile = (string)ProjectTreeView.SelectedNode.Tag;
 				DialogResult = DialogResult.OK;
 				Close();
 			}

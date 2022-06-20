@@ -12,50 +12,50 @@ namespace UnrealGameSync
 {
 	internal class GlobalPerforceSettings
 	{
-		public static void ReadGlobalPerforceSettings(ref string? ServerAndPort, ref string? UserName, ref string? DepotPath, ref bool bPreview)
+		public static void ReadGlobalPerforceSettings(ref string? serverAndPort, ref string? userName, ref string? depotPath, ref bool preview)
 		{
-			using (RegistryKey? Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\UnrealGameSync", false))
+			using (RegistryKey? key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\UnrealGameSync", false))
 			{
-				if (Key != null)
+				if (key != null)
 				{
-					ServerAndPort = Key.GetValue("ServerAndPort", ServerAndPort) as string;
-					UserName = Key.GetValue("UserName", UserName) as string;
-					DepotPath = Key.GetValue("DepotPath", DepotPath) as string;
-					bPreview = ((Key.GetValue("Preview", bPreview? 1 : 0) as int?) ?? 0) != 0;
+					serverAndPort = key.GetValue("ServerAndPort", serverAndPort) as string;
+					userName = key.GetValue("UserName", userName) as string;
+					depotPath = key.GetValue("DepotPath", depotPath) as string;
+					preview = ((key.GetValue("Preview", preview? 1 : 0) as int?) ?? 0) != 0;
 
 					// Fix corrupted depot path string
-					if (DepotPath != null)
+					if (depotPath != null)
 					{
-						Match Match = Regex.Match(DepotPath, "^(.*)/(Release|UnstableRelease)/\\.\\.\\.@.*$");
-						if (Match.Success)
+						Match match = Regex.Match(depotPath, "^(.*)/(Release|UnstableRelease)/\\.\\.\\.@.*$");
+						if (match.Success)
 						{
-							DepotPath = Match.Groups[1].Value;
-							SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath, bPreview);
+							depotPath = match.Groups[1].Value;
+							SaveGlobalPerforceSettings(serverAndPort, userName, depotPath, preview);
 						}
 					}
 				}
 			}
 		}
 
-		public static void DeleteRegistryKey(RegistryKey RootKey, string KeyName, string ValueName)
+		public static void DeleteRegistryKey(RegistryKey rootKey, string keyName, string valueName)
 		{
-			using (RegistryKey? Key = RootKey.OpenSubKey(KeyName, true))
+			using (RegistryKey? key = rootKey.OpenSubKey(keyName, true))
 			{
-				if (Key != null)
+				if (key != null)
 				{
-					DeleteRegistryKey(Key, ValueName);
+					DeleteRegistryKey(key, valueName);
 				}
 			}
 		}
 
-		public static void DeleteRegistryKey(RegistryKey Key, string Name)
+		public static void DeleteRegistryKey(RegistryKey key, string name)
 		{
-			string[] ValueNames = Key.GetValueNames();
-			if (ValueNames.Any(x => String.Compare(x, Name, StringComparison.OrdinalIgnoreCase) == 0))
+			string[] valueNames = key.GetValueNames();
+			if (valueNames.Any(x => String.Compare(x, name, StringComparison.OrdinalIgnoreCase) == 0))
 			{
 				try
 				{
-					Key.DeleteValue(Name);
+					key.DeleteValue(name);
 				}
 				catch
 				{
@@ -63,55 +63,55 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void SaveGlobalPerforceSettings(string? ServerAndPort, string? UserName, string? DepotPath, bool bPreview)
+		public static void SaveGlobalPerforceSettings(string? serverAndPort, string? userName, string? depotPath, bool preview)
 		{
 			try
 			{
-				using (RegistryKey Key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Epic Games\\UnrealGameSync"))
+				using (RegistryKey key = Registry.CurrentUser.CreateSubKey("SOFTWARE\\Epic Games\\UnrealGameSync"))
 				{
 					// Delete this legacy setting
-					DeleteRegistryKey(Key, "Server");
+					DeleteRegistryKey(key, "Server");
 
-					if (String.IsNullOrEmpty(ServerAndPort))
+					if (String.IsNullOrEmpty(serverAndPort))
 					{
-						try { Key.DeleteValue("ServerAndPort"); } catch (Exception) { }
+						try { key.DeleteValue("ServerAndPort"); } catch (Exception) { }
 					}
 					else
 					{
-						Key.SetValue("ServerAndPort", ServerAndPort);
+						key.SetValue("ServerAndPort", serverAndPort);
 					}
 
-					if (String.IsNullOrEmpty(UserName))
+					if (String.IsNullOrEmpty(userName))
 					{
-						try { Key.DeleteValue("UserName"); } catch (Exception) { }
+						try { key.DeleteValue("UserName"); } catch (Exception) { }
 					}
 					else
 					{
-						Key.SetValue("UserName", UserName);
+						key.SetValue("UserName", userName);
 					}
 
-					if (String.IsNullOrEmpty(DepotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(DepotPath, DeploymentSettings.DefaultDepotPath, StringComparison.InvariantCultureIgnoreCase)))
+					if (String.IsNullOrEmpty(depotPath) || (DeploymentSettings.DefaultDepotPath != null && String.Equals(depotPath, DeploymentSettings.DefaultDepotPath, StringComparison.InvariantCultureIgnoreCase)))
 					{
-						DeleteRegistryKey(Key, "DepotPath");
+						DeleteRegistryKey(key, "DepotPath");
 					}
 					else
 					{
-						Key.SetValue("DepotPath", DepotPath);
+						key.SetValue("DepotPath", depotPath);
 					}
 
-					if (bPreview)
+					if (preview)
 					{
-						Key.SetValue("Preview", 1);
+						key.SetValue("Preview", 1);
 					}
 					else
 					{
-						try { Key.DeleteValue("Preview"); } catch (Exception) { }
+						try { key.DeleteValue("Preview"); } catch (Exception) { }
 					}
 				}
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				MessageBox.Show("Unable to save settings.\n\n" + Ex.ToString());
+				MessageBox.Show("Unable to save settings.\n\n" + ex.ToString());
 			}
 		}
 	}

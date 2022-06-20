@@ -9,52 +9,52 @@ namespace UnrealGameSync
 {
 	class TelemetryStopwatch : IDisposable
 	{
-		readonly string EventName;
-		readonly Dictionary<string, object?> EventData;
-		readonly Stopwatch Timer;
+		readonly string _eventName;
+		readonly Dictionary<string, object?> _eventData;
+		readonly Stopwatch _timer;
 
-		public TelemetryStopwatch(string EventName, string Project)
+		public TelemetryStopwatch(string eventName, string project)
 		{
-			this.EventName = EventName;
+			this._eventName = eventName;
 
-			EventData = new Dictionary<string, object?>();
-			EventData["Project"] = Project;
+			_eventData = new Dictionary<string, object?>();
+			_eventData["Project"] = project;
 
-			Timer = Stopwatch.StartNew();
+			_timer = Stopwatch.StartNew();
 		}
 
-		public void AddData(object Data)
+		public void AddData(object data)
 		{
-			foreach (PropertyInfo Property in Data.GetType().GetProperties())
+			foreach (PropertyInfo property in data.GetType().GetProperties())
 			{
-				EventData[Property.Name] = Property.GetValue(Data);
+				_eventData[property.Name] = property.GetValue(data);
 			}
 		}
 
-		public TimeSpan Stop(string InResult)
+		public TimeSpan Stop(string inResult)
 		{
-			if (Timer.IsRunning)
+			if (_timer.IsRunning)
 			{
-				Timer.Stop();
+				_timer.Stop();
 
-				EventData["Result"] = InResult;
-				EventData["TimeSeconds"] = Timer.Elapsed.TotalSeconds;
+				_eventData["Result"] = inResult;
+				_eventData["TimeSeconds"] = _timer.Elapsed.TotalSeconds;
 			}
 			return Elapsed;
 		}
 
 		public void Dispose()
 		{
-			if (Timer.IsRunning)
+			if (_timer.IsRunning)
 			{
 				Stop("Aborted");
 			}
-			Telemetry.SendEvent(EventName, EventData);
+			Telemetry.SendEvent(_eventName, _eventData);
 		}
 
 		public TimeSpan Elapsed
 		{
-			get { return Timer.Elapsed; }
+			get { return _timer.Elapsed; }
 		}
 	}
 }

@@ -23,111 +23,111 @@ namespace UnrealGameSync
 
 	public partial class NotificationWindow : Form
 	{
-		NotificationType Type;
+		NotificationType _type;
 
 		// Logo
-		Rectangle LogoBounds;
-		Bitmap? LogoBitmap;
+		Rectangle _logoBounds;
+		Bitmap? _logoBitmap;
 
 		// Caption
-		Rectangle CaptionBounds;
-		string CaptionText = "Caption Text";
-		Font? CaptionFont;
+		Rectangle _captionBounds;
+		string _captionText = "Caption Text";
+		Font? _captionFont;
 
 		// Message
-		Rectangle MessageBounds;
-		string MessageText = "Mesage Text";
+		Rectangle _messageBounds;
+		string _messageText = "Mesage Text";
 
 		// Close button
-		Rectangle CloseButtonBounds;
-		bool bHoverOverClose;
-		bool bMouseDownOverClose;
+		Rectangle _closeButtonBounds;
+		bool _hoverOverClose;
+		bool _mouseDownOverClose;
 
 		// Notifications
 		public Action? OnMoreInformation;
 		public Action? OnDismiss;
 
-		public NotificationWindow(Image InLogo)
+		public NotificationWindow(Image inLogo)
 		{
-			LogoBitmap = new Bitmap(InLogo);
+			_logoBitmap = new Bitmap(inLogo);
 			InitializeComponent();
 		}
 
-		public void Show(NotificationType InType, string InCaption, string InMessage)
+		public void Show(NotificationType inType, string inCaption, string inMessage)
 		{
-			Type = InType;
-			CaptionText = InCaption;
-			MessageText = InMessage;
+			_type = inType;
+			_captionText = inCaption;
+			_messageText = inMessage;
 
 			base.Show();
 
 			CalculateBounds();
 
-			Rectangle WorkingArea = Screen.PrimaryScreen.WorkingArea;
-			Location = new Point(WorkingArea.Right - Size.Width - 16, WorkingArea.Bottom - Size.Height - 16);
+			Rectangle workingArea = Screen.PrimaryScreen.WorkingArea;
+			Location = new Point(workingArea.Right - Size.Width - 16, workingArea.Bottom - Size.Height - 16);
 
 			BringToFront();
 			Invalidate();
 		}
 
-		protected override void Dispose(bool bDisposing)
+		protected override void Dispose(bool disposing)
 		{
-			if(bDisposing && LogoBitmap != null)
+			if(disposing && _logoBitmap != null)
 			{
-				LogoBitmap.Dispose();
-				LogoBitmap = null;
+				_logoBitmap.Dispose();
+				_logoBitmap = null;
 			}
-			if(bDisposing && components != null)
+			if(disposing && components != null)
 			{
 				components.Dispose();
 			}
-			base.Dispose(bDisposing);
+			base.Dispose(disposing);
 		}
 
 		protected override void OnClosed(EventArgs e)
 		{
 			base.OnClosed(e);
 
-			if(LogoBitmap != null)
+			if(_logoBitmap != null)
 			{
-				LogoBitmap.Dispose();
-				LogoBitmap = null;
+				_logoBitmap.Dispose();
+				_logoBitmap = null;
 			}
 		}
 
 		public void CalculateBounds()
 		{
-			int ReferenceSize8 = (int)(8 * Font.Height) / 16;
-			using(Graphics Graphics = CreateGraphics())
+			int referenceSize8 = (int)(8 * Font.Height) / 16;
+			using(Graphics graphics = CreateGraphics())
 			{
-				int GutterW = ReferenceSize8 + ReferenceSize8 / 2;
-				int GutterH = ReferenceSize8 + ReferenceSize8 / 2;
+				int gutterW = referenceSize8 + referenceSize8 / 2;
+				int gutterH = referenceSize8 + referenceSize8 / 2;
 
 				// Get the close button size
-				int CloseButtonSize = ReferenceSize8 * 2;
+				int closeButtonSize = referenceSize8 * 2;
 
 				// Space out the text
-				int CaptionY = GutterH;
-				int CaptionW = TextRenderer.MeasureText(Graphics, CaptionText, CaptionFont ?? Font, new Size(100 * ReferenceSize8, Font.Height), TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine).Width;
-				int CaptionH = (CaptionFont ?? Font).Height;
+				int captionY = gutterH;
+				int captionW = TextRenderer.MeasureText(graphics, _captionText, _captionFont ?? Font, new Size(100 * referenceSize8, Font.Height), TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine).Width;
+				int captionH = (_captionFont ?? Font).Height;
 
-				int MessageY = CaptionY + CaptionH + ReferenceSize8 / 2;
-				int MessageW = TextRenderer.MeasureText(Graphics, MessageText, Font, new Size(100 * ReferenceSize8, Font.Height), TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine).Width;
-				int MessageH = Font.Height;
+				int messageY = captionY + captionH + referenceSize8 / 2;
+				int messageW = TextRenderer.MeasureText(graphics, _messageText, Font, new Size(100 * referenceSize8, Font.Height), TextFormatFlags.Left | TextFormatFlags.Top | TextFormatFlags.SingleLine).Width;
+				int messageH = Font.Height;
 
 				// Get the logo dimensions
-				int LogoH = MessageY + MessageH - GutterH;
-				int LogoW = (LogoBitmap == null)? 16 : (int)(LogoBitmap.Width * (float)LogoH / (float)LogoBitmap.Height);
+				int logoH = messageY + messageH - gutterH;
+				int logoW = (_logoBitmap == null)? 16 : (int)(_logoBitmap.Width * (float)logoH / (float)_logoBitmap.Height);
 
 				// Set the window size
-				int TextX = GutterW + LogoW + ReferenceSize8 * 2;
-				Size = new Size(TextX + Math.Max(MessageW, CaptionW) + CloseButtonSize + GutterW, MessageY + MessageH + GutterH);
+				int textX = gutterW + logoW + referenceSize8 * 2;
+				Size = new Size(textX + Math.Max(messageW, captionW) + closeButtonSize + gutterW, messageY + messageH + gutterH);
 
 				// Set the bounds of the individual elements
-				CloseButtonBounds = new Rectangle(Width - GutterW - CloseButtonSize, GutterH, CloseButtonSize, CloseButtonSize);
-				LogoBounds = new Rectangle(GutterW + ReferenceSize8, (Height - LogoH) / 2, LogoW, LogoH);
-				CaptionBounds = new Rectangle(TextX, CaptionY, CaptionW, CaptionH);
-				MessageBounds = new Rectangle(TextX, MessageY, MessageW, MessageH);
+				_closeButtonBounds = new Rectangle(Width - gutterW - closeButtonSize, gutterH, closeButtonSize, closeButtonSize);
+				_logoBounds = new Rectangle(gutterW + referenceSize8, (Height - logoH) / 2, logoW, logoH);
+				_captionBounds = new Rectangle(textX, captionY, captionW, captionH);
+				_messageBounds = new Rectangle(textX, messageY, messageW, messageH);
 			}
 		}
 
@@ -135,11 +135,11 @@ namespace UnrealGameSync
 		{
 			base.OnFontChanged(e);
 
-			if(CaptionFont != null)
+			if(_captionFont != null)
 			{
-				CaptionFont.Dispose();
+				_captionFont.Dispose();
 			}
-			CaptionFont = new Font(this.Font.Name, this.Font.Size * (12.0f / 9.0f), FontStyle.Regular);
+			_captionFont = new Font(this.Font.Name, this.Font.Size * (12.0f / 9.0f), FontStyle.Regular);
 
 			CalculateBounds();
 			Invalidate();
@@ -162,11 +162,11 @@ namespace UnrealGameSync
 		{
 			base.OnMouseMove(e);
 
-			bool bNewHoverOverClose = CloseButtonBounds.Contains(e.Location);
-			if(bHoverOverClose != bNewHoverOverClose)
+			bool newHoverOverClose = _closeButtonBounds.Contains(e.Location);
+			if(_hoverOverClose != newHoverOverClose)
 			{
-				bHoverOverClose = bNewHoverOverClose;
-				Invalidate(CloseButtonBounds);
+				_hoverOverClose = newHoverOverClose;
+				Invalidate(_closeButtonBounds);
 			}
 		}
 
@@ -176,8 +176,8 @@ namespace UnrealGameSync
 
 			if(e.Button == System.Windows.Forms.MouseButtons.Left)
 			{
-				bMouseDownOverClose = CloseButtonBounds.Contains(e.Location);
-				Invalidate(CloseButtonBounds);
+				_mouseDownOverClose = _closeButtonBounds.Contains(e.Location);
+				Invalidate(_closeButtonBounds);
 			}
 		}
 
@@ -187,10 +187,10 @@ namespace UnrealGameSync
 
 			if(e.Button == System.Windows.Forms.MouseButtons.Left)
 			{
-				if(bMouseDownOverClose)
+				if(_mouseDownOverClose)
 				{
-					bMouseDownOverClose = false;
-					Invalidate(CloseButtonBounds);
+					_mouseDownOverClose = false;
+					Invalidate(_closeButtonBounds);
 					Hide();
 					if(OnDismiss != null)
 					{
@@ -212,29 +212,29 @@ namespace UnrealGameSync
 		{
 			base.OnPaintBackground(e);
 
-			Color TintColor;
-			switch(Type)
+			Color tintColor;
+			switch(_type)
 			{
 				case NotificationType.Warning:
-					TintColor = Color.FromArgb(240, 240, 220);
+					tintColor = Color.FromArgb(240, 240, 220);
 					break;
 				case NotificationType.Error:
-					TintColor = Color.FromArgb(240, 220, 220);
+					tintColor = Color.FromArgb(240, 220, 220);
 					break;
 				default:
-					TintColor = Color.FromArgb(220, 220, 240);
+					tintColor = Color.FromArgb(220, 220, 240);
 					break;
 			}
 
-			using(Brush BackgroundBrush = new LinearGradientBrush(new Point(0, 0), new Point(0, Height), Color.White, TintColor))
+			using(Brush backgroundBrush = new LinearGradientBrush(new Point(0, 0), new Point(0, Height), Color.White, tintColor))
 			{
-				e.Graphics.FillRectangle(BackgroundBrush, ClientRectangle);
+				e.Graphics.FillRectangle(backgroundBrush, ClientRectangle);
 			}
 
 			e.Graphics.DrawRectangle(Pens.Black, new Rectangle(0, 0, Width - 1, Height - 1));
 
 			e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-			e.Graphics.DrawImage(LogoBitmap, LogoBounds);
+			e.Graphics.DrawImage(_logoBitmap, _logoBounds);
 		}
 
 		protected override void OnPaint(PaintEventArgs e)
@@ -244,33 +244,33 @@ namespace UnrealGameSync
 			e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
 			// Draw the close button
-			if(bHoverOverClose)
+			if(_hoverOverClose)
 			{
-				e.Graphics.FillRectangle(SystemBrushes.ActiveCaption, CloseButtonBounds);
+				e.Graphics.FillRectangle(SystemBrushes.ActiveCaption, _closeButtonBounds);
 			}
-			else if(bMouseDownOverClose)
+			else if(_mouseDownOverClose)
 			{
-				e.Graphics.FillRectangle(SystemBrushes.InactiveCaption, CloseButtonBounds);
+				e.Graphics.FillRectangle(SystemBrushes.InactiveCaption, _closeButtonBounds);
 			}
-			if(bHoverOverClose || bMouseDownOverClose)
+			if(_hoverOverClose || _mouseDownOverClose)
 			{
-				using(Pen BorderPen = new Pen(SystemColors.InactiveCaptionText, 1.0f))
+				using(Pen borderPen = new Pen(SystemColors.InactiveCaptionText, 1.0f))
 				{
-					e.Graphics.DrawRectangle(BorderPen, new Rectangle(CloseButtonBounds.X, CloseButtonBounds.Y, CloseButtonBounds.Width - 1, CloseButtonBounds.Height - 1));
+					e.Graphics.DrawRectangle(borderPen, new Rectangle(_closeButtonBounds.X, _closeButtonBounds.Y, _closeButtonBounds.Width - 1, _closeButtonBounds.Height - 1));
 				}
 			}
-			using(Pen CrossPen = new Pen(Brushes.Black, 2.0f))
+			using(Pen crossPen = new Pen(Brushes.Black, 2.0f))
 			{
-				float Offset = (CloseButtonBounds.Width - 1) / 4.0f;
-				e.Graphics.DrawLine(CrossPen, CloseButtonBounds.Left + Offset, CloseButtonBounds.Top + Offset, CloseButtonBounds.Right - 1 - Offset, CloseButtonBounds.Bottom - 1 - Offset);
-				e.Graphics.DrawLine(CrossPen, CloseButtonBounds.Left + Offset, CloseButtonBounds.Bottom - 1 - Offset, CloseButtonBounds.Right - 1 - Offset, CloseButtonBounds.Top + Offset);
+				float offset = (_closeButtonBounds.Width - 1) / 4.0f;
+				e.Graphics.DrawLine(crossPen, _closeButtonBounds.Left + offset, _closeButtonBounds.Top + offset, _closeButtonBounds.Right - 1 - offset, _closeButtonBounds.Bottom - 1 - offset);
+				e.Graphics.DrawLine(crossPen, _closeButtonBounds.Left + offset, _closeButtonBounds.Bottom - 1 - offset, _closeButtonBounds.Right - 1 - offset, _closeButtonBounds.Top + offset);
 			}
 
 			// Draw the caption
-			TextRenderer.DrawText(e.Graphics, CaptionText, CaptionFont, CaptionBounds, SystemColors.HotTrack, TextFormatFlags.Left);
+			TextRenderer.DrawText(e.Graphics, _captionText, _captionFont, _captionBounds, SystemColors.HotTrack, TextFormatFlags.Left);
 
 			// Draw the message
-			TextRenderer.DrawText(e.Graphics, MessageText, Font, MessageBounds, SystemColors.ControlText, TextFormatFlags.Left);
+			TextRenderer.DrawText(e.Graphics, _messageText, Font, _messageBounds, SystemColors.ControlText, TextFormatFlags.Left);
 		}
 	}
 }

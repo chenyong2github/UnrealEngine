@@ -15,7 +15,7 @@ namespace UnrealGameSync.Controls
 {
 	public partial class SyncFilterControl : UserControl
 	{
-		HashSet<string> StripLines = new HashSet<string>()
+		HashSet<string> _stripLines = new HashSet<string>()
 		{
 			"; Rules are specified one per line, and may use any standard Perforce wildcards:",
 			";    ?    Matches one character.",
@@ -33,13 +33,13 @@ namespace UnrealGameSync.Controls
 
 		private void SyntaxButton_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			SyncFilterSyntax Dialog = new SyncFilterSyntax();
-			Dialog.ShowDialog(ParentForm);
+			SyncFilterSyntax dialog = new SyncFilterSyntax();
+			dialog.ShowDialog(ParentForm);
 		}
 
-		public void SetView(string[] View)
+		public void SetView(string[] view)
 		{
-			ViewTextBox.Lines = View.Where(x => !StripLines.Contains(x.Trim())).SkipWhile(x => x.Trim().Length == 0 || x.Trim() == ";").ToArray();
+			ViewTextBox.Lines = view.Where(x => !_stripLines.Contains(x.Trim())).SkipWhile(x => x.Trim().Length == 0 || x.Trim() == ";").ToArray();
 			ViewTextBox.Select(ViewTextBox.Text.Length, 0);
 		}
 

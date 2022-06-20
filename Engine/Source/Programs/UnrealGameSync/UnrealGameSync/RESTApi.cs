@@ -14,8 +14,8 @@ namespace UnrealGameSync
 {
 	class RestException : Exception
 	{
-		public RestException(string Method, string Uri, Exception InnerException)
-			: base(String.Format("Error executing {0} {1}", Method, Uri), InnerException)
+		public RestException(string method, string uri, Exception innerException)
+			: base(String.Format("Error executing {0} {1}", method, uri), innerException)
 		{
 		}
 
@@ -25,63 +25,63 @@ namespace UnrealGameSync
 		}
 	}
 
-	public static class RESTApi
+	public static class RestApi
 	{
-		private static async Task<string> SendRequestInternal(string Url, string Method, string? RequestBody, CancellationToken CancellationToken)
+		private static async Task<string> SendRequestInternal(string url, string method, string? requestBody, CancellationToken cancellationToken)
 		{
-			HttpWebRequest Request = (HttpWebRequest)WebRequest.Create(Url);
-			Request.ContentType = "application/json";
-			Request.Method = Method;
+			HttpWebRequest request = (HttpWebRequest)WebRequest.Create(url);
+			request.ContentType = "application/json";
+			request.Method = method;
 
 			// Add json to request body
-			if (!string.IsNullOrEmpty(RequestBody))
+			if (!string.IsNullOrEmpty(requestBody))
 			{
-				if (Method == "POST" || Method == "PUT")
+				if (method == "POST" || method == "PUT")
 				{
-					byte[] bytes = Encoding.UTF8.GetBytes(RequestBody);
-					using (Stream RequestStream = Request.GetRequestStream())
+					byte[] bytes = Encoding.UTF8.GetBytes(requestBody);
+					using (Stream requestStream = request.GetRequestStream())
 					{
-						await RequestStream.WriteAsync(bytes, 0, bytes.Length, CancellationToken);
+						await requestStream.WriteAsync(bytes, 0, bytes.Length, cancellationToken);
 					}
 				}
 			}
 			try
 			{
-				using (WebResponse Response = Request.GetResponse())
+				using (WebResponse response = request.GetResponse())
 				{
-					byte[] Data;
-					using (MemoryStream Buffer = new MemoryStream())
+					byte[] data;
+					using (MemoryStream buffer = new MemoryStream())
 					{
-						await Response.GetResponseStream().CopyToAsync(Buffer, CancellationToken);
-						Data = Buffer.ToArray();
+						await response.GetResponseStream().CopyToAsync(buffer, cancellationToken);
+						data = buffer.ToArray();
 					}
-					return Encoding.UTF8.GetString(Data);
+					return Encoding.UTF8.GetString(data);
 				}
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				throw new RestException(Method, Request.RequestUri.ToString(), Ex);
+				throw new RestException(method, request.RequestUri.ToString(), ex);
 			}
 		}
 
-		public static Task<string> PostAsync(string Url, string RequestBody, CancellationToken CancellationToken)
+		public static Task<string> PostAsync(string url, string requestBody, CancellationToken cancellationToken)
 		{
-			return SendRequestInternal(Url, "POST", RequestBody, CancellationToken);
+			return SendRequestInternal(url, "POST", requestBody, cancellationToken);
 		}
 
-		public static Task<string> GetAsync(string Url, CancellationToken CancellationToken)
+		public static Task<string> GetAsync(string url, CancellationToken cancellationToken)
 		{
-			return SendRequestInternal(Url, "GET", null, CancellationToken);
+			return SendRequestInternal(url, "GET", null, cancellationToken);
 		}
 
-		public static async Task<T> GetAsync<T>(string Url, CancellationToken CancellationToken)
+		public static async Task<T> GetAsync<T>(string url, CancellationToken cancellationToken)
 		{
-			return JsonSerializer.Deserialize<T>(await GetAsync(Url, CancellationToken), Utility.DefaultJsonSerializerOptions);
+			return JsonSerializer.Deserialize<T>(await GetAsync(url, cancellationToken), Utility.DefaultJsonSerializerOptions);
 		}
 
-		public static Task<string> PutAsync<T>(string Url, T Object, CancellationToken CancellationToken)
+		public static Task<string> PutAsync<T>(string url, T obj, CancellationToken cancellationToken)
 		{
-			return SendRequestInternal(Url, "PUT", JsonSerializer.Serialize(Object), CancellationToken);
+			return SendRequestInternal(url, "PUT", JsonSerializer.Serialize(obj), cancellationToken);
 		}
 	}
 }

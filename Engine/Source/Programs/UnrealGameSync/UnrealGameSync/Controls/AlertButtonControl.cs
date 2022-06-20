@@ -69,22 +69,22 @@ namespace UnrealGameSync
 			}
 		}
 
-		AlertButtonTheme ThemeValue;
-		AlertButtonColors Colors;
-		AlertButtonColors CustomColorsValue;
-		bool bMouseOver;
-		bool bMouseDown;
+		AlertButtonTheme _themeValue;
+		AlertButtonColors _colors;
+		AlertButtonColors _customColorsValue;
+		bool _mouseOver;
+		bool _mouseDown;
 
 		public AlertButtonTheme Theme
 		{
-			get { return ThemeValue; }
-			set { ThemeValue = value; UpdateThemeColors(); }
+			get { return _themeValue; }
+			set { _themeValue = value; UpdateThemeColors(); }
 		}
 
 		public AlertButtonColors CustomColors
 		{
-			get { return CustomColorsValue; }
-			set { CustomColorsValue = value; UpdateThemeColors(); }
+			get { return _customColorsValue; }
+			set { _customColorsValue = value; UpdateThemeColors(); }
 		}
 
 		public AlertButtonControl()
@@ -98,51 +98,51 @@ namespace UnrealGameSync
 			switch(Theme)
 			{
 				case AlertButtonTheme.Normal:
-					Colors.ForeColor = Color.FromArgb(64, 86, 106);
-					Colors.BorderColor = Color.FromArgb(230, 232, 235);
-					Colors.BackgroundColor1 = Color.FromArgb(255, 255, 255);
-					Colors.BackgroundColor2 = Color.FromArgb(244, 245, 247);
-					Colors.BackgroundColorHover1 = Color.FromArgb(244, 245, 247);
-					Colors.BackgroundColorHover2 = Color.FromArgb(244, 245, 247);
-					Colors.BackgroundColorDown1 = Color.FromArgb(234, 235, 237);
-					Colors.BackgroundColorDown2 = Color.FromArgb(234, 235, 237);
+					_colors.ForeColor = Color.FromArgb(64, 86, 106);
+					_colors.BorderColor = Color.FromArgb(230, 232, 235);
+					_colors.BackgroundColor1 = Color.FromArgb(255, 255, 255);
+					_colors.BackgroundColor2 = Color.FromArgb(244, 245, 247);
+					_colors.BackgroundColorHover1 = Color.FromArgb(244, 245, 247);
+					_colors.BackgroundColorHover2 = Color.FromArgb(244, 245, 247);
+					_colors.BackgroundColorDown1 = Color.FromArgb(234, 235, 237);
+					_colors.BackgroundColorDown2 = Color.FromArgb(234, 235, 237);
 					break;
 				case AlertButtonTheme.Green:
-					Colors.ForeColor = Color.FromArgb(255, 255, 255);
-					Colors.BorderColor = Color.FromArgb(143, 199, 156);
-					Colors.BackgroundColor1 = Color.FromArgb(116, 192, 134);
-					Colors.BackgroundColor2 = Color.FromArgb(99, 175, 117);
-					Colors.BackgroundColorHover1 = Color.FromArgb(99, 175, 117);
-					Colors.BackgroundColorHover2 = Color.FromArgb(99, 175, 117);
-					Colors.BackgroundColorDown1 = Color.FromArgb(90, 165, 107);
-					Colors.BackgroundColorDown2 = Color.FromArgb(90, 165, 107);
+					_colors.ForeColor = Color.FromArgb(255, 255, 255);
+					_colors.BorderColor = Color.FromArgb(143, 199, 156);
+					_colors.BackgroundColor1 = Color.FromArgb(116, 192, 134);
+					_colors.BackgroundColor2 = Color.FromArgb(99, 175, 117);
+					_colors.BackgroundColorHover1 = Color.FromArgb(99, 175, 117);
+					_colors.BackgroundColorHover2 = Color.FromArgb(99, 175, 117);
+					_colors.BackgroundColorDown1 = Color.FromArgb(90, 165, 107);
+					_colors.BackgroundColorDown2 = Color.FromArgb(90, 165, 107);
 					break;
 				case AlertButtonTheme.Red:
-					Colors.ForeColor = Color.FromArgb(255, 255, 255);
-					Colors.BorderColor = Color.FromArgb(230, 232, 235);
-					Colors.BackgroundColor1 = Color.FromArgb(222, 108, 86);
-					Colors.BackgroundColor2 = Color.FromArgb(214, 69, 64);
-					Colors.BackgroundColorHover1 = Color.FromArgb(214, 69, 64);
-					Colors.BackgroundColorHover2 = Color.FromArgb(214, 69, 64);
-					Colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);
-					Colors.BackgroundColorDown2 = Color.FromArgb(204, 59, 54);
+					_colors.ForeColor = Color.FromArgb(255, 255, 255);
+					_colors.BorderColor = Color.FromArgb(230, 232, 235);
+					_colors.BackgroundColor1 = Color.FromArgb(222, 108, 86);
+					_colors.BackgroundColor2 = Color.FromArgb(214, 69, 64);
+					_colors.BackgroundColorHover1 = Color.FromArgb(214, 69, 64);
+					_colors.BackgroundColorHover2 = Color.FromArgb(214, 69, 64);
+					_colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);
+					_colors.BackgroundColorDown2 = Color.FromArgb(204, 59, 54);
 					break;
 				case AlertButtonTheme.Strong:
-					Colors.ForeColor = Color.FromArgb(255, 255, 255);
-					Colors.BorderColor = Color.FromArgb(230, 232, 235);
-					Colors.BackgroundColor1 = Color.FromArgb(200, 74, 49);
-					Colors.BackgroundColor2 = Color.FromArgb(200, 74, 49); 
-					Colors.BackgroundColorHover1 = Color.FromArgb(222, 108, 86);
-					Colors.BackgroundColorHover2 = Color.FromArgb(222, 108, 86);
-					Colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);
-					Colors.BackgroundColorDown2 = Color.FromArgb(204, 59, 54);
+					_colors.ForeColor = Color.FromArgb(255, 255, 255);
+					_colors.BorderColor = Color.FromArgb(230, 232, 235);
+					_colors.BackgroundColor1 = Color.FromArgb(200, 74, 49);
+					_colors.BackgroundColor2 = Color.FromArgb(200, 74, 49); 
+					_colors.BackgroundColorHover1 = Color.FromArgb(222, 108, 86);
+					_colors.BackgroundColorHover2 = Color.FromArgb(222, 108, 86);
+					_colors.BackgroundColorDown1 = Color.FromArgb(204, 59, 54);
+					_colors.BackgroundColorDown2 = Color.FromArgb(204, 59, 54);
 					break;
 				case AlertButtonTheme.Custom:
-					Colors = CustomColorsValue;
+					_colors = _customColorsValue;
 					break;
 			}
 
-			base.ForeColor = Colors.ForeColor;
+			base.ForeColor = _colors.ForeColor;
 			Invalidate();
 		}
 
@@ -150,7 +150,7 @@ namespace UnrealGameSync
 		{
 			base.OnMouseDown(mevent);
 
-			bMouseDown = true;
+			_mouseDown = true;
 			Invalidate();
 		}
 
@@ -158,7 +158,7 @@ namespace UnrealGameSync
 		{
 			base.OnMouseUp(mevent);
 
-			bMouseDown = false;
+			_mouseDown = false;
 			Invalidate();
 		}
 
@@ -166,7 +166,7 @@ namespace UnrealGameSync
 		{
 			base.OnMouseHover(e);
 
-			bMouseOver = true;
+			_mouseOver = true;
 			Invalidate();
 		}
 
@@ -174,38 +174,38 @@ namespace UnrealGameSync
 		{
 			base.OnMouseLeave(e);
 
-			bMouseOver = false;
+			_mouseOver = false;
 			Invalidate();
 		}
 
-		protected override void OnPaint(PaintEventArgs Event)
+		protected override void OnPaint(PaintEventArgs e)
 		{
-			Event.Graphics.FillRectangle(SystemBrushes.Window, 0, 0, Width, Height);
-			using(GraphicsPath Path = new GraphicsPath())
+			e.Graphics.FillRectangle(SystemBrushes.Window, 0, 0, Width, Height);
+			using(GraphicsPath path = new GraphicsPath())
 			{
-				const int Diameter = 4;
+				const int diameter = 4;
 
-				Path.StartFigure();
-				Path.AddArc(Width - 1 - Diameter, Height - 1 - Diameter, Diameter, Diameter, 0, 90);
-				Path.AddArc(0, Height - 1 - Diameter, Diameter, Diameter, 90, 90);
-				Path.AddArc(0, 0, Diameter, Diameter, 180, 90);
-				Path.AddArc(Width - 1 - Diameter, 0, Diameter, Diameter, 270, 90);
-				Path.CloseFigure();
+				path.StartFigure();
+				path.AddArc(Width - 1 - diameter, Height - 1 - diameter, diameter, diameter, 0, 90);
+				path.AddArc(0, Height - 1 - diameter, diameter, diameter, 90, 90);
+				path.AddArc(0, 0, diameter, diameter, 180, 90);
+				path.AddArc(Width - 1 - diameter, 0, diameter, diameter, 270, 90);
+				path.CloseFigure();
 
-				Color BackgroundColorMin = (bMouseDown && bMouseOver)? Colors.BackgroundColorDown1 : bMouseOver? Colors.BackgroundColorHover1 : Colors.BackgroundColor1;
-				Color BackgroundColorMax = (bMouseDown && bMouseOver)? Colors.BackgroundColorDown2 : bMouseOver? Colors.BackgroundColorHover2 : Colors.BackgroundColor2;
+				Color backgroundColorMin = (_mouseDown && _mouseOver)? _colors.BackgroundColorDown1 : _mouseOver? _colors.BackgroundColorHover1 : _colors.BackgroundColor1;
+				Color backgroundColorMax = (_mouseDown && _mouseOver)? _colors.BackgroundColorDown2 : _mouseOver? _colors.BackgroundColorHover2 : _colors.BackgroundColor2;
 
-				using(LinearGradientBrush Brush = new LinearGradientBrush(new Point(0, 0), new Point(0, Height), BackgroundColorMin, BackgroundColorMax))
+				using(LinearGradientBrush brush = new LinearGradientBrush(new Point(0, 0), new Point(0, Height), backgroundColorMin, backgroundColorMax))
 				{
-					Event.Graphics.FillPath(Brush, Path);
+					e.Graphics.FillPath(brush, path);
 				}
-				using(Pen SolidPen = new Pen(Colors.BorderColor))
+				using(Pen solidPen = new Pen(_colors.BorderColor))
 				{
-					Event.Graphics.DrawPath(SolidPen, Path);
+					e.Graphics.DrawPath(solidPen, path);
 				}
 			}
 
-			TextRenderer.DrawText(Event.Graphics, Text, Font, new Rectangle(0, 0, Width, Height), ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+			TextRenderer.DrawText(e.Graphics, Text, Font, new Rectangle(0, 0, Width, Height), ForeColor, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
 		}
 	}
 }

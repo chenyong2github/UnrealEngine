@@ -20,25 +20,25 @@ namespace UnrealGameSync
 		public long Length;
 		public DateTime LastWriteTimeUtc;
 
-		public ArchiveManifestFile(BinaryReader Reader)
+		public ArchiveManifestFile(BinaryReader reader)
 		{
-			FileName = Reader.ReadString();
-			Length = Reader.ReadInt64();
-			LastWriteTimeUtc = new DateTime(Reader.ReadInt64());
+			FileName = reader.ReadString();
+			Length = reader.ReadInt64();
+			LastWriteTimeUtc = new DateTime(reader.ReadInt64());
 		}
 
-		public ArchiveManifestFile(string InFileName, long InLength, DateTime InLastWriteTimeUtc)
+		public ArchiveManifestFile(string inFileName, long inLength, DateTime inLastWriteTimeUtc)
 		{
-			FileName = InFileName;
-			Length = InLength;
-			LastWriteTimeUtc = InLastWriteTimeUtc;
+			FileName = inFileName;
+			Length = inLength;
+			LastWriteTimeUtc = inLastWriteTimeUtc;
 		}
 
-		public void Write(BinaryWriter Writer)
+		public void Write(BinaryWriter writer)
 		{
-			Writer.Write(FileName);
-			Writer.Write(Length);
-			Writer.Write(LastWriteTimeUtc.Ticks);
+			writer.Write(FileName);
+			writer.Write(Length);
+			writer.Write(LastWriteTimeUtc.Ticks);
 		}
 	}
 
@@ -52,111 +52,111 @@ namespace UnrealGameSync
 		{
 		}
 
-		public ArchiveManifest(FileStream InputStream)
+		public ArchiveManifest(FileStream inputStream)
 		{
-			BinaryReader Reader = new BinaryReader(InputStream);
-			if(Reader.ReadInt32() != Signature)
+			BinaryReader reader = new BinaryReader(inputStream);
+			if(reader.ReadInt32() != Signature)
 			{
 				throw new Exception("Archive manifest signature does not match");
 			}
 
-			int NumFiles = Reader.ReadInt32();
-			for(int Idx = 0; Idx < NumFiles; Idx++)
+			int numFiles = reader.ReadInt32();
+			for(int idx = 0; idx < numFiles; idx++)
 			{
-				Files.Add(new ArchiveManifestFile(Reader));
+				Files.Add(new ArchiveManifestFile(reader));
 			}
 		}
 
-		public void Write(FileStream OutputStream)
+		public void Write(FileStream outputStream)
 		{
-			BinaryWriter Writer = new BinaryWriter(OutputStream);
-			Writer.Write(Signature);
-			Writer.Write(Files.Count);
-			foreach(ArchiveManifestFile File in Files)
+			BinaryWriter writer = new BinaryWriter(outputStream);
+			writer.Write(Signature);
+			writer.Write(Files.Count);
+			foreach(ArchiveManifestFile file in Files)
 			{
-				File.Write(Writer);
+				file.Write(writer);
 			}
 		}
 	}
 
 	public static class ArchiveUtils
 	{
-		public static void ExtractFiles(FileReference ArchiveFileName, DirectoryReference BaseDirectoryName, FileReference? ManifestFileName, ProgressValue Progress, ILogger Logger)
+		public static void ExtractFiles(FileReference archiveFileName, DirectoryReference baseDirectoryName, FileReference? manifestFileName, ProgressValue progress, ILogger logger)
 		{
-			DateTime TimeStamp = DateTime.UtcNow;
-			using (ZipArchive Zip = new ZipArchive(File.OpenRead(ArchiveFileName.FullName)))
+			DateTime timeStamp = DateTime.UtcNow;
+			using (ZipArchive zip = new ZipArchive(File.OpenRead(archiveFileName.FullName)))
 			{
-				if (ManifestFileName != null)
+				if (manifestFileName != null)
 				{
-					FileReference.Delete(ManifestFileName);
+					FileReference.Delete(manifestFileName);
 
 					// Create the manifest
-					ArchiveManifest Manifest = new ArchiveManifest();
-					foreach (ZipArchiveEntry Entry in Zip.Entries)
+					ArchiveManifest manifest = new ArchiveManifest();
+					foreach (ZipArchiveEntry entry in zip.Entries)
 					{
-						if (!Entry.FullName.EndsWith("/") && !Entry.FullName.EndsWith("\\"))
+						if (!entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
 						{
-							Manifest.Files.Add(new ArchiveManifestFile(Entry.FullName, Entry.Length, TimeStamp));
+							manifest.Files.Add(new ArchiveManifestFile(entry.FullName, entry.Length, timeStamp));
 						}
 					}
 
 					// Write it out to a temporary file, then move it into place
-					FileReference TempManifestFileName = ManifestFileName + ".tmp";
-					using (FileStream OutputStream = FileReference.Open(TempManifestFileName, FileMode.Create, FileAccess.Write))
+					FileReference tempManifestFileName = manifestFileName + ".tmp";
+					using (FileStream outputStream = FileReference.Open(tempManifestFileName, FileMode.Create, FileAccess.Write))
 					{
-						Manifest.Write(OutputStream);
+						manifest.Write(outputStream);
 					}
-					FileReference.Move(TempManifestFileName, ManifestFileName);
+					FileReference.Move(tempManifestFileName, manifestFileName);
 				}
 
 				// Extract all the files
-				int EntryIdx = 0;
-				foreach(ZipArchiveEntry Entry in Zip.Entries)
+				int entryIdx = 0;
+				foreach(ZipArchiveEntry entry in zip.Entries)
 				{
-					if(!Entry.FullName.EndsWith("/") && !Entry.FullName.EndsWith("\\"))
+					if(!entry.FullName.EndsWith("/") && !entry.FullName.EndsWith("\\"))
 					{
-						FileReference FileName = FileReference.Combine(BaseDirectoryName, Entry.FullName);
-						DirectoryReference.CreateDirectory(FileName.Directory);
-						Logger.LogInformation("Writing {0}", FileName);
+						FileReference fileName = FileReference.Combine(baseDirectoryName, entry.FullName);
+						DirectoryReference.CreateDirectory(fileName.Directory);
+						logger.LogInformation("Writing {0}", fileName);
 
-						Entry.ExtractToFile(FileName.FullName, true);
-						FileReference.SetLastWriteTimeUtc(FileName, TimeStamp);
+						entry.ExtractToFile(fileName.FullName, true);
+						FileReference.SetLastWriteTimeUtc(fileName, timeStamp);
 					}
-					Progress.Set((float)++EntryIdx / (float)Zip.Entries.Count);
+					progress.Set((float)++entryIdx / (float)zip.Entries.Count);
 				}
 			}
 		}
 
-		public static void RemoveExtractedFiles(DirectoryReference BaseDirectoryName, FileReference ManifestFileName, ProgressValue Progress, ILogger LogWriter)
+		public static void RemoveExtractedFiles(DirectoryReference baseDirectoryName, FileReference manifestFileName, ProgressValue progress, ILogger logWriter)
 		{
 			// Read the manifest in
-			ArchiveManifest Manifest;
-			using(FileStream InputStream = FileReference.Open(ManifestFileName, FileMode.Open, FileAccess.Read))
+			ArchiveManifest manifest;
+			using(FileStream inputStream = FileReference.Open(manifestFileName, FileMode.Open, FileAccess.Read))
 			{
-				Manifest = new ArchiveManifest(InputStream);
+				manifest = new ArchiveManifest(inputStream);
 			}
 
 			// Remove all the files that haven't been modified match
-			for(int Idx = 0; Idx < Manifest.Files.Count; Idx++)
+			for(int idx = 0; idx < manifest.Files.Count; idx++)
 			{
-				FileInfo File = FileReference.Combine(BaseDirectoryName, Manifest.Files[Idx].FileName).ToFileInfo();
-				if(File.Exists)
+				FileInfo file = FileReference.Combine(baseDirectoryName, manifest.Files[idx].FileName).ToFileInfo();
+				if(file.Exists)
 				{
-					if(File.Length != Manifest.Files[Idx].Length)
+					if(file.Length != manifest.Files[idx].Length)
 					{
-						LogWriter.LogInformation("Skipping {FileName} due to modified length", File.FullName);
+						logWriter.LogInformation("Skipping {FileName} due to modified length", file.FullName);
 					}
-					else if(Math.Abs((File.LastWriteTimeUtc - Manifest.Files[Idx].LastWriteTimeUtc).TotalSeconds) > 2.0)
+					else if(Math.Abs((file.LastWriteTimeUtc - manifest.Files[idx].LastWriteTimeUtc).TotalSeconds) > 2.0)
 					{
-						LogWriter.LogInformation("Skipping {FileName} due to modified timestamp", File.FullName);
+						logWriter.LogInformation("Skipping {FileName} due to modified timestamp", file.FullName);
 					}
 					else
 					{
-						LogWriter.LogInformation("Removing {FileName}", File.FullName);
-						File.Delete();
+						logWriter.LogInformation("Removing {FileName}", file.FullName);
+						file.Delete();
 					}
 				}
-				Progress.Set((float)(Idx + 1) / (float)Manifest.Files.Count);
+				progress.Set((float)(idx + 1) / (float)manifest.Files.Count);
 			}
 		}
 	}

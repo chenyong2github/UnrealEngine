@@ -14,12 +14,12 @@ namespace UnrealGameSyncLauncher
 {
 	public partial class LogWindow : Form
 	{
-		public LogWindow(string Text)
+		public LogWindow(string text)
 		{
 			InitializeComponent();
 
-			LogTextBox.Text = Text;
-			LogTextBox.Select(Text.Length, 0);
+			LogTextBox.Text = text;
+			LogTextBox.Select(text.Length, 0);
 		}
 	}
 }

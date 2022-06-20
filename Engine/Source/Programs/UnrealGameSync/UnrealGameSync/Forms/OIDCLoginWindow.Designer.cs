@@ -1,6 +1,6 @@
 ﻿namespace UnrealGameSync.Forms
 {
-	partial class OIDCLoginWindow
+	partial class OidcLoginWindow
 	{
 		/// <summary>
 		/// Required designer variable.
@@ -28,7 +28,7 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
-			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OIDCLoginWindow));
+			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(OidcLoginWindow));
 			this.DoneButton = new System.Windows.Forms.Button();
 			this.SuspendLayout();
 			// 
@@ -54,7 +54,7 @@
 			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
 			this.MaximizeBox = false;
 			this.MinimizeBox = false;
-			this.Name = "OIDCLoginWindow";
+			this.Name = "OidcLoginWindow";
 			this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
 			this.Text = "Login to OIDC Providers";
 			this.ResumeLayout(false);

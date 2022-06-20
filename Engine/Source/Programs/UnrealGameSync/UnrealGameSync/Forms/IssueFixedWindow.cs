@@ -23,27 +23,27 @@ namespace UnrealGameSync
 	{
 		class FindChangesWorker : Component
 		{
-			public delegate void OnCompleteDelegate(string UserName, List<DescribeRecord> Changes);
+			public delegate void OnCompleteDelegate(string userName, List<DescribeRecord> changes);
 
-			IPerforceSettings PerforceSettings;
-			SynchronizationContext MainThreadSyncContext;
-			AsyncEvent WakeEvent;
-			string? RequestedUserName;
-			CancellationTokenSource CancellationSource;
-			Task BackgroundTask;
-			OnCompleteDelegate? OnComplete;
-			ILogger Logger;
+			IPerforceSettings _perforceSettings;
+			SynchronizationContext _mainThreadSyncContext;
+			AsyncEvent _wakeEvent;
+			string? _requestedUserName;
+			CancellationTokenSource _cancellationSource;
+			Task _backgroundTask;
+			OnCompleteDelegate? _onComplete;
+			ILogger _logger;
 
-			public FindChangesWorker(IPerforceSettings PerforceSettings, OnCompleteDelegate? OnComplete, ILogger Logger)
+			public FindChangesWorker(IPerforceSettings perforceSettings, OnCompleteDelegate? onComplete, ILogger logger)
 			{
-				this.PerforceSettings = PerforceSettings;
-				this.MainThreadSyncContext = SynchronizationContext.Current!;
-				WakeEvent = new AsyncEvent();
-				this.OnComplete = OnComplete;
-				this.Logger = Logger;
+				this._perforceSettings = perforceSettings;
+				this._mainThreadSyncContext = SynchronizationContext.Current!;
+				_wakeEvent = new AsyncEvent();
+				this._onComplete = onComplete;
+				this._logger = logger;
 
-				CancellationSource = new CancellationTokenSource();
-				BackgroundTask = Task.Run(() => DoWork(CancellationSource.Token));
+				_cancellationSource = new CancellationTokenSource();
+				_backgroundTask = Task.Run(() => DoWork(_cancellationSource.Token));
 			}
 
 			public void Stop()
@@ -53,23 +53,23 @@ namespace UnrealGameSync
 
 			Task StopAsync()
 			{
-				Task StopTask = Task.CompletedTask;
-				if(BackgroundTask != null)
+				Task stopTask = Task.CompletedTask;
+				if(_backgroundTask != null)
 				{
-					OnComplete = null;
+					_onComplete = null;
 
-					CancellationSource.Cancel();
-					StopTask = BackgroundTask.ContinueWith(_ => CancellationSource.Dispose());
+					_cancellationSource.Cancel();
+					stopTask = _backgroundTask.ContinueWith(_ => _cancellationSource.Dispose());
 
-					BackgroundTask = null!;
+					_backgroundTask = null!;
 				}
-				return StopTask;
+				return stopTask;
 			}
 
-			public void FetchChanges(string UserName)
+			public void FetchChanges(string userName)
 			{
-				RequestedUserName = UserName;
-				WakeEvent.Set();
+				_requestedUserName = userName;
+				_wakeEvent.Set();
 			}
 
 			protected override void Dispose(bool disposing)
@@ -79,55 +79,55 @@ namespace UnrealGameSync
 				Stop();
 			}
 
-			public async Task DoWork(CancellationToken CancellationToken)
+			public async Task DoWork(CancellationToken cancellationToken)
 			{
-				using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+				using IPerforceConnection perforce = await PerforceConnection.CreateAsync(_perforceSettings, _logger);
 
-				Task WakeTask = WakeEvent.Task;
-				Task CancelTask = Task.Delay(-1, CancellationToken);
+				Task wakeTask = _wakeEvent.Task;
+				Task cancelTask = Task.Delay(-1, cancellationToken);
 				for(;;)
 				{
-					await Task.WhenAny(WakeTask, CancelTask);
+					await Task.WhenAny(wakeTask, cancelTask);
 
-					if (CancellationToken.IsCancellationRequested)
+					if (cancellationToken.IsCancellationRequested)
 					{
 						break;
 					}
 
-					WakeTask = WakeEvent.Task;
+					wakeTask = _wakeEvent.Task;
 
-					string? UserName = RequestedUserName;
-					if (UserName != null)
+					string? userName = _requestedUserName;
+					if (userName != null)
 					{
-						List<ChangesRecord> Changes = await Perforce.GetChangesAsync(ChangesOptions.IncludeTimes, 100, ChangeStatus.Submitted, FileSpecList.Any, CancellationToken);
-						List<DescribeRecord> Descriptions = await Perforce.DescribeAsync(Changes.Select(x => x.Number).ToArray(), CancellationToken);
+						List<ChangesRecord> changes = await perforce.GetChangesAsync(ChangesOptions.IncludeTimes, 100, ChangeStatus.Submitted, FileSpecList.Any, cancellationToken);
+						List<DescribeRecord> descriptions = await perforce.DescribeAsync(changes.Select(x => x.Number).ToArray(), cancellationToken);
 
-						MainThreadSyncContext.Post(_ => OnComplete?.Invoke(UserName, Descriptions), null);
+						_mainThreadSyncContext.Post(_ => _onComplete?.Invoke(userName, descriptions), null);
 					}
 				}
 			}
 		}
 
-		IPerforceSettings PerforceSettings;
-		int ChangeNumber;
-		FindChangesWorker Worker;
-		IServiceProvider ServiceProvider;
+		IPerforceSettings _perforceSettings;
+		int _changeNumber;
+		FindChangesWorker _worker;
+		IServiceProvider _serviceProvider;
 	
-		public IssueFixedWindow(IPerforceSettings PerforceSettings, int InitialChangeNumber, IServiceProvider ServiceProvider)
+		public IssueFixedWindow(IPerforceSettings perforceSettings, int initialChangeNumber, IServiceProvider serviceProvider)
 		{
 			InitializeComponent();
 
-			this.PerforceSettings = PerforceSettings;
-			this.Worker = new FindChangesWorker(PerforceSettings, PopulateChanges, ServiceProvider.GetRequiredService<ILogger<FindChangesWorker>>());
-			this.ServiceProvider = ServiceProvider;
-			components!.Add(Worker);
+			this._perforceSettings = perforceSettings;
+			this._worker = new FindChangesWorker(perforceSettings, PopulateChanges, serviceProvider.GetRequiredService<ILogger<FindChangesWorker>>());
+			this._serviceProvider = serviceProvider;
+			components!.Add(_worker);
 
-			UserNameTextBox.Text = PerforceSettings.UserName;
+			UserNameTextBox.Text = perforceSettings.UserName;
 			UserNameTextBox.SelectionStart = UserNameTextBox.Text.Length;
 
-			if(InitialChangeNumber != 0)
+			if(initialChangeNumber != 0)
 			{
-				if(InitialChangeNumber < 0)
+				if(initialChangeNumber < 0)
 				{
 					SpecifyChangeRadioButton.Checked = false;
 					SystemicFixRadioButton.Checked = true;
@@ -135,7 +135,7 @@ namespace UnrealGameSync
 				else
 				{
 					SpecifyChangeRadioButton.Checked = true;
-					ChangeNumberTextBox.Text = InitialChangeNumber.ToString();
+					ChangeNumberTextBox.Text = initialChangeNumber.ToString();
 				}
 			}
 
@@ -159,21 +159,21 @@ namespace UnrealGameSync
 				ChangesListView.Select();
 			}
 
-			Worker.FetchChanges(UserNameTextBox.Text);
+			_worker.FetchChanges(UserNameTextBox.Text);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, IServiceProvider ServiceProvider, ref int FixChangeNumber)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings perforce, IServiceProvider serviceProvider, ref int fixChangeNumber)
 		{
-			using(IssueFixedWindow FixedWindow = new IssueFixedWindow(Perforce, FixChangeNumber, ServiceProvider))
+			using(IssueFixedWindow fixedWindow = new IssueFixedWindow(perforce, fixChangeNumber, serviceProvider))
 			{
-				if(FixedWindow.ShowDialog(Owner) == DialogResult.OK)
+				if(fixedWindow.ShowDialog(owner) == DialogResult.OK)
 				{
-					FixChangeNumber = FixedWindow.ChangeNumber;
+					fixChangeNumber = fixedWindow._changeNumber;
 					return true;
 				}
 				else
 				{
-					FixChangeNumber = 0;
+					fixChangeNumber = 0;
 					return false;
 				}
 			}
@@ -181,7 +181,7 @@ namespace UnrealGameSync
 
 		private void UpdateSelectedChangeAndClose()
 		{
-			if (TryGetSelectedChange(out ChangeNumber))
+			if (TryGetSelectedChange(out _changeNumber))
 			{
 				DialogResult = DialogResult.OK;
 				Close();
@@ -193,41 +193,41 @@ namespace UnrealGameSync
 			UpdateSelectedChangeAndClose();
 		}
 
-		private void PopulateChanges(string UserName, List<DescribeRecord> Changes)
+		private void PopulateChanges(string userName, List<DescribeRecord> changes)
 		{
 			if(!IsDisposed)
 			{
 				ChangesListView.BeginUpdate();
 				ChangesListView.Items.Clear();
-				if(Changes != null)
+				if(changes != null)
 				{
-					foreach(DescribeRecord Change in Changes)
+					foreach(DescribeRecord change in changes)
 					{
-						if(Change.Description != null && Change.Description.IndexOf("#ROBOMERGE-SOURCE", 0) == -1)
+						if(change.Description != null && change.Description.IndexOf("#ROBOMERGE-SOURCE", 0) == -1)
 						{
-							string Stream = "";
-							if(Change.Files.Count > 0)
+							string stream = "";
+							if(change.Files.Count > 0)
 							{
-								string DepotFile = Change.Files[0].DepotFile;
+								string depotFile = change.Files[0].DepotFile;
 
-								int Idx = 0;
-								for(int Count = 0; Idx < DepotFile.Length; Idx++)
+								int idx = 0;
+								for(int count = 0; idx < depotFile.Length; idx++)
 								{
-									if(DepotFile[Idx] == '/' && ++Count >= 4)
+									if(depotFile[idx] == '/' && ++count >= 4)
 									{
 										break;
 									}
 								}
 
-								Stream = DepotFile.Substring(0, Idx);
+								stream = depotFile.Substring(0, idx);
 							}
 
-							ListViewItem Item = new ListViewItem("");
-							Item.Tag = Change;
-							Item.SubItems.Add(Change.Number.ToString());
-							Item.SubItems.Add(Stream);
-							Item.SubItems.Add(Change.Description.Replace('\n', ' '));
-							ChangesListView.Items.Add(Item);
+							ListViewItem item = new ListViewItem("");
+							item.Tag = change;
+							item.SubItems.Add(change.Number.ToString());
+							item.SubItems.Add(stream);
+							item.SubItems.Add(change.Description.Replace('\n', ' '));
+							ChangesListView.Items.Add(item);
 						}
 					}
 				}
@@ -235,18 +235,18 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void ChangesListView_MouseClick(object Sender, MouseEventArgs Args)
+		private void ChangesListView_MouseClick(object sender, MouseEventArgs args)
 		{
-			if(Args.Button == MouseButtons.Right)
+			if(args.Button == MouseButtons.Right)
 			{
-				ListViewHitTestInfo HitTest = ChangesListView.HitTest(Args.Location);
-				if(HitTest.Item != null && HitTest.Item.Tag != null)
+				ListViewHitTestInfo hitTest = ChangesListView.HitTest(args.Location);
+				if(hitTest.Item != null && hitTest.Item.Tag != null)
 				{
-					DescribeRecord? Record = HitTest.Item.Tag as DescribeRecord; 
-					if(Record != null)
+					DescribeRecord? record = hitTest.Item.Tag as DescribeRecord; 
+					if(record != null)
 					{
-						ChangesListContextMenu.Tag = Record;
-						ChangesListContextMenu.Show(ChangesListView, Args.Location);
+						ChangesListContextMenu.Tag = record;
+						ChangesListContextMenu.Show(ChangesListView, args.Location);
 					}
 				}
 			}
@@ -259,8 +259,8 @@ namespace UnrealGameSync
 
 		private void ChangesContextMenu_MoreInfo_Click(object sender, EventArgs e)
 		{
-			DescribeRecord Record = (DescribeRecord)ChangesListContextMenu.Tag;
-			Program.SpawnP4VC(String.Format("{0} change {1}", PerforceSettings.GetArgumentsForExternalProgram(true), Record.Number));
+			DescribeRecord record = (DescribeRecord)ChangesListContextMenu.Tag;
+			Program.SpawnP4Vc(String.Format("{0} change {1}", _perforceSettings.GetArgumentsForExternalProgram(true), record.Number));
 		}
 
 		private void ChangeNumberTextBox_Enter(object sender, EventArgs e)
@@ -297,28 +297,28 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		private bool TryGetSelectedChange(out int ChangeNumber)
+		private bool TryGetSelectedChange(out int changeNumber)
 		{
 			if(SpecifyChangeRadioButton.Checked)
 			{
-				return int.TryParse(ChangeNumberTextBox.Text, out ChangeNumber);
+				return int.TryParse(ChangeNumberTextBox.Text, out changeNumber);
 			}
 			else if(SystemicFixRadioButton.Checked)
 			{
-				ChangeNumber = -1;
+				changeNumber = -1;
 				return true;
 			}
 			else
 			{
-				DescribeRecord? Change = (ChangesListView.SelectedItems.Count > 0)? ChangesListView.SelectedItems[0].Tag as DescribeRecord : null;
-				if(Change == null)
+				DescribeRecord? change = (ChangesListView.SelectedItems.Count > 0)? ChangesListView.SelectedItems[0].Tag as DescribeRecord : null;
+				if(change == null)
 				{
-					ChangeNumber = 0;
+					changeNumber = 0;
 					return false;
 				}
 				else
 				{
-					ChangeNumber = Change.Number;
+					changeNumber = change.Number;
 					return true;
 				}
 			}
@@ -326,8 +326,8 @@ namespace UnrealGameSync
 
 		private void UpdateOkButton()
 		{
-			int ChangeNumber;
-			OkBtn.Enabled = TryGetSelectedChange(out ChangeNumber);
+			int changeNumber;
+			OkBtn.Enabled = TryGetSelectedChange(out changeNumber);
 		}
 
 		private void SpecifyChangeRadioButton_CheckedChanged(object sender, EventArgs e)
@@ -362,16 +362,16 @@ namespace UnrealGameSync
 
 		private void UserBrowseBtn_Click(object sender, EventArgs e)
 		{
-			string? SelectedUserName;
-			if(SelectUserWindow.ShowModal(this, PerforceSettings, ServiceProvider, out SelectedUserName))
+			string? selectedUserName;
+			if(SelectUserWindow.ShowModal(this, _perforceSettings, _serviceProvider, out selectedUserName))
 			{
-				UserNameTextBox.Text = SelectedUserName;
+				UserNameTextBox.Text = selectedUserName;
 			}
 		}
 
 		private void UserNameTextBox_TextChanged(object sender, EventArgs e)
 		{
-			Worker.FetchChanges(UserNameTextBox.Text);
+			_worker.FetchChanges(UserNameTextBox.Text);
 		}
 	}
 }

@@ -16,33 +16,33 @@ namespace UnrealGameSync
 {
 	partial class AlertImageControl : UserControl
 	{
-		Image? ImageValue;
+		Image? _imageValue;
 
 		public Image? Image
 		{
-			get { return ImageValue; }
-			set { ImageValue = value; Invalidate(); }
+			get { return _imageValue; }
+			set { _imageValue = value; Invalidate(); }
 		}
 
 		public AlertImageControl()
 		{
 		}
 
-		protected override void OnPaint(PaintEventArgs Event)
+		protected override void OnPaint(PaintEventArgs e)
 		{
-			Event.Graphics.FillRectangle(SystemBrushes.Window, 0, 0, Width, Height);
+			e.Graphics.FillRectangle(SystemBrushes.Window, 0, 0, Width, Height);
 
 			if(Image != null)
 			{
-				float Scale = Math.Min((float)Width / Image.Width, (float)Height / Image.Height);
+				float scale = Math.Min((float)Width / Image.Width, (float)Height / Image.Height);
 
-				int ImageW = (int)(Image.Width * Scale);
-				int ImageH = (int)(Image.Height * Scale);
+				int imageW = (int)(Image.Width * scale);
+				int imageH = (int)(Image.Height * scale);
 
-				Event.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
-				Event.Graphics.SmoothingMode = SmoothingMode.HighQuality;
-				Event.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-				Event.Graphics.DrawImage(Image, (Width - ImageW) / 2, (Height - ImageH) / 2, ImageW, ImageH); 
+				e.Graphics.InterpolationMode = InterpolationMode.HighQualityBicubic;
+				e.Graphics.SmoothingMode = SmoothingMode.HighQuality;
+				e.Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
+				e.Graphics.DrawImage(Image, (Width - imageW) / 2, (Height - imageH) / 2, imageW, imageH); 
 			}
 		}
 	}

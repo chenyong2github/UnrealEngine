@@ -20,9 +20,9 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Sends a telemetry event with the given information
 		/// </summary>
-		/// <param name="EventName">Name of the event</param>
-		/// <param name="Attributes">Arbitrary object to include in the payload</param>
-		void SendEvent(string EventName, object Attributes);
+		/// <param name="eventName">Name of the event</param>
+		/// <param name="attributes">Arbitrary object to include in the payload</param>
+		void SendEvent(string eventName, object attributes);
 	}
 
 	/// <summary>
@@ -36,7 +36,7 @@ namespace UnrealGameSync
 		}
 
 		/// <inheritdoc/>
-		public void SendEvent(string EventName, object Attributes)
+		public void SendEvent(string eventName, object attributes)
 		{
 		}
 	}
@@ -49,37 +49,37 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Combined url to post event streams to
 		/// </summary>
-		string Url;
+		string _url;
 
 		/// <summary>
 		/// Lock used to modify the event queue
 		/// </summary>
-		object LockObject = new object();
+		object _lockObject = new object();
 
 		/// <summary>
 		/// Whether a flush is queued
 		/// </summary>
-		bool bHasPendingFlush = false;
+		bool _hasPendingFlush = false;
 
 		/// <summary>
 		/// List of pending events
 		/// </summary>
-		List<string> PendingEvents = new List<string>();
+		List<string> _pendingEvents = new List<string>();
 
 		/// <summary>
 		/// The log writer to use
 		/// </summary>
-		ILogger Logger;
+		ILogger _logger;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public EpicTelemetrySink(string Url, ILogger Logger)
+		public EpicTelemetrySink(string url, ILogger logger)
 		{
-			this.Url = Url;
-			this.Logger = Logger;
+			this._url = url;
+			this._logger = logger;
 
-			Logger.LogInformation("Posting to URL: {Url}", Url);
+			logger.LogInformation("Posting to URL: {Url}", url);
 		}
 
 		/// <inheritdoc/>
@@ -93,9 +93,9 @@ namespace UnrealGameSync
 		{
 			for (; ; )
 			{
-				lock (LockObject)
+				lock (_lockObject)
 				{
-					if (!bHasPendingFlush)
+					if (!_hasPendingFlush)
 					{
 						break;
 					}
@@ -105,22 +105,22 @@ namespace UnrealGameSync
 		}
 
 		/// <inheritdoc/>
-		public void SendEvent(string EventName, object Attributes)
+		public void SendEvent(string eventName, object attributes)
 		{
-			string AttributesText = JsonSerializer.Serialize(Attributes);
-			if (AttributesText[0] != '{')
+			string attributesText = JsonSerializer.Serialize(attributes);
+			if (attributesText[0] != '{')
 			{
 				throw new Exception("Expected event data with named properties");
 			}
 
-			string EventText = AttributesText.Insert(1, String.Format("\"EventName\":\"{0}\",", HttpUtility.JavaScriptStringEncode(EventName)));
-			lock (PendingEvents)
+			string eventText = attributesText.Insert(1, String.Format("\"EventName\":\"{0}\",", HttpUtility.JavaScriptStringEncode(eventName)));
+			lock (_pendingEvents)
 			{
-				PendingEvents.Add(EventText);
-				if (!bHasPendingFlush)
+				_pendingEvents.Add(eventText);
+				if (!_hasPendingFlush)
 				{
-					ThreadPool.QueueUserWorkItem(Obj => BackgroundFlush());
-					bHasPendingFlush = true;
+					ThreadPool.QueueUserWorkItem(obj => BackgroundFlush());
+					_hasPendingFlush = true;
 				}
 			}
 		}
@@ -135,71 +135,71 @@ namespace UnrealGameSync
 				try
 				{
 					// Generate the content for this event
-					List<string> Events = new List<string>();
-					lock (LockObject)
+					List<string> events = new List<string>();
+					lock (_lockObject)
 					{
-						if (PendingEvents.Count == 0)
+						if (_pendingEvents.Count == 0)
 						{
-							bHasPendingFlush = false;
+							_hasPendingFlush = false;
 							break;
 						}
 
-						Events.AddRange(PendingEvents);
-						PendingEvents.Clear();
+						events.AddRange(_pendingEvents);
+						_pendingEvents.Clear();
 					}
 
 					// Print all the events we're sending
-					foreach (string Event in Events)
+					foreach (string evt in events)
 					{
-						Logger.LogInformation("Sending Event: {0}", Event);
+						_logger.LogInformation("Sending Event: {0}", evt);
 					}
 
 					// Convert the content to UTF8
-					string ContentText = String.Format("{{\"Events\":[{0}]}}", String.Join(",", Events));
-					byte[] Content = Encoding.UTF8.GetBytes(ContentText);
+					string contentText = String.Format("{{\"Events\":[{0}]}}", String.Join(",", events));
+					byte[] content = Encoding.UTF8.GetBytes(contentText);
 
 					// Post the event data
-					HttpWebRequest Request = (HttpWebRequest)WebRequest.Create(Url);
-					Request.Method = "POST";
-					Request.ContentType = "application/json";
-					Request.UserAgent = "ue/ugs";
-					Request.Timeout = 5000;
-					Request.ContentLength = Content.Length;
-					Request.ContentType = "application/json";
-					using (Stream RequestStream = Request.GetRequestStream())
+					HttpWebRequest request = (HttpWebRequest)WebRequest.Create(_url);
+					request.Method = "POST";
+					request.ContentType = "application/json";
+					request.UserAgent = "ue/ugs";
+					request.Timeout = 5000;
+					request.ContentLength = content.Length;
+					request.ContentType = "application/json";
+					using (Stream requestStream = request.GetRequestStream())
 					{
-						RequestStream.Write(Content, 0, Content.Length);
+						requestStream.Write(content, 0, content.Length);
 					}
 
 					// Wait for the response and dispose of it immediately
-					using (HttpWebResponse Response = (HttpWebResponse)Request.GetResponse())
+					using (HttpWebResponse response = (HttpWebResponse)request.GetResponse())
 					{
-						Logger.LogInformation("Response: {StatusCode}", (int)Response.StatusCode);
+						_logger.LogInformation("Response: {StatusCode}", (int)response.StatusCode);
 					}
 				}
-				catch (WebException Ex)
+				catch (WebException ex)
 				{
 					// Handle errors. Any non-200 responses automatically generate a WebException.
-					HttpWebResponse Response = (HttpWebResponse)Ex.Response;
-					if (Response == null)
+					HttpWebResponse response = (HttpWebResponse)ex.Response;
+					if (response == null)
 					{
-						Logger.LogError(Ex, "Exception while attempting to send event");
+						_logger.LogError(ex, "Exception while attempting to send event");
 					}
 					else
 					{
-						string ResponseText;
-						using (Stream ResponseStream = Response.GetResponseStream())
+						string responseText;
+						using (Stream responseStream = response.GetResponseStream())
 						{
-							MemoryStream MemoryStream = new MemoryStream();
-							ResponseStream.CopyTo(MemoryStream);
-							ResponseText = Encoding.UTF8.GetString(MemoryStream.ToArray());
+							MemoryStream memoryStream = new MemoryStream();
+							responseStream.CopyTo(memoryStream);
+							responseText = Encoding.UTF8.GetString(memoryStream.ToArray());
 						}
-						Logger.LogError("Failed to send analytics event. Code = {Code}. Desc = {Dec}. Response = {Response}.", (int)Response.StatusCode, Response.StatusDescription, ResponseText);
+						_logger.LogError("Failed to send analytics event. Code = {Code}. Desc = {Dec}. Response = {Response}.", (int)response.StatusCode, response.StatusDescription, responseText);
 					}
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					Logger.LogError(Ex, "Exception while attempting to send event");
+					_logger.LogError(ex, "Exception while attempting to send event");
 				}
 			}
 		}
@@ -221,11 +221,11 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Sends a telemetry event with the given information
 		/// </summary>
-		/// <param name="EventName">Name of the event</param>
-		/// <param name="Attributes">Arbitrary object to include in the payload</param>
-		public static void SendEvent(string EventName, object Attributes)
+		/// <param name="eventName">Name of the event</param>
+		/// <param name="attributes">Arbitrary object to include in the payload</param>
+		public static void SendEvent(string eventName, object attributes)
 		{
-			ActiveSink?.SendEvent(EventName, Attributes);
+			ActiveSink?.SendEvent(eventName, attributes);
 		}
 	}
 }

@@ -31,81 +31,81 @@ namespace UnrealGameSync
 	/// </summary>
 	static class UriHandler
 	{
-		public static UriResult HandleUri(string UriIn)
+		public static UriResult HandleUri(string uriIn)
 		{			
 			try
 			{
-				Uri Uri = new Uri(UriIn);
+				Uri uri = new Uri(uriIn);
 
 				// Check if this is a registered uri request
-				if (!Handlers.TryGetValue(Uri.Host, out MethodInfo? Info))
+				if (!Handlers.TryGetValue(uri.Host, out MethodInfo? info))
 				{
-					return new UriResult() { Error = string.Format("Unknown Uri {0}", Uri.Host) };
+					return new UriResult() { Error = string.Format("Unknown Uri {0}", uri.Host) };
 				}
 
-				NameValueCollection Query = HttpUtility.ParseQueryString(Uri.Query);
+				NameValueCollection query = HttpUtility.ParseQueryString(uri.Query);
 
-				List<object> Parameters = new List<object>();
+				List<object> parameters = new List<object>();
 
-				foreach (ParameterInfo Param in Info.GetParameters())
+				foreach (ParameterInfo param in info.GetParameters())
 				{					
-					string Value = Query.Get(Param.Name);
+					string value = query.Get(param.Name);
 
-					if (Value == null)
+					if (value == null)
 					{
-						if (!Param.HasDefaultValue)
+						if (!param.HasDefaultValue)
 						{
-							return new UriResult() { Error = string.Format("Uri {0} is missing required parameter {1}", Uri.Host, Param.Name) };
+							return new UriResult() { Error = string.Format("Uri {0} is missing required parameter {1}", uri.Host, param.Name) };
 						}
 
-						Parameters.Add(Param.DefaultValue!);
+						parameters.Add(param.DefaultValue!);
 						continue;
 					}
 
-					if (Param.ParameterType == typeof(string))
+					if (param.ParameterType == typeof(string))
 					{
-						Parameters.Add(Value);
+						parameters.Add(value);
 					}
-					else if (Param.ParameterType == typeof(bool))
+					else if (param.ParameterType == typeof(bool))
 					{
-						if (Value.Equals("true", StringComparison.OrdinalIgnoreCase))
+						if (value.Equals("true", StringComparison.OrdinalIgnoreCase))
 						{
-							Parameters.Add(true);
+							parameters.Add(true);
 						}
-						else if (Value.Equals("false", StringComparison.OrdinalIgnoreCase))
+						else if (value.Equals("false", StringComparison.OrdinalIgnoreCase))
 						{
-							Parameters.Add(false);
+							parameters.Add(false);
 						}
 						else
 						{
-							return new UriResult() { Error = string.Format("Uri {0} bool parameter {1} must be true or false", Uri.Host, Param.Name) };
+							return new UriResult() { Error = string.Format("Uri {0} bool parameter {1} must be true or false", uri.Host, param.Name) };
 						}
 					}
-					else if (Param.ParameterType == typeof(int))
+					else if (param.ParameterType == typeof(int))
 					{
-						int NumberValue;
-						if (!int.TryParse(Value, out NumberValue))
+						int numberValue;
+						if (!int.TryParse(value, out numberValue))
 						{
-							return new UriResult() { Error = string.Format("Uri {0} invalid integer parameter {1} : {2}", Uri.Host, Param.Name, Value) };
+							return new UriResult() { Error = string.Format("Uri {0} invalid integer parameter {1} : {2}", uri.Host, param.Name, value) };
 						}
-						Parameters.Add(NumberValue);
+						parameters.Add(numberValue);
 					}
-					else if (Param.ParameterType == typeof(float))
+					else if (param.ParameterType == typeof(float))
 					{
-						float NumberValue;
-						if (!float.TryParse(Value, out NumberValue))
+						float numberValue;
+						if (!float.TryParse(value, out numberValue))
 						{
-							return new UriResult() { Error = string.Format("Uri {0} invalid number parameter {1} : {2}", Uri.Host, Param.Name, Value) };
+							return new UriResult() { Error = string.Format("Uri {0} invalid number parameter {1} : {2}", uri.Host, param.Name, value) };
 						}
-						Parameters.Add(NumberValue);
+						parameters.Add(numberValue);
 					}
 				}
 
-				return (UriResult)Info.Invoke(null, Parameters.ToArray())!;					
+				return (UriResult)info.Invoke(null, parameters.ToArray())!;					
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				return new UriResult() { Error = Ex.Message };
+				return new UriResult() { Error = ex.Message };
 			}
 		}
 
@@ -116,11 +116,11 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Handle URI passed in via command lines
 		/// </summary>
-		public static bool ProcessCommandLine(string[] Args, bool FirstInstance, EventWaitHandle? ActivateEvent = null)
+		public static bool ProcessCommandLine(string[] args, bool firstInstance, EventWaitHandle? activateEvent = null)
 		{
-			if (Args.Any(x => x.Equals(InstallHandlerArg, StringComparison.OrdinalIgnoreCase)))
+			if (args.Any(x => x.Equals(InstallHandlerArg, StringComparison.OrdinalIgnoreCase)))
 			{
-				if (Args.Any(x => x.Equals(ElevatedArg, StringComparison.OrdinalIgnoreCase)))
+				if (args.Any(x => x.Equals(ElevatedArg, StringComparison.OrdinalIgnoreCase)))
 				{
 					ProtocolHandlerUtils.InstallElevated();
 				}
@@ -130,9 +130,9 @@ namespace UnrealGameSync
 				}
 				return true;
 			}
-			else if (Args.Any(x => x.Equals(UninstallHandlerArg, StringComparison.OrdinalIgnoreCase)))
+			else if (args.Any(x => x.Equals(UninstallHandlerArg, StringComparison.OrdinalIgnoreCase)))
 			{
-				if (Args.Any(x => x.Equals(ElevatedArg, StringComparison.OrdinalIgnoreCase)))
+				if (args.Any(x => x.Equals(ElevatedArg, StringComparison.OrdinalIgnoreCase)))
 				{
 					ProtocolHandlerUtils.UninstallElevated();
 				}
@@ -144,61 +144,61 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				string UriIn = string.Empty;
-				for (int Idx = 0; Idx < Args.Length; Idx++)
+				string uriIn = string.Empty;
+				for (int idx = 0; idx < args.Length; idx++)
 				{
-					const string Prefix = "-uri=";
-					if (Args[Idx].StartsWith(Prefix, StringComparison.OrdinalIgnoreCase))
+					const string prefix = "-uri=";
+					if (args[idx].StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
 					{
-						UriIn = Args[Idx].Substring(Prefix.Length);
+						uriIn = args[idx].Substring(prefix.Length);
 					}
 				}
 
-				if (UriIn == string.Empty)
+				if (uriIn == string.Empty)
 				{
 					return false;
 				}
 
-				Uri Uri;
+				Uri uri;
 				try
 				{
-					Uri = new Uri(UriIn);
+					uri = new Uri(uriIn);
 				}
 				catch
 				{
-					MessageBox.Show(String.Format("Invalid URI: {0}", UriIn));
+					MessageBox.Show(String.Format("Invalid URI: {0}", uriIn));
 					return true;
 				}
 
-				MethodInfo? Handler;
-				if (!Handlers.TryGetValue(Uri.Host, out Handler))
+				MethodInfo? handler;
+				if (!Handlers.TryGetValue(uri.Host, out handler))
 				{
-					MessageBox.Show(String.Format("Unknown action from URI request ('{0}')", Uri.Host));
+					MessageBox.Show(String.Format("Unknown action from URI request ('{0}')", uri.Host));
 					return true;
 				}
 
-				UriHandlerAttribute Attribute = Handler.GetCustomAttribute<UriHandlerAttribute>()!;
+				UriHandlerAttribute attribute = handler.GetCustomAttribute<UriHandlerAttribute>()!;
 
 				// handle case where we terminate after invoking handler
-				if (Attribute.Terminate)
+				if (attribute.Terminate)
 				{
-					UriResult Result = HandleUri(UriIn);
-					if (!Result.Success)
+					UriResult result = HandleUri(uriIn);
+					if (!result.Success)
 					{
-						MessageBox.Show(Result.Error);
+						MessageBox.Show(result.Error);
 					}
 					return true;
 				}
 
-				if (!FirstInstance)
+				if (!firstInstance)
 				{
-					if (ActivateEvent != null)
+					if (activateEvent != null)
 					{
-						ActivateEvent.Set();
+						activateEvent.Set();
 					}
 
 					// send to main UGS process using IPC
-					AutomationServer.SendUri(UriIn);
+					AutomationServer.SendUri(uriIn);
 					return true;
 				}
 
@@ -210,36 +210,36 @@ namespace UnrealGameSync
 
 		static UriHandler()
 		{
-			foreach (Type Type in Assembly.GetExecutingAssembly().GetTypes())
+			foreach (Type type in Assembly.GetExecutingAssembly().GetTypes())
 			{
-				List<MethodInfo> HandlerMethods = new List<MethodInfo> (Type.GetMethods().Where(MethodInfo => MethodInfo.GetCustomAttribute<UriHandlerAttribute>() != null));
-				foreach (MethodInfo MethodInfo in HandlerMethods)
+				List<MethodInfo> handlerMethods = new List<MethodInfo> (type.GetMethods().Where(methodInfo => methodInfo.GetCustomAttribute<UriHandlerAttribute>() != null));
+				foreach (MethodInfo methodInfo in handlerMethods)
 				{
-					if (!MethodInfo.IsStatic)
+					if (!methodInfo.IsStatic)
 					{
-						throw new Exception(string.Format("UriHandler method {0} must be static", MethodInfo.Name));
+						throw new Exception(string.Format("UriHandler method {0} must be static", methodInfo.Name));
 					}
 
-					if (MethodInfo.ReturnType != typeof(UriResult))
+					if (methodInfo.ReturnType != typeof(UriResult))
 					{
-						throw new Exception(string.Format("UriHandler method {0} must return UriResult type", MethodInfo.Name));
+						throw new Exception(string.Format("UriHandler method {0} must return UriResult type", methodInfo.Name));
 					}
 
-					if (Handlers.ContainsKey(MethodInfo.Name))
+					if (Handlers.ContainsKey(methodInfo.Name))
 					{
-						throw new Exception(string.Format("UriHandler method {0} clashes with another handler", MethodInfo.Name));
+						throw new Exception(string.Format("UriHandler method {0} clashes with another handler", methodInfo.Name));
 					}
 
-					foreach (ParameterInfo ParameterInfo in MethodInfo.GetParameters())
+					foreach (ParameterInfo parameterInfo in methodInfo.GetParameters())
 					{
-						Type ParameterType = ParameterInfo.ParameterType;
-						if (ParameterType != typeof(bool) && ParameterType != typeof(string) && ParameterType != typeof(float) && ParameterType != typeof(int))
+						Type parameterType = parameterInfo.ParameterType;
+						if (parameterType != typeof(bool) && parameterType != typeof(string) && parameterType != typeof(float) && parameterType != typeof(int))
 						{
-							throw new Exception(string.Format("UriHandler method parameter {0} must be bool, string, int, or float", ParameterInfo.Name));
+							throw new Exception(string.Format("UriHandler method parameter {0} must be bool, string, int, or float", parameterInfo.Name));
 						}
 					}
 
-					Handlers[MethodInfo.Name] = MethodInfo;
+					Handlers[methodInfo.Name] = methodInfo;
 				}
 			}
 		}
@@ -259,9 +259,9 @@ namespace UnrealGameSync
 	{
 		public bool Terminate;
 
-		public UriHandlerAttribute(bool Terminate = false)
+		public UriHandlerAttribute(bool terminate = false)
 		{
-			this.Terminate = Terminate;			
+			this.Terminate = terminate;			
 		}
 	}
 
@@ -285,12 +285,12 @@ namespace UnrealGameSync
 			public string? ValueName;
 			public string Value;
 
-			public RegistrySetting(RegistryKey RootKey, string KeyName, string? ValueName, string Value)
+			public RegistrySetting(RegistryKey rootKey, string keyName, string? valueName, string value)
 			{
-				this.RootKey = RootKey;
-				this.KeyName = KeyName;
-				this.ValueName = ValueName;
-				this.Value = Value;
+				this.RootKey = rootKey;
+				this.KeyName = keyName;
+				this.ValueName = valueName;
+				this.Value = value;
 			}
 		}
 
@@ -301,44 +301,44 @@ namespace UnrealGameSync
 
 		static List<RegistrySetting> GetRegistrySettings()
 		{
-			string ApplicationPath = CurrentProcessFilePath;
+			string applicationPath = CurrentProcessFilePath;
 
-			List<RegistrySetting> Keys = new List<RegistrySetting>();
-			Keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS", null, "URL:UGS Protocol"));
-			Keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS", "URL Protocol", ""));
-			Keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS\\DefaultIcon", null, String.Format("\"{0}\",0", ApplicationPath)));
-			Keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS\\shell\\open\\command", null, String.Format("\"{0}\" -uri=\"%1\"", ApplicationPath)));
-			return Keys;
+			List<RegistrySetting> keys = new List<RegistrySetting>();
+			keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS", null, "URL:UGS Protocol"));
+			keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS", "URL Protocol", ""));
+			keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS\\DefaultIcon", null, String.Format("\"{0}\",0", applicationPath)));
+			keys.Add(new RegistrySetting(Registry.ClassesRoot, "UGS\\shell\\open\\command", null, String.Format("\"{0}\" -uri=\"%1\"", applicationPath)));
+			return keys;
 		}
 
 		public static ProtocolHandlerState GetState()
 		{
 			try
 			{
-				bool bHasAny = false;
-				bool bHasAll = true;
+				bool hasAny = false;
+				bool hasAll = true;
 
-				List<RegistrySetting> Keys = GetRegistrySettings();
-				foreach (IGrouping<RegistryKey, RegistrySetting> RootKeyGroup in Keys.GroupBy(x => x.RootKey))
+				List<RegistrySetting> keys = GetRegistrySettings();
+				foreach (IGrouping<RegistryKey, RegistrySetting> rootKeyGroup in keys.GroupBy(x => x.RootKey))
 				{
-					foreach (IGrouping<string, RegistrySetting> KeyNameGroup in RootKeyGroup.GroupBy(x => x.KeyName))
+					foreach (IGrouping<string, RegistrySetting> keyNameGroup in rootKeyGroup.GroupBy(x => x.KeyName))
 					{
-						using (RegistryKey? RegistryKey = RootKeyGroup.Key.OpenSubKey(KeyNameGroup.Key))
+						using (RegistryKey? registryKey = rootKeyGroup.Key.OpenSubKey(keyNameGroup.Key))
 						{
-							if (RegistryKey == null)
+							if (registryKey == null)
 							{
-								bHasAll = false;
+								hasAll = false;
 							}
 							else
 							{
-								bHasAll &= KeyNameGroup.All(x => (RegistryKey.GetValue(x.ValueName) as string) == x.Value);
-								bHasAny = true;
+								hasAll &= keyNameGroup.All(x => (registryKey.GetValue(x.ValueName) as string) == x.Value);
+								hasAny = true;
 							}
 						}
 					}
 				}
 
-				return bHasAll? ProtocolHandlerState.Installed : bHasAny? ProtocolHandlerState.Unknown : ProtocolHandlerState.NotInstalled;
+				return hasAll? ProtocolHandlerState.Installed : hasAny? ProtocolHandlerState.Unknown : ProtocolHandlerState.NotInstalled;
 			}
 			catch
 			{
@@ -355,24 +355,24 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				List<RegistrySetting> Keys = GetRegistrySettings();
-				foreach (IGrouping<RegistryKey, RegistrySetting> RootKeyGroup in Keys.GroupBy(x => x.RootKey))
+				List<RegistrySetting> keys = GetRegistrySettings();
+				foreach (IGrouping<RegistryKey, RegistrySetting> rootKeyGroup in keys.GroupBy(x => x.RootKey))
 				{
-					foreach (IGrouping<string, RegistrySetting> KeyNameGroup in RootKeyGroup.GroupBy(x => x.KeyName))
+					foreach (IGrouping<string, RegistrySetting> keyNameGroup in rootKeyGroup.GroupBy(x => x.KeyName))
 					{
-						using (RegistryKey RegistryKey = RootKeyGroup.Key.CreateSubKey(KeyNameGroup.Key))
+						using (RegistryKey registryKey = rootKeyGroup.Key.CreateSubKey(keyNameGroup.Key))
 						{
-							foreach (RegistrySetting Setting in KeyNameGroup)
+							foreach (RegistrySetting setting in keyNameGroup)
 							{
-								RegistryKey.SetValue(Setting.ValueName, Setting.Value);
+								registryKey.SetValue(setting.ValueName, setting.Value);
 							}
 						}
 					}
 				}
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				MessageBox.Show(String.Format("Unable to register protocol handler: {0}", Ex));
+				MessageBox.Show(String.Format("Unable to register protocol handler: {0}", ex));
 			}
 		}
 
@@ -387,22 +387,22 @@ namespace UnrealGameSync
 			{
 				Registry.ClassesRoot.DeleteSubKeyTree("UGS", false);
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				MessageBox.Show(String.Format("Unable to register protocol handler: {0}", Ex));
+				MessageBox.Show(String.Format("Unable to register protocol handler: {0}", ex));
 			}
 		}
 
-		private static void RunElevated(string Arguments)
+		private static void RunElevated(string arguments)
 		{
-			using (Process Process = new Process())
+			using (Process process = new Process())
 			{
-				Process.StartInfo.FileName = Path.ChangeExtension(Assembly.GetExecutingAssembly().Location, ".exe");
-				Process.StartInfo.Arguments = Arguments;
-				Process.StartInfo.Verb = "runas";
-				Process.StartInfo.UseShellExecute = true;
-				Process.Start();
-				Process.WaitForExit();
+				process.StartInfo.FileName = Path.ChangeExtension(Assembly.GetExecutingAssembly().Location, ".exe");
+				process.StartInfo.Arguments = arguments;
+				process.StartInfo.Verb = "runas";
+				process.StartInfo.UseShellExecute = true;
+				process.Start();
+				process.WaitForExit();
 			}
 		}
 	}

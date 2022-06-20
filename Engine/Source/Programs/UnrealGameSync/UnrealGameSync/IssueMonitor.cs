@@ -64,52 +64,52 @@ namespace UnrealGameSync
 		public DateTime? AcknowledgedAt { get; set; }
 		public int FixChange { get; set; }
 		public DateTime? ResolvedAt { get; set; }
-		public bool bNotify { get; set; }
-		public bool bIsWarning { get; set; }
+		public bool Notify { get; set; }
+		public bool IsWarning { get; set; }
 		public string BuildUrl { get; set; } = String.Empty;
 		public List<string> Streams { get; set; } = new List<string>();
 
-		HashSet<string>? CachedProjects;
+		HashSet<string>? _cachedProjects;
 
 		public HashSet<string> Projects
 		{
 			get
 			{
 				// HACK to infer project names from streams
-				if(CachedProjects == null)
+				if(_cachedProjects == null)
 				{
-					HashSet<string> NewProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+					HashSet<string> newProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 					if (!String.IsNullOrEmpty(Project))
 					{
-						NewProjects.Add(Project);
+						newProjects.Add(Project);
 					}
 					if (Streams != null)
 					{
-						foreach (string Stream in Streams)
+						foreach (string stream in Streams)
 						{
-							Match Match = Regex.Match(Stream, "^//([^/]+)/");
-							if (Match.Success)
+							Match match = Regex.Match(stream, "^//([^/]+)/");
+							if (match.Success)
 							{
-								string Project = Match.Groups[1].Value;
-								if (Project.StartsWith("UE", StringComparison.OrdinalIgnoreCase))
+								string project = match.Groups[1].Value;
+								if (project.StartsWith("UE", StringComparison.OrdinalIgnoreCase))
 								{
-									Project = "UE" + Project.Substring(2);
+									project = "UE" + project.Substring(2);
 								}
-								else if (Char.IsLower(Project[0]))
+								else if (Char.IsLower(project[0]))
 								{
-									Project = Char.ToUpper(Project[0], CultureInfo.InvariantCulture) + Project.Substring(1);
+									project = Char.ToUpper(project[0], CultureInfo.InvariantCulture) + project.Substring(1);
 								}
-								NewProjects.Add(Project);
+								newProjects.Add(project);
 							}
 						}
 					}
-					if (NewProjects.Count == 0)
+					if (newProjects.Count == 0)
 					{
-						NewProjects.Add("Default");
+						newProjects.Add("Default");
 					}
-					CachedProjects = NewProjects;
+					_cachedProjects = newProjects;
 				}
-				return CachedProjects;
+				return _cachedProjects;
 			}
 		}
 	}
@@ -138,42 +138,42 @@ namespace UnrealGameSync
 	{
 		public readonly string? ApiUrl;
 		public readonly string UserName;
-		int RefCount = 1;
-		Task? WorkerTask;
-		ILogger Logger;
-		CancellationTokenSource CancellationSource;
-		AsyncEvent RefreshEvent;
-		int UpdateIntervalMs;
-		List<long> TrackingIssueIds = new List<long>();
-		List<IssueData> Issues = new List<IssueData>();
-		object LockObject = new object();
-		List<IssueUpdateData> PendingUpdates = new List<IssueUpdateData>();
-		IAsyncDisposer AsyncDisposer;
+		int _refCount = 1;
+		Task? _workerTask;
+		ILogger _logger;
+		CancellationTokenSource _cancellationSource;
+		AsyncEvent _refreshEvent;
+		int _updateIntervalMs;
+		List<long> _trackingIssueIds = new List<long>();
+		List<IssueData> _issues = new List<IssueData>();
+		object _lockObject = new object();
+		List<IssueUpdateData> _pendingUpdates = new List<IssueUpdateData>();
+		IAsyncDisposer _asyncDisposer;
 
 		public Action? OnIssuesChanged { get; set; }
 
 		// Only used by MainWindow, but easier to just store here
 		public Dictionary<long, IssueAlertReason> IssueIdToAlertReason = new Dictionary<long, IssueAlertReason>();
 
-		public IssueMonitor(string? ApiUrl, string UserName, TimeSpan UpdateInterval, IServiceProvider ServiceProvider)
+		public IssueMonitor(string? apiUrl, string userName, TimeSpan updateInterval, IServiceProvider serviceProvider)
 		{
-			this.ApiUrl = ApiUrl;
-			this.UserName = UserName;
-			this.UpdateIntervalMs = (int)UpdateInterval.TotalMilliseconds;
-			this.Logger = ServiceProvider.GetRequiredService<ILogger<IssueMonitor>>();
-			CancellationSource = new CancellationTokenSource();
-			this.AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
+			this.ApiUrl = apiUrl;
+			this.UserName = userName;
+			this._updateIntervalMs = (int)updateInterval.TotalMilliseconds;
+			this._logger = serviceProvider.GetRequiredService<ILogger<IssueMonitor>>();
+			_cancellationSource = new CancellationTokenSource();
+			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
-			if (ApiUrl == null)
+			if (apiUrl == null)
 			{
 				LastStatusMessage = "Database functionality disabled due to empty ApiUrl.";
 			}
 			else
 			{
-				Logger.LogInformation("Using connection string: {ApiUrl}", this.ApiUrl);
+				_logger.LogInformation("Using connection string: {ApiUrl}", this.ApiUrl);
 			}
 
-			RefreshEvent = new AsyncEvent();
+			_refreshEvent = new AsyncEvent();
 		}
 
 		public string LastStatusMessage
@@ -184,122 +184,122 @@ namespace UnrealGameSync
 
 		public List<IssueData> GetIssues()
 		{
-			return Issues;
+			return _issues;
 		}
 
 		public TimeSpan GetUpdateInterval()
 		{
-			return TimeSpan.FromMilliseconds(UpdateIntervalMs);
+			return TimeSpan.FromMilliseconds(_updateIntervalMs);
 		}
 
-		public void SetUpdateInterval(TimeSpan UpdateInterval)
+		public void SetUpdateInterval(TimeSpan updateInterval)
 		{
-			UpdateIntervalMs = (int)UpdateInterval.TotalMilliseconds;
-			RefreshEvent.Set();
+			_updateIntervalMs = (int)updateInterval.TotalMilliseconds;
+			_refreshEvent.Set();
 		}
 
-		public void StartTracking(long IssueId)
+		public void StartTracking(long issueId)
 		{
-			lock(LockObject)
+			lock(_lockObject)
 			{
-				TrackingIssueIds.Add(IssueId);
+				_trackingIssueIds.Add(issueId);
 			}
-			RefreshEvent.Set();
+			_refreshEvent.Set();
 		}
 
-		public void StopTracking(long IssueId)
+		public void StopTracking(long issueId)
 		{
-			lock(LockObject)
+			lock(_lockObject)
 			{
-				TrackingIssueIds.RemoveAt(TrackingIssueIds.IndexOf(IssueId));
+				_trackingIssueIds.RemoveAt(_trackingIssueIds.IndexOf(issueId));
 			}
 		}
 
 		public bool HasPendingUpdate()
 		{
-			return PendingUpdates.Count > 0;
+			return _pendingUpdates.Count > 0;
 		}
 
-		public void PostUpdate(IssueUpdateData Update)
+		public void PostUpdate(IssueUpdateData update)
 		{
-			bool bUpdatedIssues;
-			lock(LockObject)
+			bool updatedIssues;
+			lock(_lockObject)
 			{
-				PendingUpdates.Add(Update);
-				bUpdatedIssues = ApplyPendingUpdate(Issues, Update);
+				_pendingUpdates.Add(update);
+				updatedIssues = ApplyPendingUpdate(_issues, update);
 			}
 
-			RefreshEvent.Set();
+			_refreshEvent.Set();
 
-			if(bUpdatedIssues)
+			if(updatedIssues)
 			{
 				OnIssuesChanged?.Invoke();
 			}
 		}
 
-		static bool ApplyPendingUpdate(List<IssueData> Issues, IssueUpdateData Update)
+		static bool ApplyPendingUpdate(List<IssueData> issues, IssueUpdateData update)
 		{
-			bool bUpdated = false;
-			for(int Idx = 0; Idx < Issues.Count; Idx++)
+			bool updated = false;
+			for(int idx = 0; idx < issues.Count; idx++)
 			{
-				IssueData Issue = Issues[Idx];
-				if(Update.Id == Issue.Id)
+				IssueData issue = issues[idx];
+				if(update.Id == issue.Id)
 				{
-					if(Update.Owner != null && Update.Owner != Issue.Owner)
+					if(update.Owner != null && update.Owner != issue.Owner)
 					{
-						Issue.Owner = Update.Owner;
-						bUpdated = true;
+						issue.Owner = update.Owner;
+						updated = true;
 					}
-					if(Update.NominatedBy != null && Update.NominatedBy != Issue.NominatedBy)
+					if(update.NominatedBy != null && update.NominatedBy != issue.NominatedBy)
 					{
-						Issue.NominatedBy = Update.NominatedBy;
-						bUpdated = true;
+						issue.NominatedBy = update.NominatedBy;
+						updated = true;
 					}
-					if(Update.Acknowledged.HasValue && Update.Acknowledged.Value != Issue.AcknowledgedAt.HasValue)
+					if(update.Acknowledged.HasValue && update.Acknowledged.Value != issue.AcknowledgedAt.HasValue)
 					{
-						Issue.AcknowledgedAt = Update.Acknowledged.Value? (DateTime?)DateTime.UtcNow : null;
-						bUpdated = true;
+						issue.AcknowledgedAt = update.Acknowledged.Value? (DateTime?)DateTime.UtcNow : null;
+						updated = true;
 					}
-					if(Update.FixChange.HasValue)
+					if(update.FixChange.HasValue)
 					{
-						Issue.FixChange = Update.FixChange.Value;
-						if(Issue.FixChange != 0)
+						issue.FixChange = update.FixChange.Value;
+						if(issue.FixChange != 0)
 						{
-							Issues.RemoveAt(Idx);
+							issues.RemoveAt(idx);
 						}
-						bUpdated = true;
+						updated = true;
 					}
 					break;
 				}
 			}
-			return bUpdated;
+			return updated;
 		}
 
 		public void Start()
 		{
 			if(ApiUrl != null)
 			{
-				WorkerTask = Task.Run(() => PollForUpdatesAsync(CancellationSource.Token));
+				_workerTask = Task.Run(() => PollForUpdatesAsync(_cancellationSource.Token));
 			}
 		}
 
 		public void AddRef()
 		{
-			if(RefCount == 0)
+			if(_refCount == 0)
 			{
 				throw new Exception("Invalid reference count for IssueMonitor (zero)");
 			}
-			RefCount++;
+			_refCount++;
 		}
 
 		public void Release()
 		{
-			RefCount--;
-			if(RefCount < 0)
+			_refCount--;
+			if(_refCount < 0)
 			{
 				throw new Exception("Invalid reference count for IssueMonitor (ltz)");
 			}
-			if(RefCount == 0)
+			if(_refCount == 0)
 			{
 				DisposeInternal();
 			}
@@ -314,140 +314,140 @@ namespace UnrealGameSync
 		{
 			OnIssuesChanged = null;
 
-			if (WorkerTask != null)
+			if (_workerTask != null)
 			{
-				CancellationSource.Cancel();
-				AsyncDisposer.Add(WorkerTask.ContinueWith(_ => CancellationSource.Dispose()));
-				WorkerTask = null;
+				_cancellationSource.Cancel();
+				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose()));
+				_workerTask = null;
 			}
 		}
 
-		async Task PollForUpdatesAsync(CancellationToken CancellationToken)
+		async Task PollForUpdatesAsync(CancellationToken cancellationToken)
 		{
-			while (CancellationToken.IsCancellationRequested)
+			while (cancellationToken.IsCancellationRequested)
 			{
-				Task RefreshTask = RefreshEvent.Task;
+				Task refreshTask = _refreshEvent.Task;
 
 				// Check if there's any pending update
-				IssueUpdateData? PendingUpdate;
-				lock (LockObject)
+				IssueUpdateData? pendingUpdate;
+				lock (_lockObject)
 				{
-					if (PendingUpdates.Count > 0)
+					if (_pendingUpdates.Count > 0)
 					{
-						PendingUpdate = PendingUpdates[0];
+						pendingUpdate = _pendingUpdates[0];
 					}
 					else
 					{
-						PendingUpdate = null;
+						pendingUpdate = null;
 					}
 				}
 
 				// If we have an update, try to post it to the backend and check for another
-				if (PendingUpdate != null)
+				if (pendingUpdate != null)
 				{
-					if (await SendUpdateAsync(PendingUpdate, CancellationToken))
+					if (await SendUpdateAsync(pendingUpdate, cancellationToken))
 					{
-						lock (LockObject) { PendingUpdates.RemoveAt(0); }
+						lock (_lockObject) { _pendingUpdates.RemoveAt(0); }
 					}
 					else
 					{
-						await Task.WhenAny(RefreshTask, Task.Delay(TimeSpan.FromSeconds(5.0), CancellationToken));
+						await Task.WhenAny(refreshTask, Task.Delay(TimeSpan.FromSeconds(5.0), cancellationToken));
 					}
 					continue;
 				}
 
 				// Read all the current issues
-				await ReadCurrentIssuesAsync(CancellationToken);
+				await ReadCurrentIssuesAsync(cancellationToken);
 
 				// Wait for something else to do
-				await Task.WhenAny(RefreshTask, Task.Delay(UpdateIntervalMs, CancellationToken));
+				await Task.WhenAny(refreshTask, Task.Delay(_updateIntervalMs, cancellationToken));
 			}
 		}
 
-		async Task<bool> SendUpdateAsync(IssueUpdateData Update, CancellationToken CancellationToken)
+		async Task<bool> SendUpdateAsync(IssueUpdateData update, CancellationToken cancellationToken)
 		{
 			try
 			{
-				await RESTApi.PutAsync<IssueUpdateData>($"{ApiUrl}/api/issues/{Update.Id}", Update, CancellationToken);
+				await RestApi.PutAsync<IssueUpdateData>($"{ApiUrl}/api/issues/{update.Id}", update, cancellationToken);
 				return true;
 			}
-			catch(Exception Ex)
+			catch(Exception ex)
 			{
-				Logger.LogError(Ex, "Failed with exception.");
-				LastStatusMessage = String.Format("Failed to send update: ({0})", Ex.ToString());
+				_logger.LogError(ex, "Failed with exception.");
+				LastStatusMessage = String.Format("Failed to send update: ({0})", ex.ToString());
 				return false;
 			}
 		}
 
-		async Task<bool> ReadCurrentIssuesAsync(CancellationToken CancellationToken)
+		async Task<bool> ReadCurrentIssuesAsync(CancellationToken cancellationToken)
 		{
 			try
 			{
-				Stopwatch Timer = Stopwatch.StartNew();
-				Logger.LogInformation("Polling for issues...");
+				Stopwatch timer = Stopwatch.StartNew();
+				_logger.LogInformation("Polling for issues...");
 
 				// Get the initial number of issues. We won't post updates if this stays at zero.
-				int InitialNumIssues = Issues.Count;
+				int initialNumIssues = _issues.Count;
 
 				// Fetch the new issues
-				List<IssueData> NewIssues = await RESTApi.GetAsync<List<IssueData>>($"{ApiUrl}/api/issues?user={UserName}", CancellationToken);
+				List<IssueData> newIssues = await RestApi.GetAsync<List<IssueData>>($"{ApiUrl}/api/issues?user={UserName}", cancellationToken);
 
 				// Check if we're tracking a particular issue. If so, we want updates even when it's resolved.
-				long[] LocalTrackingIssueIds;
-				lock(LockObject)
+				long[] localTrackingIssueIds;
+				lock(_lockObject)
 				{
-					LocalTrackingIssueIds = TrackingIssueIds.Distinct().ToArray();
+					localTrackingIssueIds = _trackingIssueIds.Distinct().ToArray();
 				}
-				foreach(long LocalTrackingIssueId in LocalTrackingIssueIds)
+				foreach(long localTrackingIssueId in localTrackingIssueIds)
 				{
-					if(!NewIssues.Any(x => x.Id == LocalTrackingIssueId))
+					if(!newIssues.Any(x => x.Id == localTrackingIssueId))
 					{
 						try
 						{
-							IssueData Issue = await RESTApi.GetAsync<IssueData>($"{ApiUrl}/api/issues/{LocalTrackingIssueId}", CancellationToken);
-							if(Issue != null)
+							IssueData issue = await RestApi.GetAsync<IssueData>($"{ApiUrl}/api/issues/{localTrackingIssueId}", cancellationToken);
+							if(issue != null)
 							{
-								NewIssues.Add(Issue);
+								newIssues.Add(issue);
 							}
 						}
-						catch(Exception Ex)
+						catch(Exception ex)
 						{
-							Logger.LogError(Ex, "Exception while fetching tracked issue");
+							_logger.LogError(ex, "Exception while fetching tracked issue");
 						}
 					}
 				}
 
 				// Update all the builds for each issue
-				foreach (IssueData NewIssue in NewIssues)
+				foreach (IssueData newIssue in newIssues)
 				{
-					if (NewIssue.Version == 0)
+					if (newIssue.Version == 0)
 					{
-						List<IssueBuildData> Builds = await RESTApi.GetAsync<List<IssueBuildData>>($"{ApiUrl}/api/issues/{NewIssue.Id}/builds", CancellationToken);
-						if (Builds != null && Builds.Count > 0)
+						List<IssueBuildData> builds = await RestApi.GetAsync<List<IssueBuildData>>($"{ApiUrl}/api/issues/{newIssue.Id}/builds", cancellationToken);
+						if (builds != null && builds.Count > 0)
 						{
-							NewIssue.bIsWarning = !Builds.Any(x => x.Outcome != IssueBuildOutcome.Warning);
+							newIssue.IsWarning = !builds.Any(x => x.Outcome != IssueBuildOutcome.Warning);
 
-							IssueBuildData LastBuild = Builds.OrderByDescending(x => x.Change).FirstOrDefault();
-							if (LastBuild != null && !String.IsNullOrEmpty(LastBuild.ErrorUrl))
+							IssueBuildData lastBuild = builds.OrderByDescending(x => x.Change).FirstOrDefault();
+							if (lastBuild != null && !String.IsNullOrEmpty(lastBuild.ErrorUrl))
 							{
-								NewIssue.BuildUrl = LastBuild.ErrorUrl;
+								newIssue.BuildUrl = lastBuild.ErrorUrl;
 							}
 						}
 					}
 				}
 
 				// Apply any pending updates to this issue list, and update it
-				lock (LockObject)
+				lock (_lockObject)
 				{
-					foreach(IssueUpdateData PendingUpdate in PendingUpdates)
+					foreach(IssueUpdateData pendingUpdate in _pendingUpdates)
 					{
-						ApplyPendingUpdate(NewIssues, PendingUpdate);
+						ApplyPendingUpdate(newIssues, pendingUpdate);
 					}
-					Issues = NewIssues;
+					_issues = newIssues;
 				}
 
 				// Update the main thread
-				if(InitialNumIssues > 0 || Issues.Count > 0)
+				if(initialNumIssues > 0 || _issues.Count > 0)
 				{
 					if(OnIssuesChanged != null)
 					{
@@ -456,14 +456,14 @@ namespace UnrealGameSync
 				}
 
 				// Update the stats
-				LastStatusMessage = String.Format("Last update took {0}ms", Timer.ElapsedMilliseconds);
-				Logger.LogInformation("Done in {Time}ms.", Timer.ElapsedMilliseconds);
+				LastStatusMessage = String.Format("Last update took {0}ms", timer.ElapsedMilliseconds);
+				_logger.LogInformation("Done in {Time}ms.", timer.ElapsedMilliseconds);
 				return true;
 			}
-			catch(Exception Ex)
+			catch(Exception ex)
 			{
-				Logger.LogError(Ex, "Failed with exception.");
-				LastStatusMessage = String.Format("Last update failed: ({0})", Ex.ToString());
+				_logger.LogError(ex, "Failed with exception.");
+				LastStatusMessage = String.Format("Last update failed: ({0})", ex.ToString());
 				return false;
 			}
 		}

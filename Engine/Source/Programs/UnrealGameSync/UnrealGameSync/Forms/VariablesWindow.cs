@@ -17,7 +17,7 @@ namespace UnrealGameSync
 {
 	public partial class VariablesWindow : Form
 	{
-		static HashSet<string> LegacyVariables = new HashSet<string>()
+		static HashSet<string> _legacyVariables = new HashSet<string>()
 		{
 			"UE4EditorConfig",
 			"UE4EditorDebugArg",
@@ -26,40 +26,40 @@ namespace UnrealGameSync
 			"UseIncrementalBuilds",
 		};
 
-		public delegate void InsertVariableDelegate(string Name);
+		public delegate void InsertVariableDelegate(string name);
 
 		public event InsertVariableDelegate? OnInsertVariable;
 
-		public VariablesWindow(IReadOnlyDictionary<string, string> Variables)
+		public VariablesWindow(IReadOnlyDictionary<string, string> variables)
 		{
 			InitializeComponent();
 
-			ListViewGroup CurrentProjectGroup = new ListViewGroup("Current Project");
-			MacrosList.Groups.Add(CurrentProjectGroup);
+			ListViewGroup currentProjectGroup = new ListViewGroup("Current Project");
+			MacrosList.Groups.Add(currentProjectGroup);
 
-			ListViewGroup EnvironmentGroup = new ListViewGroup("Environment");
-			MacrosList.Groups.Add(EnvironmentGroup);
+			ListViewGroup environmentGroup = new ListViewGroup("Environment");
+			MacrosList.Groups.Add(environmentGroup);
 
-			foreach(KeyValuePair<string, string> Pair in Variables)
+			foreach(KeyValuePair<string, string> pair in variables)
 			{
-				if (!LegacyVariables.Contains(Pair.Key))
+				if (!_legacyVariables.Contains(pair.Key))
 				{
-					ListViewItem Item = new ListViewItem(String.Format("$({0})", Pair.Key));
-					Item.SubItems.Add(Pair.Value);
-					Item.Group = CurrentProjectGroup;
-					MacrosList.Items.Add(Item);
+					ListViewItem item = new ListViewItem(String.Format("$({0})", pair.Key));
+					item.SubItems.Add(pair.Value);
+					item.Group = currentProjectGroup;
+					MacrosList.Items.Add(item);
 				}
 			}
 
-			foreach(DictionaryEntry Entry in Environment.GetEnvironmentVariables().OfType<DictionaryEntry>())
+			foreach(DictionaryEntry entry in Environment.GetEnvironmentVariables().OfType<DictionaryEntry>())
 			{
-				string? Key = Entry.Key?.ToString();
-				if(Key != null && Entry.Value != null && !Variables.ContainsKey(Key))
+				string? key = entry.Key?.ToString();
+				if(key != null && entry.Value != null && !variables.ContainsKey(key))
 				{
-					ListViewItem Item = new ListViewItem(String.Format("$({0})", Key));
-					Item.SubItems.Add(Entry.Value.ToString());
-					Item.Group = EnvironmentGroup;
-					MacrosList.Items.Add(Item);
+					ListViewItem item = new ListViewItem(String.Format("$({0})", key));
+					item.SubItems.Add(entry.Value.ToString());
+					item.Group = environmentGroup;
+					MacrosList.Items.Add(item);
 				}
 			}
 		}
@@ -75,14 +75,14 @@ namespace UnrealGameSync
 			Close();
 		}
 
-		private void MacrosList_MouseDoubleClick(object Sender, MouseEventArgs Args)
+		private void MacrosList_MouseDoubleClick(object sender, MouseEventArgs args)
 		{
-			if(Args.Button == MouseButtons.Left)
+			if(args.Button == MouseButtons.Left)
 			{
-				ListViewHitTestInfo HitTest = MacrosList.HitTest(Args.Location);
-				if(HitTest.Item != null && OnInsertVariable != null)
+				ListViewHitTestInfo hitTest = MacrosList.HitTest(args.Location);
+				if(hitTest.Item != null && OnInsertVariable != null)
 				{
-					OnInsertVariable(HitTest.Item.Text);
+					OnInsertVariable(hitTest.Item.Text);
 				}
 			}
 		}

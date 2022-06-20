@@ -27,264 +27,264 @@ namespace UnrealGameSync
 		public IReadOnlyList<string>? WorkspaceProjectStreamFilter { get; }
 		public List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles { get; }
 
-		public OpenProjectInfo(UserSelectedProjectSettings SelectedProject, IPerforceSettings PerforceSettings, ProjectInfo ProjectInfo, UserWorkspaceSettings WorkspaceSettings, UserWorkspaceState WorkspaceState, ConfigFile LatestProjectConfigFile, ConfigFile WorkspaceProjectConfigFile, IReadOnlyList<string>? WorkspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles)
+		public OpenProjectInfo(UserSelectedProjectSettings selectedProject, IPerforceSettings perforceSettings, ProjectInfo projectInfo, UserWorkspaceSettings workspaceSettings, UserWorkspaceState workspaceState, ConfigFile latestProjectConfigFile, ConfigFile workspaceProjectConfigFile, IReadOnlyList<string>? workspaceProjectStreamFilter, List<KeyValuePair<FileReference, DateTime>> localConfigFiles)
 		{
-			this.SelectedProject = SelectedProject;
+			this.SelectedProject = selectedProject;
 
-			this.PerforceSettings = PerforceSettings;
-			this.ProjectInfo = ProjectInfo;
-			this.WorkspaceSettings = WorkspaceSettings;
-			this.WorkspaceState = WorkspaceState;
-			this.LatestProjectConfigFile = LatestProjectConfigFile;
-			this.WorkspaceProjectConfigFile = WorkspaceProjectConfigFile;
-			this.WorkspaceProjectStreamFilter = WorkspaceProjectStreamFilter;
-			this.LocalConfigFiles = LocalConfigFiles;
+			this.PerforceSettings = perforceSettings;
+			this.ProjectInfo = projectInfo;
+			this.WorkspaceSettings = workspaceSettings;
+			this.WorkspaceState = workspaceState;
+			this.LatestProjectConfigFile = latestProjectConfigFile;
+			this.WorkspaceProjectConfigFile = workspaceProjectConfigFile;
+			this.WorkspaceProjectStreamFilter = workspaceProjectStreamFilter;
+			this.LocalConfigFiles = localConfigFiles;
 		}
 
-		public static async Task<OpenProjectInfo> CreateAsync(IPerforceSettings DefaultPerforceSettings, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<OpenProjectInfo> Logger, CancellationToken CancellationToken)
+		public static async Task<OpenProjectInfo> CreateAsync(IPerforceSettings defaultPerforceSettings, UserSelectedProjectSettings selectedProject, UserSettings userSettings, ILogger<OpenProjectInfo> logger, CancellationToken cancellationToken)
 		{
-			PerforceSettings PerforceSettings = Utility.OverridePerforceSettings(DefaultPerforceSettings, SelectedProject.ServerAndPort, SelectedProject.UserName);
-			using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+			PerforceSettings perforceSettings = Utility.OverridePerforceSettings(defaultPerforceSettings, selectedProject.ServerAndPort, selectedProject.UserName);
+			using IPerforceConnection perforce = await PerforceConnection.CreateAsync(perforceSettings, logger);
 
 			// Make sure we're logged in
-			PerforceResponse<LoginRecord> LoginState = await Perforce.TryGetLoginStateAsync(CancellationToken);
-			if (!LoginState.Succeeded)
+			PerforceResponse<LoginRecord> loginState = await perforce.TryGetLoginStateAsync(cancellationToken);
+			if (!loginState.Succeeded)
 			{
 				throw new UserErrorException("User is not logged in to Perforce.");
 			}
 
 			// Execute like a regular task
-			return await CreateAsync(Perforce, SelectedProject, UserSettings, Logger, CancellationToken);
+			return await CreateAsync(perforce, selectedProject, userSettings, logger, cancellationToken);
 		}
 
-		public static async Task<OpenProjectInfo> CreateAsync(IPerforceConnection DefaultConnection, UserSelectedProjectSettings SelectedProject, UserSettings UserSettings, ILogger<OpenProjectInfo> Logger, CancellationToken CancellationToken)
+		public static async Task<OpenProjectInfo> CreateAsync(IPerforceConnection defaultConnection, UserSelectedProjectSettings selectedProject, UserSettings userSettings, ILogger<OpenProjectInfo> logger, CancellationToken cancellationToken)
 		{
-			using IDisposable LoggerScope = Logger.BeginScope("Project {SelectedProject}", SelectedProject.ToString());
-			Logger.LogInformation("Detecting settings for {Project}", SelectedProject);
+			using IDisposable loggerScope = logger.BeginScope("Project {SelectedProject}", selectedProject.ToString());
+			logger.LogInformation("Detecting settings for {Project}", selectedProject);
 
 			// Use the cached client path to the file if it's available; it's much quicker than trying to find the correct workspace.
-			IPerforceConnection? PerforceClient = null;
+			IPerforceConnection? perforceClient = null;
 			try
 			{
-				IPerforceSettings PerforceSettings;
+				IPerforceSettings perforceSettings;
 
-				FileReference NewSelectedFileName;
-				string NewSelectedClientFileName;
-				if (!String.IsNullOrEmpty(SelectedProject.ClientPath))
+				FileReference newSelectedFileName;
+				string newSelectedClientFileName;
+				if (!String.IsNullOrEmpty(selectedProject.ClientPath))
 				{
 					// Get the client path
-					NewSelectedClientFileName = SelectedProject.ClientPath;
+					newSelectedClientFileName = selectedProject.ClientPath;
 
 					// Get the client name
-					string? ClientName;
-					if (!PerforceUtils.TryGetClientName(NewSelectedClientFileName, out ClientName))
+					string? clientName;
+					if (!PerforceUtils.TryGetClientName(newSelectedClientFileName, out clientName))
 					{
-						throw new UserErrorException($"Couldn't get client name from {NewSelectedClientFileName}");
+						throw new UserErrorException($"Couldn't get client name from {newSelectedClientFileName}");
 					}
 
 					// Create the client
-					PerforceSettings = new PerforceSettings(DefaultConnection.Settings) { ClientName = ClientName };
-					PerforceClient = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+					perforceSettings = new PerforceSettings(defaultConnection.Settings) { ClientName = clientName };
+					perforceClient = await PerforceConnection.CreateAsync(perforceSettings, logger);
 
 					// Figure out the path on the client. Use the cached location if it's valid.
-					string? LocalPath = SelectedProject.LocalPath;
-					if (LocalPath == null || !File.Exists(LocalPath))
+					string? localPath = selectedProject.LocalPath;
+					if (localPath == null || !File.Exists(localPath))
 					{
-						List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedClientFileName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);
-						if (Records.Count != 1)
+						List<WhereRecord> records = await perforceClient.WhereAsync(newSelectedClientFileName, cancellationToken).Where(x => !x.Unmap).ToListAsync(cancellationToken);
+						if (records.Count != 1)
 						{
-							throw new UserErrorException($"Couldn't get client path for {NewSelectedClientFileName}");
+							throw new UserErrorException($"Couldn't get client path for {newSelectedClientFileName}");
 						}
-						LocalPath = Path.GetFullPath(Records[0].Path);
+						localPath = Path.GetFullPath(records[0].Path);
 					}
-					NewSelectedFileName = new FileReference(LocalPath);
+					newSelectedFileName = new FileReference(localPath);
 				}
 				else
 				{
 					// Get the perforce server settings
-					InfoRecord PerforceInfo = await DefaultConnection.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
+					InfoRecord perforceInfo = await defaultConnection.GetInfoAsync(InfoOptions.ShortOutput, cancellationToken);
 
 					// Use the path as the selected filename
-					NewSelectedFileName = new FileReference(SelectedProject.LocalPath!);
+					newSelectedFileName = new FileReference(selectedProject.LocalPath!);
 
 					// Make sure the project exists
-					if (!FileReference.Exists(NewSelectedFileName))
+					if (!FileReference.Exists(newSelectedFileName))
 					{
-						throw new UserErrorException($"{SelectedProject.LocalPath} does not exist.");
+						throw new UserErrorException($"{selectedProject.LocalPath} does not exist.");
 					}
 
 					// Find all the clients for this user
-					Logger.LogInformation("Enumerating clients for {UserName}...", PerforceInfo.UserName);
+					logger.LogInformation("Enumerating clients for {UserName}...", perforceInfo.UserName);
 
-					List<ClientsRecord> Clients = await DefaultConnection.GetClientsAsync(ClientsOptions.None, DefaultConnection.Settings.UserName, CancellationToken);
+					List<ClientsRecord> clients = await defaultConnection.GetClientsAsync(ClientsOptions.None, defaultConnection.Settings.UserName, cancellationToken);
 
-					List<IPerforceSettings> CandidateClients = await FilterClients(Clients, NewSelectedFileName, DefaultConnection.Settings, PerforceInfo.ClientHost, Logger, CancellationToken);
-					if (CandidateClients.Count == 0)
+					List<IPerforceSettings> candidateClients = await FilterClients(clients, newSelectedFileName, defaultConnection.Settings, perforceInfo.ClientHost, logger, cancellationToken);
+					if (candidateClients.Count == 0)
 					{
 						// Search through all workspaces. We may find a suitable workspace which is for any user.
-						Logger.LogInformation("Enumerating shared clients...");
-						Clients = await DefaultConnection.GetClientsAsync(ClientsOptions.None, "", CancellationToken);
+						logger.LogInformation("Enumerating shared clients...");
+						clients = await defaultConnection.GetClientsAsync(ClientsOptions.None, "", cancellationToken);
 
 						// Filter this list of clients
-						CandidateClients = await FilterClients(Clients, NewSelectedFileName, DefaultConnection.Settings, PerforceInfo.ClientHost, Logger, CancellationToken);
+						candidateClients = await FilterClients(clients, newSelectedFileName, defaultConnection.Settings, perforceInfo.ClientHost, logger, cancellationToken);
 
 						// If we still couldn't find any, fail.
-						if (CandidateClients.Count == 0)
+						if (candidateClients.Count == 0)
 						{
-							throw new UserErrorException($"Couldn't find any Perforce workspace containing {NewSelectedFileName}. Check your connection settings.");
+							throw new UserErrorException($"Couldn't find any Perforce workspace containing {newSelectedFileName}. Check your connection settings.");
 						}
 					}
 
 					// Check there's only one client
-					if (CandidateClients.Count > 1)
+					if (candidateClients.Count > 1)
 					{
-						throw new UserErrorException(String.Format("Found multiple workspaces containing {0}:\n\n{1}\n\nCannot determine which to use.", Path.GetFileName(NewSelectedFileName.GetFileName()), String.Join("\n", CandidateClients.Select(x => x.ClientName))));
+						throw new UserErrorException(String.Format("Found multiple workspaces containing {0}:\n\n{1}\n\nCannot determine which to use.", Path.GetFileName(newSelectedFileName.GetFileName()), String.Join("\n", candidateClients.Select(x => x.ClientName))));
 					}
 
 					// Take the client we've chosen
-					PerforceSettings = CandidateClients[0];
-					PerforceClient = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+					perforceSettings = candidateClients[0];
+					perforceClient = await PerforceConnection.CreateAsync(perforceSettings, logger);
 
 					// Get the client path for the project file
-					List<WhereRecord> Records = await PerforceClient.WhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => !x.Unmap).ToListAsync(CancellationToken);
-					if (Records.Count == 0)
+					List<WhereRecord> records = await perforceClient.WhereAsync(newSelectedFileName.FullName, cancellationToken).Where(x => !x.Unmap).ToListAsync(cancellationToken);
+					if (records.Count == 0)
 					{
 						throw new UserErrorException("File is not mapped to any client");
 					}
-					else if (Records.Count > 1)
+					else if (records.Count > 1)
 					{
-						throw new UserErrorException($"File is mapped to {Records.Count} locations: {String.Join(", ", Records.Select(x => x.Path))}");
+						throw new UserErrorException($"File is mapped to {records.Count} locations: {String.Join(", ", records.Select(x => x.Path))}");
 					}
 
-					NewSelectedClientFileName = Records[0].ClientFile;
+					newSelectedClientFileName = records[0].ClientFile;
 				}
 
 				// Make sure the drive containing the project exists, to prevent other errors down the line
-				string PathRoot = Path.GetPathRoot(NewSelectedFileName.FullName)!;
-				if (!Directory.Exists(PathRoot))
+				string pathRoot = Path.GetPathRoot(newSelectedFileName.FullName)!;
+				if (!Directory.Exists(pathRoot))
 				{
-					throw new UserErrorException($"Path '{NewSelectedFileName}' is invalid");
+					throw new UserErrorException($"Path '{newSelectedFileName}' is invalid");
 				}
 
 				// Make sure the path case is correct. This can cause UBT intermediates to be out of date if the case mismatches.
-				NewSelectedFileName = FileReference.FindCorrectCase(NewSelectedFileName);
+				newSelectedFileName = FileReference.FindCorrectCase(newSelectedFileName);
 
 				// Update the selected project with all the data we've found
-				SelectedProject = new UserSelectedProjectSettings(SelectedProject.ServerAndPort, SelectedProject.UserName, SelectedProject.Type, NewSelectedClientFileName, NewSelectedFileName.FullName);
+				selectedProject = new UserSelectedProjectSettings(selectedProject.ServerAndPort, selectedProject.UserName, selectedProject.Type, newSelectedClientFileName, newSelectedFileName.FullName);
 
 				// Get the local branch root
-				string? BranchClientPath = null;
-				DirectoryReference? BranchDirectoryName = null;
+				string? branchClientPath = null;
+				DirectoryReference? branchDirectoryName = null;
 
 				// Figure out where the engine is in relation to it
-				int EndIdx = NewSelectedClientFileName.Length - 1;
-				if (EndIdx != -1 && NewSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
+				int endIdx = newSelectedClientFileName.Length - 1;
+				if (endIdx != -1 && newSelectedClientFileName.EndsWith(".uproject", StringComparison.InvariantCultureIgnoreCase))
 				{
-					EndIdx = NewSelectedClientFileName.LastIndexOf('/') - 1;
+					endIdx = newSelectedClientFileName.LastIndexOf('/') - 1;
 				}
-				for (; EndIdx >= 2; EndIdx--)
+				for (; endIdx >= 2; endIdx--)
 				{
-					if (NewSelectedClientFileName[EndIdx] == '/')
+					if (newSelectedClientFileName[endIdx] == '/')
 					{
-						List<PerforceResponse<FStatRecord>> FileRecords = await PerforceClient.TryFStatAsync(FStatOptions.None, NewSelectedClientFileName.Substring(0, EndIdx) + "/Engine/Build/Build.version", CancellationToken).ToListAsync();
-						if (FileRecords.Succeeded() && FileRecords.Count > 0)
+						List<PerforceResponse<FStatRecord>> fileRecords = await perforceClient.TryFStatAsync(FStatOptions.None, newSelectedClientFileName.Substring(0, endIdx) + "/Engine/Build/Build.version", cancellationToken).ToListAsync();
+						if (fileRecords.Succeeded() && fileRecords.Count > 0)
 						{
-							FStatRecord FileRecord = FileRecords[0].Data;
-							if (FileRecord.ClientFile == null)
+							FStatRecord fileRecord = fileRecords[0].Data;
+							if (fileRecord.ClientFile == null)
 							{
-								throw new UserErrorException($"Missing client path for {FileRecord.DepotFile}");
+								throw new UserErrorException($"Missing client path for {fileRecord.DepotFile}");
 							}
 
-							BranchClientPath = NewSelectedClientFileName.Substring(0, EndIdx);
-							BranchDirectoryName = new FileReference(FileRecord.ClientFile).Directory.ParentDirectory?.ParentDirectory;
+							branchClientPath = newSelectedClientFileName.Substring(0, endIdx);
+							branchDirectoryName = new FileReference(fileRecord.ClientFile).Directory.ParentDirectory?.ParentDirectory;
 							break;
 						}
 					}
 				}
-				if(BranchClientPath == null || BranchDirectoryName == null)
+				if(branchClientPath == null || branchDirectoryName == null)
 				{
-					throw new UserErrorException($"Could not find engine in Perforce relative to project path ({NewSelectedClientFileName})");
+					throw new UserErrorException($"Could not find engine in Perforce relative to project path ({newSelectedClientFileName})");
 				}
 
-				Logger.LogInformation("Found branch root at {RootPath}", BranchClientPath);
+				logger.LogInformation("Found branch root at {RootPath}", branchClientPath);
 
 				// Read the existing workspace settings from disk, and update them with any info computed here
-				int BranchIdx = BranchClientPath.IndexOf('/', 2);
-				string BranchPath = (BranchIdx == -1) ? String.Empty : BranchClientPath.Substring(BranchIdx);
-				string ProjectPath = NewSelectedClientFileName.Substring(BranchClientPath.Length);
-				UserWorkspaceSettings UserWorkspaceSettings = UserSettings.FindOrAddWorkspaceSettings(BranchDirectoryName, PerforceSettings.ServerAndPort, PerforceSettings.UserName, PerforceSettings.ClientName!, BranchPath, ProjectPath, Logger);
+				int branchIdx = branchClientPath.IndexOf('/', 2);
+				string branchPath = (branchIdx == -1) ? String.Empty : branchClientPath.Substring(branchIdx);
+				string projectPath = newSelectedClientFileName.Substring(branchClientPath.Length);
+				UserWorkspaceSettings userWorkspaceSettings = userSettings.FindOrAddWorkspaceSettings(branchDirectoryName, perforceSettings.ServerAndPort, perforceSettings.UserName, perforceSettings.ClientName!, branchPath, projectPath, logger);
 
 				// Now compute the updated project info
-				ProjectInfo ProjectInfo = await ProjectInfo.CreateAsync(PerforceClient, UserWorkspaceSettings, CancellationToken);
+				ProjectInfo projectInfo = await ProjectInfo.CreateAsync(perforceClient, userWorkspaceSettings, cancellationToken);
 
 				// Update the cached workspace state
-				UserWorkspaceState UserWorkspaceState = UserSettings.FindOrAddWorkspaceState(ProjectInfo, UserWorkspaceSettings, Logger);
+				UserWorkspaceState userWorkspaceState = userSettings.FindOrAddWorkspaceState(projectInfo, userWorkspaceSettings, logger);
 
 				// Read the initial config file
-				List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
-				ConfigFile LatestProjectConfigFile = await ConfigUtils.ReadProjectConfigFileAsync(PerforceClient, ProjectInfo, LocalConfigFiles, Logger, CancellationToken);
+				List<KeyValuePair<FileReference, DateTime>> localConfigFiles = new List<KeyValuePair<FileReference, DateTime>>();
+				ConfigFile latestProjectConfigFile = await ConfigUtils.ReadProjectConfigFileAsync(perforceClient, projectInfo, localConfigFiles, logger, cancellationToken);
 
 				// Get the local config file and stream filter
-				ConfigFile WorkspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(BranchDirectoryName, NewSelectedFileName, Logger);
-				IReadOnlyList<string>? WorkspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(PerforceClient, WorkspaceProjectConfigFile, Logger, CancellationToken);
+				ConfigFile workspaceProjectConfigFile = await WorkspaceUpdate.ReadProjectConfigFile(branchDirectoryName, newSelectedFileName, logger);
+				IReadOnlyList<string>? workspaceProjectStreamFilter = await WorkspaceUpdate.ReadProjectStreamFilter(perforceClient, workspaceProjectConfigFile, logger, cancellationToken);
 
-				OpenProjectInfo WorkspaceSettings = new OpenProjectInfo(SelectedProject, PerforceSettings, ProjectInfo, UserWorkspaceSettings, UserWorkspaceState, LatestProjectConfigFile, WorkspaceProjectConfigFile, WorkspaceProjectStreamFilter, LocalConfigFiles);
+				OpenProjectInfo workspaceSettings = new OpenProjectInfo(selectedProject, perforceSettings, projectInfo, userWorkspaceSettings, userWorkspaceState, latestProjectConfigFile, workspaceProjectConfigFile, workspaceProjectStreamFilter, localConfigFiles);
 
-				return WorkspaceSettings;
+				return workspaceSettings;
 			}
 			finally
 			{
-				PerforceClient?.Dispose();
+				perforceClient?.Dispose();
 			}
 		}
 
-		static async Task<List<IPerforceSettings>> FilterClients(List<ClientsRecord> Clients, FileReference NewSelectedFileName, IPerforceSettings DefaultPerforceSettings, string? HostName, ILogger Logger, CancellationToken CancellationToken)
+		static async Task<List<IPerforceSettings>> FilterClients(List<ClientsRecord> clients, FileReference newSelectedFileName, IPerforceSettings defaultPerforceSettings, string? hostName, ILogger logger, CancellationToken cancellationToken)
 		{
-			List<IPerforceSettings> CandidateClients = new List<IPerforceSettings>();
-			foreach(ClientsRecord Client in Clients)
+			List<IPerforceSettings> candidateClients = new List<IPerforceSettings>();
+			foreach(ClientsRecord client in clients)
 			{
 				// Make sure the client is well formed
-				if(!String.IsNullOrEmpty(Client.Name) && (!String.IsNullOrEmpty(Client.Host) || !String.IsNullOrEmpty(Client.Owner)) && !String.IsNullOrEmpty(Client.Root))
+				if(!String.IsNullOrEmpty(client.Name) && (!String.IsNullOrEmpty(client.Host) || !String.IsNullOrEmpty(client.Owner)) && !String.IsNullOrEmpty(client.Root))
 				{
 					// Require either a username or host name match
-					if((String.IsNullOrEmpty(Client.Host) || String.Compare(Client.Host, HostName, StringComparison.OrdinalIgnoreCase) == 0) && (String.IsNullOrEmpty(Client.Owner) || String.Compare(Client.Owner, DefaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0))
+					if((String.IsNullOrEmpty(client.Host) || String.Compare(client.Host, hostName, StringComparison.OrdinalIgnoreCase) == 0) && (String.IsNullOrEmpty(client.Owner) || String.Compare(client.Owner, defaultPerforceSettings.UserName, StringComparison.OrdinalIgnoreCase) == 0))
 					{
-						if(!Utility.SafeIsFileUnderDirectory(NewSelectedFileName.FullName, Client.Root))
+						if(!Utility.SafeIsFileUnderDirectory(newSelectedFileName.FullName, client.Root))
 						{
-							Logger.LogInformation("Rejecting {ClientName} due to root mismatch ({RootPath})", Client.Name, Client.Root);
+							logger.LogInformation("Rejecting {ClientName} due to root mismatch ({RootPath})", client.Name, client.Root);
 							continue;
 						}
 
-						PerforceSettings CandidateSettings = new PerforceSettings(DefaultPerforceSettings) { ClientName = Client.Name };
-						using IPerforceConnection CandidateClient = await PerforceConnection.CreateAsync(CandidateSettings, Logger);
+						PerforceSettings candidateSettings = new PerforceSettings(defaultPerforceSettings) { ClientName = client.Name };
+						using IPerforceConnection candidateClient = await PerforceConnection.CreateAsync(candidateSettings, logger);
 
-						List<PerforceResponse<WhereRecord>> WhereRecords = await CandidateClient.TryWhereAsync(NewSelectedFileName.FullName, CancellationToken).Where(x => x.Failed || !x.Data.Unmap).ToListAsync(CancellationToken);
-						if(!WhereRecords.Succeeded() || WhereRecords.Count != 1)
+						List<PerforceResponse<WhereRecord>> whereRecords = await candidateClient.TryWhereAsync(newSelectedFileName.FullName, cancellationToken).Where(x => x.Failed || !x.Data.Unmap).ToListAsync(cancellationToken);
+						if(!whereRecords.Succeeded() || whereRecords.Count != 1)
 						{
-							Logger.LogInformation("Rejecting {ClientName} due to file not existing in workspace", Client.Name);
+							logger.LogInformation("Rejecting {ClientName} due to file not existing in workspace", client.Name);
 							continue;
 						}
 
-						List<PerforceResponse<FStatRecord>> Records = await CandidateClient.TryFStatAsync(FStatOptions.None, NewSelectedFileName.FullName, CancellationToken).ToListAsync(CancellationToken);
-						if (!Records.Succeeded())
+						List<PerforceResponse<FStatRecord>> records = await candidateClient.TryFStatAsync(FStatOptions.None, newSelectedFileName.FullName, cancellationToken).ToListAsync(cancellationToken);
+						if (!records.Succeeded())
 						{
-							Logger.LogInformation("Rejecting {ClientName} due to {FileName} not in depot", Client.Name, NewSelectedFileName);
+							logger.LogInformation("Rejecting {ClientName} due to {FileName} not in depot", client.Name, newSelectedFileName);
 							continue;
 						}
 
-						Records.RemoveAll(x => !x.Data.IsMapped);
-						if(Records.Count == 0)
+						records.RemoveAll(x => !x.Data.IsMapped);
+						if(records.Count == 0)
 						{
-							Logger.LogInformation("Rejecting {ClientName} due to {NumRecords} matching records", Client.Name, Records.Count);
+							logger.LogInformation("Rejecting {ClientName} due to {NumRecords} matching records", client.Name, records.Count);
 							continue;
 						}
 
-						Logger.LogInformation("Found valid client {ClientName}", Client.Name);
-						CandidateClients.Add(CandidateSettings);
+						logger.LogInformation("Found valid client {ClientName}", client.Name);
+						candidateClients.Add(candidateSettings);
 					}
 				}
 			}
-			return CandidateClients;
+			return candidateClients;
 		}
 	}
 }

@@ -16,14 +16,14 @@ namespace UnrealGameSync
 	{
 		public string Password;
 
-		public PasswordWindow(string Prompt, string Password)
+		public PasswordWindow(string prompt, string password)
 		{
 			InitializeComponent();
 
-			this.Password = Password;
+			this.Password = password;
 
-			PromptLabel.Text = Prompt;
-			PasswordTextBox.Text = Password;
+			PromptLabel.Text = prompt;
+			PasswordTextBox.Text = password;
 		}
 
 		private void OkBtn_Click(object sender, EventArgs e)

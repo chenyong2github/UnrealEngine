@@ -22,10 +22,10 @@ namespace UnrealGameSync
 
 	class UpdateMonitor : IDisposable
 	{
-		Task? WorkerTask;
-		CancellationTokenSource CancellationSource = new CancellationTokenSource();
-		ILogger Logger;
-		IAsyncDisposer AsyncDisposer;
+		Task? _workerTask;
+		CancellationTokenSource _cancellationSource = new CancellationTokenSource();
+		ILogger _logger;
+		IAsyncDisposer _asyncDisposer;
 
 		public Action<UpdateType>? OnUpdateAvailable;
 
@@ -35,15 +35,15 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		public UpdateMonitor(IPerforceSettings PerforceSettings, string? WatchPath, IServiceProvider ServiceProvider)
+		public UpdateMonitor(IPerforceSettings perforceSettings, string? watchPath, IServiceProvider serviceProvider)
 		{
-			this.Logger = ServiceProvider.GetRequiredService<ILogger<UpdateMonitor>>();
-			this.AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
+			this._logger = serviceProvider.GetRequiredService<ILogger<UpdateMonitor>>();
+			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
-			if(WatchPath != null)
+			if(watchPath != null)
 			{
-				Logger.LogInformation("Watching for updates on {WatchPath}", WatchPath);
-				WorkerTask = Task.Run(() => PollForUpdatesAsync(PerforceSettings, WatchPath, CancellationSource.Token));
+				_logger.LogInformation("Watching for updates on {WatchPath}", watchPath);
+				_workerTask = Task.Run(() => PollForUpdatesAsync(perforceSettings, watchPath, _cancellationSource.Token));
 			}
 		}
 
@@ -51,11 +51,11 @@ namespace UnrealGameSync
 		{
 			OnUpdateAvailable = null;
 
-			if (WorkerTask != null)
+			if (_workerTask != null)
 			{
-				CancellationSource.Cancel();
-				AsyncDisposer.Add(WorkerTask.ContinueWith(_ => CancellationSource.Dispose()));
-				WorkerTask = null;
+				_cancellationSource.Cancel();
+				_asyncDisposer.Add(_workerTask.ContinueWith(_ => _cancellationSource.Dispose()));
+				_workerTask = null;
 			}
 		}
 
@@ -65,46 +65,46 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		async Task PollForUpdatesAsync(IPerforceSettings PerforceSettings, string WatchPath, CancellationToken CancellationToken)
+		async Task PollForUpdatesAsync(IPerforceSettings perforceSettings, string watchPath, CancellationToken cancellationToken)
 		{
 			for (; ; )
 			{
-				await Task.Delay(TimeSpan.FromMinutes(5.0), CancellationToken);
+				await Task.Delay(TimeSpan.FromMinutes(5.0), cancellationToken);
 
-				IPerforceConnection? Perforce = null;
+				IPerforceConnection? perforce = null;
 				try
 				{
-					Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+					perforce = await PerforceConnection.CreateAsync(perforceSettings, _logger);
 
-					PerforceResponseList<ChangesRecord> Changes = await Perforce.TryGetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Submitted, WatchPath, CancellationToken);
-					if (Changes.Succeeded && Changes.Data.Count > 0)
+					PerforceResponseList<ChangesRecord> changes = await perforce.TryGetChangesAsync(ChangesOptions.None, -1, ChangeStatus.Submitted, watchPath, cancellationToken);
+					if (changes.Succeeded && changes.Data.Count > 0)
 					{
 						TriggerUpdate(UpdateType.Background, null);
 					}
 				}
 				catch (PerforceException ex)
 				{
-					Logger.LogInformation(ex, "Perforce exception while attempting to poll for updates.");
+					_logger.LogInformation(ex, "Perforce exception while attempting to poll for updates.");
 				}
 				catch (Exception ex)
 				{
-					Logger.LogWarning(ex, "Exception while attempting to poll for updates.");
+					_logger.LogWarning(ex, "Exception while attempting to poll for updates.");
 					Program.CaptureException(ex);
 				}
 				finally
 				{
-					Perforce?.Dispose();
+					perforce?.Dispose();
 				}
 			}
 		}
 
-		public void TriggerUpdate(UpdateType UpdateType, bool? RelaunchPreview)
+		public void TriggerUpdate(UpdateType updateType, bool? relaunchPreview)
 		{
-			this.RelaunchPreview = RelaunchPreview;
+			this.RelaunchPreview = relaunchPreview;
 			IsUpdateAvailable = true;
 			if(OnUpdateAvailable != null)
 			{
-				OnUpdateAvailable(UpdateType);
+				OnUpdateAvailable(updateType);
 			}
 		}
 	}

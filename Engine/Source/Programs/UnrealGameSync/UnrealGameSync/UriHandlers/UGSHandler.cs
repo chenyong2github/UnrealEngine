@@ -11,64 +11,64 @@ namespace UnrealGameSync
 	/// <summary>
 	/// UGS handler 
 	/// </summary>
-	static class UGSHandler
+	static class UgsHandler
 	{
 
 		[UriHandler]
-		public static UriResult OpenProject(string Stream, string Project, bool Sync = false)
+		public static UriResult OpenProject(string stream, string project, bool sync = false)
 		{
 			// Create the request
-			using (MemoryStream InputDataStream = new MemoryStream())
+			using (MemoryStream inputDataStream = new MemoryStream())
 			{
-				using (BinaryWriter Writer = new BinaryWriter(InputDataStream))
+				using (BinaryWriter writer = new BinaryWriter(inputDataStream))
 				{
-					Writer.Write(Stream);
-					Writer.Write(Project);
+					writer.Write(stream);
+					writer.Write(project);
 				}
 
-				AutomationRequestInput Input = new AutomationRequestInput(Sync ? AutomationRequestType.SyncProject : AutomationRequestType.OpenProject, InputDataStream.GetBuffer());
-				return new UriResult() { Success = true, Request = new AutomationRequest(Input) };
+				AutomationRequestInput input = new AutomationRequestInput(sync ? AutomationRequestType.SyncProject : AutomationRequestType.OpenProject, inputDataStream.GetBuffer());
+				return new UriResult() { Success = true, Request = new AutomationRequest(input) };
 			}
 		}
 
 		[UriHandler]
-		public static UriResult BuildStep(string Project, string Stream, string Step, string Changelist, string Arguments)
+		public static UriResult BuildStep(string project, string stream, string step, string changelist, string arguments)
 		{
-			MessageBox.Show(string.Format("Project: {0}\nStream: {1}\nStep: {2}\nChange: {3}\nArguments: {4}", Project, Stream, Step, Changelist, Arguments), "UGS Build Step Handler");
+			MessageBox.Show(string.Format("Project: {0}\nStream: {1}\nStep: {2}\nChange: {3}\nArguments: {4}", project, stream, step, changelist, arguments), "UGS Build Step Handler");
 
 			return new UriResult() { Success = true };
 		}
 
 		[UriHandler]
-		public static UriResult Execute(string Stream, int Changelist, string Command, string Project = "")
+		public static UriResult Execute(string stream, int changelist, string command, string project = "")
 		{
-			using (MemoryStream InputDataStream = new MemoryStream())
+			using (MemoryStream inputDataStream = new MemoryStream())
 			{
-				using (BinaryWriter Writer = new BinaryWriter(InputDataStream))
+				using (BinaryWriter writer = new BinaryWriter(inputDataStream))
 				{
-					Writer.Write(Stream);
-					Writer.Write(Changelist);
-					Writer.Write(Command);
-					Writer.Write(Project);
+					writer.Write(stream);
+					writer.Write(changelist);
+					writer.Write(command);
+					writer.Write(project);
 				}
 
-				AutomationRequestInput Input = new AutomationRequestInput(AutomationRequestType.ExecCommand, InputDataStream.GetBuffer());
-				return new UriResult() { Success = true, Request = new AutomationRequest(Input) };
+				AutomationRequestInput input = new AutomationRequestInput(AutomationRequestType.ExecCommand, inputDataStream.GetBuffer());
+				return new UriResult() { Success = true, Request = new AutomationRequest(input) };
 			}
 		}
 
 		[UriHandler]
-		public static UriResult OpenIssue(int Id)
+		public static UriResult OpenIssue(int id)
 		{
-			using (MemoryStream InputDataStream = new MemoryStream())
+			using (MemoryStream inputDataStream = new MemoryStream())
 			{
-				using (BinaryWriter Writer = new BinaryWriter(InputDataStream))
+				using (BinaryWriter writer = new BinaryWriter(inputDataStream))
 				{
-					Writer.Write(Id);
+					writer.Write(id);
 				}
 
-				AutomationRequestInput Input = new AutomationRequestInput(AutomationRequestType.OpenIssue, InputDataStream.GetBuffer());
-				return new UriResult() { Success = true, Request = new AutomationRequest(Input) };
+				AutomationRequestInput input = new AutomationRequestInput(AutomationRequestType.OpenIssue, inputDataStream.GetBuffer());
+				return new UriResult() { Success = true, Request = new AutomationRequest(input) };
 			}
 		}
 	}

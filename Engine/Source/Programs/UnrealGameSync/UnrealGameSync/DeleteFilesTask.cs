@@ -14,56 +14,56 @@ namespace UnrealGameSync
 {
 	static class DeleteFilesTask
 	{
-		public static async Task RunAsync(IPerforceSettings PerforceSettings, List<FileInfo> FilesToSync, List<FileInfo> FilesToDelete, List<DirectoryInfo> DirectoriesToDelete, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task RunAsync(IPerforceSettings perforceSettings, List<FileInfo> filesToSync, List<FileInfo> filesToDelete, List<DirectoryInfo> directoriesToDelete, ILogger logger, CancellationToken cancellationToken)
 		{
-			StringBuilder FailMessage = new StringBuilder();
+			StringBuilder failMessage = new StringBuilder();
 
-			if(FilesToSync.Count > 0)
+			if(filesToSync.Count > 0)
 			{
-				using IPerforceConnection Perforce = await PerforceConnection.CreateAsync(PerforceSettings, Logger);
+				using IPerforceConnection perforce = await PerforceConnection.CreateAsync(perforceSettings, logger);
 
-				List<string> RevisionsToSync = new List<string>();
-				foreach(FileInfo FileToSync in FilesToSync)
+				List<string> revisionsToSync = new List<string>();
+				foreach(FileInfo fileToSync in filesToSync)
 				{
-					RevisionsToSync.Add(String.Format("{0}#have", PerforceUtils.EscapePath(FileToSync.FullName)));
+					revisionsToSync.Add(String.Format("{0}#have", PerforceUtils.EscapePath(fileToSync.FullName)));
 				}
 
-				List<PerforceResponse<SyncRecord>> FailedRecords = await Perforce.TrySyncAsync(SyncOptions.Force, RevisionsToSync, CancellationToken).Where(x => x.Failed).ToListAsync(CancellationToken);
-				foreach (PerforceResponse<SyncRecord> FailedRecord in FailedRecords)
+				List<PerforceResponse<SyncRecord>> failedRecords = await perforce.TrySyncAsync(SyncOptions.Force, revisionsToSync, cancellationToken).Where(x => x.Failed).ToListAsync(cancellationToken);
+				foreach (PerforceResponse<SyncRecord> failedRecord in failedRecords)
 				{
-					FailMessage.Append(FailedRecord.ToString());
+					failMessage.Append(failedRecord.ToString());
 				}
 			}
 
-			foreach(FileInfo FileToDelete in FilesToDelete)
+			foreach(FileInfo fileToDelete in filesToDelete)
 			{
 				try
 				{
-					FileToDelete.IsReadOnly = false;
-					FileToDelete.Delete();
+					fileToDelete.IsReadOnly = false;
+					fileToDelete.Delete();
 				}
-				catch(Exception Ex)
+				catch(Exception ex)
 				{
-					Logger.LogWarning(Ex, "Unable to delete {File}", FileToDelete.FullName);
-					FailMessage.AppendFormat("{0} ({1})\r\n", FileToDelete.FullName, Ex.Message.Trim());
+					logger.LogWarning(ex, "Unable to delete {File}", fileToDelete.FullName);
+					failMessage.AppendFormat("{0} ({1})\r\n", fileToDelete.FullName, ex.Message.Trim());
 				}
 			}
-			foreach(DirectoryInfo DirectoryToDelete in DirectoriesToDelete)
+			foreach(DirectoryInfo directoryToDelete in directoriesToDelete)
 			{
 				try
 				{
-					DirectoryToDelete.Delete(true);
+					directoryToDelete.Delete(true);
 				}
-				catch(Exception Ex)
+				catch(Exception ex)
 				{
-					Logger.LogWarning(Ex, "Unable to delete {Directory}", DirectoryToDelete.FullName);
-					FailMessage.AppendFormat("{0} ({1})\r\n", DirectoryToDelete.FullName, Ex.Message.Trim());
+					logger.LogWarning(ex, "Unable to delete {Directory}", directoryToDelete.FullName);
+					failMessage.AppendFormat("{0} ({1})\r\n", directoryToDelete.FullName, ex.Message.Trim());
 				}
 			}
 
-			if(FailMessage.Length > 0)
+			if(failMessage.Length > 0)
 			{
-				throw new UserErrorException(FailMessage.ToString());
+				throw new UserErrorException(failMessage.ToString());
 			}
 		}
 	}

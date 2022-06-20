@@ -16,18 +16,18 @@ namespace UnrealGameSync
 {
 	partial class BuildStepWindow : Form
 	{
-		BuildStep Step;
-		List<string> TargetNames;
-		DirectoryReference BaseDirectory;
-		IReadOnlyDictionary<string, string> Variables;
-		VariablesWindow? VariablesWindow;
+		BuildStep _step;
+		List<string> _targetNames;
+		DirectoryReference _baseDirectory;
+		IReadOnlyDictionary<string, string> _variables;
+		VariablesWindow? _variablesWindow;
 
-		public BuildStepWindow(BuildStep InTask, List<string> InTargetNames, DirectoryReference InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
+		public BuildStepWindow(BuildStep inTask, List<string> inTargetNames, DirectoryReference inBaseDirectory, IReadOnlyDictionary<string, string> inVariables)
 		{
-			Step = InTask;
-			TargetNames = InTargetNames;
-			BaseDirectory = InBaseDirectory;
-			Variables = InVariables;
+			_step = inTask;
+			_targetNames = inTargetNames;
+			_baseDirectory = inBaseDirectory;
+			_variables = inVariables;
 
 			InitializeComponent();
 
@@ -37,33 +37,33 @@ namespace UnrealGameSync
 
 		private void BuildTaskWindow_Load(object sender, EventArgs e)
 		{
-			string DefaultTargetName = TargetNames.FirstOrDefault(x => !x.EndsWith("Editor") && !x.EndsWith("Client") && !x.EndsWith("Server")) ?? ((TargetNames.Count > 0)? TargetNames[0] : "");
-			CompileTargetComboBox.Items.AddRange(TargetNames.ToArray());
-			CompileTargetComboBox.Text = String.IsNullOrEmpty(Step.Target)? DefaultTargetName : Step.Target;
-			StatusPanelLinkTextBox.Text = Step.StatusPanelLink;
+			string defaultTargetName = _targetNames.FirstOrDefault(x => !x.EndsWith("Editor") && !x.EndsWith("Client") && !x.EndsWith("Server")) ?? ((_targetNames.Count > 0)? _targetNames[0] : "");
+			CompileTargetComboBox.Items.AddRange(_targetNames.ToArray());
+			CompileTargetComboBox.Text = String.IsNullOrEmpty(_step.Target)? defaultTargetName : _step.Target;
+			StatusPanelLinkTextBox.Text = _step.StatusPanelLink;
 
-			DescriptionTextBox.Text = Step.Description;
-			StatusTextTextBox.Text = Step.StatusText;
-			DurationTextBox.Text = Step.EstimatedDuration.ToString();
+			DescriptionTextBox.Text = _step.Description;
+			StatusTextTextBox.Text = _step.StatusText;
+			DurationTextBox.Text = _step.EstimatedDuration.ToString();
 
-			switch(Step.Type)
+			switch(_step.Type)
 			{
 				case BuildStepType.Compile:
 					CompileRadioButton.Checked = true;
-					CompilePlatformComboBox.Text = Step.Platform;
-					CompileConfigComboBox.Text = Step.Configuration;
-					CompileArgumentsTextBox.Text = Step.Arguments;
+					CompilePlatformComboBox.Text = _step.Platform;
+					CompileConfigComboBox.Text = _step.Configuration;
+					CompileArgumentsTextBox.Text = _step.Arguments;
 					break;
 				case BuildStepType.Cook:
 					CookRadioButton.Checked = true;
-					CookFileNameTextBox.Text = Step.FileName;
+					CookFileNameTextBox.Text = _step.FileName;
 					break;
 				case BuildStepType.Other:
 					OtherRadioButton.Checked = true;
-					OtherFileNameTextBox.Text = Step.FileName;
-					OtherArgumentsTextBox.Text = Step.Arguments;
-					OtherUseLogWindowCheckBox.Checked = Step.bUseLogWindow;
-					OtherWorkingDirTextBox.Text = Step.WorkingDir;
+					OtherFileNameTextBox.Text = _step.FileName;
+					OtherArgumentsTextBox.Text = _step.Arguments;
+					OtherUseLogWindowCheckBox.Checked = _step.UseLogWindow;
+					OtherWorkingDirTextBox.Text = _step.WorkingDir;
 					break;
 			}
 
@@ -82,23 +82,23 @@ namespace UnrealGameSync
 
 		public void UpdateType()
 		{
-			bool bIsCompile = CompileRadioButton.Checked;
-			CompileTargetComboBox.Enabled = bIsCompile;
-			CompilePlatformComboBox.Enabled = bIsCompile;
-			CompileConfigComboBox.Enabled = bIsCompile;
-			CompileArgumentsTextBox.Enabled = bIsCompile;
+			bool isCompile = CompileRadioButton.Checked;
+			CompileTargetComboBox.Enabled = isCompile;
+			CompilePlatformComboBox.Enabled = isCompile;
+			CompileConfigComboBox.Enabled = isCompile;
+			CompileArgumentsTextBox.Enabled = isCompile;
 
-			bool bIsCook = CookRadioButton.Checked;
-			CookFileNameTextBox.Enabled = bIsCook;
-			CookFileNameButton.Enabled = bIsCook;
+			bool isCook = CookRadioButton.Checked;
+			CookFileNameTextBox.Enabled = isCook;
+			CookFileNameButton.Enabled = isCook;
 
-			bool bIsOther = OtherRadioButton.Checked;
-			OtherFileNameTextBox.Enabled = bIsOther;
-			OtherFileNameButton.Enabled = bIsOther;
-			OtherWorkingDirTextBox.Enabled = bIsOther;
-			OtherWorkingDirButton.Enabled = bIsOther;
-			OtherArgumentsTextBox.Enabled = bIsOther;
-			OtherUseLogWindowCheckBox.Enabled = bIsOther;
+			bool isOther = OtherRadioButton.Checked;
+			OtherFileNameTextBox.Enabled = isOther;
+			OtherFileNameButton.Enabled = isOther;
+			OtherWorkingDirTextBox.Enabled = isOther;
+			OtherWorkingDirButton.Enabled = isOther;
+			OtherArgumentsTextBox.Enabled = isOther;
+			OtherUseLogWindowCheckBox.Enabled = isOther;
 		}
 
 		private void CompileRadioButton_CheckedChanged(object sender, EventArgs e)
@@ -118,45 +118,45 @@ namespace UnrealGameSync
 
 		private void OkButton_Click(object sender, EventArgs e)
 		{
-			Step.Description = DescriptionTextBox.Text;
-			Step.StatusText = StatusTextTextBox.Text;
-			Step.StatusPanelLink = StatusPanelLinkTextBox.Text;
+			_step.Description = DescriptionTextBox.Text;
+			_step.StatusText = StatusTextTextBox.Text;
+			_step.StatusPanelLink = StatusPanelLinkTextBox.Text;
 
-			if (!int.TryParse(DurationTextBox.Text, out Step.EstimatedDuration))
+			if (!int.TryParse(DurationTextBox.Text, out _step.EstimatedDuration))
 			{
-				Step.EstimatedDuration = 1;
+				_step.EstimatedDuration = 1;
 			}
 
 			if(CompileRadioButton.Checked)
 			{
-				Step.Type = BuildStepType.Compile;
-				Step.Target = CompileTargetComboBox.Text;
-				Step.Platform = CompilePlatformComboBox.Text;
-				Step.Configuration = CompileConfigComboBox.Text;
-				Step.FileName = null;
-				Step.Arguments = CompileArgumentsTextBox.Text;
-				Step.bUseLogWindow = true;
+				_step.Type = BuildStepType.Compile;
+				_step.Target = CompileTargetComboBox.Text;
+				_step.Platform = CompilePlatformComboBox.Text;
+				_step.Configuration = CompileConfigComboBox.Text;
+				_step.FileName = null;
+				_step.Arguments = CompileArgumentsTextBox.Text;
+				_step.UseLogWindow = true;
 			}
 			else if(CookRadioButton.Checked)
 			{
-				Step.Type = BuildStepType.Cook;
-				Step.Target = null;
-				Step.Platform = null;
-				Step.Configuration = null;
-				Step.FileName = CookFileNameTextBox.Text;
-				Step.Arguments = null;
-				Step.bUseLogWindow = true;
+				_step.Type = BuildStepType.Cook;
+				_step.Target = null;
+				_step.Platform = null;
+				_step.Configuration = null;
+				_step.FileName = CookFileNameTextBox.Text;
+				_step.Arguments = null;
+				_step.UseLogWindow = true;
 			}
 			else
 			{
-				Step.Type = BuildStepType.Other;
-				Step.Target = null;
-				Step.Platform = null;
-				Step.Configuration = null;
-				Step.FileName = OtherFileNameTextBox.Text;
-				Step.WorkingDir = OtherWorkingDirTextBox.Text;
-				Step.Arguments = OtherArgumentsTextBox.Text;
-				Step.bUseLogWindow = OtherUseLogWindowCheckBox.Checked;
+				_step.Type = BuildStepType.Other;
+				_step.Target = null;
+				_step.Platform = null;
+				_step.Configuration = null;
+				_step.FileName = OtherFileNameTextBox.Text;
+				_step.WorkingDir = OtherWorkingDirTextBox.Text;
+				_step.Arguments = OtherArgumentsTextBox.Text;
+				_step.UseLogWindow = OtherUseLogWindowCheckBox.Checked;
 			}
 
 			DialogResult = DialogResult.OK;
@@ -171,108 +171,108 @@ namespace UnrealGameSync
 
 		private void CookFileNameButton_Click(object sender, EventArgs e)
 		{
-			OpenFileDialog Dialog = new OpenFileDialog();
-			Dialog.Filter = "Cook/Launch Profiles (*.ulp2)|*.ulp2";
-			Dialog.FileName = AddBaseDirectory(CookFileNameTextBox.Text);
-			if(Dialog.ShowDialog() == DialogResult.OK)
+			OpenFileDialog dialog = new OpenFileDialog();
+			dialog.Filter = "Cook/Launch Profiles (*.ulp2)|*.ulp2";
+			dialog.FileName = AddBaseDirectory(CookFileNameTextBox.Text);
+			if(dialog.ShowDialog() == DialogResult.OK)
 			{
-				CookFileNameTextBox.Text = RemoveBaseDirectory(Dialog.FileName);
+				CookFileNameTextBox.Text = RemoveBaseDirectory(dialog.FileName);
 			}
 		}
 
 		private void OtherFileNameButton_Click(object sender, EventArgs e)
 		{
-			OpenFileDialog Dialog = new OpenFileDialog();
-			Dialog.Filter = "Executable Files (*.exe,*.bat)|*.exe;*.bat|All files (*.*)|*.*";
-			Dialog.FileName = AddBaseDirectory(OtherFileNameTextBox.Text);
-			if(Dialog.ShowDialog() == DialogResult.OK)
+			OpenFileDialog dialog = new OpenFileDialog();
+			dialog.Filter = "Executable Files (*.exe,*.bat)|*.exe;*.bat|All files (*.*)|*.*";
+			dialog.FileName = AddBaseDirectory(OtherFileNameTextBox.Text);
+			if(dialog.ShowDialog() == DialogResult.OK)
 			{
-				OtherFileNameTextBox.Text = RemoveBaseDirectory(Dialog.FileName);
+				OtherFileNameTextBox.Text = RemoveBaseDirectory(dialog.FileName);
 			}
 		}
 
 		private void OtherWorkingDirButton_Click(object sender, EventArgs e)
 		{
-			FolderBrowserDialog Dialog = new FolderBrowserDialog();
-			Dialog.SelectedPath = OtherWorkingDirTextBox.Text;
-			if (Dialog.ShowDialog() == DialogResult.OK)
+			FolderBrowserDialog dialog = new FolderBrowserDialog();
+			dialog.SelectedPath = OtherWorkingDirTextBox.Text;
+			if (dialog.ShowDialog() == DialogResult.OK)
 			{
-				OtherWorkingDirTextBox.Text = Dialog.SelectedPath;
+				OtherWorkingDirTextBox.Text = dialog.SelectedPath;
 			}
 		}
 
-		private string AddBaseDirectory(string FileName)
+		private string AddBaseDirectory(string fileName)
 		{
-			if(FileName.Contains("$("))
+			if(fileName.Contains("$("))
 			{
 				return "";
 			}
-			else if(Path.IsPathRooted(FileName))
+			else if(Path.IsPathRooted(fileName))
 			{
-				return FileName;
+				return fileName;
 			}
 			else
 			{
-				return FileReference.Combine(BaseDirectory, FileName).FullName;
+				return FileReference.Combine(_baseDirectory, fileName).FullName;
 			}
 		}
 
-		private string RemoveBaseDirectory(string FileName)
+		private string RemoveBaseDirectory(string fileName)
 		{
-			FileReference FullFileName = new FileReference(FileName);
-			if(FullFileName.IsUnderDirectory(BaseDirectory))
+			FileReference fullFileName = new FileReference(fileName);
+			if(fullFileName.IsUnderDirectory(_baseDirectory))
 			{
-				return FullFileName.MakeRelativeTo(BaseDirectory);
+				return fullFileName.MakeRelativeTo(_baseDirectory);
 			}
 			else
 			{
-				return FileName;
+				return fileName;
 			}
 		}
 
 		private void OnClosedVariablesWindow(object sender, EventArgs e)
 		{
-			VariablesWindow = null;
+			_variablesWindow = null;
 		}
 
-		private void InsertVariable(string Name)
+		private void InsertVariable(string name)
 		{
-			IContainerControl Container = this;
-			if(Container != null)
+			IContainerControl container = this;
+			if(container != null)
 			{
 				for(;;)
 				{
-					IContainerControl? NextContainer = Container.ActiveControl as IContainerControl;
-					if(NextContainer == null)
+					IContainerControl? nextContainer = container.ActiveControl as IContainerControl;
+					if(nextContainer == null)
 					{
 						break;
 					}
-					Container = NextContainer;
+					container = nextContainer;
 				}
 
-				TextBox? FocusTextBox = Container.ActiveControl as TextBox;
-				if(FocusTextBox != null)
+				TextBox? focusTextBox = container.ActiveControl as TextBox;
+				if(focusTextBox != null)
 				{
-					FocusTextBox.SelectedText = Name;
+					focusTextBox.SelectedText = name;
 				}
 			}
 		}
 
 		private void VariablesButton_Click(object sender, EventArgs e)
 		{
-			if(VariablesWindow == null)
+			if(_variablesWindow == null)
 			{
-				VariablesWindow = new VariablesWindow(Variables);
-				VariablesWindow.OnInsertVariable += InsertVariable;
-				VariablesWindow.Location = new Point(Bounds.Right + 20, Bounds.Top);
-				VariablesWindow.Size = new Size(VariablesWindow.Size.Width, Size.Height);
-				VariablesWindow.FormClosed += OnClosedVariablesWindow;
-				VariablesWindow.Show(this);
+				_variablesWindow = new VariablesWindow(_variables);
+				_variablesWindow.OnInsertVariable += InsertVariable;
+				_variablesWindow.Location = new Point(Bounds.Right + 20, Bounds.Top);
+				_variablesWindow.Size = new Size(_variablesWindow.Size.Width, Size.Height);
+				_variablesWindow.FormClosed += OnClosedVariablesWindow;
+				_variablesWindow.Show(this);
 			}
 			else
 			{
-				VariablesWindow.Close();
-				VariablesWindow = null;
+				_variablesWindow.Close();
+				_variablesWindow = null;
 			}
 		}
 	}

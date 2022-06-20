@@ -19,12 +19,12 @@ namespace UnrealGameSync
 		{
 			get
 			{
-				CreateParams Params = base.CreateParams;
+				CreateParams p = base.CreateParams;
 				if (LoadLibrary("msftedit.dll") != IntPtr.Zero)
 				{
-					Params.ClassName = "RICHEDIT50W";
+					p.ClassName = "RICHEDIT50W";
 				}
-				return Params;
+				return p;
 			}
 		}
 	}

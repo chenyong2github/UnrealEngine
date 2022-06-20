@@ -23,16 +23,16 @@ namespace UnrealGameSync
 		[Flags]
 		public enum ScrollInfoMask : uint
 		{
-			SIF_RANGE = 0x1,
-			SIF_PAGE = 0x2,
-			SIF_POS = 0x4,
-			SIF_DISABLENOSCROLL = 0x8,
-			SIF_TRACKPOS = 0x10,
-			SIF_ALL = SIF_RANGE | SIF_PAGE | SIF_POS | SIF_TRACKPOS,
+			SifRange = 0x1,
+			SifPage = 0x2,
+			SifPos = 0x4,
+			SifDisablenoscroll = 0x8,
+			SifTrackpos = 0x10,
+			SifAll = SifRange | SifPage | SifPos | SifTrackpos,
 		}
 
 		[StructLayout(LayoutKind.Sequential)]
-		class SCROLLINFO 
+		class Scrollinfo 
 		{
 			public int cbSize;
 			public ScrollInfoMask fMask;
@@ -45,38 +45,38 @@ namespace UnrealGameSync
 
 		enum ScrollBarType : int
 		{
-			SB_HORZ = 0,
-			SB_VERT = 1,
-			SB_CONTROL = 2,
-			SB_BOTH = 3,
+			SbHorz = 0,
+			SbVert = 1,
+			SbControl = 2,
+			SbBoth = 3,
 		}
 
 		enum ScrollBarArrows : uint
 		{
-			ESB_ENABLE_BOTH = 0,
+			EsbEnableBoth = 0,
 		}
 
 		[DllImport("user32.dll")]
 		static extern bool EnableScrollBar(IntPtr hWnd, ScrollBarType wSBflags, ScrollBarArrows wArrows);
 
 		[DllImport("user32.dll")]
-		static extern int SetScrollInfo(IntPtr hwnd, ScrollBarType fnBar, SCROLLINFO lpsi, bool fRedraw);
+		static extern int SetScrollInfo(IntPtr hwnd, ScrollBarType fnBar, Scrollinfo lpsi, bool fRedraw);
 
 		[DllImport("user32.dll")]
-		static extern int GetScrollInfo(IntPtr hwnd, ScrollBarType fnBar, SCROLLINFO lpsi);
+		static extern int GetScrollInfo(IntPtr hwnd, ScrollBarType fnBar, Scrollinfo lpsi);
 
 		[DllImport("user32.dll", CharSet = CharSet.Auto)]
-		static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
+		static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
 
 		struct TextLocation
 		{
 			public readonly int LineIdx;
 			public readonly int ColumnIdx;
 
-			public TextLocation(int InLineIdx, int InColumnIdx)
+			public TextLocation(int inLineIdx, int inColumnIdx)
 			{
-				LineIdx = InLineIdx;
-				ColumnIdx = InColumnIdx;
+				LineIdx = inLineIdx;
+				ColumnIdx = inColumnIdx;
 			}
 
 			public override string ToString()
@@ -90,10 +90,10 @@ namespace UnrealGameSync
 			public TextLocation Start;
 			public TextLocation End;
 
-			public TextSelection(TextLocation InStart, TextLocation InEnd)
+			public TextSelection(TextLocation inStart, TextLocation inEnd)
 			{
-				Start = InStart;
-				End = InEnd;
+				Start = inStart;
+				End = inEnd;
 			}
 
 			public bool IsEmpty()
@@ -107,27 +107,27 @@ namespace UnrealGameSync
 			}
 		}
 
-		List<string> Lines = new List<string>();
-		int MaxLineLength;
+		List<string> _lines = new List<string>();
+		int _maxLineLength;
 
-		int ScrollLine;
-		int ScrollLinesPerPage;
-		bool bTrackingScroll;
+		int _scrollLine;
+		int _scrollLinesPerPage;
+		bool _trackingScroll;
 
-		int ScrollColumn;
-		int ScrollColumnsPerPage;
+		int _scrollColumn;
+		int _scrollColumnsPerPage;
 
-		bool bIsSelecting;
-		TextSelection? Selection;
+		bool _isSelecting;
+		TextSelection? _selection;
 
-		Size FontSize;
+		Size _fontSize;
 
-		Timer? SelectionScrollTimer;
-		int AutoScrollRate = 0;
+		Timer? _selectionScrollTimer;
+		int _autoScrollRate = 0;
 
-		Timer? UpdateTimer;
-		ConcurrentQueue<string> QueuedLines = new ConcurrentQueue<string>();
-		FileStream? LogFileStream;
+		Timer? _updateTimer;
+		ConcurrentQueue<string> _queuedLines = new ConcurrentQueue<string>();
+		FileStream? _logFileStream;
 
 		public LogControl()
 		{
@@ -148,18 +148,18 @@ namespace UnrealGameSync
 		{
  			base.OnCreateControl();
 
-			EnableScrollBar(Handle, ScrollBarType.SB_BOTH, ScrollBarArrows.ESB_ENABLE_BOTH);
+			EnableScrollBar(Handle, ScrollBarType.SbBoth, ScrollBarArrows.EsbEnableBoth);
 
 			Cursor = Cursors.IBeam;
 
-			UpdateTimer = new Timer();
-			UpdateTimer.Interval = 200;
-			UpdateTimer.Tick += (a, b) => Tick();
-			UpdateTimer.Enabled = true;
+			_updateTimer = new Timer();
+			_updateTimer.Interval = 200;
+			_updateTimer.Tick += (a, b) => Tick();
+			_updateTimer.Enabled = true;
 
-			SelectionScrollTimer = new Timer();
-			SelectionScrollTimer.Interval = 200;
-			SelectionScrollTimer.Tick += new EventHandler(SelectionScrollTimer_TimerElapsed);
+			_selectionScrollTimer = new Timer();
+			_selectionScrollTimer.Interval = 200;
+			_selectionScrollTimer.Tick += new EventHandler(SelectionScrollTimer_TimerElapsed);
 
 			Clear();
 
@@ -171,34 +171,34 @@ namespace UnrealGameSync
 		{
 			base.Dispose(disposing);
 
-			if(UpdateTimer != null)
+			if(_updateTimer != null)
 			{
-				UpdateTimer.Dispose();
-				UpdateTimer = null;
+				_updateTimer.Dispose();
+				_updateTimer = null;
 			}
 
 			CloseFile();
 		}
 
-		public bool OpenFile(FileReference NewLogFileName)
+		public bool OpenFile(FileReference newLogFileName)
 		{
 			CloseFile();
 			Clear();
 			try
 			{
-				LogFileStream = FileReference.Open(NewLogFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
+				_logFileStream = FileReference.Open(newLogFileName, FileMode.OpenOrCreate, FileAccess.ReadWrite, FileShare.Read);
 			}
 			catch(Exception)
 			{
 				return false;
 			}
 
-			LogFileStream.Seek(0, SeekOrigin.Begin);
+			_logFileStream.Seek(0, SeekOrigin.Begin);
 
-			string Text = new StreamReader(LogFileStream).ReadToEnd().TrimEnd('\r', '\n');
-			if(Text.Length > 0)
+			string text = new StreamReader(_logFileStream).ReadToEnd().TrimEnd('\r', '\n');
+			if(text.Length > 0)
 			{
-				AddLinesInternal(Text.Split('\n').Select(x => x + "\n").ToList());
+				AddLinesInternal(text.Split('\n').Select(x => x + "\n").ToList());
 			}
 
 			Invalidate();
@@ -207,184 +207,184 @@ namespace UnrealGameSync
 
 		public void CloseFile()
 		{
-			if(LogFileStream != null)
+			if(_logFileStream != null)
 			{
-				LogFileStream.Dispose();
-				LogFileStream = null;
+				_logFileStream.Dispose();
+				_logFileStream = null;
 			}
 		}
 
 		public void Clear()
 		{
-			Lines.Clear();
-			MaxLineLength = 0;
+			_lines.Clear();
+			_maxLineLength = 0;
 
-			ScrollLine = 0;
-			ScrollColumn = 0;
-			bIsSelecting = false;
-			Selection = null;
+			_scrollLine = 0;
+			_scrollColumn = 0;
+			_isSelecting = false;
+			_selection = null;
 
 			if(IsHandleCreated)
 			{
-				SCROLLINFO ScrollInfo = new SCROLLINFO();
-				ScrollInfo.cbSize = Marshal.SizeOf(ScrollInfo);
-				ScrollInfo.fMask = ScrollInfoMask.SIF_RANGE | ScrollInfoMask.SIF_PAGE | ScrollInfoMask.SIF_POS;
-				SetScrollInfo(Handle, ScrollBarType.SB_HORZ, ScrollInfo, true);
-				SetScrollInfo(Handle, ScrollBarType.SB_VERT, ScrollInfo, true);
+				Scrollinfo scrollInfo = new Scrollinfo();
+				scrollInfo.cbSize = Marshal.SizeOf(scrollInfo);
+				scrollInfo.fMask = ScrollInfoMask.SifRange | ScrollInfoMask.SifPage | ScrollInfoMask.SifPos;
+				SetScrollInfo(Handle, ScrollBarType.SbHorz, scrollInfo, true);
+				SetScrollInfo(Handle, ScrollBarType.SbVert, scrollInfo, true);
 			}
 
-			QueuedLines = new ConcurrentQueue<string>();
-			if(LogFileStream != null)
+			_queuedLines = new ConcurrentQueue<string>();
+			if(_logFileStream != null)
 			{
-				LogFileStream.SetLength(0);
+				_logFileStream.SetLength(0);
 			}
 		}
 
 		public void ScrollToEnd()
 		{
-			ScrollWindow(Lines.Count);
+			ScrollWindow(_lines.Count);
 			Invalidate();
 		}
 
-		public void AppendLine(string Line)
+		public void AppendLine(string line)
 		{
-			QueuedLines.Enqueue(Line);
+			_queuedLines.Enqueue(line);
 		}
 
 		private void Tick()
 		{
 			if(!Focused || !Capture)
 			{
-				List<string> NewLines = new List<string>();
+				List<string> newLines = new List<string>();
 				for(;;)
 				{
-					string? NextLine;
-					if(!QueuedLines.TryDequeue(out NextLine))
+					string? nextLine;
+					if(!_queuedLines.TryDequeue(out nextLine))
 					{
 						break;
 					}
-					NewLines.Add(NextLine.TrimEnd('\r', '\n') + "\n");
+					newLines.Add(nextLine.TrimEnd('\r', '\n') + "\n");
 				}
-				if(NewLines.Count > 0)
+				if(newLines.Count > 0)
 				{
-					StringBuilder TextToAppendBuilder = new StringBuilder();
-					foreach(string NewLine in NewLines)
+					StringBuilder textToAppendBuilder = new StringBuilder();
+					foreach(string newLine in newLines)
 					{
-						TextToAppendBuilder.AppendLine(NewLine.TrimEnd('\n'));
+						textToAppendBuilder.AppendLine(newLine.TrimEnd('\n'));
 					}
 
-					string TextToAppend = TextToAppendBuilder.ToString();
-					if(LogFileStream != null)
+					string textToAppend = textToAppendBuilder.ToString();
+					if(_logFileStream != null)
 					{
-						byte[] Data = Encoding.UTF8.GetBytes(TextToAppend);
+						byte[] data = Encoding.UTF8.GetBytes(textToAppend);
 						try
 						{
-							LogFileStream.Write(Data, 0, Data.Length);
-							LogFileStream.Flush();
+							_logFileStream.Write(data, 0, data.Length);
+							_logFileStream.Flush();
 						}
-						catch(Exception Ex)
+						catch(Exception ex)
 						{
-							TextToAppend += String.Format("Failed to write to log file ({0}): {1}\n", LogFileStream.Name, Ex.ToString());
+							textToAppend += String.Format("Failed to write to log file ({0}): {1}\n", _logFileStream.Name, ex.ToString());
 						}
 					}
 
-					AddLinesInternal(NewLines);
+					AddLinesInternal(newLines);
 				}
 			}
 		}
 
-		private void AddLinesInternal(List<string> NewLines)
+		private void AddLinesInternal(List<string> newLines)
 		{
-			Lines.AddRange(NewLines);
+			_lines.AddRange(newLines);
 
 			if(IsHandleCreated)
 			{
 				// Figure out if we're tracking the last line
-				bool bIsTrackingLastLine = IsTrackingLastLine();
+				bool isTrackingLastLine = IsTrackingLastLine();
 
-				int NewMaxLineLength = Math.Max(MaxLineLength, NewLines.Max(x => x.Length));
-				if(NewMaxLineLength > MaxLineLength)
+				int newMaxLineLength = Math.Max(_maxLineLength, newLines.Max(x => x.Length));
+				if(newMaxLineLength > _maxLineLength)
 				{
-					MaxLineLength = NewMaxLineLength;
+					_maxLineLength = newMaxLineLength;
 
-					SCROLLINFO HorizontalScroll = new SCROLLINFO();
-					HorizontalScroll.cbSize = Marshal.SizeOf(HorizontalScroll);
-					HorizontalScroll.fMask = ScrollInfoMask.SIF_PAGE | ScrollInfoMask.SIF_RANGE;
-					HorizontalScroll.nMin = 0;
-					HorizontalScroll.nMax = NewMaxLineLength;
-					HorizontalScroll.nPage = ScrollColumnsPerPage;
-					SetScrollInfo(Handle, ScrollBarType.SB_HORZ, HorizontalScroll, true);
+					Scrollinfo horizontalScroll = new Scrollinfo();
+					horizontalScroll.cbSize = Marshal.SizeOf(horizontalScroll);
+					horizontalScroll.fMask = ScrollInfoMask.SifPage | ScrollInfoMask.SifRange;
+					horizontalScroll.nMin = 0;
+					horizontalScroll.nMax = newMaxLineLength;
+					horizontalScroll.nPage = _scrollColumnsPerPage;
+					SetScrollInfo(Handle, ScrollBarType.SbHorz, horizontalScroll, true);
 				}
 
-				SCROLLINFO VerticalScroll = new SCROLLINFO();
-				VerticalScroll.cbSize = Marshal.SizeOf(VerticalScroll);
-				VerticalScroll.fMask = ScrollInfoMask.SIF_POS | ScrollInfoMask.SIF_RANGE | ScrollInfoMask.SIF_PAGE | ScrollInfoMask.SIF_TRACKPOS;
-				GetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll);
+				Scrollinfo verticalScroll = new Scrollinfo();
+				verticalScroll.cbSize = Marshal.SizeOf(verticalScroll);
+				verticalScroll.fMask = ScrollInfoMask.SifPos | ScrollInfoMask.SifRange | ScrollInfoMask.SifPage | ScrollInfoMask.SifTrackpos;
+				GetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll);
 
-				if(bTrackingScroll)
+				if(_trackingScroll)
 				{
-					UpdateVerticalScrollPosition(VerticalScroll.nTrackPos, ref VerticalScroll);
+					UpdateVerticalScrollPosition(verticalScroll.nTrackPos, ref verticalScroll);
 				}
 				else
 				{
-					VerticalScroll.fMask = ScrollInfoMask.SIF_RANGE | ScrollInfoMask.SIF_PAGE;
-					VerticalScroll.nMin = 0;
-					if(bIsTrackingLastLine)
+					verticalScroll.fMask = ScrollInfoMask.SifRange | ScrollInfoMask.SifPage;
+					verticalScroll.nMin = 0;
+					if(isTrackingLastLine)
 					{
-						VerticalScroll.fMask |= ScrollInfoMask.SIF_POS;
-						VerticalScroll.nPos = Math.Max(Lines.Count - 1 - ScrollLinesPerPage + 1, 0);
-						ScrollLine = Math.Max(Lines.Count - 1 - ScrollLinesPerPage + 1, 0);
+						verticalScroll.fMask |= ScrollInfoMask.SifPos;
+						verticalScroll.nPos = Math.Max(_lines.Count - 1 - _scrollLinesPerPage + 1, 0);
+						_scrollLine = Math.Max(_lines.Count - 1 - _scrollLinesPerPage + 1, 0);
 					}
-					VerticalScroll.nMax = Math.Max(Lines.Count - 1, 1);
-					VerticalScroll.nPage = ScrollLinesPerPage;
-					SetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll, true);
+					verticalScroll.nMax = Math.Max(_lines.Count - 1, 1);
+					verticalScroll.nPage = _scrollLinesPerPage;
+					SetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll, true);
 				}
 			}
 
 			Invalidate();
 		}
 
-		private SCROLLINFO GetScrollInfo(ScrollBarType Type, ScrollInfoMask Mask)
+		private Scrollinfo GetScrollInfo(ScrollBarType type, ScrollInfoMask mask)
 		{
-			SCROLLINFO ScrollInfo = new SCROLLINFO();
-			ScrollInfo.cbSize = Marshal.SizeOf(VerticalScroll);
-			ScrollInfo.fMask = Mask;
-			GetScrollInfo(Handle, ScrollBarType.SB_VERT, ScrollInfo);
-			return ScrollInfo;
+			Scrollinfo scrollInfo = new Scrollinfo();
+			scrollInfo.cbSize = Marshal.SizeOf(VerticalScroll);
+			scrollInfo.fMask = mask;
+			GetScrollInfo(Handle, ScrollBarType.SbVert, scrollInfo);
+			return scrollInfo;
 		}
 
 		private bool IsTrackingLastLine()
 		{
-			SCROLLINFO VerticalScroll = new SCROLLINFO();
-			VerticalScroll.cbSize = Marshal.SizeOf(VerticalScroll);
-			VerticalScroll.fMask = ScrollInfoMask.SIF_POS | ScrollInfoMask.SIF_RANGE | ScrollInfoMask.SIF_PAGE | ScrollInfoMask.SIF_TRACKPOS;
-			GetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll);
+			Scrollinfo verticalScroll = new Scrollinfo();
+			verticalScroll.cbSize = Marshal.SizeOf(verticalScroll);
+			verticalScroll.fMask = ScrollInfoMask.SifPos | ScrollInfoMask.SifRange | ScrollInfoMask.SifPage | ScrollInfoMask.SifTrackpos;
+			GetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll);
 
-			return (VerticalScroll.nPos >= VerticalScroll.nMax - ScrollLinesPerPage + 1);
+			return (verticalScroll.nPos >= verticalScroll.nMax - _scrollLinesPerPage + 1);
 		}
 
 		private void CopySelection()
 		{
-			if(Lines.Count > 0)
+			if(_lines.Count > 0)
 			{
-				StringBuilder SelectedText = new StringBuilder();
-				if(Selection == null || Selection.IsEmpty())
+				StringBuilder selectedText = new StringBuilder();
+				if(_selection == null || _selection.IsEmpty())
 				{
-					foreach(string Line in Lines)
+					foreach(string line in _lines)
 					{
-						SelectedText.Append(Line);
+						selectedText.Append(line);
 					}
 				}
 				else
 				{
-					for(int LineIdx = Math.Min(Selection.Start.LineIdx, Selection.End.LineIdx); LineIdx <= Math.Max(Selection.Start.LineIdx, Selection.End.LineIdx); LineIdx++)
+					for(int lineIdx = Math.Min(_selection.Start.LineIdx, _selection.End.LineIdx); lineIdx <= Math.Max(_selection.Start.LineIdx, _selection.End.LineIdx); lineIdx++)
 					{
-						int MinIdx, MaxIdx;
-						ClipSelectionToLine(LineIdx, out MinIdx, out MaxIdx);
-						SelectedText.Append(Lines[LineIdx], MinIdx, MaxIdx - MinIdx);
+						int minIdx, maxIdx;
+						ClipSelectionToLine(lineIdx, out minIdx, out maxIdx);
+						selectedText.Append(_lines[lineIdx], minIdx, maxIdx - minIdx);
 					}
 				}
-				Clipboard.SetText(Regex.Replace(SelectedText.ToString(), "(?<!\r)\n", "\r\n"));
+				Clipboard.SetText(Regex.Replace(selectedText.ToString(), "(?<!\r)\n", "\r\n"));
 			}
 		}
 
@@ -400,33 +400,33 @@ namespace UnrealGameSync
 
 		public void SelectAll()
 		{
-			if(Lines.Count > 0)
+			if(_lines.Count > 0)
 			{
-				Selection = new TextSelection(new TextLocation(0, 0), new TextLocation(Lines.Count - 1, Lines[Lines.Count - 1].Length));
+				_selection = new TextSelection(new TextLocation(0, 0), new TextLocation(_lines.Count - 1, _lines[_lines.Count - 1].Length));
 				Invalidate();
 			}
 		}
 
-		TextLocation PointToTextLocation(Point ClientPoint)
+		TextLocation PointToTextLocation(Point clientPoint)
 		{
-			if(Lines.Count == 0)
+			if(_lines.Count == 0)
 			{
 				return new TextLocation(0, 0);
 			}
 			else
 			{
-				int UnclippedLineIdx = (ClientPoint.Y / FontSize.Height) + ScrollLine;
-				if(UnclippedLineIdx < 0)
+				int unclippedLineIdx = (clientPoint.Y / _fontSize.Height) + _scrollLine;
+				if(unclippedLineIdx < 0)
 				{
 					return new TextLocation(0, 0);
 				}
-				else if(UnclippedLineIdx >= Lines.Count)
+				else if(unclippedLineIdx >= _lines.Count)
 				{
-					return new TextLocation(Lines.Count - 1, Lines[Lines.Count - 1].Length);
+					return new TextLocation(_lines.Count - 1, _lines[_lines.Count - 1].Length);
 				}
 				else
 				{
-					return new TextLocation(UnclippedLineIdx, Math.Max(0, Math.Min((ClientPoint.X / FontSize.Width) + ScrollColumn, Lines[UnclippedLineIdx].Length)));
+					return new TextLocation(unclippedLineIdx, Math.Max(0, Math.Min((clientPoint.X / _fontSize.Width) + _scrollColumn, _lines[unclippedLineIdx].Length)));
 				}
 			}
 		}
@@ -437,13 +437,13 @@ namespace UnrealGameSync
 
 			UpdateScrollBarPageSize();
 
-			int NewScrollLine = ScrollLine;
-			NewScrollLine = Math.Min(NewScrollLine, Lines.Count - ScrollLinesPerPage);
-			NewScrollLine = Math.Max(NewScrollLine, 0);
+			int newScrollLine = _scrollLine;
+			newScrollLine = Math.Min(newScrollLine, _lines.Count - _scrollLinesPerPage);
+			newScrollLine = Math.Max(newScrollLine, 0);
 
-			if(ScrollLine != NewScrollLine)
+			if(_scrollLine != newScrollLine)
 			{
-				ScrollLine = NewScrollLine;
+				_scrollLine = newScrollLine;
 				Invalidate();
 			}
 		}
@@ -451,14 +451,14 @@ namespace UnrealGameSync
 		void UpdateVerticalScrollBarPageSize()
 		{
 			// Calculate the number of lines per page
-			ScrollLinesPerPage = ClientRectangle.Height / FontSize.Height;
+			_scrollLinesPerPage = ClientRectangle.Height / _fontSize.Height;
 
 			// Update the vertical scroll bar
-			SCROLLINFO VerticalScroll = new SCROLLINFO();
-			VerticalScroll.cbSize = Marshal.SizeOf(VerticalScroll);
-			VerticalScroll.fMask = ScrollInfoMask.SIF_PAGE;
-			VerticalScroll.nPage = ScrollLinesPerPage;
-			SetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll, true);
+			Scrollinfo verticalScroll = new Scrollinfo();
+			verticalScroll.cbSize = Marshal.SizeOf(verticalScroll);
+			verticalScroll.fMask = ScrollInfoMask.SifPage;
+			verticalScroll.nPage = _scrollLinesPerPage;
+			SetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll, true);
 		}
 
 		void UpdateScrollBarPageSize()
@@ -467,14 +467,14 @@ namespace UnrealGameSync
 			UpdateVerticalScrollBarPageSize();
 
 			// This may have modified the client area. Now calculate the number of columns per page.
-			ScrollColumnsPerPage = ClientRectangle.Width / FontSize.Width;
+			_scrollColumnsPerPage = ClientRectangle.Width / _fontSize.Width;
 
 			// And update the horizontal scroll bar
-			SCROLLINFO HorizontalScroll = new SCROLLINFO();
-			HorizontalScroll.cbSize = Marshal.SizeOf(HorizontalScroll);
-			HorizontalScroll.fMask = ScrollInfoMask.SIF_PAGE;
-			HorizontalScroll.nPage = ScrollColumnsPerPage;
-			SetScrollInfo(Handle, ScrollBarType.SB_HORZ, HorizontalScroll, true);
+			Scrollinfo horizontalScroll = new Scrollinfo();
+			horizontalScroll.cbSize = Marshal.SizeOf(horizontalScroll);
+			horizontalScroll.fMask = ScrollInfoMask.SifPage;
+			horizontalScroll.nPage = _scrollColumnsPerPage;
+			SetScrollInfo(Handle, ScrollBarType.SbHorz, horizontalScroll, true);
 
 			// Now that we know whether we have a horizontal scroll bar or not, calculate the vertical scroll again
 			UpdateVerticalScrollBarPageSize();
@@ -489,9 +489,9 @@ namespace UnrealGameSync
 
 		private void UpdateFontMetrics()
 		{
-			using(Graphics Graphics = CreateGraphics())
+			using(Graphics graphics = CreateGraphics())
 			{
-				FontSize = TextRenderer.MeasureText(Graphics, "A", Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+				_fontSize = TextRenderer.MeasureText(graphics, "A", Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
 			}
 		}
 
@@ -501,13 +501,13 @@ namespace UnrealGameSync
 
 			if(e.Button == MouseButtons.Left)
 			{
-				bIsSelecting = true;
+				_isSelecting = true;
 
-				TextLocation Location = PointToTextLocation(e.Location);
-				Selection = new TextSelection(Location, Location);
+				TextLocation location = PointToTextLocation(e.Location);
+				_selection = new TextSelection(location, location);
 
-				SelectionScrollTimer!.Start();
-				AutoScrollRate = 0;
+				_selectionScrollTimer!.Start();
+				_autoScrollRate = 0;
 
 				Capture = true;
 				Invalidate();
@@ -525,16 +525,16 @@ namespace UnrealGameSync
 		{
 			base.OnMouseMove(e);
 
-			if(bIsSelecting && Selection != null)
+			if(_isSelecting && _selection != null)
 			{
-				TextLocation NewSelectionEnd = PointToTextLocation(e.Location);
-				if(NewSelectionEnd.LineIdx != Selection.End.LineIdx || NewSelectionEnd.ColumnIdx != Selection.End.ColumnIdx)
+				TextLocation newSelectionEnd = PointToTextLocation(e.Location);
+				if(newSelectionEnd.LineIdx != _selection.End.LineIdx || newSelectionEnd.ColumnIdx != _selection.End.ColumnIdx)
 				{
-					Selection.End = NewSelectionEnd;
+					_selection.End = newSelectionEnd;
 					Invalidate();
 				}
 
-				AutoScrollRate = ((e.Y < 0)? e.Y : Math.Max(e.Y - ClientSize.Height, 0)) / FontSize.Height;
+				_autoScrollRate = ((e.Y < 0)? e.Y : Math.Max(e.Y - ClientSize.Height, 0)) / _fontSize.Height;
 			}
 		}
 
@@ -560,15 +560,15 @@ namespace UnrealGameSync
 			Invalidate();
 		}
 
-		protected override bool IsInputKey(Keys Key)
+		protected override bool IsInputKey(Keys key)
 		{
-			switch(Key & ~Keys.Modifiers)
+			switch(key & ~Keys.Modifiers)
 			{
 				case Keys.Up:
 				case Keys.Down:
 					return true;
 				default:
-					return base.IsInputKey(Key);
+					return base.IsInputKey(key);
 			}
 		}
 
@@ -585,19 +585,19 @@ namespace UnrealGameSync
 					Invalidate();
 					break;
 				case Keys.PageUp:
-					ScrollWindow(-ScrollLinesPerPage);
+					ScrollWindow(-_scrollLinesPerPage);
 					Invalidate();
 					break;
 				case Keys.PageDown:
-					ScrollWindow(+ScrollLinesPerPage);
+					ScrollWindow(+_scrollLinesPerPage);
 					Invalidate();
 					break;
 				case Keys.Home:
-					ScrollWindow(-Lines.Count);
+					ScrollWindow(-_lines.Count);
 					Invalidate();
 					break;
 				case Keys.End:
-					ScrollWindow(+Lines.Count);
+					ScrollWindow(+_lines.Count);
 					Invalidate();
 					break;
 				case Keys.A:
@@ -617,14 +617,14 @@ namespace UnrealGameSync
 
 		void EndSelection()
 		{
-			if(bIsSelecting)
+			if(_isSelecting)
 			{
-				if(Selection != null && Selection.IsEmpty())
+				if(_selection != null && _selection.IsEmpty())
 				{
-					Selection = null;
+					_selection = null;
 				}
-				SelectionScrollTimer!.Stop();
-				bIsSelecting = false;
+				_selectionScrollTimer!.Stop();
+				_isSelecting = false;
 			}
 		}
 
@@ -635,42 +635,42 @@ namespace UnrealGameSync
 			if(se.ScrollOrientation == ScrollOrientation.HorizontalScroll)
 			{
 				// Get the current scroll position
-				SCROLLINFO ScrollInfo = new SCROLLINFO();
-				ScrollInfo.cbSize = Marshal.SizeOf(ScrollInfo);
-				ScrollInfo.fMask = ScrollInfoMask.SIF_ALL;
-				GetScrollInfo(Handle, ScrollBarType.SB_HORZ, ScrollInfo);
+				Scrollinfo scrollInfo = new Scrollinfo();
+				scrollInfo.cbSize = Marshal.SizeOf(scrollInfo);
+				scrollInfo.fMask = ScrollInfoMask.SifAll;
+				GetScrollInfo(Handle, ScrollBarType.SbHorz, scrollInfo);
 
 				// Get the new scroll position
-				int TargetScrollPos = ScrollInfo.nPos;
+				int targetScrollPos = scrollInfo.nPos;
 				switch(se.Type)
 				{
 					case ScrollEventType.SmallDecrement:
-						TargetScrollPos = ScrollInfo.nPos - 1;
+						targetScrollPos = scrollInfo.nPos - 1;
 						break;
 					case ScrollEventType.SmallIncrement:
-						TargetScrollPos = ScrollInfo.nPos + 1;
+						targetScrollPos = scrollInfo.nPos + 1;
 						break;
 					case ScrollEventType.LargeDecrement:
-						TargetScrollPos = ScrollInfo.nPos - ScrollInfo.nPage;
+						targetScrollPos = scrollInfo.nPos - scrollInfo.nPage;
 						break;
 					case ScrollEventType.LargeIncrement:
-						TargetScrollPos = ScrollInfo.nPos + ScrollInfo.nPage;
+						targetScrollPos = scrollInfo.nPos + scrollInfo.nPage;
 						break;
 					case ScrollEventType.ThumbPosition:
-						TargetScrollPos = ScrollInfo.nTrackPos;
+						targetScrollPos = scrollInfo.nTrackPos;
 						break;
 					case ScrollEventType.ThumbTrack:
-						TargetScrollPos = ScrollInfo.nTrackPos;
+						targetScrollPos = scrollInfo.nTrackPos;
 						break;
 				}
-				ScrollColumn = Math.Max(0, Math.Min(TargetScrollPos, ScrollInfo.nMax - ScrollInfo.nPage + 1));
+				_scrollColumn = Math.Max(0, Math.Min(targetScrollPos, scrollInfo.nMax - scrollInfo.nPage + 1));
 
 				// Update the scroll bar if we're not tracking
 				if(se.Type != ScrollEventType.ThumbTrack)
 				{
-					ScrollInfo.fMask = ScrollInfoMask.SIF_POS;
-					ScrollInfo.nPos = ScrollColumn;
-					SetScrollInfo(Handle, ScrollBarType.SB_HORZ, ScrollInfo, true);
+					scrollInfo.fMask = ScrollInfoMask.SifPos;
+					scrollInfo.nPos = _scrollColumn;
+					SetScrollInfo(Handle, ScrollBarType.SbHorz, scrollInfo, true);
 				}
 
 				Invalidate();
@@ -678,152 +678,152 @@ namespace UnrealGameSync
 			else if(se.ScrollOrientation == ScrollOrientation.VerticalScroll)
 			{
 				// Get the current scroll position
-				SCROLLINFO ScrollInfo = new SCROLLINFO();
-				ScrollInfo.cbSize = Marshal.SizeOf(ScrollInfo);
-				ScrollInfo.fMask = ScrollInfoMask.SIF_ALL;
-				GetScrollInfo(Handle, ScrollBarType.SB_VERT, ScrollInfo);
+				Scrollinfo scrollInfo = new Scrollinfo();
+				scrollInfo.cbSize = Marshal.SizeOf(scrollInfo);
+				scrollInfo.fMask = ScrollInfoMask.SifAll;
+				GetScrollInfo(Handle, ScrollBarType.SbVert, scrollInfo);
 
 				// Get the new scroll position
-				int TargetScrollPos = ScrollInfo.nPos;
+				int targetScrollPos = scrollInfo.nPos;
 				switch(se.Type)
 				{
 					case ScrollEventType.SmallDecrement:
-						TargetScrollPos = ScrollInfo.nPos - 1;
+						targetScrollPos = scrollInfo.nPos - 1;
 						break;
 					case ScrollEventType.SmallIncrement:
-						TargetScrollPos = ScrollInfo.nPos + 1;
+						targetScrollPos = scrollInfo.nPos + 1;
 						break;
 					case ScrollEventType.LargeDecrement:
-						TargetScrollPos = ScrollInfo.nPos - ScrollLinesPerPage;
+						targetScrollPos = scrollInfo.nPos - _scrollLinesPerPage;
 						break;
 					case ScrollEventType.LargeIncrement:
-						TargetScrollPos = ScrollInfo.nPos + ScrollLinesPerPage;
+						targetScrollPos = scrollInfo.nPos + _scrollLinesPerPage;
 						break;
 					case ScrollEventType.ThumbPosition:
-						TargetScrollPos = ScrollInfo.nTrackPos;
+						targetScrollPos = scrollInfo.nTrackPos;
 						break;
 					case ScrollEventType.ThumbTrack:
-						TargetScrollPos = ScrollInfo.nTrackPos;
+						targetScrollPos = scrollInfo.nTrackPos;
 						break;
 				}
 
 				// Try to move to the new scroll position
-				UpdateVerticalScrollPosition(TargetScrollPos, ref ScrollInfo);
+				UpdateVerticalScrollPosition(targetScrollPos, ref scrollInfo);
 
 				// Update the new range as well
 				if(se.Type == ScrollEventType.ThumbTrack)
 				{
-					bTrackingScroll = true;
+					_trackingScroll = true;
 				}
 				else
 				{
 					// If we've just finished tracking, allow updating the range
-					ScrollInfo.nPos = ScrollLine;
-					if(bTrackingScroll)
+					scrollInfo.nPos = _scrollLine;
+					if(_trackingScroll)
 					{
-						ScrollInfo.fMask |= ScrollInfoMask.SIF_RANGE;
-						ScrollInfo.nMax = Math.Max(Lines.Count, 1) - 1;
-						bTrackingScroll = false;
+						scrollInfo.fMask |= ScrollInfoMask.SifRange;
+						scrollInfo.nMax = Math.Max(_lines.Count, 1) - 1;
+						_trackingScroll = false;
 					}
-					SetScrollInfo(Handle, ScrollBarType.SB_VERT, ScrollInfo, true);
+					SetScrollInfo(Handle, ScrollBarType.SbVert, scrollInfo, true);
 				}
 
 				Invalidate();
 			}
 		}
 
-		void UpdateVerticalScrollPosition(int TargetScrollPos, ref SCROLLINFO ScrollInfo)
+		void UpdateVerticalScrollPosition(int targetScrollPos, ref Scrollinfo scrollInfo)
 		{
 			// Scale it up to the number of lines. We don't adjust the scroll max while tracking so we can easily scroll to the end without more stuff being added.
-			float Ratio = Math.Max(Math.Min((float)TargetScrollPos / (float)(ScrollInfo.nMax - ScrollLinesPerPage + 1), 1.0f), 0.0f);
+			float ratio = Math.Max(Math.Min((float)targetScrollPos / (float)(scrollInfo.nMax - _scrollLinesPerPage + 1), 1.0f), 0.0f);
 
 			// Calculate the new scroll line, rounding to the nearest
-			ScrollLine = (int)((((Math.Max(Lines.Count, 1) - 1) - ScrollLinesPerPage + 1) * Ratio) + 0.5f);
+			_scrollLine = (int)((((Math.Max(_lines.Count, 1) - 1) - _scrollLinesPerPage + 1) * ratio) + 0.5f);
 		}
 
 		protected override void OnPaint(PaintEventArgs e)
 		{
 			base.OnPaint(e);
 
-			int TextX = -ScrollColumn * FontSize.Width;
-			for(int Idx = ScrollLine; Idx < ScrollLine + ScrollLinesPerPage + 1 && Idx < Lines.Count; Idx++)
+			int textX = -_scrollColumn * _fontSize.Width;
+			for(int idx = _scrollLine; idx < _scrollLine + _scrollLinesPerPage + 1 && idx < _lines.Count; idx++)
 			{
-				int SelectMinIdx;
-				int SelectMaxIdx;
-				ClipSelectionToLine(Idx, out SelectMinIdx, out SelectMaxIdx);
+				int selectMinIdx;
+				int selectMaxIdx;
+				ClipSelectionToLine(idx, out selectMinIdx, out selectMaxIdx);
 
-				Color TextColor;
-				if(Regex.IsMatch(Lines[Idx], "(?<!\\w)error[: ]", RegexOptions.IgnoreCase))
+				Color textColor;
+				if(Regex.IsMatch(_lines[idx], "(?<!\\w)error[: ]", RegexOptions.IgnoreCase))
 				{
-					TextColor = Color.FromArgb(189, 54, 47);
+					textColor = Color.FromArgb(189, 54, 47);
 				}
-				else if(Regex.IsMatch(Lines[Idx], "(?<!\\w)warning[: ]", RegexOptions.IgnoreCase))
+				else if(Regex.IsMatch(_lines[idx], "(?<!\\w)warning[: ]", RegexOptions.IgnoreCase))
 				{
-					TextColor = Color.FromArgb(128, 128, 0);
+					textColor = Color.FromArgb(128, 128, 0);
 				}
 				else
 				{
-					TextColor = Color.Black;
+					textColor = Color.Black;
 				}
 
-				int TextY = (Idx - ScrollLine) * FontSize.Height;
-				if(SelectMinIdx > 0)
+				int textY = (idx - _scrollLine) * _fontSize.Height;
+				if(selectMinIdx > 0)
 				{
-					TextRenderer.DrawText(e.Graphics, Lines[Idx].Substring(0, SelectMinIdx), Font, new Point(TextX, TextY), TextColor, TextFormatFlags.NoPadding);
+					TextRenderer.DrawText(e.Graphics, _lines[idx].Substring(0, selectMinIdx), Font, new Point(textX, textY), textColor, TextFormatFlags.NoPadding);
 				}
-				if(SelectMinIdx < SelectMaxIdx)
+				if(selectMinIdx < selectMaxIdx)
 				{
-					e.Graphics.FillRectangle(SystemBrushes.Highlight, TextX + (SelectMinIdx * FontSize.Width), TextY, (SelectMaxIdx - SelectMinIdx) * FontSize.Width, FontSize.Height);
-					TextRenderer.DrawText(e.Graphics, Lines[Idx].Substring(SelectMinIdx, SelectMaxIdx - SelectMinIdx), Font, new Point(TextX + (SelectMinIdx * FontSize.Width), TextY), SystemColors.HighlightText, TextFormatFlags.NoPadding);
+					e.Graphics.FillRectangle(SystemBrushes.Highlight, textX + (selectMinIdx * _fontSize.Width), textY, (selectMaxIdx - selectMinIdx) * _fontSize.Width, _fontSize.Height);
+					TextRenderer.DrawText(e.Graphics, _lines[idx].Substring(selectMinIdx, selectMaxIdx - selectMinIdx), Font, new Point(textX + (selectMinIdx * _fontSize.Width), textY), SystemColors.HighlightText, TextFormatFlags.NoPadding);
 				}
-				if(SelectMaxIdx < Lines[Idx].Length)
+				if(selectMaxIdx < _lines[idx].Length)
 				{
-					TextRenderer.DrawText(e.Graphics, Lines[Idx].Substring(SelectMaxIdx), Font, new Point(TextX + (SelectMaxIdx * FontSize.Width), TextY), TextColor, TextFormatFlags.NoPadding);
+					TextRenderer.DrawText(e.Graphics, _lines[idx].Substring(selectMaxIdx), Font, new Point(textX + (selectMaxIdx * _fontSize.Width), textY), textColor, TextFormatFlags.NoPadding);
 				}
 			}
 		}
 
-		void ScrollWindow(int ScrollDelta)
+		void ScrollWindow(int scrollDelta)
 		{
-			SCROLLINFO VerticalScroll = new SCROLLINFO();
-			VerticalScroll.cbSize = Marshal.SizeOf(VerticalScroll);
-			VerticalScroll.fMask = ScrollInfoMask.SIF_ALL;
-			GetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll);
+			Scrollinfo verticalScroll = new Scrollinfo();
+			verticalScroll.cbSize = Marshal.SizeOf(verticalScroll);
+			verticalScroll.fMask = ScrollInfoMask.SifAll;
+			GetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll);
 
-			VerticalScroll.nPos = Math.Min(Math.Max(VerticalScroll.nPos + ScrollDelta, 0), VerticalScroll.nMax - VerticalScroll.nPage + 1);
-			VerticalScroll.fMask = ScrollInfoMask.SIF_POS;
-			SetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll, true);
+			verticalScroll.nPos = Math.Min(Math.Max(verticalScroll.nPos + scrollDelta, 0), verticalScroll.nMax - verticalScroll.nPage + 1);
+			verticalScroll.fMask = ScrollInfoMask.SifPos;
+			SetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll, true);
 
-			ScrollLine = VerticalScroll.nPos;
+			_scrollLine = verticalScroll.nPos;
 		}
 
-		protected void SelectionScrollTimer_TimerElapsed(object? Sender, EventArgs Args)
+		protected void SelectionScrollTimer_TimerElapsed(object? sender, EventArgs args)
 		{
-			if(AutoScrollRate != 0 && Selection != null)
+			if(_autoScrollRate != 0 && _selection != null)
 			{
-				ScrollWindow(AutoScrollRate);
+				ScrollWindow(_autoScrollRate);
 
-				SCROLLINFO VerticalScroll = new SCROLLINFO();
-				VerticalScroll.cbSize = Marshal.SizeOf(VerticalScroll);
-				VerticalScroll.fMask = ScrollInfoMask.SIF_ALL;
-				GetScrollInfo(Handle, ScrollBarType.SB_VERT, VerticalScroll);
+				Scrollinfo verticalScroll = new Scrollinfo();
+				verticalScroll.cbSize = Marshal.SizeOf(verticalScroll);
+				verticalScroll.fMask = ScrollInfoMask.SifAll;
+				GetScrollInfo(Handle, ScrollBarType.SbVert, verticalScroll);
 
-				if(AutoScrollRate < 0)
+				if(_autoScrollRate < 0)
 				{
-					if(Selection.End.LineIdx > VerticalScroll.nPos)
+					if(_selection.End.LineIdx > verticalScroll.nPos)
 					{
-						Selection.End = new TextLocation(VerticalScroll.nPos, 0);
+						_selection.End = new TextLocation(verticalScroll.nPos, 0);
 					}
 				}
 				else
 				{
-					if(Selection.End.LineIdx < VerticalScroll.nPos + VerticalScroll.nPage)
+					if(_selection.End.LineIdx < verticalScroll.nPos + verticalScroll.nPage)
 					{
-						int LineIdx = Math.Min(VerticalScroll.nPos + VerticalScroll.nPage, Lines.Count - 1);
+						int lineIdx = Math.Min(verticalScroll.nPos + verticalScroll.nPage, _lines.Count - 1);
 
-						if (LineIdx >= 0)
+						if (lineIdx >= 0)
 						{
-							Selection.End = new TextLocation(LineIdx, Lines[LineIdx].Length);
+							_selection.End = new TextLocation(lineIdx, _lines[lineIdx].Length);
 						}
 					}
 				}
@@ -832,80 +832,80 @@ namespace UnrealGameSync
 			}
 		}
 
-		protected void ClipSelectionToLine(int LineIdx, out int SelectMinIdx, out int SelectMaxIdx)
+		protected void ClipSelectionToLine(int lineIdx, out int selectMinIdx, out int selectMaxIdx)
 		{
-			if(Selection == null)
+			if(_selection == null)
 			{
-				SelectMinIdx = 0;
-				SelectMaxIdx = 0;
+				selectMinIdx = 0;
+				selectMaxIdx = 0;
 			}
-			else if(Selection.Start.LineIdx < Selection.End.LineIdx)
+			else if(_selection.Start.LineIdx < _selection.End.LineIdx)
 			{
-				if(LineIdx < Selection.Start.LineIdx)
+				if(lineIdx < _selection.Start.LineIdx)
 				{
-					SelectMinIdx = Lines[LineIdx].Length;
-					SelectMaxIdx = Lines[LineIdx].Length;
+					selectMinIdx = _lines[lineIdx].Length;
+					selectMaxIdx = _lines[lineIdx].Length;
 				}
-				else if(LineIdx == Selection.Start.LineIdx)
+				else if(lineIdx == _selection.Start.LineIdx)
 				{
-					SelectMinIdx = Selection.Start.ColumnIdx;
-					SelectMaxIdx = Lines[LineIdx].Length;
+					selectMinIdx = _selection.Start.ColumnIdx;
+					selectMaxIdx = _lines[lineIdx].Length;
 				}
-				else if(LineIdx < Selection.End.LineIdx)
+				else if(lineIdx < _selection.End.LineIdx)
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = Lines[LineIdx].Length;
+					selectMinIdx = 0;
+					selectMaxIdx = _lines[lineIdx].Length;
 				}
-				else if(LineIdx == Selection.End.LineIdx)
+				else if(lineIdx == _selection.End.LineIdx)
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = Selection.End.ColumnIdx;
+					selectMinIdx = 0;
+					selectMaxIdx = _selection.End.ColumnIdx;
 				}
 				else
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = 0;
+					selectMinIdx = 0;
+					selectMaxIdx = 0;
 				}
 			}
-			else if(Selection.Start.LineIdx > Selection.End.LineIdx)
+			else if(_selection.Start.LineIdx > _selection.End.LineIdx)
 			{
-				if(LineIdx < Selection.End.LineIdx)
+				if(lineIdx < _selection.End.LineIdx)
 				{
-					SelectMinIdx = Lines[LineIdx].Length;
-					SelectMaxIdx = Lines[LineIdx].Length;
+					selectMinIdx = _lines[lineIdx].Length;
+					selectMaxIdx = _lines[lineIdx].Length;
 				}
-				else if(LineIdx == Selection.End.LineIdx)
+				else if(lineIdx == _selection.End.LineIdx)
 				{
-					SelectMinIdx = Selection.End.ColumnIdx;
-					SelectMaxIdx = Lines[LineIdx].Length;
+					selectMinIdx = _selection.End.ColumnIdx;
+					selectMaxIdx = _lines[lineIdx].Length;
 				}
-				else if(LineIdx < Selection.Start.LineIdx)
+				else if(lineIdx < _selection.Start.LineIdx)
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = Lines[LineIdx].Length;
+					selectMinIdx = 0;
+					selectMaxIdx = _lines[lineIdx].Length;
 				}
-				else if(LineIdx == Selection.Start.LineIdx)
+				else if(lineIdx == _selection.Start.LineIdx)
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = Selection.Start.ColumnIdx;
+					selectMinIdx = 0;
+					selectMaxIdx = _selection.Start.ColumnIdx;
 				}
 				else
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = 0;
+					selectMinIdx = 0;
+					selectMaxIdx = 0;
 				}
 			}
 			else
 			{
-				if(LineIdx == Selection.Start.LineIdx)
+				if(lineIdx == _selection.Start.LineIdx)
 				{
-					SelectMinIdx = Math.Min(Selection.Start.ColumnIdx, Selection.End.ColumnIdx);
-					SelectMaxIdx = Math.Max(Selection.Start.ColumnIdx, Selection.End.ColumnIdx);
+					selectMinIdx = Math.Min(_selection.Start.ColumnIdx, _selection.End.ColumnIdx);
+					selectMaxIdx = Math.Max(_selection.Start.ColumnIdx, _selection.End.ColumnIdx);
 				}
 				else
 				{
-					SelectMinIdx = 0;
-					SelectMaxIdx = 0;
+					selectMinIdx = 0;
+					selectMaxIdx = 0;
 				}
 			}
 		}
@@ -918,23 +918,23 @@ namespace UnrealGameSync
 			public void Dispose() { }
 		}
 
-		LogControl LogControl;
+		LogControl _logControl;
 
-		public LogControlTextWriter(LogControl InLogControl)
+		public LogControlTextWriter(LogControl inLogControl)
 		{
-			LogControl = InLogControl;
+			_logControl = inLogControl;
 		}
 
-		public void Log<TState>(LogLevel LogLevel, EventId EventId, TState State, Exception Exception, Func<TState, Exception, string> Formatter)
+		public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception exception, Func<TState, Exception, string> formatter)
 		{
-			string Message = Formatter(State, Exception);
-			LogControl.AppendLine(Message);
+			string message = formatter(state, exception);
+			_logControl.AppendLine(message);
 
-			if (Exception != null)
+			if (exception != null)
 			{
-				foreach (string Line in Exception.ToString().Trim().Split('\n'))
+				foreach (string line in exception.ToString().Trim().Split('\n'))
 				{
-					LogControl.AppendLine(Line);
+					_logControl.AppendLine(line);
 				}
 			}
 		}

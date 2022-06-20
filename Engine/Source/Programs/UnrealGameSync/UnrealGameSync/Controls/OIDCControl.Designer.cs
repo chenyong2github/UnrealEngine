@@ -1,6 +1,6 @@
 namespace UnrealGameSync.Controls
 {
-	partial class OIDCControl
+	partial class OidcControl
 	{
 		/// <summary> 
 		/// Required designer variable.
@@ -73,7 +73,7 @@ namespace UnrealGameSync.Controls
 			this.AutoScaleDimensions = new System.Drawing.SizeF(10F, 25F);
 			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
 			this.Controls.Add(this.OIDCControlGroupBox);
-			this.Name = "OIDCControl";
+			this.Name = "OidcControl";
 			this.Size = new System.Drawing.Size(358, 101);
 			this.OIDCControlGroupBox.ResumeLayout(false);
 			this.ResumeLayout(false);

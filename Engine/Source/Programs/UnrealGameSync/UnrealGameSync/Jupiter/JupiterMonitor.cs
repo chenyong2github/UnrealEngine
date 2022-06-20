@@ -20,161 +20,161 @@ namespace UnrealGameSync
 {
 	class JupiterMonitor: IArchiveInfoSource, IDisposable
 	{
-		private readonly object ArchivesLock = new object();
-		private IReadOnlyList<IArchiveInfo> Archives;
+		private readonly object _archivesLock = new object();
+		private IReadOnlyList<IArchiveInfo> _archives;
 
-		private readonly OIDCTokenManager TokenManager;
-		private readonly string JupiterNamespace;
-		private readonly string ProviderIdentifier;
-		private readonly string ExpectedBranch;
-		private readonly Uri JupiterUrl;
+		private readonly OidcTokenManager _tokenManager;
+		private readonly string _jupiterNamespace;
+		private readonly string _providerIdentifier;
+		private readonly string _expectedBranch;
+		private readonly Uri _jupiterUrl;
 
-		private readonly Timer UpdateTimer;
-		private readonly ILogger Logger;
+		private readonly Timer _updateTimer;
+		private readonly ILogger _logger;
 
 		public IReadOnlyList<IArchiveInfo> AvailableArchives
 		{
 			get
 			{
-				lock (ArchivesLock)
+				lock (_archivesLock)
 				{
-					return Archives;
+					return _archives;
 				}
 			}
 		}
 
-		private JupiterMonitor(OIDCTokenManager InTokenManager, ILogger InLogger, string InNamespace, string InUrl,
-			string InProviderIdentifier, string InExpectedBranch)
+		private JupiterMonitor(OidcTokenManager inTokenManager, ILogger inLogger, string inNamespace, string inUrl,
+			string inProviderIdentifier, string inExpectedBranch)
 		{
-			TokenManager = InTokenManager;
-			JupiterNamespace = InNamespace;
-			ProviderIdentifier = InProviderIdentifier;
-			ExpectedBranch = InExpectedBranch;
-			JupiterUrl = new Uri(InUrl);
+			_tokenManager = inTokenManager;
+			_jupiterNamespace = inNamespace;
+			_providerIdentifier = inProviderIdentifier;
+			_expectedBranch = inExpectedBranch;
+			_jupiterUrl = new Uri(inUrl);
 
-			Logger = InLogger;
-			UpdateTimer = new Timer(DoUpdate, null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
+			_logger = inLogger;
+			_updateTimer = new Timer(DoUpdate, null, TimeSpan.Zero, TimeSpan.FromMinutes(5));
 		}
 		public void Dispose()
 		{
-			UpdateTimer?.Dispose();
+			_updateTimer?.Dispose();
 		}
 
-		private async void DoUpdate(object State)
+		private async void DoUpdate(object state)
 		{
-			Logger.LogInformation("Starting poll of JupiterMonitor for namespace {JupiterNamespace}", JupiterNamespace);
+			_logger.LogInformation("Starting poll of JupiterMonitor for namespace {JupiterNamespace}", _jupiterNamespace);
 			try
 			{
-				IReadOnlyList<IArchiveInfo> NewArchives = await GetAvailableArchives();
-				lock (ArchivesLock)
+				IReadOnlyList<IArchiveInfo> newArchives = await GetAvailableArchives();
+				lock (_archivesLock)
 				{
-					Archives = NewArchives;
+					_archives = newArchives;
 				}
 
 			}
-			catch (Exception Exception)
+			catch (Exception exception)
 			{
-				Logger.LogError(Exception, "Exception occured during poll!");
+				_logger.LogError(exception, "Exception occured during poll!");
 			}
 		}
 
-		public static JupiterMonitor CreateFromConfigFile(OIDCTokenManager TokenManager, ILogger<JupiterMonitor> Logger, ConfigFile ConfigFile, string SelectedProjectIdentifier)
+		public static JupiterMonitor CreateFromConfigFile(OidcTokenManager tokenManager, ILogger<JupiterMonitor> logger, ConfigFile configFile, string selectedProjectIdentifier)
 		{
-			ConfigSection JupiterConfigSection = ConfigFile.FindSection("Jupiter");
-			if (JupiterConfigSection == null)
+			ConfigSection jupiterConfigSection = configFile.FindSection("Jupiter");
+			if (jupiterConfigSection == null)
 				return null;
 
-			string JupiterUrl = JupiterConfigSection.GetValue("JupiterUrl");
-			string OIDCProviderIdentifier = JupiterConfigSection.GetValue("OIDCProviderIdentifier");
+			string jupiterUrl = jupiterConfigSection.GetValue("JupiterUrl");
+			string oidcProviderIdentifier = jupiterConfigSection.GetValue("OIDCProviderIdentifier");
 
-			ConfigSection ProjectConfigSection = ConfigFile.FindSection(SelectedProjectIdentifier);
-			if (ProjectConfigSection == null)
+			ConfigSection projectConfigSection = configFile.FindSection(selectedProjectIdentifier);
+			if (projectConfigSection == null)
 				return null;
 
-			string JupiterNamespace = ProjectConfigSection.GetValue("JupiterNamespace");
+			string jupiterNamespace = projectConfigSection.GetValue("JupiterNamespace");
 			// Is no namespace has been specified we are unable to fetch builds
-			if (JupiterNamespace == null)
+			if (jupiterNamespace == null)
 				return null;
 
-			string ExpectedBranch = ProjectConfigSection.GetValue("ExpectedBranch");
+			string expectedBranch = projectConfigSection.GetValue("ExpectedBranch");
 			// If we do not know which branch to fetch we can not list builds, as it would risk getting binaries from other branches
-			if (ExpectedBranch == null)
+			if (expectedBranch == null)
 				return null;
 
-			OIDCProviderIdentifier = ProjectConfigSection.GetValue("OIDCProviderIdentifier") ?? OIDCProviderIdentifier;
+			oidcProviderIdentifier = projectConfigSection.GetValue("OIDCProviderIdentifier") ?? oidcProviderIdentifier;
 
 			// with no oidc provider we are unable to login, thus it is required
-			if (OIDCProviderIdentifier == null)
+			if (oidcProviderIdentifier == null)
 				return null;
 
 			// project specific overrides
-			JupiterUrl = ProjectConfigSection.GetValue("JupiterUrl") ?? JupiterUrl;
+			jupiterUrl = projectConfigSection.GetValue("JupiterUrl") ?? jupiterUrl;
 
-			return new JupiterMonitor(TokenManager, Logger, JupiterNamespace, JupiterUrl, OIDCProviderIdentifier, ExpectedBranch);
+			return new JupiterMonitor(tokenManager, logger, jupiterNamespace, jupiterUrl, oidcProviderIdentifier, expectedBranch);
 		}
 
 		private async Task<IReadOnlyList<IArchiveInfo>> GetAvailableArchives()
 		{
-			string Token = await TokenManager.GetAccessToken(ProviderIdentifier);
+			string token = await _tokenManager.GetAccessToken(_providerIdentifier);
 
-			List<JupiterArchiveInfo> NewArchives = new List<JupiterArchiveInfo>();
-			using (HttpClient Client = new HttpClient())
+			List<JupiterArchiveInfo> newArchives = new List<JupiterArchiveInfo>();
+			using (HttpClient client = new HttpClient())
 			{
-				Client.BaseAddress = JupiterUrl;
-				Client.SetBearerToken(Token);
+				client.BaseAddress = _jupiterUrl;
+				client.SetBearerToken(token);
 
-				string ResponseBody = await Client.GetStringAsync($"/api/v1/c/tree-root/{JupiterNamespace}");
-				TreeRootListResponse Response = JsonSerializer.Deserialize<TreeRootListResponse>(ResponseBody, new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
+				string responseBody = await client.GetStringAsync($"/api/v1/c/tree-root/{_jupiterNamespace}");
+				TreeRootListResponse response = JsonSerializer.Deserialize<TreeRootListResponse>(responseBody, new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
 
-				foreach (string TreeRoot in Response.TreeRoots)
+				foreach (string treeRoot in response.TreeRoots)
 				{
 					// fetch info on this tree root
-					string ResourceUrl = $"/api/v1/c/tree-root/{JupiterNamespace}/{TreeRoot}";
-					string ResponseBodyTreeReference = await Client.GetStringAsync(ResourceUrl);
-					TreeRootReferenceResponse ResponseTreeReference = JsonSerializer.Deserialize<TreeRootReferenceResponse>(ResponseBodyTreeReference, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+					string resourceUrl = $"/api/v1/c/tree-root/{_jupiterNamespace}/{treeRoot}";
+					string responseBodyTreeReference = await client.GetStringAsync(resourceUrl);
+					TreeRootReferenceResponse responseTreeReference = JsonSerializer.Deserialize<TreeRootReferenceResponse>(responseBodyTreeReference, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
-					Dictionary<string, string> Metadata = ResponseTreeReference.Metadata.ToDictionary(Pair => Pair.Key, Pair => Pair.Value.ToString());
+					Dictionary<string, string> metadata = responseTreeReference.Metadata.ToDictionary(pair => pair.Key, pair => pair.Value.ToString());
 
-					string ArchiveType, Project, Branch, ChangelistString;
+					string archiveType, project, branch, changelistString;
 
-					if (!Metadata.TryGetValue("ArchiveType", out ArchiveType) ||
-					    !Metadata.TryGetValue("Project", out Project) ||
-					    !Metadata.TryGetValue("Branch", out Branch) ||
-						!Metadata.TryGetValue("Changelist", out ChangelistString))
+					if (!metadata.TryGetValue("ArchiveType", out archiveType) ||
+					    !metadata.TryGetValue("Project", out project) ||
+					    !metadata.TryGetValue("Branch", out branch) ||
+						!metadata.TryGetValue("Changelist", out changelistString))
 					{
 						continue;
 					}
 
 					// skip if we do not have metadata as we need that to be able to determine if this root is of the type we want
-					if (Branch == null || Project == null || ArchiveType == null || ChangelistString == null)
+					if (branch == null || project == null || archiveType == null || changelistString == null)
 						continue;
 
-					if (!string.Equals(ExpectedBranch, Branch, StringComparison.InvariantCultureIgnoreCase))
+					if (!string.Equals(_expectedBranch, branch, StringComparison.InvariantCultureIgnoreCase))
 					{
 						continue;
 					}
 
-					int Changelist;
-					if (!int.TryParse(ChangelistString, out Changelist))
+					int changelist;
+					if (!int.TryParse(changelistString, out changelist))
 					{
 						continue; // invalid changelist format
 					}
 
-					JupiterArchiveInfo ExistingArchive = NewArchives.FirstOrDefault(Info =>
-						string.Equals(Info.Name, Project, StringComparison.InvariantCultureIgnoreCase) &&
-						string.Equals(Info.Type, ArchiveType, StringComparison.InvariantCultureIgnoreCase));
-					if (ExistingArchive == null)
+					JupiterArchiveInfo existingArchive = newArchives.FirstOrDefault(info =>
+						string.Equals(info.Name, project, StringComparison.InvariantCultureIgnoreCase) &&
+						string.Equals(info.Type, archiveType, StringComparison.InvariantCultureIgnoreCase));
+					if (existingArchive == null)
 					{
-						JupiterArchiveInfo Archive = new JupiterArchiveInfo(Project, ArchiveType, JupiterUrl.ToString(), JupiterNamespace);
-						NewArchives.Add(Archive);
-						ExistingArchive = Archive;
+						JupiterArchiveInfo archive = new JupiterArchiveInfo(project, archiveType, _jupiterUrl.ToString(), _jupiterNamespace);
+						newArchives.Add(archive);
+						existingArchive = archive;
 					}
 
-					ExistingArchive.AddArchiveVersion(Changelist, ResponseTreeReference.TreeReferenceKey);
+					existingArchive.AddArchiveVersion(changelist, responseTreeReference.TreeReferenceKey);
 				}
 			}
 
-			return NewArchives.AsReadOnly();
+			return newArchives.AsReadOnly();
 		}
 
 		private class TreeRootListResponse
@@ -194,17 +194,17 @@ namespace UnrealGameSync
 
 		private class JupiterArchiveInfo : IArchiveInfo
 		{
-			private readonly string JupiterUrl;
-			private readonly string JupiterNamespace;
-			private readonly Dictionary<int, string> ChangeToKey = new Dictionary<int, string>();
+			private readonly string _jupiterUrl;
+			private readonly string _jupiterNamespace;
+			private readonly Dictionary<int, string> _changeToKey = new Dictionary<int, string>();
 
-			public JupiterArchiveInfo(string InName, string InType, string InJupiterUrl, string InJupiterNamespace)
+			public JupiterArchiveInfo(string inName, string inType, string inJupiterUrl, string inJupiterNamespace)
 			{
-				Name = InName;
-				Type = InType;
+				Name = inName;
+				Type = inType;
 
-				JupiterUrl = InJupiterUrl;
-				JupiterNamespace = InJupiterNamespace;
+				_jupiterUrl = inJupiterUrl;
+				_jupiterNamespace = inJupiterNamespace;
 			}
 
 			public string Name { get; }
@@ -219,61 +219,61 @@ namespace UnrealGameSync
 
 			public bool Exists()
 			{
-				return ChangeToKey.Count > 0;
+				return _changeToKey.Count > 0;
 			}
 
-			public bool TryGetArchiveKeyForChangeNumber(int ChangeNumber, out string ArchiveKey)
+			public bool TryGetArchiveKeyForChangeNumber(int changeNumber, out string archiveKey)
 			{
-				return ChangeToKey.TryGetValue(ChangeNumber, out ArchiveKey);
+				return _changeToKey.TryGetValue(changeNumber, out archiveKey);
 			}
 
-			public Task<bool> DownloadArchive(IPerforceConnection _, string ArchiveKey, DirectoryReference LocalRootPath, FileReference ManifestFileName, ILogger Logger, ProgressValue Progress, CancellationToken CancellationToken)
+			public Task<bool> DownloadArchive(IPerforceConnection _, string archiveKey, DirectoryReference localRootPath, FileReference manifestFileName, ILogger logger, ProgressValue progress, CancellationToken cancellationToken)
 			{
 				try
 				{
-					Progress<Tuple<float, FileReference>> ProgressCallback = new Progress<Tuple<float, FileReference>>(ProgressUpdate =>
+					Progress<Tuple<float, FileReference>> progressCallback = new Progress<Tuple<float, FileReference>>(progressUpdate =>
 					{
-						(float ProgressFraction, FileReference FileReference) = ProgressUpdate;
-						Progress.Set(ProgressFraction);
-						Logger.LogInformation("Writing {FileName}", FileReference.FullName);
+						(float progressFraction, FileReference fileReference) = progressUpdate;
+						progress.Set(progressFraction);
+						logger.LogInformation("Writing {FileName}", fileReference.FullName);
 					});
 
 					// place the manifest for the Jupiter download next to the UGS manifest
-					FileReference UGSManifestFileReference = ManifestFileName;
-					FileReference JupiterManifestFileReference = FileReference.Combine(UGSManifestFileReference.Directory, "Jupiter-Manifest.json");
+					FileReference ugsManifestFileReference = manifestFileName;
+					FileReference jupiterManifestFileReference = FileReference.Combine(ugsManifestFileReference.Directory, "Jupiter-Manifest.json");
 
-					DirectoryReference RootDirectory = LocalRootPath;
-					JupiterFileTree FileTree = new JupiterFileTree(RootDirectory, InDeferReadingFiles: true);
-					Task<List<FileReference>> DownloadTask = FileTree.DownloadFromJupiter(JupiterManifestFileReference, JupiterUrl, JupiterNamespace, ArchiveKey, ProgressCallback);
-					DownloadTask.Wait();
+					DirectoryReference rootDirectory = localRootPath;
+					JupiterFileTree fileTree = new JupiterFileTree(rootDirectory, InDeferReadingFiles: true);
+					Task<List<FileReference>> downloadTask = fileTree.DownloadFromJupiter(jupiterManifestFileReference, _jupiterUrl, _jupiterNamespace, archiveKey, progressCallback);
+					downloadTask.Wait();
 
-					List<FileReference> WrittenFiles = DownloadTask.Result;
-					ArchiveManifest ArchiveManifest = new ArchiveManifest();
-					foreach (FileReference File in WrittenFiles)
+					List<FileReference> writtenFiles = downloadTask.Result;
+					ArchiveManifest archiveManifest = new ArchiveManifest();
+					foreach (FileReference file in writtenFiles)
 					{
-						ArchiveManifest.Files.Add(new ArchiveManifestFile(File.FullName, File.ToFileInfo().Length, DateTime.Now));
+						archiveManifest.Files.Add(new ArchiveManifestFile(file.FullName, file.ToFileInfo().Length, DateTime.Now));
 					}
 
 					// Write it out to a temporary file, then move it into place
-					FileReference TempManifestFileName = ManifestFileName + ".tmp";
-					using (FileStream OutputStream = FileReference.Open(TempManifestFileName, FileMode.Create, FileAccess.Write))
+					FileReference tempManifestFileName = manifestFileName + ".tmp";
+					using (FileStream outputStream = FileReference.Open(tempManifestFileName, FileMode.Create, FileAccess.Write))
 					{
-						ArchiveManifest.Write(OutputStream);
+						archiveManifest.Write(outputStream);
 					}
-					FileReference.Move(TempManifestFileName, ManifestFileName);
+					FileReference.Move(tempManifestFileName, manifestFileName);
 
 					return Task.FromResult(true);
 				}
-				catch (Exception Exception)
+				catch (Exception exception)
 				{
-					Logger.LogError(Exception, "Exception occured when downloading build from Jupiter with key {Key}.", ArchiveKey);
+					logger.LogError(exception, "Exception occured when downloading build from Jupiter with key {Key}.", archiveKey);
 					return Task.FromResult(false);
 				}
 			}
 
-			public void AddArchiveVersion(int Changelist, string Key)
+			public void AddArchiveVersion(int changelist, string key)
 			{
-				ChangeToKey[Changelist] = Key;
+				_changeToKey[changelist] = key;
 			}
 		}
 	}

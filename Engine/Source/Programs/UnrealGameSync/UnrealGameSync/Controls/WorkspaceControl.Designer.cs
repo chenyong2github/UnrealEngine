@@ -1204,7 +1204,7 @@ namespace UnrealGameSync
 			// 
 			this.FilterContextMenu_Author_Name.Name = "FilterContextMenu_Author_Name";
 			this.FilterContextMenu_Author_Name.Size = new System.Drawing.Size(100, 22);
-			this.FilterContextMenu_Author_Name.Text = AuthorFilterPlaceholderText;
+			this.FilterContextMenu_Author_Name.Text = _authorFilterPlaceholderText;
 			// no placeholder text property in 4.x so do it manually
 			this.FilterContextMenu_Author_Name.TextBox.ForeColor = Color.DarkGray;
 			this.FilterContextMenu_Author_Name.TextBox.GotFocus += new System.EventHandler(this.FilterContextMenu_Author_Name_GotFocus);

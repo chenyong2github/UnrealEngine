@@ -24,9 +24,9 @@ namespace UnrealGameSync
 	{
 		static class EnumerateStreamsTask
 		{
-			public static async Task<List<StreamsRecord>> RunAsync(IPerforceConnection Perforce, CancellationToken CancellationToken)
+			public static async Task<List<StreamsRecord>> RunAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
 			{
-				return await Perforce.GetStreamsAsync(null, CancellationToken);
+				return await perforce.GetStreamsAsync(null, cancellationToken);
 			}
 		}
 
@@ -35,17 +35,17 @@ namespace UnrealGameSync
 			public StreamsRecord Record;
 			public List<StreamNode> ChildNodes = new List<StreamNode>();
 
-			public StreamNode(StreamsRecord Record)
+			public StreamNode(StreamsRecord record)
 			{
-				this.Record = Record;
+				this.Record = record;
 			}
 
 			public void Sort()
 			{
 				ChildNodes = ChildNodes.OrderBy(x => x.Record.Name).ToList();
-				foreach(StreamNode ChildNode in ChildNodes)
+				foreach(StreamNode childNode in ChildNodes)
 				{
-					ChildNode.Sort();
+					childNode.Sort();
 				}
 			}
 		}
@@ -55,80 +55,80 @@ namespace UnrealGameSync
 			public string Name;
 			public List<StreamNode> RootNodes = new List<StreamNode>();
 
-			public StreamDepot(string Name)
+			public StreamDepot(string name)
 			{
-				this.Name = Name;
+				this.Name = name;
 			}
 
 			public void Sort()
 			{
 				RootNodes = RootNodes.OrderBy(x => x.Record.Name).ToList();
-				foreach(StreamNode RootNode in RootNodes)
+				foreach(StreamNode rootNode in RootNodes)
 				{
-					RootNode.Sort();
+					rootNode.Sort();
 				}
 			}
 		}
 
-		private string? SelectedStream;
-		private List<StreamDepot> Depots = new List<StreamDepot>();
+		private string? _selectedStream;
+		private List<StreamDepot> _depots = new List<StreamDepot>();
 
-		private SelectStreamWindow(List<StreamsRecord> Streams, string? StreamName)
+		private SelectStreamWindow(List<StreamsRecord> streams, string? streamName)
 		{
 			InitializeComponent();
 
-			this.SelectedStream = StreamName;
+			this._selectedStream = streamName;
 
 			// Set up the image list
-			ImageList PerforceImageList = new ImageList();
-			PerforceImageList.ImageSize = new Size(16, 16);
-			PerforceImageList.ColorDepth = ColorDepth.Depth32Bit;
-			PerforceImageList.Images.AddStrip(Properties.Resources.Perforce);
-			StreamsTreeView.ImageList = PerforceImageList;
+			ImageList perforceImageList = new ImageList();
+			perforceImageList.ImageSize = new Size(16, 16);
+			perforceImageList.ColorDepth = ColorDepth.Depth32Bit;
+			perforceImageList.Images.AddStrip(Properties.Resources.Perforce);
+			StreamsTreeView.ImageList = perforceImageList;
 
 			// Build a map of stream names to their nodes
-			Dictionary<string, StreamNode> IdentifierToNode = new Dictionary<string, StreamNode>(StringComparer.InvariantCultureIgnoreCase);
-			foreach(StreamsRecord Stream in Streams)
+			Dictionary<string, StreamNode> identifierToNode = new Dictionary<string, StreamNode>(StringComparer.InvariantCultureIgnoreCase);
+			foreach(StreamsRecord stream in streams)
 			{
-				if(Stream.Stream != null && Stream.Name != null)
+				if(stream.Stream != null && stream.Name != null)
 				{
-					IdentifierToNode[Stream.Stream] = new StreamNode(Stream);
+					identifierToNode[stream.Stream] = new StreamNode(stream);
 				}
 			}
 
 			// Create all the depots
-			Dictionary<string, StreamDepot> NameToDepot = new Dictionary<string, StreamDepot>(StringComparer.InvariantCultureIgnoreCase);
-			foreach(StreamNode Node in IdentifierToNode.Values)
+			Dictionary<string, StreamDepot> nameToDepot = new Dictionary<string, StreamDepot>(StringComparer.InvariantCultureIgnoreCase);
+			foreach(StreamNode node in identifierToNode.Values)
 			{
-				if(Node.Record.Parent == null || Node.Record.Parent.Equals("none", StringComparison.OrdinalIgnoreCase))
+				if(node.Record.Parent == null || node.Record.Parent.Equals("none", StringComparison.OrdinalIgnoreCase))
 				{
-					string? DepotName;
-					if(PerforceUtils.TryGetDepotName(Node.Record.Stream, out DepotName))
+					string? depotName;
+					if(PerforceUtils.TryGetDepotName(node.Record.Stream, out depotName))
 					{
-						StreamDepot? Depot;
-						if(!NameToDepot.TryGetValue(DepotName, out Depot))
+						StreamDepot? depot;
+						if(!nameToDepot.TryGetValue(depotName, out depot))
 						{
-							Depot = new StreamDepot(DepotName);
-							NameToDepot.Add(DepotName, Depot);
+							depot = new StreamDepot(depotName);
+							nameToDepot.Add(depotName, depot);
 						}
-						Depot.RootNodes.Add(Node);
+						depot.RootNodes.Add(node);
 					}
 				}
 				else
 				{
-					StreamNode? ParentNode;
-					if(IdentifierToNode.TryGetValue(Node.Record.Parent, out ParentNode))
+					StreamNode? parentNode;
+					if(identifierToNode.TryGetValue(node.Record.Parent, out parentNode))
 					{
-						ParentNode.ChildNodes.Add(Node);
+						parentNode.ChildNodes.Add(node);
 					}
 				}
 			}
 
 			// Sort the tree
-			Depots = NameToDepot.Values.OrderBy(x => x.Name).ToList();
-			foreach(StreamDepot Depot in Depots)
+			_depots = nameToDepot.Values.OrderBy(x => x.Name).ToList();
+			foreach(StreamDepot depot in _depots)
 			{
-				Depot.Sort();
+				depot.Sort();
 			}
 
 			// Update the contents of the tree
@@ -136,85 +136,85 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		private void GetExpandedNodes(TreeNodeCollection Nodes, List<TreeNode> ExpandedNodes)
+		private void GetExpandedNodes(TreeNodeCollection nodes, List<TreeNode> expandedNodes)
 		{
-			foreach(TreeNode? Node in Nodes)
+			foreach(TreeNode? node in nodes)
 			{
-				if (Node != null)
+				if (node != null)
 				{
-					ExpandedNodes.Add(Node);
-					if (Node.IsExpanded)
+					expandedNodes.Add(node);
+					if (node.IsExpanded)
 					{
-						GetExpandedNodes(Node.Nodes, ExpandedNodes);
+						GetExpandedNodes(node.Nodes, expandedNodes);
 					}
 				}
 			}
 		}
 
-		private void MoveSelection(int Delta)
+		private void MoveSelection(int delta)
 		{
 			if(StreamsTreeView.SelectedNode != null)
 			{
-				List<TreeNode> ExpandedNodes = new List<TreeNode>();
-				GetExpandedNodes(StreamsTreeView.Nodes, ExpandedNodes);
+				List<TreeNode> expandedNodes = new List<TreeNode>();
+				GetExpandedNodes(StreamsTreeView.Nodes, expandedNodes);
 
-				int Idx = ExpandedNodes.IndexOf(StreamsTreeView.SelectedNode);
-				if(Idx != -1)
+				int idx = expandedNodes.IndexOf(StreamsTreeView.SelectedNode);
+				if(idx != -1)
 				{
-					int NextIdx = Idx + Delta;
-					if(NextIdx < 0)
+					int nextIdx = idx + delta;
+					if(nextIdx < 0)
 					{
-						NextIdx = 0;
+						nextIdx = 0;
 					}
-					if(NextIdx >= ExpandedNodes.Count)
+					if(nextIdx >= expandedNodes.Count)
 					{
-						NextIdx = ExpandedNodes.Count - 1;
+						nextIdx = expandedNodes.Count - 1;
 					}
-					StreamsTreeView.SelectedNode = ExpandedNodes[NextIdx];
+					StreamsTreeView.SelectedNode = expandedNodes[nextIdx];
 				}
 			}
 		}
 
-		protected override bool ProcessCmdKey(ref Message Msg, Keys KeyData)
+		protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
 		{
-			if(KeyData == Keys.Up)
+			if(keyData == Keys.Up)
 			{
 				MoveSelection(-1);
 				return true;
 			}
-			else if(KeyData == Keys.Down)
+			else if(keyData == Keys.Down)
 			{
 				MoveSelection(+1);
 				return true;
 			}
-			return base.ProcessCmdKey(ref Msg, KeyData);
+			return base.ProcessCmdKey(ref msg, keyData);
 		}
 
-		private bool IncludeNodeInFilter(StreamNode Node, string[] Filter)
+		private bool IncludeNodeInFilter(StreamNode node, string[] filter)
 		{
-			return Filter.All(x => Node.Record.Stream.IndexOf(x, StringComparison.InvariantCultureIgnoreCase) != -1 || Node.Record.Name.IndexOf(x, StringComparison.InvariantCultureIgnoreCase) != -1);
+			return filter.All(x => node.Record.Stream.IndexOf(x, StringComparison.InvariantCultureIgnoreCase) != -1 || node.Record.Name.IndexOf(x, StringComparison.InvariantCultureIgnoreCase) != -1);
 		}
 
-		private bool TryFilterTree(StreamNode Node, string[] Filter, [NotNullWhen(true)] out StreamNode? NewNode)
+		private bool TryFilterTree(StreamNode node, string[] filter, [NotNullWhen(true)] out StreamNode? newNode)
 		{
-			StreamNode FilteredNode = new StreamNode(Node.Record);
-			foreach(StreamNode ChildNode in Node.ChildNodes)
+			StreamNode filteredNode = new StreamNode(node.Record);
+			foreach(StreamNode childNode in node.ChildNodes)
 			{
-				StreamNode? FilteredChildNode;
-				if(TryFilterTree(ChildNode, Filter, out FilteredChildNode))
+				StreamNode? filteredChildNode;
+				if(TryFilterTree(childNode, filter, out filteredChildNode))
 				{
-					FilteredNode.ChildNodes.Add(FilteredChildNode);
+					filteredNode.ChildNodes.Add(filteredChildNode);
 				}
 			}
 
-			if(FilteredNode.ChildNodes.Count > 0 || IncludeNodeInFilter(FilteredNode, Filter))
+			if(filteredNode.ChildNodes.Count > 0 || IncludeNodeInFilter(filteredNode, filter))
 			{
-				NewNode = FilteredNode;
+				newNode = filteredNode;
 				return true;
 			}
 			else
 			{
-				NewNode = null;
+				newNode = null;
 				return false;
 			}
 		}
@@ -224,60 +224,60 @@ namespace UnrealGameSync
 			StreamsTreeView.BeginUpdate();
 			StreamsTreeView.Nodes.Clear();
 
-			string[] Filter = FilterTextBox.Text.Split(new char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
+			string[] filter = FilterTextBox.Text.Split(new char[]{' '}, StringSplitOptions.RemoveEmptyEntries);
 
-			List<StreamDepot> FilteredDepots = Depots;
-			if(Filter.Length > 0)
+			List<StreamDepot> filteredDepots = _depots;
+			if(filter.Length > 0)
 			{
-				FilteredDepots = new List<StreamDepot>();
-				foreach(StreamDepot Depot in Depots)
+				filteredDepots = new List<StreamDepot>();
+				foreach(StreamDepot depot in _depots)
 				{
-					StreamDepot FilteredDepot = new StreamDepot(Depot.Name);
-					foreach(StreamNode RootNode in Depot.RootNodes)
+					StreamDepot filteredDepot = new StreamDepot(depot.Name);
+					foreach(StreamNode rootNode in depot.RootNodes)
 					{
-						StreamNode? FilteredRootNode;
-						if(TryFilterTree(RootNode, Filter, out FilteredRootNode))
+						StreamNode? filteredRootNode;
+						if(TryFilterTree(rootNode, filter, out filteredRootNode))
 						{
-							FilteredDepot.RootNodes.Add(FilteredRootNode);
+							filteredDepot.RootNodes.Add(filteredRootNode);
 						}
 					}
-					if(FilteredDepot.RootNodes.Count > 0)
+					if(filteredDepot.RootNodes.Count > 0)
 					{
-						FilteredDepots.Add(FilteredDepot);
+						filteredDepots.Add(filteredDepot);
 					}
 				}
 			}
 
-			bool bExpandAll = Filter.Length > 0;
-			foreach(StreamDepot Depot in FilteredDepots)
+			bool expandAll = filter.Length > 0;
+			foreach(StreamDepot depot in filteredDepots)
 			{
-				TreeNode DepotTreeNode = new TreeNode(Depot.Name);
-				DepotTreeNode.ImageIndex = 1;
-				DepotTreeNode.SelectedImageIndex = 1;
-				StreamsTreeView.Nodes.Add(DepotTreeNode);
+				TreeNode depotTreeNode = new TreeNode(depot.Name);
+				depotTreeNode.ImageIndex = 1;
+				depotTreeNode.SelectedImageIndex = 1;
+				StreamsTreeView.Nodes.Add(depotTreeNode);
 
-				bool bExpand = bExpandAll;
-				foreach(StreamNode RootNode in Depot.RootNodes)
+				bool expand = expandAll;
+				foreach(StreamNode rootNode in depot.RootNodes)
 				{
-					bExpand |= AddStreamNodeToTree(RootNode, Filter, DepotTreeNode, bExpandAll);
+					expand |= AddStreamNodeToTree(rootNode, filter, depotTreeNode, expandAll);
 				}
-				if(bExpand)
+				if(expand)
 				{
-					DepotTreeNode.Expand();
+					depotTreeNode.Expand();
 				}
 			}
 
-			if(StreamsTreeView.SelectedNode == null && Filter.Length > 0 && StreamsTreeView.Nodes.Count > 0)
+			if(StreamsTreeView.SelectedNode == null && filter.Length > 0 && StreamsTreeView.Nodes.Count > 0)
 			{
-				for(TreeNode Node = StreamsTreeView.Nodes[0];;Node = Node.Nodes[0])
+				for(TreeNode node = StreamsTreeView.Nodes[0];;node = node.Nodes[0])
 				{
-					StreamNode? Stream = Node.Tag as StreamNode;
-					if(Stream != null && IncludeNodeInFilter(Stream, Filter))
+					StreamNode? stream = node.Tag as StreamNode;
+					if(stream != null && IncludeNodeInFilter(stream, filter))
 					{
-						StreamsTreeView.SelectedNode = Node;
+						StreamsTreeView.SelectedNode = node;
 						break;
 					}
-					if(Node.Nodes.Count == 0)
+					if(node.Nodes.Count == 0)
 					{
 						break;
 					}
@@ -297,51 +297,51 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		private bool AddStreamNodeToTree(StreamNode Stream, string[] Filter, TreeNode ParentTreeNode, bool bExpandAll)
+		private bool AddStreamNodeToTree(StreamNode stream, string[] filter, TreeNode parentTreeNode, bool expandAll)
 		{
-			TreeNode StreamTreeNode = new TreeNode(Stream.Record.Name);
-			StreamTreeNode.ImageIndex = 0;
-			StreamTreeNode.SelectedImageIndex = 0;
-			StreamTreeNode.Tag = Stream;
-			ParentTreeNode.Nodes.Add(StreamTreeNode);
+			TreeNode streamTreeNode = new TreeNode(stream.Record.Name);
+			streamTreeNode.ImageIndex = 0;
+			streamTreeNode.SelectedImageIndex = 0;
+			streamTreeNode.Tag = stream;
+			parentTreeNode.Nodes.Add(streamTreeNode);
 
-			if(Stream.Record.Name == SelectedStream && IncludeNodeInFilter(Stream, Filter))
+			if(stream.Record.Name == _selectedStream && IncludeNodeInFilter(stream, filter))
 			{
-				StreamsTreeView.SelectedNode = StreamTreeNode;
+				StreamsTreeView.SelectedNode = streamTreeNode;
 			}
 
-			bool bExpand = bExpandAll;
-			foreach(StreamNode ChildNode in Stream.ChildNodes)
+			bool expand = expandAll;
+			foreach(StreamNode childNode in stream.ChildNodes)
 			{
-				bExpand |= AddStreamNodeToTree(ChildNode, Filter, StreamTreeNode, bExpandAll);
+				expand |= AddStreamNodeToTree(childNode, filter, streamTreeNode, expandAll);
 			}
-			if(bExpand)
+			if(expand)
 			{
-				StreamTreeNode.Expand();
+				streamTreeNode.Expand();
 			}
-			return bExpand || (SelectedStream == Stream.Record.Stream);
+			return expand || (_selectedStream == stream.Record.Stream);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string? StreamName, IServiceProvider ServiceProvider, [NotNullWhen(true)] out string? NewStreamName)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings perforce, string? streamName, IServiceProvider serviceProvider, [NotNullWhen(true)] out string? newStreamName)
 		{
-			ILogger Logger = ServiceProvider.GetRequiredService<ILogger<SelectStreamWindow>>();
+			ILogger logger = serviceProvider.GetRequiredService<ILogger<SelectStreamWindow>>();
 
-			ModalTask<List<StreamsRecord>>? StreamsTask = PerforceModalTask.Execute(Owner, "Finding streams", "Finding streams, please wait...", Perforce, EnumerateStreamsTask.RunAsync, Logger);
-			if(StreamsTask == null || !StreamsTask.Succeeded)
+			ModalTask<List<StreamsRecord>>? streamsTask = PerforceModalTask.Execute(owner, "Finding streams", "Finding streams, please wait...", perforce, EnumerateStreamsTask.RunAsync, logger);
+			if(streamsTask == null || !streamsTask.Succeeded)
 			{
-				NewStreamName = null;
+				newStreamName = null;
 				return false;
 			}
 
-			SelectStreamWindow SelectStream = new SelectStreamWindow(StreamsTask.Result, StreamName);
-			if(SelectStream.ShowDialog(Owner) == DialogResult.OK && SelectStream.SelectedStream != null)
+			SelectStreamWindow selectStream = new SelectStreamWindow(streamsTask.Result, streamName);
+			if(selectStream.ShowDialog(owner) == DialogResult.OK && selectStream._selectedStream != null)
 			{
-				NewStreamName = SelectStream.SelectedStream;
+				newStreamName = selectStream._selectedStream;
 				return true;
 			}
 			else
 			{
-				NewStreamName = null;
+				newStreamName = null;
 				return false;
 			}
 		}
@@ -358,21 +358,21 @@ namespace UnrealGameSync
 
 		private string? GetSelectedStream()
 		{
-			string? NewSelectedStream = null;
+			string? newSelectedStream = null;
 			if(StreamsTreeView.SelectedNode != null)
 			{
-				StreamNode StreamNode = (StreamNode)StreamsTreeView.SelectedNode.Tag;
-				if(StreamNode != null)
+				StreamNode streamNode = (StreamNode)StreamsTreeView.SelectedNode.Tag;
+				if(streamNode != null)
 				{
-					NewSelectedStream = StreamNode.Record.Stream;
+					newSelectedStream = streamNode.Record.Stream;
 				}
 			}
-			return NewSelectedStream;
+			return newSelectedStream;
 		}
 
 		private void UpdateSelectedStream()
 		{
-			SelectedStream = GetSelectedStream();
+			_selectedStream = GetSelectedStream();
 		}
 
 		private void StreamsTreeView_AfterSelect(object sender, TreeViewEventArgs e)
@@ -388,7 +388,7 @@ namespace UnrealGameSync
 		{
 			UpdateSelectedStream();
 
-			if(SelectedStream != null)
+			if(_selectedStream != null)
 			{
 				DialogResult = DialogResult.OK;
 				Close();

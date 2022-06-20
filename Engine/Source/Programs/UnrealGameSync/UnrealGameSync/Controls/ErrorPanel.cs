@@ -11,9 +11,9 @@ namespace UnrealGameSync
 {
 	class ErrorPanel : StatusPanel, IMainWindowTabPanel
 	{
-		public ErrorPanel(UserSelectedProjectSettings InSelectedProject)
+		public ErrorPanel(UserSelectedProjectSettings inSelectedProject)
 		{
-			SelectedProject = InSelectedProject;
+			SelectedProject = inSelectedProject;
 			SetProjectLogo(Properties.Resources.DefaultErrorLogo, false);
 		}
 

@@ -9,24 +9,24 @@ namespace UnrealGameSync
 	static class P4Handler
 	{
 		[UriHandler(true)]
-		public static UriResult P4V(string DepotPath)
+		public static UriResult P4V(string depotPath)
 		{
-			string CommandLine = string.Format("-s \"{0}\"", DepotPath);
+			string commandLine = string.Format("-s \"{0}\"", depotPath);
 
-			if (!Utility.SpawnHiddenProcess("p4v.exe", CommandLine))
+			if (!Utility.SpawnHiddenProcess("p4v.exe", commandLine))
 			{
-				return new UriResult() { Error = string.Format("Error spawning p4v.exe with command line: {0}", CommandLine) };
+				return new UriResult() { Error = string.Format("Error spawning p4v.exe with command line: {0}", commandLine) };
 			}
 
 			return new UriResult() { Success = true };
 		}
 
 		[UriHandler(true)]
-		public static UriResult Timelapse(string DepotPath, int Line = -1)
+		public static UriResult Timelapse(string depotPath, int line = -1)
 		{
-			string CommandLine = string.Format("timelapse {0}{1}", Line == -1 ? "" : string.Format(" -l {0} ", Line), DepotPath);
+			string commandLine = string.Format("timelapse {0}{1}", line == -1 ? "" : string.Format(" -l {0} ", line), depotPath);
 
-			Program.SpawnP4VC(CommandLine);
+			Program.SpawnP4Vc(commandLine);
 
 			return new UriResult() { Success = true };
 		}
@@ -34,7 +34,7 @@ namespace UnrealGameSync
 		[UriHandler(true)]
 		public static UriResult Change(int number)
 		{
-			Program.SpawnP4VC($"change {number}");
+			Program.SpawnP4Vc($"change {number}");
 			return new UriResult() { Success = true };
 		}
 	}

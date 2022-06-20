@@ -16,26 +16,26 @@ namespace UnrealGameSync
 	{
 		public int ChangeNumber;
 
-		public ChangelistWindow(int InChangeNumber)
+		public ChangelistWindow(int inChangeNumber)
 		{
 			InitializeComponent();
 
 			this.MaximumSize = new System.Drawing.Size(32768, Height);
 			this.MinimumSize = new System.Drawing.Size(Width, Height);
 
-			ChangeNumber = InChangeNumber;
+			ChangeNumber = inChangeNumber;
 			ChangeNumberTextBox.Text = (ChangeNumber > 0)? ChangeNumber.ToString() : "";
 		}
 
 		private void OkBtn_Click(object sender, EventArgs e)
 		{
-			int NewChangeNumber;
-			if(int.TryParse(ChangeNumberTextBox.Text.Trim(), out NewChangeNumber))
+			int newChangeNumber;
+			if(int.TryParse(ChangeNumberTextBox.Text.Trim(), out newChangeNumber))
 			{
-				int DeltaChangeNumber = NewChangeNumber - ChangeNumber;
-				if((DeltaChangeNumber > -10000 && DeltaChangeNumber < 1000) || ChangeNumber <= 0 || MessageBox.Show(String.Format("Changelist {0} is {1} changes away from your current sync. Was that intended?", NewChangeNumber, Math.Abs(DeltaChangeNumber)), "Changelist is far away", MessageBoxButtons.YesNo) == DialogResult.Yes)
+				int deltaChangeNumber = newChangeNumber - ChangeNumber;
+				if((deltaChangeNumber > -10000 && deltaChangeNumber < 1000) || ChangeNumber <= 0 || MessageBox.Show(String.Format("Changelist {0} is {1} changes away from your current sync. Was that intended?", newChangeNumber, Math.Abs(deltaChangeNumber)), "Changelist is far away", MessageBoxButtons.YesNo) == DialogResult.Yes)
 				{
-					ChangeNumber = NewChangeNumber;
+					ChangeNumber = newChangeNumber;
 					DialogResult = DialogResult.OK;
 					Close();
 				}

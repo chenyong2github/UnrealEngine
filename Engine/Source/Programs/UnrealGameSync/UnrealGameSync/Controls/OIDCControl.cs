@@ -7,81 +7,81 @@ using System.Windows.Forms;
 
 namespace UnrealGameSync.Controls
 {
-	public partial class OIDCControl : UserControl
+	public partial class OidcControl : UserControl
 	{
-		private Font BadgeFont;
-		private readonly OIDCTokenManager OidcManager;
-		private readonly string ProviderIdentifier;
+		private Font _badgeFont;
+		private readonly OidcTokenManager _oidcManager;
+		private readonly string _providerIdentifier;
 
-		public OIDCControl(OIDCTokenManager InOidcManager, string InProviderIdentifier, string ServiceName)
+		public OidcControl(OidcTokenManager inOidcManager, string inProviderIdentifier, string serviceName)
 		{
 			InitializeComponent();
 
-			OIDCControlGroupBox.Text = ServiceName;
-			OidcManager = InOidcManager;
-			ProviderIdentifier = InProviderIdentifier;
+			OIDCControlGroupBox.Text = serviceName;
+			_oidcManager = inOidcManager;
+			_providerIdentifier = inProviderIdentifier;
 
-			BadgeFont = new Font(this.Font.FontFamily, this.Font.SizeInPoints - 2, FontStyle.Bold);
+			_badgeFont = new Font(this.Font.FontFamily, this.Font.SizeInPoints - 2, FontStyle.Bold);
 
-			OIDCStatus ServiceStatus = OidcManager.GetStatusForProvider(ProviderIdentifier);
-			LoginButton.Enabled = ServiceStatus == OIDCStatus.NotLoggedIn;
+			OidcStatus serviceStatus = _oidcManager.GetStatusForProvider(_providerIdentifier);
+			LoginButton.Enabled = serviceStatus == OidcStatus.NotLoggedIn;
 		}
 
-		private void DrawBadge(Graphics Graphics, Rectangle BadgeRect, string BadgeText, Color BadgeColor, bool bMergeLeft, bool bMergeRight)
+		private void DrawBadge(Graphics graphics, Rectangle badgeRect, string badgeText, Color badgeColor, bool mergeLeft, bool mergeRight)
 		{
-			if (BadgeColor.A != 0)
+			if (badgeColor.A != 0)
 			{
-				using (GraphicsPath Path = new GraphicsPath())
+				using (GraphicsPath path = new GraphicsPath())
 				{
-					Path.StartFigure();
-					Path.AddLine(BadgeRect.Left + (bMergeLeft ? 1 : 0), BadgeRect.Top, BadgeRect.Left - (bMergeLeft ? 1 : 0), BadgeRect.Bottom);
-					Path.AddLine(BadgeRect.Left - (bMergeLeft ? 1 : 0), BadgeRect.Bottom, BadgeRect.Right - 1 - (bMergeRight ? 1 : 0), BadgeRect.Bottom);
-					Path.AddLine(BadgeRect.Right - 1 - (bMergeRight ? 1 : 0), BadgeRect.Bottom, BadgeRect.Right - 1 + (bMergeRight ? 1 : 0), BadgeRect.Top);
-					Path.AddLine(BadgeRect.Right - 1 + (bMergeRight ? 1 : 0), BadgeRect.Top, BadgeRect.Left + (bMergeLeft ? 1 : 0), BadgeRect.Top);
-					Path.CloseFigure();
+					path.StartFigure();
+					path.AddLine(badgeRect.Left + (mergeLeft ? 1 : 0), badgeRect.Top, badgeRect.Left - (mergeLeft ? 1 : 0), badgeRect.Bottom);
+					path.AddLine(badgeRect.Left - (mergeLeft ? 1 : 0), badgeRect.Bottom, badgeRect.Right - 1 - (mergeRight ? 1 : 0), badgeRect.Bottom);
+					path.AddLine(badgeRect.Right - 1 - (mergeRight ? 1 : 0), badgeRect.Bottom, badgeRect.Right - 1 + (mergeRight ? 1 : 0), badgeRect.Top);
+					path.AddLine(badgeRect.Right - 1 + (mergeRight ? 1 : 0), badgeRect.Top, badgeRect.Left + (mergeLeft ? 1 : 0), badgeRect.Top);
+					path.CloseFigure();
 
-					using (SolidBrush Brush = new SolidBrush(BadgeColor))
+					using (SolidBrush brush = new SolidBrush(badgeColor))
 					{
-						Graphics.FillPath(Brush, Path);
+						graphics.FillPath(brush, path);
 					}
 				}
 
-				TextRenderer.DrawText(Graphics, BadgeText, BadgeFont, BadgeRect, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
+				TextRenderer.DrawText(graphics, badgeText, _badgeFont, badgeRect, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
 			}
 		}
 
 		private void StatusPanel_Paint(object sender, PaintEventArgs e)
 		{
-			OIDCStatus ServiceStatus = OidcManager.GetStatusForProvider(ProviderIdentifier);
-			DrawBadge(e.Graphics, e.ClipRectangle, ToServiceDisplayText(ServiceStatus), ToServiceDisplayColor(ServiceStatus), false, false);
+			OidcStatus serviceStatus = _oidcManager.GetStatusForProvider(_providerIdentifier);
+			DrawBadge(e.Graphics, e.ClipRectangle, ToServiceDisplayText(serviceStatus), ToServiceDisplayColor(serviceStatus), false, false);
 		}
 
-		private Color ToServiceDisplayColor(OIDCStatus OidcStatus)
+		private Color ToServiceDisplayColor(OidcStatus oidcStatus)
 		{
-			switch (OidcStatus)
+			switch (oidcStatus)
 			{
-				case OIDCStatus.Connected:
-				case OIDCStatus.TokenRefreshRequired:
+				case OidcStatus.Connected:
+				case OidcStatus.TokenRefreshRequired:
 					return Color.Green;
-				case OIDCStatus.NotLoggedIn:
+				case OidcStatus.NotLoggedIn:
 					return Color.Red;
 				default:
-					throw new ArgumentOutOfRangeException(nameof(OidcStatus), OidcStatus, null);
+					throw new ArgumentOutOfRangeException(nameof(oidcStatus), oidcStatus, null);
 			}
 		}
 
-		private string ToServiceDisplayText(OIDCStatus OidcStatus)
+		private string ToServiceDisplayText(OidcStatus oidcStatus)
 		{
-			switch (OidcStatus)
+			switch (oidcStatus)
 			{
-				case OIDCStatus.Connected:
+				case OidcStatus.Connected:
 					return "Connected";
-				case OIDCStatus.NotLoggedIn:
+				case OidcStatus.NotLoggedIn:
 					return "Not Logged In";
-				case OIDCStatus.TokenRefreshRequired:
+				case OidcStatus.TokenRefreshRequired:
 					return "Refresh Pending";
 				default:
-					throw new ArgumentOutOfRangeException(nameof(OidcStatus), OidcStatus, null);
+					throw new ArgumentOutOfRangeException(nameof(oidcStatus), oidcStatus, null);
 			}
 		}
 
@@ -89,18 +89,18 @@ namespace UnrealGameSync.Controls
 		{
 			try
 			{
-				await OidcManager.Login(ProviderIdentifier);
+				await _oidcManager.Login(_providerIdentifier);
 
 				Focus();
 
-				OIDCStatus ServiceStatus = OidcManager.GetStatusForProvider(ProviderIdentifier);
-				LoginButton.Enabled = ServiceStatus == OIDCStatus.NotLoggedIn;
+				OidcStatus serviceStatus = _oidcManager.GetStatusForProvider(_providerIdentifier);
+				LoginButton.Enabled = serviceStatus == OidcStatus.NotLoggedIn;
 
 				Refresh();
 			}
-			catch (LoginFailedException Exception)
+			catch (LoginFailedException exception)
 			{
-				MessageBox.Show(Exception.Message, "Login Failed", MessageBoxButtons.OK);
+				MessageBox.Show(exception.Message, "Login Failed", MessageBoxButtons.OK);
 			}
 		}
 	}

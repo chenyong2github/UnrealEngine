@@ -15,7 +15,7 @@ namespace UnrealGameSync
     class BuildListControl : CustomListViewControl
 	{
 		[StructLayout(LayoutKind.Sequential)]
-		public class SCROLLINFO
+		public class Scrollinfo
 		{
 			public int cbSize;
 			public int fMask;
@@ -26,30 +26,30 @@ namespace UnrealGameSync
 			public int nTrackPos;
 		}
 
-		const int WM_VSCROLL = 0x115;
-		const int WM_MOUSEWHEEL = 0x020A;
+		const int WmVscroll = 0x115;
+		const int WmMousewheel = 0x020A;
 
-		const int SB_HORZ = 0;
-		const int SB_VERT = 1;
+		const int SbHorz = 0;
+		const int SbVert = 1;
 
-		const int SIF_RANGE = 0x0001;
-		const int SIF_PAGE = 0x0002;
-		const int SIF_POS = 0x0004;
-		const int SIF_DISABLENOSCROLL = 0x0008;
-		const int SIF_TRACKPOS = 0x0010;
-		const int SIF_ALL = (SIF_RANGE | SIF_PAGE | SIF_POS | SIF_TRACKPOS);        
+		const int SifRange = 0x0001;
+		const int SifPage = 0x0002;
+		const int SifPos = 0x0004;
+		const int SifDisablenoscroll = 0x0008;
+		const int SifTrackpos = 0x0010;
+		const int SifAll = (SifRange | SifPage | SifPos | SifTrackpos);        
 
-		const int LVM_GETTOPINDEX = 0x1000 + 39;
-		const int LVM_GETCOUNTPERPAGE = 0x1000 + 40;
-
-		[DllImport("user32.dll")]
-		private static extern int GetScrollInfo(IntPtr hwnd, int fnBar, SCROLLINFO lpsi);
+		const int LvmGettopindex = 0x1000 + 39;
+		const int LvmGetcountperpage = 0x1000 + 40;
 
 		[DllImport("user32.dll")]
-		private static extern int SetScrollInfo(IntPtr hwnd, int fnBar, SCROLLINFO lpsi, int Redraw);
+		private static extern int GetScrollInfo(IntPtr hwnd, int fnBar, Scrollinfo lpsi);
+
+		[DllImport("user32.dll")]
+		private static extern int SetScrollInfo(IntPtr hwnd, int fnBar, Scrollinfo lpsi, int redraw);
 
 		[DllImport("user32.dll", CharSet = CharSet.Auto)]
-		private static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
+		private static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
 
 		public delegate void OnScrollDelegate();
 
@@ -66,7 +66,7 @@ namespace UnrealGameSync
 			{
 				return 0;
 			}
-			return SendMessage(Handle, LVM_GETTOPINDEX, IntPtr.Zero, IntPtr.Zero).ToInt32();
+			return SendMessage(Handle, LvmGettopindex, IntPtr.Zero, IntPtr.Zero).ToInt32();
 		}
 
 		public int GetVisibleItemsPerPage()
@@ -75,41 +75,41 @@ namespace UnrealGameSync
 			{
 				return Height / Font.Height;
 			}
-			return SendMessage(Handle, LVM_GETCOUNTPERPAGE, IntPtr.Zero, IntPtr.Zero).ToInt32();
+			return SendMessage(Handle, LvmGetcountperpage, IntPtr.Zero, IntPtr.Zero).ToInt32();
 		}
 
-		public bool GetScrollPosition(out int ScrollY)
+		public bool GetScrollPosition(out int scrollY)
 		{
 			if(!IsHandleCreated)
 			{
-				ScrollY = 0;
+				scrollY = 0;
 				return false;
 			}
 
-			SCROLLINFO ScrollInfo = new SCROLLINFO();
-			ScrollInfo.cbSize = Marshal.SizeOf(ScrollInfo);
-			ScrollInfo.fMask = SIF_ALL;
-			if(GetScrollInfo(Handle, SB_VERT, ScrollInfo) == 0)
+			Scrollinfo scrollInfo = new Scrollinfo();
+			scrollInfo.cbSize = Marshal.SizeOf(scrollInfo);
+			scrollInfo.fMask = SifAll;
+			if(GetScrollInfo(Handle, SbVert, scrollInfo) == 0)
 			{
-				ScrollY = 0;
+				scrollY = 0;
 				return false;
 			}
 			else
 			{
-				ScrollY = ScrollInfo.nPos;
+				scrollY = scrollInfo.nPos;
 				return true;
 			}
 		}
 
-		public void SetScrollPosition(int ScrollY)
+		public void SetScrollPosition(int scrollY)
 		{
 			if(IsHandleCreated)
 			{
-				SCROLLINFO ScrollInfo = new SCROLLINFO();
-				ScrollInfo.cbSize = Marshal.SizeOf(ScrollInfo);
-				ScrollInfo.nPos = ScrollY;
-				ScrollInfo.fMask = SIF_POS;
-				SetScrollInfo(Handle, SB_VERT, ScrollInfo, 0);
+				Scrollinfo scrollInfo = new Scrollinfo();
+				scrollInfo.cbSize = Marshal.SizeOf(scrollInfo);
+				scrollInfo.nPos = scrollY;
+				scrollInfo.fMask = SifPos;
+				SetScrollInfo(Handle, SbVert, scrollInfo, 0);
 			}
 		}
 
@@ -117,10 +117,10 @@ namespace UnrealGameSync
 		{
 			if(IsHandleCreated)
 			{
-				SCROLLINFO ScrollInfo = new SCROLLINFO();
-				ScrollInfo.cbSize = Marshal.SizeOf(ScrollInfo);
-				ScrollInfo.fMask = SIF_ALL;
-				if(GetScrollInfo(Handle, SB_VERT, ScrollInfo) != 0 && ScrollInfo.nPos >= ScrollInfo.nMax - ScrollInfo.nPage)
+				Scrollinfo scrollInfo = new Scrollinfo();
+				scrollInfo.cbSize = Marshal.SizeOf(scrollInfo);
+				scrollInfo.fMask = SifAll;
+				if(GetScrollInfo(Handle, SbVert, scrollInfo) != 0 && scrollInfo.nPos >= scrollInfo.nMax - scrollInfo.nPage)
 				{
 					return true;
 				}
@@ -128,14 +128,14 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		protected override void WndProc(ref Message Message)
+		protected override void WndProc(ref Message message)
 		{
-			base.WndProc(ref Message);
+			base.WndProc(ref message);
 
-			switch(Message.Msg)
+			switch(message.Msg)
 			{
-				case WM_VSCROLL:
-				case WM_MOUSEWHEEL:
+				case WmVscroll:
+				case WmMousewheel:
 					if(OnScroll != null)
 					{
 						OnScroll();

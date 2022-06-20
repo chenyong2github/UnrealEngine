@@ -7,23 +7,23 @@ using UnrealGameSync.Controls;
 
 namespace UnrealGameSync.Forms
 {
-	public partial class OIDCLoginWindow : Form
+	public partial class OidcLoginWindow : Form
 	{
-		public OIDCLoginWindow(OIDCTokenManager OidcManager)
+		public OidcLoginWindow(OidcTokenManager oidcManager)
 		{
 			InitializeComponent();
 
-			int LastYPosition = 10;
-			foreach (OIDCTokenManager.ProviderInfo Provider in OidcManager.Providers.Values)
+			int lastYPosition = 10;
+			foreach (OidcTokenManager.ProviderInfo provider in oidcManager.Providers.Values)
 			{
-				OIDCControl ServiceControl = new OIDCControl(OidcManager, Provider.Identifier, Provider.DisplayName)
+				OidcControl serviceControl = new OidcControl(oidcManager, provider.Identifier, provider.DisplayName)
 				{
 					Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
-					Location = new Point(10, LastYPosition)
+					Location = new Point(10, lastYPosition)
 				};
-				Controls.Add(ServiceControl);
+				Controls.Add(serviceControl);
 
-				LastYPosition = ServiceControl.Size.Height + ServiceControl.Location.Y + 10;
+				lastYPosition = serviceControl.Size.Height + serviceControl.Location.Y + 10;
 			}
 		}
 

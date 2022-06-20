@@ -33,109 +33,109 @@ namespace UnrealGameSync
 		public string? FileName;
 		public string? WorkingDir;
 		public string? Arguments;
-		public bool bUseLogWindow;
-		public bool bNormalSync;
-		public bool bScheduledSync;
+		public bool UseLogWindow;
+		public bool NormalSync;
+		public bool ScheduledSync;
 		public string? StatusPanelLink;
 		public Guid[] Requires = Array.Empty<Guid>();
 		public Guid ToolId;
 
-		public BuildStep(Guid InUniqueId, int InOrderIndex, string? InDescription, string? InStatusText, int InEstimatedDuration, string? InFileName, string? InArguments, string? InWorkingDir, bool bInUseLogWindow)
+		public BuildStep(Guid inUniqueId, int inOrderIndex, string? inDescription, string? inStatusText, int inEstimatedDuration, string? inFileName, string? inArguments, string? inWorkingDir, bool inUseLogWindow)
 		{
-			UniqueId = InUniqueId;
-			OrderIndex = InOrderIndex;
-			Description = InDescription;
-			StatusText = InStatusText;
-			EstimatedDuration = InEstimatedDuration;
+			UniqueId = inUniqueId;
+			OrderIndex = inOrderIndex;
+			Description = inDescription;
+			StatusText = inStatusText;
+			EstimatedDuration = inEstimatedDuration;
 			Type = BuildStepType.Other;
-			FileName = InFileName;
-			Arguments = InArguments;
-			WorkingDir = InWorkingDir;
-			bUseLogWindow = bInUseLogWindow;
+			FileName = inFileName;
+			Arguments = inArguments;
+			WorkingDir = inWorkingDir;
+			UseLogWindow = inUseLogWindow;
 		}
 
-		public BuildStep(Guid InUniqueId, int InOrderIndex, string? InDescription, string? InStatusText, int InEstimatedDuration, string? InTarget, string? InPlatform, string? InConfiguration, string? InArguments, bool bInSyncDefault)
+		public BuildStep(Guid inUniqueId, int inOrderIndex, string? inDescription, string? inStatusText, int inEstimatedDuration, string? inTarget, string? inPlatform, string? inConfiguration, string? inArguments, bool inSyncDefault)
 		{
-			UniqueId = InUniqueId;
-			OrderIndex = InOrderIndex;
-			Description = InDescription;
-			StatusText = InStatusText;
-			EstimatedDuration = InEstimatedDuration;
+			UniqueId = inUniqueId;
+			OrderIndex = inOrderIndex;
+			Description = inDescription;
+			StatusText = inStatusText;
+			EstimatedDuration = inEstimatedDuration;
 			Type = BuildStepType.Compile;
-			Target = InTarget;
-			Platform = InPlatform;
-			Configuration = InConfiguration;
-			Arguments = InArguments;
-			bUseLogWindow = true;
-			bNormalSync = bInSyncDefault;
-			bScheduledSync = bInSyncDefault;
+			Target = inTarget;
+			Platform = inPlatform;
+			Configuration = inConfiguration;
+			Arguments = inArguments;
+			UseLogWindow = true;
+			NormalSync = inSyncDefault;
+			ScheduledSync = inSyncDefault;
 		}
 
-		public BuildStep(ConfigObject Object)
+		public BuildStep(ConfigObject obj)
 		{
-			if(!Guid.TryParse(Object.GetValue(UniqueIdKey, ""), out UniqueId))
+			if(!Guid.TryParse(obj.GetValue(UniqueIdKey, ""), out UniqueId))
 			{
 				UniqueId = Guid.NewGuid();
 			}
-			if(!Int32.TryParse(Object.GetValue("OrderIndex", ""), out OrderIndex))
+			if(!Int32.TryParse(obj.GetValue("OrderIndex", ""), out OrderIndex))
 			{
 				OrderIndex = -1;
 			}
 
-			Description = Object.GetValue("Description", "Untitled");
-			StatusText = Object.GetValue("StatusText", "Untitled");
+			Description = obj.GetValue("Description", "Untitled");
+			StatusText = obj.GetValue("StatusText", "Untitled");
 
-			if(!int.TryParse(Object.GetValue("EstimatedDuration", ""), out EstimatedDuration) || EstimatedDuration < 1)
+			if(!int.TryParse(obj.GetValue("EstimatedDuration", ""), out EstimatedDuration) || EstimatedDuration < 1)
 			{
 				EstimatedDuration = 1;
 			}
 
-			if(!Enum.TryParse(Object.GetValue("Type", ""), true, out Type))
+			if(!Enum.TryParse(obj.GetValue("Type", ""), true, out Type))
 			{
 				Type = BuildStepType.Other;
 			}
 
-			Target = Object.GetValue("Target");
-			Platform = Object.GetValue("Platform");
-			Configuration = Object.GetValue("Configuration");
-			FileName = Object.GetValue("FileName");
-			WorkingDir = Object.GetValue("WorkingDir");
-			Arguments = Object.GetValue("Arguments");
+			Target = obj.GetValue("Target");
+			Platform = obj.GetValue("Platform");
+			Configuration = obj.GetValue("Configuration");
+			FileName = obj.GetValue("FileName");
+			WorkingDir = obj.GetValue("WorkingDir");
+			Arguments = obj.GetValue("Arguments");
 
-			if(!Boolean.TryParse(Object.GetValue("bUseLogWindow", ""), out bUseLogWindow))
+			if(!Boolean.TryParse(obj.GetValue("bUseLogWindow", ""), out UseLogWindow))
 			{
-				bUseLogWindow = true;
+				UseLogWindow = true;
 			}
-			if(!Boolean.TryParse(Object.GetValue("bNormalSync", ""), out bNormalSync))
+			if(!Boolean.TryParse(obj.GetValue("bNormalSync", ""), out NormalSync))
 			{
-				bNormalSync = true;
+				NormalSync = true;
 			}
-			if(!Boolean.TryParse(Object.GetValue("bScheduledSync", ""), out bScheduledSync))
+			if(!Boolean.TryParse(obj.GetValue("bScheduledSync", ""), out ScheduledSync))
 			{
-				bScheduledSync = bNormalSync;
+				ScheduledSync = NormalSync;
 			}
 
-			StatusPanelLink = Object.GetValue("Link", null);
+			StatusPanelLink = obj.GetValue("Link", null);
 			if (String.IsNullOrEmpty(StatusPanelLink))
 			{
-				bool bShowAsTool;
-				if (Boolean.TryParse(Object.GetValue("bShowAsTool", ""), out bShowAsTool) && bShowAsTool)
+				bool showAsTool;
+				if (Boolean.TryParse(obj.GetValue("bShowAsTool", ""), out showAsTool) && showAsTool)
 				{
 					StatusPanelLink = $"More...|{Description}";
 				}
 			}
 
-			List<Guid> Requires = new List<Guid>();
-			foreach (string RequireString in Object.GetValue("Requires", String.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries))
+			List<Guid> requires = new List<Guid>();
+			foreach (string requireString in obj.GetValue("Requires", String.Empty).Split(';', StringSplitOptions.RemoveEmptyEntries))
 			{
-				if (Guid.TryParse(RequireString, out Guid Require))
+				if (Guid.TryParse(requireString, out Guid require))
 				{
-					Requires.Add(Require);
+					requires.Add(require);
 				}
 			}
-			this.Requires = Requires.ToArray();
+			this.Requires = requires.ToArray();
 	
-			if (!Guid.TryParse(Object.GetValue("Tool", ""), out ToolId))
+			if (!Guid.TryParse(obj.GetValue("Tool", ""), out ToolId))
 			{
 				ToolId = Guid.Empty;
 			}
@@ -156,69 +156,69 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void MergeBuildStepObjects(Dictionary<Guid, ConfigObject> BuildStepObjects, IEnumerable<ConfigObject> ModifyObjects)
+		public static void MergeBuildStepObjects(Dictionary<Guid, ConfigObject> buildStepObjects, IEnumerable<ConfigObject> modifyObjects)
 		{
-			foreach(ConfigObject ModifyObject in ModifyObjects)
+			foreach(ConfigObject modifyObject in modifyObjects)
 			{
-				Guid UniqueId;
-				if(Guid.TryParse(ModifyObject.GetValue(UniqueIdKey, ""), out UniqueId))
+				Guid uniqueId;
+				if(Guid.TryParse(modifyObject.GetValue(UniqueIdKey, ""), out uniqueId))
 				{
-					ConfigObject? DefaultObject;
-					if(BuildStepObjects.TryGetValue(UniqueId, out DefaultObject))
+					ConfigObject? defaultObject;
+					if(buildStepObjects.TryGetValue(uniqueId, out defaultObject))
 					{
-						ModifyObject.SetDefaults(DefaultObject);
+						modifyObject.SetDefaults(defaultObject);
 					}
-					BuildStepObjects[UniqueId] = ModifyObject;
+					buildStepObjects[uniqueId] = modifyObject;
 				}
 			}
 		}
 
 		public ConfigObject ToConfigObject()
 		{
-			ConfigObject Result = new ConfigObject();
-			Result["UniqueId"] = UniqueId.ToString();
-			Result["Description"] = Description;
-			Result["StatusText"] = StatusText;
-			Result["EstimatedDuration"] = EstimatedDuration.ToString();
-			Result["Type"] = Type.ToString();
+			ConfigObject result = new ConfigObject();
+			result["UniqueId"] = UniqueId.ToString();
+			result["Description"] = Description;
+			result["StatusText"] = StatusText;
+			result["EstimatedDuration"] = EstimatedDuration.ToString();
+			result["Type"] = Type.ToString();
 			switch(Type)
 			{
 				case BuildStepType.Compile:
-					Result["Target"] = Target;
-					Result["Platform"] = Platform;
-					Result["Configuration"] = Configuration;
-					Result["Arguments"] = Arguments;
+					result["Target"] = Target;
+					result["Platform"] = Platform;
+					result["Configuration"] = Configuration;
+					result["Arguments"] = Arguments;
 					break;
 				case BuildStepType.Cook:
-					Result["FileName"] = FileName;
+					result["FileName"] = FileName;
 					break;
 				case BuildStepType.Other:
-					Result["FileName"] = FileName;
-					Result["WorkingDir"] = WorkingDir;
-					Result["Arguments"] = Arguments;
-					Result["bUseLogWindow"] = bUseLogWindow.ToString();
+					result["FileName"] = FileName;
+					result["WorkingDir"] = WorkingDir;
+					result["Arguments"] = Arguments;
+					result["bUseLogWindow"] = UseLogWindow.ToString();
 					break;
 			}
-			Result["OrderIndex"] = OrderIndex.ToString();
-			Result["bNormalSync"] = bNormalSync.ToString();
-			Result["bScheduledSync"] = bScheduledSync.ToString();
+			result["OrderIndex"] = OrderIndex.ToString();
+			result["bNormalSync"] = NormalSync.ToString();
+			result["bScheduledSync"] = ScheduledSync.ToString();
 			if (!String.IsNullOrEmpty(StatusPanelLink))
 			{
-				Result["Link"] = StatusPanelLink;
+				result["Link"] = StatusPanelLink;
 			}
 			if (ToolId != Guid.Empty)
 			{
-				Result["Tool"] = ToolId.ToString();
+				result["Tool"] = ToolId.ToString();
 			}
-			return Result;
+			return result;
 		}
 
-		public ConfigObject? ToConfigObject(ConfigObject? DefaultObject)
+		public ConfigObject? ToConfigObject(ConfigObject? defaultObject)
 		{
-			ConfigObject Result = new ConfigObject();
-			Result[UniqueIdKey] = UniqueId.ToString();
-			Result.AddOverrides(ToConfigObject(), DefaultObject);
-			return (Result.Pairs.Count <= 1)? null : Result;
+			ConfigObject result = new ConfigObject();
+			result[UniqueIdKey] = UniqueId.ToString();
+			result.AddOverrides(ToConfigObject(), defaultObject);
+			return (result.Pairs.Count <= 1)? null : result;
 		}
 	}
 }

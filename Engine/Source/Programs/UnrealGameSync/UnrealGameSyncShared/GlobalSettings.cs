@@ -29,24 +29,24 @@ namespace UnrealGameSync
 			AllProjectsInSln = null;
 		}
 
-		public void SetCategories(Dictionary<Guid, bool> Categories)
+		public void SetCategories(Dictionary<Guid, bool> categories)
 		{
-			IncludeCategories = Categories.Where(x => x.Value).Select(x => x.Key).ToList();
-			ExcludeCategories = Categories.Where(x => !x.Value).Select(x => x.Key).ToList();
+			IncludeCategories = categories.Where(x => x.Value).Select(x => x.Key).ToList();
+			ExcludeCategories = categories.Where(x => !x.Value).Select(x => x.Key).ToList();
 		}
 
 		public Dictionary<Guid, bool> GetCategories()
 		{
-			Dictionary<Guid, bool> Categories = new Dictionary<Guid, bool>();
-			foreach (Guid IncludeCategory in IncludeCategories)
+			Dictionary<Guid, bool> categories = new Dictionary<Guid, bool>();
+			foreach (Guid includeCategory in IncludeCategories)
 			{
-				Categories[IncludeCategory] = true;
+				categories[includeCategory] = true;
 			}
-			foreach (Guid ExcludeCategory in ExcludeCategories)
+			foreach (Guid excludeCategory in ExcludeCategories)
 			{
-				Categories[ExcludeCategory] = false;
+				categories[excludeCategory] = false;
 			}
-			return Categories;
+			return categories;
 		}
 	}
 
@@ -60,175 +60,175 @@ namespace UnrealGameSync
 		public FileReference File { get; }
 		public GlobalSettings Global { get; }
 
-		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings, ILogger Logger)
+		public UserProjectSettings FindOrAddProjectSettings(ProjectInfo projectInfo, UserWorkspaceSettings settings, ILogger logger)
 		{
-			FileReference ConfigFile;
-			if (ProjectInfo.LocalFileName.HasExtension(".uprojectdirs"))
+			FileReference configFile;
+			if (projectInfo.LocalFileName.HasExtension(".uprojectdirs"))
 			{
-				ConfigFile = FileReference.Combine(UserSettings.GetConfigDir(Settings.RootDir), "project.json");
+				configFile = FileReference.Combine(UserSettings.GetConfigDir(settings.RootDir), "project.json");
 			}
 			else
 			{
-				ConfigFile = FileReference.Combine(UserSettings.GetConfigDir(Settings.RootDir), $"project_{ProjectInfo.LocalFileName.GetFileNameWithoutExtension()}.json");
+				configFile = FileReference.Combine(UserSettings.GetConfigDir(settings.RootDir), $"project_{projectInfo.LocalFileName.GetFileNameWithoutExtension()}.json");
 			}
 
-			UserSettings.CreateConfigDir(ConfigFile.Directory);
+			UserSettings.CreateConfigDir(configFile.Directory);
 
-			UserProjectSettings? ProjectSettings;
-			if (!UserProjectSettings.TryLoad(ConfigFile, out ProjectSettings))
+			UserProjectSettings? projectSettings;
+			if (!UserProjectSettings.TryLoad(configFile, out projectSettings))
 			{
-				ProjectSettings = new UserProjectSettings(ConfigFile);
-				ImportProjectSettings(ProjectInfo, ProjectSettings);
-				ProjectSettings.Save(Logger);
+				projectSettings = new UserProjectSettings(configFile);
+				ImportProjectSettings(projectInfo, projectSettings);
+				projectSettings.Save(logger);
 			}
-			return ProjectSettings;
+			return projectSettings;
 		}
 
-		protected virtual void ImportProjectSettings(ProjectInfo ProjectInfo, UserProjectSettings ProjectSettings)
+		protected virtual void ImportProjectSettings(ProjectInfo projectInfo, UserProjectSettings projectSettings)
 		{
 		}
 
-		protected virtual void ImportWorkspaceSettings(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceSettings WorkspaceSettings)
+		protected virtual void ImportWorkspaceSettings(DirectoryReference rootDir, string clientName, string branchPath, UserWorkspaceSettings workspaceSettings)
 		{
 		}
 
-		protected virtual void ImportWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath, UserWorkspaceState WorkspaceState)
+		protected virtual void ImportWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, UserWorkspaceState workspaceState)
 		{
 		}
 
-		public GlobalSettingsFile(FileReference File, GlobalSettings Global)
+		public GlobalSettingsFile(FileReference file, GlobalSettings global)
 		{
-			this.File = File;
-			this.Global = Global;
+			this.File = file;
+			this.Global = global;
 		}
 
-		public static GlobalSettingsFile Create(FileReference File)
+		public static GlobalSettingsFile Create(FileReference file)
 		{
-			GlobalSettings? Data;
-			if (!Utility.TryLoadJson(File, out Data))
+			GlobalSettings? data;
+			if (!Utility.TryLoadJson(file, out data))
 			{
-				Data = new GlobalSettings();
+				data = new GlobalSettings();
 			}
-			return new GlobalSettingsFile(File, Data);
+			return new GlobalSettingsFile(file, data);
 		}
 
-		public virtual bool Save(ILogger Logger)
+		public virtual bool Save(ILogger logger)
 		{
 			try
 			{
 				Utility.SaveJson(File, Global);
 				return true;
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				Logger.LogError(Ex, "Unable to save {File}: {Message}", File, Ex.Message);
+				logger.LogError(ex, "Unable to save {File}: {Message}", File, ex.Message);
 				return false;
 			}
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings Settings, ILogger Logger)
+		public UserWorkspaceState FindOrAddWorkspaceState(UserWorkspaceSettings settings, ILogger logger)
 		{
-			return FindOrAddWorkspaceState(Settings.RootDir, Settings.ClientName, Settings.BranchPath, Logger);
+			return FindOrAddWorkspaceState(settings.RootDir, settings.ClientName, settings.BranchPath, logger);
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference RootDir, string ClientName, string BranchPath, ILogger Logger)
+		public UserWorkspaceState FindOrAddWorkspaceState(DirectoryReference rootDir, string clientName, string branchPath, ILogger logger)
 		{
-			UserWorkspaceState? State;
-			if (!UserWorkspaceState.TryLoad(RootDir, out State))
+			UserWorkspaceState? state;
+			if (!UserWorkspaceState.TryLoad(rootDir, out state))
 			{
-				State = new UserWorkspaceState();
-				State.RootDir = RootDir;
-				ImportWorkspaceState(RootDir, ClientName, BranchPath, State);
-				State.Save(Logger);
+				state = new UserWorkspaceState();
+				state.RootDir = rootDir;
+				ImportWorkspaceState(rootDir, clientName, branchPath, state);
+				state.Save(logger);
 			}
-			return State;
+			return state;
 		}
 
-		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo ProjectInfo, UserWorkspaceSettings Settings, ILogger Logger)
+		public UserWorkspaceState FindOrAddWorkspaceState(ProjectInfo projectInfo, UserWorkspaceSettings settings, ILogger logger)
 		{
-			UserWorkspaceState State = FindOrAddWorkspaceState(ProjectInfo.LocalRootPath, ProjectInfo.ClientName, ProjectInfo.BranchPath, Logger);
-			if (!State.IsValid(ProjectInfo))
+			UserWorkspaceState state = FindOrAddWorkspaceState(projectInfo.LocalRootPath, projectInfo.ClientName, projectInfo.BranchPath, logger);
+			if (!state.IsValid(projectInfo))
 			{
-				State = new UserWorkspaceState();
+				state = new UserWorkspaceState();
 			}
-			State.UpdateCachedProjectInfo(ProjectInfo, Settings.LastModifiedTimeUtc);
-			return State;
+			state.UpdateCachedProjectInfo(projectInfo, settings.LastModifiedTimeUtc);
+			return state;
 		}
 
-		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference RootDir, string? ServerAndPort, string? UserName, string ClientName, string BranchPath, string ProjectPath, ILogger Logger)
+		public UserWorkspaceSettings FindOrAddWorkspaceSettings(DirectoryReference rootDir, string? serverAndPort, string? userName, string clientName, string branchPath, string projectPath, ILogger logger)
 		{
-			ProjectInfo.ValidateBranchPath(BranchPath);
-			ProjectInfo.ValidateProjectPath(ProjectPath);
+			ProjectInfo.ValidateBranchPath(branchPath);
+			ProjectInfo.ValidateProjectPath(projectPath);
 
-			UserWorkspaceSettings? Settings;
-			if (!UserWorkspaceSettings.TryLoad(RootDir, out Settings))
+			UserWorkspaceSettings? settings;
+			if (!UserWorkspaceSettings.TryLoad(rootDir, out settings))
 			{
-				Settings = new UserWorkspaceSettings();
-				Settings.RootDir = RootDir;
-				ImportWorkspaceSettings(RootDir, ClientName, BranchPath, Settings);
+				settings = new UserWorkspaceSettings();
+				settings.RootDir = rootDir;
+				ImportWorkspaceSettings(rootDir, clientName, branchPath, settings);
 			}
 
-			Settings.Init(ServerAndPort, UserName, ClientName, BranchPath, ProjectPath);
-			Settings.Save(Logger);
+			settings.Init(serverAndPort, userName, clientName, branchPath, projectPath);
+			settings.Save(logger);
 
-			return Settings;
+			return settings;
 		}
 
-		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter, FilterSettings GlobalFilter, FilterSettings WorkspaceFilter)
+		public static string[] GetCombinedSyncFilter(Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToFilter, FilterSettings globalFilter, FilterSettings workspaceFilter)
 		{
-			List<string> Lines = new List<string>();
-			foreach (string ViewLine in Enumerable.Concat(GlobalFilter.View, WorkspaceFilter.View).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
+			List<string> lines = new List<string>();
+			foreach (string viewLine in Enumerable.Concat(globalFilter.View, workspaceFilter.View).Select(x => x.Trim()).Where(x => x.Length > 0 && !x.StartsWith(";")))
 			{
-				Lines.Add(ViewLine);
+				lines.Add(viewLine);
 			}
 
-			Dictionary<Guid, bool> GlobalCategoryIdToSetting = GlobalFilter.GetCategories();
-			Dictionary<Guid, bool> WorkspaceCategoryIdToSetting = WorkspaceFilter.GetCategories();
+			Dictionary<Guid, bool> globalCategoryIdToSetting = globalFilter.GetCategories();
+			Dictionary<Guid, bool> workspaceCategoryIdToSetting = workspaceFilter.GetCategories();
 
-			HashSet<Guid> Enabled = new HashSet<Guid>();
-			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values)
+			HashSet<Guid> enabled = new HashSet<Guid>();
+			foreach (WorkspaceSyncCategory filter in uniqueIdToFilter.Values)
 			{
-				bool bEnable = Filter.bEnable;
+				bool enable = filter.Enable;
 
-				bool bGlobalEnable;
-				if (GlobalCategoryIdToSetting.TryGetValue(Filter.UniqueId, out bGlobalEnable))
+				bool globalEnable;
+				if (globalCategoryIdToSetting.TryGetValue(filter.UniqueId, out globalEnable))
 				{
-					bEnable = bGlobalEnable;
+					enable = globalEnable;
 				}
 
-				bool bWorkspaceEnable;
-				if (WorkspaceCategoryIdToSetting.TryGetValue(Filter.UniqueId, out bWorkspaceEnable))
+				bool workspaceEnable;
+				if (workspaceCategoryIdToSetting.TryGetValue(filter.UniqueId, out workspaceEnable))
 				{
-					bEnable = bWorkspaceEnable;
+					enable = workspaceEnable;
 				}
 
-				if (bEnable)
+				if (enable)
 				{
-					EnableFilter(Filter.UniqueId, Enabled, UniqueIdToFilter);
-				}
-			}
-
-			foreach (WorkspaceSyncCategory Filter in UniqueIdToFilter.Values.OrderBy(x => x.Name))
-			{
-				if (!Enabled.Contains(Filter.UniqueId))
-				{
-					Lines.AddRange(Filter.Paths.Select(x => "-" + x.Trim()));
+					EnableFilter(filter.UniqueId, enabled, uniqueIdToFilter);
 				}
 			}
 
-			return Lines.ToArray();
+			foreach (WorkspaceSyncCategory filter in uniqueIdToFilter.Values.OrderBy(x => x.Name))
+			{
+				if (!enabled.Contains(filter.UniqueId))
+				{
+					lines.AddRange(filter.Paths.Select(x => "-" + x.Trim()));
+				}
+			}
+
+			return lines.ToArray();
 		}
 
-		static void EnableFilter(Guid UniqueId, HashSet<Guid> Enabled, Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToFilter)
+		static void EnableFilter(Guid uniqueId, HashSet<Guid> enabled, Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToFilter)
 		{
-			if (Enabled.Add(UniqueId))
+			if (enabled.Add(uniqueId))
 			{
-				WorkspaceSyncCategory? Category;
-				if (UniqueIdToFilter.TryGetValue(UniqueId, out Category))
+				WorkspaceSyncCategory? category;
+				if (uniqueIdToFilter.TryGetValue(uniqueId, out category))
 				{
-					foreach (Guid RequiresUniqueId in Category.Requires)
+					foreach (Guid requiresUniqueId in category.Requires)
 					{
-						EnableFilter(RequiresUniqueId, Enabled, UniqueIdToFilter);
+						EnableFilter(requiresUniqueId, enabled, uniqueIdToFilter);
 					}
 				}
 			}

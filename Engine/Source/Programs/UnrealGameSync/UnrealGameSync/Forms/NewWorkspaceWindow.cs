@@ -27,11 +27,11 @@ namespace UnrealGameSync
 			public string Stream { get; }
 			public DirectoryReference RootDir { get; }
 
-			public NewWorkspaceSettings(string Name, string Stream, DirectoryReference RootDir)
+			public NewWorkspaceSettings(string name, string stream, DirectoryReference rootDir)
 			{
-				this.Name = Name;
-				this.Stream = Stream;
-				this.RootDir = RootDir;
+				this.Name = name;
+				this.Stream = stream;
+				this.RootDir = rootDir;
 			}
 		}
 
@@ -41,195 +41,195 @@ namespace UnrealGameSync
 			public List<ClientsRecord> Clients;
 			public string? CurrentStream;
 
-			public FindWorkspaceSettingsTask(InfoRecord Info, List<ClientsRecord> Clients, string? CurrentStream)
+			public FindWorkspaceSettingsTask(InfoRecord info, List<ClientsRecord> clients, string? currentStream)
 			{
-				this.Info = Info;
-				this.Clients = Clients;
-				this.CurrentStream = CurrentStream;
+				this.Info = info;
+				this.Clients = clients;
+				this.CurrentStream = currentStream;
 			}
 
-			public static async Task<FindWorkspaceSettingsTask> RunAsync(IPerforceConnection Perforce, string CurrentWorkspaceName, CancellationToken CancellationToken)
+			public static async Task<FindWorkspaceSettingsTask> RunAsync(IPerforceConnection perforce, string currentWorkspaceName, CancellationToken cancellationToken)
 			{
-				InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
-				List<ClientsRecord> Clients = await Perforce.GetClientsAsync(ClientsOptions.None, Perforce.Settings.UserName, CancellationToken);
+				InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, cancellationToken);
+				List<ClientsRecord> clients = await perforce.GetClientsAsync(ClientsOptions.None, perforce.Settings.UserName, cancellationToken);
 
-				string? CurrentStream = null;
-				if(!String.IsNullOrEmpty(CurrentWorkspaceName))
+				string? currentStream = null;
+				if(!String.IsNullOrEmpty(currentWorkspaceName))
 				{
-					CurrentStream = await Perforce.GetCurrentStreamAsync(CancellationToken);
+					currentStream = await perforce.GetCurrentStreamAsync(cancellationToken);
 				}
 
-				return new FindWorkspaceSettingsTask(Info, Clients, CurrentStream);
+				return new FindWorkspaceSettingsTask(info, clients, currentStream);
 			}
 		}
 
 		static class NewWorkspaceTask
 		{
-			public static async Task RunAsync(IPerforceConnection Perforce, NewWorkspaceSettings Settings, string Owner, string HostName, CancellationToken CancellationToken)
+			public static async Task RunAsync(IPerforceConnection perforce, NewWorkspaceSettings settings, string owner, string hostName, CancellationToken cancellationToken)
 			{
-				PerforceResponseList<ClientsRecord> Response = await Perforce.TryGetClientsAsync(ClientsOptions.None, Settings.Name, -1, null, null, CancellationToken);
-				if (!Response.Succeeded)
+				PerforceResponseList<ClientsRecord> response = await perforce.TryGetClientsAsync(ClientsOptions.None, settings.Name, -1, null, null, cancellationToken);
+				if (!response.Succeeded)
 				{
-					throw new UserErrorException($"Unable to determine if client already exists.\n\n{Response[0]}");
+					throw new UserErrorException($"Unable to determine if client already exists.\n\n{response[0]}");
 				}
-				if (Response.Data.Count > 0)
+				if (response.Data.Count > 0)
 				{
-					throw new UserErrorException($"Client '{Settings.Name}' already exists.");
+					throw new UserErrorException($"Client '{settings.Name}' already exists.");
 				}
 
-				ClientRecord Client = new ClientRecord(Settings.Name, Owner, Settings.RootDir.FullName);
-				Client.Host = HostName;
-				Client.Stream = Settings.Stream;
-				Client.Options = ClientOptions.Rmdir;
-				await Perforce.CreateClientAsync(Client, CancellationToken);
+				ClientRecord client = new ClientRecord(settings.Name, owner, settings.RootDir.FullName);
+				client.Host = hostName;
+				client.Stream = settings.Stream;
+				client.Options = ClientOptions.Rmdir;
+				await perforce.CreateClientAsync(client, cancellationToken);
 			}
 		}
 
-		IPerforceSettings PerforceSettings;
-		InfoRecord Info;
-		List<ClientsRecord> Clients;
-		IServiceProvider ServiceProvider;
-		NewWorkspaceSettings? Settings;
-		DirectoryReference? DefaultRootPath;
+		IPerforceSettings _perforceSettings;
+		InfoRecord _info;
+		List<ClientsRecord> _clients;
+		IServiceProvider _serviceProvider;
+		NewWorkspaceSettings? _settings;
+		DirectoryReference? _defaultRootPath;
 
-		private NewWorkspaceWindow(IPerforceSettings PerforceSettings, string? ForceStream, string? DefaultStream, InfoRecord Info, List<ClientsRecord> Clients, IServiceProvider ServiceProvider)
+		private NewWorkspaceWindow(IPerforceSettings perforceSettings, string? forceStream, string? defaultStream, InfoRecord info, List<ClientsRecord> clients, IServiceProvider serviceProvider)
 		{
 			InitializeComponent();
 
-			this.PerforceSettings = PerforceSettings;
-			this.Info = Info;
-			this.Clients = Clients;
-			this.ServiceProvider = ServiceProvider;
+			this._perforceSettings = perforceSettings;
+			this._info = info;
+			this._clients = clients;
+			this._serviceProvider = serviceProvider;
 
-			Dictionary<DirectoryReference, int> RootPathToCount = new Dictionary<DirectoryReference, int>();
-			foreach(ClientsRecord Client in Clients)
+			Dictionary<DirectoryReference, int> rootPathToCount = new Dictionary<DirectoryReference, int>();
+			foreach(ClientsRecord client in clients)
 			{
-				if(Client.Host == null || String.Compare(Client.Host, Info.ClientHost, StringComparison.OrdinalIgnoreCase) == 0)
+				if(client.Host == null || String.Compare(client.Host, info.ClientHost, StringComparison.OrdinalIgnoreCase) == 0)
 				{
-					if(!String.IsNullOrEmpty(Client.Root) && Client.Root != ".")
+					if(!String.IsNullOrEmpty(client.Root) && client.Root != ".")
 					{
-						DirectoryReference? ParentDir;
+						DirectoryReference? parentDir;
 						try
 						{
-							ParentDir = new DirectoryReference(Client.Root);
+							parentDir = new DirectoryReference(client.Root);
 						}
 						catch
 						{
-							ParentDir = null;
+							parentDir = null;
 						}
 
-						if(ParentDir != null)
+						if(parentDir != null)
 						{
-							int Count;
-							RootPathToCount.TryGetValue(ParentDir, out Count);
-							RootPathToCount[ParentDir] = Count + 1;
+							int count;
+							rootPathToCount.TryGetValue(parentDir, out count);
+							rootPathToCount[parentDir] = count + 1;
 						}
 					}
 				}
 			}
 
-			int RootPathMaxCount = 0;
-			foreach(KeyValuePair<DirectoryReference, int> RootPathPair in RootPathToCount)
+			int rootPathMaxCount = 0;
+			foreach(KeyValuePair<DirectoryReference, int> rootPathPair in rootPathToCount)
 			{
-				if(RootPathPair.Value > RootPathMaxCount)
+				if(rootPathPair.Value > rootPathMaxCount)
 				{
-					DefaultRootPath = RootPathPair.Key;
-					RootPathMaxCount = RootPathPair.Value;
+					_defaultRootPath = rootPathPair.Key;
+					rootPathMaxCount = rootPathPair.Value;
 				}
 			}
 
-			if(ForceStream != null)
+			if(forceStream != null)
 			{
-				StreamTextBox.Text = ForceStream;
+				StreamTextBox.Text = forceStream;
 				StreamTextBox.Enabled = false;
 			}
 			else
 			{
-				StreamTextBox.Text = DefaultStream ?? "";
+				StreamTextBox.Text = defaultStream ?? "";
 				StreamTextBox.Enabled = true;
 			}
 			StreamTextBox.SelectionStart = StreamTextBox.Text.Length;
 			StreamTextBox.SelectionLength = 0;
 			StreamTextBox.Focus();
 
-			StreamBrowseBtn.Enabled = (ForceStream == null);
+			StreamBrowseBtn.Enabled = (forceStream == null);
 
 			UpdateOkButton();
 			UpdateNameCueBanner();
 			UpdateRootDirCueBanner();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings PerforceSettings, string? ForceStreamName, string CurrentWorkspaceName, IServiceProvider ServiceProvider, [NotNullWhen(true)] out string? WorkspaceName)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings perforceSettings, string? forceStreamName, string currentWorkspaceName, IServiceProvider serviceProvider, [NotNullWhen(true)] out string? workspaceName)
 		{
-			ModalTask<FindWorkspaceSettingsTask>? Task = PerforceModalTask.Execute(Owner, "Checking settings", "Checking settings, please wait...", PerforceSettings, (p, c) => FindWorkspaceSettingsTask.RunAsync(p, CurrentWorkspaceName, c), ServiceProvider.GetRequiredService<ILogger<FindWorkspaceSettingsTask>>());
-			if (Task == null || !Task.Succeeded)
+			ModalTask<FindWorkspaceSettingsTask>? task = PerforceModalTask.Execute(owner, "Checking settings", "Checking settings, please wait...", perforceSettings, (p, c) => FindWorkspaceSettingsTask.RunAsync(p, currentWorkspaceName, c), serviceProvider.GetRequiredService<ILogger<FindWorkspaceSettingsTask>>());
+			if (task == null || !task.Succeeded)
 			{
-				WorkspaceName = null;
+				workspaceName = null;
 				return false;
 			}
 
-			NewWorkspaceWindow Window = new NewWorkspaceWindow(PerforceSettings, ForceStreamName, Task.Result.CurrentStream, Task.Result.Info, Task.Result.Clients, ServiceProvider);
-			if(Window.ShowDialog(Owner) == DialogResult.OK)
+			NewWorkspaceWindow window = new NewWorkspaceWindow(perforceSettings, forceStreamName, task.Result.CurrentStream, task.Result.Info, task.Result.Clients, serviceProvider);
+			if(window.ShowDialog(owner) == DialogResult.OK)
 			{
-				WorkspaceName = Window.Settings!.Name;
+				workspaceName = window._settings!.Name;
 				return true;
 			}
 			else
 			{
-				WorkspaceName = null;
+				workspaceName = null;
 				return false;
 			}
 		}
 
 		private void RootDirBrowseBtn_Click(object sender, EventArgs e)
 		{
-			FolderBrowserDialog Dialog = new FolderBrowserDialog();
-			Dialog.ShowNewFolderButton = true;
-			Dialog.SelectedPath = RootDirTextBox.Text;
-			if (Dialog.ShowDialog() == DialogResult.OK)
+			FolderBrowserDialog dialog = new FolderBrowserDialog();
+			dialog.ShowNewFolderButton = true;
+			dialog.SelectedPath = RootDirTextBox.Text;
+			if (dialog.ShowDialog() == DialogResult.OK)
 			{
-				RootDirTextBox.Text = Dialog.SelectedPath;
+				RootDirTextBox.Text = dialog.SelectedPath;
 				UpdateOkButton();
 			}
 		}
 
 		private string GetDefaultWorkspaceName()
 		{
-			string BaseName = Sanitize(String.Format("{0}_{1}_{2}", Info.UserName, Info.ClientHost, StreamTextBox.Text.Replace('/', '_').Trim('_'))).Trim('_');
+			string baseName = Sanitize(String.Format("{0}_{1}_{2}", _info.UserName, _info.ClientHost, StreamTextBox.Text.Replace('/', '_').Trim('_'))).Trim('_');
 
-			string Name = BaseName;
-			for(int Idx = 2; Clients.Any(x => x.Name != null && String.Compare(x.Name, Name, StringComparison.InvariantCultureIgnoreCase) == 0); Idx++)
+			string name = baseName;
+			for(int idx = 2; _clients.Any(x => x.Name != null && String.Compare(x.Name, name, StringComparison.InvariantCultureIgnoreCase) == 0); idx++)
 			{
-				Name = String.Format("{0}_{1}", BaseName, Idx);
+				name = String.Format("{0}_{1}", baseName, idx);
 			}
-			return Name;
+			return name;
 		}
 
 		private string GetDefaultWorkspaceRootDir()
 		{
-			string RootDir = "";
-			if(DefaultRootPath != null)
+			string rootDir = "";
+			if(_defaultRootPath != null)
 			{
-				string Suffix = String.Join("_", StreamTextBox.Text.Split(new char[]{ '/' }, StringSplitOptions.RemoveEmptyEntries).Select(x => Sanitize(x)).Where(x => x.Length > 0));
-				if(Suffix.Length > 0)
+				string suffix = String.Join("_", StreamTextBox.Text.Split(new char[]{ '/' }, StringSplitOptions.RemoveEmptyEntries).Select(x => Sanitize(x)).Where(x => x.Length > 0));
+				if(suffix.Length > 0)
 				{
-					RootDir = DirectoryReference.Combine(DefaultRootPath, Suffix).FullName;
+					rootDir = DirectoryReference.Combine(_defaultRootPath, suffix).FullName;
 				}
 			}
-			return RootDir;
+			return rootDir;
 		}
 
-		private string Sanitize(string Text)
+		private string Sanitize(string text)
 		{
-			StringBuilder Result = new StringBuilder();
-			for(int Idx = 0; Idx < Text.Length; Idx++)
+			StringBuilder result = new StringBuilder();
+			for(int idx = 0; idx < text.Length; idx++)
 			{
-				if(Char.IsLetterOrDigit(Text[Idx]) || Text[Idx] == '_' || Text[Idx] == '.' || Text[Idx] == '-')
+				if(Char.IsLetterOrDigit(text[idx]) || text[idx] == '_' || text[idx] == '.' || text[idx] == '-')
 				{
-					Result.Append(Text[Idx]);
+					result.Append(text[idx]);
 				}
 			}
-			return Result.ToString();
+			return result.ToString();
 		}
 
 		private void UpdateNameCueBanner()
@@ -244,53 +244,53 @@ namespace UnrealGameSync
 
 		private void UpdateOkButton()
 		{
-			NewWorkspaceSettings? Settings;
-			OkBtn.Enabled = TryGetWorkspaceSettings(out Settings);
+			NewWorkspaceSettings? settings;
+			OkBtn.Enabled = TryGetWorkspaceSettings(out settings);
 		}
 
-		private bool TryGetWorkspaceSettings([NotNullWhen(true)] out NewWorkspaceSettings? Settings)
+		private bool TryGetWorkspaceSettings([NotNullWhen(true)] out NewWorkspaceSettings? settings)
 		{
-			string NewWorkspaceName = NameTextBox.Text.Trim();
-			if(NewWorkspaceName.Length == 0)
+			string newWorkspaceName = NameTextBox.Text.Trim();
+			if(newWorkspaceName.Length == 0)
 			{
-				NewWorkspaceName = GetDefaultWorkspaceName();
-				if(NewWorkspaceName.Length == 0)
+				newWorkspaceName = GetDefaultWorkspaceName();
+				if(newWorkspaceName.Length == 0)
 				{
-					Settings = null;
+					settings = null;
 					return false;
 				}
 			}
 
-			string NewStream = StreamTextBox.Text.Trim();
-			if(!NewStream.StartsWith("//") || NewStream.IndexOf('/', 2) == -1)
+			string newStream = StreamTextBox.Text.Trim();
+			if(!newStream.StartsWith("//") || newStream.IndexOf('/', 2) == -1)
 			{
-				Settings = null;
+				settings = null;
 				return false;
 			}
 
-			string NewRootDir = RootDirTextBox.Text.Trim();
-			if(NewRootDir.Length == 0)
+			string newRootDir = RootDirTextBox.Text.Trim();
+			if(newRootDir.Length == 0)
 			{
-				NewRootDir = GetDefaultWorkspaceRootDir();
-				if(NewRootDir.Length == 0)
+				newRootDir = GetDefaultWorkspaceRootDir();
+				if(newRootDir.Length == 0)
 				{
-					Settings = null;
+					settings = null;
 					return false;
 				}
 			}
 
-			DirectoryReference NewRootDirRef;
+			DirectoryReference newRootDirRef;
 			try
 			{
-				NewRootDirRef = new DirectoryReference(NewRootDir);
+				newRootDirRef = new DirectoryReference(newRootDir);
 			}
 			catch
 			{
-				Settings = null;
+				settings = null;
 				return false;
 			}
 
-			Settings = new NewWorkspaceSettings(NewWorkspaceName, NewStream, NewRootDirRef);
+			settings = new NewWorkspaceSettings(newWorkspaceName, newStream, newRootDirRef);
 			return true;
 		}
 
@@ -313,21 +313,21 @@ namespace UnrealGameSync
 
 		private void OkBtn_Click(object sender, EventArgs e)
 		{
-			if(TryGetWorkspaceSettings(out Settings))
+			if(TryGetWorkspaceSettings(out _settings))
 			{
-				DirectoryInfo RootDir = Settings.RootDir.ToDirectoryInfo();
-				if(RootDir.Exists && RootDir.EnumerateFileSystemInfos().Any(x => x.Name != "." && x.Name != ".."))
+				DirectoryInfo rootDir = _settings.RootDir.ToDirectoryInfo();
+				if(rootDir.Exists && rootDir.EnumerateFileSystemInfos().Any(x => x.Name != "." && x.Name != ".."))
 				{
-					if(MessageBox.Show(this, String.Format("The directory '{0}' is not empty. Are you sure you want to create a workspace there?", RootDir.FullName), "Directory not empty", MessageBoxButtons.YesNo) != DialogResult.Yes)
+					if(MessageBox.Show(this, String.Format("The directory '{0}' is not empty. Are you sure you want to create a workspace there?", rootDir.FullName), "Directory not empty", MessageBoxButtons.YesNo) != DialogResult.Yes)
 					{
 						return;
 					}
 				}
 
-				ILogger Logger = ServiceProvider.GetRequiredService<ILogger<NewWorkspaceWindow>>();
+				ILogger logger = _serviceProvider.GetRequiredService<ILogger<NewWorkspaceWindow>>();
 
-				ModalTask? Result = PerforceModalTask.Execute(Owner, "Creating workspace", "Creating workspace, please wait...", PerforceSettings, (p, c) => NewWorkspaceTask.RunAsync(p, Settings, Info.UserName ?? "", Info.ClientHost ?? "", c), Logger);
-				if (Result == null || !Result.Succeeded)
+				ModalTask? result = PerforceModalTask.Execute(Owner, "Creating workspace", "Creating workspace, please wait...", _perforceSettings, (p, c) => NewWorkspaceTask.RunAsync(p, _settings, _info.UserName ?? "", _info.ClientHost ?? "", c), logger);
+				if (result == null || !result.Succeeded)
 				{
 					return;
 				}
@@ -345,10 +345,10 @@ namespace UnrealGameSync
 
 		private void StreamBrowseBtn_Click(object sender, EventArgs e)
 		{
-			string? StreamName = StreamTextBox.Text.Trim();
-			if(SelectStreamWindow.ShowModal(this, PerforceSettings, StreamName, ServiceProvider, out StreamName))
+			string? streamName = StreamTextBox.Text.Trim();
+			if(SelectStreamWindow.ShowModal(this, _perforceSettings, streamName, _serviceProvider, out streamName))
 			{
-				StreamTextBox.Text = StreamName;
+				StreamTextBox.Text = streamName;
 			}
 		}
 

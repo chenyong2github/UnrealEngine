@@ -26,10 +26,10 @@ namespace UnrealGameSync
 			public string? Install;
 			public string? Browse;
 
-			public SdkItem(string Category, string Description)
+			public SdkItem(string category, string description)
 			{
-				this.Category = Category;
-				this.Description = Description;
+				this.Category = category;
+				this.Description = description;
 			}
 		}
 
@@ -40,95 +40,95 @@ namespace UnrealGameSync
 			public Rectangle Rectangle;
 			public Action? OnClick;
 
-			public BadgeInfo(string UniqueId, string Label)
+			public BadgeInfo(string uniqueId, string label)
 			{
-				this.UniqueId = UniqueId;
-				this.Label = Label;
+				this.UniqueId = uniqueId;
+				this.Label = label;
 			}
 		}
 
-		Font BadgeFont;
-		string? HoverBadgeUniqueId;
+		Font _badgeFont;
+		string? _hoverBadgeUniqueId;
 
-		public SdkInfoWindow(string[] SdkInfoEntries, Dictionary<string, string> Variables, Font BadgeFont)
+		public SdkInfoWindow(string[] sdkInfoEntries, Dictionary<string, string> variables, Font badgeFont)
 		{
 			InitializeComponent();
 
-			this.BadgeFont = BadgeFont;
+			this._badgeFont = badgeFont;
 
-			Dictionary<string, ConfigObject> UniqueIdToObject = new Dictionary<string, ConfigObject>(StringComparer.InvariantCultureIgnoreCase);
-			foreach(string SdkInfoEntry in SdkInfoEntries)
+			Dictionary<string, ConfigObject> uniqueIdToObject = new Dictionary<string, ConfigObject>(StringComparer.InvariantCultureIgnoreCase);
+			foreach(string sdkInfoEntry in sdkInfoEntries)
 			{
-				ConfigObject Object = new ConfigObject(SdkInfoEntry);
+				ConfigObject obj = new ConfigObject(sdkInfoEntry);
 
-				string UniqueId = Object.GetValue("UniqueId", Guid.NewGuid().ToString());
+				string uniqueId = obj.GetValue("UniqueId", Guid.NewGuid().ToString());
 
-				ConfigObject? ExistingObject;
-				if(UniqueIdToObject.TryGetValue(UniqueId, out ExistingObject))
+				ConfigObject? existingObject;
+				if(uniqueIdToObject.TryGetValue(uniqueId, out existingObject))
 				{
-					ExistingObject.AddOverrides(Object, null);
+					existingObject.AddOverrides(obj, null);
 				}
 				else
 				{
-					UniqueIdToObject.Add(UniqueId, Object);
+					uniqueIdToObject.Add(uniqueId, obj);
 				}
 			}
 
-			List<SdkItem> Items = new List<SdkItem>();
-			foreach(ConfigObject Object in UniqueIdToObject.Values)
+			List<SdkItem> items = new List<SdkItem>();
+			foreach(ConfigObject obj in uniqueIdToObject.Values)
 			{
-				string Category = Object.GetValue("Category", "Other");
-				string Description = Object.GetValue("Description", "");
-				SdkItem Item = new SdkItem(Category, Description);
+				string category = obj.GetValue("Category", "Other");
+				string description = obj.GetValue("Description", "");
+				SdkItem item = new SdkItem(category, description);
 
-				Item.Install = Utility.ExpandVariables(Object.GetValue("Install", ""), Variables);
-				if(Item.Install.Contains("$("))
+				item.Install = Utility.ExpandVariables(obj.GetValue("Install", ""), variables);
+				if(item.Install.Contains("$("))
 				{
-					Item.Install = null;
+					item.Install = null;
 				}
 
-				Item.Browse = Utility.ExpandVariables(Object.GetValue("Browse", ""), Variables);
-				if(Item.Browse.Contains("$("))
+				item.Browse = Utility.ExpandVariables(obj.GetValue("Browse", ""), variables);
+				if(item.Browse.Contains("$("))
 				{
-					Item.Browse = null;
+					item.Browse = null;
 				}
 
-				if(!String.IsNullOrEmpty(Item.Install) && String.IsNullOrEmpty(Item.Browse))
+				if(!String.IsNullOrEmpty(item.Install) && String.IsNullOrEmpty(item.Browse))
 				{
 					try
 					{
-						Item.Browse = Path.GetDirectoryName(Item.Install);
+						item.Browse = Path.GetDirectoryName(item.Install);
 					}
 					catch
 					{
-						Item.Browse = null;
+						item.Browse = null;
 					}
 				}
 
-				Items.Add(Item);
+				items.Add(item);
 			}
 
-			foreach(IGrouping<string, SdkItem> ItemGroup in Items.GroupBy(x => x.Category).OrderBy(x => x.Key))
+			foreach(IGrouping<string, SdkItem> itemGroup in items.GroupBy(x => x.Category).OrderBy(x => x.Key))
 			{
-				ListViewGroup Group = new ListViewGroup(ItemGroup.Key);
-				SdkListView.Groups.Add(Group);
+				ListViewGroup group = new ListViewGroup(itemGroup.Key);
+				SdkListView.Groups.Add(group);
 
-				foreach(SdkItem Item in ItemGroup)
+				foreach(SdkItem item in itemGroup)
 				{
-					ListViewItem NewItem = new ListViewItem(Group);
-					NewItem.SubItems.Add(Item.Description);
-					NewItem.SubItems.Add(new ListViewItem.ListViewSubItem(){ Tag = Item });
-					SdkListView.Items.Add(NewItem);
+					ListViewItem newItem = new ListViewItem(group);
+					newItem.SubItems.Add(item.Description);
+					newItem.SubItems.Add(new ListViewItem.ListViewSubItem(){ Tag = item });
+					SdkListView.Items.Add(newItem);
 				}
 			}
 
-			System.Reflection.PropertyInfo DoubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
-			DoubleBufferedProperty.SetValue(SdkListView, true, null);
+			System.Reflection.PropertyInfo doubleBufferedProperty = typeof(Control).GetProperty("DoubleBuffered", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance)!;
+			doubleBufferedProperty.SetValue(SdkListView, true, null);
 
 			if(SdkListView.Items.Count > 0)
 			{
-				int ItemsHeight = SdkListView.Items[SdkListView.Items.Count - 1].Bounds.Bottom + 20;
-				Height = SdkListView.Top + ItemsHeight + (Height - SdkListView.Bottom);
+				int itemsHeight = SdkListView.Items[SdkListView.Items.Count - 1].Bounds.Bottom + 20;
+				Height = SdkListView.Top + itemsHeight + (Height - SdkListView.Bottom);
 			}
 		}
 
@@ -153,13 +153,13 @@ namespace UnrealGameSync
 			{
 				e.Graphics.SmoothingMode = SmoothingMode.AntiAlias;
 
-				List<BadgeInfo> Badges = GetBadges(e.Item, e.SubItem);
-				for(int Idx = 0; Idx < Badges.Count; Idx++)
+				List<BadgeInfo> badges = GetBadges(e.Item, e.SubItem);
+				for(int idx = 0; idx < badges.Count; idx++)
 				{
-					Color BadgeColor = (HoverBadgeUniqueId == Badges[Idx].UniqueId)? Color.FromArgb(140, 180, 230) : Color.FromArgb(112, 146, 190);
-					if(Badges[Idx].OnClick != null)
+					Color badgeColor = (_hoverBadgeUniqueId == badges[idx].UniqueId)? Color.FromArgb(140, 180, 230) : Color.FromArgb(112, 146, 190);
+					if(badges[idx].OnClick != null)
 					{
-						DrawBadge(e.Graphics, Badges[Idx].Label, Badges[Idx].Rectangle, (Idx > 0), (Idx < Badges.Count - 1), BadgeColor);
+						DrawBadge(e.Graphics, badges[idx].Label, badges[idx].Rectangle, (idx > 0), (idx < badges.Count - 1), badgeColor);
 					}
 				}
 			}
@@ -167,135 +167,135 @@ namespace UnrealGameSync
 
 		private void SdkListView_MouseMove(object sender, MouseEventArgs e)
 		{
-			string? NewHoverUniqueId = null;
+			string? newHoverUniqueId = null;
 
-			ListViewHitTestInfo HitTest = SdkListView.HitTest(e.Location);
-			if(HitTest.Item != null && HitTest.SubItem == HitTest.Item.SubItems[2])
+			ListViewHitTestInfo hitTest = SdkListView.HitTest(e.Location);
+			if(hitTest.Item != null && hitTest.SubItem == hitTest.Item.SubItems[2])
 			{
-				List<BadgeInfo> Badges = GetBadges(HitTest.Item, HitTest.SubItem);
-				foreach(BadgeInfo Badge in Badges)
+				List<BadgeInfo> badges = GetBadges(hitTest.Item, hitTest.SubItem);
+				foreach(BadgeInfo badge in badges)
 				{
-					if(Badge.Rectangle.Contains(e.Location))
+					if(badge.Rectangle.Contains(e.Location))
 					{
-						NewHoverUniqueId = Badge.UniqueId;
+						newHoverUniqueId = badge.UniqueId;
 					}
 				}
 			}
 
-			if(NewHoverUniqueId != HoverBadgeUniqueId)
+			if(newHoverUniqueId != _hoverBadgeUniqueId)
 			{
-				HoverBadgeUniqueId = NewHoverUniqueId;
+				_hoverBadgeUniqueId = newHoverUniqueId;
 				SdkListView.Invalidate();
 			}
 		}
 
 		private void SdkListView_MouseLeave(object sender, EventArgs e)
 		{
-			HoverBadgeUniqueId = null;
+			_hoverBadgeUniqueId = null;
 		}
 
 		private void SdkListView_MouseDown(object sender, MouseEventArgs e)
 		{
-			ListViewHitTestInfo HitTest = SdkListView.HitTest(e.Location);
-			if(HitTest.Item != null && HitTest.SubItem == HitTest.Item.SubItems[2])
+			ListViewHitTestInfo hitTest = SdkListView.HitTest(e.Location);
+			if(hitTest.Item != null && hitTest.SubItem == hitTest.Item.SubItems[2])
 			{
-				List<BadgeInfo> Badges = GetBadges(HitTest.Item, HitTest.SubItem);
-				foreach(BadgeInfo Badge in Badges)
+				List<BadgeInfo> badges = GetBadges(hitTest.Item, hitTest.SubItem);
+				foreach(BadgeInfo badge in badges)
 				{
-					if(Badge.Rectangle.Contains(e.Location) && Badge.OnClick != null)
+					if(badge.Rectangle.Contains(e.Location) && badge.OnClick != null)
 					{
-						Badge.OnClick();
+						badge.OnClick();
 					}
 				}
 			}
 		}
 
-		private List<BadgeInfo> GetBadges(ListViewItem Item, ListViewItem.ListViewSubItem SubItem)
+		private List<BadgeInfo> GetBadges(ListViewItem item, ListViewItem.ListViewSubItem subItem)
 		{
-			string UniqueIdPrefix = String.Format("{0}_", Item.Index);
+			string uniqueIdPrefix = String.Format("{0}_", item.Index);
 
-			List<BadgeInfo> Badges = new List<BadgeInfo>();
+			List<BadgeInfo> badges = new List<BadgeInfo>();
 
-			SdkItem Sdk = (SdkItem)SubItem.Tag;
+			SdkItem sdk = (SdkItem)subItem.Tag;
 
-			Action? InstallAction = null;
-			if(!String.IsNullOrEmpty(Sdk.Install))
+			Action? installAction = null;
+			if(!String.IsNullOrEmpty(sdk.Install))
 			{
-				InstallAction = () => { Install(Sdk.Install); };
+				installAction = () => { Install(sdk.Install); };
 			}
-			Badges.Add(new BadgeInfo(UniqueIdPrefix + "_Install", "Install") { OnClick = InstallAction });
+			badges.Add(new BadgeInfo(uniqueIdPrefix + "_Install", "Install") { OnClick = installAction });
 
-			Action? BrowseAction = null;
-			if(!String.IsNullOrEmpty(Sdk.Browse))
+			Action? browseAction = null;
+			if(!String.IsNullOrEmpty(sdk.Browse))
 			{
-				BrowseAction = () => { Browse(Sdk.Browse); };
+				browseAction = () => { Browse(sdk.Browse); };
 			}
-			Badges.Add(new BadgeInfo(UniqueIdPrefix + "_Browse", "Browse"){ OnClick = BrowseAction });
+			badges.Add(new BadgeInfo(uniqueIdPrefix + "_Browse", "Browse"){ OnClick = browseAction });
 
-			int Right = SubItem.Bounds.Right - 10;
-			for(int Idx = Badges.Count - 1; Idx >= 0; Idx--)
+			int right = subItem.Bounds.Right - 10;
+			for(int idx = badges.Count - 1; idx >= 0; idx--)
 			{
-				Size BadgeSize = GetBadgeSize(Badges[Idx].Label);
-				Right -= BadgeSize.Width;
-				Badges[Idx].Rectangle = new Rectangle(Right, SubItem.Bounds.Y + (SubItem.Bounds.Height - BadgeSize.Height) / 2, BadgeSize.Width, BadgeSize.Height);
+				Size badgeSize = GetBadgeSize(badges[idx].Label);
+				right -= badgeSize.Width;
+				badges[idx].Rectangle = new Rectangle(right, subItem.Bounds.Y + (subItem.Bounds.Height - badgeSize.Height) / 2, badgeSize.Width, badgeSize.Height);
 			}
 
-			return Badges;
+			return badges;
 		}
 
-		private void Browse(string DirectoryName)
+		private void Browse(string directoryName)
 		{
 			try
 			{
-				Process.Start("explorer.exe", String.Format("\"{0}\"", DirectoryName));
+				Process.Start("explorer.exe", String.Format("\"{0}\"", directoryName));
 			}
-			catch(Exception Ex)
+			catch(Exception ex)
 			{
-				MessageBox.Show(String.Format("Unable to open explorer to {0}: {1}", DirectoryName, Ex.Message));
+				MessageBox.Show(String.Format("Unable to open explorer to {0}: {1}", directoryName, ex.Message));
 			}
 		}
 
-		private void Install(string FileName)
+		private void Install(string fileName)
 		{
 			try
 			{
-				ProcessStartInfo StartInfo = new ProcessStartInfo();
-				StartInfo.FileName = FileName;
-				StartInfo.UseShellExecute = true;
-				Process.Start(StartInfo);
+				ProcessStartInfo startInfo = new ProcessStartInfo();
+				startInfo.FileName = fileName;
+				startInfo.UseShellExecute = true;
+				Process.Start(startInfo);
 			}
-			catch(Exception Ex)
+			catch(Exception ex)
 			{
-				MessageBox.Show(String.Format("Unable to run {0}: {1}", FileName, Ex.Message));
+				MessageBox.Show(String.Format("Unable to run {0}: {1}", fileName, ex.Message));
 			}
 		}
 
-		private Size GetBadgeSize(string BadgeText)
+		private Size GetBadgeSize(string badgeText)
 		{
-			Size LabelSize = TextRenderer.MeasureText(BadgeText, BadgeFont);
-			int BadgeHeight = BadgeFont.Height + 1;
+			Size labelSize = TextRenderer.MeasureText(badgeText, _badgeFont);
+			int badgeHeight = _badgeFont.Height + 1;
 
-			return new Size(LabelSize.Width + BadgeHeight - 4, BadgeHeight);
+			return new Size(labelSize.Width + badgeHeight - 4, badgeHeight);
 		}
 
-		private void DrawBadge(Graphics Graphics, string BadgeText, Rectangle BadgeRect, bool bMergeLeft, bool bMergeRight, Color BadgeColor)
+		private void DrawBadge(Graphics graphics, string badgeText, Rectangle badgeRect, bool mergeLeft, bool mergeRight, Color badgeColor)
 		{
-			using (GraphicsPath Path = new GraphicsPath())
+			using (GraphicsPath path = new GraphicsPath())
 			{
-				Path.StartFigure();
-				Path.AddLine(BadgeRect.Left + (bMergeLeft? 1 : 0), BadgeRect.Top, BadgeRect.Left - (bMergeLeft? 1 : 0), BadgeRect.Bottom);
-				Path.AddLine(BadgeRect.Left - (bMergeLeft? 1 : 0), BadgeRect.Bottom, BadgeRect.Right - 1 - (bMergeRight? 1 : 0), BadgeRect.Bottom);
-				Path.AddLine(BadgeRect.Right - 1 - (bMergeRight? 1 : 0), BadgeRect.Bottom, BadgeRect.Right - 1 + (bMergeRight? 1 : 0), BadgeRect.Top);
-				Path.AddLine(BadgeRect.Right - 1 + (bMergeRight? 1 : 0), BadgeRect.Top, BadgeRect.Left + (bMergeLeft? 1 : 0), BadgeRect.Top);
-				Path.CloseFigure();
+				path.StartFigure();
+				path.AddLine(badgeRect.Left + (mergeLeft? 1 : 0), badgeRect.Top, badgeRect.Left - (mergeLeft? 1 : 0), badgeRect.Bottom);
+				path.AddLine(badgeRect.Left - (mergeLeft? 1 : 0), badgeRect.Bottom, badgeRect.Right - 1 - (mergeRight? 1 : 0), badgeRect.Bottom);
+				path.AddLine(badgeRect.Right - 1 - (mergeRight? 1 : 0), badgeRect.Bottom, badgeRect.Right - 1 + (mergeRight? 1 : 0), badgeRect.Top);
+				path.AddLine(badgeRect.Right - 1 + (mergeRight? 1 : 0), badgeRect.Top, badgeRect.Left + (mergeLeft? 1 : 0), badgeRect.Top);
+				path.CloseFigure();
 
-				using(SolidBrush Brush = new SolidBrush(BadgeColor))
+				using(SolidBrush brush = new SolidBrush(badgeColor))
 				{
-					Graphics.FillPath(Brush, Path);
+					graphics.FillPath(brush, path);
 				}
 			}
 
-			TextRenderer.DrawText(Graphics, BadgeText, BadgeFont, BadgeRect, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
+			TextRenderer.DrawText(graphics, badgeText, _badgeFont, badgeRect, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
 		}
 	}
 }

@@ -27,31 +27,31 @@ namespace UnrealGameSync
 			public InfoRecord Info { get; }
 			public List<ClientsRecord> Clients { get; }
 
-			public EnumerateWorkspaces(InfoRecord Info, List<ClientsRecord> Clients)
+			public EnumerateWorkspaces(InfoRecord info, List<ClientsRecord> clients)
 			{
-				this.Info = Info;
-				this.Clients = Clients;
+				this.Info = info;
+				this.Clients = clients;
 			}
 
-			public static async Task<EnumerateWorkspaces> RunAsync(IPerforceConnection Perforce, CancellationToken CancellationToken)
+			public static async Task<EnumerateWorkspaces> RunAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
 			{
-				InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
-				List<ClientsRecord> Clients = await Perforce.GetClientsAsync(ClientsOptions.None, Perforce.Settings.UserName, CancellationToken);
-				return new EnumerateWorkspaces(Info, Clients);
+				InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, cancellationToken);
+				List<ClientsRecord> clients = await perforce.GetClientsAsync(ClientsOptions.None, perforce.Settings.UserName, cancellationToken);
+				return new EnumerateWorkspaces(info, clients);
 			}
 		}
 
-		InfoRecord Info;
-		List<ClientsRecord> Clients;
-		string? WorkspaceName;
+		InfoRecord _info;
+		List<ClientsRecord> _clients;
+		string? _workspaceName;
 
-		private SelectWorkspaceWindow(InfoRecord Info, List<ClientsRecord> Clients, string? WorkspaceName)
+		private SelectWorkspaceWindow(InfoRecord info, List<ClientsRecord> clients, string? workspaceName)
 		{
 			InitializeComponent();
 
-			this.Info = Info;
-			this.Clients = Clients;
-			this.WorkspaceName = WorkspaceName;
+			this._info = info;
+			this._clients = clients;
+			this._workspaceName = workspaceName;
 
 			UpdateListView();
 			UpdateOkButton();
@@ -61,25 +61,25 @@ namespace UnrealGameSync
 		{
 			if(WorkspaceListView.SelectedItems.Count > 0)
 			{
-				WorkspaceName = WorkspaceListView.SelectedItems[0].Text;
+				_workspaceName = WorkspaceListView.SelectedItems[0].Text;
 			}
 			else
 			{
-				WorkspaceName = null;
+				_workspaceName = null;
 			}
 
 			WorkspaceListView.Items.Clear();
 
-			foreach(ClientsRecord Client in Clients.OrderBy(x => x.Name))
+			foreach(ClientsRecord client in _clients.OrderBy(x => x.Name))
 			{
-				if(!OnlyForThisComputer.Checked || String.Compare(Client.Host, Info.ClientHost, StringComparison.InvariantCultureIgnoreCase) == 0)
+				if(!OnlyForThisComputer.Checked || String.Compare(client.Host, _info.ClientHost, StringComparison.InvariantCultureIgnoreCase) == 0)
 				{
-					ListViewItem Item = new ListViewItem(Client.Name);
-					Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, Client.Host));
-					Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, Client.Stream));
-					Item.SubItems.Add(new ListViewItem.ListViewSubItem(Item, Client.Root));
-					Item.Selected = (WorkspaceName == Client.Name);
-					WorkspaceListView.Items.Add(Item);
+					ListViewItem item = new ListViewItem(client.Name);
+					item.SubItems.Add(new ListViewItem.ListViewSubItem(item, client.Host));
+					item.SubItems.Add(new ListViewItem.ListViewSubItem(item, client.Stream));
+					item.SubItems.Add(new ListViewItem.ListViewSubItem(item, client.Root));
+					item.Selected = (_workspaceName == client.Name);
+					WorkspaceListView.Items.Add(item);
 				}
 			}
 		}
@@ -89,24 +89,24 @@ namespace UnrealGameSync
 			OkBtn.Enabled = (WorkspaceListView.SelectedItems.Count == 1);
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, IServiceProvider ServiceProvider, out string? NewWorkspaceName)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings perforce, string workspaceName, IServiceProvider serviceProvider, out string? newWorkspaceName)
 		{
-			ModalTask<EnumerateWorkspaces>? Task = PerforceModalTask.Execute(Owner, "Finding workspaces", "Finding workspaces, please wait...", Perforce, EnumerateWorkspaces.RunAsync, ServiceProvider.GetRequiredService<ILogger<EnumerateWorkspaces>>());
-			if (Task == null || !Task.Succeeded)
+			ModalTask<EnumerateWorkspaces>? task = PerforceModalTask.Execute(owner, "Finding workspaces", "Finding workspaces, please wait...", perforce, EnumerateWorkspaces.RunAsync, serviceProvider.GetRequiredService<ILogger<EnumerateWorkspaces>>());
+			if (task == null || !task.Succeeded)
 			{
-				NewWorkspaceName = null;
+				newWorkspaceName = null;
 				return false;
 			}
 
-			SelectWorkspaceWindow SelectWorkspace = new SelectWorkspaceWindow(Task.Result.Info, Task.Result.Clients, WorkspaceName);
-			if(SelectWorkspace.ShowDialog(Owner) == DialogResult.OK)
+			SelectWorkspaceWindow selectWorkspace = new SelectWorkspaceWindow(task.Result.Info, task.Result.Clients, workspaceName);
+			if(selectWorkspace.ShowDialog(owner) == DialogResult.OK)
 			{
-				NewWorkspaceName = SelectWorkspace.WorkspaceName;
+				newWorkspaceName = selectWorkspace._workspaceName;
 				return true;
 			}
 			else
 			{
-				NewWorkspaceName = null;
+				newWorkspaceName = null;
 				return false;
 			}
 		}
@@ -125,7 +125,7 @@ namespace UnrealGameSync
 		{
 			if(WorkspaceListView.SelectedItems.Count > 0)
 			{
-				WorkspaceName = WorkspaceListView.SelectedItems[0].Text;
+				_workspaceName = WorkspaceListView.SelectedItems[0].Text;
 				DialogResult = DialogResult.OK;
 				Close();
 			}
@@ -141,7 +141,7 @@ namespace UnrealGameSync
 		{
 			if(WorkspaceListView.SelectedItems.Count > 0)
 			{
-				WorkspaceName = WorkspaceListView.SelectedItems[0].Text;
+				_workspaceName = WorkspaceListView.SelectedItems[0].Text;
 				DialogResult = DialogResult.OK;
 				Close();
 			}

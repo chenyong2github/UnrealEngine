@@ -21,7 +21,7 @@ namespace UnrealGameSync
 			private set;
 		}
 
-		Rectangle? PreviousBounds;
+		Rectangle? _previousBounds;
 
 		public Cursor Cursor
 		{
@@ -29,35 +29,35 @@ namespace UnrealGameSync
 			set;
 		}
 
-		public CustomListViewWidget(ListViewItem Item)
+		public CustomListViewWidget(ListViewItem item)
 		{
-			this.Item = Item;
+			this.Item = item;
 			this.Cursor = Cursors.Arrow;
 		}
 
 		public void Invalidate()
 		{
-			PreviousBounds = null;
+			_previousBounds = null;
 		}
 
 		public virtual bool RequiresLayout()
 		{
-			return !PreviousBounds.HasValue;
+			return !_previousBounds.HasValue;
 		}
 
-		public void ConditionalLayout(Control Owner, Rectangle Bounds)
+		public void ConditionalLayout(Control owner, Rectangle bounds)
 		{
-			if(RequiresLayout() || PreviousBounds == null || PreviousBounds.Value != Bounds)
+			if(RequiresLayout() || _previousBounds == null || _previousBounds.Value != bounds)
 			{
-				using(Graphics Graphics = Owner.CreateGraphics())
+				using(Graphics graphics = owner.CreateGraphics())
 				{
-					Layout(Graphics, Bounds);
+					Layout(graphics, bounds);
 				}
-				PreviousBounds = Bounds;
+				_previousBounds = bounds;
 			}
 		}
 
-		public virtual void OnMouseMove(Point Location)
+		public virtual void OnMouseMove(Point location)
 		{
 		}
 
@@ -65,16 +65,16 @@ namespace UnrealGameSync
 		{
 		}
 
-		public virtual void OnMouseDown(Point Location)
+		public virtual void OnMouseDown(Point location)
 		{
 		}
 
-		public virtual void OnMouseUp(Point Location)
+		public virtual void OnMouseUp(Point location)
 		{
 		}
 
-		public abstract void Layout(Graphics Graphics, Rectangle Bounds);
-		public abstract void Render(Graphics Graphics);
+		public abstract void Layout(Graphics graphics, Rectangle bounds);
+		public abstract void Render(Graphics graphics);
 	}
 
 	class StatusLineListViewWidget : CustomListViewWidget
@@ -87,14 +87,14 @@ namespace UnrealGameSync
 			get; set;
 		}
 
-		Rectangle Bounds;
-		StatusElement? MouseDownElement;
-		StatusElement? MouseOverElement;
+		Rectangle _bounds;
+		StatusElement? _mouseDownElement;
+		StatusElement? _mouseOverElement;
 
-		public StatusLineListViewWidget(ListViewItem Item, StatusElementResources Resources)
-			: base(Item)
+		public StatusLineListViewWidget(ListViewItem item, StatusElementResources resources)
+			: base(item)
 		{
-			this.Resources = Resources;
+			this.Resources = resources;
 			this.HorizontalAlignment = HorizontalAlignment.Center;
 		}
 
@@ -103,55 +103,55 @@ namespace UnrealGameSync
 			return base.RequiresLayout() || Line.RequiresLayout();
 		}
 
-		public override void OnMouseDown(Point Location)
+		public override void OnMouseDown(Point location)
 		{
-			StatusElement? Element;
-			if(Line.HitTest(Location, out Element))
+			StatusElement? element;
+			if(Line.HitTest(location, out element))
 			{
-				MouseDownElement = Element;
-				MouseDownElement.bMouseDown = true;
+				_mouseDownElement = element;
+				_mouseDownElement.MouseDown = true;
 
 				Invalidate();
 			}
 		}
 
-		public override void OnMouseUp(Point Location)
+		public override void OnMouseUp(Point location)
 		{
-			if(MouseDownElement != null)
+			if(_mouseDownElement != null)
 			{
-				StatusElement ClickElement = MouseDownElement;
+				StatusElement clickElement = _mouseDownElement;
 
-				MouseDownElement.bMouseDown = false;
-				MouseDownElement = null;
+				_mouseDownElement.MouseDown = false;
+				_mouseDownElement = null;
 
-				if(ClickElement.Bounds.Contains(Location))
+				if(clickElement.Bounds.Contains(location))
 				{
-					ClickElement.OnClick(Location);
+					clickElement.OnClick(location);
 				}
 
 				Invalidate();
 			}
 		}
 
-		public override void OnMouseMove(Point Location)
+		public override void OnMouseMove(Point location)
 		{
-			StatusElement? NewMouseOverElement;
-			Line.HitTest(Location, out NewMouseOverElement);
+			StatusElement? newMouseOverElement;
+			Line.HitTest(location, out newMouseOverElement);
 
-			if(MouseOverElement != NewMouseOverElement)
+			if(_mouseOverElement != newMouseOverElement)
 			{
-				if(MouseOverElement != null)
+				if(_mouseOverElement != null)
 				{
 					Cursor = Cursors.Arrow;
-					MouseOverElement.bMouseOver = false;
+					_mouseOverElement.MouseOver = false;
 				}
 
-				MouseOverElement = NewMouseOverElement;
+				_mouseOverElement = newMouseOverElement;
 
-				if(MouseOverElement != null)
+				if(_mouseOverElement != null)
 				{
-					Cursor = MouseOverElement.Cursor;
-					MouseOverElement.bMouseOver = true;
+					Cursor = _mouseOverElement.Cursor;
+					_mouseOverElement.MouseOver = true;
 				}
 
 				Invalidate();
@@ -160,116 +160,116 @@ namespace UnrealGameSync
 
 		public override void OnMouseLeave()
 		{
-			if(MouseOverElement != null)
+			if(_mouseOverElement != null)
 			{
-				MouseOverElement.bMouseOver = false;
-				MouseOverElement = null;
+				_mouseOverElement.MouseOver = false;
+				_mouseOverElement = null;
 
 				Invalidate();
 			}
 		}
 
-		public override void Layout(Graphics Graphics, Rectangle Bounds)
+		public override void Layout(Graphics graphics, Rectangle bounds)
 		{
-			this.Bounds = Bounds;
+			this._bounds = bounds;
 
-			int OffsetY = Bounds.Y + Bounds.Height / 2;
-			Line.Layout(Graphics, new Point(Bounds.X, OffsetY), Resources);
+			int offsetY = bounds.Y + bounds.Height / 2;
+			Line.Layout(graphics, new Point(bounds.X, offsetY), Resources);
 
 			if(HorizontalAlignment == HorizontalAlignment.Center)
 			{
-				int OffsetX = Bounds.X + (Bounds.Width - Line.Bounds.Width) / 2;
-				Line.Layout(Graphics, new Point(OffsetX, OffsetY), Resources);
+				int offsetX = bounds.X + (bounds.Width - Line.Bounds.Width) / 2;
+				Line.Layout(graphics, new Point(offsetX, offsetY), Resources);
 			}
 			else if(HorizontalAlignment == HorizontalAlignment.Right)
 			{
-				int OffsetX = Bounds.Right - Line.Bounds.Width;
-				Line.Layout(Graphics, new Point(OffsetX, OffsetY), Resources);
+				int offsetX = bounds.Right - Line.Bounds.Width;
+				Line.Layout(graphics, new Point(offsetX, offsetY), Resources);
 			}
 		}
 
-		public override void Render(Graphics Graphics)
+		public override void Render(Graphics graphics)
 		{
-			Graphics.IntersectClip(Bounds);
+			graphics.IntersectClip(_bounds);
 
-			Line.Draw(Graphics, Resources);
+			Line.Draw(graphics, Resources);
 		}
 	}
 
 	partial class CustomListViewControl : ListView
 	{
-		VisualStyleRenderer? SelectedItemRenderer;
-		VisualStyleRenderer? TrackedItemRenderer;
+		VisualStyleRenderer? _selectedItemRenderer;
+		VisualStyleRenderer? _trackedItemRenderer;
 		public int HoverItem = -1;
 
-		CustomListViewWidget? MouseOverWidget;
-		CustomListViewWidget? MouseDownWidget;
+		CustomListViewWidget? _mouseOverWidget;
+		CustomListViewWidget? _mouseDownWidget;
 
 		public CustomListViewControl()
 		{
             if (Application.RenderWithVisualStyles) 
             { 
-				SelectedItemRenderer = new VisualStyleRenderer("Explorer::ListView", 1, 3);
-				TrackedItemRenderer = new VisualStyleRenderer("Explorer::ListView", 1, 2); 
+				_selectedItemRenderer = new VisualStyleRenderer("Explorer::ListView", 1, 3);
+				_trackedItemRenderer = new VisualStyleRenderer("Explorer::ListView", 1, 2); 
 			}
 		}
 
-		protected void ConditionalLayoutWidget(CustomListViewWidget Widget)
+		protected void ConditionalLayoutWidget(CustomListViewWidget widget)
 		{
-			if(Widget.Item.Tag == Widget)
+			if(widget.Item.Tag == widget)
 			{
-				Widget.ConditionalLayout(this, Widget.Item.Bounds);
+				widget.ConditionalLayout(this, widget.Item.Bounds);
 			}
 			else
 			{
-				for(int Idx = 0; Idx < Widget.Item.SubItems.Count; Idx++)
+				for(int idx = 0; idx < widget.Item.SubItems.Count; idx++)
 				{
-					ListViewItem.ListViewSubItem SubItem = Widget.Item.SubItems[Idx];
-					if(SubItem.Tag == Widget)
+					ListViewItem.ListViewSubItem subItem = widget.Item.SubItems[idx];
+					if(subItem.Tag == widget)
 					{
-						Rectangle Bounds = SubItem.Bounds;
-						for(int EndIdx = Idx + 1; EndIdx < Widget.Item.SubItems.Count && Widget.Item.SubItems[EndIdx].Tag == Widget; EndIdx++)
+						Rectangle bounds = subItem.Bounds;
+						for(int endIdx = idx + 1; endIdx < widget.Item.SubItems.Count && widget.Item.SubItems[endIdx].Tag == widget; endIdx++)
 						{
-							Rectangle EndBounds = Widget.Item.SubItems[EndIdx].Bounds;
-							Bounds = new Rectangle(Bounds.X, Bounds.Y, EndBounds.Right - Bounds.X, EndBounds.Bottom - Bounds.Y);
+							Rectangle endBounds = widget.Item.SubItems[endIdx].Bounds;
+							bounds = new Rectangle(bounds.X, bounds.Y, endBounds.Right - bounds.X, endBounds.Bottom - bounds.Y);
 						}
-						Widget.ConditionalLayout(this, Bounds);
+						widget.ConditionalLayout(this, bounds);
 						break;
 					}
 				}
 			}
 		}
 
-		protected void ConditionalRedrawWidget(CustomListViewWidget Widget)
+		protected void ConditionalRedrawWidget(CustomListViewWidget widget)
 		{
-			if(Widget.Item.Index != -1 && Widget.RequiresLayout())
+			if(widget.Item.Index != -1 && widget.RequiresLayout())
 			{
-				ConditionalLayoutWidget(Widget);
-				RedrawItems(Widget.Item.Index, Widget.Item.Index, true);
+				ConditionalLayoutWidget(widget);
+				RedrawItems(widget.Item.Index, widget.Item.Index, true);
 			}
 		}
 
-		protected CustomListViewWidget? FindWidget(Point Location)
+		protected CustomListViewWidget? FindWidget(Point location)
 		{
-			return FindWidget(HitTest(Location));
+			return FindWidget(HitTest(location));
 		}
 
-		protected CustomListViewWidget? FindWidget(ListViewHitTestInfo HitTest)
+		protected CustomListViewWidget? FindWidget(ListViewHitTestInfo hitTest)
 		{
-			if(HitTest.Item != null)
+			if(hitTest.Item != null)
 			{
-				CustomListViewWidget? Widget = HitTest.Item.Tag as CustomListViewWidget;
-				if(Widget != null)
+				CustomListViewWidget? widget = hitTest.Item.Tag as CustomListViewWidget;
+				if(widget != null)
 				{
-					return Widget;
+					return widget;
 				}
 			}
-			if(HitTest.SubItem != null)
+			if(hitTest.SubItem != null)
 			{
-				CustomListViewWidget? Widget = HitTest.SubItem.Tag as CustomListViewWidget;
-				if(Widget != null)
+				CustomListViewWidget? widget = hitTest.SubItem.Tag as CustomListViewWidget;
+				if(widget != null)
 				{
-					return Widget;
+					return widget;
 				}
 			}
 			return null;
@@ -279,11 +279,11 @@ namespace UnrealGameSync
 		{
 			base.OnMouseLeave(e);
 
-			if(MouseOverWidget != null)
+			if(_mouseOverWidget != null)
 			{
-				MouseOverWidget.OnMouseLeave();
-				ConditionalRedrawWidget(MouseOverWidget);
-				MouseOverWidget = null;
+				_mouseOverWidget.OnMouseLeave();
+				ConditionalRedrawWidget(_mouseOverWidget);
+				_mouseOverWidget = null;
 				Invalidate();
 			}
 
@@ -298,25 +298,25 @@ namespace UnrealGameSync
 		{
 			base.OnMouseDown(e);
 
-			if(MouseDownWidget != null)
+			if(_mouseDownWidget != null)
 			{
-				MouseDownWidget.OnMouseUp(e.Location);
-				ConditionalRedrawWidget(MouseDownWidget);
+				_mouseDownWidget.OnMouseUp(e.Location);
+				ConditionalRedrawWidget(_mouseDownWidget);
 			}
 
 			if((e.Button & MouseButtons.Left) != 0)
 			{
-				MouseDownWidget = FindWidget(e.Location);
+				_mouseDownWidget = FindWidget(e.Location);
 			}
 			else
 			{
-				MouseDownWidget = null;
+				_mouseDownWidget = null;
 			}
 
-			if(MouseDownWidget != null)
+			if(_mouseDownWidget != null)
 			{
-				MouseDownWidget.OnMouseDown(e.Location);
-				ConditionalRedrawWidget(MouseDownWidget);
+				_mouseDownWidget.OnMouseDown(e.Location);
+				ConditionalRedrawWidget(_mouseDownWidget);
 			}
 		}
 
@@ -324,78 +324,78 @@ namespace UnrealGameSync
 		{
 			base.OnMouseUp(e);
 
-			if(MouseDownWidget != null)
+			if(_mouseDownWidget != null)
 			{
-				CustomListViewWidget Widget = MouseDownWidget;
-				MouseDownWidget = null;
+				CustomListViewWidget widget = _mouseDownWidget;
+				_mouseDownWidget = null;
 
-				Widget.OnMouseUp(e.Location);
-				ConditionalRedrawWidget(Widget);
+				widget.OnMouseUp(e.Location);
+				ConditionalRedrawWidget(widget);
 			}
 		}
 
 		protected override void OnMouseMove(MouseEventArgs e)
 		{
-			ListViewHitTestInfo HitTest = this.HitTest(e.Location);
+			ListViewHitTestInfo hitTest = this.HitTest(e.Location);
 
-			CustomListViewWidget? NewMouseOverWidget = FindWidget(HitTest);
-			if(MouseOverWidget != null && MouseOverWidget != NewMouseOverWidget)
+			CustomListViewWidget? newMouseOverWidget = FindWidget(hitTest);
+			if(_mouseOverWidget != null && _mouseOverWidget != newMouseOverWidget)
 			{
 				Cursor = Cursors.Arrow;
-				MouseOverWidget.OnMouseLeave();
-				ConditionalRedrawWidget(MouseOverWidget);
+				_mouseOverWidget.OnMouseLeave();
+				ConditionalRedrawWidget(_mouseOverWidget);
 			}
-			MouseOverWidget = NewMouseOverWidget;
-			if(MouseOverWidget != null)
+			_mouseOverWidget = newMouseOverWidget;
+			if(_mouseOverWidget != null)
 			{
-				Cursor = MouseOverWidget.Cursor;
-				MouseOverWidget.OnMouseMove(e.Location);
-				ConditionalRedrawWidget(MouseOverWidget);
+				Cursor = _mouseOverWidget.Cursor;
+				_mouseOverWidget.OnMouseMove(e.Location);
+				ConditionalRedrawWidget(_mouseOverWidget);
 			}
 
-			int PrevHoverItem = HoverItem;
-			HoverItem = (HitTest.Item == null)? -1 : HitTest.Item.Index;
-			if(HoverItem != PrevHoverItem)
+			int prevHoverItem = HoverItem;
+			HoverItem = (hitTest.Item == null)? -1 : hitTest.Item.Index;
+			if(HoverItem != prevHoverItem)
 			{
 				if(HoverItem != -1)
 				{
 					RedrawItems(HoverItem, HoverItem, true);
 				}
-				if(PrevHoverItem != -1 && PrevHoverItem < Items.Count)
+				if(prevHoverItem != -1 && prevHoverItem < Items.Count)
 				{
-					RedrawItems(PrevHoverItem, PrevHoverItem, true);
+					RedrawItems(prevHoverItem, prevHoverItem, true);
 				}
 			}
 
 			base.OnMouseMove(e);
 		}
-		public void DrawText(Graphics Graphics, Rectangle Bounds, HorizontalAlignment TextAlign, Color TextColor, string Text)
+		public void DrawText(Graphics graphics, Rectangle bounds, HorizontalAlignment textAlign, Color textColor, string text)
 		{
-			TextFormatFlags Flags = TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix;
-			if (TextAlign == HorizontalAlignment.Left)
+			TextFormatFlags flags = TextFormatFlags.EndEllipsis | TextFormatFlags.SingleLine | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPrefix;
+			if (textAlign == HorizontalAlignment.Left)
 			{
-				Flags |= TextFormatFlags.Left;
+				flags |= TextFormatFlags.Left;
 			}
-			else if (TextAlign == HorizontalAlignment.Center)
+			else if (textAlign == HorizontalAlignment.Center)
 			{
-				Flags |= TextFormatFlags.HorizontalCenter;
+				flags |= TextFormatFlags.HorizontalCenter;
 			}
 			else
 			{
-				Flags |= TextFormatFlags.Right;
+				flags |= TextFormatFlags.Right;
 			}
-			TextRenderer.DrawText(Graphics, Text, Font, Bounds, TextColor, Flags);
+			TextRenderer.DrawText(graphics, text, Font, bounds, textColor, flags);
 		}
 
-		public void DrawIcon(Graphics Graphics, Rectangle Bounds, Rectangle Icon)
+		public void DrawIcon(Graphics graphics, Rectangle bounds, Rectangle icon)
 		{
-			float DpiScaleX = Graphics.DpiX / 96.0f;
-			float DpiScaleY = Graphics.DpiY / 96.0f;
+			float dpiScaleX = graphics.DpiX / 96.0f;
+			float dpiScaleY = graphics.DpiY / 96.0f;
 
-			float IconX = Bounds.Left + (Bounds.Width - 16 * DpiScaleX) / 2;
-			float IconY = Bounds.Top + (Bounds.Height - 16 * DpiScaleY) / 2;
+			float iconX = bounds.Left + (bounds.Width - 16 * dpiScaleX) / 2;
+			float iconY = bounds.Top + (bounds.Height - 16 * dpiScaleY) / 2;
 
-			Graphics.DrawImage(Properties.Resources.Icons, IconX, IconY, Icon, GraphicsUnit.Pixel);
+			graphics.DrawImage(Properties.Resources.Icons, iconX, iconY, icon, GraphicsUnit.Pixel);
 		}
 
 		public void DrawNormalSubItem(DrawListViewSubItemEventArgs e)
@@ -403,19 +403,19 @@ namespace UnrealGameSync
 			DrawText(e.Graphics, e.SubItem.Bounds, Columns[e.ColumnIndex].TextAlign, SystemColors.WindowText, e.SubItem.Text);
 		}
 
-		public void DrawCustomSubItem(Graphics Graphics, ListViewItem.ListViewSubItem SubItem)
+		public void DrawCustomSubItem(Graphics graphics, ListViewItem.ListViewSubItem subItem)
 		{
-			CustomListViewWidget? Widget = SubItem.Tag as CustomListViewWidget;
-			if(Widget != null)
+			CustomListViewWidget? widget = subItem.Tag as CustomListViewWidget;
+			if(widget != null)
 			{
-				foreach(ListViewItem.ListViewSubItem? OtherSubItem in Widget.Item.SubItems)
+				foreach(ListViewItem.ListViewSubItem? otherSubItem in widget.Item.SubItems)
 				{
-					if(OtherSubItem != null && OtherSubItem.Tag == Widget)
+					if(otherSubItem != null && otherSubItem.Tag == widget)
 					{
-						if(OtherSubItem == SubItem)
+						if(otherSubItem == subItem)
 						{
-							ConditionalLayoutWidget(Widget);
-							Widget.Render(Graphics);
+							ConditionalLayoutWidget(widget);
+							widget.Render(graphics);
 						}
 						break;
 					}
@@ -423,48 +423,48 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void DrawBackground(Graphics Graphics, ListViewItem Item)
+		public void DrawBackground(Graphics graphics, ListViewItem item)
 		{
-			if(Item.Selected)
+			if(item.Selected)
 			{
-				DrawSelectedBackground(Graphics, Item.Bounds);
+				DrawSelectedBackground(graphics, item.Bounds);
 			}
-			else if(Item.Index == HoverItem)
+			else if(item.Index == HoverItem)
 			{
-				DrawTrackedBackground(Graphics, Item.Bounds);
+				DrawTrackedBackground(graphics, item.Bounds);
 			}
 			else
 			{
-				DrawDefaultBackground(Graphics, Item.Bounds);
+				DrawDefaultBackground(graphics, item.Bounds);
 			}
 		}
 
-		public void DrawDefaultBackground(Graphics Graphics, Rectangle Bounds)
+		public void DrawDefaultBackground(Graphics graphics, Rectangle bounds)
 		{
-			Graphics.FillRectangle(SystemBrushes.Window, Bounds);
+			graphics.FillRectangle(SystemBrushes.Window, bounds);
 		}
 
-		public void DrawSelectedBackground(Graphics Graphics, Rectangle Bounds)
+		public void DrawSelectedBackground(Graphics graphics, Rectangle bounds)
 		{
-			if (SelectedItemRenderer != null)
+			if (_selectedItemRenderer != null)
 			{
-				SelectedItemRenderer.DrawBackground(Graphics, Bounds);
+				_selectedItemRenderer.DrawBackground(graphics, bounds);
 			}
 			else
 			{
-				Graphics.FillRectangle(SystemBrushes.ButtonFace, Bounds);
+				graphics.FillRectangle(SystemBrushes.ButtonFace, bounds);
 			}
 		}
 
-		public void DrawTrackedBackground(Graphics Graphics, Rectangle Bounds)
+		public void DrawTrackedBackground(Graphics graphics, Rectangle bounds)
 		{
-			if (TrackedItemRenderer != null)
+			if (_trackedItemRenderer != null)
 			{
-				TrackedItemRenderer.DrawBackground(Graphics, Bounds);
+				_trackedItemRenderer.DrawBackground(graphics, bounds);
 			}
 			else
 			{
-				Graphics.FillRectangle(SystemBrushes.Window, Bounds);
+				graphics.FillRectangle(SystemBrushes.Window, bounds);
 			}
 		}
 	}

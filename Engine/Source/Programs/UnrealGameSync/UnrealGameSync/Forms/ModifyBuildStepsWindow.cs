@@ -16,29 +16,29 @@ namespace UnrealGameSync
 {
 	partial class ModifyBuildStepsWindow : Form
 	{
-		List<string> TargetNames;
-		List<BuildStep> Steps;
-		HashSet<Guid> ProjectSteps;
-		DirectoryReference BaseDirectory;
-		ListViewItem.ListViewSubItem? MouseDownSubItem = null;
-		IReadOnlyDictionary<string, string> Variables;
+		List<string> _targetNames;
+		List<BuildStep> _steps;
+		HashSet<Guid> _projectSteps;
+		DirectoryReference _baseDirectory;
+		ListViewItem.ListViewSubItem? _mouseDownSubItem = null;
+		IReadOnlyDictionary<string, string> _variables;
 
-		public ModifyBuildStepsWindow(List<string> InTargetNames, List<BuildStep> InSteps, HashSet<Guid> InProjectSteps, DirectoryReference InBaseDirectory, IReadOnlyDictionary<string, string> InVariables)
+		public ModifyBuildStepsWindow(List<string> inTargetNames, List<BuildStep> inSteps, HashSet<Guid> inProjectSteps, DirectoryReference inBaseDirectory, IReadOnlyDictionary<string, string> inVariables)
 		{
-			TargetNames = InTargetNames;
-			Steps = InSteps;
-			ProjectSteps = InProjectSteps;
-			BaseDirectory = InBaseDirectory;
-			Variables = InVariables;
+			_targetNames = inTargetNames;
+			_steps = inSteps;
+			_projectSteps = inProjectSteps;
+			_baseDirectory = inBaseDirectory;
+			_variables = inVariables;
 
 			InitializeComponent();
 
-			using(Graphics Graphics = Graphics.FromHwnd(IntPtr.Zero))
+			using(Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
 			{
-				float DpiScaleX = Graphics.DpiX / 96.0f;
+				float dpiScaleX = graphics.DpiX / 96.0f;
 
-				NormalSyncColumn.Width = (int)(104 * DpiScaleX);
-				ScheduledSyncColumn.Width = (int)(104 * DpiScaleX);
+				NormalSyncColumn.Width = (int)(104 * dpiScaleX);
+				ScheduledSyncColumn.Width = (int)(104 * dpiScaleX);
 				DescriptionColumn.Width = BuildStepList.ClientSize.Width - NormalSyncColumn.Width - ScheduledSyncColumn.Width - 10;
 			}
 
@@ -47,44 +47,44 @@ namespace UnrealGameSync
 
 		private void ModifyBuildStepsWindow_Load(object sender, EventArgs e)
 		{
-			foreach(BuildStep Task in Steps)
+			foreach(BuildStep task in _steps)
 			{
-				AddTask(Task);
+				AddTask(task);
 			}
 			UpdateEnabledButtons();
 		}
 
-		void AddTask(BuildStep Task)
+		void AddTask(BuildStep task)
 		{
-			ListViewItem Item = new ListViewItem(Task.Description);
-			Item.Tag = Task;
-			Item.SubItems.Add(new ListViewItem.ListViewSubItem());
-			Item.SubItems.Add(new ListViewItem.ListViewSubItem());
-			BuildStepList.Items.Add(Item);
+			ListViewItem item = new ListViewItem(task.Description);
+			item.Tag = task;
+			item.SubItems.Add(new ListViewItem.ListViewSubItem());
+			item.SubItems.Add(new ListViewItem.ListViewSubItem());
+			BuildStepList.Items.Add(item);
 		}
 
 		private void NewStepButton_Click(object sender, EventArgs e)
 		{
-			BuildStep NewStep = new BuildStep(Guid.NewGuid(), BuildStepList.Items.Count, "Untitled Step", "Running Untitled Step...", 1, null, null, null, null, true);
-			NewStep.Description = "Untitled Task";
-			NewStep.EstimatedDuration = 1;
+			BuildStep newStep = new BuildStep(Guid.NewGuid(), BuildStepList.Items.Count, "Untitled Step", "Running Untitled Step...", 1, null, null, null, null, true);
+			newStep.Description = "Untitled Task";
+			newStep.EstimatedDuration = 1;
 
-			BuildStepWindow NewStepWindow = new BuildStepWindow(NewStep, TargetNames, BaseDirectory, Variables);
-			if(NewStepWindow.ShowDialog() == DialogResult.OK)
+			BuildStepWindow newStepWindow = new BuildStepWindow(newStep, _targetNames, _baseDirectory, _variables);
+			if(newStepWindow.ShowDialog() == DialogResult.OK)
 			{
-				AddTask(NewStep);
+				AddTask(newStep);
 			}
 		}
 
 		private void EditStepButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? item in BuildStepList.SelectedItems)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					BuildStepWindow EditStep = new BuildStepWindow((BuildStep)Item.Tag, TargetNames, BaseDirectory, Variables);
-					EditStep.ShowDialog();
-					Item.Text = ((BuildStep)Item.Tag).Description;
+					BuildStepWindow editStep = new BuildStepWindow((BuildStep)item.Tag, _targetNames, _baseDirectory, _variables);
+					editStep.ShowDialog();
+					item.Text = ((BuildStep)item.Tag).Description;
 					break;
 				}
 			}
@@ -92,13 +92,13 @@ namespace UnrealGameSync
 
 		private void RemoveStepButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? item in BuildStepList.SelectedItems)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					if (MessageBox.Show(String.Format("Remove the '{0}' step?", Item.Text), "Remove Step", MessageBoxButtons.YesNo) == DialogResult.Yes)
+					if (MessageBox.Show(String.Format("Remove the '{0}' step?", item.Text), "Remove Step", MessageBoxButtons.YesNo) == DialogResult.Yes)
 					{
-						BuildStepList.Items.Remove(Item);
+						BuildStepList.Items.Remove(item);
 					}
 					break;
 				}
@@ -107,12 +107,12 @@ namespace UnrealGameSync
 
 		private void CloseButton_Click(object sender, EventArgs e)
 		{
-			Steps.Clear();
-			foreach(ListViewItem? Item in BuildStepList.Items)
+			_steps.Clear();
+			foreach(ListViewItem? item in BuildStepList.Items)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					Steps.Add((BuildStep)Item.Tag);
+					_steps.Add((BuildStep)item.Tag);
 				}
 			}
 			Close();
@@ -120,14 +120,14 @@ namespace UnrealGameSync
 
 		private void UpdateEnabledButtons()
 		{
-			int SelectedIndex = (BuildStepList.SelectedIndices.Count > 0)? BuildStepList.SelectedIndices[0] : -1;
+			int selectedIndex = (BuildStepList.SelectedIndices.Count > 0)? BuildStepList.SelectedIndices[0] : -1;
 
-			bool bHasSelection = (SelectedIndex != -1);
-			EditStepButton.Enabled = bHasSelection;
-			RemoveStepButton.Enabled = bHasSelection && !ProjectSteps.Contains(((BuildStep)BuildStepList.SelectedItems[0].Tag).UniqueId);
+			bool hasSelection = (selectedIndex != -1);
+			EditStepButton.Enabled = hasSelection;
+			RemoveStepButton.Enabled = hasSelection && !_projectSteps.Contains(((BuildStep)BuildStepList.SelectedItems[0].Tag).UniqueId);
 
-			MoveUp.Enabled = (SelectedIndex >= 1);
-			MoveDown.Enabled = (SelectedIndex >= 0 && SelectedIndex < BuildStepList.Items.Count - 1);
+			MoveUp.Enabled = (selectedIndex >= 1);
+			MoveDown.Enabled = (selectedIndex >= 0 && selectedIndex < BuildStepList.Items.Count - 1);
 		}
 
 		private void BuildStepList_SelectedIndexChanged(object sender, EventArgs e)
@@ -149,85 +149,85 @@ namespace UnrealGameSync
 			}
 			else
 			{
-				BuildStep Task = (BuildStep)e.Item.Tag;
+				BuildStep task = (BuildStep)e.Item.Tag;
 
-				bool bEnabled;
+				bool enabled;
 				if(e.ColumnIndex == 1)
 				{
-					bEnabled = Task.bNormalSync;
+					enabled = task.NormalSync;
 				}
 				else
 				{
-					bEnabled = Task.bScheduledSync;
+					enabled = task.ScheduledSync;
 				}
 
-				bool Selected = BuildStepList.SelectedItems.Contains(e.Item);
-				e.Graphics.FillRectangle(Selected? SystemBrushes.Highlight : SystemBrushes.Window, e.Bounds);
+				bool selected = BuildStepList.SelectedItems.Contains(e.Item);
+				e.Graphics.FillRectangle(selected? SystemBrushes.Highlight : SystemBrushes.Window, e.Bounds);
 
-				CheckBoxState State;
-				if(bEnabled)
+				CheckBoxState state;
+				if(enabled)
 				{
-					State = (MouseDownSubItem == e.SubItem)? CheckBoxState.CheckedPressed : CheckBoxState.CheckedNormal;
+					state = (_mouseDownSubItem == e.SubItem)? CheckBoxState.CheckedPressed : CheckBoxState.CheckedNormal;
 				}
 				else
 				{
-					State = (MouseDownSubItem == e.SubItem)? CheckBoxState.UncheckedPressed : CheckBoxState.UncheckedNormal;
+					state = (_mouseDownSubItem == e.SubItem)? CheckBoxState.UncheckedPressed : CheckBoxState.UncheckedNormal;
 				}
 				
-				Size Size = CheckBoxRenderer.GetGlyphSize(e.Graphics, State);
-				CheckBoxRenderer.DrawCheckBox(e.Graphics, new Point(e.Bounds.Left + (e.Bounds.Width - Size.Width) / 2, e.Bounds.Top + (e.Bounds.Height - Size.Height) / 2), State);
+				Size size = CheckBoxRenderer.GetGlyphSize(e.Graphics, state);
+				CheckBoxRenderer.DrawCheckBox(e.Graphics, new Point(e.Bounds.Left + (e.Bounds.Width - size.Width) / 2, e.Bounds.Top + (e.Bounds.Height - size.Height) / 2), state);
 			}
 		}
 
 		private void BuildStepList_MouseDown(object sender, MouseEventArgs e)
 		{
-			ListViewHitTestInfo HitTest = BuildStepList.HitTest(e.X, e.Y);
-			MouseDownSubItem = HitTest.SubItem;
-			if(MouseDownSubItem != null)
+			ListViewHitTestInfo hitTest = BuildStepList.HitTest(e.X, e.Y);
+			_mouseDownSubItem = hitTest.SubItem;
+			if(_mouseDownSubItem != null)
 			{
-				BuildStepList.Invalidate(MouseDownSubItem.Bounds, true);
+				BuildStepList.Invalidate(_mouseDownSubItem.Bounds, true);
 			}
 		}
 
 		private void BuildStepList_MouseUp(object sender, MouseEventArgs e)
 		{
-			ListViewHitTestInfo HitTest = BuildStepList.HitTest(e.X, e.Y);
-			if(HitTest.Item != null && HitTest.SubItem != null)
+			ListViewHitTestInfo hitTest = BuildStepList.HitTest(e.X, e.Y);
+			if(hitTest.Item != null && hitTest.SubItem != null)
 			{
-				int ColumnIndex = HitTest.Item.SubItems.IndexOf(HitTest.SubItem);
-				if(ColumnIndex >= 1 && ColumnIndex <= 3)
+				int columnIndex = hitTest.Item.SubItems.IndexOf(hitTest.SubItem);
+				if(columnIndex >= 1 && columnIndex <= 3)
 				{
-					BuildStep Task = (BuildStep)HitTest.Item.Tag;
-					if(ColumnIndex == 1)
+					BuildStep task = (BuildStep)hitTest.Item.Tag;
+					if(columnIndex == 1)
 					{
-						Task.bNormalSync ^= true;
+						task.NormalSync ^= true;
 					}
 					else
 					{
-						Task.bScheduledSync ^= true;
+						task.ScheduledSync ^= true;
 					}
-					BuildStepList.Invalidate(HitTest.SubItem.Bounds);
+					BuildStepList.Invalidate(hitTest.SubItem.Bounds);
 				}
 			}
-			if(MouseDownSubItem != null)
+			if(_mouseDownSubItem != null)
 			{
-				BuildStepList.Invalidate(MouseDownSubItem.Bounds);
-				MouseDownSubItem = null;
+				BuildStepList.Invalidate(_mouseDownSubItem.Bounds);
+				_mouseDownSubItem = null;
 			}
 		}
 
 		private void MoveUp_Click(object sender, EventArgs e)
 		{
 			BuildStepList.BeginUpdate();
-			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? item in BuildStepList.SelectedItems)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					int Index = Item.Index;
-					if (Index > 0)
+					int index = item.Index;
+					if (index > 0)
 					{
-						BuildStepList.Items.RemoveAt(Index);
-						BuildStepList.Items.Insert(Index - 1, Item);
+						BuildStepList.Items.RemoveAt(index);
+						BuildStepList.Items.Insert(index - 1, item);
 					}
 					break;
 				}
@@ -239,15 +239,15 @@ namespace UnrealGameSync
 		private void MoveDown_Click(object sender, EventArgs e)
 		{
 			BuildStepList.BeginUpdate();
-			foreach(ListViewItem? Item in BuildStepList.SelectedItems)
+			foreach(ListViewItem? item in BuildStepList.SelectedItems)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					int Index = Item.Index;
-					if (Index < BuildStepList.Items.Count - 1)
+					int index = item.Index;
+					if (index < BuildStepList.Items.Count - 1)
 					{
-						BuildStepList.Items.RemoveAt(Index);
-						BuildStepList.Items.Insert(Index + 1, Item);
+						BuildStepList.Items.RemoveAt(index);
+						BuildStepList.Items.Insert(index + 1, item);
 					}
 					break;
 				}
@@ -258,14 +258,14 @@ namespace UnrealGameSync
 
 		private void ModifyBuildStepsWindow_FormClosed(object sender, FormClosedEventArgs e)
 		{
-			Steps.Clear();
-			foreach(ListViewItem? Item in BuildStepList.Items)
+			_steps.Clear();
+			foreach(ListViewItem? item in BuildStepList.Items)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					BuildStep Step = (BuildStep)Item.Tag;
-					Step.OrderIndex = Steps.Count;
-					Steps.Add(Step);
+					BuildStep step = (BuildStep)item.Tag;
+					step.OrderIndex = _steps.Count;
+					_steps.Add(step);
 				}
 			}
 		}

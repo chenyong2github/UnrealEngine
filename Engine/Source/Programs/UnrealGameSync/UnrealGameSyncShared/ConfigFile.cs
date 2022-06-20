@@ -27,55 +27,55 @@ namespace UnrealGameSync
 			Pairs = new List<KeyValuePair<string,string>>();
 		}
 
-		public ConfigObject(ConfigObject Other)
+		public ConfigObject(ConfigObject other)
 		{
-			Pairs = new List<KeyValuePair<string,string>>(Other.Pairs);
+			Pairs = new List<KeyValuePair<string,string>>(other.Pairs);
 		}
 
-		public ConfigObject(string Text)
+		public ConfigObject(string text)
 		{
 			Pairs = new List<KeyValuePair<string,string>>();
-			ParseConfigString(Text);
+			ParseConfigString(text);
 		}
 
-		public ConfigObject(ConfigObject BaseObject, string Text)
+		public ConfigObject(ConfigObject baseObject, string text)
 		{
-			Pairs = new List<KeyValuePair<string,string>>(BaseObject.Pairs);
-			ParseConfigString(Text);
+			Pairs = new List<KeyValuePair<string,string>>(baseObject.Pairs);
+			ParseConfigString(text);
 		}
 
-		void ParseConfigString(string Text)
+		void ParseConfigString(string text)
 		{
-			int Idx = 0;
-			if(ParseConfigToken(Text, ref Idx) == "(")
+			int idx = 0;
+			if(ParseConfigToken(text, ref idx) == "(")
 			{
-				while(Idx < Text.Length)
+				while(idx < text.Length)
 				{
 					// Read the next key/value pair
-					string? Key = ParseConfigToken(Text, ref Idx);
-					if (Key == null)
+					string? key = ParseConfigToken(text, ref idx);
+					if (key == null)
 					{
 						return;
 					}
-					if(ParseConfigToken(Text, ref Idx) == "=")
+					if(ParseConfigToken(text, ref idx) == "=")
 					{
-						string? Value = ParseConfigValueToken(Text, ref Idx);
-						if (Value == null)
+						string? value = ParseConfigValueToken(text, ref idx);
+						if (value == null)
 						{
 							return;
 						}
-						SetValue(Key, Value);
+						SetValue(key, value);
 					}
 
 					// Check for the end of the list, or a comma before the next pair
 					for(;;)
 					{
-						string? Token = ParseConfigValueToken(Text, ref Idx);
-						if(Token == ",")
+						string? token = ParseConfigValueToken(text, ref idx);
+						if(token == ",")
 						{
 							break;
 						}
-						if(Token == ")" || Token == null)
+						if(token == ")" || token == null)
 						{
 							return;
 						}
@@ -84,215 +84,215 @@ namespace UnrealGameSync
 			}
 		}
 
-		static string? ParseConfigToken(string Text, ref int Idx)
+		static string? ParseConfigToken(string text, ref int idx)
 		{
 			// Skip whitespace
-			while(Idx < Text.Length && Char.IsWhiteSpace(Text[Idx]))
+			while(idx < text.Length && Char.IsWhiteSpace(text[idx]))
 			{
-				Idx++;
+				idx++;
 			}
-			if(Idx == Text.Length)
+			if(idx == text.Length)
 			{
 				return null;
 			}
 
 			// Read the token
-			if (Text[Idx] == '\"')
+			if (text[idx] == '\"')
 			{
-				StringBuilder Token = new StringBuilder();
-				while (++Idx < Text.Length)
+				StringBuilder token = new StringBuilder();
+				while (++idx < text.Length)
 				{
-					if (Text[Idx] == '\"')
+					if (text[idx] == '\"')
 					{
-						Idx++;
+						idx++;
 						break;
 					}
-					if (Text[Idx] == '\\' && Idx + 1 < Text.Length)
+					if (text[idx] == '\\' && idx + 1 < text.Length)
 					{
-						Idx++;
+						idx++;
 					}
-					Token.Append(Text[Idx]);
+					token.Append(text[idx]);
 				}
-				return Token.ToString();
+				return token.ToString();
 			}
-			else if (ConfigSeparatorCharacters.IndexOf(Text[Idx]) != -1)
+			else if (ConfigSeparatorCharacters.IndexOf(text[idx]) != -1)
 			{
-				return Text[Idx++].ToString();
+				return text[idx++].ToString();
 			}
 			else
 			{
-				int StartIdx = Idx;
-				while (Idx < Text.Length && ConfigSeparatorCharacters.IndexOf(Text[Idx]) == -1)
+				int startIdx = idx;
+				while (idx < text.Length && ConfigSeparatorCharacters.IndexOf(text[idx]) == -1)
 				{
-					Idx++;
+					idx++;
 				}
-				return Text.Substring(StartIdx, Idx - StartIdx);
+				return text.Substring(startIdx, idx - startIdx);
 			}
 		}
 
-		static string? ParseConfigValueToken(string Text, ref int Idx)
+		static string? ParseConfigValueToken(string text, ref int idx)
 		{
-			string? Token = ParseConfigToken(Text, ref Idx);
-			if (Token == "(")
+			string? token = ParseConfigToken(text, ref idx);
+			if (token == "(")
 			{
-				int StartIdx = Idx - 1;
+				int startIdx = idx - 1;
 				for (; ; )
 				{
-					string? NextToken = ParseConfigValueToken(Text, ref Idx);
-					if (NextToken == null || NextToken == ")")
+					string? nextToken = ParseConfigValueToken(text, ref idx);
+					if (nextToken == null || nextToken == ")")
 					{
 						break;
 					}
 				}
-				Token = Text.Substring(StartIdx, Idx - StartIdx);
+				token = text.Substring(startIdx, idx - startIdx);
 			}
-			return Token;
+			return token;
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public string? GetValue(string Key, string? DefaultValue = null)
+		[return: NotNullIfNotNull("defaultValue")]
+		public string? GetValue(string key, string? defaultValue = null)
 		{
-			for(int Idx = 0; Idx < Pairs.Count; Idx++)
+			for(int idx = 0; idx < Pairs.Count; idx++)
 			{
-				if(Pairs[Idx].Key.Equals(Key, StringComparison.InvariantCultureIgnoreCase))
+				if(Pairs[idx].Key.Equals(key, StringComparison.InvariantCultureIgnoreCase))
 				{
-					return Pairs[Idx].Value;
+					return Pairs[idx].Value;
 				}
 			}
-			return DefaultValue;
+			return defaultValue;
 		}
 
-		public Guid GetValue(string Key, Guid DefaultValue)
+		public Guid GetValue(string key, Guid defaultValue)
 		{
-			string? StringValue = GetValue(Key);
-			if(StringValue != null)
+			string? stringValue = GetValue(key);
+			if(stringValue != null)
 			{
-				Guid Value;
-				if(Guid.TryParse(StringValue, out Value))
+				Guid value;
+				if(Guid.TryParse(stringValue, out value))
 				{
-					return Value;
+					return value;
 				}
 			}
-			return DefaultValue;
+			return defaultValue;
 		}
 
-		public int GetValue(string Key, int DefaultValue)
+		public int GetValue(string key, int defaultValue)
 		{
-			string? StringValue = GetValue(Key);
-			if(StringValue != null)
+			string? stringValue = GetValue(key);
+			if(stringValue != null)
 			{
-				int Value;
-				if(int.TryParse(StringValue, out Value))
+				int value;
+				if(int.TryParse(stringValue, out value))
 				{
-					return Value;
+					return value;
 				}
 			}
-			return DefaultValue;
+			return defaultValue;
 		}
 
-		public bool GetValue(string Key, bool DefaultValue)
+		public bool GetValue(string key, bool defaultValue)
 		{
-			string? StringValue = GetValue(Key);
-			if(StringValue != null)
+			string? stringValue = GetValue(key);
+			if(stringValue != null)
 			{
-				bool Value;
-				if(bool.TryParse(StringValue, out Value))
+				bool value;
+				if(bool.TryParse(stringValue, out value))
 				{
-					return Value;
+					return value;
 				}
 			}
-			return DefaultValue;
+			return defaultValue;
 		}
 
-		public void SetValue(string Key, string? Value)
+		public void SetValue(string key, string? value)
 		{
-			if (Value == null)
+			if (value == null)
 			{
-				Pairs.RemoveAll(x => x.Key.Equals(Key, StringComparison.OrdinalIgnoreCase));
+				Pairs.RemoveAll(x => x.Key.Equals(key, StringComparison.OrdinalIgnoreCase));
 			}
 			else
 			{
-				for (int Idx = 0; Idx < Pairs.Count; Idx++)
+				for (int idx = 0; idx < Pairs.Count; idx++)
 				{
-					if (Pairs[Idx].Key.Equals(Key, StringComparison.OrdinalIgnoreCase))
+					if (Pairs[idx].Key.Equals(key, StringComparison.OrdinalIgnoreCase))
 					{
-						Pairs[Idx] = new KeyValuePair<string, string>(Key, Value);
+						Pairs[idx] = new KeyValuePair<string, string>(key, value);
 						return;
 					}
 				}
-				Pairs.Add(new KeyValuePair<string, string>(Key, Value));
+				Pairs.Add(new KeyValuePair<string, string>(key, value));
 			}
 		}
 
-		public void SetValue(string Key, Guid Value)
+		public void SetValue(string key, Guid value)
 		{
-			SetValue(Key, Value.ToString());
+			SetValue(key, value.ToString());
 		}
 
-		public void SetValue(string Key, int Value)
+		public void SetValue(string key, int value)
 		{
-			SetValue(Key, Value.ToString());
+			SetValue(key, value.ToString());
 		}
 
-		public void SetValue(string Key, bool Value)
+		public void SetValue(string key, bool value)
 		{
-			SetValue(Key, Value.ToString());
+			SetValue(key, value.ToString());
 		}
 
-		public string? this[string Key]
+		public string? this[string key]
 		{
-			get { return GetValue(Key); }
-			set { SetValue(Key, value); }
+			get { return GetValue(key); }
+			set { SetValue(key, value); }
 		}
 
-		public void SetDefaults(ConfigObject Other)
+		public void SetDefaults(ConfigObject other)
 		{
-			foreach(KeyValuePair<string, string> Pair in Other.Pairs)
+			foreach(KeyValuePair<string, string> pair in other.Pairs)
 			{
-				if(GetValue(Pair.Key) == null)
+				if(GetValue(pair.Key) == null)
 				{
-					SetValue(Pair.Key, Pair.Value);
+					SetValue(pair.Key, pair.Value);
 				}
 			}
 		}
 
-		public void AddOverrides(ConfigObject Object, ConfigObject? DefaultObject)
+		public void AddOverrides(ConfigObject obj, ConfigObject? defaultObject)
 		{
-			foreach(KeyValuePair<string, string> Pair in Object.Pairs)
+			foreach(KeyValuePair<string, string> pair in obj.Pairs)
 			{
-				if(DefaultObject == null || DefaultObject.GetValue(Pair.Key) != Pair.Value)
+				if(defaultObject == null || defaultObject.GetValue(pair.Key) != pair.Value)
 				{
-					SetValue(Pair.Key, Pair.Value);
+					SetValue(pair.Key, pair.Value);
 				}
 			}
 		}
 
-		public string ToString(ConfigObject? BaseObject)
+		public string ToString(ConfigObject? baseObject)
 		{
-			StringBuilder Result = new StringBuilder();
-			Result.Append("(");
-			foreach(KeyValuePair<string, string> Pair in Pairs)
+			StringBuilder result = new StringBuilder();
+			result.Append("(");
+			foreach(KeyValuePair<string, string> pair in Pairs)
 			{
-				if(BaseObject == null || BaseObject.GetValue(Pair.Key) != Pair.Value)
+				if(baseObject == null || baseObject.GetValue(pair.Key) != pair.Value)
 				{
-					if(Result.Length > 1)
+					if(result.Length > 1)
 					{
-						Result.Append(", ");
+						result.Append(", ");
 					}
-					Result.Append(Pair.Key);
-					Result.Append("=");
-					if(Pair.Value == null)
+					result.Append(pair.Key);
+					result.Append("=");
+					if(pair.Value == null)
 					{
-						Result.Append("\"\"");
+						result.Append("\"\"");
 					}
 					else
 					{
-						Result.AppendFormat("\"{0}\"", Pair.Value.Replace("\\", "\\\\").Replace("\"", "\\\""));
+						result.AppendFormat("\"{0}\"", pair.Value.Replace("\\", "\\\\").Replace("\"", "\\\""));
 					}
 				}
 			}
-			Result.Append(")");
-			return Result.ToString();
+			result.Append(")");
+			return result.ToString();
 		}
  
 		public override string ToString()
@@ -303,34 +303,34 @@ namespace UnrealGameSync
 
 	public class ConfigObjectJsonConverter : JsonConverter<ConfigObject>
 	{
-		public override ConfigObject Read(ref Utf8JsonReader Reader, Type TypeToConvert, JsonSerializerOptions Options)
+		public override ConfigObject Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
 		{
-			ConfigObject Object = new ConfigObject();
-			if (Reader.TokenType == JsonTokenType.StartObject)
+			ConfigObject obj = new ConfigObject();
+			if (reader.TokenType == JsonTokenType.StartObject)
 			{
-				while (Reader.Read() && Reader.TokenType == JsonTokenType.PropertyName)
+				while (reader.Read() && reader.TokenType == JsonTokenType.PropertyName)
 				{
-					string Name = Reader.GetString();
-					Reader.Read();
-					string Value = Reader.GetString();
-					Object.Pairs.Add(KeyValuePair.Create(Name, Value));
+					string name = reader.GetString();
+					reader.Read();
+					string value = reader.GetString();
+					obj.Pairs.Add(KeyValuePair.Create(name, value));
 				}
 			}
 			else
 			{
-				Reader.Skip();
+				reader.Skip();
 			}
-			return Object;
+			return obj;
 		}
 
-		public override void Write(Utf8JsonWriter Writer, ConfigObject Value, JsonSerializerOptions Options)
+		public override void Write(Utf8JsonWriter writer, ConfigObject value, JsonSerializerOptions options)
 		{
-			Writer.WriteStartObject();
-			foreach (KeyValuePair<string, string> Pair in Value.Pairs)
+			writer.WriteStartObject();
+			foreach (KeyValuePair<string, string> pair in value.Pairs)
 			{
-				Writer.WriteString(Pair.Key, Pair.Value);
+				writer.WriteString(pair.Key, pair.Value);
 			}
-			Writer.WriteEndObject();
+			writer.WriteEndObject();
 		}
 	}
 
@@ -340,9 +340,9 @@ namespace UnrealGameSync
 		public string Name;
 		public Dictionary<string, string> Pairs = new Dictionary<string,string>();
 
-		public ConfigSection(string InName)
+		public ConfigSection(string inName)
 		{
-			Name = InName;
+			Name = inName;
 		}
 
 		public void Clear()
@@ -350,205 +350,205 @@ namespace UnrealGameSync
 			Pairs.Clear();
 		}
 
-		public void SetValue(string Key, int Value)
+		public void SetValue(string key, int value)
 		{
-			Pairs[Key] = Value.ToString();
+			Pairs[key] = value.ToString();
 		}
 
-		public void SetValue(string Key, bool Value)
+		public void SetValue(string key, bool value)
 		{
-			Pairs[Key] = Value? "1" : "0";
+			Pairs[key] = value? "1" : "0";
 		}
 
-		public void SetValue(string Key, string Value)
+		public void SetValue(string key, string value)
 		{
-			if(Value == null)
+			if(value == null)
 			{
-				RemoveValue(Key);
+				RemoveValue(key);
 			}
 			else
 			{
-				Pairs[Key] = Value;
+				Pairs[key] = value;
 			}
 		}
 
-		public void SetValues(string Key, string[] Values)
+		public void SetValues(string key, string[] values)
 		{
-			if(Values == null || Values.Length == 0)
+			if(values == null || values.Length == 0)
 			{
-				RemoveValue(Key);
+				RemoveValue(key);
 			}
 			else
 			{
-				Pairs[Key] = String.Join("\n", Values);
+				Pairs[key] = String.Join("\n", values);
 			}
 		}
 
-		public void SetValues(string Key, Guid[] Values)
+		public void SetValues(string key, Guid[] values)
 		{
-			if(Values == null)
+			if(values == null)
 			{
-				RemoveValue(Key);
+				RemoveValue(key);
 			}
 			else
 			{
-				Pairs[Key] = String.Join("\n", Values.Select(x => x.ToString()));
+				Pairs[key] = String.Join("\n", values.Select(x => x.ToString()));
 			}
 		}
 
-		public void AppendValue(string Key, string Value)
+		public void AppendValue(string key, string value)
 		{
-			string? CurrentValue;
-			if(Pairs.TryGetValue(Key, out CurrentValue))
+			string? currentValue;
+			if(Pairs.TryGetValue(key, out currentValue))
 			{
-				Pairs[Key] = CurrentValue + "\n" + Value;
+				Pairs[key] = currentValue + "\n" + value;
 			}
 			else
 			{
-				Pairs[Key] = Value;
+				Pairs[key] = value;
 			}
 		}
 
-		public void RemoveValue(string Key)
+		public void RemoveValue(string key)
 		{
-			Pairs.Remove(Key);
+			Pairs.Remove(key);
 		}
 
-		public int GetValue(string Key, int DefaultValue)
+		public int GetValue(string key, int defaultValue)
 		{
-			string? ValueString = GetValue(Key);
-			if(ValueString != null)
+			string? valueString = GetValue(key);
+			if(valueString != null)
 			{
-				int Value;
-				if(int.TryParse(ValueString, out Value))
+				int value;
+				if(int.TryParse(valueString, out value))
 				{
-					return Value;
+					return value;
 				}
 			}
-			return DefaultValue;
+			return defaultValue;
 		}
 
-		public bool GetValue(string Key, bool DefaultValue)
+		public bool GetValue(string key, bool defaultValue)
 		{
-			return GetValue(Key, DefaultValue? 1 : 0) != 0;
+			return GetValue(key, defaultValue? 1 : 0) != 0;
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public string? GetValue(string Key, string? DefaultValue = null)
+		[return: NotNullIfNotNull("defaultValue")]
+		public string? GetValue(string key, string? defaultValue = null)
 		{
-			string? Value;
-			if(!Pairs.TryGetValue(Key, out Value))
+			string? value;
+			if(!Pairs.TryGetValue(key, out value))
 			{
-				Value = DefaultValue;
+				value = defaultValue;
 			}
-			return Value;
+			return value;
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public string[]? GetValues(string Key, string[]? DefaultValue = null)
+		[return: NotNullIfNotNull("defaultValue")]
+		public string[]? GetValues(string key, string[]? defaultValue = null)
 		{
-			string? Value = GetValue(Key, null);
-			if(Value == null)
+			string? value = GetValue(key, null);
+			if(value == null)
 			{
-				return DefaultValue;
+				return defaultValue;
 			}
 			else
 			{
-				return Value.Split('\n');
+				return value.Split('\n');
 			}
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public Guid[]? GetValues(string Key, Guid[]? DefaultValue = null)
+		[return: NotNullIfNotNull("defaultValue")]
+		public Guid[]? GetValues(string key, Guid[]? defaultValue = null)
 		{
-			string[]? StringValues = GetValues(Key, (string[]?)null);
-			if(StringValues == null)
+			string[]? stringValues = GetValues(key, (string[]?)null);
+			if(stringValues == null)
 			{
-				return DefaultValue;
+				return defaultValue;
 			}
 
-			List<Guid> GuidValues = new List<Guid>();
-			foreach(string StringValue in StringValues)
+			List<Guid> guidValues = new List<Guid>();
+			foreach(string stringValue in stringValues)
 			{
-				Guid GuidValue;
-				if(Guid.TryParse(StringValue, out GuidValue))
+				Guid guidValue;
+				if(Guid.TryParse(stringValue, out guidValue))
 				{
-					GuidValues.Add(GuidValue);
+					guidValues.Add(guidValue);
 				}
 			}
 
-			return GuidValues.ToArray();
+			return guidValues.ToArray();
 		}
 	}
 
 	public class ConfigFile
 	{
-		List<ConfigSection> Sections = new List<ConfigSection>();
+		List<ConfigSection> _sections = new List<ConfigSection>();
 
 		public ConfigFile()
 		{
 		}
 
-		FileReference GetTempFileName(FileReference FileName)
+		FileReference GetTempFileName(FileReference fileName)
 		{
-			return FileName + ".tmp";
+			return fileName + ".tmp";
 		}
 
-		public void Load(FileReference FileName)
+		public void Load(FileReference fileName)
 		{
-			Parse(FileReference.ReadAllLines(FileName));
+			Parse(FileReference.ReadAllLines(fileName));
 		}
 
-		public bool TryLoad(FileReference FileName, ILogger Logger)
+		public bool TryLoad(FileReference fileName, ILogger logger)
 		{
-			FileInfo FileInfo = FileName.ToFileInfo();
-			if (FileInfo.Exists)
+			FileInfo fileInfo = fileName.ToFileInfo();
+			if (fileInfo.Exists)
 			{
-				Logger.LogDebug("Loading config file from {File} ({Size} bytes)", FileInfo.FullName, FileInfo.Length);
-				Load(FileName);
+				logger.LogDebug("Loading config file from {File} ({Size} bytes)", fileInfo.FullName, fileInfo.Length);
+				Load(fileName);
 				return true;
 			}
 
-			FileReference TempFileName = GetTempFileName(FileName);
+			FileReference tempFileName = GetTempFileName(fileName);
 
-			FileInfo TempFileInfo = TempFileName.ToFileInfo();
-			if (TempFileInfo.Exists)
+			FileInfo tempFileInfo = tempFileName.ToFileInfo();
+			if (tempFileInfo.Exists)
 			{
-				Logger.LogDebug("Loading temporary config file from {File} ({Size} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
-				Load(TempFileName);
+				logger.LogDebug("Loading temporary config file from {File} ({Size} bytes)", tempFileInfo.FullName, tempFileInfo.Length);
+				Load(tempFileName);
 				return true;
 			}
 
-			Logger.LogDebug("No existing config file at {File}", FileName);
+			logger.LogDebug("No existing config file at {File}", fileName);
 			return false;
 		}
 
-		public void Parse(string[] Lines)
+		public void Parse(string[] lines)
 		{
-			ConfigSection? CurrentSection = null;
-			foreach(string Line in Lines)
+			ConfigSection? currentSection = null;
+			foreach(string line in lines)
 			{
-				string TrimLine = Line.Trim();
-				if(!TrimLine.StartsWith(";"))
+				string trimLine = line.Trim();
+				if(!trimLine.StartsWith(";"))
 				{
-					if(TrimLine.StartsWith("[") && TrimLine.EndsWith("]"))
+					if(trimLine.StartsWith("[") && trimLine.EndsWith("]"))
 					{
-						string SectionName = TrimLine.Substring(1, TrimLine.Length - 2).Trim();
-						CurrentSection = FindOrAddSection(SectionName);
+						string sectionName = trimLine.Substring(1, trimLine.Length - 2).Trim();
+						currentSection = FindOrAddSection(sectionName);
 					}
-					else if(CurrentSection != null)
+					else if(currentSection != null)
 					{
-						int EqualsIdx = TrimLine.IndexOf('=');
-						if(EqualsIdx != -1)
+						int equalsIdx = trimLine.IndexOf('=');
+						if(equalsIdx != -1)
 						{
-							string Value = Line.Substring(EqualsIdx + 1).TrimStart();
-							if(TrimLine.StartsWith("+"))
+							string value = line.Substring(equalsIdx + 1).TrimStart();
+							if(trimLine.StartsWith("+"))
 							{
-								CurrentSection.AppendValue(TrimLine.Substring(1, EqualsIdx - 1).Trim(), Value);
+								currentSection.AppendValue(trimLine.Substring(1, equalsIdx - 1).Trim(), value);
 							}
 							else
 							{
-								CurrentSection.SetValue(TrimLine.Substring(0, EqualsIdx).TrimEnd(), Value);
+								currentSection.SetValue(trimLine.Substring(0, equalsIdx).TrimEnd(), value);
 							}
 						}
 					}
@@ -556,121 +556,121 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void Save(FileReference FileName)
+		public void Save(FileReference fileName)
 		{
-			FileReference TempFileName = GetTempFileName(FileName);
-			FileReference.Delete(TempFileName);
+			FileReference tempFileName = GetTempFileName(fileName);
+			FileReference.Delete(tempFileName);
 
-			using (StreamWriter Writer = new StreamWriter(TempFileName.FullName))
+			using (StreamWriter writer = new StreamWriter(tempFileName.FullName))
 			{
-				for(int Idx = 0; Idx < Sections.Count; Idx++)
+				for(int idx = 0; idx < _sections.Count; idx++)
 				{
-					Writer.WriteLine("[{0}]", Sections[Idx].Name);
-					foreach(KeyValuePair<string, string> Pair in Sections[Idx].Pairs)
+					writer.WriteLine("[{0}]", _sections[idx].Name);
+					foreach(KeyValuePair<string, string> pair in _sections[idx].Pairs)
 					{
-						if(Pair.Value.Contains('\n'))
+						if(pair.Value.Contains('\n'))
 						{
-							foreach(string Line in Pair.Value.Split('\n'))
+							foreach(string line in pair.Value.Split('\n'))
 							{
-								Writer.WriteLine("+{0}={1}", Pair.Key, Line);
+								writer.WriteLine("+{0}={1}", pair.Key, line);
 							}
 						}
 						else
 						{
-							Writer.WriteLine("{0}={1}", Pair.Key, Pair.Value);
+							writer.WriteLine("{0}={1}", pair.Key, pair.Value);
 						}
 					}
-					if(Idx < Sections.Count - 1)
+					if(idx < _sections.Count - 1)
 					{
-						Writer.WriteLine();
+						writer.WriteLine();
 					}
 				}
 			}
 
-			FileReference.Delete(FileName);
-			FileReference.Move(TempFileName, FileName);
+			FileReference.Delete(fileName);
+			FileReference.Move(tempFileName, fileName);
 		}
 
-		public ConfigSection FindSection(string Name)
+		public ConfigSection FindSection(string name)
 		{
-			return Sections.FirstOrDefault(x => String.Compare(x.Name, Name, true) == 0);
+			return _sections.FirstOrDefault(x => String.Compare(x.Name, name, true) == 0);
 		}
 
-		public ConfigSection FindOrAddSection(string Name)
+		public ConfigSection FindOrAddSection(string name)
 		{
-			ConfigSection Section = FindSection(Name);
-			if(Section == null)
+			ConfigSection section = FindSection(name);
+			if(section == null)
 			{
-				Section = new ConfigSection(Name);
-				Sections.Add(Section);
+				section = new ConfigSection(name);
+				_sections.Add(section);
 			}
-			return Section;
+			return section;
 		}
 
-		public void SetValue(string Key, int Value)
+		public void SetValue(string key, int value)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindOrAddSection(Key.Substring(0, DotIdx));
-			Section.SetValue(Key.Substring(DotIdx + 1), Value);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindOrAddSection(key.Substring(0, dotIdx));
+			section.SetValue(key.Substring(dotIdx + 1), value);
 		}
 
-		public void SetValue(string Key, bool Value)
+		public void SetValue(string key, bool value)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindOrAddSection(Key.Substring(0, DotIdx));
-			Section.SetValue(Key.Substring(DotIdx + 1), Value);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindOrAddSection(key.Substring(0, dotIdx));
+			section.SetValue(key.Substring(dotIdx + 1), value);
 		}
 
-		public void SetValue(string Key, string Value)
+		public void SetValue(string key, string value)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindOrAddSection(Key.Substring(0, DotIdx));
-			Section.SetValue(Key.Substring(DotIdx + 1), Value);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindOrAddSection(key.Substring(0, dotIdx));
+			section.SetValue(key.Substring(dotIdx + 1), value);
 		}
 
-		public void SetValues(string Key, string[] Values)
+		public void SetValues(string key, string[] values)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindOrAddSection(Key.Substring(0, DotIdx));
-			Section.SetValues(Key.Substring(DotIdx + 1), Values);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindOrAddSection(key.Substring(0, dotIdx));
+			section.SetValues(key.Substring(dotIdx + 1), values);
 		}
 
-		public bool GetValue(string Key, bool DefaultValue)
+		public bool GetValue(string key, bool defaultValue)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
-			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
-		public int GetValue(string Key, int DefaultValue)
+		public int GetValue(string key, int defaultValue)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
-			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public string? GetValue(string Key, string? DefaultValue)
+		[return: NotNullIfNotNull("defaultValue")]
+		public string? GetValue(string key, string? defaultValue)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
-			return (Section == null)? DefaultValue : Section.GetValue(Key.Substring(DotIdx + 1), DefaultValue);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			return (section == null)? defaultValue : section.GetValue(key.Substring(dotIdx + 1), defaultValue);
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public string[]? GetValues(string Key, string[]? DefaultValue)
+		[return: NotNullIfNotNull("defaultValue")]
+		public string[]? GetValues(string key, string[]? defaultValue)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
-			return (Section == null)? DefaultValue : Section.GetValues(Key.Substring(DotIdx + 1), DefaultValue);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			return (section == null)? defaultValue : section.GetValues(key.Substring(dotIdx + 1), defaultValue);
 		}
 
-		[return: NotNullIfNotNull("DefaultValue")]
-		public Guid[]? GetGuidValues(string Key, Guid[]? DefaultValue)
+		[return: NotNullIfNotNull("defaultValue")]
+		public Guid[]? GetGuidValues(string key, Guid[]? defaultValue)
 		{
-			int DotIdx = Key.IndexOf('.');
-			ConfigSection Section = FindSection(Key.Substring(0, DotIdx));
-			return (Section == null)? DefaultValue : Section.GetValues(Key.Substring(DotIdx + 1), DefaultValue);
+			int dotIdx = key.IndexOf('.');
+			ConfigSection section = FindSection(key.Substring(0, dotIdx));
+			return (section == null)? defaultValue : section.GetValues(key.Substring(dotIdx + 1), defaultValue);
 		}
 	}
 }

@@ -30,8 +30,8 @@ namespace UnrealGameSync
 	{
 		public static string GetVersionString()
 		{
-			AssemblyInformationalVersionAttribute? Version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
-			return Version?.InformationalVersion ?? "Unknown";
+			AssemblyInformationalVersionAttribute? version = Assembly.GetExecutingAssembly().GetCustomAttribute<AssemblyInformationalVersionAttribute>();
+			return version?.InformationalVersion ?? "Unknown";
 		}
 
 		public static string? SyncVersion = null;
@@ -45,7 +45,7 @@ namespace UnrealGameSync
 		}
 
 		[STAThread]
-		static void Main(string[] Args)
+		static void Main(string[] args)
 		{
 			if (DeploymentSettings.SentryDsn != null)
 			{
@@ -67,40 +67,40 @@ namespace UnrealGameSync
 				TaskScheduler.UnobservedTaskException += Application_UnobservedException_Sentry;
 			}
 
-			bool bFirstInstance;
-			using (Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
+			bool firstInstance;
+			using (Mutex instanceMutex = new Mutex(true, "UnrealGameSyncRunning", out firstInstance))
 			{
-				if (bFirstInstance)
+				if (firstInstance)
 				{
 					Application.EnableVisualStyles();
 					Application.SetCompatibleTextRenderingDefault(false);
 				}
 
-				using (EventWaitHandle ActivateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ActivateUnrealGameSync"))
+				using (EventWaitHandle activateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ActivateUnrealGameSync"))
 				{
 					// handle any url passed in, possibly exiting
-					if (UriHandler.ProcessCommandLine(Args, bFirstInstance, ActivateEvent))
+					if (UriHandler.ProcessCommandLine(args, firstInstance, activateEvent))
 					{
 						return;
 					}
 
-					if (bFirstInstance)
+					if (firstInstance)
 					{
-						GuardedInnerMainAsync(InstanceMutex, ActivateEvent, Args);
+						GuardedInnerMainAsync(instanceMutex, activateEvent, args);
 					}
 					else
 					{
-						ActivateEvent.Set();
+						activateEvent.Set();
 					}
 				}
 			}
 		}
 
-		static void GuardedInnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
+		static void GuardedInnerMainAsync(Mutex instanceMutex, EventWaitHandle activateEvent, string[] args)
 		{
 			try
 			{
-				InnerMainAsync(InstanceMutex, ActivateEvent, Args).GetAwaiter().GetResult();
+				InnerMainAsync(instanceMutex, activateEvent, args).GetAwaiter().GetResult();
 			}
 			catch (Exception ex)
 			{
@@ -108,55 +108,55 @@ namespace UnrealGameSync
 			}
 		}
 
-		static async Task InnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
+		static async Task InnerMainAsync(Mutex instanceMutex, EventWaitHandle activateEvent, string[] args)
 		{
-			string? ServerAndPort = null;
-			string? UserName = null;
-			string? BaseUpdatePath = null;
-			bool bPreviewSetting = false;
-			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath, ref bPreviewSetting);
+			string? serverAndPort = null;
+			string? userName = null;
+			string? baseUpdatePath = null;
+			bool previewSetting = false;
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref serverAndPort, ref userName, ref baseUpdatePath, ref previewSetting);
 
-			List<string> RemainingArgs = new List<string>(Args);
+			List<string> remainingArgs = new List<string>(args);
 
-			string? UpdateSpawn;
-			ParseArgument(RemainingArgs, "-updatespawn=", out UpdateSpawn);
+			string? updateSpawn;
+			ParseArgument(remainingArgs, "-updatespawn=", out updateSpawn);
 
-			string? UpdatePath;
-			ParseArgument(RemainingArgs, "-updatepath=", out UpdatePath);
+			string? updatePath;
+			ParseArgument(remainingArgs, "-updatepath=", out updatePath);
 
-			bool bRestoreState;
-			ParseOption(RemainingArgs, "-restorestate", out bRestoreState);
+			bool restoreState;
+			ParseOption(remainingArgs, "-restorestate", out restoreState);
 
-			bool bUnstable;
-			ParseOption(RemainingArgs, "-unstable", out bUnstable);
-			bool bPreview;
-			ParseOption(RemainingArgs, "-preview", out bPreview);
-			bPreview |= bUnstable;
+			bool unstable;
+			ParseOption(remainingArgs, "-unstable", out unstable);
+			bool preview;
+			ParseOption(remainingArgs, "-preview", out preview);
+			preview |= unstable;
 
-            string? ProjectFileName;
-            ParseArgument(RemainingArgs, "-project=", out ProjectFileName);
+            string? projectFileName;
+            ParseArgument(remainingArgs, "-project=", out projectFileName);
 
-			string? Uri;
-			ParseArgument(RemainingArgs, "-uri=", out Uri);
+			string? uri;
+			ParseArgument(remainingArgs, "-uri=", out uri);
 
-			FileReference UpdateConfigFile = FileReference.Combine(new FileReference(Assembly.GetExecutingAssembly().Location).Directory, "AutoUpdate.ini");
-			MergeUpdateSettings(UpdateConfigFile, ref UpdatePath, ref UpdateSpawn);
+			FileReference updateConfigFile = FileReference.Combine(new FileReference(Assembly.GetExecutingAssembly().Location).Directory, "AutoUpdate.ini");
+			MergeUpdateSettings(updateConfigFile, ref updatePath, ref updateSpawn);
 
 			// Set the current working directory to the update directory to prevent child-process file handles from disrupting auto-updates
-			if (UpdateSpawn != null)
+			if (updateSpawn != null)
 			{
-				if (File.Exists(UpdateSpawn))
+				if (File.Exists(updateSpawn))
 				{
-					Directory.SetCurrentDirectory(Path.GetDirectoryName(UpdateSpawn));
+					Directory.SetCurrentDirectory(Path.GetDirectoryName(updateSpawn));
 				}
 			}
 
-			string SyncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location!)!, "SyncVersion.txt");
-			if(File.Exists(SyncVersionFile))
+			string syncVersionFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location!)!, "SyncVersion.txt");
+			if(File.Exists(syncVersionFile))
 			{
 				try
 				{
-					SyncVersion = File.ReadAllText(SyncVersionFile).Trim();
+					SyncVersion = File.ReadAllText(syncVersionFile).Trim();
 				}
 				catch(Exception)
 				{
@@ -164,96 +164,96 @@ namespace UnrealGameSync
 				}
 			}
 
-			DirectoryReference DataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
-			DirectoryReference.CreateDirectory(DataFolder);
+			DirectoryReference dataFolder = DirectoryReference.Combine(DirectoryReference.GetSpecialFolder(Environment.SpecialFolder.LocalApplicationData)!, "UnrealGameSync");
+			DirectoryReference.CreateDirectory(dataFolder);
 
 			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
 			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
 			// Create a new logger
-			using (ILoggerProvider LoggerProvider = Logging.CreateLoggerProvider(FileReference.Combine(DataFolder, "UnrealGameSync.log")))
+			using (ILoggerProvider loggerProvider = Logging.CreateLoggerProvider(FileReference.Combine(dataFolder, "UnrealGameSync.log")))
 			{
-				ServiceCollection Services = new ServiceCollection();
-				Services.AddLogging(Builder => Builder.AddProvider(LoggerProvider));
-				Services.AddSingleton<IAsyncDisposer, AsyncDisposer>();
+				ServiceCollection services = new ServiceCollection();
+				services.AddLogging(builder => builder.AddProvider(loggerProvider));
+				services.AddSingleton<IAsyncDisposer, AsyncDisposer>();
 
-				await using (ServiceProvider ServiceProvider = Services.BuildServiceProvider())
+				await using (ServiceProvider serviceProvider = services.BuildServiceProvider())
 				{
-					ILoggerFactory LoggerFactory = ServiceProvider.GetRequiredService<ILoggerFactory>();
+					ILoggerFactory loggerFactory = serviceProvider.GetRequiredService<ILoggerFactory>();
 
-					ILogger Logger = LoggerFactory.CreateLogger("Startup");
-					Logger.LogInformation("Application version: {Version}", Assembly.GetExecutingAssembly().GetName().Version);
-					Logger.LogInformation("Started at {Time}", DateTime.Now.ToString());
+					ILogger logger = loggerFactory.CreateLogger("Startup");
+					logger.LogInformation("Application version: {Version}", Assembly.GetExecutingAssembly().GetName().Version);
+					logger.LogInformation("Started at {Time}", DateTime.Now.ToString());
 
-					string SessionId = Guid.NewGuid().ToString();
-					Logger.LogInformation("SessionId: {SessionId}", SessionId);
+					string sessionId = Guid.NewGuid().ToString();
+					logger.LogInformation("SessionId: {SessionId}", sessionId);
 
-					if (ServerAndPort == null || UserName == null)
+					if (serverAndPort == null || userName == null)
 					{
-						Logger.LogInformation("Missing server settings; finding defaults.");
-						ServerAndPort ??= PerforceSettings.Default.ServerAndPort;
-						UserName ??= PerforceSettings.Default.UserName;
-						GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath, bPreviewSetting);
+						logger.LogInformation("Missing server settings; finding defaults.");
+						serverAndPort ??= PerforceSettings.Default.ServerAndPort;
+						userName ??= PerforceSettings.Default.UserName;
+						GlobalPerforceSettings.SaveGlobalPerforceSettings(serverAndPort, userName, baseUpdatePath, previewSetting);
 					}
 
-					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
-					TelemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", SessionId);
+					ILogger telemetryLogger = loggerProvider.CreateLogger("Telemetry");
+					telemetryLogger.LogInformation("Creating telemetry sink for session {SessionId}", sessionId);
 
-					using (ITelemetrySink TelemetrySink = DeploymentSettings.CreateTelemetrySink(UserName, SessionId, TelemetryLogger))
+					using (ITelemetrySink telemetrySink = DeploymentSettings.CreateTelemetrySink(userName, sessionId, telemetryLogger))
 					{
-						ITelemetrySink? PrevTelemetrySink = Telemetry.ActiveSink;
+						ITelemetrySink? prevTelemetrySink = Telemetry.ActiveSink;
 						try
 						{
-							Telemetry.ActiveSink = TelemetrySink;
+							Telemetry.ActiveSink = telemetrySink;
 
 							Telemetry.SendEvent("Startup", new { User = Environment.UserName, Machine = Environment.MachineName });
 
 							AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
 
-							IPerforceSettings DefaultSettings = new PerforceSettings(ServerAndPort, UserName) { PreferNativeClient = true };
+							IPerforceSettings defaultSettings = new PerforceSettings(serverAndPort, userName) { PreferNativeClient = true };
 
-							using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultSettings, UpdatePath, ServiceProvider))
+							using (UpdateMonitor updateMonitor = new UpdateMonitor(defaultSettings, updatePath, serviceProvider))
 							{
-								using ProgramApplicationContext Context = new ProgramApplicationContext(DefaultSettings, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bPreview, ServiceProvider, Uri);
-								Application.Run(Context);
+								using ProgramApplicationContext context = new ProgramApplicationContext(defaultSettings, updateMonitor, DeploymentSettings.ApiUrl, dataFolder, activateEvent, restoreState, updateSpawn, projectFileName, preview, serviceProvider, uri);
+								Application.Run(context);
 
-								if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
+								if (updateMonitor.IsUpdateAvailable && updateSpawn != null)
 								{
-									InstanceMutex.Close();
-									bool bLaunchPreview = UpdateMonitor.RelaunchPreview ?? bPreview;
-									Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchPreview ? " -unstable" : ""));
+									instanceMutex.Close();
+									bool launchPreview = updateMonitor.RelaunchPreview ?? preview;
+									Utility.SpawnProcess(updateSpawn, "-restorestate" + (launchPreview ? " -unstable" : ""));
 								}
 							}
 						}
-						catch (Exception Ex)
+						catch (Exception ex)
 						{
-							Telemetry.SendEvent("Crash", new { Exception = Ex.ToString() });
+							Telemetry.SendEvent("Crash", new { Exception = ex.ToString() });
 							throw;
 						}
 						finally
 						{
-							Telemetry.ActiveSink = PrevTelemetrySink;
+							Telemetry.ActiveSink = prevTelemetrySink;
 						}
 					}
 				}
 			}
 		}
 
-		private static void CurrentDomain_UnhandledException(object Sender, UnhandledExceptionEventArgs Args)
+		private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs args)
 		{
-			Exception? Ex = Args.ExceptionObject as Exception;
-			if(Ex != null)
+			Exception? ex = args.ExceptionObject as Exception;
+			if(ex != null)
 			{
-				Telemetry.SendEvent("Crash", new {Exception = Ex.ToString()});
+				Telemetry.SendEvent("Crash", new {Exception = ex.ToString()});
 			}
 		}
 
-		private static void CurrentDomain_UnhandledException_Sentry(object Sender, UnhandledExceptionEventArgs Args)
+		private static void CurrentDomain_UnhandledException_Sentry(object sender, UnhandledExceptionEventArgs args)
 		{
-			Exception? Ex = Args.ExceptionObject as Exception;
-			if (Ex != null)
+			Exception? ex = args.ExceptionObject as Exception;
+			if (ex != null)
 			{
-				SentrySdk.CaptureException(Ex);
+				SentrySdk.CaptureException(ex);
 			}
 		}
 
@@ -274,117 +274,117 @@ namespace UnrealGameSync
 			}
 		}
 
-		static void MergeUpdateSettings(FileReference UpdateConfigFile, ref string? UpdatePath, ref string? UpdateSpawn)
+		static void MergeUpdateSettings(FileReference updateConfigFile, ref string? updatePath, ref string? updateSpawn)
 		{
 			try
 			{
-				ConfigFile UpdateConfig = new ConfigFile();
-				if(FileReference.Exists(UpdateConfigFile))
+				ConfigFile updateConfig = new ConfigFile();
+				if(FileReference.Exists(updateConfigFile))
 				{
-					UpdateConfig.Load(UpdateConfigFile);
+					updateConfig.Load(updateConfigFile);
 				}
 
-				if(UpdatePath == null)
+				if(updatePath == null)
 				{
-					UpdatePath = UpdateConfig.GetValue("Update.Path", null);
+					updatePath = updateConfig.GetValue("Update.Path", null);
 				}
 				else
 				{
-					UpdateConfig.SetValue("Update.Path", UpdatePath);
+					updateConfig.SetValue("Update.Path", updatePath);
 				}
 
-				if(UpdateSpawn == null)
+				if(updateSpawn == null)
 				{
-					UpdateSpawn = UpdateConfig.GetValue("Update.Spawn", null);
+					updateSpawn = updateConfig.GetValue("Update.Spawn", null);
 				}
 				else
 				{
-					UpdateConfig.SetValue("Update.Spawn", UpdateSpawn);
+					updateConfig.SetValue("Update.Spawn", updateSpawn);
 				}
 
-				UpdateConfig.Save(UpdateConfigFile);
+				updateConfig.Save(updateConfigFile);
 			}
 			catch(Exception)
 			{
 			}
 		}
 
-		static bool ParseOption(List<string> RemainingArgs, string Option, out bool Value)
+		static bool ParseOption(List<string> remainingArgs, string option, out bool value)
 		{
-			for(int Idx = 0; Idx < RemainingArgs.Count; Idx++)
+			for(int idx = 0; idx < remainingArgs.Count; idx++)
 			{
-				if(RemainingArgs[Idx].Equals(Option, StringComparison.InvariantCultureIgnoreCase))
+				if(remainingArgs[idx].Equals(option, StringComparison.InvariantCultureIgnoreCase))
 				{
-					Value = true;
-					RemainingArgs.RemoveAt(Idx);
+					value = true;
+					remainingArgs.RemoveAt(idx);
 					return true;
 				}
 			}
 
-			Value = false;
+			value = false;
 			return false;
 		}
 
-		static bool ParseArgument(List<string> RemainingArgs, string Prefix, [NotNullWhen(true)] out string? Value)
+		static bool ParseArgument(List<string> remainingArgs, string prefix, [NotNullWhen(true)] out string? value)
 		{
-			for(int Idx = 0; Idx < RemainingArgs.Count; Idx++)
+			for(int idx = 0; idx < remainingArgs.Count; idx++)
 			{
-				if(RemainingArgs[Idx].StartsWith(Prefix, StringComparison.InvariantCultureIgnoreCase))
+				if(remainingArgs[idx].StartsWith(prefix, StringComparison.InvariantCultureIgnoreCase))
 				{
-					Value = RemainingArgs[Idx].Substring(Prefix.Length);
-					RemainingArgs.RemoveAt(Idx);
+					value = remainingArgs[idx].Substring(prefix.Length);
+					remainingArgs.RemoveAt(idx);
 					return true;
 				}
 			}
 
-			Value = null;
+			value = null;
 			return false;
 		}
 
 		public static IEnumerable<string> GetPerforcePaths()
 		{
-			string? PathList = Environment.GetEnvironmentVariable("PATH");
-			if (!String.IsNullOrEmpty(PathList))
+			string? pathList = Environment.GetEnvironmentVariable("PATH");
+			if (!String.IsNullOrEmpty(pathList))
 			{
-				foreach (string PathEntry in PathList.Split(Path.PathSeparator))
+				foreach (string pathEntry in pathList.Split(Path.PathSeparator))
 				{
-					string? PerforcePath = null;
+					string? perforcePath = null;
 					try
 					{
-						string TestPerforcePath = Path.Combine(PathEntry, "p4.exe");
-						if (File.Exists(TestPerforcePath))
+						string testPerforcePath = Path.Combine(pathEntry, "p4.exe");
+						if (File.Exists(testPerforcePath))
 						{
-							PerforcePath = TestPerforcePath;
+							perforcePath = testPerforcePath;
 						}
 					}
 					catch
 					{
 					}
 
-					if (PerforcePath != null)
+					if (perforcePath != null)
 					{
-						yield return PerforcePath;
+						yield return perforcePath;
 					}
 				}
 			}
 		}
 
-		public static void SpawnP4VC(string Arguments)
+		public static void SpawnP4Vc(string arguments)
 		{
-			string Executable = "p4vc.exe";
+			string executable = "p4vc.exe";
 
-			foreach (string PerforcePath in GetPerforcePaths())
+			foreach (string perforcePath in GetPerforcePaths())
 			{
-				string? PerforceDir = Path.GetDirectoryName(PerforcePath);
-				if (PerforceDir != null && File.Exists(Path.Combine(PerforceDir, "p4vc.bat")) && !File.Exists(Path.Combine(PerforceDir, "p4vc.exe")))
+				string? perforceDir = Path.GetDirectoryName(perforcePath);
+				if (perforceDir != null && File.Exists(Path.Combine(perforceDir, "p4vc.bat")) && !File.Exists(Path.Combine(perforceDir, "p4vc.exe")))
 				{
-					Executable = Path.Combine(PerforceDir, "p4v.exe");
-					Arguments = "-p4vc " + Arguments;
+					executable = Path.Combine(perforceDir, "p4v.exe");
+					arguments = "-p4vc " + arguments;
 					break;
 				}
 			}
 
-			if (!Utility.SpawnHiddenProcess(Executable, Arguments))
+			if (!Utility.SpawnHiddenProcess(executable, arguments))
 			{
 				MessageBox.Show("Unable to spawn p4vc. Check you have P4V installed.");
 			}

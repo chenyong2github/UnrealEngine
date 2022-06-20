@@ -16,18 +16,18 @@ namespace UnrealGameSync
 {
 	partial class ModalTaskWindow : Form
 	{
-		Task Task;
-		CancellationTokenSource CancellationSource;
+		Task _task;
+		CancellationTokenSource _cancellationSource;
 
-		public ModalTaskWindow(string InTitle, string InMessage, FormStartPosition InStartPosition, Task InTask, CancellationTokenSource InCancellationSource)//, Func<CancellationToken, Task> InTaskFunc)
+		public ModalTaskWindow(string inTitle, string inMessage, FormStartPosition inStartPosition, Task inTask, CancellationTokenSource inCancellationSource)//, Func<CancellationToken, Task> InTaskFunc)
 		{
 			InitializeComponent();
 
-			Text = InTitle;
-			MessageLabel.Text = InMessage;
-			StartPosition = InStartPosition;
-			Task = InTask;
-			CancellationSource = InCancellationSource;
+			Text = inTitle;
+			MessageLabel.Text = inMessage;
+			StartPosition = inStartPosition;
+			_task = inTask;
+			_cancellationSource = inCancellationSource;
 		}
 
 		public void ShowAndActivate()
@@ -38,14 +38,14 @@ namespace UnrealGameSync
 
 		private void ModalTaskWindow_Load(object sender, EventArgs e)
 		{
-			SynchronizationContext SyncContext = SynchronizationContext.Current!;
-			Task.ContinueWith(x => SyncContext.Post(y => Close(), null));
+			SynchronizationContext syncContext = SynchronizationContext.Current!;
+			_task.ContinueWith(x => syncContext.Post(y => Close(), null));
 		}
 
 		private void ModalTaskWindow_FormClosing(object sender, FormClosingEventArgs e)
 		{
-			CancellationSource.Cancel();
-			if (!Task.IsCompleted)
+			_cancellationSource.Cancel();
+			if (!_task.IsCompleted)
 			{
 				e.Cancel = true;
 			}

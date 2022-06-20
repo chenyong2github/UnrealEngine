@@ -17,36 +17,36 @@ namespace UnrealGameSync
 	partial class ScheduleWindow : Form
 	{
 
-		Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> ProjectToLatestChangeTypes;
+		Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> _projectToLatestChangeTypes;
 
 		public ScheduleWindow(
-			bool InEnabled,
-			TimeSpan InTime,
-			bool AnyOpenProject,
-			IEnumerable<UserSelectedProjectSettings> ScheduledProjects,
-			IEnumerable<UserSelectedProjectSettings> OpenProjects,
-			Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> InProjectToLatestChangeTypes)
+			bool inEnabled,
+			TimeSpan inTime,
+			bool anyOpenProject,
+			IEnumerable<UserSelectedProjectSettings> scheduledProjects,
+			IEnumerable<UserSelectedProjectSettings> openProjects,
+			Dictionary<UserSelectedProjectSettings, List<LatestChangeType>> inProjectToLatestChangeTypes)
 		{
 			InitializeComponent();
 
-			EnableCheckBox.Checked = InEnabled;
+			EnableCheckBox.Checked = inEnabled;
 
-			ProjectToLatestChangeTypes = InProjectToLatestChangeTypes;
+			_projectToLatestChangeTypes = inProjectToLatestChangeTypes;
 
-			DateTime CurrentTime = DateTime.Now;
+			DateTime currentTime = DateTime.Now;
 			TimePicker.CustomFormat = CultureInfo.CurrentCulture.DateTimeFormat.ShortTimePattern;
-			TimePicker.Value = new DateTime(CurrentTime.Year, CurrentTime.Month, CurrentTime.Day, InTime.Hours, InTime.Minutes, InTime.Seconds);
+			TimePicker.Value = new DateTime(currentTime.Year, currentTime.Month, currentTime.Day, inTime.Hours, inTime.Minutes, inTime.Seconds);
 
-			ProjectListBox.Items.Add("Any open projects", AnyOpenProject);
+			ProjectListBox.Items.Add("Any open projects", anyOpenProject);
 
-			Dictionary<string, UserSelectedProjectSettings> LocalFileToProject = new Dictionary<string, UserSelectedProjectSettings>(StringComparer.InvariantCultureIgnoreCase);
-			AddProjects(ScheduledProjects, LocalFileToProject);
-			AddProjects(OpenProjects, LocalFileToProject);
+			Dictionary<string, UserSelectedProjectSettings> localFileToProject = new Dictionary<string, UserSelectedProjectSettings>(StringComparer.InvariantCultureIgnoreCase);
+			AddProjects(scheduledProjects, localFileToProject);
+			AddProjects(openProjects, localFileToProject);
 
-			foreach(UserSelectedProjectSettings Project in LocalFileToProject.Values.OrderBy(x => x.ToString()))
+			foreach(UserSelectedProjectSettings project in localFileToProject.Values.OrderBy(x => x.ToString()))
 			{
-				bool Enabled = ScheduledProjects.Any(x => x.LocalPath == Project.LocalPath);
-				ProjectListBox.Items.Add(Project, Enabled);
+				bool enabled = scheduledProjects.Any(x => x.LocalPath == project.LocalPath);
+				ProjectListBox.Items.Add(project, enabled);
 			}
 
 			ProjectListBox.ItemCheck += ProjectListBox_ItemCheck;
@@ -56,30 +56,30 @@ namespace UnrealGameSync
 			UpdateEnabledControls();
 		}
 
-		private void UpdateSyncTypeDropDownWithProject(UserSelectedProjectSettings? SelectedProject)
+		private void UpdateSyncTypeDropDownWithProject(UserSelectedProjectSettings? selectedProject)
 		{
 			SyncTypeDropDown.Items.Clear();
 
-			if (SelectedProject != null
-				&& ProjectToLatestChangeTypes.ContainsKey(SelectedProject))
+			if (selectedProject != null
+				&& _projectToLatestChangeTypes.ContainsKey(selectedProject))
 			{
-				foreach (LatestChangeType ChangeType in ProjectToLatestChangeTypes[SelectedProject])
+				foreach (LatestChangeType changeType in _projectToLatestChangeTypes[selectedProject])
 				{
-					System.Windows.Forms.ToolStripMenuItem MenuItem = new System.Windows.Forms.ToolStripMenuItem();
-					MenuItem.Name = ChangeType.Name;
-					MenuItem.Text = ChangeType.Description;
-					MenuItem.Size = new System.Drawing.Size(189, 22);
-					MenuItem.Click += (sender, e) => SyncTypeDropDown_Click(sender, e, ChangeType.Name);
+					System.Windows.Forms.ToolStripMenuItem menuItem = new System.Windows.Forms.ToolStripMenuItem();
+					menuItem.Name = changeType.Name;
+					menuItem.Text = changeType.Description;
+					menuItem.Size = new System.Drawing.Size(189, 22);
+					menuItem.Click += (sender, e) => SyncTypeDropDown_Click(sender, e, changeType.Name);
 
-					SyncTypeDropDown.Items.Add(MenuItem);
+					SyncTypeDropDown.Items.Add(menuItem);
 				}
 			}
 		}
 
 		private void ProjectListBox_ItemCheck(object sender, ItemCheckEventArgs e)
 		{
-			bool bIsAnyOpenProjectIndex = e.Index == 0;
-			if (e.NewValue == CheckState.Checked && !bIsAnyOpenProjectIndex)
+			bool isAnyOpenProjectIndex = e.Index == 0;
+			if (e.NewValue == CheckState.Checked && !isAnyOpenProjectIndex)
 			{
 				UpdateSyncTypeDropDownWithProject(ProjectListBox.Items[e.Index] as UserSelectedProjectSettings);
 
@@ -98,47 +98,47 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void SyncTypeDropDown_Click(object? sender, EventArgs e, string SyncTypeID)
+		private void SyncTypeDropDown_Click(object? sender, EventArgs e, string syncTypeId)
 		{
-			UserSelectedProjectSettings? ProjectSetting = ProjectListBox.Items[ProjectListBox.SelectedIndex] as UserSelectedProjectSettings;
-			if (ProjectSetting != null)
+			UserSelectedProjectSettings? projectSetting = ProjectListBox.Items[ProjectListBox.SelectedIndex] as UserSelectedProjectSettings;
+			if (projectSetting != null)
 			{
-				ProjectSetting.ScheduledSyncTypeID = SyncTypeID;
+				projectSetting.ScheduledSyncTypeId = syncTypeId;
 			}
 			SyncTypeDropDown.Close();
 		}
 
-		private void AddProjects(IEnumerable<UserSelectedProjectSettings> Projects, Dictionary<string, UserSelectedProjectSettings> LocalFileToProject)
+		private void AddProjects(IEnumerable<UserSelectedProjectSettings> projects, Dictionary<string, UserSelectedProjectSettings> localFileToProject)
 		{
-			foreach(UserSelectedProjectSettings Project in Projects)
+			foreach(UserSelectedProjectSettings project in projects)
 			{
-				if(Project.LocalPath != null)
+				if(project.LocalPath != null)
 				{
-					LocalFileToProject[Project.LocalPath] = Project;
+					localFileToProject[project.LocalPath] = project;
 				}
 			}
 		}
 
-		public void CopySettings(out bool OutEnabled, out TimeSpan OutTime, out bool OutAnyOpenProject, out List<UserSelectedProjectSettings> OutScheduledProjects)
+		public void CopySettings(out bool outEnabled, out TimeSpan outTime, out bool outAnyOpenProject, out List<UserSelectedProjectSettings> outScheduledProjects)
 		{
-			OutEnabled = EnableCheckBox.Checked;
-			OutTime = TimePicker.Value.TimeOfDay;
+			outEnabled = EnableCheckBox.Checked;
+			outTime = TimePicker.Value.TimeOfDay;
 
-			OutAnyOpenProject = false;
+			outAnyOpenProject = false;
 
-			List<UserSelectedProjectSettings> ScheduledProjects = new List<UserSelectedProjectSettings>();
-			foreach(int Index in ProjectListBox.CheckedIndices.OfType<int>())
+			List<UserSelectedProjectSettings> scheduledProjects = new List<UserSelectedProjectSettings>();
+			foreach(int index in ProjectListBox.CheckedIndices.OfType<int>())
 			{
-				if(Index == 0)
+				if(index == 0)
 				{
-					OutAnyOpenProject = true;
+					outAnyOpenProject = true;
 				}
 				else
 				{
-					ScheduledProjects.Add((UserSelectedProjectSettings)ProjectListBox.Items[Index]);
+					scheduledProjects.Add((UserSelectedProjectSettings)ProjectListBox.Items[index]);
 				}
 			}
-			OutScheduledProjects = ScheduledProjects;
+			outScheduledProjects = scheduledProjects;
 		}
 
 		private void EnableCheckBox_CheckedChanged(object sender, EventArgs e)

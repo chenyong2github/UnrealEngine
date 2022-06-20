@@ -22,33 +22,33 @@ namespace UnrealGameSync
 		public string? Launch { get; set; }
 		public string? LaunchCmd { get; set; }
 
-		public static bool TryRead(FileReference Location, DirectoryReference? EngineDir, DirectoryReference? ProjectDir, [NotNullWhen(true)] out TargetReceipt? Receipt)
+		public static bool TryRead(FileReference location, DirectoryReference? engineDir, DirectoryReference? projectDir, [NotNullWhen(true)] out TargetReceipt? receipt)
 		{
-			if (Utility.TryLoadJson(Location, out Receipt))
+			if (Utility.TryLoadJson(location, out receipt))
 			{
-				Receipt.Launch = ExpandReceiptVariables(Receipt.Launch, EngineDir, ProjectDir);
-				Receipt.LaunchCmd = ExpandReceiptVariables(Receipt.LaunchCmd, EngineDir, ProjectDir);
+				receipt.Launch = ExpandReceiptVariables(receipt.Launch, engineDir, projectDir);
+				receipt.LaunchCmd = ExpandReceiptVariables(receipt.LaunchCmd, engineDir, projectDir);
 				return true;
 			}
 			return false;
 		}
 
-		[return: NotNullIfNotNull("Line")]
-		private static string? ExpandReceiptVariables(string? Line, DirectoryReference? EngineDir, DirectoryReference? ProjectDir)
+		[return: NotNullIfNotNull("line")]
+		private static string? ExpandReceiptVariables(string? line, DirectoryReference? engineDir, DirectoryReference? projectDir)
 		{
-			string? ExpandedLine = Line;
-			if (ExpandedLine != null)
+			string? expandedLine = line;
+			if (expandedLine != null)
 			{
-				if (EngineDir != null)
+				if (engineDir != null)
 				{
-					ExpandedLine = ExpandedLine.Replace("$(EngineDir)", EngineDir.FullName);
+					expandedLine = expandedLine.Replace("$(EngineDir)", engineDir.FullName);
 				}
-				if (ProjectDir != null)
+				if (projectDir != null)
 				{
-					ExpandedLine = ExpandedLine.Replace("$(ProjectDir)", ProjectDir.FullName);
+					expandedLine = expandedLine.Replace("$(ProjectDir)", projectDir.FullName);
 				}
 			}
-			return ExpandedLine;
+			return expandedLine;
 		}
 	}
 
@@ -74,381 +74,381 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection Perforce, ProjectInfo ProjectInfo, ILogger Logger, CancellationToken CancellationToken)
+		public static Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection perforce, ProjectInfo projectInfo, ILogger logger, CancellationToken cancellationToken)
 		{
-			return ReadProjectConfigFileAsync(Perforce, ProjectInfo, new List<KeyValuePair<FileReference, DateTime>>(), Logger, CancellationToken);
+			return ReadProjectConfigFileAsync(perforce, projectInfo, new List<KeyValuePair<FileReference, DateTime>>(), logger, cancellationToken);
 		}
 
-		public static Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection Perforce, ProjectInfo ProjectInfo, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles, ILogger Logger, CancellationToken CancellationToken)
+		public static Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection perforce, ProjectInfo projectInfo, List<KeyValuePair<FileReference, DateTime>> localConfigFiles, ILogger logger, CancellationToken cancellationToken)
 		{
-			return ReadProjectConfigFileAsync(Perforce, ProjectInfo.ClientRootPath, ProjectInfo.ClientFileName, ProjectInfo.CacheFolder, LocalConfigFiles, Logger, CancellationToken);
+			return ReadProjectConfigFileAsync(perforce, projectInfo.ClientRootPath, projectInfo.ClientFileName, projectInfo.CacheFolder, localConfigFiles, logger, cancellationToken);
 		}
 
-		public static async Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection Perforce, string BranchClientPath, string SelectedClientFileName, DirectoryReference CacheFolder, List<KeyValuePair<FileReference, DateTime>> LocalConfigFiles, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task<ConfigFile> ReadProjectConfigFileAsync(IPerforceConnection perforce, string branchClientPath, string selectedClientFileName, DirectoryReference cacheFolder, List<KeyValuePair<FileReference, DateTime>> localConfigFiles, ILogger logger, CancellationToken cancellationToken)
 		{
-			List<string> ConfigFilePaths = Utility.GetDepotConfigPaths(BranchClientPath + "/Engine", SelectedClientFileName);
+			List<string> configFilePaths = Utility.GetDepotConfigPaths(branchClientPath + "/Engine", selectedClientFileName);
 
-			ConfigFile ProjectConfig = new ConfigFile();
+			ConfigFile projectConfig = new ConfigFile();
 
-			List<PerforceResponse<FStatRecord>> Responses = await Perforce.TryFStatAsync(FStatOptions.IncludeFileSizes, ConfigFilePaths, CancellationToken).ToListAsync(CancellationToken);
-			foreach (PerforceResponse<FStatRecord> Response in Responses)
+			List<PerforceResponse<FStatRecord>> responses = await perforce.TryFStatAsync(FStatOptions.IncludeFileSizes, configFilePaths, cancellationToken).ToListAsync(cancellationToken);
+			foreach (PerforceResponse<FStatRecord> response in responses)
 			{
-				if (Response.Succeeded)
+				if (response.Succeeded)
 				{
-					string[]? Lines = null;
+					string[]? lines = null;
 
 					// Skip file records which are still in the workspace, but were synced from a different branch. For these files, the action seems to be empty, so filter against that.
-					FStatRecord FileRecord = Response.Data;
-					if (FileRecord.HeadAction == FileAction.None)
+					FStatRecord fileRecord = response.Data;
+					if (fileRecord.HeadAction == FileAction.None)
 					{
 						continue;
 					}
 
 					// If this file is open for edit, read the local version
-					string? LocalFileName = FileRecord.ClientFile;
-					if (LocalFileName != null && File.Exists(LocalFileName) && (File.GetAttributes(LocalFileName) & FileAttributes.ReadOnly) == 0)
+					string? localFileName = fileRecord.ClientFile;
+					if (localFileName != null && File.Exists(localFileName) && (File.GetAttributes(localFileName) & FileAttributes.ReadOnly) == 0)
 					{
 						try
 						{
-							DateTime LastModifiedTime = File.GetLastWriteTimeUtc(LocalFileName);
-							LocalConfigFiles.Add(new KeyValuePair<FileReference, DateTime>(new FileReference(LocalFileName), LastModifiedTime));
-							Lines = await File.ReadAllLinesAsync(LocalFileName, CancellationToken);
+							DateTime lastModifiedTime = File.GetLastWriteTimeUtc(localFileName);
+							localConfigFiles.Add(new KeyValuePair<FileReference, DateTime>(new FileReference(localFileName), lastModifiedTime));
+							lines = await File.ReadAllLinesAsync(localFileName, cancellationToken);
 						}
-						catch (Exception Ex)
+						catch (Exception ex)
 						{
-							Logger.LogInformation(Ex, "Failed to read local config file for {Path}", LocalFileName);
+							logger.LogInformation(ex, "Failed to read local config file for {Path}", localFileName);
 						}
 					}
 
 					// Otherwise try to get it from perforce
-					if (Lines == null && FileRecord.DepotFile != null)
+					if (lines == null && fileRecord.DepotFile != null)
 					{
-						Lines = await Utility.TryPrintFileUsingCacheAsync(Perforce, FileRecord.DepotFile, CacheFolder, FileRecord.Digest, Logger, CancellationToken);
+						lines = await Utility.TryPrintFileUsingCacheAsync(perforce, fileRecord.DepotFile, cacheFolder, fileRecord.Digest, logger, cancellationToken);
 					}
 
 					// Merge the text with the config file
-					if (Lines != null)
+					if (lines != null)
 					{
 						try
 						{
-							ProjectConfig.Parse(Lines.ToArray());
-							Logger.LogDebug("Read config file from {DepotFile}", FileRecord.DepotFile);
+							projectConfig.Parse(lines.ToArray());
+							logger.LogDebug("Read config file from {DepotFile}", fileRecord.DepotFile);
 						}
-						catch (Exception Ex)
+						catch (Exception ex)
 						{
-							Logger.LogInformation(Ex, "Failed to read config file from {DepotFile}", FileRecord.DepotFile);
+							logger.LogInformation(ex, "Failed to read config file from {DepotFile}", fileRecord.DepotFile);
 						}
 					}
 				}
 			}
-			return ProjectConfig;
+			return projectConfig;
 		}
 
-		public static FileReference GetEditorTargetFile(ProjectInfo ProjectInfo, ConfigFile ProjectConfig)
+		public static FileReference GetEditorTargetFile(ProjectInfo projectInfo, ConfigFile projectConfig)
 		{
-			if (ProjectInfo.ProjectPath.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
+			if (projectInfo.ProjectPath.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
 			{
-				List<FileReference> TargetFiles = FindTargets(ProjectInfo.LocalFileName.Directory);
+				List<FileReference> targetFiles = FindTargets(projectInfo.LocalFileName.Directory);
 
-				FileReference? TargetFile = TargetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).FirstOrDefault(x => x.FullName.EndsWith("Editor.target.cs", StringComparison.OrdinalIgnoreCase));
-				if (TargetFile != null)
+				FileReference? targetFile = targetFiles.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase).FirstOrDefault(x => x.FullName.EndsWith("Editor.target.cs", StringComparison.OrdinalIgnoreCase));
+				if (targetFile != null)
 				{
-					return TargetFile;
+					return targetFile;
 				}
 			}
 
-			string DefaultEditorTargetName = GetDefaultEditorTargetName(ProjectInfo, ProjectConfig);
-			return FileReference.Combine(ProjectInfo.LocalRootPath, "Engine", "Source", $"{DefaultEditorTargetName}.Target.cs");
+			string defaultEditorTargetName = GetDefaultEditorTargetName(projectInfo, projectConfig);
+			return FileReference.Combine(projectInfo.LocalRootPath, "Engine", "Source", $"{defaultEditorTargetName}.Target.cs");
 		}
 
-		public static FileReference GetEditorReceiptFile(ProjectInfo ProjectInfo, ConfigFile ProjectConfig, BuildConfig Config)
+		public static FileReference GetEditorReceiptFile(ProjectInfo projectInfo, ConfigFile projectConfig, BuildConfig config)
 		{
-			FileReference TargetFile = GetEditorTargetFile(ProjectInfo, ProjectConfig);
-			return GetReceiptFile(ProjectInfo, TargetFile, Config.ToString());
+			FileReference targetFile = GetEditorTargetFile(projectInfo, projectConfig);
+			return GetReceiptFile(projectInfo, targetFile, config.ToString());
 		}
 
-		private static List<FileReference> FindTargets(DirectoryReference EngineOrProjectDir)
+		private static List<FileReference> FindTargets(DirectoryReference engineOrProjectDir)
 		{
-			List<FileReference> Targets = new List<FileReference>();
+			List<FileReference> targets = new List<FileReference>();
 
-			DirectoryReference SourceDir = DirectoryReference.Combine(EngineOrProjectDir, "Source");
-			if (DirectoryReference.Exists(SourceDir))
+			DirectoryReference sourceDir = DirectoryReference.Combine(engineOrProjectDir, "Source");
+			if (DirectoryReference.Exists(sourceDir))
 			{
-				foreach (FileReference TargetFile in DirectoryReference.EnumerateFiles(SourceDir))
+				foreach (FileReference targetFile in DirectoryReference.EnumerateFiles(sourceDir))
 				{
-					const string Extension = ".target.cs";
-					if (TargetFile.FullName.EndsWith(Extension, StringComparison.OrdinalIgnoreCase))
+					const string extension = ".target.cs";
+					if (targetFile.FullName.EndsWith(extension, StringComparison.OrdinalIgnoreCase))
 					{
-						Targets.Add(TargetFile);
+						targets.Add(targetFile);
 					}
 				}
 			}
 
-			return Targets;
+			return targets;
 		}
 
-		public static string GetDefaultEditorTargetName(ProjectInfo ProjectInfo, ConfigFile ProjectConfigFile)
+		public static string GetDefaultEditorTargetName(ProjectInfo projectInfo, ConfigFile projectConfigFile)
 		{
-			string? EditorTarget;
-			if (!TryGetProjectSetting(ProjectConfigFile, ProjectInfo.ProjectIdentifier, "EditorTarget", out EditorTarget))
+			string? editorTarget;
+			if (!TryGetProjectSetting(projectConfigFile, projectInfo.ProjectIdentifier, "EditorTarget", out editorTarget))
 			{
-				if (ProjectInfo.bIsEnterpriseProject)
+				if (projectInfo.IsEnterpriseProject)
 				{
-					EditorTarget = "StudioEditor";
+					editorTarget = "StudioEditor";
 				}
 				else
 				{
-					EditorTarget = "UE4Editor";
+					editorTarget = "UE4Editor";
 				}
 			}
-			return EditorTarget;
+			return editorTarget;
 		}
 
-		public static bool TryReadEditorReceipt(ProjectInfo ProjectInfo, FileReference ReceiptFile, [NotNullWhen(true)] out TargetReceipt? Receipt)
+		public static bool TryReadEditorReceipt(ProjectInfo projectInfo, FileReference receiptFile, [NotNullWhen(true)] out TargetReceipt? receipt)
 		{
-			DirectoryReference EngineDir = DirectoryReference.Combine(ProjectInfo.LocalRootPath, "Engine");
-			DirectoryReference ProjectDir = ProjectInfo.LocalFileName.Directory;
+			DirectoryReference engineDir = DirectoryReference.Combine(projectInfo.LocalRootPath, "Engine");
+			DirectoryReference projectDir = projectInfo.LocalFileName.Directory;
 
-			if (ReceiptFile.IsUnderDirectory(ProjectDir))
+			if (receiptFile.IsUnderDirectory(projectDir))
 			{
-				return TargetReceipt.TryRead(ReceiptFile, EngineDir, ProjectDir, out Receipt);
+				return TargetReceipt.TryRead(receiptFile, engineDir, projectDir, out receipt);
 			}
 			else
 			{
-				return TargetReceipt.TryRead(ReceiptFile, EngineDir, null, out Receipt);
+				return TargetReceipt.TryRead(receiptFile, engineDir, null, out receipt);
 			}
 		}
 
-		public static TargetReceipt CreateDefaultEditorReceipt(ProjectInfo ProjectInfo, ConfigFile ProjectConfigFile, BuildConfig Configuration)
+		public static TargetReceipt CreateDefaultEditorReceipt(ProjectInfo projectInfo, ConfigFile projectConfigFile, BuildConfig configuration)
 		{
-			string BaseName = GetDefaultEditorTargetName(ProjectInfo, ProjectConfigFile);
-			if (Configuration != BuildConfig.Development || !String.IsNullOrEmpty(HostArchitectureSuffix))
+			string baseName = GetDefaultEditorTargetName(projectInfo, projectConfigFile);
+			if (configuration != BuildConfig.Development || !String.IsNullOrEmpty(HostArchitectureSuffix))
 			{
-				if (Configuration != BuildConfig.DebugGame || ProjectConfigFile.GetValue("Options.DebugGameHasSeparateExecutable", false))
+				if (configuration != BuildConfig.DebugGame || projectConfigFile.GetValue("Options.DebugGameHasSeparateExecutable", false))
 				{
-					BaseName += $"-{HostPlatform}-{Configuration}{HostArchitectureSuffix}";
+					baseName += $"-{HostPlatform}-{configuration}{HostArchitectureSuffix}";
 				}
 			}
 
-			string Extension = String.Empty;
+			string extension = String.Empty;
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 			{
-				Extension = ".exe";
+				extension = ".exe";
 			}
 
-			TargetReceipt Receipt = new TargetReceipt();
-			Receipt.Configuration = Configuration.ToString();
-			Receipt.Launch = FileReference.Combine(ProjectInfo.LocalRootPath, "Engine", "Binaries", HostPlatform, $"{BaseName}{Extension}").FullName;
-			Receipt.LaunchCmd = FileReference.Combine(ProjectInfo.LocalRootPath, "Engine", "Binaries", HostPlatform, $"{BaseName}-Cmd{Extension}").FullName;
-			return Receipt;
+			TargetReceipt receipt = new TargetReceipt();
+			receipt.Configuration = configuration.ToString();
+			receipt.Launch = FileReference.Combine(projectInfo.LocalRootPath, "Engine", "Binaries", HostPlatform, $"{baseName}{extension}").FullName;
+			receipt.LaunchCmd = FileReference.Combine(projectInfo.LocalRootPath, "Engine", "Binaries", HostPlatform, $"{baseName}-Cmd{extension}").FullName;
+			return receipt;
 		}
 
-		public static FileReference GetReceiptFile(ProjectInfo ProjectInfo, FileReference TargetFile, string Configuration)
+		public static FileReference GetReceiptFile(ProjectInfo projectInfo, FileReference targetFile, string configuration)
 		{
-			string TargetName = TargetFile.GetFileNameWithoutAnyExtensions();
+			string targetName = targetFile.GetFileNameWithoutAnyExtensions();
 
-			DirectoryReference? ProjectDir = ProjectInfo.ProjectDir;
-			if (ProjectDir != null)
+			DirectoryReference? projectDir = projectInfo.ProjectDir;
+			if (projectDir != null)
 			{
-				return GetReceiptFile(ProjectDir, TargetName, Configuration);
+				return GetReceiptFile(projectDir, targetName, configuration);
 			}
 			else
 			{
-				return GetReceiptFile(ProjectInfo.EngineDir, TargetName, Configuration);
+				return GetReceiptFile(projectInfo.EngineDir, targetName, configuration);
 			}
 		}
 
-		public static FileReference GetReceiptFile(DirectoryReference BaseDir, string TargetName, string Configuration)
+		public static FileReference GetReceiptFile(DirectoryReference baseDir, string targetName, string configuration)
 		{
-			return GetReceiptFile(BaseDir, TargetName, HostPlatform, Configuration, HostArchitectureSuffix);
+			return GetReceiptFile(baseDir, targetName, HostPlatform, configuration, HostArchitectureSuffix);
 		}
 
-		public static FileReference GetReceiptFile(DirectoryReference BaseDir, string TargetName, string Platform, string Configuration, string ArchitectureSuffix)
+		public static FileReference GetReceiptFile(DirectoryReference baseDir, string targetName, string platform, string configuration, string architectureSuffix)
 		{
-			if (String.IsNullOrEmpty(ArchitectureSuffix) && Configuration.Equals("Development", StringComparison.OrdinalIgnoreCase))
+			if (String.IsNullOrEmpty(architectureSuffix) && configuration.Equals("Development", StringComparison.OrdinalIgnoreCase))
 			{
-				return FileReference.Combine(BaseDir, "Binaries", Platform, $"{TargetName}.target");
+				return FileReference.Combine(baseDir, "Binaries", platform, $"{targetName}.target");
 			}
 			else
 			{
-				return FileReference.Combine(BaseDir, "Binaries", Platform, $"{TargetName}-{Platform}-{Configuration}{ArchitectureSuffix}.target");
+				return FileReference.Combine(baseDir, "Binaries", platform, $"{targetName}-{platform}-{configuration}{architectureSuffix}.target");
 			}
 		}
 
-		public static Dictionary<Guid, ConfigObject> GetDefaultBuildStepObjects(ProjectInfo ProjectInfo, string EditorTarget, BuildConfig EditorConfig, ConfigFile LatestProjectConfigFile, bool ShouldSyncPrecompiledEditor)
+		public static Dictionary<Guid, ConfigObject> GetDefaultBuildStepObjects(ProjectInfo projectInfo, string editorTarget, BuildConfig editorConfig, ConfigFile latestProjectConfigFile, bool shouldSyncPrecompiledEditor)
 		{
-			string ProjectArgument = "";
-			if (ProjectInfo.LocalFileName.HasExtension(".uproject"))
+			string projectArgument = "";
+			if (projectInfo.LocalFileName.HasExtension(".uproject"))
 			{
-				ProjectArgument = String.Format("\"{0}\"", ProjectInfo.LocalFileName);
+				projectArgument = String.Format("\"{0}\"", projectInfo.LocalFileName);
 			}
 
-			bool bUseCrashReportClientEditor = LatestProjectConfigFile.GetValue("Options.UseCrashReportClientEditor", false);
+			bool useCrashReportClientEditor = latestProjectConfigFile.GetValue("Options.UseCrashReportClientEditor", false);
 
-			string HostPlatform;
+			string hostPlatform;
 			if(RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 			{
-				HostPlatform = "Mac";
+				hostPlatform = "Mac";
 			}
 			else if(RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
-				HostPlatform = "Linux";
+				hostPlatform = "Linux";
 			}
 			else
 			{
-				HostPlatform = "Win64";
+				hostPlatform = "Win64";
 			}
 
-			List<BuildStep> DefaultBuildSteps = new List<BuildStep>();
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{01F66060-73FA-4CC8-9CB3-E217FBBA954E}"), 0, "Compile UnrealHeaderTool", "Compiling UnrealHeaderTool...", 1, "UnrealHeaderTool", HostPlatform, "Development", "", !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{F097FF61-C916-4058-8391-35B46C3173D5}"), 1, $"Compile {EditorTarget}", $"Compiling {EditorTarget}...", 10, EditorTarget, HostPlatform, EditorConfig.ToString(), ProjectArgument, !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{C6E633A1-956F-4AD3-BC95-6D06D131E7B4}"), 2, "Compile ShaderCompileWorker", "Compiling ShaderCompileWorker...", 1, "ShaderCompileWorker", HostPlatform, "Development", "", !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{24FFD88C-7901-4899-9696-AE1066B4B6E8}"), 3, "Compile UnrealLightmass", "Compiling UnrealLightmass...", 1, "UnrealLightmass", HostPlatform, "Development", "", !ShouldSyncPrecompiledEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{FFF20379-06BF-4205-8A3E-C53427736688}"), 4, "Compile CrashReportClient", "Compiling CrashReportClient...", 1, "CrashReportClient", HostPlatform, "Shipping", "", !ShouldSyncPrecompiledEditor && !bUseCrashReportClientEditor));
-			DefaultBuildSteps.Add(new BuildStep(new Guid("{7143D861-58D3-4F83-BADC-BC5DCB2079F6}"), 5, "Compile CrashReportClientEditor", "Compiling CrashReportClientEditor...", 1, "CrashReportClientEditor", HostPlatform, "Shipping", "", !ShouldSyncPrecompiledEditor && bUseCrashReportClientEditor));
+			List<BuildStep> defaultBuildSteps = new List<BuildStep>();
+			defaultBuildSteps.Add(new BuildStep(new Guid("{01F66060-73FA-4CC8-9CB3-E217FBBA954E}"), 0, "Compile UnrealHeaderTool", "Compiling UnrealHeaderTool...", 1, "UnrealHeaderTool", hostPlatform, "Development", "", !shouldSyncPrecompiledEditor));
+			defaultBuildSteps.Add(new BuildStep(new Guid("{F097FF61-C916-4058-8391-35B46C3173D5}"), 1, $"Compile {editorTarget}", $"Compiling {editorTarget}...", 10, editorTarget, hostPlatform, editorConfig.ToString(), projectArgument, !shouldSyncPrecompiledEditor));
+			defaultBuildSteps.Add(new BuildStep(new Guid("{C6E633A1-956F-4AD3-BC95-6D06D131E7B4}"), 2, "Compile ShaderCompileWorker", "Compiling ShaderCompileWorker...", 1, "ShaderCompileWorker", hostPlatform, "Development", "", !shouldSyncPrecompiledEditor));
+			defaultBuildSteps.Add(new BuildStep(new Guid("{24FFD88C-7901-4899-9696-AE1066B4B6E8}"), 3, "Compile UnrealLightmass", "Compiling UnrealLightmass...", 1, "UnrealLightmass", hostPlatform, "Development", "", !shouldSyncPrecompiledEditor));
+			defaultBuildSteps.Add(new BuildStep(new Guid("{FFF20379-06BF-4205-8A3E-C53427736688}"), 4, "Compile CrashReportClient", "Compiling CrashReportClient...", 1, "CrashReportClient", hostPlatform, "Shipping", "", !shouldSyncPrecompiledEditor && !useCrashReportClientEditor));
+			defaultBuildSteps.Add(new BuildStep(new Guid("{7143D861-58D3-4F83-BADC-BC5DCB2079F6}"), 5, "Compile CrashReportClientEditor", "Compiling CrashReportClientEditor...", 1, "CrashReportClientEditor", hostPlatform, "Shipping", "", !shouldSyncPrecompiledEditor && useCrashReportClientEditor));
 
-			return DefaultBuildSteps.ToDictionary(x => x.UniqueId, x => x.ToConfigObject());
+			return defaultBuildSteps.ToDictionary(x => x.UniqueId, x => x.ToConfigObject());
 		}
 
-		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo ProjectInfo, int ChangeNumber, int CodeChangeNumber, TargetReceipt? EditorTarget, ConfigFile? ProjectConfigFile)
+		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo projectInfo, int changeNumber, int codeChangeNumber, TargetReceipt? editorTarget, ConfigFile? projectConfigFile)
 		{
-			Dictionary<string, string> Variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+			Dictionary<string, string> variables = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
-			if (ProjectInfo.StreamName != null)
+			if (projectInfo.StreamName != null)
 			{
-				Variables.Add("Stream", ProjectInfo.StreamName);
+				variables.Add("Stream", projectInfo.StreamName);
 			}
 
-			Variables.Add("Change", ChangeNumber.ToString());
-			Variables.Add("CodeChange", CodeChangeNumber.ToString());
+			variables.Add("Change", changeNumber.ToString());
+			variables.Add("CodeChange", codeChangeNumber.ToString());
 
-			Variables.Add("ClientName", ProjectInfo.ClientName);
-			Variables.Add("BranchDir", ProjectInfo.LocalRootPath.FullName);
-			Variables.Add("ProjectDir", ProjectInfo.LocalFileName.Directory.FullName);
-			Variables.Add("ProjectFile", ProjectInfo.LocalFileName.FullName);
-			Variables.Add("UseIncrementalBuilds", "1");
+			variables.Add("ClientName", projectInfo.ClientName);
+			variables.Add("BranchDir", projectInfo.LocalRootPath.FullName);
+			variables.Add("ProjectDir", projectInfo.LocalFileName.Directory.FullName);
+			variables.Add("ProjectFile", projectInfo.LocalFileName.FullName);
+			variables.Add("UseIncrementalBuilds", "1");
 
-			string EditorConfig = EditorTarget?.Configuration ?? String.Empty;
-			Variables.Add("EditorConfig", EditorConfig);
+			string editorConfig = editorTarget?.Configuration ?? String.Empty;
+			variables.Add("EditorConfig", editorConfig);
 
-			string EditorLaunch = EditorTarget?.Launch ?? String.Empty;
-			Variables.Add("EditorExe", EditorLaunch);
+			string editorLaunch = editorTarget?.Launch ?? String.Empty;
+			variables.Add("EditorExe", editorLaunch);
 
-			string EditorLaunchCmd = EditorTarget?.LaunchCmd ?? EditorLaunch.Replace(".exe", "-Cmd.exe");
-			Variables.Add("EditorCmdExe", EditorLaunchCmd);
+			string editorLaunchCmd = editorTarget?.LaunchCmd ?? editorLaunch.Replace(".exe", "-Cmd.exe");
+			variables.Add("EditorCmdExe", editorLaunchCmd);
 
 			// Legacy
-			Variables.Add("UE4EditorConfig", EditorConfig);
-			Variables.Add("UE4EditorDebugArg", (EditorConfig.Equals("Debug", StringComparison.Ordinal) || EditorConfig.Equals("DebugGame", StringComparison.Ordinal)) ? " -debug" : "");
-			Variables.Add("UE4EditorExe", EditorLaunch);
-			Variables.Add("UE4EditorCmdExe", EditorLaunchCmd);
+			variables.Add("UE4EditorConfig", editorConfig);
+			variables.Add("UE4EditorDebugArg", (editorConfig.Equals("Debug", StringComparison.Ordinal) || editorConfig.Equals("DebugGame", StringComparison.Ordinal)) ? " -debug" : "");
+			variables.Add("UE4EditorExe", editorLaunch);
+			variables.Add("UE4EditorCmdExe", editorLaunchCmd);
 
-			if (ProjectConfigFile != null)
+			if (projectConfigFile != null)
 			{
-				if (TryGetProjectSetting(ProjectConfigFile, ProjectInfo.ProjectIdentifier, "SdkInstallerDir", out string? SdkInstallerDir))
+				if (TryGetProjectSetting(projectConfigFile, projectInfo.ProjectIdentifier, "SdkInstallerDir", out string? sdkInstallerDir))
 				{
-					Variables.Add("SdkInstallerDir", SdkInstallerDir);
+					variables.Add("SdkInstallerDir", sdkInstallerDir);
 				}
 			}
 
-			return Variables;
+			return variables;
 		}
 
-		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo ProjectInfo, int ChangeNumber, int CodeChangeNumber, TargetReceipt? EditorTarget, ConfigFile? ProjectConfigFile, IEnumerable<KeyValuePair<string, string>> AdditionalVariables)
+		public static Dictionary<string, string> GetWorkspaceVariables(ProjectInfo projectInfo, int changeNumber, int codeChangeNumber, TargetReceipt? editorTarget, ConfigFile? projectConfigFile, IEnumerable<KeyValuePair<string, string>> additionalVariables)
 		{
-			Dictionary<string, string> Variables = GetWorkspaceVariables(ProjectInfo, ChangeNumber, CodeChangeNumber, EditorTarget, ProjectConfigFile);
-			foreach ((string Key, string Value) in AdditionalVariables)
+			Dictionary<string, string> variables = GetWorkspaceVariables(projectInfo, changeNumber, codeChangeNumber, editorTarget, projectConfigFile);
+			foreach ((string key, string value) in additionalVariables)
 			{
-				Variables[Key] = Value;
+				variables[key] = value;
 			}
-			return Variables;
+			return variables;
 		}
 
-		public static bool TryGetProjectSetting(ConfigFile ProjectConfigFile, string SelectedProjectIdentifier, string Name, [NotNullWhen(true)] out string? Value)
+		public static bool TryGetProjectSetting(ConfigFile projectConfigFile, string selectedProjectIdentifier, string name, [NotNullWhen(true)] out string? value)
 		{
-			string Path = SelectedProjectIdentifier;
+			string path = selectedProjectIdentifier;
 			for (; ; )
 			{
-				ConfigSection ProjectSection = ProjectConfigFile.FindSection(Path);
-				if (ProjectSection != null)
+				ConfigSection projectSection = projectConfigFile.FindSection(path);
+				if (projectSection != null)
 				{
-					string? NewValue = ProjectSection.GetValue(Name, null);
-					if (NewValue != null)
+					string? newValue = projectSection.GetValue(name, null);
+					if (newValue != null)
 					{
-						Value = NewValue;
+						value = newValue;
 						return true;
 					}
 				}
 
-				int LastSlash = Path.LastIndexOf('/');
-				if (LastSlash < 2)
+				int lastSlash = path.LastIndexOf('/');
+				if (lastSlash < 2)
 				{
 					break;
 				}
 
-				Path = Path.Substring(0, LastSlash);
+				path = path.Substring(0, lastSlash);
 			}
 
-			ConfigSection DefaultSection = ProjectConfigFile.FindSection("Default");
-			if (DefaultSection != null)
+			ConfigSection defaultSection = projectConfigFile.FindSection("Default");
+			if (defaultSection != null)
 			{
-				string? NewValue = DefaultSection.GetValue(Name, null);
-				if (NewValue != null)
+				string? newValue = defaultSection.GetValue(name, null);
+				if (newValue != null)
 				{
-					Value = NewValue;
+					value = newValue;
 					return true;
 				}
 			}
 
-			Value = null;
+			value = null;
 			return false;
 		}
 
-		public static Dictionary<Guid, WorkspaceSyncCategory> GetSyncCategories(ConfigFile ProjectConfigFile)
+		public static Dictionary<Guid, WorkspaceSyncCategory> GetSyncCategories(ConfigFile projectConfigFile)
 		{
-			Dictionary<Guid, WorkspaceSyncCategory> UniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
-			if (ProjectConfigFile != null)
+			Dictionary<Guid, WorkspaceSyncCategory> uniqueIdToCategory = new Dictionary<Guid, WorkspaceSyncCategory>();
+			if (projectConfigFile != null)
 			{
-				string[] CategoryLines = ProjectConfigFile.GetValues("Options.SyncCategory", new string[0]);
-				foreach (string CategoryLine in CategoryLines)
+				string[] categoryLines = projectConfigFile.GetValues("Options.SyncCategory", new string[0]);
+				foreach (string categoryLine in categoryLines)
 				{
-					ConfigObject Object = new ConfigObject(CategoryLine);
+					ConfigObject obj = new ConfigObject(categoryLine);
 
-					Guid UniqueId;
-					if (Guid.TryParse(Object.GetValue("UniqueId", ""), out UniqueId))
+					Guid uniqueId;
+					if (Guid.TryParse(obj.GetValue("UniqueId", ""), out uniqueId))
 					{
-						WorkspaceSyncCategory? Category;
-						if (!UniqueIdToCategory.TryGetValue(UniqueId, out Category))
+						WorkspaceSyncCategory? category;
+						if (!uniqueIdToCategory.TryGetValue(uniqueId, out category))
 						{
-							Category = new WorkspaceSyncCategory(UniqueId);
-							UniqueIdToCategory.Add(UniqueId, Category);
+							category = new WorkspaceSyncCategory(uniqueId);
+							uniqueIdToCategory.Add(uniqueId, category);
 						}
 
-						if (Object.GetValue("Clear", false))
+						if (obj.GetValue("Clear", false))
 						{
-							Category.Paths = new string[0];
-							Category.Requires = new Guid[0];
+							category.Paths = new string[0];
+							category.Requires = new Guid[0];
 						}
 
-						Category.Name = Object.GetValue("Name", Category.Name);
-						Category.bEnable = Object.GetValue("Enable", Category.bEnable);
-						Category.Paths = Enumerable.Concat(Category.Paths, Object.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
-						Category.bHidden = Object.GetValue("Hidden", Category.bHidden);
-						Category.Requires = Enumerable.Concat(Category.Requires, ParseGuids(Object.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
+						category.Name = obj.GetValue("Name", category.Name);
+						category.Enable = obj.GetValue("Enable", category.Enable);
+						category.Paths = Enumerable.Concat(category.Paths, obj.GetValue("Paths", "").Split(';').Select(x => x.Trim())).Where(x => x.Length > 0).Distinct().OrderBy(x => x).ToArray();
+						category.Hidden = obj.GetValue("Hidden", category.Hidden);
+						category.Requires = Enumerable.Concat(category.Requires, ParseGuids(obj.GetValue("Requires", "").Split(';'))).Distinct().OrderBy(x => x).ToArray();
 					}
 				}
 			}
-			return UniqueIdToCategory;
+			return uniqueIdToCategory;
 		}
 
-		static IEnumerable<Guid> ParseGuids(IEnumerable<string> Values)
+		static IEnumerable<Guid> ParseGuids(IEnumerable<string> values)
 		{
-			foreach (string Value in Values)
+			foreach (string value in values)
 			{
-				Guid Guid;
-				if (Guid.TryParse(Value, out Guid))
+				Guid guid;
+				if (Guid.TryParse(value, out guid))
 				{
-					yield return Guid;
+					yield return guid;
 				}
 			}
 		}

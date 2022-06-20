@@ -28,35 +28,35 @@ namespace UnrealGameSync
 		public UserWorkspaceState State { get; }
 		public ProjectInfo Project { get; }
 		public SynchronizationContext SynchronizationContext { get; }
-		ILogger Logger;
+		ILogger _logger;
 
-		bool bSyncing => CurrentUpdate != null;
+		bool Syncing => _currentUpdate != null;
 
-		WorkspaceUpdate? CurrentUpdate;
+		WorkspaceUpdate? _currentUpdate;
 
 		public event Action<WorkspaceUpdateContext, WorkspaceUpdateResult, string>? OnUpdateComplete;
 
-		IAsyncDisposer AsyncDisposer;
+		IAsyncDisposer _asyncDisposer;
 
-		public Workspace(IPerforceSettings InPerfoceSettings, ProjectInfo InProject, UserWorkspaceState InState, ConfigFile ProjectConfigFile, IReadOnlyList<string>? ProjectStreamFilter, ILogger Logger, IServiceProvider ServiceProvider)
+		public Workspace(IPerforceSettings inPerfoceSettings, ProjectInfo inProject, UserWorkspaceState inState, ConfigFile projectConfigFile, IReadOnlyList<string>? projectStreamFilter, ILogger logger, IServiceProvider serviceProvider)
 		{
-			PerforceSettings = InPerfoceSettings;
-			Project = InProject;
-			State = InState;
+			PerforceSettings = inPerfoceSettings;
+			Project = inProject;
+			State = inState;
 			this.SynchronizationContext = SynchronizationContext.Current!;
-			this.Logger = Logger;
-			this.AsyncDisposer = ServiceProvider.GetRequiredService<IAsyncDisposer>();
+			this._logger = logger;
+			this._asyncDisposer = serviceProvider.GetRequiredService<IAsyncDisposer>();
 
-			this.ProjectConfigFile = ProjectConfigFile;
-			this.ProjectStreamFilter = ProjectStreamFilter;
+			this.ProjectConfigFile = projectConfigFile;
+			this.ProjectStreamFilter = projectStreamFilter;
 		}
 
 		public void Dispose()
 		{
 			CancelUpdate();
-			if (PrevUpdateTask != null)
+			if (_prevUpdateTask != null)
 			{
-				AsyncDisposer.Add(PrevUpdateTask);
+				_asyncDisposer.Add(_prevUpdateTask);
 			}
 		}
 
@@ -70,121 +70,121 @@ namespace UnrealGameSync
 			get; private set;
 		}
 
-		CancellationTokenSource? PrevCancellationSource;
-		Task PrevUpdateTask = Task.CompletedTask;
+		CancellationTokenSource? _prevCancellationSource;
+		Task _prevUpdateTask = Task.CompletedTask;
 
-		public void Update(WorkspaceUpdateContext Context)
+		public void Update(WorkspaceUpdateContext context)
 		{
 			CancelUpdate();
 
-			Task PrevUpdateTaskCopy = PrevUpdateTask;
+			Task prevUpdateTaskCopy = _prevUpdateTask;
 
-			WorkspaceUpdate Update = new WorkspaceUpdate(Context);
-			CurrentUpdate = Update;
+			WorkspaceUpdate update = new WorkspaceUpdate(context);
+			_currentUpdate = update;
 
-			CancellationTokenSource CancellationSource = new CancellationTokenSource();
-			PrevCancellationSource = CancellationSource;
-			PrevUpdateTask = Task.Run(() => UpdateWorkspaceMini(Update, PrevUpdateTaskCopy, CancellationSource.Token));
+			CancellationTokenSource cancellationSource = new CancellationTokenSource();
+			_prevCancellationSource = cancellationSource;
+			_prevUpdateTask = Task.Run(() => UpdateWorkspaceMini(update, prevUpdateTaskCopy, cancellationSource.Token));
 		}
 
 		public void CancelUpdate()
 		{
 			// Cancel the current task. We actually terminate the operation asynchronously, but we can signal the cancellation and 
 			// send a cancelled event, then wait for the heavy lifting to finish in the new update task.
-			if (PrevCancellationSource != null)
+			if (_prevCancellationSource != null)
 			{
-				CancellationTokenSource PrevCancellationSourceCopy = PrevCancellationSource;
-				PrevCancellationSourceCopy.Cancel();
-				PrevUpdateTask = PrevUpdateTask.ContinueWith(Task => PrevCancellationSourceCopy.Dispose());
-				PrevCancellationSource = null;
+				CancellationTokenSource prevCancellationSourceCopy = _prevCancellationSource;
+				prevCancellationSourceCopy.Cancel();
+				_prevUpdateTask = _prevUpdateTask.ContinueWith(task => prevCancellationSourceCopy.Dispose());
+				_prevCancellationSource = null;
 			}
-			if(CurrentUpdate != null)
+			if(_currentUpdate != null)
 			{
-				CompleteUpdate(CurrentUpdate, WorkspaceUpdateResult.Canceled, "Cancelled");
+				CompleteUpdate(_currentUpdate, WorkspaceUpdateResult.Canceled, "Cancelled");
 			}
 		}
 
-		async Task UpdateWorkspaceMini(WorkspaceUpdate Update, Task PrevUpdateTask, CancellationToken CancellationToken)
+		async Task UpdateWorkspaceMini(WorkspaceUpdate update, Task prevUpdateTask, CancellationToken cancellationToken)
 		{
-			if (PrevUpdateTask != null)
+			if (prevUpdateTask != null)
 			{
-				await PrevUpdateTask;
+				await prevUpdateTask;
 			}
 
-			WorkspaceUpdateContext Context = Update.Context;
-			Context.ProjectConfigFile = ProjectConfigFile;
-			Context.ProjectStreamFilter = ProjectStreamFilter;
+			WorkspaceUpdateContext context = update.Context;
+			context.ProjectConfigFile = ProjectConfigFile;
+			context.ProjectStreamFilter = ProjectStreamFilter;
 
-			string StatusMessage;
-			WorkspaceUpdateResult Result = WorkspaceUpdateResult.FailedToSync;
+			string statusMessage;
+			WorkspaceUpdateResult result = WorkspaceUpdateResult.FailedToSync;
 
 			try
 			{
-				(Result, StatusMessage) = await Update.ExecuteAsync(PerforceSettings, Project, State, Logger, CancellationToken);
-				if (Result != WorkspaceUpdateResult.Success)
+				(result, statusMessage) = await update.ExecuteAsync(PerforceSettings, Project, State, _logger, cancellationToken);
+				if (result != WorkspaceUpdateResult.Success)
 				{
-					Logger.LogError("{Message}", StatusMessage);
+					_logger.LogError("{Message}", statusMessage);
 				}
 			}
 			catch (OperationCanceledException)
 			{
-				StatusMessage = "Canceled.";
-				Logger.LogError("Canceled.");
+				statusMessage = "Canceled.";
+				_logger.LogError("Canceled.");
 			}
-			catch (Exception Ex)
+			catch (Exception ex)
 			{
-				StatusMessage = "Failed with exception - " + Ex.ToString();
-				Logger.LogError(Ex, "Failed with exception");
+				statusMessage = "Failed with exception - " + ex.ToString();
+				_logger.LogError(ex, "Failed with exception");
 			}
 
-			ProjectConfigFile = Context.ProjectConfigFile;
-			ProjectStreamFilter = Context.ProjectStreamFilter;
+			ProjectConfigFile = context.ProjectConfigFile;
+			ProjectStreamFilter = context.ProjectStreamFilter;
 
-			SynchronizationContext.Post(x => CompleteUpdate(Update, Result, StatusMessage), null);
+			SynchronizationContext.Post(x => CompleteUpdate(update, result, statusMessage), null);
 		}
 
-		void CompleteUpdate(WorkspaceUpdate Update, WorkspaceUpdateResult Result, string StatusMessage)
+		void CompleteUpdate(WorkspaceUpdate update, WorkspaceUpdateResult result, string statusMessage)
 		{
-			if (CurrentUpdate == Update)
+			if (_currentUpdate == update)
 			{
-				WorkspaceUpdateContext Context = Update.Context;
+				WorkspaceUpdateContext context = update.Context;
 
-				State.SetLastSyncState(Result, Context, StatusMessage);
-				State.Save(Logger);
+				State.SetLastSyncState(result, context, statusMessage);
+				State.Save(_logger);
 
-				OnUpdateComplete?.Invoke(Context, Result, StatusMessage);
-				CurrentUpdate = null;
+				OnUpdateComplete?.Invoke(context, result, statusMessage);
+				_currentUpdate = null;
 			}
 		}
 
-		public Dictionary<string, string> GetVariables(BuildConfig EditorConfig, int? OverrideChange = null, int? OverrideCodeChange = null)
+		public Dictionary<string, string> GetVariables(BuildConfig editorConfig, int? overrideChange = null, int? overrideCodeChange = null)
 		{
-			FileReference EditorReceiptFile = ConfigUtils.GetEditorReceiptFile(Project, ProjectConfigFile, EditorConfig);
+			FileReference editorReceiptFile = ConfigUtils.GetEditorReceiptFile(Project, ProjectConfigFile, editorConfig);
 
-			TargetReceipt? EditorReceipt;
-			if (!ConfigUtils.TryReadEditorReceipt(Project, EditorReceiptFile, out EditorReceipt))
+			TargetReceipt? editorReceipt;
+			if (!ConfigUtils.TryReadEditorReceipt(Project, editorReceiptFile, out editorReceipt))
 			{
-				EditorReceipt = ConfigUtils.CreateDefaultEditorReceipt(Project, ProjectConfigFile, EditorConfig);
+				editorReceipt = ConfigUtils.CreateDefaultEditorReceipt(Project, ProjectConfigFile, editorConfig);
 			}
 
-			Dictionary<string, string> Variables = ConfigUtils.GetWorkspaceVariables(Project, OverrideChange ?? State.CurrentChangeNumber, OverrideCodeChange ?? State.CurrentCodeChangeNumber, EditorReceipt, ProjectConfigFile);
-			return Variables;
+			Dictionary<string, string> variables = ConfigUtils.GetWorkspaceVariables(Project, overrideChange ?? State.CurrentChangeNumber, overrideCodeChange ?? State.CurrentCodeChangeNumber, editorReceipt, ProjectConfigFile);
+			return variables;
 		}
 
 		public bool IsBusy()
 		{
-			return bSyncing;
+			return Syncing;
 		}
 
 		public int CurrentChangeNumber => State.CurrentChangeNumber;
 
-		public int PendingChangeNumber => CurrentUpdate?.Context?.ChangeNumber ?? CurrentChangeNumber;
+		public int PendingChangeNumber => _currentUpdate?.Context?.ChangeNumber ?? CurrentChangeNumber;
 
 		public string ClientName
 		{
 			get { return PerforceSettings.ClientName!; }
 		}
 
-		public Tuple<string, float> CurrentProgress => CurrentUpdate?.CurrentProgress ?? new Tuple<string, float>("", 0.0f);
+		public Tuple<string, float> CurrentProgress => _currentUpdate?.CurrentProgress ?? new Tuple<string, float>("", 0.0f);
 	}
 }

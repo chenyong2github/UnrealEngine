@@ -16,17 +16,17 @@ namespace UnrealGameSync
 {
 	public class LogSplitContainer : SplitContainer
 	{
-		const int WM_SETCURSOR = 0x0020;
+		const int WmSetcursor = 0x0020;
 
-		bool bHoverOverClose;
-		bool bMouseDownOverClose;
-		bool bLogVisible = true;
-		bool bSplitterMoved = false;
-		bool bChangingLogVisibility = false;
+		bool _hoverOverClose;
+		bool _mouseDownOverClose;
+		bool _logVisible = true;
+		bool _splitterMoved = false;
+		bool _changingLogVisibility = false;
 
 		const int CaptionPadding = 4;
 
-		int LogHeight = 200;
+		int _logHeight = 200;
 
 		public event Action<bool>? OnVisibilityChanged;
 
@@ -68,50 +68,50 @@ namespace UnrealGameSync
 			Invalidate();
 		}
 
-		public void OnSplitterMoved(object Obj, EventArgs Args)
+		public void OnSplitterMoved(object obj, EventArgs args)
 		{
-			bSplitterMoved = true;
+			_splitterMoved = true;
 
-			if(bLogVisible && !bChangingLogVisibility)
+			if(_logVisible && !_changingLogVisibility)
 			{
-				LogHeight = Height - (SplitterDistance + SplitterWidth);
+				_logHeight = Height - (SplitterDistance + SplitterWidth);
 			}
 
 			Invalidate();
 		}
 
-		public void SetLogVisibility(bool bVisible)
+		public void SetLogVisibility(bool visible)
 		{
-			if(bVisible != bLogVisible)
+			if(visible != _logVisible)
 			{
 				SuspendLayout();
 
-				bLogVisible = bVisible;
-				bChangingLogVisibility = true;
+				_logVisible = visible;
+				_changingLogVisibility = true;
 				UpdateMetrics();
-				if(bLogVisible)
+				if(_logVisible)
 				{
-					SplitterDistance = Math.Max(Height - LogHeight - SplitterWidth, Panel1MinSize);
+					SplitterDistance = Math.Max(Height - _logHeight - SplitterWidth, Panel1MinSize);
 				}
 				else
 				{
 					SplitterDistance = Height - SplitterWidth;
 				}
 
-				bChangingLogVisibility = false;
+				_changingLogVisibility = false;
 
 				ResumeLayout();
 
 				if(OnVisibilityChanged != null)
 				{
-					OnVisibilityChanged(bVisible);
+					OnVisibilityChanged(visible);
 				}
 			}
 		}
 
 		private void UpdateMetrics()
 		{
-			if(bLogVisible)
+			if(_logVisible)
 			{
 				IsSplitterFixed = false;
 				SplitterWidth = CaptionFont.Height + (CaptionPadding * 2) + 4;
@@ -136,7 +136,7 @@ namespace UnrealGameSync
 			{
 				UpdateMetrics();
 
-				if(!bLogVisible)
+				if(!_logVisible)
 				{
 					SplitterDistance = Height - SplitterWidth;
 				}
@@ -147,15 +147,15 @@ namespace UnrealGameSync
 		{
 			base.OnLayout(e);
 
-			if(bLogVisible && !bChangingLogVisibility)
+			if(_logVisible && !_changingLogVisibility)
 			{
-				LogHeight = Height - (SplitterDistance + SplitterWidth);
+				_logHeight = Height - (SplitterDistance + SplitterWidth);
 			}
 		}
 
 		public bool IsLogVisible()
 		{
-			return bLogVisible;
+			return _logVisible;
 		}
 
 		protected override void OnFontChanged(EventArgs e)
@@ -169,10 +169,10 @@ namespace UnrealGameSync
 		{
 			base.OnMouseMove(e);
 
-			bool bNewHoverOverClose = CloseButtonRectangle.Contains(e.Location);
-			if(bHoverOverClose != bNewHoverOverClose)
+			bool newHoverOverClose = CloseButtonRectangle.Contains(e.Location);
+			if(_hoverOverClose != newHoverOverClose)
 			{
-				bHoverOverClose = bNewHoverOverClose;
+				_hoverOverClose = newHoverOverClose;
 				Invalidate();
 			}
 		}
@@ -181,21 +181,21 @@ namespace UnrealGameSync
 		{
 			base.OnMouseLeave(e);
 
-			if(bHoverOverClose)
+			if(_hoverOverClose)
 			{
-				bHoverOverClose = false;
-				bMouseDownOverClose = false;
+				_hoverOverClose = false;
+				_mouseDownOverClose = false;
 				Invalidate();
 			}
 		}
 
 		protected override void OnMouseDown(MouseEventArgs e)
 		{
-			bSplitterMoved = false;
+			_splitterMoved = false;
 
 			if(CloseButtonRectangle.Contains(e.Location))
 			{
-				bMouseDownOverClose = bHoverOverClose;
+				_mouseDownOverClose = _hoverOverClose;
 			}
 			else
 			{
@@ -205,11 +205,11 @@ namespace UnrealGameSync
 
 		protected override void OnMouseUp(MouseEventArgs e)
 		{
-			bMouseDownOverClose = false;
+			_mouseDownOverClose = false;
 
 			base.OnMouseUp(e);
 
-			if(e.Button.HasFlag(MouseButtons.Left) && !bSplitterMoved)
+			if(e.Button.HasFlag(MouseButtons.Left) && !_splitterMoved)
 			{
 				SetLogVisibility(!IsLogVisible());
 			}
@@ -235,67 +235,67 @@ namespace UnrealGameSync
 		{
 			base.OnPaint(e);
 
-			int CaptionMinY = SplitterDistance + CaptionPadding;
-			int CaptionMaxY = SplitterDistance + SplitterWidth;
-			int ButtonSize = SplitterWidth - CaptionPadding - 2 - 4;
+			int captionMinY = SplitterDistance + CaptionPadding;
+			int captionMaxY = SplitterDistance + SplitterWidth;
+			int buttonSize = SplitterWidth - CaptionPadding - 2 - 4;
 			if(IsLogVisible())
 			{
-				CaptionMaxY -= CaptionPadding;
-				ButtonSize -= CaptionPadding;
+				captionMaxY -= CaptionPadding;
+				buttonSize -= CaptionPadding;
 			}
 
-			using(Pen CaptionBorderPen = new Pen(SystemColors.ControlDark, 1.0f))
+			using(Pen captionBorderPen = new Pen(SystemColors.ControlDark, 1.0f))
 			{
-				e.Graphics.DrawRectangle(CaptionBorderPen, 0, CaptionMinY, ClientRectangle.Width - 1, CaptionMaxY - CaptionMinY - 1);
+				e.Graphics.DrawRectangle(captionBorderPen, 0, captionMinY, ClientRectangle.Width - 1, captionMaxY - captionMinY - 1);
 			}
 
-			using(Brush BackgroundBrush = new SolidBrush(BackColor))
+			using(Brush backgroundBrush = new SolidBrush(BackColor))
 			{
-				e.Graphics.FillRectangle(BackgroundBrush, 0, 0, ClientRectangle.Width, CaptionMinY);
-				e.Graphics.FillRectangle(BackgroundBrush, 0, CaptionMaxY, ClientRectangle.Width, Height - CaptionMaxY);
-				e.Graphics.FillRectangle(BackgroundBrush, 1, CaptionMinY + 1, ClientRectangle.Width - 2, CaptionMaxY - CaptionMinY - 2);
+				e.Graphics.FillRectangle(backgroundBrush, 0, 0, ClientRectangle.Width, captionMinY);
+				e.Graphics.FillRectangle(backgroundBrush, 0, captionMaxY, ClientRectangle.Width, Height - captionMaxY);
+				e.Graphics.FillRectangle(backgroundBrush, 1, captionMinY + 1, ClientRectangle.Width - 2, captionMaxY - captionMinY - 2);
 			}
 
-			int CrossX = ClientRectangle.Right - (ButtonSize / 2) - 4;
-			int CrossY = (CaptionMinY + CaptionMaxY) / 2;
-			if(bHoverOverClose)
+			int crossX = ClientRectangle.Right - (buttonSize / 2) - 4;
+			int crossY = (captionMinY + captionMaxY) / 2;
+			if(_hoverOverClose)
 			{
-				e.Graphics.FillRectangle(SystemBrushes.ActiveCaption, CrossX - ButtonSize / 2, CrossY - ButtonSize / 2, ButtonSize, ButtonSize);
+				e.Graphics.FillRectangle(SystemBrushes.ActiveCaption, crossX - buttonSize / 2, crossY - buttonSize / 2, buttonSize, buttonSize);
 			}
-			else if(bMouseDownOverClose)
+			else if(_mouseDownOverClose)
 			{
-				e.Graphics.FillRectangle(SystemBrushes.InactiveCaption, CrossX - ButtonSize / 2, CrossY - ButtonSize / 2, ButtonSize - 2, ButtonSize - 2);
+				e.Graphics.FillRectangle(SystemBrushes.InactiveCaption, crossX - buttonSize / 2, crossY - buttonSize / 2, buttonSize - 2, buttonSize - 2);
 			}
-			if(bHoverOverClose || bMouseDownOverClose)
+			if(_hoverOverClose || _mouseDownOverClose)
 			{
-				using(Pen BorderPen = new Pen(SystemColors.InactiveCaptionText, 1.0f))
+				using(Pen borderPen = new Pen(SystemColors.InactiveCaptionText, 1.0f))
 				{
-					e.Graphics.DrawRectangle(BorderPen, CrossX - ButtonSize / 2, CrossY - ButtonSize / 2, ButtonSize, ButtonSize);
+					e.Graphics.DrawRectangle(borderPen, crossX - buttonSize / 2, crossY - buttonSize / 2, buttonSize, buttonSize);
 				}
 			}
 			if(SplitterDistance >= Height - SplitterWidth)
 			{
-				e.Graphics.DrawImage(Properties.Resources.Log, new Rectangle(CrossX - (ButtonSize / 2) - 1, CrossY - (ButtonSize / 2) - 1, ButtonSize + 2, ButtonSize + 2), new Rectangle(16, 0, 16, 16), GraphicsUnit.Pixel);
+				e.Graphics.DrawImage(Properties.Resources.Log, new Rectangle(crossX - (buttonSize / 2) - 1, crossY - (buttonSize / 2) - 1, buttonSize + 2, buttonSize + 2), new Rectangle(16, 0, 16, 16), GraphicsUnit.Pixel);
 			}
 			else
 			{
-				e.Graphics.DrawImage(Properties.Resources.Log, new Rectangle(CrossX - (ButtonSize / 2) - 1, CrossY - (ButtonSize / 2) - 1, ButtonSize + 2, ButtonSize + 2), new Rectangle(0, 0, 16, 16), GraphicsUnit.Pixel);
+				e.Graphics.DrawImage(Properties.Resources.Log, new Rectangle(crossX - (buttonSize / 2) - 1, crossY - (buttonSize / 2) - 1, buttonSize + 2, buttonSize + 2), new Rectangle(0, 0, 16, 16), GraphicsUnit.Pixel);
 			}
 
-			TextRenderer.DrawText(e.Graphics, Caption, CaptionFont, new Rectangle(2, CaptionMinY, ClientRectangle.Width - 20, CaptionMaxY - CaptionMinY), SystemColors.ControlText, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
+			TextRenderer.DrawText(e.Graphics, Caption, CaptionFont, new Rectangle(2, captionMinY, ClientRectangle.Width - 20, captionMaxY - captionMinY), SystemColors.ControlText, TextFormatFlags.Left | TextFormatFlags.VerticalCenter);
 		}
 
-		protected override void WndProc(ref Message Message)
+		protected override void WndProc(ref Message message)
 		{
-			base.WndProc(ref Message);
+			base.WndProc(ref message);
 
-			switch (Message.Msg)
+			switch (message.Msg)
 			{
-				case WM_SETCURSOR:
+				case WmSetcursor:
 					if(RectangleToScreen(CloseButtonRectangle).Contains(Cursor.Position))
 					{
 						Cursor.Current = Cursors.Default;
-						Message.Result = new IntPtr(1);
+						message.Result = new IntPtr(1);
 					}
 					return;
 			}

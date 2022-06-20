@@ -22,12 +22,12 @@ namespace UnrealGameSync
 {
 	static class RdpHandler
 	{
-		const uint CRED_TYPE_GENERIC = 1;
-		const uint CRED_TYPE_DOMAIN_PASSWORD = 2;
-		const uint CRED_PERSIST_LOCAL_MACHINE = 2;
+		const uint CredTypeGeneric = 1;
+		const uint CredTypeDomainPassword = 2;
+		const uint CredPersistLocalMachine = 2;
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
-		struct CREDENTIAL_ATTRIBUTE
+		struct CredentialAttribute
 		{
 			string Keyword;
 			uint Flags;
@@ -36,7 +36,7 @@ namespace UnrealGameSync
 		}
 
 		[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
-		class CREDENTIAL
+		class Credential
 		{
 			public uint Flags;
 			public uint Type;
@@ -53,87 +53,87 @@ namespace UnrealGameSync
 		}
 
 		[DllImport("Advapi32.dll", EntryPoint = "CredReadW", CharSet = CharSet.Unicode, SetLastError = true)]
-		static extern bool CredRead(string Target, uint Type, int ReservedFlag, out IntPtr Buffer);
+		static extern bool CredRead(string target, uint type, int reservedFlag, out IntPtr buffer);
 
 		[DllImport("Advapi32.dll", EntryPoint = "CredWriteW", CharSet = CharSet.Unicode, SetLastError = true)]
-		static extern bool CredWrite(CREDENTIAL userCredential, uint Flags);
+		static extern bool CredWrite(Credential userCredential, uint flags);
 
 		[DllImport("advapi32.dll", SetLastError = true)]
-		static extern bool CredFree(IntPtr Buffer);
+		static extern bool CredFree(IntPtr buffer);
 
-		public static bool ReadCredential(string Name, uint Type, [NotNullWhen(true)] out string? UserName, [NotNullWhen(true)] out string? Password)
+		public static bool ReadCredential(string name, uint type, [NotNullWhen(true)] out string? userName, [NotNullWhen(true)] out string? password)
 		{
-			IntPtr Buffer = IntPtr.Zero;
+			IntPtr buffer = IntPtr.Zero;
 			try
 			{
-				if (!CredRead(Name, Type, 0, out Buffer))
+				if (!CredRead(name, type, 0, out buffer))
 				{
-					UserName = null;
-					Password = null;
+					userName = null;
+					password = null;
 					return false;
 				}
 
-				CREDENTIAL? Credential = Marshal.PtrToStructure<CREDENTIAL>(Buffer);
-				if (Credential == null || Credential.UserName == null || Credential.CredentialBlob == IntPtr.Zero)
+				Credential? credential = Marshal.PtrToStructure<Credential>(buffer);
+				if (credential == null || credential.UserName == null || credential.CredentialBlob == IntPtr.Zero)
 				{
-					UserName = null;
-					Password = null;
+					userName = null;
+					password = null;
 					return false;
 				}
 
-				UserName = Credential.UserName;
-				Password = Marshal.PtrToStringUni(Credential.CredentialBlob, Credential.CredentialBlobSize / sizeof(char));
+				userName = credential.UserName;
+				password = Marshal.PtrToStringUni(credential.CredentialBlob, credential.CredentialBlobSize / sizeof(char));
 				return true;
 			}
 			finally
 			{
-				if (Buffer != IntPtr.Zero)
+				if (buffer != IntPtr.Zero)
 				{
-					CredFree(Buffer);
+					CredFree(buffer);
 				}
 			}
 		}
 
-		public static void WriteCredential(string Name, uint Type, string UserName, string Password)
+		public static void WriteCredential(string name, uint type, string userName, string password)
 		{
-			CREDENTIAL Credential = new CREDENTIAL();
+			Credential credential = new Credential();
 			try
 			{
-				Credential.Type = Type;
-				Credential.Persist = CRED_PERSIST_LOCAL_MACHINE;
-				Credential.CredentialBlobSize = Password.Length * sizeof(char);
-				Credential.TargetName = Name;
-				Credential.CredentialBlob = Marshal.StringToCoTaskMemUni(Password);
-				Credential.UserName = UserName;
-				CredWrite(Credential, 0);
+				credential.Type = type;
+				credential.Persist = CredPersistLocalMachine;
+				credential.CredentialBlobSize = password.Length * sizeof(char);
+				credential.TargetName = name;
+				credential.CredentialBlob = Marshal.StringToCoTaskMemUni(password);
+				credential.UserName = userName;
+				CredWrite(credential, 0);
 			}
 			finally
 			{
-				if (Credential.CredentialBlob != IntPtr.Zero)
+				if (credential.CredentialBlob != IntPtr.Zero)
 				{
-					Marshal.FreeCoTaskMem(Credential.CredentialBlob);
+					Marshal.FreeCoTaskMem(credential.CredentialBlob);
 				}
 			}
 		}
 
 		[UriHandler(Terminate = true)]
-		public static UriResult Rdp(string Host)
+		public static UriResult Rdp(string host)
 		{
 			// Copy the credentials from a generic Windows credential to 
-			if (!ReadCredential(Host, CRED_TYPE_DOMAIN_PASSWORD, out _, out _))
+			if (!ReadCredential(host, CredTypeDomainPassword, out _, out _))
 			{
-				if (ReadCredential("UnrealGameSync:RDP", CRED_TYPE_GENERIC, out string? UserName, out string? Password))
+				if (ReadCredential("UnrealGameSync:RDP", CredTypeGeneric, out string? userName, out string? password))
 				{
-					WriteCredential(Host, CRED_TYPE_DOMAIN_PASSWORD, UserName, Password);
+					WriteCredential(host, CredTypeDomainPassword, userName, password);
 				}
 			}
 
-			using (Process Process = new Process())
+			using (Process process = new Process())
 			{
-				Process.StartInfo.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "mstsc.exe");
-				Process.StartInfo.ArgumentList.Add($"/v:{Host}");
-				Process.StartInfo.ArgumentList.Add($"/f");
-				Process.Start();
+				process.StartInfo.FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.System), "mstsc.exe");
+				process.StartInfo.ArgumentList.Add($"/v:{host}");
+				process.StartInfo.ArgumentList.Add($"/f");
+				process.Start();
 			}
 
 			return new UriResult() { Success = true };

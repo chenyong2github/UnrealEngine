@@ -30,7 +30,7 @@ namespace UnrealGameSync
 			void SetActiveAlt(IntPtr hWnd);
 			void MarkFullscreenWindow(IntPtr hWnd, int fFullscreen);
 			void SetProgressValue(IntPtr hWnd, UInt64 ullCompleted, UInt64 ullTotal);
-			void SetProgressState(IntPtr hWnd, TaskbarState State);
+			void SetProgressState(IntPtr hWnd, TaskbarState state);
 		}
 
 		[ComImport, Guid("56FDF344-FD6D-11d0-958A-006097C9A090"), ClassInterfaceAttribute(ClassInterfaceType.None)]
@@ -38,23 +38,23 @@ namespace UnrealGameSync
 		{
 		}
 
-		static ITaskbarList3? Interface;
+		static ITaskbarList3? _interface;
 
 		static Taskbar()
 		{
 			if(Environment.OSVersion.Version >= new Version(6, 1))
 			{
-				Interface = new TaskbarList3() as ITaskbarList3;
+				_interface = new TaskbarList3() as ITaskbarList3;
 			}
 		}
 
-		public static void SetState(IntPtr WindowHandle, TaskbarState State)
+		public static void SetState(IntPtr windowHandle, TaskbarState state)
 		{
-			if(Interface != null)
+			if(_interface != null)
 			{
 				try
 				{
-					Interface.SetProgressState(WindowHandle, State);
+					_interface.SetProgressState(windowHandle, state);
 				}
 				catch
 				{
@@ -62,13 +62,13 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void SetProgress(IntPtr WindowHandle, ulong Completed, ulong Total)
+		public static void SetProgress(IntPtr windowHandle, ulong completed, ulong total)
 		{
-			if(Interface != null)
+			if(_interface != null)
 			{
 				try
 				{
-					Interface.SetProgressValue(WindowHandle, Completed, Total);
+					_interface.SetProgressValue(windowHandle, completed, total);
 				}
 				catch
 				{

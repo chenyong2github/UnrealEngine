@@ -11,50 +11,50 @@ namespace UnrealGameSync
 {
 	interface IAsyncDisposer
 	{
-		void Add(Task Task);
+		void Add(Task task);
 	}
 
 	internal class AsyncDisposer : IAsyncDisposer, IAsyncDisposable
 	{
-		object LockObject = new object();
-		List<Task> Tasks = new List<Task>();
-		ILogger Logger;
+		object _lockObject = new object();
+		List<Task> _tasks = new List<Task>();
+		ILogger _logger;
 
-		public AsyncDisposer(ILogger<AsyncDisposer> Logger)
+		public AsyncDisposer(ILogger<AsyncDisposer> logger)
 		{
-			this.Logger = Logger;
+			this._logger = logger;
 		}
 
-		public void Add(Task Task)
+		public void Add(Task task)
 		{
-			Task ContinuationTask = Task.ContinueWith(Remove);
-			lock (LockObject)
+			Task continuationTask = task.ContinueWith(Remove);
+			lock (_lockObject)
 			{
-				Tasks.Add(ContinuationTask);
+				_tasks.Add(continuationTask);
 			}
 		}
 
-		private void Remove(Task Task)
+		private void Remove(Task task)
 		{
-			if (Task.IsFaulted)
+			if (task.IsFaulted)
 			{
-				Logger.LogError(Task.Exception, "Exception while disposing task");
+				_logger.LogError(task.Exception, "Exception while disposing task");
 			}
 		}
 
 		public async ValueTask DisposeAsync()
 		{
-			List<Task> TasksCopy;
-			lock (LockObject)
+			List<Task> tasksCopy;
+			lock (_lockObject)
 			{
-				TasksCopy = new List<Task>(Tasks);
+				tasksCopy = new List<Task>(_tasks);
 			}
 
-			Task WaitTask = Task.WhenAll(TasksCopy);
-			while (!WaitTask.IsCompleted)
+			Task waitTask = Task.WhenAll(tasksCopy);
+			while (!waitTask.IsCompleted)
 			{
-				Logger.LogInformation("Waiting for {NumTasks} tasks to complete", TasksCopy.Count);
-				await Task.WhenAny(WaitTask, Task.Delay(TimeSpan.FromSeconds(5.0)));
+				_logger.LogInformation("Waiting for {NumTasks} tasks to complete", tasksCopy.Count);
+				await Task.WhenAny(waitTask, Task.Delay(TimeSpan.FromSeconds(5.0)));
 			}
 		}
 	}

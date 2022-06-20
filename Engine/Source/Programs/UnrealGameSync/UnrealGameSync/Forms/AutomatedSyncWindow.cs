@@ -24,30 +24,30 @@ namespace UnrealGameSync
 	{
 		static class FindDefaultWorkspaceTask
 		{
-			public static async Task<string?> RunAsync(IPerforceConnection Perforce, string StreamName, CancellationToken CancellationToken)
+			public static async Task<string?> RunAsync(IPerforceConnection perforce, string streamName, CancellationToken cancellationToken)
 			{
-				InfoRecord Info = await Perforce.GetInfoAsync(InfoOptions.ShortOutput, CancellationToken);
+				InfoRecord info = await perforce.GetInfoAsync(InfoOptions.ShortOutput, cancellationToken);
 
-				List<ClientsRecord> Clients = await Perforce.GetClientsAsync(ClientsOptions.None, Perforce.Settings.UserName, CancellationToken);
+				List<ClientsRecord> clients = await perforce.GetClientsAsync(ClientsOptions.None, perforce.Settings.UserName, cancellationToken);
 
-				List<ClientsRecord> CandidateClients = new List<ClientsRecord>();
-				foreach(ClientsRecord Client in Clients)
+				List<ClientsRecord> candidateClients = new List<ClientsRecord>();
+				foreach(ClientsRecord client in clients)
 				{
-					if(Client.Host == null || Client.Host.Equals(Info.ClientHost, StringComparison.OrdinalIgnoreCase))
+					if(client.Host == null || client.Host.Equals(info.ClientHost, StringComparison.OrdinalIgnoreCase))
 					{
-						if(Client.Stream != null && Client.Stream.Equals(StreamName, StringComparison.OrdinalIgnoreCase))
+						if(client.Stream != null && client.Stream.Equals(streamName, StringComparison.OrdinalIgnoreCase))
 						{
-							CandidateClients.Add(Client);
+							candidateClients.Add(client);
 						}
 					}
 				}
 
-				string? WorkspaceName = null;
-				if(CandidateClients.Count >= 1)
+				string? workspaceName = null;
+				if(candidateClients.Count >= 1)
 				{
-					WorkspaceName = CandidateClients.OrderByDescending(x => x.Access).First().Name;
+					workspaceName = candidateClients.OrderByDescending(x => x.Access).First().Name;
 				}
-				return WorkspaceName;
+				return workspaceName;
 			}
 		}
 
@@ -55,26 +55,26 @@ namespace UnrealGameSync
 		{
 			public string WorkspaceName;
 			public string StreamName;
-			public bool bRequiresStreamSwitch;
-			public bool bHasOpenFiles;
+			public bool RequiresStreamSwitch;
+			public bool HasOpenFiles;
 
-			public ValidateWorkspaceTask(string WorkspaceName, string StreamName)
+			public ValidateWorkspaceTask(string workspaceName, string streamName)
 			{
-				this.WorkspaceName = WorkspaceName;
-				this.StreamName = StreamName;
+				this.WorkspaceName = workspaceName;
+				this.StreamName = streamName;
 			}
 
-			public async Task RunAsync(IPerforceConnection Perforce, CancellationToken CancellationToken)
+			public async Task RunAsync(IPerforceConnection perforce, CancellationToken cancellationToken)
 			{
-				ClientRecord Spec = await Perforce.GetClientAsync(WorkspaceName, CancellationToken);
+				ClientRecord spec = await perforce.GetClientAsync(WorkspaceName, cancellationToken);
 
-				string? CurrentStreamName = Spec.Stream;
-				if(CurrentStreamName == null || CurrentStreamName != StreamName)
+				string? currentStreamName = spec.Stream;
+				if(currentStreamName == null || currentStreamName != StreamName)
 				{
-					bRequiresStreamSwitch = true;
+					RequiresStreamSwitch = true;
 
-					List<PerforceResponse<OpenedRecord>> Records = await Perforce.TryOpenedAsync(OpenedOptions.None, FileSpecList.Any, CancellationToken).ToListAsync(CancellationToken);
-					bHasOpenFiles = Records.Succeeded() && Records.Count > 0;
+					List<PerforceResponse<OpenedRecord>> records = await perforce.TryOpenedAsync(OpenedOptions.None, FileSpecList.Any, cancellationToken).ToListAsync(cancellationToken);
+					HasOpenFiles = records.Succeeded() && records.Count > 0;
 				}
 			}
 		}
@@ -84,30 +84,30 @@ namespace UnrealGameSync
 			public string ServerAndPort { get; }
 			public string UserName { get; }
 			public string WorkspaceName { get; }
-			public bool bRequiresStreamSwitch { get; }
+			public bool RequiresStreamSwitch { get; }
 
-			public WorkspaceInfo(string ServerAndPort, string UserName, string WorkspaceName, bool bRequiresStreamSwitch)
+			public WorkspaceInfo(string serverAndPort, string userName, string workspaceName, bool requiresStreamSwitch)
 			{
-				this.ServerAndPort = ServerAndPort;
-				this.UserName = UserName;
-				this.WorkspaceName = WorkspaceName;
-				this.bRequiresStreamSwitch = bRequiresStreamSwitch;
+				this.ServerAndPort = serverAndPort;
+				this.UserName = userName;
+				this.WorkspaceName = workspaceName;
+				this.RequiresStreamSwitch = requiresStreamSwitch;
 			}
 		}
 
-		string StreamName;
-		IServiceProvider ServiceProvider;
+		string _streamName;
+		IServiceProvider _serviceProvider;
 
-		string? ServerAndPortOverride;
-		string? UserNameOverride;
-		IPerforceSettings DefaultPerforceSettings;
-		WorkspaceInfo? SelectedWorkspaceInfo;
+		string? _serverAndPortOverride;
+		string? _userNameOverride;
+		IPerforceSettings _defaultPerforceSettings;
+		WorkspaceInfo? _selectedWorkspaceInfo;
 
-		private AutomatedSyncWindow(string StreamName, string ProjectPath, string? WorkspaceName, IPerforceSettings DefaultPerforceSettings, IServiceProvider ServiceProvider)
+		private AutomatedSyncWindow(string streamName, string projectPath, string? workspaceName, IPerforceSettings defaultPerforceSettings, IServiceProvider serviceProvider)
 		{
-			this.StreamName = StreamName;
-			this.DefaultPerforceSettings = DefaultPerforceSettings;
-			this.ServiceProvider = ServiceProvider;
+			this._streamName = streamName;
+			this._defaultPerforceSettings = defaultPerforceSettings;
+			this._serviceProvider = serviceProvider;
 
 			InitializeComponent();
 
@@ -116,11 +116,11 @@ namespace UnrealGameSync
 			MinimumSize = Size;
 			MaximumSize = new Size(32768, Size.Height);
 
-			ProjectTextBox.Text = StreamName + ProjectPath;
+			ProjectTextBox.Text = streamName + projectPath;
 
-			if(WorkspaceName != null)
+			if(workspaceName != null)
 			{
-				WorkspaceNameTextBox.Text = WorkspaceName;
+				WorkspaceNameTextBox.Text = workspaceName;
 				WorkspaceNameTextBox.Select(WorkspaceNameTextBox.Text.Length, 0);
 			}
 
@@ -128,35 +128,35 @@ namespace UnrealGameSync
 			UpdateOkButton();
 		}
 
-		private IPerforceSettings Perforce => Utility.OverridePerforceSettings(DefaultPerforceSettings, ServerAndPortOverride, UserNameOverride);
+		private IPerforceSettings Perforce => Utility.OverridePerforceSettings(_defaultPerforceSettings, _serverAndPortOverride, _userNameOverride);
 
-		public static string? FindDefaultWorkspace(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, string StreamName, IServiceProvider ServiceProvider)
+		public static string? FindDefaultWorkspace(IWin32Window owner, IPerforceSettings defaultPerforceSettings, string streamName, IServiceProvider serviceProvider)
 		{
-			ILogger Logger = ServiceProvider.GetRequiredService<ILogger<AutomatedSyncWindow>>();
-			ModalTask<string?>? WorkspaceTask = PerforceModalTask.Execute(Owner, "Finding workspace", "Finding default workspace, please wait...", DefaultPerforceSettings, (p, c) => FindDefaultWorkspaceTask.RunAsync(p, StreamName, c), Logger);
-			return (WorkspaceTask != null && WorkspaceTask.Succeeded) ? WorkspaceTask.Result : null;
+			ILogger logger = serviceProvider.GetRequiredService<ILogger<AutomatedSyncWindow>>();
+			ModalTask<string?>? workspaceTask = PerforceModalTask.Execute(owner, "Finding workspace", "Finding default workspace, please wait...", defaultPerforceSettings, (p, c) => FindDefaultWorkspaceTask.RunAsync(p, streamName, c), logger);
+			return (workspaceTask != null && workspaceTask.Succeeded) ? workspaceTask.Result : null;
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, string StreamName, string ProjectPath, [NotNullWhen(true)] out WorkspaceInfo? WorkspaceInfo, IServiceProvider ServiceProvider)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings defaultPerforceSettings, string streamName, string projectPath, [NotNullWhen(true)] out WorkspaceInfo? workspaceInfo, IServiceProvider serviceProvider)
 		{
-			string? WorkspaceName = FindDefaultWorkspace(Owner, DefaultPerforceSettings, StreamName, ServiceProvider);
+			string? workspaceName = FindDefaultWorkspace(owner, defaultPerforceSettings, streamName, serviceProvider);
 
-			AutomatedSyncWindow Window = new AutomatedSyncWindow(StreamName, ProjectPath, WorkspaceName, DefaultPerforceSettings, ServiceProvider);
-			if(Window.ShowDialog() == DialogResult.OK)
+			AutomatedSyncWindow window = new AutomatedSyncWindow(streamName, projectPath, workspaceName, defaultPerforceSettings, serviceProvider);
+			if(window.ShowDialog() == DialogResult.OK)
 			{
-				WorkspaceInfo = Window.SelectedWorkspaceInfo!;
+				workspaceInfo = window._selectedWorkspaceInfo!;
 				return true;
 			}
 			else
 			{
-				WorkspaceInfo = null;
+				workspaceInfo = null;
 				return false;
 			}
 		}
 
 		private void ChangeLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
 		{
-			if(ConnectWindow.ShowModal(this, DefaultPerforceSettings, ref ServerAndPortOverride, ref UserNameOverride, ServiceProvider))
+			if(ConnectWindow.ShowModal(this, _defaultPerforceSettings, ref _serverAndPortOverride, ref _userNameOverride, _serviceProvider))
 			{
 				UpdateServerLabel();
 			}
@@ -164,26 +164,26 @@ namespace UnrealGameSync
 
 		private void UpdateServerLabel()
 		{
-			ServerLabel.Text = OpenProjectWindow.GetServerLabelText(DefaultPerforceSettings, ServerAndPortOverride, UserNameOverride);
+			ServerLabel.Text = OpenProjectWindow.GetServerLabelText(_defaultPerforceSettings, _serverAndPortOverride, _userNameOverride);
 			ChangeLink.Location = new Point(ServerLabel.Right + 5, ChangeLink.Location.Y);
 		}
 
 		private void WorkspaceNameNewBtn_Click(object sender, EventArgs e)
 		{
-			string? WorkspaceName;
-			if(NewWorkspaceWindow.ShowModal(this, DefaultPerforceSettings, StreamName, WorkspaceNameTextBox.Text, ServiceProvider, out WorkspaceName))
+			string? workspaceName;
+			if(NewWorkspaceWindow.ShowModal(this, _defaultPerforceSettings, _streamName, WorkspaceNameTextBox.Text, _serviceProvider, out workspaceName))
 			{
-				WorkspaceNameTextBox.Text = WorkspaceName;
+				WorkspaceNameTextBox.Text = workspaceName;
 				UpdateOkButton();
 			}
 		}
 
 		private void WorkspaceNameBrowseBtn_Click(object sender, EventArgs e)
 		{
-			string? WorkspaceName = WorkspaceNameTextBox.Text;
-			if(SelectWorkspaceWindow.ShowModal(this, DefaultPerforceSettings, WorkspaceName, ServiceProvider, out WorkspaceName))
+			string? workspaceName = WorkspaceNameTextBox.Text;
+			if(SelectWorkspaceWindow.ShowModal(this, _defaultPerforceSettings, workspaceName, _serviceProvider, out workspaceName))
 			{
-				WorkspaceNameTextBox.Text = WorkspaceName;
+				WorkspaceNameTextBox.Text = workspaceName;
 				UpdateOkButton();
 			}
 		}
@@ -193,42 +193,42 @@ namespace UnrealGameSync
 			OkBtn.Enabled = (WorkspaceNameTextBox.Text.Length > 0);
 		}
 
-		public static bool ValidateWorkspace(IWin32Window Owner, IPerforceSettings Perforce, string WorkspaceName, string StreamName, IServiceProvider ServiceProvider, [NotNullWhen(true)] out WorkspaceInfo? SelectedWorkspaceInfo)
+		public static bool ValidateWorkspace(IWin32Window owner, IPerforceSettings perforce, string workspaceName, string streamName, IServiceProvider serviceProvider, [NotNullWhen(true)] out WorkspaceInfo? selectedWorkspaceInfo)
 		{
-			ValidateWorkspaceTask ValidateWorkspace = new ValidateWorkspaceTask(WorkspaceName, StreamName);
+			ValidateWorkspaceTask validateWorkspace = new ValidateWorkspaceTask(workspaceName, streamName);
 
-			ModalTask? Task = PerforceModalTask.Execute(Owner, "Checking workspace", "Checking workspace, please wait...", Perforce, ValidateWorkspace.RunAsync, ServiceProvider.GetRequiredService<ILogger<ValidateWorkspaceTask>>());
-			if (Task != null && Task.Succeeded)
+			ModalTask? task = PerforceModalTask.Execute(owner, "Checking workspace", "Checking workspace, please wait...", perforce, validateWorkspace.RunAsync, serviceProvider.GetRequiredService<ILogger<ValidateWorkspaceTask>>());
+			if (task != null && task.Succeeded)
 			{
-				if (ValidateWorkspace.bRequiresStreamSwitch)
+				if (validateWorkspace.RequiresStreamSwitch)
 				{
-					string Message;
-					if (ValidateWorkspace.bHasOpenFiles)
+					string message;
+					if (validateWorkspace.HasOpenFiles)
 					{
-						Message = String.Format("You have files open for edit in this workspace. If you switch this workspace to {0}, you will not be able to submit them until you switch back.\n\nContinue switching streams?", StreamName);
+						message = String.Format("You have files open for edit in this workspace. If you switch this workspace to {0}, you will not be able to submit them until you switch back.\n\nContinue switching streams?", streamName);
 					}
 					else
 					{
-						Message = String.Format("Switch this workspace to {0}?", StreamName);
+						message = String.Format("Switch this workspace to {0}?", streamName);
 					}
-					if (MessageBox.Show(Message, "Switch Streams", MessageBoxButtons.YesNo) != DialogResult.Yes)
+					if (MessageBox.Show(message, "Switch Streams", MessageBoxButtons.YesNo) != DialogResult.Yes)
 					{
-						SelectedWorkspaceInfo = null;
+						selectedWorkspaceInfo = null;
 						return false;
 					}
 				}
 
-				SelectedWorkspaceInfo = new WorkspaceInfo(Perforce.ServerAndPort, Perforce.UserName, ValidateWorkspace.WorkspaceName, ValidateWorkspace.bRequiresStreamSwitch);
+				selectedWorkspaceInfo = new WorkspaceInfo(perforce.ServerAndPort, perforce.UserName, validateWorkspace.WorkspaceName, validateWorkspace.RequiresStreamSwitch);
 				return true;
 			}
 
-			SelectedWorkspaceInfo = null;
+			selectedWorkspaceInfo = null;
 			return false;
 		}
 
 		private void OkBtn_Click(object sender, EventArgs e)
 		{
-			if(ValidateWorkspace(this, Perforce, WorkspaceNameTextBox.Text, StreamName, ServiceProvider, out SelectedWorkspaceInfo))
+			if(ValidateWorkspace(this, Perforce, WorkspaceNameTextBox.Text, _streamName, _serviceProvider, out _selectedWorkspaceInfo))
 			{
 				DialogResult = DialogResult.OK;
 				Close();

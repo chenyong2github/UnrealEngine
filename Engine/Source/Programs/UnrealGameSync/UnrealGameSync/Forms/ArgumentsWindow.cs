@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -16,18 +16,18 @@ namespace UnrealGameSync
 {
 	public partial class ArgumentsWindow : Form
 	{
-		const int LVM_FIRST = 0x1000;
-		const int LVM_EDITLABELW = (LVM_FIRST + 118);
+		const int LvmFirst = 0x1000;
+		const int LvmEditlabelw = (LvmFirst + 118);
 
-		const int EM_SETSEL = 0xb1;
+		const int EmSetsel = 0xb1;
 
 		[DllImport("user32.dll", CharSet = CharSet.Auto)]
-		static extern IntPtr SendMessage(IntPtr hWnd, UInt32 Msg, IntPtr wParam, IntPtr lParam);
+		static extern IntPtr SendMessage(IntPtr hWnd, UInt32 msg, IntPtr wParam, IntPtr lParam);
 		
 		[DllImport("user32.dll")]
 		static extern bool SetWindowText(IntPtr hWnd, string text);
 
-		public ArgumentsWindow(List<Tuple<string, bool>> Arguments, bool bPromptBeforeLaunch)
+		public ArgumentsWindow(List<Tuple<string, bool>> arguments, bool promptBeforeLaunch)
 		{
 			InitializeComponent();
 			ActiveControl = ArgumentsList;
@@ -36,17 +36,17 @@ namespace UnrealGameSync
 
 			ArgumentsList.Items.Clear();
 
-			foreach(Tuple<string, bool> Argument in Arguments)
+			foreach(Tuple<string, bool> argument in arguments)
 			{
-				ListViewItem Item = new ListViewItem(Argument.Item1);
-				Item.Checked = Argument.Item2;
-				ArgumentsList.Items.Add(Item);
+				ListViewItem item = new ListViewItem(argument.Item1);
+				item.Checked = argument.Item2;
+				ArgumentsList.Items.Add(item);
 			}
 
-			ListViewItem AddAnotherItem = new ListViewItem("Click to add an item...", 0);
-			ArgumentsList.Items.Add(AddAnotherItem);
+			ListViewItem addAnotherItem = new ListViewItem("Click to add an item...", 0);
+			ArgumentsList.Items.Add(addAnotherItem);
 
-			PromptBeforeLaunchCheckBox.Checked = bPromptBeforeLaunch;
+			PromptBeforeLaunchCheckBox.Checked = promptBeforeLaunch;
 		}
 
 		public bool PromptBeforeLaunch
@@ -56,13 +56,13 @@ namespace UnrealGameSync
 
 		public List<Tuple<string, bool>> GetItems()
 		{
-			List<Tuple<string, bool>> Items = new List<Tuple<string,bool>>();
-			for(int Idx = 0; Idx < ArgumentsList.Items.Count - 1; Idx++)
+			List<Tuple<string, bool>> items = new List<Tuple<string,bool>>();
+			for(int idx = 0; idx < ArgumentsList.Items.Count - 1; idx++)
 			{
-				ListViewItem Item = ArgumentsList.Items[Idx];
-				Items.Add(new Tuple<string,bool>(Item.Text, Item.Checked));
+				ListViewItem item = ArgumentsList.Items[idx];
+				items.Add(new Tuple<string,bool>(item.Text, item.Checked));
 			}
-			return Items;
+			return items;
 		}
 
 		private void ClearButton_Click(object sender, EventArgs e)
@@ -91,22 +91,22 @@ namespace UnrealGameSync
 
 		private void ArgumentsList_MouseClick(object sender, MouseEventArgs e)
 		{
-			ListViewHitTestInfo Info = ArgumentsList.HitTest(e.Location);
-			if(Info.Item.Index == ArgumentsList.Items.Count - 1)
+			ListViewHitTestInfo info = ArgumentsList.HitTest(e.Location);
+			if(info.Item.Index == ArgumentsList.Items.Count - 1)
 			{
-				ListViewItem NewItem = new ListViewItem();
-				NewItem.Checked = true;
-				NewItem = ArgumentsList.Items.Insert(ArgumentsList.Items.Count - 1, NewItem);
-				NewItem.BeginEdit();
+				ListViewItem newItem = new ListViewItem();
+				newItem.Checked = true;
+				newItem = ArgumentsList.Items.Insert(ArgumentsList.Items.Count - 1, newItem);
+				newItem.BeginEdit();
 			}
 			else
 			{
-				using(Graphics Graphics = ArgumentsList.CreateGraphics())
+				using(Graphics graphics = ArgumentsList.CreateGraphics())
 				{
-					int LabelOffset = e.X - CheckBoxPadding - CheckBoxRenderer.GetGlyphSize(Graphics, CheckBoxState.CheckedNormal).Width - CheckBoxPadding;
-					if(LabelOffset >= 0 && LabelOffset < TextRenderer.MeasureText(Info.Item.Text, ArgumentsList.Font).Width)
+					int labelOffset = e.X - CheckBoxPadding - CheckBoxRenderer.GetGlyphSize(graphics, CheckBoxState.CheckedNormal).Width - CheckBoxPadding;
+					if(labelOffset >= 0 && labelOffset < TextRenderer.MeasureText(info.Item.Text, ArgumentsList.Font).Width)
 					{
-						Info.Item.BeginEdit();
+						info.Item.BeginEdit();
 					}
 				}
 			}
@@ -119,9 +119,9 @@ namespace UnrealGameSync
 			e.DrawBackground();
 			if(e.ItemIndex < ArgumentsList.Items.Count - 1)
 			{
-				CheckBoxState State = e.Item.Checked? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
-				Size CheckSize = CheckBoxRenderer.GetGlyphSize(e.Graphics, State);
-				CheckBoxRenderer.DrawCheckBox(e.Graphics, new Point(e.Bounds.Left + 4, e.Bounds.Top + (e.Bounds.Height - CheckSize.Height) / 2), State);
+				CheckBoxState state = e.Item.Checked? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
+				Size checkSize = CheckBoxRenderer.GetGlyphSize(e.Graphics, state);
+				CheckBoxRenderer.DrawCheckBox(e.Graphics, new Point(e.Bounds.Left + 4, e.Bounds.Top + (e.Bounds.Height - checkSize.Height) / 2), state);
 				DrawItemLabel(e.Graphics, SystemColors.WindowText, e.Item);
 			}
 			else
@@ -130,39 +130,39 @@ namespace UnrealGameSync
 			}
 		}
 
-		private void DrawItemLabel(Graphics Graphics, Color NormalColor, ListViewItem Item)
+		private void DrawItemLabel(Graphics graphics, Color normalColor, ListViewItem item)
 		{
-			Rectangle LabelRect = GetLabelRectangle(Graphics, Item);
-			if(Item.Selected)
+			Rectangle labelRect = GetLabelRectangle(graphics, item);
+			if(item.Selected)
 			{
-				Graphics.FillRectangle(SystemBrushes.Highlight, LabelRect);
-				TextRenderer.DrawText(Graphics, Item.Text, ArgumentsList.Font, LabelRect, SystemColors.HighlightText, SystemColors.Highlight, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+				graphics.FillRectangle(SystemBrushes.Highlight, labelRect);
+				TextRenderer.DrawText(graphics, item.Text, ArgumentsList.Font, labelRect, SystemColors.HighlightText, SystemColors.Highlight, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
 			}
 			else
 			{
-				TextRenderer.DrawText(Graphics, Item.Text, ArgumentsList.Font, LabelRect, NormalColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
+				TextRenderer.DrawText(graphics, item.Text, ArgumentsList.Font, labelRect, normalColor, TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine);
 			}
 		}
 
-		private Rectangle GetLabelRectangle(Graphics Graphics, ListViewItem Item)
+		private Rectangle GetLabelRectangle(Graphics graphics, ListViewItem item)
 		{
-			CheckBoxState State = Item.Checked? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
-			Size CheckSize = CheckBoxRenderer.GetGlyphSize(Graphics, State);
-			Size LabelSize = TextRenderer.MeasureText(Item.Text, ArgumentsList.Font);
+			CheckBoxState state = item.Checked? CheckBoxState.CheckedNormal : CheckBoxState.UncheckedNormal;
+			Size checkSize = CheckBoxRenderer.GetGlyphSize(graphics, state);
+			Size labelSize = TextRenderer.MeasureText(item.Text, ArgumentsList.Font);
 
-			int LabelIndent = CheckBoxPadding + CheckSize.Width + CheckBoxPadding;
-			return new Rectangle(Item.Bounds.Left + LabelIndent, Item.Bounds.Top, LabelSize.Width, Item.Bounds.Height);
+			int labelIndent = CheckBoxPadding + checkSize.Width + CheckBoxPadding;
+			return new Rectangle(item.Bounds.Left + labelIndent, item.Bounds.Top, labelSize.Width, item.Bounds.Height);
 		}
 
 		private void ArgumentsList_KeyUp(object sender, KeyEventArgs e)
 		{
 			if(e.KeyCode == Keys.Delete && ArgumentsList.SelectedIndices.Count == 1)
 			{
-				int Index = ArgumentsList.SelectedIndices[0];
-				ArgumentsList.Items.RemoveAt(Index);
-				if(Index < ArgumentsList.Items.Count - 1)
+				int index = ArgumentsList.SelectedIndices[0];
+				ArgumentsList.Items.RemoveAt(index);
+				if(index < ArgumentsList.Items.Count - 1)
 				{
-					ArgumentsList.Items[Index].Selected = true;
+					ArgumentsList.Items[index].Selected = true;
 				}
 			}
 		}
@@ -171,17 +171,17 @@ namespace UnrealGameSync
 		{
 			if(ArgumentsList.SelectedItems.Count == 1 && !Char.IsControl(e.KeyChar))
 			{
-				ListViewItem Item = ArgumentsList.SelectedItems[0];
-				if(Item.Index == ArgumentsList.Items.Count - 1)
+				ListViewItem item = ArgumentsList.SelectedItems[0];
+				if(item.Index == ArgumentsList.Items.Count - 1)
 				{
-					Item = new ListViewItem();
-					Item.Checked = true;
-					Item = ArgumentsList.Items.Insert(ArgumentsList.Items.Count - 1, Item);
+					item = new ListViewItem();
+					item.Checked = true;
+					item = ArgumentsList.Items.Insert(ArgumentsList.Items.Count - 1, item);
 				}
 
-				IntPtr NewHandle = SendMessage(ArgumentsList.Handle, LVM_EDITLABELW, new IntPtr(Item.Index), IntPtr.Zero);
-				SetWindowText(NewHandle, e.KeyChar.ToString());
-				SendMessage(NewHandle, EM_SETSEL, new IntPtr(1), new IntPtr(1));
+				IntPtr newHandle = SendMessage(ArgumentsList.Handle, LvmEditlabelw, new IntPtr(item.Index), IntPtr.Zero);
+				SetWindowText(newHandle, e.KeyChar.ToString());
+				SendMessage(newHandle, EmSetsel, new IntPtr(1), new IntPtr(1));
 
 				e.Handled = true;
 			}
@@ -191,12 +191,12 @@ namespace UnrealGameSync
 		{
 			if(ArgumentsList.SelectedIndices.Count == 1)
 			{
-				int Index = ArgumentsList.SelectedIndices[0];
-				if(Index > 0)
+				int index = ArgumentsList.SelectedIndices[0];
+				if(index > 0)
 				{
-					ListViewItem Item = ArgumentsList.Items[Index];
-					ArgumentsList.Items.RemoveAt(Index);
-					ArgumentsList.Items.Insert(Index - 1, Item);
+					ListViewItem item = ArgumentsList.Items[index];
+					ArgumentsList.Items.RemoveAt(index);
+					ArgumentsList.Items.Insert(index - 1, item);
 				}
 			}
 		}
@@ -205,12 +205,12 @@ namespace UnrealGameSync
 		{
 			if(ArgumentsList.SelectedIndices.Count == 1)
 			{
-				int Index = ArgumentsList.SelectedIndices[0];
-				if(Index < ArgumentsList.Items.Count - 2)
+				int index = ArgumentsList.SelectedIndices[0];
+				if(index < ArgumentsList.Items.Count - 2)
 				{
-					ListViewItem Item = ArgumentsList.Items[Index];
-					ArgumentsList.Items.RemoveAt(Index);
-					ArgumentsList.Items.Insert(Index + 1, Item);
+					ListViewItem item = ArgumentsList.Items[index];
+					ArgumentsList.Items.RemoveAt(index);
+					ArgumentsList.Items.Insert(index + 1, item);
 				}
 			}
 		}

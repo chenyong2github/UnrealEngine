@@ -20,186 +20,186 @@ namespace UnrealGameSync
 		[DllImport("user32.dll")]
 		public static extern IntPtr LoadCursor(IntPtr hInstance, IntPtr lpCursorName);
 
-		const int IDC_HAND = 32649;
+		const int IdcHand = 32649;
 
-		public static readonly Cursor Hand = new Cursor(LoadCursor(IntPtr.Zero, new IntPtr(IDC_HAND)));
+		public static readonly Cursor Hand = new Cursor(LoadCursor(IntPtr.Zero, new IntPtr(IdcHand)));
 	}
 
 	class StatusElementResources
 	{
-		Dictionary<FontStyle, Font> FontCache = new Dictionary<FontStyle, Font>();
+		Dictionary<FontStyle, Font> _fontCache = new Dictionary<FontStyle, Font>();
 		public readonly Font BadgeFont;
 
-		public StatusElementResources(Font BaseFont)
+		public StatusElementResources(Font baseFont)
 		{
-			FontCache.Add(FontStyle.Regular, BaseFont);
+			_fontCache.Add(FontStyle.Regular, baseFont);
 
-			using(Graphics Graphics = Graphics.FromHwnd(IntPtr.Zero))
+			using(Graphics graphics = Graphics.FromHwnd(IntPtr.Zero))
 			{
-				BadgeFont = new Font(BaseFont.FontFamily, 7.0f/* * Graphics.DpiY / 96.0f*/, FontStyle.Bold);
+				BadgeFont = new Font(baseFont.FontFamily, 7.0f/* * Graphics.DpiY / 96.0f*/, FontStyle.Bold);
 			}
 		}
 
 		public void Dispose()
 		{
-			foreach(KeyValuePair<FontStyle, Font> FontPair in FontCache)
+			foreach(KeyValuePair<FontStyle, Font> fontPair in _fontCache)
 			{
-				if(FontPair.Key != FontStyle.Regular)
+				if(fontPair.Key != FontStyle.Regular)
 				{
-					FontPair.Value.Dispose();
+					fontPair.Value.Dispose();
 				}
 			}
 
 			BadgeFont.Dispose();
 		}
 
-		public Font FindOrAddFont(FontStyle Style)
+		public Font FindOrAddFont(FontStyle style)
 		{
-			Font? Result;
-			if(!FontCache.TryGetValue(Style, out Result))
+			Font? result;
+			if(!_fontCache.TryGetValue(style, out result))
 			{
-				Result = new Font(FontCache[FontStyle.Regular], Style);
-				FontCache[Style] = Result;
+				result = new Font(_fontCache[FontStyle.Regular], style);
+				_fontCache[style] = result;
 			}
-			return Result;
+			return result;
 		}
 	}
 
 	abstract class StatusElement
 	{
 		public Cursor Cursor = Cursors.Arrow;
-		public bool bMouseOver;
-		public bool bMouseDown;
+		public bool MouseOver;
+		public bool MouseDown;
 		public Rectangle Bounds;
 
-		public Point Layout(Graphics Graphics, Point Location, StatusElementResources Resources)
+		public Point Layout(Graphics graphics, Point location, StatusElementResources resources)
 		{
-			Size Size = Measure(Graphics, Resources);
-			Bounds = new Rectangle(Location.X, Location.Y - (Size.Height + 1) / 2, Size.Width, Size.Height);
-			return new Point(Location.X + Size.Width, Location.Y);
+			Size size = Measure(graphics, resources);
+			Bounds = new Rectangle(location.X, location.Y - (size.Height + 1) / 2, size.Width, size.Height);
+			return new Point(location.X + size.Width, location.Y);
 		}
 
-		public abstract Size Measure(Graphics Graphics, StatusElementResources Resources);
-		public abstract void Draw(Graphics Grahpics, StatusElementResources Resources);
+		public abstract Size Measure(Graphics graphics, StatusElementResources resources);
+		public abstract void Draw(Graphics grahpics, StatusElementResources resources);
 
-		public virtual void OnClick(Point Location)
+		public virtual void OnClick(Point location)
 		{
 		}
 	}
 
 	class IconStatusElement : StatusElement
 	{
-		Image Icon;
+		Image _icon;
 
-		public IconStatusElement(Image InIcon)
+		public IconStatusElement(Image inIcon)
 		{
-			Icon = InIcon;
+			_icon = inIcon;
 		}
 
-		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
+		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			return new Size((int)(Icon.Width * Graphics.DpiX / 96.0f), (int)(Icon.Height * Graphics.DpiY / 96.0f));
+			return new Size((int)(_icon.Width * graphics.DpiX / 96.0f), (int)(_icon.Height * graphics.DpiY / 96.0f));
 		}
 
-		public override void Draw(Graphics Graphics, StatusElementResources Resources)
+		public override void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			Graphics.DrawImage(Icon, Bounds.Location);
+			graphics.DrawImage(_icon, Bounds.Location);
 		}
 	}
 
 	class IconStripStatusElement : StatusElement
 	{
-		Image Strip;
-		Size IconSize;
-		int Index;
+		Image _strip;
+		Size _iconSize;
+		int _index;
 
-		public IconStripStatusElement(Image InStrip, Size InIconSize, int InIndex)
+		public IconStripStatusElement(Image inStrip, Size inIconSize, int inIndex)
 		{
-			Strip = InStrip;
-			IconSize = InIconSize;
-			Index = InIndex;
+			_strip = inStrip;
+			_iconSize = inIconSize;
+			_index = inIndex;
 		}
 
-		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
+		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			return new Size((int)(IconSize.Width * Graphics.DpiX / 96.0f), (int)(IconSize.Height * Graphics.DpiY / 96.0f));
+			return new Size((int)(_iconSize.Width * graphics.DpiX / 96.0f), (int)(_iconSize.Height * graphics.DpiY / 96.0f));
 		}
 
-		public override void Draw(Graphics Graphics, StatusElementResources Resources)
+		public override void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			Graphics.DrawImage(Strip, Bounds, new Rectangle(IconSize.Width * Index, 0, IconSize.Width, IconSize.Height), GraphicsUnit.Pixel);
+			graphics.DrawImage(_strip, Bounds, new Rectangle(_iconSize.Width * _index, 0, _iconSize.Width, _iconSize.Height), GraphicsUnit.Pixel);
 		}
 	}
 
 	class TextStatusElement : StatusElement
 	{
-		string Text;
-		Color Color;
-		FontStyle Style;
+		string _text;
+		Color _color;
+		FontStyle _style;
 
-		public TextStatusElement(string InText, Color InColor, FontStyle InStyle)
+		public TextStatusElement(string inText, Color inColor, FontStyle inStyle)
 		{
-			Text = InText;
-			Color = InColor;
-			Style = InStyle;
+			_text = inText;
+			_color = inColor;
+			_style = inStyle;
 		}
 
-		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
+		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			return TextRenderer.MeasureText(Graphics, Text, Resources.FindOrAddFont(Style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
+			return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(_style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding);
 		}
 
-		public override void Draw(Graphics Graphics, StatusElementResources Resources)
+		public override void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			TextRenderer.DrawText(Graphics, Text, Resources.FindOrAddFont(Style), Bounds.Location, Color, TextFormatFlags.NoPadding);
+			TextRenderer.DrawText(graphics, _text, resources.FindOrAddFont(_style), Bounds.Location, _color, TextFormatFlags.NoPadding);
 		}
 	}
 
 	class LinkStatusElement : StatusElement
 	{
-		string Text;
-		FontStyle Style;
-		Action<Point, Rectangle> LinkAction;
+		string _text;
+		FontStyle _style;
+		Action<Point, Rectangle> _linkAction;
 
-		public LinkStatusElement(string InText, FontStyle InStyle, Action<Point, Rectangle> InLinkAction)
+		public LinkStatusElement(string inText, FontStyle inStyle, Action<Point, Rectangle> inLinkAction)
 		{
-			Text = InText;
-			Style = InStyle;
-			LinkAction = InLinkAction;
+			_text = inText;
+			_style = inStyle;
+			_linkAction = inLinkAction;
 			Cursor = NativeCursors.Hand;
 		}
 
-		public override void OnClick(Point Location)
+		public override void OnClick(Point location)
 		{
-			LinkAction(Location, Bounds);
+			_linkAction(location, Bounds);
 		}
 
-		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
+		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			return TextRenderer.MeasureText(Graphics, Text, Resources.FindOrAddFont(Style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+			return TextRenderer.MeasureText(graphics, _text, resources.FindOrAddFont(_style), new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 		}
 
-		public override void Draw(Graphics Graphics, StatusElementResources Resources)
+		public override void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			Color TextColor = SystemColors.HotTrack;
-			if(bMouseDown)
+			Color textColor = SystemColors.HotTrack;
+			if(MouseDown)
 			{
-				TextColor = Color.FromArgb(TextColor.B / 2, TextColor.G / 2, TextColor.R);
+				textColor = Color.FromArgb(textColor.B / 2, textColor.G / 2, textColor.R);
 			}
-			else if(bMouseOver)
+			else if(MouseOver)
 			{
-				TextColor = Color.FromArgb(TextColor.B, TextColor.G, TextColor.R);
+				textColor = Color.FromArgb(textColor.B, textColor.G, textColor.R);
 			}
-			TextRenderer.DrawText(Graphics, Text, Resources.FindOrAddFont(Style), Bounds.Location, TextColor, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
+			TextRenderer.DrawText(graphics, _text, resources.FindOrAddFont(_style), Bounds.Location, textColor, TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix);
 		}
 	}
 
 	class BadgeStatusElement : StatusElement
 	{
-		string Name;
-		Color BackgroundColor;
-		Color HoverBackgroundColor;
-		Action<Point, Rectangle>? ClickAction;
+		string _name;
+		Color _backgroundColor;
+		Color _hoverBackgroundColor;
+		Action<Point, Rectangle>? _clickAction;
 
 		public bool MergeLeft
 		{
@@ -211,100 +211,100 @@ namespace UnrealGameSync
 			get; set;
 		}
 
-		public BadgeStatusElement(string InName, Color InBackgroundColor, Action<Point, Rectangle>? InClickAction)
+		public BadgeStatusElement(string inName, Color inBackgroundColor, Action<Point, Rectangle>? inClickAction)
 		{
-			Name = InName;
-			BackgroundColor = InBackgroundColor;
-			ClickAction = InClickAction;
+			_name = inName;
+			_backgroundColor = inBackgroundColor;
+			_clickAction = inClickAction;
 
-			if (ClickAction == null)
+			if (_clickAction == null)
 			{
-				HoverBackgroundColor = BackgroundColor;
+				_hoverBackgroundColor = _backgroundColor;
 			}
 			else
 			{
-				HoverBackgroundColor = Color.FromArgb(Math.Min(BackgroundColor.R + 32, 255), Math.Min(BackgroundColor.G + 32, 255), Math.Min(BackgroundColor.B + 32, 255));
+				_hoverBackgroundColor = Color.FromArgb(Math.Min(_backgroundColor.R + 32, 255), Math.Min(_backgroundColor.G + 32, 255), Math.Min(_backgroundColor.B + 32, 255));
 			}
-			if(ClickAction != null)
+			if(_clickAction != null)
 			{
 				Cursor = NativeCursors.Hand;
 			}
 		}
 
-		public override void OnClick(Point Location)
+		public override void OnClick(Point location)
 		{
-			if(ClickAction != null)
+			if(_clickAction != null)
 			{
-				ClickAction(Location, Bounds);
+				_clickAction(location, Bounds);
 			}
 		}
 
-		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
+		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			Size LabelSize = TextRenderer.MeasureText(Name, Resources.BadgeFont);
-			int BadgeHeight = Resources.BadgeFont.Height + 1;
-			return new Size(LabelSize.Width + 1 + BadgeHeight - 4, BadgeHeight);
+			Size labelSize = TextRenderer.MeasureText(_name, resources.BadgeFont);
+			int badgeHeight = resources.BadgeFont.Height + 1;
+			return new Size(labelSize.Width + 1 + badgeHeight - 4, badgeHeight);
 		}
 
-		public override void Draw(Graphics Graphics, StatusElementResources Resources)
+		public override void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			SmoothingMode PrevSmoothingMode = Graphics.SmoothingMode;
-			Graphics.SmoothingMode = SmoothingMode.HighQuality;
+			SmoothingMode prevSmoothingMode = graphics.SmoothingMode;
+			graphics.SmoothingMode = SmoothingMode.HighQuality;
 
-			using (GraphicsPath Path = new GraphicsPath())
+			using (GraphicsPath path = new GraphicsPath())
 			{
-				Path.StartFigure();
-				Path.AddLine(Bounds.Left + (MergeLeft? 1 : 0), Bounds.Top, Bounds.Left - (MergeLeft? 1 : 0), Bounds.Bottom);
-				Path.AddLine(Bounds.Left - (MergeLeft? 1 : 0), Bounds.Bottom, Bounds.Right - 2 - (MergeRight? 1 : 0), Bounds.Bottom);
-				Path.AddLine(Bounds.Right - 2 - (MergeRight? 1 : 0), Bounds.Bottom, Bounds.Right - 2 + (MergeRight? 1 : 0), Bounds.Top);
-				Path.AddLine(Bounds.Right - 2 + (MergeRight? 1 : 0), Bounds.Top, Bounds.Left + (MergeLeft? 1 : 0), Bounds.Top);
-				Path.CloseFigure();
+				path.StartFigure();
+				path.AddLine(Bounds.Left + (MergeLeft? 1 : 0), Bounds.Top, Bounds.Left - (MergeLeft? 1 : 0), Bounds.Bottom);
+				path.AddLine(Bounds.Left - (MergeLeft? 1 : 0), Bounds.Bottom, Bounds.Right - 2 - (MergeRight? 1 : 0), Bounds.Bottom);
+				path.AddLine(Bounds.Right - 2 - (MergeRight? 1 : 0), Bounds.Bottom, Bounds.Right - 2 + (MergeRight? 1 : 0), Bounds.Top);
+				path.AddLine(Bounds.Right - 2 + (MergeRight? 1 : 0), Bounds.Top, Bounds.Left + (MergeLeft? 1 : 0), Bounds.Top);
+				path.CloseFigure();
 
-				using(SolidBrush Brush = new SolidBrush(bMouseOver? HoverBackgroundColor : BackgroundColor))
+				using(SolidBrush brush = new SolidBrush(MouseOver? _hoverBackgroundColor : _backgroundColor))
 				{
-					Graphics.FillPath(Brush, Path);
+					graphics.FillPath(brush, path);
 				}
 			}
 
-			Graphics.SmoothingMode = PrevSmoothingMode;
-			TextRenderer.DrawText(Graphics, Name, Resources.BadgeFont, Bounds, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
+			graphics.SmoothingMode = prevSmoothingMode;
+			TextRenderer.DrawText(graphics, _name, resources.BadgeFont, Bounds, Color.White, TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.NoPrefix | TextFormatFlags.PreserveGraphicsClipping);
 		}
 	}
 
 	class ProgressBarStatusElement : StatusElement
 	{
-		float Progress;
+		float _progress;
 
-		public ProgressBarStatusElement(float InProgress)
+		public ProgressBarStatusElement(float inProgress)
 		{
-			Progress = InProgress;
+			_progress = inProgress;
 		}
 
-		public override Size Measure(Graphics Graphics, StatusElementResources Resources)
+		public override Size Measure(Graphics graphics, StatusElementResources resources)
 		{
-			int Height = (int)(Resources.FindOrAddFont(FontStyle.Regular).Height * 0.9f);
-			return new Size(Height * 16, Height);
+			int height = (int)(resources.FindOrAddFont(FontStyle.Regular).Height * 0.9f);
+			return new Size(height * 16, height);
 		}
 
-		public override void Draw(Graphics Graphics, StatusElementResources Resources)
+		public override void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
+			graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
 
-			Graphics.DrawRectangle(Pens.Black, Bounds.Left, Bounds.Top, Bounds.Width - 1, Bounds.Height - 1);
-			Graphics.FillRectangle(Brushes.White, Bounds.Left + 1, Bounds.Top + 1, Bounds.Width - 2, Bounds.Height - 2);
+			graphics.DrawRectangle(Pens.Black, Bounds.Left, Bounds.Top, Bounds.Width - 1, Bounds.Height - 1);
+			graphics.FillRectangle(Brushes.White, Bounds.Left + 1, Bounds.Top + 1, Bounds.Width - 2, Bounds.Height - 2);
 
-			int ProgressX = Bounds.Left + 2 + (int)((Bounds.Width - 4) * Progress);
-			using(Brush ProgressBarBrush = new SolidBrush(Color.FromArgb(112, 146, 190)))
+			int progressX = Bounds.Left + 2 + (int)((Bounds.Width - 4) * _progress);
+			using(Brush progressBarBrush = new SolidBrush(Color.FromArgb(112, 146, 190)))
 			{
-				Graphics.FillRectangle(ProgressBarBrush, Bounds.Left + 2, Bounds.Y + 2, ProgressX - (Bounds.Left + 2), Bounds.Height - 4);
+				graphics.FillRectangle(progressBarBrush, Bounds.Left + 2, Bounds.Y + 2, progressX - (Bounds.Left + 2), Bounds.Height - 4);
 			}
 		}
 	}
 
 	class StatusLine
 	{
-		bool bModified;
-		List<StatusElement> Elements = new List<StatusElement>();
+		bool _modified;
+		List<StatusElement> _elements = new List<StatusElement>();
 
 		public StatusLine()
 		{
@@ -325,89 +325,89 @@ namespace UnrealGameSync
 
 		public bool RequiresLayout()
 		{
-			return bModified;
+			return _modified;
 		}
 
 		public void Clear()
 		{
-			Elements.Clear();
-			bModified = true;
+			_elements.Clear();
+			_modified = true;
 		}
 
-		public void Add(StatusElement Element)
+		public void Add(StatusElement element)
 		{
-			Elements.Add(Element);
-			bModified = true;
+			_elements.Add(element);
+			_modified = true;
 		}
 
-		public void AddIcon(Image InIcon)
+		public void AddIcon(Image inIcon)
 		{
-			Elements.Add(new IconStatusElement(InIcon));
-			bModified = true;
+			_elements.Add(new IconStatusElement(inIcon));
+			_modified = true;
 		}
 
-		public void AddIcon(Image InStrip, Size InIconSize, int InIndex)
+		public void AddIcon(Image inStrip, Size inIconSize, int inIndex)
 		{
-			Elements.Add(new IconStripStatusElement(InStrip, InIconSize, InIndex));
-			bModified = true;
+			_elements.Add(new IconStripStatusElement(inStrip, inIconSize, inIndex));
+			_modified = true;
 		}
 
-		public void AddText(string InText, FontStyle InStyle = FontStyle.Regular)
+		public void AddText(string inText, FontStyle inStyle = FontStyle.Regular)
 		{
-			Elements.Add(new TextStatusElement(InText, SystemColors.ControlText, InStyle));
-			bModified = true;
+			_elements.Add(new TextStatusElement(inText, SystemColors.ControlText, inStyle));
+			_modified = true;
 		}
 
-		public void AddText(string InText, Color InColor, FontStyle InStyle = FontStyle.Regular)
+		public void AddText(string inText, Color inColor, FontStyle inStyle = FontStyle.Regular)
 		{
-			Elements.Add(new TextStatusElement(InText, InColor, InStyle));
-			bModified = true;
+			_elements.Add(new TextStatusElement(inText, inColor, inStyle));
+			_modified = true;
 		}
 
-		public void AddLink(string InText, FontStyle InStyle, Action InLinkAction)
+		public void AddLink(string inText, FontStyle inStyle, Action inLinkAction)
 		{
-			Elements.Add(new LinkStatusElement(InText, InStyle, (P, R) => { InLinkAction(); }));
-			bModified = true;
+			_elements.Add(new LinkStatusElement(inText, inStyle, (p, r) => { inLinkAction(); }));
+			_modified = true;
 		}
 
-		public void AddLink(string InText, FontStyle InStyle, Action<Point, Rectangle> InLinkAction)
+		public void AddLink(string inText, FontStyle inStyle, Action<Point, Rectangle> inLinkAction)
 		{
-			Elements.Add(new LinkStatusElement(InText, InStyle, InLinkAction));
-			bModified = true;
+			_elements.Add(new LinkStatusElement(inText, inStyle, inLinkAction));
+			_modified = true;
 		}
 
-		public void AddBadge(string InText, Color InBackgroundColor, Action<Point, Rectangle>? InClickAction)
+		public void AddBadge(string inText, Color inBackgroundColor, Action<Point, Rectangle>? inClickAction)
 		{
-			Elements.Add(new BadgeStatusElement(InText, InBackgroundColor, InClickAction));
-			if(Elements.Count >= 2)
+			_elements.Add(new BadgeStatusElement(inText, inBackgroundColor, inClickAction));
+			if(_elements.Count >= 2)
 			{
-				BadgeStatusElement? PrevBadge = Elements[Elements.Count - 2] as BadgeStatusElement;
-				BadgeStatusElement? NextBadge = Elements[Elements.Count - 1] as BadgeStatusElement;
-				if(PrevBadge != null && NextBadge != null)
+				BadgeStatusElement? prevBadge = _elements[_elements.Count - 2] as BadgeStatusElement;
+				BadgeStatusElement? nextBadge = _elements[_elements.Count - 1] as BadgeStatusElement;
+				if(prevBadge != null && nextBadge != null)
 				{
-					PrevBadge.MergeRight = true;
-					NextBadge.MergeLeft = true;
+					prevBadge.MergeRight = true;
+					nextBadge.MergeLeft = true;
 				}
 			}
-			bModified = true;
+			_modified = true;
 		}
 
-		public void AddProgressBar(float Progress)
+		public void AddProgressBar(float progress)
 		{
-			Elements.Add(new ProgressBarStatusElement(Progress));
-			bModified = true;
+			_elements.Add(new ProgressBarStatusElement(progress));
+			_modified = true;
 		}
 
-		public bool HitTest(Point Location, [NotNullWhen(true)] out StatusElement? OutElement)
+		public bool HitTest(Point location, [NotNullWhen(true)] out StatusElement? outElement)
 		{
-			OutElement = null;
-			if(Bounds.Contains(Location))
+			outElement = null;
+			if(Bounds.Contains(location))
 			{
-				foreach(StatusElement Element in Elements)
+				foreach(StatusElement element in _elements)
 				{
-					if(Element.Bounds.Contains(Location))
+					if(element.Bounds.Contains(location))
 					{
-						OutElement = Element;
+						outElement = element;
 						return true;
 					}
 				}
@@ -415,25 +415,25 @@ namespace UnrealGameSync
 			return false;
 		}
 
-		public void Layout(Graphics Graphics, Point Location, StatusElementResources Resources)
+		public void Layout(Graphics graphics, Point location, StatusElementResources resources)
 		{
-			Bounds = new Rectangle(Location, new Size(0, 0));
+			Bounds = new Rectangle(location, new Size(0, 0));
 
-			Point NextLocation = Location;
-			foreach(StatusElement Element in Elements)
+			Point nextLocation = location;
+			foreach(StatusElement element in _elements)
 			{
-				NextLocation = Element.Layout(Graphics, NextLocation, Resources);
-				Bounds = Rectangle.Union(Bounds, Element.Bounds);
+				nextLocation = element.Layout(graphics, nextLocation, resources);
+				Bounds = Rectangle.Union(Bounds, element.Bounds);
 			}
 
-			bModified = false;
+			_modified = false;
 		}
 
-		public void Draw(Graphics Graphics, StatusElementResources Resources)
+		public void Draw(Graphics graphics, StatusElementResources resources)
 		{
-			foreach(StatusElement Element in Elements)
+			foreach(StatusElement element in _elements)
 			{
-				Element.Draw(Graphics, Resources);
+				element.Draw(graphics, resources);
 			}
 		}
 	}
@@ -442,46 +442,46 @@ namespace UnrealGameSync
 	{
 		const float LineSpacing = 1.35f;
 
-		Image? ProjectLogo;
-		bool bDisposeProjectLogo;
-		Rectangle ProjectLogoBounds;
-		StatusElementResources? Resources;
-		List<StatusLine> Lines = new List<StatusLine>();
-		StatusLine? Caption;
-		Pen? AlertDividerPen;
-		int AlertDividerY;
-		StatusLine? Alert;
-		Color? TintColor;
-		Point? MouseOverLocation;
-		StatusElement? MouseOverElement;
-		Point? MouseDownLocation;
-		StatusElement? MouseDownElement;
-		int ContentWidth = 400;
-		int SuspendDisplayCount;
+		Image? _projectLogo;
+		bool _disposeProjectLogo;
+		Rectangle _projectLogoBounds;
+		StatusElementResources? _resources;
+		List<StatusLine> _lines = new List<StatusLine>();
+		StatusLine? _caption;
+		Pen? _alertDividerPen;
+		int _alertDividerY;
+		StatusLine? _alert;
+		Color? _tintColor;
+		Point? _mouseOverLocation;
+		StatusElement? _mouseOverElement;
+		Point? _mouseDownLocation;
+		StatusElement? _mouseDownElement;
+		int _contentWidth = 400;
+		int _suspendDisplayCount;
 
 		public StatusPanel()
 		{
 			DoubleBuffered = true;
 
-			AlertDividerPen = new Pen(Color.Black);
-			AlertDividerPen.DashPattern = new float[] { 2, 2 };
+			_alertDividerPen = new Pen(Color.Black);
+			_alertDividerPen.DashPattern = new float[] { 2, 2 };
 		}
 
 		public void SuspendDisplay()
 		{
-			SuspendDisplayCount++;
+			_suspendDisplayCount++;
 		}
 
 		public void ResumeDisplay()
 		{
-			SuspendDisplayCount--;
+			_suspendDisplayCount--;
 		}
 
-		public void SetContentWidth(int NewContentWidth)
+		public void SetContentWidth(int newContentWidth)
 		{
-			if(ContentWidth != NewContentWidth)
+			if(_contentWidth != newContentWidth)
 			{
-				ContentWidth = NewContentWidth;
+				_contentWidth = newContentWidth;
 				LayoutElements();
 				Invalidate();
 			}
@@ -493,18 +493,18 @@ namespace UnrealGameSync
 
 			if(disposing)
 			{
-				if(AlertDividerPen != null)
+				if(_alertDividerPen != null)
 				{
-					AlertDividerPen.Dispose();
-					AlertDividerPen = null;
+					_alertDividerPen.Dispose();
+					_alertDividerPen = null;
 				}
-				if(ProjectLogo != null)
+				if(_projectLogo != null)
 				{
-					if(bDisposeProjectLogo)
+					if(_disposeProjectLogo)
 					{
-						ProjectLogo.Dispose();
+						_projectLogo.Dispose();
 					}
-					ProjectLogo = null;
+					_projectLogo = null;
 				}
 				ResetFontCache();
 			}
@@ -512,100 +512,100 @@ namespace UnrealGameSync
 
 		private void ResetFontCache()
 		{
-			if(Resources != null)
+			if(_resources != null)
 			{
-				Resources.Dispose();
-				Resources = null;
+				_resources.Dispose();
+				_resources = null;
 			}
-			Resources = new StatusElementResources(Font);
+			_resources = new StatusElementResources(Font);
 		}
 
-		public void SetProjectLogo(Image NewProjectLogo, bool bDispose)
+		public void SetProjectLogo(Image newProjectLogo, bool dispose)
 		{
-			if(ProjectLogo != null)
+			if(_projectLogo != null)
 			{
-				if(bDisposeProjectLogo)
+				if(_disposeProjectLogo)
 				{
-					ProjectLogo.Dispose();
+					_projectLogo.Dispose();
 				}
 			}
-			ProjectLogo = NewProjectLogo;
-			bDisposeProjectLogo = bDispose;
+			_projectLogo = newProjectLogo;
+			_disposeProjectLogo = dispose;
 			Invalidate();
 		}
 
 		public void Clear()
 		{
 			InvalidateElements();
-			Lines.Clear();
-			Caption = null;
+			_lines.Clear();
+			_caption = null;
 		}
 
-		public void Set(IEnumerable<StatusLine> NewLines, StatusLine? NewCaption, StatusLine? NewAlert, Color? NewTintColor)
+		public void Set(IEnumerable<StatusLine> newLines, StatusLine? newCaption, StatusLine? newAlert, Color? newTintColor)
 		{
-			if(Resources == null)
+			if(_resources == null)
 			{
-				Resources = new StatusElementResources(Font);
+				_resources = new StatusElementResources(Font);
 			}
 
-			if(TintColor != NewTintColor)
+			if(_tintColor != newTintColor)
 			{
 				Invalidate();
 			}
 
 			InvalidateElements();
-			Lines.Clear();
-			Lines.AddRange(NewLines);
-			Caption = NewCaption;
-			Alert = NewAlert;
-			TintColor = NewTintColor;
+			_lines.Clear();
+			_lines.AddRange(newLines);
+			_caption = newCaption;
+			_alert = newAlert;
+			_tintColor = newTintColor;
 			LayoutElements();
 			InvalidateElements();
 
-			MouseOverElement = null;
-			MouseDownElement = null;
-			SetMouseOverLocation(MouseOverLocation);
-			SetMouseDownLocation(MouseDownLocation);
+			_mouseOverElement = null;
+			_mouseDownElement = null;
+			SetMouseOverLocation(_mouseOverLocation);
+			SetMouseDownLocation(_mouseDownLocation);
 		}
 
 		protected void InvalidateElements()
 		{
-			Invalidate(ProjectLogoBounds);
+			Invalidate(_projectLogoBounds);
 
-			foreach(StatusLine Line in Lines)
+			foreach(StatusLine line in _lines)
 			{
-				Invalidate(Line.Bounds);
+				Invalidate(line.Bounds);
 			}
-			if(Caption != null)
+			if(_caption != null)
 			{
-				Invalidate(Caption.Bounds);
+				Invalidate(_caption.Bounds);
 			}
-			if(Alert != null)
+			if(_alert != null)
 			{
-				Invalidate(Alert.Bounds);
+				Invalidate(_alert.Bounds);
 			}
 		}
 
-		protected bool HitTest(Point Location, [NotNullWhen(true)] out StatusElement? OutElement)
+		protected bool HitTest(Point location, [NotNullWhen(true)] out StatusElement? outElement)
 		{
-			OutElement = null;
-			foreach(StatusLine Line in Lines)
+			outElement = null;
+			foreach(StatusLine line in _lines)
 			{
-				if(Line.HitTest(Location, out OutElement))
+				if(line.HitTest(location, out outElement))
 				{
 					return true;
 				}
 			}
-			if(Caption != null)
+			if(_caption != null)
 			{
-				if(Caption.HitTest(Location, out OutElement))
+				if(_caption.HitTest(location, out outElement))
 				{
 					return true;
 				}
 			}
-			if(Alert != null)
+			if(_alert != null)
 			{
-				if(Alert.HitTest(Location, out OutElement))
+				if(_alert.HitTest(location, out outElement))
 				{
 					return true;
 				}
@@ -623,59 +623,59 @@ namespace UnrealGameSync
 
 		protected void LayoutElements()
 		{
-			using(Graphics Graphics = CreateGraphics())
+			using(Graphics graphics = CreateGraphics())
 			{
-				LayoutElements(Graphics);
+				LayoutElements(graphics);
 			}
 		}
 
-		protected void LayoutElements(Graphics Graphics)
+		protected void LayoutElements(Graphics graphics)
 		{
 			// Layout the alert message
-			int BodyHeight = Height;
-			if(Alert != null)
+			int bodyHeight = Height;
+			if(_alert != null)
 			{
-				AlertDividerY = Height - (int)(Font.Height * 2);
-				Alert.Layout(Graphics, Point.Empty, Resources!);
-				Alert.Layout(Graphics, new Point((Width - Alert.Bounds.Width) / 2, (Height + AlertDividerY) / 2), Resources!);
-				BodyHeight = AlertDividerY;
+				_alertDividerY = Height - (int)(Font.Height * 2);
+				_alert.Layout(graphics, Point.Empty, _resources!);
+				_alert.Layout(graphics, new Point((Width - _alert.Bounds.Width) / 2, (Height + _alertDividerY) / 2), _resources!);
+				bodyHeight = _alertDividerY;
 			}
 
 			// Get the logo size
-			Image DrawProjectLogo = ProjectLogo ?? Properties.Resources.DefaultProjectLogo;
-			float LogoScale = Math.Min((float)BodyHeight - ((Caption != null)? Font.Height : 0) / DrawProjectLogo.Height, Graphics.DpiY / 96.0f);
-			int LogoWidth = (int)(DrawProjectLogo.Width * LogoScale);
-			int LogoHeight = (int)(DrawProjectLogo.Height * LogoScale);
+			Image drawProjectLogo = _projectLogo ?? Properties.Resources.DefaultProjectLogo;
+			float logoScale = Math.Min((float)bodyHeight - ((_caption != null)? Font.Height : 0) / drawProjectLogo.Height, graphics.DpiY / 96.0f);
+			int logoWidth = (int)(drawProjectLogo.Width * logoScale);
+			int logoHeight = (int)(drawProjectLogo.Height * logoScale);
 
 			// Figure out where the split between content and the logo is going to be
-			int DividerX = ((Width - LogoWidth - ContentWidth) / 2) + LogoWidth;
+			int dividerX = ((Width - logoWidth - _contentWidth) / 2) + logoWidth;
 
 			// Get the logo position
-			int LogoX = DividerX - LogoWidth;
-			int LogoY = (BodyHeight - LogoHeight) / 2;
+			int logoX = dividerX - logoWidth;
+			int logoY = (bodyHeight - logoHeight) / 2;
 
 			// Layout the caption. We may move the logo to make room for this.
-			LogoY -= Font.Height / 2;
-			if(Caption != null)
+			logoY -= Font.Height / 2;
+			if(_caption != null)
 			{
-				Caption.Layout(Graphics, Point.Empty, Resources!);
-				int CaptionWidth = Caption.Bounds.Width;
-				Caption.Layout(Graphics, new Point(Math.Min(LogoX + (LogoWidth / 2) - (CaptionWidth / 2), DividerX - CaptionWidth), LogoY + LogoHeight), Resources!);
+				_caption.Layout(graphics, Point.Empty, _resources!);
+				int captionWidth = _caption.Bounds.Width;
+				_caption.Layout(graphics, new Point(Math.Min(logoX + (logoWidth / 2) - (captionWidth / 2), dividerX - captionWidth), logoY + logoHeight), _resources!);
 			}
 
 			// Set the logo rectangle
-			ProjectLogoBounds = new Rectangle(LogoX, LogoY, LogoWidth, LogoHeight);
+			_projectLogoBounds = new Rectangle(logoX, logoY, logoWidth, logoHeight);
 
 			// Measure up all the line height
-			float TotalLineHeight = Lines.Sum(x => x.LineHeight);
+			float totalLineHeight = _lines.Sum(x => x.LineHeight);
 
 			// Space out all the lines
-			float LineY = (BodyHeight - TotalLineHeight * (int)(Font.Height * LineSpacing)) / 2;
-			foreach(StatusLine Line in Lines)
+			float lineY = (bodyHeight - totalLineHeight * (int)(Font.Height * LineSpacing)) / 2;
+			foreach(StatusLine line in _lines)
 			{
-				LineY += (int)(Font.Height * LineSpacing * Line.LineHeight * 0.5f);
-				Line.Layout(Graphics, new Point(DividerX + 5, (int)LineY), Resources!);
-				LineY += (int)(Font.Height * LineSpacing * Line.LineHeight * 0.5f);
+				lineY += (int)(Font.Height * LineSpacing * line.LineHeight * 0.5f);
+				line.Layout(graphics, new Point(dividerX + 5, (int)lineY), _resources!);
+				lineY += (int)(Font.Height * LineSpacing * line.LineHeight * 0.5f);
 			}
 		}
 
@@ -700,9 +700,9 @@ namespace UnrealGameSync
 		{
 			base.OnMouseUp(e);
 
-			if(MouseDownElement != null && MouseOverElement == MouseDownElement)
+			if(_mouseDownElement != null && _mouseOverElement == _mouseDownElement)
 			{
-				MouseDownElement.OnClick(e.Location);
+				_mouseDownElement.OnClick(e.Location);
 			}
 
 			SetMouseDownLocation(null);
@@ -728,20 +728,20 @@ namespace UnrealGameSync
 		{
 			base.OnPaintBackground(e);
 
-			if(TintColor.HasValue)
+			if(_tintColor.HasValue)
 			{
-				int TintSize = Width / 2;
-				using(LinearGradientBrush BackgroundBrush = new LinearGradientBrush(new Point(Width, 0), new Point(Width - TintSize, TintSize), TintColor.Value, BackColor))
+				int tintSize = Width / 2;
+				using(LinearGradientBrush backgroundBrush = new LinearGradientBrush(new Point(Width, 0), new Point(Width - tintSize, tintSize), _tintColor.Value, BackColor))
 				{
-					BackgroundBrush.WrapMode = WrapMode.TileFlipXY;
-					using (GraphicsPath Path = new GraphicsPath())
+					backgroundBrush.WrapMode = WrapMode.TileFlipXY;
+					using (GraphicsPath path = new GraphicsPath())
 					{
-						Path.StartFigure();
-						Path.AddLine(Width, 0, Width - TintSize * 2, 0);
-						Path.AddLine(Width, TintSize * 2, Width, 0);
-						Path.CloseFigure();
+						path.StartFigure();
+						path.AddLine(Width, 0, Width - tintSize * 2, 0);
+						path.AddLine(Width, tintSize * 2, Width, 0);
+						path.CloseFigure();
 
-						e.Graphics.FillPath(BackgroundBrush, Path);
+						e.Graphics.FillPath(backgroundBrush, path);
 					}
 				}
 			}
@@ -751,82 +751,82 @@ namespace UnrealGameSync
 		{
 			base.OnPaint(e);
 
-			if(SuspendDisplayCount == 0)
+			if(_suspendDisplayCount == 0)
 			{
-				e.Graphics.DrawImage(ProjectLogo ?? Properties.Resources.DefaultProjectLogo, ProjectLogoBounds);
+				e.Graphics.DrawImage(_projectLogo ?? Properties.Resources.DefaultProjectLogo, _projectLogoBounds);
 
 				e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.None;
 
-				foreach(StatusLine Line in Lines)
+				foreach(StatusLine line in _lines)
 				{
-					Line.Draw(e.Graphics, Resources!);
+					line.Draw(e.Graphics, _resources!);
 				}
-				if(Caption != null)
+				if(_caption != null)
 				{
-					Caption.Draw(e.Graphics, Resources!);
+					_caption.Draw(e.Graphics, _resources!);
 				}
-				if(Alert != null)
+				if(_alert != null)
 				{
-					e.Graphics.DrawLine(AlertDividerPen, 0, AlertDividerY, Width, AlertDividerY);
-					Alert.Draw(e.Graphics, Resources!);
+					e.Graphics.DrawLine(_alertDividerPen, 0, _alertDividerY, Width, _alertDividerY);
+					_alert.Draw(e.Graphics, _resources!);
 				}
 			}
 		}
 
-		protected void SetMouseOverLocation(Point? NewMouseOverLocation)
+		protected void SetMouseOverLocation(Point? newMouseOverLocation)
 		{
-			MouseOverLocation = NewMouseOverLocation;
+			_mouseOverLocation = newMouseOverLocation;
 
-			StatusElement? NewMouseOverElement = null;
-			if(MouseOverLocation.HasValue)
+			StatusElement? newMouseOverElement = null;
+			if(_mouseOverLocation.HasValue)
 			{
-				HitTest(MouseOverLocation.Value, out NewMouseOverElement);
+				HitTest(_mouseOverLocation.Value, out newMouseOverElement);
 			}
 
-			if(NewMouseOverElement != MouseOverElement)
+			if(newMouseOverElement != _mouseOverElement)
 			{
-				if(MouseOverElement != null)
+				if(_mouseOverElement != null)
 				{
-					MouseOverElement.bMouseOver = false;
+					_mouseOverElement.MouseOver = false;
 					Cursor = Cursors.Arrow;
-					Invalidate(MouseOverElement.Bounds);
+					Invalidate(_mouseOverElement.Bounds);
 				}
 
-				MouseOverElement = NewMouseOverElement;
+				_mouseOverElement = newMouseOverElement;
 
-				if(MouseOverElement != null)
+				if(_mouseOverElement != null)
 				{
-					MouseOverElement.bMouseOver = true;
-					Cursor = MouseOverElement.Cursor;
-					Invalidate(MouseOverElement.Bounds);
+					_mouseOverElement.MouseOver = true;
+					Cursor = _mouseOverElement.Cursor;
+					Invalidate(_mouseOverElement.Bounds);
 				}
 			}
 		}
 
-		protected void SetMouseDownLocation(Point? NewMouseDownLocation)
+		protected void SetMouseDownLocation(Point? newMouseDownLocation)
 		{
-			MouseDownLocation = NewMouseDownLocation;
+			_mouseDownLocation = newMouseDownLocation;
 
-			StatusElement? NewMouseDownElement = null;
-			if(MouseDownLocation.HasValue)
+			StatusElement? newMouseDownElement = null;
+			if(_mouseDownLocation.HasValue)
 			{
-				HitTest(MouseDownLocation.Value, out NewMouseDownElement);
+				HitTest(_mouseDownLocation.Value, out newMouseDownElement);
 			}
 
-			if(NewMouseDownElement != MouseDownElement)
+			if(newMouseDownElement != _mouseDownElement)
 			{
-				if(MouseDownElement != null)
+				if(_mouseDownElement != null)
 				{
-					MouseDownElement.bMouseDown = false;
-					Invalidate(MouseDownElement.Bounds);
+					_mouseDownElement.MouseDown = false;
+					Invalidate(_mouseDownElement.Bounds);
 				}
 
-				MouseDownElement = NewMouseDownElement;
+				_mouseDownElement = newMouseDownElement;
 
-				if(MouseDownElement != null)
+				if(_mouseDownElement != null)
 				{
-					MouseDownElement.bMouseDown = true;
-					Invalidate(MouseDownElement.Bounds);
+					_mouseDownElement.MouseDown = true;
+					Invalidate(_mouseDownElement.Bounds);
 				}
 			}
 		}

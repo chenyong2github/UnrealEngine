@@ -12,29 +12,29 @@ namespace UnrealGameSync
 {
 	partial class IssueAlertWindow : Form
 	{
-		static readonly IntPtr HWND_TOPMOST = new IntPtr(-1);
+		static readonly IntPtr HwndTopmost = new IntPtr(-1);
 
-		const uint SWP_NOMOVE = 0x0002;
-		const uint SWP_NOSIZE = 0x0001;
-		const uint SWP_NOACTIVATE = 0x0010;
+		const uint SwpNomove = 0x0002;
+		const uint SwpNosize = 0x0001;
+		const uint SwpNoactivate = 0x0010;
 
 		[DllImport("user32.dll", SetLastError=true)]
-		static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int X, int Y, int Width, int Height, uint Flags);
+		static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int width, int height, uint flags);
 
 		public readonly IssueMonitor IssueMonitor;
 
-		public bool bIsWarning;
+		public bool isWarning;
 
-		public bool? bStrongAlert;
+		public bool? strongAlert;
 
-		public IssueAlertWindow(IssueMonitor IssueMonitor, IssueData Issue, IssueAlertReason Reason)
+		public IssueAlertWindow(IssueMonitor issueMonitor, IssueData issue, IssueAlertReason reason)
 		{
-			this.IssueMonitor = IssueMonitor;
-			this.Issue = Issue;
+			this.IssueMonitor = issueMonitor;
+			this.Issue = issue;
 
 			InitializeComponent();
 
-			SetIssue(Issue, Reason);
+			SetIssue(issue, reason);
 		}
 
 		public IssueData Issue
@@ -53,107 +53,107 @@ namespace UnrealGameSync
 		{
 			base.OnPaintBackground(e);
 
-			if(bStrongAlert ?? false)
+			if(strongAlert ?? false)
 			{
-				Color StripeColor = bIsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(200, 74, 49);//214, 69, 64);
-				using (Brush StripeBrush = new SolidBrush(StripeColor))
+				Color stripeColor = isWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(200, 74, 49);//214, 69, 64);
+				using (Brush stripeBrush = new SolidBrush(stripeColor))
 				{
-					e.Graphics.FillRectangle(StripeBrush, 0, 0, Bounds.Width, Bounds.Height);
+					e.Graphics.FillRectangle(stripeBrush, 0, 0, Bounds.Width, Bounds.Height);
 				}
-				using (Pen Pen = new Pen(Color.FromArgb(255, 255, 255)))
+				using (Pen pen = new Pen(Color.FromArgb(255, 255, 255)))
 				{
-					e.Graphics.DrawRectangle(Pen, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
+					e.Graphics.DrawRectangle(pen, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
 				}
 			}
 			else
 			{
-				Color StripeColor = bIsWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(214, 69, 64);
+				Color stripeColor = isWarning? Color.FromArgb(216, 167, 64) : Color.FromArgb(214, 69, 64);
 
-				Color BackgroundColor = Color.FromArgb(241, 236, 236);
-				using(Brush SolidBrush = new SolidBrush(BackgroundColor))
+				Color backgroundColor = Color.FromArgb(241, 236, 236);
+				using(Brush solidBrush = new SolidBrush(backgroundColor))
 				{
 	//				e.Graphics.FillRectangle(SolidBrush, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
 				}
 
-				Color BorderColor = StripeColor; 
-				using(Pen Pen = new Pen(Color.FromArgb(128, 128, 128)))
+				Color borderColor = stripeColor; 
+				using(Pen pen = new Pen(Color.FromArgb(128, 128, 128)))
 				{
-					e.Graphics.DrawRectangle(Pen, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
+					e.Graphics.DrawRectangle(pen, 0, 0, Bounds.Width - 1, Bounds.Height - 1);
 				}
 
-				using(Brush StripeBrush = new SolidBrush(StripeColor))
+				using(Brush stripeBrush = new SolidBrush(stripeColor))
 				{
-					e.Graphics.FillRectangle(StripeBrush, 0, 0, /*6*/10 * e.Graphics.DpiX / 96.0f, Bounds.Height);
+					e.Graphics.FillRectangle(stripeBrush, 0, 0, /*6*/10 * e.Graphics.DpiX / 96.0f, Bounds.Height);
 				}
 			}
 		}
 
-		public void SetIssue(IssueData NewIssue, IssueAlertReason NewReason)
+		public void SetIssue(IssueData newIssue, IssueAlertReason newReason)
 		{
-			bool bNewStrongAlert = false;
+			bool newStrongAlert = false;
 
-			StringBuilder OwnerTextBuilder = new StringBuilder();
-			if(NewIssue.Owner == null)
+			StringBuilder ownerTextBuilder = new StringBuilder();
+			if(newIssue.Owner == null)
 			{
-				OwnerTextBuilder.Append("Currently unassigned.");
+				ownerTextBuilder.Append("Currently unassigned.");
 			}
 			else
 			{
-				if(String.Compare(NewIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0)
+				if(String.Compare(newIssue.Owner, IssueMonitor.UserName, StringComparison.OrdinalIgnoreCase) == 0)
 				{
-					if(NewIssue.NominatedBy != null)
+					if(newIssue.NominatedBy != null)
 					{
-						OwnerTextBuilder.AppendFormat("You have been nominated to fix this issue by {0}.", Utility.FormatUserName(NewIssue.NominatedBy));
+						ownerTextBuilder.AppendFormat("You have been nominated to fix this issue by {0}.", Utility.FormatUserName(newIssue.NominatedBy));
 					}
 					else
 					{
-						OwnerTextBuilder.AppendFormat("Assigned to {0}.", Utility.FormatUserName(NewIssue.Owner));
+						ownerTextBuilder.AppendFormat("Assigned to {0}.", Utility.FormatUserName(newIssue.Owner));
 					}
-					bNewStrongAlert = true;
+					newStrongAlert = true;
 				}
 				else
 				{
-					OwnerTextBuilder.AppendFormat("Assigned to {0}", Utility.FormatUserName(NewIssue.Owner));
-					if(NewIssue.NominatedBy != null)
+					ownerTextBuilder.AppendFormat("Assigned to {0}", Utility.FormatUserName(newIssue.Owner));
+					if(newIssue.NominatedBy != null)
 					{
-						OwnerTextBuilder.AppendFormat(" by {0}", Utility.FormatUserName(NewIssue.NominatedBy));
+						ownerTextBuilder.AppendFormat(" by {0}", Utility.FormatUserName(newIssue.NominatedBy));
 					}
-					if(!NewIssue.AcknowledgedAt.HasValue && (NewReason & IssueAlertReason.UnacknowledgedTimer) != 0)
+					if(!newIssue.AcknowledgedAt.HasValue && (newReason & IssueAlertReason.UnacknowledgedTimer) != 0)
 					{
-						OwnerTextBuilder.Append(" (not acknowledged)");
+						ownerTextBuilder.Append(" (not acknowledged)");
 					}
-					OwnerTextBuilder.Append(".");
+					ownerTextBuilder.Append(".");
 				}
 			}
-			OwnerTextBuilder.AppendFormat(" Open for {0}.", Utility.FormatDurationMinutes((int)(NewIssue.RetrievedAt - NewIssue.CreatedAt).TotalMinutes));
-			string OwnerText = OwnerTextBuilder.ToString();
+			ownerTextBuilder.AppendFormat(" Open for {0}.", Utility.FormatDurationMinutes((int)(newIssue.RetrievedAt - newIssue.CreatedAt).TotalMinutes));
+			string ownerText = ownerTextBuilder.ToString();
 
-			bool bNewIsWarning = Issue.bIsWarning;
+			bool newIsWarning = Issue.IsWarning;
 
-			Issue = NewIssue;
+			Issue = newIssue;
 
-			string Summary = NewIssue.Summary;
+			string summary = newIssue.Summary;
 
-			int MaxLength = 128;
-			if(Summary.Length > MaxLength)
+			int maxLength = 128;
+			if(summary.Length > maxLength)
 			{
-				Summary = Summary.Substring(0, MaxLength).TrimEnd() + "...";
+				summary = summary.Substring(0, maxLength).TrimEnd() + "...";
 			}
 
-			if(Summary != SummaryLabel.Text || OwnerText != OwnerLabel.Text || Reason != NewReason || bIsWarning != bNewIsWarning || bStrongAlert != bNewStrongAlert)
+			if(summary != SummaryLabel.Text || ownerText != OwnerLabel.Text || Reason != newReason || isWarning != newIsWarning || strongAlert != newStrongAlert)
 			{
-				Rectangle PrevBounds = Bounds;
+				Rectangle prevBounds = Bounds;
 				SuspendLayout();
 
-				SummaryLabel.Text = Summary;
-				OwnerLabel.Text = OwnerText;
+				SummaryLabel.Text = summary;
+				OwnerLabel.Text = ownerText;
 
-				bool bForceUpdateButtons = false;
-				if(bStrongAlert != bNewStrongAlert)
+				bool forceUpdateButtons = false;
+				if(strongAlert != newStrongAlert)
 				{
-					bStrongAlert = bNewStrongAlert;
+					strongAlert = newStrongAlert;
 
-					if(bNewStrongAlert)
+					if(newStrongAlert)
 					{
 						SummaryLabel.ForeColor = Color.FromArgb(255, 255, 255);
 						SummaryLabel.LinkColor = Color.FromArgb(255, 255, 255);
@@ -172,48 +172,48 @@ namespace UnrealGameSync
 						LatestBuildLinkLabel.LinkColor = Color.FromArgb(16, 102, 192);
 					}
 
-					bForceUpdateButtons = true;
+					forceUpdateButtons = true;
 				}
 
-				if (bIsWarning != bNewIsWarning)
+				if (isWarning != newIsWarning)
 				{
-					bIsWarning = bNewIsWarning;
+					isWarning = newIsWarning;
 				}
 
-				if(Reason != NewReason || bForceUpdateButtons)
+				if(Reason != newReason || forceUpdateButtons)
 				{
-					Reason = NewReason;
+					Reason = newReason;
 
-					List<Button> Buttons = new List<Button>();
-					Buttons.Add(DetailsBtn);
-					if((NewReason & IssueAlertReason.Owner) != 0)
+					List<Button> buttons = new List<Button>();
+					buttons.Add(DetailsBtn);
+					if((newReason & IssueAlertReason.Owner) != 0)
 					{
 						AcceptBtn.Text = "Acknowledge";
-						Buttons.Add(AcceptBtn);
+						buttons.Add(AcceptBtn);
 					}
-					else if((NewReason & IssueAlertReason.Normal) != 0)
+					else if((newReason & IssueAlertReason.Normal) != 0)
 					{
 						AcceptBtn.Text = "Will Fix";
-						Buttons.Add(AcceptBtn);
+						buttons.Add(AcceptBtn);
 						DeclineBtn.Text = "Not Me";
-						Buttons.Add(DeclineBtn);
+						buttons.Add(DeclineBtn);
 					}
 					else
 					{
 						DeclineBtn.Text = "Dismiss";
-						Buttons.Add(DeclineBtn);
+						buttons.Add(DeclineBtn);
 					}
 
-					tableLayoutPanel3.ColumnCount = Buttons.Count;
+					tableLayoutPanel3.ColumnCount = buttons.Count;
 					tableLayoutPanel3.Controls.Clear();
-					for(int Idx = 0; Idx < Buttons.Count; Idx++)
+					for(int idx = 0; idx < buttons.Count; idx++)
 					{
-						tableLayoutPanel3.Controls.Add(Buttons[Idx], Idx, 0);
+						tableLayoutPanel3.Controls.Add(buttons[idx], idx, 0);
 					}
 				}
 
 				ResumeLayout(true);
-				Location = new Point(PrevBounds.Right - Bounds.Width, PrevBounds.Y);
+				Location = new Point(prevBounds.Right - Bounds.Width, prevBounds.Y);
 				Invalidate();
 			}
 		}
@@ -223,7 +223,7 @@ namespace UnrealGameSync
 			base.OnHandleCreated(e);
 
 			// Manually make the window topmost, so that we can pass SWP_NOACTIVATE
-			SetWindowPos(Handle, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+			SetWindowPos(Handle, HwndTopmost, 0, 0, 0, 0, SwpNomove | SwpNosize | SwpNoactivate);
 		}
 
 		protected override bool ShowWithoutActivation 
@@ -243,8 +243,8 @@ namespace UnrealGameSync
 
 		public void LaunchUrl()
 		{
-			string Url = Issue.BuildUrl;
-			if(String.IsNullOrEmpty(Url))
+			string url = Issue.BuildUrl;
+			if(String.IsNullOrEmpty(url))
 			{
 				MessageBox.Show("No additional information is available");
 			}
@@ -252,11 +252,11 @@ namespace UnrealGameSync
 			{
 				try
 				{
-					Utility.OpenUrl(Url);
+					Utility.OpenUrl(url);
 				}
-				catch (Exception Ex)
+				catch (Exception ex)
 				{
-					MessageBox.Show(String.Format("Unable to launch '{0}' (Error: {1})", Url, Ex.Message));
+					MessageBox.Show(String.Format("Unable to launch '{0}' (Error: {1})", url, ex.Message));
 				}
 			}
 		}

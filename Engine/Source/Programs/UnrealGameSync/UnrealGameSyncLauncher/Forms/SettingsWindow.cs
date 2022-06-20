@@ -22,101 +22,101 @@ namespace UnrealGameSyncLauncher
 	partial class SettingsWindow : Form
 	{
 		[DllImport("user32.dll")]
-		private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, int wParam, [MarshalAs(UnmanagedType.LPWStr)] string lParam);
+		private static extern IntPtr SendMessage(IntPtr hWnd, int msg, int wParam, [MarshalAs(UnmanagedType.LPWStr)] string lParam);
 
-		public delegate Task SyncAndRunDelegate(IPerforceConnection Perforce, string? DepotPath, bool bPreview, ILogger LogWriter, CancellationToken CancellationToken);
+		public delegate Task SyncAndRunDelegate(IPerforceConnection perforce, string? depotPath, bool preview, ILogger logWriter, CancellationToken cancellationToken);
 
-		const int EM_SETCUEBANNER = 0x1501;
+		const int EmSetcuebanner = 0x1501;
 
-		string? LogText;
-		SyncAndRunDelegate SyncAndRun;
+		string? _logText;
+		SyncAndRunDelegate _syncAndRun;
 
-		public SettingsWindow(string? Prompt, string? LogText, string? ServerAndPort, string? UserName, string? DepotPath, bool bPreview, SyncAndRunDelegate SyncAndRun)
+		public SettingsWindow(string? prompt, string? logText, string? serverAndPort, string? userName, string? depotPath, bool preview, SyncAndRunDelegate syncAndRun)
 		{
 			InitializeComponent();
 
-			if(Prompt != null)
+			if(prompt != null)
 			{
-				this.PromptLabel.Text = Prompt;
+				this.PromptLabel.Text = prompt;
 			}
 
-			this.LogText = LogText;
-			this.ServerTextBox.Text = ServerAndPort ?? String.Empty;
-			this.UserNameTextBox.Text = UserName ?? String.Empty;
-			this.DepotPathTextBox.Text = DepotPath ?? String.Empty;
-			this.UsePreviewBuildCheckBox.Checked = bPreview;
-			this.SyncAndRun = SyncAndRun;
+			this._logText = logText;
+			this.ServerTextBox.Text = serverAndPort ?? String.Empty;
+			this.UserNameTextBox.Text = userName ?? String.Empty;
+			this.DepotPathTextBox.Text = depotPath ?? String.Empty;
+			this.UsePreviewBuildCheckBox.Checked = preview;
+			this._syncAndRun = syncAndRun;
 
-			ViewLogBtn.Visible = LogText != null;
+			ViewLogBtn.Visible = logText != null;
 		}
 
 		protected override void OnLoad(EventArgs e)
 		{
 			base.OnLoad(e);
 
-			SendMessage(ServerTextBox.Handle, EM_SETCUEBANNER, 1, "Default Server");
-			SendMessage(UserNameTextBox.Handle, EM_SETCUEBANNER, 1, "Default User");
+			SendMessage(ServerTextBox.Handle, EmSetcuebanner, 1, "Default Server");
+			SendMessage(UserNameTextBox.Handle, EmSetcuebanner, 1, "Default User");
 		}
 
 		private void ViewLogBtn_Click(object sender, EventArgs e)
 		{
-			LogWindow Log = new LogWindow(LogText ?? String.Empty);
-			Log.ShowDialog(this);
+			LogWindow log = new LogWindow(_logText ?? String.Empty);
+			log.ShowDialog(this);
 		}
 
 		private void ConnectBtn_Click(object sender, EventArgs e)
 		{
 			// Update the settings
-			string? ServerAndPort = ServerTextBox.Text.Trim();
-			if(ServerAndPort.Length == 0)
+			string? serverAndPort = ServerTextBox.Text.Trim();
+			if(serverAndPort.Length == 0)
 			{
-				ServerAndPort = null;
+				serverAndPort = null;
 			}
 
-			string? UserName = UserNameTextBox.Text.Trim();
-			if(UserName.Length == 0)
+			string? userName = UserNameTextBox.Text.Trim();
+			if(userName.Length == 0)
 			{
-				UserName = null;
+				userName = null;
 			}
 
-			string? DepotPath = DepotPathTextBox.Text.Trim();
-			if(DepotPath.Length == 0)
+			string? depotPath = DepotPathTextBox.Text.Trim();
+			if(depotPath.Length == 0)
 			{
-				DepotPath = null;
+				depotPath = null;
 			}
 
-			bool bPreview = UsePreviewBuildCheckBox.Checked;
+			bool preview = UsePreviewBuildCheckBox.Checked;
 
-			GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath, bPreview);
+			GlobalPerforceSettings.SaveGlobalPerforceSettings(serverAndPort, userName, depotPath, preview);
 
-			PerforceSettings PerforceSettings = new PerforceSettings(PerforceSettings.Default);
-			if (!String.IsNullOrEmpty(ServerAndPort))
+			PerforceSettings perforceSettings = new PerforceSettings(PerforceSettings.Default);
+			if (!String.IsNullOrEmpty(serverAndPort))
 			{
-				PerforceSettings.ServerAndPort = ServerAndPort;
+				perforceSettings.ServerAndPort = serverAndPort;
 			}
-			if (!String.IsNullOrEmpty(UserName))
+			if (!String.IsNullOrEmpty(userName))
 			{
-				PerforceSettings.UserName = UserName;
+				perforceSettings.UserName = userName;
 			}
-			PerforceSettings.PreferNativeClient = true;
+			perforceSettings.PreferNativeClient = true;
 
 			// Create the P4 connection
-			CaptureLogger Logger = new CaptureLogger();
+			CaptureLogger logger = new CaptureLogger();
 
 			// Create the task for connecting to this server
-			ModalTask? Task = PerforceModalTask.Execute(this, "Updating", "Checking for updates, please wait...", PerforceSettings, (p, c) => SyncAndRun(p, DepotPath, bPreview, Logger, c), Logger);
-			if (Task != null)
+			ModalTask? task = PerforceModalTask.Execute(this, "Updating", "Checking for updates, please wait...", perforceSettings, (p, c) => _syncAndRun(p, depotPath, preview, logger, c), logger);
+			if (task != null)
 			{
-				if(Task.Succeeded)
+				if(task.Succeeded)
 				{
-					GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath, bPreview);
+					GlobalPerforceSettings.SaveGlobalPerforceSettings(serverAndPort, userName, depotPath, preview);
 					DialogResult = DialogResult.OK;
 					Close();
 				}
-				PromptLabel.Text = Task.Error;
+				PromptLabel.Text = task.Error;
 			}
 
-			LogText = Logger.Render(Environment.NewLine);
+			_logText = logger.Render(Environment.NewLine);
 			ViewLogBtn.Visible = true;
 		}
 

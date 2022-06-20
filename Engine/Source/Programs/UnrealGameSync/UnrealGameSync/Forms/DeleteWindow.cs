@@ -15,44 +15,44 @@ namespace UnrealGameSync
 {
 	public partial class DeleteWindow : Form
 	{
-		Dictionary<string, bool> FilesToDelete;
+		Dictionary<string, bool> _filesToDelete;
 
-		public DeleteWindow(Dictionary<string, bool> InFilesToDelete)
+		public DeleteWindow(Dictionary<string, bool> inFilesToDelete)
 		{
 			InitializeComponent();
 
-			FilesToDelete = InFilesToDelete;
+			_filesToDelete = inFilesToDelete;
 
-			foreach(KeyValuePair<string, bool> FileToDelete in FilesToDelete)
+			foreach(KeyValuePair<string, bool> fileToDelete in _filesToDelete)
 			{
-				ListViewItem Item = new ListViewItem(FileToDelete.Key);
-				Item.Tag = FileToDelete.Key;
-				Item.Checked = FileToDelete.Value;
-				FileList.Items.Add(Item);
+				ListViewItem item = new ListViewItem(fileToDelete.Key);
+				item.Tag = fileToDelete.Key;
+				item.Checked = fileToDelete.Value;
+				FileList.Items.Add(item);
 			}
 		}
 
 		private void UncheckAll_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem? Item in FileList.Items)
+			foreach(ListViewItem? item in FileList.Items)
 			{
-				Item!.Checked = false;
+				item!.Checked = false;
 			}
 		}
 
 		private void CheckAll_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem? Item in FileList.Items)
+			foreach(ListViewItem? item in FileList.Items)
 			{
-				Item!.Checked = true;
+				item!.Checked = true;
 			}
 		}
 
 		private void ContinueButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem? Item in FileList.Items)
+			foreach(ListViewItem? item in FileList.Items)
 			{
-				FilesToDelete[(string)Item!.Tag] = Item.Checked;
+				_filesToDelete[(string)item!.Tag] = item.Checked;
 			}
 		}
 	}

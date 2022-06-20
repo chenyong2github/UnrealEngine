@@ -17,43 +17,43 @@ namespace UnrealGameSync
 {
 	partial class ConnectWindow : Form
 	{
-		IPerforceSettings DefaultPerforceSettings;
-		string? ServerAndPortOverride;
-		string? UserNameOverride;
-		IServiceProvider ServiceProvider;
+		IPerforceSettings _defaultPerforceSettings;
+		string? _serverAndPortOverride;
+		string? _userNameOverride;
+		IServiceProvider _serviceProvider;
 
-		private ConnectWindow(IPerforceSettings DefaultPerforceSettings, string? ServerAndPortOverride, string? UserNameOverride, IServiceProvider ServiceProvider)
+		private ConnectWindow(IPerforceSettings defaultPerforceSettings, string? serverAndPortOverride, string? userNameOverride, IServiceProvider serviceProvider)
 		{
 			InitializeComponent();
 
-			this.DefaultPerforceSettings = DefaultPerforceSettings;
-			this.ServiceProvider = ServiceProvider;
+			this._defaultPerforceSettings = defaultPerforceSettings;
+			this._serviceProvider = serviceProvider;
 
-			if(!String.IsNullOrWhiteSpace(ServerAndPortOverride))
+			if(!String.IsNullOrWhiteSpace(serverAndPortOverride))
 			{
-				this.ServerAndPortOverride = ServerAndPortOverride.Trim();
+				this._serverAndPortOverride = serverAndPortOverride.Trim();
 			}
-			if(!String.IsNullOrEmpty(UserNameOverride))
+			if(!String.IsNullOrEmpty(userNameOverride))
 			{
-				this.UserNameOverride = UserNameOverride.Trim();
+				this._userNameOverride = userNameOverride.Trim();
 			}
 
-			ServerAndPortTextBox.CueBanner = DefaultPerforceSettings.ServerAndPort;
-			ServerAndPortTextBox.Text = this.ServerAndPortOverride ?? DefaultPerforceSettings.ServerAndPort;
-			UserNameTextBox.CueBanner = DefaultPerforceSettings.UserName;
-			UserNameTextBox.Text = this.UserNameOverride ?? DefaultPerforceSettings.UserName;
-			UseDefaultConnectionSettings.Checked = this.ServerAndPortOverride == null && this.UserNameOverride == null;
+			ServerAndPortTextBox.CueBanner = defaultPerforceSettings.ServerAndPort;
+			ServerAndPortTextBox.Text = this._serverAndPortOverride ?? defaultPerforceSettings.ServerAndPort;
+			UserNameTextBox.CueBanner = defaultPerforceSettings.UserName;
+			UserNameTextBox.Text = this._userNameOverride ?? defaultPerforceSettings.UserName;
+			UseDefaultConnectionSettings.Checked = this._serverAndPortOverride == null && this._userNameOverride == null;
 
 			UpdateEnabledControls();
 		}
 
-		public static bool ShowModal(IWin32Window Owner, IPerforceSettings DefaultSettings, ref string? ServerAndPortOverride, ref string? UserNameOverride, IServiceProvider ServiceProvider)
+		public static bool ShowModal(IWin32Window owner, IPerforceSettings defaultSettings, ref string? serverAndPortOverride, ref string? userNameOverride, IServiceProvider serviceProvider)
 		{
-			ConnectWindow Connect = new ConnectWindow(DefaultSettings, ServerAndPortOverride, UserNameOverride, ServiceProvider);
-			if(Connect.ShowDialog(Owner) == DialogResult.OK)
+			ConnectWindow connect = new ConnectWindow(defaultSettings, serverAndPortOverride, userNameOverride, serviceProvider);
+			if(connect.ShowDialog(owner) == DialogResult.OK)
 			{
-				ServerAndPortOverride = Connect.ServerAndPortOverride;
-				UserNameOverride = Connect.UserNameOverride;
+				serverAndPortOverride = connect._serverAndPortOverride;
+				userNameOverride = connect._userNameOverride;
 				return true;
 			}
 			return false;
@@ -69,21 +69,21 @@ namespace UnrealGameSync
 		{
 			if(UseDefaultConnectionSettings.Checked)
 			{
-				ServerAndPortOverride = null;
-				UserNameOverride = null;
+				_serverAndPortOverride = null;
+				_userNameOverride = null;
 			}
 			else
 			{
-				ServerAndPortOverride = ServerAndPortTextBox.Text.Trim();
-				if(ServerAndPortOverride.Length == 0)
+				_serverAndPortOverride = ServerAndPortTextBox.Text.Trim();
+				if(_serverAndPortOverride.Length == 0)
 				{
-					ServerAndPortOverride = DefaultPerforceSettings.ServerAndPort;
+					_serverAndPortOverride = _defaultPerforceSettings.ServerAndPort;
 				}
 
-				UserNameOverride = UserNameTextBox.Text.Trim();
-				if(UserNameOverride.Length == 0)
+				_userNameOverride = UserNameTextBox.Text.Trim();
+				if(_userNameOverride.Length == 0)
 				{
-					UserNameOverride = DefaultPerforceSettings.UserName;
+					_userNameOverride = _defaultPerforceSettings.UserName;
 				}
 			}
 
@@ -98,21 +98,21 @@ namespace UnrealGameSync
 
 		private void UpdateEnabledControls()
 		{
-			bool bUseDefaultSettings = UseDefaultConnectionSettings.Checked;
+			bool useDefaultSettings = UseDefaultConnectionSettings.Checked;
 
-			ServerAndPortLabel.Enabled = !bUseDefaultSettings;
-			ServerAndPortTextBox.Enabled = !bUseDefaultSettings;
+			ServerAndPortLabel.Enabled = !useDefaultSettings;
+			ServerAndPortTextBox.Enabled = !useDefaultSettings;
 
-			UserNameLabel.Enabled = !bUseDefaultSettings;
-			UserNameTextBox.Enabled = !bUseDefaultSettings;
+			UserNameLabel.Enabled = !useDefaultSettings;
+			UserNameTextBox.Enabled = !useDefaultSettings;
 		}
 
 		private void BrowseUserBtn_Click(object sender, EventArgs e)
 		{
-			string? NewUserName;
-			if(SelectUserWindow.ShowModal(this, new PerforceSettings(DefaultPerforceSettings) { UserName = UserNameTextBox.Text, ServerAndPort = ServerAndPortTextBox.Text }, ServiceProvider, out NewUserName))
+			string? newUserName;
+			if(SelectUserWindow.ShowModal(this, new PerforceSettings(_defaultPerforceSettings) { UserName = UserNameTextBox.Text, ServerAndPort = ServerAndPortTextBox.Text }, _serviceProvider, out newUserName))
 			{
-				UserNameTextBox.Text = NewUserName;
+				UserNameTextBox.Text = newUserName;
 			}
 		}
 	}

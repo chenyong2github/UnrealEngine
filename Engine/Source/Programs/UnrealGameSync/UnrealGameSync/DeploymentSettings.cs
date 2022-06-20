@@ -20,11 +20,11 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Delegate used to create a telemetry sink
 		/// </summary>
-		/// <param name="UserName">The default Perforce user name</param>
-		/// <param name="SessionId">Unique identifier for this session</param>
-		/// <param name="Logger">Log writer</param>
+		/// <param name="userName">The default Perforce user name</param>
+		/// <param name="sessionId">Unique identifier for this session</param>
+		/// <param name="logger">Log writer</param>
 		/// <returns>New telemetry sink instance</returns>
-		public delegate ITelemetrySink CreateTelemetrySinkDelegate(string UserName, string SessionId, ILogger Logger);
+		public delegate ITelemetrySink CreateTelemetrySinkDelegate(string userName, string sessionId, ILogger logger);
 #endif
 
 		/// <summary>
@@ -68,7 +68,7 @@ namespace UnrealGameSync
 		/// <summary>
 		/// Delegate used to create a new telemetry sink
 		/// </summary>
-		public static readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (UserName, SessionId, Log) => new NullTelemetrySink();
+		public static readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (userName, sessionId, log) => new NullTelemetrySink();
 #endif
 
 #if !UGS_LAUNCHER
@@ -76,10 +76,10 @@ namespace UnrealGameSync
 		/// Delegate to allow validating a project being opened
 		/// </summary>
 		/// <param name="Workspace">The detected settings for the project</param>
-		/// <param name="Logger">The logger</param>
-		/// <param name="Error">Receives an error on failure</param>
+		/// <param name="logger">The logger</param>
+		/// <param name="error">Receives an error on failure</param>
 		/// <returns></returns>
-		public delegate bool DetectProjectSettingsEvent(OpenProjectInfo OpenProjectInfo, ILogger Logger, [NotNullWhen(false)] out string? Error);
+		public delegate bool DetectProjectSettingsEvent(OpenProjectInfo openProjectInfo, ILogger logger, [NotNullWhen(false)] out string? error);
 
 		/// <summary>
 		/// Called to validate the project settings

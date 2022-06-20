@@ -19,27 +19,27 @@ using IdentityModel.OidcClient.Results;
 
 namespace UnrealGameSync
 {
-	public class OIDCTokenManager
+	public class OidcTokenManager
 	{
-		private UserSettings Settings;
-		private readonly Dictionary<string, OIDCTokenClient> TokenClients = new Dictionary<string, OIDCTokenClient>();
+		private UserSettings _settings;
+		private readonly Dictionary<string, OidcTokenClient> _tokenClients = new Dictionary<string, OidcTokenClient>();
 
 		public Dictionary<string, ProviderInfo> Providers { get; }
 
-		private OIDCTokenManager(UserSettings InSettings, Dictionary<string, ProviderInfo> InProviders)
+		private OidcTokenManager(UserSettings inSettings, Dictionary<string, ProviderInfo> inProviders)
 		{
-			Settings = InSettings;
-			Providers = InProviders;
+			_settings = inSettings;
+			Providers = inProviders;
 
-			Dictionary<string, string> RefreshTokens = new Dictionary<string, string>();
-			foreach (KeyValuePair<string, string> Pair in Settings.ProviderToRefreshTokens)
+			Dictionary<string, string> refreshTokens = new Dictionary<string, string>();
+			foreach (KeyValuePair<string, string> pair in _settings.ProviderToRefreshTokens)
 			{
-				string ProviderIdentifier = Pair.Key;
+				string providerIdentifier = pair.Key;
 				try
 				{
-					byte[] KeyBytes = Convert.FromBase64String(Pair.Value);
-					byte[] UnencryptedBytes = ProtectedData.Unprotect(KeyBytes, null, DataProtectionScope.CurrentUser);
-					RefreshTokens.TryAdd(ProviderIdentifier, Encoding.ASCII.GetString(UnencryptedBytes));
+					byte[] keyBytes = Convert.FromBase64String(pair.Value);
+					byte[] unencryptedBytes = ProtectedData.Unprotect(keyBytes, null, DataProtectionScope.CurrentUser);
+					refreshTokens.TryAdd(providerIdentifier, Encoding.ASCII.GetString(unencryptedBytes));
 				}
 				catch (Exception)
 				{
@@ -47,93 +47,93 @@ namespace UnrealGameSync
 				}
 			}
 
-			foreach (KeyValuePair<string, ProviderInfo> ProviderPair in InProviders)
+			foreach (KeyValuePair<string, ProviderInfo> providerPair in inProviders)
 			{
-				ProviderInfo Provider = ProviderPair.Value;
+				ProviderInfo provider = providerPair.Value;
 
-				OIDCTokenClient TokenClient = new OIDCTokenClient(new Uri(Provider.ServerUri), Provider.ClientId, Provider.RedirectUri);
+				OidcTokenClient tokenClient = new OidcTokenClient(new Uri(provider.ServerUri), provider.ClientId, provider.RedirectUri);
 
-				string RefreshToken;
-				if (RefreshTokens.TryGetValue(Provider.Identifier, out RefreshToken))
+				string refreshToken;
+				if (refreshTokens.TryGetValue(provider.Identifier, out refreshToken))
 				{
-					TokenClient.SetRefreshToken(RefreshToken);
+					tokenClient.SetRefreshToken(refreshToken);
 				}
-				TokenClients.Add(Provider.Identifier, TokenClient);
+				_tokenClients.Add(provider.Identifier, tokenClient);
 			}
 		}
 
 		public bool HasUnfinishedLogin()
 		{
-			return TokenClients.Any(Pair => Pair.Value.GetStatusForProvider() == OIDCStatus.NotLoggedIn);
+			return _tokenClients.Any(pair => pair.Value.GetStatusForProvider() == OidcStatus.NotLoggedIn);
 		}
 
-		internal static OIDCTokenManager CreateFromConfigFile(UserSettings Settings, List<OpenProjectInfo> ConfigFiles)
+		internal static OidcTokenManager CreateFromConfigFile(UserSettings settings, List<OpenProjectInfo> configFiles)
 		{
 			// join the provider configuration from all projects
-			Dictionary<string, ProviderInfo> Providers = new Dictionary<string, ProviderInfo>();
-			foreach (OpenProjectInfo DetectProjectSettingsTask in ConfigFiles)
+			Dictionary<string, ProviderInfo> providers = new Dictionary<string, ProviderInfo>();
+			foreach (OpenProjectInfo detectProjectSettingsTask in configFiles)
 			{
-				if(DetectProjectSettingsTask == null)
+				if(detectProjectSettingsTask == null)
 				{
 					continue;
 				}
 
-				ConfigFile ConfigFile = DetectProjectSettingsTask.LatestProjectConfigFile;
-				if(ConfigFile == null)
+				ConfigFile configFile = detectProjectSettingsTask.LatestProjectConfigFile;
+				if(configFile == null)
 				{
 					continue;
 				}
 
-				ConfigSection ProviderSection = ConfigFile.FindSection("OIDCProvider");
-				if (ProviderSection == null)
+				ConfigSection providerSection = configFile.FindSection("OIDCProvider");
+				if (providerSection == null)
 				{
 					continue;
 				}
 
-				string[] ProviderValues = ProviderSection.GetValues("Provider", (string[]) null);
-				foreach (ConfigObject Provider in ProviderValues.Select(s => new ConfigObject(s)).ToList())
+				string[] providerValues = providerSection.GetValues("Provider", (string[]) null);
+				foreach (ConfigObject provider in providerValues.Select(s => new ConfigObject(s)).ToList())
 				{
-					string Identifier = Provider.GetValue("Identifier");
-					string ServerUri = Provider.GetValue("ServerUri");
-					string ClientId = Provider.GetValue("ClientId");
-					string DisplayName = Provider.GetValue("DisplayName");
-					string RedirectUri = Provider.GetValue("RedirectUri");
+					string identifier = provider.GetValue("Identifier");
+					string serverUri = provider.GetValue("ServerUri");
+					string clientId = provider.GetValue("ClientId");
+					string displayName = provider.GetValue("DisplayName");
+					string redirectUri = provider.GetValue("RedirectUri");
 
 					// we might get a provider with the same identifier from another project, in which case we only keep the first one
-					Providers.TryAdd(Identifier, new ProviderInfo(Identifier, ServerUri, ClientId, DisplayName, RedirectUri));
+					providers.TryAdd(identifier, new ProviderInfo(identifier, serverUri, clientId, displayName, redirectUri));
 				}
 			}
 
-			if (Providers.Count == 0)
+			if (providers.Count == 0)
 				return null;
-			return new OIDCTokenManager(Settings, Providers);
+			return new OidcTokenManager(settings, providers);
 		}
 
-		public async Task Login(string ProviderIdentifier)
+		public async Task Login(string providerIdentifier)
 		{
-			OIDCTokenClient TokenClient = TokenClients[ProviderIdentifier];
+			OidcTokenClient tokenClient = _tokenClients[providerIdentifier];
 
-			string RefreshToken = await TokenClient.Login();
-			if (!string.IsNullOrEmpty(RefreshToken))
+			string refreshToken = await tokenClient.Login();
+			if (!string.IsNullOrEmpty(refreshToken))
 			{
 				// if we got a refresh token we store that for future use
-				byte[] RefreshTokenBytes = Encoding.ASCII.GetBytes(RefreshToken);
-				byte[] EncryptedBytes = ProtectedData.Protect(RefreshTokenBytes, null, DataProtectionScope.CurrentUser);
+				byte[] refreshTokenBytes = Encoding.ASCII.GetBytes(refreshToken);
+				byte[] encryptedBytes = ProtectedData.Protect(refreshTokenBytes, null, DataProtectionScope.CurrentUser);
 
-				Settings.ProviderToRefreshTokens[ProviderIdentifier] = Convert.ToBase64String(EncryptedBytes);
+				_settings.ProviderToRefreshTokens[providerIdentifier] = Convert.ToBase64String(encryptedBytes);
 			}
 
 
 		}
 
-		public Task<string> GetAccessToken(string ProviderIdentifier)
+		public Task<string> GetAccessToken(string providerIdentifier)
 		{
-			return TokenClients[ProviderIdentifier].GetAccessToken();
+			return _tokenClients[providerIdentifier].GetAccessToken();
 		}
 
-		public OIDCStatus GetStatusForProvider(string ProviderIdentifier)
+		public OidcStatus GetStatusForProvider(string providerIdentifier)
 		{
-			return TokenClients[ProviderIdentifier].GetStatusForProvider();
+			return _tokenClients[providerIdentifier].GetStatusForProvider();
 		}
 
 		public class ProviderInfo
@@ -144,83 +144,83 @@ namespace UnrealGameSync
 			public string DisplayName { get; }
 			public string RedirectUri { get; }
 
-			public ProviderInfo(string InIdentifier, string InServerUri, string InClientId, string InDisplayName, string InRedirectUri)
+			public ProviderInfo(string inIdentifier, string inServerUri, string inClientId, string inDisplayName, string inRedirectUri)
 			{
-				Identifier = InIdentifier; 
-				ServerUri = InServerUri;
-				ClientId = InClientId;
-				DisplayName = InDisplayName;
-				RedirectUri = InRedirectUri;
+				Identifier = inIdentifier; 
+				ServerUri = inServerUri;
+				ClientId = inClientId;
+				DisplayName = inDisplayName;
+				RedirectUri = inRedirectUri;
 			}
 		}
 	}
 
 
-	public enum OIDCStatus
+	public enum OidcStatus
 	{
 		Connected,
 		NotLoggedIn,
 		TokenRefreshRequired
 	}
 
-	class OIDCTokenClient
+	class OidcTokenClient
 	{
-		private readonly Uri AuthorityUri;
-		private readonly string ClientId;
-		private readonly string RedirectUri;
-		private readonly string Scopes;
+		private readonly Uri _authorityUri;
+		private readonly string _clientId;
+		private readonly string _redirectUri;
+		private readonly string _scopes;
 
-		private OidcClient OidcClient;
+		private OidcClient _oidcClient;
 
-		private string RefreshToken;
-		private string AccessToken;
-		private DateTime TokenExpiry;
+		private string _refreshToken;
+		private string _accessToken;
+		private DateTime _tokenExpiry;
 
-		private bool Initialized = false;
+		private bool _initialized = false;
 
 
-		public OIDCTokenClient(Uri InAuthorityUri, string InClientId, string InRedirectUri, string InScopes = "openid profile offline_access")
+		public OidcTokenClient(Uri inAuthorityUri, string inClientId, string inRedirectUri, string inScopes = "openid profile offline_access")
 		{
-			AuthorityUri = InAuthorityUri;
-			ClientId = InClientId;
-			RedirectUri = InRedirectUri;
-			Scopes = InScopes;
+			_authorityUri = inAuthorityUri;
+			_clientId = inClientId;
+			_redirectUri = inRedirectUri;
+			_scopes = inScopes;
 		}
 
 		private async Task Initialize()
 		{
-			if (Initialized)
+			if (_initialized)
 				return;
 
-			OidcClientOptions Options = new OidcClientOptions
+			OidcClientOptions options = new OidcClientOptions
 			{
-				Authority = AuthorityUri.ToString(),
-				Policy = new Policy { Discovery = new DiscoveryPolicy { Authority = AuthorityUri.ToString() } },
-				ClientId = ClientId,
-				Scope = Scopes,
+				Authority = _authorityUri.ToString(),
+				Policy = new Policy { Discovery = new DiscoveryPolicy { Authority = _authorityUri.ToString() } },
+				ClientId = _clientId,
+				Scope = _scopes,
 				FilterClaims = false,
-				RedirectUri = RedirectUri,
+				RedirectUri = _redirectUri,
 				Flow = OidcClientOptions.AuthenticationFlow.AuthorizationCode,
 				ResponseMode = OidcClientOptions.AuthorizeResponseMode.Redirect
 			};
 
 			// we need to fetch the discovery document ourselves to support OIDC Authorities which have a subresource for it
 			// with Okta has for authorization servers for instance.
-			DiscoveryDocumentResponse DiscoveryDocument = await GetDiscoveryDocument();
-			Options.ProviderInformation = new ProviderInformation
+			DiscoveryDocumentResponse discoveryDocument = await GetDiscoveryDocument();
+			options.ProviderInformation = new ProviderInformation
 			{
-				IssuerName = DiscoveryDocument.Issuer,
-				KeySet = DiscoveryDocument.KeySet,
+				IssuerName = discoveryDocument.Issuer,
+				KeySet = discoveryDocument.KeySet,
 
-				AuthorizeEndpoint = DiscoveryDocument.AuthorizeEndpoint,
-				TokenEndpoint = DiscoveryDocument.TokenEndpoint,
-				EndSessionEndpoint = DiscoveryDocument.EndSessionEndpoint,
-				UserInfoEndpoint = DiscoveryDocument.UserInfoEndpoint,
-				TokenEndPointAuthenticationMethods = DiscoveryDocument.TokenEndpointAuthenticationMethodsSupported
+				AuthorizeEndpoint = discoveryDocument.AuthorizeEndpoint,
+				TokenEndpoint = discoveryDocument.TokenEndpoint,
+				EndSessionEndpoint = discoveryDocument.EndSessionEndpoint,
+				UserInfoEndpoint = discoveryDocument.UserInfoEndpoint,
+				TokenEndPointAuthenticationMethods = discoveryDocument.TokenEndpointAuthenticationMethodsSupported
 			};
 
-			OidcClient = new OidcClient(Options);
-			Initialized = true;
+			_oidcClient = new OidcClient(options);
+			_initialized = true;
 		}
 
 		public async Task<string> Login()
@@ -228,107 +228,107 @@ namespace UnrealGameSync
 			await Initialize();
 
 			// setup a local http server to listen for the result of the login
-			using HttpListener Http = new HttpListener();
-			Uri Uri = new Uri(RedirectUri);
+			using HttpListener http = new HttpListener();
+			Uri uri = new Uri(_redirectUri);
 			// build the url the server should be hosted at
-			string Prefix = $"{Uri.Scheme}{Uri.SchemeDelimiter}{Uri.Authority}/";
-			Http.Prefixes.Add(Prefix);
-			Http.Start();
+			string prefix = $"{uri.Scheme}{Uri.SchemeDelimiter}{uri.Authority}/";
+			http.Prefixes.Add(prefix);
+			http.Start();
 
 			// generate the appropriate codes we need to login
-			AuthorizeState LoginState = await OidcClient.PrepareLoginAsync();
+			AuthorizeState loginState = await _oidcClient.PrepareLoginAsync();
 			// start the user browser
-			OpenBrowser(LoginState.StartUrl);
+			OpenBrowser(loginState.StartUrl);
 
-			string ResponseData = await ProcessHttpRequest(Http);
+			string responseData = await ProcessHttpRequest(http);
 
 			// parse the returned url for the tokens needed to complete the login
-			IdentityModel.OidcClient.LoginResult LoginResult = await OidcClient.ProcessResponseAsync(ResponseData, LoginState);
+			IdentityModel.OidcClient.LoginResult loginResult = await _oidcClient.ProcessResponseAsync(responseData, loginState);
 
-			Http.Stop();
+			http.Stop();
 
-			if (LoginResult.IsError)
-				throw new LoginFailedException("Failed to login due to error: " + LoginResult.Error);
+			if (loginResult.IsError)
+				throw new LoginFailedException("Failed to login due to error: " + loginResult.Error);
 
-			RefreshToken = LoginResult.RefreshToken;
-			AccessToken = LoginResult.AccessToken;
-			TokenExpiry = LoginResult.AccessTokenExpiration;
+			_refreshToken = loginResult.RefreshToken;
+			_accessToken = loginResult.AccessToken;
+			_tokenExpiry = loginResult.AccessTokenExpiration;
 
-			return RefreshToken;
+			return _refreshToken;
 		}
 
-		private async Task<string> ProcessHttpRequest(HttpListener Http)
+		private async Task<string> ProcessHttpRequest(HttpListener http)
 		{
-			HttpListenerContext Context = await Http.GetContextAsync();
-			string ResponseData;
-			if (Context.Request.HttpMethod == "GET")
+			HttpListenerContext context = await http.GetContextAsync();
+			string responseData;
+			if (context.Request.HttpMethod == "GET")
 			{
-				ResponseData = Context.Request.RawUrl;
+				responseData = context.Request.RawUrl;
 
 			}
-			else if (Context.Request.HttpMethod == "POST")
+			else if (context.Request.HttpMethod == "POST")
 			{
-				var Request = Context.Request;
-				if (Request.ContentType != null && !Request.ContentType.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
+				var request = context.Request;
+				if (request.ContentType != null && !request.ContentType.Equals("application/x-www-form-urlencoded", StringComparison.OrdinalIgnoreCase))
 				{
 					// we do not support url encoded return types
-					Context.Response.StatusCode = 415;
+					context.Response.StatusCode = 415;
 					return null;
 				}
 				
 				// attempt to parse the body
 
 				// if there is no body we can not handle the post
-				if (!Context.Request.HasEntityBody)
+				if (!context.Request.HasEntityBody)
 				{
-					Context.Response.StatusCode = 415;
+					context.Response.StatusCode = 415;
 					return null;
 				}
 
-				await using Stream Body = Request.InputStream;
-				using StreamReader Reader = new StreamReader(Body, Request.ContentEncoding);
-				ResponseData = Reader.ReadToEnd();
+				await using Stream body = request.InputStream;
+				using StreamReader reader = new StreamReader(body, request.ContentEncoding);
+				responseData = reader.ReadToEnd();
 			}
 			else
 			{
 				// if we receive any other http method something is very odd. Tell them to use a different method.
-				Context.Response.StatusCode = 415;
+				context.Response.StatusCode = 415;
 				return null;
 			}
 
 			// generate a simple http page to show the user
-			HttpListenerResponse Response = Context.Response;
-			string HttpPage = "<html><head><meta http-equiv='refresh' content='10></head><body>Please close this browser and return to UnrealGameSync.</body></html>";
-			byte[] Buffer = Encoding.UTF8.GetBytes(HttpPage);
-			Response.ContentLength64 = Buffer.Length;
-			Stream ResponseOutput = Response.OutputStream;
-			await ResponseOutput.WriteAsync(Buffer, 0, Buffer.Length);
-			ResponseOutput.Close();
+			HttpListenerResponse response = context.Response;
+			string httpPage = "<html><head><meta http-equiv='refresh' content='10></head><body>Please close this browser and return to UnrealGameSync.</body></html>";
+			byte[] buffer = Encoding.UTF8.GetBytes(httpPage);
+			response.ContentLength64 = buffer.Length;
+			Stream responseOutput = response.OutputStream;
+			await responseOutput.WriteAsync(buffer, 0, buffer.Length);
+			responseOutput.Close();
 
-			return ResponseData;
+			return responseData;
 		}
 
-		private void OpenBrowser(string Url)
+		private void OpenBrowser(string url)
 		{
 			try
 			{
-				Process.Start(Url);
+				Process.Start(url);
 			}
 			catch
 			{
 				// hack because of this: https://github.com/dotnet/corefx/issues/10361
 				if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
 				{
-					Url = Url.Replace("&", "^&");
-					Process.Start(new ProcessStartInfo("cmd", $"/c start {Url}") { CreateNoWindow = true });
+					url = url.Replace("&", "^&");
+					Process.Start(new ProcessStartInfo("cmd", $"/c start {url}") { CreateNoWindow = true });
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 				{
-					Process.Start("xdg-open", Url);
+					Process.Start("xdg-open", url);
 				}
 				else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
 				{
-					Process.Start("open", Url);
+					Process.Start("open", url);
 				}
 				else
 				{
@@ -338,78 +338,78 @@ namespace UnrealGameSync
 		}
 
 
-		private async Task<string> DoRefreshToken(string InRefreshToken)
+		private async Task<string> DoRefreshToken(string inRefreshToken)
 		{
 			await Initialize();
 
 			// use the refresh token to acquire a new access token
-			RefreshTokenResult RefreshTokenResult = await OidcClient.RefreshTokenAsync(InRefreshToken);
+			RefreshTokenResult refreshTokenResult = await _oidcClient.RefreshTokenAsync(inRefreshToken);
 
-			RefreshToken = RefreshTokenResult.RefreshToken;
-			AccessToken = RefreshTokenResult.AccessToken;
-			TokenExpiry = RefreshTokenResult.AccessTokenExpiration;
+			_refreshToken = refreshTokenResult.RefreshToken;
+			_accessToken = refreshTokenResult.AccessToken;
+			_tokenExpiry = refreshTokenResult.AccessTokenExpiration;
 
-			return AccessToken;
+			return _accessToken;
 		}
 
 		private async Task<DiscoveryDocumentResponse> GetDiscoveryDocument()
 		{
-			string DiscoUrl = $"{AuthorityUri}/.well-known/openid-configuration";
+			string discoUrl = $"{_authorityUri}/.well-known/openid-configuration";
 
-			HttpClient Client = new HttpClient();
-			DiscoveryDocumentResponse Disco = await Client.GetDiscoveryDocumentAsync(new DiscoveryDocumentRequest
+			HttpClient client = new HttpClient();
+			DiscoveryDocumentResponse disco = await client.GetDiscoveryDocumentAsync(new DiscoveryDocumentRequest
 			{
-				Address = DiscoUrl,
+				Address = discoUrl,
 				Policy =
 				{
 					ValidateEndpoints = false
 				}
 			});
 
-			if (Disco.IsError) throw new Exception(Disco.Error);
+			if (disco.IsError) throw new Exception(disco.Error);
 
-			return Disco;
+			return disco;
 		}
 
 
 		public async Task<string> GetAccessToken()
 		{
-			if (string.IsNullOrEmpty(RefreshToken))
+			if (string.IsNullOrEmpty(_refreshToken))
 				throw new NotLoggedInException();
 
 			// if the token is valid for another few minutes we can use it
 			// we avoid using a token that is about to expire to make sure we can finish the call we expect to do with it before it expires
-			if (!string.IsNullOrEmpty(AccessToken) && TokenExpiry.AddMinutes(2) > DateTime.Now)
+			if (!string.IsNullOrEmpty(_accessToken) && _tokenExpiry.AddMinutes(2) > DateTime.Now)
 			{
-				return AccessToken;
+				return _accessToken;
 			}
 
-			return await DoRefreshToken(RefreshToken);
+			return await DoRefreshToken(_refreshToken);
 		}
 
-		public OIDCStatus GetStatusForProvider()
+		public OidcStatus GetStatusForProvider()
 		{
-			if (string.IsNullOrEmpty(RefreshToken))
-				return OIDCStatus.NotLoggedIn;
+			if (string.IsNullOrEmpty(_refreshToken))
+				return OidcStatus.NotLoggedIn;
 
-			if (string.IsNullOrEmpty(AccessToken))
-				return OIDCStatus.TokenRefreshRequired;
+			if (string.IsNullOrEmpty(_accessToken))
+				return OidcStatus.TokenRefreshRequired;
 
-			if (TokenExpiry < DateTime.Now)
-				return OIDCStatus.TokenRefreshRequired;
+			if (_tokenExpiry < DateTime.Now)
+				return OidcStatus.TokenRefreshRequired;
 
-			return OIDCStatus.Connected;
+			return OidcStatus.Connected;
 		}
 
-		public void SetRefreshToken(string InRefreshToken)
+		public void SetRefreshToken(string inRefreshToken)
 		{
-			RefreshToken = InRefreshToken;
+			_refreshToken = inRefreshToken;
 		}
 	}
 
 	internal class LoginFailedException : Exception
 	{
-		public LoginFailedException(string Message) : base(Message)
+		public LoginFailedException(string message) : base(message)
 		{
 		}
 	}

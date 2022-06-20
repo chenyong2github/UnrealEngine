@@ -15,32 +15,32 @@ namespace UnrealGameSync
 {
 	public partial class ClobberWindow : Form
 	{
-		Dictionary<string, bool> FilesToClobber;
+		Dictionary<string, bool> _filesToClobber;
 
-		public ClobberWindow(Dictionary<string, bool> InFilesToClobber, HashSet<string> InUncontrolledFiles)
+		public ClobberWindow(Dictionary<string, bool> inFilesToClobber, HashSet<string> inUncontrolledFiles)
 		{
-			bool bUncontrolledChangeFound = false;
+			bool uncontrolledChangeFound = false;
 
 			InitializeComponent();
 
-			FilesToClobber = InFilesToClobber;
+			_filesToClobber = inFilesToClobber;
 
-			foreach(KeyValuePair<string, bool> FileToClobber in FilesToClobber)
+			foreach(KeyValuePair<string, bool> fileToClobber in _filesToClobber)
 			{
-				ListViewItem Item = new ListViewItem(Path.GetFileName(FileToClobber.Key));
-				Item.Tag = FileToClobber.Key;
-				Item.Checked = FileToClobber.Value;
-				Item.SubItems.Add(Path.GetDirectoryName(FileToClobber.Key));
-				FileList.Items.Add(Item);
+				ListViewItem item = new ListViewItem(Path.GetFileName(fileToClobber.Key));
+				item.Tag = fileToClobber.Key;
+				item.Checked = fileToClobber.Value;
+				item.SubItems.Add(Path.GetDirectoryName(fileToClobber.Key));
+				FileList.Items.Add(item);
 
-				if (InUncontrolledFiles.Contains(FileToClobber.Key.Replace("\\", "/")))
+				if (inUncontrolledFiles.Contains(fileToClobber.Key.Replace("\\", "/")))
 				{
-					bUncontrolledChangeFound = true;
-					Item.ForeColor = Color.Red;
+					uncontrolledChangeFound = true;
+					item.ForeColor = Color.Red;
 				}
 			}
 
-			if (bUncontrolledChangeFound)
+			if (uncontrolledChangeFound)
 			{
 				// Updates the string to inform the user to take special care with Uncontrolled Changes
 				this.label1.Text = "The following files are writable in your workspace." + Environment.NewLine +
@@ -51,22 +51,22 @@ namespace UnrealGameSync
 
 		private void UncheckAll_Click(object sender, EventArgs e)
 		{
-			foreach (ListViewItem? Item in FileList.Items)
+			foreach (ListViewItem? item in FileList.Items)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					Item.Checked = false;
+					item.Checked = false;
 				}
 			}
 		}
 
 		private void ContinueButton_Click(object sender, EventArgs e)
 		{
-			foreach(ListViewItem? Item in FileList.Items)
+			foreach(ListViewItem? item in FileList.Items)
 			{
-				if (Item != null)
+				if (item != null)
 				{
-					FilesToClobber[(string)Item.Tag] = Item.Checked;
+					_filesToClobber[(string)item.Tag] = item.Checked;
 				}
 			}
 		}
