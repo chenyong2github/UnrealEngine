@@ -13,7 +13,7 @@ class STextBlock;
 class SButton;
 struct FPropertyAndParent;
 
-#define ENVLIGHT_MAX_DETAILSVIEWS 6
+#define ENVLIGHT_MAX_DETAILSVIEWS 5
 
 class SEnvironmentLightingViewer : public SCompoundWidget
 {
@@ -51,7 +51,6 @@ private:
 
 	TSharedPtr<class SButton> ButtonCreateSkyLight;
 	TSharedPtr<class SButton> ButtonCreateAtmosphericLight0;
-	TSharedPtr<class SButton> ButtonCreateAtmosphericLight1;
 	TSharedPtr<class SButton> ButtonCreateSkyAtmosphere;
 	TSharedPtr<class SButton> ButtonCreateVolumetricCloud;
 	TSharedPtr<class SButton> ButtonCreateHeightFog;
