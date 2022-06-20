@@ -246,6 +246,7 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 	UFUNCTION(BlueprintCallable, Category="SkyLight")
 	void SetCubemap(UTextureCube* NewCubemap);
 
+	/** Sets the angle of the cubemap used when SourceType is set to SpecifiedCubemap and it is non static. It will cause the skylight to update on the next tick. */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|SkyLight")
 	void SetSourceCubemapAngle(float NewValue);
 

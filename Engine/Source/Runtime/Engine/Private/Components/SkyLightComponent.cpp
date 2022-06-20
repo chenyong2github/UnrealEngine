@@ -986,15 +986,14 @@ void USkyLightComponent::SetCubemap(UTextureCube* NewCubemap)
 
 void USkyLightComponent::SetSourceCubemapAngle(float NewValue)
 {
+	// Can't set on a static light
 	if (AreDynamicDataChangesAllowed()
 		&& SourceCubemapAngle != NewValue)
 	{
 		SourceCubemapAngle = NewValue;
-
-		if (GetWorld())
-		{
-			GetWorld()->UpdateAllSkyCaptures();
-		}
+		MarkRenderStateDirty();
+		// Note: this will cause the cubemap to be reprocessed including readback from the GPU
+		SetCaptureIsDirty();
 	}
 }
 
