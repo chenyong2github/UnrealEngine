@@ -6,7 +6,7 @@
 #include "HAL/ThreadSafeCounter.h"
 #include "Interfaces/IHttpResponse.h"
 #include "IHttpThreadedRequest.h"
-#include "Containers/Queue.h"
+#include "Containers/SpscQueue.h"
 #include "GenericPlatform/HttpRequestPayload.h"
 #include "HAL/ThreadSafeBool.h"
 
@@ -467,7 +467,7 @@ private:
 	/** Cached key/value header pairs. Parsed once request completes. Only accessible on the game thread. */
 	TMap<FString, FString> Headers;
 	/** Newly received headers we need to inform listeners about */
-	TQueue<TPair<FString, FString>> NewlyReceivedHeaders;
+	TSpscQueue<TPair<FString, FString>> NewlyReceivedHeaders;
 	/** Cached code from completed response */
 	int32 HttpCode;
 	/** Cached content length from completed response */
