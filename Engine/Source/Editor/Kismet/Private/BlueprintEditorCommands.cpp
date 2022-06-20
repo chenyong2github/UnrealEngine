@@ -339,27 +339,16 @@ void FBlueprintSpawnNodeCommands::RegisterCommands()
 
 			CommandLabel = FoundFunction->GetName();
 		}
-		else
+		else if(UEdGraph* FoundGraph = FindFirstObject<UEdGraph>(*ClassName, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("looking for SpawnNodes (macro)")))
 		{
-			// Check for a macro graph that matches the passed in class name
-			for (TObjectIterator<UBlueprint> BlueprintIt; BlueprintIt; ++BlueprintIt)
+			// If the name matches that of a macro graph, set up a spawn info that can generate macro graph actions
+			if (const UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(FoundGraph))
 			{
-				UBlueprint* MacroBP = *BlueprintIt;
-				if(MacroBP->BlueprintType == BPTYPE_MacroLibrary)
+				if (Blueprint->BlueprintType == BPTYPE_MacroLibrary)
 				{
-					// getting 'top-level' of the macros
-					for (TArray<UEdGraph*>::TIterator GraphIt(MacroBP->MacroGraphs); GraphIt; ++GraphIt)
-					{
-						UEdGraph* MacroGraph = *GraphIt;
-						// The class name matches that of a macro, so setup a spawn info that can generate macro graph actions
-						if(MacroGraph->GetName() == ClassName)
-						{
-							CommandLabel = MacroGraph->GetName();
+					CommandLabel = FoundGraph->GetName();
 
-							InfoPtr = MakeShareable( new FMacroNodeSpawnInfo(MacroGraph));
-						}
-
-					}
+					InfoPtr = MakeShareable(new FMacroNodeSpawnInfo(FoundGraph));
 				}
 			}
 		}
