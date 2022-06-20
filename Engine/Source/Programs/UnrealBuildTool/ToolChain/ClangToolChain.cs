@@ -240,8 +240,7 @@ namespace UnrealBuildTool
 
 		protected virtual string GetSystemIncludePathArgument(DirectoryReference IncludePath)
 		{
-			// TODO: System include paths can be included with -isystem
-			return $"-I\"{NormalizeCommandLinePath(IncludePath)}\"";
+			return $"-isystem\"{NormalizeCommandLinePath(IncludePath)}\"";
 		}
 
 		protected virtual void GetCompileArguments_IncludePaths(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
