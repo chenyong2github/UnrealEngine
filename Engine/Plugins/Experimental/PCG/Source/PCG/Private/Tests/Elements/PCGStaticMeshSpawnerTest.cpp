@@ -62,7 +62,7 @@ void TestMeshSelectorByAttribute(
 
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
-	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestComponent, nullptr);
+	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr);
 
 	while (!StaticMeshSpawner->Execute(Context))
 	{}
@@ -91,10 +91,10 @@ void TestMeshSelectorByAttribute(
 		ValidInstanceCount += Entry.EndIndex - Entry.StartIndex;
 	}
 
-	check(TestData.TestComponent);
+	check(TestData.TestPCGComponent);
 
 	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	TestData.TestComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
+	TestData.TestPCGComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
 	{
 		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
 		{
@@ -151,8 +151,8 @@ void TestMeshSelectorByAttribute(
 		}
 	}
 
-	TestData.TestComponent->bGenerated = true;
-	TestData.TestComponent->Cleanup();
+	TestData.TestPCGComponent->bGenerated = true;
+	TestData.TestPCGComponent->Cleanup();
 	
 	Test->TestTrue("Valid total instance count", TotalInstanceCount == ValidInstanceCount);
 }
@@ -171,7 +171,7 @@ void TestMeshSelectorWeighted(
 
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
-	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestComponent, nullptr);
+	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr);
 
 	while (!StaticMeshSpawner->Execute(Context))
 	{}
@@ -182,10 +182,10 @@ void TestMeshSelectorWeighted(
 		TotalWeight += Entry.Weight;
 	}
 
-	check(TestData.TestComponent);
+	check(TestData.TestPCGComponent);
 
 	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	TestData.TestComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
+	TestData.TestPCGComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
 	{
 		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
 		{
@@ -220,8 +220,8 @@ void TestMeshSelectorWeighted(
 		Test->TestTrue("Valid instance count per mesh", InstanceCount >= TargetCount - ErrorBound && InstanceCount <= TargetCount + ErrorBound);
 	}
 
-	TestData.TestComponent->bGenerated = true;
-	TestData.TestComponent->Cleanup();
+	TestData.TestPCGComponent->bGenerated = true;
+	TestData.TestPCGComponent->Cleanup();
 	
 	Test->TestTrue("Valid total instance count", TotalInstanceCount == PointCount);
 }
@@ -243,16 +243,16 @@ void TestMeshSelectorWeightedByCategory(
 
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
-	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestComponent, nullptr);
+	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr);
 
 	while (!StaticMeshSpawner->Execute(Context))
 	{
 	}
 
-	check(TestData.TestComponent);
+	check(TestData.TestPCGComponent);
 
 	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	TestData.TestComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
+	TestData.TestPCGComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
 		{
 			if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
 			{
@@ -285,8 +285,8 @@ void TestMeshSelectorWeightedByCategory(
 		Test->TestTrue("Valid instance count per mesh", InstanceCount >= Entry->ExpectedCount - ErrorBound && InstanceCount <= Entry->ExpectedCount + ErrorBound);
 	}
 
-	TestData.TestComponent->bGenerated = true;
-	TestData.TestComponent->Cleanup();
+	TestData.TestPCGComponent->bGenerated = true;
+	TestData.TestPCGComponent->Cleanup();
 
 	Test->TestTrue("Valid total instance count", TotalInstanceCount == PointCount);
 }

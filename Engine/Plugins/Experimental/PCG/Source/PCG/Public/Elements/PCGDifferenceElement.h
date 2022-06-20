@@ -9,6 +9,12 @@
 
 #include "PCGDifferenceElement.generated.h"
 
+namespace PCGDifferenceConstants
+{
+	const FName SourceLabel = TEXT("Source");
+	const FName DifferencesLabel = TEXT("Differences");
+}
+
 UCLASS(BlueprintType, ClassGroup = (Procedural))
 class PCG_API UPCGDifferenceSettings : public UPCGSettings
 {

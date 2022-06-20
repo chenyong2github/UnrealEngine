@@ -5,9 +5,9 @@
 #include "Data/PCGPointData.h"
 #include "Data/PCGVolumeData.h"
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDataBasicTest, FPCGTestBaseClass, "pcg.tests.Difference.Basic", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDataTest, FPCGTestBaseClass, "pcg.tests.Difference.Data", PCGTestsCommon::TestFlags)
 
-bool FPCGDifferenceDataBasicTest::RunTest(const FString& Parameters)
+bool FPCGDifferenceDataTest::RunTest(const FString& Parameters)
 {
 	const UPCGVolumeData* FirstVolume = PCGTestsCommon::CreateVolumeData(FBox::BuildAABB(FVector::OneVector * 250, FVector::OneVector * 500));
 

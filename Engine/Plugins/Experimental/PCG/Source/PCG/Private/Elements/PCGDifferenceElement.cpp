@@ -7,12 +7,6 @@
 #include "Data/PCGUnionData.h"
 #include "Helpers/PCGSettingsHelpers.h"
 
-namespace PCGDifferenceConstants
-{
-	const FName SourceLabel = TEXT("Source");
-	const FName DifferencesLabel = TEXT("Differences");
-}
-
 TArray<FPCGPinProperties> UPCGDifferenceSettings::InputPinProperties() const
 {
 	TArray<FPCGPinProperties> PinProperties;

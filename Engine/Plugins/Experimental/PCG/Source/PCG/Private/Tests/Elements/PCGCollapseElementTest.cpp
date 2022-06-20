@@ -3,7 +3,7 @@
 #include "Tests/PCGTestsCommon.h"
 #include "Elements/PCGCollapseElement.h"
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGCollapseElementSmokeTest, FPCGTestBaseClass, "pcg.tests.Collapse.Smoke", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGCollapseElementSmokeTest, FPCGTestBaseClass, "pcg.Collapse.Smoke", PCGTestsCommon::TestFlags)
 
 bool FPCGCollapseElementSmokeTest::RunTest(const FString& Parameters)
 {

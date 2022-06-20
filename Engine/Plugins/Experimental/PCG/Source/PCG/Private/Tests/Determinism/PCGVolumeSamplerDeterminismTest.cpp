@@ -1,88 +1,80 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PCGComponent.h"
-#include "PCGGraph.h"
-#include "Data/PCGSpatialData.h"
-#include "Data/PCGPointData.h"
+#if WITH_EDITOR
+
 #include "Elements/PCGVolumeSampler.h"
-#include "Tests/PCGTestsCommon.h"
 #include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismSingleSameDataTest, FPCGTestBaseClass, "pcg.determinism.VolumeSampler.SingleSameData", PCGTestsCommon::TestFlags)
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismSingleIdenticalDataTest, FPCGTestBaseClass, "pcg.determinism.VolumeSampler.SingleIdenticalData", PCGTestsCommon::TestFlags)
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismMultipleSameDataTest, FPCGTestBaseClass, "pcg.determinism.VolumeSampler.MultipleSameData", PCGTestsCommon::TestFlags)
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismMultipleIdenticalDataTest, FPCGTestBaseClass, "pcg.determinism.VolumeSampler.MultipleIdenticalData", PCGTestsCommon::TestFlags)
-IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismOrderIndependenceTest, FPCGTestBaseClass, "pcg.determinism.VolumeSampler.OrderIndependence", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismSingleSameDataTest, FPCGTestBaseClass, "pcg.tests.VolumeSampler.Determinism.SingleSameData", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismSingleIdenticalDataTest, FPCGTestBaseClass, "pcg.tests.VolumeSampler.Determinism.SingleIdenticalData", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismMultipleSameDataTest, FPCGTestBaseClass, "pcg.tests.VolumeSampler.Determinism.MultipleSameData", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismMultipleIdenticalDataTest, FPCGTestBaseClass, "pcg.tests.VolumeSampler.Determinism.MultipleIdenticalData", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismOrderIndependenceTest, FPCGTestBaseClass, "pcg.tests.VolumeSampler.Determinism.OrderIndependence", PCGTestsCommon::TestFlags)
 
 namespace
 {
-	void VolumeSettingsDelegate(UPCGVolumeSamplerSettings* Settings, FRandomStream& RandomStream)
+	void RandomizeVolumeSettingsVoxelSize(PCGDeterminismTests::FTestData& TestData)
 	{
-		Settings->VoxelSize = FVector::OneVector * 200.f + RandomStream.VRand() * 100.f;
+		CastChecked<UPCGVolumeSamplerSettings>(TestData.Settings)->VoxelSize = FVector::OneVector * 200.f + TestData.RandomStream.VRand() * 100.f;
 	}
 }
 
 bool FPCGVolumeSamplerDeterminismSingleSameDataTest::RunTest(const FString& Parameters)
 {
-#if WITH_EDITOR
 	// Test single same data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::DefaultSeed);
 
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, VolumeSettingsDelegate);
-	PCGDeterminismTests::AddRandomizedVolumeInputData(FirstTestData);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(TestData, RandomizeVolumeSettingsVoxelSize);
+	PCGDeterminismTests::AddRandomizedVolumeInputData(TestData);
 
-	TestTrue("Same single input and settings, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, FirstTestData));
+	TestTrue("Same single input and settings, same output", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestData));
 
-#endif
 	return true;
 }
 
 bool FPCGVolumeSamplerDeterminismSingleIdenticalDataTest::RunTest(const FString& Parameters)
 {
-#if WITH_EDITOR
 	// Test single identical data
 	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
 	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
 
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, VolumeSettingsDelegate);
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, VolumeSettingsDelegate);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, RandomizeVolumeSettingsVoxelSize);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, RandomizeVolumeSettingsVoxelSize);
 
 	PCGDeterminismTests::AddRandomizedVolumeInputData(FirstTestData);
 	PCGDeterminismTests::AddRandomizedVolumeInputData(SecondTestData);
 
 	TestTrue("Identical single input and settings, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
-#endif
+
 	return true;
 }
 
 bool FPCGVolumeSamplerDeterminismMultipleSameDataTest::RunTest(const FString& Parameters)
 {
-#if WITH_EDITOR
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-
 	// Test multiple same data
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, VolumeSettingsDelegate);
+	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::DefaultSeed);
+
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(TestData, RandomizeVolumeSettingsVoxelSize);
 
 	// Add many random volumes
 	for (int32 I = 0; I < 10; ++I)
 	{
-		PCGDeterminismTests::AddRandomizedVolumeInputData(FirstTestData);
+		PCGDeterminismTests::AddRandomizedVolumeInputData(TestData);
 	}
 
-	TestTrue("Same multiple input, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, FirstTestData));
-#endif
+	TestTrue("Same multiple input, same output", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestData));
+
 	return true;
 }
 
 bool FPCGVolumeSamplerDeterminismMultipleIdenticalDataTest::RunTest(const FString& Parameters)
 {
-#if WITH_EDITOR
 	// Test multiple identical data
 	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
 	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
 
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, VolumeSettingsDelegate);
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, VolumeSettingsDelegate);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, RandomizeVolumeSettingsVoxelSize);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, RandomizeVolumeSettingsVoxelSize);
 
 	// Add many random volumes
 	for (int32 I = 0; I < 10; ++I)
@@ -92,19 +84,18 @@ bool FPCGVolumeSamplerDeterminismMultipleIdenticalDataTest::RunTest(const FStrin
 	}
 
 	TestTrue("Identical multiple input, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
-#endif
+
 	return true;
 }
 
 bool FPCGVolumeSamplerDeterminismOrderIndependenceTest::RunTest(const FString& Parameters)
 {
-#if WITH_EDITOR
 	// Test shuffled input data
 	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
 	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
 
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, VolumeSettingsDelegate);
-	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, VolumeSettingsDelegate);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, RandomizeVolumeSettingsVoxelSize);
+	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, RandomizeVolumeSettingsVoxelSize);
 
 	// Add many random volumes
 	for (int32 I = 0; I < 10; ++I)
@@ -116,6 +107,8 @@ bool FPCGVolumeSamplerDeterminismOrderIndependenceTest::RunTest(const FString& P
 	PCGDeterminismTests::ShuffleInputOrder(SecondTestData);
 
 	TestTrue("Shuffled input order, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
-#endif
+
 	return true;
 }
+
+#endif
