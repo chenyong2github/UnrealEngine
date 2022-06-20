@@ -325,21 +325,53 @@ float2 FullResolutionToWaterBufferScale;
 Texture2DMS<float, MSAA_SAMPLE_COUNT> MSAADepthTexture;
 #endif
 
+#if INSTANCED_STEREO
+// When rendering instanced stereo side by side, we may use first view's texture for both views. This wraps the coords so the second view can use first view's texture.
+// (Do we need a new shader permutation here? Also, should really use ViewRect for wrapping)
+uint2 WrapCoordsForInstancedViews(uint2 Coord, uint4 ValidRect)
+{
+	return uint2(
+		(Coord.x > ValidRect.z) ? (Coord.x - ValidRect.z) : Coord.x,
+		Coord.y
+		);
+}
+float2 WrapUVsForInstancedViews(float2 UV, float4 ValidRect)
+{
+	return float2(
+		(UV.x > ValidRect.z) ? (UV.x - ValidRect.z) : UV.x,
+		UV.y
+		);
+}
+#else
+uint2 WrapCoordsForInstancedViews(uint2 Coord, uint4 ValidRect)
+{
+	return Coord;
+}
+float2 WrapUVsForInstancedViews(float2 UV, float4 ValidRect)
+{
+	return UV;
+}
+#endif
+
 float4 SafeLoadVolumetricTexture(uint2 Coord)
 {
-	return VolumetricTexture.Load(uint3(clamp(Coord, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0));
+	const uint2 WrappedCoords = WrapCoordsForInstancedViews(Coord, VolumetricTextureValidCoordRect);
+	return VolumetricTexture.Load(uint3(clamp(WrappedCoords, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0));
 }
 float4 SafeSampleVolumetricTexture(float2 UV)
 {
-	return VolumetricTexture.SampleLevel(LinearTextureSampler, clamp(UV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0);
+	const float2 WrappedUV = WrapUVsForInstancedViews(UV, VolumetricTextureValidUvRect);
+	return VolumetricTexture.SampleLevel(LinearTextureSampler, clamp(WrappedUV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0);
 }
 float2 SafeLoadVolumetricDepthTexture(uint2 Coord)
 {
-	return VolumetricDepthTexture.Load(uint3(clamp(Coord, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0)).rg;
+	const uint2 WrappedCoords = WrapCoordsForInstancedViews(Coord, VolumetricTextureValidCoordRect);
+	return VolumetricDepthTexture.Load(uint3(clamp(WrappedCoords, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0)).rg;
 }
 float2 SafeSampleVolumetricDepthTexture(float2 UV)
 {
-	return VolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(UV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0).rg;
+	const float2 WrappedUV = WrapUVsForInstancedViews(UV, VolumetricTextureValidUvRect);
+	return VolumetricDepthTexture.SampleLevel(LinearTextureSampler, clamp(WrappedUV, VolumetricTextureValidUvRect.xy, VolumetricTextureValidUvRect.zw), 0).rg;
 }
 
 float4 VolumetricTextureSizeAndInvSize;

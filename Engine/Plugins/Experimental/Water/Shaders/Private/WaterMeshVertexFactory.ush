@@ -325,10 +325,6 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 
 	Interpolants.WaveParamIndex = Intermediates.WaveParamIndex;
 
-#if INSTANCED_STEREO
-	Interpolants.EyeIndex = 0;
-#endif
-
 	SetPrimitiveId(Interpolants, Intermediates.SceneData.PrimitiveId);
 
 	return Interpolants;

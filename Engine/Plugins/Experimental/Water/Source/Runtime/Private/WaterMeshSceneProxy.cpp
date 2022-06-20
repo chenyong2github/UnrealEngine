@@ -213,13 +213,22 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 	TArray<FWaterQuadTree::FTraversalOutput, TInlineAllocator<4>> WaterInstanceDataPerView;
 
-	// Gather visible tiles, their lod and materials for all views 
+	bool bEncounteredISRView = false;
+	int32 InstanceFactor = 1;
+
+	// Gather visible tiles, their lod and materials for all renderable views (skip right view when stereo pair is rendered instanced)
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		if (VisibilityMap & (1 << ViewIndex))
+		const FSceneView* View = Views[ViewIndex];
+		if (!bEncounteredISRView && View->IsInstancedStereoPass())
 		{
-			const FSceneView* View = Views[ViewIndex];
+			bEncounteredISRView = true;
+			InstanceFactor = View->GetStereoPassInstanceFactor();
+		}
 
+		// skip gathering visible tiles from instanced right eye views
+		if ((VisibilityMap & (1 << ViewIndex)) && (!bEncounteredISRView || View->IsPrimarySceneView()))
+		{
 			const FVector ObserverPosition = View->ViewMatrices.GetViewOrigin();
 			
 			FWaterLODParams WaterLODParams = GetWaterLODParams(ObserverPosition);
@@ -282,7 +291,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 		return;
 	}
 
-	WaterInstanceDataBuffers->Lock(TotalInstanceCount);
+	WaterInstanceDataBuffers->Lock(TotalInstanceCount * InstanceFactor);
 
 	int32 InstanceDataOffset = 0;
 
@@ -290,7 +299,8 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 	int32 TraversalIndex = 0;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
-		if (VisibilityMap & (1 << ViewIndex))
+		// when rendering ISR, don't process the instanced view
+		if ((VisibilityMap & (1 << ViewIndex)) && (!bEncounteredISRView || Views[ViewIndex]->IsPrimarySceneView()))
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(BucketsPerView);
 
@@ -362,7 +372,7 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 							//BatchElement.bIsInstancedMesh = true;
 							BatchElement.NumInstances = InstanceCount;
 							BatchElement.UserData = (void*)WaterMeshUserDataBuffers->GetUserData(RenderGroup);
-							BatchElement.UserIndex = InstanceDataOffset;
+							BatchElement.UserIndex = InstanceDataOffset * InstanceFactor;
 
 							BatchElement.FirstIndex = 0;
 							BatchElement.NumPrimitives = WaterVertexFactories[DensityIndex]->IndexBuffer->GetIndexCount() / 3;
@@ -405,7 +415,11 @@ void FWaterMeshSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 
 				for (int32 StreamIdx = 0; StreamIdx < WaterInstanceDataBuffersType::NumBuffers; ++StreamIdx)
 				{
-					WaterInstanceDataBuffers->GetBufferMemory(StreamIdx)[WriteIndex] = Data.Data[StreamIdx];
+					TArrayView<FVector4f> BufferMemory = WaterInstanceDataBuffers->GetBufferMemory(StreamIdx);
+					for (int32 IdxMultipliedInstance = 0; IdxMultipliedInstance < InstanceFactor; ++IdxMultipliedInstance)
+					{
+						BufferMemory[WriteIndex * InstanceFactor + IdxMultipliedInstance] = Data.Data[StreamIdx];
+					}
 				}
 			}
 		}

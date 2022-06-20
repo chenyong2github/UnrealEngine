@@ -1583,6 +1583,8 @@ void FDeferredShadingSceneRenderer::RenderDeferredReflectionsAndSkyLighting(
 	uint32 ViewIndex = 0;
 	for (FViewInfo& View : Views)
 	{
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
 		const uint32 CurrentViewIndex = ViewIndex++;
 		const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
 

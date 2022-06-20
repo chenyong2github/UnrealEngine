@@ -368,7 +368,19 @@ static FSceneWithoutWaterTextures AddCopySceneWithoutWaterPass(
 		PermutationVector.Set<FWaterRefractionCopyPS::FDownsampleColor>(bCopyColor);
 		auto PixelShader = View.ShaderMap->GetShader<FWaterRefractionCopyPS>(PermutationVector);
 
-		const FIntRect RefractionViewRect = FIntRect(FIntPoint::DivideAndRoundDown(View.ViewRect.Min, RefractionDownsampleFactor), FIntPoint::DivideAndRoundDown(View.ViewRect.Max, RefractionDownsampleFactor));
+		// if we have a particular case of ISR where two views are laid out in side by side, we should copy both views at once
+		const bool bIsInstancedStereoSideBySide = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View);
+		FIntRect RectToCopy = View.ViewRect;
+		if (bIsInstancedStereoSideBySide)
+		{
+			const FViewInfo* NeighboringStereoView = View.GetInstancedView();
+			if (ensure(NeighboringStereoView))
+			{
+				RectToCopy.Union(NeighboringStereoView->ViewRect);
+			}
+		}
+
+		const FIntRect RefractionViewRect = FIntRect(FIntPoint::DivideAndRoundDown(RectToCopy.Min, RefractionDownsampleFactor), FIntPoint::DivideAndRoundDown(RectToCopy.Max, RefractionDownsampleFactor));
 
 		Textures.Views[ViewIndex].ViewRect   = RefractionViewRect;
 
@@ -422,7 +434,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 	{
 		FViewInfo& View = Views[ViewIndex];
 
-		if (!View.ShouldRenderView())
+		// Unfortunately, reflections cannot handle two views at once (yet?) - because of that, allow the secondary pass here.
+		// Note: not completely removing ShouldRenderView in case some other reason to not render it is valid.
+		if (!View.ShouldRenderView() && !IStereoRendering::IsASecondaryPass(View.StereoPass))
 		{
 			continue;
 		}
@@ -440,13 +454,15 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(
 			FIntVector DepthTextureSize = SceneWithoutWaterTextures.DepthTexture ? SceneWithoutWaterTextures.DepthTexture->Desc.GetSize() : FIntVector::ZeroValue;
 			const bool bShouldUseBilinearSamplerForDepth = SceneWithoutWaterTextures.DepthTexture && ShouldUseBilinearSamplerForDepthWithoutSingleLayerWater(SceneWithoutWaterTextures.DepthTexture->Desc.Format);
 
+			const bool bIsInstancedStereoSideBySide = View.bIsInstancedStereoEnabled && !View.bIsMultiViewEnabled && IStereoRendering::IsStereoEyeView(View);
+
 			Parameters.ScreenSpaceReflectionsTexture = ReflectionsColor ? ReflectionsColor : BlackDummyTexture;
 			Parameters.ScreenSpaceReflectionsSampler = TStaticSamplerState<SF_Point>::GetRHI();
 			Parameters.PreIntegratedGF = GSystemTextures.PreintegratedGF->GetRHI();
 			Parameters.PreIntegratedGFSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			Parameters.SceneNoWaterDepthTexture = SceneWithoutWaterTextures.DepthTexture ? SceneWithoutWaterTextures.DepthTexture : BlackDummyTexture;
 			Parameters.SceneNoWaterDepthSampler = bShouldUseBilinearSamplerForDepth ? TStaticSamplerState<SF_Bilinear>::GetRHI() : TStaticSamplerState<SF_Point>::GetRHI();
-			Parameters.SceneNoWaterMinMaxUV = SceneWithoutWaterTextures.Views[ViewIndex].MinMaxUV;
+			Parameters.SceneNoWaterMinMaxUV = SceneWithoutWaterTextures.Views[bIsInstancedStereoSideBySide ? View.PrimaryViewIndex : ViewIndex].MinMaxUV; // instanced view does not have rect initialized, instead the primary view covers both
 			Parameters.SceneNoWaterTextureSize = SceneWithoutWaterTextures.DepthTexture ? FVector2f(DepthTextureSize.X, DepthTextureSize.Y) : FVector2f();
 			Parameters.SceneNoWaterInvTextureSize = SceneWithoutWaterTextures.DepthTexture ? FVector2f(1.0f / DepthTextureSize.X, 1.0f / DepthTextureSize.Y) : FVector2f();
 			Parameters.SeparatedMainDirLightTexture = BlackDummyTexture;

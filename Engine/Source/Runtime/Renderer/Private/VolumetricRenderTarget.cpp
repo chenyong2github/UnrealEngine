@@ -709,7 +709,7 @@ void ComposeVolumetricRenderTargetOverSceneUnderWater(
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		FViewInfo& ViewInfo = Views[ViewIndex];
-		if (!ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo))
+		if (!ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo) || !ViewInfo.ShouldRenderView())
 		{
 			continue;
 		}

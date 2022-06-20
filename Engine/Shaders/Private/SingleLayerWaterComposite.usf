@@ -55,6 +55,23 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 	float3 TransmittanceToScene = 1.0f;
 	float3 SeparatedMainDirLightContribution = 0.0f;
 
+	float4 EffectiveSceneNoWaterMinMaxUV = SceneNoWaterMinMaxUV;
+#if INSTANCED_STEREO && !MULTI_VIEW
+	if (IsInstancedStereo())
+	{
+		// prevent pixels from left eye from sampling "no water" texture from the right eye
+		if (BufferUV.x < 0.5f)
+		{
+			EffectiveSceneNoWaterMinMaxUV.z -= 0.5f;
+		}
+		else
+		{
+			EffectiveSceneNoWaterMinMaxUV.x += 0.5f;
+		}
+	}
+#endif
+
+
 #if STRATA_ENABLED
 
 	// Water do nto read the classification data to avoid running it a second time when water is enabled.
@@ -65,7 +82,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 		float DeviceZ = SampleDeviceZFromSceneTextures(BufferUV);
 		float SceneDepth = ConvertFromDeviceZ(DeviceZ);
 
-		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
+		const float2 SceneNoWaterUV = clamp(BufferUV, EffectiveSceneNoWaterMinMaxUV.xy, EffectiveSceneNoWaterMinMaxUV.zw);
 
 		float OpaqueDepth = WaterSampleSceneDepthWithoutWater(
 			SceneNoWaterDepthTexture,
@@ -154,7 +171,7 @@ SingleLayerWaterCompositeOutput SingleLayerWaterComposite(float2 BufferUV, float
 
 	if (ShadingModelID == SHADINGMODELID_SINGLELAYERWATER)
 	{
-		const float2 SceneNoWaterUV = clamp(BufferUV, SceneNoWaterMinMaxUV.xy, SceneNoWaterMinMaxUV.zw);
+		const float2 SceneNoWaterUV = clamp(BufferUV, EffectiveSceneNoWaterMinMaxUV.xy, EffectiveSceneNoWaterMinMaxUV.zw);
 
 		float OpaqueDepth = WaterSampleSceneDepthWithoutWater(
 			SceneNoWaterDepthTexture,
