@@ -62,6 +62,7 @@ namespace UE::PixelStreaming
 
 	private:
 		bool bModuleReady = false;
+		bool bStartupCompleted = false;
 		static IPixelStreamingModule* PixelStreamingModule;
 
 		FReadyEvent ReadyEvent;

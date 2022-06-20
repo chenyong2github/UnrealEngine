@@ -78,6 +78,11 @@ namespace UE::PixelStreaming
 			return;
 		}
 
+		if (!FSlateApplication::IsInitialized())
+		{
+			return;
+		}
+
 		const ERHIInterfaceType RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
 
 		StreamerInputDevices = MakeShared<FStreamerInputDevices>(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
@@ -108,12 +113,13 @@ namespace UE::PixelStreaming
 		ExternalVideoSourceGroup = MakeUnique<FVideoSourceGroup>();
 		ExternalVideoSourceGroup->SetVideoInput(MakeShared<FVideoInputBackBuffer>());
 		ExternalVideoSourceGroup->Start();
+
+		bStartupCompleted = true;
 	}
 
 	void FPixelStreamingModule::ShutdownModule()
 	{
-		// Pixel Streaming does not make sense without an RHI so we don't run in commandlets without one.
-		if (IsRunningCommandlet() && !IsAllowCommandletRendering())
+		if (!bStartupCompleted)
 		{
 			return;
 		}
@@ -127,6 +133,8 @@ namespace UE::PixelStreaming
 		rtc::CleanupSSL();
 
 		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
+
+		bStartupCompleted = false;
 	}
 	/** 
 	 * End IModuleInterface implementation 
