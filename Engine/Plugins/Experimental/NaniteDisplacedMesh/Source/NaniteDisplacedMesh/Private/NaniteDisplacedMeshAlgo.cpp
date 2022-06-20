@@ -48,8 +48,9 @@ public:
 
 	float Sample( FVector2f UV ) const
 	{
-		UV.X = UV.X * (SizeX - 1);
-		UV.Y = UV.Y * (SizeY - 1);
+		// Half texel
+		UV.X = UV.X * SizeX - 0.5f;
+		UV.Y = UV.Y * SizeY - 0.5f;
 
 		int32 x0 = FMath::FloorToInt32( UV.X );
 		int32 y0 = FMath::FloorToInt32( UV.Y );
