@@ -7,6 +7,7 @@
 #include "SConcertTransportLog.h"
 #include "Session/Activity/PredefinedActivityColumns.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Colors/SColorBlock.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
