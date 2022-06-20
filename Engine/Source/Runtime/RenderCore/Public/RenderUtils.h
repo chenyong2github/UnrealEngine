@@ -706,10 +706,11 @@ RENDERCORE_API FBufferRHIRef& GetUnitCubeAABBVertexBuffer();
 RENDERCORE_API void QuantizeSceneBufferSize(const FIntPoint& InBufferSize, FIntPoint& OutBufferSize);
 
 /**
-*	Checks if virtual texturing enabled and supported
+* Checks if virtual texturing enabled and supported
+* todo: Deprecate the version of the function that takes FStaticFeatureLevel
 */
+RENDERCORE_API bool UseVirtualTexturing(const EShaderPlatform InShaderPlatform, const class ITargetPlatform* TargetPlatform = nullptr);
 RENDERCORE_API bool UseVirtualTexturing(const FStaticFeatureLevel InFeatureLevel, const class ITargetPlatform* TargetPlatform = nullptr);
-
 
 RENDERCORE_API bool DoesPlatformSupportNanite(EShaderPlatform Platform, bool bCheckForProjectSetting = true);
 
