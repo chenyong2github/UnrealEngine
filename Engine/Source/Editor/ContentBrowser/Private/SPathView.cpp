@@ -834,8 +834,7 @@ bool SPathView::InternalPathPassesBlockLists(const FStringView InInternalPath, c
 		const UContentBrowserSettings* ContentBrowserSettings = GetDefault<UContentBrowserSettings>();
 		if (ContentBrowserSettings->GetDisplayPluginFolders())
 		{
-			bool bHadClassesPrefix;
-			const FStringView FirstFolderName = FContentBrowserVirtualPathTree::GetMountPointFromPath(InInternalPath, bHadClassesPrefix);
+			const FStringView FirstFolderName = FPathViews::GetMountPointNameFromPath(InInternalPath);
 			if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(FirstFolderName))
 			{
 				if (!PluginPathFilters->PassesAllFilters(Plugin.ToSharedRef()))

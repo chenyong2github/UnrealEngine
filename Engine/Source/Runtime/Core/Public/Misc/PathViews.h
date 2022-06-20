@@ -337,4 +337,11 @@ public:
 	 * Does not interpret . or ..; each occurrence of these in either path will remain in the combined InOutPath.
 	 */
 	static void AppendPath(FStringBuilderBase& InOutPath, FStringView AppendPath);
+
+	/**
+	 * Returns the name of the first folder in a path
+	 * Removes starting forward slash and Classes_ prefix
+	 * Example: "/Classes_A/Textures" returns "A" and sets bOutHadClassesPrefix=true
+	 */
+	static FStringView GetMountPointNameFromPath(const FStringView InPath, bool* bOutHadClassesPrefix = nullptr);
 };

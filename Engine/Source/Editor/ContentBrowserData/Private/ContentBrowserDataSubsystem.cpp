@@ -6,6 +6,7 @@
 #include "Containers/Ticker.h"
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
+#include "Misc/PathViews.h"
 #include "Features/IModularFeatures.h"
 #include "Stats/Stats.h"
 #include "UObject/UObjectThreadContext.h"
@@ -744,8 +745,7 @@ void UContentBrowserDataSubsystem::ConvertInternalPathToVirtual(const FStringVie
 		}
 		else
 		{
-			bool bHadClassesPrefix = false;
-			const FStringView MountPointStringView = FContentBrowserVirtualPathTree::GetMountPointFromPath(InPath, bHadClassesPrefix);
+			const FStringView MountPointStringView = FPathViews::GetMountPointNameFromPath(InPath);
 
 			if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(MountPointStringView))
 			{

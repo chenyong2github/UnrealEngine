@@ -3,13 +3,9 @@
 #include "ContentBrowserVirtualPathTree.h"
 #include "IContentBrowserDataModule.h"
 #include "ContentBrowserDataSubsystem.h"
-#include "Misc/StringBuilder.h"
 #include "Settings/ContentBrowserSettings.h"
-
-FContentBrowserVirtualPathTree::FContentBrowserVirtualPathTree()
-{
-	ClassesPrefix = TEXT("Classes_");
-}
+#include "Misc/StringBuilder.h"
+#include "Misc/PathViews.h"
 
 void FContentBrowserVirtualPathTree::Reset()
 {
@@ -20,30 +16,7 @@ void FContentBrowserVirtualPathTree::Reset()
 
 FStringView FContentBrowserVirtualPathTree::GetMountPointFromPath(const FStringView InPath, bool& bOutHadClassesPrefix)
 {
-	FStringView MountPointStringView;
-
-	int32 SecondForwardSlash = INDEX_NONE;
-	if (FStringView(InPath.GetData() + 1, InPath.Len() - 1).FindChar(TEXT('/'), SecondForwardSlash))
-	{
-		MountPointStringView = FStringView(InPath.GetData() + 1, SecondForwardSlash);
-	}
-	else
-	{
-		MountPointStringView = FStringView(InPath.GetData() + 1, InPath.Len() - 1);
-	}
-
-	static FString ClassesPrefix = TEXT("Classes_");
-	if (MountPointStringView.StartsWith(ClassesPrefix))
-	{
-		MountPointStringView.RightInline(MountPointStringView.Len() - ClassesPrefix.Len());
-		bOutHadClassesPrefix = true;
-	}
-	else
-	{
-		bOutHadClassesPrefix = false;
-	}
-
-	return MountPointStringView;
+	return FPathViews::GetMountPointNameFromPath(InPath, &bOutHadClassesPrefix);
 }
 
 bool FContentBrowserVirtualPathTree::CachePath(FName Path, FName InternalPath, TFunctionRef<void(FName)> OnPathAdded)
