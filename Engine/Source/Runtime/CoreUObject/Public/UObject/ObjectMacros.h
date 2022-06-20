@@ -1143,6 +1143,9 @@ namespace UM
 
 		/// [ClassMetadata] Used for Actor and Component classes. If the native class cannot tick, Blueprint generated classes based this Actor or Component can never tick even if bCanBlueprintsTickByDefault is true.
 		ChildCannotTick,
+		
+		/// [ClassMetadata] Used for objects with hundreds of nested properties like animation data to stop the editor from hanging to build debug data.
+		DebugTreeLeaf,
 
 		/// [ClassMetadata] Used to make the first subclass of a class ignore all inherited showCategories and hideCategories commands
 		IgnoreCategoryKeywordsInSubclasses,

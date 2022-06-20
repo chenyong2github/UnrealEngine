@@ -71,7 +71,7 @@ struct FAnimationCurveIdentifier;
  * The Model represents the source data for animations. It contains both bone animation data as well as animated curves.
  * They are currently only a sub-object of a AnimSequenceBase instance. The instance derives all runtime data from the source data. 
  */
-UCLASS(BlueprintType)
+UCLASS(BlueprintType, meta=(DebugTreeLeaf))
 class ENGINE_API UAnimDataModel : public UObject
 {
 	GENERATED_BODY()

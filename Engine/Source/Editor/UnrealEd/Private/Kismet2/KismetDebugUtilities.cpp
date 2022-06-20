@@ -2157,6 +2157,14 @@ void FPropertyInstanceInfo::PopulateChildren(FPropertyInstance PropertyInstance,
 		return;
 	}
 
+	if (UObject* ResolvedObject = Object.Get())
+	{
+		if (ResolvedObject->GetClass()->HasMetaDataHierarchical("DebugTreeLeaf"))
+		{
+			return;
+		}
+	}
+
 	if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property.Get()))
 	{
 		checkSlow(ArrayProperty->Inner);
