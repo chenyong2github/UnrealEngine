@@ -33,6 +33,12 @@ class FContextualAnimViewModel : public TSharedFromThis<FContextualAnimViewModel
 {
 public:
 
+	enum class ETimelineMode : uint8
+	{
+		Default,
+		Notifies
+	};
+
 	FContextualAnimViewModel();
 	virtual ~FContextualAnimViewModel();
 
@@ -42,7 +48,12 @@ public:
 
 	void Initialize(UContextualAnimSceneAsset* InSceneAsset, const TSharedRef<FContextualAnimPreviewScene>& InPreviewScene);
 
-	void RefreshSequencerTracks();
+	void SetDefaultMode();
+	void SetNotifiesMode(const FContextualAnimTrack& AnimTrack);
+	ETimelineMode GetTimelineMode() const { return TimelineMode; }
+	UAnimSequenceBase* GetEditingAnimation() const { return EditingAnimation.Get(); }
+	void RefreshPreviewScene();
+	void ResetTimeline();
 
 	TSharedPtr<ISequencer> GetSequencer();
 	TSharedPtr<FContextualAnimPreviewScene> GetPreviewScene();
@@ -147,6 +158,10 @@ private:
 	bool bIsSimulateModeActive = false;
 
 	FContextualAnimStartSceneParams StartSceneParams;
+
+	ETimelineMode TimelineMode = ETimelineMode::Default;
+
+	TWeakObjectPtr<UAnimSequenceBase> EditingAnimation = nullptr;
 
 	AActor* SpawnPreviewActor(const FContextualAnimTrack& AnimTrack);
 

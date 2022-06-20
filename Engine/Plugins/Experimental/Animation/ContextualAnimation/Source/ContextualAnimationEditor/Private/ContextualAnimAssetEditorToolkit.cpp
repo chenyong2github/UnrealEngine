@@ -57,7 +57,7 @@ UContextualAnimSceneAsset* FContextualAnimAssetEditorToolkit::GetSceneAsset() co
 
 void FContextualAnimAssetEditorToolkit::ResetPreviewScene()
 {
-	ViewModel->RefreshSequencerTracks();
+	ViewModel->SetDefaultMode();
 }
 
 void FContextualAnimAssetEditorToolkit::InitAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr< IToolkitHost >& InitToolkitHost, UContextualAnimSceneAsset* SceneAsset)

@@ -77,7 +77,11 @@ FReply FContextualAnimSection::OnSectionDoubleClicked(const FGeometry& SectionGe
 	{
 		if(Section->IsActive())
 		{
-			//@TODO: Jump to Edit Notifies view
+			FContextualAnimTrack& AnimTrack = Section->GetAnimTrack();
+			if(AnimTrack.Animation)
+			{
+				Section->GetOwnerTrack().GetViewModel().SetNotifiesMode(Section->GetAnimTrack());
+			}
 		}
 		else
 		{

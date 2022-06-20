@@ -15,6 +15,7 @@ class UContextualAnimMovieSceneNotifySection;
 class UContextualAnimMovieSceneNotifyTrack;
 class UContextualAnimMovieSceneSequence;
 class UContextualAnimNewIKTargetParams;
+class FToolBarBuilder;
 
 /** Handles section drawing and manipulation of a MovieSceneNotifyTrack */
 class FContextualAnimMovieSceneNotifyTrackEditor : public FMovieSceneTrackEditor, public FGCObject
@@ -28,6 +29,7 @@ public:
 	virtual FString GetReferencerName() const override { return TEXT("FContextualAnimMovieSceneNotifyTrackEditor"); }
 
 	// ~FMovieSceneTrackEditor Interface
+	virtual void OnInitialize() override;
 	virtual TSharedRef<ISequencerSection> MakeSectionInterface(UMovieSceneSection& SectionObject, UMovieSceneTrack& Track, FGuid ObjectBinding) override;
 	virtual bool SupportsType(TSubclassOf<UMovieSceneTrack> TrackClass) const override;
 	virtual bool SupportsSequence(UMovieSceneSequence* InSequence) const override;
@@ -51,9 +53,11 @@ private:
 
 	void BuildNewIKTargetWidget(FMenuBuilder& MenuBuilder, UContextualAnimMovieSceneNotifyTrack* Track, int32 RowIndex);
 
-	void AddNewNotifyTrack(TArray<FGuid> ObjectBindings);
+	void AddNewNotifyTrack();
 
 	void FillNewNotifyStateMenu(FMenuBuilder& MenuBuilder, bool bIsReplaceWithMenu, UContextualAnimMovieSceneNotifyTrack* Track, int32 RowIndex);
+
+	void CustomizeToolBar(FToolBarBuilder& ToolBarBuilder);
 };
 
 // FContextualAnimNotifySection

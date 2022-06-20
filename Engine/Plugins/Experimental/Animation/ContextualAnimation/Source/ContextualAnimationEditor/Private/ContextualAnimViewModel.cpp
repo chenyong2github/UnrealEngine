@@ -74,7 +74,7 @@ void FContextualAnimViewModel::Initialize(UContextualAnimSceneAsset* InSceneAsse
 
 	CreateSequencer();
 
-	RefreshSequencerTracks();
+	SetDefaultMode();
 }
 
 void FContextualAnimViewModel::CreateSequencer()
@@ -114,7 +114,7 @@ void FContextualAnimViewModel::SetActiveSection(int32 SectionIdx)
 
 	ActiveSectionIdx = SectionIdx;
 
-	RefreshSequencerTracks();
+	SetDefaultMode();
 }
 
 void FContextualAnimViewModel::SetActiveAnimSetForSection(int32 SectionIdx, int32 AnimSetIdx)
@@ -125,7 +125,7 @@ void FContextualAnimViewModel::SetActiveAnimSetForSection(int32 SectionIdx, int3
 	int32& ActiveSetIdx = ActiveAnimSetMap.FindOrAdd(SectionIdx);
 	ActiveSetIdx = AnimSetIdx;
 
-	RefreshSequencerTracks();
+	SetDefaultMode();
 }
 
 AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& AnimTrack)
@@ -212,56 +212,36 @@ AActor* FContextualAnimViewModel::SpawnPreviewActor(const FContextualAnimTrack& 
 	}
 }
 
-void FContextualAnimViewModel::RefreshSequencerTracks()
+void FContextualAnimViewModel::ResetTimeline()
 {
-	// Remove movie scene tracks and destroy existing actors (if any)
-
 	for (int32 MasterTrackIdx = MovieScene->GetMasterTracks().Num() - 1; MasterTrackIdx >= 0; MasterTrackIdx--)
 	{
 		UMovieSceneTrack& MasterTrack = *MovieScene->GetMasterTracks()[MasterTrackIdx];
-		for (const UMovieSceneSection* Section : MasterTrack.GetAllSections())
-		{
-			const UContextualAnimMovieSceneSection* ContextualAnimSection = Cast<const UContextualAnimMovieSceneSection>(Section);
-			check(ContextualAnimSection);
-
-			if(ContextualAnimSection->GetAnimTrack().Animation)
-			{
-				ContextualAnimSection->GetAnimTrack().Animation->UnregisterOnNotifyChanged(this);
-			}
-		}
-
 		MovieScene->RemoveMasterTrack(MasterTrack);
 	}
 
-	if (SceneInstance.IsValid())
-	{
-		SceneInstance->Stop();
-	}
-
-	if(StartSceneParams.RoleToActorMap.Num() > 0)
-	{
-		for (auto& MapEntry : StartSceneParams.RoleToActorMap)
-		{			
-			if (AActor* Actor = MapEntry.Value.GetActor())
-			{
-				Actor->Destroy();
-			}
-		}
-	}
-
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+}
 
-	if(!SceneAsset->Sections.IsValidIndex(ActiveSectionIdx))
+void FContextualAnimViewModel::SetDefaultMode()
+{
+	if (EditingAnimation.IsValid())
+	{
+		EditingAnimation->UnregisterOnNotifyChanged(this);
+		EditingAnimation.Reset();
+	}
+
+	TimelineMode = ETimelineMode::Default;
+
+	ResetTimeline();
+
+	if (!SceneAsset->Sections.IsValidIndex(ActiveSectionIdx))
 	{
 		return;
 	}
 
-	StartSceneParams.Reset();
-	StartSceneParams.SectionIdx = ActiveSectionIdx;
-	StartSceneParams.AnimSetIdx = ActiveAnimSetMap.FindOrAdd(ActiveSectionIdx);
-
 	TArray<FName> Roles = SceneAsset->GetRoles();
-	for(FName Role : Roles)
+	for (FName Role : Roles)
 	{
 		UContextualAnimMovieSceneTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneTrack>();
 		check(MovieSceneAnimTrack);
@@ -281,13 +261,7 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 			if (Animation)
 			{
 				UContextualAnimMovieSceneTrack* MovieSceneTrack = FindMasterTrackByRole(AnimTrack.Role);
-				if (MovieSceneTrack == nullptr)
-				{
-					UE_LOG(LogContextualAnim, Warning, TEXT("FContextualAnimViewModel::RefreshSequencerTracks. Can't find MovieSceneTrack for %s. Role: %s SectionIdx: %d AnimIndex: %d"),
-						*GetNameSafe(Animation), *AnimTrack.Role.ToString(), ActiveSectionIdx, AnimSetIdx);
-
-					continue;
-				}
+				check(MovieSceneTrack)
 
 				UContextualAnimMovieSceneSection* NewSection = NewObject<UContextualAnimMovieSceneSection>(MovieSceneTrack, UContextualAnimMovieSceneSection::StaticClass(), NAME_None, RF_Transactional);
 				check(NewSection);
@@ -306,23 +280,112 @@ void FContextualAnimViewModel::RefreshSequencerTracks()
 				MovieSceneTrack->AddSection(*NewSection);
 				MovieSceneTrack->SetTrackRowDisplayName(FText::FromString(FString::Printf(TEXT("%d"), AnimSetIdx)), AnimSetIdx);
 			}
-
-			if (!StartSceneParams.RoleToActorMap.Contains(AnimTrack.Role))
-			{
-				if (AActor* PreviewActor = SpawnPreviewActor(AnimTrack))
-				{
-					StartSceneParams.RoleToActorMap.Add(AnimTrack.Role, PreviewActor);
-				}
-			}
 		}
 	}
 
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 
+	RefreshPreviewScene();
+}
+
+void FContextualAnimViewModel::SetNotifiesMode(const FContextualAnimTrack& AnimTrack)
+{
+	ResetTimeline();
+
+	TimelineMode = ETimelineMode::Notifies;
+
+	if(EditingAnimation.IsValid())
+	{
+		EditingAnimation->UnregisterOnNotifyChanged(this);
+	}
+
+	EditingAnimation = AnimTrack.Animation;
+
+	// Add Animation Track
+	{
+		UContextualAnimMovieSceneTrack* MovieSceneAnimTrack = MovieSceneSequence->GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneTrack>();
+		check(MovieSceneAnimTrack);
+
+		MovieSceneAnimTrack->SetDisplayName(FText::FromString(GetNameSafe(EditingAnimation.Get())));
+
+		UContextualAnimMovieSceneSection* NewSection = NewObject<UContextualAnimMovieSceneSection>(MovieSceneAnimTrack, UContextualAnimMovieSceneSection::StaticClass(), NAME_None, RF_Transactional);
+		check(NewSection);
+
+		NewSection->Initialize(AnimTrack.SectionIdx, AnimTrack.AnimSetIdx, AnimTrack.AnimTrackIdx);
+
+		FFrameRate TickResolution = MovieSceneSequence->GetMovieScene()->GetTickResolution();
+		FFrameNumber StartFrame(0);
+		FFrameNumber EndFrame = (EditingAnimation->GetPlayLength() * TickResolution).RoundToFrame();
+		NewSection->SetRange(TRange<FFrameNumber>::Exclusive(StartFrame, EndFrame));
+
+		MovieSceneAnimTrack->AddSection(*NewSection);
+	}
+
+	// Add Notify Tracks
+	{
+		for (const FAnimNotifyTrack& NotifyTrack : EditingAnimation->AnimNotifyTracks)
+		{
+			UContextualAnimMovieSceneNotifyTrack* Track = MovieSceneSequence->GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneNotifyTrack>();
+			check(Track);
+
+			Track->Initialize(*EditingAnimation, NotifyTrack);
+		}
+
+		// Listen for when the notifies in the animation changes, so we can refresh the notify sections here
+		AnimTrack.Animation->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FContextualAnimViewModel::OnAnimNotifyChanged, EditingAnimation.Get()));
+	}
+
+	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+}
+
+void FContextualAnimViewModel::RefreshPreviewScene()
+{
+	if (SceneInstance.IsValid())
+	{
+		SceneInstance->Stop();
+	}
+
+	if (StartSceneParams.RoleToActorMap.Num() > 0)
+	{
+		for (auto& MapEntry : StartSceneParams.RoleToActorMap)
+		{
+			if (AActor* Actor = MapEntry.Value.GetActor())
+			{
+				Actor->Destroy();
+			}
+		}
+	}
+
+	StartSceneParams.Reset();
+
+	if (!SceneAsset->Sections.IsValidIndex(ActiveSectionIdx))
+	{
+		return;
+	}
+
+	const FContextualAnimSceneSection& ContextualAnimSection = SceneAsset->Sections[ActiveSectionIdx];
+	const int32 ActiveAnimSetIdx = ActiveAnimSetMap.FindOrAdd(ActiveSectionIdx);
+	if (!ContextualAnimSection.AnimSets.IsValidIndex(ActiveAnimSetIdx))
+	{
+		return;
+	}
+	
+	const FContextualAnimSet& AnimSet = ContextualAnimSection.AnimSets[ActiveAnimSetIdx];
+	for (const FContextualAnimTrack& AnimTrack : AnimSet.Tracks)
+	{
+		if (AActor* PreviewActor = SpawnPreviewActor(AnimTrack))
+		{
+			StartSceneParams.RoleToActorMap.Add(AnimTrack.Role, PreviewActor);
+		}
+	}
+
+	StartSceneParams.SectionIdx = ActiveSectionIdx;
+	StartSceneParams.AnimSetIdx = ActiveAnimSetIdx;
+
 	SceneInstance = ContextualAnimManager->ForceStartScene(*GetSceneAsset(), StartSceneParams);
 
 	// Disable auto blend out
-	if(SceneInstance.IsValid())
+	if (SceneInstance.IsValid())
 	{
 		for (auto& Binding : SceneInstance->GetBindings())
 		{
@@ -433,9 +496,8 @@ void FContextualAnimViewModel::ToggleSimulateMode()
 				}
 			}
 		}
-		
 
-		RefreshSequencerTracks();
+		SetDefaultMode();
 	}
 };
 
@@ -605,7 +667,14 @@ void FContextualAnimViewModel::OnAnimNotifyChanged(UAnimSequenceBase* Animation)
 
 	UE_LOG(LogContextualAnim, Log, TEXT("FContextualAnimViewModel::OnAnimNotifyChanged Anim: %s. Refreshing Sequencer Tracks"), *GetNameSafe(Animation));
 
-	RefreshSequencerTracks();
+	// Refresh notifies view if active
+	if(TimelineMode == ETimelineMode::Notifies && EditingAnimation.Get() == Animation)
+	{
+		if(const FContextualAnimTrack* AnimTrack = GetSceneAsset()->FindAnimTrackByAnimation(Animation))
+		{
+			SetNotifiesMode(*AnimTrack);
+		}
+	}
 }
 
 void FContextualAnimViewModel::AnimationModified(UAnimSequenceBase& Animation)

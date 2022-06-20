@@ -22,6 +22,8 @@
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
 #include "ContextualAnimEditorTypes.h"
+#include "ISequencerModule.h"
+#include "Toolkits/AssetEditorToolkit.h"
 
 #define LOCTEXT_NAMESPACE "FContextualAnimMovieSceneNotifyTrackEditor"
 
@@ -60,6 +62,46 @@ TSharedRef<ISequencerSection> FContextualAnimMovieSceneNotifyTrackEditor::MakeSe
 	return MakeShareable(new FContextualAnimNotifySection(SectionObject));
 }
 
+void FContextualAnimMovieSceneNotifyTrackEditor::OnInitialize()
+{
+	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
+
+	TSharedPtr<FUICommandList> CommandList = MakeShareable(new FUICommandList);
+
+	// Extend the sequencer toolbar to add Back button
+	TSharedPtr<FExtensibilityManager> ExtensionManager = SequencerModule.GetToolBarExtensibilityManager();
+	TSharedPtr<FExtender> ToolbarExtender = MakeShareable(new FExtender);
+	TSharedPtr<const FExtensionBase> ToolbarExtension = ToolbarExtender->AddToolBarExtension(
+		"CurveEditor",
+		EExtensionHook::After,
+		CommandList,
+		FToolBarExtensionDelegate::CreateSP(this, &FContextualAnimMovieSceneNotifyTrackEditor::CustomizeToolBar)
+	);
+	ExtensionManager->AddExtender(ToolbarExtender);
+}
+
+void FContextualAnimMovieSceneNotifyTrackEditor::CustomizeToolBar(FToolBarBuilder& ToolBarBuilder)
+{
+	ToolBarBuilder.BeginSection("Custom");
+	{
+		FUIAction Action = FUIAction(FExecuteAction::CreateLambda([this]() {
+			GetMovieSceneSequence().GetViewModel().SetDefaultMode();
+		}));
+
+		Action.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([this]() {
+			return GetMovieSceneSequence().GetViewModel().GetTimelineMode() == FContextualAnimViewModel::ETimelineMode::Notifies;
+		});
+
+		ToolBarBuilder.AddToolBarButton(
+			Action,
+			NAME_None,
+			TAttribute<FText>(),
+			TAttribute<FText>(),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "Icons.ArrowLeft"));
+	}
+	ToolBarBuilder.EndSection();
+}
+
 void FContextualAnimMovieSceneNotifyTrackEditor::FillNewNotifyStateMenu(FMenuBuilder& MenuBuilder, bool bIsReplaceWithMenu, UContextualAnimMovieSceneNotifyTrack* Track, int32 RowIndex)
 {
 	// MenuBuilder always has a search widget added to it by default, hence if larger then 1 then something else has been added to it
@@ -90,6 +132,17 @@ void FContextualAnimMovieSceneNotifyTrackEditor::FillNewNotifyStateMenu(FMenuBui
 void FContextualAnimMovieSceneNotifyTrackEditor::BuildAddTrackMenu(FMenuBuilder& MenuBuilder)
 {
 	// Menu that appears when clicking on the Add Track button next to the Search Tracks bar
+
+	if (GetMovieSceneSequence().GetViewModel().GetTimelineMode() == FContextualAnimViewModel::ETimelineMode::Notifies)
+	{
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("NotifyTrack", "Notify Track"),
+			LOCTEXT("NotifyTrackTooltip", "Adds a notify track"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateRaw(this, &FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack)
+			)
+		);
+	}
 }
 
 TSharedPtr<SWidget> FContextualAnimMovieSceneNotifyTrackEditor::BuildOutlinerEditWidget(const FGuid& ObjectBinding, UMovieSceneTrack* Track, const FBuildEditWidgetParams& Params)
@@ -139,7 +192,7 @@ TSharedPtr<SWidget> FContextualAnimMovieSceneNotifyTrackEditor::BuildOutlinerEdi
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
-			FSequencerUtilities::MakeAddButton(LOCTEXT("AddSection", "Section"), FOnGetContent::CreateLambda(SubMenuCallback), Params.NodeIsHovered, GetSequencer())
+			FSequencerUtilities::MakeAddButton(LOCTEXT("AddNotify", "Notify"), FOnGetContent::CreateLambda(SubMenuCallback), Params.NodeIsHovered, GetSequencer())
 		];
 }
 
@@ -261,21 +314,9 @@ void FContextualAnimMovieSceneNotifyTrackEditor::BuildNewIKTargetWidget(FMenuBui
 void FContextualAnimMovieSceneNotifyTrackEditor::BuildObjectBindingTrackMenu(FMenuBuilder& MenuBuilder, const TArray<FGuid>& ObjectBindings, const UClass* ObjectClass)
 {	
 	// Builds menu that appears when clicking on the +Track button on an Object Track
-
-	UMovieSceneSequence* MovieSequence = GetSequencer()->GetFocusedMovieSceneSequence();
-	if(MovieSequence && MovieSequence->GetMovieScene()->FindPossessable(ObjectBindings[0]))
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("NotifyTrack", "Notify Track"),
-			LOCTEXT("NotifyTrackTooltip", "Adds a notify track"),
-			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateRaw(this, &FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack, ObjectBindings)
-			)
-		);
-	}
 }
 
-void FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack(TArray<FGuid> ObjectBindings)
+void FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack()
 {
 	// Copied from AnimTimelineTrack_Notifies.cpp/FAnimTimelineTrack_Notifies::GetNewTrackName()
 	auto GetNewTrackName = [](UAnimSequenceBase* InAnimSequenceBase) -> FName
@@ -299,30 +340,26 @@ void FContextualAnimMovieSceneNotifyTrackEditor::AddNewNotifyTrack(TArray<FGuid>
 		return NameToTest;
 	};
 
-	// @TODO: Commented out for now until we add the new behavior where the user needs to double-click on the animation to edit the notifies
-	/*for (const FGuid& ObjectBinding : ObjectBindings)
-	{
- 		UAnimSequenceBase* Animation = GetMovieSceneSequence().GetViewModel().FindAnimationByGuid(ObjectBinding);
- 		check(Animation);
+	UAnimSequenceBase* Animation = GetMovieSceneSequence().GetViewModel().GetEditingAnimation();
+	check(Animation);
 
-		// Copied from AnimTimelineTrack_Notifies.cpp/FAnimTimelineTrack_Notifies::AddTrack()
+	// Copied from AnimTimelineTrack_Notifies.cpp/FAnimTimelineTrack_Notifies::AddTrack()
 
-		FAnimNotifyTrack NewNotifyTrack;
-		NewNotifyTrack.TrackName = GetNewTrackName(Animation);
-		NewNotifyTrack.TrackColor = FLinearColor::White;
+	FAnimNotifyTrack NewNotifyTrack;
+	NewNotifyTrack.TrackName = GetNewTrackName(Animation);
+	NewNotifyTrack.TrackColor = FLinearColor::White;
 
-		Animation->AnimNotifyTracks.Add(NewNotifyTrack);
+	Animation->AnimNotifyTracks.Add(NewNotifyTrack);
 
-		GetMovieSceneSequence().GetViewModel().AnimationModified(*Animation);
+	GetMovieSceneSequence().GetViewModel().AnimationModified(*Animation);
 
-		// Create and Initialize MovieSceneTrack
-		UContextualAnimMovieSceneNotifyTrack* MovieSceneTrack = GetMovieSceneSequence().GetMovieScene()->AddTrack<UContextualAnimMovieSceneNotifyTrack>(ObjectBinding);
-		check(MovieSceneTrack);
+	// Create and Initialize MovieSceneTrack
+	UContextualAnimMovieSceneNotifyTrack* MovieSceneTrack = GetMovieSceneSequence().GetMovieScene()->AddMasterTrack<UContextualAnimMovieSceneNotifyTrack>();
+	check(MovieSceneTrack);
 
-		MovieSceneTrack->Initialize(*Animation, NewNotifyTrack);
-	}
+	MovieSceneTrack->Initialize(*Animation, NewNotifyTrack);
 
-	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);*/
+	GetSequencer()->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemAdded);
 }
 
 bool FContextualAnimMovieSceneNotifyTrackEditor::SupportsType(TSubclassOf<UMovieSceneTrack> Type) const
