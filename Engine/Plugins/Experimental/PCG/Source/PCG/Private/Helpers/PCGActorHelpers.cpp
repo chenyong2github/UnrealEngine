@@ -37,17 +37,19 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 		return nullptr;
 	}
 
-	TArray<UInstancedStaticMeshComponent*> ISMCs;
-	InSourceComponent->ForEachManagedResource([&ISMCs](UPCGManagedResource* InResource)
+	TArray<UPCGManagedISMComponent*> MISMCs;
+	InSourceComponent->ForEachManagedResource([&MISMCs](UPCGManagedResource* InResource)
 	{
 		if (UPCGManagedISMComponent* Resource = Cast<UPCGManagedISMComponent>(InResource))
 		{
-			ISMCs.Add(Resource->GetComponent());
+			MISMCs.Add(Resource);
 		}
 	});
 
-	for (UInstancedStaticMeshComponent* ISMC : ISMCs)
+	for (UPCGManagedISMComponent* MISMC : MISMCs)
 	{
+		UInstancedStaticMeshComponent* ISMC = MISMC->GetComponent();
+
 		if (ISMC && 
 			ISMC->GetStaticMesh() == InMesh &&
 			ISMC->ComponentTags.Contains(InSourceComponent->GetFName()))
@@ -85,6 +87,8 @@ UInstancedStaticMeshComponent* UPCGActorHelpers::GetOrCreateISMC(AActor* InTarge
 
 			if (bMaterialsMatched)
 			{
+				// In this case, we make sure to mark the managed resource as used
+				MISMC->MarkAsUsed();
 				return ISMC;
 			}
 		}

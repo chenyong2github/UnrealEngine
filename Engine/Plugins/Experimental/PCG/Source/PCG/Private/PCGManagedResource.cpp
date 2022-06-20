@@ -5,6 +5,29 @@
 
 #include "Components/InstancedStaticMeshComponent.h"
 
+// By default, if it is not a hard release, we mark the resource unused.
+bool UPCGManagedResource::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& /*OutActorsToDelete*/)
+{
+	if (!bHardRelease)
+	{
+		bIsMarkedUnused = true;
+		return false;
+	}
+
+	return true;
+}
+
+bool UPCGManagedResource::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
+{
+	if (bIsMarkedUnused)
+	{
+		Release(true, OutActorsToDelete);
+		return true;
+	}
+
+	return false;
+}
+
 void UPCGManagedActors::PostEditImport()
 {
 	// In this case, the managed actors won't be copied along the actor/component,
@@ -15,6 +38,11 @@ void UPCGManagedActors::PostEditImport()
 
 bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
+	if (!Super::Release(bHardRelease, OutActorsToDelete))
+	{
+		return false;
+	}
+
 	OutActorsToDelete.Append(GeneratedActors);
 
 	// Cleanup recursively
@@ -39,9 +67,9 @@ bool UPCGManagedActors::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>&
 	return true;
 }
 
-bool UPCGManagedActors::ReleaseIfUnused()
+bool UPCGManagedActors::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
-	return GeneratedActors.IsEmpty();
+	return Super::ReleaseIfUnused(OutActorsToDelete) || GeneratedActors.IsEmpty();
 }
 
 void UPCGManagedComponent::PostEditImport()
@@ -82,7 +110,7 @@ void UPCGManagedComponent::PostEditImport()
 	}
 }
 
-bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
+bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& /*OutActorsToDelete*/)
 {
 	const bool bSupportsComponentReset = SupportsComponentReset();
 	const bool bDeleteComponent = bHardRelease || !bSupportsComponentReset;
@@ -95,21 +123,36 @@ bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor
 		}
 		else
 		{
-			ResetComponent();
+			// We can only mark it unused if we can reset the component.
+			bIsMarkedUnused = true;
 		}
 	}
 
 	return bDeleteComponent;
 }
 
-bool UPCGManagedComponent::ReleaseIfUnused()
+bool UPCGManagedComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
-	return !GeneratedComponent.IsValid();
+	return Super::ReleaseIfUnused(OutActorsToDelete) || !GeneratedComponent.IsValid();
 }
 
-bool UPCGManagedISMComponent::ReleaseIfUnused()
+void UPCGManagedComponent::MarkAsUsed()
 {
-	if (Super::ReleaseIfUnused() || !GetComponent())
+	if (!bIsMarkedUnused)
+	{
+		return;
+	}
+
+	// Can't reuse a resource if we can't reset it. Make sure we never take this path in this case.
+	check(SupportsComponentReset());
+
+	ResetComponent();
+	bIsMarkedUnused = false;
+}
+
+bool UPCGManagedISMComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
+{
+	if (Super::ReleaseIfUnused(OutActorsToDelete) || !GetComponent())
 	{
 		return true;
 	}

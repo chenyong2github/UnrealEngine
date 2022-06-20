@@ -385,15 +385,21 @@ void UPCGComponent::CleanupInternal(bool bHardCleanup, TSet<TSoftObjectPtr<AActo
 
 void UPCGComponent::CleanupUnusedManagedResources()
 {
-	FScopeLock ResourcesLock(&GeneratedResourcesLock);
-	for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
+	TSet<TSoftObjectPtr<AActor>> ActorsToDelete;
+
 	{
-		check(GeneratedResources[ResourceIndex]);
-		if (GeneratedResources[ResourceIndex]->ReleaseIfUnused())
+		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		for (int32 ResourceIndex = GeneratedResources.Num() - 1; ResourceIndex >= 0; --ResourceIndex)
 		{
-			GeneratedResources.RemoveAtSwap(ResourceIndex);
+			check(GeneratedResources[ResourceIndex]);
+			if (GeneratedResources[ResourceIndex]->ReleaseIfUnused(ActorsToDelete))
+			{
+				GeneratedResources.RemoveAtSwap(ResourceIndex);
+			}
 		}
 	}
+
+	UPCGActorHelpers::DeleteActors(GetWorld(), ActorsToDelete.Array());
 }
 
 void UPCGComponent::BeginPlay()
