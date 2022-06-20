@@ -4,9 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "IMessageContext.h"
+#include "Models/IClientTransferStatisticsModel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 
+class FMenuBuilder;
 class STextBlock;
 
 namespace UE::MultiUserServer
@@ -15,6 +17,14 @@ namespace UE::MultiUserServer
 	class IClientNetworkStatisticsModel;
 	struct FClientBrowserItem;
 
+	enum class EClientDisplayMode : uint8
+	{
+		/** Displays the sent and read packets */
+		NetworkGraph = 0,
+		/** Displays a table showing MessageId, Sent, Acked, and Size updated in realtime. */
+		SegementTable
+	};
+	
 	class SConcertClientBrowserItem : public SCompoundWidget
 	{
 	public:
@@ -30,11 +40,15 @@ namespace UE::MultiUserServer
 		/** Appends the statistics to the search terms */
 		void AppendSearchTerms(TArray<FString>& SearchTerms) const;
 
+		void SetDisplayMode(EClientDisplayMode Value) { DisplayMode = Value; }
+		EClientDisplayMode GetDisplayMode() const { return DisplayMode;}
+
 	private:
 
 		/** What we're displaying */
 		TSharedPtr<FClientBrowserItem> Item;
 		TSharedPtr<IClientNetworkStatisticsModel> StatModel;
+		TSharedPtr<IClientTransferStatisticsModel> TransferStatsModel;
 
 		/** The text to highlight */
 		TSharedPtr<FText> HighlightText;
@@ -43,7 +57,10 @@ namespace UE::MultiUserServer
 		TSharedPtr<SClientNetworkStats> NetworkStats;
 		TSharedPtr<STextBlock> ClientIP4;
 
+		EClientDisplayMode DisplayMode = EClientDisplayMode::NetworkGraph;
+
 		TSharedRef<SWidget> CreateHeader();
+		TSharedRef<SWidget> CreateContentArea();
 		TSharedRef<SWidget> CreateStats();
 		TSharedRef<SWidget> CreateFooter();
 

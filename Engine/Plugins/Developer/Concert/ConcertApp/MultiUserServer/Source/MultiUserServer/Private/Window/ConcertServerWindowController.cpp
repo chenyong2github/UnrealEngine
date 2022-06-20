@@ -46,7 +46,7 @@ TSharedRef<SWindow> FConcertServerWindowController::CreateWindow()
 	const float DPIScaleFactor = FPlatformApplicationMisc::GetDPIScaleFactorAtPoint(DisplayMetrics.PrimaryDisplayWorkAreaRect.Left, DisplayMetrics.PrimaryDisplayWorkAreaRect.Top);
 
 	const bool bEmbedTitleAreaContent = false;
-	const FVector2D ClientSize(960.0f * DPIScaleFactor, 640.0f * DPIScaleFactor);
+	const FVector2D ClientSize(960.0f * DPIScaleFactor, 750.0f * DPIScaleFactor);
 	TSharedRef<SWindow> RootWindowRef = SNew(SWindow)
 		.Title(LOCTEXT("WindowTitle", "Unreal Multi User Server"))
 		.CreateTitleBar(!bEmbedTitleAreaContent)

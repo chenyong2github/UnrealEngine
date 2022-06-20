@@ -12,21 +12,10 @@ namespace UE::MultiUserServer
 	{
 	public:
 
-		FClientNetworkStatisticsModel();
-		virtual ~FClientNetworkStatisticsModel() override;
-
 		//~ Begin IClientNetworkStatisticsModel Interface
 		virtual TOptional<FMessageTransportStatistics> GetLatestNetworkStatistics(const FMessageAddress& ClientAddress) const override;
 		virtual bool IsOnline(const FMessageAddress& ClientAddress) const override;
-		virtual void RegisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress, FOnMessageTransportStatisticsUpdated StatisticsUpdatedCallback) override;
-		virtual void UnregisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress) override;
 		//~ End IClientNetworkStatisticsModel Interface
-
-	private:
-
-		TMap<FGuid, FOnMessageTransportStatisticsUpdated> StatisticUpdateCallbacks;
-
-		void OnTransferUpdatedFromThread(FTransferStatistics Stats) const;
 	};
 }
 

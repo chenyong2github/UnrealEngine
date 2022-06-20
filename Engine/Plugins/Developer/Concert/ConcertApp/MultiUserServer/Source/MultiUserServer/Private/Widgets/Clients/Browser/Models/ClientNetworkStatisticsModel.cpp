@@ -39,22 +39,6 @@ namespace UE::MultiUserServer::Private
 	}
 }
 
-UE::MultiUserServer::FClientNetworkStatisticsModel::FClientNetworkStatisticsModel()
-{
-	if (INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics())
-	{
-		Statistics->OnTransferUpdatedFromThread().AddRaw(this, &FClientNetworkStatisticsModel::OnTransferUpdatedFromThread);
-	}
-}
-
-UE::MultiUserServer::FClientNetworkStatisticsModel::~FClientNetworkStatisticsModel()
-{
-	if (INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics())
-	{
-		Statistics->OnTransferUpdatedFromThread().RemoveAll(this);
-	}
-}
-
 TOptional<FMessageTransportStatistics> UE::MultiUserServer::FClientNetworkStatisticsModel::GetLatestNetworkStatistics(const FMessageAddress& ClientAddress) const
 {
 	if (INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics())
@@ -69,38 +53,4 @@ bool UE::MultiUserServer::FClientNetworkStatisticsModel::IsOnline(const FMessage
 {
 	INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics();
 	return Statistics && Statistics->GetNodeIdFromAddress(ClientAddress).IsValid();
-}
-
-void UE::MultiUserServer::FClientNetworkStatisticsModel::RegisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress, FOnMessageTransportStatisticsUpdated StatisticUpdateCallback)
-{
-	INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics();
-	if (!Statistics || !ensure(IsInGameThread()))
-	{
-		return;
-	}
-	if (const FGuid NodeId = Statistics->GetNodeIdFromAddress(ClientAddress); NodeId.IsValid())
-	{
-		StatisticUpdateCallbacks.Add(NodeId, StatisticUpdateCallback);
-	}
-}
-
-void UE::MultiUserServer::FClientNetworkStatisticsModel::UnregisterOnTransferUpdatedFromThread(const FMessageAddress& ClientAddress)
-{
-	INetworkMessagingExtension* Statistics = Private::GetMessagingStatistics();
-	if (!Statistics || !ensure(IsInGameThread()))
-	{
-		return;
-	}
-	if (const FGuid NodeId = Statistics->GetNodeIdFromAddress(ClientAddress); NodeId.IsValid())
-	{
-		StatisticUpdateCallbacks.Remove(NodeId);
-	}
-}
-
-void UE::MultiUserServer::FClientNetworkStatisticsModel::OnTransferUpdatedFromThread(FTransferStatistics Stats) const
-{
-	if (const FOnMessageTransportStatisticsUpdated* Callback = StatisticUpdateCallbacks.Find(Stats.DestinationId))
-	{
-		Callback->Execute(Stats);
-	}
 }

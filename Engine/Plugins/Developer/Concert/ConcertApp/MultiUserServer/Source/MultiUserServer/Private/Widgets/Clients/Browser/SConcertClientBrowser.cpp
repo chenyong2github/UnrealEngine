@@ -9,12 +9,14 @@
 #include "Models/IClientNetworkStatisticsModel.h"
 #include "SConcertClientBrowserItem.h"
 #include "Algo/Accumulate.h"
+#include "Algo/AllOf.h"
 
 #include "Algo/AnyOf.h"
 #include "Algo/Count.h"
 #include "Dialog/SMessageDialog.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SCheckBox.h"
+#include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
@@ -189,7 +191,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateKeepDiscon
 
 TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateTileView()
 {
-	constexpr int32 Height = 200;
+	constexpr int32 Height = 270;
 	constexpr int32 Width = 270;
 	return SAssignNew(TileView, STileView<TSharedPtr<FClientBrowserItem>>)
 		.SelectionMode(ESelectionMode::Multi)
@@ -306,7 +308,6 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::SConcertClientBr
 			EUserInterfaceActionType::Check
 		);
 	}
-
 	return MenuBuilder.MakeWidget();
 }
 
@@ -374,7 +375,51 @@ TSharedPtr<SWidget> UE::MultiUserServer::SConcertClientBrowser::OnGetContextMenu
 		EUserInterfaceActionType::Button
 		);
 	
+	MenuBuilder.AddSeparator();
+	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::NetworkGraph,
+		LOCTEXT("DisplayMode.NetworkGraph.Title", "Network graph"),
+		LOCTEXT("DisplayMode.NetworkGraph.Tooltip", "Show the up and down stream network traffic on a graph")
+		);
+	AddDisplayModeEntry(MenuBuilder, EClientDisplayMode::SegementTable,
+		LOCTEXT("DisplayMode.SegementTable.Title", "Segment table"),
+		LOCTEXT("DisplayMode.SegementTable.Tooltip", "A table displaying the messaging protocol's segments MessageId, Sent, Acked and Size in realtime.")
+		);
 	return MenuBuilder.MakeWidget();
+}
+
+void UE::MultiUserServer::SConcertClientBrowser::AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EClientDisplayMode DisplayMode, FText Title, FText Tooltip) const
+{
+	MenuBuilder.AddMenuEntry(
+		Title,
+		Tooltip,
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this, DisplayMode]()
+			{
+				TArray<TSharedPtr<FClientBrowserItem>> Items = TileView->GetSelectedItems();
+				for (const TSharedPtr<FClientBrowserItem>& Item : Items)
+				{
+					if (const TSharedPtr<SConcertClientBrowserItem>* ItemWidget = ClientWidgets.Find(Item->MessageNodeId))
+					{
+						ItemWidget->Get()->SetDisplayMode(DisplayMode);
+					}
+				}
+			}),
+			FCanExecuteAction::CreateLambda([] { return true; }),
+			FIsActionChecked::CreateLambda([this, DisplayMode]()
+			{
+				return Algo::AllOf(TileView->GetSelectedItems(), [this, DisplayMode](const TSharedPtr<FClientBrowserItem>& Item)
+				{
+					if (const TSharedPtr<SConcertClientBrowserItem>* ItemWidget = ClientWidgets.Find(Item->MessageNodeId))
+					{
+						return ItemWidget->Get()->GetDisplayMode() == DisplayMode;
+					}
+					return false;
+				});
+			})),
+		NAME_None,
+		EUserInterfaceActionType::Check
+	);
 }
 
 void UE::MultiUserServer::SConcertClientBrowser::OnListMouseButtonDoubleClick(TSharedPtr<FClientBrowserItem> ClientItem)
@@ -407,6 +452,18 @@ void UE::MultiUserServer::SConcertClientBrowser::UpdateTileViewFromAllowedSessio
 		}
 	}
 	TileView->RequestListRefresh();
+
+	for (auto CachedClientWidgetIt = ClientWidgets.CreateIterator(); CachedClientWidgetIt; ++CachedClientWidgetIt)
+	{
+		const bool bShouldExist = BrowserModel->GetItems().ContainsByPredicate([MessageNodeId = CachedClientWidgetIt->Key](const TSharedPtr<FClientBrowserItem>& Item)
+		{
+			return Item->MessageNodeId == MessageNodeId;
+		});
+		if (!bShouldExist)
+		{
+			CachedClientWidgetIt.RemoveCurrent();
+		}
+	}
 }
 
 bool UE::MultiUserServer::SConcertClientBrowser::PassesFilter(const TSharedPtr<FClientBrowserItem>& Client) const

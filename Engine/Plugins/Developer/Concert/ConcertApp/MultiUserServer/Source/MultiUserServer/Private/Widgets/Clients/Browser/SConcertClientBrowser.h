@@ -10,6 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FConcertClientsTabController;
+class FMenuBuilder;
 class STableViewBase;
 class ITableRow;
 template<typename T> class STileView;
@@ -21,6 +22,7 @@ namespace UE::MultiUserServer
 {
 	class IClientNetworkStatisticsModel;
 	class IClientBrowserModel;
+	enum class EClientDisplayMode : uint8;
 	struct FClientBrowserItem;
 	
 	/**
@@ -92,6 +94,7 @@ namespace UE::MultiUserServer
 		// TileView events
 		TSharedRef<ITableRow> MakeTileViewWidget(TSharedPtr<FClientBrowserItem> ClientItem, const TSharedRef<STableViewBase>& OwnerTable);
 		TSharedPtr<SWidget> OnGetContextMenuContent();
+		void AddDisplayModeEntry(FMenuBuilder& MenuBuilder, EClientDisplayMode DisplayMode, FText Title, FText Tooltip) const;
 		void OnListMouseButtonDoubleClick(TSharedPtr<FClientBrowserItem> ClientItem);
 
 		// Filtering

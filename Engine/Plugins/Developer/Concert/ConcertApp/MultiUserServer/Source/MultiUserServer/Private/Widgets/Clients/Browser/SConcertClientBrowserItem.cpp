@@ -6,13 +6,18 @@
 #include "ConcertServerStyle.h"
 #include "INetworkMessagingExtension.h"
 #include "SClientNetworkStats.h"
+#include "SClientTransferStatTable.h"
+#include "Models/ClientTransferStatisticsModel.h"
 #include "Models/IClientNetworkStatisticsModel.h"
 #include "Styling/StyleColors.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
+#include "Widgets/LayerManager/STooltipPresenter.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SScaleBox.h"
+#include "Widgets/SOverlay.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI.SConcertClientBrowserItem"
 
@@ -20,6 +25,7 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 {
 	Item = MoveTemp(InClientItem);
 	StatModel = MoveTemp(InStatModel);
+	TransferStatsModel = MakeShared<FClientTransferStatisticsModel>(InClientItem->ClientAddress);
 	HighlightText = InArgs._HighlightText;
 
 	ChildSlot
@@ -43,10 +49,17 @@ void UE::MultiUserServer::SConcertClientBrowserItem::Construct(const FArguments&
 					SNew(SVerticalBox)
 
 					+SVerticalBox::Slot()
-					.FillHeight(1.f)
+					.AutoHeight()
 					.VAlign(VAlign_Top)
 					[
 						CreateHeader()	
+					]
+					
+					+SVerticalBox::Slot()
+					.FillHeight(1.f)
+					.Padding(0.f, 5.f, 0.f, 0.f)
+					[
+						CreateContentArea()
 					]
 
 					+SVerticalBox::Slot()
@@ -119,6 +132,21 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateHeader
 		.ColorAndOpacity(FColor::White);
 }
 
+TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateContentArea()
+{
+	return SNew(SOverlay)
+		+SOverlay::Slot()
+		[
+			// TODO: Graph
+			SNullWidget::NullWidget
+		]
+		+SOverlay::Slot()
+		[
+			SNew(SClientTransferStatTable, TransferStatsModel.ToSharedRef())
+			.Visibility_Lambda([this](){ return GetDisplayMode() == EClientDisplayMode::SegementTable ? EVisibility::Visible : EVisibility::Collapsed; })
+		];
+}
+
 TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateStats()
 {
 	return SNew(SScaleBox)
@@ -154,7 +182,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowserItem::CreateFooter
 				{
 					return StatModel->IsOnline(Item->ClientAddress)
 						? LOCTEXT("ConnectionIndicator.Online", "Connected")
-						: LOCTEXT("ConnectionIndicator.Online", "Not reachable");
+						: LOCTEXT("ConnectionIndicator.Offline", "Not reachable");
 				})
 			]
 
