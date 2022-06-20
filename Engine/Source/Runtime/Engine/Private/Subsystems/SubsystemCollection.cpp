@@ -205,7 +205,7 @@ void FSubsystemCollectionBase::Deinitialize()
 			}
 			else
 			{
-				UE_LOG(LogSubsystemCollection, Warning, TEXT("Cannot deinitialize %s because it has been deleted"), *KeyClass->GetName());
+				UE_LOG(LogSubsystemCollection, Log, TEXT("Cannot deinitialize %s because it has been deleted"), *KeyClass->GetName());
 			}
 		}
 	}
