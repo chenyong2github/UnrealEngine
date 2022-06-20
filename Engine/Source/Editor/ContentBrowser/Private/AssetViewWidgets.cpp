@@ -906,7 +906,7 @@ TSharedRef<SWidget> SAssetViewItem::CreateToolTipWidget() const
 						.BorderImage(FAppStyle::GetBrush("ContentBrowser.TileViewTooltip.ContentBorder"))
 						[
 							SNew(STextBlock)
-							.WrapTextAt(300.0f)
+							.WrapTextAt(700.0f)
 							.Font(FAppStyle::GetFontStyle("ContentBrowser.TileViewTooltip.AssetUserDescriptionFont"))
 							.Text(UserDescription)
 						]
