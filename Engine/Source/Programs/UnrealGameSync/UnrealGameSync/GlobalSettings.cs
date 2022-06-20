@@ -12,7 +12,7 @@ namespace UnrealGameSync
 {
 	internal class GlobalPerforceSettings
 	{
-		public static void ReadGlobalPerforceSettings(ref string? ServerAndPort, ref string? UserName, ref string? DepotPath)
+		public static void ReadGlobalPerforceSettings(ref string? ServerAndPort, ref string? UserName, ref string? DepotPath, ref bool bPreview)
 		{
 			using (RegistryKey? Key = Registry.CurrentUser.OpenSubKey("SOFTWARE\\Epic Games\\UnrealGameSync", false))
 			{
@@ -21,6 +21,7 @@ namespace UnrealGameSync
 					ServerAndPort = Key.GetValue("ServerAndPort", ServerAndPort) as string;
 					UserName = Key.GetValue("UserName", UserName) as string;
 					DepotPath = Key.GetValue("DepotPath", DepotPath) as string;
+					bPreview = ((Key.GetValue("Preview", bPreview? 1 : 0) as int?) ?? 0) != 0;
 
 					// Fix corrupted depot path string
 					if (DepotPath != null)
@@ -29,7 +30,7 @@ namespace UnrealGameSync
 						if (Match.Success)
 						{
 							DepotPath = Match.Groups[1].Value;
-							SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+							SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath, bPreview);
 						}
 					}
 				}
@@ -62,7 +63,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static void SaveGlobalPerforceSettings(string? ServerAndPort, string? UserName, string? DepotPath)
+		public static void SaveGlobalPerforceSettings(string? ServerAndPort, string? UserName, string? DepotPath, bool bPreview)
 		{
 			try
 			{
@@ -96,6 +97,15 @@ namespace UnrealGameSync
 					else
 					{
 						Key.SetValue("DepotPath", DepotPath);
+					}
+
+					if (bPreview)
+					{
+						Key.SetValue("Preview", 1);
+					}
+					else
+					{
+						try { Key.DeleteValue("Preview"); } catch (Exception) { }
 					}
 				}
 			}

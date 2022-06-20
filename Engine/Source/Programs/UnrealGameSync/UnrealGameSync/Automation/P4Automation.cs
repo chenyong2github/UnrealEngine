@@ -20,8 +20,9 @@ namespace UnrealGameSync
 			string? ServerAndPort = null;
 			string? UserName = null;
 			string? DepotPathSettings = null;
+			bool bPreview = false;
 
-			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPathSettings);
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPathSettings, ref bPreview);
 
 			return Utility.OverridePerforceSettings(PerforceSettings.Default, ServerAndPort, UserName);
 

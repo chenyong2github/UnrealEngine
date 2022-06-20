@@ -49,7 +49,7 @@ namespace UnrealGameSync
 			this.tableLayoutPanel4 = new System.Windows.Forms.TableLayoutPanel();
 			this.label6 = new System.Windows.Forms.Label();
 			this.tableLayoutPanel5 = new System.Windows.Forms.TableLayoutPanel();
-			this.UseUnstableBuildCheckBox = new System.Windows.Forms.CheckBox();
+			this.UsePreviewBuildCheckBox = new System.Windows.Forms.CheckBox();
 			this.DepotPathTextBox = new UnrealGameSync.TextBoxWithCueBanner();
 			this.groupBox4 = new System.Windows.Forms.GroupBox();
 			this.tableLayoutPanel2 = new System.Windows.Forms.TableLayoutPanel();
@@ -303,7 +303,7 @@ namespace UnrealGameSync
 			this.tableLayoutPanel5.ColumnCount = 2;
 			this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
 			this.tableLayoutPanel5.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle());
-			this.tableLayoutPanel5.Controls.Add(this.UseUnstableBuildCheckBox, 1, 0);
+			this.tableLayoutPanel5.Controls.Add(this.UsePreviewBuildCheckBox, 1, 0);
 			this.tableLayoutPanel5.Controls.Add(this.DepotPathTextBox, 0, 0);
 			this.tableLayoutPanel5.Location = new System.Drawing.Point(86, 2);
 			this.tableLayoutPanel5.Margin = new System.Windows.Forms.Padding(0);
@@ -315,15 +315,15 @@ namespace UnrealGameSync
 			// 
 			// UseUnstableBuildCheckBox
 			// 
-			this.UseUnstableBuildCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Right;
-			this.UseUnstableBuildCheckBox.AutoSize = true;
-			this.UseUnstableBuildCheckBox.Location = new System.Drawing.Point(574, 5);
-			this.UseUnstableBuildCheckBox.Margin = new System.Windows.Forms.Padding(10, 3, 3, 3);
-			this.UseUnstableBuildCheckBox.Name = "UseUnstableBuildCheckBox";
-			this.UseUnstableBuildCheckBox.Size = new System.Drawing.Size(124, 19);
-			this.UseUnstableBuildCheckBox.TabIndex = 1;
-			this.UseUnstableBuildCheckBox.Text = "Use Unstable Build";
-			this.UseUnstableBuildCheckBox.UseVisualStyleBackColor = true;
+			this.UsePreviewBuildCheckBox.Anchor = System.Windows.Forms.AnchorStyles.Right;
+			this.UsePreviewBuildCheckBox.AutoSize = true;
+			this.UsePreviewBuildCheckBox.Location = new System.Drawing.Point(574, 5);
+			this.UsePreviewBuildCheckBox.Margin = new System.Windows.Forms.Padding(10, 3, 3, 3);
+			this.UsePreviewBuildCheckBox.Name = "UsePreviewBuildCheckBox";
+			this.UsePreviewBuildCheckBox.Size = new System.Drawing.Size(124, 19);
+			this.UsePreviewBuildCheckBox.TabIndex = 1;
+			this.UsePreviewBuildCheckBox.Text = "Use Preview Build";
+			this.UsePreviewBuildCheckBox.UseVisualStyleBackColor = true;
 			// 
 			// DepotPathTextBox
 			// 
@@ -506,7 +506,7 @@ namespace UnrealGameSync
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel4;
 		private System.Windows.Forms.Label label6;
 		private System.Windows.Forms.TableLayoutPanel tableLayoutPanel5;
-		public System.Windows.Forms.CheckBox UseUnstableBuildCheckBox;
+		public System.Windows.Forms.CheckBox UsePreviewBuildCheckBox;
 		private TextBoxWithCueBanner DepotPathTextBox;
 		private System.Windows.Forms.GroupBox groupBox4;
 		private System.Windows.Forms.FlowLayoutPanel flowLayoutPanel1;

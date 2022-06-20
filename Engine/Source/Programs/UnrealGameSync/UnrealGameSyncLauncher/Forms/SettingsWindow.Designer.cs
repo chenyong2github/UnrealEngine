@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 namespace UnrealGameSyncLauncher
 {
@@ -37,7 +37,7 @@ namespace UnrealGameSyncLauncher
 			this.DepotPathLabel = new System.Windows.Forms.Label();
 			this.PromptLabel = new System.Windows.Forms.Label();
 			this.groupBox1 = new System.Windows.Forms.GroupBox();
-			this.UseUnstableBuildCheckBox = new System.Windows.Forms.CheckBox();
+			this.UsePreviewBuildCheckBox = new System.Windows.Forms.CheckBox();
 			this.UserNameTextBox = new System.Windows.Forms.TextBox();
 			this.label3 = new System.Windows.Forms.Label();
 			this.RetryBtn = new System.Windows.Forms.Button();
@@ -97,7 +97,7 @@ namespace UnrealGameSyncLauncher
 			// 
 			this.groupBox1.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-			this.groupBox1.Controls.Add(this.UseUnstableBuildCheckBox);
+			this.groupBox1.Controls.Add(this.UsePreviewBuildCheckBox);
 			this.groupBox1.Controls.Add(this.UserNameTextBox);
 			this.groupBox1.Controls.Add(this.label3);
 			this.groupBox1.Controls.Add(this.DepotPathTextBox);
@@ -113,14 +113,14 @@ namespace UnrealGameSyncLauncher
 			// 
 			// UseUnstableBuildCheckBox
 			// 
-			this.UseUnstableBuildCheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
-			this.UseUnstableBuildCheckBox.AutoSize = true;
-			this.UseUnstableBuildCheckBox.Location = new System.Drawing.Point(681, 86);
-			this.UseUnstableBuildCheckBox.Name = "UseUnstableBuildCheckBox";
-			this.UseUnstableBuildCheckBox.Size = new System.Drawing.Size(124, 19);
-			this.UseUnstableBuildCheckBox.TabIndex = 6;
-			this.UseUnstableBuildCheckBox.Text = "Use Unstable Build";
-			this.UseUnstableBuildCheckBox.UseVisualStyleBackColor = true;
+			this.UsePreviewBuildCheckBox.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+			this.UsePreviewBuildCheckBox.AutoSize = true;
+			this.UsePreviewBuildCheckBox.Location = new System.Drawing.Point(681, 86);
+			this.UsePreviewBuildCheckBox.Name = "UsePreviewBuildCheckBox";
+			this.UsePreviewBuildCheckBox.Size = new System.Drawing.Size(124, 19);
+			this.UsePreviewBuildCheckBox.TabIndex = 6;
+			this.UsePreviewBuildCheckBox.Text = "Use Preview Build";
+			this.UsePreviewBuildCheckBox.UseVisualStyleBackColor = true;
 			// 
 			// UserNameTextBox
 			// 
@@ -213,6 +213,6 @@ namespace UnrealGameSyncLauncher
 		private System.Windows.Forms.Button ViewLogBtn;
 		private System.Windows.Forms.TextBox UserNameTextBox;
 		private System.Windows.Forms.Label label3;
-		private System.Windows.Forms.CheckBox UseUnstableBuildCheckBox;
+		private System.Windows.Forms.CheckBox UsePreviewBuildCheckBox;
 	}
 }

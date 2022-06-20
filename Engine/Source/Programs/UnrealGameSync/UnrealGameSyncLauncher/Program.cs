@@ -41,20 +41,20 @@ namespace UnrealGameSyncLauncher
 				}
 
 				// Figure out if we should sync the unstable build by default
-				bool bUnstable = Args.Contains("-unstable", StringComparer.InvariantCultureIgnoreCase);
+				bool bPreview = Args.Contains("-unstable", StringComparer.InvariantCultureIgnoreCase) || Args.Contains("-preview", StringComparer.InvariantCultureIgnoreCase);
 
 				// Read the settings
 				string? ServerAndPort = null;
 				string? UserName = null;
 				string? DepotPath = DeploymentSettings.DefaultDepotPath;
-				GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPath);
+				GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref DepotPath, ref bPreview);
 
 				// If the shift key is held down, immediately show the settings window
-				SettingsWindow.SyncAndRunDelegate SyncAndRunWrapper = (Perforce, DepotParam, bUnstableParam, LogWriter, CancellationToken) => SyncAndRun(Perforce, DepotParam, bUnstableParam, Args, InstanceMutex, LogWriter, CancellationToken);
+				SettingsWindow.SyncAndRunDelegate SyncAndRunWrapper = (Perforce, DepotParam, bPreviewParam, LogWriter, CancellationToken) => SyncAndRun(Perforce, DepotParam, bPreviewParam, Args, InstanceMutex, LogWriter, CancellationToken);
 				if ((Control.ModifierKeys & Keys.Shift) != 0)
 				{
 					// Show the settings window immediately
-					SettingsWindow UpdateError = new SettingsWindow(null, null, ServerAndPort, UserName, DepotPath, bUnstable, SyncAndRunWrapper);
+					SettingsWindow UpdateError = new SettingsWindow(null, null, ServerAndPort, UserName, DepotPath, bPreview, SyncAndRunWrapper);
 					if(UpdateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;
@@ -67,7 +67,7 @@ namespace UnrealGameSyncLauncher
 
 					IPerforceSettings Settings = new PerforceSettings(PerforceSettings.Default) { PreferNativeClient = true }.MergeWith(newServerAndPort: ServerAndPort, newUserName: UserName);
 
-					ModalTask? Task = PerforceModalTask.Execute(null, "Updating", "Checking for updates, please wait...", Settings, (p, c) => SyncAndRun(p, DepotPath, bUnstable, Args, InstanceMutex, Logger, c), Logger);
+					ModalTask? Task = PerforceModalTask.Execute(null, "Updating", "Checking for updates, please wait...", Settings, (p, c) => SyncAndRun(p, DepotPath, bPreview, Args, InstanceMutex, Logger, c), Logger);
 					if (Task == null)
 					{
 						Logger.LogInformation("Canceled by user");
@@ -77,7 +77,7 @@ namespace UnrealGameSyncLauncher
 						return 0;
 					}
 
-					SettingsWindow UpdateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", Logger.Render(Environment.NewLine), ServerAndPort, UserName, DepotPath, bUnstable, SyncAndRunWrapper);
+					SettingsWindow UpdateError = new SettingsWindow("Unable to update UnrealGameSync from Perforce. Verify that your connection settings are correct.", Logger.Render(Environment.NewLine), ServerAndPort, UserName, DepotPath, bPreview, SyncAndRunWrapper);
 					if(UpdateError.ShowDialog() == DialogResult.OK)
 					{
 						return 0;
@@ -87,7 +87,7 @@ namespace UnrealGameSyncLauncher
 			return 1;
 		}
 
-		public static async Task SyncAndRun(IPerforceConnection Perforce, string? BaseDepotPath, bool bUnstable, string[] Args, Mutex InstanceMutex, ILogger Logger, CancellationToken CancellationToken)
+		public static async Task SyncAndRun(IPerforceConnection Perforce, string? BaseDepotPath, bool bPreview, string[] Args, Mutex InstanceMutex, ILogger Logger, CancellationToken CancellationToken)
 		{
 			try
 			{
@@ -99,11 +99,11 @@ namespace UnrealGameSyncLauncher
 				string BaseDepotPathPrefix = BaseDepotPath.TrimEnd('/');
 
 				// Find the most recent changelist
-				string SyncPath = BaseDepotPathPrefix + (bUnstable ? "/UnstableRelease.zip" : "/Release.zip");
+				string SyncPath = BaseDepotPathPrefix + (bPreview ? "/UnstableRelease.zip" : "/Release.zip");
 				List<ChangesRecord> Changes = await Perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, SyncPath, CancellationToken);
 				if (Changes.Count == 0)
 				{
-					SyncPath = BaseDepotPathPrefix + (bUnstable ? "/UnstableRelease/..." : "/Release/...");
+					SyncPath = BaseDepotPathPrefix + (bPreview ? "/UnstableRelease/..." : "/Release/...");
 					Changes = await Perforce.GetChangesAsync(ChangesOptions.None, 1, ChangeStatus.Submitted, SyncPath, CancellationToken);
 					if (Changes.Count == 0)
 					{
@@ -199,7 +199,7 @@ namespace UnrealGameSyncLauncher
                     }
                 }
 
-				StringBuilder NewCommandLine = new StringBuilder(String.Format("-updatepath=\"{0}@>{1}\" -updatespawn=\"{2}\"{3}", SyncPath, RequiredChangeNumber, OriginalExecutable, bUnstable ? " -unstable" : ""));
+				StringBuilder NewCommandLine = new StringBuilder(String.Format("-updatepath=\"{0}@>{1}\" -updatespawn=\"{2}\"{3}", SyncPath, RequiredChangeNumber, OriginalExecutable, bPreview ? " -unstable" : ""));
 				foreach (string Arg in Args)
 				{
 					NewCommandLine.AppendFormat(" {0}", QuoteArgument(Arg));

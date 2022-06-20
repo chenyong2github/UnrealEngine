@@ -43,11 +43,11 @@ namespace UnrealGameSync
 		string? InitialServerAndPort;
 		string? InitialUserName;
 		string? InitialDepotPath;
-		bool bInitialUnstable;
+		bool bInitialPreview;
 		int InitialAutomationPortNumber;
 		ProtocolHandlerState InitialProtocolHandlerState;
 
-		bool? bRestartUnstable;
+		bool? bRestartPreview;
 
 		ToolUpdateMonitor ToolUpdateMonitor;
 
@@ -66,7 +66,7 @@ namespace UnrealGameSync
 			}
 		}
 
-		private ApplicationSettingsWindow(IPerforceSettings DefaultPerforceSettings, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, ILogger<ApplicationSettingsWindow> Logger)
+		private ApplicationSettingsWindow(IPerforceSettings DefaultPerforceSettings, bool bPreview, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, ILogger<ApplicationSettingsWindow> Logger)
 		{
 			InitializeComponent();
 
@@ -76,8 +76,8 @@ namespace UnrealGameSync
 			this.ToolUpdateMonitor = ToolUpdateMonitor;
 			this.Logger = Logger;
 
-			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath);
-			bInitialUnstable = bUnstable;
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref InitialServerAndPort, ref InitialUserName, ref InitialDepotPath, ref bPreview);
+			bInitialPreview = bPreview;
 
 			InitialAutomationPortNumber = AutomationServer.GetPortNumber();
 			InitialProtocolHandlerState = ProtocolHandlerUtils.GetState();
@@ -99,7 +99,7 @@ namespace UnrealGameSync
 			this.DepotPathTextBox.Select(DepotPathTextBox.TextLength, 0);
 			this.DepotPathTextBox.CueBanner = DeploymentSettings.DefaultDepotPath ?? String.Empty;
 
-			this.UseUnstableBuildCheckBox.Checked = bUnstable;
+			this.UsePreviewBuildCheckBox.Checked = bPreview;
 
 			if(InitialAutomationPortNumber > 0)
 			{
@@ -134,12 +134,12 @@ namespace UnrealGameSync
 			}
 		}
 
-		public static bool? ShowModal(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, bool bUnstable, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, ILogger<ApplicationSettingsWindow> Logger)
+		public static bool? ShowModal(IWin32Window Owner, IPerforceSettings DefaultPerforceSettings, bool bPreview, string OriginalExecutableFileName, UserSettings Settings, ToolUpdateMonitor ToolUpdateMonitor, ILogger<ApplicationSettingsWindow> Logger)
 		{
-			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultPerforceSettings, bUnstable, OriginalExecutableFileName, Settings, ToolUpdateMonitor, Logger);
+			ApplicationSettingsWindow ApplicationSettings = new ApplicationSettingsWindow(DefaultPerforceSettings, bPreview, OriginalExecutableFileName, Settings, ToolUpdateMonitor, Logger);
 			if(ApplicationSettings.ShowDialog() == DialogResult.OK)
 			{
-				return ApplicationSettings.bRestartUnstable;
+				return ApplicationSettings.bRestartPreview;
 			}
 			else
 			{
@@ -174,7 +174,7 @@ namespace UnrealGameSync
 				DepotPath = null;
 			}
 
-			bool bUnstable = UseUnstableBuildCheckBox.Checked;
+			bool bPreview = UsePreviewBuildCheckBox.Checked;
 
 
 			int AutomationPortNumber;
@@ -183,7 +183,7 @@ namespace UnrealGameSync
 				AutomationPortNumber = -1;
 			}
 			
-			if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath || bUnstable != bInitialUnstable || AutomationPortNumber != InitialAutomationPortNumber)
+			if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath || bPreview != bInitialPreview || AutomationPortNumber != InitialAutomationPortNumber)
 			{
 				// Try to log in to the new server, and check the application is there
 				if(ServerAndPort != InitialServerAndPort || UserName != InitialUserName || DepotPath != InitialDepotPath)
@@ -206,8 +206,8 @@ namespace UnrealGameSync
 					return;
 				}
 
-				bRestartUnstable = UseUnstableBuildCheckBox.Checked;
-				GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath);
+				bRestartPreview = UsePreviewBuildCheckBox.Checked;
+				GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, DepotPath, bPreview);
 				AutomationServer.SetPortNumber(AutomationPortNumber);
 			}
 

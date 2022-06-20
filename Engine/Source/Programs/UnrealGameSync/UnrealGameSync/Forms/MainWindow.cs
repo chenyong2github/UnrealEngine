@@ -106,7 +106,7 @@ namespace UnrealGameSync
 		System.Threading.Timer? ScheduleSettledTimer;
 
 		string OriginalExecutableFileName;
-		bool bUnstable;
+		bool bPreview;
 
 		IMainWindowTabPanel? CurrentTabPanel;
 
@@ -119,7 +119,7 @@ namespace UnrealGameSync
 
 		public ToolUpdateMonitor ToolUpdateMonitor { get; private set; }
 
-		public MainWindow(UpdateMonitor InUpdateMonitor, string? InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInUnstable, List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> StartupTasks, IPerforceSettings InDefaultPerforceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, string? InUri, OIDCTokenManager? InOidcTokenManager)
+		public MainWindow(UpdateMonitor InUpdateMonitor, string? InApiUrl, DirectoryReference InDataFolder, DirectoryReference InCacheFolder, bool bInRestoreStateOnLoad, string InOriginalExecutableFileName, bool bInPreview, List<(UserSelectedProjectSettings, ModalTask<OpenProjectInfo>)> StartupTasks, IPerforceSettings InDefaultPerforceSettings, IServiceProvider InServiceProvider, UserSettings InSettings, string? InUri, OIDCTokenManager? InOidcTokenManager)
 		{
 			ServiceProvider = InServiceProvider;
 			Logger = ServiceProvider.GetRequiredService<ILogger<MainWindow>>();
@@ -135,7 +135,7 @@ namespace UnrealGameSync
 			CacheFolder = InCacheFolder;
 			bRestoreStateOnLoad = bInRestoreStateOnLoad;
 			OriginalExecutableFileName = InOriginalExecutableFileName;
-			bUnstable = bInUnstable;
+			bPreview = bInPreview;
 			DefaultPerforceSettings = InDefaultPerforceSettings;
 			ToolUpdateMonitor = new ToolUpdateMonitor(DefaultPerforceSettings, DataFolder, InSettings, ServiceProvider);
 
@@ -187,7 +187,7 @@ namespace UnrealGameSync
 
 			StartScheduleTimer();
 
-			if(bUnstable)
+			if(bPreview)
 			{
 				Text += $" {Program.GetVersionString()} (UNSTABLE)";
 			}
@@ -1425,10 +1425,10 @@ namespace UnrealGameSync
 
 		public void ModifyApplicationSettings()
 		{
-			bool? bRelaunchUnstable = ApplicationSettingsWindow.ShowModal(this, DefaultPerforceSettings, bUnstable, OriginalExecutableFileName, Settings, ToolUpdateMonitor, ServiceProvider.GetRequiredService<ILogger<ApplicationSettingsWindow>>());
-			if(bRelaunchUnstable.HasValue)
+			bool? bRelaunchPreview = ApplicationSettingsWindow.ShowModal(this, DefaultPerforceSettings, bPreview, OriginalExecutableFileName, Settings, ToolUpdateMonitor, ServiceProvider.GetRequiredService<ILogger<ApplicationSettingsWindow>>());
+			if(bRelaunchPreview.HasValue)
 			{
-				UpdateMonitor.TriggerUpdate(UpdateType.UserInitiated, bRelaunchUnstable);
+				UpdateMonitor.TriggerUpdate(UpdateType.UserInitiated, bRelaunchPreview);
 			}
 
 			for (int Idx = 0; Idx < TabControl.GetTabCount(); Idx++)

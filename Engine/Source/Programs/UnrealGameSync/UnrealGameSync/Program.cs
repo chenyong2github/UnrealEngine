@@ -86,7 +86,7 @@ namespace UnrealGameSync
 
 					if (bFirstInstance)
 					{
-						InnerMainAsync(InstanceMutex, ActivateEvent, Args).GetAwaiter().GetResult();
+						GuardedInnerMainAsync(InstanceMutex, ActivateEvent, Args);
 					}
 					else
 					{
@@ -96,12 +96,25 @@ namespace UnrealGameSync
 			}
 		}
 
+		static void GuardedInnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
+		{
+			try
+			{
+				InnerMainAsync(InstanceMutex, ActivateEvent, Args).GetAwaiter().GetResult();
+			}
+			catch (Exception ex)
+			{
+				CaptureException(ex);
+			}
+		}
+
 		static async Task InnerMainAsync(Mutex InstanceMutex, EventWaitHandle ActivateEvent, string[] Args)
 		{
 			string? ServerAndPort = null;
 			string? UserName = null;
 			string? BaseUpdatePath = null;
-			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath);
+			bool bPreviewSetting = false;
+			GlobalPerforceSettings.ReadGlobalPerforceSettings(ref ServerAndPort, ref UserName, ref BaseUpdatePath, ref bPreviewSetting);
 
 			List<string> RemainingArgs = new List<string>(Args);
 
@@ -116,6 +129,9 @@ namespace UnrealGameSync
 
 			bool bUnstable;
 			ParseOption(RemainingArgs, "-unstable", out bUnstable);
+			bool bPreview;
+			ParseOption(RemainingArgs, "-preview", out bPreview);
+			bPreview |= bUnstable;
 
             string? ProjectFileName;
             ParseArgument(RemainingArgs, "-project=", out ProjectFileName);
@@ -177,7 +193,7 @@ namespace UnrealGameSync
 						Logger.LogInformation("Missing server settings; finding defaults.");
 						ServerAndPort ??= PerforceSettings.Default.ServerAndPort;
 						UserName ??= PerforceSettings.Default.UserName;
-						GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath);
+						GlobalPerforceSettings.SaveGlobalPerforceSettings(ServerAndPort, UserName, BaseUpdatePath, bPreviewSetting);
 					}
 
 					ILogger TelemetryLogger = LoggerProvider.CreateLogger("Telemetry");
@@ -198,14 +214,14 @@ namespace UnrealGameSync
 
 							using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultSettings, UpdatePath, ServiceProvider))
 							{
-								using ProgramApplicationContext Context = new ProgramApplicationContext(DefaultSettings, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, ServiceProvider, Uri);
+								using ProgramApplicationContext Context = new ProgramApplicationContext(DefaultSettings, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bPreview, ServiceProvider, Uri);
 								Application.Run(Context);
 
 								if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)
 								{
 									InstanceMutex.Close();
-									bool bLaunchUnstable = UpdateMonitor.RelaunchUnstable ?? bUnstable;
-									Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchUnstable ? " -unstable" : ""));
+									bool bLaunchPreview = UpdateMonitor.RelaunchPreview ?? bPreview;
+									Utility.SpawnProcess(UpdateSpawn, "-restorestate" + (bLaunchPreview ? " -unstable" : ""));
 								}
 							}
 						}

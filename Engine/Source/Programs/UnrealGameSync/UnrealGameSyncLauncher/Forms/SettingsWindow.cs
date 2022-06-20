@@ -24,14 +24,14 @@ namespace UnrealGameSyncLauncher
 		[DllImport("user32.dll")]
 		private static extern IntPtr SendMessage(IntPtr hWnd, int Msg, int wParam, [MarshalAs(UnmanagedType.LPWStr)] string lParam);
 
-		public delegate Task SyncAndRunDelegate(IPerforceConnection Perforce, string? DepotPath, bool bUnstable, ILogger LogWriter, CancellationToken CancellationToken);
+		public delegate Task SyncAndRunDelegate(IPerforceConnection Perforce, string? DepotPath, bool bPreview, ILogger LogWriter, CancellationToken CancellationToken);
 
 		const int EM_SETCUEBANNER = 0x1501;
 
 		string? LogText;
 		SyncAndRunDelegate SyncAndRun;
 
-		public SettingsWindow(string? Prompt, string? LogText, string? ServerAndPort, string? UserName, string? DepotPath, bool bUnstable, SyncAndRunDelegate SyncAndRun)
+		public SettingsWindow(string? Prompt, string? LogText, string? ServerAndPort, string? UserName, string? DepotPath, bool bPreview, SyncAndRunDelegate SyncAndRun)
 		{
 			InitializeComponent();
 
@@ -44,7 +44,7 @@ namespace UnrealGameSyncLauncher
 			this.ServerTextBox.Text = ServerAndPort ?? String.Empty;
 			this.UserNameTextBox.Text = UserName ?? String.Empty;
 			this.DepotPathTextBox.Text = DepotPath ?? String.Empty;
-			this.UseUnstableBuildCheckBox.Checked = bUnstable;
+			this.UsePreviewBuildCheckBox.Checked = bPreview;
 			this.SyncAndRun = SyncAndRun;
 
 			ViewLogBtn.Visible = LogText != null;
@@ -102,7 +102,7 @@ namespace UnrealGameSyncLauncher
 			CaptureLogger Logger = new CaptureLogger();
 
 			// Create the task for connecting to this server
-			ModalTask? Task = PerforceModalTask.Execute(this, "Updating", "Checking for updates, please wait...", PerforceSettings, (p, c) => SyncAndRun(p, DepotPath, UseUnstableBuildCheckBox.Checked, Logger, c), Logger);
+			ModalTask? Task = PerforceModalTask.Execute(this, "Updating", "Checking for updates, please wait...", PerforceSettings, (p, c) => SyncAndRun(p, DepotPath, UsePreviewBuildCheckBox.Checked, Logger, c), Logger);
 			if (Task != null)
 			{
 				if(Task.Succeeded)

@@ -32,7 +32,7 @@ namespace UnrealGameSync
 		DirectoryReference CacheFolder;
 		bool bRestoreState;
 		string? UpdateSpawn;
-		bool bUnstable;
+		bool bPreview;
 		bool bIsClosing;
 		string? Uri;
 
@@ -58,7 +58,7 @@ namespace UnrealGameSync
 
 		OIDCTokenManager? OIDCTokenManager;
 
-		public ProgramApplicationContext(IPerforceSettings DefaultPerforceSettings, UpdateMonitor UpdateMonitor, string? ApiUrl, DirectoryReference DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string? UpdateSpawn, string? ProjectFileName, bool bUnstable, IServiceProvider ServiceProvider, string? Uri)
+		public ProgramApplicationContext(IPerforceSettings DefaultPerforceSettings, UpdateMonitor UpdateMonitor, string? ApiUrl, DirectoryReference DataFolder, EventWaitHandle ActivateEvent, bool bRestoreState, string? UpdateSpawn, string? ProjectFileName, bool bPreview, IServiceProvider ServiceProvider, string? Uri)
 		{
 			this.DefaultPerforceSettings = DefaultPerforceSettings;
 			this.UpdateMonitor = UpdateMonitor;
@@ -67,7 +67,7 @@ namespace UnrealGameSync
 			this.CacheFolder = DirectoryReference.Combine(DataFolder, "Cache");
 			this.bRestoreState = bRestoreState;
 			this.UpdateSpawn = UpdateSpawn;
-			this.bUnstable = bUnstable;
+			this.bPreview = bPreview;
 			this.ServiceProvider = ServiceProvider;
 			this.Logger = ServiceProvider.GetRequiredService<ILogger<ProgramApplicationContext>>();
 			this.Uri = Uri;
@@ -276,7 +276,7 @@ namespace UnrealGameSync
 			}
 
 			// Create the main window 
-			MainWindowInstance = new MainWindow(UpdateMonitor, ApiUrl, DataFolder, CacheFolder, bRestoreState, UpdateSpawn ?? OriginalExe, bUnstable, StartupTasks, DefaultPerforceSettings, ServiceProvider, Settings, Uri, OIDCTokenManager);
+			MainWindowInstance = new MainWindow(UpdateMonitor, ApiUrl, DataFolder, CacheFolder, bRestoreState, UpdateSpawn ?? OriginalExe, bPreview, StartupTasks, DefaultPerforceSettings, ServiceProvider, Settings, Uri, OIDCTokenManager);
 			if(bVisible)
 			{
 				MainWindowInstance.Show();

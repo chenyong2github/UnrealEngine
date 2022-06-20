@@ -29,7 +29,7 @@ namespace UnrealGameSync
 
 		public Action<UpdateType>? OnUpdateAvailable;
 
-		public bool? RelaunchUnstable
+		public bool? RelaunchPreview
 		{
 			get;
 			private set;
@@ -98,9 +98,9 @@ namespace UnrealGameSync
 			}
 		}
 
-		public void TriggerUpdate(UpdateType UpdateType, bool? RelaunchUnstable)
+		public void TriggerUpdate(UpdateType UpdateType, bool? RelaunchPreview)
 		{
-			this.RelaunchUnstable = RelaunchUnstable;
+			this.RelaunchPreview = RelaunchPreview;
 			IsUpdateAvailable = true;
 			if(OnUpdateAvailable != null)
 			{
