@@ -20,7 +20,6 @@ struct FTest_CreatePropertyBag : FAITestBase
 		static const FName TemperatureName(TEXT("Temperature"));
 		static const FName CountName(TEXT("Count"));
 
-
 		FInstancedPropertyBag Bag;
 
 		Bag.AddProperty(IsHotName, EPropertyBagPropertyType::Bool);
@@ -93,6 +92,10 @@ struct FTest_MigrateProperty : FAITestBase
 		FInstancedPropertyBag Bag;
 		Bag.AddProperty(TemperatureName, EPropertyBagPropertyType::Float);
 		AITEST_TRUE(TEXT("Bag should have Temperature property"), Bag.FindPropertyDescByName(TemperatureName) != nullptr);
+
+		TValueOrError<float, EPropertyBagResult> FloatDefaultRes = Bag.GetValueFloat(TemperatureName);
+		AITEST_TRUE(TEXT("Bag getting Temperature default value should succeed"), FloatDefaultRes.IsValid());
+		AITEST_TRUE(TEXT("Bag Temperature default value should be 0"), FMath::IsNearlyEqual(FloatDefaultRes.GetValue(), 0.0f));
 		
 		AITEST_TRUE(TEXT("Bag set Temperature as float should succeed"), Bag.SetValueFloat(TemperatureName, 451.0f) == EPropertyBagResult::Success);
 		TValueOrError<float, EPropertyBagResult> FloatRes = Bag.GetValueFloat(TemperatureName);
@@ -293,8 +296,46 @@ struct FTest_GC : FAITestBase
 };
 IMPLEMENT_AI_INSTANT_TEST(FTest_GC, "System.StructUtils.PropertyBag.GC");
 
+struct FTest_Arrays : FAITestBase
+{
+	virtual bool InstantTest() override
+	{
+		static const FName FloatArrayName(TEXT("FloatArray"));
 
+		FInstancedPropertyBag Bag;
+		Bag.AddProperties({
+			{ FloatArrayName, EPropertyBagContainerType::Array, EPropertyBagPropertyType::Float },
+		});
 
+		TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> FloatArrayRes = Bag.GetArrayRef(FloatArrayName);
+		AITEST_TRUE(TEXT("Get float array should succeed"), FloatArrayRes.IsValid());
+
+		FPropertyBagArrayRef FloatArray = FloatArrayRes.GetValue();
+		const int32 FloatIndex = FloatArray.AddValue();
+		AITEST_TRUE(TEXT("Float array should have 1 item"), FloatArray.Num() == 1);
+
+		const TValueOrError<float, EPropertyBagResult> GetDefaultFloatRes = FloatArray.GetValueFloat(FloatIndex);
+		AITEST_TRUE(TEXT("Get float should succeed immediatelly after add"), GetDefaultFloatRes.IsValid());
+		AITEST_TRUE(TEXT("Default value for Float should be 0.0f"), FMath::IsNearlyEqual(GetDefaultFloatRes.GetValue(), 0.0f));
+
+		const EPropertyBagResult SetFloatRes = FloatArray.SetValueFloat(FloatIndex, 123.0f);
+		AITEST_TRUE(TEXT("Set float should succeed"), SetFloatRes == EPropertyBagResult::Success);
+
+		const TValueOrError<float, EPropertyBagResult> GetFloatRes = FloatArray.GetValueFloat(FloatIndex);
+		AITEST_TRUE(TEXT("Get float should succeed"), GetFloatRes.IsValid());
+		AITEST_TRUE(TEXT("Float value should be 123.0f"), FMath::IsNearlyEqual(GetFloatRes.GetValue(), 123.0f));
+
+		const TValueOrError<float, EPropertyBagResult> GetFloatOOBRes = FloatArray.GetValueFloat(42);
+		AITEST_FALSE(TEXT("Get float out of bounds should not succeed"), GetFloatOOBRes.IsValid());
+		AITEST_TRUE(TEXT("Error should be our of bounds"), GetFloatOOBRes.GetError() == EPropertyBagResult::OutOfBounds);
+
+		const EPropertyBagResult SetFloatOOBRes = FloatArray.SetValueFloat(-1, 0.0);
+		AITEST_TRUE(TEXT("Set float out of bounds should return out of bounds"), SetFloatOOBRes == EPropertyBagResult::OutOfBounds);
+		
+		return true;
+	}
+};
+IMPLEMENT_AI_INSTANT_TEST(FTest_Arrays, "System.StructUtils.PropertyBag.Arrays");
 
 
 } // FPropertyBagTest

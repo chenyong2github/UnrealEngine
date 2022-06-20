@@ -5,6 +5,7 @@
 #include "IPropertyTypeCustomization.h"
 #include "InstancedStructDetails.h"
 #include "EdGraphSchema_K2.h"
+#include "PropertyBagDetails.generated.h"
 
 class IPropertyHandle;
 class IDetailPropertyRow;
@@ -62,4 +63,15 @@ protected:
 	TSharedPtr<IPropertyHandle> StructProperty;
 	IPropertyUtilities* PropUtils = nullptr;
 	bool bFixedLayout = false;
+};
+
+/**
+ * Specific property bag schema to allow customizing the requirements (e.g. supported containers).
+ */
+UCLASS()
+class STRUCTUTILSEDITOR_API UPropertyBagSchema : public UEdGraphSchema_K2
+{
+	GENERATED_BODY()
+public:
+	virtual bool SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaAction> SchemaAction, const FEdGraphPinType& PinType, const EPinContainerType& ContainerType) const override;
 };

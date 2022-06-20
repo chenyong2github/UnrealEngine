@@ -199,12 +199,23 @@ FEdGraphPinType GetPropertyDescAsPin(const FPropertyBagPropertyDesc& Desc)
 {
 	UEnum* PropertyTypeEnum = StaticEnum<EPropertyBagPropertyType>();
 	check(PropertyTypeEnum);
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+	const UPropertyBagSchema* Schema = GetDefault<UPropertyBagSchema>();
 	check(Schema);
 
 	FEdGraphPinType PinType;
 	PinType.PinSubCategory = NAME_None;
 
+	// Container type
+	switch (Desc.ContainerType)
+	{
+	case EPropertyBagContainerType::Array:
+		PinType.ContainerType = EPinContainerType::Array;
+		break;
+	default:
+		PinType.ContainerType = EPinContainerType::None;
+	}
+
+	// Value type
 	switch (Desc.ValueType)
 	{
 	case EPropertyBagPropertyType::Bool:
@@ -272,9 +283,20 @@ FEdGraphPinType GetPropertyDescAsPin(const FPropertyBagPropertyDesc& Desc)
 /** Sets property descriptor based on a Blueprint pin type. */
 void SetPropertyDescFromPin(FPropertyBagPropertyDesc& Desc, const FEdGraphPinType& PinType)
 {
-	const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
+	const UPropertyBagSchema* Schema = GetDefault<UPropertyBagSchema>();
 	check(Schema);
 
+	// Container type
+	switch (PinType.ContainerType)
+	{
+	case EPinContainerType::Array:
+		Desc.ContainerType = EPropertyBagContainerType::Array;
+		break;
+	default:
+		Desc.ContainerType = EPropertyBagContainerType::None;
+	}
+	
+	// Value type
 	if (PinType.PinCategory == UEdGraphSchema_K2::PC_Boolean)
 	{
 		Desc.ValueType = EPropertyBagPropertyType::Bool;
@@ -537,7 +559,7 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 	auto GetFilteredVariableTypeTree = [](TArray<TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>>& TypeTree, ETypeTreeFilter TypeTreeFilter)
 	{
 		check(GetDefault<UEdGraphSchema_K2>());
-		GetDefault<UEdGraphSchema_K2>()->GetVariableTypeTree(TypeTree, TypeTreeFilter);
+		GetDefault<UPropertyBagSchema>()->GetVariableTypeTree(TypeTree, TypeTreeFilter);
 
 		// Filter
 		for (TSharedPtr<UEdGraphSchema_K2::FPinTypeTreeInfo>& PinType : TypeTree)
@@ -621,18 +643,23 @@ TSharedRef<SWidget> FPropertyBagInstanceDataDetails::OnPropertyNameContent(TShar
 			}
 		});
 	};
-	
-	MenuBuilder.AddMenuEntry(
-		FUIAction(),
-		SNew(SPinTypeSelector, FGetPinTypeTree::CreateLambda(GetFilteredVariableTypeTree))
-			.TargetPinType_Lambda(GetPinInfo)
-			.OnPinTypeChanged_Lambda(PinInfoChanged)
-			.Schema(GetDefault<UEdGraphSchema_K2>())
-			.bAllowArrays(false)
-			.TypeTreeFilter(ETypeTreeFilter::None)
-			.Font( IDetailLayoutBuilder::GetDetailFont() )
-		);
 
+
+	MenuBuilder.AddWidget(
+		SNew(SBox)
+		.HAlign(HAlign_Right)
+		.Padding(FMargin(12, 0, 12, 0))
+		[
+			SNew(SPinTypeSelector, FGetPinTypeTree::CreateLambda(GetFilteredVariableTypeTree))
+				.TargetPinType_Lambda(GetPinInfo)
+				.OnPinTypeChanged_Lambda(PinInfoChanged)
+				.Schema(GetDefault<UPropertyBagSchema>())
+				.bAllowArrays(true)
+				.TypeTreeFilter(ETypeTreeFilter::None)
+				.Font( IDetailLayoutBuilder::GetDetailFont() )
+		],
+		FText::GetEmpty());
+	
 	MenuBuilder.AddSeparator();
 	
 	MenuBuilder.AddMenuEntry(
@@ -727,7 +754,7 @@ TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPrope
 			SNew(SButton)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
-			.ButtonStyle(FAppStyle::Get(), "HoverHintOnly")
+			.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 			.ToolTipText(LOCTEXT("AddProperty_Tooltip", "Add new property"))
 			.OnClicked_Lambda([InStructProperty, InPropUtils]()
 			{
@@ -758,8 +785,19 @@ TSharedPtr<SWidget> FPropertyBagDetails::MakeAddPropertyWidget(TSharedPtr<IPrope
 			[
 				SNew(SImage)
 				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
 			]
 		];
+
 }
+
+////////////////////////////////////
+
+bool UPropertyBagSchema::SupportsPinTypeContainer(TWeakPtr<const FEdGraphSchemaAction> SchemaAction,
+		const FEdGraphPinType& PinType, const EPinContainerType& ContainerType) const
+{
+	return ContainerType == EPinContainerType::None || ContainerType == EPinContainerType::Array;
+}
+
 
 #undef LOCTEXT_NAMESPACE

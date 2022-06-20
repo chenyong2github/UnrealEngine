@@ -5,6 +5,7 @@
 #include "InstancedStruct.h"
 #include "StructView.h"
 #include "Templates/ValueOrError.h"
+#include "UObject/UnrealType.h"
 #include <atomic>
 #include "PropertyBag.generated.h"
 
@@ -30,12 +31,21 @@ enum class EPropertyBagPropertyType : uint8
 	SoftClass UMETA(Hidden),
 };
 
+/** Property bag property container type. */
+UENUM()
+enum class EPropertyBagContainerType : uint8
+{
+	None UMETA(Hidden),
+	Array,
+};
+
 /** Getter and setter result code. */
 UENUM()
 enum class EPropertyBagResult : uint8
 {
 	Success,			// Operation succeeded.
 	TypeMismatch,		// Tried to access mismatching type (e.g. setting a struct to bool)
+	OutOfBounds,		// Tried to access an array property out of bounds.
 	PropertyNotFound,	// Could not find property of specified name.
 };
 
@@ -100,6 +110,13 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 		, ValueType(InValueType)
 	{
 	}
+	FPropertyBagPropertyDesc(const FName InName, const EPropertyBagContainerType InContainerType, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr)
+		: ValueTypeObject(InValueTypeObject)
+		, Name(InName)
+		, ValueType(InValueType)
+		, ContainerType(InContainerType)
+	{
+	}
 
 	/** @return true if the two descriptors have the same type. Object types are compatible if Other can be cast to this type. */
 	bool CompatibleType(const FPropertyBagPropertyDesc& Other) const;
@@ -131,6 +148,10 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
 	/** Type of the value described by this property. */
 	UPROPERTY(EditAnywhere, Category="Default")
 	EPropertyBagPropertyType ValueType = EPropertyBagPropertyType::None;
+
+	/** Type of the container described by this property. */
+	UPROPERTY(EditAnywhere, Category="Default")
+	EPropertyBagContainerType ContainerType = EPropertyBagContainerType::None;
 
 #if WITH_EDITORONLY_DATA
 	/** Editor-only meta data for CachedProperty */
@@ -185,6 +206,7 @@ struct STRUCTUTILS_API FPropertyBagPropertyDesc
  */
 
 class UPropertyBag;
+class FPropertyBagArrayRef;
 
 USTRUCT()
 struct STRUCTUTILS_API FInstancedPropertyBag
@@ -233,9 +255,20 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	/**
 	 * Adds a new property to the bag. If property of same name already exists, it will be replaced with the new type.
 	 * Numeric property values will be converted if possible, when a property's type changes.
-	 * @param Descs Descriptors of new properties to add.
+	 * @param InName Name of the new property
+	 * @param InValueType Type of the new property
+	 * @param InValueTypeObject Type object (for struct, class, enum) of the new property
 	 */
 	void AddProperty(const FName InName, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr);
+
+	/**
+	 * Adds a new container property to the bag. If property of same name already exists, it will be replaced with the new type.
+	 * @param InName Name of the new property
+	 * @param InContainerType Type of the new container
+	 * @param InValueType Type of the new property
+	 * @param InValueTypeObject Type object (for struct, class, enum) of the new property
+	 */
+	void AddContainerProperty(const FName InName, const EPropertyBagContainerType InContainerType, const EPropertyBagPropertyType InValueType, UObject* InValueTypeObject = nullptr);
 
 	/**
 	 * Adds a new property to the bag. Property type duplicated from source property to. If property of same name already exists, it will be replaced with the new type.
@@ -400,9 +433,18 @@ struct STRUCTUTILS_API FInstancedPropertyBag
 	 */
 	EPropertyBagResult SetValue(const FName Name, const FProperty* InSourceProperty, const void* InSourceContainerAddress) const;
 
+	/**
+	 * Returns helper class to modify and access an array property.
+	 * Note: Note: The array reference is not valid after the layout of the referenced property bag has changed!
+	 * @returns helper class to modify and access arrays
+	*/
+	TValueOrError<FPropertyBagArrayRef, EPropertyBagResult> GetArrayRef(const FName Name) const;
+
 	bool Serialize(FArchive& Ar);
 
 protected:
+	void* GetValueAddress(const FPropertyBagPropertyDesc* Desc) const;
+	
 	UPROPERTY(EditAnywhere, Category="")
 	FInstancedStruct Value;
 };
@@ -414,6 +456,179 @@ template<> struct TStructOpsTypeTraits<FInstancedPropertyBag> : public TStructOp
 		WithSerializer = true
 	};
 };
+
+
+/**
+ * A reference to an array in FInstancedPropertyBag
+ * Allows to modify the array via the FScriptArrayHelper API, and contains helper methods to get and set properties.
+ *
+ *		FInstancedPropertyBag Bag;
+ *		Bag.AddProperties({
+ *			{ ArrayName, EPropertyBagContainerType::Array, EPropertyBagPropertyType::Float }
+ *		});
+ *
+ *		if (auto FloatArrayRes = Bag.GetArrayRef(ArrayName); FloatArrayRes.IsValid())
+ *		{
+ *			FPropertyBagArrayRef& FloatArray = FloatArrayRes.GetValue();
+ *			const int32 NewIndex = FloatArray.AddValue();
+ *			FloatArray.SetValueFloat(NewIndex, 123.0f);
+ *		}
+ * 
+ * Note: The array reference is not valid after the layout of the referenced property bag has changed! 
+ */
+class STRUCTUTILS_API FPropertyBagArrayRef : public FScriptArrayHelper
+{
+	FPropertyBagPropertyDesc ValueDesc;
+
+	const void* GetAddress(const int32 Index) const
+	{
+		if (IsValidIndex(Index) == false)
+		{
+			return nullptr;
+		}
+		// Ugly, but FScriptArrayHelper does not give us other option.
+		FPropertyBagArrayRef* NonConstThis = const_cast<FPropertyBagArrayRef*>(this);
+		return (void*)NonConstThis->GetRawPtr(Index);
+	}
+
+	void* GetMutableAddress(const int32 Index) const
+	{
+		if (IsValidIndex(Index) == false)
+		{
+			return nullptr;
+		}
+		// Ugly, but FScriptArrayHelper does not give us other option.
+		FPropertyBagArrayRef* NonConstThis = const_cast<FPropertyBagArrayRef*>(this);
+		return (void*)NonConstThis->GetRawPtr(Index);
+	}
+
+public:	
+	FORCEINLINE FPropertyBagArrayRef(const FPropertyBagPropertyDesc& InDesc, const void* InArray)
+		: FScriptArrayHelper(CastField<FArrayProperty>(InDesc.CachedProperty), InArray)
+	{
+		const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InDesc.CachedProperty);
+		check(ArrayProperty);
+		check(ArrayProperty->Inner);
+		// Create dummy desc for the inner property. 
+		ValueDesc.ValueType = InDesc.ValueType;
+		ValueDesc.ValueTypeObject = InDesc.ValueTypeObject;
+		ValueDesc.CachedProperty = ArrayProperty->Inner;
+		ValueDesc.ContainerType = EPropertyBagContainerType::None;
+	}
+
+	/**
+	 * Getters
+	 * Numeric types (bool, int32, int64, float, double) support type conversion.
+	 */
+	
+	TValueOrError<bool, EPropertyBagResult> GetValueBool(const int32 Index) const;
+	TValueOrError<uint8, EPropertyBagResult> GetValueByte(const int32 Index) const;
+	TValueOrError<int32, EPropertyBagResult> GetValueInt32(const int32 Index) const;
+	TValueOrError<int64, EPropertyBagResult> GetValueInt64(const int32 Index) const;
+	TValueOrError<float, EPropertyBagResult> GetValueFloat(const int32 Index) const;
+	TValueOrError<double, EPropertyBagResult> GetValueDouble(const int32 Index) const;
+	TValueOrError<FName, EPropertyBagResult> GetValueName(const int32 Index) const;
+	TValueOrError<FString, EPropertyBagResult> GetValueString(const int32 Index) const;
+	TValueOrError<FText, EPropertyBagResult> GetValueText(const int32 Index) const;
+	TValueOrError<uint8, EPropertyBagResult> GetValueEnum(const int32 Index, const UEnum* RequestedEnum) const;
+	TValueOrError<FStructView, EPropertyBagResult> GetValueStruct(const int32 Index, const UScriptStruct* RequestedStruct = nullptr) const;
+	TValueOrError<UObject*, EPropertyBagResult> GetValueObject(const int32 Index, const UClass* RequestedClass = nullptr) const;
+	TValueOrError<UClass*, EPropertyBagResult> GetValueClass(const int32 Index) const;
+
+	/** @return enum value of specified type. */
+	template <typename T>
+	TValueOrError<T, EPropertyBagResult> GetValueEnum(const int32 Index) const
+	{
+		static_assert(TIsEnum<T>::Value, "Should only call this with enum types");
+		
+		TValueOrError<uint8, EPropertyBagResult> Result = GetValueEnum(Index, StaticEnum<T>());
+		if (!Result.IsValid())
+		{
+			return MakeError(Result.GetError());
+		}
+		return MakeValue((T)Result.GetValue());
+	}
+	
+	/** @return struct reference of specified type. */
+	template <typename T>
+	TValueOrError<T*, EPropertyBagResult> GetValueStruct(const int32 Index) const
+	{
+		TValueOrError<FStructView, EPropertyBagResult> Result = GetValueStruct(Index, TBaseStructure<T>::Get());
+		if (!Result.IsValid())
+		{
+			return MakeError(Result.GetError());
+		}
+		if (T* ValuePtr = Result.GetValue().GetMutablePtr<T>())
+		{
+			return MakeValue(ValuePtr);
+		}
+		return MakeError(EPropertyBagResult::TypeMismatch);
+	}
+	
+	/** @return object pointer value of specified type. */
+	template <typename T>
+	TValueOrError<T*, EPropertyBagResult> GetValueObject(const int32 Index) const
+	{
+		static_assert(TIsDerivedFrom<T, UObject>::Value, "Should only call this with object types");
+		
+		TValueOrError<UObject*, EPropertyBagResult> Result = GetValueObject(Index, T::StaticClass());
+		if (!Result.IsValid())
+		{
+			return MakeError(Result.GetError());
+		}
+		if (Result.GetValue() == nullptr)
+		{
+			return MakeValue(nullptr);
+		}
+		if (T* Object = Cast<T>(Result.GetValue()))
+		{
+			return MakeValue(Object);
+		}
+		return MakeError(EPropertyBagResult::TypeMismatch);
+	}
+
+	/**
+	 * Value Setters. A property must exists in that bag before it can be set.  
+	 * Numeric types (bool, int32, int64, float, double) support type conversion.
+	 */
+	EPropertyBagResult SetValueBool(const int32 Index, const bool bInValue) const;
+	EPropertyBagResult SetValueByte(const int32 Index, const uint8 InValue) const;
+	EPropertyBagResult SetValueInt32(const int32 Index, const int32 InValue) const;
+	EPropertyBagResult SetValueInt64(const int32 Index, const int64 InValue) const;
+	EPropertyBagResult SetValueFloat(const int32 Index, const float InValue) const;
+	EPropertyBagResult SetValueDouble(const int32 Index, const double InValue) const;
+	EPropertyBagResult SetValueName(const int32 Index, const FName InValue) const;
+	EPropertyBagResult SetValueString(const int32 Index, const FString& InValue) const;
+	EPropertyBagResult SetValueText(const int32 Index, const FText& InValue) const;
+	EPropertyBagResult SetValueEnum(const int32 Index, const uint8 InValue, const UEnum* Enum) const;
+	EPropertyBagResult SetValueStruct(const int32 Index, FConstStructView InValue) const;
+	EPropertyBagResult SetValueObject(const int32 Index, UObject* InValue) const;
+	EPropertyBagResult SetValueClass(const int32 Index, UClass* InValue) const;
+
+	/** Sets enum value specified type. */
+	template <typename T>
+	EPropertyBagResult SetValueEnum(const int32 Index, const T InValue) const
+	{
+		static_assert(TIsEnum<T>::Value, "Should only call this with enum types");
+		return SetValueEnum(Index, (uint8)InValue, StaticEnum<T>());
+	}
+
+	/** Sets struct value specified type. */
+	template <typename T>
+	EPropertyBagResult SetValueStruct(const int32 Index, const T& InValue) const
+	{
+		return SetValueStruct(Index, FConstStructView::Make(InValue));
+	}
+
+	/** Sets object pointer value specified type. */
+	template <typename T>
+	EPropertyBagResult SetValueObject(const int32 Index, T* InValue) const
+	{
+		static_assert(TIsDerivedFrom<T, UObject>::Value, "Should only call this with object types");
+		return SetValueObject(Index, (UObject*)InValue);
+	}
+};
+
 
 /**
  * Dummy types used to mark up missing types when creating property bags. These are used in the UI to display error message.
