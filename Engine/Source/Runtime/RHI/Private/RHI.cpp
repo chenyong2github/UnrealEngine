@@ -2444,14 +2444,27 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info)
 {
 	Info.Language = *GetSectionString(Section, "Language");
+	Info.ShaderFormat = *GetSectionString(Section, "ShaderFormat");
 	GetFeatureLevelFromName(*GetSectionString(Section, "MaxFeatureLevel"), Info.MaxFeatureLevel);
 
+	Info.ShaderPropertiesHash = 0;
+	FString ShaderPropertiesString = Info.Name.GetPlainNameString();
+
+#define ADD_TO_PROPERTIES_STRING(SettingName, SettingValue) \
+	ShaderPropertiesString += TEXT(#SettingName); \
+	ShaderPropertiesString += FString::Printf(TEXT("_%d"), SettingValue);
+
 #define GET_SECTION_BOOL_HELPER(SettingName)	\
-	Info.SettingName = GetSectionBool(Section, #SettingName, Info.SettingName)
+	Info.SettingName = GetSectionBool(Section, #SettingName, Info.SettingName);	\
+	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
+
 #define GET_SECTION_INT_HELPER(SettingName)	\
-	Info.SettingName = GetSectionUint(Section, #SettingName, Info.SettingName)
+	Info.SettingName = GetSectionUint(Section, #SettingName, Info.SettingName); \
+	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
+
 #define GET_SECTION_SUPPORT_HELPER(SettingName)	\
-	Info.SettingName = GetSectionFeatureSupport(Section, #SettingName, Info.SettingName)
+	Info.SettingName = GetSectionFeatureSupport(Section, #SettingName, Info.SettingName); \
+	ADD_TO_PROPERTIES_STRING(SettingName, Info.SettingName)
 
 	GET_SECTION_BOOL_HELPER(bIsMobile);
 	GET_SECTION_BOOL_HELPER(bIsMetalMRT);
@@ -2538,7 +2551,9 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 #undef GET_SECTION_BOOL_HELPER
 #undef GET_SECTION_INT_HELPER
 #undef GET_SECTION_SUPPORT_HELPER
+#undef ADD_TO_PROPERTIES_STRING
 
+	Info.ShaderPropertiesHash = GetTypeHash(ShaderPropertiesString);
 #if WITH_EDITOR
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("FriendlyName")), Info.FriendlyName);
 #endif
@@ -2583,6 +2598,7 @@ void FGenericDataDrivenShaderPlatformInfo::Initialize()
 				}
 				
 				// at this point, we can start pulling information out
+				Infos[ShaderPlatform].Name = *SectionName.Mid(15);
 				ParseDataDrivenShaderInfo(Section.Value, Infos[ShaderPlatform]);	
 				Infos[ShaderPlatform].bContainsValidPlatformInfo = true;
 			}

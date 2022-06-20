@@ -332,8 +332,11 @@ extern RHI_API const FName LANGUAGE_Nintendo;
 
 class RHI_API FGenericDataDrivenShaderPlatformInfo
 {
+	FName Name;
 	FName Language;
 	ERHIFeatureLevel::Type MaxFeatureLevel;
+	FName ShaderFormat;
+	uint32 ShaderPropertiesHash;
 	uint32 bIsMobile: 1;
 	uint32 bIsMetalMRT: 1;
 	uint32 bIsPC: 1;
@@ -436,6 +439,24 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 public:
 	static void Initialize();
 	static void ParseDataDrivenShaderInfo(const FConfigSection& Section, FGenericDataDrivenShaderPlatformInfo& Info);
+
+	static FORCEINLINE_DEBUGGABLE const FName GetName(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].Name;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const FName GetShaderFormat(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].ShaderFormat;
+	}
+
+	static FORCEINLINE_DEBUGGABLE uint32 GetShaderPlatformPropertiesHash(const FStaticShaderPlatform Platform)
+	{
+		check(IsValid(Platform));
+		return Infos[Platform].ShaderPropertiesHash;
+	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetIsLanguageD3D(const FStaticShaderPlatform Platform)
 	{
