@@ -54,7 +54,6 @@ namespace Jupiter
             new Claim("TransactionLog", "full"),
             new Claim("Storage", "full"),
             new Claim("Admin", ""),
-            new Claim("AllNamespaces", "true")
         }, "automatic");
     }
 }

@@ -34,7 +34,7 @@ namespace Jupiter
             NamespaceAccessRequest accessRequest)
         {
             NamespaceId namespaceName = accessRequest.Namespace;
-            if (context.User.HasClaim(claim => claim.Type == "AllNamespaces"))
+            if (!_authSettings.CurrentValue.Enabled)
             {
                 context.Succeed(requirement);
                 return Task.CompletedTask;

@@ -37,6 +37,7 @@ namespace Jupiter
             if (!_authSettings.CurrentValue.Enabled)
             {
                 context.Succeed(requirement);
+                return Task.CompletedTask;
             }
 
             List<AclAction> allowedActions = new List<AclAction>();
