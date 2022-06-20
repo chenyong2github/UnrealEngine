@@ -389,6 +389,7 @@ struct NIAGARA_API FNiagaraDataInterfaceSetShaderParametersContext
 	const FNiagaraSimStageData& GetSimStageData() const { return SimStageData; }
 
 	FNiagaraSystemInstanceID GetSystemInstanceID() const;
+	FVector3f GetSystemLWCTile() const;
 	bool IsResourceBound(const void* ResourceAddress) const;
 	bool IsParameterBound(const void* ParameterAddress) const;
 	template<typename T> bool IsStructBound(const T* StructAddress) const { return IsStructBoundInternal(StructAddress, sizeof(T)); }

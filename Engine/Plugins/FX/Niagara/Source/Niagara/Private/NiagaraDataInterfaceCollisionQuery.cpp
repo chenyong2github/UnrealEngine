@@ -541,7 +541,7 @@ void UNiagaraDataInterfaceCollisionQuery::BuildShaderParameters(FNiagaraShaderPa
 void UNiagaraDataInterfaceCollisionQuery::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
 	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
-	ShaderParameters->SystemLWCTile = Context.GetSystemTick().SystemGpuComputeProxy->GetSystemLWCTile();	//-OPT: Seems like a lot of DIs might want tile
+	ShaderParameters->SystemLWCTile = Context.GetSystemLWCTile();	//-OPT: Seems like a lot of DIs might want tile
 
 	FGlobalDistanceFieldParameters2* ShaderGDFParameters = Context.GetParameterIncludedStruct<FGlobalDistanceFieldParameters2>();
 	if (Context.IsStructBound(ShaderGDFParameters))

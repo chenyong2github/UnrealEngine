@@ -4,8 +4,6 @@
 NiagaraDataInterfacePhysicsField.ush 
 =============================================================================*/
 
-#pragma once
-
 /* -----------------------------------------------------------------
  * Field System constants and context
  * -----------------------------------------------------------------
@@ -15,93 +13,113 @@ NiagaraDataInterfacePhysicsField.ush
 #include "/Engine/Private/PhysicsFieldEval.ush"
 
 // Global param for the world field
-int4 TargetsMapping[MAX_PHYSICS_FIELD_TARGETS];  
-int bClipmapAvailable;
+int4			{ParameterName}_TargetMappings[MAX_PHYSICS_FIELD_TARGETS];  
+int				{ParameterName}_bClipmapAvailable;
 
+Buffer<float>	{ParameterName}_ClipmapBuffer;
+float3			{ParameterName}_ClipmapCenter;
+float			{ParameterName}_ClipmapDistance;
+int				{ParameterName}_ClipmapResolution;
+int				{ParameterName}_ClipmapExponent;
+int				{ParameterName}_ClipmapCount;
+int				{ParameterName}_TargetCount;
+int4			{ParameterName}_FieldTargets[MAX_PHYSICS_FIELD_TARGETS];
+float3			{ParameterName}_SystemLWCTile;
 
-struct FDIPhysicsFieldContext
-{
-	Buffer<float> ClipmapBuffer;
-	float3 ClipmapCenter;
-	float ClipmapDistance;
-	int ClipmapResolution;
-	int ClipmapExponent;
-	int ClipmapCount;
-	int TargetCount;
-	int4 FieldTargets[MAX_PHYSICS_FIELD_TARGETS];
-	float3 SystemLWCTile;
-};
-
-#define DIPhysicsField_DECLARE_CONSTANTS(NAME)\
-Buffer<float> ClipmapBuffer_##NAME;\
-float3 ClipmapCenter_##NAME;\
-float ClipmapDistance_##NAME;\
-int ClipmapResolution_##NAME;\
-int ClipmapExponent_##NAME;\
-int ClipmapCount_##NAME;\
-int TargetCount_##NAME;\
-int4 FieldTargets_##NAME[MAX_PHYSICS_FIELD_TARGETS];\
-float3 SystemLWCTile_##NAME;\
-
-#define DIPhysicsField_MAKE_CONTEXT(NAME)\
-FDIPhysicsFieldContext DIContext; \
-DIContext.ClipmapBuffer = ClipmapBuffer_##NAME;\
-DIContext.ClipmapCenter = ClipmapCenter_##NAME;\
-DIContext.ClipmapDistance = ClipmapDistance_##NAME;\
-DIContext.ClipmapResolution = ClipmapResolution_##NAME;\
-DIContext.ClipmapExponent = ClipmapExponent_##NAME;\
-DIContext.ClipmapCount = ClipmapCount_##NAME;\
-DIContext.TargetCount = TargetCount_##NAME;\
-DIContext.FieldTargets = FieldTargets_##NAME;\
-DIContext.SystemLWCTile = SystemLWCTile_##NAME;\
-
-float3 DIPhysicsField_SamplePhysicsVectorField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int VectorTarget,  in bool bUseClipmap)
+float3 PhysicsVectorField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, in bool bUseClipmap)
 {
 	// LWC_TODO: fix this when the physics field functions are lwc ready
-	FLWCVector3 SamplePos = MakeLWCVector3(DIContext.SystemLWCTile, WorldPosition);
+	FLWCVector3 SamplePos = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
 
-	if(bClipmapAvailable && bUseClipmap)
+	if ( {ParameterName}_bClipmapAvailable && bUseClipmap )
 	{
-		return PhysicsField_SamplePhysicsVectorField(LWCHackToFloat(SamplePos), VectorTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance, 
-					DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
+		return PhysicsField_SamplePhysicsVectorField(
+				LWCHackToFloat(SamplePos), TargetIndex, {ParameterName}_FieldTargets, {ParameterName}_TargetCount, {ParameterName}_ClipmapCenter, {ParameterName}_ClipmapDistance, 
+				{ParameterName}_ClipmapExponent, {ParameterName}_ClipmapCount, {ParameterName}_ClipmapResolution, {ParameterName}_ClipmapBuffer
+			);
 	}
 	else
 	{
 		GFieldGroupThreadId = GGroupThreadId.x;
-		return PhysicsField_EvalPhysicsVectorField(LWCHackToFloat(SamplePos), TargetsMapping[VectorTarget].x);
+		return PhysicsField_EvalPhysicsVectorField(LWCHackToFloat(SamplePos), {ParameterName}_TargetMappings[TargetIndex].x);
 	}
 }
 
-float DIPhysicsField_SamplePhysicsScalarField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int ScalarTarget, in bool bUseClipmap)
+float PhysicsScalarField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, in bool bUseClipmap)
 {
 	// LWC_TODO: fix this when the physics field functions are lwc ready
-	FLWCVector3 SamplePos = MakeLWCVector3(DIContext.SystemLWCTile, WorldPosition);
+	FLWCVector3 SamplePos = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
 
-	if(bClipmapAvailable && bUseClipmap)
+	if ( {ParameterName}_bClipmapAvailable && bUseClipmap )
 	{
-		return PhysicsField_SamplePhysicsScalarField(LWCHackToFloat(SamplePos), ScalarTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
-					DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
+		return PhysicsField_SamplePhysicsScalarField(
+					LWCHackToFloat(SamplePos), TargetIndex, {ParameterName}_FieldTargets, {ParameterName}_TargetCount, {ParameterName}_ClipmapCenter, {ParameterName}_ClipmapDistance,
+					{ParameterName}_ClipmapExponent, {ParameterName}_ClipmapCount, {ParameterName}_ClipmapResolution, {ParameterName}_ClipmapBuffer
+				);
 	}
 	else
 	{
 		GFieldGroupThreadId = GGroupThreadId.x;
-		return PhysicsField_EvalPhysicsScalarField(LWCHackToFloat(SamplePos), TargetsMapping[ScalarTarget].y);
+		return PhysicsField_EvalPhysicsScalarField(LWCHackToFloat(SamplePos), {ParameterName}_TargetMappings[TargetIndex].y);
 	}
 }
 
-int DIPhysicsField_SamplePhysicsIntegerField(in FDIPhysicsFieldContext DIContext, in float3 WorldPosition, in int IntegerTarget, in bool bUseClipmap)
+int PhysicsIntegerField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, in bool bUseClipmap)
 {
 	// LWC_TODO: fix this when the physics field functions are lwc ready
-	FLWCVector3 SamplePos = MakeLWCVector3(DIContext.SystemLWCTile, WorldPosition);
+	FLWCVector3 SamplePos = MakeLWCVector3({ParameterName}_SystemLWCTile, WorldPosition);
 
-	if(bClipmapAvailable && bUseClipmap)
+	if ( {ParameterName}_bClipmapAvailable && bUseClipmap )
 	{
-		return PhysicsField_SamplePhysicsIntegerField(LWCHackToFloat(SamplePos), IntegerTarget, DIContext.FieldTargets, DIContext.TargetCount, DIContext.ClipmapCenter, DIContext.ClipmapDistance,
-				DIContext.ClipmapExponent, DIContext.ClipmapCount, DIContext.ClipmapResolution, DIContext.ClipmapBuffer);
+		return PhysicsField_SamplePhysicsIntegerField(
+					LWCHackToFloat(SamplePos), TargetIndex, {ParameterName}_FieldTargets, {ParameterName}_TargetCount, {ParameterName}_ClipmapCenter, {ParameterName}_ClipmapDistance,
+					{ParameterName}_ClipmapExponent, {ParameterName}_ClipmapCount, {ParameterName}_ClipmapResolution, {ParameterName}_ClipmapBuffer
+				);
 	}
 	else
 	{
 		GFieldGroupThreadId = GGroupThreadId.x;
-		return PhysicsField_EvalPhysicsScalarField(LWCHackToFloat(SamplePos), TargetsMapping[IntegerTarget].z);
+		return PhysicsField_EvalPhysicsScalarField(LWCHackToFloat(SamplePos), {ParameterName}_TargetMappings[TargetIndex].z);
 	}
+}
+
+void SamplePhysicsVectorField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, out float3 OutFieldVector)
+{
+	OutFieldVector = PhysicsVectorField_{ParameterName}(WorldPosition, TargetIndex, true);
+}
+
+void SamplePhysicsScalarField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, out float OutFieldScalar)
+{
+	OutFieldScalar = PhysicsScalarField_{ParameterName}(WorldPosition, TargetIndex, true);
+}
+
+void SamplePhysicsIntegerField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, out int OutFieldInteger)
+{
+	OutFieldInteger = PhysicsIntegerField_{ParameterName}(WorldPosition, TargetIndex, true);
+}
+
+void EvalPhysicsVectorField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, out float3 OutFieldVector)
+{
+	OutFieldVector = PhysicsVectorField_{ParameterName}(WorldPosition, TargetIndex, false);
+}
+
+void EvalPhysicsScalarField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, out float OutFieldScalar)
+{
+	OutFieldScalar = PhysicsScalarField_{ParameterName}(WorldPosition, TargetIndex, false);
+}
+
+void EvalPhysicsIntegerField_{ParameterName}(in float3 WorldPosition, in int TargetIndex, out int OutFieldInteger)
+{
+	OutFieldInteger = PhysicsIntegerField_{ParameterName}(WorldPosition, TargetIndex, false);
+}
+
+void GetPhysicsFieldResolution_{ParameterName}(out float3 OutTextureSize)
+{
+	OutTextureSize = {ParameterName}_ClipmapResolution;
+}
+
+void GetPhysicsFieldBounds_{ParameterName}(out float3 OutMinBounds, out float3 OutMaxBounds)
+{
+	OutMinBounds = {ParameterName}_ClipmapCenter - {ParameterName}_ClipmapDistance;
+	OutMaxBounds = {ParameterName}_ClipmapCenter + {ParameterName}_ClipmapDistance;
 }

@@ -50,9 +50,6 @@ class CHAOSNIAGARA_API UNiagaraDataInterfacePhysicsField : public UNiagaraDataIn
 	GENERATED_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	UNiagaraDataInterfacePhysicsField();
 
 	/** UObject Interface */
@@ -71,11 +68,15 @@ public:
 
 	/** GPU simulation functionality */
 #if WITH_EDITORONLY_DATA
-	virtual void GetCommonHLSL(FString& OutHLSL) override;
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Sample the vector field */
@@ -92,17 +93,6 @@ public:
 
 	/** Get the field bounds */
 	void GetPhysicsFieldBounds(FVectorVMExternalFunctionContext& Context);
-
-	/** Shader attributes names */
-	static const FString ClipmapBufferName;
-	static const FString ClipmapCenterName;
-	static const FString ClipmapDistanceName;
-	static const FString ClipmapResolutionName;
-	static const FString ClipmapExponentName;
-	static const FString ClipmapCountName;
-	static const FString TargetCountName;
-	static const FString FieldTargetsName;
-	static const FString SystemLWCTileName;
 
 protected:
 	/** Copy one niagara DI to this */

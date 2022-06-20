@@ -265,6 +265,11 @@ FNiagaraSystemInstanceID FNiagaraDataInterfaceSetShaderParametersContext::GetSys
 	return SystemTick.SystemInstanceID;
 }
 
+FVector3f FNiagaraDataInterfaceSetShaderParametersContext::GetSystemLWCTile() const
+{
+	return SystemTick.SystemGpuComputeProxy->GetSystemLWCTile();
+}
+
 bool FNiagaraDataInterfaceSetShaderParametersContext::IsResourceBound(const void* ResourceAddress) const
 {
 	const uint16 ByteOffset = uint16(uintptr_t(ResourceAddress) - uintptr_t(BaseParameters));

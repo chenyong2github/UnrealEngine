@@ -372,7 +372,7 @@ void UNiagaraDataInterfaceCamera::BuildShaderParameters(FNiagaraShaderParameters
 void UNiagaraDataInterfaceCamera::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
 	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
-	ShaderParameters->SystemLWCTile = Context.GetSystemTick().SystemGpuComputeProxy->GetSystemLWCTile();
+	ShaderParameters->SystemLWCTile = Context.GetSystemLWCTile();
 }
 
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceCamera, GetClosestParticles);

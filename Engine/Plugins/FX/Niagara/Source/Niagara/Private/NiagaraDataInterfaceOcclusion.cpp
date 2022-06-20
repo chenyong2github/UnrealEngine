@@ -154,7 +154,7 @@ void UNiagaraDataInterfaceOcclusion::BuildShaderParameters(FNiagaraShaderParamet
 void UNiagaraDataInterfaceOcclusion::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
 	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
-	ShaderParameters->SystemLWCTile = Context.GetSystemTick().SystemGpuComputeProxy->GetSystemLWCTile();
+	ShaderParameters->SystemLWCTile = Context.GetSystemLWCTile();
 }
 
 #undef LOCTEXT_NAMESPACE
