@@ -8,17 +8,17 @@
 
 struct BxDFContext
 {
-	float NoV;
-	float NoL;
-	float VoL;
-	float NoH;
-	float VoH;
-	float XoV;
-	float XoL;
-	float XoH;
-	float YoV;
-	float YoL;
-	float YoH;
+	half NoV;
+	half NoL;
+	half VoL;
+	half NoH;
+	half VoH;
+	half XoV;
+	half XoL;
+	half XoH;
+	half YoV;
+	half YoL;
+	half YoH;
 #if 1	// Shit code until we get member functions
 };
 
@@ -58,6 +58,26 @@ void Init( inout BxDFContext Context, half3 N, half3 X, half3 Y, half3 V, half3 
 	Context.YoV = dot(Y, V);
 	Context.YoL = dot(Y, L);
 	Context.YoH = (Context.YoL + Context.YoV) * InvLenH;
+}
+
+void InitMobile(inout BxDFContext Context, half3 N, half3 V, half3 L, half NoL)
+{
+	Context.NoL = NoL;
+	Context.NoV = dot(N, V);
+	Context.VoL = dot(V, L);
+	float3 H = normalize(float3(V + L));
+	Context.NoH = max(0, dot(N, H));
+	Context.VoH = max(0, dot(V, H));
+
+	//NoL = saturate( NoL );
+	//NoV = saturate( abs( NoV ) + 1e-5 );
+
+	Context.XoV = 0.0f;
+	Context.XoL = 0.0f;
+	Context.XoH = 0.0f;
+	Context.YoV = 0.0f;
+	Context.YoL = 0.0f;
+	Context.YoH = 0.0f;
 }
 
 // [ de Carpentier 2017, "Decima Engine: Advances in Lighting and AA" ]
@@ -255,7 +275,7 @@ void SphereMaxNoH( inout BxDFContext Context, float SinAlpha, bool bNewtonIterat
 // f = Microfacet specular BRDF = D*G*F / (4*NoL*NoV) = D*Vis*F
 
 
-float3 Diffuse_Lambert( float3 DiffuseColor )
+half3 Diffuse_Lambert( half3 DiffuseColor )
 {
 	return DiffuseColor * (1 / PI);
 }

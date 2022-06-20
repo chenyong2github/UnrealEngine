@@ -2643,6 +2643,13 @@ static TAutoConsoleVariable<int32> CVarMobileAllowPerPixelShadingModels(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarMobileEnabledShadingModelsMask(
+	TEXT("r.Mobile.EnabledShadingModelsMask"),
+	0xFFFF,
+	TEXT("The mask of shader models that indicates which shading models could be enabled on mobile."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<int32> CVarMobileForwardSupportLocalLights(
 	TEXT("r.Mobile.Forward.EnableLocalLights"),
 	1,

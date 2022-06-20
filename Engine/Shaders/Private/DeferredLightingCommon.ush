@@ -35,16 +35,16 @@
 struct FDeferredLightData
 {
 	float3 TranslatedWorldPosition;
-	float  InvRadius;
-	float3 Color;
-	float  FalloffExponent;
+	half  InvRadius;
+	half3 Color;
+	half  FalloffExponent;
 	float3 Direction;
 	float3 Tangent;
 	float SoftSourceRadius;
-	float2 SpotAngles;
+	half2 SpotAngles;
 	float SourceRadius;
 	float SourceLength;
-	float SpecularScale;
+	half SpecularScale;
 	float ContactShadowLength;
 	/** Intensity of non-shadow-casting contact shadows */
 	float ContactShadowNonShadowCastingIntensity;
@@ -100,6 +100,7 @@ float DistanceFromCameraFade(float SceneDepth, FDeferredLightData LightData)
 	return Fade * Fade;
 }
 
+#if SUPPORT_CONTACT_SHADOWS
 // Returns distance along ray that the first hit occurred, or negative on miss
 // Sets bOutHitCastDynamicShadow if the hit point is marked as a dynamic shadow caster
 float ShadowRayCast(
@@ -175,12 +176,13 @@ float ShadowRayCast(
 	
 	return HitDistance;
 }
+#endif
 
 #ifndef SUPPORT_CONTACT_SHADOWS
 #error "Must set SUPPORT_CONTACT_SHADOWS"
 #endif
 
-void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 TranslatedWorldPosition, float3 L, float4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
+void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 TranslatedWorldPosition, half3 L, half4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
 {
 	float ContactShadowLength = 0.0f;
 	const float ContactShadowLengthScreenScale = View.ClipToView[1][1] * SceneDepth;
@@ -309,6 +311,9 @@ float GetLocalLightAttenuation(
 	if (LightData.bInverseSquared)
 	{
 		LightMask = Square( saturate( 1 - Square( DistanceSqr * Square(LightData.InvRadius) ) ) );
+#if SHADING_PATH_MOBILE
+		LightMask *= 1.0f / (DistanceSqr + 1.0f);
+#endif
 	}
 	else
 	{
@@ -356,16 +361,15 @@ FCapsuleLight GetCapsule( float3 ToLight, FDeferredLightData LightData )
 	return Capsule;
 }
 
-/** Calculates lighting for a given position, normal, etc with a fully featured lighting model designed for quality. */
-FDeferredLightingSplit GetDynamicLightingSplit(
-	float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBuffer, float AmbientOcclusion, uint ShadingModelID, 
-	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, 
+FLightAccumulator AccumulateDynamicLighting(
+	float3 TranslatedWorldPosition, half3 CameraVector, FGBufferData GBuffer, half AmbientOcclusion, uint ShadingModelID,
+	FDeferredLightData LightData, half4 LightAttenuation, float Dither, uint2 SVPos, 
 	inout float SurfaceShadow)
 {
 	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
 
-	float3 V = -CameraVector;
-	float3 N = GBuffer.WorldNormal;
+	half3 V = -CameraVector;
+	half3 N = GBuffer.WorldNormal;
 	BRANCH if( GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT && CLEAR_COAT_BOTTOM_NORMAL)
 	{
 		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 4) - (512.0/255.0)) + UnitVectorToOctahedron(GBuffer.WorldNormal);
@@ -374,11 +378,12 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 	
 	float3 L = LightData.Direction;	// Already normalized
 	float3 ToLight = L;
-	
+	half3 MaskedLightColor = LightData.Color;
 	float LightMask = 1;
 	if (LightData.bRadialLight)
 	{
 		LightMask = GetLocalLightAttenuation( TranslatedWorldPosition, LightData, ToLight, L );
+		MaskedLightColor *= LightMask;
 	}
 
 	LightAccumulator.EstimatedCost += 0.3f;		// running the PixelShader at all has a cost
@@ -398,11 +403,26 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 
 		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms
 
+#if SHADING_PATH_MOBILE
+		const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(GBuffer.ShadingModelID);
+		
+		FDirectLighting Lighting = (FDirectLighting)0;
+
+		half NoL = max(0, dot(GBuffer.WorldNormal, L));
+	#if TRANSLUCENCY_NON_DIRECTIONAL
+		NoL = 1.0f;
+	#endif
+		Lighting = EvaluateBxDF(GBuffer, N, V, L, NoL, Shadow);
+
+		Lighting.Specular *= LightData.SpecularScale;
+				
+		LightAccumulator_AddSplit( LightAccumulator, Lighting.Diffuse, Lighting.Specular, Lighting.Diffuse, MaskedLightColor * Shadow.SurfaceShadow, bNeedsSeparateSubsurfaceLightAccumulation );
+		LightAccumulator_AddSplit( LightAccumulator, Lighting.Transmission, 0.0f, Lighting.Transmission, MaskedLightColor * Shadow.TransmissionShadow, bNeedsSeparateSubsurfaceLightAccumulation );
+#else // SHADING_PATH_MOBILE
 		BRANCH
 		if( Shadow.SurfaceShadow + Shadow.TransmissionShadow > 0 )
 		{
 			const bool bNeedsSeparateSubsurfaceLightAccumulation = UseSubsurfaceProfile(GBuffer.ShadingModelID);
-			float3 LightColor = LightData.Color;
 
 		#if NON_DIRECTIONAL_DIRECT_LIGHTING
 			float Lighting;
@@ -421,7 +441,7 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 			}
 
 			float3 LightingDiffuse = Diffuse_Lambert( GBuffer.DiffuseColor ) * Lighting;
-			LightAccumulator_AddSplit(LightAccumulator, LightingDiffuse, 0.0f, 0, LightColor * LightMask * Shadow.SurfaceShadow, bNeedsSeparateSubsurfaceLightAccumulation);
+			LightAccumulator_AddSplit(LightAccumulator, LightingDiffuse, 0.0f, 0, MaskedLightColor * Shadow.SurfaceShadow, bNeedsSeparateSubsurfaceLightAccumulation);
 		#else
 			FDirectLighting Lighting;
 
@@ -449,14 +469,24 @@ FDeferredLightingSplit GetDynamicLightingSplit(
 
 			Lighting.Specular *= LightData.SpecularScale;
 				
-			LightAccumulator_AddSplit( LightAccumulator, Lighting.Diffuse, Lighting.Specular, Lighting.Diffuse, LightColor * LightMask * Shadow.SurfaceShadow, bNeedsSeparateSubsurfaceLightAccumulation );
-			LightAccumulator_AddSplit( LightAccumulator, Lighting.Transmission, 0.0f, Lighting.Transmission, LightColor * LightMask * Shadow.TransmissionShadow, bNeedsSeparateSubsurfaceLightAccumulation );
+			LightAccumulator_AddSplit( LightAccumulator, Lighting.Diffuse, Lighting.Specular, Lighting.Diffuse, MaskedLightColor * Shadow.SurfaceShadow, bNeedsSeparateSubsurfaceLightAccumulation );
+			LightAccumulator_AddSplit( LightAccumulator, Lighting.Transmission, 0.0f, Lighting.Transmission, MaskedLightColor * Shadow.TransmissionShadow, bNeedsSeparateSubsurfaceLightAccumulation );
 
 			LightAccumulator.EstimatedCost += 0.4f;		// add the cost of the lighting computations (should sum up to 1 form one light)
 		#endif
 		}
+#endif // SHADING_PATH_MOBILE
 	}
+	return LightAccumulator;
+}
 
+/** Calculates lighting for a given position, normal, etc with a fully featured lighting model designed for quality. */
+FDeferredLightingSplit GetDynamicLightingSplit(
+	float3 TranslatedWorldPosition, float3 CameraVector, FGBufferData GBuffer, float AmbientOcclusion, uint ShadingModelID, 
+	FDeferredLightData LightData, float4 LightAttenuation, float Dither, uint2 SVPos, 
+	inout float SurfaceShadow)
+{
+	FLightAccumulator LightAccumulator = AccumulateDynamicLighting(TranslatedWorldPosition, CameraVector, GBuffer, AmbientOcclusion, ShadingModelID, LightData, LightAttenuation, Dither, SVPos, SurfaceShadow);
 	return LightAccumulator_GetResultSplit(LightAccumulator);
 }
 

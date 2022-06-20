@@ -1606,6 +1606,10 @@ void ShaderMapAppendKeyString(EShaderPlatform Platform, FString& KeyString)
 		{
 			KeyString += IsMobileDistanceFieldEnabled(Platform) ? TEXT("_MobSDF") : TEXT("");
 		}
+
+		{
+			KeyString +=  FString::Printf(TEXT("ESMM_%X"), EnabledShadingModelsMask(Platform));
+		}
 	}
 	else
 	{

@@ -4,6 +4,7 @@
 	MobileBasePassCommon.ush: Base pass definitions used by both vertex and pixel shader
 =============================================================================*/
 
+#include "BasePassCommon.ush"
 #define FogStruct MobileBasePass.Fog
 #define PlanarReflectionStruct MobileBasePass.PlanarReflection
 

@@ -126,11 +126,41 @@ void ApplyPixelDepthOffsetForMobileBasePass(inout FMaterialPixelParameters Mater
 	#define PIXELSHADER_EARLYDEPTHSTENCIL 	
 #endif
 
-void ComputeIndirect(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, float3 DiffuseDir, half3 DiffuseColorForIndirect, half MaterialAO, out half IndirectIrradiance, inout FMobileLightAccumulator MobileLightAccumulator)
+void GetSkyLighting(bool bApplySkyLighting, half3 SkyLightColor, half3 WorldNormal, bool bEvaluateBackface, inout half IndirectIrradiance, out half3 OutSkyDiffuseLighting, out half3 OutSkySubsurfaceLighting, out half3 OutWaterDiffuseIndirectLuminance)
 {
-	//To keep IndirectLightingCache conherence with PC, initialize the IndirectIrradiance to zero.
-	IndirectIrradiance = 0;
-	half3 IndirectColor = 0;
+	OutSkyDiffuseLighting = 0;
+	OutSkySubsurfaceLighting = 0;
+	OutWaterDiffuseIndirectLuminance = 0;
+
+#if ENABLE_SKY_LIGHT
+	//@mw todo
+	// TODO: Also need to do specular.
+	if (bApplySkyLighting)
+	{
+		half3 SkyDiffuse = GetSkySHDiffuseSimple(WorldNormal);
+		OutSkyDiffuseLighting = SkyDiffuse * SkyLightColor;
+		IndirectIrradiance += Luminance(OutSkyDiffuseLighting);
+
+	#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+		OutWaterDiffuseIndirectLuminance += SkyDiffuse;
+	#endif
+
+	#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+		if (bEvaluateBackface)
+		{
+			OutSkySubsurfaceLighting = GetSkySHDiffuseSimple(-WorldNormal) * SkyLightColor;
+		}
+	#endif
+	}
+#endif
+}
+
+void GetPrecomputedIndirectLightingAndSkyLight(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, bool bEvaluateBackface, half3 DiffuseDir, bool bApplySkyLighting, half3 SkyLightColor, out half3 OutDiffuseIndirectLighting, out half3 OutSubsurfaceIndirectLighting, out half OutIndirectIrradiance, out half3 OutWaterDiffuseIndirectLuminance)
+{
+	//To keep IndirectLightingCache conherence with PC, initialize the OutIndirectIrradiance to zero.
+	OutIndirectIrradiance = 0;
+	OutDiffuseIndirectLighting = 0;
+	OutSubsurfaceIndirectLighting = 0;
 
 	// Indirect Diffuse
 #if LQ_TEXTURE_LIGHTMAP
@@ -138,9 +168,7 @@ void ComputeIndirect(VTPageTableResult LightmapVTPageTableResult, FVertexFactory
 	uint LightmapDataIndex;
 	GetLightMapCoordinates(Interpolants, LightmapUV0, LightmapUV1, LightmapDataIndex);
 
-	half4 LightmapColor = GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir);
-	IndirectColor += LightmapColor.rgb * DiffuseColorForIndirect * View.IndirectLightingColorScale;
-	IndirectIrradiance = LightmapColor.a;
+	GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, bEvaluateBackface, OutDiffuseIndirectLighting, OutSubsurfaceIndirectLighting, OutIndirectIrradiance);
 #elif CACHED_POINT_INDIRECT_LIGHTING
 	#if MATERIALBLENDING_MASKED || MATERIALBLENDING_SOLID
 		// Take the normal into account for opaque
@@ -160,24 +188,38 @@ void ComputeIndirect(VTPageTableResult LightmapVTPageTableResult, FVertexFactory
 		FThreeBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH3(DiffuseDir, 1);
 
 		// Compute diffuse lighting which takes the normal into account
-		half3 DiffuseGI = max(half3(0, 0, 0), DotSH3(PointIndirectLighting, DiffuseTransferSH));
+		OutDiffuseIndirectLighting += max(half3(0, 0, 0), DotSH3(PointIndirectLighting, DiffuseTransferSH));
 
-		IndirectIrradiance = Luminance(DiffuseGI);
-		IndirectColor += DiffuseColorForIndirect * DiffuseGI * View.IndirectLightingColorScale;
+		#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+		if (bEvaluateBackface)
+		{
+			FThreeBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH3(-DiffuseDir, 1);
+			OutSubsurfaceIndirectLighting += max(half3(0, 0, 0), DotSH3(PointIndirectLighting, SubsurfaceTransferSH));
+		}
+		#endif
 	#else 
 		// Non-directional for translucency
 		// Ambient terms packed in xyz
 		// Already divided by PI and SH ambient on CPU
-		half3 PointIndirectLighting = IndirectLightingCache.IndirectLightingSHSingleCoefficient.rgb;
-		half3 DiffuseGI = PointIndirectLighting;
+		OutDiffuseIndirectLighting += IndirectLightingCache.IndirectLightingSHSingleCoefficient.rgb;
 
-		IndirectIrradiance = Luminance(DiffuseGI);
-		IndirectColor += DiffuseColorForIndirect * DiffuseGI * View.IndirectLightingColorScale;
+		#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+		if (bEvaluateBackface)
+		{
+			OutSubsurfaceIndirectLighting += IndirectLightingCache.IndirectLightingSHSingleCoefficient.rgb;
+		}
+		#endif
 	#endif
-#endif
-	IndirectIrradiance *= MaterialAO;
 
-	MobileLightAccumulator_Add(MobileLightAccumulator, IndirectColor, 0.0f, MaterialAO);
+	OutIndirectIrradiance = Luminance(OutDiffuseIndirectLighting);
+#endif
+
+	half3 SkyDiffuseLighting;
+	half3 SkySubsurfaceLighting;
+	GetSkyLighting(bApplySkyLighting, SkyLightColor, DiffuseDir, bEvaluateBackface, OutIndirectIrradiance, SkyDiffuseLighting, SkySubsurfaceLighting, OutWaterDiffuseIndirectLuminance);
+
+	OutDiffuseIndirectLighting += SkyDiffuseLighting;
+	OutSubsurfaceIndirectLighting += SkySubsurfaceLighting;
 }
 
 PIXELSHADER_EARLYDEPTHSTENCIL
@@ -287,23 +329,39 @@ void Main(
 	// 0..1, SubsurfaceProfileId = int(x * 255)
 	float SubsurfaceProfile = 0;
 
-#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE) && MOBILE_SHADINGMODEL_SUPPORT
-	half4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
-	
-	// If the subsurface feature is disabled, the subsurface color should be black
-	// This will also ensure that the subsurface profile does not contribute when subsurface scattering is disabled
-	SubsurfaceData *= View.bSubsurfacePostprocessEnabled;
+#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN || MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE || MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE || MATERIAL_SHADINGMODEL_CLOTH || MATERIAL_SHADINGMODEL_EYE) 
+	if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE || ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE || ShadingModelID == SHADINGMODELID_CLOTH || ShadingModelID == SHADINGMODELID_EYE)
+	{
+		half4 SubsurfaceData = GetMaterialSubsurfaceData(PixelMaterialInputs);
 
-	SubsurfaceColor = SubsurfaceData.rgb * ResolvedView.DiffuseOverrideParameter.w + ResolvedView.DiffuseOverrideParameter.xyz;
+		// If the subsurface feature is disabled, the subsurface color should be black
+		// This will also ensure that the subsurface profile does not contribute when subsurface scattering is disabled
+		SubsurfaceData *= View.bSubsurfacePostprocessEnabled;
 
-	SubsurfaceProfile = SubsurfaceData.a;
+		if (ShadingModelID == SHADINGMODELID_SUBSURFACE || ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN || ShadingModelID == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		{
+			SubsurfaceColor = SubsurfaceData.rgb * ResolvedView.DiffuseOverrideParameter.w + ResolvedView.DiffuseOverrideParameter.xyz;
+		}
+		else if (ShadingModelID == SHADINGMODELID_CLOTH)
+		{
+			SubsurfaceColor = SubsurfaceData.rgb;
+		}
+
+		SubsurfaceProfile = SubsurfaceData.a;
+	}
 #endif
 
 #if APPLY_AO
 	half4 GatheredAmbientOcclusion = Texture2DSample(AmbientOcclusionTexture, AmbientOcclusionSampler, SvPositionToBufferUV(SvPosition));
 
-	MaterialAO *= GatheredAmbientOcclusion.r;
+	MaterialAO *= lerp(1.0, GatheredAmbientOcclusion.r, AmbientOcclusionStaticFraction);
 #endif
+
+	const half BaseMaterialCoverageOverWater = Opacity;
+	const half WaterVisibility = 1.0 - BaseMaterialCoverageOverWater;
+	// Fade out diffuse as this will be handled by the single scattering lighting. when over the water surface.
+	// We keep the SpecularColor for sun/water interactions
+	half3 WaterDiffuseIndirectLuminance = 0;
 
 	FGBufferData GBuffer = (FGBufferData)0;
 	GBuffer.GBufferAO = MaterialAO;
@@ -324,13 +382,78 @@ void Main(
 		ShadingModelID
 	);
 
-	GBuffer.Roughness = max(0.015625f, GBuffer.Roughness);
-	
-	FMobileShadingModelContext ShadingModelContext = (FMobileShadingModelContext)0;
-	ShadingModelContext.Opacity = Opacity;
+	GBuffer.StoredBaseColor = GBuffer.BaseColor;
+	GBuffer.StoredMetallic = GBuffer.Metallic;
+	GBuffer.StoredSpecular = GBuffer.Specular;
 
+#if MATERIAL_SHADINGMODEL_EYE
+	if( GBuffer.ShadingModelID == SHADINGMODELID_EYE )
+	{
+		GBuffer.Metallic = 0.0;
+		#if IRIS_NORMAL
+		GBuffer.Specular = 0.25;
+		#endif
+	}
+#endif
+
+#if NONMETAL
+	GBuffer.DiffuseColor = GBuffer.BaseColor;
+	GBuffer.SpecularColor = 0.04;
+#else
+	GBuffer.SpecularColor = ComputeF0(GBuffer.Specular, GBuffer.BaseColor, GBuffer.Metallic);
+	GBuffer.DiffuseColor = GBuffer.BaseColor - GBuffer.BaseColor * GBuffer.Metallic;
+#endif
+
+#if FULLY_ROUGH
+	EnvBRDFApproxFullyRough(GBuffer.DiffuseColor, GBuffer.SpecularColor);
+#endif
+
+#if MOBILE_EMULATION && !MOBILE_DEFERRED_LIGHTING
+	{
+		// this feature is only needed for development/editor - we can compile it out for a shipping build (see r.CompileShadersForDevelopment cvar help)
+		GBuffer.DiffuseColor = GBuffer.DiffuseColor * ResolvedView.DiffuseOverrideParameter.w + ResolvedView.DiffuseOverrideParameter.xyz;
+		GBuffer.SpecularColor = GBuffer.SpecularColor * ResolvedView.SpecularOverrideParameter.w + ResolvedView.SpecularOverrideParameter.xyz;
+	}
+#endif
+
+#if MATERIAL_NORMAL_CURVATURE_TO_ROUGHNESS
+	// Curvature-to-roughness uses derivatives of the WorldVertexNormal, which is incompatible with centroid interpolation because
+	// the samples are not uniformly distributed. Therefore we use WorldVertexNormal_Center which is guaranteed to be center interpolated.
+	#if USE_WORLDVERTEXNORMAL_CENTER_INTERPOLATION
+	float GeometricAARoughness = NormalCurvatureToRoughness(MaterialParameters.WorldVertexNormal_Center);
+	#else
+	float GeometricAARoughness = NormalCurvatureToRoughness(MaterialParameters.TangentToWorld[2].xyz);
+	#endif
+	GBuffer.Roughness = max(GBuffer.Roughness, GeometricAARoughness);
+
+	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
+	{
+		GBuffer.CustomData.y = max(GBuffer.CustomData.y, GeometricAARoughness);
+	}
+	#endif
+#endif
+
+	half3 InputBentNormal = MaterialParameters.WorldNormal;
+
+	// Clear Coat Bottom Normal
+	#if MATERIAL_SHADINGMODEL_CLEAR_COAT
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT && CLEAR_COAT_BOTTOM_NORMAL)
+	{
+		const float2 oct1 = ((float2(GBuffer.CustomData.a, GBuffer.CustomData.z) * 4) - (512.0 / 255.0)) + UnitVectorToOctahedron(GBuffer.WorldNormal);
+		InputBentNormal = OctahedronToUnitVector(oct1);
+	}
+	#endif
+
+	const FShadingOcclusion ShadingOcclusion = ApplyBentNormal(MaterialParameters.CameraVector, InputBentNormal, GetWorldBentNormalZero(MaterialParameters), GBuffer.Roughness, GBuffer.GBufferAO);
+
+#if MOBILE_HIGH_QUALITY_BRDF
+	GBuffer.GBufferAO = AOMultiBounce(Luminance(GBuffer.SpecularColor), ShadingOcclusion.SpecOcclusion).g;
+#endif
+
+	
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
-	float TopMaterialCoverage = ShadingModelContext.Opacity;
+	float TopMaterialCoverage = Opacity;
 
 	// Adjust Opacity
 	{
@@ -349,25 +472,11 @@ void Main(
 		// The alpha of the material in translucent mode is one minus the amount that it is modulating the background by.
 		float MaterialOpacity = 1.0f - MaterialModulation;
 		
-		ShadingModelContext.Opacity = 1.0f - (1.0f - TopMaterialCoverage) * (1.0f - MaterialOpacity);
+		Opacity = 1.0f - (1.0f - TopMaterialCoverage) * (1.0f - MaterialOpacity);
 	}
 
 	GBuffer.BaseColor *= TopMaterialCoverage;
 #endif
-
-#if MATERIAL_SHADINGMODEL_SUBSURFACE_PROFILE && MOBILE_SHADINGMODEL_SUPPORT
-	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE_PROFILE)
-	{
-		#if MATERIAL_SUBSURFACE_PROFILE_USE_CURVATURE
-			GBuffer.CustomData.g = GetMaterialCustomData0(MaterialParameters);
-		#else
-			GBuffer.CustomData.g = CalculateCurvature(GBuffer.WorldNormal, MaterialParameters.WorldPosition_CamRelative);
-		#endif
-
-		GBuffer.CustomData.g = max(saturate(GBuffer.CustomData.g), 0.001f);
-	}
-#endif
-	InitShadingModelContext(ShadingModelContext, GBuffer, MaterialParameters.CameraVector);
 
 	VTPageTableResult LightmapVTPageTableResult = (VTPageTableResult)0.0f;
 #if LIGHTMAP_VT_ENABLED
@@ -385,21 +494,63 @@ void Main(
 	StoreVirtualTextureFeedback(MaterialParameters.VirtualTextureFeedback, 0, LightmapVTPageTableResult.PackedRequest);
 #endif
 
-	FMobileLightAccumulator MobileLightAccumulator = (FMobileLightAccumulator)0;
+	half IndirectIrradiance = 0;
+	half3 DiffuseIndirectLighting = 0;
+	half3 SubsurfaceIndirectLighting = 0;
 
-	half IndirectIrradiance;
-	half3 IndirectColor;
-	half3 DiffuseColorForIndirect = ShadingModelContext.DiffuseColor;
+	half3 DiffuseColorForIndirect = GBuffer.DiffuseColor;
+	half3 DiffuseDir = ShadingOcclusion.BentNormal;
 
-#if (MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN) && MOBILE_SHADINGMODEL_SUPPORT
+#if MATERIAL_SHADINGMODEL_SUBSURFACE || MATERIAL_SHADINGMODEL_PREINTEGRATED_SKIN
 	if (GBuffer.ShadingModelID == SHADINGMODELID_SUBSURFACE || GBuffer.ShadingModelID == SHADINGMODELID_PREINTEGRATED_SKIN)
 	{
-		DiffuseColorForIndirect += ShadingModelContext.SubsurfaceColor;
+		// Add subsurface energy to diffuse
+		//@todo - better subsurface handling for these shading models with skylight and precomputed GI
+		DiffuseColorForIndirect += SubsurfaceColor;
 	}
 #endif
 
+#if MATERIAL_SHADINGMODEL_CLOTH
+	if (GBuffer.ShadingModelID == SHADINGMODELID_CLOTH)
+	{
+		DiffuseColorForIndirect += SubsurfaceColor * saturate(GetMaterialCustomData0(MaterialParameters));
+	}
+#endif
+
+#if MATERIAL_SHADINGMODEL_HAIR
+	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR)
+	{
+		FHairTransmittanceData TransmittanceData = InitHairTransmittanceData(true);
+		half3 N = MaterialParameters.WorldNormal;
+		half3 V = MaterialParameters.CameraVector;
+		half3 L = normalize(V - N * dot(V, N));
+		DiffuseDir = L;
+		DiffuseColorForIndirect = 2 * PI * HairShading(GBuffer, L, V, N, 1, TransmittanceData, 0, 0.2, uint2(0, 0));
+	}
+#endif
+
+	half NoL = max(0, dot(GBuffer.WorldNormal, MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xyz));
+	bool bApplySkyLighting = !(MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP) || NoL == 0;
+
+	const bool bEvaluateBackface = GetShadingModelRequiresBackfaceLighting(GBuffer.ShadingModelID);
+
+	GetPrecomputedIndirectLightingAndSkyLight(LightmapVTPageTableResult, Interpolants, bEvaluateBackface, DiffuseDir, bApplySkyLighting, ResolvedView.SkyLightColor.rgb, DiffuseIndirectLighting, SubsurfaceIndirectLighting, IndirectIrradiance, WaterDiffuseIndirectLuminance);
+
 	// Apply MaterialAO since we don't have the DiffuseIndirectComposite pass on mobile deferred.
-	ComputeIndirect(LightmapVTPageTableResult, Interpolants, ShadingModelContext.DiffuseDir, DiffuseColorForIndirect, MaterialAO, IndirectIrradiance, MobileLightAccumulator);
+	IndirectIrradiance *= GBuffer.GBufferAO;
+
+	half3 DiffuseColor = (DiffuseIndirectLighting * DiffuseColorForIndirect + SubsurfaceIndirectLighting * SubsurfaceColor) * AOMultiBounce(GBuffer.BaseColor, ShadingOcclusion.DiffOcclusion);
+
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+	// Fade out diffuse as this will be handled by the single scattering lighting in water material.
+	// We do this after the just above GetPrecomputedIndirectLightingAndSkyLight to keep ambiant lighting avialable.
+	// We also keep the SpecularColor for sun/water interactions.
+	GBuffer.DiffuseColor *= BaseMaterialCoverageOverWater;
+	DiffuseColor *= BaseMaterialCoverageOverWater;
+#endif
+
+	FLightAccumulator DirectLighting = (FLightAccumulator)0;
+	LightAccumulator_AddSplit(DirectLighting, DiffuseColor, 0.0f, DiffuseColor, 1.0f, false);
 
 	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
 
@@ -409,29 +560,24 @@ void Main(
 	MobileEncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD);
 #else
 
+	half3 CameraVector = -MaterialParameters.CameraVector;
+
 	half4 DynamicShadowFactors = 1.0f;
-	half NoL = 0.0f;
 
 	// Directional light
-	AccumulateDirectionalLighting(GBuffer, ShadingModelContext, MaterialParameters.CameraVector, MaterialParameters.ScreenPosition, SvPosition, Shadow, DynamicShadowFactors, NoL, MobileLightAccumulator);
-
-	// Skylight
-	bool bApplySkyLighting = !(MATERIAL_TWOSIDED && LQ_TEXTURE_LIGHTMAP) || NoL == 0;
-	AccumulateSkyLighting(GBuffer, ShadingModelContext, ResolvedView.SkyLightColor.rgb, bApplySkyLighting, IndirectIrradiance, MobileLightAccumulator);
+	AccumulateDirectionalLighting(GBuffer, MaterialParameters.WorldPosition_CamRelative, CameraVector, MaterialParameters.ScreenPosition, SvPosition, Shadow, DynamicShadowFactors, DirectLighting);
 
 	float2 LocalPosition = SvPosition.xy - ResolvedView.ViewRectMin.xy;
 	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SvPosition.w);
 
 	// Reflection IBL
-#if !(MATERIAL_SINGLE_SHADINGMODEL && MATERIAL_SHADINGMODEL_HAIR)
 	AccumulateReflection(GBuffer
-		, ShadingModelContext
+		, CameraVector
 		, MaterialParameters.WorldPosition_CamRelative
 		, MaterialParameters.ReflectionVector
 		, IndirectIrradiance
 		, GridIndex
-		, MobileLightAccumulator);
-#endif
+		, DirectLighting);
 
 	// Local lights
 #if  !MATERIAL_SHADINGMODEL_SINGLELAYERWATER && ENABLE_CLUSTERED_LIGHTS
@@ -445,7 +591,7 @@ void Main(
 		#endif
 		
 		uint LightingChannelMask = GetPrimitive_LightingChannelMask(MaterialParameters.PrimitiveId);
-		AccumulateLightGridLocalLighting(CulledLightGridData, ShadingModelContext, GBuffer, MaterialParameters.WorldPosition_CamRelative, MaterialParameters.CameraVector, EyeIndex, 0, LocalLightDynamicShadowFactors, LightingChannelMask, MobileLightAccumulator);
+		AccumulateLightGridLocalLighting(CulledLightGridData, GBuffer, MaterialParameters.WorldPosition_CamRelative, CameraVector, EyeIndex, 0, LocalLightDynamicShadowFactors, LightingChannelMask, DirectLighting);
 	}
 #endif
 
@@ -456,8 +602,11 @@ void Main(
 
 		const bool CameraIsUnderWater = false;	// Fade out the material contribution over to water contribution according to material opacity.
 		const float3 SunIlluminance = ResolvedView.DirectionalLightColor.rgb * PI;			// times PI because it is divided by PI on CPU (=luminance) and we want illuminance here. 
-		const float3 WaterDiffuseIndirectIlluminance = ShadingModelContext.WaterDiffuseIndirectLuminance * PI;	// DiffuseIndirectLighting is luminance. So we need to multiply by PI to get illuminance.
-		const float3 EnvBrdf = ShadingModelContext.EnvBrdf;
+		const float3 WaterDiffuseIndirectIlluminance = WaterDiffuseIndirectLuminance * PI;	// DiffuseIndirectLighting is luminance. So we need to multiply by PI to get illuminance.
+		half3 N = GBuffer.WorldNormal;
+		half3 V = MaterialParameters.CameraVector;
+		half NoV = saturate(abs(dot(N, V)) + 1e-5);
+		const float3 EnvBrdf = GetEnvBRDF(GBuffer.SpecularColor, GBuffer.Roughness, NoV);
 		const uint EyeIndex = 0;
 
 		const float4 NullDistortionParams = 1.0f;
@@ -465,19 +614,19 @@ void Main(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
 			Shadow, GBuffer.Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
-			CameraIsUnderWater, ShadingModelContext.WaterVisibility, EyeIndex,
+			CameraIsUnderWater, WaterVisibility, EyeIndex,
 			bSeparateMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
 
 		// Accumulate luminance and occlude the background according to transmittance to view and mean transmittance to lights.
-		MobileLightAccumulator_Add(MobileLightAccumulator, WaterLighting.Luminance, 0.0f, 1.0f);
-		ShadingModelContext.Opacity = 1.0 - ((1.0 - ShadingModelContext.Opacity) * dot(WaterLighting.WaterToSceneToLightTransmittance, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)));
+		LightAccumulator_AddSplit(DirectLighting, WaterLighting.Luminance, 0.0f, WaterLighting.Luminance, 1.0f, false);
+		Opacity = 1.0 - ((1.0 - Opacity) * dot(WaterLighting.WaterToSceneToLightTransmittance, float3(1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0)));
 	}
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 #endif// DEFERRED_SHADING_PATH
 
 #if !MATERIAL_SHADINGMODEL_UNLIT
-	half3 Color = MobileLightAccumulator_GetResult(MobileLightAccumulator);
+	half3 Color = DirectLighting.TotalLight;
 #else
 	half3 Color = 0.0f;
 #endif
@@ -500,22 +649,22 @@ void Main(
 	Color += Emissive;
 
 #if !MATERIAL_SHADINGMODEL_UNLIT && MOBILE_EMULATION
-	Color = lerp(Color, ShadingModelContext.DiffuseColor, ResolvedView.UnlitViewmodeMask);
+	Color = lerp(Color, DiffuseColor, ResolvedView.UnlitViewmodeMask);
 #endif
 
 	// On mobile, water (an opaque material) is rendered as trnaslucent with forced premultiplied alpha blending (see MobileBasePass::SetTranslucentRenderState)
 	#if MATERIALBLENDING_ALPHACOMPOSITE || MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * ShadingModelContext.Opacity, ShadingModelContext.Opacity);
+		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * Opacity, Opacity);
 	#elif MATERIALBLENDING_ALPHAHOLDOUT
 		// not implemented for holdout
-		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * ShadingModelContext.Opacity, ShadingModelContext.Opacity);
+		OutColor = half4(Color * VertexFog.a + VertexFog.rgb * Opacity, Opacity);
 	#elif MATERIALBLENDING_TRANSLUCENT
-		OutColor = half4(Color * VertexFog.a + VertexFog.rgb, ShadingModelContext.Opacity);
+		OutColor = half4(Color * VertexFog.a + VertexFog.rgb, Opacity);
 	#elif MATERIALBLENDING_ADDITIVE
-		OutColor = half4(Color * (VertexFog.a * ShadingModelContext.Opacity.x), 0.0f);
+		OutColor = half4(Color * (VertexFog.a * Opacity.x), 0.0f);
 	#elif MATERIALBLENDING_MODULATE
 		half3 FoggedColor = lerp(half3(1, 1, 1), Color, VertexFog.aaa * VertexFog.aaa);
-		OutColor = half4(FoggedColor, ShadingModelContext.Opacity);
+		OutColor = half4(FoggedColor, Opacity);
 	#else
 		OutColor.rgb = Color * VertexFog.a + VertexFog.rgb;
 
@@ -537,12 +686,7 @@ void Main(
 		OutColor.rgb *= ResolvedView.PreExposure;
 	#endif
 
-	#if MATERIAL_IS_SKY
-		// Sky materials can result in high luminance values, e.g. the sun disk. 
-		// This is so we make sure to at least stay within the boundaries of fp10 and not cause NaN on some platforms.
-		// We also half that range to also make sure we have room for other additive elements such as bloom, clouds or particle visual effects.
-		OutColor.rgb = min(OutColor.rgb, Max10BitsFloat.xxx * 0.5f);
-	#endif
+	OutColor.rgb = SafeGetOutColor(OutColor.rgb);
 
 #if USE_EDITOR_COMPOSITING && (MOBILE_EMULATION)
 	// Editor primitive depth testing
@@ -562,7 +706,7 @@ void Main(
 	FinalizeVirtualTextureFeedback(
 		MaterialParameters.VirtualTextureFeedback,
 		MaterialParameters.SvPosition,
-		ShadingModelContext.Opacity,
+		Opacity,
 		View.FrameNumber,
 		View.VTFeedbackBuffer
 	);

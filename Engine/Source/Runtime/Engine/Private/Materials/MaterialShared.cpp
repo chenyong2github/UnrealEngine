@@ -4983,6 +4983,7 @@ FText FMaterialAttributeDefinitionMap::GetAttributeOverrideForMaterial(const FGu
 		return Material->MaterialDomain == MD_Volume ? LOCTEXT("Albedo", "Albedo") : LOCTEXT("BaseColor", "Base Color");
 	case MP_Metallic:
 		CustomPinNames.Add({MSM_Hair, "Scatter"});
+		CustomPinNames.Add({ MSM_Eye, "Curvature" });
 		return FText::FromString(GetPinNameFromShadingModelField(Material->GetShadingModels(), CustomPinNames, "Metallic"));
 	case MP_Specular:
 		return LOCTEXT("Specular", "Specular");

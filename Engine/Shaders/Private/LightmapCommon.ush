@@ -75,8 +75,10 @@ half4 SampleLightmapVT(VTPageTableResult LightmapVTPageTableResult, uint LayerIn
 }
 #endif // LIGHTMAP_VT_ENABLED
 
-half4 GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, LightmapUVType LightmapUV0, LightmapUVType LightmapUV1, uint LightmapDataIndex, half3 WorldNormal )
+void GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, LightmapUVType LightmapUV0, LightmapUVType LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, bool bEvaluateBackface, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting, out half OutIndirectIrradiance)
 {
+	OutSubsurfaceLighting = 0;
+
 #if LIGHTMAP_VT_ENABLED
 	half4 Lightmap0 = SampleLightmapVT(LightmapVTPageTableResult, 0u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture, LightmapResourceCluster.LightMapSampler);
 	half4 Lightmap1 = SampleLightmapVT(LightmapVTPageTableResult, 1u, LightmapDataIndex, LightmapResourceCluster.VTLightMapTexture_1, LightmapResourceCluster.LightMapSampler_1);
@@ -100,14 +102,32 @@ half4 GetLightMapColorLQ( VTPageTableResult LightmapVTPageTableResult, LightmapU
 
 	// Sample SH with normal
 	half Directionality = max( 0.0, dot( SH, float4(WorldNormal.yzx, 1) ) );	// 1 dot, 1 smax
+
+	#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+	if (bEvaluateBackface)
+	{
+		half SubsurfaceDirectionality = max(0.0, dot(SH, float4(-WorldNormal.yzx, 1)));
+		half SubsurfaceLuma = L * SubsurfaceDirectionality;
+		OutSubsurfaceLighting = LogRGB * (SubsurfaceLuma / LogL);
+	}
+	#endif
 #else
 	half Directionality = 0.6;
+
+	#if SHADINGMODEL_REQUIRES_BACKFACE_LIGHTING
+	if (bEvaluateBackface)
+	{
+		half SubsurfaceLuma = L * Directionality;
+		OutSubsurfaceLighting = LogRGB * (SubsurfaceLuma / LogL);
+	}
+	#endif
 #endif
 		
 	half Luma = L * Directionality;
 	half3 Color = LogRGB * (Luma / LogL);				// 1 rcp, 1 smul, 1 vmul
 
-	return half4( Color, Luma );
+	OutDiffuseLighting = Color;
+	OutIndirectIrradiance = Luma;
 }
 
 void GetLightMapColorHQ( VTPageTableResult LightmapVTPageTableResult, LightmapUVType LightmapUV0, LightmapUVType LightmapUV1, uint LightmapDataIndex, half3 WorldNormal, float2 SvPositionXY, bool bEvaluateBackface, out half3 OutDiffuseLighting, out half3 OutSubsurfaceLighting )

@@ -1195,6 +1195,17 @@ RENDERCORE_API bool AllowPerPixelShadingModels(const FStaticShaderPlatform Platf
 	return true;
 }
 
+RENDERCORE_API int32 EnabledShadingModelsMask(const FStaticShaderPlatform Platform)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.EnabledShadingModelsMask"));
+
+	if (IsMobilePlatform(Platform) && CVar)
+	{
+		return CVar->GetValueOnAnyThread();
+	}
+	return 0xFFFF;
+}
+
 RENDERCORE_API uint64 GMobileAmbientOcclusionPlatformMask = 0;
 static_assert(SP_NumPlatforms <= sizeof(GMobileAmbientOcclusionPlatformMask) * 8, "GMobileAmbientOcclusionPlatformMask must be large enough to support all shader platforms");
 

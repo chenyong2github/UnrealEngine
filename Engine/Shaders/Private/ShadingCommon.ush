@@ -4,6 +4,13 @@
 
 #include "Common.ush"
 
+#ifndef SHADING_PATH_MOBILE
+#define SHADING_PATH_MOBILE 0
+#endif
+
+#ifndef SHADING_PATH_DEFERRED
+#define SHADING_PATH_DEFERRED 0
+#endif
 
 ///////////////////////////////////////////////////////////////////////////////
 // Shading models
@@ -107,7 +114,7 @@ float F0RGBToDielectricSpecular(float3 F0)
 	return F0ToDielectricSpecular(max(F0.r, max(F0.g, F0.b)));
 }
 
-float DielectricSpecularToF0(float Specular)
+half DielectricSpecularToF0(half Specular)
 {
 	return 0.08f * Specular;
 }
@@ -135,7 +142,7 @@ float F0RGBToMicroOcclusion(float3 F0)
 	return F0ToMicroOcclusion(max(F0.r, max(F0.g, F0.b)));
 }
 
-float3 ComputeF0(float Specular, float3 BaseColor, float Metallic)
+half3 ComputeF0(half Specular, half3 BaseColor, half Metallic)
 {
 	return lerp(DielectricSpecularToF0(Specular).xxx, BaseColor, Metallic.xxx);
 }

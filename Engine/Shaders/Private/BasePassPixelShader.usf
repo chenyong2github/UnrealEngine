@@ -56,7 +56,6 @@
 #include "LightAccumulator.ush"
 #include "DeferredShadingCommon.ush"
 #include "VelocityCommon.ush"
-#include "SphericalGaussian.ush"
 #include "DBufferDecalShared.ush"
 #include "ShadingModelsSampling.ush"
 
@@ -93,23 +92,6 @@
 #define RadianceCacheInterpolation TranslucentBasePass
 #include "Lumen/LumenTranslucencyVolumeShared.ush"
 #endif
-
-float NormalCurvatureToRoughness(float3 WorldNormal)
-{
-    float3 dNdx = ddx(WorldNormal);
-    float3 dNdy = ddy(WorldNormal);
-    float x = dot(dNdx, dNdx);
-    float y = dot(dNdy, dNdy);
-    float CurvatureApprox = pow(max(x, y), View.NormalCurvatureToRoughnessScaleBias.z);
-	return saturate(CurvatureApprox * View.NormalCurvatureToRoughnessScaleBias.x + View.NormalCurvatureToRoughnessScaleBias.y);
-}
-
-struct FShadingOcclusion
-{
-	float  DiffOcclusion;
-	float  SpecOcclusion;
-	float3 BentNormal;
-};
 
 #if TRANSLUCENT_SELF_SHADOWING
 	#include "ShadowProjectionCommon.ush"	 
@@ -632,7 +614,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		LightmapUVType LightmapUV0, LightmapUV1;
 		uint LightmapDataIndex;
 		GetLightMapCoordinates(Interpolants, LightmapUV0, LightmapUV1, LightmapDataIndex);
-		OutDiffuseLighting = GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir).rgb;
+		GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, bEvaluateBackface, OutDiffuseLighting, OutSubsurfaceLighting, OutIndirectIrradiance);
 
 	#endif
 
@@ -705,135 +687,6 @@ void ApplyPixelDepthOffsetForBasePass(inout FMaterialPixelParameters MaterialPar
 #if WRITES_VELOCITY_TO_GBUFFER && !IS_NANITE_PASS
 	BasePassInterpolants.VelocityPrevScreenPosition.w += PixelDepthOffset;
 #endif
-}
-
-float DotSpecularSG( float Roughness, float3 N, float3 V, FSphericalGaussian LightSG )
-{
-	float a = Pow2( max( 0.02, Roughness ) );
-	float a2 = a*a;
-	
-	float3 L = LightSG.Axis;
-	float3 H = normalize(V + L);
-
-	float NoV = saturate( abs( dot(N, V) ) + 1e-5 );
-
-	FSphericalGaussian NDF;
-	NDF.Axis = N;
-	NDF.Sharpness = 2 / a2;
-	NDF.Amplitude = rcp( PI * a2 );
-
-#if 0
-	{
-		// Reflect NDF
-		//float3 R = 2 * dot( V, N ) * N - V;
-		float3 R = 2 * NoV * N - V;
-
-		// Point lobe in off-specular peak direction
-		//R = lerp( N, R, (1 - a) * ( sqrt(1 - a) + a ) );
-		//R = normalize( R );
-
-	#if 0
-		// Warp
-		FSphericalGaussian SpecularSG;
-		SpecularSG.Axis = R;
-		SpecularSG.Sharpness = 0.5 / ( a2 * max( NoV, 0.1 ) );
-		SpecularSG.Amplitude = rcp( PI * a2 );
-	#else
-		FAnisoSphericalGaussian SpecularSG;
-		SpecularSG.AxisZ = R;
-		SpecularSG.AxisX = normalize( cross( N, SpecularSG.AxisZ ) );
-		SpecularSG.AxisY = normalize( cross( R, SpecularSG.AxisX ) );
- 
-		// Second derivative of the sharpness with respect to how
-		// far we are from basis Axis direction
-		SpecularSG.SharpnessX = 0.25 / ( a2 * Pow2( max( NoV, 0.001 ) ) );
-		SpecularSG.SharpnessY = 0.25 / a2;
-		SpecularSG.Amplitude = rcp( PI * a2 );
-	#endif
-		return Dot( SpecularSG, LightSG );
-	}
-#elif 0
-	{
-		// Project LightSG into half vector space
-	#if 0
-		FSphericalGaussian WarpedLightSG;
-		WarpedLightSG.Axis		= H;
-		WarpedLightSG.Sharpness	= LightSG.Sharpness * 1.5 * NoV;
-		WarpedLightSG.Amplitude	= LightSG.Amplitude;
-	#else
-		FAnisoSphericalGaussian WarpedLightSG;
-		WarpedLightSG.AxisZ = H;
-		WarpedLightSG.AxisX = normalize( cross( N, WarpedLightSG.AxisZ ) );
-		WarpedLightSG.AxisY = normalize( cross( H, WarpedLightSG.AxisX ) );
- 
-		// Second derivative of the sharpness with respect to how
-		// far we are from basis Axis direction
-		WarpedLightSG.SharpnessX = LightSG.Sharpness * 2 * Pow2( NoV );
-		WarpedLightSG.SharpnessY = LightSG.Sharpness * 2;
-		WarpedLightSG.Amplitude	= LightSG.Amplitude;
-	#endif
-
-		return Dot( WarpedLightSG, NDF );
-	}
-#else
-	{
-		// We can do the half space ASG method cheaper by assuming H is in the YZ plane.
-		float SharpnessX = LightSG.Sharpness * 2 * Pow2( NoV );
-		float SharpnessY = LightSG.Sharpness * 2;
-
-		float nu = NDF.Sharpness * 0.5;
-
-		FSphericalGaussian ConvolvedNDF;
-		ConvolvedNDF.Axis = NDF.Axis;
-		ConvolvedNDF.Sharpness = 2 * (nu * SharpnessY) / (nu + SharpnessY);
-		ConvolvedNDF.Amplitude = NDF.Amplitude * LightSG.Amplitude;
-		ConvolvedNDF.Amplitude *= PI * rsqrt( (nu + SharpnessX) * (nu + SharpnessY) );
-
-		//float3 AxisX = normalize( cross( N, V ) );
-		//ConvolvedNDF.Amplitude *= exp( -(nu * SharpnessX) / (nu + SharpnessX) * Pow2( dot( H, AxisX ) ) );
-
-		return Evaluate( ConvolvedNDF, H );
-	}
-#endif
-}
-
-FShadingOcclusion ApplyBentNormal(
-	in float3 CameraVector, 
-	in float3 WorldNormal, 
-	in float3 WorldBentNormal0, 
-	in float Roughness,
-	in float MaterialAO)
-{
-	FShadingOcclusion Out;
-	Out.DiffOcclusion = MaterialAO;
-	Out.SpecOcclusion = MaterialAO;
-	Out.BentNormal    = WorldNormal;
-
-#if NUM_MATERIAL_OUTPUTS_GETBENTNORMAL > 0
-	Out.BentNormal = WorldBentNormal0;
-
-	FSphericalGaussian HemisphereSG = Hemisphere_ToSphericalGaussian(WorldNormal);
-	FSphericalGaussian NormalSG = ClampedCosine_ToSphericalGaussian(WorldNormal);
-	FSphericalGaussian VisibleSG = BentNormalAO_ToSphericalGaussian(Out.BentNormal, Out.DiffOcclusion );
-	FSphericalGaussian DiffuseSG = Mul( NormalSG, VisibleSG );
-	
-	float VisibleCosAngle = sqrt( 1 - Out.DiffOcclusion );
-
-#if 1	// Mix full resolution normal with low res bent normal
-	Out.BentNormal = DiffuseSG.Axis;
-	//DiffOcclusion = saturate( Integral( DiffuseSG ) / Dot( NormalSG, HemisphereSG ) );
-	Out.DiffOcclusion = saturate( Integral( DiffuseSG ) * 0.42276995 );
-#endif
-
-	float3 N = WorldNormal;
-	float3 V = CameraVector;
-
-	Out.SpecOcclusion  = DotSpecularSG( Roughness, N, V, VisibleSG );
-	Out.SpecOcclusion /= DotSpecularSG( Roughness, N, V, HemisphereSG );
-
-	Out.SpecOcclusion = saturate(Out.SpecOcclusion );
-#endif
-	return Out;
 }
 
 #if STRATA_ENABLED

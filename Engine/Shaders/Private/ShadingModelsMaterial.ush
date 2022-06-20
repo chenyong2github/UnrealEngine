@@ -62,6 +62,16 @@ void SetGBufferForShadingModel(
 		{
 			GBuffer.CustomData.rgb = EncodeSubsurfaceProfile(SubsurfaceProfile);
 			GBuffer.CustomData.a = Opacity;
+
+		#if SHADING_PATH_MOBILE
+			#if MATERIAL_SUBSURFACE_PROFILE_USE_CURVATURE
+				GBuffer.Curvature = GetMaterialCustomData0(MaterialParameters);
+			#else
+				GBuffer.Curvature = CalculateCurvature(GBuffer.WorldNormal, MaterialParameters.WorldPosition_CamRelative);
+			#endif
+
+			GBuffer.Curvature = clamp(GBuffer.Curvature, 0.001f, 1.0f);
+		#endif
 		}
 	#if SUBSURFACE_PROFILE_OPACITY_THRESHOLD
 		else
@@ -178,6 +188,16 @@ void SetGBufferForShadingModel(
 			float3 Tangent = GetTangentOutput0(MaterialParameters);
 			GBuffer.CustomData.yz = UnitVectorToOctahedron( normalize(Tangent) ) * 0.5 + 0.5;
 		#endif
+	#endif
+
+	#if SHADING_PATH_MOBILE
+		#if MATERIAL_SHADINGMODEL_EYE_USE_CURVATURE
+			GBuffer.Curvature = Metallic;
+		#else
+			GBuffer.Curvature = CalculateCurvature(GBuffer.WorldNormal, MaterialParameters.WorldPosition_CamRelative);
+		#endif
+
+		GBuffer.Curvature = clamp(GBuffer.Curvature, 0.001f, 1.0f);
 	#endif
 	}
 #endif

@@ -76,14 +76,14 @@ half4 GetSubsurfaceProfileTexture(Texture2D InSSProfilesTexture, SamplerState In
 #endif 
 }
 
-void GetSubsurfaceProfileDualSpecular(uint SubsurfaceProfileInt, float Roughness, float Opacity, out float LobeRoughness0, out float LobeRoughness1, out float LobeMix)
+void GetSubsurfaceProfileDualSpecular(uint SubsurfaceProfileInt, half Roughness, half Opacity, out half LobeRoughness0, out half LobeRoughness1, out half LobeMix)
 {
 	const half4 Data = GetSubsurfaceProfileTexture(SSSS_DUAL_SPECULAR_OFFSET, SubsurfaceProfileInt);
 
 	// Smooth blend out dual specular when opacity is low, we have the extra SSSS_OPACITY_THRESHOLD_EPS so that we fade out by the time we
 	// get to 0.01, as opposed to 0.0.
-	float MaterialRoughnessToLobeRoughness0 = lerp(1.0f, Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
-	float MaterialRoughnessToLobeRoughness1 = lerp(1.0f, Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
+	half MaterialRoughnessToLobeRoughness0 = lerp(1.0f, Data.x * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
+	half MaterialRoughnessToLobeRoughness1 = lerp(1.0f, Data.y * SSSS_MAX_DUAL_SPECULAR_ROUGHNESS, saturate((Opacity - SSSS_OPACITY_THRESHOLD_EPS) * 10.0f));
 	LobeMix = Data.z;
 
 	// Avoid specular explosion, and approximate `area lights`.
@@ -141,3 +141,21 @@ float4 GetSubsurfaceProfileDMFPInCm(int SubsurfaceProfileInt)
 	const float WorldUnitScale = DecodeWorldUnitScale(GetSubsurfaceProfileWorldUnitScale(SubsurfaceProfileInt));
 	return DiffuseMeanFreePath * WorldUnitScale; // In cm
 }
+
+#if SHADING_PATH_MOBILE
+half CalculateCurvature(half3 WorldNormal, float3 WorldPosition)
+{
+#if 0
+	half DeltaNormal = length(abs(DDX(WorldNormal)) + abs(DDY(WorldNormal)));
+	half DeltaPosition = length(abs(DDX(WorldPosition)) + abs(DDY(WorldPosition))) * BURLEY_CM_2_MM;
+	half CurvatureApprox = DeltaNormal / DeltaPosition;
+#else
+	half3 dNdx = ddx((HALF3_TYPE)WorldNormal);
+	half3 dNdy = ddy((HALF3_TYPE)WorldNormal);
+	half x = dot(dNdx, dNdx);
+	half y = dot(dNdy, dNdy);
+	half CurvatureApprox = pow(max(x, y), ResolvedView.NormalCurvatureToRoughnessScaleBias.z);
+#endif
+	return CurvatureApprox;
+}
+#endif

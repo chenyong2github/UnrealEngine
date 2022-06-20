@@ -122,13 +122,13 @@ float3 GetSkySHDiffuseSimple(float3 Normal)
 
 
 // Point lobe in off-specular peak direction
-float3 GetOffSpecularPeakReflectionDir(float3 Normal, float3 ReflectionVector, float Roughness)
+half3 GetOffSpecularPeakReflectionDir(half3 Normal, half3 ReflectionVector, half Roughness)
 {
-	float a = Square(Roughness);
+	half a = Roughness * Roughness;
 	return lerp( Normal, ReflectionVector, (1 - a) * ( sqrt(1 - a) + a ) );	
 }
 
-float GetSpecularOcclusion(float NoV, float RoughnessSq, float AO)
+half GetSpecularOcclusion(half NoV, half RoughnessSq, half AO)
 {
 	return saturate( pow( NoV + AO, RoughnessSq ) - 1 + AO );
 }

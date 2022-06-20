@@ -148,6 +148,8 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 	LightmapUVType SkyOcclusionUV = (LightmapUVType)0;
 	uint SkyOcclusionDataIndex = 0u;
 
+	const bool bEvaluateBackface = GetShadingModelRequiresBackfaceLighting(ShadingModel);
+
 #if HQ_TEXTURE_LIGHTMAP || LQ_TEXTURE_LIGHTMAP
 		LightmapUVType LightmapUV0, LightmapUV1;
 		uint LightmapDataIndex;
@@ -165,7 +167,7 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 		OutDiffuseLighting = max(float3(0,0,0), DotSH3(IrradianceSH, DiffuseTransferSH)) / PI;
 
 		#if MATERIAL_SHADINGMODEL_TWOSIDED_FOLIAGE
-		if (ShadingModel == SHADINGMODELID_TWOSIDED_FOLIAGE)
+		if (bEvaluateBackface)
 		{
 			FThreeBandSHVector SubsurfaceTransferSH = CalcDiffuseTransferSH3(-DiffuseDir, 1);
 			OutSubsurfaceLighting += max(float3(0,0,0), DotSH3(IrradianceSH, SubsurfaceTransferSH)) / PI;
@@ -177,12 +179,12 @@ void GetPrecomputedIndirectLightingAndSkyLight(
 
 		SkyOcclusionUV = LightmapUV0;
 		SkyOcclusionDataIndex = LightmapDataIndex;
-		GetLightMapColorHQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, MaterialParameters.SvPosition.xy, ShadingModel, OutDiffuseLighting, OutSubsurfaceLighting);
+		GetLightMapColorHQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, MaterialParameters.SvPosition.xy, bEvaluateBackface, OutDiffuseLighting, OutSubsurfaceLighting);
 
 	// Low quality texture lightmaps
 	#elif LQ_TEXTURE_LIGHTMAP
 
-		OutDiffuseLighting = GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir).rgb;
+		GetLightMapColorLQ(LightmapVTPageTableResult, LightmapUV0, LightmapUV1, LightmapDataIndex, DiffuseDir, bEvaluateBackface, OutDiffuseLighting, OutSubsurfaceLighting, OutIndirectIrradiance);
 
 	#endif
 
