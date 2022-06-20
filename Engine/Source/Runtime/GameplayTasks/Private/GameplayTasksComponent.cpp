@@ -457,7 +457,31 @@ void UGameplayTasksComponent::ProcessTaskEvents()
 
 void UGameplayTasksComponent::AddTaskToPriorityQueue(UGameplayTask& NewTask)
 {
-	const bool bStartOnTopOfSamePriority = (NewTask.GetResourceOverlapPolicy() == ETaskResourceOverlapPolicy::StartOnTop);
+	if ((NewTask.GetResourceOverlapPolicy() == ETaskResourceOverlapPolicy::RequestCancelAndStartOnTop)
+		|| (NewTask.GetResourceOverlapPolicy() == ETaskResourceOverlapPolicy::RequestCancelAndStartAtEnd))
+	{
+		const FGameplayResourceSet NewClaimedResources = NewTask.GetClaimedResources();
+		TArray<UGameplayTask*, TInlineAllocator<2>> CancelList;
+
+		for (UGameplayTask* Task : TaskPriorityQueue)
+		{
+			if (Task != nullptr
+				&& Task->GetPriority() <= NewTask.GetPriority()
+				&& Task->GetClaimedResources().HasAnyID(NewClaimedResources))
+			{
+				// Postpone cancelling, as cancel can call EndTask() and may alter the TaskPriorityQueue.  
+				CancelList.Add(Task);
+			}
+		}
+
+		for (UGameplayTask* Task : CancelList)
+		{
+			Task->ExternalCancel();
+		}
+	}
+	
+	const bool bStartOnTopOfSamePriority = (NewTask.GetResourceOverlapPolicy() == ETaskResourceOverlapPolicy::StartOnTop)
+										|| (NewTask.GetResourceOverlapPolicy() == ETaskResourceOverlapPolicy::RequestCancelAndStartOnTop);
 	int32 InsertionPoint = INDEX_NONE;
 	
 	for (int32 Idx = 0; Idx < TaskPriorityQueue.Num(); ++Idx)

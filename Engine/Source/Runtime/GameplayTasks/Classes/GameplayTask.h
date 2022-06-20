@@ -35,6 +35,10 @@ enum class ETaskResourceOverlapPolicy : uint8
 	StartOnTop,
 	/** Wait for other same-priority tasks to finish. */
 	StartAtEnd,
+	/** Request to cancel same or lower priority tasks, if tasks not ended pause overlapping same-priority tasks. */
+	RequestCancelAndStartOnTop,
+	/** Request to cancel same or lower priority tasks, wait for any remaining overlapping same-priority tasks to finish. */
+	RequestCancelAndStartAtEnd,
 };
 	
 USTRUCT(BlueprintType)
