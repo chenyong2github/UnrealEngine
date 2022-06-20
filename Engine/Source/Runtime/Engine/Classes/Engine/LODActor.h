@@ -350,6 +350,9 @@ private:
 	void RegisterMeshComponents();
 	void UnregisterMeshComponents();
 
+	UFUNCTION()
+	void OnSubActorEndPlay(AActor* Actor, EEndPlayReason::Type Reason);
+
 #if WITH_EDITOR
 	// Get/Create the LOD instanced static mesh component for a given imposter material.
 	UInstancedStaticMeshComponent* GetISMComponent(const FHLODInstancingKey& InstancingKey) const;
