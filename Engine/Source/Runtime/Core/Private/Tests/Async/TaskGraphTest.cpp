@@ -1433,6 +1433,24 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		return true;
 	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTaskGraphCreateCompletionHandleTest, "System.Core.Async.TaskGraph.CreateCompletionHandle", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTaskGraphCreateCompletionHandleTest::RunTest(const FString& Parameters)
+	{
+		FGraphEventRef UnblockTask = FGraphEvent::CreateGraphEvent(); // to block initially the following task
+		FGraphEventRef Task = FFunctionGraphTask::CreateAndDispatchWhenReady([] {}, TStatId{}, UnblockTask); // supposedly long-living task
+		FGraphEventRef CompletionHandle = Task->CreateCompletionHandle();
+		// check that the completion handle is not signalling as the task is blocked
+		FPlatformProcess::Sleep(0.1f);
+		check(!CompletionHandle->IsComplete());
+		// unblock the task
+		UnblockTask->DispatchSubsequents();
+		// wating for the completion handle instead of waiting for the task, should succeed
+		CompletionHandle->Wait();
+
+		return true;
+	}
 }
 
 #endif //WITH_DEV_AUTOMATION_TESTS

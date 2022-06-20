@@ -1320,6 +1320,24 @@ namespace UE { namespace TasksTests
 
 		return true;
 	}
+
+	IMPLEMENT_SIMPLE_AUTOMATION_TEST(FTasksCreateCompletionHandleTest, "System.Core.Async.Tasks.CreateCompletionHandle", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::EngineFilter);
+
+	bool FTasksCreateCompletionHandleTest::RunTest(const FString& Parameters)
+	{
+		FTaskEvent UnblockTask{ UE_SOURCE_LOCATION }; // to block initially the following task
+		FTask Task = Launch(UE_SOURCE_LOCATION, [] {}, Prerequisites(UnblockTask)); // supposedly long-living task
+		FTask CompletionHandle = Task.CreateCompletionHandle();
+		// check that the completion handle is not signalling as the task is blocked
+		FPlatformProcess::Sleep(0.1f);
+		check(!CompletionHandle.IsCompleted());
+		// unblock the task
+		UnblockTask.Trigger();
+		// wating for the completion handle instead of waiting for the task, should succeed
+		check(CompletionHandle.Wait(FTimespan::FromMilliseconds(100)));
+
+		return true;
+	}
 }}
 
 #endif // WITH_DEV_AUTOMATION_TESTS

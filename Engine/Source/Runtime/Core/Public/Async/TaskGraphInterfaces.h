@@ -628,6 +628,27 @@ public:
 
 		return (ENamedThreads::Type)ConversionMap[(int32)Priority - (int32)EExtendedTaskPriority::GameThreadNormalPri];
 	}
+
+	// see Tasks::FTaskHandle::CreateCompletionHandle description
+	FGraphEventRef CreateCompletionHandle()
+	{
+		if (IsCompleted())
+		{
+			return {};
+		}
+
+		// CreateGraphEvent() uses an allocator that doesn't have an issue with long-living allocs
+		FGraphEventRef CompletionHandle = FGraphEvent::CreateGraphEvent();
+		if (!CompletionHandle->AddPrerequisites(*this))
+		{
+			return {}; // too late, the task is already completed
+		}
+
+		// trigger the completion handle so the only thing that holds it from signalling is the task itself
+		CompletionHandle->DispatchSubsequents();
+
+		return CompletionHandle;
+	}
 };
 
 // the new task implementation integrated into the old task API
@@ -1066,6 +1087,13 @@ public:
 #else
 		return TaskTrace::InvalidId;
 #endif
+	}
+
+	// does nothing and is needed only for compatibility with the new frontend
+	FGraphEventRef CreateCompletionHandle()
+	{
+		// nothing to do here as this instance already serves as a completion handle
+		return this;
 	}
 
 private:

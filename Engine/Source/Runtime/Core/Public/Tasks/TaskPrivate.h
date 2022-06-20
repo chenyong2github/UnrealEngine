@@ -169,7 +169,7 @@ namespace UE::Tasks
 			// The task will be executed only when all prerequisites are completed. The task type must be a task handle that holds a pointer to
 			// FTaskBase as its `Pimpl` member (see Tasks::TTaskBase).
 			// Must not be called concurrently
-			void AddPrerequisites(FTaskBase& Prerequisite)
+			bool AddPrerequisites(FTaskBase& Prerequisite)
 			{
 				checkf(NumLocks.load(std::memory_order_relaxed) >= NumInitialLocks && NumLocks.load(std::memory_order_relaxed) < ExecutionFlag, TEXT("Prerequisites can be added only before the task is launched"));
 
@@ -180,25 +180,25 @@ namespace UE::Tasks
 				// `AddSubsequent` provides required sync
 				checkf(PrevNumLocks + 1 < ExecutionFlag, TEXT("Max number of nested tasks reached: %d"), ExecutionFlag);
 
-				if (Prerequisite.AddSubsequent(*this)) // linearisation point, acq_rel semantic
-				{
-					Prerequisite.AddRef(); // keep it alive until this task's execution
-					Prerequisites.Push(&Prerequisite); // release memory order
-				}
-				else
+				if (!Prerequisite.AddSubsequent(*this)) // linearisation point, acq_rel semantic
 				{
 					// failed to add the prerequisite (too late), correct the number
 					NumLocks.fetch_sub(1, std::memory_order_relaxed); // relaxed because the previous `AddSubsequent` call provides required sync
+					return false;
 				}
+
+				Prerequisite.AddRef(); // keep it alive until this task's execution
+				Prerequisites.Push(&Prerequisite); // release memory order
+				return true;
 			}
 
 			// The task will be executed only when all prerequisites are completed. The task type must be a task handle that holds a pointer to
 			// FTaskBase as its `Pimpl` member (see Tasks::TTaskBase).
 			// Must not be called concurrently
 			template<typename HigherLevelTaskType, decltype(std::declval<HigherLevelTaskType>().Pimpl)* = nullptr>
-			void AddPrerequisites(const HigherLevelTaskType& Prerequisite)
+			bool AddPrerequisites(const HigherLevelTaskType& Prerequisite)
 			{
-				AddPrerequisites(*Prerequisite.Pimpl);
+				return AddPrerequisites(*Prerequisite.Pimpl);
 			}
 
 			// The task will be executed only when all prerequisites are completed.
