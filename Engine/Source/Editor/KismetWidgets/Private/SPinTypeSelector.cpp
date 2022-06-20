@@ -1148,7 +1148,7 @@ TSharedRef<SWidget>	SPinTypeSelector::GetMenuContent(bool bForSecondaryType)
 
 TSharedRef<SWidget> SPinTypeSelector::GetPinContainerTypeMenuContent()
 {
-	FMenuBuilder MenuBuilder(true, nullptr);
+	FMenuBuilder MenuBuilder(true, nullptr, nullptr, /*bCloseSelfOnly*/true);
 
 	PinTypeSelectorStatics::PinTypes.Reset();
 	
