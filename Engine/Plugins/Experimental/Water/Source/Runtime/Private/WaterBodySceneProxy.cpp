@@ -162,6 +162,14 @@ void FWaterBodySceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*
 				AddWaterBodyMeshSection(Section, ViewIndex);
 			}
 		}
+
+		if ((CurrentWaterInfoPass == EWaterInfoPass::Dilation) || (bDebugShowWaterSceneProxiesEnabled))
+		{
+			for (const FWaterBodyMeshSection& Section : DilatedSections)
+			{
+				AddWaterBodyMeshSection(Section, ViewIndex);
+			}
+		}
 	}
 }
 
