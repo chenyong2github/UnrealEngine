@@ -4221,11 +4221,21 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 	int FiredTriggers = 0;
 
 	TStringBuilder<256> TriggerMessages;
+
 	const FPlatformMemoryStats MemStats = FPlatformMemory::GetStats();
+	
 	if (MemoryMinFreeVirtual > 0 || MemoryMinFreePhysical > 0)
 	{
 		++ActiveTriggers;
 		bool bFired = false;
+		
+		// trigger GC if we have less than MemoryMinFreeVirtual OR MemoryMinFreePhysical
+		// the check done in AssetCompilingManager is against the min of the two :
+		//uint64 AvailableMemory = FMath::Min(MemStats.AvailablePhysical, MemStats.AvailableVirtual);
+		// so for consistency the same check should be done here
+		// you can get that by setting the MemoryMinFreeVirtual and MemoryMinFreePhysical config to be the same
+
+		// AvailableVirtual is actually ullAvailPageFile (commit charge available)
 		if (MemoryMinFreeVirtual > 0 && MemStats.AvailableVirtual < MemoryMinFreeVirtual)
 		{
 			TriggerMessages.Appendf(TEXT("\n  CookSettings.MemoryMinFreeVirtual: Available virtual memory %dMiB is less than %dMiB."),
@@ -4244,8 +4254,24 @@ bool UCookOnTheFlyServer::HasExceededMaxMemory() const
 		}
 	}
 
+	// if MemoryMaxUsed is set, we won't GC until at least that much mem is used
+	// this can be useful if you demand that amount of memory as your min spec
 	if (MemoryMaxUsedVirtual > 0 || MemoryMaxUsedPhysical > 0)
 	{
+		// check validity of trigger :
+		if ( FiredTriggers > 0 )
+		{
+			// if the MaxUsed config exceeds the system memory, it can never be triggered and will prevent any GC :
+			uint64 MaxMaxUsed = FMath::Max(MemoryMaxUsedVirtual,MemoryMaxUsedPhysical);
+			if ( MaxMaxUsed >= MemStats.TotalPhysical )
+			{
+				UE_CALL_ONCE( [&](){
+					UE_LOG(LogCook, Warning, TEXT("Warning MemoryMaxUsed condition is larger than total memory (%dMiB >= %dMiB).  System does not have enough memory to cook this project."),
+				static_cast<uint32>(MaxMaxUsed / 1024 / 1024), static_cast<uint32>(MemStats.TotalPhysical / 1024 / 1024));			
+				} );
+			}
+		}
+
 		++ActiveTriggers;
 		bool bFired = false;
 		if (MemoryMaxUsedVirtual > 0 && MemStats.UsedVirtual >= MemoryMaxUsedVirtual)
