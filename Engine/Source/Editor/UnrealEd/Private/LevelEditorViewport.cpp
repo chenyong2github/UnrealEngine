@@ -95,6 +95,7 @@
 #include "LevelEditorDragDropHandler.h"
 #include "UnrealWidget.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
@@ -2811,7 +2812,7 @@ void FLevelEditorViewportClient::SetLastKeyViewport()
 	}
 }
 
-bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+bool FLevelEditorViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 {
 	if (bDisableInput)
 	{
@@ -2819,16 +2820,16 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	}
 
 	
-	const int32	HitX = InViewport->GetMouseX();
-	const int32	HitY = InViewport->GetMouseY();
+	const int32	HitX = InEventArgs.Viewport->GetMouseX();
+	const int32	HitY = InEventArgs.Viewport->GetMouseY();
 
-	FInputEventState InputState( InViewport, Key, Event );
+	FInputEventState InputState( InEventArgs.Viewport, InEventArgs.Key, InEventArgs.Event );
 
 	SetLastKeyViewport();
 
 	// Compute a view.
 	FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
-		InViewport,
+		InEventArgs.Viewport,
 		GetScene(),
 		EngineShowFlags )
 		.SetRealtimeUpdate( IsRealtime() ) );
@@ -2847,7 +2848,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 		FSnappingUtils::SnapPointToGrid(GEditor->ClickLocation, FVector::ZeroVector);
 	}
 
-	if (GUnrealEd->ComponentVisManager.HandleInputKey(this, InViewport, Key, Event))
+	if (GUnrealEd->ComponentVisManager.HandleInputKey(this, InEventArgs.Viewport, InEventArgs.Key, InEventArgs.Event))
 	{
 		return true;
 	}
@@ -2870,7 +2871,7 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	};
 
 
-	bool bCmdCtrlLPressed = (InputState.IsCommandButtonPressed() || InputState.IsCtrlButtonPressed()) && Key == EKeys::L;
+	bool bCmdCtrlLPressed = (InputState.IsCommandButtonPressed() || InputState.IsCtrlButtonPressed()) && InEventArgs.Key == EKeys::L;
 	if (bCmdCtrlLPressed && InputState.IsShiftButtonPressed())
 	{
 		ProcessAtmosphericLightShortcut(1, bUserIsControllingAtmosphericLight1);
@@ -2895,29 +2896,29 @@ bool FLevelEditorViewportClient::InputKey(FViewport* InViewport, int32 Controlle
 	bUserIsControllingAtmosphericLight1 = false;
 
 	UEditorWorldExtensionCollection& EditorWorldExtensionCollection = *GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions(GetWorld());
-	if (EditorWorldExtensionCollection.InputKey(this, Viewport, Key, Event))
+	if (EditorWorldExtensionCollection.InputKey(this, Viewport, InEventArgs.Key, InEventArgs.Event))
 	{
 		return true;
 	}
 
-	bool bHandled = FEditorViewportClient::InputKey(InViewport,ControllerId,Key,Event,AmountDepressed,bGamepad);
+	bool bHandled = FEditorViewportClient::InputKey(InEventArgs);
 
 	// Handle input for the player height preview mode. 
-	if (!InputState.IsMouseButtonEvent() && CommandAcceptsInput(*this, Key, GetLevelViewportCommands().EnablePreviewMesh))
+	if (!InputState.IsMouseButtonEvent() && CommandAcceptsInput(*this, InEventArgs.Key, GetLevelViewportCommands().EnablePreviewMesh))
 	{
 		// Holding down the backslash buttons turns on the mode. 
-		if (Event == IE_Pressed)
+		if (InEventArgs.Event == IE_Pressed)
 		{
 			GEditor->SetPreviewMeshMode(true);
 
 			// If shift down, cycle between the preview meshes
-			if (CommandAcceptsInput(*this, Key, GetLevelViewportCommands().CyclePreviewMesh))
+			if (CommandAcceptsInput(*this, InEventArgs.Key, GetLevelViewportCommands().CyclePreviewMesh))
 			{
 				GEditor->CyclePreviewMesh();
 			}
 		}
 		// Releasing backslash turns off the mode. 
-		else if (Event == IE_Released)
+		else if (InEventArgs.Event == IE_Released)
 		{
 			GEditor->SetPreviewMeshMode(false);
 		}
@@ -3338,7 +3339,7 @@ private:
 	FLevelEditorViewportClient* PrevCurrentLevelEditingViewportClient;
 };
 
-bool FLevelEditorViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+bool FLevelEditorViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
 	if (bDisableInput)
 	{
@@ -3349,7 +3350,7 @@ bool FLevelEditorViewportClient::InputAxis(FViewport* InViewport, int32 Controll
 
 	FScopedSetCurrentViewportClient( this );
 
-	return FEditorViewportClient::InputAxis(InViewport, ControllerId, Key, Delta, DeltaTime, NumSamples, bGamepad);
+	return FEditorViewportClient::InputAxis(InViewport, DeviceId, Key, Delta, DeltaTime, NumSamples, bGamepad);
 }
 
 

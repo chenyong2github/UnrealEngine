@@ -62,7 +62,7 @@
 #include "Engine/World.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/TraceScreenshot.h"
-
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 #include "CustomEditorStaticScreenPercentage.h"
 #include "IImageWrapperModule.h"
 
@@ -2827,12 +2827,31 @@ bool FEditorViewportClient::ShouldScaleCameraSpeedByDistance() const
 	return GetDefault<ULevelEditorViewportSettings>()->bUseDistanceScaledCameraSpeed;
 }
 
-bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float/*AmountDepressed*/, bool/*Gamepad*/)
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+{
+	FInputKeyEventArgs Args(InViewport, ControllerId, Key, Event);
+	Args.AmountDepressed = AmountDepressed;
+
+	return Internal_InputKey(Args);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
+{
+	return Internal_InputKey(EventArgs);
+}
+
+bool FEditorViewportClient::Internal_InputKey(const FInputKeyEventArgs& EventArgs)
 {
 	if (bDisableInput)
 	{
 		return true;
 	}
+	
+	FKey Key = EventArgs.Key;
+	EInputEvent Event = EventArgs.Event;
+	FViewport* InViewport = EventArgs.Viewport;
 
 	// Let the current mode have a look at the input before reacting to it. 
 	// Note that bIsTracking tells us whether the viewport client is capturing mouse behavior to fly around,
@@ -2847,8 +2866,8 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 		return true;
 	}
 
-	FInputEventState InputState(InViewport, Key, Event);
-
+	FInputEventState InputState(EventArgs.Viewport, EventArgs.Key, EventArgs.Event);
+	
 	bool bHandled = false;
 
 	if ((IsOrtho() || InputState.IsAltButtonPressed()) && (Key == EKeys::Left || Key == EKeys::Right || Key == EKeys::Up || Key == EKeys::Down))
@@ -2882,7 +2901,7 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 	const int32	HitX = InViewport->GetMouseX();
 	const int32	HitY = InViewport->GetMouseY();
 
-	FCachedJoystickState* JoystickState = GetJoystickState(ControllerId);
+	FCachedJoystickState* JoystickState = GetJoystickState(EventArgs.InputDevice.GetId());
 	if (JoystickState)
 	{
 		JoystickState->KeyEventValues.Add(Key, Event);
@@ -4384,15 +4403,33 @@ FVector FEditorViewportClient::TranslateDelta( FKey InKey, float InDelta, bool I
 	return vec;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FEditorViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	FInputDeviceId DeviceID = INPUTDEVICEID_NONE;
+	FPlatformUserId UserId = FGenericPlatformMisc::GetPlatformUserForUserIndex(ControllerId);
+	IPlatformInputDeviceMapper::Get().RemapControllerIdToPlatformUserAndDevice(ControllerId, UserId, DeviceID);
+	
+	return Internal_InputAxis(InViewport, DeviceID, Key, Delta, DeltaTime, NumSamples, bGamepad);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FEditorViewportClient::InputAxis(FViewport* InViewport, FInputDeviceId DeviceID, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	return Internal_InputAxis(InViewport, DeviceID, Key, Delta, DeltaTime, NumSamples, bGamepad);
+}
+
+bool FEditorViewportClient::Internal_InputAxis(FViewport* InViewport, FInputDeviceId DeviceID, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
 	if (bDisableInput)
 	{
 		return true;
 	}
 
+	const FPlatformUserId UserId = IPlatformInputDeviceMapper::Get().GetUserForInputDevice(DeviceID);
+	
 	// Let the current mode have a look at the input before reacting to it.
-	if (ModeTools->InputAxis(this, Viewport, ControllerId, Key, Delta, DeltaTime))
+	if (ModeTools->InputAxis(this, Viewport, FGenericPlatformMisc::GetUserIndexForPlatformUser(UserId), Key, Delta, DeltaTime))
 	{
 		return true;
 	}
@@ -4423,7 +4460,7 @@ bool FEditorViewportClient::InputAxis(FViewport* InViewport, int32 ControllerId,
 	else
 	{
 		/**Save off axis commands for future camera work*/
-		FCachedJoystickState* JoystickState = GetJoystickState(ControllerId);
+		FCachedJoystickState* JoystickState = GetJoystickState(DeviceID.GetId());
 		if (JoystickState)
 		{
 			JoystickState->AxisDeltaValues.Add(Key, Delta);
