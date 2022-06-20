@@ -118,9 +118,9 @@ namespace UnrealBuildTool.Rules
 			// When we build a Game target we also package the servers with it as runtime dependencies
 			if(Target.Type == TargetType.Game)
 			{
-				AddFolder("SignallingWebServer");
-				AddFolder("Matchmaker");
-				AddFolder("SFU");
+				//AddFolder("SignallingWebServer");
+				//AddFolder("Matchmaker");
+				//AddFolder("SFU");
 			}
 		}
 	}
