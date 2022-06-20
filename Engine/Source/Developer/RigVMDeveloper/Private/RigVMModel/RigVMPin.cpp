@@ -1603,7 +1603,7 @@ URigVMGraph* URigVMPin::GetGraph() const
 	return nullptr;
 }
 
-bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection, bool bInAllowWildcard)
+bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString* OutFailureReason, const FRigVMByteCode* InByteCode, ERigVMPinDirection InUserLinkDirection)
 {
 	if (InSourcePin == nullptr || InTargetPin == nullptr)
 	{
@@ -1679,11 +1679,6 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		static const FString Double = TEXT("double");
 
 		if (RigVMTypeUtils::AreCompatible(InSourcePin->CPPType, InSourcePin->CPPTypeObject, InTargetPin->CPPType, InTargetPin->CPPTypeObject))
-		{
-			bCPPTypesDiffer = false;
-		}
-
-		if (bInAllowWildcard && (InSourcePin->CPPType == RigVMTypeUtils::GetWildCardCPPType() || InTargetPin->CPPType == RigVMTypeUtils::GetWildCardCPPType()))
 		{
 			bCPPTypesDiffer = false;
 		}

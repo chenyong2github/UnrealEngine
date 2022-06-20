@@ -9162,10 +9162,10 @@ bool URigVMController::AddLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool b
 	TGuardValue<ERigVMPinDirection> UserLinkDirectionGuard(UserLinkDirection,
 	InUserDirection == ERigVMPinDirection::Invalid ? UserLinkDirection : InUserDirection);
 
+	if (!bIsTransacting)
 	{
 		FString FailureReason;
-		const bool bAllowWildcard = bIsTransacting; 
-		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason, GetCurrentByteCode(), UserLinkDirection, bAllowWildcard))
+		if (!Graph->CanLink(OutputPin, InputPin, &FailureReason, GetCurrentByteCode(), UserLinkDirection))
 		{
 			if(OutputPin->IsExecuteContext() && InputPin->IsExecuteContext())
 			{
