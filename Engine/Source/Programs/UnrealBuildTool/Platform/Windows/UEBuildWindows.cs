@@ -411,6 +411,24 @@ namespace UnrealBuildTool
 			get { return (Environment == null)? null : Environment.WindowsSdkDir.FullName; }
 		}
 
+
+		/// <summary>
+		/// Directory containing the NETFXSDK
+		/// </summary>
+		[SuppressMessage("Interoperability", "CA1416:Validate platform compatibility", Justification = "Manually checked")]
+		public string? NetFxSdkDir
+		{
+			get
+			{
+				DirectoryReference? NetFxSdkDir;
+				if (RuntimePlatform.IsWindows && MicrosoftPlatformSDK.TryGetNetFxSdkInstallDir(out NetFxSdkDir))
+				{
+					return NetFxSdkDir.FullName;
+				}
+				return null;
+			}
+		}
+
 		/// <summary>
 		/// Directory containing the DIA SDK
 		/// </summary>
@@ -682,6 +700,11 @@ namespace UnrealBuildTool
 		public string? WindowsSdkDir
 		{
 			get { return Inner.WindowsSdkDir; }
+		}
+
+		public string? NetFxSdkDir
+		{
+			get { return Inner.NetFxSdkDir; }
 		}
 
 		public string? DiaSdkDir
