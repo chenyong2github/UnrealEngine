@@ -1064,11 +1064,14 @@ void UNeuralNetwork::FImplBackEndUEAndORT::ClearResources()
 #endif //PLATFORM_WIN64
 }
 
-bool UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::Init(Ort::Session* InSession, Ort::AllocatorWithDefaultOptions* InAllocator, Ort::MemoryInfo* InAllocatorInfo)
+bool UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::Init(
+	Ort::Session* InSession, 
+	Ort::AllocatorWithDefaultOptions* InAllocator, 
+	Ort::MemoryInfo* InAllocatorInfo,
+	ENeuralDeviceType InInputDeviceType, 
+	ENeuralDeviceType InOutputDeviceType)
 {
 	// Current assumptions here (all these things can be fixed with more work): 
-	// Input tensors are CPU
-	// Output tensors are GPU 
 	// Float data types only
 	// No variable dimensions
 
@@ -1117,20 +1120,32 @@ bool UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::Init(Ort::Session*
 			if (bInputTensors)
 			{
 				InputTensorNames.Emplace(TensorName);
-
 				InputTensors.Emplace(FNeuralTensor(TensorDataType, TensorSizes, ANSI_TO_TCHAR(TensorName), TensorType));
-
 				InputOrtTensors.Emplace(Ort::Value(nullptr));
-				LinkTensorToONNXRuntime(InputTensors[TensorIndex], InputOrtTensors[TensorIndex], *InAllocatorInfo);
+				
+				if (InInputDeviceType == ENeuralDeviceType::CPU)
+				{
+					LinkTensorToONNXRuntime(InputTensors[TensorIndex], InputOrtTensors[TensorIndex], *InAllocatorInfo);
+				}
+				else
+				{
+					InputTensors[TensorIndex].SetEnableGPU(true);
+				}
 			}
 			else
 			{
 				OutputTensorNames.Emplace(TensorName);
-
-				FNeuralTensor& Tensor = OutputTensors.Emplace_GetRef(FNeuralTensor(TensorDataType, TensorSizes, ANSI_TO_TCHAR(TensorName), TensorType));
-				Tensor.SetEnableGPU(true);
-
+				OutputTensors.Emplace(FNeuralTensor(TensorDataType, TensorSizes, ANSI_TO_TCHAR(TensorName), TensorType));
 				OutputOrtTensors.Emplace(Ort::Value(nullptr));
+
+				if (InOutputDeviceType == ENeuralDeviceType::CPU)
+				{
+					LinkTensorToONNXRuntime(OutputTensors[TensorIndex], OutputOrtTensors[TensorIndex], *InAllocatorInfo);
+				}
+				else
+				{
+					OutputTensors[TensorIndex].SetEnableGPU(true);
+				}
 			}
 
 			TypeInfo.release();
@@ -1185,11 +1200,11 @@ void UNeuralNetwork::FImplBackEndUEAndORT::FInferenceContext::ReleaseDMLAllocati
 
 #endif //WITH_UE_AND_ORT_SUPPORT
 
-int32 UNeuralNetwork::FImplBackEndUEAndORT::CreateInferenceContext()
+int32 UNeuralNetwork::FImplBackEndUEAndORT::CreateInferenceContext(ENeuralDeviceType InInputDeviceType, ENeuralDeviceType InOutputDeviceType)
 {
 #ifdef WITH_UE_AND_ORT_SUPPORT
 	const int32 Handle = Contexts.Emplace();
-	Contexts[Handle].Init(Session.Get(), Allocator.Get(), AllocatorInfo.Get());
+	Contexts[Handle].Init(Session.Get(), Allocator.Get(), AllocatorInfo.Get(), InInputDeviceType, InOutputDeviceType);
 	return Handle;
 #else
 	UE_LOG(LogNeuralNetworkInference, Warning, TEXT("FImplBackEndUEAndORT::CreateInferenceContext(): Platform or Operating System not suported yet for UEAndORT"
@@ -1207,6 +1222,18 @@ void UNeuralNetwork::FImplBackEndUEAndORT::DestroyInferenceContext(int32 InConte
 #endif
 	Contexts[InContextHandle].Release();
 	Contexts.RemoveAt(InContextHandle);
+#endif
+}
+
+void UNeuralNetwork::FImplBackEndUEAndORT::Run(int32 InContextHandle)
+{
+#ifdef WITH_UE_AND_ORT_SUPPORT
+	FInferenceContext& Context = Contexts[InContextHandle];
+
+	Session.Get()->Run(
+		Ort::RunOptions{ nullptr },
+		Context.InputTensorNames.GetData(), &Context.InputOrtTensors[0], Context.InputTensorNames.Num(),
+		Context.OutputTensorNames.GetData(), &Context.OutputOrtTensors[0], Context.OutputTensorNames.Num());
 #endif
 }
 

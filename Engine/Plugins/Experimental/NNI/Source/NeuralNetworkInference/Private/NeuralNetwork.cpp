@@ -735,18 +735,30 @@ int32 UNeuralNetwork::CreateInferenceContext()
 		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::CreateInferenceContext(): Execution contexts currently only support synchronous Onyx models."));
 		return -1;
 	}
-	if (DeviceType != ENeuralDeviceType::GPU || InputDeviceType != ENeuralDeviceType::CPU || OutputDeviceType != ENeuralDeviceType::GPU)
+	if (InputDeviceType != ENeuralDeviceType::CPU)
 	{
-		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::CreateInferenceContext(): Execution contexts currently only support GPU device with CPU input -> GPU ouput."));
+		UE_LOG(LogNeuralNetworkInference, Warning, TEXT("UNeuralNetwork::CreateInferenceContext(): Execution contexts currently only support CPU input."));
 		return -1;
 	}
 
-	return ImplBackEndUEAndORT->CreateInferenceContext();
+	return ImplBackEndUEAndORT->CreateInferenceContext(InputDeviceType, OutputDeviceType);
 }
 
 void UNeuralNetwork::DestroyInferenceContext(int32 ContextHandle)
 {
 	return ImplBackEndUEAndORT->DestroyInferenceContext(ContextHandle);
+}
+
+void UNeuralNetwork::Run(int32 ContextHandle)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("UNeuralNetwork_Run"), STAT_UNeuralNetwork_Run, STATGROUP_MachineLearning);
+
+	FNeuralTimer RunTimer;
+	RunTimer.Tic();
+
+	ImplBackEndUEAndORT->Run(ContextHandle);
+
+	RunStatisticsEstimator.StoreSample(RunTimer.Toc());
 }
 
 void UNeuralNetwork::Run(FRDGBuilder& GraphBuilder, int32 ContextHandle)

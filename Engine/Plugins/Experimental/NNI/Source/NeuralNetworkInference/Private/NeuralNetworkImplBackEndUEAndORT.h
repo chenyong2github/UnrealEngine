@@ -53,9 +53,10 @@ public:
 		const TArray<uint8>& InModelReadFromFileInBytes, const FString& InModelFullFilePath, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType,
 		const ENeuralDeviceType InOutputDeviceType);
 
-	int32 CreateInferenceContext();
+	int32 CreateInferenceContext(ENeuralDeviceType InInputDeviceType, ENeuralDeviceType InOutputDeviceType);
 	void DestroyInferenceContext(int32 ContextHandle);
 
+	void Run(int32 ContextHandle);
 	void Run(FRDGBuilder& GraphBuilder, int32 ContextHandle);
 	void Run(const ENeuralSynchronousMode InSynchronousMode, const ENeuralDeviceType InDeviceType, const ENeuralDeviceType InInputDeviceType);
 
@@ -113,7 +114,7 @@ private:
 		TArray<Ort::Value> OutputOrtTensors;
 		TArray<void*> OutputDmlAllocation;
 
-		bool Init(Ort::Session* Session, Ort::AllocatorWithDefaultOptions* Allocator, Ort::MemoryInfo* AllocatorInfo);
+		bool Init(Ort::Session* Session, Ort::AllocatorWithDefaultOptions* Allocator, Ort::MemoryInfo* AllocatorInfo, ENeuralDeviceType InInputDeviceType, ENeuralDeviceType InOutputDeviceType);
 		void UpdateGPUAllocations(FRDGBuilder& GraphBuilder);
 		void Release();
 #ifdef PLATFORM_WIN64
