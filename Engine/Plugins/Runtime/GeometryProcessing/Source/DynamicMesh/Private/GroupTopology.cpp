@@ -229,6 +229,23 @@ const TArray<int>& FGroupTopology::GetGroupNbrGroups(int GroupID) const
 }
 
 
+bool FGroupTopology::IsGroupEdge(FMeshTriEdgeID TriEdgeID, bool bIncludeMeshBoundary) const
+{
+	int32 EdgeID = Mesh->GetTriEdge((int32)TriEdgeID.TriangleID, (int32)TriEdgeID.TriEdgeIndex);
+	if (EdgeID != IndexConstants::InvalidID)
+	{
+		FIndex2i EdgeT = Mesh->GetEdgeT(EdgeID);
+		if (EdgeT.B == IndexConstants::InvalidID)
+		{
+			return bIncludeMeshBoundary;
+		}
+		int32 GroupA = GetGroupID(EdgeT.A);
+		int32 GroupB = GetGroupID(EdgeT.B);
+		return GroupA != GroupB;
+	}
+	return false;
+}
+
 
 int FGroupTopology::FindGroupEdgeID(int MeshEdgeID) const
 {
@@ -252,6 +269,11 @@ int FGroupTopology::FindGroupEdgeID(int MeshEdgeID) const
 	return -1;
 }
 
+int FGroupTopology::FindGroupEdgeID(FMeshTriEdgeID TriEdgeID) const
+{
+	int32 EdgeID = Mesh->GetTriEdge((int32)TriEdgeID.TriangleID, (int32)TriEdgeID.TriEdgeIndex);
+	return (EdgeID != IndexConstants::InvalidID) ? FindGroupEdgeID(EdgeID) : -1;
+}
 
 const TArray<int>& FGroupTopology::GetGroupEdgeVertices(int GroupEdgeID) const
 {

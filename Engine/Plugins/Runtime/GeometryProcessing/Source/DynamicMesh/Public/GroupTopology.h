@@ -275,8 +275,12 @@ public:
 	/** @return the list of neighbour GroupIDs for the given GroupID, or empty list if not found */
 	const TArray<int>& GetGroupNbrGroups(int GroupID) const;
 
+	/** @return true if the mesh edge identified by FMeshTriEdgeID is a group boundary edge */
+	bool IsGroupEdge(FMeshTriEdgeID TriEdgeID, bool bIncludeMeshBoundary = false) const; 
 	/** @return the ID of the FGroupEdge that contains the given Mesh Edge ID*/
 	int FindGroupEdgeID(int MeshEdgeID) const;
+	/** @return the ID of the FGroupEdge that contains the given Mesh Edge ID */
+	int FindGroupEdgeID(FMeshTriEdgeID FMeshTriEdgeID) const;
 	/** @return the list of vertices of a FGroupEdge identified by the GroupEdgeID */
 	const TArray<int>& GetGroupEdgeVertices(int GroupEdgeID) const;
 	/** @return the list of edges of a FGroupEdge identified by the GroupEdgeID */

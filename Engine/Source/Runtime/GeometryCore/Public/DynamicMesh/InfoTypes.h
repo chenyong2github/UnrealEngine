@@ -33,6 +33,70 @@ struct FVertexInfo
 };
 
 
+
+/**
+ * FMeshTriEdgeID identifies an edge in a triangle mesh based on 
+ * the triangle ID/Index and the "edge index" 0/1/2 in the triangle.
+ * If the ordered triangle vertices are [A,B,C], then [A,B]=0, [B,C]=1, and [C,A]=2.
+ * 
+ * This type of edge identifier is applicable on any indexed mesh, even if 
+ * the mesh does not store explicit edge IDs. 
+ * 
+ * Values are stored unsigned, so it is currently *not* possible to store an "invalid"
+ * edge identifier as a FMeshTriEdgeID (0xFFFFFFFF could potentially be used as such an identifier).
+ * 
+ * The TriangleID is stored in 30 bits, while FDynamicMesh3 stores (valid) triangle IDs in 31 bits.
+ * So, only ~1 billion triangles are allowed in a mesh when using FMeshTriEdgeID, vs ~2 billion in FDynamicMesh3.
+ * This limit has not been encountered in practice, to date.
+ * 
+ * Note that cycling or permuting the vertices of a triangle will change these indices.
+ */
+struct FMeshTriEdgeID
+{
+	/** The 0/1/2 index of the edge in the triangle's tuple of edges */
+	unsigned TriEdgeIndex : 2;
+	/** The index of the mesh Triangle */
+	unsigned TriangleID : 30;
+
+	FMeshTriEdgeID()
+	{
+		TriEdgeIndex = 0;
+		TriangleID = 0;
+	}
+
+	/**
+	 * Construct a FMeshTriEdgeID for the given TriangleID and Edge Index in range
+	 * @param EdgeIndexIn index in range 0,1,2
+	 */
+	FMeshTriEdgeID(int32 TriangleIDIn, int32 EdgeIndexIn)
+	{
+		checkSlow(EdgeIndexIn >= 0 && EdgeIndexIn <= 2);
+		checkSlow(TriangleIDIn >= 0 && TriangleIDIn < (1<<30));
+		TriEdgeIndex = (unsigned int)EdgeIndexIn;
+		TriangleID = (unsigned int)TriangleIDIn;
+	}
+
+	/**
+	 * Decode an encoded FMeshTriEdgeID from a packed uint32 created by the Encoded() function
+	 */
+	FMeshTriEdgeID(uint32 EncodedEdgeKey)
+	{
+		TriangleID = EncodedEdgeKey & 0x8FFFFFFF;
+		TriEdgeIndex = (EncodedEdgeKey & 0xC0000000) >> 30;
+	}
+
+	/**
+	 * @return the (TriangleID, TriEdgeIndex) values packed into a 32 bit integer
+	 */
+	uint32 Encoded() const
+	{
+		return (TriEdgeIndex << 30) | TriangleID;
+	}
+};
+
+
+
+
 } // end namespace UE::Geometry
 } // end namespace UE
 
