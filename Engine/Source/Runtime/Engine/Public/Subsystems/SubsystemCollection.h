@@ -87,6 +87,8 @@ private:
 
 	TMap<UClass*, USubsystem*> SubsystemMap;
 
+	TMap<UClass*, TWeakObjectPtr<USubsystem>> SubsystemMapWeak;
+
 	mutable TMap<UClass*, TArray<USubsystem*>> SubsystemArrayMap;
 
 	UClass* BaseType;
