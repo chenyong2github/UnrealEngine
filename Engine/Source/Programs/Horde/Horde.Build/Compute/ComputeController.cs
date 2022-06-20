@@ -28,7 +28,7 @@ namespace Horde.Build.Compute
 		/// </summary>
 		/// <param name="aclService"></param>
 		/// <param name="computeService">The compute service singleton</param>
-		internal ComputeController(AclService aclService, ComputeService computeService)
+		public ComputeController(AclService aclService, ComputeService computeService)
 		{
 			_aclService = aclService;
 			_computeService = computeService;
