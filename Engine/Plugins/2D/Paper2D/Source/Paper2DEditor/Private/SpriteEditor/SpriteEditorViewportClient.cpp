@@ -839,10 +839,10 @@ UPaperSprite* FSpriteEditorViewportClient::CreateNewSprite(const FIntPoint& TopL
 	return CreatedSprite;
 }
 
-bool FSpriteEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+bool FSpriteEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
 	bool bHandled = false;
-	FInputEventState InputState(InViewport, Key, Event);
+	FInputEventState InputState(EventArgs.Viewport, EventArgs.Key, EventArgs.Event);
 
 	// Handle marquee tracking in source region edit mode
 	if (IsInSourceRegionEditMode())
@@ -851,7 +851,7 @@ bool FSpriteEditorViewportClient::InputKey(FViewport* InViewport, int32 Controll
 		check(GeometryEditMode);
 
 		const bool bMarqueeStartModifier = InputState.IsCtrlButtonPressed();
-		if (GeometryEditMode->ProcessMarquee(InViewport, Key, Event, bMarqueeStartModifier))
+		if (GeometryEditMode->ProcessMarquee(EventArgs.Viewport, EventArgs.Key, EventArgs.Event, bMarqueeStartModifier))
 		{
 			FIntPoint TextureSpaceStartPos;
 			FIntPoint TextureSpaceDimensions;
@@ -864,7 +864,7 @@ bool FSpriteEditorViewportClient::InputKey(FViewport* InViewport, int32 Controll
 	}
 	
 	// Pass keys to standard controls, if we didn't consume input
-	return (bHandled) ? true : FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, bGamepad);
+	return (bHandled) ? true : FEditorViewportClient::InputKey(EventArgs);
 }
 
 void FSpriteEditorViewportClient::TrackingStarted(const struct FInputEventState& InInputState, bool bIsDragging, bool bNudge)
