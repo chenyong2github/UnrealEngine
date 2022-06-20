@@ -152,6 +152,9 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 		BoneRadius = AnimViewportClient->GetBoneDrawSize();
 	}
 
+	// use colors from user preferences
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
+
 	// spin through all bones and render them
 	TArray<FVector> ChildPositions;
 	TArray<FLinearColor> ChildColors;
@@ -167,9 +170,9 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 		// determine color of bone based on selection / affected state
 		const bool bIsSelected = SelectedBones[ElementIndex];
 		const bool bIsAffected = AffectedBones[ElementIndex];
-		FLinearColor DefaultBoneColor = SkeletalDebugRendering::DEFAULT_BONE_COLOR;
-		FLinearColor BoneColor = bIsAffected ? SkeletalDebugRendering::AFFECTED_BONE_COLOR : DefaultBoneColor;
-		BoneColor = bIsSelected ? SkeletalDebugRendering::SELECTED_BONE_COLOR : BoneColor;
+		FLinearColor DefaultBoneColor = PersonaOptions->DefaultBoneColor;
+		FLinearColor BoneColor = bIsAffected ? PersonaOptions->AffectedBoneColor : DefaultBoneColor;
+		BoneColor = bIsSelected ? PersonaOptions->SelectedBoneColor : BoneColor;
 
 		// draw the little coordinate frame inside the bone ONLY if selected or affected
 		const bool bDrawAxesInsideBone = bIsAffected|| bIsSelected;
@@ -186,7 +189,7 @@ void FControlRigEditorEditMode::Render(const FSceneView* View, FViewport* Viewpo
 			FLinearColor ChildLineColor = BoneColor;
 			if (!bIsSelected && SelectedBones[ChildIndex])
 			{
-				ChildLineColor = SkeletalDebugRendering::PARENT_OF_SELECTED_BONE_COLOR;
+				ChildLineColor = PersonaOptions->ParentOfSelectedBoneColor;
 			}
 			ChildColors.Add(ChildLineColor);
 		}

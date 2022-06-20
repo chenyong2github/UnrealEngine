@@ -12,6 +12,7 @@
 #include "RigEditor/IKRigHitProxies.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "IKRigDebugRendering.h"
+#include "Preferences/PersonaOptions.h"
 
 #define LOCTEXT_NAMESPACE "IKRetargeterEditMode"
 
@@ -155,6 +156,9 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 	TSet<int32> OutSelectedBones;
 	GetAffectedBones(Controller.Get(), CurrentProcessor,OutAffectedBones,OutSelectedBones);
 
+	// use colors from user preferences
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
+
 	// draw bones
 	TArray<int32> ChildrenIndices;
 	const FIKRigSkeleton& Skeleton = CurrentProcessor->GetSkeleton();
@@ -164,8 +168,8 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 		// selected bones are drawn with different color
 		const bool bIsSelected = OutSelectedBones.Contains(BoneIndex);
 		const bool bIsAffected = OutAffectedBones.Contains(BoneIndex);
-		FLinearColor LineColor = bIsAffected ? SkeletalDebugRendering::AFFECTED_BONE_COLOR : SkeletalDebugRendering::DEFAULT_BONE_COLOR;
-		LineColor = bIsSelected ? SkeletalDebugRendering::SELECTED_BONE_COLOR : LineColor;
+		FLinearColor LineColor = bIsAffected ? PersonaOptions->AffectedBoneColor : PersonaOptions->DefaultBoneColor;
+		LineColor = bIsSelected ? PersonaOptions->SelectedBoneColor : LineColor;
 
 		// only draw axes on affected/selected bones
 		const bool bDrawAxes = bIsSelected || bIsAffected;
@@ -186,7 +190,7 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 			FLinearColor ChildLineColor = LineColor;
 			if (!bIsSelected && OutSelectedBones.Contains(ChildIndex))
 			{
-				ChildLineColor = SkeletalDebugRendering::PARENT_OF_SELECTED_BONE_COLOR;
+				ChildLineColor = PersonaOptions->ParentOfSelectedBoneColor;
 			}
 			ChildColors.Add(ChildLineColor);
 		}

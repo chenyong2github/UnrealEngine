@@ -1419,7 +1419,7 @@ void FAnimationViewportClient::DrawBonesFromTransforms(
 
 	if (MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut)
 	{
-		BoneColour = SkeletalDebugRendering::DISABLED_BONE_COLOR;
+		BoneColour = GetDefault<UPersonaOptions>()->DisabledBoneColor;
 	}
 	
 	TArray<FTransform> WorldTransforms;
@@ -1469,7 +1469,7 @@ void FAnimationViewportClient::DrawBonesFromCompactPose(
 	}
 
 	// optionally override draw color
-	const FLinearColor BoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? SkeletalDebugRendering::DISABLED_BONE_COLOR : DrawColor;
+	const FLinearColor BoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? GetDefault<UPersonaOptions>()->DisabledBoneColor : DrawColor;
 	
 	TArray<FTransform> WorldTransforms;
 	WorldTransforms.AddUninitialized(Pose.GetBoneContainer().GetNumBones());
@@ -1587,8 +1587,8 @@ void FAnimationViewportClient::DrawMeshBones(UDebugSkelMeshComponent* MeshCompon
 	BoneColours.AddUninitialized(MeshComponent->GetNumDrawTransform());
 
 	// factor skeleton draw mode into color selection
-	const FLinearColor BoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? SkeletalDebugRendering::DISABLED_BONE_COLOR : SkeletalDebugRendering::DEFAULT_BONE_COLOR;
-	const FLinearColor VirtualBoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? SkeletalDebugRendering::DISABLED_BONE_COLOR : SkeletalDebugRendering::VIRTUAL_BONE_COLOR;
+	const FLinearColor BoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? GetDefault<UPersonaOptions>()->DisabledBoneColor : GetDefault<UPersonaOptions>()->DefaultBoneColor;
+	const FLinearColor VirtualBoneColor = MeshComponent->SkeletonDrawMode == ESkeletonDrawMode::GreyedOut ? GetDefault<UPersonaOptions>()->DisabledBoneColor : GetDefault<UPersonaOptions>()->VirtualBoneColor;
 	
 	// we could cache parent bones as we calculate, but right now I'm not worried about perf issue of this
 	const TArray<FBoneIndexType>& DrawBoneIndices = MeshComponent->GetDrawBoneIndices();
@@ -1696,6 +1696,7 @@ void FAnimationViewportClient::DrawBones(
 	
 	// spin through all required bones and render them
 	const float BoneRadius = GetBoneDrawSize();
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
 	for ( int32 Index=0; Index<RequiredBones.Num(); ++Index )
 	{
 		const int32 BoneIndex = RequiredBones[Index];
@@ -1710,9 +1711,9 @@ void FAnimationViewportClient::DrawBones(
 		// determine color of bone based on selection / affected state
 		const bool bIsSelected = InSelectedBones.Contains(BoneIndex);
 		const bool bIsAffected = AffectedBones[BoneIndex];
-		FLinearColor DefaultBoneColor = BoneColors.IsEmpty() ? SkeletalDebugRendering::DEFAULT_BONE_COLOR : BoneColors[Index];
-		FLinearColor BoneColor = bIsAffected ? SkeletalDebugRendering::AFFECTED_BONE_COLOR : DefaultBoneColor;
-		BoneColor = bIsSelected ? SkeletalDebugRendering::SELECTED_BONE_COLOR : BoneColor;
+		FLinearColor DefaultBoneColor = BoneColors.IsEmpty() ? PersonaOptions->DefaultBoneColor : BoneColors[Index];
+		FLinearColor BoneColor = bIsAffected ? PersonaOptions->AffectedBoneColor : DefaultBoneColor;
+		BoneColor = bIsSelected ? PersonaOptions->SelectedBoneColor : BoneColor;
 
 		// draw the little coordinate frame inside the bone ONLY if selected or affected
 		const bool bDrawAxesInsideBone = bIsAffected|| bIsSelected;
@@ -1730,7 +1731,7 @@ void FAnimationViewportClient::DrawBones(
 				FLinearColor ChildLineColor = BoneColor;
 				if (!bIsSelected && InSelectedBones.Contains(ChildIndex))
 				{
-					ChildLineColor = SkeletalDebugRendering::PARENT_OF_SELECTED_BONE_COLOR;
+					ChildLineColor = PersonaOptions->ParentOfSelectedBoneColor;
 				}
 				ChildColors.Add(ChildLineColor);
 			}
@@ -1786,6 +1787,7 @@ void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent
 
 	// we could cache parent bones as we calculate, but right now I'm not worried about perf issue of this
 	const TArray<FBoneIndexType>& DrawBoneIndices = MeshComponent->GetDrawBoneIndices();
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
 	for ( auto Iter = DrawBoneIndices.CreateConstIterator(); Iter; ++Iter)
 	{
 		const int32 BoneIndex = *Iter;
@@ -1805,13 +1807,13 @@ void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent
 				{
 					WorldTransforms[ParentIndex] = MeshComponent->GetDrawTransform(ParentIndex)*MeshComponent->GetComponentTransform();
 				}
-				BoneColours[BoneIndex] = SkeletalDebugRendering::SELECTED_BONE_COLOR;
+				BoneColours[BoneIndex] = PersonaOptions->SelectedBoneColor;
 				bDrawBone = true;
 				break;
 			}
 			else if ( RefSkeleton.BoneIsChildOf(BoneIndex, SubBoneIndex) )
 			{
-				BoneColours[BoneIndex] = SkeletalDebugRendering::DEFAULT_BONE_COLOR;
+				BoneColours[BoneIndex] = PersonaOptions->DefaultBoneColor;
 				bDrawBone = true;
 				break;
 			}

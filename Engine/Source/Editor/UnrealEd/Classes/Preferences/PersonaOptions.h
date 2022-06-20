@@ -146,6 +146,24 @@ class UNREALED_API UPersonaOptions : public UObject
 	UPROPERTY(EditAnywhere, config, Category = "Viewport")
 	uint32 DefaultBoneDrawSelection;
 
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	FLinearColor DefaultBoneColor;
+
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	FLinearColor SelectedBoneColor;
+
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	FLinearColor AffectedBoneColor;
+
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	FLinearColor DisabledBoneColor;
+
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	FLinearColor ParentOfSelectedBoneColor;
+
+	UPROPERTY(EditAnywhere, config, Category = "Viewport")
+	FLinearColor VirtualBoneColor;
+
 	UPROPERTY(EditAnywhere, config, Category = "Composites and Montages")
 	FLinearColor SectionTimingNodeColor;
 

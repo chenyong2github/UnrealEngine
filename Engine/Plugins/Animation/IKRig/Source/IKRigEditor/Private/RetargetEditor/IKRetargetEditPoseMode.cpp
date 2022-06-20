@@ -10,6 +10,7 @@
 #include "IPersonaPreviewScene.h"
 #include "Animation/DebugSkelMeshComponent.h"
 #include "Materials/MaterialInstanceDynamic.h"
+#include "Preferences/PersonaOptions.h"
 #include "RetargetEditor/IKRetargetAnimInstance.h"
 #include "RetargetEditor/IKRetargetHitProxies.h"
 #include "RetargetEditor/IKRetargetEditor.h"
@@ -88,6 +89,9 @@ void FIKRetargetEditPoseMode::RenderSkeleton(
 	const int32 RootBoneIndex = GetEditedRetargetRootBoneIndex(*Processor);
 	const float MaxDrawRadius = Controller->TargetSkelMeshComponent->Bounds.SphereRadius * 0.01f;
 
+	// use colors from user preferences
+	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
+
 	// loop over whole skeleton and draw each bone
 	for (int32 BoneIndex = 0; BoneIndex<Skeleton.BoneNames.Num(); ++BoneIndex)
 	{
@@ -95,9 +99,9 @@ void FIKRetargetEditPoseMode::RenderSkeleton(
 		const bool bIsSelected = OutSelectedBones.Contains(BoneIndex);
 		const bool bIsAffected = OutAffectedBones.Contains(BoneIndex);
 		const bool bIsDisabled = !(Skeleton.IsBoneInAnyChain[BoneIndex] || BoneIndex==RootBoneIndex);
-		FLinearColor LineColor = bIsAffected ? SkeletalDebugRendering::AFFECTED_BONE_COLOR : SkeletalDebugRendering::DEFAULT_BONE_COLOR;
-		LineColor = bIsSelected ? SkeletalDebugRendering::SELECTED_BONE_COLOR : LineColor;
-		LineColor = bIsDisabled ? SkeletalDebugRendering::DISABLED_BONE_COLOR : LineColor;
+		FLinearColor LineColor = bIsAffected ? PersonaOptions->AffectedBoneColor : PersonaOptions->DefaultBoneColor;
+		LineColor = bIsSelected ? PersonaOptions->SelectedBoneColor : LineColor;
+		LineColor = bIsDisabled ? PersonaOptions->DisabledBoneColor : LineColor;
 		
 		const float BoneRadius = FMath::Min(1.0f, MaxDrawRadius) * BoneDrawSize;
 		
@@ -121,7 +125,7 @@ void FIKRetargetEditPoseMode::RenderSkeleton(
 			FLinearColor ChildLineColor = LineColor;
 			if (!bIsSelected && OutSelectedBones.Contains(ChildIndex))
 			{
-				ChildLineColor = SkeletalDebugRendering::PARENT_OF_SELECTED_BONE_COLOR;
+				ChildLineColor = PersonaOptions->ParentOfSelectedBoneColor;
 			}
 			ChildColors.Add(ChildLineColor);
 		}

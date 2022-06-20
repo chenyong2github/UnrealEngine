@@ -9,13 +9,6 @@ class FPrimitiveDrawInterface;
 
 namespace SkeletalDebugRendering
 {
-	static const FLinearColor DEFAULT_BONE_COLOR = FLinearColor(0.0f,0.0f,0.025f,1.0f);
-	static const FLinearColor SELECTED_BONE_COLOR = FLinearColor(0.2f,1.0f,0.2f,1.0f);
-	static const FLinearColor AFFECTED_BONE_COLOR = FLinearColor(1.0f,1.0f,1.0f,1.0f);
-	static const FLinearColor DISABLED_BONE_COLOR = FLinearColor(0.4f,0.4f,0.4f,1.0f);
-	static const FLinearColor PARENT_OF_SELECTED_BONE_COLOR = FLinearColor(0.85f,0.45f,0.12f,1.0f);
-	static const FLinearColor VIRTUAL_BONE_COLOR = FLinearColor(0.4f, 0.4f, 1.0f, 1.0f);
-
 	static const int32 NumSphereSides = 10;
 	static const int32 NumConeSides = 4;
 
