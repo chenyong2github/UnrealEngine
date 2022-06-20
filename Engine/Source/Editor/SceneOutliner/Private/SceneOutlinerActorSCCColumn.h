@@ -8,6 +8,8 @@
 #include "ISceneOutliner.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "ISceneOutlinerColumn.h"
+#include "SSourceControlWidget.h"
+#include "ToolMenu.h"
 
 template<typename ItemType> class STableRow;
 
@@ -21,6 +23,8 @@ public:
 	virtual ~FSceneOutlinerActorSCCColumn() {}
 
 	static FName GetID() { return FSceneOutlinerBuiltInColumnTypes::SourceControl(); }
+
+	bool AddSourceControlMenuOptions(UToolMenu* Menu, TArray<FSceneOutlinerTreeItemPtr> InSelectedItems);
 
 	//////////////////////////////////////////////////////////////////////////
 	// Begin ISceneOutlinerColumn Implementation
@@ -38,5 +42,30 @@ public:
 private:
 	const FSlateBrush* GetHeaderIcon() const;
 
+	bool CanExecuteSourceControlActions() const;
+	void CacheCanExecuteVars();
+	bool CanExecuteSCCCheckOut() const;
+	bool CanExecuteSCCCheckIn() const;
+	bool CanExecuteSCCHistory() const;
+	bool CanExecuteSCCRevert() const;
+	bool CanExecuteSCCRefresh() const;
+	void FillSourceControlSubMenu(UToolMenu* Menu);
+	void GetSelectedPackageNames(TArray<FString>& OutPackageNames) const;
+	void GetSelectedPackages(TArray<UPackage*>& OutPackages) const;
+	void ExecuteSCCRefresh();
+	void ExecuteSCCCheckOut();
+	void ExecuteSCCCheckIn();
+	void ExecuteSCCHistory();
+	void ExecuteSCCRevert();
+
 	TWeakPtr<ISceneOutliner> WeakSceneOutliner;
+
+	TArray<FSceneOutlinerTreeItemPtr> SelectedItems;
+
+	TMap<FSceneOutlinerTreeItemPtr, TSharedRef<SSourceControlWidget>> ItemWidgets;
+
+	bool bCanExecuteSCCCheckOut = false;
+	bool bCanExecuteSCCCheckIn = false;
+	bool bCanExecuteSCCHistory = false;
+	bool bCanExecuteSCCRevert = false;
 };

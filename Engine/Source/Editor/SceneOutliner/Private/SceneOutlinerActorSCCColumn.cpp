@@ -7,189 +7,14 @@
 #include "ActorDescTreeItem.h"
 #include "ActorFolderTreeItem.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
-#include "ISourceControlProvider.h"
 #include "ISourceControlModule.h"
-#include "SourceControlHelpers.h"
-#include "Widgets/Images/SLayeredImage.h"
+#include "SourceControlOperations.h"
+#include "FileHelpers.h"
+#include "SourceControlWindows.h"
+#include "AssetViewUtils.h"
+#include "Misc/MessageDialog.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutlinerSourceControlColumn"
-
-class SSourceControlWidget : public SLayeredImage
-{
-public:
-	SLATE_BEGIN_ARGS(SSourceControlWidget) {}
-	SLATE_END_ARGS()
-
-	/** Construct this widget */
-	void Construct(const FArguments& InArgs, TWeakPtr<ISceneOutliner> InWeakOutliner, TWeakPtr<ISceneOutlinerTreeItem> InWeakTreeItem)
-	{
-		WeakTreeItem = InWeakTreeItem;
-		WeakOutliner = InWeakOutliner;
-
-		SImage::Construct(
-			SImage::FArguments()
-			.ColorAndOpacity(this, &SSourceControlWidget::GetForegroundColor)
-			.Image(FStyleDefaults::GetNoBrush()));
-
-		FSceneOutlinerTreeItemPtr TreeItemPtr = WeakTreeItem.Pin();
-		if (TreeItemPtr.IsValid())
-		{
-			if (FActorTreeItem* ActorItem = TreeItemPtr->CastTo<FActorTreeItem>())
-			{
-				if (AActor* Actor = ActorItem->Actor.Get())
-				{
-					if (Actor->IsPackageExternal())
-					{
-						ExternalPackageName = USourceControlHelpers::PackageFilename(Actor->GetExternalPackage());
-					}
-
-					ActorPackingModeChangedDelegateHandle = Actor->OnPackagingModeChanged.AddLambda([this](AActor* InActor, bool bExternal)
-						{
-							if (bExternal)
-							{
-								ExternalPackageName = USourceControlHelpers::PackageFilename(InActor->GetExternalPackage());
-								ConnectSourceControl();
-							}
-							else
-							{
-								ExternalPackageName = FString();
-								DisconnectSourceControl();
-							}
-						});
-				}
-			}
-			else if (FActorFolderTreeItem* ActorFolderItem = TreeItemPtr->CastTo<FActorFolderTreeItem>())
-			{
-				if (const UActorFolder* ActorFolder = ActorFolderItem->GetActorFolder())
-				{
-					if (ActorFolder->IsPackageExternal())
-					{
-						ExternalPackageName = USourceControlHelpers::PackageFilename(ActorFolder->GetExternalPackage());
-					}
-				}
-			}
-			else if (FActorDescTreeItem* ActorDescItem = TreeItemPtr->CastTo<FActorDescTreeItem>())
-			{
-				if (const FWorldPartitionActorDesc* ActorDesc = ActorDescItem->ActorDescHandle.Get())
-				{
-					ExternalPackageName =  USourceControlHelpers::PackageFilename(ActorDesc->GetActorPackage().ToString());
-				}
-			}
-		}
-
-		if (!ExternalPackageName.IsEmpty())
-		{
-			ConnectSourceControl();
-		}
-	}
-
-	~SSourceControlWidget()
-	{
-		DisconnectSourceControl();
-	}
-
-private:
-
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
-	{
-		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::ForceUpdate);
-		if (SourceControlState.IsValid())
-		{
-			UpdateSourceControlStateIcon(SourceControlState);
-
-		}
-		return FReply::Handled();
-	}
-
-	void ConnectSourceControl()
-	{
-		check(!ExternalPackageName.IsEmpty());
-
-		ISourceControlModule& SCCModule = ISourceControlModule::Get();
-		SourceControlProviderChangedDelegateHandle = SCCModule.RegisterProviderChanged(FSourceControlProviderChanged::FDelegate::CreateSP(this, &SSourceControlWidget::HandleSourceControlProviderChanged));
-		SourceControlStateChangedDelegateHandle = SCCModule.GetProvider().RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlWidget::HandleSourceControlStateChanged, EStateCacheUsage::Use));
-
-		// Check if there is already a cached state for this item
-		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, EStateCacheUsage::Use);
-		if (SourceControlState.IsValid() && !SourceControlState->IsUnknown())
-		{
-			UpdateSourceControlStateIcon(SourceControlState);
-		}
-		else
-		{
-			SCCModule.QueueStatusUpdate(ExternalPackageName);
-		}
-	}
-
-	void DisconnectSourceControl()
-	{
-		FSceneOutlinerTreeItemPtr TreeItemPtr = WeakTreeItem.Pin();
-		if (TreeItemPtr.IsValid())
-		{
-			if (FActorTreeItem* ActorItem = TreeItemPtr->CastTo<FActorTreeItem>())
-			{
-				if (AActor* Actor = ActorItem->Actor.Get())
-				{
-					Actor->OnPackagingModeChanged.Remove(ActorPackingModeChangedDelegateHandle);
-				}
-			}
-		}
-		ISourceControlModule::Get().GetProvider().UnregisterSourceControlStateChanged_Handle(SourceControlStateChangedDelegateHandle);
-		ISourceControlModule::Get().UnregisterProviderChanged(SourceControlProviderChangedDelegateHandle);
-	}
-
-	void HandleSourceControlStateChanged(EStateCacheUsage::Type CacheUsage)
-	{
-		FSourceControlStatePtr SourceControlState = ISourceControlModule::Get().GetProvider().GetState(ExternalPackageName, CacheUsage);
-		if (SourceControlState.IsValid())
-		{
-			UpdateSourceControlStateIcon(SourceControlState);
-		}
-	}
-
-	void HandleSourceControlProviderChanged(ISourceControlProvider& OldProvider, ISourceControlProvider& NewProvider)
-	{
-		OldProvider.UnregisterSourceControlStateChanged_Handle(SourceControlStateChangedDelegateHandle);
-		SourceControlStateChangedDelegateHandle = NewProvider.RegisterSourceControlStateChanged_Handle(FSourceControlStateChanged::FDelegate::CreateSP(this, &SSourceControlWidget::HandleSourceControlStateChanged, EStateCacheUsage::Use));
-		
-		UpdateSourceControlStateIcon(nullptr);
-
-		ISourceControlModule::Get().QueueStatusUpdate(ExternalPackageName);
-	}
-
-	void UpdateSourceControlStateIcon(FSourceControlStatePtr SourceControlState)
-	{
-		if(SourceControlState.IsValid())
-		{
-			FSlateIcon Icon = SourceControlState->GetIcon();
-			
-			SetFromSlateIcon(Icon);
-		}
-		else
-		{
-			SetImage(nullptr);
-			RemoveAllLayers();
-		}
-	}
-
-	/** The tree item we relate to */
-	TWeakPtr<ISceneOutlinerTreeItem> WeakTreeItem;
-
-	/** Reference back to the outliner so we can set visibility of a whole selection */
-	TWeakPtr<ISceneOutliner> WeakOutliner;
-
-	/** Cache the items external package name */
-	FString ExternalPackageName;
-
-	/** Source control state changed delegate handle */
-	FDelegateHandle SourceControlStateChangedDelegateHandle;
-
-	/** Source control provider changed delegate handle */
-	FDelegateHandle SourceControlProviderChangedDelegateHandle;
-
-	/** Actor packaging mode changed delegate handle */
-	FDelegateHandle ActorPackingModeChangedDelegateHandle;
-};
 
 FName FSceneOutlinerActorSCCColumn::GetColumnID()
 {
@@ -218,12 +43,16 @@ const TSharedRef<SWidget> FSceneOutlinerActorSCCColumn::ConstructRowWidget(FScen
 		TreeItem->IsA<FActorDescTreeItem>() || 
 		(TreeItem->IsA<FActorFolderTreeItem>() && TreeItem->CastTo<FActorFolderTreeItem>()->GetActorFolder()))
 	{
+		TSharedRef<SSourceControlWidget> Widget = SNew(SSourceControlWidget, WeakSceneOutliner, TreeItem);
+
+		ItemWidgets.Add(FSceneOutlinerTreeItemPtr(TreeItem), Widget);
+		
 		return SNew(SHorizontalBox)
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
 			[
-				SNew(SSourceControlWidget, WeakSceneOutliner, TreeItem)
+				Widget
 			];
 	}
 	return SNullWidget::NullWidget;
@@ -239,6 +68,300 @@ const FSlateBrush* FSceneOutlinerActorSCCColumn::GetHeaderIcon() const
 	{
 		return FAppStyle::GetBrush("SourceControl.StatusIcon.Off");
 	}
+}
+
+bool FSceneOutlinerActorSCCColumn::AddSourceControlMenuOptions(UToolMenu* Menu, TArray<FSceneOutlinerTreeItemPtr> InSelectedItems)
+{
+	SelectedItems = InSelectedItems;
+
+	CacheCanExecuteVars();
+
+	FToolMenuSection& Section = Menu->AddSection("AssetContextSourceControl");
+	
+	if ( ISourceControlModule::Get().IsEnabled() )
+	{
+		// SCC sub menu
+		Section.AddSubMenu(
+			"SourceControlSubMenu",
+			LOCTEXT("SourceControlSubMenuLabel", "Source Control"),
+			LOCTEXT("SourceControlSubMenuToolTip", "Source control actions."),
+			FNewToolMenuDelegate::CreateSP(this, &FSceneOutlinerActorSCCColumn::FillSourceControlSubMenu),
+			FUIAction(
+				FExecuteAction(),
+				FCanExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::CanExecuteSourceControlActions )
+				),
+			EUserInterfaceActionType::Button,
+			false,
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.StatusIcon.On")
+			);
+	}
+
+	return true;
+}
+
+
+bool FSceneOutlinerActorSCCColumn::CanExecuteSourceControlActions() const
+{
+	return SelectedItems.Num() > 0;
+}
+
+void FSceneOutlinerActorSCCColumn::CacheCanExecuteVars()
+{
+	bCanExecuteSCCCheckOut = false;
+	bCanExecuteSCCCheckIn = false;
+	bCanExecuteSCCHistory = false;
+	bCanExecuteSCCRevert = false;
+
+	ISourceControlProvider& SourceControlProvider = ISourceControlModule::Get().GetProvider();
+	if ( ISourceControlModule::Get().IsEnabled() )
+	{
+		for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
+		{
+			TSharedRef<SSourceControlWidget> * WidgetLookup = ItemWidgets.Find(SelectedItem);
+			if (WidgetLookup == nullptr)
+			{
+				continue;
+			}
+
+			TSharedRef<SSourceControlWidget> Widget = *WidgetLookup;
+
+			// Check the SCC state for each package in the selected paths
+			FSourceControlStatePtr SourceControlState = Widget->GetSourceControlState();
+			if(SourceControlState.IsValid())
+			{
+				if ( SourceControlState->CanCheckout() )
+				{
+					bCanExecuteSCCCheckOut = true;
+				}
+
+				if( SourceControlState->IsSourceControlled() && !SourceControlState->IsAdded() )
+				{
+					bCanExecuteSCCHistory = true;
+				}
+
+				if ( SourceControlState->CanCheckIn() )
+				{
+					bCanExecuteSCCCheckIn = true;
+				}
+
+				if (SourceControlState->CanRevert())
+				{
+					bCanExecuteSCCRevert = true;
+				}
+			}
+
+			if ( bCanExecuteSCCCheckOut
+				&& bCanExecuteSCCCheckIn
+				&& bCanExecuteSCCHistory
+				&& bCanExecuteSCCRevert
+				)
+			{
+				// All options are available, no need to keep iterating
+				break;
+			}
+		}
+	}
+}
+
+bool FSceneOutlinerActorSCCColumn::CanExecuteSCCCheckOut() const
+{
+	return bCanExecuteSCCCheckOut;
+}
+
+bool FSceneOutlinerActorSCCColumn::CanExecuteSCCCheckIn() const
+{
+	return bCanExecuteSCCCheckIn;
+}
+
+bool FSceneOutlinerActorSCCColumn::CanExecuteSCCHistory() const
+{
+	return bCanExecuteSCCHistory;
+}
+
+bool FSceneOutlinerActorSCCColumn::CanExecuteSCCRevert() const
+{
+	return bCanExecuteSCCRevert;
+}
+
+bool FSceneOutlinerActorSCCColumn::CanExecuteSCCRefresh() const
+{
+	return ISourceControlModule::Get().IsEnabled();
+}
+
+void FSceneOutlinerActorSCCColumn::FillSourceControlSubMenu(UToolMenu* Menu)
+{
+	FToolMenuSection& Section = Menu->AddSection("AssetSourceControlActions", LOCTEXT("AssetSourceControlActionsMenuHeading", "Source Control"));
+
+	if ( CanExecuteSCCCheckOut() )
+	{
+		Section.AddMenuEntry(
+			"SCCCheckOut",
+			LOCTEXT("SCCCheckOut", "Check Out"),
+			LOCTEXT("SCCCheckOutTooltip", "Checks out the selected asset from source control."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.CheckOut"),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::ExecuteSCCCheckOut ),
+				FCanExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::CanExecuteSCCCheckOut )
+			)
+		);
+	}
+
+	if ( CanExecuteSCCCheckIn() )
+	{
+		Section.AddMenuEntry(
+			"SCCCheckIn",
+			LOCTEXT("SCCCheckIn", "Check In"),
+			LOCTEXT("SCCCheckInTooltip", "Checks in the selected asset to source control."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Submit"),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::ExecuteSCCCheckIn ),
+				FCanExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::CanExecuteSCCCheckIn )
+			)
+		);
+	}
+
+	Section.AddMenuEntry(
+		"SCCRefresh",
+		LOCTEXT("SCCRefresh", "Refresh"),
+		LOCTEXT("SCCRefreshTooltip", "Updates the source control status of the asset."),
+		FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Refresh"),
+		FUIAction(
+			FExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::ExecuteSCCRefresh ),
+			FCanExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::CanExecuteSCCRefresh )
+			)
+		);
+
+	if( CanExecuteSCCHistory() )
+	{
+		Section.AddMenuEntry(
+			"SCCHistory",
+			LOCTEXT("SCCHistory", "History"),
+			LOCTEXT("SCCHistoryTooltip", "Displays the source control revision history of the selected asset."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.History"),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::ExecuteSCCHistory ),
+				FCanExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::CanExecuteSCCHistory )
+			)
+		);
+	}
+
+	if( CanExecuteSCCRevert() )
+	{
+		Section.AddMenuEntry(
+			"SCCRevert",
+			LOCTEXT("SCCRevert", "Revert"),
+			LOCTEXT("SCCRevertTooltip", "Reverts the asset to the state it was before it was checked out."),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "SourceControl.Actions.Revert"),
+			FUIAction(
+				FExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::ExecuteSCCRevert ),
+				FCanExecuteAction::CreateSP( this, &FSceneOutlinerActorSCCColumn::CanExecuteSCCRevert )
+			)
+		);
+	}
+}
+
+void FSceneOutlinerActorSCCColumn::GetSelectedPackageNames(TArray<FString>& OutPackageNames) const
+{
+	for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
+	{
+		const TSharedRef<SSourceControlWidget> * WidgetLookup = ItemWidgets.Find(SelectedItem);
+		if (WidgetLookup == nullptr)
+		{
+			continue;
+		}
+
+		TSharedRef<SSourceControlWidget> Widget = *WidgetLookup;
+		FString PackageName = Widget->GetPackageName();
+		if (!PackageName.IsEmpty()) {
+			OutPackageNames.Add(PackageName);
+		}
+	}
+}
+
+void FSceneOutlinerActorSCCColumn::GetSelectedPackages(TArray<UPackage*>& OutPackages) const
+{
+	for (FSceneOutlinerTreeItemPtr SelectedItem : SelectedItems)
+	{
+		const TSharedRef<SSourceControlWidget> * WidgetLookup = ItemWidgets.Find(SelectedItem);
+		if (WidgetLookup == nullptr)
+		{
+			continue;
+		}
+
+		TSharedRef<SSourceControlWidget> Widget = *WidgetLookup;
+		UPackage* Package = Widget->GetPackage();
+		if (Package != nullptr) {
+			OutPackages.Add(Package);
+		}
+	}
+}
+
+void FSceneOutlinerActorSCCColumn::ExecuteSCCRefresh()
+{
+	TArray<FString> PackageNames;
+	GetSelectedPackageNames(PackageNames);
+
+	ISourceControlModule::Get().GetProvider().Execute(ISourceControlOperation::Create<FUpdateStatus>(), SourceControlHelpers::PackageFilenames(PackageNames), EConcurrency::Asynchronous);
+}
+
+void FSceneOutlinerActorSCCColumn::ExecuteSCCCheckOut()
+{
+	TArray<UPackage*> PackagesToCheckOut;
+	GetSelectedPackages(PackagesToCheckOut);
+
+	if ( PackagesToCheckOut.Num() > 0 )
+	{
+		FEditorFileUtils::CheckoutPackages(PackagesToCheckOut);
+	}
+}
+
+void FSceneOutlinerActorSCCColumn::ExecuteSCCCheckIn()
+{
+	TArray<UPackage*> Packages;
+	GetSelectedPackages(Packages);
+
+	// Prompt the user to ask if they would like to first save any dirty packages they are trying to check-in
+	const FEditorFileUtils::EPromptReturnCode UserResponse = FEditorFileUtils::PromptForCheckoutAndSave( Packages, true, true );
+
+	// If the user elected to save dirty packages, but one or more of the packages failed to save properly OR if the user
+	// canceled out of the prompt, don't follow through on the check-in process
+	const bool bShouldProceed = ( UserResponse == FEditorFileUtils::EPromptReturnCode::PR_Success || UserResponse == FEditorFileUtils::EPromptReturnCode::PR_Declined );
+	if ( bShouldProceed )
+	{
+		TArray<FString> PackageNames;
+		GetSelectedPackageNames(PackageNames);
+
+		const bool bUseSourceControlStateCache = true;
+		const bool bCheckinGood = FSourceControlWindows::PromptForCheckin(bUseSourceControlStateCache, PackageNames);
+
+		if (!bCheckinGood)
+		{
+			FMessageDialog::Open(EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "SCC_Checkin_Failed", "Check-in failed as a result of save failure."));
+		}
+	}
+	else
+	{
+		// If a failure occurred, alert the user that the check-in was aborted. This warning shouldn't be necessary if the user cancelled
+		// from the dialog, because they obviously intended to cancel the whole operation.
+		if ( UserResponse == FEditorFileUtils::EPromptReturnCode::PR_Failure )
+		{
+			FMessageDialog::Open( EAppMsgType::Ok, NSLOCTEXT("UnrealEd", "SCC_Checkin_Aborted", "Check-in aborted as a result of save failure.") );
+		}
+	}
+}
+
+void FSceneOutlinerActorSCCColumn::ExecuteSCCHistory()
+{
+	TArray<FString> PackageNames;
+	GetSelectedPackageNames(PackageNames);
+	FSourceControlWindows::DisplayRevisionHistory(SourceControlHelpers::PackageFilenames(PackageNames));
+}
+
+void FSceneOutlinerActorSCCColumn::ExecuteSCCRevert()
+{
+	TArray<FString> PackageNames;
+	GetSelectedPackageNames(PackageNames);
+	FSourceControlWindows::PromptForRevert(PackageNames);
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -36,6 +36,7 @@
 #include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 #include "EditorLevelUtils.h"
 #include "EditorViewportCommands.h"
+#include "SceneOutlinerActorSCCColumn.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
@@ -153,7 +154,7 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 			}
 		});
 	FilterInfoMap.Add(TEXT("HideLevelInstancesFilter"), HideLevelInstancesInfo);
-	
+
 	FSceneOutlinerFilterInfo HideUnloadedActorsInfo(LOCTEXT("ToggleHideUnloadedActors", "Hide Unloaded Actors"), LOCTEXT("ToggleHideUnloadedActorsToolTip", "When enabled, hides all unloaded world partition actors."), LocalSettings.bHideUnloadedActors, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideUnloadedActorsFilter));
 	HideUnloadedActorsInfo.OnToggle().AddLambda([this] (bool bIsActive)
 		{
@@ -228,7 +229,7 @@ FActorBrowsingMode::~FActorBrowsingMode()
 	GEngine->OnLevelActorDeleted().RemoveAll(this);
 
 	GEditor->OnSelectUnloadedActorsEvent().RemoveAll(this);
-		
+
 	FEditorDelegates::OnEditCutActorsBegin.RemoveAll(this);
 	FEditorDelegates::OnEditCutActorsEnd.RemoveAll(this);
 	FEditorDelegates::OnEditCopyActorsBegin.RemoveAll(this);
@@ -251,7 +252,7 @@ void FActorBrowsingMode::Rebuild()
 			WorldPartition->OnActorDescRemovedEvent.RemoveAll(this);
 		}
 	}
-	
+
 	FActorMode::Rebuild();
 
 	FilteredActorCount = 0;
@@ -269,7 +270,7 @@ void FActorBrowsingMode::Rebuild()
 	}
 }
 
-FText FActorBrowsingMode::GetStatusText() const 
+FText FActorBrowsingMode::GetStatusText() const
 {
 	if (!RepresentingWorld.IsValid())
 	{
@@ -409,7 +410,7 @@ TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateIsInCurrentLevelFilte
 TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideComponentsFilter()
 {
 	return MakeShared<TSceneOutlinerPredicateFilter<FComponentTreeItem>>(TSceneOutlinerPredicateFilter<FComponentTreeItem>(
-		FComponentTreeItem::FFilterPredicate::CreateStatic([](const UActorComponent*) { return false; }), 
+		FComponentTreeItem::FFilterPredicate::CreateStatic([](const UActorComponent*) { return false; }),
 		FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
@@ -548,6 +549,19 @@ void FActorBrowsingMode::RegisterContextMenu()
 							}
 						}
 					}
+
+					if (Context->NumSelectedItems > 0 && Context->SceneOutliner.IsValid())
+					{
+						SSceneOutliner* SceneOutliner = Context->SceneOutliner.Pin().Get();
+						TMap<FName, TSharedPtr<ISceneOutlinerColumn>> OutlinerColumns = SceneOutliner->GetColumns();
+						TSharedPtr<ISceneOutlinerColumn> * ColumnLookup = OutlinerColumns.Find("Source Control");
+						if (ColumnLookup != nullptr && ColumnLookup->IsValid())
+						{
+							TSharedPtr<FSceneOutlinerActorSCCColumn> SCCColumn = StaticCastSharedPtr<FSceneOutlinerActorSCCColumn>(*ColumnLookup);
+							TArray<FSceneOutlinerTreeItemPtr> SelectedItems = SceneOutliner->GetTree().GetSelectedItems();
+							SCCColumn->AddSourceControlMenuOptions(InMenu, SelectedItems);
+						}
+					}
 				}
 			}));
 
@@ -593,7 +607,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 										FSceneOutlinerTreeItemPtr Item = Selection.SelectedItems[0].Pin();
 										if (FActorFolderTreeItem* FolderItem = Item->CastTo<FActorFolderTreeItem>())
 										{
-											return FolderItem->World.IsValid() && 
+											return FolderItem->World.IsValid() &&
 												  (FolderItem->World->GetCurrentLevel() == FolderItem->GetFolder().GetRootObjectAssociatedLevel()) &&
 												  (FActorFolders::Get().GetActorEditorContextFolder(*FolderItem->World) != FolderItem->GetFolder());
 										}
@@ -779,7 +793,7 @@ void FActorBrowsingMode::OnSelectUnloadedActors(const TArray<FGuid>& ActorGuids)
 			ItemsToSelect.Add(ItemPtr);
 		}
 	}
-	
+
 	if (ItemsToSelect.Num())
 	{
 		SceneOutliner->SetItemSelection(ItemsToSelect, true);
@@ -979,7 +993,7 @@ FReply FActorBrowsingMode::OnKeyDown(const FKeyEvent& InKeyEvent)
 	}
 
 	// Delete key: Delete selected actors (not rebindable, because it doesn't make much sense to bind.)
-	// Use Delete and Backspace instead of Platform_Delete because the LevelEditor default Edit Delete is bound to both 
+	// Use Delete and Backspace instead of Platform_Delete because the LevelEditor default Edit Delete is bound to both
 	else if (InKeyEvent.GetKey() == EKeys::Delete || InKeyEvent.GetKey() == EKeys::BackSpace)
 	{
 		if (SceneOutliner->GetSharedData().CustomDelete.IsBound())
@@ -994,7 +1008,7 @@ FReply FActorBrowsingMode::OnKeyDown(const FKeyEvent& InKeyEvent)
 			}
 		}
 		return FReply::Handled();
-			
+
 	}
 
 	/* Allow the user to scroll to the current selection (and expand if needed) by pressing the key bound to
@@ -1022,7 +1036,7 @@ FReply FActorBrowsingMode::OnKeyDown(const FKeyEvent& InKeyEvent)
 			}
 		}
 	}
-	
+
 	return FReply::Unhandled();
 }
 
@@ -1112,7 +1126,7 @@ TSharedPtr<FDragDropOperation> FActorBrowsingMode::CreateDragDropOperation(const
 	OutlinerOp->Construct();
 	return OutlinerOp;
 }
-	
+
 bool FActorBrowsingMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload, const FDragDropOperation& Operation) const
 {
 	if (Operation.IsOfType<FSceneOutlinerDragDropOp>())
@@ -1142,7 +1156,7 @@ bool FActorBrowsingMode::ParseDragDrop(FSceneOutlinerDragDropPayload& OutPayload
 		}
 		return true;
 	}
-		
+
 	return false;
 }
 
@@ -1392,7 +1406,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 						}
 					}
 				}
-				
+
 				if (Actor->IsChildActor())
 				{
 					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText::Format(LOCTEXT("Error_AttachChildActor", "Cannot move {0} as it is a child actor."), FText::FromString(Actor->GetActorLabel())));
@@ -1555,7 +1569,7 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 					PerformAttachment(NAME_None, DropActor, MoveTemp(DraggedActors));
 				}
 			}
-			
+
 		}
 		// Report errors
 		EditorErrors.Notify(NSLOCTEXT("ActorAttachmentError", "AttachmentsFailed", "Attachments Failed!"));
@@ -1595,14 +1609,14 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 
 					// If the folder root object changes, 1st pass will put actors at root. 2nd pass will set the destination path.
 					FName NewPath = (SrcFolder.GetRootObject() == DestinationPath.GetRootObject()) ? DestinationPath.GetPath() : NAME_None;
-					
+
 					Actor->SetFolderPath(NewPath);
 					FActorEditorUtils::TraverseActorTree_ParentFirst(Actor, [&](AActor* InActor) {
 						ChildActors.Add(InActor);
 						InActor->SetFolderPath(NewPath);
 						return true;
 						}, false);
-					
+
 					if ((Actor->GetFolderRootObject() != DestinationPath.GetRootObject()) && SrcFolder.IsRootObjectPersistentLevel() && (DestinationPath.IsRootObjectValid() && !DestinationPath.IsRootObjectPersistentLevel()))
 					{
 						MovingActorsToValidRootObject.Add(Actor);
@@ -1934,7 +1948,7 @@ void FActorBrowsingMode::UnpinItems(const TArray<FSceneOutlinerTreeItemPtr>& InI
 		WorldPartition->UnpinActors(ActorsToUnpin);
 
 		GEditor->GetSelectedActors()->EndBatchSelectOperation(/*bNotify=*/true);
-	}	
+	}
 }
 
 void FActorBrowsingMode::PinSelectedItems()
