@@ -78,6 +78,7 @@ int NumDynamicPointLights;
 #define FORCE_VERTEX_NORMAL (MOBILE_QL_DISABLE_MATERIAL_NORMAL)
 #define SUPPORT_SPOTLIGHTS_SHADOW (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && PROJECT_MOBILE_ENABLE_MOVABLE_SPOTLIGHTS_SHADOW
 #define DEFERRED_SHADING_PATH (MOBILE_DEFERRED_SHADING && ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER))
+#define OUTPUT_WORLDNORMALROUGHNESS USE_WORLDNORMALROUGHNESS
 
 #define ALLOW_CUBE_REFLECTIONS HQ_REFLECTIONS
 
@@ -597,7 +598,7 @@ void Main(
 	// MALI supports only up to 4 input attachements (GBufferA,GBufferB,GBufferC + SceneDepth)
 	// will have to change GBuffer format to fit GBufferD into this limit
 	//, out half4 OutGBufferD	: SV_Target5
-#else
+#elif OUTPUT_WORLDNORMALROUGHNESS
 	, out half4 OutWorldNormalRoughness : SV_Target1
 #endif
 #if OUTPUT_PIXEL_DEPTH_OFFSET
@@ -684,8 +685,12 @@ void Main(
 	ShadingModelContext.Opacity = GetMaterialOpacity(PixelMaterialInputs);
 
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 #if !DEFERRED_SHADING_PATH
+=======
+#if OUTPUT_WORLDNORMALROUGHNESS
+>>>>>>> c69d8ac596b (Fixed: Output out_Target1 location or component exceeds max allowed.)
 	OutWorldNormalRoughness.rg = UnitVectorToOctahedron( normalize(GBuffer.WorldNormal) ) * 0.5f + 0.5f;
 	OutWorldNormalRoughness.b = GBuffer.Roughness;
 #endif
