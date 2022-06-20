@@ -157,6 +157,11 @@ void UNiagaraStackSimulationStagePropertiesItem::SimulationStagePropertiesChange
 
 bool UNiagaraStackSimulationStagePropertiesItem::HasBaseSimulationStage() const
 {
+	if (GetSystemViewModel()->GetIsForDataProcessingOnly())
+	{
+		// If the model is just for data processing we don't want to go through the whole merge procedure and treat the stage entry as non-inherited.
+		return false;
+	}
 	if (bHasBaseSimulationStageCache.IsSet() == false)
 	{
 		FVersionedNiagaraEmitter VersionedEmitter = GetEmitterViewModel()->GetEmitter();
