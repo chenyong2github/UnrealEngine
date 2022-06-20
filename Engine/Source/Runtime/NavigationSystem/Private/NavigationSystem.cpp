@@ -3427,7 +3427,6 @@ void UNavigationSystemV1::Build()
 	TRACE_CPUPROFILER_EVENT_SCOPE(UNavigationSystemV1::Build);
 	
 	UE_LOG(LogNavigationDataBuild, Display, TEXT("UNavigationSystemV1::Build started..."));
-	UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building navigation data using Chaos physics."));
 
 	UWorld* World = GetWorld();
 	if (!World)

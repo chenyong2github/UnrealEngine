@@ -47,7 +47,7 @@
 
 #endif // WITH_RECAST
 
-namespace 
+namespace UE::NavMesh::Private
 {
 	// Max tile size in voxels. Larger than this tiles will start to get slow to build.
 	constexpr int32 ArbitraryMaxTileSizeVoxels = 1024;
@@ -76,10 +76,6 @@ namespace
 		return FMath::Clamp(CellSize, ArbitraryMinCellSize, ArbitraryMaxCellSize);
 	}
 
-}
-
-namespace UE::NavMesh::Private
-{
 	FNavTileRef GetTileRefFromPolyRef(const dtNavMesh& DetourMesh, const NavNodeRef PolyRef)
 	{
 		unsigned int Salt = 0;
@@ -2877,8 +2873,8 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			}
 			else if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, TileSizeUU))
 			{
-				CellSize = GetClampedCellSize(CellSize);
-				TileSizeUU = GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
+				CellSize = UE::NavMesh::Private::GetClampedCellSize(CellSize);
+				TileSizeUU = UE::NavMesh::Private::GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
 						
 				// Match cell size to tile size.
 				CellSize = TileSizeUU / FMath::TruncToInt(TileSizeUU / CellSize);
@@ -2888,8 +2884,8 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			}
 			else if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, CellSize))
 			{
-				CellSize = GetClampedCellSize(CellSize);
-				TileSizeUU = GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
+				CellSize = UE::NavMesh::Private::GetClampedCellSize(CellSize);
+				TileSizeUU = UE::NavMesh::Private::GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
 				
 				// Match tile size to cell size.
 				TileSizeUU = CellSize * FMath::TruncToInt(TileSizeUU / CellSize);
