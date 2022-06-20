@@ -275,16 +275,14 @@ TStatId FAdvancedPreviewScene::GetStatId() const
 	return TStatId();
 }
 
-const bool FAdvancedPreviewScene::HandleViewportInput(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+const bool FAdvancedPreviewScene::HandleViewportInput(FViewport* InViewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
 	bool bResult = false;
 	const bool bMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton) || InViewport->KeyState(EKeys::MiddleMouseButton) || InViewport->KeyState(EKeys::RightMouseButton);
 	
-	
 	const bool bSkyMove = InViewport->KeyState(EKeys::K);
 	const bool bLightMoveDown = InViewport->KeyState(EKeys::L);
 	
-
 	// Look at which axis is being dragged and by how much
 	const float DragX = (Key == EKeys::MouseX) ? Delta : 0.f;	
 	const float DragY = (Key == EKeys::MouseY) ? Delta : 0.f;
@@ -308,12 +306,25 @@ const bool FAdvancedPreviewScene::HandleViewportInput(FViewport* InViewport, int
 	return bResult;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+const bool FAdvancedPreviewScene::HandleViewportInput(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+{
+	return HandleViewportInput(InViewport, FInputDeviceId::CreateFromInternalId(ControllerId), Key, Delta, DeltaTime, NumSamples, bGamepad);
+}
+
 const bool FAdvancedPreviewScene::HandleInputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool Gamepad)
 {
-	if (Event == IE_Pressed)
+	FInputKeyEventArgs Args(InViewport, ControllerId, Key, Event, AmountDepressed, false);
+	return HandleInputKey(Args);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+const bool FAdvancedPreviewScene::HandleInputKey(const FInputKeyEventArgs& EventArgs)
+{
+	if (EventArgs.Event == IE_Pressed)
 	{
 		FModifierKeysState KeyState = FSlateApplication::Get().GetModifierKeys();
-		if (UICommandList->ProcessCommandBindings(Key, KeyState, (Event == IE_Repeat))) //-V547
+		if (UICommandList->ProcessCommandBindings(EventArgs.Key, KeyState, (EventArgs.Event == IE_Repeat))) //-V547
 		{
 			return true;
 		}

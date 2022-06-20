@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UnrealClient.h"
 #include "Stats/Stats.h"
 #include "InputCoreTypes.h"
 #include "PreviewScene.h"
@@ -40,8 +41,15 @@ public:
 	virtual TStatId GetStatId() const override;
 	/* End FTickableEditorObject */
 
+	UE_DEPRECATED(5.1, "This version of HandleInputKey is deprecated. Please use the version that takes EventArgs instead.")
 	const bool HandleViewportInput(FViewport* InViewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
+	
+	const bool HandleViewportInput(FViewport* InViewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad);
+
+	UE_DEPRECATED(5.1, "This version of HandleInputKey is deprecated. Please use the version that takes EventArgs instead.")
 	const bool HandleInputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool Gamepad);
+
+	const bool HandleInputKey(const FInputKeyEventArgs& EventArgs);
 
 	void SetSkyRotation(const float SkyRotation);
 	/* Sets the visiblity state for the floor/environment by storing it in the scene profile and refreshing the scene, in case bDirect is true it sets the visibility directly and leaves the profile untouched. */
