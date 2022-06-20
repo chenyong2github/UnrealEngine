@@ -20,7 +20,7 @@ public:
 	FActorPaletteViewportClient(int32 InTabIndex);
 
 	// FViewportClient interface
-	virtual bool InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad) override;
+	virtual bool InputKey(const FInputKeyEventArgs& InEventArgs) override;
 	// End of FViewportClient interface
 
 	// FEditorViewportClient interface

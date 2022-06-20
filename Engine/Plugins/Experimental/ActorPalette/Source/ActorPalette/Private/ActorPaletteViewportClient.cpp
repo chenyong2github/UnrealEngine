@@ -45,13 +45,13 @@ FActorPaletteViewportClient::FActorPaletteViewportClient(int32 InTabIndex)
 	EngineShowFlags.Grid = false;
 }
 
-bool FActorPaletteViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+bool FActorPaletteViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 {
-	if (Key == EKeys::LeftMouseButton)
+	if (InEventArgs.Key == EKeys::LeftMouseButton)
 	{
 		if (FSlateApplication::Get().IsDragDropping())
 		{
-// 			if (Event == IE_Released)
+// 			if (InEventArgs.Event == IE_Released)
 // 			{
 // 				FSlateApplication::Get().CancelDragDrop();
 // 			}
@@ -59,8 +59,8 @@ bool FActorPaletteViewportClient::InputKey(FViewport* InViewport, int32 Controll
 			return true;
 		}
 
-		const int32	HitX = InViewport->GetMouseX();
-		const int32	HitY = InViewport->GetMouseY();
+		const int32	HitX = InEventArgs.Viewport->GetMouseX();
+		const int32	HitY = InEventArgs.Viewport->GetMouseY();
 
 		// Calc the raw delta from the mouse to detect if there was any movement
 		FVector RawMouseDelta = MouseDeltaTracker->GetRawDelta();
@@ -76,7 +76,7 @@ bool FActorPaletteViewportClient::InputKey(FViewport* InViewport, int32 Controll
 		}
 		else
 		{
-			HHitProxy* HitProxy = InViewport->GetHitProxy(HitX, HitY);
+			HHitProxy* HitProxy = InEventArgs.Viewport->GetHitProxy(HitX, HitY);
 
 
 			if (HActor* ActorProxy = HitProxyCast<HActor>(HitProxy))
@@ -100,7 +100,7 @@ bool FActorPaletteViewportClient::InputKey(FViewport* InViewport, int32 Controll
 						TSharedPtr<FAssetDragDropOp> DragDropOperation = FAssetDragDropOp::New(FAssetData(Assets[0], true));
 
 						TSet<FKey> PressedMouseButtons;
-						PressedMouseButtons.Add(Key);
+						PressedMouseButtons.Add(InEventArgs.Key);
 
 						FModifierKeysState ModifierKeyState;
 
@@ -131,7 +131,9 @@ bool FActorPaletteViewportClient::InputKey(FViewport* InViewport, int32 Controll
 	}
 	else
 	{
-		return FEditorViewportClient::InputKey(InViewport, ControllerId, (Key == EKeys::RightMouseButton) ? EKeys::LeftMouseButton : Key, Event, AmountDepressed, bGamepad);
+		FInputKeyEventArgs Args = InEventArgs;
+		Args.Key = (InEventArgs.Key == EKeys::RightMouseButton) ? EKeys::LeftMouseButton : InEventArgs.Key;
+		return FEditorViewportClient::InputKey(Args);
 	}
 }
 
