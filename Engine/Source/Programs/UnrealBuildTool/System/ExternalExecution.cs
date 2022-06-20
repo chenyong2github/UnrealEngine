@@ -920,7 +920,7 @@ namespace UnrealBuildTool
 			// print anything for that event.
 			if (!String.IsNullOrEmpty(Event.Data))
 			{
-				Logger.LogInformation("{Output}", Event.Data);
+				Log.TraceInformation("{0}", Event.Data); // Output must be routed through event matchers; can't use Logger directly.
 			}
 		}
 
