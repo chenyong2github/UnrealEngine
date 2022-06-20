@@ -72,11 +72,11 @@ protected:
 	/** Function to try to insert a promote to variable entry if it is possible to do so. */
 	void TryInsertPromoteToVariable(FBlueprintActionContext const& Context, FGraphActionListBuilderBase& OutAllActions);
 
-	/** Callback to filter the list of namespaces available for import. */
-	void OnFilterImportNamespaceList(TArray<FString>& InOutNamespaceList);
-
 	/** Invoked when an available namespace is selected for import. */
 	void OnNamespaceSelectedForImport(const FString& InNamespace);
+
+	/** Gathers the list of namespaces to exclude from the import menu. */
+	void OnGetNamespacesToExcludeFromImportMenu(TSet<FString>& OutNamespacesToExclude);
 
 private:
 	UEdGraph* GraphObj;

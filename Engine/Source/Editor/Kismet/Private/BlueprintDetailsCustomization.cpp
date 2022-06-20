@@ -5644,7 +5644,8 @@ TSharedPtr<SWidget> FBlueprintImportsLayout::MakeAddItemWidget()
 	return SNew(SBlueprintNamespaceEntry)
 		.AllowTextEntry(false)
 		.OnNamespaceSelected(this, &FBlueprintImportsLayout::OnNamespaceSelected)
-		.OnFilterNamespaceList(this, &FBlueprintImportsLayout::OnFilterNamespaceList)
+		.OnGetNamespacesToExclude(this, &FBlueprintImportsLayout::OnGetNamespacesToExclude)
+		.ExcludedNamespaceTooltipText(LOCTEXT("CannotSelectNamespaceForImport", "This namespace is already imported."))
 		.ButtonContent()
 		[
 			SNew(STextBlock)
@@ -5716,14 +5717,14 @@ void FBlueprintImportsLayout::OnNamespaceSelected(const FString& InNamespace)
 	OnRefreshInDetailsView();
 }
 
-void FBlueprintImportsLayout::OnFilterNamespaceList(TArray<FString>& InOutNamespaceList)
+void FBlueprintImportsLayout::OnGetNamespacesToExclude(TSet<FString>& OutNamespacesToExclude) const
 {
 	const UBlueprint* Blueprint = GetBlueprintObjectChecked();
-	InOutNamespaceList.RemoveSwap(Blueprint->BlueprintNamespace);
-	for (const FString& ImportedNamespace : Blueprint->ImportedNamespaces)
-	{
-		InOutNamespaceList.RemoveSwap(ImportedNamespace);
-	}
+
+	FBlueprintNamespaceUtilities::GetSharedGlobalImports(OutNamespacesToExclude);
+	FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, OutNamespacesToExclude);
+
+	OutNamespacesToExclude.Append(Blueprint->ImportedNamespaces);
 }
 
 
@@ -6043,7 +6044,7 @@ void FBlueprintGlobalOptionsDetails::HandleNamespaceValueChange(const FString& I
 
 	if (!InNewValue.IsEmpty() && !BlueprintNamespaceRegistry.IsRegisteredPath(InNewValue))
 	{
-		// Add the new namespace into the registry (it has not been seen yet).
+		// Add the new namespace into the registry (it has not been explicitly added yet).
 		BlueprintNamespaceRegistry.RegisterNamespace(InNewValue);
 	}
 	
@@ -6056,8 +6057,8 @@ void FBlueprintGlobalOptionsDetails::HandleNamespaceValueChange(const FString& I
 			bool bRefreshDetailsView = false;
 			if (Blueprint->ImportedNamespaces.Contains(InOldValue))
 			{
-				// Remove the import from the current editor context if it is no longer registered.
-				if (!BlueprintNamespaceRegistry.IsRegisteredPath(InOldValue))
+				// Remove the import from the current editor context if it is no longer inclusive of any path.
+				if (!BlueprintNamespaceRegistry.IsInclusivePath(InOldValue))
 				{
 					BlueprintEditor->RemoveNamespace(InOldValue);
 				}

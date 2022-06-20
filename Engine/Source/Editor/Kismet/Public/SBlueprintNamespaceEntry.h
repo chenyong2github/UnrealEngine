@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Widgets/SCompoundWidget.h"
-#include "Widgets/Views/SListView.h"
+#include "Widgets/Views/STreeView.h"
 #include "SlateFwd.h"
 
 class SComboButton;
@@ -15,6 +15,9 @@ class KISMET_API SBlueprintNamespaceEntry : public SCompoundWidget
 {
 public:
 	DECLARE_DELEGATE_OneParam(FOnNamespaceSelected, const FString&);
+	DECLARE_DELEGATE_OneParam(FOnGetNamespacesToExclude, TSet<FString>&);
+
+	UE_DEPRECATED(5.1, "Use FOnGetNamespacesToExclude instead.")
 	DECLARE_DELEGATE_OneParam(FOnFilterNamespaceList, TArray<FString>&);
 
 	SLATE_BEGIN_ARGS(SBlueprintNamespaceEntry)
@@ -36,8 +39,20 @@ public:
 		/** Called when a valid namespace is either entered or selected. */
 		SLATE_EVENT(FOnNamespaceSelected, OnNamespaceSelected)
 
-		/** Called to allow external code to filter out the namespace list. */
-		SLATE_EVENT(FOnFilterNamespaceList, OnFilterNamespaceList)
+		/** Called to allow external code to exclude one or more namespaces from the list. */
+		SLATE_EVENT(FOnGetNamespacesToExclude, OnGetNamespacesToExclude)
+
+		/** Tooltip used for excluded namespaces that are visible in the selection drop-down. */
+		SLATE_ATTRIBUTE(FText, ExcludedNamespaceTooltipText)
+
+		/** [DEPRECATED] Called to allow external code to filter out the namespace list. */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		FOnGetNamespacesToExclude ConvertOnFilterNamespaceListFn(const FOnFilterNamespaceList& LegacyDelegate)
+		{
+			return FOnGetNamespacesToExclude::CreateStatic(SBlueprintNamespaceEntry::HandleLegacyOnFilterNamespaceList, LegacyDelegate);
+		}
+		SLATE_EVENT_DEPRECATED(5.1, "Use OnGetNamespacesToExclude instead.", FOnFilterNamespaceList, OnFilterNamespaceList, OnGetNamespacesToExclude, ConvertOnFilterNamespaceListFn)
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	SLATE_END_ARGS()
 
@@ -51,29 +66,46 @@ public:
 	void SetCurrentNamespace(const FString& InNamespace);
 
 protected:
+	struct FPathTreeNodeItem
+	{
+		FString NodePath;
+		TArray<TSharedPtr<FPathTreeNodeItem>> ChildNodes;
+		bool bIsSelectable = true;
+	};
+	
 	void OnTextChanged(const FText& InText);
 	void OnTextCommitted(const FText& NewText, ETextCommit::Type InTextCommit);
 	void OnShowingSuggestions(const FString& InputText, TArray<FString>& OutSuggestions);
-	TSharedRef<SWidget> OnGetNamespaceListMenuContent();
-	TSharedRef<ITableRow> OnGenerateRowForNamespaceList(TSharedPtr<FString> Item, const TSharedRef<STableViewBase>& OwnerTable);
-	void OnNamespaceListFilterTextChanged(const FText& InText);
-	void OnNamespaceListSelectionChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
+	TSharedRef<SWidget> OnGetNamespaceTreeMenuContent();
+	TSharedRef<ITableRow> OnGenerateRowForNamespaceTreeItem(TSharedPtr<FPathTreeNodeItem> Item, const TSharedRef<STableViewBase>& OwnerTable);
+	void OnGetChildrenForNamespaceTreeItem(TSharedPtr<FPathTreeNodeItem> Item, TArray<TSharedPtr<FPathTreeNodeItem>>& OutChildren);
+	void OnNamespaceTreeFilterTextChanged(const FText& InText);
+	void OnNamespaceTreeSelectionChanged(TSharedPtr<FPathTreeNodeItem> Item, ESelectInfo::Type SelectInfo);
+	bool OnIsNamespaceTreeItemSelectable(TSharedPtr<FPathTreeNodeItem> Item) const;
 	FText GetCurrentNamespaceText() const;
 
-	void PopulateNamespaceList();
+	void PopulateNamespaceTree();
 	void SelectNamespace(const FString& InNamespace);
+	void ExpandAllTreeViewItems(const TArray<TSharedPtr<FPathTreeNodeItem>>* NodeListPtr = nullptr);
+	const TSharedPtr<FPathTreeNodeItem>* FindTreeViewNode(const FString& NodePath, const TArray<TSharedPtr<FPathTreeNodeItem>>* NodeListPtr = nullptr) const;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	static void HandleLegacyOnFilterNamespaceList(TSet<FString>& OutNamespacesToExclude, FOnFilterNamespaceList LegacyDelegate);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
 	FString CurrentNamespace;
-	TArray<TSharedPtr<FString>> ListItems;
+	TArray<FString> AllRegisteredPaths;
+	TSet<FString> ExcludedTreeViewPaths;
+	TArray<TSharedPtr<FPathTreeNodeItem>> RootNodes;
 
 	TSharedPtr<SComboButton> ComboButton;
 	TSharedPtr<SSuggestionTextBox> TextBox;
 	TSharedPtr<SSearchBox> SearchBox;
-	TSharedPtr<SListView<TSharedPtr<FString>>> ListView;
+	TSharedPtr<STreeView<TSharedPtr<FPathTreeNodeItem>>> TreeView;
 
 	FOnNamespaceSelected OnNamespaceSelected;
-	FOnFilterNamespaceList OnFilterNamespaceList;
+	FOnGetNamespacesToExclude OnGetNamespacesToExclude;
+	TAttribute<FText> ExcludedNamespaceTooltipText;
 
 	static float NamespaceListBorderPadding;
 	static float NamespaceListMinDesiredWidth;

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BlueprintNamespaceUtilities.h"
+#include "BlueprintNamespacePathTree.h"
 #include "Engine/Blueprint.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AssetRegistry/AssetData.h"
@@ -23,8 +24,8 @@ namespace UE::Editor::Kismet::Private
 void FBlueprintNamespaceUtilities::ConvertPackagePathToNamespacePath(const FString& InPackagePath, FString& OutNamespacePath)
 {
 	OutNamespacePath = InPackagePath;
-	OutNamespacePath.ReplaceCharInline(TEXT('/'), TEXT('.'));
-	if (OutNamespacePath.StartsWith(TEXT(".")))
+	OutNamespacePath.ReplaceCharInline(TEXT('/'), FBlueprintNamespacePathTree::PathSeparator[0]);
+	if (OutNamespacePath.StartsWith(FBlueprintNamespacePathTree::PathSeparator))
 	{
 		OutNamespacePath.RemoveAt(0);
 	}

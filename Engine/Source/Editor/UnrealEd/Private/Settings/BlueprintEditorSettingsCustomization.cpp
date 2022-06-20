@@ -41,7 +41,8 @@ namespace UE::Editor::BlueprintEditorSettingsCustomization::Private
 			return SNew(SBlueprintNamespaceEntry)
 				.AllowTextEntry(false)
 				.OnNamespaceSelected(this, &FBlueprintGlobalEditorImportsLayout::OnNamespaceSelected)
-				.OnFilterNamespaceList(this, &FBlueprintGlobalEditorImportsLayout::OnFilterNamespaceList)
+				.OnGetNamespacesToExclude(this, &FBlueprintGlobalEditorImportsLayout::OnGetNamespacesToExclude)
+				.ExcludedNamespaceTooltipText(LOCTEXT("CannotSelectNamespace", "This namespace is already included in the list."))
 				.ButtonContent()
 				[
 					SNew(STextBlock)
@@ -94,12 +95,10 @@ namespace UE::Editor::BlueprintEditorSettingsCustomization::Private
 			RegenerateChildContent();
 		}
 
-		void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList)
+		void OnGetNamespacesToExclude(TSet<FString>& OutNamespacesToExclude) const
 		{
-			for (const FString& GlobalNamespace : GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude)
-			{
-				InOutNamespaceList.RemoveSwap(GlobalNamespace);
-			}
+			// Exclude namespaces that are already listed.
+			OutNamespacesToExclude.Append(GetDefault<UBlueprintEditorSettings>()->NamespacesToAlwaysInclude);
 		}
 
 	private:

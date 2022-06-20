@@ -274,8 +274,9 @@ void SBlueprintActionMenu::Construct( const FArguments& InArgs, TSharedPtr<FBlue
 			[
 				SNew(SBlueprintNamespaceEntry)
 					.AllowTextEntry(false)
-					.OnFilterNamespaceList(this, &SBlueprintActionMenu::OnFilterImportNamespaceList)
 					.OnNamespaceSelected(this, &SBlueprintActionMenu::OnNamespaceSelectedForImport)
+					.OnGetNamespacesToExclude(this, &SBlueprintActionMenu::OnGetNamespacesToExcludeFromImportMenu)
+					.ExcludedNamespaceTooltipText(LOCTEXT("CannotSelectNamespaceForImport", "This namespace has already been imported by this Blueprint."))
 			]
 		];
 	}
@@ -635,19 +636,17 @@ void SBlueprintActionMenu::TryInsertPromoteToVariable(FBlueprintActionContext co
 	}
 }
 
-void SBlueprintActionMenu::OnFilterImportNamespaceList(TArray<FString>& InOutNamespaceList)
+void SBlueprintActionMenu::OnGetNamespacesToExcludeFromImportMenu(TSet<FString>& OutNamespacesToExclude)
 {
 	FBlueprintActionContext MenuContext;
 	ConstructActionContext(MenuContext);
 
+	FBlueprintNamespaceUtilities::GetSharedGlobalImports(OutNamespacesToExclude);
+
 	for (const UBlueprint* Blueprint : MenuContext.Blueprints)
 	{
-		InOutNamespaceList.RemoveSwap(Blueprint->BlueprintNamespace);
-
-		for (const FString& ImportedNamespace : Blueprint->ImportedNamespaces)
-		{
-			InOutNamespaceList.RemoveSwap(ImportedNamespace);
-		}
+		FBlueprintNamespaceUtilities::GetDefaultImportsForBlueprint(Blueprint, OutNamespacesToExclude);
+		OutNamespacesToExclude.Append(Blueprint->ImportedNamespaces);
 	}
 }
 

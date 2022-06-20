@@ -149,8 +149,16 @@ void FBlueprintNamespaceRegistry::OnReloadComplete(EReloadCompleteReason InReaso
 	Rebuild();
 }
 
+bool FBlueprintNamespaceRegistry::IsInclusivePath(const FString& InPath) const
+{
+	// A path is considered inclusive if it represents any valid subpath in the tree.
+	TSharedPtr<FBlueprintNamespacePathTree::FNode> Node = PathTree->FindPathNode(InPath);
+	return Node.IsValid();
+}
+
 bool FBlueprintNamespaceRegistry::IsRegisteredPath(const FString& InPath) const
 {
+	// A path is considered to be registered only if it was explicitly added to the tree.
 	TSharedPtr<FBlueprintNamespacePathTree::FNode> Node = PathTree->FindPathNode(InPath);
 	return Node.IsValid() && Node->bIsAddedPath;
 }
@@ -169,7 +177,7 @@ void FBlueprintNamespaceRegistry::GetNamesUnderPath(const FString& InPath, TArra
 
 void FBlueprintNamespaceRegistry::GetAllRegisteredPaths(TArray<FString>& OutPaths) const
 {
-	PathTree->ForeachNode([&OutPaths](const TArray<FName>& CurrentPath, TSharedRef<FBlueprintNamespacePathTree::FNode> Node)
+	PathTree->ForeachNode([&OutPaths](const TArray<FName>& CurrentPath, TSharedRef<const FBlueprintNamespacePathTree::FNode> Node)
 	{
 		if (Node->bIsAddedPath)
 		{
@@ -179,7 +187,7 @@ void FBlueprintNamespaceRegistry::GetAllRegisteredPaths(TArray<FString>& OutPath
 			{
 				if (PathBuilder.Len() > 0)
 				{
-					PathBuilder += TEXT(".");
+					PathBuilder += FBlueprintNamespacePathTree::PathSeparator;
 				}
 				PathBuilder += PathSegment.ToString();
 			}
@@ -198,18 +206,7 @@ void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 	{
 		if (const UObject* ExcludedObject = ExcludedObjectPath.ResolveObject())
 		{
-			if (const UBlueprint* ExcludedBlueprintObject = Cast<UBlueprint>(ExcludedObject))
-			{
-				// Redirect to the generated class when excluding a loaded Blueprint asset.
-				if (ExcludedBlueprintObject->GeneratedClass)
-				{
-					ExcludedObjects.Add(ExcludedBlueprintObject->GeneratedClass);
-				}
-			}
-			else
-			{
-				ExcludedObjects.Add(ExcludedObject);
-			}
+			ExcludedObjects.Add(ExcludedObject);
 		}
 	}
 
@@ -223,9 +220,22 @@ void FBlueprintNamespaceRegistry::FindAndRegisterAllNamespaces()
 			UEdGraphSchema_K2::IsAllowableBlueprintVariableType(ClassObject)
 			|| ClassObject->IsChildOf<UBlueprintFunctionLibrary>();
 
-		if (bShouldRegisterClassObject && !ExcludedObjects.Contains(ClassObject))
+		const UBlueprint* BlueprintObject = UBlueprint::GetBlueprintFromClass(ClassObject);
+
+		if (bShouldRegisterClassObject && !ExcludedObjects.Contains(ClassObject) && (!BlueprintObject || !ExcludedObjects.Contains(BlueprintObject)))
 		{
 			RegisterNamespace(ClassObject);
+		}
+	}
+
+	// Register loaded macro asset namespace identifiers.
+	for (TObjectIterator<UBlueprint> BlueprintIt; BlueprintIt; ++BlueprintIt)
+	{
+		const UBlueprint* BlueprintObject = *BlueprintIt;
+
+		if (BlueprintObject->BlueprintType == BPTYPE_MacroLibrary && !ExcludedObjects.Contains(BlueprintObject))
+		{
+			RegisterNamespace(BlueprintObject);
 		}
 	}
 

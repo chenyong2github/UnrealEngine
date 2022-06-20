@@ -719,7 +719,7 @@ protected:
 	/** END FBlueprintManagedListDetails interface */
 
 	void OnNamespaceSelected(const FString& InNamespace);
-	void OnFilterNamespaceList(TArray<FString>& InOutNamespaceList);
+	void OnGetNamespacesToExclude(TSet<FString>& OutNamespacesToExclude) const;
 
 private:
 	/** Whether we should show default (i.e. global) imports versus custom (i.e. local) imports */

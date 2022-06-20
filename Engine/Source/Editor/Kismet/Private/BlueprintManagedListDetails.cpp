@@ -12,6 +12,7 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "Editor.h"
+#include "Algo/Sort.h"
 
 void FBlueprintManagedListDetails::GenerateHeaderRowContent(FDetailWidgetRow& HeaderRow)
 {
@@ -53,6 +54,11 @@ void FBlueprintManagedListDetails::GenerateChildContent(IDetailChildrenBuilder& 
 {
 	TArray<FManagedListItem> Items;
 	GetManagedListItems(Items);
+
+	Algo::Sort(Items, [](const FManagedListItem& ItemA, const FManagedListItem& ItemB)
+	{
+		return ItemA.ItemName.Compare(ItemB.ItemName) < 0;
+	});
 
 	if (Items.Num() > 0)
 	{

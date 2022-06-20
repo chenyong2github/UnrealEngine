@@ -35,6 +35,16 @@ public:
 	 * @return TRUE if the given path identifier is currently registered.
 	 */
 	bool IsRegisteredPath(const FString& InPath) const;
+	
+	/**
+	 * @return TRUE if the given path identifier is inclusive of any registered paths.
+	 * 
+	 * Example: If "MyProject.MyNamespace" is a registered path, then both "MyProject" and "MyProject.MyNamespace" are inclusive paths.
+	 * 
+	 * Also note if a registered path is removed, inclusive paths may still be valid. For instance, if both "MyProject.MyNamespace" and
+	 * "MyProject.MyNamespace_2" are registered paths, and "MyProject.MyNamespace_2" is removed, "MyProject" is still an inclusive path.
+	 */
+	bool IsInclusivePath(const FString& InPath) const;
 
 	/**
 	 * @param InPath	Path identifier string (e.g. "X.Y" or "X.Y.").

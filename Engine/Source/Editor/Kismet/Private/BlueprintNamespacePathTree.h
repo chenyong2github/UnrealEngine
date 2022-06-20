@@ -11,6 +11,9 @@
 struct FBlueprintNamespacePathTree
 {
 public:
+	/** Path separator; can be used for path parsing as well as path construction. */
+	inline static const TCHAR PathSeparator[] = TEXT(".");
+
 	/** Path tree node structure. */
 	struct FNode : TSharedFromThis<FNode>
 	{
@@ -60,7 +63,7 @@ public:
 		TSharedPtr<FNode> Node = GetRootNode();
 
 		TArray<FString> PathSegments;
-		InPath.ParseIntoArray(PathSegments, TEXT("."));
+		InPath.ParseIntoArray(PathSegments, PathSeparator);
 		for (const FString& PathSegment : PathSegments)
 		{
 			if (const TSharedPtr<FNode>* ChildNodePtr = Node->Children.Find(FName(*PathSegment)))
@@ -92,7 +95,7 @@ public:
 		TSharedRef<FNode> Node = GetRootNode();
 
 		TArray<FString> PathSegments;
-		InPath.ParseIntoArray(PathSegments, TEXT("."));
+		InPath.ParseIntoArray(PathSegments, PathSeparator);
 		for (const FString& PathSegment : PathSegments)
 		{
 			Node = Node->FindOrAddChild(FName(*PathSegment));
@@ -109,7 +112,7 @@ public:
 	void RemovePath(const FString& InPath)
 	{
 		TArray<FString> PathSegments;
-		InPath.ParseIntoArray(PathSegments, TEXT("."));
+		InPath.ParseIntoArray(PathSegments, PathSeparator);
 
 		using FPathTraceNode = TTuple<FName, TSharedPtr<FNode>>;
 		TArray<FPathTraceNode> PathTrace;
@@ -174,16 +177,16 @@ public:
 	/** Path node visitor function signature.
 	 * 
 	 * @param CurrentPath	Current path (represented as a stack of names).
-	 * @param Node			A reference to the node at the current visitor level.
+	 * @param Node			A read-only reference to the node at the current visitor level.
 	 */
-	typedef TFunctionRef<void(const TArray<FName>& /* CurrentPath */, TSharedRef<FBlueprintNamespacePathTree::FNode> /* Node */)> FNodeVisitorFunc;
+	typedef TFunctionRef<void(const TArray<FName>& /* CurrentPath */, TSharedRef<const FBlueprintNamespacePathTree::FNode> /* Node */)> FNodeVisitorFunc;
 
 	/**
 	 * A utility method that will recursively visit all added nodes.
 	 * 
 	 * @param VisitorFunc	A function that will be called for each visited node.
 	 */
-	void ForeachNode(FNodeVisitorFunc VisitorFunc)
+	void ForeachNode(FNodeVisitorFunc VisitorFunc) const
 	{
 		TArray<FName> CurrentPath;
 		RecursiveNodeVisitor(GetRootNode(), CurrentPath, VisitorFunc);
@@ -191,7 +194,7 @@ public:
 
 protected:
 	/** Helper method for recursively visiting all nodes. */
-	void RecursiveNodeVisitor(TSharedPtr<FBlueprintNamespacePathTree::FNode> Node, TArray<FName>& CurrentPath, FNodeVisitorFunc VisitorFunc)
+	void RecursiveNodeVisitor(TSharedPtr<FBlueprintNamespacePathTree::FNode> Node, TArray<FName>& CurrentPath, FNodeVisitorFunc VisitorFunc) const
 	{
 		for (auto ChildIt = Node->Children.CreateConstIterator(); ChildIt; ++ChildIt)
 		{
