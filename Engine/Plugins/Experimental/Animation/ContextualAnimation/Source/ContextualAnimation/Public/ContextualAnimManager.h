@@ -32,7 +32,7 @@ public:
 	virtual void Tick(float DeltaTime) override;
 	virtual ETickableTickType GetTickableTickType() const override;
 	virtual TStatId GetStatId() const override;
-	virtual bool IsTickableInEditor() const { return true; }
+	virtual bool IsTickableInEditor() const override;
 	// FTickableGameObject end
 
 	static UContextualAnimManager* Get(const UWorld* World);

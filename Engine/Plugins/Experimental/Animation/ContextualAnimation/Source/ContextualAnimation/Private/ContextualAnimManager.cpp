@@ -41,6 +41,12 @@ TStatId UContextualAnimManager::GetStatId() const
 	RETURN_QUICK_DECLARE_CYCLE_STAT(UContextualAnimManager, STATGROUP_Tickables);
 }
 
+bool UContextualAnimManager::IsTickableInEditor() const
+{
+	const UWorld* World = GetWorld();
+	return World != nullptr && !World->IsGameWorld();
+}
+
 void UContextualAnimManager::RegisterSceneActorComponent(UContextualAnimSceneActorComponent* SceneActorComp)
 {
 	if(SceneActorComp)
