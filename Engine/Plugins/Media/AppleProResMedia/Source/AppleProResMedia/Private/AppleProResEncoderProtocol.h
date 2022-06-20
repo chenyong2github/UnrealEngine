@@ -84,7 +84,7 @@ public:
 private:
 
 	void ParseCommandLine();
-	bool CreateFile(const FString& InFilename);
+	bool CreateProResFile(const FString& InFilename);
 	void ConvertFColorToRGBA4444(const TArray<FColor>& InColorbuffer);
 
 	PRCodecType GetSelectedCodecType() const;

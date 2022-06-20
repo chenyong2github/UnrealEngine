@@ -88,7 +88,7 @@ void UAppleProResEncoderProtocol::ParseCommandLine()
 	}
 }
 
-bool UAppleProResEncoderProtocol::CreateFile(const FString& InFilename)
+bool UAppleProResEncoderProtocol::CreateProResFile(const FString& InFilename)
 {
 	check(FileWriter == nullptr);
 
@@ -222,7 +222,7 @@ void UAppleProResEncoderProtocol::ProcessFrame(FCapturedFrameData InFrame)
 	// Defer writer creation until sequence has evaluated so that cached data for format mappings can be generated
 	if (FileWriter == nullptr)
 	{
-		if (!CreateFile(GenerateFilenameImpl(FFrameMetrics(), TEXT(".mov"))))
+		if (!CreateProResFile(GenerateFilenameImpl(FFrameMetrics(), TEXT(".mov"))))
 		{
 			return;
 		}
