@@ -50,6 +50,8 @@
 #include "Engine/LevelStreaming.h"
 #include "AssetCompilingManager.h"
 
+#include "Materials/Material.h"
+
 DEFINE_LOG_CATEGORY_STATIC(LogLODGenerator, Log, All);
 
 #define LOCTEXT_NAMESPACE "HierarchicalLOD"
