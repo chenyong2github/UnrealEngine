@@ -62,4 +62,7 @@
 		</Node>
 	</Agent>
 
+	<Aggregate Name="Publish Unstable With Zip" Requires="Publish Unstable;Publish Unstable Zip"/>
+	<Aggregate Name="Publish Live With Zip" Requires="Publish Live;Publish Live Zip"/>
+
 </BuildGraph>
