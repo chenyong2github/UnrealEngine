@@ -47,6 +47,7 @@ public class Catch2 : ModuleRules
 
 			string RelativeLibPath = !IsPlatformExtension ? Target.Platform.ToString() : string.Empty;
 			string Arch = string.Empty;
+			string Variation = string.Empty;
 			if (Target.Platform == UnrealTargetPlatform.Android)
 			{
 				Arch = "arm64";
@@ -58,10 +59,22 @@ public class Catch2 : ModuleRules
 			else if (Target.Platform == UnrealTargetPlatform.Win64)
 			{
 				Arch = "x64";
+				if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2019)
+				{
+					Variation = "VS2019";
+				}
+				else if (Target.WindowsPlatform.Compiler == WindowsCompiler.VisualStudio2022)
+				{
+					Variation = "VS2022";
+				}
 			}
 			if (!string.IsNullOrEmpty(Arch))
 			{
 				RelativeLibPath = Path.Combine(RelativeLibPath, Arch);
+			}
+			if (!string.IsNullOrEmpty(Variation))
+			{
+				RelativeLibPath = Path.Combine(RelativeLibPath, Variation);
 			}
 
 			return RelativeLibPath;

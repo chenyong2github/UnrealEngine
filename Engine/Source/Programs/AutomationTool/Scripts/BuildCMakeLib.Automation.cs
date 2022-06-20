@@ -750,6 +750,29 @@ class VS2019TargetPlatform_Win64 : BuildCMakeLib.VS2019TargetPlatform
 	}
 }
 
+class VS2022TargetPlatform_Win64 : BuildCMakeLib.VS2022TargetPlatform
+{
+	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Win64);
+	public override string DebugDatabaseExtension => "pdb";
+	public override string DynamicLibraryExtension => "dll";
+	public override string StaticLibraryExtension => "lib";
+	public override string VariantDirectory => Architecture == "Win64" ? "" : Architecture.ToLower();
+	public override bool IsPlatformExtension => false;
+
+	private readonly string Architecture;
+
+	public VS2022TargetPlatform_Win64(string Architecture = "Win64")
+	{
+		this.Architecture = Architecture;
+	}
+
+	public override string GetCMakeSetupArguments(BuildCMakeLib.TargetLib TargetLib, string TargetConfiguration)
+	{
+		return base.GetCMakeSetupArguments(TargetLib, TargetConfiguration)
+			+ (Architecture == "Win64" ? "" : string.Format(" -A {0}", Architecture));
+	}
+}
+
 class NMakeTargetPlatform_Win64 : BuildCMakeLib.NMakeTargetPlatform
 {
 	public override string PlatformOrGroupName => nameof(UnrealTargetPlatform.Win64);
