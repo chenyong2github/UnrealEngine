@@ -95,10 +95,9 @@ namespace UE::Tasks
 
 			void Release()
 			{
-				uint32 LocalRefCount = RefCount.fetch_sub(1, std::memory_order_release) - 1;
+				uint32 LocalRefCount = RefCount.fetch_sub(1, std::memory_order_acq_rel) - 1;
 				if (LocalRefCount == 0)
 				{
-					std::atomic_thread_fence(std::memory_order_acquire);
 					delete this;
 				}
 			}
