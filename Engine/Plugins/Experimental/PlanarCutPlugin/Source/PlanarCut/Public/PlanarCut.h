@@ -36,7 +36,7 @@ struct PLANARCUT_API FInternalSurfaceMaterials
 	 * @param Collection	Reference collection to use for setting UV scale
 	 * @param GeometryIdx	Reference geometry inside collection; if -1, use all geometries in collection
 	 */
-	void SetUVScaleFromCollection(const FGeometryCollection& Collection, int32 GeometryIdx = -1);
+	void SetUVScaleFromCollection(const FGeometryCollectionMeshFacade& CollectionMesh, int32 GeometryIdx = -1);
 
 	
 	int32 GetDefaultMaterialIDForGeometry(const FGeometryCollection& Collection, int32 GeometryIdx = -1) const;

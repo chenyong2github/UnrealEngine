@@ -343,3 +343,75 @@ FORCEINLINE Chaos::FChaosArchive& operator<<(Chaos::FChaosArchive& Ar, FGeometry
 	Value.Serialize(Ar);
 	return Ar;
 }
+
+
+template <typename T>
+struct AttributeAccessor
+{
+public:
+	AttributeAccessor(FManagedArrayCollection& InCollection, const FName& AttributeName, const FName& AttributeGroup)
+		: Collection(InCollection)
+		, Name(AttributeName)
+		, Group(AttributeGroup)
+	{
+		AttributeArray = InCollection.FindAttributeTyped<T>(AttributeName, AttributeGroup);
+
+	}
+	bool IsValid() const { return AttributeArray != nullptr; }
+	const TManagedArray<T>& Get() const
+	{
+		check(IsValid());
+		return *AttributeArray;
+	}
+	TManagedArray<T>& Modify() const
+	{
+		check(IsValid());
+		AttributeArray->MarkDirty();
+		return *AttributeArray;
+	}
+	void Add()
+	{
+		AttributeArray = &Collection.AddAttribute<T>(Name, Group);
+	}
+
+private:
+	FManagedArrayCollection& Collection;
+	FName Name;
+	FName Group;
+	TManagedArray<T>* AttributeArray;
+};
+
+
+class CHAOS_API FGeometryCollectionMeshFacade
+{
+public:
+	FGeometryCollectionMeshFacade(FManagedArrayCollection& InCollection);
+
+	/** 
+	 * returns true iof all the necessary attributes are present
+	 * if not then the API can be used to create  
+	 */
+	bool IsValid() const;	
+
+	/**
+	 * Add the necessary attributes if they are missing
+	 */
+	void AddAttributes();
+
+	AttributeAccessor<FVector3f> Vertex;
+	AttributeAccessor<FVector3f> TangentU;
+	AttributeAccessor<FVector3f> TangentV;
+	AttributeAccessor<FVector3f> Normal;
+	AttributeAccessor<TArray<FVector2f>> UVs;
+	AttributeAccessor<FLinearColor> Color;
+	AttributeAccessor<int32> BoneMap;
+	AttributeAccessor<int32> VertexStart;
+	AttributeAccessor<int32> VertexCount;
+
+	AttributeAccessor<FIntVector> Indices;
+	AttributeAccessor<bool> Visible;
+	AttributeAccessor<int32> MaterialIndex;
+	AttributeAccessor<int32> MaterialID;
+	AttributeAccessor<int32> FaceStart;
+	AttributeAccessor<int32> FaceCount;
+};

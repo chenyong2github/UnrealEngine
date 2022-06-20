@@ -93,26 +93,32 @@ int32 FInternalSurfaceMaterials::GetDefaultMaterialIDForGeometry(const FGeometry
 	return InternalMaterialID;
 }
 
-void FInternalSurfaceMaterials::SetUVScaleFromCollection(const FGeometryCollection& Collection, int32 GeometryIdx)
+void FInternalSurfaceMaterials::SetUVScaleFromCollection(const FGeometryCollectionMeshFacade& CollectionMesh, int32 GeometryIdx)
 {
+	const auto& VertexArray = CollectionMesh.Vertex.Get();
+	const auto& UVsArray = CollectionMesh.UVs.Get();
+	const auto& IndicesArray = CollectionMesh.Indices.Get();
+	const auto& FaceStartArray = CollectionMesh.FaceStart.Get();
+	const auto& FaceCountArray = CollectionMesh.FaceCount.Get();
+	
 	int32 FaceStart = 0;
-	int32 FaceEnd = Collection.Indices.Num();
+	int32 FaceEnd = IndicesArray.Num();
 	if (GeometryIdx > -1)
 	{
-		FaceStart = Collection.FaceStart[GeometryIdx];
-		FaceEnd = Collection.FaceCount[GeometryIdx] + Collection.FaceStart[GeometryIdx];
+		FaceStart = FaceStartArray[GeometryIdx];
+		FaceEnd = FaceCountArray[GeometryIdx] + FaceStartArray[GeometryIdx];
 	}
 	float UVDistance = 0;
 	float WorldDistance = 0;
 	for (int32 FaceIdx = FaceStart; FaceIdx < FaceEnd; FaceIdx++)
 	{
-		const FIntVector& Tri = Collection.Indices[FaceIdx];
-		WorldDistance += FVector3f::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Y]);
-		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.X][0]), FVector2D(Collection.UVs[Tri.Y][0]));
-		WorldDistance += FVector3f::Distance(Collection.Vertex[Tri.Z], Collection.Vertex[Tri.Y]);
-		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.Z][0]), FVector2D(Collection.UVs[Tri.Y][0]));
-		WorldDistance += FVector3f::Distance(Collection.Vertex[Tri.X], Collection.Vertex[Tri.Z]);
-		UVDistance += FVector2D::Distance(FVector2D(Collection.UVs[Tri.X][0]), FVector2D(Collection.UVs[Tri.Z][0]));
+		const FIntVector& Tri = IndicesArray[FaceIdx];
+		WorldDistance += FVector3f::Distance(VertexArray[Tri.X], VertexArray[Tri.Y]);
+		UVDistance += FVector2D::Distance(FVector2D(UVsArray[Tri.X][0]), FVector2D(UVsArray[Tri.Y][0]));
+		WorldDistance += FVector3f::Distance(VertexArray[Tri.Z], VertexArray[Tri.Y]);
+		UVDistance += FVector2D::Distance(FVector2D(UVsArray[Tri.Z][0]), FVector2D(UVsArray[Tri.Y][0]));
+		WorldDistance += FVector3f::Distance(VertexArray[Tri.X], VertexArray[Tri.Z]);
+		UVDistance += FVector2D::Distance(FVector2D(UVsArray[Tri.X][0]), FVector2D(UVsArray[Tri.Z][0]));
 	}
 
 	if (WorldDistance > 0)
@@ -569,9 +575,15 @@ int32 CutMultipleWithMultiplePlanes(
 	int32 OrigNumGeom = Collection.FaceCount.Num();
 	int32 CurNumGeom = OrigNumGeom;
 
+	FGeometryCollectionMeshFacade CollectionMesh(Collection);
+	if (!CollectionMesh.IsValid())
+	{
+		return -1;
+	}
+
 	if (bSetDefaultInternalMaterialsFromCollection)
 	{
-		InternalSurfaceMaterials.SetUVScaleFromCollection(Collection);
+		InternalSurfaceMaterials.SetUVScaleFromCollection(CollectionMesh);
 	}
 
 	FTransform CollectionToWorld = TransformCollection.Get(FTransform::Identity);
