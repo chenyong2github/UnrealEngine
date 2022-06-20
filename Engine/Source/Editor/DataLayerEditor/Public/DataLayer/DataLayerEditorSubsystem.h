@@ -66,6 +66,10 @@ public:
 	 */
 	virtual ~UDataLayerEditorSubsystem() {}
 
+	// UObject overrides.
+	virtual void BeginDestroy() override;
+	// ~END UObject overrides.
+
 	//~ Begin IActorEditorContextClient interface
 	virtual void OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor = nullptr) override;
 	virtual bool GetActorEditorContextDisplayInfo(UWorld* InWorld, FActorEditorContextClientDisplayInfo& OutDiplayInfo) const override;

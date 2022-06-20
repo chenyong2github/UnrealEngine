@@ -169,10 +169,25 @@ void UDataLayerEditorSubsystem::Deinitialize()
 
 	Super::Deinitialize();
 
-	DataLayersBroadcast->Deinitialize();
+	if (DataLayersBroadcast)
+	{
+		DataLayersBroadcast->Deinitialize();
+		DataLayersBroadcast.Reset();
+	}
 
 	// Unregister the engine broadcast bridge
 	DataLayerEditorLoadingStateChanged.Remove(OnActorDataLayersEditorLoadingStateChangedEngineBridgeHandle);
+}
+
+void UDataLayerEditorSubsystem::BeginDestroy()
+{
+	if (DataLayersBroadcast)
+	{
+		DataLayersBroadcast->Deinitialize();
+		DataLayersBroadcast.Reset();
+	}
+
+	Super::BeginDestroy();
 }
 
 void UDataLayerEditorSubsystem::OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor)
