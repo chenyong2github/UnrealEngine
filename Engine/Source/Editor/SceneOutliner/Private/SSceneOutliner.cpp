@@ -1745,6 +1745,11 @@ void SSceneOutliner::ScrollItemIntoView(const FSceneOutlinerTreeItemPtr& Item)
 	OutlinerTreeView->RequestScrollIntoView(Item);
 }
 
+void SSceneOutliner::ScrollToFirstVisibleParent(const FSceneOutlinerTreeItemPtr& Item)
+{
+	OutlinerTreeView->ScrollToFirstVisibleParent(Item);
+}
+
 void SSceneOutliner::SetItemExpansion(const FSceneOutlinerTreeItemPtr& Item, bool bIsExpanded)
 {
 	OutlinerTreeView->SetItemExpansion(Item, bIsExpanded);

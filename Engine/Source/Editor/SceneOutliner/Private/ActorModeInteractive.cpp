@@ -63,14 +63,25 @@ void FActorModeInteractive::OnLevelSelectionChanged(UObject* Obj)
 		SceneOutliner->ClearSelection();
 		SceneOutliner->RefreshSelection();
 
-		// Scroll last item into view if Selection Framing is enabled - this means if we are multi-selecting, we show newest selection. @TODO Not perfect though
+		// Scroll last item into view  - this means if we are multi-selecting, we show newest selection. @TODO Not perfect though
 		if (const AActor* LastSelectedActor = GEditor->GetSelectedActors()->GetBottom<AActor>())
 		{
 			if (FSceneOutlinerTreeItemPtr TreeItem = SceneOutliner->GetTreeItem(LastSelectedActor, false))
 			{
+				// Only scroll if selection framing is enabled
 				if(bAlwaysFrameSelection)
 				{
-					SceneOutliner->ScrollItemIntoView(TreeItem);
+					// If Auto Expand Hierarchy is also enabled (default behavior), expand the selected item and scroll to it
+					if(bAutoExpandHierarchy)
+					{
+						SceneOutliner->ScrollItemIntoView(TreeItem);
+					}
+					// Otherwise, don't expand the selected item, just scroll to the first visible parent (which will be highlighted)
+					else
+					{
+						SceneOutliner->ScrollToFirstVisibleParent(TreeItem);
+					}
+					
 				}
 			}
 			else

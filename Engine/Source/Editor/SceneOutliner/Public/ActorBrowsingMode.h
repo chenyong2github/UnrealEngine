@@ -121,6 +121,10 @@ private:
 	void OnToggleAlwaysFrameSelection();
 	bool ShouldAlwaysFrameSelection();
 
+	/** Functions to expose automatic hierarchy expansion to the UI */
+	void OnToggleAutoExpandHierarchy();
+	bool ShouldAutoExpandHierarchy();
+
 	/**
 	 * Get a mutable version of the ActorBrowser config for setting values.
 	 * @returns		The config for this ActorBrowser.

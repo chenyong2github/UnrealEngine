@@ -212,6 +212,16 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 
 	bAlwaysFrameSelection = LocalSettings.bAlwaysFrameSelection;
 
+	// Auto Expand Hierarchy is auto turned off when Always Frame Selection is off
+	if(!bAlwaysFrameSelection)
+	{
+		bAutoExpandHierarchy = false;
+	}
+	else
+	{
+		bAutoExpandHierarchy = LocalSettings.bAutoExpandHierarchy;
+	}
+
 	Rebuild();
 }
 
@@ -333,12 +343,35 @@ void FActorBrowsingMode::OnToggleAlwaysFrameSelection()
 {
 	bAlwaysFrameSelection = !bAlwaysFrameSelection;
 
+	// Auto Expand Hierarchy is auto turned off when Always Frame Selection is off
+	if(!bAlwaysFrameSelection)
+	{
+		bAutoExpandHierarchy = false;
+	}
+
 	FActorBrowsingModeConfig* Settings = GetMutableConfig();
 	if(Settings)
 	{
 		Settings->bAlwaysFrameSelection = bAlwaysFrameSelection;
 		SaveConfig();
 	}
+}
+
+void FActorBrowsingMode::OnToggleAutoExpandHierarchy()
+{
+	bAutoExpandHierarchy = !bAutoExpandHierarchy;
+
+	FActorBrowsingModeConfig* Settings = GetMutableConfig();
+	if(Settings)
+	{
+		Settings->bAutoExpandHierarchy = bAutoExpandHierarchy;
+		SaveConfig();
+	}
+}
+
+bool FActorBrowsingMode::ShouldAutoExpandHierarchy()
+{
+	return bAutoExpandHierarchy;
 }
 
 bool FActorBrowsingMode::ShouldAlwaysFrameSelection()
@@ -362,6 +395,21 @@ void FActorBrowsingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("AutoExpandHierarchy", "Auto Expand Hierarchy"),
+		LOCTEXT("AlwaysFrameSelectionTooltip", "Automatically expand a collapsed item when it is selected through the level editor viewport. Disabled when Always Frame Selection is off"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateRaw(this, &FActorBrowsingMode::OnToggleAutoExpandHierarchy),
+			// Don't allow the user to toggle this when Always Frame Selection is off
+			FCanExecuteAction::CreateRaw(this, &FActorBrowsingMode::ShouldAlwaysFrameSelection),
+			FIsActionChecked::CreateRaw(this, &FActorBrowsingMode::ShouldAutoExpandHierarchy)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
 
 	MenuBuilder.EndSection();
 

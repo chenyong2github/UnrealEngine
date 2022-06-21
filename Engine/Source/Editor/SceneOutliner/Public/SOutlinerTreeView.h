@@ -19,6 +19,8 @@ public:
 
 	void FlashHighlightOnItem( FSceneOutlinerTreeItemPtr FlashHighlightOnItem );
 
+	void ScrollToFirstVisibleParent(FSceneOutlinerTreeItemPtr InItemPtr);
+
 	const TWeakPtr<SSceneOutliner>& GetOutlinerPtr() { return SceneOutlinerWeak; }
 protected:
 
@@ -27,6 +29,9 @@ protected:
 	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override;
 
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
+
+private:
+	virtual void Private_UpdateParentHighlights() override;
 
 	/** Weak reference to the outliner widget that owns this list */
 	TWeakPtr<SSceneOutliner> SceneOutlinerWeak;

@@ -152,6 +152,36 @@ FReply SSceneOutlinerTreeView::OnDrop(const FGeometry& MyGeometry, const FDragDr
 	return HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, ValidationInfo, true);
 }
 
+void SSceneOutlinerTreeView::ScrollToFirstVisibleParent(FSceneOutlinerTreeItemPtr InItemPtr)
+{
+	while(InItemPtr.IsValid())
+	{
+		// The first parent that is in the LinearizedItems is visible in the tree
+		if(LinearizedItems.Find(InItemPtr) != INDEX_NONE)
+		{
+			RequestScrollIntoView(InItemPtr);
+			return;
+		}
+		InItemPtr = InItemPtr->GetParent();
+	}
+}
+
+void SSceneOutlinerTreeView::Private_UpdateParentHighlights()
+{
+	this->ClearHighlightedItems();
+
+	// For the Outliner, we want to highlight parent items even if the current selection is not visible (i.e collapsed)
+	for( typename TItemSet::TConstIterator SelectedItemIt(SelectedItems); SelectedItemIt; ++SelectedItemIt )
+	{
+		auto Parent = (*SelectedItemIt)->GetParent();
+		while (Parent.IsValid())
+		{
+			Private_SetItemHighlighted(Parent, true);
+			Parent = Parent->GetParent();
+		}
+	}
+}
+
 FReply SSceneOutlinerTreeRow::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent )
 {
 	auto ItemPtr = Item.Pin();

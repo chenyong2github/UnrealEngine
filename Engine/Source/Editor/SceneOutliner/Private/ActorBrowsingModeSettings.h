@@ -47,6 +47,13 @@ public:
 	/** True when the Scene Outliner updates when an actor is selected in the viewport */
 	UPROPERTY()
 	bool bAlwaysFrameSelection = true;
+
+	/** True when the Scene Outliner expands an actor when it is selected in the viewport
+	 *  False when the Scene Outliner scrolls to the first visible parent instead.
+	 *  Automatically false when bAlwaysFrameSelection is false
+	 */
+	UPROPERTY()
+	bool bAutoExpandHierarchy = true;
 };
 
 UCLASS(EditorConfig="ActorBrowsingMode")
