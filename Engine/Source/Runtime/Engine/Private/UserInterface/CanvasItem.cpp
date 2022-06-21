@@ -5,6 +5,7 @@
 =============================================================================*/
 
 #include "CanvasItem.h"
+#include "BatchedElements.h"
 #include "EngineStats.h"
 #include "EngineGlobals.h"
 #include "HitProxies.h"
@@ -18,7 +19,7 @@
 #include "Fonts/FontMeasure.h"
 #include "Framework/Application/SlateApplication.h"
 #include "EngineFontServices.h"
-
+#include "TextureResource.h"
 
 DECLARE_CYCLE_STAT(TEXT("CanvasTileTextureItem Time"),STAT_Canvas_TileTextureItemTime,STATGROUP_Canvas);
 DECLARE_CYCLE_STAT(TEXT("CanvasTileMaterialItem Time"),STAT_Canvas_TileMaterialItemTime,STATGROUP_Canvas);
@@ -447,24 +448,24 @@ void FCanvasTileItem::Draw( class FCanvas* InCanvas )
 		Right =		( Position.X + Size.X ) * Z;
 		Bottom =	( Position.Y + Size.Y ) * Z;		
 
-		int32 V00 = BatchedElements->AddVertex(
-			FVector4( Left, Top, 0.0f, Z ),
-			FVector2D( UV0.X, UV0.Y ),
+		int32 V00 = BatchedElements->AddVertexf(
+			FVector4f( Left, Top, 0.0f, Z ),
+			FVector2f( UV0.X, UV0.Y ),
 			ActualColor,
 			HitProxyId );
-		int32 V10 = BatchedElements->AddVertex(
-			FVector4( Right, Top, 0.0f, Z ),
-			FVector2D( UV1.X, UV0.Y ),
+		int32 V10 = BatchedElements->AddVertexf(
+			FVector4f( Right, Top, 0.0f, Z ),
+			FVector2f( UV1.X, UV0.Y ),
 			ActualColor,
 			HitProxyId );
-		int32 V01 = BatchedElements->AddVertex(
-			FVector4( Left, Bottom, 0.0f, Z ),
-			FVector2D( UV0.X, UV1.Y ),		
+		int32 V01 = BatchedElements->AddVertexf(
+			FVector4f( Left, Bottom, 0.0f, Z ),
+			FVector2f( UV0.X, UV1.Y ),		
 			ActualColor,
 			HitProxyId );
-		int32 V11 = BatchedElements->AddVertex(
-			FVector4(Right,	Bottom,	0.0f, Z ),
-			FVector2D( UV1.X, UV1.Y ),
+		int32 V11 = BatchedElements->AddVertexf(
+			FVector4f(Right,	Bottom,	0.0f, Z ),
+			FVector2f( UV1.X, UV1.Y ),
 			ActualColor,
 			HitProxyId);
 
@@ -573,24 +574,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		BatchedElements->ReserveVertices(4 * NumElements); // 4 verts each
 
 		//Draw background
-		int32 V00 = BatchedElements->AddVertex(
-			FVector4( Left + BorderLeftDrawSizeX, Top + BorderTopDrawSizeY, 0.0f, Z ),
-			FVector2D( 0, 0 ),
+		int32 V00 = BatchedElements->AddVertexf(
+			FVector4f( Left + BorderLeftDrawSizeX, Top + BorderTopDrawSizeY, 0.0f, Z ),
+			FVector2f( 0, 0 ),
 			ActualColor,
 			HitProxyId );
-		int32 V10 = BatchedElements->AddVertex(
-			FVector4( Right - BorderRightDrawSizeX, Top + BorderTopDrawSizeY, 0.0f, Z ),
-			FVector2D( BackgroundTilingX, 0 ),
+		int32 V10 = BatchedElements->AddVertexf(
+			FVector4f( Right - BorderRightDrawSizeX, Top + BorderTopDrawSizeY, 0.0f, Z ),
+			FVector2f( BackgroundTilingX, 0 ),
 			ActualColor,
 			HitProxyId );
-		int32 V01 = BatchedElements->AddVertex(
-			FVector4( Left + BorderLeftDrawSizeX, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
-			FVector2D( 0, BackgroundTilingY ),		
+		int32 V01 = BatchedElements->AddVertexf(
+			FVector4f( Left + BorderLeftDrawSizeX, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
+			FVector2f( 0, BackgroundTilingY ),		
 			ActualColor,
 			HitProxyId );
-		int32 V11 = BatchedElements->AddVertex(
-			FVector4(Right - BorderRightDrawSizeX, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
-			FVector2D( BackgroundTilingX, BackgroundTilingY ),
+		int32 V11 = BatchedElements->AddVertexf(
+			FVector4f(Right - BorderRightDrawSizeX, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
+			FVector2f( BackgroundTilingX, BackgroundTilingY ),
 			ActualColor,
 			HitProxyId);
 
@@ -604,24 +605,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		const float CornerDrawHeight = BorderTextureHeight * CornerSize.Y * BorderScale.Y;
 
 		//Top Left Corner
-		V00 = BatchedElements->AddVertex(
-			FVector4( Left, Top, 0.0f, Z ),
-			FVector2D( BorderUV0.X, BorderUV0.Y ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( Left, Top, 0.0f, Z ),
+			FVector2f( BorderUV0.X, BorderUV0.Y ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( Left + CornerDrawWidth, Top, 0.0f, Z ),
-			FVector2D( BorderUV1.X*CornerSize.X, BorderUV0.Y ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( Left + CornerDrawWidth, Top, 0.0f, Z ),
+			FVector2f( BorderUV1.X*CornerSize.X, BorderUV0.Y ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( Left, Top + CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV0.X, BorderUV1.Y*CornerSize.Y ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( Left, Top + CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV0.X, BorderUV1.Y*CornerSize.Y ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( Left + CornerDrawWidth, Top + CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV1.X*CornerSize.X, BorderUV1.Y*CornerSize.Y ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( Left + CornerDrawWidth, Top + CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV1.X*CornerSize.X, BorderUV1.Y*CornerSize.Y ),
 			ActualColor,
 			HitProxyId);
 
@@ -629,24 +630,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		BatchedElements->AddTriangleExtensive( V00, V11, V01, BatchedElementParameters, CornersTexture, BlendMode );
 
 		// Top Right Corner
-		V00 = BatchedElements->AddVertex(
-			FVector4( Right - CornerDrawWidth, Top, 0.0f, Z ),
-			FVector2D( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV0.Y ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( Right - CornerDrawWidth, Top, 0.0f, Z ),
+			FVector2f( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV0.Y ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( Right, Top, 0.0f, Z ),
-			FVector2D( BorderUV1.X, BorderUV0.Y ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( Right, Top, 0.0f, Z ),
+			FVector2f( BorderUV1.X, BorderUV0.Y ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( Right - CornerDrawWidth, Top + CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV1.Y*CornerSize.Y ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( Right - CornerDrawWidth, Top + CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV1.Y*CornerSize.Y ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( Right, Top + CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV1.X, BorderUV1.Y*CornerSize.Y ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( Right, Top + CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV1.X, BorderUV1.Y*CornerSize.Y ),
 			ActualColor,
 			HitProxyId);
 
@@ -654,24 +655,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		BatchedElements->AddTriangleExtensive( V00, V11, V01, BatchedElementParameters, CornersTexture, BlendMode );
 
 		//Left Bottom Corner
-		V00 = BatchedElements->AddVertex(
-			FVector4( Left, Bottom - CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV0.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( Left, Bottom - CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV0.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( Left + CornerDrawWidth, Bottom - CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV1.X*CornerSize.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( Left + CornerDrawWidth, Bottom - CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV1.X*CornerSize.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( Left, Bottom, 0.0f, Z ),
-			FVector2D( BorderUV0.X, BorderUV1.Y ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( Left, Bottom, 0.0f, Z ),
+			FVector2f( BorderUV0.X, BorderUV1.Y ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( Left + CornerDrawWidth, Bottom, 0.0f, Z ),
-			FVector2D( BorderUV1.X*CornerSize.X, BorderUV1.Y),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( Left + CornerDrawWidth, Bottom, 0.0f, Z ),
+			FVector2f( BorderUV1.X*CornerSize.X, BorderUV1.Y),
 			ActualColor,
 			HitProxyId);
 
@@ -679,24 +680,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		BatchedElements->AddTriangleExtensive( V00, V11, V01, BatchedElementParameters, CornersTexture, BlendMode );
 
 		// Right Bottom Corner
-		V00 = BatchedElements->AddVertex(
-			FVector4( Right - CornerDrawWidth, Bottom - CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( Right - CornerDrawWidth, Bottom - CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( Right, Bottom - CornerDrawHeight, 0.0f, Z ),
-			FVector2D( BorderUV1.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( Right, Bottom - CornerDrawHeight, 0.0f, Z ),
+			FVector2f( BorderUV1.X, BorderUV1.Y - (BorderUV1.Y - BorderUV0.Y)*CornerSize.Y ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( Right - CornerDrawWidth, Bottom, 0.0f, Z ),
-			FVector2D( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV1.Y ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( Right - CornerDrawWidth, Bottom, 0.0f, Z ),
+			FVector2f( BorderUV1.X - (BorderUV1.X - BorderUV0.X)*CornerSize.X, BorderUV1.Y ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( Right, Bottom, 0.0f, Z ),
-			FVector2D( BorderUV1.X, BorderUV1.Y ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( Right, Bottom, 0.0f, Z ),
+			FVector2f( BorderUV1.X, BorderUV1.Y ),
 			ActualColor,
 			HitProxyId);
 			
@@ -711,24 +712,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		//Top Frame Border
 		const float TopFrameTilingX = (BorderRight-BorderLeft)/BorderTopDrawSizeX;
 
-		V00 = BatchedElements->AddVertex(
-			FVector4( BorderLeft, Top, 0.0f, Z ),
-			FVector2D( 0, 0 ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( BorderLeft, Top, 0.0f, Z ),
+			FVector2f( 0, 0 ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( BorderRight, Top, 0.0f, Z ),
-			FVector2D( TopFrameTilingX , 0 ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( BorderRight, Top, 0.0f, Z ),
+			FVector2f( TopFrameTilingX , 0 ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( BorderLeft, Top + BorderTopDrawSizeY, 0.0f, Z ),
-			FVector2D( 0, 1.0f ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( BorderLeft, Top + BorderTopDrawSizeY, 0.0f, Z ),
+			FVector2f( 0, 1.0f ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( BorderRight, Top + BorderTopDrawSizeY, 0.0f, Z ),
-			FVector2D( TopFrameTilingX, 1.0f ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( BorderRight, Top + BorderTopDrawSizeY, 0.0f, Z ),
+			FVector2f( TopFrameTilingX, 1.0f ),
 			ActualColor,
 			HitProxyId);
 
@@ -738,24 +739,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		//Bottom Frame Border
 		const float BottomFrameTilingX = (BorderRight-BorderLeft)/BorderBottomDrawSizeX;
 
-		V00 = BatchedElements->AddVertex(
-			FVector4( BorderLeft, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
-			FVector2D( 0, 0 ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( BorderLeft, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
+			FVector2f( 0, 0 ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( BorderRight, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
-			FVector2D( BottomFrameTilingX, 0 ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( BorderRight, Bottom - BorderBottomDrawSizeY, 0.0f, Z ),
+			FVector2f( BottomFrameTilingX, 0 ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( BorderLeft, Bottom, 0.0f, Z ),
-			FVector2D( 0, 1.0f ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( BorderLeft, Bottom, 0.0f, Z ),
+			FVector2f( 0, 1.0f ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( BorderRight, Bottom, 0.0f, Z ),
-			FVector2D( BottomFrameTilingX, 1.0f ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( BorderRight, Bottom, 0.0f, Z ),
+			FVector2f( BottomFrameTilingX, 1.0f ),
 			ActualColor,
 			HitProxyId);
 
@@ -766,24 +767,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		//Left Frame Border
 		const float LeftFrameTilingY = (BorderBottom-BorderTop) / BorderLeftDrawSizeY;
 
-		V00 = BatchedElements->AddVertex(
-			FVector4( Left, BorderTop, 0.0f, Z ),
-			FVector2D( 0, 0 ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( Left, BorderTop, 0.0f, Z ),
+			FVector2f( 0, 0 ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( Left +  BorderLeftDrawSizeX , BorderTop, 0.0f, Z ),
-			FVector2D( 1.0f, 0 ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( Left +  BorderLeftDrawSizeX , BorderTop, 0.0f, Z ),
+			FVector2f( 1.0f, 0 ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( Left, BorderBottom, 0.0f, Z ),
-			FVector2D( 0, LeftFrameTilingY ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( Left, BorderBottom, 0.0f, Z ),
+			FVector2f( 0, LeftFrameTilingY ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( Left + BorderLeftDrawSizeX, BorderBottom, 0.0f, Z ),
-			FVector2D( 1.0f, LeftFrameTilingY ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( Left + BorderLeftDrawSizeX, BorderBottom, 0.0f, Z ),
+			FVector2f( 1.0f, LeftFrameTilingY ),
 			ActualColor,
 			HitProxyId);
 
@@ -794,24 +795,24 @@ void FCanvasBorderItem::Draw( class FCanvas* InCanvas )
 		//Right Frame Border
 		const float RightFrameTilingY = (BorderBottom-BorderTop)/BorderRightDrawSizeY;
 
-		V00 = BatchedElements->AddVertex(
-			FVector4( Right - BorderRightDrawSizeX, BorderTop, 0.0f, Z ),
-			FVector2D( 0, 0 ),
+		V00 = BatchedElements->AddVertexf(
+			FVector4f( Right - BorderRightDrawSizeX, BorderTop, 0.0f, Z ),
+			FVector2f( 0, 0 ),
 			ActualColor,
 			HitProxyId );
-		V10 = BatchedElements->AddVertex(
-			FVector4( Right, BorderTop, 0.0f, Z ),
-			FVector2D( 1.0f , 0 ),
+		V10 = BatchedElements->AddVertexf(
+			FVector4f( Right, BorderTop, 0.0f, Z ),
+			FVector2f( 1.0f , 0 ),
 			ActualColor,
 			HitProxyId );
-		V01 = BatchedElements->AddVertex(
-			FVector4( Right - BorderRightDrawSizeX, BorderBottom, 0.0f, Z ),
-			FVector2D( 0, RightFrameTilingY ),		
+		V01 = BatchedElements->AddVertexf(
+			FVector4f( Right - BorderRightDrawSizeX, BorderBottom, 0.0f, Z ),
+			FVector2f( 0, RightFrameTilingY ),		
 			ActualColor,
 			HitProxyId );
-		V11 = BatchedElements->AddVertex(
-			FVector4( Right, BorderBottom, 0.0f, Z ),
-			FVector2D( 1.0f, RightFrameTilingY ),
+		V11 = BatchedElements->AddVertexf(
+			FVector4f( Right, BorderBottom, 0.0f, Z ),
+			FVector2f( 1.0f, RightFrameTilingY ),
 			ActualColor,
 			HitProxyId);
 
@@ -887,32 +888,33 @@ void FCanvasTextItemBase::Draw( class FCanvas* InCanvas )
 		}		
 	}
 	
-	FLinearColor DrawColor;
-	BatchedElements = nullptr;
+	TArray<FTextEffect, TFixedAllocator<6>> TextEffects;
+
+	const auto ModulateColor = [InCanvas, this](FLinearColor InColor)
+	{
+		InColor.A = Color.A;
+		// Copy the Alpha from the shadow otherwise if we fade the text the shadow wont fade - which is almost certainly not what we will want.
+		InColor.A *= InCanvas->AlphaModulate;
+		return InColor;
+	};
 
 	// If we have a shadow - draw it now
 	if (bHasShadow)
 	{
-		DrawColor = ShadowColor;
-		// Copy the Alpha from the shadow otherwise if we fade the text the shadow wont fade - which is almost certainly not what we will want.
-		DrawColor.A = Color.A;
-		DrawColor.A *= InCanvas->AlphaModulate;
-		DrawStringInternal(InCanvas, DrawPos + ShadowOffset*DPIScale, DrawColor);
+		TextEffects.Add({ FVector2f{ShadowOffset * DPIScale}, ModulateColor(ShadowColor) });
 	}
 
 	if( bOutlined )
 	{
-		DrawColor = OutlineColor;
-		DrawColor.A *= InCanvas->AlphaModulate;
-		DrawStringInternal( InCanvas, DrawPos + FVector2D( -1.0f, -1.0f ), DrawColor );
-		DrawStringInternal( InCanvas, DrawPos + FVector2D( -1.0f, 1.0f ), DrawColor );
-		DrawStringInternal( InCanvas, DrawPos + FVector2D( 1.0f, 1.0f ), DrawColor );
-		DrawStringInternal( InCanvas, DrawPos + FVector2D( 1.0f, -1.0f ), DrawColor );
+		const FLinearColor DrawColor = ModulateColor(OutlineColor);
+		TextEffects.Add({ FVector2f(-1.0f, -1.0f), OutlineColor });
+		TextEffects.Add({ FVector2f(-1.0f, 1.0f), OutlineColor });
+		TextEffects.Add({ FVector2f(1.0f, 1.0f), OutlineColor });
+		TextEffects.Add({ FVector2f(1.0f, -1.0f), OutlineColor });
 	}
 
-	DrawColor = Color;
-	DrawColor.A *= InCanvas->AlphaModulate;	
-	DrawStringInternal( InCanvas, DrawPos, DrawColor );
+	const FLinearColor DrawColor = ModulateColor(Color);
+	DrawStringInternal( InCanvas, DrawPos, DrawColor, TextEffects);
 }
 
 
@@ -979,16 +981,16 @@ FVector2D FCanvasTextItem::GetTextSize(float DPIScale) const
 	return MeasuredTextSize;
 }
 
-void FCanvasTextItem::DrawStringInternal( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor )
+void FCanvasTextItem::DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor, TArrayView<FTextEffect> TextEffects)
 {
 	switch(GetFontCacheType())
 	{
 	case EFontCacheType::Offline:
-		DrawStringInternal_OfflineCache(InCanvas, DrawPos, InColor);
+		DrawStringInternal_OfflineCache(InCanvas, DrawPos, InColor, TextEffects);
 		break;
 
 	case EFontCacheType::Runtime:
-		DrawStringInternal_RuntimeCache(InCanvas, DrawPos, InColor);
+		DrawStringInternal_RuntimeCache(InCanvas, DrawPos, InColor, TextEffects);
 		break;
 
 	default:
@@ -996,8 +998,10 @@ void FCanvasTextItem::DrawStringInternal( FCanvas* InCanvas, const FVector2D& Dr
 	}
 }
 
-void FCanvasTextItem::DrawStringInternal_OfflineCache( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor )
+void FCanvasTextItem::DrawStringInternal_OfflineCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor, TArrayView<FTextEffect> TextEffects)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(DrawStringInternal_OfflineCache);
+
 	DrawnSize = FVector2D::ZeroVector;
 
 	// Nothing to do if no text
@@ -1084,29 +1088,41 @@ void FCanvasTextItem::DrawStringInternal_OfflineCache( FCanvas* InCanvas, const 
 			const float Right = (X + SizeX) * Depth;
 			const float Bottom = (Y + SizeY) * Depth;
 
-			int32 V00 = BatchedElements->AddVertex(
-				FVector4( Left, Top, 0.f, Depth ),
-				FVector2D( U, V ),
-				InColor,
-				HitProxyId );
-			int32 V10 = BatchedElements->AddVertex(
-				FVector4( Right, Top, 0.0f, Depth ),
-				FVector2D( U + SizeU, V ),			
-				InColor,
-				HitProxyId );
-			int32 V01 = BatchedElements->AddVertex(
-				FVector4( Left, Bottom, 0.0f, Depth ),
-				FVector2D( U, V + SizeV ),	
-				InColor,
-				HitProxyId);
-			int32 V11 = BatchedElements->AddVertex(
-				FVector4( Right, Bottom, 0.0f, Depth ),
-				FVector2D( U + SizeU, V + SizeV ),
-				InColor,
-				HitProxyId);
+			const auto AddTriangles = [&](const FVector2f& Offset, const FLinearColor& InColor)
+			{
+				int32 V00 = BatchedElements->AddVertexf(
+					FVector4f(Left + Offset.X, Top + Offset.Y, 0.f, Depth),
+					FVector2f(U, V),
+					InColor,
+					HitProxyId);
+				int32 V10 = BatchedElements->AddVertexf(
+					FVector4f(Right + Offset.X, Top + Offset.Y, 0.0f, Depth),
+					FVector2f(U + SizeU, V),
+					InColor,
+					HitProxyId);
+				int32 V01 = BatchedElements->AddVertexf(
+					FVector4f(Left + Offset.X, Bottom + Offset.Y, 0.0f, Depth),
+					FVector2f(U, V + SizeV),
+					InColor,
+					HitProxyId);
+				int32 V11 = BatchedElements->AddVertexf(
+					FVector4f(Right + Offset.X, Bottom + Offset.Y, 0.0f, Depth),
+					FVector2f(U + SizeU, V + SizeV),
+					InColor,
+					HitProxyId);
 
-			BatchedElements->AddTriangle(V00, V10, V11, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo);
-			BatchedElements->AddTriangle(V00, V11, V01, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo);
+				BatchedElements->AddTriangle(V00, V10, V11, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo);
+				BatchedElements->AddTriangle(V00, V11, V01, Tex->GetResource(), BlendMode, FontRenderInfo.GlowInfo);
+			};
+
+			// Render all the effects first that appear under the text
+			for (const FTextEffect& TextEffect : TextEffects)
+			{
+				AddTriangles(TextEffect.Offset, TextEffect.Color);
+			}
+
+			// The draw the main text
+			AddTriangles(FVector2f::ZeroVector, InColor);
 
 			// if we have another non-whitespace character to render, add the font's kerning.
 			if ( Chars[i+1] && !FChar::IsWhitespace(Chars[i+1]) )
@@ -1126,8 +1142,10 @@ void FCanvasTextItem::DrawStringInternal_OfflineCache( FCanvas* InCanvas, const 
 	}
 }
 
-void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor )
+void FCanvasTextItem::DrawStringInternal_RuntimeCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor, TArrayView<FTextEffect> TextEffects)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(DrawStringInternal_RuntimeCache);
+
 	const float DPIScale = InCanvas->GetDPIScale();
 
 	DrawnSize = FVector2D::ZeroVector;
@@ -1149,7 +1167,7 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 	const FSlateFontInfo LegacyFontInfo = (SlateFontInfo.IsSet()) ? SlateFontInfo.GetValue() : Font->GetLegacySlateFontInfo();
 	FCharacterList& CharacterList = FontCache->GetCharacterList( LegacyFontInfo, FontScale );
 
-	FHitProxyId HitProxyId = InCanvas->GetHitProxyId();
+	const FHitProxyId HitProxyId = InCanvas->GetHitProxyId();
 
 	uint32 FontTextureIndex = 0;
 	FTextureResource* FontTexture = nullptr;
@@ -1158,8 +1176,6 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 
 	float InvTextureSizeX = 0;
 	float InvTextureSizeY = 0;
-
-	FCharacterEntry PreviousCharEntry;
 
 	FVector2D TopLeft(0,0);
 
@@ -1170,11 +1186,12 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 	const float ScaledMaxHeight = CharacterList.GetMaxHeight() * Scale.Y;
 
 	float LineX = PosX;
-	
+
+	TCHAR PreviousChar = 0;
 	const int32 TextLen = TextString.Len();
-	for( int32 CharIndex = 0; CharIndex < TextLen; ++CharIndex )
+	for (int32 CharIndex = 0; CharIndex < TextLen; ++CharIndex)
 	{
-		const TCHAR CurrentChar = TextString[ CharIndex ];
+		const TCHAR CurrentChar = TextString[CharIndex];
 
 		if (DrawnSize.Y == 0)
 		{
@@ -1195,9 +1212,9 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 		}
 		else
 		{
-			FCharacterEntry Entry{ CharacterList.GetCharacter(CurrentChar, LegacyFontInfo.FontFallback) };
+			const FCharacterEntry& Entry = CharacterList.GetCharacter(CurrentChar, LegacyFontInfo.FontFallback);
 
-			if( Entry.Valid && (FontTexture == nullptr || Entry.TextureIndex != FontTextureIndex) )
+			if (Entry.Valid && (FontTexture == nullptr || Entry.TextureIndex != FontTextureIndex))
 			{
 				// Font has a new texture for this glyph. Refresh the batch we use and the index we are currently using
 				FontTextureIndex = Entry.TextureIndex;
@@ -1220,24 +1237,33 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 				// for the triangles/vertices of the batched elements used to render the text tiles.
 				// Only reserve initial batch, allow growth afterwards in case there are multiple repeated calls.
 				// Reserving exactly the added amount each time would essentially force an alloc each time on subsequent calls.
-				BatchedElements->ReserveTriangles(TextLen*2, FontTexture, FontTextureBlendMode);
-				BatchedElements->ReserveVertices(TextLen*4);
+				{
+					const int32 NumTris = 2 * (TextEffects.Num() + 1);
+					const int32 NumVerts = 4 * (TextEffects.Num() + 1);
+					BatchedElements->ReserveTriangles(TextLen * NumTris, FontTexture, FontTextureBlendMode);
+					BatchedElements->ReserveVertices(TextLen * NumVerts);
+				}
 
-				InvTextureSizeX = 1.0f/FontTexture->GetSizeX();
-				InvTextureSizeY = 1.0f/FontTexture->GetSizeY();
+				InvTextureSizeX = 1.0f / FontTexture->GetSizeX();
+				InvTextureSizeY = 1.0f / FontTexture->GetSizeY();
 			}
 
 			const bool bIsWhitespace = !Entry.Valid || FChar::IsWhitespace(CurrentChar);
 
 			int32 Kerning = 0;
-			if( !bIsWhitespace && PreviousCharEntry.Valid )
+			if (!bIsWhitespace)
 			{
-				Kerning = CharacterList.GetKerning( PreviousCharEntry, Entry ) * Scale.X;
+				if (CharIndex > 0)
+				{
+					// We can't store a pointer to the previous entry as calls to CharacterList.GetCharacter can invalidate previous pointers.
+					const FCharacterEntry& PreviousEntry = CharacterList.GetCharacter(PreviousChar, LegacyFontInfo.FontFallback);
+					Kerning = CharacterList.GetKerning(PreviousEntry, Entry) * Scale.X;
+				}
 			}
 
 			LineX += Kerning;
 
-			if( !bIsWhitespace )
+			if (!bIsWhitespace)
 			{
 				const float InvBitmapRenderScale = 1.0f / Entry.BitmapRenderScale;
 
@@ -1257,29 +1283,41 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 				const float Right = (X + SizeX) * Depth;
 				const float Bottom = (Y + SizeY) * Depth;
 
-				int32 V00 = BatchedElements->AddVertex(
-					FVector4( Left, Top, 0.f, Depth ),
-					FVector2D( U, V ),
-					FontColor,
-					HitProxyId );
-				int32 V10 = BatchedElements->AddVertex(
-					FVector4( Right, Top, 0.0f, Depth ),
-					FVector2D( U + SizeU, V ),			
-					FontColor,
-					HitProxyId );
-				int32 V01 = BatchedElements->AddVertex(
-					FVector4( Left, Bottom, 0.0f, Depth ),
-					FVector2D( U, V + SizeV ),	
-					FontColor,
-					HitProxyId);
-				int32 V11 = BatchedElements->AddVertex(
-					FVector4( Right, Bottom, 0.0f, Depth ),
-					FVector2D( U + SizeU, V + SizeV ),
-					FontColor,
-					HitProxyId);
+				const auto AddTriangles = [&](const FVector2f& Offset, const FLinearColor& InColor)
+				{
+					int32 V00 = BatchedElements->AddVertexf(
+						FVector4f(Left + Offset.X, Top + Offset.Y, 0.f, Depth),
+						FVector2f(U, V),
+						InColor,
+						HitProxyId);
+					int32 V10 = BatchedElements->AddVertexf(
+						FVector4f(Right + Offset.X, Top + Offset.Y, 0.0f, Depth),
+						FVector2f(U + SizeU, V),
+						InColor,
+						HitProxyId);
+					int32 V01 = BatchedElements->AddVertexf(
+						FVector4f(Left + Offset.X, Bottom + Offset.Y, 0.0f, Depth),
+						FVector2f(U, V + SizeV),
+						InColor,
+						HitProxyId);
+					int32 V11 = BatchedElements->AddVertexf(
+						FVector4f(Right + Offset.X, Bottom + Offset.Y, 0.0f, Depth),
+						FVector2f(U + SizeU, V + SizeV),
+						InColor,
+						HitProxyId);
 
-				BatchedElements->AddTriangle(V00, V10, V11, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
-				BatchedElements->AddTriangle(V00, V11, V01, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
+					BatchedElements->AddTriangle(V00, V10, V11, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
+					BatchedElements->AddTriangle(V00, V11, V01, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
+				};
+
+				// Render all the effects first that appear under the text
+				for (const FTextEffect& TextEffect : TextEffects)
+				{
+					AddTriangles(TextEffect.Offset, TextEffect.Color);
+				}
+
+				// The draw the main text
+				AddTriangles(FVector2f::ZeroVector, FontColor);
 			}
 
 			LineX += Entry.XAdvance * Scale.X;
@@ -1291,12 +1329,10 @@ void FCanvasTextItem::DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const 
 				DrawnSize.X = LineX;
 			}
 
-			// MoveTemp to reduce the number of SharedPtr creation/destruction.
-			PreviousCharEntry = MoveTemp(Entry);
+			PreviousChar = CurrentChar;
 		}
 	}
 }
-
 
 bool FCanvasShapedTextItem::HasValidText() const
 {
@@ -1319,7 +1355,7 @@ FVector2D FCanvasShapedTextItem::GetTextSize(float DPIScale) const
 	return FVector2D(ShapedGlyphSequence->GetMeasuredWidth(), ShapedGlyphSequence->GetMaxTextHeight());
 }
 
-void FCanvasShapedTextItem::DrawStringInternal( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor )
+void FCanvasShapedTextItem::DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& InColor, TArrayView<FTextEffect> TextEffects)
 {
 	DrawnSize = FVector2D::ZeroVector;
 
@@ -1410,29 +1446,41 @@ void FCanvasShapedTextItem::DrawStringInternal( FCanvas* InCanvas, const FVector
 				const float Right = (X + SizeX) * Depth;
 				const float Bottom = (Y + SizeY) * Depth;
 
-				int32 V00 = BatchedElements->AddVertex(
-					FVector4( Left, Top, 0.f, Depth ),
-					FVector2D( U, V ),
-					FontColor,
-					HitProxyId );
-				int32 V10 = BatchedElements->AddVertex(
-					FVector4( Right, Top, 0.0f, Depth ),
-					FVector2D( U + SizeU, V ),			
-					FontColor,
-					HitProxyId );
-				int32 V01 = BatchedElements->AddVertex(
-					FVector4( Left, Bottom, 0.0f, Depth ),
-					FVector2D( U, V + SizeV ),	
-					FontColor,
-					HitProxyId);
-				int32 V11 = BatchedElements->AddVertex(
-					FVector4( Right, Bottom, 0.0f, Depth ),
-					FVector2D( U + SizeU, V + SizeV ),
-					FontColor,
-					HitProxyId);
+				const auto AddTriangles = [&](const FVector2f& Offset, const FLinearColor& InColor)
+				{
+					int32 V00 = BatchedElements->AddVertexf(
+						FVector4f(Left + Offset.X, Top + Offset.Y, 0.f, Depth),
+						FVector2f(U, V),
+						InColor,
+						HitProxyId);
+					int32 V10 = BatchedElements->AddVertexf(
+						FVector4f(Right + Offset.X, Top + Offset.Y, 0.0f, Depth),
+						FVector2f(U + SizeU, V),
+						InColor,
+						HitProxyId);
+					int32 V01 = BatchedElements->AddVertexf(
+						FVector4f(Left + Offset.X, Bottom + Offset.Y, 0.0f, Depth),
+						FVector2f(U, V + SizeV),
+						InColor,
+						HitProxyId);
+					int32 V11 = BatchedElements->AddVertexf(
+						FVector4f(Right + Offset.X, Bottom + Offset.Y, 0.0f, Depth),
+						FVector2f(U + SizeU, V + SizeV),
+						InColor,
+						HitProxyId);
 
-				BatchedElements->AddTriangle(V00, V10, V11, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
-				BatchedElements->AddTriangle(V00, V11, V01, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
+					BatchedElements->AddTriangle(V00, V10, V11, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
+					BatchedElements->AddTriangle(V00, V11, V01, FontTexture, FontTextureBlendMode, FontRenderInfo.GlowInfo);
+				};
+
+				// Render all the effects first that appear under the text
+				for (const FTextEffect& TextEffect : TextEffects)
+				{
+					AddTriangles(TextEffect.Offset, TextEffect.Color);
+				}
+
+				// The draw the main text
+				AddTriangles(FVector2f::ZeroVector, FontColor);
 			}
 		}
 
@@ -1508,9 +1556,9 @@ void FCanvasTriangleItem::Draw( class FCanvas* InCanvas )
 		for (int32 i = 0; i < NumTriangles; i++)
 		{
 			const FCanvasUVTri& Tri = TriangleList[i];
-			int32 V0 = BatchedElements->AddVertex(FVector4(Tri.V0_Pos.X, Tri.V0_Pos.Y, 0, 1), Tri.V0_UV, Tri.V0_Color, HitProxyId);
-			int32 V1 = BatchedElements->AddVertex(FVector4(Tri.V1_Pos.X, Tri.V1_Pos.Y, 0, 1), Tri.V1_UV, Tri.V1_Color, HitProxyId);
-			int32 V2 = BatchedElements->AddVertex(FVector4(Tri.V2_Pos.X, Tri.V2_Pos.Y, 0, 1), Tri.V2_UV, Tri.V2_Color, HitProxyId);
+			int32 V0 = BatchedElements->AddVertexf(FVector4f(Tri.V0_Pos.X, Tri.V0_Pos.Y, 0, 1), FVector2f{Tri.V0_UV}, Tri.V0_Color, HitProxyId);
+			int32 V1 = BatchedElements->AddVertexf(FVector4f(Tri.V1_Pos.X, Tri.V1_Pos.Y, 0, 1), FVector2f{Tri.V1_UV}, Tri.V1_Color, HitProxyId);
+			int32 V2 = BatchedElements->AddVertexf(FVector4f(Tri.V2_Pos.X, Tri.V2_Pos.Y, 0, 1), FVector2f{Tri.V2_UV}, Tri.V2_Color, HitProxyId);
 
 			if (BatchedElementParameters)
 			{

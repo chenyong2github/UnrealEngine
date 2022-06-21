@@ -511,21 +511,16 @@ class SLATECORE_API FCharacterList
 public:
 	FCharacterList( const FSlateFontKey& InFontKey, FSlateFontCache& InFontCache );
 
-	/* @return Is the character in this list */
-	bool IsValidIndex( TCHAR Character ) const
-	{
-		return DirectIndexEntries.IsValidIndex( Character ) || ( Character >= MaxDirectIndexedEntries && MappedEntries.Contains( Character ) );
-	}
-
 	/**
-	 * Gets data about how to render and measure a character 
-	 * Caching and atlasing it if needed
+	 * Gets data about how to render and measure a character.
+	 * Caching and atlasing it if needed.
+	 * Subsequent calls may invalidate previous pointers.
 	 *
 	 * @param Character			The character to get
 	 * @param MaxFontFallback	The maximum fallback level that can be used when resolving glyphs
 	 * @return				Data about the character
 	 */
-	FCharacterEntry GetCharacter(TCHAR Character, const EFontFallback MaxFontFallback);
+	const FCharacterEntry& GetCharacter(TCHAR Character, const EFontFallback MaxFontFallback);
 
 #if WITH_EDITORONLY_DATA
 	/** Check to see if our cached data is potentially stale for our font */
@@ -564,23 +559,6 @@ public:
 	int16 GetBaseline() const;
 
 private:
-	/** Maintains a fake shaped glyph for each character in the character list */
-	struct FCharacterListEntry
-	{
-		/** The shaped glyph data for this character */
-		FShapedGlyphEntry ShapedGlyphEntry;
-		/** Font data this character was rendered with */
-		const FFontData* FontData = nullptr;
-		/** Kerning cache that this character uses */
-		TSharedPtr<FFreeTypeKerningCache> KerningCache;
-		/** The fallback level this character represents */
-		EFontFallback FallbackLevel = EFontFallback::FF_Max;
-		/** Does this character have kerning? */
-		bool HasKerning = false;
-		/** Has this entry been initialized? */
-		bool Valid = false;
-	};
-
 	/**
 	 * Returns whether the specified character is valid for caching (i.e. whether it matches the FontFallback level)
 	 *
@@ -594,18 +572,12 @@ private:
 	 * 
 	 * @param Character	The character to cache
 	 */
-	FCharacterListEntry* CacheCharacter(TCHAR Character);
-
-	/**
-	 * Convert the cached internal entry to the external data for the old non-shaped API
-	 */
-	FCharacterEntry MakeCharacterEntry(TCHAR Character, const FCharacterListEntry& InternalEntry) const;
+	const FCharacterEntry* CacheCharacter(TCHAR Character);
 
 private:
 	/** Entries for larger character sets to conserve memory */
-	TMap<TCHAR, FCharacterListEntry> MappedEntries; 
-	/** Directly indexed entries for fast lookup */
-	TArray<FCharacterListEntry> DirectIndexEntries;
+	TMap<TCHAR, FCharacterEntry> MappedEntries;
+
 	/** Font for this character list */
 	FSlateFontKey FontKey;
 	/** Reference to the font cache for accessing new unseen characters */
@@ -614,8 +586,6 @@ private:
 	/** The history revision of the cached composite font */
 	int32 CompositeFontHistoryRevision;
 #endif	// WITH_EDITORONLY_DATA
-	/** Number of directly indexed entries */
-	int32 MaxDirectIndexedEntries;
 	/** The global max height for any character in this font */
 	mutable uint16 MaxHeight;
 	/** The offset from the bottom of the max character height to the baseline. */

@@ -413,12 +413,18 @@ protected:
 	 */
 	virtual FVector2D GetTextSize(float DPIScale) const = 0;
 
+	struct FTextEffect
+	{
+		FVector2f Offset;
+		FLinearColor Color;
+	};
+
 	/** 
 	 * Internal string draw
 	 *
 	 * In a method to make it simpler to do effects like shadow, outline
 	 */
-	virtual void DrawStringInternal( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor ) = 0;
+	virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> Offsets) = 0;
 
 	/** 
 	 * These are used by the DrawStringInternal function. 
@@ -480,15 +486,16 @@ protected:
 	virtual bool HasValidText() const override;
 	virtual ESimpleElementBlendMode GetTextBlendMode( const bool bHasShadow ) const override;
 	virtual FVector2D GetTextSize(float DPIScale) const override;
-	virtual void DrawStringInternal( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor ) override;
+	virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects) override;
+
 
 	/** 
 	 * Internal string draw
 	 *
 	 * In a method to make it simpler to do effects like shadow, outline
 	 */
-	void DrawStringInternal_OfflineCache( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor );
-	void DrawStringInternal_RuntimeCache( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor );
+	void DrawStringInternal_OfflineCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects);
+	void DrawStringInternal_RuntimeCache(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects);
 };
 
 /* Text item which can handle complex shaped text. */
@@ -517,7 +524,7 @@ protected:
 	virtual bool HasValidText() const override;
 	virtual ESimpleElementBlendMode GetTextBlendMode( const bool bHasShadow ) const override;
 	virtual FVector2D GetTextSize(float DPIScale) const override;
-	virtual void DrawStringInternal( FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor ) override;
+	virtual void DrawStringInternal(FCanvas* InCanvas, const FVector2D& DrawPos, const FLinearColor& DrawColor, TArrayView<FTextEffect> TextEffects) override;
 };
 
 /* Line item. Note blend mode will be disregarded for these - only SE_BLEND_Opaque is currently supported. */
