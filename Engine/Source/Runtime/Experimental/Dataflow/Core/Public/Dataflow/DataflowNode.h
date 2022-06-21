@@ -78,6 +78,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	void AddInput(FDataflowConnection* InPtr);
 	FDataflowInput* FindInput(FName Name);
+	FDataflowInput* FindInput(void* Reference);
 	const FDataflowInput* FindInput(const void* Reference) const;
 	const FDataflowInput* GetInput(const void* Reference) const;
 	TArray< FDataflowConnection* > GetInputs() const;
@@ -85,6 +86,7 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	void AddOutput(FDataflowConnection* InPtr);
 	FDataflowOutput* FindOutput(FName Name);
+	FDataflowOutput* FindOutput(void* Reference);
 	const FDataflowOutput* FindOutput(const void* Reference) const;
 	const FDataflowOutput* GetOutput(const void* Reference) const;
 	TArray< FDataflowConnection* > GetOutputs() const;
