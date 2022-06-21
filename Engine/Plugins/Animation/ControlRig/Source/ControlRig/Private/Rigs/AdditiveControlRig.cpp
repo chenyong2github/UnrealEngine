@@ -5,6 +5,7 @@
 #include "Engine/SkeletalMesh.h"
 #include "IControlRigObjectBinding.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Execution/RigUnit_PrepareForExecution.h"
 #include "Rigs/RigHierarchyController.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
 
@@ -41,21 +42,36 @@ FName UAdditiveControlRig::GetNullName(const FName& InBoneName)
 
 bool UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
-	if (InEventName != FRigUnit_BeginExecution::EventName)
+	if (InEventName == FRigUnit_BeginExecution::EventName)
 	{
-		// still return true - we want the evaluation code
-		// to simply carry on for other events.
-		return true;
+		for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
+		{
+			FName ControlName = GetControlName(Unit.Bone);
+			const int32 Index = GetHierarchy()->GetIndex(FRigElementKey(ControlName, ERigElementType::Control));
+			Unit.Transform = GetHierarchy()->GetLocalTransform(Index);
+			Unit.ExecuteContext.Hierarchy = GetHierarchy();
+			Unit.ExecuteContext.EventName = InEventName;
+			Unit.Execute(InOutContext);
+		}
 	}
-
-	for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
+	else if(InEventName == FRigUnit_PrepareForExecution::EventName)
 	{
-		FName ControlName = GetControlName(Unit.Bone);
-		const int32 Index = GetHierarchy()->GetIndex(FRigElementKey(ControlName, ERigElementType::Control));
-		Unit.Transform = GetHierarchy()->GetLocalTransform(Index);
-		Unit.ExecuteContext.Hierarchy = GetHierarchy();
-		Unit.ExecuteContext.EventName = InEventName;
-		Unit.Execute(InOutContext);
+		if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))
+		{
+			CreateRigElements(SkeletalMeshComponent->GetSkeletalMesh());
+		}
+
+		// add units and initialize
+		AddBoneRigUnits.Reset();
+
+		GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
+		{
+			FRigUnit_AddBoneTransform NewUnit;
+			NewUnit.Bone = BoneElement->GetName();
+			NewUnit.bPropagateToChildren = true;
+			AddBoneRigUnits.Add(NewUnit);
+			return true;
+		});
 	}
 
 	return true;
@@ -72,27 +88,9 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 		return;
 	}
 
-	// we do this after Initialize because Initialize will copy from CDO. 
-	// create hierarchy from the incoming skeleton
-	if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(GetObjectBinding()->GetBoundObject()))
-	{
-		CreateRigElements(SkeletalMeshComponent->GetSkeletalMesh());
-	}
-
-	// add units and initialize
-	AddBoneRigUnits.Reset();
-
-	GetHierarchy()->ForEach<FRigBoneElement>([&](FRigBoneElement* BoneElement) -> bool
-	{
-		FRigUnit_AddBoneTransform NewUnit;
-        NewUnit.Bone = BoneElement->GetName();
-        NewUnit.bPropagateToChildren = true;
-        AddBoneRigUnits.Add(NewUnit);
-		return true;
-    });
-
-	// execute init
 	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
+	FRigUnitContext DefaultContext;
+	ExecuteUnits(DefaultContext, FRigUnit_PrepareForExecution::EventName);
 }
 
 void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)

@@ -86,6 +86,15 @@ void RigElementKeyDetails_GetCustomizedInfo(TSharedRef<IPropertyHandle> InStruct
 		{
 			break;
 		}
+
+		if(const UControlRig* ControlRig = Object->GetTypedOuter<UControlRig>())
+		{
+			OutBlueprint = Cast<UControlRigBlueprint>(ControlRig->GetClass()->ClassGeneratedBy);
+			if(OutBlueprint)
+			{
+				break;
+			}
+		}
 	}
 
 	if (OutBlueprint == nullptr)

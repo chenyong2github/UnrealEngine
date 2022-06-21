@@ -226,8 +226,8 @@ private:
 	void OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
 	void OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
 
-	bool IsConstructionEventRunning() const { return HierarchyHashBeforeConstruction != INDEX_NONE; }
-	uint32 HierarchyHashBeforeConstruction;
+	bool bIsConstructionEventRunning;
+	uint32 LastHierarchyHash;
 	TArray<FRigElementKey> SelectionBeforeConstruction;
 
 public:

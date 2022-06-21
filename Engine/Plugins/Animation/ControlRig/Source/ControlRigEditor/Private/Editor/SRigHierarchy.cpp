@@ -245,7 +245,8 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	];
 
 	bIsChangingRigHierarchy = false;
-	HierarchyHashBeforeConstruction = INDEX_NONE;
+	LastHierarchyHash = INDEX_NONE;
+	bIsConstructionEventRunning = false;
 	
 	RefreshTreeView();
 
@@ -617,7 +618,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		return;
 	}
 
-	if (bIsChangingRigHierarchy || IsConstructionEventRunning())
+	if (bIsChangingRigHierarchy || bIsConstructionEventRunning)
 	{
 		return;
 	}
@@ -775,7 +776,7 @@ void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNo
 		return;
 	}
 
-	if(IsConstructionEventRunning())
+	if(bIsConstructionEventRunning)
 	{
 		return;
 	}
@@ -845,6 +846,7 @@ void SRigHierarchy::HandleSetObjectBeingDebugged(UObject* InObject)
 		ControlRig->OnPreConstructionForUI_AnyThread().AddSP(this, &SRigHierarchy::OnPreConstruction_AnyThread);
 		ControlRig->OnPostConstruction_AnyThread().RemoveAll(this);
 		ControlRig->OnPostConstruction_AnyThread().AddSP(this, &SRigHierarchy::OnPostConstruction_AnyThread);
+		LastHierarchyHash = INDEX_NONE;
 	}
 
 	RefreshTreeView();
@@ -856,7 +858,7 @@ void SRigHierarchy::OnPreConstruction_AnyThread(UControlRig* InRig, const EContr
 	{
 		return;
 	}
-	HierarchyHashBeforeConstruction = InRig->GetHierarchy()->GetTopologyHash(false);
+	bIsConstructionEventRunning = true;
 	SelectionBeforeConstruction = InRig->GetHierarchy()->GetSelectedKeys();
 }
 
@@ -867,11 +869,13 @@ void SRigHierarchy::OnPostConstruction_AnyThread(UControlRig* InRig, const ECont
 		return;
 	}
 
-	uint32 HierarchyHash = INDEX_NONE;
-	Swap(HierarchyHash, HierarchyHashBeforeConstruction);
-			
-	if(HierarchyHash != InRig->GetHierarchy()->GetTopologyHash(false))
+	bIsConstructionEventRunning = false;
+
+	const int32 HierarchyHash = InRig->GetHierarchy()->GetTopologyHash(false);
+	if(LastHierarchyHash != HierarchyHash)
 	{
+		LastHierarchyHash = HierarchyHash;
+		
 		auto Task = [this]()
 		{
 			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);

@@ -223,7 +223,8 @@ FControlRigEditor::FControlRigEditor()
 	, RigHierarchyTabCount(0)
 	, HaltedAtNode(nullptr)
 	, bSuspendDetailsPanelRefresh(false)
-	, HierarchyHashBeforeConstruction(INDEX_NONE)
+	, bIsConstructionEventRunning(false)
+	, LastHierarchyHash(INDEX_NONE)
 {
 }
 
@@ -1367,6 +1368,7 @@ void FControlRigEditor::HandleSetObjectBeingDebugged(UObject* InObject)
 		DebuggedControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditor::OnHierarchyModified_AnyThread);
 		DebuggedControlRig->OnPreConstructionForUI_AnyThread().AddSP(this, &FControlRigEditor::OnPreConstruction_AnyThread);
 		DebuggedControlRig->OnPostConstruction_AnyThread().AddSP(this, &FControlRigEditor::OnPostConstruction_AnyThread);
+		LastHierarchyHash = INDEX_NONE;
 
 		if(EditorSkelComp)
 		{
@@ -5099,7 +5101,7 @@ void FControlRigEditor::OnHierarchyModified(ERigHierarchyNotification InNotif, U
 
 void FControlRigEditor::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
-	if(IsConstructionEventRunning())
+	if(bIsConstructionEventRunning)
 	{
 		return;
 	}
@@ -6816,17 +6818,19 @@ FString* FControlRigEditor::GetSnippetStorage(int32 InSnippetIndex)
 void FControlRigEditor::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
 	const FName& InEventName)
 {
-	HierarchyHashBeforeConstruction = InRig->GetHierarchy()->GetTopologyHash(false);
+	bIsConstructionEventRunning = true;
 }
 
 void FControlRigEditor::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
 	const FName& InEventName)
 {
-	uint32 HierarchyHash = INDEX_NONE;
-	Swap(HierarchyHash, HierarchyHashBeforeConstruction);
-
-	if(HierarchyHash != InRig->GetHierarchy()->GetTopologyHash(false))
+	bIsConstructionEventRunning = false;
+	
+	const int32 HierarchyHash = InRig->GetHierarchy()->GetTopologyHash(false);
+	if(LastHierarchyHash != HierarchyHash)
 	{
+		LastHierarchyHash = HierarchyHash;
+		
 		auto Task = [this, InRig]()
 		{
 			CacheNameLists();

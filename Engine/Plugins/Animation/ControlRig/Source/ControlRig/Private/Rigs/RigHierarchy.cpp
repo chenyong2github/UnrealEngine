@@ -1582,7 +1582,7 @@ bool URigHierarchy::SetParentWeight(FRigBaseElement* InChild, int32 InParentInde
 			EnsureCacheValidity();
 			
 #if WITH_EDITOR
-			if (ensure(!bPropagatingChange))
+			if (!bPropagatingChange)
 			{
 				TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -1704,7 +1704,7 @@ bool URigHierarchy::SetParentWeightArray(FRigBaseElement* InChild,  const TArray
 			PropagateDirtyFlags(MultiParentElement, ERigTransformType::IsInitial(LocalType), bAffectChildren);
 			
 #if WITH_EDITOR
-			if (ensure(!bPropagatingChange))
+			if (!bPropagatingChange)
 			{
 				TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -2299,7 +2299,7 @@ void URigHierarchy::SetPose(const FRigPose& InPose, ERigTransformType::Type InTr
 	{
 		return;
 	}
-	
+
 	for(const FRigPoseElement& PoseElement : InPose)
 	{
 		FCachedRigElement Index = PoseElement.Index;
@@ -2735,7 +2735,7 @@ void URigHierarchy::SetTransform(FRigTransformElement* InTransformElement, const
 			bSetupUndo);
 	}
 
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -2954,7 +2954,7 @@ void URigHierarchy::SetControlOffsetTransform(FRigControlElement* InControlEleme
             bSetupUndo);
 	}
 
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -3086,7 +3086,7 @@ void URigHierarchy::SetControlShapeTransform(FRigControlElement* InControlElemen
 	}
 
 #if WITH_EDITOR
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -3154,7 +3154,7 @@ void URigHierarchy::SetControlSettings(FRigControlElement* InControlElement, FRi
 	Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
 	
 #if WITH_EDITOR
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -3413,7 +3413,7 @@ void URigHierarchy::SetControlValue(FRigControlElement* InControlElement, const 
 				Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
 
 #if WITH_EDITOR
-				if (ensure(!bPropagatingChange))
+				if (!bPropagatingChange)
 				{
 					TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -3474,7 +3474,7 @@ void URigHierarchy::SetControlVisibility(FRigControlElement* InControlElement, b
 	}
 
 #if WITH_EDITOR
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -3534,7 +3534,7 @@ void URigHierarchy::SetCurveValue(FRigCurveElement* InCurveElement, float InValu
 		PushCurveToStack(InCurveElement->GetKey(), PreviousValue, InCurveElement->Value, bPreviousIsValueSet, true, bSetupUndo);
 	}
 
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			
@@ -3581,7 +3581,7 @@ void URigHierarchy::UnsetCurveValue(FRigCurveElement* InCurveElement, bool bSetu
 		PushCurveToStack(InCurveElement->GetKey(), InCurveElement->Value, InCurveElement->Value, bPreviousIsValueSet, false, bSetupUndo);
 	}
 
-	if (ensure(!bPropagatingChange))
+	if (!bPropagatingChange)
 	{
 		TGuardValue<bool> bPropagatingChangeGuardValue(bPropagatingChange, true);
 			

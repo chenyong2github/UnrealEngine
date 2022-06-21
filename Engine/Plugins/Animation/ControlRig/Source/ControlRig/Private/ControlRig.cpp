@@ -1800,7 +1800,7 @@ FRigControlElement* UControlRig::FindControl(const FName& InControlName) const
 
 bool UControlRig::IsConstructionModeEnabled() const
 {
-	return EventQueue.Contains(FRigUnit_PrepareForExecution::EventName);
+	return EventQueue.Num() == 1 && EventQueue.Contains(FRigUnit_PrepareForExecution::EventName);
 }
 
 FTransform UControlRig::SetupControlFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform)

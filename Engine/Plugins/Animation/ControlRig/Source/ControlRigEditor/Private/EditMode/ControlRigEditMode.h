@@ -440,8 +440,8 @@ private:
 	uint8 InteractionType;
 	bool bShowControlsAsOverlay;
 
-	bool IsConstructionEventRunning() const { return HierarchyHashBeforeConstruction != INDEX_NONE; }
-	uint32 HierarchyHashBeforeConstruction;
+	bool bIsConstructionEventRunning;
+	TArray<uint32> LastHierarchyHash;
 
 	friend class FControlRigEditorModule;
 	friend class FControlRigEditor;

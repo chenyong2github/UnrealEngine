@@ -22,12 +22,16 @@ bool FCachedRigElement::UpdateCache(const FRigElementKey& InKey, const URigHiera
 	{
 		if(!IsValid() || !IsIdentical(InKey, InHierarchy))
 		{
+			// have to create a copy since Reset below
+			// potentially resets the InKey as well.
+			const FRigElementKey KeyToResolve = InKey; 
+
 			Reset();
 
-			int32 Idx = InHierarchy->GetIndex(InKey);
+			int32 Idx = InHierarchy->GetIndex(KeyToResolve);
 			if(Idx != INDEX_NONE)
 			{
-				Key = InKey;
+				Key = KeyToResolve;
 				Index = (uint16)Idx;
 				Element = InHierarchy->Get(Index);
 			}

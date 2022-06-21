@@ -144,7 +144,7 @@ FControlRigEditMode::FControlRigEditMode()
 	, bIsChangingCoordSystem(false)
 	, InteractionType((uint8)EControlRigInteractionType::None)
 	, bShowControlsAsOverlay(false)
-	, HierarchyHashBeforeConstruction(INDEX_NONE)
+	, bIsConstructionEventRunning(false)
 {
 	ControlProxy = NewObject<UControlRigDetailPanelControlProxies>(GetTransientPackage(), NAME_None);
 	ControlProxy->SetFlags(RF_Transactional);
@@ -3431,7 +3431,7 @@ void FControlRigEditMode::OnHierarchyModified_AnyThread(ERigHierarchyNotificatio
 		return;
 	}
 
-	if(IsConstructionEventRunning())
+	if(bIsConstructionEventRunning)
 	{
 		return;
 	}
@@ -3497,17 +3497,25 @@ void FControlRigEditMode::OnControlModified(UControlRig* Subject, FRigControlEle
 void FControlRigEditMode::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
 	const FName& InEventName)
 {
-	HierarchyHashBeforeConstruction = InRig->GetHierarchy()->GetTopologyHash(false, true);
+	bIsConstructionEventRunning = true;
 }
 
 void FControlRigEditMode::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
 	const FName& InEventName)
 {
-	uint32 HierarchyHash = INDEX_NONE;
-	Swap(HierarchyHash, HierarchyHashBeforeConstruction);
+	bIsConstructionEventRunning = false;
 
-	if(HierarchyHash != InRig->GetHierarchy()->GetTopologyHash(false, true))
+	const int32 RigIndex = RuntimeControlRigs.Find(InRig);
+	if(!LastHierarchyHash.IsValidIndex(RigIndex))
 	{
+		return;
+	}
+	
+	const int32 HierarchyHash = InRig->GetHierarchy()->GetTopologyHash(false, true);
+	if(LastHierarchyHash[RigIndex] != HierarchyHash)
+	{
+		LastHierarchyHash[RigIndex] = HierarchyHash;
+		
 		auto Task = [this, InRig]()
 		{
 			RequestToRecreateControlShapeActors(InRig);
@@ -3974,12 +3982,12 @@ AControlRigShapeActor* FControlRigEditMode::GetControlShapeFromControlName(UCont
 void FControlRigEditMode::AddControlRigInternal(UControlRig* InControlRig)
 {
 	RuntimeControlRigs.AddUnique(InControlRig);
+	LastHierarchyHash.Add(INDEX_NONE);
 
 	InControlRig->SetControlsVisible(true);
 	InControlRig->PostInitInstanceIfRequired();
 	InControlRig->GetHierarchy()->OnModified().RemoveAll(this);
 	InControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified_AnyThread);
-	InControlRig->OnPreConstructionForUI_AnyThread().AddSP(this, &FControlRigEditMode::OnPreConstruction_AnyThread);
 	InControlRig->OnPostConstruction_AnyThread().AddSP(this, &FControlRigEditMode::OnPostConstruction_AnyThread);
 
 	//needed for the control rig track editor delegates to get hooked up
@@ -4049,6 +4057,11 @@ void FControlRigEditMode::RemoveControlRig(UControlRig* InControlRig)
 	{
 		RuntimeControlRigs.RemoveAt(Index);
 	}
+	if (LastHierarchyHash.IsValidIndex(Index))
+	{
+		LastHierarchyHash.RemoveAt(Index);
+	}
+
 	//needed for the control rig track editor delegates to get removed
 	if (WeakSequencer.IsValid())
 	{
