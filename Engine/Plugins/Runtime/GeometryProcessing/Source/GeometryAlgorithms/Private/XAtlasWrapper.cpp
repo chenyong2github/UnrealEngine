@@ -88,8 +88,8 @@ namespace XAtlasWrapper
 		UVIndexBuffer.Empty();
 		VertexRemapArray.Empty();
 
-		const float W = Atlas->width;
-		const float H = Atlas->height;
+		const double W = Atlas->width;
+		const double H = Atlas->height;
 
 		for (uint32 OutMeshID = 0; OutMeshID < Atlas->meshCount; ++OutMeshID)
 		{

@@ -109,8 +109,8 @@ public:
 		int32 N = KernelSize * KernelSize;
 		KernelOut.SetNum(N);
 
-		RealType InvTwoSigmaSqr = 1.0 / (2.0 * Sigma * Sigma);
-		RealType NormalizeFactor = (bNormalized) ? 1.0 : (TMathUtil<RealType>::InvPi * InvTwoSigmaSqr);
+		RealType InvTwoSigmaSqr = (RealType)1 / ((RealType)2 * Sigma * Sigma);
+		RealType NormalizeFactor = (bNormalized) ? (RealType)1 : (TMathUtil<RealType>::InvPi * InvTwoSigmaSqr);
 
 		FVector2i CenterIdx(IntRadius, IntRadius);
 		RealType KernelSum = 0;
@@ -137,7 +137,7 @@ public:
 	static void MakeKernelFromRadius(RealType Radius, TArray<RealType>& KernelOut, int32& IntRadiusOut, bool bNormalized = true)
 	{
 		IntRadiusOut = (int32)TMathUtil<RealType>::Ceil(Radius);
-		RealType Sigma = Radius / 2.0;			// ??
+		RealType Sigma = Radius / (RealType)2;			// ??
 		MakeKernelFromWidth(IntRadiusOut, Sigma, KernelOut, bNormalized);
 	}
 
@@ -145,7 +145,7 @@ public:
 	static void MakeKernelFromRadius(RealType Radius, TDiscreteKernel2<RealType>& KernelOut, bool bNormalized = true)
 	{
 		KernelOut.IntRadius = (int32)TMathUtil<RealType>::Ceil(Radius);
-		RealType Sigma = Radius / 2.0;			// ??
+		RealType Sigma = Radius / (RealType)2;			// ??
 		MakeKernelFromWidth(KernelOut.IntRadius, Sigma, KernelOut.Kernel, bNormalized);
 	}
 
