@@ -9,6 +9,7 @@
 #include "ShaderFormatOpenGL.h"
 #include "HlslccHeaderWriter.h"
 #include "SpirvReflectCommon.h"
+#include "ShaderParameterParser.h"
 #include <algorithm>
 #include <regex>
 

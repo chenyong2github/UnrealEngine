@@ -5,6 +5,7 @@
 #include "VulkanCommon.h"
 #include "ShaderPreprocessor.h"
 #include "ShaderCompilerCommon.h"
+#include "ShaderParameterParser.h"
 #include "HlslccHeaderWriter.h"
 #include "hlslcc.h"
 #include "SpirvReflectCommon.h"

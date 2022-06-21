@@ -5,6 +5,7 @@
 #include "ShaderCore.h"
 #include "MetalShaderResources.h"
 #include "ShaderCompilerCommon.h"
+#include "ShaderParameterParser.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
