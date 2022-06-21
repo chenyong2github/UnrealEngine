@@ -2866,10 +2866,10 @@ void ALandscapeProxy::PreSave(FObjectPreSaveContext ObjectSaveContext)
 				}
 			});
 		}
-	}
 
-	UpdateNaniteRepresentation();
-	UpdateRenderingMethod();
+		UpdateNaniteRepresentation();
+		UpdateRenderingMethod();
+	}
 #endif // WITH_EDITOR
 }
 
