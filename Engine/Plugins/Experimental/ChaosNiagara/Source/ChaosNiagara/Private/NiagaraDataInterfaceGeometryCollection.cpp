@@ -3,6 +3,7 @@
 #include "NiagaraDataInterfaceGeometryCollection.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSimStageData.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
@@ -12,86 +13,47 @@ DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollection, Log, All);
 
 //------------------------------------------------------------------------------------------------------------
 
-static const FName GetClosestPointNoNormalName(TEXT("GetClosestPointNoNormal"));
-
-
-//------------------------------------------------------------------------------------------------------------
-
-const FString UNiagaraDataInterfaceGeometryCollection::BoundsMinName(TEXT("BoundsMin_"));
-const FString UNiagaraDataInterfaceGeometryCollection::BoundsMaxName(TEXT("BoundsMax_"));
-const FString UNiagaraDataInterfaceGeometryCollection::NumPiecesName(TEXT("NumPieces_"));
-const FString UNiagaraDataInterfaceGeometryCollection::WorldTransformBufferName(TEXT("WorldTransformBuffer_"));
-const FString UNiagaraDataInterfaceGeometryCollection::PrevWorldTransformBufferName(TEXT("PrevWorldTransformBuffer_"));
-const FString UNiagaraDataInterfaceGeometryCollection::WorldInverseTransformBufferName(TEXT("WorldInverseTransformBuffer_"));
-const FString UNiagaraDataInterfaceGeometryCollection::PrevWorldInverseTransformBufferName(TEXT("PrevWorldInverseTransformBuffer_"));
-const FString UNiagaraDataInterfaceGeometryCollection::BoundsBufferName(TEXT("BoundsBuffer_"));
-
-
-//------------------------------------------------------------------------------------------------------------
-
-struct FNDIGeometryCollectionParametersName
+namespace NDIGeometryCollectionLocal
 {
-	FNDIGeometryCollectionParametersName(const FString& Suffix)
+	static const FName GetClosestPointNoNormalName(TEXT("GetClosestPointNoNormal"));
+	static const TCHAR* TemplateShaderFilePath = TEXT("/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceGeometryCollection.ush");
+
+	template<typename BufferType, EPixelFormat PixelFormat>
+	void CreateInternalBuffer(FReadBuffer& OutputBuffer, uint32 ElementCount)
 	{
-		BoundsMinName = UNiagaraDataInterfaceGeometryCollection::BoundsMinName + Suffix;
-		BoundsMaxName = UNiagaraDataInterfaceGeometryCollection::BoundsMaxName + Suffix;
-		NumPiecesName = UNiagaraDataInterfaceGeometryCollection::NumPiecesName + Suffix;
-		WorldTransformBufferName = UNiagaraDataInterfaceGeometryCollection::WorldTransformBufferName + Suffix;
-		PrevWorldTransformBufferName = UNiagaraDataInterfaceGeometryCollection::PrevWorldTransformBufferName + Suffix;
-		WorldInverseTransformBufferName = UNiagaraDataInterfaceGeometryCollection::WorldInverseTransformBufferName + Suffix;
-		PrevWorldInverseTransformBufferName = UNiagaraDataInterfaceGeometryCollection::PrevWorldInverseTransformBufferName + Suffix;
-		BoundsBufferName = UNiagaraDataInterfaceGeometryCollection::BoundsBufferName + Suffix;
+		if (ElementCount > 0)
+		{
+			OutputBuffer.Initialize(TEXT("FNDIGeometryCollectionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
+		}
 	}
 
-	FString BoundsMinName;
-	FString BoundsMaxName;
-
-	FString NumPiecesName;
-	FString WorldTransformBufferName;
-	FString PrevWorldTransformBufferName;
-	FString WorldInverseTransformBufferName;
-	FString PrevWorldInverseTransformBufferName;
-	FString BoundsBufferName;
-};
-
-//------------------------------------------------------------------------------------------------------------
-
-template<typename BufferType, EPixelFormat PixelFormat>
-void CreateInternalBuffer(FRWBuffer& OutputBuffer, uint32 ElementCount)
-{
-	if (ElementCount > 0)
+	template<typename BufferType, EPixelFormat PixelFormat>
+	void UpdateInternalBuffer(const TArray<BufferType>& InputData, FReadBuffer& OutputBuffer)
 	{
-		OutputBuffer.Initialize(TEXT("FNDIGeometryCollectionBuffer"), sizeof(BufferType), ElementCount, PixelFormat, BUF_Static);
+		uint32 ElementCount = InputData.Num();
+		if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
+		{
+			const uint32 BufferBytes = sizeof(BufferType) * ElementCount;
+
+			void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
+
+			FMemory::Memcpy(OutputData, InputData.GetData(), BufferBytes);
+			RHIUnlockBuffer(OutputBuffer.Buffer);
+		}
 	}
 }
-
-template<typename BufferType, EPixelFormat PixelFormat>
-void UpdateInternalBuffer(const TArray<BufferType>& InputData, FRWBuffer& OutputBuffer)
-{
-	uint32 ElementCount = InputData.Num();
-	if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
-	{
-		const uint32 BufferBytes = sizeof(BufferType) * ElementCount;
-
-		void* OutputData = RHILockBuffer(OutputBuffer.Buffer, 0, BufferBytes, RLM_WriteOnly);
-
-		FMemory::Memcpy(OutputData, InputData.GetData(), BufferBytes);
-		RHIUnlockBuffer(OutputBuffer.Buffer);
-	}
-}
-
 
 //------------------------------------------------------------------------------------------------------------
 
 void FNDIGeometryCollectionBuffer::InitRHI()
 {
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldTransformBuffer, 3 * NumPieces);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(PrevWorldTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(PrevWorldTransformBuffer, 3 * NumPieces);
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldInverseTransformBuffer, 3 * NumPieces);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(PrevWorldInverseTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(WorldInverseTransformBuffer, 3 * NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(PrevWorldInverseTransformBuffer, 3 * NumPieces);
 
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(BoundsBuffer, NumPieces);
+	NDIGeometryCollectionLocal::CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(BoundsBuffer, NumPieces);
 }
 
 void FNDIGeometryCollectionBuffer::ReleaseRHI()
@@ -285,107 +247,13 @@ ETickingGroup FNDIGeometryCollectionData::ComputeTickingGroup()
 	return TickingGroup;
 }
 
-
 //------------------------------------------------------------------------------------------------------------
 
-struct FNDIGeometryCollectionParametersCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIGeometryCollectionParametersCS, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		FNDIGeometryCollectionParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
-
-		BoundsMin.Bind(ParameterMap, *ParamNames.BoundsMinName);
-		BoundsMax.Bind(ParameterMap, *ParamNames.BoundsMaxName);
-
-		NumPieces.Bind(ParameterMap, *ParamNames.NumPiecesName);
-		WorldTransformBuffer.Bind(ParameterMap, *ParamNames.WorldTransformBufferName);
-		PrevWorldTransformBuffer.Bind(ParameterMap, *ParamNames.PrevWorldTransformBufferName);
-		WorldInverseTransformBuffer.Bind(ParameterMap, *ParamNames.WorldInverseTransformBufferName);
-		PrevWorldInverseTransformBuffer.Bind(ParameterMap, *ParamNames.PrevWorldInverseTransformBufferName);
-		BoundsBuffer.Bind(ParameterMap, *ParamNames.BoundsBufferName);
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		FNDIGeometryCollectionProxy* InterfaceProxy =
-			static_cast<FNDIGeometryCollectionProxy*>(Context.DataInterface);
-		FNDIGeometryCollectionData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
-
-		if (ProxyData != nullptr)
-		{
-
-			FNDIGeometryCollectionBuffer* AssetBuffer = ProxyData->AssetBuffer;
-
-			FRHITransitionInfo Transitions[] = {
-				FRHITransitionInfo(AssetBuffer->WorldTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->PrevWorldTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->WorldInverseTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->PrevWorldInverseTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->BoundsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-			};
-			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));		
-			
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMin, ProxyData->BoundsOrigin - ProxyData->BoundsExtent);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMax, ProxyData->BoundsOrigin + ProxyData->BoundsExtent);
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumPieces, ProxyData->AssetBuffer->NumPieces);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, ProxyData->AssetBuffer->WorldTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PrevWorldTransformBuffer, ProxyData->AssetBuffer->PrevWorldTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldInverseTransformBuffer, ProxyData->AssetBuffer->WorldInverseTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PrevWorldInverseTransformBuffer, ProxyData->AssetBuffer->PrevWorldInverseTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, BoundsBuffer, ProxyData->AssetBuffer->BoundsBuffer.SRV);
-		}
-		else
-		{
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMin, FVector3f(0, 0, 0));
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoundsMax, FVector3f(0, 0, 0));
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumPieces, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PrevWorldTransformBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldInverseTransformBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PrevWorldInverseTransformBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, BoundsBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-		}
-	}
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-	}
-
-private:
-
-	LAYOUT_FIELD(FShaderParameter, BoundsMin);
-	LAYOUT_FIELD(FShaderParameter, BoundsMax);
-
-	LAYOUT_FIELD(FShaderParameter, NumPieces);
-
-	LAYOUT_FIELD(FShaderResourceParameter, WorldTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, PrevWorldTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, WorldInverseTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, PrevWorldInverseTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, BoundsBuffer);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDIGeometryCollectionParametersCS);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceGeometryCollection, FNDIGeometryCollectionParametersCS);
-
-
-//------------------------------------------------------------------------------------------------------------
-
-void FNDIGeometryCollectionProxy::ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance)
+void FNDIGeometryCollectionProxy::ConsumePerInstanceDataFromGameThread(void* DataFromGameThread, const FNiagaraSystemInstanceID& Instance)
 {
 	check(IsInRenderingThread());
 
-	FNDIGeometryCollectionData* SourceData = static_cast<FNDIGeometryCollectionData*>(PerInstanceData);	
+	FNDIGeometryCollectionData* SourceData = static_cast<FNDIGeometryCollectionData*>(DataFromGameThread);
 	FNDIGeometryCollectionData* TargetData = &(SystemInstancesToProxyData.FindOrAdd(Instance));
 
 	ensure(TargetData);
@@ -401,6 +269,7 @@ void FNDIGeometryCollectionProxy::ConsumePerInstanceDataFromGameThread(void* Per
 	{
 		UE_LOG(LogGeometryCollection, Log, TEXT("ConsumePerInstanceDataFromGameThread() ... could not find %d"), Instance);
 	}
+	SourceData->~FNDIGeometryCollectionData();
 }
 
 void FNDIGeometryCollectionProxy::InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
@@ -418,34 +287,23 @@ void FNDIGeometryCollectionProxy::DestroyPerInstanceData(const FNiagaraSystemIns
 	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
-void FNDIGeometryCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNDIGeometryCollectionProxy::PreStage(const FNDIGpuComputePreStageContext& Context)
 {
-	check(SystemInstancesToProxyData.Contains(Context.SystemInstanceID));
+	check(SystemInstancesToProxyData.Contains(Context.GetSystemInstanceID()));
 
-	FNDIGeometryCollectionData* ProxyData =
-		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
-
+	FNDIGeometryCollectionData* ProxyData = SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
 	if (ProxyData != nullptr && ProxyData->AssetBuffer)
 	{
-		if (Context.SimStageData->bFirstStage)
+		if (Context.GetSimStageData().bFirstStage)
 		{
 			FNDIGeometryCollectionBuffer* AssetBuffer = ProxyData->AssetBuffer;
 
-			FRHITransitionInfo Transitions[] = {
-				FRHITransitionInfo(AssetBuffer->WorldTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(AssetBuffer->PrevWorldTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(AssetBuffer->WorldInverseTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(AssetBuffer->PrevWorldInverseTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(AssetBuffer->BoundsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-			};
-			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-
 			// #todo(dmp): bounds buffer doesn't need to be updated each frame
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldTransformBuffer, ProxyData->AssetBuffer->WorldTransformBuffer);
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->PrevWorldTransformBuffer, ProxyData->AssetBuffer->PrevWorldTransformBuffer);
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldInverseTransformBuffer, ProxyData->AssetBuffer->WorldInverseTransformBuffer);
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->PrevWorldInverseTransformBuffer, ProxyData->AssetBuffer->PrevWorldInverseTransformBuffer);
-			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->BoundsBuffer, ProxyData->AssetBuffer->BoundsBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldTransformBuffer, ProxyData->AssetBuffer->WorldTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->PrevWorldTransformBuffer, ProxyData->AssetBuffer->PrevWorldTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->WorldInverseTransformBuffer, ProxyData->AssetBuffer->WorldInverseTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->PrevWorldInverseTransformBuffer, ProxyData->AssetBuffer->PrevWorldInverseTransformBuffer);
+			NDIGeometryCollectionLocal::UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F>(ProxyData->AssetArrays->BoundsBuffer, ProxyData->AssetBuffer->BoundsBuffer);
 		}
 	}
 }
@@ -489,16 +347,16 @@ void UNiagaraDataInterfaceGeometryCollection::DestroyPerInstanceData(void* PerIn
 	FNDIGeometryCollectionProxy* ThisProxy = GetProxyAs<FNDIGeometryCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FNiagaraDIDestroyInstanceData) (
 		[ThisProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& CmdList)
-	{
-		FNDIGeometryCollectionData* ProxyData =
-			ThisProxy->SystemInstancesToProxyData.Find(InstanceID);
+		{
+			FNDIGeometryCollectionData* ProxyData =
+				ThisProxy->SystemInstancesToProxyData.Find(InstanceID);
 
-		if (ProxyData != nullptr && ProxyData->AssetArrays)
-		{			
-			ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
-			delete ProxyData->AssetArrays;
-		}		
-	}
+			if (ProxyData != nullptr && ProxyData->AssetArrays)
+			{			
+				ThisProxy->SystemInstancesToProxyData.Remove(InstanceID);
+				delete ProxyData->AssetArrays;
+			}		
+		}
 	);
 }
 
@@ -552,7 +410,7 @@ void UNiagaraDataInterfaceGeometryCollection::GetFunctions(TArray<FNiagaraFuncti
 {
 	{
 		FNiagaraFunctionSignature Sig;
-		Sig.Name = GetClosestPointNoNormalName;
+		Sig.Name = NDIGeometryCollectionLocal::GetClosestPointNoNormalName;
 		Sig.bSupportsGPU = true;
 		Sig.bSupportsCPU = false;
 		Sig.bMemberFunction = true;
@@ -576,53 +434,66 @@ void UNiagaraDataInterfaceGeometryCollection::GetVMExternalFunction(const FVMExt
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfaceGeometryCollection::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDIGeometryCollectionParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
-
-	TMap<FString, FStringFormatArg> ArgsSample = {
-
-		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
-		{TEXT("NumPiecesName"), ParamNames.NumPiecesName},
-		{TEXT("WorldTransformBufferName"), ParamNames.WorldTransformBufferName},
-		{TEXT("PrevWorldTransformBufferName"), ParamNames.PrevWorldTransformBufferName},
-		{TEXT("WorldInverseTransformBufferName"), ParamNames.WorldInverseTransformBufferName},
-		{TEXT("PrevWorldInverseTransformBufferName"), ParamNames.PrevWorldInverseTransformBufferName},
-		{TEXT("BoundsBufferName"), ParamNames.BoundsBufferName},
-		{TEXT("GeometryCollectionContextName"), TEXT("DIGEOMETRYCOLLECTION_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
-	};
-
-	if (FunctionInfo.DefinitionName == GetClosestPointNoNormalName)
+	if (FunctionInfo.DefinitionName == NDIGeometryCollectionLocal::GetClosestPointNoNormalName)
 	{
-	static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float ClosestDistance, out float3 OutClosestPosition, 
-							out float3 OutClosestVelocity)
-		{
-			{GeometryCollectionContextName} DIGeometryCollection_GetClosestPointNoNormal(DIContext,WorldPosition,DeltaTime,TimeFraction, ClosestDistance,
-				OutClosestPosition,OutClosestVelocity);
-		}
-		)");
-	OutHLSL += FString::Format(FormatSample, ArgsSample);
-	return true;
+		return true;
 	}
-	OutHLSL += TEXT("\n");
+
 	return false;
 }
 
-void UNiagaraDataInterfaceGeometryCollection::GetCommonHLSL(FString& OutHLSL)
-{	
-	OutHLSL += TEXT("#include \"/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceGeometryCollection.ush\"\n");			
+bool UNiagaraDataInterfaceGeometryCollection::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceGeometryCollectionSource"), GetShaderFileHash(NDIGeometryCollectionLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	bSuccess &= InVisitor->UpdateShaderParameters<FShaderParameters>();
+	return bSuccess;
 }
 
 void UNiagaraDataInterfaceGeometryCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	OutHLSL += TEXT("DIGEOMETRYCOLLECTION_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
+	const TMap<FString, FStringFormatArg> TemplateArgs = { {TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol}, };
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIGeometryCollectionLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
 
-#if WITH_EDITOR
-void UNiagaraDataInterfaceGeometryCollection::ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors)
+void UNiagaraDataInterfaceGeometryCollection::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
 {
+	ShaderParametersBuilder.AddNestedStruct<FShaderParameters>();
 }
-#endif
+
+void UNiagaraDataInterfaceGeometryCollection::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNDIGeometryCollectionProxy& InterfaceProxy = Context.GetProxy<FNDIGeometryCollectionProxy>();
+	FNDIGeometryCollectionData* ProxyData = InterfaceProxy.SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
+
+	FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<FShaderParameters>();
+	if (ProxyData != nullptr)
+	{
+		ShaderParameters->BoundsMin							= ProxyData->BoundsOrigin - ProxyData->BoundsExtent;
+		ShaderParameters->BoundsMax							= ProxyData->BoundsOrigin + ProxyData->BoundsExtent;
+		ShaderParameters->NumPieces							= ProxyData->AssetBuffer->NumPieces;
+		ShaderParameters->WorldTransformBuffer				= FNiagaraRenderer::GetSrvOrDefaultFloat4(ProxyData->AssetBuffer->WorldTransformBuffer.SRV);
+		ShaderParameters->PrevWorldTransformBuffer			= FNiagaraRenderer::GetSrvOrDefaultFloat4(ProxyData->AssetBuffer->PrevWorldTransformBuffer.SRV);
+		ShaderParameters->WorldInverseTransformBuffer		= FNiagaraRenderer::GetSrvOrDefaultFloat4(ProxyData->AssetBuffer->WorldInverseTransformBuffer.SRV);
+		ShaderParameters->PrevWorldInverseTransformBuffer	= FNiagaraRenderer::GetSrvOrDefaultFloat4(ProxyData->AssetBuffer->PrevWorldInverseTransformBuffer.SRV);
+		ShaderParameters->BoundsBuffer						= FNiagaraRenderer::GetSrvOrDefaultFloat4(ProxyData->AssetBuffer->BoundsBuffer.SRV);
+	}
+	else
+	{
+		ShaderParameters->BoundsMin							= FVector3f::ZeroVector;
+		ShaderParameters->BoundsMax							= FVector3f::ZeroVector;
+		ShaderParameters->NumPieces							= 0;
+		ShaderParameters->WorldTransformBuffer				= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->PrevWorldTransformBuffer			= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->WorldInverseTransformBuffer		= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->PrevWorldInverseTransformBuffer	= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->BoundsBuffer						= FNiagaraRenderer::GetDummyFloat4Buffer();
+	}
+}
 
 void UNiagaraDataInterfaceGeometryCollection::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

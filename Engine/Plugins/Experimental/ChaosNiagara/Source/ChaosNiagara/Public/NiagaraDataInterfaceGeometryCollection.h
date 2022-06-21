@@ -67,19 +67,19 @@ struct FNDIGeometryCollectionBuffer : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIGeometryCollectionBuffer"); }
 
 	/** World transform buffer */
-	FRWBuffer WorldTransformBuffer;
+	FReadBuffer WorldTransformBuffer;
 
 	/** Inverse transform buffer*/
-	FRWBuffer PrevWorldTransformBuffer;
+	FReadBuffer PrevWorldTransformBuffer;
 
 	/** World transform buffer */
-	FRWBuffer WorldInverseTransformBuffer;
+	FReadBuffer WorldInverseTransformBuffer;
 
 	/** Inverse transform buffer*/
-	FRWBuffer PrevWorldInverseTransformBuffer;
+	FReadBuffer PrevWorldInverseTransformBuffer;
 
 	/** Element extent buffer */
-	FRWBuffer BoundsBuffer;
+	FReadBuffer BoundsBuffer;
 
 	/** number of transforms */
 	uint32 NumPieces;
@@ -125,10 +125,18 @@ class UNiagaraDataInterfaceGeometryCollection : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER(FVector3f,				BoundsMin)
+		SHADER_PARAMETER(FVector3f,				BoundsMax)
+		SHADER_PARAMETER(uint32,				NumPieces)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	WorldTransformBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	PrevWorldTransformBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	WorldInverseTransformBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	PrevWorldInverseTransformBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	BoundsBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	UPROPERTY(EditAnywhere, Category = "Geometry Collection")
 	TObjectPtr<AGeometryCollectionActor> GeometryCollectionActor;
 
@@ -151,22 +159,15 @@ public:
 
 	/** GPU simulation  functionality */
 #if WITH_EDITORONLY_DATA
-	virtual void GetCommonHLSL(FString& OutHLSL) override;
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
-
-	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
-	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
-	static const FString BoundsMinName;
-	static const FString BoundsMaxName;
-	static const FString NumPiecesName;
-	static const FString WorldTransformBufferName;
-	static const FString PrevWorldTransformBufferName;
-	static const FString WorldInverseTransformBufferName;
-	static const FString PrevWorldInverseTransformBufferName;
-	static const FString BoundsBufferName;
+	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 protected:
 	/** Copy one niagara DI to this */
@@ -189,7 +190,7 @@ struct FNDIGeometryCollectionProxy : public FNiagaraDataInterfaceProxy
 	void DestroyPerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** Launch all pre stage functions */
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIGeometryCollectionData> SystemInstancesToProxyData;

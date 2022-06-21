@@ -3,7 +3,9 @@
 #include "NiagaraDataInterfaceChaosDestruction.h"
 #include "NiagaraTypes.h"
 #include "Misc/FileHelper.h"
+#include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraShader.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "ShaderParameterUtils.h"
 #include "PhysicsSolver.h"
 #include "Niagara/Private/NiagaraStats.h"
@@ -47,27 +49,159 @@ DECLARE_MEMORY_STAT(TEXT("AllBreakingsIndicesByPhysicsProxy"), STAT_AllBreakings
 DECLARE_MEMORY_STAT(TEXT("AllTrailingsData"), STAT_AllTrailingsDataMemory, STATGROUP_ChaosNiagara);
 DECLARE_MEMORY_STAT(TEXT("AllTrailingsIndicesByPhysicsProxy"), STAT_AllTrailingsIndicesByPhysicsProxyMemory, STATGROUP_ChaosNiagara);
 
-// Name of all the functions available in the data interface
-static const FName GetPositionName("GetPosition");
-static const FName GetNormalName("GetNormal");
-static const FName GetVelocityName("GetVelocity");
-static const FName GetAngularVelocityName("GetAngularVelocity");
-static const FName GetExtentMinName("GetExtentMin");
-static const FName GetExtentMaxName("GetExtentMax");
-static const FName GetVolumeName("GetVolume");
-static const FName GetParticleIdsToSpawnAtTimeName("GetParticleIdsToSpawnAtTime");
-static const FName GetPointTypeName("GetPointType");
-static const FName GetColorName("GetColor");
-static const FName GetSolverTimeName("GetSolverTime");
-static const FName GetDensityName("GetDensity");
-static const FName GetFrictionName("GetFriction");
-static const FName GetRestitutionName("GetRestitution");
-static const FName GetSurfaceTypeName("GetSurfaceType");
-static const FName GetTransformName("GetTransform");
-static const FName GetSizeName("GetSize");
-static const FName GetCollisionDataName("GetCollisionData");
-static const FName GetBreakingDataName("GetBreakingData");
-static const FName GetTrailingDataName("GetTrailingData");
+namespace NDIChaosDestructionLocal
+{
+	static const TCHAR* TemplateShaderFilePath = TEXT("/Plugin/Experimental/ChaosNiagara/NiagaraDataInterfaceChaosDestruction.ush");
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters, )
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>,	PositionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>,	VelocityBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>,	ExtentMinBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>,	ExtentMaxBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>,	VolumeBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>,	SolverIDBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>,	DensityBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>,	FrictionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>,	RestitutionBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>,	SurfaceTypeBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>,	ColorBuffer)
+		
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>,	IncomingLocationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, IncomingAccumulatedImpulseBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, IncomingNormalBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, IncomingVelocity1Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, IncomingVelocity2Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, IncomingAngularVelocity1Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, IncomingAngularVelocity2Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, IncomingMass1Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, IncomingMass2Buffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float>, IncomingTimeBuffer)
+
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, TransformTranslationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, TransformRotationBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, TransformScaleBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float3>, BoundsBuffer)
+
+		SHADER_PARAMETER(int,	LastSpawnedPointID)
+		SHADER_PARAMETER(float,	SolverTime)
+	END_SHADER_PARAMETER_STRUCT()
+
+	// Name of all the functions available in the data interface
+	static const FName GetPositionName("GetPosition");
+	static const FName GetNormalName("GetNormal");
+	static const FName GetVelocityName("GetVelocity");
+	static const FName GetAngularVelocityName("GetAngularVelocity");
+	static const FName GetExtentMinName("GetExtentMin");
+	static const FName GetExtentMaxName("GetExtentMax");
+	static const FName GetVolumeName("GetVolume");
+	static const FName GetParticleIdsToSpawnAtTimeName("GetParticleIdsToSpawnAtTime");
+	static const FName GetPointTypeName("GetPointType");
+	static const FName GetColorName("GetColor");
+	static const FName GetSolverTimeName("GetSolverTime");
+	static const FName GetDensityName("GetDensity");
+	static const FName GetFrictionName("GetFriction");
+	static const FName GetRestitutionName("GetRestitution");
+	static const FName GetSurfaceTypeName("GetSurfaceType");
+	static const FName GetTransformName("GetTransform");
+	static const FName GetSizeName("GetSize");
+	static const FName GetCollisionDataName("GetCollisionData");
+	static const FName GetBreakingDataName("GetBreakingData");
+	static const FName GetTrailingDataName("GetTrailingData");
+
+	TArray<FVector3f> CopyVectorArray(TArrayView<FVector> DoubleArray)
+	{
+		TArray<FVector3f> FloatArray;
+		FloatArray.AddUninitialized(DoubleArray.Num());
+		for ( int i=0; i < DoubleArray.Num(); ++i )
+		{
+			FloatArray[i] = FVector3f(DoubleArray[i]);	//LWC_TODO: Should we convert the space?
+		}
+		return FloatArray;
+	}
+
+	TArray<FQuat4f> CopyQuatArray(TArrayView<FQuat> DoubleArray)
+	{
+		TArray<FQuat4f> FloatArray;
+		FloatArray.AddUninitialized(DoubleArray.Num());
+		for (int i = 0; i < DoubleArray.Num(); ++i)
+		{
+			FloatArray[i] = FQuat4f(DoubleArray[i]);	//LWC_TODO: Should we convert the space?
+		}
+		return FloatArray;
+	}
+
+	template<typename T>
+	void QueueBufferUpload(const FNiagaraDataInterfaceSetShaderParametersContext& Context, FRDGBufferSRVRef& ParameterBinding, FRDGBufferSRVRef& ExistingSRV, TConstArrayView<T> ArrayData, const T& DefaultValue, const EPixelFormat PixelFormat, const TCHAR* BufferName)
+	{
+		// Buffer Used?
+		if (Context.IsResourceBound(&ParameterBinding) == false)
+		{
+			return;
+		}
+
+		// Buffer needs uploading this frame?
+		if (ExistingSRV == nullptr)
+		{
+			if (ArrayData.Num() == 0)
+			{
+				ArrayData = MakeArrayView<const T>(&DefaultValue, 1);
+			}
+
+			check(GPixelFormats[PixelFormat].BlockBytes == sizeof(T));
+
+			FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+			FRDGBufferRef CreatedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(T), ArrayData.Num()), BufferName);
+			GraphBuilder.QueueBufferUpload(CreatedBuffer, ArrayData.GetData(), ArrayData.GetTypeSize() * ArrayData.Num());
+
+			ExistingSRV = GraphBuilder.CreateSRV(CreatedBuffer, PixelFormat);
+		}
+
+		// Done assign the result
+		ParameterBinding = ExistingSRV;
+	}
+
+	template<>
+	void QueueBufferUpload<FVector3f>(const FNiagaraDataInterfaceSetShaderParametersContext& Context, FRDGBufferSRVRef& ParameterBinding, FRDGBufferSRVRef& ExistingSRV, TConstArrayView<FVector3f> ArrayData, const FVector3f& DefaultValue, const EPixelFormat PixelFormat, const TCHAR* BufferName)
+	{
+		// Buffer Used?
+		if (Context.IsResourceBound(&ParameterBinding) == false)
+		{
+			return;
+		}
+
+		// Buffer needs uploading this frame?
+		if (ExistingSRV == nullptr)
+		{
+			if (ArrayData.Num() == 0)
+			{
+				ArrayData = MakeArrayView<const FVector3f>(&DefaultValue, 1);
+			}
+
+			check(PixelFormat == PF_A32B32G32R32F);
+
+			FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
+			FRDGBufferRef CreatedBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(FVector4f), ArrayData.Num()), BufferName);
+			FVector4f* BufferData = GraphBuilder.AllocPODArray<FVector4f>(ArrayData.Num());
+			for (int i = 0; i < ArrayData.Num(); ++i)
+			{
+				BufferData[i] = FVector4f(ArrayData[i]);
+			}
+			GraphBuilder.QueueBufferUpload(CreatedBuffer, BufferData, sizeof(FVector4f) * ArrayData.Num(), ERDGInitialDataFlags::NoCopy);
+			ExistingSRV = GraphBuilder.CreateSRV(CreatedBuffer, PixelFormat);
+		}
+
+		// Done assign the result
+		ParameterBinding = ExistingSRV;
+	}
+
+	void GetEmptyBuffer(const FNiagaraDataInterfaceSetShaderParametersContext& Context, FRDGBufferSRVRef& ParameterBinding, const EPixelFormat PixelFormat)
+	{
+		if (Context.IsResourceBound(&ParameterBinding) == true)
+		{
+			ParameterBinding = Context.GetComputeDispatchInterface().GetEmptyBufferSRV(Context.GetGraphBuilder(), PixelFormat);
+		}
+	}
+}
 
 UNiagaraDataInterfaceChaosDestruction::UNiagaraDataInterfaceChaosDestruction(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -2405,6 +2539,7 @@ bool UNiagaraDataInterfaceChaosDestruction::PerInstanceTick(void* PerInstanceDat
 // Returns the signature of all the functions available in the data interface
 void UNiagaraDataInterfaceChaosDestruction::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	using namespace NDIChaosDestructionLocal;
 	{
 		// GetPosition
 		FNiagaraFunctionSignature Sig;
@@ -2749,6 +2884,8 @@ DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetTrailingData);
 
 void UNiagaraDataInterfaceChaosDestruction::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
+	using namespace NDIChaosDestructionLocal;
+
 	if (BindingInfo.Name == GetPositionName && BindingInfo.GetNumInputs() == 2 && BindingInfo.GetNumOutputs() == 3)
 	{
 		TNDIParamBinder<1, int32, NDI_FUNC_BINDER(UNiagaraDataInterfaceChaosDestruction, GetPosition)>::Bind(this, BindingInfo, InstanceData, OutFunc);
@@ -3211,555 +3348,132 @@ void UNiagaraDataInterfaceChaosDestruction::GetTrailingData(FVectorVMExternalFun
 // GPU sim functionality
 //
 #if WITH_EDITORONLY_DATA
+bool UNiagaraDataInterfaceChaosDestruction::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	bool bSuccess = Super::AppendCompileHash(InVisitor);
+	bSuccess &= InVisitor->UpdateString(TEXT("UNiagaraDataInterfaceChaosDestructionSource"), GetShaderFileHash(NDIChaosDestructionLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	bSuccess &= InVisitor->UpdateShaderParameters<NDIChaosDestructionLocal::FShaderParameters>();
+	return bSuccess;
+}
+
 void UNiagaraDataInterfaceChaosDestruction::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
+	const TMap<FString, FStringFormatArg> TemplateArgs = { {TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol}, };
 
-	// This will get indented in the generated HLSL, which won't look good. 
-	// On the other hand, it makes it really nice and readable here.
-	static const TCHAR *FormatDeclarations = TEXT(R"(
-		Buffer<float3> PositionBuffer_{Symbol};
-		Buffer<float3> VelocityBuffer_{Symbol};
-		Buffer<float>  ExtentMinBuffer_{Symbol};
-		Buffer<float>  ExtentMaxBuffer_{Symbol};
-		Buffer<float>  VolumeBuffer_{Symbol};
-		Buffer<int>    SolverIDBuffer_{Symbol}; // NOTE(mv): Not used?
-		Buffer<float>  DensityBuffer_{Symbol};
-		Buffer<float>  FrictionBuffer_{Symbol};
-		Buffer<float>  RestitutionBuffer_{Symbol};
-		Buffer<int>    SurfaceTypeBuffer_{Symbol};
-		Buffer<float4> ColorBuffer_{Symbol};
-		
-		Buffer<float3> IncomingLocationBuffer_{Symbol};
-		Buffer<float3> IncomingAccumulatedImpulseBuffer_{Symbol};
-		Buffer<float3> IncomingNormalBuffer_{Symbol};
-		Buffer<float3> IncomingVelocity1Buffer_{Symbol};
-		Buffer<float3> IncomingVelocity2Buffer_{Symbol};
-		Buffer<float3> IncomingAngularVelocity1Buffer_{Symbol};
-		Buffer<float3> IncomingAngularVelocity2Buffer_{Symbol};
-		Buffer<float>  IncomingMass1Buffer_{Symbol};
-		Buffer<float>  IncomingMass2Buffer_{Symbol};
-		Buffer<float>  IncomingTimeBuffer_{Symbol};
-
-		Buffer<float3>  TransformTranslationBuffer_{Symbol};
-		Buffer<float4>  TransformRotationBuffer_{Symbol};
-		Buffer<float3>  TransformScaleBuffer_{Symbol};
-		Buffer<float3>  BoundsBuffer_{Symbol};
-
-		// NOTE(mv): Not implemented in the CPU-side functionality yet. 
-		//           Returns 0 in GetPointType instead.
-		//           
-		// Buffer<int> PointTypeBuffer_{Symbol};
-
-		int   LastSpawnedPointID_{Symbol};
-
-		float SolverTime_{Symbol};
-	)");
-
-	TMap<FString, FStringFormatArg> ArgsDeclarations = {
-		{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-	};
-
-	OutHLSL += FString::Format(FormatDeclarations, ArgsDeclarations);
-
-	/*
-	*/
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIChaosDestructionLocal::TemplateShaderFilePath, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceChaosDestruction::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	if (FunctionInfo.DefinitionName == GetPositionName)
+	using namespace NDIChaosDestructionLocal;
+
+	static const TSet<FName> ValidGpuFunction =
 	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Position) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Position = PositionBuffer_{Symbol}[ParticleID];
-			}
-		)");
+		GetPositionName,
+		GetNormalName,
+		GetVelocityName,
+		GetAngularVelocityName,
+		GetExtentMinName,
+		GetExtentMaxName,
+		GetVolumeName,
+		GetParticleIdsToSpawnAtTimeName,
+		GetPointTypeName,
+		GetColorName,
+		GetSolverTimeName,
+		GetDensityName,
+		GetFrictionName,
+		GetRestitutionName,
+		GetTransformName,
+		GetSizeName,
+		GetSurfaceTypeName,
+		GetCollisionDataName,
+		GetBreakingDataName,
+		GetTrailingDataName,
+	};
 
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetNormalName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Normal) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Normal = IncomingNormalBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetVelocityName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Velocity) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Velocity = VelocityBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetAngularVelocityName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_AngularVelocity) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_AngularVelocity = IncomingAngularVelocity1Buffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetExtentMinName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float Out_ExtentMin) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_ExtentMin = ExtentMinBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetExtentMaxName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float Out_ExtentMax) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_ExtentMax = ExtentMaxBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetVolumeName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float Out_Volume) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Volume = VolumeBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetParticleIdsToSpawnAtTimeName)
-	{
-
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in float Time, out int Out_Min, 
-			                                   out int Out_Max, 
-			                                   out int Out_Count) 
-			{
-				// This function cannot be called on the GPU, as all spawn scripts are run on the CPU..
-				// TODO: Find a way to warn/error about this.
-				Out_Count = 0;
-				Out_Min = 0;
-				Out_Max = 0;
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetPointTypeName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out int Out_PointType) 
-			{
-				// NOTE(mv): Not yet part of the CPU functionality.
-				Out_PointType = 0;
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetColorName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float4 Out_Color) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Color = ColorBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetSolverTimeName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(out float Out_SolverTime) 
-			{
-				Out_SolverTime = SolverTime_{Symbol};
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetDensityName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float Out_Density) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Density = DensityBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetFrictionName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float Out_Friction) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Friction = FrictionBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetRestitutionName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float Out_Restitution) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Restitution = RestitutionBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetTransformName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Translation, out float4 Out_Rotation, out float3 Out_Scale) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Translation = TransformTranslationBuffer_{Symbol}[ParticleID];
-				Out_Rotation = TransformRotationBuffer_{Symbol}[ParticleID];
-				Out_Scale = TransformScaleBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetSizeName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Size) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Size = BoundsBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetSurfaceTypeName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out int Out_SurfaceType) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_SurfaceType = SurfaceTypeBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetCollisionDataName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Location, 
-			                                       out float3 Out_AccumulatedImpulse,
-			                                       out float3 Out_Normal,
-			                                       out float3 Out_Velocity1,
-			                                       out float3 Out_Velocity2,
-			                                       out float3 Out_AngularVelocity1,
-			                                       out float3 Out_AngularVelocity2,
-			                                       out float  Out_Mass1,
-			                                       out float  Out_Mass2,
-			                                       out float  Out_Time) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Location = IncomingLocationBuffer_{Symbol}[ParticleID];
-				Out_AccumulatedImpulse = IncomingAccumulatedImpulseBuffer_{Symbol}[ParticleID];
-				Out_Normal = IncomingNormalBuffer_{Symbol}[ParticleID];
-				Out_Velocity1 = IncomingVelocity1Buffer_{Symbol}[ParticleID];
-				Out_Velocity2 = IncomingVelocity2Buffer_{Symbol}[ParticleID];
-				Out_AngularVelocity1 = IncomingAngularVelocity1Buffer_{Symbol}[ParticleID];
-				Out_AngularVelocity2 = IncomingAngularVelocity2Buffer_{Symbol}[ParticleID];
-				Out_Mass1 = IncomingMass1Buffer_{Symbol}[ParticleID];
-				Out_Mass2 = IncomingMass2Buffer_{Symbol}[ParticleID];
-				Out_Time = IncomingTimeBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetBreakingDataName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Location,
-			                                       out float3 Out_Velocity,
-			                                       out float3 Out_AngularVelocity,
-			                                       out float  Out_Mass,
-			                                       out float  Out_Time) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Location = IncomingLocationBuffer_{Symbol}[ParticleID];
-				Out_Velocity = IncomingVelocity1Buffer_{Symbol}[ParticleID];
-				Out_AngularVelocity = IncomingAngularVelocity1Buffer_{Symbol}[ParticleID];
-				Out_Mass = IncomingMass1Buffer_{Symbol}[ParticleID];
-				Out_Time = IncomingTimeBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetTrailingDataName)
-	{
-		static const TCHAR *Format = TEXT(R"(
-			void {FunctionName}(in int ParticleID, out float3 Out_Location,
-			                                       out float3 Out_Velocity,
-			                                       out float3 Out_AngularVelocity,
-			                                       out float  Out_Mass,
-			                                       out float  Out_Time) 
-			{
-				ParticleID -= LastSpawnedPointID_{Symbol} + 1;
-				Out_Location = IncomingLocationBuffer_{Symbol}[ParticleID];
-				Out_Velocity = IncomingVelocity1Buffer_{Symbol}[ParticleID];
-				Out_AngularVelocity = IncomingAngularVelocity1Buffer_{Symbol}[ParticleID];
-				Out_Mass = IncomingMass1Buffer_{Symbol}[ParticleID];
-				Out_Time = IncomingTimeBuffer_{Symbol}[ParticleID];
-			}
-		)");
-
-		TMap<FString, FStringFormatArg> Args = {
-			{ TEXT("FunctionName"), FunctionInfo.InstanceName },
-			{ TEXT("Symbol"), ParamInfo.DataInterfaceHLSLSymbol },
-		};
-		OutHLSL += FString::Format(Format, Args);
-		return true;
-	}
-
-	return false;
+	return ValidGpuFunction.Contains(FunctionInfo.DefinitionName);
 }
 #endif
 
-template<typename T>
-void LoadGPUBufferFromArray(FDynamicReadBuffer& Buffer,
-	const TArray<T>* Array,
-	const EPixelFormat PixelFormat,
-	FString BufferName)
+void UNiagaraDataInterfaceChaosDestruction::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
 {
-	checkf(PixelFormat == PF_A32B32G32R32F ||
-		PixelFormat == PF_R32_FLOAT ||
-		PixelFormat == PF_G32R32F ||
-		PixelFormat == PF_R32_UINT ||
-		PixelFormat == PF_R32_SINT,
-		TEXT("Unsupported PixelFormat: %d"), PixelFormat);
-
-	// NOTE: float3's have to be padded, so we pass them as PF_A32B32G32R32F and handle them differently
-	bool bIsVector = (PixelFormat == PF_A32B32G32R32F && sizeof(T) == 3 * sizeof(float));
-
-	uint32 SizePerElement = bIsVector ? 4 * sizeof(float) : sizeof(T);
-
-	// If not initialized, or if we need to expand the backing data
-	if (Buffer.NumBytes == 0 || Buffer.NumBytes < Array->Num() * SizePerElement)
-	{
-		Buffer.Release();
-		Buffer.Initialize(SizePerElement, Array->Num(), PixelFormat, BUF_Dynamic);
-	}
-
-	Buffer.Lock();
-	if (bIsVector)
-	{
-		FVector4f* Data = (FVector4f*)Buffer.MappedBuffer;
-		check(Data); // TODO: Handle gracefully.
-
-		for (int32 i = 0; i < Array->Num(); i++) {
-			Data[i] = FVector4f((*Array)[i]);
-		}
-	}
-	else
-	{
-		T* Data = (T*)Buffer.MappedBuffer;
-		check(Data); // TODO: Handle gracefully.
-
-		for (int32 i = 0; i < Array->Num(); i++) {
-			Data[i] = (*Array)[i];
-		}
-	}
-
-	Buffer.Unlock();
+	ShaderParametersBuilder.AddNestedStruct<NDIChaosDestructionLocal::FShaderParameters>();
 }
 
-template <typename T>
-static void SetBuffer(FRHICommandList& CmdList,
-	const FShaderResourceParameter& Param,
-	FRHIComputeShader* Shader,
-	FDynamicReadBuffer& Buffer,
-	const TArray<T>& Array,
-	const EPixelFormat PixelFormat,
-	const TCHAR* BufferName)
+void UNiagaraDataInterfaceChaosDestruction::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
 {
-	checkf(PixelFormat == PF_A32B32G32R32F ||
-		   PixelFormat == PF_R32_FLOAT || 
-		   PixelFormat == PF_G32R32F || 
-		   PixelFormat == PF_R32_UINT || 
-		   PixelFormat == PF_R32_SINT, 
-		   TEXT("Unsupported PixelFormat: %d"), PixelFormat);
+	FNiagaraDataInterfaceProxyChaosDestruction& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxyChaosDestruction>();
+	FNiagaraDIChaosDestruction_GPUData* InstanceData = DIProxy.SystemsToGPUInstanceData.Find(Context.GetSystemInstanceID());
+	NDIChaosDestructionLocal::FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<NDIChaosDestructionLocal::FShaderParameters>();
 
-	// Skip unbound parameters, since we won't be reading any of them
-	if (!Param.IsBound()) return;
-	
-	// NOTE: float3's have to be padded, so we pass them as PF_A32B32G32R32F and handle them differently
-	bool bIsVector = (PixelFormat == PF_A32B32G32R32F) && (sizeof(T) == 3*sizeof(float));
-
-	uint32 SizePerElement = bIsVector ? 4*sizeof(float) : sizeof(T); 
-
-	// If not initialized, or if we need to expand the backing data
-	if (Buffer.NumBytes == 0 || Buffer.NumBytes < Array.Num() * SizePerElement)
+	if (InstanceData != nullptr && (InstanceData->PositionArray.Num() > 0))
 	{
-		Buffer.Release();
-		Buffer.Initialize(BufferName, SizePerElement, Array.Num(), PixelFormat, BUF_Dynamic);
-	}
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->PositionBuffer, InstanceData->RDGPositionSRV, InstanceData->PositionArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_Position"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->VelocityBuffer, InstanceData->RDGVelocitySRV, InstanceData->VelocityArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_Velocity"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->ExtentMinBuffer, InstanceData->RDGExtentMinBufferSRV, InstanceData->ExtentMinArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_ExtentMin"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->ExtentMaxBuffer, InstanceData->RDGExtentMaxBufferSRV, InstanceData->ExtentMaxArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_ExtentMax"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->VolumeBuffer, InstanceData->RDGVolumeBufferSRV, InstanceData->VolumeArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_Volume"));
+		NDIChaosDestructionLocal::QueueBufferUpload<int>(Context, ShaderParameters->SolverIDBuffer, InstanceData->RDGSolverIDBufferSRV, InstanceData->SolverIDArray, 0, PF_R32_SINT, TEXT("ChaosGPUBuffer_SolverID"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->DensityBuffer, InstanceData->RDGDensityBufferSRV, InstanceData->DensityArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_Density"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->FrictionBuffer, InstanceData->RDGFrictionBufferSRV, InstanceData->FrictionArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_Friction"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->RestitutionBuffer, InstanceData->RDGRestitutionBufferSRV, InstanceData->RestitutionArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_Restitution"));
+		NDIChaosDestructionLocal::QueueBufferUpload<int>(Context, ShaderParameters->SurfaceTypeBuffer, InstanceData->RDGSurfaceTypeBufferSRV, InstanceData->SurfaceTypeArray, 0, PF_R32_SINT, TEXT("ChaosGPUBuffer_SurfaceType"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FLinearColor>(Context, ShaderParameters->ColorBuffer, InstanceData->RDGColorBufferSRV, InstanceData->ColorArray, FLinearColor::Black, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_Color"));
 
-	Buffer.Lock();
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingLocationBuffer, InstanceData->RDGIncomingLocationBufferSRV, InstanceData->IncomingLocationArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingLocation"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingAccumulatedImpulseBuffer, InstanceData->RDGIncomingAccumulatedImpulseBufferSRV, InstanceData->IncomingAccumulatedImpulseArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingAccumulatedImpulse"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingNormalBuffer, InstanceData->RDGIncomingNormalBufferSRV, InstanceData->IncomingNormalArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingNormal"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingVelocity1Buffer, InstanceData->RDGIncomingVelocity1BufferSRV, InstanceData->IncomingVelocity1Array, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingVelocity1"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingVelocity2Buffer, InstanceData->RDGIncomingVelocity2BufferSRV, InstanceData->IncomingVelocity2Array, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingVelocity2"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingAngularVelocity1Buffer, InstanceData->RDGIncomingAngularVelocity1BufferSRV, InstanceData->IncomingAngularVelocity1Array, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingAngualrVelocity1"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->IncomingAngularVelocity2Buffer, InstanceData->RDGIncomingAngularVelocity2BufferSRV, InstanceData->IncomingAngularVelocity2Array, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_IncomingAngualrVelocity2"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->IncomingMass1Buffer, InstanceData->RDGIncomingMass1BufferSRV, InstanceData->IncomingMass1Array, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_IncomingMass1"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->IncomingMass2Buffer, InstanceData->RDGIncomingMass2BufferSRV, InstanceData->IncomingMass2Array, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_IncomingMass2"));
+		NDIChaosDestructionLocal::QueueBufferUpload<float>(Context, ShaderParameters->IncomingTimeBuffer, InstanceData->RDGIncomingTimeBufferSRV, InstanceData->IncomingTimeArray, 0.0f, PF_R32_FLOAT, TEXT("ChaosGPUBuffer_IncomingTime"));
 
-	static_assert(TIsPODType<T>::Value, "Not POD.");
-	
-	// NOTE: Reading from `Array` is not thread safe since it belongs to the simulation thread.
-	if (bIsVector)
-	{
-		FVector4f* Data = (FVector4f*)Buffer.MappedBuffer;
-		check(Data); // TODO: Handle gracefully.
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->TransformTranslationBuffer, InstanceData->RDGTransformTranslationBufferSRV, InstanceData->TransformTranslationArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_TransformTranslation"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FQuat4f>(Context, ShaderParameters->TransformRotationBuffer, InstanceData->RDGTransformRotationBufferSRV, InstanceData->TransformRotationArray, FQuat4f::Identity, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_TransformRotation"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->TransformScaleBuffer, InstanceData->RDGTransformScaleBufferSRV, InstanceData->TransformScaleArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_TransformScale"));
+		NDIChaosDestructionLocal::QueueBufferUpload<FVector3f>(Context, ShaderParameters->BoundsBuffer, InstanceData->RDGBoundsBufferSRV, InstanceData->BoundsArray, FVector3f::ZeroVector, PF_A32B32G32R32F, TEXT("ChaosGPUBuffer_TransformBounds"));
 
-		for (int32 i = 0; i < Array.Num(); i++) {
-			FPlatformMemory::Memcpy(&Data[i], &Array[i], 3 * sizeof(float)); // TODO: Undefined data in fourth component
-		}
+		ShaderParameters->LastSpawnedPointID = InstanceData->LastSpawnedPointID;
+		ShaderParameters->SolverTime = InstanceData->SolverTime;
 	}
 	else
 	{
-		T* Data = (T*)Buffer.MappedBuffer;
-		check(Data); // TODO: Handle gracefully.
-		uint32 SizeToCopy = Array.Num() * SizePerElement;
-		check(Buffer.NumBytes >= SizeToCopy);
-		if (Array.Num() > 0)
-		{
-			FPlatformMemory::Memcpy(Data, &Array[0], SizeToCopy);
-		}
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->PositionBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->VelocityBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->ExtentMinBuffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->ExtentMaxBuffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->VolumeBuffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->SolverIDBuffer, PF_R32_SINT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->DensityBuffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->FrictionBuffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->RestitutionBuffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->SurfaceTypeBuffer, PF_R32_SINT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->ColorBuffer, PF_A32B32G32R32F);
+
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingLocationBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingAccumulatedImpulseBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingNormalBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingVelocity1Buffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingVelocity2Buffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingAngularVelocity1Buffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingAngularVelocity2Buffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingMass1Buffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingMass2Buffer, PF_R32_FLOAT);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->IncomingTimeBuffer, PF_R32_FLOAT);
+
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->TransformTranslationBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->TransformRotationBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->TransformScaleBuffer, PF_A32B32G32R32F);
+		NDIChaosDestructionLocal::GetEmptyBuffer(Context, ShaderParameters->BoundsBuffer, PF_A32B32G32R32F);
+
+		ShaderParameters->LastSpawnedPointID = 0;
+		ShaderParameters->SolverTime = 0.0f;
 	}
-
-	Buffer.Unlock();
-
-	SetSRVParameter(CmdList, Shader, Param, Buffer.SRV);
 }
 
 void UNiagaraDataInterfaceChaosDestruction::PushToRenderThreadImpl()
@@ -3790,140 +3504,31 @@ void UNiagaraDataInterfaceChaosDestruction::ProvidePerInstanceDataForRenderThrea
 	DataToPass->SolverTime = GetSolverTime();
 	DataToPass->LastSpawnedPointID = GetLastSpawnedPointID();
 
-	if (InstanceData->PositionArray.Num() > 0)
-	{
-		DataToPass->PositionArray = new TArray<FVector3f>();
-		DataToPass->PositionArray->AddUninitialized(InstanceData->PositionArray.Num());
-		for (int i = 0; i < InstanceData->PositionArray.Num(); ++i)
-		{
-			(*DataToPass->PositionArray)[i] = (FVector3f)InstanceData->PositionArray[i];
-		}
-	}
-
-	if (InstanceData->VelocityArray.Num() > 0)
-	{
-		DataToPass->VelocityArray = new TArray<FVector3f>();
-		DataToPass->VelocityArray->AddUninitialized(InstanceData->VelocityArray.Num());
-		for (int i = 0; i < InstanceData->VelocityArray.Num(); ++i)
-		{
-			(*DataToPass->VelocityArray)[i] = (FVector3f)InstanceData->VelocityArray[i];
-		}
-	}
-
-	if (InstanceData->ExtentMinArray.Num() > 0)
-	{
-		DataToPass->ExtentMinArray = new TArray<float>(InstanceData->ExtentMinArray);
-	}
-
-	if (InstanceData->ExtentMaxArray.Num() > 0)
-	{
-		DataToPass->ExtentMaxArray = new TArray<float>(InstanceData->ExtentMaxArray);
-	}
-
-	if (InstanceData->VolumeArray.Num() > 0)
-	{
-		DataToPass->VolumeArray = new TArray<float>(InstanceData->VolumeArray);
-	}
-
-	if (InstanceData->SolverIDArray.Num() > 0)
-	{
-		DataToPass->SolverIDArray = new TArray<int32>(InstanceData->SolverIDArray);
-	}
-
-	if (InstanceData->DensityArray.Num() > 0)
-	{
-		DataToPass->DensityArray = new TArray<float>(InstanceData->DensityArray);
-	}
-
-	if (InstanceData->FrictionArray.Num() > 0)
-	{
-		DataToPass->FrictionArray = new TArray<float>(InstanceData->FrictionArray);
-	}
-
-	if (InstanceData->RestitutionArray.Num() > 0)
-	{
-		DataToPass->RestitutionArray = new TArray<float>(InstanceData->RestitutionArray);
-	}
-
-	if (InstanceData->TransformTranslationArray.Num() > 0)
-	{
-		DataToPass->TransformTranslationArray = new TArray<FVector>(InstanceData->TransformTranslationArray);
-	}
-
-	if (InstanceData->TransformRotationArray.Num() > 0)
-	{
-		DataToPass->TransformRotationArray = new TArray<FQuat>(InstanceData->TransformRotationArray);
-	}
-
-	if (InstanceData->TransformScaleArray.Num() > 0)
-	{
-		DataToPass->TransformScaleArray = new TArray<FVector>(InstanceData->TransformScaleArray);
-	}
-
-	if (InstanceData->BoundsArray.Num() > 0)
-	{
-		DataToPass->BoundsArray = new TArray<FVector>(InstanceData->BoundsArray);
-	}
-
-	if (InstanceData->SurfaceTypeArray.Num() > 0)
-	{
-		DataToPass->SurfaceTypeArray = new TArray<int32>(InstanceData->SurfaceTypeArray);
-	}
-
-	if (InstanceData->ColorArray.Num() > 0)
-	{
-		DataToPass->ColorArray = new TArray<FLinearColor>(InstanceData->ColorArray);
-	}
-
-	if (InstanceData->IncomingLocationArray.Num() > 0)
-	{
-		DataToPass->IncomingLocationArray = new TArray<FVector>(InstanceData->IncomingLocationArray);
-	}
-
-	if (InstanceData->IncomingAccumulatedImpulseArray.Num() > 0)
-	{
-		DataToPass->IncomingAccumulatedImpulseArray = new TArray<FVector>(InstanceData->IncomingAccumulatedImpulseArray);
-	}
-
-	if (InstanceData->IncomingNormalArray.Num() > 0)
-	{
-		DataToPass->IncomingNormalArray = new TArray<FVector>(InstanceData->IncomingNormalArray);
-	}
-
-	if (InstanceData->IncomingVelocity1Array.Num() > 0)
-	{
-		DataToPass->IncomingVelocity1Array = new TArray<FVector>(InstanceData->IncomingVelocity1Array);
-	}
-
-	if (InstanceData->IncomingVelocity2Array.Num() > 0)
-	{
-		DataToPass->IncomingVelocity2Array = new TArray<FVector>(InstanceData->IncomingVelocity2Array);
-	}
-
-	if (InstanceData->IncomingAngularVelocity1Array.Num() > 0)
-	{
-		DataToPass->IncomingAngularVelocity1Array = new TArray<FVector>(InstanceData->IncomingAngularVelocity1Array);
-	}
-
-	if (InstanceData->IncomingAngularVelocity2Array.Num() > 0)
-	{
-		DataToPass->IncomingAngularVelocity2Array = new TArray<FVector>(InstanceData->IncomingAngularVelocity2Array);
-	}
-
-	if (InstanceData->IncomingMass1Array.Num() > 0)
-	{
-		DataToPass->IncomingMass1Array = new TArray<float>(InstanceData->IncomingMass1Array);
-	}
-
-	if (InstanceData->IncomingMass2Array.Num() > 0)
-	{
-		DataToPass->IncomingMass2Array = new TArray<float>(InstanceData->IncomingMass2Array);
-	}
-
-	if (InstanceData->IncomingTimeArray.Num() > 0)
-	{
-		DataToPass->IncomingTimeArray = new TArray<float>(InstanceData->IncomingTimeArray);
-	}
+	DataToPass->PositionArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->PositionArray);
+	DataToPass->VelocityArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->VelocityArray);
+	DataToPass->ExtentMinArray = InstanceData->ExtentMinArray;
+	DataToPass->ExtentMaxArray = InstanceData->ExtentMaxArray;
+	DataToPass->VolumeArray = InstanceData->VolumeArray;
+	DataToPass->SolverIDArray = InstanceData->SolverIDArray;
+	DataToPass->DensityArray = InstanceData->DensityArray;
+	DataToPass->FrictionArray = InstanceData->FrictionArray;
+	DataToPass->RestitutionArray = InstanceData->RestitutionArray;
+	DataToPass->TransformTranslationArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->TransformTranslationArray);
+	DataToPass->TransformRotationArray = NDIChaosDestructionLocal::CopyQuatArray(InstanceData->TransformRotationArray);
+	DataToPass->TransformScaleArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->TransformScaleArray);
+	DataToPass->BoundsArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->BoundsArray);
+	DataToPass->SurfaceTypeArray = InstanceData->SurfaceTypeArray;
+	DataToPass->ColorArray = InstanceData->ColorArray;
+	DataToPass->IncomingLocationArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingLocationArray);
+	DataToPass->IncomingAccumulatedImpulseArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingAccumulatedImpulseArray);
+	DataToPass->IncomingNormalArray = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingNormalArray);
+	DataToPass->IncomingVelocity1Array = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingVelocity1Array);
+	DataToPass->IncomingVelocity2Array = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingVelocity2Array);
+	DataToPass->IncomingAngularVelocity1Array = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingAngularVelocity1Array);
+	DataToPass->IncomingAngularVelocity2Array = NDIChaosDestructionLocal::CopyVectorArray(InstanceData->IncomingAngularVelocity2Array);
+	DataToPass->IncomingMass1Array = InstanceData->IncomingMass1Array;
+	DataToPass->IncomingMass2Array = InstanceData->IncomingMass2Array;
+	DataToPass->IncomingTimeArray = InstanceData->IncomingTimeArray;
 }
 
 void FNiagaraDataInterfaceProxyChaosDestruction::CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance)
@@ -3953,315 +3558,71 @@ void FNiagaraDataInterfaceProxyChaosDestruction::ConsumePerInstanceDataFromGameT
 		Data.SolverTime = InstanceData->SolverTime;
 		Data.LastSpawnedPointID = InstanceData->LastSpawnedPointID;
 
-		if (InstanceData->PositionArray)
-		{
-			Data.PositionArray = TArray<FVector3f>(MoveTemp(*InstanceData->PositionArray));		
-			//LoadGPUBufferFromArray(Data.GPUPositionBuffer, InstanceData->PositionArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("PositionBuffer")));
-			delete InstanceData->PositionArray;
-		}
+		Data.PositionArray = MoveTemp(InstanceData->PositionArray);
+		Data.VelocityArray = MoveTemp(InstanceData->VelocityArray);
+		Data.ExtentMinArray = MoveTemp(InstanceData->ExtentMinArray);
+		Data.ExtentMaxArray = MoveTemp(InstanceData->ExtentMaxArray);
+		Data.VolumeArray = MoveTemp(InstanceData->VolumeArray);
+		Data.SolverIDArray = MoveTemp(InstanceData->SolverIDArray);
+		Data.DensityArray = MoveTemp(InstanceData->DensityArray);
+		Data.FrictionArray = MoveTemp(InstanceData->FrictionArray);
+		Data.RestitutionArray = MoveTemp(InstanceData->RestitutionArray);
+		Data.TransformTranslationArray = MoveTemp(InstanceData->TransformTranslationArray);
+		Data.TransformRotationArray = MoveTemp(InstanceData->TransformRotationArray);
+		Data.TransformScaleArray = MoveTemp(InstanceData->TransformScaleArray);
+		Data.BoundsArray = MoveTemp(InstanceData->BoundsArray);
+		Data.SurfaceTypeArray = MoveTemp(InstanceData->SurfaceTypeArray);
+		Data.ColorArray = MoveTemp(InstanceData->ColorArray);
+		Data.IncomingLocationArray = MoveTemp(InstanceData->IncomingLocationArray);
+		Data.IncomingAccumulatedImpulseArray = MoveTemp(InstanceData->IncomingAccumulatedImpulseArray);
+		Data.IncomingNormalArray = MoveTemp(InstanceData->IncomingNormalArray);
+		Data.IncomingVelocity1Array = MoveTemp(InstanceData->IncomingVelocity1Array);
+		Data.IncomingVelocity2Array = MoveTemp(InstanceData->IncomingVelocity2Array);
+		Data.IncomingAngularVelocity1Array = MoveTemp(InstanceData->IncomingAngularVelocity1Array);
+		Data.IncomingAngularVelocity2Array = MoveTemp(InstanceData->IncomingAngularVelocity2Array);
+		Data.IncomingMass1Array = MoveTemp(InstanceData->IncomingMass1Array);
+		Data.IncomingMass2Array = MoveTemp(InstanceData->IncomingMass2Array);
+		Data.IncomingTimeArray = MoveTemp(InstanceData->IncomingTimeArray);
 
-		if (InstanceData->VelocityArray)
-		{
-			Data.VelocityArray = TArray<FVector3f>(MoveTemp(*InstanceData->VelocityArray));
-			//LoadGPUBufferFromArray(Data.GPUVelocityBuffer, InstanceData->VelocityArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("VelocityBuffer")));
-			delete InstanceData->VelocityArray;
-		}
-	
-		if (InstanceData->ExtentMinArray)
-		{
-			Data.ExtentMinArray = TArray<float>(MoveTemp(*InstanceData->ExtentMinArray));
-			//LoadGPUBufferFromArray(Data.GPUExtentMinBuffer, InstanceData->ExtentMinArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("ExtentMinBuffer")));
-			delete InstanceData->ExtentMinArray;
-		}
-	
-		if (InstanceData->ExtentMaxArray)
-		{
-			Data.ExtentMaxArray = TArray<float>(MoveTemp(*InstanceData->ExtentMaxArray));
-			//LoadGPUBufferFromArray(Data.GPUExtentMaxBuffer, InstanceData->ExtentMaxArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("ExtentMaxBuffer")));
-			delete InstanceData->ExtentMaxArray;
-		}
-
-		if (InstanceData->VolumeArray)
-		{
-			Data.VolumeArray = TArray<float>(MoveTemp(*InstanceData->VolumeArray));
-			//LoadGPUBufferFromArray(Data.GPUVolumeBuffer, InstanceData->VolumeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("VolumeBuffer")));
-			delete InstanceData->VolumeArray;
-		}
-
-		if (InstanceData->SolverIDArray)
-		{
-			Data.SolverIDArray = TArray<int32>(MoveTemp(*InstanceData->SolverIDArray));
-			//LoadGPUBufferFromArray(Data.GPUSolverIDBuffer, InstanceData->SolverIDArray, EPixelFormat::PF_R32_SINT, FString(TEXT("SolverIDBuffer")));
-			delete InstanceData->SolverIDArray;
-		}
-
-		if (InstanceData->DensityArray)
-		{
-			Data.DensityArray = TArray<float>(MoveTemp(*InstanceData->DensityArray));
-			//LoadGPUBufferFromArray(Data.GPUDensityBuffer, InstanceData->DensityArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("DensityBuffer")));
-			delete InstanceData->DensityArray;
-		}
-
-		if (InstanceData->FrictionArray)
-		{
-			Data.FrictionArray = TArray<float>(MoveTemp(*InstanceData->FrictionArray));
-			//LoadGPUBufferFromArray(Data.GPUFrictionBuffer, InstanceData->FrictionArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("FrictionBuffer")));
-			delete InstanceData->FrictionArray;
-		}
-
-		if (InstanceData->RestitutionArray)
-		{
-			Data.RestitutionArray = TArray<float>(MoveTemp(*InstanceData->RestitutionArray));
-			//LoadGPUBufferFromArray(Data.GPURestitutionBuffer, InstanceData->RestitutionArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("RestitutionBuffer")));
-			delete InstanceData->RestitutionArray;
-		}
-
-		if (InstanceData->TransformTranslationArray)
-		{
-			Data.TransformTranslationArray = TArray<FVector>(MoveTemp(*InstanceData->TransformTranslationArray));
-			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformTranslationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformTranslationBuffer")));
-			delete InstanceData->TransformTranslationArray;
-		}
-
-		if (InstanceData->TransformRotationArray)
-		{
-			Data.TransformRotationArray = TArray<FQuat>(MoveTemp(*InstanceData->TransformRotationArray));
-			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformRotationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformRotationBuffer")));
-			delete InstanceData->TransformRotationArray;
-		}
-
-		if (InstanceData->TransformScaleArray)
-		{
-			Data.TransformScaleArray = TArray<FVector>(MoveTemp(*InstanceData->TransformScaleArray));
-			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->TransformScaleArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("TransformScaleBuffer")));
-			delete InstanceData->TransformScaleArray;
-		}
-
-		if (InstanceData->BoundsArray)
-		{
-			Data.BoundsArray = TArray<FVector>(MoveTemp(*InstanceData->BoundsArray));
-			//LoadGPUBufferFromArray(Data.GPUBoundsBuffer, InstanceData->BoundsArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("BoundsBuffer")));
-			delete InstanceData->BoundsArray;
-		}
-
-		if (InstanceData->SurfaceTypeArray)
-		{
-			Data.SurfaceTypeArray = TArray<int32>(MoveTemp(*InstanceData->SurfaceTypeArray));
-			//LoadGPUBufferFromArray(Data.GPUSurfaceTypeBuffer, InstanceData->SurfaceTypeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("RestitutionBuffer")));
-			delete InstanceData->SurfaceTypeArray;
-		}
-
-		if (InstanceData->ColorArray)
-		{
-			Data.ColorArray = TArray<FLinearColor>(MoveTemp(*InstanceData->ColorArray));
-			//LoadGPUBufferFromArray(Data.GPUColorBuffer, InstanceData->ColorArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("ColorBuffer")));
-			delete InstanceData->ColorArray;
-		}
-
-		if (InstanceData->IncomingLocationArray)
-		{
-			Data.IncomingLocationArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingLocationArray));
-			//LoadGPUBufferFromArray(Data.GPUIncomingLocationBuffer, InstanceData->IncomingLocationArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingLocationBuffer")));
-			delete InstanceData->IncomingLocationArray;
-		}
-
-		if (InstanceData->IncomingAccumulatedImpulseArray)
-		{
-			Data.IncomingAccumulatedImpulseArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingAccumulatedImpulseArray));
-			//LoadGPUBufferFromArray(Data.GPUIncomingAccumulatedImpulseBuffer, InstanceData->IncomingAccumulatedImpulseArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAccumulatedImpulseBuffer")));
-			delete InstanceData->IncomingAccumulatedImpulseArray;
-		}
-
-		if (InstanceData->IncomingNormalArray)
-		{
-			Data.IncomingNormalArray = TArray<FVector>(MoveTemp(*InstanceData->IncomingNormalArray));
-			//LoadGPUBufferFromArray(Data.GPUIncomingNormalBuffer, InstanceData->IncomingNormalArray, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingNormalBuffer")));
-			delete InstanceData->IncomingNormalArray;
-		}
-
-		if (InstanceData->IncomingVelocity1Array)
-		{
-			Data.IncomingVelocity1Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingVelocity1Array));
-			//LoadGPUBufferFromArray(Data.GPUIncomingVelocity1Buffer, InstanceData->IncomingVelocity1Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingVelocity1Buffer")));
-			delete InstanceData->IncomingVelocity1Array;
-		}
-
-		if (InstanceData->IncomingVelocity2Array)
-		{
-			Data.IncomingVelocity2Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingVelocity2Array));
-			//LoadGPUBufferFromArray(Data.GPUIncomingVelocity2Buffer, InstanceData->IncomingVelocity2Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingVelocity2Buffer")));
-			delete InstanceData->IncomingVelocity2Array;
-		}
-
-		if (InstanceData->IncomingAngularVelocity1Array)
-		{
-			Data.IncomingAngularVelocity1Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingAngularVelocity1Array));
-			//LoadGPUBufferFromArray(Data.GPUIncomingAngularVelocity1Buffer, InstanceData->IncomingAngularVelocity1Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAngularVelocity1Buffer")));
-			delete InstanceData->IncomingAngularVelocity1Array;
-		}
-
-		if (InstanceData->IncomingAngularVelocity2Array)
-		{
-			Data.IncomingAngularVelocity2Array = TArray<FVector>(MoveTemp(*InstanceData->IncomingAngularVelocity2Array));
-			//LoadGPUBufferFromArray(Data.GPUIncomingAngularVelocity2Buffer, InstanceData->IncomingAngularVelocity2Array, EPixelFormat::PF_A32B32G32R32F, FString(TEXT("IncomingAngularVelocity2Buffer")));
-			delete InstanceData->IncomingAngularVelocity2Array;
-		}
-	
-		if (InstanceData->IncomingMass1Array)
-		{
-			Data.IncomingMass1Array = TArray<float>(MoveTemp(*InstanceData->IncomingMass1Array));
-			//LoadGPUBufferFromArray(Data.GPUIncomingMass1Buffer, InstanceData->IncomingMass1Array, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingMass1Buffer")));
-			delete InstanceData->IncomingMass1Array;
-		}
-
-		if (InstanceData->IncomingMass2Array)
-		{
-			Data.IncomingMass2Array = TArray<float>(MoveTemp(*InstanceData->IncomingMass2Array));
-			//LoadGPUBufferFromArray(Data.GPUIncomingMass2Buffer, InstanceData->IncomingMass2Array, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingMass2Buffer")));
-			delete InstanceData->IncomingMass2Array;
-		}
-
-		if (InstanceData->IncomingTimeArray)
-		{
-			Data.IncomingTimeArray = TArray<float>(MoveTemp(*InstanceData->IncomingTimeArray));
-			//LoadGPUBufferFromArray(Data.GPUIncomingTimeBuffer, InstanceData->IncomingTimeArray, EPixelFormat::PF_R32_FLOAT, FString(TEXT("IncomingTimeBuffer")));
-			delete InstanceData->IncomingTimeArray;
-		}
 		InstanceData->~FNiagaraDIChaosDestruction_InstanceDataToPassToRT();
 	}
 }
 
-struct FNiagaraDataInterfaceParametersCS_ChaosDestruction :public FNiagaraDataInterfaceParametersCS
+void FNiagaraDataInterfaceProxyChaosDestruction::PostSimulate(const FNDIGpuComputePostSimulateContext& Context)
 {
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ChaosDestruction, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
+	// Clear out the transient data we may have generated if this is the final post simulate call
+	if (Context.IsFinalPostSimulate())
 	{
-		PositionBuffer.Bind(ParameterMap, *("PositionBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		VelocityBuffer.Bind(ParameterMap, *("VelocityBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		ExtentMinBuffer.Bind(ParameterMap, *("ExtentMinBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		ExtentMaxBuffer.Bind(ParameterMap, *("ExtentMaxBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		VolumeBuffer.Bind(ParameterMap, *("VolumeBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		SolverIDBuffer.Bind(ParameterMap, *("SolverIDBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		DensityBuffer.Bind(ParameterMap, *("DensityBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		FrictionBuffer.Bind(ParameterMap, *("FrictionBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		RestitutionBuffer.Bind(ParameterMap, *("RestitutionBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		SurfaceTypeBuffer.Bind(ParameterMap, *("SurfaceTypeBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		ColorBuffer.Bind(ParameterMap, *("ColorBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		IncomingLocationBuffer.Bind(ParameterMap, *("IncomingLocationBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingAccumulatedImpulseBuffer.Bind(ParameterMap, *("IncomingAccumulatedImpulseBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingNormalBuffer.Bind(ParameterMap, *("IncomingNormalBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingVelocity1Buffer.Bind(ParameterMap, *("IncomingVelocity1Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingVelocity2Buffer.Bind(ParameterMap, *("IncomingVelocity2Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingAngularVelocity1Buffer.Bind(ParameterMap, *("IncomingAngularVelocity1Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingAngularVelocity2Buffer.Bind(ParameterMap, *("IncomingAngularVelocity2Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingMass1Buffer.Bind(ParameterMap, *("IncomingMass1Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingMass2Buffer.Bind(ParameterMap, *("IncomingMass2Buffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		IncomingTimeBuffer.Bind(ParameterMap, *("IncomingTimeBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		TransformTranslationBuffer.Bind(ParameterMap, *("TransformTranslationBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		TransformRotationBuffer.Bind(ParameterMap, *("TransformRotationBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		TransformScaleBuffer.Bind(ParameterMap, *("TransformScaleBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		BoundsBuffer.Bind(ParameterMap, *("BoundsBuffer_" + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		LastSpawnedPointID.Bind(ParameterMap, *("LastSpawnedPointID_" + ParameterInfo.DataInterfaceHLSLSymbol));
-		SolverTime.Bind(ParameterMap, *("SolverTime_" + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNiagaraDataInterfaceProxyChaosDestruction* ChaosDestructionInterfaceProxy = static_cast<FNiagaraDataInterfaceProxyChaosDestruction*>(Context.DataInterface);
-		if (ChaosDestructionInterfaceProxy)
+		for (auto it = SystemsToGPUInstanceData.CreateIterator(); it; ++it)
 		{
-			FNiagaraDIChaosDestruction_GPUData* InstanceData = ChaosDestructionInterfaceProxy->SystemsToGPUInstanceData.Find(Context.SystemInstanceID);
-
-			ensure(InstanceData);
-
-			if (!InstanceData)
-			{
-				return;
-			}
-			if(InstanceData->PositionArray.Num() > 0)
-			{
-				SetBuffer(RHICmdList, PositionBuffer,    ComputeShaderRHI, InstanceData->GPUPositionBuffer,    InstanceData->PositionArray,    EPixelFormat::PF_A32B32G32R32F, TEXT("PositionBuffer"));
-				SetBuffer(RHICmdList, VelocityBuffer,    ComputeShaderRHI, InstanceData->GPUVelocityBuffer,    InstanceData->VelocityArray,    EPixelFormat::PF_A32B32G32R32F, TEXT("VelocityBuffer"));
-				SetBuffer(RHICmdList, ExtentMinBuffer,   ComputeShaderRHI, InstanceData->GPUExtentMinBuffer,   InstanceData->ExtentMinArray,   EPixelFormat::PF_R32_FLOAT,     TEXT("ExtentMinBuffer"));
-				SetBuffer(RHICmdList, ExtentMaxBuffer,   ComputeShaderRHI, InstanceData->GPUExtentMaxBuffer,   InstanceData->ExtentMaxArray,   EPixelFormat::PF_R32_FLOAT,     TEXT("ExtentMaxBuffer"));
-				SetBuffer(RHICmdList, VolumeBuffer,      ComputeShaderRHI, InstanceData->GPUVolumeBuffer,      InstanceData->VolumeArray,      EPixelFormat::PF_R32_FLOAT,     TEXT("VolumeBuffer"));
-				SetBuffer(RHICmdList, SolverIDBuffer,    ComputeShaderRHI, InstanceData->GPUSolverIDBuffer,    InstanceData->SolverIDArray,    EPixelFormat::PF_R32_SINT,      TEXT("SolverIDBuffer"));
-				SetBuffer(RHICmdList, DensityBuffer,     ComputeShaderRHI, InstanceData->GPUDensityBuffer,     InstanceData->DensityArray,     EPixelFormat::PF_R32_FLOAT,     TEXT("DensityBuffer"));
-				SetBuffer(RHICmdList, FrictionBuffer,    ComputeShaderRHI, InstanceData->GPUFrictionBuffer,    InstanceData->FrictionArray,    EPixelFormat::PF_R32_FLOAT,     TEXT("FrictionBuffer"));
-				SetBuffer(RHICmdList, RestitutionBuffer, ComputeShaderRHI, InstanceData->GPURestitutionBuffer, InstanceData->RestitutionArray, EPixelFormat::PF_R32_FLOAT,     TEXT("RestitutionBuffer"));
-				SetBuffer(RHICmdList, SurfaceTypeBuffer, ComputeShaderRHI, InstanceData->GPUSurfaceTypeBuffer, InstanceData->SurfaceTypeArray, EPixelFormat::PF_R32_SINT,      TEXT("SurfaceTypeBuffer"));
-				SetBuffer(RHICmdList, ColorBuffer,       ComputeShaderRHI, InstanceData->GPUColorBuffer,       InstanceData->ColorArray,       EPixelFormat::PF_A32B32G32R32F, TEXT("ColorBuffer"));
-
-				SetBuffer(RHICmdList, IncomingLocationBuffer,           ComputeShaderRHI, InstanceData->GPUIncomingLocationBuffer,           InstanceData->IncomingLocationArray,           EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingLocationBuffer"));
-				SetBuffer(RHICmdList, IncomingAccumulatedImpulseBuffer, ComputeShaderRHI, InstanceData->GPUIncomingAccumulatedImpulseBuffer, InstanceData->IncomingAccumulatedImpulseArray, EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingAccumulatedImpulseBuffer"));
-				SetBuffer(RHICmdList, IncomingNormalBuffer,             ComputeShaderRHI, InstanceData->GPUIncomingNormalBuffer,             InstanceData->IncomingNormalArray,             EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingNormalBuffer"));
-				SetBuffer(RHICmdList, IncomingVelocity1Buffer,          ComputeShaderRHI, InstanceData->GPUIncomingVelocity1Buffer,          InstanceData->IncomingVelocity1Array,          EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingVelocity1Buffer"));
-				SetBuffer(RHICmdList, IncomingVelocity2Buffer,          ComputeShaderRHI, InstanceData->GPUIncomingVelocity2Buffer,          InstanceData->IncomingVelocity2Array,          EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingVelocity2Buffer"));
-				SetBuffer(RHICmdList, IncomingAngularVelocity1Buffer,   ComputeShaderRHI, InstanceData->GPUIncomingAngularVelocity1Buffer,   InstanceData->IncomingAngularVelocity1Array,   EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingAngularVelocity1Buffer"));
-				SetBuffer(RHICmdList, IncomingAngularVelocity2Buffer,   ComputeShaderRHI, InstanceData->GPUIncomingAngularVelocity2Buffer,   InstanceData->IncomingAngularVelocity2Array,   EPixelFormat::PF_A32B32G32R32F, TEXT("IncomingAngularVelocity2Buffer"));
-				SetBuffer(RHICmdList, IncomingMass1Buffer,              ComputeShaderRHI, InstanceData->GPUIncomingMass1Buffer,              InstanceData->IncomingMass1Array,              EPixelFormat::PF_R32_FLOAT,     TEXT("IncomingMass1Buffer"));
-				SetBuffer(RHICmdList, IncomingMass2Buffer,              ComputeShaderRHI, InstanceData->GPUIncomingMass2Buffer,              InstanceData->IncomingMass2Array,              EPixelFormat::PF_R32_FLOAT,     TEXT("IncomingMass2Buffer"));
-				SetBuffer(RHICmdList, IncomingTimeBuffer,               ComputeShaderRHI, InstanceData->GPUIncomingTimeBuffer,               InstanceData->IncomingTimeArray,               EPixelFormat::PF_R32_FLOAT,     TEXT("IncomingTimeBuffer"));
-				
-				SetBuffer(RHICmdList, TransformTranslationBuffer,       ComputeShaderRHI, InstanceData->GPUTransformTranslationBuffer,       InstanceData->TransformTranslationArray,       EPixelFormat::PF_A32B32G32R32F, TEXT("TransformTranslationBuffer"));
-				SetBuffer(RHICmdList, TransformRotationBuffer,          ComputeShaderRHI, InstanceData->GPUTransformRotationBuffer,          InstanceData->TransformRotationArray,          EPixelFormat::PF_A32B32G32R32F, TEXT("TransformRotationBuffer"));
-				SetBuffer(RHICmdList, TransformScaleBuffer,             ComputeShaderRHI, InstanceData->GPUTransformScaleBuffer,             InstanceData->TransformScaleArray,             EPixelFormat::PF_A32B32G32R32F, TEXT("TransformScaleBuffer"));
-				SetBuffer(RHICmdList, BoundsBuffer,                     ComputeShaderRHI, InstanceData->GPUBoundsBuffer,                     InstanceData->BoundsArray,                     EPixelFormat::PF_A32B32G32R32F, TEXT("BoundsBuffer"));
-
-				SetShaderValue(RHICmdList, ComputeShaderRHI, LastSpawnedPointID, InstanceData->LastSpawnedPointID);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, SolverTime, InstanceData->SolverTime);
-			}
+			FNiagaraDIChaosDestruction_GPUData& InstanceData = it.Value();
+			InstanceData.RDGPositionSRV = nullptr;
+			InstanceData.RDGVelocitySRV = nullptr;
+			InstanceData.RDGExtentMinBufferSRV = nullptr;
+			InstanceData.RDGExtentMaxBufferSRV = nullptr;
+			InstanceData.RDGVolumeBufferSRV = nullptr;
+			InstanceData.RDGSolverIDBufferSRV = nullptr;
+			InstanceData.RDGDensityBufferSRV = nullptr;
+			InstanceData.RDGFrictionBufferSRV = nullptr;
+			InstanceData.RDGRestitutionBufferSRV = nullptr;
+			InstanceData.RDGSurfaceTypeBufferSRV = nullptr;
+			InstanceData.RDGColorBufferSRV = nullptr;
+			InstanceData.RDGIncomingLocationBufferSRV = nullptr;
+			InstanceData.RDGIncomingAccumulatedImpulseBufferSRV = nullptr;
+			InstanceData.RDGIncomingNormalBufferSRV = nullptr;
+			InstanceData.RDGIncomingVelocity1BufferSRV = nullptr;
+			InstanceData.RDGIncomingVelocity2BufferSRV = nullptr;
+			InstanceData.RDGIncomingAngularVelocity1BufferSRV = nullptr;
+			InstanceData.RDGIncomingAngularVelocity2BufferSRV = nullptr;
+			InstanceData.RDGIncomingMass1BufferSRV = nullptr;
+			InstanceData.RDGIncomingMass2BufferSRV = nullptr;
+			InstanceData.RDGIncomingTimeBufferSRV = nullptr;
+			InstanceData.RDGTransformTranslationBufferSRV = nullptr;
+			InstanceData.RDGTransformRotationBufferSRV = nullptr;
+			InstanceData.RDGTransformScaleBufferSRV = nullptr;
+			InstanceData.RDGBoundsBufferSRV = nullptr;
 		}
 	}
-
-private:
-	// TODO: Collect these into a small number of buffers to reduce the number of binding points
-	LAYOUT_FIELD(FShaderResourceParameter, PositionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, VelocityBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, ExtentMinBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, ExtentMaxBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, VolumeBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, SolverIDBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, DensityBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, FrictionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, RestitutionBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, SurfaceTypeBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, ColorBuffer);
-
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingLocationBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingAccumulatedImpulseBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingNormalBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingVelocity1Buffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingVelocity2Buffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingAngularVelocity1Buffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingAngularVelocity2Buffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingMass1Buffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingMass2Buffer);
-	LAYOUT_FIELD(FShaderResourceParameter, IncomingTimeBuffer);
-
-	LAYOUT_FIELD(FShaderResourceParameter, TransformTranslationBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, TransformRotationBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, TransformScaleBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, BoundsBuffer);
-
-	LAYOUT_FIELD(FShaderParameter, LastSpawnedPointID);
-	LAYOUT_FIELD(FShaderParameter, SolverTime);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ChaosDestruction);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceChaosDestruction, FNiagaraDataInterfaceParametersCS_ChaosDestruction);
-
-
-//#pragma optimize("", on)
-
-
+}
 
 #undef LOCTEXT_NAMESPACE

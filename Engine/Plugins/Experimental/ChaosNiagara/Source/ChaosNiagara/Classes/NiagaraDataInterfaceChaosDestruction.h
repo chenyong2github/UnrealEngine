@@ -135,21 +135,21 @@ struct FNiagaraDIChaosDestruction_GPUData
 	TArray<int32> SurfaceTypeArray;
 	TArray<FLinearColor> ColorArray;
 
-	TArray<FVector> IncomingLocationArray;				// Collision, Breaking, Trailing
-	TArray<FVector> IncomingAccumulatedImpulseArray;	// Collision
-	TArray<FVector> IncomingNormalArray;				// Collision
-	TArray<FVector> IncomingVelocity1Array;			// Collision, Breaking, Trailing
-	TArray<FVector> IncomingVelocity2Array;			// Collision
-	TArray<FVector> IncomingAngularVelocity1Array;		// Collision, Breaking, Trailing
-	TArray<FVector> IncomingAngularVelocity2Array;		// Collision
+	TArray<FVector3f> IncomingLocationArray;				// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingAccumulatedImpulseArray;	// Collision
+	TArray<FVector3f> IncomingNormalArray;				// Collision
+	TArray<FVector3f> IncomingVelocity1Array;			// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingVelocity2Array;			// Collision
+	TArray<FVector3f> IncomingAngularVelocity1Array;		// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingAngularVelocity2Array;		// Collision
 	TArray<float> IncomingMass1Array;					// Collision, Breaking, Trailing
 	TArray<float> IncomingMass2Array;					// Collision
 	TArray<float> IncomingTimeArray;					// Collision, Breaking, Trailing
 
-	TArray<FVector> TransformTranslationArray;
-	TArray<FQuat> TransformRotationArray;
-	TArray<FVector> TransformScaleArray;
-	TArray<FVector> BoundsArray;
+	TArray<FVector3f> TransformTranslationArray;
+	TArray<FQuat4f> TransformRotationArray;
+	TArray<FVector3f> TransformScaleArray;
+	TArray<FVector3f> BoundsArray;
 
 	void ResetAll()
 	{
@@ -182,67 +182,65 @@ struct FNiagaraDIChaosDestruction_GPUData
 		BoundsArray.Reset();
 	}
 
-	FDynamicReadBuffer GPUPositionBuffer;
-	FDynamicReadBuffer GPUVelocityBuffer;
-	FDynamicReadBuffer GPUExtentMinBuffer;
-	FDynamicReadBuffer GPUExtentMaxBuffer;
-	FDynamicReadBuffer GPUVolumeBuffer;
-	FDynamicReadBuffer GPUSolverIDBuffer;
-	FDynamicReadBuffer GPUDensityBuffer;
-	FDynamicReadBuffer GPUFrictionBuffer;
-	FDynamicReadBuffer GPURestitutionBuffer;
-	FDynamicReadBuffer GPUSurfaceTypeBuffer;
-	FDynamicReadBuffer GPUColorBuffer;
-
-	FDynamicReadBuffer GPUIncomingLocationBuffer;
-	FDynamicReadBuffer GPUIncomingAccumulatedImpulseBuffer;
-	FDynamicReadBuffer GPUIncomingNormalBuffer;
-	FDynamicReadBuffer GPUIncomingVelocity1Buffer;
-	FDynamicReadBuffer GPUIncomingVelocity2Buffer;
-	FDynamicReadBuffer GPUIncomingAngularVelocity1Buffer;
-	FDynamicReadBuffer GPUIncomingAngularVelocity2Buffer;
-	FDynamicReadBuffer GPUIncomingMass1Buffer;
-	FDynamicReadBuffer GPUIncomingMass2Buffer;
-	FDynamicReadBuffer GPUIncomingTimeBuffer;
-
-	FDynamicReadBuffer GPUTransformTranslationBuffer;
-	FDynamicReadBuffer GPUTransformRotationBuffer;
-	FDynamicReadBuffer GPUTransformScaleBuffer;
-	FDynamicReadBuffer GPUBoundsBuffer;
-
 	float SolverTime;
 	int32 LastSpawnedPointID;
+
+	FRDGBufferSRVRef RDGPositionSRV = nullptr;
+	FRDGBufferSRVRef RDGVelocitySRV = nullptr;
+	FRDGBufferSRVRef RDGExtentMinBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGExtentMaxBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGVolumeBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGSolverIDBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGDensityBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGFrictionBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGRestitutionBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGSurfaceTypeBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGColorBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingLocationBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingAccumulatedImpulseBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingNormalBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingVelocity1BufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingVelocity2BufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingAngularVelocity1BufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingAngularVelocity2BufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingMass1BufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingMass2BufferSRV = nullptr;
+	FRDGBufferSRVRef RDGIncomingTimeBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGTransformTranslationBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGTransformRotationBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGTransformScaleBufferSRV = nullptr;
+	FRDGBufferSRVRef RDGBoundsBufferSRV = nullptr;
 };
 
 struct FNiagaraDIChaosDestruction_InstanceDataToPassToRT
 {
-	TArray<FVector3f>* PositionArray;
-	TArray<FVector3f>* VelocityArray;
-	TArray<float>* ExtentMinArray;
-	TArray<float>* ExtentMaxArray;
-	TArray<float>* VolumeArray;
-	TArray<int32>* SolverIDArray;
-	TArray<float>* DensityArray;
-	TArray<float>* FrictionArray;
-	TArray<float>* RestitutionArray;
-	TArray<int32>* SurfaceTypeArray;
-	TArray<FLinearColor>* ColorArray;
+	TArray<FVector3f> PositionArray;
+	TArray<FVector3f> VelocityArray;
+	TArray<float> ExtentMinArray;
+	TArray<float> ExtentMaxArray;
+	TArray<float> VolumeArray;
+	TArray<int32> SolverIDArray;
+	TArray<float> DensityArray;
+	TArray<float> FrictionArray;
+	TArray<float> RestitutionArray;
+	TArray<int32> SurfaceTypeArray;
+	TArray<FLinearColor> ColorArray;
 
-	TArray<FVector>* IncomingLocationArray;				// Collision, Breaking, Trailing
-	TArray<FVector>* IncomingAccumulatedImpulseArray;	// Collision
-	TArray<FVector>* IncomingNormalArray;				// Collision
-	TArray<FVector>* IncomingVelocity1Array;			// Collision, Breaking, Trailing
-	TArray<FVector>* IncomingVelocity2Array;			// Collision
-	TArray<FVector>* IncomingAngularVelocity1Array;		// Collision, Breaking, Trailing
-	TArray<FVector>* IncomingAngularVelocity2Array;		// Collision
-	TArray<float>* IncomingMass1Array;					// Collision, Breaking, Trailing
-	TArray<float>* IncomingMass2Array;					// Collision
-	TArray<float>* IncomingTimeArray;					// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingLocationArray;				// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingAccumulatedImpulseArray;	// Collision
+	TArray<FVector3f> IncomingNormalArray;				// Collision
+	TArray<FVector3f> IncomingVelocity1Array;			// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingVelocity2Array;			// Collision
+	TArray<FVector3f> IncomingAngularVelocity1Array;		// Collision, Breaking, Trailing
+	TArray<FVector3f> IncomingAngularVelocity2Array;		// Collision
+	TArray<float> IncomingMass1Array;					// Collision, Breaking, Trailing
+	TArray<float> IncomingMass2Array;					// Collision
+	TArray<float> IncomingTimeArray;					// Collision, Breaking, Trailing
 	
-	TArray<FVector>* TransformTranslationArray; // Breaking
-	TArray<FQuat>* TransformRotationArray; // Breaking
-	TArray<FVector>* TransformScaleArray; // Breaking
-	TArray<FVector>* BoundsArray; // Breaking
+	TArray<FVector3f> TransformTranslationArray; // Breaking
+	TArray<FQuat4f> TransformRotationArray; // Breaking
+	TArray<FVector3f> TransformScaleArray; // Breaking
+	TArray<FVector3f> BoundsArray; // Breaking
 
 	float SolverTime;
 	int32 LastSpawnedPointID;
@@ -352,9 +350,6 @@ class CHAOSNIAGARA_API UNiagaraDataInterfaceChaosDestruction : public UNiagaraDa
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	/* Chaos Solver */
 	UPROPERTY(EditAnywhere, Category = "Solver", meta = (DisplayName = "Chaos Solver"))
 	TSet<TObjectPtr<AChaosSolverActor>> ChaosSolverActorSet;
@@ -563,9 +558,13 @@ public:
 	//----------------------------------------------------------------------------
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 	//----------------------------------------------------------------------------
 	// EXPOSED FUNCTIONS
@@ -769,10 +768,9 @@ protected:
 struct FNiagaraDataInterfaceProxyChaosDestruction : public FNiagaraDataInterfaceProxy
 {
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
-	{
-		return sizeof(FNiagaraDIChaosDestruction_InstanceDataToPassToRT);
-	}
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(FNiagaraDIChaosDestruction_InstanceDataToPassToRT); }
+
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	void CreatePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 

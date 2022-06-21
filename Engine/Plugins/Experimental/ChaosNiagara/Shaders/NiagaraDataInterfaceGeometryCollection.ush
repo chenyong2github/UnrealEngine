@@ -4,8 +4,6 @@
 NiagaraDataInterfaceGeometryCollection.ush 
 =============================================================================*/
 
-#pragma once
-
 /* -----------------------------------------------------------------
  * static mesh constants and context
  * -----------------------------------------------------------------
@@ -17,81 +15,54 @@ NiagaraDataInterfaceGeometryCollection.ush
 #define SPHERE_INDEX 1
 #define CAPSULE_INDEX 2
 
-struct FDIGeometryCollectionContext
-{
-	float3 BoundsMin;
-	float3 BoundsMax;
-	uint NumPieces;	
-	Buffer<float4>		WorldTransformBuffer;
-	Buffer<float4>		PrevWorldTransformBuffer;
-	Buffer<float4>		WorldInverseTransformBuffer;
-	Buffer<float4>		PrevWorldInverseTransformBuffer;
-	Buffer<float4>		BoundsBuffer;
-}; 
-
-#define DIGEOMETRYCOLLECTION_DECLARE_CONSTANTS(NAME)\
-float3 BoundsMin_##NAME;\
-float3 BoundsMax_##NAME;\
-uint NumPieces_##NAME;\
-Buffer<float4>		WorldTransformBuffer_##NAME;\
-Buffer<float4>		PrevWorldTransformBuffer_##NAME;\
-Buffer<float4>		WorldInverseTransformBuffer_##NAME;\
-Buffer<float4>		PrevWorldInverseTransformBuffer_##NAME;\
-Buffer<float4>		BoundsBuffer_##NAME;\
-
-
-#define DIGEOMETRYCOLLECTION_MAKE_CONTEXT(NAME)\
-FDIGeometryCollectionContext DIContext; \
-DIContext.BoundsMin = BoundsMin_##NAME;\
-DIContext.BoundsMax = BoundsMax_##NAME;\
-DIContext.NumPieces = NumPieces_##NAME;\
-DIContext.WorldTransformBuffer =  WorldTransformBuffer_##NAME;\
-DIContext.PrevWorldTransformBuffer = PrevWorldTransformBuffer_##NAME;\
-DIContext.WorldInverseTransformBuffer = WorldInverseTransformBuffer_##NAME;\
-DIContext.PrevWorldInverseTransformBuffer = PrevWorldInverseTransformBuffer_##NAME;\
-DIContext.BoundsBuffer = BoundsBuffer_##NAME;\
-
-
+float3			{ParameterName}_BoundsMin;
+float3			{ParameterName}_BoundsMax;
+uint			{ParameterName}_NumPieces;
+Buffer<float4>	{ParameterName}_WorldTransformBuffer;
+Buffer<float4>	{ParameterName}_PrevWorldTransformBuffer;
+Buffer<float4>	{ParameterName}_WorldInverseTransformBuffer;
+Buffer<float4>	{ParameterName}_PrevWorldInverseTransformBuffer;
+Buffer<float4>	{ParameterName}_BoundsBuffer;
 
 /* -----------------------------------------------------------------
  * Position / Transform utils
  * -----------------------------------------------------------------
  */
 
-float3 DIGeometryCollection_GetCurrentPosition(in FDIGeometryCollectionContext DIContext, in int ElementIndex)
+float3 DIGeometryCollection_GetCurrentPosition(in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
-    return float3(DIContext.WorldTransformBuffer[BufferOffset].w, DIContext.WorldTransformBuffer[BufferOffset+1].w, DIContext.WorldTransformBuffer[BufferOffset+2].w);
+    return float3({ParameterName}_WorldTransformBuffer[BufferOffset].w, {ParameterName}_WorldTransformBuffer[BufferOffset+1].w, {ParameterName}_WorldTransformBuffer[BufferOffset+2].w);
 }
 
-float3 DIGeometryCollection_GetPreviousPosition(in FDIGeometryCollectionContext DIContext, in int ElementIndex)
+float3 DIGeometryCollection_GetPreviousPosition(in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
-    return float3(DIContext.WorldTransformBuffer[BufferOffset].w, DIContext.WorldTransformBuffer[BufferOffset+1].w, DIContext.WorldTransformBuffer[BufferOffset+2].w);
+    return float3({ParameterName}_WorldTransformBuffer[BufferOffset].w, {ParameterName}_WorldTransformBuffer[BufferOffset+1].w, {ParameterName}_WorldTransformBuffer[BufferOffset+2].w);
 }
 
-float3x4 DIGeometryCollection_GetCurrentTransform(in FDIGeometryCollectionContext DIContext, in int ElementIndex)
+float3x4 DIGeometryCollection_GetCurrentTransform(in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.WorldTransformBuffer[BufferOffset], DIContext.WorldTransformBuffer[BufferOffset+1], DIContext.WorldTransformBuffer[BufferOffset+2]);
+    return float3x4({ParameterName}_WorldTransformBuffer[BufferOffset], {ParameterName}_WorldTransformBuffer[BufferOffset+1], {ParameterName}_WorldTransformBuffer[BufferOffset+2]);
 }
 
-float3x4 DIGeometryCollection_GetInverseTransform(in FDIGeometryCollectionContext DIContext, in int ElementIndex)
+float3x4 DIGeometryCollection_GetInverseTransform(in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.WorldInverseTransformBuffer[BufferOffset], DIContext.WorldInverseTransformBuffer[BufferOffset+1], DIContext.WorldInverseTransformBuffer[BufferOffset+2]);
+    return float3x4({ParameterName}_WorldInverseTransformBuffer[BufferOffset], {ParameterName}_WorldInverseTransformBuffer[BufferOffset+1], {ParameterName}_WorldInverseTransformBuffer[BufferOffset+2]);
 }
 
-float3x4 DIGeometryCollection_GetPreviousTransform(in FDIGeometryCollectionContext DIContext, in int ElementIndex)
+float3x4 DIGeometryCollection_GetPreviousTransform(in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.PrevWorldTransformBuffer[BufferOffset], DIContext.PrevWorldTransformBuffer[BufferOffset+1], DIContext.PrevWorldTransformBuffer[BufferOffset+2]);
+    return float3x4({ParameterName}_PrevWorldTransformBuffer[BufferOffset], {ParameterName}_PrevWorldTransformBuffer[BufferOffset+1], {ParameterName}_PrevWorldTransformBuffer[BufferOffset+2]);
 }
 
-float3x4 DIGeometryCollection_GetPreviousInverse(in FDIGeometryCollectionContext DIContext, in int ElementIndex)
+float3x4 DIGeometryCollection_GetPreviousInverse(in int ElementIndex)
 {
 	const int BufferOffset = 3 * ElementIndex;
-    return float3x4(DIContext.PrevWorldInverseTransformBuffer[BufferOffset], DIContext.PrevWorldInverseTransformBuffer[BufferOffset+1], DIContext.PrevWorldInverseTransformBuffer[BufferOffset+2]);
+    return float3x4({ParameterName}_PrevWorldInverseTransformBuffer[BufferOffset], {ParameterName}_PrevWorldInverseTransformBuffer[BufferOffset+1], {ParameterName}_PrevWorldInverseTransformBuffer[BufferOffset+2]);
 }
 
 
@@ -183,16 +154,16 @@ float DIGeometryCollection_GetBoxProjection(in float3 LocalPosition, in float3 B
  * -----------------------------------------------------------------
  */
 
-float3 DIGeometryCollection_GetLocalPosition(in FDIGeometryCollectionContext DIContext, in float3 WorldPosition, in int ElementIndex, in float TimeFraction )
+float3 DIGeometryCollection_GetLocalPosition(in float3 WorldPosition, in int ElementIndex, in float TimeFraction )
 {
-	const float3 CurrentLocal = mul(DIGeometryCollection_GetInverseTransform(DIContext,ElementIndex), float4(WorldPosition,1.0)).xyz;
-	const float3 PreviousLocal = mul(DIGeometryCollection_GetPreviousInverse(DIContext,ElementIndex), float4(WorldPosition,1.0)).xyz;
+	const float3 CurrentLocal = mul(DIGeometryCollection_GetInverseTransform(ElementIndex), float4(WorldPosition,1.0)).xyz;
+	const float3 PreviousLocal = mul(DIGeometryCollection_GetPreviousInverse(ElementIndex), float4(WorldPosition,1.0)).xyz;
 
 	return PreviousLocal + TimeFraction * (CurrentLocal-PreviousLocal);
 }
 
 // Given a world space position (WorldPosition) compute the static mesh closest point (position,normal,velocity)
-void DIGeometryCollection_GetClosestPointNoNormal(in FDIGeometryCollectionContext DIContext, in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestVelocity)
+void DIGeometryCollection_GetClosestPointNoNormal(in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float OutClosestDistance, out float3 OutClosestPosition, out float3 OutClosestVelocity)
 {	
 	float3 CollisionPosition = float3(0,0,0);
 	float3 CollisionNormal = float3(0,0,0);
@@ -203,31 +174,44 @@ void DIGeometryCollection_GetClosestPointNoNormal(in FDIGeometryCollectionContex
 	
 	
 	[branch]
-	if (WorldPosition.x < DIContext.BoundsMin.x || 
-		WorldPosition.y < DIContext.BoundsMin.y || 
-		WorldPosition.z < DIContext.BoundsMin.z || 
-		WorldPosition.x > DIContext.BoundsMax.x || 
-		WorldPosition.y > DIContext.BoundsMax.y || 
-		WorldPosition.z > DIContext.BoundsMax.z)
+	if (WorldPosition.x < {ParameterName}_BoundsMin.x || 
+		WorldPosition.y < {ParameterName}_BoundsMin.y || 
+		WorldPosition.z < {ParameterName}_BoundsMin.z || 
+		WorldPosition.x > {ParameterName}_BoundsMax.x || 
+		WorldPosition.y > {ParameterName}_BoundsMax.y || 
+		WorldPosition.z > {ParameterName}_BoundsMax.z)
 	{
 		return;
 	}
 	
 
 	int ClosestTransform = -1;
-	for (int CurrTransform = 0; CurrTransform < DIContext.NumPieces; ++CurrTransform)
+	for (int CurrTransform = 0; CurrTransform < {ParameterName}_NumPieces; ++CurrTransform)
 	{
-		float3 LocalPosition = DIGeometryCollection_GetLocalPosition(DIContext,WorldPosition,CurrTransform,TimeFraction);
+		float3 LocalPosition = DIGeometryCollection_GetLocalPosition(WorldPosition,CurrTransform,TimeFraction);
 		
-		DIGeometryCollection_GetBoxProjection(LocalPosition, DIContext.BoundsBuffer[CurrTransform].xyz, CurrTransform,
+		DIGeometryCollection_GetBoxProjection(LocalPosition, {ParameterName}_BoundsBuffer[CurrTransform].xyz, CurrTransform,
 				CollisionPosition, CollisionNormal, ClosestTransform, OutClosestDistance);
 	}
 
 	if (ClosestTransform != -1)
 	{
-		const float3 PreviousPosition = mul(DIGeometryCollection_GetPreviousTransform(DIContext,ClosestTransform), float4(CollisionPosition,1.0)).xyz;
-		const float3 CurrentPosition = mul(DIGeometryCollection_GetCurrentTransform(DIContext,ClosestTransform), float4(CollisionPosition,1.0)).xyz;
+		const float3 PreviousPosition = mul(DIGeometryCollection_GetPreviousTransform(ClosestTransform), float4(CollisionPosition,1.0)).xyz;
+		const float3 CurrentPosition = mul(DIGeometryCollection_GetCurrentTransform(ClosestTransform), float4(CollisionPosition,1.0)).xyz;
 		OutClosestVelocity = ( CurrentPosition - PreviousPosition ) / DeltaTime;
 		OutClosestPosition = PreviousPosition + TimeFraction * (CurrentPosition-PreviousPosition);		
 	}
 }
+
+
+void GetClosestPointNoNormal_{ParameterName}(in float3 WorldPosition, in float DeltaTime, in float TimeFraction, out float ClosestDistance, out float3 OutClosestPosition, out float3 OutClosestVelocity)
+{
+	DIGeometryCollection_GetClosestPointNoNormal(WorldPosition,DeltaTime,TimeFraction, ClosestDistance,
+		OutClosestPosition,OutClosestVelocity);
+}
+
+#undef SMALL_NUMBER
+#undef MAX_DISTANCE
+#undef BOX_INDEX
+#undef SPHERE_INDEX
+#undef CAPSULE_INDEX
