@@ -2835,6 +2835,11 @@ void FCsvProfiler::BeginFrame()
 		if (GCsvProfilerIsCapturing)
 		{
 			GFrameBoundaries.AddBeginFrameTimestamp(ECsvTimeline::Gamethread);
+
+			if (CaptureFrameNumber == 0)
+			{
+				OnCSVProfileFirstFrameDelegate.Broadcast();
+			}
 		}
 	}
 

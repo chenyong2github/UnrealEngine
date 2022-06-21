@@ -287,8 +287,13 @@ public:
 
 	CORE_API void GetFrameExecCommands(TArray<FString>& OutFrameCommands) const;
 
+	/** Called right before we start capturing. */
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileStart);
 	FOnCSVProfileStart& OnCSVProfileStart() { return OnCSVProfileStartDelegate; }
+
+	/** Called when csv frame 0 begins its capture. This is when CsvEvents and CustomStats will start being collected. */
+	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileFirstFrame);
+	FOnCSVProfileFirstFrame& OnCSVProfileFirstFrame() { return OnCSVProfileFirstFrameDelegate; }
 
 	DECLARE_MULTICAST_DELEGATE(FOnCSVProfileEnd);
 	FOnCSVProfileEnd& OnCSVProfileEnd() { return OnCSVProfileEndDelegate; }
@@ -340,6 +345,7 @@ private:
 	ECsvProfilerFlags CurrentFlags;
 
 	FOnCSVProfileStart OnCSVProfileStartDelegate;
+	FOnCSVProfileFirstFrame OnCSVProfileFirstFrameDelegate;
 	FOnCSVProfileEnd OnCSVProfileEndDelegate;
 	
 	FOnCSVProfileFinished OnCSVProfileFinishedDelegate;
