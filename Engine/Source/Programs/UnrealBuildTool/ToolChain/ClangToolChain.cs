@@ -120,6 +120,45 @@ namespace UnrealBuildTool
 			Options = InOptions;
 		}
 
+		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
+		{
+			if (Target.bPrintToolChainTimingInfo && Target.bParseTimingInfoForTracing)
+			{
+				TargetMakefile Makefile = MakefileBuilder.Makefile;
+				List<IExternalAction> CompileActions = Makefile.Actions.Where(x => x.ActionType == ActionType.Compile && x.ProducedItems.Any(i => i.HasExtension(".json"))).ToList();
+				List<FileItem> TimingJsonFiles = CompileActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".json"))).ToList();
+
+				// Handing generating aggregate timing information if we compiled more than one file.
+				if (TimingJsonFiles.Count > 0)
+				{
+					// Generate the file manifest for the aggregator.
+					FileReference ManifestFile = FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}TimingManifest.csv");
+					if (!DirectoryReference.Exists(ManifestFile.Directory))
+					{
+						DirectoryReference.CreateDirectory(ManifestFile.Directory);
+					}
+					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.FullName.Remove(f.FullName.Length - ".json".Length)));
+
+					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.trace.csv"));
+					List<string> ActionArgs = new List<string>()
+					{
+						$"-AggregateFile={AggregateOutputFile.FullName}",
+						$"-ManifestFile={ManifestFile.FullName}",
+					};
+
+					Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
+					AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
+					AggregateTimingInfoAction.bCanExecuteRemotely = false;
+					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
+					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+
+					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
+					Makefile.OutputItems.Add(AggregateOutputFile);
+				}
+			}
+		}
+
 		/// <summary>
 		/// Sanitizes a preprocessor definition argument if needed.
 		/// </summary>

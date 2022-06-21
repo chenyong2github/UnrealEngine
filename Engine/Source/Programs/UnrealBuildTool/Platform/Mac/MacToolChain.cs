@@ -1320,6 +1320,8 @@ namespace UnrealBuildTool
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
 		{
+			base.FinalizeOutput(Target, MakefileBuilder);
+
 			TargetMakefile Makefile = MakefileBuilder.Makefile;
 
 			// Re-add any .dSYM files that may have been stripped out.
