@@ -441,7 +441,7 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 		}
 		
 		OutGeneratedFunctions.Add(
-			FString::Printf(TEXT("void Write%s(%s, %s) { }"),
+			FString::Printf(TEXT("void Write%s(%s, %s Value) { }"),
 				*InOutputPin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
 	}
 }
