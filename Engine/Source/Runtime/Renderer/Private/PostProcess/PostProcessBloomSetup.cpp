@@ -107,7 +107,7 @@ FScreenPassTexture AddBloomSetupPass(FRDGBuilder& GraphBuilder, const FViewInfo&
 	OutputDesc.Flags |= bIsComputePass ? TexCreate_UAV : TexCreate_RenderTargetable;
 
 	const FScreenPassTextureViewport Viewport(Inputs.SceneColor);
-	const FScreenPassRenderTarget Output(GraphBuilder.CreateTexture(OutputDesc, TEXT("BloomSetup")), Viewport.Rect, View.GetOverwriteLoadAction());
+	const FScreenPassRenderTarget Output(GraphBuilder.CreateTexture(OutputDesc, TEXT("BloomSetup")), Viewport.Rect, ERenderTargetLoadAction::ENoAction);
 
 	if (bIsComputePass)
 	{
