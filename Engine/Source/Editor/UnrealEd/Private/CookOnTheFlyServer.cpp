@@ -2868,6 +2868,19 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveGeneratedPackage(UE::Cook:
 		{
 			return EPollStatus::Incomplete;
 		}
+		bool bFoundNewObjects;
+		EPollStatus Result = Info.RefreshPackageObjects(Generator, PackageData.GetPackage(), bFoundNewObjects,
+			FCookGenerationInfo::ESaveState::BeginCacheObjectsToMove);
+		if (Result != EPollStatus::Success)
+		{
+			return Result;
+		}
+		if (bFoundNewObjects)
+		{
+			// Call this function recursively to reexecute CallBeginCacheOnObjects in BeginCacheObjectsToMove.
+			// Note that RefreshPackageObjects checked for too many recursive calls and ErrorExited if so.
+			return PrepareSaveGeneratedPackage(Generator, PackageData, Timer, bPrecaching);
+		}
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::FinishCacheObjectsToMove);
 	}
 
@@ -2913,42 +2926,25 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveGeneratedPackage(UE::Cook:
 		{
 			return EPollStatus::Incomplete;
 		}
+		bool bFoundNewObjects;
+		EPollStatus Result = Info.RefreshPackageObjects(Generator, PackageData.GetPackage(), bFoundNewObjects,
+			FCookGenerationInfo::ESaveState::BeginCachePostMove);
+		if (Result != EPollStatus::Success)
+		{
+			return Result;
+		}
+		if (bFoundNewObjects)
+		{
+			// Call this function recursively to reexecute CallBeginCacheOnObjects in BeginCachePostMove
+			// Note that RefreshPackageObjects checked for too many recursive calls and ErrorExited if so.
+			return PrepareSaveGeneratedPackage(Generator, PackageData, Timer, bPrecaching);
+		}
+
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::FinishCachePostMove);
 	}
 	check(Info.GetSaveState() == FCookGenerationInfo::ESaveState::ReadyForSave);
 
 	return EPollStatus::Success;
-}
-
-/** Find all subobjects of all objects in RootObjects and add them to the end of InObjects */
-static void ValidateAndExtendObjectsToMove(TArray<UObject*>& InObjects, UE::Cook::FGeneratorPackage& Generator, UE::Cook::FCookGenerationInfo& Info)
-{
-	TArray<UObject*> ObjectsInOuter;
-	int32 OriginalNum = InObjects.Num();
-	for (int32 Index = 0; Index < OriginalNum; ++Index)
-	{
-		ObjectsInOuter.Reset();
-		UObject* OriginalObject = InObjects[Index];
-		if (!IsValid(OriginalObject))
-		{
-			UE_LOG(LogCook, Warning, TEXT("CookPackageSplitter found non-valid object %s returned from %s on Splitter %s%s. Ignoring it."),
-				OriginalObject ? *OriginalObject->GetFullName() : TEXT("<null>"),
-				Info.IsGenerator() ? TEXT("PopulateGeneratorPackage") : TEXT("PopulateGeneratedPackage"),
-				*Generator.GetSplitDataObjectName().ToString(),
-				Info.IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Package %s"), *Info.PackageData->GetPackageName().ToString()));
-			--OriginalNum;
-			--Index;
-			InObjects.RemoveAt(Index);
-			continue;
-		}
-		GetObjectsWithOuter(OriginalObject, ObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
-		InObjects.Reserve(InObjects.Num() + ObjectsInOuter.Num());
-		for (UObject* Object : ObjectsInOuter)
-		{
-			check(IsValid(Object));
-			InObjects.Add(Object);
-		}
-	}
 }
 
 UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGeneratorPackage& Generator,
@@ -2994,8 +2990,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 			return EPollStatus::Error;
 		}
 
-		ValidateAndExtendObjectsToMove(ObjectsToMove, Generator, Info);
-		Info.TakeOverCachedObjectsAndAddNew(PackageData.GetCachedObjectsInOuter(), ObjectsToMove);
+		Info.TakeOverCachedObjectsAndAddMoved(Generator, PackageData.GetCachedObjectsInOuter(), ObjectsToMove);
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallObjectsToMove);
 	}
 
@@ -3088,7 +3083,13 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 
 	if (Info.GetSaveState() <= FCookGenerationInfo::ESaveState::CallGetPostMoveObjects)
 	{
-		Info.RefreshPackageObjects(Package);
+		bool bFoundNewObjects;
+		EPollStatus Result = Info.RefreshPackageObjects(Generator, Package, bFoundNewObjects,
+			FCookGenerationInfo::ESaveState::Last);
+		if (Result != EPollStatus::Success)
+		{
+			return Result;
+		}
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallGetPostMoveObjects);
 	}
 
@@ -3343,6 +3344,18 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveInternal(UE::Cook::FPackag
 		if (PackageData.GetNumPendingCookedPlatformData() > 0)
 		{
 			return EPollStatus::Incomplete;
+		}
+		bool bFoundNewObjects;
+		EPollStatus Result = PackageData.RefreshObjectCache(bFoundNewObjects);
+		if (Result != EPollStatus::Success)
+		{
+			return Result;
+		}
+		if (bFoundNewObjects)
+		{
+			// Call this function recursively to reexecute CallBeginCacheOnObjects.
+			// Note that RefreshObjectCache checked for too many recursive calls and ErrorExited if so.
+			return PrepareSaveInternal(PackageData, Timer, bPrecaching);
 		}
 	}
 

@@ -358,6 +358,12 @@ public:
 	void CheckObjectCacheEmpty() const;
 	/** Populate CachedObjectsInOuter if not already populated. Invalid to call except when in the save state. */
 	void CreateObjectCache();
+	/**
+	 * Look for new Objects that were created during BeginCacheForCookedPlatformData calls, and if found add
+	 * them to the ObjectCache and set state so that we call BeginCacheForCookedPlatformData on the new objects.
+	 * ErrorExits if this creation of new objects happens too many times.
+	 */
+	EPollStatus RefreshObjectCache(bool& bOutFoundNewObjects);
 	/** Clear the CachedObjectsInOuter list, when e.g. leaving the save state. */
 	void ClearObjectCache();
 
@@ -365,6 +371,8 @@ public:
 	int32& GetNumPendingCookedPlatformData();
 	const int32& GetCookedPlatformDataNextIndex() const;
 	int32& GetCookedPlatformDataNextIndex();
+	int32& GetNumRetriesBeginCacheOnObjects();
+	static int32 GetMaxNumRetriesBeginCacheOnObjects();
 
 	/** Get/Set the flag for whether CachedObjectsInOuter is populated. Always false except during save state. */
 	bool GetHasSaveCache() const { return static_cast<bool>(bHasSaveCache); }
@@ -550,6 +558,7 @@ private:
 	FTrackedPreloadableFilePtr PreloadableFile;
 	int32 NumPendingCookedPlatformData = 0;
 	int32 CookedPlatformDataNextIndex = 0;
+	int32 NumRetriesBeginCacheOnObject = 0;
 	FOpenPackageResult PreloadableFileOpenResult;
 	FInstigator Instigator;
 
@@ -576,6 +585,7 @@ struct FBeginCacheObject
 {
 	FWeakObjectPtr Object;
 	bool bHasFinishedRound = false;
+	bool bIsRootMovedObject = false;
 };
 
 /**
@@ -589,7 +599,6 @@ struct FBeginCacheObjects
 	int32 NextIndexInRound = 0;
 
 	void Reset();
-	void SetObjects(TMap<UObject*, TOptional<bool>>& InObjectSet);
 
 	void StartRound();
 	void EndRound(int32 NumPlatforms);
@@ -649,9 +658,15 @@ public:
 	 * Steal the list of cached objects to call BeginCacheForCookedPlatformData on from the PackageData,
 	 * and add them to this. Also add the list of NewObjects reported by the splitter that will be moved into the package.
 	 */
-	void TakeOverCachedObjectsAndAddNew(TArray<FWeakObjectPtr>& CachedObjectsInOuter, TArray<UObject*>& NewObjects);
-	/** Fetch all the objects currently in the package and add them the list of objects that need BeginCacheForCookedPlatformData. */
-	void RefreshPackageObjects(UPackage* Package);
+	void TakeOverCachedObjectsAndAddMoved(FGeneratorPackage& Generator, 
+		TArray<FWeakObjectPtr>& CachedObjectsInOuter, TArray<UObject*>& MovedObjects);
+	/**
+	 * Fetch all the objects currently in the package and add them the list of objects that need BeginCacheForCookedPlatformData.
+	 * Reports whether new objects were found. If DemotionState is not ESaveState::Last, will SetState back to DemotionState
+	 * if new objects were found, and will error exit if this demotion has happened too many times.
+	 */
+	EPollStatus RefreshPackageObjects(FGeneratorPackage& Generator, UPackage* Package, bool& bOutFoundNewObjects,
+		ESaveState DemotionState);
 
 public:
 	FBeginCacheObjects BeginCacheObjects;

@@ -5,6 +5,7 @@
 #include "Algo/AnyOf.h"
 #include "Algo/Count.h"
 #include "Algo/Find.h"
+#include "Algo/Sort.h"
 #include "AssetCompilingManager.h"
 #include "AssetRegistry/IAssetRegistry.h"
 #include "Async/ParallelFor.h"
@@ -969,17 +970,14 @@ void FPackageData::CreateObjectCache()
 	{
 		PackageName = LocalPackage->GetFName();
 		TArray<UObject*> ObjectsInOuter;
-		GetObjectsWithOuter(LocalPackage, ObjectsInOuter);
+		// ignore RF_Garbage objects; they will not be serialized out so we don't need to call
+		// BeginCacheForCookedPlatformData on them
+		GetObjectsWithOuter(LocalPackage, ObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
 		CachedObjectsInOuter.Reset(ObjectsInOuter.Num());
 		for (UObject* Object : ObjectsInOuter)
 		{
 			FWeakObjectPtr ObjectWeakPointer(Object);
-			// ignore pending kill objects; they will not be serialized out so we don't need to call
-			// BeginCacheForCookedPlatformData on them
-			if (!ObjectWeakPointer.Get())
-			{
-				continue;
-			}
+			check(ObjectWeakPointer.Get()); // GetObjectsWithOuter with Garbage filtered out should only return valid-for-weakptr objects
 			CachedObjectsInOuter.Emplace(MoveTemp(ObjectWeakPointer));
 		}
 		SetHasSaveCache(true);
@@ -988,6 +986,94 @@ void FPackageData::CreateObjectCache()
 	{
 		check(false);
 	}
+}
+
+static TArray<UObject*> SetDifference(TArray<UObject*>& A, TArray<UObject*>& B)
+{
+	Algo::Sort(A); // Don't use TArray.Sort, it sorts pointers as references and we want to sort them as pointers
+	Algo::Sort(B);
+	int32 ANum = A.Num();
+	int32 BNum = B.Num();
+	UObject** AData = A.GetData();
+	UObject** BData = B.GetData();
+
+	// Always move to the smallest next element from the two remaining lists and if it's in one set and not the
+	// other add it to the output if in A or skip it if in B.
+	int32 AIndex = 0;
+	int32 BIndex = 0;
+	TArray<UObject*> AMinusB;
+	while (AIndex < ANum && BIndex < BNum)
+	{
+		if (AData[AIndex] == BData[BIndex])
+		{
+			++AIndex;
+			++BIndex;
+			continue;
+		}
+		if (AData[AIndex] < BData[BIndex])
+		{
+			AMinusB.Add(AData[AIndex++]);
+		}
+		else
+		{
+			++BIndex;
+		}
+	}
+
+	// When we reach the end of B, all remaining elements of A are not in B.
+	while (AIndex < ANum)
+	{
+		AMinusB.Add(AData[AIndex++]);
+	}
+	return AMinusB;
+}
+
+EPollStatus FPackageData::RefreshObjectCache(bool& bOutFoundNewObjects)
+{
+	// Caller will only call this function after CallBeginCacheOnObjects finished successfully
+	int32 NumPlatforms = GetNumRequestedPlatforms();
+	check(NumPlatforms > 0);
+	check(GetCookedPlatformDataNextIndex()/NumPlatforms == GetCachedObjectsInOuter().Num());
+	check(Package.Get() != nullptr);
+
+	TArray<UObject*> OldObjects;
+	OldObjects.Reserve(CachedObjectsInOuter.Num());
+	for (FWeakObjectPtr& Object : CachedObjectsInOuter)
+	{
+		UObject* ObjectPtr = Object.Get();
+		if (ObjectPtr)
+		{
+			OldObjects.Add(ObjectPtr);
+		}
+	}
+	TArray<UObject*> CurrentObjects;
+	GetObjectsWithOuter(Package.Get(), CurrentObjects, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
+
+	TArray<UObject*> NewObjects = SetDifference(CurrentObjects, OldObjects);
+	bOutFoundNewObjects = NewObjects.Num() > 0;
+	if (bOutFoundNewObjects)
+	{
+		CachedObjectsInOuter.Reserve(CachedObjectsInOuter.Num() + NewObjects.Num());
+		for (UObject* Object : NewObjects)
+		{
+			FWeakObjectPtr ObjectWeakPointer(Object);
+			check(ObjectWeakPointer.Get()); // GetObjectsWithOuter with Garbage filtered out should only return valid-for-weakptr objects
+			CachedObjectsInOuter.Emplace(MoveTemp(ObjectWeakPointer));
+		}
+		// GetCookedPlatformDataNextIndex is already where it should be, pointing at the first of the objects we have added
+		// Change our state back so we know we need to CallBeginCacheOnObjects again 
+		SetCookedPlatformDataCalled(false);
+
+		if (++GetNumRetriesBeginCacheOnObjects() > FPackageData::GetMaxNumRetriesBeginCacheOnObjects())
+		{
+			UE_LOG(LogCook, Error, TEXT("Cooker has repeatedly tried to call BeginCacheForCookedPlatformData on all objects in the package, but keeps finding new objects.\n")
+				TEXT("Aborting the save of the package; programmer needs to debug why objects keep getting added to the package.\n")
+				TEXT("Package: %s. Most recent created object: %s."),
+				*GetPackageName().ToString(), *NewObjects[0]->GetFullName());
+			return EPollStatus::Error;
+		}
+	}
+	return EPollStatus::Success;
 }
 
 void FPackageData::ClearObjectCache()
@@ -1016,6 +1102,16 @@ int32& FPackageData::GetCookedPlatformDataNextIndex()
 	return CookedPlatformDataNextIndex;
 }
 
+int32& FPackageData::GetNumRetriesBeginCacheOnObjects()
+{
+	return NumRetriesBeginCacheOnObject;
+}
+
+int32 FPackageData::GetMaxNumRetriesBeginCacheOnObjects()
+{
+	return 10;
+}
+
 void FPackageData::CheckCookedPlatformDataEmpty() const
 {
 	check(GetCookedPlatformDataNextIndex() == 0);
@@ -1034,6 +1130,7 @@ void FPackageData::CheckCookedPlatformDataEmpty() const
 void FPackageData::ClearCookedPlatformData()
 {
 	CookedPlatformDataNextIndex = 0;
+	NumRetriesBeginCacheOnObject = 0;
 	// Note that GetNumPendingCookedPlatformData is not cleared; it persists across Saves and CookSessions
 	SetCookedPlatformDataStarted(false);
 	SetCookedPlatformDataCalled(false);
@@ -1537,64 +1634,125 @@ void FCookGenerationInfo::SetSaveStateComplete(ESaveState CompletedState)
 	}
 }
 
-void FCookGenerationInfo::TakeOverCachedObjectsAndAddNew(TArray<FWeakObjectPtr>& CachedObjectsInOuter, TArray<UObject*>& NewObjects)
+void FCookGenerationInfo::TakeOverCachedObjectsAndAddMoved(FGeneratorPackage& Generator,
+	TArray<FWeakObjectPtr>& CachedObjectsInOuter, TArray<UObject*>& MovedObjects)
 {
-	TMap<UObject*, TOptional<bool>> ObjectSet;
+	BeginCacheObjects.Objects.Reset();
+	TSet<UObject*> ObjectSet;
 	for (FWeakObjectPtr& ObjectInOuter : CachedObjectsInOuter)
 	{
 		UObject* Object = ObjectInOuter.Get();
 		if (Object)
 		{
-			TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-			HasFinishedRound = true;
-		}
-	}
-	for (UObject* Object : NewObjects)
-	{
-		TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-		if (!HasFinishedRound.IsSet())
-		{
-			HasFinishedRound = false;
+			bool bAlreadyExists;
+			ObjectSet.Add(Object, &bAlreadyExists);
+			if (!bAlreadyExists)
+			{
+				FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
+				Added.bHasFinishedRound = true;
+			}
 		}
 	}
 
-	BeginCacheObjects.SetObjects(ObjectSet);
+	TArray<UObject*> ChildrenOfMovedObjects;
+	for (UObject* Object : MovedObjects)
+	{
+		if (!IsValid(Object))
+		{
+			UE_LOG(LogCook, Warning, TEXT("CookPackageSplitter found non-valid object %s returned from %s on Splitter %s%s. Ignoring it."),
+				Object ? *Object->GetFullName() : TEXT("<null>"),
+				IsGenerator() ? TEXT("PopulateGeneratorPackage") : TEXT("PopulateGeneratedPackage"),
+				*Generator.GetSplitDataObjectName().ToString(),
+				IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Package %s"), *PackageData->GetPackageName().ToString()));
+			continue;
+		}
+
+		bool bAlreadyExists;
+		ObjectSet.Add(Object, &bAlreadyExists);
+		if (!bAlreadyExists)
+		{
+			FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
+			Added.bHasFinishedRound = false;
+			Added.bIsRootMovedObject = true;
+			GetObjectsWithOuter(Object, ChildrenOfMovedObjects, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
+		}
+	}
+
+	for (UObject* Object : ChildrenOfMovedObjects)
+	{
+		check(IsValid(Object));
+		bool bAlreadyExists;
+		ObjectSet.Add(Object, &bAlreadyExists);
+		if (!bAlreadyExists)
+		{
+			FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
+			Added.bHasFinishedRound = false;
+		}
+	}
+
 	BeginCacheObjects.StartRound();
 
 	CachedObjectsInOuter.Reset();
 	SetHasTakenOverCachedCookedPlatformData(true);
 }
 
-void FCookGenerationInfo::RefreshPackageObjects(UPackage* Package)
+EPollStatus FCookGenerationInfo::RefreshPackageObjects(FGeneratorPackage& Generator, UPackage* Package,
+	bool& bOutFoundNewObjects, ESaveState DemotionState)
 {
-	TArray<UObject*> ObjectsInOuter;
-	GetObjectsWithOuter(Package, ObjectsInOuter);
+	bOutFoundNewObjects = false;
+	TArray<UObject*> CurrentObjectsInOuter;
+	GetObjectsWithOuter(Package, CurrentObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
 
-	TMap<UObject*, TOptional<bool>> ObjectSet;
+	TSet<UObject*> ObjectSet;
 	ObjectSet.Reserve(BeginCacheObjects.Objects.Num());
 	for (FBeginCacheObject& ExistingObject : BeginCacheObjects.Objects)
 	{
 		UObject* Object = ExistingObject.Object.Get();
 		if (Object)
 		{
-			TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-			if (!HasFinishedRound.IsSet() || ExistingObject.bHasFinishedRound)
+			bool bAlreadyExists;
+			ObjectSet.Add(Object, &bAlreadyExists);
+			check(!bAlreadyExists); // Objects in BeginCacheObjects.Objects are guaranteed unique and we haven't added any others yet
+			if (ExistingObject.bIsRootMovedObject)
 			{
-				HasFinishedRound = ExistingObject.bHasFinishedRound;
+				GetObjectsWithOuter(Object, CurrentObjectsInOuter, true /* bIncludeNestedObjects */, RF_NoFlags, EInternalObjectFlags::Garbage);
 			}
 		}
 	}
-	for (UObject* Object : ObjectsInOuter)
+	UObject* FirstNewObject = nullptr;
+	for (UObject* Object : CurrentObjectsInOuter)
 	{
-		TOptional<bool>& HasFinishedRound = ObjectSet.FindOrAdd(Object);
-		if (!HasFinishedRound.IsSet())
+		bool bAlreadyExists;
+		ObjectSet.Add(Object, &bAlreadyExists);
+		if (!bAlreadyExists)
 		{
-			HasFinishedRound = false;
+			FBeginCacheObject& Added = BeginCacheObjects.Objects.Add_GetRef(FBeginCacheObject{ Object });
+			Added.bHasFinishedRound = false;
+			if (!FirstNewObject )
+			{
+				FirstNewObject  = Object;
+			}
 		}
 	}
+	bOutFoundNewObjects = FirstNewObject != nullptr;
 
-	BeginCacheObjects.SetObjects(ObjectSet);
 	BeginCacheObjects.StartRound();
+
+	if (FirstNewObject != nullptr && DemotionState != ESaveState::Last)
+	{
+		SetSaveState(DemotionState);
+		if (++PackageData->GetNumRetriesBeginCacheOnObjects() > FPackageData::GetMaxNumRetriesBeginCacheOnObjects())
+		{
+			UE_LOG(LogCook, Error, TEXT("Cooker has repeatedly tried to call BeginCacheForCookedPlatformData on all objects in a generated package, but keeps finding new objects.\n")
+				TEXT("Aborting the save of the package; programmer needs to debug why objects keep getting added to the package.\n")
+				TEXT("Splitter: %s%s. Most recent created object: %s."),
+				*Generator.GetSplitDataObjectName().ToString(),
+				IsGenerator() ? TEXT("") : *FString::Printf(TEXT(", Package: %s"), *PackageData->GetPackageName().ToString()),
+				*FirstNewObject->GetFullName());
+			return EPollStatus::Error;
+		}
+	}
+	return EPollStatus::Success;
 }
 
 void FBeginCacheObjects::Reset()
@@ -1602,17 +1760,6 @@ void FBeginCacheObjects::Reset()
 	Objects.Reset();
 	ObjectsInRound.Reset();
 	NextIndexInRound = 0;
-}
-
-void FBeginCacheObjects::SetObjects(TMap<UObject*, TOptional<bool>>& InObjectSet)
-{
-	Objects.Reset(InObjectSet.Num());
-	for (TPair<UObject*, TOptional<bool>>& Pair : InObjectSet)
-	{
-		FBeginCacheObject& BeginCacheObject = Objects.Emplace_GetRef();
-		BeginCacheObject.bHasFinishedRound = Pair.Value.IsSet() && *Pair.Value;
-		BeginCacheObject.Object = Pair.Key;
-	}
 }
 
 void FBeginCacheObjects::StartRound()
