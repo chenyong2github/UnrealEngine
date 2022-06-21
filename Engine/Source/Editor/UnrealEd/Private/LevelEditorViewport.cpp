@@ -287,6 +287,11 @@ TArray<AActor*> FLevelEditorViewportClient::TryPlacingActorFromObject( ULevel* I
 		}
 	}
 
+	if (PlacedActors.Num() > 0)
+	{
+		FEditorDelegates::OnNewActorsPlaced.Broadcast(ObjToUse, PlacedActors);
+	}
+
 	return PlacedActors;
 }
 

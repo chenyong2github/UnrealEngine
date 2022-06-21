@@ -126,6 +126,7 @@ FEditorDelegates::FOnAssetPreImport						FEditorDelegates::OnAssetPreImport;
 FEditorDelegates::FOnAssetPostImport					FEditorDelegates::OnAssetPostImport;
 FEditorDelegates::FOnAssetReimport						FEditorDelegates::OnAssetReimport;
 FEditorDelegates::FOnNewActorsDropped					FEditorDelegates::OnNewActorsDropped;
+FEditorDelegates::FOnNewActorsPlaced					FEditorDelegates::OnNewActorsPlaced;
 FEditorDelegates::FOnGridSnappingChanged				FEditorDelegates::OnGridSnappingChanged;
 FSimpleMulticastDelegate								FEditorDelegates::OnLightingBuildStarted;
 FSimpleMulticastDelegate								FEditorDelegates::OnLightingBuildKept;

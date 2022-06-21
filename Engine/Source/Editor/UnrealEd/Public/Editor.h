@@ -94,8 +94,10 @@ struct UNREALED_API FEditorDelegates
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnAssetReimport, UObject*);
 	/** delegate type for finishing up construction of a new blueprint */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFinishPickingBlueprintClass, UClass*);
-	/** delegate type for triggering when new actors are dropped on to the viewport */
+	/** delegate type for triggering when new actors are dropped on to the viewport via drag and drop */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNewActorsDropped, const TArray<UObject*>&, const TArray<AActor*>&);
+	/** delegate type for triggering when new actors are placed on to the viewport. Triggers before NewActorsDropped if placement is caused by a drop action */
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnNewActorsPlaced, UObject*, const TArray<AActor*>&);
 	/** delegate type for when attempting to apply an object to an actor */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnApplyObjectToActor, UObject*, AActor*);
 	/** delegate type for triggering when grid snapping has changed */
@@ -252,6 +254,8 @@ struct UNREALED_API FEditorDelegates
 	static FOnAssetReimport OnAssetReimport;
 	/** Called when new actors are dropped on to the viewport */
 	static FOnNewActorsDropped OnNewActorsDropped;
+	/** Called when new actors are placed in the viewport */
+	static FOnNewActorsPlaced OnNewActorsPlaced;
 	/** Called when grid snapping is changed */
 	static FOnGridSnappingChanged OnGridSnappingChanged;
 	/** Called when a lighting build has started */
