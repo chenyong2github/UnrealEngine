@@ -2,60 +2,86 @@
 
 #pragma once
 
+#include "ContextualAnimTypes.h"
 #include "GameplayInteractionsTypes.h"
 #include "ContextualAnimStateTreeTask.generated.h"
 
+class UGameplayTask_PlayContextualAnim;
 class UContextualAnimSceneAsset;
-class UAnimMontage;
 
+/**
+ * FContextualAnimStateTreeTask instance data
+ * @see FContextualAnimStateTreeTask
+ */
 USTRUCT()
 struct FContextualAnimStateTreeTaskInstanceData
 {
 	GENERATED_BODY()
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	TObjectPtr<UContextualAnimSceneAsset> ContextualAnimAsset = nullptr;
+	UContextualAnimSceneAsset* ContextualAnimAsset = nullptr;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
-	TObjectPtr<AActor> InteractableObject = nullptr;
-	
+	AActor* InteractableObject = nullptr;
+
+	UPROPERTY()
+	UGameplayTask_PlayContextualAnim* Task = nullptr;
+
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	float Duration = 0.0f;
 
 	UPROPERTY()
-	float ComputedDuration = 0.0f;
-
-	/** Accumulated time used to stop task if a montage is set */
-	UPROPERTY()
 	float Time = 0.f;
-};
-
-
-USTRUCT(meta = (DisplayName = "Contextual Anim Task"))
-struct FContextualAnimStateTreeTask : public FGameplayInteractionStateTreeTask
-{
-	GENERATED_BODY()
-
-	typedef FContextualAnimStateTreeTaskInstanceData InstanceDataType;
-
-protected:
-	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
-
-	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
-	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
-	
-	TStateTreeInstanceDataPropertyHandle<TObjectPtr<UContextualAnimSceneAsset>> ContextualAnimAssetHandle;
-	TStateTreeInstanceDataPropertyHandle<TObjectPtr<AActor>> InteractableObjectHandle;
-	TStateTreeInstanceDataPropertyHandle<float> DurationHandle;
-	TStateTreeInstanceDataPropertyHandle<float> ComputedDurationHandle;
-	TStateTreeInstanceDataPropertyHandle<float> TimeHandle;
-
-	TStateTreeExternalDataHandle<AActor> InteractorActorHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FName InteractorRole;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FName InteractableObjectRole;
+
+	UPROPERTY(VisibleAnywhere, Category = Parameter)
+	FGameplayInteractionAbortContext AbortContext;
+};
+
+
+/**
+ * Builds context and creates GameplayTask that will control playback of a ContextualAnimScene
+ */
+USTRUCT(meta = (DisplayName = "Contextual Anim Task"))
+struct FContextualAnimStateTreeTask : public FGameplayInteractionStateTreeTask
+{
+	GENERATED_BODY()
+
+protected:
+	typedef FContextualAnimStateTreeTaskInstanceData InstanceDataType;
+
+	virtual bool Link(FStateTreeLinker& Linker) override;
+	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+
+	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
+	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
+
+	TStateTreeInstanceDataPropertyHandle<FName> InteractorRoleHandle;
+	TStateTreeExternalDataHandle<AActor> InteractorActorHandle;
+
+	TStateTreeInstanceDataPropertyHandle<FName> InteractableObjectRoleHandle;
+	TStateTreeInstanceDataPropertyHandle<AActor*> InteractableObjectHandle;
+
+	TStateTreeInstanceDataPropertyHandle<UContextualAnimSceneAsset*> ContextualAnimAssetHandle;
+
+	TStateTreeInstanceDataPropertyHandle<UGameplayTask_PlayContextualAnim*> TaskHandle;
+	TStateTreeInstanceDataPropertyHandle<FGameplayInteractionAbortContext> AbortContextHandle;
+
+	TStateTreeInstanceDataPropertyHandle<float> DurationHandle;
+	TStateTreeInstanceDataPropertyHandle<float> TimeHandle;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName Section;
+	
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	FName ExitSection;
+
+	UPROPERTY(EditAnywhere, Category = Parameter)
+	bool bEnabled = true;
 };
