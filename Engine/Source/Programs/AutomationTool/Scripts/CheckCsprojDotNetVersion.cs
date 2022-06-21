@@ -39,7 +39,8 @@ class CheckCsprojDotNetVersion : BuildCommand
                 CsProj.GetFileNameWithoutExtension().ToLower().Contains("_mono") ||
                 CsProj.GetFileNameWithoutExtension().ToLower().Contains("unrealvs") ||
 				CsProj.ContainsName("DatasmithRevitExporter", EngineDir) ||
-				CsProj.ContainsName("DatasmithNavisworksExporter", EngineDir))
+				CsProj.ContainsName("DatasmithNavisworksExporter", EngineDir) ||
+				CsProj.ContainsName("CSVTools", EngineDir))
 
             {
                 continue;
