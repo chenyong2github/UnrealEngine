@@ -174,12 +174,17 @@ namespace Horde.Agent.Services
 		readonly List<LeaseInfo> _activeLeases = new List<LeaseInfo>();
 
 		/// <summary>
+		/// Number of leases completed
+		/// </summary>
+		public int NumLeasesCompleted { get; private set; }
+
+		/// <summary>
 		/// Whether the agent is currently in an unhealthy state
 		/// </summary>
 		readonly bool _unhealthy = false;
 
 		/// <summary>
-		/// Whether the 
+		/// Whether a shutdown of the worker service has been requested
 		/// </summary>
 		bool _requestShutdown = false;
 
@@ -207,6 +212,16 @@ namespace Horde.Agent.Services
 		/// Number of times UpdateSession has failed
 		/// </summary>
 		int _updateSessionFailures;
+		
+		/// <summary>
+		/// Delegate for lease active events
+		/// </summary>
+		public delegate void LeaseActiveEvent(Lease lease);
+
+		/// <summary>
+		/// Event triggered when a lease is accepted and set to active
+		/// </summary>
+		public event LeaseActiveEvent? OnLeaseActive;
 
 		/// <summary>
 		/// Function for creating a new executor. Primarily to aid testing. 
@@ -324,7 +339,7 @@ namespace Horde.Agent.Services
 				{
 					if (_activeLeases.Count == 0)
 					{
-						await HandleSessionAsync(stoppingToken);
+						await HandleSessionAsync(false, true, stoppingToken);
 					}
 				}
 				catch (Exception ex)
@@ -437,14 +452,22 @@ namespace Horde.Agent.Services
 
 		/// <summary>
 		/// Handles the lifetime of an agent session.
+		///
+		/// <paramref name="shutdownAfterFinishedLease"/> is primarily for executing leases in a one-shot environment,
+		/// such as an AWS Lambda function.
 		/// </summary>
+		/// <param name="shutdownAfterFinishedLease">Stop after one lease has finished</param>
+		/// <param name="ensureSingleInstance">Ensure only one instance of agent is running</param>
 		/// <param name="stoppingToken">Indicates that the service is trying to stop</param>
 		/// <returns>Async task</returns>
-		internal async Task HandleSessionAsync(CancellationToken stoppingToken)
+		internal async Task HandleSessionAsync(bool shutdownAfterFinishedLease, bool ensureSingleInstance, CancellationToken stoppingToken)
 		{
-			// Make sure there's only one instance of the agent running
-			using Mutex singleInstanceMutex = new Mutex(false, "Global\\HordeAgent-DB828ACB-0AA5-4D32-A62A-21D4429B1014");
-			await WaitForMutexAsync(singleInstanceMutex, stoppingToken);
+			using Mutex singleInstanceMutex = new (false, "Global\\HordeAgent-DB828ACB-0AA5-4D32-A62A-21D4429B1014");
+			if (ensureSingleInstance)
+			{
+				// Make sure there's only one instance of the agent running
+				await WaitForMutexAsync(singleInstanceMutex, stoppingToken);				
+			}
 
 			// Terminate any remaining child processes from other instances
 			TerminateProcesses(_logger, stoppingToken);
@@ -496,7 +519,7 @@ namespace Horde.Agent.Services
 
 				// Create a session
 				createSessionResponse = await rpcClient.CreateSessionAsync(sessionRequest, null, null, stoppingToken);
-				_logger.LogInformation("Session started ({SessionId})", createSessionResponse.SessionId);
+				_logger.LogInformation("Session started. AgentName={AgentName} SessionId={SessionId}", _settings.GetAgentName(), createSessionResponse.SessionId);
 			}
 
 			Func<GrpcChannel> createGrpcChannel = () => _grpcService.CreateGrpcChannel(createSessionResponse.Token);
@@ -515,7 +538,18 @@ namespace Horde.Agent.Services
 					Task waitTask = _updateLeasesEvent.Task;
 
 					// Flag for whether the service is stopping
-					bool stopping = stoppingToken.IsCancellationRequested || _requestShutdown;
+					bool stopping = false;
+					if (stoppingToken.IsCancellationRequested)
+					{
+						_logger.LogInformation("Cancellation from token requested");
+						stopping = true;
+					}
+					
+					if (_requestShutdown)
+					{
+						_logger.LogInformation("Shutdown requested");
+						stopping = true;
+					}
 
 					// Build the next update request
 					UpdateSessionRequest updateSessionRequest = new UpdateSessionRequest();
@@ -586,9 +620,17 @@ namespace Horde.Agent.Services
 							// Now reconcile the local state to match what the server reports
 							if (updateSessionResponse != null)
 							{
-								// Remove any leases which have completed
-								_activeLeases.RemoveAll(x => (x.Lease.State == LeaseState.Completed || x.Lease.State == LeaseState.Cancelled) && !updateSessionResponse.Leases.Any(y => y.Id == x.Lease.Id && y.State != LeaseState.Cancelled));
+								bool atLeastOneLeaseFinished = _activeLeases.Any(x => x.Lease.State is LeaseState.Completed or LeaseState.Cancelled);
+								if (atLeastOneLeaseFinished && shutdownAfterFinishedLease)
+								{
+									_logger.LogInformation("At least one lease executed. Requesting shutdown.");
+									_requestShutdown = true;
+								}
 
+								// Remove any leases which have completed
+								int numRemoved = _activeLeases.RemoveAll(x => (x.Lease.State == LeaseState.Completed || x.Lease.State == LeaseState.Cancelled) && !updateSessionResponse.Leases.Any(y => y.Id == x.Lease.Id && y.State != LeaseState.Cancelled));
+								NumLeasesCompleted += numRemoved;
+ 
 								// Create any new leases and cancel any running leases
 								foreach (Lease serverLease in updateSessionResponse.Leases)
 								{
@@ -609,6 +651,7 @@ namespace Horde.Agent.Services
 										LeaseInfo info = new LeaseInfo(serverLease);
 										info.Task = Task.Run(() => HandleLeaseAsync(rpcCon, createSessionResponse.AgentId, info), CancellationToken.None);
 										_activeLeases.Add(info);
+										OnLeaseActive?.Invoke(serverLease);
 									}
 								}
 							}
@@ -828,6 +871,13 @@ namespace Horde.Agent.Services
 				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Restart");
 				Task<LeaseResult> Handler(ILogger newLogger) => RestartAsync(newLogger);
 				return await HandleLeasePayloadWithLogAsync(rpcConnection, restartTask.LogId, null, null, Handler, leaseInfo.CancellationTokenSource.Token);
+			}
+			
+			TestTask testTask;
+			if (leaseInfo.Lease.Payload.TryUnpack(out testTask))
+			{
+				GlobalTracer.Instance.ActiveSpan?.SetTag("task", "Test");
+				return LeaseResult.Success;
 			}
 
 			_logger.LogError("Invalid lease payload type ({PayloadType})", payload.TypeUrl);
@@ -1769,7 +1819,8 @@ namespace Horde.Agent.Services
 			// Get the IP addresses
 			try
 			{
-				IPHostEntry entry = await Dns.GetHostEntryAsync(Dns.GetHostName());
+				using CancellationTokenSource dnsCts = new(3000);
+				IPHostEntry entry = await Dns.GetHostEntryAsync(Dns.GetHostName(), dnsCts.Token);
 				foreach (IPAddress address in entry.AddressList)
 				{
 					if (address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)

@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Channels;
 using System.Threading.Tasks;
@@ -29,6 +30,12 @@ namespace Horde.Agent.Tests
 		private readonly ILogger<WorkerService> _workerLogger;
 		private readonly ILogger<GrpcService> _grpcServiceLogger;
 		private readonly ILogger<FakeHordeRpcServer> _hordeRpcServerLogger;
+		
+		internal static IExecutor NullExecutor = new SimpleTestExecutor(async (step, logger, cancellationToken) =>
+		{
+			await Task.Delay(1, cancellationToken);
+			return JobStepOutcome.Success;
+		});
 
 		public WorkerServiceTest()
 		{
@@ -42,12 +49,14 @@ namespace Horde.Agent.Tests
 			_hordeRpcServerLogger = loggerFactory.CreateLogger<FakeHordeRpcServer>();
 		}
 
-		private WorkerService GetWorkerService(
+		internal static WorkerService GetWorkerService(
+			ILogger<GrpcService> grpcServiceLogger,
+			ILogger<WorkerService> workerServiceLogger,
 			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
 			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
 		{
-			AgentSettings settings = new AgentSettings();
-			ServerProfile profile = new ServerProfile();
+			AgentSettings settings = new ();
+			ServerProfile profile = new ();
 			profile.Name = "test";
 			profile.Environment = "test-env";
 			profile.Token = "bogus-token";
@@ -58,10 +67,17 @@ namespace Horde.Agent.Tests
 			settings.Executor = ExecutorType.Test; // Not really used since the executor is overridden in the tests
 			IOptions<AgentSettings> settingsMonitor = new TestOptionsMonitor<AgentSettings>(settings);
 
-			GrpcService grpcService = new (settingsMonitor, _grpcServiceLogger);
-			WorkerService ws = new (_workerLogger, settingsMonitor, grpcService, null!, createExecutor, createHordeRpcClient);
+			GrpcService grpcService = new (settingsMonitor, grpcServiceLogger);
+			WorkerService ws = new (workerServiceLogger, settingsMonitor, grpcService, null!, createExecutor, createHordeRpcClient);
 			ws._rpcConnectionRetryDelay = TimeSpan.FromSeconds(0.1);
 			return ws;
+		}
+
+		private WorkerService GetWorkerService(
+			Func<IRpcConnection, ExecuteJobTask, BeginBatchResponse, IExecutor>? createExecutor = null,
+			Func<GrpcChannel, HordeRpc.HordeRpcClient>? createHordeRpcClient = null)
+		{
+			return GetWorkerService(_grpcServiceLogger, _workerLogger, createExecutor, createHordeRpcClient);
 		}
 
 		[TestMethod]
@@ -200,7 +216,7 @@ namespace Horde.Agent.Tests
 			FakeHordeRpcServer fakeServer = new("bogusServerName", _hordeRpcServerLogger, cts.Token);
 			using WorkerService ws = GetWorkerService((a, b, c) => executor,(c) => fakeServer.GetClient());
 
-			Task handleSessionTask = ws.HandleSessionAsync(cts.Token);
+			Task handleSessionTask = ws.HandleSessionAsync(false, false, cts.Token);
 			await fakeServer.CreateSessionReceived.Task.WaitAsync(cts.Token);
 			await fakeServer.UpdateSessionReceived.Task.WaitAsync(cts.Token);
 			await ws.ShutdownAsync(_workerLogger);
@@ -217,7 +233,7 @@ namespace Horde.Agent.Tests
 	{
 		private readonly string _serverName;
 		private bool _isStopping = false;
-		private List<Lease> _leases = new();
+		private Dictionary<string, Lease> _leases = new();
 		private readonly Mock<HordeRpc.HordeRpcClient> _mockClient;
 		private readonly ILogger<FakeHordeRpcServer> _logger;
 		public readonly TaskCompletionSource<bool> CreateSessionReceived = new();
@@ -240,6 +256,27 @@ namespace Horde.Agent.Tests
 			_mockClient
 				.Setup(m => m.UpdateSession(null, It.IsAny<DateTime>(), It.IsAny<CancellationToken>()))
 				.Returns(() => GetUpdateSessionCall(cancellationToken));
+		}
+
+		public void AddTestLease(string leaseId)
+		{
+			if (_leases.ContainsKey(leaseId))
+			{
+				throw new ArgumentException($"Lease ID {leaseId} already exists");
+			}
+			
+			TestTask testTask = new();
+			_leases[leaseId] = new Lease
+			{
+				Id = leaseId,
+				State = LeaseState.Pending,
+				Payload = Any.Pack(testTask)
+			};
+		}
+
+		public Lease GetLease(string leaseId)
+		{
+			return _leases[leaseId];
 		}
 
 		public HordeRpc.HordeRpcClient GetClient()
@@ -289,13 +326,19 @@ namespace Horde.Agent.Tests
 			async Task OnRequest(UpdateSessionRequest request)
 			{
 				UpdateSessionReceived.TrySetResult(true);
-				
-				// TODO: Handle updates of leases sent in request and verify session/agent IDs.
+
+				foreach (Lease agentLease in request.Leases)
+				{
+					Lease serverLease = _leases[agentLease.Id];
+					serverLease.State = agentLease.State;
+					serverLease.Outcome = agentLease.Outcome;
+					serverLease.Output = agentLease.Output;
+				}
 				
 				_logger.LogInformation("OnUpdateSessionRequest: {AgentId} {SessionId} {Status}", request.AgentId, request.SessionId, request.Status);
-				await Task.Delay(1000, cancellationToken);
+				await Task.Delay(100, cancellationToken);
 				UpdateSessionResponse response = new () { ExpiryTime = Timestamp.FromDateTime(DateTime.UtcNow + TimeSpan.FromMinutes(120)) };
-				response.Leases.AddRange(_leases);
+				response.Leases.AddRange(_leases.Values.Where(x => x.State != LeaseState.Completed));
 				await responseStream.Write(response);
 			}
 			
