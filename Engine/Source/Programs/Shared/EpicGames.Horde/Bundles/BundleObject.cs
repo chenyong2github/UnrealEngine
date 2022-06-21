@@ -156,10 +156,10 @@ namespace EpicGames.Horde.Bundles
 				IoHash hash = new IoHash(span);
 				span = span.Slice(IoHash.NumBytes);
 
-				int rank = (int)VarInt.Read(span, out int rankBytes);
+				int rank = (int)VarInt.ReadUnsigned(span, out int rankBytes);
 				span = span.Slice(rankBytes);
 
-				int cost = (int)VarInt.Read(span, out int costBytes);
+				int cost = (int)VarInt.ReadUnsigned(span, out int costBytes);
 				span = span.Slice(costBytes);
 
 				imports.Add(new BundleImport(hash, rank, cost));
@@ -169,7 +169,7 @@ namespace EpicGames.Horde.Bundles
 
 		static byte[] Serialize(List<BundleImport> imports)
 		{
-			byte[] data = new byte[imports.Sum(x => IoHash.NumBytes + VarInt.Measure(x.Rank) + VarInt.Measure(x.Length))];
+			byte[] data = new byte[imports.Sum(x => IoHash.NumBytes + VarInt.MeasureUnsigned(x.Rank) + VarInt.MeasureUnsigned(x.Length))];
 
 			Span<byte> span = data;
 			foreach (BundleImport import in imports)
@@ -177,10 +177,10 @@ namespace EpicGames.Horde.Bundles
 				import.Hash.CopyTo(span);
 				span = span.Slice(IoHash.NumBytes);
 
-				int rankBytes = VarInt.Write(span, import.Rank);
+				int rankBytes = VarInt.WriteUnsigned(span, import.Rank);
 				span = span.Slice(rankBytes);
 
-				int costBytes = VarInt.Write(span, import.Length);
+				int costBytes = VarInt.WriteUnsigned(span, import.Length);
 				span = span.Slice(costBytes);
 			}
 
@@ -265,10 +265,10 @@ namespace EpicGames.Horde.Bundles
 			{
 				BundleCompressionPacket packet = new BundleCompressionPacket(packetOffset);
 
-				packet.EncodedLength = (int)VarInt.Read(span, out int encodedLengthBytes);
+				packet.EncodedLength = (int)VarInt.ReadUnsigned(span, out int encodedLengthBytes);
 				span = span.Slice(encodedLengthBytes);
 
-				packet.DecodedLength = (int)VarInt.Read(span, out int decodedLengthBytes);
+				packet.DecodedLength = (int)VarInt.ReadUnsigned(span, out int decodedLengthBytes);
 				span = span.Slice(decodedLengthBytes);
 
 				packetOffset += packet.EncodedLength;
@@ -279,19 +279,19 @@ namespace EpicGames.Horde.Bundles
 					IoHash hash = new IoHash(span);
 					span = span.Slice(IoHash.NumBytes);
 
-					int rank = (int)VarInt.Read(span, out int rankBytes);
+					int rank = (int)VarInt.ReadUnsigned(span, out int rankBytes);
 					span = span.Slice(rankBytes);
 
-					int length = (int)VarInt.Read(span, out int lengthBytes);
+					int length = (int)VarInt.ReadUnsigned(span, out int lengthBytes);
 					span = span.Slice(lengthBytes);
 
-					int numReferences = (int)VarInt.Read(span, out int numReferencesBytes);
+					int numReferences = (int)VarInt.ReadUnsigned(span, out int numReferencesBytes);
 					span = span.Slice(numReferencesBytes);
 
 					int[] references = new int[numReferences];
 					for (int referenceIdx = 0; referenceIdx < numReferences; referenceIdx++)
 					{
-						references[referenceIdx] = (int)VarInt.Read(span, out int referenceBytes);
+						references[referenceIdx] = (int)VarInt.ReadUnsigned(span, out int referenceBytes);
 						span = span.Slice(referenceBytes);
 					}
 
@@ -320,10 +320,10 @@ namespace EpicGames.Horde.Bundles
 				{
 					CheckPacketSequence(prevPacket, packet);
 
-					int encodedLengthBytes = VarInt.Write(span, packet.EncodedLength);
+					int encodedLengthBytes = VarInt.WriteUnsigned(span, packet.EncodedLength);
 					span = span.Slice(encodedLengthBytes);
 
-					int decodedLengthBytes = VarInt.Write(span, packet.DecodedLength);
+					int decodedLengthBytes = VarInt.WriteUnsigned(span, packet.DecodedLength);
 					span = span.Slice(decodedLengthBytes);
 
 					prevPacket = packet;
@@ -332,18 +332,18 @@ namespace EpicGames.Horde.Bundles
 				export.Hash.CopyTo(span);
 				span = span.Slice(IoHash.NumBytes);
 
-				int rankBytes = VarInt.Write(span, export.Rank);
+				int rankBytes = VarInt.WriteUnsigned(span, export.Rank);
 				span = span.Slice(rankBytes);
 
-				int lengthBytes = VarInt.Write(span, export.Length);
+				int lengthBytes = VarInt.WriteUnsigned(span, export.Length);
 				span = span.Slice(lengthBytes);
 
-				int numReferencesBytes = VarInt.Write(span, export.References.Count);
+				int numReferencesBytes = VarInt.WriteUnsigned(span, export.References.Count);
 				span = span.Slice(numReferencesBytes);
 
 				foreach (int reference in export.References)
 				{
-					int referenceBytes = VarInt.Write(span, reference);
+					int referenceBytes = VarInt.WriteUnsigned(span, reference);
 					span = span.Slice(referenceBytes);
 				}
 			}
@@ -363,11 +363,11 @@ namespace EpicGames.Horde.Bundles
 				if (prevPacket == null || packet.Offset != prevPacket.Offset)
 				{
 					CheckPacketSequence(prevPacket, packet);
-					length += VarInt.Measure(packet.EncodedLength) + VarInt.Measure(packet.DecodedLength);
+					length += VarInt.MeasureUnsigned(packet.EncodedLength) + VarInt.MeasureUnsigned(packet.DecodedLength);
 					prevPacket = packet;
 				}
 
-				length += IoHash.NumBytes + VarInt.Measure(export.Rank) + VarInt.Measure(export.Length) + VarInt.Measure(export.References.Count) + export.References.Sum(x => VarInt.Measure(x));
+				length += IoHash.NumBytes + VarInt.MeasureUnsigned(export.Rank) + VarInt.MeasureUnsigned(export.Length) + VarInt.MeasureUnsigned(export.References.Count) + export.References.Sum(x => VarInt.MeasureUnsigned(x));
 			}
 
 			return length;

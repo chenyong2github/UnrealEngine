@@ -283,7 +283,7 @@ namespace EpicGames.Serialization
 				throw new CbWriterException($"Named fields are not allowed within fields of type {scope._fieldType}");
 			}
 
-			int nameVarIntLength = VarInt.Measure(name.Length);
+			int nameVarIntLength = VarInt.MeasureUnsigned(name.Length);
 			if (scope._uniformFieldType == CbFieldType.None)
 			{
 				Span<byte> buffer = Allocate(1 + nameVarIntLength + name.Length).Span;
@@ -456,9 +456,9 @@ namespace EpicGames.Serialization
 		/// <param name="value">Value to write</param>
 		void WriteIntegerPayload(ulong value)
 		{
-			int length = VarInt.Measure(value);
+			int length = VarInt.MeasureUnsigned(value);
 			Span<byte> buffer = Allocate(length).Span;
-			VarInt.Write(buffer, value);
+			VarInt.WriteUnsigned(buffer, value);
 		}
 
 		/// <summary>
@@ -702,7 +702,7 @@ namespace EpicGames.Serialization
 		/// <param name="value">Value to be written</param>
 		static void WriteBinaryPayload(Span<byte> output, ReadOnlySpan<byte> value)
 		{
-			int varIntLength = VarInt.Write(output, value.Length);
+			int varIntLength = VarInt.WriteUnsigned(output, value.Length);
 			output = output[varIntLength..];
 
 			value.CopyTo(output);
@@ -715,7 +715,7 @@ namespace EpicGames.Serialization
 		/// <param name="value">Value to be written</param>
 		void WriteBinaryPayload(ReadOnlySpan<byte> value)
 		{
-			int valueVarIntLength = VarInt.Measure(value.Length);
+			int valueVarIntLength = VarInt.MeasureUnsigned(value.Length);
 			Span<byte> buffer = Allocate(valueVarIntLength + value.Length).Span;
 			WriteBinaryPayload(buffer, value);
 		}
@@ -1031,12 +1031,12 @@ namespace EpicGames.Serialization
 				{
 					case CbFieldType.Object:
 					case CbFieldType.UniformObject:
-						sizeOfChildHeaders += childScope._sizeOfChildHeaders + VarInt.Measure(childScope._length + childScope._sizeOfChildHeaders);
+						sizeOfChildHeaders += childScope._sizeOfChildHeaders + VarInt.MeasureUnsigned(childScope._length + childScope._sizeOfChildHeaders);
 						break;
 					case CbFieldType.Array:
 					case CbFieldType.UniformArray:
-						int arrayCountLength = VarInt.Measure(childScope._count);
-						sizeOfChildHeaders += childScope._sizeOfChildHeaders + VarInt.Measure(childScope._length + childScope._sizeOfChildHeaders + arrayCountLength) + arrayCountLength;
+						int arrayCountLength = VarInt.MeasureUnsigned(childScope._count);
+						sizeOfChildHeaders += childScope._sizeOfChildHeaders + VarInt.MeasureUnsigned(childScope._length + childScope._sizeOfChildHeaders + arrayCountLength) + arrayCountLength;
 						break;
 					default:
 						throw new InvalidOperationException();
@@ -1057,12 +1057,12 @@ namespace EpicGames.Serialization
 			{
 				case CbFieldType.Object:
 				case CbFieldType.UniformObject:
-					return VarInt.Write(span, scope._length + scope._sizeOfChildHeaders);
+					return VarInt.WriteUnsigned(span, scope._length + scope._sizeOfChildHeaders);
 				case CbFieldType.Array:
 				case CbFieldType.UniformArray:
-					int numItemsLength = VarInt.Measure(scope._count);
-					int offset = VarInt.Write(span, scope._length + scope._sizeOfChildHeaders + numItemsLength);
-					return offset + VarInt.Write(span.Slice(offset), scope._count);
+					int numItemsLength = VarInt.MeasureUnsigned(scope._count);
+					int offset = VarInt.WriteUnsigned(span, scope._length + scope._sizeOfChildHeaders + numItemsLength);
+					return offset + VarInt.WriteUnsigned(span.Slice(offset), scope._count);
 				default:
 					throw new InvalidOperationException();
 			}

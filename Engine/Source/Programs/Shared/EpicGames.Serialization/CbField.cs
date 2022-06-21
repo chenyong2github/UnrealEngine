@@ -765,7 +765,7 @@ namespace EpicGames.Serialization
 
 			if (CbFieldUtils.HasFieldName(type))
 			{
-				_nameLen = (int)VarInt.Read(data.Slice(offset).Span, out int nameLenByteCount);
+				_nameLen = (int)VarInt.ReadUnsigned(data.Slice(offset).Span, out int nameLenByteCount);
 				offset += nameLenByteCount + _nameLen;
 			}
 
@@ -895,7 +895,7 @@ namespace EpicGames.Serialization
 			{
 				Error = CbFieldError.None;
 
-				ulong length = VarInt.Read(Payload.Span, out int bytesRead);
+				ulong length = VarInt.ReadUnsigned(Payload.Span, out int bytesRead);
 				return Payload.Slice(bytesRead, (int)length);
 			}
 			else
@@ -953,7 +953,7 @@ namespace EpicGames.Serialization
 		{
 			if (CbFieldUtils.IsString(TypeWithFlags))
 			{
-				ulong valueSize = VarInt.Read(Payload.Span, out int valueSizeByteCount);
+				ulong valueSize = VarInt.ReadUnsigned(Payload.Span, out int valueSizeByteCount);
 				if (valueSize >= (1UL << 31))
 				{
 					Error = CbFieldError.RangeError;
@@ -1083,7 +1083,7 @@ namespace EpicGames.Serialization
 				ulong outOfRangeMask = ~(ulong)1 << (magnitudeBits - 1);
 				ulong isNegative = (ulong)(byte)(TypeWithFlags) & 1;
 
-				ulong magnitude = VarInt.Read(Payload.Span, out _);
+				ulong magnitude = VarInt.ReadUnsigned(Payload.Span, out _);
 				ulong value = magnitude ^ (ulong)-(long)(isNegative);
 
 				if ((magnitude & outOfRangeMask) == 0 && (isNegative == 0 || isSigned))
@@ -1119,7 +1119,7 @@ namespace EpicGames.Serialization
 						ulong isNegative = (ulong)TypeWithFlags & 1;
 						ulong outOfRangeMask = ~((1UL << /*FLT_MANT_DIG*/ 24) - 1);
 
-						ulong magnitude = VarInt.Read(Payload.Span, out _) + isNegative;
+						ulong magnitude = VarInt.ReadUnsigned(Payload.Span, out _) + isNegative;
 						bool isInRange = (magnitude & outOfRangeMask) == 0;
 						Error = isInRange ? CbFieldError.None : CbFieldError.RangeError;
 						return isInRange ? (float)((isNegative != 0) ? (float)-(long)magnitude : (float)magnitude) : defaultValue;
@@ -1157,7 +1157,7 @@ namespace EpicGames.Serialization
 						ulong isNegative = (ulong)TypeWithFlags & 1;
 						ulong outOfRangeMask = ~((1UL << /*DBL_MANT_DIG*/ 53) - 1);
 
-						ulong magnitude = VarInt.Read(Payload.Span, out _) + isNegative;
+						ulong magnitude = VarInt.ReadUnsigned(Payload.Span, out _) + isNegative;
 						bool isInRange = (magnitude & outOfRangeMask) == 0;
 						Error = isInRange ? CbFieldError.None : CbFieldError.RangeError;
 						return isInRange ? (double)((isNegative != 0) ? (double)-(long)magnitude : (double)magnitude) : defaultValue;
@@ -1615,7 +1615,7 @@ namespace EpicGames.Serialization
 			{
 				ReadOnlyMemory<byte> payloadBytes = Payload;
 				int payloadSizeByteCount;
-				int payloadSize = (int)VarInt.Read(payloadBytes.Span, out payloadSizeByteCount);
+				int payloadSize = (int)VarInt.ReadUnsigned(payloadBytes.Span, out payloadSizeByteCount);
 				payloadBytes = payloadBytes.Slice(payloadSizeByteCount);
 				int numByteCount = CbFieldUtils.IsArray(localTypeWithFlags) ? (int)VarInt.Measure(payloadBytes.Span) : 0;
 				if (payloadSize > numByteCount)
@@ -1653,7 +1653,7 @@ namespace EpicGames.Serialization
 		/// <returns></returns>
 		private ReadOnlyMemory<byte> GetViewNoType()
 		{
-			int nameSize = CbFieldUtils.HasFieldName(TypeWithFlags) ? _nameLen + (int)VarInt.Measure((uint)_nameLen) : 0;
+			int nameSize = CbFieldUtils.HasFieldName(TypeWithFlags) ? _nameLen + (int)VarInt.MeasureUnsigned((uint)_nameLen) : 0;
 			return Memory.Slice(_payloadOffset - nameSize);
 		}
 
@@ -1698,7 +1698,7 @@ namespace EpicGames.Serialization
 				case CbFieldType.Binary:
 				case CbFieldType.String:
 					{
-						ulong payloadSize = VarInt.Read(Payload.Span, out int bytesRead);
+						ulong payloadSize = VarInt.ReadUnsigned(Payload.Span, out int bytesRead);
 						return payloadSize + (ulong)bytesRead;
 					}
 				case CbFieldType.IntegerPositive:
@@ -2273,7 +2273,7 @@ namespace EpicGames.Serialization
 			{
 				ReadOnlyMemory<byte> payloadBytes = _innerField.Payload;
 				payloadBytes = payloadBytes.Slice(VarInt.Measure(payloadBytes.Span));
-				return (int)VarInt.Read(payloadBytes.Span, out int _);
+				return (int)VarInt.ReadUnsigned(payloadBytes.Span, out int _);
 			}
 		}
 

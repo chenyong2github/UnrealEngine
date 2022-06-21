@@ -585,7 +585,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(String, OutOfRangeSize)
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, (ulong)(1) << 31);
+				VarInt.WriteUnsigned(payload, (ulong)(1) << 31);
 				TestFieldError(CbFieldType.String, payload, CbFieldError.RangeError, new Utf8String("ABC"));
 			}
 
@@ -628,7 +628,7 @@ namespace EpicGames.Serialization.Tests
 		{
 			byte[] payload = new byte[9];
 			ulong negative = (ulong)((byte)fieldType & 1);
-			VarInt.Write(payload, magnitude - negative);
+			VarInt.WriteUnsigned(payload, magnitude - negative);
 			ulong defaultValue = 8;
 			ulong expectedValue = (negative != 0)? (ulong)(-(long)(magnitude)) : magnitude;
 			CbField field = new CbField(payload, fieldType);
@@ -722,7 +722,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary32) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ((ulong)(1) << 24) - 1); // 16,777,215
+				VarInt.WriteUnsigned(payload, ((ulong)(1) << 24) - 1); // 16,777,215
 				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
 				TestField(CbFieldType.Float32, field, 16_777_215.0f);
 				TestField(CbFieldType.Float64, field, 16_777_215.0);
@@ -731,7 +731,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary32+1) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, (ulong)(1) << 24); // 16,777,216
+				VarInt.WriteUnsigned(payload, (ulong)(1) << 24); // 16,777,216
 				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, field, 16_777_216.0);
@@ -740,7 +740,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary64) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ((ulong)(1) << 53) - 1); // 9,007,199,254,740,991
+				VarInt.WriteUnsigned(payload, ((ulong)(1) << 53) - 1); // 9,007,199,254,740,991
 				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, field, 9_007_199_254_740_991.0);
@@ -749,7 +749,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxBinary64+1) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, (ulong)(1) << 53); // 9,007,199,254,740,992
+				VarInt.WriteUnsigned(payload, (ulong)(1) << 53); // 9,007,199,254,740,992
 				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestFieldError(CbFieldType.Float64, field, CbFieldError.RangeError, 8.0);
@@ -758,7 +758,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer+, MaxUInt64) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ~(ulong)0); // Max uint64
+				VarInt.WriteUnsigned(payload, ~(ulong)0); // Max uint64
 				CbField field = new CbField(payload, CbFieldType.IntegerPositive);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestFieldError(CbFieldType.Float64, field, CbFieldError.RangeError, 8.0);
@@ -767,7 +767,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary32) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ((ulong)(1) << 24) - 2); // -16,777,215
+				VarInt.WriteUnsigned(payload, ((ulong)(1) << 24) - 2); // -16,777,215
 				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
 				TestField(CbFieldType.Float32, field, -16_777_215.0f);
 				TestField(CbFieldType.Float64, field, -16_777_215.0);
@@ -776,7 +776,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary32+1) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ((ulong)(1) << 24) - 1); // -16,777,216
+				VarInt.WriteUnsigned(payload, ((ulong)(1) << 24) - 1); // -16,777,216
 				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, field, -16_777_216.0);
@@ -785,7 +785,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary64) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ((ulong)(1) << 53) - 2); // -9,007,199,254,740,991
+				VarInt.WriteUnsigned(payload, ((ulong)(1) << 53) - 2); // -9,007,199,254,740,991
 				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestField(CbFieldType.Float64, field, -9_007_199_254_740_991.0);
@@ -794,7 +794,7 @@ namespace EpicGames.Serialization.Tests
 			// Test CbField(Integer-, MaxBinary64+1) as Float
 			{
 				byte[] payload = new byte[9];
-				VarInt.Write(payload, ((ulong)(1) << 53) - 1); // -9,007,199,254,740,992
+				VarInt.WriteUnsigned(payload, ((ulong)(1) << 53) - 1); // -9,007,199,254,740,992
 				CbField field = new CbField(payload, CbFieldType.IntegerNegative);
 				TestFieldError(CbFieldType.Float32, field, CbFieldError.RangeError, 8.0f);
 				TestFieldError(CbFieldType.Float64, field, CbFieldError.RangeError, 8.0);

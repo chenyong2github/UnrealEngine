@@ -144,7 +144,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			FileNode node = new FileNode();
 			node._data = new ReadOnlySequence<byte>(data);
 			node._hash = IoHash.Compute(data.Span);
-			node.Depth = (int)VarInt.Read(span.Slice(1), out int depthBytes);
+			node.Depth = (int)VarInt.ReadUnsigned(span.Slice(1), out int depthBytes);
 
 			int headerLength = 1 + depthBytes;
 			span = span.Slice(headerLength);
@@ -158,7 +158,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			}
 			else
 			{
-				node.Length = (long)VarInt.Read(span, out int lengthBytes);
+				node.Length = (long)VarInt.ReadUnsigned(span, out int lengthBytes);
 				span = span.Slice(lengthBytes);
 
 				node._childNodeRefs = new List<BundleNodeRef<FileNode>>(payload.Length / IoHash.NumBytes);
@@ -449,12 +449,12 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 		private static byte[] CreateFirstSegmentData(int depth, ReadOnlySpan<byte> leafData)
 		{
-			int depthBytes = VarInt.Measure(depth);
+			int depthBytes = VarInt.MeasureUnsigned(depth);
 
 			byte[] buffer = new byte[1 + depthBytes + leafData.Length];
 			buffer[0] = TypeId;
 
-			VarInt.Write(buffer.AsSpan(1, depthBytes), depth);
+			VarInt.WriteUnsigned(buffer.AsSpan(1, depthBytes), depth);
 			leafData.CopyTo(buffer.AsSpan(1 + depthBytes));
 
 			return buffer;
@@ -466,8 +466,8 @@ namespace EpicGames.Horde.Bundles.Nodes
 			{
 				if (_childNodeRefs != null)
 				{
-					int depthBytes = VarInt.Measure(Depth);
-					int lengthBytes = VarInt.Measure((ulong)Length);
+					int depthBytes = VarInt.MeasureUnsigned(Depth);
+					int lengthBytes = VarInt.MeasureUnsigned((ulong)Length);
 
 					byte[] newData = new byte[1 + depthBytes + lengthBytes + (_childNodeRefs.Count * IoHash.NumBytes)];
 					_data = new ReadOnlySequence<byte>(newData);
@@ -476,10 +476,10 @@ namespace EpicGames.Horde.Bundles.Nodes
 					newData[0] = TypeId;
 					Span<byte> span = newData.AsSpan(1);
 
-					VarInt.Write(span, Depth);
+					VarInt.WriteUnsigned(span, Depth);
 					span = span.Slice(depthBytes);
 
-					VarInt.Write(span, Length);
+					VarInt.WriteUnsigned(span, Length);
 					span = span.Slice(lengthBytes);
 
 					foreach (BundleNodeRef<FileNode> childNodeRef in _childNodeRefs)

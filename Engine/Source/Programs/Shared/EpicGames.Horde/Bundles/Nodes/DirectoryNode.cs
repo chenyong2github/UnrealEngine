@@ -388,15 +388,15 @@ namespace EpicGames.Horde.Bundles.Nodes
 		{
 			// Measure the required size of the write buffer
 			int size = 1;
-			size += VarInt.Measure(_nameToFileEntry.Count);
+			size += VarInt.MeasureUnsigned(_nameToFileEntry.Count);
 			foreach (FileEntry entry in _nameToFileEntry.Values)
 			{
-				size += (entry.Name.Length + 1) + 1 + VarInt.Measure((ulong)entry.Length) + IoHash.NumBytes;
+				size += (entry.Name.Length + 1) + 1 + VarInt.MeasureUnsigned((ulong)entry.Length) + IoHash.NumBytes;
 			}
-			size += VarInt.Measure(_nameToDirectoryEntry.Count);
+			size += VarInt.MeasureUnsigned(_nameToDirectoryEntry.Count);
 			foreach (DirectoryEntry entry in _nameToDirectoryEntry.Values)
 			{
-				size += (entry.Name.Length + 1) + VarInt.Measure((ulong)entry.Length) + IoHash.NumBytes;
+				size += (entry.Name.Length + 1) + VarInt.MeasureUnsigned((ulong)entry.Length) + IoHash.NumBytes;
 			}
 
 			// Allocate the buffer and copy the node to it
@@ -406,7 +406,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 			span[0] = TypeId;
 			span = span.Slice(1);
 
-			int fileCountBytes = VarInt.Write(span, _nameToFileEntry.Count);
+			int fileCountBytes = VarInt.WriteUnsigned(span, _nameToFileEntry.Count);
 			span = span.Slice(fileCountBytes);
 
 			foreach (FileEntry fileEntry in _nameToFileEntry.Values.OrderBy(x => x.Name))
@@ -417,14 +417,14 @@ namespace EpicGames.Horde.Bundles.Nodes
 				span[0] = (byte)fileEntry.Flags;
 				span = span.Slice(1);
 
-				int lengthBytes = VarInt.Write(span, fileEntry.Length);
+				int lengthBytes = VarInt.WriteUnsigned(span, fileEntry.Length);
 				span = span.Slice(lengthBytes);
 
 				fileEntry.Hash.CopyTo(span);
 				span = span.Slice(IoHash.NumBytes);
 			}
 
-			int directoryCountBytes = VarInt.Write(span, _nameToDirectoryEntry.Count);
+			int directoryCountBytes = VarInt.WriteUnsigned(span, _nameToDirectoryEntry.Count);
 			span = span.Slice(directoryCountBytes);
 
 			foreach (DirectoryEntry directoryEntry in _nameToDirectoryEntry.Values.OrderBy(x => x.Name))
@@ -432,7 +432,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				directoryEntry.Name.Span.CopyTo(span);
 				span = span.Slice(directoryEntry.Name.Length + 1);
 
-				int lengthBytes = VarInt.Write(span, directoryEntry.Length);
+				int lengthBytes = VarInt.WriteUnsigned(span, directoryEntry.Length);
 				span = span.Slice(lengthBytes);
 
 				directoryEntry.Hash.CopyTo(span);
@@ -460,7 +460,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 
 			DirectoryNode node = new DirectoryNode();
 
-			int fileCount = (int)VarInt.Read(span, out int fileCountBytes);
+			int fileCount = (int)VarInt.ReadUnsigned(span, out int fileCountBytes);
 			span = span.Slice(fileCountBytes);
 
 			node._nameToFileEntry.EnsureCapacity(fileCount);
@@ -473,7 +473,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				FileEntryFlags flags = (FileEntryFlags)span[0];
 				span = span.Slice(1);
 
-				long length = (long)VarInt.Read(span, out int lengthBytes);
+				long length = (long)VarInt.ReadUnsigned(span, out int lengthBytes);
 				span = span.Slice(lengthBytes);
 
 				IoHash hash = new IoHash(span);
@@ -482,7 +482,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				node._nameToFileEntry[name] = new FileEntry(node, name, flags, length, hash);
 			}
 
-			int directoryCount = (int)VarInt.Read(span, out int directoryCountBytes);
+			int directoryCount = (int)VarInt.ReadUnsigned(span, out int directoryCountBytes);
 			span = span.Slice(directoryCountBytes);
 
 			node._nameToDirectoryEntry.EnsureCapacity(directoryCount);
@@ -492,7 +492,7 @@ namespace EpicGames.Horde.Bundles.Nodes
 				Utf8String name = new Utf8String(span.Slice(0, nameLen).ToArray());
 				span = span.Slice(nameLen + 1);
 
-				long length = (long)VarInt.Read(span, out int lengthBytes);
+				long length = (long)VarInt.ReadUnsigned(span, out int lengthBytes);
 				span = span.Slice(lengthBytes);
 
 				IoHash hash = new IoHash(span);
