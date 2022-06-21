@@ -29,10 +29,6 @@ bool FHttpServerIntegrationTest::RunTest(const FString& Parameters)
 	TSharedPtr<IHttpRouter> DuplicateHttpRouter = FHttpServerModule::Get().GetHttpRouter(HttpRouterPort);
 	TestEqual(TEXT("HttpRouter Duplicates"), HttpRouter, DuplicateHttpRouter);
 
-	// Ensure failed port binds result in a null router instance if requested
-	TSharedPtr<IHttpRouter> InvalidHttpRouterOnFail = FHttpServerModule::Get().GetHttpRouter(InvalidHttpRouterPort, /* bFailOnBindFailure = */ true);
-	TestFalse(TEXT("HttpRouter is null on bind failure if requested"), InvalidHttpRouterOnFail.IsValid());
-
 	// Ensure failed port binds still return a valid router if not explicitly requested to fail (and by default)
 	TSharedPtr<IHttpRouter> ValidHttpRouterOnFail = FHttpServerModule::Get().GetHttpRouter(InvalidHttpRouterPort /*, bFailOnBindFailure = false */);
 	TestTrue(TEXT("HttpRouter is NOT null on bind failure by default"), ValidHttpRouterOnFail.IsValid());
@@ -51,6 +47,10 @@ bool FHttpServerIntegrationTest::RunTest(const FString& Parameters)
 	TestFalse(TEXT("HttpRouteHandle Duplicated"), DuplicateHandle.IsValid());
 
 	FHttpServerModule::Get().StartAllListeners();
+
+	// Ensure failed port binds result in a null router instance if requested (and listeners are enabled)
+	TSharedPtr<IHttpRouter> InvalidHttpRouterOnFail = FHttpServerModule::Get().GetHttpRouter(InvalidHttpRouterPort, /* bFailOnBindFailure = */ true);
+	TestFalse(TEXT("HttpRouter is null on bind failure if requested"), InvalidHttpRouterOnFail.IsValid());
 
 	// Make a request
 	/*
