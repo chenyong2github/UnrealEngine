@@ -65,14 +65,13 @@ bool FCommandletCommandLineParsingTest::RunTest(const FString& Parameters)
 #endif // WITH_DEV_AUTOMATION_TESTS
 
 
-void CommandletHelpers::TickEngine(UWorld* InWorld)
+void CommandletHelpers::TickEngine(UWorld* InWorld, double InDeltaTime)
 {
 	// Simulate an engine frame tick
 	// Will make sure systems can perform their internal bookkeeping properly. For example, the VT system needs to 
 	// process deleted VTs.
 
-	// Update FApp::CurrentTime / FApp::DeltaTime while taking into account max tick rate.
-	GEngine->UpdateTimeAndHandleMaxTickRate();
+	FApp::SetDeltaTime(InDeltaTime);
 
 	// Tick the engine.
 	GEngine->Tick(FApp::GetDeltaTime(), false);
