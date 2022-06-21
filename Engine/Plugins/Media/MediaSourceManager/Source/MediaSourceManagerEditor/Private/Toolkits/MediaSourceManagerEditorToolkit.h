@@ -7,6 +7,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "UObject/GCObject.h"
 
+class ISlateStyle;
 class UMediaSourceManager;
 
 /**
@@ -20,8 +21,10 @@ class FMediaSourceManagerEditorToolkit
 public:
 	/**
 	 * Creates and initializes a new instance.
+	 * 
+	 * @param InStyle The style set to use.
 	 */
-	FMediaSourceManagerEditorToolkit();
+	FMediaSourceManagerEditorToolkit(const TSharedRef<ISlateStyle>& InStyle);
 
 	/** Virtual destructor. */
 	virtual ~FMediaSourceManagerEditorToolkit();
@@ -64,7 +67,15 @@ private:
 
 	/** Callback for spawning tabs. */
 	TSharedRef<SDockTab> HandleTabManagerSpawnTab(const FSpawnTabArgs& Args, FName TabIdentifier);
+	/** Callback for spawning tabs. */
+	TSharedRef<SDockTab> HandlePreviewTabManagerSpawnTab(const FSpawnTabArgs& Args, int32 ChannelIndex);
 
 	/** The media source manager asset being edited. */
 	TObjectPtr<UMediaSourceManager> MediaSourceManager;
+
+	/** Pointer to the style set to use for toolkits. */
+	TSharedRef<ISlateStyle> Style;
+
+	/** Tab Ids for channel preview windows. */
+	TArray<FName> PreviewTabIds;
 };

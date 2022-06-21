@@ -8,6 +8,7 @@
 
 #include "MediaSourceManagerChannel.generated.h"
 
+class UMediaPlayer;
 class UMediaSource;
 class UMediaSourceManagerInput;
 class UProxyMediaSource;
@@ -39,7 +40,16 @@ public:
 
 	/** The channel will output the media here. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Channel")
-	TObjectPtr<UTexture> OutTexture;
+	TObjectPtr<UTexture> OutTexture = nullptr;
+
+	/**
+	 * Call this to get the media player.
+	 */
+	UMediaPlayer* GetMediaPlayer();
+
+	/** Start playback. */
+	UFUNCTION(BlueprintCallable, Category = "Media|MediaSourceManager")
+	void Play();
 
 	/**
 	 * Call this to make sure everything is set up.
@@ -51,5 +61,10 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif // WITH_EDITOR
 	//~ End UObject interface
+
+private:
+	/** Stores the player. */
+	UPROPERTY()
+	TObjectPtr<UMediaPlayer> CurrentMediaPlayer = nullptr;
 
 };

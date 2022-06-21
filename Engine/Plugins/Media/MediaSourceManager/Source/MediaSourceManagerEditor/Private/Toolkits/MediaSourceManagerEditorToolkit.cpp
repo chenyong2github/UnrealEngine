@@ -5,9 +5,11 @@
 #include "Editor.h"
 #include "EditorReimportHandler.h"
 #include "MediaSourceManager.h"
+#include "MediaTexture.h"
 #include "SlateOptMacros.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Docking/SDockTab.h"
+#include "Widgets/SMediaPlayerEditorViewer.h"
 #include "Widgets/SMediaSourceManagerSources.h"
 
 #define LOCTEXT_NAMESPACE "FMediaSourceManagerEditorToolkit"
@@ -16,10 +18,12 @@ namespace MediaSourceManagerEditorToolkit
 {
 	static const FName AppIdentifier("MediaSourceManagerEditorApp");
 	static const FName SourcesTabId("Sources");
+	static const FName ViewerTabId("Viewer");
 }
 
-FMediaSourceManagerEditorToolkit::FMediaSourceManagerEditorToolkit()
+FMediaSourceManagerEditorToolkit::FMediaSourceManagerEditorToolkit(const TSharedRef<ISlateStyle>& InStyle)
 	: MediaSourceManager(nullptr)
+	, Style(InStyle)
 {
 }
 
@@ -46,18 +50,50 @@ void FMediaSourceManagerEditorToolkit::Initialize(UMediaSourceManager* InMediaSo
 	GEditor->RegisterForUndo(this);
 
 	// create tab layout
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaSourceManagerEditor_v0.1b")
+	TSharedRef<FTabManager::FArea> PrimaryArea = FTabManager::NewPrimaryArea()
+		->SetOrientation(Orient_Horizontal);
+	TSharedRef<FTabManager::FSplitter> PreviewSplitter = FTabManager::NewSplitter();
+	PreviewSplitter->SetOrientation(Orient_Vertical);
+
+	// Base tab name for each preview window.
+	FString TabId = MediaSourceManagerEditorToolkit::ViewerTabId.ToString();
+	int32 OriginalLength = TabId.Len();
+
+	// Add each channel.
+	PreviewTabIds.SetNum(MediaSourceManager->Channels.Num());
+	for (int Index = 0; Index < MediaSourceManager->Channels.Num(); ++Index)
+	{
+		// Construct tab name,
+		TabId.LeftInline(OriginalLength, false);
+		TabId.AppendInt(Index);
+		PreviewTabIds[Index] = FName(*TabId);
+
+		// Add to splitter.
+		PreviewSplitter->Split
+		(
+			FTabManager::NewStack()
+			->AddTab(FName(*TabId), ETabState::OpenedTab)
+		);
+	}
+
+	PrimaryArea->Split
+	(
+		// Sources tab.
+		FTabManager::NewStack()
+		->AddTab(MediaSourceManagerEditorToolkit::SourcesTabId, ETabState::OpenedTab)
+		->SetHideTabWell(true)
+		->SetSizeCoefficient(0.4f)
+	)
+	->Split
+	(
+		// Channel previews.
+		PreviewSplitter
+	);
+
+	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("Standalone_MediaSourceManagerEditor_v0.1d4")
 		->AddArea
 		(
-			FTabManager::NewPrimaryArea()
-				->SetOrientation(Orient_Vertical)
-				->Split
-				(
-					// Sources tab.
-					FTabManager::NewStack()
-						->AddTab(MediaSourceManagerEditorToolkit::SourcesTabId, ETabState::OpenedTab)
-						->SetHideTabWell(true)
-				)
+			PrimaryArea
 		);
 
 	FAssetEditorToolkit::InitAssetEditor(
@@ -93,12 +129,28 @@ void FMediaSourceManagerEditorToolkit::RegisterTabSpawners(const TSharedRef<FTab
 		.SetDisplayName(LOCTEXT("SourcesTabName", "Sources"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	// Viewer tab.
+	for (int Index = 0; Index < PreviewTabIds.Num(); Index++)
+	{
+		InTabManager->RegisterTabSpawner(PreviewTabIds[Index],
+			FOnSpawnTab::CreateSP(this, &FMediaSourceManagerEditorToolkit::HandlePreviewTabManagerSpawnTab,
+				Index))
+			.SetDisplayName(FText::Format(LOCTEXT("ChannelTabName", "Channel {0}"),
+				FText::AsNumber(Index)))
+			.SetGroup(WorkspaceMenuCategoryRef)
+			.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "MediaPlateEditor.Tabs.Player"));
+	}
 }
 
 void FMediaSourceManagerEditorToolkit::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
 {
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 
+	for (int Index = 0; Index < PreviewTabIds.Num(); Index++)
+	{
+		InTabManager->UnregisterTabSpawner(PreviewTabIds[Index]);
+	}
 	InTabManager->UnregisterTabSpawner(MediaSourceManagerEditorToolkit::SourcesTabId);
 }
 
@@ -145,6 +197,33 @@ TSharedRef<SDockTab> FMediaSourceManagerEditorToolkit::HandleTabManagerSpawnTab(
 		TabWidget = SNew(SMediaSourceManagerSources, *MediaSourceManager);
 	}
 
+	return SNew(SDockTab)
+		.TabRole(ETabRole::PanelTab)
+		[
+			TabWidget.ToSharedRef()
+		];
+}
+
+
+TSharedRef<SDockTab> FMediaSourceManagerEditorToolkit::HandlePreviewTabManagerSpawnTab(
+	const FSpawnTabArgs& Args, int32 ChannelIndex)
+{
+	TSharedPtr<SWidget> TabWidget = SNullWidget::NullWidget;
+
+	if (MediaSourceManager != nullptr)
+	{
+		if (ChannelIndex < MediaSourceManager->Channels.Num())
+		{
+			UMediaSourceManagerChannel* Channel = MediaSourceManager->Channels[ChannelIndex];
+			if (Channel != nullptr)
+			{
+				UMediaPlayer* MediaPlayer = Channel->GetMediaPlayer();
+				UMediaTexture* MediaTexture = Cast<UMediaTexture>(Channel->OutTexture);
+				TabWidget = SNew(SMediaPlayerEditorViewer, *MediaPlayer, MediaTexture, Style, false);
+			}
+		}
+	}
+	
 	return SNew(SDockTab)
 		.TabRole(ETabRole::PanelTab)
 		[

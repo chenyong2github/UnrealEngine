@@ -8,6 +8,17 @@
 
 #define LOCTEXT_NAMESPACE "MediaSourceManagerActions"
 
+/* FMediaSourceManagerActions constructors
+ *****************************************************************************/
+
+FMediaSourceManagerActions::FMediaSourceManagerActions(const TSharedRef<ISlateStyle>& InStyle)
+	: Style(InStyle)
+{
+}
+
+/* FAssetTypeActions_Base interface
+ *****************************************************************************/
+
 bool FMediaSourceManagerActions::CanFilter()
 {
 	return true;
@@ -50,7 +61,7 @@ void FMediaSourceManagerActions::OpenAssetEditor(const TArray<UObject*>& InObjec
 
 		if (MediaSourceManager != nullptr)
 		{
-			TSharedRef<FMediaSourceManagerEditorToolkit> EditorToolkit = MakeShareable(new FMediaSourceManagerEditorToolkit());
+			TSharedRef<FMediaSourceManagerEditorToolkit> EditorToolkit = MakeShareable(new FMediaSourceManagerEditorToolkit(Style));
 			EditorToolkit->Initialize(MediaSourceManager, Mode, EditWithinLevelEditor);
 		}
 	}

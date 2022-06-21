@@ -51,6 +51,12 @@ void SMediaSourceManagerChannel::Construct(const FArguments& InArgs,
 		];
 
 	Refresh();
+
+	// Start playing.
+	if (ChannelPtr != nullptr)
+	{
+		ChannelPtr->Play();
+	}
 }
 
 void SMediaSourceManagerChannel::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
@@ -90,6 +96,8 @@ FReply SMediaSourceManagerChannel::OnDrop(const FGeometry& MyGeometry, const FDr
 					UMediaSourceManagerInputMediaSource* Input = NewObject<UMediaSourceManagerInputMediaSource>(Channel);
 					Input->MediaSource = MediaSource;
 					Channel->Input = Input;
+
+					Channel->Play();
 						
 					Refresh();
 					break;

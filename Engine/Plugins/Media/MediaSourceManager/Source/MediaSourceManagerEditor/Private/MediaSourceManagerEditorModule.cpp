@@ -4,6 +4,7 @@
 
 #include "AssetToolsModule.h"
 #include "AssetTools/MediaSourceManagerActions.h"
+#include "MediaSourceManagerEditorStyle.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "MediaSourceManagerEditorModule"
@@ -18,12 +19,14 @@ class FMediaSourceManagerEditorModule
 {
 public:
 	//~ IMediaSourceManagerEditorModule interface
-	
+	TSharedPtr<ISlateStyle> GetStyle() { return Style; }
 
 	//~ IModuleInterface interface
 
 	virtual void StartupModule() override
 	{
+		Style = MakeShareable(new FMediaSourceManagerEditorStyle());
+
 		RegisterAssetTools();
 	}
 
@@ -41,7 +44,7 @@ protected:
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 
-		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaSourceManagerActions()));
+		RegisterAssetTypeAction(AssetTools, MakeShareable(new FMediaSourceManagerActions(Style.ToSharedRef())));
 	}
 
 	/**
@@ -73,6 +76,8 @@ protected:
 		}
 	}
 
+	/** Holds the plug-ins style set. */
+	TSharedPtr<ISlateStyle> Style;
 	/** The collection of registered asset type actions. */
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 };
