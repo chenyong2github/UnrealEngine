@@ -17,12 +17,11 @@ class FViewInfo;
  */
 struct FTransientDecalRenderData
 {
-	const FMaterialRenderProxy* MaterialProxy;
-	const FMaterial* MaterialResource;
 	const FDeferredDecalProxy& Proxy;
+	const FMaterialRenderProxy* MaterialProxy;
 	FDecalBlendDesc BlendDesc;
-	float FadeAlpha;
 	float ConservativeRadius;
+	float FadeAlpha;
 
 	FTransientDecalRenderData(const FScene& InScene, const FDeferredDecalProxy& InDecalProxy, float InConservativeRadius);
 };

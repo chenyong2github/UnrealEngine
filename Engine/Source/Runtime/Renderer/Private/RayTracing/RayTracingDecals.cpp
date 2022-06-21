@@ -364,7 +364,9 @@ TRDGUniformBufferRef<FRayTracingDecals> CreateRayTracingDecalData(FRDGBuilder& G
 	{
 		const auto& DecalData = SortedDecals[Index];
 
-		const FMaterialShaderMap* MaterialShaderMap = DecalData.MaterialResource->GetRenderingThreadShaderMap();
+		const FMaterialRenderProxy* MaterialProxy = DecalData.MaterialProxy;
+		const FMaterial* MaterialResource = &MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), MaterialProxy);
+		const FMaterialShaderMap* MaterialShaderMap = MaterialResource->GetRenderingThreadShaderMap();
 
 		auto CallableShader = MaterialShaderMap->GetShader<FRayTracingDecalMaterialShader>();
 
@@ -383,7 +385,7 @@ TRDGUniformBufferRef<FRayTracingDecals> CreateRayTracingDecalData(FRDGBuilder& G
 
 		int32 DataOffset = 0;
 		FMeshDrawSingleShaderBindings SingleShaderBindings = Command.ShaderBindings.GetSingleShaderBindings(SF_RayCallable, DataOffset);
-		CallableShader->GetShaderBindings(&Scene, Scene.GetFeatureLevel(), *DecalData.MaterialProxy, *DecalData.MaterialResource, View, DecalParameters, SingleShaderBindings);
+		CallableShader->GetShaderBindings(&Scene, Scene.GetFeatureLevel(), *MaterialProxy, *MaterialResource, View, DecalParameters, SingleShaderBindings);
 
 		const FBox BoxBounds = DecalData.Proxy.GetBounds().GetBox();
 
