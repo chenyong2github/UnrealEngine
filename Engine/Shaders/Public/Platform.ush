@@ -640,8 +640,8 @@ void ShaderYield()
 #define SCHEDULER_MIN_PRESSURE
 #endif
 
-#ifndef MAX_OCCUPENCY
-#define MAX_OCCUPENCY
+#ifndef MAX_OCCUPANCY
+#define MAX_OCCUPANCY
 #endif
 
 // ---------------------------------------------------- Interpolator attribute fallbacks

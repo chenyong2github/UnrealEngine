@@ -96,7 +96,7 @@ void VirtualShadowMapCompositePS(
 
 
 SCHEDULER_MIN_PRESSURE
-MAX_OCCUPENCY
+MAX_OCCUPANCY
 
 // Screen space ray trace to attempt to skip over ambiguous regions near the receiver surface
 // Returns length at which to start the virtual shadow map ray; usually this is where the screen ray ended or went behind a surface
