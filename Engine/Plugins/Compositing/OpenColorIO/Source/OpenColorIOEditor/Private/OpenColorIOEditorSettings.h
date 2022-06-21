@@ -32,12 +32,15 @@ struct FPerViewportDisplaySettingPair
 /**
  * List of settings associated to level viewport instances linked with an identifier
  */
-UCLASS(config = EditorPerProjectUserSettings)
+
+UCLASS(config = OpenColorIO)
 class UOpenColorIOLevelViewportSettings : public UObject
 {
 	GENERATED_BODY()
 
 public:
+
+	virtual void PostInitProperties() override;
 
 	/** Returns setting associated with a given viewport identifier */
 	const FOpenColorIODisplayConfiguration* GetViewportSettings(FName ViewportIdentifier) const;

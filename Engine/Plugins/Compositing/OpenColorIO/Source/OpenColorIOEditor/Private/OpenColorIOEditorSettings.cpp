@@ -2,6 +2,9 @@
 
 #include "OpenColorIOEditorSettings.h"
 
+#include "IOpenColorIOEditorModule.h"
+#include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
 
 const FOpenColorIODisplayConfiguration* UOpenColorIOLevelViewportSettings::GetViewportSettings(FName ViewportIdentifier) const
 {
@@ -16,6 +19,27 @@ const FOpenColorIODisplayConfiguration* UOpenColorIOLevelViewportSettings::GetVi
 	}
 
 	return nullptr;
+}
+
+void UOpenColorIOLevelViewportSettings::PostInitProperties()
+{
+	Super::PostInitProperties();
+
+	if (GConfig && FPaths::FileExists(GEditorPerProjectIni))
+	{
+		const TCHAR* SectionName = TEXT("/Script/OpenColorIOEditor.OpenColorIOLevelViewportSettings");
+
+		if (GConfig->DoesSectionExist(SectionName, GEditorPerProjectIni))
+		{
+			LoadConfig(UOpenColorIOLevelViewportSettings::StaticClass(), *GEditorPerProjectIni);
+
+			SaveConfig();
+
+			GConfig->EmptySection(SectionName, *GEditorPerProjectIni);
+
+			UE_LOG(LogOpenColorIOEditor, Warning, TEXT("Migrated EditorPerProjectUserSettings OpenColorIO settings to plugin-specific config file: %s."), *GetClass()->GetConfigName());
+		}
+	}
 }
 
 void UOpenColorIOLevelViewportSettings::SetViewportSettings(FName ViewportIdentifier, const FOpenColorIODisplayConfiguration& Configuration)
