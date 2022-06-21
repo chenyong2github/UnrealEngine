@@ -695,22 +695,23 @@ namespace AutomationTool
 			// Print out all the diagnostic messages which still apply, unless we're running a step as part of a build system or just listing the contents of the file. 
 			if(SingleNode == null && (!bListOnly || bShowDiagnostics))
 			{
-				foreach(BgGraphDiagnostic Diagnostic in Graph.Diagnostics)
+				List<BgDiagnostic> Diagnostics = Graph.GetAllDiagnostics();
+				foreach(BgDiagnostic Diagnostic in Diagnostics)
 				{
-					if(Diagnostic.EventType == LogEventType.Console)
+					if(Diagnostic.Level == LogLevel.Information)
 					{
-						CommandUtils.LogWarning("{0}({1}): {2}", Diagnostic.Location.File, Diagnostic.Location.LineNumber, Diagnostic.Message);
+						CommandUtils.LogInformation("{0}({1}): {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
-					else if(Diagnostic.EventType == LogEventType.Warning)
+					else if(Diagnostic.Level == LogLevel.Warning)
 					{
-						CommandUtils.LogWarning("{0}({1}): warning: {2}", Diagnostic.Location.File, Diagnostic.Location.LineNumber, Diagnostic.Message);
+						CommandUtils.LogWarning("{0}({1}): warning: {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
 					else
 					{
-						CommandUtils.LogError("{0}({1}): error: {2}", Diagnostic.Location.File, Diagnostic.Location.LineNumber, Diagnostic.Message);
+						CommandUtils.LogError("{0}({1}): error: {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
 				}
-				if(Graph.Diagnostics.Any(x => x.EventType == LogEventType.Error))
+				if(Diagnostics.Any(x => x.Level == LogLevel.Error))
 				{
 					return ExitCode.Error_Unknown;
 				}

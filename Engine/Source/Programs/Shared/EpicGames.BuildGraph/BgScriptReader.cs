@@ -461,13 +461,13 @@ namespace EpicGames.BuildGraph
 						await ReadNotifierAsync(childElement);
 						break;
 					case "Trace":
-						await ReadDiagnosticAsync(childElement, LogEventType.Console);
+						await ReadDiagnosticAsync(childElement, LogLevel.Information);
 						break;
 					case "Warning":
-						await ReadDiagnosticAsync(childElement, LogEventType.Warning);
+						await ReadDiagnosticAsync(childElement, LogLevel.Warning);
 						break;
 					case "Error":
-						await ReadDiagnosticAsync(childElement, LogEventType.Error);
+						await ReadDiagnosticAsync(childElement, LogLevel.Error);
 						break;
 					case "Do":
 						await ReadBlockAsync(childElement, ReadGraphBodyAsync);
@@ -745,13 +745,13 @@ namespace EpicGames.BuildGraph
 						await ReadAggregateAsync(childElement);
 						break;
 					case "Trace":
-						await ReadDiagnosticAsync(childElement, LogEventType.Console);
+						await ReadDiagnosticAsync(childElement, LogLevel.Information);
 						break;
 					case "Warning":
-						await ReadDiagnosticAsync(childElement, LogEventType.Warning);
+						await ReadDiagnosticAsync(childElement, LogLevel.Warning);
 						break;
 					case "Error":
-						await ReadDiagnosticAsync(childElement, LogEventType.Error);
+						await ReadDiagnosticAsync(childElement, LogLevel.Error);
 						break;
 					case "Label":
 						await ReadLabelAsync(childElement);
@@ -827,13 +827,13 @@ namespace EpicGames.BuildGraph
 						await ReadRegexAsync(childElement);
 						break;
 					case "Trace":
-						await ReadDiagnosticAsync(childElement, LogEventType.Console);
+						await ReadDiagnosticAsync(childElement, LogLevel.Information);
 						break;
 					case "Warning":
-						await ReadDiagnosticAsync(childElement, LogEventType.Warning);
+						await ReadDiagnosticAsync(childElement, LogLevel.Warning);
 						break;
 					case "Error":
-						await ReadDiagnosticAsync(childElement, LogEventType.Error);
+						await ReadDiagnosticAsync(childElement, LogLevel.Error);
 						break;
 					case "Do":
 						await ReadBlockAsync(childElement, ReadNodeBodyAsync);
@@ -1006,8 +1006,8 @@ namespace EpicGames.BuildGraph
 		/// Reads a warning from the given element, evaluates the condition on it, and writes it to the log if the condition passes.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		/// <param name="eventType">The diagnostic event type</param>
-		protected abstract Task ReadDiagnosticAsync(BgScriptElement element, LogEventType eventType);
+		/// <param name="level">The diagnostic event type</param>
+		protected abstract Task ReadDiagnosticAsync(BgScriptElement element, LogLevel level);
 
 		/// <summary>
 		/// Reads an object name from its defining element. Outputs an error if the name is missing.
@@ -2093,15 +2093,26 @@ namespace EpicGames.BuildGraph
 		/// Reads a warning from the given element, evaluates the condition on it, and writes it to the log if the condition passes.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		/// <param name="eventType">The diagnostic event type</param>
-		protected override async Task ReadDiagnosticAsync(BgScriptElement element, LogEventType eventType)
+		/// <param name="level">The diagnostic event type</param>
+		protected override async Task ReadDiagnosticAsync(BgScriptElement element, LogLevel level)
 		{
 			if (await EvaluateConditionAsync(element))
 			{
 				string message = ReadAttribute(element, "Message");
 
-				BgGraphDiagnostic diagnostic = new BgGraphDiagnostic(element.Location, eventType, message, _enclosingNode, _enclosingAgent);
-				_graph.Diagnostics.Add(diagnostic);
+				BgDiagnostic diagnostic = new BgDiagnostic(element.Location.File, element.Location.LineNumber, level, message);
+				if (_enclosingNode != null)
+				{
+					_enclosingNode.Diagnostics.Add(diagnostic);
+				}
+				else if (_enclosingAgent != null)
+				{
+					_enclosingAgent.Diagnostics.Add(diagnostic);
+				}
+				else
+				{
+					_graph.Diagnostics.Add(diagnostic);
+				}
 			}
 		}
 

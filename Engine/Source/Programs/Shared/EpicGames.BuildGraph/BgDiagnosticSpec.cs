@@ -40,7 +40,20 @@ namespace EpicGames.BuildGraph
 		{
 			BgScriptLocation location = new BgScriptLocation("(unknown)", "(unknown)", 1);
 			string messageValue = Message.Compute(context);
-			graph.Diagnostics.Add(new BgGraphDiagnostic(location, (LogEventType)Level, messageValue, enclosingNode, enclosingAgent));
+
+			BgDiagnostic diagnostic = new BgDiagnostic(location.File, location.LineNumber, Level, messageValue);
+			if (enclosingNode != null)
+			{
+				enclosingNode.Diagnostics.Add(diagnostic);
+			}
+			else if (enclosingAgent != null)
+			{
+				enclosingAgent.Diagnostics.Add(diagnostic);
+			}
+			else
+			{
+				graph.Diagnostics.Add(diagnostic);
+			}
 		}
 
 		/// <inheritdoc/>

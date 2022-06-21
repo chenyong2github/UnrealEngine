@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using EpicGames.Core;
+using Microsoft.Extensions.Logging;
 
 namespace EpicGames.BuildGraph
 {
@@ -8,17 +9,22 @@ namespace EpicGames.BuildGraph
 	/// Diagnostic message from the graph script. These messages are parsed at startup, then culled along with the rest of the graph nodes before output. Doing so
 	/// allows errors and warnings which are only output if a node is part of the graph being executed.
 	/// </summary>
-	public class BgGraphDiagnostic
+	public class BgDiagnostic
 	{
 		/// <summary>
-		/// Location of the diagnostic
+		/// File containing the diagnostic
 		/// </summary>
-		public BgScriptLocation Location { get; }
+		public string File { get; }
+
+		/// <summary>
+		/// Line number containing the diagnostic
+		/// </summary>
+		public int Line { get; }
 
 		/// <summary>
 		/// The diagnostic event type
 		/// </summary>
-		public LogEventType EventType { get; }
+		public LogLevel Level { get; }
 
 		/// <summary>
 		/// The message to display
@@ -26,25 +32,14 @@ namespace EpicGames.BuildGraph
 		public string Message { get; }
 
 		/// <summary>
-		/// The node which this diagnostic is declared in. If the node is culled from the graph, the message will not be displayed.
-		/// </summary>
-		public BgNode? EnclosingNode { get; }
-
-		/// <summary>
-		/// The agent that this diagnostic is declared in. If the entire agent is culled from the graph, the message will not be displayed.
-		/// </summary>
-		public BgAgent? EnclosingAgent { get; }
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgGraphDiagnostic(BgScriptLocation location, LogEventType eventType, string message, BgNode? enclosingNode, BgAgent? enclosingAgent)
+		public BgDiagnostic(string file, int line, LogLevel level, string message)
 		{
-			Location = location;
-			EventType = eventType;
+			File = file;
+			Line = line;
+			Level = level;
 			Message = message;
-			EnclosingNode = enclosingNode;
-			EnclosingAgent = enclosingAgent;
 		}
 	}
 }

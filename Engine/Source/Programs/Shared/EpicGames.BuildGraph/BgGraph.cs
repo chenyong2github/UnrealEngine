@@ -83,9 +83,9 @@ namespace EpicGames.BuildGraph
 		public List<BgLabel> Labels { get; } = new List<BgLabel>();
 
 		/// <summary>
-		/// Diagnostic messages for this graph
+		/// Diagnostics at graph scope
 		/// </summary>
-		public List<BgGraphDiagnostic> Diagnostics { get; } = new List<BgGraphDiagnostic>();
+		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
 
 		/// <summary>
 		/// Default constructor
@@ -102,6 +102,24 @@ namespace EpicGames.BuildGraph
 		public bool ContainsName(string name)
 		{
 			return NameToNode.ContainsKey(name) || NameToReport.ContainsKey(name) || NameToAggregate.ContainsKey(name);
+		}
+
+		/// <summary>
+		/// Gets diagnostics from all graph structures
+		/// </summary>
+		/// <returns>List of diagnostics</returns>
+		public List<BgDiagnostic> GetAllDiagnostics()
+		{
+			List<BgDiagnostic> diagnostics = new List<BgDiagnostic>(Diagnostics);
+			foreach (BgAgent agent in Agents)
+			{
+				diagnostics.AddRange(agent.Diagnostics);
+				foreach (BgNode node in agent.Nodes)
+				{
+					diagnostics.AddRange(node.Diagnostics);
+				}
+			}
+			return diagnostics;
 		}
 
 		/// <summary>
@@ -267,9 +285,6 @@ namespace EpicGames.BuildGraph
 
 			// Remove any badges which do not have all their dependencies
 			Badges.RemoveAll(x => x.Nodes.Any(y => !retainNodes.Contains(y)));
-
-			// Remove any diagnostics which are no longer part of the graph
-			Diagnostics.RemoveAll(x => (x.EnclosingNode != null && !retainNodes.Contains(x.EnclosingNode)) || (x.EnclosingAgent != null && !Agents.Contains(x.EnclosingAgent)));
 		}
 
 		/// <summary>

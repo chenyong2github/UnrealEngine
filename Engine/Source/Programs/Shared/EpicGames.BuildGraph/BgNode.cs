@@ -57,27 +57,27 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Array of inputs which this node requires to run
 		/// </summary>
-		public BgNodeOutput[] Inputs { get; }
+		public IReadOnlyList<BgNodeOutput> Inputs { get; }
 
 		/// <summary>
 		/// Array of outputs produced by this node
 		/// </summary>
-		public BgNodeOutput[] Outputs { get; }
+		public IReadOnlyList<BgNodeOutput> Outputs { get; }
 
 		/// <summary>
 		/// Nodes which this node has input dependencies on
 		/// </summary>
-		public BgNode[] InputDependencies { get; set; }
+		public IReadOnlyList<BgNode> InputDependencies { get; set; }
 
 		/// <summary>
 		/// Nodes which this node needs to run after
 		/// </summary>
-		public BgNode[] OrderDependencies { get; set; }
+		public IReadOnlyList<BgNode> OrderDependencies { get; set; }
 
 		/// <summary>
 		/// Tokens which must be acquired for this node to run
 		/// </summary>
-		public FileReference[] RequiredTokens { get; }
+		public IReadOnlyList<FileReference> RequiredTokens { get; }
 
 		/// <summary>
 		/// List of tasks to execute
@@ -110,27 +110,32 @@ namespace EpicGames.BuildGraph
 		public Dictionary<string, string> Annotations { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
+		/// Diagnostics for this node
+		/// </summary>
+		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
+
+		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="inName">The name of this node</param>
-		/// <param name="inInputs">Inputs that this node depends on</param>
-		/// <param name="inOutputNames">Names of the outputs that this node produces</param>
-		/// <param name="inInputDependencies">Nodes which this node is dependent on for its inputs</param>
-		/// <param name="inOrderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
-		/// <param name="inRequiredTokens">Optional tokens which must be required for this node to run</param>
-		public BgNode(string inName, BgNodeOutput[] inInputs, string[] inOutputNames, BgNode[] inInputDependencies, BgNode[] inOrderDependencies, FileReference[] inRequiredTokens)
+		/// <param name="name">The name of this node</param>
+		/// <param name="inputs">Inputs that this node depends on</param>
+		/// <param name="outputNames">Names of the outputs that this node produces</param>
+		/// <param name="inputDependencies">Nodes which this node is dependent on for its inputs</param>
+		/// <param name="orderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
+		/// <param name="requiredTokens">Optional tokens which must be required for this node to run</param>
+		public BgNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
 		{
-			Name = inName;
-			Inputs = inInputs;
+			Name = name;
+			Inputs = inputs;
 
 			List<BgNodeOutput> allOutputs = new List<BgNodeOutput>();
 			allOutputs.Add(new BgNodeOutput(this, "#" + Name));
-			allOutputs.AddRange(inOutputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
+			allOutputs.AddRange(outputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
 			Outputs = allOutputs.ToArray();
 
-			InputDependencies = inInputDependencies;
-			OrderDependencies = inOrderDependencies;
-			RequiredTokens = inRequiredTokens;
+			InputDependencies = inputDependencies;
+			OrderDependencies = orderDependencies;
+			RequiredTokens = requiredTokens;
 		}
 
 		/// <summary>
