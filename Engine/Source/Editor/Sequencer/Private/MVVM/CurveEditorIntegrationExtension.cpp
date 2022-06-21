@@ -56,13 +56,13 @@ void FCurveEditorIntegrationExtension::UpdateCurveEditor()
 	}
 	
 	FCurveEditorExtension* CurveEditorExtension = GetCurveEditorExtension();
-	if (!ensure(CurveEditorExtension))
+	if (!CurveEditorExtension)
 	{
 		return;
 	}
 
 	TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
-	if (!ensure(CurveEditor))
+	if (!CurveEditor)
 	{
 		return;
 	}
