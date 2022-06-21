@@ -5636,7 +5636,7 @@ void FD3D12CommandContext::RHISetRayTracingBindings(
 
 	auto BindingTask = [Bindings, Device, ShaderTable, Scene, Pipeline, &SharedCounter, IncrementCount, NumBindings, BindingType](uint32 WorkerIndex)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(SetRayTracingHitGroups_Task);
+		TRACE_CPUPROFILER_EVENT_SCOPE(SetRayTracingBindings_Task);
 	 
 		int32 BaseIndex = 0;
 		while (BaseIndex < (int32)NumBindings)

@@ -861,19 +861,70 @@ FMaterialClosestHitPayload UnpackRayTracingPayload(FPackedMaterialClosestHitPayl
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Decal parameters
 
-#if !COMPUTESHADER
+#define DECAL_WRITE_BASE_COLOR_FLAG						(1 << 0)
+#define DECAL_WRITE_NORMAL_FLAG							(1 << 1)
+#define DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG	(1 << 2)
+#define DECAL_WRITE_EMISSIVE_FLAG						(1 << 3)
+#define DECAL_WRITE_AMBIENT_OCCLUSION_FLAG				(1 << 4)
 
-struct FDecalCallableShaderParams
+struct FDecalShaderParams
 {
-	// In order to reduce params size reuse input params to store output
-	// Input: TranslatedWorldPosition / Output: MetallicSpecularRoughnessAO
-	float4 TranslatedWorldPosition_MetallicSpecularRoughnessAO;
-	float4 Color;
-	float3 WorldNormal;
-	float3 Emissive;
-};
+	float Data[15];
 
-#endif // !COMPUTESHADER
+	void SetInputTranslatedWorldPosition(float3 In)
+	{
+		Data[0] = In.x;
+		Data[1] = In.y;
+		Data[2] = In.z;
+	}
+	float3 GetInputTranslatedWorldPosition() { return float3(Data[0], Data[1], Data[2]); }
+
+	void SetPixelCoord(uint2 PixelCoord)
+	{
+		Data[3] = asfloat(PixelCoord.x);
+		Data[4] = asfloat(PixelCoord.y);
+	}
+	uint2 GetPixelCoord() { return asuint(float2(Data[3], Data[4])); }
+
+	void SetMetallic(float In) { Data[0] = In; }
+	float GetMetallic() { return Data[0]; }
+
+	void SetSpecular(float In) { Data[1] = In; }
+	float GetSpecular() { return Data[1]; }
+
+	void SetRoughness(float In) { Data[2] = In; }
+	float GetRoughness() { return Data[2]; }
+
+	void SetAO(float In) { Data[3] = In; }
+	float GetAO() { return Data[3]; }
+
+	void SetBaseColor(float3 In) {
+		Data[4] = In.r;
+		Data[5] = In.g;
+		Data[6] = In.b;
+	}
+	float3 GetBaseColor() { return float3(Data[4], Data[5], Data[6]); }
+
+	void SetOpacity(float In) { Data[7] = In; }
+	float GetOpacity() { return Data[7]; }
+
+	void SetWorldNormal(float3 In) {
+		Data[8] = In.r;
+		Data[9] = In.g;
+		Data[10] = In.b;
+	}
+	float3 GetWorldNormal() { return float3(Data[8], Data[9], Data[10]); }
+
+	void SetFlags(uint In) { Data[11] = asfloat(In); }
+	uint GetFlags() { return asuint(Data[11]); }
+
+	void SetEmissive(float3 In) {
+		Data[12] = In.r;
+		Data[13] = In.g;
+		Data[14] = In.b;
+	}
+	float3 GetEmissive() { return float3(Data[12], Data[13], Data[14]); }
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Tracing util functions

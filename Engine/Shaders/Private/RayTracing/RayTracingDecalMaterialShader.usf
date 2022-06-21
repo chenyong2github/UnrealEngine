@@ -15,22 +15,16 @@
 #define DecalParams RayTracingDecalParameters.DecalParams
 #define DecalWriteFlags RayTracingDecalParameters.DecalWriteFlags
 
-#define DECAL_WRITE_BASE_COLOR_FLAG						(1 << 0)
-#define DECAL_WRITE_NORMAL_FLAG							(1 << 1)
-#define DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG	(1 << 2)
-#define DECAL_WRITE_EMISSIVE_FLAG						(1 << 3)
-#define DECAL_WRITE_AMBIENT_OCCLUSION_FLAG				(1 << 4)
-
 // DECAL_PRIMITIVE informs material templates which functions to expose when rendering decals.
 #define DECAL_PRIMITIVE 1
-#include "/Engine/Generated/Material.ush"   
+#include "/Engine/Generated/Material.ush"
 
-RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader,
-	FDecalCallableShaderParams, Params)
+RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader, FDecalShaderParams, Params)
 {
 	ResolvedView = ResolveView();
 
-	const float3 TranslatedWorldPosition = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.xyz;
+	const float3 TranslatedWorldPosition = Params.GetInputTranslatedWorldPosition();
+	const uint2 PixelCoord = Params.GetPixelCoord();
 
 	float4 DecalPos = mul(float4(TranslatedWorldPosition.xyz, 1), WorldToDecal);
 
@@ -61,8 +55,8 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader,
 	MaterialParameters.TwoSidedSign = 1;
 	MaterialParameters.VertexColor = 1;
 	MaterialParameters.CameraVector = CameraVector;
-	MaterialParameters.SvPosition = 0.0f; // TODO
-	MaterialParameters.ScreenPosition = 0.0f; // TODO
+	MaterialParameters.SvPosition = float4(PixelCoord.xy, 0.0, 1.0);
+	MaterialParameters.ScreenPosition = SvPositionToResolvedScreenPosition(MaterialParameters.SvPosition);
 	MaterialParameters.LightVector = SwizzlePos;
 
 	MaterialParameters.AbsoluteWorldPosition = MaterialParameters.WorldPosition_NoOffsets = LWCSubtract(TranslatedWorldPosition.xyz, PrimaryView.PreViewTranslation);
@@ -72,42 +66,34 @@ RAY_TRACING_ENTRY_CALLABLE(RayTracingDecalMaterialShader,
 	CalcPixelMaterialInputs(MaterialParameters, PixelMaterialInputs);
 
 	const float DecalFading = saturate(4 - 4 * abs(SwizzlePos.z * 2 - 1)) * DecalParams.x;
-	Params.Color.a = GetMaterialOpacity(PixelMaterialInputs) * DecalFading;
+	Params.SetOpacity(GetMaterialOpacity(PixelMaterialInputs) * DecalFading);
 
 	if (DecalWriteFlags & DECAL_WRITE_BASE_COLOR_FLAG)
 	{
-		Params.Color.rgb = GetMaterialBaseColor(PixelMaterialInputs);
+		Params.SetBaseColor(GetMaterialBaseColor(PixelMaterialInputs));
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_NORMAL_FLAG)
 	{
-		Params.WorldNormal.rgb = MaterialParameters.WorldNormal;
+		Params.SetWorldNormal(MaterialParameters.WorldNormal);
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
 	{
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.r = GetMaterialMetallic(PixelMaterialInputs);
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.g = GetMaterialSpecular(PixelMaterialInputs);
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.b = GetMaterialRoughness(PixelMaterialInputs);
-	}
-	else
-	{
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.r = -1;
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.g = -1;
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.b = -1;
+		Params.SetMetallic(GetMaterialMetallic(PixelMaterialInputs));
+		Params.SetSpecular(GetMaterialSpecular(PixelMaterialInputs));
+		Params.SetRoughness(GetMaterialRoughness(PixelMaterialInputs));
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
 	{
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.a = GetMaterialAmbientOcclusion(PixelMaterialInputs);
-	}
-	else
-	{
-		Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.a = -1;
+		Params.SetAO(GetMaterialAmbientOcclusion(PixelMaterialInputs));
 	}
 
 	if (DecalWriteFlags & DECAL_WRITE_EMISSIVE_FLAG)
 	{
-		Params.Emissive = GetMaterialEmissive(PixelMaterialInputs);
+		Params.SetEmissive(GetMaterialEmissive(PixelMaterialInputs));
 	}
+
+	Params.SetFlags(DecalWriteFlags);
 }

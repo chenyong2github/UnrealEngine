@@ -110,6 +110,44 @@ void AccumulateRadiance(inout float3 TotalRadiance, float3 PathRadiance, bool bI
 	TotalRadiance += PathRadiance;
 }
 
+void ApplyDecal(inout FPathTracingPayload HitPayload, FDecalShaderParams Params)
+{
+	const float DecalAlpha = Params.GetOpacity();
+	const uint DecalFlags = Params.GetFlags();
+
+	if (DecalFlags & DECAL_WRITE_BASE_COLOR_FLAG)
+	{
+		HitPayload.BaseColor = lerp(HitPayload.BaseColor, Params.GetBaseColor(), DecalAlpha);
+	}
+
+	if (DecalFlags & DECAL_WRITE_NORMAL_FLAG)
+	{
+		HitPayload.WorldNormal = lerp(HitPayload.WorldNormal, Params.GetWorldNormal(), DecalAlpha);
+	}
+
+	if (DecalFlags & DECAL_WRITE_ROUGHNESS_SPECULAR_METALLIC_FLAG)
+	{
+		HitPayload.Metallic = lerp(HitPayload.Metallic, Params.GetMetallic(), DecalAlpha);
+		HitPayload.Specular = lerp(HitPayload.Specular, Params.GetSpecular(), DecalAlpha);
+		HitPayload.Roughness = lerp(HitPayload.Roughness, Params.GetRoughness(), DecalAlpha);
+	}
+
+	if (DecalFlags & DECAL_WRITE_AMBIENT_OCCLUSION_FLAG)
+	{
+		// TODO: DecalAO?
+	}
+
+	if (DecalFlags & DECAL_WRITE_EMISSIVE_FLAG)
+	{
+		HitPayload.Radiance += Params.GetEmissive() * DecalAlpha;
+	}
+
+	HitPayload.DiffuseColor = HitPayload.BaseColor - HitPayload.BaseColor * HitPayload.Metallic;
+	HitPayload.SpecularColor = ComputeF0(HitPayload.Specular, HitPayload.BaseColor, HitPayload.Metallic);
+
+	// TODO: Payload.Opacity?
+}
+
 FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCameraRay, bool bLastBounce, bool bIncludeEmission, uint NumVisibleLights, inout FVolumeSegment VolumeSegment)
 {
 	const uint RayFlags = bIsCameraRay && EnableCameraBackfaceCulling ? RAY_FLAG_CULL_BACK_FACING_TRIANGLES : 0;
@@ -328,8 +366,7 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 #if PLATFORM_SUPPORTS_CALLABLE_SHADERS
 		if (EnableDecals && HitPayload.IsDecalReceiver())
 		{
-			float3 TranslatedWorldPos = HitPayload.TranslatedWorldPos;
-			float3 WorldNormal = HitPayload.WorldNormal;
+			const float3 TranslatedWorldPos = HitPayload.TranslatedWorldPos;
 
 			FDecalLoopCount DecalLoopCount = DecalGridLookup(TranslatedWorldPos);
 
@@ -337,47 +374,13 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 			{
 				uint DecalId = GetDecalId(Index, DecalLoopCount);
 
-				FDecalCallableShaderParams Params;
-				Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.rgb = TranslatedWorldPos;
-				Params.WorldNormal.rgb = HitPayload.WorldNormal;
-				Params.Color = float4(HitPayload.BaseColor, 0.0f);
-				Params.Emissive = float3(0.0f, 0.0f, 0.0f);
+				FDecalShaderParams Params = (FDecalShaderParams)0;
+				Params.SetInputTranslatedWorldPosition(TranslatedWorldPos);
+				Params.SetPixelCoord(PathState.PixelIndex);
 
 				CallShader(DecalId, Params);
 
-				const float DecalAlpha = Params.Color.a;
-
-				float DecalMetallic = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.r;
-				if (DecalMetallic >= 0)
-				{
-					HitPayload.Metallic = lerp(HitPayload.Metallic, DecalMetallic, DecalAlpha);
-				}
-
-				float DecalSpecular = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.g;
-				if (DecalSpecular >= 0)
-				{
-					HitPayload.Specular = lerp(HitPayload.Specular, DecalSpecular, DecalAlpha);
-				}
-
-				float3 DecalSpecularColor = ComputeF0(HitPayload.Specular, Params.Color.rgb, HitPayload.Metallic);
-				float3 DecalDiffuseColor = Params.Color.rgb - Params.Color.rgb * HitPayload.Metallic;
-
-				HitPayload.BaseColor = lerp(HitPayload.BaseColor, Params.Color.rgb, DecalAlpha);
-				HitPayload.DiffuseColor = lerp(HitPayload.DiffuseColor, DecalDiffuseColor, DecalAlpha);
-				HitPayload.SpecularColor = lerp(HitPayload.SpecularColor, DecalSpecularColor, DecalAlpha);
-
-				const float DecalRoughness = Params.TranslatedWorldPosition_MetallicSpecularRoughnessAO.b;
-				if (DecalRoughness >= 0.0f)
-				{
-					HitPayload.Roughness = lerp(HitPayload.Roughness, DecalRoughness, DecalAlpha);
-				}
-
-				HitPayload.WorldNormal = lerp(HitPayload.WorldNormal, Params.WorldNormal.rgb, DecalAlpha);
-
-				HitPayload.Radiance += Params.Emissive.rgb * DecalAlpha;
-
-				// TODO: DecalAO?
-				// TODO: Payload.Opacity?
+				ApplyDecal(HitPayload, Params);
 			}
 		}
 #endif
