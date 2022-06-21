@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Niagara/NiagaraDataInterfacePhysicsAsset.h"
+#include "NiagaraDataInterfacePhysicsAsset.h"
 #include "Animation/SkeletalMeshActor.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "SkeletalRenderPublic.h"
@@ -9,7 +9,6 @@
 #include "NiagaraShader.h"
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
-#include "GroomComponent.h"
 #include "NiagaraSimStageData.h"
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
@@ -807,38 +806,24 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 	PhysicsAssets.Empty();
 	
 	// Try to find the groom physics asset by walking the attachment hierarchy
-	UPhysicsAsset* GroomPhysicsAsset = DefaultSource;
+	UPhysicsAsset* PhysicsAsset = DefaultSource;
 	for (USceneComponent* Curr = SystemInstance->GetAttachComponent(); Curr; Curr = Curr->GetAttachParent())
 	{
-		UGroomComponent* GroomComponent = Cast<UGroomComponent>(Curr);
-		if (GroomComponent)
+		if (INiagaraPhysicsAssetDICollectorInterface* RetrieverInterface = Cast<INiagaraPhysicsAssetDICollectorInterface>(Curr))
 		{
-			GroomComponent->BuildSimulationTransform(BoneTransform);
-
-			if (GroomComponent->PhysicsAsset)
-			{
-				GroomPhysicsAsset = GroomComponent->PhysicsAsset;
-			}
-			for(auto& CollisionComponent : GroomComponent->CollisionComponents)
-			{
-				if(CollisionComponent.IsValid() && CollisionComponent->GetPhysicsAsset())
-				{
-					SourceComponents.Add(CollisionComponent);
-					PhysicsAssets.Add(CollisionComponent->GetPhysicsAsset());
-				}
-			}
+			PhysicsAsset = RetrieverInterface->BuildAndCollect(BoneTransform, SourceComponents, PhysicsAssets);;
 			break;
 		}
 	}
 	
 	if (SourceComponent != nullptr)
 	{
-		if (GroomPhysicsAsset || SourceComponent->GetPhysicsAsset())
+		if (PhysicsAsset || SourceComponent->GetPhysicsAsset())
 		{
 			SourceComponents.Add(SourceComponent);
-			if (GroomPhysicsAsset)
+			if (PhysicsAsset)
 			{
-				PhysicsAssets.Add(GroomPhysicsAsset);
+				PhysicsAssets.Add(PhysicsAsset);
 			}
 			else
 			{
@@ -846,10 +831,10 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 			}
 		}
 	}
-	else if (GroomPhysicsAsset != nullptr)
+	else if (PhysicsAsset != nullptr)
 	{
 		SourceComponents.Add(nullptr);
-		PhysicsAssets.Add(GroomPhysicsAsset);
+		PhysicsAssets.Add(PhysicsAsset);
 	}
 }
 
@@ -1378,9 +1363,8 @@ bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterf
 
 void UNiagaraDataInterfacePhysicsAsset::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraQuaternionUtils.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePhysicsAsset.ush\"\n");	
-	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraQuaternionUtils.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraQuaternionUtils.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfacePhysicsAsset.ush\"\n");	
 }
 
 void UNiagaraDataInterfacePhysicsAsset::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -1404,5 +1388,9 @@ void UNiagaraDataInterfacePhysicsAsset::ProvidePerInstanceDataForRenderThread(vo
 	}
 	check(Proxy);
 }
+
+UNiagaraPhysicsAssetDICollectorInterface::UNiagaraPhysicsAssetDICollectorInterface(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{}
 
 #undef LOCTEXT_NAMESPACE

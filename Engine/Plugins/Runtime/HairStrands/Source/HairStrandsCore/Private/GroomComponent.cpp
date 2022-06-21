@@ -3304,6 +3304,22 @@ void UGroomComponent::BuildSimulationTransform(FTransform& SimulationTransform) 
 	}
 }
 
+UPhysicsAsset* UGroomComponent::BuildAndCollect(FTransform& BoneTransform, TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SourceComponents, TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets) const
+{
+	BuildSimulationTransform(BoneTransform);
+
+	for (auto& CollisionComponent : CollisionComponents)
+	{
+		if (CollisionComponent.IsValid() && CollisionComponent->GetPhysicsAsset())
+		{
+			SourceComponents.Add(CollisionComponent);
+			PhysicsAssets.Add(CollisionComponent->GetPhysicsAsset());
+		}
+	}
+
+	return PhysicsAsset;
+}
+
 void UGroomComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);	

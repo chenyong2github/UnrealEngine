@@ -56,6 +56,7 @@ public class HairModelingToolset : ModuleRules
 				"PhysicsCore",
 				"RenderCore",
 				"RHI",
+				"Niagara",
 
 				"ApplicationCore",
 				"Slate",

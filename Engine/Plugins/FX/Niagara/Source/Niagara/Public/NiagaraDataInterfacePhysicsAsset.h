@@ -6,6 +6,8 @@
 #include "NiagaraCommon.h"
 #include "VectorVM.h"
 #include "PhysicsEngine/PhysicsAsset.h"
+#include "UObject/Interface.h"
+
 #include "NiagaraDataInterfacePhysicsAsset.generated.h"
 
 #define PHYSICS_ASSET_MAX_PRIMITIVES 100
@@ -96,9 +98,9 @@ struct FNDIPhysicsAssetData
 	ETickingGroup TickingGroup;
 };
 
-/** Data Interface for the strand base */
-UCLASS(EditInlineNew, Category = "Strands", meta = (DisplayName = "Physics Asset"))
-class HAIRSTRANDSCORE_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
+/** Data Interface for interacting with PhysicsAssets */
+UCLASS(EditInlineNew, Category = "Physics", meta = (DisplayName = "Physics Asset"))
+class NIAGARA_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -222,7 +224,7 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 	/** Get the data that will be passed to render*/
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
-	/** Initialize the Proxy data strands buffer */
+	/** Initialize the Proxy data buffer */
 	void InitializePerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** Destroy the proxy data if necessary */
@@ -235,3 +237,18 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 	TMap<FNiagaraSystemInstanceID, FNDIPhysicsAssetData> SystemInstancesToProxyData;
 };
 
+UINTERFACE()
+class NIAGARA_API UNiagaraPhysicsAssetDICollectorInterface : public UInterface
+{
+	GENERATED_UINTERFACE_BODY()
+};
+
+class NIAGARA_API INiagaraPhysicsAssetDICollectorInterface
+{
+	GENERATED_IINTERFACE_BODY()
+
+	virtual UPhysicsAsset* BuildAndCollect(
+		FTransform& BoneTransform,
+		TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SourceComponents,
+		TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets) const = 0;
+};

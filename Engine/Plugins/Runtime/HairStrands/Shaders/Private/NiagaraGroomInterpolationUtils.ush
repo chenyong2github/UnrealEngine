@@ -6,7 +6,7 @@ NiagaraGroomInterpolationUtils.ush
 
 #pragma once
 
-#include "NiagaraQuaternionUtils.ush"
+#include "/Plugin/FX/Niagara/Private/NiagaraQuaternionUtils.ush"
 
 // Compute the projection triangle
 void DIHairStrands_ComputeProjectionTriangle(in float2 ProjectionUV, in float3 PA, in float3 PB, in float3 PC, in float3 Offset, 

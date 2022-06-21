@@ -12,13 +12,14 @@
 #include "GroomDesc.h"
 #include "LODSyncInterface.h"
 #include "GroomInstance.h"
+#include "NiagaraDataInterfacePhysicsAsset.h"
 
 #include "GroomComponent.generated.h"
 
 class UGroomCache;
 
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface
+class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface, public INiagaraPhysicsAssetDICollectorInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -268,6 +269,10 @@ public:
 
 	/** Build the local simulation transform that could be used in strands simulation */
 	void BuildSimulationTransform(FTransform& SimulationTransform) const;
+
+	//~ Begin INiagaraPhysicsAssetDICollectorInterface Interface
+	virtual UPhysicsAsset* BuildAndCollect(FTransform& BoneTransform, TArray<TWeakObjectPtr<USkeletalMeshComponent>>& SourceComponents, TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAssets) const override;
+	//~ End INiagaraPhysicsAssetDICollectorInterface Interface
 
 private:
 	void UpdateGroomCache(float Time);

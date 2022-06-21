@@ -4404,7 +4404,7 @@ in float RestLength, in float DeltaTime, in int NodeOffset, in float MaterialDam
 
 void UNiagaraDataInterfaceHairStrands::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraQuaternionUtils.ush\"\n");
+	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraQuaternionUtils.ush\"\n");
 	//OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDirectSolver.ush\"\n");
 	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraStrandsExternalForce.ush\"\n");
 	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraHookeSpringMaterial.ush\"\n");
@@ -4422,7 +4422,7 @@ bool UNiagaraDataInterfaceHairStrands::AppendCompileHash(FNiagaraCompileHashVisi
 
 	for (const TCHAR* VirtualFilePath :
 		{
-			TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraQuaternionUtils.ush"),
+			TEXT("/Plugin/FX/Niagara/Private/NiagaraQuaternionUtils.ush"),
 			TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraStrandsExternalForce.ush"),
 			TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraHookeSpringMaterial.ush"),
 			TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraAngularSpringMaterial.ush"),
