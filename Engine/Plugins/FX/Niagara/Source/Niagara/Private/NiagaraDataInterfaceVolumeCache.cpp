@@ -22,6 +22,7 @@ const TCHAR* UNiagaraDataInterfaceVolumeCache::TemplateShaderFilePath = TEXT("/P
 const FName UNiagaraDataInterfaceVolumeCache::SetFrameName("SetFrame");
 const FName UNiagaraDataInterfaceVolumeCache::ReadFileName("ReadFile");
 const FName UNiagaraDataInterfaceVolumeCache::GetNumCellsName("GetNumCells");
+const FName UNiagaraDataInterfaceVolumeCache::IndexToUnitName("IndexToUnit");
 const FName UNiagaraDataInterfaceVolumeCache::SampleCurrentFrameValueName(TEXT("SampleCurrentFrameValue"));
 const FName UNiagaraDataInterfaceVolumeCache::GetCurrentFrameValue(TEXT("GetCurrentFrameValue"));
 const FName UNiagaraDataInterfaceVolumeCache::GetCurrentFrameNumCells(TEXT("GetCurrentFrameNumCells"));
@@ -190,6 +191,18 @@ void UNiagaraDataInterfaceVolumeCache::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsX")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsY")));
 		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("NumCellsZ")));
+
+		Sig.bMemberFunction = true;
+		Sig.bRequiresContext = false;
+		OutFunctions.Add(Sig);
+	}
+
+	{
+		FNiagaraFunctionSignature Sig;
+		Sig.Name = IndexToUnitName;
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Grid")));
+		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Index")));		
+		Sig.Outputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("Unit")));
 
 		Sig.bMemberFunction = true;
 		Sig.bRequiresContext = false;
@@ -401,7 +414,8 @@ bool UNiagaraDataInterfaceVolumeCache::GetFunctionHLSL(const FNiagaraDataInterfa
 {
 	if ((FunctionInfo.DefinitionName == SampleCurrentFrameValueName) ||
 		(FunctionInfo.DefinitionName == GetCurrentFrameNumCells) ||
-		(FunctionInfo.DefinitionName == GetCurrentFrameValue))
+		(FunctionInfo.DefinitionName == GetCurrentFrameValue) || 
+		(FunctionInfo.DefinitionName == IndexToUnitName))
 	{
 		return true;
 	}

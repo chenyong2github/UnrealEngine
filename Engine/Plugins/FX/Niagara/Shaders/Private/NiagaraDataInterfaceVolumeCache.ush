@@ -18,3 +18,8 @@ void GetCurrentFrameNumCells_{ParameterName}(out float3 OutValue)
 {
 	OutValue = {ParameterName}_TextureSize;
 }
+
+void IndexToUnit_{ParameterName}(float3 Index, out float3 Unit)
+{
+	Unit = (Index + .5) / {ParameterName}_TextureSize;
+}

@@ -68,6 +68,7 @@ protected:
 	static const FName SetFrameName;
 	static const FName ReadFileName;
 	static const FName GetNumCellsName;
+	static const FName IndexToUnitName;
 	static const FName SampleCurrentFrameValueName;
 	static const FName GetCurrentFrameValue;
 	static const FName GetCurrentFrameNumCells;
