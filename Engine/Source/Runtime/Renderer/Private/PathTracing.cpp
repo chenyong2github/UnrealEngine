@@ -227,10 +227,10 @@ TAutoConsoleVariable<int32> CVarPathTracingWiperMode(
 
 TAutoConsoleVariable<int32> CVarPathTracingProgressDisplay(
 	TEXT("r.PathTracing.ProgressDisplay"),
-	0,
-	TEXT("Enables an in-frame display of progress towards the defined sample per pixel limit. The indicator dissapears when the maximum is reached and sample accumulation has stopped (default = 0)\n")
-	TEXT("0: off (default)\n")
-	TEXT("1: on\n"),
+	1,
+	TEXT("Enables an in-frame display of progress towards the defined sample per pixel limit. The indicator dissapears when the maximum is reached and sample accumulation has stopped (default = 1)\n")
+	TEXT("0: off\n")
+	TEXT("1: on (default)\n"),
 	ECVF_RenderThreadSafe
 );
 

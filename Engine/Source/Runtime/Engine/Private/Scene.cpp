@@ -594,7 +594,7 @@ FPostProcessSettings::FPostProcessSettings()
 	RayTracingTranslucencyRefraction = 1;
 
 	PathTracingMaxBounces = 32;
-	PathTracingSamplesPerPixel = 16384;
+	PathTracingSamplesPerPixel = 2048;
 	PathTracingFilterWidth = 3.0f;
 	PathTracingEnableEmissive = 1;
 	PathTracingMaxPathExposure = 30.0f;
