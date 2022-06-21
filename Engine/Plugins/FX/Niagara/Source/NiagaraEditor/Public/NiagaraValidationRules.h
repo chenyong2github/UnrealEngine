@@ -96,6 +96,15 @@ public:
 	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
 };
 
+/** This validation rule is used by modules or effect types to warn that they don't support systems with fixed delta time ticks. */
+UCLASS(Category = "Validation", DisplayName = "No Fixed DT Tick Support")
+class UNiagaraValidationRule_NoFixedDeltaTime : public UNiagaraValidationRule
+{
+	GENERATED_BODY()
+public:
+	virtual void CheckValidity(const FNiagaraValidationContext& Context, TArray<FNiagaraValidationResult>& OutResults) const override;
+};
+
 /** This validation rule can be used to enforce a budget on the number of simulation stages and the iterations that may execute. */
 UCLASS(Category = "Validation", DisplayName = "Simulation Stage Budget")
 class UNiagaraValidationRule_SimulationStageBudget : public UNiagaraValidationRule
