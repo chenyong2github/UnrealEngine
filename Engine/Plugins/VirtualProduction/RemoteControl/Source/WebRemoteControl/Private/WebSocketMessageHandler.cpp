@@ -1525,8 +1525,11 @@ bool FWebSocketMessageHandler::WriteActorPropertyChangePayload(URemoteControlPre
 		}
 	}
 
-	FStructOnScope ActorsModifedOnScope = WebSocketMessageHandlerStructUtils::CreateModifiedActorsStructOnScope(InPreset, ModifiedActorsOnScope);
-	WebRemoteControlInternalUtils::SerializeStructOnScope(ActorsModifedOnScope, InWriter);
+	if (ensure(ModifiedActorsOnScope.Num()))
+	{
+		FStructOnScope ActorsModifedOnScope = WebSocketMessageHandlerStructUtils::CreateModifiedActorsStructOnScope(InPreset, ModifiedActorsOnScope);
+		WebRemoteControlInternalUtils::SerializeStructOnScope(ActorsModifedOnScope, InWriter);
+	}
 
 	return bHasProperty;
 }
