@@ -435,6 +435,9 @@ public:
 	/** Get all types of exposed entities currently exposed. (ie. FRemoteControlActor) */
 	const TSet<UScriptStruct*>& GetExposedEntityTypes() const;
 
+	/** Returns true when Exposed Entities is populated. */
+	const bool HasEntities() const;
+
 	/** Returns whether an entity is exposed on the preset. */
 	bool IsExposed(const FGuid& ExposedEntityId) const;
 

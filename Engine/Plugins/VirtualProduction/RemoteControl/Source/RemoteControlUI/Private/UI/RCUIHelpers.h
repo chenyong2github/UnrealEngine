@@ -9,13 +9,13 @@ class URCController;
 namespace UE::RCUIHelpers
 {
 	/** GetFieldClassTypeColor
-	* Fetches the editor color associated with a given Unreal Type (FProperty)
-	* Used to provide color coding in the Remote Control Logic Actions panel 
-	*/
+	 * Fetches the editor color associated with a given Unreal Type (FProperty)
+	 * Used to provide color coding in the Remote Control Logic Actions panel 
+	 */
 	FLinearColor GetFieldClassTypeColor(const FProperty* InProperty);
 
 	/** GetFieldClassDisplayName
-	* Fetches the display name associated with a given Unreal Type (FProperty)
-	*/
-	FText GetFieldClassDisplayName(const FProperty* InProperty);
+	 * Fetches the display name associated with a given Unreal Type (FProperty)
+	 */
+	FName GetFieldClassDisplayName(const FProperty* InProperty);
 }

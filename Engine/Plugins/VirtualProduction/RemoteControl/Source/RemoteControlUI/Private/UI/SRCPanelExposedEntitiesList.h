@@ -26,6 +26,7 @@ class SRemoteControlTarget;
 struct SRCPanelExposedField;
 class STableViewBase;
 class URemoteControlPreset;
+struct FRCPanelStyle;
 
 /** Holds information about a group drag and drop event  */
 struct FGroupDragEvent
@@ -53,6 +54,7 @@ public:
 		: _EditMode(true)
 	{}
 		SLATE_ATTRIBUTE(bool, EditMode)
+		SLATE_ATTRIBUTE(TSharedPtr<SWidget>, ExposeComboButton)
 		SLATE_EVENT(FSimpleDelegate, OnEntityListUpdated)
 	SLATE_END_ARGS()
 
@@ -151,11 +153,16 @@ private:
 	/** Notifies us that we need to do a search or filter in the next tick. */
 	void RequestSearchOrFilter();
 
+	/** Delete all operation for entities list. */
+	FReply RequestDeleteAllEntities();
+	/** Delete all operation for groups list. */
+	FReply RequestDeleteAllGroups();
+
 private:
 	/** Holds the Groups list view. */
 	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> GroupsListView;
 	/** Holds the Fields list view. */
-	TSharedPtr<SListView<TSharedPtr<SRCPanelTreeNode>>> FieldsListView;
+	TSharedPtr<STreeView<TSharedPtr<SRCPanelTreeNode>>> FieldsListView;
 	/** Holds all the field groups. */
 	TArray<TSharedPtr<SRCPanelGroup>> FieldGroups;
 	/** Holds all the field entities. */
@@ -173,7 +180,7 @@ private:
 	/** The column data shared between all tree nodes in order to share a splitter amongst all rows. */
 	FRCColumnSizeData ColumnSizeData;
 	/** The actual width of the right column.  The left column is 1-ColumnWidth */
-	float ColumnWidth = 0.65f;
+	float ColumnWidth = 0.49f;
 	/** Event triggered when the entity list is updated. */
 	FSimpleDelegate OnEntityListUpdatedDelegate;
 	/** Holds the cache of widgets to be used by this list's entities. */
@@ -186,6 +193,6 @@ private:
 	bool bSearchRequested;
 	/** Holds the text that is being searched actively. */
 	TSharedPtr<FText> SearchedText;
-	int32 SearchCount;
-	int32 FilterCount;
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };

@@ -2,9 +2,12 @@
 
 #include "UI/RemoteControlPanelStyle.h"
 #include "Styling/AppStyle.h"
+#include "Styling/CoreStyle.h"
+#include "Styling/RemoteControlStyles.h"
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
-#include "Styling/CoreStyle.h"
+#include "Styling/StarshipCoreStyle.h"
+#include "Styling/StyleColors.h"
 #include "Interfaces/IPluginManager.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Input/SButton.h"
@@ -90,46 +93,19 @@ void FRemoteControlPanelStyle::Initialize()
 
 	StyleSet->Set("RemoteControlPanel.GroupRowSelected", new BOX_BRUSH("Common/GroupBorderLight", FMargin(4.0f / 16.0f), NewSelectionColor));
 	StyleSet->Set("RemoteControlPanel.TransparentBorder", new FSlateColorBrush(FColor::Transparent));
-
-	FTableRowStyle GroupRowStyle = AppStyle.GetWidgetStyle<FTableRowStyle>("TableView.Row");
-	GroupRowStyle.SetSelectorFocusedBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupRowSelected"));
-
-	GroupRowStyle.SetEvenRowBackgroundBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));
-	GroupRowStyle.SetOddRowBackgroundBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));
-	GroupRowStyle.SetEvenRowBackgroundHoveredBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));
-	GroupRowStyle.SetOddRowBackgroundHoveredBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupBorder"));
-	GroupRowStyle.SetActiveHoveredBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupRowSelected"));
-	GroupRowStyle.SetInactiveHoveredBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupRowSelected"));
-	GroupRowStyle.SetActiveBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupRowSelected"));
-	GroupRowStyle.SetInactiveBrush(*FRemoteControlPanelStyle::Get()->GetBrush("RemoteControlPanel.GroupRowSelected"));
 	
-	StyleSet->Set("RemoteControlPanel.GroupRow", GroupRowStyle);
-	
-	// Checkbox for live/edit mode
-	
-	{
-		StyleSet->Set("Switch.ToggleOff", new IMAGE_PLUGIN_BRUSH("Icons/Switch_OFF", Icon28x14));
-		
-		StyleSet->Set("Switch.ToggleOn", new IMAGE_PLUGIN_BRUSH("Icons/Switch_ON", Icon28x14));
-
-		FCheckBoxStyle SwitchStyle = FCheckBoxStyle()
-			.SetForegroundColor(FLinearColor::White)
-			.SetUncheckedImage(*StyleSet->GetBrush("Switch.ToggleOff"))
-			.SetUncheckedHoveredImage(*StyleSet->GetBrush("Switch.ToggleOff"))
-			.SetUncheckedPressedImage(*StyleSet->GetBrush("Switch.ToggleOff"))
-			.SetCheckedImage(*StyleSet->GetBrush("Switch.ToggleOn"))
-			.SetCheckedHoveredImage(*StyleSet->GetBrush("Switch.ToggleOn"))
-			.SetCheckedPressedImage(*StyleSet->GetBrush("Switch.ToggleOn"))
-			.SetPadding(FMargin(1, 1, 1, 1));
-
-		StyleSet->Set("RemoteControlPanel.Switch", SwitchStyle);
-	} 
+	// Toggle Button Style
+	StyleSet->Set("Switch.ToggleOff", new IMAGE_PLUGIN_BRUSH("Icons/Switch_OFF", Icon28x14));
+	StyleSet->Set("Switch.ToggleOn", new IMAGE_PLUGIN_BRUSH("Icons/Switch_ON", Icon28x14));
 
 	// Remote Control Logic UI
 	StyleSet->Set("RemoteControlPanel.Behaviours.Title", FCoreStyle::GetDefaultFontStyle("Regular", 12));
 	StyleSet->Set("RemoteControlPanel.Behaviours.BehaviourDescription", FCoreStyle::GetDefaultFontStyle("Regular", 10));
 	StyleSet->Set("RemoteControlPanel.Behaviours.CustomBlueprint", new IMAGE_BRUSH_SVG("Starship/MainToolbar/blueprints", Icon20x20));
 	StyleSet->Set("RemoteControlPanel.Actions.ValuePanelHeader", FCoreStyle::GetDefaultFontStyle("Bold", 12));
+
+	// Remote Control Panel UI
+	SetupPanelStyles(StyleSet.ToSharedRef());
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }
@@ -159,6 +135,77 @@ FString FRemoteControlPanelStyle::InContent(const FString& RelativePath, const A
 {
 	static const FString ContentDir = IPluginManager::Get().FindPlugin(TEXT("RemoteControl"))->GetBaseDir() + TEXT("/Resources");
 	return (ContentDir / RelativePath) + Extension;
+}
+
+void FRemoteControlPanelStyle::SetupPanelStyles(TSharedRef<FSlateStyleSet> InStyle)
+{
+	const ISlateStyle& AppStyle = FAppStyle::Get();
+
+	// Flat Button Style
+	FButtonStyle FlatButtonStyle = AppStyle.GetWidgetStyle<FButtonStyle>("DetailsView.NameAreaButton");
+	FlatButtonStyle.Normal = *AppStyle.GetBrush("NoBorder");
+	FlatButtonStyle.Disabled = *AppStyle.GetBrush("NoBorder");
+
+	// Toggle Button Style
+	FCheckBoxStyle ToggleButtonStyle = FCheckBoxStyle()
+		.SetForegroundColor(FLinearColor::White)
+		.SetUncheckedImage(*StyleSet->GetBrush("Switch.ToggleOff"))
+		.SetUncheckedHoveredImage(*StyleSet->GetBrush("Switch.ToggleOff"))
+		.SetUncheckedPressedImage(*StyleSet->GetBrush("Switch.ToggleOff"))
+		.SetCheckedImage(*StyleSet->GetBrush("Switch.ToggleOn"))
+		.SetCheckedHoveredImage(*StyleSet->GetBrush("Switch.ToggleOn"))
+		.SetCheckedPressedImage(*StyleSet->GetBrush("Switch.ToggleOn"))
+		.SetPadding(FMargin(1, 1, 1, 1));
+
+	// Table View Style
+	FTableViewStyle TableViewStyle = AppStyle.GetWidgetStyle<FTableViewStyle>("SimpleListView");
+	TableViewStyle.BackgroundBrush = FSlateColorBrush(FStyleColors::Background);
+
+	// Header Row Style
+	FHeaderRowStyle HeaderRowStyle = AppStyle.GetWidgetStyle<FHeaderRowStyle>("PropertyTable.HeaderRow");
+	HeaderRowStyle.BackgroundBrush = FSlateColorBrush(FStyleColors::Background);
+	HeaderRowStyle.HorizontalSeparatorBrush = FSlateColorBrush(FStyleColors::Background);
+	HeaderRowStyle.HorizontalSeparatorThickness = 2.f;
+
+	// Table Row Style
+	FTableRowStyle TableRowStyle = AppStyle.GetWidgetStyle<FTableRowStyle>("DetailsView.TreeView.TableRow");
+	TableRowStyle.SetSelectorFocusedBrush(FSlateColorBrush(FStyleColors::Highlight));
+
+	TableRowStyle.SetEvenRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel));
+	TableRowStyle.SetOddRowBackgroundBrush(FSlateColorBrush(FStyleColors::Panel));
+	TableRowStyle.SetEvenRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Background));
+	TableRowStyle.SetOddRowBackgroundHoveredBrush(FSlateColorBrush(FStyleColors::Background));
+	TableRowStyle.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::Select));
+	TableRowStyle.SetInactiveHoveredBrush(FSlateColorBrush(FStyleColors::SelectInactive));
+	TableRowStyle.SetActiveBrush(FSlateColorBrush(FStyleColors::Select));
+	TableRowStyle.SetInactiveBrush(FSlateColorBrush(FStyleColors::SelectInactive));
+
+	StyleSet->Set("RemoteControlPanel.GroupRow", TableRowStyle);
+
+	// Text Styles
+	const FStyleFonts& StyleFonts = FStyleFonts::Get();
+
+	const FTextBlockStyle& NormalText = AppStyle.GetWidgetStyle<FTextBlockStyle>("NormalText");
+
+	const FTextBlockStyle HeaderText = FTextBlockStyle(NormalText)
+		.SetFont(StyleFonts.Large);
+
+	FRCPanelStyle RCMinorPanelStyle = FRCPanelStyle()
+		.SetFlatButtonStyle(FlatButtonStyle)
+		.SetToggleButtonStyle(ToggleButtonStyle)
+
+		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Panel))
+		.SetSectionHeaderBrush(FSlateColorBrush(FStyleColors::Foldout))
+
+		.SetHeaderRowStyle(HeaderRowStyle)
+		.SetTableRowStyle(TableRowStyle)
+		.SetTableViewStyle(TableViewStyle)
+
+		.SetHeaderTextStyle(HeaderText)
+		.SetPanelTextStyle(NormalText)
+		.SetSectionHeaderTextStyle(HeaderText);
+
+	StyleSet->Set("RemoteControlPanel.MinorPanel", RCMinorPanelStyle);
 }
 
 #undef IMAGE_PLUGIN_BRUSH

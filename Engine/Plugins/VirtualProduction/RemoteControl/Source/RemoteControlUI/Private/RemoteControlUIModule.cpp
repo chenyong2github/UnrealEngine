@@ -724,7 +724,6 @@ bool FRemoteControlUIModule::ShouldSkipOwnPanelProperty(const FRCExposesProperty
 			return false;
 		}
 
-
 		// Don't display an expose icon for RCEntities since they're only displayed in the Remote Control Panel.
 		if (InProp->GetOwnerStruct() && InProp->GetOwnerStruct()->IsChildOf(FRemoteControlEntity::StaticStruct()))
 		{
@@ -820,7 +819,7 @@ void FRemoteControlUIModule::OnSettingsModified(UObject*, FPropertyChangedEvent&
 		if (TSharedPtr<SRCPanelExposedEntitiesList> EntityList = Panel->GetEntityList())
 		{
 			EntityList->Refresh();
-		}	
+		}
 	}
 }
 

@@ -26,9 +26,16 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs);
 
+	/** Returns true if the underlying list is valid and empty. */
+	virtual bool IsEmpty() const = 0;
+	
+	/** Returns number of items in the list. */
+	virtual int32 Num() const = 0;
+
 private:
+
 	/** Refreshes the list from the latest state of the model*/
-	virtual void Reset()  = 0;
+	virtual void Reset() = 0;
 
 	/** Handles broadcasting of a successful remove item operation.
 	* This is handled uniquely by each type of child list widget*/
@@ -41,6 +48,7 @@ private:
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) = 0;
 
 protected:
+
 	/** Helper function for handling common Delete Item functionality across all child panels (Actions/Behaviours/Controllers)
 	* Currently invoked from each Panel List child class with appropriate template class*/
 	template<class T>

@@ -4,6 +4,7 @@
 
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
 
+struct FRCPanelStyle;
 class URCBehaviour;
 class FRCControllerModel;
 class FRCBehaviourModel;
@@ -31,8 +32,21 @@ public:
 
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRCBehaviourPanel> InBehaviourPanel, TSharedPtr<FRCControllerModel> InControllerItem);
+	
+	/** Returns true if the underlying list is valid and empty. */
+	virtual bool IsEmpty() const override;
+	
+	/** Returns number of items in the list. */
+	virtual int32 Num() const override;
+
+	/** Whether the Behaviours List View currently has focus.*/
+	bool IsListFocused() const;
+
+	/** Deletes currently selected items from the list view*/
+	void DeleteSelectedPanelItem();
 
 private:
+
 	/** OnGenerateRow delegate for the Behaviours List View */
 	TSharedRef<ITableRow> OnGenerateWidgetForList( TSharedPtr<FRCBehaviourModel> InItem, const TSharedRef<STableViewBase>& OwnerTable );
 	
@@ -44,21 +58,6 @@ private:
 
 	/** Responds to the removal of all Behaviours. Rests UI state */
 	void OnEmptyBehaviours();
-
-	/** The parent Behaviour Panel widget */
-	TWeakPtr<SRCBehaviourPanel> BehaviourPanelWeakPtr;
-	
-	/** The Controller (UI model) associated with us */
-	TWeakPtr<FRCControllerModel> ControllerItemWeakPtr;
-	
-	/** The currently selected Behaviour item (UI model) */
-	TWeakPtr<FRCBehaviourModel> SelectedBehaviourItemWeakPtr;
-
-	/** List of Behaviours (UI models) active in this widget */
-	TArray<TSharedPtr<FRCBehaviourModel>> BehaviourItems;
-	
-	/** List View widget for representing our Behaivours List*/
-	TSharedPtr<SListView<TSharedPtr<FRCBehaviourModel>>> ListView;
 
 	/** Refreshes the list from the latest state of the model*/
 	virtual void Reset() override;
@@ -72,11 +71,24 @@ private:
 	/** Removes the given Behaviour UI model item from the list of UI models*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) override;
 
-public:
-	/** Whether the Behaviours List View currently has focus.*/
-	bool IsListFocused() const;
+private:
 
-	/** Deletes currently selected items from the list view*/
-	void DeleteSelectedPanelItem();
+	/** The parent Behaviour Panel widget */
+	TWeakPtr<SRCBehaviourPanel> BehaviourPanelWeakPtr;
+
+	/** The Controller (UI model) associated with us */
+	TWeakPtr<FRCControllerModel> ControllerItemWeakPtr;
+
+	/** The currently selected Behaviour item (UI model) */
+	TWeakPtr<FRCBehaviourModel> SelectedBehaviourItemWeakPtr;
+
+	/** List of Behaviours (UI models) active in this widget */
+	TArray<TSharedPtr<FRCBehaviourModel>> BehaviourItems;
+
+	/** List View widget for representing our Behaivours List*/
+	TSharedPtr<SListView<TSharedPtr<FRCBehaviourModel>>> ListView;
+
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };
 

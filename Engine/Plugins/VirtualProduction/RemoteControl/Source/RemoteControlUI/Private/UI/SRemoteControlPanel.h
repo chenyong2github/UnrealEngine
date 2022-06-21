@@ -14,12 +14,15 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 
+enum class ERCPanels : uint8;
 class AActor;
 struct EVisibility;
 struct FAssetData;
 class FExposedEntityDragDrop;
 struct FListEntry;
+struct FRCPanelDrawerArgs;
 class FRCPanelWidgetRegistry;
+struct FRCPanelStyle;
 struct FRemoteControlEntity;
 class FReply;
 class IToolkitHost;
@@ -31,6 +34,7 @@ class SComboButton;
 struct SRCPanelTreeNode;
 class SRCPanelFunctionPicker;
 class SRemoteControlPanel;
+class SRCPanelDrawer;
 class SRCPanelExposedEntitiesList;
 class SRCPanelFilter;
 class SSearchBox;
@@ -147,6 +151,11 @@ private:
 	/** Unregister editor events */
 	void UnregisterEvents();
 
+	/** Register panels to the drawer. */
+	void RegisterPanels();
+	/** Unregister panels from the drawer. */
+	void UnregisterPanels();
+
 	/** Unexpose a field from the preset. */
 	void Unexpose(const FRCExposesPropertyArgs& InArgs);
 
@@ -155,12 +164,6 @@ private:
 
 	/** Handler called when a blueprint is reinstanced. */
 	void OnBlueprintReinstanced();
-
-	/** Handles creating a new group. */
-	FReply OnCreateGroup();
-
-	/** Handles saving the Preset. */
-	FReply OnSavePreset();
 
 	/** Expose a property using its handle. */
 	void ExposeProperty(UObject* Object, FRCFieldPathInfo FieldPath);
@@ -225,9 +228,6 @@ private:
 	/** Triggers a next frame update of the actor function picker to ensure that added actors are valid. */
 	void UpdateActorFunctionPicker();
 	
-	/** Handle updating the preset name textblock when it's renamed. */
-	void OnAssetRenamed(const FAssetData& Asset, const FString&);
-
 	/** Handle clicking on the setting button. */
 	FReply OnClickSettingsButton();
 
@@ -262,12 +262,16 @@ private:
 
 	static bool ShouldForceSmallIcons();
 
-	void OnToggleExposeFunctions() const;
+	void ToggleProtocolMappings_Execute();
+	bool CanToggleProtocolsMode() const;
+	bool IsInProtocolsMode() const;
 
-	void OnToggleProtocolMappings() const;
+	void ToggleLogicEditor_Execute();
+	bool CanToggleLogicPanel() const;
+	bool IsLogicPanelEnabled() const;
 
-	void OnToggleLogicEditor() const;
-	
+	void OnRCPanelToggled(ERCPanels InPanelID);
+
 	/** Called when user attempts to delete a group/exposed entity. */
 	void DeleteEntity_Execute();
 
@@ -294,6 +298,9 @@ private:
 	/** Saves settings from config based on the preset identifier. */
 	void SaveSettings();
 
+	/** Retrieves active logic panel. */
+	TSharedPtr<class SRCLogicPanelBase> GetActiveLogicPanel() const;
+
 private:
 	static const FName DefaultRemoteControlPanelToolBarName;
 	static const FName AuxiliaryRemoteControlPanelToolBarName;
@@ -301,6 +308,10 @@ private:
 	TStrongObjectPtr<URemoteControlPreset> Preset;
 	/** Whether the panel is in edit mode. */
 	bool bIsInEditMode = true;
+	/** Whether the panel is in protocols mode. */
+	bool bIsInProtocolsMode = false;
+	/** Whether the logic panel is enabled or not. */
+	bool bIsLogicPanelEnabled = false;
 	/** Whether objects need to be re-resolved because PIE Started or ended. */
 	bool bTriggerRefreshForPIE = false;
 	/** Delegate called when the edit mode changes. */
@@ -321,14 +332,16 @@ private:
 	TSharedPtr<SClassViewer> ClassPicker;
 	/** Holds the field's details. */
 	TSharedPtr<class IStructureDetailsView> EntityDetailsView;
+	/** Wrapper widget for entity details view. */
+	TSharedPtr<SBorder> WrappedEntityDetailsView;
+	/** Helper widget for entity details view and protocol details view. */
+	static TSharedRef<SBox> NoneSelectedWidget;
 	/** Holds the field's protocol details. */
 	TSharedPtr<SBox> EntityProtocolDetails;
 	/** Whether to show the rebind all button. */
 	bool bShowRebindButton = false;
 	/** Cache of exposed property arguments. */
 	TSet<FRCExposesPropertyArgs> CachedExposedPropertyArgs;
-	/** Preset name widget. */
-	TSharedPtr<STextBlock> PresetNameTextBlock;
 	/** Holds a cache of widgets. */
 	TSharedPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 	/** Holds the handle to a timer set for next tick. Used to not schedule more than once event per frame */
@@ -355,26 +368,27 @@ private:
 	TSharedPtr<SRCPanelFilter> FilterPtr;
 	/** Actively serached term. */
 	TSharedPtr<FText> SearchedText;
+	/** Panel Drawer widget holds all docked panels. */
+	TSharedPtr<SRCPanelDrawer> PanelDrawer;
+	/** Map of Opened Drawers. */
+	TMap<ERCPanels, TSharedRef<FRCPanelDrawerArgs>> RegisteredDrawers;
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
+	/** Stores the active panel that is drawn. */
+	ERCPanels ActivePanel;
 
 	// ~ Remote Control Logic Panels ~
 
 	/** Controller panel UI widget for Remote Control Logic*/
 	TSharedPtr<class SRCControllerPanel> ControllerPanel;
-
 	/** Behaviour panel UI widget for Remote Control Logic*/
 	TSharedPtr<class SRCBehaviourPanel> BehaviourPanel;
-
 	/** Action panel UI widget for Remote Control Logic*/
 	TSharedPtr<class SRCActionPanel> ActionPanel;
 
-
 public:
+
 	static const float MinimumPanelWidth;
-
-	/** Tab Manager used to handle spawning of Controller and Exposed Property tabs*/
-	TSharedPtr<FGlobalTabmanager> TabManager;
-
-public:
 	// Global Delegates for Remote Control Logic
 	FOnControllerAdded OnControllerAdded;	
 	FOnBehaviourAdded OnBehaviourAdded;
@@ -384,7 +398,4 @@ public:
 	FOnEmptyControllers OnEmptyControllers;
 	FOnEmptyBehaviours OnEmptyBehaviours;
 	FOnEmptyActions OnEmptyActions;
-
-private:
-	TSharedPtr<class SRCLogicPanelBase> GetActiveLogicPanel() const;
 };

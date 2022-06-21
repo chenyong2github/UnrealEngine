@@ -154,6 +154,9 @@ public:
 	 */
 	const TSet<UScriptStruct*>& GetExposedEntityTypes() const;
 
+	/** Returns true when Exposed Entities is empty. */
+	const bool IsEmpty() const;
+
 	/**
 	 * Add an entity to the set of exposed entities of its type.
 	 * @param EntityToExpose the entity to expose.

@@ -6,6 +6,7 @@
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "RemoteControlPanelStyle.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/SNullWidget.h"
 
 class AActor;
 class FMenuBuilder;
@@ -13,15 +14,13 @@ struct FRemoteControlEntity;
 class SInlineEditableTextBlock;
 class SWidget;
 class URemoteControlPreset;
+struct FRCPanelStyle;
 
 /**
  * @Note if you inherit from this struct, you must call SRCPanelExposedEntity::Initialize.
  */
 struct SRCPanelExposedEntity : public SRCPanelTreeNode
 {
-	//~ SWidget interface
-	virtual void Tick(const FGeometry&, const double, const float) override;
-
 	//~ SRCPanelTreeNode interface
 	TSharedPtr<FRemoteControlEntity> GetEntity() const;
 	virtual TSharedPtr<SWidget> GetContextMenu() override;
@@ -41,7 +40,7 @@ protected:
 	EVisibility GetVisibilityAccordingToEditMode(EVisibility NonEditModeVisibility) const;
 
 	/** Create an exposed entity widget with a drag handle and unexpose button. */
-	TSharedRef<SWidget> CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, const FText& OptionalWarningMessage = FText::GetEmpty());
+	TSharedRef<SWidget> CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, TSharedPtr<SWidget> ResetWidget = SNullWidget::NullWidget, const FText& OptionalWarningMessage = FText::GetEmpty());
 
 protected:
 	/** Id of the entity. */
@@ -54,6 +53,8 @@ protected:
 	FName CachedLabel;
 	/** Text to be highlighted while searching. */
 	TAttribute<FText> HighlightText;
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 
 private:
 	/** Handles changing the object this entity is bound to upon selecting an actor in the rebinding dropdown. */
@@ -79,8 +80,6 @@ private:
 	void OnLabelCommitted(const FText& InLabel, ETextCommit::Type InCommitInfo);
 	/** Returns whether or not the actor is selectable for a binding replacement. */
 	bool IsActorSelectable(const AActor* Parent) const;
-	/** Whether the editable text box for the label needs to enter edit mode. */
-	bool bNeedsRename = false;
 	/** Handle clicking on the unexpose button. */
 	void HandleUnexposeEntity();
 

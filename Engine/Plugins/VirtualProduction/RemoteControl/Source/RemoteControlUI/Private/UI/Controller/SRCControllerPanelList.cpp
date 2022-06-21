@@ -10,8 +10,11 @@
 #include "RemoteControlPreset.h"
 #include "SlateOptMacros.h"
 #include "SRCControllerPanel.h"
+#include "Styling/RemoteControlStyles.h"
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
+#include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
+#include "Widgets/Views/SHeaderRow.h"
 
 #define LOCTEXT_NAMESPACE "SRCControllerPanelList"
 
@@ -48,6 +51,19 @@ namespace UE::RCControllerPanelList
 
 			return SNullWidget::NullWidget;
 		}
+
+	private:
+
+		//~ SWidget Interface
+		virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
+		{
+			if (ControllerItem.IsValid())
+			{
+				ControllerItem->EnterRenameMode();
+			}
+
+			return FSuperRowType::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
+		}
 	};
 }
 
@@ -59,22 +75,26 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 	
 	ControllerPanelWeakPtr = InControllerPanel;
 	
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
 	ListView = SNew(SListView<TSharedPtr<FRCControllerModel>>)
 		.ListItemsSource(&ControllerItems)
 		.OnSelectionChanged(this, &SRCControllerPanelList::OnTreeSelectionChanged)
 		.OnGenerateRow(this, &SRCControllerPanelList::OnGenerateWidgetForList)
 		.SelectionMode(ESelectionMode::Single) // Current setup supports only single selection (and related display) of a Controller in the list
-		.HeaderRow
-		(
+		.HeaderRow(
 			SNew(SHeaderRow)
+			.Style(&RCPanelStyle->HeaderRowStyle)
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::ControllerNameColumn)
-			.DefaultLabel(LOCTEXT("Controller Name Column Name", "Name"))
+			.DefaultLabel(LOCTEXT("ControllerNameColumnName", "Name"))
 			.FillWidth(0.25f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
 			+ SHeaderRow::Column(UE::RCControllerPanelList::ControllerValueColumn)
-			.DefaultLabel(LOCTEXT("Controller Value Column Name", "Input"))
+			.DefaultLabel(LOCTEXT("ControllerValueColumnName", "Input"))
 			.FillWidth(0.75f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 		);
 
 	ChildSlot
@@ -100,6 +120,16 @@ void SRCControllerPanelList::Construct(const FArguments& InArgs, const TSharedRe
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+bool SRCControllerPanelList::IsEmpty() const
+{
+	return ControllerItems.IsEmpty();
+}
+
+int32 SRCControllerPanelList::Num() const
+{
+	return ControllerItems.Num();
+}
 
 void SRCControllerPanelList::Reset()
 {
@@ -138,13 +168,11 @@ void SRCControllerPanelList::Reset()
 
 TSharedRef<ITableRow> SRCControllerPanelList::OnGenerateWidgetForList(TSharedPtr<FRCControllerModel> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
-	typedef UE::RCControllerPanelList::SControllerItemListRow ControllerRowType;
+	typedef UE::RCControllerPanelList::SControllerItemListRow SControllerRowType;
 
-	const TSharedRef<ControllerRowType> NewRow =
-		SNew(ControllerRowType, OwnerTable, InItem.ToSharedRef())
+	return SNew(SControllerRowType, OwnerTable, InItem.ToSharedRef())
+		.Style(&RCPanelStyle->TableRowStyle)
 		.Padding(FMargin(3.f));
-
-	return NewRow;
 }
 
 void SRCControllerPanelList::OnTreeSelectionChanged(TSharedPtr<FRCControllerModel> InItem, ESelectInfo::Type)
@@ -153,16 +181,12 @@ void SRCControllerPanelList::OnTreeSelectionChanged(TSharedPtr<FRCControllerMode
 	{
 		if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = ControllerPanel->GetRemoteControlPanel())
 		{
-			if (InItem.IsValid())
+			if (InItem != SelectedControllerItemWeakPtr.Pin())
 			{
-				if (InItem != SelectedControllerItemWeakPtr.Pin())
-				{
-					RemoteControlPanel->OnControllerSelectionChanged.Broadcast(InItem);
-					RemoteControlPanel->OnBehaviourSelectionChanged.Broadcast(InItem->GetSelectedBehaviourModel());
-				}
+				SelectedControllerItemWeakPtr = InItem;
+				RemoteControlPanel->OnControllerSelectionChanged.Broadcast(InItem);
+				RemoteControlPanel->OnBehaviourSelectionChanged.Broadcast(InItem.IsValid() ? InItem->GetSelectedBehaviourModel() : nullptr);
 			}
-
-			SelectedControllerItemWeakPtr = InItem;
 		}
 	}
 }

@@ -13,28 +13,131 @@
 #include "Editor/EditorEngine.h"
 #include "Misc/Attribute.h"
 #include "Misc/Guid.h"
+#include "Misc/MessageDialog.h"
 #include "RemoteControlPanelStyle.h"
 #include "RemoteControlPreset.h"
 #include "RemoteControlUIModule.h"
 #include "ScopedTransaction.h"
 #include "SRCPanelFieldGroup.h"
 #include "SRCPanelExposedField.h"
+#include "Styling/RemoteControlStyles.h"
+#include "UI/Panels/SRCDockPanel.h"
 #include "UObject/Object.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SSpacer.h"
+#include "Widgets/Layout/SSeparator.h"
+#include "Widgets/Views/SListView.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanelEntitiesList"
 
-namespace FRemoteControlPresetColumns
+class SEntityRow : public SMultiColumnTableRow<TSharedPtr<SRCPanelTreeNode>>
 {
-	const FName DragDropHandle = TEXT("DragDropHandle");
-	const FName IsBound = TEXT("IsBound");
-	const FName Description = TEXT("Description");
-	const FName Value = TEXT("Value");
-	const FName Groups = TEXT("Groups");
-}
+public:
+
+	SLATE_BEGIN_ARGS(SEntityRow)
+	{}
+	
+		SLATE_ARGUMENT(TSharedPtr<SRCPanelTreeNode>, Entity)
+
+		SLATE_ATTRIBUTE(FMargin, Padding)
+		SLATE_STYLE_ARGUMENT(FTableRowStyle, Style)
+
+		// Low level DragAndDrop
+		SLATE_EVENT(FOnDragDetected, OnDragDetected)
+		SLATE_EVENT(FOnTableRowDragEnter, OnDragEnter)
+		SLATE_EVENT(FOnTableRowDragLeave, OnDragLeave)
+		SLATE_EVENT(FOnTableRowDrop, OnDrop)
+
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView)
+	{
+		Entity = InArgs._Entity;
+
+		FSuperRowType::FArguments SuperArgs = FSuperRowType::FArguments();
+
+		SuperArgs.OnDragDetected(InArgs._OnDragDetected);
+		SuperArgs.OnDragEnter(InArgs._OnDragEnter);
+		SuperArgs.OnDragLeave(InArgs._OnDragLeave);
+		SuperArgs.OnDrop(InArgs._OnDrop);
+
+		SuperArgs.ExpanderStyleSet(&FCoreStyle::Get());
+		SuperArgs.Padding(InArgs._Padding);
+		SuperArgs.ShowWires(false);
+		SuperArgs.Style(InArgs._Style);
+
+		FSuperRowType::Construct(SuperArgs, OwnerTableView);
+	}
+
+	TSharedRef<SWidget> GenerateWidgetForColumn(const FName& InColumnName) override
+	{
+		if (Entity.IsValid())
+		{
+			if (Entity->HasChildren() && InColumnName == FRemoteControlPresetColumns::Description)
+			{
+				// -- Row is for TreeView --
+				SHorizontalBox::FSlot* InnerContentSlotNativePtr = nullptr;
+
+				TSharedRef<SWidget> TreeNode = SNew(SHorizontalBox)
+					.Clipping(EWidgetClipping::OnDemand)
+					
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Fill)
+					[
+						SAssignNew(ExpanderArrowWidget, SExpanderArrow, SharedThis(this))
+						.StyleSet(ExpanderStyleSet)
+						.ShouldDrawWires(false)
+					]
+
+					+ SHorizontalBox::Slot()
+					.FillWidth(1)
+					.Expose(InnerContentSlotNativePtr)
+					.Padding(8.f, 2.f)
+					[
+						Entity->GetWidget(InColumnName)
+					];
+
+				InnerContentSlot = InnerContentSlotNativePtr;
+
+				return TreeNode;
+
+			}
+			else
+			{
+				return SNew(SBox)
+					.Padding(FMargin(4.f, 2.f))
+					.VAlign(VAlign_Center)
+					[
+						Entity->GetWidget(InColumnName)
+					];
+			}
+		}
+
+		return SNullWidget::NullWidget;
+	}
+
+private:
+
+	//~ SWidget Interface
+	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override
+	{
+		if (Entity.IsValid())
+		{
+			Entity->EnterRenameMode();
+		}
+
+		return FSuperRowType::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent);
+	}
+
+private:
+
+	/** Cached reference of Entity */
+	TSharedPtr<SRCPanelTreeNode> Entity;
+};
 
 void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TWeakPtr<FRCPanelWidgetRegistry> InWidgetRegistry)
 {
@@ -50,143 +153,181 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 	bFilterApplicationRequested = false;
 	bSearchRequested = false;
 	SearchedText = MakeShared<FText>();
-	FilterCount = 0;
-	SearchCount = 0;
+
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
+	// Major Panel
+	TSharedPtr<SRCMajorPanel> ExposePanel = SNew(SRCMajorPanel)
+		.HeaderLabel(LOCTEXT("ExposePanelHeader", "EXPOSE"))
+		.EnableFooter(false);
+
+	// Groups List
+	SAssignNew(GroupsListView, SListView<TSharedPtr<SRCPanelTreeNode>>)
+		.ItemHeight(24.f)
+		.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
+		.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
+		.SelectionMode(ESelectionMode::Single)
+		.ListItemsSource(reinterpret_cast<TArray<TSharedPtr<SRCPanelTreeNode>>*>(&FieldGroups))
+		.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening, SRCPanelTreeNode::Group)
+		.ListViewStyle(&RCPanelStyle->TableViewStyle)
+		.ClearSelectionOnClick(true);
+
+	// Group Dock Panel
+	TSharedPtr<SRCMinorPanel> GroupDockPanel = SNew(SRCMinorPanel)
+		.HeaderLabel(LOCTEXT("GroupsLabel", "Group"))
+		.EnableFooter(false)
+		[
+			GroupsListView.ToSharedRef()
+		];
+
+	// Add New Group Button
+	TSharedPtr<SWidget> NewGroupButton = SNew(SButton)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Add Group")))
+		.IsEnabled_Lambda([this]() { return bIsInEditMode.Get(); })
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
+		.ToolTipText(LOCTEXT("NewGroupToolTip", "Create new group."))
+		.OnClicked(this, &SRCPanelExposedEntitiesList::OnCreateGroup)
+		[
+			SNew(SBox)
+			.WidthOverride(RCPanelStyle->IconSize.X)
+			.HeightOverride(RCPanelStyle->IconSize.Y)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("Icons.PlusCircle"))
+			]
+		];
+
+	// Delete All Groups Button
+	TSharedPtr<SWidget> DeleteAllGroupsButton = SNew(SButton)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete All Groups")))
+		.IsEnabled_Lambda([this]() { return bIsInEditMode.Get() && FieldGroups.Num() > 0; })
+		.Visibility_Lambda([this]() { return (bIsInEditMode.Get() && FieldGroups.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
+		.ToolTipText(LOCTEXT("DeleteAllGroupsToolTip", "Delete all groups."))
+		.OnClicked(this, &SRCPanelExposedEntitiesList::RequestDeleteAllGroups)
+		[
+			SNew(SBox)
+			.WidthOverride(RCPanelStyle->IconSize.X)
+			.HeightOverride(RCPanelStyle->IconSize.Y)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("Icons.Delete"))
+			]
+		];
+
+	GroupDockPanel->AddHeaderToolbarItem(EToolbar::Left, NewGroupButton.ToSharedRef());
+	GroupDockPanel->AddHeaderToolbarItem(EToolbar::Right, DeleteAllGroupsButton.ToSharedRef());
+
+	ExposePanel->AddPanel(GroupDockPanel.ToSharedRef(), 0.25f);
+
+	// Fields List
+	SAssignNew(FieldsListView, STreeView<TSharedPtr<SRCPanelTreeNode>>)
+		.ItemHeight(24.f)
+		.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
+		.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
+		.SelectionMode(ESelectionMode::Single)
+		.TreeItemsSource(&FieldEntities)
+		.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening, SRCPanelTreeNode::Field)
+		.ClearSelectionOnClick(true)
+		.TreeViewStyle(&RCPanelStyle->TableViewStyle)
+		.OnGetChildren(this, &SRCPanelExposedEntitiesList::OnGetNodeChildren)
+		.HeaderRow(
+			SNew(SHeaderRow)
+			.Style(&RCPanelStyle->HeaderRowStyle)
+
+			+ SHeaderRow::Column(FRemoteControlPresetColumns::DragDropHandle)
+			.DefaultLabel(LOCTEXT("RCPresetDragDropHandleColumnHeader", ""))
+			.FixedWidth(25.f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+			+ SHeaderRow::Column(FRemoteControlPresetColumns::Description)
+			.DefaultLabel(LOCTEXT("RCPresetDescColumnHeader", "Description"))
+			.FillWidth(0.5f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+			+ SHeaderRow::Column(FRemoteControlPresetColumns::Value)
+			.DefaultLabel(LOCTEXT("RCPresetValueColumnHeader", "Value"))
+			.FillWidth(0.5f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+			+ SHeaderRow::Column(FRemoteControlPresetColumns::Reset)
+			.DefaultLabel(LOCTEXT("RCPresetResetButtonColumnHeader", ""))
+			.FixedWidth(48.f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+		);
+
+	// Exposed Entities Dock Panel
+	TSharedPtr<SRCMinorPanel> ExposeDockPanel = SNew(SRCMinorPanel)
+		.HeaderLabel(LOCTEXT("PropertiesLabel", "Properties"))
+		.EnableFooter(true)
+		[
+			FieldsListView.ToSharedRef()
+		];
+
+	// Placeholder Box
+	TSharedPtr<SWidget> PlaceholderBox = SNew(SBox)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Placeholder")))
+		.WidthOverride(30.f)
+		.HeightOverride(30.f)
+		[
+			SNullWidget::NullWidget
+		];
+
+	// Delete All Entities Button
+	TSharedPtr<SWidget> DeleteAllEntitiesButton = SNew(SButton)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Delete All Entities")))
+		.IsEnabled_Lambda([this]() { return bIsInEditMode.Get() && FieldWidgetMap.Num() > 0; })
+		.Visibility_Lambda([this]() { return (bIsInEditMode.Get() && FieldWidgetMap.Num() > 0) ? EVisibility::Visible : EVisibility::Collapsed; })
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ForegroundColor(FSlateColor::UseForeground())
+		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
+		.ToolTipText(LOCTEXT("DeleteAllEntitiesToolTip", "Delete all entities."))
+		.OnClicked(this, &SRCPanelExposedEntitiesList::RequestDeleteAllEntities)
+		[
+			SNew(SBox)
+			.WidthOverride(RCPanelStyle->IconSize.X)
+			.HeightOverride(RCPanelStyle->IconSize.Y)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("Icons.Delete"))
+			]
+		];
+
+	// Expose Button
+	ExposeDockPanel->AddHeaderToolbarItem(EToolbar::Left, PlaceholderBox.ToSharedRef());
+	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Right, InArgs._ExposeComboButton.Get().ToSharedRef());
+	ExposeDockPanel->AddFooterToolbarItem(EToolbar::Right, DeleteAllEntitiesButton.ToSharedRef());
+
+	ExposePanel->AddPanel(ExposeDockPanel.ToSharedRef(), 0.75f);
 
 	ChildSlot
-	[
-		SNew(SVerticalBox)
-		
-		+SVerticalBox::Slot()
-		.FillHeight(1.f)
+		.Padding(RCPanelStyle->PanelPadding)
 		[
-			SNew(SHorizontalBox)
-			
-			+SHorizontalBox::Slot()
-			.Padding(2.f, 4.f)
-			.FillWidth(0.25f)
+			SNew(SSplitter)
+			.Orientation(Orient_Horizontal)
+
+			+ SSplitter::Slot()
+			.Value(1.f)
 			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
-				[
-					SAssignNew(GroupsListView, SListView<TSharedPtr<SRCPanelTreeNode>>)
-					.ItemHeight(24.f)
-					.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
-					.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
-					.SelectionMode(ESelectionMode::Single)
-					.ListItemsSource(reinterpret_cast<TArray<TSharedPtr<SRCPanelTreeNode>>*>(&FieldGroups))
-					.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening, SRCPanelTreeNode::Group)
-					.ClearSelectionOnClick(true)
-					.HeaderRow(
-						SNew(SHeaderRow)
-
-						+ SHeaderRow::Column(FRemoteControlPresetColumns::Groups)
-						.DefaultLabel(LOCTEXT("RCPresetGroupsColumnHeader", "Groups"))
-						.FillWidth(1.f)
-						.ToolTipText(LOCTEXT("NewGroupToolTip", "Create new group."))
-						[
-							SNew(SHorizontalBox)
-				
-							+SHorizontalBox::Slot()
-							.Padding(3.f)
-							.VAlign(VAlign_Center)
-							.AutoWidth()
-							[
-								SNew(STextBlock)
-								.ColorAndOpacity(FColor::White)
-								.Font(FCoreStyle::GetDefaultFontStyle("Bold", 12.f))
-								.Text(LOCTEXT("GroupsLabel", "Groups"))
-							]
-	
-							+SHorizontalBox::Slot()
-							.Padding(3.f)
-							.VAlign(VAlign_Center)
-							.FillWidth(1.f)
-							[
-								SNew(SSpacer)
-							]
-	
-							+ SHorizontalBox::Slot()
-							.Padding(3.f)
-							.HAlign(HAlign_Center)
-							.VAlign(VAlign_Center)
-							.AutoWidth()
-							[
-								SNew(SButton)
-								.Visibility_Lambda([this]() { return bIsInEditMode.Get() ? EVisibility::Visible : EVisibility::Collapsed; })
-								.ButtonStyle(FAppStyle::Get(), "ToggleButton")
-								.ToolTipText(LOCTEXT("NewGroupToolTip", "Create new group."))
-								.OnClicked(this, &SRCPanelExposedEntitiesList::OnCreateGroup)
-								[
-									SNew(SOverlay)
-
-									+SOverlay::Slot()
-									.HAlign(HAlign_Center)
-									.VAlign(VAlign_Center)
-									[
-										SNew(STextBlock)
-										.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-										.ColorAndOpacity(FColor::White)
-										.Font(FAppStyle::Get().GetFontStyle("FontAwesome.14"))
-										.Text(FEditorFontGlyphs::Circle_O)
-									]
-
-									+SOverlay::Slot()
-									.HAlign(HAlign_Center)
-									.VAlign(VAlign_Center)
-									[
-										SNew(STextBlock)
-										.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-										.ColorAndOpacity(FColor::White)
-										.Font(FAppStyle::Get().GetFontStyle("FontAwesome.7"))
-										.Text(FEditorFontGlyphs::Plus)
-									]
-								]
-							]
-						]
-					)
-				]
+				ExposePanel.ToSharedRef()
 			]
-
-			+SHorizontalBox::Slot()
-			.Padding(2.f, 4.f)
-			.FillWidth(0.75f)
-			[
-				SNew(SBorder)
-				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
-				[
-					SAssignNew(FieldsListView, SListView<TSharedPtr<SRCPanelTreeNode>>)
-					.ItemHeight(24.f)
-					.OnGenerateRow(this, &SRCPanelExposedEntitiesList::OnGenerateRow)
-					.OnSelectionChanged(this, &SRCPanelExposedEntitiesList::OnSelectionChanged)
-					.SelectionMode(ESelectionMode::Single)
-					.ListItemsSource(&FieldEntities)
-					.OnContextMenuOpening(this, &SRCPanelExposedEntitiesList::OnContextMenuOpening, SRCPanelTreeNode::Field)
-					.ClearSelectionOnClick(true)
-					.HeaderRow(
-						SNew(SHeaderRow)
-
-						+ SHeaderRow::Column(FRemoteControlPresetColumns::DragDropHandle)
-						.DefaultLabel(LOCTEXT("RCPresetDragDropHandleColumnHeader", ""))
-						.FixedWidth(36.0f)
-
-						+ SHeaderRow::Column(FRemoteControlPresetColumns::Description)
-						.DefaultLabel(LOCTEXT("RCPresetDescColumnHeader", "Description"))
-						.FillWidth(0.7f)
-
-						+ SHeaderRow::Column(FRemoteControlPresetColumns::Value)
-						.DefaultLabel(LOCTEXT("RCPresetValueColumnHeader", "Value"))
-						.FillWidth(0.7f)
-					)
-				]
-			]
-		]
-	];
+		];
 
 	RegisterEvents();
 	RegisterPresetDelegates();
 	Refresh();
 }
+
 SRCPanelExposedEntitiesList::~SRCPanelExposedEntitiesList()
 {
 	UnregisterPresetDelegates();
@@ -197,8 +338,6 @@ void SRCPanelExposedEntitiesList::Tick(const FGeometry& AllottedGeometry, const 
 {
 	if (bSearchRequested)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SRCPanelExposedEntitiesList::Tick -> Search Requested (Total Requests : %d)."), ++SearchCount);
-
 		TryRefreshingSearch(*SearchedText);
 
 		bSearchRequested = false;
@@ -206,8 +345,6 @@ void SRCPanelExposedEntitiesList::Tick(const FGeometry& AllottedGeometry, const 
 	
 	if (bFilterApplicationRequested)
 	{
-		UE_LOG(LogTemp, Warning, TEXT("SRCPanelExposedEntitiesList::Tick -> Filter Requested (Total Requests : %d)."), ++FilterCount);
-
 		ApplyFilters();
 
 		bFilterApplicationRequested = false;
@@ -437,9 +574,9 @@ void SRCPanelExposedEntitiesList::RefreshGroups()
 		TSharedRef<SRCPanelGroup> FieldGroup = SNew(SRCPanelGroup, Preset.Get(), ColumnSizeData)
 			.Id(RCGroup.Id)
 			.Name(RCGroup.Name)
-			.OnFieldDropEvent_Raw(this, &SRCPanelExposedEntitiesList::OnDropOnGroup)
-			.OnGetGroupId_Raw(this, &SRCPanelExposedEntitiesList::GetGroupId)
-			.OnDeleteGroup_Raw(this, &SRCPanelExposedEntitiesList::OnDeleteGroup)
+			.OnFieldDropEvent(this, &SRCPanelExposedEntitiesList::OnDropOnGroup)
+			.OnGetGroupId(this, &SRCPanelExposedEntitiesList::GetGroupId)
+			.OnDeleteGroup(this, &SRCPanelExposedEntitiesList::OnDeleteGroup)
 			.EditMode(bIsInEditMode);
 		
 		FieldGroups.Add(FieldGroup);
@@ -486,7 +623,7 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	{
 		return SNew(STableRow<TSharedPtr<SWidget>>, OwnerTable)
 			.Padding(1.f)
-			.Style(&FRemoteControlPanelStyle::Get()->GetWidgetStyle<FTableRowStyle>("RemoteControlPanel.GroupRow"))
+			.Style(&RCPanelStyle->TableRowStyle)
 			[
 				NodeWidget
 			];
@@ -494,15 +631,14 @@ TSharedRef<ITableRow> SRCPanelExposedEntitiesList::OnGenerateRow(TSharedPtr<SRCP
 	else
 	{
 		constexpr float LeftPadding = 3.f;
-		const FMargin Margin = Node->GetRCType() == SRCPanelTreeNode::FieldChild ? FMargin(LeftPadding + 10.f, 0.f, 0.f, 0.f) : FMargin(LeftPadding, 0.f, 0.f, 0.f);
-		return SNew(STableRow<TSharedPtr<FGuid>>, OwnerTable)
+		const FMargin Margin = Node->GetRCType() == SRCPanelTreeNode::FieldChild ? FMargin(LeftPadding + 10.f, 1.f, 1.f, 1.f) : FMargin(LeftPadding, 1.f, 1.f, 1.f);
+		return SNew(SEntityRow, OwnerTable)
 			.OnDragEnter_Lambda([Node](const FDragDropEvent& Event) { if (Node && Node->GetRCType() == SRCPanelTreeNode::Field) StaticCastSharedPtr<SRCPanelExposedField>(Node)->SetIsHovered(true); })
 			.OnDragLeave_Lambda([Node](const FDragDropEvent& Event) { if (Node && Node->GetRCType() == SRCPanelTreeNode::Field) StaticCastSharedPtr<SRCPanelExposedField>(Node)->SetIsHovered(false); })
 			.OnDrop_Lambda(OnDropLambda)
 			.Padding(Margin)
-			[
-				NodeWidget
-			];
+			.Style(&RCPanelStyle->TableRowStyle)
+			.Entity(Node);
 	}
 }
 
@@ -518,6 +654,10 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 {
 	if (!Node || SelectInfo != ESelectInfo::OnMouseClick)
 	{
+		FieldsListView->ClearSelection();
+
+		OnSelectionChangeDelegate.Broadcast(nullptr);
+
 		return;
 	}
 
@@ -532,6 +672,8 @@ void SRCPanelExposedEntitiesList::OnSelectionChanged(TSharedPtr<SRCPanelTreeNode
 				bFilterApplicationRequested = true;
 			}
 		}
+	
+		FieldsListView->ClearSelection();
 	}
 	else
 	{
@@ -718,7 +860,7 @@ void SRCPanelExposedEntitiesList::RegisterPresetDelegates()
 	Layout.OnGroupAdded().AddSP(this, &SRCPanelExposedEntitiesList::OnGroupAdded);
 	Layout.OnGroupDeleted().AddSP(this, &SRCPanelExposedEntitiesList::OnGroupDeleted);
 	Layout.OnGroupOrderChanged().AddSP(this, &SRCPanelExposedEntitiesList::OnGroupOrderChanged);
-	Layout.OnGroupRenamed().AddRaw(this, &SRCPanelExposedEntitiesList::OnGroupRenamed);
+	Layout.OnGroupRenamed().AddSP(this, &SRCPanelExposedEntitiesList::OnGroupRenamed);
 	Layout.OnFieldAdded().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldAdded);
 	Layout.OnFieldDeleted().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldDeleted);
 	Layout.OnFieldOrderChanged().AddSP(this, &SRCPanelExposedEntitiesList::OnFieldOrderChanged);
@@ -797,9 +939,9 @@ void SRCPanelExposedEntitiesList::OnGroupAdded(const FRemoteControlPresetGroup& 
 	TSharedRef<SRCPanelGroup> FieldGroup = SNew(SRCPanelGroup, Preset.Get(), ColumnSizeData)
 		.Id(Group.Id)
 		.Name(Group.Name)
-		.OnFieldDropEvent_Raw(this, &SRCPanelExposedEntitiesList::OnDropOnGroup)
-		.OnGetGroupId_Raw(this, &SRCPanelExposedEntitiesList::GetGroupId)
-		.OnDeleteGroup_Raw(this, &SRCPanelExposedEntitiesList::OnDeleteGroup)
+		.OnFieldDropEvent(this, &SRCPanelExposedEntitiesList::OnDropOnGroup)
+		.OnGetGroupId(this, &SRCPanelExposedEntitiesList::GetGroupId)
+		.OnDeleteGroup(this, &SRCPanelExposedEntitiesList::OnDeleteGroup)
 		.EditMode(bIsInEditMode);
 	
 	FieldGroups.Add(FieldGroup);
@@ -926,8 +1068,8 @@ void SRCPanelExposedEntitiesList::OnEntitiesUpdated(URemoteControlPreset*, const
 	{
 		if (TSharedPtr<SRCPanelExposedEntitiesList> ListPtr = WeakListPtr.Pin())
 		{
-			ListPtr->GroupsListView->RequestListRefresh();
-			ListPtr->FieldsListView->RequestListRefresh();
+			ListPtr->GroupsListView->RebuildList();
+			ListPtr->FieldsListView->RebuildList();
 		}
 	}));
 
@@ -991,6 +1133,68 @@ void SRCPanelExposedEntitiesList::RequestSearchOrFilter()
 	bSearchRequested = SearchedText.IsValid() && !SearchedText->IsEmpty();
 
 	bFilterApplicationRequested = BackendFilter.HasAnyActiveFilters();
+}
+
+FReply SRCPanelExposedEntitiesList::RequestDeleteAllEntities()
+{
+	if (!FieldsListView.IsValid() || !Preset.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const FString WarningMessage = FString::Format(TEXT("You are about to delete '{0}' entities. This action might not be undone.\nAre you sure you want to proceed?"), { FString::FromInt(FieldWidgetMap.Num()) });
+
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(WarningMessage));
+
+	if (UserResponse == EAppReturnType::Yes)
+	{
+		FScopedTransaction Transaction(LOCTEXT("UnexposeAll", "Unexpose all remote control entities"));
+		Preset->Modify();
+
+		for (TMap<FGuid, TSharedPtr<SRCPanelTreeNode>>::TConstIterator EntityItr = FieldWidgetMap.CreateConstIterator(); EntityItr; ++EntityItr)
+		{
+			Preset->Unexpose(EntityItr->Key);
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply SRCPanelExposedEntitiesList::RequestDeleteAllGroups()
+{
+	if (!GroupsListView.IsValid() || !Preset.IsValid())
+	{
+		return FReply::Unhandled();
+	}
+
+	const FString WarningMessage = FString::Format(TEXT("You are about to delete '{0}' groups. This action might not be undone.\nAre you sure you want to proceed?"), { FString::FromInt(FieldGroups.Num() - 1) });
+
+	EAppReturnType::Type UserResponse = FMessageDialog::Open(EAppMsgType::YesNo, FText::FromString(WarningMessage));
+
+	if (UserResponse == EAppReturnType::Yes)
+	{
+		FScopedTransaction Transaction(LOCTEXT("DeleteAllGroups", "Delete all remote control groups"));
+		Preset->Modify();
+
+		const TArray<FRemoteControlPresetGroup>& RCGroups = Preset->Layout.GetGroups();
+
+		// Perform deletion in reverse to avoid "Ensure condition failed: Lhs.CurrentNum == Lhs.InitialNum"
+		for (int32 GroupIndex = RCGroups.Num() - 1; GroupIndex >= 0; GroupIndex--)
+		{
+			const FRemoteControlPresetGroup& RCGroup = RCGroups[GroupIndex];
+
+			if (Preset->Layout.IsDefaultGroup(RCGroup.Id))
+			{
+				continue;
+			}
+		
+			Preset->Layout.DeleteGroup(RCGroup.Id);
+		}
+
+		Refresh();
+	}
+
+	return FReply::Handled();
 }
 
 bool FGroupDragEvent::IsDraggedFromSameGroup() const

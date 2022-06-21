@@ -22,6 +22,7 @@
 #include "SceneOutlinerFilters.h"
 #include "SceneOutlinerModule.h"
 #include "ScopedTransaction.h"
+#include "Styling/RemoteControlStyles.h"
 #include "Styling/SlateIconFinder.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Input/SButton.h"
@@ -33,18 +34,6 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
-
-void SRCPanelExposedEntity::Tick(const FGeometry&, const double, const float)
-{
-	if (bNeedsRename)
-	{
-		if (NameTextBox)
-		{
-			NameTextBox->EnterEditingMode();
-		}
-		bNeedsRename = false;
-	}
-}
 
 TSharedPtr<FRemoteControlEntity> SRCPanelExposedEntity::GetEntity() const
 {
@@ -104,7 +93,10 @@ TSharedPtr<SWidget> SRCPanelExposedEntity::GetContextMenu()
 
 void SRCPanelExposedEntity::EnterRenameMode()
 {
-	bNeedsRename = true;
+	if (NameTextBox.IsValid())
+	{
+		NameTextBox->EnterEditingMode();
+	}
 }
 
 void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPreset* InPreset, const TAttribute<bool>& InbEditMode)
@@ -112,6 +104,8 @@ void SRCPanelExposedEntity::Initialize(const FGuid& InEntityId, URemoteControlPr
 	EntityId = InEntityId;
 	Preset = InPreset;
 	bEditMode = InbEditMode;
+
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
 
 	if (ensure(InPreset))
 	{
@@ -169,7 +163,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindAllPropertiesForActorMenu
 
 	if (TSharedPtr<FRemoteControlEntity> Entity = GetEntity())
 	{
-		Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateRaw(this, &SRCPanelExposedEntity::IsActorSelectable));
+		Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateSP(this, &SRCPanelExposedEntity::IsActorSelectable));
 	}
 
 	return SNew(SBox)
@@ -214,7 +208,7 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateRebindMenuContent()
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::Get().LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	FSceneOutlinerInitializationOptions Options;
 	Options.Filters = MakeShared<FSceneOutlinerFilters>();
-	Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateRaw(this, &SRCPanelExposedEntity::IsActorSelectable));
+	Options.Filters->AddFilterPredicate<FActorTreeItem>(FActorTreeItem::FFilterPredicate::CreateSP(this, &SRCPanelExposedEntity::IsActorSelectable));
 	UWorld* PresetWorld = URemoteControlPreset::GetPresetWorld(Preset.Get());
 
 	return SNew(SBox)
@@ -297,16 +291,16 @@ bool SRCPanelExposedEntity::IsActorSelectable(const AActor* Actor) const
 	return false;
 }
 
-TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, const FText& OptionalWarningMessage)
+TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget> ValueWidget, TSharedPtr<SWidget> ResetWidget, const FText& OptionalWarningMessage)
 {
 	FMakeNodeWidgetArgs Args;
 
 	TSharedRef<SBorder> Widget = SNew(SBorder)
 		.Padding(0.0f)
-		.BorderImage_Raw(this, &SRCPanelExposedEntity::GetBorderImage);
+		.BorderImage(this, &SRCPanelExposedEntity::GetBorderImage);
 	
 	Args.DragHandle = SNew(SBox)
-		.Visibility_Raw(this, &SRCPanelExposedEntity::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
+		.Visibility(this, &SRCPanelExposedEntity::GetVisibilityAccordingToEditMode, EVisibility::Collapsed)
 		[
 			SNew(SRCPanelDragHandle<FExposedEntityDragDrop>, GetRCId())
 			.Widget(Widget)
@@ -332,17 +326,15 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateEntityWidget(TSharedPtr<SWidget
 		[
 			SAssignNew(NameTextBox, SInlineEditableTextBlock)
 			.Text(FText::FromName(CachedLabel))
-			.OnTextCommitted_Raw(this, &SRCPanelExposedEntity::OnLabelCommitted)
-			.OnVerifyTextChanged_Raw(this, &SRCPanelExposedEntity::OnVerifyItemLabelChanged)
+			.OnTextCommitted(this, &SRCPanelExposedEntity::OnLabelCommitted)
+			.OnVerifyTextChanged(this, &SRCPanelExposedEntity::OnVerifyItemLabelChanged)
 			.IsReadOnly_Lambda([this]() { return !bEditMode.Get(); })
 			.HighlightText_Lambda([this]() { return HighlightText.Get().ToString().Len() > 3 ? HighlightText.Get() : FText::GetEmpty(); })
 		];
 
-	Args.RenameButton = SNullWidget::NullWidget;
-
 	Args.ValueWidget = ValueWidget;
 
-	Args.UnexposeButton = SNullWidget::NullWidget;
+	Args.ResetButton = ResetWidget;
 
 	Widget->SetContent(MakeNodeWidget(Args));
 	return Widget;
@@ -403,10 +395,10 @@ TSharedRef<SWidget> SRCPanelExposedEntity::CreateUseContextCheckbox()
 		.ToolTipText(LOCTEXT("UseRebindingContextTooltip", "Unchecking this will allow you to rebind this property to any object regardless of the underlying supported class."))
 
 		// Bind the button's "on checked" event to our object's method for this
-		.OnCheckStateChanged_Raw(this, &SRCPanelExposedEntity::OnUseContextChanged)
+		.OnCheckStateChanged(this, &SRCPanelExposedEntity::OnUseContextChanged)
 
 		// Bind the check box's "checked" state to our user interface action
-		.IsChecked_Raw(this, &SRCPanelExposedEntity::IsUseContextEnabled);
+		.IsChecked(this, &SRCPanelExposedEntity::IsUseContextEnabled);
 }
 
 void SRCPanelExposedEntity::OnUseContextChanged(ECheckBoxState State)

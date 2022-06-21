@@ -14,6 +14,14 @@ struct SRCPanelExposedField;
 struct SRCPanelExposedActor;
 struct SRCPanelExposedMaterial;
 
+namespace FRemoteControlPresetColumns
+{
+	static FName DragDropHandle = TEXT("DragDropHandle");
+	static FName Description = TEXT("Description");
+	static FName Value = TEXT("Value");
+	static FName Reset = TEXT("Reset");
+}
+
 /** A node in the panel tree view. */
 struct SRCPanelTreeNode : public SCompoundWidget
 {
@@ -35,6 +43,8 @@ struct SRCPanelTreeNode : public SCompoundWidget
 	virtual FGuid GetRCId() const { return FGuid(); }
 	/** Get get this node's type. */
 	virtual ENodeType GetRCType() const { return ENodeType::Invalid; };
+	/** Returns true if this tree node has childen. */
+	virtual bool HasChildren() const { return false; }
 	/** Refresh the node. */
 	virtual void Refresh() {};
 	/** Get the context menu for this node. */
@@ -45,23 +55,24 @@ struct SRCPanelTreeNode : public SCompoundWidget
 	virtual void EnterRenameMode() {};
 	/** Updates the highlight text to active search term. */
 	virtual void SetHighlightText(const FText& InHightlightText = FText::GetEmpty()) {};
-
-	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override { if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton) { EnterRenameMode(); } return SCompoundWidget::OnMouseButtonDoubleClick(InMyGeometry, InMouseEvent); };
+	/** Retrieves the referenced widget corresponding to the given column name. */
+	virtual TSharedRef<SWidget> GetWidget(const FName& ForColumnName);
 
 protected:
 	struct FMakeNodeWidgetArgs
 	{
 		TSharedPtr<SWidget> DragHandle;
 		TSharedPtr<SWidget> NameWidget;
-		TSharedPtr<SWidget> RenameButton;
 		TSharedPtr<SWidget> ValueWidget;
-		TSharedPtr<SWidget> UnexposeButton;
+		TSharedPtr<SWidget> ResetButton;
 	};
 	
 	/** Create a widget that represents a row with a splitter. */
 	TSharedRef<SWidget> MakeSplitRow(TSharedRef<SWidget> LeftColumn, TSharedRef<SWidget> RightColumn);
 	/** Create a widget that represents a node in the panel tree hierarchy. */
 	TSharedRef<SWidget> MakeNodeWidget(const FMakeNodeWidgetArgs& Args);
+	/** Creates cached copies of underlying widgets. */
+	void MakeNodeWidgets(const FMakeNodeWidgetArgs& Args);
 
 private:
 	/** Stub handler for column resize callback to prevent the splitter from handling it internally.  */
@@ -75,6 +86,20 @@ private:
 protected:
 	/** Holds the row's columns' width. */
 	FRCColumnSizeData ColumnSizeData;
+
+private:
+
+	/** Cached widget of drag handle. */
+	TSharedPtr<SWidget> DragHandleWidget;
+
+	/** Cached widget of node name widget. */
+	TSharedPtr<SWidget> NodeNameWidget;
+
+	/** Cached widget of node value widget. */
+	TSharedPtr<SWidget> NodeValueWidget;
+	
+	/** Cached widget of reset arrow widget. */
+	TSharedPtr<SWidget> ResetValueWidget;
 
 private:
 	/** The splitter offset to align the group splitter with the other row's splitters. */

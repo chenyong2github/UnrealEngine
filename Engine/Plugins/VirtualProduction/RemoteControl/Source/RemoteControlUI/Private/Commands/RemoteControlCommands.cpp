@@ -28,14 +28,11 @@ void FRemoteControlCommands::RegisterCommands()
 	// Find Preset
 	UI_COMMAND(FindPresetInContentBrowser, "Browse to Preset", "Browses to the associated preset and selects it in the most recently used Content Browser (summoning one if necessary)", EUserInterfaceActionType::Button, FInputChord(EModifierKey::Control, EKeys::B));
 
-	// Toggle Expose Functions
-	UI_COMMAND(ToggleExposeFunctions, "Functions", "Expose a function from available list of options.", EUserInterfaceActionType::Button, FInputChord());
-
 	// Toggle Protocol Mappings
-	UI_COMMAND(ToggleProtocolMappings, "Mappings", "View list of protocols mapped to active selection.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ToggleProtocolMappings, "Protocols", "View list of protocols mapped to active selection.", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	// Toggle Logic Editor
-	UI_COMMAND(ToggleLogicEditor, "Logic", "View the logic applied to active selection.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(ToggleLogicEditor, "Logic", "View the logic applied to active selection.", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	// Delete Entity
 	UI_COMMAND(DeleteEntity, "Delete", "Delete the selected  group/exposed entity from the list.", EUserInterfaceActionType::Button, FInputChord(EKeys::Delete));

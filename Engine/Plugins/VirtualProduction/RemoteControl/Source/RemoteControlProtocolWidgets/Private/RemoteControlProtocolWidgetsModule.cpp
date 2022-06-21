@@ -8,6 +8,7 @@
 #include "IRemoteControlModule.h"
 #include "RemoteControlPreset.h"
 #include "ViewModels/ProtocolEntityViewModel.h"
+#include "Widgets/SNullWidget.h"
 #include "Widgets/SRCProtocolBindingList.h"
 
 DEFINE_LOG_CATEGORY(LogRemoteControlProtocolWidgets);
@@ -18,10 +19,18 @@ TSharedRef<SWidget> FRemoteControlProtocolWidgetsModule::GenerateDetailsForEntit
 
 	ResetProtocolBindingList();
 
-	// Currently only supports Properties
-	if (InFieldId.IsValid() && InPreset->GetExposedEntityType(InFieldId) == FRemoteControlProperty::StaticStruct())
+	if (!InFieldId.IsValid())
 	{
-		return SAssignNew(RCProtocolBindingList, SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
+		return SNullWidget::NullWidget;
+	}
+
+	// Currently only supports Properties
+	if (const UScriptStruct* PropertyStruct = InPreset->GetExposedEntityType(InFieldId))
+	{
+		if (PropertyStruct->IsChildOf(FRemoteControlProperty::StaticStruct()))
+		{
+			return SAssignNew(RCProtocolBindingList, SRCProtocolBindingList, FProtocolEntityViewModel::Create(InPreset, InFieldId));
+		}
 	}
 
 	return SNullWidget::NullWidget;

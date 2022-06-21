@@ -21,6 +21,7 @@ class IDetailTreeNode;
 class SInlineEditableTextBlock;
 struct SRCPanelFieldChildNode;
 class URemoteControlPreset;
+class SWidget;
 
 /**
  * Widget that displays an exposed field.
@@ -44,6 +45,7 @@ struct SRCPanelExposedField : public SRCPanelExposedEntity
 	//~ SRCPanelTreeNode Interface 
 	virtual void GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>& OutChildren) const override;
 	virtual ENodeType GetRCType() const override;
+	virtual bool HasChildren() const override;
 	virtual void Refresh() override;
 	//~ End SRCPanelTreeNode Interface
 
@@ -59,7 +61,6 @@ struct SRCPanelExposedField : public SRCPanelExposedEntity
 
 	/** Get this field's type. */
 	EExposedFieldType GetFieldType() const;
-
 
 	/** Returns this widget's underlying objects. */
 	void GetBoundObjects(TSet<UObject*>& OutBoundObjects) const;
@@ -92,6 +93,8 @@ private:
 	TWeakPtr<FRCPanelWidgetRegistry> WidgetRegistry;
 	/** Holds the zeroed Default Value of the ExposedField */
 	TSharedPtr<uint8> DefaultValue;
+	/** Holds the shared reference of reset button for this field. */
+	TSharedPtr<SWidget> ResetButtonWidget;
 };
 
 

@@ -37,11 +37,6 @@ public:
 	TSharedPtr<FUICommandInfo> SavePreset;
 
 	/**
-	 * Holds the information about UI Command that brings up a panel that facilitates exposing functions using RC API.
-	 */
-	TSharedPtr<FUICommandInfo> ToggleExposeFunctions;
-	
-	/**
 	 * Holds the information about UI Command that brings up a panel which holds the active protocol mappings.
 	 */
 	TSharedPtr<FUICommandInfo> ToggleProtocolMappings;

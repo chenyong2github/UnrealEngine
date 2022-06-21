@@ -9,6 +9,7 @@
 #include "RCActionModel.h"
 #include "SlateOptMacros.h"
 #include "SRCActionPanel.h"
+#include "Styling/RemoteControlStyles.h"
 #include "UI/Behaviour/RCBehaviourModel.h"
 #include "UI/RCUIHelpers.h"
 #include "UI/RemoteControlPanelStyle.h"
@@ -19,6 +20,13 @@
 
 #define LOCTEXT_NAMESPACE "SRCActionPanelList"
 
+namespace FRemoteControlActionColumns
+{
+	const FName DragDropHandle = TEXT("DragDropHandle");
+	const FName Description = TEXT("Description");
+	const FName Value = TEXT("Value");
+}
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCActionPanelList::Construct(const FArguments& InArgs, const TSharedRef<SRCActionPanel> InActionPanel, TSharedPtr<FRCBehaviourModel> InBehaviourItem)
@@ -28,43 +36,35 @@ void SRCActionPanelList::Construct(const FArguments& InArgs, const TSharedRef<SR
 	ActionPanelWeakPtr = InActionPanel;
 	BehaviourItemWeakPtr = InBehaviourItem;
 	
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
 	ListView = SNew(SListView<TSharedPtr<FRCActionModel>>)
 		.ListItemsSource( &ActionItems )
 		.OnGenerateRow(this, &SRCActionPanelList::OnGenerateWidgetForList )
-		.HeaderRow
-		(
+		.ListViewStyle(&RCPanelStyle->TableViewStyle)
+		.HeaderRow(
 			SNew(SHeaderRow)
+			.Style(&RCPanelStyle->HeaderRowStyle)
 
-			+ SHeaderRow::Column("Description")
-			.DefaultLabel(LOCTEXT("Description", "Description"))
+			+ SHeaderRow::Column(FRemoteControlActionColumns::DragDropHandle)
+			.DefaultLabel(LOCTEXT("RCActionDragDropHandleColumnHeader", ""))
+			.FixedWidth(25.f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 
-			+ SHeaderRow::Column("Value")
-			.DefaultLabel(LOCTEXT("Value", "Value"))
+			+ SHeaderRow::Column(FRemoteControlActionColumns::Description)
+			.DefaultLabel(LOCTEXT("RCActionDescColumnHeader", "Description"))
+			.FillWidth(0.5f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+
+			+ SHeaderRow::Column(FRemoteControlActionColumns::Value)
+			.DefaultLabel(LOCTEXT("RCActionValueColumnHeader", "Value"))
+			.FillWidth(0.5f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
 		);
 	
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.HAlign(HAlign_Fill)
-		.AutoHeight()
-		.Padding(FMargin(0.f, 5.f))
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-			.BorderBackgroundColor(FSlateColor::UseSubduedForeground())
-			.Padding(FMargin(3.f))
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ActionsMapping", "Actions Mapping"))
-			]
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			ListView.ToSharedRef()
-		]
+		ListView.ToSharedRef()
 	];
 
 	// Add delegates
@@ -79,6 +79,16 @@ void SRCActionPanelList::Construct(const FArguments& InArgs, const TSharedRef<SR
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+bool SRCActionPanelList::IsEmpty() const
+{
+	return ActionItems.IsEmpty();
+}
+
+int32 SRCActionPanelList::Num() const
+{
+	return ActionItems.Num();
+}
 
 void SRCActionPanelList::Reset()
 {
@@ -108,9 +118,10 @@ void SRCActionPanelList::Reset()
 TSharedRef<ITableRow> SRCActionPanelList::OnGenerateWidgetForList(TSharedPtr<FRCActionModel> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-	[
-		InItem->GetWidget()
-	];
+		.Style(&RCPanelStyle->TableRowStyle)
+		[
+			InItem->GetWidget()
+		];
 }
 
 void SRCActionPanelList::OnActionAdded(URCAction* InAction)

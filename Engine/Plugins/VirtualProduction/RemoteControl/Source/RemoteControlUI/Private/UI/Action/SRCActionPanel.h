@@ -1,12 +1,14 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+
 #include "UI/BaseLogicUI/SRCLogicPanelBase.h"
-#include "Widgets/Layout/SBox.h"
 
+struct FRCPanelStyle;
+struct FRemoteControlField;
 class FRCBehaviourModel;
+class SBox;
 class SRemoteControlPanel;
-
 /*
 * ~ SRCActionPanel ~
 *
@@ -25,7 +27,22 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel);
 
+	/** Whether the Actions list widget currently has focus.*/
+	bool IsListFocused() const;
+
+	/** Delete Item UI command implementation for this panel */
+	virtual void DeleteSelectedPanelItem() override;
+
+protected:
+
+	/** Warns user before deleting all items in a panel. */
+	virtual FReply RequestDeleteAllItems() override;
+
 private:
+
+	/** Determines the visibility Add All Button. */
+	EVisibility HandleAddAllButtonVisibility() const;
+
 	/** 
 	* Behaviour selection change listener.
 	* Updates the list of actions from newly selected Behaviour
@@ -34,6 +51,26 @@ private:
 
 	/* Rebuilds the Action Panel for a newly selected Behaviour*/
 	void UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehaviourItem = nullptr);
+
+	/** Handles click event for Open Behaviour Blueprint button*/
+	FReply OnClickOverrideBlueprintButton();
+
+	/**
+	 * Builds a menu containing the list of all possible Actions
+	 * These are derived from the list of Exposed entities of the Remote Control Preset associated with us.
+	 */
+	TSharedRef<SWidget> GetActionMenuContentWidget();
+
+	/** Handles click event for Add Action button*/
+	void OnAddActionClicked(TSharedPtr<FRemoteControlField> InRemoteControlField);
+
+	/** Handles click event for Empty button; clear all Actions from the panel*/
+	FReply OnClickEmptyButton();
+
+	/** Handles click event for Add All button; Adds all possible actions for the active Remote Control Preset*/
+	FReply OnAddAllFields();
+
+private:
 
 	/** The parent Behaviour that this Action panel is associated with */
 	TWeakPtr<FRCBehaviourModel> SelectedBehaviourItemWeakPtr;
@@ -44,10 +81,9 @@ private:
 	/** Widget representing List of Actions */
 	TSharedPtr<class SRCActionPanelList> ActionPanelList;
 
-public:
-	/** Whether the Actions list widget currently has focus.*/
-	bool IsListFocused() const;
+	/** Helper widget for behavior details. */
+	static TSharedRef<SBox> NoneSelectedWidget;
 
-	/** Delete Item UI command implementation for this panel */
-	virtual void DeleteSelectedPanelItem() override;
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };

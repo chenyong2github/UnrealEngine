@@ -4,7 +4,6 @@
 
 #include "Action/SRCActionPanel.h"
 #include "ActorEditorUtils.h"
-#include "AssetRegistry/AssetRegistryModule.h"
 #include "Behaviour/SRCBehaviourPanel.h"
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
@@ -49,6 +48,7 @@
 #include "SRCPanelExposedActor.h"
 #include "SRCPanelExposedField.h"
 #include "SRCPanelTreeNode.h"
+#include "Styling/RemoteControlStyles.h"
 #include "Styling/ToolBarStyle.h"
 #include "Subsystems/Subsystem.h"
 #include "SWarningOrErrorBox.h"
@@ -60,6 +60,8 @@
 #include "UI/BaseLogicUI/RCLogicModeBase.h"
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
 #include "UI/Filters/SRCPanelFilter.h"
+#include "UI/Drawers/SRCPanelDrawer.h"
+#include "UI/Panels/SRCDockPanel.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Images/SLayeredImage.h"
@@ -78,6 +80,17 @@
 const FName SRemoteControlPanel::DefaultRemoteControlPanelToolBarName("RemoteControlPanel.DefaultToolBar");
 const FName SRemoteControlPanel::AuxiliaryRemoteControlPanelToolBarName("RemoteControlPanel.AuxiliaryToolBar");
 const float SRemoteControlPanel::MinimumPanelWidth = 640.f;
+
+TSharedRef<SBox> SRemoteControlPanel::NoneSelectedWidget = SNew(SBox)
+			.Padding(0.f)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("NoneSelected", "Select an entity to view details."))
+				.TextStyle(&FAppStyle::GetWidgetStyle<FTextBlockStyle>("NormalText"))
+				.Justification(ETextJustify::Center)
+			];
 
 static TAutoConsoleVariable<bool> CVarRemoteControlEnableLogicUI(TEXT("RemoteControl.EnableLogicUI"), false, TEXT("Toggles visibility of Remote Control Logic User Interface (part of the Remote Control Preset asset)"));
 
@@ -152,10 +165,11 @@ public:
 		ChildSlot
 		.Padding(ToolBarStyle.ButtonPadding.Left, 0.f, ToolBarStyle.ButtonPadding.Right, 0.f)
 			[
-				SNew(SButton)
-				.ContentPadding(ToolBarStyle.ButtonPadding)
-				.ButtonStyle(&ToolBarStyle.ButtonStyle)
-				.OnClicked(this, &SAutoResizeButton::OnClicked)
+				SNew(SCheckBox)
+				.Padding(ToolBarStyle.CheckBoxPadding)
+				.Style(&ToolBarStyle.ToggleButton)
+				.IsChecked(this , &SAutoResizeButton::HandleIsChecked)
+				.OnCheckStateChanged(this, &SAutoResizeButton::OnCheckStateChanged)
 				.ToolTipText(ActualToolTip)
 				.Content()
 				[
@@ -166,6 +180,7 @@ public:
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					.HAlign(HAlign_Center)
+					.Padding(2.f, 4.f)
 					[
 						IconWidget
 					]
@@ -186,6 +201,7 @@ public:
 	}
 
 private:
+
 	/** Called by Slate to determine whether labels are visible */
 	EVisibility GetLabelVisibility() const
 	{
@@ -203,6 +219,7 @@ private:
 		return ActualIcon.GetIcon();
 	}
 
+	/** Retrieves the color used by icon brush. */
 	FSlateColor GetIconForegroundColor() const
 	{
 		// If any brush has a tint, don't assume it should be subdued
@@ -216,9 +233,9 @@ private:
 	}
 
 	/**
-	 * Called by Slate when this tool bar button's button is clicked
+	 * Called by Slate to check whether this toolbar button is checked or not.
 	 */
-	FReply OnClicked()
+	ECheckBoxState HandleIsChecked() const
 	{
 		IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
 
@@ -226,16 +243,36 @@ private:
 
 		if (ActionList.IsValid() && UICommand.IsValid())
 		{
-			ActionList->ExecuteAction(UICommand.ToSharedRef());
+			return ActionList->GetCheckState(UICommand.ToSharedRef());
 		}
 
-		return FReply::Handled();
+		return ECheckBoxState::Undetermined;
+	}
+	
+	/**
+	 * Called by Slate when this tool bar button's button is clicked
+	 */
+	void OnCheckStateChanged(ECheckBoxState NewState)
+	{
+		IMainFrameModule& MainFrame = FModuleManager::Get().LoadModuleChecked<IMainFrameModule>("MainFrame");
+
+		TSharedPtr<FUICommandList> ActionList = MainFrame.GetMainFrameCommandBindings();
+
+		if (ActionList.IsValid() && UICommand.IsValid())
+		{
+			ActionList->TryExecuteAction(UICommand.ToSharedRef());
+		}
 	}
 
+private:
+
+	/** Should we use small icons or not. */
 	TAttribute<bool> bForceSmallIcons;
 
+	/** Holds the UI Command information of this button. */
 	TSharedPtr<const FUICommandInfo> UICommand;
 
+	/** Overriden icon to be used instead of default one. */
 	TAttribute<FSlateIcon> IconOverride;
 };
 
@@ -246,6 +283,10 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	WidgetRegistry = MakeShared<FRCPanelWidgetRegistry>();
 	ToolkitHost = InToolkitHost;
 
+	ActivePanel = ERCPanels::RCP_Properties;
+
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
 	TArray<TSharedRef<SWidget>> ExtensionWidgets;
 	FRemoteControlUIModule::Get().GetExtensionGenerators().Broadcast(ExtensionWidgets);
 
@@ -253,17 +294,39 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 
 	// Rebind All
 	AddToolbarWidget(SNew(SButton)
+		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
 		.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
-		.OnClicked_Raw(this, &SRemoteControlPanel::OnClickRebindAllButton)
+		.OnClicked(this, &SRemoteControlPanel::OnClickRebindAllButton)
+		.ContentPadding(2.f)
 		[
-			SNew(STextBlock)
-			.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
-			.Text(LOCTEXT("RebindButtonText", "Rebind All"))
+			SNew(SHorizontalBox)
+
+			+SHorizontalBox::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			.Padding(2.f)
+			[
+				SNew(SImage)
+				.Image(FAppStyle::Get().GetBrush("Icons.Link"))
+				.ColorAndOpacity(FSlateColor::UseForeground())
+			]
+
+			+SHorizontalBox::Slot()
+			.VAlign(VAlign_Center)
+			.Padding(4.f, 2.f)
+			.FillWidth(1.f)
+			[	
+				SNew(STextBlock)
+				.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
+				.Text(LOCTEXT("RebindButtonText", "Rebind All"))
+				.TextStyle(&RCPanelStyle->PanelTextStyle)
+			]
 		]);
 
 	// Show Log
 	AddToolbarWidget(SNew(SCheckBox)
-		.Style(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Switch")
+		.Style(&RCPanelStyle->ToggleButtonStyle)
 		.ToolTipText(LOCTEXT("ShowLogTooltip", "Show/Hide remote control log."))
 		.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 		.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
@@ -272,11 +335,12 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			SNew(STextBlock)
 			.Text(LOCTEXT("ShowLogLabel", "Log"))
 			.Justification(ETextJustify::Center)
+			.TextStyle(&RCPanelStyle->PanelTextStyle)
 		]);
 
 	// Edit Mode
 	AddToolbarWidget(SNew(SCheckBox)
-		.Style(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Switch")
+		.Style(&RCPanelStyle->ToggleButtonStyle)
 		.ToolTipText(LOCTEXT("EditModeTooltip", "Toggle Editing (Ctrl + E)"))
 		.IsChecked_Lambda([this]() { return this->bIsInEditMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
 		.Padding(4.f)
@@ -285,6 +349,8 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 		[
 			SNew(STextBlock)
 			.Text(LOCTEXT("EditLabel", "Edit"))
+			.Justification(ETextJustify::Center)
+			.TextStyle(&RCPanelStyle->PanelTextStyle)
 		]
 	);
 
@@ -314,19 +380,19 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 	TSharedPtr<ISlateMetaData> FilterComboButtonMetaData = MakeShared<FTagMetaData>(TEXT("ContentBrowserFiltersCombo"));
 	FilterComboButton->AddMetadata(FilterComboButtonMetaData.ToSharedRef());
 
-	TSharedPtr<SHorizontalBox> TopExtensions;
-
 	EntityProtocolDetails = SNew(SBox);
 	
 	EntityList = SNew(SRCPanelExposedEntitiesList, Preset.Get(), WidgetRegistry)
+		.ExposeComboButton(CreateExposeButton())
 		.OnEntityListUpdated_Lambda([this] ()
-		{
-			UpdateEntityDetailsView(EntityList->GetSelectedEntity());
-			UpdateRebindButtonVisibility();
-			CachedExposedPropertyArgs.Reset();
-		})
-		.EditMode_Lambda([this](){ return bIsInEditMode; });
-	
+			{
+				UpdateEntityDetailsView(EntityList->GetSelectedEntity());
+				UpdateRebindButtonVisibility();
+				CachedExposedPropertyArgs.Reset();
+			}
+		)
+		.EditMode_Lambda([this]() { return bIsInEditMode; });
+
 	EntityList->OnSelectionChange().AddSP(this, &SRemoteControlPanel::UpdateEntityDetailsView);
 
 	const TAttribute<float> TreeBindingSplitRatioTop = TAttribute<float>::Create(
@@ -343,10 +409,9 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			return 1.0f - Settings->TreeBindingSplitRatio;
 		}));
 
-	TSharedRef<SWidget> ExposedPropertyPanel =
-		SNew(SVerticalBox)
+	TSharedRef<SWidget> HeaderPanel = SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.Padding(3.f)
+		.Padding(3.f, 0.f)
 		.AutoHeight()
 		[
 			ToolbarWidgetContent.ToSharedRef()
@@ -362,7 +427,7 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.Orientation(EOrientation::Orient_Horizontal)
 		]
 		+ SVerticalBox::Slot()
-		.Padding(3.f)
+		.Padding(3.f, 0.f)
 		.AutoHeight()
 		[
 			// Auxiliary Toolbar
@@ -397,10 +462,10 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			.Padding(3.f, 3.f, 3.f, 3.f)
 			[
 				SNew(SButton)
+				.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
 				.ContentPadding(2.0f)
-				.ButtonStyle(FAppStyle::Get(), "FlatButton")
 				.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-				.OnClicked_Raw(this, &SRemoteControlPanel::OnClickSettingsButton)
+				.OnClicked(this, &SRemoteControlPanel::OnClickSettingsButton)
 				.ToolTipText(LOCTEXT("OpenRemoteControlSettings", "Open Remote Control settings."))
 				[
 					SNew(SImage)
@@ -429,240 +494,9 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			[
 				AuxiliaryToolbarWidgetContent.ToSharedRef()
 			]
-		]
-		+ SVerticalBox::Slot()
-		.Padding(5.0f, 5.0f)
-		.AutoHeight()
-		[
-			// Top tool bar
-			SNew(SHorizontalBox)
+		];
 
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(0, 0, 2.0f, 0.0f))
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Visibility_Lambda([this]() { 
-					return (bIsInEditMode && Preset.IsValid() && !Preset->IsEmbeddedPreset()) ? EVisibility::Visible : EVisibility::Collapsed; 
-				})
-				.ButtonStyle(FAppStyle::Get(), "FlatButton")
-				.OnClicked(this, &SRemoteControlPanel::OnSavePreset)
-				[
-					SNew(SHorizontalBox)
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.Padding(0,0,5, 0)
-					[
-						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("Icons.Save"))
-					]
-					+ SHorizontalBox::Slot()
-					.FillWidth(1.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("Save", "Save"))
-					]
-				]
-			]
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(0, 0, 5.0f, 0.0f))
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.Visibility_Lambda([this]() { return bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
-				.ButtonStyle(FAppStyle::Get(), "FlatButton")
-				.OnClicked(this, &SRemoteControlPanel::OnCreateGroup)
-				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("SceneOutliner.NewFolderIcon"))
-				]
-			]
-			// Function library picker
-			+ SHorizontalBox::Slot()
-			.Padding(FMargin(5.0f, 0.0f))
-			.AutoWidth()
-			[
-				CreateExposeButton()
-			]
-			// Right aligned widgets
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.FillWidth(1.0f)
-			.Padding(0, 7.0f)
-			[
-				SAssignNew(TopExtensions, SHorizontalBox)
-				// Rebind button
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.Visibility_Lambda([this]() { return bShowRebindButton ? EVisibility::Visible : EVisibility::Collapsed; })
-					.OnClicked_Raw(this, &SRemoteControlPanel::OnClickRebindAllButton)
-					[
-						SNew(STextBlock)
-						.ToolTipText(LOCTEXT("RebindButtonToolTip", "Attempt to rebind all unbound entites of the preset."))
-						.Text(LOCTEXT("RebindButtonText", "Rebind All"))
-					]
-				]
-
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "FlatButton")
-					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-					.ToolTipText(LOCTEXT("EntityDetailsToolTip", "Open the details panel for the selected exposed entity."))
-					.OnClicked_Lambda([this](){ ToggleDetailsView(); return FReply::Handled(); })
-					[
-						SNew(SImage)
-						.Image(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
-					]
-				]
-				// Edit Mode
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.f, 0.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("EditModeLabel_Editor", "Edit Mode : "))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(2.f, 0.f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(SCheckBox)
-					.Style(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Switch")
-					.ToolTipText(LOCTEXT("EditModeTooltip", "Toggle Editing (Ctrl + E)"))
-					.IsChecked_Lambda([this]() { return this->bIsInEditMode ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-					.Padding(2.f)
-					.OnCheckStateChanged(this, &SRemoteControlPanel::OnEditModeCheckboxToggle)
-				]
-				// Enable Log
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.Padding(4.0f, 0)
-				.AutoWidth()
-				[
-					SNew(STextBlock)
-					.Text(LOCTEXT("EnableLogLabel", "Enable Log: "))
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SCheckBox)
-					.IsChecked_Lambda([]() { return FRemoteControlLogger::Get().IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-					.OnCheckStateChanged(this, &SRemoteControlPanel::OnLogCheckboxToggle)
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(5.0f, 0.f))
-				[
-					SNew(SSeparator)
-					.Orientation(Orient_Vertical)
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SAssignNew(PresetNameTextBlock, STextBlock)
-					.Font(FAppStyle::Get().GetFontStyle("DetailsView.CategoryFontStyle"))
-					.Text(FText::FromName(Preset->GetPresetName()))
-				]
-				+ SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(FMargin(5.0f, 0.f))
-				[
-					SNew(SSeparator)
-					.Orientation(Orient_Vertical)
-				]
-				+ SHorizontalBox::Slot()
-				.VAlign(VAlign_Center)
-				.AutoWidth()
-				[
-					SNew(SButton)
-					.ContentPadding(2.0f)
-					.ButtonStyle(FAppStyle::Get(), "FlatButton")
-					.TextStyle(FRemoteControlPanelStyle::Get(), "RemoteControlPanel.Button.TextStyle")
-					.OnClicked_Raw(this, &SRemoteControlPanel::OnClickSettingsButton)
-					[
-						SNew(STextBlock)
-						.ColorAndOpacity(FColor::White)
-						.ToolTipText(LOCTEXT("OpenRemoteControlSettings", "Open Remote Control settings."))
-						.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FEditorFontGlyphs::Cogs)
-					]
-				]
-			]
-		]
-		+ SVerticalBox::Slot()
-		[
-			SNew(SSplitter)
-			.Orientation(Orient_Vertical)
-			+ SSplitter::Slot()
-			.Value(.8f)
-			[
-				SNew(SBorder)
-				.Padding(FMargin(0.f, 5.f, 0.f, 0.f))
-				.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.DarkGroupBorder"))
-				[
-					SNew(SWidgetSwitcher)
-					.WidgetIndex_Lambda([this](){ return !bIsInEditMode ? 0 : 1; })
-					+ SWidgetSwitcher::Slot()
-					[
-						// Exposed entities List
-						SNew(SBorder)
-						.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-						[
-							EntityList.ToSharedRef()
-						]
-					]
-					+ SWidgetSwitcher::Slot()
-					[
-						SNew(SSplitter)
-						.Orientation(EOrientation::Orient_Vertical)						
-						+ SSplitter::Slot()
-						.Value(TreeBindingSplitRatioTop)
-						.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewSize)
-						{
-							URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>();
-							Settings->TreeBindingSplitRatio = InNewSize;
-							Settings->PostEditChange();
-							Settings->SaveConfig();
-						}))
-						[
-							// Exposed entities List
-							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-							[
-								EntityList.ToSharedRef()
-							]
-						]
-						+ SSplitter::Slot()
-						.Value(TreeBindingSplitRatioBottom)
-						[
-							SNew(SBorder)
-							.BorderImage(FAppStyle::Get().GetBrush("ToolPanel.GroupBorder"))
-							[
-								EntityProtocolDetails.ToSharedRef()
-							]
-						]
-					]
-				]
-			]
-			+ SSplitter::Slot()
-			.Value(.2f)
-			[
-				SNew(SRCLogger)
-			]
-		]
+	TSharedRef<SWidget> FooterPanel = SNew(SVerticalBox)
 		// Use less CPU Warning
 		+SVerticalBox::Slot()
 		.AutoHeight()
@@ -671,91 +505,235 @@ void SRemoteControlPanel::Construct(const FArguments& InArgs, URemoteControlPres
 			CreateCPUThrottleWarning()
 		];
 
-	TabManager = FGlobalTabmanager::New();
-	const TSharedPtr<FTabManager::FStack> ControlPanelStackManager = FTabManager::NewStack();
-	const constexpr TCHAR* ExposedPropertyTabName = TEXT("Expose Property Tab");
-	const constexpr TCHAR* ControllerTabName = TEXT("Controller Tab");
-	const FOnSpawnTab OnExposedPropertySpawnTab = FOnSpawnTab::CreateLambda([ExposedPropertyPanel] (const FSpawnTabArgs&)
-	{
-		return SNew(SDockTab)
+	// Output Log Dock panel
+	TSharedRef<SRCMinorPanel> OutputLogDockPanel = SNew(SRCMinorPanel)
+		.HeaderLabel(LOCTEXT("LogPanelLabel", "Log"))
 		[
-			ExposedPropertyPanel
+			SNew(SRCLogger)
 		];
-	});
-	const FOnSpawnTab OnControllerSpawnTab = FOnSpawnTab::CreateLambda([this] (const FSpawnTabArgs&)
-	{
-		return SNew(SDockTab)
-		[
-			SAssignNew(ControllerPanel, SRCControllerPanel, SharedThis(this))
-		];
-	});
-	const FCanSpawnTab CanSpawnPanelTab = FCanSpawnTab::CreateLambda([this](const FSpawnTabArgs& InArgs)
-	{
-		return true;
-	});
-	if (!TabManager->HasTabSpawner(ExposedPropertyTabName))
-	{
-		TabManager->RegisterTabSpawner(ExposedPropertyTabName, OnExposedPropertySpawnTab, CanSpawnPanelTab);
-	}
-	if (!TabManager->HasTabSpawner(ControllerTabName))
-	{
-		TabManager->RegisterTabSpawner(ControllerTabName, OnControllerSpawnTab, CanSpawnPanelTab);
-	}
-	
-	const TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("RemoteControlPanelLayout1.0") 
-	->AddArea
-	(
-		FTabManager::NewPrimaryArea()
-		->SetOrientation(Orient_Vertical)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.5f)
-			->AddTab(ControllerTabName, ETabState::OpenedTab)
-		)
-		->Split
-		(
-			FTabManager::NewStack()
-			->SetSizeCoefficient(0.5f)
-			->AddTab(ExposedPropertyTabName, ETabState::OpenedTab)
-		)
-	);
-		
-	// Make 3 Columns with Exposed Properties + Controllers / Behaviours / Actions
-	TSharedRef<SSplitter> SplitterBox = SNew(SSplitter)
-	.Orientation(Orient_Horizontal)
-	+ SSplitter::Slot()
-	.Value(0.33)
-	[
-		TabManager->RestoreFrom(Layout, nullptr).ToSharedRef()
-	]
-	+ SSplitter::Slot()
-	.Value(0.33)
-	[
-		SAssignNew(BehaviourPanel, SRCBehaviourPanel, SharedThis(this))
-	]
-	+ SSplitter::Slot()
-	.Value(0.33)
-	[
-		SAssignNew(ActionPanel, SRCActionPanel, SharedThis(this))
-	];
 
-	if (CVarRemoteControlEnableLogicUI.GetValueOnAnyThread())
-	{
-		ChildSlot
+	TSharedRef<SWidget> OutputLogIcon = SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush("MessageLog.TabIcon"))
+		.ColorAndOpacity(FSlateColor::UseForeground());
+
+	OutputLogDockPanel->AddHeaderToolbarItem(EToolbar::Left, OutputLogIcon);
+
+	// Make 3 Columns with Controllers + Behaviours + Actions
+	TSharedRef<SRCMajorPanel> LogicPanel = SNew(SRCMajorPanel)
+		.HeaderLabel(LOCTEXT("LogicPanelHeader", "LOGIC"))
+		.EnableFooter(false);
+	
+	// Controllers with Behaviours panel
+	TSharedRef<SRCMajorPanel> ControllersAndBehavioursPanel = SNew(SRCMajorPanel)
+		.EnableHeader(false)
+		.EnableFooter(true);
+
+	ControllerPanel = SNew(SRCControllerPanel, SharedThis(this))
+		.Visibility_Lambda([this] { return bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
+
+	BehaviourPanel = SNew(SRCBehaviourPanel, SharedThis(this))
+		.Visibility_Lambda([this] { return bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
+
+	ControllersAndBehavioursPanel->AddPanel(ControllerPanel.ToSharedRef(), 0.5f);
+		
+	ControllersAndBehavioursPanel->AddPanel(BehaviourPanel.ToSharedRef(), 0.5f);
+
+	// TODO : Replace this with actual Favorites Panel.
+	TSharedRef<SWidget> FavoritesItem = SNew(SBox)
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Favorites")))
+		.HeightOverride(30.f)
+		.VAlign(VAlign_Center)
 		[
-			SplitterBox
+			SNew(STextBlock)
+			.Text(LOCTEXT("FavoritesLabel", "Favorites"))
+			.TextStyle(&RCPanelStyle->PanelTextStyle)
 		];
-	}
-	else
-	{
-		ChildSlot
+
+	ControllersAndBehavioursPanel->AddFooterToolItem(EToolbar::Left, FavoritesItem);
+
+	// Actions Panel.
+	ActionPanel = SNew(SRCActionPanel, SharedThis(this))
+		.Visibility_Lambda([this] { return bIsLogicPanelEnabled && (ActivePanel == ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None) ? EVisibility::Visible : EVisibility::Collapsed; });
+
+	LogicPanel->AddPanel(ControllersAndBehavioursPanel, 0.67f);
+	LogicPanel->AddPanel(ActionPanel.ToSharedRef(), 0.33f);
+
+	// Make 2 Columns with Panel Drawer + Main Panel
+	TSharedRef<SSplitter> ContentPanel = SNew(SSplitter)
+		.Orientation(Orient_Horizontal)
+	
+		// Panel Drawer
+		+SSplitter::Slot()
+		.Value(0.05f)
+		.Resizable(false)
+		.SizeRule(SSplitter::ESizeRule::SizeToContent)
+		[
+			SAssignNew(PanelDrawer, SRCPanelDrawer)
+		]
+
+		// Main Panel
+		+SSplitter::Slot()
+		.Value(0.35f)
+		[
+			SNew(SWidgetSwitcher)
+			.WidgetIndex_Lambda([this](){ return (int32)ActivePanel; })
+
+			// 1. Nothing to be shown as all panels might be hidden (Index : 0)
+			// Since this is widget switcher we should show NullWidget in such case.
+			+ SWidgetSwitcher::Slot()
 			[
-				ExposedPropertyPanel
-			];
-	}
+				SNew(SWidgetSwitcher)
+				.WidgetIndex_Lambda([this]() { return !bIsLogicPanelEnabled ? 0 : 1; })
+
+				+ SWidgetSwitcher::Slot()
+				[
+					SNullWidget::NullWidget
+				]
+
+				+ SWidgetSwitcher::Slot()
+				[
+					LogicPanel
+				]	
+			]
+		
+			// 2. Exposed entities List with Logic Editor (Index : 1).
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SWidgetSwitcher)
+				.WidgetIndex_Lambda([this]() { return !bIsLogicPanelEnabled ? 0 : 1; })
+
+				+ SWidgetSwitcher::Slot()
+				[
+					EntityList.ToSharedRef()
+				]
+
+				+ SWidgetSwitcher::Slot()
+				[
+					SNew(SSplitter)
+					.Orientation(Orient_Horizontal)
+
+					+SSplitter::Slot()
+					.Value(0.4)
+					[
+						EntityList.ToSharedRef()
+					]
+			
+					+SSplitter::Slot()
+					.Value(0.6)
+					[
+						LogicPanel
+					]
+				]
+			]
+
+			// 3. Properties with Entity Details (Index : 2).
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SSplitter)
+				.Orientation(EOrientation::Orient_Vertical)						
+				
+				// Exposed entities List
+				+ SSplitter::Slot()
+				.Value(TreeBindingSplitRatioTop)
+				.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewSize)
+				{
+					URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>();
+					Settings->TreeBindingSplitRatio = InNewSize;
+					Settings->PostEditChange();
+					Settings->SaveConfig();
+				}))
+				[
+					EntityList.ToSharedRef()
+				]
+					
+				// Entity Details
+				+ SSplitter::Slot()
+				.Value(TreeBindingSplitRatioBottom)
+				[
+					CreateEntityDetailsView()
+				]
+			]
+				
+			// 4. Properties with Protocols (Index : 3).
+			+ SWidgetSwitcher::Slot()
+			[
+				SNew(SSplitter)
+				.Orientation(EOrientation::Orient_Vertical)						
+				
+				// Exposed entities List
+				+ SSplitter::Slot()
+				.Value(TreeBindingSplitRatioTop)
+				.OnSlotResized(SSplitter::FOnSlotResized::CreateLambda([](float InNewSize)
+				{
+					URemoteControlSettings* Settings = GetMutableDefault<URemoteControlSettings>();
+					Settings->TreeBindingSplitRatio = InNewSize;
+					Settings->PostEditChange();
+					Settings->SaveConfig();
+				}))
+				[
+					EntityList.ToSharedRef()
+				]
+			
+				// Protocol Details
+				+ SSplitter::Slot()
+				.Value(TreeBindingSplitRatioBottom)
+				[
+					EntityProtocolDetails.ToSharedRef()
+				]
+			]
+					
+			// 5. Output Log (Index : 4).
+			+ SWidgetSwitcher::Slot()
+			[
+				OutputLogDockPanel
+			]
+		];
+
+	ChildSlot
+		[
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoHeight()
+			[
+				HeaderPanel
+			]
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoHeight()
+			[
+				// Separator
+				SNew(SSeparator)
+				.SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
+				.Thickness(5.f)
+				.Orientation(EOrientation::Orient_Horizontal)
+			]
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.FillHeight(1.f)
+			[
+				ContentPanel
+			]
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoHeight()
+			[
+				// Separator
+				SNew(SSeparator)
+				.SeparatorImage(FAppStyle::Get().GetBrush("Separator"))
+				.Thickness(5.f)
+				.Orientation(EOrientation::Orient_Horizontal)
+			]
+			+ SVerticalBox::Slot()
+			.HAlign(HAlign_Fill)
+			.AutoHeight()
+			[
+				FooterPanel
+			]
+		];
 
 	RegisterEvents();
+	RegisterPanels();
 	CacheLevelClasses();
 	Refresh();
 	LoadSettings(InPreset->GetPresetId());
@@ -766,6 +744,7 @@ SRemoteControlPanel::~SRemoteControlPanel()
 	SaveSettings();
 
 	UnbindRemoteControlCommands();
+	UnregisterPanels();
 	UnregisterEvents();
 
 	// Clear the log
@@ -833,7 +812,6 @@ bool SRemoteControlPanel::IsExposed(const FRCExposesPropertyArgs& InPropertyArgs
 	return false;
 }
 
-
 bool SRemoteControlPanel::IsAllObjectsExposed(TArray<UObject*> InOuterObjects, const FString& InPath, bool bUsingDuplicatesInPath)
 {
 	TArray<TSharedPtr<FRemoteControlProperty>, TInlineAllocator<1>> PotentialMatches;
@@ -887,7 +865,6 @@ void SRemoteControlPanel::ToggleProperty(const FRCExposesPropertyArgs& InPropert
 		Unexpose(InPropertyArgs);
 		return;
 	}
-
 
 	auto PreExpose = [this]()
 	{
@@ -984,19 +961,19 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 		.AllowDefaultObjects(true)
 		.Label(LOCTEXT("FunctionLibrariesLabel", "Function Libraries"))
 		.ObjectClass(UBlueprintFunctionLibrary::StaticClass())
-		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
+		.OnSelectFunction(this, &SRemoteControlPanel::ExposeFunction);
 
 	SAssignNew(SubsystemFunctionPicker, SRCPanelFunctionPicker)
 		.RemoteControlPanel(SharedThis(this))
 		.Label(LOCTEXT("SubsystemFunctionLabel", "Subsystem Functions"))
 		.ObjectClass(USubsystem::StaticClass())
-		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
+		.OnSelectFunction(this, &SRemoteControlPanel::ExposeFunction);
 
 	SAssignNew(ActorFunctionPicker, SRCPanelFunctionPicker)
 		.RemoteControlPanel(SharedThis(this))
 		.Label(LOCTEXT("ActorFunctionsLabel", "Actor Functions"))
 		.ObjectClass(AActor::StaticClass())
-		.OnSelectFunction_Raw(this, &SRemoteControlPanel::ExposeFunction);
+		.OnSelectFunction(this, &SRemoteControlPanel::ExposeFunction);
 	
 	MenuBuilder.BeginSection(NAME_None, LOCTEXT("ExposeHeader", "Expose"));
 	{
@@ -1083,16 +1060,25 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 	MenuBuilder.EndSection();
 	
 	return SAssignNew(ExposeComboButton, SComboButton)
-		.Visibility_Lambda([this]() { return this->bIsInEditMode ? EVisibility::Visible : EVisibility::Collapsed; })
-		.ButtonStyle(FAppStyle::Get(), "PropertyEditor.AssetComboStyle")
+		.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("Expose Functions")))
+		.IsEnabled_Lambda([this]() { return this->bIsInEditMode; })
+		.HAlign(HAlign_Center)
+		.VAlign(VAlign_Center)
+		.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
 		.ForegroundColor(FSlateColor::UseForeground())
 		.CollapseMenuOnParentFocus(true)
-		.ContentPadding(FMargin(10.0f, 0.f))
+		.HasDownArrow(false)
+		.ContentPadding(FMargin(4.f, 2.f))
 		.ButtonContent()
 		[
-			SNew(STextBlock)
-			.TextStyle(FAppStyle::Get(), "ContentBrowser.TopBar.Font")
-			.Text(LOCTEXT("ExposeButtonLabel", "Expose"))
+			SNew(SBox)
+			.WidthOverride(RCPanelStyle->IconSize.X)
+			.HeightOverride(RCPanelStyle->IconSize.Y)
+			[
+				SNew(SImage)
+				.ColorAndOpacity(FSlateColor::UseForeground())
+				.Image(FAppStyle::GetBrush("GraphEditor.Function_16x"))
+			]
 		]
 		.MenuContent()
 		[
@@ -1265,19 +1251,18 @@ void SRemoteControlPanel::BindRemoteControlCommands()
 		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanFindInContentBrowser));
 
 	ActionList.MapAction(
-		Commands.ToggleExposeFunctions,
-		FExecuteAction::CreateLambda([this] { OnToggleExposeFunctions(); }),
-		FCanExecuteAction::CreateLambda([] { return true; }));
-
-	ActionList.MapAction(
 		Commands.ToggleProtocolMappings,
-		FExecuteAction::CreateLambda([this] { OnToggleProtocolMappings(); }),
-		FCanExecuteAction::CreateLambda([] { return true; }));
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::ToggleProtocolMappings_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanToggleProtocolsMode),
+		FIsActionChecked::CreateSP(this, &SRemoteControlPanel::IsInProtocolsMode),
+		FIsActionButtonVisible::CreateSP(this, &SRemoteControlPanel::CanToggleProtocolsMode));
 
 	ActionList.MapAction(
 		Commands.ToggleLogicEditor,
-		FExecuteAction::CreateLambda([this] { OnToggleLogicEditor(); }),
-		FCanExecuteAction::CreateLambda([] { return true; }));
+		FExecuteAction::CreateSP(this, &SRemoteControlPanel::ToggleLogicEditor_Execute),
+		FCanExecuteAction::CreateSP(this, &SRemoteControlPanel::CanToggleLogicPanel),
+		FIsActionChecked::CreateSP(this, &SRemoteControlPanel::IsLogicPanelEnabled),
+		FIsActionButtonVisible::CreateSP(this, &SRemoteControlPanel::CanToggleLogicPanel));
 
 	ActionList.MapAction(
 		Commands.DeleteEntity,
@@ -1302,7 +1287,6 @@ void SRemoteControlPanel::UnbindRemoteControlCommands()
 
 		ActionList.UnmapAction(Commands.SavePreset);
 		ActionList.UnmapAction(Commands.FindPresetInContentBrowser);
-		ActionList.UnmapAction(Commands.ToggleExposeFunctions);
 		ActionList.UnmapAction(Commands.ToggleProtocolMappings);
 		ActionList.UnmapAction(Commands.ToggleLogicEditor);
 		ActionList.UnmapAction(Commands.DeleteEntity);
@@ -1312,8 +1296,6 @@ void SRemoteControlPanel::UnbindRemoteControlCommands()
 
 void SRemoteControlPanel::RegisterEvents()
 {
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().OnAssetRenamed().AddSP(this, &SRemoteControlPanel::OnAssetRenamed);
 	FEditorDelegates::MapChange.AddSP(this, &SRemoteControlPanel::OnMapChange);
 	
 	if (GEditor)
@@ -1352,11 +1334,89 @@ void SRemoteControlPanel::UnregisterEvents()
 	}
 
 	FEditorDelegates::MapChange.RemoveAll(this);
-	
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-	AssetRegistryModule.Get().OnAssetRenamed().RemoveAll(this);
-	
+
 	UMaterial::OnMaterialCompilationFinished().RemoveAll(this);
+}
+
+void SRemoteControlPanel::RegisterPanels()
+{
+	if (PanelDrawer.IsValid())
+	{
+		PanelDrawer->OnRCPanelToggled().BindSP(this, &SRemoteControlPanel::OnRCPanelToggled);
+
+		{// Properties Panel
+			TSharedRef<FRCPanelDrawerArgs> PropertiesPanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_Properties);
+
+			PropertiesPanel->bDrawnByDefault = true;
+			PropertiesPanel->bRotateIconBy90 = true;
+			PropertiesPanel->Label = LOCTEXT("PropertiesPanelLabel", "Expose");
+			PropertiesPanel->ToolTip = LOCTEXT("PropertiesPanelTooltip", "Open exposed properties panel.");
+			PropertiesPanel->Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon");
+
+			PanelDrawer->RegisterPanel(PropertiesPanel);
+
+			RegisteredDrawers.Add(PropertiesPanel->GetPanelID(), PropertiesPanel);
+		}
+		
+		{// Properties With Details Panel
+			TSharedRef<FRCPanelDrawerArgs> EntityDetailsPanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_EntityDetails);
+
+			EntityDetailsPanel->bDrawnByDefault = false;
+			EntityDetailsPanel->bRotateIconBy90 = false;
+			EntityDetailsPanel->Label = LOCTEXT("EntityDetailsPanelLabel", "Details");
+			EntityDetailsPanel->ToolTip = LOCTEXT("EntityDetailsPanelTooltip", "Open entity details panel.");
+			EntityDetailsPanel->Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details");
+
+			PanelDrawer->RegisterPanel(EntityDetailsPanel);
+
+			RegisteredDrawers.Add(EntityDetailsPanel->GetPanelID(), EntityDetailsPanel);
+		}
+
+		{// Properties With Protocols Panel
+			TSharedRef<FRCPanelDrawerArgs> EntityProtocolsPanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_Protocols);
+
+			EntityProtocolsPanel->bDrawnByDefault = true;
+			EntityProtocolsPanel->bRotateIconBy90 = false;
+			EntityProtocolsPanel->DrawerVisibility = bIsInProtocolsMode ? EVisibility::Visible : EVisibility::Collapsed;
+			EntityProtocolsPanel->Label = LOCTEXT("EntityProtocolsPanelLabel", "Protocols");
+			EntityProtocolsPanel->ToolTip = LOCTEXT("EntityProtocolsPanelTooltip", "Open entity protocols panel.");
+			EntityProtocolsPanel->Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer");
+
+			PanelDrawer->RegisterPanel(EntityProtocolsPanel);
+
+			RegisteredDrawers.Add(EntityProtocolsPanel->GetPanelID(), EntityProtocolsPanel);
+		}
+
+		{// Output Log Panel
+			TSharedRef<FRCPanelDrawerArgs> OutputLogPanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_OutputLog);
+
+			OutputLogPanel->bDrawnByDefault = true;
+			OutputLogPanel->bRotateIconBy90 = false;
+			OutputLogPanel->DrawerVisibility = FRemoteControlLogger::Get().IsEnabled() ? EVisibility::Visible : EVisibility::Collapsed;
+			OutputLogPanel->Label = LOCTEXT("OutputLogPanelPanelLabel", "Log");
+			OutputLogPanel->ToolTip = LOCTEXT("OutputLogPanelPanelTooltip", "Open output log panel.");
+			OutputLogPanel->Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "MessageLog.TabIcon");
+
+			PanelDrawer->RegisterPanel(OutputLogPanel);
+
+			RegisteredDrawers.Add(OutputLogPanel->GetPanelID(), OutputLogPanel);
+		}
+	}
+}
+
+void SRemoteControlPanel::UnregisterPanels()
+{
+	if (PanelDrawer.IsValid())
+	{
+		PanelDrawer->OnRCPanelToggled().Unbind();
+
+		for (TMap<ERCPanels, TSharedRef<FRCPanelDrawerArgs>>::TIterator RegisteredDrawer = RegisteredDrawers.CreateIterator(); RegisteredDrawer; ++RegisteredDrawer)
+		{
+			PanelDrawer->UnregisterPanel(RegisteredDrawer->Value);
+
+			RegisteredDrawer.RemoveCurrent();
+		}
+	}
 }
 
 void SRemoteControlPanel::Refresh()
@@ -1424,7 +1484,6 @@ void SRemoteControlPanel::Unexpose(const FRCExposesPropertyArgs& InPropertyArgs)
 	}
 }
 
-
 void SRemoteControlPanel::OnEditModeCheckboxToggle(ECheckBoxState State)
 {
 	bIsInEditMode = (State == ECheckBoxState::Checked) ? true : false;
@@ -1435,38 +1494,28 @@ void SRemoteControlPanel::OnLogCheckboxToggle(ECheckBoxState State)
 {
 	const bool bIsLogEnabled = (State == ECheckBoxState::Checked) ? true : false;
 	FRemoteControlLogger::Get().EnableLog(bIsLogEnabled);
+	
+	if (PanelDrawer.IsValid())
+	{
+		TSharedRef<FRCPanelDrawerArgs> OutputLogPanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_OutputLog);
+
+		OutputLogPanel->DrawerVisibility = bIsLogEnabled ? EVisibility::Visible : EVisibility::Collapsed;
+
+		// When we are not enabling log collapse the drawer.
+		PanelDrawer->TogglePanel(OutputLogPanel, !bIsLogEnabled);
+
+		if (!bIsLogEnabled)
+		{
+			TSharedRef<FRCPanelDrawerArgs> PropertiesPanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_Properties);
+
+			PanelDrawer->TogglePanel(PropertiesPanel);
+		}
+	}
 }
  
 void SRemoteControlPanel::OnBlueprintReinstanced()
 {
 	Refresh();
-}
-
-FReply SRemoteControlPanel::OnCreateGroup()
-{
-	FScopedTransaction Transaction(LOCTEXT("CreateGroup", "Create Group"));
-	Preset->Modify();
-	Preset->Layout.CreateGroup();
-	return FReply::Handled();
-}
-
-FReply SRemoteControlPanel::OnSavePreset()
-{
-	if (!Preset.IsValid() || !Preset->IsAsset())
-	{
-		UE_LOG(LogRemoteControl, Log, TEXT("Invalid object to save: %s"), (Preset.IsValid()) ? *Preset->GetFullName() : TEXT("Null Object"));
-		
-		return FReply::Handled();
-	}
-
-	TArray<UPackage*> PackagesToSave;
-	constexpr bool bCheckDirtyOnAssetSave = false;
-	constexpr bool bPromptToSave = false;
-	
-	PackagesToSave.Add(Preset->GetOutermost());
-	FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, bCheckDirtyOnAssetSave, bPromptToSave);
-	
-	return FReply::Handled();
 }
 
 void SRemoteControlPanel::ExposeProperty(UObject* Object, FRCFieldPathInfo Path)
@@ -1537,6 +1586,24 @@ void SRemoteControlPanel::ToggleDetailsView()
 
 TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 {
+	WrappedEntityDetailsView = SNew(SBorder)
+		.BorderImage(&RCPanelStyle->ContentAreaBrush)
+		.Padding(RCPanelStyle->PanelPadding);
+
+	// Details Panel Dock Widget.
+	TSharedRef<SRCMinorPanel> EntityDetailsDockPanel = SNew(SRCMinorPanel)
+		.HeaderLabel(LOCTEXT("EntityDetailsLabel", "Details"))
+		[
+			WrappedEntityDetailsView.ToSharedRef()
+		];
+
+	// Details Panel Icon
+	TSharedRef<SWidget> DetailsIcon = SNew(SImage)
+		.Image(FAppStyle::Get().GetBrush("LevelEditor.Tabs.Details"))
+		.ColorAndOpacity(FSlateColor::UseForeground());
+
+	EntityDetailsDockPanel->AddHeaderToolbarItem(EToolbar::Left, DetailsIcon);
+
 	FDetailsViewArgs Args;
 	Args.bShowOptions = false;
 	Args.bAllowFavoriteSystem = false;
@@ -1546,12 +1613,22 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 	EntityDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateStructureDetailView(MoveTemp(Args), FStructureDetailsViewArgs(), nullptr);
 
 	UpdateEntityDetailsView(EntityList->GetSelectedEntity());
-	if (ensure(EntityDetailsView && EntityDetailsView->GetWidget()))
+	
+	const bool bCanShowDetailsView = SelectedEntity.IsValid() && (SelectedEntity->GetRCType() != SRCPanelTreeNode::Group) && (SelectedEntity->GetRCType() != SRCPanelTreeNode::FieldChild);
+
+	if (bCanShowDetailsView)
 	{
-		return EntityDetailsView->GetWidget().ToSharedRef();
+		if (ensure(EntityDetailsView && EntityDetailsView->GetWidget()))
+		{
+			WrappedEntityDetailsView->SetContent(EntityDetailsView->GetWidget().ToSharedRef());
+		}
+	}
+	else
+	{
+		WrappedEntityDetailsView->SetContent(NoneSelectedWidget);
 	}
 
-	return SNullWidget::NullWidget;
+	return EntityDetailsDockPanel;
 }
 
 void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeNode>& SelectedNode)
@@ -1570,9 +1647,20 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 		}
 	}
 
-	if (EntityDetailsView)
+	const bool bCanShowDetailsView = SelectedEntity.IsValid() && (SelectedEntity->GetRCType() != SRCPanelTreeNode::Group) && (SelectedEntity->GetRCType() != SRCPanelTreeNode::FieldChild);
+
+	if (bCanShowDetailsView)
 	{
-		EntityDetailsView->SetStructureData(SelectedEntityPtr);
+		if (EntityDetailsView)
+		{
+			EntityDetailsView->SetStructureData(SelectedEntityPtr);
+
+			WrappedEntityDetailsView->SetContent(EntityDetailsView->GetWidget().ToSharedRef());
+		}
+	}
+	else
+	{
+		WrappedEntityDetailsView->SetContent(NoneSelectedWidget);
 	}
 
 	static const FName ProtocolWidgetsModuleName = "RemoteControlProtocolWidgets";	
@@ -1587,9 +1675,13 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 			}
 			else
 			{
-				EntityProtocolDetails->SetContent(SNullWidget::NullWidget);
+				EntityProtocolDetails->SetContent(NoneSelectedWidget);
 			}
 		}
+	}
+	else
+	{
+		EntityProtocolDetails->SetContent(NoneSelectedWidget);
 	}
 
 	// Trigger search to list the search results specific to selected group.
@@ -1642,14 +1734,6 @@ void SRemoteControlPanel::UpdateActorFunctionPicker()
 				PanelPtr->NextTickTimerHandle.Invalidate();
 			}
 		}));
-	}
-}
-
-void SRemoteControlPanel::OnAssetRenamed(const FAssetData& Asset, const FString&)
-{
-	if (Preset.IsValid() && PresetNameTextBlock)
-	{
-		PresetNameTextBlock->SetText(FText::FromName(Preset->GetPresetName()));
 	}
 }
 
@@ -1787,21 +1871,12 @@ void SRemoteControlPanel::RegisterAuxiliaryToolBar()
 		{
 			FToolMenuSection& ToolsSection = ToolbarBuilder->AddSection("Tools");
 
-			ToolsSection.AddEntry(FToolMenuEntry::InitWidget("Functions"
-				, SNew(SAutoResizeButton)
-					.UICommand(FRemoteControlCommands::Get().ToggleExposeFunctions)
-					.ForceSmallIcons_Static(SRemoteControlPanel::ShouldForceSmallIcons)
-					.IconOverride(FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("GraphEditor.Function_24x")))
-				, LOCTEXT("FunctionsLabel", "Functions")
-			)
-			);
-			
-			ToolsSection.AddEntry(FToolMenuEntry::InitWidget("Mappings"
+			ToolsSection.AddEntry(FToolMenuEntry::InitWidget("Protocols"
 				, SNew(SAutoResizeButton)
 					.UICommand(FRemoteControlCommands::Get().ToggleProtocolMappings)
 					.ForceSmallIcons_Static(SRemoteControlPanel::ShouldForceSmallIcons)
 					.IconOverride(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer"))
-				, LOCTEXT("MappingsLabel", "Mappings")
+				, LOCTEXT("ProtocolsLabel", "Protocols")
 			)
 			);
 			
@@ -1925,16 +2000,66 @@ bool SRemoteControlPanel::ShouldForceSmallIcons()
 	return false;
 }
 
-void SRemoteControlPanel::OnToggleExposeFunctions() const
+void SRemoteControlPanel::ToggleProtocolMappings_Execute()
 {
+	bIsInProtocolsMode = !bIsInProtocolsMode;
+
+	if (PanelDrawer.IsValid())
+	{
+		TSharedRef<FRCPanelDrawerArgs> ProtocolsPanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_Protocols);
+		
+		ProtocolsPanel->DrawerVisibility = bIsInProtocolsMode ? EVisibility::Visible : EVisibility::Collapsed;
+
+		// When we are not in Protocols Mode collapse the drawer.
+		PanelDrawer->TogglePanel(ProtocolsPanel, !bIsInProtocolsMode);
+
+		if (!bIsInProtocolsMode)
+		{
+			TSharedRef<FRCPanelDrawerArgs> PropertiesPanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_Properties);
+
+			PanelDrawer->TogglePanel(PropertiesPanel);
+		}
+	}
 }
 
-void SRemoteControlPanel::OnToggleProtocolMappings() const
+bool SRemoteControlPanel::CanToggleProtocolsMode() const
 {
+	return bIsInEditMode;
 }
 
-void SRemoteControlPanel::OnToggleLogicEditor() const
+bool SRemoteControlPanel::IsInProtocolsMode() const
 {
+	return bIsInEditMode && bIsInProtocolsMode;
+}
+
+void SRemoteControlPanel::ToggleLogicEditor_Execute()
+{
+	bIsLogicPanelEnabled = !bIsLogicPanelEnabled;
+
+	if (PanelDrawer.IsValid() && (ActivePanel != ERCPanels::RCP_Properties || ActivePanel == ERCPanels::RCP_None))
+	{
+		TSharedRef<FRCPanelDrawerArgs> PropertiesPanel = RegisteredDrawers.FindChecked(ERCPanels::RCP_Properties);
+
+		PanelDrawer->TogglePanel(PropertiesPanel);
+	}
+}
+
+bool SRemoteControlPanel::CanToggleLogicPanel() const
+{
+	return bIsInEditMode;
+}
+
+bool SRemoteControlPanel::IsLogicPanelEnabled() const
+{
+	return bIsInEditMode && bIsLogicPanelEnabled;
+}
+
+void SRemoteControlPanel::OnRCPanelToggled(ERCPanels InPanelID)
+{
+	if (InPanelID != ActivePanel)
+	{
+		ActivePanel = InPanelID;
+	}
 }
 
 TSharedPtr<class SRCLogicPanelBase> SRemoteControlPanel::GetActiveLogicPanel() const
@@ -1963,9 +2088,9 @@ void SRemoteControlPanel::DeleteEntity_Execute()
 	// ~ Delete Logic Item ~
 	// 
 	// If the user focus is currently active on a Logic panel then route the Delete command to it and return.
-	if (TSharedPtr<class SRCLogicPanelBase> ActivePanel = GetActiveLogicPanel())
+	if (TSharedPtr<class SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
-		ActivePanel->DeleteSelectedPanelItem();
+		ActiveLogicPanel->DeleteSelectedPanelItem();
 
 		return; // handled
 	}
@@ -1995,7 +2120,7 @@ void SRemoteControlPanel::DeleteEntity_Execute()
 
 bool SRemoteControlPanel::CanDeleteEntity() const
 {
-	if (TSharedPtr<class SRCLogicPanelBase> ActivePanel = GetActiveLogicPanel())
+	if (TSharedPtr<class SRCLogicPanelBase> ActiveLogicPanel = GetActiveLogicPanel())
 	{
 		return true; // User has focus on a logic panel
 	}

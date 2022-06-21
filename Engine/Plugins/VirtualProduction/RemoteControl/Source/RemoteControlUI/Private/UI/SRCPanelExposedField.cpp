@@ -18,12 +18,13 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Styling/SlateBrush.h"
+#include "Styling/RemoteControlStyles.h"
 #include "UObject/Object.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-
+#include "Widgets/SNullWidget.h"
 
 #define LOCTEXT_NAMESPACE "RemoteControlPanel"
 
@@ -73,6 +74,8 @@ void SRCPanelExposedField::Construct(const FArguments& InArgs, TWeakPtr<FRemoteC
 	
 	HighlightText = InArgs._HighlightText;
 
+	ResetButtonWidget = SNullWidget::NullWidget;
+
 	if (TSharedPtr<FRemoteControlField> FieldPtr = WeakField.Pin())
 	{
 		Initialize(FieldPtr->GetId(), InArgs._Preset.Get(), InArgs._EditMode);
@@ -99,6 +102,11 @@ void SRCPanelExposedField::GetNodeChildren(TArray<TSharedPtr<SRCPanelTreeNode>>&
 SRCPanelTreeNode::ENodeType SRCPanelExposedField::GetRCType() const
 {
 	return SRCPanelTreeNode::Field;
+}
+
+bool SRCPanelExposedField::HasChildren() const
+{
+	return ChildWidgets.Num() > 0;
 }
 
 FName SRCPanelExposedField::GetFieldLabel() const
@@ -173,7 +181,6 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 						ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node))
 					];
 
-					
 					TSharedPtr<IPropertyHandle> PropertyHandle = Node->CreatePropertyHandle();
 					if (PropertyHandle->GetParentHandle()->GetPropertyDisplayName().ToString() == FString("Transform")
 						|| PropertyHandle->GetOuterBaseClass() == UMaterialInstanceDynamic::StaticClass())
@@ -196,39 +203,40 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructWidget()
 							return bVisible ? EVisibility::Visible : EVisibility::Hidden;
 						};
 						
-						FieldWidget->AddSlot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(1.f,2.f))
-						[
-							SNew(SButton)
-							.IsFocusable(false)
-							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-							.ContentPadding(0) 
-							.Visibility_Lambda(IsVisible)
-							.OnClicked_Lambda([Node]()
-							{
-								Node->CreatePropertyHandle()->ResetToDefault();
-								return FReply::Handled();
-							})
-							.Content()
+						ResetButtonWidget = SNew(SBox)
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Center)
+							.Padding(2.f, 4.f)
 							[
-								SNew(SImage)
-								.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
-								.ColorAndOpacity(FSlateColor::UseForeground())
-							]
-						];
+								SNew(SButton)
+								.IsFocusable(false)
+								.ButtonStyle(&RCPanelStyle->FlatButtonStyle)
+								.ContentPadding(RCPanelStyle->PanelPadding)
+								.Visibility_Lambda(IsVisible)
+								.OnClicked_Lambda([Node]()
+								{
+									Node->CreatePropertyHandle()->ResetToDefault();
+									return FReply::Handled();
+								})
+								.Content()
+								[
+									SNew(SImage)
+									.Image(FAppStyle::GetBrush("PropertyWindow.DiffersFromDefault"))
+									.ColorAndOpacity(FSlateColor::UseForeground())
+								]
+							];
 					}
 					else
 					{
-						FieldWidget->AddSlot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(FMargin(1.f,2.f))
-						[
-							SNew(SResetToDefaultPropertyEditor, PropertyHandle)
-						];
+						ResetButtonWidget = SNew(SBox)
+							.HAlign(HAlign_Center)
+							.VAlign(VAlign_Center)
+							.Padding(2.f, 4.f)
+							[
+								SNew(SResetToDefaultPropertyEditor, PropertyHandle)
+							];
 					}
+
 					return MakeFieldWidget(FieldWidget.ToSharedRef());
 				}
 			}
@@ -282,7 +290,7 @@ TSharedRef<SWidget> SRCPanelExposedField::MakeFieldWidget(const TSharedRef<SWidg
 		WarningMessage = Builder.ToText();
 	}
 	
-	return CreateEntityWidget(InWidget, WarningMessage);
+	return CreateEntityWidget(InWidget, ResetButtonWidget.ToSharedRef(), WarningMessage);
 }
 
 void SRCPanelExposedField::ConstructPropertyWidget()
@@ -349,7 +357,7 @@ TSharedRef<SWidget> SRCPanelExposedField::ConstructCallFunctionButton(bool bIsEn
 			SNew(SButton)
 			.IsEnabled(bIsEnabled)
 			.VAlign(VAlign_Center)
-			.OnClicked_Raw(this, &SRCPanelExposedField::OnClickFunctionButton)
+			.OnClicked(this, &SRCPanelExposedField::OnClickFunctionButton)
 			[
 				SNew(STextBlock)
 				.Text(LOCTEXT("CallFunctionLabel", "Call Function"))

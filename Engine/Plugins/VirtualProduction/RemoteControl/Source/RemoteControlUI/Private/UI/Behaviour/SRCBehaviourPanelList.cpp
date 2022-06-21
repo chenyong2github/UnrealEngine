@@ -7,9 +7,19 @@
 #include "RemoteControlPreset.h"
 #include "SlateOptMacros.h"
 #include "SRCBehaviourPanel.h"
+#include "Styling/RemoteControlStyles.h"
 #include "UI/Behaviour/Builtin/RCBehaviourIsEqualModel.h"
+#include "UI/RemoteControlPanelStyle.h"
 #include "UI/SRemoteControlPanel.h"
 #include "UI/Controller/RCControllerModel.h"
+#include "Widgets/Views/SHeaderRow.h"
+
+#define LOCTEXT_NAMESPACE "RemoteControlPanelBehavioursList"
+
+namespace FRemoteControlBehaviourColumns
+{
+	const FName Behaviours = TEXT("Behaviors");
+}
 
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -20,10 +30,22 @@ void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBe
 	BehaviourPanelWeakPtr = InBehaviourPanel;
 	ControllerItemWeakPtr = InControllerItem;
 	
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
 	ListView = SNew(SListView<TSharedPtr<FRCBehaviourModel>>)
-		.ListItemsSource( &BehaviourItems )
+		.ListItemsSource(&BehaviourItems)
 		.OnSelectionChanged(this, &SRCBehaviourPanelList::OnTreeSelectionChanged)
-		.OnGenerateRow(this, &SRCBehaviourPanelList::OnGenerateWidgetForList );
+		.OnGenerateRow(this, &SRCBehaviourPanelList::OnGenerateWidgetForList)
+		.ListViewStyle(&RCPanelStyle->TableViewStyle)
+		.HeaderRow(
+			SNew(SHeaderRow)
+			.Style(&RCPanelStyle->HeaderRowStyle)
+
+			+ SHeaderRow::Column(FRemoteControlBehaviourColumns::Behaviours)
+			.DefaultLabel(LOCTEXT("RCBehaviourColumnHeader", "Behaviors"))
+			.FillWidth(1.f)
+			.HeaderContentPadding(RCPanelStyle->HeaderRowPadding)
+		);
 	
 	ChildSlot
 	[
@@ -37,6 +59,16 @@ void SRCBehaviourPanelList::Construct(const FArguments& InArgs, TSharedRef<SRCBe
 	RemoteControlPanel->OnEmptyBehaviours.AddSP(this, &SRCBehaviourPanelList::OnEmptyBehaviours);
 
 	Reset();
+}
+
+bool SRCBehaviourPanelList::IsEmpty() const
+{
+	return BehaviourItems.IsEmpty();
+}
+
+int32 SRCBehaviourPanelList::Num() const
+{
+	return BehaviourItems.Num();
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
@@ -70,24 +102,22 @@ TSharedRef<ITableRow> SRCBehaviourPanelList::OnGenerateWidgetForList(TSharedPtr<
 	const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<TSharedPtr<FString>>, OwnerTable)
-	[
-		InItem->GetWidget()
-	];
+		.Style(&RCPanelStyle->TableRowStyle)
+		[
+			InItem->GetWidget()
+		];
 }
 
 void SRCBehaviourPanelList::OnTreeSelectionChanged(TSharedPtr<FRCBehaviourModel> InItem, ESelectInfo::Type)
 {
 	if (const TSharedPtr<SRemoteControlPanel> RemoteControlPanel = BehaviourPanelWeakPtr.Pin()->GetRemoteControlPanel())
 	{
-		if (InItem.IsValid())
+		if (InItem != SelectedBehaviourItemWeakPtr.Pin())
 		{
-			if (InItem != SelectedBehaviourItemWeakPtr.Pin())
-			{
-				RemoteControlPanel->OnBehaviourSelectionChanged.Broadcast(InItem);
-			}
-		}
+			SelectedBehaviourItemWeakPtr = InItem;
 
-		SelectedBehaviourItemWeakPtr = InItem;
+			RemoteControlPanel->OnBehaviourSelectionChanged.Broadcast(InItem);
+		}
 
 		if (const TSharedPtr<FRCControllerModel> ControllerItem = ControllerItemWeakPtr.Pin())
 		{
@@ -157,3 +187,5 @@ void SRCBehaviourPanelList::DeleteSelectedPanelItem()
 {
 	DeleteItemFromLogicPanel<FRCBehaviourModel>(BehaviourItems, ListView->GetSelectedItems());
 }
+
+#undef LOCTEXT_NAMESPACE

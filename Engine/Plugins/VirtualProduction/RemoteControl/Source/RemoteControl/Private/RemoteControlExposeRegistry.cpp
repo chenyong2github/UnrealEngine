@@ -89,6 +89,11 @@ const TSet<UScriptStruct*>& URemoteControlExposeRegistry::GetExposedEntityTypes(
 	return ExposedTypes;
 }
 
+const bool URemoteControlExposeRegistry::IsEmpty() const
+{
+    return ExposedEntities.IsEmpty();
+}
+
 TSharedPtr<FRemoteControlEntity> URemoteControlExposeRegistry::AddExposedEntity(FRemoteControlEntity&& EntityToExpose, UScriptStruct* EntityType)
 {
 	LabelToIdCache.Add(EntityToExpose.GetLabel(), EntityToExpose.GetId());

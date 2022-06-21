@@ -38,6 +38,11 @@ public:
 	virtual void DeleteSelectedPanelItem() = 0;
 
 protected:
+
+	/** Warns user before deleting all items in a panel. */
+	virtual FReply RequestDeleteAllItems() = 0;
+
+protected:
 	/** The parent Remote Control Panel widget*/
 	TWeakPtr<SRemoteControlPanel> PanelWeakPtr;
 };

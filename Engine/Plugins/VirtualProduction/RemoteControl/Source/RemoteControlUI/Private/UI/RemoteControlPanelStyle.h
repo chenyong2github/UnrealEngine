@@ -32,6 +32,8 @@ private:
 	/** Get a path to the module's resources folder. */
 	static FString InContent(const FString& RelativePath, const ANSICHAR* Extension);
 
+	static void SetupPanelStyles(TSharedRef<FSlateStyleSet> InStyle);
+
 private:
 	/** Holds the style set. */
 	static TSharedPtr<FSlateStyleSet> StyleSet;

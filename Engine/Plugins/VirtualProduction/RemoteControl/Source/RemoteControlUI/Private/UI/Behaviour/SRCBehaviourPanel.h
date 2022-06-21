@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "Behaviour/RCBehaviourNode.h"
 #include "UI/BaseLogicUI/SRCLogicPanelBase.h"
 
+struct FRCPanelStyle;
 class FRCControllerModel;
 class SBox;
-
+class SRCBehaviourPanel;
 /*
 * ~ SRCBehaviourPanel ~
 *
@@ -25,7 +27,19 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel);
 
+	/** Whether the Behaviour list widget currently has focus. Used for Delete Item UI command */
+	bool IsListFocused() const;
+
+	/** Delete Item UI command implementation for this panel */
+	virtual void DeleteSelectedPanelItem() override;
+
+protected:
+
+	/** Warns user before deleting all items in a panel. */
+	virtual FReply RequestDeleteAllItems() override;
+
 private:
+	
 	/**
 	* Controller list selection change listener.
 	* Updates the list of behaviours from newly selected Controller
@@ -35,7 +49,17 @@ private:
 	/* Rebuilds the Behaviour Panel for a newly selected Controller*/
 	void UpdateWrappedWidget(TSharedPtr<FRCControllerModel> InControllerItem = nullptr);
 
+	/** Builds a menu containing the list of all possible Behaviours */
+	TSharedRef<SWidget> GetBehaviourMenuContentWidget();
+
+	/** Handles click event for Add Behaviour button*/
+	void OnAddBehaviourClicked(UClass* InClass);
+
+	/** Handles click event for "Empty" button; clears all Behaviours from the panel*/
+	FReply OnClickEmptyButton();
+
 private:
+
 	/** The parent Controller that this Behaviour panel is associated with */
 	TWeakPtr<FRCControllerModel> SelectedControllerItemWeakPtr = nullptr;
 	
@@ -45,11 +69,9 @@ private:
 	/** Widget representing List of Behaviours */
 	TSharedPtr<class SRCBehaviourPanelList> BehaviourPanelList;
 
-public:
-	/** Whether the Behaviour list widget currently has focus. Used for Delete Item UI command */
-	bool IsListFocused() const;
+	/** Helper widget for behavior details. */
+	static TSharedRef<SBox> NoneSelectedWidget;
 
-	/** Delete Item UI command implementation for this panel */
-	virtual void DeleteSelectedPanelItem() override;
-
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };

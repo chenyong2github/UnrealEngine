@@ -1,20 +1,20 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 #include "RemoteControlField.h"
-#include "UI/BaseLogicUI/SRCLogicPanelHeaderBase.h"
+#include "Widgets/SCompoundWidget.h"
 
+struct FRCPanelStyle;
 class SRCActionPanel;
 class FRCBehaviourModel;
 
 /**
- *  Action panel UI Header widget.
- * Contains metdata, Add/Remove buttons, etc;
+ * A custom widget dedicated to show the details of the selected behaviour.
  */
-class REMOTECONTROLUI_API SRCActionPanelHeader : public SRCLogicPanelHeaderBase
+class REMOTECONTROLUI_API SRCBehaviourDetails : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SRCActionPanelHeader)
+	SLATE_BEGIN_ARGS(SRCBehaviourDetails)
 		{
 		}
 
@@ -24,14 +24,12 @@ public:
 	void Construct(const FArguments& InArgs, TSharedRef<SRCActionPanel> InActionPanel, TSharedRef<FRCBehaviourModel> InBehaviourItem);
 
 private:
-
-	/** Handles click event for Open Behaviour Blueprint button*/
-	FReply OnClickOverrideBlueprintButton();
-
-private:
 	/** The parent Action panel UI widget holding this Header*/
 	TWeakPtr<SRCActionPanel> ActionPanelWeakPtr;
 	
 	/** The active Behaviour (UI Model) associated with the Actions being shown*/
 	TWeakPtr<FRCBehaviourModel> BehaviourItemWeakPtr;
+
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };

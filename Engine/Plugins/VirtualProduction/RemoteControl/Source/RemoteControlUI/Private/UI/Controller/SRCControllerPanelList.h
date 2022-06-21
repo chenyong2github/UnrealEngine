@@ -3,6 +3,7 @@
 #pragma once
 #include "UI/BaseLogicUI/SRCLogicPanelListBase.h"
 
+struct FRCPanelStyle;
 class FRCControllerModel;
 class FRCLogicModeBase;
 class IPropertyRowGenerator;
@@ -32,7 +33,22 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRCControllerPanel> InControllerPanel);
 
+	/** Returns true if the underlying list is valid and empty. */
+	virtual bool IsEmpty() const override;
+
+	/** Returns number of items in the list. */
+	virtual int32 Num() const override;
+
+	/** Whether the Controllers List View currently has focus.*/
+	bool IsListFocused() const;
+
+	/** Deletes currently selected items from the list view*/
+	void DeleteSelectedPanelItem();
+
+	void EnterRenameMode();
+
 private:
+
 	/** OnGenerateRow delegate for the Actions List View */
 	TSharedRef<ITableRow> OnGenerateWidgetForList( TSharedPtr<FRCControllerModel> InItem, const TSharedRef<STableViewBase>& OwnerTable );
 	
@@ -77,16 +93,7 @@ private:
 	/** Removes the given Controller UI model item from the list of UI models*/
 	virtual int32 RemoveModel(const TSharedPtr<FRCLogicModeBase> InModel) override;
 
-public:
-	/** Whether the Controllers List View currently has focus.*/
-	bool IsListFocused() const;
-
-	/** Deletes currently selected items from the list view*/
-	void DeleteSelectedPanelItem();
-
-	void EnterRenameMode();
-
-private:
-	
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
 };
 

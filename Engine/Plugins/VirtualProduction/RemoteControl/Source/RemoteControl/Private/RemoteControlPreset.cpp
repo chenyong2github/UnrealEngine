@@ -1281,6 +1281,11 @@ const TSet<UScriptStruct*>& URemoteControlPreset::GetExposedEntityTypes() const
 	return Registry->GetExposedEntityTypes();
 }
 
+const bool URemoteControlPreset::HasEntities() const
+{
+	return !Registry->IsEmpty();
+}
+
 FName URemoteControlPreset::RenameExposedEntity(const FGuid& ExposedEntityId, FName NewLabel)
 {
 	FName AssignedLabel = Registry->RenameExposedEntity(ExposedEntityId, NewLabel);
