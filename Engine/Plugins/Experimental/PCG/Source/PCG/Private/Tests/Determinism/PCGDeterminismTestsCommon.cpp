@@ -16,6 +16,7 @@
 
 #include "GameFramework/Actor.h"
 #include "Components/SplineComponent.h"
+#include "Components/StaticMeshComponent.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
