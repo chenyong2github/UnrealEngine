@@ -85,9 +85,9 @@ namespace DatasmithSketchUpUtils
 		SULayerRef             InSEffectiveLayerRef     // SketchUp component instance effective layer
 	);
 
-	// Return whether or not a SketckUp face is visible in the current SketchUp scene.
-	bool IsVisible(
-		SUFaceRef  InSFaceRef          // valid SketchUp face
+	// Return whether or not a SketckUp layer is visible in the current SketchUp scene taking into account folder visibility
+	bool IsLayerVisible(
+		SULayerRef LayerRef
 	);
 
 	// Get the material of a SketckUp component instance.

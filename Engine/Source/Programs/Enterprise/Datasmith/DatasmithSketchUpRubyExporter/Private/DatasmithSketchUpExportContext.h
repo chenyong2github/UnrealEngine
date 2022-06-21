@@ -208,6 +208,21 @@ namespace DatasmithSketchUp
 		FMaterialOccurrence DefaultMaterial;
 	};
 
+	// Tracks information related to SketchUp "Tags"/"Layers"
+	class FLayerCollection
+	{
+	public:
+		FLayerCollection(FExportContext& InContext) : Context(InContext) {}
+
+		void PopulateFromModel(SUModelRef InSModelRef);
+		void UpdateLayer(SULayerRef LayerRef);
+		bool IsLayerVisible(SULayerRef LayerRef);
+
+		TMap<FLayerIDType, bool> LayerVisibility;
+	private:
+		FExportContext& Context;
+	};
+
 	// Holds all the data needed during export and incremental updates
 	class FExportContext
 	{
@@ -238,6 +253,7 @@ namespace DatasmithSketchUp
 		FMaterialCollection Materials;
 		FSceneCollection Scenes;
 		FTextureCollection Textures;
+		FLayerCollection Layers;
 
 		TArray<TFuture<bool>> MeshExportTasks;
 	};

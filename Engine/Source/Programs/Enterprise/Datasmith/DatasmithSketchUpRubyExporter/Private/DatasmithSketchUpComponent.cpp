@@ -927,25 +927,7 @@ void FComponentInstance::InvalidateOccurrencesProperties(FExportContext& Context
 	SUDrawingElementGetHidden(DrawingElementRef, &bNewHidden);
 
 	SUDrawingElementGetLayer(DrawingElementRef, &LayerRef);
-	bool bNewLayerVisible = true;
-	SULayerGetVisibility(LayerRef, &bNewLayerVisible);
-
-	// Search for invisible ancestor folder (parent invisibility overrides child's visibility) 
-	// LayerFolder introduced in SketchUp 2021
-#if !defined(SKP_SDK_2019) && !defined(SKP_SDK_2020)
-	SULayerFolderRef LayerFolderRef = SU_INVALID;
-	SULayerGetParentLayerFolder(LayerRef, &LayerFolderRef);
-	while (SUIsValid(LayerFolderRef))
-	{
-		bool bLayerFolderVisible = true;
-		SULayerFolderGetVisibility(LayerFolderRef, &bLayerFolderVisible);
-		bNewLayerVisible = bNewLayerVisible && bLayerFolderVisible;
-
-		SULayerFolderRef ParentLayerFolderRef = SU_INVALID;
-		SULayerFolderGetParentLayerFolder(LayerFolderRef, &ParentLayerFolderRef);
-		LayerFolderRef = ParentLayerFolderRef;
-	}
-#endif
+	bool bNewLayerVisible = Context.Layers.IsLayerVisible(LayerRef);
 
 	if (bHidden != bNewHidden || bLayerVisible != bNewLayerVisible)
 	{

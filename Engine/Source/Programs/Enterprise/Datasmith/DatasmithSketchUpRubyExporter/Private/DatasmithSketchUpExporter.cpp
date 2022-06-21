@@ -513,6 +513,8 @@ public:
 		DatasmithSketchUp::FEntityIDType LayerId = DatasmithSketchUpUtils::GetEntityID(Entity);
 		Context.ComponentInstances.LayerModified(LayerId);
 		Context.EntitiesObjects.LayerModified(LayerId);
+		Context.Layers.UpdateLayer(SULayerFromEntity(Entity));
+
 		return true;
 	}
 

@@ -21,6 +21,9 @@
 #include "SketchUpAPI/model/geometry.h"
 #include "SketchUpAPI/model/group.h"
 #include "SketchUpAPI/model/layer.h"
+#if !defined(SKP_SDK_2019) && !defined(SKP_SDK_2020)
+#include "SketchUpAPI/model/layer_folder.h"
+#endif
 #include "SketchUpAPI/model/material.h"
 #include "SketchUpAPI/model/mesh_helper.h"
 #include "SketchUpAPI/model/model.h"
@@ -148,26 +151,30 @@ bool DatasmithSketchUpUtils::IsVisible(
 	return (!bSComponentInstanceHidden && bSEffectiveLayerVisible);
 }
 
-bool DatasmithSketchUpUtils::IsVisible(
-	SUFaceRef  InFaceRef
+bool DatasmithSketchUpUtils::IsLayerVisible(
+	SULayerRef LayerRef
 )
 {
-	// Get the flag indicating whether or not the SketchUp face is hidden.
-	bool bFaceHidden = false;
-	SUDrawingElementGetHidden(SUFaceToDrawingElement(InFaceRef), &bFaceHidden); // we can ignore the returned SU_RESULT
+	bool bVisible = true;
+	SULayerGetVisibility(LayerRef, &bVisible);
 
-	// Retrieve the SketckUp face layer.
-	SULayerRef SFaceLayerRef = SU_INVALID;
-	SUDrawingElementGetLayer(SUFaceToDrawingElement(InFaceRef), &SFaceLayerRef); // we can ignore the returned SU_RESULT
+	// Search for invisible ancestor folder (parent invisibility overrides child's visibility) 
+	// LayerFolder introduced in SketchUp 2021
+#if !defined(SKP_SDK_2019) && !defined(SKP_SDK_2020)
+	SULayerFolderRef LayerFolderRef = SU_INVALID;
+	SULayerGetParentLayerFolder(LayerRef, &LayerFolderRef);
+	while (bVisible && SUIsValid(LayerFolderRef))
+	{
+		bool bLayerFolderVisible = true;
+		SULayerFolderGetVisibility(LayerFolderRef, &bLayerFolderVisible);
+		bVisible = bVisible && bLayerFolderVisible;
 
-	// Retrieve the SketchUp face layer name.
-	FString SFaceLayerName = SuGetString(SULayerGetName, SFaceLayerRef);
-
-	// Get the flag indicating whether or not the SketchUp face effective layer is visible.
-	bool bSFaceEffectiveLayerVisible = true;
-	SULayerGetVisibility(SFaceLayerRef, &bSFaceEffectiveLayerVisible); // we can ignore the returned SU_RESULT
-
-	return (!bFaceHidden && bSFaceEffectiveLayerVisible);
+		SULayerFolderRef ParentLayerFolderRef = SU_INVALID;
+		SULayerFolderGetParentLayerFolder(LayerFolderRef, &ParentLayerFolderRef);
+		LayerFolderRef = ParentLayerFolderRef;
+	}
+#endif
+	return bVisible;
 }
 
 SUMaterialRef DatasmithSketchUpUtils::GetMaterial(

@@ -57,9 +57,8 @@ FExportContext::FExportContext()
 	, Materials(*this)
 	, Scenes(*this)
 	, Textures(*this)
-
+	, Layers(*this)
 {
-
 }
 
 const TCHAR* FExportContext::GetAssetsOutputPath() const
@@ -98,6 +97,7 @@ void FExportContext::Populate()
 	RootNode->DatasmithActorLabel = TEXT("Model");
 
 	// Parse/convert Model
+	Layers.PopulateFromModel(ModelRef);
 	Scenes.PopulateFromModel(ModelRef);
 	ComponentDefinitions.PopulateFromModel(ModelRef);
 
@@ -206,6 +206,32 @@ void FSceneCollection::PopulateFromModel(SUModelRef InModelRef)
 	}
 }
 
+void FLayerCollection::PopulateFromModel(SUModelRef InModelRef)
+{
+	size_t LayerCount = 0;
+	SUModelGetNumLayers(InModelRef, &LayerCount);
+
+	TArray<SULayerRef> Layers;
+	Layers.Init(SU_INVALID, LayerCount);
+	SUResult SResult = SUModelGetLayers(InModelRef, LayerCount, Layers.GetData(), &LayerCount);
+	Layers.SetNum(LayerCount);
+
+	for (SULayerRef LayerRef : Layers)
+	{
+		UpdateLayer(LayerRef);
+	}
+}
+
+void FLayerCollection::UpdateLayer(SULayerRef LayerRef)
+{
+	LayerVisibility.FindOrAdd(DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(LayerRef))) = DatasmithSketchUpUtils::IsLayerVisible(LayerRef);
+}
+
+bool FLayerCollection::IsLayerVisible(SULayerRef LayerRef)
+{
+	bool* Found = LayerVisibility.Find(DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(LayerRef)));
+	return Found ? *Found : true;
+}
 
 void FComponentDefinitionCollection::PopulateFromModel(SUModelRef InModelRef)
 {

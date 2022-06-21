@@ -39,6 +39,7 @@ namespace DatasmithSketchUp
 	typedef FEntityIDType FMaterialIDType;
 	typedef FEntityIDType FSceneIDType;
 	typedef FEntityIDType FTextureIDType;
+	typedef FEntityIDType FLayerIDType;
 
 	static FORCEINLINE uint32 GetTypeHash(FEntityIDType Key)
 	{
