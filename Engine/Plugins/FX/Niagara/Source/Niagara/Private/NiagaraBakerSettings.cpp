@@ -20,9 +20,8 @@ UNiagaraBakerSettings::UNiagaraBakerSettings(const FObjectInitializer& Init)
 	for (int i=0; i < int(ENiagaraBakerViewMode::Num); ++i)
 	{
 		CameraSettings[i].ViewMode = ENiagaraBakerViewMode(i);
+		CameraSettings[i].ResetToDefault();
 	}
-	CameraSettings[int(ENiagaraBakerViewMode::Perspective)].ViewportLocation = FVector(0.0f, -200.0f, 0.0f);
-	CameraSettings[int(ENiagaraBakerViewMode::Perspective)].ViewportRotation = FRotator(180.0f, 0.0f, 90.0f);
 
 	// Deprecate properties
 	for ( int i=0; i < (int)ENiagaraBakerViewMode::Num; ++i )

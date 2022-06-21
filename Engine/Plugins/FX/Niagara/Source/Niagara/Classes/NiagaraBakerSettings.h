@@ -58,6 +58,25 @@ struct FNiagaraBakerCameraSettings
 	bool IsOrthographic() const { return ViewMode != ENiagaraBakerViewMode::Perspective; }
 	bool IsPerspective() const { return ViewMode == ENiagaraBakerViewMode::Perspective; }
 
+	void ResetToDefault()
+	{
+		if (IsPerspective())
+		{
+			ViewportLocation = FVector(0.0f, -200.0f, 0.0f);
+			ViewportRotation = FRotator(180.0f, 0.0f, 90.0f);
+		}
+		else
+		{
+			ViewportLocation = FVector::ZeroVector;
+			ViewportRotation = FRotator::ZeroRotator;
+		}
+		OrbitDistance = 200.0f;
+		FOV = 90.0f;
+		OrthoWidth = 512.0f;
+		bUseAspectRatio = false;
+		AspectRatio = 1.0f;
+	}
+
 	bool operator==(const FNiagaraBakerCameraSettings& Other) const
 	{
 		return

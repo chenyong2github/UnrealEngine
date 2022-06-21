@@ -338,6 +338,16 @@ void FNiagaraBakerViewModel::SetCameraAspectRatio(float InAspectRatio)
 	}
 }
 
+void FNiagaraBakerViewModel::ResetCurrentCamera()
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ResetCamera", "Reset Camera"));
+		BakerSettings->Modify();
+		BakerSettings->GetCurrentCamera().ResetToDefault();
+	}
+}
+
 void FNiagaraBakerViewModel::AddOutput(UClass* Class)
 {
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())

@@ -101,6 +101,8 @@ public:
 	float GetCameraAspectRatio() const;
 	void SetCameraAspectRatio(float InAspectRatio);
 
+	void ResetCurrentCamera();
+
 	void AddOutput(UClass* Class);
 	void RemoveCurrentOutput();
 	bool CanRemoveCurrentOutput() const;

@@ -697,6 +697,15 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 				LOCTEXT("CameraAspectRatio", "Camera Aspect Ratio")
 			);
 		}
+
+		MenuBuilder.AddMenuEntry(
+			LOCTEXT("ResetCamera", "Reset Camera"),
+			LOCTEXT("ResetCameraTooltip", "Resets the current camera back to the default settings."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ResetCurrentCamera)
+			)
+		);
 	}
 	MenuBuilder.EndSection();
 
