@@ -3,11 +3,13 @@
 #include "NiagaraDataInterfaceStaticMesh.h"
 #include "NiagaraEmitterInstance.h"
 #include "NiagaraComponent.h"
+#include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraStats.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSettings.h"
 #include "NiagaraScript.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraDataInterfaceUtilities.h"
 #include "ShaderParameterUtils.h"
 #include "NiagaraStats.h"
@@ -25,7 +27,6 @@
 
 #include "NiagaraGpuComputeDispatchInterface.h"
 #include "NiagaraGpuComputeDispatch.h"
-#include "NiagaraDistanceFieldParameters.h"
 
 #if WITH_EDITOR
 #include "Subsystems/ImportSubsystem.h"
@@ -38,6 +39,40 @@
 
 namespace NDIStaticMeshLocal
 {
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
+		SHADER_PARAMETER(FIntVector,			NumTriangles)		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
+		SHADER_PARAMETER(int,					NumVertices)
+		SHADER_PARAMETER(int,					NumUVs)
+		SHADER_PARAMETER(uint32,				HasColors)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		IndexBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float>,		PositionBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	TangentBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float2>,	UVBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	ColorBuffer)
+
+		SHADER_PARAMETER(uint32,				HasUniformSampling)
+		SHADER_PARAMETER_SRV(Buffer<uint2>,		UniformSamplingTriangles)
+
+		SHADER_PARAMETER(FIntVector,			SectionCounts)		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
+		SHADER_PARAMETER_SRV(Buffer<uint4>,		SectionInfos)		// FirstTriangle, NumTriangles, Prob, Alias
+		SHADER_PARAMETER_SRV(Buffer<uint>,		FilteredAndUnfilteredSections)
+
+		SHADER_PARAMETER(FIntVector,			SocketCounts)		// x = Num Sockets, y = Num Filtered, z = Num Unfiltered
+		SHADER_PARAMETER_SRV(Buffer<float4>,	SocketTransforms)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		FilteredAndUnfilteredSockets)
+
+		SHADER_PARAMETER(float,					InvDeltaSeconds)
+		SHADER_PARAMETER(FMatrix44f,			InstanceTransform)
+		SHADER_PARAMETER(FMatrix44f,			InstanceTransformInverseTransposed)
+		SHADER_PARAMETER(FQuat4f,				InstanceRotation)
+		SHADER_PARAMETER(FMatrix44f,			InstancePreviousTransform)
+		SHADER_PARAMETER(FMatrix44f,			InstancePreviousTransformInverseTransposed)
+		SHADER_PARAMETER(FQuat4f,				InstancePreviousRotation)
+		SHADER_PARAMETER(FVector3f,				InstanceWorldVelocity)
+
+		SHADER_PARAMETER(int,					InstanceDistanceFieldIndex)
+	END_SHADER_PARAMETER_STRUCT()
+
 	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceStaticMeshTemplate.ush");
 
 	static int32 GNiagaraFailStaticMeshDataInterface = 0;
@@ -1211,191 +1246,6 @@ namespace NDIStaticMeshLocal
 
 //////////////////////////////////////////////////////////////////////////
 
-struct FNiagaraDataInterfaceParametersCS_StaticMesh : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_StaticMesh, NonVirtual);
-
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		using namespace NDIStaticMeshLocal;
-
-		NumTrianglesParam.Bind(ParameterMap, *(NumTriangles_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumVerticesParam.Bind(ParameterMap, *(NumVertices_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		NumUVsParam.Bind(ParameterMap, *(NumUVs_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		HasColorsParam.Bind(ParameterMap, *(HasColors_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		IndexBufferParam.Bind(ParameterMap, *(IndexBuffer_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		PositionBufferParam.Bind(ParameterMap, *(PositionBuffer_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		TangentBufferParam.Bind(ParameterMap, *(TangentBuffer_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		UVBufferParam.Bind(ParameterMap, *(UVBuffer_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		ColorBufferParam.Bind(ParameterMap, *(ColorBuffer_String + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		HasUniformSamplingParam.Bind(ParameterMap, *(HasUniformSampling_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		UniformSamplingTrianglesParam.Bind(ParameterMap, *(UniformSamplingTriangles_String + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		SectionCountsParam.Bind(ParameterMap, *(SectionCounts_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		SectionInfosParam.Bind(ParameterMap, *(SectionInfos_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		FilteredAndUnfilteredSectionsParam.Bind(ParameterMap, *(FilteredAndUnfilteredSections_String + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		SocketCountsParam.Bind(ParameterMap, *(SocketCounts_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		SocketTransformsParam.Bind(ParameterMap, *(SocketTransforms_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		FilteredAndUnfilteredSocketsParam.Bind(ParameterMap, *(FilteredAndUnfilteredSockets_String + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		InvDeltaSecondsParam.Bind(ParameterMap, *(InvDeltaSeconds_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstanceTransformParam.Bind(ParameterMap, *(InstanceTransform_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstanceTransformInverseTransposedParam.Bind(ParameterMap, *(InstanceTransformInverseTransposed_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstanceRotationParam.Bind(ParameterMap, *(InstanceRotation_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstancePreviousTransformParam.Bind(ParameterMap, *(InstancePreviousTransform_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstancePreviousTransformInverseTransposedParam.Bind(ParameterMap, *(InstancePreviousTransformInverseTransposed_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstancePreviousRotationParam.Bind(ParameterMap, *(InstancePreviousRotation_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		InstanceWorldVelocityParam.Bind(ParameterMap, *(InstanceWorldVelocity_String + ParameterInfo.DataInterfaceHLSLSymbol));
-
-		InstanceDistanceFieldIndexParam.Bind(ParameterMap, *(InstanceDistanceFieldIndex_String + ParameterInfo.DataInterfaceHLSLSymbol));
-		DistanceFieldParameters.Bind(ParameterMap);
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-
-		NDIStaticMeshLocal::FRenderProxy* InterfaceProxy = static_cast<NDIStaticMeshLocal::FRenderProxy*>(Context.DataInterface);
-		const NDIStaticMeshLocal::FInstanceData_RenderThread& InstanceData = InterfaceProxy->PerInstanceData_RT.FindChecked(Context.SystemInstanceID);
-
-		// Set mesh sampling data
-		if ( InstanceData.bIsValid )
-		{
-			const bool bHasColors = InstanceData.MeshColorBufferSRV.IsValid();
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumTrianglesParam, InstanceData.NumTriangles);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumVerticesParam, InstanceData.NumVertices);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUVsParam, InstanceData.NumUVs);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, HasColorsParam, bHasColors ? 1 : 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, IndexBufferParam, InstanceData.MeshIndexBufferSRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PositionBufferParam, InstanceData.MeshPositionBufferSRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, TangentBufferParam, InstanceData.MeshTangentBufferSRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, UVBufferParam, InstanceData.MeshUVBufferSRV.IsValid() ? InstanceData.MeshUVBufferSRV.GetReference() : FNiagaraRenderer::GetDummyFloat2Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ColorBufferParam, bHasColors ? InstanceData.MeshColorBufferSRV.GetReference() : FNiagaraRenderer::GetDummyWhiteColorBuffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, HasUniformSamplingParam, InstanceData.bGpuUniformDistribution ? 1 : 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, UniformSamplingTrianglesParam, InstanceData.bGpuUniformDistribution ? InstanceData.MeshUniformSamplingTriangleSRV.GetReference() : FNiagaraRenderer::GetDummyUInt2Buffer());
-		}
-		else
-		{
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumTrianglesParam, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumVerticesParam, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUVsParam, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, HasColorsParam, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, IndexBufferParam, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PositionBufferParam, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, TangentBufferParam, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, UVBufferParam, FNiagaraRenderer::GetDummyFloat2Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ColorBufferParam, FNiagaraRenderer::GetDummyWhiteColorBuffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, HasUniformSamplingParam, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, UniformSamplingTrianglesParam, FNiagaraRenderer::GetDummyUInt2Buffer());
-		}
-
-		// Section information
-		SetShaderValue(RHICmdList, ComputeShaderRHI, SectionCountsParam, InstanceData.SectionCounts);
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, SectionInfosParam, InstanceData.SectionInfos.SRV.IsValid() ? InstanceData.SectionInfos.SRV.GetReference() : FNiagaraRenderer::GetDummyUInt4Buffer());
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredSectionsParam, InstanceData.FilteredAndUnfilteredSections.SRV.IsValid() ? InstanceData.FilteredAndUnfilteredSections.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer());
-
-		// Set socket sampling information
-		SetShaderValue(RHICmdList, ComputeShaderRHI, SocketCountsParam, InstanceData.SocketCounts);
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, SocketTransformsParam, InstanceData.SocketTransforms.SRV.IsValid() ? InstanceData.SocketTransforms.SRV.GetReference() : FNiagaraRenderer::GetDummyFloat4Buffer());
-		SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredSocketsParam, InstanceData.FilteredAndUnfilteredSockets.SRV.IsValid() ? InstanceData.FilteredAndUnfilteredSockets.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer());
-
-		// Set misc data
-		const float InvDeltaTime = InstanceData.DeltaSeconds > 0.0f ? 1.0f / InstanceData.DeltaSeconds : 0.0f;
-		const FVector3f DeltaPosition = InstanceData.Transform.GetOrigin() - InstanceData.PrevTransform.GetOrigin();
-
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InvDeltaSecondsParam, InvDeltaTime);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformParam, InstanceData.Transform);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransformInverseTransposedParam, InstanceData.Transform.Inverse().GetTransposed());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotationParam, InstanceData.Rotation);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePreviousTransformParam, InstanceData.PrevTransform);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePreviousTransformInverseTransposedParam, InstanceData.PrevTransform.Inverse().GetTransposed());
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePreviousRotationParam, InstanceData.PrevRotation);
-		SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceWorldVelocityParam, DeltaPosition);
-
-		const FDistanceFieldSceneData* DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch*>(Context.ComputeDispatchInterface)->GetMeshDistanceFieldParameters();	//-BATCHERTODO:
-
-		if ( InstanceDistanceFieldIndexParam.IsBound() )
-		{
-			int32 DistanceFieldIndex = -1;
-			if ( DistanceFieldSceneData != nullptr && InstanceData.DistanceFieldPrimitiveId.IsValid() )
-			{
-				if ( FScene* Scene = Context.ComputeDispatchInterface->GetScene() )
-				{
-					// Kind of gross, but currently no way to reference other primitive scene infos
-					const int32 PrimitiveSceneIndex = Scene->PrimitiveComponentIds.Find(InstanceData.DistanceFieldPrimitiveId);
-					if (PrimitiveSceneIndex != INDEX_NONE)
-					{
-						const TArray<int32, TInlineAllocator<1>>& DFIndices = Scene->Primitives[PrimitiveSceneIndex]->DistanceFieldInstanceIndices;
-						DistanceFieldIndex = DFIndices.Num() > 0 ? DFIndices[0] : -1;
-					}
-				}
-			}
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceDistanceFieldIndexParam, DistanceFieldIndex);
-		}
-
-		if (DistanceFieldParameters.IsBound())
-		{
-			if (ensure(DistanceFieldSceneData != nullptr))
-			{
-				DistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, DistanceFieldSceneData);
-			}
-			else 
-			{
-				//-TODO: We can't create dummy buffers here due to dll boundaries, we will skip the distance field calcs since DistanceFieldIndex will be set to -1
-				//       However some platforms may still complain due to lack of dummy data bound
-				//FDistanceFieldSceneData DummyDistanceFieldSceneData(Context.ComputeDispatchInterface->GetShaderPlatform());
-				//DistanceFieldParameters.Set(RHICmdList, ComputeShaderRHI, &DummyDistanceFieldSceneData);
-			}
-		}
-	}
-
-private:
-	LAYOUT_FIELD(FShaderParameter, NumTrianglesParam);
-	LAYOUT_FIELD(FShaderParameter, NumVerticesParam);
-	LAYOUT_FIELD(FShaderParameter, NumUVsParam);
-	LAYOUT_FIELD(FShaderParameter, HasColorsParam);
-	LAYOUT_FIELD(FShaderResourceParameter, IndexBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, PositionBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, TangentBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, UVBufferParam);
-	LAYOUT_FIELD(FShaderResourceParameter, ColorBufferParam);
-
-	LAYOUT_FIELD(FShaderParameter, HasUniformSamplingParam);
-	LAYOUT_FIELD(FShaderResourceParameter, UniformSamplingTrianglesParam);
-
-	LAYOUT_FIELD(FShaderParameter,  SectionCountsParam);
-	LAYOUT_FIELD(FShaderResourceParameter, SectionInfosParam);
-	LAYOUT_FIELD(FShaderResourceParameter, FilteredAndUnfilteredSectionsParam);
-
-	LAYOUT_FIELD(FShaderParameter, SocketCountsParam);
-	LAYOUT_FIELD(FShaderResourceParameter, SocketTransformsParam);
-	LAYOUT_FIELD(FShaderResourceParameter, FilteredAndUnfilteredSocketsParam);
-
-	LAYOUT_FIELD(FShaderParameter, InvDeltaSecondsParam);
-	LAYOUT_FIELD(FShaderParameter, InstanceTransformParam);
-	LAYOUT_FIELD(FShaderParameter, InstanceTransformInverseTransposedParam);
-	LAYOUT_FIELD(FShaderParameter, InstanceRotationParam);
-	LAYOUT_FIELD(FShaderParameter, InstancePreviousTransformParam);
-	LAYOUT_FIELD(FShaderParameter, InstancePreviousTransformInverseTransposedParam);
-	LAYOUT_FIELD(FShaderParameter, InstancePreviousRotationParam);
-	LAYOUT_FIELD(FShaderParameter, InstanceWorldVelocityParam);
-
-	LAYOUT_FIELD(FShaderParameter, InstanceDistanceFieldIndexParam);
-	LAYOUT_FIELD(FDistanceFieldParameters, DistanceFieldParameters);	
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_StaticMesh);
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceStaticMesh, FNiagaraDataInterfaceParametersCS_StaticMesh);
-
-//////////////////////////////////////////////////////////////////////////
-
 UNiagaraDataInterfaceStaticMesh::UNiagaraDataInterfaceStaticMesh(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -2429,8 +2279,9 @@ bool UNiagaraDataInterfaceStaticMesh::AppendCompileHash(FNiagaraCompileHashVisit
 {
 	bool bSuccess = Super::AppendCompileHash(InVisitor);
 	FSHAHash Hash = GetShaderFileHash(NDIStaticMeshLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceStaticMeshTemplateHLSLSource"), Hash.ToString());
-	InVisitor->UpdatePOD(TEXT("NDIStaticMesh_AllowDistanceField"), GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields ? 1 : 0);
+	bSuccess &= InVisitor->UpdateString(TEXT("NiagaraDataInterfaceStaticMeshTemplateHLSLSource"), Hash.ToString());
+	bSuccess &= InVisitor->UpdatePOD(TEXT("NDIStaticMesh_AllowDistanceField"), GetDefault<UNiagaraSettings>()->NDIStaticMesh_AllowDistanceFields ? 1 : 0);
+	bSuccess &= InVisitor->UpdateShaderParameters<NDIStaticMeshLocal::FShaderParameters>();
 	return bSuccess;
 }
 
@@ -2546,6 +2397,105 @@ bool UNiagaraDataInterfaceStaticMesh::GetFunctionHLSL(const FNiagaraDataInterfac
 	return true;
 }
 #endif
+
+void UNiagaraDataInterfaceStaticMesh::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NDIStaticMeshLocal::FShaderParameters>();
+	ShaderParametersBuilder.AddIncludedStruct<FDistanceFieldObjectBufferParameters>();
+	ShaderParametersBuilder.AddIncludedStruct<FDistanceFieldAtlasParameters>();
+}
+
+void UNiagaraDataInterfaceStaticMesh::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	NDIStaticMeshLocal::FRenderProxy& DIProxy = Context.GetProxy<NDIStaticMeshLocal::FRenderProxy>();
+	const NDIStaticMeshLocal::FInstanceData_RenderThread& InstanceData = DIProxy.PerInstanceData_RT.FindChecked(Context.GetSystemInstanceID());
+
+	NDIStaticMeshLocal::FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<NDIStaticMeshLocal::FShaderParameters>();
+
+	// Set mesh sampling data
+	if (InstanceData.bIsValid)
+	{
+		const bool bHasColors = InstanceData.MeshColorBufferSRV.IsValid();
+		ShaderParameters->NumTriangles		= InstanceData.NumTriangles;
+		ShaderParameters->NumVertices		= InstanceData.NumVertices;
+		ShaderParameters->NumUVs			= InstanceData.NumUVs;
+		ShaderParameters->HasColors			= bHasColors ? 1 : 0;
+		ShaderParameters->IndexBuffer		= InstanceData.MeshIndexBufferSRV;
+		ShaderParameters->PositionBuffer	= InstanceData.MeshPositionBufferSRV;
+		ShaderParameters->TangentBuffer		= InstanceData.MeshTangentBufferSRV;
+		ShaderParameters->UVBuffer			= InstanceData.MeshUVBufferSRV.IsValid() ? InstanceData.MeshUVBufferSRV.GetReference() : FNiagaraRenderer::GetDummyFloat2Buffer();
+		ShaderParameters->ColorBuffer		= bHasColors ? InstanceData.MeshColorBufferSRV.GetReference() : FNiagaraRenderer::GetDummyWhiteColorBuffer();
+		ShaderParameters->HasUniformSampling = InstanceData.bGpuUniformDistribution ? 1 : 0;
+		ShaderParameters->UniformSamplingTriangles = InstanceData.bGpuUniformDistribution ? InstanceData.MeshUniformSamplingTriangleSRV.GetReference() : FNiagaraRenderer::GetDummyUInt2Buffer();
+	}
+	else
+	{
+		ShaderParameters->NumTriangles		= FIntVector::ZeroValue;
+		ShaderParameters->NumVertices		= 0;
+		ShaderParameters->NumUVs			= 0;
+		ShaderParameters->HasColors			= 0;
+		ShaderParameters->IndexBuffer		= FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->PositionBuffer	= FNiagaraRenderer::GetDummyFloatBuffer();
+		ShaderParameters->TangentBuffer		= FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->UVBuffer			= FNiagaraRenderer::GetDummyFloat2Buffer();
+		ShaderParameters->ColorBuffer		= FNiagaraRenderer::GetDummyWhiteColorBuffer();
+
+		ShaderParameters->HasUniformSampling = 0;
+		ShaderParameters->UniformSamplingTriangles = FNiagaraRenderer::GetDummyUInt2Buffer();
+	}
+
+	// Section information
+	ShaderParameters->SectionCounts	= InstanceData.SectionCounts;
+	ShaderParameters->SectionInfos	= InstanceData.SectionInfos.SRV.IsValid() ? InstanceData.SectionInfos.SRV.GetReference() : FNiagaraRenderer::GetDummyUInt4Buffer();
+	ShaderParameters->FilteredAndUnfilteredSections = InstanceData.FilteredAndUnfilteredSections.SRV.IsValid() ? InstanceData.FilteredAndUnfilteredSections.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
+
+	// Set socket sampling information
+	ShaderParameters->SocketCounts		= InstanceData.SocketCounts;
+	ShaderParameters->SocketTransforms	= InstanceData.SocketTransforms.SRV.IsValid() ? InstanceData.SocketTransforms.SRV.GetReference() : FNiagaraRenderer::GetDummyFloat4Buffer();
+	ShaderParameters->FilteredAndUnfilteredSockets = InstanceData.FilteredAndUnfilteredSockets.SRV.IsValid() ? InstanceData.FilteredAndUnfilteredSockets.SRV.GetReference() : FNiagaraRenderer::GetDummyUIntBuffer();
+
+	// Set misc data
+	const float InvDeltaTime = InstanceData.DeltaSeconds > 0.0f ? 1.0f / InstanceData.DeltaSeconds : 0.0f;
+	const FVector3f DeltaPosition = InstanceData.Transform.GetOrigin() - InstanceData.PrevTransform.GetOrigin();
+
+	ShaderParameters->InvDeltaSeconds								= InvDeltaTime;
+	ShaderParameters->InstanceTransform								= InstanceData.Transform;
+	ShaderParameters->InstanceTransformInverseTransposed			= InstanceData.Transform.Inverse().GetTransposed();
+	ShaderParameters->InstanceRotation								= InstanceData.Rotation;
+	ShaderParameters->InstancePreviousTransform						= InstanceData.PrevTransform;
+	ShaderParameters->InstancePreviousTransformInverseTransposed	= InstanceData.PrevTransform.Inverse().GetTransposed();
+	ShaderParameters->InstancePreviousRotation						= InstanceData.PrevRotation;
+	ShaderParameters->InstanceWorldVelocity							= DeltaPosition;
+
+	const FDistanceFieldSceneData* DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetMeshDistanceFieldParameters();	//-BATCHERTODO:
+	if (Context.IsParameterBound(&ShaderParameters->InstanceDistanceFieldIndex))
+	{
+		int32 DistanceFieldIndex = -1;
+		if (DistanceFieldSceneData != nullptr && InstanceData.DistanceFieldPrimitiveId.IsValid())
+		{
+			if (FScene* Scene = Context.GetComputeDispatchInterface().GetScene())
+			{
+				// Kind of gross, but currently no way to reference other primitive scene infos
+				const int32 PrimitiveSceneIndex = Scene->PrimitiveComponentIds.Find(InstanceData.DistanceFieldPrimitiveId);
+				if (PrimitiveSceneIndex != INDEX_NONE)
+				{
+					const TArray<int32, TInlineAllocator<1>>& DFIndices = Scene->Primitives[PrimitiveSceneIndex]->DistanceFieldInstanceIndices;
+					DistanceFieldIndex = DFIndices.Num() > 0 ? DFIndices[0] : -1;
+				}
+			}
+		}
+		ShaderParameters->InstanceDistanceFieldIndex = DistanceFieldIndex;
+	}
+
+	// Bind Mesh Distance Field Data
+	FDistanceFieldObjectBufferParameters* ShaderDistanceFieldObjectParameters = Context.GetParameterIncludedStruct<FDistanceFieldObjectBufferParameters>();
+	FDistanceFieldAtlasParameters* ShaderDistanceFieldAtlasParameters = Context.GetParameterIncludedStruct<FDistanceFieldAtlasParameters>();
+	const bool bDistanceFieldDataBound = Context.IsStructBound<FDistanceFieldObjectBufferParameters>(ShaderDistanceFieldObjectParameters) || Context.IsStructBound<FDistanceFieldAtlasParameters>(ShaderDistanceFieldAtlasParameters);
+	if (bDistanceFieldDataBound)
+	{
+		FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(Context.GetGraphBuilder(), DistanceFieldSceneData, *ShaderDistanceFieldObjectParameters, *ShaderDistanceFieldAtlasParameters, FNiagaraRenderer::GetDummyFloat4Buffer());
+	}
+}
 
 bool UNiagaraDataInterfaceStaticMesh::Equals(const UNiagaraDataInterface* Other) const
 {

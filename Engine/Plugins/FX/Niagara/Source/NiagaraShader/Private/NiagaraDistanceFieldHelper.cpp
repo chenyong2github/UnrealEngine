@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraDistanceFieldHelper.h"
+#include "Runtime/Renderer/Private/SystemTextures.h"
 
 // todo - currently duplicated from SetupGlobalDistanceFieldParameters (GlobalDistanceField.cpp) because of problems getting it properly exported from the dll
 void FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(const FGlobalDistanceFieldParameterData* OptionalParameterData, FGlobalDistanceFieldParameters2& ShaderParameters)
@@ -63,5 +64,42 @@ void FNiagaraDistanceFieldHelper::SetGlobalDistanceFieldParameters(const FGlobal
 		ShaderParameters.FullyCoveredExpandSurfaceScale = 0.0f;//GLumenSceneGlobalSDFFullyCoveredExpandSurfaceScale;
 		ShaderParameters.UncoveredExpandSurfaceScale = 0.0f;//GLumenSceneGlobalSDFUncoveredExpandSurfaceScale;
 		ShaderParameters.UncoveredMinStepScale = 0.0f;//GLumenSceneGlobalSDFUncoveredMinStepScale;
+	}
+}
+
+void FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(FRDGBuilder& GraphBuilder, const FDistanceFieldSceneData* OptionalDistanceFieldData, FDistanceFieldObjectBufferParameters& ObjectShaderParameters, FDistanceFieldAtlasParameters& AtlasShaderParameters, FRHIShaderResourceView* DummyFloat4Buffer)
+{
+	if (OptionalDistanceFieldData != nullptr && OptionalDistanceFieldData->NumObjectsInBuffer > 0)
+	{
+		ObjectShaderParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, *OptionalDistanceFieldData);
+		AtlasShaderParameters = DistanceField::SetupAtlasParameters(GraphBuilder, *OptionalDistanceFieldData);
+	}
+	else
+	{
+		FRDGBufferSRVRef DefaultVector4 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(FVector4f))));
+		FRDGBufferSRVRef DefaultUInt32 = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(GSystemTextures.GetDefaultStructuredBuffer(GraphBuilder, sizeof(uint32))));
+
+		ObjectShaderParameters.SceneObjectBounds = DummyFloat4Buffer;
+		ObjectShaderParameters.SceneObjectData = DummyFloat4Buffer;
+		ObjectShaderParameters.NumSceneObjects = 0;
+		ObjectShaderParameters.SceneHeightfieldObjectBounds = DefaultVector4;
+		ObjectShaderParameters.SceneHeightfieldObjectData = DefaultVector4;
+		ObjectShaderParameters.NumSceneHeightfieldObjects = 0;
+
+		AtlasShaderParameters.SceneDistanceFieldAssetData = DefaultVector4;
+		AtlasShaderParameters.DistanceFieldIndirectionTable = DefaultUInt32;
+		AtlasShaderParameters.DistanceFieldIndirection2Table = DefaultVector4;
+		AtlasShaderParameters.DistanceFieldIndirectionAtlas = FRDGSystemTextures::Get(GraphBuilder).VolumetricBlack;
+		AtlasShaderParameters.DistanceFieldBrickTexture = GBlackVolumeTexture->GetTextureRHI();
+		AtlasShaderParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		AtlasShaderParameters.DistanceFieldBrickSize = FVector3f::ZeroVector;
+		AtlasShaderParameters.DistanceFieldUniqueDataBrickSize = FVector3f::ZeroVector;
+		AtlasShaderParameters.DistanceFieldBrickAtlasSizeInBricks = FIntVector::ZeroValue;
+		AtlasShaderParameters.DistanceFieldBrickAtlasMask = FIntVector::ZeroValue;
+		AtlasShaderParameters.DistanceFieldBrickAtlasSizeLog2 = FIntVector::ZeroValue;
+		AtlasShaderParameters.DistanceFieldBrickAtlasTexelSize = FVector3f::ZeroVector;
+		AtlasShaderParameters.DistanceFieldBrickAtlasHalfTexelSize = FVector3f::ZeroVector;
+		AtlasShaderParameters.DistanceFieldBrickOffsetToAtlasUVScale = FVector3f::ZeroVector;
+		AtlasShaderParameters.DistanceFieldUniqueDataBrickSizeInAtlasTexels = FVector3f::ZeroVector;
 	}
 }

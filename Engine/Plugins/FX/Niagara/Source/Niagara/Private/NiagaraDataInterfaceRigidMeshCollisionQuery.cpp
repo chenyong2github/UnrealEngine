@@ -12,6 +12,7 @@
 
 #include "NiagaraComponent.h"
 #include "NiagaraDataInterfaceUtilities.h"
+#include "NiagaraDistanceFieldHelper.h"
 #include "NiagaraFunctionLibrary.h"
 #include "NiagaraGpuComputeDispatch.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
@@ -1376,7 +1377,7 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::SetShaderParameters(const FNi
 	FDistanceFieldAtlasParameters* ShaderDistanceFieldAtlasParameters = Context.GetParameterIncludedStruct<FDistanceFieldAtlasParameters>();
 
 	const bool bDistanceFieldDataBound = Context.IsStructBound<FDistanceFieldObjectBufferParameters>(ShaderDistanceFieldObjectParameters) || Context.IsStructBound<FDistanceFieldAtlasParameters>(ShaderDistanceFieldAtlasParameters);
-	bool bDistanceFieldDataSet = false;
+	const FDistanceFieldSceneData* DistanceFieldSceneData = nullptr;
 
 	if (ProxyData != nullptr && ProxyData->AssetBuffer != nullptr && ProxyData->AssetBuffer->IsInitialized())
 	{
@@ -1399,14 +1400,7 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::SetShaderParameters(const FNi
 
 		if (bDistanceFieldDataBound)
 		{
-			const FDistanceFieldSceneData* DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetMeshDistanceFieldParameters();	//-BATCHERTODO:
-			if (DistanceFieldSceneData != nullptr)
-			{
-				bDistanceFieldDataSet = true;
-
-				*ShaderDistanceFieldObjectParameters = DistanceField::SetupObjectBufferParameters(GraphBuilder, *DistanceFieldSceneData);
-				*ShaderDistanceFieldAtlasParameters = DistanceField::SetupAtlasParameters(GraphBuilder, *DistanceFieldSceneData);
-			}
+			DistanceFieldSceneData = static_cast<const FNiagaraGpuComputeDispatch&>(Context.GetComputeDispatchInterface()).GetMeshDistanceFieldParameters();	//-BATCHERTODO:
 		}
 	}
 	else
@@ -1423,30 +1417,9 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::SetShaderParameters(const FNi
 		ShaderParameters->ElementOffsets = FUintVector4(0, 0, 0, 0);
 	}
 
-	if (bDistanceFieldDataBound && !bDistanceFieldDataSet)
+	if (bDistanceFieldDataBound)
 	{
-		ShaderDistanceFieldObjectParameters->SceneObjectBounds				= FNiagaraRenderer::GetDummyFloat4Buffer();
-		ShaderDistanceFieldObjectParameters->SceneObjectData				= FNiagaraRenderer::GetDummyFloat4Buffer();
-		ShaderDistanceFieldObjectParameters->NumSceneObjects				= 0;
-		ShaderDistanceFieldObjectParameters->SceneHeightfieldObjectBounds	= Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R8G8B8A8);
-		ShaderDistanceFieldObjectParameters->SceneHeightfieldObjectData		= Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R8G8B8A8);
-		ShaderDistanceFieldObjectParameters->NumSceneHeightfieldObjects		= 0;
-
-		ShaderDistanceFieldAtlasParameters->SceneDistanceFieldAssetData						= Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R8G8B8A8);
-		ShaderDistanceFieldAtlasParameters->DistanceFieldIndirectionTable					= Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R32_UINT);
-		ShaderDistanceFieldAtlasParameters->DistanceFieldIndirection2Table					= Context.GetComputeDispatchInterface().GetEmptyBufferSRV(GraphBuilder, PF_R8G8B8A8);
-		ShaderDistanceFieldAtlasParameters->DistanceFieldIndirectionAtlas					= Context.GetComputeDispatchInterface().GetBlackTexture(GraphBuilder, ETextureDimension::Texture3D);
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickTexture						= GBlackVolumeTexture->GetTextureRHI();
-		ShaderDistanceFieldAtlasParameters->DistanceFieldSampler							= TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickSize							= FVector3f::ZeroVector;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldUniqueDataBrickSize				= FVector3f::ZeroVector;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickAtlasSizeInBricks				= FIntVector::ZeroValue;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickAtlasMask						= FIntVector::ZeroValue;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickAtlasSizeLog2					= FIntVector::ZeroValue;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickAtlasTexelSize				= FVector3f::ZeroVector;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickAtlasHalfTexelSize			= FVector3f::ZeroVector;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldBrickOffsetToAtlasUVScale			= FVector3f::ZeroVector;
-		ShaderDistanceFieldAtlasParameters->DistanceFieldUniqueDataBrickSizeInAtlasTexels	= FVector3f::ZeroVector;
+		FNiagaraDistanceFieldHelper::SetMeshDistanceFieldParameters(Context.GetGraphBuilder(), DistanceFieldSceneData, *ShaderDistanceFieldObjectParameters, *ShaderDistanceFieldAtlasParameters, FNiagaraRenderer::GetDummyFloat4Buffer());
 	}
 }
 

@@ -1,34 +1,38 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-int3			NumTriangles_{ParameterName};		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
-int				NumVertices_{ParameterName};
-int				NumUVs_{ParameterName};
-uint			HasColors_{ParameterName};
-Buffer<uint>	IndexBuffer_{ParameterName};
-Buffer<float>	PositionBuffer_{ParameterName};
-Buffer<float4>	TangentBuffer_{ParameterName};
-Buffer<float2>	UVBuffer_{ParameterName};
-Buffer<float4>	ColorBuffer_{ParameterName};
+int3			{ParameterName}_NumTriangles;		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
+int				{ParameterName}_NumVertices;
+int				{ParameterName}_NumUVs;
+uint			{ParameterName}_HasColors;
+Buffer<uint>	{ParameterName}_IndexBuffer;
+Buffer<float>	{ParameterName}_PositionBuffer;
+Buffer<float4>	{ParameterName}_TangentBuffer;
+Buffer<float2>	{ParameterName}_UVBuffer;
+Buffer<float4>	{ParameterName}_ColorBuffer;
 
-uint			HasUniformSampling_{ParameterName};
-Buffer<uint2>	UniformSamplingTriangles_{ParameterName};
+uint			{ParameterName}_HasUniformSampling;
+Buffer<uint2>	{ParameterName}_UniformSamplingTriangles;
 
-int3			SectionCounts_{ParameterName};		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
-Buffer<uint4>	SectionInfos_{ParameterName};		// FirstTriangle, NumTriangles, Prob, Alias
-Buffer<uint>	FilteredAndUnfilteredSections_{ParameterName};
+int3			{ParameterName}_SectionCounts;		// x = Num Sections, y = Num Filtered, z = Num Unfiltered
+Buffer<uint4>	{ParameterName}_SectionInfos;		// FirstTriangle, NumTriangles, Prob, Alias
+Buffer<uint>	{ParameterName}_FilteredAndUnfilteredSections;
 
-int3			SocketCounts_{ParameterName};		// x = Num Sockets, y = Num Filtered, z = Num Unfiltered
-Buffer<float4>	SocketTransforms_{ParameterName};
-Buffer<uint>	FilteredAndUnfilteredSockets_{ParameterName};
+int3			{ParameterName}_SocketCounts;		// x = Num Sockets, y = Num Filtered, z = Num Unfiltered
+Buffer<float4>	{ParameterName}_SocketTransforms;
+Buffer<uint>	{ParameterName}_FilteredAndUnfilteredSockets;
 
-float			InvDeltaSeconds_{ParameterName};
-float4x4		InstanceTransform_{ParameterName};
-float4x4		InstanceTransformInverseTransposed_{ParameterName};
-float4			InstanceRotation_{ParameterName};
-float4x4		InstancePreviousTransform_{ParameterName};
-float4x4		InstancePreviousTransformInverseTransposed_{ParameterName};
-float4			InstancePreviousRotation_{ParameterName};
-float3			InstanceWorldVelocity_{ParameterName};
+float			{ParameterName}_InvDeltaSeconds;
+float4x4		{ParameterName}_InstanceTransform;
+float4x4		{ParameterName}_InstanceTransformInverseTransposed;
+float4			{ParameterName}_InstanceRotation;
+float4x4		{ParameterName}_InstancePreviousTransform;
+float4x4		{ParameterName}_InstancePreviousTransformInverseTransposed;
+float4			{ParameterName}_InstancePreviousRotation;
+float3			{ParameterName}_InstanceWorldVelocity;
+
+#if DISTATICMESH_ALLOWDISTANCEFIELD
+int				{ParameterName}_InstanceDistanceFieldIndex;
+#endif
 
 //////////////////////////////////////////////////////////////////////////
 // Fwd declarations
@@ -40,7 +44,7 @@ void RandomSectionTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Section
 //////////////////////////////////////////////////////////////////////////
 int UniformTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Tri, int SectionOffset)
 {
-	uint2 ProbAlias = UniformSamplingTriangles_{ParameterName}[Tri];
+	uint2 ProbAlias = {ParameterName}_UniformSamplingTriangles[Tri];
 	float Prob = asfloat(ProbAlias.x);
 	int Alias = ProbAlias.y;
 	return NiagaraRandomFloat(RandInfo) < Prob ? Tri : Alias + SectionOffset;
@@ -50,32 +54,32 @@ int UniformTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Tri, int Secti
 // Vertex Sampling
 void IsValidVertex_{ParameterName}(out bool IsValid)
 {
-	IsValid = NumVertices_{ParameterName} > 0;
+	IsValid = {ParameterName}_NumVertices > 0;
 }
 
 void RandomVertex_{ParameterName}(NiagaraRandInfo RandInfo, out int Vertex)
 {
-	Vertex = NiagaraRandomInt(RandInfo, NumVertices_{ParameterName});
+	Vertex = NiagaraRandomInt(RandInfo, {ParameterName}_NumVertices);
 }
 
 void GetVertexCount_{ParameterName}(out int Count)
 {
-	Count = NumVertices_{ParameterName};
+	Count = {ParameterName}_NumVertices;
 }
 
 void GetVertex_{ParameterName}(int Vertex, out float3 Position, out float3 Velocity, out float3 Normal, out float3 Bitangent, out float3 Tangent)
 {
 	[branch]
-	if ( NumVertices_{ParameterName} > 0 )
+	if ( {ParameterName}_NumVertices > 0 )
 	{
-		Vertex = clamp(Vertex, 0, NumVertices_{ParameterName} - 1);
+		Vertex = clamp(Vertex, 0, {ParameterName}_NumVertices - 1);
 
-		Position.x = PositionBuffer_{ParameterName}[Vertex * 3 + 0];
-		Position.y = PositionBuffer_{ParameterName}[Vertex * 3 + 1];
-		Position.z = PositionBuffer_{ParameterName}[Vertex * 3 + 2];
+		Position.x = {ParameterName}_PositionBuffer[Vertex * 3 + 0];
+		Position.y = {ParameterName}_PositionBuffer[Vertex * 3 + 1];
+		Position.z = {ParameterName}_PositionBuffer[Vertex * 3 + 2];
 
-		float4 TangentX = TangentBias(TangentBuffer_{ParameterName}[Vertex * 2 + 0]);
-		float4 TangentZ = TangentBias(TangentBuffer_{ParameterName}[Vertex * 2 + 1]);
+		float4 TangentX = TangentBias({ParameterName}_TangentBuffer[Vertex * 2 + 0]);
+		float4 TangentZ = TangentBias({ParameterName}_TangentBuffer[Vertex * 2 + 1]);
 		float3 TangentY = cross(TangentZ.xyz, TangentX.xyz) * TangentZ.w;
 
 		Normal		= TangentZ.xyz;
@@ -97,32 +101,32 @@ void GetVertexWS_{ParameterName}(int Vertex, out float3 Position, out float3 Vel
 	float3 LocalPosition;
 	GetVertex_{ParameterName}(Vertex, LocalPosition, Velocity, Normal, Bitangent, Tangent);
 	
-	Position				= mul(float4(LocalPosition, 1), InstanceTransform_{ParameterName}).xyz;
-	float3 PreviousPosition	= mul(float4(LocalPosition, 1), InstancePreviousTransform_{ParameterName}).xyz;
-	Velocity				= (Position - PreviousPosition) * InvDeltaSeconds_{ParameterName};
-	Normal					= normalize(mul(float4(Normal, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
-	Bitangent				= normalize(mul(float4(Bitangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
-	Tangent					= normalize(mul(float4(Tangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+	Position				= mul(float4(LocalPosition, 1), {ParameterName}_InstanceTransform).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	Velocity				= (Position - PreviousPosition) * {ParameterName}_InvDeltaSeconds;
+	Normal					= normalize(mul(float4(Normal, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
+	Bitangent				= normalize(mul(float4(Bitangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
+	Tangent					= normalize(mul(float4(Tangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
 }
 
 void GetVertexColor_{ParameterName}(int Vertex, out float4 Color)
 {
-	Vertex = clamp(Vertex, 0, NumVertices_{ParameterName} - 1);
-	Color = HasColors_{ParameterName} ? ColorBuffer_{ParameterName}[Vertex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE : float4(1, 1, 1, 1);
+	Vertex = clamp(Vertex, 0, {ParameterName}_NumVertices - 1);
+	Color = {ParameterName}_HasColors ? {ParameterName}_ColorBuffer[Vertex] FMANUALFETCH_COLOR_COMPONENT_SWIZZLE : float4(1, 1, 1, 1);
 }
 
 void GetVertexUV_{ParameterName}(int Vertex, int UVSet, out float2 UV)
 {
-	Vertex = clamp(Vertex, 0, NumVertices_{ParameterName} - 1);
-	UVSet = clamp(UVSet, 0, NumUVs_{ParameterName} - 1);
-	UV = UVSet >= 0 && UVSet < NumUVs_{ParameterName} ? UVBuffer_{ParameterName}[Vertex * NumUVs_{ParameterName} + UVSet] : float2(0, 0);
+	Vertex = clamp(Vertex, 0, {ParameterName}_NumVertices - 1);
+	UVSet = clamp(UVSet, 0, {ParameterName}_NumUVs - 1);
+	UV = UVSet >= 0 && UVSet < {ParameterName}_NumUVs ? {ParameterName}_UVBuffer[Vertex * {ParameterName}_NumUVs + UVSet] : float2(0, 0);
 }
 
 //////////////////////////////////////////////////////////////////////////
 // VM Triangle Sampling
 void IsValidTriangle_{ParameterName}(int Tri, out bool IsValid)
 {
-	IsValid = Tri >= 0 && Tri < NumTriangles_{ParameterName}.x;
+	IsValid = Tri >= 0 && Tri < {ParameterName}_NumTriangles.x;
 }
 
 void RandomTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Tri, out float3 BaryCoord)
@@ -134,17 +138,17 @@ void RandomTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Tri, out f
 
 void GetTriangleCount_{ParameterName}(out int Count)
 {
-	Count = NumTriangles_{ParameterName}.x;
+	Count = {ParameterName}_NumTriangles.x;
 }
 
 void IsValidFilteredTriangle_{ParameterName}(int Tri, out bool IsValid)
 {
-	IsValid = Tri >= 0 && Tri < NumTriangles_{ParameterName}.y;
+	IsValid = Tri >= 0 && Tri < {ParameterName}_NumTriangles.y;
 }
 
 void RandomFilteredTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Tri, out float3 BaryCoord)
 {
-	if ( NumTriangles_{ParameterName}.y > 0 )
+	if ( {ParameterName}_NumTriangles.y > 0 )
 	{
 		int Section;
 		RandomFilteredSection_{ParameterName}(RandInfo, Section);
@@ -159,21 +163,21 @@ void RandomFilteredTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Tr
 
 void GetFilteredTriangleCount_{ParameterName}(out int Count)
 {
-	Count = NumTriangles_{ParameterName}.y;
+	Count = {ParameterName}_NumTriangles.y;
 }
 
 void GetFilteredTriangleAt_{ParameterName}(int TriangleIndex, out int Tri)
 {
 	Tri = 0;
 
-	int SectionInfoOffset = SectionCounts_{ParameterName}.x;
+	int SectionInfoOffset = {ParameterName}_SectionCounts.x;
 	int SectionFirstTriangle = 0;
-	for ( int i=0; i < SectionCounts_{ParameterName}.y; ++i )
+	for ( int i=0; i < {ParameterName}_SectionCounts.y; ++i )
 	{
-		int SectionLastTriangle = SectionFirstTriangle + SectionInfos_{ParameterName}[SectionInfoOffset + i].y;
+		int SectionLastTriangle = SectionFirstTriangle + {ParameterName}_SectionInfos[SectionInfoOffset + i].y;
 		if ( TriangleIndex >= SectionFirstTriangle && TriangleIndex < SectionLastTriangle )
 		{
-			Tri = (TriangleIndex - SectionFirstTriangle) + SectionInfos_{ParameterName}[SectionInfoOffset + i].x;
+			Tri = (TriangleIndex - SectionFirstTriangle) + {ParameterName}_SectionInfos[SectionInfoOffset + i].x;
 			return;
 		}
 		SectionFirstTriangle = SectionLastTriangle;
@@ -182,12 +186,12 @@ void GetFilteredTriangleAt_{ParameterName}(int TriangleIndex, out int Tri)
 
 void IsValidUnfilteredTriangle_{ParameterName}(int Tri, out bool IsValid)
 {
-	IsValid = Tri >= 0 && Tri < NumTriangles_{ParameterName}.z;
+	IsValid = Tri >= 0 && Tri < {ParameterName}_NumTriangles.z;
 }
 
 void RandomUnfilteredTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int Tri, out float3 BaryCoord)
 {
-	if ( NumTriangles_{ParameterName}.z > 0 )
+	if ( {ParameterName}_NumTriangles.z > 0 )
 	{
 		int Section;
 		RandomUnfilteredSection_{ParameterName}(RandInfo, Section);
@@ -202,21 +206,21 @@ void RandomUnfilteredTriangle_{ParameterName}(NiagaraRandInfo RandInfo, out int 
 
 void GetUnfilteredTriangleCount_{ParameterName}(out int Count)
 {
-	Count = NumTriangles_{ParameterName}.z;
+	Count = {ParameterName}_NumTriangles.z;
 }
 
 void GetUnfilteredTriangleAt_{ParameterName}(int TriangleIndex, out int Tri)
 {
 	Tri = 0;
 
-	int SectionInfoOffset = SectionCounts_{ParameterName}.x + SectionCounts_{ParameterName}.y;
+	int SectionInfoOffset = {ParameterName}_SectionCounts.x + {ParameterName}_SectionCounts.y;
 	int SectionFirstTriangle = 0;
-	for ( int i=0; i < SectionCounts_{ParameterName}.z; ++i )
+	for ( int i=0; i < {ParameterName}_SectionCounts.z; ++i )
 	{
-		int SectionLastTriangle = SectionFirstTriangle + SectionInfos_{ParameterName}[SectionInfoOffset + i].y;
+		int SectionLastTriangle = SectionFirstTriangle + {ParameterName}_SectionInfos[SectionInfoOffset + i].y;
 		if ( TriangleIndex >= SectionFirstTriangle && TriangleIndex < SectionLastTriangle )
 		{
-			Tri = (TriangleIndex - SectionFirstTriangle) + SectionInfos_{ParameterName}[SectionInfoOffset + i].x;
+			Tri = (TriangleIndex - SectionFirstTriangle) + {ParameterName}_SectionInfos[SectionInfoOffset + i].x;
 			return;
 		}
 		SectionFirstTriangle = SectionLastTriangle;
@@ -226,12 +230,12 @@ void GetUnfilteredTriangleAt_{ParameterName}(int TriangleIndex, out int Tri)
 void GetTriangleIndices_{ParameterName}(int Tri, out int Index0, out int Index1, out int Index2)
 {
 	[branch]
-	if ( NumTriangles_{ParameterName}.x > 0 )
+	if ( {ParameterName}_NumTriangles.x > 0 )
 	{
-		Tri = clamp(Tri, 0, NumTriangles_{ParameterName}.x - 1);
-		Index0 = IndexBuffer_{ParameterName}[Tri * 3 + 0];
-		Index1 = IndexBuffer_{ParameterName}[Tri * 3 + 1];
-		Index2 = IndexBuffer_{ParameterName}[Tri * 3 + 2];
+		Tri = clamp(Tri, 0, {ParameterName}_NumTriangles.x - 1);
+		Index0 = {ParameterName}_IndexBuffer[Tri * 3 + 0];
+		Index1 = {ParameterName}_IndexBuffer[Tri * 3 + 1];
+		Index2 = {ParameterName}_IndexBuffer[Tri * 3 + 2];
 	}
 	else
 	{
@@ -263,12 +267,12 @@ void GetTriangleWS_{ParameterName}(int Tri, float3 BaryCoord, out float3 Positio
 	float3 LocalPosition;
 	GetTriangle_{ParameterName}(Tri, BaryCoord, LocalPosition, Velocity, Normal, Bitangent, Tangent);
 
-	Position				= mul(float4(LocalPosition, 1), InstanceTransform_{ParameterName}).xyz;
-	float3 PreviousPosition	= mul(float4(LocalPosition, 1), InstancePreviousTransform_{ParameterName}).xyz;
-	Velocity				= (Position - PreviousPosition) * InvDeltaSeconds_{ParameterName};
-	Normal					= normalize(mul(float4(Normal, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
-	Bitangent				= normalize(mul(float4(Bitangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
-	Tangent					= normalize(mul(float4(Tangent, 0), InstanceTransformInverseTransposed_{ParameterName}).xyz);
+	Position				= mul(float4(LocalPosition, 1), {ParameterName}_InstanceTransform).xyz;
+	float3 PreviousPosition	= mul(float4(LocalPosition, 1), {ParameterName}_InstancePreviousTransform).xyz;
+	Velocity				= (Position - PreviousPosition) * {ParameterName}_InvDeltaSeconds;
+	Normal					= normalize(mul(float4(Normal, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
+	Bitangent				= normalize(mul(float4(Bitangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
+	Tangent					= normalize(mul(float4(Tangent, 0), {ParameterName}_InstanceTransformInverseTransposed).xyz);
 }
 
 void GetTriangleColor_{ParameterName}(int Tri, float3 BaryCoord, out float4 Color)
@@ -301,27 +305,27 @@ void GetTriangleUV_{ParameterName}(int Tri, float3 BaryCoord, int UVSet, out flo
 // Socket Functions
 void GetSocketCount_{ParameterName}(out int Count)
 {
-	Count = SocketCounts_{ParameterName}.x;
+	Count = {ParameterName}_SocketCounts.x;
 }
 
 void GetFilteredSocketCount_{ParameterName}(out int Count)
 {
-	Count = SocketCounts_{ParameterName}.y;
+	Count = {ParameterName}_SocketCounts.y;
 }
 void GetUnfilteredSocketCount_{ParameterName}(out int Count)
 {
-	Count = SocketCounts_{ParameterName}.z;
+	Count = {ParameterName}_SocketCounts.z;
 }
 
 void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)
 {
 	[branch]
-	if ( SocketCounts_{ParameterName}.x > 0 )
+	if ( {ParameterName}_SocketCounts.x > 0 )
 	{
-		Socket = clamp(Socket, 0, SocketCounts_{ParameterName}.x - 1);
-		Position = SocketTransforms_{ParameterName}[Socket * 3 + 0].xyz;
-		Rotation = SocketTransforms_{ParameterName}[Socket * 3 + 1];
-		Scale    = SocketTransforms_{ParameterName}[Socket * 3 + 2].xyz;
+		Socket = clamp(Socket, 0, {ParameterName}_SocketCounts.x - 1);
+		Position = {ParameterName}_SocketTransforms[Socket * 3 + 0].xyz;
+		Rotation = {ParameterName}_SocketTransforms[Socket * 3 + 1];
+		Scale    = {ParameterName}_SocketTransforms[Socket * 3 + 2].xyz;
 	}
 	else
 	{
@@ -334,18 +338,18 @@ void GetSocketTransform_{ParameterName}(int Socket, out float3 Position, out flo
 void GetSocketTransformWS_{ParameterName}(int Socket, out float3 Position, out float4 Rotation, out float3 Scale)
 {
 	GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
-	Position = mul(float4(Position, 1.0), InstanceTransform_{ParameterName}).xyz;
-	Rotation = NiagaraGPU_QuatMul(InstanceRotation_{ParameterName}, Rotation);
-	Scale = mul(float4(Scale, 0.0), InstanceTransform_{ParameterName}).xyz;
+	Position = mul(float4(Position, 1.0), {ParameterName}_InstanceTransform).xyz;
+	Rotation = NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
+	Scale = mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
 }
 
 void GetFilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
 {
 	[branch]
-	if ( SocketCounts_{ParameterName}.y > 0 )
+	if ( {ParameterName}_SocketCounts.y > 0 )
 	{
-		SocketIndex = clamp(SocketIndex, 0, SocketCounts_{ParameterName}.y - 1);
-		int Socket = FilteredAndUnfilteredSockets_{ParameterName}[SocketIndex];
+		SocketIndex = clamp(SocketIndex, 0, {ParameterName}_SocketCounts.y - 1);
+		int Socket = {ParameterName}_FilteredAndUnfilteredSockets[SocketIndex];
 		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
 	}
 	else
@@ -359,18 +363,18 @@ void GetFilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Posi
 void GetFilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
 {
 	GetFilteredSocketTransform_{ParameterName}(SocketIndex, Position, Rotation, Scale);
-	Position = mul(float4(Position, 1.0), InstanceTransform_{ParameterName}).xyz;
-	Rotation = NiagaraGPU_QuatMul(InstanceRotation_{ParameterName}, Rotation);
-	Scale = mul(float4(Scale, 0.0), InstanceTransform_{ParameterName}).xyz;
+	Position = mul(float4(Position, 1.0), {ParameterName}_InstanceTransform).xyz;
+	Rotation = NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
+	Scale = mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
 }
 
 void GetUnfilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
 {
 	[branch]
-	if ( SocketCounts_{ParameterName}.z > 0 )
+	if ( {ParameterName}_SocketCounts.z > 0 )
 	{
-		SocketIndex = SocketCounts_{ParameterName}.y + clamp(SocketIndex, 0, SocketCounts_{ParameterName}.z - 1);
-		int Socket = FilteredAndUnfilteredSockets_{ParameterName}[SocketIndex];
+		SocketIndex = {ParameterName}_SocketCounts.y + clamp(SocketIndex, 0, {ParameterName}_SocketCounts.z - 1);
+		int Socket = {ParameterName}_FilteredAndUnfilteredSockets[SocketIndex];
 		GetSocketTransform_{ParameterName}(Socket, Position, Rotation, Scale);
 	}
 	else
@@ -384,21 +388,21 @@ void GetUnfilteredSocketTransform_{ParameterName}(int SocketIndex, out float3 Po
 void GetUnfilteredSocketTransformWS_{ParameterName}(int SocketIndex, out float3 Position, out float4 Rotation, out float3 Scale)
 {
 	GetUnfilteredSocketTransform_{ParameterName}(SocketIndex, Position, Rotation, Scale);
-	Position = mul(float4(Position, 1.0), InstanceTransform_{ParameterName}).xyz;
-	Rotation = NiagaraGPU_QuatMul(InstanceRotation_{ParameterName}, Rotation);
-	Scale = mul(float4(Scale, 0.0), InstanceTransform_{ParameterName}).xyz;
+	Position = mul(float4(Position, 1.0), {ParameterName}_InstanceTransform).xyz;
+	Rotation = NiagaraGPU_QuatMul({ParameterName}_InstanceRotation, Rotation);
+	Scale = mul(float4(Scale, 0.0), {ParameterName}_InstanceTransform).xyz;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Section functions
 void IsValidSection_{ParameterName}(int Section, out bool IsValid)
 {
-	IsValid = Section >= 0 && Section < SectionCounts_{ParameterName}.x;
+	IsValid = Section >= 0 && Section < {ParameterName}_SectionCounts.x;
 }
 
 void GetSectionTriangleCount_{ParameterName}(int Section, out int Count)
 {
-	Count = Section >= 0 && Section < SectionCounts_{ParameterName}.x ? SectionInfos_{ParameterName}[Section].y : 0;
+	Count = Section >= 0 && Section < {ParameterName}_SectionCounts.x ? {ParameterName}_SectionInfos[Section].y : 0;
 }
 
 void RandomSectionTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Section, out int Tri, out float3 BaryCoord)
@@ -408,11 +412,11 @@ void RandomSectionTriangle_{ParameterName}(NiagaraRandInfo RandInfo, int Section
 
 	if (SectionTriangleCount > 0)
 	{
-		int SectionTriangleOffset = SectionInfos_{ParameterName}[Section].x;
+		int SectionTriangleOffset = {ParameterName}_SectionInfos[Section].x;
 		Tri = NiagaraRandomInt(RandInfo, SectionTriangleCount) + SectionTriangleOffset;
 
 		[branch]
-		if ( HasUniformSampling_{ParameterName} )
+		if ( {ParameterName}_HasUniformSampling )
 		{
 			Tri = UniformTriangle_{ParameterName}(RandInfo, Tri, SectionTriangleOffset);
 		}
@@ -427,8 +431,8 @@ void GetSectionTriangleAt_{ParameterName}(int Section, int SectionTriangleIndex,
 
 	if ( SectionTriangleCount > 0 )
 	{
-		int SectionTriangleMax = SectionInfos_{ParameterName}[Section].y - 1;
-		int SectionTriangleOffset = SectionInfos_{ParameterName}[Section].x;
+		int SectionTriangleMax = {ParameterName}_SectionInfos[Section].y - 1;
+		int SectionTriangleOffset = {ParameterName}_SectionInfos[Section].x;
 		Tri = clamp(SectionTriangleIndex, 0, SectionTriangleMax) + SectionTriangleOffset;
 	}
 	else
@@ -439,11 +443,11 @@ void GetSectionTriangleAt_{ParameterName}(int Section, int SectionTriangleIndex,
 
 void GetFilteredSectionAt_{ParameterName}(int SectionIndex, out int Section)
 {
-	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
+	int FilteredSectionCount = {ParameterName}_SectionCounts.y;
 	if ( FilteredSectionCount > 0 )
 	{
 		SectionIndex = clamp(SectionIndex, 0, FilteredSectionCount - 1);
-		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex];
+		Section = {ParameterName}_FilteredAndUnfilteredSections[SectionIndex];
 	}
 	else
 	{
@@ -453,12 +457,12 @@ void GetFilteredSectionAt_{ParameterName}(int SectionIndex, out int Section)
 
 void GetUnfilteredSectionAt_{ParameterName}(int SectionIndex, out int Section)
 {
-	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
-	int UnfilteredSectionCount = SectionCounts_{ParameterName}.z;
+	int FilteredSectionCount = {ParameterName}_SectionCounts.y;
+	int UnfilteredSectionCount = {ParameterName}_SectionCounts.z;
 	if ( UnfilteredSectionCount > 0 )
 	{
 		SectionIndex = clamp(SectionIndex, 0, UnfilteredSectionCount - 1);
-		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex + FilteredSectionCount];
+		Section = {ParameterName}_FilteredAndUnfilteredSections[SectionIndex + FilteredSectionCount];
 	}
 	else
 	{
@@ -468,27 +472,27 @@ void GetUnfilteredSectionAt_{ParameterName}(int SectionIndex, out int Section)
 
 void GetSectionCount_{ParameterName}(out int Count)
 {
-	Count = SectionCounts_{ParameterName}.x;
+	Count = {ParameterName}_SectionCounts.x;
 }
 
 void GetFilteredSectionCount_{ParameterName}(out int Count)
 {
-	Count = SectionCounts_{ParameterName}.y;
+	Count = {ParameterName}_SectionCounts.y;
 }
 
 void GetUnfilteredSectionCount_{ParameterName}(out int Count)
 {
-	Count = SectionCounts_{ParameterName}.z;
+	Count = {ParameterName}_SectionCounts.z;
 }
 
 void RandomSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
 {
-	int SectionCount = SectionCounts_{ParameterName}.x;
+	int SectionCount = {ParameterName}_SectionCounts.x;
 	if (SectionCount > 0)
 	{
 		Section = NiagaraRandomInt(RandInfo, SectionCount);
-		float Prob = asfloat(SectionInfos_{ParameterName}[Section].z);
-		int Alias = SectionInfos_{ParameterName}[Section].w;
+		float Prob = asfloat({ParameterName}_SectionInfos[Section].z);
+		int Alias = {ParameterName}_SectionInfos[Section].w;
 		Section = NiagaraRandomFloat(RandInfo) < Prob ? Section : Alias;
 	}
 	else
@@ -499,16 +503,16 @@ void RandomSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
 
 void RandomFilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
 {
-	int SectionCount = SectionCounts_{ParameterName}.x;
-	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
+	int SectionCount = {ParameterName}_SectionCounts.x;
+	int FilteredSectionCount = {ParameterName}_SectionCounts.y;
 	if (FilteredSectionCount > 0)
 	{
 		int SectionIndex = NiagaraRandomInt(RandInfo, FilteredSectionCount);
 		int SectionInfoIndex = SectionIndex + SectionCount;
-		float Prob = asfloat(SectionInfos_{ParameterName}[SectionInfoIndex].z);
-		int Alias = SectionInfos_{ParameterName}[SectionInfoIndex].w;
+		float Prob = asfloat({ParameterName}_SectionInfos[SectionInfoIndex].z);
+		int Alias = {ParameterName}_SectionInfos[SectionInfoIndex].w;
 		SectionIndex = NiagaraRandomFloat(RandInfo) < Prob ? SectionIndex : Alias;
-		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex];
+		Section = {ParameterName}_FilteredAndUnfilteredSections[SectionIndex];
 	}
 	else
 	{
@@ -518,17 +522,17 @@ void RandomFilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Sec
 
 void RandomUnfilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int Section)
 {
-	int SectionCount = SectionCounts_{ParameterName}.x;
-	int FilteredSectionCount = SectionCounts_{ParameterName}.y;
-	int UnfilteredSectionCount = SectionCounts_{ParameterName}.z;
+	int SectionCount = {ParameterName}_SectionCounts.x;
+	int FilteredSectionCount = {ParameterName}_SectionCounts.y;
+	int UnfilteredSectionCount = {ParameterName}_SectionCounts.z;
 	if (UnfilteredSectionCount > 0)
 	{
 		int SectionIndex = NiagaraRandomInt(RandInfo, UnfilteredSectionCount);
 		int SectionInfoIndex = SectionIndex + SectionCount + FilteredSectionCount;
-		float Prob = asfloat(SectionInfos_{ParameterName}[SectionInfoIndex].z);
-		int Alias = SectionInfos_{ParameterName}[SectionInfoIndex].w;
+		float Prob = asfloat({ParameterName}_SectionInfos[SectionInfoIndex].z);
+		int Alias = {ParameterName}_SectionInfos[SectionInfoIndex].w;
 		SectionIndex = NiagaraRandomFloat(RandInfo) < Prob ? SectionIndex : Alias;
-		Section = FilteredAndUnfilteredSections_{ParameterName}[SectionIndex + FilteredSectionCount];
+		Section = {ParameterName}_FilteredAndUnfilteredSections[SectionIndex + FilteredSectionCount];
 	}
 	else
 	{
@@ -540,30 +544,26 @@ void RandomUnfilteredSection_{ParameterName}(NiagaraRandInfo RandInfo, out int S
 // VM Misc Functions
 void IsValid_{ParameterName}(out bool IsValid)
 {
-	IsValid = NumVertices_{ParameterName} > 0;
+	IsValid = {ParameterName}_NumVertices > 0;
 }
 
 void GetLocalToWorld_{ParameterName}(out float4x4 OutMatrix)
 {
-	OutMatrix = InstanceTransform_{ParameterName};
+	OutMatrix = {ParameterName}_InstanceTransform;
 }
 
 void GetLocalToWorldInverseTransposed_{ParameterName}(out float4x4 OutMatrix)
 {
-	OutMatrix = InstanceTransformInverseTransposed_{ParameterName};
+	OutMatrix = {ParameterName}_InstanceTransformInverseTransposed;
 }
 
 void GetWorldVelocity_{ParameterName}(out float3 Velocity)
 {
-	Velocity = InstanceWorldVelocity_{ParameterName};
+	Velocity = {ParameterName}_InstanceWorldVelocity;
 }
 
 //////////////////////////////////////////////////////////////////////////
 // Experimental Distance Field Functions
-#if DISTATICMESH_ALLOWDISTANCEFIELD
-int		InstanceDistanceFieldIndex_{ParameterName};
-#endif
-
 void QueryDistanceField_{ParameterName}(bool bExecute, float3 WorldPosition, bool bUseMaxDistance, float MaxDistance, out bool OutIsValid, out float OutDistance)
 {
 	if ( !bUseMaxDistance )
@@ -572,13 +572,13 @@ void QueryDistanceField_{ParameterName}(bool bExecute, float3 WorldPosition, boo
 	}
 
 #if DISTATICMESH_ALLOWDISTANCEFIELD
-	OutIsValid = bExecute && InstanceDistanceFieldIndex_{ParameterName} != int(-1);
+	OutIsValid = bExecute && {ParameterName}_InstanceDistanceFieldIndex != int(-1);
 	OutDistance = MaxDistance;
 	if ( OutIsValid )
 	{
 		// Needs to be a smidge over 0.0 for DistanceToNearestSurfaceForObject to query the SDF
 		MaxDistance = max(0.001, MaxDistance);
-		OutDistance = DistanceToNearestSurfaceForObject(InstanceDistanceFieldIndex_{ParameterName}, WorldPosition, MaxDistance);
+		OutDistance = DistanceToNearestSurfaceForObject({ParameterName}_InstanceDistanceFieldIndex, WorldPosition, MaxDistance);
 	}
 #else
 	OutIsValid = false;
