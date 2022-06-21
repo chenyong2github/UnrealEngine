@@ -1424,31 +1424,47 @@ void SGraphEditorImpl::AddNotification( FNotificationInfo& Info, bool bSuccess )
 
 EActiveTimerReturnType SGraphEditorImpl::HandleFocusEditorDeferred(double InCurrentTime, float InDeltaTime)
 {
+	
+	// If GraphPanel is going to pan to a target but hasn't yet, wait until it does so we don't miss it
+	if (GraphPanel->HasDeferredZoomDestination())
+	{
+		return EActiveTimerReturnType::Continue;
+	}
+	
 	for( int i = 0; i < LockedGraphs.Num(); ++i )
 	{
 		TSharedPtr<SGraphEditor> LockedGraph = LockedGraphs[i].Pin();
 		if (LockedGraph != TSharedPtr<SGraphEditor>())
 		{
-			LockedGraph->SetViewLocation(GraphPanel->GetViewOffset(), GraphPanel->GetZoomAmount());
+			// If the locked graph is going to pan to a target but hasn't yet, wait until it does so we don't miss it
+			if (LockedGraph->GetGraphPanel()->HasDeferredZoomDestination())
+			{
+				return EActiveTimerReturnType::Continue;
+			}
 
-			// if GraphPanel is currently panning to a target, pan with it
 			FVector2D TopLeft, BottomRight;
+
+			// If the locked graph was instructed to pan to a destination, let it ignore the lock to reach that destination.
+			// this way we can support diffs of moved nodes.
+			if (LockedGraph->GetGraphPanel()->GetZoomTargetRect(TopLeft, BottomRight))
+			{
+				continue;
+			}
+			
+			// Send the locked graph to the same place as this graph
 			if (GraphPanel->GetZoomTargetRect(TopLeft, BottomRight))
 			{
-				// if this graph is zooming/panning to a target location, have the locked graph do the same
 				LockedGraph->GetGraphPanel()->JumpToRect(TopLeft, BottomRight);
+			}
+			else
+			{
+				LockedGraph->SetViewLocation(GraphPanel->GetViewOffset(), GraphPanel->GetZoomAmount());
 			}
 		}
 		else
 		{
 			LockedGraphs.RemoveAtSwap(i--);
 		}
-	}
-	
-	// If GraphPanel is going to pan to a target but hasn't yet, wait until it does so we don't miss it
-	if (GraphPanel->HasDeferredObjectFocus())
-	{
-		return EActiveTimerReturnType::Continue;
 	}
 	return EActiveTimerReturnType::Stop;
 }

@@ -1499,9 +1499,17 @@ void SBlueprintDiff::HandleGraphChanged( const FString& GraphPath )
 			return DiffTreeView::CurrentDifference(DifferencesTreeView.ToSharedRef(), RealDifferences) - startIndex;
         });
 
+	// only regenerate PanelOld if the old graph has changed
+	if (!PanelOld.GraphEditor.IsValid() || GraphOld != PanelOld.GraphEditor.Pin()->GetCurrentGraph())
+	{
+		PanelOld.GeneratePanel(GraphOld, DiffResults, FocusedDiffResult);
+	}
 	
-	PanelOld.GeneratePanel(GraphOld, DiffResults, FocusedDiffResult);
-	PanelNew.GeneratePanel(GraphNew, DiffResults, FocusedDiffResult);
+	// only regenerate PanelNew if the old graph has changed
+	if (!PanelNew.GraphEditor.IsValid() || GraphNew != PanelNew.GraphEditor.Pin()->GetCurrentGraph())
+	{
+		PanelNew.GeneratePanel(GraphNew, DiffResults, FocusedDiffResult);
+	}
 }
 
 void SBlueprintDiff::GenerateDifferencesList()

@@ -777,6 +777,9 @@ public:
 	/** If it is focusing on a particular object */
 	bool HasDeferredObjectFocus() const;
 
+	/** Query whether this graph is about to start panning/zooming towards a destination */
+	bool HasDeferredZoomDestination() const;
+
 	/** Commit transactions for any node movements */
 	void FinalizeNodeMovements();
 

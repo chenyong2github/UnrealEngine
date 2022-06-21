@@ -1779,6 +1779,11 @@ bool SNodePanel::HasDeferredObjectFocus() const
 	return DeferredMovementTargetObject != nullptr;
 }
 
+bool SNodePanel::HasDeferredZoomDestination() const
+{
+	return HasDeferredObjectFocus() || bDeferredZoomToSelection || bDeferredZoomToNodeExtents;
+}
+
 void SNodePanel::FinalizeNodeMovements()
 {
 	// Process moved nodes on focus lost
@@ -1848,6 +1853,10 @@ void SNodePanel::CancelZoomToFit()
 {
 	if (ActiveTimerHandle.IsValid())
 	{
+		// Reset Zoom destination
+		ZoomPadding = NodePanelDefs::DefaultZoomPadding;
+		ZoomTargetTopLeft = FVector2D::ZeroVector;
+		ZoomTargetBottomRight = FVector2D::ZeroVector;
 		UnRegisterActiveTimer(ActiveTimerHandle.Pin().ToSharedRef());
 	}
 }
