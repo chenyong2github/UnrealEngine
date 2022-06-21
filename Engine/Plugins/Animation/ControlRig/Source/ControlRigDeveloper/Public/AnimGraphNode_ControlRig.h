@@ -19,6 +19,7 @@ class UAnimGraphNode_ControlRig : public UAnimGraphNode_CustomProperty
 
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostReconstructNode() override;
 
 private:
 	// UEdGraphNode interface
