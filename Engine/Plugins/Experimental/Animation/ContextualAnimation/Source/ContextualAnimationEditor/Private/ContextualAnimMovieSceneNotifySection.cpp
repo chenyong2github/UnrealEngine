@@ -12,9 +12,24 @@ UContextualAnimMovieSceneNotifyTrack* UContextualAnimMovieSceneNotifySection::Ge
 
 void UContextualAnimMovieSceneNotifySection::Initialize(const FAnimNotifyEvent& NotifyEvent)
 {
-	FFrameRate TickResolution = GetOwnerTrack()->GetTypedOuter<UMovieScene>()->GetTickResolution();
-	FFrameNumber StartFrame = (NotifyEvent.GetTriggerTime() * TickResolution).RoundToFrame();
-	FFrameNumber EndFrame = (NotifyEvent.GetEndTriggerTime() * TickResolution).RoundToFrame();
+	const FFrameRate TickResolution = GetOwnerTrack()->GetTypedOuter<UMovieScene>()->GetTickResolution();
+	const FFrameNumber StartFrame = (NotifyEvent.GetTriggerTime() * TickResolution).RoundToFrame();
+
+	FFrameNumber EndFrame;
+	if (NotifyEvent.NotifyStateClass)
+	{
+		EndFrame = (NotifyEvent.GetEndTriggerTime() * TickResolution).RoundToFrame();
+
+	}
+	else if (NotifyEvent.Notify)
+	{
+		// Sequencer Panel doesn't seem to have a way to represent single key events the same way we represent AnimNotify in the Animation Editor.
+		// So, for now we represent single notifies as sections with a small fixed interval and mark them as non resizable (see FContextualAnimNotifySection::SectionIsResizable). 
+		// This may need to be revisited in the future.
+
+		EndFrame = ((NotifyEvent.GetTriggerTime() + 1.f / 30.f) * TickResolution).RoundToFrame();
+	}
+
 	SetRange(TRange<FFrameNumber>::Exclusive(StartFrame, EndFrame));
 
 	AnimNotifyEventGuid = NotifyEvent.Guid;

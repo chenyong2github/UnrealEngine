@@ -24,17 +24,14 @@ void UContextualAnimMovieSceneNotifyTrack::Initialize(UAnimSequenceBase& Animati
 
 	for (const FAnimNotifyEvent* NotifyEvent : NotifyTrack.Notifies)
 	{
-		if (UAnimNotifyState* Notify = Cast<UAnimNotifyState>(NotifyEvent->NotifyStateClass))
-		{
-			// Create new movie scene section
-			UContextualAnimMovieSceneNotifySection* Section = CastChecked<UContextualAnimMovieSceneNotifySection>(CreateNewSection());
+		// Create new movie scene section
+		UContextualAnimMovieSceneNotifySection* Section = CastChecked<UContextualAnimMovieSceneNotifySection>(CreateNewSection());
 
-			// Set range and cache guid
-			Section->Initialize(*NotifyEvent);
+		// Set range and cache guid
+		Section->Initialize(*NotifyEvent);
 
-			// Add section to the track
-			AddSection(*Section);
-		}
+		// Add section to the track
+		AddSection(*Section);
 	}
 }
 

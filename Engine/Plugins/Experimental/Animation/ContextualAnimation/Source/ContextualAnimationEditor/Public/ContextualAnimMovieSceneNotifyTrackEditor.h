@@ -55,7 +55,7 @@ private:
 
 	void AddNewNotifyTrack();
 
-	void FillNewNotifyStateMenu(FMenuBuilder& MenuBuilder, bool bIsReplaceWithMenu, UContextualAnimMovieSceneNotifyTrack* Track, int32 RowIndex);
+	void FillNewNotifyMenu(FMenuBuilder& MenuBuilder, bool bIsAnimNotifyState, UContextualAnimMovieSceneNotifyTrack* Track, int32 RowIndex);
 
 	void CustomizeToolBar(FToolBarBuilder& ToolBarBuilder);
 };
@@ -64,19 +64,19 @@ private:
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** UI portion of a NotifySection in a NotifyTrack */
-class FContextualAnimNotifySection : public ISequencerSection
+class FContextualAnimNotifySection : public FSequencerSection
 {
 public:
 	
-	FContextualAnimNotifySection(UMovieSceneSection& InSection);
-	virtual ~FContextualAnimNotifySection() { }
+	FContextualAnimNotifySection(UMovieSceneSection& InSectionObject)
+		: FSequencerSection(InSectionObject)
+	{}
 
-	virtual UMovieSceneSection* GetSectionObject() override;
-	virtual int32 OnPaintSection(FSequencerSectionPainter& InPainter) const override;
-	virtual FText GetSectionTitle() const override;
+	virtual int32 OnPaintSection(FSequencerSectionPainter& Painter) const override;
+	virtual bool SectionIsResizable() const override;
 
-private:
-	
-	/** The section we are visualizing */
-	UContextualAnimMovieSceneNotifySection& Section;
+	UContextualAnimMovieSceneNotifySection* GetNotifySection() const;
+	FString GetNotifyName() const;
+
+	static void PaintNotifyName(FSequencerSectionPainter& Painter, int32 LayerId, const FString& InEventString, float PixelPos, bool bIsEventValid);
 };
