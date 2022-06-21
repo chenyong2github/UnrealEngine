@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using EpicGames.OIDC;
 using UnrealGameSync.Forms;
 
 #nullable enable
@@ -56,6 +57,7 @@ namespace UnrealGameSync
 		ModalTaskWindow? _startupWindow;
 		MainWindow? _mainWindowInstance;
 
+		ITokenStore? _tokenStore;
 		OidcTokenManager? _oidcTokenManager;
 
 		public ProgramApplicationContext(IPerforceSettings defaultPerforceSettings, UpdateMonitor updateMonitor, string? apiUrl, DirectoryReference dataFolder, EventWaitHandle activateEvent, bool restoreState, string? updateSpawn, string? projectFileName, bool preview, IServiceProvider serviceProvider, string? uri)
@@ -256,12 +258,15 @@ namespace UnrealGameSync
 			// Clear out the cache folder
 			Utility.ClearPrintCache(_cacheFolder);
 
-			_oidcTokenManager = OidcTokenManager.CreateFromConfigFile(_settings, startupTasks.Where(x => x.Item2.Succeeded).Select(x => x.Item2.Result).ToList());
+			_tokenStore = TokenStoreFactory.CreateTokenStore();
+			_oidcTokenManager = CreateTokenManagerFromConfigFile(_settings, _tokenStore, startupTasks.Where(x => x.Item2.Succeeded).Select(x => x.Item2.Result).ToList());
 			// Verify that none of the projects we are opening needs a OIDC login, if they do prompt for the login
 			if (_oidcTokenManager?.HasUnfinishedLogin() ?? false)
 			{
 				OidcLoginWindow loginDialog = new OidcLoginWindow(_oidcTokenManager);
 				loginDialog.ShowDialog();
+
+				_tokenStore.Save();
 			}
 
 			// Get the application path
@@ -286,6 +291,71 @@ namespace UnrealGameSync
 				}
 			}
 			_mainWindowInstance.FormClosed += MainWindowInstance_FormClosed;
+		}
+
+		static OidcTokenManager? CreateTokenManagerFromConfigFile(UserSettings settings, ITokenStore tokenStore, List<OpenProjectInfo> configFiles)
+		{
+			// join the provider configuration from all projects
+			Dictionary<string, ProviderInfo> Providers = new Dictionary<string, ProviderInfo>();
+			foreach (OpenProjectInfo DetectProjectSettingsTask in configFiles)
+			{
+				if (DetectProjectSettingsTask == null)
+				{
+					continue;
+				}
+
+				ConfigFile ConfigFile = DetectProjectSettingsTask.LatestProjectConfigFile;
+				if (ConfigFile == null)
+				{
+					continue;
+				}
+
+				ConfigSection ProviderSection = ConfigFile.FindSection("OIDCProvider");
+				if (ProviderSection == null)
+				{
+					continue;
+				}
+
+				string[] ProviderValues = ProviderSection.GetValues("Provider", Array.Empty<string>());
+				foreach (ConfigObject Provider in ProviderValues.Select(s => new ConfigObject(s)).ToList())
+				{
+					string? Identifier = Provider.GetValue("Identifier");
+					string? ServerUri = Provider.GetValue("ServerUri");
+					string? ClientId = Provider.GetValue("ClientId");
+					string? DisplayName = Provider.GetValue("DisplayName");
+					string? RedirectUri = Provider.GetValue("RedirectUri");
+					string? Scopes = Provider.GetValue("Scopes");
+
+					if (string.IsNullOrEmpty(Identifier))
+						continue;
+
+					if (string.IsNullOrEmpty(ClientId))
+						continue;
+
+					if (string.IsNullOrEmpty(RedirectUri))
+						continue;
+
+					if (string.IsNullOrEmpty(ServerUri))
+						continue;
+
+					ProviderInfo info = new ProviderInfo
+					{
+						ClientId = ClientId,
+						DisplayName = DisplayName ?? Identifier,
+						RedirectUri = new Uri(RedirectUri),
+						ServerUri = new Uri(ServerUri),
+					};
+					if (Scopes != null)
+						info.Scopes = Scopes;
+
+					// we might get a provider with the same identifier from another project, in which case we only keep the first one
+					Providers.TryAdd(Identifier, info);
+				}
+			}
+
+			if (Providers.Count == 0)
+				return null;
+			return new OidcTokenManager(Providers, tokenStore);
 		}
 
 		private void MainWindowInstance_FormClosed(object sender, FormClosedEventArgs e)

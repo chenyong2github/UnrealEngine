@@ -3,6 +3,7 @@
 using System;
 using System.Drawing;
 using System.Windows.Forms;
+using EpicGames.OIDC;
 using UnrealGameSync.Controls;
 
 namespace UnrealGameSync.Forms
@@ -14,9 +15,9 @@ namespace UnrealGameSync.Forms
 			InitializeComponent();
 
 			int lastYPosition = 10;
-			foreach (OidcTokenManager.ProviderInfo provider in oidcManager.Providers.Values)
+			foreach ((string providerIdentifier, ProviderInfo provider) in oidcManager.Providers)
 			{
-				OidcControl serviceControl = new OidcControl(oidcManager, provider.Identifier, provider.DisplayName)
+				OidcControl serviceControl = new OidcControl(oidcManager, providerIdentifier, provider.DisplayName)
 				{
 					Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
 					Location = new Point(10, lastYPosition)

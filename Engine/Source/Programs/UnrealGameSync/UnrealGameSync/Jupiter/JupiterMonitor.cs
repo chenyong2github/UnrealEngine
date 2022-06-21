@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using IdentityModel.Client;
 using EpicGames.Core;
 using EpicGames.Jupiter;
+using EpicGames.OIDC;
 using EpicGames.Perforce;
 using Microsoft.Extensions.Logging;
 
@@ -115,13 +116,13 @@ namespace UnrealGameSync
 
 		private async Task<IReadOnlyList<IArchiveInfo>> GetAvailableArchives()
 		{
-			string token = await _tokenManager.GetAccessToken(_providerIdentifier);
+			OidcTokenInfo token = await _tokenManager.GetAccessToken(_providerIdentifier);
 
 			List<JupiterArchiveInfo> newArchives = new List<JupiterArchiveInfo>();
 			using (HttpClient client = new HttpClient())
 			{
 				client.BaseAddress = _jupiterUrl;
-				client.SetBearerToken(token);
+				client.SetBearerToken(token.AccessToken);
 
 				string responseBody = await client.GetStringAsync($"/api/v1/c/tree-root/{_jupiterNamespace}");
 				TreeRootListResponse response = JsonSerializer.Deserialize<TreeRootListResponse>(responseBody, new JsonSerializerOptions {PropertyNameCaseInsensitive = true});
