@@ -31,7 +31,7 @@ public:
 		SetViewportType(ELevelViewportType::LVT_OrthoXZ);
 	}
 
-	virtual bool InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad) override
+	virtual bool InputKey(const FInputKeyEventArgs& EventArgs) override
 	{
 		// Only allow movement when in preview mode
 		auto ViewModel = WeakViewModel.Pin();
