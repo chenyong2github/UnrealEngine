@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystemTwitchPrivate.h"
 #include "OnlineExternalUITwitch.h"
 #include "OnlineIdentityTwitch.h"
 #include "OnlineError.h"
+#include "OnlineSubsystemTwitchPrivate.h"
 
 #define TWITCH_STATE_TOKEN TEXT("state")
 #define TWITCH_ACCESS_TOKEN TEXT("access_token")

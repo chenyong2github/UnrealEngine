@@ -1,8 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystemTwitchPrivate.h"
 #include "OnlineAccountTwitch.h"
+#include "OnlineSubsystemTwitchPrivate.h"
 #include "TwitchTokenValidationResponse.h"
+
+FUserOnlineAccountTwitch::FUserOnlineAccountTwitch(const FString& InUserId /*= FString()*/, const FString& InAuthTicket /*= FString()*/) 
+	: UserId(FUniqueNetIdTwitch::Create(InUserId))
+	, AuthTicket(InAuthTicket)
+{
+
+}
 
 FUniqueNetIdRef FUserOnlineAccountTwitch::GetUserId() const
 {

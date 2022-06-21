@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystemTwitchPrivate.h"
-#include "OnlineIdentityTwitch.h"
+#include "OnlineSubsystemTwitch.h"
 #include "OnlineExternalUITwitch.h"
+#include "OnlineIdentityTwitch.h"
+#include "OnlineSubsystemTwitchPrivate.h"
 #include "Engine/Console.h"
 #include "Misc/ConfigCacheIni.h"
 

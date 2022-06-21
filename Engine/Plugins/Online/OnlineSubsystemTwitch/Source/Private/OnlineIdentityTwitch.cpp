@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OnlineSubsystemTwitchPrivate.h"
 #include "OnlineIdentityTwitch.h"
+#include "OnlineSubsystemTwitchPrivate.h"
 #include "OnlineAccountTwitch.h"
 #include "Interfaces/OnlineExternalUIInterface.h"
 #include "TwitchTokenValidationResponse.h"

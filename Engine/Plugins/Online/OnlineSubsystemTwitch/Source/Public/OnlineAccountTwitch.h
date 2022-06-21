@@ -30,12 +30,7 @@ public:
 	virtual bool GetAuthAttribute(const FString& AttrName, FString& OutAttrValue) const override;
 
 	// FUserOnlineAccountTwitch
-	FUserOnlineAccountTwitch(const FString& InUserId = FString(), const FString& InAuthTicket = FString())
-		: UserId(FUniqueNetIdTwitch::Create(InUserId))
-		, AuthTicket(InAuthTicket)
-	{
-	}
-
+	FUserOnlineAccountTwitch(const FString& InUserId = FString(), const FString& InAuthTicket = FString());
 	virtual ~FUserOnlineAccountTwitch() = default;
 
 	/**
