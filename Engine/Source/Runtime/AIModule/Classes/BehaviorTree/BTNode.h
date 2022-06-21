@@ -177,6 +177,14 @@ class AIMODULE_API UBTNode : public UObject, public IGameplayTaskOwnerInterface
 		bOwnsGameplayTasks = true;
 		return UAITask::NewAITask<T>(*BTComponent.GetAIOwner(), *this, TEXT("Behavior"));
 	}
+	
+	template <class T>
+	T* NewBTAITask(const UClass& Class, UBehaviorTreeComponent& BTComponent)
+	{
+		check(BTComponent.GetAIOwner());
+		bOwnsGameplayTasks = true;
+		return UAITask::NewAITask<T>(Class, *BTComponent.GetAIOwner(), *this, TEXT("Behavior"));
+	}
 
 	/** node name */
 	UPROPERTY(Category=Description, EditAnywhere)

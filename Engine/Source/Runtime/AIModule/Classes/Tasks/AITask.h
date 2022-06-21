@@ -45,36 +45,42 @@ public:
 	template <class T>
 	static T* NewAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, FName InstanceName = FName())
 	{
-		T* TaskInstance = NewObject<T>();
+		return NewAITask<T>(*T::StaticClass(), AIOwner, InTaskOwner, InstanceName);
+	}
+
+	template <class T>
+	static T* NewAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, EAITaskPriority InPriority, FName InstanceName = FName())
+	{
+		return NewAITask<T>(*T::StaticClass(), AIOwner, InTaskOwner, InPriority, InstanceName);
+	}
+
+	template <class T>
+	static T* NewAITask(AAIController& AIOwner, FName InstanceName = FName())
+	{
+		return NewAITask<T>(*T::StaticClass(), AIOwner, AIOwner, InstanceName);
+	}
+
+	template <class T>
+	static T* NewAITask(AAIController& AIOwner, EAITaskPriority InPriority, FName InstanceName = FName())
+	{
+		return NewAITask<T>(*T::StaticClass(), AIOwner, AIOwner, InPriority, InstanceName);
+	}
+
+	template <class T>
+	static T* NewAITask(const UClass& Class, AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, FName InstanceName = FName())
+	{
+		T* TaskInstance = NewObject<T>(GetTransientPackage(), &Class);
 		TaskInstance->InstanceName = InstanceName;
 		TaskInstance->InitAITask(AIOwner, InTaskOwner);
 		return TaskInstance;
 	}
 
 	template <class T>
-	static T* NewAITask(AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, EAITaskPriority InPriority, FName InstanceName = FName())
+	static T* NewAITask(const UClass& Class, AAIController& AIOwner, IGameplayTaskOwnerInterface& InTaskOwner, EAITaskPriority InPriority, FName InstanceName = FName())
 	{
-		T* TaskInstance = NewObject<T>();
+		T* TaskInstance = NewObject<T>(GetTransientPackage(), &Class);
 		TaskInstance->InstanceName = InstanceName;
 		TaskInstance->InitAITask(AIOwner, InTaskOwner, (uint8)InPriority);
-		return TaskInstance;
-	}
-
-	template <class T>
-	static T* NewAITask(AAIController& AIOwner, FName InstanceName = FName())
-	{
-		T* TaskInstance = NewObject<T>();
-		TaskInstance->InstanceName = InstanceName;
-		TaskInstance->InitAITask(AIOwner, AIOwner);
-		return TaskInstance;
-	}
-
-	template <class T>
-	static T* NewAITask(AAIController& AIOwner, EAITaskPriority InPriority, FName InstanceName = FName())
-	{
-		T* TaskInstance = NewObject<T>();
-		TaskInstance->InstanceName = InstanceName;
-		TaskInstance->InitAITask(AIOwner, AIOwner, (uint8)InPriority);
 		return TaskInstance;
 	}
 };
