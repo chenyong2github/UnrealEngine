@@ -166,7 +166,7 @@ void FEOSVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Ini
 					if (!InitSession.EosPlatformHandle)
 					{
 						UE_LOG(LogEOSVoiceChat, Warning, TEXT("FEOSVoiceChat::Initialize CreatePlatform failed"));
-						InitSession = FInitSession();
+						InitSession.Reset();
 						Result = FVoiceChatResult(EVoiceChatResult::ImplementationError);
 					}
 				}
@@ -185,7 +185,7 @@ void FEOSVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Ini
 					else
 					{
 						UE_LOG(LogEOSVoiceChat, Warning, TEXT("FEOSVoiceChat::Initialize failed to get RTC interface handle"));
-						InitSession = FInitSession();
+						InitSession.Reset();
 						Result = FVoiceChatResult(EVoiceChatResult::ImplementationError);
 					}
 				}
@@ -193,7 +193,7 @@ void FEOSVoiceChat::Initialize(const FOnVoiceChatInitializeCompleteDelegate& Ini
 			else
 			{
 				UE_LOG(LogEOSVoiceChat, Warning, TEXT("FEOSVoiceChat::Initialize Initialize failed"));
-				InitSession = FInitSession();
+				InitSession.Reset();
 				Result = FVoiceChatResult(EVoiceChatResult::ImplementationError);
 			}
 		}
@@ -244,7 +244,7 @@ void FEOSVoiceChat::Uninitialize(const FOnVoiceChatUninitializeCompleteDelegate&
 			UnbindInitCallbacks();
 
 			const TArray<FOnVoiceChatUninitializeCompleteDelegate> UninitializeCompleteDelegates = MoveTemp(InitSession.UninitializeCompleteDelegates);
-			InitSession = FInitSession();
+			InitSession.Reset();
 			for (const FOnVoiceChatUninitializeCompleteDelegate& UninitializeCompleteDelegate : UninitializeCompleteDelegates)
 			{
 				UninitializeCompleteDelegate.ExecuteIfBound(FVoiceChatResult::CreateSuccess());
@@ -1019,6 +1019,21 @@ bool FEOSVoiceChat::Exec(UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
 FEOSVoiceChat::FInitSession::FInitSession()
 	: EosAudioDevicePool{ MakeShared<FEOSAudioDevicePool>(EosRtcInterface) }
 {
+}
+
+void FEOSVoiceChat::FInitSession::Reset()
+{
+	State = EInitializationState::Uninitialized;
+
+	UninitializeCompleteDelegates = TArray<FOnVoiceChatUninitializeCompleteDelegate>{};
+
+	EosPlatformHandle = nullptr;
+	EosRtcInterface = nullptr;
+	EosLobbyInterface = nullptr;
+
+	OnAudioDevicesChangedNotificationId = EOS_INVALID_NOTIFICATIONID;
+
+	EosAudioDevicePool = MakeShared<FEOSAudioDevicePool>(EosRtcInterface);
 }
 
 IEOSPlatformHandlePtr FEOSVoiceChat::EOSPlatformCreate(EOS_Platform_Options& PlatformOptions)

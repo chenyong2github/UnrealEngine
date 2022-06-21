@@ -167,6 +167,12 @@ protected:
 	{
 		FInitSession();
 
+		// `FEOSAudioDevicePool` holds a ref to an object field itself which can't be copied or moved
+		UE_NONCOPYABLE(FInitSession)
+
+		// reverts fields to their default state
+		void Reset();
+
 		EInitializationState State = EInitializationState::Uninitialized;
 
 		TArray<FOnVoiceChatUninitializeCompleteDelegate> UninitializeCompleteDelegates;
