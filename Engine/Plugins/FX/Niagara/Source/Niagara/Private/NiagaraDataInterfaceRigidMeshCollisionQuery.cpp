@@ -630,7 +630,7 @@ struct FNDIRigidMeshCollisionProxy : public FNiagaraDataInterfaceProxy
 {
 	struct FRenderThreadData
 	{
-		FElementOffset ElementOffsets;
+		FNDIRigidMeshCollisionElementOffset ElementOffsets;
 		TArray<FVector4f> WorldTransform;
 		TArray<FVector4f> InverseTransform;
 		TArray<FVector4f> ElementExtent;
@@ -744,7 +744,7 @@ void UNiagaraDataInterfaceRigidMeshCollisionQuery::DrawDebugHud(UCanvas* Canvas,
 		return;
 	}
 
-	const FElementOffset& ElementOffsets = InstanceData_GT->AssetArrays->ElementOffsets;
+	const FNDIRigidMeshCollisionElementOffset& ElementOffsets = InstanceData_GT->AssetArrays->ElementOffsets;
 
 	const uint32 BoxCount = ElementOffsets.SphereOffset - ElementOffsets.BoxOffset;
 	const uint32 SphereCount = ElementOffsets.CapsuleOffset - ElementOffsets.SphereOffset;
