@@ -78,10 +78,13 @@ void FBlueprintNamespaceRegistry::Shutdown()
 
 	if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
 	{
-		IAssetRegistry& AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).Get();
-		AssetRegistry.OnAssetAdded().Remove(OnAssetAddedDelegateHandle);
-		AssetRegistry.OnAssetRemoved().Remove(OnAssetRemovedDelegateHandle);
-		AssetRegistry.OnAssetRenamed().Remove(OnAssetRenamedDelegateHandle);
+		IAssetRegistry* AssetRegistry = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).TryGet();
+		if (AssetRegistry)
+		{
+			AssetRegistry->OnAssetAdded().Remove(OnAssetAddedDelegateHandle);
+			AssetRegistry->OnAssetRemoved().Remove(OnAssetRemovedDelegateHandle);
+			AssetRegistry->OnAssetRenamed().Remove(OnAssetRenamedDelegateHandle);
+		}
 	}
 
 	bIsInitialized = false;

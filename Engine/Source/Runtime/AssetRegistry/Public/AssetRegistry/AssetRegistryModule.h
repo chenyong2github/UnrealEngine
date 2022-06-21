@@ -30,6 +30,18 @@ public:
 		return IAssetRegistry::GetChecked();
 	}
 
+	/** Reports whether Get is valid to call. Will be true except during engine shutdown. */
+	bool IsValid() const
+	{
+		return IAssetRegistry::Get() != nullptr;
+	}
+
+	/** Returns AssetRegistry pointer if valid, or nullptr. Will be non-null except during engine shutdown. */
+	IAssetRegistry* TryGet() const
+	{
+		return IAssetRegistry::Get();
+	}
+
 	static IAssetRegistry& GetRegistry()
 	{
 		return IAssetRegistry::GetChecked();

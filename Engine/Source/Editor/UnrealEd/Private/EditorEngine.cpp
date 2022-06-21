@@ -1293,7 +1293,11 @@ void UEditorEngine::FinishDestroy()
 		FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry");
 		if (AssetRegistryModule)
 		{
-			AssetRegistryModule->Get().OnInMemoryAssetCreated().RemoveAll(this);
+			IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+			if (AssetRegistry)
+			{
+				AssetRegistry->OnInMemoryAssetCreated().RemoveAll(this);
+			}
 		}
 
 		// Shut down transaction tracking system.

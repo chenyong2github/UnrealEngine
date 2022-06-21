@@ -95,9 +95,13 @@ FConcertClientPackageBridge::~FConcertClientPackageBridge()
 		// Unregister Asset Registry Events
 		if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
 		{
-			AssetRegistryModule->Get().OnInMemoryAssetCreated().RemoveAll(this);
-			AssetRegistryModule->Get().OnInMemoryAssetDeleted().RemoveAll(this);
-			AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(this);
+			IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+			if (AssetRegistry)
+			{
+				AssetRegistry->OnInMemoryAssetCreated().RemoveAll(this);
+				AssetRegistry->OnInMemoryAssetDeleted().RemoveAll(this);
+				AssetRegistry->OnAssetRenamed().RemoveAll(this);
+			}
 		}
 
 		// Unregister Map Change Events

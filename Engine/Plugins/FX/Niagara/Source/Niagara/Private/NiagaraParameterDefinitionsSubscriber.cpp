@@ -62,7 +62,11 @@ void INiagaraParameterDefinitionsSubscriber::CleanupDefinitionsSubscriptions()
 	{
 		if(FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
 		{
-			AssetRegistryModule->Get().OnFilesLoaded().Remove(OnDeferredSyncAllNameMatchParametersHandle);
+			IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+			if (AssetRegistry)
+			{
+				AssetRegistry->OnFilesLoaded().Remove(OnDeferredSyncAllNameMatchParametersHandle);
+			}
 		}
 	}
 }

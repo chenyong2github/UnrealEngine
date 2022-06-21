@@ -1325,70 +1325,78 @@ void UAssetRegistryImpl::OnEnginePreExit()
 	GuardedData.OnEnginePreExit();
 }
 
-UAssetRegistryImpl::~UAssetRegistryImpl()
+void UAssetRegistryImpl::FinishDestroy()
 {
-	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
+	{
+		FWriteScopeLock InterfaceScopeLock(InterfaceLock);
 
-	// Stop listening for content mount point events
-	FPackageName::OnContentPathMounted().RemoveAll(this);
-	FPackageName::OnContentPathDismounted().RemoveAll(this);
-	FCoreDelegates::OnPostEngineInit.RemoveAll(this);
-	FCoreDelegates::OnEnginePreExit.RemoveAll(this);
-	IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
+		// Stop listening for content mount point events
+		FPackageName::OnContentPathMounted().RemoveAll(this);
+		FPackageName::OnContentPathDismounted().RemoveAll(this);
+		FCoreDelegates::OnPostEngineInit.RemoveAll(this);
+		FCoreDelegates::OnEnginePreExit.RemoveAll(this);
+		IPluginManager::Get().OnLoadingPhaseComplete().RemoveAll(this);
 
 #if WITH_EDITOR
-	if (GIsEditor)
-	{
-		// If the directory module is still loaded, unregister any delegates
-		if (FModuleManager::Get().IsModuleLoaded("DirectoryWatcher"))
+		if (GIsEditor)
 		{
-			FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::GetModuleChecked<FDirectoryWatcherModule>("DirectoryWatcher");
-			IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get();
-
-			if (DirectoryWatcher)
+			// If the directory module is still loaded, unregister any delegates
+			if (FModuleManager::Get().IsModuleLoaded("DirectoryWatcher"))
 			{
-				TArray<FString> RootContentPaths;
-				FPackageName::QueryRootContentPaths(RootContentPaths);
-				for (TArray<FString>::TConstIterator RootPathIt(RootContentPaths); RootPathIt; ++RootPathIt)
+				FDirectoryWatcherModule& DirectoryWatcherModule = FModuleManager::GetModuleChecked<FDirectoryWatcherModule>("DirectoryWatcher");
+				IDirectoryWatcher* DirectoryWatcher = DirectoryWatcherModule.Get();
+
+				if (DirectoryWatcher)
 				{
-					const FString& RootPath = *RootPathIt;
-					const FString& ContentFolder = FPackageName::LongPackageNameToFilename(RootPath);
-					DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(ContentFolder, OnDirectoryChangedDelegateHandles.FindRef(RootPath));
+					TArray<FString> RootContentPaths;
+					FPackageName::QueryRootContentPaths(RootContentPaths);
+					for (TArray<FString>::TConstIterator RootPathIt(RootContentPaths); RootPathIt; ++RootPathIt)
+					{
+						const FString& RootPath = *RootPathIt;
+						const FString& ContentFolder = FPackageName::LongPackageNameToFilename(RootPath);
+						DirectoryWatcher->UnregisterDirectoryChangedCallback_Handle(ContentFolder, OnDirectoryChangedDelegateHandles.FindRef(RootPath));
+					}
 				}
 			}
 		}
-	}
 
-	if (GuardedData.IsUpdateDiskCacheAfterLoad())
-	{
-		FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
-	}
+		if (GuardedData.IsUpdateDiskCacheAfterLoad())
+		{
+			FCoreUObjectDelegates::OnAssetLoaded.RemoveAll(this);
+		}
 
-	if (bAddMetaDataTagsToOnGetExtraObjectTags)
-	{
-		UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
-	}
+		if (bAddMetaDataTagsToOnGetExtraObjectTags)
+		{
+			UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
+		}
 #endif // WITH_EDITOR
 
-	if (HasAnyFlags(RF_ClassDefaultObject))
-	{
-		check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton == this && IAssetRegistryInterface::Default == &GAssetRegistryInterface);
-		UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton = nullptr;
-		IAssetRegistryInterface::Default = nullptr;
+		if (HasAnyFlags(RF_ClassDefaultObject))
+		{
+			check(UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton == this && IAssetRegistryInterface::Default == &GAssetRegistryInterface);
+			UE::AssetRegistry::Private::IAssetRegistrySingleton::Singleton = nullptr;
+			IAssetRegistryInterface::Default = nullptr;
+		}
+
+		// Clear all listeners
+		PathAddedEvent.Clear();
+		PathRemovedEvent.Clear();
+		AssetAddedEvent.Clear();
+		AssetRemovedEvent.Clear();
+		AssetRenamedEvent.Clear();
+		AssetUpdatedEvent.Clear();
+		AssetUpdatedOnDiskEvent.Clear();
+		InMemoryAssetCreatedEvent.Clear();
+		InMemoryAssetDeletedEvent.Clear();
+		FileLoadedEvent.Clear();
+		FileLoadProgressUpdatedEvent.Clear();
 	}
 
-	// Clear all listeners
-	PathAddedEvent.Clear();
-	PathRemovedEvent.Clear();
-	AssetAddedEvent.Clear();
-	AssetRemovedEvent.Clear();
-	AssetRenamedEvent.Clear();
-	AssetUpdatedEvent.Clear();
-	AssetUpdatedOnDiskEvent.Clear();
-	InMemoryAssetCreatedEvent.Clear();
-	InMemoryAssetDeletedEvent.Clear();
-	FileLoadedEvent.Clear();
-	FileLoadProgressUpdatedEvent.Clear();
+	Super::FinishDestroy();
+}
+
+UAssetRegistryImpl::~UAssetRegistryImpl()
+{
 }
 
 UAssetRegistryImpl& UAssetRegistryImpl::Get()

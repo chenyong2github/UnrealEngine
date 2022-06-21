@@ -180,11 +180,14 @@ public:
 	{
 		if (FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")))
 		{
-			FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-			AssetRegistryModule.Get().OnFilesLoaded().RemoveAll(this);
-			AssetRegistryModule.Get().OnAssetAdded().RemoveAll(this);
-			AssetRegistryModule.Get().OnAssetRemoved().RemoveAll(this);
-			AssetRegistryModule.Get().OnAssetRenamed().RemoveAll(this);
+			IAssetRegistry* AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).TryGet();
+			if (AssetRegistry)
+			{
+				AssetRegistry->OnFilesLoaded().RemoveAll(this);
+				AssetRegistry->OnAssetAdded().RemoveAll(this);
+				AssetRegistry->OnAssetRemoved().RemoveAll(this);
+				AssetRegistry->OnAssetRenamed().RemoveAll(this);
+			}
 		}
 
 		AssetFamily->GetOnAssetOpened().RemoveAll(this);

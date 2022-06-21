@@ -373,7 +373,11 @@ void FAutoReimportManager::Destroy()
 	if (AssetRegistryModule)
 	{
 		FAssetSourceFilenameCache::Get().OnAssetRenamed().RemoveAll(this);
-		AssetRegistryModule->Get().OnInMemoryAssetDeleted().RemoveAll(this);
+		IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+		if (AssetRegistry)
+		{
+			AssetRegistry->OnInMemoryAssetDeleted().RemoveAll(this);
+		}
 	}
 	
 	if (UEditorLoadingSavingSettings* Settings = GetMutableDefault<UEditorLoadingSavingSettings>())

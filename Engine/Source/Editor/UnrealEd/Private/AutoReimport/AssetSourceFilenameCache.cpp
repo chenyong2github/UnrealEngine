@@ -39,12 +39,16 @@ FAssetSourceFilenameCache& FAssetSourceFilenameCache::Get()
 
 void FAssetSourceFilenameCache::Shutdown()
 {
-	auto* ModulePtr = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry");
-	if (ModulePtr)
+	FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry");
+	if (AssetRegistryModule)
 	{
-		ModulePtr->Get().OnAssetAdded().RemoveAll(this);
-		ModulePtr->Get().OnAssetRemoved().RemoveAll(this);
-		ModulePtr->Get().OnAssetRenamed().RemoveAll(this);
+		IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+		if (AssetRegistry)
+		{
+			AssetRegistry->OnAssetAdded().RemoveAll(this);
+			AssetRegistry->OnAssetRemoved().RemoveAll(this);
+			AssetRegistry->OnAssetRenamed().RemoveAll(this);
+		}
 	}
 	
 	AssetRenamedEvent.Clear();

@@ -72,7 +72,11 @@ STakeRecorderCockpit::~STakeRecorderCockpit()
 
 	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry"))
 	{
-		AssetRegistryModule->Get().OnFilesLoaded().Remove(OnAssetRegistryFilesLoadedHandle);
+		IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+		if (AssetRegistry)
+		{
+			AssetRegistry->OnFilesLoaded().Remove(OnAssetRegistryFilesLoadedHandle);
+		}
 	}
 
 	if (!ensure(TransactionIndex == INDEX_NONE))

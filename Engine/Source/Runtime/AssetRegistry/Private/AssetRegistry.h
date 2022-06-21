@@ -24,6 +24,7 @@ public:
 	UAssetRegistryImpl(const FObjectInitializer& ObjectInitializer);
 	UAssetRegistryImpl(FVTableHelper& Helper);
 	virtual ~UAssetRegistryImpl();
+	virtual void FinishDestroy() override;
 
 	/** Gets the asset registry singleton for asset registry module use */
 	static UAssetRegistryImpl& Get();

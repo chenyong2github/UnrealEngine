@@ -463,7 +463,11 @@ bool AVirtualCameraActor::StopStreaming()
 			LevelEditorModule.OnMapChanged().RemoveAll(this);
 			if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(AssetRegistryName))
 			{
-				AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(this);
+				IAssetRegistry* AssetRegistry = AssetRegistryModule->TryGet();
+				if (AssetRegistry)
+				{
+					AssetRegistry->OnAssetRemoved().RemoveAll(this);
+				}
 			}
 			FEditorSupportDelegates::PrepareToCleanseEditorObject.RemoveAll(this);
 			GEditor->OnBlueprintPreCompile().RemoveAll(this);

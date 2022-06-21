@@ -21,9 +21,13 @@ SAssetDiscoveryIndicator::~SAssetDiscoveryIndicator()
 {
 	if ( FModuleManager::Get().IsModuleLoaded(TEXT("AssetRegistry")) )
 	{
-		FAssetRegistryModule& AssetRegistryModule = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		AssetRegistryModule.Get().OnFileLoadProgressUpdated().RemoveAll( this );
-		AssetRegistryModule.Get().OnFilesLoaded().RemoveAll( this );
+		// The engine might be shutting down so we need to use TryGet and handle null
+		IAssetRegistry* AssetRegistry = FModuleManager::GetModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry")).TryGet();
+		if (AssetRegistry) 
+		{
+			AssetRegistry->OnFileLoadProgressUpdated().RemoveAll(this);
+			AssetRegistry->OnFilesLoaded().RemoveAll(this);
+		}
 	}
 }
 
