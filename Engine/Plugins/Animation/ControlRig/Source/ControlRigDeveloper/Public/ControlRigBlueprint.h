@@ -319,7 +319,7 @@ public:
 	URigVMController* GetController(const URigVMGraph* InGraph = nullptr) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
-	URigVMController* GetControllerByName(const FString InGraphName) const;
+	URigVMController* GetControllerByName(const FString InGraphName = TEXT("")) const;
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	URigVMController* GetOrCreateController(URigVMGraph* InGraph = nullptr);

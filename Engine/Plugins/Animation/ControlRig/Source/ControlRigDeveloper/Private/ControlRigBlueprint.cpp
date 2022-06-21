@@ -1832,7 +1832,15 @@ URigVMController* UControlRigBlueprint::GetController(const URigVMGraph* InGraph
 
 URigVMController* UControlRigBlueprint::GetControllerByName(const FString InGraphName) const
 {
-	for (URigVMGraph* Graph : GetAllModels())
+	if(InGraphName.IsEmpty())
+	{
+		if(const URigVMGraph* DefaultModel = GetRigVMClient()->GetDefaultModel())
+		{
+			return GetController(DefaultModel);
+		}
+	}
+	
+	for (const URigVMGraph* Graph : GetAllModels())
 	{
 		if (Graph->GetName() == InGraphName || Graph->GetGraphName() == InGraphName)
 		{
