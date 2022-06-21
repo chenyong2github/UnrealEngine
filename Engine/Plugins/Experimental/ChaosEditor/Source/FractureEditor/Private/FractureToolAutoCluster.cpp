@@ -79,32 +79,50 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 			for (const int32 ClusterIndex : Context.GetSelection())
 			{
 				FVoronoiPartitioner VoronoiPartition(GeometryCollection, ClusterIndex);
-				VoronoiPartition.KMeansPartition(AutoClusterSettings->SiteCount);
+				int32 NumChildren = GeometryCollection->Children[ClusterIndex].Num();
+				int32 SiteCountToUse = AutoClusterSettings->ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput ?
+					FMath::Max(2, NumChildren * AutoClusterSettings->SiteCountFraction) :
+					AutoClusterSettings->SiteCount;
+				VoronoiPartition.KMeansPartition(SiteCountToUse);
 				if (VoronoiPartition.GetPartitionCount() == 0)
 				{
 					continue;
 				}
 
-				if (AutoClusterSettings->bEnforceConnectivity)
+				bool bNeedProximity = AutoClusterSettings->bEnforceConnectivity || AutoClusterSettings->bMergeIsolatedChildren;
+				if (bNeedProximity)
 				{
 					FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
 					ProximityUtility.UpdateProximity();
+				}
+
+				if (AutoClusterSettings->bEnforceConnectivity)
+				{
 					VoronoiPartition.SplitDisconnectedPartitions(GeometryCollection);
+				}
+
+				if (AutoClusterSettings->bMergeIsolatedChildren)
+				{
+					VoronoiPartition.MergeSingleElementPartitions(GeometryCollection);
+				}
+
+				int32 NonEmptyPartitionCount = VoronoiPartition.GetNonEmptyPartitionCount();
+				bool bHasEmptyClusters = NonEmptyPartitionCount > 0;
+
+				if (AutoClusterSettings->bDoNotCreateSingleSiteClusters && NonEmptyPartitionCount == 1)
+				{
+					continue;
 				}
 					
 				int32 PartitionCount = VoronoiPartition.GetPartitionCount();
 				int32 NewClusterIndexStart = GeometryCollection->AddElements(PartitionCount, FGeometryCollection::TransformGroup);
 
-				bool bHasEmptyClusters = false;
+
 
 				for (int32 Index = 0; Index < PartitionCount; ++Index)
 				{
 						
 					TArray<int32> NewCluster = VoronoiPartition.GetPartition(Index);
-					if (NewCluster.Num() == 0)
-					{
-						bHasEmptyClusters = true;
-					}
 
 					int32 NewClusterIndex = NewClusterIndexStart + Index;
 					GeometryCollection->Parent[NewClusterIndex] = ClusterIndex;
@@ -157,10 +175,52 @@ void FVoronoiPartitioner::KMeansPartition(int32 InPartitionCount)
 	}
 }
 
+void FVoronoiPartitioner::MergeSingleElementPartitions(FGeometryCollection* GeometryCollection)
+{
+	if (Connectivity.IsEmpty())
+	{
+		GenerateConnectivity(GeometryCollection);
+	}
+	for (int32 ElIdx = 0; ElIdx < TransformIndices.Num(); ElIdx++)
+	{
+		int32 Partition = Partitions[ElIdx];
+		if (PartitionSize[Partition] == 1)
+		{
+			// Find the smallest neighboring partition to merge to
+			// (to help keep partition sizes balanced)
+			int32 SmallestNbrPartition = -1;
+			int32 SmallestNbrSize = TransformIndices.Num()+1;
+			for (int32 NbrEl : Connectivity[ElIdx])
+			{
+				int32 NbrPartition = Partitions[NbrEl];
+				if (NbrPartition == Partition)
+				{
+					continue;
+				}
+				int32 NbrSize = PartitionSize[NbrPartition];
+				if (SmallestNbrPartition == -1 || NbrSize < SmallestNbrSize)
+				{
+					SmallestNbrPartition = NbrPartition;
+					SmallestNbrSize = NbrSize;
+				}
+			}
+			if (SmallestNbrPartition != -1)
+			{
+				Partitions[ElIdx] = SmallestNbrPartition;
+				PartitionSize[Partition]--;
+				PartitionSize[SmallestNbrPartition]++;
+			}
+		}
+	}
+}
+
 void FVoronoiPartitioner::SplitDisconnectedPartitions(FGeometryCollection* GeometryCollection)
 {
 	Visited.Init(false, TransformIndices.Num());
-	GenerateConnectivity(GeometryCollection);
+	if (Connectivity.IsEmpty())
+	{
+		GenerateConnectivity(GeometryCollection);
+	}
 	
 	for (int32 PartitionIndex = 0; PartitionIndex < PartitionCount; ++PartitionIndex)
 	{

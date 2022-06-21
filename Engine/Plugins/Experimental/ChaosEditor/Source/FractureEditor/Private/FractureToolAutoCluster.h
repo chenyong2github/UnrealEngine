@@ -3,6 +3,7 @@
 #pragma once
 
 #include "FractureTool.h"
+#include "Algo/Count.h"
 
 #include "FractureToolAutoCluster.generated.h"
 
@@ -22,6 +23,15 @@ enum class EFractureAutoClusterMode : uint8
 	Voronoi UMETA(DisplayName = "Voronoi"),
 };
 
+UENUM()
+enum class EClusterSizeMethod : uint8
+{
+	// Cluster by specifying an absolute number of clusters
+	ByNumber,
+	// Cluster by specifying a fraction of the number of input bones
+	ByFractionOfInput
+};
+
 
 UCLASS(DisplayName = "Auto Cluster", Category = "FractureTools")
 class UFractureAutoClusterSettings : public UFractureToolSettings
@@ -37,13 +47,29 @@ public:
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Simplified interface now only supports Voronoi clustering."))
 	EFractureAutoClusterMode AutoClusterMode_DEPRECATED;
 
+	/** How to choose the size of the clusters to create */
+	UPROPERTY(EditAnywhere, Category = ClusterSize)
+	EClusterSizeMethod ClusterSizeMethod = EClusterSizeMethod::ByNumber;
+
 	/** Use a Voronoi diagram with this many Voronoi sites as a guide for deciding cluster boundaries */
-	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Cluster Sites", UIMin = "1", UIMax = "5000", ClampMin = "1"))
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Sites", UIMin = "2", UIMax = "5000", ClampMin = "1", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByNumber"))
 	uint32 SiteCount=10;
+
+	/** Choose the number of Voronoi sites used for clustering as a fraction of the number of child bones to process */
+	UPROPERTY(EditAnywhere, Category = ClusterSize, meta = (DisplayName = "Cluster Fraction", ClampMin = "0", ClampMax = ".5", EditCondition = "ClusterSizeMethod == EClusterSizeMethod::ByFractionOfInput"))
+	float SiteCountFraction = .5;
 
 	/** If true, bones will only be added to the same cluster if they are physically connected (either directly, or via other bones in the same cluster) */
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Enforce Cluster Connectivity"))
 	bool bEnforceConnectivity=true;
+
+	/** If true, tries to prevent the creation of clusters with only a single child, by merging such clusters into a neighbor cluster if possible */
+	UPROPERTY(EditAnywhere, Category = AutoCluster)
+	bool bMergeIsolatedChildren = true;
+
+	/** If true, will not create a new cluster if all children would fall in that same cluster -- for example, if there is only one Voronoi site */
+	UPROPERTY(EditAnywhere, Category = AutoCluster)
+	bool bDoNotCreateSingleSiteClusters = true;
 };
 
 
@@ -81,7 +107,15 @@ public:
 	/** Split any partition islands into their own partition. This will possbily increase number of partitions to exceed desired count. */
 	void SplitDisconnectedPartitions(FGeometryCollection* GeometryCollection);
 
+	/** Merge any partitions w/ only 1 body into a connected, neighboring partition (if any).  This can decrease the number of partitions below the desired count. */
+	void MergeSingleElementPartitions(FGeometryCollection* GeometryCollection);
+
 	int32 GetPartitionCount() const { return PartitionCount; }
+
+	int32 GetNonEmptyPartitionCount() const
+	{
+		return PartitionSize.Num() - Algo::Count(PartitionSize, 0);
+	}
 
 	/** return the GeometryCollection TranformIndices within the partition. */
 	TArray<int32> GetPartition(int32 PartitionIndex) const;
