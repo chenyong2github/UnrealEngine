@@ -850,6 +850,7 @@ protected:
 	UE_DEPRECATED(5.1, "Use new version with FNavTileRef")
 	void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<uint32>& OutResultTileIndices);
 
+	bool IsAllowedToAddTileLayers(const FIntPoint Tile) const;
 	void AddGeneratedTileLayer(int32 LayerIndex, FRecastTileGenerator& TileGenerator, const TMap<int32, dtPolyRef>& OldLayerTileIdMap, TArray<FNavTileRef>& OutResultTileRefs);
 
 #if !UE_BUILD_SHIPPING
