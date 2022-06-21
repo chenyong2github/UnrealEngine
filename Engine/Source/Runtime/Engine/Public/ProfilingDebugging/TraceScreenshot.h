@@ -41,5 +41,4 @@ private:
 
 private:
 	static bool bSuppressWritingToFile;
-	static FString RequestedScreenshotName;
 };
