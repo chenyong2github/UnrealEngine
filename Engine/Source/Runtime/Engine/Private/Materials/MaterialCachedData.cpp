@@ -366,6 +366,10 @@ void FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 		{
 			bHasPerInstanceCustomData = true;
 		}
+		else if (Expression->IsA(UMaterialExpressionPerInstanceCustomData3Vector::StaticClass()))
+		{
+			bHasPerInstanceCustomData = true;
+		}
 		else if (Expression->IsA(UMaterialExpressionVertexInterpolator::StaticClass()))
 		{
 			bHasVertexInterpolator = true;
