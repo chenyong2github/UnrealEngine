@@ -565,7 +565,7 @@ namespace UE
 					}
 				}
 				
-				if(TestPassResults == null)
+				if(TestPassResults == null && InLog != null)
 				{
 					// Parse automaton info from the log then
 					TestPassResults = new UnrealAutomatedTestPassResults();
@@ -597,6 +597,127 @@ namespace UE
 			}
 
 			return TestPassResults;
+		}
+
+		/// <summary>
+		/// Look for critical failure during the test session and update the test states
+		/// </summary>
+		/// <param name="JsonTestPassResults"></param>
+		private void UpdateTestStateOnCriticalFailure(UnrealAutomatedTestPassResults JsonTestPassResults)
+		{
+			bool HasTimeout = RoleResults != null && RoleResults.Where(R => R.ProcessResult == UnrealProcessResult.TimeOut).Any();
+			string HordeArtifactPath = GetConfiguration().HordeArtifactPath;
+			var MainRole = GetConfiguration().GetMainRequiredRole();
+			string LastTestWithCriticalFailure = string.Empty;
+			if (JsonTestPassResults.InProcess > 0)
+			{
+				// The test pass did not run completely
+				Log.Verbose("Found in-process tests: {0}", JsonTestPassResults.InProcess);
+				// Get any critical error and push it to json report and resave it.
+				if (RoleResults != null)
+				{
+					UnrealLog.CallstackMessage FatalError = null;
+					foreach (var Result in RoleResults)
+					{
+						if (Result.LogSummary.FatalError != null)
+						{
+							FatalError = Result.LogSummary.FatalError;
+							break;
+						}
+					}
+					var Test = JsonTestPassResults.Tests.FirstOrDefault((T => T.State == TestStateType.InProcess));
+					if (!String.IsNullOrEmpty(Test.TestDisplayName))
+					{
+						LastTestWithCriticalFailure = Test.FullTestPath;
+						string ErrorMessage;
+						if (HasTimeout)
+						{
+							ErrorMessage = String.Format("Session reached timeout after {0} seconds.", MaxDuration);
+						}
+						else
+						{
+							ErrorMessage = "Engine encountered a critical failure. \n";
+							if (FatalError != null)
+							{
+								ErrorMessage += FatalError.FormatForLog();
+							}
+							else
+							{
+								ErrorMessage += "No callstack found in the log.";
+							}
+						}
+						Test.AddError(ErrorMessage);
+						if (!CanRetry() || JsonTestPassResults.NotRun == 0)
+						{
+							// Setting the test as fail because no retry will be done anymore.
+							// The InProcess state won't be used for pass resume
+							Test.State = TestStateType.Fail;
+							if (!CanRetry())
+							{
+								Test.AddWarning(string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries));
+							}
+						}
+						JsonTestPassResults.WriteToJson();
+					}
+				}
+			}
+			if (JsonTestPassResults.NotRun > 0)
+			{
+				// The test pass did not run at all
+				Log.Verbose("Found not-run tests: {0}", JsonTestPassResults.NotRun);
+				if (GetConfiguration().ResumeOnCriticalFailure && !HasTimeout)
+				{
+					// Reschedule test to resume from last 'in-process' test.
+					if (SetToRetryIfPossible())
+					{
+						// Attach current artifacts to Horde output
+						if (SessionArtifacts != null && !string.IsNullOrEmpty(HordeArtifactPath))
+						{
+							HordeReport.SimpleTestReport TempReport = new HordeReport.SimpleTestReport();
+							TempReport.SetOutputArtifactPath(HordeArtifactPath);
+							foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
+							{
+								string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
+								TempReport.AttachArtifact(Artifact.LogPath, LogName);
+								// Reference last run instance log
+								if (Artifact.SessionRole.RoleType == MainRole.Type)
+								{
+									JsonTestPassResults.Devices.Last().AppInstanceLog = LogName.Replace("\\", "/");
+								}
+							}
+							JsonTestPassResults.WriteToJson();
+						}
+						// Discard the report as we are going to do another pass.
+					}
+					else
+					{
+						Log.Error("Reach maximum of retries({0}) to resume on critical failure!", Retries);
+						// Adding a note to the report about why the not-run are not going to be run
+						string Message = string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries);
+						if (!string.IsNullOrEmpty(LastTestWithCriticalFailure))
+						{
+							Message += string.Format(" \nLast critical failure was caught on {0}", LastTestWithCriticalFailure);
+						}
+						var NotRunTests = JsonTestPassResults.Tests.Where((T => T.State == TestStateType.NotRun));
+						foreach (var Test in NotRunTests)
+						{
+							Test.AddInfo(Message);
+						}
+						JsonTestPassResults.WriteToJson();
+					}
+				}
+				else if (HasTimeout)
+				{
+					// Adding a note to the report about why the not-run are not going to be run
+					string Message = string.Format("Session reached timeout after {0} seconds.", MaxDuration);
+					var NotRunTests = JsonTestPassResults.Tests.Where((T => T.State == TestStateType.NotRun));
+					foreach (var Test in NotRunTests)
+					{
+						Test.AddInfo(Message);
+					}
+					JsonTestPassResults.WriteToJson();
+				}
+			}
 		}
 
 		/// <summary>
@@ -646,9 +767,14 @@ namespace UE
 		public override ITestReport CreateReport(TestResult Result)
 		{
 			ITestReport Report = null;
-			if (GetConfiguration() is AutomationTestConfig)
+			if (GetConfiguration() is AutomationTestConfig Config)
 			{
-				var Config = GetConfiguration() as AutomationTestConfig;
+				// Parse the json test pass results and look for critical failure to add to report
+				var TestPassResults = GetTestPassResults(null);
+				if (TestPassResults != null)
+				{
+					UpdateTestStateOnCriticalFailure(TestPassResults);
+				}
 				// Save test result data for Horde build system
 				bool WriteTestResultsForHorde = Config.WriteTestResultsForHorde;
 				if (WriteTestResultsForHorde)

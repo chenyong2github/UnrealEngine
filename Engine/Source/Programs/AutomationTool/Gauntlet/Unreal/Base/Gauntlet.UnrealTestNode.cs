@@ -264,8 +264,21 @@ namespace Gauntlet
 
 		static protected DateTime SessionStartTime = DateTime.MinValue;
 
-		private int Retries = 0;
+		public int Retries { get; private set; } = 0;
 		private int MaxRetries = 3;
+		public virtual bool CanRetry() { return Retries < MaxRetries; }
+		public virtual bool SetToRetryIfPossible()
+		{
+			if (!CanRetry()) { return false; }
+			if (IsSetToRetry()) { return true; }
+			Retries++;
+			SetUnrealTestResult(TestResult.WantRetry);
+			return true;
+		}
+		public virtual bool IsSetToRetry()
+		{
+			return GetTestResult() == TestResult.WantRetry;
+		}
 
 		/// <summary>
 		/// Standard semantic versioning for tests. Should be overwritten within individual tests, and individual test maintainers
@@ -1250,7 +1263,7 @@ namespace Gauntlet
 		/// <returns>ITestReport</returns>
 		public virtual ITestReport CreateUnrealEngineTestPassReport(string UnrealAutomatedTestReportPath, string ReportURL)
 		{
-			bool HasTimeout = RoleResults != null && RoleResults.Where(R => R.ProcessResult == UnrealProcessResult.TimeOut).Any();
+			if(IsSetToRetry()) { return null; }
 			string JsonReportPath = Path.Combine(UnrealAutomatedTestReportPath, "index.json");
 			if (File.Exists(JsonReportPath))
 			{
@@ -1258,119 +1271,6 @@ namespace Gauntlet
 				Log.Verbose("Reading json Unreal Automated test report from {0}", JsonReportPath);
 				UnrealAutomatedTestPassResults JsonTestPassResults = UnrealAutomatedTestPassResults.LoadFromJson(JsonReportPath);
 				var MainRole = GetCachedConfiguration().GetMainRequiredRole();
-				string LastTestWithCriticalFailure = string.Empty;
-				if (JsonTestPassResults.InProcess > 0)
-				{
-					// The test pass did not run completely
-					Log.Verbose("Found in-process tests: {0}", JsonTestPassResults.InProcess);
-					// Get any critical error and push it to json report and resave it.
-					if (RoleResults != null)
-					{
-						UnrealLog.CallstackMessage FatalError = null;
-						foreach (UnrealRoleResult Result in RoleResults)
-						{
-							if (Result.LogSummary.FatalError != null)
-							{
-								FatalError = Result.LogSummary.FatalError;
-								break;
-							}
-						}
-						var Test = JsonTestPassResults.Tests.FirstOrDefault((T => T.State == TestStateType.InProcess));
-						if (!String.IsNullOrEmpty(Test.TestDisplayName))
-						{
-							LastTestWithCriticalFailure = Test.FullTestPath;
-							string ErrorMessage;
-							if (HasTimeout)
-							{
-								ErrorMessage = String.Format("Session reached timeout after {0} seconds.", MaxDuration);
-							}
-							else
-							{
-								ErrorMessage = "Engine encountered a critical failure. \n";
-								if (FatalError != null)
-								{
-									ErrorMessage += FatalError.FormatForLog();
-								}
-								else
-								{
-									ErrorMessage += "No callstack found in the log.";
-								}
-							}
-							Test.AddError(ErrorMessage);
-							if (Retries >= MaxRetries || JsonTestPassResults.NotRun == 0)
-							{
-								// Setting the test as fail because no retry will be done anymore.
-								// The InProcess state won't be used for pass resume
-								Test.State = TestStateType.Fail;
-								if (Retries >= MaxRetries)
-								{
-									Test.AddWarning(string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries));
-								}
-							}
-							JsonTestPassResults.WriteToJson(JsonReportPath);
-						}
-					}
-				}
-				if (JsonTestPassResults.NotRun > 0)
-				{
-					// The test pass did not run at all
-					Log.Verbose("Found not-run tests: {0}", JsonTestPassResults.NotRun);
-					if (GetCachedConfiguration().ResumeOnCriticalFailure && !HasTimeout)
-					{
-						if (Retries < MaxRetries)
-						{
-							Retries++;
-							// Reschedule test to resume from last 'in-process' test.
-							SetUnrealTestResult(TestResult.WantRetry);
-							// Attach current artifacts to Horde output
-							if (SessionArtifacts != null)
-							{
-								HordeReport.SimpleTestReport TempReport = new HordeReport.SimpleTestReport();
-								TempReport.SetOutputArtifactPath(HordeArtifactPath);
-								foreach (UnrealRoleArtifacts Artifact in SessionArtifacts)
-								{
-									string LogName = Path.GetFullPath(Artifact.LogPath).Replace(Path.GetFullPath(Context.Options.LogDir), "").TrimStart(Path.DirectorySeparatorChar);
-									TempReport.AttachArtifact(Artifact.LogPath, LogName);
-									// Reference last run instance log
-									if(Artifact.SessionRole.RoleType == MainRole.Type)
-									{
-										JsonTestPassResults.Devices.Last().AppInstanceLog = LogName.Replace("\\", "/");
-									}
-								}
-								JsonTestPassResults.WriteToJson(JsonReportPath);
-							}
-							// Discard the report as we are going to do another pass.
-							return null;
-						}
-						else
-						{
-							Log.Error("Reach maximum of retries({0}) to resume on critical failure!", Retries);
-							// Adding a note to the report about why the not-run are not going to be run
-							string Message = string.Format("Session reached maximum of retries({0}) to resume on critical failure!", Retries);
-							if (!string.IsNullOrEmpty(LastTestWithCriticalFailure))
-							{
-								Message += string.Format(" \nLast critical failure was caught on {0}", LastTestWithCriticalFailure);
-							}
-							var NotRunTests = JsonTestPassResults.Tests.Where((T => T.State == TestStateType.NotRun));
-							foreach(var Test in NotRunTests)
-							{
-								Test.AddInfo(Message);
-							}
-							JsonTestPassResults.WriteToJson(JsonReportPath);
-						}
-					}
-					else if(HasTimeout)
-					{
-						// Adding a note to the report about why the not-run are not going to be run
-						string Message = string.Format("Session reached timeout after {0} seconds.", MaxDuration);
-						var NotRunTests = JsonTestPassResults.Tests.Where((T => T.State == TestStateType.NotRun));
-						foreach (var Test in NotRunTests)
-						{
-							Test.AddInfo(Message);
-						}
-						JsonTestPassResults.WriteToJson(JsonReportPath);
-					}
-				}
 				string HordeTestDataKey = string.IsNullOrEmpty(GetCachedConfiguration().HordeTestDataKey) ? Name + " " + Context.ToString() : GetCachedConfiguration().HordeTestDataKey;
 				GetCachedConfiguration().HordeTestDataKey = HordeTestDataKey;
 				// Convert test results for Horde

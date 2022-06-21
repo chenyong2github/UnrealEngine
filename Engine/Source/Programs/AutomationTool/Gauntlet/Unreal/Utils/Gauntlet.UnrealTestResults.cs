@@ -6,41 +6,64 @@ using System.Collections.Generic;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Linq;
+using AutomationTool;
 
 namespace Gauntlet
 {
 	public class UnrealAutomationDevice
 	{
+		[JsonPropertyName("deviceName")]
 		public string DeviceName { get; set; }
+		[JsonPropertyName("instance")] 
 		public string Instance { get; set; }
+		[JsonPropertyName("platform")]
 		public string Platform { get; set; }
+		[JsonPropertyName("oSversion")]
 		public string OSVersion { get; set; }
+		[JsonPropertyName("model")]
 		public string Model { get; set; }
+		[JsonPropertyName("gPU")]
 		public string GPU { get; set; }
+		[JsonPropertyName("cPUModel")]
 		public string CPUModel { get; set; }
+		[JsonPropertyName("rAMInGB")]
 		public int RAMInGB { get; set; }
+		[JsonPropertyName("renderMode")]
 		public string RenderMode { get; set; }
+		[JsonPropertyName("rHI")]
 		public string RHI { get; set; }
+		[JsonPropertyName("appInstanceLog")]
 		public string AppInstanceLog { get; set; }
 	}
 	public class UnrealAutomationComparisonFiles
 	{
+		[JsonPropertyName("difference")]
 		public string Difference { get; set; }
+		[JsonPropertyName("approved")]
 		public string Approved { get; set; }
+		[JsonPropertyName("unapproved")]
 		public string Unapproved { get; set; }
 	}
 	public class UnrealAutomationArtifact
 	{
+		[JsonPropertyName("id")]
 		public string Id { get; set; }
+		[JsonPropertyName("name")]
 		public string Name { get; set; }
+		[JsonPropertyName("type")]
 		public string Type { get; set; }
+		[JsonPropertyName("files")]
 		public UnrealAutomationComparisonFiles Files { get; set; }
 	}
 	public class UnrealAutomationEvent
 	{
+		[JsonPropertyName("type")]
 		public EventType Type { get; set; }
+		[JsonPropertyName("message")]
 		public string Message { get; set; }
+		[JsonPropertyName("context")]
 		public string Context { get; set; }
+		[JsonPropertyName("artifact")]
 		public string Artifact { get; set; }
 
 		public UnrealAutomationEvent()
@@ -73,23 +96,38 @@ namespace Gauntlet
 	}
 	public class UnrealAutomationEntry
 	{
+		[JsonPropertyName("event")]
 		public UnrealAutomationEvent Event { get; set; }
+		[JsonPropertyName("filename")]
 		public string Filename { get; set; }
+		[JsonPropertyName("lineNumber")]
 		public int LineNumber { get; set; }
+		[JsonPropertyName("timeStamp")]
 		public string Timestamp { get; set; }
 	}
 	public class UnrealAutomatedTestResult
 	{
+		[JsonPropertyName("testDisplayName")]
 		public string TestDisplayName { get; set; }
+		[JsonPropertyName("fullTestPath")]
 		public string FullTestPath { get; set; }
+		[JsonPropertyName("artifactName")]
 		public string ArtifactName { get; set; }
+		[JsonPropertyName("state")]
 		public TestStateType State { get; set; }
+		[JsonPropertyName("deviceInstance")]
 		public List<string> DeviceInstance { get; set; }
+		[JsonPropertyName("duration")]
 		public float Duration { get; set; }
+		[JsonPropertyName("dateTime")]
 		public string DateTime { get; set; }
+		[JsonPropertyName("warnings")]
 		public int Warnings { get; set; }
+		[JsonPropertyName("errors")]
 		public int Errors { get; set; }
+		[JsonPropertyName("artifacts")]
 		public List<UnrealAutomationArtifact> Artifacts { get; set; }
+		[JsonPropertyName("entries")]
 		public List<UnrealAutomationEntry> Entries { get; set; }
 
 		public UnrealAutomatedTestResult()
@@ -196,17 +234,35 @@ namespace Gauntlet
 	}
 	public class UnrealAutomatedTestPassResults
 	{
+		[JsonPropertyName("devices")]
 		public List<UnrealAutomationDevice> Devices { get; set; }
+		[JsonPropertyName("reportCreatedOn")]
 		public string ReportCreatedOn { get; set; }
+		[JsonPropertyName("succeeded")]
 		public int Succeeded { get; set; }
+		[JsonPropertyName("succeededWithWarnings")]
 		public int SucceededWithWarnings { get; set; }
+		[JsonPropertyName("failed")]
 		public int Failed { get; set; }
+		[JsonPropertyName("notRun")]
 		public int NotRun { get; set; }
+		[JsonPropertyName("inProcess")]
 		public int InProcess { get; set; }
+		[JsonPropertyName("totalDuration")]
 		public float TotalDuration { get; set; }
+		[JsonPropertyName("comparisonExported")]
 		public bool ComparisonExported { get; set; }
+		[JsonPropertyName("comparisonExportDirectory")]
 		public string ComparisonExportDirectory { get; set; }
+		[JsonPropertyName("tests")]
 		public List<UnrealAutomatedTestResult> Tests { get; set; }
+
+		private string FilePath;
+
+		public void SetFilePath(string InFilePath)
+		{
+			FilePath = InFilePath;
+		}
 
 		public UnrealAutomatedTestPassResults()
 		{
@@ -266,15 +322,25 @@ namespace Gauntlet
 			};
 			string JsonString = File.ReadAllText(FilePath);
 			UnrealAutomatedTestPassResults JsonTestPassResults = JsonSerializer.Deserialize<UnrealAutomatedTestPassResults>(JsonString, Options);
+			JsonTestPassResults.SetFilePath(FilePath);
 			return JsonTestPassResults;
 		}
 
 		/// <summary>
 		/// Write json data into a file
 		/// </summary>
-		/// <param name="FilePath"></param>
-		public void WriteToJson(string FilePath)
+		/// <param name="InFilePath"></param>
+		public void WriteToJson(string InFilePath = null)
 		{
+			if (!string.IsNullOrEmpty(InFilePath))
+			{
+				SetFilePath(InFilePath);
+			}
+			if (string.IsNullOrEmpty(FilePath))
+			{
+				throw new AutomationException("Can't Write to Json. FilePath is not specified.");
+			}
+
 			string OutputTestDataDir = Path.GetDirectoryName(FilePath);
 			if (!Directory.Exists(OutputTestDataDir))
 			{
