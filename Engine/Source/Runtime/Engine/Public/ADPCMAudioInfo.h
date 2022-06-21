@@ -173,15 +173,15 @@ private:
 
 	uint32			CurrentCompressedBlockIndex;		// For non disk streaming - the current compressed block in the compressed source data
 	uint32			TotalCompressedBlocksPerChannel;	// For non disk streaming - the total number of compressed blocks per channel
-	uint8			bSeekPending : 1;					// Whether or not seek has been requested and pending a read
+	uint8			bNewSeekRequest : 1;				// Whether or not there is a new seek request to be processed 
+	uint8			bSeekPendingRead : 1;				// Whether or not a requested seek is pending a read
 	uint8           bSeekedFowardToNextChunk : 1;       // If this is true, we have already seeked forward to the next chunk while waiting for the current chunk of audio to load.
 
 private:
 	void ProcessSeekRequest();
 	void SeekToTimeInternal(const float InSeekTime);
 
-	float TargetSeekTime;
-	float LastSeekTime;
+	std::atomic<float> TargetSeekTime;
 
 	FCriticalSection StreamSeekCriticalSection;
 };
