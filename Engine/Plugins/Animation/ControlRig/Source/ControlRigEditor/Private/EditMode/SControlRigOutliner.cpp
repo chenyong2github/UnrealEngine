@@ -564,24 +564,23 @@ bool SMultiRigHierarchyTreeView::AddElement(UControlRig* InControlRig, const FRi
 		if (const URigHierarchy* Hierarchy = InControlRig->GetHierarchy())
 		{
 			FRigElementKey ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
-			if (Settings.bShowDynamicHierarchy)
+
+			TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
+			if (ParentWeights.Num() > 0)
 			{
-				TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
-				if (ParentWeights.Num() > 0)
+				TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
+				check(ParentKeys.Num() == ParentWeights.Num());
+				for (int32 ParentIndex = 0; ParentIndex < ParentKeys.Num(); ParentIndex++)
 				{
-					TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
-					check(ParentKeys.Num() == ParentWeights.Num());
-					for (int32 ParentIndex = 0; ParentIndex < ParentKeys.Num(); ParentIndex++)
+					if (ParentWeights[ParentIndex].IsAlmostZero())
 					{
-						if (ParentWeights[ParentIndex].IsAlmostZero())
-						{
-							continue;
-						}
-						ParentKey = ParentKeys[ParentIndex];
-						break;
+						continue;
 					}
+					ParentKey = ParentKeys[ParentIndex];
+					break;
 				}
 			}
+
 			if (ParentKey.IsValid())
 			{
 				if(FKControlRig)

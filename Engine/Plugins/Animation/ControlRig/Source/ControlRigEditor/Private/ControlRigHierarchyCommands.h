@@ -108,9 +108,6 @@ public:
 	/* Show references */
 	TSharedPtr< FUICommandInfo > ShowReferences;
 
-	/* Show dynamic hierarchy */
-	TSharedPtr< FUICommandInfo > ShowDynamicHierarchy;
-
 	/** Toggle Shape Transform Edit*/
 	TSharedPtr< FUICommandInfo > ToggleControlShapeTransformEdit;
 

@@ -277,6 +277,9 @@ public:
 	ERigExecutionType ExecutionType;
 
 	UPROPERTY()
+	FRigHierarchySettings HierarchySettings;
+
+	UPROPERTY()
 	FRigVMRuntimeSettings VMRuntimeSettings;
 
 	/** Execute */
@@ -305,6 +308,8 @@ public:
 	/** Requests to perform construction during the next execution */
 	UFUNCTION(BlueprintCallable, Category = "Control Rig")
 	void RequestConstruction();
+
+	bool IsConstructionRequired() const { return bRequiresConstructionEvent; }
 
 	/** Returns the queue of events to run */
 	const TArray<FName>& GetEventQueue() const { return EventQueue; }
@@ -368,7 +373,7 @@ public:
 
 	bool SetControlGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true, bool bPrintPythonCommands = false, bool bFixEulerFlips = false);
 
-	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform);
+	virtual FRigControlValue GetControlValueFromGlobalTransform(const FName& InControlName, const FTransform& InGlobalTransform, ERigTransformType::Type InTransformType);
 
 	virtual void SetControlLocalTransform(const FName& InControlName, const FTransform& InLocalTransform, bool bNotify = true, const FRigControlModifiedContext& Context = FRigControlModifiedContext(), bool bSetupUndo = true, bool bFixEulerFlips = false);
 	virtual FTransform GetControlLocalTransform(const FName& InControlName) ;
@@ -424,6 +429,9 @@ public:
 
 	DECLARE_EVENT_ThreeParams(UControlRig, FControlRigExecuteEvent, class UControlRig*, const EControlRigState, const FName&);
 	FControlRigExecuteEvent& OnInitialized_AnyThread() { return InitializedEvent; }
+#if WITH_EDITOR
+	FControlRigExecuteEvent& OnPreConstructionForUI_AnyThread() { return PreConstructionForUIEvent; }
+#endif
 	FControlRigExecuteEvent& OnPreConstruction_AnyThread() { return PreConstructionEvent; }
 	FControlRigExecuteEvent& OnPostConstruction_AnyThread() { return PostConstructionEvent; }
 	FControlRigExecuteEvent& OnPreForwardsSolve_AnyThread() { return PreForwardsSolveEvent; }
@@ -585,6 +593,9 @@ private:
 	/** Broadcasts a notification whenever the controlrig's memory is initialized. */
 	FControlRigExecuteEvent InitializedEvent;
 
+	/** Broadcasts a notification when launching the construction event */
+	FControlRigExecuteEvent PreConstructionForUIEvent;
+
 	/** Broadcasts a notification just before the controlrig is setup. */
 	FControlRigExecuteEvent PreConstructionEvent;
 
@@ -637,6 +648,7 @@ private:
 public:
 	
 	void ApplyTransformOverrideForUserCreatedBones();
+	void ApplySelectionPoseForConstructionMode(const FName& InEventName);
 	
 #endif
 
@@ -835,7 +847,8 @@ private:
 	class FPoseScope
 	{
 	public:
-		FPoseScope(UControlRig* InControlRig, ERigElementType InFilter = ERigElementType::All);
+		FPoseScope(UControlRig* InControlRig, ERigElementType InFilter = ERigElementType::All,
+			const TArray<FRigElementKey>& InElements = TArray<FRigElementKey>());
 		~FPoseScope();
 
 	private:
@@ -911,6 +924,10 @@ public:
 		FRigPose CachedPose;	
 	};	
 
+	bool bRecordSelectionPoseForConstructionMode;
+	TMap<FRigElementKey, FTransform> SelectionPoseForConstructionMode;
+	bool bIsClearingTransientControls;
+	
 #endif
 	
 private:

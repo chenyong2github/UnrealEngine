@@ -1236,6 +1236,28 @@ void UControlRigBlueprint::RecompileVM()
 			}
 			return;
 		}
+		else
+		{
+			TArray<UEdGraph*> EdGraphs;
+			GetAllGraphs(EdGraphs);
+
+			for (UEdGraph* Graph : EdGraphs)
+			{
+				UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph);
+				if (RigGraph == nullptr)
+				{
+					continue;
+				}
+
+				for (UEdGraphNode* GraphNode : Graph->Nodes)
+				{
+					if (UControlRigGraphNode* ControlRigGraphNode = Cast<UControlRigGraphNode>(GraphNode))
+					{
+						ControlRigGraphNode->bHasCompilerMessage = false;
+					}
+				}
+			}
+		}
 
 		TArray<UObject*> ArchetypeInstances;
 		CDO->GetArchetypeInstances(ArchetypeInstances);
@@ -2354,7 +2376,7 @@ void UControlRigBlueprint::PostTransacted(const FTransactionObjectEvent& Transac
 				{
 					continue;
 				}
-				RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
+				RigGraph->CacheNameLists(Hierarchy, &DrawContainer, ShapeLibraries);
 			}
 
 			RequestAutoVMRecompilation();
@@ -2826,24 +2848,6 @@ void UControlRigBlueprint::ClearTransientControls()
 	}
 }
 
-void UControlRigBlueprint::SetTransientControlValue(const FRigElementKey& InElement)
-{
-	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
-	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
-
-	TArray<FRigControl> PreviousControls;
-	TArray<UObject*> ArchetypeInstances;
-	CDO->GetArchetypeInstances(ArchetypeInstances);
-	for (UObject* ArchetypeInstance : ArchetypeInstances)
-	{
-		UControlRig* InstancedControlRig = Cast<UControlRig>(ArchetypeInstance);
-		if (InstancedControlRig)
-		{
-			InstancedControlRig->SetTransientControlValue(InElement);
-		}
-	}
-}
-
 #endif
 
 void UControlRigBlueprint::PopulateModelFromGraphForBackwardsCompatibility(UControlRigGraph* InGraph)
@@ -3192,7 +3196,7 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 	{
 		if (UControlRigGraph* RigGraph = Cast<UControlRigGraph>(Graph))
 		{
-			RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
+			RigGraph->CacheNameLists(Hierarchy, &DrawContainer, ShapeLibraries);
 		}
 	}
 
@@ -4300,6 +4304,7 @@ void UControlRigBlueprint::PropagateHierarchyFromBPToInstances()
 		{
 			DefaultObject->PostInitInstanceIfRequired();
 			DefaultObject->GetHierarchy()->CopyHierarchy(Hierarchy);
+			DefaultObject->HierarchySettings = HierarchySettings;
 			DefaultObject->Initialize(true);
 
 			TArray<UObject*> ArchetypeInstances;
@@ -4310,6 +4315,7 @@ void UControlRigBlueprint::PropagateHierarchyFromBPToInstances()
 				{
 					InstanceRig->PostInitInstanceIfRequired();
 					InstanceRig->GetHierarchy()->CopyHierarchy(Hierarchy);
+					InstanceRig->HierarchySettings = HierarchySettings;
 					InstanceRig->Initialize(true);
 				}
 			}
@@ -4347,7 +4353,7 @@ void UControlRigBlueprint::PropagateDrawInstructionsFromBPToInstances()
 		{
 			continue;
 		}
-		RigGraph->CacheNameLists(Hierarchy, &DrawContainer);
+		RigGraph->CacheNameLists(Hierarchy, &DrawContainer, ShapeLibraries);
 	}
 }
 

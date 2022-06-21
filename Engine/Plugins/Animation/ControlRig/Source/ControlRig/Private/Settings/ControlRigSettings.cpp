@@ -30,7 +30,6 @@ UControlRigEditorSettings::UControlRigEditorSettings(const FObjectInitializer& O
 	ConstructionEventBorderColor = FLinearColor::Red;
 	BackwardsSolveBorderColor = FLinearColor::Yellow;
 	BackwardsAndForwardsBorderColor = FLinearColor::Blue;
-	DynamicHierarchyBorderColor = FLinearColor::Blue;
 	bShowStackedHierarchy = false;
 	MaxStackSize = 16;
 #endif

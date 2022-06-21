@@ -7,6 +7,7 @@
 #include "Animation/NodeMappingContainer.h"
 #include "AnimationRuntime.h"
 #include "Units/Execution/RigUnit_BeginExecution.h"
+#include "Units/Execution/RigUnit_PrepareForExecution.h"
 #include "Algo/Transform.h"
 
 #if ENABLE_ANIM_DEBUG
@@ -595,6 +596,12 @@ void FAnimNode_ControlRigBase::CacheBones_AnyThread(const FAnimationCacheBonesCo
 
 	if (UControlRig* ControlRig = GetControlRig())
 	{
+		// the construction event may create a set of bones that we can map to. let's run construction now.
+		if(ControlRig->IsConstructionModeEnabled() || ControlRig->IsConstructionRequired())
+		{
+			ControlRig->Execute(EControlRigState::Update, FRigUnit_PrepareForExecution::EventName);
+		}
+			
 		// fill up node names
 		FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 

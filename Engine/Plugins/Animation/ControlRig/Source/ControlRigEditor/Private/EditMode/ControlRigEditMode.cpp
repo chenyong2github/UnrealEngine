@@ -144,6 +144,7 @@ FControlRigEditMode::FControlRigEditMode()
 	, bIsChangingCoordSystem(false)
 	, InteractionType((uint8)EControlRigInteractionType::None)
 	, bShowControlsAsOverlay(false)
+	, HierarchyHashBeforeConstruction(INDEX_NONE)
 {
 	ControlProxy = NewObject<UControlRigDetailPanelControlProxies>(GetTransientPackage(), NAME_None);
 	ControlProxy->SetFlags(RF_Transactional);
@@ -1223,7 +1224,7 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 								GEditor->NoteSelectionChange();
 							}
 						}
-						ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+						ClearRigElementSelection(ValidControlTypeMask());
 						SetRigElementSelection(ShapeActor->ControlRig.Get(),ERigElementType::Control, ControlName, true);
 					}
 
@@ -1286,7 +1287,7 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 											}
 											else
 											{
-												ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+												ClearRigElementSelection(ValidControlTypeMask());
 												SetRigElementSelection(ControlRig,ERigElementType::Control, ControlName, true);
 											}
 											return true;
@@ -1324,7 +1325,7 @@ bool FControlRigEditMode::HandleClick(FEditorViewportClient* InViewportClient, H
 			}
 			else
 			{
-				ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+				ClearRigElementSelection(ValidControlTypeMask());
 				SetRigElementSelection(FKBoneProxy->ControlRig,ERigElementType::Control, ControlName, true);
 			}
 			return true;
@@ -1556,7 +1557,7 @@ bool FControlRigEditMode::BoxSelect(FBox& InBox, bool InSelect)
 	const bool bShiftDown = LevelViewportClient->Viewport->KeyState(EKeys::LeftShift) || LevelViewportClient->Viewport->KeyState(EKeys::RightShift);
 	if (!bShiftDown)
 	{
-		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+		ClearRigElementSelection(ValidControlTypeMask());
 	}
 
 	// Select all actors that are within the selection box area.  Be aware that certain modes do special processing below.	
@@ -1629,7 +1630,7 @@ bool FControlRigEditMode::FrustumSelect(const FConvexVolume& InFrustum, FEditorV
 	const bool bShiftDown = InViewportClient->Viewport->KeyState(EKeys::LeftShift) || InViewportClient->Viewport->KeyState(EKeys::RightShift);
 	if (!bShiftDown)
 	{
-		ClearRigElementSelection(FRigElementTypeHelper::ToMask(ERigElementType::Control));
+		ClearRigElementSelection(ValidControlTypeMask());
 	}
 
 	for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
@@ -1698,7 +1699,7 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	{
 		for (TPair<UControlRig*, TArray<AControlRigShapeActor*>>& Pairs : ControlRigShapeActors)
 		{
-			if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control), Pairs.Key))
+			if (AreRigElementsSelected(ValidControlTypeMask(), Pairs.Key))
 			{
 				FTransform ComponentTransform = GetHostingSceneComponentTransform(Pairs.Key);
 
@@ -1883,17 +1884,9 @@ void FControlRigEditMode::ClearRigElementSelection(uint32 InTypes)
 // internal private function that doesn't use guarding.
 void FControlRigEditMode::SetRigElementSelectionInternal(UControlRig* ControlRig, ERigElementType Type, const FName& InRigElementName, bool bSelected)
 {
-	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(ControlRig->GetClass()->ClassGeneratedBy);
-	if (IsInLevelEditor())
+	if(URigHierarchyController* Controller = ControlRig->GetHierarchy()->GetController())
 	{
-		if(URigHierarchyController* Controller = ControlRig->GetHierarchy()->GetController())
-		{
-			Controller->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
-		}
-	}
-	else if (Blueprint)
-	{
-		Blueprint->GetHierarchyController()->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
+		Controller->SelectElement(FRigElementKey(InRigElementName, Type), bSelected);
 	}
 }
 
@@ -2046,9 +2039,8 @@ void FControlRigEditMode::RecalcPivotTransform()
 			// Use average location as pivot location
 			FVector PivotLocation = FVector::ZeroVector;
 
-			// @todo: support bones also
 			TArray<FRigElementKey> SelectedRigElements = GetSelectedRigElements(ControlRig);
-			if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control),ControlRig))
+			if (AreRigElementsSelected(ValidControlTypeMask(),ControlRig))
 			{
 				FTransform LastTransform = FTransform::Identity;
 
@@ -3207,7 +3199,7 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable(UControlRig* ControlRi
 {
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
-	if (!Settings || Settings->bHideControlShapes || !ControlRig || !AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control), ControlRig))
+	if (!Settings || Settings->bHideControlShapes || !ControlRig || !AreRigElementsSelected(ValidControlTypeMask(), ControlRig))
 	{
 		return false;
 	}
@@ -3439,6 +3431,11 @@ void FControlRigEditMode::OnHierarchyModified_AnyThread(ERigHierarchyNotificatio
 		return;
 	}
 
+	if(IsConstructionEventRunning())
+	{
+		return;
+	}
+
 	if(IsInGameThread())
 	{
 		OnHierarchyModified(InNotif, InHierarchy, InElement);
@@ -3497,6 +3494,41 @@ void FControlRigEditMode::OnControlModified(UControlRig* Subject, FRigControlEle
 	*/
 }
 
+void FControlRigEditMode::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
+	const FName& InEventName)
+{
+	HierarchyHashBeforeConstruction = InRig->GetHierarchy()->GetTopologyHash(false, true);
+}
+
+void FControlRigEditMode::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState,
+	const FName& InEventName)
+{
+	uint32 HierarchyHash = INDEX_NONE;
+	Swap(HierarchyHash, HierarchyHashBeforeConstruction);
+
+	if(HierarchyHash != InRig->GetHierarchy()->GetTopologyHash(false, true))
+	{
+		auto Task = [this, InRig]()
+		{
+			RequestToRecreateControlShapeActors(InRig);
+			RecreateControlShapeActors();
+			HandleSelectionChanged();
+		};
+				
+		if(IsInGameThread())
+		{
+			Task();
+		}
+		else
+		{
+			FFunctionGraphTask::CreateAndDispatchWhenReady([Task]()
+			{
+				Task();
+			}, TStatId(), NULL, ENamedThreads::GameThread);
+		}
+	}
+}
+
 void FControlRigEditMode::OnWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMode)
 {
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
@@ -3538,7 +3570,7 @@ bool FControlRigEditMode::CanChangeControlShapeTransform()
 				// do not allow multi-select
 				if (SelectedRigElements.Num() == 1)
 				{
-					if (AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control),ControlRig))
+					if (AreRigElementsSelected(ValidControlTypeMask(),ControlRig))
 					{
 						// only enable for a Control with Gizmo enabled and visible
 						if (FRigControlElement* ControlElement = ControlRig->GetHierarchy()->Find<FRigControlElement>(SelectedRigElements[0]))
@@ -3676,7 +3708,7 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 				{
 					bPrintPythonCommands = World->IsPreviewWorld();
 				}
-				ControlRig->SetControlGlobalTransform(ShapeActor->ControlName, NewTransform, true, Context, true, bPrintPythonCommands, true);			// assumes it's attached to actor
+				ControlRig->SetControlGlobalTransform(ShapeActor->ControlName, NewTransform, true, Context, false, bPrintPythonCommands, true);			// assumes it's attached to actor
 				ShapeActor->SetGlobalTransform(CurrentTransform);
 				if (bCalcLocal)
 				{
@@ -3947,6 +3979,8 @@ void FControlRigEditMode::AddControlRigInternal(UControlRig* InControlRig)
 	InControlRig->PostInitInstanceIfRequired();
 	InControlRig->GetHierarchy()->OnModified().RemoveAll(this);
 	InControlRig->GetHierarchy()->OnModified().AddSP(this, &FControlRigEditMode::OnHierarchyModified_AnyThread);
+	InControlRig->OnPreConstructionForUI_AnyThread().AddSP(this, &FControlRigEditMode::OnPreConstruction_AnyThread);
+	InControlRig->OnPostConstruction_AnyThread().AddSP(this, &FControlRigEditMode::OnPostConstruction_AnyThread);
 
 	//needed for the control rig track editor delegates to get hooked up
 	if (WeakSequencer.IsValid())
@@ -3999,6 +4033,9 @@ void FControlRigEditMode::RemoveControlRig(UControlRig* InControlRig)
 {
 	InControlRig->ControlModified().RemoveAll(this);
 	InControlRig->GetHierarchy()->OnModified().RemoveAll(this);
+	InControlRig->OnPreConstructionForUI_AnyThread().RemoveAll(this);
+	InControlRig->OnPostConstruction_AnyThread().RemoveAll(this);
+	
 	int32 Index = RuntimeControlRigs.Find(InControlRig);
 	TStrongObjectPtr<UControlRigEditModeDelegateHelper>* DelegateHelper = DelegateHelpers.Find(InControlRig);
 	if (DelegateHelper && DelegateHelper->IsValid())

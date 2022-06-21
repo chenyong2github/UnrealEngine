@@ -111,12 +111,6 @@ public:
 	FLinearColor BackwardsAndForwardsBorderColor;
 
 	/**
-	 * The border color of the hierarchy tree in dynamic hierarchy mode
-	 */
-	UPROPERTY(EditAnywhere, config, Category = Hierarchy)
-	FLinearColor DynamicHierarchyBorderColor;
-
-	/**
 	 * Option to toggle displaying the stacked hierarchy items.
 	 * Note that changing this option potentially requires to re-open the editors in question. 
 	 */

@@ -19,8 +19,10 @@ public:
 	URigHierarchyController()
 	: bReportWarningsAndErrors(true)
 	, Hierarchy(nullptr)
-	, bSuspendNotifications(false)
+	, bSuspendAllNotifications(false)
+	, bSuspendSelectionNotifications(false)
 	, bSuspendPythonPrinting(false)
+	, CurrentInstructionIndex(INDEX_NONE)
 	{}
 
 	virtual ~URigHierarchyController();
@@ -544,7 +546,7 @@ public:
 	/**
 	 * Returns a reference to the suspend notifications flag
 	 */
-	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendNotifications; }
+	FORCEINLINE bool& GetSuspendNotificationsFlag() { return bSuspendAllNotifications; }
 
 #if WITH_EDITOR
 	UFUNCTION(BlueprintCallable, Category = URigHierarchyController)
@@ -666,9 +668,14 @@ private:
 #endif
 
 	/** 
-	 * If set to true all notifs coming from this hierarchy will be suspended
+	 * If set to true all notifications coming from this hierarchy will be suspended
 	 */
-	bool bSuspendNotifications;
+	bool bSuspendAllNotifications;
+
+	/** 
+	 * If set to true selection related notifications coming from this hierarchy will be suspended
+	 */
+	bool bSuspendSelectionNotifications;
 
 	/** 
 	* If set to true all python printing can be disabled.  
@@ -676,10 +683,34 @@ private:
 	bool bSuspendPythonPrinting;
 
 	/**
+	 * If set the controller will mark new items as procedural and created at the current instruction
+	 */
+	int32 CurrentInstructionIndex;
+
+	/**
 	 * This function can be used to override the controller's logging mechanism
 	 */
 	TFunction<void(EMessageSeverity::Type,const FString&)> LogFunction = nullptr;
 
+	template<typename T>
+	T* MakeElement()
+	{
+		T* Element = URigHierarchy::NewElement<T>();
+		Element->CreatedAtInstructionIndex = CurrentInstructionIndex;
+		return Element;
+	}
+	
 	friend class UControlRig;
 	friend class URigHierarchy;
+	friend class FRigHierarchyControllerInstructionBracket;
+};
+
+class CONTROLRIG_API FRigHierarchyControllerInstructionBracket : TGuardValue<int32>
+{
+public:
+	
+	FRigHierarchyControllerInstructionBracket(URigHierarchyController* InController, int32 InInstructionIndex)
+		: TGuardValue<int32>(InController->CurrentInstructionIndex, InInstructionIndex)
+	{
+	}
 };

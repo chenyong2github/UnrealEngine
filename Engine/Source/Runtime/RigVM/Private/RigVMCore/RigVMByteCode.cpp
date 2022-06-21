@@ -1731,6 +1731,22 @@ FRigVMOperandArray FRigVMByteCode::GetOperandsForOp(const FRigVMInstruction& InI
 	return FRigVMOperandArray();
 }
 
+TArray<int32> FRigVMByteCode::GetInstructionsForOperand(const FRigVMOperand& InOperand) const
+{
+	TArray<int32> InstructionIndices;
+	
+	const FRigVMInstructionArray Instructions = GetInstructions();
+	for(int32 InstructionIndex = 0; InstructionIndex < GetNumInstructions(); InstructionIndex++)
+	{
+		if(GetOperandsForOp(Instructions[InstructionIndex]).Contains(InOperand))
+		{
+			InstructionIndices.Add(InstructionIndex);
+		}
+
+	}
+	return InstructionIndices;
+}
+
 uint64 FRigVMByteCode::GetOpAlignment(ERigVMOpCode InOpCode) const
 {
 	switch (InOpCode)

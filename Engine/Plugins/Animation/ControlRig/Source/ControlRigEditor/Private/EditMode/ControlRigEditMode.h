@@ -163,6 +163,8 @@ public:
 	void OnHierarchyModified(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void OnControlModified(UControlRig* Subject, FRigControlElement* InControlElement, const FRigControlModifiedContext& Context);
+	void OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
+	void OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
 
 	/** return true if it can be removed from preview scene 
 	- this is to ensure preview scene doesn't remove shape actors */
@@ -174,7 +176,10 @@ public:
 	Control Rig, otherwise will recreate all of them*/
 	void RequestToRecreateControlShapeActors(UControlRig* ControlRig = nullptr); 
 
-
+	static uint32 ValidControlTypeMask()
+	{
+		return FRigElementTypeHelper::ToMask(ERigElementType::Control);
+	}
 
 protected:
 
@@ -434,6 +439,9 @@ private:
 	static uint8 GetInteractionType(FEditorViewportClient* InViewportClient);
 	uint8 InteractionType;
 	bool bShowControlsAsOverlay;
+
+	bool IsConstructionEventRunning() const { return HierarchyHashBeforeConstruction != INDEX_NONE; }
+	uint32 HierarchyHashBeforeConstruction;
 
 	friend class FControlRigEditorModule;
 	friend class FControlRigEditor;

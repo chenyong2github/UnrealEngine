@@ -24,6 +24,7 @@
 #include "Internationalization/FastDecimalFormat.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
+#include "Algo/Transform.h"
 
 class IPropertyHandle;
 
@@ -115,8 +116,6 @@ public:
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	virtual void BeginDestroy() {};
 
-	URigHierarchy* GetHierarchy() const { return HierarchyBeingCustomized; }
-	URigHierarchy* GetHierarchyBeingDebugged() const;
 	FRigElementKey GetElementKey() const;
 	FText GetName() const;
 	void SetName(const FText& InNewText, ETextCommit::Type InCommitType);
@@ -133,55 +132,80 @@ public:
 	TArray<T> GetElementsInDetailsView(const TArray<FRigElementKey>& InFilter = TArray<FRigElementKey>()) const
 	{
 		TArray<T> Elements;
-		for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+		for(const FPerElementInfo& Info : PerElementInfos)
 		{
-			if(ObjectBeingCustomized.IsValid())
+			T Content = Info.WrapperObject->GetContent<T>();
+			if(!InFilter.IsEmpty() && !InFilter.Contains(Content.GetKey()))
 			{
-				T Content = ObjectBeingCustomized->GetContent<T>();
-				if(!InFilter.IsEmpty() && !InFilter.Contains(Content.GetKey()))
-				{
-					continue;
-				}
-				Elements.Add(Content);
+				continue;
 			}
+			Elements.Add(Content);
 		}
 		return Elements;
 	}
 
-	template<typename T>
-	TArray<T*> GetElementsInHierarchy(const TArray<FRigElementKey>& InFilter = TArray<FRigElementKey>()) const
+	struct FPerElementInfo
 	{
-		TArray<T*> Elements;
-		if(HierarchyBeingCustomized)
-		{
-			if(InFilter.IsEmpty())
-			{
-				for(TWeakObjectPtr<UDetailsViewWrapperObject> ObjectBeingCustomized : ObjectsBeingCustomized)
-				{
-					if(ObjectBeingCustomized.IsValid())
-					{
-						const FRigElementKey Key = ObjectBeingCustomized->GetContent<FRigBaseElement>().GetKey();
-						Elements.Add(HierarchyBeingCustomized->Find<T>(Key));
-					}
-				}
-			}
-			else
-			{
-				for(const FRigElementKey& FilterKey : InFilter)
-				{
-					Elements.Add(HierarchyBeingCustomized->Find<T>(FilterKey));
-				}
-			}
-		}
-		return Elements;
-	}
+		FPerElementInfo()
+			: WrapperObject()
+			, Element()
+			, DefaultElement()
+		{}
 
+		bool IsValid() const { return Element.IsValid(); }
+		bool IsProcedural() const { return Element.IsValid() && Element.Get()->IsProcedural(); }
+		operator bool() const { return IsValid(); }
+
+		URigHierarchy* GetHierarchy() const { return (URigHierarchy*)Element.GetHierarchy(); }
+		URigHierarchy* GetDefaultHierarchy() const
+		{
+			if(DefaultElement.IsValid())
+			{
+				return (URigHierarchy*)DefaultElement.GetHierarchy();
+			}
+			return GetHierarchy();
+		}
+
+		UControlRigBlueprint* GetBlueprint() const
+		{
+			if(const UControlRig* ControlRig = GetHierarchy()->GetTypedOuter<UControlRig>())
+			{
+				return Cast<UControlRigBlueprint>(ControlRig->GetClass()->ClassGeneratedBy);
+			}
+			return GetDefaultHierarchy()->GetTypedOuter<UControlRigBlueprint>();
+		}
+
+		template<typename T = FRigBaseElement>
+		T* GetElement() const
+		{
+			return (T*)Element.Get<T>();
+		}
+
+		template<typename T = FRigBaseElement>
+		T* GetDefaultElement() const
+		{
+			if(DefaultElement)
+			{
+				return (T*)DefaultElement.Get<T>();
+			}
+			return GetElement<T>();
+		}
+
+		TWeakObjectPtr<UDetailsViewWrapperObject> WrapperObject;
+		FRigElementHandle Element;
+		FRigElementHandle DefaultElement;
+	};
+
+	const FPerElementInfo& FindElement(const FRigElementKey& InKey) const;
 	bool IsAnyElementOfType(ERigElementType InType) const;
 	bool IsAnyElementNotOfType(ERigElementType InType) const;
 	bool IsAnyControlOfAnimationType(ERigControlAnimationType InType) const;
 	bool IsAnyControlNotOfAnimationType(ERigControlAnimationType InType) const;
 	bool IsAnyControlOfValueType(ERigControlType InType) const;
 	bool IsAnyControlNotOfValueType(ERigControlType InType) const;
+	bool IsAnyElementProcedural() const;
+	const FPerElementInfo* FindElementByPredicate(const TFunction<bool(const FPerElementInfo&)>& InPredicate) const;
+	bool ContainsElementByPredicate(const TFunction<bool(const FPerElementInfo&)>& InPredicate) const;
 
 	static void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule);
 	virtual void RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass);
@@ -191,9 +215,8 @@ public:
 
 protected:
 
-	UControlRigBlueprint* BlueprintBeingCustomized;
-	URigHierarchy* HierarchyBeingCustomized;
-	TArray<TWeakObjectPtr<UDetailsViewWrapperObject>> ObjectsBeingCustomized;
+	TArray<FPerElementInfo> PerElementInfos;
+	
 	TSharedPtr<SButton> SelectParentElementButton;
 };
 
@@ -232,7 +255,6 @@ protected:
 
 	FDetailWidgetRow& CreateTransformComponentValueWidgetRow(
 		ERigControlType InControlType,
-		URigHierarchy* HierarchyBeingDebugged,
 		const TArray<FRigElementKey>& Keys,
 		SAdvancedTransformInputBox<FEulerTransform>::FArguments TransformWidgetArgs,
 		IDetailCategoryBuilder& CategoryBuilder, 
@@ -243,7 +265,6 @@ protected:
 		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>());
 
 	FDetailWidgetRow& CreateEulerTransformValueWidgetRow(
-		URigHierarchy* HierarchyBeingDebugged,
 		const TArray<FRigElementKey>& Keys,
 		SAdvancedTransformInputBox<FEulerTransform>::FArguments TransformWidgetArgs,
 		IDetailCategoryBuilder& CategoryBuilder, 
@@ -377,12 +398,16 @@ private:
 		TAttribute<EVisibility> Visibility = EVisibility::Visible,
 		TSharedPtr<SWidget> NameContent = TSharedPtr<SWidget>())
 	{
-		const bool bCurrent = ValueType == ERigControlValueType::Current;
-		const bool bInitial = ValueType == ERigControlValueType::Initial;
 		const bool bShowToggle = (ValueType == ERigControlValueType::Minimum) || (ValueType == ERigControlValueType::Maximum);
-		
-		URigHierarchy* HierarchyBeingDebugged = GetHierarchyBeingDebugged();
-		URigHierarchy* HierarchyToChange = bCurrent ? HierarchyBeingDebugged : HierarchyBeingCustomized;
+		const bool bIsProcedural = IsAnyElementProcedural();
+		const bool bIsEnabled = !bIsProcedural || ValueType == ERigControlValueType::Current;
+
+		URigHierarchy* Hierarchy = PerElementInfos[0].GetHierarchy();
+		URigHierarchy* HierarchyToChange = PerElementInfos[0].GetDefaultHierarchy();
+		if(ValueType == ERigControlValueType::Current)
+		{
+			HierarchyToChange = Hierarchy;
+		}
 
 		TSharedPtr<SNumericEntryBox<T>> NumericEntryBox;
 		
@@ -393,13 +418,13 @@ private:
 		if(bShowToggle)
 		{
 			ToggleChecked = TAttribute<ECheckBoxState>::CreateLambda(
-				[ValueType, Keys, HierarchyBeingDebugged]() -> ECheckBoxState
+				[ValueType, Keys, Hierarchy]() -> ECheckBoxState
 				{
 					TOptional<bool> FirstValue;
 
 					for(const FRigElementKey& Key : Keys)
 					{
-						if(const FRigControlElement* ControlElement = HierarchyBeingDebugged->Find<FRigControlElement>(Key))
+						if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
 						{
 							if(ControlElement->Settings.LimitEnabled.Num() == 1)
 							{
@@ -486,7 +511,8 @@ private:
 			SAssignNew(NameContent, STextBlock)
 			.Text(Label)
 			.ToolTipText(Tooltip)
-			.Font(IDetailLayoutBuilder::GetDetailFont());
+			.Font(IDetailLayoutBuilder::GetDetailFont())
+			.IsEnabled(bIsEnabled);
 		}
 
 		WidgetRow
@@ -504,12 +530,12 @@ private:
 	        .AllowSpin(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
 	        .LinearDeltaSensitivity(1)
 			.Delta(0.01f)
-	        .Value_Lambda([ValueType, Keys, HierarchyBeingDebugged]() -> TOptional<T>
+	        .Value_Lambda([ValueType, Keys, Hierarchy]() -> TOptional<T>
 	        {
-		        const T FirstValue = HierarchyBeingDebugged->GetControlValue<T>(Keys[0], ValueType);
+		        const T FirstValue = Hierarchy->GetControlValue<T>(Keys[0], ValueType);
 				for(int32 Index = 1; Index < Keys.Num(); Index++)
 				{
-					const T SecondValue = HierarchyBeingDebugged->GetControlValue<T>(Keys[Index], ValueType);
+					const T SecondValue = Hierarchy->GetControlValue<T>(Keys[Index], ValueType);
 					if(FirstValue != SecondValue)
 					{
 						return TOptional<T>();
@@ -525,19 +551,19 @@ private:
 	        {
         		OnValueChanged(InValue, InCommitType, true);
 	        })
-	        .MinSliderValue_Lambda([ValueType, Keys, HierarchyBeingDebugged]() -> TOptional<T>
+	        .MinSliderValue_Lambda([ValueType, Keys, Hierarchy]() -> TOptional<T>
 			 {
 				 if(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
 				 {
-			 		return HierarchyBeingDebugged->GetControlValue<T>(Keys[0], ERigControlValueType::Minimum);
+			 		return Hierarchy->GetControlValue<T>(Keys[0], ERigControlValueType::Minimum);
 				 }
 				 return TOptional<T>();
 			 })
-			 .MaxSliderValue_Lambda([ValueType, Keys, HierarchyBeingDebugged]() -> TOptional<T>
+			 .MaxSliderValue_Lambda([ValueType, Keys, Hierarchy]() -> TOptional<T>
 			 {
 		 		if(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
 		 		{
-					 return HierarchyBeingDebugged->GetControlValue<T>(Keys[0], ERigControlValueType::Maximum);
+					 return Hierarchy->GetControlValue<T>(Keys[0], ERigControlValueType::Maximum);
 				 }
 				 return TOptional<T>();
 			 })
@@ -545,11 +571,12 @@ private:
 			 .ToggleChecked(ToggleChecked)
 			 .OnToggleChanged(OnToggleChanged)
 			 .UndeterminedString(NSLOCTEXT("FRigControlElementDetails", "MultipleValues", "Multiple Values"))
+			 .IsEnabled(bIsEnabled)
 		]
 		.CopyAction(FUIAction(
-		FExecuteAction::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]()
+		FExecuteAction::CreateLambda([ValueType, Keys, Hierarchy]()
 			{
-				const T FirstValue = HierarchyBeingDebugged->GetControlValue<T>(Keys[0], ValueType);
+				const T FirstValue = Hierarchy->GetControlValue<T>(Keys[0], ValueType);
 				const FString Content = FastDecimalFormat::NumberToString(
 					FirstValue,
 					FastDecimalFormat::GetCultureAgnosticFormattingRules(),
@@ -584,17 +611,17 @@ private:
 					}
 				}
 			}),
-			FCanExecuteAction())
+			FCanExecuteAction::CreateLambda([bIsEnabled]() { return bIsEnabled; }))
 		);
 
-		if(ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial)
+		if((ValueType == ERigControlValueType::Current || ValueType == ERigControlValueType::Initial) && bIsEnabled)
 		{
 			WidgetRow.OverrideResetToDefault(FResetToDefaultOverride::Create(
-				TAttribute<bool>::CreateLambda([ValueType, Keys, HierarchyBeingDebugged]() -> bool
+				TAttribute<bool>::CreateLambda([ValueType, Keys, Hierarchy]() -> bool
 				{
-					const T FirstValue = HierarchyBeingDebugged->GetControlValue<T>(Keys[0], ValueType);
+					const T FirstValue = Hierarchy->GetControlValue<T>(Keys[0], ValueType);
 					const T ReferenceValue = ValueType == ERigControlValueType::Initial ? T(0) :
-						HierarchyBeingDebugged->GetControlValue<T>(Keys[0], ERigControlValueType::Initial);
+						Hierarchy->GetControlValue<T>(Keys[0], ERigControlValueType::Initial);
 
 					return !FRigControlElementDetails::Equals(FirstValue, ReferenceValue);
 				}),
@@ -629,8 +656,6 @@ private:
 	TSharedPtr<IPropertyHandle> ShapeColorHandle;
 	TSharedPtr<IPropertyHandle> ShapeTransformHandle;
 
-	TArray<FRigControlElement> ControlElements;
-	TArray<UDetailsViewWrapperObject*> ObjectPerControl;
 	TSharedPtr<SControlRigShapeNameList> ShapeNameListWidget; 
 	static TSharedPtr<TArray<ERigControlValueType>> PickedValueTypes;
 };

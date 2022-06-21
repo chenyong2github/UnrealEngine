@@ -365,6 +365,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = "User Interface")
 	FRigGraphDisplaySettings RigGraphDisplaySettings;
 
+	UPROPERTY(EditAnywhere, Category = "Hierarchy")
+	FRigHierarchySettings HierarchySettings;
+
 	UPROPERTY(EditAnywhere, Category = "VM")
 	FRigVMRuntimeSettings VMRuntimeSettings;
 
@@ -479,9 +482,6 @@ public:
 
 	/** Removes all  transient / temporary control used to interact with pins */
 	void ClearTransientControls();
-
-	/** update the value of the transient / temporary control to the current value of the rig element*/
-	void SetTransientControlValue(const FRigElementKey& InElement);
 
 #endif
 

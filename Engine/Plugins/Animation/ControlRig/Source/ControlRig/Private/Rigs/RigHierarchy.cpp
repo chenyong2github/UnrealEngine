@@ -324,6 +324,19 @@ void URigHierarchy::Reset()
 	}
 }
 
+void URigHierarchy::ResetToDefault()
+{
+	if(DefaultHierarchyPtr.IsValid())
+	{
+		if(URigHierarchy* DefaultHierarchy = DefaultHierarchyPtr.Get())
+		{
+			CopyHierarchy(DefaultHierarchy);
+			return;
+		}
+	}
+	Reset();
+}
+
 void URigHierarchy::CopyHierarchy(URigHierarchy* InHierarchy)
 {
 	check(InHierarchy);
@@ -411,6 +424,55 @@ uint32 URigHierarchy::GetNameHash() const
 	{
 		const FRigBaseElement* Element = Elements[ElementIndex];
 		Hash = HashCombine(Hash, GetTypeHash(Element->GetName()));
+	}
+
+	return Hash;
+}
+
+uint32 URigHierarchy::GetTopologyHash(bool bIncludeTopologyVersion, bool bIncludeTransientControls) const
+{
+	uint32 Hash = bIncludeTopologyVersion ? TopologyVersion : 0;
+
+	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ElementIndex++)
+	{
+		const FRigBaseElement* Element = Elements[ElementIndex];
+		
+		// skip transient controls
+		if(!bIncludeTransientControls)
+		{
+			if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+			{
+				if(ControlElement->Settings.bIsTransientControl)
+				{
+					continue;
+				}
+			}
+		}
+		
+		Hash = HashCombine(Hash, GetTypeHash(Element->GetKey()));
+
+		if(const FRigSingleParentElement* SingleParentElement = Cast<FRigSingleParentElement>(Element))
+		{
+			if(SingleParentElement->ParentElement)
+			{
+				Hash = HashCombine(Hash, GetTypeHash(SingleParentElement->ParentElement->GetKey()));
+			}
+		}
+		if(const FRigMultiParentElement* MultiParentElement = Cast<FRigMultiParentElement>(Element))
+		{
+			for(const FRigElementParentConstraint& ParentConstraint : MultiParentElement->ParentConstraints)
+			{
+				Hash = HashCombine(Hash, GetTypeHash(ParentConstraint.ParentElement->GetKey()));
+			}
+		}
+		if(const FRigBoneElement* BoneElement = Cast<FRigBoneElement>(Element))
+		{
+			Hash = HashCombine(Hash, GetTypeHash(BoneElement->BoneType));
+		}
+		if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
+		{
+			Hash = HashCombine(Hash, GetTypeHash(ControlElement->Settings));
+		}
 	}
 
 	return Hash;
@@ -712,6 +774,20 @@ void URigHierarchy::ResetCurveValues()
 int32 URigHierarchy::Num(ERigElementType InElementType) const
 {
 	return ElementsPerType[RigElementTypeToFlatIndex(InElementType)].Num();
+}
+
+bool URigHierarchy::IsProcedural(const FRigElementKey& InKey) const
+{
+	return IsProcedural(Find(InKey));
+}
+
+bool URigHierarchy::IsProcedural(const FRigBaseElement* InElement) const
+{
+	if(InElement == nullptr)
+	{
+		return false;
+	}
+	return InElement->IsProcedural();
 }
 
 TArray<const FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const

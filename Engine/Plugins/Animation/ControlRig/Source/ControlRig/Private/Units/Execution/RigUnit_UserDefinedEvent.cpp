@@ -18,8 +18,11 @@ FRigUnit_UserDefinedEvent_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	ExecuteContext.CopyFrom(RigVMExecuteContext);
 	ExecuteContext.Hierarchy = Context.Hierarchy;
-	ExecuteContext.EventName = EventName;
 
+	if(EventName.IsNone())
+	{
+		ExecuteContext.EventName = EventName;
+	}
 	if(EventName.IsNone())
 	{
 		UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Unable to run event - EventName is None."));

@@ -145,6 +145,9 @@ public:
 	// Gets the Control Rig Blueprint being edited/viewed
 	UControlRigBlueprint* GetControlRigBlueprint() const;
 
+	// returns the hierarchy being debugged
+	URigHierarchy* GetHierarchyBeingDebugged() const;
+
 	void SetDetailObjects(const TArray<UObject*>& InObjects);
 	void SetDetailObjects(const TArray<UObject*>& InObjects, bool bChangeUISelectionState);
 	void SetDetailViewForRigElements();
@@ -482,6 +485,12 @@ protected:
 	TWeakObjectPtr<AStaticMeshActor> WeakGroundActorPtr;
 
 	FDelegateHandle PropertyChangedHandle;
+
+	void OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
+	void OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
+
+	bool IsConstructionEventRunning() const { return HierarchyHashBeforeConstruction != INDEX_NONE; }
+	uint32 HierarchyHashBeforeConstruction;
 
 	static const TArray<FName> ForwardsSolveEventQueue;
 	static const TArray<FName> BackwardsSolveEventQueue;

@@ -12,6 +12,7 @@
 #include "Drawing/ControlRigDrawInterface.h"
 #include "GameFramework/Actor.h"
 #include "Components/SceneComponent.h"
+#include "RigUnitContext.generated.h"
 
 /** Current state of rig
 *	What  state Control Rig currently is
@@ -35,6 +36,21 @@ enum class EControlRigInteractionType : uint8
 	Rotate = (1 << 1),
 	Scale = (1 << 2),
 	All = Translate | Rotate | Scale
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigHierarchySettings
+{
+	GENERATED_BODY();
+
+	FRigHierarchySettings()
+		: ProceduralElementLimit(128)
+	{
+	}
+
+	// Sets the limit for the number of elements to create procedurally
+	UPROPERTY(EditAnywhere, Category = "Hierarchy Settings")
+	int32 ProceduralElementLimit;
 };
 
 /** Execution context that rig units use */
@@ -89,6 +105,9 @@ struct FRigUnitContext
 
 	/** The current hierarchy being executed */
 	URigHierarchy* Hierarchy;
+
+	/** The current hierarchy settings */
+	FRigHierarchySettings HierarchySettings;
 
 	/** The type of interaction currently happening on the rig (0 == None) */
 	uint8 InteractionType;

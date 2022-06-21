@@ -115,6 +115,13 @@ public:
 	void Reset();
 
 	/**
+	 * Resets the hierarchy to the state of its default. This refers to the
+	 * hierarchy on the default object.
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	void ResetToDefault();
+
+	/**
 	 * Copies the contents of a hierarchy onto this one
 	 */
 	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
@@ -125,6 +132,11 @@ public:
 	 * as well as the topology version.
 	 */
 	uint32 GetNameHash() const;
+
+	/**
+	 * Returns a hash representing the topological state of the hierarchy
+	 */
+	uint32 GetTopologyHash(bool bIncludeTopologyVersion = true, bool bIncludeTransientControls = false) const;
 
 #if WITH_EDITOR
 	/**
@@ -140,6 +152,11 @@ public:
 	
 	void ClearListeningHierarchy();
 #endif
+
+	/**
+	 * Returns the default hierarchy for this hierarchy (or nullptr)
+	 */
+	URigHierarchy* GetDefaultHierarchy() { return DefaultHierarchyPtr.Get(); }
 
 public:
 	/**
@@ -259,6 +276,32 @@ public:
 	{
 		return GetIndex(InKey) != INDEX_NONE;
 	}
+
+	/**
+	 * Returns true if the provided element key is valid as a certain typename
+	 * @param InKey The key to validate
+	 * @return Returns true if the provided element key is valid
+	 */
+	template<typename T>
+	FORCEINLINE bool Contains(const FRigElementKey& InKey) const
+	{
+		return Find<T>(InKey) != nullptr;
+	}
+
+	/**
+	 * Returns true if the provided element is procedural.
+	 * @param InKey The key to validate
+	 * @return Returns true if the element is procedural
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool IsProcedural(const FRigElementKey& InKey) const;
+
+	/**
+	 * Returns true if the provided element is procedural.
+	 * @param InElement The element to check
+	 * @return Returns true if the element is procedural
+	 */
+	bool IsProcedural(const FRigBaseElement* InElement) const;
 
 	/**
 	 * Returns the index of an element given its key
@@ -409,6 +452,20 @@ public:
     FORCEINLINE T* GetChecked(int32 InIndex)
 	{
 		return CastChecked<T>(Get(InIndex));
+	}
+
+	/**
+     * Returns a handle to an existing element
+     * @param InKey The key of the handle to retrieve.
+     * @return The retrieved handle (may be invalid)
+     */
+	FORCEINLINE FRigElementHandle GetHandle(const FRigElementKey& InKey) const
+	{
+		if(Contains(InKey))
+		{
+			return FRigElementHandle((URigHierarchy*)this, InKey);
+		}
+		return FRigElementHandle();
 	}
 
 	/**
@@ -2828,7 +2885,7 @@ private:
 		ElementType* Elements = (ElementType*)FMemory::Malloc(sizeof(ElementType) * Num);
 		for(int32 Index=0;Index<Num;Index++)
 		{
-			new(&Elements[Index]) ElementType(); 
+			new(&Elements[Index]) ElementType();
 		}
 		return Elements;
 	}
@@ -2975,6 +3032,7 @@ private:
 	FRigHierarchyUndoRedoTransformEvent UndoRedoEvent;
 
 	TWeakObjectPtr<URigHierarchy> HierarchyForSelectionPtr;
+	TWeakObjectPtr<URigHierarchy> DefaultHierarchyPtr;
 	TArray<FRigElementKey> OrderedSelection;
 
 	UPROPERTY(Transient)

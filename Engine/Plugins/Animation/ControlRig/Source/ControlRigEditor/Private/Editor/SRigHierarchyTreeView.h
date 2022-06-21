@@ -25,7 +25,6 @@ struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
 		bShowNulls = true;
 		bShowRigidBodies = true;
 		bShowReferences = true;
-		bShowDynamicHierarchy = false;
 		bShowIconColors = true;
 	}
 	
@@ -54,9 +53,6 @@ struct CONTROLRIGEDITOR_API FRigTreeDisplaySettings
 
 	/** Whether or not to show references in the hierarchy */
 	bool bShowReferences;
-
-	/** Whether or not to show the static or dynamic hierarchy */
-	bool bShowDynamicHierarchy;
 
 	/** Whether to tint the icons with the element color */
 	bool bShowIconColors;
@@ -174,6 +170,7 @@ public:
 	FName ChannelName;
 	bool bIsTransient;
 	bool bIsAnimationChannel;
+	bool bIsProcedural;
 	bool bSupportsRename;
 	TArray<TSharedPtr<FRigTreeElement>> Children;
 

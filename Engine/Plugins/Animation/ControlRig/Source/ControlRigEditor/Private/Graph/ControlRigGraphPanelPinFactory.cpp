@@ -96,6 +96,12 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
 						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetDrawingNameList);
 				}
+				else if (CustomWidgetName == TEXT("ShapeName"))
+				{
+					return SNew(SControlRigGraphPinNameList, InPin)
+						.ModelPin(ModelPin)
+						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetShapeNameList);
+				}
 				else if (CustomWidgetName == TEXT("VariableName"))
 				{
 					return SNew(SControlRigGraphPinVariableName, InPin);

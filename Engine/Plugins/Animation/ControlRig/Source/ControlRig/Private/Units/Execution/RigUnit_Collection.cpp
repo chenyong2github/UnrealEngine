@@ -19,6 +19,7 @@
 #define FRigUnit_CollectionReverse_Hash 9
 #define FRigUnit_CollectionCount_Hash 10
 #define FRigUnit_CollectionItemAtIndex_Hash 11
+#define FRigUnit_CollectionGetAll_Hash 12
 
 FRigUnit_CollectionChain_Execute()
 {
@@ -151,6 +152,41 @@ FRigUnit_CollectionChildrenArray_Execute()
 			{
 				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Parent '%s' is not valid."), *Parent.ToString());
 			}
+		}
+		Context.Hierarchy->AddCachedCollection(Hash, Collection);
+	}
+
+	Items = Collection.Keys;
+}
+
+FRigUnit_CollectionGetAll_Execute()
+{
+	DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	uint32 Hash = FRigUnit_CollectionGetAll_Hash + Context.Hierarchy->GetTopologyVersion() * 17;
+	Hash = HashCombine(Hash, (int32)TypeToSearch * 8);
+
+	FRigElementKeyCollection Collection;
+	if(const FRigElementKeyCollection* Cache = Context.Hierarchy->FindCachedCollection(Hash))
+	{
+		Collection = *Cache;
+	}
+	else
+	{
+		Context.Hierarchy->Traverse([&Collection, TypeToSearch](FRigBaseElement* InElement, bool &bContinue)
+		{
+			bContinue = true;
+			
+			const FRigElementKey Key = InElement->GetKey();
+			if(((uint8)TypeToSearch & (uint8)Key.Type) == (uint8)Key.Type)
+			{
+				Collection.AddUnique(Key);
+			}
+		});
+		
+		if (Collection.IsEmpty())
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("%s"), TEXT("No elements found for given filter."));
 		}
 		Context.Hierarchy->AddCachedCollection(Hash, Collection);
 	}

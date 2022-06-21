@@ -218,6 +218,29 @@ struct CONTROLRIG_API FRigUnit_CollectionChildrenArray : public FRigUnit_Collect
 };
 
 /**
+* Creates an item array for all elements given the filter.
+*/
+USTRUCT(meta = (DisplayName = "Get All", Category = "Hierarchy", Keywords = "Bone,Joint,Collection,Filter,Parent", Varying))
+struct CONTROLRIG_API FRigUnit_CollectionGetAll : public FRigUnit_CollectionBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_CollectionGetAll()
+	{
+		TypeToSearch = ERigElementType::All;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	ERigElementType TypeToSearch;
+
+	UPROPERTY(meta = (Output))
+	TArray<FRigElementKey> Items;
+};
+
+/**
  * Replaces all names within the collection
  */
 USTRUCT(meta = (DisplayName = "Replace Items", Keywords = "Replace,Find,Collection", Varying, Deprecated = "5.0"))

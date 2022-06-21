@@ -445,6 +445,58 @@ typedef TArray<FRigBaseElement*, TInlineAllocator<3>> FRigBaseElementChildrenArr
 //typedef TArray<FRigBaseElement*> FRigBaseElementParentArray;
 typedef TArray<FRigBaseElement*, TInlineAllocator<1>> FRigBaseElementParentArray;
 
+struct CONTROLRIG_API FRigElementHandle
+{
+public:
+
+	FRigElementHandle()
+		: Hierarchy(nullptr)
+		, Key()
+	{}
+
+	FRigElementHandle(URigHierarchy* InHierarchy, const FRigElementKey& InKey);
+	FRigElementHandle(URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
+
+	bool IsValid() const { return Get() != nullptr; }
+	operator bool() const { return IsValid(); }
+	
+	const URigHierarchy* GetHierarchy() const { return Hierarchy.Get(); }
+	URigHierarchy* GetHierarchy() { return Hierarchy.Get(); }
+	const FRigElementKey& GetKey() const { return Key; }
+
+	const FRigBaseElement* Get() const;
+	FRigBaseElement* Get();
+
+	template<typename T>
+	T* Get()
+	{
+		return Cast<T>(Get());
+	}
+
+	template<typename T>
+	const T* Get() const
+	{
+		return Cast<T>(Get());
+	}
+
+	template<typename T>
+	T* GetChecked()
+	{
+		return CastChecked<T>(Get());
+	}
+
+	template<typename T>
+	const T* GetChecked() const
+	{
+		return CastChecked<T>(Get());
+	}
+
+private:
+
+	TWeakObjectPtr<URigHierarchy> Hierarchy;
+	FRigElementKey Key;
+};
+
 USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigBaseElement
 {
@@ -458,6 +510,7 @@ public:
     , Index(INDEX_NONE)
 	, SubIndex(INDEX_NONE)
 	, bSelected(false)
+	, CreatedAtInstructionIndex(INDEX_NONE)
 	, TopologyVersion(0)
 	, OwnedInstances(0)
 	{}
@@ -487,6 +540,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
 	bool bSelected;
 
+	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
+	int32 CreatedAtInstructionIndex;
+
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return true;
@@ -507,6 +563,8 @@ public:
 	FORCEINLINE int32 GetIndex() const { return Index; }
 	FORCEINLINE int32 GetSubIndex() const { return SubIndex; }
 	FORCEINLINE bool IsSelected() const { return bSelected; }
+	FORCEINLINE int32 GetCreatedAtInstructionIndex() const { return CreatedAtInstructionIndex; }
+	FORCEINLINE bool IsProcedural() const { return CreatedAtInstructionIndex != INDEX_NONE; }
 
 	template<typename T>
 	FORCEINLINE bool IsA() const { return T::IsClassOf(this); }
@@ -917,6 +975,8 @@ struct CONTROLRIG_API FRigControlSettings
 
 	void Save(FArchive& Ar);
 	void Load(FArchive& Ar);
+
+	friend uint32 GetTypeHash(const FRigControlSettings& Settings);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
 	ERigControlAnimationType AnimationType;

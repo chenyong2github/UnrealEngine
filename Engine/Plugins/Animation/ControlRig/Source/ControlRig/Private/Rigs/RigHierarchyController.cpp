@@ -192,7 +192,7 @@ FRigElementKey URigHierarchyController::AddBone(FName InName, FRigElementKey InP
 	}
 #endif
 
-	FRigBoneElement* NewElement = URigHierarchy::NewElement<FRigBoneElement>();
+	FRigBoneElement* NewElement = MakeElement<FRigBoneElement>();
 	{
 		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);
 		NewElement->Key.Type = ERigElementType::Bone;
@@ -254,7 +254,7 @@ FRigElementKey URigHierarchyController::AddNull(FName InName, FRigElementKey InP
 	}
 #endif
 
-	FRigNullElement* NewElement = URigHierarchy::NewElement<FRigNullElement>();
+	FRigNullElement* NewElement = MakeElement<FRigNullElement>();
 	{
 		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
 		NewElement->Key.Type = ERigElementType::Null;
@@ -319,7 +319,7 @@ FRigElementKey URigHierarchyController::AddControl(
 	}
 #endif
 
-	FRigControlElement* NewElement = URigHierarchy::NewElement<FRigControlElement>();
+	FRigControlElement* NewElement = MakeElement<FRigControlElement>();
 	{
 		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
 		NewElement->Key.Type = ERigElementType::Control;
@@ -407,7 +407,7 @@ FRigElementKey URigHierarchyController::AddCurve(FName InName, float InValue, bo
 	}
 #endif
 
-	FRigCurveElement* NewElement = URigHierarchy::NewElement<FRigCurveElement>();
+	FRigCurveElement* NewElement = MakeElement<FRigCurveElement>();
 	{
 		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
 		NewElement->Key.Type = ERigElementType::Curve;
@@ -456,7 +456,7 @@ FRigElementKey URigHierarchyController::AddRigidBody(FName InName, FRigElementKe
 	}
 #endif
 
-	FRigRigidBodyElement* NewElement = URigHierarchy::NewElement<FRigRigidBodyElement>();
+	FRigRigidBodyElement* NewElement = MakeElement<FRigRigidBodyElement>();
 	{
 		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
 		NewElement->Key.Type = ERigElementType::RigidBody;
@@ -508,7 +508,7 @@ FRigElementKey URigHierarchyController::AddReference(FName InName, FRigElementKe
 	}
 #endif
 
-	FRigReferenceElement* NewElement = URigHierarchy::NewElement<FRigReferenceElement>();
+	FRigReferenceElement* NewElement = MakeElement<FRigReferenceElement>();
 	{
 		TGuardValue<bool> DisableCacheValidityChecks(Hierarchy->bEnableCacheValidityCheck, false);		
 		NewElement->Key.Type = ERigElementType::Reference;
@@ -1093,38 +1093,38 @@ TArray<FRigElementKey> URigHierarchyController::ImportFromText(FString InContent
 		{
 			case ERigElementType::Bone:
 			{
-				NewElement = URigHierarchy::NewElement<FRigBoneElement>();
+				NewElement = MakeElement<FRigBoneElement>();
 				FRigBoneElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigBoneElement::StaticStruct()->GetName(), true);
 				CastChecked<FRigBoneElement>(NewElement)->BoneType = ERigBoneType::User;
 				break;
 			}
 			case ERigElementType::Null:
 			{
-				NewElement = URigHierarchy::NewElement<FRigNullElement>();
+				NewElement = MakeElement<FRigNullElement>();
 				FRigNullElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigNullElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			case ERigElementType::Control:
 			{
-				NewElement = URigHierarchy::NewElement<FRigControlElement>();
+				NewElement = MakeElement<FRigControlElement>();
 				FRigControlElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigControlElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			case ERigElementType::Curve:
 			{
-				NewElement = URigHierarchy::NewElement<FRigCurveElement>();
+				NewElement = MakeElement<FRigCurveElement>();
 				FRigCurveElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigCurveElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			case ERigElementType::RigidBody:
 			{
-				NewElement = URigHierarchy::NewElement<FRigRigidBodyElement>();
+				NewElement = MakeElement<FRigRigidBodyElement>();
 				FRigRigidBodyElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigRigidBodyElement::StaticStruct()->GetName(), true);
 				break;
 			}
 			case ERigElementType::Reference:
 			{
-				NewElement = URigHierarchy::NewElement<FRigReferenceElement>();
+				NewElement = MakeElement<FRigReferenceElement>();
 				FRigReferenceElement::StaticStruct()->ImportText(*PerElementData.Content, NewElement, nullptr, EPropertyPortFlags::PPF_None, &ErrorPipe, FRigReferenceElement::StaticStruct()->GetName(), true);
 				break;
 			}
@@ -1598,16 +1598,24 @@ void URigHierarchyController::Notify(ERigHierarchyNotification InNotifType, cons
 	{
 		return;
 	}
-	if(bSuspendNotifications)
+	if(bSuspendAllNotifications)
 	{
 		return;
 	}
+	if(bSuspendSelectionNotifications)
+	{
+		if(InNotifType == ERigHierarchyNotification::ElementSelected ||
+			InNotifType == ERigHierarchyNotification::ElementDeselected)
+		{
+			return;
+		}
+	}	
 	Hierarchy->Notify(InNotifType, InElement);
 }
 
 void URigHierarchyController::HandleHierarchyModified(ERigHierarchyNotification InNotifType, URigHierarchy* InHierarchy, const FRigBaseElement* InElement) const
 {
-	if(bSuspendNotifications)
+	if(bSuspendAllNotifications)
 	{
 		return;
 	}
@@ -1629,7 +1637,7 @@ int32 URigHierarchyController::AddElement(FRigBaseElement* InElementToAdd, FRigB
 	Hierarchy->IncrementTopologyVersion();
 
 	{
-		const TGuardValue<bool> Guard(bSuspendNotifications, true);
+		const TGuardValue<bool> Guard(bSuspendAllNotifications, true);
 		SetParent(InElementToAdd, InFirstParent, bMaintainGlobalTransform);
 	}
 

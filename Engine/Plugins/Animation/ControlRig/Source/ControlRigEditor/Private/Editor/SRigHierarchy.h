@@ -7,6 +7,7 @@
 #include "DragAndDrop/GraphNodeDragDropOp.h"
 #include "Engine/SkeletalMesh.h"
 #include "SRigHierarchyTreeView.h"
+#include "Units/RigUnitContext.h"
 #include "SRigHierarchy.generated.h"
 
 class SRigHierarchy;
@@ -179,17 +180,19 @@ private:
 	/** Command list we bind to */
 	TSharedPtr<FUICommandList> CommandList;
 
-	bool IsMultiSelected() const;
-	bool IsSingleSelected() const;
-	bool IsSingleBoneSelected() const;
-	bool IsSingleNullSelected() const;
-	bool IsControlSelected() const;
-	bool IsControlOrNullSelected() const;
+	bool IsMultiSelected(bool bIncludeProcedural) const;
+	bool IsSingleSelected(bool bIncludeProcedural) const;
+	bool IsSingleBoneSelected(bool bIncludeProcedural) const;
+	bool IsSingleNullSelected(bool bIncludeProcedural) const;
+	bool IsControlSelected(bool bIncludeProcedural) const;
+	bool IsControlOrNullSelected(bool bIncludeProcedural) const;
+	bool IsProceduralElementSelected() const;
+	bool IsNonProceduralElementSelected() const;
 
 	URigHierarchy* GetHierarchy() const;
-	URigHierarchy* GetDebuggedHierarchy() const;
-	const URigHierarchy* GetHierarchyForTopology() const;
-
+	URigHierarchy* GetDefaultHierarchy() const;
+	const URigHierarchy* GetHierarchyForTreeView() const { return GetHierarchy(); }
+	
 	void ImportHierarchy(const FAssetData& InAssetData);
 	void CreateImportMenu(FMenuBuilder& MenuBuilder);
 	void CreateRefreshMenu(FMenuBuilder& MenuBuilder);
@@ -220,6 +223,12 @@ private:
 	void OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement);
 	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 	void HandleSetObjectBeingDebugged(UObject* InObject);
+	void OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
+	void OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName);
+
+	bool IsConstructionEventRunning() const { return HierarchyHashBeforeConstruction != INDEX_NONE; }
+	uint32 HierarchyHashBeforeConstruction;
+	TArray<FRigElementKey> SelectionBeforeConstruction;
 
 public:
 	FName HandleRenameElement(const FRigElementKey& OldKey, const FString& NewName);

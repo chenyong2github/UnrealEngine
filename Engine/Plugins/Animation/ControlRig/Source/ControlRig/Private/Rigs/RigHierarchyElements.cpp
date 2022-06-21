@@ -216,6 +216,40 @@ void FRigPreferredEulerAngles::SetAngles(const FVector& InValue, bool bInitial, 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// FRigElementHandle
+////////////////////////////////////////////////////////////////////////////////
+
+FRigElementHandle::FRigElementHandle(URigHierarchy* InHierarchy, const FRigElementKey& InKey)
+: Hierarchy(InHierarchy)
+, Key(InKey)
+{
+}
+
+FRigElementHandle::FRigElementHandle(URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
+: Hierarchy(InHierarchy)
+, Key(InElement->GetKey())
+{
+}
+
+const FRigBaseElement* FRigElementHandle::Get() const
+{
+	if(Hierarchy.IsValid())
+	{
+		return Hierarchy->Find(Key);
+	}
+	return nullptr;
+}
+
+FRigBaseElement* FRigElementHandle::Get()
+{
+	if(Hierarchy.IsValid())
+	{
+		return Hierarchy->Find(Key);
+	}
+	return nullptr;
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FRigTransformElement
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -702,6 +736,24 @@ void FRigControlSettings::Load(FArchive& Ar)
 			ControlType == ERigControlType::Vector2D
 		);
 	}
+}
+
+uint32 GetTypeHash(const FRigControlSettings& Settings)
+{
+	uint32 Hash = GetTypeHash(Settings.ControlType);
+	Hash = HashCombine(Hash, GetTypeHash(Settings.AnimationType));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.DisplayName));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.PrimaryAxis));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.bIsCurve));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.bDrawLimits));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.bShapeVisible));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.ShapeVisibility));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.ShapeName));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.ShapeColor));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.ControlEnum));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.DrivenControls));
+	Hash = HashCombine(Hash, GetTypeHash(Settings.bGroupWithParentControl));
+	return Hash;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

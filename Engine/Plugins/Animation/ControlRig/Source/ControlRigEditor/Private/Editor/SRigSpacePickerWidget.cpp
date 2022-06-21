@@ -212,7 +212,10 @@ void SRigSpacePickerWidget::SetControls(
 	{
 		if(HierarchyModifiedHandle.IsValid())
 		{
-			Hierarchy->OnModified().Remove(HierarchyModifiedHandle);
+			if(IsValid(Hierarchy) && !Hierarchy->HasAnyFlags(RF_BeginDestroyed))
+			{
+				Hierarchy->OnModified().Remove(HierarchyModifiedHandle);
+			}
 			HierarchyModifiedHandle.Reset();
 		}
 	}

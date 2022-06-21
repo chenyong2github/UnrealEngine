@@ -118,7 +118,7 @@ void UControlRigGraph::Initialize(UControlRigBlueprint* InBlueprint)
 
 	if(Hierarchy)
 	{
-		CacheNameLists(Hierarchy, &InBlueprint->DrawContainer);
+		CacheNameLists(Hierarchy, &InBlueprint->DrawContainer, InBlueprint->ShapeLibraries);
 	}
 }
 
@@ -148,7 +148,7 @@ void UControlRigGraph::Serialize(FArchive& Ar)
 
 TArray<TSharedPtr<FString>> UControlRigGraph::EmptyElementNameList;
 
-void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer)
+void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControlRigDrawContainer* DrawContainer, TArray<TSoftObjectPtr<UControlRigShapeLibrary>> ShapeLibraries)
 {
 	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
 	{
@@ -199,6 +199,25 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 			EntryNameList.Add(MakeShared<FString>(EntryName.ToString()));
 		}
 	}
+
+	ShapeNameList.Reset();
+	ShapeNameList.Add(MakeShared<FString>(FName(NAME_None).ToString()));
+
+	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : ShapeLibraries)
+	{
+		if(ShapeLibrary.IsNull())
+		{
+			continue;
+		}
+
+		const bool bUseNameSpace = ShapeLibraries.Num() > 1;
+		const FString NameSpace = bUseNameSpace ? ShapeLibrary->GetName() + TEXT(".") : FString();
+		ShapeNameList.Add(MakeShared<FString>(NameSpace + ShapeLibrary->DefaultShape.ShapeName.ToString()));
+		for (const FControlRigShapeDefinition& Shape : ShapeLibrary->Shapes)
+		{
+			ShapeNameList.Add(MakeShared<FString>(NameSpace + Shape.ShapeName.ToString()));
+		}
+	}
 }
 
 const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(ERigElementType InElementType) const
@@ -222,7 +241,13 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetElementNameList(ERigElem
 		}
 
 		UControlRigGraph* MutableThis = (UControlRigGraph*)this;
-		MutableThis->CacheNameLists(Blueprint->Hierarchy, &Blueprint->DrawContainer);
+		URigHierarchy* Hierarchy = Blueprint->Hierarchy;
+		if(UControlRig* ControlRig = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+		{
+			Hierarchy = ControlRig->GetHierarchy();
+		}	
+			
+		MutableThis->CacheNameLists(Hierarchy, &Blueprint->DrawContainer, Blueprint->ShapeLibraries);
 	}
 	return &ElementNameLists.FindChecked(InElementType);
 }
@@ -293,6 +318,16 @@ const TArray<TSharedPtr<FString>>* UControlRigGraph::GetEntryNameList(URigVMPin*
 	}
 	return &EntryNameList;
 }
+
+const TArray<TSharedPtr<FString>>* UControlRigGraph::GetShapeNameList(URigVMPin* InPin) const
+{
+	if (UControlRigGraph* OuterGraph = Cast<UControlRigGraph>(GetOuter()))
+	{
+		return OuterGraph->GetShapeNameList(InPin);
+	}
+	return &ShapeNameList;
+}
+
 
 void UControlRigGraph::HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject)
 {

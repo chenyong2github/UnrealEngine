@@ -16195,6 +16195,7 @@ bool URigVMController::ChangePinType(URigVMPin* InPin, const FString& InCPPType,
 						{
 							if(MemberName.Equals(PinName))
 							{
+								PostProcessDefaultValue(InPin, MemberValue);
 								ApplyResolvedDefaultValue(InController, InPin, SubPinPath, MemberValue, bSetupUndoRedo);
 								break;
 							}

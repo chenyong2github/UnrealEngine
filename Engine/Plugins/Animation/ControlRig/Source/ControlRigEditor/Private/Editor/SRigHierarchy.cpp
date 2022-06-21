@@ -113,7 +113,7 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 
 	// setup all delegates for the rig hierarchy widget
 	FRigTreeDelegates Delegates;
-	Delegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SRigHierarchy::GetHierarchyForTopology);
+	Delegates.OnGetHierarchy = FOnGetRigTreeHierarchy::CreateSP(this, &SRigHierarchy::GetHierarchyForTreeView);
 	Delegates.OnGetDisplaySettings = FOnGetRigTreeDisplaySettings::CreateSP(this, &SRigHierarchy::GetDisplaySettings);
 	Delegates.OnRenameElement = FOnRigTreeRenameElement::CreateSP(this, &SRigHierarchy::HandleRenameElement);
 	Delegates.OnVerifyElementNameChanged = FOnRigTreeVerifyElementNameChanged::CreateSP(this, &SRigHierarchy::HandleVerifyNameChanged);
@@ -217,17 +217,6 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 		[
 			SNew(SBorder)
 			.Padding(0.0f)
-			.BorderImage(FControlRigEditorStyle::Get().GetBrush( "ControlRig.Viewport.Border"))
-			.BorderBackgroundColor_Lambda([this]()
-			{
-				FLinearColor Color = FLinearColor::Transparent;
-				if(DisplaySettings.bShowDynamicHierarchy)
-				{
-					Color = UControlRigEditorSettings::Get()->DynamicHierarchyBorderColor;
-				}
-				return Color;
-			})
-			.Padding(0.0f)
 			.ShowEffectWhenDisabled(false)
 			[
 				SNew(SBorder)
@@ -256,6 +245,8 @@ void SRigHierarchy::Construct(const FArguments& InArgs, TSharedRef<FControlRigEd
 	];
 
 	bIsChangingRigHierarchy = false;
+	HierarchyHashBeforeConstruction = INDEX_NONE;
+	
 	RefreshTreeView();
 
 	if (ControlRigEditor.IsValid())
@@ -298,17 +289,20 @@ void SRigHierarchy::BindCommands()
 	const FControlRigHierarchyCommands& Commands = FControlRigHierarchyCommands::Get();
 
 	CommandList->MapAction(Commands.AddBoneItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Bone, false));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Bone, false),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsNonProceduralElementSelected));
 
 	CommandList->MapAction(Commands.AddControlItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control, false));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control, false),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsNonProceduralElementSelected));
 
 	CommandList->MapAction(Commands.AddAnimationChannelItem,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Control, true),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected, false));
 
 	CommandList->MapAction(Commands.AddNullItem,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Null, false));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleNewItem, ERigElementType::Null, false),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsNonProceduralElementSelected));
 
 	CommandList->MapAction(Commands.DuplicateItem,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleDuplicateItem),
@@ -345,45 +339,44 @@ void SRigHierarchy::BindCommands()
 	CommandList->MapAction(
 		Commands.ResetTransform,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleResetTransform, true),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected, true));
 
 	CommandList->MapAction(
 		Commands.ResetAllTransforms,
-		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleResetTransform, false),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::CanPasteItems));
+		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleResetTransform, false));
 
 	CommandList->MapAction(
 		Commands.SetInitialTransformFromClosestBone,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetInitialTransformFromClosestBone),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlOrNullSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlOrNullSelected, false));
 
 	CommandList->MapAction(
 		Commands.SetInitialTransformFromCurrentTransform,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetInitialTransformFromCurrentTransform),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected, false));
 
 	CommandList->MapAction(
 		Commands.SetShapeTransformFromCurrent,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleSetShapeTransformFromCurrent),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected, false));
 
 	CommandList->MapAction(
 		Commands.FrameSelection,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleFrameSelection),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected, true));
 
 	CommandList->MapAction(
 		Commands.ControlBoneTransform,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleControlBoneOrSpaceTransform),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsSingleBoneSelected),
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsSingleBoneSelected, false),
 		FIsActionChecked(),
-		FIsActionButtonVisible::CreateSP(this, &SRigHierarchy::IsSingleBoneSelected)
+		FIsActionButtonVisible::CreateSP(this, &SRigHierarchy::IsSingleBoneSelected, false)
 		);
 
 	CommandList->MapAction(
 		Commands.Unparent,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleUnparent),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsMultiSelected, false));
 
 	CommandList->MapAction(
 		Commands.FilteringFlattensHierarchy,
@@ -434,17 +427,6 @@ void SRigHierarchy::BindCommands()
 		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowReferences; }));
 
 	CommandList->MapAction(
-		Commands.ShowDynamicHierarchy,
-		FExecuteAction::CreateLambda([this]()
-		{
-			DisplaySettings.bShowDynamicHierarchy = !DisplaySettings.bShowDynamicHierarchy;
-			HandleSetObjectBeingDebugged(GetControlRigEditor()->GetControlRigBlueprint()->GetObjectBeingDebugged());
-			RefreshTreeView();
-		}),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateLambda([this]() { return DisplaySettings.bShowDynamicHierarchy; }));
-
-	CommandList->MapAction(
 		Commands.ToggleControlShapeTransformEdit,
 		FExecuteAction::CreateLambda([this]()
 		{
@@ -454,7 +436,7 @@ void SRigHierarchy::BindCommands()
 	CommandList->MapAction(
 		Commands.SpaceSwitching,
 		FExecuteAction::CreateSP(this, &SRigHierarchy::HandleTestSpaceSwitching),
-		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected));
+		FCanExecuteAction::CreateSP(this, &SRigHierarchy::IsControlSelected, true));
 
 	CommandList->MapAction(
 		Commands.ShowIconColors,
@@ -474,7 +456,7 @@ FReply SRigHierarchy::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& In
 
 EVisibility SRigHierarchy::IsToolbarVisible() const
 {
-	if (URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+	if (URigHierarchy* Hierarchy = GetHierarchy())
 	{
 		if (Hierarchy->Num(ERigElementType::Bone) > 0)
 		{
@@ -486,7 +468,7 @@ EVisibility SRigHierarchy::IsToolbarVisible() const
 
 EVisibility SRigHierarchy::IsSearchbarVisible() const
 {
-	if (URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+	if (URigHierarchy* Hierarchy = GetHierarchy())
 	{
 		if ((Hierarchy->Num(ERigElementType::Bone) +
 			Hierarchy->Num(ERigElementType::Null) +
@@ -635,7 +617,7 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		return;
 	}
 
-	if (bIsChangingRigHierarchy)
+	if (bIsChangingRigHierarchy || IsConstructionEventRunning())
 	{
 		return;
 	}
@@ -687,30 +669,27 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 		}
 		case ERigHierarchyNotification::ParentWeightsChanged:
 		{
-			if(DisplaySettings.bShowDynamicHierarchy)
+			if(URigHierarchy* Hierarchy = GetHierarchy())
 			{
-				if(URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+				if(InElement)
 				{
-					if(InElement)
+					TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
+					if(ParentWeights.Num() > 0)
 					{
-						TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
-						if(ParentWeights.Num() > 0)
+						TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
+						check(ParentKeys.Num() == ParentWeights.Num());
+						for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
 						{
-							TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
-							check(ParentKeys.Num() == ParentWeights.Num());
-							for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
+							if(ParentWeights[ParentIndex].IsAlmostZero())
 							{
-								if(ParentWeights[ParentIndex].IsAlmostZero())
-								{
-									continue;
-								}
-	
-								if(TreeView->ReparentElement(InElement->GetKey(), ParentKeys[ParentIndex]))
-								{
-									RefreshTreeView(false);
-								}
-								break;
+								continue;
 							}
+
+							if(TreeView->ReparentElement(InElement->GetKey(), ParentKeys[ParentIndex]))
+							{
+								RefreshTreeView(false);
+							}
+							break;
 						}
 					}
 				}
@@ -781,10 +760,6 @@ void SRigHierarchy::OnHierarchyModified(ERigHierarchyNotification InNotif, URigH
 
 void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNotif, URigHierarchy* InHierarchy, const FRigBaseElement* InElement)
 {
-	if(!DisplaySettings.bShowDynamicHierarchy)
-	{
-		return;
-	}
 	if(bIsChangingRigHierarchy)
 	{
 		return;
@@ -796,6 +771,11 @@ void SRigHierarchy::OnHierarchyModified_AnyThread(ERigHierarchyNotification InNo
 	}
 
 	if(InHierarchy != ControlRigBeingDebuggedPtr->GetHierarchy())
+	{
+		return;
+	}
+
+	if(IsConstructionEventRunning())
 	{
 		return;
 	}
@@ -861,9 +841,72 @@ void SRigHierarchy::HandleSetObjectBeingDebugged(UObject* InObject)
 		ControlRigBeingDebuggedPtr = ControlRig;
 		ControlRig->GetHierarchy()->OnModified().RemoveAll(this);
 		ControlRig->GetHierarchy()->OnModified().AddSP(this, &SRigHierarchy::OnHierarchyModified_AnyThread);
+		ControlRig->OnPreConstructionForUI_AnyThread().RemoveAll(this);
+		ControlRig->OnPreConstructionForUI_AnyThread().AddSP(this, &SRigHierarchy::OnPreConstruction_AnyThread);
+		ControlRig->OnPostConstruction_AnyThread().RemoveAll(this);
+		ControlRig->OnPostConstruction_AnyThread().AddSP(this, &SRigHierarchy::OnPostConstruction_AnyThread);
 	}
 
 	RefreshTreeView();
+}
+
+void SRigHierarchy::OnPreConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName)
+{
+	if(InRig != ControlRigBeingDebuggedPtr.Get())
+	{
+		return;
+	}
+	HierarchyHashBeforeConstruction = InRig->GetHierarchy()->GetTopologyHash(false);
+	SelectionBeforeConstruction = InRig->GetHierarchy()->GetSelectedKeys();
+}
+
+void SRigHierarchy::OnPostConstruction_AnyThread(UControlRig* InRig, const EControlRigState InState, const FName& InEventName)
+{
+	if(InRig != ControlRigBeingDebuggedPtr.Get())
+	{
+		return;
+	}
+
+	uint32 HierarchyHash = INDEX_NONE;
+	Swap(HierarchyHash, HierarchyHashBeforeConstruction);
+			
+	if(HierarchyHash != InRig->GetHierarchy()->GetTopologyHash(false))
+	{
+		auto Task = [this]()
+		{
+			TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
+
+			RefreshTreeView(true);
+
+			TreeView->ClearSelection();
+			if(!SelectionBeforeConstruction.IsEmpty())
+			{
+				for (int32 RootIndex = 0; RootIndex < TreeView->RootElements.Num(); ++RootIndex)
+				{
+					for(const FRigElementKey& Key : SelectionBeforeConstruction)
+					{
+						TSharedPtr<FRigTreeElement> Found = TreeView->FindElement(Key, TreeView->RootElements[RootIndex]);
+						if (Found.IsValid())
+						{
+							TreeView->SetItemSelection(Found, true, ESelectInfo::OnNavigation);
+						}
+					}
+				}
+			}
+		};
+				
+		if(IsInGameThread())
+		{
+			Task();
+		}
+		else
+		{
+			FFunctionGraphTask::CreateAndDispatchWhenReady([Task]()
+			{
+				Task();
+			}, TStatId(), NULL, ENamedThreads::GameThread);
+		}
+	}
 }
 
 void SRigHierarchy::ClearDetailPanel() const
@@ -884,7 +927,6 @@ TSharedRef< SWidget > SRigHierarchy::CreateFilterMenu()
 	MenuBuilder.BeginSection("FilterOptions", LOCTEXT("OptionsMenuHeading", "Options"));
 	{
 		MenuBuilder.AddMenuEntry(Actions.FilteringFlattensHierarchy);
-		MenuBuilder.AddMenuEntry(Actions.ShowDynamicHierarchy);
 		MenuBuilder.AddMenuEntry(Actions.HideParentsWhenFiltering);
 	}
 	MenuBuilder.EndSection();
@@ -1073,7 +1115,7 @@ void SRigHierarchy::CreateContextMenu() const
 	{
 		UToolMenu* Menu = ToolMenus->RegisterMenu(MenuName);
 		
-		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+		Menu->AddDynamicSection(NAME_None, FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
 			{
 				UControlRigContextMenuContext* MainContext = InMenu->FindContext<UControlRigContextMenuContext>();
 				
@@ -1111,19 +1153,53 @@ void SRigHierarchy::CreateContextMenu() const
 					ElementsSection.AddMenuEntry(Commands.RenameItem);
 					ElementsSection.AddMenuEntry(Commands.MirrorItem);
 
-					if (RigHierarchyPanel->IsSingleBoneSelected() || RigHierarchyPanel->IsControlSelected())
+					if(RigHierarchyPanel->IsProceduralElementSelected() && ControlRigBlueprint.IsValid())
+					{
+						ElementsSection.AddMenuEntry(
+							"SelectSpawnerNode",
+							LOCTEXT("SelectSpawnerNode", "Select Spawner Node"),
+							LOCTEXT("SelectSpawnerNode_Tooltip", "Selects the node that spawn / added this element."),
+							FSlateIcon(),
+							FUIAction(FExecuteAction::CreateLambda([this]() {
+								const TArray<const FRigBaseElement*> Elements = GetHierarchy()->GetSelectedElements();
+								for(const FRigBaseElement* Element : Elements)
+								{
+									if(Element->IsProcedural())
+									{
+										const int32 InstructionIndex = Element->GetCreatedAtInstructionIndex();
+										if(UControlRig* ControlRig = Cast<UControlRig>(ControlRigBlueprint->GetObjectBeingDebugged()))
+										{
+											if(ControlRig->VM)
+											{
+												if(URigVMNode* Node = Cast<URigVMNode>(ControlRig->VM->GetByteCode().GetSubjectForInstruction(InstructionIndex)))
+												{
+													if(URigVMController* Controller = ControlRigBlueprint->GetController(Node->GetGraph()))
+													{
+														Controller->SelectNode(Node);
+														Controller->RequestJumpToHyperlinkDelegate.ExecuteIfBound(Node);
+													}
+												}
+											}
+										}
+									}
+								}
+							})
+						));
+					}
+
+					if (RigHierarchyPanel->IsSingleBoneSelected(false) || RigHierarchyPanel->IsControlSelected(false))
 					{
 						FToolMenuSection& InteractionSection = InMenu->AddSection(TEXT("Interaction"), LOCTEXT("InteractionHeader", "Interaction"));
-						if(RigHierarchyPanel->IsSingleBoneSelected())
+						if(RigHierarchyPanel->IsSingleBoneSelected(false))
 						{
 							InteractionSection.AddMenuEntry(Commands.ControlBoneTransform);
 						}
-						else if(RigHierarchyPanel->IsControlSelected())
+						else if(RigHierarchyPanel->IsControlSelected(false))
 						{
 							InteractionSection.AddMenuEntry(Commands.SpaceSwitching);
 						}
 					}
-					
+
 					FToolMenuSection& CopyPasteSection = InMenu->AddSection(TEXT("Copy&Paste"), LOCTEXT("Copy&PasteHeader", "Copy & Paste"));
 					CopyPasteSection.AddMenuEntry(Commands.CopyItems);
 					CopyPasteSection.AddMenuEntry(Commands.PasteItems);
@@ -1340,7 +1416,7 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 		return;
 	}
 
-	URigHierarchy* Hierarchy = GetHierarchy();
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
 	USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset());
 	if (Mesh && Hierarchy)
 	{
@@ -1410,36 +1486,57 @@ void SRigHierarchy::ImportHierarchy(const FAssetData& InAssetData)
 	}
 }
 
-bool SRigHierarchy::IsMultiSelected() const
+bool SRigHierarchy::IsMultiSelected(bool bIncludeProcedural) const
 {
-	return GetSelectedKeys().Num() > 0;
+	if(GetSelectedKeys().Num() > 0)
+	{
+		if(!bIncludeProcedural && IsProceduralElementSelected())
+		{
+			return false;
+		}
+		return true;
+	}
+	return false;
 }
 
-bool SRigHierarchy::IsSingleSelected() const
+bool SRigHierarchy::IsSingleSelected(bool bIncludeProcedural) const
 {
-	return GetSelectedKeys().Num() == 1;
+	if(GetSelectedKeys().Num() == 1)
+	{
+		if(!bIncludeProcedural && IsProceduralElementSelected())
+		{
+			return false;
+		}
+		return true;
+	}
+	return false;
 }
 
-bool SRigHierarchy::IsSingleBoneSelected() const
+bool SRigHierarchy::IsSingleBoneSelected(bool bIncludeProcedural) const
 {
-	if(!IsSingleSelected())
+	if(!IsSingleSelected(bIncludeProcedural))
 	{
 		return false;
 	}
 	return GetSelectedKeys()[0].Type == ERigElementType::Bone;
 }
 
-bool SRigHierarchy::IsSingleNullSelected() const
+bool SRigHierarchy::IsSingleNullSelected(bool bIncludeProcedural) const
 {
-	if(!IsSingleSelected())
+	if(!IsSingleSelected(bIncludeProcedural))
 	{
 		return false;
 	}
 	return GetSelectedKeys()[0].Type == ERigElementType::Null;
 }
 
-bool SRigHierarchy::IsControlSelected() const
+bool SRigHierarchy::IsControlSelected(bool bIncludeProcedural) const
 {
+	if(!bIncludeProcedural && IsProceduralElementSelected())
+	{
+		return false;
+	}
+	
 	TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
 	for (const FRigElementKey& SelectedKey : SelectedKeys)
 	{
@@ -1451,8 +1548,13 @@ bool SRigHierarchy::IsControlSelected() const
 	return false;
 }
 
-bool SRigHierarchy::IsControlOrNullSelected() const
+bool SRigHierarchy::IsControlOrNullSelected(bool bIncludeProcedural) const
 {
+	if(!bIncludeProcedural && IsProceduralElementSelected())
+	{
+		return false;
+	}
+
 	TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
 	for (const FRigElementKey& SelectedKey : SelectedKeys)
 	{
@@ -1468,6 +1570,32 @@ bool SRigHierarchy::IsControlOrNullSelected() const
 	return false;
 }
 
+bool SRigHierarchy::IsProceduralElementSelected() const
+{
+	TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
+	for (const FRigElementKey& SelectedKey : SelectedKeys)
+	{
+		if(!GetHierarchy()->IsProcedural(SelectedKey))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool SRigHierarchy::IsNonProceduralElementSelected() const
+{
+	TArray<FRigElementKey> SelectedKeys = GetSelectedKeys();
+	for (const FRigElementKey& SelectedKey : SelectedKeys)
+	{
+		if(GetHierarchy()->IsProcedural(SelectedKey))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
 void SRigHierarchy::HandleDeleteItem()
 {
 	if(!ControlRigEditor.IsValid())
@@ -1475,7 +1603,12 @@ void SRigHierarchy::HandleDeleteItem()
 		return;
 	}
 
-	URigHierarchy* Hierarchy = GetHierarchy();
+	if(!CanDeleteItem())
+	{
+		return;
+	}
+
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
  	if (Hierarchy)
  	{
 		TArray<FRigElementKey> RemovedItems;
@@ -1545,7 +1678,7 @@ void SRigHierarchy::HandleDeleteItem()
 
 bool SRigHierarchy::CanDeleteItem() const
 {
-	return IsMultiSelected();
+	return IsMultiSelected(false);
 }
 
 /** Create Item */
@@ -1556,7 +1689,7 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType, bool bIsAnimati
 		return;
 	}
 
-	URigHierarchy* Hierarchy = GetHierarchy();
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
 	if (Hierarchy)
 	{
 		// unselect current selected item
@@ -1662,7 +1795,7 @@ void SRigHierarchy::HandleNewItem(ERigElementType InElementType, bool bIsAnimati
 /** Check whether we can deleting the selected item(s) */
 bool SRigHierarchy::CanDuplicateItem() const
 {
-	return IsMultiSelected();
+	return IsMultiSelected(false);
 }
 
 /** Duplicate Item */
@@ -1673,7 +1806,7 @@ void SRigHierarchy::HandleDuplicateItem()
 		return;
 	}
 
-	URigHierarchy* Hierarchy = GetHierarchy();
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
 	if (Hierarchy)
 	{
 		ClearDetailPanel();
@@ -1710,7 +1843,7 @@ void SRigHierarchy::HandleMirrorItem()
 		return;
 	}
 	
-	URigHierarchy* Hierarchy = GetHierarchy();
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
 	if (Hierarchy)
 	{
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
@@ -1758,7 +1891,7 @@ void SRigHierarchy::HandleMirrorItem()
 /** Check whether we can deleting the selected item(s) */
 bool SRigHierarchy::CanRenameItem() const
 {
-	if(IsSingleSelected())
+	if(IsSingleSelected(false))
 	{
 		const FRigElementKey Key = GetSelectedKeys()[0];
 		if(Key.Type == ERigElementType::RigidBody ||
@@ -1768,7 +1901,7 @@ bool SRigHierarchy::CanRenameItem() const
 		}
 		if(Key.Type == ERigElementType::Control)
 		{
-			if(URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+			if(URigHierarchy* DebuggedHierarchy = GetHierarchy())
 			{
 				if(FRigControlElement* ControlElement = DebuggedHierarchy->Find<FRigControlElement>(Key))
 				{
@@ -1797,7 +1930,7 @@ void SRigHierarchy::HandleRenameItem()
 		return;
 	}
 
-	URigHierarchy* Hierarchy = GetHierarchy();
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
 	if (Hierarchy)
 	{
 		FScopedTransaction Transaction(LOCTEXT("HierarchyTreeRenameSelected", "Rename selected item from hierarchy"));
@@ -1833,7 +1966,7 @@ void SRigHierarchy::HandleRenameItem()
 bool SRigHierarchy::CanPasteItems() const
 {
 	return true;
-}
+}	
 
 bool SRigHierarchy::CanCopyOrPasteItems() const
 {
@@ -1842,7 +1975,7 @@ bool SRigHierarchy::CanCopyOrPasteItems() const
 
 void SRigHierarchy::HandleCopyItems()
 {
-	if (URigHierarchy* Hierarchy = GetDebuggedHierarchy())
+	if (URigHierarchy* Hierarchy = GetHierarchy())
 	{
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
@@ -1855,7 +1988,7 @@ void SRigHierarchy::HandleCopyItems()
 
 void SRigHierarchy::HandlePasteItems()
 {
-	if (URigHierarchy* Hierarchy = GetHierarchy())
+	if (URigHierarchy* Hierarchy = GetDefaultHierarchy())
 	{
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
@@ -1911,7 +2044,7 @@ void SRigHierarchy::HandlePasteGlobalTransforms()
 
 void SRigHierarchy::HandlePasteTransforms(ERigTransformType::Type InTransformType, bool bAffectChildren)
 {
-	if (URigHierarchy* Hierarchy = GetHierarchy())
+	if (URigHierarchy* Hierarchy = GetDefaultHierarchy())
 	{
 		FString Content;
 		FPlatformApplicationMisc::ClipboardPaste(Content);
@@ -1926,7 +2059,7 @@ void SRigHierarchy::HandlePasteTransforms(ERigTransformType::Type InTransformTyp
 			return;
 		}
 		
-		URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy();
+		URigHierarchy* DebuggedHierarchy = GetHierarchy();
 
 		const TArray<FRigElementKey> CurrentSelection = Hierarchy->GetSelectedKeys();
 		const int32 Count = FMath::Min<int32>(CurrentSelection.Num(), Data.Elements.Num());
@@ -1963,15 +2096,6 @@ URigHierarchy* SRigHierarchy::GetHierarchy() const
 {
 	if (ControlRigBlueprint.IsValid())
 	{
-		return ControlRigBlueprint->Hierarchy;
-	}
-	return nullptr;
-}
-
-URigHierarchy* SRigHierarchy::GetDebuggedHierarchy() const
-{
-	if (ControlRigBlueprint.IsValid())
-	{
 		if (UControlRig* DebuggedRig = ControlRigBeingDebuggedPtr.Get())
 		{
 			return DebuggedRig->GetHierarchy();
@@ -1984,17 +2108,16 @@ URigHierarchy* SRigHierarchy::GetDebuggedHierarchy() const
 			return CurrentRig->GetHierarchy();
 		}
 	}
-	return GetHierarchy();
+	return GetDefaultHierarchy();
 }
 
-const URigHierarchy* SRigHierarchy::GetHierarchyForTopology() const
+URigHierarchy* SRigHierarchy::GetDefaultHierarchy() const
 {
-	URigHierarchy* Hierarchy = GetHierarchy();
-	if(DisplaySettings.bShowDynamicHierarchy && ControlRigBeingDebuggedPtr.IsValid())
+	if (ControlRigBlueprint.IsValid())
 	{
-		Hierarchy = ControlRigBeingDebuggedPtr->GetHierarchy();
+		return ControlRigBlueprint->Hierarchy;
 	}
-	return Hierarchy;
+	return nullptr;
 }
 
 
@@ -2052,11 +2175,22 @@ TOptional<EItemDropZone> SRigHierarchy::OnCanAcceptDrop(const FDragDropEvent& Dr
 					return ReturnDropZone;
 				}
 
+				if(Hierarchy->IsProcedural(DraggedKey))
+				{
+					return ReturnDropZone;
+				}
+
 				if(Hierarchy->IsParentedTo(TargetItem->Key, DraggedKey))
 				{
 					return ReturnDropZone;
 				}
 			}
+		}
+
+		// don't allow dragging onto procedural items
+		if(!GetDefaultHierarchy()->Contains(TargetItem->Key))
+		{
+			return ReturnDropZone;
 		}
 
 		switch (TargetItem->Key.Type)
@@ -2152,7 +2286,7 @@ FName SRigHierarchy::HandleRenameElement(const FRigElementKey& OldKey, const FSt
 	{
 		FScopedTransaction Transaction(LOCTEXT("HierarchyRename", "Rename Hierarchy Element"));
 
-		URigHierarchy* Hierarchy = GetHierarchy();
+		URigHierarchy* Hierarchy = GetDefaultHierarchy();
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
 		check(Controller);
 
@@ -2266,11 +2400,11 @@ FReply SRigHierarchy::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& 
 
 void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)
 {
-	if ((IsMultiSelected() || !bSelectionOnly) && ControlRigEditor.IsValid())
+	if ((IsMultiSelected(true) || !bSelectionOnly) && ControlRigEditor.IsValid())
 	{
 		if (UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
-			if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+			if (URigHierarchy* DebuggedHierarchy = GetHierarchy())
 			{
 				FScopedTransaction Transaction(LOCTEXT("HierarchyResetTransforms", "Reset Transforms"));
 
@@ -2302,11 +2436,11 @@ void SRigHierarchy::HandleResetTransform(bool bSelectionOnly)
 
 void SRigHierarchy::HandleSetInitialTransformFromCurrentTransform()
 {
-	if (IsMultiSelected())
+	if (IsMultiSelected(false))
 	{
 		if (UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
-			if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+			if (URigHierarchy* DebuggedHierarchy = GetHierarchy())
 			{
 				FScopedTransaction Transaction(LOCTEXT("HierarchySetInitialTransforms", "Set Initial Transforms"));
 
@@ -2407,8 +2541,10 @@ void SRigHierarchy::HandleControlBoneOrSpaceTransform()
 		if (SelectedKeys[0].Type == ERigElementType::Bone ||
 			SelectedKeys[0].Type == ERigElementType::Null)
 		{
-			Blueprint->AddTransientControl(SelectedKeys[0]);
-			return;
+			if(!DebuggedControlRig->GetHierarchy()->IsProcedural(SelectedKeys[0]))
+			{
+				Blueprint->AddTransientControl(SelectedKeys[0]);
+			}
 		}
 	}
 }
@@ -2505,7 +2641,7 @@ void SRigHierarchy::HandleUnparent()
 
 bool SRigHierarchy::FindClosestBone(const FVector& Point, FName& OutRigElementName, FTransform& OutGlobalTransform) const
 {
-	if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+	if (URigHierarchy* DebuggedHierarchy = GetHierarchy())
 	{
 		float NearestDistance = BIG_NUMBER;
 
@@ -2558,8 +2694,8 @@ FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& Dra
 {
 	bool bMatchTransforms = !bReparentItems;
 
-	URigHierarchy* Hierarchy = GetHierarchy();
-	URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy();
+	URigHierarchy* DebuggedHierarchy = GetHierarchy();
+	URigHierarchy* Hierarchy = GetDefaultHierarchy();
 
 	if (Hierarchy && ControlRigBlueprint.IsValid())
 	{
@@ -2716,11 +2852,11 @@ FReply SRigHierarchy::ReparentOrMatchTransform(const TArray<FRigElementKey>& Dra
 
 void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 {
-	if (IsControlOrNullSelected())
+	if (IsControlOrNullSelected(false))
 	{
 		if (UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
-			if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+			if (URigHierarchy* DebuggedHierarchy = GetHierarchy())
 			{
 				FScopedTransaction Transaction(LOCTEXT("HierarchySetInitialTransforms", "Set Initial Transforms"));
 
@@ -2796,11 +2932,11 @@ void SRigHierarchy::HandleSetInitialTransformFromClosestBone()
 
 void SRigHierarchy::HandleSetShapeTransformFromCurrent()
 {
-	if (IsControlSelected())
+	if (IsControlSelected(false))
 	{
 		if (UControlRigBlueprint* Blueprint = ControlRigEditor.Pin()->GetControlRigBlueprint())
 		{
-			if (URigHierarchy* DebuggedHierarchy = GetDebuggedHierarchy())
+			if (URigHierarchy* DebuggedHierarchy = GetHierarchy())
 			{
 				FScopedTransaction Transaction(LOCTEXT("HierarchySetShapeTransforms", "Set Shape Transforms"));
 

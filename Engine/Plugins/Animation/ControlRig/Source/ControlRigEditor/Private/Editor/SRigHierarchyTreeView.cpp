@@ -15,6 +15,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "ControlRig.h"
 #include "ControlRigEditorStyle.h"
+#include "SRigHierarchy.h"
 #include "Settings/ControlRigSettings.h"
 #include "Graph/ControlRigGraphSchema.h"
 #include "Styling/AppStyle.h"
@@ -35,6 +36,7 @@ FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHiera
 	ChannelName = NAME_None;
 	bIsTransient = false;
 	bIsAnimationChannel = false;
+	bIsProcedural = false;
 	bSupportsRename = InSupportsRename;
 	FilterResult = InFilterResult;
 
@@ -42,13 +44,18 @@ FRigTreeElement::FRigTreeElement(const FRigElementKey& InKey, TWeakPtr<SRigHiera
 	{
 		if(const URigHierarchy* Hierarchy = InTreeView.Pin()->GetRigTreeDelegates().GetHierarchy())
 		{
-			if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
+			if(const FRigBaseElement* Element = Hierarchy->Find(Key))
 			{
-				bIsTransient = ControlElement->Settings.bIsTransientControl;
-				bIsAnimationChannel = ControlElement->IsAnimationChannel();
-				if(bIsAnimationChannel)
+				bIsProcedural = Element->IsProcedural();
+				
+				if(const FRigControlElement* ControlElement = Cast<FRigControlElement>(Element))
 				{
-					ChannelName = ControlElement->GetDisplayName();
+					bIsTransient = ControlElement->Settings.bIsTransientControl;
+					bIsAnimationChannel = ControlElement->IsAnimationChannel();
+					if(bIsAnimationChannel)
+					{
+						ChannelName = ControlElement->GetDisplayName();
+					}
 				}
 			}
 
@@ -86,7 +93,10 @@ void FRigTreeElement::RefreshDisplaySettings(const URigHierarchy* InHierarchy, c
 	{
 		IconColor = FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
 	}
-	TextColor = FilterResult == ERigTreeFilterResult::Shown ? FSlateColor::UseForeground() : FSlateColor(FLinearColor::Gray * 0.5f);
+
+	TextColor = FilterResult == ERigTreeFilterResult::Shown ?
+		(InHierarchy->IsProcedural(Key) ? FSlateColor(FLinearColor(0.9f, 0.8f, 0.4f)) : FSlateColor::UseForeground()) :
+		(InHierarchy->IsProcedural(Key) ? FSlateColor(FLinearColor(0.9f, 0.8f, 0.4f) * 0.5f) : FSlateColor(FLinearColor::Gray * 0.5f));
 }
 
 //////////////////////////////////////////////////////////////
@@ -249,6 +259,18 @@ bool SRigHierarchyTreeView::AddElement(FRigElementKey InKey, FRigElementKey InPa
 		return false;
 	}
 
+	// skip transient controls
+	if(const URigHierarchy* Hierarchy = Delegates.GetHierarchy())
+	{
+		if(const FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(InKey))
+		{
+			if(ControlElement->Settings.bIsTransientControl)
+			{
+				return false;
+			}
+		}
+	}
+
 	const FRigTreeDisplaySettings& Settings = Delegates.GetDisplaySettings();
 	const bool bSupportsRename = Delegates.OnRenameElement.IsBound();
 
@@ -402,24 +424,23 @@ bool SRigHierarchyTreeView::AddElement(const FRigBaseElement* InElement)
 		if(const URigHierarchy* Hierarchy = Delegates.GetHierarchy())
 		{
 			FRigElementKey ParentKey = Hierarchy->GetFirstParent(InElement->GetKey());
-			if(Settings.bShowDynamicHierarchy)
+
+			TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
+			if(ParentWeights.Num() > 0)
 			{
-				TArray<FRigElementWeight> ParentWeights = Hierarchy->GetParentWeightArray(InElement->GetKey());
-				if(ParentWeights.Num() > 0)
+				TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
+				check(ParentKeys.Num() == ParentWeights.Num());
+				for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
 				{
-					TArray<FRigElementKey> ParentKeys = Hierarchy->GetParents(InElement->GetKey());
-					check(ParentKeys.Num() == ParentWeights.Num());
-					for(int32 ParentIndex=0;ParentIndex<ParentKeys.Num();ParentIndex++)
+					if(ParentWeights[ParentIndex].IsAlmostZero())
 					{
-						if(ParentWeights[ParentIndex].IsAlmostZero())
-						{
-							continue;
-						}
-						ParentKey = ParentKeys[ParentIndex];
-						break;
+						continue;
 					}
+					ParentKey = ParentKeys[ParentIndex];
+					break;
 				}
 			}
+
 			if (ParentKey.IsValid())
 			{
 				if(const FRigBaseElement* ParentElement = Hierarchy->Find(ParentKey))
