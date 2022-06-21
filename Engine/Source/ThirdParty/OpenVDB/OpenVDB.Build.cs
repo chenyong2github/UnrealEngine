@@ -44,10 +44,23 @@ public class OpenVDB : ModuleRules
 
 			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.a"));
 		}
-		else
+		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{
-			// OpenVDB is currently only supported on Windows and Mac.
-			return;
+			// TODO: OpenVDB requires Boost, which is not currently available
+			// for arm64, so both Boost and OpenVDB need to be built
+			// specifically for arm64 before we can support it here.
+			if (Target.Platform == UnrealTargetPlatform.LinuxArm64)
+			{
+				return;
+			}
+
+			string LibDirectory = Path.Combine(
+				DeploymentDirectory,
+				"Unix",
+				Target.Architecture,
+				"lib");
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirectory, "libopenvdb.a"));
 		}
 
 		PublicDependencyModuleNames.AddRange(
