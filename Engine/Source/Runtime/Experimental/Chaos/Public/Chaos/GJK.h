@@ -17,6 +17,21 @@
 #include "ChaosCheck.h"
 #include "ChaosLog.h"
 
+// Enable some logging or ensures to trap issues in collision detection, usually related to degeneracies in GJK/EPA
+#define CHAOS_COLLISIONERROR_LOG_ENABLED		((!UE_BUILD_TEST && !UE_BUILD_SHIPPING) && 0)
+#define CHAOS_COLLISIONERROR_ENSURE_ENABLED		((!UE_BUILD_TEST && !UE_BUILD_SHIPPING) && 1)
+
+#if CHAOS_COLLISIONERROR_LOG_ENABLED
+#define CHAOS_COLLISIONERROR_CLOG(Condition, Fmt, ...) UE_CLOG((Condition), LogChaos, Error, Fmt, __VA_ARGS__)
+#else
+#define CHAOS_COLLISIONERROR_CLOG(Condition, Fmt, ...)
+#endif
+
+#if CHAOS_COLLISIONERROR_ENSURE_ENABLED
+#define CHAOS_COLLISIONERROR_ENSURE(X) ensure(X)
+#else
+#define CHAOS_COLLISIONERROR_ENSURE(X)
+#endif
 
 namespace Chaos
 {
@@ -29,17 +44,8 @@ namespace Chaos
 		const int32 MaxIterations = 32;
 		const bool bLimitExceeded = (NumIterations >= MaxIterations);
 
-#if !UE_BUILD_TEST && !UE_BUILD_SHIPPING
-		if (bLimitExceeded)
-		{
-			static bool bLogged = false;
-			if (!bLogged)
-			{
-				UE_LOG(LogChaos, Warning, TEXT("GJK hit iteration limit with shapes:\n    A: %s\n    B: %s"), *A.ToString(), *B.ToString());
-				bLogged = true;
-			}
-		}
-#endif
+		CHAOS_COLLISIONERROR_CLOG(bLimitExceeded, TEXT("GJK hit iteration limit with shapes:\n    A: %s\n    B: %s"), *A.ToString(), *B.ToString());
+		CHAOS_COLLISIONERROR_ENSURE(!bLimitExceeded);
 
 		return bLimitExceeded;
 	}
@@ -973,6 +979,11 @@ namespace Chaos
 
 			V = SimplexFindClosestToOrigin2(Simplex, NumVerts, SimplexData.Barycentric, SimplexData.As, SimplexData.Bs);
 			T NewDistance = V.Size();
+
+			// If we hit this error, we probably have a degenerate simplex that is not being detected in SimplexFindClosestToOrigin2
+			CHAOS_COLLISIONERROR_CLOG(V.ContainsNaN(), TEXT("SimplexFindClosestToOrigin2 NaN, NumVerts: %d, Simplex: [[%f, %f, %f], [%f %f %f], [%f %f %f], [%f %f %f]]"), 
+				NumVerts, Simplex[0].X, Simplex[0].Y, Simplex[0].Z, Simplex[1].X, Simplex[1].Y, Simplex[1].Z, Simplex[2].X, Simplex[2].Y, Simplex[2].Z, Simplex[3].X, Simplex[3].Y, Simplex[3].Z);
+			CHAOS_COLLISIONERROR_ENSURE(!V.ContainsNaN());
 
 			// Are we overlapping or too close for GJK to get a good result?
 			bIsContact = (NewDistance < Epsilon);

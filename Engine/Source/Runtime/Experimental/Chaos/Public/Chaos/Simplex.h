@@ -421,9 +421,16 @@ namespace Chaos
 		// Previously was return VectorMultiplyAdd(AC, w, VectorMultiplyAdd(AB, v, A));
 		const TVec3<T> TriNormal = TVec3<T>::CrossProduct(AB, AC);
 		const T TriNormal2 = TVec3<T>::DotProduct(TriNormal, TriNormal);
-		const TVec3<T> TriNormalOverSize2 = TriNormal / TriNormal2;
-		const T SignedDistance = TVec3<T>::DotProduct(A, TriNormalOverSize2);
-		return TriNormal * SignedDistance;
+		if (TriNormal2 > std::numeric_limits<T>::min())
+		{
+			const TVec3<T> TriNormalOverSize2 = TriNormal / TriNormal2;
+			const T SignedDistance = TVec3<T>::DotProduct(A, TriNormalOverSize2);
+			return TriNormal * SignedDistance;
+		}
+
+		// If we get here we hit a degenerate Simplex (all 3 verts in a line/point)
+		// Let's just exit GJK with whatever normal and distance it had last iteration...
+		return FVec3(0);
 	}
 
 	template <typename T>
