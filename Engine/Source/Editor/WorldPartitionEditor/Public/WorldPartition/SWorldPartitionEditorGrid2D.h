@@ -18,6 +18,7 @@ protected:
 		TSharedPtr<FUICommandInfo> CreateRegionFromSelection;
 		TSharedPtr<FUICommandInfo> LoadSelectedRegions;
 		TSharedPtr<FUICommandInfo> UnloadSelectedRegions;
+		TSharedPtr<FUICommandInfo> UnloadHoveredRegion;
 		TSharedPtr<FUICommandInfo> ConvertSelectedRegionsToActors;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
 
@@ -36,6 +37,7 @@ public:
 	virtual void CreateRegionFromSelection();
 	virtual void LoadSelectedRegions();
 	virtual void UnloadSelectedRegions();
+	virtual void UnloadHoveredRegion();
 	virtual void ConvertSelectedRegionsToActors();
 	void MoveCameraHere();
 
