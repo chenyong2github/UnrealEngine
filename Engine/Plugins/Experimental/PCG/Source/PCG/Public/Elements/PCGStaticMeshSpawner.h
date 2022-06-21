@@ -45,7 +45,7 @@ public:
 	virtual EPCGSettingsType GetType() const override { return EPCGSettingsType::Spawner; }
 #endif
 
-	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return TArray<FPCGPinProperties>(); }
+	virtual TArray<FPCGPinProperties> OutputPinProperties() const override { return Super::DefaultPointOutputPinProperties(); }
 
 protected:
 	virtual FPCGElementPtr CreateElement() const override;
@@ -69,8 +69,13 @@ public:
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Instanced, Category = Settings)
 	TObjectPtr<UPCGMeshSelectorBase> MeshSelectorInstance;
 
+	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Settings)
+	FName OutAttributeName = NAME_None;
+
 	UPROPERTY(meta=(DeprecatedProperty, DeprecationMessage="Use MeshSelectorType and MeshSelectorInstance instead."))
 	TArray<FPCGStaticMeshSpawnerEntry> Meshes_DEPRECATED;
+
+	bool bForceConnectOutput = false;
 
 protected:
 	void RefreshMeshSelector(); 

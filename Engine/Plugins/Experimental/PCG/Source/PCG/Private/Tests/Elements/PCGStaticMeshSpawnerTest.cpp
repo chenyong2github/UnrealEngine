@@ -17,6 +17,11 @@
 #include "MeshSelectors/PCGMeshSelectorByAttribute.h"
 #include "MeshSelectors/PCGMeshSelectorWeightedByCategory.h"
 
+#include "Metadata/PCGMetadata.h"
+#include "Metadata/PCGMetadataAttribute.h"
+#include "Metadata/PCGMetadataAttributeTraits.h"
+#include "Metadata/PCGMetadataAttributeTpl.h"
+
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Engine/StaticMesh.h"
 
@@ -48,17 +53,101 @@ namespace
 	};
 }
 
+/** Finds the output UPCGPointData and builds a mapping from world-space position to each FPCGPoint */
+void GetOutputDataAndBuildPositionMap(FPCGTestBaseClass* Test, const TArray<FPCGTaggedData>& OutputData, TMap<FVector, FPCGPoint>& OutLocationToPoint, UPCGPointData*& OutPointData)
+{
+	check(Test);
+
+	if (Test->TestEqual("Valid number of data elements in output", OutputData.Num(), 2))
+	{
+		TObjectPtr<UPCGSettings> OutSettings = Cast<UPCGSettings>(OutputData[0].Data);
+		Test->TestTrue("Valid output settings", OutSettings != nullptr);
+
+		OutPointData = Cast<UPCGPointData>(OutputData[1].Data);
+	}
+
+	if (Test->TestNotNull("Valid output data", OutPointData))
+	{
+		const TArray<FPCGPoint>& OutPoints = OutPointData->GetPoints();
+
+		for (const FPCGPoint& OutPoint : OutPoints)
+		{
+			OutLocationToPoint.Emplace(OutPoint.Transform.GetLocation(), OutPoint);
+		}
+	}
+}
+
+/** Iterates over instances of the ISMC to ensure each instance matches the softobjectpath metadata of the corresponding FPCGPoint */
+void ValidateOutPointData(
+	FPCGTestBaseClass* Test, 
+	const UInstancedStaticMeshComponent* ISMC, 
+	const TMap<FVector, FPCGPoint>& LocationToPoint, 
+	const FName& OutputAttributeName, 
+	const UPCGPointData* OutPointData) 
+{
+	check(Test);
+	check(ISMC);
+	check(OutPointData && OutPointData->Metadata);
+
+	const FPCGMetadataAttributeBase* AttributeBase = OutPointData->Metadata->GetConstAttribute(OutputAttributeName);
+	if (!Test->TestNotNull("Metadata contains out attribute", AttributeBase)) 
+	{ 
+		return; 
+	}
+
+	const bool bIsMetadataTypeValid = AttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FString>::Id;
+	if (!Test->TestTrue("Output attribute is a valid type", bIsMetadataTypeValid)) 
+	{ 
+		return; 
+	}
+
+	const FPCGMetadataAttribute<FString>* OutAttribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
+
+	const FString& MeshPath = FSoftObjectPath(ISMC->GetStaticMesh()).ToString();
+	const PCGMetadataValueKey MeshValueKey = OutAttribute->FindValue(MeshPath);
+
+	if (MeshValueKey == PCGDefaultValueKey)
+	{
+		if (!Test->TestEqual("Mesh value exists in output attribute", MeshPath, OutAttribute->GetValue(MeshValueKey)))
+		{
+			return;
+		}
+	}
+
+	for (int InstanceIndex = 0; InstanceIndex < ISMC->GetInstanceCount(); ++InstanceIndex)
+	{
+		FTransform Transform;
+		ISMC->GetInstanceTransform(InstanceIndex, Transform, /*bWorldSpace=*/true);
+
+		const FPCGPoint* OutPoint = LocationToPoint.Find(Transform.GetLocation());
+
+		if (Test->TestNotNull("Output point exists", OutPoint) && OutAttribute)
+		{
+			const PCGMetadataValueKey ValueKey = OutAttribute->GetValueKey(OutPoint->MetadataEntry);
+			Test->TestEqual("Valid mesh stored in output point metadata", ValueKey, MeshValueKey);
+		}
+	}
+}
+
 void TestMeshSelectorByAttribute(
 	FPCGStaticMeshSpawnerByAttributeTest* Test, 
 	const PCGDeterminismTests::FTestData& TestData, 
 	const FName& AttributeName, 
-	const TArray<FPCGByAttributeValidationData>& ValidationDataEntries)
+	const TArray<FPCGByAttributeValidationData>& ValidationDataEntries,
+	bool bValidateOutput=false)
 {
+	check(Test);
+
 	// set the MeshSelector
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
 	Settings->SetMeshSelectorType(UPCGMeshSelectorByAttribute::StaticClass());
 	UPCGMeshSelectorByAttribute* MeshSelector = CastChecked<UPCGMeshSelectorByAttribute>(Settings->MeshSelectorInstance);
 	MeshSelector->AttributeName = AttributeName;
+
+	if (bValidateOutput)
+	{
+		Settings->bForceConnectOutput = true;
+	}
 
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
@@ -66,6 +155,14 @@ void TestMeshSelectorByAttribute(
 
 	while (!StaticMeshSpawner->Execute(Context))
 	{}
+
+	TMap<FVector, FPCGPoint> LocationToPoint;
+	UPCGPointData* OutPointData = nullptr;
+
+	if (bValidateOutput)
+	{
+		GetOutputDataAndBuildPositionMap(Test, Context->OutputData.TaggedData, LocationToPoint, OutPointData);
+	}
 
 	struct FPCGByAttributeValidIndexList
 	{
@@ -117,57 +214,68 @@ void TestMeshSelectorByAttribute(
 			return Entry.Mesh == StaticMesh;
 			});
 
-		if (!Entry)
+		if (Test->TestNotNull("Validate instanced mesh exists in MeshEntries", Entry))
 		{
-			Test->TestTrue("Validate instanced mesh exists in MeshEntries", false);
-			continue;
-		}
+			const FPCGByAttributeValidIndexList* IndexList = MapToIndexList.Find(Entry->Mesh);
+			check(IndexList);
 
-		const FPCGByAttributeValidIndexList* IndexList = MapToIndexList.Find(Entry->Mesh);
+			Test->TestEqual("Valid instance count per mesh", InstanceCount, IndexList->Count);
 
-		Test->TestTrue("Valid instance count per mesh", InstanceCount == IndexList->Count);
-
-		for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
-		{
-			FTransform Transform;
-			ISMC->GetInstanceTransform(InstanceIndex, Transform);
-			FVector Location = Transform.GetLocation();
-
-			bool bFound = false;
-
-			for (int i = 0; i < IndexList->ValidIndices.Num(); i++)
+			for (int InstanceIndex = 0; InstanceIndex < InstanceCount; InstanceIndex++)
 			{
-				const int StartIndex = IndexList->ValidIndices[i].Key;
-				const int EndIndex = IndexList->ValidIndices[i].Value;
+				FTransform Transform;
+				ISMC->GetInstanceTransform(InstanceIndex, Transform);
+				FVector Location = Transform.GetLocation();
 
-				if (Location.X >= StartIndex && Location.X < EndIndex)
+				bool bFound = false;
+
+				for (int i = 0; i < IndexList->ValidIndices.Num(); i++)
 				{
-					bFound = true;
-					break;
+					const int StartIndex = IndexList->ValidIndices[i].Key;
+					const int EndIndex = IndexList->ValidIndices[i].Value;
+
+					if (Location.X >= StartIndex && Location.X < EndIndex)
+					{
+						bFound = true;
+						break;
+					}
 				}
+
+				Test->TestTrue("Valid transform locations", bFound);
 			}
 
-			Test->TestTrue("Valid transform locations", bFound);
+			if (bValidateOutput)
+			{
+				ValidateOutPointData(Test, ISMC, LocationToPoint, Settings->OutAttributeName, OutPointData);
+			}
 		}
 	}
 
 	TestData.TestPCGComponent->bGenerated = true;
 	TestData.TestPCGComponent->Cleanup();
 	
-	Test->TestTrue("Valid total instance count", TotalInstanceCount == ValidInstanceCount);
+	Test->TestEqual("Valid total instance count", TotalInstanceCount, ValidInstanceCount);
 }
 
 void TestMeshSelectorWeighted(
 	FPCGStaticMeshSpawnerWeightedTest* Test, 
 	const PCGDeterminismTests::FTestData& TestData, 
 	const TArray<FPCGMeshSelectorWeightedEntry>& Entries, 
-	int PointCount)
+	int PointCount,
+	bool bValidateOutput=false)
 {
+	check(Test);
+
 	// set the MeshSelector
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
 	Settings->SetMeshSelectorType(UPCGMeshSelectorWeighted::StaticClass());
 	UPCGMeshSelectorWeighted* MeshSelector = CastChecked<UPCGMeshSelectorWeighted>(Settings->MeshSelectorInstance);
 	MeshSelector->MeshEntries = Entries;
+
+	if (bValidateOutput)
+	{
+		Settings->bForceConnectOutput = true;
+	}
 
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
@@ -175,6 +283,14 @@ void TestMeshSelectorWeighted(
 
 	while (!StaticMeshSpawner->Execute(Context))
 	{}
+
+	TMap<FVector, FPCGPoint> LocationToPoint;
+	UPCGPointData* OutPointData = nullptr;
+
+	if (bValidateOutput)
+	{
+		GetOutputDataAndBuildPositionMap(Test, Context->OutputData.TaggedData, LocationToPoint, OutPointData);
+	}
 
 	int TotalWeight = 0;
 	for (const FPCGMeshSelectorWeightedEntry& Entry : Entries)
@@ -208,22 +324,26 @@ void TestMeshSelectorWeighted(
 			return Entry.Mesh == StaticMesh;
 			});
 
-		if (!Entry)
+		if (Test->TestNotNull("Validate instanced mesh exists in MeshEntries", Entry))
 		{
-			Test->TestTrue("Validate instanced mesh exists in MeshEntries", false);
-			continue;
-		}
+			check(TotalWeight > 0);
 
-		// validate correct InstanceCount (within a range) for the weight of this mesh
-		const int TargetCount = PointCount * Entry->Weight / TotalWeight;
-		const float ErrorBound = FMath::Max(TargetCount * 0.1f, 10); // 10% error boundary 
-		Test->TestTrue("Valid instance count per mesh", InstanceCount >= TargetCount - ErrorBound && InstanceCount <= TargetCount + ErrorBound);
+			// validate correct InstanceCount (within a range) for the weight of this mesh
+			const int TargetCount = PointCount * Entry->Weight / TotalWeight;
+			const float ErrorBound = FMath::Max(TargetCount * 0.1f, 10); // 10% error boundary 
+			Test->TestTrue("Valid instance count per mesh", InstanceCount >= TargetCount - ErrorBound && InstanceCount <= TargetCount + ErrorBound);
+
+			if (bValidateOutput)
+			{
+				ValidateOutPointData(Test, ISMC, LocationToPoint, Settings->OutAttributeName, OutPointData);
+			}
+		}
 	}
 
 	TestData.TestPCGComponent->bGenerated = true;
 	TestData.TestPCGComponent->Cleanup();
 	
-	Test->TestTrue("Valid total instance count", TotalInstanceCount == PointCount);
+	Test->TestEqual("Valid total instance count", TotalInstanceCount, PointCount);
 }
 
 void TestMeshSelectorWeightedByCategory(
@@ -232,8 +352,11 @@ void TestMeshSelectorWeightedByCategory(
 	const FName& AttributeName, 
 	const TArray<FPCGWeightedByCategoryEntryList>& Entries, 
 	const TArray<FPCGWeightedByCategoryValidationData>& ValidationDataEntries,
-	int PointCount)
+	int PointCount,
+	bool bValidateOutput=false)
 {
+	check(Test);
+
 	// set the MeshSelector
 	UPCGStaticMeshSpawnerSettings* Settings = CastChecked<UPCGStaticMeshSpawnerSettings>(TestData.Settings);
 	Settings->SetMeshSelectorType(UPCGMeshSelectorWeightedByCategory::StaticClass());
@@ -241,12 +364,25 @@ void TestMeshSelectorWeightedByCategory(
 	MeshSelector->CategoryAttribute = AttributeName;
 	MeshSelector->Entries = Entries;
 
+	if (bValidateOutput)
+	{
+		Settings->bForceConnectOutput = true;
+	}
+
 	// initialize and execute the StaticMeshSpawner
 	FPCGElementPtr StaticMeshSpawner = Settings->GetElement();
 	FPCGContext* Context = StaticMeshSpawner->Initialize(TestData.InputData, TestData.TestPCGComponent, nullptr);
 
 	while (!StaticMeshSpawner->Execute(Context))
 	{
+	}
+
+	TMap<FVector, FPCGPoint> LocationToPoint;
+	UPCGPointData* OutPointData = nullptr;
+
+	if (bValidateOutput)
+	{
+		GetOutputDataAndBuildPositionMap(Test, Context->OutputData.TaggedData, LocationToPoint, OutPointData);
 	}
 
 	check(TestData.TestPCGComponent);
@@ -275,20 +411,22 @@ void TestMeshSelectorWeightedByCategory(
 			return Entry.Mesh == StaticMesh;
 			});
 
-		if (!Entry)
+		if (Test->TestNotNull("Validate instanced mesh exists in entries", Entry))
 		{
-			Test->TestTrue("Validate instanced mesh exists in entries", false);
-			continue;
-		}
+			const float ErrorBound = FMath::Max(Entry->ExpectedCount * 0.1f, 10); // 10% error boundary 
+			Test->TestTrue("Valid instance count per mesh", InstanceCount >= Entry->ExpectedCount - ErrorBound && InstanceCount <= Entry->ExpectedCount + ErrorBound);
 
-		const float ErrorBound = FMath::Max(Entry->ExpectedCount * 0.1f, 10); // 10% error boundary 
-		Test->TestTrue("Valid instance count per mesh", InstanceCount >= Entry->ExpectedCount - ErrorBound && InstanceCount <= Entry->ExpectedCount + ErrorBound);
+			if (bValidateOutput)
+			{
+				ValidateOutPointData(Test, ISMC, LocationToPoint, Settings->OutAttributeName, OutPointData);
+			}
+		}
 	}
 
 	TestData.TestPCGComponent->bGenerated = true;
 	TestData.TestPCGComponent->Cleanup();
 
-	Test->TestTrue("Valid total instance count", TotalInstanceCount == PointCount);
+	Test->TestEqual("Valid total instance count", TotalInstanceCount, PointCount);
 }
 
 bool FPCGStaticMeshSpawnerByAttributeTest::RunTest(const FString& Parameters)
@@ -314,9 +452,9 @@ bool FPCGStaticMeshSpawnerByAttributeTest::RunTest(const FString& Parameters)
 	// compose the test data
 	TObjectPtr<UPCGPointData> PointData = PCGTestsCommon::CreateEmptyPointData();
 	PointData->TargetActor = TestData.TestActor;
-	PointData->Metadata->CreateStringAttribute(RockAttribute, ConePath.GetAssetPathString(), false);
-	PointData->Metadata->CreateStringAttribute(TreeAttribute, ConePath.GetAssetPathString(), false);
-	PointData->Metadata->CreateStringAttribute(BushAttribute, ConePath.GetAssetPathString(), false);
+	PointData->Metadata->CreateStringAttribute(RockAttribute, ConePath.ToString(), false);
+	PointData->Metadata->CreateStringAttribute(TreeAttribute, ConePath.ToString(), false);
+	PointData->Metadata->CreateStringAttribute(BushAttribute, ConePath.ToString(), false);
 
 	// first 20 points are Rock, next 50 are Tree, next 30 are Bush, for a total of 100 points
 	const int PointCount = 100;
@@ -346,7 +484,7 @@ bool FPCGStaticMeshSpawnerByAttributeTest::RunTest(const FString& Parameters)
 			ObjectPath = (i < 85) ? CubePath : CylinderPath; // half are CubePath, half are CylinderPath
 		}
 		
-		UPCGMetadataAccessorHelpers::SetStringAttribute(Points[i], PointData->Metadata, AttributeName, ObjectPath.GetAssetPathString());
+		UPCGMetadataAccessorHelpers::SetStringAttribute(Points[i], PointData->Metadata, AttributeName, ObjectPath.ToString());
 	}
 	
 	FPCGTaggedData& TaggedDataPoints = TestData.InputData.TaggedData.Emplace_GetRef(FPCGTaggedData());
@@ -370,13 +508,13 @@ bool FPCGStaticMeshSpawnerByAttributeTest::RunTest(const FString& Parameters)
 	ValidationDataEntries.Emplace(ConeMesh, 70, 100);
 	TestMeshSelectorByAttribute(this, TestData, TreeAttribute, ValidationDataEntries);
 
-	// Test 3
+	// Test 3 - also tests optional output data
 	// should have ConeMesh at Loc.x = [0, 70), CubeMesh at Loc.x = [70, 85), CylinderMesh at Loc.x = [85, 100)
 	ValidationDataEntries.Empty();
 	ValidationDataEntries.Emplace(ConeMesh, 0, 70);
 	ValidationDataEntries.Emplace(CubeMesh, 70, 85);
 	ValidationDataEntries.Emplace(CylinderMesh, 85, 100);
-	TestMeshSelectorByAttribute(this, TestData, BushAttribute, ValidationDataEntries);
+	TestMeshSelectorByAttribute(this, TestData, BushAttribute, ValidationDataEntries, /*bValidateOutput=*/true);
 
 	return true;
 }
@@ -435,11 +573,17 @@ bool FPCGStaticMeshSpawnerWeightedTest::RunTest(const FString& Parameters)
 	Entries[2].Weight = 1;
 	TestMeshSelectorWeighted(this, TestData, Entries, PointCount);
 
-	// Test 5: null weight
-	Entries[0].Weight = 1;
+	// Test 5: zero total weight
+	Entries[0].Weight = 0;
 	Entries[1].Weight = 0;
-	Entries[2].Weight = 1;
-	TestMeshSelectorWeighted(this, TestData, Entries, PointCount);
+	Entries[2].Weight = 0;
+	TestMeshSelectorWeighted(this, TestData, Entries, 0);
+
+	// Test 6: validate optional output data
+	Entries[0].Weight = 1;
+	Entries[1].Weight = 10;
+	Entries[2].Weight = 100;
+	TestMeshSelectorWeighted(this, TestData, Entries, PointCount, /*bValidateOutput=*/true);
 
 	return true;
 }
@@ -514,9 +658,9 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 
 	// Test 1 - basic weighted functionality
 	{
-		const int CubeWeight = 1.f;
-		const int SphereWeight = 1.f;
-		const int CylinderWeight = 1.f;
+		const int CubeWeight = 1;
+		const int SphereWeight = 1;
+		const int CylinderWeight = 1;
 
 		const int IgneousCategoryTotalWeight = 3;
 
@@ -544,14 +688,14 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 
 	// Test 2 - selection based on rocktype
 	{
-		const int IgneousCubeWeight = 1.f;
-		const int IgneousSphereWeight = 1.f;
+		const int IgneousCubeWeight = 1;
+		const int IgneousSphereWeight = 1;
 
-		const int SedimentaryCubeWeight = 10.f;
-		const int SedimentaryCylinderWeight = 1.f;
+		const int SedimentaryCubeWeight = 10;
+		const int SedimentaryCylinderWeight = 1;
 
-		const int MetamorphicSphereWeight = 1.f;
-		const int MetamorphicCylinderWeight = 10.f;
+		const int MetamorphicSphereWeight = 1;
+		const int MetamorphicCylinderWeight = 10;
 
 		const int IgneousCategoryTotalWeight = 2;
 		const int SedimentaryCategoryTotalWeight = 11;
@@ -590,10 +734,10 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 
 	// Test 3 - empty weighted entries
 	{
-		const int CubeWeight = 1.f;
-		const int IgneousSphereWeight = 1.f;
-		const int MetamorphicSphereWeight = 1.f;
-		const int CylinderWeight = 10.f;
+		const int CubeWeight = 1;
+		const int IgneousSphereWeight = 1;
+		const int MetamorphicSphereWeight = 1;
+		const int CylinderWeight = 10;
 
 		const int IgneousCategoryTotalWeight = 2;
 		const int MetamorphicCategoryTotalWeight = 11;
@@ -629,8 +773,8 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 
 	// Test 4 - duplicate category
 	{
-		const int CubeWeight = 1.f;
-		const int SphereWeight = 1.f;
+		const int CubeWeight = 1;
+		const int SphereWeight = 1;
 
 		const int IgneousCategoryTotalWeight = 1;
 		const int SedimentaryCategoryTotalWeight = 1;
@@ -666,8 +810,8 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 
 	// Test 5 - invalid rock type
 	{
-		const int CubeWeight = 1.f;
-		const int SphereWeight = 1.f;
+		const int CubeWeight = 1;
+		const int SphereWeight = 1;
 		const int CategoryTotalWeight = 2;
 		const int TotalSize = IgneousCategorySize;
 
@@ -694,14 +838,14 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 
 	// Test 6 - default entry list + duplicate default ignored
 	{
-		const int IgneousCubeWeight = 1.f;
-		const int IgneousSphereWeight = 1.f;
+		const int IgneousCubeWeight = 1;
+		const int IgneousSphereWeight = 1;
 
-		const int SedimentaryCubeWeight = 10.f;
-		const int SedimentaryCylinderWeight = 1.f;
+		const int SedimentaryCubeWeight = 10;
+		const int SedimentaryCylinderWeight = 1;
 
-		const int MetamorphicSphereWeight = 1.f;
-		const int MetamorphicCylinderWeight = 10.f;
+		const int MetamorphicSphereWeight = 1;
+		const int MetamorphicCylinderWeight = 10;
 
 		const int IgneousCategoryTotalWeight = 2;
 		const int SedimentaryCategoryTotalWeight = 11;
@@ -754,6 +898,90 @@ bool FPCGStaticMeshSpawnerWeightedByCategoryTest::RunTest(const FString& Paramet
 		AddExpectedError(ErrorMessage, EAutomationExpectedErrorFlags::Contains, 1);
 
 		TestMeshSelectorWeightedByCategory(this, TestData, AttributeName, Entries, ValidationData, TotalSize);
+	}
+
+	// Test 7 - zero total weight for a category
+	{
+		const int CubeWeight = 0;
+		const int SphereWeight = 0;
+
+		const int CylinderWeight = 1;
+		const int ConeWeight = 1;
+
+		const int SedimentaryCategoryTotalWeight = 2;
+
+		const int TotalSize = SedimentaryCategorySize;
+
+		TArray<FPCGMeshSelectorWeightedEntry> IgneousEntries;
+		IgneousEntries.Emplace(CubeMesh, CubeWeight);
+		IgneousEntries.Emplace(SphereMesh, SphereWeight);
+
+		TArray<FPCGMeshSelectorWeightedEntry> SedimentaryEntries;
+		SedimentaryEntries.Emplace(CylinderMesh, CylinderWeight);
+		SedimentaryEntries.Emplace(ConeMesh, ConeWeight);
+
+		TArray<FPCGWeightedByCategoryEntryList> Entries;
+		Entries.Emplace(IgneousRockType, IgneousEntries);
+		Entries.Emplace(SedimentaryRockType, SedimentaryEntries);
+
+		const int CubeCount = 0;
+		const int SphereCount = 0;
+		const int CylinderCount = (SedimentaryCategorySize * CylinderWeight / SedimentaryCategoryTotalWeight);
+		const int ConeCount = (SedimentaryCategorySize * ConeWeight / SedimentaryCategoryTotalWeight);
+
+		TArray<FPCGWeightedByCategoryValidationData> ValidationData;
+		ValidationData.Emplace(CubeMesh, CubeCount);
+		ValidationData.Emplace(SphereMesh, SphereCount);
+		ValidationData.Emplace(CylinderMesh, CylinderCount);
+		ValidationData.Emplace(ConeMesh, ConeCount);
+
+		TestMeshSelectorWeightedByCategory(this, TestData, AttributeName, Entries, ValidationData, TotalSize);
+	}
+
+	// Test 8 - validate optional output data
+	{
+		const int IgneousCubeWeight = 1;
+		const int IgneousSphereWeight = 1;
+
+		const int SedimentaryCubeWeight = 10;
+		const int SedimentaryCylinderWeight = 1;
+
+		const int MetamorphicSphereWeight = 1;
+		const int MetamorphicCylinderWeight = 10;
+
+		const int IgneousCategoryTotalWeight = 2;
+		const int SedimentaryCategoryTotalWeight = 11;
+		const int MetamorphicCategoryTotalWeight = 11;
+
+		const int TotalSize = IgneousCategorySize + SedimentaryCategorySize + MetamorphicCategorySize;
+
+		TArray<FPCGMeshSelectorWeightedEntry> IgneousEntries;
+		IgneousEntries.Emplace(CubeMesh, IgneousCubeWeight);
+		IgneousEntries.Emplace(SphereMesh, IgneousSphereWeight);
+
+		TArray<FPCGMeshSelectorWeightedEntry> SedimentaryEntries;
+		SedimentaryEntries.Emplace(CubeMesh, SedimentaryCubeWeight);
+		SedimentaryEntries.Emplace(CylinderMesh, SedimentaryCylinderWeight);
+
+		TArray<FPCGMeshSelectorWeightedEntry> MetamorphicEntries;
+		MetamorphicEntries.Emplace(SphereMesh, MetamorphicSphereWeight);
+		MetamorphicEntries.Emplace(CylinderMesh, MetamorphicCylinderWeight);
+
+		TArray<FPCGWeightedByCategoryEntryList> Entries;
+		Entries.Emplace(IgneousRockType, IgneousEntries);
+		Entries.Emplace(SedimentaryRockType, SedimentaryEntries);
+		Entries.Emplace(MetamorphicRockType, MetamorphicEntries);
+
+		const int CubeCount = (IgneousCategorySize * IgneousCubeWeight / IgneousCategoryTotalWeight) + (SedimentaryCategorySize * SedimentaryCubeWeight / SedimentaryCategoryTotalWeight);
+		const int SphereCount = (IgneousCategorySize * IgneousSphereWeight / IgneousCategoryTotalWeight) + (MetamorphicCategorySize * MetamorphicSphereWeight / MetamorphicCategoryTotalWeight);
+		const int CylinderCount = (SedimentaryCategorySize * SedimentaryCylinderWeight / SedimentaryCategoryTotalWeight) + (MetamorphicCategorySize * MetamorphicCylinderWeight / MetamorphicCategoryTotalWeight);
+
+		TArray<FPCGWeightedByCategoryValidationData> ValidationData;
+		ValidationData.Emplace(CubeMesh, CubeCount);
+		ValidationData.Emplace(SphereMesh, SphereCount);
+		ValidationData.Emplace(CylinderMesh, CylinderCount);
+
+		TestMeshSelectorWeightedByCategory(this, TestData, AttributeName, Entries, ValidationData, TotalSize, /*bValidateOutput=*/true);
 	}
 
 	return true;

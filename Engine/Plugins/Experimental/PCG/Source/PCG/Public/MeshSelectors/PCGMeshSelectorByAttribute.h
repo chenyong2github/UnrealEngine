@@ -16,7 +16,8 @@ public:
 		UPARAM(ref) FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGSpatialData* InSpatialData,
-		TArray<FPCGMeshInstanceList>& OutMeshInstances) const override;
+		TArray<FPCGMeshInstanceList>& OutMeshInstances,
+		UPCGPointData* OutPointData) const override;
 
 public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)

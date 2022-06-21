@@ -13,7 +13,8 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
 	const UPCGSpatialData* InSpatialData, 
-	TArray<FPCGMeshInstanceList>& OutMeshInstances) const
+	TArray<FPCGMeshInstanceList>& OutMeshInstances,
+	UPCGPointData* OutPointData) const
 {
 	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
 
@@ -47,6 +48,14 @@ void UPCGMeshSelectorByAttribute::SelectInstances_Implementation(
 	const FPCGMetadataAttribute<FString>* Attribute = static_cast<const FPCGMetadataAttribute<FString>*>(AttributeBase);
 
 	TMap<PCGMetadataValueKey, TSoftObjectPtr<UStaticMesh>> ValueKeyToMesh;
+
+	// ByAttribute takes in SoftObjectPaths per point in the metadata, so we can pass those directly into the outgoing pin if it exists
+	if (OutPointData)
+	{
+		OutPointData->SetPoints(PointData->GetPoints()); 
+		OutPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
+		OutPointData->Metadata->CopyAttribute(PointData->Metadata, AttributeName, Settings->OutAttributeName);
+	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
 

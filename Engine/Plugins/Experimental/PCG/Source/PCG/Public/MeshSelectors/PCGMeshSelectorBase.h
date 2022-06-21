@@ -55,13 +55,15 @@ public:
 		FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGSpatialData* InSpatialData,
-		TArray<FPCGMeshInstanceList>& OutMeshInstances) const;
+		TArray<FPCGMeshInstanceList>& OutMeshInstances,
+		UPCGPointData* OutPointData) const;
 
 	virtual void SelectInstances_Implementation(
 		FPCGContext& Context,
 		const UPCGStaticMeshSpawnerSettings* Settings,
 		const UPCGSpatialData* InSpatialData,
-		TArray<FPCGMeshInstanceList>& OutMeshInstances) const;
+		TArray<FPCGMeshInstanceList>& OutMeshInstances,
+		UPCGPointData* OutPointData) const;
 
 	/** Searches OutInstanceLists for an InstanceList matching the given parameters. If nothing is found, creates a new InstanceList and adds to OutInstanceLists. Returns true if added. */
 	UFUNCTION(BlueprintCallable, Category = MeshSelection)

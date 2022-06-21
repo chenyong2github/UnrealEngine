@@ -2,6 +2,7 @@
 
 #include "Elements/PCGStaticMeshSpawner.h"
 
+#include "PCGCommon.h"
 #include "PCGHelpers.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGSpatialData.h"
@@ -39,6 +40,12 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 	// perform mesh selection
 	TArray<FPCGMeshInstanceList> MeshInstances;
 	TArray<FPCGTaggedData> Inputs = Context->InputData.GetInputs();
+	TArray<FPCGTaggedData>& Outputs = Context->OutputData.TaggedData;
+
+	// Forward any non-input data
+	Outputs.Append(Context->InputData.GetAllSettings());
+
+	const bool bOutputPinConnected = Context->Node && Context->Node->IsOutputPinConnected(PCGPinConstants::DefaultOutputLabel);
 
 	for (const FPCGTaggedData& Input : Inputs)
 	{
@@ -58,7 +65,27 @@ bool FPCGStaticMeshSpawnerElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
-		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, SpatialData, MeshInstances);
+		UPCGPointData* OutputPointData = nullptr;
+
+		if (bOutputPinConnected || Settings->bForceConnectOutput)
+		{
+			FPCGTaggedData& Output = Outputs.Add_GetRef(Input); 
+			
+			OutputPointData = NewObject<UPCGPointData>();
+			OutputPointData->InitializeFromData(SpatialData);
+
+			if (OutputPointData->Metadata->HasAttribute(Settings->OutAttributeName))
+			{
+				OutputPointData->Metadata->DeleteAttribute(Settings->OutAttributeName);
+				PCGE_LOG(Verbose, "Metadata attribute %s is being overwritten in the output data", *Settings->OutAttributeName.ToString());
+			}
+
+			OutputPointData->Metadata->CreateStringAttribute(Settings->OutAttributeName, FName(NAME_None).ToString(), false);
+
+			Output.Data = OutputPointData;
+		}
+
+		Settings->MeshSelectorInstance->SelectInstances(*Context, Settings, SpatialData, MeshInstances, OutputPointData);
 
 		// Spawn a static mesh for each instance
 		SpawnStaticMeshInstances(Context, MeshInstances, TargetActor);

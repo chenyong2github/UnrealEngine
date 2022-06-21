@@ -10,13 +10,15 @@
 #include "Metadata/PCGMetadataAttributeTraits.h"
 #include "Metadata/PCGMetadataAttributeTpl.h"
 
+#include "Engine/StaticMesh.h"
 #include "Math/RandomStream.h"
 
 void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 	FPCGContext& Context, 
 	const UPCGStaticMeshSpawnerSettings* Settings, 
 	const UPCGSpatialData* InSpatialData,
-	TArray<FPCGMeshInstanceList>& OutMeshInstances) const
+	TArray<FPCGMeshInstanceList>& OutMeshInstances,
+	UPCGPointData* OutPointData) const
 {
 	TArray<int> CumulativeWeights;
 
@@ -49,6 +51,35 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 		return;
 	}
 
+	TArray<FPCGPoint>* OutPoints = nullptr;
+	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
+	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
+
+	if (OutPointData)
+	{
+		check(OutPointData->Metadata);
+
+		if (!OutPointData->Metadata->HasAttribute(Settings->OutAttributeName)) 
+		{
+			PCGE_LOG_C(Error, &Context, "Out attribute %s is not in the metadata", *Settings->OutAttributeName.ToString());
+		}
+
+		FPCGMetadataAttributeBase* OutAttributeBase = OutPointData->Metadata->GetMutableAttribute(Settings->OutAttributeName);
+
+		if (OutAttributeBase)
+		{
+			if (OutAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FString>::Id)
+			{
+				OutAttribute = static_cast<FPCGMetadataAttribute<FString>*>(OutAttributeBase);
+				OutPoints = &OutPointData->GetMutablePoints();
+			}
+			else
+			{
+				PCGE_LOG_C(Error, &Context, "Out attribute is not of valid type FString");
+			}
+		}
+	}
+
 	// Assign points to entries
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
@@ -71,7 +102,26 @@ void UPCGMeshSelectorWeighted::SelectInstances_Implementation(
 
 			if (RandomPick < OutMeshInstances.Num())
 			{
-				OutMeshInstances[RandomPick].Instances.Emplace(Point.Transform);
+				FPCGMeshInstanceList& InstanceList = OutMeshInstances[RandomPick];
+				InstanceList.Instances.Emplace(Point.Transform);
+
+				const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
+
+				if (OutPointData && OutAttribute)
+				{
+					PCGMetadataValueKey* OutValueKey = MeshToValueKey.Find(Mesh);
+					if(!OutValueKey)
+					{
+						PCGMetadataValueKey ValueKey = OutAttribute->AddValue(Mesh.ToSoftObjectPath().ToString());
+						OutValueKey = &MeshToValueKey.Add(Mesh, ValueKey);
+					}
+					
+					check(OutValueKey);
+					
+					FPCGPoint& OutPoint = OutPoints->Add_GetRef(Point);
+					OutPointData->Metadata->InitializeOnSet(OutPoint.MetadataEntry);
+					OutAttribute->SetValueFromValueKey(OutPoint.MetadataEntry, *OutValueKey);
+				}
 			}
 		}
 	}

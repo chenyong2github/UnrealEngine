@@ -11,6 +11,7 @@
 #include "Elements/PCGStaticMeshSpawner.h"
 
 #include "Math/RandomStream.h"
+#include "Engine/StaticMesh.h"
 
 struct FPCGInstancesAndWeights
 {
@@ -22,7 +23,8 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 	FPCGContext& Context,
 	const UPCGStaticMeshSpawnerSettings* Settings,
 	const UPCGSpatialData* InSpatialData,
-	TArray<FPCGMeshInstanceList>& OutMeshInstances) const
+	TArray<FPCGMeshInstanceList>& OutMeshInstances,
+	UPCGPointData* OutPointData) const
 {
 	const UPCGPointData* PointData = InSpatialData->ToPointData(&Context);
 
@@ -117,6 +119,41 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 			InstancesAndWeights->CumulativeWeights.Add(TotalWeight);
 			InstancesAndWeights->InstanceListIndices.Add(Index);
 		}
+
+		// if no weighted entries were collected, discard this InstancesAndWeights
+		if (InstancesAndWeights->CumulativeWeights.Num() == 0)
+		{
+			CategoryEntryToInstancesAndWeights.Remove(ValueKey);
+		}
+	}
+
+	TArray<FPCGPoint>* OutPoints = nullptr;
+	FPCGMetadataAttribute<FString>* OutAttribute = nullptr;
+	TMap<TSoftObjectPtr<UStaticMesh>, PCGMetadataValueKey> MeshToValueKey;
+
+	if (OutPointData)
+	{
+		check(OutPointData->Metadata);
+
+		if (!OutPointData->Metadata->HasAttribute(Settings->OutAttributeName)) 
+		{
+			PCGE_LOG_C(Error, &Context, "Out attribute %s is not in the metadata", *Settings->OutAttributeName.ToString());
+		}
+
+		FPCGMetadataAttributeBase* OutAttributeBase = OutPointData->Metadata->GetMutableAttribute(Settings->OutAttributeName);
+
+		if (OutAttributeBase)
+		{
+			if (OutAttributeBase->GetTypeId() == PCG::Private::MetadataTypes<FString>::Id)
+			{
+				OutAttribute = static_cast<FPCGMetadataAttribute<FString>*>(OutAttributeBase);
+				OutPoints = &OutPointData->GetMutablePoints();
+			}
+			else
+			{
+				PCGE_LOG_C(Error, &Context, "Out attribute is not of valid type FString");
+			}
+		}
 	}
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FPCGStaticMeshSpawnerElement::Execute::SelectEntries);
@@ -160,7 +197,26 @@ void UPCGMeshSelectorWeightedByCategory::SelectInstances_Implementation(
 		if (RandomPick < InstancesAndWeights->InstanceListIndices.Num())
 		{
 			const int32 Index = InstancesAndWeights->InstanceListIndices[RandomPick];
-			OutMeshInstances[Index].Instances.Emplace(Point.Transform);
+			FPCGMeshInstanceList& InstanceList = OutMeshInstances[Index];
+			InstanceList.Instances.Emplace(Point.Transform);
+
+			const TSoftObjectPtr<UStaticMesh>& Mesh = InstanceList.Mesh;
+
+			if (OutPointData && OutAttribute)
+			{
+				PCGMetadataValueKey* OutValueKey = MeshToValueKey.Find(Mesh);
+				if(!OutValueKey)
+				{
+					PCGMetadataValueKey TempValueKey = OutAttribute->AddValue(Mesh.ToSoftObjectPath().ToString());
+					OutValueKey = &MeshToValueKey.Add(Mesh, TempValueKey);
+				}
+				
+				check(OutValueKey);
+				
+				FPCGPoint& OutPoint = OutPoints->Add_GetRef(Point);
+				OutPointData->Metadata->InitializeOnSet(OutPoint.MetadataEntry);
+				OutAttribute->SetValueFromValueKey(OutPoint.MetadataEntry, *OutValueKey);
+			}
 		}
 	}
 }
