@@ -11,9 +11,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public PixelStreamingPlayer(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-			PrivatePCHHeaderFile = "Private/PCH.h";
-
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 			PublicIncludePaths.AddRange(
