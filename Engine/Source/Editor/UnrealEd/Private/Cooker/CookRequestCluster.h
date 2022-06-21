@@ -298,7 +298,7 @@ private:
 	bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData);
 	static bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData,
 		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
-		FStringView InDLCPath, bool bInErrorOnEngineContentUse, TConstArrayView<const ITargetPlatform*> RequestPlatforms);
+		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences, TConstArrayView<const ITargetPlatform*> RequestPlatforms);
 
 	TArray<FFileNameRequest> InRequests;
 	TArray<FPackageData*> Requests;
@@ -317,6 +317,7 @@ private:
 	bool bAllowSoftDependencies = true;
 	bool bHybridIterativeEnabled = true;
 	bool bErrorOnEngineContentUse = false;
+	bool bAllowUncookedAssetReferences = false;
 	bool bPackageNamesComplete = false;
 	bool bDependenciesComplete = false;
 	bool bStartAsyncComplete = false;

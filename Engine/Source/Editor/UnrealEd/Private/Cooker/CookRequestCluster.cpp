@@ -129,9 +129,11 @@ void FRequestCluster::AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& U
 	};
 
 	bool bErrorOnEngineContentUse = false;
+	bool bAllowUncookedAssetReferences = false;
 	UE::Cook::FCookByTheBookOptions& Options = *COTFS.CookByTheBookOptions;
 	FString DLCPath;
 	bErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
+	bAllowUncookedAssetReferences = Options.bAllowUncookedAssetReferences;
 	if (bErrorOnEngineContentUse)
 	{
 		DLCPath = FPaths::Combine(*COTFS.GetBaseDirectoryForDLC(), TEXT("Content"));
@@ -153,7 +155,7 @@ void FRequestCluster::AddClusters(UCookOnTheFlyServer& COTFS, FPackageDataSet& U
 		// a cluster
 		PackageData->GetRequestedPlatforms(RequestedPlatforms);
 		if (!IsRequestCookable(PackageData->GetPackageName(), PackageData, *COTFS.PackageDatas, *COTFS.PackageTracker,
-			DLCPath, bErrorOnEngineContentUse, RequestedPlatforms))
+			DLCPath, bErrorOnEngineContentUse, bAllowUncookedAssetReferences, RequestedPlatforms))
 		{
 			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
 			continue;
@@ -192,6 +194,7 @@ void FRequestCluster::Initialize(UCookOnTheFlyServer& COTFS)
 		bAllowHardDependencies = !Options.bSkipHardReferences;
 		bAllowSoftDependencies = !Options.bSkipSoftReferences;
 		bErrorOnEngineContentUse = Options.bErrorOnEngineContentUse;
+		bAllowUncookedAssetReferences = Options.bAllowUncookedAssetReferences;
 	}
 	else
 	{
@@ -1093,12 +1096,12 @@ TMap<FPackageData*, TArray<FPackageData*>>& FRequestCluster::FGraphSearch::GetGr
 bool FRequestCluster::IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData)
 {
 	return IsRequestCookable(PackageName, InOutPackageData, PackageDatas, PackageTracker,
-		DLCPath, bErrorOnEngineContentUse, GetPlatforms());
+		DLCPath, bErrorOnEngineContentUse, bAllowUncookedAssetReferences, GetPlatforms());
 }
 
 bool FRequestCluster::IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData,
 	FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
-	FStringView InDLCPath, bool bInErrorOnEngineContentUse, TConstArrayView<const ITargetPlatform*> RequestPlatforms)
+	FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences, TConstArrayView<const ITargetPlatform*> RequestPlatforms)
 {
 	TStringBuilder<256> NameBuffer;
 	// We need to reject packagenames from adding themselves or their transitive dependencies using all the same rules that
@@ -1134,7 +1137,12 @@ bool FRequestCluster::IsRequestCookable(FName PackageName, FPackageData*& InOutP
 		{
 			if (!InOutPackageData->HasAllCookedPlatforms(RequestPlatforms, true /* bIncludeFailed */))
 			{
-				UE_LOG(LogCook, Error, TEXT("Uncooked Engine or Game content %s is being referenced by DLC!"), *NameBuffer);
+				// AllowUncookedAssetReferences should only be used when the DLC plugin to cook is going to be mounted where uncooked packages are available.
+				// This will allow a DLC plugin to be recooked continually and mounted in an uncooked editor which is useful for CI.
+				if (!bInAllowUncookedAssetReferences)
+				{
+					UE_LOG(LogCook, Error, TEXT("Uncooked Engine or Game content %s is being referenced by DLC!"), *NameBuffer);
+				}
 			}
 			return false;
 		}
