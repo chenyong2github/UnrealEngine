@@ -15,6 +15,8 @@ namespace TraceServices
 class FDefinitionProvider : public IDefinitionProvider
 {
 public:
+	static const FName ProviderName;
+	
 	FDefinitionProvider(IAnalysisSession* InSession);
 
 	virtual void BeginEdit() const override { Lock.WriteLock(); };

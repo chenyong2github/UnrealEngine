@@ -4,6 +4,7 @@
 #include "Analyzers/AllocationsAnalysis.h"
 #include "Analyzers/CallstacksAnalysis.h"
 #include "Analyzers/MemoryAnalysis.h"
+#include "Analyzers/MetadataAnalysis.h"
 #include "Analyzers/ModuleAnalysis.h"
 #include "Model/AllocationsProvider.h"
 #include "Model/CallstacksProvider.h"
@@ -39,11 +40,13 @@ void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 	// Metadata
 	FMetadataProvider* MetadataProvider = new FMetadataProvider(Session);
 	Session.AddProvider(GetMetadataProviderName(), MetadataProvider);
-
+	Session.AddAnalyzer(new FMetadataAnalysis(Session, MetadataProvider));
+	
 	// Allocations
 	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session, *MetadataProvider);
 	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider);
 	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider, *MetadataProvider));
+
 }
 
 void FMemoryModule::GetLoggers(TArray<const TCHAR*>& OutLoggers)

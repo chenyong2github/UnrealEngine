@@ -10,7 +10,6 @@ class FName;
 namespace TraceServices
 {
 
-class IAnalyzer;
 class IAnalysisSession;
 extern TRACESERVICES_API const FName ModuleFeatureName;
 

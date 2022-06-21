@@ -24,6 +24,7 @@
 #include "Experimental/ConcurrentLinearAllocator.h"
 #include "Misc/MemStack.h"
 #include "Templates/Atomic.h"
+#include "ProfilingDebugging/MetadataTrace.h"
 
 #include "Async/Fundamental/Task.h"
 
@@ -816,6 +817,9 @@ protected:
 #if UE_MEMORY_TAGS_TRACE_ENABLED
 		InheritedTraceTag = MemoryTrace_GetActiveTag();
 #endif
+#if UE_TRACE_METADATA_ENABLED
+		InheritedMetadataId = UE_TRACE_METADATA_SAVE_STACK();
+#endif
 		LLM(InheritedLLMTag = FLowLevelMemTracker::bIsDisabled ? nullptr : FLowLevelMemTracker::Get().GetActiveTagData(ELLMTracker::Default));
 	}
 	/** 
@@ -929,6 +933,7 @@ private:
 	{
 		LLM_SCOPE(InheritedLLMTag);
 		UE_MEMSCOPE(InheritedTraceTag);
+		UE_TRACE_METADATA_RESTORE_STACK(InheritedMetadataId);
 		checkThreadGraph(LifeStage.Increment() == int32(LS_Executing));
 		ExecuteTask(NewTasks, CurrentThread, bDeleteOnCompletion);
 	}
@@ -970,6 +975,9 @@ private:
 #endif
 #if UE_MEMORY_TAGS_TRACE_ENABLED
 	int32 InheritedTraceTag;
+#endif
+#if UE_TRACE_METADATA_ENABLED
+	uint32 InheritedMetadataId;
 #endif
 	LLM(const UE::LLMPrivate::FTagData* InheritedLLMTag);
 

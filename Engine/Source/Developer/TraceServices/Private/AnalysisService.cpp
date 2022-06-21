@@ -2,24 +2,24 @@
 
 #include "TraceServices/AnalysisService.h"
 #include "AnalysisServicePrivate.h"
-#include "Trace/Analyzer.h"
-#include "Trace/Analysis.h"
-#include "Trace/DataStream.h"
-#include "HAL/PlatformFile.h"
-#include "Analyzers/MiscTraceAnalysis.h"
-#include "Analyzers/LogTraceAnalysis.h"
-#include "Math/RandomStream.h"
 #include "ModuleServicePrivate.h"
-#include "Model/LogPrivate.h"
-#include "Model/FramesPrivate.h"
+#include "Analyzers/LogTraceAnalysis.h"
+#include "Analyzers/MiscTraceAnalysis.h"
+#include "Analyzers/StringsAnalyzer.h"
+#include "HAL/PlatformFile.h"
 #include "Model/BookmarksPrivate.h"
-#include "Model/ThreadsPrivate.h"
-#include "Model/CountersPrivate.h"
-#include "Model/NetProfilerProvider.h"
-#include "Model/MemoryPrivate.h"
 #include "Model/Channel.h"
-#include "Model/DiagnosticsPrivate.h"
+#include "Model/CountersPrivate.h"
+#include "Model/DefinitionProvider.h"
+#include "Model/FramesPrivate.h"
+#include "Model/LogPrivate.h"
+#include "Model/MemoryPrivate.h"
+#include "Model/NetProfilerProvider.h"
 #include "Model/ScreenshotProviderPrivate.h"
+#include "Model/ThreadsPrivate.h"
+#include "Trace/Analysis.h"
+#include "Trace/Analyzer.h"
+#include "Trace/DataStream.h"
 
 namespace TraceServices
 {
@@ -246,6 +246,11 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceI
 
 	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider, *ScreenshotProvider));
 	Session->AddAnalyzer(new FLogTraceAnalyzer(*Session, *LogProvider));
+
+	Session->AddAnalyzer(new FStringsAnalyzer(*Session));
+
+	FDefinitionProvider* DefProvider = new FDefinitionProvider(&Session.Get());
+	Session->AddProvider(FDefinitionProvider::ProviderName, DefProvider);
 
 	ModuleService.OnAnalysisBegin(*Session);
 

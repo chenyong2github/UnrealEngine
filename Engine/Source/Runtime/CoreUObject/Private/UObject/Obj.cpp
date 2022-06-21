@@ -62,11 +62,9 @@
 #include "Misc/ScopeRWLock.h"
 #include "Misc/PackageAccessTracking.h"
 #include "Misc/PackageAccessTrackingOps.h"
+#include "ProfilingDebugging/AssetMetadataTrace.h"
 
 DEFINE_LOG_CATEGORY(LogObj);
-
-/** Stat group for dynamic objects cycle counters*/
-
 
 /*-----------------------------------------------------------------------------
 	Globals.
@@ -1112,6 +1110,7 @@ void UObject::ConditionalPostLoad()
 				UE_SCOPED_COOK_STAT(Package->GetFName(), EPackageEventStatType::LoadPackage);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(Package, ELLMTagSet::Assets);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass(), ELLMTagSet::AssetClasses);
+				UE_TRACE_METADATA_SCOPE_ASSET(Package, GetClass());
 
 				PostLoad();
 

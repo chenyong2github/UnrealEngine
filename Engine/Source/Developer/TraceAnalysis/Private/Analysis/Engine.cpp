@@ -888,6 +888,20 @@ const void* IAnalyzer::FEventData::GetReferenceValueImpl(const char* FieldName, 
 	return nullptr;
 }
 
+////////////////////////////////////////////////////////////////////////////////
+const void* IAnalyzer::FEventData::GetReferenceValueImpl(uint32 FieldIndex, uint32& OutTypeUid) const
+{
+	const auto* Info = (const FEventDataInfo*)this;
+	const auto& Dispatch = Info->Dispatch;
+	const auto& Field = Dispatch.Fields[FieldIndex];
+	if (Field.RefUid)
+	{
+		OutTypeUid = Field.RefUid;
+		return (Info->Ptr + Field.Offset);
+	}
+	return nullptr;
+}
+
 // }}}
 
 
