@@ -2637,8 +2637,6 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 		for (int i = 0; i < VFTypes.Num(); ++i)
 		{
 			const FVertexFactoryType* VFType = VFTypes[i];
-			check(VFType);
-
 			const FShaderPipelineType* PipelineType = PipelineTypes[i];
 			const FShaderType* ShaderType = ShaderTypes[i];
 
@@ -2658,10 +2656,22 @@ void FMaterial::CacheGivenTypes(EShaderPlatform Platform, const TArray<const FVe
 					nullptr,
 					nullptr);
 			}
-			else if (ShaderType)
+			else if (ShaderType->GetTypeForDynamicCast() == FShaderType::EShaderTypeForDynamicCast::Material)
 			{
-				check(ShaderType->AsMeshMaterialShaderType());
-
+				ShaderType->AsMaterialShaderType()->BeginCompileShader(
+					EShaderCompileJobPriority::ForceLocal,
+					GetGameThreadCompilingShaderMapId(),
+					0,
+					this,
+					GameThreadPendingCompilerEnvironment,
+					Platform,
+					GameThreadShaderMap->GetPermutationFlags(),
+					CompileJobs,
+					nullptr,
+					nullptr);
+			}
+			else if (ShaderType->GetTypeForDynamicCast() == FShaderType::EShaderTypeForDynamicCast::MeshMaterial)
+			{
 				ShaderType->AsMeshMaterialShaderType()->BeginCompileShader(
 					EShaderCompileJobPriority::ForceLocal,
 					GetGameThreadCompilingShaderMapId(),

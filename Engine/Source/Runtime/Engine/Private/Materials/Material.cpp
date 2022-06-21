@@ -5052,33 +5052,35 @@ void UMaterial::CompileODSCMaterialsForRemoteRecompile(TArray<FODSCRequestPayloa
 			const FVertexFactoryType* VFType = FVertexFactoryType::GetVFByName(payload.VertexFactoryName);
 			const FShaderPipelineType* PipelineType = FShaderPipelineType::GetShaderPipelineTypeByName(payload.PipelineName);
 
+			Shaders.ShaderPlatform = payload.ShaderPlatform;
+			Shaders.FeatureLevel = payload.FeatureLevel;
+			Shaders.QualityLevel = payload.QualityLevel;
+
 			if (VFType)
 			{
 				UE_LOG(LogShaders, Display, TEXT("VF Type:     %s "), *payload.VertexFactoryName);
-				Shaders.ShaderPlatform = payload.ShaderPlatform;
-				Shaders.FeatureLevel = payload.FeatureLevel;
-				Shaders.QualityLevel = payload.QualityLevel;
+			}
+
+			if (PipelineType)
+			{
+				UE_LOG(LogShaders, Display, TEXT("Pipeline Type: %s"), *payload.PipelineName);
+
 				Shaders.VFTypes.Add(VFType);
-
-				if (PipelineType)
+				Shaders.PipelineTypes.Add(PipelineType);
+				Shaders.ShaderTypes.Add(nullptr);
+			}
+			else
+			{
+				for (const FString& ShaderTypeName : payload.ShaderTypeNames)
 				{
-					UE_LOG(LogShaders, Display, TEXT("Pipeline Type: %s"), *payload.PipelineName);
-
-					Shaders.PipelineTypes.Add(PipelineType);
-					Shaders.ShaderTypes.Add(nullptr);
-				}
-				else
-				{
-					for (const FString& ShaderTypeName : payload.ShaderTypeNames)
+					const FShaderType* ShaderType = FShaderType::GetShaderTypeByName(*ShaderTypeName);
+					if (ShaderType)
 					{
-						const FShaderType* ShaderType = FShaderType::GetShaderTypeByName(*ShaderTypeName);
-						if (ShaderType)
-						{
-							UE_LOG(LogShaders, Display, TEXT("\tShader Type: %s"), *ShaderTypeName);
+						UE_LOG(LogShaders, Display, TEXT("\tShader Type: %s"), *ShaderTypeName);
 
-							Shaders.PipelineTypes.Add(nullptr);
-							Shaders.ShaderTypes.Add(ShaderType);
-						}
+						Shaders.VFTypes.Add(VFType);
+						Shaders.PipelineTypes.Add(nullptr);
+						Shaders.ShaderTypes.Add(ShaderType);
 					}
 				}
 			}
