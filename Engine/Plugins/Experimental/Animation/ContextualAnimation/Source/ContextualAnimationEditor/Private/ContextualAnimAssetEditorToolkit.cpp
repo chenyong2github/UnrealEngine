@@ -455,11 +455,7 @@ TSharedRef<SDockTab> FContextualAnimAssetEditorToolkit::SpawnTab_PreviewSettings
 
 void FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
-	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
-	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
-
-	UE_LOG(LogContextualAnim, Log, TEXT("FContextualAnimAssetEditorToolkit::OnFinishedChangingProperties MemberPropertyName: %s PropertyName: %s"), 
-		*MemberPropertyName.ToString(), *PropertyName.ToString());
+	ViewModel->OnFinishedChangingProperties(PropertyChangedEvent);
 }
 
 #undef LOCTEXT_NAMESPACE

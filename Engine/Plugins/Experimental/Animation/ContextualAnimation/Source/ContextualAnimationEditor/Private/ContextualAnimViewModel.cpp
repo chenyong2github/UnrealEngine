@@ -237,6 +237,7 @@ void FContextualAnimViewModel::SetDefaultMode()
 
 	if (!SceneAsset->Sections.IsValidIndex(ActiveSectionIdx))
 	{
+		RefreshPreviewScene();
 		return;
 	}
 
@@ -342,7 +343,9 @@ void FContextualAnimViewModel::RefreshPreviewScene()
 {
 	if (SceneInstance.IsValid())
 	{
-		SceneInstance->Stop();
+		SceneInstance->GetBindings().Reset();
+		ContextualAnimManager->OnSceneInstanceEnded(SceneInstance.Get());
+		SceneInstance.Reset();
 	}
 
 	if (StartSceneParams.RoleToActorMap.Num() > 0)
@@ -878,4 +881,18 @@ FVector FContextualAnimViewModel::GetWidgetLocationFromSelection() const
 	}
 
 	return FVector::ZeroVector;
+}
+
+void FContextualAnimViewModel::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	const FName PropertyName = (PropertyChangedEvent.Property != nullptr) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+	const FName MemberPropertyName = (PropertyChangedEvent.MemberProperty != nullptr) ? PropertyChangedEvent.MemberProperty->GetFName() : NAME_None;
+
+	// Refresh the time line if the Sections array or the AnimSets array inside a section changes
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, Sections) &&
+		(PropertyName == GET_MEMBER_NAME_CHECKED(UContextualAnimSceneAsset, Sections) ||
+			PropertyName == GET_MEMBER_NAME_CHECKED(FContextualAnimSceneSection, AnimSets)))
+	{
+		SetDefaultMode();
+	}
 }
