@@ -57,6 +57,8 @@ IMemoryCacheStore* CreateMemoryCacheStore(const TCHAR* Name, int64 MaxCacheSize,
 IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting, bool bCompressed);
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
+ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache);
+bool TryLoadCacheStoreReplay(ILegacyCacheStore* TargetCache, const TCHAR* ReplayPath, const TCHAR* PriorityName = nullptr);
 
 /**
  * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -85,10 +87,14 @@ public:
 			TEXT("DDC.MountPak"),
 			*LOCTEXT("CommandText_DDCMountPak", "Mounts read-only pak file").ToString(),
 			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FDerivedDataBackendGraph::MountPakCommandHandler))
-		, UnountPakCommand(
+		, UnmountPakCommand(
 			TEXT("DDC.UnmountPak"),
 			*LOCTEXT("CommandText_DDCUnmountPak", "Unmounts read-only pak file").ToString(),
 			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FDerivedDataBackendGraph::UnmountPakCommandHandler))
+		, LoadReplayCommand(
+			TEXT("DDC.LoadReplay"),
+			*LOCTEXT("CommandText_DDCLoadReplay", "Loads a cache replay file created by -DDC-ReplaySave=<Path>").ToString(),
+			FConsoleCommandWithArgsDelegate::CreateRaw(this, &FDerivedDataBackendGraph::LoadReplayCommandHandler))
 	{
 		check(!StaticGraph);
 		StaticGraph = this;
@@ -186,12 +192,19 @@ public:
 		{
 			FString VerifyArg;
 			if (FParse::Value(FCommandLine::Get(), TEXT("-DDC-Verify="), VerifyArg) ||
-				FParse::Param(FCommandLine::Get(), TEXT("-DDC-Verify")))
+				FParse::Param(FCommandLine::Get(), TEXT("DDC-Verify")))
 			{
 				VerifyNode = CreateCacheStoreVerify(RootNode.Key, /*bPutOnError*/ false);
 				CreatedNodes.AddUnique(VerifyNode);
 				RootNode.Key = VerifyNode;
 			}
+		}
+
+		// Create a Replay node when requested on the command line.
+		if (ILegacyCacheStore* ReplayNode = TryCreateCacheStoreReplay(RootNode.Key))
+		{
+			CreatedNodes.AddUnique(ReplayNode);
+			RootNode.Key = ReplayNode;
 		}
 
 		if (MaxKeyLength == 0)
@@ -1086,6 +1099,23 @@ private:
 		MountPakFile(*Args[0]);
 	}
 
+	void LoadReplayCommandHandler(const TArray<FString>& Args)
+	{
+		if (Args.Num() < 1)
+		{
+			UE_LOG(LogDerivedDataCache, Log, TEXT("Usage: DDC.LoadReplay ReplayPath [Priority=<Name>]"));
+			return;
+		}
+
+		FString PriorityName;
+		for (int32 ArgIndex = 1; ArgIndex < Args.Num(); ++ArgIndex)
+		{
+			FParse::Value(*Args[ArgIndex], TEXT("Priority="), PriorityName);
+		}
+
+		TryLoadCacheStoreReplay(RootCache, *Args[0], *PriorityName);
+	}
+
 	static inline FDerivedDataBackendGraph*			StaticGraph;
 
 	FThreadSafeCounter								AsyncCompletionCounter;
@@ -1127,7 +1157,9 @@ private:
 	/** MountPak console command */
 	FAutoConsoleCommand MountPakCommand;
 	/** UnmountPak console command */
-	FAutoConsoleCommand UnountPakCommand;
+	FAutoConsoleCommand UnmountPakCommand;
+
+	FAutoConsoleCommand LoadReplayCommand;
 };
 
 } // UE::DerivedData
