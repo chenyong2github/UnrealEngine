@@ -121,10 +121,10 @@ void DisplacementShader( FStaticMeshBuildVertex& Vertex, TArrayView< FDisplaceme
 	if( DisplacementIndex < DisplacementMaps.Num() )
 		Displacement = DisplacementMaps[ DisplacementIndex ].Sample( Vertex.UVs[0] );
 
-	Vertex.TangentX.Normalize();
 	Vertex.TangentZ.Normalize();
 
 	Vertex.Position += Vertex.TangentX * Displacement;
+	Vertex.TangentX.Normalize();
 }
 
 FORCEINLINE uint32 HashPosition( const FVector3f& Position )
