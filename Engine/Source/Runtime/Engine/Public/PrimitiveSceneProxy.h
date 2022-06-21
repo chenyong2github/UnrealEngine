@@ -130,14 +130,18 @@ extern bool CacheShadowDepthsFromPrimitivesUsingWPO();
 
 enum class ERayTracingPrimitiveFlags : uint8
 {
-	// Visibility flags
+	// Visibility flags:
+
 	// This type of geometry is not supported in ray tracing and all proxies will be excluded
 	// If a proxy decides to return UnsupportedProxyType it must be consistent across all proxies of this type
+	// This value is used for primitives that return false from FPrimitiveSceneProxy::IsRayTracingRelevant().
 	UnsupportedProxyType = 0 << 0,
+
 	// This scene proxy will be excluded, because it decides to be invisible in ray tracing (probably due to other flags)
 	Excluded = 1 << 0,
 
-	// Caching flags
+	// Caching flags:
+
 	// Fully dynamic (the ray tracing representation of this scene proxy will be polled every frame)
 	Dynamic = 1 << 1,
 	// Ray tracing mesh commmands generated from this proxy's materials can be cached
@@ -145,7 +149,8 @@ enum class ERayTracingPrimitiveFlags : uint8
 	// Instances from this proxy can be cached
 	CacheInstances = 1 << 3,
 
-	// Misc flags
+	// Misc flags:
+
 	// Static meshes with multiple LODs will want to select a LOD index based on screen size
 	ComputeLOD = 1 << 4, 
 

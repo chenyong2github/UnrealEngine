@@ -664,19 +664,23 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
+		// Index into the TypeOffsetTable, which contains a prefix sum of primitive indices by proxy type
 		int32 BroadIndex = 0;
 
 		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene->PrimitiveSceneProxies.Num(); PrimitiveIndex++)
 		{
+			// Find the next TypeOffsetTable entry that's relevant to this primitive idnex.
 			while (PrimitiveIndex >= int(Scene->TypeOffsetTable[BroadIndex].Offset))
 			{
 				BroadIndex++;
 			}
 
 			// Skip before dereferencing SceneInfo
-			if (EnumHasAnyFlags(Scene->PrimitiveRayTracingFlags[PrimitiveIndex], ERayTracingPrimitiveFlags::UnsupportedProxyType))
+			if (Scene->PrimitiveRayTracingFlags[PrimitiveIndex] == ERayTracingPrimitiveFlags::UnsupportedProxyType)
 			{
-				//skip over unsupported SceneProxies (warning don't make IsRayTracingRelevant data dependent other than the vtable)
+				// Find the index of a proxy of the next type, skipping over a batch of proxies that are the same type as current.
+				// This assumes that FPrimitiveSceneProxy::IsRayTracingRelevant() is consistent for all proxies of the same type.
+				// I.e. does not depend on members of the particular FPrimitiveSceneProxy implementation.
 				PrimitiveIndex = Scene->TypeOffsetTable[BroadIndex].Offset - 1;
 				continue;
 			}
