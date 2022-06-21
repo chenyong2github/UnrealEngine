@@ -265,6 +265,32 @@ FArchive& operator<<(FArchive& Ar, FCbObject& Object)
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool LoadFromCompactBinary(FCbFieldView Field, FUtf8StringBuilderBase& OutValue)
+{
+	OutValue << Field.AsString();
+	return !Field.HasError();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FWideStringBuilderBase& OutValue)
+{
+	OutValue << Field.AsString();
+	return !Field.HasError();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FGuid& OutValue)
+{
+	OutValue = Field.AsUuid();
+	return !Field.HasError();
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FGuid& OutValue, const FGuid& Default)
+{
+	OutValue = Field.AsUuid(Default);
+	return !Field.HasError();
+}
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
 class FCbJsonWriter
 {
 public:
