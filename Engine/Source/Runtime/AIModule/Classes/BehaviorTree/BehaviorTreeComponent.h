@@ -31,7 +31,7 @@ struct FBTNodeExecutionInfo
 	FBTNodeIndex SearchEnd;
 
 	/** node to be executed */
-	UBTCompositeNode* ExecuteNode;
+	const UBTCompositeNode* ExecuteNode;
 
 	/** subtree index */
 	uint16 ExecuteInstanceIdx;
@@ -78,7 +78,7 @@ struct FBTTreeStartInfo
 	bool HasPendingInitialize() const { return bPendingInitialize && IsSet(); }
 };
 
-enum class EBTBranchAction : uint8
+enum class EBTBranchAction : uint16
 {
 	None = 0x0,
 	DecoratorEvaluate = 0x1,
@@ -89,8 +89,10 @@ enum class EBTBranchAction : uint8
 	UnregisterAuxNodes = 0x10,
 	StopTree_Safe = 0x20,
 	StopTree_Forced = 0x40,
+	ActiveNodeEvaluate = 0x80,
+	SubTreeEvaluate = 0x100,
 	StopTree = StopTree_Safe | StopTree_Forced,
-	All = DecoratorEvaluate | DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting | DecoratorDeactivate | UnregisterAuxNodes | StopTree_Safe | StopTree_Forced,
+	All = DecoratorEvaluate | DecoratorActivate_IfNotExecuting | DecoratorActivate_EvenIfExecuting | DecoratorDeactivate | UnregisterAuxNodes | StopTree_Safe | StopTree_Forced | ActiveNodeEvaluate | SubTreeEvaluate,
 };
 ENUM_CLASS_FLAGS(EBTBranchAction);
 
@@ -137,20 +139,23 @@ public:
 	void RestartTree();
 
 	/** request execution change */
-	void RequestExecution(UBTCompositeNode* RequestedOn, int32 InstanceIdx, 
+	void RequestExecution(const UBTCompositeNode* RequestedOn, int32 InstanceIdx, 
 		const UBTNode* RequestedBy, int32 RequestedByChildIndex,
 		EBTNodeResult::Type ContinueWithResult, bool bStoreForDebugger = true);
 
-	/** request execution change: helpers for decorator nodes */
-	void RequestExecution(const UBTDecorator* RequestedBy);
+	/** replaced by the RequestBranchEvaluation from decorator*/
+	void RequestExecution(const UBTDecorator* RequestedBy) { check(RequestedBy); RequestBranchEvaluation(*RequestedBy); }
 
-	/** request execution change: helpers for task nodes */
-	void RequestExecution(EBTNodeResult::Type ContinueWithResult);
+	/** replaced by RequestBranchEvaluation with EBTNodeResult */
+	void RequestExecution(EBTNodeResult::Type ContinueWithResult) { RequestBranchEvaluation(ContinueWithResult); }
 
 	/** request unregistration of aux nodes in the specified branch */
 	UE_DEPRECATED(5.0, "This function is deprecated. Please use RequestBranchDeactivation instead.")
 	void RequestUnregisterAuxNodesInBranch(const UBTCompositeNode* Node);
-		
+
+	/** request branch evaluation: helper for active node (ex: tasks) */
+	void RequestBranchEvaluation(EBTNodeResult::Type ContinueWithResult);
+
 	/** request branch evaluation: helper for decorator */
 	void RequestBranchEvaluation(const UBTDecorator& RequestedBy);
 
@@ -291,15 +296,24 @@ protected:
 
 	struct FBranchActionInfo
 	{
+		FBranchActionInfo(const EBTBranchAction InAction)
+			: Action(InAction)
+		{}
 		FBranchActionInfo(const UBTNode* InNode, const EBTBranchAction InAction)
 			: Node(InNode)
 			, Action(InAction)
 		{}
-		const UBTNode* Node;
+		FBranchActionInfo(const UBTNode* InNode, EBTNodeResult::Type InContinueWithResult, const EBTBranchAction InAction)
+			: Node(InNode)
+			, ContinueWithResult(InContinueWithResult)
+			, Action(InAction)
+		{}
+		const UBTNode* Node = nullptr;
+		EBTNodeResult::Type ContinueWithResult = EBTNodeResult::Succeeded;
 		EBTBranchAction Action;
 	};
 
-	/* Type of supended branch action */
+	/* Type of suspended branch action */
 	EBTBranchAction SuspendedBranchActions;
 
 	/** list of all pending branch action requests */
@@ -394,7 +408,7 @@ protected:
 	void ExecuteTask(UBTTaskNode* TaskNode);
 
 	/** deactivate all nodes up to requested one */
-	bool DeactivateUpTo(UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex);
+	bool DeactivateUpTo(const UBTCompositeNode* Node, uint16 NodeInstanceIdx, EBTNodeResult::Type& NodeResult, int32& OutLastDeactivatedChildIndex);
 
 	/** returns true if execution was waiting on latent aborts and they are all finished;  */
 	bool TrackPendingLatentAborts();
@@ -443,7 +457,10 @@ protected:
 	/** Return NodeA's relative priority in regards to NodeB */
 	EBTNodeRelativePriority CalculateRelativePriority(const UBTNode* NodeA, const UBTNode* NodeB) const;
 
-	/** Activate a branch as the decorator conditions have changed */
+	/** Evaluate a branch as current active node is finished */
+	void EvaluateBranch(EBTNodeResult::Type LastResult);
+
+	/** Evaluate a branch as the decorator conditions have changed */
 	void EvaluateBranch(const UBTDecorator& RequestedBy);
 
 	/** Activate a branch as the decorator conditions are now passing */
