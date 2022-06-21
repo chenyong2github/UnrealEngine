@@ -11,6 +11,7 @@
 #include "Misc/Paths.h"
 #include "PerforceSourceControlProvider.h"
 #include "PerforceSourceControlSettings.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 
 #define LOCTEXT_NAMESPACE "PerforceConnection"
 
@@ -355,6 +356,8 @@ public:
 
 static bool TestLoginConnection(FPerforceSourceControlProvider& SCCProvider, ClientApi& P4Client, bool bIsUnicodeServer, TArray<FText>& OutErrorMessages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforce::TestLoginConnection);
+
 	FP4RecordSet Records;
 	EP4ClientUserFlags Flags = bIsUnicodeServer ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
 	FP4ClientUser User(Records, Flags, OutErrorMessages);
@@ -375,6 +378,8 @@ static bool TestLoginConnection(FPerforceSourceControlProvider& SCCProvider, Cli
  */
 static bool TestClientConnection(FPerforceSourceControlProvider& SCCProvider, ClientApi& P4Client, const FString& ClientSpecName, bool bIsUnicodeServer, TArray<FText>& OutErrorMessages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforce::TestClientConnection);
+
 	FP4RecordSet Records;
 	EP4ClientUserFlags Flags = bIsUnicodeServer ? EP4ClientUserFlags::UnicodeServer : EP4ClientUserFlags::None;
 	FP4ClientUser User(Records, Flags, OutErrorMessages);
@@ -705,6 +710,8 @@ bool FPerforceConnection::EnsureValidConnection(FString& InOutServerName, FStrin
 
 bool FPerforceConnection::GetWorkspaceList(const FPerforceConnectionInfo& InConnectionInfo, FOnIsCancelled InOnIsCanceled, TArray<FString>& OutWorkspaceList, TArray<FText>& OutErrorMessages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceConnection::GetWorkspaceList)
+
 	if(bEstablishedConnection)
 	{
 		TArray<FString> Params;
@@ -813,6 +820,8 @@ bool FPerforceConnection::RunCommand(	const FString& InCommand, const TArray<FSt
 										TOptional<FSharedBuffer>& OutData, TArray<FText>& OutErrorMessage, 
 										FOnIsCancelled InIsCancelled, bool& OutConnectionDropped, ERunCommandFlags RunFlags)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FPerforceConnection::RunCommand_%s"), *InCommand));
+
 	if (!bEstablishedConnection)
 	{
 		return false;
@@ -968,6 +977,8 @@ int32 FPerforceConnection::EditPendingChangelist(const FText& NewDescription, in
 
 bool FPerforceConnection::CreateWorkspace(FStringView WorkspaceSpec, FOnIsCancelled InIsCancelled, TArray<FText>& OutErrorMessages)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceConnection::CreateWorkspace);
+
 	TArray<FString> Params;
 	FP4RecordSet Records;
 
@@ -992,6 +1003,8 @@ bool FPerforceConnection::CreateWorkspace(FStringView WorkspaceSpec, FOnIsCancel
 
 void FPerforceConnection::EstablishConnection(const FPerforceConnectionInfo& InConnectionInfo)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceConnection::EstablishConnection);
+
 	// Verify Input. ServerName and UserName are required
 	if ( InConnectionInfo.Port.IsEmpty() || InConnectionInfo.UserName.IsEmpty() )
 	{
