@@ -53,6 +53,26 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGTextureColorChannel ColorChannel = EPCGTextureColorChannel::Alpha;
 
+	/** Whether to tile the source or to stretch it to fit target area. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
+	bool bStretchToFit = true;
+
+	/** The size of one texel in cm. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "1.0", ClampMin = "1.0", EditCondition = "!bStretchToFit"))
+	float TexelSize = 50;
+
+	/** X Offset factor to apply when sampling texture (Factor of texture dimension). */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "0.0", ClampMin = "0.0", UIMax = "1.0", ClampMax = "1.0", DisplayName = "X Offset", EditCondition = "!bStretchToFit"))
+	float XOffset = 0;
+
+	/** Y Offset factor to apply when sampling texture (Factor of texture dimension). */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = "0.0", ClampMin = "0.0", UIMax = "1.0", ClampMax = "1.0", DisplayName = "Y Offset", EditCondition = "!bStretchToFit"))
+	float YOffset = 0;
+
+	/** Rotation to apply when sampling texture. */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings, meta = (UIMin = 0, ClampMin = 0, UIMax = 359, ClampMax = 359, Units = deg, EditCondition = "!bStretchToFit"))
+	float Rotation = 0;
+
 protected:
 	UPROPERTY()
 	TArray<FLinearColor> ColorData;

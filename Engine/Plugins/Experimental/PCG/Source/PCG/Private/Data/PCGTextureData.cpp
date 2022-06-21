@@ -9,7 +9,7 @@
 namespace PCGTextureSampling
 {
 	template<typename ValueType>
-	ValueType Sample(const FVector2D& InPosition, const FBox2D& InSurface, int32 Width, int32 Height, TFunctionRef<ValueType(int32 Index)> SamplingFunction)
+	ValueType Sample(const FVector2D& InPosition, const FBox2D& InSurface, const UPCGBaseTextureData* InTextureData, int32 Width, int32 Height, TFunctionRef<ValueType(int32 Index)> SamplingFunction)
 	{
 		check(Width > 0 && Height > 0);
 		if (Width <= 0 || Height <= 0)
@@ -17,9 +17,41 @@ namespace PCGTextureSampling
 			return ValueType{};
 		}
 
-		// TODO: There seems to be a bias issue here, as the bounds size are not in the same space as the texels.
-		// Implementation note: Supports only stretch fit
-		FVector2D Pos = (InPosition - InSurface.Min) * FVector2D(Width, Height) / InSurface.GetSize();
+		check(InTextureData);
+
+		FVector2D Pos = FVector2D::ZeroVector;
+		if (InTextureData->bStretchToFit)
+		{
+			// TODO: There seems to be a bias issue here, as the bounds size are not in the same space as the texels.
+			Pos = (InPosition - InSurface.Min) * FVector2D(Width, Height) / InSurface.GetSize();
+		}
+		else
+		{
+			const float TextureSizeX = InTextureData->TexelSize * Width;
+			const float TextureSizeY = InTextureData->TexelSize * Height;
+
+			const FRotator Rotation = FRotator(0.f, -InTextureData->Rotation, 0.f);
+			const FVector Translation = FVector(-InTextureData->XOffset * TextureSizeX, -InTextureData->YOffset * TextureSizeY, 0.f);
+			const FTransform Transform(Rotation, Translation);
+			const FVector2D SamplePosition = FVector2D(Transform.TransformPosition(FVector(InPosition, 0.f)));
+
+			float X = FMath::Clamp(static_cast<float>(FMath::Fmod(SamplePosition.X, TextureSizeX)) / TextureSizeX, -1.f, 1.f);
+			if (X < 0.f)
+			{
+				X = 1.f + X;
+			}
+
+			float Y = FMath::Clamp(static_cast<float>(FMath::Fmod(SamplePosition.Y, TextureSizeY)) / TextureSizeY, -1.f, 1.f);
+			if (Y < 0.f)
+			{
+				Y = 1.f + Y;
+			}
+
+			X *= Width;
+			Y *= Height;
+
+			Pos = FVector2D(X, Y);
+		}
 
 		// TODO: this isn't super robust, if that becomes an issue
 		int32 X0 = FMath::FloorToInt(Pos.X);
@@ -104,7 +136,7 @@ bool UPCGBaseTextureData::SamplePoint(const FTransform& InTransform, const FBox&
 	FVector2D Position2D(PointPositionInLocalSpace.X, PointPositionInLocalSpace.Y);
 	FBox2D Surface(FVector2D(-1.0f, -1.0f), FVector2D(1.0f, 1.0f));
 
-	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, Width, Height, [this](int32 Index) { return ColorData[Index]; });
+	FLinearColor Color = PCGTextureSampling::Sample<FLinearColor>(Position2D, Surface, this, Width, Height, [this](int32 Index) { return ColorData[Index]; });
 	OutPoint.Color = Color;
 	OutPoint.Density = ((DensityFunction == EPCGTextureDensityFunction::Ignore) ? 1.0f : PCGTextureSampling::SampleFloatChannel(Color, ColorChannel));
 
@@ -191,12 +223,10 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 			Width = Texture->GetSizeX();
 			Height = Texture->GetSizeY();
 
-			UTexture2D* TempTexture2D = DuplicateObject<UTexture2D>(InTexture, GetTransientPackage());
-			TempTexture2D->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
-			TempTexture2D->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
-			TempTexture2D->SRGB = false;
-			TempTexture2D->UpdateResource();
-			const FColor* FormattedImageData = static_cast<const FColor*>(TempTexture2D->GetPlatformData()->Mips[0].BulkData.LockReadOnly());
+			// TODO: previously this code created a duplicate of InTexture and read the ColorData from that source 
+			// however, there was a problem with the duplicate not having texture data in Mips[0], so we've removed the duplication for now
+			// original code can be found in ProceduralTextureReader.h
+			const FColor* FormattedImageData = static_cast<const FColor*>(InTexture->GetPlatformData()->Mips[0].BulkData.LockReadOnly());
 
 			ColorData.SetNum(Width * Height);
 			for (int32 D = 0; D < Width * Height; ++D)
@@ -204,7 +234,7 @@ void UPCGTextureData::Initialize(UTexture2D* InTexture, const FTransform& InTran
 				ColorData[D] = FormattedImageData[D].ReinterpretAsLinear();
 			}
 
-			TempTexture2D->GetPlatformData()->Mips[0].BulkData.Unlock();
+			InTexture->GetPlatformData()->Mips[0].BulkData.Unlock();
 		}
 #endif
 	}
