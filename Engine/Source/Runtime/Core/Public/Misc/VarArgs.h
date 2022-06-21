@@ -69,6 +69,17 @@ VarArgs helper macros.
 		} \
 		va_end(ap); \
 	}
+#define GET_VARARGS_RESULT_UTF8(msg, msgsize, len, lastarg, fmt, result) \
+	{ \
+		va_list ap; \
+		va_start(ap, lastarg); \
+		result = FCStringUtf8::GetVarArgs(msg, msgsize, fmt, ap); \
+		if (result >= msgsize) \
+		{ \
+			result = -1; \
+		} \
+		va_end(ap); \
+	}
 
 /*-----------------------------------------------------------------------------
 Ugly VarArgs type checking (debug builds only).
