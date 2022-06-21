@@ -13,6 +13,7 @@
 class FDisplayClusterRenderTargetManager;
 class FDisplayClusterViewportPostProcessManager;
 class FDisplayClusterViewportManager;
+class FDisplayClusterViewportResource;
 class IDisplayClusterProjectionPolicy;
 
 class FViewport;

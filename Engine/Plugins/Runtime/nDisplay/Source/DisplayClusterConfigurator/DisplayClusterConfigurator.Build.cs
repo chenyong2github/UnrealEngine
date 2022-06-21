@@ -34,6 +34,7 @@ public class DisplayClusterConfigurator : ModuleRules
 				"Kismet",
 				"KismetCompiler",
 				"MainFrame",
+				"MediaAssets",
 				"MessageLog",
 				"PinnedCommandList",
 				"PlacementMode",

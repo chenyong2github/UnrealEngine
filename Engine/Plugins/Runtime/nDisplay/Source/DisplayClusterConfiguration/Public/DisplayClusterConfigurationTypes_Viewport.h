@@ -8,6 +8,8 @@
 #include "UObject/Object.h"
 
 #include "DisplayClusterConfigurationStrings.h"
+#include "DisplayClusterConfigurationTypes_Base.h"
+#include "DisplayClusterConfigurationTypes_Media.h"
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 #include "DisplayClusterConfigurationTypes_ViewportRemap.h"
@@ -115,6 +117,10 @@ public:
 	/** Render a larger frame than specified in the configuration to achieve continuity across displays when using post-processing effects. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration")
 	FDisplayClusterConfigurationViewport_Overscan Overscan;
+
+	// Media settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Configuration", meta = (DisplayName = "Media"))
+	FDisplayClusterConfigurationMedia Media;
 
 	// Experimental: Support special frame builder mode - merge viewports to single viewfamily by group num
 	// [not implemented yet]

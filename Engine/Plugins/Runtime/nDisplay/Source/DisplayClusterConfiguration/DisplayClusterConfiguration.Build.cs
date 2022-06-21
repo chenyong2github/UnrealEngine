@@ -17,9 +17,11 @@ public class DisplayClusterConfiguration : ModuleRules
 
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
-				"CinematicCamera",
 				"ActorLayerUtilities",
-				"OpenColorIO"
+				"CinematicCamera",
+				"MediaAssets",
+				"MediaIOCore",
+				"OpenColorIO",
 			});
 
 		PrivateDependencyModuleNames.AddRange(

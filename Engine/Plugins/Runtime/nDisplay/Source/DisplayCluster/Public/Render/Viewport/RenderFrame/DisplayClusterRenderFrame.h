@@ -20,7 +20,7 @@ public:
 	class FFrameView
 	{
 	public:
-		inline bool IsShouldRenderView() const
+		inline bool ShouldRenderSceneView() const
 		{
 			return !bDisableRender && !bFreezeRendering;
 		}

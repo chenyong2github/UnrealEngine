@@ -6,6 +6,7 @@
 #include "Misc/DisplayClusterLog.h"
 
 #include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 #include "Render/IDisplayClusterRenderManager.h"
 #include "Render/Viewport/DisplayClusterViewportManager.h"
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
@@ -223,6 +224,8 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 			// Now all resources on GPU#0
 		}
 
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreFrameRender_RenderThread().Broadcast(RHICmdList, ViewportManagerProxy, InViewport);
+
 		// Update viewports resources: overlay, vp-overla, blur, nummips, etc
 		ViewportManagerProxy->UpdateDeferredResources_RenderThread(RHICmdList);
 
@@ -259,6 +262,8 @@ void FDisplayClusterViewportManagerProxy::ImplRenderFrame(FViewport* InViewport)
 				ViewportManagerProxy->ResolveFrameTargetToBackBuffer_RenderThread(RHICmdList, 0, 0, FrameOutputRTT, FrameOutputRTT->GetSizeXY());
 			}
 		}
+
+		IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostFrameRender_RenderThread().Broadcast(RHICmdList, ViewportManagerProxy, InViewport);
 	});
 }
 
@@ -351,6 +356,8 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 		ImplClearFrameTargets_RenderThread(RHICmdList);
 	}
 
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreWarp_RenderThread().Broadcast(RHICmdList, this);
+
 	// Handle warped viewport projection policy logic:
 	for (uint8 WarpPass = 0; WarpPass < (uint8)EWarpPass::COUNT; WarpPass++)
 	{
@@ -376,7 +383,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 						else
 						{
 							
-							// Projection policy must support warp blend op
+							// Ask current projection policy if it's warp&blend compatible
 							bShouldApplyWarpBlend = PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
 						}
 					}
@@ -386,6 +393,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 						switch ((EWarpPass)WarpPass)
 						{
 						case EWarpPass::Begin:
+							IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreWarpViewport_RenderThread().Broadcast(RHICmdList, ViewportProxy);
 							PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
 							break;
 
@@ -397,6 +405,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 
 						case EWarpPass::End:
 							PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+							IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostWarpViewport_RenderThread().Broadcast(RHICmdList, ViewportProxy);
 							break;
 
 						default:
@@ -422,6 +431,8 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 			}
 		}
 	}
+
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostWarp_RenderThread().Broadcast(RHICmdList, this);
 
 	if (PostProcessManager.IsValid())
 	{

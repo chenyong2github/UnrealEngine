@@ -105,6 +105,17 @@ IDetailLayoutBuilder* FDisplayClusterConfiguratorBaseDetailCustomization::GetLay
 	return LayoutBuilderPtr;
 }
 
+FDisplayClusterConfiguratorBlueprintEditor* FDisplayClusterConfiguratorBaseDetailCustomization::GetBlueprintEditor() const
+{
+	FDisplayClusterConfiguratorBlueprintEditor* BlueprintEditorPtr = nullptr;
+	if (ToolkitPtr.IsValid())
+	{
+		BlueprintEditorPtr = ToolkitPtr.Pin().Get();
+	}
+
+	return BlueprintEditorPtr;
+}
+
 ADisplayClusterRootActor* FDisplayClusterConfiguratorBaseDetailCustomization::GetRootActor() const
 {
 	ADisplayClusterRootActor* RootActor = nullptr;

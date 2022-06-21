@@ -1,0 +1,27 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Capture/DisplayClusterMediaCaptureBase.h"
+
+class FRHICommandListImmediate;
+class FViewport;
+class IDisplayClusterViewportManagerProxy;
+
+
+/**
+ * Node backbuffer media capture
+ */
+class FDisplayClusterMediaCaptureNode
+	: public FDisplayClusterMediaCaptureBase
+{
+public:
+	FDisplayClusterMediaCaptureNode(const FString& MediaId, const FString& ClusterNodeId, UMediaOutput* MediaOutput, UTextureRenderTarget2D* RenderTarget);
+
+public:
+	virtual bool StartCapture() override;
+	virtual void StopCapture() override;
+
+private:
+	void OnPostFrameRender_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* ViewportManagerProxy, FViewport* Viewport);
+};

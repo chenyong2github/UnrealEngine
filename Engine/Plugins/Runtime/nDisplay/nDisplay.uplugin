@@ -135,6 +135,15 @@
 			]
 		},
 		{
+			"Name": "DisplayClusterMedia",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"PlatformAllowList": [
+				"Win64",
+				"Linux"
+			]
+		},
+		{
 			"Name": "DisplayClusterMultiUser",
 			"Type": "UncookedOnly",
 			"LoadingPhase": "PostEngineInit",
@@ -159,6 +168,10 @@
 		},
 		{
 			"Name": "ConcertSyncClient",
+			"Enabled": true
+		},
+		{
+			"Name": "MediaIOFramework",
 			"Enabled": true
 		},
 		{

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "IPropertyTypeCustomization.h"
 
+class IPropertyTypeCustomizationUtils;
+
 
 /** A type customizer that expands a property reference to display the referenced property directly within a details panel. */
 class FDisplayClusterEditorPropertyReferenceTypeCustomization : public IPropertyTypeCustomization
@@ -33,10 +35,15 @@ private:
 	TSharedPtr<IPropertyHandle> FindRootPropertyHandle(const FString& PropertyPath, TSharedRef<IPropertyHandle>& InPropertyHandle);
 	TSharedPtr<IPropertyHandle> GetChildPropertyHandle(const FString& PropertyName, TSharedPtr<IPropertyHandle>& PropertyHandle);
 
+	void OnReferencedPropertyValueChanged();
+
 	bool IsListType(const TSharedPtr<IPropertyHandle>& PropertyHandle);
 
 	TAttribute<bool> CreateEditConditional() const;
 	bool IsEditable() const;
+
+	// Customization utils instance to trigger GUI update on referenced value changes
+	IPropertyTypeCustomizationUtils* CustomizationUtilsPtr = nullptr;
 
 	TArray<FPropertyHandlePair> ReferencedPropertyHandles;
 	TArray<TSharedRef<IPropertyHandle>> EditConditionPropertyHandles;

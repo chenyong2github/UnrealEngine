@@ -1,0 +1,36 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CoreMinimal.h"
+#include "Capture/DisplayClusterMediaCaptureBase.h"
+
+class FRHICommandListImmediate;
+class FSceneViewFamily;
+class IDisplayClusterViewportProxy;
+
+
+/**
+ * Viewport media capture
+ */
+class FDisplayClusterMediaCaptureViewport
+	: public FDisplayClusterMediaCaptureBase
+{
+public:
+	FDisplayClusterMediaCaptureViewport(const FString& MediaId, const FString& ClusterNodeId, const FString& ViewportId, UMediaOutput* MediaOutput, UTextureRenderTarget2D* RenderTarget);
+
+public:
+	virtual bool StartCapture() override;
+	virtual void StopCapture() override;
+
+	const FString& GetViewportId() const
+	{
+		return ViewportId;
+	}
+
+private:
+	void OnPostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, const FSceneViewFamily& ViewFamily, const IDisplayClusterViewportProxy* ViewportProxy);
+
+private:
+	const FString ViewportId;
+};

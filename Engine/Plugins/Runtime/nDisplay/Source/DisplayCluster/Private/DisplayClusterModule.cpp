@@ -139,8 +139,6 @@ bool FDisplayClusterModule::StartScene(UWorld* InWorld)
 
 	checkSlow(InWorld);
 
-	GetCallbacks().OnDisplayClusterStartScene().Broadcast();
-
 	bool bResult = true;
 	auto it = Managers.CreateIterator();
 	while (bResult && it)
@@ -153,6 +151,8 @@ bool FDisplayClusterModule::StartScene(UWorld* InWorld)
 	{
 		UE_LOG(LogDisplayClusterModule, Error, TEXT("An error occurred during game (level) start"));
 	}
+
+	GetCallbacks().OnDisplayClusterStartScene().Broadcast();
 
 	return bResult;
 }

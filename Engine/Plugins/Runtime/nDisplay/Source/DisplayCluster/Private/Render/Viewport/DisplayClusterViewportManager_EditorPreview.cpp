@@ -185,7 +185,7 @@ bool FDisplayClusterViewportManager::RenderInEditor(class FDisplayClusterRenderF
 						FRotator ViewRotation;
 						FSceneView* View = ViewportPtr->ImplCalcScenePreview(ViewFamily, ViewIt.ContextNum);
 
-						if (View != nullptr && ViewIt.IsShouldRenderView() == false)
+						if (View != nullptr && ViewIt.ShouldRenderSceneView() == false)
 						{
 							ViewFamily.Views.Remove(View);
 

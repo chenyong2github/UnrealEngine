@@ -4,6 +4,12 @@
 
 #include "DisplayClusterEnums.h"
 
+class IDisplayClusterViewportProxy;
+class IDisplayClusterViewportManagerProxy;
+class FRHICommandListImmediate;
+class FSceneViewFamily;
+class FViewport;
+
 
 /**
  * DisplayCluster callbacks API
@@ -65,4 +71,32 @@ public:
 	/** Failover notification **/
 	DECLARE_EVENT_OneParam(IDisplayClusterCallbacks, FDisplayClusterFailoverNodeDown, const FString&);
 	virtual FDisplayClusterFailoverNodeDown& OnDisplayClusterFailoverNodeDown() = 0;
+
+	/** Called once the ViewFamily of this viewport is rendered **/
+	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPostRenderViewFamily_RenderThread, FRHICommandListImmediate&, const FSceneViewFamily&, const IDisplayClusterViewportProxy*);
+	virtual FDisplayClusterPostRenderViewFamily_RenderThread& OnDisplayClusterPostRenderViewFamily_RenderThread() = 0;
+
+	/** Called once before warping all available viewports **/
+	DECLARE_EVENT_TwoParams(IDisplayClusterCallbacks, FDisplayClusterPreWarp_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportManagerProxy*);
+	virtual FDisplayClusterPreWarp_RenderThread& OnDisplayClusterPreWarp_RenderThread() = 0;
+
+	/** Called before warping a specific viewport **/
+	DECLARE_EVENT_TwoParams(IDisplayClusterCallbacks, FDisplayClusterPreWarpViewport_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportProxy*);
+	virtual FDisplayClusterPreWarpViewport_RenderThread& OnDisplayClusterPreWarpViewport_RenderThread() = 0;
+
+	/** Called once after warping all the viewports **/
+	DECLARE_EVENT_TwoParams(IDisplayClusterCallbacks, FDisplayClusterPostWarp_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportManagerProxy*);
+	virtual FDisplayClusterPostWarp_RenderThread& OnDisplayClusterPostWarp_RenderThread() = 0;
+
+	/** Called after warping a specific viewport **/
+	DECLARE_EVENT_TwoParams(IDisplayClusterCallbacks, FDisplayClusterPostWarpViewport_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportProxy*);
+	virtual FDisplayClusterPostWarpViewport_RenderThread& OnDisplayClusterPostWarpViewport_RenderThread() = 0;
+
+	/** Called before staring nDisplay rendering chain **/
+	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPreFrameRender_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportManagerProxy*, FViewport*);
+	virtual FDisplayClusterPreFrameRender_RenderThread& OnDisplayClusterPreFrameRender_RenderThread() = 0;
+
+	/** Last call from the nDisplay rendering chain **/
+	DECLARE_EVENT_ThreeParams(IDisplayClusterCallbacks, FDisplayClusterPostFrameRender_RenderThread, FRHICommandListImmediate&, const IDisplayClusterViewportManagerProxy*, FViewport*);
+	virtual FDisplayClusterPostFrameRender_RenderThread& OnDisplayClusterPostFrameRender_RenderThread() = 0;
 };

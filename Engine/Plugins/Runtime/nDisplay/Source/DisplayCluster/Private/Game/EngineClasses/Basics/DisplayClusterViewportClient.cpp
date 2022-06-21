@@ -530,7 +530,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 				FRotator	ViewRotation;
 				FSceneView* View = LocalPlayer->CalcSceneView(&ViewFamily, ViewLocation, ViewRotation, InViewport, nullptr, ViewportContext.StereoViewIndex);
 
-				if (View && DCView.IsShouldRenderView() == false)
+				if (View && !DCView.ShouldRenderSceneView())
 				{
 					ViewFamily.Views.Remove(View);
 

@@ -52,6 +52,9 @@ protected:
 	/** Gets a pointer to the details layout builder used by this customization */
 	IDetailLayoutBuilder* GetLayoutBuilder() const;
 
+	/** Gets a pointer to the blueprint editor */
+	FDisplayClusterConfiguratorBlueprintEditor* GetBlueprintEditor() const;
+
 	/** Gets a pointer to the display cluster root actor being edited by the details panel */
 	ADisplayClusterRootActor* GetRootActor() const;
 

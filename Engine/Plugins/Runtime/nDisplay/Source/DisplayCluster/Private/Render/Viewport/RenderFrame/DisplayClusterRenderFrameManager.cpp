@@ -49,8 +49,31 @@ bool FDisplayClusterRenderFrameManager::BuildRenderFrame(FViewport* InViewport, 
 	}
 
 	SortedViewports.Append(ChildsViewports);
-	ChildsViewports.Empty();
 	
+	// At this point, we have the list of the viewports sorted in a way that
+	// child (dependent) viewports follow after the parent ones. Here we do
+	// some re-ordering so all the viewports that have a media capture
+	// device assigned, will be first in the list. Child viewports can't
+	// have media capture assigned, so there won't be any problems.
+	{
+		// Find all viewports being captured
+		TArray<FDisplayClusterViewport*> ViewportsBeingCaptured = SortedViewports.FilterByPredicate([](const FDisplayClusterViewport* Viewport)
+		{
+			return Viewport->GetRenderSettings().bIsBeingCaptured;
+		});
+
+		// Put them all in the beginning of the list
+		const int32 CapturingViewportsAmount = ViewportsBeingCaptured.Num();
+		if (CapturingViewportsAmount > 0 && CapturingViewportsAmount != SortedViewports.Num())
+		{
+			for (FDisplayClusterViewport* ViewportBeingCaptured : ViewportsBeingCaptured)
+			{
+				SortedViewports.Remove(ViewportBeingCaptured);
+				SortedViewports.Insert(ViewportBeingCaptured, 0);
+			}
+		}
+	}
+
 	bool bResult = false;
 
 	if (InRenderFrameSettings.bAllowRenderTargetAtlasing)
@@ -99,7 +122,7 @@ bool FDisplayClusterRenderFrameManager::BuildSimpleFrame(FViewport* InViewport, 
 				{
 					FrameView.ContextNum = ContextIt.ContextNum;
 					FrameView.Viewport = ViewportIt;
-					FrameView.bDisableRender = ContextIt.bDisableRender;
+					FrameView.bDisableRender = ContextIt.bDisableRender || ViewportIt->RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable;
 					FrameView.bFreezeRendering = ViewportIt->RenderSettings.bFreezeRendering;
 				}
 

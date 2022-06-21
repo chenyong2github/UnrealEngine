@@ -18,6 +18,9 @@
 #include "DisplayClusterConfigurationTypes_ICVFX.h"
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 
+#include "IDisplayCluster.h"
+#include "Cluster/IDisplayClusterClusterManager.h"
+
 #include "ShaderParameters/DisplayClusterShaderParameters_PostprocessBlur.h"
 #include "ShaderParameters/DisplayClusterShaderParameters_GenerateMips.h"
 #include "ShaderParameters/DisplayClusterShaderParameters_Override.h"
@@ -560,6 +563,27 @@ void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraViewportSett
 	// Support inner camera custom frustum
 	FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateCameraCustomFrustum(DstViewport, CameraSettings.CustomFrustum);
 	UpdateCameraViewportBufferRatio(DstViewport, CameraSettings);
+
+	// Set media related configuration (runtime only for now)
+	if (IDisplayCluster::Get().GetOperationMode() == EDisplayClusterOperationMode::Cluster)
+	{
+		const FDisplayClusterConfigurationMedia& MediaSettings = InCameraComponent.CameraSettings.RenderSettings.Media;
+		if (MediaSettings.bEnabled)
+		{
+			const FString ThisClusterNodeId = IDisplayCluster::Get().GetClusterMgr()->GetNodeId();
+			const bool bThisNodeSharesMedia = MediaSettings.MediaOutputNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
+
+			// In most cases there is no need to render ICVFX view if media input set up. The only exception
+			// is when this camera is used as media source for other cluster nodes. In this case media input
+			// settings are ignored, and media capture is used.
+			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.MediaInput.bEnabled ?
+					!(MediaSettings.MediaOutput.bEnabled && bThisNodeSharesMedia) :
+					false;
+
+			// Set media capture flag if media capture is used
+			DstViewport.RenderSettings.bIsBeingCaptured = InCameraComponent.CameraSettings.RenderSettings.Media.MediaOutput.bEnabled;
+		}
+	}
 }
 
 void FDisplayClusterViewportConfigurationHelpers_ICVFX::UpdateChromakeyViewportSettings(FDisplayClusterViewport& DstViewport, FDisplayClusterViewport& InCameraViewport, ADisplayClusterRootActor& RootActor, UDisplayClusterICVFXCameraComponent& InCameraComponent)

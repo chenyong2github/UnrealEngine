@@ -39,6 +39,11 @@ public:
 	// Freeze viewport resources, skip rendering internal viewport resources. But still use it for final compositing
 	bool bFreezeRendering = false;
 
+	// This flag means no scene rendering required, but all internal resources should still be valid for
+	// the media subsystem. It's a temporary solution. The flags 'bSkipRendering' and 'bFreezeRendering'
+	// above, plus this one, need to be refactored at some point.
+	bool bSkipSceneRenderingButLeaveResourcesAvailable = false;
+
 	// Render alpha channel from input texture to warp output
 	bool bWarpBlendRenderAlphaChannel = false;
 
@@ -47,6 +52,9 @@ public:
 
 	// Useful to render some viewports in mono, then copied to stereo backbuffers identical image
 	bool bForceMono = false;
+
+	// Is this viewport being captured by a media capture device?
+	bool bIsBeingCaptured = false;
 
 	// Performance, Multi-GPU: Asign GPU for viewport rendering. The Value '-1' used to default gpu mapping
 	int32 GPUIndex = -1;

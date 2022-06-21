@@ -12,6 +12,7 @@
 
 #include "CineCameraActor.h"
 
+#include "DisplayClusterConfigurationTypes_Media.h"
 #include "DisplayClusterConfigurationTypes_PostRender.h"
 #include "DisplayClusterConfigurationTypes_Postprocess.h"
 #include "DisplayClusterConfigurationTypes_OCIO.h"
@@ -317,8 +318,12 @@ public:
 	bool bUseCameraComponentPostprocess = true;
 
 	// Replace viewport render from source texture
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Mipmapping"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Replace Output With a Texture"))
 	FDisplayClusterConfigurationPostRender_Override Replace;
+
+	// Media settings
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Media"))
+	FDisplayClusterConfigurationMedia Media;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;

@@ -77,6 +77,41 @@ public:
 		return DisplayClusterFailoverNodeDown;
 	}
 
+	virtual FDisplayClusterPostRenderViewFamily_RenderThread& OnDisplayClusterPostRenderViewFamily_RenderThread() override
+	{
+		return DisplayClusterPostRenderViewFamily;
+	}
+
+	virtual FDisplayClusterPreWarp_RenderThread& OnDisplayClusterPreWarp_RenderThread() override
+	{
+		return DisplayClusterPreWarpEvent;
+	}
+
+	virtual FDisplayClusterPreWarpViewport_RenderThread& OnDisplayClusterPreWarpViewport_RenderThread() override
+	{
+		return DisplayClusterPreWarpViewportEvent;
+	}
+
+	virtual FDisplayClusterPostWarp_RenderThread& OnDisplayClusterPostWarp_RenderThread() override
+	{
+		return DisplayClusterPostWarpEvent;
+	}
+
+	virtual FDisplayClusterPostWarpViewport_RenderThread& OnDisplayClusterPostWarpViewport_RenderThread() override
+	{
+		return DisplayClusterPostWarpViewportEvent;
+	}
+
+	virtual FDisplayClusterPreFrameRender_RenderThread& OnDisplayClusterPreFrameRender_RenderThread() override
+	{
+		return DisplayClusterPreFrameRenderEvent;
+	}
+
+	virtual FDisplayClusterPostFrameRender_RenderThread& OnDisplayClusterPostFrameRender_RenderThread() override
+	{
+		return DisplayClusterPostFrameRenderEvent;
+	}
+
 private:
 	FDisplayClusterStartSessionEvent         DisplayClusterStartSessionEvent;
 	FDisplayClusterEndSessionEvent           DisplayClusterEndSessionEvent;
@@ -88,7 +123,16 @@ private:
 	FDisplayClusterStartSceneEvent           DisplayClusterStartSceneEvent;
 	FDisplayClusterEndSceneEvent             DisplayClusterEndSceneEvent;
 	FDisplayClusterCustomPresentSetEvent     DisplayClusterCustomPresentSetEvent;
-	FDisplayClusterPresentationPreSynchronization_RHIThread DisplayClusterPresentationPreSynchronizationEvent;
-	FDisplayClusterPresentationPostSynchronization_RHIThread DisplayClusterPresentationPostSynchronizationEvent;
 	FDisplayClusterFailoverNodeDown          DisplayClusterFailoverNodeDown;
+
+	FDisplayClusterPresentationPreSynchronization_RHIThread  DisplayClusterPresentationPreSynchronizationEvent;
+	FDisplayClusterPresentationPostSynchronization_RHIThread DisplayClusterPresentationPostSynchronizationEvent;
+
+	FDisplayClusterPostRenderViewFamily_RenderThread DisplayClusterPostRenderViewFamily;
+	FDisplayClusterPreWarp_RenderThread          DisplayClusterPreWarpEvent;
+	FDisplayClusterPreWarpViewport_RenderThread  DisplayClusterPreWarpViewportEvent;
+	FDisplayClusterPostWarp_RenderThread         DisplayClusterPostWarpEvent;
+	FDisplayClusterPostWarpViewport_RenderThread DisplayClusterPostWarpViewportEvent;
+	FDisplayClusterPreFrameRender_RenderThread   DisplayClusterPreFrameRenderEvent;
+	FDisplayClusterPostFrameRender_RenderThread  DisplayClusterPostFrameRenderEvent;
 };

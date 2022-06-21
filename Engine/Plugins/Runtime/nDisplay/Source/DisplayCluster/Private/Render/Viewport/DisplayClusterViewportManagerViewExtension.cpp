@@ -2,7 +2,13 @@
 
 #include "DisplayClusterViewportManagerViewExtension.h"
 #include "DisplayClusterSceneViewExtensions.h"
+#include "Render/Viewport/IDisplayClusterViewportManager.h"
+#include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
 #include "SceneRendering.h"
+
+#include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
+
 
 FDisplayClusterViewportManagerViewExtension::FDisplayClusterViewportManagerViewExtension(const FAutoRegister& AutoRegister, const IDisplayClusterViewportManager* InViewportManager)
 	: FSceneViewExtensionBase(AutoRegister)
@@ -34,4 +40,40 @@ bool FDisplayClusterViewportManagerViewExtension::IsActiveThisFrame_Internal(con
 	}
 
 	return false;
+}
+
+void FDisplayClusterViewportManagerViewExtension::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+{
+	// Since FSceneViewFamily has no direct references to the nD viewport it relates to,
+	// we find a proper viewport ID by comparing RenderTarget addresses.
+	if (ViewportManager)
+	{
+		const IDisplayClusterViewportManagerProxy* const ViewportMgrPoxy = ViewportManager->GetProxy();
+		if (ViewportMgrPoxy)
+		{
+			// Get all available viewport proxies
+			const TArrayView<IDisplayClusterViewportProxy*> ViewportProxies = ViewportMgrPoxy->GetViewports_RenderThread();
+
+			// Filter those viewports that refer to the RenderTarget used in the ViewFamily
+			const TArray<IDisplayClusterViewportProxy*> FoundViewportProxies = ViewportProxies.FilterByPredicate([&InViewFamily](const IDisplayClusterViewportProxy* ViewportProxy)
+			{
+				TArray<FRHITexture*> RenderTargets;
+				if (ViewportProxy->GetResources_RenderThread(EDisplayClusterViewportResourceType::InternalRenderTargetResource, RenderTargets))
+				{
+					if (RenderTargets.Contains(InViewFamily.RenderTarget->GetRenderTargetTexture()))
+					{
+						return true;
+					}
+				}
+
+				return false;
+			});
+
+			// Now we can perform per-viewport notification
+			for (const IDisplayClusterViewportProxy* ViewportProxy : FoundViewportProxies)
+			{
+				IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostRenderViewFamily_RenderThread().Broadcast(RHICmdList, InViewFamily, ViewportProxy);
+			}
+		}
+	}
 }

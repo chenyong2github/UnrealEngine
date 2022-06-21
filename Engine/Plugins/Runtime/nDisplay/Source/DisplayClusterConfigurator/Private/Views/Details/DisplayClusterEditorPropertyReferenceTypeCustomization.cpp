@@ -7,6 +7,8 @@
 #include "DetailLayoutBuilder.h"
 #include "IDetailGroup.h"
 #include "IDetailChildrenBuilder.h"
+#include "IPropertyTypeCustomization.h"
+#include "IPropertyUtilities.h"
 #include "Widgets/Text/STextBlock.h"
 
 const FName FDisplayClusterEditorPropertyReferenceTypeCustomization::PropertyPathMetadataKey = TEXT("PropertyPath");
@@ -19,6 +21,8 @@ TSharedRef<IPropertyTypeCustomization> FDisplayClusterEditorPropertyReferenceTyp
 
 void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& InHeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
+	CustomizationUtilsPtr = &CustomizationUtils;
+
 	check(InPropertyHandle->IsValidHandle());
 	if (InPropertyHandle->HasMetaData(EditConditionPathMetadataKey))
 	{
@@ -137,6 +141,8 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 					ReferencedPropertyHandle->SetToolTipText(InPropertyHandle->GetToolTipText());
 				}
 
+				ReferencedPropertyHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateRaw(this, &FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged));
+
 				IDetailPropertyRow& PropertyRow = InChildBuilder.AddProperty(ReferencedPropertyHandle.ToSharedRef());
 
 				// Mark the property with the "IsCustomized" flag so that any subsequent layout builders can account for the property
@@ -149,6 +155,15 @@ void FDisplayClusterEditorPropertyReferenceTypeCustomization::CustomizeChildren(
 				}
 			}
 		}
+	}
+}
+
+void FDisplayClusterEditorPropertyReferenceTypeCustomization::OnReferencedPropertyValueChanged()
+{
+	// When a referenced property is changed, we have to trigger layout refresh
+	if (CustomizationUtilsPtr)
+	{
+		CustomizationUtilsPtr->GetPropertyUtilities()->ForceRefresh();
 	}
 }
 
