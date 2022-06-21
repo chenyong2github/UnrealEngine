@@ -123,12 +123,6 @@ namespace Chaos
 			return InfiniteTOI;
 		}
 
-		// If contact is moving in the right direction or not moving ignore the contact
-		if (EndPhi > StartPhi - MovementTolerance)
-		{
-			return InfiniteTOI;
-		}
-
 		// If we penetrate by less than the IgnorePhi, treat it as TOI=1. This mean no CCD impulse and the non-CCD 
 		// solve is expected to handle it. This improves the behaviour when we are sliding along a surface at
 		// above CCD speeds - we don't want to handle TOI events with the floor
@@ -146,7 +140,7 @@ namespace Chaos
 	}
 
 	// Modify the time of impact so that the contact depth is TargetPenetration. If penetration at T=1 is less than TargetPenetration, TOI will be "infinity".
-	// Returns true if we have a TOI less than 1 (i.e., a contact at TargetPenetration or more that needs CCD processing)
+	// Returns true if we have a TOI less than or equal to 1 (i.e., a contact at TargetPenetration or more that needs CCD processing)
 	bool ComputeSweptContactTOIAndPhiAtTargetPenetration(const FReal DirDotNormal, const FReal SweepLength, const FReal HitDistance, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi)
 	{
 		// Parse the GJK result to get TOI and Phi (Interpretation depends on whether TOI=0 or not - see GJKRaycast2)
@@ -165,7 +159,7 @@ namespace Chaos
 		OutTOI = TargetTOI;
 		OutPhi = (TargetTOI == 0) ? StartPhi : TargetPhi;
 
-		return (OutTOI < FReal(1));
+		return (OutTOI <= FReal(1));
 	}
 
 	bool ComputeSweptContactTOIAndPhiAtTargetPenetration(const FVec3& ContactNormal, const FVec3& Dir, const FReal SweepLength, const FReal HitDistance, const FReal IgnorePenetration, const FReal TargetPenetration, FReal& OutTOI, FReal& OutPhi)
