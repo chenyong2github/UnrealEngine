@@ -205,7 +205,12 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 
 	for(const TSoftObjectPtr<UControlRigShapeLibrary>& ShapeLibrary : ShapeLibraries)
 	{
-		if(ShapeLibrary.IsNull())
+		if(ShapeLibrary.IsNull() || !ShapeLibrary.IsValid())
+		{
+			ShapeLibrary.LoadSynchronous();
+		}
+
+		if(ShapeLibrary.IsNull() || !ShapeLibrary.IsValid())
 		{
 			continue;
 		}
