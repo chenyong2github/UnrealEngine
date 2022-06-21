@@ -1011,6 +1011,14 @@ TAutoConsoleVariable<int32> CVarGTSyncType(
 	TEXT(" 2 - Sync the game thread with the GPU swap chain flip (only on supported platforms).\n"),
 	ECVF_Default);
 
+TAutoConsoleVariable<bool> CVarAllowRHITriggerThread(
+	TEXT("r.AllowRHITriggerThread"),
+	true,
+	TEXT("In low latency mode, use the rhi thread to trigger the frame sync.")
+	TEXT(" true (default).\n")
+	TEXT(" false.\n"),
+	ECVF_Default);
+
 FRHICOMMAND_MACRO(FRHISyncFrameCommand)
 {
 	FGraphEventRef GraphEvent;
@@ -1065,7 +1073,7 @@ void FRenderCommandFence::BeginFence(bool bSyncToRHIAndGPU)
 			check(CVarVsync != nullptr);
 
 			if ( GTSyncType == 0 || CVarVsync->GetInt() == 0 )
-		{
+			{
 				bSyncToRHIAndGPU = false;
 			}
 		}
@@ -1075,8 +1083,10 @@ void FRenderCommandFence::BeginFence(bool bSyncToRHIAndGPU)
 		{
 			if (IsRHIThreadRunning())
 			{
-				// Change trigger thread to RHI
-				TriggerThreadIndex = ENamedThreads::RHIThread;
+				// Potentially change trigger thread to RHI
+				// On some platform RHI thread will block on present. Putting the RHI as the trigger index will block the GameThread until the present is finished.
+				// In low input latency mode, some consoles uses the RHIOffsetThread to kick of the Gamethread, so we dont want it to block on present.
+				TriggerThreadIndex = (GTSyncType == 2 && !CVarAllowRHITriggerThread.GetValueOnAnyThread()) ? TriggerThreadIndex : ENamedThreads::RHIThread;
 			}
 			
 			// Create a task graph event which we can pass to the render or RHI threads.
