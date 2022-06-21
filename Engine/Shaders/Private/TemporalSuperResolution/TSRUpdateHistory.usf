@@ -368,7 +368,7 @@ void MainCS(
 		// Issue overlapped texture fetches
 		PLATFORM_SPECIFIC_ISOLATE
 		{
-			tsr_ushort2x2 RejectionPixelPos = dpv_sub(tsr_ushort2x2(InputPixelPos), tsr_ushort2(InputPixelPosMin)) / 2;
+			tsr_ushort2x2 RejectionPixelPos = tsr_ushort2x2(InputPixelPos) / 2;
 
 			UNROLL_N(DPV_PIXEL_PER_LANE)
 			for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)

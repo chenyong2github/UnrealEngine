@@ -257,24 +257,6 @@ FScreenTransform InputPixelPosToScreenPos;
 float2 ScreenVelocityToInputPixelVelocity;
 float2 InputPixelVelocityToScreenVelocity;
 
-float2 LowFrequencyInfo_Extent;
-float2 LowFrequencyInfo_ExtentInverse;
-uint2  LowFrequencyInfo_ViewportMin;
-uint2  LowFrequencyInfo_ViewportMax;
-float2 LowFrequencyInfo_ViewportSize;
-float2 LowFrequencyInfo_ViewportSizeInverse;
-float2 LowFrequencyInfo_UVViewportBilinearMin;
-float2 LowFrequencyInfo_UVViewportBilinearMax;
-
-float2 RejectionInfo_Extent;
-float2 RejectionInfo_ExtentInverse;
-uint2  RejectionInfo_ViewportMin;
-uint2  RejectionInfo_ViewportMax;
-float2 RejectionInfo_ViewportSize;
-float2 RejectionInfo_ViewportSizeInverse;
-float2 RejectionInfo_UVViewportBilinearMin;
-float2 RejectionInfo_UVViewportBilinearMax;
-
 float2 HistoryInfo_Extent;
 float2 HistoryInfo_ExtentInverse;
 uint2  HistoryInfo_ViewportMin;

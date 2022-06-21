@@ -11,6 +11,8 @@
 
 //------------------------------------------------------- PARAMETERS
 
+uint4 HistoryRejectionViewport;
+
 Texture2D<tsr_half> HistoryRejectionTexture;
 RWTexture2D<tsr_half> DilatedHistoryRejectionOutput;
 
@@ -25,6 +27,7 @@ void MainCS(
 	float4 Debug = 0.0;
 	
 	tsr_short2 RejectionPixelPos = (
+		tsr_short2(HistoryRejectionViewport.xy) +
 		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
 		Map8x8Tile2x2Lane(GroupThreadIndex));
 
@@ -50,7 +53,7 @@ void MainCS(
 			tsr_short2 SampleInputPixelPos = RejectionPixelPos + ClampPixelOffset(
 				RejectionPixelPos,
 				Offset, Offset,
-				RejectionInfo_ViewportMin, RejectionInfo_ViewportMax - 1);
+				HistoryRejectionViewport.xy, HistoryRejectionViewport.zw - 1);
 
 			tsr_half SampleRejectionInfo = HistoryRejectionTexture[SampleInputPixelPos];
 
@@ -58,7 +61,7 @@ void MainCS(
 		}
 	}
 	
-	bool bIsValid = all(RejectionPixelPos < tsr_short2(RejectionInfo_ViewportMax));
+	bool bIsValid = all(RejectionPixelPos < tsr_short2(HistoryRejectionViewport.zw));
 	RejectionPixelPos.x = bIsValid ? RejectionPixelPos.x : ~tsr_ushort(0);
 
 	DilatedHistoryRejectionOutput[RejectionPixelPos] = HistoryRejectionInfo;

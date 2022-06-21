@@ -82,6 +82,7 @@ void MainCS(
 	float4 Debug = 0.0;
 
 	tsr_short2 RejectionPixelPos = (
+		tsr_short2(HistoryRejectionViewport.xy) +
 		tsr_short2(GroupId) * tsr_short2(TILE_SIZE, TILE_SIZE) +
 		Map8x8Tile2x2Lane(GroupThreadIndex));
 
