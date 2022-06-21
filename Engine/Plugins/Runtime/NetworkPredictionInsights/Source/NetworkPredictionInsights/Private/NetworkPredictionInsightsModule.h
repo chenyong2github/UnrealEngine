@@ -30,6 +30,8 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+	static void StartNetworkTrace();
+
 	FNetworkPredictionTraceModule NetworkPredictionTraceModule;
 
 	FTSTicker::FDelegateHandle TickerHandle;
