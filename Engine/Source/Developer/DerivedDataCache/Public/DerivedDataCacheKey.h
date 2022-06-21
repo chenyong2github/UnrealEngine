@@ -11,7 +11,7 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
-class FCbObjectView;
+class FCbFieldView;
 class FCbWriter;
 
 namespace UE::DerivedData
@@ -106,6 +106,9 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 	return Builder << Bucket.ToString();
 }
 
+UE_API FCbWriter& operator<<(FCbWriter& Writer, FCacheBucket Bucket);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheBucket& OutBucket);
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 inline bool operator==(const FCacheKey& A, const FCacheKey& B)
@@ -136,8 +139,8 @@ inline TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Bu
 	return Builder << Key.Bucket << CharType('/') << Key.Hash;
 }
 
-UE_API bool TryLoadFromCompactBinary(FCbObjectView Object, FCacheKey& OutKey);
 UE_API FCbWriter& operator<<(FCbWriter& Writer, const FCacheKey& Key);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheKey& OutKey);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

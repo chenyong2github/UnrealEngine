@@ -12,6 +12,7 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+class FCbFieldView;
 class FCbObjectView;
 class FCbWriter;
 
@@ -105,10 +106,16 @@ UE_API FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, ECach
 UE_API FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, ECachePolicy Policy);
 UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, ECachePolicy Policy);
 
-/** Parse non-empty text written by operator<< into a policy. */
-UE_API ECachePolicy ParseCachePolicy(FAnsiStringView Text);
-UE_API ECachePolicy ParseCachePolicy(FWideStringView Text);
-UE_API ECachePolicy ParseCachePolicy(FUtf8StringView Text);
+/** Try to parse a policy from text written by operator<<. */
+UE_API bool TryLexFromString(ECachePolicy& OutPolicy, FUtf8StringView String);
+UE_API bool TryLexFromString(ECachePolicy& OutPolicy, FWideStringView String);
+
+UE_DEPRECATED(5.1, "Replace ParseCachePolicy with TryLexFromString.") UE_API ECachePolicy ParseCachePolicy(FAnsiStringView Text);
+UE_DEPRECATED(5.1, "Replace ParseCachePolicy with TryLexFromString.") UE_API ECachePolicy ParseCachePolicy(FWideStringView Text);
+UE_DEPRECATED(5.1, "Replace ParseCachePolicy with TryLexFromString.") UE_API ECachePolicy ParseCachePolicy(FUtf8StringView Text);
+
+UE_API FCbWriter& operator<<(FCbWriter& Writer, ECachePolicy Policy);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, ECachePolicy& OutPolicy, ECachePolicy Default = ECachePolicy::Default);
 
 /** A value ID and the cache policy to use for that value. */
 struct FCacheValuePolicy
@@ -119,6 +126,9 @@ struct FCacheValuePolicy
 	/** Flags that are valid on a value policy. */
 	static constexpr ECachePolicy PolicyMask = ECachePolicy::Default | ECachePolicy::SkipData;
 };
+
+UE_API FCbWriter& operator<<(FCbWriter& Writer, const FCacheValuePolicy& Policy);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheValuePolicy& OutPolicy);
 
 /** Interface for the private implementation of the cache record policy. */
 class Private::ICacheRecordPolicyShared
@@ -153,6 +163,9 @@ public:
 	{
 	}
 
+	/** Returns true if this is the default cache policy with no overrides for values. */
+	inline bool IsDefault() const { return !Shared && RecordPolicy == ECachePolicy::Default; }
+
 	/** Returns true if the record and every value use the same cache policy. */
 	inline bool IsUniform() const { return !Shared; }
 
@@ -178,9 +191,11 @@ public:
 	UE_API FCacheRecordPolicy Transform(TFunctionRef<ECachePolicy (ECachePolicy)> Op) const;
 
 	/** Saves the cache record policy to a compact binary object. */
+	UE_DEPRECATED(5.1, "Replace Policy.Save(Writer) with Writer << Policy.")
 	UE_API void Save(FCbWriter& Writer) const;
 
 	/** Loads a cache record policy from an object. */
+	UE_DEPRECATED(5.1, "Replace Load(Object) with LoadFromCompactBinary(Field, Policy).")
 	UE_API static FOptionalCacheRecordPolicy Load(FCbObjectView Object);
 
 private:
@@ -243,6 +258,9 @@ public:
 	inline void Reset() { *this = FOptionalCacheRecordPolicy(); }
 };
 
-} // namespace UE::DerivedData
+UE_API FCbWriter& operator<<(FCbWriter& Writer, const FCacheRecordPolicy& Policy);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheRecordPolicy& OutPolicy);
+
+} // UE::DerivedData
 
 #undef UE_API

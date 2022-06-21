@@ -17,6 +17,9 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+class FCbFieldView;
+class FCbWriter;
+
 namespace UE::DerivedData { class ICacheStoreMaintainer; }
 namespace UE::DerivedData { class IRequestOwner; }
 namespace UE::DerivedData { struct FCacheGetChunkRequest; }
@@ -351,6 +354,16 @@ struct FCacheGetChunkResponse
 	/** The status of the request. */
 	EStatus Status = EStatus::Error;
 };
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+UE_API FCbWriter& operator<<(FCbWriter& Writer, const FCacheGetRequest& Request);
+UE_API FCbWriter& operator<<(FCbWriter& Writer, const FCacheGetValueRequest& Request);
+UE_API FCbWriter& operator<<(FCbWriter& Writer, const FCacheGetChunkRequest& Request);
+
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetRequest& OutRequest);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetValueRequest& OutRequest);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetChunkRequest& OutRequest);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 

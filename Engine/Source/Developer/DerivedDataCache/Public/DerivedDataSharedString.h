@@ -8,6 +8,11 @@
 #include "HAL/UnrealMemory.h"
 #include <atomic>
 
+#define UE_API DERIVEDDATACACHE_API
+
+class FCbFieldView;
+class FCbWriter;
+
 namespace UE::DerivedData
 {
 
@@ -174,4 +179,9 @@ inline bool operator<(const TSharedString<CharType>& Lhs, const TSharedString<Ch
 	return MakeStringView(Lhs).Compare(MakeStringView(Rhs), ESearchCase::IgnoreCase) < 0;
 }
 
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FUtf8SharedString& OutString);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FWideSharedString& OutString);
+
 } // UE::DerivedData
+
+#undef UE_API

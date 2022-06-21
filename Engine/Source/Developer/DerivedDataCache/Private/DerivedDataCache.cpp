@@ -23,6 +23,9 @@
 #include "Misc/CoreMisc.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CookStats.h"
+#include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Stats/Stats.h"
 #include "Stats/StatsMisc.h"
 #include "ZenServerInterface.h"
@@ -202,6 +205,116 @@ FCacheGetValueResponse FCacheGetValueRequest::MakeResponse(const EStatus Status)
 FCacheGetChunkResponse FCacheGetChunkRequest::MakeResponse(const EStatus Status) const
 {
 	return {Name, Key, Id, RawOffset, 0, {}, {}, UserData, Status};
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheGetRequest& Request)
+{
+	Writer.BeginObject();
+	if (!Request.Name.IsEmpty())
+	{
+		Writer << ANSITEXTVIEW("Name") << Request.Name;
+	}
+	Writer << ANSITEXTVIEW("Key") << Request.Key;
+	if (!Request.Policy.IsDefault())
+	{
+		Writer << ANSITEXTVIEW("Policy") << Request.Policy;
+	}
+	if (Request.UserData != 0)
+	{
+		Writer << ANSITEXTVIEW("UserData") << Request.UserData;
+	}
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetRequest& Request)
+{
+	bool bOk = Field.IsObject();
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Name")], Request.Name);
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Key")], Request.Key);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Policy")], Request.Policy);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("UserData")], Request.UserData);
+	return bOk;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheGetValueRequest& Request)
+{
+	Writer.BeginObject();
+	if (!Request.Name.IsEmpty())
+	{
+		Writer << ANSITEXTVIEW("Name") << MakeStringView(Request.Name);
+	}
+	Writer << ANSITEXTVIEW("Key") << Request.Key;
+	if (Request.Policy != ECachePolicy::Default)
+	{
+		Writer << ANSITEXTVIEW("Policy") << Request.Policy;
+	}
+	if (Request.UserData != 0)
+	{
+		Writer << ANSITEXTVIEW("UserData") << Request.UserData;
+	}
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetValueRequest& Request)
+{
+	bool bOk = Field.IsObject();
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Name")], Request.Name);
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Key")], Request.Key);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Policy")], Request.Policy);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("UserData")], Request.UserData);
+	return bOk;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheGetChunkRequest& Request)
+{
+	Writer.BeginObject();
+	if (!Request.Name.IsEmpty())
+	{
+		Writer << ANSITEXTVIEW("Name") << MakeStringView(Request.Name);
+	}
+	Writer << ANSITEXTVIEW("Key") << Request.Key;
+	if (Request.Id.IsValid())
+	{
+		Writer << ANSITEXTVIEW("Id") << Request.Id;
+	}
+	if (Request.RawOffset != 0)
+	{
+		Writer << ANSITEXTVIEW("RawOffset") << Request.RawOffset;
+	}
+	if (Request.RawSize != MAX_uint64)
+	{
+		Writer << ANSITEXTVIEW("RawSize") << Request.RawSize;
+	}
+	if (!Request.RawHash.IsZero())
+	{
+		Writer << ANSITEXTVIEW("RawHash") << Request.RawHash;
+	}
+	if (Request.Policy != ECachePolicy::Default)
+	{
+		Writer << ANSITEXTVIEW("Policy") << Request.Policy;
+	}
+	if (Request.UserData)
+	{
+		Writer << ANSITEXTVIEW("UserData") << Request.UserData;
+	}
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FCacheGetChunkRequest& OutRequest)
+{
+	bool bOk = Field.IsObject();
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Name")], OutRequest.Name);
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Key")], OutRequest.Key);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Id")], OutRequest.Id);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("RawOffset")], OutRequest.RawOffset, 0);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("RawSize")], OutRequest.RawSize, MAX_uint64);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("RawHash")], OutRequest.RawHash);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("Policy")], OutRequest.Policy);
+	LoadFromCompactBinary(Field[ANSITEXTVIEW("UserData")], OutRequest.UserData);
+	return bOk;
 }
 
 } // UE::DerivedData

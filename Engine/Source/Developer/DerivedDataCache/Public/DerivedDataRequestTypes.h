@@ -3,6 +3,12 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/StringFwd.h"
+
+#define UE_API DERIVEDDATACACHE_API
+
+class FCbFieldView;
+class FCbWriter;
 
 namespace UE::DerivedData
 {
@@ -43,6 +49,18 @@ enum class EPriority : uint8
 	Blocking,
 };
 
+/** Append a non-empty text version of the priority to the builder. */
+UE_API FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, EPriority Priority);
+UE_API FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, EPriority Priority);
+UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, EPriority Priority);
+
+/** Try to parse a priority from text written by operator<<. */
+UE_API bool TryLexFromString(EPriority& OutPriority, FUtf8StringView String);
+UE_API bool TryLexFromString(EPriority& OutPriority, FWideStringView String);
+
+UE_API FCbWriter& operator<<(FCbWriter& Writer, EPriority Priority);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, EPriority& OutPriority, EPriority Default = EPriority::Normal);
+
 /** Status of a request that has completed. */
 enum class EStatus : uint8
 {
@@ -54,4 +72,18 @@ enum class EStatus : uint8
 	Canceled,
 };
 
+/** Append a non-empty text version of the status to the builder. */
+UE_API FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, EStatus Status);
+UE_API FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, EStatus Status);
+UE_API FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, EStatus Status);
+
+/** Try to parse a status from text written by operator<<. */
+UE_API bool TryLexFromString(EStatus& OutStatus, FUtf8StringView String);
+UE_API bool TryLexFromString(EStatus& OutStatus, FWideStringView String);
+
+UE_API FCbWriter& operator<<(FCbWriter& Writer, EStatus Status);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, EStatus& OutStatus, EStatus Default = EStatus::Ok);
+
 } // UE::DerivedData
+
+#undef UE_API

@@ -10,6 +10,7 @@
 #include "Misc/ScopeRWLock.h"
 #include "Misc/StringBuilder.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinarySerialization.h"
 #include "Serialization/CompactBinaryWriter.h"
 #include "String/Find.h"
 
@@ -125,25 +126,38 @@ FCacheBucket::FCacheBucket(FWideStringView InName)
 {
 }
 
-bool TryLoadFromCompactBinary(const FCbObjectView Object, FCacheKey& OutKey)
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheBucket Bucket)
 {
-	const FUtf8StringView Bucket = Object[ANSITEXTVIEW("Bucket")].AsString();
-	if (!FCacheBucket::IsValidName(Bucket))
+	Writer.AddString(Bucket.ToString());
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FCacheBucket& OutBucket)
+{
+	if (const FUtf8StringView Bucket = Field.AsString(); !Field.HasError() && FCacheBucket::IsValidName(Bucket))
 	{
-		return false;
+		OutBucket = FCacheBucket(Bucket);
+		return true;
 	}
-	OutKey.Bucket = FCacheBucket(Bucket);
-	OutKey.Hash = Object[ANSITEXTVIEW("Hash")].AsHash();
-	return true;
+	OutBucket.Reset();
+	return false;
 }
 
 FCbWriter& operator<<(FCbWriter& Writer, const FCacheKey& Key)
 {
 	Writer.BeginObject();
-	Writer.AddString(ANSITEXTVIEW("Bucket"), Key.Bucket.ToString());
-	Writer.AddHash(ANSITEXTVIEW("Hash"), Key.Hash);
+	Writer << ANSITEXTVIEW("Bucket") << Key.Bucket;
+	Writer << ANSITEXTVIEW("Hash") << Key.Hash;
 	Writer.EndObject();
 	return Writer;
+}
+
+bool LoadFromCompactBinary(const FCbFieldView Field, FCacheKey& OutKey)
+{
+	bool bOk = Field.IsObject();
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Bucket")], OutKey.Bucket);
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Hash")], OutKey.Hash);
+	return bOk;
 }
 
 FCacheKey ConvertLegacyCacheKey(const FStringView Key)

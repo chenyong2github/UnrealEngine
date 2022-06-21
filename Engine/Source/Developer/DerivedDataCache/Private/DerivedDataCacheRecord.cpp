@@ -207,7 +207,7 @@ FOptionalCacheRecord FCacheRecord::Load(const FCbPackage& Attachments, const FCb
 	}
 
 	FCacheKey Key;
-	if (!TryLoadFromCompactBinary(ObjectView[ANSITEXTVIEW("Key")].AsObjectView(), Key))
+	if (!LoadFromCompactBinary(ObjectView[ANSITEXTVIEW("Key")], Key))
 	{
 		return FOptionalCacheRecord();
 	}

@@ -9,7 +9,9 @@
 
 #define UE_API DERIVEDDATACACHE_API
 
+class FCbFieldView;
 class FCbObjectId;
+class FCbWriter;
 struct FIoHash;
 
 namespace UE::DerivedData
@@ -103,6 +105,9 @@ inline bool FValueId::IsNull() const
 {
 	return *this == FValueId();
 }
+
+UE_API FCbWriter& operator<<(FCbWriter& Writer, const FValueId& Id);
+UE_API bool LoadFromCompactBinary(FCbFieldView Field, FValueId& OutId);
 
 } // UE::DerivedData
 

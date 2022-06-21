@@ -17,7 +17,7 @@ namespace UE::DerivedData::Private { class FCacheRecordPolicyShared; }
 namespace UE::DerivedData::Private
 {
 
-constexpr ANSICHAR CachePolicyDelimiter = ',';
+static constexpr ANSICHAR CachePolicyDelimiter = ',';
 
 struct FCachePolicyToText
 {
@@ -25,7 +25,7 @@ struct FCachePolicyToText
 	FAnsiStringView Text;
 };
 
-const FCachePolicyToText CachePolicyToText[]
+static const FCachePolicyToText CachePolicyToText[]
 {
 	// Flags with multiple bits are ordered by bit count to minimize token count in the text format.
 	{ ECachePolicy::Default,       ANSITEXTVIEW("Default") },
@@ -46,7 +46,7 @@ const FCachePolicyToText CachePolicyToText[]
 	{ ECachePolicy::None,          ANSITEXTVIEW("None") },
 };
 
-constexpr ECachePolicy CachePolicyKnownFlags
+static constexpr ECachePolicy CachePolicyKnownFlags
 	= ECachePolicy::Default
 	| ECachePolicy::SkipMeta
 	| ECachePolicy::SkipData
@@ -54,7 +54,7 @@ constexpr ECachePolicy CachePolicyKnownFlags
 	| ECachePolicy::KeepAlive;
 
 template <typename CharType>
-TStringBuilderBase<CharType>& CachePolicyToString(TStringBuilderBase<CharType>& Builder, ECachePolicy Policy)
+static TStringBuilderBase<CharType>& CachePolicyToString(TStringBuilderBase<CharType>& Builder, ECachePolicy Policy)
 {
 	// Mask out unknown flags. None will be written if no flags are known.
 	Policy &= CachePolicyKnownFlags;
@@ -75,19 +75,22 @@ TStringBuilderBase<CharType>& CachePolicyToString(TStringBuilderBase<CharType>& 
 }
 
 template <typename CharType>
-ECachePolicy ParseCachePolicy(const TStringView<CharType> Text)
+static bool CachePolicyFromString(ECachePolicy& OutPolicy, const TStringView<CharType> String)
 {
-	checkf(!Text.IsEmpty(), TEXT("ParseCachePolicy requires a non-empty string."));
-	ECachePolicy Policy = ECachePolicy::None;
-	String::ParseTokens(StringCast<UTF8CHAR, 128>(Text.GetData(), Text.Len()), UTF8CHAR(CachePolicyDelimiter),
-		[&Policy, Index = int32(0)](FUtf8StringView Token) mutable
+	if (String.IsEmpty())
+	{
+		return false;
+	}
+
+	String::ParseTokens(StringCast<UTF8CHAR, 128>(String.GetData(), String.Len()), UTF8CHAR(CachePolicyDelimiter),
+		[&OutPolicy, Index = int32(0)](FUtf8StringView Token) mutable
 		{
 			const int32 EndIndex = Index;
 			for (; Index < UE_ARRAY_COUNT(CachePolicyToText); ++Index)
 			{
 				if (CachePolicyToText[Index].Text == Token)
 				{
-					Policy |= CachePolicyToText[Index].Policy;
+					OutPolicy |= CachePolicyToText[Index].Policy;
 					++Index;
 					return;
 				}
@@ -96,12 +99,21 @@ ECachePolicy ParseCachePolicy(const TStringView<CharType> Text)
 			{
 				if (CachePolicyToText[Index].Text == Token)
 				{
-					Policy |= CachePolicyToText[Index].Policy;
+					OutPolicy |= CachePolicyToText[Index].Policy;
 					++Index;
 					return;
 				}
 			}
 		});
+	return true;
+}
+
+template <typename CharType>
+static ECachePolicy ParseCachePolicy(const TStringView<CharType> Text)
+{
+	checkf(!Text.IsEmpty(), TEXT("ParseCachePolicy requires a non-empty string."));
+	ECachePolicy Policy = ECachePolicy::None;
+	CachePolicyFromString(Policy, Text);
 	return Policy;
 }
 
@@ -114,9 +126,45 @@ FAnsiStringBuilderBase& operator<<(FAnsiStringBuilderBase& Builder, ECachePolicy
 FWideStringBuilderBase& operator<<(FWideStringBuilderBase& Builder, ECachePolicy Policy) { return Private::CachePolicyToString(Builder, Policy); }
 FUtf8StringBuilderBase& operator<<(FUtf8StringBuilderBase& Builder, ECachePolicy Policy) { return Private::CachePolicyToString(Builder, Policy); }
 
+bool TryLexFromString(ECachePolicy& OutPolicy, const FUtf8StringView String) { return Private::CachePolicyFromString(OutPolicy, String); }
+bool TryLexFromString(ECachePolicy& OutPolicy, const FWideStringView String) { return Private::CachePolicyFromString(OutPolicy, String); }
+
 ECachePolicy ParseCachePolicy(FAnsiStringView Text) { return Private::ParseCachePolicy(Text); }
 ECachePolicy ParseCachePolicy(FWideStringView Text) { return Private::ParseCachePolicy(Text); }
 ECachePolicy ParseCachePolicy(FUtf8StringView Text) { return Private::ParseCachePolicy(Text); }
+
+FCbWriter& operator<<(FCbWriter& Writer, const ECachePolicy Policy)
+{
+	Writer.AddString(WriteToUtf8String<64>(Policy));
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, ECachePolicy& OutPolicy, const ECachePolicy Default)
+{
+	if (TryLexFromString(OutPolicy, Field.AsString()))
+	{
+		return true;
+	}
+	OutPolicy = Default;
+	return false;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheValuePolicy& Policy)
+{
+	Writer.BeginObject();
+	Writer << ANSITEXTVIEW("Id") << Policy.Id;
+	Writer << ANSITEXTVIEW("Policy") << Policy.Policy;
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FCacheValuePolicy& OutPolicy)
+{
+	bool bOk = Field.IsObject();
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Id")], OutPolicy.Id);
+	bOk &= LoadFromCompactBinary(Field[ANSITEXTVIEW("Policy")], OutPolicy.Policy);
+	return bOk;
+}
 
 class Private::FCacheRecordPolicyShared final : public Private::ICacheRecordPolicyShared
 {
@@ -185,48 +233,17 @@ FCacheRecordPolicy FCacheRecordPolicy::Transform(const TFunctionRef<ECachePolicy
 
 void FCacheRecordPolicy::Save(FCbWriter& Writer) const
 {
-	Writer.BeginObject();
-	Writer.AddString(ANSITEXTVIEW("BasePolicy"), WriteToUtf8String<128>(GetBasePolicy()));
-	if (!IsUniform())
-	{
-		Writer.BeginArray(ANSITEXTVIEW("ValuePolicies"));
-		for (const FCacheValuePolicy& Value : GetValuePolicies())
-		{
-			Writer.BeginObject();
-			Writer.AddObjectId(ANSITEXTVIEW("Id"), Value.Id);
-			Writer.AddString(ANSITEXTVIEW("Policy"), WriteToUtf8String<128>(Value.Policy));
-			Writer.EndObject();
-		}
-		Writer.EndArray();
-	}
-	Writer.EndObject();
+	Writer << *this;
 }
 
 FOptionalCacheRecordPolicy FCacheRecordPolicy::Load(const FCbObjectView Object)
 {
-	const FUtf8StringView BasePolicyText = Object[ANSITEXTVIEW("BasePolicy")].AsString();
-	if (BasePolicyText.IsEmpty())
+	FCacheRecordPolicy Policy;
+	if (LoadFromCompactBinary(Object.AsFieldView(), Policy))
 	{
-		return {};
+		return Policy;
 	}
-
-	FCacheRecordPolicyBuilder Builder(ParseCachePolicy(BasePolicyText));
-	for (const FCbFieldView Value : Object[ANSITEXTVIEW("ValuePolicies")])
-	{
-		const FValueId Id = Value[ANSITEXTVIEW("Id")].AsObjectId();
-		const FUtf8StringView PolicyText = Value[ANSITEXTVIEW("Policy")].AsString();
-		if (Id.IsNull() || PolicyText.IsEmpty())
-		{
-			return {};
-		}
-		const ECachePolicy Policy = ParseCachePolicy(PolicyText);
-		if (EnumHasAnyFlags(Policy, ~FCacheValuePolicy::PolicyMask))
-		{
-			return {};
-		}
-		Builder.AddValuePolicy(Id, Policy);
-	}
-	return Builder.Build();
+	return {};
 }
 
 void FCacheRecordPolicyBuilder::AddValuePolicy(const FCacheValuePolicy& Value)
@@ -259,6 +276,50 @@ FCacheRecordPolicy FCacheRecordPolicyBuilder::Build()
 		Policy.Shared = MoveTemp(Shared);
 	}
 	return Policy;
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FCacheRecordPolicy& Policy)
+{
+	Writer.BeginObject();
+	Writer << ANSITEXTVIEW("BasePolicy") << Policy.GetBasePolicy();
+	if (!Policy.IsUniform())
+	{
+		Writer.BeginArray(ANSITEXTVIEW("ValuePolicies"));
+		for (const FCacheValuePolicy& Value : Policy.GetValuePolicies())
+		{
+			Writer << Value;
+		}
+		Writer.EndArray();
+	}
+	Writer.EndObject();
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FCacheRecordPolicy& OutPolicy)
+{
+	ECachePolicy BasePolicy;
+	if (!LoadFromCompactBinary(Field[ANSITEXTVIEW("BasePolicy")], BasePolicy))
+	{
+		OutPolicy = {};
+		return false;
+	}
+	FCacheRecordPolicyBuilder Builder(BasePolicy);
+
+	for (FCbFieldView Value : Field[ANSITEXTVIEW("ValuePolicies")])
+	{
+		FCacheValuePolicy ValuePolicy;
+		if (!LoadFromCompactBinary(Value, ValuePolicy) ||
+			ValuePolicy.Id.IsNull() ||
+			EnumHasAnyFlags(ValuePolicy.Policy, ~FCacheValuePolicy::PolicyMask))
+		{
+			OutPolicy = {};
+			return false;
+		}
+		Builder.AddValuePolicy(ValuePolicy);
+	}
+
+	OutPolicy = Builder.Build();
+	return true;
 }
 
 } // UE::DerivedData

@@ -6,6 +6,8 @@
 #include "Containers/StringConv.h"
 #include "Hash/xxhash.h"
 #include "Serialization/CompactBinary.h"
+#include "Serialization/CompactBinarySerialization.h"
+#include "Serialization/CompactBinaryWriter.h"
 #include "Templates/UnrealTemplate.h"
 
 namespace UE::DerivedData
@@ -58,6 +60,23 @@ FValueId FValueId::FromName(const FUtf8StringView Name)
 FValueId FValueId::FromName(const FWideStringView Name)
 {
 	return FValueId::FromName(FTCHARToUTF8(Name));
+}
+
+FCbWriter& operator<<(FCbWriter& Writer, const FValueId& Id)
+{
+	Writer.AddObjectId(Id);
+	return Writer;
+}
+
+bool LoadFromCompactBinary(FCbFieldView Field, FValueId& OutId)
+{
+	if (const FCbObjectId ObjectId = Field.AsObjectId(); !Field.HasError())
+	{
+		OutId = ObjectId;
+		return true;
+	}
+	OutId.Reset();
+	return false;
 }
 
 } // UE::DerivedData
