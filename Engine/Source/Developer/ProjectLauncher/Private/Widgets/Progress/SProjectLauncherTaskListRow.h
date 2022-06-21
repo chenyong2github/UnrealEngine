@@ -109,7 +109,7 @@ private:
 
 			if (TaskPtr->GetStatus() == ELauncherTaskStatus::Completed)
 			{
-				return FAppStyle::GetBrush("Symbols.Check");
+				return FAppStyle::GetBrush("Icons.Check");
 			}
 
 			if (TaskPtr->GetStatus() == ELauncherTaskStatus::Failed)
