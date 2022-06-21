@@ -98,6 +98,7 @@ struct FVulkanShaderHashes
 
 struct FVulkanPipelineSize
 {
+	//TODO: increase hash to 12 bytes to reduce collisions
 	uint64 ShaderHash;
 	uint32 PipelineSize;
 
@@ -464,7 +465,7 @@ public:
 
 	// Array of potential cache locations; first entries have highest priority. Only one cache file is loaded. If unsuccessful, tries next entry in the array.
 	void InitAndLoad(const TArray<FString>& CacheFilenames);
-	void Save(const FString& CacheFilename, bool bFromPSOFC = false);
+	void Save(const FString& CacheFilename);
 
 	FVulkanPipelineStateCacheManager(FVulkanDevice* InParent);
 	~FVulkanPipelineStateCacheManager();
@@ -475,18 +476,21 @@ public:
 	void NotifyDeletedComputePipeline(FVulkanComputePipeline* Pipeline);
 
 private:
+	class FPipelineCache;
+
 	/** Delegate handlers to track the ShaderPipelineCache precompile. */
 	void OnShaderPipelineCacheOpened(FString const& Name, EShaderPlatform Platform, uint32 Count, const FGuid& VersionGuid, FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 	void OnShaderPipelineCachePrecompilationComplete(uint32 Count, double Seconds, const FShaderPipelineCache::FShaderCachePrecompileContext& ShaderCachePrecompileContext);
 
 	void CreateGfxEntry(const FGraphicsPipelineStateInitializer& PSOInitializer, FVulkanDescriptorSetsLayoutInfo& DescriptorSetLayoutInfo, FGfxPipelineDesc* Desc);
-	bool Load(const TArray<FString>& CacheFilenames);
+	bool Load(const TArray<FString>& CacheFilenames, FPipelineCache& Cache);
+	void SavePSOCache(const FString& CacheFilename, FPipelineCache& Cache);
 	void DestroyCache();
 
 	FVulkanRHIGraphicsPipelineState* RHICreateGraphicsPipelineState(const FGraphicsPipelineStateInitializer& Initializer);
 	FVulkanComputePipeline* RHICreateComputePipelineState(FRHIComputeShader* ComputeShaderRHI);
 	void NotifyDeletedGraphicsPSO(FRHIGraphicsPipelineState* PSO);
-	bool CreateGfxPipelineFromEntry(FVulkanRHIGraphicsPipelineState* PSO, FVulkanShader* Shaders[ShaderStage::NumStages], VkPipeline* Pipeline);
+	bool CreateGfxPipelineFromEntry(FVulkanRHIGraphicsPipelineState* PSO, FVulkanShader* Shaders[ShaderStage::NumStages], VkPipeline* Pipeline, FPipelineCache& Cache);
 
 
 	FVulkanLayout* FindOrAddLayout(const FVulkanDescriptorSetsLayoutInfo& DescriptorSetLayoutInfo, bool bGfxLayout);
@@ -508,11 +512,8 @@ private:
 
 	FVulkanDevice* Device;
 	bool bEvictImmediately;
-	// if true, we will link to the PSOFC, loading later, when we have that guid and only if the guid matches, saving only if there is no match, and only saving after the PSOFC is done.
-	bool bLinkedToPSOFC;
-	bool bLinkedToPSOFCSucessfulLoaded;
-	FString LinkedToPSOFCCacheFolderPath;
-	FString LinkedToPSOFCCacheFolderFilename;
+	FString CompiledPSOCacheTopFolderPath;
+	FString CompiledPSOCacheFolderName;
 	FDelegateHandle OnShaderPipelineCacheOpenedDelegate;
 	FDelegateHandle OnShaderPipelineCachePrecompilationCompleteDelegate;
 
@@ -546,7 +547,14 @@ private:
 	public:
 		FScopedPipelineCache Get(EPipelineCacheAccess PipelineAccessType) { return FScopedPipelineCache(PipelineAccessType == EPipelineCacheAccess::Exclusive, PipelineCache, PipelineCacheLock); }
 	};
-	FPipelineCache PSOCache;
+	FPipelineCache GlobalPSOCache;		// contains all PSO caches opened during the program run as well as PSO objects created on the fly
+
+	FPipelineCache CurrentPrecompilingPSOCache;
+	// if true, we will link to the PSOFC, loading later, when we have that guid and only if the guid matches, saving only if there is no match, and only saving after the PSOFC is done.
+	bool bPrecompilingCacheLoadedFromFile;
+	FGuid CurrentPrecompilingPSOCacheGuid;
+
+	TSet<FGuid> CompiledPSOCaches;
 
 	FCriticalSection LayoutMapCS;
 	TMap<FVulkanDescriptorSetsLayoutInfo, FVulkanLayout*> LayoutMap;
@@ -562,7 +570,7 @@ private:
 	uint32 LRUUsedPipelineSize = 0;
 	uint32 LRUUsedPipelineCount = 0;
 	uint32 LRUUsedPipelineMax = 0;
-	TMap<uint32, FVulkanPipelineSize> LRU2SizeList;	// key: Shader hash (FShaderHash), value: pipeline size
+	TMap<uint64, FVulkanPipelineSize> LRU2SizeList;	// key: Shader hash (FShaderHash), value: pipeline size
 	bool bUseLRU = true;
 	friend class FVulkanDynamicRHI;
 	friend class FVulkanCommandListContext;
@@ -728,7 +736,6 @@ public:
 	uint32 LRUFrame = UINT32_MAX;
 	uint32 PipelineCacheSize = UINT32_MAX;
 	FVulkanPSOKey							VulkanKey;
-
 
 #if VULKAN_PSO_CACHE_DEBUG
 	FPixelShaderRHIRef					PixelShaderRHI;
