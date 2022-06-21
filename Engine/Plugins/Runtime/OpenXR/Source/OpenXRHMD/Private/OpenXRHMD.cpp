@@ -19,6 +19,7 @@
 #include "PostProcess/PostProcessHMD.h"
 #include "GameFramework/WorldSettings.h"
 #include "Misc/CString.h"
+#include "Misc/CoreDelegates.h"
 #include "ClearQuad.h"
 #include "XRThreadUtils.h"
 #include "RenderUtils.h"
@@ -559,6 +560,11 @@ bool FOpenXRHMD::GetPoseForTime(int32 DeviceId, FTimespan Timespan, bool& OutTim
 bool FOpenXRHMD::IsChromaAbCorrectionEnabled() const
 {
 	return false;
+}
+
+void FOpenXRHMD::VRHeadsetRecenterDelegate()
+{
+	Recenter(EOrientPositionSelector::OrientationAndPosition, 0.f);
 }
 
 void FOpenXRHMD::ResetOrientationAndPosition(float Yaw)
@@ -1597,6 +1603,8 @@ bool FOpenXRHMD::OnStereoStartup()
 		}
 	}
 
+	FCoreDelegates::VRHeadsetRecenter.AddRaw(this, &FOpenXRHMD::VRHeadsetRecenterDelegate);
+
 	return true;
 }
 
@@ -1622,6 +1630,9 @@ bool FOpenXRHMD::OnStereoTeardown()
 	{
 		XR_ENSURE(Result);
 	}
+
+	FCoreDelegates::VRHeadsetRecenter.RemoveAll(this);
+
 	return true;
 }
 
