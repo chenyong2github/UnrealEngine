@@ -95,6 +95,11 @@ ITitleFilePtr FOnlineServicesCommon::GetTitleFileInterface()
 	return ITitleFilePtr(AsShared(), Get<ITitleFile>());
 }
 
+IUserFilePtr FOnlineServicesCommon::GetUserFileInterface()
+{
+	return IUserFilePtr(AsShared(), Get<IUserFile>());
+}
+
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesCommon::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
 	return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());

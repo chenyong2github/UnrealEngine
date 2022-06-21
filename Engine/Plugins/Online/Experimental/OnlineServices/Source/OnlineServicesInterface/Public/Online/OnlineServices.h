@@ -24,6 +24,7 @@ using IStatsPtr = TSharedPtr<class IStats>;
 using IConnectivityPtr = TSharedPtr<class IConnectivity>;
 using IPrivilegesPtr = TSharedPtr<class IPrivileges>;
 using ITitleFilePtr = TSharedPtr<class ITitleFile>;
+using IUserFilePtr = TSharedPtr<class IUserFile>;
 
 struct FGetResolvedConnectString
 {
@@ -113,6 +114,11 @@ public:
 	 *
 	 */
 	virtual ITitleFilePtr GetTitleFileInterface() = 0;
+	
+	/**
+	 *
+	 */
+	virtual IUserFilePtr GetUserFileInterface() = 0;
 
 	/** 
 	 * Get the connectivity string used for client travel
