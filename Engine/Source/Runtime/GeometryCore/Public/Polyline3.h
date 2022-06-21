@@ -398,15 +398,15 @@ public:
 			T d = TNumericLimits<T>::Max();
 			if (t >= seg.Extent)
 			{
-				d = TVector<T>::DistSquared(seg.EndPoint(), QueryPoint);
+				d = UE::Geometry::DistanceSquared(seg.EndPoint(), QueryPoint);
 			}
 			else if (t <= -seg.Extent)
 			{
-				d = TVector<T>::DistSquared(seg.StartPoint(), QueryPoint);
+				d = UE::Geometry::DistanceSquared(seg.StartPoint(), QueryPoint);
 			}
 			else
 			{
-				d = (seg.PointAt(t) - QueryPoint).SquaredLength();
+				d = UE::Geometry::DistanceSquared(seg.PointAt(t), QueryPoint);
 			}
 			if (d < dist)
 			{

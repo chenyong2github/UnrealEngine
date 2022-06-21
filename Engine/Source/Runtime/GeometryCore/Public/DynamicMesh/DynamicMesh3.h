@@ -518,6 +518,10 @@ public:
 	/** Call ApplyFunc for each one-ring triangle of a vertex. Currently this is significantly more efficient than VtxTrianglesItr() in many use cases. */
 	void EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(int32)> ApplyFunc) const;
 
+	/** Call ApplyFunc for each triangle connected to an Edge (1 or 2 triangles) */
+	void EnumerateEdgeTriangles(int32 EdgeID, TFunctionRef<void(int32)> ApplyFunc) const;
+
+
 	//
 	// Mesh Construction
 	//

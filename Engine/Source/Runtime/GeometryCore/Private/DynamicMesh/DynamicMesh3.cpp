@@ -599,6 +599,21 @@ void FDynamicMesh3::EnumerateVertexTriangles(int32 VertexID, TFunctionRef<void(i
 }
 
 
+void FDynamicMesh3::EnumerateEdgeTriangles(int32 EdgeID, TFunctionRef<void(int32)> ApplyFunc) const
+{
+	checkSlow(EdgeRefCounts.IsValid(EdgeID));
+	if (IsEdge(EdgeID))
+	{
+		const FEdge Edge = Edges[EdgeID];
+		ApplyFunc(Edge.Tri.A);
+		if (Edge.Tri.B != IndexConstants::InvalidID)
+		{
+			ApplyFunc(Edge.Tri.B);
+		}
+	}
+}
+
+
 FString FDynamicMesh3::MeshInfoString()
 {
 	FString VtxString = FString::Printf(TEXT("Vertices count %d max %d  %s  VtxEdges %s"),
