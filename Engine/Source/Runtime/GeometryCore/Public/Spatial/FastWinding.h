@@ -127,7 +127,8 @@ namespace FastTriWinding
 
 		auto CentroidTransform = [&](int64 TriangleSubsetIndex) -> PData
 		{
-			int tid = TriangleArray[TriangleSubsetIndex];
+			check(TriangleSubsetIndex < TriangleArray.Num());
+			int tid = TriangleArray[(int)TriangleSubsetIndex];
 			FVector3d P0, P1, P2;
 			Mesh.GetTriVertices(tid, P0, P1, P2);
 
@@ -158,9 +159,10 @@ namespace FastTriWinding
 			double R;
 		};
 
-		auto ExpansionTransform = [&, P = CentroidData.P](int TriangleSubsetIndex) -> OrderData
+		auto ExpansionTransform = [&, P = CentroidData.P](int64 TriangleSubsetIndex) -> OrderData
 		{
-			int tid = TriangleArray[TriangleSubsetIndex];
+			check(TriangleSubsetIndex < TriangleArray.Num());
+			int tid = TriangleArray[(int)TriangleSubsetIndex];
 			FVector3d P0, P1, P2;
 			Mesh.GetTriVertices(tid, P0, P1, P2);
 

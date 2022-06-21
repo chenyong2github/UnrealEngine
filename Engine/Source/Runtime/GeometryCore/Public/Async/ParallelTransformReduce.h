@@ -18,15 +18,18 @@ namespace Geometry {
 							  const T& Init,
 							  TransformFuncT Transform,
 							  ReduceFuncT Reduce,
-							  int64 NumTasks)
+							  int64 InNumTasks)
 	{
-		check(NumTasks > 0);
-		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
+		check(InNumTasks > 0);
+		// ParallelFor doesn't yet support int64 NumTasks, so cap it
+		const int32 NumTasks = (int32) FMath::Min(InNumTasks, MAX_int32);
+
+		const int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
 
 		TArray<T> PerTaskResults;
 		PerTaskResults.SetNum(NumTasks);
 
-		ParallelFor(NumTasks, [&](int64 TaskIndex)
+		ParallelFor(NumTasks, [&](int32 TaskIndex)
 		{
 			T LocalResult{ Init };
 
@@ -61,15 +64,19 @@ namespace Geometry {
 								 TransformFuncT Transform,
 								 ReduceFuncT Reduce,
 								 T& Out,
-								 int64 NumTasks)
+								 int64 InNumTasks)
 	{
-		check(NumTasks > 0);
+		check(InNumTasks > 0);
+
+		// ParallelFor doesn't yet support int64 NumTasks, so cap it
+		const int32 NumTasks = (int32)FMath::Min(InNumTasks, MAX_int32);
+
 		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
 
 		TArray<T> PerTaskResults;
 		PerTaskResults.SetNum(NumTasks);
 
-		ParallelFor(NumTasks, [&](int64 TaskIndex)
+		ParallelFor(NumTasks, [&](int32 TaskIndex)
 		{
 			InitFunc(PerTaskResults[TaskIndex]);
 
@@ -144,11 +151,15 @@ namespace Geometry {
 							  const T& Init,
 							  TransformFuncT Transform,
 							  ReduceFuncT Reduce,
-							  int64 NumTasks)
+							  int64 InNumTasks)
 	{
 		int64 Num = IteratorDistance(BeginIterator, EndIterator);
 
-		check(NumTasks > 0);
+		check(InNumTasks > 0);
+
+		// ParallelFor doesn't yet support int64 NumTasks, so cap it
+		const int32 NumTasks = (int32)FMath::Min(InNumTasks, MAX_int32);
+
 		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
 
 		TArray<T> PerTaskResults;
@@ -193,11 +204,14 @@ namespace Geometry {
 								 TransformFuncT Transform,
 								 ReduceFuncT Reduce,
 								 T& Out,
-								 int64 NumTasks)
+								 int64 InNumTasks)
 	{
 		int64 Num = IteratorDistance(BeginIterator, EndIterator);
 
-		check(NumTasks > 0);
+		check(InNumTasks > 0);
+		// ParallelFor doesn't yet support int64 NumTasks, so cap it
+		const int32 NumTasks = (int32)FMath::Min(InNumTasks, MAX_int32);
+
 		int64 NumPerTask = (int64)FMathf::Ceil((float)Num / NumTasks);
 
 		TArray<T> PerTaskResults;
