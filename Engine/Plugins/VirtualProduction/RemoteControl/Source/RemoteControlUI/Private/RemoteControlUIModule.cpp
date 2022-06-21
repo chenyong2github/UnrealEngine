@@ -424,10 +424,17 @@ URemoteControlPreset* FRemoteControlUIModule::GetActivePreset() const
 	return nullptr;
 }
 
+uint32 FRemoteControlUIModule::GetRemoteControlAssetCategory() const
+{
+	return RemoteControlAssetCategoryBit;
+}
+
 void FRemoteControlUIModule::RegisterAssetTools()
 {
 	if (FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools"))
 	{
+		RemoteControlAssetCategoryBit = AssetToolsModule->Get().RegisterAdvancedAssetCategory(FName(TEXT("Remote Control")), LOCTEXT("RemoteControlAssetCategory", "Remote Control"));
+
 		RemoteControlPresetActions = MakeShared<FRemoteControlPresetActions>(FRemoteControlPanelStyle::Get().ToSharedRef());
 		AssetToolsModule->Get().RegisterAssetTypeActions(RemoteControlPresetActions.ToSharedRef());
 	}

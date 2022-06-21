@@ -2,8 +2,8 @@
 
 #include "RCBehaviourNodeFactory.h"
 
-#include "AssetToolsModule.h"
 #include "Behaviour/RCBehaviourBlueprintNode.h"
+#include "IRemoteControlUIModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 
 #define LOCTEXT_NAMESPACE "RCBehaviourNodeFactory"
@@ -19,7 +19,7 @@ URCBehaviourNodeFactory::URCBehaviourNodeFactory()
 
 FText URCBehaviourNodeFactory::GetDisplayName() const
 {
-	return LOCTEXT("DisplayName", "Remote Control Behaviour Node");
+	return LOCTEXT("DisplayName", "Remote Control Behavior");
 }
 
 UObject* URCBehaviourNodeFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName Name, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
@@ -35,8 +35,7 @@ UObject* URCBehaviourNodeFactory::FactoryCreateNew(UClass* Class, UObject* InPar
 
 uint32 URCBehaviourNodeFactory::GetMenuCategories() const
 {
-	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-	return AssetTools.RegisterAdvancedAssetCategory("Remote Control", LOCTEXT("AssetCategoryName", "Remote Control Behaviour Node"));
+	return IRemoteControlUIModule::Get().GetRemoteControlAssetCategory();
 }
 
 #undef LOCTEXT_NAMESPACE

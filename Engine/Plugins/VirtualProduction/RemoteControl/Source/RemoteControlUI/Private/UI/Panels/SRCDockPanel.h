@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Widgets/SCompoundWidget.h"
+#include "Widgets/Layout/SBorder.h"
 
 struct FRCPanelStyle;
 class SHorizontalBox;
@@ -20,25 +20,61 @@ enum EToolbar
 };
 
 /**
+ * A custom slate widget representing a dockable panel on RC Panel.
+ */
+class SRCDockPanel : public SBorder
+{
+	SLATE_DECLARE_WIDGET(SRCDockPanel, SCompoundWidget)
+
+public:
+
+	SLATE_BEGIN_ARGS(SRCDockPanel)
+		: _Content()
+	{}
+
+		SLATE_DEFAULT_SLOT(FArguments, Content)
+
+	SLATE_END_ARGS()
+
+	/** Constructs this widget with InArgs */
+	void Construct(const FArguments& InArgs);
+
+protected:
+
+	/** Holds whether the footer panel is enabled or not. */
+	TAttribute<bool> bIsFooterEnabled;
+
+	/** Holds whether the header panel is enabled or not. */
+	TAttribute<bool> bIsHeaderEnabled;
+
+	/** Holds the entire content panel. */
+	TSharedPtr<SSplitter> ContentPanel;
+
+	/** Panel Style reference. */
+	const FRCPanelStyle* RCPanelStyle;
+};
+
+/**
  * A custom slate widget representing a major panel on RC Panel.
  */
-class SRCMajorPanel : public SCompoundWidget
+class SRCMajorPanel : public SRCDockPanel
 {
-	SLATE_DECLARE_WIDGET(SRCMajorPanel, SCompoundWidget)
+	SLATE_DECLARE_WIDGET(SRCMajorPanel, SRCDockPanel)
 
 public:
 
 	SLATE_BEGIN_ARGS(SRCMajorPanel)
-		: _EnableFooter(true)
+		: _EnableFooter(false)
 		, _EnableHeader(true)
 		, _HeaderLabel(FText::GetEmpty())
 		, _Orientation(Orient_Vertical)
 		, _ChildOrientation(Orient_Horizontal)
 	{}
+
 		SLATE_ARGUMENT(bool, EnableFooter)
 
 		SLATE_ARGUMENT(bool, EnableHeader)
-			
+
 		SLATE_ARGUMENT(FText, HeaderLabel)
 
 		SLATE_ARGUMENT(EOrientation, Orientation)
@@ -72,34 +108,22 @@ public:
 	
 private:
 
-	/** Holds whether the footer panel is enabled or not. */
-	TAttribute<bool> bIsFooterEnabled;
-	
-	/** Holds whether the header panel is enabled or not. */
-	TAttribute<bool> bIsHeaderEnabled;
-
 	/** Actual toolbar widget located left to the footer. */
 	TSharedPtr<SHorizontalBox> LeftToolbar;
 
 	/** Actual toolbar widget located right to the footer. */
 	TSharedPtr<SHorizontalBox> RightToolbar;
 
-	/** Holds the entire content panel. */
-	TSharedPtr<SSplitter> ContentPanel;
-	
 	/** Holds the entire child panels. */
 	TSharedPtr<SSplitter> Children;
-
-	/** Panel Style reference. */
-	const FRCPanelStyle* RCPanelStyle;
 };
 
 /**
  * A custom slate widget representing a minor panel on RC Panel.
  */
-class SRCMinorPanel : public SCompoundWidget
+class SRCMinorPanel : public SRCDockPanel
 {
-	SLATE_DECLARE_WIDGET(SRCMinorPanel, SCompoundWidget)
+	SLATE_DECLARE_WIDGET(SRCMinorPanel, SRCDockPanel)
 
 public:
 
@@ -150,12 +174,6 @@ public:
 	
 private:
 
-	/** Holds whether the footer panel is enabled or not. */
-	TAttribute<bool> bIsFooterEnabled;
-	
-	/** Holds whether the header panel is enabled or not. */
-	TAttribute<bool> bIsHeaderEnabled;
-
 	/** Actual toolbar widget located left to the footer. */
 	TSharedPtr<SHorizontalBox> LeftFooterToolbar;
 
@@ -167,10 +185,4 @@ private:
 
 	/** Actual toolbar widget located right to the header. */
 	TSharedPtr<SHorizontalBox> RightHeaderToolbar;
-
-	/** Holds the entire content panel. */
-	TSharedPtr<SSplitter> ContentPanel;
-
-	/** Panel Style reference. */
-	const FRCPanelStyle* RCPanelStyle;
 };

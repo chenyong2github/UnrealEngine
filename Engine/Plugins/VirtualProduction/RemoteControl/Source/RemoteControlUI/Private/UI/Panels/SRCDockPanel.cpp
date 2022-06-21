@@ -4,10 +4,10 @@
 
 #include "SlateOptMacros.h"
 #include "Styling/RemoteControlStyles.h"
+#include "Styling/StyleColors.h"
 
 #include "UI/RemoteControlPanelStyle.h"
 
-#include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SSplitter.h"
@@ -15,6 +15,33 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/SWidget.h"
 #include "Widgets/Text/STextBlock.h"
+
+SLATE_IMPLEMENT_WIDGET(SRCDockPanel)
+
+void SRCDockPanel::PrivateRegisterAttributes(FSlateAttributeInitializer& AttributeInitializer)
+{
+}
+
+void SRCDockPanel::Construct(const FArguments& InArgs)
+{
+	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
+
+	bIsFooterEnabled = false;
+	bIsHeaderEnabled = false;
+
+	Clipping = EWidgetClipping::ClipToBounds;
+
+	SBorder::FArguments SuperArgs = SBorder::FArguments();
+
+	SuperArgs.BorderImage(&RCPanelStyle->ContentAreaBrush);
+	SuperArgs.Padding(RCPanelStyle->PanelPadding);
+
+	SBorder::Construct(SuperArgs
+		[
+			InArgs._Content.Widget
+		]
+	);
+}
 
 SLATE_IMPLEMENT_WIDGET(SRCMajorPanel)
 
@@ -26,30 +53,23 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCMajorPanel::Construct(const SRCMajorPanel::FArguments& InArgs)
 {
-	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
-
-	bIsFooterEnabled = InArgs._EnableFooter;
-	bIsHeaderEnabled = InArgs._EnableHeader;
-
-	ChildSlot
-	.Padding(RCPanelStyle->PanelPadding)
-	[
-		SNew(SBorder)
-		.BorderImage(&RCPanelStyle->ContentAreaBrush)
-		.Padding(RCPanelStyle->PanelPadding)
-		[	
+	SRCDockPanel::Construct(SRCDockPanel::FArguments()
+		[
 			SAssignNew(ContentPanel, SSplitter)
 			.Orientation(InArgs._Orientation)
 
 			// Content Panel
-			+SSplitter::Slot()
+			+ SSplitter::Slot()
 			.Value(1.f)
 			[
 				SAssignNew(Children, SSplitter)
 				.Orientation(InArgs._ChildOrientation)
 			]
 		]
-	];
+	);
+
+	bIsFooterEnabled = InArgs._EnableFooter;
+	bIsHeaderEnabled = InArgs._EnableHeader;
 
 	// Enable Header upon explicit request.
 	if (bIsHeaderEnabled.Get() && ContentPanel.IsValid())
@@ -177,29 +197,22 @@ BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
 void SRCMinorPanel::Construct(const SRCMinorPanel::FArguments& InArgs)
 {
-	RCPanelStyle = &FRemoteControlPanelStyle::Get()->GetWidgetStyle<FRCPanelStyle>("RemoteControlPanel.MinorPanel");
-
-	bIsFooterEnabled = InArgs._EnableFooter;
-	bIsHeaderEnabled = InArgs._EnableHeader;
-
-	ChildSlot
-	.Padding(RCPanelStyle->PanelPadding)
-	[
-		SNew(SBorder)
-		.BorderImage(&RCPanelStyle->ContentAreaBrush)
-		.Padding(RCPanelStyle->PanelPadding)
-		[	
+	SRCDockPanel::Construct(SRCDockPanel::FArguments()
+		[
 			SAssignNew(ContentPanel, SSplitter)
 			.Orientation(InArgs._Orientation)
 
 			// Content Panel
-			+SSplitter::Slot()
+			+ SSplitter::Slot()
 			.Value(1.f)
 			[
 				InArgs._Content.Widget
 			]
 		]
-	];
+	);
+
+	bIsFooterEnabled = InArgs._EnableFooter;
+	bIsHeaderEnabled = InArgs._EnableHeader;
 
 	// Enable Header upon explicit request.
 	if (bIsHeaderEnabled.Get() && ContentPanel.IsValid())

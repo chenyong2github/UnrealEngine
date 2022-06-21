@@ -177,6 +177,11 @@ public:
 	virtual URemoteControlPreset* GetActivePreset() const = 0;
 
 	/**
+	 * Retrieves the advanced asset category type registered by Remote Control Module.
+	 */
+	virtual uint32 GetRemoteControlAssetCategory() const = 0;
+
+	/**
 	 * Register a widget factory to handle creating a widget in the control panel.
 	 */
 	virtual void RegisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType, const FOnGenerateRCWidget& OnGenerateRCWidgetDelegate) = 0;

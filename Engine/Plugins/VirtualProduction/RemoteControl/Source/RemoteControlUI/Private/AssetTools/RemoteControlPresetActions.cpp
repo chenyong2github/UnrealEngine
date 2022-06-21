@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "RemoteControlPreset.h"
 #include "AssetEditor/RemoteControlPresetEditorToolkit.h"
+#include "IRemoteControlUIModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -14,7 +15,7 @@ FRemoteControlPresetActions::FRemoteControlPresetActions(const TSharedRef<ISlate
 
 uint32 FRemoteControlPresetActions::GetCategories()
 {
-	return EAssetTypeCategories::Misc;
+	return IRemoteControlUIModule::Get().GetRemoteControlAssetCategory();
 }
 
 FText FRemoteControlPresetActions::GetName() const

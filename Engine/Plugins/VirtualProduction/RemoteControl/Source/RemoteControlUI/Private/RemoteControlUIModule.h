@@ -3,6 +3,7 @@
 
 #include "IRemoteControlUIModule.h"
 
+#include "AssetTypeCategories.h"
 #include "CoreMinimal.h"	
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
@@ -19,6 +20,11 @@ class URemoteControlPreset;
 class FRemoteControlUIModule : public IRemoteControlUIModule
 {
 public:
+	
+	FRemoteControlUIModule()
+		: RemoteControlAssetCategoryBit(EAssetTypeCategories::Misc)
+	{
+	}
 
 	/**
 	 * Singleton-like access to this module's interface.  This is just for convenience!
@@ -44,6 +50,7 @@ public:
 	virtual void RegisterMetadataCustomization(FName MetadataKey, FOnCustomizeMetadataEntry OnCustomizeCallback) override;
 	virtual void UnregisterMetadataCustomization(FName MetadataKey) override;
 	virtual URemoteControlPreset* GetActivePreset() const override;
+	virtual uint32 GetRemoteControlAssetCategory() const override;
 	virtual void RegisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType, const FOnGenerateRCWidget& OnGenerateRCWidgetDelegate) override;
 	virtual void UnregisterWidgetFactoryForType(UScriptStruct* RemoteControlEntityType) override;
 
@@ -200,4 +207,7 @@ private:
 	TMap<FName, FOnCustomizeMetadataEntry> ExternalEntityMetadataCustomizations;
 
 	TMap<TWeakObjectPtr<UScriptStruct>, FOnGenerateRCWidget> GenerateWidgetDelegates;
+
+	/** Holds the advanced asset type category bit registered by Remote Control. */
+	EAssetTypeCategories::Type RemoteControlAssetCategoryBit;
 };
