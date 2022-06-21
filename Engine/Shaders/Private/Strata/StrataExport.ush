@@ -489,7 +489,7 @@ void PackStrataOut(
 								float3 F90YCoCg = LinearRGB_2_NormalisedYCoCg(F90);
 
 								uint F90Data = PackRGBA8(float4(F90YCoCg.y, F90YCoCg.z, 0, 0));
-								uint HazinessData = asuint(SLAB_HAZINESS(BSDF));
+								uint HazinessData = SLAB_HAZINESS(BSDF);
 								STRATA_STORE_UINT1(HazinessData << 16 | F90Data);
 							}
 
