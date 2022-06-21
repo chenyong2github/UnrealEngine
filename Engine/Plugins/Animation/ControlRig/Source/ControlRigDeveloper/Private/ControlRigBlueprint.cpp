@@ -1908,11 +1908,17 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 	
 	// Create graphs
 	{
+		TArray<URigVMGraph*> AllModels = GetAllModels();
+		AllModels.RemoveAll([](const URigVMGraph* GraphToRemove) -> bool
+		{
+			return GraphToRemove->GetTypedOuter<URigVMAggregateNode>() != nullptr;
+		});
+		
 		// Find all graphs to process and sort them by dependencies
 		TArray<URigVMGraph*> ProcessedGraphs;
-		while (ProcessedGraphs.Num() < GetAllModels().Num())
+		while (ProcessedGraphs.Num() < AllModels.Num())
 		{
-			for (URigVMGraph* Graph : GetAllModels())
+			for (URigVMGraph* Graph : AllModels)
 			{
 				if (ProcessedGraphs.Contains(Graph))
 				{
@@ -1937,10 +1943,13 @@ TArray<FString> UControlRigBlueprint::GeneratePythonCommands(const FString InNew
 					}
 					else if (URigVMCollapseNode* CollapseNode = Cast<URigVMCollapseNode>(Node))
 					{
-						if (!ProcessedGraphs.Contains(CollapseNode->GetContainedGraph()))
+						if(!CollapseNode->IsA<URigVMAggregateNode>())
 						{
-							bFoundUnprocessedReference = true;
-							break;
+							if (!ProcessedGraphs.Contains(CollapseNode->GetContainedGraph()))
+							{
+								bFoundUnprocessedReference = true;
+								break;
+							}
 						}
 					}
 				}

@@ -486,6 +486,12 @@ TArray<FString> URigVMController::GetAddNodePythonCommands(URigVMNode* Node) con
 		TArray<FString> InnerNodeCommands = GetAddNodePythonCommands(AggregateNode->GetFirstInnerNode());
 		Commands.Append(InnerNodeCommands);
 
+		// set_node_position(node_name, position)
+		Commands.Add(FString::Printf(TEXT("blueprint.get_controller_by_name('%s').set_node_position_by_name('%s', %s)"),
+				*GraphName,
+				*AggregateNode->GetName(),
+				*RigVMPythonUtils::Vector2DToPythonString(AggregateNode->GetPosition())));
+
 		// add commands for any additional aggregate pin
 		const TArray<URigVMPin*> AggregatePins = AggregateNode->IsInputAggregate() ? AggregateNode->GetAggregateInputs() : AggregateNode->GetAggregateOutputs();
 
