@@ -12,8 +12,12 @@
 
 #include "InputEditorModule.generated.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogEnhancedInputEditor, Log, All);
+
 ////////////////////////////////////////////////////////////////////
 // FInputEditorModule
+
+class SWindow;
 
 class FInputEditorModule : public IModuleInterface, public FTickableEditorObject
 {
@@ -37,6 +41,11 @@ private:
 		AssetTools.RegisterAssetTypeActions(Action);
 		CreatedAssetTypeActions.Add(Action);
 	}
+
+	void OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow);
+	
+	/** Automatically upgrade the current project to use Enhanced Input if it is currently set to the legacy input classes. */
+	void AutoUpgradeDefaultInputClasses();
 
 	static EAssetTypeCategories::Type InputAssetsCategory;
 	

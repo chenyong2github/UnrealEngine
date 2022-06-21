@@ -30,10 +30,26 @@
 #include "Styling/StyleColors.h"
 #include "Styling/SlateStyleMacros.h"
 #include "Styling/SlateStyleRegistry.h"
+#include "GameFramework/InputSettings.h"
+#include "EnhancedInputComponent.h"
+#include "EnhancedPlayerInput.h"
+#include "Interfaces/IMainFrameModule.h"
 
 #define LOCTEXT_NAMESPACE "InputEditor"
 
+DEFINE_LOG_CATEGORY(LogEnhancedInputEditor);
+
 EAssetTypeCategories::Type FInputEditorModule::InputAssetsCategory;
+
+namespace UE::Input
+{
+	static bool bEnableAutoUpgradeToEnhancedInput = true;
+	static FAutoConsoleVariableRef CVarEnableAutoUpgradeToEnhancedInput(
+		TEXT("EnhancedInput.bEnableAutoUpgrade"),
+		bEnableAutoUpgradeToEnhancedInput,
+		TEXT("Should your project automatically be set to use Enhanced Input if it is currently using the legacy input system?"),
+		ECVF_Default);
+}
 
 IMPLEMENT_MODULE(FInputEditorModule, InputEditor)
 
@@ -186,6 +202,11 @@ void FInputEditorModule::StartupModule()
 	// Make a new style set for Enhanced Input, which will register any custom icons for the types in this plugin
 	StyleSet = MakeShared<FEnhancedInputSlateStyle>();
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
+
+	// Listen for when the editor is ready and then try to upgrade the input classes. We will send a slate notification
+	// if we upgrade the input classes, which is why we need to wait for the editor to be ready
+    IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
+    MainFrameModule.OnMainFrameCreationFinished().AddRaw(this, &FInputEditorModule::OnMainFrameCreationFinished);
 }
 
 void FInputEditorModule::ShutdownModule()
@@ -217,6 +238,77 @@ void FInputEditorModule::ShutdownModule()
 	if (StyleSet.IsValid())
 	{
 		FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
+	}
+
+	// Remove any listeners to the editor startup delegate
+	if (FModuleManager::Get().IsModuleLoaded("MainFrame"))
+	{
+		IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
+	}
+}
+
+void FInputEditorModule::OnMainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
+{
+	AutoUpgradeDefaultInputClasses();
+}
+
+namespace  UE::Input
+{
+	static void ShowToast(const FText& ClassBeingChanged, const FString& NewClassName, const FString& OldClassName)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("ClassBeingChanged"), ClassBeingChanged);
+		Args.Add(TEXT("NewClass"), FText::FromString(NewClassName));
+		Args.Add(TEXT("OldClass"), FText::FromString(OldClassName));
+
+		const FText Message = FText::Format(LOCTEXT("EnhancedInputUpgradeToast", "Upgrading default {ClassBeingChanged} class from '{OldClass}' to '{NewClass}'"), Args);
+		
+		FNotificationInfo* Info = new FNotificationInfo(Message);
+		Info->ExpireDuration = 5.0f;
+		Info->bFireAndForget = true;
+		FSlateNotificationManager::Get().QueueNotification(Info);
+		
+		UE_LOG(LogEnhancedInputEditor, Log, TEXT("Upgrading Default %s class from '%s' to '%s'"), *ClassBeingChanged.ToString(), *OldClassName, *NewClassName);
+	}
+}
+
+void FInputEditorModule::AutoUpgradeDefaultInputClasses()
+{
+	if (!UE::Input::bEnableAutoUpgradeToEnhancedInput)
+	{
+		return;
+	}
+	
+	if (UInputSettings* InputSettings = GetMutableDefault<UInputSettings>())
+	{
+		const UClass* OriginalInputComponentClass = InputSettings->GetDefaultInputComponentClass();
+		const UClass* OriginalPlayerInputClass = InputSettings->GetDefaultPlayerInputClass();
+		bool bNeedsConfigSave = false;
+		
+		if (OriginalInputComponentClass && OriginalInputComponentClass == UInputComponent::StaticClass())
+		{
+			InputSettings->SetDefaultInputComponentClass(UEnhancedInputComponent::StaticClass());
+
+			static const FText ClassName = LOCTEXT("InputComponentClassLabel", "Input Component");
+			UE::Input::ShowToast(ClassName, UEnhancedInputComponent::StaticClass()->GetName(), OriginalInputComponentClass->GetName());
+			bNeedsConfigSave = true;
+		}
+
+		if (OriginalPlayerInputClass && OriginalPlayerInputClass == UPlayerInput::StaticClass())
+		{
+			InputSettings->SetDefaultPlayerInputClass(UEnhancedPlayerInput::StaticClass());
+
+			static const FText ClassName = LOCTEXT("PlayerInputClassLabel", "Player Input");
+			UE::Input::ShowToast(ClassName, UEnhancedPlayerInput::StaticClass()->GetName(), OriginalPlayerInputClass->GetName());
+			bNeedsConfigSave = true;
+		}
+
+		// Make sure that the config file gets updated with these new values
+		if (bNeedsConfigSave)
+		{
+			InputSettings->SaveConfig();
+			InputSettings->TryUpdateDefaultConfigFile();
+		}
 	}
 }
 
