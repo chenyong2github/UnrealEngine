@@ -44,6 +44,8 @@ void Main(
 	#else
 		ViewportIndex = EyeIndex;
 	#endif
+#else
+	const uint EyeIndex = 0;
 #endif
 	ResolvedView = ResolveViewFromVF(Input);
 
