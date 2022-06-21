@@ -65,9 +65,12 @@ UMoviePipelinePIEExecutor::UMoviePipelinePIEExecutor()
 	, bPreviousUseFixedTimeStep(false)
 	, PreviousFixedTimeStepDelta(1 / 30.0)
 {
-	if (!FApp::CanEverRender() || (FSlateApplication::IsInitialized() && FSlateApplication::Get().IsRenderingOffScreen()))
+	if (!IsTemplate() && FSlateApplication::IsInitialized())
 	{
-		SetIsRenderingOffscreen(true);
+		if (!FApp::CanEverRender() || FSlateApplication::Get().IsRenderingOffScreen())
+		{
+			SetIsRenderingOffscreen(true);
+		}
 	}
 }
 
