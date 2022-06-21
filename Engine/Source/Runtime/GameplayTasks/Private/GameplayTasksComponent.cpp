@@ -258,27 +258,29 @@ void UGameplayTasksComponent::TickComponent(float DeltaTime, enum ELevelTick Tic
 	case 0:
 		break;
 	case 1:
-		if (TickingTasks[0])
 		{
-			TickingTasks[0]->TickTask(DeltaTime);
-			NumActuallyTicked++;
-		}
-		break;
-	default:
-	{
-
-		static TArray<UGameplayTask*> LocalTickingTasks;
-		LocalTickingTasks.Reset();
-		LocalTickingTasks.Append(TickingTasks);
-		for (UGameplayTask* TickingTask : LocalTickingTasks)
-		{
-			if (TickingTask)
+			UGameplayTask* TickingTask = TickingTasks[0];
+			if (IsValid(TickingTask))
 			{
 				TickingTask->TickTask(DeltaTime);
 				NumActuallyTicked++;
 			}
 		}
-	}
+		break;
+	default:
+		{
+			static TArray<UGameplayTask*> LocalTickingTasks;
+			LocalTickingTasks.Reset();
+			LocalTickingTasks.Append(TickingTasks);
+			for (UGameplayTask* TickingTask : LocalTickingTasks)
+			{
+				if (IsValid(TickingTask))
+				{
+					TickingTask->TickTask(DeltaTime);
+					NumActuallyTicked++;
+				}
+			}
+		}
 		break;
 	};
 
@@ -667,7 +669,18 @@ FConstGameplayTaskIterator UGameplayTasksComponent::GetPriorityQueueIterator() c
 	return TaskPriorityQueue.CreateConstIterator();
 }
 
+FConstGameplayTaskIterator UGameplayTasksComponent::GetSimulatedTaskIterator() const
+{
+	return SimulatedTasks.CreateConstIterator();
+}
+
 #if ENABLE_VISUAL_LOG
+
+void UGameplayTasksComponent::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
+{
+	DescribeSelfToVisLog(Snapshot);
+}
+
 void UGameplayTasksComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) const
 {
 	static const FString CategoryName = TEXT("GameplayTasks");

@@ -164,11 +164,6 @@ void AAIController::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
 	{
 		PerceptionComponent->DescribeSelfToVisLog(Snapshot);
 	}
-
-	if (CachedGameplayTasksComponent != nullptr)
-	{
-		CachedGameplayTasksComponent->DescribeSelfToVisLog(Snapshot);
-	}
 }
 #endif // ENABLE_VISUAL_LOG
 

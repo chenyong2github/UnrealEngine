@@ -12,6 +12,7 @@
 #include "GameplayTaskOwnerInterface.h"
 #include "GameplayTask.h"
 #include "GameplayTaskResource.h"
+#include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
 #include "GameplayTasksComponent.generated.h"
 
 class AActor;
@@ -57,7 +58,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnClaimedResourcesChangeSignature,
 *	The core ActorComponent for interfacing with the GameplayAbilities System
 */
 UCLASS(ClassGroup = GameplayTasks, hidecategories = (Object, LOD, Lighting, Transform, Sockets, TextureStreaming), editinlinenew, meta = (BlueprintSpawnableComponent))
-class GAMEPLAYTASKS_API UGameplayTasksComponent : public UActorComponent, public IGameplayTaskOwnerInterface
+class GAMEPLAYTASKS_API UGameplayTasksComponent : public UActorComponent, public IGameplayTaskOwnerInterface, public IVisualLoggerDebugSnapshotInterface
 {
 	GENERATED_BODY()
 
@@ -176,8 +177,10 @@ public:
 	GameplayTaskContainerType::TConstIterator GetTickingTaskIterator() const;
 	GameplayTaskContainerType::TConstIterator GetKnownTaskIterator() const;
 	GameplayTaskContainerType::TConstIterator GetPriorityQueueIterator() const;
+	GameplayTaskContainerType::TConstIterator GetSimulatedTaskIterator() const;
 
 #if ENABLE_VISUAL_LOG
+	virtual void GrabDebugSnapshot(FVisualLogEntry* Snapshot) const override;
 	void DescribeSelfToVisLog(struct FVisualLogEntry* Snapshot) const;
 #endif // ENABLE_VISUAL_LOG
 
