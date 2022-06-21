@@ -2,6 +2,9 @@
 
 using System;
 using System.IO;
+using System.Data;
+using System.Text;
+using System.Linq;
 using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using AutomationTool;
@@ -121,6 +124,27 @@ namespace Gauntlet
 			Baseline
 		}
 
+		static public void WriteDataTableToCSV(DataTable Data, string OutputFile)
+        {
+			StringBuilder OutputBuffer = new StringBuilder();
+
+			IEnumerable<string> ColumnNames = Data.Columns.Cast<DataColumn>().Select(C => C.ColumnName);
+			OutputBuffer.AppendLine(string.Join(",", ColumnNames));
+
+			foreach (DataRow Row in Data.Rows)
+			{
+				IEnumerable<string> Fields = Row.ItemArray.Select(F => F.ToString());
+				OutputBuffer.AppendLine(string.Join(",", Fields));
+			}
+
+			string CSVFolder = Path.GetDirectoryName(OutputFile);
+			if (!Directory.Exists(CSVFolder))
+			{
+				Directory.CreateDirectory(CSVFolder);
+			}
+			File.WriteAllText(OutputFile, OutputBuffer.ToString());
+		}
+
 	}
 
 	public class UnrealTelemetryContext : ITelemetryContext
@@ -187,7 +211,7 @@ namespace Gauntlet
 			}
 			if (!string.IsNullOrEmpty(CSVFile) && !File.Exists(CSVFile))
 			{
-				throw new AutomationException(string.Format("CSVFile '{0}' is missing.", CSVDirectory));
+				throw new AutomationException(string.Format("CSVFile '{0}' is missing.", CSVFile));
 			}
 
 			// CSV Mapping
@@ -320,4 +344,144 @@ namespace Gauntlet
 		}
 
 	}
+
+	/// <summary>
+	/// Build command to fetch Unreal Automation telemetry data from a database and save it to csv.
+	/// </summary>
+	class FetchUnrealAutomationTelemetry : BuildCommand
+	{
+		[Help("CSVFile", "Path of the csv file to save.")]
+		[Help("TelemetryConfig", "Telemetry configuration to use to publish to Database. Default: UETelemetryStaging.")]
+		[Help("DatabaseConfigPath", "Path to alternate Database config. Default is TelemetryConfig default.")]
+		[Help("Project", "Target Project name.")]
+		[Help("Platform", "Target platform name. Default: current environment platform.")]
+		[Help("Role", "Target Role name. Default: Editor.")]
+		[Help("Branch", "Target Branch name. Default: Unknown.")]
+		[Help("Configuration", "Target Configuration name. Default: Development.")]
+		[Help("Since", "Filter fetch data from the last 'Since' time. Default: 1month.")]
+		[Help("TestName", "Filter fetch by TestName. Support coma separated list.")]
+		[Help("DataPoint", "Filter fetch by DataPoint. Support coma separated list.")]
+		[Help("Context", "Filter fetch by Context. Support coma separated list.")]
+
+		public override ExitCode Execute()
+		{
+			string CSVFile = ParseParamValue("CSVFile=", "");
+			string Config = ParseParamValue("TelemetryConfig=", "UETelemetryStaging");
+			string DatabaseConfigPath = ParseParamValue("DatabaseConfigPath=", "");
+			string ProjectString = ParseParamValue("Project=", "");
+			string PlatformString = ParseParamValue("Platform=", "");
+			string BranchString = ParseParamValue("Branch=", "Unknown");
+			string RoleString = ParseParamValue("Role=", "Editor");
+			string ConfigurationString = ParseParamValue("Configuration=", "Development");
+
+			string Since = ParseParamValue("Since=", "1month");
+			string TestName = ParseParamValue("TestName=", "");
+			string DataPoint = ParseParamValue("DataPoint=", "");
+			string Context = ParseParamValue("Context=", "");
+
+			if (string.IsNullOrEmpty(CSVFile))
+			{
+				throw new AutomationException("CSVFile argument is missing.");
+			}
+
+			UnrealTelemetryContext Conditions = new UnrealTelemetryContext();
+			if (string.IsNullOrEmpty(ProjectString))
+			{
+				throw new AutomationException("No project specified. Use -Project=ShooterGame etc");
+			}
+			Conditions.SetProperty("ProjectName", ProjectString);
+
+			object Role;
+			if (!Enum.TryParse(typeof(UnrealTargetRole), RoleString, true, out Role))
+			{
+				string AllKeys = string.Join(", ", Enum.GetNames(typeof(UnrealTargetRole)));
+				throw new AutomationException(string.Format("Unknown Role '{0}', it must be one of the values: {1}.", RoleString, AllKeys));
+			}
+			RoleString = ((UnrealTargetRole)Role).ToString();
+
+			object Configuration;
+			if (!Enum.TryParse(typeof(UnrealTargetConfiguration), ConfigurationString, true, out Configuration))
+			{
+				string AllKeys = string.Join(", ", Enum.GetNames(typeof(UnrealTargetConfiguration)));
+				throw new AutomationException(string.Format("Unknown Configuration '{0}', it must be one of the values: {1}.", ConfigurationString, AllKeys));
+			}
+			ConfigurationString = ((UnrealTargetConfiguration)Configuration).ToString();
+			Conditions.SetProperty("Configuration", string.Format("{0} {1}", RoleString, ConfigurationString));
+
+			UnrealTargetPlatform Platform = string.IsNullOrEmpty(PlatformString) ? BuildHostPlatform.Current.Platform : UnrealTargetPlatform.Parse(PlatformString);
+			Conditions.SetProperty("Platform", Platform.ToString());
+
+			Conditions.SetProperty("Branch", BranchString);
+
+			if (!string.IsNullOrEmpty(TestName))
+			{
+				Conditions.SetProperty("TestName", TestName);
+			}
+			if (!string.IsNullOrEmpty(DataPoint))
+			{
+				Conditions.SetProperty("DataPoint", DataPoint);
+			}
+			if (!string.IsNullOrEmpty(Context))
+			{
+				Conditions.SetProperty("Context", Context);
+			}
+
+			Conditions.SetProperty("ChangelistDateTime", SinceStringToDate(Since));
+
+			IDatabaseConfig<TelemetryData> DBConfig = DatabaseConfigManager<TelemetryData>.GetConfigByName(Config);
+			if (DBConfig != null)
+			{
+				DBConfig.LoadConfig(DatabaseConfigPath);
+				IDatabaseDriver<TelemetryData> DB = DBConfig.GetDriver();
+
+				var Results = DB.FetchData(Conditions);
+
+				if(Results is null || Results.Tables.Count == 0)
+                {
+					throw new AutomationException("No result returned from the DB with the requested conditions.");
+                }
+
+				Log.Info("Successfully retrived {0} rows from the last {1}.", Results.Tables[0].Rows.Count, Since);
+
+				UnrealAutomationTelemetry.WriteDataTableToCSV(Results.Tables[0], CSVFile);
+			}
+
+			return 0;
+		}
+
+		private DateTime SinceStringToDate(string SinceString)
+		{
+			Regex Regx = new Regex(@"([0-9]+)\s*([dwmy])", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+			Match DateMatch = Regx.Match(SinceString);
+
+			DateTime SinceDate = DateTime.Now;
+
+			if (DateMatch.Success)
+            {
+				string NumberString = DateMatch.Groups[1].Value;
+				string TimeSpanString = DateMatch.Groups[2].Value.Substring(0, 1).ToLower();
+
+				int Factor = Int32.Parse(NumberString);
+				switch(TimeSpanString)
+                {
+					case "d":
+						SinceDate = SinceDate.AddDays(-Factor);
+						break;
+					case "w":
+						SinceDate = SinceDate.AddDays(-Factor * 7);
+						break;
+					case "m":
+						SinceDate = SinceDate.AddMonths(-Factor);
+						break;
+					case "y":
+						SinceDate = SinceDate.AddYears(-Factor);
+						break;
+				}
+			}
+
+			return SinceDate;
+		}
+
+	}
+
 }
