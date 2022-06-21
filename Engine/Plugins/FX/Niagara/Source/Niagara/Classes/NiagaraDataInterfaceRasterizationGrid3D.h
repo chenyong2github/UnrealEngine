@@ -4,6 +4,7 @@
 #include "NiagaraDataInterface.h"
 #include "NiagaraCommon.h"
 #include "NiagaraDataInterfaceRW.h"
+#include "NiagaraRenderGraphUtils.h"
 #include "ClearQuad.h"
 #include "NiagaraStats.h"
 
@@ -18,14 +19,6 @@ class FNiagaraSystemInstance;
 class RasterizationGrid3DRWInstanceData
 {
 public:
-
-	~RasterizationGrid3DRWInstanceData()
-	{
-#if STATS
-		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GPUMemory);
-#endif
-	}
-
 	void ResizeBuffers();
 	int32 TotalNumAttributes = 0;
 	FIntVector NumCells = FIntVector::ZeroValue;
@@ -35,18 +28,16 @@ public:
 
 	bool NeedsRealloc = false;
 	
-	FTextureRWBuffer RasterizationBuffer;
+	FNiagaraPooledRWTexture RasterizationTexture;
 
 	FReadBuffer PerAttributeData;
-
-#if STATS
-	int32 GPUMemory = 0;
-#endif
 };
 
 struct FNiagaraDataInterfaceProxyRasterizationGrid3D : public FNiagaraDataInterfaceProxyRW
 {	
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
+
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override {}
 	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(RasterizationGrid3DRWInstanceData); }	
 
@@ -75,9 +66,6 @@ public:
 	int ResetValue;
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	virtual void PostInitProperties() override
 	{
 		Super::PostInitProperties();
@@ -102,9 +90,13 @@ public:
 
 	// GPU sim functionality
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const  override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 #if WITH_EDITOR
 	virtual ENiagaraGpuDispatchType GetGpuDispatchType() const override { return ENiagaraGpuDispatchType::ThreeD; }
 #endif
@@ -119,14 +111,9 @@ public:
 	virtual bool HasPreSimulateTick() const override { return true; }
 	//~ UNiagaraDataInterface interface END
 
-	void GetNumCells(FVectorVMExternalFunctionContext& Context);
-	void SetNumCells(FVectorVMExternalFunctionContext& Context);
-	void SetFloatResetValue(FVectorVMExternalFunctionContext& Context);
-
-	static const FName SetNumCellsFunctionName;
-	static const FName SetFloatResetValueFunctionName;	
-
-	static const FString PerAttributeDataName;
+	void VMGetNumCells(FVectorVMExternalFunctionContext& Context);
+	void VMSetNumCells(FVectorVMExternalFunctionContext& Context);
+	void VMSetFloatResetValue(FVectorVMExternalFunctionContext& Context);
 
 protected:
 	//~ UNiagaraDataInterface interface
