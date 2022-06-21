@@ -282,6 +282,7 @@ public:
 
 	FORCEINLINE int32 GetTileX() const { return TileX; }
 	FORCEINLINE int32 GetTileY() const { return TileY; }
+	FORCEINLINE const FBox& GetTileBB() const { return TileBB; }
 	/** Whether specified layer was updated */
 	FORCEINLINE bool IsLayerChanged(int32 LayerIdx) const { return DirtyLayers[LayerIdx]; }
 	FORCEINLINE const TBitArray<>& GetDirtyLayersMask() const { return DirtyLayers; }

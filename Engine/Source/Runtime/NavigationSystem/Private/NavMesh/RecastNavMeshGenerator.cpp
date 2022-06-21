@@ -1879,6 +1879,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GatherGeometryFromSourcesTimeSliced()
 
 		GatherNavigationDataGeometry(ElementData, *NavSys, NavDataConfig, bUpdateGeometry);
 		
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), GatherGeometryFromSources);
+
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
 			return ETimeSliceWorkResult::CallAgainNextTimeSlice;
@@ -2520,6 +2522,8 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNa
 
 		RasterizeGeomRecastState = ERasterizeGeomRecastTimeSlicedState::RasterizeTriangles;
 
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), MarkWalkableTriangles);
+
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
 			return ETimeSliceWorkResult::CallAgainNextTimeSlice;
@@ -2541,6 +2545,8 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryRecastTimeSliced(FNa
 
 		//reset this so next call we start by marking walkable triangles
 		RasterizeGeomRecastState = ERasterizeGeomRecastTimeSlicedState::MarkWalkableTriangles;
+
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), RasterizeTriangles);
 
 		TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
 	}
@@ -2646,6 +2652,8 @@ ETimeSliceWorkResult FRecastTileGenerator::RasterizeGeometryTimeSliced(FNavMeshB
 		RasterizeGeometryTransformCoords(Coords, LocalToWorld);
 
 		RasterizeGeomState = ERasterizeGeomTimeSlicedState::RasterizeGeometryRecast;
+
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), RasterizeGeometryTransformCoords);
 
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
@@ -3044,6 +3052,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 
 		GenCompressedLayersTimeSlicedState = EGenerateCompressedLayersTimeSliced::RasterizeTriangles;
 
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), CreateHeightField);
+
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
 			return ETimeSliceWorkResult::CallAgainNextTimeSlice;
@@ -3086,6 +3096,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 		{
 			ApplyVoxelFilter(RasterContext->SolidHF, TileConfig.walkableRadius);
 
+			MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), VoxelFilter);
+
 			if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 			{
 				return ETimeSliceWorkResult::CallAgainNextTimeSlice;
@@ -3097,6 +3109,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 		GenerateRecastFilter(BuildContext, *RasterContext);
 
 		GenCompressedLayersTimeSlicedState = EGenerateCompressedLayersTimeSliced::CompactHeightField;
+
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), RecastFilterLedgeSpans);
 
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
@@ -3115,6 +3129,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 
 		GenCompressedLayersTimeSlicedState = EGenerateCompressedLayersTimeSliced::ErodeWalkable;
 
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), CompactHeightField);
+
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
 			return ETimeSliceWorkResult::CallAgainNextTimeSlice;
@@ -3132,6 +3148,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 
 		GenCompressedLayersTimeSlicedState = EGenerateCompressedLayersTimeSliced::BuildLayers;
 
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), ErodeWalkable);
+
 		if (TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 		{
 			return ETimeSliceWorkResult::CallAgainNextTimeSlice;
@@ -3140,6 +3158,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 	case EGenerateCompressedLayersTimeSliced::BuildLayers:
 	{
 		const bool bRecastBuildLayers = RecastBuildLayers(BuildContext, *RasterContext);
+
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), BuildLayers);
 
 		//this could have done a fair amount of work either way so check time slice
 		TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
@@ -3164,6 +3184,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateCompressedLayersTimeSliced(FN
 
 		const bool bRecastBuildTileCache = RecastBuildTileCache(BuildContext, *RasterContext);
 	
+		MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), BuildTileCache);
+
 		//this could have done a fair amount of work either way so check time slice
 		TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
 
@@ -3657,6 +3679,8 @@ ETimeSliceWorkResult FRecastTileGenerator::GenerateNavigationDataTimeSliced(FNav
 			}
 
 			const bool bGenDataLayer = GenerateNavigationDataLayer(BuildContext, TileCompressor, *GenNavDataTimeSlicedAllocator, *GenNavDataTimeSlicedGenerationContext, GenNavDataLayerTimeSlicedIdx);
+
+			MARK_TIMESLICE_SECTION_DEBUG(TimeSliceManager->GetTimeSlicer(), GenerateLayers);
 
 			//carry on iterating but don't do any more work if the time slice is finished (as we may not need to in which case we can avoid calling this function again)
 			TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
@@ -5231,6 +5255,8 @@ ETimeSliceWorkResult FRecastNavMeshGenerator::AddGeneratedTilesTimeSliced(FRecas
 
 					AddGeneratedTileLayer(SyncTimeSlicedData.AddGenTilesLayerIndex, TileGenerator, SyncTimeSlicedData.OldLayerTileIdMapCached, SyncTimeSlicedData.ResultTileRefsCached);
 
+					MARK_TIMESLICE_SECTION_DEBUG(SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer(), AddTiles);
+
 					SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished();
 				}
 			}
@@ -5955,6 +5981,16 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 
 				SyncTimeSlicedData.TileGeneratorSync = CreateTileGeneratorFromPendingElement(TileLocation, NextPendingDirtyTileIndex);
 
+				check(SyncTimeSlicedData.TileGeneratorSync);
+
+#if ALLOW_TIME_SLICE_DEBUG
+				UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
+
+				check(NavSys);
+
+				SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().SetCurrentTileDebug(*NavSys, SyncTimeSlicedData.TimeSliceManager->GetNavDataIdx(), TileLocation, SyncTimeSlicedData.TileGeneratorSync->GetTileBB());
+#endif
+
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 
 				if (SyncTimeSlicedData.TileGeneratorSync->HasDataToBuild())
@@ -5970,6 +6006,8 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 						RemoveLayers(TileLocation, UpdatedTiles);
 					}
 				}
+
+				MARK_TIMESLICE_SECTION_DEBUG(SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer(), CreateTileGenerator);
 
 				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 				{
@@ -6048,6 +6086,8 @@ TArray<FNavTileRef> FRecastNavMeshGenerator::ProcessTileTasksSyncTimeSlicedAndGe
 
 				SyncTimeSlicedData.CurrentTileRegenDuration = 0.;
 				
+				MARK_TIMESLICE_SECTION_DEBUG(SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer(), FinishTile);
+
 				//test time slice 
 				if (SyncTimeSlicedData.TimeSliceManager->GetTimeSlicer().TestTimeSliceFinished())
 				{

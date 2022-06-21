@@ -815,6 +815,10 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(config)
 	uint32 bAllowNavLinkAsPathEnd : 1;
 
+	/** If a single time sliced section of navmesh regen code exceeds this duration then it will trigger debug logging */
+	UPROPERTY(EditAnywhere, Category = TimeSlicing, config, AdvancedDisplay)
+	double TimeSliceLongDurationDebug = 0.002;
+
 private:
 	/** Cache rasterized voxels instead of just collision vertices/indices in navigation octree */
 	UPROPERTY(config)

@@ -40,6 +40,12 @@ class UNavigationSystemModuleConfig;
 struct FNavigationRelevantData;
 struct FNavigationOctreeElement;
 
+#if !UE_BUILD_SHIPPING
+#define ALLOW_TIME_SLICE_DEBUG 1
+#else
+#define ALLOW_TIME_SLICE_DEBUG 0
+#endif
+
 /** delegate to let interested parties know that new nav area class has been registered */
 DECLARE_MULTICAST_DELEGATE_OneParam(FOnNavAreaChanged, const UClass* /*AreaClass*/);
 
@@ -76,6 +82,10 @@ namespace FNavigationSystem
 	bool NAVIGATIONSYSTEM_API ShouldLoadNavigationOnClient(ANavigationData& NavData);
 
 	void NAVIGATIONSYSTEM_API MakeAllComponentsNeverAffectNav(AActor& Actor);
+
+#if ALLOW_TIME_SLICE_DEBUG
+	const FName TimeSliceDefaultSectionNameDebug= FName(TEXT("DefaultSection"));
+#endif // ALLOW_TIME_SLICE_DEBUG
 }
 
 struct FNavigationSystemExec: public FSelfRegisteringExec
@@ -96,6 +106,15 @@ namespace ENavigationBuildLock
 	};
 }
 
+
+// Use this just  before a call to TestTimeSliceFinished() to allow the time slice logging to use a debug name for the section of code being timed.
+#if ALLOW_TIME_SLICE_DEBUG
+#define MARK_TIMESLICE_SECTION_DEBUG(TIME_SLICER, TIME_SLICE_FNAME) \
+static const FName TIME_SLICE_FNAME(TEXT(#TIME_SLICE_FNAME)); \
+TIME_SLICER.SetSectionNameDebug(TIME_SLICE_FNAME);
+#else
+#define MARK_TIMESLICE_SECTION_DEBUG(TIME_SLICER, TIME_SLICE_FNAME) ;
+#endif
 
 class NAVIGATIONSYSTEM_API FNavRegenTimeSlicer
 {
@@ -125,12 +144,34 @@ public:
 	double GetRemainingDuration() const { return RemainingDuration; }
 	double GetRemainingDurationFraction() const { return OriginalDuration > 0. ? RemainingDuration / OriginalDuration : 0.; }
 
+
+#if ALLOW_TIME_SLICE_DEBUG
+	void SetCurrentTileDebug(UNavigationSystemV1& InNavSystem, const int InNavDataIdx, const FIntPoint& InTile, const FBox& InTileBox) const;
+
+	/**
+	 *  Sets the debug name for a time sliced section of code.
+	 *  Do not call this directly use MARK_TIMESLICE_SECTION_DEBUG
+	 */
+	void SetSectionNameDebug(FName InSectionNameDebug) const
+	{
+		SectionNameDebug = InSectionNameDebug;
+	}
+#endif // ALLOW_TIME_SLICE_DEBUG
+
 protected:
 	double OriginalDuration = 0.;
 	double RemainingDuration = 0.;
 	double StartTime = 0.;
 	mutable double TimeLastTested = 0.;
 	mutable bool bTimeSliceFinishedCached = false;
+
+#if ALLOW_TIME_SLICE_DEBUG
+	mutable TWeakObjectPtr<UNavigationSystemV1> NavSystemDebug;
+	mutable int NaxDataIdxDebug = 0;
+	mutable FIntPoint TileDebug;
+	mutable FBox TileBoxDebug;
+	mutable FName SectionNameDebug = FNavigationSystem::TimeSliceDefaultSectionNameDebug;
+#endif
 };
 
 class NAVIGATIONSYSTEM_API FNavRegenTimeSliceManager
