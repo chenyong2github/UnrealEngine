@@ -267,7 +267,7 @@ namespace Chaos
 		Context.bEvaluateCurves    = false;
 		Context.bEvaluateEvents    = true;
 
-		FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context);
+		FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, &MassToLocal.GetConstArray());
 
 		const int32                      NumEventTracks = EvaluatedResult.Events.Num();
 		const TArray<FCacheEventHandle>* EnableEvents   = EvaluatedResult.Events.Find(FEnableStateEvent::EventName);
@@ -499,9 +499,10 @@ namespace Chaos
 					continue;
 				}
 
-				// Evaluated transform is in Cache Manager space with MassToLocal removed. We need it in World space.
-				FTransform WorldTransform = MassToLocal[ParticleIndex] * EvaluatedTransform;
-				
+				// EvaluatedTransform is in world space already as we have passed MassToLocal transform to InCache->Evaluate()
+				// to make sure the interpolation was done correctly in world space  
+				const FTransform WorldTransform{EvaluatedTransform};
+
 				Handle->SetP(WorldTransform.GetTranslation());
 				Handle->SetQ(WorldTransform.GetRotation());
 				Handle->SetX(Handle->P());
@@ -643,7 +644,8 @@ namespace Chaos
 				Context.bEvaluateCurves = false;
 				Context.bEvaluateEvents = false;
 
-				FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context);
+				// we only need the rest transforms, so no need to pass MassToLocal transforms 
+				FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
 				const int32 NumCacheTransforms = EvaluatedResult.Transform.Num();
 			
 				// Any bone that is not explicitly set by the cache defaults to it's rest collection position.
@@ -765,7 +767,8 @@ namespace Chaos
 					Context.bEvaluateCurves = false;
 					Context.bEvaluateEvents = false;
 
-					FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context);
+					// initial transforms do no need to be multiplied by MassToLocal transforms so we can pass nullptr
+					FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
 					const int32 NumCacheTransforms = EvaluatedResult.Transform.Num();
 
 					// Any bone that is not explicitly set by the cache defaults to it's rest collection position.
@@ -814,7 +817,8 @@ namespace Chaos
 		Context.bEvaluateCurves = false;
 		Context.bEvaluateEvents = true;
 
-		FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context);
+		// passing nullptr for the MassToLocal as we do not need to evaluate the transforms
+		FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
 		const TArray<FCacheEventHandle>* EnableEvents = EvaluatedResult.Events.Find(FEnableStateEvent::EventName);
 		if (EnableEvents)
 		{

@@ -312,7 +312,7 @@ float UChaosCache::GetDuration() const
 	return RecordedDuration;
 }
 
-FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InContext)
+FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InContext, const TArray<FTransform>* MassToLocalTransforms)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_CacheEval);
 
@@ -374,7 +374,8 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 					Result.ParticleIndices.Add(INDEX_NONE);
 				}
 
-				EvaluateSingle(CacheIndex, InContext.TickRecord, EvalTransform, EvalCurves);
+				const FTransform* MassToLocal = MassToLocalTransforms? &((*MassToLocalTransforms)[CacheIndex]): nullptr;
+				EvaluateSingle(CacheIndex, InContext.TickRecord, MassToLocal, EvalTransform, EvalCurves);
 			}
 		}
 	}
@@ -430,7 +431,8 @@ FCacheEvaluationResult UChaosCache::Evaluate(const FCacheEvaluationContext& InCo
 				Result.ParticleIndices.Add(INDEX_NONE);
 			}
 
-			EvaluateSingle(Index, InContext.TickRecord, EvalTransform, EvalCurves);
+			const FTransform* MassToLocal = MassToLocalTransforms? &((*MassToLocalTransforms)[Index]): nullptr;
+			EvaluateSingle(Index, InContext.TickRecord, MassToLocal, EvalTransform, EvalCurves);
 		}
 	}
 
@@ -459,7 +461,7 @@ const FCacheSpawnableTemplate& UChaosCache::GetSpawnableTemplate() const
 	return Spawnable;
 }
 
-void UChaosCache::EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecord, FTransform* OutOptTransform, TMap<FName, float>* OutOptCurves)
+void UChaosCache::EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecord, const FTransform* MassToLocal, FTransform* OutOptTransform, TMap<FName, float>* OutOptCurves)
 {
 	// check to satisfy SA, external callers check validity in Evaluate
 	checkSlow(ParticleTracks.IsValidIndex(InIndex));
@@ -468,7 +470,7 @@ void UChaosCache::EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecor
 	
 	if(OutOptTransform)
 	{
-		EvaluateTransform(Data, InTickRecord.GetTime(), *OutOptTransform);
+		EvaluateTransform(Data, InTickRecord.GetTime(), MassToLocal, *OutOptTransform);
 		(*OutOptTransform) = (*OutOptTransform) *InTickRecord.SpaceTransform;
 	}
 	
@@ -479,9 +481,9 @@ void UChaosCache::EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecor
 	}
 }
 
-void UChaosCache::EvaluateTransform(const FPerParticleCacheData& InData, float InTime, FTransform& OutTransform)
+void UChaosCache::EvaluateTransform(const FPerParticleCacheData& InData, float InTime, const FTransform* MassToLocal, FTransform& OutTransform)
 {
-	OutTransform = InData.TransformData.Evaluate(InTime);
+	OutTransform = InData.TransformData.Evaluate(InTime, MassToLocal);
 }
 
 void UChaosCache::EvaluateCurves(const FPerParticleCacheData& InData, float InTime, TMap<FName, float>& OutCurves)
@@ -534,63 +536,51 @@ void UChaosCache::EvaluateEvents(FPlaybackTickRecord& InTickRecord, TMap<FName, 
 	}
 }
 
-FTransform FParticleTransformTrack::Evaluate(float InCacheTime) const
+FTransform FParticleTransformTrack::Evaluate(float InCacheTime, const FTransform* MassToLocal) const
 {
 	QUICK_SCOPE_CYCLE_COUNTER(QSTAT_EvalParticleTransformTrack);
 	const int32 NumKeys = GetNumKeys();
 
+	FTransform Result{FTransform::Identity};
 	if(NumKeys > 0)
 	{
-		if(InCacheTime < BeginOffset)
-		{
-			// Take first key
-			return FTransform(FQuat(RawTransformTrack.RotKeys[0]), FVector(RawTransformTrack.PosKeys[0]));
-		}
-		else if(InCacheTime > KeyTimestamps.Last())
-		{
-			// Take last key
-			return FTransform(FQuat(RawTransformTrack.RotKeys.Last()), FVector(RawTransformTrack.PosKeys.Last()));
-		}
-		else
-		{
-			// Valid in-range, evaluate
-			if(NumKeys == 1)
-			{
-				return FTransform(FQuat(RawTransformTrack.RotKeys[0]), FVector(RawTransformTrack.PosKeys[0]));
-			}
-
-			// Find the first key with a timestamp greater than InCacheTIme
-			int32 IndexBeyond = 0;
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(QSTAT_UpperBound);
-				IndexBeyond = Algo::UpperBound(KeyTimestamps, InCacheTime);
-			}
-
-			if(IndexBeyond == INDEX_NONE || IndexBeyond >= KeyTimestamps.Num())
-			{
-				// Must be equal to the last key
-				return FTransform(FQuat(RawTransformTrack.RotKeys.Last()), FVector(RawTransformTrack.PosKeys.Last()));
-			}
-
-			const int32 IndexBefore = IndexBeyond - 1;
-
-			if(IndexBefore == INDEX_NONE)
-			{
-				// Must have been equal to first key
-				return FTransform(FQuat(RawTransformTrack.RotKeys[0]), FVector(RawTransformTrack.PosKeys[0]));
-			}
-
-			// Need to interpolate
-			const float Interval = KeyTimestamps[IndexBeyond] - KeyTimestamps[IndexBefore];
-			const float Fraction = (InCacheTime - KeyTimestamps[IndexBefore]) / Interval;
-
-			// Slerp rotation - lerp translation
-			return FTransform(FQuat(FQuat4f::Slerp(RawTransformTrack.RotKeys[IndexBefore], RawTransformTrack.RotKeys[IndexBeyond], Fraction)),
-							  FVector(FMath::Lerp(RawTransformTrack.PosKeys[IndexBefore], RawTransformTrack.PosKeys[IndexBeyond], Fraction)));
-		}
+		const float ClampedTime = FMath::Clamp(InCacheTime, KeyTimestamps[0], KeyTimestamps.Last());  
+		
+		const int32 UpperKeyIndex = GetUpperBoundEvaluationIndex(ClampedTime);
+		const int32 LowerKeyIndex = FMath::Max(0, (UpperKeyIndex-1));;
+		
+		const FTransform LowerTransform = EvaluateAt(LowerKeyIndex);
+		const FTransform UpperTransform = EvaluateAt(UpperKeyIndex);
+		
+		const FTransform TransformA = (MassToLocal)? (*MassToLocal * LowerTransform): LowerTransform;
+		const FTransform TransformB = (MassToLocal)? (*MassToLocal * UpperTransform): UpperTransform;
+		
+		const float Interval = KeyTimestamps[UpperKeyIndex] - KeyTimestamps[LowerKeyIndex];
+		const float Alpha = (Interval > 0)? ((ClampedTime - KeyTimestamps[LowerKeyIndex]) / Interval): 0.0f;
+		ensure(Alpha >= 0.f && Alpha <= 1.f); 
+		
+		Result.Blend(TransformA, TransformB, Alpha); 
 	}
 
-	return FTransform::Identity;
+	return Result;
+}
+
+int32 FParticleTransformTrack::GetUpperBoundEvaluationIndex(float InCacheTime) const
+{
+	if (KeyTimestamps.Num() == 0)
+	{
+		return 0;
+	}
+	return FMath::Clamp(Algo::UpperBound(KeyTimestamps, InCacheTime), 0, KeyTimestamps.Num()-1);
+}
+
+FTransform FParticleTransformTrack::EvaluateAt(int32 Index) const
+{
+	if (KeyTimestamps.Num() == 0)
+	{
+		return FTransform::Identity;
+	}
+	return FTransform{FQuat(RawTransformTrack.RotKeys[Index]), FVector(RawTransformTrack.PosKeys[Index])};
 }
 
 const int32 FParticleTransformTrack::GetNumKeys() const

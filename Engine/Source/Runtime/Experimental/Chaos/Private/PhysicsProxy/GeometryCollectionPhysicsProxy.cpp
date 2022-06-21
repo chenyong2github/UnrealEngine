@@ -2309,7 +2309,12 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 						bIsCollectionDirty = true;
 					}
 
-					GameThreadCollection.Transform[TransformGroupIndex].Blend(Prev.Transforms[TransformGroupIndex], Next.Transforms[TransformGroupIndex], *Alpha);
+					
+					// need to interpolate using MassToLocal
+					const FTransform& MassToLocal = GameThreadCollection.MassToLocal[TransformGroupIndex];
+					FTransform InterpolatedTransform;
+					InterpolatedTransform.Blend(MassToLocal * Prev.Transforms[TransformGroupIndex], MassToLocal * Next.Transforms[TransformGroupIndex], *Alpha);
+					GameThreadCollection.Transform[TransformGroupIndex] = MassToLocal.Inverse() * InterpolatedTransform;
 
 					if(LinearVelocities && AngularVelocities)
 					{

@@ -43,8 +43,25 @@ struct FParticleTransformTrack
 	 * Evaluates the transform track at the specified time, returning the evaluated transform. When in between
 	 * keys translations will be linearly interpolated and rotations spherically interpolated
 	 * @param InCacheTime Absolute time from the beginning of the entire owning cache to evaluate.
+	 * @param MassToLocal if not null, the will be premultiplied to transform before interpolation
 	 */
-	FTransform Evaluate(float InCacheTime) const;
+	FTransform Evaluate(float InCacheTime, const FTransform* MassToLocal) const;
+
+	/**
+	 * Find the index the key where timestamp is directly above InCacheTime
+	 * returned value is garanteed to be within the range of keys if there's any
+	 * in the case there's no key in the track, 0 is returned
+	 * @param InCacheTime Absolute time from the beginning of the entire owning cache to evaluate.
+	 * @return Valid key index
+	 */
+	int32 GetUpperBoundEvaluationIndex(float InCacheTime) const;
+
+	/**
+	 * Evaluate the acche at a sepcific index
+	 * this assumes that index is within the range of valid keys
+	 * * if the track is empty identity transform is returned
+	 */
+	FTransform EvaluateAt(int32 Index) const;
 
 	const int32 GetNumKeys() const;
 	const float GetDuration() const;
@@ -306,9 +323,10 @@ public:
 	/**
 	 * Evaluate the cache with the specified parameters, returning the evaluated results
 	 * @param InContext evaluation context
+	 * @param MassToLocalTransforms MassToLocal trasnform if available ( geometry collection are using them )
 	 * @see FCacheEvaluationContext
 	 */
-	FCacheEvaluationResult Evaluate(const FCacheEvaluationContext& InContext);
+	FCacheEvaluationResult Evaluate(const FCacheEvaluationContext& InContext, const TArray<FTransform>* MassToLocalTransforms);
 
 	/**
 	 * Initializes the spawnable template from a currently existing component so it can be spawned by the editor
@@ -326,12 +344,13 @@ public:
 	 * Evaluates a single particle from the tracks array
 	 * @param InIndex Particle track index (unchecked, ensure valid before call)
 	 * @param InTickRecord Tick record for this evaluation
+	 * @param MassToLocal MassToLocal transform, necessary for proper interpolation, if not available, nullptr shoudl used instead
 	 * @param OutOptTransform Transform to fill, skipped if null
 	 * @param OutOptCurves Curves to fill, skipped if null
 	 */
-	void EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecord, FTransform* OutOptTransform, TMap<FName, float>* OutOptCurves);
+	void EvaluateSingle(int32 InIndex, FPlaybackTickRecord& InTickRecord, const FTransform* MassToLocal, FTransform* OutOptTransform, TMap<FName, float>* OutOptCurves);
 
-	void EvaluateTransform(const FPerParticleCacheData& InData, float InTime, FTransform& OutTransform);
+	void EvaluateTransform(const FPerParticleCacheData& InData, float InTime, const FTransform* MassToLocal, FTransform& OutTransform);
 	void EvaluateCurves(const FPerParticleCacheData& InData, float InTime, TMap<FName, float>& OutCurves);
 	void EvaluateEvents(FPlaybackTickRecord& InTickRecord, TMap<FName, TArray<FCacheEventHandle>>& OutEvents);
 

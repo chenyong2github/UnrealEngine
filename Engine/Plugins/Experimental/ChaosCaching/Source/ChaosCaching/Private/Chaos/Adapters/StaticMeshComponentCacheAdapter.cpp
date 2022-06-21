@@ -84,7 +84,8 @@ namespace Chaos
 				Context.bEvaluateCurves = false;
 				Context.bEvaluateEvents = false;
 
-				FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context);
+				// Note: static mesh don't use the concept of MassToLocal transforms, passing nullptr
+				FCacheEvaluationResult EvaluatedResult = InCache->Evaluate(Context, nullptr);
 
 				// Either 0 or 1 result, 0 for nothing in the eval track - 1 if there was.
 				if(EvaluatedResult.Transform.Num() == 1)
@@ -154,7 +155,7 @@ namespace Chaos
 			Context.bEvaluateEvents = false;
 
 			FTransform RestTransform;
-			InCache->EvaluateSingle(0, TickRecord, &RestTransform, nullptr);
+			InCache->EvaluateSingle(0, TickRecord, nullptr, &RestTransform, nullptr);
 
 			// Evaluated transform is in CacheManager space.
 			InComponent->SetWorldTransform(RestTransform * InRootTransform, false);
