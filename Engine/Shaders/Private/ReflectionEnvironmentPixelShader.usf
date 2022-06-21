@@ -288,7 +288,7 @@ void ReflectionEnvironmentSkyLighting(
 
 		// A reduction of SSR contribution is needed when there is haziness because we only consider SSR for the sharpest lobe.
 		float SSRReductionFactor = 1.0f;
-		float3 TopLayerEnvBRDF = 0.0f;
+		float3 SSRTopLayerEnvBRDF = 0.0f;
 
 		const float CloudVolumetricAOShadow = GetCloudVolumetricAOShadow(TranslatedWorldPosition);
 		const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
@@ -309,11 +309,11 @@ void ReflectionEnvironmentSkyLighting(
 			StrataPixelHeader,
 			CloudVolumetricAOShadow,
 			SSRReductionFactor,
-			TopLayerEnvBRDF);
+			SSRTopLayerEnvBRDF);
 
 		// Screen space reflections added on top of environment lighting.
 		// Alpha is 0 to not affect the subsurface diffuse luma information.
-		const float4 SSRColor = float4(SSR.rgb * TopLayerEnvBRDF * SSRReductionFactor, 0.0);
+		const float4 SSRColor = float4(SSR.rgb * SSRTopLayerEnvBRDF * SSRReductionFactor, 0.0);
 
 		OutColor += StrataLighting.SceneColor + SSRColor;
 #if STRATA_OPAQUE_ROUGH_REFRACTION_ENABLED

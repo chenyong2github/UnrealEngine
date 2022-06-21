@@ -31,7 +31,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 	FStrataPixelHeader StrataPixelHeader,
 	float CloudVolumetricAOShadow,
 	inout float SSRReductionFactor,
-	inout float3 TopLayerEnvBRDF)
+	inout float3 SSRTopLayerEnvBRDF)
 {
 	FStrataDeferredLighting StrataLighting = GetInitialisedStrataDeferredLighting();
 
@@ -100,7 +100,7 @@ FStrataDeferredLighting StrataEnvironmentLighting(
 		if (bIsTopLayer)
 		{
 			// The specular path weight applied on SSR. It must account for throughput even for top surface because it also contains coverage.
-			TopLayerEnvBRDF += BSDFThroughput * StrataEnvLight.SSRSpecularWeight;
+			SSRTopLayerEnvBRDF += BSDFThroughput * StrataEnvLight.SSRSpecularWeight;
 		}
 
 		// STRATA_TODO ReflectionEnvironment(...) for static reflection volumes.
