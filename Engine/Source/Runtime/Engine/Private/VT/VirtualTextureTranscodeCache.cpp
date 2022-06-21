@@ -422,7 +422,9 @@ FVTTranscodeTileHandle FVirtualTextureTranscodeCache::SubmitTask(
 
 	if (bNeedToLaunchTask)
 	{
-		TaskEntry.GraphEvent = TGraphTask<FTranscodeTask>::CreateTask(Prerequisites).ConstructAndDispatchWhenReady(StagingBuffer, InParams);
+		FGraphEventRef Task = TGraphTask<FTranscodeTask>::CreateTask(Prerequisites).ConstructAndDispatchWhenReady(StagingBuffer, InParams);
+		// this reference can live long, store completion handle instead of a reference to the task to reduce peak mem usage 
+		TaskEntry.GraphEvent = Task->CreateCompletionHandle();
 	}
 	else
 	{
