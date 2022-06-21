@@ -53,6 +53,9 @@ struct PROJECTS_API FPluginReferenceDescriptor
 	/** When true, empty SupportedTargetPlatforms and PlatformAllowList are interpreted as 'no platforms' with the expectation that explicit platforms will be added in plugin platform extensions */
 	bool bHasExplicitPlatforms;
 
+	/** When set, specifies a specific version of the plugin that this references. */
+	TOptional<int32> RequestedVersion;
+
 #if WITH_EDITOR
 	/** Cached json for custom data */
 	mutable TSharedPtr<FJsonObject> CachedJson;

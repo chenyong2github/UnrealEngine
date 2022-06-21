@@ -176,6 +176,20 @@ bool FPluginReferenceDescriptor::Read(const FJsonObject& Object, FText* OutFailR
 	Object.TryGetStringArrayField(TEXT("SupportedTargetPlatforms"), SupportedTargetPlatforms);
 	Object.TryGetBoolField(TEXT("HasExplicitPlatforms"), bHasExplicitPlatforms);
 
+	int32 ReadVersion;
+	if (Object.TryGetNumberField(TEXT("Version"), ReadVersion))
+	{
+		RequestedVersion = ReadVersion;
+		if (!bEnabled)
+		{
+			if (bSuccess && OutFailReason)
+			{
+				*OutFailReason = LOCTEXT("PluginReferenceDisabledWithVersion", "Plugin references cannot be used to disable explicit versions. Remove the 'Version' field when 'Enabled' is false.");
+			}
+			bSuccess = false;
+		}
+	}
+
 	return bSuccess;
 }
 
@@ -371,6 +385,15 @@ void FPluginReferenceDescriptor::UpdateJson(FJsonObject& JsonObject) const
 	else
 	{
 		JsonObject.RemoveField(TEXT("HasExplicitPlatforms"));
+	}
+
+	if (bEnabled && RequestedVersion.IsSet())
+	{
+		JsonObject.SetNumberField(TEXT("Version"), RequestedVersion.GetValue());
+	}
+	else
+	{
+		JsonObject.RemoveField(TEXT("Version"));
 	}
 
 	// Remove deprecated fields
