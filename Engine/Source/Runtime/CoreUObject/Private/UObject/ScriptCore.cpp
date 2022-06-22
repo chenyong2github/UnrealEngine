@@ -519,7 +519,7 @@ static bool ShowKismetScriptStackOnWarnings()
 	return ShowScriptStackForScriptWarning;
 }
 
-FString FFrame::GetScriptCallstack(bool bReturnEmpty)
+FString FFrame::GetScriptCallstack(bool bReturnEmpty, bool bTopOfStackOnly)
 {
 	FString ScriptStack;
 
@@ -527,10 +527,20 @@ FString FFrame::GetScriptCallstack(bool bReturnEmpty)
 	FBlueprintContextTracker& BlueprintExceptionTracker = FBlueprintContextTracker::Get();
 	if (BlueprintExceptionTracker.ScriptStack.Num() > 0)
 	{
-		for (int32 i = BlueprintExceptionTracker.ScriptStack.Num() - 1; i >= 0; --i)
+		const bool bDisplayArrow = (BlueprintExceptionTracker.ScriptStack.Num() > 1) && !bTopOfStackOnly;
+		const int32 TopOfStackIndex = BlueprintExceptionTracker.ScriptStack.Num() - 1;
+		int32 i = TopOfStackIndex;
+
+		do
 		{
-			ScriptStack += TEXT("\t") + BlueprintExceptionTracker.ScriptStack[i]->GetStackDescription() + TEXT("\n");
-		}
+			ScriptStack += TEXT("\t") + BlueprintExceptionTracker.ScriptStack[i]->GetStackDescription();
+			if ((i == TopOfStackIndex) && bDisplayArrow)
+			{
+				ScriptStack += TEXT(" <---");
+			}
+			ScriptStack += TEXT("\n");
+			--i;
+		} while ((i >= 0) && !bTopOfStackOnly);
 	}
 	else if (!bReturnEmpty)
 	{
@@ -548,7 +558,7 @@ FString FFrame::GetScriptCallstack(bool bReturnEmpty)
 
 FString FFrame::GetStackDescription() const
 {
-	return Node->GetOuter()->GetName() + TEXT(".") + Node->GetName();
+	return Node->GetOuter()->GetPathName() + TEXT(".") + Node->GetName();
 }
 
 #if DO_BLUEPRINT_GUARD
@@ -611,6 +621,11 @@ void FFrame::KismetExecutionMessage(const TCHAR* Message, ELogVerbosity::Type Ve
 	{
 		ScriptStack = TEXT("Script call stack:\n");
 		ScriptStack += GetScriptCallstack();
+	}
+	else if (Verbosity == ELogVerbosity::Warning)
+	{
+		ScriptStack = TEXT("Last function called:\n");
+		ScriptStack += GetScriptCallstack(false, true);
 	}
 #endif
 
