@@ -1139,6 +1139,12 @@ ILevelInstanceInterface* ULevelInstanceSubsystem::CreateLevelInstanceFrom(const 
 		EditorModule.ActivateEditorMode();
 	}
 
+	// After commit, CurrentLevel goes back to world's PersistentLevel. Set it back to the current editing level instance (if any).
+	if (ILevelInstanceInterface* EditingLevelInstance = GetEditingLevelInstance())
+	{
+		SetCurrent(EditingLevelInstance);
+	}
+
 	return GetLevelInstance(NewLevelInstanceID);
 }
 
