@@ -36,6 +36,7 @@ namespace EpicGames.Core
 #pragma warning disable IDE0054
 #pragma warning disable IDE0180
 #pragma warning disable IDE1006
+#pragma warning disable CS1591 // Missing documentation
 
 	public class CityHash
 	{

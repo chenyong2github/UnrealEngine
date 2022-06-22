@@ -370,6 +370,7 @@ namespace EpicGames.Core
 				return hash;
 			}
 
+			/// <inheritdoc/>
 			public override int Compare(ReadOnlySpan<byte> strA, ReadOnlySpan<byte> strB)
 			{
 				return strA.SequenceCompareTo(strB);

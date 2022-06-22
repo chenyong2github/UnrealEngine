@@ -207,6 +207,7 @@ namespace EpicGames.Core
 		/// If a StartupTraceListener was in use, this function will copy its captured data to the log file(s)
 		/// and remove the startup listener from the list of registered listeners.
 		/// </summary>
+		/// <param name="name">Identifier for the writer</param>
 		/// <param name="outputFile">The file to write to</param>
 		/// <returns>The created trace listener</returns>
 		public static void AddFileWriter(string name, FileReference outputFile)
@@ -264,6 +265,7 @@ namespace EpicGames.Core
 		/// If a StartupTraceListener was in use, this function will copy its captured data to the log file(s)
 		/// and remove the startup listener from the list of registered listeners.
 		/// </summary>
+		/// <param name="name">Identifier for the writer</param>
 		/// <param name="outputFile">The file to write to</param>
 		/// <returns>The created trace listener</returns>
 		public static void AddFileWriterWithoutBackup(string name, FileReference outputFile)
@@ -754,7 +756,6 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Updates the Pops the top status message from the stack. The mess
 		/// </summary>
-		/// <param name="Message"></param>
 		[Conditional("TRACE")]
 		public static void PopStatus()
 		{
@@ -1309,7 +1310,6 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Updates the Pops the top status message from the stack. The mess
 		/// </summary>
-		/// <param name="Message"></param>
 		[Conditional("TRACE")]
 		public void PopStatus()
 		{

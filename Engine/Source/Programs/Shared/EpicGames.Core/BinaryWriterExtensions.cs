@@ -13,6 +13,10 @@ namespace EpicGames.Core
 	/// </summary>
 	public interface IBinarySerializable
 	{
+		/// <summary>
+		/// Write an item
+		/// </summary>
+		/// <param name="writer"></param>
 		void Write(BinaryWriter writer);
 	}
 
@@ -122,14 +126,14 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Write a dictionary to a binary writer
 		/// </summary>
-		/// <typeparam name="TK">The key type for the dictionary</typeparam>
-		/// <typeparam name="TV">The value type for the dictionary</typeparam>
-		/// <param name="Reader">Reader to read data from</param>
+		/// <typeparam name="TKey">The key type for the dictionary</typeparam>
+		/// <typeparam name="TValue">The value type for the dictionary</typeparam>
+		/// <param name="writer">Writer to write data to</param>
 		/// <param name="items">List of items to be written</param>
 		/// <param name="writeKey">Delegate to call to serialize each key</param>
-		/// <param name="writeKey">Delegate to call to serialize each value</param>
+		/// <param name="writeValue">Delegate to call to serialize each value</param>
 		/// <returns>Dictionary of objects, as serialized. May be null.</returns>
-		public static void Write<TK, TV>(this BinaryWriter writer, Dictionary<TK, TV> items, Action<TK> writeKey, Action<TV> writeValue) where TK : notnull
+		public static void Write<TKey, TValue>(this BinaryWriter writer, Dictionary<TKey, TValue> items, Action<TKey> writeKey, Action<TValue> writeValue) where TKey : notnull
 		{
 			if (items == null)
 			{
@@ -138,7 +142,7 @@ namespace EpicGames.Core
 			else
 			{
 				writer.Write(items.Count);
-				foreach (KeyValuePair<TK, TV> item in items)
+				foreach (KeyValuePair<TKey, TValue> item in items)
 				{
 					writeKey(item.Key);
 					writeValue(item.Value);
@@ -151,6 +155,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="T">Type of the object</typeparam>
 		/// <param name="writer">Reader to read data from</param>
+		/// <param name="item">Item to write</param>
 		/// <param name="writeItem">Function to read the payload, if non-null</param>
 		/// <returns>Object instance or null</returns>
 		public static void WriteNullable<T>(this BinaryWriter writer, T item, Action writeItem) where T : class

@@ -12,6 +12,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public static class LogEventMarkup
 	{
+#pragma warning disable CS1591
 		public static LogValue Channel => new LogValue(LogValueType.Channel, "");
 		public static LogValue Severity => new LogValue(LogValueType.Severity, "");
 		public static LogValue Message => new LogValue(LogValueType.Message, "");
@@ -21,6 +22,7 @@ namespace EpicGames.Core
 		public static LogValue ErrorCode => new LogValue(LogValueType.ErrorCode, "");
 		public static LogValue ToolName => new LogValue(LogValueType.ToolName, "");
 		public static LogValue ScreenshotTest => new LogValue(LogValueType.ScreenshotTest, "");
+#pragma warning restore CS1591
 
 		static readonly char[] s_pathChars = { '/', '\\' };
 

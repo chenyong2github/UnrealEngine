@@ -191,6 +191,11 @@ namespace EpicGames.Core
 			return info.ReadMethod(reader)!;
 		}
 
+		/// <summary>
+		/// Reads an object from the archive
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>The deserialized object</returns>
 		public static object? ReadObject(this BinaryArchiveReader reader)
 		{
 			return reader.ReadUntypedObjectReference(() => ReadNewPolymorphicObject(reader));

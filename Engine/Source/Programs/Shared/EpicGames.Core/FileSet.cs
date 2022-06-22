@@ -48,7 +48,8 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Creates a file tree from a given set of files
 		/// </summary>
-		/// <param name="Files"></param>
+		/// <param name="directory">Base directory</param>
+		/// <param name="file">File to add</param>
 		/// <returns>Tree containing the given files</returns>
 		public static FileSet FromFile(DirectoryReference directory, string file)
 		{
@@ -68,7 +69,8 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Creates a file tree from a given set of files
 		/// </summary>
-		/// <param name="Files"></param>
+		/// <param name="directory">Base directory for the file</param>
+		/// <param name="file">File to include</param>
 		/// <returns>Tree containing the given files</returns>
 		public static FileSet FromFile(DirectoryReference directory, FileReference file)
 		{
@@ -78,7 +80,8 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Creates a file tree from a given set of files
 		/// </summary>
-		/// <param name="files"></param>
+		/// <param name="directory">Base directory for the fileset</param>
+		/// <param name="files">Files to include</param>
 		/// <returns>Tree containing the given files</returns>
 		public static FileSet FromFiles(DirectoryReference directory, IEnumerable<FileReference> files)
 		{
@@ -148,7 +151,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Create a tree containing the exception of files with another tree
 		/// </summary>
-		/// <param name="Filter">Files to exclude from the filter</param>
+		/// <param name="rules">Files to exclude from the filter</param>
 		/// <returns></returns>
 		public FileSet Except(params string[] rules)
 		{
@@ -424,7 +427,6 @@ namespace EpicGames.Core
 	/// <summary>
 	/// File tree which includes only those files which match any given filter
 	/// </summary>
-	/// <typeparam name="T">Class containing information about a file</typeparam>
 	class FileSetFromFilter : FileSet
 	{
 		readonly FileSet _inner;

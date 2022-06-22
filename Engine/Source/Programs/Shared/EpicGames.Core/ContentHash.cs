@@ -17,7 +17,14 @@ namespace EpicGames.Core
 	[JsonConverter(typeof(ContentHashJsonConverter))]
 	public class ContentHash : IEquatable<ContentHash>
 	{
+		/// <summary>
+		/// Length of an MD5 hash
+		/// </summary>
 		public const int LengthMD5 = 16;
+
+		/// <summary>
+		/// Length of a SHA1 hash
+		/// </summary>
 		public const int LengthSHA1 = 20;
 
 		/// <summary>
@@ -232,6 +239,7 @@ namespace EpicGames.Core
 		/// Parse a hash from a string
 		/// </summary>
 		/// <param name="text">Text to parse</param>
+		/// <param name="hash"></param>
 		/// <returns>Value of the hash</returns>
 		public static bool TryParse(string text, [NotNullWhen(true)] out ContentHash? hash)
 		{

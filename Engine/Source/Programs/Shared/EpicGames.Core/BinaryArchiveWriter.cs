@@ -281,6 +281,7 @@ namespace EpicGames.Core
         /// Writes an array of primitive types to the output.
         /// </summary>
         /// <param name="data">Data to write. May be null.</param>
+		/// <param name="elementSize">Size of each element</param>
         private void WritePrimitiveArray<T>(T[]? data, int elementSize) where T : struct
         {
             if (data == null)
@@ -325,6 +326,7 @@ namespace EpicGames.Core
         /// Writes an array of primitive types to the output.
         /// </summary>
         /// <param name="data">Data to write. May be null.</param>
+		/// <param name="elementSize">Size of each element</param>
         private void WriteFixedSizePrimitiveArray<T>(T[] data, int elementSize) where T : struct
         {
             WriteBulkData(data, data.Length * elementSize);

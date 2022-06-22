@@ -32,7 +32,7 @@ namespace EpicGames.Core
 		/// <inheritdoc cref="Utf8JsonWriter.WriteEndObject()"/>
 		void WriteEndArray();
 
-		/// <inheritdoc cref="Utf8JsonWriter.WriteBoolean(String, Bool)"/>
+		/// <inheritdoc cref="Utf8JsonWriter.WriteBoolean(String, Boolean)"/>
 		void WriteBoolean(string name, bool value);
 
 		/// <inheritdoc cref="Utf8JsonWriter.WriteString(String, String)"/>
@@ -316,6 +316,7 @@ namespace EpicGames.Core
 		/// Constructs a schema type from the given type object
 		/// </summary>
 		/// <param name="type"></param>
+		/// <param name="typeCache"></param>
 		/// <param name="xmlDoc"></param>
 		/// <returns></returns>
 		static JsonSchemaType CreateSchemaType(Type type, Dictionary<Type, JsonSchemaType> typeCache, XmlDocument? xmlDoc)

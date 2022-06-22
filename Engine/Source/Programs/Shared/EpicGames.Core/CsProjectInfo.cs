@@ -49,6 +49,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="inProperties">Initial mapping of property names to values</param>
+		/// <param name="inProjectPath"></param>
 		CsProjectInfo(Dictionary<string, string> inProperties, FileReference inProjectPath)
 		{
 			ProjectPath = inProjectPath;
@@ -228,7 +229,7 @@ namespace EpicGames.Core
 		/// Finds all content which will be copied into the output directory for this project. This includes content from any project references as "copy local" recursively (though MSBuild only traverses a single reference for actual binaries, in such cases)
 		/// </summary>
 		/// <param name="outputDir">The output directory</param>
-		/// <param name="BuildProducts">Receives the set of build products</param>
+		/// <param name="outputFiles">Receives the set of build products</param>
 		/// <param name="projectFileToInfo">Map of project file to information, to resolve build products from referenced projects copied locally</param>
 		private void FindCopiedContent(DirectoryReference outputDir, HashSet<FileReference> outputFiles, Dictionary<FileReference, CsProjectInfo> projectFileToInfo)
 		{
@@ -392,7 +393,7 @@ namespace EpicGames.Core
 		/// Parses a 'PropertyGroup' element.
 		/// </summary>
 		/// <param name="parentElement">The parent 'PropertyGroup' element</param>
-		/// <param name="Properties">Dictionary mapping property names to values</param>
+		/// <param name="projectInfo">Dictionary mapping property names to values</param>
 		static void ParsePropertyGroup(XmlElement parentElement, CsProjectInfo projectInfo)
 		{
 			// We need to know the overridden output type and output path for the selected configuration.
@@ -685,7 +686,7 @@ namespace EpicGames.Core
 		/// Evaluate whether the optional MSBuild condition on an XML element evaluates to true. Currently only supports 'ABC' == 'DEF' style expressions, but can be expanded as needed.
 		/// </summary>
 		/// <param name="element">The XML element to check</param>
-		/// <param name="Properties">Dictionary mapping from property names to values.</param>
+		/// <param name="projectInfo">Dictionary mapping from property names to values.</param>
 		/// <returns></returns>
 		static bool EvaluateCondition(XmlElement element, CsProjectInfo projectInfo)
 		{

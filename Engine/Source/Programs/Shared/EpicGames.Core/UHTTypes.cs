@@ -3,6 +3,8 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
+#pragma warning disable CS1591 // Missing documentation
+
 namespace EpicGames.Core
 {
 	/// <summary>

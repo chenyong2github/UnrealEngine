@@ -38,11 +38,11 @@ namespace EpicGames.Core
 			FullName = fullName;
 		}
 
+		static readonly ThreadLocal<StringBuilder> s_combineStringsStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
+
 		/// <summary>
 		/// Create a full path by concatenating multiple strings
 		/// </summary>
-		/// <returns></returns>
-		static readonly ThreadLocal<StringBuilder> s_combineStringsStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
 		protected static string CombineStrings(DirectoryReference baseDirectory, params string[] fragments)
 		{
 			// Get the initial string to append to, and strip any root directory suffix from it
@@ -230,13 +230,14 @@ namespace EpicGames.Core
 				return names.Any(x => ContainsName(x, baseDir.FullName.Length));
 			}
 		}
-		
+
+		static readonly ThreadLocal<StringBuilder> s_makeRelativeToStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
+
 		/// <summary>
 		/// Creates a relative path from the given base directory
 		/// </summary>
-		/// <param name="Directory">The directory to create a relative path from</param>
+		/// <param name="directory">The directory to create a relative path from</param>
 		/// <returns>A relative path from the given directory</returns>
-		static readonly ThreadLocal<StringBuilder> s_makeRelativeToStringBuilder = new ThreadLocal<StringBuilder>(() => new StringBuilder(260));
 		public string MakeRelativeTo(DirectoryReference directory)
 		{
 			StringBuilder result = s_makeRelativeToStringBuilder.Value!.Clear();
@@ -244,6 +245,11 @@ namespace EpicGames.Core
 			return result.ToString();
 		}
 
+		/// <summary>
+		/// Appens a relative path to a string builder
+		/// </summary>
+		/// <param name="directory"></param>
+		/// <param name="result"></param>
 		public void WriteRelativeTo(DirectoryReference directory, ref StringBuilder result)
 		{
 			// Find how much of the path is common between the two paths. This length does not include a trailing directory separator character.
@@ -323,6 +329,10 @@ namespace EpicGames.Core
 			}
 		}
 
+		/// <summary>
+		/// Normalize the path to using forward slashes
+		/// </summary>
+		/// <returns></returns>
 		public string ToNormalizedPath()
 		{
 			return FullName.Replace("\\", "/");

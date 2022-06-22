@@ -229,9 +229,9 @@ namespace EpicGames.Core
 		/// Formats an event as a string
 		/// </summary>
 		/// <param name="state"></param>
+		/// <param name="ex"></param>
 		/// <returns></returns>
-		/// <exception cref="NotImplementedException"></exception>
-		public static string Format(JsonLogEvent state, Exception? _) => LogEvent.Read(state.Data.Span).ToString();
+		public static string Format(JsonLogEvent state, Exception? ex) => LogEvent.Read(state.Data.Span).ToString();
 
 		/// <inheritdoc/>
 		public override string ToString() => Encoding.UTF8.GetString(Data.ToArray());

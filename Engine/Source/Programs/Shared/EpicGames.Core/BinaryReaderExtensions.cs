@@ -6,6 +6,9 @@ using System.IO;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Extension methods for <see cref="BinaryReader"/>
+	/// </summary>
 	public static class BinaryReaderExtensions
 	{
 		/// <summary>
@@ -78,7 +81,6 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <typeparam name="T">The element type for the list</typeparam>
 		/// <param name="reader">Reader to read data from</param>
-		/// <param name="ReadElement">Delegate to call to serialize each element</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
 		public static List<T>? ReadList<T>(this BinaryReader reader) where T : class, IBinarySerializable
 		{
@@ -111,12 +113,13 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Read a list of objects from a binary reader
 		/// </summary>
-		/// <typeparam name="T">The element type for the list</typeparam>
+		/// <typeparam name="TKey">Dictionary key type</typeparam>
+		/// <typeparam name="TValue">Dictionary value type</typeparam>
 		/// <param name="reader">Reader to read data from</param>
 		/// <param name="readKey">Delegate to call to serialize each key</param>
 		/// <param name="readValue">Delegate to call to serialize each value</param>
 		/// <returns>List of objects, as serialized. May be null.</returns>
-		public static Dictionary<TK, TV>? ReadDictionary<TK, TV>(this BinaryReader reader, Func<TK> readKey, Func<TV> readValue) where TK : notnull
+		public static Dictionary<TKey, TValue>? ReadDictionary<TKey, TValue>(this BinaryReader reader, Func<TKey> readKey, Func<TValue> readValue) where TKey : notnull
 		{
 			int numItems = reader.ReadInt32();
 			if (numItems < 0)
@@ -124,11 +127,11 @@ namespace EpicGames.Core
 				return null;
 			}
 
-			Dictionary<TK, TV> items = new Dictionary<TK, TV>(numItems);
+			Dictionary<TKey, TValue> items = new Dictionary<TKey, TValue>(numItems);
 			for (int idx = 0; idx < numItems; idx++)
 			{
-				TK key = readKey();
-				TV value = readValue();
+				TKey key = readKey();
+				TValue value = readValue();
 				items.Add(key, value);
 			}
 			return items;

@@ -293,7 +293,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Gets the index of the numbered positional argument
 		/// </summary>
-		/// <param name="Index">Number of the positional argument</param>
+		/// <param name="num">Number of the positional argument</param>
 		/// <returns>Index of the positional argument</returns>
 		public int GetPositionalArgumentIndex(int num)
 		{
@@ -996,7 +996,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Appends the given arguments to the current argument list
 		/// </summary>
-		/// <param name="Arguments">The arguments to add</param>
+		/// <param name="appendArguments">The arguments to add</param>
 		/// <returns>New argument list</returns>
 		public CommandLineArguments Append(IEnumerable<string> appendArguments)
 		{
@@ -1343,6 +1343,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Takes a command line argument and adds quotes if necessary
 		/// </summary>
+		/// <param name="commandLine"></param>
 		/// <param name="argument">The command line argument</param>
 		/// <returns>The command line argument with quotes inserted to escape it if necessary</returns>
 		public static void Append(StringBuilder commandLine, string argument)

@@ -146,7 +146,6 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Write the opening bracket for an unnamed array
 		/// </summary>
-		/// <param name="ArrayName">Name of the field</param>
 		public void WriteArrayStart()
 		{
 			WriteCommaNewline();

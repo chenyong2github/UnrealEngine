@@ -165,6 +165,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="format">Format string</param>
 		/// <param name="args">Argument list to parse</param>
+		/// <param name="properties"></param>
 		/// <returns></returns>
 		public static void ParsePropertyValues(string format, object[] args, Dictionary<string, object> properties)
 		{

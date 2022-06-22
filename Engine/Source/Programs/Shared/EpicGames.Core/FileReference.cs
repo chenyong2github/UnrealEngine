@@ -22,6 +22,9 @@ namespace EpicGames.Core
 		/// </summary>
 		public enum Sanitize
 		{
+			/// <summary>
+			/// Dummy value
+			/// </summary>
 			None
 		}
 
@@ -51,7 +54,8 @@ namespace EpicGames.Core
 		/// Default constructor.
 		/// </summary>
 		/// <param name="fullName">The full sanitized path</param>
-		public FileReference(string fullName, Sanitize _)
+		/// <param name="sanitize">Sanitize argument. Ignored.</param>
+		public FileReference(string fullName, Sanitize sanitize)
 			: base(fullName)
 		{
 		}
@@ -429,6 +433,7 @@ namespace EpicGames.Core
 		/// Reads the contents of a file
 		/// </summary>
 		/// <param name="location">Location of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Byte array containing the contents of the file</returns>
 		public static Task<byte[]> ReadAllBytesAsync(FileReference location, CancellationToken cancellationToken = default)
 		{
@@ -480,6 +485,7 @@ namespace EpicGames.Core
 		/// Reads the contents of a file
 		/// </summary>
 		/// <param name="location">Location of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Contents of the file as a single string</returns>
 		public static Task<string> ReadAllTextAsync(FileReference location, CancellationToken cancellationToken = default)
 		{
@@ -491,6 +497,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="location">Location of the file</param>
 		/// <param name="encoding">Encoding of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Contents of the file as a single string</returns>
 		public static Task<string> ReadAllTextAsync(FileReference location, Encoding encoding, CancellationToken cancellationToken = default)
 		{
@@ -522,6 +529,7 @@ namespace EpicGames.Core
 		/// Reads the contents of a file
 		/// </summary>
 		/// <param name="location">Location of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>String array containing the contents of the file</returns>
 		public static Task<string[]> ReadAllLinesAsync(FileReference location, CancellationToken cancellationToken = default)
 		{
@@ -533,6 +541,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="location">Location of the file</param>
 		/// <param name="encoding">The encoding to use when parsing the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>String array containing the contents of the file</returns>
 		public static Task<string[]> ReadAllLinesAsync(FileReference location, Encoding encoding, CancellationToken cancellationToken = default)
 		{
@@ -583,7 +592,7 @@ namespace EpicGames.Core
 		/// Sets the time that the file was last accessed.
 		/// </summary>
 		/// <param name="location">Location of the file.</param>
-		/// <param name="LastWriteTime">Last access time, in UTC time.</param>
+		/// <param name="lastWriteTimeUtc">Last access time, in UTC time.</param>
 		public static void SetLastAccessTimeUtc(FileReference location, DateTime lastWriteTimeUtc)
 		{
 			File.SetLastWriteTimeUtc(location.FullName, lastWriteTimeUtc);
@@ -604,6 +613,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="location">Location of the file</param>
 		/// <param name="contents">Contents of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static Task WriteAllBytesAsync(FileReference location, byte[] contents, CancellationToken cancellationToken = default)
 		{
 			return File.WriteAllBytesAsync(location.FullName, contents, cancellationToken);
@@ -696,6 +706,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="location">Location of the file</param>
 		/// <param name="contents">Contents of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static Task WriteAllLinesAsync(FileReference location, IEnumerable<string> contents, CancellationToken cancellationToken = default)
 		{
 			return File.WriteAllLinesAsync(location.FullName, contents, cancellationToken);
@@ -707,6 +718,7 @@ namespace EpicGames.Core
 		/// <param name="location">Location of the file</param>
 		/// <param name="contents">Contents of the file</param>
 		/// <param name="encoding">The encoding to use when parsing the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static Task WriteAllLinesAsync(FileReference location, IEnumerable<string> contents, Encoding encoding, CancellationToken cancellationToken = default)
 		{
 			return File.WriteAllLinesAsync(location.FullName, contents, encoding, cancellationToken);
@@ -717,6 +729,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="location">Location of the file</param>
 		/// <param name="contents">Contents of the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static Task WriteAllLinesAsync(FileReference location, string[] contents, CancellationToken cancellationToken = default)
 		{
 			return File.WriteAllLinesAsync(location.FullName, contents, cancellationToken);
@@ -728,6 +741,7 @@ namespace EpicGames.Core
 		/// <param name="location">Location of the file</param>
 		/// <param name="contents">Contents of the file</param>
 		/// <param name="encoding">The encoding to use when parsing the file</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static Task WriteAllLinesAsync(FileReference location, string[] contents, Encoding encoding, CancellationToken cancellationToken = default)
 		{
 			return File.WriteAllLinesAsync(location.FullName, contents, encoding, cancellationToken);

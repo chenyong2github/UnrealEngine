@@ -510,7 +510,6 @@ namespace EpicGames.Core
 		/// Reads an object reference from the stream. Each object will only be serialized once using the supplied delegate; subsequent reads reference the original.
 		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
 		/// </summary>
-		/// <typeparam name="T">Type of the object to read.</typeparam>
 		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
 		/// <returns>Object instance</returns>
 		public object? ReadUntypedObjectReference(Func<object?> readObject)
@@ -540,7 +539,6 @@ namespace EpicGames.Core
 		/// Reads an object reference from the stream. Each object will only be serialized once using the supplied delegate; subsequent reads reference the original.
 		/// Since the reader only receives the object reference when the CreateObject delegate returns, it is not possible for the object to serialize a reference to itself.
 		/// </summary>
-		/// <typeparam name="T">Type of the object to read.</typeparam>
 		/// <param name="readObject">Delegate used to create an object instance. The object may not reference itself recursively.</param>
 		/// <returns>Object instance</returns>
 		public object? ReadUntypedObjectReference(Func<BinaryArchiveReader, object?> readObject)

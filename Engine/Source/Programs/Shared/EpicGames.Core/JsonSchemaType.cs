@@ -120,6 +120,7 @@ namespace EpicGames.Core
 		/// Constructor
 		/// </summary>
 		/// <param name="format"></param>
+		/// <param name="pattern"></param>
 		public JsonSchemaString(JsonSchemaStringFormat? format = null, string? pattern = null)
 		{
 			Format = format;

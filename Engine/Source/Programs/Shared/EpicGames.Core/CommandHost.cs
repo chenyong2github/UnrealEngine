@@ -19,6 +19,7 @@ namespace EpicGames.Core
 		/// Configure this object with the given command line arguments
 		/// </summary>
 		/// <param name="arguments">Command line arguments</param>
+		/// <param name="logger">Logger for output</param>
 		void Configure(CommandLineArguments arguments, ILogger logger);
 
 		/// <summary>

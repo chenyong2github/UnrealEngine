@@ -413,7 +413,7 @@ namespace EpicGames.Core
 		Task? _frameworkOutputTask;
 
 		/// <summary>
-		/// Merged output & error write stream for the framework child process. We use a channel rather than a pipe here to support cancellation, which is not supported by async pipes on Windows.
+		/// Merged output and error write stream for the framework child process. We use a channel rather than a pipe here to support cancellation, which is not supported by async pipes on Windows.
 		/// </summary>
 		Channel<ChannelBuffer>? _frameworkChannel;
 
@@ -518,6 +518,7 @@ namespace EpicGames.Core
 		/// <param name="environment">Environment variables for the new process. May be null, in which case the current process' environment is inherited</param>
 		/// <param name="input">Text to be passed via stdin to the new process. May be null.</param>
 		/// <param name="priority">Priority for the child process</param>
+		/// <param name="flags">Flags for the process</param>
 		public ManagedProcess(ManagedProcessGroup? group, string fileName, string commandLine, string? workingDirectory, IReadOnlyDictionary<string, string>? environment, byte[]? input, ProcessPriorityClass priority, ManagedProcessFlags flags = ManagedProcessFlags.MergeOutputPipes)
 			: this(group, fileName, commandLine, workingDirectory, environment, priority, flags)
 		{
@@ -537,6 +538,7 @@ namespace EpicGames.Core
 		/// <param name="workingDirectory">Working directory for the new process. May be null to use the current working directory.</param>
 		/// <param name="environment">Environment variables for the new process. May be null, in which case the current process' environment is inherited</param>
 		/// <param name="priority">Priority for the child process</param>
+		/// <param name="flags">Flags for the process</param>
 		public ManagedProcess(ManagedProcessGroup? group, string fileName, string commandLine, string? workingDirectory, IReadOnlyDictionary<string, string>? environment, ProcessPriorityClass priority, ManagedProcessFlags flags = ManagedProcessFlags.MergeOutputPipes)
 		{
 			// Create the child process
@@ -902,6 +904,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="source"></param>
 		/// <param name="target"></param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		async Task CopyPipeAsync(Stream source, ChannelWriter<ChannelBuffer> target, CancellationToken cancellationToken)
 		{
 			for (; ; )
@@ -1001,6 +1004,7 @@ namespace EpicGames.Core
 		/// <param name="buffer">The buffer to receive the data</param>
 		/// <param name="offset">Offset within the buffer to write to</param>
 		/// <param name="count">Maximum number of bytes to read</param>
+		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns>Number of bytes read</returns>
 		public async ValueTask<int> ReadAsync(byte[] buffer, int offset, int count, CancellationToken cancellationToken)
 		{
@@ -1022,6 +1026,7 @@ namespace EpicGames.Core
 		/// Copy the process output to the given stream
 		/// </summary>
 		/// <param name="writeOutput">The output stream</param>
+		/// <param name="bufferSize">Size of the buffer for copying</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
 		public Task CopyToAsync(Action<byte[], int, int> writeOutput, int bufferSize, CancellationToken cancellationToken)
@@ -1038,6 +1043,7 @@ namespace EpicGames.Core
 		/// Copy the process output to the given stream
 		/// </summary>
 		/// <param name="writeOutputAsync">The output stream</param>
+		/// <param name="bufferSize">Size of the buffer for copying</param>
 		/// <param name="cancellationToken">Cancellation token</param>
 		/// <returns></returns>
 		public async Task CopyToAsync(Func<byte[], int, int, CancellationToken, Task> writeOutputAsync, int bufferSize, CancellationToken cancellationToken)
@@ -1189,6 +1195,9 @@ namespace EpicGames.Core
 			return await StdOutText!.ReadLineAsync();
 		}
 
+		/// <summary>
+		/// Total amount of time spent by the CPU
+		/// </summary>
 		public TimeSpan TotalProcessorTime
 		{
 			get

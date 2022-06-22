@@ -28,7 +28,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Collection">Elements for the hash set</param>
+		/// <param name="elements">Elements for the hash set</param>
 		public ReadOnlyHashSet(IEnumerable<T> elements)
 		{
 			_inner = new HashSet<T>(elements);
@@ -37,7 +37,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Collection">Elements for the hash set</param>
+		/// <param name="elements">Elements for the hash set</param>
 		/// <param name="comparer">Comparer for elements in the set</param>
 		public ReadOnlyHashSet(IEnumerable<T> elements, IEqualityComparer<T> comparer)
 		{

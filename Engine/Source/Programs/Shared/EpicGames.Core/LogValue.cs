@@ -12,6 +12,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public static class LogValueType
 	{
+#pragma warning disable CS1591
 		public static readonly Utf8String Asset = "Asset";
 		public static readonly Utf8String SourceFile = "SourceFile";
 		public static readonly Utf8String Object = "Object"; // Arbitrary structured object
@@ -25,6 +26,7 @@ namespace EpicGames.Core
 		public static readonly Utf8String ToolName = "ToolName";
 		public static readonly Utf8String ScreenshotTest = "ScreenshotTest";
 		public static readonly Utf8String DepotPath = "DepotPath";
+#pragma warning restore CS1591
 	}
 
 	/// <summary>

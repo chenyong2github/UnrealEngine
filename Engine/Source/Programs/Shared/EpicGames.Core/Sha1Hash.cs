@@ -38,7 +38,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to construct from</param>
+		/// <param name="span">Memory to construct from</param>
 		public Sha1Hash(ReadOnlySpan<byte> span)
 			: this(BinaryPrimitives.ReadUInt64BigEndian(span), BinaryPrimitives.ReadUInt64BigEndian(span.Slice(8)), BinaryPrimitives.ReadUInt32BigEndian(span.Slice(16)))
 		{
@@ -47,7 +47,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="Memory">Memory to construct from</param>
+		/// <param name="a">First 64 bits of the hash</param>
+		/// <param name="b">Next 64 bits of the hash</param>
+		/// <param name="c">Final 32 bits of the hash</param>
 		public Sha1Hash(ulong a, ulong b, uint c)
 		{
 			_a = a;
@@ -126,6 +128,10 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override string ToString() => StringUtils.FormatHexString(ToByteArray());
 
+		/// <summary>
+		/// Convert the hash to a byte array
+		/// </summary>
+		/// <returns></returns>
 		public byte[] ToByteArray()
 		{
 			byte[] data = new byte[NumBytes];

@@ -9,6 +9,9 @@ using System.Reflection;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Utilities for dealing with assembly loading
+	/// </summary>
 	public static class AssemblyUtils
 	{
 		/// <summary>
@@ -96,6 +99,10 @@ namespace EpicGames.Core
 			}
 		}
 
+		/// <summary>
+		/// Adds a file to the cache
+		/// </summary>
+		/// <param name="assemblyPath"></param>
 		public static void AddFileToAssemblyCache(string assemblyPath)
 		{
 			// Ignore any reference assemblies

@@ -18,27 +18,74 @@ namespace EpicGames.Core
 	/// </summary>
 	public enum LogEventPriority
 	{
+		/// <summary>
+		/// Unspecified priority
+		/// </summary>
 		None,
+
+		/// <summary>
+		/// Lowest confidence match
+		/// </summary>
 		Lowest,
+
+		/// <summary>
+		/// Low confidence match
+		/// </summary>
 		Low,
+
+		/// <summary>
+		/// Below normal confidence match
+		/// </summary>
 		BelowNormal,
+
+		/// <summary>
+		/// Normal confidence match
+		/// </summary>
 		Normal,
+
+		/// <summary>
+		/// Above normal confidence match
+		/// </summary>
 		AboveNormal,
+
+		/// <summary>
+		/// High confidence match
+		/// </summary>
 		High,
+
+		/// <summary>
+		/// Highest confidence match
+		/// </summary>
 		Highest,
 	}
 
+	/// <summary>
+	/// Information about a matched event
+	/// </summary>
 	public class LogEventMatch
 	{
+		/// <summary>
+		/// Confidence of the match
+		/// </summary>
 		public LogEventPriority Priority { get; }
+
+		/// <summary>
+		/// Matched events
+		/// </summary>
 		public List<LogEvent> Events { get; }
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public LogEventMatch(LogEventPriority priority, LogEvent logEvent)
 		{
 			Priority = priority;
 			Events = new List<LogEvent> { logEvent };
 		}
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public LogEventMatch(LogEventPriority priority, IEnumerable<LogEvent> events)
 		{
 			Priority = priority;
@@ -456,7 +503,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Writes an event to the log
 		/// </summary>
-		/// <param name="Event">The event to write</param>
+		/// <param name="logEvents">The event to write</param>
 		protected virtual void WriteEvents(List<LogEvent> logEvents)
 		{
 			foreach (LogEvent logEvent in logEvents)

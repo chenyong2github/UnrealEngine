@@ -13,6 +13,8 @@ using OpenTracing.Propagation;
 using OpenTracing.Tag;
 using OpenTracing.Util;
 
+#pragma warning disable CS1591
+
 namespace EpicGames.Core
 {
 	public class JsonTracerSpanContext : ISpanContext

@@ -298,8 +298,8 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Moves a file from one location to another. Creates the destination directory, and removes read-only files in the target location if necessary.
 		/// </summary>
-		/// <param name="SourceFileName">Path to the source file</param>
-		/// <param name="TargetFileName">Path to the target file</param>
+		/// <param name="sourceLocation">Path to the source file</param>
+		/// <param name="targetLocation">Path to the target file</param>
 		public static void ForceMoveFile(FileReference sourceLocation, FileReference targetLocation)
 		{
 			// Try to move the file into place
@@ -499,6 +499,10 @@ namespace EpicGames.Core
 		[DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
 		internal static extern int GetFileAttributesW(string lpFileName);
 
+		/// <summary>
+		/// Force-delete a file (Windows only)
+		/// </summary>
+		/// <param name="fileName"></param>
 		public static void ForceDeleteFileWin32(string fileName)
 		{
 			// Try to delete the file normally

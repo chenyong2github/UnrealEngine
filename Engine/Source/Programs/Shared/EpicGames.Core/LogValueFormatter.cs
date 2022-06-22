@@ -11,7 +11,6 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Formatter for objects of a given type
 	/// </summary>
-	/// <typeparam name="T"></typeparam>
 	public interface ILogValueFormatter
 	{
 		/// <summary>

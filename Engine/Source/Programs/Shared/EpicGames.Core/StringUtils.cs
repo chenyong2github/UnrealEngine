@@ -8,6 +8,9 @@ using System.Text;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Utility methods for strings
+	/// </summary>
 	public static class StringUtils
 	{
 		/// <summary>
@@ -120,7 +123,7 @@ namespace EpicGames.Core
 			return result;
 		}
 
-		/// <inheritdoc cref="WordWrap(String, Int32, Int32, Int32)">
+		/// <inheritdoc cref="WordWrap(String, Int32, Int32, Int32)"/>
 		public static IEnumerable<string> WordWrap(string text, int maxWidth)
 		{
 			return WordWrap(text, 0, 0, maxWidth);
@@ -340,6 +343,7 @@ namespace EpicGames.Core
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
 		/// <param name="text">Text to parse</param>
+		/// <param name="outBytes">Receives the parsed string</param>
 		/// <returns></returns>
 		public static bool TryParseHexString(string text, [NotNullWhen(true)] out byte[]? outBytes)
 		{
@@ -368,6 +372,7 @@ namespace EpicGames.Core
 		/// Parses a hexadecimal string into an array of bytes
 		/// </summary>
 		/// <param name="text">Text to parse</param>
+		/// <param name="outBytes">Receives the parsed string</param>
 		/// <returns></returns>
 		public static bool TryParseHexString(ReadOnlySpan<byte> text, [NotNullWhen(true)] out byte[]? outBytes)
 		{
@@ -531,6 +536,7 @@ namespace EpicGames.Core
 		/// Converts a bytes string into bytes. E.g 1.5KB -> 1536
 		/// </summary>
 		/// <param name="bytesString"></param>
+		/// <param name="bytes">Receives the parsed bytes</param>
 		/// <returns></returns>
 		public static bool TryParseBytesString( string bytesString, out long? bytes )
 		{
@@ -612,7 +618,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="x">First string to compare</param>
 		/// <param name="y">Second string to compare</param>
-		/// <returns>Less than zero if X < Y, zero if X == Y, and greater than zero if X > y</returns>
+		/// <returns>Less than zero if X &lt; Y, zero if X == Y, and greater than zero if X &gt; y</returns>
 		public static int CompareIgnoreCaseUe(ReadOnlySpan<char> x, ReadOnlySpan<char> y)
 		{
 			int length = x.Length < y.Length ? x.Length : y.Length;

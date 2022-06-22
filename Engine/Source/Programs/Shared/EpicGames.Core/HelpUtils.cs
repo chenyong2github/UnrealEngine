@@ -22,6 +22,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Prints help for the given object type
 		/// </summary>
+		/// <param name="title"></param>
 		/// <param name="type">Type to print help for</param>
 		public static void PrintHelp(string title, Type type)
 		{
@@ -88,7 +89,6 @@ namespace EpicGames.Core
 		/// Prints a paragraph of text using word wrapping
 		/// </summary>
 		/// <param name="text">Text to print</param>
-		/// <param name="Logger">Logger implementation to write to</param>
 		public static void PrintParagraph(string text)
 		{
 			PrintParagraph(text, WindowWidth - 1);
@@ -157,6 +157,8 @@ namespace EpicGames.Core
 		/// <param name="items">List of parameters arranged as "-ParamName Param Description"</param>
 		/// <param name="indent">Indent from the left hand side</param>
 		/// <param name="minFirstColumnWidth">The minimum padding from the start of the param name to the start of the description (resizes with larger param names)</param>
+		/// <param name="maxWidth"></param>
+		/// <param name="lines"></param>
 		/// <returns>Sequence of formatted lines in the table</returns>
 		public static void FormatTable(IReadOnlyList<KeyValuePair<string, string>> items, int indent, int minFirstColumnWidth, int maxWidth, List<string> lines)
 		{

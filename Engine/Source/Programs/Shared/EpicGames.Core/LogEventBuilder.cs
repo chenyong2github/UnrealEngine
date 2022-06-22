@@ -227,6 +227,7 @@ namespace EpicGames.Core
 		/// Starts building a log event at the current cursor position
 		/// </summary>
 		/// <param name="cursor">The current cursor position</param>
+		/// <param name="lineCount">Number of lines to consume</param>
 		public LogEventBuilder(ILogCursor cursor, int lineCount = 1)
 		{
 			Current = cursor;
@@ -273,7 +274,7 @@ namespace EpicGames.Core
 		/// <param name="name">Name to use to identify the item in the format string</param>
 		/// <param name="offset">Offset within the line</param>
 		/// <param name="length">Length of the span</param>
-		/// <param name="Data">Data of the span</param>
+		/// <param name="value">Data of the span</param>
 		/// <returns>New span for the given range</returns>
 		public void Annotate(string name, int offset, int length, object? value = null)
 		{
@@ -298,6 +299,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="group">The match group</param>
 		/// <param name="name">Name to use to identify the item in the format string</param>
+		/// <param name="value">Optional value for the annotation</param>
 		public void Annotate(string name, Group group, object? value = null)
 		{
 			Annotate(name, group.Index, group.Length, value);
@@ -307,6 +309,7 @@ namespace EpicGames.Core
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
 		/// <param name="group">The match group</param>
+		/// <param name="value">Optional value for the annotation</param>
 		public void Annotate(Group group, object? value = null)
 		{
 			Annotate(group.Name, group.Index, group.Length, value);
@@ -317,6 +320,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="group">The match group</param>
 		/// <param name="name">Name to use to identify the item in the format string</param>
+		/// <param name="value">Optional value for the annotation</param>
 		public bool TryAnnotate(string name, Group group, object? value = null)
 		{
 			if (group.Success)
@@ -331,6 +335,7 @@ namespace EpicGames.Core
 		/// Adds a span naming a regex match group, using the name of the group
 		/// </summary>
 		/// <param name="group">The match group</param>
+		/// <param name="value">Optional value for the annotation</param>
 		public bool TryAnnotate(Group group, object? value = null)
 		{
 			if (group.Success)

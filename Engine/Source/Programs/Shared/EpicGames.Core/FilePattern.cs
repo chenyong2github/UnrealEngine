@@ -8,18 +8,28 @@ using System.Text.RegularExpressions;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Invalid file pattern exception
+	/// </summary>
 	public class FilePatternException : Exception
 	{
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public FilePatternException(string message)
 			: base(message)
 		{
 		}
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public FilePatternException(string format, params object[] args)
 			: base(String.Format(format, args))
 		{
 		}
 
+		/// <inheritdoc/>
 		public override string ToString()
 		{
 			return Message;
@@ -277,10 +287,8 @@ namespace EpicGames.Core
 		/// Creates a file mapping between a set of source patterns and a target pattern. All patterns should have a matching order and number of wildcards.
 		/// </summary>
 		/// <param name="files">Files to use for the mapping</param>
-		/// <param name="SourcePatterns">List of source patterns</param>
+		/// <param name="sourcePattern">List of source patterns</param>
 		/// <param name="targetPattern">Matching output pattern</param>
-		/// <param name="Filter">Filter to apply to source files</param>
-		/// <param name="TargetFileToSourceFile">Dictionary to receive a mapping from target file to source file. An exception is thrown if multiple source files map to one target file, or a source file is also used as a target file.</param>
 		public static Dictionary<FileReference, FileReference> CreateMapping(HashSet<FileReference>? files, ref FilePattern sourcePattern, ref FilePattern targetPattern)
 		{
 			// If the source pattern ends in a directory separator, or a set of input files are specified and it doesn't contain wildcards, treat it as a full directory match

@@ -19,6 +19,7 @@ namespace EpicGames.Core
 	/// </summary>
 	public static class LogEventPropertyName
 	{
+#pragma warning disable CS1591 // Missing documentation
 		public static readonly Utf8String Time = new Utf8String("time");
 		public static readonly Utf8String Level = new Utf8String("level");
 		public static readonly Utf8String Id = new Utf8String("id");
@@ -35,6 +36,7 @@ namespace EpicGames.Core
 		public static readonly Utf8String Trace = new Utf8String("trace");
 		public static readonly Utf8String InnerException = new Utf8String("innerException");
 		public static readonly Utf8String InnerExceptions = new Utf8String("innerExceptions");
+#pragma warning restore CS1591 // Missing documentation
 	}
 
 	/// <summary>
@@ -407,12 +409,21 @@ namespace EpicGames.Core
 			}
 		}
 
+		/// <summary>
+		/// Create a new log event
+		/// </summary>
 		public static LogEvent Create(LogLevel level, string format, params object[] args)
 			=> Create(level, KnownLogEvents.None, null, format, args);
 
+		/// <summary>
+		/// Create a new log event
+		/// </summary>
 		public static LogEvent Create(LogLevel level, EventId eventId, string format, params object[] args)
 			=> Create(level, eventId, null, format, args);
 
+		/// <summary>
+		/// Create a new log event
+		/// </summary>
 		public static LogEvent Create(LogLevel level, EventId eventId, Exception? exception, string format, params object[] args)
 		{
 			Dictionary<string, object> properties = new Dictionary<string, object>();

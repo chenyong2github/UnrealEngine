@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 
 #pragma warning disable IDE1006 // Naming Styles
+#pragma warning disable CS1591 // Missing documentation
 
 namespace EpicGames.Core
 {
@@ -236,7 +237,7 @@ namespace EpicGames.Core
 		HideDropDown = 0x04000000u,
 
 		/// <summary>
-		/// Class settings are saved to <AppData>/..../Blah.ini (as opposed to "DefaultConfig")
+		/// Class settings are saved to [AppData]/..../Blah.ini (as opposed to "DefaultConfig")
 		/// </summary>
 		GlobalUserConfig = 0x08000000u,
 
@@ -1145,7 +1146,7 @@ namespace EpicGames.Core
 		PersistentInstance = 0x0002000000000000,
 
 		/// <summary>
-		/// Property was parsed as a wrapper class like TSubclassOf<T>, FScriptInterface etc., rather than a USomething*
+		/// Property was parsed as a wrapper class like TSubclassOf&lt;T&gt;, FScriptInterface etc., rather than a USomething*
 		/// </summary>
 		UObjectWrapper = 0x0004000000000000,
 
@@ -1461,5 +1462,3 @@ namespace EpicGames.Core
 		}
 	}
 }
-
-#pragma warning restore IDE1006 // Naming Styles

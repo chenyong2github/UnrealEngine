@@ -18,6 +18,9 @@ namespace EpicGames.Core
 		/// </summary>
 		public enum Sanitize
 		{
+			/// <summary>
+			/// Dummy value
+			/// </summary>
 			None
 		}
 
@@ -43,7 +46,8 @@ namespace EpicGames.Core
 		/// Constructor for creating a directory object directly from two strings.
 		/// </summary>
 		/// <param name="fullName">The full, sanitized path name</param>
-		public DirectoryReference(string fullName, Sanitize _)
+		/// <param name="sanitize">Sanitize argument. Ignored.</param>
+		public DirectoryReference(string fullName, Sanitize sanitize)
 			: base(fullName)
 		{
 		}

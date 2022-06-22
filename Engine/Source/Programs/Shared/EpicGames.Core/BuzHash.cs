@@ -81,7 +81,7 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Add a byte to the window and update the hash
 		/// </summary>
-		/// <param name="Value">New value to append to the window</param>
+		/// <param name="span">New data to append to the window</param>
 		public void Add(ReadOnlySpan<byte> span)
 		{
 			_state = Add(_state, span);
@@ -127,7 +127,9 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Removes a byte from the start of the hash window
 		/// </summary>
+		/// <param name="state">Current state</param>
 		/// <param name="value">Value at the start of the window</param>
+		/// <param name="count">Size of the window</param>
 		public static uint Sub(uint state, byte value, int count)
 		{
 			return state ^ Rol32(s_table[value], (int)(count - 1));

@@ -11,10 +11,22 @@ namespace EpicGames.Core
 	/// </summary>
 	public class ScopeProfiler 
 	{
+		/// <summary>
+		/// Static instance of the profiler
+		/// </summary>
 		public static ScopeProfiler Instance = new ScopeProfiler();
 		
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="programName"></param>
+		/// <param name="hostAddress"></param>
+		/// <param name="maxThreadCount"></param>
 		public void InitializeAndStart(string programName, string hostAddress, int maxThreadCount) { }
 
+		/// <summary>
+		/// 
+		/// </summary>
 		public void StopAndShutdown() { }
 
 		/// <summary>
