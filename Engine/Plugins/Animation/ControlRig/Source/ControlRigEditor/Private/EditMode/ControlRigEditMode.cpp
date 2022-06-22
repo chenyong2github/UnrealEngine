@@ -3199,7 +3199,7 @@ bool FControlRigEditMode::AreRigElementSelectedAndMovable(UControlRig* ControlRi
 {
 	const UControlRigEditModeSettings* Settings = GetDefault<UControlRigEditModeSettings>();
 
-	if (!Settings || Settings->bHideControlShapes || !ControlRig || !AreRigElementsSelected(ValidControlTypeMask(), ControlRig))
+	if (!Settings || !ControlRig || !AreRigElementsSelected(ValidControlTypeMask(), ControlRig))
 	{
 		return false;
 	}
@@ -3955,8 +3955,7 @@ void FControlRigEditMode::TickControlShape(AControlRigShapeActor* ShapeActor, co
 					bControlsHiddenInViewport);
 				
 				ShapeActor->SetSelectable(
-					ControlElement->Settings.IsSelectable(bRespectVisibilityForSelection) &&
-					!bControlsHiddenInViewport);
+					ControlElement->Settings.IsSelectable(bRespectVisibilityForSelection));
 			}
 		}
 	}
