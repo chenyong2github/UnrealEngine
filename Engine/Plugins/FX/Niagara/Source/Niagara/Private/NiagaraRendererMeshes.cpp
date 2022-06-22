@@ -1061,7 +1061,7 @@ void FNiagaraRendererMeshes::CreateMeshBatchForSection(
 	FMeshBatchElement& BatchElement = MeshBatch.Elements[0];
 	if (ParticleMeshRenderData.bUseGPUScene)
 	{
-		BatchElement.PrimitiveUniformBufferResource = &SceneProxy.GetCustomUniformBufferResource(IsMotionBlurEnabled(), MeshData.LocalBounds);
+		BatchElement.PrimitiveUniformBufferResource = SceneProxy.GetCustomUniformBufferResource(IsMotionBlurEnabled(), MeshData.LocalBounds);
 	}
 	else
 	{

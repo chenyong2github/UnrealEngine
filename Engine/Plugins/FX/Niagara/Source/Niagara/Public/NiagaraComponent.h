@@ -841,7 +841,7 @@ public:
 
 	const FVector3f& GetLWCRenderTile() const { return RenderData ? RenderData->LWCRenderTile : FVector3f::ZeroVector; }
 
-	TUniformBuffer<FPrimitiveUniformShaderParameters>& GetCustomUniformBufferResource(bool bHasVelocity, const FBox& InstanceBounds = FBox(ForceInitToZero)) const;
+	TUniformBuffer<FPrimitiveUniformShaderParameters>* GetCustomUniformBufferResource(bool bHasVelocity, const FBox& InstanceBounds = FBox(ForceInitToZero)) const;
 	FRHIUniformBuffer* GetCustomUniformBuffer(bool bHasVelocity, const FBox& InstanceBounds = FBox(ForceInitToZero)) const;
 
 	virtual FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
@@ -860,6 +860,8 @@ public:
 
 private:
 	void ReleaseRenderThreadResources();
+
+	void ReleaseUniformBuffers(bool bEmpty);
 
 	//~ Begin FPrimitiveSceneProxy Interface.
 	virtual void CreateRenderThreadResources() override;
@@ -886,7 +888,7 @@ private:
 
 private:
 	/** Custom Uniform Buffers, allows us to have renderer specific data packed inside such as pre-skinned bounds. */
-	mutable TMap<uint64, TUniformBuffer<FPrimitiveUniformShaderParameters>> CustomUniformBuffers;
+	mutable TMap<uint64, TUniformBuffer<FPrimitiveUniformShaderParameters>*> CustomUniformBuffers;
 
 	/** The data required to render a single instance of a NiagaraSystem */
 	FNiagaraSystemRenderData* RenderData = nullptr;
