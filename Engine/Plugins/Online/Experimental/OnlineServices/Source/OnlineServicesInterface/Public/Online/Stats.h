@@ -8,8 +8,6 @@
 
 namespace UE::Online {
 
-class FOnlineError;
-
 //using FStatValue = SchemaVariant;
 using FStatValue = TVariant<bool, int32, int64, float, double, FString>;
 
@@ -71,7 +69,7 @@ struct FBatchQueryStats
 
 	struct Result
 	{
-		/* The stats of queried users */
+		/* The stats of queried users, there should be no much elements so simply use TArray instead of TMap */
 		TArray<FUserStats> UsersStats;
 	};
 };
