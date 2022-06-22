@@ -78,17 +78,30 @@ void UGameplayActuationComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	
 	if (TaskComponent != nullptr)
 	{
-		for (FConstGameplayTaskIterator It = TaskComponent->GetPriorityQueueIterator(); It; ++It)
+		auto FindNextState = [TaskComponent, &NextState, &NextStateOwnerID](FConstGameplayTaskIterator It)
 		{
-			if (const IGameplayActuationStateProvider* StateProvider = Cast<IGameplayActuationStateProvider>((*It).Get()))
+			for (; It; ++It)
 			{
-				NextState = StateProvider->GetActuationState();
-				if (NextState.IsValid())
+				UGameplayTask* Task = (*It).Get(); 
+				if (const IGameplayActuationStateProvider* StateProvider = Cast<IGameplayActuationStateProvider>(Task))
 				{
-					NextStateOwnerID = TaskComponent->GetUniqueID();
-					break;
+					NextState = StateProvider->GetActuationState();
+					if (NextState.IsValid())
+					{
+						NextStateOwnerID = TaskComponent->GetUniqueID();
+						break;
+					}
 				}
 			}
+		};
+		
+		if (TaskComponent->GetNetMode() == NM_Client)
+		{
+			FindNextState(TaskComponent->GetSimulatedTaskIterator());
+		}
+		else
+		{
+			FindNextState(TaskComponent->GetPriorityQueueIterator());
 		}
 	}
 
@@ -98,6 +111,7 @@ void UGameplayActuationComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		// Signal state change
 		if (FGameplayActuationStateBase* State = ActuationState.GetMutablePtr<FGameplayActuationStateBase>())
 		{
+			UE_VLOG(this, LogGameplayTasks, Log, TEXT("OnStateDeactivated on %s"), *ActuationState.GetScriptStruct()->GetName());
 			State->OnStateDeactivated(NextState);
 		}
 
@@ -106,6 +120,7 @@ void UGameplayActuationComponent::TickComponent(float DeltaTime, ELevelTick Tick
 		
 		if (FGameplayActuationStateBase* State = NewState.GetMutablePtr<FGameplayActuationStateBase>())
 		{
+			UE_VLOG(this, LogGameplayTasks, Log, TEXT("OnStateActivated on %s"), *NewState.GetScriptStruct()->GetName());
 			State->OnStateActivated(ActuationState);
 		}
 		
@@ -130,6 +145,14 @@ void UGameplayActuationComponent::TickComponent(float DeltaTime, ELevelTick Tick
 	const UCharacterMovementComponent* MovementComponent = GetOwner()->FindComponentByClass<UCharacterMovementComponent>();
 	if (TaskComponent != nullptr && MovementComponent != nullptr)
 	{
+		FLinearColor Color1(FColor(64, 192, 64));
+		FLinearColor Color2(FColor(64, 64, 192));
+		if (TaskComponent->GetNetMode() == NM_Client)
+		{
+			Color1 *= 5;
+			Color2 *= 5;
+		}
+	
 		const FVector CurrentLocation = MovementComponent->GetActorFeetLocation();
 
 		constexpr double LocationUpdateThreshold = 15.0;
@@ -137,7 +160,7 @@ void UGameplayActuationComponent::TickComponent(float DeltaTime, ELevelTick Tick
 
 		if (DebugTrajectory.IsEmpty() || FVector::Dist2D(DebugTrajectory.Last().Location, CurrentLocation) > LocationUpdateThreshold)
 		{
-			DebugTrajectory.Emplace(CurrentLocation, (StateCounter & 1) ? FColor(64, 192, 64) : FColor(64, 64, 192));
+			DebugTrajectory.Emplace(CurrentLocation, ((StateCounter & 1) ? Color1 : Color2).ToFColorSRGB());
 		}
 		if (DebugTrajectory.Num() > MaxTrajectorySamples)
 		{
@@ -156,3 +179,25 @@ void UGameplayActuationComponent::TickComponent(float DeltaTime, ELevelTick Tick
 #endif
 
 }
+
+#if ENABLE_VISUAL_LOG
+void UGameplayActuationComponent::GrabDebugSnapshot(FVisualLogEntry* Snapshot) const
+{
+	const FGameplayActuationStateBase* State = ActuationState.GetMutablePtr<FGameplayActuationStateBase>();
+	if (State == nullptr)
+	{
+		return;
+	}
+	
+	FString StateAsText;
+	ActuationState.GetScriptStruct()->ExportText(StateAsText, State, /*Default*/ nullptr, /*OwnerObject*/ nullptr, PPF_None, /*ExportRootScope*/nullptr);
+	StateAsText.ReplaceInline(TEXT("\","), TEXT("\"\n"));
+	StateAsText.ReplaceInline(TEXT("\',"), TEXT("\"\n"));
+	
+	const FString Desc = FString::Printf(TEXT("%s:\n%s"),*ActuationState.GetScriptStruct()->GetName(), *StateAsText);
+
+	FVisualLogStatusCategory StatusCategory(TEXT("GameplayActuation"));
+	StatusCategory.Add(TEXT("State"), Desc);
+	Snapshot->Status.Add(StatusCategory);
+}
+#endif

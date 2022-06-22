@@ -8,6 +8,8 @@
 #include "InstancedStruct.h"
 #include "GameplayActuationState.h"
 #include "GameplayTaskTypes.h"
+#include "EngineDefines.h"
+#include "VisualLogger/VisualLoggerDebugSnapshotInterface.h"
 #include "GameplayActuationComponent.generated.h"
 
 class UGameplayTask;
@@ -16,7 +18,7 @@ class UGameplayTask;
  * Component holding current actuation state, and functionality to create transitions between GameplayTasks. 
  */
 UCLASS(ClassGroup = GameplayTasks, hidecategories = (Object, LOD, Lighting, Transform, Sockets, TextureStreaming), editinlinenew, meta = (BlueprintSpawnableComponent))
-class GAMEPLAYINTERACTIONSMODULE_API UGameplayActuationComponent : public UActorComponent
+class GAMEPLAYINTERACTIONSMODULE_API UGameplayActuationComponent : public UActorComponent, public IVisualLoggerDebugSnapshotInterface
 {
 	GENERATED_BODY()
 
@@ -42,6 +44,10 @@ protected:
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
 	
 	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+
+#if ENABLE_VISUAL_LOG
+	virtual void GrabDebugSnapshot(FVisualLogEntry* Snapshot) const override;
+#endif
 
 	/** Current actuation state */
 	UPROPERTY()
