@@ -33,6 +33,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Serialize property map for actor descriptors
 		WorldPartitionActorDescPropertyMapSerialization,
 
+		// Added ability to mark shapes as probes
+		AddShapeIsProbe,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

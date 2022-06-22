@@ -378,8 +378,8 @@ namespace Chaos
 		void SetDisabled(bool bInDisabled) { Flags.bDisabled = bInDisabled; }
 		bool GetDisabled() const { return Flags.bDisabled; }
 
-		void SetIsProbe(bool bInProbe) { Flags.bProbe = bInProbe; }
-		bool GetIsProbe() const { return Flags.bProbe; }
+		void SetIsProbe(bool bInProbe) { Flags.bIsProbe = bInProbe; }
+		bool GetIsProbe() const { return Flags.bIsProbe; }
 
 		virtual void SetIsSleeping(const bool bInIsSleeping) override;
 
@@ -441,9 +441,12 @@ namespace Chaos
 		/**
 		* Reset the material properties to those from the shape materials. Called each frame to reset contact modifications to the material.
 		*/
-		inline void ResetMaterial()
+		inline void ResetModifications()
 		{
 			Material.ResetMaterialModifications();
+
+			// Reset other properties which may have changed in contact modification last frame
+			Flags.bIsProbe = Flags.bIsProbeUnmodified;
 		}
 
 		/**
@@ -799,12 +802,13 @@ namespace Chaos
 			struct
 			{
 				uint32 bDisabled : 1;
-				uint32 bProbe : 1;
 				uint32 bUseManifold : 1;
 				uint32 bUseIncrementalManifold : 1;
 				uint32 bWasManifoldRestored : 1;
 				uint32 bIsQuadratic0 : 1;
 				uint32 bIsQuadratic1 : 1;
+				uint32 bIsProbeUnmodified : 1;  // Is this constraint a probe pre-contact-modification
+				uint32 bIsProbe : 1;            // Is this constraint currently a probe
 			};
 			uint32 Bits;
 		} Flags;

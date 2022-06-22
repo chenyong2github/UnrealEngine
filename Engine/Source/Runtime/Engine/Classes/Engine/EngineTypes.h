@@ -1382,7 +1382,15 @@ namespace ECollisionEnabled
 		/** Only used only for physics simulation (rigid body, constraints). Cannot be used for spatial queries (raycasts, sweeps, overlaps). Useful for jiggly bits on characters that do not need per bone detection. Performance gains by keeping data out of query tree */
 		PhysicsOnly UMETA(DisplayName="Physics Only (No Query Collision)"),
 		/** Can be used for both spatial queries (raycasts, sweeps, overlaps) and simulation (rigid body, constraints). */
-		QueryAndPhysics UMETA(DisplayName="Collision Enabled (Query and Physics)") 
+		QueryAndPhysics UMETA(DisplayName="Collision Enabled (Query and Physics)"),
+		/** Only used for probing the physics simulation (rigid body, constraints). Cannot be used for spatial queries (raycasts,
+		sweeps, overlaps). Useful for when you want to detect potential physics interactions and pass contact data to hit callbacks
+		or contact modification, but don't want to physically react to these contacts. */
+		ProbeOnly UMETA(DisplayName="Probe Only (Contact Data, No Query or Physics Collision)"),
+		/** Can be used for both spatial queries (raycasts, sweeps, overlaps) and probing the physics simulation (rigid body,
+		constraints). Will not allow for actual physics interaction, but will generate contact data, trigger hit callbacks, and
+		contacts will appear in contact modification. */
+		QueryAndProbe UMETA(DisplayName="Query and Probe (Query Collision and Contact Data, No Physics Collision)")
 	}; 
 } 
 
@@ -1409,23 +1417,61 @@ extern FCollisionEnabledMask ENGINE_API operator|(const ECollisionEnabled::Type 
 
 FORCEINLINE bool CollisionEnabledHasPhysics(ECollisionEnabled::Type CollisionEnabled)
 {
-	return (CollisionEnabled == ECollisionEnabled::PhysicsOnly) ||
+	return	(CollisionEnabled == ECollisionEnabled::PhysicsOnly) ||
 			(CollisionEnabled == ECollisionEnabled::QueryAndPhysics);
 }
 
 FORCEINLINE bool CollisionEnabledHasQuery(ECollisionEnabled::Type CollisionEnabled)
 {
-	return (CollisionEnabled == ECollisionEnabled::QueryOnly) ||
-			(CollisionEnabled == ECollisionEnabled::QueryAndPhysics);
+	return	(CollisionEnabled == ECollisionEnabled::QueryOnly) ||
+			(CollisionEnabled == ECollisionEnabled::QueryAndPhysics) ||
+			(CollisionEnabled == ECollisionEnabled::QueryAndProbe);
+}
+
+FORCEINLINE bool CollisionEnabledHasProbe(ECollisionEnabled::Type CollisionEnabled)
+{
+	return (CollisionEnabled == ECollisionEnabled::ProbeOnly) ||
+			(CollisionEnabled == ECollisionEnabled::QueryAndProbe);
 }
 
 FORCEINLINE ECollisionEnabled::Type CollisionEnabledIntersection(ECollisionEnabled::Type CollisionEnabledA, ECollisionEnabled::Type CollisionEnabledB)
 {
-	const bool bHasQuery = (CollisionEnabledHasQuery(CollisionEnabledA) && CollisionEnabledHasQuery(CollisionEnabledB));
-	const bool bHasPhysics = (CollisionEnabledHasPhysics(CollisionEnabledA) && CollisionEnabledHasPhysics(CollisionEnabledB));
-	if (bHasQuery && bHasPhysics) { return ECollisionEnabled::QueryAndPhysics; }
-	if (bHasQuery) { return ECollisionEnabled::QueryOnly; }
-	if (bHasPhysics) { return ECollisionEnabled::PhysicsOnly; }
+	// Combine collision two enabled data.
+	//
+	// The intersection follows the following rules:
+	//
+	// * For the result to have Query, both data must have Query
+	// * For the result to have Probe, either data must have Probe
+	// * For the result to have Physics, both data must have Physics and the result must not have Probe
+	//
+	// This way if an object is query-only, for example, but one of its shapes is query-and-physics,
+	// the object's settings win and the shape ends up being query-only. And if the object is marked
+	// as physics, but the child is marked as probe (or vice versa), use probe.
+	//
+	// The following matrix represents the intersection relationship.
+	// NOTE: The order of types must match the order declared in ECollisionEnabled!
+	using namespace ECollisionEnabled;
+	static constexpr ECollisionEnabled::Type IntersectionMatrix[5][5] = {
+		/*                 |        QueryOnly       PhysicsOnly     QueryAndPhysics     ProbeOnly     QueryAndProbe   */
+		/*-----------------+------------------------------------------------------------------------------------------*/
+		/* QueryOnly       | */ {   QueryOnly,      NoCollision,    QueryOnly,          NoCollision,  QueryOnly       },
+		/* PhysicsOnly     | */ {   NoCollision,    PhysicsOnly,    PhysicsOnly,        ProbeOnly,    ProbeOnly       },
+		/* QueryAndPhysics | */ {   QueryOnly,      PhysicsOnly,    QueryAndPhysics,    ProbeOnly,    QueryAndProbe   },
+		/* ProbeOnly       | */ {   NoCollision,    ProbeOnly,      ProbeOnly,          ProbeOnly,    ProbeOnly       },
+		/* QueryAndProbe   | */ {   QueryOnly,      ProbeOnly,      QueryAndProbe,      ProbeOnly,    QueryAndProbe   }
+	};
+
+	// Subtract 1 because the first index is NoCollision.
+	// If both indices indicate _some_ collision setting (ie, greater than -1),
+	// lookup their intersection setting in the matrix.
+	const int8 IndexA = (int32)CollisionEnabledA - 1;
+	const int8 IndexB = (int32)CollisionEnabledB - 1;
+	if (IndexA >= 0 && IndexB >= 0)
+	{
+		return IntersectionMatrix[IndexA][IndexB];
+	}
+
+	// Either of the two settings were set to NoCollision which trumps all
 	return ECollisionEnabled::NoCollision;
 }
 

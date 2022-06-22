@@ -836,7 +836,7 @@ void FPBDRigidsEvolutionGBF::TestModeResetCollisions()
 	for (FPBDCollisionConstraintHandle* Collision : CollisionConstraints.GetConstraintHandles())
 	{
 		Collision->GetContact().ResetManifold();
-		Collision->GetContact().ResetMaterial();
+		Collision->GetContact().ResetModifications();
 		Collision->GetContact().GetGJKWarmStartData().Reset();
 	}
 }

@@ -875,6 +875,7 @@ namespace Chaos
 
 				for (const FManifoldPoint& ManifoldPoint : Contact.GetManifoldPoints())
 				{
+					const bool bIsProbe = Contact.GetIsProbe();
 					const bool bIsActive = !ManifoldPoint.NetPushOut.IsNearlyZero() || !ManifoldPoint.NetImpulse.IsNearlyZero() || (!Contact.GetUseManifold() && !Contact.AccumulatedImpulse.IsNearlyZero());
 					if (!bIsActive && !bChaosDebugDebugDrawInactiveContacts)
 					{
@@ -906,7 +907,13 @@ namespace Chaos
 					{
 						DiscColor = FColor(150, 200, 0);
 					}
-					if (!bIsActive)
+					if (bIsProbe)
+					{
+						DiscColor = FColor(50, 180, 180);
+						PlaneNormalColor = FColor(50, 180, 180);
+						EdgeNormalColor = FColor(50, 180, 130);
+					}
+					else if (!bIsActive)
 					{
 						DiscColor = FColor(100, 100, 100);
 						PlaneNormalColor = FColor(100, 0, 0);

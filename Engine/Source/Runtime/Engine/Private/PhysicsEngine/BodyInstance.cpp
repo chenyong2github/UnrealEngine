@@ -1039,9 +1039,11 @@ void FBodyInstance::UpdatePhysicsFilterData()
 				const FBodyCollisionFilterData& FilterData = PerShapeCollisionData.CollisionFilterData;
 				const bool bNewQueryShape = CollisionFlags.bEnableQueryCollision && (!bIsStatic || bSyncShape);
 				const bool bNewSimShape = bIsTrimesh ? CollisionFlags.bEnableSimCollisionComplex : CollisionFlags.bEnableSimCollisionSimple;
+				const bool bNewProbeShape = CollisionFlags.bEnableProbeCollision;
 
 				FPhysicsInterface::SetIsQueryShape(InnerShape, bNewQueryShape);
 				FPhysicsInterface::SetIsSimulationShape(InnerShape, bNewSimShape);
+				FPhysicsInterface::SetIsProbeShape(InnerShape, bNewProbeShape);
 
 				// If we changed 'simulation collision' on a shape, we need to recalc mass properties
 				if (bWasSimulationShape != bNewSimShape)
@@ -4163,6 +4165,7 @@ void FBodyInstance::BuildBodyCollisionFlags(FBodyCollisionFlags& OutFlags, EColl
 	OutFlags.bEnableQueryCollision = false;
 	OutFlags.bEnableSimCollisionSimple = false;
 	OutFlags.bEnableSimCollisionComplex = false;
+	OutFlags.bEnableProbeCollision = false;
 
 	if(UseCollisionEnabled != ECollisionEnabled::NoCollision)
 	{
@@ -4170,11 +4173,16 @@ void FBodyInstance::BuildBodyCollisionFlags(FBodyCollisionFlags& OutFlags, EColl
 		OutFlags.bEnableQueryCollision = CollisionEnabledHasQuery(UseCollisionEnabled);
 
 		// Sim collision
-		const bool bSimCollision = SimCollisionEnabled && CollisionEnabledHasPhysics(UseCollisionEnabled);
+		const bool bProbe = CollisionEnabledHasProbe(UseCollisionEnabled);
+		const bool bSimCollision = SimCollisionEnabled && (bProbe || CollisionEnabledHasPhysics(UseCollisionEnabled));
 
 		// Enable sim collision
 		if(bSimCollision)
 		{
+			// Objects marked as probes use sim collision, but don't actually have physical reactions
+			OutFlags.bEnableProbeCollision = bProbe;
+
+			// We use simple sim collision even if we also use complex sim collision?
 			OutFlags.bEnableSimCollisionSimple = true;
 			
 			// on dynamic objects and objects which don't use complex as simple, tri mesh not used for sim
@@ -4201,7 +4209,7 @@ void FBodyInstance::UpdateInterpolateWhenSubStepping()
 			UseCollisionEnabled = GetCollisionEnabled();
 		}
 	
-		bInterpolateWhenSubStepping = UseCollisionEnabled == ECollisionEnabled::PhysicsOnly || UseCollisionEnabled == ECollisionEnabled::QueryAndPhysics;
+		bInterpolateWhenSubStepping = CollisionEnabledHasPhysics(UseCollisionEnabled);
 
 		// If we have a weld parent we should take into account that too as that may be simulating while we are not
 		if(WeldParent)

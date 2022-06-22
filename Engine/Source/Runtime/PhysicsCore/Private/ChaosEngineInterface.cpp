@@ -914,6 +914,11 @@ void FChaosEngineInterface::SetIsSimulationShape(const FPhysicsShapeHandle& InSh
 	InShape.Shape->SetSimEnabled(bIsSimShape);
 }
 
+void FChaosEngineInterface::SetIsProbeShape(const FPhysicsShapeHandle& InShape, bool bIsProbeShape)
+{
+	InShape.Shape->SetIsProbe(bIsProbeShape);
+}
+
 void FChaosEngineInterface::SetIsQueryShape(const FPhysicsShapeHandle& InShape,bool bIsQueryShape)
 {
 	InShape.Shape->SetQueryEnabled(bIsQueryShape);

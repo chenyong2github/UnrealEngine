@@ -46,6 +46,12 @@ namespace Chaos
 		int32 CCDAxisThresholdMode = 1;
 		FAutoConsoleVariableRef  CVarCCDAxisThresholdMode(TEXT("p.Chaos.CCD.AxisThresholdMode"), CCDAxisThresholdMode , TEXT("Change the mode used to generate CCD axis threshold bounds for particle geometries.\n0: Use object bounds\n1: Find the thinnest object bound on any axis and use it for all CCD axes\n2: On each axis, use the thinnest shape bound on that axis\n3: Find the thinnest shape bound on any axis and use this for all axes"));
 
+		bool bCCDAxisThresholdUsesProbeShapes = false;
+		FAutoConsoleVariableRef  CVarCCDAxisThresholdUsesProbeShapes(TEXT("p.Chaos.CCD.CCDAxisThresholdUsesProbeShapes"), bCCDAxisThresholdUsesProbeShapes , TEXT("When true, probe shapes are considered for CCD axis threshold computation, and can generate contacts in the initial CCD phase."));
+
+		bool bCCDSweepsUseProbeShapes = false;
+		FAutoConsoleVariableRef  CVarCCDSweepsUseProbeShapes(TEXT("p.Chaos.CCD.CCDSweepsUseProbeShapes"), bCCDSweepsUseProbeShapes , TEXT("When true, probe shapes can be swept for more accurate collision detection."));
+
 		extern int32 ChaosSolverDrawCCDInteractions;
 
 #if CHAOS_DEBUG_DRAW

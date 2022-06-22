@@ -14,6 +14,7 @@
 #include "Chaos/RigidParticleControlFlags.h"
 #include "UObject/ExternalPhysicsCustomObjectVersion.h"
 #include "UObject/ExternalPhysicsMaterialCustomObjectVersion.h"
+#include "UObject/FortniteNCBranchObjectVersion.h"
 #include "UObject/PhysicsObjectVersion.h"
 #include "UObject/UE5MainStreamObjectVersion.h"
 #include "UObject/UE5ReleaseStreamObjectVersion.h"
@@ -573,12 +574,14 @@ struct FCollisionData
 	EChaosCollisionTraceFlag CollisionTraceType;
 	uint8 bSimCollision : 1;
 	uint8 bQueryCollision : 1;
+	uint8 bIsProbe : 1;
 
 	FCollisionData()
 	: UserData(nullptr)
 	, CollisionTraceType(EChaosCollisionTraceFlag::Chaos_CTF_UseDefault)
 	, bSimCollision(true)
 	, bQueryCollision(true)
+	, bIsProbe(false)
 	{
 	}
 
@@ -588,6 +591,7 @@ struct FCollisionData
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 		Ar.UsingCustomVersion(FExternalPhysicsMaterialCustomObjectVersion::GUID);
+		Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
 
 		Ar << QueryData;
 		Ar << SimData;
@@ -621,6 +625,13 @@ struct FCollisionData
 			int32 Data = (int32)CollisionTraceType;
 			Ar << Data;
 			CollisionTraceType = (EChaosCollisionTraceFlag)Data;
+		}
+
+		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) >= FFortniteNCBranchObjectVersion::AddShapeIsProbe)
+		{
+			int8 IsProbe = bIsProbe;
+			Ar << IsProbe;
+			bIsProbe = IsProbe;
 		}
 	}
 };

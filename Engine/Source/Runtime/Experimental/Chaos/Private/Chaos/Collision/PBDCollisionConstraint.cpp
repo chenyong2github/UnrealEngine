@@ -277,6 +277,12 @@ namespace Chaos
 		Flags.bUseManifold = bInUseManifold;
 		Flags.bUseIncrementalManifold = bInUseManifold;
 
+		// Initialize the is-probe and is-probe-unmodified flags to the same value.
+		// Contact modification may change bIsProbe but we want to store the unmodified value
+		// so that it can be reset between frames.
+		Flags.bIsProbe = 
+		Flags.bIsProbeUnmodified = Shape[0]->GetIsProbe() || Shape[1]->GetIsProbe();
+
 		const FReal Margin0 = GetImplicit0()->GetMargin();
 		const FReal Margin1 = GetImplicit1()->GetMargin();
 		const EImplicitObjectType ImplicitType0 = GetInnerType(GetImplicit0()->GetCollisionType());

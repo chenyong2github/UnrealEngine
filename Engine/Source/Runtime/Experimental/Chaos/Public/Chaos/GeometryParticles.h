@@ -34,6 +34,7 @@ namespace Chaos
 	namespace CVars
 	{
 		CHAOS_API extern int32 CCDAxisThresholdMode;
+		CHAOS_API extern bool bCCDAxisThresholdUsesProbeShapes;
 	}
 
 	/** Data that is associated with geometry. If a union is used an entry is created per internal geometry */
@@ -192,6 +193,12 @@ namespace Chaos
 		void SetSimEnabled(const bool bEnable)
 		{
 			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bEnable](FCollisionData& Data){ Data.bSimCollision = bEnable; });
+		}
+
+		bool GetIsProbe() const { return CollisionData.Read().bIsProbe; }
+		void SetIsProbe(const bool bIsProbe)
+		{
+			CollisionData.Modify(true, DirtyFlags, Proxy, ShapeIdx, [bIsProbe](FCollisionData& Data){ Data.bIsProbe = bIsProbe; });
 		}
 
 		EChaosCollisionTraceFlag GetCollisionTraceType() const { return CollisionData.Read().CollisionTraceType; }
@@ -662,7 +669,7 @@ namespace Chaos
 						// Only sim-enabled shapes should ever be swept with CCD, so make sure the
 						// sim-enabled flag is on for each shape before considering it's min bounds
 						// for CCD extents.
-						if (Shape->GetSimEnabled())
+						if (Shape->GetSimEnabled() && (CVars::bCCDAxisThresholdUsesProbeShapes || !Shape->GetIsProbe()))
 						{
 							const TSerializablePtr<FImplicitObject> Geometry = Shape->GetGeometry();
 							if (Geometry->HasBoundingBox())

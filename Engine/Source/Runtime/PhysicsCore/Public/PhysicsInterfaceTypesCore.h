@@ -69,12 +69,14 @@ struct FBodyCollisionFlags
 		: bEnableSimCollisionSimple(false)
 		, bEnableSimCollisionComplex(false)
 		, bEnableQueryCollision(false)
+		, bEnableProbeCollision(false)
 	{
 	}
 
 	bool bEnableSimCollisionSimple;
 	bool bEnableSimCollisionComplex;
 	bool bEnableQueryCollision;
+	bool bEnableProbeCollision;
 };
 
 
