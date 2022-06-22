@@ -592,6 +592,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
 	bool bUseSizeSpecificDamageThreshold;
 
+	/** Allow removal on sleep for the instance if the rest collection has it enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Removal")
+	bool bAllowRemovalOnSleep;
+
+	/** Allow removal on break for the instance if the rest collection has it enabled */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Removal")
+	bool bAllowRemovalOnBreak;
+	
 	/** */
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Connection types are defined on the asset now."))
 	EClusterConnectionTypeEnum ClusterConnectionType_DEPRECATED;
