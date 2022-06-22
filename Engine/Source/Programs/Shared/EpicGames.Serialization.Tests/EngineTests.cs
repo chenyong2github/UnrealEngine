@@ -325,7 +325,7 @@ namespace EpicGames.Serialization.Tests
 			{
 				CbField field = CbField.Empty;
 				TestFieldError(CbFieldType.Object, field, CbFieldError.TypeError);
-				CbField.MakeView(field).AsObject();
+				field.AsObject();
 			}
 
 			// Test FCbObjectView(ObjectWithName) and CreateIterator
@@ -425,7 +425,7 @@ namespace EpicGames.Serialization.Tests
 				byte[] payload = new byte[]{ 7, 3, intType, 1, intType, 2, intType, 3 };
 				CbField field = new CbField(payload, CbFieldType.Array);
 				TestField(CbFieldType.Array, field, new CbArray(payload, CbFieldType.Array));
-				CbArray array = CbArray.Clone(field.AsArray());
+				CbArray array = field.AsArray();
 				TestIntArray(array, 3, payload.Length);
 				TestIntArray(field.AsArray(), 3, payload.Length);
 				Assert.IsTrue(array.Equals(field.AsArray()));
@@ -437,7 +437,7 @@ namespace EpicGames.Serialization.Tests
 				byte[] payload = new byte[]{ 5, 3, intType, 1, 2, 3 };
 				CbField field = new CbField(payload, CbFieldType.UniformArray);
 				TestField(CbFieldType.UniformArray, field, new CbArray(payload, CbFieldType.UniformArray));
-				CbArray array = CbArray.Clone(field.AsArray());
+				CbArray array = field.AsArray();
 				TestIntArray(array, 3, payload.Length);
 				TestIntArray(field.AsArray(), 3, payload.Length);
 				Assert.IsTrue(array.Equals(field.AsArray()));
@@ -473,7 +473,7 @@ namespace EpicGames.Serialization.Tests
 			{
 				CbField field = new CbField();
 //				TestFieldError(CbFieldType.Array, Field, CbFieldError.TypeError);
-				CbField.MakeView(field).AsArray();
+				field.AsArray();
 			}
 
 			// Test CbArray(ArrayWithName) and CreateIterator
@@ -482,7 +482,7 @@ namespace EpicGames.Serialization.Tests
 				byte[] buffer = new byte[] { arrayType, 3, (byte)'K', (byte)'e', (byte)'y', 3, 1, (byte)(CbFieldType.IntegerPositive), 8 };
 				CbArray array = new CbArray(buffer);
 				Assert.AreEqual(array.GetSize(), 5);
-				CbArray arrayClone = CbArray.Clone(array);
+				CbArray arrayClone = array;
 				Assert.AreEqual(arrayClone.GetSize(), 5);
 				Assert.IsTrue(array.Equals(arrayClone));
 				Assert.AreEqual(arrayClone.GetHash(), array.GetHash());
@@ -552,7 +552,7 @@ namespace EpicGames.Serialization.Tests
 				CbField fieldView = new CbField(payload, CbFieldType.Binary);
 				TestField(CbFieldType.Binary, fieldView, (ReadOnlyMemory<byte>)payload.AsMemory(1, 3));
 
-				CbField field = CbField.Clone(fieldView);
+				CbField field = fieldView;
 				field.AsBinary();
 //				Assert.IsFalse(Field.GetOuterBuffer().IsNull());
 //				MoveTemp(Field).AsBinary();

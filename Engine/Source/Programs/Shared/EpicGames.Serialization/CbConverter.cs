@@ -31,7 +31,7 @@ namespace EpicGames.Serialization
 	}
 
 	/// <summary>
-	/// Base class for all converters. Deriving from <see cref="CbConverter{T}"/> is more efficient
+	/// Base class for all converters. Deriving from <see cref="ICbConverter{T}"/> is more efficient
 	/// </summary>
 	public interface ICbConverter
 	{
@@ -145,9 +145,9 @@ namespace EpicGames.Serialization
 		}
 
 		/// <summary>
-		/// Gets a <see cref="ICbConverterMethods"/> interface for the given type
+		/// Gets a <see cref="ICbConverterMethods"/> interface for the given property
 		/// </summary>
-		/// <param name="Type"></param>
+		/// <param name="property"></param>
 		/// <returns></returns>
 		public static ICbConverterMethods Get(PropertyInfo property)
 		{

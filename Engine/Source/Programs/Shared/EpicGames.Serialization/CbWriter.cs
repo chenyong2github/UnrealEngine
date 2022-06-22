@@ -321,6 +321,7 @@ namespace EpicGames.Serialization
 		/// <summary>
 		/// Copies an entire field value to the output
 		/// </summary>
+		/// <param name="name">Name of the field</param>
 		/// <param name="field"></param>
 		public void WriteField(Utf8String name, CbField field)
 		{

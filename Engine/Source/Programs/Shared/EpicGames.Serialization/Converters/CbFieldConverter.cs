@@ -7,7 +7,6 @@ namespace EpicGames.Serialization.Converters
 	/// <summary>
 	/// Converter for raw CbField types
 	/// </summary>
-	/// <typeparam name="T"></typeparam>
 	class CbFieldConverter : CbConverterBase<CbField>
 	{
 		/// <inheritdoc/>
@@ -32,7 +31,6 @@ namespace EpicGames.Serialization.Converters
 	/// <summary>
 	/// Converter for raw CbObject types
 	/// </summary>
-	/// <typeparam name="T"></typeparam>
 	class CbObjectConverter : CbConverterBase<CbObject>
 	{
 		/// <inheritdoc/>
