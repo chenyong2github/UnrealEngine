@@ -581,8 +581,6 @@ void FCustomConfigFile::Parse(const TArray<FString>& Lines)
 
 void FCustomConfigFile::Save(const TCHAR* FileName)
 {
-	return;
-
 	TArray<FString> Lines;
 	for(int Idx = 0; Idx < Sections.Num(); Idx++)
 	{
@@ -609,6 +607,8 @@ void FCustomConfigFile::Save(const TCHAR* FileName)
 			Lines.Add(FString());
 		}
 	}
+
+	FFileHelper::SaveStringArrayToFile(Lines, FileName);
 }
 
 TSharedPtr<FCustomConfigSection> FCustomConfigFile::FindSection(const TCHAR* Name)

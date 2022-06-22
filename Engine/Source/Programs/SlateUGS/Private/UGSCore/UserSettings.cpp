@@ -170,6 +170,9 @@ FUserSettings::FUserSettings(const FString& InFileName)
 	ConfigFile.TryGetValues(TEXT("General.OtherProjectFileNames"), OtherProjectFileNames);
 	ConfigFile.TryGetValues(TEXT("General.SyncFilter"), SyncView);
 	ConfigFile.TryGetValues(TEXT("General.SyncExcludedCategories"), SyncExcludedCategories);
+
+	// TODO i set this default value as we assert when saving if no value is set but honestly idk what Any means
+	SyncType = ELatestChangeType::Any;
 	if(TryParse(ConfigFile.GetValue(TEXT("General.SyncType"), TEXT("")), SyncType))
 	{
 		SyncType = ELatestChangeType::Good;
