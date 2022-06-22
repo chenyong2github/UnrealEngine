@@ -52,6 +52,12 @@ class DATAFLOWENGINE_API UDataflow : public UEdGraph
 public:
 	UDataflow(const FObjectInitializer& ObjectInitializer = FObjectInitializer::Get());
 
+	UPROPERTY(EditAnywhere, Category = "Evaluation")
+	bool bActive = true;
+
+	UPROPERTY(EditAnywhere, Category = "Evaluation", AdvancedDisplay )
+	TArray<TObjectPtr<UObject>> Targets;
+
 	/** UObject Interface */
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;

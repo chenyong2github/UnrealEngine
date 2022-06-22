@@ -7,6 +7,7 @@
 #include "Dataflow/DataflowEdNode.h"
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
+#include "Dataflow/DataflowObjectInterface.h"
 #include "Dataflow/DataflowSchema.h"
 #include "Dataflow/DataflowCore.h"
 #include "EditorStyleSet.h"
@@ -23,7 +24,9 @@
 //DEFINE_LOG_CATEGORY_STATIC(FDataflowEditorToolkitLog, Log, All);
 
 const FName FDataflowEditorToolkit::GraphCanvasTabId(TEXT("DataflowEditor_GraphCanvas"));
-const FName FDataflowEditorToolkit::PropertiesTabId(TEXT("DataflowEditor_Properties"));
+const FName FDataflowEditorToolkit::AssetDetailsTabId(TEXT("DataflowEditor_AssetDetails"));
+const FName FDataflowEditorToolkit::NodeDetailsTabId(TEXT("DataflowEditor_NodeDetails"));
+
 
 void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* ObjectToEdit)
 {
@@ -32,10 +35,11 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 	{
 		Dataflow->Schema = UDataflowSchema::StaticClass();
 
-		GraphEditor = CreateGraphEditorWidget(Dataflow);
-		PropertiesEditor = CreatePropertiesEditorWidget(ObjectToEdit);
+		NodeDetailsEditor = CreateNodeDetailsEditorWidget(ObjectToEdit);
+		AssetDetailsEditor = CreateAssetDetailsEditorWidget(ObjectToEdit);
+		GraphEditor = CreateGraphEditorWidget(Dataflow, NodeDetailsEditor);
 
-		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Dataflow_Layout")
+		const TSharedRef<FTabManager::FLayout> StandaloneDefaultLayout = FTabManager::NewLayout("Dataflow_Layout.V1")
 			->AddArea
 			(
 				FTabManager::NewPrimaryArea()->SetOrientation(Orient_Vertical)
@@ -60,7 +64,7 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 							(
 								FTabManager::NewStack()
 								->SetSizeCoefficient(0.7f)
-								->AddTab(PropertiesTabId, ETabState::OpenedTab)
+								->AddTab(AssetDetailsTabId, ETabState::OpenedTab)
 							)
 						)
 					)
@@ -75,15 +79,40 @@ void FDataflowEditorToolkit::InitDataflowEditor(const EToolkitMode::Type Mode, c
 
 
 
-TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit)
+TSharedRef<SGraphEditor> FDataflowEditorToolkit::CreateGraphEditorWidget(UDataflow* DataflowToEdit, TSharedPtr<IStructureDetailsView> InNodeDetailsEditor)
 {
 	ensure(DataflowToEdit);
+	using namespace Dataflow;
+
+	FDataflowEditorCommands::FGraphEvaluationCallback Evaluate = [&](FDataflowNode* Node, FDataflowOutput* Out)
+	{
+		if (DataflowToEdit->bActive)
+		{
+			float EvalTime = FGameTime::GetTimeSinceAppStart().GetRealTimeSeconds();
+			if (DataflowToEdit->Targets.Num())
+			{
+				for (UObject* Object : DataflowToEdit->Targets)
+				{
+					FEngineContext Context(Object, Dataflow, EvalTime, FString("TargetObject"));
+					Node->Evaluate(Context, Out);
+				}
+			}
+			else
+			{
+				FEngineContext Context(DataflowToEdit, Dataflow, EvalTime, FString("UDataflow"));
+				Node->Evaluate(Context, Out);
+			}
+		}
+	};
+
 	return SNew(SDataflowGraphEditor, DataflowToEdit)
 		.GraphToEdit(DataflowToEdit)
-		.DetailsView(GetPropertiesEditor());
+		.DetailsView(InNodeDetailsEditor)
+		.EvaluateGraph(Evaluate);
+
 }
 
-TSharedPtr<IStructureDetailsView> FDataflowEditorToolkit::CreatePropertiesEditorWidget(UObject* ObjectToEdit)
+TSharedPtr<IStructureDetailsView> FDataflowEditorToolkit::CreateNodeDetailsEditorWidget(UObject* ObjectToEdit)
 {
 	ensure(ObjectToEdit);
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
@@ -108,10 +137,29 @@ TSharedPtr<IStructureDetailsView> FDataflowEditorToolkit::CreatePropertiesEditor
 		StructureViewArgs.bShowClasses = true;
 		StructureViewArgs.bShowInterfaces = true;
 	}
-
 	TSharedPtr<IStructureDetailsView> DetailsView = PropertyEditorModule.CreateStructureDetailView(DetailsViewArgs, StructureViewArgs, nullptr);
 	DetailsView->GetDetailsView()->SetObject(ObjectToEdit);
 
+	return DetailsView;
+
+}
+
+TSharedPtr<IDetailsView> FDataflowEditorToolkit::CreateAssetDetailsEditorWidget(UObject* ObjectToEdit)
+{
+	ensure(ObjectToEdit);
+	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
+
+	FDetailsViewArgs DetailsViewArgs;
+	{
+		DetailsViewArgs.bAllowSearch = true;
+		DetailsViewArgs.bLockable = false;
+		DetailsViewArgs.bUpdatesFromSelection = false;
+		DetailsViewArgs.NameAreaSettings = FDetailsViewArgs::HideNameArea;
+		DetailsViewArgs.NotifyHook = this;
+	}
+
+	TSharedPtr<IDetailsView> DetailsView = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	DetailsView->SetObject(ObjectToEdit);
 	return DetailsView;
 
 }
@@ -130,17 +178,27 @@ TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_GraphCanvas(const FSpawnTa
 	return SpawnedTab;
 }
 
-TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_Properties(const FSpawnTabArgs& Args)
+TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_AssetDetails(const FSpawnTabArgs& Args)
 {
-	check(Args.GetTabId() == PropertiesTabId);
+	check(Args.GetTabId() == AssetDetailsTabId);
 
 	return SNew(SDockTab)
-		.Label(LOCTEXT("DataflowEditor_Properties_TabTitle", "Details"))
+		.Label(LOCTEXT("DataflowEditor_AssetDetails_TabTitle", "Details"))
 		[
-			PropertiesEditor->GetWidget()->AsShared()
+			AssetDetailsEditor->AsShared()
 		];
 }
 
+TSharedRef<SDockTab> FDataflowEditorToolkit::SpawnTab_NodeDetails(const FSpawnTabArgs& Args)
+{
+	check(Args.GetTabId() == NodeDetailsTabId);
+
+	return SNew(SDockTab)
+		.Label(LOCTEXT("DataflowEditor_NodeDetails_TabTitle", "Node Details"))
+		[
+			NodeDetailsEditor->GetWidget()->AsShared()
+		];
+}
 
 void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 {
@@ -151,8 +209,13 @@ void FDataflowEditorToolkit::RegisterTabSpawners(const TSharedRef<FTabManager>& 
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "GraphEditor.EventGraph_16x"));
 
-	InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_Properties))
-		.SetDisplayName(LOCTEXT("PropertiesTab", "Details"))
+	InTabManager->RegisterTabSpawner(AssetDetailsTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_AssetDetails))
+		.SetDisplayName(LOCTEXT("AssetDetailsTab", "Details"))
+		.SetGroup(WorkspaceMenuCategoryRef)
+		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
+
+	InTabManager->RegisterTabSpawner(NodeDetailsTabId, FOnSpawnTab::CreateSP(this, &FDataflowEditorToolkit::SpawnTab_NodeDetails))
+		.SetDisplayName(LOCTEXT("NodeDetailsTab", "Node Details"))
 		.SetGroup(WorkspaceMenuCategoryRef)
 		.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
 
