@@ -7,6 +7,7 @@
 #include "HAL/Runnable.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "Templates/Atomic.h"
+#include "Containers/MpscQueue.h"
 
 #include "IMessageContext.h"
 #include "IMessageTracer.h"
@@ -170,11 +171,7 @@ protected:
 	 */
 	FORCEINLINE bool EnqueueCommand(CommandDelegate Command)
 	{
-		if (!Commands.Enqueue(Command))
-		{
-			return false;
-		}
-
+		Commands.Enqueue(Command);
 		WorkEvent->Trigger();
 
 		return true;
@@ -311,7 +308,7 @@ private:
 	TArray<TWeakPtr<IBusListener, ESPMode::ThreadSafe>> ActiveRegistrationListeners;
 
 	/** Holds the router command queue. */
-	TQueue<CommandDelegate, EQueueMode::Mpsc> Commands;
+	TMpscQueue<CommandDelegate> Commands;
 
 	/** Holds the current time. */
 	FDateTime CurrentTime;
