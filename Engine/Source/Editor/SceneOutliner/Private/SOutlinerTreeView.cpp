@@ -152,20 +152,6 @@ FReply SSceneOutlinerTreeView::OnDrop(const FGeometry& MyGeometry, const FDragDr
 	return HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, ValidationInfo, true);
 }
 
-void SSceneOutlinerTreeView::ScrollToFirstVisibleParent(FSceneOutlinerTreeItemPtr InItemPtr)
-{
-	while(InItemPtr.IsValid())
-	{
-		// The first parent that is in the LinearizedItems is visible in the tree
-		if(LinearizedItems.Find(InItemPtr) != INDEX_NONE)
-		{
-			RequestScrollIntoView(InItemPtr);
-			return;
-		}
-		InItemPtr = InItemPtr->GetParent();
-	}
-}
-
 void SSceneOutlinerTreeView::Private_UpdateParentHighlights()
 {
 	this->ClearHighlightedItems();

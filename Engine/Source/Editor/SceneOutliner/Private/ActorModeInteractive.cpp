@@ -71,17 +71,7 @@ void FActorModeInteractive::OnLevelSelectionChanged(UObject* Obj)
 				// Only scroll if selection framing is enabled
 				if(bAlwaysFrameSelection)
 				{
-					// If Auto Expand Hierarchy is also enabled (default behavior), expand the selected item and scroll to it
-					if(bAutoExpandHierarchy)
-					{
-						SceneOutliner->ScrollItemIntoView(TreeItem);
-					}
-					// Otherwise, don't expand the selected item, just scroll to the first visible parent (which will be highlighted)
-					else
-					{
-						SceneOutliner->ScrollToFirstVisibleParent(TreeItem);
-					}
-					
+					SceneOutliner->ScrollItemIntoView(TreeItem);
 				}
 			}
 			else

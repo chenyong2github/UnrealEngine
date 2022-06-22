@@ -105,10 +105,4 @@ protected:
 	bool bHideEmptyFolders;
 	/** Should the outliner scroll to the item on selection */
 	bool bAlwaysFrameSelection;
-	
-	/** True when the Scene Outliner expands an actor when it is selected in the viewport
-	 *  False when the Scene Outliner scrolls to the first visible parent instead.
-	 *  Automatically false when bAlwaysFrameSelection is false
-	 */
-	bool bAutoExpandHierarchy;
 };

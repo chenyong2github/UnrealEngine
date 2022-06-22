@@ -19,8 +19,6 @@ public:
 
 	void FlashHighlightOnItem( FSceneOutlinerTreeItemPtr FlashHighlightOnItem );
 
-	void ScrollToFirstVisibleParent(FSceneOutlinerTreeItemPtr InItemPtr);
-
 	const TWeakPtr<SSceneOutliner>& GetOutlinerPtr() { return SceneOutlinerWeak; }
 protected:
 

@@ -212,16 +212,6 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 
 	bAlwaysFrameSelection = LocalSettings.bAlwaysFrameSelection;
 
-	// Auto Expand Hierarchy is auto turned off when Always Frame Selection is off
-	if(!bAlwaysFrameSelection)
-	{
-		bAutoExpandHierarchy = false;
-	}
-	else
-	{
-		bAutoExpandHierarchy = LocalSettings.bAutoExpandHierarchy;
-	}
-
 	Rebuild();
 }
 
@@ -343,35 +333,12 @@ void FActorBrowsingMode::OnToggleAlwaysFrameSelection()
 {
 	bAlwaysFrameSelection = !bAlwaysFrameSelection;
 
-	// Auto Expand Hierarchy is auto turned off when Always Frame Selection is off
-	if(!bAlwaysFrameSelection)
-	{
-		bAutoExpandHierarchy = false;
-	}
-
 	FActorBrowsingModeConfig* Settings = GetMutableConfig();
 	if(Settings)
 	{
 		Settings->bAlwaysFrameSelection = bAlwaysFrameSelection;
 		SaveConfig();
 	}
-}
-
-void FActorBrowsingMode::OnToggleAutoExpandHierarchy()
-{
-	bAutoExpandHierarchy = !bAutoExpandHierarchy;
-
-	FActorBrowsingModeConfig* Settings = GetMutableConfig();
-	if(Settings)
-	{
-		Settings->bAutoExpandHierarchy = bAutoExpandHierarchy;
-		SaveConfig();
-	}
-}
-
-bool FActorBrowsingMode::ShouldAutoExpandHierarchy()
-{
-	return bAutoExpandHierarchy;
 }
 
 bool FActorBrowsingMode::ShouldAlwaysFrameSelection()
@@ -385,7 +352,7 @@ void FActorBrowsingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("AlwaysFrameSelectionLabel", "Always Frame Selection"),
-		LOCTEXT("AlwaysFrameSelectionTooltip", "Automatically scroll to show the currently selected actor on selection."),
+		LOCTEXT("AlwaysFrameSelectionTooltip", "When enabled, selecting an Actor in the Viewport also scrolls to that Actor in the Outliner."),
 		FSlateIcon(),
 		FUIAction(
 			FExecuteAction::CreateRaw(this, &FActorBrowsingMode::OnToggleAlwaysFrameSelection),
@@ -395,21 +362,6 @@ void FActorBrowsingMode::CreateViewContent(FMenuBuilder& MenuBuilder)
 		NAME_None,
 		EUserInterfaceActionType::ToggleButton
 	);
-
-	MenuBuilder.AddMenuEntry(
-		LOCTEXT("AutoExpandHierarchyLabel", "Auto Expand Hierarchy"),
-		LOCTEXT("AutoExpandHierarchyTooltip", "Automatically expand any containing hierarchy when an actor is selected. Disabled when Always Frame Selection is off."),
-		FSlateIcon(),
-		FUIAction(
-			FExecuteAction::CreateRaw(this, &FActorBrowsingMode::OnToggleAutoExpandHierarchy),
-			// Don't allow the user to toggle this when Always Frame Selection is off
-			FCanExecuteAction::CreateRaw(this, &FActorBrowsingMode::ShouldAlwaysFrameSelection),
-			FIsActionChecked::CreateRaw(this, &FActorBrowsingMode::ShouldAutoExpandHierarchy)
-		),
-		NAME_None,
-		EUserInterfaceActionType::ToggleButton
-	);
-
 
 	MenuBuilder.EndSection();
 

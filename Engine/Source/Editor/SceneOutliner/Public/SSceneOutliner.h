@@ -590,9 +590,6 @@ public:
 		
 	bool IsItemExpanded(const FSceneOutlinerTreeItemPtr& Item) const;
 
-	/** Scroll to the first visible (non-collapsed) parent of the specified item */
-	void ScrollToFirstVisibleParent(const FSceneOutlinerTreeItemPtr& Item);
-
 	void ExpandAll();
 	void CollapseAll();
 
