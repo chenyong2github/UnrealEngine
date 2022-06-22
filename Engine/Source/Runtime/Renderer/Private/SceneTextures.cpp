@@ -75,10 +75,6 @@ static TAutoConsoleVariable<int32> CVarDefaultBackBufferPixelFormat(
 	TEXT(" 4: 10bit RGB, 2bit Alpha\n"),
 	ECVF_ReadOnly);
 
-IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(SceneTextures);
-IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FSceneTextureUniformParameters, "SceneTexturesStruct", SceneTextures);
-IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FMobileSceneTextureUniformParameters, "MobileSceneTextures", SceneTextures);
-
 RDG_REGISTER_BLACKBOARD_STRUCT(FSceneTextures);
 
 static EPixelFormat GetGBufferFFormat()
@@ -531,11 +527,8 @@ void ResetSceneTextureExtentHistory()
 
 ENUM_CLASS_FLAGS(FSceneTextureExtentState::ERenderTargetHistory);
 
-FSceneTexturesConfig FSceneTexturesConfig::GlobalInstance;
-
-void FSceneTexturesConfig::InitializeViewFamily(FViewFamilyInfo& ViewFamily)
+void InitializeSceneTexturesConfig(FSceneTexturesConfig& Config, const FSceneViewFamily& ViewFamily)
 {
-	FSceneTexturesConfig& Config = ViewFamily.SceneTexturesConfig;
 	Config.FeatureLevel = ViewFamily.GetFeatureLevel();
 	Config.ShadingPath = FSceneInterface::GetShadingPath(Config.FeatureLevel);
 	Config.ShaderPlatform = GetFeatureLevelShaderPlatform(Config.FeatureLevel);
@@ -608,16 +601,6 @@ void FSceneTexturesConfig::InitializeViewFamily(FViewFamilyInfo& ViewFamily)
 
 		Config.GBufferParams = GBufferParams;
 	}
-}
-
-void FSceneTexturesConfig::Set(const FSceneTexturesConfig& Config)
-{
-	GlobalInstance = Config;
-}
-
-const FSceneTexturesConfig& FSceneTexturesConfig::Get()
-{
-	return GlobalInstance;
 }
 
 void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamilyInfo& ViewFamily)

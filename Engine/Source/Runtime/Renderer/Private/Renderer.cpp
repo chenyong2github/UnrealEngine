@@ -136,7 +136,7 @@ void FRendererModule::DrawTileMesh(FCanvasRenderContext& RenderContext, FMeshPas
 
 		// Default init of SceneTexturesConfig will take extents from FSceneTextureExtentState.
 		// We want the view extents, so explicitly set that.
-		FSceneTexturesConfig::InitializeViewFamily(*ViewFamily);
+		InitializeSceneTexturesConfig(ViewFamily->SceneTexturesConfig, *ViewFamily);
 		ViewFamily->SceneTexturesConfig.Extent = View.ViewRect.Size();
 
 		const auto FeatureLevel = View.GetFeatureLevel();

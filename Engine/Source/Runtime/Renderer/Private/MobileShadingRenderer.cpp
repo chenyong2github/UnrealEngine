@@ -768,7 +768,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	WaitOcclusionTests(GraphBuilder.RHICmdList);
 
-	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
+	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 

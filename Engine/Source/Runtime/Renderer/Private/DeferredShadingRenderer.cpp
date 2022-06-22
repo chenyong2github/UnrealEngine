@@ -2081,7 +2081,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		RectLightAtlas::UpdateRectLightAtlasTexture(GraphBuilder, FeatureLevel);
 	}
 
-	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
+	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 

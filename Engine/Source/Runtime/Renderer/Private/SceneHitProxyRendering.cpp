@@ -573,7 +573,7 @@ void FMobileSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
+	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
@@ -615,7 +615,7 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRDGBuilder& GraphBuilder)
 	PrepareViewRectsForRendering(GraphBuilder.RHICmdList);
 
 #if WITH_EDITOR
-	FSceneTexturesConfig::InitializeViewFamily(ViewFamily);
+	InitializeSceneTexturesConfig(ViewFamily.SceneTexturesConfig, ViewFamily);
 	FSceneTexturesConfig& SceneTexturesConfig = GetActiveSceneTexturesConfig();
 	FSceneTexturesConfig::Set(SceneTexturesConfig);
 
