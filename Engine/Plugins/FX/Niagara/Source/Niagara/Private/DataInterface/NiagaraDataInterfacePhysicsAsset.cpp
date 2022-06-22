@@ -10,11 +10,27 @@
 #include "NiagaraComponent.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraSimStageData.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraSystemInstance.h"
 #include "ShaderParameterUtils.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraDataInterfacePhysicsAsset"
 DEFINE_LOG_CATEGORY_STATIC(LogPhysicsAsset, Log, All);
+
+namespace NDIPhysicsAssetLocal
+{
+
+BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
+	SHADER_PARAMETER(FUintVector4,			ElementOffsets)
+	SHADER_PARAMETER_SRV(Buffer<float4>,	WorldTransformBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>,	InverseTransformBuffer)
+	SHADER_PARAMETER_SRV(Buffer<float4>,	ElementExtentBuffer)
+	SHADER_PARAMETER_SRV(Buffer<uint>,		PhysicsTypeBuffer)
+	SHADER_PARAMETER(FVector3f,				BoxOrigin)
+	SHADER_PARAMETER(FVector3f,				BoxExtent)
+END_SHADER_PARAMETER_STRUCT()
+
+static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfacePhysicsAsset.ush");
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -35,48 +51,8 @@ static const FName GetProjectionPointName(TEXT("GetProjectionPoint"));
 
 //------------------------------------------------------------------------------------------------------------
 
-const FString UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName(TEXT("ElementOffsets_"));
-
-const FString UNiagaraDataInterfacePhysicsAsset::WorldTransformBufferName(TEXT("WorldTransformBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName(TEXT("InverseTransformBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName(TEXT("ElementExtentBuffer_"));
-const FString UNiagaraDataInterfacePhysicsAsset::PhysicsTypeBufferName(TEXT("PhysicsTypeBuffer_"));
-
-const FString UNiagaraDataInterfacePhysicsAsset::BoxOriginName(TEXT("BoxOrigin_"));
-const FString UNiagaraDataInterfacePhysicsAsset::BoxExtentName(TEXT("BoxExtent_"));
-
-//------------------------------------------------------------------------------------------------------------
-
-struct FNDIPhysicsAssetParametersName
-{
-	FNDIPhysicsAssetParametersName(const FString& Suffix)
-	{
-		ElementOffsetsName = UNiagaraDataInterfacePhysicsAsset::ElementOffsetsName + Suffix;
-
-		WorldTransformBufferName = UNiagaraDataInterfacePhysicsAsset::WorldTransformBufferName + Suffix;
-		InverseTransformBufferName = UNiagaraDataInterfacePhysicsAsset::InverseTransformBufferName + Suffix;
-		ElementExtentBufferName = UNiagaraDataInterfacePhysicsAsset::ElementExtentBufferName + Suffix;
-		PhysicsTypeBufferName = UNiagaraDataInterfacePhysicsAsset::PhysicsTypeBufferName + Suffix;
-
-		BoxOriginName = UNiagaraDataInterfacePhysicsAsset::BoxOriginName + Suffix;
-		BoxExtentName = UNiagaraDataInterfacePhysicsAsset::BoxExtentName + Suffix;
-	}
-
-	FString ElementOffsetsName;
-
-	FString WorldTransformBufferName;
-	FString InverseTransformBufferName;
-	FString ElementExtentBufferName;
-	FString PhysicsTypeBufferName;
-
-	FString BoxOriginName;
-	FString BoxExtentName;
-};
-
-//------------------------------------------------------------------------------------------------------------
-
 template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
-void CreateInternalBuffer(FRWBuffer& OutputBuffer)
+void CreateInternalBuffer(FReadBuffer& OutputBuffer)
 {
 	if (ElementCount > 0)
 	{
@@ -85,7 +61,7 @@ void CreateInternalBuffer(FRWBuffer& OutputBuffer)
 }
 
 template<typename BufferType, EPixelFormat PixelFormat, uint32 ElementCount, uint32 BufferCount = 1>
-void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount*BufferCount>& InputData, FRWBuffer& OutputBuffer)
+void UpdateInternalBuffer(const TStaticArray<BufferType,ElementCount*BufferCount>& InputData, FReadBuffer& OutputBuffer)
 {
 	if (ElementCount > 0 && OutputBuffer.Buffer.IsValid())
 	{
@@ -410,24 +386,7 @@ void UpdateInternalArrays(const TArray<TWeakObjectPtr<UPhysicsAsset>>& PhysicsAs
 	}
 }
 
-//------------------------------------------------------------------------------------------------------------
-
-void FNDIPhysicsAssetBuffer::InitRHI()
-{
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(WorldTransformBuffer);
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(InverseTransformBuffer);
-
-	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ElementExtentBuffer);
-	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, PHYSICS_ASSET_MAX_PRIMITIVES>(PhysicsTypeBuffer);
-}
-
-void FNDIPhysicsAssetBuffer::ReleaseRHI()
-{
-	WorldTransformBuffer.Release();
-	InverseTransformBuffer.Release();
-	ElementExtentBuffer.Release();
-	PhysicsTypeBuffer.Release();
-}
+} //namespace NDIPhysicsAssetLocal
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -450,6 +409,27 @@ ETickingGroup ComputeTickingGroup(const TArray<TWeakObjectPtr<class USkeletalMes
 	return TickingGroup;
 }
 
+//------------------------------------------------------------------------------------------------------------
+
+void FNDIPhysicsAssetBuffer::InitRHI()
+{
+	using namespace NDIPhysicsAssetLocal;
+
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(WorldTransformBuffer);
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(InverseTransformBuffer);
+
+	CreateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ElementExtentBuffer);
+	CreateInternalBuffer<uint32, EPixelFormat::PF_R32_UINT, PHYSICS_ASSET_MAX_PRIMITIVES>(PhysicsTypeBuffer);
+}
+
+void FNDIPhysicsAssetBuffer::ReleaseRHI()
+{
+	WorldTransformBuffer.Release();
+	InverseTransformBuffer.Release();
+	ElementExtentBuffer.Release();
+	PhysicsTypeBuffer.Release();
+}
+
 void FNDIPhysicsAssetData::Release()
 {
 	if (AssetBuffer)
@@ -466,6 +446,8 @@ void FNDIPhysicsAssetData::Release()
 
 void FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FNiagaraSystemInstance* SystemInstance)
 {
+	using namespace NDIPhysicsAssetLocal;
+
 	AssetBuffer = nullptr;
 
 	if (Interface != nullptr && SystemInstance != nullptr)
@@ -516,101 +498,10 @@ void FNDIPhysicsAssetData::Update(UNiagaraDataInterfacePhysicsAsset* Interface, 
 		if (0 < Interface->PhysicsAssets.Num() && Interface->PhysicsAssets[0].IsValid() && Interface->PhysicsAssets[0].Get() != nullptr &&
 			Interface->PhysicsAssets.Num() == Interface->SourceComponents.Num())
 		{
-			UpdateInternalArrays(Interface->PhysicsAssets, Interface->SourceComponents, &AssetArrays, SystemInstance->GetWorldTransform(), BoneTransform);
+			NDIPhysicsAssetLocal::UpdateInternalArrays(Interface->PhysicsAssets, Interface->SourceComponents, &AssetArrays, SystemInstance->GetWorldTransform(), BoneTransform);
 		}
 	}
 }
-
-//------------------------------------------------------------------------------------------------------------
-
-struct FNDIPhysicsAssetParametersCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		FNDIPhysicsAssetParametersName ParamNames(*ParameterInfo.DataInterfaceHLSLSymbol);
-
-		ElementOffsets.Bind(ParameterMap, *ParamNames.ElementOffsetsName);
-
-		WorldTransformBuffer.Bind(ParameterMap, *ParamNames.WorldTransformBufferName);
-		InverseTransformBuffer.Bind(ParameterMap, *ParamNames.InverseTransformBufferName);
-		ElementExtentBuffer.Bind(ParameterMap, *ParamNames.ElementExtentBufferName);
-		PhysicsTypeBuffer.Bind(ParameterMap, *ParamNames.PhysicsTypeBufferName);
-
-		BoxOrigin.Bind(ParameterMap, *ParamNames.BoxOriginName);
-		BoxExtent.Bind(ParameterMap, *ParamNames.BoxExtentName);
-
-		
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		FNDIPhysicsAssetProxy* InterfaceProxy =
-			static_cast<FNDIPhysicsAssetProxy*>(Context.DataInterface);
-		FNDIPhysicsAssetData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
-
-		if (ProxyData != nullptr && ProxyData->AssetBuffer && ProxyData->AssetBuffer->IsInitialized())
-		{
-			FNDIPhysicsAssetBuffer* AssetBuffer = ProxyData->AssetBuffer;
-
-			FRHITransitionInfo Transitions[] = {
-				FRHITransitionInfo(AssetBuffer->WorldTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->InverseTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->ElementExtentBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-				FRHITransitionInfo(AssetBuffer->PhysicsTypeBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute)
-			};
-			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, AssetBuffer->WorldTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, InverseTransformBuffer, AssetBuffer->InverseTransformBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, AssetBuffer->ElementExtentBuffer.SRV);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PhysicsTypeBuffer, AssetBuffer->PhysicsTypeBuffer.SRV);
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, ProxyData->AssetArrays.ElementOffsets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, (FVector3f)ProxyData->BoxOrigin);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, (FVector3f)ProxyData->BoxExtent);
-		}
-		else
-		{
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, WorldTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, InverseTransformBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ElementExtentBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, PhysicsTypeBuffer, FNiagaraRenderer::GetDummyIntBuffer());
-
-			static const FElementOffset DummyOffsets(0, 0, 0, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ElementOffsets, DummyOffsets);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxOrigin, FVector3f::ZeroVector);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, BoxExtent, FVector3f::ZeroVector);
-		}
-	}
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-	}
-
-private:
-
-	LAYOUT_FIELD(FShaderParameter, ElementOffsets);
-
-	LAYOUT_FIELD(FShaderResourceParameter, WorldTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, InverseTransformBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, ElementExtentBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, PhysicsTypeBuffer);
-
-	LAYOUT_FIELD(FShaderParameter, BoxOrigin);
-	LAYOUT_FIELD(FShaderParameter, BoxExtent);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNDIPhysicsAssetParametersCS);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfacePhysicsAsset, FNDIPhysicsAssetParametersCS);
-
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -649,23 +540,16 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(const FNiagaraSystemInstanceI
 	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
-void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNDIPhysicsAssetProxy::PreStage(const FNDIGpuComputePostStageContext& Context)
 {
-	FNDIPhysicsAssetData* ProxyData =
-		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
+	using namespace NDIPhysicsAssetLocal;
+
+	FNDIPhysicsAssetData* ProxyData = SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
 
 	if (ProxyData != nullptr && ProxyData->AssetBuffer)
 	{
-		if (Context.SimStageData->bFirstStage)
+		if (Context.GetSimStageData().bFirstStage)
 		{
-			FRHITransitionInfo Transitions[] = {
-				FRHITransitionInfo(ProxyData->AssetBuffer->WorldTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(ProxyData->AssetBuffer->InverseTransformBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(ProxyData->AssetBuffer->PhysicsTypeBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute),
-				FRHITransitionInfo(ProxyData->AssetBuffer->ElementExtentBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-			};
-			RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-
 			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(ProxyData->AssetArrays.WorldTransform, ProxyData->AssetBuffer->WorldTransformBuffer);
 			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_TRANSFORMS, 3>(ProxyData->AssetArrays.InverseTransform, ProxyData->AssetBuffer->InverseTransformBuffer);
 			UpdateInternalBuffer<FVector4f, EPixelFormat::PF_A32B32G32R32F, PHYSICS_ASSET_MAX_PRIMITIVES>(ProxyData->AssetArrays.ElementExtent, ProxyData->AssetBuffer->ElementExtentBuffer);
@@ -942,6 +826,7 @@ void UNiagaraDataInterfacePhysicsAsset::PostLoad()
 
 void UNiagaraDataInterfacePhysicsAsset::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	using namespace NDIPhysicsAssetLocal;
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = GetNumBoxesName;
@@ -1118,6 +1003,8 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePhysicsAsset, GetProjectionPo
 
 void UNiagaraDataInterfacePhysicsAsset::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction& OutFunc)
 {
+	using namespace NDIPhysicsAssetLocal;
+
 	if (BindingInfo.Name == GetNumBoxesName)
 	{
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 1);
@@ -1213,165 +1100,98 @@ void UNiagaraDataInterfacePhysicsAsset::GetProjectionPoint(FVectorVMExternalFunc
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfacePhysicsAsset::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDIPhysicsAssetParametersName ParamNames(ParamInfo.DataInterfaceHLSLSymbol);
+	using namespace NDIPhysicsAssetLocal;
 
-	TMap<FString, FStringFormatArg> ArgsSample = {
-		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
-		{TEXT("ElementOffsetsName"), ParamNames.ElementOffsetsName},
-		{TEXT("WorldTransformBufferName"), ParamNames.WorldTransformBufferName},
-		{TEXT("InverseTransformBufferName"), ParamNames.InverseTransformBufferName},
-		{TEXT("ElementExtentBufferName"), ParamNames.ElementExtentBufferName},
-		{TEXT("PhysicsAssetContextName"), TEXT("DIPHYSICSASSET_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
+	static const TSet<FName> ValidGpuFunctions =
+	{
+		GetNumBoxesName,
+		GetNumCapsulesName,
+		GetNumSpheresName,
+		GetClosestPointName,
+		GetClosestElementName,
+		GetElementPointName,
+		GetElementDistanceName,
+		GetClosestDistanceName,
+		GetRestDistanceName,
+		GetTexturePointName,
+		GetProjectionPointName,
 	};
 
-	if (FunctionInfo.DefinitionName == GetNumBoxesName)
+	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
+}
+
+bool UNiagaraDataInterfacePhysicsAsset::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (!Super::AppendCompileHash(InVisitor))
 	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(out int OutNumBoxes)
-		{
-			{PhysicsAssetContextName}
-			OutNumBoxes = DIPhysicsAsset_GetNumBoxes(DIContext);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetNumCapsulesName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(out int OutNumCapsules)
-		{
-			{PhysicsAssetContextName}
-			OutNumCapsules = DIPhysicsAsset_GetNumCapsules(DIContext);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetNumSpheresName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(out int OutNumSpheres)
-		{
-			{PhysicsAssetContextName}
-			OutNumSpheres = DIPhysicsAsset_GetNumSpheres(DIContext);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetClosestPointName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in float TimeFraction, out float3 OutClosestPosition, 
-							out float3 OutClosestNormal, out float3 OutClosestVelocity)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestPoint(DIContext,NodePosition,DeltaTime,TimeFraction,
-				OutClosestPosition,OutClosestNormal,OutClosestVelocity);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetClosestElementName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, in float TimeFraction, out int OutClosestElement)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestElement(DIContext,NodePosition,TimeFraction,
-				OutClosestElement);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetElementPointName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in float TimeFraction, in int ElementIndex, out float3 OutClosestPosition, 
-							out float3 OutClosestNormal, out float3 OutClosestVelocity)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetElementPoint(DIContext,NodePosition,DeltaTime,TimeFraction,ElementIndex,
-				OutClosestPosition,OutClosestNormal,OutClosestVelocity);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetElementDistanceName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, in float TimeFraction, in int ElementIndex, out float OutClosestDistance)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetElementDistance(DIContext,NodePosition,TimeFraction,ElementIndex,
-				OutClosestDistance);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetClosestDistanceName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, in float TimeFraction, out float OutClosestDistance)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetClosestDistance(DIContext,NodePosition,TimeFraction,OutClosestDistance);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetRestDistanceName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 RestPosition, out float OutRestDistance)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetRestDistance(DIContext,RestPosition,OutRestDistance);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetTexturePointName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, out int OutElementIndex, out float3 OutTexturePosition)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetTexturePoint(DIContext,NodePosition,OutElementIndex,OutTexturePosition);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
-	}
-	else if (FunctionInfo.DefinitionName == GetProjectionPointName)
-	{
-		static const TCHAR* FormatSample = TEXT(R"(
-		void {InstanceFunctionName}(in float3 NodePosition, in float DeltaTime, in int ElementIndex, in float TextureValue, in float3 TextureGradient, out float3 OutClosestPosition, 
-							out float3 OutClosestNormal, out float3 OutClosestVelocity, out float OutClosestDistance)
-		{
-			{PhysicsAssetContextName} DIPhysicsAsset_GetProjectionPoint(DIContext,NodePosition,DeltaTime,ElementIndex,TextureValue,TextureGradient,
-				OutClosestPosition,OutClosestNormal,OutClosestVelocity,OutClosestDistance);
-		}
-		)");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-		return true;
+		return false;
 	}
 
-	OutHLSL += TEXT("\n");
-	return false;
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceRigidMeshCollisionQueryHLSLSource"), GetShaderFileHash(NDIPhysicsAssetLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderParameters<NDIPhysicsAssetLocal::FShaderParameters>();
+
+	return true;
 }
 
 void UNiagaraDataInterfacePhysicsAsset::GetCommonHLSL(FString& OutHLSL)
 {
 	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraQuaternionUtils.ush\"\n");
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfacePhysicsAsset.ush\"\n");	
 }
 
 void UNiagaraDataInterfacePhysicsAsset::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	OutHLSL += TEXT("DIPHYSICSASSET_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
+	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
+
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIPhysicsAssetLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
+
+void UNiagaraDataInterfacePhysicsAsset::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NDIPhysicsAssetLocal::FShaderParameters>();
+}
+
+void UNiagaraDataInterfacePhysicsAsset::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNDIPhysicsAssetProxy& DIProxy = Context.GetProxy<FNDIPhysicsAssetProxy>();
+	FNDIPhysicsAssetData* ProxyData = DIProxy.SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
+	NDIPhysicsAssetLocal::FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<NDIPhysicsAssetLocal::FShaderParameters>();
+
+	if (ProxyData != nullptr && ProxyData->AssetBuffer && ProxyData->AssetBuffer->IsInitialized())
+	{
+		FNDIPhysicsAssetBuffer* AssetBuffer = ProxyData->AssetBuffer;
+
+		ShaderParameters->WorldTransformBuffer = FNiagaraRenderer::GetSrvOrDefaultFloat4(AssetBuffer->WorldTransformBuffer.SRV);
+		ShaderParameters->InverseTransformBuffer = FNiagaraRenderer::GetSrvOrDefaultFloat4(AssetBuffer->InverseTransformBuffer.SRV);
+		ShaderParameters->ElementExtentBuffer = FNiagaraRenderer::GetSrvOrDefaultFloat4(AssetBuffer->ElementExtentBuffer.SRV);
+		ShaderParameters->PhysicsTypeBuffer = FNiagaraRenderer::GetSrvOrDefaultUInt(AssetBuffer->PhysicsTypeBuffer.SRV);
+
+		ShaderParameters->ElementOffsets.X = ProxyData->AssetArrays.ElementOffsets.BoxOffset;
+		ShaderParameters->ElementOffsets.Y = ProxyData->AssetArrays.ElementOffsets.SphereOffset;
+		ShaderParameters->ElementOffsets.Z = ProxyData->AssetArrays.ElementOffsets.CapsuleOffset;
+		ShaderParameters->ElementOffsets.W = ProxyData->AssetArrays.ElementOffsets.NumElements;
+		ShaderParameters->BoxOrigin = FVector3f(ProxyData->BoxOrigin);
+		ShaderParameters->BoxExtent = FVector3f(ProxyData->BoxExtent);
+	}
+	else
+	{
+		ShaderParameters->WorldTransformBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->InverseTransformBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->ElementExtentBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->PhysicsTypeBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+
+		ShaderParameters->ElementOffsets = FUintVector4(0, 0, 0, 0);
+		ShaderParameters->BoxOrigin = FVector3f::ZeroVector;
+		ShaderParameters->BoxExtent = FVector3f::ZeroVector;
+	}
+}
 
 void UNiagaraDataInterfacePhysicsAsset::ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
 {

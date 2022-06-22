@@ -14,13 +14,13 @@
 #define PHYSICS_ASSET_MAX_TRANSFORMS PHYSICS_ASSET_MAX_PRIMITIVES * 3
 
 /** Element offsets in the array list */
-struct FElementOffset
+struct FNDIPhysicsAssetElementOffset
 {
-	FElementOffset(const uint32 InBoxOffset, const uint32 InSphereOffset, const uint32 InCapsuleOffset, const uint32 InNumElements) :
+	FNDIPhysicsAssetElementOffset(const uint32 InBoxOffset, const uint32 InSphereOffset, const uint32 InCapsuleOffset, const uint32 InNumElements) :
 		BoxOffset(InBoxOffset), SphereOffset(InSphereOffset), CapsuleOffset(InCapsuleOffset), NumElements(InNumElements)
 	{}
 
-	FElementOffset() :
+	FNDIPhysicsAssetElementOffset() :
 		BoxOffset(0), SphereOffset(0), CapsuleOffset(0), NumElements(0)
 	{}
 	uint32 BoxOffset;
@@ -32,7 +32,7 @@ struct FElementOffset
 /** Arrays in which the cpu datas will be str */
 struct FNDIPhysicsAssetArrays
 {
-	FElementOffset ElementOffsets;
+	FNDIPhysicsAssetElementOffset ElementOffsets;
 	TStaticArray<FVector4f, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> WorldTransform;
 	TStaticArray<FVector4f, 3 * PHYSICS_ASSET_MAX_TRANSFORMS> InverseTransform;
 	TStaticArray<FVector4f, PHYSICS_ASSET_MAX_TRANSFORMS> CurrentTransform;
@@ -58,16 +58,16 @@ struct FNDIPhysicsAssetBuffer : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIPhysicsAssetBuffer"); }
 
 	/** World transform buffer */
-	FRWBuffer WorldTransformBuffer;
+	FReadBuffer WorldTransformBuffer;
 
 	/** Inverse transform buffer*/
-	FRWBuffer InverseTransformBuffer;
+	FReadBuffer InverseTransformBuffer;
 
 	/** Element extent buffer */
-	FRWBuffer ElementExtentBuffer;
+	FReadBuffer ElementExtentBuffer;
 
 	/** Physics type buffer */
-	FRWBuffer PhysicsTypeBuffer;
+	FReadBuffer PhysicsTypeBuffer;
 };
 
 /** Data stored per physics asset instance*/
@@ -105,9 +105,6 @@ class NIAGARA_API UNiagaraDataInterfacePhysicsAsset : public UNiagaraDataInterfa
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	/** Skeletal Mesh from which the Physics Asset will be found. */
 	UPROPERTY(EditAnywhere, Category = "Source")
 	TObjectPtr<UPhysicsAsset> DefaultSource;
@@ -150,10 +147,15 @@ public:
 
 	/** GPU simulation  functionality */
 #if WITH_EDITORONLY_DATA
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual void GetCommonHLSL(FString& OutHLSL) override;
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Extract the source component */
@@ -189,27 +191,6 @@ public:
 	/** Get the projection point */
 	void GetProjectionPoint(FVectorVMExternalFunctionContext& Context);
 
-	/** Name of element offsets */
-	static const FString ElementOffsetsName;
-
-	/** Name of the world transform buffer */
-	static const FString WorldTransformBufferName;
-
-	/** Name of the inverse transform buffer */
-	static const FString InverseTransformBufferName;
-
-	/** Name of the element extent buffer */
-	static const FString ElementExtentBufferName;
-
-	/** Name of the physics type buffer */
-	static const FString PhysicsTypeBufferName;
-
-	/** Init Box Origin */
-	static const FString BoxOriginName;
-
-	/** Init Box extent */
-	static const FString BoxExtentName;
-
 protected:
 	/** Copy one niagara DI to this */
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
@@ -231,7 +212,7 @@ struct FNDIPhysicsAssetProxy : public FNiagaraDataInterfaceProxy
 	void DestroyPerInstanceData(const FNiagaraSystemInstanceID& SystemInstance);
 
 	/** Launch all pre stage functions */
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PreStage(const FNDIGpuComputePostStageContext& Context) override;
 
 	/** List of proxy data for each system instances*/
 	TMap<FNiagaraSystemInstanceID, FNDIPhysicsAssetData> SystemInstancesToProxyData;
