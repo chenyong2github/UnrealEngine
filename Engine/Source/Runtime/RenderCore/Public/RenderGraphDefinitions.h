@@ -138,6 +138,11 @@ enum class ERDGBufferFlags : uint8
 	 */
 	SkipTracking = 1 << 1,
 
+	/** When set, RDG will perform its first barrier without splitting. Practically, this means the resource is left in its initial state
+	 *  until the first pass it's used within the graph. Without this flag, the resource is split-transitioned at the start of the graph.
+	 */
+	ForceImmediateFirstBarrier = 1 << 2,
+
 	// Deprecated Enums
 	ReadOnly      UE_DEPRECATED(5.1, "ReadOnly is deprecated. Use SkipTracking instead.")                                            = 0,
 	ForceTracking UE_DEPRECATED(5.1, "ForceTracking is deprecated. Resources now opt-out of tracking explicitly with SkipTracking.") = 0
@@ -158,9 +163,14 @@ enum class ERDGTextureFlags : uint8
 	 *  readable state for use with RDG passes, as RDG does not know the exact state of the resource.
 	 */
 	SkipTracking = 1 << 1,
+	
+	/** When set, RDG will perform its first barrier without splitting. Practically, this means the resource is left in its initial state
+	 *  until the first pass it's used within the graph. Without this flag, the resource is split-transitioned at the start of the graph.
+	 */
+	ForceImmediateFirstBarrier = 1 << 2,
 
 	/** Prevents metadata decompression on this texture. */
-	MaintainCompression = 1 << 2,
+	MaintainCompression = 1 << 3,
 
 	// Deprecated Enums
 	ReadOnly      UE_DEPRECATED(5.1, "ReadOnly is deprecated. Use SkipTracking instead.")                                            = 0,

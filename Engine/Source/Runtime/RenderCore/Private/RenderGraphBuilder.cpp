@@ -1135,6 +1135,13 @@ void FRDGBuilder::Compile()
 				Buffer->bUsedByAsyncComputePass |= bAsyncComputePass;
 				Buffer->bCulled = false;
 
+				if (Buffer->FirstBarrier == FRDGBuffer::EFirstBarrier::ImmediateRequested)
+				{
+					Buffer->FirstBarrier = FRDGBuffer::EFirstBarrier::ImmediateConfirmed;
+					Buffer->FirstPass = PassHandle;
+					Buffer->State->SetPass(ERHIPipeline::Graphics, PassHandle);
+				}
+
 			#if STATS
 				GRDGStatBufferReferenceCount += PassState.ReferenceCount;
 			#endif
@@ -1674,9 +1681,11 @@ void FRDGBuilder::Execute()
 
 	CreatePassBarriers(bParallelExecuteEnabled ? &AsyncCompileEvents : nullptr);
 
+	const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread_Local();
+
 	if (!ParallelSetupEvents.IsEmpty())
 	{
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents);
+		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents, RenderThread);
 	}
 
 	EndFlushResourcesRHI();
@@ -1697,8 +1706,6 @@ void FRDGBuilder::Execute()
 
 	IF_RDG_ENABLE_DEBUG(GRDGAllowRHIAccess = bParallelExecuteEnabled);
 	IF_RDG_ENABLE_TRACE(Trace.OutputGraphBegin());
-
-	const ENamedThreads::Type RenderThread = ENamedThreads::GetRenderThread_Local();
 
 	if (!IsImmediateMode())
 	{
