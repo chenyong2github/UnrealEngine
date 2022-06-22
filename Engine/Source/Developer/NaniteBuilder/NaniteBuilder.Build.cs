@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
 			PrivateIncludePathModuleNames.Add("MeshUtilitiesCommon");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "metis");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "MikkTSpace");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "Embree3");
 		}
 	}
 }
