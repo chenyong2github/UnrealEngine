@@ -6,23 +6,29 @@ VirtualShadowMapSMRTCommon.ush:
 
 #pragma once
 
-#ifndef SMRT_EXTRAPOLATE_WITH_SLOPE
-#define SMRT_EXTRAPOLATE_WITH_SLOPE 1
-#endif
-
 struct FSMRTSample
 {
 	bool bValid;	
 	float SampleDepth;
 	float ReferenceDepth;
-	float CompareToleranceScale;
+	float ExtrapolateSlope;
+	bool bResetExtrapolation;
 };
+
+FSMRTSample InitSMRTSample()
+{
+	FSMRTSample Result;
+	Result.bValid = false;
+	Result.SampleDepth = 0;
+	Result.ReferenceDepth = 0;
+	Result.ExtrapolateSlope = 0;
+	Result.bResetExtrapolation = false;
+	return Result;
+}
 
 struct FSMRTResult
 {
 	bool bValidHit;
-	float OccluderDistance;
-	int SampleMissCount;
 };
 
 float SMRTComputeRayMissFactor(uint RayMissCount, uint RayCount, uint MaxRayCount, half Noise)

@@ -91,7 +91,8 @@ struct FVirtualShadowMapProjectionShaderData
 	// TODO: There are more local lights than directional
 	// We should move the directional-specific stuff out to its own structure.
 	FVector3f NegativeClipmapWorldOriginLWCOffset;	// Shares the LWCTile with PreViewTranslation
-	float ClipmapResolutionLodBias = 0.0f;
+	// Slightly different meaning for clipmaps (includes camera pixel size scaling stuff) and local lights (raw bias)
+	float ResolutionLodBias = 0.0f;
 
 	FIntPoint ClipmapCornerOffset = FIntPoint(0, 0);
 	int32 ClipmapIndex = 0;					// 0 .. ClipmapLevelCount-1

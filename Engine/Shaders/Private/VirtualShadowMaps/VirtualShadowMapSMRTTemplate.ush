@@ -7,8 +7,8 @@ Required parameters before including this file:
 1) Include "SMRTCommon.ush"
 2) Define a "ray state" structure (FRayState here, but must be unique)
 3) Implement FSMRTSample SMRTFindSample(inout FRayState RayState, float SampleTime)
-4) Implement SMRTComputeOccluderDistance(FRayState RayState, float SampleDepth)
-5) Include this file:
+  - NOTE: ReferenceDepth must always be set, even if the sample is invalid
+4) Include this file:
 #define SMRT_TEMPLATE_RAY_STRUCT FRayState
 #include "VirtualShadowMapSMRTTemplate.ush"
 #undef SMRT_TEMPLATE_RAY_STRUCT
@@ -32,15 +32,13 @@ FSMRTResult SMRTRayCast(
 	float DepthHistoryTime = -1;
 	float DepthSlope = 0;
 
-	int SampleMissCount = 0;
-	float OccluderDistance = 100000;
-
 	const float TimeScale = -1.0f / NumSteps;
 	const float TimeBias = 1.0f + ( 1.0 - StepOffset ) * TimeScale;
 
-	// Backward delta. Time[i] - Time[i-1]
-	const float DeltaTimeScale = 2.0 * Pow2( TimeScale );
-	const float DeltaTimeBias = 2.0 * TimeScale * ( TimeBias - 0.5 * TimeScale );
+	// This doesn't get used in the first iteration of the loop and so will always
+	// be valid by the time that it does.
+	float PrevReferenceDepth = -1;
+	float PrevSampleTime = -1;
 
 	bool bValidHit =  false;
 #if SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY >= 0
@@ -49,14 +47,19 @@ FSMRTResult SMRTRayCast(
 #endif
 	for (int i = 0; i <= NumSteps; i++)
 	{
-		const float SampleTime	= i == NumSteps ? 0 : Pow2( TimeScale * i + TimeBias );
-		const float DeltaTime	= i == NumSteps ? Pow2( TimeScale * StepOffset ) : DeltaTimeScale * i + DeltaTimeBias;
+		const float SampleTime = ( i == NumSteps ) ? 0 : Pow2( TimeScale * i + TimeBias );
 
 		FSMRTSample Sample = SMRTFindSample(RayState, SampleTime);
+		const float ReferenceDepth = Sample.ReferenceDepth;
+
+		if (Sample.bResetExtrapolation)
+		{
+			DepthSlope = Sample.ExtrapolateSlope;
+		}
+
 		if (Sample.bValid)
 		{
 			const float SampleDepth = Sample.SampleDepth;
-			const float ReferenceDepth = Sample.ReferenceDepth;
 			if (DepthHistory < 0)
 			{
 				// First valid sample we've seen. Do a regular depth compare.
@@ -64,25 +67,27 @@ FSMRTResult SMRTRayCast(
 				DepthHistoryTime = SampleTime;
 				if (SampleDepth > ReferenceDepth)
 				{
-					OccluderDistance = SMRTComputeOccluderDistance(RayState, SampleDepth);
 					bValidHit = true;
 					break;
 				}
 			}
 			else
 			{
+				const float DeltaReferenceDepth = ReferenceDepth - PrevReferenceDepth;
+
 				// Add a small relative error to the comparison to avoid missing surfaces due to numeric precision issues
 				// Without this there are occasionally flickering fireflies in fully shadowed regions with SMRT
-				const float EpsScale = 1.5f;
-				const float CompareTolerance = abs(Sample.CompareToleranceScale * DeltaTime) * EpsScale;
+				const float EpsScale = 1.05f;
+				const float CompareTolerance = abs(DeltaReferenceDepth) * EpsScale;
+								
 				const bool bBehind = (SampleDepth - ReferenceDepth) > CompareTolerance;
+				float DepthForComparison = SampleDepth;
 
 				float DeltaHistoryTime = SampleTime - DepthHistoryTime;
-				float DepthForComparison = SampleDepth;
 
 				if (bBehind)
 				{
-					#if SMRT_EXTRAPOLATE_WITH_SLOPE
+					#if SMRT_EXTRAPOLATE_SLOPE
 						DepthForComparison = DepthSlope * DeltaHistoryTime + DepthHistory;
 					#else
 						DepthForComparison = DepthHistory;
@@ -90,18 +95,16 @@ FSMRTResult SMRTRayCast(
 				}
 				else
 				{
-					// This must be the second valid sample we've seen, as the first will take the DepthHistory < 0 path
-					// Only update the slope if we sampled a new texel; otherwise it will just zero out the slope
-					// This can happen at high sample counts with rays that are nearly parallel to the light direction
-					if (SampleDepth != DepthHistory)	// Exact test is fine here; point sampled texel with be identical
+					if (SampleDepth != DepthHistory)
 					{
 						// NOTE: DCE will remove all this if SMRT_EXTRAPOLATE_WITH_SLOPE is false
-						const float SlopeClamp = 1e-5f;
+						const float SlopeClamp = Sample.ExtrapolateSlope;
 						DepthSlope = (SampleDepth - DepthHistory) / DeltaHistoryTime;
 						DepthSlope = clamp(DepthSlope, -SlopeClamp, SlopeClamp);
+
+						DepthHistory = SampleDepth;
+						DepthHistoryTime = SampleTime;
 					}
-					DepthHistory = SampleDepth;
-					DepthHistoryTime = SampleTime;
 				}
 
 				float DepthDiff = ReferenceDepth - DepthForComparison;
@@ -109,21 +112,17 @@ FSMRTResult SMRTRayCast(
 				bool bHit = abs(DepthDiff + HalfCompareTolerance) < HalfCompareTolerance;
 				if (bHit)
 				{
-					OccluderDistance = SMRTComputeOccluderDistance(RayState, SampleDepth);
 					bValidHit = true;
 					break;
 				}
 			}
-		}
-		else
-		{
-			++SampleMissCount;
+
+			PrevSampleTime = SampleTime;
+			PrevReferenceDepth = ReferenceDepth;
 		}
 	}
 
 	FSMRTResult Result;
 	Result.bValidHit = bValidHit;
-	Result.OccluderDistance = OccluderDistance;
-	Result.SampleMissCount = SampleMissCount;
 	return Result;
 }

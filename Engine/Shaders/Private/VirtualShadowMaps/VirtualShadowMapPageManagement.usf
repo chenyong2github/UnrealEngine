@@ -38,47 +38,25 @@ RWStructuredBuffer<uint> OutPageRequestFlags;
 
 StructuredBuffer<int> DirectionalLightIds;
 
-float ResolutionLodBiasLocal;
 float PageDilationBorderSizeDirectional;
 float PageDilationBorderSizeLocal;
 uint InputType;
 uint bCullBackfacingPixels;
 
-uint CalcMipLevelLocal(float Footprint)
-{
-	float MipLevelFloat = log2(Footprint) + ResolutionLodBiasLocal;
-	uint MipLevel = uint(max(floor(MipLevelFloat), 0.0f));
-	return min(MipLevel, (VSM_MAX_MIP_LEVELS - 1U));
-}
 
 uint GetMipLevelLocal(int VirtualShadowMapId, float3 TranslatedWorldPosition, float SceneDepth)
 {
-	float Footprint = float(VSM_VIRTUAL_MAX_RESOLUTION_XY);
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
-	{
-		// Compute footprint by projecting the approximate size of a camera pixel at the given depth to shadow space
-		// NOTE: This doesn't take the screen XY position/FOV into account, which may or may not be desirable.
-		
-		// TODO: Roll into a uniform
-		float2 RadiusXY = 1.0f / (View.ViewSizeAndInvSize.xy * View.ViewToClip._m00_m11);
-		float RadiusScreen = min(RadiusXY.x, RadiusXY.y);
-		float DepthScale = SceneDepth * View.ViewToClip[2][3] + View.ViewToClip[3][3];
+	// If local lights are near the primary view the combined offset should be small
+	float3 ShadowTranslatedWorldPosition = TranslatedWorldPosition + 
+		LWCToFloat(LWCSubtract(ProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
 
-		float RadiusWorld = DepthScale * RadiusScreen;
+	float Footprint = VirtualShadowMapCalcPixelFootprintLocal(ProjectionData, ShadowTranslatedWorldPosition, SceneDepth);
 
-		// If local lights are near the primary view the combined offset should be small
-		float3 ShadowTranslatedWorldPosition = TranslatedWorldPosition + 
-			LWCToFloat(LWCSubtract(ProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
-		
-		float4 ShadowUVz = mul(float4(ShadowTranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
-
-		float4 RadiusClipH = mul(float4(RadiusWorld, 0.0f, ShadowUVz.w, 1.0f), ProjectionData.ShadowViewToClipMatrix);
-		float RadiusClip = abs(RadiusClipH.x / RadiusClipH.w);
-		Footprint = RadiusClip * float(2 * VSM_VIRTUAL_MAX_RESOLUTION_XY);
-	}
-
-	return CalcMipLevelLocal(Footprint);
+	float MipLevelFloat = log2(Footprint) + ProjectionData.ResolutionLodBias;
+	uint MipLevel = uint(max(floor(MipLevelFloat), 0.0f));
+	return min(MipLevel, (VSM_MAX_MIP_LEVELS - 1U));
 }
 
 void MarkPage(uint VirtualShadowMapId, uint MipLevel, float3 TranslatedWorldPosition, bool bUsePageDilation, float2 PageDilationOffset)

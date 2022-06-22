@@ -26,6 +26,8 @@
 #include "VirtualShadowMapClipmap.h"
 #include "HairStrands/HairStrandsData.h"
 
+#define MAX_TEST_PERMUTATION 0
+
 static TAutoConsoleVariable<float> CVarScreenRayLength(
 	TEXT( "r.Shadow.Virtual.ScreenRayLength" ),
 	0.015f,
@@ -101,6 +103,14 @@ static TAutoConsoleVariable<int32> CVarSMRTAdaptiveRayCount(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarSMRTTexelDitherScaleLocal(
+	TEXT( "r.Shadow.Virtual.SMRT.TexelDitherScaleLocal" ),
+	2.0f,
+	TEXT( "Applies a dither to the shadow map ray casts for local lights to help hide aliasing due to insufficient shadow resolution.\n" )
+	TEXT( "Setting this too high can cause shadows light leaks near occluders." ),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
 static TAutoConsoleVariable<float> CVarSMRTTexelDitherScaleDirectional(
 	TEXT( "r.Shadow.Virtual.SMRT.TexelDitherScaleDirectional" ),
 	2.0f,
@@ -109,17 +119,28 @@ static TAutoConsoleVariable<float> CVarSMRTTexelDitherScaleDirectional(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<float> CVarSMRTWorldDitherScaleDirectional(
-	TEXT( "r.Shadow.Virtual.SMRT.WorldDitherScaleDirectional" ),
-	0.0f,
-	TEXT( "Applies a world." ),
+TAutoConsoleVariable<float> CVarSMRTExtrapolateMaxSlopeLocal(
+	TEXT("r.Shadow.Virtual.SMRT.ExtrapolateMaxSlopeLocal"),
+	0.05f,
+	TEXT("Maximum depth slope when extrapolating behind occluders for local lights.\n")
+	TEXT("Higher values allow softer penumbra edges but can introduce light leaks behind second occluders.\n")
+	TEXT("Setting to 0 will disable slope extrapolation slightly improving projection performance, at the cost of reduced penumbra quality."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-TAutoConsoleVariable<int32> CVarSMRTExtrapolateWithSlope(
-	TEXT("r.Shadow.Virtual.SMRT.ExtrapolateWithSlope"),
-	1,
-	TEXT("Use slope-based extrapolation behind occluders. This can increase the quality of shadow penumbra on surfaces aligned with the light direction."),
+TAutoConsoleVariable<float> CVarSMRTExtrapolateMaxSlopeDirectional(
+	TEXT("r.Shadow.Virtual.SMRT.ExtrapolateMaxSlopeDirectional"),
+	5.0f,
+	TEXT("Maximum depth slope when extrapolating behind occluders for directional lights.\n")
+	TEXT("Higher values allow softer penumbra edges but can introduce light leaks behind second occluders.\n")
+	TEXT("Setting to 0 will disable slope extrapolation slightly improving projection performance, at the cost of reduced penumbra quality."),
+	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<float> CVarSMRTMaxSlopeBiasLocal(
+	TEXT("r.Shadow.Virtual.SMRT.MaxSlopeBiasLocal"),
+	50.0f,
+	TEXT("Maximum depth slope. Low values produce artifacts if shadow resolution is insufficient. High values can worsen light leaks near occluders and sparkly pixels in shadowed areas."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -129,6 +150,15 @@ static TAutoConsoleVariable<int32> CVarForcePerLightShadowMaskClear(
 	TEXT( "" ),
 	ECVF_RenderThreadSafe
 );
+
+#if MAX_TEST_PERMUTATION > 0
+static TAutoConsoleVariable<int32> CVarTestPermutation(
+	TEXT( "r.Shadow.Virtual.ProjectionTestPermutation" ),
+	0,
+	TEXT( "Used for A/B testing projection shader changes. " ),
+	ECVF_RenderThreadSafe
+);
+#endif
 
 const TCHAR* ToString(EVirtualShadowMapProjectionInputType In)
 {
@@ -206,20 +236,26 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVirtualShadowMapProjectionCS, FGlobalShader)
 	
 	class FDirectionalLightDim		: SHADER_PERMUTATION_BOOL("DIRECTIONAL_LIGHT");
-	class FSMRTExtrapolateSlopeDim	: SHADER_PERMUTATION_BOOL("SMRT_EXTRAPOLATE_WITH_SLOPE");
 	class FOnePassProjectionDim		: SHADER_PERMUTATION_BOOL("ONE_PASS_PROJECTION");
 	class FHairStrandsDim			: SHADER_PERMUTATION_BOOL("HAS_HAIR_STRANDS");
 	class FVisualizeOutputDim		: SHADER_PERMUTATION_BOOL("VISUALIZE_OUTPUT");
+	class FExtrapolateSlopeDim		: SHADER_PERMUTATION_BOOL("SMRT_EXTRAPOLATE_SLOPE");
 	// -1 means dynamic count
 	class FSMRTStaticSampleCount	: SHADER_PERMUTATION_RANGE_INT("SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY", -1, 2);
+	// Used for A/B testing a change that affects reg allocation, etc.
+	class FTestDim					: SHADER_PERMUTATION_INT("TEST_PERMUTATION", MAX_TEST_PERMUTATION+1);
 
 	using FPermutationDomain = TShaderPermutationDomain<
 		FDirectionalLightDim,
 		FOnePassProjectionDim,
 		FHairStrandsDim,
 		FVisualizeOutputDim,
-		FSMRTExtrapolateSlopeDim,
-		FSMRTStaticSampleCount>;
+		FExtrapolateSlopeDim,
+		FSMRTStaticSampleCount
+#if MAX_TEST_PERMUTATION > 0
+		, FTestDim
+#endif
+	>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, SamplingParameters)
@@ -236,7 +272,8 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
 		SHADER_PARAMETER(float, SMRTTexelDitherScale)
-		SHADER_PARAMETER(float, SMRTWorldDitherScale)
+		SHADER_PARAMETER(float, SMRTExtrapolateSlope)
+		SHADER_PARAMETER(float, SMRTMaxSlopeBias)
 		SHADER_PARAMETER(uint32, bSMRTUseAdaptiveRayCount)
 		SHADER_PARAMETER(uint32, InputType)
 		SHADER_PARAMETER(uint32, bCullBackfacingPixels)
@@ -352,7 +389,8 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->SMRTRayLengthScale = CVarSMRTRayLengthScaleDirectional.GetValueOnRenderThread();
 		PassParameters->SMRTCotMaxRayAngleFromLight = 0.0f;	// unused in this path
 		PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScaleDirectional.GetValueOnRenderThread();
-		PassParameters->SMRTWorldDitherScale = CVarSMRTWorldDitherScaleDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTExtrapolateSlope = CVarSMRTExtrapolateMaxSlopeDirectional.GetValueOnRenderThread();
+		PassParameters->SMRTMaxSlopeBias = 0.0f; // unused in this path
 	}
 	else
 	{
@@ -360,8 +398,9 @@ static void RenderVirtualShadowMapProjectionCommon(
 		PassParameters->SMRTSamplesPerRay = CVarSMRTSamplesPerRayLocal.GetValueOnRenderThread();
 		PassParameters->SMRTRayLengthScale = 0.0f;		// unused in this path
 		PassParameters->SMRTCotMaxRayAngleFromLight = 1.0f / FMath::Tan(CVarSMRTMaxRayAngleFromLight.GetValueOnRenderThread());
-		PassParameters->SMRTTexelDitherScale = 0.0f;	// not yet implemented
-		PassParameters->SMRTWorldDitherScale = 0.0f;	// not yet implemented
+		PassParameters->SMRTTexelDitherScale = CVarSMRTTexelDitherScaleLocal.GetValueOnRenderThread();
+		PassParameters->SMRTExtrapolateSlope = CVarSMRTExtrapolateMaxSlopeLocal.GetValueOnRenderThread();
+		PassParameters->SMRTMaxSlopeBias = CVarSMRTMaxSlopeBiasLocal.GetValueOnRenderThread();
 	}
 	
 	bool bDebugOutput = false;
@@ -385,10 +424,16 @@ static void RenderVirtualShadowMapProjectionCommon(
 	FVirtualShadowMapProjectionCS::FPermutationDomain PermutationVector;
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FDirectionalLightDim >( bDirectionalLight );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FOnePassProjectionDim >( bOnePassProjection );
-	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTExtrapolateSlopeDim >( CVarSMRTExtrapolateWithSlope.GetValueOnRenderThread() != 0 );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FHairStrandsDim >( bHasHairStrandsData );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FVisualizeOutputDim >( bDebugOutput );
+	PermutationVector.Set< FVirtualShadowMapProjectionCS::FExtrapolateSlopeDim >( PassParameters->SMRTExtrapolateSlope > 0.0f );
 	PermutationVector.Set< FVirtualShadowMapProjectionCS::FSMRTStaticSampleCount >( StaticSamplesPerRay );
+#if MAX_TEST_PERMUTATION > 0
+	{
+		int32 TestPermutation = FMath::Clamp(CVarTestPermutation.GetValueOnRenderThread(), 0, MAX_TEST_PERMUTATION);
+		PermutationVector.Set< FVirtualShadowMapProjectionCS::FTestDim >( TestPermutation );
+	}
+#endif
 
 	auto ComputeShader = View.ShaderMap->GetShader< FVirtualShadowMapProjectionCS >( PermutationVector );
 	ClearUnusedGraphResources( ComputeShader, PassParameters );

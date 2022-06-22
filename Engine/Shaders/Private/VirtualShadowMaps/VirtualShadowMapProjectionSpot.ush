@@ -13,11 +13,51 @@ VirtualShadowMapProjectionSpot.ush:
 #include "VirtualShadowMapProjectionCommon.ush"
 #include "VirtualShadowMapSMRTCommon.ush"
 
+// Possibly parameterize this at some point, but tradeoffs are not always obvious
+#define VIRTUAL_SHADOW_MAP_MAX_SLOPE_BIAS 100.0f
+
+float2 ComputeDepthSlopeLocalUV(
+	int VirtualShadowMapId,
+	float3 ShadowTranslatedWorldPosition,
+	float3 WorldNormal)
+{
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	float4 NormalPlaneTranslatedWorld = float4(WorldNormal, -dot(WorldNormal, ShadowTranslatedWorldPosition));
+	float4 NormalPlaneUV = mul(NormalPlaneTranslatedWorld, ProjectionData.TranslatedWorldToShadowUVNormalMatrix);
+	float2 DepthSlopeUV = -NormalPlaneUV.xy / NormalPlaneUV.z;
+	return DepthSlopeUV;
+}
+
+float ComputeOptimalSlopeBiasLocal(
+	int VirtualShadowMapId,
+	float3 ShadowTranslatedWorldPosition,
+	float2 DepthSlopeUV,
+	bool bClamp = true)
+{
+	// NOTE: Better to reload the necessary data here based on VSM ID than keep it alive in registers!
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+
+	float4 ShadowUVz = mul(float4(ShadowTranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+	ShadowUVz.xyz /= ShadowUVz.w;
+	FShadowPageTranslationResult Page = ShadowVirtualToPhysicalUV(ProjectionData.VirtualShadowMapId, ShadowUVz.xy);
+
+	float MipLevelDim = float(CalcLevelDimsTexels(Page.LODOffset));
+	float2 TexelCenter = float2(Page.VirtualTexelAddress) + 0.5f;
+	float2 TexelCenterOffset = TexelCenter - Page.VirtualTexelAddressFloat;
+	float2 TexelCenterOffsetUV = TexelCenterOffset / MipLevelDim;
+	float OptimalSlopeBias = 2.0f * max(0.0f, dot(DepthSlopeUV, TexelCenterOffsetUV));
+
+	return OptimalSlopeBias;
+}
+
+
 struct FSMRTSingleRayState
 {
 	int VirtualShadowMapId;
 	float3 RayStartUVz;	
 	float3 RayStepUVz;
+	float ExtrapolateSlope;
 	// Debug output
 	int MipLevel;
 	uint2 VirtualTexelAddress;
@@ -28,7 +68,10 @@ FSMRTSingleRayState SMRTSingleRayInitialize(
 	int VirtualShadowMapId,
 	// Shadow PreViewTranslation already added in
 	float3 RayStartShadowTranslatedWorld,
-	float3 RayEndShadowTranslatedWorld)
+	float3 RayEndShadowTranslatedWorld,
+	float ExtrapolateSlope,
+	float DepthBias,
+	bool bClampUVs = true)
 {
 	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
@@ -44,10 +87,19 @@ FSMRTSingleRayState SMRTSingleRayInitialize(
 	RayEndUVz.xyz = RayEndUVz.xyz / RayEndUVz.w;
 	float3 RayStepUVz = RayEndUVz.xyz - RayStartUVz.xyz;
 
+	// Offsets can move it slightly off the edge of spotlight projection. Clamp to edge.
+	// Note we do *not* want to do this if we are tracing dual face cubemap rays!
+	if (bClampUVs)
+	{
+		RayStartUVz.xy = saturate(RayStartUVz.xy);
+	}
+	RayStartUVz.z += DepthBias;
+
 	FSMRTSingleRayState Result;
 	Result.VirtualShadowMapId = VirtualShadowMapId;
 	Result.RayStartUVz = RayStartUVz.xyz;
 	Result.RayStepUVz = RayStepUVz.xyz;
+	Result.ExtrapolateSlope = ExtrapolateSlope * RayStepUVz.z;
 	Result.MipLevel = 0;
 	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
@@ -56,9 +108,12 @@ FSMRTSingleRayState SMRTSingleRayInitialize(
 
 FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
 {
-	FSMRTSample Sample = (FSMRTSample)0;
-	Sample.bValid = false;
 	float3 UVz = RayState.RayStartUVz.xyz + RayState.RayStepUVz.xyz * SampleTime;
+
+	FSMRTSample Sample = InitSMRTSample();
+	Sample.bValid = false;
+	Sample.ReferenceDepth = UVz.z;
+	Sample.ExtrapolateSlope = RayState.ExtrapolateSlope;
 
 	if (all(UVz.xy == saturate(UVz.xy)))
 	{
@@ -67,8 +122,7 @@ FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
 		{
 			Sample.bValid = true;
 			Sample.SampleDepth = SmSample.Depth;
-			Sample.ReferenceDepth = UVz.z;
-			Sample.CompareToleranceScale = RayState.RayStepUVz.z;
+			
 			// Debug output
 			RayState.MipLevel = SmSample.MipLevel;
 			RayState.PhysicalTexelAddress = SmSample.PhysicalTexelAddress;
@@ -77,18 +131,6 @@ FSMRTSample SMRTFindSample(inout FSMRTSingleRayState RayState, float SampleTime)
 	}
 
 	return Sample;
-}
-
-float SMRTComputeOccluderDistance(FSMRTSingleRayState RayState, float SampleDepth)
-{
-	// Avoid keeping around the registers
-	float4x4 ViewToClip = GetVirtualShadowMapProjectionData(RayState.VirtualShadowMapId).ShadowViewToClipMatrix;
-
-	// View space Z delta is a good enough stand-in for euclidean distance for now given our bent ray tests and so on
-	float OccluderViewZ = ViewToClip._43 / (SampleDepth            - ViewToClip._33);
-	float ReceiverViewZ = ViewToClip._43 / (RayState.RayStartUVz.z - ViewToClip._33);		
-	float Result = ReceiverViewZ - OccluderViewZ;	
-	return max(VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE, Result);
 }
 
 // Instantiate SMRTRayCast for FSMRTSingleRayState
@@ -101,43 +143,43 @@ struct FSMRTTwoCubeFaceRayState
 {
 	FSMRTSingleRayState Face0;
 	FSMRTSingleRayState Face1;
-	bool bSampleInFace0;
+	bool bSampleInFace1;
 };
 
 FSMRTTwoCubeFaceRayState SMRTTwoCubeFaceRayInitialize(
 	int VirtualShadowMapId0,
 	int VirtualShadowMapId1,
 	float3 RayStartShadowTranslatedWorld,
-	float3 RayEndShadowTranslatedWorld)
+	float3 RayEndShadowTranslatedWorld,
+	float ExtrapolateSlope,
+	float DepthBias)
 {
 	FSMRTTwoCubeFaceRayState Result;
-	Result.Face0 = SMRTSingleRayInitialize(VirtualShadowMapId0, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
-	Result.Face1 = SMRTSingleRayInitialize(VirtualShadowMapId1, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
-	Result.bSampleInFace0 = false;
+	Result.Face0 = SMRTSingleRayInitialize(VirtualShadowMapId0, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld, ExtrapolateSlope, DepthBias, false);
+	Result.Face1 = SMRTSingleRayInitialize(VirtualShadowMapId1, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld, ExtrapolateSlope, DepthBias, false);
+	Result.bSampleInFace1 = true;
 	return Result;
 }
 
 FSMRTSample SMRTFindSample(inout FSMRTTwoCubeFaceRayState RayState, float SampleTime)
 {
-	FSMRTSample Sample = SMRTFindSample(RayState.Face0, SampleTime);
-	RayState.bSampleInFace0 = Sample.bValid;
-	if (!RayState.bSampleInFace0)
+	// NOTE: Traces from END to START, so we start in face1
+	FSMRTSample Sample = InitSMRTSample();
+	if (RayState.bSampleInFace1)
 	{
 		Sample = SMRTFindSample(RayState.Face1, SampleTime);
-	}
-	return Sample;
-}
-
-float SMRTComputeOccluderDistance(FSMRTTwoCubeFaceRayState RayState, float SampleDepth)
-{
-	if (RayState.bSampleInFace0)
-	{
-		return SMRTComputeOccluderDistance(RayState.Face0, SampleDepth);
+		if (!Sample.bValid)
+		{
+			Sample = SMRTFindSample(RayState.Face0, SampleTime);
+			Sample.bResetExtrapolation = true;
+			RayState.bSampleInFace1 = false;
+		}
 	}
 	else
 	{
-		return SMRTComputeOccluderDistance(RayState.Face1, SampleDepth);
+		Sample = SMRTFindSample(RayState.Face0, SampleTime);
 	}
+	return Sample;
 }
 
 // Instantiate SMRTRayCast for FSMRTTwoCubeFaceRayState
@@ -150,12 +192,14 @@ FSMRTResult ShadowRayCastSpotLight(
 	int VirtualShadowMapId,
 	float3 RayStartShadowTranslatedWorld,
 	float3 RayEndShadowTranslatedWorld,
+	float DepthBias,
 	int NumSteps,
 	float StepOffset,
+	float ExtrapolateSlope,
 	// To get debug data out
 	inout FSMRTSingleRayState OutRayState)
 {
-	OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
+	OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld, ExtrapolateSlope, DepthBias);
 	return SMRTRayCast(OutRayState, NumSteps, StepOffset);
 }
 
@@ -163,36 +207,38 @@ FSMRTResult ShadowRayCastPointLight(
 	int VirtualShadowMapId,
 	float3 RayStartShadowTranslatedWorld,
 	float3 RayEndShadowTranslatedWorld,
+	float DepthBias,
 	int NumSteps,
 	float StepOffset,
+	float ExtrapolateSlope,
 	// To get debug data out
 	inout FSMRTSingleRayState OutRayState)
 {
 	uint RayStartFace = VirtualShadowMapGetCubeFace(RayStartShadowTranslatedWorld);
 	uint RayEndFace   = VirtualShadowMapGetCubeFace(RayEndShadowTranslatedWorld);
-		
+
 	FSMRTResult Result;
-	if (RayStartFace != RayEndFace)
+	if (WaveActiveAnyTrue(RayStartFace != RayEndFace))
 	{
 		FSMRTTwoCubeFaceRayState RayState = SMRTTwoCubeFaceRayInitialize(
 			VirtualShadowMapId + RayStartFace,
 			VirtualShadowMapId + RayEndFace,
-			RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
+			RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld, ExtrapolateSlope, DepthBias);
 		Result = SMRTRayCast(RayState, NumSteps, StepOffset);
 
-		if (RayState.bSampleInFace0)
+		if (RayState.bSampleInFace1)
 		{
-			OutRayState = RayState.Face0;
+			OutRayState = RayState.Face1;
 		}
 		else
 		{
-			OutRayState = RayState.Face1;
+			OutRayState = RayState.Face0;
 		}
 	}
 	else
 	{
 		// Fast path: ray stays on a single cube map face (effectively a spot light)
-		OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld);
+		OutRayState = SMRTSingleRayInitialize(VirtualShadowMapId + RayEndFace, RayStartShadowTranslatedWorld, RayEndShadowTranslatedWorld, ExtrapolateSlope, DepthBias);
 		Result = SMRTRayCast(OutRayState, NumSteps, StepOffset);
 	}
 
@@ -258,6 +304,20 @@ bool IsBackfaceToLocalLight(float3 ToLight, float3 Normal, float LightSourceRadi
 	return IsBackfaceToLocalLight(ToLight, Normal, LightSourceRadius, Dummy1, Dummy2, Dummy3);
 }
 
+// Shadow resolution scale that roughly matches the LOD function in VSM page marking
+float ComputeShadowResolutionScale(FVirtualShadowMapProjectionShaderData ProjectionData, float SceneDepth)
+{
+	const float2 RadiusXY = 1.0f / (View.ViewSizeAndInvSize.xy * View.ViewToClip._11_22);
+	const float RadiusScreen = min(RadiusXY.x, RadiusXY.y);
+	const float DepthScale = SceneDepth * View.ViewToClip._34 + View.ViewToClip._44;
+	const float ScreenPixelRadiusWorld = DepthScale * RadiusScreen;
+
+	// Clamp the minimum here since our shadows sadly don't actually have infinite resolution near the camera...
+	float ShadowResolutionScale = max(0.1f, ScreenPixelRadiusWorld * exp2(ProjectionData.ResolutionLodBias));
+
+	return ShadowResolutionScale;
+}
+
 FVirtualShadowMapSampleResult TraceLocalLight(
 	int VirtualShadowMapId,
 	FLightShaderParameters Light,
@@ -271,6 +331,9 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 	const float Noise,
 	const bool bCullBackface,
 	float3 WorldNormal,
+	float TexelDitherScale,
+	float ExtrapolateSlope,
+	float MaxSlopeBias,
 	bool bUseAdaptiveRayCount)
 {
 	const uint LightType = Light.SpotAngles.x > -2.0f ? LIGHT_TYPE_SPOT : LIGHT_TYPE_POINT;
@@ -291,11 +354,36 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 
 		uint TileID = MortonEncode( PixelPos );
 
+		int OffsetVirtualShadowMapId = VirtualShadowMapId;
+		if (LightType == LIGHT_TYPE_POINT)
+		{
+			OffsetVirtualShadowMapId += VirtualShadowMapGetCubeFace(-ToLight);
+		}
+
 		// Move from PrimaryView translated world to Shadow translated world
-		// NOTE: Cube map faces all share the same PreViewTranslation
-		FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
-		float3 PrimaryToShadowTranslation = LWCToFloat(LWCSubtract(BaseProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
-		float3 ShadowTranslatedWorld = TranslatedWorldPosition + PrimaryToShadowTranslation;
+		// NOTE: Cube map faces all share the same PreViewTranslation and projection depth scale
+		FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(OffsetVirtualShadowMapId);
+		const float3 PrimaryToShadowTranslation = LWCToFloat(LWCSubtract(ProjectionData.PreViewTranslation, PrimaryView.PreViewTranslation));
+		const float3 ShadowTranslatedWorld = TranslatedWorldPosition + PrimaryToShadowTranslation;
+
+		const float2 DepthSlopeUV = ComputeDepthSlopeLocalUV(OffsetVirtualShadowMapId, ShadowTranslatedWorld, WorldNormal);
+
+		const float ShadowResolutionScale = ComputeShadowResolutionScale(ProjectionData, SceneDepth);
+		// Rough scaling from world units -> post projection depth.
+		// We use a radially symmetric mapping here instead of the true function to minimize issues crossing cubemap faces.
+		const float ShadowDepthFunctionScale = abs(ProjectionData.ShadowViewToClipMatrix._43 / length2(ToLight));
+
+		const float DitherScale = TexelDitherScale * ShadowResolutionScale;
+		const float MaxDitherSlope = MaxSlopeBias * DitherScale;
+		const float MaxDepthBias = MaxSlopeBias * ShadowResolutionScale * ShadowDepthFunctionScale;
+
+		// Moving the ray origin means we need to attempt to account for local receiver geometry to avoid
+		// incorrect self-shadowing. To this end we move the point on a plane aligned with the shading normal.
+		// It would be much better to use geometric (faceted) normals - as with optimal bias - but we do not
+		// have access to those. Shading normals that stray too far from the real geometry will cause artifacts.
+		const float3x3 ConeTangentToWorldMatrix = GetTangentBasis(ConeAxis);
+		const float3 NormalPlaneTangent = mul(ConeTangentToWorldMatrix, WorldNormal);
+		const float2 DepthSlopeTangent = -NormalPlaneTangent.xy / NormalPlaneTangent.z;
 
 		uint i = 0;
 		uint RayMissCount = 0;
@@ -304,7 +392,6 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			RandomSequence RandSequence;
 #if 0
 			RandomSequence_Initialize( RandSequence, PixelPos, i, View.StateFrameIndex, MaxRayCount );
-
 			float4 RandSample = RandomSequence_GenerateSample4D( RandSequence );
 #else
 			// Combine pixel-level and sample-level bits into the sample index (visible structure will be hidden by owen scrambling of the index)
@@ -320,19 +407,36 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			float SinTheta2 = dot( LightUV, LightUV );
 			float SinTheta = sqrt( SinTheta2 );
 			float CosTheta = sqrt( 1 - SinTheta2 );
+			float3 Dir = mul(float3(LightUV, CosTheta), ConeTangentToWorldMatrix);
 
-			float3 Dir = TangentToWorld( float3( LightUV, CosTheta ), ConeAxis );
+			float3 RayStartWithDither = ShadowTranslatedWorld;
+
+			if (DitherScale > 0.0f)
+			{
+				// Offset following the plane of the receiver
+				float2 RandomOffset = (RandSample.zw - 0.5f) * DitherScale;
+				float OffsetZ = min(MaxDitherSlope, 2.0f * max(0.0f, dot(DepthSlopeTangent, RandomOffset)));
+				float3 Offset = mul(float3(RandomOffset, OffsetZ), ConeTangentToWorldMatrix);
+				RayStartWithDither += Offset;
+			}
 
 			// The further afield our rays go the poorer our approximation is as the "bend" due to our testing
 			// against a shadow map instead of along the ray increases. Thus we avoid going all the way to the light
 			// where the projection becomes extreme.
-			
+
 			// Clip ray to max angle to limit penumbra sizes
 			float ClampedEnd = DistToLight * 0.75 * saturate( 1.5 / ( CosTheta + CotMaxRayAngleFromLight * SinTheta ) );
 			float Start = min(RayStartOffset, ClampedEnd - 1e-6f);
 
-			float3 RayStart = ShadowTranslatedWorld + Dir * Start;
-			float3 RayEnd = ShadowTranslatedWorld + Dir * ClampedEnd;
+			float3 RayStart = RayStartWithDither + Dir * Start;
+			float3 RayEnd = RayStartWithDither + Dir * ClampedEnd;
+
+			float DepthBias = 0.0f;
+			if (MaxDepthBias > 0.0f)
+			{
+				// Clamp depth bias to avoid excessive degenerate slope biases causing flickering lit pixels
+				DepthBias = min(MaxDepthBias, ComputeOptimalSlopeBiasLocal(OffsetVirtualShadowMapId, RayStart, DepthSlopeUV));
+			}
 
 			FSMRTResult SMRTResult;
 			FSMRTSingleRayState RayState;	// For debug output
@@ -342,8 +446,10 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 					VirtualShadowMapId,
 					RayStart,
 					RayEnd,
+					DepthBias,
 					SamplesPerRay,
 					StepOffset,
+					ExtrapolateSlope,
 					RayState);
 			}
 			else
@@ -352,8 +458,10 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 					VirtualShadowMapId,
 					RayStart,
 					RayEnd,
+					DepthBias,
 					SamplesPerRay,
 					StepOffset,
+					ExtrapolateSlope,
 					RayState);
 			}
 
@@ -363,7 +471,6 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 			Result.ClipmapIndexOrMipLevel = RayState.MipLevel;
 			Result.VirtualTexelAddress = RayState.VirtualTexelAddress;
 			Result.PhysicalTexelAddress = RayState.PhysicalTexelAddress;
-			Result.OccluderDistance = SMRTResult.OccluderDistance;
 
 			if (bUseAdaptiveRayCount)
 			{
@@ -411,6 +518,7 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 
 		Result.ShadowFactor = SMRTComputeRayMissFactor(RayMissCount, RayCount, MaxRayCount, Noise);
 		Result.RayCount = RayCount;
+		Result.OccluderDistance = -1.0f;	// TODO?
 	}
 
 	return Result;

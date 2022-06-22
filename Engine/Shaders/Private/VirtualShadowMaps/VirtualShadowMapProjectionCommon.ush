@@ -25,8 +25,34 @@ float CalcAbsoluteClipmapLevel(FVirtualShadowMapProjectionShaderData BaseProject
 
 int CalcClipmapLevel(FVirtualShadowMapProjectionShaderData BaseProjectionData, FLWCVector3 WorldPosition)
 {
-	float BiasedLevel = CalcAbsoluteClipmapLevel(BaseProjectionData, WorldPosition) + BaseProjectionData.ClipmapResolutionLodBias;
+	float BiasedLevel = CalcAbsoluteClipmapLevel(BaseProjectionData, WorldPosition) + BaseProjectionData.ResolutionLodBias;
 	return int(floor(BiasedLevel));
+}
+
+// Calculate the projected pixel footprint onto a local light, scaled in shadow map texels
+// ShadowTranslatedWorldPosition should already be translated by both the primary view and shadow ProjectionData.PreViewTranslation
+float VirtualShadowMapCalcPixelFootprintLocal(
+	FVirtualShadowMapProjectionShaderData ProjectionData,
+	float3 ShadowTranslatedWorldPosition,
+	float SceneDepth)
+{
+	// Compute footprint by projecting the approximate size of a camera pixel at the given depth to shadow space
+	// NOTE: This doesn't take the screen XY position/FOV into account, which may or may not be desirable.
+
+	// TODO: Roll into a uniform
+	float2 RadiusXY = 1.0f / (View.ViewSizeAndInvSize.xy * View.ViewToClip._m00_m11);
+	float RadiusScreen = min(RadiusXY.x, RadiusXY.y);
+	float DepthScale = SceneDepth * View.ViewToClip[2][3] + View.ViewToClip[3][3];
+
+	float RadiusWorld = DepthScale * RadiusScreen;
+
+	float4 ShadowUVz = mul(float4(ShadowTranslatedWorldPosition, 1.0f), ProjectionData.TranslatedWorldToShadowUVMatrix);
+
+	float4 RadiusClipH = mul(float4(RadiusWorld, 0.0f, ShadowUVz.w, 1.0f), ProjectionData.ShadowViewToClipMatrix);
+	float RadiusClip = abs(RadiusClipH.x / RadiusClipH.w);
+	float Footprint = RadiusClip * float(2 * VSM_VIRTUAL_MAX_RESOLUTION_XY);
+
+	return Footprint;
 }
 
 struct FVirtualShadowMapSample
@@ -287,11 +313,11 @@ uint VirtualShadowMapGetCubeFace( float3 Dir )
 struct FVirtualShadowMapSampleResult
 {
 	bool bValid;
-	half ShadowFactor;	// 0 = fully occluded, 1 = no occlusion
+	float ShadowFactor;	// 0 = fully occluded, 1 = no occlusion
 	float OccluderDistance;
 
 	// Debug data; do not reference in non-debug permutations or performance may be affected!
-	uint ClipmapIndexOrMipLevel;	
+	uint ClipmapIndexOrMipLevel;
 	uint RayCount;
 	uint2 VirtualTexelAddress;
 	uint2 PhysicalTexelAddress;

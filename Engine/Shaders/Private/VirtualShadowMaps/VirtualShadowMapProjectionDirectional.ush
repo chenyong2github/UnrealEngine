@@ -23,7 +23,7 @@ float2 ComputeDepthSlopeDirectionalUV(
 	float2 DepthSlopeUV = -NormalPlaneUV.xy / NormalPlaneUV.z;
 
 	// Clamp to avoid excessive degenerate slope biases causing flickering lit pixels
-	float2 Clamp = 0.02f;
+	float2 Clamp = 0.05f;
 	DepthSlopeUV = bClamp ? clamp(DepthSlopeUV, -Clamp, Clamp) : DepthSlopeUV;
 
 	return DepthSlopeUV;
@@ -70,6 +70,7 @@ struct FSMRTClipmapRayState
 	int ClipmapId;			// Pre-offset virtual shadow map ID of specific clipmap level
 	float3 RayStartUVZ;	
 	float3 RayStepUVZ;
+	float ExtrapolateSlope;
 	uint2 PhysicalTexelAddress;
 	uint2 VirtualTexelAddress;
 	int SampledClipmapId;
@@ -82,7 +83,8 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 	float RayLength,
 	float RayStartOffset,
 	float2 DepthSlopeUV,
-	float2 TexelOffset)
+	float2 TexelOffset,
+	float ExtrapolateSlope)
 {
 	float3 RayStart = RayOriginShadowTranslatedWorld + RayDir * RayStartOffset;
 	float3 RayVector = RayDir * RayLength;
@@ -107,25 +109,26 @@ FSMRTClipmapRayState SMRTClipmapRayInitialize(
 	Result.ClipmapId = ProjectionData.VirtualShadowMapId;
 	Result.RayStartUVZ = RayStartUVZ;
 	Result.RayStepUVZ = RayStepUVZ;
+	// Max depth slope for slope-based extrapolation when using SMRT. Scale so that it doesn't change based on ZRangeScale.
+	Result.ExtrapolateSlope = abs(ExtrapolateSlope * ProjectionData.ShadowViewToClipMatrix._33);
 	Result.VirtualTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	Result.PhysicalTexelAddress = uint2(0xFFFFFFFF, 0xFFFFFFFF);
 	return Result;
 }
 
 FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime)
-{
-	FSMRTSample Sample = (FSMRTSample)0;
-	Sample.bValid = false;
-	
+{	
 	const float3 SampleUVZ = RayState.RayStartUVZ + RayState.RayStepUVZ * SampleTime;
 	FVirtualShadowMapSample ShadowSample = SampleVirtualShadowMapClipmap(RayState.ClipmapId, SampleUVZ.xy);
-	
+
+	FSMRTSample Sample = InitSMRTSample();
+	Sample.bValid = ShadowSample.bValid;
+	Sample.ReferenceDepth = SampleUVZ.z;
+	Sample.ExtrapolateSlope = RayState.ExtrapolateSlope;
+
 	if (ShadowSample.bValid)
 	{
-		Sample.bValid = true;
 		Sample.SampleDepth = ShadowSample.Depth;
-		Sample.ReferenceDepth = SampleUVZ.z;
-		Sample.CompareToleranceScale = RayState.RayStepUVZ.z;
 
 		// Debug
 		RayState.VirtualTexelAddress = ShadowSample.VirtualTexelAddress;
@@ -134,17 +137,6 @@ FSMRTSample SMRTFindSample(inout FSMRTClipmapRayState RayState, float SampleTime
 	}
 
 	return Sample;
-}
-
-float SMRTComputeOccluderDistance(FSMRTClipmapRayState RayState, float SampleDepth)
-{
-	float4x4 ViewToClip = GetVirtualShadowMapProjectionData(RayState.ClipmapId).ShadowViewToClipMatrix;
-
-	// No perspective projection, so simple difference gets us the distance
-	float OccluderViewZ = (SampleDepth            - ViewToClip._43) / ViewToClip._33;
-	float ReceiverViewZ = (RayState.RayStartUVZ.z - ViewToClip._43) / ViewToClip._33;
-	float Result = ReceiverViewZ - OccluderViewZ;
-	return max(VIRTUAL_SHADOW_MAP_MIN_OCCLUDER_DISTANCE, Result);
 }
 
 // Instantiate SMRTRayCast for FSMRTClipmapRayState
@@ -167,11 +159,11 @@ float3 GetRandomDirectionalLightRayDir(FLightShaderParameters Light, float2 E)
 }
 
 // Normal and LightDirection should be normalized
-bool IsBackfaceToDirectionalLight(half3 Normal, half3 LightDirection, half LightSourceRadius)
+bool IsBackfaceToDirectionalLight(float3 Normal, float3 LightDirection, float LightSourceRadius)
 {
 	// Allow a minimum of ~5 degrees of wiggle room to account for normal issues
-	half MinSinAlpha = 0.1;
-	half SinAlpha = max(abs(LightSourceRadius), MinSinAlpha);
+	float MinSinAlpha = 0.1;
+	float SinAlpha = max(abs(LightSourceRadius), MinSinAlpha);
 	return dot(Normal, LightDirection) < -SinAlpha;
 }
 
@@ -189,7 +181,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 	bool bCullBackface,
 	half3 WorldNormal,
 	float TexelDitherScale,
-	float WorldDitherScale,
+	float ExtrapolateSlope,
 	bool bUseAdaptiveRayCount)
 {
 	FLWCVector3 WorldPosition = LWCSubtract(LWCPromote(TranslatedWorldPosition), PrimaryView.PreViewTranslation);
@@ -207,7 +199,7 @@ FVirtualShadowMapSampleResult TraceDirectional(
 		const FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ClipmapId);
 
 		// This function is designed to vary in depth in roughly the same way as shadow texel density does,
-		// thus the dependence on ClipmapResolutionLodBias. The goal here is to define a texel dither that
+		// thus the dependence on Clipmap ResolutionLodBias. The goal here is to define a texel dither that
 		// is "smooth" and doesn't have obvious artifacts at page edges of different clipmap levels.
 		// 
 		// This could become a problem later if we break too far from that global resolution bias. That said,
@@ -215,17 +207,13 @@ FVirtualShadowMapSampleResult TraceDirectional(
 		// in some different way.
 		//
 		// 0.5 is arbitrary but makes it consistent with the previous dither scale cvar
-		float TexelDither = 0.0f;
+		float DitherScale = 0.0f;
 		if (TexelDitherScale > 0.0f)
 		{
-			TexelDither =
+			DitherScale =
 				((0.5f / float(CalcLevelDimsTexels(0))) * TexelDitherScale * DistanceFromViewOrigin) /
-				(exp2(ProjectionData.ClipmapLevel - ProjectionData.ClipmapResolutionLodBias));
+				(exp2(ProjectionData.ClipmapLevel - ProjectionData.ResolutionLodBias));
 		}
-
-		// ~Constant world-space dither/blur
-		float WorldDither = WorldDitherScale * ProjectionData.ShadowViewToClipMatrix._11;
-		float DitherScale = max(TexelDither, WorldDither);
 
 		float2 DepthSlopeUV = ComputeDepthSlopeDirectionalUV(ProjectionData, WorldNormal);
 
@@ -260,7 +248,8 @@ FVirtualShadowMapSampleResult TraceDirectional(
 				RayLength,
 				RayStartOffset,
 				DepthSlopeUV,
-				TexelOffset);
+				TexelOffset,
+				ExtrapolateSlope);
 			FSMRTResult SMRTResult = SMRTRayCast(RayState, SamplesPerRay, Noise);
 
 			// Debug output (DCE'd if not used)

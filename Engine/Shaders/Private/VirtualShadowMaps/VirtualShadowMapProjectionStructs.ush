@@ -17,12 +17,13 @@ struct FVirtualShadowMapProjectionShaderData
 	float LightSourceRadius;
 
 	FLWCVector3 ClipmapWorldOrigin;
+	float ResolutionLodBias;
+
 	int2 ClipmapCornerOffset;
 	int ClipmapIndex;		// 0..ClipmapLevelCount-1
 	int ClipmapLevel;
 
-	int ClipmapLevelCount;	
-	float ClipmapResolutionLodBias;
+	int ClipmapLevelCount;
 
 	// Derived data for convenience when passing the structure around
 	int VirtualShadowMapId;
@@ -64,7 +65,7 @@ FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteA
 	Result.LightSourceRadius				= asfloat(ProjectionData.Load (Base + (16*17 + 4*3)));
 
 	float3 NegativeClipmapWorldOriginOffset = asfloat(ProjectionData.Load3(Base + (16*18 + 4*0)));
-	Result.ClipmapResolutionLodBias			= asfloat(ProjectionData.Load (Base + (16*18 + 4*3)));
+	Result.ResolutionLodBias				= asfloat(ProjectionData.Load (Base + (16*18 + 4*3)));
 		
 	Result.ClipmapCornerOffset				= asint  (ProjectionData.Load2(Base + (16*19 + 4*0)));
 	Result.ClipmapIndex						= asint  (ProjectionData.Load (Base + (16*19 + 4*2)));

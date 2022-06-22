@@ -10,9 +10,9 @@ VirtualShadowMaps/VirtualShadowMapTransmissionCommon.ush:
 #include "../DeferredShadingCommon.ush"
 #include "VirtualShadowMapProjectionCommon.ush"
 
-half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
+float GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 {
-	half Opacity = 1.0;
+	float Opacity = 1.0;
 
 #if STRATA_ENABLED
 	Opacity = StrataGetOpacityFromSubSurface(StrataLoadSubsurfaceHeader(Strata.SSSTexture, PixelPos));
@@ -40,10 +40,10 @@ half GetSubsurfaceOpacityFromGbuffer(uint2 PixelPos)
 * Sample VSM to determine approximate thickness and compute simple subsurface transmission matching the
 * PCF path.
 */
-half ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
+float ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
 	int VirtualShadowMapId, 
 	float3 TranslatedWorldPosition,
-	half SubsurfaceOpacity)
+	float SubsurfaceOpacity)
 {
 	// If the receiver is a subsurface material, we do a very simple transmission approximation
 	// This matches the logic in the PCF kernel (ShadowFilteringCommon.ush) and the contact

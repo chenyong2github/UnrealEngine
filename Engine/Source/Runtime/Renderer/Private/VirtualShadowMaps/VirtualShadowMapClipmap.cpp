@@ -261,7 +261,7 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.ClipmapIndex = ClipmapIndex;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();
-	Data.ClipmapResolutionLodBias = ResolutionLodBias;
+	Data.ResolutionLodBias = ResolutionLodBias;
 	Data.ClipmapCornerOffset = Level.CornerOffset;
 	Data.LightSourceRadius = GetLightSceneInfo().Proxy->GetSourceRadius();
 

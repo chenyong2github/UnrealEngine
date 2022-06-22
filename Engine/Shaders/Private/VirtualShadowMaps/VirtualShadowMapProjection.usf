@@ -186,7 +186,7 @@ FLightShaderParameters ConvertFromLocal( const FLocalLightData LightData )
 	Light.Direction					= LightData.LightDirectionAndShadowMask.xyz;
 	Light.Tangent					= LightData.LightTangentAndSoftSourceRadius.xyz;
 	Light.SpotAngles				= LightData.SpotAnglesAndSourceRadiusPacked.xy;
-	Light.SpecularScale				= 1;
+	Light.SpecularScale				= LightData.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
 	Light.SourceRadius				= LightData.SpotAnglesAndSourceRadiusPacked.z;
 	Light.SoftSourceRadius			= LightData.LightTangentAndSoftSourceRadius.w;
 	Light.SourceLength				= f16tof32(asuint(LightData.SpotAnglesAndSourceRadiusPacked.w));
@@ -211,7 +211,8 @@ int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
 float SMRTCotMaxRayAngleFromLight;	// Spot/point lights
 float SMRTTexelDitherScale;			// Currently only directional lights
-float SMRTWorldDitherScale;			// Currently only directional lights
+float SMRTExtrapolateSlope;
+float SMRTMaxSlopeBias;				// Currently only local lights
 uint bSMRTUseAdaptiveRayCount;
 
 // One pass projection
@@ -312,7 +313,7 @@ FVirtualShadowMapSampleResult ProjectLight(
 				bBackfaceCull,
 				WorldNormal,
 				SMRTTexelDitherScale,
-				SMRTWorldDitherScale,
+				SMRTExtrapolateSlope,
 				bUseAdaptiveRayCount);
 		#else
 			Result = TraceLocalLight(
@@ -328,6 +329,9 @@ FVirtualShadowMapSampleResult ProjectLight(
 				Noise,
 				bBackfaceCull,
 				WorldNormal,
+				SMRTTexelDitherScale,
+				SMRTExtrapolateSlope,
+				SMRTMaxSlopeBias,
 				bUseAdaptiveRayCount);
 		#endif // DIRECTIONAL_LIGHT
 		}
@@ -552,7 +556,6 @@ void VirtualShadowMapProjection(
 	const float Noise = InterleavedGradientNoise( SvPosition.xy, View.StateFrameIndexMod8 );
 
 	const FProjectionShadingInfo ShadingInfo = GetProjectionShadingInfo(PixelPos);
-	const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
 
 	FVirtualShadowMapSampleResult VisualizeResult = InitVirtualShadowMapSampleResult();
 
@@ -615,6 +618,7 @@ void VirtualShadowMapProjection(
 			Noise);
 		
 		float SSSTransmission = Result.ShadowFactor;
+		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
 		if ( SubsurfaceOpacity < 1.0f )
 		{
 			SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
@@ -635,7 +639,7 @@ void VirtualShadowMapProjection(
 #if VISUALIZE_OUTPUT
 	if (InputType == INPUT_TYPE_GBUFFER)
 	{
-		OutputVisualize( PixelPos - uint2( ProjectionRect.xy ), VisualizeResult );
+		OutputVisualize( PixelPos , VisualizeResult );
 	}
 #endif // VISUALIZE_OUTPUT
 }
