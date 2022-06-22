@@ -4317,20 +4317,26 @@ static void GetSequencerActorWorldTransforms(IMovieScenePlayer* Player, UMovieSc
 						}
 					}
 
-					TArray<USkeletalMeshComponent*> MeshComps;
-					ActorSelection.Actor->GetComponents<USkeletalMeshComponent>(MeshComps, true);
-
-					for (USkeletalMeshComponent* MeshComp : MeshComps)
+					AActor* Parent = ActorSelection.Actor.Get();
+					while (Parent)
 					{
-						MeshComp->TickAnimation(0.03f, false);
-						MeshComp->RefreshBoneTransforms();
-						MeshComp->RefreshSlaveComponents();
-						MeshComp->UpdateComponentToWorld();
-						MeshComp->FinalizeBoneTransform();
-						MeshComp->MarkRenderTransformDirty();
-						MeshComp->MarkRenderDynamicDataDirty();
+						TArray<USkeletalMeshComponent*> MeshComps;
+						ActorSelection.Actor->GetComponents<USkeletalMeshComponent>(MeshComps, true);
+
+						for (USkeletalMeshComponent* MeshComp : MeshComps)
+						{
+							MeshComp->TickAnimation(0.03f, false);
+							MeshComp->RefreshBoneTransforms();
+							MeshComp->RefreshSlaveComponents();
+							MeshComp->UpdateComponentToWorld();
+							MeshComp->FinalizeBoneTransform();
+							MeshComp->MarkRenderTransformDirty();
+							MeshComp->MarkRenderDynamicDataDirty();
+						}
+
+						Parent = Parent->GetAttachParentActor();
 					}
-					
+
 					OutTransforms[Index] = SkelMeshComp->GetSocketTransform(ActorSelection.SocketName);// GetSocketTransofrm is world space in theory*OutTransforms[Index];
 
 				}
