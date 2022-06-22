@@ -12,6 +12,13 @@ void UCancellableAsyncAction::Cancel()
 	SetReadyToDestroy();
 }
 
+void UCancellableAsyncAction::BeginDestroy()
+{
+	Cancel();
+
+	Super::BeginDestroy();
+}
+
 bool UCancellableAsyncAction::IsActive() const
 {
 	return ShouldBroadcastDelegates();

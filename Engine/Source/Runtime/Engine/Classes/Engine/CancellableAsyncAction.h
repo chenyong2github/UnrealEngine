@@ -17,6 +17,9 @@ class ENGINE_API UCancellableAsyncAction : public UBlueprintAsyncActionBase
 	GENERATED_BODY()
 public:
 
+	/** Handle when this action is being destroyed to ensure that the action is canceled and child classes can clean up. */
+	virtual void BeginDestroy() override;
+
 	/** Cancel an asynchronous action, this attempts to cancel any lower level processes and also prevents delegates from being fired */
 	UFUNCTION(BlueprintCallable, Category = "Async Action")
 	virtual void Cancel();
