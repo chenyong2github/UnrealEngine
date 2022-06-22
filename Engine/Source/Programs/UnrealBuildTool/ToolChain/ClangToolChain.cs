@@ -140,10 +140,12 @@ namespace UnrealBuildTool
 					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.FullName.Remove(f.FullName.Length - ".json".Length)));
 
 					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.trace.csv"));
+					FileItem HeadersOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.headers.csv"));
 					List<string> ActionArgs = new List<string>()
 					{
 						$"-AggregateFile={AggregateOutputFile.FullName}",
 						$"-ManifestFile={ManifestFile.FullName}",
+						$"-HeadersFile={HeadersOutputFile.FullName}",
 					};
 
 					Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
@@ -154,7 +156,9 @@ namespace UnrealBuildTool
 					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
 
 					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
+					AggregateTimingInfoAction.ProducedItems.Add(HeadersOutputFile);
 					Makefile.OutputItems.Add(AggregateOutputFile);
+					Makefile.OutputItems.Add(HeadersOutputFile);
 				}
 			}
 		}
