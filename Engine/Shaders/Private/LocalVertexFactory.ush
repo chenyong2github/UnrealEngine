@@ -522,6 +522,11 @@ FMaterialPixelParameters GetMaterialPixelParameters(FVertexFactoryInterpolantsVS
 	Result.TwoSidedSign = 1;
 	Result.PrimitiveId = GetPrimitiveId(Interpolants);
 
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
+	Result.CustomDataOffset = Interpolants.CustomDataOffset;
+	Result.CustomDataCount  = Interpolants.CustomDataCount;
+#endif
+
 #if HAS_INSTANCE_LOCAL_TO_WORLD_PS
 	Result.InstanceLocalToWorld = GetInstanceLocalToWorld(Interpolants);
 #endif
@@ -600,7 +605,7 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 		Result.InstanceWorldToLocal = GetInstanceData(Intermediates).WorldToLocal;
 		Result.PerInstanceParams = Intermediates.PerInstanceParams;
 	#endif
-	#if USES_PER_INSTANCE_CUSTOM_DATA
+	#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 		Result.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
 		Result.CustomDataCount = Intermediates.SceneData.InstanceData.CustomDataCount;
 	#endif
@@ -1074,6 +1079,11 @@ FVertexFactoryInterpolantsVSToPS VertexFactoryGetInterpolantsVSToPS(FVertexFacto
 	Interpolants.PerInstanceParams = Intermediates.PerInstanceParams;
 #endif
 
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
+	Interpolants.CustomDataOffset = Intermediates.SceneData.InstanceData.CustomDataOffset;
+	Interpolants.CustomDataCount  = Intermediates.SceneData.InstanceData.CustomDataCount;
+#endif
+
 #if INSTANCED_STEREO
 	Interpolants.EyeIndex = 0;
 #endif
@@ -1211,6 +1221,12 @@ float4 VertexFactoryGetPreviousWorldPosition(FVertexFactoryInput Input, FVertexF
         O.InterpolantsVSToPS.LightmapDataIndex = a.InterpolantsVSToPS.LightmapDataIndex;
     #endif
 #endif	
+
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
+		O.InterpolantsVSToPS.CustomDataOffset = a.InterpolantsVSToPS.CustomDataOffset;
+		O.InterpolantsVSToPS.CustomDataCount  = a.InterpolantsVSToPS.CustomDataCount;
+#endif
+
 		// Do we really need to interpolate TangentToWorld2 here? It should be replaced by the
 		// interpolated normal from 'whatever' interpolation scheme we're using
 	

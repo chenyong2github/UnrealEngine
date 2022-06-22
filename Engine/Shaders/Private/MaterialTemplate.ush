@@ -401,7 +401,7 @@ struct FMaterialPixelParameters
 	uint InstanceId;
 #endif
 
-#if IS_NANITE_PASS && USES_PER_INSTANCE_CUSTOM_DATA
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 	uint CustomDataOffset;
 	uint CustomDataCount;
 #endif
@@ -509,7 +509,7 @@ struct FMaterialVertexParameters
 	// TangentToWorld[2] is WorldVertexNormal
 	half3x3 TangentToWorld;
 
-#if USES_PER_INSTANCE_CUSTOM_DATA
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 	uint CustomDataOffset;
 	uint CustomDataCount;
 #endif
@@ -1073,7 +1073,7 @@ MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, con
 /** Per Instance Custom Data Getter (Pixel Shader Variant - Visibility Buffer) */
 float GetPerInstanceCustomData(FMaterialPixelParameters Parameters, int Index, float DefaultValue)
 {
-#if IS_NANITE_PASS && USES_PER_INSTANCE_CUSTOM_DATA
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 	const uint FloatIndex = uint(Index);
 	BRANCH
 	if (FloatIndex < Parameters.CustomDataCount)
@@ -1118,7 +1118,7 @@ float GetPerInstanceCustomData(FMaterialVertexParameters Parameters, int Index, 
 /** Get the per-instance custom data when instancing */
 MaterialFloat3 GetPerInstanceCustomData3Vector(FMaterialPixelParameters Parameters, int Index, MaterialFloat3 DefaultValue)
 {
-#if IS_NANITE_PASS && USES_PER_INSTANCE_CUSTOM_DATA
+#if USES_PER_INSTANCE_CUSTOM_DATA && VF_USE_PRIMITIVE_SCENE_DATA
 	return float3(GetPerInstanceCustomData(Parameters, Index + 0, DefaultValue.x),
 				  GetPerInstanceCustomData(Parameters, Index + 1, DefaultValue.y),
 				  GetPerInstanceCustomData(Parameters, Index + 2, DefaultValue.z));
