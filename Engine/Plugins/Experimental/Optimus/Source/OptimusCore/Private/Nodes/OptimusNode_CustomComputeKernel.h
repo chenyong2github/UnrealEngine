@@ -2,13 +2,14 @@
 
 #pragma once
 
+#include "IOptimusNodeAdderPinProvider.h"
+#include "IOptimusParameterBindingProvider.h"
+#include "IOptimusShaderTextProvider.h"
+#include "OptimusBindingTypes.h"
 #include "OptimusDataDomain.h"
 #include "OptimusNode_ComputeKernelBase.h"
 #include "OptimusShaderText.h"
-#include "IOptimusShaderTextProvider.h"
-#include "OptimusBindingTypes.h"
-#include "IOptimusParameterBindingProvider.h"
-#include "IOptimusNodeAdderPinProvider.h"
+#include "OptimusValidatedName.h"
 
 #include "OptimusNode_CustomComputeKernel.generated.h"
 
@@ -67,7 +68,7 @@ public:
 	
 	/** Name of kernel. This is also used as the entry point function name in generated code. */
 	UPROPERTY(EditAnywhere, Category=Settings)
-	FName KernelName;
+	FOptimusValidatedName KernelName;
 
 	/** 
 	 * Number of threads in a thread group. 
