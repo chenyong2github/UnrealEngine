@@ -119,6 +119,9 @@ public:
 	void ResetGoalTransforms() const;
 	/** Ensure that the given name adheres to required standards for Goal names (no special characters etc..)*/
 	static void SanitizeGoalName(FString& InOutName);
+	/** Add a suffix as needed to ensure the Goal name is unique */
+	FName GetUniqueGoalName(const FName& NameToMakeUnique) const;
+	
 	/** END Goals */
 
 	/** Bone Settings
