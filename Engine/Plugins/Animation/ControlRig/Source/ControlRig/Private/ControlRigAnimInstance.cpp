@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "ControlRigAnimInstance.h"
-#include "HAL/PlatformProcess.h"
+
+#include "Animation/AnimNodeBase.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////
 void FControlRigAnimInstanceProxy::Initialize(UAnimInstance* InAnimInstance)

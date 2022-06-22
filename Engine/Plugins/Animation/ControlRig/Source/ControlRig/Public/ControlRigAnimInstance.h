@@ -4,7 +4,6 @@
 
 #include "Animation/AnimInstance.h"
 #include "Animation/AnimInstanceProxy.h"
-#include "AnimNodes/AnimNode_PoseSnapshot.h"
 #include "ControlRigAnimInstance.generated.h"
 
 /** Proxy override for this UAnimInstance-derived class */
@@ -23,7 +22,7 @@ public:
 	{
 	}
 
-	virtual ~FControlRigAnimInstanceProxy();
+	virtual ~FControlRigAnimInstanceProxy() override;
 
 	// FAnimInstanceProxy interface
 	virtual void Initialize(UAnimInstance* InAnimInstance) override;
