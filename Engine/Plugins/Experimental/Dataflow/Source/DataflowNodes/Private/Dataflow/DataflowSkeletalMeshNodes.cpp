@@ -47,7 +47,7 @@ void FSkeletalMeshBoneDataflowNode::Evaluate(Dataflow::FContext& Context, const 
 	{
 		SetValue<int>(Context, INDEX_NONE, &BoneIndexOut);
 
-		if( InDataType InSkeletalMesh = GetInput(&SkeletalMesh)->GetValue<InDataType>(Context, SkeletalMesh) )
+		if( InDataType InSkeletalMesh = GetValue<InDataType>(Context, &SkeletalMesh) )
 		{
 			int32 Index = InSkeletalMesh->GetRefSkeleton().FindBoneIndex(BoneName);
 			SetValue<int>(Context, Index, &BoneIndexOut);

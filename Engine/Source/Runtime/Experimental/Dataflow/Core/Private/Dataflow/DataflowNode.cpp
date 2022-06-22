@@ -72,21 +72,6 @@ FDataflowInput* FDataflowNode::FindInput(void* Reference)
 	return nullptr;
 }
 
-const FDataflowInput* FDataflowNode::GetInput(const void* Reference) const
-{
-	for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
-	{
-		FDataflowConnection* Con = Elem.Value;
-		size_t AddressA = Con->RealAddress();
-		size_t AddressB = (size_t)Reference;
-		if (Con->RealAddress() == (size_t)Reference)
-		{
-			return (FDataflowInput*)Con;
-		}
-	}
-	return &FDataflowInput::NoOpInput;
-}
-
 TArray< FDataflowConnection* > FDataflowNode::GetInputs() const
 {
 	TArray< FDataflowConnection* > Result;
@@ -170,19 +155,6 @@ FDataflowOutput* FDataflowNode::FindOutput(void* Reference)
 		}
 	}
 	return nullptr;
-}
-
-const FDataflowOutput* FDataflowNode::GetOutput(const void* Reference) const
-{
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
-	{
-		FDataflowConnection* Con = Elem.Value;
-		if (Con->RealAddress() == (size_t)Reference)
-		{
-			return (FDataflowOutput*)Con;
-		}
-	}
-	return &FDataflowOutput::NoOpOutput;
 }
 
 TArray< FDataflowConnection* > FDataflowNode::GetOutputs() const
