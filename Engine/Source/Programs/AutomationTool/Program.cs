@@ -17,14 +17,17 @@ using Microsoft.Extensions.Logging;
 
 namespace AutomationToolDriver
 {
+	/// <summary>
+	/// Main entry point
+	/// </summary>
 	public partial class Program
 	{
 		/// <summary>
 		/// Parses command line parameter.
 		/// </summary>
-		/// <param name="ParamIndex">Parameter index</param>
-		/// <param name="CommandLine">Command line</param>
+		/// <param name="CurrentParam">Parameter</param>
 		/// <param name="CurrentCommand">Recently parsed command</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if the parameter has been successfully parsed.</returns>
 		private static void ParseParam(string CurrentParam, CommandInfo CurrentCommand, ILogger Logger)
 		{
@@ -230,6 +233,7 @@ namespace AutomationToolDriver
 		/// Parse the command line and create a list of commands to execute.
 		/// </summary>
 		/// <param name="Arguments">Command line</param>
+		/// <param name="Logger">Logger for output</param>
 		public static void ParseCommandLine(string[] Arguments, ILogger Logger)
 		{
 			AutomationToolCommandLine = new ParsedCommandLine(
@@ -311,7 +315,11 @@ namespace AutomationToolDriver
 		static ParsedCommandLine AutomationToolCommandLine;
 		static StartupTraceListener StartupListener = new StartupTraceListener();
 
-		// Do not add [STAThread] here. It will cause deadlocks in platform automation code.
+
+		/// <summary>
+		/// Main entry point
+		/// </summary>
+		/// <remarks>Do not add [STAThread] here. It will cause deadlocks in platform automation code.</remarks>
 		public static async Task<int> Main(string[] Arguments)
 		{
 			ILogger Logger = Log.Logger;
