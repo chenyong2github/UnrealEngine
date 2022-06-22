@@ -35,7 +35,7 @@ public:
 	}
 
 	// UOptimusNode_ComputeKernelBase overrides
-	FString GetKernelName() const override { return KernelName; }
+	FString GetKernelName() const override { return KernelName.ToString(); }
 	FIntVector GetGroupSize() const override { return GroupSize; }
 	FString GetKernelSourceText() const override;
 	TArray<TObjectPtr<UComputeSource>> GetAdditionalSources() const override { return AdditionalSources; }
@@ -67,7 +67,7 @@ public:
 	
 	/** Name of kernel. This is also used as the entry point function name in generated code. */
 	UPROPERTY(EditAnywhere, Category=Settings)
-	FString KernelName = "MyKernel";
+	FName KernelName;
 
 	/** 
 	 * Number of threads in a thread group. 

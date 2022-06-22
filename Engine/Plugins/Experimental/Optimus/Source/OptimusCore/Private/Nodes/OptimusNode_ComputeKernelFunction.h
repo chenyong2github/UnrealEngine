@@ -17,7 +17,7 @@ public:
 	static UClass *CreateNodeClass(
 		UObject* InPackage,
 		FName InCategory,
-		const FString& InKernelName,
+		FName InKernelName,
 		FIntVector InGroupSize,
 		const TArray<FOptimusParameterBinding>& InInputBindings,
 		const TArray<FOptimusParameterBinding>& InOutputBindings,
@@ -32,7 +32,7 @@ public:
 	FName Category;
 
 	UPROPERTY()
-	FString KernelName;
+	FName KernelName;
 
 	UPROPERTY()
 	FIntVector GroupSize;

@@ -9,6 +9,7 @@
 #include "OptimusNodePin.h"
 #include "OptimusObjectVersion.h"
 
+static const FName DefaultKernelName = FName("MyKernel");
 static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);
 static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);
 
@@ -16,19 +17,21 @@ UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 {
 	EnableDynamicPins();
 	UpdatePreamble();
+	
+	KernelName = DefaultKernelName;
 }
 
 
 FString UOptimusNode_CustomComputeKernel::GetKernelSourceText() const
 {
-	return GetCookedKernelSource(GetPathName(), ShaderSource.ShaderText, KernelName, GroupSize);
+	return GetCookedKernelSource(GetPathName(), ShaderSource.ShaderText, KernelName.ToString(), GroupSize);
 }
 
 #if WITH_EDITOR
 
 FString UOptimusNode_CustomComputeKernel::GetNameForShaderTextEditor() const
 {
-	return KernelName;
+	return KernelName.ToString();
 }
 
 FString UOptimusNode_CustomComputeKernel::GetDeclarations() const
@@ -178,7 +181,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 	{
 		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, KernelName))
 		{
-			SetDisplayName(FText::FromString(KernelName));
+			SetDisplayName(FText::FromName(KernelName));
 			UpdatePreamble();
 		}
 		else if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusParameterBinding, Name))

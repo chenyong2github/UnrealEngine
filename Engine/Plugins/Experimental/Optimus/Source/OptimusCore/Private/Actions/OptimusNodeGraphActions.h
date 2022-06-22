@@ -374,7 +374,7 @@ private:
 	FName NodeName;
 	FVector2D NodePosition;
 	FName Category;
-	FString KernelName;
+	FName KernelName;
 	FIntVector GroupSize;
 	TArray<FOptimusParameterBinding> InputBindings;
 	TArray<FOptimusParameterBinding> OutputBindings;

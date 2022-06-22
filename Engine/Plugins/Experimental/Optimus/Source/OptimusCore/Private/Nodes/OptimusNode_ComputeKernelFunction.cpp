@@ -12,14 +12,14 @@
 UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 	UObject* InPackage,
 	FName InCategory,
-	const FString& InKernelName,
+	FName InKernelName,
 	FIntVector InGroupSize,
 	const TArray<FOptimusParameterBinding>& InInputBindings,
 	const TArray<FOptimusParameterBinding>& InOutputBindings,
 	const FString& InShaderSource
 	)
 {
-	if (!ensure(InPackage) || !ensure(!InCategory.IsNone()) || !ensure(!InKernelName.IsEmpty()) ||
+	if (!ensure(InPackage) || !ensure(!InCategory.IsNone()) || !ensure(!InKernelName.IsNone()) ||
 		!ensure(InGroupSize.GetMin() > 0) || !ensure(!InShaderSource.IsEmpty()))
 	{
 		return nullptr;
@@ -46,7 +46,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 		}
 	}
 	
-	FName ClassName(TEXT("Optimus_ComputeKernel_") + InKernelName);
+	FName ClassName(TEXT("Optimus_ComputeKernel_") + InKernelName.ToString());
 
 	ClassName = Optimus::GetUniqueNameForScope(InPackage, ClassName);
 
@@ -82,7 +82,7 @@ UClass* UOptimusNode_ComputeKernelFunctionGeneratorClass::CreateNodeClass(
 			// Update the property so that it is editable in 
 			Property->PropertyFlags |= CPF_Edit;
 #if WITH_EDITOR
-			Property->SetMetaData(TEXT("Category"), InKernelName + TEXT(" Settings"));
+			Property->SetMetaData(TEXT("Category"), InKernelName.ToString() + TEXT(" Settings"));
 #endif
 
 			/** FIXME: When parameter evaluation is available, update this to copy the 
@@ -159,7 +159,7 @@ UOptimusNode_ComputeKernelFunction::UOptimusNode_ComputeKernelFunction()
 
 FText UOptimusNode_ComputeKernelFunction::GetDisplayName() const
 {
-	return FText::FromString(FName::NameToDisplayString(GetGeneratorClass()->KernelName, false));
+	return FText::FromString(FName::NameToDisplayString(GetGeneratorClass()->KernelName.ToString(), false));
 }
 
 
@@ -171,7 +171,7 @@ FName UOptimusNode_ComputeKernelFunction::GetNodeCategory() const
 
 FString UOptimusNode_ComputeKernelFunction::GetKernelName() const
 {
-	return GetGeneratorClass()->KernelName;
+	return GetGeneratorClass()->KernelName.ToString();
 }
 
 
