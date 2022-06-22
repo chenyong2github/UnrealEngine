@@ -17,12 +17,14 @@
 #include "OptimusResourceDescription.h"
 #include "OptimusShaderText.h"
 #include "OptimusSource.h"
+#include "OptimusValidatedName.h"
 #include "OptimusValueContainer.h"
 #include "PropertyEditor/Private/PropertyNode.h"
 #include "PropertyEditor/Public/IPropertyUtilities.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Input/SMultiLineEditableTextBox.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SExpandableArea.h"
@@ -829,6 +831,61 @@ void FOptimusValueContainerCustomization::CustomizeChildren(TSharedRef<IProperty
 			InChildBuilder.AddProperty(InnerPropertyHandle->GetChildHandle(Index).ToSharedRef());
 		}
 	}
+}
+
+
+FOptimusValidatedNameCustomization::FOptimusValidatedNameCustomization()
+{
+}
+
+TSharedRef<IPropertyTypeCustomization> FOptimusValidatedNameCustomization::MakeInstance()
+{
+	return MakeShared<FOptimusValidatedNameCustomization>();
+}
+
+void FOptimusValidatedNameCustomization::CustomizeHeader(
+	TSharedRef<IPropertyHandle> InPropertyHandle,
+	FDetailWidgetRow& InHeaderRow,
+	IPropertyTypeCustomizationUtils& InCustomizationUtils)
+{
+	const TSharedPtr<IPropertyHandle> NameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusValidatedName, Name));
+
+	InHeaderRow
+	.NameContent()
+	[
+		InPropertyHandle->CreatePropertyNameWidget()
+	]
+	.ValueContent()
+	[
+		SNew(SEditableTextBox)
+		.Font(InCustomizationUtils.GetRegularFont())
+		.Text_Lambda([NameProperty]()
+		{
+			FName Value;
+			NameProperty->GetValue(Value);
+			return FText::FromName(Value);
+		})
+		.OnTextCommitted_Lambda([NameProperty](const FText& InText, ETextCommit::Type InTextCommit)
+		{
+			NameProperty->SetValue(FName(InText.ToString()));
+		})
+		.OnVerifyTextChanged_Lambda([NameProperty](const FText& InNewText, FText& OutErrorMessage) -> bool
+		{
+			if (InNewText.IsEmpty())
+			{
+				OutErrorMessage = LOCTEXT("NameEmpty", "Name can't be empty.");
+				return false;
+			}
+				
+			FText FailureContext = LOCTEXT("NameFailure", "Name");
+			if (!FOptimusValidatedName::IsValid(InNewText.ToString(), &OutErrorMessage, &FailureContext))
+			{
+				return false;
+			}
+				
+			return true;
+		})
+	];
 }
 
 

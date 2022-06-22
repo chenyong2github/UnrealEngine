@@ -20,6 +20,7 @@
 #include "OptimusShaderText.h"
 #include "OptimusSource.h"
 #include "OptimusSourceAssetActions.h"
+#include "OptimusValidatedName.h"
 #include "OptimusValueContainer.h"
 #include "PropertyEditorModule.h"
 #include "Widgets/SOptimusEditorGraphExplorer.h"
@@ -116,6 +117,7 @@ void FOptimusEditorModule::RegisterPropertyCustomizations()
 	RegisterPropertyCustomization(FOptimusParameterBinding::StaticStruct()->GetFName(), &FOptimusParameterBindingCustomization::MakeInstance);
 	RegisterPropertyCustomization(FOptimusParameterBindingArray::StaticStruct()->GetFName(), &FOptimusParameterBindingArrayCustomization::MakeInstance);
 	RegisterPropertyCustomization(UOptimusValueContainer::StaticClass()->GetFName(), &FOptimusValueContainerCustomization::MakeInstance);
+	RegisterPropertyCustomization(FOptimusValidatedName::StaticStruct()->GetFName(), &FOptimusValidatedNameCustomization::MakeInstance);
 
 	auto RegisterDetailCustomization = [&](FName InStructName, auto InCustomizationFactory)
 	{

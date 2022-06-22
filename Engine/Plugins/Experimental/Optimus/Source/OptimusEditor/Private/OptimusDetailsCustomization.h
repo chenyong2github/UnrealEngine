@@ -254,6 +254,27 @@ private:
 };
 
 
+class FOptimusValidatedNameCustomization : public IPropertyTypeCustomization
+{
+public:
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
+
+	FOptimusValidatedNameCustomization();
+
+	// IPropertyTypeCustomization overrides
+	void CustomizeHeader(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		FDetailWidgetRow& InHeaderRow,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override;
+
+	void CustomizeChildren(
+		TSharedRef<IPropertyHandle> InPropertyHandle,
+		IDetailChildrenBuilder& InChildBuilder,
+		IPropertyTypeCustomizationUtils& InCustomizationUtils) override
+	{ }
+};
+
+
 /** UI customization for UOptimusSource */
 class FOptimusSourceDetailsCustomization : public IDetailCustomization
 {
