@@ -177,7 +177,6 @@ protected:
 
 		TArray<FOnVoiceChatUninitializeCompleteDelegate> UninitializeCompleteDelegates;
 
-		IEOSPlatformHandlePtr EosPlatformHandle = nullptr;
 		EOS_HRTC EosRtcInterface = nullptr;
 		EOS_HLobby EosLobbyInterface = nullptr;
 
@@ -187,7 +186,6 @@ protected:
 	};
 	FInitSession InitSession;
 
-	virtual IEOSPlatformHandlePtr EOSPlatformCreate(EOS_Platform_Options& PlatformOptions);
 	void BindInitCallbacks();
 	void UnbindInitCallbacks();
 	static void EOS_CALL OnAudioDevicesChangedStatic(const EOS_RTCAudio_AudioDevicesChangedCallbackInfo* CallbackInfo);
@@ -222,7 +220,8 @@ protected:
 	TArray<IVoiceChatUser*> UsersCreatedByConsoleCommand;
 
 	IEOSSDKManager& SDKManager;
-	IEOSPlatformHandlePtr ExternalPlatformHandle;
+	IEOSPlatformHandlePtr EosPlatformHandle = nullptr;
+	virtual IEOSPlatformHandlePtr EOSPlatformCreate(EOS_Platform_Options& PlatformOptions);
 
 	static int64 StaticInstanceIdCount;
 	int64 InstanceId = StaticInstanceIdCount++;
