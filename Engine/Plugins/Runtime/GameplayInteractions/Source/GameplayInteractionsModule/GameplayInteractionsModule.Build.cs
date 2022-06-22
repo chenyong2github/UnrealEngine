@@ -18,6 +18,8 @@ namespace UnrealBuildTool.Rules
 					"GameplayTags",
 					"GameplayTasks",
 					"MassEntity",
+					"NavCorridor",
+					"NavigationSystem",
 					"SmartObjectsModule",
 					"StateTreeModule",
 					"StructUtils",

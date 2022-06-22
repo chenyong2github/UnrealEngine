@@ -5,6 +5,9 @@
 #include "StateTreeTaskBase.h"
 #include "GameplayInteractionsTypes.generated.h"
 
+struct FNavCorridor;
+struct FNavigationPath;
+
 GAMEPLAYINTERACTIONSMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogGameplayInteractions, Warning, All);
 
 namespace UE::GameplayInteraction::Names
@@ -48,3 +51,20 @@ struct GAMEPLAYINTERACTIONSMODULE_API FGameplayInteractionStateTreeTask : public
 	GENERATED_BODY()
 
 };
+
+UENUM()
+enum class EGameplayTaskActuationResult : uint8
+{
+	None,
+	RequestFailed,
+	Failed,
+	Succeeded,
+};
+
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FGameplayTaskActuationCompleted, EGameplayTaskActuationResult, Result, AActor*, Actor);
+
+namespace UE::GameplayInteraction::Debug
+{
+	void VLogPath(const UObject* LogOwner, const FNavigationPath& Path);
+	void VLogCorridor(const UObject* LogOwner, const FNavCorridor& Corridor);
+}; // UE::GameplayInteraction::Debug
