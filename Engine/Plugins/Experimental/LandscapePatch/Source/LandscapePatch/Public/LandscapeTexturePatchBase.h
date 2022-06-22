@@ -56,8 +56,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	UTextureRenderTarget2D* GetInternalRenderTarget() { return InternalRenderTarget;}
 
-	// These need to be public so that we can take the internal texture and write it to an external one
+	// This needs to be public so that we can take the internal texture and write it to an external one,
+	// but unclear whether we want to expose it to blueprints, since it's a fairly internal thing.
 	UTexture2D* GetInternalTexture() { return InternalTexture; }
+
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	void SetTextureAsset(UTexture* TextureIn);
 
 	virtual ELandscapeTexturePatchSourceMode GetSourceMode() const { return SourceMode; }
@@ -68,7 +71,7 @@ public:
 	 * @return true If successful.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
-	virtual bool SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bDiscardUnusedInternalTextures = true) { return false; }
+	virtual bool SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bInitializeIfRenderTarget = true) { return false; }
 
 	/**
 	 * Gets the transform from patch to world. The transform is based off of the component

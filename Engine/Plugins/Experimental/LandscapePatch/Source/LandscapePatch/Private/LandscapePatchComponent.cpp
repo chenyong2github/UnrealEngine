@@ -10,9 +10,10 @@
 
 #define LOCTEXT_NAMESPACE "LandscapePatch"
 
-#if WITH_EDITOR
 namespace LandscapePatchComponentLocals
 {
+#if WITH_EDITOR
+
 	ALandscapePatchManager* CreateNewPatchManagerForLandscape(ALandscape* Landscape)
 	{
 		if (!ensure(Landscape->CanHaveLayersContent()))
@@ -35,8 +36,9 @@ namespace LandscapePatchComponentLocals
 
 		return PatchManager;
 	}
-}
+
 #endif
+}
 
 // Note that this is not allowed to be editor-only
 ULandscapePatchComponent::ULandscapePatchComponent(const FObjectInitializer& ObjectInitializer)
@@ -47,6 +49,17 @@ ULandscapePatchComponent::ULandscapePatchComponent(const FObjectInitializer& Obj
 	// We could keep this false if we were to register to TransformUpdated, since that gets broadcast either way.
 	// TODO: Currently, neither TransformUpdated nor OnUpdateTransform are triggered when parent's transform is changed
 	bWantsOnUpdateTransform = true;
+}
+
+void ULandscapePatchComponent::SetIsEnabled(bool bEnabledIn)
+{
+	if (bEnabledIn == bIsEnabled)
+	{
+		return;
+	}
+
+	bIsEnabled = bEnabledIn;
+	RequestLandscapeUpdate();
 }
 
 #if WITH_EDITOR
@@ -76,7 +89,7 @@ void ULandscapePatchComponent::OnComponentCreated()
 			// If we copied over a patch with a landscape but no manager, create manager in that landscape
 			if (Landscape->CanHaveLayersContent())
 			{
-				PatchManager = CreateNewPatchManagerForLandscape(Landscape.Get());
+				SetPatchManager(CreateNewPatchManagerForLandscape(Landscape.Get()));
 			}
 			else
 			{
@@ -92,8 +105,7 @@ void ULandscapePatchComponent::OnComponentCreated()
 			TActorIterator<ALandscapePatchManager> ManagerIterator(World);
 			if (!!ManagerIterator)
 			{
-				PatchManager = *ManagerIterator;
-				Landscape = PatchManager->GetOwningLandscape();
+				SetPatchManager(*ManagerIterator);
 			}
 			else
 			{
@@ -103,7 +115,7 @@ void ULandscapePatchComponent::OnComponentCreated()
 					if (LandscapeIterator->CanHaveLayersContent())
 					{
 						Landscape = *LandscapeIterator;
-						PatchManager = CreateNewPatchManagerForLandscape(Landscape.Get());
+						SetPatchManager(CreateNewPatchManagerForLandscape(Landscape.Get()));
 						break;
 					}
 				}
@@ -181,60 +193,112 @@ void ULandscapePatchComponent::PostEditChangeProperty(FPropertyChangedEvent& Pro
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	// If we're changing the owning landscape, there's some work we need to do to remove/add ourselves from/to the proper
-	// brush managers.
+	// If we're changing the owning landscape or patch manaager, there's some work we need to do to remove/add 
+	// ourselves from/to the proper brush managers.
 	if (PropertyChangedEvent.Property 
 		&& (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapePatchComponent, Landscape)))
 	{
-		if (PatchManager.IsValid())
-		{
-			PatchManager->RemovePatch(this);
-		}
-		PatchManager = nullptr;
-
-		bool bAdded = !Landscape.IsValid();
-		for (TActorIterator<ALandscapePatchManager> ManagersItr(GetWorld()); ManagersItr; ++ManagersItr)
-		{
-			// Exit early if found the relevant manager.
-			if (bAdded)
-			{
-				break;
-			}
-
-			ALandscapePatchManager* Manager = *ManagersItr;
-			if (!ensure(Manager->IsValidLowLevel()))
-			{
-				continue;
-			}
-
-			if (!bAdded && Manager->GetOwningLandscape() == Landscape)
-			{
-				Manager->AddPatch(this);
-				PatchManager = Manager;
-				bAdded = true;
-			}
-		}
-
-		// If we had a non-null landscape and didn't add ourselves to its manager despite iterating through
-		// all managers, then the landscape must not have had a manager. Create one for it.
-		if (!bAdded)
-		{
-			if (Landscape->CanHaveLayersContent())
-			{
-				PatchManager = CreateNewPatchManagerForLandscape(Landscape.Get());
-				PatchManager->AddPatch(this);
-			}
-			else
-			{
-				UE_LOG(LogLandscapePatch, Warning, TEXT("Landscape target for height patch did not have edit layers enabled. Unable to create patch manager."));
-				Landscape = nullptr;
-			}
-		}
+		SetLandscape(Landscape.Get());
+	}
+	else if (PropertyChangedEvent.Property
+		&& (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapePatchComponent, PatchManager)))
+	{
+		SetPatchManager(PatchManager.Get());
 	}
 
 	RequestLandscapeUpdate();
 }
 #endif
+
+void ULandscapePatchComponent::SetLandscape(ALandscape* NewLandscape)
+{
+#if WITH_EDITOR
+
+	using namespace LandscapePatchComponentLocals;
+
+	// Uncertain whether we want this early-out here. Perhaps, like SetPatchManager, we want 
+	// to be able to use this function to reorder patches. On the other hand, it seems inconvenient
+	// to accidentally swap patch managers if there are multiple in the same landscape, and we kept
+	// landscape the same. It's hard to know the ideal behavior, but for now we'll keep it.
+	if (Landscape == NewLandscape && ((!Landscape && !PatchManager)
+		|| (Landscape && PatchManager && PatchManager->GetOwningLandscape() == Landscape)))
+	{
+		return;
+	}
+
+	Landscape = NewLandscape;
+
+	if (!NewLandscape)
+	{
+		SetPatchManager(nullptr);
+		return;
+	}
+
+	// If landscape was valid, try to find a patch manager inside that landscape.
+	bool bFoundExisting = false;
+	for (int32 LayerIndex = 0; LayerIndex < Landscape->Layers.Num(); ++LayerIndex)
+	{
+		TArray<ALandscapeBlueprintBrushBase*> Brushes = Landscape->GetBrushesForLayer(LayerIndex);
+		ALandscapeBlueprintBrushBase** ExistingManager = Brushes.FindByPredicate(
+			[](ALandscapeBlueprintBrushBase* Brush) { return Cast<ALandscapePatchManager>(Brush) != nullptr; });
+		if (ExistingManager)
+		{
+			bFoundExisting = true;
+			SetPatchManager(Cast<ALandscapePatchManager>(*ExistingManager));
+			break;
+		}
+	}
+
+	// If we didn't find an existing manager, create one for this landscape.
+	if (!bFoundExisting)
+	{
+		if (Landscape->CanHaveLayersContent())
+		{
+			SetPatchManager(CreateNewPatchManagerForLandscape(Landscape.Get()));
+			PatchManager->AddPatch(this);
+		}
+		else
+		{
+			UE_LOG(LogLandscapePatch, Warning, TEXT("Landscape target for height patch did not have edit layers enabled. Unable to create patch manager."));
+			Landscape = nullptr;
+			SetPatchManager(nullptr);
+		}
+	}
+
+#endif // WITH_EDITOR
+}
+
+void ULandscapePatchComponent::SetPatchManager(ALandscapePatchManager* NewPatchManager)
+{
+	// Could have put the WITH_EDITOR block around just GetOwningLandscape, but might as well
+	// surround everything since nothing is currently expected to work for a patch manager at runtime.
+#if WITH_EDITOR
+
+	// TODO: We don't currently have an early out here (for PreviousPatchManager == NewPatchManager) 
+	// because using SetPatchManager is currently a convenient way to reorder patches inside the manager,
+	// and because we want to make sure the patch is added to the manager if it was removed from
+	// the list somehow. However we may want to revisit this if it turns out to cause problems.
+
+	if (PreviousPatchManager.IsValid())
+	{
+		PreviousPatchManager->RemovePatch(this);
+	}
+
+	PatchManager = NewPatchManager;
+	if (NewPatchManager)
+	{
+		PatchManager->AddPatch(this);
+		Landscape = PatchManager->GetOwningLandscape();
+	}
+	else
+	{
+		Landscape = nullptr;
+	}
+
+	PreviousPatchManager = NewPatchManager;
+
+#endif // WITH_EDITOR
+}
 
 void ULandscapePatchComponent::RequestLandscapeUpdate()
 {

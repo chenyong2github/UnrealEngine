@@ -36,8 +36,27 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	void RequestLandscapeUpdate();
 
+	/**
+	 * Allows the patch to be disabled, so that it no longer affects the landscape. This can be useful
+	 * when deleting the patch is undesirable, usually when the disabling is temporary.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	void SetIsEnabled(bool bEnabledIn);
+
+	/**
+	 * @return false if the patch is marked as disabled and therefore can't affect the landscape.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	bool IsEnabled() { return bIsEnabled; }
+
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
 	FTransform GetLandscapeHeightmapCoordsToWorld() const;
+
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	virtual void SetLandscape(ALandscape* NewLandscape);
+
+	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
+	virtual void SetPatchManager(ALandscapePatchManager* NewPatchManager);
 
 	// For now we keep the patches largely editor-only, since we don't yet support runtime landscape editing.
 	// The above functions are also editor-only (and don't work at runtime), but can't be in WITH_EDITOR blocks
@@ -63,10 +82,10 @@ public:
 
 protected:
 	UPROPERTY(EditAnywhere, Category = Settings)
-	TWeakObjectPtr<ALandscape> Landscape = nullptr;
+	TSoftObjectPtr<ALandscape> Landscape = nullptr;
 
-	UPROPERTY()
-	TWeakObjectPtr<ALandscapePatchManager> PatchManager = nullptr;
+	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
+	TSoftObjectPtr<ALandscapePatchManager> PatchManager = nullptr;
 
 	// Determines whether the height patch was made by copying a different height patch.
 	bool bWasCopy = false;
@@ -75,9 +94,19 @@ protected:
 	// the first OnRegister call. It remains false from the first OnRegiter call onward, even
 	// if the component is unregistered.
 	bool bLoadedButNotYetRegistered = false;
+
+	/** 
+	 * When false, patch does not affect the landscape. Useful for temporarily disabling the patch. 
+	 */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	bool bIsEnabled = true;
 private:
 	// Starts as false and gets set to true in construction, so gets used to set bWasCopy
 	// by checking the indicator value at the start of construction.
 	UPROPERTY()
 	bool bPropertiesCopiedIndicator = false;
+
+	// Used to properly transition to a different manager when editing it via the detail panel.
+	UPROPERTY()
+	TSoftObjectPtr<ALandscapePatchManager> PreviousPatchManager = nullptr;
 };

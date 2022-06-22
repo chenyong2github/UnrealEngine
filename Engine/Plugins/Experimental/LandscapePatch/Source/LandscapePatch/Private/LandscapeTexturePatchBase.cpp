@@ -106,7 +106,7 @@ bool ULandscapeTexturePatchBase::GetInitResolutionFromLandscape(float Resolution
 		return false;
 	}
 
-	ResolutionOut = FVector2D::Zero();
+	ResolutionOut = FVector2D::One();
 
 	FVector LandscapeScale = Landscape->GetTransform().GetScale3D();
 	// We go off of the larger dimension so that our patch works in different rotations.

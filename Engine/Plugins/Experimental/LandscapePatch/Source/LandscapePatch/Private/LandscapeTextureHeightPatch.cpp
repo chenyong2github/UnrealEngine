@@ -248,7 +248,7 @@ void ULandscapeTextureHeightPatch::PostEditChangeProperty(FPropertyChangedEvent&
 	{
 		if (PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(ULandscapeTextureHeightPatch, SourceMode))
 		{
-			ResetSourceMode(SourceMode);
+			SetSourceMode(SourceMode);
 			if (SourceMode == ELandscapeTexturePatchSourceMode::InternalTexture)
 			{
 				FTextureCompilingManager::Get().FinishCompilation({ InternalTexture });
@@ -387,10 +387,24 @@ void ULandscapeTextureHeightPatch::UpdateShaderParams(
 	Params.InZeroInEncoding = bNativeEncoding ? LandscapeDataAccess::MidValue : EncodingSettings.ZeroInEncoding;
 
 	Params.InHeightOffset = 0;
-	if (bUsePatchZAsReference)
+	switch (ZeroHeightMeaning)
+	{
+	case ELandscapeTextureHeightPatchZeroHeightMeaning::LandscapeZ:
+		break; // no offset necessary
+	case ELandscapeTextureHeightPatchZeroHeightMeaning::PatchZ:
 	{
 		FVector3d PatchOriginInHeightmapCoords = LandscapeHeightmapToWorld.InverseTransformPosition(PatchToWorld.GetTranslation());
 		Params.InHeightOffset = PatchOriginInHeightmapCoords.Z - LandscapeDataAccess::MidValue;
+		break;
+	}
+	case ELandscapeTextureHeightPatchZeroHeightMeaning::WorldZero:
+	{
+		FVector3d WorldOriginInHeightmapCoords = LandscapeHeightmapToWorld.InverseTransformPosition(FVector::ZeroVector);
+		Params.InHeightOffset = WorldOriginInHeightmapCoords.Z - LandscapeDataAccess::MidValue;
+		break;
+	}
+	default:
+		ensure(false);
 	}
 
 	// The outer half-pixel shouldn't affect the landscape because it is not part of our official coverage area.
@@ -403,6 +417,8 @@ void ULandscapeTextureHeightPatch::UpdateShaderParams(
 
 	Params.InFalloffWorldMargin = Falloff / FMath::Min(ComponentScale.X, ComponentScale.Y);
 
+	Params.InBlendMode = static_cast<uint32>(BlendMode);
+
 	// Pack our booleans into a bitfield
 	using EShaderFlags = FApplyLandscapeTextureHeightPatchPS::EFlags;
 	EShaderFlags Flags = EShaderFlags::None;
@@ -412,9 +428,6 @@ void ULandscapeTextureHeightPatch::UpdateShaderParams(
 
 	Flags |= bUseTextureAlphaChannel ?
 		EShaderFlags::ApplyPatchAlpha : EShaderFlags::None;
-
-	Flags |= (BlendMode == ELandscapeTextureHeightPatchBlendMode::Additive) ?
-		EShaderFlags::AdditiveMode : EShaderFlags::None;
 
 	Flags |= bNativeEncoding ?
 		EShaderFlags::InputIsPackedHeight : EShaderFlags::None;
@@ -626,12 +639,29 @@ void ULandscapeTextureHeightPatch::Reinitialize()
 		SourceEncoding = ELandscapeTextureHeightPatchEncoding::NativePackedHeight;
 		ResizeRenderTargetIfNeeded(InitTextureSizeX, InitTextureSizeY);
 			
-		// If bUsePatchZAsReference is true, then we're going to be adding an offset to our rendered landscape
-		// section in anticipation of adding an offset based on patch z later. In that case, we'll render
-		// the landscape to an intermediate target first, then do the copy to the internal target while adding
-		// in the offset. Otherwise, we can render directly to internal render target.
+		// If ZeroHeightMeaning is not landscape Z, then we're going to be applying an offset to our data when
+		// applying it to landscape, which means we'll need to apply the inverse offset when initializing here
+		// so that we get the same landscape back. In that case, we'll render the landscape to an intermediate
+		// target first, then do the copy to the internal target while adding in the offset. Otherwise, we can
+		// render directly to internal render target.
+		double OffsetToApply = 0;
+		if (ZeroHeightMeaning != ELandscapeTextureHeightPatchZeroHeightMeaning::LandscapeZ)
+		{
+			FTransform LandscapeHeightmapToWorld = PatchManager->GetHeightmapCoordsToWorld();
+			double ZeroHeight = 0;
+			if (ZeroHeightMeaning == ELandscapeTextureHeightPatchZeroHeightMeaning::PatchZ)
+			{
+				ZeroHeight = LandscapeHeightmapToWorld.InverseTransformPosition(GetComponentTransform().GetTranslation()).Z;
+			}
+			else if (ZeroHeightMeaning == ELandscapeTextureHeightPatchZeroHeightMeaning::WorldZero)
+			{
+				ZeroHeight = LandscapeHeightmapToWorld.InverseTransformPosition(FVector::ZeroVector).Z;
+			}
+			OffsetToApply = LandscapeDataAccess::MidValue - ZeroHeight;
+		}
+
 		UTextureRenderTarget2D* RenderedHeightmapSection = InternalRenderTarget;
-		if (bUsePatchZAsReference)
+		if (OffsetToApply != 0)
 		{
 			RenderedHeightmapSection = NewObject<UTextureRenderTarget2D>(this);
 			RenderedHeightmapSection->RenderTargetFormat = ETextureRenderTargetFormat::RTF_RG8;
@@ -646,14 +676,9 @@ void ULandscapeTextureHeightPatch::Reinitialize()
 
 		bApplyComponentZScale = false;
 
-		// ...However, we do need to apply the offset to account for our patch's position relative to the
-		// landscape z axis, if that is a setting that the user is using.
-		if (bUsePatchZAsReference)
+		// Apply the inverse offset we determined earlier.
+		if (OffsetToApply != 0)
 		{
-			FTransform LandscapeHeightmapToWorld = PatchManager->GetHeightmapCoordsToWorld();
-			FVector3d PatchOriginInHeightmapCoords = LandscapeHeightmapToWorld.InverseTransformPosition(GetComponentTransform().GetTranslation());
-			float OffsetToApply = LandscapeDataAccess::MidValue - PatchOriginInHeightmapCoords.Z;
-
 			ENQUEUE_RENDER_COMMAND(RenderHeightmap)([Input = RenderedHeightmapSection->GetResource(), Patch = InternalRenderTarget->GetResource(), OffsetToApply](FRHICommandListImmediate& RHICmdList)
 			{
 				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("OffsetTextureHeightPatchInitialization"));
@@ -828,7 +853,7 @@ bool ULandscapeTextureHeightPatch::ResizeTextureIfNeeded(int32 SizeX, int32 Size
 	return bChanged;
 }
 
-bool ULandscapeTextureHeightPatch::SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bDeleteUnusedInternalTextures)
+bool ULandscapeTextureHeightPatch::SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bInitializeIfRenderTarget)
 {
 	SourceMode = NewMode;
 
@@ -848,16 +873,29 @@ bool ULandscapeTextureHeightPatch::SetSourceMode(ELandscapeTexturePatchSourceMod
 		ConvertInternalRenderTargetBackFromNativeTexture();
 	}
 
-	if (bDeleteUnusedInternalTextures)
+	if (NewMode == ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget 
+		&& !InternalRenderTarget && bInitializeIfRenderTarget)
 	{
-		if (NewMode != ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget)
+		FVector2D DesiredResolution;
+		if (GetInitResolutionFromLandscape(ResolutionMultiplier, DesiredResolution))
 		{
-			InternalRenderTarget = nullptr;
+			ResizeRenderTargetIfNeeded(DesiredResolution.X, DesiredResolution.Y);
 		}
-		if (NewMode == ELandscapeTexturePatchSourceMode::TextureAsset)
+		else
 		{
-			InternalTexture = nullptr;
+			ResizeRenderTargetIfNeeded(InitTextureSizeX, InitTextureSizeY);
 		}
+		
+	}
+
+	// Discard any unused internal textures
+	if (NewMode != ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget)
+	{
+		InternalRenderTarget = nullptr;
+	}
+	if (NewMode == ELandscapeTexturePatchSourceMode::TextureAsset)
+	{
+		InternalTexture = nullptr;
 	}
 
 	PreviousSourceMode = NewMode;
@@ -865,27 +903,6 @@ bool ULandscapeTextureHeightPatch::SetSourceMode(ELandscapeTexturePatchSourceMod
 	return true;
 }
 #endif // WITH_EDITOR
-
-bool ULandscapeTextureHeightPatch::ResetSourceMode(ELandscapeTexturePatchSourceMode NewMode)
-{
-	if (NewMode == ELandscapeTexturePatchSourceMode::TextureAsset)
-	{
-		ResetSourceEncodingMode(ELandscapeTextureHeightPatchEncoding::ZeroToOne);
-	}
-	else if (NewMode == ELandscapeTexturePatchSourceMode::TextureBackedRenderTarget)
-	{
-		ResetSourceEncodingMode(ELandscapeTextureHeightPatchEncoding::WorldUnits);
-	}
-	// The internal texture case ignores the encoding mode property so it does not need resetting. More
-	// importantly, not resetting it allows us to use the current encoding settings to convert properly
-	// into the native format inside SetSourceMode, which calls ConvertInternalRenderTargetToNativeTexture.
-	//else
-	//{
-	//	ResetSourceEncodingMode(ELandscapeTextureHeightPatchEncoding::NativePackedHeight);
-	//}
-
-	return SetSourceMode(NewMode, true);
-}
 
 void ULandscapeTextureHeightPatch::SnapToLandscape()
 {

@@ -2,17 +2,18 @@
 
 #include "LandscapePatchManager.h"
 
-#include "Landscape.h"
-#include "LandscapePatchComponent.h"
 #include "Engine/TextureRenderTarget2D.h"
+#include "Landscape.h"
 #include "LandscapeDataAccess.h"
+#include "LandscapePatchComponent.h"
+#include "LandscapePatchLogging.h"
 #include "RenderGraph.h" // RDG_EVENT_NAME
 
 #define LOCTEXT_NAMESPACE "LandscapePatchManager"
 
 // TODO: Not sure if using this kind of constructor is a proper thing to do vs some other hook...
 ALandscapePatchManager::ALandscapePatchManager(const FObjectInitializer& ObjectInitializer)
-	: ALandscapeBlueprintBrushBase(ObjectInitializer)
+	: ALandscapeBlueprintBrush(ObjectInitializer)
 {
 #if WITH_EDITOR
 	SetAffectsHeightmap(true);
@@ -78,24 +79,40 @@ UTextureRenderTarget2D* ALandscapePatchManager::Render_Native(bool InIsHeightmap
 	// height map.
 	// So for now we do the simplest thing, and that is to have the height patches act as if they were
 	// independent brushes.
-	for (TWeakObjectPtr<ULandscapePatchComponent>& Component : PatchComponents)
+	for (TSoftObjectPtr<ULandscapePatchComponent>& Component : PatchComponents)
 	{
-		// Theoretically when components are marked for destruction, they should remove themselves from
-		// the patch manager, hence the ensure here
-		if (ensure(Component.IsValid()))
+		if (Component.IsPending())
 		{
-			InCombinedResult = Component->Render_Native(InIsHeightmap, InCombinedResult, InWeightmapLayerName);
+			Component.LoadSynchronous();
+		}
+
+		if (Component.IsValid())
+		{
+			if (Component->IsEnabled())
+			{
+				InCombinedResult = Component->Render_Native(InIsHeightmap, InCombinedResult, InWeightmapLayerName);
+			}
+		}
+		else if (Component.IsNull())
+		{
+			// Theoretically when components are marked for destruction, they should remove themselves from
+			// the patch manager in their OnComponentDestroyed call. However there seem to be ways to end up
+			// with destroyed patches not being removed, for instance through saving the manager but not the
+			// patch actor.
+			UE_LOG(LogLandscapePatch, Warning, TEXT("ALandscapePatchManager: Found an invalid patch in patch manager. It will be removed."));
+			bHaveInvalidPatches = true;
 		}
 		else
 		{
-			bHaveInvalidPatches = true;
+			// This means that IsPending() was true, but LoadSynchronous() failed, which we don't expect to happen.
+			ensure(false);
 		}
 	}
 
 	if (bHaveInvalidPatches)
 	{
-		PatchComponents.RemoveAll([](TWeakObjectPtr<ULandscapePatchComponent> Component) {
-			return !Component.IsValid();
+		PatchComponents.RemoveAll([](TSoftObjectPtr<ULandscapePatchComponent> Component) {
+			return Component.IsNull();
 		});
 	}
 
@@ -119,6 +136,34 @@ void ALandscapePatchManager::SetTargetLandscape(ALandscape* InTargetLandscape)
 			if (ExistingPatchLayerIndex == INDEX_NONE)
 			{
 				ExistingPatchLayerIndex = InTargetLandscape->CreateLayer(LayerName);
+
+				// If there's a layer with a water brush manager, put the layer we created under that
+				// TODO: It's uncertain whether we want this approach long term. We might want to have a popup ask where to
+				// insert the layer, for instance. However, this is what the first artists to test the module suggested,
+				// and it's fairly easy to swap layers around, so it is easy for users to change if they are unhappy. 
+				int32 LayerIndex = 0;
+				for (; LayerIndex < ExistingPatchLayerIndex; ++LayerIndex)
+				{
+					TArray<ALandscapeBlueprintBrushBase*> LayerBrushes = InTargetLandscape->GetBrushesForLayer(LayerIndex);
+					if (LayerBrushes.ContainsByPredicate([](ALandscapeBlueprintBrushBase* Brush) 
+						{ 
+							// It would be preferable to do a Cast<ALandscapeBlueprintBrushBase> to be robust to subclassing, etc.,
+							// but that doesn't seem worth having to add a dependency on the water plugin, hence the comparison by name.
+							// Note that the "A" prefix is removed in GetName.
+							FString BrushManagerName = Brush->GetClass()->GetName();
+							return Brush->GetClass()->GetName() == TEXT("WaterBrushManager");
+						}))
+					{
+						// Found a water brush manager.
+						break;
+					}
+				}
+
+				if (LayerIndex < ExistingPatchLayerIndex)
+				{
+					InTargetLandscape->ReorderLayer(ExistingPatchLayerIndex, LayerIndex);
+					ExistingPatchLayerIndex = LayerIndex;
+				}
 			}
 			InTargetLandscape->AddBrushToLayer(ExistingPatchLayerIndex, this);
 		}
@@ -131,7 +176,7 @@ void ALandscapePatchManager::AddPatch(TObjectPtr<ULandscapePatchComponent> Patch
 	if (Patch)
 	{
 		Modify();
-		PatchComponents.AddUnique(Patch);
+		PatchComponents.AddUnique(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get()));
 		RequestLandscapeUpdate();
 	}
 }
@@ -143,7 +188,7 @@ bool ALandscapePatchManager::RemovePatch(TObjectPtr<ULandscapePatchComponent> Pa
 	if (Patch)
 	{
 		Modify();
-		bRemoved = PatchComponents.Remove(Patch) > 0;
+		bRemoved = PatchComponents.Remove(TSoftObjectPtr<ULandscapePatchComponent>(Patch.Get())) > 0;
 		RequestLandscapeUpdate();
 	}
 	

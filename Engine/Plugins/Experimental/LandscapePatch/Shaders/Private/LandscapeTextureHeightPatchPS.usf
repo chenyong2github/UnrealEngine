@@ -31,6 +31,8 @@ float InZeroInEncoding;
 float InHeightScale;
 // An offset to apply to the resulting height, after applying the height scale
 float InHeightOffset;
+// Enum defining blend modes, with values set in corresponding cpp file.
+uint InBlendMode;
 // A combination of flags, whose positions are set in the corresponding cpp file.
 uint InFlags;
 
@@ -44,7 +46,6 @@ void ApplyLandscapeTextureHeightPatch(in float4 SVPos : SV_POSITION, out float2 
 	// so that they match to the cpp file
 	bool bRectangularFalloff = InFlags & RECTANGULAR_FALLOFF_FLAG;
 	bool bApplyPatchAlpha = InFlags & APPLY_PATCH_ALPHA_FLAG;
-	bool bAdditiveMode = InFlags & ADDITIVE_MODE_FLAG;
 	bool bInputIsPackedHeight = InFlags & INPUT_IS_PACKED_HEIGHT_FLAG;
 	
 	// We need only the 2D affine transformation that goes from landscape XY heightmap integer coordinates
@@ -119,13 +120,20 @@ void ApplyLandscapeTextureHeightPatch(in float4 SVPos : SV_POSITION, out float2 
 	}
 	
 	float NewHeight = 0;
-	if (bAdditiveMode)
+	switch (InBlendMode)
 	{
-		NewHeight = CurrentHeight + Alpha * PatchSignedHeight;
-	}
-	else
-	{
-		NewHeight = lerp(CurrentHeight, LANDSCAPE_MID_VALUE + PatchSignedHeight, Alpha);
+		case ADDITIVE_MODE:
+			NewHeight = CurrentHeight + Alpha * PatchSignedHeight;
+			break;
+		case ALPHA_BLEND_MODE:
+			NewHeight = lerp(CurrentHeight, LANDSCAPE_MID_VALUE + PatchSignedHeight, Alpha);
+			break;
+		case MIN_MODE:
+			NewHeight = lerp(CurrentHeight, min(CurrentHeight, LANDSCAPE_MID_VALUE + PatchSignedHeight), Alpha);
+			break;
+		case MAX_MODE:
+			NewHeight = lerp(CurrentHeight, max(CurrentHeight, LANDSCAPE_MID_VALUE + PatchSignedHeight), Alpha);
+			break;
 	}
 	
 	OutColor = PackHeight(NewHeight);

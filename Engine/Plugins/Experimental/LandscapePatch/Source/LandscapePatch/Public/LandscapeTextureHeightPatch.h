@@ -6,7 +6,7 @@
 
 #include "Engine/TextureRenderTarget2D.h"
 
-#include "LandscapeTextureHeightPatchPS.h" // FApplyLandscapeTextureHeightPatchPS::FParameters
+#include "LandscapeTextureHeightPatchPS.h" // FApplyLandscapeTextureHeightPatchPS::FParameters, FApplyLandscapeTextureHeightPatchPS::EBlendMode
 #include "LandscapeTexturePatchBase.h"
 #include "MatrixTypes.h"
 
@@ -36,12 +36,18 @@ enum class ELandscapeTextureHeightPatchBlendMode : uint8
 	// height using falloff/alpha. E.g. with no falloff and alpha 1, the landscape will
 	// be set directly to the height sampled from patch. With alpha 0.5, landscape height 
 	// will be averaged evenly with patch height.
-	AlphaBlend,
+	AlphaBlend = static_cast<uint8>(UE::Landscape::FApplyLandscapeTextureHeightPatchPS::EBlendMode::AlphaBlend),
 	
 	// Interpreting the landscape mid value as 0, use the texture patch as an offset to
 	// apply to the landscape. Falloff/alpha will just affect the degree to which the offset
 	// is applied (e.g. alpha of 0.5 will apply just half the offset).
-	Additive,
+	Additive = static_cast<uint8>(UE::Landscape::FApplyLandscapeTextureHeightPatchPS::EBlendMode::Additive),
+
+	// Like Alpha Blend mode, but limited to only lowering the existing landscape values
+	Min = static_cast<uint8>(UE::Landscape::FApplyLandscapeTextureHeightPatchPS::EBlendMode::Min),
+
+	// Like Alpha Blend mode, but limited to only raising the existing landscape values
+	Max = static_cast<uint8>(UE::Landscape::FApplyLandscapeTextureHeightPatchPS::EBlendMode::Max)
 };
 
 // Determines falloff method for the patch's influence.
@@ -75,6 +81,24 @@ enum class ELandscapeTextureHeightPatchEncoding : uint8
 	//~ Note that currently ZeroToOne and WorldUnits actually work the same way- we subtract the center point (0 for WorldUnits),
 	//~ then scale in some way (1.0 for WorldUnits). However, having separate options here allows us to initialize defaults
 	//~ appropriately when setting the encoding mode.
+};
+
+UENUM(BlueprintType)
+enum class ELandscapeTextureHeightPatchZeroHeightMeaning : uint8
+{
+	// Zero height corresponds to the patch vertical position relative to the landscape. This moves
+	// the results up and down as the patch moves up and down.
+	PatchZ,
+
+	// Zero height corresponds to Z = 0 in the local space of the landscape, regardless of the patch vertical
+	// position. For instance, if landscape transform has z=-100 in world, then writing height 0 will correspond
+	// to z=-100 in world coordinates, regardless of patch Z. 
+	LandscapeZ,
+
+	// Zero height corresponds to the height of the world origin relative to landscape. In other words, writing
+	// height 0 will correspond to world z = 0 regardless of patch Z or landscape transform (as long as landscape
+	// transform still has Z up in world coordinates).
+	WorldZero
 };
 
 //~ A struct in case we find that we need other encoding settings.
@@ -118,7 +142,7 @@ public:
 	
 	// ULandscapeTexturePatchBase
 	virtual bool SetTextureResolution(FVector2D ResolutionIn) override;
-	virtual bool SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bDeleteUnusedInternalTextures = true) override;
+	virtual bool SetSourceMode(ELandscapeTexturePatchSourceMode NewMode, bool bInitializeIfRenderTarget = true) override;
 
 	// UActorComponent
 	virtual void OnComponentCreated() override;
@@ -131,12 +155,6 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostInitProperties() override;
 #endif
-
-	/**
-	 * Just like SetSourceMode, but resets encoding mode and settings to mode-specific defaults
-	 */
-	UFUNCTION(BlueprintCallable, Category = LandscapePatch)
-	bool ResetSourceMode(ELandscapeTexturePatchSourceMode NewMode);
 
 	/**
 	 * Deletes the internal render target and internal texture.
@@ -213,13 +231,13 @@ public:
 	}
 
 	/**
-	 * Determine whether the patch Z relative to the landscape affects the results. See comment for bUsePatchZAsReference.
+	 * Set how zero height is interpreted, see comments in ELandscapeTextureHeightPatchZeroHeightMeaning.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
-	void SetUsePatchZAsReference(bool bUsePatchZIn) 
+	void SetZeroHeightMeaning(ELandscapeTextureHeightPatchZeroHeightMeaning ZeroHeightMeaningIn)
 	{ 
 		Modify();
-		bUsePatchZAsReference = bUsePatchZIn; 
+		ZeroHeightMeaning = ZeroHeightMeaningIn;
 	}
 
 	UFUNCTION(BlueprintCallable, Category = "LandscapePatch")
@@ -232,12 +250,28 @@ public:
 
 protected:
 
-	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Settings)
 	ELandscapeTextureHeightPatchBlendMode BlendMode = ELandscapeTextureHeightPatchBlendMode::AlphaBlend;
 	
 	/** When true, texture alpha channel will be used when applying the patch. */
-	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
+	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bUseTextureAlphaChannel = false;
+
+	/**
+	 * How 0 height is interpreted.
+	 */
+	UPROPERTY(EditAnywhere, Category = Settings)
+	ELandscapeTextureHeightPatchZeroHeightMeaning ZeroHeightMeaning = ELandscapeTextureHeightPatchZeroHeightMeaning::PatchZ;
+
+	/** How the values stored in the patch represent the height. Not customizable for Internal Texture source mode, which always uses native packed height. */
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (
+		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::InternalTexture"))
+	ELandscapeTextureHeightPatchEncoding SourceEncoding = ELandscapeTextureHeightPatchEncoding::NativePackedHeight;
+
+	/** Encoding settings. Not relevant when using native packed height as the encoding. */
+	UPROPERTY(EditAnywhere, Category = Settings, meta = (UIMin = "0", UIMax = "1",
+		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::InternalTexture && SourceEncoding != ELandscapeTextureHeightPatchEncoding::NativePackedHeight"))
+	FLandscapeTexturePatchEncodingSettings EncodingSettings;
 
 	UPROPERTY(EditAnywhere, Category = Settings)
 	ELandscapeTextureHeightPatchFalloffMode FalloffMode = ELandscapeTextureHeightPatchFalloffMode::RoundedRectangle;
@@ -249,27 +283,6 @@ protected:
 	float Falloff = 0;
 
 	/**
-	 * Determine whether the patch Z relative to the landscape affects the results. When true, moving the
-	 * patch up and down will move the results up and down, which is useful for using the patch to move
-	 * landscape edits with a mesh. When false, the patch is always applied as if it is at z=0 relative
-	 * to landscape, which removes the need to worry about its vertical location and is useful when using
-	 * the patch in Blueprints.
-	 * Note that this setting also affects reinitialization from landscape, and it should probably match
-	 * usage when initializing.
-	 */
-	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay)
-	bool bUsePatchZAsReference = true;
-
-	/** How the values stored in the patch represent the height. */
-	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay, meta = (EditConditionHides,
-		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::InternalTexture"))
-	ELandscapeTextureHeightPatchEncoding SourceEncoding = ELandscapeTextureHeightPatchEncoding::NativePackedHeight;
-
-	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", EditConditionHides,
-		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::InternalTexture && SourceEncoding != ELandscapeTextureHeightPatchEncoding::NativePackedHeight"))
-	FLandscapeTexturePatchEncodingSettings EncodingSettings;
-
-	/**
 	 * Whether to apply the patch Z scale to the height stored in the patch.
 	 */
 	UPROPERTY(EditAnywhere, Category = Settings, AdvancedDisplay, meta = (DisplayName = "Apply Component Z Scale"))
@@ -279,7 +292,7 @@ protected:
 	 * Controls how the patch is initialized when invoking Reinitialize().
 	 */
 	UPROPERTY(EditAnywhere, Category = Initialization, meta = (
-		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset", EditConditionHides))
+		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset"))
 	ELandscapeTextureHeightPatchInitMode InitializationMode = ELandscapeTextureHeightPatchInitMode::FromLandscape;
 
 	/** When initializing from an texture asset, set the internal texture to have the same resolution. */
@@ -290,8 +303,7 @@ protected:
 
 	/** When initializing from landscape, set resolution based off of the landscape (and a multiplier). */
 	UPROPERTY(EditAnywhere, Category = Initialization, meta = (
-		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset && (InitializationMode != ELandscapeTextureHeightPatchInitMode::TextureAsset || !bUseSameTextureDimensions)", 
-		EditConditionHides))
+		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset && (InitializationMode != ELandscapeTextureHeightPatchInitMode::TextureAsset || !bUseSameTextureDimensions)"))
 	bool bBaseResolutionOffLandscape = true;
 
 	/** 
@@ -300,20 +312,19 @@ protected:
 	 * a value less that 1.0 will use lower.
 	 */
 	UPROPERTY(EditAnywhere, Category = Initialization, meta = (
-		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset && (InitializationMode != ELandscapeTextureHeightPatchInitMode::TextureAsset || !bUseSameTextureDimensions) && bBaseResolutionOffLandscape", 
-		EditConditionHides))
+		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset && (InitializationMode != ELandscapeTextureHeightPatchInitMode::TextureAsset || !bUseSameTextureDimensions) && bBaseResolutionOffLandscape"))
 	float ResolutionMultiplier = 1;
 
 	/** Texture width to use when reinitializing. */
 	UPROPERTY(EditAnywhere, Category = Initialization, meta = (
 		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset && (InitializationMode != ELandscapeTextureHeightPatchInitMode::TextureAsset || !bUseSameTextureDimensions)", 
-		EditConditionHides, ClampMin = "1"))
+		ClampMin = "1"))
 	int32 InitTextureSizeX = 64;
 
 	/** Texture height to use when reinitializing */
 	UPROPERTY(EditAnywhere, Category = Initialization, meta = (
 		EditCondition = "SourceMode != ELandscapeTexturePatchSourceMode::TextureAsset && (InitializationMode != ELandscapeTextureHeightPatchInitMode::TextureAsset || !bUseSameTextureDimensions)", 
-		EditConditionHides, ClampMin = "1"))
+		ClampMin = "1"))
 	int32 InitTextureSizeY = 64;
 
 	// Used to properly transition the source mode when editing it via the detail panel.

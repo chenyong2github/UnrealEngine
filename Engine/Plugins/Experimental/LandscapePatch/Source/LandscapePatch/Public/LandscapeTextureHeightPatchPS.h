@@ -20,26 +20,41 @@ class LANDSCAPEPATCH_API FApplyLandscapeTextureHeightPatchPS : public FGlobalSha
 
 public:
 
+	enum class EBlendMode : uint8
+	{
+		/** Desired height is alpha blended with the current. */
+		AlphaBlend,
+
+		/** Desired height is multiplied by alpha and added to current. */
+		Additive,
+
+		/** Like AlphaBlend, but patch is limited to only lowering the landscape. */
+		Min,
+
+		/** Like AlphaBlend, but patch is limited to only raising the landscape. */
+		Max
+	};
+
 	// Flags that get packed into a bitfield because we're not allowed to use bool shader parameters:
 	enum class EFlags : uint8
 	{
 		None = 0,
 
+		// When false, falloff is circular.
 		RectangularFalloff = 1 << 0,
+
+		// When true, the texture alpha channel is considered for blending (in addition to falloff, if nonzero)
 		ApplyPatchAlpha = 1 << 1,
-		AdditiveMode = 1 << 2,
-		InputIsPackedHeight = 1 << 3
+
+		// When false, the input is directly interpreted as being the height value to process. When true, the height
+		// is unpacked from the red and green channels to make a 16 bit int.
+		InputIsPackedHeight = 1 << 2
 	};
 
-	// When false, falloff is circular.
-	static const uint32 RectangularFalloffFlag = 1 << 0;
-	// When true, the texture alpha channel is considered for blending (in addition to falloff, if nonzero)
-	static const uint32 ApplyPatchAlphaFlag = 1 << 1;
-	// When true, the patch is added to the landscape rather than alpha blending with the landscape.
-	static const uint32 AdditiveModeFlag = 1 << 2;
-	// When false, the input is directly interpreted as being the height value to process. When true, the height
-	// is unpacked from the red and green channels to make a 16 bit int.
-	static const uint32 InputIsPackedHeightFlag = 1 << 3;
+	// TODO: We could consider exposing an additional global alpha setting that we can use to pass in the given
+	// edit layer alpha value... On the other hand, we currently don't bother doing this in any existing blueprint
+	// brushes, and it would be hard to support in a way that doesn't require each blueprint brush to respect it
+	// individually... Not clear whether this is something worth doing yet.
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D<float4>, InSourceHeightmap)
@@ -58,6 +73,7 @@ public:
 		// In patch texture space, the size of the margin across which the alpha falls from 1 to 0
 		SHADER_PARAMETER(float, InFalloffWorldMargin)
 		SHADER_PARAMETER(FVector2f, InPatchWorldDimensions)
+		SHADER_PARAMETER(uint32, InBlendMode)
 		// Some combination of the flags (see constants above).
 		SHADER_PARAMETER(uint32, InFlags)
 
