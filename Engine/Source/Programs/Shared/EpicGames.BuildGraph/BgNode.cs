@@ -3,6 +3,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Linq.Expressions;
+using System.Reflection;
+using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
 
@@ -45,6 +48,63 @@ namespace EpicGames.BuildGraph
 	}
 
 	/// <summary>
+	/// Method to be executed for a node
+	/// </summary>
+	public class BgMethod
+	{
+		/// <summary>
+		/// Full name of the class containing the method to execute
+		/// </summary>
+		public string ClassName { get; }
+
+		/// <summary>
+		/// Name of the method to execute
+		/// </summary>
+		public string MethodName { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgMethod(string className, string methodName)
+		{
+			ClassName = className;
+			MethodName = methodName;
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgMethod(MethodInfo method)
+			: this(method.DeclaringType!.AssemblyQualifiedName!, method.Name)
+		{
+		}
+
+		/// <summary>
+		/// Bind this method name to a method instance
+		/// </summary>
+		/// <returns>The resolved method instance</returns>
+		public MethodInfo Bind()
+		{
+			Type? Type = Type.GetType(ClassName);
+			if (Type == null)
+			{
+				throw new BgNodeException($"Unable to find class '{ClassName}'");
+			}
+
+			MethodInfo? Method = Type.GetMethod(MethodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
+			if (Method == null)
+			{
+				throw new BgNodeException($"Unable to find method '{Type.FullName}.{MethodName}'");
+			}
+
+			return Method;
+		}
+
+		/// <inheritdoc/>
+		public override string ToString() => $"{MethodName}";
+	}
+
+	/// <summary>
 	/// Defines a node, a container for tasks and the smallest unit of execution that can be run as part of a build graph.
 	/// </summary>
 	public class BgNode
@@ -78,11 +138,6 @@ namespace EpicGames.BuildGraph
 		/// Tokens which must be acquired for this node to run
 		/// </summary>
 		public IReadOnlyList<FileReference> RequiredTokens { get; }
-
-		/// <summary>
-		/// List of tasks to execute
-		/// </summary>
-		public List<BgTask> Tasks { get; } = new List<BgTask>();
 
 		/// <summary>
 		/// List of email addresses to notify if this node fails.
@@ -172,56 +227,38 @@ namespace EpicGames.BuildGraph
 		}
 
 		/// <summary>
-		/// Write this node to an XML writer
-		/// </summary>
-		/// <param name="writer">The writer to output the node to</param>
-		public void Write(XmlWriter writer)
-		{
-			writer.WriteStartElement("Node");
-			writer.WriteAttributeString("Name", Name);
-
-			string[] requireNames = Inputs.Select(x => x.TagName).ToArray();
-			if (requireNames.Length > 0)
-			{
-				writer.WriteAttributeString("Requires", String.Join(";", requireNames));
-			}
-
-			string[] producesNames = Outputs.Where(x => x != DefaultOutput).Select(x => x.TagName).ToArray();
-			if (producesNames.Length > 0)
-			{
-				writer.WriteAttributeString("Produces", String.Join(";", producesNames));
-			}
-
-			string[] afterNames = GetDirectOrderDependencies().Except(InputDependencies).Select(x => x.Name).ToArray();
-			if (afterNames.Length > 0)
-			{
-				writer.WriteAttributeString("After", String.Join(";", afterNames));
-			}
-
-			if (!NotifyOnWarnings)
-			{
-				writer.WriteAttributeString("NotifyOnWarnings", NotifyOnWarnings.ToString());
-			}
-
-			if (RunEarly)
-			{
-				writer.WriteAttributeString("RunEarly", RunEarly.ToString());
-			}
-
-			foreach (BgTask task in Tasks)
-			{
-				task.Write(writer);
-			}
-			writer.WriteEndElement();
-		}
-
-		/// <summary>
 		/// Returns the name of this node
 		/// </summary>
 		/// <returns>The name of this node</returns>
 		public override string ToString()
 		{
 			return Name;
+		}
+	}
+
+	/// <summary>
+	/// Node constructed from a bytecode expression
+	/// </summary>
+	public class BgExpressionNode : BgNode
+	{
+		/// <summary>
+		/// The method to execute for this node
+		/// </summary>
+		public BgMethod Method { get; }
+
+		/// <summary>
+		/// Arguments for invoking the method
+		/// </summary>
+		public IReadOnlyList<object?> Arguments { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgExpressionNode(string name, BgMethod method, IReadOnlyList<object?> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
+		{
+			Method = method;
+			Arguments = arguments;
 		}
 	}
 }

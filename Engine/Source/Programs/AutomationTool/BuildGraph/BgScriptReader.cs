@@ -10,10 +10,13 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using System.Xml;
 using System.Xml.Schema;
+using EpicGames.BuildGraph;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace EpicGames.BuildGraph
+#nullable enable
+
+namespace AutomationTool
 {
 	/// <summary>
 	/// Location of an element within a file
@@ -92,10 +95,10 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Overrides XmlDocument.CreateElement() to construct ScriptElements rather than XmlElements
 		/// </summary>
-		public override XmlElement CreateElement(string prefix, string localName, string namespaceUri)
+		public override XmlElement CreateElement(string? prefix, string? localName, string? namespaceUri)
 		{
 			BgScriptLocation location = new BgScriptLocation(File, NativeFile, _lineInfo!.LineNumber);
-			return new BgScriptElement(location, prefix, localName, namespaceUri, this);
+			return new BgScriptElement(location, prefix!, localName!, namespaceUri!, this);
 		}
 
 		/// <summary>
@@ -147,7 +150,7 @@ namespace EpicGames.BuildGraph
 				}
 
 				// Check that the root element is valid. If not, we didn't actually validate against the schema.
-				if (document.DocumentElement.Name != BgScriptSchema.RootElementName)
+				if (document.DocumentElement!.Name != BgScriptSchema.RootElementName)
 				{
 					BgScriptLocation location = new BgScriptLocation(file, nativeFile, 1);
 					logger.LogScriptError(location, "Script does not have a root element called '{ElementName}'", BgScriptSchema.RootElementName);
@@ -172,7 +175,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="sender">Standard argument for ValidationEventHandler</param>
 		/// <param name="args">Standard argument for ValidationEventHandler</param>
-		void ValidationEvent(object sender, ValidationEventArgs args)
+		void ValidationEvent(object? sender, ValidationEventArgs args)
 		{
 			BgScriptLocation location = new BgScriptLocation(File, NativeFile, args.Exception.LineNumber);
 			if (args.Severity == XmlSeverityType.Warning)
@@ -407,7 +410,7 @@ namespace EpicGames.BuildGraph
 			}
 
 			// Read the root BuildGraph element
-			await ReadGraphBodyAsync(document.DocumentElement);
+			await ReadGraphBodyAsync(document.DocumentElement!);
 			return true;
 		}
 
@@ -1345,6 +1348,25 @@ namespace EpicGames.BuildGraph
 	}
 
 	/// <summary>
+	/// Overridden version of <see cref="BgNode"/> which contains a list of tasks
+	/// </summary>
+	class BgScriptNode : BgNode
+	{
+		/// <summary>
+		/// List of tasks to execute
+		/// </summary>
+		public List<BgTask> Tasks { get; } = new List<BgTask>();
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgScriptNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
+		{
+		}
+	}
+
+	/// <summary>
 	/// Reader for build graph definitions. Instanced to contain temporary state; public interface is through ScriptReader.TryRead().
 	/// </summary>
 	public class BgScriptReader : BgScriptReaderBase
@@ -1365,7 +1387,7 @@ namespace EpicGames.BuildGraph
 		readonly string? _singleNodeName;
 
 		BgAgent? _enclosingAgent;
-		BgNode? _enclosingNode;
+		BgScriptNode? _enclosingNode;
 
 		/// <summary>
 		/// Private constructor. Use ScriptReader.TryRead() to read a script file.
@@ -1871,7 +1893,7 @@ namespace EpicGames.BuildGraph
 				if (CheckNameIsUnique(element, name))
 				{
 					// Add it to the node lookup
-					BgNode newNode = new BgNode(name, inputs.ToArray(), validOutputNames.ToArray(), inputDependencies.ToArray(), orderDependencies.ToArray(), requiredTokens.ToArray());
+					BgScriptNode newNode = new BgScriptNode(name, inputs.ToArray(), validOutputNames.ToArray(), inputDependencies.ToArray(), orderDependencies.ToArray(), requiredTokens.ToArray());
 					newNode.RunEarly = bRunEarly;
 					newNode.NotifyOnWarnings = bNotifyOnWarnings;
 					foreach ((string key, string value) in annotations)

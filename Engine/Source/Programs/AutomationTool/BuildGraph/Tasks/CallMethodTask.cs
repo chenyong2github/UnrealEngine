@@ -99,49 +99,50 @@ namespace AutomationTool.Tasks
 		public string? Tags;
 	}
 
+	class BgContextImpl : BgContext
+	{
+		JobContext JobContext;
+
+		public BgContextImpl(JobContext JobContext, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+			: base(CreateExprContext(TagNameToFileSet))
+		{
+			this.JobContext = JobContext;
+		}
+
+		static BgExprContext CreateExprContext(Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+		{
+			BgExprContext Context = new BgExprContext();
+			foreach (KeyValuePair<string, HashSet<FileReference>> Pair in TagNameToFileSet)
+			{
+				Context.TagNameToFileSet[Pair.Key] = FileSet.FromFiles(Unreal.RootDirectory, Pair.Value);
+			}
+			return Context;
+		}
+
+		public override string Stream => CommandUtils.P4Enabled ? CommandUtils.P4Env.Branch : "";
+
+		public override int Change => CommandUtils.P4Enabled ? CommandUtils.P4Env.Changelist : 0;
+
+		public override int CodeChange => CommandUtils.P4Enabled ? CommandUtils.P4Env.CodeChangelist : 0;
+
+		public override (int Major, int Minor, int Patch) EngineVersion
+		{
+			get
+			{
+				ReadOnlyBuildVersion Current = ReadOnlyBuildVersion.Current;
+				return (Current.MajorVersion, Current.MinorVersion, Current.PatchVersion);
+			}
+		}
+
+		public override bool IsBuildMachine => CommandUtils.IsBuildMachine;
+	}
+
 	/// <summary>
 	/// Spawns the editor to run a commandlet.
 	/// </summary>
 	[TaskElement("CallMethod", typeof(CallMethodTaskParameters))]
 	public class CallMethodTask : BgTaskImpl
 	{
-		class BgStateImpl : BgContext
-		{
-			JobContext JobContext;
-
-			public BgStateImpl(JobContext JobContext, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
-				: base(CreateExprContext(TagNameToFileSet))
-			{
-				this.JobContext = JobContext;
-			}
-
-			static BgExprContext CreateExprContext(Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
-			{
-				BgExprContext Context = new BgExprContext();
-				foreach (KeyValuePair<string, HashSet<FileReference>> Pair in TagNameToFileSet)
-				{
-					Context.TagNameToFileSet[Pair.Key] = FileSet.FromFiles(Unreal.RootDirectory, Pair.Value);
-				}
-				return Context;
-			}
-
-			public override string Stream => CommandUtils.P4Enabled ? CommandUtils.P4Env.Branch : "";
-
-			public override int Change => CommandUtils.P4Enabled ? CommandUtils.P4Env.Changelist : 0;
-
-			public override int CodeChange => CommandUtils.P4Enabled ? CommandUtils.P4Env.CodeChangelist : 0;
-
-			public override (int Major, int Minor, int Patch) EngineVersion
-			{
-				get
-				{
-					ReadOnlyBuildVersion Current = ReadOnlyBuildVersion.Current;
-					return (Current.MajorVersion, Current.MinorVersion, Current.PatchVersion);
-				}
-			}
-
-			public override bool IsBuildMachine => CommandUtils.IsBuildMachine;
-		}
 				
 		/// <summary>
 		/// Parameters for this task
@@ -190,7 +191,7 @@ namespace AutomationTool.Tasks
 
 			ParameterInfo[] MethodParameters = Method.GetParameters();
 
-			BgStateImpl State = new BgStateImpl(Job, TagNameToFileSet);
+			BgContextImpl State = new BgContextImpl(Job, TagNameToFileSet);
 
 			object[] Arguments = new object[MethodParameters.Length];
 			for (int Idx = 0; Idx < MethodParameters.Length; Idx++)

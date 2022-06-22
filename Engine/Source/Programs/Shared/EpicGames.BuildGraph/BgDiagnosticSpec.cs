@@ -38,10 +38,9 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		internal void AddToGraph(BgExprContext context, BgGraph graph, BgAgent? enclosingAgent, BgNode? enclosingNode)
 		{
-			BgScriptLocation location = new BgScriptLocation("(unknown)", "(unknown)", 1);
 			string messageValue = Message.Compute(context);
 
-			BgDiagnostic diagnostic = new BgDiagnostic(location.File, location.LineNumber, Level, messageValue);
+			BgDiagnostic diagnostic = new BgDiagnostic("unknown", 1, Level, messageValue);
 			if (enclosingNode != null)
 			{
 				enclosingNode.Diagnostics.Add(diagnostic);

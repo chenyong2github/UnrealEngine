@@ -3,7 +3,7 @@
 using System.Collections.Generic;
 using System.Xml;
 
-namespace EpicGames.BuildGraph
+namespace AutomationTool
 {
 	/// <summary>
 	/// A task invocation

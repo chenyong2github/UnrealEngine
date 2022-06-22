@@ -44,21 +44,5 @@ namespace EpicGames.BuildGraph
 			Name = inName;
 			PossibleTypes = inPossibleTypes;
 		}
-
-		/// <summary>
-		/// Writes this agent group out to a file, filtering nodes by a controlling trigger
-		/// </summary>
-		/// <param name="writer">The XML writer to output to</param>
-		public void Write(XmlWriter writer)
-		{
-			writer.WriteStartElement("Agent");
-			writer.WriteAttributeString("Name", Name);
-			writer.WriteAttributeString("Type", String.Join(";", PossibleTypes));
-			foreach (BgNode node in Nodes)
-			{
-				node.Write(writer);
-			}
-			writer.WriteEndElement();
-		}
 	}
 }

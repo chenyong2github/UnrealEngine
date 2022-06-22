@@ -6,9 +6,12 @@ using System.Diagnostics;
 using System.Linq;
 using System.Xml;
 using System.Xml.Schema;
+using EpicGames.BuildGraph;
 using EpicGames.Core;
 
-namespace EpicGames.BuildGraph
+#nullable enable
+
+namespace AutomationTool
 {
 	/// <summary>
 	/// Specifies validation that should be performed on a task parameter.
@@ -406,12 +409,12 @@ namespace EpicGames.BuildGraph
 
 			using (XmlReader schemaFile = XmlReader.Create(file.FullName))
 			{
-				BgScriptSchema importedSchema = new BgScriptSchema(XmlSchema.Read(schemaFile, ValidationCallback));
+				BgScriptSchema importedSchema = new BgScriptSchema(XmlSchema.Read(schemaFile, ValidationCallback)!);
 				return importedSchema;
 			}
 		}
 
-		static void ValidationCallback(object sender, ValidationEventArgs eventArgs)
+		static void ValidationCallback(object? sender, ValidationEventArgs eventArgs)
 		{
 			if (eventArgs.Severity == XmlSeverityType.Warning)
 			{

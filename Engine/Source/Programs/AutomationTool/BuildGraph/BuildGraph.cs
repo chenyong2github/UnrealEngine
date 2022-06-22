@@ -19,6 +19,7 @@ using UnrealBuildBase;
 using UnrealBuildTool;
 using System.Threading.Tasks;
 using EpicGames.BuildGraph.Expressions;
+using AutomationTool.Tasks;
 
 namespace AutomationTool
 {
@@ -727,17 +728,17 @@ namespace AutomationTool
 			}
 
 			// Create tasks for the entire graph
-			Dictionary<BgTask, BgTaskImpl> TaskInfoToTask = new Dictionary<BgTask, BgTaskImpl>();
+			Dictionary<BgNode, BgNodeExecutor> NodeToExecutor = new Dictionary<BgNode, BgNodeExecutor>();
 			if (bSkipValidation && SingleNode != null)
 			{
-				if (!CreateTaskInstances(Graph, SingleNode, NameToTask, TaskInfoToTask))
+				if (!BindNodes(SingleNode, NameToTask, Graph.TagNameToNodeOutput, NodeToExecutor))
 				{
 					return ExitCode.Error_Unknown;
 				}
 			}
 			else
 			{
-				if (!CreateTaskInstances(Graph, NameToTask, TaskInfoToTask))
+				if (!BindNodes(Graph, NameToTask, NodeToExecutor))
 				{
 					return ExitCode.Error_Unknown;
 				}
@@ -748,14 +749,14 @@ namespace AutomationTool
 			{
 				if(SingleNode != null)
 				{
-					if(!await BuildNodeAsync(new JobContext(this), Graph, SingleNode, TaskInfoToTask, Storage, bWithBanner: true))
+					if(!await BuildNodeAsync(new JobContext(this), Graph, SingleNode, NodeToExecutor, Storage, bWithBanner: true))
 					{
 						return ExitCode.Error_Unknown;
 					}
 				}
 				else
 				{
-					if(!await BuildAllNodesAsync(new JobContext(this), Graph, TaskInfoToTask, Storage))
+					if(!await BuildAllNodesAsync(new JobContext(this), Graph, NodeToExecutor, Storage))
 					{
 						return ExitCode.Error_Unknown;
 					}
@@ -764,177 +765,37 @@ namespace AutomationTool
 			return ExitCode.Success;
 		}
 
-		bool CreateTaskInstances(BgGraph Graph, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgTask, BgTaskImpl> TaskInfoToTask)
+		bool BindNodes(BgGraph Graph, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor)
 		{
 			bool bResult = true;
 			foreach (BgAgent Agent in Graph.Agents)
 			{
 				foreach (BgNode Node in Agent.Nodes)
 				{
-					bResult &= CreateTaskInstances(Graph, Node, NameToTask, TaskInfoToTask);
+					bResult &= BindNodes(Node, NameToTask, Graph.TagNameToNodeOutput, NodeToExecutor);
 				}
 			}
 			return bResult;
 		}
 
-		bool CreateTaskInstances(BgGraph Graph, BgNode Node, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgTask, BgTaskImpl> TaskInfoToTask)
+		bool BindNodes(BgNode Node, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<string, BgNodeOutput> TagNameToNodeOutput, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor)
 		{
-			bool bResult = true;
-			foreach (BgTask TaskInfo in Node.Tasks)
+			if (Node is BgScriptNode ScriptNode)
 			{
-				BgTaskImpl Task = BindTask(Node, TaskInfo, NameToTask, Graph.TagNameToNodeOutput);
-				if (Task == null)
-				{
-					bResult = false;
-				}
-				else
-				{
-					TaskInfoToTask.Add(TaskInfo, Task);
-				}
+				BgScriptNodeExecutor executor = new BgScriptNodeExecutor(ScriptNode);
+				NodeToExecutor[Node] = executor;
+				return executor.Bind(NameToTask, TagNameToNodeOutput, Context, Logger);
 			}
-			return bResult;
-		}
-
-		BgTaskImpl BindTask(BgNode Node, BgTask TaskInfo, Dictionary<string, ScriptTaskBinding> NameToTask, IReadOnlyDictionary<string, BgNodeOutput> TagNameToNodeOutput)
-		{
-			// Get the reflection info for this element
-			ScriptTaskBinding Task;
-			if (!NameToTask.TryGetValue(TaskInfo.Name, out Task))
+			else if (Node is BgExpressionNode ExpressionNode)
 			{
-				OutputBindingError(TaskInfo, "Unknown task '{TaskName}'", TaskInfo.Name);
-				return null;
-			}
-
-			// Check all the required parameters are present
-			bool bHasRequiredAttributes = true;
-			foreach (ScriptTaskParameterBinding Parameter in Task.NameToParameter.Values)
-			{
-				if (!Parameter.Optional && !TaskInfo.Arguments.ContainsKey(Parameter.Name))
-				{
-					OutputBindingError(TaskInfo, "Missing required attribute - {AttrName}", Parameter.Name);
-					bHasRequiredAttributes = false;
-				}
-			}
-
-			// Read all the attributes into a parameters object for this task
-			object ParametersObject = Activator.CreateInstance(Task.ParametersClass);
-			foreach ((string Name, string Value) in TaskInfo.Arguments)
-			{
-				// Get the field that this attribute should be written to in the parameters object
-				ScriptTaskParameterBinding Parameter;
-				if (!Task.NameToParameter.TryGetValue(Name, out Parameter))
-				{
-					OutputBindingError(TaskInfo, "Unknown attribute '{AttrName}'", Name);
-					continue;
-				}
-
-				// If it's a collection type, split it into separate values
-				if (Parameter.CollectionType == null)
-				{
-					// Parse it and assign it to the parameters object
-					object FieldValue = ParseValue(Value, Parameter.ValueType);
-					Parameter.FieldInfo.SetValue(ParametersObject, FieldValue);
-				}
-				else
-				{
-					// Get the collection, or create one if necessary
-					object CollectionValue = Parameter.FieldInfo.GetValue(ParametersObject);
-					if (CollectionValue == null)
-					{
-						CollectionValue = Activator.CreateInstance(Parameter.FieldInfo.FieldType);
-						Parameter.FieldInfo.SetValue(ParametersObject, CollectionValue);
-					}
-
-					// Parse the values and add them to the collection
-					List<string> ValueStrings = BgTaskImpl.SplitDelimitedList(Value);
-					foreach (string ValueString in ValueStrings)
-					{
-						object ElementValue = ParseValue(ValueString, Parameter.ValueType);
-						Parameter.CollectionType.InvokeMember("Add", BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Public, null, CollectionValue, new object[] { ElementValue });
-					}
-				}
-			}
-
-			// Construct the task
-			if (!bHasRequiredAttributes)
-			{
-				return null;
-			}
-
-			// Add it to the list
-			BgTaskImpl NewTask = (BgTaskImpl)Activator.CreateInstance(Task.TaskClass, ParametersObject);
-
-			// Set up the source location for diagnostics
-			NewTask.SourceLocation = TaskInfo.Location;
-
-			// Make sure all the read tags are local or listed as a dependency
-			foreach (string ReadTagName in NewTask.FindConsumedTagNames())
-			{
-				BgNodeOutput Output;
-				if (TagNameToNodeOutput.TryGetValue(ReadTagName, out Output))
-				{
-					if (Output != null && Output.ProducingNode != Node && !Node.Inputs.Contains(Output))
-					{
-						OutputBindingError(TaskInfo, "The tag '{TagName}' is not a dependency of node '{Node}'", ReadTagName, Node.Name);
-					}
-				}
-			}
-
-			// Make sure all the written tags are local or listed as an output
-			foreach (string ModifiedTagName in NewTask.FindProducedTagNames())
-			{
-				BgNodeOutput Output;
-				if (TagNameToNodeOutput.TryGetValue(ModifiedTagName, out Output))
-				{
-					if (Output != null && !Node.Outputs.Contains(Output))
-					{
-						OutputBindingError(TaskInfo, "The tag '{0}' is created by '{1}', and cannot be modified downstream", Output.TagName, Output.ProducingNode.Name);
-					}
-				}
-			}
-			return NewTask;
-		}
-
-		/// <summary>
-		/// Parse a value of the given type
-		/// </summary>
-		/// <param name="ValueText">The text to parse</param>
-		/// <param name="ValueType">Type of the value to parse</param>
-		/// <returns>Value that was parsed</returns>
-		object ParseValue(string ValueText, Type ValueType)
-		{
-			// Parse it and assign it to the parameters object
-			if (ValueType.IsEnum)
-			{
-				return Enum.Parse(ValueType, ValueText);
-			}
-			else if (ValueType == typeof(Boolean))
-			{
-				return BgCondition.EvaluateAsync(ValueText, Context).Result;
-			}
-			else if (ValueType == typeof(FileReference))
-			{
-				return BgTaskImpl.ResolveFile(ValueText);
-			}
-			else if (ValueType == typeof(DirectoryReference))
-			{
-				return BgTaskImpl.ResolveDirectory(ValueText);
-			}
-
-			TypeConverter Converter = TypeDescriptor.GetConverter(ValueType);
-			if (Converter.CanConvertFrom(typeof(string)))
-			{
-				return Converter.ConvertFromString(ValueText);
+				BgExpressionNodeExecutor executor = new BgExpressionNodeExecutor(ExpressionNode);
+				NodeToExecutor[Node] = executor;
+				return executor.Bind(Logger);
 			}
 			else
 			{
-				return Convert.ChangeType(ValueText, ValueType);
+				throw new NotImplementedException();
 			}
-		}
-
-		void OutputBindingError(BgTask Task, string Format, params object[] Args)
-		{
-			Logger.LogScriptError(Task.Location, Format, Args);
 		}
 
 		static void FindAvailableGraphs(Dictionary<string, Type> NameToType)
@@ -1121,9 +982,10 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="Graph">The graph instance</param>
+		/// <param name="NodeToExecutor">Map from node to executor</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
 		/// <returns>True if everything built successfully</returns>
-		async Task<bool> BuildAllNodesAsync(JobContext Job, BgGraph Graph, Dictionary<BgTask, BgTaskImpl> TaskInfoToTask, TempStorage Storage)
+		async Task<bool> BuildAllNodesAsync(JobContext Job, BgGraph Graph, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor, TempStorage Storage)
 		{
 			// Build a flat list of nodes to execute, in order
 			BgNode[] NodesToExecute = Graph.Agents.SelectMany(x => x.Nodes).ToArray();
@@ -1148,7 +1010,7 @@ namespace AutomationTool
 				if(!Storage.IsComplete(NodeToExecute.Name))
 				{
 					LogInformation("");
-					if(!await BuildNodeAsync(Job, Graph, NodeToExecute, TaskInfoToTask, Storage, bWithBanner: false))
+					if(!await BuildNodeAsync(Job, Graph, NodeToExecute, NodeToExecutor, Storage, bWithBanner: false))
 					{
 						return false;
 					} 
@@ -1164,11 +1026,11 @@ namespace AutomationTool
 		/// <param name="Job">Information about the current job</param>
 		/// <param name="Graph">The graph to which the node belongs. Used to determine which outputs need to be transferred to temp storage.</param>
 		/// <param name="Node">The node to build</param>
-		/// <param name="TaskInfoToTask">Map from task info instance to task instance</param>
+		/// <param name="NodeToExecutor">Map from node to executor</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
 		/// <param name="bWithBanner">Whether to write a banner before and after this node's log output</param>
 		/// <returns>True if the node built successfully, false otherwise.</returns>
-		async Task<bool> BuildNodeAsync(JobContext Job, BgGraph Graph, BgNode Node, Dictionary<BgTask, BgTaskImpl> TaskInfoToTask, TempStorage Storage, bool bWithBanner)
+		async Task<bool> BuildNodeAsync(JobContext Job, BgGraph Graph, BgNode Node, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor, TempStorage Storage, bool bWithBanner)
 		{
 			DirectoryReference RootDir = new DirectoryReference(CommandUtils.CmdEnv.LocalRoot);
 
@@ -1225,7 +1087,7 @@ namespace AutomationTool
 				Console.WriteLine();
 				CommandUtils.LogInformation("========== Starting: {0} ==========", Node.Name);
 			}
-			if(!await ExecuteTasksAsync(Node, Job, TaskInfoToTask, TagNameToFileSet))
+			if(!await NodeToExecutor[Node].ExecuteAsync(Job, TagNameToFileSet))
 			{
 				return false;
 			}
@@ -1356,78 +1218,6 @@ namespace AutomationTool
 
 			// Mark the node as succeeded
 			Storage.MarkAsComplete(Node.Name);
-			return true;
-		}
-
-		/// <summary>
-		/// Build all the tasks for this node
-		/// </summary>
-		/// <param name="Job">Information about the current job</param>
-		/// <param name="TaskInfoToTask">Map from TaskInfo to Task object</param>
-		/// <param name="TagNameToFileSet">Mapping from tag names to the set of files they include. Should be set to contain the node inputs on entry.</param>
-		/// <returns>Whether the task succeeded or not. Exiting with an exception will be caught and treated as a failure.</returns>
-		async Task<bool> ExecuteTasksAsync(BgNode Node, JobContext Job, Dictionary<BgTask, BgTaskImpl> TaskInfoToTask, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
-		{
-			List<BgTaskImpl> Tasks = Node.Tasks.ConvertAll(x => TaskInfoToTask[x]);
-
-			// Run each of the tasks in order
-			HashSet<FileReference> BuildProducts = TagNameToFileSet[Node.DefaultOutput.TagName];
-			for (int Idx = 0; Idx < Tasks.Count; Idx++)
-			{
-				using (IScope Scope = GlobalTracer.Instance.BuildSpan("Task").WithTag("resource", Tasks[Idx].GetTraceName()).StartActive())
-				{
-					ITaskExecutor Executor = Tasks[Idx].GetExecutor();
-					if (Executor == null)
-					{
-						// Execute this task directly
-						try
-						{
-							Tasks[Idx].GetTraceMetadata(Scope.Span, "");
-							await Tasks[Idx].ExecuteAsync(Job, BuildProducts, TagNameToFileSet);
-						}
-						catch (Exception Ex)
-						{
-							ExceptionUtils.AddContext(Ex, "while executing task {0}", Tasks[Idx].GetTraceString());
-							if (Tasks[Idx].SourceLocation != null)
-							{
-								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[Idx].SourceLocation.File, Tasks[Idx].SourceLocation.LineNumber);
-							}
-							throw;
-						}
-					}
-					else
-					{
-						Tasks[Idx].GetTraceMetadata(Scope.Span, "1.");
-
-						// The task has a custom executor, which may be able to execute several tasks simultaneously. Try to add the following tasks.
-						int FirstIdx = Idx;
-						while (Idx + 1 < Tasks.Count && Executor.Add(Tasks[Idx + 1]))
-						{
-							Idx++;
-							Tasks[Idx].GetTraceMetadata(Scope.Span, string.Format("{0}.", 1 + Idx - FirstIdx));
-						}
-						try
-						{
-							await Executor.ExecuteAsync(Job, BuildProducts, TagNameToFileSet);
-						}
-						catch (Exception Ex)
-						{
-							for (int TaskIdx = FirstIdx; TaskIdx <= Idx; TaskIdx++)
-							{
-								ExceptionUtils.AddContext(Ex, "while executing {0}", Tasks[TaskIdx].GetTraceString());
-							}
-							if (Tasks[FirstIdx].SourceLocation != null)
-							{
-								ExceptionUtils.AddContext(Ex, "at {0}({1})", Tasks[FirstIdx].SourceLocation.File, Tasks[FirstIdx].SourceLocation.LineNumber);
-							}
-							throw;
-						}
-					}
-				}
-			}
-
-			// Remove anything that doesn't exist, since these files weren't explicitly tagged
-			BuildProducts.RemoveWhere(x => !FileReference.Exists(x));
 			return true;
 		}
 

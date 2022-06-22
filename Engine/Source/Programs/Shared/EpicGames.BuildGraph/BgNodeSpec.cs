@@ -53,8 +53,7 @@ namespace EpicGames.BuildGraph
 	/// </summary>
 	public class BgNodeSpec
 	{
-		internal string _className;
-		internal string _methodName;
+		internal BgMethod _method;
 		internal IBgExpr?[] _argumentExprs;
 		internal BgFileSet[] ResultExprs { get; }
 
@@ -98,14 +97,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		internal BgNodeSpec(MethodCallExpression call)
 		{
-			string methodSignature = $"{call.Method.DeclaringType?.Name}.{call.Method.Name}";
-			if (!call.Method.IsStatic)
-			{
-				throw new BgNodeException($"Node {methodSignature} must be static");
-			}
-
-			_className = call.Method.DeclaringType!.AssemblyQualifiedName!;
-			_methodName = call.Method.Name;
+			_method = new BgMethod(call.Method);
 
 			try
 			{
@@ -115,7 +107,7 @@ namespace EpicGames.BuildGraph
 			}
 			catch (Exception ex)
 			{
-				ExceptionUtils.AddContext(ex, $"while calling method {methodSignature}");
+				ExceptionUtils.AddContext(ex, $"while calling method {_method}");
 				throw;
 			}
 
@@ -379,27 +371,9 @@ namespace EpicGames.BuildGraph
 			BgNode[] afterNodes = afterDependencies.Select(x => x.ProducingNode).Distinct().ToArray();
 			bool runEarly = CanRunEarly.Compute(context);
 
-			BgNode node = new BgNode(name, inputDependencies, outputNames, inputNodes, afterNodes, Array.Empty<FileReference>());
+			List<object?> arguments = _argumentExprs.ConvertAll(x => x?.Compute(context));
+			BgExpressionNode node = new BgExpressionNode(name, _method, arguments, inputDependencies, outputNames, inputNodes, afterNodes, Array.Empty<FileReference>());
 			node.RunEarly = runEarly;
-
-			BgScriptLocation location = new BgScriptLocation("(unknown)", "(unknown)", 1);
-
-			BgTask task = new BgTask(location, "CallMethod");
-			task.Arguments["Class"] = _className;
-			task.Arguments["Method"] = _methodName;
-			for (int idx = 0; idx < _argumentExprs.Length; idx++)
-			{
-				IBgExpr? argumentExpr = _argumentExprs[idx];
-				if (argumentExpr != null)
-				{
-					task.Arguments[$"Arg{idx + 1}"] = BgType.Get(argumentExpr.GetType()).SerializeArgument(argumentExpr, context);
-				}
-			}
-			if (outputNames != null)
-			{
-				task.Arguments["Tags"] = String.Join(";", outputNames);
-			}
-			node.Tasks.Add(task);
 
 			agent.Nodes.Add(node);
 			graph.NameToNode.Add(name, node);

@@ -6,7 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace EpicGames.BuildGraph
+namespace AutomationTool
 {
 	/// <summary>
 	/// Exception class thrown due to type and syntax errors in condition expressions
