@@ -13,7 +13,7 @@
 
 // TODO: Not sure if using this kind of constructor is a proper thing to do vs some other hook...
 ALandscapePatchManager::ALandscapePatchManager(const FObjectInitializer& ObjectInitializer)
-	: ALandscapeBlueprintBrush(ObjectInitializer)
+	: ALandscapeBlueprintBrushBase(ObjectInitializer)
 {
 #if WITH_EDITOR
 	SetAffectsHeightmap(true);

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 
-#include "LandscapeBlueprintBrush.h"
+#include "LandscapeBlueprintBrushBase.h"
 
 #include "LandscapePatchManager.generated.h"
 
@@ -19,7 +19,7 @@ class ULandscapePatchComponent;
 //~ we currently don't want to do because we think it will clutter the brush interface and may lose opportunities
 //~ for optimization... 
 UCLASS()
-class LANDSCAPEPATCH_API ALandscapePatchManager : public ALandscapeBlueprintBrush
+class LANDSCAPEPATCH_API ALandscapePatchManager : public ALandscapeBlueprintBrushBase
 {
 	GENERATED_BODY()
 

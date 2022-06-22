@@ -39,11 +39,6 @@ public class LandscapePatch : ModuleRules
 				"RenderCore",
 				"RHI",
 				"Projects", // IPluginManager
-				
-				// This doesn't seem to be editor-only currently. If it becomes editor-only, may need
-				// to inherit from LanscapeBlueprintBrushBase instead, and will lose the ability to
-				// add the patch manager via the Blueprints tool in Landscape mode.
-				"LandscapeEditorUtilities",
 			}
 			);
 	}
