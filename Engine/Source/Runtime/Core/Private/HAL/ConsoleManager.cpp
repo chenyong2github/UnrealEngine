@@ -2650,7 +2650,7 @@ static TAutoConsoleVariable<int32> CVarMobileEnabledShadingModelsMask(
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarMobileForwardSupportLocalLights(
+static TAutoConsoleVariable<int32> CVarMobileForwardEnableLocalLights(
 	TEXT("r.Mobile.Forward.EnableLocalLights"),
 	1,
 	TEXT("Enable local lights support on mobile forward. 0 is disabled, 1 is enabled (default)"),
@@ -2982,14 +2982,6 @@ static TAutoConsoleVariable<int32> CVarMobileDesiredResY(
 	TEXT("r.Mobile.DesiredResY"),
 	0,
 	TEXT("Desired mobile Y resolution (shortest axis) (non-zero == use for Y, calculate X to retain aspect ratio)"),
-	ECVF_Default);
-
-static TAutoConsoleVariable<int32> CVarMobileTonemapperUpscale(
-	TEXT("r.MobileTonemapperUpscale"),
-	0,
-	TEXT("On mobile, whether to allow upscaling as part of the tonemapper or as a separate pass when possible"
-		 "0: separate pass (default)\n"
-		 "1: as part of the tonemapper pass\n"),
 	ECVF_Default);
 
 // this cvar can be removed in shipping to not compile shaders for development (faster)

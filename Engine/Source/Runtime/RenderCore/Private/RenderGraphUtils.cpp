@@ -192,9 +192,16 @@ RENDERCORE_API FRDGTextureMSAA CreateTextureMSAA(
 	const TCHAR* Name,
 	ETextureCreateFlags ResolveFlagsToAdd)
 {
+	bool bForceSeparateTargetAndShaderResource = Desc.NumSamples > 1 && RHISupportsSeparateMSAAAndResolveTextures(GMaxRHIShaderPlatform);
+	
+	if (!bForceSeparateTargetAndShaderResource)
+	{
+		Desc.Flags |= TexCreate_ShaderResource;
+	}
+
 	FRDGTextureMSAA Texture(GraphBuilder.CreateTexture(Desc, Name));
 
-	if (Desc.NumSamples > 1)
+	if (bForceSeparateTargetAndShaderResource)
 	{
 		Desc.NumSamples = 1;
 		ETextureCreateFlags ResolveFlags = TexCreate_ShaderResource;

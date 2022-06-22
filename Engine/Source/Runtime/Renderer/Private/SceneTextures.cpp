@@ -697,15 +697,7 @@ void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FVie
 							 FRDGTextureDesc::Create2DArray(Config.Extent, Config.ColorFormat, Config.ColorClearValue, Flags, 2) :
 							 FRDGTextureDesc::Create2D(Config.Extent, Config.ColorFormat, Config.ColorClearValue, Flags));
 		Desc.NumSamples = Config.NumSamples;
-		SceneTextures.Color = GraphBuilder.CreateTexture(Desc, SceneColorName);
-
-		if (Desc.NumSamples > 1)
-		{
-			Desc.NumSamples = 1;
-			Desc.Flags = TexCreate_ResolveTargetable | TexCreate_ShaderResource | GFastVRamConfig.SceneColor | sRGBFlag;
-
-			SceneTextures.Color.Resolve = GraphBuilder.CreateTexture(Desc, SceneColorName);
-		}
+		SceneTextures.Color = CreateTextureMSAA(GraphBuilder, Desc, SceneColorName, GFastVRamConfig.SceneColor | sRGBFlag);
 	}
 
 	// Custom Depth
@@ -812,14 +804,7 @@ void FSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FViewFamily
 			FRDGTextureDesc::Create2DArray(Config.Extent, DepthAuxFormat, FClearValueBinding(FarDepthColor), TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead | FlagsToAdd, 2) :
 			FRDGTextureDesc::Create2D(Config.Extent, DepthAuxFormat, FClearValueBinding(FarDepthColor), TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead| FlagsToAdd);
 		Desc.NumSamples = Config.NumSamples;
-		SceneTextures.DepthAux = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthAux"));
-		
-		if (Desc.NumSamples > 1)
-		{
-			Desc.NumSamples = 1;
-			Desc.Flags = TexCreate_ResolveTargetable | TexCreate_ShaderResource;
-			SceneTextures.DepthAux.Resolve = GraphBuilder.CreateTexture(Desc, TEXT("SceneDepthAux"));
-		}
+		SceneTextures.DepthAux = CreateTextureMSAA(GraphBuilder, Desc, TEXT("SceneDepthAux"));
 	}
 #if WITH_EDITOR
 	{

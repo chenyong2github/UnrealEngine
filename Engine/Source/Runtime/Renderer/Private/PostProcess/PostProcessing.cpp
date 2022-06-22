@@ -1814,12 +1814,6 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	FScreenPassTexture BloomOutput;
 	FScreenPassTexture DofOutput;
 	FScreenPassTexture PostProcessSunShaftAndDof;
-
-	// temporary solution for SP_METAL using HW sRGB flag during read vs all other mob platforms using
-	// incorrect UTexture::SRGB state. (UTexture::SRGB != HW texture state)
-	bool bSRGBAwareTarget = View.Family->RenderTarget->GetDisplayGamma() == 1.0f
-		&& View.bIsSceneCapture
-		&& IsMetalMobilePlatform(View.GetShaderPlatform());
 	
 	const EAutoExposureMethod AutoExposureMethod = GetAutoExposureMethod(View);
 	const bool bUseEyeAdaptation = IsMobileEyeAdaptationEnabled(View);
@@ -1838,10 +1832,8 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 
 	bool bUseHighResolutionScreenshotMask = IsHighResolutionScreenshotMaskEnabled(View);
 
-	static const auto VarTonemapperUpscale = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileTonemapperUpscale"));
-	bool bDisableUpscaleInTonemapper = !VarTonemapperUpscale || VarTonemapperUpscale->GetValueOnRenderThread() == 0;
-
-	bool bShouldPrimaryUpscale = IsMobilePropagateAlphaEnabled(View.GetShaderPlatform()) || (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect);
+	bool bShouldPrimaryUpscale = (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::SpatialUpscale && View.UnscaledViewRect != View.ViewRect)
+								|| PaniniConfig.IsEnabled();
 
 	PassSequence.SetEnabled(EPass::Tonemap, bUseToneMapper);
 	PassSequence.SetEnabled(EPass::HighResolutionScreenshotMask, bUseHighResolutionScreenshotMask);
@@ -1852,7 +1844,7 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 	PassSequence.SetEnabled(EPass::SelectionOutline, false);
 	PassSequence.SetEnabled(EPass::EditorPrimitive, false);
 #endif
-	PassSequence.SetEnabled(EPass::PrimaryUpscale, PaniniConfig.IsEnabled() || (bShouldPrimaryUpscale && bDisableUpscaleInTonemapper));
+	PassSequence.SetEnabled(EPass::PrimaryUpscale, bShouldPrimaryUpscale);
 
 	PassSequence.SetEnabled(EPass::Visualize, View.Family->EngineShowFlags.ShaderComplexity);
 
@@ -2501,6 +2493,12 @@ void AddMobilePostProcessingPasses(FRDGBuilder& GraphBuilder, FScene* Scene, con
 		PassInputs.OverrideOutput.LoadAction = View.IsFirstInFamily() ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad;
 
 		SceneColor = AddHMDDistortionPass(GraphBuilder, View, PassInputs);
+	}
+
+	// Copy the scene color to back buffer in case there is no post process, such as LDR MSAA.
+	if (SceneColor.Texture != ViewFamilyOutput.Texture)
+	{
+		AddDrawTexturePass(GraphBuilder, View, SceneColor, ViewFamilyOutput);
 	}
 }
 
