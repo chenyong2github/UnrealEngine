@@ -149,7 +149,7 @@ namespace Audio
 		// adjust time-till-fire for existing commands
 		for (auto& Command : PendingCommands)
 		{
-			if(!Command.Command->ShouldDeadlineIgnoresBpmChanges())
+			if(Command.Command && !Command.Command->ShouldDeadlineIgnoresBpmChanges())
 			{
 				Command.NumFramesUntilExec = NumFramesLeft + Ratio * (Command.NumFramesUntilExec - NumFramesLeft);
 			}
@@ -157,7 +157,7 @@ namespace Audio
 
 		for (auto& Command : ClockAlteringPendingCommands)
 		{
-			if(!Command.Command->ShouldDeadlineIgnoresBpmChanges())
+			if(Command.Command && !Command.Command->ShouldDeadlineIgnoresBpmChanges())
 			{
 				Command.NumFramesUntilExec = NumFramesLeft + Ratio * (Command.NumFramesUntilExec - NumFramesLeft);
 			}

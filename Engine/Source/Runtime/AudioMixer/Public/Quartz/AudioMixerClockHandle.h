@@ -148,7 +148,6 @@ public:
 
 	bool DoesClockExist(const UObject* WorldContextObject) const
 	{
-		check(RawHandle);
 		return RawHandle.DoesClockExist();
 	}
 
