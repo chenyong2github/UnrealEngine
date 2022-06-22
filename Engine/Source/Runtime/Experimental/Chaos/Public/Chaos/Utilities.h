@@ -5,6 +5,7 @@
 #include "Chaos/Core.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Transform.h"
+#include "Chaos/UniformGrid.h"
 #include "Chaos/Vector.h"
 
 #include "Math/NumericLimits.h"
@@ -445,6 +446,17 @@ namespace Chaos
 			return false;
 		}
 
+		template <class T>
+		inline T DotProduct(const TArray<T>& X, const TArray<T>& Y)
+		{
+			T Result = T(0);
+			for (int32 i = 0; i < X.Num(); i++)
+			{
+				Result += X[i] * Y[i];
+			}
+			return Result;
+		}
+
 		/**
 		 * Given the local-space diagonal inertia for an unscaled object, return an inertia as if generated from a non-uniformly scaled shape with the specified scale.
 		 * If bScaleMass is true, it also takes into account the fact that the mass would have changed by the increase in volume.
@@ -676,6 +688,133 @@ namespace Chaos
 			}
 		}
 
+		template <class T>
+		void TetMeshFromGrid(const TUniformGrid<T, 3>& Grid, TArray<TVector<int32, 4>>& Mesh, TArray<TVector<T, 3>>& X)
+		{
+			//mesh.resize(20 * (grid.grid_N[0] - 1) * (grid.grid_N[1] - 1) * (grid.grid_N[2] - 1));
+			Mesh.SetNum(
+				//20 * (Grid.Counts()[0] - 1) * (Grid.Counts()[1] - 1) * (Grid.Counts()[2] - 1) / 4);
+				20 * Grid.GetNumCells() / 4);
+			//TVector<int32,4>(INDEX_NONE,INDEX_NONE,INDEX_NONE,INDEX_NONE));
+			int32* MeshPtr = &Mesh[0][0];
+
+			const int32 NumNodes = Grid.GetNumNodes();
+			X.SetNum(NumNodes);
+			for(int32 ii=0; ii < NumNodes; ii++)
+			{
+				X[ii] = Grid.Node(ii);
+			}
+
+			int32 Count = 0;
+			for (int32 i = 0; i < Grid.Counts()[0]; i++) 
+			{
+				for (int32 j = 0; j < Grid.Counts()[1]; j++) 
+				{
+					for (int32 k = 0; k < Grid.Counts()[2]; k++) 
+					{
+						int32 ijk000 = Grid.FlatIndex(TVector<int32, 3>(i, j, k), true);
+						int32 ijk010 = Grid.FlatIndex(TVector<int32, 3>(i, j + 1, k), true);
+						int32 ijk001 = Grid.FlatIndex(TVector<int32, 3>(i, j, k + 1), true);
+						int32 ijk011 = Grid.FlatIndex(TVector<int32, 3>(i, j + 1, k + 1), true);
+						int32 ijk100 = Grid.FlatIndex(TVector<int32, 3>(i + 1, j, k), true);
+						int32 ijk110 = Grid.FlatIndex(TVector<int32, 3>(i + 1, j + 1, k), true);
+						int32 ijk101 = Grid.FlatIndex(TVector<int32, 3>(i + 1, j, k + 1), true);
+						int32 ijk111 = Grid.FlatIndex(TVector<int32, 3>(i + 1, j + 1, k + 1), true);
+						int32 ijk_index = i + j + k;
+						if (ijk_index % 2 == 0) 
+						{
+							MeshPtr[20 * Count] = ijk010;
+							MeshPtr[20 * Count + 1] = ijk000;
+							MeshPtr[20 * Count + 2] = ijk110;
+							MeshPtr[20 * Count + 3] = ijk011;
+
+							MeshPtr[20 * Count + 4] = ijk111;
+							MeshPtr[20 * Count + 5] = ijk110;
+							MeshPtr[20 * Count + 6] = ijk101;
+							MeshPtr[20 * Count + 7] = ijk011;
+
+							MeshPtr[20 * Count + 8] = ijk100;
+							MeshPtr[20 * Count + 9] = ijk101;
+							MeshPtr[20 * Count + 10] = ijk110;
+							MeshPtr[20 * Count + 11] = ijk000;
+
+							MeshPtr[20 * Count + 12] = ijk001;
+							MeshPtr[20 * Count + 13] = ijk000;
+							MeshPtr[20 * Count + 14] = ijk011;
+							MeshPtr[20 * Count + 15] = ijk101;
+
+							MeshPtr[20 * Count + 16] = ijk110;
+							MeshPtr[20 * Count + 17] = ijk011;
+							MeshPtr[20 * Count + 18] = ijk000;
+							MeshPtr[20 * Count + 19] = ijk101;
+						}
+						else 
+						{
+							MeshPtr[20 * Count] = ijk000;
+							MeshPtr[20 * Count + 1] = ijk100;
+							MeshPtr[20 * Count + 2] = ijk010;
+							MeshPtr[20 * Count + 3] = ijk001;
+
+							MeshPtr[20 * Count + 4] = ijk011;
+							MeshPtr[20 * Count + 5] = ijk010;
+							MeshPtr[20 * Count + 6] = ijk111;
+							MeshPtr[20 * Count + 7] = ijk001;
+
+							MeshPtr[20 * Count + 8] = ijk100;
+							MeshPtr[20 * Count + 9] = ijk111;
+							MeshPtr[20 * Count + 10] = ijk010;
+							MeshPtr[20 * Count + 11] = ijk001;
+
+							MeshPtr[20 * Count + 12] = ijk101;
+							MeshPtr[20 * Count + 13] = ijk111;
+							MeshPtr[20 * Count + 14] = ijk100;
+							MeshPtr[20 * Count + 15] = ijk001;
+
+							MeshPtr[20 * Count + 16] = ijk111;
+							MeshPtr[20 * Count + 17] = ijk010;
+							MeshPtr[20 * Count + 18] = ijk110;
+							MeshPtr[20 * Count + 19] = ijk100;
+						}
+						Count++;
+					}
+				}
+			}
+		}
+
+		template <int d>
+		TArray<TArray<int>> ComputeIncidentElements(const TArray<TVector<int32, d>>& Mesh, TArray<TArray<int32>>* LocalIndex=nullptr)
+		{
+			int32 MaxIdx = 0;
+			for(int32 i=0; i < Mesh.Num(); i++)
+			{
+				for (int32 j = 0; j < d; j++)
+				{
+					const int32 NodeIdx = Mesh[i][j];
+					MaxIdx = MaxIdx > NodeIdx ? MaxIdx : NodeIdx;
+				}
+			}
+
+			TArray<TArray<int>> IncidentElements;
+			IncidentElements.SetNum(MaxIdx + 1);
+			if (LocalIndex)
+				LocalIndex->SetNum(MaxIdx + 1);
+
+			for (int32 i = 0; i < Mesh.Num(); i++)
+			{
+				for (int32 j = 0; j < d; j++)
+				{
+					const int32 NodeIdx = Mesh[i][j];
+					if (NodeIdx >= 0)
+					{
+						IncidentElements[NodeIdx].Add(i);
+						if (LocalIndex)
+							(*LocalIndex)[NodeIdx].Add(j);
+					}
+				}
+			}
+
+			return IncidentElements;
+		}
 
 	} // namespace Utilities
 } // namespace Chaos

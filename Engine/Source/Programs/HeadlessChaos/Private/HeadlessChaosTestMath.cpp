@@ -3,8 +3,10 @@
 #include "HeadlessChaos.h"
 #include "HeadlessChaosTestUtility.h"
 #include "Chaos/Math/Krylov.h"
+#include "Chaos/Math/Poisson.h"
 #include "Chaos/Matrix.h"
 #include "Chaos/Utilities.h"
+#include "Chaos/UniformGrid.h"
 #include "Chaos/Vector.h"
 #include "GenericPlatform/GenericPlatformMath.h"
 
@@ -167,4 +169,108 @@ namespace ChaosTest
 		EXPECT_NEAR(r, 0., 1.e-10);
 	}
 #endif // 0
+
+	TEST(MathTests, TestLaplacian)
+	{
+		int32 N = 3;
+		double dx = 1. / N;
+		TVector<double, 3> Origin(0, 0, 0);
+		TVector<double, 3> MinCorner = Origin;
+		TVector<double, 3> MaxCorner = Origin + TVector<double, 3>(dx * N, dx * N, dx * N);
+		TUniformGrid<double, 3> Grid(MinCorner, MaxCorner, TVector<int32, 3>(N, N, N), 0);
+		
+		TArray<TVector<int, 4>> Mesh;
+		TArray<TVector<double, 3>> X;
+		Chaos::Utilities::TetMeshFromGrid<double>(Grid, Mesh, X);
+
+		TArray<TArray<int>> IncidentElementsLocalIndex;
+		TArray<TArray<int>> IncidentElements = Chaos::Utilities::ComputeIncidentElements(Mesh, &IncidentElementsLocalIndex);
+
+		TArray<double> u; u.SetNum(X.Num());
+		TVector<double, 3> A(1, 2, 3);
+		for (int32 i = 0; i < X.Num(); i++)
+		{
+			u[i] = 0.;
+			for (int32 alpha = 0; alpha < 3; alpha++)
+			{
+				u[i] += A[alpha] * X[i][alpha];
+			}
+		}
+
+		TArray<double> De_inverse, measure;
+		Chaos::ComputeDeInverseAndElementMeasures<double>(Mesh, X, De_inverse, measure);
+
+		TArray<double> Lu; Lu.SetNum(X.Num());
+		Chaos::Laplacian(Mesh, IncidentElements, IncidentElementsLocalIndex, De_inverse, measure, u, Lu);
+
+		for (int32 i = 0; i < Grid.GetNumNodes(); i++)
+		{
+			Chaos::TVector<int32, 3> MIndex;
+			Grid.FlatToMultiIndex(i, MIndex, true);
+			if (Grid.InteriorNode(MIndex)) 
+			{
+				EXPECT_NEAR(Lu[i], 0., 1.e-14);
+			}
+		}
+
+		double Energy = Chaos::LaplacianEnergy<double>(Mesh, De_inverse, measure, u);
+		EXPECT_NEAR(Energy, .5 * Chaos::Utilities::DotProduct(u, Lu), 1e-12);
+
+		srand(0);
+		for (int32 i = 0; i < u.Num(); i++) 
+		{
+			u[i] = 2. * rand() / RAND_MAX - 1.;
+		}
+
+		Chaos::Laplacian(Mesh, IncidentElements, IncidentElementsLocalIndex, De_inverse, measure, u, Lu);
+		Energy = Chaos::LaplacianEnergy(Mesh, De_inverse, measure, u);
+		EXPECT_NEAR(Energy, .5 * Chaos::Utilities::DotProduct(u, Lu), 1.e-12);
+	}
+
+	TEST(PoissonTests, TestFiberField) 
+	{
+		//create regular grid
+		int32 N = 3;
+		double dx = 1. / N;
+		TVector<double, 3> Origin(0, 0, 0);
+		TVector<double, 3> MinCorner = Origin;
+		TVector<double, 3> MaxCorner = Origin + TVector<double, 3>(dx * N, dx * N, dx * N);
+		TUniformGrid<double, 3> Grid(MinCorner, MaxCorner, TVector<int32, 3>(N, N, N), 0);
+
+		//create mesh from grid
+		TArray<TVector<int, 4>> Mesh;
+		TArray<TVector<double, 3>> X;
+		Chaos::Utilities::TetMeshFromGrid<double>(Grid, Mesh, X);
+
+		TArray<TArray<int>> IncidentElementsLocalIndex;
+		TArray<TArray<int>> IncidentElements = Chaos::Utilities::ComputeIncidentElements(Mesh, &IncidentElementsLocalIndex);
+
+		TArray<int32> Origins;
+		TArray<int32> Insertions;
+		for (int32 i = 0; i < X.Num(); i++) 
+		{
+			if (X[i][0] < MinCorner[0] + .1 * dx) 
+			{
+				Origins.Add(i);
+			}
+			else if (X[i][0] > MaxCorner[0] - .1 * dx)
+			{
+				Insertions.Add(i);
+			}
+		}
+
+		TArray<Chaos::TVector<double, 3>> Directions;
+		Chaos::ComputeFiberField<double>(Mesh, X, IncidentElements, IncidentElementsLocalIndex, Origins, Insertions, Directions);
+
+		for(int32 e=0; e < Mesh.Num(); e++)
+		{
+			EXPECT_NEAR(Directions[e][0], 1., 1.e-12);
+			for (int32 alpha = 1; alpha < 3; alpha++) 
+			{
+				EXPECT_NEAR(Directions[e][alpha], 0., 1.e-12);
+			}
+		}
+
+	}
+
 }

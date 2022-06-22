@@ -35,7 +35,6 @@ class CHAOS_API TUniformGridBase
 			check(MCells[Axis] != 0);
 		}
 
-
 		// Are corners valid?
 		bool bValidBounds = true;
 		if (MMaxCorner == TVector<T, d>(-TNumericLimits<T>::Max()) && MMinCorner == TVector<T, d>(TNumericLimits<T>::Max()))
@@ -170,16 +169,84 @@ class CHAOS_API TUniformGridBase
 	{
 		return (MMaxCorner - MMinCorner);
 	}
+
 	int32 GetNumCells() const
 	{
 		return MCells.Product();
 	}
+
+	int32 GetNumNodes() const
+	{
+		return (MCells + TVector<int32, 3>(1, 1, 1)).Product();
+	}
+
+	TVector<T, d> Node(const TVector<int32, d>& Index) const
+	{
+		TVector<T, d> Tmp = MMinCorner;
+		for (int32 i = 0; i < d; i++)
+			Tmp[i] += MDx[i] * Index[i];
+		return Tmp;
+	}
+
+	TVector<T, d> Node(const int32 FlatIndex) const
+	{
+		TVector<int32, d> Index; 
+		FlatToMultiIndex(FlatIndex, Index, true);
+		return Node(Index);
+	}
+
+	bool InteriorNode(const TVector<int32, d>& Index) const
+	{
+		bool Interior = true;
+		for (int32 i = 0; i < d && Interior; i++)
+		{
+			if (Index[i] <= 0 || Index[i] >= (MCells[i] - 1))
+				Interior = false;
+		}
+		return Interior;
+	}
+
+	int32 FlatIndex(const TVector<int32, 2>& MIndex, const bool NodeIndex=false) const
+	{
+		return MIndex[0] * (NodeIndex ? MCells[1]+1 : MCells[1]) + MIndex[1];
+	}
+
+	int32 FlatIndex(const TVector<int32, 3>& MIndex, const bool NodeIndex=false) const
+	{
+		return NodeIndex ?
+			MIndex[0] * (MCells[1]+1) * (MCells[2]+1) + MIndex[1] * (MCells[2]+1) + MIndex[2] :
+			MIndex[0] * MCells[1] * MCells[2] + MIndex[1] * MCells[2] + MIndex[2];
+	}
+
+	void FlatToMultiIndex(const int32 FlatIndex, TVector<int32, 2>& MIndex, const bool NodeIndex=false) const
+	{
+		MIndex[0] = FlatIndex / (NodeIndex?MCells[1]+1:MCells[1]);
+		MIndex[1] = FlatIndex % (NodeIndex?MCells[1]+1: MCells[1]);
+	}
+
+	void FlatToMultiIndex(const int32 FlatIndex, TVector<int32, 3>& MIndex, const bool NodeIndex=false) const
+	{
+		if (NodeIndex)
+		{
+			MIndex[0] = FlatIndex / ((MCells[1]+1) * (MCells[2]+1));
+			MIndex[1] = (FlatIndex / (MCells[2]+1)) % (MCells[1]+1);
+			MIndex[2] = FlatIndex % (MCells[2]+1);
+		}
+		else
+		{
+			MIndex[0] = FlatIndex / (MCells[1] * MCells[2]);
+			MIndex[1] = (FlatIndex / MCells[2]) % MCells[1];
+			MIndex[2] = FlatIndex % MCells[2];
+		}
+	}
+
 	template<class T_SCALAR>
 	T_SCALAR LinearlyInterpolate(const TArrayND<T_SCALAR, d>& ScalarN, const TVector<T, d>& X) const;
 	T LinearlyInterpolateComponent(const TArrayND<T, d>& ScalarNComponent, const TVector<T, d>& X, const int32 Axis) const;
 	TVector<T, d> LinearlyInterpolate(const TArrayFaceND<T, d>& ScalarN, const TVector<T, d>& X) const;
 	TVector<T, d> LinearlyInterpolate(const TArrayFaceND<T, d>& ScalarN, const TVector<T, d>& X, const Pair<int32, TVector<int32, d>> Index) const;
 	const TVector<int32, d>& Counts() const { return MCells; }
+	const TVector<int32, d> NodeCounts() const { return MCells + TVector<int32, d>(1); }
 	const TVector<T, d>& Dx() const { return MDx; }
 	const TVector<T, d>& MinCorner() const { return MMinCorner; }
 	const TVector<T, d>& MaxCorner() const { return MMaxCorner; }
