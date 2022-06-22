@@ -43,7 +43,7 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewNativeElement::PerformAction(UEdGra
 
 	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
 	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
-	NewNode->Construct(NewPCGNode, EPCGEditorGraphNodeType::Settings);
+	NewNode->Construct(NewPCGNode);
 	NewNode->NodePosX = Location.X;
 	NewNode->NodePosY = Location.Y;
 	NodeCreator.Finalize();
@@ -90,7 +90,7 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewBlueprintElement::PerformAction(UEd
 
 	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
 	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
-	NewNode->Construct(NewPCGNode, EPCGEditorGraphNodeType::Settings);
+	NewNode->Construct(NewPCGNode);
 	NewNode->NodePosX = Location.X;
 	NewNode->NodePosY = Location.Y;
 	NodeCreator.Finalize();
@@ -141,7 +141,7 @@ UEdGraphNode* FPCGEditorGraphSchemaAction_NewSubgraphElement::PerformAction(UEdG
 
 	FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*EditorGraph);
 	UPCGEditorGraphNode* NewNode = NodeCreator.CreateUserInvokedNode(bSelectNewNode);
-	NewNode->Construct(NewPCGNode, EPCGEditorGraphNodeType::Settings);
+	NewNode->Construct(NewPCGNode);
 	NewNode->NodePosX = Location.X;
 	NewNode->NodePosY = Location.Y;
 	NodeCreator.Finalize();

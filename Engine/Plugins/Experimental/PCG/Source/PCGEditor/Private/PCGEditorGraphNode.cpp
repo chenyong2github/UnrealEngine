@@ -13,6 +13,12 @@
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNode"
 
+UPCGEditorGraphNode::UPCGEditorGraphNode(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	bCanRenameNode = true;
+}
+
 FText UPCGEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (PCGNode)

@@ -22,6 +22,19 @@
 
 #define LOCTEXT_NAMESPACE "PCGEditorGraphNodeBase"
 
+void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode)
+{
+	check(InPCGNode);
+	PCGNode = InPCGNode;
+	InPCGNode->OnNodeChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
+
+	NodePosX = InPCGNode->PositionX;
+	NodePosY = InPCGNode->PositionY;
+	NodeComment = InPCGNode->NodeComment;
+	bCommentBubblePinned = InPCGNode->bCommentBubblePinned;
+	bCommentBubbleVisible = InPCGNode->bCommentBubbleVisible;
+}
+
 void UPCGEditorGraphNodeBase::BeginDestroy()
 {
 	if (PCGNode)
@@ -47,23 +60,6 @@ void UPCGEditorGraphNodeBase::PostTransacted(const FTransactionObjectEvent& Tran
 	{
 		UpdatePosition();
 	}
-}
-
-void UPCGEditorGraphNodeBase::Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType InNodeType)
-{
-	check(InPCGNode);
-	PCGNode = InPCGNode;
-	InPCGNode->OnNodeChangedDelegate.AddUObject(this, &UPCGEditorGraphNodeBase::OnNodeChanged);
-
-	NodePosX = InPCGNode->PositionX;
-	NodePosY = InPCGNode->PositionY;
-	NodeComment = InPCGNode->NodeComment;
-	bCommentBubblePinned = InPCGNode->bCommentBubblePinned;
-	bCommentBubbleVisible = InPCGNode->bCommentBubbleVisible;
-	
-	NodeType = InNodeType;
-
-	bCanRenameNode = (InNodeType == EPCGEditorGraphNodeType::Settings);
 }
 
 void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const

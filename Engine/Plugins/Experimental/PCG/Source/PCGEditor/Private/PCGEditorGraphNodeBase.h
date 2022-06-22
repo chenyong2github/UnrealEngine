@@ -15,21 +15,13 @@ class UPCGNode;
 class UPCGPin;
 class UToolMenu;
 
-UENUM()
-enum class EPCGEditorGraphNodeType : uint8
-{
-	Input,
-	Output,
-	Settings
-};
-
 UCLASS()
 class UPCGEditorGraphNodeBase : public UEdGraphNode
 {
 	GENERATED_BODY()
 
 public:
-	void Construct(UPCGNode* InPCGNode, EPCGEditorGraphNodeType InNodeType);
+	void Construct(UPCGNode* InPCGNode);
 
 	// ~Begin UObject interface
 	virtual void BeginDestroy() override;
@@ -72,9 +64,6 @@ protected:
 
 	UPROPERTY()
 	TObjectPtr<UPCGNode> PCGNode = nullptr;
-
- 	UPROPERTY()
- 	EPCGEditorGraphNodeType NodeType = EPCGEditorGraphNodeType::Settings;
 
 	bool bDisableReconstructFromNode = false;
 };

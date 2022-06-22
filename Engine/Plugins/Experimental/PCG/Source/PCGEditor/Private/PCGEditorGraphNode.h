@@ -16,6 +16,8 @@ class UPCGEditorGraphNode : public UPCGEditorGraphNodeBase
 	GENERATED_BODY()
 
 public:
+	UPCGEditorGraphNode(const FObjectInitializer& ObjectInitializer);
+	
 	// ~Begin UEdGraphNode interface
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual void GetNodeContextMenuActions(UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;

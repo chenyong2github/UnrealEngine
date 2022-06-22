@@ -22,14 +22,14 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 	UPCGNode* InputNode = PCGGraph->GetInputNode();
 	FGraphNodeCreator<UPCGEditorGraphNodeInput> InputNodeCreator(*this);
 	UPCGEditorGraphNodeInput* InputGraphNode = InputNodeCreator.CreateNode(bSelectNewNode);
-	InputGraphNode->Construct(InputNode, EPCGEditorGraphNodeType::Input);
+	InputGraphNode->Construct(InputNode);
 	InputNodeCreator.Finalize();
 	NodeLookup.Add(InputNode, InputGraphNode);
 
 	UPCGNode* OutputNode = PCGGraph->GetOutputNode();
 	FGraphNodeCreator<UPCGEditorGraphNodeOutput> OutputNodeCreator(*this);
 	UPCGEditorGraphNodeOutput* OutputGraphNode = OutputNodeCreator.CreateNode(bSelectNewNode);
-	OutputGraphNode->Construct(OutputNode, EPCGEditorGraphNodeType::Output);
+	OutputGraphNode->Construct(OutputNode);
 	OutputNodeCreator.Finalize();
 	NodeLookup.Add(OutputNode, OutputGraphNode);
 
@@ -37,7 +37,7 @@ void UPCGEditorGraph::InitFromNodeGraph(UPCGGraph* InPCGGraph)
 	{
 		FGraphNodeCreator<UPCGEditorGraphNode> NodeCreator(*this);
 		UPCGEditorGraphNode* GraphNode = NodeCreator.CreateNode(bSelectNewNode);
-		GraphNode->Construct(PCGNode, EPCGEditorGraphNodeType::Settings);
+		GraphNode->Construct(PCGNode);
 		NodeCreator.Finalize();
 		NodeLookup.Add(PCGNode, GraphNode);
 	}
