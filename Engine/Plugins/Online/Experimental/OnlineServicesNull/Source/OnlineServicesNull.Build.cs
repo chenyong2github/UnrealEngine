@@ -13,7 +13,8 @@ public class OnlineServicesNull : ModuleRules
 				"CoreOnline",
 				"Sockets",
 				"OnlineServicesInterface",
-				"OnlineServicesCommon"
+				"OnlineServicesCommon",
+				"OnlineSubsystem"
 			}
 		);
 
@@ -22,7 +23,6 @@ public class OnlineServicesNull : ModuleRules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"OnlineSubsystem",
 					"OnlineSubsystemUtils"
 				}
 			);

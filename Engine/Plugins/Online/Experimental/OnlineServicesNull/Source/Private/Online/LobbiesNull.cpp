@@ -1,6 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#if WITH_ENGINE
 #include "Online/LobbiesNull.h"
 #include "Online/OnlineServicesNull.h"
 #include "Misc/Guid.h"
@@ -8,8 +7,9 @@
 #include "Online/NboSerializerNullSvc.h"
 #include "UObject/CoreNet.h"
 #include "Online/LobbyRegistryNull.h"
-#include "OnlineSubsystemTypes.h" //todo: preferably shouldnt need this
-#include "OnlineSubsystemUtils.h" //todo: preferably shouldnt need this
+#if WITH_ENGINE
+	#include "OnlineSubsystemUtils.h" // Needed for GetPortFromNetDriver
+#endif //WITH_ENGINE
 
 namespace UE::Online { 
 
@@ -411,5 +411,3 @@ TOnlineResult<FGetJoinedLobbies> FLobbiesNull::GetJoinedLobbies(FGetJoinedLobbie
 
 
 #undef NOT_IMPLEMENTED
-
-#endif // WITH_ENGINE

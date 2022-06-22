@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#if WITH_ENGINE
-
 #include "CoreMinimal.h"
 #include "Online/LobbiesCommon.h"
 #include "Online/Lobbies.h"
@@ -153,5 +151,3 @@ private:
 };
 
 } // namespace UE::Online
-
-#endif // WITH_ENGINE
