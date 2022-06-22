@@ -1,4 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
 
 // "Fast, minimum storage ray-triangle intersection" Moller-Trumbore, 1997
 bool RayTriangleIntersectionMollerTrumbore(float3 RayOrigin, float3 RayDirection, float3 Vertex0, float3 Vertex1, float3 Vertex2, out float IntersectionT, out float2 Barycentrics)
