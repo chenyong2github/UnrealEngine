@@ -118,35 +118,21 @@ TArray<ICookPackageSplitter::FGeneratedPackage> FWorldPartitionCookPackageSplitt
 }
 
 bool FWorldPartitionCookPackageSplitter::PopulateGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-	const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove)
+	const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove,
+	TArray<UPackage*>& OutModifiedPackages)
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	return WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage.Package, GeneratedPackage.RelativePath, OutObjectsToMove);
-}
-
-bool FWorldPartitionCookPackageSplitter::PreSaveGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-	const FGeneratedPackageForPopulate& GeneratedPackage)
-{
-	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
-	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	return WorldPartition->FinalizeGeneratedPackageForCook(GeneratedPackage.RelativePath);
+	return WorldPartition->PopulateGeneratedPackageForCook(GeneratedPackage.Package, GeneratedPackage.RelativePath, OutModifiedPackages);
 }
 
 bool FWorldPartitionCookPackageSplitter::PopulateGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-	const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove)
+	const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove,
+	TArray<UPackage*>& OutModifiedPackages)
 {
 	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
 	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	return WorldPartition->PopulateGeneratorPackageForCook(OutObjectsToMove);
-}
-
-bool FWorldPartitionCookPackageSplitter::PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-	const TArray<FGeneratedPackageForPreSave>& GeneratedPackages)
-{
-	UWorld* PartitionedWorld = ValidateDataObject(OwnerObject);
-	UWorldPartition* WorldPartition = PartitionedWorld->PersistentLevel->GetWorldPartition();
-	return WorldPartition->FinalizeGeneratorPackageForCook(GeneratedPackages);
+	return WorldPartition->PopulateGeneratorPackageForCook(GeneratedPackages, OutModifiedPackages);
 }
 
 void FWorldPartitionCookPackageSplitter::OnOwnerReloaded(UPackage* OwnerPackage, UObject* OwnerObject)

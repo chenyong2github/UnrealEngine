@@ -1402,6 +1402,7 @@ void FGeneratorPackage::PreGarbageCollect(FCookGenerationInfo& Info, TArray<UObj
 				GCKeepPackages.Add(Package);
 				GCKeepPackageDatas.Add(Info.PackageData);
 			}
+			GCKeepPackages.Append(Info.ModifiedPackages);
 			for (FBeginCacheObject& BeginCacheObject : Info.BeginCacheObjects.Objects)
 			{
 				UObject* Object = BeginCacheObject.Object.Get();
@@ -1571,6 +1572,7 @@ void FGeneratorPackage::ResetSaveState(FCookGenerationInfo& Info, UPackage* Pack
 	Info.BeginCacheObjects.Reset();
 	Info.SetHasTakenOverCachedCookedPlatformData(false);
 	Info.SetHasIssuedUndeclaredMovedObjectsWarning(false);
+	Info.ModifiedPackages.Reset();
 }
 
 void FGeneratorPackage::UpdateSaveAfterGarbageCollect(const FPackageData& PackageData, bool& bInOutDemote)

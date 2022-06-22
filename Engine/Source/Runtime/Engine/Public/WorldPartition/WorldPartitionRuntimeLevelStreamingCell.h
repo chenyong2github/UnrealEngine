@@ -40,9 +40,8 @@ class UWorldPartitionRuntimeLevelStreamingCell : public UWorldPartitionRuntimeSp
 	virtual void DumpStateLog(FHierarchicalLogArchive& Ar) override;
 	// Cook methods
 	virtual bool PrepareCellForCook(UPackage* InPackage) override;
-	virtual bool PopulateGeneratorPackageForCook(TArray<UObject*>& OutLoadedObjects) override;
-	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UObject*>& OutLoadedObjects) override;
-	virtual bool FinalizePackageForCook() override;
+	virtual bool PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) override;
+	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) override;
 	virtual FString GetPackageNameToCreate() const override;
 	//~End UWorldPartitionRuntimeCell Interface
 
@@ -59,12 +58,7 @@ private:
 	class UWorldPartitionLevelStreamingDynamic* GetOrCreateLevelStreaming() const;
 
 #if WITH_EDITOR
-	bool LoadCellObjectsForCook(TArray<UObject*>& OutLoadedObjects);
 	class UWorldPartitionLevelStreamingDynamic* CreateLevelStreaming(const FString& InPackageName = FString()) const;
-
-	FWorldPartitionLevelHelper::FPackageReferencer CookPackageReferencer;
-	TArray<TWeakObjectPtr<UObject>> CookLoadedObjects;
-	bool bCookHasLoadedCellObjects = false;
 #endif
 
 #if WITH_EDITORONLY_DATA

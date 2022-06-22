@@ -2897,7 +2897,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PrepareSaveGeneratedPackage(UE::Cook:
 		EPollStatus Result;
 		if (Info.IsGenerator())
 		{
-			Result = PreSaveGeneratorPackage(PackageData, Generator, GeneratedPackagesForPresave);
+			Result = PreSaveGeneratorPackage(PackageData, Generator, Info, GeneratedPackagesForPresave);
 		}
 		else
 		{
@@ -2970,15 +2970,18 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 	{
 		bool bPopulateSucceeded = false;
 		TArray<UObject*> ObjectsToMove;
+		TArray<UPackage*> ModifiedPackages;
 		if (Info.IsGenerator())
 		{
 			ConstructGeneratedPackagesForPresave(PackageData, Generator, GeneratedPackagesForPresave);
-			bPopulateSucceeded = Splitter->PopulateGeneratorPackage(Package, SplitDataObject, GeneratedPackagesForPresave, ObjectsToMove);
+			bPopulateSucceeded = Splitter->PopulateGeneratorPackage(Package, SplitDataObject, GeneratedPackagesForPresave,
+				ObjectsToMove, ModifiedPackages);
 		}
 		else
 		{
 			ICookPackageSplitter::FGeneratedPackageForPopulate SplitterInfo{ Info.RelativePath, Package, Info.IsCreateAsMap() };
-			bPopulateSucceeded = Splitter->PopulateGeneratedPackage(Package, SplitDataObject, SplitterInfo, ObjectsToMove);
+			bPopulateSucceeded = Splitter->PopulateGeneratedPackage(Package, SplitDataObject, SplitterInfo,
+				ObjectsToMove, ModifiedPackages);
 		}
 
 		if (!bPopulateSucceeded)
@@ -2990,6 +2993,7 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 			return EPollStatus::Error;
 		}
 
+		Info.AddModifiedPackages(ModifiedPackages);
 		Info.TakeOverCachedObjectsAndAddMoved(Generator, PackageData.GetCachedObjectsInOuter(), ObjectsToMove);
 		Info.SetSaveStateComplete(FCookGenerationInfo::ESaveState::CallObjectsToMove);
 	}
@@ -3004,7 +3008,8 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCacheObjectsToMove(UE::Cook::FGe
 	return EPollStatus::Success;
 }
 
-UE::Cook::EPollStatus UCookOnTheFlyServer::PreSaveGeneratorPackage(UE::Cook::FPackageData& PackageData, UE::Cook::FGeneratorPackage& Generator,
+UE::Cook::EPollStatus UCookOnTheFlyServer::PreSaveGeneratorPackage(UE::Cook::FPackageData& PackageData,
+	UE::Cook::FGeneratorPackage& Generator, UE::Cook::FCookGenerationInfo& Info,
 	TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackagesForPresave)
 {
 	using namespace UE::Cook;
@@ -3020,13 +3025,16 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::PreSaveGeneratorPackage(UE::Cook::FPa
 		return EPollStatus::Error;
 	}
 
+	TArray<UPackage*> ModifiedPackages;
 	ConstructGeneratedPackagesForPresave(PackageData, Generator, GeneratedPackagesForPresave);
-	if (!Splitter->PreSaveGeneratorPackage(Package, SplitDataObject, GeneratedPackagesForPresave))
+	if (!Splitter->PreSaveGeneratorPackage(Package, SplitDataObject, GeneratedPackagesForPresave, ModifiedPackages))
 	{
 		UE_LOG(LogCook, Error, TEXT("PackageSplitter returned false from PreSaveGeneratorPackage. Splitter=%s"),
 			*Generator.GetSplitDataObjectName().ToString());
 		return EPollStatus::Error;
 	}
+	Info.AddModifiedPackages(ModifiedPackages);
+
 	return EPollStatus::Success;
 }
 
@@ -3095,7 +3103,9 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::BeginCachePostMove(UE::Cook::FGenerat
 
 	EPollStatus Result = CallBeginCacheOnObjects(PackageData, Package, Info.BeginCacheObjects.ObjectsInRound,
 		Info.BeginCacheObjects.NextIndexInRound, Timer);
-	if (PackageData.GetNumPendingCookedPlatformData() > 0 && !Info.HasIssuedUndeclaredMovedObjectsWarning())
+	if (PackageData.GetNumPendingCookedPlatformData() > 0 &&
+		!Generator.GetCookPackageSplitterInstance()->UseInternalReferenceToAvoidGarbageCollect() &&
+		!Info.HasIssuedUndeclaredMovedObjectsWarning())
 	{
 		UObject* FirstPendingObject = nullptr;
 		FString FirstPendingObjectName;
@@ -3197,12 +3207,14 @@ UE::Cook::EPollStatus UCookOnTheFlyServer::TryPopulateGeneratedPackage(UE::Cook:
 	PopulateData.RelativePath = GeneratedInfo.RelativePath;
 	PopulateData.Package = GeneratedPackage;
 	PopulateData.bCreatedAsMap = GeneratedInfo.IsCreateAsMap();
-	if (!Splitter->PreSaveGeneratedPackage(OwnerPackage, OwnerObject, PopulateData))
+	TArray<UPackage*> ModifiedPackages;
+	if (!Splitter->PreSaveGeneratedPackage(OwnerPackage, OwnerObject, PopulateData, ModifiedPackages))
 	{
 		UE_LOG(LogCook, Error, TEXT("PackageSplitter returned false from PreSaveGeneratedPackage. Splitter=%s, Generated=%s."),
 			*Generator.GetSplitDataObjectName().ToString(), *GeneratedPackageName);
 		return EPollStatus::Error;
 	}
+	GeneratedInfo.AddModifiedPackages(ModifiedPackages);
 	bool bPackageIsMap = GeneratedPackage->ContainsMap();
 	if (bPackageIsMap != GeneratedInfo.IsCreateAsMap())
 	{

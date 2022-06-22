@@ -202,9 +202,8 @@ class UWorldPartitionRuntimeCell : public UObject, public IWorldPartitionCell
 
 	// Cook methods
 	virtual bool PrepareCellForCook(UPackage* InPackage) { return false; }
-	virtual bool PopulateGeneratorPackageForCook(TArray<UObject*>& OutLoadedObjects) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratorPackageForCook, return false;);
-	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UObject*>& OutLoadedObjects) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
-	virtual bool FinalizePackageForCook() PURE_VIRTUAL(UWorldPartitionRuntimeCell::FinalizePackageForCook, return false;);
+	virtual bool PopulateGeneratorPackageForCook(TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratorPackageForCook, return false;);
+	virtual bool PopulateGeneratedPackageForCook(UPackage* InPackage, TArray<UPackage*>& OutModifiedPackages) PURE_VIRTUAL(UWorldPartitionRuntimeCell::PopulateGeneratedPackageForCook, return false;);
 	virtual FString GetPackageNameToCreate() const PURE_VIRTUAL(UWorldPartitionRuntimeCell::GetPackageNameToCreate, return FString(""););
 
 	void SetIsHLOD(bool bInIsHLOD) { bIsHLOD = bInIsHLOD; }

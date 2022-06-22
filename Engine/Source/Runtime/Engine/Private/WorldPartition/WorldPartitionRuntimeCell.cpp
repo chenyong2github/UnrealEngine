@@ -26,7 +26,7 @@ UWorldPartitionRuntimeCell::UWorldPartitionRuntimeCell(const FObjectInitializer&
 #if WITH_EDITOR
 bool UWorldPartitionRuntimeCell::NeedsActorToCellRemapping() const
 {
-	// When cooking, always loaded cells content is moved to persistent level (see FinalizeGeneratorPackageForCook)
+	// When cooking, always loaded cells content is moved to persistent level (see PopulateGeneratorPackageForCook)
 	return !(IsAlwaysLoaded() && IsRunningCookCommandlet());
 }
 

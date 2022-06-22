@@ -151,10 +151,8 @@ public:
 	void RemapSoftObjectPath(FSoftObjectPath& ObjectPath);
 
 	// Cooking
-	bool PopulateGeneratorPackageForCook(TArray<UObject*>& OutLoadedObjects);
-	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects);
-	bool FinalizeGeneratedPackageForCook(const FString& InPackageRelativePath);
-	bool FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages);
+	bool PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages);
+	bool PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UPackage*>& OutModifiedPackages);
 
 	UE_DEPRECATED(5.1, "GetWorldBounds is deprecated, use GetEditorWorldBounds or GetRuntimeWorldBounds instead.")
 	FBox GetWorldBounds() const { return GetRuntimeWorldBounds(); }

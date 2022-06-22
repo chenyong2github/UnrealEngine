@@ -85,14 +85,15 @@ public:
 	 * @return							True if successfully populates,  false on error (this will cause a cook error).
 	 */
 	virtual bool PopulateGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove) { return false; }
+		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UObject*>& OutObjectsToMove,
+		TArray<UPackage*>& OutModifiedPackages) { return true; }
 	
 	/**
 	 * Called before saving the parent generator package, which itself occurs before PreSaveGeneratedPackage is called on the generated packages.
 	 * Make any required adjustments to the parent package before it is saved into the target domain.
 	 */
 	virtual bool PreSaveGeneratedPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-		const FGeneratedPackageForPopulate& GeneratedPackage) = 0;
+		const FGeneratedPackageForPopulate& GeneratedPackage, TArray<UPackage*>& OutModifiedPackages) { return true; };
 	/**
 	 * Called after saving the generated package. Undo any required adjustments to the parent package that
 	 * were made in PreSaveGeneratedPackage, so that the package is once again ready for use in the editor or in
@@ -119,13 +120,15 @@ public:
 	 * can call BeginCacheForCookedPlatformData on them before the move
 	 */
 	virtual bool PopulateGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject,
-		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove) { return false; }
+		const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& GeneratedPackages, TArray<UObject*>& OutObjectsToMove,
+		TArray<UPackage*>& OutModifiedPackages) { return true; }
 
 	/**
 	 * Called before saving the parent generator package, which itself occurs before PreSaveGeneratedPackage is called on the generated packages.
 	 * Make any required adjustments to the parent package before it is saved into the target domain.
 	 */
-	virtual bool PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject, const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages) { return false; }
+	virtual bool PreSaveGeneratorPackage(UPackage* OwnerPackage, UObject* OwnerObject, const TArray<FGeneratedPackageForPreSave>& PlaceholderPackages,
+		TArray<UPackage*>& OutModifiedPackages) { return true; }
 
 	/**
 	 * Called after saving the parent generator package. Undo any required adjustments to the parent package that

@@ -17,6 +17,7 @@
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionPackageHelper.h"
+#include "AssetCompilingManager.h"
 #include "LevelUtils.h"
 #include "Templates/SharedPointer.h"
 #include "ActorFolder.h"
@@ -99,9 +100,14 @@ UWorld::InitializationValues FWorldPartitionLevelHelper::GetWorldInitializationV
 /**
  * Moves external actors into the given level
  */
-void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages, ULevel* InLevel)
+void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPartitionRuntimeCellObjectMapping>& InChildPackages, ULevel* InLevel, TArray<UPackage*>& OutModifiedPackages)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FWorldPartitionLevelHelper::MoveExternalActorsToLevel);
+
+	// We can't have async compilation still going on while we move actors as this is going to ResetLoaders which will move bulkdata around that
+	// might still be used by async compilation. 
+	// #TODO_DC Revisit once virtualbulkdata are enabled
+	FAssetCompilingManager::Get().FinishAllCompilation();
 
 	check(InLevel);
 	UPackage* LevelPackage = InLevel->GetPackage();
@@ -122,6 +128,7 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 			check(ActorExternalPackage);
 
 			const bool bSameOuter = (InLevel == Actor->GetOuter());
+			Actor->SetPackageExternal(false, false);
 						
 			// Avoid calling Rename on the actor if it's already outered to InLevel as this will cause it's name to be changed. 
 			// (UObject::Rename doesn't check if Rename is being called with existing outer and assigns new name)
@@ -130,10 +137,25 @@ void FWorldPartitionLevelHelper::MoveExternalActorsToLevel(const TArray<FWorldPa
 				Actor->Rename(nullptr, InLevel, REN_ForceNoResetLoaders);
 			}
 			
+			check(Actor->GetPackage() == LevelPackage);
 			if (bSameOuter && !InLevel->Actors.Contains(Actor))
 			{
 				InLevel->AddLoadedActor(Actor);
 			}
+
+			// Include objects found in the source actor package in the destination level package
+			TArray<UObject*> Objects;
+			const bool bIncludeNestedSubobjects = false;
+			GetObjectsWithOuter(ActorExternalPackage, Objects, bIncludeNestedSubobjects);
+			for (UObject* Object : Objects)
+			{
+				if (Object->GetFName() != NAME_PackageMetaData)
+				{
+					Object->Rename(nullptr, LevelPackage, REN_ForceNoResetLoaders);
+				}
+			}
+
+			OutModifiedPackages.Add(ActorExternalPackage);
 		}
 		else
 		{

@@ -668,11 +668,14 @@ public:
 	EPollStatus RefreshPackageObjects(FGeneratorPackage& Generator, UPackage* Package, bool& bOutFoundNewObjects,
 		ESaveState DemotionState);
 
+	void AddModifiedPackages(TArray<UPackage*>& InModifiedPackages) { ModifiedPackages.Append(InModifiedPackages); }
+
 public:
 	FBeginCacheObjects BeginCacheObjects;
 	FString RelativePath;
 	TArray<FName> Dependencies;
 	FPackageData* PackageData = nullptr;
+	TArray<UPackage*> ModifiedPackages;
 private:
 	ESaveState GeneratorSaveState = ESaveState::StartGenerate;
 	bool bCreateAsMap : 1;

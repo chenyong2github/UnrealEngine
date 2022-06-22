@@ -1256,34 +1256,16 @@ void UWorldPartition::DrawRuntimeHashPreview()
 	RuntimeHash->DrawPreview();
 }
 
-bool UWorldPartition::PopulateGeneratorPackageForCook(TArray<UObject*>& OutLoadedObjects)
+bool UWorldPartition::PopulateGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages, TArray<UPackage*>& OutModifiedPackages)
 {
 	check(RuntimeHash);
-	return RuntimeHash->PopulateGeneratorPackageForCook(OutLoadedObjects);
+	return RuntimeHash->PopulateGeneratorPackageForCook(InGeneratedPackages, OutModifiedPackages);
 }
 
-bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UObject*>& OutLoadedObjects)
+bool UWorldPartition::PopulateGeneratedPackageForCook(UPackage* InPackage, const FString& InPackageRelativePath, TArray<UPackage*>& OutModifiedPackages)
 {
 	check(RuntimeHash);
-	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath, OutLoadedObjects);
-}
-
-bool UWorldPartition::FinalizeGeneratedPackageForCook(const FString& InPackageRelativePath)
-{
-	check(RuntimeHash);
-	return RuntimeHash->FinalizeGeneratedPackageForCook(InPackageRelativePath);
-}
-
-bool UWorldPartition::FinalizeGeneratorPackageForCook(const TArray<ICookPackageSplitter::FGeneratedPackageForPreSave>& InGeneratedPackages)
-{
-	check(RuntimeHash);
-	if (RuntimeHash->FinalizeGeneratorPackageForCook(InGeneratedPackages))
-	{
-		// Apply remapping of Persistent Level's SoftObjectPaths
-		FWorldPartitionLevelHelper::RemapLevelSoftObjectPaths(World->PersistentLevel, this);
-		return true;
-	}
-	return false;
+	return RuntimeHash->PopulateGeneratedPackageForCook(InPackage, InPackageRelativePath, OutModifiedPackages);
 }
 
 TArray<FBox> UWorldPartition::GetUserLoadedEditorRegions() const
