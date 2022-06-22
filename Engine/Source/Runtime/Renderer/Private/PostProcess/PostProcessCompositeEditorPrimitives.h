@@ -21,12 +21,6 @@ public:
 		const FPermutationDomain PermutationVector(Parameters.PermutationId);
 		const int32 SampleCount = PermutationVector.Get<FSampleCountDimension>();
 
-		// Only SM5+ platforms supports MSAA.
-		if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && SampleCount > 1)
-		{
-			return false;
-		}
-
 		// Only use permutations with valid MSAA sample counts.
 		if (!FMath::IsPowerOfTwo(SampleCount))
 		{

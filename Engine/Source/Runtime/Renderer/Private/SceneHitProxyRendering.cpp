@@ -211,7 +211,7 @@ void InitHitProxyRender(FRDGBuilder& GraphBuilder, FSceneRenderer* SceneRenderer
 		const EShaderPlatform CurrentShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 		FRDGTextureDesc DepthDesc = SceneTextures.Depth.Target->Desc;
 
-		if (DepthDesc.NumSamples > 1 && RHISupportsSeparateMSAAAndResolveTextures(CurrentShaderPlatform))
+		if (DepthDesc.NumSamples > 1)
 		{
 			DepthDesc.NumSamples = 1;
 			OutHitProxyDepthTexture = GraphBuilder.CreateTexture(DepthDesc, TEXT("NoMSAASceneDepthZ"));

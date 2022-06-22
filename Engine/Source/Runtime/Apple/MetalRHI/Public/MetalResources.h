@@ -133,27 +133,14 @@ public:
 	}
 };
 
-struct FMetalTextureDesc
+struct FMetalTextureCreateDesc : public FRHITextureCreateDesc
 {
-	FMetalTextureDesc(FRHITextureDesc const& InDesc);
-	
+	FMetalTextureCreateDesc(FRHITextureCreateDesc const& CreateDesc);
+
 	mtlpp::TextureDescriptor Desc;
 	mtlpp::PixelFormat MTLFormat;
-	bool bMemoryless = false;
 	bool bIsRenderTarget = false;
 	uint8 FormatKey = 0;
-};
-
-struct FMetalTextureCreateDesc : public FRHITextureCreateDesc, public FMetalTextureDesc
-{
-	FMetalTextureCreateDesc(FRHITextureCreateDesc const& CreateDesc)
-		: FRHITextureCreateDesc(CreateDesc)
-		, FMetalTextureDesc(CreateDesc)
-	{
-		// @todo: texture type unification - Metal can override NumSamples based on command line options.
-		// We should instead require the renderer to do this.
-		NumSamples = Desc.GetSampleCount();
-	}
 };
 
 // Metal RHI texture resource

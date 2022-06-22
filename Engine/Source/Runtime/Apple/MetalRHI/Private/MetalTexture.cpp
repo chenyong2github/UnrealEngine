@@ -401,8 +401,9 @@ uint8 GetMetalPixelFormatKey(mtlpp::PixelFormat Format)
 	return PixelFormatKeyMap.Get(Format);
 }
 
-FMetalTextureDesc::FMetalTextureDesc(FRHITextureDesc const& InDesc)
-	: bIsRenderTarget(IsRenderTarget(InDesc.Flags))
+FMetalTextureCreateDesc::FMetalTextureCreateDesc(FRHITextureCreateDesc const& InDesc)
+	: FRHITextureCreateDesc(InDesc)
+	, bIsRenderTarget(IsRenderTarget(InDesc.Flags))
 {
 	MTLFormat = (mtlpp::PixelFormat)GPixelFormats[InDesc.Format].PlatformFormat;
 	if (EnumHasAnyFlags(InDesc.Flags, TexCreate_SRGB))
@@ -547,36 +548,6 @@ FMetalTextureDesc::FMetalTextureDesc(FRHITextureDesc const& InDesc)
 		static mtlpp::ResourceOptions GeneralResourceOption = FMetalCommandQueue::GetCompatibleResourceOptions(mtlpp::ResourceOptions::HazardTrackingModeUntracked);
 		Desc.SetResourceOptions((mtlpp::ResourceOptions)(Desc.GetResourceOptions() | GeneralResourceOption));
 	}
-
-	
-	if (!FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
-	{
-		if (InDesc.NumSamples > 1)
-		{
-			check(bIsRenderTarget);
-			Desc.SetTextureType(mtlpp::TextureType::Texture2DMultisample);
-
-			// allow commandline to override
-			uint32 NewNumSamples;
-			if (FParse::Value(FCommandLine::Get(), TEXT("msaa="), NewNumSamples))
-			{
-				Desc.SetSampleCount(NewNumSamples);
-			}
-			else
-			{
-				Desc.SetSampleCount(InDesc.NumSamples);
-			}
-
-#if PLATFORM_IOS
-			if (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
-			{
-				bMemoryless = true;
-				Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);
-				Desc.SetResourceOptions(mtlpp::ResourceOptions::StorageModeMemoryless);
-			}
-#endif
-		}
-	}
 }
 
 FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
@@ -704,7 +675,32 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 
 	if (CreateDesc.NumSamples > 1 && !FParse::Param(FCommandLine::Get(), TEXT("nomsaa")))
 	{
-		MSAATexture = GetMetalDeviceContext().CreateTexture(this, CreateDesc.Desc);
+		mtlpp::TextureDescriptor Desc = CreateDesc.Desc;
+		check(CreateDesc.bIsRenderTarget);
+		Desc.SetTextureType(mtlpp::TextureType::Texture2DMultisample);
+
+		// allow commandline to override
+		uint32 NewNumSamples;
+		if (FParse::Value(FCommandLine::Get(), TEXT("msaa="), NewNumSamples))
+		{
+			Desc.SetSampleCount(NewNumSamples);
+		}
+		else
+		{
+			Desc.SetSampleCount(CreateDesc.NumSamples);
+		}
+
+		bool bMemoryless = false;
+#if PLATFORM_IOS
+		if (GMaxRHIFeatureLevel < ERHIFeatureLevel::SM5)
+		{
+			bMemoryless = true;
+			Desc.SetStorageMode(mtlpp::StorageMode::Memoryless);
+			Desc.SetResourceOptions(mtlpp::ResourceOptions::StorageModeMemoryless);
+		}
+#endif
+
+		MSAATexture = GetMetalDeviceContext().CreateTexture(this, Desc);
 			
 		//device doesn't support HW depth resolve.  This case only valid on mobile renderer or
 		//on Mac where RHISupportsSeparateMSAAAndResolveTextures is true.
@@ -717,7 +713,7 @@ FMetalSurface::FMetalSurface(FMetalTextureCreateDesc const& CreateDesc)
 			// we don't have the resolve texture, so we just update the memory size with the MSAA size
 			TotalTextureSize = TotalTextureSize * CreateDesc.NumSamples;
 		}
-		else if (!CreateDesc.bMemoryless)
+		else if (!bMemoryless)
 		{
 			// an MSAA render target takes NumSamples more space, in addition to the resolve texture
 			TotalTextureSize += TotalTextureSize * CreateDesc.NumSamples;
