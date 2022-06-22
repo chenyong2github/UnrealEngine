@@ -172,7 +172,7 @@ struct FLocalLightData
 	float4 SpotAnglesAndSourceRadiusPacked;
     float4 LightDirectionAndShadowMask;
     float4 LightTangentAndSoftSourceRadius;
-	float4 RectBarnDoorAndVirtualShadowMapId;
+	float4 RectBarnDoorAndVirtualShadowMapIdAndSpecularScale;
 	/** Flag is true if clustered deferred is supported for this light. They are always first / together.*/
 	bool bClusteredDeferredSupported; 
 	/** Flag is true if it is a simple light. They are always first / together.*/
@@ -200,8 +200,8 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		Result.LightDirectionAndShadowMask = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 2];
 		Result.SpotAnglesAndSourceRadiusPacked = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 3];
 		Result.LightTangentAndSoftSourceRadius = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 4];
-		Result.RectBarnDoorAndVirtualShadowMapId = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
-		Result.VirtualShadowMapId = int(Result.RectBarnDoorAndVirtualShadowMapId.z);
+		Result.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale = ForwardLightData.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
+		Result.VirtualShadowMapId = int(Result.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.z);
 #if INSTANCED_STEREO
 	}
 	else
@@ -215,8 +215,8 @@ FLocalLightData GetLocalLightData(uint GridIndex, uint EyeIndex)
 		Result.LightDirectionAndShadowMask = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 2];
 		Result.SpotAnglesAndSourceRadiusPacked = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 3];
 		Result.LightTangentAndSoftSourceRadius = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 4];
-		Result.RectBarnDoorAndVirtualShadowMapId = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
-		Result.VirtualShadowMapId = int(Result.RectBarnDoorAndVirtualShadowMapId.z);
+		Result.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale = ForwardLightDataISR.ForwardLocalLightBuffer[LocalLightBaseIndex + 5];
+		Result.VirtualShadowMapId = int(Result.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.z);
 	}
 #endif
 

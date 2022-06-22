@@ -123,8 +123,6 @@ bool IsLightVisible(const FLocalLightData In, float3 TranslatedWorldPosition)
  */
 FDeferredLightData ConvertLocalToDeferredLight(const FLocalLightData In)
 {
-	// TODO: Not part of LightGrid ligth data, does it need to be added?
-	float SpecularScale = 1.0f;
 	const uint LightTypeAndPackedShadowMapChannelMask = asuint(In.LightDirectionAndShadowMask.w);
 
 	// bits [17:16] really
@@ -148,7 +146,7 @@ FDeferredLightData ConvertLocalToDeferredLight(const FLocalLightData In)
 	// Setting it to true follows how it is setup in standard deferred, where only the directional lights are not doing this (LIGHT_SOURCE_SHAPE > 0)
 	//Out.bSpotLight = true;
 	//Out.bSpotLight = Out.SpotAngles.x > -2.0f;
-	Out.SpecularScale = SpecularScale;
+	Out.SpecularScale = In.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.w;
 	// TODO: not sure if this check is even needed, standard deferred always seems to set it to true?
 	Out.bSpotLight = (LightType == LIGHT_TYPE_SPOT);
 	// NOTE: supporting the rect-light code path adds ~30% overhead on NVIDIA (RTX 2060) even when not used! 

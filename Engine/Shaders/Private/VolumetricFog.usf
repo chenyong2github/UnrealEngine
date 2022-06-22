@@ -717,8 +717,8 @@ void LightScatteringCS(
 				LightData.Tangent = LocalLight.LightTangentAndSoftSourceRadius.xyz;
 				LightData.SoftSourceRadius = LocalLight.LightTangentAndSoftSourceRadius.w;
 				LightData.bInverseSquared = LightData.FalloffExponent == 0;
-				LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoorAndVirtualShadowMapId.x;
-				LightData.RectLightBarnLength = LocalLight.RectBarnDoorAndVirtualShadowMapId.y;
+				LightData.RectLightBarnCosAngle = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.x;
+				LightData.RectLightBarnLength = LocalLight.RectBarnDoorAndVirtualShadowMapIdAndSpecularScale.y;
 				LightData.RectLightAtlasUVOffset = 0;
 				LightData.RectLightAtlasUVScale  = 0;
 				LightData.RectLightAtlasMaxLevel = MAX_RECT_ATLAS_MIP;
