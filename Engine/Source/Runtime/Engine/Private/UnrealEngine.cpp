@@ -15460,9 +15460,7 @@ static bool PrintStaleReferenceChainsAndFindReferencingObjects(UObject* ObjectTo
 					OutGarbageObject = Params.Object;
 					OutReferencingObject = Params.Referencer;
 				}
-				// We only really care about a reference to the first garbage / pending kill object in the chain
-				// as the reference that holds it is the one that prevents the world from being GC'd
-				return false;
+				return true;
 			}
 			else
 			{
