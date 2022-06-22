@@ -73,6 +73,18 @@ public:
 		return Res;
 	}
 
+	bool Dequeue(ElementType& OutElem)
+	{
+		TOptional<ElementType> LocalElement = Dequeue();
+		if (LocalElement.IsSet())
+		{
+			OutElem = LocalElement.GetValue();
+			return true;
+		}
+
+		return false;
+	}
+
 private:
 	struct FNode
 	{
