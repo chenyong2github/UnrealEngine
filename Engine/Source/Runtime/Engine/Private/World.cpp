@@ -351,6 +351,7 @@ FWorldDelegates::FWorldInitializationEvent FWorldDelegates::OnPostWorldInitializ
 #if WITH_EDITOR
 FWorldDelegates::FWorldPreRenameEvent FWorldDelegates::OnPreWorldRename;
 FWorldDelegates::FWorldPostRenameEvent FWorldDelegates::OnPostWorldRename;
+FWorldDelegates::FWorldCurrentLevelChangedEvent FWorldDelegates::OnCurrentLevelChanged;
 #endif // WITH_EDITOR
 FWorldDelegates::FWorldPostDuplicateEvent FWorldDelegates::OnPostDuplicate;
 FWorldDelegates::FWorldCleanupEvent FWorldDelegates::OnWorldCleanup;
@@ -7906,8 +7907,11 @@ bool UWorld::SetCurrentLevel( class ULevel* InLevel )
 	bool bChanged = false;
 	if( CurrentLevel != InLevel )
 	{
+		ULevel* OldLevel = CurrentLevel;
 		CurrentLevel = InLevel;
 		bChanged = true;
+
+		FWorldDelegates::OnCurrentLevelChanged.Broadcast(CurrentLevel, OldLevel, this);
 	}
 	return bChanged;
 }
