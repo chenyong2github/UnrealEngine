@@ -1593,6 +1593,10 @@ void FControlRigWrappedNodeDetails::CustomizeLiveValues(IDetailLayoutBuilder& De
 
 	UDetailsViewWrapperObject* FirstWrapper = ObjectsBeingCustomized[0].Get();
 	URigVMNode* FirstNode = NodesBeingCustomized[0].Get();
+	if(FirstNode->GetTypedOuter<URigVMFunctionLibrary>())
+	{
+		return;
+	}
 
 	TSharedPtr<FRigVMParserAST> AST = FirstNode->GetGraph()->GetRuntimeAST(BlueprintBeingCustomized->VMCompileSettings.ASTSettings, false);
 	if(!AST.IsValid())

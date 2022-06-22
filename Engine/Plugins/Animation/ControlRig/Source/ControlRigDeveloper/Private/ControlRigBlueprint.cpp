@@ -134,6 +134,7 @@ UControlRigBlueprint::UControlRigBlueprint(const FObjectInitializer& ObjectIniti
 	FunctionLibraryEdGraph->bEditable = 0;
 	FunctionLibraryEdGraph->bAllowDeletion = 0;
 	FunctionLibraryEdGraph->bIsFunctionDefinition = false;
+	FunctionLibraryEdGraph->ModelNodePath = RigVMClient.GetFunctionLibrary()->GetNodePath();
 	FunctionLibraryEdGraph->Initialize(this);
 
 	Validator = ObjectInitializer.CreateDefaultSubobject<UControlRigValidator>(this, TEXT("ControlRigValidator"));
@@ -318,6 +319,11 @@ UObject* UControlRigBlueprint::GetEditorObjectForRigVMGraph(URigVMGraph* InVMGra
 		if(InVMGraph->GetOutermost() != GetOutermost())
 		{
 			return nullptr;
+		}
+
+		if(InVMGraph->IsA<URigVMFunctionLibrary>())
+		{
+			return FunctionLibraryEdGraph;
 		}
 
 		TArray<UEdGraph*> EdGraphs;
@@ -3198,6 +3204,11 @@ void UControlRigBlueprint::RebuildGraphFromModel()
 		}
 	}
 
+	if(FunctionLibraryEdGraph && RigVMClient.GetFunctionLibrary())
+	{
+		FunctionLibraryEdGraph->ModelNodePath = RigVMClient.GetFunctionLibrary()->GetNodePath();
+	}
+
 	TArray<URigVMGraph*> RigGraphs = RigVMClient.GetAllModels(true, true);
 
 	for (int32 RigGraphIndex = 0; RigGraphIndex < RigGraphs.Num(); RigGraphIndex++)
@@ -4826,10 +4837,12 @@ UEdGraph* UControlRigBlueprint::CreateEdGraph(URigVMGraph* InModel, bool bForce)
 {
 	check(InModel);
 
+#if WITH_EDITORONLY_DATA
 	if(InModel->IsA<URigVMFunctionLibrary>())
 	{
 		return FunctionLibraryEdGraph;
 	}
+#endif
 	
 	if(bForce)
 	{

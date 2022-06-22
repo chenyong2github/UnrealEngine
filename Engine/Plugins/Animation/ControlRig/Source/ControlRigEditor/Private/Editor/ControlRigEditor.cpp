@@ -1518,11 +1518,14 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool
 	{
 		if (URigVMLibraryNode* LibraryNode = Cast<URigVMLibraryNode>(InObject))
 		{
-			UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(LibraryNode->GetContainedGraph());
-			if (EdGraph)
+			if(!LibraryNode->IsA<URigVMFunctionReferenceNode>())
 			{
-				FilteredObjects.AddUnique(EdGraph);
-				continue;
+				UEdGraph* EdGraph = GetControlRigBlueprint()->GetEdGraph(LibraryNode->GetContainedGraph());
+				if (EdGraph)
+				{
+					FilteredObjects.AddUnique(EdGraph);
+					continue;
+				}
 			}
 		}
 		else if (Cast<URigVMFunctionEntryNode>(InObject) || Cast<URigVMFunctionReturnNode>(InObject))
@@ -1534,7 +1537,8 @@ void FControlRigEditor::SetDetailObjects(const TArray<UObject*>& InObjects, bool
 				continue;
 			}
 		}
-		else if (URigVMNode* ModelNode = Cast<URigVMNode>(InObject))
+
+		if (URigVMNode* ModelNode = Cast<URigVMNode>(InObject))
 		{
 			// check if we know the dynamic class already
 			bool bClassCreated = UDetailsViewWrapperObject::GetClassForNodes(ModelNodes, false) == nullptr;
