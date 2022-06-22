@@ -131,6 +131,12 @@ namespace AutomationTool.Tasks
 			}
 		}
 
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="TargetFileToSourceFile"></param>
+		/// <param name="Overwrite"></param>
+		/// <returns></returns>
 		public static Task ExecuteAsync(Dictionary<FileReference, FileReference> TargetFileToSourceFile, bool Overwrite)
 		{
 			//  If we're not overwriting, remove any files where the destination file already exists.
@@ -233,6 +239,9 @@ namespace AutomationTool.Tasks
 		}
 	}
 
+	/// <summary>
+	/// Extension methods
+	/// </summary>
 	public static partial class BgStateExtensions
 	{
 		/// <summary>

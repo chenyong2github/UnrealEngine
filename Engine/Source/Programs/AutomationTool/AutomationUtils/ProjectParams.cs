@@ -1762,13 +1762,16 @@ namespace AutomationTool
 		/// <summary>
         /// </summary>
         public bool AddPatchLevel;
+
         /// <summary>
         /// Are we staging the unmodified pak files from the base release
+		/// </summary>
         public bool StageBaseReleasePaks;
 
-        /// Name of dlc to cook and package (if this paramter is supplied cooks the dlc and packages it into the dlc directory)
-        /// </summary>
-        public FileReference DLCFile;
+		/// <summary>
+		/// Name of dlc to cook and package (if this paramter is supplied cooks the dlc and packages it into the dlc directory)
+		/// </summary>
+		public FileReference DLCFile;
 
         /// <summary>
         /// Enable cooking of engine content when cooking dlc 
@@ -1939,7 +1942,7 @@ namespace AutomationTool
 		[Help("bundlename", "string to use as the bundle name when deploying to mobile device")]
         public string BundleName;
 
-		//<summary>
+		/// <summary>
 		/// Stage: Specifies a list of extra targets that should be staged along with a client
 		/// </summary>
 		public ParamList<string> ExtraTargetsToStageWithClient = new ParamList<string>();

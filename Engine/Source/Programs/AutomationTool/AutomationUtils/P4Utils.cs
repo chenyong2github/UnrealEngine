@@ -3639,7 +3639,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Run 'p4 files <cmdline>'and return a list of the files in the changelist (files being deleted are excluded)
+		/// Run 'p4 files [cmdline]'and return a list of the files in the changelist (files being deleted are excluded)
 		/// </summary>
 		/// <param name="CommandLine"></param>
 		/// <returns>List of files in the specified directory.</returns>
@@ -3666,7 +3666,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Run 'p4 opened <cmdline>'and return a list of the files in the changelist (files being deleted are excluded)
+		/// Run 'p4 opened [cmdline]'and return a list of the files in the changelist (files being deleted are excluded)
 		/// </summary>
 		/// <param name="CommandLine"></param>
 		/// <returns>List of files in the specified directory.</returns>

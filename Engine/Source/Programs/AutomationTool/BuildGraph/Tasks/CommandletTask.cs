@@ -144,6 +144,9 @@ namespace AutomationTool.Tasks
 		}
 	}
 
+	/// <summary>
+	/// Task wrapper methods
+	/// </summary>
 	public static partial class StandardTasks
 	{
 		/// <summary>

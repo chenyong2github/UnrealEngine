@@ -12,8 +12,14 @@ using UnrealBuildTool;
 
 namespace AutomationTool.Tasks
 {	
+	/// <summary>
+	/// Parameters for <see cref="GatherBuildProductsFromFileTask"/>
+	/// </summary>
 	public class GatherBuildProductsFromFileTaskParameters
 	{
+		/// <summary>
+		/// 
+		/// </summary>
 		[TaskParameter]
 		public string BuildProductsFile;
 	}

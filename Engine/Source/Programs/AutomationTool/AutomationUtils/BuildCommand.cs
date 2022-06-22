@@ -160,7 +160,7 @@ namespace AutomationTool
 		/// Parses an argument as an enum.
 		/// </summary>
 		/// <param name="Param">Name of the parameter to read.</param>
-		/// <returns>Returns the value that was parsed.
+		/// <returns>Returns the value that was parsed.</returns>
 		public Nullable<T> ParseOptionalEnumParam<T>(string Param) where T : struct
 		{
 			string ValueString = ParseParamValue(Param);
@@ -183,7 +183,7 @@ namespace AutomationTool
 		/// Parses an argument as an enum. Throws an exception if the parameter is not specified.
 		/// </summary>
 		/// <param name="Param">Name of the parameter to read.</param>
-		/// <returns>Returns the value that was parsed.
+		/// <returns>Returns the value that was parsed.</returns>
 		public T ParseRequiredEnumParamEnum<T>(string Param) where T : struct
 		{
 			Nullable<T> Value = ParseOptionalEnumParam<T>(Param);

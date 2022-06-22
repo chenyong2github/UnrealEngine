@@ -136,8 +136,16 @@ namespace AutomationTool.Tasks
 		}
 	}
 
+	/// <summary>
+	/// Task wrapper methods
+	/// </summary>
 	public static partial class StandardTasks
 	{
+		/// <summary>
+		/// Execute a task instance
+		/// </summary>
+		/// <param name="Task"></param>
+		/// <returns></returns>
 		public static async Task<FileSet> ExecuteAsync(BgTaskImpl Task)
 		{
 			HashSet<FileReference> BuildProducts = new HashSet<FileReference>();
@@ -145,6 +153,9 @@ namespace AutomationTool.Tasks
 			return FileSet.FromFiles(Unreal.RootDirectory, BuildProducts);
 		}
 
+		/// <summary>
+		/// Updates the current engine version
+		/// </summary>
 		public static async Task<FileSet> SetVersionAsync(int Change, string Branch, int? CompatibleChange = null, string Build = null, bool? Licensee = null, bool? Promoted = null, bool? SkipWrite = null)
 		{
 			SetVersionTaskParameters Parameters = new SetVersionTaskParameters();

@@ -41,7 +41,7 @@ namespace AutomationTool.Tasks
 	}
 
 	/// <summary>
-	/// Spawns Git and waits for it to complete.
+	/// Clones a Git repository into a local path.
 	/// </summary>
 	[TaskElement("Git-Clone", typeof(GitCloneTaskParameters))]
 	public class GitCloneTask : BgTaskImpl

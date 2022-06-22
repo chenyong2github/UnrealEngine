@@ -207,7 +207,6 @@ namespace AutomationTool.Tasks
 		/// <summary>
 		/// Execute an external program
 		/// </summary>
-		/// <param name="State">Execution state</param>
 		/// <param name="Exe">Executable to spawn.</param>
 		/// <param name="Arguments">Arguments for the newly created process.</param>
 		/// <param name="WorkingDir">Working directory for spawning the new task.</param>

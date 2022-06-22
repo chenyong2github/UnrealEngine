@@ -522,7 +522,7 @@ namespace AutomationTool
 		/// <summary>
 		/// return true if we need to change the case of filenames outside of pak files
 		/// </summary>
-		/// <param name="FileType" The staged file type to check (UFS vs SsytemNonUFS, etc)
+		/// <param name="FileType">The staged file type to check (UFS vs SsytemNonUFS, etc)</param>
 		/// <returns>true if files should be lower-cased during staging, for the given filetype</returns>
 		public virtual bool DeployLowerCaseFilenames(StagedFileType FileType)
 		{
@@ -532,7 +532,7 @@ namespace AutomationTool
 		/// <summary>
 		/// return true if we need to change the case of a particular file
 		/// </summary>
-		/// <param name="FileType" The staged file type to check (UFS vs SsytemNonUFS, etc)
+		/// <param name="FileType">The staged file type to check (UFS vs SsytemNonUFS, etc)</param>
 		/// <returns>true if files should be lower-cased during staging, for the given filetype</returns>
 		public virtual bool DeployLowerCaseFile(FileReference File, StagedFileType FileType)
 		{
@@ -637,7 +637,7 @@ namespace AutomationTool
 		/// <summary>
 		/// return true if we need to call Remap of a specific file type
 		/// </summary>
-		/// <param name="FileType" The staged file type to check (UFS vs SsytemNonUFS, etc)
+		/// <param name="FileType">The staged file type to check (UFS vs SsytemNonUFS, etc)</param>
 		/// <returns>true if files should be remaped, for the given filetype</returns>
 		public virtual bool RemapFileType(StagedFileType FileType)
 		{
@@ -655,7 +655,6 @@ namespace AutomationTool
 		/// <summary>
 		/// Tri-state - The intent is to override command line parameters for pak if needed per platform.
 		/// </summary>
-		///
 		public enum PakType { Always, Never, DontCare };
 
 		public virtual PakType RequiresPak(ProjectParams Params)

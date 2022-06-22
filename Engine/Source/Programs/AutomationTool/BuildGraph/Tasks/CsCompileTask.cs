@@ -329,32 +329,63 @@ namespace AutomationTool.Tasks
 		}
 	}
 
+	/// <summary>
+	/// Output from compiling a csproj file
+	/// </summary>
 	public class CsCompileOutput
 	{
+		/// <summary>
+		/// Empty instance of CsCompileOutput
+		/// </summary>
 		public static CsCompileOutput Empty { get; } = new CsCompileOutput(FileSet.Empty, FileSet.Empty);
 
+		/// <summary>
+		/// Output binaries
+		/// </summary>
 		public FileSet Binaries { get; }
+
+		/// <summary>
+		/// Referenced output
+		/// </summary>
 		public FileSet References { get; }
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		public CsCompileOutput(FileSet Binaries, FileSet References)
 		{
 			this.Binaries = Binaries;
 			this.References = References;
 		}
 
+		/// <summary>
+		/// Merge all outputs from this project
+		/// </summary>
+		/// <returns></returns>
 		public FileSet Merge()
 		{
 			return Binaries + References;
 		}
 
+		/// <summary>
+		/// Merges two outputs together
+		/// </summary>
 		public static CsCompileOutput operator +(CsCompileOutput Lhs, CsCompileOutput Rhs)
 		{
 			return new CsCompileOutput(Lhs.Binaries + Rhs.Binaries, Lhs.References + Rhs.References);
 		}
 	}
 
+	/// <summary>
+	/// Extension methods for csproj compilation
+	/// </summary>
 	public static class CsCompileOutputExtensions
 	{
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="Task"></param>
+		/// <returns></returns>
 		public static async Task<FileSet> MergeAsync(this Task<CsCompileOutput> Task)
 		{
 			return (await Task).Merge();

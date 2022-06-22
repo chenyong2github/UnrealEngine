@@ -1338,7 +1338,7 @@ namespace EpicGames.MCP.Automation
 			public string ManifestA;
 			/// <summary>
 			/// The install tags to use for ManifestA.
-			/// </summary
+			/// </summary>
 			public HashSet<string> InstallTagsA;
 			/// <summary>
 			/// The file path to the update manifest.
@@ -1479,7 +1479,7 @@ namespace EpicGames.MCP.Automation
 			public string ArtifactId;
 			/// <summary>
 			/// The install tags to use for ManifestA.
-			/// </summary
+			/// </summary>
 			public HashSet<string> InstallTagsA;
 			/// <summary>
 			/// The build version to generate optimized deltas from 
@@ -1566,7 +1566,7 @@ namespace EpicGames.MCP.Automation
 			/// from files that are not expected to be available. Most of the time this should be the union of all tags in TagSetSplit, unless tagging is changed between the two manifests.
 			/// An empty string must be included to include untagged files.
 			/// Leaving this variable null will include all files.
-			/// </summary
+			/// </summary>
 			public HashSet<string> PrevManifestTags;
 			/// <summary>
 			/// Optionally provide a list of tagsets to split chunkdb files on. First all data from the tagset at index 0 will be saved, then any extra data needed

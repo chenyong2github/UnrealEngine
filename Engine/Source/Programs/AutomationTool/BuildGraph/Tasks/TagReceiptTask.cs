@@ -228,8 +228,14 @@ namespace AutomationTool.Tasks
 		}
 	}
 
+	/// <summary>
+	/// Extension methods
+	/// </summary>
 	public static class TaskExtensions
 	{
+		/// <summary>
+		/// Task that tags build products and/or runtime dependencies by reading from *.target files.
+		/// </summary>
 		public static async Task<FileSet> TagReceiptsAsync(this FileSet Files, DirectoryReference EngineDir = null, bool BuildProducts = false, BuildProductType? BuildProductType = null, bool RuntimeDependencies = false, StagedFileType? StagedFileType = null)
 		{
 			HashSet<FileReference> Result = await TagReceiptTask.ExecuteAsync(EngineDir ?? Unreal.EngineDirectory, Files, BuildProducts, BuildProductType, RuntimeDependencies, StagedFileType);

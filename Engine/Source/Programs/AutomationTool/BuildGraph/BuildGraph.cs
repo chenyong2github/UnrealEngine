@@ -1319,18 +1319,28 @@ namespace AutomationTool
 							XmlElement ParameterElement;
 							if (MemberNameToElement.TryGetValue("F:" + Parameter.FieldInfo.DeclaringType.FullName + "." + Parameter.Name, out ParameterElement))
 							{
-								string TypeName = Parameter.FieldInfo.FieldType.Name;
+								Type FieldType = Parameter.FieldInfo.FieldType;
+								if (FieldType.IsGenericType && FieldType.GetGenericTypeDefinition() == typeof(Nullable<>))
+								{
+									FieldType = FieldType.GetGenericArguments()[0];
+								}
+
+								string TypeName;
 								if (Parameter.ValidationType != TaskParameterValidationType.Default)
 								{
-									StringBuilder NewTypeName = new StringBuilder(Parameter.ValidationType.ToString());
-									for (int Idx = 1; Idx < NewTypeName.Length; Idx++)
-									{
-										if (Char.IsLower(NewTypeName[Idx - 1]) && Char.IsUpper(NewTypeName[Idx]))
-										{
-											NewTypeName.Insert(Idx, ' ');
-										}
-									}
-									TypeName = NewTypeName.ToString();
+									TypeName = Parameter.ValidationType.ToString();
+								}
+								else if (FieldType == typeof(int))
+								{
+									TypeName = "Integer";
+								}
+								else if (FieldType == typeof(HashSet<DirectoryReference>))
+								{
+									TypeName = "DirectoryList";
+								}
+								else
+								{
+									TypeName = FieldType.Name;
 								}
 
 								string[] Columns = new string[4];

@@ -56,7 +56,7 @@ namespace AutomationTool.Tasks
 	}
 
 	/// <summary>
-	/// Spawns AWS CLI and waits for it to complete.
+	/// Assumes an AWS role.
 	/// </summary>
 	[TaskElement("Aws-AssumeRole", typeof(AwsAssumeRoleTaskParameters))]
 	public class AwsAssumeRoleTask : SpawnTaskBase

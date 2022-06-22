@@ -28,7 +28,7 @@ namespace AutomationTool
 {
 	/// <summary>
 	/// Wrapper around List with support for multi parameter constructor, i.e:
-	///   var Maps = new ParamList<string>("Map1", "Map2");
+	///   var Maps = new ParamList&lt;string&gt;("Map1", "Map2");
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
 	public class ParamList<T> : List<T>
@@ -1825,7 +1825,6 @@ namespace AutomationTool
 		/// <summary>
 		/// Moves files in parallel
         /// </summary>
-		/// <param
 		/// <param name="SourceAndTargetPairs">Pairs of source and target files</param>
 		public static void ParallelMoveFiles(IEnumerable<KeyValuePair<FileReference, FileReference>> SourceAndTargetPairs)
 		{
@@ -1835,7 +1834,6 @@ namespace AutomationTool
 		/// <summary>
 		/// Moves files in parallel
 		/// </summary>
-		/// <param
 		/// <param name="SourceAndTargetPairs">Pairs of source and target files</param>
 		/// <param name="Overwrite">Whether or not to overwrite target files if they already exist</param>
 		public static void ParallelMoveFiles(IEnumerable<KeyValuePair<FileReference, FileReference>> SourceAndTargetPairs, bool Overwrite)
@@ -2082,7 +2080,7 @@ namespace AutomationTool
 		}
 
 		/// <summary>
-		/// Telemetry data for the current run. Add -WriteTelemetry=<Path> to the command line to export to disk.
+		/// Telemetry data for the current run. Add -WriteTelemetry=[Path] to the command line to export to disk.
 		/// </summary>
 		public static TelemetryData Telemetry = new TelemetryData();
 
@@ -2739,7 +2737,7 @@ namespace AutomationTool
         }
 
         /// <summary>
-        /// Flushes the time to <see cref="CmdEnv.CSVFile"/> if we are the build machine and that environment variable is specified.
+        /// Flushes the time to <see cref="CommandEnvironment.CSVFile"/> if we are the build machine and that environment variable is specified.
         /// Call Finish manually with an alternate name to use that one instead. Useful for dynamically generated names that you can't specify at construction.
         /// </summary>
         /// <param name="AlternateName">Used in place of the Name specified during construction.</param>

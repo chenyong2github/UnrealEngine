@@ -138,12 +138,11 @@ namespace AutomationTool.Tasks
 	}
 
 	/// <summary>
-	/// Spawns the editor to run a commandlet.
+	/// Invokes a C# method.
 	/// </summary>
 	[TaskElement("CallMethod", typeof(CallMethodTaskParameters))]
 	public class CallMethodTask : BgTaskImpl
 	{
-				
 		/// <summary>
 		/// Parameters for this task
 		/// </summary>

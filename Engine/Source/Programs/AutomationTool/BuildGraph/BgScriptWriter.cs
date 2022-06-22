@@ -24,6 +24,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Writes a preprocessed build graph to a script file
 		/// </summary>
+		/// <param name="graph">Graph to output</param>
 		/// <param name="file">The file to load</param>
 		/// <param name="schemaFile">Schema file for validation</param>
 		public static void Write(this BgGraph graph, FileReference file, FileReference schemaFile)
@@ -120,6 +121,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Writes this agent group out to a file, filtering nodes by a controlling trigger
 		/// </summary>
+		/// <param name="agent">Agent to output</param>
 		/// <param name="writer">The XML writer to output to</param>
 		public static void Write(this BgAgent agent, XmlWriter writer)
 		{
@@ -136,6 +138,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Write this node to an XML writer
 		/// </summary>
+		/// <param name="node">Node to output</param>
 		/// <param name="writer">The writer to output the node to</param>
 		public static void Write(this BgNode node, XmlWriter writer)
 		{

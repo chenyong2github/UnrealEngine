@@ -29,7 +29,7 @@ namespace AutomationTool.Tasks
 	}
 
 	/// <summary>
-	/// Spawns Kubectland waits for it to complete.
+	/// Spawns Kubectl and waits for it to complete.
 	/// </summary>
 	[TaskElement("Kubectl", typeof(KubectlTaskParameters))]
 	public class KubectlTask : BgTaskImpl
