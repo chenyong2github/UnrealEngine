@@ -21,7 +21,6 @@
 UInputSettings::UInputSettings(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, bCaptureMouseOnLaunch(true)
-	, bDefaultViewportMouseLock_DEPRECATED(false)
 	, bEnableLegacyInputScales(true)
 	, bEnableMotionControls(true)
 	, bFilterInputByPlatformUser(false)
@@ -72,12 +71,6 @@ void UInputSettings::RemoveInvalidKeys()
 void UInputSettings::PostInitProperties()
 {
 	Super::PostInitProperties();
-
-	if (ConsoleKey_DEPRECATED.IsValid())
-	{
-		ConsoleKeys.Empty(1);
-		ConsoleKeys.Add(ConsoleKey_DEPRECATED);
-	}
 
 	PopulateAxisConfigs();
 

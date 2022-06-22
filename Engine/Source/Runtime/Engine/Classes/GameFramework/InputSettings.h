@@ -49,10 +49,6 @@ class ENGINE_API UInputSettings
 	UPROPERTY(config, EditAnywhere, Category = "ViewportProperties")
 	uint8 bCaptureMouseOnLaunch:1;
 
-	/** The default mouse lock state when the viewport acquires capture */
-	UPROPERTY(config)
-	uint8 bDefaultViewportMouseLock_DEPRECATED:1;
-
 	/** Enable the use of legacy input scales on the player controller (InputYawScale, InputPitchScale, and InputRollScale) */
 	UPROPERTY(config, EditAnywhere, Category = "Input")
 	uint8 bEnableLegacyInputScales:1;
@@ -150,10 +146,6 @@ public:
 	/** The default on-screen touch input interface for the game (can be null to disable the onscreen interface) */
 	UPROPERTY(config, EditAnywhere, Category="Mobile", meta=(AllowedClasses="/Script/Engine.TouchInterface"))
 	FSoftObjectPath DefaultTouchInterface;
-
-	/** The key which opens the console. */
-	UPROPERTY(config)
-	FKey ConsoleKey_DEPRECATED;
 
 	/** The keys which open the console. */
 	UPROPERTY(config, EditAnywhere, Category="Console")
