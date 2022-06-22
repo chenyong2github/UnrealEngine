@@ -454,6 +454,7 @@ void FManifestMP4Internal::FPlayPeriodMP4::MakeBufferSourceInfoFromMetadata(EStr
 		OutBufferSourceInfo->Language = InMetadata->Language;
 		OutBufferSourceInfo->Codec = InMetadata->HighestBandwidthCodec.GetCodecName();
 		TSharedPtrTS<FTimelineAssetMP4> Asset = MediaAsset.Pin();
+		OutBufferSourceInfo->PeriodID = Asset->GetUniqueIdentifier();
 		OutBufferSourceInfo->PeriodAdaptationSetID = Asset->GetUniqueIdentifier() + TEXT(".") + InMetadata->ID;
 		TArray<FTrackMetadata> Metadata;
 		Asset->GetMetaData(Metadata, StreamType);
@@ -542,16 +543,15 @@ IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetContinuationSegment(
  *
  * @param OutSegment
  * @param SequenceState
- * @param InFinishedSegments
  * @param StartPosition
  * @param SearchType
  *
  * @return
  */
-IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType)
+IManifest::FResult FManifestMP4Internal::FPlayPeriodMP4::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, ESearchType SearchType)
 {
 	TSharedPtrTS<FTimelineAssetMP4> ma = MediaAsset.Pin();
-	return ma.IsValid() ? ma->GetLoopingSegment(OutSegment, SequenceState, InFinishedSegments, StartPosition, SearchType) : IManifest::FResult(IManifest::FResult::EType::NotFound);
+	return ma.IsValid() ? ma->GetLoopingSegment(OutSegment, SequenceState, StartPosition, SearchType) : IManifest::FResult(IManifest::FResult::EType::NotFound);
 }
 
 
@@ -1181,23 +1181,9 @@ IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetRetrySegment(TSha
 }
 
 
-IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType)
+IManifest::FResult FManifestMP4Internal::FTimelineAssetMP4::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, ESearchType SearchType)
 {
-	if (InFinishedSegments.Num())
-	{
-		auto It = InFinishedSegments.CreateConstIterator();
-		const FStreamSegmentRequestMP4* FinishedRequest = static_cast<const FStreamSegmentRequestMP4*>(It->Value.Get());
-		if (FinishedRequest)
-		{
-			IManifest::FResult res = GetStartingSegment(OutSegment, SequenceState, StartPosition, SearchType, -1);
-			if (res.GetType() == IManifest::FResult::EType::Found)
-			{
-				return res;
-			}
-		}
-	}
-	// Return past EOS when we can't loop to indicate we're really done now.
-	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+	return GetStartingSegment(OutSegment, SequenceState, StartPosition, SearchType, -1);
 }
 
 

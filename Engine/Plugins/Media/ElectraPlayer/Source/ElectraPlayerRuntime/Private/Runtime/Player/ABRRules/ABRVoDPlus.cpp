@@ -141,7 +141,7 @@ private:
 	{
 		IAdaptiveStreamSelector::IPlayerLiveControl::FABRBufferStats bs;
 		Info->ABRGetStreamBufferStats(bs, InStreamType);
-		bEOS = bs.bReachedEnd;
+		bEOS = bs.bReachedEnd || bs.bEndOfTrack;
 		return bs.PlayableContentDuration.GetAsSeconds();
 	}
 
@@ -704,19 +704,22 @@ IAdaptiveStreamSelector::ESegmentAction FABROnDemandPlus::EvaluateForQuality(TAr
 		return IAdaptiveStreamSelector::ESegmentAction::FetchNext;
 	}
 
-	TArray<TSharedPtrTS<FABRStreamInformation>> PossibleRepresentations;
-	PossibleRepresentations.Add(InOutCandidates[0]);
-	const int32 MaxAllowedBandwidth = Info->GetBandwidthCeiling();
-	const FStreamCodecInformation::FResolution MaxAllowedResolution = Info->GetMaxStreamResolution();
-	for(int32 nStr=1; nStr<InOutCandidates.Num(); ++nStr)
+	if (InOutCandidates.Num())
 	{
-		// Check if bitrate and resolution are acceptable
-		if (InOutCandidates[nStr]->Bitrate <= MaxAllowedBandwidth && !InOutCandidates[nStr]->Resolution.ExceedsLimit(MaxAllowedResolution))
+		TArray<TSharedPtrTS<FABRStreamInformation>> PossibleRepresentations;
+		PossibleRepresentations.Add(InOutCandidates[0]);
+		const int32 MaxAllowedBandwidth = Info->GetBandwidthCeiling();
+		const FStreamCodecInformation::FResolution MaxAllowedResolution = Info->GetMaxStreamResolution();
+		for(int32 nStr=1; nStr<InOutCandidates.Num(); ++nStr)
 		{
-			PossibleRepresentations.Add(InOutCandidates[nStr]);
+			// Check if bitrate and resolution are acceptable
+			if (InOutCandidates[nStr]->Bitrate <= MaxAllowedBandwidth && !InOutCandidates[nStr]->Resolution.ExceedsLimit(MaxAllowedResolution))
+			{
+				PossibleRepresentations.Add(InOutCandidates[nStr]);
+			}
 		}
+		Swap(InOutCandidates, PossibleRepresentations);
 	}
-	Swap(InOutCandidates, PossibleRepresentations);
 	return IAdaptiveStreamSelector::ESegmentAction::FetchNext;
 }
 

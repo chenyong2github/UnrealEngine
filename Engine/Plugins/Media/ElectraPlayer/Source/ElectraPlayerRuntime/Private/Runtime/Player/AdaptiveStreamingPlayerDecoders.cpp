@@ -167,12 +167,12 @@ bool FAdaptiveStreamingPlayer::CanDecodeSubtitle(const FString& MimeType, const 
 
 
 
-bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight)
+bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FString& InPeriodID, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight)
 {
 	TArray<FStreamCodecInformation> VideoCodecInfos;
 	TSharedPtrTS<ITimelineMediaAsset> Asset;
 
-	// Locate the period for the specified time.
+	// Locate the period by ID or the specified time.
 	ActivePeriodCriticalSection.Lock();
 	if (ActivePeriods.Num() == 0)
 	{
@@ -180,12 +180,27 @@ bool FAdaptiveStreamingPlayer::FindMatchingStreamInfo(FStreamCodecInformation& O
 		return false;
 	}
 	bool bFound = false;
-	for(int32 i=0; i<ActivePeriods.Num(); ++i)
+	if (InPeriodID.Len())
 	{
-		if (AtTime >= ActivePeriods[i].TimeRange.Start && AtTime < (ActivePeriods[i].TimeRange.End.IsValid() ? ActivePeriods[i].TimeRange.End : FTimeValue::GetPositiveInfinity()))
+		for(int32 i=0; i<ActivePeriods.Num(); ++i)
 		{
-			Asset = ActivePeriods[i].Period;
-			bFound = true;
+			if (ActivePeriods[i].ID.Equals(InPeriodID))
+			{
+				Asset = ActivePeriods[i].Period;
+				bFound = true;
+				break;
+			}
+		}
+	}
+	if (!bFound && AtTime.IsValid())
+	{
+		for(int32 i=0; i<ActivePeriods.Num(); ++i)
+		{
+			if (AtTime >= ActivePeriods[i].TimeRange.Start && AtTime < (ActivePeriods[i].TimeRange.End.IsValid() ? ActivePeriods[i].TimeRange.End : FTimeValue::GetPositiveInfinity()))
+			{
+				Asset = ActivePeriods[i].Period;
+				bFound = true;
+			}
 		}
 	}
 	if (!bFound)
@@ -327,7 +342,9 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 			bool bOk = GetCurrentOutputStreamBuffer(type).IsValid() && GetCurrentOutputStreamBuffer(type)->PeekAndAddRef(AccessUnit);
 			if (AccessUnit)
 			{
-				FTimeValue DecodeTime = AccessUnit->PTS;
+				FTimeValue DecodeTime = AccessUnit->EarliestPTS.IsValid() ? AccessUnit->EarliestPTS : AccessUnit->PTS;
+				check(AccessUnit->BufferSourceInfo.IsValid());
+				FString PeriodID = AccessUnit->BufferSourceInfo.IsValid() ? AccessUnit->BufferSourceInfo->PeriodID : FString();
 				VideoDecoder.CurrentCodecInfo.Clear();
 				if (AccessUnit->AUCodecData.IsValid())
 				{
@@ -341,7 +358,7 @@ int32 FAdaptiveStreamingPlayer::CreateDecoder(EStreamType type)
 				// This is only an initial selection as there could be other adaptation sets in upcoming periods
 				// that have a larger resolution that is still within the allowed limits.
 				FStreamCodecInformation HighestStream;
-				if (!FindMatchingStreamInfo(HighestStream, DecodeTime, 0, 0))
+				if (!FindMatchingStreamInfo(HighestStream, PeriodID, DecodeTime, 0, 0))
 				{
 					FErrorDetail err;
 					err.SetFacility(Facility::EFacility::Player);
@@ -601,7 +618,7 @@ void FAdaptiveStreamingPlayer::HandleSubtitleDecoder()
 		}
 		FTimeValue NextPTS = PeekedAU ? PeekedAU->PTS - SubtitleDecoder.Decoder->GetStreamedDeliveryTimeOffset() : FTimeValue::GetInvalid();
 		FAccessUnit::Release(PeekedAU);
-		FTimeValue CurrentPos = GetCurrentPlayTime();
+		FTimeValue CurrentPos = PlaybackState.GetPlayPosition();
 		if (NextPTS.IsValid() && CurrentPos >= NextPTS)
 		{
 			FeedDecoder(EStreamType::Subtitle, SubtitleDecoder.Decoder, false);
@@ -704,7 +721,6 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 	}
 
 	FBufferStats* pStats = nullptr;
-	Metrics::FDataAvailabilityChange* pAvailability = nullptr;
 	FStreamCodecInformation* CurrentCodecInfo = nullptr;
 	TSharedPtrTS<FAccessUnit::CodecData>* LastSentAUCodecData = nullptr;
 	bool bCodecChangeDetected = false;
@@ -714,21 +730,18 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 	{
 		case EStreamType::Video:
 			pStats = &VideoBufferStats;
-			pAvailability = &DataAvailabilityStateVid;
 			CurrentCodecInfo = &VideoDecoder.CurrentCodecInfo;
 			LastSentAUCodecData = &VideoDecoder.LastSentAUCodecData;
 			bIsDeselected = bIsVideoDeselected;
 			break;
 		case EStreamType::Audio:
 			pStats = &AudioBufferStats;
-			pAvailability = &DataAvailabilityStateAud;
 			CurrentCodecInfo = &AudioDecoder.CurrentCodecInfo;
 			LastSentAUCodecData = &AudioDecoder.LastSentAUCodecData;
 			bIsDeselected = bIsAudioDeselected;
 			break;
 		case EStreamType::Subtitle:
 			pStats = &TextBufferStats;
-			pAvailability = &DataAvailabilityStateTxt;
 			CurrentCodecInfo = &SubtitleDecoder.CurrentCodecInfo;
 			LastSentAUCodecData = &SubtitleDecoder.LastSentAUCodecData;
 			bIsDeselected = bIsTextDeselected;
@@ -749,8 +762,11 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 		// Check for buffer underrun.
 		if (bHandleUnderrun && RebufferCause == ERebufferCause::None && CurrentState == EPlayerState::eState_Playing && StreamState == EStreamState::eStream_Running && PipelineState == EPipelineState::ePipeline_Running)
 		{
+			const FTimeValue MinPushedDuration(FTimeValue::MillisecondsToHNS(500));
 			bool bEODSet = FromMultistreamBuffer->IsEODFlagSet();
-			if (!bEODSet && FromMultistreamBuffer->Num() == 0)
+			bool bEOTSet = FromMultistreamBuffer->IsEndOfTrack();
+			FTimeValue PushedDuration = FromMultistreamBuffer->GetPlayableDurationPushedSinceEOT();
+			if (!bEODSet && !bEOTSet && FromMultistreamBuffer->Num() == 0 && PushedDuration >= MinPushedDuration)
 			{
 				FTimeValue EnqueuedDuration(FTimeValue::GetZero());
 				int32 NumEnqueuedSamples = 0;
@@ -839,7 +855,10 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 				if (Type == EStreamType::Video && VideoDecoder.bApplyNewLimits)
 				{
 					FStreamCodecInformation StreamInfo;
-					if (FindMatchingStreamInfo(StreamInfo, AccessUnit->PTS, VideoResolutionLimitWidth, VideoResolutionLimitHeight))
+					FTimeValue DecodeTime = AccessUnit->EarliestPTS.IsValid() ? AccessUnit->EarliestPTS : AccessUnit->PTS;
+					check(AccessUnit->BufferSourceInfo.IsValid());
+					FString PeriodID = AccessUnit->BufferSourceInfo.IsValid() ? AccessUnit->BufferSourceInfo->PeriodID : FString();
+					if (FindMatchingStreamInfo(StreamInfo, PeriodID, DecodeTime, VideoResolutionLimitWidth, VideoResolutionLimitHeight))
 					{
 						if (VideoDecoder.Decoder)
 						{
@@ -854,6 +873,14 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 
 				if (Decoder)
 				{
+					// Since we are providing a new access unit now the decoder won't be at EOD any more.
+					// If it was before, clear it out.
+					if (pStats && pStats->DecoderInputBuffer.bEODSignaled)
+					{
+						pStats->DecoderInputBuffer.bEODSignaled = false;
+						pStats->DecoderInputBuffer.bEODReached = false;
+						Decoder->AUdataClearEOD();
+					}
 					Decoder->AUdataPushAU(AccessUnit);
 				}
 
@@ -868,12 +895,6 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 					*LastSentAUCodecData = AccessUnit->AUCodecData;
 				}
 				
-				// Notify of any change in data availability.
-				if (pAvailability)
-				{
-					UpdateDataAvailabilityState(*pAvailability, Metrics::FDataAvailabilityChange::EAvailability::DataAvailable);
-				}
-
 				// Check for presence of encoder latency and store it.
 				// This may be updated by different streams/decoders which can't be helped. There should only be one actively
 				// observed element but we have seen manifests that have the same <ProducerReferenceTime@id> in multiple AdaptationSets.
@@ -888,7 +909,7 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 	}
 	// An AU is not tagged as being "the last" one. Instead the EOD is handled separately and must be dealt with
 	// by the decoders accordingly.
-	if (!bCodecChangeDetected && FromMultistreamBuffer->IsEODFlagSet() && FromMultistreamBuffer->Num() == 0)
+	if (!bCodecChangeDetected && (FromMultistreamBuffer->IsEODFlagSet() || FromMultistreamBuffer->IsEndOfTrack()) && FromMultistreamBuffer->Num() == 0)
 	{
 		if (pStats && !pStats->DecoderInputBuffer.bEODSignaled)
 		{
@@ -896,10 +917,6 @@ void FAdaptiveStreamingPlayer::FeedDecoder(EStreamType Type, IAccessUnitBufferIn
 			{
 				Decoder->AUdataPushEOD();
 			}
-		}
-		if (pAvailability)
-		{
-			UpdateDataAvailabilityState(*pAvailability, Metrics::FDataAvailabilityChange::EAvailability::DataNotAvailable);
 		}
 	}
 }

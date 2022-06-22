@@ -55,6 +55,7 @@ public:
 		{
 			FTimeValue PlayableContentDuration;
 			bool bReachedEnd = false;
+			bool bEndOfTrack = false;
 		};
 		virtual void ABRGetStreamBufferStats(FABRBufferStats& OutBufferStats, EStreamType ForStream) = 0;
 

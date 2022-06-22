@@ -47,7 +47,7 @@ public:
 	IManifest::FResult GetContinuationSegment(TSharedPtrTS<IStreamSegment>& OutSegment, EStreamType StreamType, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	IManifest::FResult GetNextSegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options) override;
 	IManifest::FResult GetRetrySegment(TSharedPtrTS<IStreamSegment>& OutSegment, TSharedPtrTS<const IStreamSegment> CurrentSegment, const FPlayStartOptions& Options, bool bReplaceWithFillerData) override;
-	IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
+	IManifest::FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType) override;
 	void IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount) override;
 
 	// Obtains information on the stream segmentation of a particular stream starting at a given current reference segment (optional, if not given returns suitable default values).
@@ -454,12 +454,20 @@ void FPlayPeriodHLS::PrepareForPlay()
 
 	// Set up source buffer information for video and audio.
 	// These are currently dummies since we do not support track switching yet.
-	CurrentSourceBufferInfoVideo = MakeSharedTS<FBufferSourceInfo>();
-	CurrentSourceBufferInfoAudio = MakeSharedTS<FBufferSourceInfo>();
-	CurrentSourceBufferInfoVideo->PeriodAdaptationSetID = TEXT("video.0");
-	CurrentSourceBufferInfoVideo->HardIndex = 0;
-	CurrentSourceBufferInfoAudio->PeriodAdaptationSetID = TEXT("audio.0");
-	CurrentSourceBufferInfoAudio->HardIndex = 0;
+	if (ActiveVideoUniqueID)
+	{
+		CurrentSourceBufferInfoVideo = MakeSharedTS<FBufferSourceInfo>();
+		CurrentSourceBufferInfoVideo->PeriodID = InternalManifest->CurrentMediaAsset->GetAssetIdentifier();
+		CurrentSourceBufferInfoVideo->PeriodAdaptationSetID = TEXT("video.0");
+		CurrentSourceBufferInfoVideo->HardIndex = 0;
+	}
+	if (ActiveAudioUniqueID)
+	{
+		CurrentSourceBufferInfoAudio = MakeSharedTS<FBufferSourceInfo>();
+		CurrentSourceBufferInfoAudio->PeriodID = InternalManifest->CurrentMediaAsset->GetAssetIdentifier();
+		CurrentSourceBufferInfoAudio->PeriodAdaptationSetID = TEXT("audio.0");
+		CurrentSourceBufferInfoAudio->HardIndex = 0;
+	}
 
 	CurrentReadyState = IManifest::IPlayPeriod::EReadyState::IsReady;
 }
@@ -1040,18 +1048,9 @@ void FPlayPeriodHLS::IncreaseSegmentFetchDelay(const FTimeValue& IncreaseAmount)
 }
 
 
-IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
+IManifest::FResult FPlayPeriodHLS::GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& SequenceState, const FPlayStartPosition& StartPosition, IManifest::ESearchType SearchType)
 {
-	if (InFinishedSegments.Num())
-	{
-		IManifest::FResult res = GetStartingSegment(OutSegment, SequenceState, StartPosition, SearchType);
-		if (res.GetType() == IManifest::FResult::EType::Found)
-		{
-			return res;
-		}
-	}
-	// Return past EOS when we can't loop to indicate we're really done now.
-	return IManifest::FResult(IManifest::FResult::EType::PastEOS);
+	return GetStartingSegment(OutSegment, SequenceState, StartPosition, SearchType);
 }
 
 

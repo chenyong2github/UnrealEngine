@@ -10,7 +10,9 @@ namespace Electra
 		EmptyBuffer = CreateNewBuffer();
 		LastPoppedDTS.SetToInvalid();
 		LastPoppedPTS.SetToInvalid();
+		PlayableDurationPushedSinceEOT.SetToZero();
 		bEndOfData = false;
+		bEndOfTrack = false;
 		bLastPushWasBlocked = false;
 		bIsParallelTrackMode = false;
 		bPopAsDummyUntilSyncFrame = true;
@@ -80,6 +82,19 @@ namespace Electra
 		// Pushing data to either buffer means that there is data and we are not at EOD here any more.
 		// This does not necessarily mean that the selected track is not at EOD. Just that some track is not.
 		bEndOfData = false;
+		// Keep track of how much data since the last end-of-track was signaled has been added.
+		// This is useful when looking at available content to detect underruns which may not be done if
+		// a newly enabled track did not have enough time to collect new data. Only when sufficient data
+		// was available might it make sense to check for underruns.
+		if (bEndOfTrack)
+		{
+			bEndOfTrack = false;
+			PlayableDurationPushedSinceEOT.SetToZero();
+		}
+		if (AU->DropState == FAccessUnit::EDropState::None)
+		{
+			PlayableDurationPushedSinceEOT += AU->Duration;
+		}
 
 		AccessLock.Unlock();
 
@@ -116,6 +131,30 @@ namespace Electra
 		}
 	}
 
+	void FMultiTrackAccessUnitBuffer::SetEndOfTrackFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo)
+	{
+		AccessLock.Lock();
+		TSharedPtrTS<const FBufferSourceInfo> BufferSourceInfo;
+		TSharedPtrTS<FAccessUnitBuffer> Buffer = FindOrCreateBufferFor(BufferSourceInfo, InStreamSourceInfo, true);
+		ActivateInitialBuffer();
+		AccessLock.Unlock();
+		if (Buffer.IsValid())
+		{
+			Buffer->SetEndOfTrack();
+		}
+	}
+
+	void FMultiTrackAccessUnitBuffer::SetEndOfTrackAll()
+	{
+		FScopeLock lock(&AccessLock);
+		bEndOfTrack = true;
+		// Push an end-of-data into all tracks.
+		for(auto& It : BufferList)
+		{
+			It.Buffer->SetEndOfTrack();
+		}
+	}
+
 	void FMultiTrackAccessUnitBuffer::Clear()
 	{
 		BufferList.Empty();
@@ -125,7 +164,9 @@ namespace Electra
 		LastPoppedBufferInfo.Reset();
 		LastPoppedDTS.SetToInvalid();
 		LastPoppedPTS.SetToInvalid();
+		PlayableDurationPushedSinceEOT.SetToZero();
 		bEndOfData = false;
+		bEndOfTrack = false;
 		bLastPushWasBlocked = false;
 		bPopAsDummyUntilSyncFrame = true;
 	}
@@ -231,6 +272,12 @@ namespace Electra
 		return LastPoppedDTS;
 	}
 
+	FTimeValue FMultiTrackAccessUnitBuffer::GetPlayableDurationPushedSinceEOT()
+	{
+		FScopeLock lock(&AccessLock);
+		return PlayableDurationPushedSinceEOT;
+	}
+
 	TSharedPtrTS<FAccessUnitBuffer> FMultiTrackAccessUnitBuffer::GetSelectedTrackBuffer()
 	{
 		FScopeLock lock(&AccessLock);
@@ -246,6 +293,7 @@ namespace Electra
 		if (Buf == EmptyBuffer)
 		{
 			OutStats.bEndOfData = bEndOfData;
+			OutStats.bEndOfTrack = bEndOfTrack;
 		}
 	}
 
@@ -344,6 +392,13 @@ namespace Electra
 		// Note: We assume the access lock is held by the caller!
 		TSharedPtrTS<FAccessUnitBuffer> Buf = GetSelectedTrackBuffer();
 		return Buf == EmptyBuffer ? bEndOfData : Buf->IsEODFlagSet();
+	}
+
+	bool FMultiTrackAccessUnitBuffer::IsEndOfTrack()
+	{
+		// Note: We assume the access lock is held by the caller!
+		TSharedPtrTS<FAccessUnitBuffer> Buf = GetSelectedTrackBuffer();
+		return Buf == EmptyBuffer ? bEndOfTrack : Buf->IsEndOfTrack();
 	}
 
 	int32 FMultiTrackAccessUnitBuffer::Num()

@@ -420,6 +420,13 @@ struct FPlaybackState
 		OutAudioTracks = AudioTracks;
 		OutSubtitleTracks = SubtitleTracks;
 	}
+	void HaveTrackMetadata(bool& bOutHaveVideo, bool& bOutHaveAudio, bool& bOutHaveSubtitle) const
+	{
+		FScopeLock lock(&Lock);
+		bOutHaveVideo = VideoTracks.Num() != 0;
+		bOutHaveAudio = AudioTracks.Num() != 0;
+		bOutHaveSubtitle = SubtitleTracks.Num() != 0;
+	}
 
 	void SetLoopState(const IAdaptiveStreamingPlayer::FLoopState& InLoopState)
 	{
@@ -1539,7 +1546,6 @@ private:
 		IManifest::ESearchType									SearchType = IManifest::ESearchType::Closest;
 		FTimeValue												RetryAtTime;
 		EStartType												StartType = EStartType::PlayStart;
-		TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>	FinishedRequests;
 	};
 
 	struct FBufferStats
@@ -1724,6 +1730,7 @@ private:
 		TSharedPtrTS<IManifest::IPlayPeriod>		Period;							//!< Set if transitioning between periods. This is the new period that needs to be readied.
 		bool										bStartOver = false;				//!< True when switching tracks within an ongoing period
 		bool										bPlayPosAutoReselect = false;	//!< True when trying to re-select a stream at the start of a new period when it was not available before.
+		bool										bDidRequestNewPeriodStreams = false;
 		EStreamType									StreamType = EStreamType::Unsupported;
 		FPlayStartPosition							StartoverPosition;
 	};
@@ -1820,9 +1827,10 @@ private:
 
 	int32 CreateDecoder(EStreamType type);
 	void DestroyDecoders();
-	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight);
+	bool FindMatchingStreamInfo(FStreamCodecInformation& OutStreamInfo, const FString& InPeriodID, const FTimeValue& AtTime, int32 MaxWidth, int32 MaxHeight);
 	void UpdateStreamResolutionLimit();
 	void AddUpcomingPeriod(TSharedPtrTS<IManifest::IPlayPeriod> InUpcomingPeriod);
+	void RequestNewPeriodStreams(EStreamType InType, FPendingSegmentRequest& InOutCurrentRequest);
 	void UpdatePeriodStreamBufferSourceInfo(TSharedPtrTS<IManifest::IPlayPeriod> InForPeriod, EStreamType InStreamType, TSharedPtrTS<FBufferSourceInfo> InBufferSourceInfo);
 	TSharedPtrTS<FBufferSourceInfo> GetStreamBufferInfoAtTime(bool& bOutHavePeriods, bool& bOutFoundTime, EStreamType InStreamType, const FTimeValue& InAtTime) const;
 
@@ -1904,6 +1912,8 @@ private:
 		return GetStreamBuffer(InStreamType, CurrentDataReceiveBuffers);
 	}
 
+	bool IsExpectedToStreamNow(EStreamType InType);
+
 	bool IsSeamlessBufferSwitchPossible(EStreamType InStreamType, const TSharedPtrTS<FStreamDataBuffers>& InFromStreamBuffers);
 
 	void GetStreamBufferUtilization(FAccessUnitBufferInfo& OutInfo, EStreamType BufferType);
@@ -1931,9 +1941,6 @@ private:
 	TSharedPtr<IAdaptiveStreamingWrappedRenderer, ESPMode::ThreadSafe> CreateWrappedRenderer(TSharedPtr<IMediaRenderer, ESPMode::ThreadSafe> RendererToWrap, EStreamType InType);
 	void StartRendering();
 	void StopRendering();
-
-	FTimeValue GetCurrentPlayTime();
-
 
 	//
 	// Member variables
@@ -1970,9 +1977,7 @@ private:
 	TSharedPtrTS<FHTTPResourceRequest>									ManifestMimeTypeRequest;
 
 	IStreamReader*														StreamReaderHandler;
-	TMediaOptionalValue<bool> 											bHaveVideoReader;
-	TMediaOptionalValue<bool> 											bHaveAudioReader;
-	TMediaOptionalValue<bool> 											bHaveTextReader;
+	bool																bStreamingHasStarted;
 
 	FCriticalSection													DataBuffersCriticalSection;
 	TArray<TSharedPtrTS<FStreamDataBuffers>>							NextDataBuffers;
@@ -2045,7 +2050,6 @@ private:
 	TSharedPtrTS<FPendingStartRequest>									PendingStartRequest;
 	TSharedPtrTS<IStreamSegment>										PendingFirstSegmentRequest;
 	TQueue<FPendingSegmentRequest>										NextPendingSegmentRequests;
-	TArray<FPendingSegmentRequest>										PlayPosPendingSegmentRequests;
 	TQueue<TSharedPtrTS<IStreamSegment>>								ReadyWaitingSegmentRequests;
 	TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>				CompletedSegmentRequests;
 	bool																bFirstSegmentRequestIsForLooping;

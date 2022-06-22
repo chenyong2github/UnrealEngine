@@ -469,6 +469,7 @@ void FStreamReaderMP4::HandleRequest()
 					meta->Kind = SelectedTrackMetadata->Kind;
 					meta->Language = SelectedTrackMetadata->Language;
 					meta->Codec = st.CSD.IsValid() ? st.CSD->ParsedInfo.GetCodecName() : FString();
+					meta->PeriodID = SelectedTrackMetadata->PeriodID;
 					meta->PeriodAdaptationSetID = SelectedTrackMetadata->PeriodID + TEXT(".") + SelectedTrackMetadata->AdaptationSetID;
 					meta->HardIndex = SelectedTrackMetadata->Index;
 					meta->PlaybackSequenceID = PlaybackSequenceID;

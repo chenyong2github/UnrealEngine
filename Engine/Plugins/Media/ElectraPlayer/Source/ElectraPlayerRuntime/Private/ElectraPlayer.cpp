@@ -202,6 +202,7 @@ void FElectraPlayer::ClearToDefaultState()
 	SelectedVideoTrackIndex = -1;
 	SelectedAudioTrackIndex = -1;
 	SelectedSubtitleTrackIndex = -1;
+	bVideoTrackIndexDirty = true;
 	bAudioTrackIndexDirty = true;
 	bSubtitleTrackIndexDirty = true;
 	bInitialSeekPerformed = false;
@@ -880,6 +881,7 @@ bool FElectraPlayer::SetLooping(bool bLooping)
 		IAdaptiveStreamingPlayer::FLoopParam loop;
 		loop.bEnableLooping = bLooping;
 		CurrentPlayer->AdaptivePlayer->SetLooping(loop);
+		UE_LOG(LogElectraPlayer, Verbose, TEXT("[%p][%p] IMediaPlayer::SetLooping(%s)"), this, CurrentPlayer.Get(), bLooping?TEXT("true"):TEXT("false"));
 		return true;
 	}
 	return false;
@@ -1312,11 +1314,6 @@ int32 FElectraPlayer::GetNumTrackFormats(EPlayerTrackType TrackType, int32 Track
 
 int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 {
-	// For now Electra never has any caption or metadata tracks
-	if (TrackType == EPlayerTrackType::Video)
-	{
-		return SelectedVideoTrackIndex;
-	}
 	/*
 		To reduce the overhead of this function we check for the track the underlying player has
 		actually selected only when we were told the tracks changed.
@@ -1326,71 +1323,53 @@ int32 FElectraPlayer::GetSelectedTrack(EPlayerTrackType TrackType) const
 		the audio stream when transitioning from one period into the next, which may change the index of
 		the selected track.
 	*/
-	else if (TrackType == EPlayerTrackType::Audio)
+
+	auto CheckAndReselectTrack = [this](Electra::EStreamType InStreamType, bool& InOutDirtyFlag, int32& InOutSelectedIndex, int32 InNumTracks) -> int32
 	{
-		if (bAudioTrackIndexDirty)
+		if (InOutDirtyFlag)
 		{
-			if (NumTracksAudio == 0)
+			if (InNumTracks == 0)
 			{
-				SelectedAudioTrackIndex = -1;
+				InOutSelectedIndex = -1;
 			}
 			else
 			{
 				TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
 				if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
 				{
-					if (LockedPlayer->AdaptivePlayer->IsTrackDeselected(Electra::EStreamType::Audio))
+					if (LockedPlayer->AdaptivePlayer->IsTrackDeselected(InStreamType))
 					{
-						SelectedAudioTrackIndex = -1;
-						bAudioTrackIndexDirty = false;
+						InOutSelectedIndex = -1;
+						InOutDirtyFlag = false;
 					}
 					else
 					{
 						Electra::FStreamSelectionAttributes Attributes;
-						LockedPlayer->AdaptivePlayer->GetSelectedTrackAttributes(Attributes, Electra::EStreamType::Audio);
+						LockedPlayer->AdaptivePlayer->GetSelectedTrackAttributes(Attributes, InStreamType);
 						if (Attributes.OverrideIndex.IsSet())
 						{
-							SelectedAudioTrackIndex = Attributes.OverrideIndex.GetValue();
-							bAudioTrackIndexDirty = false;
+							InOutSelectedIndex = Attributes.OverrideIndex.GetValue();
+							InOutDirtyFlag = false;
 						}
 					}
 				}
 			}
 		}
-		return SelectedAudioTrackIndex;
+		return InOutSelectedIndex;
+	};
+
+	// Electra does not have caption or metadata tracks, handle only video, audio and subtitles.
+	if (TrackType == EPlayerTrackType::Video)
+	{
+		return CheckAndReselectTrack(Electra::EStreamType::Video, bVideoTrackIndexDirty, SelectedVideoTrackIndex, NumTracksVideo);
+	}
+	else if (TrackType == EPlayerTrackType::Audio)
+	{
+		return CheckAndReselectTrack(Electra::EStreamType::Audio, bAudioTrackIndexDirty, SelectedAudioTrackIndex, NumTracksAudio);
 	}
 	else if (TrackType == EPlayerTrackType::Subtitle)
 	{
-		if (bSubtitleTrackIndexDirty)
-		{
-			if (NumTracksSubtitle == 0)
-			{
-				SelectedSubtitleTrackIndex = -1;
-			}
-			else
-			{
-				TSharedPtr<FInternalPlayerImpl, ESPMode::ThreadSafe> LockedPlayer = CurrentPlayer;
-				if (LockedPlayer.IsValid() && LockedPlayer->AdaptivePlayer.IsValid())
-				{
-					if (LockedPlayer->AdaptivePlayer->IsTrackDeselected(Electra::EStreamType::Subtitle))
-					{
-						SelectedSubtitleTrackIndex = -1;
-						bSubtitleTrackIndexDirty = false;
-					}
-					else
-					{
-						Electra::FStreamSelectionAttributes Attributes;
-						LockedPlayer->AdaptivePlayer->GetSelectedTrackAttributes(Attributes, Electra::EStreamType::Subtitle);
-						if (Attributes.OverrideIndex.IsSet())
-						{
-							SelectedSubtitleTrackIndex = Attributes.OverrideIndex.GetValue();
-							bSubtitleTrackIndexDirty = false;
-						}
-					}
-				}
-			}
-		}
-		return SelectedSubtitleTrackIndex;
+		return CheckAndReselectTrack(Electra::EStreamType::Subtitle, bSubtitleTrackIndexDirty, SelectedSubtitleTrackIndex, NumTracksSubtitle);
 	}
 	return -1;
 }
@@ -1979,6 +1958,7 @@ void FElectraPlayer::HandlePlayerEventTracksChanged()
 	CurrentPlayer->AdaptivePlayer->GetTrackMetadata(SubtitleStreamMetaData, Electra::EStreamType::Subtitle);
 	NumTracksSubtitle = SubtitleStreamMetaData.Num();
 
+	bVideoTrackIndexDirty = true;
 	bAudioTrackIndexDirty = true;
 	bSubtitleTrackIndexDirty = true;
 

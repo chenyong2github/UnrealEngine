@@ -446,13 +446,12 @@ namespace Electra
 			 *
 			 * @param OutSegment
 			 * @param InSequenceState
-			 * @param InFinishedSegments
 			 * @param StartPosition
 			 * @param SearchType
 			 *
 			 * @return
 			 */
-			virtual FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const TMultiMap<EStreamType, TSharedPtrTS<IStreamSegment>>& InFinishedSegments, const FPlayStartPosition& StartPosition, ESearchType SearchType) = 0;
+			virtual FResult GetLoopingSegment(TSharedPtrTS<IStreamSegment>& OutSegment, const FPlayerSequenceState& InSequenceState, const FPlayStartPosition& StartPosition, ESearchType SearchType) = 0;
 
 			/**
 			 * Gets the segment request for the segment following the specified earlier request.

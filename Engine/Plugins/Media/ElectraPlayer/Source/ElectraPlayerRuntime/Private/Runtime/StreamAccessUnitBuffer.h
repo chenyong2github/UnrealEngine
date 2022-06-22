@@ -35,6 +35,8 @@ namespace Electra
 	 */
 	struct FBufferSourceInfo
 	{
+		// The period the data comes from. Necessary to track period transitions.
+		FString		PeriodID;
 		// Identifies the period and track (adaptation set) this data is originating from.
 		FString		PeriodAdaptationSetID;
 		// Partial track metadata. See FTrackMetadata.
@@ -206,6 +208,7 @@ namespace Electra
 			CurrentMemInUse = 0;
 			NumCurrentAccessUnits = 0;
 			bEndOfData = false;
+			bEndOfTrack = false;
 			bLastPushWasBlocked = false;
 		}
 
@@ -215,6 +218,7 @@ namespace Electra
 		int64				CurrentMemInUse;
 		int64				NumCurrentAccessUnits;
 		bool				bEndOfData;
+		bool				bEndOfTrack;
 		bool				bLastPushWasBlocked;
 	};
 
@@ -248,6 +252,7 @@ namespace Electra
 			, PlayableDuration(FTimeValue::GetZero())
 			, CurrentMemInUse(0)
 			, bEndOfData(false)
+			, bEndOfTrack(false)
 			, bLastPushWasBlocked(false)
 		{
 		}
@@ -290,6 +295,7 @@ namespace Electra
 			OutStats.CurrentMemInUse = CurrentMemInUse;
 			OutStats.NumCurrentAccessUnits = AccessUnits.Num();
 			OutStats.bEndOfData = bEndOfData;
+			OutStats.bEndOfTrack = bEndOfTrack;
 			OutStats.bLastPushWasBlocked = bLastPushWasBlocked;
 		}
 
@@ -300,6 +306,7 @@ namespace Electra
 			// Pushing new data unconditionally clears the EOD flag even if the buffer is currently full.
 			// The attempt to push implies there will be more data.
 			bEndOfData = false;
+			bEndOfTrack = false;
 			ExternalInfo = ExternalInfo ? ExternalInfo : &ZeroExternalInfo;
 			if (CanPush(AU, Limit, ExternalInfo))
 			{
@@ -332,6 +339,19 @@ namespace Electra
 		void PushEndOfData()
 		{
 			bEndOfData = true;
+		}
+
+		void SetEndOfTrack()
+		{
+			bEndOfTrack = true;
+		}
+		void ClearEndOfTrack()
+		{
+			bEndOfTrack = false;
+		}
+		bool IsEndOfTrack() const
+		{
+			return bEndOfTrack;
 		}
 
 		//! Removes and returns the oldest access unit from the FIFO. Returns false if the FIFO is empty.
@@ -537,6 +557,7 @@ namespace Electra
 			}
 			CurrentMemInUse = 0;
 			bEndOfData = false;
+			bEndOfTrack = false;
 			bLastPushWasBlocked = false;
 			FrontDTS.SetToInvalid();
 			PushedDuration.SetToZero();
@@ -629,9 +650,10 @@ namespace Electra
 		FTimeValue									FrontDTS;					//!< DTS of first AU in buffer
 		FTimeValue									PushedDuration;
 		FTimeValue									PlayableDuration;
-		int64										CurrentMemInUse;
-		bool										bEndOfData;
-		bool										bLastPushWasBlocked;
+		int64										CurrentMemInUse = 0;
+		bool										bEndOfData = false;
+		bool										bEndOfTrack = false;
+		bool										bLastPushWasBlocked = false;
 	};
 
 
@@ -651,10 +673,13 @@ namespace Electra
 		bool Push(FAccessUnit*& AU, const FAccessUnitBuffer::FConfiguration* BufferConfiguration, const FAccessUnitBuffer::FExternalBufferInfo* InCurrentTotalBufferUtilization);
 		void PushEndOfDataFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo);
 		void PushEndOfDataAll();
+		void SetEndOfTrackFor(TSharedPtrTS<const FBufferSourceInfo> InStreamSourceInfo);
+		void SetEndOfTrackAll();
 		void Flush();
 		void GetStats(FAccessUnitBufferInfo& OutStats);
 		FTimeValue GetLastPoppedDTS();
 		FTimeValue GetLastPoppedPTS();
+		FTimeValue GetPlayableDurationPushedSinceEOT();
 
 		// Helper class to lock the AU buffer
 		class FScopedLock
@@ -681,6 +706,7 @@ namespace Electra
 		bool Pop(FAccessUnit*& OutAU);
 		void PopDiscardUntil(FTimeValue UntilTime);
 		bool IsEODFlagSet();
+		bool IsEndOfTrack();
 		int32 Num();
 		bool WasLastPushBlocked();
 		bool HasPendingTrackSwitch();
@@ -726,7 +752,9 @@ namespace Electra
 		TSharedPtrTS<const FBufferSourceInfo>			LastPoppedBufferInfo;
 		FTimeValue										LastPoppedDTS;
 		FTimeValue										LastPoppedPTS;
+		FTimeValue										PlayableDurationPushedSinceEOT;
 		bool											bEndOfData;
+		bool											bEndOfTrack;
 		bool											bLastPushWasBlocked;
 		bool											bPopAsDummyUntilSyncFrame;
 		bool											bIsParallelTrackMode;

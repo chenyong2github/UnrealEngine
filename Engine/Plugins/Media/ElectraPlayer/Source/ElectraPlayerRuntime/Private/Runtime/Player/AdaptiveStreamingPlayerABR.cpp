@@ -599,6 +599,11 @@ namespace Electra
 		// Get the initial list of representations that are currently possible to choose from.
 		TArray<TSharedPtrTS<FABRStreamInformation>> CandidateRepresentations;
 		ABRMethod->PrepareStreamCandidateList(CandidateRepresentations, StreamType, CurrentPlayPeriod, TimeNow);
+		// No streams, nothing to do. Assume there is something coming up, so continue.
+		if (CandidateRepresentations.Num() == 0)
+		{
+			return ESegmentAction::FetchNext;
+		}
 
 		// First have the ABR method evaluate this download for possible errors and decide on an action.
 		IAdaptiveStreamSelector::ESegmentAction NextSegmentAction = ABRMethod->EvaluateForError(CandidateRepresentations, StreamType, OutDelay, CurrentPlayPeriod, CurrentSegment, TimeNow);
