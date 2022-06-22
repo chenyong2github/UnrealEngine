@@ -85,15 +85,17 @@ UExternalRpcRegistry* UExternalRpcRegistry::GetInstance()
 		}
 		FParse::Value(FCommandLine::Get(), TEXT("rpcport="), ObjectInstance->PortToUse);
 		
-		TWeakObjectPtr<ThisClass> WeakThis(ObjectInstance);
-		// We always want the ListRegisteredRpcs route bound, no matter what.
-		UExternalRpcRegistry::GetInstance()->RegisterNewRoute(TEXT("ListRegisteredRpcs"), FHttpPath("/listrpcs"), EHttpServerRequestVerbs::VERB_GET,
-			[WeakThis](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
+		TWeakObjectPtr<UExternalRpcRegistry> WeakThis(ObjectInstance);
+
+		const FHttpRequestHandler& ListRoutesRequestHandler = [WeakThis](const FHttpServerRequest& Request, const FHttpResultCallback& OnComplete)
 		{
 			if (!WeakThis.IsValid()) { return false; }
 			return WeakThis->HttpListOpenRoutes(Request, OnComplete);
-			}, true,
-			true);
+		};
+		TArray<FExternalRpcArgumentDesc*> ArgumentArray;
+		// We always want the ListRegisteredRpcs route bound, no matter what.
+		UExternalRpcRegistry::GetInstance()->RegisterNewRouteWithArguments(TEXT("ListRegisteredRpcs"), FHttpPath("/listrpcs"), EHttpServerRequestVerbs::VERB_GET,
+			ListRoutesRequestHandler, ArgumentArray,  true, true);
 
 		ObjectInstance->AddToRoot();
 	}
@@ -110,12 +112,28 @@ bool UExternalRpcRegistry::GetRegisteredRoute(FName RouteName, FExternalRouteInf
 		OutRouteInfo.RoutePath = RegisteredRoutes[RouteName].Handle->Path;
 		OutRouteInfo.RequestVerbs = RegisteredRoutes[RouteName].Handle->Verbs;
 		OutRouteInfo.InputContentType = RegisteredRoutes[RouteName].InputContentType;
-		OutRouteInfo.InputExpectedFormat = RegisteredRoutes[RouteName].InputExpectedFormat;
+		OutRouteInfo.ExpectedArguments = RegisteredRoutes[RouteName].ExpectedArguments;
 		return true;
 	}
 #endif
 	return false;
 }
+
+void UExternalRpcRegistry::RegisterNewRouteWithArguments(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, TArray<FExternalRpcArgumentDesc*> InArguments, bool bOverrideIfBound /* = false */, bool bIsAlwaysOn /* = false */, FString OptionalCategory /* = FString("Unknown") */, FString OptionalContentType /* = TEXT("")*/)
+{
+#if WITH_RPC_REGISTRY
+	FExternalRouteInfo InRouteInfo;
+	InRouteInfo.RouteName = RouteName;
+	InRouteInfo.RoutePath = HttpPath;
+	InRouteInfo.RequestVerbs = RequestVerbs;
+	InRouteInfo.InputContentType = OptionalContentType;
+	InRouteInfo.ExpectedArguments = InArguments;
+	InRouteInfo.RpcCategory = OptionalCategory;
+	InRouteInfo.bAlwaysOn = bIsAlwaysOn;
+	RegisterNewRoute(InRouteInfo, Handler, bOverrideIfBound);
+#endif
+}
+
 
 void UExternalRpcRegistry::RegisterNewRoute(FName RouteName, const FHttpPath& HttpPath, const EHttpServerRequestVerbs& RequestVerbs, const FHttpRequestHandler& Handler, bool bOverrideIfBound /* = false */, bool bIsAlwaysOn /* = false */, FString OptionalCategory /* = FString("Unknown") */, FString OptionalContentType /* = TEXT("")*/, FString OptionalExpectedFormat /*= TEXT("")*/)
 {
@@ -125,7 +143,6 @@ void UExternalRpcRegistry::RegisterNewRoute(FName RouteName, const FHttpPath& Ht
 	InRouteInfo.RoutePath = HttpPath;
 	InRouteInfo.RequestVerbs = RequestVerbs;
 	InRouteInfo.InputContentType = OptionalContentType;
-	InRouteInfo.InputExpectedFormat = OptionalExpectedFormat;
 	InRouteInfo.RpcCategory = OptionalCategory;
 	InRouteInfo.bAlwaysOn = bIsAlwaysOn;
 	RegisterNewRoute(InRouteInfo, Handler, bOverrideIfBound);
@@ -155,7 +172,7 @@ void UExternalRpcRegistry::RegisterNewRoute(FExternalRouteInfo InRouteInfo, cons
 	FExternalRouteDesc RouteDesc;
 	RouteDesc.Handle = HttpRouter->BindRoute(InRouteInfo.RoutePath, InRouteInfo.RequestVerbs, Handler);
 	RouteDesc.InputContentType = InRouteInfo.InputContentType;
-	RouteDesc.InputExpectedFormat = InRouteInfo.InputExpectedFormat;
+	RouteDesc.ExpectedArguments = InRouteInfo.ExpectedArguments;
 	RegisteredRoutes.Add(InRouteInfo.RouteName, RouteDesc);
 #endif
 }
@@ -198,9 +215,19 @@ bool UExternalRpcRegistry::HttpListOpenRoutes(const FHttpServerRequest& Request,
 		{
 			JsonWriter->WriteValue(TEXT("inputContentType"), RegisteredRoutes[RouteKey].InputContentType);
 		}
-		if (!RegisteredRoutes[RouteKey].InputExpectedFormat.IsEmpty())
+		if (!RegisteredRoutes[RouteKey].ExpectedArguments.IsEmpty())
 		{
-			JsonWriter->WriteValue(TEXT("inputExpectedFormat"), RegisteredRoutes[RouteKey].InputExpectedFormat);
+			JsonWriter->WriteArrayStart(TEXT("args"));
+			for (const FExternalRpcArgumentDesc* ArgDesc : RegisteredRoutes[RouteKey].ExpectedArguments)
+			{
+				JsonWriter->WriteObjectStart();
+				JsonWriter->WriteValue(TEXT("name"), ArgDesc->Name);
+				JsonWriter->WriteValue(TEXT("type"), ArgDesc->Type);
+				JsonWriter->WriteValue(TEXT("desc"), ArgDesc->Desc);
+				JsonWriter->WriteValue(TEXT("optional"), ArgDesc->IsOptional);
+				JsonWriter->WriteObjectEnd();
+			}
+			JsonWriter->WriteArrayEnd();
 		}
 		JsonWriter->WriteObjectEnd();
 	}
