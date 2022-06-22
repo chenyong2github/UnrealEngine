@@ -162,7 +162,7 @@ struct UNREALED_API FActorFolders : public FGCObject, public IActorEditorContext
 	virtual TSharedRef<SWidget> GetActorEditorContextWidget(UWorld* InWorld) const override;
 	virtual FOnActorEditorContextClientChanged& GetOnActorEditorContextClientChanged() override { return ActorEditorContextClientChanged; }
 	//~ End IActorEditorContextClient interface
-	FFolder GetActorEditorContextFolder(UWorld& InWorld) const;
+	FFolder GetActorEditorContextFolder(UWorld& InWorld, bool bMustMatchCurrentLevel = true) const;
 	void SetActorEditorContextFolder(UWorld& InWorld, const FFolder& InFolder);
 
 private:

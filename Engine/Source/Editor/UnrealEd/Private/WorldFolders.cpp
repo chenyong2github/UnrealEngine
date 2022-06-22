@@ -184,16 +184,22 @@ bool UWorldFolders::SetIsFolderExpanded(const FFolder& InFolder, bool bIsExpande
 	return false;
 }
 
-FFolder UWorldFolders::GetActorEditorContextFolder() const
+FFolder UWorldFolders::GetActorEditorContextFolder(bool bMustMatchCurrentLevel) const
 {
 	FFolder Folder = CurrentFolder.GetFolder();
 	if (ContainsFolder(Folder))
 	{
 		ULevelInstanceSubsystem* LevelInstanceSubsystem = GetWorld()->GetSubsystem<ULevelInstanceSubsystem>();
 		ILevelInstanceInterface* EditingLevelInstance = LevelInstanceSubsystem ? LevelInstanceSubsystem->GetEditingLevelInstance() : nullptr;
-		UObject* EditingLevelInstanceObject = EditingLevelInstance ? CastChecked<UObject>(EditingLevelInstance) : nullptr;
-		FFolder::FRootObject RootObject = FFolder::FRootObject(EditingLevelInstanceObject ? EditingLevelInstanceObject : GetWorld()->GetCurrentLevel());
-		if (Folder.GetRootObject() == RootObject)
+		if (UObject* EditingLevelInstanceObject = EditingLevelInstance ? CastChecked<UObject>(EditingLevelInstance) : nullptr)
+		{
+			FFolder::FRootObject RootObject = FFolder::FRootObject(EditingLevelInstanceObject);
+			if (Folder.GetRootObject() == RootObject)
+			{
+				return Folder;
+			}
+		}
+		else if (!bMustMatchCurrentLevel || (Folder.GetRootObject() == FFolder::FRootObject(GetWorld()->GetCurrentLevel())))
 		{
 			return Folder;
 		}

@@ -80,7 +80,7 @@ public:
 	bool RenameFolder(const FFolder& InOldFolder, const FFolder& InNewFolder);
 	bool IsFolderExpanded(const FFolder& InFolder) const;
 	bool SetIsFolderExpanded(const FFolder& InFolder, bool bIsExpanded);
-	FFolder GetActorEditorContextFolder() const;
+	FFolder GetActorEditorContextFolder(bool bMustMatchCurrentLevel) const;
 	bool SetActorEditorContextFolder(const FFolder& InFolder);
 	void PushActorEditorContext();
 	void PopActorEditorContext();

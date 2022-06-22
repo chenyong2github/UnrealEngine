@@ -534,12 +534,12 @@ void FActorFolders::SetIsFolderExpanded(UWorld& InWorld, const FFolder& InFolder
 	GetOrCreateWorldFolders(InWorld).SetIsFolderExpanded(InFolder, bIsExpanded);
 }
 
-FFolder FActorFolders::GetActorEditorContextFolder(UWorld& InWorld) const
+FFolder FActorFolders::GetActorEditorContextFolder(UWorld& InWorld, bool bMustMatchCurrentLevel) const
 {
 	const UWorldFolders** Folders = (const UWorldFolders **)WorldFolders.Find(&InWorld);
 	if (Folders)
 	{
-		return (*Folders)->GetActorEditorContextFolder();
+		return (*Folders)->GetActorEditorContextFolder(bMustMatchCurrentLevel);
 	}
 	return FFolder::GetWorldRootFolder(&InWorld);
 }
@@ -559,8 +559,9 @@ void FActorFolders::OnExecuteActorEditorContextAction(UWorld* InWorld, const EAc
 		case EActorEditorContextAction::ApplyContext:
 			check(InActor && InActor->GetWorld() == InWorld);
 			{
-				FFolder Folder = GetActorEditorContextFolder(*InWorld);
-				if (!Folder.IsNone())
+				const bool bMustMatchCurrentLevel = false;
+				FFolder Folder = GetActorEditorContextFolder(*InWorld, bMustMatchCurrentLevel);
+				if (!Folder.IsNone() && (Folder.GetRootObjectAssociatedLevel() == InActor->GetLevel()))
 				{
 					// Currently not supported to change rootobject through this interface
 					if (Folder.GetRootObject() == InActor->GetFolderRootObject())
