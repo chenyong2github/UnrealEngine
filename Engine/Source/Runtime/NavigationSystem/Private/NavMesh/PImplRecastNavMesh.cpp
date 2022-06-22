@@ -741,7 +741,12 @@ void FPImplRecastNavMesh::Serialize( FArchive& ArWrapped, int32 NavMeshVersion )
 				if (TileData != NULL)
 				{
 					dtMeshHeader* const TileHeader = (dtMeshHeader*)TileData;
-					DetourNavMesh->addTile(TileData, TileDataSize, DT_TILE_FREE_DATA, TileRef, NULL);
+					Status = DetourNavMesh->addTile(TileData, TileDataSize, DT_TILE_FREE_DATA, TileRef, NULL);
+					if (dtStatusDetail(Status, DT_OUT_OF_MEMORY))
+					{
+						UE_LOG(LogNavigation, Warning, TEXT("%s Failed to add tile (%d,%d:%d), %d tile limit reached in %s."),
+							ANSI_TO_TCHAR(__FUNCTION__), TileHeader->x, TileHeader->y, TileHeader->layer, DetourNavMesh->getMaxTiles(), *NavMeshOwner->GetFullName());
+					}
 
 					// Serialize compressed tile cache layer
 					uint8* ComressedTileData = nullptr;

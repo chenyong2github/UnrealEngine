@@ -297,6 +297,12 @@ TArray<FNavTileRef> URecastNavMeshDataChunk::AttachTiles(ARecastNavMesh& NavMesh
 
 				if (dtStatusFailed(status))
 				{
+					if (dtStatusDetail(status, DT_OUT_OF_MEMORY))
+					{
+						UE_LOG(LogNavigation, Warning, TEXT("%s> Failed to add tile (%d,%d:%d), %d tile limit reached! (from: %s)"),
+							*NavMesh.GetName(), Header->x, Header->y, Header->layer, DetourNavMesh->getMaxTiles(), ANSI_TO_TCHAR(__FUNCTION__));
+					}
+					
 					continue;
 				}
 				else
