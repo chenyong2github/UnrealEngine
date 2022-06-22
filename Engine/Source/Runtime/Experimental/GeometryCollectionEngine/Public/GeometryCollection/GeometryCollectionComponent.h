@@ -474,6 +474,25 @@ public:
 	UPROPERTY(EditAnywhere, Category = "ChaosPhysics", meta = (DisplayName = "Chaos Solver"))
 	TObjectPtr<AChaosSolverActor> ChaosSolverActor;
 
+	/**
+	 * Apply an external strain a specific piece of the geometry collection
+	 * if the piece is a cluster then the strain will be applied to the closest child   
+	 * @param Index index of the piece to apply strain on
+	 * @param Location world location of where to apply the strain
+	 * @param Strain strain / damage to apply 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void ApplyExternalStrain(int32 Index, const FVector& Location, float Strain);
+
+	/**
+	 * Crumbe a cluster into all its pieces
+	 * if the piece is not a cluster but is part of an internal/partial cluster, then the owning cluster will crumble   
+	 * @param Index index of the piece to crumble
+	 * @return  true of a crumble operation was performed
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	bool CrumbleCluster(int32 Index);
+	
 	/** RestCollection */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void SetRestCollection(const UGeometryCollection * RestCollectionIn);

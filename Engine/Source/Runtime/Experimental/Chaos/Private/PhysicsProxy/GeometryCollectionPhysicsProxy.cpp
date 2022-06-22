@@ -464,6 +464,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 		{
 			GTParticles[Index] = Chaos::FGeometryParticle::CreateParticle();
 			Chaos::FGeometryParticle* P = GTParticles[Index].Get();
+			GTParticlesToTransformGroupIndex.Add(P, Index);
 
 			GTParticles[Index]->SetUniqueIdx(Evolution->GenerateUniqueIdx());
 
@@ -1596,6 +1597,56 @@ void FGeometryCollectionPhysicsProxy::BreakClusters(TArray<int32>&& TransformGro
 						else
 						{
 							Clustering.ReleaseClusterParticles(ClusterHandle, true /* bForceRelease */);
+						}
+					}
+				}
+			}
+		});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyStrain(int32 TransformGroupIndex, const FVector& Location, float StrainValue)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, StrainValue, RBDSolver, Location, TransformGroupIndex]()
+		{
+			// @todo(chaos) move most of the logic into a method in clustering 
+			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusterHandle = SolverParticleHandles[TransformGroupIndex])
+			{
+				const bool bIsCluster = (ClusterHandle->ClusterIds().NumChildren > 0);
+				const bool bHasInternalClusterParent = ClusterHandle->Parent()? ClusterHandle->Parent()->InternalCluster(): false;
+				if (bHasInternalClusterParent || (!bIsCluster && !ClusterHandle->Disabled()))
+				{
+					ClusterHandle->SetExternalStrain(FMath::Max(ClusterHandle->GetExternalStrain(), StrainValue));
+				}
+				else
+				{
+					if (bIsCluster)
+					{
+						if (const TArray<Chaos::FPBDRigidParticleHandle*>* ChildrenHandles = Clustering.GetChildrenMap().Find(ClusterHandle))
+						{
+							FVector::FReal ClosestSquaredDist = TNumericLimits<FVector::FReal>::Max();
+							Chaos::FPBDRigidParticleHandle* ClosestChildHandle = nullptr; 
+							for (Chaos::FPBDRigidParticleHandle* ChildHandle: *ChildrenHandles)
+							{
+								const FVector::FReal SquaredDist = (ChildHandle->X() - Location).SizeSquared();
+								if (SquaredDist < ClosestSquaredDist)
+								{
+									ClosestSquaredDist = SquaredDist;
+									ClosestChildHandle = ChildHandle;
+								}
+							}
+							if (ClosestChildHandle)
+							{
+								if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ClosestChildHandle->CastToClustered())
+								{
+									ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue));
+								}
+							}
 						}
 					}
 				}

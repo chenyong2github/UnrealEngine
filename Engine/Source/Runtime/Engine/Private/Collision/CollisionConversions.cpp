@@ -19,6 +19,7 @@
 #include "PhysicsEngine/CollisionQueryFilterCallback.h"
 #include "GameFramework/LightWeightInstanceManager.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
+#include "PhysicsProxy/GeometryCollectionPhysicsProxy.h"
 
 // Used to place overlaps into a TMap when deduplicating them
 struct FOverlapKey
@@ -151,6 +152,16 @@ static void SetHitResultFromShapeAndFaceIndex(const FPhysicsShape& Shape,  const
 			OwningComponent = PossibleOwner;
 			OutResult.Item = INDEX_NONE;
 			OutResult.BoneName = NAME_None;
+
+			// if we have a geometry component let's extract the index of the active piece we have a hit for
+			if (const IPhysicsProxyBase* ActorProxy = Actor.GetProxy())
+			{
+				if (ActorProxy->GetType() == EPhysicsProxyType::GeometryCollectionType)
+				{
+					const FGeometryCollectionPhysicsProxy* ConcreteProxy = static_cast<const FGeometryCollectionPhysicsProxy*>(ActorProxy);
+					OutResult.Item = ConcreteProxy->GetTransformGroupIndexFromGTParticle(&Actor);
+				}
+			}
 		}
 		else
 		{

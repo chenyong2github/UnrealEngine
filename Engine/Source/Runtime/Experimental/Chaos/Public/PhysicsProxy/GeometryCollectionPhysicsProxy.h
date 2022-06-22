@@ -229,21 +229,29 @@ public:
 
 	int32 GetTransformGroupIndexFromHandle(const FParticleHandle* Handle) const
 	{
-		if (HandleToTransformGroupIndex.Contains(Handle))
+		if (const int32* TransformGroupIndex = HandleToTransformGroupIndex.Find(Handle))
 		{
-			return HandleToTransformGroupIndex[Handle];
+			return *TransformGroupIndex;
 		}
-		else
+		return INDEX_NONE;
+	}
+
+	int32 GetTransformGroupIndexFromGTParticle(const Chaos::FGeometryParticle* GTPParticle) const
+	{
+		if (const int32* TransformGroupIndex = GTParticlesToTransformGroupIndex.Find(GTPParticle))
 		{
-			return INDEX_NONE;
+			return *TransformGroupIndex;
 		}
+		return INDEX_NONE;
 	}
 
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
 	void DisableParticles(TArray<int32>&& TransformGroupIndices);
+
 	void BreakInternalClusterParents(TArray<int32>&& TransformGroupIndices);
 	void BreakClusters(TArray<int32>&& TransformGroupIndices);
+	void ApplyStrain(int32 TransformGroupIndex, const FVector& Location, float StrainValue);
 
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
@@ -324,6 +332,7 @@ private:
 	bool bInitializedForReplication = false;	//Indicates that initialization for replication has finished
 
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
+	TMap<Chaos::FGeometryParticle*, int32> GTParticlesToTransformGroupIndex;
 
 	// These are read on both threads and should not be changed
 	const FCollisionFilterData SimFilter;

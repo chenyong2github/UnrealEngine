@@ -3729,6 +3729,43 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 	}
 }
 
+void UGeometryCollectionComponent::ApplyExternalStrain(int32 Index, const FVector& Location, float Strain)
+{
+	if (DynamicCollection && PhysicsProxy)
+	{
+		const int32 NumTransform = DynamicCollection->NumElements(FGeometryCollection::TransformGroup);
+		if (Index >= 0 && Index < NumTransform)
+		{
+			PhysicsProxy->ApplyStrain(Index, Location, Strain);
+		}
+	}
+}
+
+bool UGeometryCollectionComponent::CrumbleCluster(int32 Index)
+{
+	bool Result = false;
+	if (DynamicCollection && PhysicsProxy)
+	{
+		const int32 NumTransform = DynamicCollection->NumElements(FGeometryCollection::TransformGroup);
+		if (Index >= 0 && Index < NumTransform)
+		{
+			const TManagedArray<uint8>& InternalClusterParentType = DynamicCollection->GetAttribute<uint8>("InternalClusterParentTypeArray", FGeometryCollection::TransformGroup);
+			const bool bHasInternalClusterParent = (InternalClusterParentType[Index] != (uint8)Chaos::EInternalClusterType::None);
+			const bool bIsCluster = (DynamicCollection->Children[Index].Num() > 0);
+			if (bIsCluster)
+			{
+				PhysicsProxy->BreakClusters({Index});
+				Result = true;
+			}
+			else if (bHasInternalClusterParent)
+			{
+				PhysicsProxy->BreakInternalClusterParents({Index});
+				Result = true;
+			}
+		}
+	}
+	return Result;
+}
 
 bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const
 {
