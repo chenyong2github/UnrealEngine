@@ -92,6 +92,13 @@ public:
 		return false;
 	}
 
+	bool IsEmpty() const
+	{
+		FNode* LocalTail = Tail.load(std::memory_order_relaxed);
+		FNode* LocalTailNext = LocalTail->Next.load(std::memory_order_acquire);
+		return LocalTailNext != nullptr;
+	}
+
 private:
 	struct FNode
 	{

@@ -85,6 +85,11 @@ public:
 		return false;
 	}
 
+	bool IsEmpty() const
+	{
+		return Tail->Next.load(std::memory_order_acquire) != nullptr;
+	}
+
 private:
 	struct FNode
 	{
