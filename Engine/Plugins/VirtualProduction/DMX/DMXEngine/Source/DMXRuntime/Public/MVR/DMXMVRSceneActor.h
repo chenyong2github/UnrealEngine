@@ -25,7 +25,7 @@ struct DMXRUNTIME_API FDMXMVRSceneGDTFToActorClassPair
 	TSoftObjectPtr<UDMXImportGDTF> GDTF;
 	
 	/** The Actor Class that should be or was spawned */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MVR, NoClear, Meta = (MustImplement = "DMXMVRFixtureActorInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = MVR, NoClear, Meta = (MustImplement = "/Script/DMXRuntime.DMXMVRFixtureActorInterface"))
 	TSoftClassPtr<AActor> ActorClass;
 };
 
