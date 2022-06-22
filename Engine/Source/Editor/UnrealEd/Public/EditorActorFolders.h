@@ -203,6 +203,9 @@ private:
 	/** Called after a world has been saved */
 	void OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext);
 
+	/** Attempt to save the folders state */
+	void SaveWorldFoldersState(UWorld* World);
+
 	/** Remove any references to folder arrays for dead worlds */
 	void Housekeeping();
 

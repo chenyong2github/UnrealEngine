@@ -46,6 +46,7 @@ FActorFolders::FActorFolders()
 
 	FEditorDelegates::MapChange.AddRaw(this, &FActorFolders::OnMapChange);
 	FEditorDelegates::PostSaveWorldWithContext.AddRaw(this, &FActorFolders::OnWorldSaved);
+	FEditorDelegates::PostSaveExternalActors.AddRaw(this, &FActorFolders::SaveWorldFoldersState);
 }
 
 FActorFolders::~FActorFolders()
@@ -57,6 +58,7 @@ FActorFolders::~FActorFolders()
 
 	FEditorDelegates::MapChange.RemoveAll(this);
 	FEditorDelegates::PostSaveWorldWithContext.RemoveAll(this);
+	FEditorDelegates::PostSaveExternalActors.RemoveAll(this);
 }
 
 void FActorFolders::AddReferencedObjects(FReferenceCollector& Collector)
@@ -169,10 +171,14 @@ void FActorFolders::OnMapChange(uint32 MapChangeFlags)
 
 void FActorFolders::OnWorldSaved(UWorld* World, FObjectPostSaveContext ObjectSaveContext)
 {
-	// Attempt to save the folder state
+	SaveWorldFoldersState(World);
+}
+
+void FActorFolders::SaveWorldFoldersState(UWorld* World)
+{
 	if (UWorldFolders** Folders = WorldFolders.Find(World))
 	{
-		(*Folders)->OnWorldSaved();
+		(*Folders)->SaveState();
 	}
 }
 
@@ -451,8 +457,11 @@ void FActorFolders::OnActorFolderAdded(UActorFolder* InActorFolder)
 	check(Level->IsUsingActorFolders());
 
 	AddFolderToWorld(*Level->GetWorld(), InActorFolder->GetFolder());
-	// @todo_ow: This code completely overrides the expanded state that was read from the json file (see UWorldFolders::LoadState)
-	SetIsFolderExpanded(*Level->GetWorld(), InActorFolder->GetFolder(), InActorFolder->IsInitiallyExpanded());
+	// To avoid overriding the expanded state initialized by UWorldFolders::LoadState, only override value if folder is initially collapsed.
+	if (!InActorFolder->IsInitiallyExpanded())
+	{
+		SetIsFolderExpanded(*Level->GetWorld(), InActorFolder->GetFolder(), false);
+	}
 }
 
 void FActorFolders::OnFolderRootObjectRemoved(UWorld& InWorld, const FFolder::FRootObject& InFolderRootObject)

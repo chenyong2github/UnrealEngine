@@ -87,7 +87,7 @@ public:
 	bool ContainsFolder(const FFolder& InFolder) const;
 	void ForEachFolder(TFunctionRef<bool(const FFolder&)> Operation);
 	void ForEachFolderWithRootObject(const FFolder::FRootObject& InFolderRootObject, TFunctionRef<bool(const FFolder&)> Operation);
-	void OnWorldSaved();
+	void SaveState();
 	UWorld* GetWorld() const;
 
 	//~ Begin UObject
@@ -109,7 +109,6 @@ private:
 
 	FString GetWorldStateFilename() const;
 	void LoadState();
-	void SaveState();
 
 	TUniquePtr<FWorldPersistentFolders> PersistentFolders;
 	TUniquePtr<FWorldTransientFolders> TransientFolders;

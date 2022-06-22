@@ -277,11 +277,6 @@ void UWorldFolders::Serialize(FArchive& Ar)
 	Super::Serialize(Ar);
 }
 
-void UWorldFolders::OnWorldSaved()
-{
-	SaveState();
-}
-
 FString UWorldFolders::GetWorldStateFilename() const
 {
 	UPackage* Package = World->GetOutermost();
