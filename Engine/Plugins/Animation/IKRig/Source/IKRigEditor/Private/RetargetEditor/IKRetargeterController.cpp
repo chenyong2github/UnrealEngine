@@ -101,6 +101,22 @@ const UIKRigDefinition* UIKRetargeterController::GetTargetIKRig() const
 	return Asset->GetTargetIKRig();
 }
 
+void UIKRetargeterController::OnTargetIKRigChanged() const
+{
+	if (const UIKRigDefinition* IKRig = GetTargetIKRig())
+	{
+		Asset->TargetPreviewMesh = IKRig->PreviewSkeletalMesh;
+	}
+}
+
+void UIKRetargeterController::OnSourceIKRigChanged() const
+{
+	if (const UIKRigDefinition* IKRig = GetSourceIKRig())
+	{
+		Asset->SourcePreviewMesh = IKRig->PreviewSkeletalMesh;
+	}
+}
+
 FName UIKRetargeterController::GetSourceRootBone() const
 {
 	const UIKRigDefinition* SourceIKRig = Asset->GetSourceIKRig();

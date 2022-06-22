@@ -48,6 +48,10 @@ public:
 	const UIKRigDefinition* GetSourceIKRig() const;
 	/** Get source IK Rig asset */
 	const UIKRigDefinition* GetTargetIKRig() const;
+	/** Set the target preview mesh based on the mesh in the target IK Rig asset */
+	void OnTargetIKRigChanged() const;
+	/** Set the source preview mesh based on the mesh in the source IK Rig asset */
+	void OnSourceIKRigChanged() const;
 
 	/** Get name of the Root bone used for retargeting the Source skeleton. */
 	FName GetSourceRootBone() const;

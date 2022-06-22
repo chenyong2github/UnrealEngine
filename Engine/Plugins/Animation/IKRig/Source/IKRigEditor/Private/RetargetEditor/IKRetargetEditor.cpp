@@ -368,20 +368,37 @@ void FIKRetargetEditor::HandleDetailsCreated(const TSharedRef<class IDetailsView
 
 void FIKRetargetEditor::OnFinishedChangingDetails(const FPropertyChangedEvent& PropertyChangedEvent)
 {
+	const UIKRetargeterController* AssetController = EditorController->AssetController;
+
+	// determine which properties were modified
 	const bool bSourceIKRigChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetSourceIKRigPropertyName();
 	const bool bTargetIKRigChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetIKRigPropertyName();
 	const bool bSourcePreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetSourcePreviewMeshPropertyName();
 	const bool bTargetPreviewChanged = PropertyChangedEvent.GetPropertyName() == UIKRetargeter::GetTargetPreviewMeshPropertyName();
 
+	// if no override target mesh has been specified, update the override to reflect the mesh in the ik rig asset
+	if (bTargetIKRigChanged)
+	{
+		AssetController->OnTargetIKRigChanged();
+	}
+
+	// if no override source mesh has been specified, update the override to reflect the mesh in the ik rig asset
+	if (bSourceIKRigChanged)
+	{
+		AssetController->OnSourceIKRigChanged();
+	}
+
+	// if either IK Rig asset has been modified, rebind and refresh UI
 	if (bTargetIKRigChanged || bSourceIKRigChanged)
 	{
 		EditorController->ClearOutputLog();
-		EditorController->BindToIKRigAsset(EditorController->AssetController->GetAsset()->GetTargetIKRigWriteable());
-		EditorController->BindToIKRigAsset(EditorController->AssetController->GetAsset()->GetSourceIKRigWriteable());
+		EditorController->BindToIKRigAsset(AssetController->GetAsset()->GetTargetIKRigWriteable());
+		EditorController->BindToIKRigAsset(AssetController->GetAsset()->GetSourceIKRigWriteable());
 		EditorController->AssetController->CleanChainMapping();
 		EditorController->AssetController->AutoMapChains();
 	}
-	
+
+	// if either the source or target meshes are possibly modified, update scene components, anim instance and UI
 	if (bTargetIKRigChanged || bSourceIKRigChanged || bTargetPreviewChanged || bSourcePreviewChanged)
 	{
 		EditorController->ClearOutputLog();
