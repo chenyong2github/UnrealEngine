@@ -222,7 +222,7 @@ void FD3D12CommandContext::RHIPushEvent(const TCHAR* Name, FColor Color)
 	D3D12RHI::FD3DGPUProfiler& GPUProfiler = GetParentDevice()->GetGPUProfiler();
 
 	// forward event to profiler if it's the default context
-	if (IsDefaultContext())
+	if (IsDefaultContext() && !IsAsyncComputeContext())
 	{
 		GPUProfiler.PushEvent(Name, Color);
 	}
@@ -264,7 +264,7 @@ void FD3D12CommandContext::RHIPopEvent()
 {
 	D3D12RHI::FD3DGPUProfiler& GPUProfiler = GetParentDevice()->GetGPUProfiler();
 
-	if (IsDefaultContext())
+	if (IsDefaultContext() && !IsAsyncComputeContext())
 	{
 		GPUProfiler.PopEvent();
 	}
