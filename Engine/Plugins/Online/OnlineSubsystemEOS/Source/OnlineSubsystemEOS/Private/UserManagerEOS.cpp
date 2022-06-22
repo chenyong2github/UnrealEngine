@@ -1268,43 +1268,75 @@ bool FUserManagerEOS::GetEpicAccountIdFromProductUserId(const EOS_ProductUserId&
 	return bResult;
 }
 
-void FUserManagerEOS::GetEpicAccountIdAsync(const EOS_ProductUserId& ProductUserId, const GetEpicAccountIdAsyncCallback& Callback) const
+void FUserManagerEOS::ResolveUniqueNetId(const EOS_ProductUserId& ProductUserId, const FResolveUniqueNetIdCallback& Callback) const
 {
-	// We check first if the Product User Id has already been queried, which would allow us to retrieve its Epic Account Id directly
-	EOS_EpicAccountId AccountId;
-	if (GetEpicAccountIdFromProductUserId(ProductUserId, AccountId))
-	{
-		Callback(ProductUserId, AccountId);
-	}
-	else
-	{
-		// If it's the first time we want the Epic Account Id for this Product User Id, we have to query it first
-		TArray<EOS_ProductUserId> ProductUserIdList = { const_cast<EOS_ProductUserId>(ProductUserId) };
+	TArray<EOS_ProductUserId> ProductUserIds = { const_cast<EOS_ProductUserId>(ProductUserId) };
 
+	FResolveUniqueNetIdsCallback GroupCallback = [ProductUserId, OriginalCallback = Callback](TMap<EOS_ProductUserId, FUniqueNetIdEOSRef> ResolvedUniqueNetIds) {
+		OriginalCallback(ResolvedUniqueNetIds[ProductUserId]);
+	};
+
+	ResolveUniqueNetIds(ProductUserIds, GroupCallback);
+}
+
+void FUserManagerEOS::ResolveUniqueNetIds(const TArray<EOS_ProductUserId>& ProductUserIds, const FResolveUniqueNetIdsCallback& Callback) const
+{
+	TMap<EOS_ProductUserId, FUniqueNetIdEOSRef> ResolvedUniqueNetIds;
+	TArray<EOS_ProductUserId> ProductUserIdsToResolve;
+
+	for (const EOS_ProductUserId& ProductUserId : ProductUserIds)
+	{
+		EOS_EpicAccountId EpicAccountId;
+
+		// We check first if the Product User Id has already been queried, which would allow us to retrieve its Epic Account Id directly
+		if (GetEpicAccountIdFromProductUserId(ProductUserId, EpicAccountId))
+		{
+			const FUniqueNetIdEOSRef UniqueNetId = FUniqueNetIdEOS::Create(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+
+			ResolvedUniqueNetIds.Add(ProductUserId, UniqueNetId);
+		}
+		else
+		{
+			// If that's not the case, we'll have to query them first
+			ProductUserIdsToResolve.Add(ProductUserId);
+		}
+	}
+
+	if (!ProductUserIdsToResolve.IsEmpty())
+	{
 		EOS_Connect_QueryProductUserIdMappingsOptions QueryProductUserIdMappingsOptions = {};
 		QueryProductUserIdMappingsOptions.ApiVersion = EOS_CONNECT_QUERYPRODUCTUSERIDMAPPINGS_API_LATEST;
 		QueryProductUserIdMappingsOptions.LocalUserId = EOSSubsystem->UserManager->GetLocalProductUserId(0);
-		QueryProductUserIdMappingsOptions.ProductUserIds = ProductUserIdList.GetData();
-		QueryProductUserIdMappingsOptions.ProductUserIdCount = 1;
+		QueryProductUserIdMappingsOptions.ProductUserIds = ProductUserIdsToResolve.GetData();
+		QueryProductUserIdMappingsOptions.ProductUserIdCount = ProductUserIdsToResolve.Num();
 
 		FConnectQueryProductUserIdMappingsCallback* CallbackObj = new FConnectQueryProductUserIdMappingsCallback(FUserManagerEOSConstWeakPtr(AsShared()));
-		CallbackObj->CallbackLambda = [this, ProductUserId, Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data)
+		CallbackObj->CallbackLambda = [this, ProductUserIdsToResolve, ResolvedUniqueNetIds = MoveTemp(ResolvedUniqueNetIds), Callback](const EOS_Connect_QueryProductUserIdMappingsCallbackInfo* Data) mutable
 		{
-			EOS_EpicAccountId AccountId = nullptr;
-
-			if (Data->ResultCode == EOS_EResult::EOS_Success)
+			if (Data->ResultCode != EOS_EResult::EOS_Success)
 			{
-				GetEpicAccountIdFromProductUserId(ProductUserId, AccountId);
-			}
-			else
-			{
-				UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::GetEpicAccountIdAsync] EOS_Connect_QueryProductUserIdMappings not successful for ProductUserId (%s). Finished with EOS_EResult %s."), *LexToString(ProductUserId), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
+				UE_LOG_ONLINE(Verbose, TEXT("[FUserManagerEOS::ResolveUniqueNetIds] EOS_Connect_QueryProductUserIdMappings not successful for user (%s). Finished with EOS_EResult %s."), *LexToString(Data->LocalUserId), ANSI_TO_TCHAR(EOS_EResult_ToString(Data->ResultCode)));
 			}
 
-			Callback(ProductUserId, AccountId);
+			for (const EOS_ProductUserId& ProductUserId : ProductUserIdsToResolve)
+			{
+				EOS_EpicAccountId EpicAccountId = nullptr;
+
+				GetEpicAccountIdFromProductUserId(ProductUserId, EpicAccountId);
+
+				const FUniqueNetIdEOSRef UniqueNetId = FUniqueNetIdEOS::Create(MakeNetIdStringFromIds(EpicAccountId, ProductUserId));
+
+				ResolvedUniqueNetIds.Add(ProductUserId, UniqueNetId);
+			}
+
+			Callback(ResolvedUniqueNetIds);
 		};
 
 		EOS_Connect_QueryProductUserIdMappings(EOSSubsystem->ConnectHandle, &QueryProductUserIdMappingsOptions, CallbackObj, CallbackObj->GetCallbackPtr());
+	}
+	else
+	{
+		Callback(ResolvedUniqueNetIds);
 	}
 }
 
