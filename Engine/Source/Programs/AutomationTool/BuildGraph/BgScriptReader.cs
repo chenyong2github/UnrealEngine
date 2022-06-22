@@ -13,6 +13,7 @@ using System.Xml.Schema;
 using EpicGames.BuildGraph;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+using UnrealBuildBase;
 
 #nullable enable
 
@@ -26,12 +27,7 @@ namespace AutomationTool
 		/// <summary>
 		/// The file containing this element
 		/// </summary>
-		public string File { get; }
-
-		/// <summary>
-		/// Native file object
-		/// </summary>
-		public object NativeFile { get; }
+		public FileReference File { get; }
 
 		/// <summary>
 		/// The line number containing this element
@@ -42,12 +38,10 @@ namespace AutomationTool
 		/// Constructor
 		/// </summary>
 		/// <param name="file"></param>
-		/// <param name="nativeFile"></param>
 		/// <param name="lineNumber"></param>
-		public BgScriptLocation(string file, object nativeFile, int lineNumber)
+		public BgScriptLocation(FileReference file, int lineNumber)
 		{
 			File = file;
-			NativeFile = nativeFile;
 			LineNumber = lineNumber;
 		}
 	}
@@ -60,12 +54,7 @@ namespace AutomationTool
 		/// <summary>
 		/// The file being read
 		/// </summary>
-		string File { get; }
-
-		/// <summary>
-		/// Native file representation
-		/// </summary>
-		object NativeFile { get; }
+		FileReference File { get; }
 
 		/// <summary>
 		/// Interface to the LineInfo on the active XmlReader
@@ -85,10 +74,9 @@ namespace AutomationTool
 		/// <summary>
 		/// Private constructor. Use ScriptDocument.Load to read an XML document.
 		/// </summary>
-		BgScriptDocument(string inFile, object inNativeFile, ILogger inLogger)
+		BgScriptDocument(FileReference inFile, ILogger inLogger)
 		{
 			File = inFile;
-			NativeFile = inNativeFile;
 			Logger = inLogger;
 		}
 
@@ -97,7 +85,7 @@ namespace AutomationTool
 		/// </summary>
 		public override XmlElement CreateElement(string? prefix, string? localName, string? namespaceUri)
 		{
-			BgScriptLocation location = new BgScriptLocation(File, NativeFile, _lineInfo!.LineNumber);
+			BgScriptLocation location = new BgScriptLocation(File, _lineInfo!.LineNumber);
 			return new BgScriptElement(location, prefix!, localName!, namespaceUri!, this);
 		}
 
@@ -105,15 +93,14 @@ namespace AutomationTool
 		/// Loads a script document from the given file
 		/// </summary>
 		/// <param name="file">The file to load</param>
-		/// <param name="nativeFile"></param>
 		/// <param name="data"></param>
 		/// <param name="schema">The schema to validate against</param>
 		/// <param name="logger">Logger for output messages</param>
 		/// <param name="outDocument">If successful, the document that was read</param>
 		/// <returns>True if the document could be read, false otherwise</returns>
-		public static bool TryRead(string file, object nativeFile, byte[] data, BgScriptSchema schema, ILogger logger, [NotNullWhen(true)] out BgScriptDocument? outDocument)
+		public static bool TryRead(FileReference file, byte[] data, BgScriptSchema schema, ILogger logger, [NotNullWhen(true)] out BgScriptDocument? outDocument)
 		{
-			BgScriptDocument document = new BgScriptDocument(file, nativeFile, logger);
+			BgScriptDocument document = new BgScriptDocument(file, logger);
 
 			XmlReaderSettings settings = new XmlReaderSettings();
 			if (schema != null)
@@ -136,7 +123,7 @@ namespace AutomationTool
 				{
 					if (!document._bHasErrors)
 					{
-						BgScriptLocation location = new BgScriptLocation(file, nativeFile, ex.LineNumber);
+						BgScriptLocation location = new BgScriptLocation(file, ex.LineNumber);
 						logger.LogScriptError(location, "{Message}", ex.Message);
 						document._bHasErrors = true;
 					}
@@ -152,14 +139,14 @@ namespace AutomationTool
 				// Check that the root element is valid. If not, we didn't actually validate against the schema.
 				if (document.DocumentElement!.Name != BgScriptSchema.RootElementName)
 				{
-					BgScriptLocation location = new BgScriptLocation(file, nativeFile, 1);
+					BgScriptLocation location = new BgScriptLocation(file, 1);
 					logger.LogScriptError(location, "Script does not have a root element called '{ElementName}'", BgScriptSchema.RootElementName);
 					outDocument = null;
 					return false;
 				}
 				if (document.DocumentElement.NamespaceURI != BgScriptSchema.NamespaceUri)
 				{
-					BgScriptLocation location = new BgScriptLocation(file, nativeFile, 1);
+					BgScriptLocation location = new BgScriptLocation(file, 1);
 					logger.LogScriptError(location, "Script root element is not in the '{Namespace}' namespace (add the xmlns=\"{NewNamespace}\" attribute)", BgScriptSchema.NamespaceUri, BgScriptSchema.NamespaceUri);
 					outDocument = null;
 					return false;
@@ -177,7 +164,7 @@ namespace AutomationTool
 		/// <param name="args">Standard argument for ValidationEventHandler</param>
 		void ValidationEvent(object? sender, ValidationEventArgs args)
 		{
-			BgScriptLocation location = new BgScriptLocation(File, NativeFile, args.Exception.LineNumber);
+			BgScriptLocation location = new BgScriptLocation(File, args.Exception.LineNumber);
 			if (args.Severity == XmlSeverityType.Warning)
 			{
 				Logger.LogScriptWarning(location, "{Message}", args.Message);
@@ -258,48 +245,6 @@ namespace AutomationTool
 	}
 
 	/// <summary>
-	/// Context used for parsing scripts
-	/// </summary>
-	public interface IBgScriptReaderContext
-	{
-		/// <summary>
-		/// Tests whether the given file or directory exists
-		/// </summary>
-		/// <param name="path">Path to a file</param>
-		/// <returns>True if the file exists</returns>
-		Task<bool> ExistsAsync(string path);
-
-		/// <summary>
-		/// Tries to read a file from the given path
-		/// </summary>
-		/// <param name="path">Path of the file to read</param>
-		/// <returns></returns>
-		Task<byte[]?> ReadAsync(string path);
-
-		/// <summary>
-		/// Finds files matching the given pattern
-		/// </summary>
-		/// <param name="pattern"></param>
-		/// <returns></returns>
-		Task<string[]> FindAsync(string pattern);
-
-		/// <summary>
-		/// Converts a path to its native form, for display to the user
-		/// </summary>
-		/// <param name="path">Path to format</param>
-		/// <returns></returns>
-		object GetNativePath(string path);
-
-		/// <summary>
-		/// Combines one path with another
-		/// </summary>
-		/// <param name="path">The base file path</param>
-		/// <param name="next">Relative path to the next file</param>
-		/// <returns></returns>
-		string CombinePaths(string path, string next);
-	}
-
-	/// <summary>
 	/// Extension methods for writing script error messages
 	/// </summary>
 	public static class BgScriptExtensions
@@ -310,7 +255,7 @@ namespace AutomationTool
 		public static void LogScriptError(this ILogger logger, BgScriptLocation location, string format, params object[] args)
 		{
 			object[] allArgs = new object[args.Length + 2];
-			allArgs[0] = location.NativeFile;
+			allArgs[0] = location.File;
 			allArgs[1] = location.LineNumber;
 			args.CopyTo(allArgs, 2);
 			logger.LogError($"{{Script}}({{Line}}): error: {format}", allArgs);
@@ -322,7 +267,7 @@ namespace AutomationTool
 		public static void LogScriptWarning(this ILogger logger, BgScriptLocation location, string format, params object[] args)
 		{
 			object[] allArgs = new object[args.Length + 2];
-			allArgs[0] = location.NativeFile;
+			allArgs[0] = location.File;
 			allArgs[1] = location.LineNumber;
 			args.CopyTo(allArgs, 2);
 			logger.LogWarning($"{{Script}}({{Line}}): warning: {format}", allArgs);
@@ -330,15 +275,29 @@ namespace AutomationTool
 	}
 
 	/// <summary>
-	/// Reader for build graph definitions. Instanced to contain temporary state; public interface is through ScriptReader.TryRead().
+	/// Overridden version of <see cref="BgNode"/> which contains a list of tasks
 	/// </summary>
-	public abstract class BgScriptReaderBase
+	class BgScriptNode : BgNode
 	{
 		/// <summary>
-		/// Interface used for reading files
+		/// List of tasks to execute
 		/// </summary>
-		protected IBgScriptReaderContext Context { get; }
+		public List<BgTask> Tasks { get; } = new List<BgTask>();
 
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgScriptNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
+		{
+		}
+	}
+
+	/// <summary>
+	/// Reader for build graph definitions. Instanced to contain temporary state; public interface is through ScriptReader.TryRead().
+	/// </summary>
+	public class BgScriptReader
+	{
 		/// <summary>
 		/// List of property name to value lookups. Modifications to properties are scoped to nodes and agents. EnterScope() pushes an empty dictionary onto the end of this list, and LeaveScope() removes one. 
 		/// ExpandProperties() searches from last to first lookup when trying to resolve a property name, and takes the first it finds.
@@ -357,6 +316,21 @@ namespace AutomationTool
 		readonly Dictionary<string, BgScriptMacro> _macroNameToDefinition = new Dictionary<string, BgScriptMacro>();
 
 		/// <summary>
+		/// The current graph
+		/// </summary>
+		readonly BgGraph _graph = new BgGraph();
+
+		/// <summary>
+		/// Arguments for evaluating the graph
+		/// </summary>
+		readonly Dictionary<string, string> _arguments;
+
+		/// <summary>
+		/// The name of the node if only a single node is going to be built, otherwise null.
+		/// </summary>
+		readonly string? _singleNodeName;
+
+		/// <summary>
 		/// Schema for the script
 		/// </summary>
 		BgScriptSchema Schema { get; }
@@ -371,29 +345,76 @@ namespace AutomationTool
 		/// </summary>
 		public int NumErrors { get; private set; }
 
+		BgAgent? _enclosingAgent;
+		BgScriptNode? _enclosingNode;
+
 		/// <summary>
 		/// Private constructor. Use ScriptReader.TryRead() to read a script file.
 		/// </summary>
-		/// <param name="context">Context object</param>
+		/// <param name="defaultProperties">Default properties available to the script</param>
+		/// <param name="arguments">Arguments passed in to the graph on the command line</param>
+		/// <param name="singleNodeName">If a single node will be processed, the name of that node.</param>
 		/// <param name="schema">Schema for the script</param>
 		/// <param name="logger">Logger for diagnostic messages</param>
-		protected BgScriptReaderBase(IBgScriptReaderContext context, BgScriptSchema schema, ILogger logger)
+		protected BgScriptReader(IDictionary<string, string> defaultProperties, IReadOnlyDictionary<string, string> arguments, string? singleNodeName, BgScriptSchema schema, ILogger logger)
 		{
-			Context = context;
 			Schema = schema;
 			Logger = logger;
 
 			EnterScope();
+
+			_arguments = new Dictionary<string, string>(arguments, StringComparer.OrdinalIgnoreCase);
+			_singleNodeName = singleNodeName;
+
+			foreach (KeyValuePair<string, string> pair in defaultProperties)
+			{
+				SetPropertyValue(null!, pair.Key, pair.Value);
+			}
+		}
+
+		/// <summary>
+		/// Try to read a script file from the given file.
+		/// </summary>
+		/// <param name="file">File to read from</param>
+		/// <param name="arguments">Arguments passed in to the graph on the command line</param>
+		/// <param name="defaultProperties">Default properties available to the script</param>
+		/// <param name="schema">Schema for the script</param>
+		/// <param name="logger">Logger for output messages</param>
+		/// <param name="singleNodeName">If a single node will be processed, the name of that node.</param>
+		/// <returns>True if the graph was read, false if there were errors</returns>
+		public static async Task<BgGraph?> ReadAsync(FileReference file, Dictionary<string, string> arguments, Dictionary<string, string> defaultProperties, BgScriptSchema schema, ILogger logger, string? singleNodeName = null)
+		{
+			// Read the file and build the graph
+			BgScriptReader reader = new BgScriptReader(defaultProperties, arguments, singleNodeName, schema, logger);
+			if (!await reader.TryReadAsync(file) || reader.NumErrors > 0)
+			{
+				return null;
+			}
+
+			// Make sure all the arguments were valid
+			HashSet<string> validArgumentNames = new HashSet<string>(reader._graph.Options.Select(x => x.Name), StringComparer.OrdinalIgnoreCase);
+			validArgumentNames.Add("PreflightChange");
+
+			foreach (string argumentName in arguments.Keys)
+			{
+				if (!validArgumentNames.Contains(argumentName))
+				{
+					logger.LogWarning("Unknown argument '{ArgumentName}' for '{Script}'", argumentName, file);
+				}
+			}
+
+			// Return the constructed graph
+			return reader._graph;
 		}
 
 		/// <summary>
 		/// Read the script from the given file
 		/// </summary>
 		/// <param name="file">File to read from</param>
-		protected async Task<bool> TryReadAsync(string file)
+		protected async Task<bool> TryReadAsync(FileReference file)
 		{
 			// Get the data for this file
-			byte[]? data = await Context.ReadAsync(file);
+			byte[]? data = await FileReference.ReadAllBytesAsync(file);
 			if (data == null)
 			{
 				Logger.LogError("Unable to open file {File}", file);
@@ -403,7 +424,7 @@ namespace AutomationTool
 
 			// Read the document and validate it against the schema
 			BgScriptDocument? document;
-			if (!BgScriptDocument.TryRead(file, Context.GetNativePath(file), data, Schema, Logger, out document))
+			if (!BgScriptDocument.TryRead(file, data, Schema, Logger, out document))
 			{
 				NumErrors++;
 				return false;
@@ -597,21 +618,23 @@ namespace AutomationTool
 		{
 			if (await EvaluateConditionAsync(element))
 			{
-				HashSet<string> files = new HashSet<string>();
+				string basePath = element.Location.File.MakeRelativeTo(Unreal.RootDirectory).Replace(Path.DirectorySeparatorChar, '/');
+
+				HashSet<FileReference> files = new HashSet<FileReference>();
 				foreach (string script in ReadListAttribute(element, "Script"))
 				{
-					string includePath = Context.CombinePaths(element.Location.File, script);
+					string includePath = CombinePaths(basePath, script);
 					if (Regex.IsMatch(includePath, @"\*|\?|\.\.\."))
 					{
-						files.UnionWith(await Context.FindAsync(includePath));
+						files.UnionWith(FindMatchingFiles(includePath));
 					}
 					else
 					{
-						files.Add(includePath);
+						files.Add(new FileReference(includePath));
 					}
 				}
 
-				foreach (string file in files.OrderBy(x => x, StringComparer.OrdinalIgnoreCase))
+				foreach (FileReference file in files.OrderBy(x => x.FullName, StringComparer.OrdinalIgnoreCase))
 				{
 					Logger.LogDebug("Including file {File}", file);
 					await TryReadAsync(file);
@@ -620,28 +643,224 @@ namespace AutomationTool
 		}
 
 		/// <summary>
+		/// Combine two paths without validating the result
+		/// </summary>
+		static string CombinePaths(string basePath, string nextPath)
+		{
+			if (Path.IsPathRooted(nextPath))
+			{
+				return nextPath;
+			}
+
+			List<string> fragments = new List<string>(basePath.Split('/'));
+			fragments.RemoveAt(fragments.Count - 1);
+
+			foreach (string appendFragment in nextPath.Split('/'))
+			{
+				if (appendFragment.Equals(".", StringComparison.Ordinal))
+				{
+					continue;
+				}
+				else if (appendFragment.Equals("..", StringComparison.Ordinal))
+				{
+					if (fragments.Count > 0)
+					{
+						fragments.RemoveAt(fragments.Count - 1);
+					}
+					else
+					{
+						throw new Exception($"Path '{nextPath}' cannot be combined with '{basePath}'");
+					}
+				}
+				else
+				{
+					fragments.Add(appendFragment);
+				}
+			}
+			return String.Join('/', fragments);
+		}
+
+		/// <summary>
+		/// Find files matching a pattern
+		/// </summary>
+		/// <param name="Pattern"></param>
+		/// <returns></returns>
+		IEnumerable<FileReference> FindMatchingFiles(string Pattern)
+		{
+			FileFilter Filter = new FileFilter();
+			Filter.AddRule(Pattern, FileFilterType.Include);
+
+			return Filter.ApplyToDirectory(Unreal.RootDirectory, true);
+		}
+
+		/// <summary>
 		/// Reads the definition of a graph option; a parameter which can be set by the user on the command-line or via an environment variable.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadOptionAsync(BgScriptElement element);
+		async Task ReadOptionAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string name = ReadAttribute(element, "Name");
+				if (ValidateName(element, name))
+				{
+					// Make sure we're at global scope
+					if (ScopedProperties.Count > 1)
+					{
+						throw new Exception("Incorrect scope depth for reading option settings");
+					}
+
+					// Check if the property already exists. If it does, we don't need to register it as an option.
+					string? existingValue;
+					if (TryGetPropertyValue(name, out existingValue) && existingValue != null)
+					{
+						// If there's a restriction on this definition, check it matches
+						string restrict = ReadAttribute(element, "Restrict");
+						if (!String.IsNullOrEmpty(restrict) && !Regex.IsMatch(existingValue, "^" + restrict + "$", RegexOptions.IgnoreCase))
+						{
+							LogError(element, "'{0} is already set to '{1}', which does not match the given restriction ('{2}')", name, existingValue, restrict);
+						}
+					}
+					else
+					{
+						// Create a new option object to store the settings
+						string description = ReadAttribute(element, "Description");
+						string defaultValue = ReadAttribute(element, "DefaultValue");
+						BgOption option = new BgOption(name, description, defaultValue);
+						_graph.Options.Add(option);
+
+						// Get the value of this property
+						string? value;
+						if (!_arguments.TryGetValue(name, out value))
+						{
+							value = option.DefaultValue;
+						}
+						SetPropertyValue(element, name, value);
+
+						// If there's a restriction on it, check it's valid
+						string restrict = ReadAttribute(element, "Restrict");
+						if (!String.IsNullOrEmpty(restrict))
+						{
+							string pattern = "^(" + restrict + ")$";
+							if (!Regex.IsMatch(value, pattern, RegexOptions.IgnoreCase))
+							{
+								LogError(element, "'{0}' is not a valid value for '{1}' (required: '{2}')", value, name, restrict);
+							}
+							if (option.DefaultValue != value && !Regex.IsMatch(option.DefaultValue, pattern, RegexOptions.IgnoreCase))
+							{
+								LogError(element, "Default value '{0}' is not valid for '{1}' (required: '{2}')", option.DefaultValue, name, restrict);
+							}
+						}
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a property assignment.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadPropertyAsync(BgScriptElement element);
+		async Task ReadPropertyAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string name = ReadAttribute(element, "Name");
+				if (ValidateName(element, name))
+				{
+					string value = ReadAttribute(element, "Value");
+					if (element.HasChildNodes)
+					{
+						// Read the element content, and append each line to the value as a semicolon delimited list
+						StringBuilder builder = new StringBuilder(value);
+						foreach (string line in element.InnerText.Split('\n'))
+						{
+							string trimLine = ExpandProperties(element, line.Trim());
+							if (trimLine.Length > 0)
+							{
+								if (builder.Length > 0)
+								{
+									builder.Append(";");
+								}
+								builder.Append(trimLine);
+							}
+						}
+						value = builder.ToString();
+					}
+					SetPropertyValue(element, name, value);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a Regex assignment.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadRegexAsync(BgScriptElement element);
+		async Task ReadRegexAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				// Get the pattern
+				string regexString = ReadAttribute(element, "Pattern");
+
+				// Make sure its a valid regex.
+				Regex? regexValue = ParseRegex(element, regexString);
+				if (regexValue != null)
+				{
+					// read the names in 
+					string[] captureNames = ReadListAttribute(element, "Capture");
+
+					// get number of groups we passed in
+					int[] groupNumbers = regexValue.GetGroupNumbers();
+
+					// make sure the number of property names is the same as the number of match groups
+					// this includes the entire string match group as [0], so don't count that one.
+					if (captureNames.Length != groupNumbers.Count() - 1)
+					{
+						LogError(element, "MatchGroup count: {0} does not match the number of names specified: {1}", groupNumbers.Count() - 1, captureNames.Length);
+					}
+					else
+					{
+						// apply the regex to the value
+						string input = ReadAttribute(element, "Input");
+						Match match = regexValue.Match(input);
+
+						bool optional = await BgCondition.EvaluateAsync(ReadAttribute(element, "Optional"));
+						if (!match.Success)
+						{
+							if (!optional)
+							{
+								LogError(element, "Regex {0} did not find a match against input string {1}", regexString, input);
+							}
+						}
+						else
+						{
+							// assign each property to the group it matches, skip over [0]
+							for (int matchIdx = 1; matchIdx < groupNumbers.Count(); matchIdx++)
+							{
+								SetPropertyValue(element, captureNames[matchIdx - 1], match.Groups[matchIdx].Value);
+							}
+						}
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a property assignment from an environment variable.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadEnvVarAsync(BgScriptElement element);
+		async Task ReadEnvVarAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string name = ReadAttribute(element, "Name");
+				if (ValidateName(element, name))
+				{
+					string value = Environment.GetEnvironmentVariable(name) ?? "";
+					SetPropertyValue(element, name, value);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a macro definition
@@ -722,7 +941,43 @@ namespace AutomationTool
 		/// Reads the definition for an agent.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadAgentAsync(BgScriptElement element);
+		async Task ReadAgentAsync(BgScriptElement element)
+		{
+			string? name;
+			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
+			{
+				// Read the valid agent types. This may be omitted if we're continuing an existing agent.
+				string[] types = ReadListAttribute(element, "Type");
+
+				// Create the agent object, or continue an existing one
+				BgAgent? agent;
+				if (_graph.NameToAgent.TryGetValue(name, out agent))
+				{
+					if (types.Length > 0 && agent.PossibleTypes.Length > 0)
+					{
+						if (types.Length != agent.PossibleTypes.Length || !types.SequenceEqual(agent.PossibleTypes, StringComparer.InvariantCultureIgnoreCase))
+						{
+							LogError(element, "Agent types ({0}) were different than previous agent definition with types ({1}). Must either be empty or match exactly.", String.Join(",", types), String.Join(",", agent.PossibleTypes));
+						}
+					}
+				}
+				else
+				{
+					if (types.Length == 0)
+					{
+						LogError(element, "Missing type for agent '{0}'", name);
+					}
+					agent = new BgAgent(name, types);
+					_graph.NameToAgent.Add(name, agent);
+					_graph.Agents.Add(agent);
+				}
+
+				// Process all the child elements.
+				_enclosingAgent = agent;
+				await ReadAgentBodyAsync(element);
+				_enclosingAgent = null;
+			}
+		}
 
 		/// <summary>
 		/// Read the contents of an agent definition
@@ -786,31 +1041,271 @@ namespace AutomationTool
 		/// Reads the definition for an aggregate
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadAggregateAsync(BgScriptElement element);
+		async Task ReadAggregateAsync(BgScriptElement element)
+		{
+			string? name;
+			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name) && CheckNameIsUnique(element, name))
+			{
+				string[] requiredNames = ReadListAttribute(element, "Requires");
+
+				BgAggregate newAggregate = new BgAggregate(name);
+				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				{
+					newAggregate.RequiredNodes.Add(referencedNode);
+				}
+				_graph.NameToAggregate[name] = newAggregate;
+
+				string labelCategoryName = ReadAttribute(element, "Label");
+				if (!String.IsNullOrEmpty(labelCategoryName))
+				{
+					BgLabel label;
+
+					// Create the label
+					int slashIdx = labelCategoryName.IndexOf('/');
+					if (slashIdx != -1)
+					{
+						label = new BgLabel(labelCategoryName.Substring(slashIdx + 1), labelCategoryName.Substring(0, slashIdx), null, null, BgLabelChange.Current);
+					}
+					else
+					{
+						label = new BgLabel(labelCategoryName, "Other", null, null, BgLabelChange.Current);
+					}
+
+					// Find all the included nodes
+					foreach (BgNode requiredNode in newAggregate.RequiredNodes)
+					{
+						label.RequiredNodes.Add(requiredNode);
+						label.IncludedNodes.Add(requiredNode);
+						label.IncludedNodes.UnionWith(requiredNode.OrderDependencies);
+					}
+
+					string[] includedNames = ReadListAttribute(element, "Include");
+					foreach (BgNode includedNode in ResolveReferences(element, includedNames))
+					{
+						label.IncludedNodes.Add(includedNode);
+						label.IncludedNodes.UnionWith(includedNode.OrderDependencies);
+					}
+
+					string[] excludedNames = ReadListAttribute(element, "Exclude");
+					foreach (BgNode excludedNode in ResolveReferences(element, excludedNames))
+					{
+						label.IncludedNodes.Remove(excludedNode);
+						label.IncludedNodes.ExceptWith(excludedNode.OrderDependencies);
+					}
+
+					_graph.Labels.Add(label);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads the definition for a report
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadReportAsync(BgScriptElement element);
+		async Task ReadReportAsync(BgScriptElement element)
+		{
+			string? name;
+			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name) && CheckNameIsUnique(element, name))
+			{
+				string[] requiredNames = ReadListAttribute(element, "Requires");
+
+				BgReport newReport = new BgReport(name);
+				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				{
+					newReport.Nodes.Add(referencedNode);
+					newReport.Nodes.UnionWith(referencedNode.OrderDependencies);
+				}
+				_graph.NameToReport.Add(name, newReport);
+			}
+		}
 
 		/// <summary>
 		/// Reads the definition for a badge
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadBadgeAsync(BgScriptElement element);
+		async Task ReadBadgeAsync(BgScriptElement element)
+		{
+			string? name;
+			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
+			{
+				string[] requiredNames = ReadListAttribute(element, "Requires");
+				string[] targetNames = ReadListAttribute(element, "Targets");
+				string project = ReadAttribute(element, "Project");
+				int change = ReadIntegerAttribute(element, "Change", 0);
+
+				BgBadge newBadge = new BgBadge(name, project, change);
+				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				{
+					newBadge.Nodes.Add(referencedNode);
+				}
+				foreach (BgNode referencedNode in ResolveReferences(element, targetNames))
+				{
+					newBadge.Nodes.Add(referencedNode);
+					newBadge.Nodes.UnionWith(referencedNode.OrderDependencies);
+				}
+				_graph.Badges.Add(newBadge);
+			}
+		}
 
 		/// <summary>
 		/// Reads the definition for a label
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadLabelAsync(BgScriptElement element);
+		async Task ReadLabelAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string name = ReadAttribute(element, "Name");
+				if (!String.IsNullOrEmpty(name))
+				{
+					ValidateName(element, name);
+				}
+
+				string category = ReadAttribute(element, "Category");
+
+				string[] requiredNames = ReadListAttribute(element, "Requires");
+				string[] includedNames = ReadListAttribute(element, "Include");
+				string[] excludedNames = ReadListAttribute(element, "Exclude");
+
+				string ugsBadge = ReadAttribute(element, "UgsBadge");
+				string ugsProject = ReadAttribute(element, "UgsProject");
+
+				BgLabelChange change = ReadEnumAttribute<BgLabelChange>(element, "Change", BgLabelChange.Current);
+
+				BgLabel newLabel = new BgLabel(name, category, ugsBadge, ugsProject, change);
+				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				{
+					newLabel.RequiredNodes.Add(referencedNode);
+					newLabel.IncludedNodes.Add(referencedNode);
+					newLabel.IncludedNodes.UnionWith(referencedNode.OrderDependencies);
+				}
+				foreach (BgNode includedNode in ResolveReferences(element, includedNames))
+				{
+					newLabel.IncludedNodes.Add(includedNode);
+					newLabel.IncludedNodes.UnionWith(includedNode.OrderDependencies);
+				}
+				foreach (BgNode excludedNode in ResolveReferences(element, excludedNames))
+				{
+					newLabel.IncludedNodes.Remove(excludedNode);
+					newLabel.IncludedNodes.ExceptWith(excludedNode.OrderDependencies);
+				}
+				_graph.Labels.Add(newLabel);
+			}
+		}
 
 		/// <summary>
 		/// Reads the definition for a node, and adds it to the given agent
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadNodeAsync(BgScriptElement element);
+		async Task ReadNodeAsync(BgScriptElement element)
+		{
+			string? name;
+			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
+			{
+				string[] requiresNames = ReadListAttribute(element, "Requires");
+				string[] producesNames = ReadListAttribute(element, "Produces");
+				string[] afterNames = ReadListAttribute(element, "After");
+				string[] tokenFileNames = ReadListAttribute(element, "Token");
+				bool bRunEarly = ReadBooleanAttribute(element, "RunEarly", false);
+				bool bNotifyOnWarnings = ReadBooleanAttribute(element, "NotifyOnWarnings", true);
+				Dictionary<string, string> annotations = ReadAnnotationsAttribute(element, "Annotations");
+
+				// Resolve all the inputs we depend on
+				HashSet<BgNodeOutput> inputs = ResolveInputReferences(element, requiresNames);
+
+				// Gather up all the input dependencies, and check they're all upstream of the current node
+				HashSet<BgNode> inputDependencies = new HashSet<BgNode>();
+				foreach (BgNode inputDependency in inputs.Select(x => x.ProducingNode).Distinct())
+				{
+					inputDependencies.Add(inputDependency);
+				}
+
+				// Remove all the lock names from the list of required names
+				HashSet<FileReference> requiredTokens = new HashSet<FileReference>(tokenFileNames.Select(x => new FileReference(x)));
+
+				// Recursively include all their dependencies too
+				foreach (BgNode inputDependency in inputDependencies.ToArray())
+				{
+					requiredTokens.UnionWith(inputDependency.RequiredTokens);
+					inputDependencies.UnionWith(inputDependency.InputDependencies);
+				}
+
+				// Validate all the outputs
+				List<string> validOutputNames = new List<string>();
+				foreach (string producesName in producesNames)
+				{
+					BgNodeOutput? existingOutput;
+					if (_graph.TagNameToNodeOutput.TryGetValue(producesName, out existingOutput))
+					{
+						LogError(element, "Output tag '{0}' is already generated by node '{1}'", producesName, existingOutput.ProducingNode.Name);
+					}
+					else if (!producesName.StartsWith("#"))
+					{
+						LogError(element, "Output tag names must begin with a '#' character ('{0}')", producesName);
+					}
+					else
+					{
+						validOutputNames.Add(producesName);
+					}
+				}
+
+				// Gather up all the order dependencies
+				HashSet<BgNode> orderDependencies = new HashSet<BgNode>(inputDependencies);
+				orderDependencies.UnionWith(ResolveReferences(element, afterNames));
+
+				// Recursively include all their order dependencies too
+				foreach (BgNode orderDependency in orderDependencies.ToArray())
+				{
+					orderDependencies.UnionWith(orderDependency.OrderDependencies);
+				}
+
+				// Check that we're not dependent on anything completing that is declared after the initial declaration of this agent.
+				int agentIdx = _graph.Agents.IndexOf(_enclosingAgent!);
+				for (int idx = agentIdx + 1; idx < _graph.Agents.Count; idx++)
+				{
+					foreach (BgNode node in _graph.Agents[idx].Nodes.Where(x => orderDependencies.Contains(x)))
+					{
+						LogError(element, "Node '{0}' has a dependency on '{1}', which was declared after the initial definition of '{2}'.", name, node.Name, _enclosingAgent!.Name);
+					}
+				}
+
+				// Construct and register the node
+				if (CheckNameIsUnique(element, name))
+				{
+					// Add it to the node lookup
+					BgScriptNode newNode = new BgScriptNode(name, inputs.ToArray(), validOutputNames.ToArray(), inputDependencies.ToArray(), orderDependencies.ToArray(), requiredTokens.ToArray());
+					newNode.RunEarly = bRunEarly;
+					newNode.NotifyOnWarnings = bNotifyOnWarnings;
+					foreach ((string key, string value) in annotations)
+					{
+						newNode.Annotations[key] = value;
+					}
+					_graph.NameToNode.Add(name, newNode);
+
+					// Register all the output tags in the global name table.
+					foreach (BgNodeOutput output in newNode.Outputs)
+					{
+						BgNodeOutput? existingOutput;
+						if (_graph.TagNameToNodeOutput.TryGetValue(output.TagName, out existingOutput))
+						{
+							LogError(element, "Node '{0}' already has an output called '{1}'", existingOutput.ProducingNode.Name, output.TagName);
+						}
+						else
+						{
+							_graph.TagNameToNodeOutput.Add(output.TagName, output);
+						}
+					}
+
+					// Add all the tasks
+					_enclosingNode = newNode;
+					await ReadNodeBodyAsync(element);
+					_enclosingNode = null;
+
+					// Add it to the current agent
+					_enclosingAgent!.Nodes.Add(newNode);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads the contents of a node element
@@ -876,7 +1371,17 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
 		/// <param name="readContentsAsync">Delegate to read the contents of the element, if the condition evaluates to true</param>
-		protected abstract Task ReadSwitchAsync(BgScriptElement element, Func<BgScriptElement, Task> readContentsAsync);
+		async Task ReadSwitchAsync(BgScriptElement element, Func<BgScriptElement, Task> readContentsAsync)
+		{
+			foreach (BgScriptElement childElement in element.ChildNodes.OfType<BgScriptElement>())
+			{
+				if (childElement.Name == "Default" || await EvaluateConditionAsync(childElement))
+				{
+					await readContentsAsync(childElement);
+					break;
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a "ForEach" element 
@@ -991,26 +1496,198 @@ namespace AutomationTool
 		/// Reads a task definition from the given element, and add it to the given list
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadTaskAsync(BgScriptElement element);
+		async Task ReadTaskAsync(BgScriptElement element)
+		{
+			// If we're running a single node and this element's parent isn't the single node to run, ignore the error and return.
+			if (!String.IsNullOrWhiteSpace(_singleNodeName) && _enclosingNode!.Name != _singleNodeName)
+			{
+				return;
+			}
+
+			if (await EvaluateConditionAsync(element))
+			{
+				BgTask info = new BgTask(element.Location, element.Name);
+				foreach (XmlAttribute? attribute in element.Attributes)
+				{
+					if (String.Compare(attribute!.Name, "If", StringComparison.InvariantCultureIgnoreCase) != 0)
+					{
+						string expandedValue = ExpandProperties(element, attribute.Value);
+						info.Arguments.Add(attribute.Name, expandedValue);
+					}
+				}
+				_enclosingNode!.Tasks.Add(info);
+			}
+		}
 
 		/// <summary>
 		/// Reads the definition for an email notifier
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadNotifierAsync(BgScriptElement element);
+		async Task ReadNotifierAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string[] targetNames = ReadListAttribute(element, "Targets");
+				string[] exceptNames = ReadListAttribute(element, "Except");
+				string[] individualNodeNames = ReadListAttribute(element, "Nodes");
+				string[] reportNames = ReadListAttribute(element, "Reports");
+				string[] users = ReadListAttribute(element, "Users");
+				string[] submitters = ReadListAttribute(element, "Submitters");
+				bool? bWarnings = element.HasAttribute("Warnings") ? (bool?)ReadBooleanAttribute(element, "Warnings", true) : null;
+				bool bAbsolute = element.HasAttribute("Absolute") && ReadBooleanAttribute(element, "Absolute", true);
+
+				// Find the list of targets which are included, and recurse through all their dependencies
+				HashSet<BgNode> nodes = new HashSet<BgNode>();
+				if (targetNames != null)
+				{
+					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
+					foreach (BgNode node in targetNodes)
+					{
+						nodes.Add(node);
+						nodes.UnionWith(node.InputDependencies);
+					}
+				}
+
+				// Add all the individually referenced nodes
+				if (individualNodeNames != null)
+				{
+					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
+					nodes.UnionWith(individualNodes);
+				}
+
+				// Exclude all the exceptions
+				if (exceptNames != null)
+				{
+					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
+					nodes.ExceptWith(exceptNodes);
+				}
+
+				// Update all the referenced nodes with the settings
+				foreach (BgNode node in nodes)
+				{
+					if (users != null)
+					{
+						if (bAbsolute)
+						{
+							node.NotifyUsers = new HashSet<string>(users);
+						}
+						else
+						{
+							node.NotifyUsers.UnionWith(users);
+						}
+					}
+					if (submitters != null)
+					{
+						if (bAbsolute)
+						{
+							node.NotifySubmitters = new HashSet<string>(submitters);
+						}
+						else
+						{
+							node.NotifySubmitters.UnionWith(submitters);
+						}
+					}
+					if (bWarnings.HasValue)
+					{
+						node.NotifyOnWarnings = bWarnings.Value;
+					}
+				}
+
+				// Add the users to the list of reports
+				if (reportNames != null)
+				{
+					foreach (string reportName in reportNames)
+					{
+						BgReport? report;
+						if (_graph.NameToReport.TryGetValue(reportName, out report))
+						{
+							report.NotifyUsers.UnionWith(users);
+						}
+						else
+						{
+							LogError(element, "Report '{0}' has not been defined", reportName);
+						}
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a graph annotation
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
-		protected abstract Task ReadAnnotationAsync(BgScriptElement element);
+		async Task ReadAnnotationAsync(BgScriptElement element)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string[] targetNames = ReadListAttribute(element, "Targets");
+				string[] exceptNames = ReadListAttribute(element, "Except");
+				string[] individualNodeNames = ReadListAttribute(element, "Nodes");
+				Dictionary<string, string> annotations = ReadAnnotationsAttribute(element, "Values");
+
+				// Find the list of targets which are included, and recurse through all their dependencies
+				HashSet<BgNode> nodes = new HashSet<BgNode>();
+				if (targetNames != null)
+				{
+					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
+					foreach (BgNode node in targetNodes)
+					{
+						nodes.Add(node);
+						nodes.UnionWith(node.InputDependencies);
+					}
+				}
+
+				// Add all the individually referenced nodes
+				if (individualNodeNames != null)
+				{
+					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
+					nodes.UnionWith(individualNodes);
+				}
+
+				// Exclude all the exceptions
+				if (exceptNames != null)
+				{
+					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
+					nodes.ExceptWith(exceptNodes);
+				}
+
+				// Update all the referenced nodes with the settings
+				foreach (BgNode node in nodes)
+				{
+					foreach ((string key, string value) in annotations)
+					{
+						node.Annotations[key] = value;
+					}
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads a warning from the given element, evaluates the condition on it, and writes it to the log if the condition passes.
 		/// </summary>
 		/// <param name="element">Xml element to read the definition from</param>
 		/// <param name="level">The diagnostic event type</param>
-		protected abstract Task ReadDiagnosticAsync(BgScriptElement element, LogLevel level);
+		async Task ReadDiagnosticAsync(BgScriptElement element, LogLevel level)
+		{
+			if (await EvaluateConditionAsync(element))
+			{
+				string message = ReadAttribute(element, "Message");
+
+				BgDiagnostic diagnostic = new BgDiagnostic(element.Location.File.FullName, element.Location.LineNumber, level, message);
+				if (_enclosingNode != null)
+				{
+					_enclosingNode.Diagnostics.Add(diagnostic);
+				}
+				else if (_enclosingAgent != null)
+				{
+					_enclosingAgent.Diagnostics.Add(diagnostic);
+				}
+				else
+				{
+					_graph.Diagnostics.Add(diagnostic);
+				}
+			}
+		}
 
 		/// <summary>
 		/// Reads an object name from its defining element. Outputs an error if the name is missing.
@@ -1039,6 +1716,79 @@ namespace AutomationTool
 			// Return it
 			name = value;
 			return true;
+		}
+
+		/// <summary>
+		/// Checks that the given name does not already used to refer to a node, and print an error if it is.
+		/// </summary>
+		/// <param name="element">Xml element to read from</param>
+		/// <param name="name">Name of the alias</param>
+		/// <returns>True if the name was registered correctly, false otherwise.</returns>
+		bool CheckNameIsUnique(BgScriptElement element, string name)
+		{
+			// Get the nodes that it maps to
+			if (_graph.ContainsName(name))
+			{
+				LogError(element, "'{0}' is already defined; cannot add a second time", name);
+				return false;
+			}
+			return true;
+		}
+
+		/// <summary>
+		/// Resolve a list of references to a set of nodes
+		/// </summary>
+		/// <param name="element">Element used to locate any errors</param>
+		/// <param name="referenceNames">Sequence of names to look up</param>
+		/// <returns>Hashset of all the nodes included by the given names</returns>
+		HashSet<BgNode> ResolveReferences(BgScriptElement element, IEnumerable<string> referenceNames)
+		{
+			HashSet<BgNode> nodes = new HashSet<BgNode>();
+			foreach (string referenceName in referenceNames)
+			{
+				BgNode[]? otherNodes;
+				if (_graph.TryResolveReference(referenceName, out otherNodes))
+				{
+					nodes.UnionWith(otherNodes);
+				}
+				else if (!referenceName.StartsWith("#") && _graph.TagNameToNodeOutput.ContainsKey("#" + referenceName))
+				{
+					LogError(element, "Reference to '{0}' cannot be resolved; did you mean '#{0}'?", referenceName);
+				}
+				else
+				{
+					LogError(element, "Reference to '{0}' cannot be resolved; check it has been defined.", referenceName);
+				}
+			}
+			return nodes;
+		}
+
+		/// <summary>
+		/// Resolve a list of references to a set of nodes
+		/// </summary>
+		/// <param name="element">Element used to locate any errors</param>
+		/// <param name="referenceNames">Sequence of names to look up</param>
+		/// <returns>Set of all the nodes included by the given names</returns>
+		HashSet<BgNodeOutput> ResolveInputReferences(BgScriptElement element, IEnumerable<string> referenceNames)
+		{
+			HashSet<BgNodeOutput> inputs = new HashSet<BgNodeOutput>();
+			foreach (string referenceName in referenceNames)
+			{
+				BgNodeOutput[]? referenceInputs;
+				if (_graph.TryResolveInputReference(referenceName, out referenceInputs))
+				{
+					inputs.UnionWith(referenceInputs);
+				}
+				else if (!referenceName.StartsWith("#") && _graph.TagNameToNodeOutput.ContainsKey("#" + referenceName))
+				{
+					LogError(element, "Reference to '{0}' cannot be resolved; did you mean '#{0}'?", referenceName);
+				}
+				else
+				{
+					LogError(element, "Reference to '{0}' cannot be resolved; check it has been defined.", referenceName);
+				}
+			}
+			return inputs;
 		}
 
 		/// <summary>
@@ -1297,7 +2047,7 @@ namespace AutomationTool
 			try
 			{
 				string text = ExpandProperties(element, element.GetAttribute("If"));
-				return await BgCondition.EvaluateAsync(text, Context);
+				return await BgCondition.EvaluateAsync(text);
 			}
 			catch (BgConditionException ex)
 			{
@@ -1345,870 +2095,11 @@ namespace AutomationTool
 			}
 			return result;
 		}
-	}
-
-	/// <summary>
-	/// Overridden version of <see cref="BgNode"/> which contains a list of tasks
-	/// </summary>
-	class BgScriptNode : BgNode
-	{
-		/// <summary>
-		/// List of tasks to execute
-		/// </summary>
-		public List<BgTask> Tasks { get; } = new List<BgTask>();
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public BgScriptNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
-			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
-		{
-		}
-	}
-
-	/// <summary>
-	/// Reader for build graph definitions. Instanced to contain temporary state; public interface is through ScriptReader.TryRead().
-	/// </summary>
-	public class BgScriptReader : BgScriptReaderBase
-	{
-		/// <summary>
-		/// The current graph
-		/// </summary>
-		readonly BgGraph _graph = new BgGraph();
-
-		/// <summary>
-		/// Arguments for evaluating the graph
-		/// </summary>
-		readonly Dictionary<string, string> _arguments;
-
-		/// <summary>
-		/// The name of the node if only a single node is going to be built, otherwise null.
-		/// </summary>
-		readonly string? _singleNodeName;
-
-		BgAgent? _enclosingAgent;
-		BgScriptNode? _enclosingNode;
-
-		/// <summary>
-		/// Private constructor. Use ScriptReader.TryRead() to read a script file.
-		/// </summary>
-		/// <param name="context">Context object</param>
-		/// <param name="defaultProperties">Default properties available to the script</param>
-		/// <param name="arguments">Arguments passed in to the graph on the command line</param>
-		/// <param name="singleNodeName">If a single node will be processed, the name of that node.</param>
-		/// <param name="schema">Schema for the script</param>
-		/// <param name="logger">Logger for diagnostic messages</param>
-		private BgScriptReader(IBgScriptReaderContext context, IDictionary<string, string> defaultProperties, IReadOnlyDictionary<string, string> arguments, string? singleNodeName, BgScriptSchema schema, ILogger logger)
-			: base(context, schema, logger)
-		{
-			_arguments = new Dictionary<string, string>(arguments, StringComparer.OrdinalIgnoreCase);
-			_singleNodeName = singleNodeName;
-
-			foreach (KeyValuePair<string, string> pair in defaultProperties)
-			{
-				SetPropertyValue(null!, pair.Key, pair.Value);
-			}
-		}
-
-		/// <summary>
-		/// Try to read a script file from the given file.
-		/// </summary>
-		/// <param name="context">Supplies context about the parse</param>
-		/// <param name="file">File to read from</param>
-		/// <param name="arguments">Arguments passed in to the graph on the command line</param>
-		/// <param name="defaultProperties">Default properties available to the script</param>
-		/// <param name="schema">Schema for the script</param>
-		/// <param name="logger">Logger for output messages</param>
-		/// <param name="singleNodeName">If a single node will be processed, the name of that node.</param>
-		/// <returns>True if the graph was read, false if there were errors</returns>
-		public static async Task<BgGraph?> ReadAsync(IBgScriptReaderContext context, string file, Dictionary<string, string> arguments, Dictionary<string, string> defaultProperties, BgScriptSchema schema, ILogger logger, string? singleNodeName = null)
-		{
-			// Read the file and build the graph
-			BgScriptReader reader = new BgScriptReader(context, defaultProperties, arguments, singleNodeName, schema, logger);
-			if (!await reader.TryReadAsync(file) || reader.NumErrors > 0)
-			{
-				return null;
-			}
-
-			// Make sure all the arguments were valid
-			HashSet<string> validArgumentNames = new HashSet<string>(reader._graph.Options.Select(x => x.Name), StringComparer.OrdinalIgnoreCase);
-			validArgumentNames.Add("PreflightChange");
-
-			foreach (string argumentName in arguments.Keys)
-			{
-				if (!validArgumentNames.Contains(argumentName))
-				{
-					logger.LogWarning("Unknown argument '{ArgumentName}' for '{Script}'", argumentName, context.GetNativePath(file));
-				}
-			}
-
-			// Return the constructed graph
-			return reader._graph;
-		}
-
-		/// <summary>
-		/// Reads the definition of a graph option; a parameter which can be set by the user on the command-line or via an environment variable.
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadOptionAsync(BgScriptElement element)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string name = ReadAttribute(element, "Name");
-				if (ValidateName(element, name))
-				{
-					// Make sure we're at global scope
-					if (ScopedProperties.Count > 1)
-					{
-						throw new Exception("Incorrect scope depth for reading option settings");
-					}
-
-					// Check if the property already exists. If it does, we don't need to register it as an option.
-					string? existingValue;
-					if (TryGetPropertyValue(name, out existingValue) && existingValue != null)
-					{
-						// If there's a restriction on this definition, check it matches
-						string restrict = ReadAttribute(element, "Restrict");
-						if (!String.IsNullOrEmpty(restrict) && !Regex.IsMatch(existingValue, "^" + restrict + "$", RegexOptions.IgnoreCase))
-						{
-							LogError(element, "'{0} is already set to '{1}', which does not match the given restriction ('{2}')", name, existingValue, restrict);
-						}
-					}
-					else
-					{
-						// Create a new option object to store the settings
-						string description = ReadAttribute(element, "Description");
-						string defaultValue = ReadAttribute(element, "DefaultValue");
-						BgOption option = new BgOption(name, description, defaultValue);
-						_graph.Options.Add(option);
-
-						// Get the value of this property
-						string? value;
-						if (!_arguments.TryGetValue(name, out value))
-						{
-							value = option.DefaultValue;
-						}
-						SetPropertyValue(element, name, value);
-
-						// If there's a restriction on it, check it's valid
-						string restrict = ReadAttribute(element, "Restrict");
-						if (!String.IsNullOrEmpty(restrict))
-						{
-							string pattern = "^(" + restrict + ")$";
-							if (!Regex.IsMatch(value, pattern, RegexOptions.IgnoreCase))
-							{
-								LogError(element, "'{0}' is not a valid value for '{1}' (required: '{2}')", value, name, restrict);
-							}
-							if (option.DefaultValue != value && !Regex.IsMatch(option.DefaultValue, pattern, RegexOptions.IgnoreCase))
-							{
-								LogError(element, "Default value '{0}' is not valid for '{1}' (required: '{2}')", option.DefaultValue, name, restrict);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads a property assignment.
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadPropertyAsync(BgScriptElement element)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string name = ReadAttribute(element, "Name");
-				if (ValidateName(element, name))
-				{
-					string value = ReadAttribute(element, "Value");
-					if (element.HasChildNodes)
-					{
-						// Read the element content, and append each line to the value as a semicolon delimited list
-						StringBuilder builder = new StringBuilder(value);
-						foreach (string line in element.InnerText.Split('\n'))
-						{
-							string trimLine = ExpandProperties(element, line.Trim());
-							if (trimLine.Length > 0)
-							{
-								if (builder.Length > 0)
-								{
-									builder.Append(";");
-								}
-								builder.Append(trimLine);
-							}
-						}
-						value = builder.ToString();
-					}
-					SetPropertyValue(element, name, value);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads a Regex assignment.
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadRegexAsync(BgScriptElement element)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				// Get the pattern
-				string regexString = ReadAttribute(element, "Pattern");
-
-				// Make sure its a valid regex.
-				Regex? regexValue = ParseRegex(element, regexString);
-				if (regexValue != null)
-				{
-					// read the names in 
-					string[] captureNames = ReadListAttribute(element, "Capture");
-
-					// get number of groups we passed in
-					int[] groupNumbers = regexValue.GetGroupNumbers();
-
-					// make sure the number of property names is the same as the number of match groups
-					// this includes the entire string match group as [0], so don't count that one.
-					if (captureNames.Length != groupNumbers.Count() - 1)
-					{
-						LogError(element, "MatchGroup count: {0} does not match the number of names specified: {1}", groupNumbers.Count() - 1, captureNames.Length);
-					}
-					else
-					{
-						// apply the regex to the value
-						string input = ReadAttribute(element, "Input");
-						Match match = regexValue.Match(input);
-
-						bool optional = await BgCondition.EvaluateAsync(ReadAttribute(element, "Optional"), Context);
-						if (!match.Success)
-						{
-							if (!optional)
-							{
-								LogError(element, "Regex {0} did not find a match against input string {1}", regexString, input);
-							}
-						}
-						else
-						{
-							// assign each property to the group it matches, skip over [0]
-							for (int matchIdx = 1; matchIdx < groupNumbers.Count(); matchIdx++)
-							{
-								SetPropertyValue(element, captureNames[matchIdx - 1], match.Groups[matchIdx].Value);
-							}
-						}
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads a property assignment from an environment variable.
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadEnvVarAsync(BgScriptElement element)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string name = ReadAttribute(element, "Name");
-				if (ValidateName(element, name))
-				{
-					string value = Environment.GetEnvironmentVariable(name) ?? "";
-					SetPropertyValue(element, name, value);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for an agent.
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadAgentAsync(BgScriptElement element)
-		{
-			string? name;
-			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
-			{
-				// Read the valid agent types. This may be omitted if we're continuing an existing agent.
-				string[] types = ReadListAttribute(element, "Type");
-
-				// Create the agent object, or continue an existing one
-				BgAgent? agent;
-				if (_graph.NameToAgent.TryGetValue(name, out agent))
-				{
-					if (types.Length > 0 && agent.PossibleTypes.Length > 0)
-					{
-						if (types.Length != agent.PossibleTypes.Length || !types.SequenceEqual(agent.PossibleTypes, StringComparer.InvariantCultureIgnoreCase))
-						{
-							LogError(element, "Agent types ({0}) were different than previous agent definition with types ({1}). Must either be empty or match exactly.", String.Join(",", types), String.Join(",", agent.PossibleTypes));
-						}
-					}
-				}
-				else
-				{
-					if (types.Length == 0)
-					{
-						LogError(element, "Missing type for agent '{0}'", name);
-					}
-					agent = new BgAgent(name, types);
-					_graph.NameToAgent.Add(name, agent);
-					_graph.Agents.Add(agent);
-				}
-
-				// Process all the child elements.
-				_enclosingAgent = agent;
-				await ReadAgentBodyAsync(element);
-				_enclosingAgent = null;
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for an aggregate
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadAggregateAsync(BgScriptElement element)
-		{
-			string? name;
-			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name) && CheckNameIsUnique(element, name))
-			{
-				string[] requiredNames = ReadListAttribute(element, "Requires");
-
-				BgAggregate newAggregate = new BgAggregate(name);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
-				{
-					newAggregate.RequiredNodes.Add(referencedNode);
-				}
-				_graph.NameToAggregate[name] = newAggregate;
-
-				string labelCategoryName = ReadAttribute(element, "Label");
-				if (!String.IsNullOrEmpty(labelCategoryName))
-				{
-					BgLabel label;
-
-					// Create the label
-					int slashIdx = labelCategoryName.IndexOf('/');
-					if (slashIdx != -1)
-					{
-						label = new BgLabel(labelCategoryName.Substring(slashIdx + 1), labelCategoryName.Substring(0, slashIdx), null, null, BgLabelChange.Current);
-					}
-					else
-					{
-						label = new BgLabel(labelCategoryName, "Other", null, null, BgLabelChange.Current);
-					}
-
-					// Find all the included nodes
-					foreach (BgNode requiredNode in newAggregate.RequiredNodes)
-					{
-						label.RequiredNodes.Add(requiredNode);
-						label.IncludedNodes.Add(requiredNode);
-						label.IncludedNodes.UnionWith(requiredNode.OrderDependencies);
-					}
-
-					string[] includedNames = ReadListAttribute(element, "Include");
-					foreach (BgNode includedNode in ResolveReferences(element, includedNames))
-					{
-						label.IncludedNodes.Add(includedNode);
-						label.IncludedNodes.UnionWith(includedNode.OrderDependencies);
-					}
-
-					string[] excludedNames = ReadListAttribute(element, "Exclude");
-					foreach (BgNode excludedNode in ResolveReferences(element, excludedNames))
-					{
-						label.IncludedNodes.Remove(excludedNode);
-						label.IncludedNodes.ExceptWith(excludedNode.OrderDependencies);
-					}
-
-					_graph.Labels.Add(label);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for a report
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadReportAsync(BgScriptElement element)
-		{
-			string? name;
-			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name) && CheckNameIsUnique(element, name))
-			{
-				string[] requiredNames = ReadListAttribute(element, "Requires");
-
-				BgReport newReport = new BgReport(name);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
-				{
-					newReport.Nodes.Add(referencedNode);
-					newReport.Nodes.UnionWith(referencedNode.OrderDependencies);
-				}
-				_graph.NameToReport.Add(name, newReport);
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for a badge
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadBadgeAsync(BgScriptElement element)
-		{
-			string? name;
-			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
-			{
-				string[] requiredNames = ReadListAttribute(element, "Requires");
-				string[] targetNames = ReadListAttribute(element, "Targets");
-				string project = ReadAttribute(element, "Project");
-				int change = ReadIntegerAttribute(element, "Change", 0);
-
-				BgBadge newBadge = new BgBadge(name, project, change);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
-				{
-					newBadge.Nodes.Add(referencedNode);
-				}
-				foreach (BgNode referencedNode in ResolveReferences(element, targetNames))
-				{
-					newBadge.Nodes.Add(referencedNode);
-					newBadge.Nodes.UnionWith(referencedNode.OrderDependencies);
-				}
-				_graph.Badges.Add(newBadge);
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for a label
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadLabelAsync(BgScriptElement element)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string name = ReadAttribute(element, "Name");
-				if (!String.IsNullOrEmpty(name))
-				{
-					ValidateName(element, name);
-				}
-
-				string category = ReadAttribute(element, "Category");
-
-				string[] requiredNames = ReadListAttribute(element, "Requires");
-				string[] includedNames = ReadListAttribute(element, "Include");
-				string[] excludedNames = ReadListAttribute(element, "Exclude");
-
-				string ugsBadge = ReadAttribute(element, "UgsBadge");
-				string ugsProject = ReadAttribute(element, "UgsProject");
-
-				BgLabelChange change = ReadEnumAttribute<BgLabelChange>(element, "Change", BgLabelChange.Current);
-
-				BgLabel newLabel = new BgLabel(name, category, ugsBadge, ugsProject, change);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
-				{
-					newLabel.RequiredNodes.Add(referencedNode);
-					newLabel.IncludedNodes.Add(referencedNode);
-					newLabel.IncludedNodes.UnionWith(referencedNode.OrderDependencies);
-				}
-				foreach (BgNode includedNode in ResolveReferences(element, includedNames))
-				{
-					newLabel.IncludedNodes.Add(includedNode);
-					newLabel.IncludedNodes.UnionWith(includedNode.OrderDependencies);
-				}
-				foreach (BgNode excludedNode in ResolveReferences(element, excludedNames))
-				{
-					newLabel.IncludedNodes.Remove(excludedNode);
-					newLabel.IncludedNodes.ExceptWith(excludedNode.OrderDependencies);
-				}
-				_graph.Labels.Add(newLabel);
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for a node, and adds it to the given agent
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadNodeAsync(BgScriptElement element)
-		{
-			string? name;
-			if (await EvaluateConditionAsync(element) && TryReadObjectName(element, out name))
-			{
-				string[] requiresNames = ReadListAttribute(element, "Requires");
-				string[] producesNames = ReadListAttribute(element, "Produces");
-				string[] afterNames = ReadListAttribute(element, "After");
-				string[] tokenFileNames = ReadListAttribute(element, "Token");
-				bool bRunEarly = ReadBooleanAttribute(element, "RunEarly", false);
-				bool bNotifyOnWarnings = ReadBooleanAttribute(element, "NotifyOnWarnings", true);
-				Dictionary<string, string> annotations = ReadAnnotationsAttribute(element, "Annotations");
-
-				// Resolve all the inputs we depend on
-				HashSet<BgNodeOutput> inputs = ResolveInputReferences(element, requiresNames);
-
-				// Gather up all the input dependencies, and check they're all upstream of the current node
-				HashSet<BgNode> inputDependencies = new HashSet<BgNode>();
-				foreach (BgNode inputDependency in inputs.Select(x => x.ProducingNode).Distinct())
-				{
-					inputDependencies.Add(inputDependency);
-				}
-
-				// Remove all the lock names from the list of required names
-				HashSet<FileReference> requiredTokens = new HashSet<FileReference>(tokenFileNames.Select(x => new FileReference(x)));
-
-				// Recursively include all their dependencies too
-				foreach (BgNode inputDependency in inputDependencies.ToArray())
-				{
-					requiredTokens.UnionWith(inputDependency.RequiredTokens);
-					inputDependencies.UnionWith(inputDependency.InputDependencies);
-				}
-
-				// Validate all the outputs
-				List<string> validOutputNames = new List<string>();
-				foreach (string producesName in producesNames)
-				{
-					BgNodeOutput? existingOutput;
-					if (_graph.TagNameToNodeOutput.TryGetValue(producesName, out existingOutput))
-					{
-						LogError(element, "Output tag '{0}' is already generated by node '{1}'", producesName, existingOutput.ProducingNode.Name);
-					}
-					else if (!producesName.StartsWith("#"))
-					{
-						LogError(element, "Output tag names must begin with a '#' character ('{0}')", producesName);
-					}
-					else
-					{
-						validOutputNames.Add(producesName);
-					}
-				}
-
-				// Gather up all the order dependencies
-				HashSet<BgNode> orderDependencies = new HashSet<BgNode>(inputDependencies);
-				orderDependencies.UnionWith(ResolveReferences(element, afterNames));
-
-				// Recursively include all their order dependencies too
-				foreach (BgNode orderDependency in orderDependencies.ToArray())
-				{
-					orderDependencies.UnionWith(orderDependency.OrderDependencies);
-				}
-
-				// Check that we're not dependent on anything completing that is declared after the initial declaration of this agent.
-				int agentIdx = _graph.Agents.IndexOf(_enclosingAgent!);
-				for (int idx = agentIdx + 1; idx < _graph.Agents.Count; idx++)
-				{
-					foreach (BgNode node in _graph.Agents[idx].Nodes.Where(x => orderDependencies.Contains(x)))
-					{
-						LogError(element, "Node '{0}' has a dependency on '{1}', which was declared after the initial definition of '{2}'.", name, node.Name, _enclosingAgent!.Name);
-					}
-				}
-
-				// Construct and register the node
-				if (CheckNameIsUnique(element, name))
-				{
-					// Add it to the node lookup
-					BgScriptNode newNode = new BgScriptNode(name, inputs.ToArray(), validOutputNames.ToArray(), inputDependencies.ToArray(), orderDependencies.ToArray(), requiredTokens.ToArray());
-					newNode.RunEarly = bRunEarly;
-					newNode.NotifyOnWarnings = bNotifyOnWarnings;
-					foreach ((string key, string value) in annotations)
-					{
-						newNode.Annotations[key] = value;
-					}
-					_graph.NameToNode.Add(name, newNode);
-
-					// Register all the output tags in the global name table.
-					foreach (BgNodeOutput output in newNode.Outputs)
-					{
-						BgNodeOutput? existingOutput;
-						if (_graph.TagNameToNodeOutput.TryGetValue(output.TagName, out existingOutput))
-						{
-							LogError(element, "Node '{0}' already has an output called '{1}'", existingOutput.ProducingNode.Name, output.TagName);
-						}
-						else
-						{
-							_graph.TagNameToNodeOutput.Add(output.TagName, output);
-						}
-					}
-
-					// Add all the tasks
-					_enclosingNode = newNode;
-					await ReadNodeBodyAsync(element);
-					_enclosingNode = null;
-
-					// Add it to the current agent
-					_enclosingAgent!.Nodes.Add(newNode);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads a "Switch" element 
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		/// <param name="readContentsAsync">Delegate to read the contents of the element, if the condition evaluates to true</param>
-		protected override async Task ReadSwitchAsync(BgScriptElement element, Func<BgScriptElement, Task> readContentsAsync)
-		{
-			foreach (BgScriptElement childElement in element.ChildNodes.OfType<BgScriptElement>())
-			{
-				if (childElement.Name == "Default" || await EvaluateConditionAsync(childElement))
-				{
-					await readContentsAsync(childElement);
-					break;
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads a task definition from the given element, and add it to the given list
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadTaskAsync(BgScriptElement element)
-		{
-			// If we're running a single node and this element's parent isn't the single node to run, ignore the error and return.
-			if (!String.IsNullOrWhiteSpace(_singleNodeName) && _enclosingNode!.Name != _singleNodeName)
-			{
-				return;
-			}
-
-			if (await EvaluateConditionAsync(element))
-			{
-				BgTask info = new BgTask(element.Location, element.Name);
-				foreach (XmlAttribute? attribute in element.Attributes)
-				{
-					if (String.Compare(attribute!.Name, "If", StringComparison.InvariantCultureIgnoreCase) != 0)
-					{
-						string expandedValue = ExpandProperties(element, attribute.Value);
-						info.Arguments.Add(attribute.Name, expandedValue);
-					}
-				}
-				_enclosingNode!.Tasks.Add(info);
-			}
-		}
-
-		/// <summary>
-		/// Reads the definition for an email notifier
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		protected override async Task ReadNotifierAsync(BgScriptElement element)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string[] targetNames = ReadListAttribute(element, "Targets");
-				string[] exceptNames = ReadListAttribute(element, "Except");
-				string[] individualNodeNames = ReadListAttribute(element, "Nodes");
-				string[] reportNames = ReadListAttribute(element, "Reports");
-				string[] users = ReadListAttribute(element, "Users");
-				string[] submitters = ReadListAttribute(element, "Submitters");
-				bool? bWarnings = element.HasAttribute("Warnings") ? (bool?)ReadBooleanAttribute(element, "Warnings", true) : null;
-				bool bAbsolute = element.HasAttribute("Absolute") && ReadBooleanAttribute(element, "Absolute", true);
-
-				// Find the list of targets which are included, and recurse through all their dependencies
-				HashSet<BgNode> nodes = new HashSet<BgNode>();
-				if (targetNames != null)
-				{
-					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
-					foreach (BgNode node in targetNodes)
-					{
-						nodes.Add(node);
-						nodes.UnionWith(node.InputDependencies);
-					}
-				}
-
-				// Add all the individually referenced nodes
-				if (individualNodeNames != null)
-				{
-					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
-					nodes.UnionWith(individualNodes);
-				}
-
-				// Exclude all the exceptions
-				if (exceptNames != null)
-				{
-					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
-					nodes.ExceptWith(exceptNodes);
-				}
-
-				// Update all the referenced nodes with the settings
-				foreach (BgNode node in nodes)
-				{
-					if (users != null)
-					{
-						if (bAbsolute)
-						{
-							node.NotifyUsers = new HashSet<string>(users);
-						}
-						else
-						{
-							node.NotifyUsers.UnionWith(users);
-						}
-					}
-					if (submitters != null)
-					{
-						if (bAbsolute)
-						{
-							node.NotifySubmitters = new HashSet<string>(submitters);
-						}
-						else
-						{
-							node.NotifySubmitters.UnionWith(submitters);
-						}
-					}
-					if (bWarnings.HasValue)
-					{
-						node.NotifyOnWarnings = bWarnings.Value;
-					}
-				}
-
-				// Add the users to the list of reports
-				if (reportNames != null)
-				{
-					foreach (string reportName in reportNames)
-					{
-						BgReport? report;
-						if (_graph.NameToReport.TryGetValue(reportName, out report))
-						{
-							report.NotifyUsers.UnionWith(users);
-						}
-						else
-						{
-							LogError(element, "Report '{0}' has not been defined", reportName);
-						}
-					}
-				}
-			}
-		}
 
 		/// <inheritdoc/>
-		protected override async Task ReadAnnotationAsync(BgScriptElement element)
+		public object GetNativePath(string Path)
 		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string[] targetNames = ReadListAttribute(element, "Targets");
-				string[] exceptNames = ReadListAttribute(element, "Except");
-				string[] individualNodeNames = ReadListAttribute(element, "Nodes");
-				Dictionary<string, string> annotations = ReadAnnotationsAttribute(element, "Values");
-
-				// Find the list of targets which are included, and recurse through all their dependencies
-				HashSet<BgNode> nodes = new HashSet<BgNode>();
-				if (targetNames != null)
-				{
-					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
-					foreach (BgNode node in targetNodes)
-					{
-						nodes.Add(node);
-						nodes.UnionWith(node.InputDependencies);
-					}
-				}
-
-				// Add all the individually referenced nodes
-				if (individualNodeNames != null)
-				{
-					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
-					nodes.UnionWith(individualNodes);
-				}
-
-				// Exclude all the exceptions
-				if (exceptNames != null)
-				{
-					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
-					nodes.ExceptWith(exceptNodes);
-				}
-
-				// Update all the referenced nodes with the settings
-				foreach (BgNode node in nodes)
-				{
-					foreach ((string key, string value) in annotations)
-					{
-						node.Annotations[key] = value;
-					}
-				}
-			}
-		}
-
-		/// <summary>
-		/// Reads a warning from the given element, evaluates the condition on it, and writes it to the log if the condition passes.
-		/// </summary>
-		/// <param name="element">Xml element to read the definition from</param>
-		/// <param name="level">The diagnostic event type</param>
-		protected override async Task ReadDiagnosticAsync(BgScriptElement element, LogLevel level)
-		{
-			if (await EvaluateConditionAsync(element))
-			{
-				string message = ReadAttribute(element, "Message");
-
-				BgDiagnostic diagnostic = new BgDiagnostic(element.Location.File, element.Location.LineNumber, level, message);
-				if (_enclosingNode != null)
-				{
-					_enclosingNode.Diagnostics.Add(diagnostic);
-				}
-				else if (_enclosingAgent != null)
-				{
-					_enclosingAgent.Diagnostics.Add(diagnostic);
-				}
-				else
-				{
-					_graph.Diagnostics.Add(diagnostic);
-				}
-			}
-		}
-
-		/// <summary>
-		/// Checks that the given name does not already used to refer to a node, and print an error if it is.
-		/// </summary>
-		/// <param name="element">Xml element to read from</param>
-		/// <param name="name">Name of the alias</param>
-		/// <returns>True if the name was registered correctly, false otherwise.</returns>
-		bool CheckNameIsUnique(BgScriptElement element, string name)
-		{
-			// Get the nodes that it maps to
-			if (_graph.ContainsName(name))
-			{
-				LogError(element, "'{0}' is already defined; cannot add a second time", name);
-				return false;
-			}
-			return true;
-		}
-
-		/// <summary>
-		/// Resolve a list of references to a set of nodes
-		/// </summary>
-		/// <param name="element">Element used to locate any errors</param>
-		/// <param name="referenceNames">Sequence of names to look up</param>
-		/// <returns>Hashset of all the nodes included by the given names</returns>
-		HashSet<BgNode> ResolveReferences(BgScriptElement element, IEnumerable<string> referenceNames)
-		{
-			HashSet<BgNode> nodes = new HashSet<BgNode>();
-			foreach (string referenceName in referenceNames)
-			{
-				BgNode[]? otherNodes;
-				if (_graph.TryResolveReference(referenceName, out otherNodes))
-				{
-					nodes.UnionWith(otherNodes);
-				}
-				else if (!referenceName.StartsWith("#") && _graph.TagNameToNodeOutput.ContainsKey("#" + referenceName))
-				{
-					LogError(element, "Reference to '{0}' cannot be resolved; did you mean '#{0}'?", referenceName);
-				}
-				else
-				{
-					LogError(element, "Reference to '{0}' cannot be resolved; check it has been defined.", referenceName);
-				}
-			}
-			return nodes;
-		}
-
-		/// <summary>
-		/// Resolve a list of references to a set of nodes
-		/// </summary>
-		/// <param name="element">Element used to locate any errors</param>
-		/// <param name="referenceNames">Sequence of names to look up</param>
-		/// <returns>Set of all the nodes included by the given names</returns>
-		HashSet<BgNodeOutput> ResolveInputReferences(BgScriptElement element, IEnumerable<string> referenceNames)
-		{
-			HashSet<BgNodeOutput> inputs = new HashSet<BgNodeOutput>();
-			foreach (string referenceName in referenceNames)
-			{
-				BgNodeOutput[]? referenceInputs;
-				if (_graph.TryResolveInputReference(referenceName, out referenceInputs))
-				{
-					inputs.UnionWith(referenceInputs);
-				}
-				else if (!referenceName.StartsWith("#") && _graph.TagNameToNodeOutput.ContainsKey("#" + referenceName))
-				{
-					LogError(element, "Reference to '{0}' cannot be resolved; did you mean '#{0}'?", referenceName);
-				}
-				else
-				{
-					LogError(element, "Reference to '{0}' cannot be resolved; check it has been defined.", referenceName);
-				}
-			}
-			return inputs;
+			return FileReference.Combine(Unreal.RootDirectory, Path).FullName;
 		}
 	}
 }

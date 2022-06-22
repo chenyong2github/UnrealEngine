@@ -184,7 +184,7 @@ namespace AutomationTool
 		/// <param name="Prefix">Prefix for metadata entries</param>
 		public virtual void GetTraceMetadata(ITraceSpan Span, string Prefix)
 		{
-			Span.AddMetadata(Prefix + "source.file", SourceLocation.File);
+			Span.AddMetadata(Prefix + "source.file", SourceLocation.File.FullName);
 			Span.AddMetadata(Prefix + "source.line", SourceLocation.LineNumber.ToString());
 		}
 		
@@ -195,7 +195,7 @@ namespace AutomationTool
 		/// <param name="Prefix">Prefix for metadata entries</param>
 		public virtual void GetTraceMetadata(ISpan Span, string Prefix)
 		{
-			Span.SetTag(Prefix + "source.file", SourceLocation.File);
+			Span.SetTag(Prefix + "source.file", SourceLocation.File.FullName);
 			Span.SetTag(Prefix + "source.line", SourceLocation.LineNumber);
 		}
 

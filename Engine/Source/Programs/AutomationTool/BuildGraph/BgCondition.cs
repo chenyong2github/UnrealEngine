@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EpicGames.Core;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using UnrealBuildBase;
 
 namespace AutomationTool
 {
@@ -71,19 +73,11 @@ namespace AutomationTool
 		int _idx;
 
 		/// <summary>
-		/// Context for evaluating the expression
-		/// </summary>
-		readonly IBgScriptReaderContext _context;
-
-		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="text">The condition text</param>
-		/// <param name="context">Context for evaluating the expression</param>
-		private BgCondition(string text, IBgScriptReaderContext context)
+		private BgCondition(string text)
 		{
-			_context = context;
-
 			Tokenize(text, _tokens);
 		}
 
@@ -91,11 +85,10 @@ namespace AutomationTool
 		/// Evaluates the given string as a condition. Throws a ConditionException on a type or syntax error.
 		/// </summary>
 		/// <param name="text"></param>
-		/// <param name="context"></param>
 		/// <returns>The result of evaluating the condition</returns>
-		public static ValueTask<bool> EvaluateAsync(string text, IBgScriptReaderContext context)
+		public static ValueTask<bool> EvaluateAsync(string text)
 		{
-			return new BgCondition(text, context).EvaluateAsync();
+			return new BgCondition(text).EvaluateAsync();
 		}
 
 		/// <summary>
@@ -300,7 +293,7 @@ namespace AutomationTool
 				// Check whether file or directory exists. Evaluate the argument as a subexpression.
 				_idx++;
 				string argument = await EvaluateScalarAsync();
-				result = await _context.ExistsAsync(argument) ? "true" : "false";
+				result = Exists(argument) ? "true" : "false";
 			}
 			else if (String.Compare(_tokens[_idx], "HasTrailingSlash", true) == 0 && _tokens[_idx + 1] == "(")
 			{
@@ -355,6 +348,23 @@ namespace AutomationTool
 				}
 			}
 			return result;
+		}
+
+		/// <summary>
+		/// Determine if a path exists
+		/// </summary>
+		/// <param name="Path"></param>
+		/// <returns></returns>
+		static bool Exists(string Path)
+		{
+			try
+			{
+				return FileReference.Exists(FileReference.Combine(Unreal.RootDirectory, Path)) || DirectoryReference.Exists(DirectoryReference.Combine(Unreal.RootDirectory, Path));
+			}
+			catch
+			{
+				return false;
+			}
 		}
 
 		/// <summary>
@@ -520,7 +530,7 @@ namespace AutomationTool
 		/// <param name="expectedResult">The expected result</param>
 		static async Task TestConditionAsync(string condition, bool expectedResult)
 		{
-			bool result = await new BgCondition(condition, null!).EvaluateAsync();
+			bool result = await new BgCondition(condition).EvaluateAsync();
 			Console.WriteLine("{0}: {1} = {2}", (result == expectedResult) ? "PASS" : "FAIL", condition, result);
 		}
 	}

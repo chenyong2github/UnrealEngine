@@ -148,12 +148,12 @@ namespace AutomationTool
 			Node = node;
 		}
 
-		public bool Bind(Dictionary<string, ScriptTaskBinding> nameToTask, Dictionary<string, BgNodeOutput> tagNameToNodeOutput, IBgScriptReaderContext context, ILogger logger)
+		public bool Bind(Dictionary<string, ScriptTaskBinding> nameToTask, Dictionary<string, BgNodeOutput> tagNameToNodeOutput, ILogger logger)
 		{
 			bool bResult = true;
 			foreach (BgTask TaskInfo in Node.Tasks)
 			{
-				BgTaskImpl? boundTask = BindTask(TaskInfo, nameToTask, tagNameToNodeOutput, context, logger);
+				BgTaskImpl? boundTask = BindTask(TaskInfo, nameToTask, tagNameToNodeOutput, logger);
 				if (boundTask == null)
 				{
 					bResult = false;
@@ -166,7 +166,7 @@ namespace AutomationTool
 			return bResult;
 		}
 
-		BgTaskImpl? BindTask(BgTask TaskInfo, Dictionary<string, ScriptTaskBinding> NameToTask, IReadOnlyDictionary<string, BgNodeOutput> TagNameToNodeOutput, IBgScriptReaderContext Context, ILogger Logger)
+		BgTaskImpl? BindTask(BgTask TaskInfo, Dictionary<string, ScriptTaskBinding> NameToTask, IReadOnlyDictionary<string, BgNodeOutput> TagNameToNodeOutput, ILogger Logger)
 		{
 			// Get the reflection info for this element
 			ScriptTaskBinding? Task;
@@ -203,7 +203,7 @@ namespace AutomationTool
 				if (Parameter.CollectionType == null)
 				{
 					// Parse it and assign it to the parameters object
-					object? FieldValue = ParseValue(Value, Parameter.ValueType, Context);
+					object? FieldValue = ParseValue(Value, Parameter.ValueType);
 					Parameter.FieldInfo.SetValue(ParametersObject, FieldValue);
 				}
 				else
@@ -220,7 +220,7 @@ namespace AutomationTool
 					List<string> ValueStrings = BgTaskImpl.SplitDelimitedList(Value);
 					foreach (string ValueString in ValueStrings)
 					{
-						object ElementValue = ParseValue(ValueString, Parameter.ValueType, Context)!;
+						object ElementValue = ParseValue(ValueString, Parameter.ValueType)!;
 						Parameter.CollectionType.InvokeMember("Add", BindingFlags.InvokeMethod | BindingFlags.Instance | BindingFlags.Public, null, CollectionValue, new object[] { ElementValue });
 					}
 				}
@@ -271,9 +271,8 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="ValueText">The text to parse</param>
 		/// <param name="ValueType">Type of the value to parse</param>
-		/// <param name="Context">Context for the script reader</param>
 		/// <returns>Value that was parsed</returns>
-		static object? ParseValue(string ValueText, Type ValueType, IBgScriptReaderContext Context)
+		static object? ParseValue(string ValueText, Type ValueType)
 		{
 			// Parse it and assign it to the parameters object
 			if (ValueType.IsEnum)
@@ -282,7 +281,7 @@ namespace AutomationTool
 			}
 			else if (ValueType == typeof(Boolean))
 			{
-				return BgCondition.EvaluateAsync(ValueText, Context).Result;
+				return BgCondition.EvaluateAsync(ValueText).Result;
 			}
 			else if (ValueType == typeof(FileReference))
 			{

@@ -104,100 +104,6 @@ namespace AutomationTool
 	}
 
 	/// <summary>
-	/// Implementation of <see cref="IBgScriptReaderContext"/> which reads files from disk
-	/// </summary>
-	class ScriptReaderFileContext : IBgScriptReaderContext
-	{
-		/// <summary>
-		/// Directory to resolve relative paths to
-		/// </summary>
-		public DirectoryReference RootDirectory { get; set; } = Unreal.RootDirectory;
-
-		/// <inheritdoc/>
-		public object GetNativePath(string Path)
-		{
-			return FileReference.Combine(RootDirectory, Path).FullName;
-		}
-
-		/// <inheritdoc/>
-		public Task<bool> ExistsAsync(string Path)
-		{
-			try
-			{
-				return Task.FromResult(FileReference.Exists(FileReference.Combine(RootDirectory, Path)) || DirectoryReference.Exists(DirectoryReference.Combine(RootDirectory, Path)));
-			}
-			catch
-			{
-				return Task.FromResult(false);
-			}
-		}
-
-		/// <inheritdoc/>
-		public async Task<byte[]> ReadAsync(string Path)
-		{
-			try
-			{
-				FileReference File = FileReference.Combine(RootDirectory, Path);
-				if (FileReference.Exists(File))
-				{
-					return await FileReference.ReadAllBytesAsync(File);
-				}
-			}
-			catch
-			{
-			}
-			return null;
-		}
-
-		/// <inheritdoc/>
-		public Task<string[]> FindAsync(string Pattern)
-		{
-			FileFilter Filter = new FileFilter();
-			Filter.AddRule(Pattern, FileFilterType.Include);
-
-			List<string> Files = Filter.ApplyToDirectory(RootDirectory, true).ConvertAll(x => x.MakeRelativeTo(RootDirectory).Replace('\\', '/'));
-			Files.Sort(StringComparer.OrdinalIgnoreCase);
-			return Task.FromResult(Files.ToArray());
-		}
-
-		/// <inheritdoc/>
-		public string CombinePaths(string basePath, string nextPath)
-		{
-			if (Path.IsPathRooted(nextPath))
-			{
-				return nextPath;
-			}
-
-			List<string> fragments = new List<string>(basePath.Split('/'));
-			fragments.RemoveAt(fragments.Count - 1);
-
-			foreach (string appendFragment in nextPath.Split('/'))
-			{
-				if (appendFragment.Equals(".", StringComparison.Ordinal))
-				{
-					continue;
-				}
-				else if (appendFragment.Equals("..", StringComparison.Ordinal))
-				{
-					if (fragments.Count > 0)
-					{
-						fragments.RemoveAt(fragments.Count - 1);
-					}
-					else
-					{
-						throw new Exception($"Path '{nextPath}' cannot be combined with '{basePath}'");
-					}
-				}
-				else
-				{
-					fragments.Add(appendFragment);
-				}
-			}
-			return String.Join('/', fragments);
-		}
-	}
-
-	/// <summary>
 	/// Tool to execute build automation scripts for UE projects, which can be run locally or in parallel across a build farm (assuming synchronization and resource allocation implemented by a separate system).
 	///
 	/// Build graphs are declared using an XML script using syntax similar to MSBuild, ANT or NAnt, and consist of the following components:
@@ -275,11 +181,6 @@ namespace AutomationTool
 				this.EngineVersion = (Version.MajorVersion, Version.MinorVersion, Version.PatchVersion);
 			}
 		}
-
-		/// <summary>
-		/// Context object for reading scripts and evaluating conditions
-		/// </summary>
-		ScriptReaderFileContext Context { get; } = new ScriptReaderFileContext();
 
 		/// <summary>
 		/// Main entry point for the BuildGraph command
@@ -501,14 +402,9 @@ namespace AutomationTool
 
 				// Normalize the script filename
 				FileReference FullScriptFile = FileReference.Combine(Unreal.RootDirectory, ScriptFileName);
-				if (!FullScriptFile.IsUnderDirectory(Context.RootDirectory))
-				{
-					Context.RootDirectory = FullScriptFile.Directory;
-				}
-				ScriptFileName = FullScriptFile.MakeRelativeTo(Context.RootDirectory).Replace('\\', '/');
 
 				// Read the script from disk
-				Graph = BgScriptReader.ReadAsync(Context, ScriptFileName, Arguments, DefaultProperties, Schema, Logger, SingleNodeName).Result;
+				Graph = BgScriptReader.ReadAsync(FullScriptFile, Arguments, DefaultProperties, Schema, Logger, SingleNodeName).Result;
 				if (Graph == null)
 				{
 					return ExitCode.Error_Unknown;
@@ -784,7 +680,7 @@ namespace AutomationTool
 			{
 				BgScriptNodeExecutor executor = new BgScriptNodeExecutor(ScriptNode);
 				NodeToExecutor[Node] = executor;
-				return executor.Bind(NameToTask, TagNameToNodeOutput, Context, Logger);
+				return executor.Bind(NameToTask, TagNameToNodeOutput, Logger);
 			}
 			else if (Node is BgExpressionNode ExpressionNode)
 			{
