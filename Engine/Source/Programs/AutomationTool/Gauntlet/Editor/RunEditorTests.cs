@@ -48,7 +48,7 @@ namespace EditorTest
 		/// <param name="AppConfig"></param>
 		public override void ApplyToConfig(UnrealAppConfig AppConfig, UnrealSessionRole ConfigRole, IEnumerable<UnrealSessionRole> OtherRoles)
 		{
-			base.ApplyToConfig(AppConfig);
+			base.ApplyToConfig(AppConfig, ConfigRole, OtherRoles);
 
 			if (AppConfig.ProcessType.IsEditor())
 			{
