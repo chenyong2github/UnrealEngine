@@ -208,6 +208,11 @@ namespace Horde.Agent
 		public bool WriteStepOutputToLogger { get; set; }
 
 		/// <summary>
+		/// Key/value properties in addition to those set internally by the agent
+		/// </summary>
+		public Dictionary<string, string> Properties { get; } = new();
+
+		/// <summary>
 		/// Gets the current server settings
 		/// </summary>
 		/// <returns>The current server settings</returns>
