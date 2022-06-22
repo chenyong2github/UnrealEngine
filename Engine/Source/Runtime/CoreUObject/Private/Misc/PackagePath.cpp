@@ -1117,7 +1117,7 @@ bool FPackagePath::TryMatchCase(const FPackagePath& SourcePackagePath, FStringVi
 
 bool FPackagePath::operator==(const FPackagePath& Other) const
 {
-	return Other.PackageName == PackageName && Other.HeaderExtension == HeaderExtension;
+	return Other.PackageName == PackageName;
 }
 
 FArchive& operator<<(FArchive& Ar, FPackagePath& PackagePath)
