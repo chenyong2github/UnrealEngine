@@ -44,4 +44,11 @@ FString ToLogString(const FAchievementState& State)
 		*State.AchievementId, State.Progress, *State.UnlockTime.ToString());
 }
 
+bool operator==(const FAchievementStateUpdated& A, const FAchievementStateUpdated& B)
+{
+	return A.LocalUserId == B.LocalUserId
+		&& A.AchievementIds == B.AchievementIds;
+}
+
+
 /* UE::Online */ }

@@ -185,6 +185,8 @@ struct FAchievementStateUpdated
 	TArray<FString> AchievementIds;
 };
 
+bool ONLINESERVICESINTERFACE_API operator==(const FAchievementStateUpdated&, const FAchievementStateUpdated&);
+
 class IAchievements
 {
 public:
