@@ -64,6 +64,7 @@ void ULevelEditorSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	UActorEditorContextSubsystem::Get()->RegisterClient(this);
 	FWorldDelegates::LevelAddedToWorld.AddUObject(this, &ULevelEditorSubsystem::OnLevelAddedOrRemoved);
 	FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &ULevelEditorSubsystem::OnLevelAddedOrRemoved);
+	FWorldDelegates::OnCurrentLevelChanged.AddUObject(this, &ULevelEditorSubsystem::OnCurrentLevelChanged);
 }
 
 void ULevelEditorSubsystem::Deinitialize()
@@ -71,6 +72,7 @@ void ULevelEditorSubsystem::Deinitialize()
 	UActorEditorContextSubsystem::Get()->UnregisterClient(this);
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+	FWorldDelegates::OnCurrentLevelChanged.RemoveAll(this);
 	UToolMenus::UnRegisterStartupCallback(this);
 	UToolMenus::UnregisterOwner(this);
 }
@@ -888,6 +890,11 @@ bool ULevelEditorSubsystem::GetActorEditorContextDisplayInfo(UWorld* InWorld, FA
 }
 
 void ULevelEditorSubsystem::OnLevelAddedOrRemoved(ULevel* InLevel, UWorld* InWorld)
+{
+	ActorEditorContextClientChanged.Broadcast(this);
+}
+
+void ULevelEditorSubsystem::OnCurrentLevelChanged(ULevel* InNewLevel, ULevel* InOldLevel, UWorld* InWorld)
 {
 	ActorEditorContextClientChanged.Broadcast(this);
 }

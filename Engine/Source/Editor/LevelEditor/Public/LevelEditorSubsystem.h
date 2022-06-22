@@ -160,6 +160,9 @@ private:
 	/** Called when a Level is added to a world or remove from a world */
 	void OnLevelAddedOrRemoved(ULevel* InLevel, UWorld* InWorld);
 
+	/** Called when the current level changes on a world */
+	void OnCurrentLevelChanged(ULevel* InNewLevel, ULevel* InOldLevel, UWorld* InWorld);
+
 	/** Delegate used to notify changes to ActorEditorContextSubsystem */
 	FOnActorEditorContextClientChanged ActorEditorContextClientChanged;
 };
