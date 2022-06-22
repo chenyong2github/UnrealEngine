@@ -1,22 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Abilities/Tasks/AbilityTask_WaitGameplayTagQuery.h"
 #include "AbilityAsync.h"
 
 #include "AbilityAsync_WaitGameplayTagQuery.generated.h"
 
 class UAbilitySystemComponent;
 
-
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FAsyncWaitGameplayTagQueryDelegate);
-
-/** This enum defines the condition in which the async wait gameplay tag query node will trigger. */
-UENUM()
-enum class EWaitGameplayTagQueryAsyncTriggerCondition : uint8
-{
-	WhenTrue = 0,
-	WhenFalse,
-};
 
 /** This class defines an async node to wait on a gameplay tag query. */
 UCLASS()
@@ -44,7 +36,7 @@ protected:
 	FGameplayTagQuery TagQuery;
 
 	/** This indicates when to Trigger the Triggered output for this node. */
-	EWaitGameplayTagQueryAsyncTriggerCondition TriggerCondition = EWaitGameplayTagQueryAsyncTriggerCondition::WhenTrue;
+	EWaitGameplayTagQueryTriggerCondition TriggerCondition = EWaitGameplayTagQueryTriggerCondition::WhenTrue;
 
 	/** This indicates if this node should only trigger once, or any number of times. */
 	bool bOnlyTriggerOnce = false;
@@ -74,6 +66,6 @@ protected:
  	UFUNCTION(BlueprintCallable, Category = "Ability|Tasks", meta = (DefaultToSelf = "TargetActor", BlueprintInternalUseOnly = "TRUE"))
  	static UAbilityAsync_WaitGameplayTagQuery* WaitGameplayTagQueryOnActor(AActor* TargetActor, 
 																		   const FGameplayTagQuery TagQuery, 
-																		   const EWaitGameplayTagQueryAsyncTriggerCondition TriggerCondition = EWaitGameplayTagQueryAsyncTriggerCondition::WhenTrue, 
+																		   const EWaitGameplayTagQueryTriggerCondition TriggerCondition = EWaitGameplayTagQueryTriggerCondition::WhenTrue,
 																		   const bool bOnlyTriggerOnce=false);
 };

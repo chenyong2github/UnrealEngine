@@ -13,7 +13,7 @@ void UAbilityAsync_WaitGameplayTagQuery::Activate()
 	if (ASC != nullptr)
 	{
 		//Start the query state to the opposite of the triggered condition so it can be triggered immediately
-		bQueryState = TriggerCondition != EWaitGameplayTagQueryAsyncTriggerCondition::WhenTrue;
+		bQueryState = TriggerCondition != EWaitGameplayTagQueryTriggerCondition::WhenTrue;
 
 		TArray<FGameplayTag> QueryTags;
 		TagQuery.GetGameplayTagArray(QueryTags);
@@ -99,11 +99,11 @@ void UAbilityAsync_WaitGameplayTagQuery::EvaluateTagQuery()
 	bool bTriggerDelegate = false;
 	if (bStateChanged)
 	{
-		if (TriggerCondition == EWaitGameplayTagQueryAsyncTriggerCondition::WhenTrue && bQueryState)
+		if (TriggerCondition == EWaitGameplayTagQueryTriggerCondition::WhenTrue && bQueryState)
 		{
 			bTriggerDelegate = true;
 		}
-		else if (TriggerCondition == EWaitGameplayTagQueryAsyncTriggerCondition::WhenFalse && !bQueryState)
+		else if (TriggerCondition == EWaitGameplayTagQueryTriggerCondition::WhenFalse && !bQueryState)
 		{
 			bTriggerDelegate = true;
 		}
@@ -121,7 +121,7 @@ void UAbilityAsync_WaitGameplayTagQuery::EvaluateTagQuery()
 
 UAbilityAsync_WaitGameplayTagQuery* UAbilityAsync_WaitGameplayTagQuery::WaitGameplayTagQueryOnActor(AActor* TargetActor, 
 																									const FGameplayTagQuery TagQuery, 
-																									const EWaitGameplayTagQueryAsyncTriggerCondition TriggerCondition /*= EWaitGameplayTagQueryTriggerCondition::WhenTrue*/, 
+																									const EWaitGameplayTagQueryTriggerCondition TriggerCondition /*= EWaitGameplayTagQueryTriggerCondition::WhenTrue*/, 
 																									const bool bOnlyTriggerOnce/*=false*/)
 {
 	UAbilityAsync_WaitGameplayTagQuery* MyObj = NewObject<UAbilityAsync_WaitGameplayTagQuery>();
