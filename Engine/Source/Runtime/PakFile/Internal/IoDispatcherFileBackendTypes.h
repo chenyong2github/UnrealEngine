@@ -936,7 +936,7 @@ private:
 	FCountersTrace::FCounterInt BlockCacheMissedSizeCounter;
 	FCountersTrace::FCounterInt ScatteredSizeCounter;
 	FCountersTrace::FCounterInt TocMemoryCounter;
-	FCountersTrace::FCounterInt AvailableBuffersCounter;
+	FCountersTrace::TCounter<std::atomic<int64>, TraceCounterType_Int> AvailableBuffersCounter;
 #endif
 
 #if CSV_PROFILER
