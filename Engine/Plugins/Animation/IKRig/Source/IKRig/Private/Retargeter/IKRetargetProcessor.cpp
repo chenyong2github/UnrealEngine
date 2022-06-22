@@ -1670,7 +1670,13 @@ void UIKRetargetProcessor::SetNeedsInitialized()
 
 void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 {
-	IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(RetargeterAsset->GetTargetIKRig());
+	const UIKRigDefinition* TargetIKRig = RetargeterAsset->GetTargetIKRig();
+	if (!TargetIKRig)
+	{
+		return;
+	}
+	
+	IKRigProcessor->CopyAllInputsFromSourceAssetAtRuntime(TargetIKRig);
 
 	// copy most recent settings from asset for each chain
 	const TArray<TObjectPtr<URetargetChainSettings>>& AllChainSettings = RetargeterAsset->GetAllChainSettings();
