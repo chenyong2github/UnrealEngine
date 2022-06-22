@@ -35,7 +35,7 @@ public:
 	UE_API void ReadFromFileAsync(const TCHAR* ReplayPath, uint64 ScratchSize = DefaultScratchSize);
 	UE_API bool ReadFromFile(const TCHAR* ReplayPath, uint64 ScratchSize = DefaultScratchSize);
 	UE_API bool ReadFromArchive(FArchive& ReplayAr, uint64 ScratchSize = DefaultScratchSize);
-	UE_API bool ReadFromObject(const FCbObject& Object);
+	UE_API bool ReadFromObject(FCbObjectView Object);
 
 private:
 	class FState;
