@@ -1352,13 +1352,13 @@ FDataprepEditorViewportClient::FDataprepEditorViewportClient(const TSharedRef<SE
 	AdvancedPreviewScene->SetProfileIndex( SDataprepEditorViewport::AssetViewerProfileIndex );
 }
 
-bool FDataprepEditorViewportClient::InputKey(FViewport * InViewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool bGamepad)
+bool FDataprepEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
 	bool bHandled = false;
 	
 	// #ueent_todo: Put code for specific handling
 
-	return bHandled ? true : FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, bGamepad );
+	return bHandled ? true : FEditorViewportClient::InputKey(EventArgs);
 }
 
 void FDataprepEditorViewportClient::ProcessClick(FSceneView& View, HHitProxy* HitProxy, FKey Key, EInputEvent Event, uint32 HitX, uint32 HitY)

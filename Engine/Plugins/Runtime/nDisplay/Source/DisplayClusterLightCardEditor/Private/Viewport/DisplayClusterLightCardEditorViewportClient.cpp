@@ -750,26 +750,25 @@ FSceneView* FDisplayClusterLightCardEditorViewportClient::CalcSceneView(FSceneVi
 	return View;
 }
 
-bool FDisplayClusterLightCardEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, FKey Key, EInputEvent Event,
-                                            float AmountDepressed, bool bGamepad)
+bool FDisplayClusterLightCardEditorViewportClient::InputKey(const FInputKeyEventArgs& EventArgs)
 {
 	switch (InputMode)
 	{
 	case EInputMode::DrawingLightCard:
 		
-		if ((Key == EKeys::LeftMouseButton) && (Event == IE_Released))
+		if ((EventArgs.Key == EKeys::LeftMouseButton) && (EventArgs.Event == IE_Released))
 		{
 			// Add a new light card polygon point
 
 			FIntPoint MousePos;
-			InViewport->GetMousePos(MousePos);
+			EventArgs.Viewport->GetMousePos(MousePos);
 
 			if (!DrawnMousePositions.Num() || (DrawnMousePositions.Last() != MousePos))
 			{
 				DrawnMousePositions.Add(MousePos);
 			}
 		}
-		else if ((Key == EKeys::RightMouseButton) && (Event == IE_Released))
+		else if ((EventArgs.Key == EKeys::RightMouseButton) && (EventArgs.Event == IE_Released))
 		{
 			// Create the polygon light card.
 			CreateDrawnLightCard(DrawnMousePositions);
@@ -787,9 +786,9 @@ bool FDisplayClusterLightCardEditorViewportClient::InputKey(FViewport* InViewpor
 
 	default:
 
-		if ((Key == EKeys::MouseScrollUp || Key == EKeys::MouseScrollDown) && (Event == IE_Pressed))
+		if ((EventArgs.Key == EKeys::MouseScrollUp || EventArgs.Key == EKeys::MouseScrollDown) && (EventArgs.Event == IE_Pressed))
 		{
-			const int32 Sign = Key == EKeys::MouseScrollUp ? -1 : 1;
+			const int32 Sign = EventArgs.Key == EKeys::MouseScrollUp ? -1 : 1;
 			const float CurrentFOV = GetProjectionModeFOV(ProjectionMode);
 			const float NewFOV = FMath::Clamp(CurrentFOV + Sign * FOVScrollIncrement, CameraController->GetConfig().MinimumAllowedFOV, CameraController->GetConfig().MaximumAllowedFOV);
 
@@ -800,7 +799,7 @@ bool FDisplayClusterLightCardEditorViewportClient::InputKey(FViewport* InViewpor
 		break;
 	}
 
-	return FEditorViewportClient::InputKey(InViewport, ControllerId, Key, Event, AmountDepressed, bGamepad);
+	return FEditorViewportClient::InputKey(EventArgs);
 }
 
 bool FDisplayClusterLightCardEditorViewportClient::InputWidgetDelta(FViewport* InViewport,
