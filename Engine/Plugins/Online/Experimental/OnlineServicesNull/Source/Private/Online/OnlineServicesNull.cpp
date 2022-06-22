@@ -6,6 +6,7 @@
 #include "Online/AchievementsNull.h"
 #include "Online/AuthNull.h"
 #include "Online/LobbiesNull.h"
+#include "Online/TitleFileNull.h"
 
 namespace UE::Online {
 
@@ -36,6 +37,7 @@ void FOnlineServicesNull::RegisterComponents()
 #if WITH_ENGINE
 	Components.Register<FLobbiesNull>(*this);
 #endif
+	Components.Register<FTitleFileNull>(*this);
 	FOnlineServicesCommon::RegisterComponents();
 }
 
