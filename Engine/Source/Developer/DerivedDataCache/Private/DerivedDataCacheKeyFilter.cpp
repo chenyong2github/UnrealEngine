@@ -76,7 +76,7 @@ FCacheKeyFilter FCacheKeyFilter::Parse(const TCHAR* const Config, const TCHAR* c
 	{
 		const int32 PrefixIndex = String::FindFirst(ConfigView, PrefixView, ESearchCase::IgnoreCase);
 		ConfigView.RightChopInline(PrefixIndex + PrefixView.Len() + TypeConfigArray.Len());
-		String::ParseTokens(TypeConfigArray, TEXT('+'), [&Types](const FStringView TypeConfig)
+		String::ParseTokensMultiple(TypeConfigArray, {TEXT('+'), TEXT(',')}, [&Types](const FStringView TypeConfig)
 		{
 			FCacheKeyFilterState::FTypeRate TypeRate;
 			if (FCacheKeyFilterState::TryParseTypeRate(TypeConfig, TypeRate))

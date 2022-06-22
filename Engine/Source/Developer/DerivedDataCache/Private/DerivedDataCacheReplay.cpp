@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "DerivedDataCacheReplay.h"
+
 #include "Algo/AnyOf.h"
 #include "Compression/CompressedBuffer.h"
 #include "Containers/StringView.h"
 #include "DerivedDataCacheKeyFilter.h"
+#include "DerivedDataCacheMethod.h"
 #include "DerivedDataLegacyCacheStore.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
@@ -11,6 +14,7 @@
 #include "HAL/FileManager.h"
 #include "HAL/PlatformTime.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Optional.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
@@ -19,118 +23,14 @@
 #include "Serialization/CompactBinaryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "String/Find.h"
-#include "String/ParseTokens.h"
+#include "Tasks/Pipe.h"
+#include "Tasks/Task.h"
 #include "Templates/Invoke.h"
 
 namespace UE::DerivedData
 {
 
 static constexpr uint64 GCacheReplayCompressionBlockSize = 256 * 1024;
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-enum class ECacheMethod : uint8
-{
-	Put,
-	Get,
-	PutValue,
-	GetValue,
-	GetChunks,
-};
-
-template <typename CharType>
-static TStringBuilderBase<CharType>& operator<<(TStringBuilderBase<CharType>& Builder, const ECacheMethod Method)
-{
-	switch (Method)
-	{
-	case ECacheMethod::Put:       return Builder << ANSITEXTVIEW("Put");
-	case ECacheMethod::Get:       return Builder << ANSITEXTVIEW("Get");
-	case ECacheMethod::PutValue:  return Builder << ANSITEXTVIEW("PutValue");
-	case ECacheMethod::GetValue:  return Builder << ANSITEXTVIEW("GetValue");
-	case ECacheMethod::GetChunks: return Builder << ANSITEXTVIEW("GetChunks");
-	}
-	return Builder << ANSITEXTVIEW("Unknown");
-}
-
-template <typename CharType>
-static bool TryLexFromString(ECacheMethod& OutMethod, const TStringView<CharType> String)
-{
-	const auto ConvertedString = StringCast<UTF8CHAR, 16>(String.GetData(), String.Len());
-	if (ConvertedString == UTF8TEXTVIEW("Put"))
-	{
-		OutMethod = ECacheMethod::Put;
-	}
-	else if (ConvertedString == UTF8TEXTVIEW("Get"))
-	{
-		OutMethod = ECacheMethod::Get;
-	}
-	else if (ConvertedString == UTF8TEXTVIEW("PutValue"))
-	{
-		OutMethod = ECacheMethod::PutValue;
-	}
-	else if (ConvertedString == UTF8TEXTVIEW("GetValue"))
-	{
-		OutMethod = ECacheMethod::GetValue;
-	}
-	else if (ConvertedString == UTF8TEXTVIEW("GetChunks"))
-	{
-		OutMethod = ECacheMethod::GetChunks;
-	}
-	else
-	{
-		return false;
-	}
-	return true;
-}
-
-static FCbWriter& operator<<(FCbWriter& Writer, const ECacheMethod Method)
-{
-	Writer.AddString(WriteToUtf8String<16>(Method));
-	return Writer;
-}
-
-static bool LoadFromCompactBinary(FCbFieldView Field, ECacheMethod& OutMethod)
-{
-	if (TryLexFromString(OutMethod, Field.AsString()))
-	{
-		return true;
-	}
-	OutMethod = {};
-	return false;
-}
-
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-class FCacheMethodFilter
-{
-public:
-	static FCacheMethodFilter Parse(const TCHAR* CommandLine);
-
-	inline bool IsMatch(ECacheMethod Method) const
-	{
-		return (MethodMask & (1 << uint32(Method))) == 0;
-	}
-
-private:
-	uint32 MethodMask = 0;
-};
-
-class FCachePolicyFilter
-{
-public:
-	static FCachePolicyFilter Parse(const TCHAR* CommandLine);
-
-	inline ECachePolicy operator()(ECachePolicy Policy) const
-	{
-		EnumAddFlags(Policy, FlagsToAdd);
-		EnumRemoveFlags(Policy, FlagsToRemove);
-		return Policy;
-	}
-
-private:
-	ECachePolicy FlagsToAdd = ECachePolicy::None;
-	ECachePolicy FlagsToRemove = ECachePolicy::None;
-};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -177,6 +77,11 @@ public:
 		return InnerCache->LegacyDebugOptions(Options);
 	}
 
+	void SetReader(FCacheReplayReader&& Reader)
+	{
+		ReplayReader = MoveTemp(Reader);
+	}
+
 private:
 	template <typename RequestType>
 	void SerializeRequests(TConstArrayView<RequestType> Requests, ECacheMethod Method, EPriority Priority);
@@ -193,6 +98,7 @@ private:
 	FUniqueBuffer RawBlock;
 	FMutableMemoryView RawBlockTail;
 	FCriticalSection Lock;
+	TOptional<FCacheReplayReader> ReplayReader;
 };
 
 FCacheStoreReplay::FCacheStoreReplay(
@@ -205,14 +111,17 @@ FCacheStoreReplay::FCacheStoreReplay(
 	, KeyFilter(MoveTemp(InKeyFilter))
 	, MethodFilter(MoveTemp(InMethodFilter))
 	, ReplayPath(MoveTemp(InReplayPath))
-	, ReplayAr(IFileManager::Get().CreateFileWriter(*ReplayPath, FILEWRITE_NoFail))
 {
+	if (!ReplayPath.IsEmpty())
+	{
+		ReplayAr.Reset(IFileManager::Get().CreateFileWriter(*ReplayPath, FILEWRITE_NoFail));
+	}
 	if (CompressionBlockSize)
 	{
 		RawBlock = FUniqueBuffer::Alloc(CompressionBlockSize);
 		RawBlockTail = RawBlock;
 	}
-	UE_LOG(LogDerivedDataCache, Display, TEXT("Replay: Saving cache replay to '%s'"), *ReplayPath);
+	UE_CLOG(ReplayAr, LogDerivedDataCache, Display, TEXT("Replay: Saving cache replay to '%s'"), *ReplayPath);
 }
 
 FCacheStoreReplay::~FCacheStoreReplay()
@@ -226,6 +135,11 @@ void FCacheStoreReplay::SerializeRequests(
 	const ECacheMethod Method,
 	const EPriority Priority)
 {
+	if (!ReplayAr)
+	{
+		return;
+	}
+
 	TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_Serialize);
 
 	const auto IsKeyMatch = [this](const RequestType& Request) { return KeyFilter.IsMatch(Request.Key); };
@@ -348,92 +262,120 @@ void FCacheStoreReplay::GetChunks(
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-class FCacheReplayReader
+class FCacheReplayReader::FState
 {
 public:
-	static constexpr uint64 DefaultScratchSize = 1024;
+	~FState();
 
-	FCacheReplayReader(
-		ILegacyCacheStore* TargetCache,
-		FCacheKeyFilter KeyFilter,
-		FCacheMethodFilter MethodFilter,
-		FCachePolicyFilter PolicyFilter,
-		const EPriority* ForcedPriority = nullptr);
+	void WaitForAsyncReads();
 
-	~FCacheReplayReader();
-
-	bool ReadFromFile(const TCHAR* ReplayPath, uint64 ScratchSize = DefaultScratchSize);
-	bool ReadFromArchive(FArchive& ReplayAr, uint64 ScratchSize = DefaultScratchSize);
+	void ReadFromFileAsync(const TCHAR* ReplayPath, uint64 ScratchSize);
+	bool ReadFromFile(const TCHAR* ReplayPath, uint64 ScratchSize);
+	bool ReadFromArchive(FArchive& ReplayAr, uint64 ScratchSize);
 	bool ReadFromObject(const FCbObject& Object);
+
+	static_assert(uint8(EPriority::Lowest) == 0);
+	static_assert(uint8(EPriority::Low) == 1);
+	static_assert(uint8(EPriority::Normal) == 2);
+	static_assert(uint8(EPriority::High) == 3);
+	static_assert(uint8(EPriority::Highest) == 4);
+	static_assert(uint8(EPriority::Blocking) == 5);
+
+	ILegacyCacheStore* TargetCache = nullptr;
+	FCacheKeyFilter KeyFilter;
+	FCacheMethodFilter MethodFilter;
+	ECachePolicy PolicyFlagsToAdd = ECachePolicy::None;
+	ECachePolicy PolicyFlagsToRemove = ECachePolicy::None;
+	FRequestOwner Owners[6]
+	{
+		FRequestOwner(EPriority::Lowest),
+		FRequestOwner(EPriority::Low),
+		FRequestOwner(EPriority::Normal),
+		FRequestOwner(EPriority::High),
+		FRequestOwner(EPriority::Highest),
+		FRequestOwner(EPriority::Blocking),
+	};
 
 private:
 	template <typename RequestType, typename FunctionType>
-	bool DispatchRequests(FCbObjectView Object, ECacheMethod Method, EPriority Priority, FunctionType Function);
+	bool DispatchRequests(FCbObjectView Object, ECacheMethod Method, FunctionType Function);
 
-	void ApplyPolicyFilter(FCacheGetRequest& Request);
-	void ApplyPolicyFilter(FCacheGetValueRequest& Request);
-	void ApplyPolicyFilter(FCacheGetChunkRequest& Request);
+	void ApplyPolicyTransform(FCacheGetRequest& Request);
+	void ApplyPolicyTransform(FCacheGetValueRequest& Request);
+	void ApplyPolicyTransform(FCacheGetChunkRequest& Request);
 
-	ILegacyCacheStore* TargetCache;
-	FCacheKeyFilter KeyFilter;
-	FCacheMethodFilter MethodFilter;
-	FCachePolicyFilter PolicyFilter;
-	FRequestOwner BlockingTaskOwner;
-	TArray<FRequestOwner, TInlineAllocator<6>> Owners;
-	int64 DispatchCount = 0;
-	double CreationTime = FPlatformTime::Seconds();
+	Tasks::FPipe ReadAsyncPipe{TEXT("CacheReplayReadAsync")};
+	TArray<Tasks::FTask> BlockingTasks;
+	int32 DispatchCount = 0;
+	int32 DispatchScope = 0;
+
+	class FDispatchScope;
 };
 
-FCacheReplayReader::FCacheReplayReader(
-	ILegacyCacheStore* const InTargetCache,
-	FCacheKeyFilter InKeyFilter,
-	FCacheMethodFilter InMethodFilter,
-	FCachePolicyFilter InPolicyFilter,
-	const EPriority* const InForcedPriority)
-	: TargetCache(InTargetCache)
-	, KeyFilter(MoveTemp(InKeyFilter))
-	, MethodFilter(MoveTemp(InMethodFilter))
-	, PolicyFilter(MoveTemp(InPolicyFilter))
-	, BlockingTaskOwner(EPriority::Normal)
+class FCacheReplayReader::FState::FDispatchScope
 {
-	static_assert(uint8(EPriority::Lowest) == 0);
-	Owners.Emplace(InForcedPriority ? *InForcedPriority : EPriority::Lowest);
-	static_assert(uint8(EPriority::Low) == 1);
-	Owners.Emplace(InForcedPriority ? *InForcedPriority : EPriority::Low);
-	static_assert(uint8(EPriority::Normal) == 2);
-	Owners.Emplace(InForcedPriority ? *InForcedPriority : EPriority::Normal);
-	static_assert(uint8(EPriority::High) == 3);
-	Owners.Emplace(InForcedPriority ? *InForcedPriority : EPriority::High);
-	static_assert(uint8(EPriority::Highest) == 4);
-	Owners.Emplace(InForcedPriority ? *InForcedPriority : EPriority::Highest);
-	static_assert(uint8(EPriority::Blocking) == 5);
-	Owners.Emplace(InForcedPriority ? *InForcedPriority : EPriority::Blocking);
-}
+public:
+	explicit FDispatchScope(FState& InState)
+		: State(InState)
+	{
+		if (State.DispatchScope++ == 0)
+		{
+			StartTime = FPlatformTime::Seconds();
+			StartDispatchCount = State.DispatchCount;
+		}
+	}
 
-FCacheReplayReader::~FCacheReplayReader()
+	~FDispatchScope()
+	{
+		if (--State.DispatchScope == 0)
+		{
+			UE_LOG(LogDerivedDataCache, Display, TEXT("Replay: Dispatched %d requests in %.3lf seconds."),
+				State.DispatchCount - StartDispatchCount, FPlatformTime::Seconds() - StartTime);
+		}
+	}
+
+private:
+	FState& State;
+	double StartTime = 0.0;
+	int32 StartDispatchCount = 0;
+};
+
+FCacheReplayReader::FState::~FState()
 {
-	UE_LOG(LogDerivedDataCache, Display, TEXT("Replay: Dispatched %" INT64_FMT " requests in %.3lf seconds."),
-		DispatchCount, FPlatformTime::Seconds() - CreationTime);
+	WaitForAsyncReads();
 
-	TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_Wait);
-	BlockingTaskOwner.Wait();
+	TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_RequestWait);
+	Tasks::Wait(BlockingTasks);
 
 	for (FRequestOwner& Owner : Owners)
 	{
 		Owner.Wait();
 	}
+}
 
-	UE_LOG(LogDerivedDataCache, Display, TEXT("Replay: Completed %" INT64_FMT " requests in %.3lf seconds."),
-		DispatchCount, FPlatformTime::Seconds() - CreationTime);
+void FCacheReplayReader::FState::WaitForAsyncReads()
+{
+	if (ReadAsyncPipe.HasWork())
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_DispatchWait);
+		ReadAsyncPipe.WaitUntilEmpty();
+	}
 }
 
 template <typename RequestType, typename FunctionType>
-bool FCacheReplayReader::DispatchRequests(
+bool FCacheReplayReader::FState::DispatchRequests(
 	const FCbObjectView Object,
 	const ECacheMethod Method,
-	const EPriority Priority,
 	const FunctionType Function)
 {
+	if (!MethodFilter.IsMatch(Method))
+	{
+		return true;
+	}
+
+	EPriority Priority = EPriority::Normal;
+	LoadFromCompactBinary(Object[ANSITEXTVIEW("Priority")], Priority, Priority);
+
 	TArray<RequestType, TInlineAllocator<16>> Requests;
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_Serialize);
@@ -448,7 +390,7 @@ bool FCacheReplayReader::DispatchRequests(
 			}
 			if (KeyFilter.IsMatch(Request.Key))
 			{
-				ApplyPolicyFilter(Request);
+				ApplyPolicyTransform(Request);
 			}
 			else
 			{
@@ -480,35 +422,50 @@ bool FCacheReplayReader::DispatchRequests(
 		else
 		{
 			// Owners with blocking priority launch a task to execute the blocking request to allow concurrent replay.
-			FRequestBarrier Barrier(BlockingTaskOwner);
-			((IRequestOwner&)BlockingTaskOwner).LaunchTask(TEXT("CacheReplayTask"),
-				[this, Requests = MoveTemp(Requests), Function]
-				{
-					FRequestOwner BlockingOwner(EPriority::Blocking);
-					Invoke(Function, TargetCache, Requests, BlockingOwner, [](auto&&){});
-				});
+			BlockingTasks.Add(Tasks::Launch(TEXT("CacheReplayTask"), [this, Requests = MoveTemp(Requests), Function]
+			{
+				FRequestOwner BlockingOwner(EPriority::Blocking);
+				Invoke(Function, TargetCache, Requests, BlockingOwner, [](auto&&){});
+				BlockingOwner.Wait();
+			}));
 		}
 	}
 
 	return true;
 }
 
-void FCacheReplayReader::ApplyPolicyFilter(FCacheGetRequest& Request)
+void FCacheReplayReader::FState::ApplyPolicyTransform(FCacheGetRequest& Request)
 {
-	Request.Policy = Request.Policy.Transform([this](ECachePolicy Policy) { return PolicyFilter(Policy); });
+	Request.Policy = Request.Policy.Transform([this](ECachePolicy Policy)
+	{
+		EnumAddFlags(Policy, PolicyFlagsToAdd);
+		EnumRemoveFlags(Policy, PolicyFlagsToRemove);
+		return Policy;
+	});
 }
 
-void FCacheReplayReader::ApplyPolicyFilter(FCacheGetValueRequest& Request)
+void FCacheReplayReader::FState::ApplyPolicyTransform(FCacheGetValueRequest& Request)
 {
-	Request.Policy = PolicyFilter(Request.Policy);
+	EnumAddFlags(Request.Policy, PolicyFlagsToAdd);
+	EnumRemoveFlags(Request.Policy, PolicyFlagsToRemove);
 }
 
-void FCacheReplayReader::ApplyPolicyFilter(FCacheGetChunkRequest& Request)
+void FCacheReplayReader::FState::ApplyPolicyTransform(FCacheGetChunkRequest& Request)
 {
-	Request.Policy = PolicyFilter(Request.Policy);
+	EnumAddFlags(Request.Policy, PolicyFlagsToAdd);
+	EnumRemoveFlags(Request.Policy, PolicyFlagsToRemove);
 }
 
-bool FCacheReplayReader::ReadFromFile(const TCHAR* const ReplayPath, const uint64 ScratchSize)
+void FCacheReplayReader::FState::ReadFromFileAsync(const TCHAR* const ReplayPath, const uint64 ScratchSize)
+{
+	ReadAsyncPipe.Launch(TEXT("CacheReplayReadFromFileAsync"), [this, ReplayPath = FString(ReplayPath), ScratchSize]
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_ReadFromFileAsync);
+		ReadFromFile(*ReplayPath, ScratchSize);
+	});
+}
+
+bool FCacheReplayReader::FState::ReadFromFile(const TCHAR* const ReplayPath, const uint64 ScratchSize)
 {
 	TUniquePtr<FArchive> ReplayAr(IFileManager::Get().CreateFileReader(ReplayPath, FILEREAD_Silent));
 	if (!ReplayAr)
@@ -517,12 +474,15 @@ bool FCacheReplayReader::ReadFromFile(const TCHAR* const ReplayPath, const uint6
 		return false;
 	}
 
+	FDispatchScope Dispatch(*this);
 	UE_LOG(LogDerivedDataCache, Display, TEXT("Replay: Loading cache replay from '%s'"), ReplayPath);
 	return ReadFromArchive(*ReplayAr, FMath::Max(ScratchSize, GCacheReplayCompressionBlockSize));
 }
 
-bool FCacheReplayReader::ReadFromArchive(FArchive& ReplayAr, const uint64 ScratchSize)
+bool FCacheReplayReader::FState::ReadFromArchive(FArchive& ReplayAr, const uint64 ScratchSize)
 {
+	FDispatchScope Dispatch(*this);
+
 	// A scratch buffer for the compact binary fields.
 	FUniqueBuffer Scratch = FUniqueBuffer::Alloc(ScratchSize);
 	const auto Alloc = [&Scratch](const uint64 Size) -> FUniqueBuffer
@@ -579,7 +539,7 @@ bool FCacheReplayReader::ReadFromArchive(FArchive& ReplayAr, const uint64 Scratc
 			}
 
 			FMemoryReaderView InnerAr(RawBlockView);
-			if (!ReadFromArchive(InnerAr))
+			if (!ReadFromArchive(InnerAr, DefaultScratchSize))
 			{
 				return false;
 			}
@@ -599,72 +559,94 @@ bool FCacheReplayReader::ReadFromArchive(FArchive& ReplayAr, const uint64 Scratc
 	return true;
 }
 
-bool FCacheReplayReader::ReadFromObject(const FCbObject& Object)
+bool FCacheReplayReader::FState::ReadFromObject(const FCbObject& Object)
 {
 	ECacheMethod Method{};
-	EPriority Priority{};
-	if (!LoadFromCompactBinary(Object[ANSITEXTVIEW("Method")], Method) ||
-		!LoadFromCompactBinary(Object[ANSITEXTVIEW("Priority")], Priority))
+	if (!LoadFromCompactBinary(Object[ANSITEXTVIEW("Method")], Method))
 	{
 		return false;
-	}
-
-	if (!MethodFilter.IsMatch(Method))
-	{
-		return true;
 	}
 
 	switch (Method)
 	{
 	case ECacheMethod::Get:
-		return DispatchRequests<FCacheGetRequest>(Object, Method, Priority, &ICacheStore::Get);
+		return DispatchRequests<FCacheGetRequest>(Object, Method, &ICacheStore::Get);
 	case ECacheMethod::GetValue:
-		return DispatchRequests<FCacheGetValueRequest>(Object, Method, Priority, &ICacheStore::GetValue);
+		return DispatchRequests<FCacheGetValueRequest>(Object, Method, &ICacheStore::GetValue);
 	case ECacheMethod::GetChunks:
-		return DispatchRequests<FCacheGetChunkRequest>(Object, Method, Priority, &ICacheStore::GetChunks);
+		return DispatchRequests<FCacheGetChunkRequest>(Object, Method, &ICacheStore::GetChunks);
 	}
 
 	return false;
 }
 
+FCacheReplayReader::FCacheReplayReader(ILegacyCacheStore* const TargetCache)
+	: State(MakePimpl<FState>())
+{
+	State->TargetCache = TargetCache;
+}
+
+void FCacheReplayReader::ReadFromFileAsync(const TCHAR* ReplayPath, const uint64 ScratchSize)
+{
+	return State->ReadFromFileAsync(ReplayPath, ScratchSize);
+}
+
+bool FCacheReplayReader::ReadFromFile(const TCHAR* ReplayPath, const uint64 ScratchSize)
+{
+	State->WaitForAsyncReads();
+	TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_ReadFromFile);
+	return State->ReadFromFile(ReplayPath, ScratchSize);
+}
+
+bool FCacheReplayReader::ReadFromArchive(FArchive& ReplayAr, const uint64 ScratchSize)
+{
+	State->WaitForAsyncReads();
+	TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_ReadFromArchive);
+	return State->ReadFromArchive(ReplayAr, ScratchSize);
+}
+
+bool FCacheReplayReader::ReadFromObject(const FCbObject& Object)
+{
+	State->WaitForAsyncReads();
+	TRACE_CPUPROFILER_EVENT_SCOPE(ReplayDDC_ReadFromObject);
+	return State->ReadFromObject(Object);
+}
+
+void FCacheReplayReader::SetKeyFilter(FCacheKeyFilter KeyFilter)
+{
+	State->KeyFilter = MoveTemp(KeyFilter);
+}
+
+void FCacheReplayReader::SetMethodFilter(FCacheMethodFilter MethodFilter)
+{
+	State->MethodFilter = MoveTemp(MethodFilter);
+}
+
+void FCacheReplayReader::SetPolicyTransform(ECachePolicy AddFlags, ECachePolicy RemoveFlags)
+{
+	State->PolicyFlagsToAdd = AddFlags;
+	State->PolicyFlagsToRemove = RemoveFlags;
+}
+
+void FCacheReplayReader::SetPriorityOverride(EPriority Priority)
+{
+	for (FRequestOwner& Owner : State->Owners)
+	{
+		Owner.SetPriority(Priority);
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCacheMethodFilter FCacheMethodFilter::Parse(const TCHAR* const CommandLine)
+static FCacheMethodFilter ParseReplayMethodFilter(const TCHAR* const CommandLine)
 {
 	FCacheMethodFilter MethodFilter;
 	FString MethodNames;
 	if (FParse::Value(CommandLine, TEXT("-DDC-ReplayMethods="), MethodNames))
 	{
-		MethodFilter.MethodMask = ~uint32(0);
-		String::ParseTokens(MethodNames, TEXT('+'), [&MethodFilter](FStringView MethodName)
-		{
-			ECacheMethod Method;
-			if (TryLexFromString(Method, MethodName))
-			{
-				MethodFilter.MethodMask &= ~(1 << uint32(Method));
-			}
-		});
+		MethodFilter = FCacheMethodFilter::Parse(MethodNames);
 	}
 	return MethodFilter;
-}
-
-FCachePolicyFilter FCachePolicyFilter::Parse(const TCHAR* const CommandLine)
-{
-	FCachePolicyFilter PolicyFilter;
-
-	FString FlagNamesToAdd;
-	if (FParse::Value(CommandLine, TEXT("-DDC-ReplayLoadAddPolicy="), FlagNamesToAdd))
-	{
-		TryLexFromString(PolicyFilter.FlagsToAdd, FlagNamesToAdd);
-	}
-
-	FString FlagNamesToRemove;
-	if (FParse::Value(CommandLine, TEXT("-DDC-ReplayLoadRemovePolicy="), FlagNamesToRemove))
-	{
-		TryLexFromString(PolicyFilter.FlagsToRemove, FlagNamesToRemove);
-	}
-
-	return PolicyFilter;
 }
 
 static FCacheKeyFilter ParseReplayKeyFilter(const TCHAR* const CommandLine)
@@ -698,6 +680,25 @@ static FCacheKeyFilter ParseReplayKeyFilter(const TCHAR* const CommandLine)
 	return KeyFilter;
 }
 
+static void ParseReplayPolicyTransform(const TCHAR* const CommandLine, FCacheReplayReader& Reader)
+{
+	ECachePolicy FlagsToAdd = ECachePolicy::None;
+	FString FlagNamesToAdd;
+	if (FParse::Value(CommandLine, TEXT("-DDC-ReplayLoadAddPolicy="), FlagNamesToAdd))
+	{
+		TryLexFromString(FlagsToAdd, FlagNamesToAdd);
+	}
+
+	ECachePolicy FlagsToRemove = ECachePolicy::None;
+	FString FlagNamesToRemove;
+	if (FParse::Value(CommandLine, TEXT("-DDC-ReplayLoadRemovePolicy="), FlagNamesToRemove))
+	{
+		TryLexFromString(FlagsToRemove, FlagNamesToRemove);
+	}
+
+	Reader.SetPolicyTransform(FlagsToAdd, FlagsToRemove);
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache)
@@ -712,67 +713,53 @@ ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache)
 	}
 
 	ILegacyCacheStore* ReplayTarget = InnerCache;
-	ILegacyCacheStore* ReplayStore = nullptr;
+	FCacheStoreReplay* ReplayStore = nullptr;
 
 	const FCacheKeyFilter KeyFilter = ParseReplayKeyFilter(CommandLine);
-	const FCacheMethodFilter MethodFilter = FCacheMethodFilter::Parse(CommandLine);
-	const FCachePolicyFilter PolicyFilter = FCachePolicyFilter::Parse(CommandLine);
+	const FCacheMethodFilter MethodFilter = ParseReplayMethodFilter(CommandLine);
 
-	// Create the replay cache store to save requests that pass the filters.
 	if (!ReplaySavePath.IsEmpty())
 	{
+		// Create the replay cache store to save requests that pass the filters.
 		const uint64 BlockSize = FParse::Param(CommandLine, TEXT("DDC-ReplayCompress")) ? GCacheReplayCompressionBlockSize : 0;
-		ReplayTarget = ReplayStore = new FCacheStoreReplay(InnerCache, KeyFilter, MethodFilter, *ReplaySavePath, BlockSize);
+		ReplayTarget = ReplayStore = new FCacheStoreReplay(InnerCache, KeyFilter, MethodFilter, MoveTemp(ReplaySavePath), BlockSize);
+	}
+	else
+	{
+		// Create a replay store to own the reader without saving a new replay.
+		ReplayStore = new FCacheStoreReplay(InnerCache, {}, {}, {}, {});
 	}
 
+	// Load every cache replay file that was requested on the command line.
 	if (bHasReplayLoad)
 	{
-		// Allow the captured priority to be overridden on the command line.
-		const EPriority* ForcedLoadPriority = nullptr;
+		FCacheReplayReader Reader(ReplayTarget);
+		Reader.SetKeyFilter(KeyFilter);
+		Reader.SetMethodFilter(MethodFilter);
+		ParseReplayPolicyTransform(CommandLine, Reader);
+
 		EPriority ReplayLoadPriority = EPriority::Lowest;
 		FString ReplayLoadPriorityName;
 		if (FParse::Value(CommandLine, TEXT("-DDC-ReplayLoadPriority="), ReplayLoadPriorityName) &&
 			TryLexFromString(ReplayLoadPriority, ReplayLoadPriorityName))
 		{
-			ForcedLoadPriority = &ReplayLoadPriority;
+			Reader.SetPriorityOverride(ReplayLoadPriority);
 		}
 
-		// Load every cache replay file that was requested on the command line.
-		FCacheReplayReader Reader(ReplayTarget, KeyFilter, MethodFilter, PolicyFilter, ForcedLoadPriority);
 		const TCHAR* Tokens = CommandLine;
 		for (FString Token; FParse::Token(Tokens, Token, /*UseEscape*/ false);)
 		{
 			FString ReplayLoadPath;
 			if (FParse::Value(*Token, TEXT("-DDC-ReplayLoad="), ReplayLoadPath))
 			{
-				Reader.ReadFromFile(*ReplayLoadPath);
+				Reader.ReadFromFileAsync(*ReplayLoadPath);
 			}
 		}
+
+		ReplayStore->SetReader(MoveTemp(Reader));
 	}
 
 	return ReplayStore;
-}
-
-bool TryLoadCacheStoreReplay(ILegacyCacheStore* TargetCache, const TCHAR* ReplayPath, const TCHAR* PriorityName)
-{
-	const EPriority* ForcedPriority = nullptr;
-	EPriority Priority = EPriority::Lowest;
-	if (PriorityName && TryLexFromString(Priority, PriorityName))
-	{
-		ForcedPriority = &Priority;
-	}
-
-	const TCHAR* const CommandLine = FCommandLine::Get();
-	FCacheKeyFilter KeyFilter = ParseReplayKeyFilter(CommandLine);
-	FCacheMethodFilter MethodFilter = FCacheMethodFilter::Parse(CommandLine);
-	FCachePolicyFilter PolicyFilter = FCachePolicyFilter::Parse(CommandLine);
-	FCacheReplayReader Reader(
-		TargetCache,
-		MoveTemp(KeyFilter),
-		MoveTemp(MethodFilter),
-		MoveTemp(PolicyFilter),
-		ForcedPriority);
-	return Reader.ReadFromFile(ReplayPath);
 }
 
 } // UE::DerivedData

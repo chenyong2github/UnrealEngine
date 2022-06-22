@@ -3,7 +3,9 @@
 #include "CoreTypes.h"
 #include "Containers/StringView.h"
 #include "DerivedDataBackendInterface.h"
+#include "DerivedDataCacheMethod.h"
 #include "DerivedDataCachePrivate.h"
+#include "DerivedDataCacheReplay.h"
 #include "DerivedDataCacheStore.h"
 #include "DerivedDataCacheUsageStats.h"
 #include "DerivedDataRequestOwner.h"
@@ -58,7 +60,6 @@ IPakFileCacheStore* CreatePakFileCacheStore(const TCHAR* Filename, bool bWriting
 ILegacyCacheStore* CreateS3CacheStore(const TCHAR* RootManifestPath, const TCHAR* BaseUrl, const TCHAR* Region, const TCHAR* CanaryObjectKey, const TCHAR* CachePath);
 TTuple<ILegacyCacheStore*, ECacheStoreFlags> CreateZenCacheStore(const TCHAR* NodeName, const TCHAR* Config);
 ILegacyCacheStore* TryCreateCacheStoreReplay(ILegacyCacheStore* InnerCache);
-bool TryLoadCacheStoreReplay(ILegacyCacheStore* TargetCache, const TCHAR* ReplayPath, const TCHAR* PriorityName = nullptr);
 
 /**
  * This class is used to create a singleton that represents the derived data cache hierarchy and all of the wrappers necessary
@@ -870,6 +871,7 @@ public:
 	virtual ~FDerivedDataBackendGraph()
 	{
 		check(StaticGraph == this);
+		Replays.Empty();
 		RootCache = nullptr;
 		DestroyCreatedBackends();
 		StaticGraph = nullptr;
@@ -1103,17 +1105,84 @@ private:
 	{
 		if (Args.Num() < 1)
 		{
-			UE_LOG(LogDerivedDataCache, Log, TEXT("Usage: DDC.LoadReplay ReplayPath [Priority=<Name>]"));
+			UE_LOG(LogDerivedDataCache, Log, TEXT("Usage: DDC.LoadReplay ReplayPath"
+				" [Methods=Get+GetValue+GetChunks]"
+				" [Rate=<0-100>]"
+				" [Types=Type1[@Rate1][+Type2[@Rate2]]..."
+				" [Salt=PositiveInt32]"
+				" [Priority=<Lowest-Blocking>]"
+				" [AddPolicy=Query,SkipData]"
+				" [RemovePolicy=SkipMeta]"));
 			return;
 		}
 
-		FString PriorityName;
-		for (int32 ArgIndex = 1; ArgIndex < Args.Num(); ++ArgIndex)
+		TStringBuilder<512> JoinedArgs;
+		JoinedArgs.Join(MakeArrayView(Args).RightChop(1), TEXT(' '));
+
+		FCacheReplayReader Replay(RootCache);
+
+		// Parse Key Filter
+		const bool bDefaultMatch = String::FindFirst(*JoinedArgs, TEXT("Types="), ESearchCase::IgnoreCase) == INDEX_NONE;
+		float DefaultRate = bDefaultMatch ? 100.0f : 0.0f;
+		FParse::Value(*JoinedArgs, TEXT("Rate="), DefaultRate);
+
+		FCacheKeyFilter KeyFilter = FCacheKeyFilter::Parse(*JoinedArgs, TEXT("Types="), DefaultRate);
+
+		if (KeyFilter)
 		{
-			FParse::Value(*Args[ArgIndex], TEXT("Priority="), PriorityName);
+			uint32 Salt;
+			if (FParse::Value(*JoinedArgs, TEXT("Salt="), Salt))
+			{
+				if (Salt == 0)
+				{
+					UE_LOG(LogDerivedDataCache, Warning,
+						TEXT("Replay: Ignoring salt of 0. The salt must be a positive integer."));
+				}
+				else
+				{
+					KeyFilter.SetSalt(Salt);
+				}
+			}
+
+			UE_LOG(LogDerivedDataCache, Display,
+				TEXT("Replay: Using salt %u to filter cache keys to replay."), KeyFilter.GetSalt());
 		}
 
-		TryLoadCacheStoreReplay(RootCache, *Args[0], *PriorityName);
+		Replay.SetKeyFilter(MoveTemp(KeyFilter));
+
+		// Parse Method Filter
+		FString MethodNames;
+		if (FParse::Value(*JoinedArgs, TEXT("Methods="), MethodNames))
+		{
+			Replay.SetMethodFilter(FCacheMethodFilter::Parse(MethodNames));
+		}
+
+		// Parse Policy Transform
+		ECachePolicy FlagsToAdd = ECachePolicy::None;
+		FString FlagNamesToAdd;
+		if (FParse::Value(*JoinedArgs, TEXT("AddPolicy="), FlagNamesToAdd))
+		{
+			TryLexFromString(FlagsToAdd, FlagNamesToAdd);
+		}
+		ECachePolicy FlagsToRemove = ECachePolicy::None;
+		FString FlagNamesToRemove;
+		if (FParse::Value(*JoinedArgs, TEXT("RemovePolicy="), FlagNamesToRemove))
+		{
+			TryLexFromString(FlagsToRemove, FlagNamesToRemove);
+		}
+		Replay.SetPolicyTransform(FlagsToAdd, FlagsToRemove);
+
+		// Parse Priority Override
+		EPriority Priority{};
+		FString PriorityName;
+		if (FParse::Value(*JoinedArgs, TEXT("Priority="), PriorityName) &&
+			TryLexFromString(Priority, PriorityName))
+		{
+			Replay.SetPriorityOverride(Priority);
+		}
+
+		Replay.ReadFromFileAsync(*Args[0]);
+		Replays.Add(MoveTemp(Replay));
 	}
 
 	static inline FDerivedDataBackendGraph*			StaticGraph;
@@ -1160,6 +1229,7 @@ private:
 	FAutoConsoleCommand UnmountPakCommand;
 
 	FAutoConsoleCommand LoadReplayCommand;
+	TArray<FCacheReplayReader> Replays;
 };
 
 } // UE::DerivedData
