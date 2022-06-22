@@ -36,8 +36,8 @@ class DeviceMotive(Device):
     setting_motive_port = IntSetting(
         "motive_port", "Motive Command Port", 1510)
 
-    def __init__(self, name, ip_address, **kwargs):
-        super().__init__(name, ip_address, **kwargs)
+    def __init__(self, name, address, **kwargs):
+        super().__init__(name, address, **kwargs)
 
         self.trigger_start = True
         self.trigger_stop = True
@@ -175,7 +175,7 @@ class DeviceMotive(Device):
                     self._flush_read_sockets()
                     self.socket.sendto(
                         message_bytes,
-                        (self.ip_address,
+                        (self.address,
                          self.setting_motive_port.get_value()))
 
                     read_sockets, _, _ = select.select(
@@ -296,8 +296,8 @@ class DeviceMotive(Device):
 
 
 class DeviceWidgetMotive(DeviceWidget):
-    def __init__(self, name, device_hash, ip_address, icons, parent=None):
-        super().__init__(name, device_hash, ip_address, icons, parent=parent)
+    def __init__(self, name, device_hash, address, icons, parent=None):
+        super().__init__(name, device_hash, address, icons, parent=parent)
 
     def _add_control_buttons(self):
         super()._add_control_buttons()

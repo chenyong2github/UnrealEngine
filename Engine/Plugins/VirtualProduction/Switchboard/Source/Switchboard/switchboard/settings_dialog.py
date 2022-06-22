@@ -204,11 +204,11 @@ class SettingsDialog(QtCore.QObject):
         self.ui.switchboard_settings_group = CollapsibleGroupBox()
         self.ui.switchboard_settings_group.setTitle("Switchboard")
         layout = QtWidgets.QFormLayout(self.ui.switchboard_settings_group)
-        
-        settings.IP_ADDRESS.create_ui(form_layout=layout)
+
+        settings.ADDRESS.create_ui(form_layout=layout)
         settings.TRANSPORT_PATH.create_ui(form_layout=layout)
         config.LISTENER_EXE.create_ui(form_layout=layout)
-        
+
         return self.ui.switchboard_settings_group
         
     def _create_project_settings(self, config: Config):

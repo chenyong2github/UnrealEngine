@@ -8,9 +8,7 @@ from typing import Dict, List, Type
 
 from PySide2 import QtCore, QtGui
 
-from switchboard.config import CONFIG, SETTINGS
 from switchboard.switchboard_logging import LOGGER
-from switchboard import config_osc as osc
 from switchboard.devices.device_base import Device, DeviceStatus
 from switchboard.devices.device_widget_base import AddDeviceDialog, DeviceWidget
 import switchboard.switchboard_utils as utils
@@ -36,19 +34,19 @@ class DeviceManager(QtCore.QObject):
     def add_devices(self, device_config):
         for device_type, devices in device_config.items():
             for device in devices:
-                self._add_device(device_type, device["name"], device["ip_address"], **device["kwargs"])
+                self._add_device(device_type, device["name"], device["address"], **device["kwargs"])
 
         # notify the plugins that all devices were added (gets called even if no devices were added)
         for device_cls in self._plugins.values():
             device_cls.all_devices_added()
 
-    def _add_device(self, device_type, name, ip, **kwargs):
+    def _add_device(self, device_type, name, address, **kwargs):
         device_cls_name = device_type
         if device_cls_name not in self._plugins:
             LOGGER.error(f"Could not find plugin for {device_type} in {DEVICE_PLUGIN_PACKAGE}")
             return None
 
-        device = self._plugins[device_cls_name](name, ip, **kwargs)
+        device = self._plugins[device_cls_name](name, address, **kwargs)
         widget_class = self._plugin_widgets[device_cls_name]
         icons = self._plugin_icons[device_cls_name] if device_cls_name in self._plugin_icons.keys() else None
         device.init(widget_class, icons)
@@ -189,9 +187,9 @@ class DeviceManager(QtCore.QObject):
 
         return self._devices[device_hash]
 
-    def device_with_ip_address(self, ip_address):
+    def device_with_address(self, address):
         for device in self._devices.values():
-            if device.ip_address == ip_address:
+            if device.address == address:
                 return device
         return None
 

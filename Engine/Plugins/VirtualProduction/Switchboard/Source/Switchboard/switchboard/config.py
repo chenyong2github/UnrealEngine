@@ -9,6 +9,7 @@ import shutil
 import socket
 import sys
 import typing
+from typing import Type
 
 from PySide2 import QtCore
 from PySide2 import QtGui
@@ -16,7 +17,8 @@ from PySide2 import QtWidgets
 
 from switchboard import switchboard_widgets as sb_widgets
 from switchboard.switchboard_logging import LOGGER
-from switchboard.switchboard_widgets import DropDownMenuComboBox
+from switchboard.switchboard_widgets import (DropDownMenuComboBox,
+    NonScrollableComboBox)
 
 ROOT_CONFIGS_PATH = pathlib.Path(__file__).parent.with_name('configs')
 CONFIG_SUFFIX = '.json'
@@ -283,9 +285,8 @@ class Setting(QtCore.QObject):
         )
         
         # Clear the widget when it is destroyed to avoid dangling references
-        top_level_widget.destroyed.connect(
-            lambda destroyed_object=None, on_setting_changed_lambda=on_setting_changed_lambda, override_device_name=override_device_name:
-                self._on_widget_destroyed(on_setting_changed_lambda, override_device_name)
+        top_level_widget.destroyed.connect(lambda destroyed_object=None:
+            self._on_widget_destroyed(on_setting_changed_lambda, override_device_name)
         )
         
     def _on_widget_destroyed(self, on_setting_changed_lambda, override_device_name: str):
@@ -734,8 +735,11 @@ class OptionSetting(Setting):
 
         self.possible_values = possible_values or []
 
-    def _create_widgets(self, override_device_name: typing.Optional[str] = None) -> sb_widgets.NonScrollableComboBox:
-        combo = sb_widgets.NonScrollableComboBox()
+    def _create_widgets(
+        self, override_device_name: typing.Optional[str] = None, *,
+        widget_class: Type[NonScrollableComboBox] = NonScrollableComboBox
+    ) -> NonScrollableComboBox:
+        combo = widget_class()
         if self.tool_tip:
             combo.setToolTip(self.tool_tip)
 
@@ -745,8 +749,9 @@ class OptionSetting(Setting):
         combo.setCurrentIndex(
             combo.findData(self.get_value(override_device_name)))
 
-        self.set_widget(
-            widget=combo, override_device_name=override_device_name)
+        self.set_widget(widget=combo,
+                        override_device_name=override_device_name)
+
         combo.currentIndexChanged.connect(
             lambda index, override_device_name=override_device_name, combo=combo:
                 self._on_widget_value_changed(
@@ -762,9 +767,11 @@ class OptionSetting(Setting):
             return
 
         old_value = widget.currentText()
-        new_str_value = new_value if isinstance(new_value, str) else str(new_value)
+        new_str_value = str(new_value)
         if new_str_value != old_value:
-            widget.setCurrentIndex(widget.findText(new_str_value))
+            index = widget.findText(new_str_value)
+            if index != -1:
+                widget.setCurrentIndex(index)
 
 
 class MultiOptionSetting(OptionSetting):
@@ -1699,7 +1706,7 @@ class LoggingSetting(Setting):
             widget.model().category_verbosities = new_value
 
 
-class IPAddressSetting(OptionSetting):
+class AddressSetting(OptionSetting):
     def __init__(
         self,
         attr_name,
@@ -1710,73 +1717,56 @@ class IPAddressSetting(OptionSetting):
         allow_reset=True,
         migrate_data=None
     ):
-        from socket import getaddrinfo, AF_INET, gethostname
-        ip_addresses = [ip[4][0].__str__() for ip in getaddrinfo(host=gethostname(), port=None, family=AF_INET)]
-        ip_addresses.append("127.0.0.1")
         super().__init__(
             attr_name=attr_name,
             nice_name=nice_name,
             value=value,
-            possible_values=ip_addresses,
+            possible_values=list(self.generate_possible_addresses()),
             tool_tip=tool_tip,
             show_ui=show_ui,
             allow_reset=allow_reset,
-            migrate_data=migrate_data)#
-        
-        self._finishedEditingFired = False
+            migrate_data=migrate_data)
 
-    def _create_widgets(self, override_device_name: typing.Optional[str] = None) -> sb_widgets.NonScrollableComboBox:
-        combo: sb_widgets.NonScrollableComboBox = super()._create_widgets(override_device_name)
-        combo.setEditable(True)
+    def _create_widgets(
+        self, override_device_name: typing.Optional[str] = None
+    ) -> NonScrollableComboBox:
+        combo: NonScrollableComboBox = super()._create_widgets(
+            override_device_name, widget_class=sb_widgets.AddressComboBox)
+
         combo.setInsertPolicy(QtWidgets.QComboBox.InsertPolicy.NoInsert)
+
+        cur_value = self.get_value(override_device_name)
+        if combo.findText(cur_value, QtCore.Qt.MatchFlag.MatchExactly) == -1:
+            combo.addItem(str(cur_value), cur_value)
+            combo.setCurrentIndex(combo.findText(cur_value))
+
         combo.lineEdit().editingFinished.connect(
-            lambda combo=combo: self._validate_and_commit_ip(combo, override_device_name)
+            lambda: self._validate_and_commit_address(combo,
+                                                      override_device_name)
         )
-        
+
         return combo
-    
-    def _validate_and_commit_ip(self, combo: sb_widgets.NonScrollableComboBox, override_device_name:str):
-        def is_valid_ip(ip_str:str):
-            try:
-                import ipaddress
-                ip = ipaddress.ip_address(ip_str)
-                return True
-            except:
-                return False
-            
-        def perform_validation():
-            ip_str = combo.lineEdit().text()
-            if not is_valid_ip(ip_str):
-                answer = QtWidgets.QMessageBox.question(
-                    None,
-                    'Invalid IP',
-                    f'The IP \"{ip_str}\" seems to be invalid.\nDo you want to use this IP anyway?',
-                    QtWidgets.QMessageBox.Yes | QtWidgets.QMessageBox.No
-                )
-                if answer == QtWidgets.QMessageBox.No:
-                    combo.blockSignals(True)
-                    combo.lineEdit().blockSignals(True)
 
-                    current_value = self.get_value(override_device_name)
-                    index = combo.findData(current_value)
-                    is_combo_box_entry = index != -1
-                    if is_combo_box_entry:
-                        combo.setCurrentIndex(index)
-                    else:
-                        combo.lineEdit().setText(current_value)
+    def _validate_and_commit_address(
+            self, combo: NonScrollableComboBox, override_device_name: str):
+        address_str = combo.lineEdit().text()
+        self._on_widget_value_changed(address_str, override_device_name=override_device_name)
 
-                    combo.lineEdit().blockSignals(False)
-                    combo.blockSignals(False)
-                    return
+    def generate_possible_addresses(self):
+        return set[str]()
 
-            self._on_widget_value_changed(ip_str, override_device_name=override_device_name)
-        
-        if self._finishedEditingFired:
-            return
-        else:
-            self._finishedEditingFired = True
-            perform_validation()
-            self._finishedEditingFired = False
+
+class LocalAddressSetting(AddressSetting):
+    def generate_possible_addresses(self):
+        addresses = set[str]()
+        for address in socket.getaddrinfo(socket.gethostname(), None,
+                                          socket.AF_INET):
+            addresses.add(str(address[4][0]))
+        addresses.add('127.0.0.1')
+        addresses.add('localhost')
+        addresses.add(socket.gethostname())
+        return addresses
+
 
 class ConfigPathError(Exception):
     '''
@@ -1905,9 +1895,10 @@ class Config(object):
                 self.file_path = get_absolute_config_path(file_path)
 
                 # Read the json config file
-                with open(self.file_path) as f:
+                with open(self.file_path, 'r') as f:
                     LOGGER.debug(f'Loading Config {self.file_path}')
-                    data = json.load(f)
+                    data = json.load(f)                    
+                        
             except (ConfigPathError, FileNotFoundError) as e:
                 LOGGER.error(f'Config: {e}')
                 self.file_path = None
@@ -1956,16 +1947,22 @@ class Config(object):
         # into the kwargs.
         for device_type, devices in data.get('devices', {}).items():
             for device_name, data in devices.items():
-                if device_name == "settings":
+                if device_name == 'settings':
                     self._plugin_data_from_config[device_type] = data
                 else:
-                    ip_address = data["ip_address"]
+                    # Migrate ip_address -> address
+                    if 'ip_address' in data:
+                        address = data['ip_address']
+                        del data['ip_address']
+                    else:
+                        address = data['address']
+
                     device_data = {
-                        "name": device_name,
-                        "ip_address": ip_address
+                        'name': device_name,
+                        'address': address
                     }
-                    device_data["kwargs"] = {
-                        k: v for (k, v) in data.items() if k != "ip_address"}
+                    device_data['kwargs'] = {
+                        k: v for (k, v) in data.items() if k != 'address'}
                     self._device_data_from_config.setdefault(
                         device_type, []).append(device_data)
 
@@ -2174,7 +2171,7 @@ class Config(object):
                 value=data.get('muserver_multicast_endpoint', '230.0.0.1:6666'),
                 tool_tip=(
                     'Multicast group and port (-UDPMESSAGING_TRANSPORT_MULTICAST) '
-                    'in the {ip}:{port} endpoint format. The multicast group IP '
+                    'in the {address}:{port} endpoint format. The multicast group address '
                     'must be in the range 224.0.0.0 to 239.255.255.255.'),
             ),
             "multiuser_exe": StringSetting(
@@ -2509,15 +2506,15 @@ class Config(object):
             self.ENGINE_DIR.get_value(), self.LISTENER_EXE.get_value())
 
     # todo-dara: find a way to do this directly in the LiveLinkFace plugin code
-    def unreal_device_ip_addresses(self):
-        unreal_ips = []
+    def unreal_device_addresses(self):
+        unreal_addresses = []
         for (device_type, device_name), (settings, overrides) in \
                 self._device_settings.items():
             if device_type == "Unreal":
                 for setting in settings:
-                    if setting.attr_name == "ip_address":
-                        unreal_ips.append(setting.get_value(device_name))
-        return unreal_ips
+                    if setting.attr_name == "address":
+                        unreal_addresses.append(setting.get_value(device_name))
+        return unreal_addresses
 
     @staticmethod
     def engine_exe_path(engine_dir: str, exe_basename: str):
@@ -2596,11 +2593,11 @@ class UserSettings(object):
             config_paths = list_config_paths()
             self.CONFIG = config_paths[0] if config_paths else None
 
-        # IP Address of the machine running Switchboard
-        self.IP_ADDRESS = IPAddressSetting(
-            "ip_address",
-            "IP Address",
-            data.get("ip_address", socket.gethostbyname(socket.gethostname()))
+        # Address of the machine running Switchboard
+        self.ADDRESS = LocalAddressSetting(
+            "address",
+            "Address",
+            data.get("address", socket.gethostbyname(socket.gethostname()))
         )
         self.TRANSPORT_PATH = FilePathSetting(
                 "transport_path",
@@ -2624,7 +2621,7 @@ class UserSettings(object):
     def save(self):
         data = {
             'config': '',
-            'ip_address': self.IP_ADDRESS.get_value(),
+            'address': self.ADDRESS.get_value(),
             'transport_path': self.TRANSPORT_PATH.get_value(),
             'muserver_session_name': self.MUSERVER_SESSION_NAME,
             'current_sequence': self.CURRENT_SEQUENCE,

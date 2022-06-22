@@ -9,9 +9,6 @@ from switchboard.devices.device_base import DeviceStatus
 import switchboard.switchboard_widgets as sb_widgets
 
 
-ip_regex = QtCore.QRegExp("^\\s*((([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5])\\.){3}([01]?[0-9]?[0-9]|2[0-4][0-9]|25[0-5]))\\s*$")
-ip_validator = QtGui.QRegExpValidator(ip_regex)
-
 class DeviceWidgetItem(QtWidgets.QWidget):
     """
     Custom class to get QSS working correctly to achieve a look.
@@ -25,6 +22,7 @@ class DeviceWidgetItem(QtWidgets.QWidget):
         opt.initFrom(self)
         painter = QtGui.QPainter(self)
         self.style().drawPrimitive(QtWidgets.QStyle.PE_Widget, opt, painter, self)
+
 
 class DeviceAutoJoinMUServerUI(QtCore.QObject):
     signal_device_widget_autojoin_mu = QtCore.Signal(object)
@@ -81,12 +79,14 @@ class DeviceWidget(QtWidgets.QWidget):
     signal_device_widget_trigger_stop_toggled = QtCore.Signal(object, bool)
 
     signal_device_name_changed = QtCore.Signal(str)
-    signal_ip_address_changed = QtCore.Signal(str)
+    signal_address_changed = QtCore.Signal(str)
 
-    def __init__(self, name, device_hash, ip_address, icons, parent=None):
+    hostname_validator = sb_widgets.HostnameValidator()
+
+    def __init__(self, name, device_hash, address, icons, parent=None):
         super().__init__(parent)
 
-        # Lookup device by a hash instead of name/ip_address
+        # Lookup device by a hash instead of name/address
         self.device_hash = device_hash
         self.icons = icons
 
@@ -118,14 +118,14 @@ class DeviceWidget(QtWidgets.QWidget):
         self.name_line_edit.setMaximumSize(QtCore.QSize(150, 40))
         # 20 + 11 + 60 + 150
 
-        # IP Address Label
-        self.ip_address_line_edit = FramelessQLineEdit()
-        self.ip_address_line_edit.setObjectName('device_address')
-        self.ip_address_line_edit.setValidator(ip_validator)
-        self.ip_address_line_edit.editingFinished.connect(self.on_ip_address_edited)
-        self.ip_address_line_edit.setText(ip_address)
-        self.ip_address_line_edit.setAlignment(QtCore.Qt.AlignCenter)
-        self.ip_address_line_edit.setMaximumSize(QtCore.QSize(100, 40))
+        # Address Label
+        self.address_line_edit = FramelessQLineEdit()
+        self.address_line_edit.setObjectName('device_address')
+        self.address_line_edit.setValidator(DeviceWidget.hostname_validator)
+        self.address_line_edit.editingFinished.connect(self.on_address_edited)
+        self.address_line_edit.setText(address)
+        self.address_line_edit.setAlignment(QtCore.Qt.AlignCenter)
+        self.address_line_edit.setMaximumSize(QtCore.QSize(100, 40))
 
         # Create a widget where the body of the item will go
         # This is made to allow the edit buttons to sit "outside" of the item
@@ -144,7 +144,7 @@ class DeviceWidget(QtWidgets.QWidget):
         self.add_widget_to_layout(self.status_icon)
         self.add_widget_to_layout(self.device_icon)
         self.add_widget_to_layout(self.name_line_edit)
-        self.add_widget_to_layout(self.ip_address_line_edit)
+        self.add_widget_to_layout(self.address_line_edit)
 
         spacer = QtWidgets.QSpacerItem(0, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.add_item_to_layout(spacer)
@@ -153,7 +153,7 @@ class DeviceWidget(QtWidgets.QWidget):
         #self.previous_status = DeviceStatus.DISCONNECTED
 
         # Set style as disconnected
-        for label in [self.name_line_edit, self.ip_address_line_edit]:
+        for label in [self.name_line_edit, self.address_line_edit]:
             sb_widgets.set_qt_property(label, 'disconnected', True)
 
         # Store the control buttons by name ("connect", "open", etc.)
@@ -213,16 +213,16 @@ class DeviceWidget(QtWidgets.QWidget):
 
             self.signal_device_name_changed.emit(new_value)
 
-    def on_ip_address_edited(self):
-        new_value = self.ip_address_line_edit.text()
+    def on_address_edited(self):
+        new_value = self.address_line_edit.text()
 
-        if self.ip_address_line_edit.is_valid and self.ip_address_line_edit.current_text != new_value:
-            sb_widgets.set_qt_property(self.ip_address_line_edit, "input_error", False)
+        if self.address_line_edit.is_valid and self.address_line_edit.current_text != new_value:
+            sb_widgets.set_qt_property(self.address_line_edit, "input_error", False)
 
-            self.signal_ip_address_changed.emit(new_value)
+            self.signal_address_changed.emit(new_value)
 
-    def on_ip_address_changed(self, new_ip):
-        self.ip_address_line_edit.setText(new_ip)
+    def on_address_changed(self, new_address):
+        self.address_line_edit.setText(new_address)
 
     def _add_control_buttons(self):
         pass
@@ -250,31 +250,31 @@ class DeviceWidget(QtWidgets.QWidget):
 
         # Device icon
         if status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}:
-            for label in [self.name_line_edit, self.ip_address_line_edit]:
+            for label in [self.name_line_edit, self.address_line_edit]:
                 sb_widgets.set_qt_property(label, 'disconnected', True)
 
             pixmap = self.icon_for_state("disabled").pixmap(QtCore.QSize(40, 40))
             self.device_icon.setPixmap(pixmap)
 
             if status == DeviceStatus.DISCONNECTED:
-                # Make the Name and IP editable when disconnected.
+                # Make the name and address editable when disconnected.
                 self.name_line_edit.setReadOnly(False)
-                self.ip_address_line_edit.setReadOnly(False)
+                self.address_line_edit.setReadOnly(False)
             elif status == DeviceStatus.CONNECTING:
-                # Make the Name and IP non-editable while connecting.
+                # Make the name and address non-editable while connecting.
                 self.name_line_edit.setReadOnly(True)
-                self.ip_address_line_edit.setReadOnly(True)
+                self.address_line_edit.setReadOnly(True)
         elif ((previous_status in {DeviceStatus.DISCONNECTED, DeviceStatus.CONNECTING}) and
                 status > DeviceStatus.CONNECTING):
-            for label in [self.name_line_edit, self.ip_address_line_edit]:
+            for label in [self.name_line_edit, self.address_line_edit]:
                 sb_widgets.set_qt_property(label, 'disconnected', False)
 
             pixmap = self.icon_for_state("enabled").pixmap(QtCore.QSize(40, 40))
             self.device_icon.setPixmap(pixmap)
 
-            # Make the Name and IP non-editable when connected.
+            # Make the name and address non-editable when connected.
             self.name_line_edit.setReadOnly(True)
-            self.ip_address_line_edit.setReadOnly(True)
+            self.address_line_edit.setReadOnly(True)
 
         # Handle coloring List Widget items if they are recording
         if status == DeviceStatus.RECORDING:
@@ -287,10 +287,10 @@ class DeviceWidget(QtWidgets.QWidget):
 
         width = event.size().width()
 
-        if width < sb_widgets.DEVICE_WIDGET_HIDE_IP_ADDRESS_WIDTH:
-            self.ip_address_line_edit.hide()
+        if width < sb_widgets.DEVICE_WIDGET_HIDE_ADDRESS_WIDTH:
+            self.address_line_edit.hide()
         else:
-            self.ip_address_line_edit.show()
+            self.address_line_edit.show()
 
     def assign_button_to_name(self, name, button):
         if name:
@@ -318,12 +318,12 @@ class AddDeviceDialog(QtWidgets.QDialog):
 
         self.name_field = QtWidgets.QLineEdit(self)
 
-        self.ip_field = QtWidgets.QLineEdit(self)
-        self.ip_field.setValidator(ip_validator)
+        self.address_field = QtWidgets.QLineEdit(self)
+        self.address_field.setValidator(DeviceWidget.hostname_validator)
 
         self.form_layout = QtWidgets.QFormLayout()
         self.form_layout.addRow("Name", self.name_field)
-        self.form_layout.addRow("IP Address", self.ip_field)
+        self.form_layout.addRow("Address", self.address_field)
 
         layout = QtWidgets.QVBoxLayout()
         layout.insertLayout(0, self.form_layout)
@@ -340,7 +340,7 @@ class AddDeviceDialog(QtWidgets.QDialog):
             self.name_field.setValidator(validator)
 
     def devices_to_add(self):
-        return [{"type": self.device_type, "name": self.name_field.text(), "ip_address": self.ip_field.text(), "kwargs": {}}]
+        return [{"type": self.device_type, "name": self.name_field.text(), "address": self.address_field.text(), "kwargs": {}}]
 
     def devices_to_remove(self):
         return []

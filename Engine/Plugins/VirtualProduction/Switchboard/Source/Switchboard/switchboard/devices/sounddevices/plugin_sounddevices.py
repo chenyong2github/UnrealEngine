@@ -12,8 +12,8 @@ import json
 
 
 class DeviceSoundDevices(Device):
-    def __init__(self, name, ip_address, **kwargs):
-        super().__init__(name, ip_address, **kwargs)
+    def __init__(self, name, address, **kwargs):
+        super().__init__(name, address, **kwargs)
 
         self.user_name = 'guest'
         self.password = 'guest'
@@ -53,7 +53,7 @@ class DeviceSoundDevices(Device):
         try:
             import requests
             from requests.auth import HTTPDigestAuth
-            command = f'http://{self.ip_address}/sounddevices/{command}'
+            command = f'http://{self.address}/sounddevices/{command}'
             response = requests.get(command, auth=HTTPDigestAuth(self.user_name, self.password), timeout=3)
             return response.content.decode('utf-8')
         except ModuleNotFoundError:
@@ -153,7 +153,7 @@ class DeviceSoundDevices(Device):
         for i in range(1,5):
             self._send_command(f'setsetting/RecordToDrive{i}=Ethernet%20File%20Transfer')
         '''
-        f'net use * \\\\{self.ip_address} /user:{self.user_name} {self.password}'
+        f'net use * \\\\{self.address} /user:{self.user_name} {self.password}'
         robocopy.exe "W:\wwwroot\MyProject" "\\192.168.0.1\Share\wwwroot\MyProject" *.* /E /XO /XD "App_Data/Search" "*.svn" /XF "sitefinity.log" "Thumbs.db" /NDL /NC /NP
         net use * /delete /yes
 
@@ -163,8 +163,8 @@ class DeviceSoundDevices(Device):
 
 
 class DeviceWidgetSoundDevices(DeviceWidget):
-    def __init__(self, name, device_type, device_hash, ip_address, parent=None):
-        super().__init__(name, device_type, device_hash, ip_address, parent=parent)
+    def __init__(self, name, device_type, device_hash, address, parent=None):
+        super().__init__(name, device_type, device_hash, address, parent=parent)
 
     def _add_control_buttons(self):
         super()._add_control_buttons()

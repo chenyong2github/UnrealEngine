@@ -28,30 +28,30 @@ class OscServer:
         self.internal_client = None
         self.server_port = None
 
-    def ip_address(self):
+    def address(self):
         if not self.server:
             return None
 
         return self.server.server_address
 
-    def launch(self, ip_address, port):
-        # TODO: Allow relaunch of OSC server when ip_address variable changes
+    def launch(self, address, port):
+        # TODO: Allow relaunch of OSC server when address variable changes
         try:
             self.server = pythonosc.osc_server.ThreadingOSCUDPServer(
-                (ip_address, port), self.dispatcher)
+                (address, port), self.dispatcher)
         except OSError as e:
             if e.errno == 10048:
                 LOGGER.error(
                     'OSC Server: Another OSC server is currently using '
-                    f'{ip_address}:{port}. Please kill and relaunch')
+                    f'{address}:{port}. Please kill and relaunch')
             elif e.errno == 10049:
-                LOGGER.error(f"OSC Server: Couldn't bind {ip_address}:{port}. "
+                LOGGER.error(f"OSC Server: Couldn't bind {address}:{port}. "
                              'Please check address and relaunch')
 
             self.server = None
             return False
 
-        # Set the server ip and port
+        # Set the server address and port
         self.server_port = port
 
         LOGGER.success(
@@ -83,8 +83,6 @@ class OscServer:
         LOGGER.warning(f'Received unhandled OSC message: {command} {args}.')
 
 
-MultiUserServerInstance = None
-
 class MultiUserApplication:
     def __init__(self):
         self.lock = threading.Lock()
@@ -106,11 +104,11 @@ class MultiUserApplication:
         return ''
 
     def get_mu_server_endpoint_arg(self):
-        setting_val = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
-        if setting_val:
-            converted_ip = sb_utils.expand_endpoint(setting_val,
-                                                    SETTINGS.IP_ADDRESS.get_value().strip())
-            return f'-UDPMESSAGING_TRANSPORT_UNICAST="{converted_ip}"'
+        endpoint_setting = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
+        if endpoint_setting:
+            addr_setting = SETTINGS.ADDRESS.get_value().strip()
+            endpoint = sb_utils.expand_endpoint(endpoint_setting, addr_setting)
+            return f'-UDPMESSAGING_TRANSPORT_UNICAST="{endpoint}"'
         return ''
 
     def poll_process(self):
@@ -181,11 +179,16 @@ class MultiUserApplication:
 
         return False
 
+
+MultiUserServerInstance: Optional[MultiUserApplication] = None
+
+
 def get_multi_user_server_instance():
     global MultiUserServerInstance
     if not MultiUserServerInstance:
         MultiUserServerInstance = MultiUserApplication()
     return MultiUserServerInstance
+
 
 class RsyncServer:
     DEFAULT_PORT = 8730
@@ -282,7 +285,7 @@ hosts allow = {allowed_addrs}
             client.address for client in self.allowed_clients.values()}
 
         allowed_addrs.add(self.address)
-        allowed_addrs.add(SETTINGS.IP_ADDRESS.get_value())
+        allowed_addrs.add(SETTINGS.ADDRESS.get_value())
         allowed_addrs.discard('0.0.0.0')
 
         config = self.CONFIG_TEMPLATE.format(

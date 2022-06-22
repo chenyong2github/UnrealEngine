@@ -1,5 +1,7 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
 
+from __future__ import annotations
+
 import base64
 import hashlib
 import os
@@ -9,7 +11,6 @@ from typing import Dict, Optional
 from PySide2 import QtCore, QtWidgets
 
 from switchboard import message_protocol
-from switchboard.config import CONFIG
 from switchboard.listener_client import ListenerClient
 from switchboard.switchboard_logging import LOGGER
 from . import version_helpers
@@ -21,19 +22,19 @@ class RedeployListenerEndpoint(QtCore.QObject):
 
     def __init__(
         self,
-        parent: 'RedeployListenerDialog',
-        ip_address: str,
+        parent: RedeployListenerDialog,
+        address: str,
         port: int
     ):
         super().__init__(parent)
-        
+
         self.dlg_parent = parent
         self.dlg_parent.signal_listener_changed.connect(self.refresh_ui)
 
-        self.ip_address = ip_address
+        self.address = address
         self.port = port
 
-        self.client = ListenerClient(self.ip_address, self.port)
+        self.client = ListenerClient(self.address, self.port)
         self.client.listener_qt_handler.listener_connecting.connect(
             lambda _: self.version_label.setText('Connecting...'))
         self.client.listener_qt_handler.listener_connection_failed.connect(
@@ -54,7 +55,7 @@ class RedeployListenerEndpoint(QtCore.QObject):
 
         self.signal_refresh_ui.connect(self.refresh_ui)
 
-        self.endpoint_label = QtWidgets.QLabel(f"{self.ip_address}:{self.port}")
+        self.endpoint_label = QtWidgets.QLabel(f"{self.address}:{self.port}")
         self.endpoint_label.setObjectName('endpoint_label')
 
         self.devices_label = QtWidgets.QLabel('')
@@ -190,9 +191,9 @@ class RedeployListenerDialog(QtWidgets.QDialog):
 
         # Remote listener models and rows
         for device in devices:
-            ep_addr = (device.unreal_client.ip_address, device.unreal_client.port)
+            ep_addr = (device.unreal_client.address, device.unreal_client.port)
             if ep_addr not in self.endpoints:
-                endpoint = RedeployListenerEndpoint(self, device.unreal_client.ip_address, device.unreal_client.port)
+                endpoint = RedeployListenerEndpoint(self, device.unreal_client.address, device.unreal_client.port)
                 endpoint.signal_result.connect(self.on_endpoint_result)
                 endpoint.signal_refresh_ui.connect(self.refresh_ui)
                 endpoint.client.connect()
@@ -283,4 +284,4 @@ class RedeployListenerDialog(QtWidgets.QDialog):
         sender = self.sender()
         assert isinstance(sender, RedeployListenerEndpoint)
         logfn = LOGGER.info if success else LOGGER.error
-        logfn(f"Redeploy endpoint {sender.ip_address}:{sender.port}: {details}", exc_info=exc_info)
+        logfn(f"Redeploy endpoint {sender.address}:{sender.port}: {details}", exc_info=exc_info)

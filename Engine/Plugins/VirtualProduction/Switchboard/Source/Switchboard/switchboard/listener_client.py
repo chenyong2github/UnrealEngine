@@ -1,13 +1,18 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
-from . import message_protocol
-from .switchboard_logging import LOGGER
+
+from collections import deque
+import datetime
+import select
+import socket
+from threading import Thread
+import traceback
+from typing import Callable, Dict, Optional
+import uuid
 
 from PySide2 import QtCore
 
-import datetime, select, socket, uuid, traceback, typing
-
-from collections import deque
-from threading import Thread
+from . import message_protocol
+from .switchboard_logging import LOGGER
 
 
 class ListenerQtHandler(QtCore.QObject):
@@ -38,8 +43,8 @@ class ListenerClient(object):
     HITCH_THRESHOLD_SEC = (KEEPALIVE_INTERVAL_SEC + SELECT_TIMEOUT_SEC
                            + EXTRA_HITCH_TOLERANCE_SEC)
 
-    def __init__(self, ip_address, port, buffer_size=1024):
-        self.ip_address = ip_address
+    def __init__(self, address, port, buffer_size=1024):
+        self.address = address
         self.port = port
         self.buffer_size = buffer_size
 
@@ -51,7 +56,7 @@ class ListenerClient(object):
         self.socket = None
         self.handle_connection_thread = None
 
-        #TODO: Consider converting these delegates to Signals and sending dict.
+        # TODO: Consider converting these delegates to Signals and sending dict
 
         self.disconnect_delegate = None
 
@@ -70,17 +75,17 @@ class ListenerClient(object):
         self.receive_file_completed_delegate = None
         self.receive_file_failed_delegate = None
 
-        self.delegates: typing.Dict[ str, typing.Optional[ typing.Callable[[typing.Dict], None] ] ] = {
-            "state" : None,
-            "get sync status" : None,
+        self.delegates: Dict[str, Optional[Callable[[Dict], None]]] = {
+            "state": None,
+            "get sync status": None,
         }
 
         self.last_activity = datetime.datetime.now()
 
     @property
     def server_address(self):
-        if self.ip_address:
-            return (self.ip_address, self.port)
+        if self.address:
+            return (self.address, self.port)
         return None
 
     @property
@@ -95,7 +100,7 @@ class ListenerClient(object):
             return False
         return False
 
-    def connect(self, ip_address=None):
+    def connect(self, address=None):
         '''
         Initiates a connection.
 
@@ -106,10 +111,10 @@ class ListenerClient(object):
         '''
         self.disconnect()
 
-        if ip_address:
-            self.ip_address = ip_address
-        elif not self.ip_address:
-            LOGGER.debug('No ip_address has been set. Cannot connect')
+        if address:
+            self.address = address
+        elif not self.address:
+            LOGGER.debug('No address has been set. Cannot connect')
             self.listener_qt_handler.listener_connection_failed.emit(self)
             return False
 
@@ -124,7 +129,7 @@ class ListenerClient(object):
 
     def _establish_connection(self):
         try:
-            LOGGER.info(f"Connecting to {self.ip_address}:{self.port}")
+            LOGGER.info(f"Connecting to {self.address}:{self.port}")
 
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect(self.server_address)
@@ -134,7 +139,7 @@ class ListenerClient(object):
             self.handle_connection_thread.start()
 
         except OSError:
-            LOGGER.error(f"Socket error: {self.ip_address}:{self.port}")
+            LOGGER.error(f"Socket error: {self.address}:{self.port}")
             self.socket = None
             self.listener_qt_handler.listener_connection_failed.emit(self)
             return False
@@ -157,7 +162,7 @@ class ListenerClient(object):
         if delta_sec > self.HITCH_THRESHOLD_SEC:
             LOGGER.warning(
                 f'Hitch detected; {delta_sec:.1f} seconds since last keepalive'
-                f' to {self.ip_address}')
+                f' to {self.address}')
 
     def handle_connection(self):
         buffer = []
@@ -290,9 +295,9 @@ class ListenerClient(object):
 
     def send_message(self, message_bytes):
         if self.is_connected:
-            LOGGER.message(f'Message: Sending ({self.ip_address}): {message_bytes}')
+            LOGGER.message(f'Message: Sending ({self.address}): {message_bytes}')
             self.message_queue.appendleft(message_bytes)
         else:
-            LOGGER.error(f'Message: Failed to send ({self.ip_address}): {message_bytes}. No socket connected')
+            LOGGER.error(f'Message: Failed to send ({self.address}): {message_bytes}. No socket connected')
             if self.disconnect_delegate:
                 self.disconnect_delegate(unexpected=True, exception=None)

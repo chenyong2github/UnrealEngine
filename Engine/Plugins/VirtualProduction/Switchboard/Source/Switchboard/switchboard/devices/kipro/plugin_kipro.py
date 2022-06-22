@@ -37,11 +37,11 @@ def unresponsive_kipro(f):
 
 
 class DeviceKiPro(Device):
-    def __init__(self, name, ip_address, **kwargs):
+    def __init__(self, name, address, **kwargs):
         self.setting_auto_play = BoolSetting(
             "auto_play", "Auto Play After Stop", False)
 
-        super().__init__(name, ip_address, **kwargs)
+        super().__init__(name, address, **kwargs)
 
         self.client = None
 
@@ -69,7 +69,7 @@ class DeviceKiPro(Device):
     # TODO: Make sure KiPro is not in transport mode
     @unresponsive_kipro
     def connect_listener(self):
-        self.client = kipro.Client(f'http://{self.ip_address}')
+        self.client = kipro.Client(f'http://{self.address}')
 
         self.status = DeviceStatus.READY
 
@@ -237,7 +237,7 @@ class DeviceKiPro(Device):
     def transport_file(self, device_path, output_dir):
         self.client.setParameter('eParamID_MediaState', 1)
 
-        device_path = f'http://{self.ip_address}/{device_path}'
+        device_path = f'http://{self.address}/{device_path}'
         output_path = os.path.join(output_dir, os.path.basename(device_path))
 
         # Put all drives into file transfer mode
@@ -248,8 +248,8 @@ class DeviceWidgetKiPro(DeviceWidget):
     signal_device_widget_play = QtCore.Signal(object)
     signal_device_widget_stop = QtCore.Signal(object)
 
-    def __init__(self, name, device_hash, ip_address, icons, parent=None):
-        super().__init__(name, device_hash, ip_address, icons, parent=parent)
+    def __init__(self, name, device_hash, address, icons, parent=None):
+        super().__init__(name, device_hash, address, icons, parent=parent)
 
     def _add_control_buttons(self):
         super()._add_control_buttons()

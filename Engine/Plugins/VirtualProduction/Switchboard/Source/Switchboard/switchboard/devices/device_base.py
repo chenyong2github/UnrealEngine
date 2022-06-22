@@ -16,7 +16,7 @@ import pythonosc.udp_client
 
 from switchboard import config_osc as osc
 from switchboard import recording
-from switchboard.config import CONFIG, BoolSetting, StringSetting
+from switchboard.config import CONFIG, BoolSetting, AddressSetting
 from switchboard.switchboard_logging import LOGGER
 
 if TYPE_CHECKING:
@@ -44,6 +44,7 @@ class PluginHeaderWidgets(IntFlag):
     CONNECT_BUTTON = 2,
     CHANGELIST_LABEL = 4,
     AUTOJOIN_MU = 8
+
 
 class DeviceQtHandler(QtCore.QObject):
     signal_device_status_changed = QtCore.Signal(object, int)
@@ -76,14 +77,13 @@ class Device(QtCore.QObject):
         )
     }
 
-    def __init__(self, name: str, ip_address: str, **kwargs):
+    def __init__(self, name: str, address: str, **kwargs):
         super().__init__()
 
         self._name = name  # Assigned name
         self.device_qt_handler = DeviceQtHandler()
 
-        self.setting_ip_address = StringSetting(
-            "ip_address", 'IP address', ip_address)
+        self.setting_address = AddressSetting('address', 'Address', address)
 
         # override any setting that was passed via kwargs
         for setting in self.setting_overrides():
@@ -101,7 +101,7 @@ class Device(QtCore.QObject):
         self.auto_connect = True
 
         # TODO: This is not really a hash. Could be changed to real hash based
-        # on e.g. ip and name.
+        # on e.g. address and name.
         self.device_hash = random.getrandbits(64)
 
         # Lazily create the OSC client as needed
@@ -113,14 +113,14 @@ class Device(QtCore.QObject):
 
     def init(self, widget_class, icons):
         self.widget = widget_class(
-            self.name, self.device_hash, self.ip_address, icons)
+            self.name, self.device_hash, self.address, icons)
         self.widget.signal_device_name_changed.connect(
             self.on_device_name_changed)
-        self.widget.signal_ip_address_changed.connect(
-            self.on_ip_address_changed)
-        self.setting_ip_address.signal_setting_changed.connect(
-            lambda _, new_ip, widget=self.widget:
-                widget.on_ip_address_changed(new_ip))
+        self.widget.signal_address_changed.connect(
+            self.on_address_changed)
+        self.setting_address.signal_setting_changed.connect(
+            lambda _, new_address, widget=self.widget:
+                widget.on_address_changed(new_address))
 
         # Let the CONFIG class know what settings/properties this device has
         # so it can save the config file on changes.
@@ -134,9 +134,9 @@ class Device(QtCore.QObject):
             self.name = new_name
             CONFIG.on_device_name_changed(old_name, new_name)
 
-    def on_ip_address_changed(self, new_ip):
-        if self.ip_address != new_ip:
-            self.ip_address = new_ip
+    def on_address_changed(self, new_address):
+        if self.address != new_address:
+            self.address = new_address
 
     @property
     def device_type(self):
@@ -168,7 +168,7 @@ class Device(QtCore.QObject):
 
     def device_settings(self):
         # settings that are specific to an instance of the device
-        return [self.setting_ip_address]
+        return [self.setting_address]
 
     def setting_overrides(self):
         # All settings that a device may override. these might be project or
@@ -207,14 +207,14 @@ class Device(QtCore.QObject):
             self, value)
 
     @property
-    def ip_address(self) -> str:
-        return self.setting_ip_address.get_value()
+    def address(self) -> str:
+        return self.setting_address.get_value()
 
-    @ip_address.setter
-    def ip_address(self, value: str):
-        self.setting_ip_address.update_value(value)
+    @address.setter
+    def address(self, value: str):
+        self.setting_address.update_value(value)
         # todo-dara: probably better to have the osc client connect to a
-        # change of the ip address.
+        # change of the address.
         self.setup_osc_client(CONFIG.OSC_CLIENT_PORT.get_value())
 
     @property
@@ -307,8 +307,12 @@ class Device(QtCore.QObject):
         self.status = DeviceStatus.DISCONNECTED
 
     def setup_osc_client(self, osc_port):
-        self.osc_client = pythonosc.udp_client.SimpleUDPClient(
-            self.ip_address, osc_port)
+        try:
+            self.osc_client = pythonosc.udp_client.SimpleUDPClient(
+                self.address, osc_port)
+        except socket.gaierror as exc:
+            LOGGER.error(f'{self.name}: Invalid OSC server address',
+                         exc_info=exc)
 
     def send_osc_message(self, command, value, log=True):
         if not self.osc_client:
@@ -317,13 +321,13 @@ class Device(QtCore.QObject):
         if log:
             LOGGER.osc(
                 f'OSC Server: Sending {command} {value} '
-                f'to {self.name} ({self.ip_address})')
+                f'to {self.name} ({self.address})')
 
         try:
             self.osc_client.send_message(command, value)
         except socket.gaierror as e:
             LOGGER.error(
-                f'{self.name}: Incorrect ip address when sending '
+                f'{self.name}: Incorrect address when sending '
                 f'OSC message. {e}')
 
     def record_start(self, slate, take, description):

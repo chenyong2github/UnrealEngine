@@ -325,7 +325,7 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
         super().__init__(parent)
 
         self.name = name
-        self.ip_address_label = None
+        self.address_label = None
         self.device_hash = 0 # When list widget is looking for devices it checks the device_has
 
         self.layout = QtWidgets.QHBoxLayout()
@@ -339,10 +339,10 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
             return label
 
         self.name_label = __label(self.name + " Devices")
-        self.ip_address_label = __label('IP Address')
+        self.address_label = __label('Address')
         self.changelist_label = __label('Changelist') if show_changelist else None
         self.layout.addWidget(self.name_label)
-        self.layout.addWidget(self.ip_address_label)
+        self.layout.addWidget(self.address_label)
 
         spacer = QtWidgets.QSpacerItem(0, 20, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.layout.addItem(spacer)
@@ -385,32 +385,32 @@ class DeviceWidgetHeader(QtWidgets.QWidget):
             self.layout.addWidget(self.connect_button)
 
         self.name_label.setMinimumSize(QtCore.QSize(235, 0))
-        self.ip_address_label.setMinimumSize(QtCore.QSize(100, 0))
+        self.address_label.setMinimumSize(QtCore.QSize(100, 0))
 
     def showEvent(self, event):
         super().showEvent(event)
 
-        self.find_ip_address_label()
+        self.find_address_label()
 
-    def find_ip_address_label(self):
+    def find_address_label(self):
         labels = self.findChildren(QtWidgets.QLabel)
         for label in labels:
-            if label.text() == 'IP Address':
-                self.ip_address_label = label
+            if label.text() == 'Address':
+                self.address_label = label
                 return
 
     def resizeEvent(self, event):
         super().resizeEvent(event)
 
-        if not self.ip_address_label:
+        if not self.address_label:
             return
 
         width = event.size().width()
 
-        if width < sb_widgets.DEVICE_WIDGET_HIDE_IP_ADDRESS_WIDTH:
-            self.ip_address_label.hide()
+        if width < sb_widgets.DEVICE_WIDGET_HIDE_ADDRESS_WIDTH:
+            self.address_label.hide()
         else:
-            self.ip_address_label.show()
+            self.address_label.show()
 
     def paintEvent(self, event):
         opt = QtWidgets.QStyleOption()

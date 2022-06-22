@@ -34,9 +34,9 @@ def unresponsive_shogun(f):
 
 
 class DeviceShogun(Device):
-    def __init__(self, name, ip_address, **kwargs):
+    def __init__(self, name, address, **kwargs):
         self.setting_save_path = StringSetting("save_path", "Save Path", "")
-        super().__init__(name, ip_address, **kwargs)
+        super().__init__(name, address, **kwargs)
 
         self.trigger_start = True
         self.trigger_stop = True
@@ -67,7 +67,7 @@ class DeviceShogun(Device):
     def connect_listener(self):
         super().connect_listener()
 
-        self.client = vicon_core_api.Client(self.ip_address)
+        self.client = vicon_core_api.Client(self.address)
         self.capture_service = shogun_live_api.CaptureServices(self.client)
 
         if self.client.connected:
@@ -139,8 +139,8 @@ class DeviceShogun(Device):
 
 
 class DeviceWidgetShogun(DeviceWidget):
-    def __init__(self, name, device_hash, ip_address, icons, parent=None):
-        super().__init__(name, device_hash, ip_address, icons, parent=parent)
+    def __init__(self, name, device_hash, address, icons, parent=None):
+        super().__init__(name, device_hash, address, icons, parent=parent)
 
     def _add_control_buttons(self):
         super()._add_control_buttons()

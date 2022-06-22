@@ -169,7 +169,7 @@ class nDisplayMonitor(QAbstractTableModel):
         for colname in self.colnames:
             data[colname] = self.DATA_MISSING
 
-        data['Host'] = str(device.ip_address)
+        data['Host'] = str(device.address)
         data['Node'] = device.name
         data['Connected'] = \
             'yes' if device.unreal_client.is_connected else 'no'

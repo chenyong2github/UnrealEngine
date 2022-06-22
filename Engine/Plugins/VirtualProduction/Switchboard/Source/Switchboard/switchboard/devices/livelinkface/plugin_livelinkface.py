@@ -13,8 +13,8 @@ import datetime
 class DeviceLiveLinkFace(Device):
     QUERY_TIME = 5
 
-    def __init__(self, name, ip_address, port=CONFIG.OSC_CLIENT_PORT.get_value(), **kwargs):
-        super().__init__(name, ip_address, **kwargs)
+    def __init__(self, name, address, port=CONFIG.OSC_CLIENT_PORT.get_value(), **kwargs):
+        super().__init__(name, address, **kwargs)
 
         self.auto_connect = False
         self.port = port
@@ -55,7 +55,7 @@ class DeviceLiveLinkFace(Device):
         super().disconnect_listener()
 
     def launch(self):
-        unreal_devices = CONFIG.unreal_device_ip_addresses()
+        unreal_devices = CONFIG.unreal_device_addresses()
 
         if not unreal_devices:
             LOGGER.warning(f'{self.name}: does not have an Unreal device to stream to. Please add one')
@@ -67,7 +67,7 @@ class DeviceLiveLinkFace(Device):
         self.send_osc_message(osc.ARSESSION_START, 1)
 
         self.send_osc_message(osc.CLEAR_LIVE_LINK_ADDRESSES, 1)
-        # Loop through all of the Unreal IP Addresses to add them
+        # Loop through all of the Unreal Addresses to add them
         for unreal_address in unreal_devices:
             self.send_osc_message(osc.ADD_LIVE_LINK_ADDRESS, [unreal_address, 11111])
 
@@ -89,7 +89,7 @@ class DeviceLiveLinkFace(Device):
             self.disconnect_listener()
 
         if self.look_for_device:
-            if len(CONFIG.unreal_device_ip_addresses()) > 0:
+            if len(CONFIG.unreal_device_addresses()) > 0:
                 if self.status > DeviceStatus.DISCONNECTED:
                     self.battery_query()
                 else:
@@ -105,9 +105,9 @@ class DeviceLiveLinkFace(Device):
     def battery_query(self):
         self.send_osc_message(osc.BATTERY_QUERY, 1, log=False)
 
-    # Tell the mobile which ip_address is running Switchboard
+    # Tell the mobile which address is running Switchboard
     def osc_add_send_target(self):
-        self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.IP_ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value()], log=True)
+        self.send_osc_message(osc.OSC_ADD_SEND_TARGET, [SETTINGS.ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value()], log=True)
 
     def osc_add_send_target_confirm(self):
         # If the mobile is left on and CP is relaunched the normal bootup sequence doesn't happen 
@@ -129,8 +129,8 @@ class DeviceLiveLinkFace(Device):
 
 
 class DeviceWidgetLiveLinkFace(DeviceWidget):
-    def __init__(self, name, device_hash, ip_address, icons, parent=None):
-        super().__init__(name, device_hash, ip_address, icons, parent=parent)
+    def __init__(self, name, device_hash, address, icons, parent=None):
+        super().__init__(name, device_hash, address, icons, parent=parent)
 
     def _add_control_buttons(self):
         super()._add_control_buttons()

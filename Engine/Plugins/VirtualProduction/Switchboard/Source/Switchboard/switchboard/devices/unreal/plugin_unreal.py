@@ -7,10 +7,11 @@ import json
 from collections import OrderedDict
 from datetime import datetime
 from functools import wraps
-import ipaddress
+from ipaddress import IPv4Address
 import os
 import pathlib
 import re
+import socket
 import sys
 import threading
 from typing import Callable, List, Optional, Set
@@ -358,7 +359,7 @@ class DeviceUnreal(Device):
             value=':0',
             tool_tip=(
                 'Local interface binding (-UDPMESSAGING_TRANSPORT_UNICAST) of '
-                'the form {ip}:{port}. If {ip} is omitted, the device IP '
+                'the form {address}:{port}. If {address} is omitted, the device address '
                 'address is used.'),
         ),
         'udpmessaging_extra_static_endpoints': StringSetting(
@@ -376,7 +377,7 @@ class DeviceUnreal(Device):
             value='230.0.0.1:6666',
             tool_tip=(
                 'Multicast group and port (-UDPMESSAGING_TRANSPORT_MULTICAST) '
-                'in the {ip}:{port} endpoint format. The multicast group IP '
+                'in the {address}:{port} endpoint format. The multicast group address '
                 'must be in the range 224.0.0.0 to 239.255.255.255.'),
         ),
         'log_download_dir': DirectoryPathSetting(
@@ -434,24 +435,42 @@ class DeviceUnreal(Device):
     @classmethod
     def get_designated_local_builder(cls) -> Optional[DeviceUnreal]:
         '''
-        Returns first (by IP) local `DeviceUnreal` (or derived class) device.
+        Selects and returns a local `DeviceUnreal` (or derived class) device.
 
         This is the device tasked with building the multiuser server and
         listener executables.
         '''
-        ip_device_pairs = [
-            (ipaddress.ip_address(d.ip_address), d)
-            for d in cls.active_unreal_devices]
 
-        switchboard_ip_address = ipaddress.ip_address(SETTINGS.IP_ADDRESS.get_value())
+        def ips_for_host(host: str) -> List[IPv4Address]:
+            try:
+                (primary_name, aliases, ipstrs) = socket.gethostbyname_ex(host)
+                return [IPv4Address(ipstr) for ipstr in ipstrs]
+            except Exception as exc:
+                LOGGER.error('get_designated_local_builder(): '
+                             f"gethostbyname_ex('{host}') exception", exc)
+                return []
 
-        def is_local(pair):
-            return pair[0].is_loopback or (pair[0] == switchboard_ip_address)
+        # Use the set intersection of local IPs and device IPs to pick a device
+        address_to_device_map = dict[IPv4Address, DeviceUnreal]()
+        for device in cls.active_unreal_devices:
+            for ip in ips_for_host(device.address):
+                address_to_device_map[ip] = device
 
-        ip_device_pairs = filter(is_local, ip_device_pairs)
-        ip_device_pairs = sorted(ip_device_pairs, key=lambda pair: pair[0])
+        local_addr_set = set(ips_for_host(SETTINGS.ADDRESS.get_value()))
+        device_addr_set = set(address_to_device_map.keys())
 
-        return ip_device_pairs[0][1] if len(ip_device_pairs) > 0 else None
+        local_device_addrs = local_addr_set.intersection(device_addr_set)
+        for local_device_addr in local_device_addrs:
+            local_device = address_to_device_map[local_device_addr]
+            if local_device.is_disconnected:
+                continue
+            else:
+                return local_device
+
+        try:
+            return address_to_device_map[list(local_device_addrs)[0]]
+        except (IndexError, KeyError):
+            return None
 
     def is_designated_local_builder(self) -> bool:
         return self is DeviceUnreal.get_designated_local_builder()
@@ -476,11 +495,11 @@ class DeviceUnreal(Device):
         dlg.exec()
         DeviceUnreal._pending_notify_redeploy = False
 
-    def __init__(self, name, ip_address, **kwargs):
-        super().__init__(name, ip_address, **kwargs)
+    def __init__(self, name, address, **kwargs):
+        super().__init__(name, address, **kwargs)
 
         self.unreal_client = ListenerClient(
-            ip_address=self.ip_address,
+            address=self.address,
             port=DeviceUnreal.csettings['port'].get_value(self.name),
             buffer_size=DeviceUnreal.csettings['buffer_size'].get_value(
                 self.name)
@@ -531,8 +550,8 @@ class DeviceUnreal(Device):
             tool_tip="Whether to exclude this device from builds"
         )
 
-        self.setting_ip_address.signal_setting_changed.connect(
-            self.on_setting_ip_address_changed)
+        self.setting_address.signal_setting_changed.connect(
+            self.on_setting_address_changed)
         DeviceUnreal.csettings['port'].signal_setting_changed.connect(
             self.on_setting_port_changed)
         CONFIG.BUILD_ENGINE.signal_setting_changed.connect(
@@ -685,10 +704,10 @@ class DeviceUnreal(Device):
             CONFIG.listener_path())
 
         DeviceUnreal.rsync_server.register_client(
-            device, device.name, device.ip_address)
+            device, device.name, device.address)
         device.widget.signal_device_name_changed.connect(
             device.reregister_rsync_client)
-        device.setting_ip_address.signal_setting_changed.connect(
+        device.setting_address.signal_setting_changed.connect(
             device.reregister_rsync_client)
 
     @classmethod
@@ -703,7 +722,7 @@ class DeviceUnreal(Device):
         DeviceUnreal.rsync_server.unregister_client(device)
         device.widget.signal_device_name_changed.disconnect(
             device.reregister_rsync_client)
-        device.setting_ip_address.signal_setting_changed.disconnect(
+        device.setting_address.signal_setting_changed.disconnect(
             device.reregister_rsync_client)
 
         if len(DeviceUnreal.active_unreal_devices) == 0:
@@ -808,13 +827,13 @@ class DeviceUnreal(Device):
 
         device_widget.autojoin_mu.signal_device_widget_autojoin_mu.connect(self.on_autojoin_mu_ui_change)
 
-    def on_setting_ip_address_changed(self, _, new_address):
-        LOGGER.info(f"Updating IP address for ListenerClient to {new_address}")
-        self.unreal_client.ip_address = new_address
+    def on_setting_address_changed(self, _, new_address):
+        LOGGER.info(f"Updating address for ListenerClient to {new_address}")
+        self.unreal_client.address = new_address
 
     def on_setting_port_changed(self, _, new_port):
         if not DeviceUnreal.csettings['port'].is_overridden(self.name):
-            LOGGER.info(f"Updating Port for ListenerClient to {new_port}")
+            LOGGER.info(f"Updating port for ListenerClient to {new_port}")
             self.unreal_client.port = new_port
 
     def on_build_engine_changed(self, _, build_engine):
@@ -1114,6 +1133,8 @@ class DeviceUnreal(Device):
         # Build dependency chain
         puuid_dependency = sync_puuid
 
+        # TODO: Corner case if multiple local devices, and we build on a single
+        # local device other than chosen. Guarantee on any local single build?
         if (self.is_designated_local_builder() and
                 CONFIG.BUILD_ENGINE.get_value()):
             # Build multi-user server
@@ -1314,7 +1335,7 @@ class DeviceUnreal(Device):
         setting_val = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
         if setting_val:
             return sb_utils.expand_endpoint(setting_val,
-                                            SETTINGS.IP_ADDRESS.get_value().strip())
+                                            SETTINGS.ADDRESS.get_value().strip())
         else:
             return ''
 
@@ -1322,7 +1343,7 @@ class DeviceUnreal(Device):
     def udpmessaging_unicast_endpoint(self) -> str:
         setting_val = self.udpmessaging_unicast_endpoint_setting.strip()
         if setting_val:
-            return sb_utils.expand_endpoint(setting_val, self.ip_address)
+            return sb_utils.expand_endpoint(setting_val, self.address)
         else:
             return ''
 
@@ -1536,7 +1557,7 @@ class DeviceUnreal(Device):
         if self.status == DeviceStatus.OPEN:
             self.send_osc_message(
                 osc.OSC_ADD_SEND_TARGET,
-                [SETTINGS.IP_ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value()])
+                [SETTINGS.ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value()])
         else:
             self.osc_connection_timer.stop()
 
@@ -1973,7 +1994,7 @@ class DeviceUnreal(Device):
     def reregister_rsync_client(self):
         DeviceUnreal.rsync_server.unregister_client(self)
         DeviceUnreal.rsync_server.register_client(
-            self, self.name, self.ip_address)
+            self, self.name, self.address)
 
     def backup_file(self, filename):
         ''' Rotate existing filename to a timestamped backup, a la Unreal. '''
@@ -2014,7 +2035,7 @@ class DeviceUnreal(Device):
             DeviceUnreal.rsync_server.make_cygdrive_path(remote_path)
 
         dest_endpoint = \
-            f'{SETTINGS.IP_ADDRESS.get_value()}:{DeviceUnreal.rsync_server.port}'
+            f'{SETTINGS.ADDRESS.get_value()}:{DeviceUnreal.rsync_server.port}'
         dest_module = DeviceUnreal.rsync_server.INCOMING_LOGS_MODULE
         dest_path = f'rsync://{dest_endpoint}/{dest_module}/'
 
@@ -2182,7 +2203,7 @@ class DeviceWidgetUnreal(DeviceWidget):
     signal_open_last_trace = QtCore.Signal(object)
     signal_copy_last_launch_command = QtCore.Signal(object)
 
-    def __init__(self, name, device_hash, ip_address, icons, parent=None):
+    def __init__(self, name, device_hash, address, icons, parent=None):
         self._autojoin_visible = True
         self._is_engine_synched = True
         self._is_project_synched = True
@@ -2190,7 +2211,7 @@ class DeviceWidgetUnreal(DeviceWidget):
         self._exclude_from_build = False
         self._desired_build_button_tooltip = "Build changelist"
 
-        super().__init__(name, device_hash, ip_address, icons, parent=parent)
+        super().__init__(name, device_hash, address, icons, parent=parent)
 
         CONFIG.P4_ENABLED.signal_setting_changed.connect(
             lambda _, enabled: self.sync_button.setVisible(enabled))

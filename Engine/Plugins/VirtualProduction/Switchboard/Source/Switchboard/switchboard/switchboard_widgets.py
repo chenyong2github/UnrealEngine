@@ -1,4 +1,6 @@
 # Copyright Epic Games, Inc. All Rights Reserved.
+import re
+import socket
 import time
 from typing import Optional
 
@@ -9,16 +11,16 @@ from switchboard.switchboard_logging import LOGGER
 
 DEVICE_LIST_WIDGET_HEIGHT = 54
 DEVICE_HEADER_LIST_WIDGET_HEIGHT = 40
-DEVICE_WIDGET_HIDE_IP_ADDRESS_WIDTH = 500
+DEVICE_WIDGET_HIDE_ADDRESS_WIDTH = 500
 
 
 class NonScrollableComboBox(QtWidgets.QComboBox):
     onHoverScrollBox = QtCore.Signal()
-    
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.installEventFilter(self)
-        
+
     def enterEvent(self, event):
         self.onHoverScrollBox.emit()
         super().enterEvent(event)
@@ -128,10 +130,10 @@ class MultiSelectionComboBox(QtWidgets.QComboBox):
 # A combo box that has a static icon and opens a list of options when pressed, e.g. view options in settings
 class DropDownMenuComboBox(QtWidgets.QComboBox):
     on_select_option = QtCore.Signal(str)
-    
+
     def __init__(self, icon: QtGui.QIcon = None, icon_size: int = 25, parent=None):
         super().__init__(parent=parent)
-        
+
         drop_down_arrow_size = 15
         if icon is not None:
             self.addItem(icon, "")
@@ -139,21 +141,21 @@ class DropDownMenuComboBox(QtWidgets.QComboBox):
         else:
             self.addItem("")
             self.setFixedWidth(drop_down_arrow_size)
-        
+
         self.model().setData(self.model().index(0, 0), QtCore.QSize(100, 100), QtCore.Qt.SizeHintRole)
         self.view().setRowHidden(0, True)
         self.currentIndexChanged.connect(self._on_index_changed)
-    
+
     def _on_index_changed(self, index: int):
         selected_item = self.itemText(index)
         self.on_select_option.emit(selected_item)
         # Always make sure that the icon is shown
         self.setCurrentIndex(0)
-    
+
     def showPopup(self):
         self.view().setMinimumWidth(self.view().sizeHintForColumn(0))
         super().showPopup()
-    
+
 
 class ControlQPushButton(QtWidgets.QPushButton):
     def __init__(self, parent = None, *, hover_focus: bool = True):
@@ -299,13 +301,12 @@ class FramelessQLineEdit(QtWidgets.QLineEdit):
         elif e.key() == QtCore.Qt.Key_Escape:
             self.setText(self.current_text)
             self.clearFocus()
-    
-    
+
 
 class CollapsibleGroupBox(QtWidgets.QGroupBox):
     def __init__(self):
         super().__init__()
-        
+
         self.setCheckable(True)
         self.setStyleSheet(
             'QGroupBox::indicator:checked:hover {image: url(:icons/images/tree_arrow_expanded_hovered.png);}'
@@ -316,18 +317,18 @@ class CollapsibleGroupBox(QtWidgets.QGroupBox):
 
         self.toggled.connect(self._on_set_expanded)
         self.setChecked(True)
-        
+
     @property
     def is_expanded(self):
         return self.isChecked()
-        
+
     def set_expanded(self, value: bool):
         if value and not self.is_expanded or not value and self.is_expanded:
             self._on_set_expanded(value)
             self.blockSignals(True)
             self.setChecked(value)
             self.blockSignals(False)
-        
+
     def _on_set_expanded(self, should_expand: bool):
         if should_expand:
             self.setMaximumHeight(self._original_maximum_height)
@@ -336,20 +337,20 @@ class CollapsibleGroupBox(QtWidgets.QGroupBox):
             # Just font height does not suffice ... need to investigate how to get a better value programmatically
             safety_margin = 6
             self.setMaximumHeight(self.fontMetrics().height() + safety_margin)
-            
+
 
 class SearchableComboBox(QtWidgets.QComboBox):
-    
+
     class CustomQList(QtWidgets.QListWidget):
         def __init__(self, parent):
             super().__init__(parent)
-            
-            
+
+
     def __init__(self, parent):
         super().__init__(parent)
-        
+
         self.HEIGHT = 15
-        
+
         self.item_list = self.CustomQList(self)
         self.item_list.setViewportMargins(0, self.HEIGHT, 0, 0)
         self.setView(self.item_list)
@@ -358,36 +359,157 @@ class SearchableComboBox(QtWidgets.QComboBox):
         self.search_line = QtWidgets.QLineEdit(self.view())
         self.search_line.setVisible(False)
         self.search_line.setPlaceholderText("Search")
-       
+
         self.search_line.textChanged.connect(self.text_changed)
-        
+
     def showPopup(self):
-            
         super().showPopup()
-        
+
         MARGIN = 10
         XPOS = MARGIN/2
         YPOS = 2
-        
-        self.search_line.setGeometry(XPOS, YPOS, self.view().width() - MARGIN*2.5, self.HEIGHT)
+
+        self.search_line.setGeometry(
+            XPOS, YPOS, self.view().width() - MARGIN*2.5, self.HEIGHT)
         self.search_line.setVisible(True)
-        
+
         self.CB_item_text = [self.itemText(i) for i in range(self.count())]
-        
+
     def hidePopup(self):
         super().hidePopup()
-        
+
         self.search_line.setVisible(False)
         self.search_line.clear()
-    
-    def text_changed(self, text:str):
-        
+
+    def text_changed(self, text: str):
         for item in self.CB_item_text:
             if item.lower().__contains__(text.lower()):
                 self.view().setRowHidden(self.findText(item), False)
             else:
                 self.view().setRowHidden(self.findText(item), True)
-     
+
+
+class HostnameValidator(QtGui.QValidator):
+    INVALID_CHARS_RE = re.compile(r"[^A-Z.\d-]", re.IGNORECASE)
+    VALID_SEGMENT_RE = re.compile(r"(?!-)[A-Z\d-]{1,63}(?<!-)$",
+                                  re.IGNORECASE)
+
+    def fixup(self, input: str):
+        return self.INVALID_CHARS_RE.sub('', input)
+
+    def validate(self, input: str, pos: int):
+        input_len = len(input)
+        if input_len == 0 or input_len > 255:
+            return QtGui.QValidator.Intermediate
+
+        if input[-1] == '.':
+            input = input[:-1]  # trim FQDN terminator
+
+        for segment in input.split('.'):
+            if not self.VALID_SEGMENT_RE.match(segment):
+                return QtGui.QValidator.Intermediate
+
+        return QtGui.QValidator.Acceptable
+
+
+class AddressComboBox(NonScrollableComboBox):
+    '''
+    An editable combo box with visible indication of hostname resolvability.
+    '''
+
+    class ResolverRunnable(QtCore.QRunnable):
+        ''' Performs a name resolution query on the thread pool. '''
+
+        class Signals(QtCore.QObject):
+            result = QtCore.Signal(list)
+
+        def __init__(self, name: str):
+            super().__init__()
+            self.name = name
+            self.signals = self.Signals()
+
+        def run(self):
+            addrs = list[str]()
+            try:
+                (_, _, addrs) = socket.gethostbyname_ex(self.name)
+            except socket.gaierror:
+                pass
+            self.signals.result.emit(addrs)
+
+    def __init__(self, parent=None):
+        super().__init__(parent=parent)
+
+        self.runnable = AddressComboBox.ResolverRunnable('')
+        self.resolving = False
+        self.debounce = QtCore.QTimer()
+        self.debounce.setSingleShot(True)
+        self.debounce.timeout.connect(self.on_text_settled)
+
+        self.setEditable(True)
+        self.lineEdit().setValidator(HostnameValidator())
+        self.lineEdit().textChanged.connect(self.on_text_changed)
+        self.lineEdit().editingFinished.connect(self.on_editing_finished)
+
+    def start_resolve(self):
+        if self.resolving:
+            return False
+
+        try:
+            self.runnable.signals.result.disconnect(self.on_resolver_result)
+        except RuntimeError:
+            pass  # non-existent signal connections raise (seems excessive)
+
+        name = self.lineEdit().text()
+        self.runnable = AddressComboBox.ResolverRunnable(name)
+        self.runnable.signals.result.connect(self.on_resolver_result)
+        QtCore.QThreadPool.globalInstance().start(self.runnable)
+        LOGGER.debug(f'starting resolve: "{name}"')
+        self.resolving = True
+        return True
+
+    def on_text_changed(self, new_text: str):
+        if not self.lineEdit().hasAcceptableInput():
+            set_qt_property(self, 'validation', 'invalid')
+            self.debounce.stop()
+            return
+
+        set_qt_property(self, 'validation', 'intermediate')
+
+        # Don't issue the query until the user stops typing for a second
+        SETTLE_WAIT_MILLISEC = 1000
+        self.debounce.start(SETTLE_WAIT_MILLISEC)
+
+    def on_editing_finished(self):
+        self.debounce.stop()
+
+        if not self.lineEdit().hasAcceptableInput():
+            set_qt_property(self, 'validation', 'invalid')
+            return
+
+        set_qt_property(self, 'validation', 'intermediate')
+        self.start_resolve()
+
+    def on_text_settled(self):
+        self.start_resolve()
+
+    def on_resolver_result(self, addrs: list[str]):
+        self.resolving = False
+
+        current_text = self.lineEdit().text()
+        last_resolved = self.runnable.name
+
+        if current_text != last_resolved:
+            # Resolver result was stale, issue a new one
+            self.start_resolve()
+            return
+
+        LOGGER.debug(f'resolved: "{", ".join(addrs)}"')
+
+        if len(addrs) == 0:
+            set_qt_property(self, 'validation', 'invalid')
+        else:
+            set_qt_property(self, 'validation', 'succeeded')
+
 
 def set_qt_property(
     widget: QtWidgets.QWidget, prop, value, *,
