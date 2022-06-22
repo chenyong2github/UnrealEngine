@@ -36,7 +36,7 @@ namespace CubemapHelpers
 	bool GenerateLongLatUnwrap(const FTextureResource* TextureResource, const uint32 AxisDimenion, const EPixelFormat SourcePixelFormat, TArray64<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT)
 	{
 		TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
-		BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0, (float)-1, false, true);
+		BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0, (float)-1, (float)-1, false, true);
 		const FIntPoint LongLatDimensions(AxisDimenion * 2, AxisDimenion);
 
 		// If the source format is 8 bit per channel or less then select a LDR target format.
@@ -145,13 +145,13 @@ bool FCubemapTexturePropertiesPS::ShouldCompilePermutation(const FGlobalShaderPe
 	return true;
 }
 
-void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float GammaValue, bool bIsTextureCubeArray)
+void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float FaceIndex, float GammaValue, bool bIsTextureCubeArray)
 {
 	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
 	SetTextureParameter(RHICmdList, ShaderRHI, CubeTexture, CubeTextureSampler, Texture);
 
-	FVector4f PackedProperties0Value(MipLevel, SliceIndex, 0, 0);
+	FVector4f PackedProperties0Value(MipLevel, SliceIndex, FaceIndex, 0);
 	SetShaderValue(RHICmdList, ShaderRHI, PackedProperties0, PackedProperties0Value);
 	SetShaderValue(RHICmdList, ShaderRHI, ColorWeights, (FMatrix44f)ColorWeightsValue);
 	SetShaderValue(RHICmdList, ShaderRHI, Gamma, GammaValue);
@@ -187,7 +187,7 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, InGamma, bIsTextureCubeArray);
+	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, FaceIndex, InGamma, bIsTextureCubeArray);
 }
 
 void FIESLightProfilePS::SetParameters( FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens )

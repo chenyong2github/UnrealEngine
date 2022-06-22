@@ -350,7 +350,7 @@ float3 GetCubemapVector(float2 ScaledUVs, uint CubeFace)
 	return CubeCoordinates;
 }
 
-// .x:MipLevel, .y: SliceIndex, .zw:unused
+// .x:MipLevel, .y: SliceIndex, .z: FaceIndex, .w:unused
 float4 PackedProperties0;
 float4x4 ColorWeights;
 
@@ -369,42 +369,41 @@ void CubemapTextureProperties(
 	)
 {
 	float MipLevel = PackedProperties0.x;
-	float SliceIndex = PackedProperties0.y;
+	float FaceIndex = PackedProperties0.z;
 	float4 BaseColor;
 
 #if TEXTURECUBE_ARRAY
 
-	// for a TextureCube array SliceIndex represents an index of a cubemap in the array
-	// each slice of a TextureCube array is displayed as a longlat unwrap
-
-	float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
-	float s = sin(Angles.y);
-	float3 Direction = float3(s * sin(Angles.x), cos(Angles.y), -s * cos(Angles.x));
-
-	float CurrentSliceIndex = SliceIndex;
-	if (CurrentSliceIndex < 0.0)
+	// SliceIndex represents an index of a cubemap in the array
+	float SliceIndex = PackedProperties0.y;
+	if (SliceIndex < 0.0)
 	{
 		// if the slice index is not specified, display a portion of each cubemap from the TextureCube array
-		CurrentSliceIndex = floor(TextureCoordinate.y * NumSlices);
+		SliceIndex = floor(TextureCoordinate.y * NumSlices);
 	}
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
-	BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, Direction.xzy, CurrentSliceIndex, MipLevel);
-#else
-	BaseColor = 0;
-#endif
-
-#else //TEXTURECUBE_ARRAY
-
-	// for a TextureCube SliceIndex represents an index of a cubemap face
-
-	if (SliceIndex >= 0.0)
+	if (FaceIndex >= 0.0)
 	{
-		BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, GetCubemapVector(TextureCoordinate * 2 - 1, SliceIndex), MipLevel);
+		BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, GetCubemapVector(TextureCoordinate * 2 - 1, FaceIndex), SliceIndex, MipLevel);
 	}
 	else
 	{
-		// if the slice index is not specified, display the cubemap as a longlat unwrap
+		// if the face index is not specified, display the cubemap as a longlat unwrap
+		float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
+		float s = sin(Angles.y);
+		float3 Direction = float3(s * sin(Angles.x), cos(Angles.y), -s * cos(Angles.x));
+		BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, Direction.xzy, SliceIndex, MipLevel);
+	}
+
+#else //TEXTURECUBE_ARRAY
+
+	if (FaceIndex >= 0.0)
+	{
+		BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, GetCubemapVector(TextureCoordinate * 2 - 1, FaceIndex), MipLevel);
+	}
+	else
+	{
+		// if the face index is not specified, display the cubemap as a longlat unwrap
 		float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
 		float s = sin(Angles.y);
 		float3 Direction = float3(s * sin(Angles.x), cos(Angles.y), -s * cos(Angles.x));

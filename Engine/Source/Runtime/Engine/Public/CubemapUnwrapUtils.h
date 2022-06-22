@@ -79,7 +79,7 @@ public:
 	FCubemapTexturePropertiesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float GammaValue, bool bIsTextureCubeArray);
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float FaceIndex, float GammaValue, bool bIsTextureCubeArray);
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, CubeTexture);
@@ -94,10 +94,11 @@ private:
 class ENGINE_API FMipLevelBatchedElementParameters : public FBatchedElementParameters
 {
 public:
-	FMipLevelBatchedElementParameters(float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, bool bInHDROutput = false)
+	FMipLevelBatchedElementParameters(float InMipLevel, float InSliceIndex, float InFaceIndex, bool bInIsTextureCubeArray, bool bInHDROutput = false)
 		: bHDROutput(bInHDROutput)
 		, MipLevel(InMipLevel)
 		, SliceIndex(InSliceIndex)
+		, FaceIndex(InFaceIndex)
 		, bIsTextureCubeArray(bInIsTextureCubeArray)
 	{
 	}
@@ -111,6 +112,7 @@ private:
 	/** Parameters that need to be passed to the shader */
 	float MipLevel;
 	float SliceIndex;
+	float FaceIndex;
 
 	/** Parameters that are used to select a shader permutation */
 	bool bIsTextureCubeArray;

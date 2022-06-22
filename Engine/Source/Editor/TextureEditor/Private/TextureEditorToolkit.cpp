@@ -248,6 +248,9 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	SpecifiedSlice = 0;
 	bUseSpecifiedSlice = false;
 
+	SpecifiedFace = 0;
+	bUseSpecifiedFace = false;
+
 	SavedCompressionSetting = false;
 
 	// Start at whatever the last used zoom mode was
@@ -421,6 +424,11 @@ int32 FTextureEditorToolkit::GetSlice() const
 	return GetUseSpecifiedSlice() ? HandleSliceEntryBoxValue().Get(-1) : -1;
 }
 
+int32 FTextureEditorToolkit::GetFace() const
+{
+	return GetUseSpecifiedFace() ? SpecifiedFace : -1;
+}
+
 UTexture* FTextureEditorToolkit::GetTexture( ) const
 {
 	return Texture;
@@ -453,6 +461,11 @@ bool FTextureEditorToolkit::GetUseSpecifiedMip( ) const
 bool FTextureEditorToolkit::GetUseSpecifiedSlice() const
 {
 	return HandleSliceCheckBoxIsEnabled() && bUseSpecifiedSlice;
+}
+
+bool FTextureEditorToolkit::GetUseSpecifiedFace() const
+{
+	return bUseSpecifiedFace;
 }
 
 double FTextureEditorToolkit::GetCustomZoomLevel( ) const
@@ -713,10 +726,9 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	SizeOptions.UseGrouping = false;
 	SizeOptions.MaximumFractionalDigits = 0;
 
-	// Cubes are previewed as unwrapped 2D textures in case when slice index is not selected.
+	// Cubes are previewed as longlat unwrapped 2D textures in case when face index is not specified.
 	// These have 2x the width of a cube face.
-	// Cube arrays are always displayed as longlat unwraps.
-	if (IsCubeTexture() && (IsArrayTexture() || GetSlice() < 0))
+	if (IsCubeTexture() && GetFace() < 0)
 	{
 		PreviewEffectiveTextureWidth *= 2;
 	}
@@ -1661,6 +1673,7 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	TSharedRef<SWidget> LODControl = MakeLODControlWidget();
 	TSharedRef<SWidget> LayerControl = MakeLayerControlWidget();
 	TSharedRef<SWidget> SliceControl = MakeSliceControlWidget();
+	TSharedRef<SWidget> FaceControl = MakeFaceControlWidget();
 	TSharedRef<SWidget> ExposureControl = MakeExposureContolWidget();
 	TSharedPtr<SWidget> OptionalOpacityControl = IsVolumeTexture() ? TSharedPtr<SWidget>(MakeOpacityControlWidget()) : nullptr;
 	TSharedRef<SWidget> ZoomControl = MakeZoomControlWidget();
@@ -1702,6 +1715,15 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			ToolbarBuilder.BeginSection("Slices");
 			{
 				ToolbarBuilder.AddWidget(SliceControl);
+			}
+			ToolbarBuilder.EndSection();
+		}
+
+		if (IsCubeTexture())
+		{
+			ToolbarBuilder.BeginSection("Faces");
+			{
+				ToolbarBuilder.AddWidget(FaceControl);
 			}
 			ToolbarBuilder.EndSection();
 		}
@@ -2137,9 +2159,8 @@ bool FTextureEditorToolkit::HasLayers() const
 
 bool FTextureEditorToolkit::HasSlices() const
 {
-	// currently supports Texture2D arrays, cubemaps and cubemap arrays
 	// slice selection should be supported even for a texture array with less than two elements, because array elements can be added dynamically
-	return Is2DArrayTexture() || IsCubeTexture();
+	return IsArrayTexture();
 }
 
 int32 FTextureEditorToolkit::GetNumSlices() const
@@ -2156,10 +2177,6 @@ int32 FTextureEditorToolkit::GetNumSlices() const
 	{
 		// for a TextureCube array SliceIndex represents an index of a cubemap in the array
 		return Cast<UTextureCubeArray>(Texture)->GetSurfaceArraySize() / 6;
-	}
-	else if (IsCubeTexture() && !IsArrayTexture())
-	{
-		return 6;
 	}
 	return 1;
 }
@@ -2187,6 +2204,27 @@ TOptional<int32> FTextureEditorToolkit::HandleSliceEntryBoxValue() const
 void FTextureEditorToolkit::HandleSliceEntryBoxChanged(int32 NewSlice)
 {
 	SpecifiedSlice = FMath::Clamp<int32>(NewSlice, 0, GetMaxSlice().Get(0));
+	PopulateQuickInfo();
+}
+
+ECheckBoxState FTextureEditorToolkit::HandleFaceCheckBoxIsChecked() const
+{
+	return GetUseSpecifiedFace() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+}
+
+void FTextureEditorToolkit::HandleFaceCheckBoxCheckedStateChanged(ECheckBoxState InNewState)
+{
+	bUseSpecifiedFace = InNewState == ECheckBoxState::Checked;
+}
+
+TOptional<int32> FTextureEditorToolkit::HandleFaceEntryBoxValue() const
+{
+	return FMath::Clamp<int32>(SpecifiedFace, 0, 5);
+}
+
+void FTextureEditorToolkit::HandleFaceEntryBoxChanged(int32 NewFace)
+{
+	SpecifiedFace = FMath::Clamp<int32>(NewFace, 0, 5);
 	PopulateQuickInfo();
 }
 
@@ -2729,6 +2767,46 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeSliceControlWidget()
 		];
 
 	return SliceControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeFaceControlWidget()
+{
+	TSharedRef<SWidget> FaceControl = SNew(SBox)
+		.WidthOverride(212.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("TextureEditor", "Face", "Face"))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FTextureEditorToolkit::HandleFaceCheckBoxIsChecked)
+				.OnCheckStateChanged(this, &FTextureEditorToolkit::HandleFaceCheckBoxCheckedStateChanged)
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(0.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SNumericEntryBox<int32>)
+				.IsEnabled(this, &FTextureEditorToolkit::GetUseSpecifiedFace)
+				.AllowSpin(true)
+				.MinSliderValue(0)
+				.MaxSliderValue(5)
+				.Value(this, &FTextureEditorToolkit::HandleFaceEntryBoxValue)
+				.OnValueChanged(this, &FTextureEditorToolkit::HandleFaceEntryBoxChanged)
+			]
+		];
+
+	return FaceControl;
 }
 
 TSharedRef<SWidget> FTextureEditorToolkit::MakeExposureContolWidget()

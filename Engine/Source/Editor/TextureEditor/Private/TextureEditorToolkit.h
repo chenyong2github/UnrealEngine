@@ -66,10 +66,12 @@ public:
 	virtual int32 GetMipLevel( ) const override;
 	virtual int32 GetLayer() const override;
 	virtual int32 GetSlice() const override;
+	virtual int32 GetFace() const override;
 	virtual UTexture* GetTexture( ) const override;
 	virtual bool HasValidTextureResource( ) const override;
 	virtual bool GetUseSpecifiedMip( ) const override;
 	virtual bool GetUseSpecifiedSlice() const override;
+	virtual bool GetUseSpecifiedFace() const override;
 	virtual double GetCustomZoomLevel( ) const override;
 	virtual void SetCustomZoomLevel(double ZoomValue) override;
 	virtual void PopulateQuickInfo( ) override;
@@ -261,6 +263,18 @@ private:
 	// Callback for changing the value of the slice index entry box.
 	void HandleSliceEntryBoxChanged(int32 Slice);
 
+	// Callback for getting the checked state of the face check box.
+	ECheckBoxState HandleFaceCheckBoxIsChecked() const;
+
+	// Callback for changing the checked state of the face check box.
+	void HandleFaceCheckBoxCheckedStateChanged(ECheckBoxState InNewState);
+
+	// Callback for getting the value of the face index entry box.
+	TOptional<int32> HandleFaceEntryBoxValue() const;
+
+	// Callback for changing the value of the face index entry box.
+	void HandleFaceEntryBoxChanged(int32 Face);
+
 	// Callback for determining whether the Reimport action can execute.
 	bool HandleReimportActionCanExecute( ) const;
 
@@ -342,6 +356,7 @@ private:
 	TSharedRef<SWidget> MakeLODControlWidget();
 	TSharedRef<SWidget> MakeLayerControlWidget();
 	TSharedRef<SWidget> MakeSliceControlWidget();
+	TSharedRef<SWidget> MakeFaceControlWidget();
 	TSharedRef<SWidget> MakeExposureContolWidget();
 	TSharedRef<SWidget> MakeOpacityControlWidget();
 	TSharedRef<SWidget> MakeZoomControlWidget();
@@ -425,6 +440,12 @@ private:
 
 	/** When true, the specified slice index value is used, otherwise the value of -1 is used.*/
 	bool bUseSpecifiedSlice;
+
+	/** Which cubemap face should be shown */
+	int32 SpecifiedFace;
+
+	/** When true, the specified cubemap face index value is used, otherwise the value of -1 is used.*/
+	bool bUseSpecifiedFace;
 
 	/** During re-import, cache this setting so it can be restored if necessary */
 	bool SavedCompressionSetting;

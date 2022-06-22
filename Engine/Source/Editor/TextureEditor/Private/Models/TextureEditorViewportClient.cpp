@@ -112,7 +112,8 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	{
 		if (TextureCube || TextureCubeArray || RTTextureCube)
 		{
-			BatchedElementParameters = new FMipLevelBatchedElementParameters(MipLevel, SliceIndex, TextureCubeArray != nullptr, false);
+			const float FaceIndex = (float)TextureEditorPinned->GetFace();
+			BatchedElementParameters = new FMipLevelBatchedElementParameters(MipLevel, SliceIndex, FaceIndex, TextureCubeArray != nullptr, false);
 		}
 		else if (VolumeTexture)
 		{
