@@ -168,57 +168,17 @@ FORCEINLINE auto LowerBound(IteratorType First, IteratorType Last, const ValueTy
 	return LowerBound(First, Last, Value, FIdentityFunctor(), TLess<>());
 }
 
-
-//////////////////////////////////////////////////////////////////////////
-// FFeatureTypeTraits
-
-struct FFeatureTypeTraits
-{
-	EPoseSearchFeatureType Type = EPoseSearchFeatureType::Invalid;
-	uint32 NumFloats = 0;
-};
-
-// Could upgrade to class objects in the future with value reader/writer functions
-static constexpr FFeatureTypeTraits FeatureTypeTraits[] =
-{
-	{ EPoseSearchFeatureType::Position, 3 },
-	{ EPoseSearchFeatureType::Rotation, 6 },
-	{ EPoseSearchFeatureType::LinearVelocity, 3 },
-	{ EPoseSearchFeatureType::AngularVelocity, 3 },
-	{ EPoseSearchFeatureType::ForwardVector, 3 },
-	{ EPoseSearchFeatureType::Phase, 2 },
-};
-
-static FFeatureTypeTraits GetFeatureTypeTraits(EPoseSearchFeatureType Type)
-{
-	// Could allow external registration to a TSet of traits in the future
-	// For now just use a simple local array
-	for (const FFeatureTypeTraits& Traits : FeatureTypeTraits)
-	{
-		if (Traits.Type == Type)
-		{
-			return Traits;
-		}
-	}
-
-	return FFeatureTypeTraits();
-}
-
 static void CalcChannelCosts(const UPoseSearchSchema* Schema, TArrayView<const float> CostVector, TArray<float>& OutChannelCosts)
 {
 	OutChannelCosts.Reset();
 	OutChannelCosts.AddZeroed(Schema->Channels.Num());
 	for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
 	{
-		for (int FeatureIdx = INDEX_NONE; Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx); /*empty*/)
+		const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
+		const int32 ValueTerm = Channel->GetChannelDataOffset() + Channel->GetChannelCardinality();
+		for (int32 ValueIdx = Channel->GetChannelDataOffset(); ValueIdx != ValueTerm; ++ValueIdx)
 		{
-			const FPoseSearchFeatureDesc& Feature = Schema->Layout.Features[FeatureIdx];
-			int32 ValueSize = GetFeatureTypeTraits(Feature.Type).NumFloats;
-			int32 ValueTerm = Feature.ValueOffset + ValueSize;
-			for (int32 ValueIdx = Feature.ValueOffset; ValueIdx != ValueTerm; ++ValueIdx)
-			{
-				OutChannelCosts[ChannelIdx] += CostVector[ValueIdx];
-			}
+			OutChannelCosts[ChannelIdx] += CostVector[ValueIdx];
 		}
 	}
 }
@@ -293,6 +253,14 @@ static int32 PopulateNonSelectableIdx(size_t* NonSelectableIdx, int32 NonSelecta
 
 
 //////////////////////////////////////////////////////////////////////////
+// UPoseSearchFeatureChannel
+void UPoseSearchFeatureChannel::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+{
+	ChannelIdx = Initializer.GetCurrentChannelIdx();
+	ChannelDataOffset = Initializer.GetCurrentChannelDataOffset();
+}
+
+//////////////////////////////////////////////////////////////////////////
 // FPoseSearchFeatureDesc
 
 bool FPoseSearchFeatureDesc::operator==(const FPoseSearchFeatureDesc& Other) const
@@ -301,34 +269,14 @@ bool FPoseSearchFeatureDesc::operator==(const FPoseSearchFeatureDesc& Other) con
 		(ChannelIdx == Other.ChannelIdx) &&
 		(ChannelFeatureId == Other.ChannelFeatureId) &&
 		(SubsampleIdx == Other.SubsampleIdx) &&
+		// ignored or else Schema->Layout.Features.Find(Feature); called by FPoseSearchFeatureVectorBuilder will fail since FPoseSearchFeatureDesc doesn't get created fully :(
+		//(Cardinality == Other.Cardinality) &&
 		(Type == Other.Type);
 }
 
 
 //////////////////////////////////////////////////////////////////////////
 // FPoseSearchFeatureVectorLayout
-
-void FPoseSearchFeatureVectorLayout::Finalize()
-{
-	uint32 FloatCount = 0;
-
-	// Initialize value offsets
-	for (FPoseSearchFeatureDesc& Feature : Features)
-	{
-		Feature.ValueOffset = FloatCount;
-
-		uint32 FeatureNumFloats = UE::PoseSearch::GetFeatureTypeTraits(Feature.Type).NumFloats;
-		FloatCount += FeatureNumFloats;
-	}
-
-	NumFloats = FloatCount;
-}
-
-void FPoseSearchFeatureVectorLayout::Reset()
-{
-	Features.Reset();
-	NumFloats = 0;
-}
 
 bool FPoseSearchFeatureVectorLayout::IsValid(int32 ChannelCount) const
 {
@@ -386,35 +334,6 @@ bool FPoseSearchFeatureVectorLayout::EnumerateBy(int32 ChannelIdx, EPoseSearchFe
 	return false;
 }
 
-
-//////////////////////////////////////////////////////////////////////////
-// FPoseSearchBone
-
-uint32 FPoseSearchBone::GetTypeMask() const
-{
-	uint32 Mask = 0;
-	
-	if (bUsePosition)
-	{
-		Mask |= 1 << static_cast<int>(EPoseSearchFeatureType::Position);
-	}
-	if (bUseVelocity)
-	{
-		Mask |= 1 << static_cast<int>(EPoseSearchFeatureType::LinearVelocity);
-	}
-	if (bUseRotation)
-	{
-		Mask |= 1 << static_cast<int>(EPoseSearchFeatureType::Rotation);
-	}
-	if (bUsePhase)
-	{
-		Mask |= 1 << static_cast<int>(EPoseSearchFeatureType::Phase);
-	}
-
-	return Mask;
-}
-
-
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
 
@@ -426,13 +345,47 @@ int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 	return BoneReferences.AddUnique(BoneReference);
 }
 
+constexpr uint32 GetPoseSearchFeatureTypeNumFloats(EPoseSearchFeatureType Type)
+{
+	switch (Type)
+	{
+	case EPoseSearchFeatureType::Position: return 3;
+	case EPoseSearchFeatureType::Rotation: return 6;
+	case EPoseSearchFeatureType::LinearVelocity: return 3;
+	case EPoseSearchFeatureType::AngularVelocity: return 3;
+	case EPoseSearchFeatureType::ForwardVector: return 3;
+	case EPoseSearchFeatureType::Phase: return 2;
+	default: return 0;
+	}
+}
+
 int32 FSchemaInitializer::AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDesc)
 {
 	check(FeatureDesc.ChannelIdx == CurrentChannelIdx);
 	check(Features.Num() + 1 <= UPoseSearchSchema::MaxFeatures);
 	check(!Features.Contains(FeatureDesc));
-	return Features.Add(FeatureDesc);
+	const int32 FeatureDescIndex = Features.Add(FeatureDesc);
+
+	const int32 NumFloats = GetPoseSearchFeatureTypeNumFloats(FeatureDesc.Type);
+
+	Features[FeatureDescIndex].ValueOffset = CurrentChannelDataOffset;
+	Features[FeatureDescIndex].Cardinality = NumFloats;
+	CurrentChannelDataOffset += NumFloats;
+	return FeatureDescIndex;
 }
+
+void FSchemaInitializer::AddFeatures(int8 ChannelIdx, EPoseSearchFeatureType Type, int32 ChannelFeatureId, int32 NumSampleOffsets)
+{
+	FPoseSearchFeatureDesc Feature;
+	Feature.ChannelIdx = ChannelIdx;
+	Feature.Type = Type;
+	Feature.ChannelFeatureId = ChannelFeatureId;
+
+	for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != NumSampleOffsets; ++Feature.SubsampleIdx)
+	{
+		AddFeatureDesc(Feature);
+	}
+};
 
 } // namespace UE::PoseSearch
 
@@ -446,23 +399,21 @@ void UPoseSearchSchema::Finalize()
 	// Discard null channels
 	Channels.RemoveAll([](TObjectPtr<UPoseSearchFeatureChannel>& Channel) { return Channel.IsNull(); });
 
-	Layout.Reset();
 	BoneReferences.Reset();
 
 	FSchemaInitializer Initializer;
 	for (int32 ChannelIdx = 0; ChannelIdx != Channels.Num(); ++ChannelIdx)
 	{
 		TObjectPtr<UPoseSearchFeatureChannel>& Channel = Channels[ChannelIdx];
-		Channel->ChannelIdx = ChannelIdx;
-
 		Initializer.CurrentChannelIdx = ChannelIdx;
 		Channel->InitializeSchema(Initializer);
 	}
 
+	// @todo: replace FPoseSearchFeatureVectorLayout with channels after itemizing UPoseSearchFeatureChannel_Pose into position, velocity, orientation / heading, phase etc 
 	Layout.Features = MoveTemp(Initializer.Features);
-	BoneReferences = MoveTemp(Initializer.BoneReferences);
+	Layout.NumFloats = Initializer.GetCurrentChannelDataOffset();
 
-	Layout.Finalize();
+	BoneReferences = MoveTemp(Initializer.BoneReferences);
 
 	EffectiveDataPreprocessor = DataPreprocessor;
 	if (EffectiveDataPreprocessor == EPoseSearchDataPreprocessor::Automatic)
@@ -530,6 +481,31 @@ void UPoseSearchSchema::PostLoad()
 		SampledBones_DEPRECATED.Empty();
 		PoseSampleTimes_DEPRECATED.Empty();
 	}
+
+	if (!bNeedFinalize)
+	{
+		for (const FPoseSearchFeatureDesc& Feature : Layout.Features)
+		{
+			if (Feature.Cardinality == 0)
+			{
+				bNeedFinalize = true;
+				break;
+			}
+		}
+	}
+
+	if (!bNeedFinalize)
+	{
+		for (const UPoseSearchFeatureChannel* Channel : Channels)
+		{
+			if (Channel->ChannelDataOffset == -1 || Channel->ChannelCardinality == -1)
+			{
+				bNeedFinalize = true;
+				break;
+			}
+		}
+	}
+
 #endif // WITH_EDITORONLY_DATA
 
 	if (bNeedFinalize)
@@ -925,8 +901,7 @@ void FPoseSearchWeights::Init(const FPoseSearchWeightParams& WeightParams, const
 		for (int FeatureIdx = INDEX_NONE; Schema->Layout.EnumerateBy(ChannelIdx, EPoseSearchFeatureType::Invalid, FeatureIdx); /*empty*/)
 		{
 			const FPoseSearchFeatureDesc& Feature = Schema->Layout.Features[FeatureIdx];
-			int32 ValueSize = GetFeatureTypeTraits(Feature.Type).NumFloats;
-			int32 ValueTerm = Feature.ValueOffset + ValueSize;
+			const int32 ValueTerm = Feature.ValueOffset + Feature.Cardinality;
 			for (int32 ValueIdx = Feature.ValueOffset; ValueIdx != ValueTerm; ++ValueIdx)
 			{
 				Weights[ValueIdx] = WeightsByFeature[FeatureIdx];
@@ -2734,7 +2709,7 @@ void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Feature, 
 	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
 	if (ElementIndex >= 0)
 	{
-		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex]; 
 
 		Values[FoundElement.ValueOffset + 0] = Vector[0];
 		Values[FoundElement.ValueOffset + 1] = Vector[1];
@@ -2760,37 +2735,6 @@ void FPoseSearchFeatureVectorBuilder::CopyFromSearchIndex(const FPoseSearchIndex
 
 	NumFeaturesAdded = Schema->Layout.Features.Num();
 	FeaturesAdded.SetRange(0, FeaturesAdded.Num(), true);
-}
-
-void FPoseSearchFeatureVectorBuilder::CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx)
-{
-	check(IsCompatible(OtherBuilder));
-	check(OtherBuilder.FeaturesAdded[FeatureIdx]);
-
-	const FPoseSearchFeatureDesc& FeatureDesc = Schema->Layout.Features[FeatureIdx];
-	const int32 FeatureNumFloats = UE::PoseSearch::GetFeatureTypeTraits(FeatureDesc.Type).NumFloats;
-	const int32 FeatureValueOffset = FeatureDesc.ValueOffset;
-
-	for(int32 FeatureValueIdx = FeatureValueOffset; FeatureValueIdx != FeatureValueOffset + FeatureNumFloats; ++FeatureValueIdx)
-	{
-		Values[FeatureValueIdx] = OtherBuilder.Values[FeatureValueIdx];
-	}
-
-	if (!FeaturesAdded[FeatureIdx])
-	{
-		FeaturesAdded[FeatureIdx] = true;
-		++NumFeaturesAdded;
-	}
-}
-
-void FPoseSearchFeatureVectorBuilder::MergeReplace(const FPoseSearchFeatureVectorBuilder& OtherBuilder)
-{
-	check(IsCompatible(OtherBuilder));
-
-	for (TConstSetBitIterator<> Iter(OtherBuilder.FeaturesAdded); Iter; ++Iter)
-	{
-		CopyFeature(OtherBuilder, Iter.GetIndex());
-	}
 }
 
 bool FPoseSearchFeatureVectorBuilder::IsInitialized() const
@@ -4743,17 +4687,15 @@ static inline Eigen::VectorXd ComputeFeatureMeanDeviations(const Eigen::MatrixXd
 	MeanDeviations.setConstant(1.0);
 	for (const FPoseSearchFeatureDesc& Feature : Layout.Features)
 	{
-		int32 FeatureDims = GetFeatureTypeTraits(Feature.Type).NumFloats;
-
 		// Construct a submatrix for the feature and find the average distance to the feature's centroid.
 		// Since we've already mean centered the data, the average distance to the centroid is simply the average norm.
-		double FeatureMeanDeviation = CenteredPoseMatrix.block(Feature.ValueOffset, 0, FeatureDims, NumPoses).colwise().norm().mean();
+		double FeatureMeanDeviation = CenteredPoseMatrix.block(Feature.ValueOffset, 0, Feature.Cardinality, NumPoses).colwise().norm().mean();
 
 		// Fill the feature's corresponding scaling axes with the average distance
 		// Avoid scaling by zero by leaving near-zero deviations as 1.0
 		if (FeatureMeanDeviation > KINDA_SMALL_NUMBER)
 		{
-			MeanDeviations.segment(Feature.ValueOffset, FeatureDims).setConstant(FeatureMeanDeviation);
+			MeanDeviations.segment(Feature.ValueOffset, Feature.Cardinality).setConstant(FeatureMeanDeviation);
 		}
 	}
 

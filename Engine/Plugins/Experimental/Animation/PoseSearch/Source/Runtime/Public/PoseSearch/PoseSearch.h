@@ -199,10 +199,6 @@ struct POSESEARCH_API FPoseSearchBone
 
 	UPROPERTY(EditAnywhere, Category = Config)
 	bool bUsePhase = false;
-
-	// this function will return a mask out of EPoseSearchFeatureType based on which features were selected for
-	// the bone.
-	uint32 GetTypeMask() const;
 };
 
 
@@ -232,17 +228,13 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 	UPROPERTY()
 	EPoseSearchFeatureType Type = EPoseSearchFeatureType::Invalid;
 
-	// Set via FPoseSearchFeatureLayout::Init() and ignored by operator==
+	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator==
 	UPROPERTY()
 	int16 ValueOffset = 0;
 
-#if WITH_EDITORONLY_DATA
+	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator== or else Schema->Layout.Features.Find(Feature); called by FPoseSearchFeatureVectorBuilder will fail
 	UPROPERTY()
-		EPoseSearchFeatureDomain Domain_DEPRECATED = EPoseSearchFeatureDomain::Time;
-
-	UPROPERTY()
-	int32 SchemaBoneIdx_DEPRECATED = 0;
-#endif
+	int16 Cardinality = 0;
 
 	bool operator==(const FPoseSearchFeatureDesc& Other) const;
 
@@ -259,9 +251,6 @@ USTRUCT()
 struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 {
 	GENERATED_BODY()
-
-	void Finalize();
-	void Reset();
 
 	UPROPERTY()
 	TArray<FPoseSearchFeatureDesc> Features;
@@ -406,9 +395,12 @@ public:
 
 	int32 GetChannelIndex() const { checkSlow(ChannelIdx >= 0); return ChannelIdx; }
 
-	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
-	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer) PURE_VIRTUAL(UPoseSearchFeatureChannel::InitializeSchema, );
+	int32 GetChannelCardinality() const { checkSlow(ChannelCardinality >= 0); return ChannelCardinality; }
+	int32 GetChannelDataOffset() const { checkSlow(ChannelDataOffset >= 0); return ChannelDataOffset; }
 
+	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
+	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer);
+	
 	// Called at database build time to populate pose vectors with this channel's data
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
@@ -442,6 +434,15 @@ private:
 
 	UPROPERTY()
 	int32 ChannelIdx = -1;
+
+protected:
+	// WIP: mimicking the FPoseSearchFeatureDesc to be able to deprecate it in favor of UPoseSearchFeatureChannel later on 
+	UPROPERTY()
+	int32 ChannelDataOffset = -1;
+
+	// WIP: mimicking the FPoseSearchFeatureDesc to be able to deprecate it in favor of UPoseSearchFeatureChannel later on 
+	UPROPERTY()
+	int32 ChannelCardinality = -1;
 };
 
 
@@ -454,15 +455,23 @@ namespace UE::PoseSearch {
 struct POSESEARCH_API FSchemaInitializer
 {
 public:
-
 	int32 AddBoneReference(const FBoneReference& BoneReference);
-	int32 AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDesc);
+
+	// Gets the index into the schema's channel array for the channel currently being initialized
+	int32 GetCurrentChannelIdx() const { return CurrentChannelIdx; }
+
+	int32 GetCurrentCardinalityFrom(int32 ChannelDataOffset) const { check(CurrentChannelDataOffset >= ChannelDataOffset);  return CurrentChannelDataOffset - ChannelDataOffset; }
+	void AddFeatures(int8 ChannelIdx, EPoseSearchFeatureType Type, int32 ChannelFeatureId, int32 NumSampleOffsets);
+	int32 GetCurrentChannelDataOffset() const { return CurrentChannelDataOffset; }
 
 private:
+	int32 AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDesc);
+
 	friend class ::UPoseSearchSchema;
 
 	int32 CurrentChannelIdx = 0;
-
+	int32 CurrentChannelDataOffset = 0;
+	
 	TArray<FBoneReference> BoneReferences;
 	TArray<FPoseSearchFeatureDesc> Features;
 };
@@ -1040,9 +1049,6 @@ public:
 	void SetPhase(FPoseSearchFeatureDesc Feature, const FVector2D& Phase);
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
-	void CopyFeature(const FPoseSearchFeatureVectorBuilder& OtherBuilder, int32 FeatureIdx);
-
-	void MergeReplace(const FPoseSearchFeatureVectorBuilder& OtherBuilder);
 
 	bool IsInitialized() const;
 	bool IsInitializedForSchema(const UPoseSearchSchema* Schema) const;

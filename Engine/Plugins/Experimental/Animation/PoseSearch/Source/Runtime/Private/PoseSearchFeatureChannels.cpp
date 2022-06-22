@@ -263,8 +263,6 @@ static void CalculatePhasesFromLocalMinMax(const TArray<LocalMinMax>& MinMax, TA
 
 } // namespace UE::PoseSearch
 
-
-
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel
 class USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle)
@@ -288,38 +286,34 @@ void UPoseSearchFeatureChannel_Pose::PreSave(FObjectPreSaveContext ObjectSaveCon
 
 void UPoseSearchFeatureChannel_Pose::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
 {
-	auto AddFeatures = [this, &Initializer](EPoseSearchFeatureType Type)
-	{
-		FPoseSearchFeatureDesc Feature;
-		Feature.Type = Type;
-		Feature.ChannelIdx = GetChannelIndex();
+	Super::InitializeSchema(Initializer);
 
-		const int32 NumBones = SampledBones.Num();
-		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+	const int32 NumBones = SampledBones.Num();
+	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
+	{
+		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
+		if (SampledBone.bUsePosition)
 		{
-			Feature.SubsampleIdx = SubsampleIdx;
-
-			for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
-			{
-				Feature.ChannelFeatureId = ChannelBoneIdx;
-
-				const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
-				bool bAddFeature = (SampledBone.GetTypeMask() & (1 << static_cast<int>(Type))) != 0;
-				if (bAddFeature)
-				{
-					Initializer.AddFeatureDesc(Feature);
-				}
-			}
+			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Position, ChannelBoneIdx, SampleTimes.Num());
 		}
-	};
-
-	for (int32 FeatureType = 0; FeatureType != (int32)EPoseSearchFeatureType::Num; ++FeatureType)
-	{
-		AddFeatures(EPoseSearchFeatureType(FeatureType));
+		if (SampledBone.bUseRotation)
+		{
+			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Rotation, ChannelBoneIdx, SampleTimes.Num());
+		}
+		if (SampledBone.bUseVelocity)
+		{
+			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::LinearVelocity, ChannelBoneIdx, SampleTimes.Num());
+		}
+		if (SampledBone.bUsePhase)
+		{
+			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Phase, ChannelBoneIdx, SampleTimes.Num());
+		}
 	}
 
+	ChannelCardinality = Initializer.GetCurrentCardinalityFrom(ChannelDataOffset);
+
 	FeatureParams.Reset();
-	for (const FPoseSearchBone& Bone: SampledBones)
+	for (const FPoseSearchBone& Bone : SampledBones)
 	{
 		FPoseSearchPoseFeatureInfo FeatureInfo;
 		FeatureInfo.SchemaBoneIdx = Initializer.AddBoneReference(Bone.Reference);
@@ -819,33 +813,24 @@ void UPoseSearchFeatureChannel_Trajectory::PreSave(FObjectPreSaveContext ObjectS
 
 void UPoseSearchFeatureChannel_Trajectory::InitializeSchema( UE::PoseSearch::FSchemaInitializer& Initializer)
 {
-	auto AddFeatures = [this, &Initializer](int32 NumSampleOffsets, EPoseSearchFeatureType Type)
-	{
-		FPoseSearchFeatureDesc Feature;
-		Feature.ChannelIdx = GetChannelIndex();
-		Feature.Type = Type;
-		Feature.ChannelFeatureId = 0; // Unused
-
-		for (Feature.SubsampleIdx = 0; Feature.SubsampleIdx != NumSampleOffsets; ++Feature.SubsampleIdx)
-		{
-			Initializer.AddFeatureDesc(Feature);
-		}
-	};
+	Super::InitializeSchema(Initializer);
 
 	if (bUsePositions)
 	{
-		AddFeatures(SampleOffsets.Num(), EPoseSearchFeatureType::Position);
+		Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Position, 0, SampleOffsets.Num());
 	}
 
 	if (bUseLinearVelocities)
 	{
-		AddFeatures(SampleOffsets.Num(), EPoseSearchFeatureType::LinearVelocity);
+		Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::LinearVelocity, 0, SampleOffsets.Num());
 	}
 
 	if (bUseFacingDirections)
 	{
-		AddFeatures(SampleOffsets.Num(), EPoseSearchFeatureType::ForwardVector);
+		Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::ForwardVector, 0, SampleOffsets.Num());
 	}
+
+	ChannelCardinality = Initializer.GetCurrentCardinalityFrom(ChannelDataOffset);
 }
 
 void UPoseSearchFeatureChannel_Trajectory::IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
