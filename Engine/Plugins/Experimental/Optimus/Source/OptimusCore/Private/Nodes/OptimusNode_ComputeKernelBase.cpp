@@ -382,8 +382,9 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 
 		TArray<FString> WrapFunctionNameCalls;
 
-		for (const FWriteConnectionDef& WriteConnectionDef: WriteConnectionDefs)
+		for (int32 WriteConnectionIndex = 0; WriteConnectionIndex < WriteConnectionDefs.Num(); ++WriteConnectionIndex)
 		{
+			const FWriteConnectionDef& WriteConnectionDef = WriteConnectionDefs[WriteConnectionIndex];
 			const FString DataFunctionName = WriteConnectionDef.DataFunctionName;
 			FShaderFunctionDefinition FuncDef;
 			FuncDef.Name = DataFunctionName;
@@ -404,7 +405,7 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 			FString WrapFunctionName;
 			if (WriteConnectionDefs.Num() > 1)
 			{
-				WrapFunctionName = FString::Printf(TEXT("Write%sTo%s"), *InOutputPin->GetName(), *WriteConnectionDef.WriteToName);
+				WrapFunctionName = FString::Printf(TEXT("Write%sTo%s%d"), *InOutputPin->GetName(), *WriteConnectionDef.WriteToName, WriteConnectionIndex);
 				WrapFunctionNameCalls.Add(FString::Printf(TEXT("    %s(%s, Value)"), *WrapFunctionName, *FString::Join(IndexNames, TEXT(", "))));
 			}
 			else
