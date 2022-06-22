@@ -9,7 +9,7 @@ const FName FGeometryCollectionConvexPropertiesInterface::ConvexEnable = "Enable
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexFractionRemoveAttribute = "FractionRemove";
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexSimplificationThresholdAttribute = "SimplificationThreshold";
 const FName FGeometryCollectionConvexPropertiesInterface::ConvexCanExceedFractionAttribute = "CanExceedFraction";
-const FName FGeometryCollectionConvexPropertiesInterface::ConvexRemoveOverlapsAttribute = "RemoveOverlaps";
+const FName FGeometryCollectionConvexPropertiesInterface::ConvexRemoveOverlapsMethodAttribute = "RemoveOverlapsMethod";
 
 FGeometryCollectionConvexPropertiesInterface::FGeometryCollectionConvexPropertiesInterface(FGeometryCollection* InGeometryCollection)
 	: FManagedArrayInterface(InGeometryCollection)
@@ -49,9 +49,9 @@ FGeometryCollectionConvexPropertiesInterface::InitializeInterface()
 		ManagedCollection->AddAttribute<float>(ConvexCanExceedFractionAttribute, ConvexPropertiesGroup);
 	}
 
-	if (!ManagedCollection->HasAttribute(ConvexRemoveOverlapsAttribute, ConvexPropertiesGroup))
+	if (!ManagedCollection->HasAttribute(ConvexRemoveOverlapsMethodAttribute, ConvexPropertiesGroup))
 	{
-		ManagedCollection->AddAttribute<bool>(ConvexRemoveOverlapsAttribute, ConvexPropertiesGroup);
+		ManagedCollection->AddAttribute<int32>(ConvexRemoveOverlapsMethodAttribute, ConvexPropertiesGroup);
 	}
 
 	SetDefaultProperty();
@@ -80,7 +80,7 @@ FGeometryCollectionConvexPropertiesInterface::GetDefaultProperty() const
 		const TManagedArray<float>& FractionRemove = ManagedCollection->GetAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
 		const TManagedArray<float>& SimplificationThreshold = ManagedCollection->GetAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
 		const TManagedArray<float>& CanExceedFraction = ManagedCollection->GetAttribute<float>(ConvexCanExceedFractionAttribute, ConvexPropertiesGroup);
-		const TManagedArray<bool>& RemoveOverlaps = ManagedCollection->GetAttribute<bool>(ConvexRemoveOverlapsAttribute, ConvexPropertiesGroup);
+		const TManagedArray<int32>& RemoveOverlaps = ManagedCollection->GetAttribute<int32>(ConvexRemoveOverlapsMethodAttribute, ConvexPropertiesGroup);
 
 		int32 DefaultIndex = Index.Find(INDEX_NONE);
 		if (0 <= DefaultIndex && DefaultIndex < Index.Num())
@@ -89,7 +89,7 @@ FGeometryCollectionConvexPropertiesInterface::GetDefaultProperty() const
 			DefaultProperty.FractionRemove = FractionRemove[DefaultIndex];
 			DefaultProperty.SimplificationThreshold = SimplificationThreshold[DefaultIndex];
 			DefaultProperty.CanExceedFraction = CanExceedFraction[DefaultIndex];
-			DefaultProperty.bRemoveOverlaps = RemoveOverlaps[DefaultIndex];
+			DefaultProperty.RemoveOverlaps = (EConvexOverlapRemoval)RemoveOverlaps[DefaultIndex];
 		}
 	}
 	return DefaultProperty;
@@ -120,13 +120,13 @@ FGeometryCollectionConvexPropertiesInterface::GetConvexProperties(int TransformG
 		const TManagedArray<float>& FractionRemove = ManagedCollection->GetAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
 		const TManagedArray<float>& SimplificationThreshold = ManagedCollection->GetAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
 		const TManagedArray<float>& CanExceedFraction = ManagedCollection->GetAttribute<float>(ConvexCanExceedFractionAttribute, ConvexPropertiesGroup);
-		const TManagedArray<bool>& RemoveOverlaps = ManagedCollection->GetAttribute<bool>(ConvexRemoveOverlapsAttribute, ConvexPropertiesGroup);
+		const TManagedArray<int32>& RemoveOverlaps = ManagedCollection->GetAttribute<int32>(ConvexRemoveOverlapsMethodAttribute, ConvexPropertiesGroup);
 
 		ConvexProperty.Enable = Enable[PropIndex];
 		ConvexProperty.FractionRemove = FractionRemove[PropIndex];
 		ConvexProperty.SimplificationThreshold = SimplificationThreshold[PropIndex];
 		ConvexProperty.CanExceedFraction = CanExceedFraction[PropIndex];
-		ConvexProperty.bRemoveOverlaps = RemoveOverlaps[PropIndex];
+		ConvexProperty.RemoveOverlaps = (EConvexOverlapRemoval)RemoveOverlaps[PropIndex];
 	}
 	return ConvexProperty;
 }
@@ -140,7 +140,7 @@ FGeometryCollectionConvexPropertiesInterface::SetConvexProperties(const FConvexC
 	TManagedArray<float>& FractionRemove = ManagedCollection->ModifyAttribute<float>(ConvexFractionRemoveAttribute, ConvexPropertiesGroup);
 	TManagedArray<float>& SimplificationThreshold = ManagedCollection->ModifyAttribute<float>(ConvexSimplificationThresholdAttribute, ConvexPropertiesGroup);
 	TManagedArray<float>& CanExceedFraction = ManagedCollection->ModifyAttribute<float>(ConvexCanExceedFractionAttribute, ConvexPropertiesGroup);
-	TManagedArray<bool>& RemoveOverlaps = ManagedCollection->ModifyAttribute<bool>(ConvexRemoveOverlapsAttribute, ConvexPropertiesGroup);
+	TManagedArray<int32>& RemoveOverlaps = ManagedCollection->ModifyAttribute<int32>(ConvexRemoveOverlapsMethodAttribute, ConvexPropertiesGroup);
 
 	int32 AttributeIndex = INDEX_NONE;
 	if (!Index.Contains(TransformGroupIndex))
@@ -159,6 +159,6 @@ FGeometryCollectionConvexPropertiesInterface::SetConvexProperties(const FConvexC
 		FractionRemove[AttributeIndex] = InConvexAttributes.FractionRemove;
 		SimplificationThreshold[AttributeIndex] = InConvexAttributes.SimplificationThreshold;
 		CanExceedFraction[AttributeIndex] = InConvexAttributes.CanExceedFraction;
-		RemoveOverlaps[AttributeIndex] = InConvexAttributes.bRemoveOverlaps;
+		RemoveOverlaps[AttributeIndex] = (int32)InConvexAttributes.RemoveOverlaps;
 	}
 }

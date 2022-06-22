@@ -287,7 +287,7 @@ void UGeometryCollection::UpdateConvexGeometry()
 	{
 		FGeometryCollectionConvexPropertiesInterface::FConvexCreationProperties ConvexProperties = GeometryCollection->GetConvexProperties();
 		FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(GeometryCollection.Get(), ConvexProperties.FractionRemove, 
-			ConvexProperties.SimplificationThreshold, ConvexProperties.CanExceedFraction, ConvexProperties.bRemoveOverlaps);
+			ConvexProperties.SimplificationThreshold, ConvexProperties.CanExceedFraction, ConvexProperties.RemoveOverlaps);
 		InvalidateCollection();
 	}
 #endif

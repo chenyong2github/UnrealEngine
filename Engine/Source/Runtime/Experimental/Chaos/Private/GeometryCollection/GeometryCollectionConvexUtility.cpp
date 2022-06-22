@@ -321,9 +321,12 @@ void CreateNonoverlappingConvexHulls(
 	double FracAllowRemove,
 	double SimplificationDistanceThreshold,
 	double CanExceedFraction,
-	bool bRemoveOverlaps
+	EConvexOverlapRemoval OverlapRemovalMethod
 )
 {
+	bool bRemoveOverlaps = OverlapRemovalMethod != EConvexOverlapRemoval::None;
+	bool bRemoveLeafOverlaps = OverlapRemovalMethod == EConvexOverlapRemoval::All;
+
 	int32 NumBones = TransformToConvexIndices.Num();
 	check(Parents.Num() == NumBones);
 
@@ -546,6 +549,11 @@ void CreateNonoverlappingConvexHulls(
 	Depths.SetNumZeroed(NumBones);
 	for (int HullIdx = 0; HullIdx < NumBones; HullIdx++)
 	{
+		if (SimulationType[HullIdx] == SkipType) // Skip any 'SkipType' elements (generally embedded geometry)
+		{
+			Depths[HullIdx] = -1;
+			continue;
+		}
 		if (Parents[HullIdx] != INDEX_NONE)
 		{
 			if (SimulationType[Parents[HullIdx]] != LeafType)
@@ -567,7 +575,7 @@ void CreateNonoverlappingConvexHulls(
 		Depths[HullIdx] = Depth;
 		MaxDepth = FMath::Max(Depth, MaxDepth);
 
-		if (bRemoveOverlaps && !HasCustomConvexFn(HullIdx) && TransformToConvexIndices[HullIdx].Num() > 0)
+		if (bRemoveOverlaps && bRemoveLeafOverlaps && !HasCustomConvexFn(HullIdx) && TransformToConvexIndices[HullIdx].Num() > 0)
 		{
 			const TSet<int32>& Neighbors = LeafProximity[HullIdx];
 			for (int32 NbrIdx : Neighbors)
@@ -941,17 +949,24 @@ void CreateNonoverlappingConvexHulls(
 					continue;
 				}
 				bool bNbrCustom = HasCustomConvexFn(Nbr);
+
+				// if the neighbor is less deep and not a leaf, skip processing this to favor processing the neighbor instead
+				if (Depths[Bone] > Depths[Nbr] && Children[Nbr].Num() > 0)
+				{
+					continue;
+				}
+				// If we only consider cluster-vs-cluster overlap, and the neighbor is a leaf, do not consider it
+				if (OverlapRemovalMethod == EConvexOverlapRemoval::OnlyClustersVsClusters && Children[Nbr].Num() == 0)
+				{
+					continue;
+				}
+
 				bool bAllOk = true;
 				for (int32 ConvexBone : TransformToConvexIndices[Bone])
 				{
 					for (int32 ConvexNbr : TransformToConvexIndices[Nbr])
 					{
 						bool bOneSidedCut = Depths[Bone] != Depths[Nbr] || Children[Nbr].Num() == 0 || bNbrCustom;
-						// if the neighbor is less deep and not a leaf, skip processing this to favor processing the neighbor instead
-						if (Depths[Bone] > Depths[Nbr] && Children[Nbr].Num() > 0)
-						{
-							continue;
-						}
 
 						bool bWasOk = CutIfOk(bOneSidedCut, ConvexBone, ConvexNbr);
 
@@ -1161,7 +1176,8 @@ double ComputeGeometryVolume(
 
 }
 
-FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, bool bRemoveOverlaps)
+FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(
+	FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, EConvexOverlapRemoval OverlapRemovalMethod)
 {
 	check(GeometryCollection);
 
@@ -1186,7 +1202,8 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
 	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold);
 
-	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None, GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, bRemoveOverlaps);
+	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None,
+		GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, OverlapRemovalMethod);
 
 	TransformHullsToLocal(GlobalTransformArray, Convexes, TransformToConvexIndexArr);
 

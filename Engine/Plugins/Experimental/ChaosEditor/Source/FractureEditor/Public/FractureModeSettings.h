@@ -4,6 +4,9 @@
 
 #include "Engine/DeveloperSettings.h"
 #include "Engine/EngineTypes.h"
+
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
+
 #include "FractureModeSettings.generated.h"
 
 class FGeometryCollection;
@@ -43,7 +46,7 @@ public:
 
 	/** Default overlap removal setting for convex hulls of new geometry collections */
 	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults")
-	bool bConvexRemoveOverlaps = true;
+	EConvexOverlapRemoval ConvexRemoveOverlaps = EConvexOverlapRemoval::All;
 
 	// Apply Convex Generation Defaults to a GeometryCollection
 	void ApplyDefaultConvexSettings(FGeometryCollection& GeometryCollection) const;

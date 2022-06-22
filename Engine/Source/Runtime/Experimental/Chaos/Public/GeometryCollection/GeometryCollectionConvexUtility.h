@@ -12,6 +12,19 @@ namespace Chaos
 	class FConvex;
 }
 
+UENUM()
+enum class EConvexOverlapRemoval : int32
+{
+	// Do not remove overlaps between convex hulls
+	None = 0,
+	// Remove all overlaps between neighboring convex hulls
+	All = 1,
+	// Only remove overlaps on convex hulls of clusters, ignoring leaf-leaf overlaps
+	OnlyClusters = 2,
+	// Only remove overlaps between overlapping clusters, ignoring leaf-leaf and cluster-leaf overlaps
+	OnlyClustersVsClusters = 3
+};
+
 class CHAOS_API FGeometryCollectionConvexUtility
 {
 public:
@@ -39,8 +52,10 @@ public:
 	 @param SimplificationDistanceThreshold		Approximate minimum distance between vertices, below which we remove vertices to generate a simpler convex shape.  If 0.0, no simplification will occur.
 	 @param CanExceedFraction					The fraction by which the convex body volume on a cluster can exceed the volume of the geometry under that cluster (a value of 1 == exceed by 100% == convex hull has 2x the volume of the geometry)
 	 @param bRemoveOverlaps						Whether to cut away overlaps between adjacent convex hulls
+	 @param OverlapRemovalMethod				If bRemoveOverlaps, control which overlaps are removed
 	 */
-	static FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, bool bRemoveOverlaps = true);
+	static FGeometryCollectionConvexData CreateNonOverlappingConvexHullData(FGeometryCollection* GeometryCollection, double FractionAllowRemove = .3, double SimplificationDistanceThreshold = 0.0, double CanExceedFraction = .5, 
+		EConvexOverlapRemoval OverlapRemovalMethod = EConvexOverlapRemoval::All);
 
 	/** Returns the convex hull of the vertices contained in the specified geometry. */
 	static TUniquePtr<Chaos::FConvex> FindConvexHull(const FGeometryCollection* GeometryCollection, int32 GeometryIndex);

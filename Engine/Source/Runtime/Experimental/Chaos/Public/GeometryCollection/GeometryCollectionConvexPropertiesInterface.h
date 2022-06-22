@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "GeometryCollection/ManagedArrayCollection.h"
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
 
 class FGeometryCollection;
 
@@ -26,7 +27,7 @@ public :
 	// Attribute
 	static const FName ConvexCanExceedFractionAttribute;
 	// Attribute
-	static const FName ConvexRemoveOverlapsAttribute;
+	static const FName ConvexRemoveOverlapsMethodAttribute;
 
 
 	struct FConvexCreationProperties {
@@ -34,7 +35,7 @@ public :
 		float FractionRemove = 0.5f;
 		float SimplificationThreshold = 10.0f;
 		float CanExceedFraction = 0.5f;
-		bool bRemoveOverlaps = true;
+		EConvexOverlapRemoval RemoveOverlaps = EConvexOverlapRemoval::All;
 	};
 
 	FGeometryCollectionConvexPropertiesInterface(FGeometryCollection* InGeometryCollection);

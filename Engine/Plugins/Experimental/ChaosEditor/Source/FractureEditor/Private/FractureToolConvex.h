@@ -4,6 +4,8 @@
 
 #include "FractureTool.h"
 
+#include "GeometryCollection/GeometryCollectionConvexUtility.h"
+
 #include "FractureToolConvex.generated.h"
 
 class FFractureToolContext;
@@ -34,7 +36,7 @@ public:
 
 	/** Whether to automatically cut away overlapping parts of the convex hulls, to avoid the simulation 'popping' to fix the overlaps */
 	UPROPERTY(EditAnywhere, Category = Automatic)
-	bool bRemoveOverlaps = true;
+	EConvexOverlapRemoval RemoveOverlaps = EConvexOverlapRemoval::All;
 
 	/** Delete convex hulls from selected clusters.  Does not affect hulls on leaves. */
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Delete From Selected"))
