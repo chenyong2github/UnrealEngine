@@ -92,10 +92,23 @@ namespace EpicGames.OIDC
 				return false;
 			}
 
-			byte[] bytes = CryptProtectDataHelper.DoCryptUnprotectData(encryptedToken, $"OidcToken-{oidcProvider}", GetEntropy(oidcProvider));
-			refreshToken = Encoding.Unicode.GetString(bytes);
+			try
+			{
+				byte[] bytes = CryptProtectDataHelper.DoCryptUnprotectData(encryptedToken, $"OidcToken-{oidcProvider}", GetEntropy(oidcProvider));
+				refreshToken = Encoding.Unicode.GetString(bytes);
 
-			return true;
+				return true;
+			}
+			catch (Win32Exception e)
+			{
+				if (e.NativeErrorCode == 13) // data is invalid
+				{
+					// unable to decrypt the data, ignore it
+					refreshToken = "";
+					return false;
+				}
+				throw;
+			}
 		}
 
 		private static byte[] GetEntropy(string oidcProvider)
@@ -139,6 +152,7 @@ namespace EpicGames.OIDC
 		}
 	}
 
+#pragma warning disable IDE1006 // Pinvoke code doesnt use the same naming conventions as C#
 	static class CryptProtectDataHelper
 	{
 		
@@ -306,4 +320,5 @@ namespace EpicGames.OIDC
 			return buf;
 		}
 	}
+#pragma warning restore IDE1006 // Naming Styles
 }
