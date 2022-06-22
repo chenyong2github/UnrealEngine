@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using Horde.Build.Agents.Pools;
 using Microsoft.Extensions.Logging;
@@ -24,20 +25,20 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
+		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Expand pool {PoolId} by {Count} agents", pool.Id, count);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
+		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			_logger.LogInformation("Shrink pool {PoolId} by {Count} agents", pool.Id, count);
 			return Task.CompletedTask;
 		}
 
 		/// <inheritdoc/>
-		public Task<int> GetNumStoppedInstancesAsync(IPool pool) => Task.FromResult(0);
+		public Task<int> GetNumStoppedInstancesAsync(IPool pool, CancellationToken cancellationToken) => Task.FromResult(0);
 	}
 }

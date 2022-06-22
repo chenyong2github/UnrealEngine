@@ -363,7 +363,7 @@ namespace Horde.Build
 			switch (settings.FleetManager)
 			{
 				case FleetManagerType.Aws:
-					services.AddSingleton<IFleetManager, AwsFleetManager>();
+					services.AddSingleton<IFleetManager, AwsReuseFleetManager>();
 					break;
 				default:
 					services.AddSingleton<IFleetManager, DefaultFleetManager>();

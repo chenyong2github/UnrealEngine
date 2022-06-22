@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Amazon;
 using Amazon.EC2;
@@ -17,11 +18,11 @@ namespace Horde.Build.Agents.Fleet.Providers
 {
 	/// <summary>
 	/// Fleet manager for handling AWS EC2 instances
+	/// Will start already existing but stopped instances to reuse existing EBS disks.
+	/// See <see cref="AwsFleetManager" /> for creating and terminating instances from scratch.
 	/// </summary>
-	public sealed class AwsFleetManager : IFleetManager, IDisposable
+	public sealed class AwsReuseFleetManager : IFleetManager, IDisposable
 	{
-		const string AwsTagPropertyName = "aws-tag";
-		const string PoolTagName = "Horde_Autoscale_Pool";
 		readonly AmazonEC2Client _client;
 		readonly IAgentCollection _agentCollection;
 		readonly ILogger _logger;
@@ -29,7 +30,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public AwsFleetManager(IAgentCollection agentCollection, ILogger<AwsFleetManager> logger)
+		public AwsReuseFleetManager(IAgentCollection agentCollection, ILogger<AwsReuseFleetManager> logger)
 		{
 			_agentCollection = agentCollection;
 			_logger = logger;
@@ -49,7 +50,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
+		public async Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			using IScope scope = GlobalTracer.Instance.BuildSpan("ExpandPool").StartActive();
 			scope.Span.SetTag("poolName", pool.Name);
@@ -63,7 +64,7 @@ namespace Horde.Build.Agents.Fleet.Providers
 				DescribeInstancesRequest describeRequest = new DescribeInstancesRequest();
 				describeRequest.Filters = new List<Filter>();
 				describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
-				describeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { pool.Name }));
+				describeRequest.Filters.Add(new Filter("tag:" + AwsFleetManager.PoolTagName, new List<string> { pool.Name }));
 				describeResponse = await _client.DescribeInstancesAsync(describeRequest);
 				describeScope.Span.SetTag("res.statusCode", (int)describeResponse.HttpStatusCode);
 				describeScope.Span.SetTag("res.numReservations", describeResponse.Reservations.Count);
@@ -99,46 +100,19 @@ namespace Horde.Build.Agents.Fleet.Providers
 		}
 
 		/// <inheritdoc/>
-		public async Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
+		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
-			using IScope scope = GlobalTracer.Instance.BuildSpan("ShrinkPool").StartActive();
-			scope.Span.SetTag("poolName", pool.Name);
-			scope.Span.SetTag("count", count);
-			
-			string awsTagProperty = $"{AwsTagPropertyName}={PoolTagName}:{pool.Name}";
-			
-			// Sort the agents by number of active leases. It's better to shutdown agents currently doing nothing.
-			List<IAgent> filteredAgents = agents.OrderBy(x => x.Leases.Count).ToList();
-			List<IAgent> agentsWithAwsTags = filteredAgents.Where(x => x.HasProperty(awsTagProperty)).ToList(); 
-			List<IAgent> agentsLimitedByCount = agentsWithAwsTags.Take(count).ToList();
-			
-			scope.Span.SetTag("agents.num", agents.Count);
-			scope.Span.SetTag("agents.filtered.num", filteredAgents.Count);
-			scope.Span.SetTag("agents.withAwsTags.num", agentsWithAwsTags.Count);
-			scope.Span.SetTag("agents.limitedByCount.num", agentsLimitedByCount.Count);
-
-			foreach (IAgent agent in agentsLimitedByCount)
-			{
-				IAuditLogChannel<AgentId> agentLogger = _agentCollection.GetLogger(agent.Id);
-				if (await _agentCollection.TryUpdateSettingsAsync(agent, bRequestShutdown: true, shutdownReason: "Autoscaler") != null)
-				{
-					agentLogger.LogInformation("Marked {AgentId} in pool {PoolName} for shutdown due to autoscaling (currently {NumLeases} leases outstanding)", agent.Id, pool.Name, agent.Leases.Count);
-				}
-				else
-				{
-					agentLogger.LogError("Unable to mark agent {AgentId} in pool {PoolName} for shutdown due to autoscaling", agent.Id, pool.Name);
-				}
-			}
-		}
+			return AwsFleetManager.ShrinkPoolViaAgentShutdownRequestAsync(_agentCollection, pool, agents, count, cancellationToken);
+		} 
 
 		/// <inheritdoc/>
-		public async Task<int> GetNumStoppedInstancesAsync(IPool pool)
+		public async Task<int> GetNumStoppedInstancesAsync(IPool pool, CancellationToken cancellationToken)
 		{
 			// Find all instances in the pool
 			DescribeInstancesRequest describeRequest = new DescribeInstancesRequest();
 			describeRequest.Filters = new List<Filter>();
 			describeRequest.Filters.Add(new Filter("instance-state-name", new List<string> { InstanceStateName.Stopped.Value }));
-			describeRequest.Filters.Add(new Filter("tag:" + PoolTagName, new List<string> { pool.Name }));
+			describeRequest.Filters.Add(new Filter("tag:" + AwsFleetManager.PoolTagName, new List<string> { pool.Name }));
 
 			DescribeInstancesResponse describeResponse = await _client.DescribeInstancesAsync(describeRequest);
 			return describeResponse.Reservations.SelectMany(x => x.Instances).Select(x => x.InstanceId).Distinct().Count();

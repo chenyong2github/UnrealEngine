@@ -25,19 +25,19 @@ namespace Horde.Build.Tests.Fleet
 		public int ExpandPoolAsyncCallCount { get; private set; }
 		public int ShrinkPoolAsyncCallCount { get; private set; }
 		
-		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
+		public Task ExpandPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			ExpandPoolAsyncCallCount++;
 			return Task.CompletedTask;
 		}
 
-		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count)
+		public Task ShrinkPoolAsync(IPool pool, IReadOnlyList<IAgent> agents, int count, CancellationToken cancellationToken)
 		{
 			ShrinkPoolAsyncCallCount++;
 			return Task.CompletedTask;
 		}
 
-		public Task<int> GetNumStoppedInstancesAsync(IPool pool)
+		public Task<int> GetNumStoppedInstancesAsync(IPool pool, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}

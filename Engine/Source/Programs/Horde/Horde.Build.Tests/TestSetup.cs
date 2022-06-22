@@ -190,7 +190,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<AgentService>();
 			services.AddSingleton<AgentSoftwareService>();
 			services.AddSingleton<AutoscaleService>();
-			services.AddSingleton<AwsFleetManager, AwsFleetManager>();
+			services.AddSingleton<AwsReuseFleetManager, AwsReuseFleetManager>();
 			services.AddSingleton<ConsistencyService>();
 			services.AddSingleton<ConfigCollection>();
 			services.AddSingleton<RequestTrackerService>();
@@ -199,7 +199,7 @@ namespace Horde.Build.Tests
 			services.AddSingleton<IDowntimeService, DowntimeServiceStub>();
 			services.AddSingleton<IDogStatsd, NoOpDogStatsd>();
 			services.AddSingleton<IssueService>();
-			services.AddSingleton<IFleetManager, AwsFleetManager>();
+			services.AddSingleton<IFleetManager, AwsReuseFleetManager>();
 			services.AddSingleton<JobService>();
 			services.AddSingleton<LifetimeService>();
 			services.AddSingleton<ILogStorage, NullLogStorage>();
