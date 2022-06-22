@@ -72,4 +72,12 @@ enum class EChromaticAdaptationMethod : uint8
 	CAT02 = 2,
 };
 
+/** List of standard white points. */
+enum class EWhitePoint : uint8
+{
+	CIE1931_D65 = 0,
+	ACES_D60 = 1,
+	DCI_CalibrationWhite,
+};
+
 } } // end namespace UE::Color

@@ -55,6 +55,45 @@ FORCEINLINE FVector3d ToXYZ(const FVector2d& Coordinate)
 	return ToXYZ(1.0, Coordinate);
 }
 
+/**
+ * Convenience function to get the transposed matrix, i.e. for pre-multiplied shader matrices.
+ *
+ * @return TMatrix<T>
+ */
+template<typename T>
+FORCEINLINE UE::Math::TMatrix<T> Transpose(const FMatrix44d& Transform)
+{
+	if constexpr (TIsSame<T, double>::Value)
+	{
+		return Transform.GetTransposed();
+	}
+
+	return UE::Math::TMatrix<T>(Transform).GetTransposed();
+}
+
+/**
+ * Get standard white point coordinates.
+ *
+ * @param InWhitePoint White point type.
+ * @return FVector2d Chromaticity coordinates.
+ */
+FORCEINLINE FVector2d GetWhitePoint(EWhitePoint InWhitePoint)
+{
+	switch (InWhitePoint)
+	{
+	case UE::Color::EWhitePoint::CIE1931_D65:
+		return FVector2d(0.3127, 0.3290);
+	case UE::Color::EWhitePoint::ACES_D60:
+		return FVector2d(0.32168, 0.33767);
+	case UE::Color::EWhitePoint::DCI_CalibrationWhite:
+		return FVector2d(0.314, 0.351);
+
+	default:
+		checkNoEntry();
+		return FVector2d();
+	}
+}
+
 
 /** Color space definition as 4 chromaticity coordinates, in double precision internally. */
 class COLORMANAGEMENT_API FColorSpace
