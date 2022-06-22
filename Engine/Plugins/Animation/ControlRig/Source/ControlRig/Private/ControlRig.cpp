@@ -1356,12 +1356,9 @@ bool UControlRig::Execute(const EControlRigState InState, const FName& InEventNa
 		bInteractionJustBegan = false;
 	}
 
-	if(bSuccess)
+	if(bIsConstructionEvent)
 	{
-		if(bIsConstructionEvent)
-		{
-			bRequiresConstructionEvent = false;
-		}
+		bRequiresConstructionEvent = false;
 	}
 
 	return bSuccess;
