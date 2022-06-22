@@ -11,7 +11,7 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Converts a list of arguments to a string where each argument is separated with a space character.
 		/// </summary>
-		/// <param name="Args">Arguments</param>
+		/// <param name="Arguments">Arguments</param>
 		/// <returns>Single string containing all arguments separated with a space.</returns>
 		public static string FormatCommandLine(IEnumerable<string> Arguments)
 		{

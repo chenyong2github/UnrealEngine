@@ -302,6 +302,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="SDK">SDK object</param>
 		/// <param name="PlatformName">Platform name for this SDK</param>
+		/// <param name="bIsSdkAllowedOnHost"></param>
 		public static void RegisterSDKForPlatform(UEBuildPlatformSDK SDK, string PlatformName, bool bIsSdkAllowedOnHost)
 		{
 			// verify that neither platform or sdk were added before
@@ -1046,6 +1047,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="PlatformSDKRoot">absolute path to platform SDK root</param>
 		/// <param name="OutInstalledSDKVersionString">version string as currently installed</param>
+		/// <param name="OutInstalledSDKLevel"></param>
 		/// <returns>true if was able to read it</returns>
 		protected bool GetCurrentlyInstalledSDKString(string PlatformSDKRoot, out string OutInstalledSDKVersionString, out string OutInstalledSDKLevel)
 		{
@@ -1116,6 +1118,7 @@ namespace EpicGames.Core
 		/// Sets currently installed version
 		/// </summary>
 		/// <param name="InstalledSDKVersionString">SDK version string to set</param>
+		/// <param name="InstalledSDKLevelString"></param>
 		/// <returns>true if was able to set it</returns>
 		protected bool SetCurrentlyInstalledAutoSDKString(String InstalledSDKVersionString, String InstalledSDKLevelString)
 		{
@@ -1307,6 +1310,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="PlatformSDKRoot">absolute path to platform SDK root</param>
 		/// <param name="SDKVersionString">version string to run for (can be empty!)</param>
+		/// <param name="AutoSDKLevel"></param>
 		/// <param name="Hook">which one of hooks to run</param>
 		/// <param name="bHookCanBeNonExistent">whether a non-existing hook means failure</param>
 		/// <returns>true if succeeded</returns>

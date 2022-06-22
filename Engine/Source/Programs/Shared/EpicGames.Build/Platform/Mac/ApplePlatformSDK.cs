@@ -138,6 +138,7 @@ namespace UnrealBuildBase
 		/// <returns>The entire StdOut generated from the process as a single trimmed string</returns>
 		/// <param name="Command">Command to run</param>
 		/// <param name="Args">Arguments to Command</param>
+		/// <param name="Logger">Logger for output</param>
 		private static string RunLocalProcessAndReturnStdOut(string Command, string Args, ILogger? Logger = null)
 		{
 			return RunLocalProcessAndReturnStdOut(Command, Args, out _, Logger);	

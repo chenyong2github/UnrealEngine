@@ -194,6 +194,10 @@ namespace EpicGames.Core
 		/// <inheritdoc/>
 		public override string ToString() => StringUtils.FormatHexString(ToByteArray());
 
+		/// <summary>
+		/// Convert this hash to a byte array
+		/// </summary>
+		/// <returns>Data for the hash</returns>
 		public byte[] ToByteArray()
 		{
 			byte[] data = new byte[NumBytes];

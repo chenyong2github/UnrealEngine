@@ -19,6 +19,9 @@ namespace EpicGames.MsBuild
 	using ILogger = Microsoft.Extensions.Logging.ILogger;
 	using IBuildLogger = Microsoft.Build.Framework.ILogger;
 
+	/// <summary>
+	/// Builds .csproj files
+	/// </summary>
 	public static class CsProjBuilder
 	{
 		class MLogger : IBuildLogger
@@ -145,6 +148,9 @@ namespace EpicGames.MsBuild
 			return FileReference.Combine(BuildRecordDirectory, ProjectPath.GetFileName()).ChangeExtension(".json");
 		}
 
+		/// <summary>
+		/// Builds multiple projects
+		/// </summary>
 		public static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> Build(HashSet<FileReference> FoundProjects,
 			bool bForceCompile, out bool bBuildSuccess, CsProjBuildHook Hook, List<DirectoryReference> BaseDirectories, Action<int> OnBuildingProjects, ILogger Logger)
 		{

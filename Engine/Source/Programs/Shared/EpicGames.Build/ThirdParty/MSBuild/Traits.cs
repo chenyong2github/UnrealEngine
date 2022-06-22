@@ -304,7 +304,7 @@ namespace Microsoft.Build.Utilities
         private SdkReferencePropertyExpansionMode? _sdkReferencePropertyExpansionValue;
 
         /// <summary>
-        /// Overrides the default behavior of property expansion on evaluation of a <see cref="Framework.SdkReference"/>.
+        /// Overrides the default behavior of property expansion on evaluation of a Framework.SdkReference.
         /// </summary>
         /// <remarks>
         /// Escape hatch for problems arising from https://github.com/dotnet/msbuild/pull/5552.

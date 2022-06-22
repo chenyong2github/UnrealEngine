@@ -31,6 +31,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="Main"></param>
 		/// <param name="bWaitForUATMutex"></param>
+		/// <param name="Logger"></param>
 		public static async Task<ExitCode> RunSingleInstanceAsync(Func<Task<ExitCode>> Main, bool bWaitForUATMutex, ILogger Logger)
 		{
 			// Need to execute this logic on a background thread, since mutex ownership on Linux has thread affinity (ie. mutexes be released on the

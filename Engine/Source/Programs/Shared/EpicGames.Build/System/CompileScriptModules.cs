@@ -92,6 +92,7 @@ namespace UnrealBuildBase
 		/// <param name="bUseBuildRecords"></param>
 		/// <param name="bBuildSuccess"></param>
 		/// <param name="OnBuildingProjects">Action to invoke when projects get built</param>
+		/// <param name="Logger"></param>
 		/// <returns>Collection of all the projects.  They will have been compiled.</returns>
 		public static HashSet<FileReference> InitializeScriptModules(Rules.RulesFileType RulesFileType, 
 			string? ScriptsForProjectFileName, List<string>? AdditionalScriptsFolders, bool bForceCompile, bool bNoCompile, bool bUseBuildRecords, 
@@ -121,6 +122,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		/// <param name="FoundProjects">Collection of projects to test</param>
 		/// <param name="BaseDirectories">Base directories of the projects</param>
+		/// <param name="Logger">Logger for output</param>
 		/// <returns>True if all of the projects are up to date</returns>
 		public static bool AreScriptModulesUpToDate(HashSet<FileReference> FoundProjects, List<DirectoryReference> BaseDirectories, ILogger Logger)
 		{
@@ -261,6 +263,7 @@ namespace UnrealBuildBase
 		/// Find and load existing build record .json files from any Intermediate/ScriptModules found in the provided lists
 		/// </summary>
 		/// <param name="BaseDirectories"></param>
+		/// <param name="Logger"></param>
 		/// <returns></returns>
 		static Dictionary<FileReference, (CsProjBuildRecord, FileReference)> LoadExistingBuildRecords(List<DirectoryReference> BaseDirectories, ILogger Logger)
         {
