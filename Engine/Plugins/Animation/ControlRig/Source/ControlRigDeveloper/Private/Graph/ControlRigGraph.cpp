@@ -1041,9 +1041,16 @@ UControlRigBlueprint* UControlRigGraph::GetBlueprint() const
 
 URigVMGraph* UControlRigGraph::GetModel() const
 {
-	if (FRigVMClient* Client = GetRigVMClient())
+	if(CachedModelGraph.IsValid())
 	{
-		return Client->GetModel(this);
+		return CachedModelGraph.Get();
+	}
+	
+	if (const FRigVMClient* Client = GetRigVMClient())
+	{
+		URigVMGraph* Model = Client->GetModel(this);
+		CachedModelGraph = Model;
+		return Model;
 	}
 	return nullptr;
 }
@@ -1052,7 +1059,7 @@ URigVMController* UControlRigGraph::GetController() const
 {
 	if (FRigVMClient* Client = GetRigVMClient())
 	{
-		return Client->GetOrCreateController(this);
+		return Client->GetOrCreateController(GetModel());
 	}
 	return nullptr;
 }

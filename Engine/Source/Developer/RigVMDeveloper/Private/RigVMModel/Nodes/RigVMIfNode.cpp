@@ -25,18 +25,32 @@ const FRigVMTemplate* URigVMIfNode::GetTemplate() const
 	
 	if(CachedTemplate == nullptr)
 	{
-		TArray<FRigVMTemplateArgumentType> Types;
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
+		static const FRigVMTemplate* IfNodeTemplate = nullptr;
+		if(IfNodeTemplate)
+		{
+			return IfNodeTemplate;
+		}
 		
-		TArray<FRigVMTemplateArgument> Arguments;
-		Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType, nullptr));
-		Arguments.Emplace(*TrueName, ERigVMPinDirection::Input, Types);
-		Arguments.Emplace(*FalseName, ERigVMPinDirection::Input, Types);
-		Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, Types);
+		static TArray<FRigVMTemplateArgument> Arguments;
+		if(Arguments.IsEmpty())
+		{
+			static TArray<FRigVMTemplateArgumentType> Types;
+			if(Types.IsEmpty())
+			{
+				Types.Reserve(3);
+				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
+				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
+				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
+			}
+
+			Arguments.Reserve(4);
+			Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType, nullptr));
+			Arguments.Emplace(*TrueName, ERigVMPinDirection::Input, Types);
+			Arguments.Emplace(*FalseName, ERigVMPinDirection::Input, Types);
+			Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, Types);
+		}
 		
-		CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*IfName, Arguments);
+		IfNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*IfName, Arguments);
 	}
 	return CachedTemplate;
 }

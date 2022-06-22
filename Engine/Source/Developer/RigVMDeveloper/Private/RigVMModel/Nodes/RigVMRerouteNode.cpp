@@ -80,18 +80,29 @@ const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 	
 	if(CachedTemplate == nullptr)
 	{
-		TArray<FRigVMTemplateArgumentType> Types;
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
-		Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
+		static const FRigVMTemplate* RerouteNodeTemplate = nullptr;
+		if(RerouteNodeTemplate)
+		{
+			return RerouteNodeTemplate;
+		}
 
-		UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
-		Types.Add(FRigVMTemplateArgumentType(ExecuteStruct->GetStructCPPName(), ExecuteStruct));
+		static TArray<FRigVMTemplateArgument> Arguments;
+		if(Arguments.IsEmpty())
+		{
+			static TArray<FRigVMTemplateArgumentType> Types;
+			if(Types.IsEmpty())
+			{
+				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
+				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
+				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue));
+
+				UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
+				Types.Add(FRigVMTemplateArgumentType(ExecuteStruct->GetStructCPPName(), ExecuteStruct));
+			}
 		
-		TArray<FRigVMTemplateArgument> Arguments;
-		Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Types);
-		
-		CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*RerouteName, Arguments);
+			Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Types);
+		}
+		RerouteNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*RerouteName, Arguments);
 	}
 	return CachedTemplate;
 }

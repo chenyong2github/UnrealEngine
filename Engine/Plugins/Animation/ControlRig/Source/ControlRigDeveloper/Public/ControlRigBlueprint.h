@@ -195,6 +195,12 @@ struct CONTROLRIGDEVELOPER_API FControlRigPythonSettings
 	}
 };
 
+enum class EControlRigBlueprintLoadType : uint8
+{
+	PostLoad,
+	CheckUserDefinedStructs
+};
+
 UCLASS(BlueprintType, meta=(IgnoreClassThumbnail))
 class CONTROLRIGDEVELOPER_API UControlRigBlueprint : public UBlueprint, public IInterface_PreviewMeshProvider, public IRigVMClientHost
 {
@@ -291,7 +297,7 @@ public:
 	// model data can change while the Control Rig BP is not opened
 	// for example, if a user defined struct changed after BP load,
 	// any pin that references the struct needs to be regenerated
-	void RefreshAllModels();
+	void RefreshAllModels(EControlRigBlueprintLoadType InLoadType = EControlRigBlueprintLoadType::PostLoad);
 
 	UFUNCTION(BlueprintCallable, Category = "Control Rig Blueprint")
 	void RequestControlRigInit();

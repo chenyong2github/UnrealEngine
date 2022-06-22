@@ -1323,8 +1323,10 @@ void UControlRigBlueprint::DecrementVMRecompileBracket()
 	}
 }
 
-void UControlRigBlueprint::RefreshAllModels()
+void UControlRigBlueprint::RefreshAllModels(EControlRigBlueprintLoadType InLoadType)
 {
+	const bool bIsPostLoad = InLoadType == EControlRigBlueprintLoadType::PostLoad;
+	
 	TGuardValue<bool> IsCompilingGuard(bIsCompiling, true);
 	
 	TArray<URigVMGraph*> GraphsToDetach = RigVMClient.GetAllModels(true, false);
@@ -1352,7 +1354,10 @@ void UControlRigBlueprint::RefreshAllModels()
 		Controller->ReattachLinksToPinObjects(true /* follow redirectors */, nullptr, false, true);
 	}
 
-	PatchTemplateNodesWithPreferredPermutation();
+	if(bIsPostLoad)
+	{
+		PatchTemplateNodesWithPreferredPermutation();
+	}
 	
 	TArray<URigVMGraph*> GraphsToClean = GetAllModels();
 	
@@ -1365,18 +1370,25 @@ void UControlRigBlueprint::RefreshAllModels()
 			Controller->RemoveUnusedOrphanedPins(ModelNode, false);
 		}
 
-		for(URigVMNode* ModelNode : GraphToClean->GetNodes())
+		if(bIsPostLoad)
 		{
-			if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
+			for(URigVMNode* ModelNode : GraphToClean->GetNodes())
 			{
-				TemplateNode->InvalidateCache();
-				TemplateNode->PostLoad();
+				if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(ModelNode))
+				{
+					TemplateNode->InvalidateCache();
+					TemplateNode->PostLoad();
+				}
 			}
 		}
 #if WITH_EDITOR
-		if (Controller->RecomputeAllTemplateFilteredTypes(false))
+
+		if(bIsPostLoad)
 		{
-			ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
+			if (Controller->RecomputeAllTemplateFilteredTypes(false))
+			{
+				ensureMsgf(false, TEXT("Pin type changed during load %s"), *GetPackage()->GetPathName());
+			}
 		}
 #endif
 	}

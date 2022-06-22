@@ -777,6 +777,8 @@ bool URigVMTemplateNode::UpdateFilteredPermutations(URigVMPin* InPin, const TArr
 
 void URigVMTemplateNode::InvalidateCache()
 {
+	Super::InvalidateCache();
+	
 	SupportedTypesCache.Reset();
 	CachedFunction = nullptr;
 	CachedTemplate = nullptr;

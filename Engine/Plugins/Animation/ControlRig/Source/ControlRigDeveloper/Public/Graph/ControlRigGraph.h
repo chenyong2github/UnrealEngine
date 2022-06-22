@@ -174,7 +174,8 @@ protected:
 private:
 	static TArray<TSharedPtr<FString>> EmptyElementNameList;
 	TMap<FName, UEdGraphNode*> ModelNodePathToEdNode;
-	
+	mutable TWeakObjectPtr<URigVMGraph> CachedModelGraph;
+
 	friend class UControlRigUnitNodeSpawner;
 	friend class UControlRigVariableNodeSpawner;
 	friend class UControlRigParameterNodeSpawner;

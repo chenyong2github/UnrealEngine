@@ -36,21 +36,34 @@ const FRigVMTemplate* URigVMSelectNode::GetTemplate() const
 	
 	if(CachedTemplate == nullptr)
 	{
-		const TArray<FRigVMTemplateArgumentType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
-		const TArray<FRigVMTemplateArgumentType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
-		const TArray<FRigVMTemplateArgumentType>& ArrayArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue);
+		static const FRigVMTemplate* SelectNodeTemplate = nullptr;
+		if(SelectNodeTemplate)
+		{
+			return SelectNodeTemplate;
+		}
 
-		TArray<FRigVMTemplateArgumentType> ResultTypes = SingleTypes;
-		ResultTypes.Append(ArrayTypes);
-		TArray<FRigVMTemplateArgumentType> ValueTypes = ArrayTypes;
-		ValueTypes.Append(ArrayArrayTypes);		
-		
-		TArray<FRigVMTemplateArgument> Arguments;
-		Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
-		Arguments.Emplace(*ValueName, ERigVMPinDirection::Input, ValueTypes);
-		Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, ResultTypes);
-		
-		CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*SelectName, Arguments);
+		static TArray<FRigVMTemplateArgument> Arguments;
+		if(Arguments.IsEmpty())
+		{
+			static const TArray<FRigVMTemplateArgumentType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
+			static const TArray<FRigVMTemplateArgumentType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
+			static const TArray<FRigVMTemplateArgumentType>& ArrayArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue);
+
+			static TArray<FRigVMTemplateArgumentType> ResultTypes, ValueTypes;
+			if(ResultTypes.IsEmpty())
+			{
+				ResultTypes.Append(SingleTypes);
+				ResultTypes.Append(ArrayTypes);
+				ValueTypes.Append(ArrayTypes);
+				ValueTypes.Append(ArrayArrayTypes);
+			}
+
+			Arguments.Reserve(3);
+			Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+			Arguments.Emplace(*ValueName, ERigVMPinDirection::Input, ValueTypes);
+			Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, ResultTypes);
+		}
+		SelectNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*SelectName, Arguments);
 	}
 	return CachedTemplate;
 }
