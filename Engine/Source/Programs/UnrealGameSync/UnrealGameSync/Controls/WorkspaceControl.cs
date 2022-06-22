@@ -1727,13 +1727,15 @@ namespace UnrealGameSync
 				try
 				{
 					string jsonString = File.ReadAllText(uncontrolledChangelistPersistencyFilePath);
-					UncontrolledChangelistPersistency uclPersistency = JsonSerializer.Deserialize<UncontrolledChangelistPersistency>(jsonString, Utility.DefaultJsonSerializerOptions);
-
-					foreach (UncontrolledChangelist ucl in uclPersistency.Changelists)
+					UncontrolledChangelistPersistency? uclPersistency = JsonSerializer.Deserialize<UncontrolledChangelistPersistency>(jsonString, Utility.DefaultJsonSerializerOptions);
+					if (uclPersistency != null)
 					{
-						foreach (string uncontrolledFile in ucl.Files)
+						foreach (UncontrolledChangelist ucl in uclPersistency.Changelists)
 						{
-							outUncontrolledFiles.Add(uncontrolledFile);
+							foreach (string uncontrolledFile in ucl.Files)
+							{
+								outUncontrolledFiles.Add(uncontrolledFile);
+							}
 						}
 					}
 				}
