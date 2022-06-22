@@ -76,7 +76,7 @@ bool UIKRig_SetTransform::GetWarningMessage(FText& OutWarningMessage) const
 {
 	if (RootBone == NAME_None)
 	{
-		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goals.");
+		OutWarningMessage = LOCTEXT("MissingGoal", "Missing goal.");
 		return true;
 	}
 	return false;
