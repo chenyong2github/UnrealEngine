@@ -76,7 +76,9 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	TArray<Dataflow::FPin> GetPins() const;
 
+
 	void AddInput(FDataflowConnection* InPtr);
+
 	FDataflowInput* FindInput(FName Name);
 	FDataflowInput* FindInput(void* Reference);
 	const FDataflowInput* FindInput(const void* Reference) const;
@@ -91,6 +93,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	const FDataflowOutput* GetOutput(const void* Reference) const;
 	TArray< FDataflowConnection* > GetOutputs() const;
 	void ClearOutputs();
+
+
 
 	//
 	//  Struct Support
@@ -108,21 +112,36 @@ struct DATAFLOWCORE_API FDataflowNode
 	//
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput*) const { ensure(false); }
 
-	void InvalidateOutputs();
-
-
-	template<class T>
-	void SetValue(Dataflow::FContext& Context, const T& NewValue, const T* Reference) const
+	/**
+	*   GetValue(...)
+	*
+	*	Get the value of the Reference output, invoking up stream evaluations if not 
+	*   cached in the contexts data store. 
+	* 
+	*   @param Context : The evaluation context that holds the data store.
+	*   @param Value : The value to store in the contexts data store.
+	*   @param Reference : Pointer to a member of this node that corresponds with the output to set.
+	*/
+	template<class T> const T& GetValue(Dataflow::FContext& Context, const T* Reference) const
 	{
-		if (const FDataflowConnection* Con = FindOutput(Reference))
-		{
-			Context.SetData(Con->RealAddress(), new Dataflow::ContextCache<T>( Con->Property, new T(NewValue)));
-		}
-		else
-		{
-			ensure(false);
-		}
+		return GetInput(Reference)->template GetValueAsInput<T>(Context, *Reference);
 	}
+
+	/** 
+	*   SetValue(...)
+	*
+	*	Set the value of the Reference output.
+	* 
+	*   @param Context : The evaluation context that holds the data store.
+	*   @param Value : The value to store in the contexts data store. 
+	*   @param Reference : Pointer to a member of this node that corresponds with the output to set. 
+	*/
+	template<class T> void SetValue(Dataflow::FContext& Context, const T& Value, const T* Reference) const
+	{
+		GetOutput(Reference)->template SetValue<T>(Value, Context);
+	}
+
+	void InvalidateOutputs();
 
 	bool ValidateConnections();
 

@@ -50,6 +50,16 @@ TArray< FDataflowConnection* > FDataflowInput::GetConnectedOutputs()
 	return RetList;
 }
 
+const TArray< const FDataflowConnection* > FDataflowInput::GetConnectedOutputs() const
+{
+	TArray<const FDataflowConnection* > RetList;
+	if (const FDataflowConnection* Conn = GetConnection())
+	{
+		RetList.Add(Conn);
+	}
+	return RetList;
+}
+
 void FDataflowInput::Invalidate()
 {
 	OwningNode->InvalidateOutputs();
@@ -71,14 +81,27 @@ FDataflowOutput::FDataflowOutput(const Dataflow::FOutputParameters& Param, FGuid
 const TArray<FDataflowInput*>& FDataflowOutput::GetConnections() const { return Connections; }
 TArray<FDataflowInput*>& FDataflowOutput::GetConnections() { return Connections; }
 
-TArray<FDataflowConnection*> FDataflowOutput::GetConnectedInputs()
+const TArray< const FDataflowConnection*> FDataflowOutput::GetConnectedInputs() const
 {
-	TArray<FDataflowConnection*> RetList;
+	TArray<const FDataflowConnection*> RetList;
 	RetList.Reserve(Connections.Num());
-	for (FDataflowInput* Ptr : Connections) { RetList.Add(Ptr); }
+	for (FDataflowInput* Ptr : Connections) 
+	{ 
+		RetList.Add(Ptr); 
+	}
 	return RetList;
 }
 
+TArray< FDataflowConnection*> FDataflowOutput::GetConnectedInputs()
+{
+	TArray<FDataflowConnection*> RetList;
+	RetList.Reserve(Connections.Num());
+	for (FDataflowInput* Ptr : Connections) 
+	{ 
+		RetList.Add(Ptr); 
+	}
+	return RetList;
+}
 
 bool FDataflowOutput::AddConnection(FDataflowConnection* InOutput)
 {

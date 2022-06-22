@@ -21,13 +21,13 @@ void FSkeletalMeshToCollectionDataflowNode::Evaluate(Dataflow::FContext& Context
 {
 	if (Out->IsA<DataType>(&Collection))
 	{
-		DataType InCollection = GetInput(&Collection)->GetValue<DataType>(Context, Collection);
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
 
 		//
 		// @todo(dataflow) : Implemention conversion from skeletal mesh to TManagedArrayCollection
 		//
 
-		Out->SetValue<DataType>(InCollection, Context);
+		SetValue<DataType>(Context, InCollection, &Collection);
 	}
 }
 

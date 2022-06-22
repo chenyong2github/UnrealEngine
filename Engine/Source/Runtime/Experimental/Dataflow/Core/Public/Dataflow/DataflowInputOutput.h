@@ -49,24 +49,15 @@ public:
 
 	FDataflowOutput* GetConnection() { return Connection; }
 	const FDataflowOutput* GetConnection() const { return Connection; }
-	virtual TArray< FDataflowConnection* > GetConnectedOutputs() override;
 
-	// @todo(dataflow) : needs testing. 
+	virtual TArray< FDataflowConnection* > GetConnectedOutputs() override;
+	virtual const TArray< const FDataflowConnection* > GetConnectedOutputs() const override;
+
 	template<class T> const T& GetValue(Dataflow::FContext& Context, const T& Default) const
 	{
-		if (FDataflowConnection* ConnectionBase = ((FDataflowConnection*)Connection) )
-		{
-			if (!ConnectionBase->Evaluate(Context))
-			{
-				Context.SetData(ConnectionBase->CacheKey(), new Dataflow::ContextCache<T>(Property, new T(Default)));
-			}
-			if (Context.HasData(ConnectionBase->CacheKey()))
-			{
-				return Context.GetDataReference<T>(ConnectionBase->CacheKey(), Default);
-			}
-		}
-		return Default;
+		return GetValueAsInput<T>(Context, Default);
 	}
+
 
 	virtual void Invalidate() override;
 };
@@ -112,6 +103,7 @@ public:
 	const TArray<FDataflowInput*>& GetConnections() const;
 
 	virtual TArray<FDataflowConnection*> GetConnectedInputs() override;
+	virtual const TArray<const FDataflowConnection*> GetConnectedInputs() const override;
 
 	virtual bool AddConnection(FDataflowConnection* InOutput) override;
 

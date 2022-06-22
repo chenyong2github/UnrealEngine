@@ -33,7 +33,7 @@ void FGetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, cons
 			{
 				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = CollectionAsset->GetGeometryCollection())
 				{
-					GetOutput(&Output)->SetValue<DataType>(DataType(*AssetCollection), Context);
+					SetValue<DataType>(Context, DataType(*AssetCollection), &Output);
 				}
 			}
 		}
@@ -44,7 +44,7 @@ void FExampleCollectionEditDataflowNode::Evaluate(Dataflow::FContext& Context, c
 {
 	if (Out->IsA<DataType>(&Collection))
 	{
-		DataType InCollection = GetInput(&Collection)->GetValue<DataType>(Context, Collection);
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
 
 		if (Active)
 		{
@@ -54,13 +54,13 @@ void FExampleCollectionEditDataflowNode::Evaluate(Dataflow::FContext& Context, c
 				(*Vertex)[i][1] *= Scale;
 			}
 		}
-		Out->SetValue<DataType>(InCollection, Context);
+		SetValue<DataType>(Context, InCollection, &Collection);
 	}
 }
 
 void FSetCollectionAssetDataflowNode::Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const
 {
-	DataType InCollection = GetInput(&Collection)->GetValue<DataType>(Context, Collection);
+	DataType InCollection = GetValue<DataType>(Context, &Collection);
 
 	if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 	{
@@ -77,7 +77,7 @@ void FResetGeometryCollectionDataflowNode::Evaluate(Dataflow::FContext& Context,
 {
 	if (Out->IsA<DataType>(&Collection))
 	{
-		Out->SetValue<DataType>(Collection, Context); // prime to avoid ensure
+		SetValue<DataType>(Context, Collection, &Collection); // prime to avoid ensure
 
 		if (const Dataflow::FEngineContext* EngineContext = Context.AsType<Dataflow::FEngineContext>())
 		{
@@ -132,7 +132,7 @@ void FResetGeometryCollectionDataflowNode::Evaluate(Dataflow::FContext& Context,
 
 				if (const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> AssetCollection = GeometryCollectionObject->GetGeometryCollection())
 				{
-					Out->SetValue<DataType>(*AssetCollection, Context);
+					SetValue<DataType>(Context, *AssetCollection, &Collection);
 				}
 			}
 		}

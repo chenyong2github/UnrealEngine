@@ -18,13 +18,13 @@ void FGenerateTetrahedralCollectionDataflowNodes::Evaluate(Dataflow::FContext& C
 {
 	if (Out->IsA<DataType>(&Collection))
 	{
-		DataType InCollection = GetInput(&Collection)->GetValue<DataType>(Context, Collection);
+		DataType InCollection = GetValue<DataType>(Context, &Collection);
 
 		//
 		// @todo(dataflow) : Implemention tetrahedral generation for a closed surface.
 		//
 
-		Out->SetValue<DataType>(InCollection, Context);
+		SetValue<DataType>(Context, InCollection, &Collection);
 	}
 }
 

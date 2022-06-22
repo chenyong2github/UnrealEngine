@@ -73,13 +73,36 @@ public:
 	virtual bool RemoveConnection(FDataflowConnection* In) { return false; }
 
 	virtual TArray< FDataflowConnection* > GetConnectedInputs() { return TArray<FDataflowConnection* >(); }
+	virtual const TArray< const FDataflowConnection* > GetConnectedInputs() const { return TArray<const FDataflowConnection* >(); }
+
 	virtual TArray< FDataflowConnection* > GetConnectedOutputs() { return TArray<FDataflowConnection* >(); }
+	virtual const TArray< const FDataflowConnection* > GetConnectedOutputs() const { return TArray<const FDataflowConnection* >(); }
 
 	template<class T>
 	bool IsA(const T* InVar) const
 	{
 		return (size_t)OwningNode + (size_t)GetOffset() == (size_t)InVar;
 
+	}
+
+	template<class T> const T& GetValueAsInput(Dataflow::FContext& Context, const T& Default) const
+	{
+		if (GetConnectedOutputs().Num())
+		{
+			ensure(GetConnectedOutputs().Num() == 1);
+			if (const FDataflowConnection* ConnectionBase = (GetConnectedOutputs()[0]))
+			{
+				if (!ConnectionBase->Evaluate(Context))
+				{
+					Context.SetData(ConnectionBase->CacheKey(), new Dataflow::ContextCache<T>(Property, new T(Default)));
+				}
+				if (Context.HasData(ConnectionBase->CacheKey()))
+				{
+					return Context.GetDataReference<T>(ConnectionBase->CacheKey(), Default);
+				}
+			}
+		}
+		return Default;
 	}
 
 	virtual void Invalidate() {};
