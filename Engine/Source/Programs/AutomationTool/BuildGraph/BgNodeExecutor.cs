@@ -76,6 +76,10 @@ namespace AutomationTool
 				{
 					arguments[Idx] = Context;
 				}
+				else if (typeof(IBgExpr).IsAssignableFrom(ParameterType))
+				{
+					arguments[Idx] = BgType.Get(ParameterType).CreateConstant(Node.Arguments[Idx]!);
+				}
 				else
 				{
 					arguments[Idx] = Node.Arguments[Idx];

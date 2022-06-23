@@ -25,6 +25,13 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <param name="text">The serialized value</param>
 		/// <returns>Instance of the expression</returns>
 		object DeserializeArgument(string text);
+
+		/// <summary>
+		/// Creates a value of the expression type
+		/// </summary>
+		/// <param name="value">Value to wrap</param>
+		/// <returns></returns>
+		object CreateConstant(object value);
 	}
 
 	/// <summary>
@@ -52,7 +59,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// </summary>
 		/// <param name="value">Value to wrap</param>
 		/// <returns></returns>
-		T CreateConstant(object value);
+		new T CreateConstant(object value);
 
 		/// <summary>
 		/// Creates a variable of the given type
@@ -77,6 +84,9 @@ namespace EpicGames.BuildGraph.Expressions
 
 		/// <inheritdoc/>
 		public abstract string SerializeArgument(T value, BgExprContext context);
+
+		/// <inheritdoc/>
+		object IBgType.CreateConstant(object value) => CreateConstant(value);
 
 		/// <inheritdoc/>
 		public abstract T CreateConstant(object value);
