@@ -172,6 +172,9 @@ protected:
 
 private:
 	void OnEnginePreExit();
+#if WITH_EDITOR
+	void OnFEngineLoopInitCompleteSearchAllAssets();
+#endif
 	void InitializeEvents(UE::AssetRegistry::Impl::FInitializeContext& Context);
 	void Broadcast(UE::AssetRegistry::Impl::FEventContext& EventContext);
 

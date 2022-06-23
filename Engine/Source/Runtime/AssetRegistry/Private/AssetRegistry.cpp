@@ -634,6 +634,7 @@ struct FInitializeContext
 	TArray<FString> RootContentPaths;
 	bool bRedirectorsNeedSubscribe = false;
 	bool bUpdateDiskCacheAfterLoad = false;
+	bool bNeedsSearchAllAssetsAtStartSynchronous = false;
 };
 
 }
@@ -774,6 +775,11 @@ void FAssetRegistryImpl::Initialize(Impl::FInitializeContext& Context)
 		{
 			SearchAllAssetsInitialAsync(Context.Events);
 		}
+		else
+		{
+			// For the Editor we need to take responsibility for the synchronous search; Commandlets will handle that themselves
+			Context.bNeedsSearchAllAssetsAtStartSynchronous = GIsEditor && !IsRunningCommandlet();
+		}
 	}
 
 	ConsumeOrDeferPreloadedPremade(Context.UARI, Context.Events);
@@ -877,6 +883,10 @@ void UAssetRegistryImpl::InitializeEvents(UE::AssetRegistry::Impl::FInitializeCo
 	if (bAddMetaDataTagsToOnGetExtraObjectTags)
 	{
 		UObject::FAssetRegistryTag::OnGetExtraObjectTags.AddUObject(this, &UAssetRegistryImpl::OnGetExtraObjectTags);
+	}
+	if (Context.bNeedsSearchAllAssetsAtStartSynchronous)
+	{
+		FCoreDelegates::OnFEngineLoopInitComplete.AddUObject(this, &UAssetRegistryImpl::OnFEngineLoopInitCompleteSearchAllAssets);
 	}
 #endif // WITH_EDITOR
 
@@ -1319,6 +1329,13 @@ void FAssetRegistryImpl::RefreshNativeClasses()
 
 }
 
+#if WITH_EDITOR
+void UAssetRegistryImpl::OnFEngineLoopInitCompleteSearchAllAssets()
+{
+	SearchAllAssets(true);
+}
+#endif
+
 void UAssetRegistryImpl::OnEnginePreExit()
 {
 	FWriteScopeLock InterfaceScopeLock(InterfaceLock);
@@ -1369,6 +1386,8 @@ void UAssetRegistryImpl::FinishDestroy()
 		{
 			UObject::FAssetRegistryTag::OnGetExtraObjectTags.RemoveAll(this);
 		}
+		FCoreDelegates::OnFEngineLoopInitComplete.RemoveAll(this);
+
 #endif // WITH_EDITOR
 
 		if (HasAnyFlags(RF_ClassDefaultObject))
