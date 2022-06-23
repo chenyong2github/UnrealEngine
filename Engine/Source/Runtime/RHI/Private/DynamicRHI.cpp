@@ -90,14 +90,13 @@ void InitNullRHI()
 #if PLATFORM_WINDOWS || PLATFORM_UNIX
 static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 {
-	int32 CVarValue = CVarWarnOfBadDrivers.GetValueOnGameThread();
-
-	if(!GIsRHIInitialized || !CVarValue || (GRHIVendorId == 0) || FApp::IsUnattended())
+	if (!GIsRHIInitialized || (GRHIVendorId == 0))
 	{
-		UE_LOG(LogRHI, Log, TEXT("Skipping Driver Check: RHI%s initialized, WarnOfBadDrivers=%d, VendorId=0x%x, is%s unattended"), 
-			GIsRHIInitialized ? TEXT("") : TEXT(" NOT"), CVarValue, GRHIVendorId, FApp::IsUnattended() ? TEXT("") : TEXT(" NOT"));
+		UE_LOG(LogRHI, Log, TEXT("Skipping Driver Check: RHI%s initialized, VendorId=0x%x"), GIsRHIInitialized ? TEXT("") : TEXT(" NOT"), GRHIVendorId);
 		return;
 	}
+
+	int32 WarnMode = CVarWarnOfBadDrivers.GetValueOnGameThread();
 
 	FGPUDriverInfo DriverInfo;
 
@@ -112,7 +111,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	// for testing
-	if(CVarValue == 2)
+	if(WarnMode == 2)
 	{
 		DriverInfo.SetNVIDIA();
 		DriverInfo.DeviceDescription = TEXT("Test NVIDIA (bad)");
@@ -120,7 +119,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		DriverInfo.InternalDriverVersion = TEXT("9.18.134.643");
 		DriverInfo.DriverDate = TEXT("01-01-1900");
 	}
-	else if(CVarValue == 3)
+	else if(WarnMode == 3)
 	{
 		DriverInfo.SetAMD();
 		DriverInfo.DeviceDescription = TEXT("Test AMD (bad)");
@@ -128,7 +127,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		DriverInfo.InternalDriverVersion = TEXT("13.152.1.1000");
 		DriverInfo.DriverDate = TEXT("09-10-13");
 	}
-	else if(CVarValue == 4)
+	else if(WarnMode == 4)
 	{
 		DriverInfo.SetAMD();
 		DriverInfo.DeviceDescription = TEXT("Test AMD (good)");
@@ -136,7 +135,7 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		DriverInfo.InternalDriverVersion = TEXT("15.30.1025.1001");
 		DriverInfo.DriverDate = TEXT("01-01-16");
 	}
-	else if(CVarValue == 5)
+	else if(WarnMode == 5)
 	{
 		DriverInfo.SetIntel();
 		DriverInfo.DeviceDescription = TEXT("Test Intel (good)");
@@ -185,10 +184,16 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 		GRHIAdapterDriverOnDenyList = DenyListEntry.IsValid();
 		FGenericCrashContext::SetEngineData(TEXT("RHI.DriverDenylisted"), DenyListEntry.IsValid() ? TEXT("true") : TEXT("false"));
 
+		if(!GRHIAdapterDriverOnDenyList)
+		{
+			return;
+		}
+
 		// Only alert users who are capable of updating their driver. Assume vendors with an empty list can always update.
 		bool bShowPrompt = bDeviceCanUpdateDriver || !bVendorHasEntries;
+		bShowPrompt = bShowPrompt && !FApp::IsUnattended() && WarnMode != 0;
 
-		if (DenyListEntry.IsValid() && bShowPrompt)
+		if (bShowPrompt)
 		{
 			bool bLatestDenied = DetectedGPUHardware.IsLatestDenied();
 
@@ -259,6 +264,10 @@ static void RHIDetectAndWarnOfBadDrivers(bool bHasEditorToken)
 					TEXT("To prevent this crash, please update drivers."));
 			}
 #endif
+		}
+		else
+		{
+			UE_LOG(LogRHI, Warning, TEXT("Running with bad GPU drivers but warning dialog will not be shown: bDeviceCanUpdateDriver=%d, !VendorHasEntries=%d, IsUnattended=%d, r.WarnOfBadDrivers=%d"), bDeviceCanUpdateDriver, bVendorHasEntries, FApp::IsUnattended(), WarnMode);
 		}
 	}
 }
