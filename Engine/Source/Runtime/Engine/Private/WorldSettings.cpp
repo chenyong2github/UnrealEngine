@@ -32,6 +32,7 @@
 #include "Engine/BookmarkBase.h"
 #include "Engine/BookMark.h"
 #include "WorldSettingsCustomVersion.h"
+#include "Materials/Material.h"
 
 #if WITH_EDITOR
 #include "Editor.h"

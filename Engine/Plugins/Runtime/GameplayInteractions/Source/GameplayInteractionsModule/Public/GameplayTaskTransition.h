@@ -3,6 +3,7 @@
 #pragma once
 
 #include "StructView.h"
+#include "UObject/Interface.h"
 #include "GameplayTaskTransition.generated.h"
 
 class UCharacterMovementComponent;

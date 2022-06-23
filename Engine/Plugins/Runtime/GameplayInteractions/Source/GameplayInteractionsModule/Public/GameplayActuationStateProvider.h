@@ -1,8 +1,9 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "StructView.h"
+#include "UObject/Interface.h"
 #include "GameplayActuationStateProvider.generated.h"
 
 /** 
