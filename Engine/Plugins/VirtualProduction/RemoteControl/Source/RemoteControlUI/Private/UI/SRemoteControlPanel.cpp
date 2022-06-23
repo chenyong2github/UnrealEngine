@@ -92,8 +92,6 @@ TSharedRef<SBox> SRemoteControlPanel::NoneSelectedWidget = SNew(SBox)
 				.Justification(ETextJustify::Center)
 			];
 
-static TAutoConsoleVariable<bool> CVarRemoteControlEnableLogicUI(TEXT("RemoteControl.EnableLogicUI"), false, TEXT("Toggles visibility of Remote Control Logic User Interface (part of the Remote Control Preset asset)"));
-
 namespace RemoteControlPanelUtils
 {
 	bool IsExposableActor(AActor* Actor)
