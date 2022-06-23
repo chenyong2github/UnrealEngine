@@ -69,14 +69,14 @@ namespace CADKernel
 		double DeltaV = EndPoint.V - StartPoint.V;
 		double Delta;
 
-		if (FMath::Abs(DeltaU) < SMALL_NUMBER && FMath::Abs(DeltaV) < SMALL_NUMBER)
+		if (FMath::Abs(DeltaU) < DOUBLE_SMALL_NUMBER && FMath::Abs(DeltaV) < DOUBLE_SMALL_NUMBER)
 		{
 			return 0;
 		}
 
-		if (DeltaU > SMALL_NUMBER)
+		if (DeltaU > DOUBLE_SMALL_NUMBER)
 		{
-			if (DeltaV > SMALL_NUMBER)
+			if (DeltaV > DOUBLE_SMALL_NUMBER)
 			{
 				if (DeltaU > DeltaV)
 				{
@@ -101,7 +101,7 @@ namespace CADKernel
 		}
 		else
 		{
-			if (DeltaV > SMALL_NUMBER)
+			if (DeltaV > DOUBLE_SMALL_NUMBER)
 			{
 				if (-DeltaU > DeltaV)
 				{
@@ -277,7 +277,7 @@ namespace CADKernel
 	 *
 	 * Return true if all of the segment BPi is inside the sector defined the half-lines [BA) and [BC) in the counterclockwise.
 	 */
-	inline bool ArePointsInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const TArray<const FPoint2D*>& Points, const double FlatAngle = -SMALL_NUMBER)
+	inline bool ArePointsInsideSectorABC(const FPoint2D& PointA, const FPoint2D& PointB, const FPoint2D& PointC, const TArray<const FPoint2D*>& Points, const double FlatAngle = -DOUBLE_SMALL_NUMBER)
 	{
 		double SlopWithNextBoundary = ComputeSlope(PointB, PointC);
 		double BoundaryDeltaSlope = ComputePositiveSlope(PointB, PointA, SlopWithNextBoundary);
@@ -286,7 +286,7 @@ namespace CADKernel
 			double DeltaU = PointB.U - PointP->U;
 			double DeltaV = PointB.V - PointP->V;
 
-			if (FMath::Abs(DeltaU) < SMALL_NUMBER && FMath::Abs(DeltaV) < SMALL_NUMBER)
+			if (FMath::Abs(DeltaU) < DOUBLE_SMALL_NUMBER && FMath::Abs(DeltaV) < DOUBLE_SMALL_NUMBER)
 			{
 				return true;
 			}

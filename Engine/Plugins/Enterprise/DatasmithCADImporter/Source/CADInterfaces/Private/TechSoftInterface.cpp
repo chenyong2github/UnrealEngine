@@ -66,7 +66,9 @@ bool FTechSoftInterface::InitializeKernel(const TCHAR* InEnginePluginsPath)
 			}
 		}
 	}
+#ifndef CADKERNEL_DEV
 	UE_LOG(LogCADInterfaces, Warning, TEXT("Failed to load required library in %s. Plug-in will not be functional."), *TechSoftDllPath);
+#endif
 
 #endif
 	return false;

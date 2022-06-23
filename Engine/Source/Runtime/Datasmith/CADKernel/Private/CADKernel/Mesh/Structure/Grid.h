@@ -6,9 +6,13 @@
 #include "CADKernel/Geo/GeoPoint.h"
 #include "CADKernel/Math/Point.h"
 #include "CADKernel/Mesh/MeshEnum.h"
-#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
 #include "CADKernel/Mesh/Structure/ThinZone2D.h"
 #include "CADKernel/UI/Display.h"
+
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#endif
+
 
 namespace CADKernel
 {
@@ -565,7 +569,6 @@ public:
 	// ======================================================================================================================================================================================================================
 #ifdef CADKERNEL_DEV
 	bool bDisplay = false;
-	const double DisplayScale = 100.;
 
 	void DisplayIsoNode(EGridSpace Space, const int32 PointIndex, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;
 	void DisplayIsoNode(EGridSpace Space, const FIsoNode& Node, FIdent Ident = 0, EVisuProperty Property = EVisuProperty::BluePoint) const;

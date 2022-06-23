@@ -12,35 +12,12 @@
 
 #include "CADKernel/Core/Session.h"
 
-#include "CADKernel/Geo/Curves/BezierCurve.h"
-#include "CADKernel/Geo/Curves/BoundedCurve.h"
-#include "CADKernel/Geo/Curves/CompositeCurve.h"
 #include "CADKernel/Geo/Curves/Curve.h"
-#include "CADKernel/Geo/Curves/EllipseCurve.h"
-#include "CADKernel/Geo/Curves/HyperbolaCurve.h"
-#include "CADKernel/Geo/Curves/NURBSCurve.h"
-#include "CADKernel/Geo/Curves/NURBSCurve.h"
-#include "CADKernel/Geo/Curves/ParabolaCurve.h"
-#include "CADKernel/Geo/Curves/PolylineCurve.h"
-#include "CADKernel/Geo/Curves/RestrictionCurve.h"
-#include "CADKernel/Geo/Curves/RestrictionCurve.h"
-#include "CADKernel/Geo/Curves/SegmentCurve.h"
-#include "CADKernel/Geo/Curves/SurfacicCurve.h"
+#include "CADKernel/Geo/Curves/NURBSCurveData.h"
 
-#include "CADKernel/Geo/Surfaces/BezierSurface.h"
-#include "CADKernel/Geo/Surfaces/CompositeSurface.h"
-#include "CADKernel/Geo/Surfaces/ConeSurface.h"
-#include "CADKernel/Geo/Surfaces/CoonsSurface.h"
-#include "CADKernel/Geo/Surfaces/CylinderSurface.h"
-#include "CADKernel/Geo/Surfaces/NURBSSurface.h"
-#include "CADKernel/Geo/Surfaces/OffsetSurface.h"
-#include "CADKernel/Geo/Surfaces/PlaneSurface.h"
-#include "CADKernel/Geo/Surfaces/RevolutionSurface.h"
-#include "CADKernel/Geo/Surfaces/RuledSurface.h"
-#include "CADKernel/Geo/Surfaces/SphericalSurface.h"
+#include "CADKernel/Geo/Surfaces/NurbsSurfaceData.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
-#include "CADKernel/Geo/Surfaces/TabulatedCylinderSurface.h"
-#include "CADKernel/Geo/Surfaces/TorusSurface.h"
+
 #include "CADKernel/Topo/Body.h"
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Shell.h"
@@ -584,7 +561,7 @@ TSharedPtr<CADKernel::FCurve> AddCurveNurbsFromData(A3DCrvNurbsData& A3DNurbs, c
 
 	A3DCrvNurbsGet(NULL, &A3DNurbs);
 
-	return CADKernel::FEntity::MakeShared<CADKernel::FNURBSCurve>(Nurbs);
+	return CADKernel::FCurve::MakeNurbsCurve(Nurbs);
 }
 
 TSharedPtr<CADKernel::FCurve> FTechSoftBridge::AddCurveNurbs(const A3DCrvNurbs* A3DNurbs, const TechSoftUtils::FUVReparameterization& UVReparameterization)
@@ -751,7 +728,6 @@ void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, CADKernel::EOrientatio
 	if (TopoFaceData->m_bHasTrimDomain)
 	{
 		CADKernel::FSurfacicBoundary SurfaceBoundary = TechSoftUtils::GetSurfacicBoundary(TopoFaceData->m_sSurfaceDomain, UVReparameterization);
-
 		Surface->TrimBoundaryTo(SurfaceBoundary);
 	}
 
@@ -910,9 +886,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddConeSurface(const A3DSurfBas
 
 	CADKernel::FMatrixH CoordinateSystem = TechSoftUtils::CreateCoordinateSystem(A3DConeData->m_sTrsf, BodyScale);
 	CADKernel::FSurfacicBoundary Boundary = TechSoftUtils::GetSurfacicBoundary(A3DConeData->m_sParam.m_sUVDomain, OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> Cone = CADKernel::FEntity::MakeShared<CADKernel::FConeSurface>(GeometricTolerance, CoordinateSystem, A3DConeData->m_dRadius * BodyScale, A3DConeData->m_dSemiAngle, Boundary);
-
-	return Cone;
+	return CADKernel::FSurface::MakeConeSurface(GeometricTolerance, CoordinateSystem, A3DConeData->m_dRadius * BodyScale, A3DConeData->m_dSemiAngle, Boundary);
 }
 
 TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddCylinderSurface(const A3DSurfBase* Surface, TechSoftUtils::FUVReparameterization& OutUVReparameterization)
@@ -930,9 +904,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddCylinderSurface(const A3DSur
 
 	CADKernel::FMatrixH CoordinateSystem = TechSoftUtils::CreateCoordinateSystem(A3DCylinderData->m_sTrsf, BodyScale);
 	CADKernel::FSurfacicBoundary Boundary = TechSoftUtils::GetSurfacicBoundary(A3DCylinderData->m_sParam.m_sUVDomain, OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> Cylinder = CADKernel::FEntity::MakeShared<CADKernel::FCylinderSurface>(GeometricTolerance, CoordinateSystem, A3DCylinderData->m_dRadius * BodyScale, Boundary);
-
-	return Cylinder;
+	return CADKernel::FSurface::MakeCylinderSurface(GeometricTolerance, CoordinateSystem, A3DCylinderData->m_dRadius * BodyScale, Boundary);
 }
 
 TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddLinearTransfoSurface(const A3DSurfBase* Surface, TechSoftUtils::FUVReparameterization& OutUVReparameterization)
@@ -987,9 +959,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddPlaneSurface(const A3DSurfPl
 	
 	CADKernel::FMatrixH CoordinateSystem = TechSoftUtils::CreateCoordinateSystem(A3DPlaneData->m_sTrsf, BodyScale);
 	CADKernel::FSurfacicBoundary Boundary = TechSoftUtils::GetSurfacicBoundary(A3DPlaneData->m_sParam.m_sUVDomain, OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> Plane = CADKernel::FEntity::MakeShared<CADKernel::FPlaneSurface>(GeometricTolerance, CoordinateSystem, Boundary);
-
-	return Plane;
+	return CADKernel::FSurface::MakePlaneSurface(GeometricTolerance, CoordinateSystem, Boundary);
 }
 
 TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddRevolutionSurface(const A3DSurfRevolution* Surface, TechSoftUtils::FUVReparameterization& OutUVReparameterization)
@@ -1042,9 +1012,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddSphereSurface(const A3DSurfB
 
 	CADKernel::FMatrixH CoordinateSystem = TechSoftUtils::CreateCoordinateSystem(A3DSphereData->m_sTrsf, BodyScale);
 	CADKernel::FSurfacicBoundary Boundary = TechSoftUtils::GetSurfacicBoundary(A3DSphereData->m_sParam.m_sUVDomain, OutUVReparameterization);
-	TSharedRef<CADKernel::FSphericalSurface> Sphere = CADKernel::FEntity::MakeShared<CADKernel::FSphericalSurface>(GeometricTolerance, CoordinateSystem, A3DSphereData->m_dRadius * BodyScale, Boundary);
-
-	return Sphere;
+	return CADKernel::FSurface::MakeSphericalSurface(GeometricTolerance, CoordinateSystem, A3DSphereData->m_dRadius * BodyScale, Boundary);
 }
 
 TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddTorusSurface(const A3DSurfBase* Surface, TechSoftUtils::FUVReparameterization& OutUVReparameterization)
@@ -1060,9 +1028,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddTorusSurface(const A3DSurfBa
 	OutUVReparameterization.AddUVTransform(A3DTorusData->m_sParam);
 	CADKernel::FMatrixH CoordinateSystem = TechSoftUtils::CreateCoordinateSystem(A3DTorusData->m_sTrsf, BodyScale);
 	CADKernel::FSurfacicBoundary Boundary = TechSoftUtils::GetSurfacicBoundary(A3DTorusData->m_sParam.m_sUVDomain, OutUVReparameterization);
-	TSharedPtr<CADKernel::FSurface> Torus = CADKernel::FEntity::MakeShared<CADKernel::FTorusSurface>(GeometricTolerance, CoordinateSystem, A3DTorusData->m_dMajorRadius * BodyScale, A3DTorusData->m_dMinorRadius * BodyScale, Boundary);
-
-	return Torus;
+	return CADKernel::FSurface::MakeTorusSurface(GeometricTolerance, CoordinateSystem, A3DTorusData->m_dMajorRadius * BodyScale, A3DTorusData->m_dMinorRadius * BodyScale, Boundary);
 }
 
 TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddBlend01Surface(const A3DSurfBase* Surface, TechSoftUtils::FUVReparameterization& OutUVReparameterization)
@@ -1234,7 +1200,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddSurfaceNurbs(const A3DSurfNu
 		TechSoftUtils::FillDoubleArray(NurbsData.PoleUCount, NurbsData.PoleVCount, A3DNurbsData.m_pdWeights, NurbsData.Weights);
 	}
 
-	return CADKernel::FEntity::MakeShared<CADKernel::FNURBSSurface>(GeometricTolerance, NurbsData);
+	return CADKernel::FSurface::MakeNurbsSurface(GeometricTolerance, NurbsData);
 }
 
 TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddSurfaceAsNurbs(const A3DSurfBase* Surface, TechSoftUtils::FUVReparameterization& OutUVReparameterization)

@@ -16,7 +16,6 @@
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Math/Aabb.h"
 #include "CADKernel/Math/Boundary.h"
-#include "CADKernel/Math/Plane.h"
 #include "CADKernel/Mesh/Structure/EdgeMesh.h"
 #include "CADKernel/Mesh/Structure/ModelMesh.h"
 #include "CADKernel/Mesh/Structure/FaceMesh.h"
@@ -27,6 +26,7 @@
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 
+#include "Math/Plane.h"
 
 namespace CADKernel
 {
@@ -342,25 +342,25 @@ void DisplayEntity2D(const FEntity& Entity)
 void Display(const FPlane& Plane, FIdent Ident)
 {
 #ifdef CADKERNEL_DEV
-	FPoint Normal = Plane.GetNormal();
-	if (Normal.Length() < SMALL_NUMBER)
+	FVector Normal = Plane.GetNormal();
+	if (Normal.Size() < DOUBLE_SMALL_NUMBER)
 	{
 		return;
 	}
 
-	FPoint UAxis;
+	FVector UAxis;
 	// Find the first frame axis non collinear to the plane normal
 	for (int32 Index = 0; Index < 3; ++Index)
 	{
-		FPoint Axis = FPoint::ZeroPoint;
+		FVector Axis = FVector::ZeroVector;
 		Axis[Index] = 1;
 		UAxis = Normal ^ Axis;
-		if (UAxis.Length() > SMALL_NUMBER)
+		if (UAxis.Size() > DOUBLE_SMALL_NUMBER)
 		{
 			break;
 		}
 	}
-	FPoint VAxis = UAxis ^ Normal;
+	FVector VAxis = UAxis ^ Normal;
 
 	UAxis.Normalize();
 	UAxis *= 10;
@@ -368,13 +368,25 @@ void Display(const FPlane& Plane, FIdent Ident)
 	VAxis *= 10;
 
 	TArray<FPoint> Points;
-	Points.Init(FPoint(), 5);
-	const FPoint& Point = Plane.GetPoint();
-	Points[0] = Point + UAxis + VAxis;
-	Points[1] = Point + UAxis - VAxis;
-	Points[2] = Point - UAxis - VAxis;
-	Points[3] = Point - UAxis + VAxis;
-	Points[4] = Point + UAxis + VAxis;
+
+	const FVector Point = Plane.GetOrigin();
+	
+	FVector VTemp;
+
+	VTemp = Point + UAxis + VAxis;
+	Points.Emplace(VTemp[0], VTemp[1], VTemp[2]);
+
+	VTemp = Point + UAxis - VAxis;
+	Points.Emplace(VTemp[0], VTemp[1], VTemp[2]);
+
+	VTemp = Point - UAxis - VAxis;
+	Points.Emplace(VTemp[0], VTemp[1], VTemp[2]);
+
+	VTemp = Point - UAxis + VAxis;
+	Points.Emplace(VTemp[0], VTemp[1], VTemp[2]);
+
+	VTemp = Point + UAxis + VAxis;
+	Points.Emplace(VTemp[0], VTemp[1], VTemp[2]);
 
 	F3DDebugSegment G(Ident);
 	DrawElement(2, Points);
@@ -623,7 +635,7 @@ void DisplayControlPolygon(const FCurve& Curve)
 	{
 		for (const FPoint& Pole : Poles)
 		{
-			Display(Pole, EVisuProperty::GreenPoint);
+			DisplayPoint(Pole, EVisuProperty::GreenPoint);
 		}
 
 		for (int32 Index = 1; Index < Poles.Num(); Index++)
@@ -657,7 +669,7 @@ void DisplayControlPolygon(const FSurface& Surface)
 	{
 		for (int32 Index = 0; Index < Poles.Num(); Index++)
 		{
-			Display(Poles[Index], EVisuProperty::GreenPoint);
+			DisplayPoint(Poles[Index], EVisuProperty::GreenPoint);
 		}
 
 		for (int32 IndexV = 0, Index = 0; IndexV < PoleVNum; IndexV++)

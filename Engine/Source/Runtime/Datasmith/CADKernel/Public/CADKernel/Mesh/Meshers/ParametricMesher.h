@@ -3,10 +3,13 @@
 
 #include "CADKernel/Core/Chrono.h"
 #include "CADKernel/Core/Types.h"
-#include "CADKernel/Mesh/Meshers/MesherReport.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/UI/Progress.h"
+
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
+#endif
 
 namespace CADKernel
 {
@@ -28,19 +31,6 @@ struct FCostToFace
 	}
 };
 
-class CADKERNEL_API FMesherParameters : public FParameters
-{
-public:
-	FParameter InconsistencyAngle;
-
-	FMesherParameters();
-
-	void SetInconsistencyAngle(const double Value)
-	{
-		InconsistencyAngle = Value;
-	}
-};
-
 class CADKERNEL_API FParametricMesher
 {
 protected:
@@ -54,13 +44,14 @@ protected:
 
 	TArray<FTopologicalFace*> Faces;
 
+#ifdef CADKERNEL_DEV
 	FMesherReport MesherReport;
-
 	bool bDisplay = false;
+#endif
 
 public:
 
-	FParametricMesher(FModelMesh& MeshModel);
+	FParametricMesher(FModelMesh& InMeshModel);
 
 	const FModelMesh& GetMeshModel() const
 	{
@@ -93,7 +84,18 @@ public:
 
 	void GenerateCloud(FGrid& Grid);
 
-	void PrintReport();
+
+#ifdef CADKERNEL_DEV
+	void SetMeshReport(const FMesherReport& InMesherReport)
+	{
+		MesherReport = InMesherReport;
+	}
+
+	const FMesherReport& GetMeshReport() const 
+	{
+		return MesherReport;
+	}
+#endif
 
 protected:
 

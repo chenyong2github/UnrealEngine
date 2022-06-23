@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CADKernel/Core/OrientedEntity.h"
-#include "CADKernel/Geo/Curves/CompositeCurve.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalEntity.h"

@@ -60,7 +60,7 @@ namespace CADKernel
 				while(Index > 0)
 				{
 					--Index;
-					if (InCoordinate + SMALL_NUMBER >= Coordinates[Index])
+					if (InCoordinate + DOUBLE_SMALL_NUMBER >= Coordinates[Index])
 					{
 						return Index;
 					}

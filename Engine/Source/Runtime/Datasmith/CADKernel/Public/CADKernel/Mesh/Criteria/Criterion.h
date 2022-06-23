@@ -81,7 +81,7 @@ namespace CADKernel
 			double NormSqrVec = ChordVec * ChordVec;
 			Length = sqrt(NormSqrVec);
 
-			if (NormSqrVec > SMALL_NUMBER)
+			if (NormSqrVec > DOUBLE_SMALL_NUMBER)
 			{
 				FPoint VecSag = ChordVec ^ MiddleVec;
 				double NormSqrSag = VecSag * VecSag;
@@ -118,7 +118,7 @@ namespace CADKernel
 			double DiagonalSagU = FMath::Abs(InDiagonalSag - InVSag) * ChordLength / DiagonalLength;
 			InUSag = FMath::Max(InUSag, DiagonalSagU);
 
-			if (InUSag > SMALL_NUMBER)
+			if (InUSag > DOUBLE_SMALL_NUMBER)
 			{
 				double DeltaUMax = ComputeDeltaU(ChordLength, InDeltaU, InUSag);
 				OutSagDeltaUMax = (OutSagDeltaUMax < DeltaUMax) ? OutSagDeltaUMax : DeltaUMax;

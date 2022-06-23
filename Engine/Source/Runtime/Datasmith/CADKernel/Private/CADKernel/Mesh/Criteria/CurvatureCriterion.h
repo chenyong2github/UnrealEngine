@@ -29,7 +29,7 @@ namespace CADKernel
 		 */
 		virtual void UpdateDelta(double InDeltaU, double InUSag, double InDiagonalSag, double InVSag, double ChordLength, double DiagonalLength, double& OutSagDeltaUMax, double& OutSagDeltaUMin, FIsoCurvature& IsoCurvature) const override
 		{
-			if (DiagonalLength > SMALL_NUMBER)
+			if (DiagonalLength > DOUBLE_SMALL_NUMBER)
 			{
 				double Curvature = 8 * InUSag / FMath::Square(DiagonalLength);
 				if (IsoCurvature.Max < Curvature)

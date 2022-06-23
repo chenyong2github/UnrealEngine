@@ -117,7 +117,7 @@ namespace CADKernel
 		bool IsDegenerated() const
 		{
 			double DeltaU = (Max - Min);
-			return (DeltaU < KINDA_SMALL_NUMBER);
+			return (DeltaU < DOUBLE_KINDA_SMALL_NUMBER);
 		}
 
 		/**
@@ -134,7 +134,7 @@ namespace CADKernel
 		/**
 		 * If a coordinate is outside the bounds, set the coordinate at the closed limit
 		 */
-		void MoveInsideIfNot(double& Coordinate, double Tolerance = SMALL_NUMBER) const
+		void MoveInsideIfNot(double& Coordinate, double Tolerance = DOUBLE_SMALL_NUMBER) const
 		{
 			if (Coordinate <= Min)
 			{
@@ -206,14 +206,14 @@ namespace CADKernel
 		}
 
 		/**
-		 * If the boundary width is near or equal to zero, it's widened by +/- SMALL_NUMBER
+		 * If the boundary width is near or equal to zero, it's widened by +/- DOUBLE_SMALL_NUMBER
 		 */
 		void WidenIfDegenerated()
 		{
 			if (FMath::IsNearlyEqual(Min, Max))
 			{
-				Min -= SMALL_NUMBER;
-				Max += SMALL_NUMBER;
+				Min -= DOUBLE_SMALL_NUMBER;
+				Max += DOUBLE_SMALL_NUMBER;
 			}
 		}
 
@@ -349,7 +349,7 @@ namespace CADKernel
 		}
 
 		/**
-		 * If Along each axis, the bound width is near equal to zero, it's widened by +/- SMALL_NUMBER
+		 * If Along each axis, the bound width is near equal to zero, it's widened by +/- DOUBLE_SMALL_NUMBER
 		 */
 		void WidenIfDegenerated()
 		{
@@ -360,7 +360,7 @@ namespace CADKernel
 		/**
 		 * If a point is outside the bounds, set the coordinate to insert the point inside the bounds
 		 */
-		void MoveInsideIfNot(FPoint& Point, double Tolerance = SMALL_NUMBER) const
+		void MoveInsideIfNot(FPoint& Point, double Tolerance = DOUBLE_SMALL_NUMBER) const
 		{
 			UVBoundaries[EIso::IsoU].MoveInsideIfNot(Point.X, Tolerance);
 			UVBoundaries[EIso::IsoV].MoveInsideIfNot(Point.Y, Tolerance);
@@ -369,7 +369,7 @@ namespace CADKernel
 		/**
 		 * If a point is outside the bounds, set the coordinate to insert the point inside the bounds
 		 */
-		void MoveInsideIfNot(FPoint2D& Point, double Tolerance = SMALL_NUMBER) const
+		void MoveInsideIfNot(FPoint2D& Point, double Tolerance = DOUBLE_SMALL_NUMBER) const
 		{
 			UVBoundaries[EIso::IsoU].MoveInsideIfNot(Point.U, Tolerance);
 			UVBoundaries[EIso::IsoV].MoveInsideIfNot(Point.V, Tolerance);

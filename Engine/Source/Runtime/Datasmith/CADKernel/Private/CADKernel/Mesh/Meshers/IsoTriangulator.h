@@ -8,10 +8,12 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
-#include "CADKernel/Mesh/Meshers/MesherReport.h"
 #include "CADKernel/UI/Visu.h"
 
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
+#endif
 
 //#define NEED_TO_CHECK_USEFULNESS
 //#define DEBUG_DELAUNAY
@@ -160,11 +162,20 @@ protected:
 	const double MeshingTolerance;
 	const double SquareMeshingTolerance;
 
-	FMesherReport& MesherReport;
+#ifdef CADKERNEL_DEV
+	FMesherReport* MesherReport;
+#endif
 
 public:
 
-	FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh, FMesherReport& InMesherReport);
+	FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh);
+
+#ifdef CADKERNEL_DEV
+	void SetMesherReport(FMesherReport& InMesherReport)
+	{
+		MesherReport = &InMesherReport;
+	}
+#endif
 
 	/**
 	 * Main method
@@ -408,7 +419,7 @@ inline double CotangentCriteria(const FPoint& APoint, const FPoint& BPoint, cons
 	double NormOFScalarProduct = sqrt(OutNormal * OutNormal);
 
 	// PPoint is aligned with (A,B)
-	if (NormOFScalarProduct < SMALL_NUMBER)
+	if (NormOFScalarProduct < DOUBLE_SMALL_NUMBER)
 	{
 		return BigValue;
 	}
@@ -431,7 +442,7 @@ inline double CotangentCriteria(const FPoint2D& APoint, const FPoint2D& BPoint, 
 	double OutNormal = PA ^ PB;
 	double NormOFPointProduct = FMath::Abs(OutNormal);
 
-	if (NormOFPointProduct < SMALL_NUMBER)
+	if (NormOFPointProduct < DOUBLE_SMALL_NUMBER)
 	{
 		// PPoint is aligned with (A,B)
 		return BigValue;

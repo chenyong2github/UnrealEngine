@@ -3,7 +3,9 @@
 
 #include "CADKernel/Core/Types.h"
 
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Topo/TopomakerReport.h"
+#endif
 
 namespace CADKernel
 {
@@ -30,7 +32,9 @@ protected:
 	const double SewTolerance;
 	const double SewToleranceSquare;
 
+#ifdef CADKERNEL_DEV
 	FTopomakerReport Report;
+#endif
 
 public:
 
@@ -61,10 +65,12 @@ public:
 	 */
 	void UnlinkNonManifoldVertex();
 
+#ifdef CADKERNEL_DEV
 	void PrintReport()
 	{
 		Report.Print();
 	}
+#endif
 
 private:
 

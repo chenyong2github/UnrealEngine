@@ -5,7 +5,10 @@
 #include "CADKernel/Math/SlopeUtils.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoCell.h"
 #include "CADKernel/UI/Display.h"
+
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#endif
 
 //#define DEBUG_BOWYERWATSON
 namespace CADKernel

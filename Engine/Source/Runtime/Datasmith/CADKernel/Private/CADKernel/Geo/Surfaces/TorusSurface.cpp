@@ -56,7 +56,7 @@ void FTorusSurface::EvaluatePointGridInCylindricalSpace(const FCoordinateGrid& C
 		double CosV = cos(Angle);
 		double Rho = MajorRadius + MinorRadius * CosV;
 
-		double SwapOrientation = (Angle < PI && Angle >= 0) ? 1.0 : -1.0;
+		double SwapOrientation = (Angle < DOUBLE_PI && Angle >= 0) ? 1.0 : -1.0;
 		for (int32 Undex = 0; Undex < UCount; Undex++)
 		{
 			OutPoints.Emplace(Rho * CosU[Undex] * SwapOrientation, Rho * SinU[Undex]);

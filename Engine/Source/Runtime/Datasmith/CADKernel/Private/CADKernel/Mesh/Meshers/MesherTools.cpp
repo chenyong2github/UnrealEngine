@@ -40,7 +40,7 @@ namespace CADKernel
 			TravelTime += (NextStep - LastStep) / DeltaUs[CrossingIndex];
 			CrossingIndex++;
 			LastStep = NextStep;
-		} while (LastStep + SMALL_NUMBER < Boundary.Max);
+		} while (LastStep + DOUBLE_SMALL_NUMBER < Boundary.Max);
 
 
 		// Step 2: Define the number of step(each step lasts one) as it must be an integer bigger than 1
@@ -69,7 +69,7 @@ namespace CADKernel
 				for (; UIndex < DeltaUs.Num(); ++UIndex)
 				{
 					double DeltaU = DeltaUs[UIndex];
-					if (PreferredCuttingPoints[NeighbourIndex].Coordinate - SMALL_NUMBER > CrossingUs[UIndex + 1])
+					if (PreferredCuttingPoints[NeighbourIndex].Coordinate - DOUBLE_SMALL_NUMBER > CrossingUs[UIndex + 1])
 					{
 						double DeltaTravelTime = (CrossingUs[UIndex + 1] - LastStep) / DeltaU;
 						LastStep = CrossingUs[UIndex + 1];
@@ -77,7 +77,7 @@ namespace CADKernel
 						continue;
 					}
 
-					if (CrossingUs[UIndex] - SMALL_NUMBER < PreferredCuttingPoints[NeighbourIndex].Coordinate && PreferredCuttingPoints[NeighbourIndex].Coordinate < CrossingUs[UIndex + 1] + SMALL_NUMBER)
+					if (CrossingUs[UIndex] - DOUBLE_SMALL_NUMBER < PreferredCuttingPoints[NeighbourIndex].Coordinate && PreferredCuttingPoints[NeighbourIndex].Coordinate < CrossingUs[UIndex + 1] + DOUBLE_SMALL_NUMBER)
 					{
 						double DeltaTravelTime = (PreferredCuttingPoints[NeighbourIndex].Coordinate - LastStep) / DeltaU;
 						double TravelTimeToNeighbourU = TravelTime + DeltaTravelTime;
@@ -116,7 +116,7 @@ namespace CADKernel
 		// Define the next Target time step i.e. a Preferred Cutting Points or a round step   
 		TFunction<void(double&, double&)> IncreaseTargetTimeAccordingToNeighbors = [&](double& TargetTime, double& TimeDelta)
 		{
-			if (NeighbourIndex < TravelTimeOfNeighborsU.Num() && TargetTime + TimeDelta + SMALL_NUMBER > TravelTimeOfNeighborsU[NeighbourIndex])
+			if (NeighbourIndex < TravelTimeOfNeighborsU.Num() && TargetTime + TimeDelta + DOUBLE_SMALL_NUMBER > TravelTimeOfNeighborsU[NeighbourIndex])
 			{
 				TimeDelta = CorrectedFinalTravelTime - TargetTime;
 				for (; NeighbourIndex < TravelTimeOfNeighborsU.Num(); ++NeighbourIndex)
@@ -168,7 +168,7 @@ namespace CADKernel
 			double& DeltaU = DeltaUs[CrossingIndex];
 			double DeltaTravelTime = (CrossingUs[CrossingIndex + 1] - LastStep) / DeltaU;
 			double MaxTravelTime = TravelTime + DeltaTravelTime;
-			while (TimeDelta > SMALL_NUMBER && MaxTravelTime > TargetTime - SMALL_NUMBER)
+			while (TimeDelta > DOUBLE_SMALL_NUMBER && MaxTravelTime > TargetTime - DOUBLE_SMALL_NUMBER)
 			{
 				DeltaTravelTime = TargetTime - TravelTime;
 				LastStep += DeltaU * DeltaTravelTime;
@@ -178,7 +178,7 @@ namespace CADKernel
 				IncreaseTargetTimeAccordingToNeighbors(TargetTime, TimeDelta);
 			}
 			
-			if (OutCuttingPoints.Last() + SMALL_NUMBER > Boundary.GetMax())
+			if (OutCuttingPoints.Last() + DOUBLE_SMALL_NUMBER > Boundary.GetMax())
 			{
 				break;
 			}
@@ -229,7 +229,7 @@ namespace CADKernel
 				TravelTimeByStep.Add(StepTime);
 				TravelTime += StepTime;
 				LastStep = Step;
-				if (LastStep + SMALL_NUMBER > EndU)
+				if (LastStep + DOUBLE_SMALL_NUMBER > EndU)
 				{
 					break;
 				}
@@ -250,12 +250,12 @@ namespace CADKernel
 			{
 				double CorrectedStepTime = StepTime / CorrectiveFactor;
 				double CorrectedDeltaU = DeltaUs[CrossingIndex] * CorrectiveFactor;
-				while (TravelTime + CorrectedStepTime + SMALL_NUMBER > Step)
+				while (TravelTime + CorrectedStepTime + DOUBLE_SMALL_NUMBER > Step)
 				{
 					double Time = Step - TravelTime;
 					OutCuttingPointUs.Add(TravelLength + CorrectedDeltaU * Time);
 					Step++;
-					if (Step + SMALL_NUMBER > NbStep)
+					if (Step + DOUBLE_SMALL_NUMBER > NbStep)
 					{
 						OutCuttingPointUs.Add(EndU);
 						return;

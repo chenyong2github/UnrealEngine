@@ -42,8 +42,8 @@ public:
 	/**
 	 * Set BRep to tessellate, offsetting it prior to tessellation(used to set mesh pivot at the center of the surface bounding box)
 	 *
-	 * @param  Brep	a brep to tessellate
-	 * @param  Offset translate brep by this value before tessellating
+	 * @param  Brep	a BRep to tessellate
+	 * @param  Offset translate BRep by this value before tessellating
 	 */
 	bool AddBRep(ON_Brep& Brep, const ON_3dVector& Offset);
 
@@ -51,9 +51,9 @@ public:
 
 private:
 	TSharedPtr<CADKernel::FTopologicalFace> AddFace(const ON_BrepFace& OpenNurbsFace);
-	TSharedRef<CADKernel::FSurface> AddSurface(ON_NurbsSurface& Surface);
+	TSharedPtr<CADKernel::FSurface> AddSurface(ON_NurbsSurface& Surface);
 
-	TSharedPtr<CADKernel::FTopologicalLoop> AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedRef<CADKernel::FSurface>& CarrierSurface, const bool bIsExternal);
+	TSharedPtr<CADKernel::FTopologicalLoop> AddLoop(const ON_BrepLoop& OpenNurbsLoop, TSharedPtr<CADKernel::FSurface>& CarrierSurface, const bool bIsExternal);
 
 	/**
 	 * Build face's links with its neighbor have to be done after the loop is finalize.
@@ -61,7 +61,7 @@ private:
 	 */
 	void LinkEdgesLoop(const ON_BrepLoop& OpenNurbsLoop, CADKernel::FTopologicalLoop& Loop);
 
-	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedRef<CADKernel::FSurface>& CarrierSurface);
+	TSharedPtr<CADKernel::FTopologicalEdge> AddEdge(const ON_BrepTrim& OpenNurbsTrim, TSharedPtr<CADKernel::FSurface>& CarrierSurface);
 
 protected:
 

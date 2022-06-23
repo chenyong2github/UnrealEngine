@@ -16,7 +16,6 @@ FLoopCleaner::FLoopCleaner(FIsoTriangulator& Triangulator)
 	, LoopNodes(Triangulator.LoopNodes)
 	, LoopSegments(Triangulator.LoopSegments)
 	, IsoSegmentFactory(Triangulator.IsoSegmentFactory)
-	, MesherReport(Triangulator.MesherReport)
 	, bDisplay(Triangulator.bDisplay)
 	, LoopSegmentsIntersectionTool(Grid)
 	, GeometricTolerance(Triangulator.GeometricTolerance)
@@ -27,7 +26,9 @@ FLoopCleaner::FLoopCleaner(FIsoTriangulator& Triangulator)
 	, GetFirst(LoopCleanerImpl::GetFirstNode)
 	, GetSecond(LoopCleanerImpl::GetSecondNode)
 {
-
+#ifdef CADKERNEL_DEV
+	SetMesherReport(*Triangulator.MesherReport);
+#endif
 }
 
 bool FLoopCleaner::CleanLoops()
@@ -534,7 +535,7 @@ bool FLoopCleaner::TryToRemoveSelfIntersectionByMovingTheClosedOusidePoint(const
 	{
 		double Coordinate;
 		ProjectedPoints[OtherSegmentIndex][OtherSegmentNodeIndex] = ProjectPointOnSegment(Points[OtherSegmentIndex][OtherSegmentNodeIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
-		bool bProjectedPoint1IsInside = (Coordinate >= -SMALL_NUMBER && Coordinate <= 1 + SMALL_NUMBER);
+		bool bProjectedPoint1IsInside = (Coordinate >= -DOUBLE_SMALL_NUMBER && Coordinate <= 1 + DOUBLE_SMALL_NUMBER);
 		if (bProjectedPoint1IsInside)
 		{
 			Distance[OtherSegmentIndex][OtherSegmentNodeIndex] = ProjectedPoints[OtherSegmentIndex][OtherSegmentNodeIndex].SquareDistance(Points[OtherSegmentIndex][OtherSegmentNodeIndex]);
@@ -663,7 +664,7 @@ bool FLoopCleaner::TryToRemoveIntersectionByMovingTheClosedOusidePoint(const FIs
 	{
 		double Coordinate;
 		ProjectedPoints[OtherSegmentIndex] = ProjectPointOnSegment(Points[OtherSegmentIndex][OtherSegmentNodeIndex], Points[SegmentIndex][0], Points[SegmentIndex][1], Coordinate, false);
-		bool bProjectedPoint1IsInside = (Coordinate >= -SMALL_NUMBER && Coordinate <= 1 + SMALL_NUMBER);
+		bool bProjectedPoint1IsInside = (Coordinate >= -DOUBLE_SMALL_NUMBER && Coordinate <= 1 + DOUBLE_SMALL_NUMBER);
 		if (bProjectedPoint1IsInside)
 		{
 			Distance[OtherSegmentIndex] = ProjectedPoints[OtherSegmentIndex].Distance(Points[OtherSegmentIndex][OtherSegmentNodeIndex]);

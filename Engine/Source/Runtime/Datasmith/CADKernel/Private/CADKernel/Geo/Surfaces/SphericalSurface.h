@@ -20,7 +20,7 @@ namespace CADKernel
 		 *
 		 * The spherical surface is placed at its final position and orientation by the Matrix
 		 */
-		FSphericalSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InParallelStartAngle = 0.0, double InParallelEndAngle = 2.0 * PI, double InMeridianStartAngle = -PI / 2.0, double InMeridianEndAngle = PI / 2.0)
+		FSphericalSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InParallelStartAngle = 0.0, double InParallelEndAngle = DOUBLE_TWO_PI, double InMeridianStartAngle = -DOUBLE_HALF_PI, double InMeridianEndAngle = DOUBLE_HALF_PI)
 			: FSphericalSurface(InToleranceGeometric, InMatrix, InRadius, FSurfacicBoundary(InParallelStartAngle, InParallelEndAngle, InMeridianStartAngle, InMeridianEndAngle))
 		{
 		}
@@ -124,7 +124,7 @@ namespace CADKernel
 			double CosV = cos(InSurfacicCoordinate.V);
 
 			double SinU = sin(InSurfacicCoordinate.U);
-			double SwapOrientation = (InSurfacicCoordinate.V < PI && InSurfacicCoordinate.V >= 0) ? 1.0 : -1.0;
+			double SwapOrientation = (InSurfacicCoordinate.V < DOUBLE_PI && InSurfacicCoordinate.V >= 0) ? 1.0 : -1.0;
 
 			return FPoint(Radius * CosV * CosU * SwapOrientation, Radius * CosV * SinU );
 		}

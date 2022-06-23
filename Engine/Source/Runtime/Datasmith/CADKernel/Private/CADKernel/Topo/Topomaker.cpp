@@ -18,12 +18,14 @@
 #include "CADKernel/UI/Message.h"
 #include "CADKernel/Utils/Util.h"
 
+#include "Math/UnrealMathUtility.h"
+
 namespace CADKernel
 {
 
 FTopomaker::FTopomaker(FSession& InSession, double InTolerance)
 	: Session(InSession)
-	, SewTolerance(InTolerance* UE_SQRT_2)
+	, SewTolerance(InTolerance * UE_DOUBLE_SQRT_2)
 	, SewToleranceSquare(FMath::Square(SewTolerance))
 {
 	int32 ShellCount = 0;
@@ -47,7 +49,7 @@ FTopomaker::FTopomaker(FSession& InSession, double InTolerance)
 FTopomaker::FTopomaker(FSession& InSession, const TArray<TSharedPtr<FTopologicalFace>>& InFaces, double InTolerance)
 	: Session(InSession)
 	, Faces(InFaces)
-	, SewTolerance(InTolerance * UE_SQRT_2)
+	, SewTolerance(InTolerance * UE_DOUBLE_SQRT_2)
 	, SewToleranceSquare(FMath::Square(SewTolerance))
 {
 }
@@ -153,8 +155,10 @@ void FTopomaker::Sew()
 
 	MergeUnconnectedAdjacentEdges();
 
+#ifdef CADKERNEL_DEV
 	Report.SewDuration = FChrono::Elapse(StartJoinTime);
 	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT(""), TEXT("Sew"), Report.SewDuration);
+#endif
 }
 
 void FTopomaker::GetVertices(TArray<FTopologicalVertex*>& Vertices)
@@ -407,20 +411,22 @@ void FTopomaker::MergeCoincidentEdges(TArray<FTopologicalVertex*>& VerticesToPro
 		for (int32 EdgeI = 0; EdgeI < ConnectedEdgeCount - 1; ++EdgeI)
 		{
 			FTopologicalEdge* Edge = ConnectedEdges[EdgeI];
-			if (!Edge->IsActiveEntity())
+			if (!Edge->IsActiveEntity() || Edge->IsDegenerated())
 			{
 				continue;
 			}
+
 			bool bFirstEdgeBorder = Edge->IsBorder();
 			FTopologicalVertex& EndVertex = *Edge->GetOtherVertex(*Vertex)->GetLinkActiveEntity();
 
 			for (int32 EdgeJ = EdgeI + 1; EdgeJ < ConnectedEdgeCount; ++EdgeJ)
 			{
 				FTopologicalEdge* SecondEdge = ConnectedEdges[EdgeJ];
-				if (!SecondEdge->IsActiveEntity())
+				if (!SecondEdge->IsActiveEntity() || SecondEdge->IsDegenerated())
 				{
 					continue;
 				}
+
 				bool bSecondEdgeBorder = Edge->IsBorder();
 
 				// Process only if at least one edge is Border
@@ -1118,11 +1124,15 @@ void FTopomaker::OrientShells()
 	for (FShell* Shell : Shells)
 	{
 		int32 FaceSwapCount = Shell->Orient();
+#ifdef CADKERNEL_DEV
 		Report.AddSwappedFaceCount(FaceSwapCount);
+#endif
 	}
 
-	Report.OrientationDuration = FChrono::Elapse(StartTime);
+#ifdef CADKERNEL_DEV
+ 	Report.OrientationDuration = FChrono::Elapse(StartTime);
 	FChrono::PrintClockElapse(EVerboseLevel::Log, TEXT(""), TEXT("Orient"), Report.OrientationDuration);
+#endif
 }
 
 }

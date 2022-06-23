@@ -27,7 +27,7 @@ namespace CADKernel
 		 * Bounds[EIso::IsoV].Min = StartLength;
 		 * Bounds[EIso::IsoV].Max = EndLength;
 		 */
-		FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InStartLength = -HUGE_VALUE, double InEndLength = HUGE_VALUE, double InStartAngle = 0.0, double InEndAngle = 2.0 * PI);
+		FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, double InStartLength = -HUGE_VALUE, double InEndLength = HUGE_VALUE, double InStartAngle = 0.0, double InEndAngle = DOUBLE_TWO_PI);
 		FCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& Boundary);
 
 		FCylinderSurface() = default;

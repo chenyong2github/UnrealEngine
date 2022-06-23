@@ -600,21 +600,21 @@ struct FBBoxWithNormal
 		for (int32 Index = 0; Index < 3; ++Index)
 		{
 			double DotProduct = MaxPointNormals[Index] | BBoxNormals[Index];
-			if (DotProduct > KINDA_SMALL_NUMBER)
+			if (DotProduct > DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				GoodOrientation++;
 			}
-			else if(DotProduct < KINDA_SMALL_NUMBER)
+			else if(DotProduct < DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				WrongOrientation++;
 			}
 
 			DotProduct = MinPointNormals[Index] | BBoxNormals[Index];
-			if (DotProduct < KINDA_SMALL_NUMBER)
+			if (DotProduct < DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				GoodOrientation++;
 			}
-			else if (DotProduct > KINDA_SMALL_NUMBER)
+			else if (DotProduct > DOUBLE_KINDA_SMALL_NUMBER)
 			{
 				WrongOrientation++;
 			}

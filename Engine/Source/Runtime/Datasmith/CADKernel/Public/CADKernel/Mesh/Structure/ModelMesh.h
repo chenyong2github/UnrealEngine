@@ -30,9 +30,9 @@ namespace CADKernel
 		TArray<TSharedPtr<FFaceMesh>> FaceMeshes;
 
 		bool QuadAnalyse = false;
-		double MinSize = SMALL_NUMBER;
+		double MinSize = DOUBLE_SMALL_NUMBER;
 		double MaxSize = HUGE_VALUE;
-		double MaxAngle = PI;
+		double MaxAngle = DOUBLE_PI;
 		double Sag = HUGE_VALUE;
 
 		FModelMesh()

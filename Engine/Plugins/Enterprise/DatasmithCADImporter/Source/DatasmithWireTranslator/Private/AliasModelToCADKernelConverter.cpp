@@ -8,9 +8,9 @@
 #include "MeshDescriptionHelper.h"
 
 #include "CADKernel/Core/Session.h"
-#include "CADKernel/Geo/Curves/NURBSCurve.h"
+#include "CADKernel/Geo/Curves/NURBSCurveData.h"
 #include "CADKernel/Geo/GeoEnum.h"
-#include "CADKernel/Geo/Surfaces/NURBSSurface.h"
+#include "CADKernel/Geo/Surfaces/NurbsSurfaceData.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
 
 #include "CADKernel/Math/Point.h"
@@ -99,7 +99,7 @@ namespace AliasToCADKernelUtils
 			Poles[Index + 2] *= 10.;
 		}
 
-		return CADKernel::FEntity::MakeShared<CADKernel::FNURBSSurface>(GeometricTolerance, NURBSData);
+		return CADKernel::FSurface::MakeNurbsSurface(GeometricTolerance, NURBSData);
 	}
 }
 
@@ -134,9 +134,9 @@ TSharedPtr<CADKernel::FTopologicalEdge> FAliasModelToCADKernelConverter::AddEdge
 		NurbsCurveData.Poles[Index].Z = 0;
 	}
 
-	TSharedRef<CADKernel::FNURBSCurve> Nurbs = CADKernel::FEntity::MakeShared<CADKernel::FNURBSCurve>(NurbsCurveData);
+	TSharedPtr<CADKernel::FCurve> Nurbs = CADKernel::FCurve::MakeNurbsCurve(NurbsCurveData);
 
-	TSharedRef<CADKernel::FRestrictionCurve> RestrictionCurve = CADKernel::FEntity::MakeShared<CADKernel::FRestrictionCurve>(CarrierSurface.ToSharedRef(), Nurbs);
+	TSharedRef<CADKernel::FRestrictionCurve> RestrictionCurve = CADKernel::FCurve::MakeShared<CADKernel::FRestrictionCurve>(CarrierSurface.ToSharedRef(), Nurbs.ToSharedRef());
 	TSharedPtr<CADKernel::FTopologicalEdge> Edge = CADKernel::FTopologicalEdge::Make(RestrictionCurve);
 	if (!Edge.IsValid())
 	{

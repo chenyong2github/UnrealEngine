@@ -6,7 +6,10 @@
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/UI/Display.h"
+
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/DefineForDebug.h"
+#endif
 
 namespace CADKernel
 {
@@ -44,18 +47,14 @@ void FCriteriaGrid::Init()
 	TrueUcoorindateCount = CoordinateGrid2[EIso::IsoU].Num();
 }
 
-FCriteriaGrid::FCriteriaGrid(FTopologicalFace& InSurface)
-	: Face(InSurface)
-	, CoordinateGrid(InSurface.GetCrossingPointCoordinates())
+FCriteriaGrid::FCriteriaGrid(FTopologicalFace& InFace)
+	: Face(InFace)
+	, CoordinateGrid(InFace.GetCrossingPointCoordinates())
 {
 	Face.Presample();
 
-	const FCoordinateGrid& FaceGrid = Face.GetCrossingPointCoordinates();
-
-	// If the size of the grid is very huge for a pre-sample step means that the surface is very poorly build
-	// Canceled the face meshing is preferred than waiting a too long time for a dirty result.
 	constexpr int32 MaxGrid = 1000000;
-	if (FaceGrid[EIso::IsoU].Num() * FaceGrid[EIso::IsoV].Num() > MaxGrid)
+	if (CoordinateGrid[EIso::IsoU].Num() * CoordinateGrid[EIso::IsoV].Num() > MaxGrid)
 	{
 		Face.SetDeleted();
 		return;

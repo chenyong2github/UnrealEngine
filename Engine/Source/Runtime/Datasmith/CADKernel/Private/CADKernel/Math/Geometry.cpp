@@ -72,8 +72,8 @@ namespace CADKernel
 
 	bool IntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD)
 	{
-		constexpr const double Min = -SMALL_NUMBER;
-		constexpr const double Max = 1. + SMALL_NUMBER;
+		constexpr const double Min = -DOUBLE_SMALL_NUMBER;
+		constexpr const double Max = 1. + DOUBLE_SMALL_NUMBER;
 
 		TFunction<bool(double, double, double, double)> Intersect = [](double A, double B, double C, double D)
 		{

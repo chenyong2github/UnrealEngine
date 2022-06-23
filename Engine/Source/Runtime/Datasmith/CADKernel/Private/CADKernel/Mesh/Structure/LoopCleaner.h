@@ -7,7 +7,11 @@
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IntersectionSegmentTool.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoNode.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator/IsoSegment.h"
+
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Mesh/Meshers/MesherReport.h"
+#endif
+
 
 namespace CADKernel
 {
@@ -96,7 +100,10 @@ private:
 	TArray<FLoopNode>& LoopNodes;
 	TArray<FIsoSegment*>& LoopSegments;
 	TFactory<FIsoSegment>& IsoSegmentFactory;
-	FMesherReport& MesherReport;
+
+#ifdef CADKERNEL_DEV
+	FMesherReport* MesherReport;
+#endif
 
 	bool bDisplay;
 
@@ -154,13 +161,17 @@ public:
 	{
 		if (!CleanLoops())
 		{
-			MesherReport.Logs.AddRemoveSelfIntersectionFailure();
+#ifdef CADKERNEL_DEV
+			MesherReport->Logs.AddRemoveSelfIntersectionFailure();
+#endif
 			return false;
 		}
 		
 		if (!UncrossLoops())
 		{
-			MesherReport.Logs.AddRemoveCrossingLoopsFailure();
+#ifdef CADKERNEL_DEV
+			MesherReport->Logs.AddRemoveCrossingLoopsFailure();
+#endif
 			return false;
 		}
 
@@ -168,6 +179,13 @@ public:
 	}
 
 private:
+
+#ifdef CADKERNEL_DEV
+	void SetMesherReport(FMesherReport& MesherReport)
+	{
+		MesherReport = &InMesherReport;
+	}
+#endif
 
 	bool CleanLoops();
 	bool UncrossLoops();

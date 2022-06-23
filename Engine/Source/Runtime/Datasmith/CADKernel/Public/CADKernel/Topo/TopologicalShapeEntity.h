@@ -3,7 +3,6 @@
 
 #include "CADKernel/Core/MetadataDictionary.h"
 #include "CADKernel/Topo/TopologicalEntity.h"
-#include "CADKernel/Topo/TopologicalEntity.h"
 
 namespace CADKernel
 {

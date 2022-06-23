@@ -531,20 +531,17 @@ inline bool FastIntersectSegments2D(const TSegment<FPoint2D>& SegmentAB, const T
  */
 inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB, const TSegment<FPoint2D>& SegmentCD, double& OutABIntersectionCoordinate)
 {
-	constexpr const double Min = -DOUBLE_SMALL_NUMBER;
-	constexpr const double Max = 1. + DOUBLE_SMALL_NUMBER;
-
-	FPoint2D AB = SegmentAB[1] - SegmentAB[0];
-	FPoint2D DC = SegmentCD[0] - SegmentCD[1];
-	FPoint2D AC = SegmentCD[0] - SegmentAB[0];
+	const FPoint2D AB = SegmentAB[1] - SegmentAB[0];
+	const FPoint2D DC = SegmentCD[0] - SegmentCD[1];
+	const FPoint2D AC = SegmentCD[0] - SegmentAB[0];
 
 	double ParallelCoef = DC ^ AB;
 	if (FMath::IsNearlyZero(ParallelCoef))
 	{
-		double SquareAB = AB * AB;
+		const double SquareAB = AB * AB;
 		double CCoordinate = (AB * AC) / SquareAB;
 
-		FPoint2D AD = SegmentCD[1] - SegmentAB[0];
+		const FPoint2D AD = SegmentCD[1] - SegmentAB[0];
 		double DCoordinate = (AB * AD) / SquareAB;
 
 		if (CCoordinate >= -DOUBLE_KINDA_SMALL_NUMBER && CCoordinate <= 1 + DOUBLE_KINDA_SMALL_NUMBER)
@@ -588,7 +585,7 @@ inline FPoint2D FindIntersectionOfSegments2D(const TSegment<FPoint2D>& SegmentAB
 }
 
 /**
- * @return false if the lines are parallele
+ * @return false if the lines are parallele 
  */
 inline bool FindIntersectionOfLines2D(const TSegment<FPoint2D>& LineAB, const TSegment<FPoint2D>& LineCD, FPoint2D& OutIntersectionPoint)
 {
@@ -606,7 +603,7 @@ inline bool FindIntersectionOfLines2D(const TSegment<FPoint2D>& LineAB, const TS
 	}
 
 	double OutABIntersectionCoordinate = (DC ^ AC) / ParallelCoef;
-	OutIntersectionPoint = LineAB[0] + AB * OutABIntersectionCoordinate;
+	OutIntersectionPoint =  LineAB[0] + AB * OutABIntersectionCoordinate;
 	return true;
 }
 

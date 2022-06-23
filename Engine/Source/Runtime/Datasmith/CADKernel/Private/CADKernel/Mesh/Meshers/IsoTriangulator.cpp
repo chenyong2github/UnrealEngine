@@ -24,7 +24,11 @@ namespace CADKernel
 
 const double FIsoTriangulator::GeometricToMeshingToleranceFactor = 10.;
 
-FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh, FMesherReport& InMesherReport)
+#ifdef DEBUG_BOWYERWATSON
+bool FBowyerWatsonTriangulator::bDisplay = false;
+#endif
+
+FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMesh)
 	: Grid(InGrid)
 	, Mesh(EntityMesh)
 	, LoopSegmentsIntersectionTool(InGrid)
@@ -36,7 +40,6 @@ FIsoTriangulator::FIsoTriangulator(FGrid& InGrid, TSharedRef<FFaceMesh> EntityMe
 	, SquareGeometricTolerance2(2. * SquareGeometricTolerance)
 	, MeshingTolerance(GeometricTolerance* GeometricToMeshingToleranceFactor)
 	, SquareMeshingTolerance(FMath::Square(MeshingTolerance))
-	, MesherReport(InMesherReport)
 {
 	FinalInnerSegments.Reserve(3 * Grid.InnerNodesCount());
 	IndexOfLowerLeftInnerNodeSurroundingALoop.Reserve(Grid.GetLoopCount());
@@ -82,7 +85,9 @@ bool FIsoTriangulator::Triangulate()
 	FLoopCleaner LoopCleaner(*this);
 	if (!LoopCleaner.Run())
 	{
-		MesherReport.Logs.AddDegeneratedLoop();
+#ifdef CADKERNEL_DEV
+		MesherReport->Logs.AddDegeneratedLoop();
+#endif
 		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated loop\n"), Grid.GetFace().GetId());
 		return false;
 	}
@@ -463,7 +468,7 @@ void FIsoTriangulator::BuildInnerSegments()
 				{
 					if (FMath::IsNearlyEqual(LoopPoint.V, Node1.V, GeometricTolerance))
 					{
-						if (Node1.U - SMALL_NUMBER < LoopPoint.U && LoopPoint.U < Node2.U + SMALL_NUMBER)
+						if (Node1.U - DOUBLE_SMALL_NUMBER < LoopPoint.U && LoopPoint.U < Node2.U + DOUBLE_SMALL_NUMBER)
 						{
 							return true;
 						}
@@ -479,7 +484,7 @@ void FIsoTriangulator::BuildInnerSegments()
 				{
 					if (FMath::IsNearlyEqual(LoopPoint.U, Node1.U, GeometricTolerance))
 					{
-						if (Node1.V - SMALL_NUMBER < LoopPoint.V && LoopPoint.V < Node2.V + SMALL_NUMBER)
+						if (Node1.V - DOUBLE_SMALL_NUMBER < LoopPoint.V && LoopPoint.V < Node2.V + DOUBLE_SMALL_NUMBER)
 						{
 							return true;
 						}
@@ -1590,7 +1595,7 @@ void FIsoTriangulator::FindIsoCandidateSegmentInCycle(TArray<FIsoNode*> CycleNod
 #endif
 
 	const double FlatSlope = 0.10; // ~5 deg: The segment must make an angle less than 10 deg with the Iso
-	double MinSlope = FlatSlope + SMALL_NUMBER; //.25; // ~10 deg: The segment must make an angle less than 10 deg with the Iso
+	double MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER; //.25; // ~10 deg: The segment must make an angle less than 10 deg with the Iso
 
 	FIsoNode* CandidateA = nullptr;
 	FIsoNode* CandidateB = nullptr;
@@ -1638,7 +1643,7 @@ void FIsoTriangulator::FindIsoCandidateSegmentInCycle(TArray<FIsoNode*> CycleNod
 			Grid.DisplayIsoSegment(UniformScaled, Segment, 0, EVisuProperty::YellowCurve);
 			Wait(bDisplay);
 #endif
-			MinSlope = FlatSlope + SMALL_NUMBER;
+			MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER;
 		}
 	}
 
@@ -1777,7 +1782,9 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 	// Check if the cycle is in self intersecting and fix it. 
 	if (!CanCycleBeMeshed(Cycle, CycleIntersectionTool))
 	{
-		MesherReport.Logs.AddCycleMeshingFailure();
+#ifdef CADKERNEL_DEV
+		MesherReport->Logs.AddCycleMeshingFailure();
+#endif
 		return;
 	}
 
@@ -2002,7 +2009,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 			if (&EndNode != &PreviousNode)
 			{
 				// Case of probable auto-intersection cycle at PreviousNode, cancel is preferred 
-				if (FMath::IsNearlyEqual(StartMaxSlope, 8., (double)KINDA_SMALL_NUMBER))
+				if (FMath::IsNearlyEqual(StartMaxSlope, 8., DOUBLE_KINDA_SMALL_NUMBER))
 				{
 					return;
 				}
@@ -2014,7 +2021,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 			if (&StartNode != &NextNode)
 			{
 				// Case of probable auto-intersection cycle at PreviousNode, cancel is preferred 
-				if (FMath::IsNearlyEqual(EndMaxSlope, 8., (double)KINDA_SMALL_NUMBER))
+				if (FMath::IsNearlyEqual(EndMaxSlope, 8., DOUBLE_KINDA_SMALL_NUMBER))
 				{
 					return;
 				}
@@ -2087,7 +2094,7 @@ void FIsoTriangulator::MeshCycle(const EGridSpace Space, const TArray<FIsoSegmen
 				double CosAngle = FMath::Abs(ComputeCosinus(NodeNormal, Node->GetNormal(Grid)));
 
 				// the criteria is weighted according to the cosine of the angle between the normal of the candidate triangle and the normal at the tested point
-				if (CosAngle > SMALL_NUMBER)
+				if (CosAngle > DOUBLE_SMALL_NUMBER)
 				{
 					PointCriteria /= CosAngle;
 				}
@@ -2255,7 +2262,7 @@ void FIsoTriangulator::FindInnerGridCellSurroundingSmallLoop()
 		int32 IndexU = 0;
 		for (; IndexU < NumU - 1; ++IndexU)
 		{
-			if ((FirstPoint.U > UCoordinates[IndexU]) && (FirstPoint.U < UCoordinates[IndexU + 1] + SMALL_NUMBER))
+			if ((FirstPoint.U > UCoordinates[IndexU]) && (FirstPoint.U < UCoordinates[IndexU + 1] + DOUBLE_SMALL_NUMBER))
 			{
 				break;
 			}
@@ -2264,16 +2271,16 @@ void FIsoTriangulator::FindInnerGridCellSurroundingSmallLoop()
 		int32 IndexV = 0;
 		for (; IndexV < NumV - 1; ++IndexV)
 		{
-			if ((FirstPoint.V > VCoordinates[IndexV]) && (FirstPoint.V < VCoordinates[IndexV + 1] + SMALL_NUMBER))
+			if ((FirstPoint.V > VCoordinates[IndexV]) && (FirstPoint.V < VCoordinates[IndexV + 1] + DOUBLE_SMALL_NUMBER))
 			{
 				break;
 			}
 		}
 
 		double UMin = UCoordinates[IndexU];
-		double UMax = UCoordinates[IndexU + 1] + SMALL_NUMBER;
+		double UMax = UCoordinates[IndexU + 1] + DOUBLE_SMALL_NUMBER;
 		double VMin = VCoordinates[IndexV];
-		double VMax = VCoordinates[IndexV + 1] + SMALL_NUMBER;
+		double VMax = VCoordinates[IndexV + 1] + DOUBLE_SMALL_NUMBER;
 
 		bool bBoudardyIsSurrounded = true;
 		for (const FPoint2D& LoopPoint : Loops[LoopIndex])
@@ -3057,7 +3064,7 @@ void FIsoTriangulator::TryToConnectVertexSubLoopWithTheMostIsoSegment(FCell& Cel
 #endif
 
 	const double FlatSlope = 0.10; // ~5 deg: The segment must make an angle less than 10 deg with the Iso
-	double MinSlope = FlatSlope + SMALL_NUMBER; //.25; // ~10 deg: The segment must make an angle less than 10 deg with the Iso
+	double MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER; //.25; // ~10 deg: The segment must make an angle less than 10 deg with the Iso
 
 
 	if (Loop.Num() <= 2)
@@ -3116,7 +3123,7 @@ void FIsoTriangulator::TryToConnectVertexSubLoopWithTheMostIsoSegment(FCell& Cel
 			Grid.DisplayIsoSegment(UniformScaled, *CandidateA, *CandidateB, 0, EVisuProperty::RedCurve);
 #endif
 			TryToCreateSegment(Cell, CandidateA, ACoordinates, CandidateB, BCoordinates, 0.1);
-			MinSlope = FlatSlope + SMALL_NUMBER;
+			MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER;
 		}
 	}
 
@@ -3133,7 +3140,7 @@ void FIsoTriangulator::TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell,
 #endif
 
 	const double FlatSlope = 0.10; // ~5 deg: The segment must make an angle less than 10 deg with the Iso
-	double MinSlope = FlatSlope + SMALL_NUMBER;// 0.25; // ~15 deg: The segment must make an angle less than 10 deg with the Iso
+	double MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER;// 0.25; // ~15 deg: The segment must make an angle less than 10 deg with the Iso
 
 	for (FLoopNode* CandidateA : LoopA)
 	{
@@ -3160,7 +3167,7 @@ void FIsoTriangulator::TryToConnectTwoSubLoopsWithTheMostIsoSegment(FCell& Cell,
 			Grid.DisplayIsoSegment(EGridSpace::UniformScaled, *CandidateA, *CandidateB, 0, EVisuProperty::BlueCurve);
 #endif			
 			TryToCreateSegment(Cell, CandidateA, ACoordinates, CandidateB, BCoordinates, 0.1);
-			MinSlope = FlatSlope + SMALL_NUMBER;
+			MinSlope = FlatSlope + DOUBLE_SMALL_NUMBER;
 		}
 	}
 }

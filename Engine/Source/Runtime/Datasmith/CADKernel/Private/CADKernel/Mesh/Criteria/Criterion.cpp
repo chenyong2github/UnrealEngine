@@ -39,14 +39,14 @@ namespace CADKernel
 
 			double DeltaU = Coordinates[Index] - Coordinates[PreviousIndex];
 
-			if (ChordLength > NumericPrecision && Sag > SMALL_NUMBER)
+			if (ChordLength > NumericPrecision && Sag > DOUBLE_SMALL_NUMBER)
 			{
 				double DeltaUMax = ComputeDeltaU(ChordLength, DeltaU, Sag);
 				if (DeltaUMax < DeltaUMaxs[PreviousIndex]) DeltaUMaxs[PreviousIndex] = DeltaUMax;
 			}
 
 			Sag = EvaluateSag(Points[2 * Index].Point, Points[2 * PreviousIndex].Point, Points[MiddleIndex].Point, ChordLength);
-			if (ChordLength > NumericPrecision && Sag > SMALL_NUMBER)
+			if (ChordLength > NumericPrecision && Sag > DOUBLE_SMALL_NUMBER)
 			{
 				double DeltaUMax = ComputeDeltaU(ChordLength, DeltaU, Sag);
 				if (DeltaUMax < DeltaUMaxs[PreviousIndex]) 

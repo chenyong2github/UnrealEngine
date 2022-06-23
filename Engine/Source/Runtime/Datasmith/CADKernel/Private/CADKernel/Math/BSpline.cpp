@@ -1414,7 +1414,7 @@ namespace CADKernel
 				// definir l'ordre de multiplicite du noeud
 				while (i < Degree + PoleCount)
 				{
-					if (FMath::Abs(NodalVector[i + 1] - udeb) > SMALL_NUMBER) break;
+					if (FMath::Abs(NodalVector[i + 1] - udeb) > DOUBLE_SMALL_NUMBER) break;
 					multiplicite++;
 					i++;
 				}
@@ -1467,12 +1467,12 @@ namespace CADKernel
 				}
 
 				// passer sur les noeuds multiples
-				if (FMath::Abs(nodalVector[i + 1] - nodalVector[i]) <SMALL_NUMBER) continue;
+				if (FMath::Abs(nodalVector[i + 1] - nodalVector[i]) <DOUBLE_SMALL_NUMBER) continue;
 				else uCourant = nodalVector[i];
 
 				// definir les bornes de l'intervalle a discretiser
-				if (uCourant > u1 + SMALL_NUMBER) u1 = uCourant;
-				if (nodalVector[i + 1] <u2 - SMALL_NUMBER) u2 = nodalVector[i + 1];
+				if (uCourant > u1 + DOUBLE_SMALL_NUMBER) u1 = uCourant;
+				if (nodalVector[i + 1] <u2 - DOUBLE_SMALL_NUMBER) u2 = nodalVector[i + 1];
 
 				// repartir les parametres dans l'intervalle courant*/
 				if (degre <= 1)
@@ -1498,7 +1498,7 @@ namespace CADKernel
 				}
 
 				// tester s'il s'agit du dernier intervalle
-				if (u2 > UMax - SMALL_NUMBER) break;
+				if (u2 > UMax - DOUBLE_SMALL_NUMBER) break;
 
 				// passer a l'intervalle suivant
 				u1 = u2;

@@ -1,46 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CADKernel/Geo/Surfaces/NurbsSurfaceData.h"
 #include "CADKernel/Geo/Surfaces/Surface.h"
 #include "CADKernel/Math/BSpline.h"
 
 namespace CADKernel
 {
-
-	struct FNurbsSurfaceHomogeneousData
-	{
-		bool bSwapUV;
-		int32 PoleUCount;
-		int32 PoleVCount;
-
-		int32 UDegree;
-		int32 VDegree;
-
-		TArray<double> UNodalVector;
-		TArray<double> VNodalVector;
-
-		bool bIsRational;
-		TArray<double> HomogeneousPoles;
-	};
-
-	struct FNurbsSurfaceData
-	{
-		bool bSwapUV;
-		int32 PoleUCount;
-		int32 PoleVCount;
-
-		int32 UDegree;
-		int32 VDegree;
-
-		TArray<double> UNodalVector;
-		TArray<double> VNodalVector;
-
-		// if Weights.Num() == 0  => bIsRational = false
-		TArray<double> Weights;
-		TArray<FPoint> Poles;
-	};
-
-	class CADKERNEL_API FNURBSSurface : public FSurface
+	class FNURBSSurface : public FSurface
 	{
 		friend FEntity;
 

@@ -34,7 +34,7 @@ void FSphericalSurface::EvaluatePointGridInCylindricalSpace(const FCoordinateGri
 	{
 		double CosV = cos(VAngle);
 		double Rho = Radius * CosV;
-		double SwapOrientation = (VAngle < PI && VAngle >= 0) ? 1.0 : -1.0;
+		double SwapOrientation = (VAngle < DOUBLE_PI && VAngle >= 0) ? 1.0 : -1.0;
 
 		for (int32 Undex = 0; Undex < UCount; Undex++)
 		{

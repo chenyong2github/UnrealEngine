@@ -13,10 +13,11 @@
 
 namespace CADKernel
 {
-	class FSurface;
+	//class FSurface;
 
 	struct FCurvePoint;
 	struct FCurvePoint2D;
+	struct FNurbsCurveData;
 
 	class CADKERNEL_API FCurve : public FEntityGeom
 	{
@@ -44,6 +45,15 @@ namespace CADKernel
 		}
 
 	public:
+
+		static TSharedPtr<FCurve> MakeNurbsCurve(FNurbsCurveData& InNurbsData);
+		// TODO
+		//static TSharedPtr<FCurve> MakeBezierCurve(const double InToleranceGeometric, int32 InUDegre, int32 InVDegre, const TArray<FPoint>& InPoles);
+		//static TSharedPtr<FCurve> MakeConeCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, double InStartRadius, double InConeAngle, const FSurfacicBoundary& InBoundary);
+		//static TSharedPtr<FCurve> MakeCylinderCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& InBoundary);
+		//static TSharedPtr<FCurve> MakePlaneCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary);
+		//static TSharedPtr<FCurve> MakeSphericalCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, const FSurfacicBoundary& InBoundary);
+		//static TSharedPtr<FCurve> MakeTorusCurve(const double InToleranceGeometric, const FMatrixH& InMatrix, double InMajorRadius, double InMinorRadius, const FSurfacicBoundary& InBoundary);
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{

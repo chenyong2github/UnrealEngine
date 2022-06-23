@@ -3,6 +3,7 @@
 
 #include "CADKernel/Geo/Curves/Curve.h"
 #include "CADKernel/Geo/Curves/RestrictionCurve.h"
+#include "CADKernel/Geo/Sampling/SurfacicPolyline.h"
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Math/Boundary.h"
 #include "CADKernel/Topo/Linkable.h"
@@ -34,7 +35,7 @@ struct FCuttingPoint;
 struct FImposedCuttingPoint;
 
 class FModelMesh;
-class FRestrictionCurve;
+class FEdgeMesh;
 class FSurface;
 class FTopologicalLoop;
 class FTopologicalVertex;
@@ -419,7 +420,7 @@ public:
 		int32 Size = CrossingPointUs.Num();
 		ensureCADKernel(Size >= 2);
 		CrossingPointUs.SetNum(Size);
-		CrossingPointDeltaUMins.Init(SMALL_NUMBER, Size - 1);
+		CrossingPointDeltaUMins.Init(DOUBLE_SMALL_NUMBER, Size - 1);
 		CrossingPointDeltaUMaxs.Init(2.0 * (GetEndCurvilinearCoordinates() - GetStartCurvilinearCoordinates()), Size - 1);
 	}
 

@@ -422,7 +422,7 @@ void FGrid::FindPointsCloseToLoop()
 		Index[Iso] = 1;
 		for (; Index[Iso] < CuttingCount[Iso] - 1; ++Index[Iso])
 		{
-			if (UniformCuttingCoordinates[Iso][Index[Iso]] + SMALL_NUMBER > (*PointA)[Iso])
+			if (UniformCuttingCoordinates[Iso][Index[Iso]] + DOUBLE_SMALL_NUMBER > (*PointA)[Iso])
 			{
 				break;
 			}
@@ -480,12 +480,12 @@ void FGrid::FindPointsCloseToLoop()
 
 	TFunction<bool(const double, const double)> IsReallyBigger = [](const double FirstValue, const double SecondValue) ->bool
 	{
-		return FirstValue - SMALL_NUMBER > SecondValue;
+		return FirstValue - DOUBLE_SMALL_NUMBER > SecondValue;
 	};
 
 	TFunction<bool(const double, const double)> IsReallySmaller = [](const double FirstValue, const double SecondValue) ->bool
 	{
-		return FirstValue + SMALL_NUMBER < SecondValue;
+		return FirstValue + DOUBLE_SMALL_NUMBER < SecondValue;
 	};
 
 	double Slop;
@@ -1016,7 +1016,7 @@ void FGrid::GetMeshOfLoop(const FTopologicalLoop& Loop)
 				{
 					double Diff = CuttingPolyline.Coordinates[Index++];
 					Diff -= CuttingPolyline.Coordinates[Index];
-					if (Diff > -SMALL_NUMBER)
+					if (Diff > -DOUBLE_SMALL_NUMBER)
 					{
 						bProjectionFailed = true;
 						break;
@@ -1487,8 +1487,8 @@ void FGrid::FindInnerFacePoints()
 
 	// Loop node too close to one of CoordinateU or CoordinateV are moved a little to avoid floating error of comparison 
 	// This step is necessary instead of all points could be considered outside...
-	const double SmallToleranceU = SMALL_NUMBER;
-	const double SmallToleranceV = SMALL_NUMBER;
+	const double SmallToleranceU = DOUBLE_SMALL_NUMBER;
+	const double SmallToleranceV = DOUBLE_SMALL_NUMBER;
 
 	{
 		int32 IndexV = 0;
@@ -1636,11 +1636,11 @@ void FGrid::FindInnerFacePoints()
 					else
 					{
 						double APvectAB = UniformCuttingCoordinates[EIso::IsoV][IndexV] * ABu - UniformCuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
-						if (APvectAB > SMALL_NUMBER)
+						if (APvectAB > DOUBLE_SMALL_NUMBER)
 						{
 							NbIntersectVForward[Index] = NbIntersectVForward[Index] > 0 ? 0 : 1;
 						}
-						else if (APvectAB < SMALL_NUMBER)
+						else if (APvectAB < DOUBLE_SMALL_NUMBER)
 						{
 							NbIntersectVBackward[Index] = NbIntersectVBackward[Index] > 0 ? 0 : 1;
 						}
@@ -1721,11 +1721,11 @@ void FGrid::FindInnerFacePoints()
 					else
 					{
 						double APvectAB = UniformCuttingCoordinates[EIso::IsoV][IndexV] * ABu - UniformCuttingCoordinates[EIso::IsoU][IndexU] * ABv + AuABVMinusAvABu;
-						if (APvectAB > SMALL_NUMBER)
+						if (APvectAB > DOUBLE_SMALL_NUMBER)
 						{
 							NbIntersectUBackward[Index] = NbIntersectUBackward[Index] > 0 ? 0 : 1;
 						}
-						else if (APvectAB < SMALL_NUMBER)
+						else if (APvectAB < DOUBLE_SMALL_NUMBER)
 						{
 							NbIntersectUForward[Index] = NbIntersectUForward[Index] > 0 ? 0 : 1;
 						}

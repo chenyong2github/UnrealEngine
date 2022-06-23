@@ -97,7 +97,7 @@ public:
 	FSurfacicTolerance ComputeTolerance(const double Tolerance3D, const FSurfacicTolerance& MinToleranceIso, const int32 Index) const
 	{
 		double Distance3D = Points3D[Index].Distance(Points3D[Index + 1]);
-		if (FMath::IsNearlyZero(Distance3D, (double)SMALL_NUMBER))
+		if (FMath::IsNearlyZero(Distance3D, (double)DOUBLE_SMALL_NUMBER))
 		{
 			return FPoint2D::FarawayPoint;
 		}
@@ -111,7 +111,7 @@ public:
 	double ComputeLinearToleranceAt(const double Tolerance3D, const double MinLinearTolerance, const int32 Index) const
 	{
 		double Distance3D = Points3D[Index].Distance(Points3D[Index + 1]);
-		if (FMath::IsNearlyZero(Distance3D, (double)SMALL_NUMBER))
+		if (FMath::IsNearlyZero(Distance3D, (double)DOUBLE_SMALL_NUMBER))
 		{
 			return (Coordinates.Last() - Coordinates[0]) / 10.;
 		}

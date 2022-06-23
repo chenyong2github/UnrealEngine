@@ -2,7 +2,6 @@
 #pragma once
 
 #include "CADKernel/Geo/Surfaces/Surface.h"
-#include "CADKernel/Math/Plane.h"
 
 namespace CADKernel
 {
@@ -34,7 +33,7 @@ namespace CADKernel
 		/**
 		 * The plane surface is the plane XY.
 		 * The surface is placed at its final position and orientation by the Matrix 
-		 * The matrix is calculated from the plan origine at its final position and its final normal
+		 * The matrix is calculated from the plan origin at its final position and its final normal
 		 */
 		FPlaneSurface(const double InToleranceGeometric, const FPoint& Position, FPoint Normal, const FSurfacicBoundary& InBoundary);
 

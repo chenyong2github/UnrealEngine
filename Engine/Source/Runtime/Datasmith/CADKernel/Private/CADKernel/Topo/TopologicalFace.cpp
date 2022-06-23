@@ -418,10 +418,10 @@ TSharedRef<FFaceMesh> FTopologicalFace::GetOrCreateMesh(FModelMesh& MeshModel)
 
 void FTopologicalFace::InitDeltaUs()
 {
-	CrossingPointDeltaMins[EIso::IsoU].Init(SMALL_NUMBER, CrossingCoordinates[EIso::IsoU].Num() - 1);
+	CrossingPointDeltaMins[EIso::IsoU].Init(DOUBLE_SMALL_NUMBER, CrossingCoordinates[EIso::IsoU].Num() - 1);
 	CrossingPointDeltaMaxs[EIso::IsoU].Init(HUGE_VALUE, CrossingCoordinates[EIso::IsoU].Num() - 1);
 
-	CrossingPointDeltaMins[EIso::IsoV].Init(SMALL_NUMBER, CrossingCoordinates[EIso::IsoV].Num() - 1);
+	CrossingPointDeltaMins[EIso::IsoV].Init(DOUBLE_SMALL_NUMBER, CrossingCoordinates[EIso::IsoV].Num() - 1);
 	CrossingPointDeltaMaxs[EIso::IsoV].Init(HUGE_VALUE, CrossingCoordinates[EIso::IsoV].Num() - 1);
 }
 

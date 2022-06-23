@@ -40,18 +40,18 @@ namespace CADKernel
 
 		//on cherche le vecteur ox
 		Xaxis.Normalize();
-		if (FMath::Abs(Xaxis.Length()) < SMALL_NUMBER)
+		if (FMath::Abs(Xaxis.Length()) < DOUBLE_SMALL_NUMBER)
 		{
 			Zaxis = FPoint(1, 0, 0);
 			Xaxis = Axis ^ Zaxis;
 			Xaxis.Normalize();
-			if (FMath::Abs(Xaxis.Length()) < SMALL_NUMBER)
+			if (FMath::Abs(Xaxis.Length()) < DOUBLE_SMALL_NUMBER)
 			{
 				Zaxis = FPoint(0, 0, 1);
 				Xaxis = Axis ^ Zaxis;
 
 				Xaxis.Normalize();
-				ensureCADKernel(FMath::Abs(Xaxis.Length()) > SMALL_NUMBER);
+				ensureCADKernel(FMath::Abs(Xaxis.Length()) > DOUBLE_SMALL_NUMBER);
 			}
 		}
 
@@ -69,7 +69,7 @@ namespace CADKernel
 		FMatrixH Matrix;
 		Matrix.SetIdentity();
 
-		ensureCADKernel(Axe.Length() > SMALL_NUMBER);
+		ensureCADKernel(Axe.Length() > DOUBLE_SMALL_NUMBER);
 		Axe.Normalize();
 
 		Matrix.Get(0, 0) = Axe[0] * Axe[0] + (double)cos(Angle) * ((double)1.0 - Axe[0] * Axe[0]);

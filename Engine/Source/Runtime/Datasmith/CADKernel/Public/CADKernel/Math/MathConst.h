@@ -33,7 +33,7 @@ namespace CADKernel
 		}
 	}
 
-	inline int32 RealCompare(const double Value1, const double Value2, const double Tolerance = SMALL_NUMBER)
+	inline int32 RealCompare(const double Value1, const double Value2, const double Tolerance = DOUBLE_SMALL_NUMBER)
 	{
 		double Difference = Value1 - Value2;
 		if (Difference < -Tolerance) 

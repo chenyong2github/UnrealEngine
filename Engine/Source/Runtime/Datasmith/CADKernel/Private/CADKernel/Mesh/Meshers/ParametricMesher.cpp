@@ -2,7 +2,6 @@
 
 #include "CADKernel/Mesh/Meshers/ParametricMesher.h"
 
-#include "CADKernel/Core/KernelParameters.h"
 #include "CADKernel/Mesh/Criteria/CriteriaGrid.h"
 #include "CADKernel/Mesh/Criteria/Criterion.h"
 #include "CADKernel/Mesh/Meshers/IsoTriangulator.h"
@@ -17,14 +16,14 @@
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Utils/Util.h"
 
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Mesh/Meshers/MesherReport.h"
+#endif
+
 //#define DEBUG_MESH_EDGE
 //#define DEBUG_GETPREFERREDUVCOORDINATESFROMNEIGHBOURS
 namespace CADKernel
 {
-
-FMesherParameters::FMesherParameters()
-	: InconsistencyAngle(TEXT("inconsistencyAngle"), 20., *this)
-{}
 
 FParametricMesher::FParametricMesher(FModelMesh& InMeshModel)
 	: MeshModel(InMeshModel)
@@ -86,8 +85,6 @@ void FParametricMesher::MeshEntities(TArray<FTopologicalShapeEntity*>& InEntitie
 	}
 
 	MeshEntities();
-
-	MesherReport.Print();
 }
 
 void FParametricMesher::MeshEntities()
@@ -113,7 +110,9 @@ void FParametricMesher::MeshEntities()
 		ApplyFaceCriteria(*Face);
 	}
 
+#ifdef CADKERNEL_DEV
 	MesherReport.Chronos.ApplyCriteriaDuration = FChrono::Elapse(ApplyCriteriaStartTime);
+#endif
 
 	FTimePoint MeshingStartTime = FChrono::Now();
 
@@ -132,7 +131,10 @@ void FParametricMesher::MeshEntities()
 
 		IsolateQuadFace(QuadTrimmedSurfaceSet, OtherEntities);
 
+#ifdef CADKERNEL_DEV
 		MesherReport.Chronos.IsolateQuadPatchDuration = FChrono::Elapse(IsolateQuadPatchStartTime);
+#endif
+
 		FMessage::Printf(Log, TEXT("  %d Quad Surfaces found\n"), QuadTrimmedSurfaceSet.Num());
 	}
 
@@ -142,8 +144,10 @@ void FParametricMesher::MeshEntities()
 
 	FTimePoint MeshStartTime = FChrono::Now();
 	MeshSurfaceByFront(QuadTrimmedSurfaceSet);
+#ifdef CADKERNEL_DEV
 	MesherReport.Chronos.GlobalMeshDuration = FChrono::Elapse(MeshStartTime);
 	MesherReport.Chronos.GlobalDuration = FChrono::Elapse(StartTime);
+#endif
 
 	//Chronos.PrintTimeElapse();
 }
@@ -229,7 +233,9 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 
 	if (Grid.IsDegenerated())
 	{
+#ifdef CADKERNEL_DEV
 		MesherReport.Logs.AddDegeneratedGrid();
+ #endif
 		FMessage::Printf(EVerboseLevel::Log, TEXT("The meshing of the surface %d failed due to a degenerated grid\n"), Face.GetId());
 		Face.SetMeshed();
 		return;
@@ -239,7 +245,11 @@ void FParametricMesher::Mesh(FTopologicalFace& Face)
 
 	TSharedRef<FFaceMesh> SurfaceMesh = StaticCastSharedRef<FFaceMesh>(Face.GetOrCreateMesh(MeshModel));
 
-	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh, MesherReport);
+	FIsoTriangulator IsoTrianguler(Grid, SurfaceMesh);
+#ifdef CADKERNEL_DEV
+	MesherReport
+#endif
+
 	if (IsoTrianguler.Triangulate())
 	{
 		if (Face.IsBackOriented())
@@ -289,9 +299,13 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 #endif
 			FTimePoint MeshThinZonesTime = FChrono::Now();
 			MeshThinZoneEdges(Grid);
+#ifdef CADKERNEL_DEV
 			MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshThinZonesTime);
+#endif
 		}
+#ifdef CADKERNEL_DEV
 		MesherReport.Chronos.GlobalThinZones += FChrono::Elapse(StartTime);
+#endif
 	}
 
 #ifdef DEBUG_THIN_ZONES
@@ -304,7 +318,9 @@ void FParametricMesher::GenerateCloud(FGrid& Grid)
 
 	Grid.ProcessPointCloud();
 
+#ifdef CADKERNEL_DEV
 	MesherReport.Chronos.GlobalMeshAndGetLoopNodes += FChrono::Elapse(StartTime);
+#endif
 }
 
 void FParametricMesher::MeshFaceLoops(FGrid& Grid)
@@ -321,7 +337,9 @@ void FParametricMesher::MeshFaceLoops(FGrid& Grid)
 		}
 	}
 
+#ifdef CADKERNEL_DEV
 	MesherReport.Chronos.GlobalMeshEdges += FChrono::Elapse(StartTime);
+#endif
 }
 
 static void FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWithIso, ECoordinateType CoordinateType, double EdgeToleranceGeo, const FTopologicalEdge& Edge, TArray<FCuttingPoint>& OutImposedIsoVertexSet)
@@ -359,7 +377,7 @@ static void FillImposedIsoCuttingPoints(TArray<double>& UEdgeSetOfIntersectionWi
 	case 1:
 	{
 		int32 CuttingPointIndex = 0;
-		while (CuttingPointIndex < Edge.GetCrossingPointUs().Num() && Edge.GetCrossingPointUs()[CuttingPointIndex] + SMALL_NUMBER <= OutImposedIsoVertexSet[StartIndex].Coordinate)
+		while (CuttingPointIndex < Edge.GetCrossingPointUs().Num() && Edge.GetCrossingPointUs()[CuttingPointIndex] + DOUBLE_SMALL_NUMBER <= OutImposedIsoVertexSet[StartIndex].Coordinate)
 		{
 			++CuttingPointIndex;
 		};
@@ -1370,7 +1388,9 @@ void FParametricMesher::MeshThinZoneEdges(FGrid& Grid)
 	}
 	Close3DDebugSession();
 #endif
+#ifdef CADKERNEL_DEV
 	MesherReport.Chronos.GlobalMeshThinZones += FChrono::Elapse(MeshStartTime);
+#endif
 
 }
 
@@ -1614,11 +1634,6 @@ void FParametricMesher::MeshThinZoneSide(const FThinZoneSide& Side)
 	Close3DDebugSession();
 #endif
 
-}
-
-void FParametricMesher::PrintReport()
-{
-	MesherReport.Print();
 }
 
 #ifdef DEBUG_INTERSECTEDGEISOS

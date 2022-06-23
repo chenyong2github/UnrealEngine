@@ -22,7 +22,7 @@ namespace CADKernel
 		 * The torus computed at the origin with Z axis.
 		 * It is placed at its final position and orientation by the Matrix
 		 */
-		FTorusSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InMajorRadius, double InMinorRadius, double InMajorStartAngle = 0.0, double InMajorEndAngle = 2.0 * PI, double InMinorStartAngle = 0.0, double InMinorEndAngle = 2.0 * PI)
+		FTorusSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InMajorRadius, double InMinorRadius, double InMajorStartAngle = 0.0, double InMajorEndAngle = DOUBLE_TWO_PI, double InMinorStartAngle = 0.0, double InMinorEndAngle = DOUBLE_TWO_PI)
 			: FTorusSurface(InToleranceGeometric, InMatrix, InMajorRadius, InMinorRadius, FSurfacicBoundary(InMajorStartAngle, InMajorEndAngle, InMinorStartAngle, InMinorEndAngle))
 		{
 		}
@@ -137,7 +137,7 @@ namespace CADKernel
 
 			double Rho = (MajorRadius + MinorRadius * CosV);
 
-			double SwapOrientation = (InSurfacicCoordinate.V < PI && InSurfacicCoordinate.V >=0) ? 1.0 : -1.0;
+			double SwapOrientation = (InSurfacicCoordinate.V < DOUBLE_PI&& InSurfacicCoordinate.V >=0) ? 1.0 : -1.0;
 
 			return FPoint2D(Rho * CosU * SwapOrientation, Rho * SinU);
 		}

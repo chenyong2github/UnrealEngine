@@ -18,9 +18,6 @@ ENUM_CLASS_FLAGS(EAABBBoundary);
 
 namespace CADKernel
 {
-	class FSphere;
-	class FPlane;
-
 	template<class PointType>
 	class TAABB
 	{

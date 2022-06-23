@@ -1,8 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "TechSoftInterface.h"
 
 namespace CADLibrary
@@ -17,8 +15,8 @@ void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, F
 
 FString CleanSdkName(const FString& Name);
 FString CleanCatiaInstanceSdkName(const FString& Name);
-FString Clean3dxmlInstanceSdkName(const FString& Name);
 FString CleanCatiaReferenceName(const FString& Name);
+FString Clean3dxmlInstanceSdkName(const FString& Name);
 FString Clean3dxmlReferenceSdkName(const FString& Name);
 FString CleanSwInstanceSdkName(const FString& Name);
 FString CleanSwReferenceSdkName(const FString& Name);

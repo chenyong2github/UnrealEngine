@@ -40,7 +40,7 @@ TSharedPtr<FCurve> FBoundedCurve::MakeBoundedCurve(const FLinearBoundary& InBoun
 		NewBoundary.Max = UMax;
 	}
 
-	if((NewBoundary.Min -SMALL_NUMBER)<UMin && (NewBoundary.Max +SMALL_NUMBER)>UMax)
+	if((NewBoundary.Min -DOUBLE_SMALL_NUMBER)<UMin && (NewBoundary.Max +DOUBLE_SMALL_NUMBER)>UMax)
 	{
 		return FEntity::MakeShared<FBoundedCurve>(*this);
 	}

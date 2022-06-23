@@ -20,6 +20,8 @@ namespace CADKernel
 	struct FCurvePoint;
 	struct FCurvePoint2D;
 	struct FSurfacicSampling;
+	struct FNurbsSurfaceData;
+	struct FNurbsSurfaceHomogeneousData;
 
 	class CADKERNEL_API FSurface : public FEntityGeom
 	{
@@ -78,6 +80,15 @@ namespace CADKernel
 		}
 
 	public:
+
+		static TSharedPtr<FSurface> MakeBezierSurface(const double InToleranceGeometric, int32 InUDegre, int32 InVDegre, const TArray<FPoint>& InPoles);
+		static TSharedPtr<FSurface> MakeConeSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InStartRadius, double InConeAngle, const FSurfacicBoundary& InBoundary);
+		static TSharedPtr<FSurface> MakeCylinderSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const double InRadius, const FSurfacicBoundary& InBoundary);
+		static TSharedPtr<FSurface> MakeNurbsSurface(const double InToleranceGeometric, const FNurbsSurfaceData& NurbsData);
+		static TSharedPtr<FSurface> MakeNurbsSurface(const double InToleranceGeometric, const FNurbsSurfaceHomogeneousData& NurbsData);
+		static TSharedPtr<FSurface> MakePlaneSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, const FSurfacicBoundary& InBoundary);
+		static TSharedPtr<FSurface> MakeSphericalSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InRadius, const FSurfacicBoundary& InBoundary);
+		static TSharedPtr<FSurface> MakeTorusSurface(const double InToleranceGeometric, const FMatrixH& InMatrix, double InMajorRadius, double InMinorRadius, const FSurfacicBoundary& InBoundary);
 
 		virtual void Serialize(FCADKernelArchive& Ar) override
 		{
@@ -237,7 +248,7 @@ namespace CADKernel
 
 		void PresampleIsoCircle(const FSurfacicBoundary& InBoundaries, FCoordinateGrid& Coordinates, EIso Iso)
 		{
-			constexpr const double SixOverPi = 6 / PI;
+			constexpr double SixOverPi = 6 / DOUBLE_PI;
 			double Delta = InBoundaries.Length(Iso);
 			int32 SampleCount = /*FMath::Max(3, */ (int32)(Delta * SixOverPi + 1)/*)*/;
 			Delta /= SampleCount;
