@@ -20,7 +20,10 @@ struct FActorDesc
 	GENERATED_USTRUCT_BODY()
 
 	FActorDesc();
+
+#if WITH_EDITOR
 	FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTransform& InTransform);
+#endif
 
 	/** The actor GUID of this descriptor. */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category=Actor)
@@ -60,6 +63,7 @@ class UWorldPartitionBlueprintLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_BODY()
 
+#if WITH_EDITOR
 	static UWorld* GetEditorWorld();
 	static UWorldPartition* GetWorldPartition();
 
@@ -69,6 +73,7 @@ class UWorldPartitionBlueprintLibrary : public UBlueprintFunctionLibrary
 
 	static bool GetActorDescs(const UActorDescContainer* InContainer, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs);
 	static bool GetIntersectingActorDescs(const UActorDescContainer* InContainer, const FBox& InBox, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs);
+#endif
 
 public:
 	/**

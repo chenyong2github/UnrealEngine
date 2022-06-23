@@ -1,16 +1,20 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WorldPartition/WorldPartitionBlueprintLibrary.h"
+
+#if WITH_EDITOR
 #include "Subsystems/UnrealEditorSubsystem.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/WorldPartitionHelpers.h"
 #include "Editor.h"
+#endif
 
 FActorDesc::FActorDesc()
 	: Bounds(ForceInit)
 {}
 
+#if WITH_EDITOR
 FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTransform& InTransform)
 {
 	Guid = InActorDesc.GetGuid();
@@ -141,27 +145,33 @@ bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const UActorDesc
 
 	return bResult;
 }
+#endif
 
 FBox UWorldPartitionBlueprintLibrary::GetEditorWorldBounds()
 {
+#if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		return WorldPartition->GetEditorWorldBounds();
 	}
+#endif
 	return FBox(ForceInit);
 }
 
 FBox UWorldPartitionBlueprintLibrary::GetRuntimeWorldBounds()
 {
+#if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		return WorldPartition->GetRuntimeWorldBounds();
 	}
+#endif
 	return FBox(ForceInit);
 }
 
 void UWorldPartitionBlueprintLibrary::LoadActors(const TArray<FGuid>& InActorsToLoad)
 {
+#if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		if (LoaderAdapterActorListMap.IsEmpty())
@@ -173,10 +183,12 @@ void UWorldPartitionBlueprintLibrary::LoadActors(const TArray<FGuid>& InActorsTo
 
 		LoaderAdapterActorList->AddActors(InActorsToLoad);
 	}
+#endif
 }
 
 void UWorldPartitionBlueprintLibrary::UnloadActors(const TArray<FGuid>& InActorsToLoad)
 {
+#if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		if (TUniquePtr<FLoaderAdapterActorList>* LoaderAdapterActorList = LoaderAdapterActorListMap.Find(WorldPartition))
@@ -184,22 +196,27 @@ void UWorldPartitionBlueprintLibrary::UnloadActors(const TArray<FGuid>& InActors
 			(*LoaderAdapterActorList)->RemoveActors(InActorsToLoad);
 		}
 	}
+#endif
 }
 
 bool UWorldPartitionBlueprintLibrary::GetActorDescs(TArray<FActorDesc>& OutActorDescs)
 {
+#if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		return GetActorDescs(WorldPartition, FTransform::Identity, OutActorDescs);
 	}
+#endif
 	return false;
 }
 
 bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const FBox& InBox, TArray<FActorDesc>& OutActorDescs)
 {
+#if WITH_EDITOR
 	if (UWorldPartition* WorldPartition = GetWorldPartition())
 	{
 		return GetIntersectingActorDescs(WorldPartition, InBox, FTransform::Identity, OutActorDescs);
 	}
+#endif
 	return false;
 }
