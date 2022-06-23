@@ -815,6 +815,10 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(config)
 	uint32 bAllowNavLinkAsPathEnd : 1;
 
+	/** The maximum number of y coords to process when time slicing filter ledge spans during navmesh regeneration. */
+	UPROPERTY(EditAnywhere, Category = TimeSlicing, config, AdvancedDisplay, meta = (ClampMin = "1", UIMin = "1"))
+	int32 TimeSliceFilterLedgeSpansMaxYProcess = 13;
+
 	/** If a single time sliced section of navmesh regen code exceeds this duration then it will trigger debug logging */
 	UPROPERTY(EditAnywhere, Category = TimeSlicing, config, AdvancedDisplay)
 	double TimeSliceLongDurationDebug = 0.002;

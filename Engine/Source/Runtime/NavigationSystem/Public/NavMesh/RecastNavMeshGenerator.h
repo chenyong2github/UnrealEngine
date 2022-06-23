@@ -241,6 +241,13 @@ enum class ERasterizeGeomTimeSlicedState : uint8
 	RasterizeGeometryRecast,
 };
 
+enum class EGenerateRecastFilterTimeSlicedState : uint8
+{
+	FilterLowHangingWalkableObstacles,
+	FilterLedgeSpans,
+	FilterWalkableLowHeightSpans,
+};
+
 enum class EDoWorkTimeSlicedState : uint8
 {
 	Invalid,
@@ -260,6 +267,11 @@ enum class EGenerateNavDataTimeSlicedState : uint8
 	Invalid,
 	Init,
 	GenerateLayers,
+};
+
+struct FRecastTileTimeSliceSettings
+{
+	int32 FilterLedgeSpansMaxYProcess = 13;
 };
 
 /**
@@ -367,6 +379,7 @@ protected:
 	UE_DEPRECATED(5.0, "Call the version of this function where Coords are now a TArray of FReals!")
 	void RasterizeGeometry(FNavMeshBuildContext& BuildContext, const TArray<float>& Coords, const TArray<int32>& Indices, const FTransform& LocalToWorld, const rcRasterizationFlags RasterizationFlags, FTileRasterizationContext& RasterContext);
 	void GenerateRecastFilter(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
+	ETimeSliceWorkResult GenerateRecastFilterTimeSliced(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	bool BuildCompactHeightField(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	bool RecastErodeWalkable(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
 	bool RecastBuildLayers(FNavMeshBuildContext& BuildContext, FTileRasterizationContext& RasterContext);
@@ -426,6 +439,8 @@ protected:
 	/** Start time slicing variables */
 	ERasterizeGeomRecastTimeSlicedState RasterizeGeomRecastState;
 	ERasterizeGeomTimeSlicedState RasterizeGeomState;
+	EGenerateRecastFilterTimeSlicedState GenerateRecastFilterState;
+	int32 GenRecastFilterLedgeSpansYStart;
 	EDoWorkTimeSlicedState DoWorkTimeSlicedState;
 	EGenerateTileTimeSlicedState GenerateTileTimeSlicedState;
 
@@ -440,6 +455,8 @@ protected:
 	TUniquePtr<struct FTileCacheAllocator> GenNavDataTimeSlicedAllocator;
 	TUniquePtr<struct FTileGenerationContext> GenNavDataTimeSlicedGenerationContext;
 	TUniquePtr<struct FTileRasterizationContext> GenCompressedlayersTimeSlicedRasterContext;
+
+	FRecastTileTimeSliceSettings TileTimeSliceSettings;
 	/** End time slicing variables */
 
 	int32 TileX;

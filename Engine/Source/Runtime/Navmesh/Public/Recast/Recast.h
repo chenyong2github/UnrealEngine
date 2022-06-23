@@ -1058,6 +1058,19 @@ NAVMESH_API void rcRasterizeTriangles(rcContext* ctx, const rcReal* verts, const
 ///  @param[in,out]	solid			A fully built heightfield.  (All spans have been added.)
 NAVMESH_API void rcFilterLowHangingWalkableObstacles(rcContext* ctx, const int walkableClimb, rcHeightfield& solid);
 
+/// Marks spans that are ledges as not-walkable, by a number of y coords at a time.
+///  @ingroup recast
+///  @param[in,out]	ctx				The build context to use during the operation.
+///  @param[in]		walkableHeight	Minimum floor to 'ceiling' height that will still allow the floor area to 
+///  								be considered walkable. [Limit: >= 3] [Units: vx]
+///  @param[in]		walkableClimb	Maximum ledge height that is considered to still be traversable. 
+///  								[Limit: >=0] [Units: vx]
+///  @param[in,out]	solid			A fully built heightfield.  (All spans have been added.)
+///  @param[in]		yStart			y coord to start at
+///  @param[in]		maxYProcess	    Max y coords to process (yStart + maxYProcess can be more than solid.height and will be capped to solid.height)
+NAVMESH_API void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight,
+						const int walkableClimb, const int yStart, const int maxYProcess, rcHeightfield& solid);
+
 /// Marks spans that are ledges as not-walkable. 
 ///  @ingroup recast
 ///  @param[in,out]	ctx				The build context to use during the operation.

@@ -72,6 +72,89 @@ void rcFilterLowHangingWalkableObstacles(rcContext* ctx, const int walkableClimb
 	ctx->stopTimer(RC_TIMER_FILTER_LOW_OBSTACLES);
 }
 
+void rcFilterLedgeSpansImp(rcContext* ctx, const int walkableHeight, const int walkableClimb, const int filterLedgeSpansAtY,
+	rcHeightfield& solid)
+{
+	rcAssert(ctx);
+
+	const int w = solid.width;
+	const int h = solid.height;
+	const int MAX_HEIGHT = 0xffff;
+
+	// Mark border spans.
+	for (int x = 0; x < w; ++x)
+	{
+		for (rcSpan* s = solid.spans[x + filterLedgeSpansAtY*w]; s; s = s->next)
+		{
+			// Skip non walkable spans.
+			if (s->data.area == RC_NULL_AREA)
+				continue;
+
+			const int bot = (int)(s->data.smax);
+			const int top = s->next ? (int)(s->next->data.smin) : MAX_HEIGHT;
+
+			// Find neighbours minimum height.
+			int minh = MAX_HEIGHT;
+
+			// Min and max height of accessible neighbours.
+			int asmin = s->data.smax;
+			int asmax = s->data.smax;
+
+			for (int dir = 0; dir < 4; ++dir)
+			{
+				int dx = x + rcGetDirOffsetX(dir);
+				int dy = filterLedgeSpansAtY + rcGetDirOffsetY(dir);
+				// Skip neighbours which are out of bounds.
+				if (dx < 0 || dy < 0 || dx >= w || dy >= h)
+				{
+					minh = rcMin(minh, -walkableClimb - bot);
+					continue;
+				}
+
+				// From minus infinity to the first span.
+				rcSpan* ns = solid.spans[dx + dy*w];
+				int nbot = -walkableClimb;
+				int ntop = ns ? (int)ns->data.smin : MAX_HEIGHT;
+				// Skip neightbour if the gap between the spans is too small.
+				if (rcMin(top, ntop) - rcMax(bot, nbot) > walkableHeight)
+					minh = rcMin(minh, nbot - bot);
+
+				// Rest of the spans.
+				for (ns = solid.spans[dx + dy*w]; ns; ns = ns->next)
+				{
+					nbot = (int)ns->data.smax;
+					ntop = ns->next ? (int)ns->next->data.smin : MAX_HEIGHT;
+					// Skip neightbour if the gap between the spans is too small.
+					if (rcMin(top, ntop) - rcMax(bot, nbot) > walkableHeight)
+					{
+						minh = rcMin(minh, nbot - bot);
+
+						// Find min/max accessible neighbour height. 
+						if (rcAbs(nbot - bot) <= walkableClimb)
+						{
+							if (nbot < asmin) asmin = nbot;
+							if (nbot > asmax) asmax = nbot;
+						}
+
+					}
+				}
+			}
+
+			// The current span is close to a ledge if the drop to any
+			// neighbour span is less than the walkableClimb.
+			if (minh < -walkableClimb)
+				s->data.area = RC_NULL_AREA;
+
+			// If the difference between all neighbours is too large,
+			// we are at steep slope, mark the span as ledge.
+			if ((asmax - asmin) > walkableClimb)
+			{
+				s->data.area = RC_NULL_AREA;
+			}
+		}
+	}
+}
+
 /// @par
 ///
 /// A ledge is a span with one or more neighbors whose maximum is further away than @p walkableClimb
@@ -96,81 +179,31 @@ void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight, const int walk
 	// Mark border spans.
 	for (int y = 0; y < h; ++y)
 	{
-		for (int x = 0; x < w; ++x)
-		{
-			for (rcSpan* s = solid.spans[x + y*w]; s; s = s->next)
-			{
-				// Skip non walkable spans.
-				if (s->data.area == RC_NULL_AREA)
-					continue;
-				
-				const int bot = (int)(s->data.smax);
-				const int top = s->next ? (int)(s->next->data.smin) : MAX_HEIGHT;
-				
-				// Find neighbours minimum height.
-				int minh = MAX_HEIGHT;
-
-				// Min and max height of accessible neighbours.
-				int asmin = s->data.smax;
-				int asmax = s->data.smax;
-
-				for (int dir = 0; dir < 4; ++dir)
-				{
-					int dx = x + rcGetDirOffsetX(dir);
-					int dy = y + rcGetDirOffsetY(dir);
-					// Skip neighbours which are out of bounds.
-					if (dx < 0 || dy < 0 || dx >= w || dy >= h)
-					{
-						minh = rcMin(minh, -walkableClimb - bot);
-						continue;
-					}
-
-					// From minus infinity to the first span.
-					rcSpan* ns = solid.spans[dx + dy*w];
-					int nbot = -walkableClimb;
-					int ntop = ns ? (int)ns->data.smin : MAX_HEIGHT;
-					// Skip neightbour if the gap between the spans is too small.
-					if (rcMin(top,ntop) - rcMax(bot,nbot) > walkableHeight)
-						minh = rcMin(minh, nbot - bot);
-					
-					// Rest of the spans.
-					for (ns = solid.spans[dx + dy*w]; ns; ns = ns->next)
-					{
-						nbot = (int)ns->data.smax;
-						ntop = ns->next ? (int)ns->next->data.smin : MAX_HEIGHT;
-						// Skip neightbour if the gap between the spans is too small.
-						if (rcMin(top,ntop) - rcMax(bot,nbot) > walkableHeight)
-						{
-							minh = rcMin(minh, nbot - bot);
-						
-							// Find min/max accessible neighbour height. 
-							if (rcAbs(nbot - bot) <= walkableClimb)
-							{
-								if (nbot < asmin) asmin = nbot;
-								if (nbot > asmax) asmax = nbot;
-							}
-							
-						}
-					}
-				}
-				
-				// The current span is close to a ledge if the drop to any
-				// neighbour span is less than the walkableClimb.
-				if (minh < -walkableClimb)
-					s->data.area = RC_NULL_AREA;
-					
-				// If the difference between all neighbours is too large,
-				// we are at steep slope, mark the span as ledge.
-				if ((asmax - asmin) > walkableClimb)
-				{
-					s->data.area = RC_NULL_AREA;
-				}
-			}
-		}
+		rcFilterLedgeSpansImp(ctx, walkableHeight, walkableClimb, y, solid);
 	}
 	
 	ctx->stopTimer(RC_TIMER_FILTER_BORDER);
 }	
+
+
+/// @see rcHeightfield, rcConfig
+void rcFilterLedgeSpans(rcContext* ctx, const int walkableHeight, const int walkableClimb, const int yStart, const int maxYProcess,
+	rcHeightfield& solid)
+{
+	rcAssert(ctx);
+
+	ctx->startTimer(RC_TIMER_FILTER_BORDER);
+
+	const int w = solid.width;
+	const int h = rcMin(yStart + maxYProcess, solid.height);
+
+	for (int y = yStart; y < h; ++y)
+	{
+		rcFilterLedgeSpansImp(ctx, walkableHeight, walkableClimb, y, solid);
+	}
+
+	ctx->stopTimer(RC_TIMER_FILTER_BORDER);
+}
 
 /// @par
 ///
