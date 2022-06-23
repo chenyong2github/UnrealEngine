@@ -7382,7 +7382,8 @@ bool URigVMController::SetPinDefaultValue(URigVMPin* InPin, const FString& InDef
 	
 	if(!bSetPinDefaultValueSucceeded)
 	{
-		if (InPin->GetSubPins().Num() == 0)
+		// no need to send notifications if not changing the value
+		if (InPin->GetSubPins().IsEmpty() && (InPin->DefaultValue != ClampedDefaultValue))
 		{
 			InPin->DefaultValue = ClampedDefaultValue;
 			Notify(ERigVMGraphNotifType::PinDefaultValueChanged, InPin);
