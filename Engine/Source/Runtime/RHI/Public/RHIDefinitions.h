@@ -375,7 +375,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsSSDIndirect : 1;
 	uint32 bSupportsTemporalHistoryUpscale : 1;
 	uint32 bSupportsRTIndexFromVS : 1;
-	uint32 bSupportsWaveOperations : 1; // Whether HLSL SM6 shader wave intrinsics are supported
+	uint32 bSupportsWaveOperations : int32(ERHIFeatureSupport::NumBits);
 	uint32 bSupportsIntrinsicWaveOnce : 1;
 	uint32 bSupportsConservativeRasterization : 1;
 	uint32 bRequiresExplicit128bitRT : 1;
@@ -711,10 +711,10 @@ public:
 		return Infos[Platform].bSupportsByteBufferComputeShaders;
 	}
 
-	static FORCEINLINE_DEBUGGABLE const bool GetSupportsWaveOperations(const FStaticShaderPlatform Platform)
+	static FORCEINLINE_DEBUGGABLE const ERHIFeatureSupport GetSupportsWaveOperations(const FStaticShaderPlatform Platform)
 	{
 		check(IsValid(Platform));
-		return Infos[Platform].bSupportsWaveOperations;
+		return ERHIFeatureSupport(Infos[Platform].bSupportsWaveOperations);
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsTemporalHistoryUpscale(const FStaticShaderPlatform Platform)

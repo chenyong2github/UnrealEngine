@@ -262,7 +262,7 @@ inline uint32 RHIMaxMeshShaderThreadGroupSize(const FStaticShaderPlatform Platfo
  **/
 inline RHI_API bool RHISupportsWaveOperations(const FStaticShaderPlatform Platform)
 {
-	return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform);
+	return FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Platform) != ERHIFeatureSupport::Unsupported;
 }
 
 /** True if the given shader platform supports a render target write mask */

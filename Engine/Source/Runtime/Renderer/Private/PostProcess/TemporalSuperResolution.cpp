@@ -375,9 +375,14 @@ class FTSRRejectShadingCS : public FTSRShader
 	{
 		FPermutationDomain PermutationVector(Parameters.PermutationId);
 
-		if (PermutationVector.Get<FUseWaveOps>() && !RHISupportsWaveOperations(Parameters.Platform))
+		ERHIFeatureSupport WaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Parameters.Platform);
+		if (PermutationVector.Get<FUseWaveOps>())
 		{
-			return false;
+			return WaveOpsSupport != ERHIFeatureSupport::Unsupported;
+		}
+		else
+		{
+			return WaveOpsSupport != ERHIFeatureSupport::RuntimeGuaranteed;
 		}
 
 		return FTSRShader::ShouldCompilePermutation(Parameters);
@@ -641,7 +646,8 @@ ITemporalUpscaler::FOutputs AddTemporalSuperResolutionPasses(
 #endif
 
 	// Whether to use wave ops optimizations.
-	const bool bUseWaveOps = CVarTSRWaveOps.GetValueOnRenderThread() != 0 && GRHISupportsWaveOperations && RHISupportsWaveOperations(View.GetShaderPlatform());
+	const ERHIFeatureSupport WaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(View.GetShaderPlatform());
+	const bool bUseWaveOps = (CVarTSRWaveOps.GetValueOnRenderThread() != 0 && GRHISupportsWaveOperations && WaveOpsSupport == ERHIFeatureSupport::RuntimeDependent) || WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed;
 
 	// Whether alpha channel is supported.
 	const bool bSupportsAlpha = IsPostProcessingWithAlphaChannelSupported();
