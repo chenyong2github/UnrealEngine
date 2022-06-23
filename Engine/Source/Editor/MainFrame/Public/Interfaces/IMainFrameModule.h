@@ -216,6 +216,18 @@ public:
 
 	virtual bool ExecuteCanCloseEditorDelegates() = 0;
 
+	/**
+	 * Overrides the section that gets selected by default when opening editor settings
+	 * @note Call with default parameters to clear the override
+	 */
+	virtual void SetEditorSettingsDefaultSelectionOverride(FName CategoryName = FName(), FName SectionName = FName()) = 0;
+
+	/** 
+	 * Gets the override for the section that gets selected by default when opening editor settings
+	 * @note Returns None if there's no override
+	 */
+	virtual void GetEditorSettingsDefaultSelectionOverride(FName& OutCategoryName, FName& OutSectionName) = 0;
+
 public:
 
 	/**

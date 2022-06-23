@@ -130,14 +130,30 @@ void FMainMenu::RegisterEditMenu()
 		else
 		{
 #if !PLATFORM_MAC // Handled by app's menu in menu bar
-			Section.AddMenuEntry(
-				"EditorPreferencesMenu",
-				LOCTEXT("EditorPreferencesMenuLabel", "Editor Preferences..."),
-				LOCTEXT("EditorPreferencesMenuToolTip", "Configure the behavior and features of the Unreal Editor."),
-				FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon"),
-				FUIAction(FExecuteAction::CreateStatic(&FSettingsMenu::OpenSettings, FName("Editor"), FName("General"), FName("Appearance")))
-			);
-#endif
+			{
+				IMainFrameModule& MainFrame = FModuleManager::LoadModuleChecked<IMainFrameModule>("MainFrame");
+				FName CategoryName;
+				FName SectionName;
+				MainFrame.GetEditorSettingsDefaultSelectionOverride(CategoryName, SectionName);
+
+				if (CategoryName.IsNone())
+				{
+					CategoryName = FName("General");
+				}
+				if (SectionName.IsNone())
+				{
+					SectionName = FName("Appearance");
+				}
+
+				Section.AddMenuEntry(
+					"EditorPreferencesMenu",
+					LOCTEXT("EditorPreferencesMenuLabel", "Editor Preferences..."),
+					LOCTEXT("EditorPreferencesMenuToolTip", "Configure the behavior and features of the Unreal Editor."),
+					FSlateIcon(FAppStyle::GetAppStyleSetName(), "EditorPreferences.TabIcon"),
+					FUIAction(FExecuteAction::CreateStatic(&FSettingsMenu::OpenSettings, FName("Editor"), CategoryName, SectionName))
+				);
+			}
+#endif //if !PLATFORM_MAC
 
 			Section.AddMenuEntry(
 				"ProjectSettingsMenu",

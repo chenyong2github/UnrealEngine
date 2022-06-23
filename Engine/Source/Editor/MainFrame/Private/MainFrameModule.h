@@ -171,6 +171,18 @@ public:
 		return true;
 	}
 
+	virtual void SetEditorSettingsDefaultSelectionOverride(FName CategoryName = FName(), FName SectionName = FName()) override
+	{
+		EditorSettingsDefaultCategoryOverride = CategoryName;
+		EditorSettingsDefaultSectionOverride = SectionName;
+	}
+
+	virtual void GetEditorSettingsDefaultSelectionOverride(FName& OutCategoryName, FName& OutSectionName) override
+	{
+		OutCategoryName = EditorSettingsDefaultCategoryOverride;
+		OutSectionName = EditorSettingsDefaultSectionOverride;
+	}
+
 public:
 
 	// IModuleInterface interface
@@ -238,6 +250,12 @@ private:
 
 	// Override window title, or empty to not override
 	FText OverriddenWindowTitle;
+
+	// Overrides the category that gets selected by default when opening editor settings
+	FName EditorSettingsDefaultCategoryOverride;
+
+	// Overrides the section that gets selected by default when editor settings
+	FName EditorSettingsDefaultSectionOverride;
 
 	/// Event to be called when the mainframe is fully created.
 	FMainFrameCreationFinishedEvent MainFrameCreationFinishedEvent;
