@@ -37,24 +37,16 @@ FVariantManagerStyle::FVariantManagerStyle() : FSlateStyleSet("VariantManagerEdi
 
 	Set( "VariantManager.Icon", new IMAGE_BRUSH_SVG("VariantManager", Icon16x16) );
 
-	/** Style used for the auto-capture button */
-	const FCheckBoxStyle AutoCaptureButtonStyle = FCheckBoxStyle()
-		.SetCheckBoxType(ESlateCheckBoxType::ToggleButton)
-		.SetUncheckedImage(IMAGE_BRUSH("AutoCapture", Icon20x20))
-		.SetUncheckedHoveredImage(IMAGE_BRUSH("AutoCapture", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetUncheckedPressedImage(IMAGE_BRUSH("AutoCapture", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetCheckedImage(IMAGE_BRUSH("AutoCaptureChecked", Icon20x20))
-		.SetCheckedHoveredImage(IMAGE_BRUSH("AutoCaptureChecked", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetCheckedPressedImage(IMAGE_BRUSH("AutoCaptureChecked", Icon20x20, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
-	Set("VariantManager.AutoCapture", AutoCaptureButtonStyle);
+	Set("VariantManager.AutoCapture.Icon", new IMAGE_BRUSH_SVG("AutoCapture", Icon20x20));
 
+	SetContentRoot(FPaths::EngineContentDir());
 	const FCheckBoxStyle RadioButtonStyle = FCheckBoxStyle()
-		.SetUncheckedImage(IMAGE_BRUSH("VariantUnchecked", Icon16x16))
-		.SetUncheckedHoveredImage(IMAGE_BRUSH("VariantUnchecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetUncheckedPressedImage(IMAGE_BRUSH("VariantUnchecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetCheckedImage(IMAGE_BRUSH("VariantChecked", Icon16x16))
-		.SetCheckedHoveredImage(IMAGE_BRUSH("VariantChecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
-		.SetCheckedPressedImage(IMAGE_BRUSH("VariantChecked", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
+		.SetUncheckedImage(IMAGE_BRUSH_SVG("/Slate/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16))
+		.SetUncheckedHoveredImage(IMAGE_BRUSH_SVG("/Slate/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetUncheckedPressedImage(IMAGE_BRUSH_SVG("/Slate/Starship/CoreWidgets/CheckBox/radio-off", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetCheckedImage(IMAGE_BRUSH_SVG("/Slate/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16))
+		.SetCheckedHoveredImage(IMAGE_BRUSH_SVG("/Slate/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)))
+		.SetCheckedPressedImage(IMAGE_BRUSH_SVG("/Slate/Starship/CoreWidgets/CheckBox/radio-on", Icon16x16, FLinearColor(0.5f, 0.5f, 0.5f, 1.0f)));
 	Set("VariantManager.VariantRadioButton", RadioButtonStyle);
 
 	FSlateStyleRegistry::RegisterSlateStyle(*this);

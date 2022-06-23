@@ -296,32 +296,47 @@ void SVariantManager::Construct(const FArguments& InArgs, TSharedRef<FVariantMan
 				.Padding(FMargin(0.f, 0.f, VM_COMMON_PADDING+2.0f, 0.f))
 				[
 					SNew(SHorizontalBox)
+
 					+ SHorizontalBox::Slot()
-					.MaxWidth(VM_COMMON_HEADER_MAX_HEIGHT) // square aspect ratio
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
 						SNew(SCheckBox)
-						.Style( FVariantManagerStyle::Get(), "VariantManager.AutoCapture" )
-						.Padding( FMargin( 10.f, 10.f, 10.0f, 10.f ) ) // Give some space to show up the style image or else it will collapse to nothing since it has no content
+						.Style(& FAppStyle::Get().GetWidgetStyle<FCheckBoxStyle>("ToggleButtonCheckBox"))
 						.ToolTipText(LOCTEXT("AutoCaptureTooltip", "Enable or disable auto-capturing properties"))
 						.IsChecked_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties]()
 						{
-							return bAutoCaptureProperties? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+							return bAutoCaptureProperties ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
 						})
 						.OnCheckStateChanged_Lambda([&bAutoCaptureProperties = bAutoCaptureProperties](const ECheckBoxState NewState)
 						{
 							bAutoCaptureProperties = NewState == ECheckBoxState::Checked;
 						})
-					]
-					
-					+ SHorizontalBox::Slot()
-					.AutoWidth()
-					.VAlign(VAlign_Center)
-					.Padding(5, 0, 3, 0)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("VariantManagerAutoCapture", "Auto Capture"))
+						[
+							SNew(SBox)
+							[
+								SNew(SHorizontalBox)
+								+SHorizontalBox::Slot()
+								.AutoWidth()
+								.VAlign(VAlign_Center)
+								[
+									SNew(SImage)
+									.ColorAndOpacity(FSlateColor::UseForeground())
+									.Image(FVariantManagerStyle::Get().GetBrush("VariantManager.AutoCapture.Icon"))
+								]
+
+								+SHorizontalBox::Slot()
+								.VAlign(VAlign_Center)
+								.Padding(8.f, 0.5f, 0.f, 0.f)
+								.AutoWidth()
+								[
+									SNew(STextBlock)
+									.TextStyle(&FAppStyle::Get().GetWidgetStyle< FTextBlockStyle >("SmallButtonText"))
+									.Justification(ETextJustify::Center)
+									.Text(LOCTEXT("VariantManagerAutoCapture", "Auto Capture"))
+								]
+							]
+						]
 					]
 				]
 			]
