@@ -164,7 +164,7 @@ bool AControlRigShapeActor::UpdateControlSettings(
 	// update the shape transform
 	if(bShapeTransformChanged)
 	{
-		const FTransform ShapeTransform = InControlElement->Shape.Get(ERigTransformType::InitialLocal);
+		const FTransform ShapeTransform = InControlElement->Shape.Get(ERigTransformType::CurrentLocal);
 		StaticMeshComponent->SetRelativeTransform(MeshTransform * ShapeTransform);
 	}
 	
