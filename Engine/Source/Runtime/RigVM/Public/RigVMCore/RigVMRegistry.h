@@ -36,13 +36,13 @@ public:
 	const FRigVMFunction* FindFunction(UScriptStruct* InStruct, const TCHAR* InName) const;
 
 	// Returns all current rigvm functions
-	const TArray<FRigVMFunction>& GetFunctions() const;
+	const TChunkedArray<FRigVMFunction>& GetFunctions() const;
 
 	// Returns a template pointer given its notation (or nullptr)
 	const FRigVMTemplate* FindTemplate(const FName& InNotation) const;
 
 	// Returns all current rigvm functions
-	const TArray<FRigVMTemplate>& GetTemplates() const;
+	const TChunkedArray<FRigVMTemplate>& GetTemplates() const;
 
 	// Defines and retrieves a template given its arguments
 	const FRigVMTemplate* GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments);
@@ -59,10 +59,11 @@ private:
 	FRigVMRegistry& operator= (const FRigVMRegistry &InOther) = delete;
 
 	// memory for all functions
-	TArray<FRigVMFunction> Functions;
+	// We use TChunkedArray because we need the memory locations to be stable, since we only ever add and never remove.
+	TChunkedArray<FRigVMFunction> Functions;
 
 	// memory for all templates
-	TArray<FRigVMTemplate> Templates;
+	TChunkedArray<FRigVMTemplate> Templates;
 
 	// name lookup for functions
 	TMap<FName, int32> FunctionNameToIndex;

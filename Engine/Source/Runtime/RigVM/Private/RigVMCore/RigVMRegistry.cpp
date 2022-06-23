@@ -25,7 +25,7 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 	}
 
 	const FRigVMFunction Function(InName, InFunctionPtr, InStruct, Functions.Num(), InArguments);
-	Functions.Add(Function);
+	Functions.AddElement(Function);
 	FunctionNameToIndex.Add(InName, Function.Index);
 
 #if WITH_EDITOR
@@ -62,7 +62,7 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 				{
 					Template.Index = Templates.Num();
 					Functions[Function.Index].TemplateIndex = Template.Index;
-					Templates.Add(Template);
+					Templates.AddElement(Template);
 
 					if(ExistingTemplateIndexPtr == nullptr)
 					{
@@ -94,7 +94,7 @@ const FRigVMFunction* FRigVMRegistry::FindFunction(UScriptStruct* InStruct, cons
 	return FindFunction(*FunctionName);
 }
 
-const TArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const
+const TChunkedArray<FRigVMFunction>& FRigVMRegistry::GetFunctions() const
 {
 	return Functions;
 }
@@ -114,7 +114,7 @@ const FRigVMTemplate* FRigVMRegistry::FindTemplate(const FName& InNotation) cons
 	return nullptr;
 }
 
-const TArray<FRigVMTemplate>& FRigVMRegistry::GetTemplates() const
+const TChunkedArray<FRigVMTemplate>& FRigVMRegistry::GetTemplates() const
 {
 	return Templates;
 }
@@ -192,7 +192,7 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 		Template.Permutations[Index] = INDEX_NONE;
 	}
 
-	const int32 Index = Templates.Add(Template);
+	const int32 Index = Templates.AddElement(Template);
 	Templates[Index].Index = Index;
 	TemplateNotationToIndex.Add(Template.GetNotation(), Index);
 	return &Templates[Index];

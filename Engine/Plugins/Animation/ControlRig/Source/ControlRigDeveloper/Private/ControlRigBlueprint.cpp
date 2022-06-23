@@ -2512,12 +2512,10 @@ UControlRig* UControlRigBlueprint::CreateControlRig()
 
 TArray<UStruct*> UControlRigBlueprint::GetAvailableRigUnits()
 {
-	const TArray<FRigVMFunction>& Functions = FRigVMRegistry::Get().GetFunctions();
-
 	TArray<UStruct*> Structs;
 	UStruct* BaseStruct = FRigUnit::StaticStruct();
 
-	for (const FRigVMFunction& Function : Functions)
+	for (const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
 	{
 		if (Function.Struct)
 		{
