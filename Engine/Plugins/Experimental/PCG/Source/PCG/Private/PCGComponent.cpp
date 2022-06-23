@@ -367,6 +367,95 @@ void UPCGComponent::CleanupLocal(bool bRemoveComponents, bool bSave)
 #endif
 }
 
+AActor* UPCGComponent::ClearPCGLink(UClass* TemplateActor)
+{
+	if (!bGenerated || !GetOwner() || !GetWorld())
+	{
+		return nullptr;
+	}
+
+	// TODO: Perhaps remove this part if we want to do it in the PCG Graph.
+#if WITH_EDITOR
+	if (bIsGenerating)
+	{
+		return nullptr;
+	}
+#endif // WITH_EDITOR
+
+	UWorld* World = GetWorld();
+
+	// First create a new actor that will be the new owner of all the resources
+	AActor* NewActor = UPCGActorHelpers::SpawnDefaultActor(World, TemplateActor ? TemplateActor : AActor::StaticClass(), TEXT("PCGStamp"), GetOwner()->GetTransform());
+
+	// Then move all resources linked to this component to this actor
+	bool bHasMovedResources = MoveResourcesToNewActor(NewActor, /*bCreateChild=*/false);
+
+	// And finally, if we are partitioned, we need to do the same for all PCGActors, in Editor only.
+	if (IsPartitioned())
+	{
+#if WITH_EDITOR
+		if (UPCGSubsystem* Subsystem = GetSubsystem())
+		{
+			Subsystem->ClearPCGLink(this, LastGeneratedBounds, NewActor);
+		}
+#endif // WITH_EDITOR
+	}
+	else
+	{
+		if (bHasMovedResources)
+		{
+			Cleanup(true);
+		}
+		else
+		{
+			World->DestroyActor(NewActor);
+			NewActor = nullptr;
+		}
+	}
+
+	return NewActor;
+}
+
+bool UPCGComponent::MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild)
+{
+	check(InNewActor);
+	AActor* NewActor = InNewActor;
+
+	bool bHasMovedResources = false;
+
+	Modify();
+
+	if (bCreateChild)
+	{
+		NewActor = UPCGActorHelpers::SpawnDefaultActor(GetWorld(), NewActor->GetClass(), TEXT("PCGStampChild"), GetOwner()->GetTransform(), NewActor);
+		check(NewActor);
+	}
+
+	// Trying to move all resources for now. Perhaps in the future we won't want that.
+	{
+		FScopeLock ResourcesLock(&GeneratedResourcesLock);
+		for (TObjectPtr<UPCGManagedResource>& GeneratedResource : GeneratedResources)
+		{
+			check(GeneratedResource);
+			GeneratedResource->MoveResourceToNewActor(NewActor);
+			TSet<TSoftObjectPtr<AActor>> Dummy;
+			GeneratedResource->ReleaseIfUnused(Dummy);
+			bHasMovedResources = true;
+		}
+
+		GeneratedResources.Empty();
+	}
+
+	if (!bHasMovedResources && bCreateChild)
+	{
+		// There was no resource moved, delete the newly spawned actor.
+		GetWorld()->DestroyActor(NewActor);
+		return false;
+	}
+
+	return bHasMovedResources;
+}
+
 void UPCGComponent::CleanupInternal(bool bRemoveComponents)
 {
 	TSet<TSoftObjectPtr<AActor>> ActorsToDelete;

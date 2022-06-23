@@ -85,6 +85,9 @@ public:
 	/** Flushes the graph cache completely, use only for debugging */
 	void FlushCache();
 
+	/** Move all resources from sub actors to a new actor */
+	void ClearPCGLink(UPCGComponent* InComponent, const FBox& InBounds, AActor* InNewActor);
+
 private:
 	FPCGTaskId DelayProcessGraph(UPCGComponent* Component, bool bGenerate, bool bSave, bool bUseEmptyNewBounds);
 	FPCGTaskId ProcessGraph(UPCGComponent* Component, const FBox& InPreviousBounds, const FBox& InNewBounds, bool bGenerate, bool bSave);

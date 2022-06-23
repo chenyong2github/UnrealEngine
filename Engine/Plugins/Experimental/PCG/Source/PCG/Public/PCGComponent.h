@@ -15,6 +15,7 @@ class UPCGData;
 class UPCGSubsystem;
 class ALandscapeProxy;
 class FLandscapeProxyComponentDataChangedParams;
+class UClass;
 
 #if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPCGGraphGenerated, UPCGComponent*);
@@ -96,6 +97,10 @@ public:
 	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
 	void Cleanup(bool bRemoveComponents, bool bSave = false);
 
+	/** Move all generated resources under a new actor, following a template (AActor if not provided), clearing all link to this PCG component. Returns the new actor.*/
+	UFUNCTION(BlueprintCallable, Category = PCG)
+	AActor* ClearPCGLink(UClass* TemplateActor = nullptr);
+
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
 	EPCGComponentInput InputType = EPCGComponentInput::Actor;
 
@@ -171,6 +176,7 @@ private:
 	void PostProcessGraph(const FBox& InNewBounds, bool bInGenerated);
 	void OnProcessGraphAborted();
 	void CleanupUnusedManagedResources();
+	bool MoveResourcesToNewActor(AActor* InNewActor, bool bCreateChild);
 
 	bool GetActorsFromTags(const TSet<FName>& InTags, TSet<TWeakObjectPtr<AActor>>& OutActors, bool bCullAgainstLocalBounds);
 

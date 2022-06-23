@@ -78,6 +78,18 @@ void FPCGComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 					.Text(LOCTEXT("CleanupButton", "Cleanup"))
 				]
 			]
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(4.0f)
+			[
+				SNew(SButton)
+				.OnClicked(this, &FPCGComponentDetails::OnClearPCGLinkClicked)
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.Text(LOCTEXT("ClearPCGLinkButton", "Clear PCG Link"))
+				]
+			]
 		];
 
 	// Attach to generated delegate on the selected components
@@ -111,6 +123,19 @@ FReply FPCGComponentDetails::OnGenerateClicked()
 		if (Component.IsValid())
 		{
 			Component.Get()->Generate();
+		}
+	}
+
+	return FReply::Handled();
+}
+
+FReply FPCGComponentDetails::OnClearPCGLinkClicked()
+{
+	for (TWeakObjectPtr<UPCGComponent>& Component : SelectedComponents)
+	{
+		if (Component.IsValid())
+		{
+			Component.Get()->ClearPCGLink();
 		}
 	}
 

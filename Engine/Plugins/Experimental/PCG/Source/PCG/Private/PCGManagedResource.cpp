@@ -4,6 +4,7 @@
 #include "PCGComponent.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
+#include "Components/SceneComponent.h"
 
 // By default, if it is not a hard release, we mark the resource unused.
 bool UPCGManagedResource::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& /*OutActorsToDelete*/)
@@ -72,6 +73,26 @@ bool UPCGManagedActors::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsT
 	return Super::ReleaseIfUnused(OutActorsToDelete) || GeneratedActors.IsEmpty();
 }
 
+bool UPCGManagedActors::MoveResourceToNewActor(AActor* NewActor)
+{
+	check(NewActor);
+
+	for (TSoftObjectPtr<AActor>& Actor : GeneratedActors)
+	{
+		if (!Actor.IsValid())
+		{
+			continue;
+		}
+
+		Actor->DetachFromActor(FDetachmentTransformRules::KeepWorldTransform);
+		Actor->AttachToActor(NewActor, FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	GeneratedActors.Empty();
+
+	return true;
+}
+
 void UPCGManagedComponent::PostEditImport()
 {
 	Super::PostEditImport();
@@ -134,6 +155,47 @@ bool UPCGManagedComponent::Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor
 bool UPCGManagedComponent::ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete)
 {
 	return Super::ReleaseIfUnused(OutActorsToDelete) || !GeneratedComponent.IsValid();
+}
+
+bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor)
+{
+	check(NewActor);
+
+	if (!GeneratedComponent.IsValid())
+	{
+		return false;
+	}
+
+	TObjectPtr<AActor> OldOwner = GeneratedComponent->GetOwner();
+	check(OldOwner);
+
+	bool bDetached = false;
+	bool bAttached = false;
+
+	// Check if it is a scene component, and if so, use its method to attach/detach to root component
+	if (TObjectPtr<USceneComponent> GeneratedSceneComponent = Cast<USceneComponent>(GeneratedComponent.Get()))
+	{
+		GeneratedSceneComponent->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
+		bDetached = true;
+		bAttached = GeneratedSceneComponent->AttachToComponent(NewActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	// Otherwise use the default one.
+	if (!bAttached)
+	{
+		if (!bDetached)
+		{
+			OldOwner->RemoveInstanceComponent(GeneratedComponent.Get());
+		}
+
+		NewActor->AddInstanceComponent(GeneratedComponent.Get());
+	}
+
+	GeneratedComponent->Rename(nullptr, NewActor);
+
+	GeneratedComponent.Reset();
+
+	return true;
 }
 
 void UPCGManagedComponent::MarkAsUsed()

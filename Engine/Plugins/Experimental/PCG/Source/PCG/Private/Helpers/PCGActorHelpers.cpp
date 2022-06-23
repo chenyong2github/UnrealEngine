@@ -292,7 +292,7 @@ void UPCGActorHelpers::GetActorClassDefaultComponents(const TSubclassOf<AActor>&
 	OutComponents = MoveTemp(ResultComponents);
 }
 
-void UPCGActorHelpers::ForEachActorInLevel(TObjectPtr<ULevel> Level, TSubclassOf<AActor> ActorClass, TFunctionRef<void(AActor*)> Callback)
+void UPCGActorHelpers::ForEachActorInLevel(ULevel* Level, TSubclassOf<AActor> ActorClass, TFunctionRef<void(AActor*)> Callback)
 {
 	if (!Level)
 	{
@@ -306,4 +306,51 @@ void UPCGActorHelpers::ForEachActorInLevel(TObjectPtr<ULevel> Level, TSubclassOf
 			Callback(Actor);
 		}
 	}
+}
+
+AActor* UPCGActorHelpers::SpawnDefaultActor(UWorld* World, TSubclassOf<AActor> ActorClass, FName BaseName, const FTransform& Transform, AActor* Parent)
+{
+	if (!World || !ActorClass)
+	{
+		return nullptr;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Name = MakeUniqueObjectName(World, ActorClass, BaseName);
+	SpawnParams.Owner = Parent;
+	AActor* NewActor = World->SpawnActor(*ActorClass, &Transform, SpawnParams);
+	
+	if (!NewActor)
+	{
+		return nullptr;
+	}
+
+#if WITH_EDITOR
+	NewActor->SetActorLabel(SpawnParams.Name.ToString());
+#endif // WITH_EDITOR
+
+	USceneComponent* RootComponent = NewActor->GetRootComponent();
+	if (!RootComponent)
+	{
+		RootComponent = NewObject<USceneComponent>(NewActor, USceneComponent::GetDefaultSceneRootVariableName(), RF_Transactional);
+		RootComponent->SetWorldTransform(Transform);
+
+		NewActor->SetRootComponent(RootComponent);
+		NewActor->AddInstanceComponent(RootComponent);
+
+		RootComponent->RegisterComponent();
+	}
+
+	RootComponent->Mobility = EComponentMobility::Static;
+
+#if WITH_EDITOR
+	RootComponent->bVisualizeComponent = true;
+#endif // WITH_EDITOR
+
+	if (Parent)
+	{
+		NewActor->AttachToActor(Parent, FAttachmentTransformRules::KeepWorldTransform);
+	}
+
+	return NewActor;
 }

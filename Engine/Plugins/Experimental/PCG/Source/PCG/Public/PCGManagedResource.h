@@ -28,6 +28,9 @@ public:
 
 	virtual void MarkAsUsed() { bIsMarkedUnused = false; }
 
+	/** Move the given resource to a new actor. Return true if it has succeeded */
+	virtual bool MoveResourceToNewActor(AActor* NewActor) { return false; };
+
 protected:
 	UPROPERTY(Transient, VisibleAnywhere, Category = GeneratedData)
 	bool bIsMarkedUnused = false;
@@ -46,6 +49,7 @@ public:
 	//~Begin UPCGManagedResource interface
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
+	virtual bool MoveResourceToNewActor(AActor* NewActor) override;
 	//~End UPCGManagedResource interface
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = GeneratedData)
@@ -65,6 +69,7 @@ public:
 	//~Begin UPCGManagedResource interface
 	virtual bool Release(bool bHardRelease, TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
 	virtual bool ReleaseIfUnused(TSet<TSoftObjectPtr<AActor>>& OutActorsToDelete) override;
+	virtual bool MoveResourceToNewActor(AActor* NewActor) override;
 	//~End UPCGManagedResource interface
 
 	virtual void ResetComponent() { check(0); }

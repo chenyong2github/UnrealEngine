@@ -517,6 +517,72 @@ void UPCGSubsystem::CleanupPartitionActors(const FBox& InBounds)
 	PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
 }
 
+void UPCGSubsystem::ClearPCGLink(UPCGComponent* InComponent, const FBox& InBounds, AActor* InNewActor)
+{
+	TWeakObjectPtr<AActor> NewActorPtr(InNewActor);
+	TWeakObjectPtr<UPCGComponent> ComponentPtr(InComponent);
+
+	auto ScheduleTask = [this, NewActorPtr, ComponentPtr](APCGPartitionActor* PCGActor, const FBox& InIntersectedBounds, const TArray<FPCGTaskId>& TaskDependencies) {
+		auto MoveTask = [this, NewActorPtr, ComponentPtr, PCGActor]() {
+			check(NewActorPtr.IsValid() && ComponentPtr.IsValid() && PCGActor != nullptr);
+
+			if (TObjectPtr<UPCGComponent> LocalComponent = PCGActor->GetLocalComponent(ComponentPtr.Get()))
+			{
+				LocalComponent->MoveResourcesToNewActor(NewActorPtr.Get(), /*bCreateChild=*/true);
+			}
+
+			return true;
+		};
+
+		return GraphExecutor->ScheduleGeneric(MoveTask, TaskDependencies);
+	};
+
+	FPCGTaskId TaskId = PCGSubsystem::ForEachIntersectingCell(GraphExecutor, GetWorld(), InBounds, /*bCreateActor=*/false, /*bLoadCell=*/false, /*bSave=*/false, ScheduleTask);
+
+	// Verify if the NewActor has some components attached to its root or attached actors. If not, destroy it.
+	// Return false if the new actor is not valid or destroyed.
+	auto VerifyAndDestroyNewActor = [this, NewActorPtr]() {
+		check(NewActorPtr.IsValid());
+
+		USceneComponent* RootComponent = NewActorPtr->GetRootComponent();
+		check(RootComponent);
+
+		AActor* NewActor = NewActorPtr.Get();
+
+		TArray<AActor*> AttachedActors;
+		NewActor->GetAttachedActors(AttachedActors);
+
+		if (RootComponent->GetNumChildrenComponents() == 0 && AttachedActors.IsEmpty())
+		{
+			GetWorld()->DestroyActor(NewActor);
+			return false;
+		}
+
+		return true;
+	};
+
+	if (TaskId != InvalidPCGTaskId)
+	{
+		auto CleanupTask = [this, ComponentPtr, VerifyAndDestroyNewActor]() {
+
+			// If the new actor is valid, clean up the original component.
+			if (VerifyAndDestroyNewActor())
+			{
+				check(ComponentPtr.IsValid());
+				ComponentPtr->Cleanup(/*bRemoveComponents=*/true);
+			}
+
+			return true;
+		};
+
+		GraphExecutor->ScheduleGeneric(CleanupTask, { TaskId });
+	}
+	else
+	{
+		VerifyAndDestroyNewActor();
+	}
+}
+
 void UPCGSubsystem::DeletePartitionActors()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UPCGSubsystem::DeletePartitionActors);

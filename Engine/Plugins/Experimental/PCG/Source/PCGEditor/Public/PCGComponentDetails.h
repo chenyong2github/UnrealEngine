@@ -21,6 +21,7 @@ public:
 private:
 	FReply OnGenerateClicked();
 	FReply OnCleanupClicked();
+	FReply OnClearPCGLinkClicked();
 	void OnGraphChanged(UPCGComponent* InComponent);
 
 	TArray<TWeakObjectPtr<UPCGComponent>> SelectedComponents;
