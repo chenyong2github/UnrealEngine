@@ -281,7 +281,7 @@ namespace Chaos
 		// Contact modification may change bIsProbe but we want to store the unmodified value
 		// so that it can be reset between frames.
 		Flags.bIsProbe = 
-		Flags.bIsProbeUnmodified = Shape[0]->GetIsProbe() || Shape[1]->GetIsProbe();
+		Flags.bIsProbeUnmodified = (Shape[0] && Shape[0]->GetIsProbe()) || (Shape[1] && Shape[1]->GetIsProbe());
 
 		const FReal Margin0 = GetImplicit0()->GetMargin();
 		const FReal Margin1 = GetImplicit1()->GetMargin();
