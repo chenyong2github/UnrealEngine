@@ -67,7 +67,7 @@ struct FTimeStretchCurveMarker
 		Imagine the following scenario, you have a character attacking with a staff.
 		The animation is authored with holds after striking.
 		Let's say the character levels up over the course of the game, and
-		his attacks are getting faster and faster (play time is shorter).
+		their attacks are getting faster and faster (play time is shorter).
 
 		By using a Time Stretch Curve, most of the time compression could happen
 		during the holds. So the strikes look mostly unaffected.

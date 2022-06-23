@@ -26,7 +26,7 @@ public:
 	virtual void PostLoad() override;
 	//~ End UObject interface
 
-	/** Initialize the controller at the first tick of his owner component. */
+	/** Initialize the controller at the first tick of its owner component. */
 	virtual void OnEvaluateRegistered() { }
 
 	UE_DEPRECATED(4.25, "This function is deprecated. Use Tick function that received evaluated data instead.")

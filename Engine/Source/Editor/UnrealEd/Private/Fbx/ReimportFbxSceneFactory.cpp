@@ -690,9 +690,9 @@ EReimportResult::Type UReimportFbxSceneFactory::Reimport(UObject* Obj)
 
 		if (!AbortDelete)
 		{
-			//Delete the asset and use the normal dialog to make sure the user understand he will remove some content
-			//The user can decide to cancel the delete or not. This will not interrupt the reimport process
-			//The delete is done at the end because we want to remove the blueprint reference before deleting object
+			//Delete the asset and use the normal dialog to make sure the user understands they will remove some content.
+			//The user can decide to cancel the delete or not. This will not interrupt the reimport process.
+			//The delete is done at the end because we want to remove the Blueprint reference before deleting the object.
 			ObjectTools::DeleteAssets(AssetDataToDelete, !GIsRunningUnattendedScript);
 		}
 	}

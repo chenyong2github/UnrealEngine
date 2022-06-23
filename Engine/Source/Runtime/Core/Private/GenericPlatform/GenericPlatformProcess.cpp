@@ -487,7 +487,7 @@ FEvent* FGenericPlatformProcess::CreateSynchEvent(bool bIsManualReset)
 	
 	// Create fake singlethread events in environments that don't support multithreading
 	// For processes that intend to fork: create real events even in the master process since the allocated mutex might get reused by the
-	//forked child process when he gets to run in multithread mode.
+	//forked child process when it gets to run in multithread mode.
 	const bool bIsMultithread = FPlatformProcess::SupportsMultithreading() || FForkProcessHelper::SupportsMultithreadingPostFork();
 
 	if (bIsMultithread)

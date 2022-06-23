@@ -51,7 +51,7 @@ void UMediaPlayerTimeSynchronizationSource::PostEditChangeProperty(FPropertyChan
 			UTimeSynchronizableMediaSource* SynchronizableMediaSource = TimeSynchronizationSource::GetTimeSynchronizableMediaSource(MediaSource);
 			if (SynchronizableMediaSource == nullptr || !SynchronizableMediaSource->bUseTimeSynchronization)
 			{
-				// Warn the user that the MediaSource he just added isn't set for using time synchronization
+				// Warn the user that the MediaSource they just added isn't set for using time synchronization
 				UE_LOG(LogMediaFrameworkUtilities, Warning, TEXT("MediaSource %s doesn't have the option to use time synchronization enabled."), *MediaSource->GetName());
 			}
 		}

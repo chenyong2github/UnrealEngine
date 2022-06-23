@@ -1006,7 +1006,7 @@ void StaticMeshImportUtils::RestoreExistingMeshData(const TSharedPtr<const FExis
 	TArray<FName> RemapMaterialName;
 	RemapMaterialName.AddZeroed(NewMesh->GetStaticMaterials().Num());
 
-	//If user is attended, ask him to verify the match is good
+	//If user is attended, ask them to verify the match is good
 	UnFbx::EFBXReimportDialogReturnOption ReturnOption;
 	//Ask the user to match the materials conflict
 	UnFbx::FFbxImporter::PrepareAndShowMaterialConflictDialog<FStaticMaterial>(ExistingMeshDataPtr->ExistingMaterials, NewMesh->GetStaticMaterials(), RemapMaterial, RemapMaterialName, bCanShowDialog, false, bForceConflictingMaterialReset, ReturnOption);

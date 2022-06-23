@@ -196,7 +196,7 @@ void UInterchangeBaseNodeContainer::SerializeNodeContainerData(FArchive& Ar)
 
 	if(Ar.IsSaving())
 	{
-		//The node name is not serialize since its an attribute inside the node that will be serialize by the node himself
+		//The node name is not serialize since its an attribute inside the node that will be serialize by the node itself
 		auto SerializeNodePair = [&Ar](UInterchangeBaseNode* BaseNode)
 		{
 			FString ClassFullName = BaseNode->GetClass()->GetFullName();

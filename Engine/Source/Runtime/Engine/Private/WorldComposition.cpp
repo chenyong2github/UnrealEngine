@@ -926,7 +926,7 @@ void UWorldComposition::OnLevelRemovedFromWorld(ULevel* InLevel)
 	}
 #endif
 	
-	// Move level to his local origin
+	// Move level to its local origin
 	FIntVector LevelOffset = GetLevelOffset(InLevel);
 	InLevel->ApplyWorldOffset(-FVector(LevelOffset), false);
 }

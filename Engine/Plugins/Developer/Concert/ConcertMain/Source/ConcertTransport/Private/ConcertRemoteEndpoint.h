@@ -29,7 +29,7 @@ public:
 	/** Is the remote endpoint registered in the underlying bus. */
 	bool IsRegistered() const;
 
-	/** Does this remote endpoint needs to resend any of his pending messages. */
+	/** Does this remote endpoint needs to resend any of its pending messages. */
 	bool IsPendingResend() const;
 
 	/** Clear the pending resend flag. */

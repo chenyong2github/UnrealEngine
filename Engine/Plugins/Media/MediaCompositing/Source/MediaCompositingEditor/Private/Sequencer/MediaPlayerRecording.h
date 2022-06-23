@@ -46,7 +46,7 @@ struct FMediaPlayerRecordingSettings
 
 	}
 
-	/** Whether this MediaPlayer is active and his event will be recorded when the 'Record' button is pressed. */
+	/** Whether this MediaPlayer is active and its event will be recorded when the 'Record' button is pressed. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlayer Event Recording")
 	bool bActive;
 
@@ -104,7 +104,7 @@ public:
 	void SetMediaPlayerToRecord(UMediaPlayer* InMediaPlayer);
 
 public:
-	/** Whether this MediaPlayer is active and his event will be recorded when the 'Record' button is pressed. */
+	/** Whether this MediaPlayer is active and its event will be recorded when the 'Record' button is pressed. */
 	UPROPERTY(EditAnywhere, Category = "MediaPlayer Recording")
 	FMediaPlayerRecordingSettings RecordingSettings;
 

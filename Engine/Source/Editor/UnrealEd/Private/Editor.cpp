@@ -366,7 +366,7 @@ bool FReimportManager::Reimport( UObject* Obj, bool bAskForNewFileIfMissing, boo
 				}
 				if ( SourceFilenames.Num() == 0 || bAllSourceFileEmpty)
 				{
-					// Failed to specify a new filename. Don't show a notification of the failure since the user exited on his own
+					// Failed to specify a new filename. Don't show a notification of the failure since the user exited on their own
 					bValidSourceFilename = false;
 					bShowNotification = false;
 					SourceFilenames.Empty();

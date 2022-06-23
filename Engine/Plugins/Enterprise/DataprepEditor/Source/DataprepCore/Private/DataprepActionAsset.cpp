@@ -481,7 +481,7 @@ bool UDataprepActionAsset::SwapSteps(int32 FirstIndex, int32 SecondIndex)
 	}
 	if ( FirstIndex == SecondIndex )
 	{
-		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::SwapStep: a Step shouldn't be swap whit himself"));
+		UE_LOG(LogDataprepCore, Error, TEXT("UDataprepActionAsset::SwapStep: a Step shouldn't be swapped with itself"));
 	}
 
 	return false;

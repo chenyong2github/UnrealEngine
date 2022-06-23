@@ -78,7 +78,7 @@ EConcertSessionResponseCode FConcertServerDataStore::OnCompareExchange(const FCo
 			// Send the version back because the client may have successfully exchanged a version that was good few versions before,
 			// for example, client sent '3' at version '2', but the value has changed few times and now is '3' at version '7'. The
 			// exchange will succeed, but the exact version is '8', not '4'. Don't send back the "stored" value nor the "type name" because
-			// the user is expected to know them since he sent them.
+			// the user is expected to know them since they sent them.
 			Response.Value.Version = Result.Value->Version;
 
 			// Notify the other clients (if any).

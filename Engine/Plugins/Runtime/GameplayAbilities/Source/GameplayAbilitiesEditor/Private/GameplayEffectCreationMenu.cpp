@@ -37,7 +37,7 @@ struct FGEMenuItem : TSharedFromThis<FGEMenuItem>
 			TSharedPtr<FGEMenuItem> SubItem  = It.Value;
 			FString CatName = It.Key;
 
-			// Add a submenu if this guy has sub items
+			// Add a submenu if this item has sub items
 			if (SubItem->SubItems.Num() > 0)
 			{
 				MenuBuilder.AddSubMenu(

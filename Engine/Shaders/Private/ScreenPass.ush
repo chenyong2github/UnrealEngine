@@ -20,7 +20,7 @@
 	SCREEN_PASS_STRUCT_MEMBER(StructName, float2, UVViewportBilinearMin) \
 	SCREEN_PASS_STRUCT_MEMBER(StructName, float2, UVViewportBilinearMax)
 
-// Poor man's structure abstraction until HLSLCC is gone
+// Substitute for structure abstraction until HLSLCC is gone
 #define FScreenTransform float4
 
 float2 ApplyScreenTransform(float2 PInA, FScreenTransform AToB)

@@ -144,7 +144,7 @@ namespace UsdGeomMeshTranslatorImpl
 		// Don't enable Nanite if we have more than one LOD. This means the Mesh came from the LOD variant set setup, and
 		// we're considering the LOD setup "stronger" than the Nanite override: If you have all that LOD variant set situation you
 		// likely don't want Nanite for one of the LOD meshes anyway, as that doesn't really make any sense.
-		// If the user wants to have Nanite within the variant set all he would otherwise need is to name the variant set something
+		// If the user wants to have Nanite within the variant set all they would otherwise need is to name the variant set something
 		// else other than LOD.
 		if ( LODIndexToMeshDescription.Num() > 1 )
 		{
@@ -633,7 +633,7 @@ namespace UsdGeomMeshTranslatorImpl
 			}
 
 			// Put whether we want Nanite or not within the hash, so that the user could have one instance of the mesh without Nanite and another
-			// with Nanite if he wants to (using the override parameters). This also nicely handles a couple of edge cases:
+			// with Nanite if they want to (using the override parameters). This also nicely handles a couple of edge cases:
 			//	- What if we change a mesh from having Nanite disabled to enabled, or vice-versa (e.g. by changing the threshold)? We'd reuse the mesh from the asset cache
 			//    in that case, so we'd need to rebuild it;
 			//  - What if multiple meshes on the scene hash the same, but only one of them has a Nanite override attribute?

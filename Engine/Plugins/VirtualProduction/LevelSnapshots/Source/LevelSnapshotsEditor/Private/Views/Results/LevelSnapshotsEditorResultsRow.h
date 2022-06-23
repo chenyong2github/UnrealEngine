@@ -235,7 +235,7 @@ struct FLevelSnapshotsEditorResultsRow final : TSharedFromThis<FLevelSnapshotsEd
 	TSharedPtr<SWidget> GetSnapshotPropertyCustomWidget() const;
 	TSharedPtr<SWidget> GetWorldPropertyCustomWidget() const;
 
-	/* Returns true if a specified type of custom widget is valid for his row. Use ObjectType_None to return true only if both snapshot and world custom widgets are valid. */
+	/* Returns true if a specified type of custom widget is valid for its row. Use ObjectType_None to return true only if both snapshot and world custom widgets are valid. */
 	bool HasCustomWidget(ELevelSnapshotsObjectType InQueryType) const;
 
 	bool GetIsCounterpartValueSame() const;

@@ -191,7 +191,7 @@ void FNiagaraDebuggerClient::HandleDebugHUDSettingsMessage(const FNiagaraDebugHU
 				WorldMan.GetNiagaraDebugHud()->UpdateSettings(Message);
 
 				//TODO: Move these to just take direct from the debug hud per worldman?
-				//Possibly move the debug hud itself to the debugger client rather than having one per world man and they all share global state.
+				//Possibly move the debug hud itself to the debugger client rather than having one per world manager and they all share global state.
 				const ENiagaraDebugPlaybackMode PlaybackMode = Message.IsEnabled() ? Message.PlaybackMode : ENiagaraDebugPlaybackMode::Play;
 				const float PlaybackRate = Message.IsEnabled() && Message.bPlaybackRateEnabled ? Message.PlaybackRate : 1.0f;
 				WorldMan.SetDebugPlaybackMode(PlaybackMode);

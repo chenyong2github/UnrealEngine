@@ -2219,7 +2219,7 @@ bool UEditorEngine::ShouldAbortBecauseOfUnsavedWorld()
 			// Now check if the file exists on disk. If it does, it won't be "lost" when GC'd.
 			if ( !FPackageName::DoesPackageExist(PackageName) )
 			{
-				// This world will be completely lost if a map transition happens. Warn the user that this is happening and ask him/her how to proceed.
+				// This world will be completely lost if a map transition happens. Warn the user that this is happening and ask them how to proceed.
 				if (EAppReturnType::Yes != FMessageDialog::Open(EAppMsgType::YesNo, EAppReturnType::Yes, FText::Format(NSLOCTEXT("UnrealEd", "Prompt_ThisActionWillDiscardWorldContinue", "The unsaved level {0} will be lost.  Continue?"), FText::FromString(LevelEditorWorld->GetName()))))
 				{
 					// User doesn't want to lose the world -- abort the load.
@@ -4803,7 +4803,7 @@ void UEditorEngine::MoveViewportCamerasToActor(const TArray<AActor*> &Actors, co
 		return;
 	}
 
-	// If the first actor is a documentation actor open his document link
+	// If the first actor is a documentation actor open its document link
 	if (Actors.Num() == 1)
 	{
 		ADocumentationActor* DocActor = Cast<ADocumentationActor>(Actors[0]);

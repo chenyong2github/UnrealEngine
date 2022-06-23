@@ -242,7 +242,7 @@ void FSkinWeightProfileHelpers::RemoveSkinWeightProfileLOD(USkeletalMesh* InSkel
 		if (LODInfo && LODInfo->bHasBeenSimplified)
 		{
 			//We cannot remove alternate skin weights profile for a generated LOD
-			//It will be remove when the base LOD use to reduce will get his skin weights profile remove
+			//It will be removed when the base LOD used to reduce will get their skin weights profile removed
 			return;
 		}
 		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(InSkeletalMesh);

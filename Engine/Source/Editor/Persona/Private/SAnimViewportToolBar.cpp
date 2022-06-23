@@ -375,7 +375,7 @@ void SAnimViewportToolBar::Construct(const FArguments& InArgs, TSharedPtr<class 
 
 	PinnedCommands->BindCommandList(InViewport->GetCommandList().ToSharedRef());
 
-	// We assign the viewport pointer her rather that initially, as SViewportToolbar::Construct 
+	// We assign the viewport pointer here rather than initially, as SViewportToolbar::Construct 
 	// ends up calling through and attempting to perform operations on the not-yet-full-constructed viewport
 	Viewport = InViewport;
 }

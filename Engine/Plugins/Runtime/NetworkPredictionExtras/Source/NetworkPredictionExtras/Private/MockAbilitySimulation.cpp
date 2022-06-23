@@ -102,7 +102,7 @@ void FMockAbilitySimulation::SimulationTick(const FNetSimTimeStep& TimeStep, con
 	//	-We are creating local copies of the input state that we can mutate and pass on to the parent simulation's tick (LocalCmd, LocalSync, LocalAux). This may seem weird but consider:
 	//		-Modifying the actual inputs is a bad idea: inputs are "final" once TNetworkedSimulationModel calls SimulationTick. The sim itself should not modify the inputs after this.
 	//		-Tempting to just use the already-allocated Output states and pass them to the parent sim as both Input/Output. But now &Input.Sync == &Output.Sync for example! The parent sim
-	//			may write to Output and then later check it against the passed in input (think "did this change"), having no idea that by writing to output he was also writing to input! This seems like it should be avoided.
+	//			may write to Output and then later check it against the passed in input (think "did this change"), having no idea that by writing to output it was also writing to input! This seems like it should be avoided.
 	//		-It may be worth considering "lazy copying" or allocating of these temp states... but for now that adds more complexity and isn't necessary since the local copies are stack allocated and
 	//			these state structures are small and contiguous.
 	//

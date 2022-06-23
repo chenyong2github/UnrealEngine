@@ -1026,7 +1026,7 @@ public:
 	virtual void SetVisibility(TAttribute<EVisibility> InVisibility);
 
 	/**
-	 * @return is the widget visible and his parents also visible.
+	 * @return is the widget visible and its parents also visible.
 	 * @note only valid if the widget is contained by an InvalidationRoot (the proxy is valid).
 	 */
 	UE_DEPRECATED(5.0, "IsFastPathVisible is deprecated and should not be used.")

@@ -1229,7 +1229,7 @@ void FCharacterMovementComponentAsyncInput::PhysFalling(float deltaTime, int32 I
 							Velocity = RootMotion.bHasAnimRootMotion || RootMotion.bHasOverrideWithIgnoreZAccumulate ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 						}
 
-						// bDitch=true means that pawn is straddling two slopes, neither of which he can stand on
+						// bDitch=true means that pawn is straddling two slopes, neither of which it can stand on
 						bool bDitch = ((OldHitImpactNormal.Z > 0.f) && (Hit.ImpactNormal.Z > 0.f) && (FMath::Abs(Delta.Z) <= UE_KINDA_SMALL_NUMBER) && ((Hit.ImpactNormal | OldHitImpactNormal) < 0.f));
 						SafeMoveUpdatedComponent(Delta, PawnRotation, true, Hit, Output);
 						if (Hit.Time == 0.f)

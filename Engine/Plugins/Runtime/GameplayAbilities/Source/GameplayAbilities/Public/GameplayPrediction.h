@@ -53,7 +53,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	
  *	*** PredictionKey ***
  *	
- *	A fundamental concept in this system is the Prediction Key (FPredictionKey). A prediction key on its own is simply a unique ID that is generated in a central place on the client. The client will send his prediction key to the server, 
+ *	A fundamental concept in this system is the Prediction Key (FPredictionKey). A prediction key on its own is simply a unique ID that is generated in a central place on the client. The client will send its prediction key to the server, 
  *	and associate predictive actions and side effects with this key. The server may respond with an accept/reject for the prediction key, and will also associate the server-side created side effects with this prediction key.
  *	
  *	(IMPORTANT) FPredictionKey always replicate client -> server, but when replicating server -> clients they *only* replicate to the client that sent the prediction key to the server in the first place. 
@@ -62,7 +62,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	
  *	*** Ability Activation ***
  *	
- *	Ability Activation is a first class predictive action. Whenever a client predictively activates an ability, he explicitly asks the server and the server explicitly responds. Once an ability has been
+ *	Ability Activation is a first class predictive action. Whenever a client predictively activates an ability, it explicitly asks the server and the server explicitly responds. Once an ability has been
  *	predictively activated, the client has a valid 'prediction window' where predictive side effects can happen which are not explicitly 'asked about'. (E.g., we do not explicitly ask 'Can I decrement mana, Can I
  *	put this ability on cooldown. Those actions are considered logically atomic with activating an ability).
  *	
@@ -73,7 +73,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	2. Client continues (before hearing back from server) and calls ActivateAbility with the generated PredictionKey associated with the Ability's ActivationInfo.
  *	3. Any side effects that happen /before the call to ActivatAbility finish/ have the generated FPredictionKey associated with them.
  *	4. Server decides if the ability really happened in ServerTryActivateAbility, calls ClientActivateAbility(Failed/Succeed) and sets UAbilitySystemComponent::ReplicatedPredictionKey to the generated key that was sent.
- *	5. If client receives ClientAbilityFailed, he immediately kills the ability and rolls back side effects that were associated with the prediction key.
+ *	5. If client receives ClientAbilityFailed, it immediately kills the ability and rolls back side effects that were associated with the prediction key.
  *		5a. 'Rolling back' is accomplished via FPredictionKeyDelegates and FPredictionKey::NewRejectedDelegate/NewCaughtUpDelegate/NewRejectOrCaughtUpDelegate. 
  *
  *
@@ -87,7 +87,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *		FPredictionKeyDelegates::BroadcastRejectedDelegate(PredictionKey);
  *		
  *	6. If accepted, client must wait until property replication catches up (the Succeed RPC will be sent immediately, property replication will happen on its own). Once the ReplicatedPredictionKey catches up to the
- *		key used previous steps, the client can undo his predictive side effects. See UAbilitySystemComponent::OnRep_PredictionKey.
+ *		key used previous steps, the client can undo its predictive side effects. See UAbilitySystemComponent::OnRep_PredictionKey.
  *						
  *			 
  *			 
@@ -156,7 +156,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	another game code driven event. Clients are able to predictively execute these events which predictively activate abilities. 
  *	
  *	There are some nuances to however, since the server will also run the code that triggers events. The server won't just wait to hear from the client. The server will keep a list of triggered abilities that have been
- *	activated from a predictive ability. When receiving a TryActivate from a triggered ability, the server will look to see if /he/ has already run this ability, and respond with that information.
+ *	activated from a predictive ability. When receiving a TryActivate from a triggered ability, the server will look to see if /it/ has already run this ability, and respond with that information.
  *	
  *	There is work left to do on Triggered Events and replication. (explained at the end).
  *	
@@ -172,8 +172,8 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	To handle this, we have a concept of a Base PredictionKey, which is a member of FPredictionKey. When calling TryActivateAbility, we pass in the current PredictionKey (if applicable). That prediction key
  *	is used as the base for any new prediction keys generated. We build a chain of keys this way, and can then invalidate Z if Y is rejected.
  *	
- *	This is slightly more nuanced though. In the X->Y->Z case, the server will only recieve the PredictionKey for X before trying to run the chain himself. E.g., he will TryActivate Y and Z with the original prediction key
- *	sent to him from the client. Where as the client will generate a new PredictionKey each time he calls TryActivateAbility. The client *has* to generate a new PRedictionKey for each ability activate, since each activate
+ *	This is slightly more nuanced though. In the X->Y->Z case, the server will only receive the PredictionKey for X before trying to run the chain itself. E.g., it will TryActivate Y and Z with the original prediction key
+ *	sent to it from the client, whereas the client will generate a new PredictionKey each time it calls TryActivateAbility. The client *has* to generate a new PredictionKey for each ability activate, since each activate
  *	is not logically atomic. Each side effect produced in the chain of events has to have a unique PredictionKey. We cannot have GameplayEffects produced in X have the same PredictionKey produced in Z.
  *	
  *	To get around this, The prediction key of X is considered the Base key for Y and Z. The dependancy from Y to Z is kept completely client side, which is done in by FPredictionKeyDelegates::AddDependancy. We add delegates
@@ -240,7 +240,7 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	*** "Weak Prediction" ***
  *	
  *	We will probably still have cases that do not fit well into this system. Some situations will exist where a prediction key exchange is not feasible. For example, an ability where any one that player collides with/touches
- *	receives a GameplayEffect that slows them and their material blue. Since we can't send Server RPCs every time this happens (and the server couldn't necessarily handle the message at his point in the simulation), there is no 
+ *	receives a GameplayEffect that slows them and their material blue. Since we can't send Server RPCs every time this happens (and the server couldn't necessarily handle the message at its point in the simulation), there is no 
  *	way to correlate the gameplay effect side effects between client and server.
  *	
  *	One approach here may be to think about a weaker form of prediction. One where there is not a fresh prediction key used and instead the server assumes the client will predict all side effects from an entire ability. This would
@@ -262,17 +262,17 @@ DECLARE_DELEGATE(FPredictionKeyEvent);
  *	between client and server.
  *	
  *	Essentially, anything can be associated with a PredictionKey, for example activating an Ability.
- *	The client can generates a fresh PredictionKey and sends it to the server in his ServerTryActivateAbility call.
+ *	The client can generate a fresh PredictionKey and sends it to the server in its ServerTryActivateAbility call.
  *	The server can confirm or reject this call (ClientActivateAbilitySucceed/Failed). 
  *	
- *	While the client is predictively his ability, he is creating side effects (GameplayEffects, TriggeredEvents, Animations, etc).
- *	As the client predicts these side effects, he associates each one with the prediction key generated at the start of the ability
+ *	While the client is predicting its ability, it is creating side effects (GameplayEffects, TriggeredEvents, Animations, etc).
+ *	As the client predicts these side effects, it associates each one with the prediction key generated at the start of the ability
  *	activation.
  *	
  *	If the ability activation is rejected, the client can immediately revert these side effects. 
  *	If the ability activation is accepted, the client must wait until the replicated side effects are sent to the server.
  *		(the ClientActivatbleAbilitySucceed RPC will be immediately sent. Property replication may happen a few frames later).
- *		Once replication of the server created side effects is finished, the client can undo his locally predictive side effects.
+ *		Once replication of the server created side effects is finished, the client can undo its locally predictive side effects.
  *		
  *	The main things FPredictionKey itself provides are:
  *		-Unique ID and a system for having dependant chains of Prediction Keys ("Current" and "Base" integers)
@@ -512,8 +512,8 @@ private:
  *	Pkt1: {+Tag=X, ReplicatedKey=1)
  *	Pkt2: (ReplicatedKey=2)
  *
- *	If Pkt1 is dropped, after Pkt2 is already in flight, client receives ReplicatedKey=2 and will remove his predictive Tag=X.
- *	The state in Pkt1 will be resent, after the n'ack is detected. But the damage will have been done: Client thought he was up to date
+ *	If Pkt1 is dropped, after Pkt2 is already in flight, client receives ReplicatedKey=2 and will remove irs predictive Tag=X.
+ *	The state in Pkt1 will be resent, after the n'ack is detected. But the damage will have been done: Client thought it was up to date
  *	but was missing a gap.
  *
  */

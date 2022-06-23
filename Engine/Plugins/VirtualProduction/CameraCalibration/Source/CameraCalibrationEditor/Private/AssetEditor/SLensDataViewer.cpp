@@ -402,7 +402,7 @@ FReply SLensDataViewer::OnClearLensFileClicked()
 	FScopedTransaction Transaction(LOCTEXT("LensFileClearAll", "Cleared LensFile"));
 	LensFile->Modify();
 
-	//Warn the user that he's about to clear everything
+	//Warn the user that they are about to clear everything
 	const FText Message = LOCTEXT("ClearAllWarning", "This will erase all data contained in this LensFile. Do you wish to continue?");
 	if (FMessageDialog::Open(EAppMsgType::OkCancel, Message) != EAppReturnType::Ok)
 	{

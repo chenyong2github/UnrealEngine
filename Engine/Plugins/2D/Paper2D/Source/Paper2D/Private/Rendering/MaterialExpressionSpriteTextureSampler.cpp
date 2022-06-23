@@ -49,7 +49,7 @@ FText UMaterialExpressionSpriteTextureSampler::GetKeywords() const
 
 bool UMaterialExpressionSpriteTextureSampler::CanRenameNode() const
 {
-	// The parameter name is read only on this guy
+	// The parameter name is read only
 	return false;
 }
 

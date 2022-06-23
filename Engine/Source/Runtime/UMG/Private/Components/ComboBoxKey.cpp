@@ -184,7 +184,7 @@ void UComboBoxKey::GenerateContent()
 		}
 		else
 		{
-			// Warn the user that he needs to generate a widget for the item
+			// Warn the user that they need to generate a widget for the item
 			ComboBoxContent->SetContent(
 				SNew(STextBlock)
 				.Text(FText::Format(LOCTEXT("WarningMissingOnGenerateContentWidget", "{0} Missing OnGenerateContentWidget"), FText::FromName(SelectedOption)))

@@ -118,7 +118,7 @@ void FGameplayEffectContext::AddInstigator(class AActor *InInstigator, class AAc
 	EffectCauser = InEffectCauser;
 	InstigatorAbilitySystemComponent = NULL;
 
-	// Cache off his AbilitySystemComponent.
+	// Cache off the AbilitySystemComponent.
 	InstigatorAbilitySystemComponent = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(Instigator.Get());
 }
 

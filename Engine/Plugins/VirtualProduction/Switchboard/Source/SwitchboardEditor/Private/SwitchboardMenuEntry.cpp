@@ -164,7 +164,7 @@ struct FSwitchboardMenuEntryImpl
 
 		if (!FPaths::FileExists(ListenerPath))
 		{
-			// Since SwitchboardListener (SBL) doesn't exist, ask the user if he wants us to compile it.
+			// Since SwitchboardListener (SBL) doesn't exist, ask the user if they want us to compile it.
 
 			const FText Msg = LOCTEXT("CouldNotFindSwitchboardListenerCompileAskIfCompile", "Could not find SwitchboardListener. Would you like to compile it? ");
 

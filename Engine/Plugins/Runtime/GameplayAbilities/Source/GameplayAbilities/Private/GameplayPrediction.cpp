@@ -259,7 +259,7 @@ FScopedPredictionWindow::FScopedPredictionWindow(UAbilitySystemComponent* Abilit
 
 FScopedPredictionWindow::FScopedPredictionWindow(UAbilitySystemComponent* InAbilitySystemComponent, bool bCanGenerateNewKey)
 {
-	// On the server, this will do nothing since he is authoritative and doesn't need a prediction key for anything.
+	// On the server, this will do nothing since it is authoritative and doesn't need a prediction key for anything.
 	// On the client, this will generate a new prediction key if bCanGenerateNewKey is true, and we have a invalid prediction key.
 
 	ClearScopedPredictionKey = false;

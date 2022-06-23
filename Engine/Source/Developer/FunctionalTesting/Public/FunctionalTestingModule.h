@@ -32,7 +32,7 @@ public:
 	/** Sets the active testing manager */
 	virtual void SetManager(class UFunctionalTestingManager* NewManager) = 0;
 
-	/** Getst he active testing manager */
+	/** Gets the active testing manager */
 	virtual class UFunctionalTestingManager* GetCurrentManager() = 0;
 
 	/** If true, will run tests forever */

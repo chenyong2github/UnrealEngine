@@ -25,7 +25,7 @@ class LIVELINKINTERFACE_API ULiveLinkController : public UObject
 public:
 	virtual TSubclassOf<ULiveLinkRole> GetRole() const PURE_VIRTUAL(ULiveLinkController::GetRole, return TSubclassOf<ULiveLinkRole>(););
 
-	/** Initialize the controller at the first tick of his owner component. */
+	/** Initialize the controller at the first tick of its owner component. */
 	virtual void OnRegistered() { }
 
 	/** Function called every frame. */

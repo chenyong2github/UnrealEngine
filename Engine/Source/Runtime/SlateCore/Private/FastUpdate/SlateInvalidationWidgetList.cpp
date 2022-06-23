@@ -459,7 +459,7 @@ FSlateInvalidationWidgetIndex FSlateInvalidationWidgetList::Internal_BuildWidget
 
 	const bool bParentOrSelfVolatile = bParentVolatile || Widget.IsVolatile();
 
-	// N.B. The SInvalidationBox needs a valid Proxy to decide if he's a root or not.
+	// N.B. The SInvalidationBox needs a valid Proxy to decide if it's a root or not.
 	//const bool bDoRecursion = ShouldDoRecursion(Widget);
 	const bool bDoRecursion = !bIsInvalidationRoot || bIsEmpty;
 	if (bDoRecursion)
@@ -584,7 +584,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(FSlateInvalidat
 		{
 			if (InvalidationWidget.Index != InvalidationWidget.LeafMostChildIndex)
 			{
-				// All it's child (but not him)
+				// All its children (but not itself)
 				ChildToRemoveRange = { *this, IncrementIndex(InvalidationWidget.Index), InvalidationWidget.LeafMostChildIndex };
 				CurrentOperation = EOperation::Remove;
 				// Do not add new child
@@ -645,7 +645,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(FSlateInvalidat
 				CurrentOperation = EOperation::Remove;
 			}
 #else
-			// All it's child (but not him)
+			// All its children (but not itself)
 			ChildToRemoveRange = { *this, IncrementIndex(InvalidationWidget.Index), InvalidationWidget.LeafMostChildIndex };
 			StartChildIndex = 0;
 			CurrentOperation = EOperation::Remove;

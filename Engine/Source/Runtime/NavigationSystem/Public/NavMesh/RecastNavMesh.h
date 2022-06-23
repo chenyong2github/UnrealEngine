@@ -980,7 +980,7 @@ protected:
 	virtual void OnRegistered() override;
 
 public:
-	/** Whether NavMesh should adjust his tile pool size when NavBounds are changed */
+	/** Whether NavMesh should adjust its tile pool size when NavBounds are changed */
 	bool IsResizable() const;
 
 	/** Returns bounding box for the whole navmesh. */

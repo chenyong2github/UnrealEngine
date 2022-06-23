@@ -223,7 +223,7 @@ class AIMODULE_API UEnvQueryManager : public UAISubsystem, public FSelfRegisteri
 	int32 RunQuery(const TSharedPtr<FEnvQueryInstance>& QueryInstance, FQueryFinishedSignature const& FinishDelegate);
 
 	/** Removed all active queries asked by Querier. No "on finished" notifications are being sent, call this function when
-	 *	you no longer care about Querier's queries, like when he's "dead" */
+	 *	you no longer care about Querier's queries, like when it's "dead" */
 	void SilentlyRemoveAllQueriesByQuerier(const UObject& Querier)
 	{
 		RemoveAllQueriesByQuerier(Querier, /*bExecuteFinishDelegate=*/false);

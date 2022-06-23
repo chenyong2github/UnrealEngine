@@ -730,7 +730,7 @@ public:
 
 	/** 
     * Returns true if this actor is replicating SubObjects & ActorComponents via the registration list.
-    * Returns false when he replicates them via the virtual ReplicateSubobjects method 
+    * Returns false when it replicates them via the virtual ReplicateSubobjects method. 
     */
 	bool IsUsingRegisteredSubObjectList() const { return bReplicateUsingRegisteredSubObjectList; }
 
@@ -2582,7 +2582,7 @@ public:
 	 */
 	virtual void PostActorCreated();
 
-	/** Called when the lifespan of an actor expires (if he has one). */
+	/** Called when the lifespan of an actor expires (if it has one). */
 	virtual void LifeSpanExpired();
 
 	/** Always called immediately before properties are received from the remote. */

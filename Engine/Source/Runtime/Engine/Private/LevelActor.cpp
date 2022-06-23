@@ -950,7 +950,7 @@ bool UWorld::DestroyActor( AActor* ThisActor, bool bNetForce, bool bShouldModify
 
 	UE::Net::Private::FNetPropertyConditionManager::Get().NotifyObjectDestroyed(ThisActor);
 
-	// Notify net drivers that this guy has been destroyed.
+	// Notify net drivers that this actor has been destroyed.
 	if (FWorldContext* Context = GEngine->GetWorldContextFromWorld(this))
 	{
 		for (FNamedNetDriver& Driver : Context->ActiveNetDrivers)

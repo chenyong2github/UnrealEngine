@@ -409,7 +409,7 @@ void FAnimNode_OrientationWarping::InitializeBoneReferences(const FBoneContainer
 
 		for (int32 Index = SpineBoneDataArray.Num() - 1; Index >= 0; Index--)
 		{
-			// If this bone's weight hasn't been updated, scan his parents.
+			// If this bone's weight hasn't been updated, scan its parents.
 			// If parents have weight, we add it to 'ExistingWeight'.
 			// split (1.f - 'ExistingWeight') between all members of the chain that have no weight yet.
 			if (SpineBoneDataArray[Index].Weight == 0.f)

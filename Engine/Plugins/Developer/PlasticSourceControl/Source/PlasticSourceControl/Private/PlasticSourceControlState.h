@@ -164,7 +164,7 @@ public:
 	/** Plastic SCM Parameters of the merge in progress */
 	TArray<FString> PendingMergeParameters;
 
-	/** If a user (another or ourself) has this file locked, this contains his name. */
+	/** If a user (another or ourself) has this file locked, this contains their name. */
 	FString LockedBy;
 
 	/** Location of the locked file. */

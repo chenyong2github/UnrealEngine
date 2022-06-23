@@ -95,9 +95,9 @@ private:
 
 	/**
 	 * Hash cache for the file content.
-	 * We use mutable because the cache is compute when we use the get which is a const function.
-	 * The cache is compute only in the GetFileContentHash() to let the client control in which thread he will compute the cache.
-	 * It also make sure we do not waste CPU computing a cache in case no client use GetFileContentHash().
+	 * We use mutable because the cache is computed when we use the get, which is a const function.
+	 * The cache is computed only in the GetFileContentHash() to let the client control in which thread it will compute the cache.
+	 * It also makes sure we do not waste CPU computing a cache in case no client uses GetFileContentHash().
 	 */
 	mutable TOptional<FMD5Hash> FileContentHashCache;
 };

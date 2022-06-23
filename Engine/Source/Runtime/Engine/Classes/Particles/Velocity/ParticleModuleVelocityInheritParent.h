@@ -17,7 +17,7 @@ class UParticleModuleVelocityInheritParent : public UParticleModuleVelocityBase
 	GENERATED_UCLASS_BODY()
 
 	/**
-	 *	The scale to apply tot he parent velocity prior to adding it to the particle velocity during spawn.
+	 *	The scale to apply to the parent velocity prior to adding it to the particle velocity during spawn.
 	 *	Value is retrieved using the EmitterTime of the emitter.
 	 */
 	UPROPERTY(EditAnywhere, Category=Velocity)

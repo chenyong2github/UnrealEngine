@@ -823,7 +823,7 @@ UObject* ULevelFactory::FactoryCreateText
 			{
 				// get the name
 				FString LevelName;
-				// if there is no name, that means we are pasting, so just put this guy into the CurrentLevel - don't make a new one
+				// if there is no name, that means we are pasting, so just put this object into the CurrentLevel - don't make a new one
 				if (FParse::Value(Str, TEXT("NAME="), LevelName))
 				{
 					// create a new named level

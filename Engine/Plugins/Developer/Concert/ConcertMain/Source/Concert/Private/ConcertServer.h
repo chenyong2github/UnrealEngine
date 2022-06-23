@@ -136,9 +136,9 @@ private:
 	/** */
 	bool CanJoinSession(const TSharedPtr<IConcertServerSession>& ServerSession, const FConcertSessionSettings& SessionSettings, const FConcertSessionVersionInfo& SessionVersionInfo, FText* OutFailureReason = nullptr);
 
-	/** Validate that the request come form the owner of the session that he want to delete/rename, etc. */
+	/**  Validate that the request to delete or modify a session comes from the owner of that session. */
 	bool IsRequestFromSessionOwner(const TSharedPtr<IConcertServerSession>& Session, const FString& FromUserName, const FString& FromDeviceName) const;
-	/** Validate that the request come form the owner of the session that he want to delete/rename, etc. */
+	/**  Validate that the request to delete or modify a session comes from the owner of that session. */
 	bool IsRequestFromSessionOwner(const FConcertSessionInfo& SessionInfo, const FString& FromUserName, const FString& FromDeviceName) const;
 	
 	/**  */

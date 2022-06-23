@@ -22,7 +22,7 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FGameplayTaskSpawnActorDelegate, AAc
  *	firing position from a weapon attachment).
  *	
  *	Long term we can also use this task as a sync point. If the executing client could wait execution until the server creates and replicates the 
- *	actor down to him. We could potentially also use this to do predictive actor spawning / reconciliation.
+ *	actor down to it. We could potentially also use this to do predictive actor spawning / reconciliation.
  */
 
 UCLASS(MinimalAPI)

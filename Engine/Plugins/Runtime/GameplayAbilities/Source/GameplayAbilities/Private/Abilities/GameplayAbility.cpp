@@ -442,7 +442,7 @@ bool UGameplayAbility::CommitCheck(const FGameplayAbilitySpecHandle Handle, cons
 	/**
 	 *	Checks if we can (still) commit this ability. There are some subtleties here.
 	 *		-An ability can start activating, play an animation, wait for a user confirmation/target data, and then actually commit
-	 *		-Commit = spend resources/cooldowns. Its possible the source has changed state since he started activation, so a commit may fail.
+	 *		-Commit = spend resources/cooldowns. It's possible the source has changed state since it started activation, so a commit may fail.
 	 *		-We don't want to just call CanActivateAbility() since right now that also checks things like input inhibition.
 	 *			-E.g., its possible the act of starting your ability makes it no longer activatable (CanaCtivateAbility() may be false if called here).
 	 */
@@ -1915,7 +1915,7 @@ void UGameplayAbility::SetRemoteInstanceHasEnded()
 	{
 		if (IsValid(Task) && Task->IsWaitingOnRemotePlayerdata())
 		{
-			// We have a task that is waiting for player input, but the remote player has ended the ability, so he will not send it.
+			// We have a task that is waiting for player input, but the remote player has ended the ability, so it will not send the input.
 			// Kill the ability to avoid getting stuck active.
 			
 			ABILITY_LOG(Log, TEXT("Ability %s is force cancelling because Task %s is waiting on remote player input and the  remote player has just ended the ability."), *GetName(), *Task->GetDebugString());

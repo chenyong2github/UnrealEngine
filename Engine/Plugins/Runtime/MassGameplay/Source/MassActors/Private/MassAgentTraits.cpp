@@ -167,7 +167,7 @@ void UMassAgentFeetLocationSyncTrait::BuildTemplate(FMassEntityTemplateBuildCont
 				// the entity is the authority
 				if (CurrentDirection == EMassTranslationDirection::MassToActor)
 				{
-					// Temporary disabling this as it is already done earlier in the MassRepresentation and we needed to do a sweep to find he floor
+					// Temporary disabling this as it is already done earlier in the MassRepresentation and we needed to do a sweep to find the floor
 					//Component->SetWorldLocation(FeetLocation, /*bSweep*/true, nullptr, ETeleportType::TeleportPhysics);
 				}
 				// actor is the authority

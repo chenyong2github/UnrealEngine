@@ -217,7 +217,7 @@ public:
 			 * Notified when the attribute value changed.
 			 * It's preferable that you delay any action to the Tick or Paint function.
 			 * You are not allowed to make changes that would affect the SWidget ChildOrder or its Visibility.
-			 * It will not be called when the SWidget is in his construction phase.
+			 * It will not be called when the SWidget is in its construction phase.
 			 * @see SWidget::IsConstructed
 			 */
 			FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);
@@ -280,7 +280,7 @@ public:
 			 * Notified when the attribute value changed.
 			 * It's preferable that you delay any action to the Tick or Paint function.
 			 * You are not allowed to make changes that would affect the SWidget ChildOrder or its Visibility.
-			 * It will not be called when the SWidget is in his construction phase.
+			 * It will not be called when the SWidget is in its construction phase.
 			 * @see SWidget::IsConstructed
 			 */
 			FAttributeEntry& OnValueChanged(FAttributeValueChangedDelegate Callback);

@@ -393,7 +393,7 @@ void FNiagaraScriptGraphViewModel::PasteNodes()
 			continue;
 		}
 		
-		// we make sure here that we only copy over script variables if they didn't exist before. We inform the user so he knows.
+		// we make sure here that we only copy over script variables if they didn't exist before. We inform the user so they know.
 		if(UNiagaraScriptVariable* ExistingScriptVariable = NiagaraGraph->GetScriptVariable(ScriptVariable->Variable))
 		{
 			// if we have the variable already exists and change IDs are the same, we assume we are pasting the same content multiple times.

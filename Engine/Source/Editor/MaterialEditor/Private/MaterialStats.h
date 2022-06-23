@@ -102,7 +102,7 @@ public:
 		/** flag that marks the usage of this data structure */
 		bool bExtractStats = false;
 
-		/** true when code is listed in his own tab */
+		/** true when code is listed in its own tab */
 		bool bExtractCode = false;
 
 		/** cached shader code computed by FShaderPlatformSettings::GetShaderCode() */

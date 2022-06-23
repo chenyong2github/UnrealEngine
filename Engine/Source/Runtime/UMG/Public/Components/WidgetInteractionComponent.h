@@ -40,7 +40,7 @@ enum class EWidgetInteractionSource : uint8
 };
 
 // TODO CenterScreen needs to be able to work with multiple player controllers, perhaps finding
-// the PC via the outer/owner chain?  Maybe you need to set the PC that owns this guy?  Maybe we should
+// the PC via the outer/owner chain?  Maybe you need to set the PC that owns this?  Maybe we should
 // key off the Virtual User Index?
 
 // TODO Expose modifier key state.

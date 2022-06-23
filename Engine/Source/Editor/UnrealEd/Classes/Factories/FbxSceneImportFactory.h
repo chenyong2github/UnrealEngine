@@ -36,7 +36,7 @@ public:
 	uint64 PivotNodeUid;
 	FString PivotNodeName; //Transient variable use for the ui to not display a uid
 
-	//If there is more then one Pivots we have to present a list to the user so he can choose which node pivot he want to bake
+	//If there is more then one Pivots we have to present a list to the user so they can choose which node pivot they want to bake
 	TMap<FVector, TArray<uint64>> NodeReferencePivots;
 
 	FString GetImportPath()

@@ -58,7 +58,7 @@ public:
 	  * @param OwnerComp	The behavior tree owner of this node
 	  * @param NodeMemory	The instance memory of the current node
 	  * @param DeltaSeconds		DeltaTime since last call
-	  * @param NextNeededDeltaTime		In out parameter, if this node needs a smaller DeltaTime it is his responsibility to change it
+	  * @param NextNeededDeltaTime		In out parameter, if this node needs a smaller DeltaTime it is the node's responsibility to change it
 	  * @returns	True if it actually done some processing or false if it was skipped because of not ticking or in between time interval */
 	bool WrappedTickTask(UBehaviorTreeComponent& OwnerComp, uint8* NodeMemory, float DeltaSeconds, float& NextNeededDeltaTime) const;
 

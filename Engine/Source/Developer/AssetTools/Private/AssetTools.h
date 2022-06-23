@@ -150,7 +150,7 @@ public:
 private:
 	static FString GenerateAdvancedCopyDestinationPackageName(const FString& SourcePackage, const FString& SourcePath, const FString& DestinationFolder);
 
-	/** Checks to see if a package is marked for delete then ask the user if he would like to check in the deleted file before he can continue. Returns true when it is safe to proceed. */
+	/** Checks to see if a package is marked for delete, then asks the user if they would like to check in the deleted file before they can continue. Returns true when it is safe to proceed. */
 	bool CheckForDeletedPackage(const UPackage* Package) const;
 
 	/** Returns true if the supplied Asset name and package are currently valid for creation. */

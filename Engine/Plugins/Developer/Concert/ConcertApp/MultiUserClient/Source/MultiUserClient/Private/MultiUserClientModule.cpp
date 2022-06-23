@@ -693,14 +693,14 @@ public:
 		{
 			EAppReturnType::Type RetType = EAppReturnType::No; // Default: Don't persist and leave.
 
-			// if the session owner disconnect from the session, warn him about session changes.
+			// if the session owner disconnects from the session, warn them about session changes.
 			if (ConcertClient->IsOwnerOf(CurrentSession->GetSessionInfo()) && WorkspaceFrontend->HasSessionChanges())
 			{
 				RetType = FMessageDialog::Open(EAppMsgType::YesNoCancel, EAppReturnType::No, LOCTEXT("OwnerDisconnectWarn", "You are about to leave a session containing changes. Do you want to persist the changes?"));
 				if (RetType == EAppReturnType::Yes)
 				{
 					bool UserCanceledPersist = !WorkspaceFrontend->PromptPersistSessionChanges();
-					if (UserCanceledPersist) // The user changed its mind, he doesn't want to persist.
+					if (UserCanceledPersist) // The user changed their mind, they don't want to persist.
 					{
 						return false; // Cancel the disconnection as well.
 					}

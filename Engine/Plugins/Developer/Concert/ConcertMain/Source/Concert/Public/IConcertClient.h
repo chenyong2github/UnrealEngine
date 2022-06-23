@@ -373,7 +373,7 @@ public:
 	virtual bool IsSessionSuspended() const = 0;
 
 	/**
-	 * Does the client think he is the owner of the session?
+	 * Does the client think it is the owner of the session?
 	 */
 	virtual bool IsOwnerOf(const FConcertSessionInfo& InSessionInfo) const = 0;
 

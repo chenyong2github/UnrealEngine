@@ -261,11 +261,11 @@ public:
 	void RemoveLevelVariantSets(UDatasmithLevelVariantSetsElement* InElement);
 
 public:
-	/** Attach the actor to his new parent. Detach the actor if he was already attach. */
+	/** Attach the actor to its new parent. Detach the actor if it was already attached. */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
 	void AttachActor(UDatasmithActorElement* NewParent, UDatasmithActorElement* Child, EDatasmithActorAttachmentRule AttachmentRule);
 
-	/** Attach the actor to the scene root. Detach the actor if he was already attach. */
+	/** Attach the actor to the scene root. Detach the actor if it was already attached. */
 	UFUNCTION(BlueprintCallable, Category = "Datasmith | Scene")
 	void AttachActorToSceneRoot(UDatasmithActorElement* NewParent, EDatasmithActorAttachmentRule AttachmentRule);
 

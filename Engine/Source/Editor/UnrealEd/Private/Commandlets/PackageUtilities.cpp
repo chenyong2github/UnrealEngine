@@ -1903,7 +1903,7 @@ struct CompressAnimationsFunctor
 				// If we have found a best match
 				if( BestSkeletalMeshMatch )
 				{
-					// if it is different than our preview mesh and his match ratio is higher
+					// if it is different than our preview mesh and its match ratio is higher
 					// then replace preview mesh with this one, as it's a better match.
 					if( BestSkeletalMeshMatch != DefaultSkeletalMesh && HighestRatio > DefaultMatchRatio )
 					{

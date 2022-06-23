@@ -54,7 +54,7 @@ bool ParseWaveFormatHeader(const uint8* InSrcBufferData, uint32 InSrcBufferDataS
 		FChunkHeader ChunkHeader;
 		FMemory::Memcpy(&ChunkHeader, &InSrcBufferData[CurrByte], sizeof(FChunkHeader));
 
-		// Offset the byte index byt he sizeof chunk header
+		// Offset the byte index by the sizeof chunk header
 		CurrByte += sizeof(FChunkHeader);
 
 		// Now read which type of chunk this is and get the header info

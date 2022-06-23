@@ -2453,7 +2453,7 @@ void USceneComponent::UpdateChildTransforms(EUpdateTransformFlags UpdateTransfor
 				}
 				else
 				{
-					// If we're updating child only if he's using a socket. Skip if that's not the case.
+					// If we're updating child only if it's using a socket. Skip if that's not the case.
 					if (bOnlyUpdateIfUsingSocket && (ChildComp->AttachSocketName == NAME_None))
 					{
 						continue;

@@ -113,7 +113,7 @@ public:
 	/** Creates the specified project file and all required folders. If TemplateFile is non-empty, it will be used as the template for creation. On failure, OutFailReason will be populated. */
 	static bool CreateProject(const FProjectInformation& InProjectInfo, FText& OutFailReason, FText& OutFailLog, TArray<FString>* OutCreatedFiles = nullptr);
 
-	/** Prompts the user to update his project file, if necessary. */
+	/** Prompts the user to update their project file, if necessary. */
 	static void CheckForOutOfDateGameProjectFile();
 
 	/** Warn the user if the project filename is invalid in case they renamed it outside the editor */

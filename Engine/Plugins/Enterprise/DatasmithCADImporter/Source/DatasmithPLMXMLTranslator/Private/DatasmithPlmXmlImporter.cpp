@@ -1026,7 +1026,7 @@ namespace PlmXml
 
 							// Every 'Occurrence' adds an object to a 'view'(ProductView, PRV only view or others too?) that should
 							// be displayed when this 'view' is active(ro whatever it's called, 'shown'). Difference Occurrence's can reference same 'instance' object but
-							// modify it, with, for example transform. transformRef is in he doc. or child nodes Transform(takes precedence over transformRef) - absolute, additional Representation, EntityMaterial, AssociatedAttachment>.
+							// modify it, with, for example transform. transformRef is in the doc. or child nodes Transform(takes precedence over transformRef) - absolute, additional Representation, EntityMaterial, AssociatedAttachment>.
 							// see 7.5.3 <Occurrence> for details
 
 							// Few examples, contradicting with PLMXML spec:

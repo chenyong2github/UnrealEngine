@@ -14,7 +14,7 @@ void FDamageEvent::GetBestHitInfo(AActor const* HitActor, AActor const* HitInsti
 		OutHitInfo.BoneName = NAME_None;
 		OutHitInfo.Component = Cast<UPrimitiveComponent>(HitActor->GetRootComponent());
 
-		// assume the actor got hit in the center of his root component
+		// assume the actor got hit in the center of its root component
 		OutHitInfo.ImpactPoint = HitActor->GetActorLocation();
 		OutHitInfo.Location = OutHitInfo.ImpactPoint;
 
@@ -31,7 +31,7 @@ void FDamageEvent::GetBestHitInfo(AActor const* HitActor, AActor const* HitInsti
 
 void FPointDamageEvent::GetBestHitInfo(AActor const* HitActor, AActor const* HitInstigator, FHitResult& OutHitInfo, FVector& OutImpulseDir) const
 {
-	// assume the actor got hit in the center of his root component
+	// assume the actor got hit in the center of its root component
 	OutHitInfo = HitInfo;
 	OutImpulseDir = ShotDirection;
 }

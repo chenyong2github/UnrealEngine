@@ -397,7 +397,7 @@ bool FDatasmithImportContext::SetupDestination(const FString& InImportPath, EObj
 			{
 				// Check to see if there are unsaved data and user wants to save them
 				// Import will abort if user selects cancel on Save dialog
-				bool bPromptUserToSave = true; // Ask user if he/she wants to save the unsaved data
+				bool bPromptUserToSave = true; // Ask user if they want to save the unsaved data
 				bool bSaveMapPackages = true;
 				bool bSaveContentPackages = true;
 				if (FEditorFileUtils::SaveDirtyPackages(bPromptUserToSave, bSaveMapPackages, bSaveContentPackages) == false)

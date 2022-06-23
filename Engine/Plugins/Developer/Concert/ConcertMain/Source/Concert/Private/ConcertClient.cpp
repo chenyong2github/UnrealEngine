@@ -1396,7 +1396,7 @@ TFuture<EConcertResponseCode> FConcertClient::CreateClientSession(const FConcert
 	ClientSession->Startup();
 	ClientSession->Connect();
 
-	// Promise the caller to tell him once the client connection state is known (connected or not).
+	// Promise the caller to tell it once the client connection state is known (connected or not).
 	check(!ConnectionPromise.IsValid()); // InternalDisconnect() triggers a disconnnect and this will release of the promise.
 	ConnectionPromise = MakeUnique<TPromise<EConcertResponseCode>>();
 	return ConnectionPromise->GetFuture();

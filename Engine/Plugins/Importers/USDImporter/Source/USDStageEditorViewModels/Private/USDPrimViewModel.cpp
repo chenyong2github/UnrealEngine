@@ -76,7 +76,7 @@ namespace UE::USDPrimViewModel::Private
 			//  - Add the schema on a sublayer;
 			//  - Remove the schema on the root layer;
 			//  - Select the sublayer as the edit target;
-			// If we always just queried the existing stage, the user would see that he can add the schema
+			// If we always just queried the existing stage, the user would see that they can add the schema
 			// (because the composed prim does not have the schema) but clicking the button would do nothing,
 			// as the sublayer prim spec already has the schema...
 

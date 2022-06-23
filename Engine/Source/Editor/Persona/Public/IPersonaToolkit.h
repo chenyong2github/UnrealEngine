@@ -51,7 +51,7 @@ public:
 	/**
 	 * Get the preview mesh, according to context (mesh, skeleton or animation etc.).
 	 * Note that this returns the preview mesh that is set for the asset currently being edited, which may be different
-	 * from the one displayed int he viewport.
+	 * from the one displayed in the viewport.
 	 */
 	virtual USkeletalMesh* GetPreviewMesh() const = 0;
 

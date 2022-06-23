@@ -2366,7 +2366,7 @@ public:
 	FShouldOpenMatineeCallback& OnShouldOpenMatinee() { return ShouldOpenMatineeCallback; }
 
 	/** 
-	 * Show a (Suppressable) warning dialog to remind the user he is about to lose his undo buffer 
+	 * Show a (Suppressable) warning dialog to remind the user they are about to lose their undo buffer 
 	 *
 	 * @param MatineeActor	The actor we wish to check (can be null)
 	 * @returns true if the user wishes to proceed

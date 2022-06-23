@@ -738,7 +738,7 @@ bool FAssetRegistryGenerator::GenerateStreamingInstallManifest(int64 InOverrideC
 						FPaths::NormalizeFilename(RelativeFilename);
 						if (FPaths::GetExtension(RelativeFilename).IsEmpty())
 						{
-							RelativeFilename = FPaths::SetExtension(RelativeFilename, TEXT("uasset")); // only use the uassets to decide which pak file these guys should live in
+							RelativeFilename = FPaths::SetExtension(RelativeFilename, TEXT("uasset")); // only use the uassets to decide which pak file these chunks should live in
 						}
 						RelativeFilename.ToLowerInline();
 						uint64 FileOpenOrder = OrderMap.GetFileOrder(RelativeFilename, true /* bAllowUexpUBulkFallback */);

@@ -563,7 +563,7 @@ void SDisasterRecoveryHub::OnSessionSelectionChanged(TSharedPtr<FDisasterRecover
 		SessionManager->LoadSession(RecoverySession.ToSharedRef()).Next([this, WeakSelectedSession](TVariant<TSharedPtr<FConcertActivityStream>, FText> Result)
 		{
 			TSharedPtr<FDisasterRecoverySessionTreeNode> SelectedNode = WeakSelectedSession.Pin();
-			if (SelectedNode != nullptr && SelectedNode == SelectedSessionNode) // Selected session did not change since he time the call was made.
+			if (SelectedNode != nullptr && SelectedNode == SelectedSessionNode) // Selected session did not change since the time the call was made.
 			{
 				if (Result.IsType<TSharedPtr<FConcertActivityStream>>()) // Activity stream was created and user can scroll it.
 				{

@@ -555,7 +555,7 @@ UE::FSdfLayer UsdUtils::GetUEPersistentStateSublayer( const UE::FUsdStage& Stage
 
 		// For consistency we always add the UEPersistentState sublayer as the weakest sublayer of the stage's session layer
 		// Note that we intentionally only guarantee the UEPersistentLayer is weaker than the UESessionLayer when inserting,
-		// so that the user may reorder these if he wants, for whatever reason
+		// so that the user may reorder these if they want, for whatever reason
 		bool bNeedsToBeAdded = true;
 		for ( const FString& Path : SessionLayer.GetSubLayerPaths() )
 		{

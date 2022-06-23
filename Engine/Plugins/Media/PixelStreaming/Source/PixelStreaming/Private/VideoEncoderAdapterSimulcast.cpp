@@ -212,7 +212,7 @@ namespace UE::PixelStreaming
 
 	int FVideoEncoderAdapterSimulcast::EncodeVP8(const webrtc::VideoFrame& InputImage, const std::vector<webrtc::VideoFrameType>* FrameTypes, bool bSendKeyFrame)
 	{
-		// TODO Currently this does not get his because the encoder factory will just return a vpx encoder but if we change it to use this encoder
+		// TODO Currently this does not get hit because the encoder factory will just return a vpx encoder but if we change it to use this encoder
 		// webrtc will try to call ToI420() on the simulcast buffer which is currently unimplemented because the buffers are pre created.
 		// we either need to short circuit that behaviour or change what webrtc is trying to do. info.supports_native_handle from the vpx encoders
 		// is the culprit.

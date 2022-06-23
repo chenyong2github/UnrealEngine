@@ -172,7 +172,7 @@ public:
 	/** Get the change id for this node. This change id is updated whenever the node is manipulated in a way that should force a recompile.*/
 	const FGuid& GetChangeId() const { return ChangeId; }
 
-	/** Set the change id for his node to an explicit value. This should only be called by internal code. */
+	/** Set the change id for this node to an explicit value. This should only be called by internal code. */
 	void ForceChangeId(const FGuid& InId, bool bRaiseGraphNeedsRecompile);
 
 	FOnNodeVisualsChanged& OnVisualsChanged();

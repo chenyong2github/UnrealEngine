@@ -54,7 +54,7 @@ public:
 protected:
 	
 	// This is used by IData::GetDataConstRef(). Should probably not be
-	// called in ot her contexts...
+	// called in other contexts...
 	virtual const void* GetRawDataPointerUnsafe() const override
 	{
 		return (const void *)Data.Get();

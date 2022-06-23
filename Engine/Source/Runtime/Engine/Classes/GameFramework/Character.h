@@ -509,7 +509,7 @@ public:
 	UPROPERTY(Transient)
 	uint32 bClientResimulateRootMotionSources:1;
 
-	/** Disable simulated gravity (set when character encroaches geometry on client, to keep him from falling through floors) */
+	/** Disable simulated gravity (set when character encroaches geometry on client, to keep it from falling through floors) */
 	UPROPERTY()
 	uint32 bSimGravityDisabled:1;
 

@@ -327,7 +327,7 @@ typedef FOnInviteAborted::FDelegate FOnInviteAbortedDelegate;
  * Delegate called when a remote friend removes user from friends list
  *
  * @param UserId id of the local user that had the friendship
- * @param FriendId friend id that removed himself from the friendship
+ * @param FriendId friend id that removed themself from the friendship
  */
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOnFriendRemoved, const FUniqueNetId& /*UserId*/, const FUniqueNetId& /*FriendId*/);
 typedef FOnFriendRemoved::FDelegate FOnFriendRemovedDelegate;
@@ -413,7 +413,7 @@ public:
 	 * Delegate called when a remote friend removes user from friends list
 	 *
 	 * @param UserId id of the local user that had the friendship
-	 * @param FriendId friend id that removed himself from the friendship
+	 * @param FriendId friend id that removed themself from the friendship
 	 */
 	DEFINE_ONLINE_DELEGATE_TWO_PARAM(OnFriendRemoved, const FUniqueNetId& /*UserId*/, const FUniqueNetId& /*FriendId*/);
 

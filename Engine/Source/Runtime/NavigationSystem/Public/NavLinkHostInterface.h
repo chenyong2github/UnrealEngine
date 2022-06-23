@@ -20,13 +20,13 @@ class NAVIGATIONSYSTEM_API INavLinkHostInterface
 	GENERATED_IINTERFACE_BODY()
 		
 	/**
-	 *	Retrieves UNavLinkDefinition derived UClasses hosted by this interface implementor
+	 *	Retrieves UNavLinkDefinition derived UClasses hosted by this interface implementer
 	 */
 	virtual bool GetNavigationLinksClasses(TArray<TSubclassOf<class UNavLinkDefinition> >& OutClasses) const PURE_VIRTUAL(INavLinkHostInterface::GetNavigationLinksClasses,return false;);
 
 	/** 
 	 *	_Optional_ way of retrieving navigation link data - if INavLinkHostInterface 
-	 *	implementer defines custom navigation links then he can just retrieve 
+	 *	implementer defines custom navigation links then it can just retrieve 
 	 *	a list of links
 	 */
 	virtual bool GetNavigationLinksArray(TArray<FNavigationLink>& OutLink, TArray<FNavigationSegmentLink>& OutSegments) const { return false; }

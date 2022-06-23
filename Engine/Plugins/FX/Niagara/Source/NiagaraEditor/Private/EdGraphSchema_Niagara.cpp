@@ -1072,7 +1072,7 @@ const FPinConnectionResponse UEdGraphSchema_Niagara::CanCreateConnection(const U
 			}
 			else if (FNiagaraTypeDefinition::TypesAreAssignable(PinTypeInput, PinTypeOutput, GetDefault<UNiagaraSettings>()->bEnforceStrictStackTypes == false))
 			{
-				// if we have a lossy conversion but are assignable, let the user connect but inform him
+				// if we have a lossy conversion but are assignable, let the user connect but inform them
 				if(FNiagaraTypeDefinition::IsLossyConversion(PinTypeOutput, PinTypeInput))
 				{
 					FText ConvertMessage = FText::Format(ConvertLossyText, PinTypeOutput.GetNameText(), PinTypeInput.GetNameText());

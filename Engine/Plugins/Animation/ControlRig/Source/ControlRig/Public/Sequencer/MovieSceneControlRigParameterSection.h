@@ -358,31 +358,31 @@ public:
 	/** Get Whether to key or not*/
 	bool GetDoNotKey() const { return bDoNotKey; }
 
-	/**  Whether or not this section his scalar*/
+	/**  Whether or not this section has scalar*/
 	bool HasScalarParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his bool*/
+	/**  Whether or not this section has bool*/
 	bool HasBoolParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his enum*/
+	/**  Whether or not this section has enum*/
 	bool HasEnumParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his int*/
+	/**  Whether or not this section has int*/
 	bool HasIntegerParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his scalar*/
+	/**  Whether or not this section has scalar*/
 	bool HasVector2DParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his scalar*/
+	/**  Whether or not this section has scalar*/
 	bool HasVectorParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his scalar*/
+	/**  Whether or not this section has scalar*/
 	bool HasColorParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his scalar*/
+	/**  Whether or not this section has scalar*/
 	bool HasTransformParameter(FName InParameterName) const;
 
-	/**  Whether or not this section his space*/
+	/**  Whether or not this section has space*/
 	bool HasSpaceChannel(FName InParameterName) const;
 
 	/** Get The Space Channel for the Control*/

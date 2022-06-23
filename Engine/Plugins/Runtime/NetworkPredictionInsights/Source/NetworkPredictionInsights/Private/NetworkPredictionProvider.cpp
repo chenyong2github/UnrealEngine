@@ -122,7 +122,7 @@ void FNetworkPredictionProvider::WriteSimulationTick(int32 TraceID, FSimulationD
 
 			if (!FindNetRecvAHome())
 			{
-				// No home for this recv so put him on the orphan list so he still gets drawn
+				// No home for this recv so put it on the orphan list so it still gets drawn
 				if (PendingRecv->Status == ENetSerializeRecvStatus::Unknown)
 				{
 					PendingRecv->Status = ENetSerializeRecvStatus::Stale;

@@ -83,7 +83,7 @@ void UUnitTask::ValidateUnitTaskSettings()
 	// You can't block the unit test, if you require a minimal client
 	UNIT_ASSERT(!(UnitTaskFlags & EUnitTaskFlags::BlockUnitTest) || !(UnitTaskFlags & EUnitTaskFlags::RequireMinClient));
 
-	// You can't block the MinimalClient, if you're already blocking he entire unit test
+	// You can't block the MinimalClient, if you're already blocking the entire unit test
 	UNIT_ASSERT(!(UnitTaskFlags & EUnitTaskFlags::BlockUnitTest) || !(UnitTaskFlags & EUnitTaskFlags::BlockMinClient));
 
 	// Don't require a server, if the UnitTask is not attached to a ClientUnitTest

@@ -348,7 +348,7 @@ public:
 	void RemoveTreeItem(FCurveEditorTreeItemID ItemID);
 
 	/**
-	 * Remove all tree items fromt he curve editor
+	 * Remove all tree items from the curve editor
 	 */
 	void RemoveAllTreeItems();
 

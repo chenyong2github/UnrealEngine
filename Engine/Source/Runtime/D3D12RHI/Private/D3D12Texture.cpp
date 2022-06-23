@@ -2008,7 +2008,7 @@ void FD3D12Texture::UnlockInternal(class FRHICommandListImmediate* RHICmdList, F
 			// Recurse to update all of the resources in the LDA chain
 			if (NextObject)
 			{
-				// We pass the first link in the chain as that's the guy that got locked
+				// We pass the first link in the chain as that's the one that got locked
 				((FD3D12Texture*)NextObject.Get())->UnlockInternal(RHICmdList, ++NextObject, MipIndex, ArrayIndex);
 			}
 		}

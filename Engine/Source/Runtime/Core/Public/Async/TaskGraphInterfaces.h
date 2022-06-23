@@ -312,7 +312,7 @@ typedef TArray<FGraphEventRef, TInlineAllocator<4> > FGraphEventArray;
 /** returns trace IDs of given tasks **/
 CORE_API TArray<TaskTrace::FId> GetTraceIds(const FGraphEventArray& Tasks);
 
-/** Interface tot he task graph system **/
+/** Interface to the task graph system **/
 class FTaskGraphInterface
 {
 	friend class FBaseGraphTask;

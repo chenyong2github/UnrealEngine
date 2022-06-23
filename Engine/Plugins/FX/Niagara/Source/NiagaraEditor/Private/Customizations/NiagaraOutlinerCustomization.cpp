@@ -239,7 +239,7 @@ void SNiagaraOutlinerTree::Construct(const FArguments& InArgs, TSharedPtr<FNiaga
 					SNew(SBorder)
 					.BorderImage(FAppStyle::GetBrush("ToolPanel.GroupBorder"))
 					[
-						SelectedItemDetails->GetWidget().ToSharedRef()//TODO: Maybe shunt this out intot he main outliner details somehow?
+						SelectedItemDetails->GetWidget().ToSharedRef()//TODO: Maybe shunt this out into the main outliner details somehow?
 					]	
 				]			
 			]

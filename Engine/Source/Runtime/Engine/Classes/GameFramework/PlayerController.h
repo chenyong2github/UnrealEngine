@@ -2226,7 +2226,7 @@ public:
 		bool bFault = true;
 	};
 
-	// We call this in ::SendClientAdjustment to tell the client what the last processed input frame was for him and on what local frame number it was processed
+	// We call this in ::SendClientAdjustment to tell the client what the last processed input frame was for it and on what local frame number it was processed
 	UFUNCTION(Client, unreliable)
 	void ClientRecvServerAckFrame(int32 LastProcessedInputFrame, int32 RecvServerFrameNumber, int8 TimeDilation);
 

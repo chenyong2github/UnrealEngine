@@ -737,7 +737,7 @@ void LevelEditorActionHelpers::GetBlueprintSettingsSubMenu(UToolMenu* Menu, FBlu
 		EUserInterfaceActionType::Button, false, NewBPIcon
 	);
 
-	// Select a game mode, this is always available so the user can switch his selection
+	// Select a game mode, this is always available so the user can switch their selection
 	FFormatNamedArguments Args;
 	Args.Add(TEXT("RootClass"), RootClassName);
 	Section.AddSubMenu("SelectGameModeClass", FText::Format(LOCTEXT("SelectGameModeClass", "Select {RootClass} Class"), Args),

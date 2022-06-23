@@ -428,7 +428,7 @@ namespace UE::Interchange::Private::InterchangeTextureFactory
 					// Todo Capture the error message from the translator?
 				}
 
-				// Let the translator release his data.
+				// Let the translator release its data.
 				Translator->ImportFinish();
 			}
 			, EParallelForFlags::Unbalanced | EParallelForFlags::BackgroundPriority);

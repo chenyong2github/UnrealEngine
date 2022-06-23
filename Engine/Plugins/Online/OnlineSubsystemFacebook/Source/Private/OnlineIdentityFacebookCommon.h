@@ -22,7 +22,7 @@ class FUserOnlineAccountFacebookCommon;
  */
 DECLARE_DELEGATE_ThreeParams(FOnProfileRequestComplete, int32 /*LocalUserNum*/, bool /*bWasSuccessful*/, const FString& /*ErrorStr*/);
 
-/** Mapping from user id to his internal online account info (only one per user) */
+/** Mapping from user id to internal online account info (only one per user) */
 typedef TMap<FString, TSharedRef<FUserOnlineAccountFacebookCommon> > FUserOnlineAccountFacebookMap;
 
 /**

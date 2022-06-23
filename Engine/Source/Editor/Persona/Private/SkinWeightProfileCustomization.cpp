@@ -406,7 +406,7 @@ TSharedRef<class SWidget> FSkinWeightProfileCustomization::GenerateRemoveMenu()
 	RemoveMenuBuilder.AddMenuEntry(LOCTEXT("RemoveOverrideLabel", "Remove entire Skin Weight Profile"), LOCTEXT("RemoveOverrideToolTip", "Remove all data for this Skin Weight Profile"),
 		FSlateIcon(), FUIAction(FExecuteAction::CreateLambda([this]()
 	{
-		// Provide user with dialog to make sure she doesn't delete it on purpose
+		// Provide user with dialog to make sure they don't delete it on purpose
 		const FText Text = FText::Format(LOCTEXT("RemoveOverrideWarning", "Are you sure you want to remove Skin Weight Profile {0}?"), FText::FromName(LastKnownProfileName));
 		EAppReturnType::Type Ret = FMessageDialog::Open(EAppMsgType::YesNo, Text);
 

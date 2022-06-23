@@ -1446,7 +1446,7 @@ void UCharacterMovementComponent::TickComponent(float DeltaTime, enum ELevelTick
 	// We don't update if simulating physics (eg ragdolls).
 	if (bIsSimulatingPhysics)
 	{
-		// Update camera to ensure client gets updates even when physics move him far away from point where simulation started
+		// Update camera to ensure client gets updates even when physics move it far away from point where simulation started
 		if (CharacterOwner->GetLocalRole() == ROLE_AutonomousProxy && IsNetMode(NM_Client))
 		{
 			MarkForClientCameraUpdate();
@@ -4617,7 +4617,7 @@ void UCharacterMovementComponent::PhysFalling(float deltaTime, int32 Iterations)
 							Velocity = HasAnimRootMotion() || CurrentRootMotion.HasOverrideVelocityWithIgnoreZAccumulate() ? FVector(Velocity.X, Velocity.Y, NewVelocity.Z) : NewVelocity;
 						}
 
-						// bDitch=true means that pawn is straddling two slopes, neither of which he can stand on
+						// bDitch=true means that pawn is straddling two slopes, neither of which it can stand on
 						bool bDitch = ( (OldHitImpactNormal.Z > 0.f) && (Hit.ImpactNormal.Z > 0.f) && (FMath::Abs(Delta.Z) <= UE_KINDA_SMALL_NUMBER) && ((Hit.ImpactNormal | OldHitImpactNormal) < 0.f) );
 						SafeMoveUpdatedComponent( Delta, PawnRotation, true, Hit);
 						if ( Hit.Time == 0.f )
@@ -6032,7 +6032,7 @@ bool UCharacterMovementComponent::ShouldJumpOutOfWater(FVector& JumpDir)
 		const FRotator ControllerRot = OwnerController->GetControlRotation();
 		if ( (Velocity.Z > 0.0f) && (ControllerRot.Pitch > JumpOutOfWaterPitch) )
 		{
-			// if Pawn is going up and looking up, then make him jump
+			// if Pawn is going up and looking up, then make it jump
 			JumpDir = ControllerRot.Vector();
 			return true;
 		}

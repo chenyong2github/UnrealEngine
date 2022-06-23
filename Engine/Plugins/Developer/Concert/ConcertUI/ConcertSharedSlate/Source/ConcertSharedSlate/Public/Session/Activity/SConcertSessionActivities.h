@@ -262,7 +262,7 @@ private:
 	/** The number of activities flagged as 'ignored' within AllActivities array.*/
 	int32 IgnoredActivityNum = 0;
 
-	/** Whether the auto-scrolling is desired (scroll to bottom automatically unless the user scroll himself somewhere). */
+	/** Whether the auto-scrolling is desired (scroll to bottom automatically unless the user scrolls somewhere else). */
 	bool bAutoScrollDesired = false;
 
 	/** Whether the user is scrolling (deactivate auto-scrolling). */

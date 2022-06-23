@@ -212,7 +212,7 @@ protected:
 	 */
 	bool RefreshFilteredState(TSharedPtr<FDMXEntityTreeNodeBase> Node, bool bRecursive);
 
-	/** Broadcast whent he selection updated. */
+	/** Broadcast when the selection updated. */
 	FDMXOnSelectionChanged OnSelectionChangedDelegate;
 
 	/** Broadcast when the entity list added an entity to the library */

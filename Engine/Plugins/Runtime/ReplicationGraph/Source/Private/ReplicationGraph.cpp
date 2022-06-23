@@ -1770,7 +1770,7 @@ int64 UReplicationGraph::ReplicateSingleActor_FastShared(AActor* Actor, FConnect
 
 	if (OutBunch.GetNumBits() <= 0)
 	{
-		// Empty bunch - no need to send. This means we aren't fast repping this guy this frame
+		// Empty bunch - no need to send. This means we aren't fast repping this actor this frame
 		return 0;
 	}
 
@@ -2793,7 +2793,7 @@ int64 UNetReplicationGraphConnection::ReplicateDestructionInfos(const FRepGraphD
 
 				const float OutOfRangeDistSquared = FVector::DistSquared2D(Info.CachedPosition, Viewer.LastOutOfRangeLocationCheck);
 				
-				// Add the actor to the OutOfRangeList only if he is outside the range from the next check. If not keep him in the destruction list to be evaluated next frame.
+				// Add the actor to the OutOfRangeList only if it is outside the range from the next check. If not, keep it in the destruction list to be evaluated next frame.
 				if (OutOfRangeDistSquared <= DestructionSettings.MaxPendingListDistanceSquared)
 				{
 					bAddToOutOfRangeList = false;
@@ -3853,7 +3853,7 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 #if WITH_SERVER_CODE
 	FConnectionReplicationActorInfo& ConnectionInfo = ConnectionMap.FindOrAdd(Actor);
 
-	// If we need to filter out the actor and he is already in the SortedReplicationList, we need to remove it (instead of just skipping/returning).
+	// If we need to filter out the actor and it is already in the SortedReplicationList, we need to remove it (instead of just skipping/returning).
 	auto RemoveExistingItem = [&ExistingItemIndex, this]()
 	{
 		if (ExistingItemIndex != INDEX_NONE)
@@ -4000,13 +4000,13 @@ void UReplicationGraphNode_DynamicSpatialFrequency::CalcFrequencyForActor(AActor
 
 			if (FramesTillReplicate < 0)
 			{
-				// This actor is ready to go (or overdue). Add him to the replication list that we will sort
+				// This actor is ready to go (or overdue). Add it to the replication list that we will sort
 				AddOrUpdateItem(Actor, FramesTillReplicate, EnableFastPath, &GlobalInfo, &ConnectionInfo);
 			}
 
 			else if (FramesTillReplicate == 0)
 			{
-				// This actor is also ready to go but we may need to count him as a 'replicates this frame and not every frame' actor
+				// This actor is also ready to go but we may need to count it as a 'replicates this frame and not every frame' actor
 				if (ReplicatesEveryFrame(ConnectionInfo, EnableFastPath) == false)
 				{
 					//UE_LOG(LogReplicationGraph, Display, TEXT("  THIS[%d]: %s. Def: %d (%d) Fast: %d (%d)"), FrameNum, *Actor->GetName(), ConnectionInfo.NextReplicationFrameNum, ConnectionInfo.ReplicationPeriodFrame, ConnectionInfo.FastPath_NextReplicationFrameNum, ConnectionInfo.FastPath_ReplicationPeriodFrame);
@@ -4185,7 +4185,7 @@ void UReplicationGraphNode_ConnectionDormancyNode::ConditionalGatherDormantActor
 				ConnectionActorInfo.SetCullDistanceSquared(GlobalInfo.Settings.GetCullDistanceSquared());
 			}
 
-			// He can be removed
+			// It can be removed
 			ConnectionList.RemoveAtSwap(idx);
 			if (RemovedList)
 			{
@@ -4397,7 +4397,7 @@ void UReplicationGraphNode_DormancyNode::AddDormantActor(const FNewReplicatedAct
 	};
 	CallFunctionOnValidConnectionNodes(AddActorFunction);
 
-	// Tell us if this guy flushes net dormancy so we force him back on connection lists
+	// Tell us if this item flushes net dormancy so we force it back on connection lists
 	if (!GlobalInfo.Events.DormancyFlush.IsBoundToObject(this))
 	{
 		GlobalInfo.Events.DormancyFlush.AddUObject(this, &UReplicationGraphNode_DormancyNode::OnActorDormancyFlush);
@@ -4594,11 +4594,11 @@ void UReplicationGraphNode_GridCell::AddStaticActor(const FNewReplicatedActorInf
 	}
 	else
 	{	
-		// Put him in our non dormancy list
+		// Put it in our non dormancy list
 		Super::NotifyAddNetworkActor(ActorInfo);
 	}
 
-	// We need to be told if this actor changes dormancy so we can move him between nodes. Unless our parent is going to do it.
+	// We need to be told if this actor changes dormancy so we can move it between nodes. Unless our parent is going to do it.
 	if (!bParentNodeHandlesDormancyChange)
 	{
 		ActorRepInfo.Events.DormancyChange.AddUObject(this, &UReplicationGraphNode_GridCell::OnStaticActorNetDormancyChange);
@@ -5772,7 +5772,7 @@ void UReplicationGraphNode_GridSpatialization2D::NotifyActorCullDistChange(AActo
 	}
 	else if (FCachedDynamicActorInfo* DynamicActorInfo = DynamicSpatializedActors.Find(Actor))
 	{
-		// Pull dynamic actor out of the grid. We will put him back on the next gather
+		// Pull dynamic actor out of the grid. We will put it back on the next gather
 		
 		FActorCellInfo& PreviousCellInfo = DynamicActorInfo->CellInfo;
 		if (PreviousCellInfo.IsValid())

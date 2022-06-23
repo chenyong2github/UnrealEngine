@@ -453,8 +453,8 @@ public:
 
 	/**
 	 * Return false if the Interchange is not active (importing or exporting).
-	 * If the interchange is active it will display a notification to let the user know he can cancel the asynchronous import/export
-	 * To be able to complete the operation he want to do. (The exit editor operation is calling this)
+	 * If the interchange is active, it will display a notification to let the user know they can cancel the asynchronous import/export
+	 * to be able to complete the operation they want to do. (The exit editor operation is calling this)
 	 */
 	bool WarnIfInterchangeIsActive();
 

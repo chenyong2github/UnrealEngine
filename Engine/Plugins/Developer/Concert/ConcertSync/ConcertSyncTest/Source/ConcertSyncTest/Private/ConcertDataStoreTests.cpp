@@ -891,7 +891,7 @@ bool FConcertDataStoreClientServerChangeNotificationHandler::RunTest(const FStri
 		Client2NotificationCount++;
 	});
 
-	// Ensure client 1 is not called back as he is the one performing all the changes.
+	// Ensure client 1 is not called back as it is the one performing all the changes.
 	Client1.RegisterChangeNotificationHandler<int32>(IntKey, EnsureNotCalled<int32>());
 	Client1.RegisterChangeNotificationHandler<float>(FloatKey, EnsureNotCalled<float>());
 	Client1.RegisterChangeNotificationHandler<FConcertDataStore_CustomTypeTest>(CustomKey, EnsureNotCalled<FConcertDataStore_CustomTypeTest>());

@@ -3277,7 +3277,7 @@ bool UnrealToUsd::ConvertControlRigSection(
 	//	- We can't just pretend the Mesh prims have the flattened inbetween blend shapes (like we'd get if they were
 	//    exported) because we'd get warnings by having blend shape targets to blend shape prims that don't exist;
 	//  - We could flatten the actual BlendShape on the Mesh prim here, but that may be a bit too bold as the user likely
-	//    wants to keep his Mesh asset more or less intact when just baking out an animation section. If users do want
+	//    wants to keep their Mesh asset more or less intact when just baking out an animation section. If users do want
 	//    this behaviour we can later add it though;
 	//  - An alternative would have been to try to collect all the primary+inbetween weights, combine them back into a
 	//    single weight value, and write them back. That would work, but it would be incredibly hard to tell what is

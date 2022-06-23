@@ -15,7 +15,7 @@
  *     yourgame.exe UnrealEd.CookCommandlet
  *
  * As a convenience, if a user tries to run a commandlet and the exact
- * name he types isn't found, then ucc.exe appends the text "commandlet"
+ * name they type isn't found, then ucc.exe appends the text "commandlet"
  * onto the name and tries again.  Therefore, the following shortcuts
  * perform identically to the above:
  *

@@ -254,7 +254,7 @@ public:
 		TSharedPtr<IConcertClientSession> ClientSessionPin = ClientSession.Pin();
 		TSharedPtr<IConcertSyncClient> ConcertSyncClientPin = SyncClient.Pin();
 
-		// If the user clicks on another client row other than the one representing himself.
+		// If the user clicks on a client row other than the one that represents them.
 		if (ClientInfoPin && ClientSessionPin && ConcertSyncClientPin && ConcertSyncClientPin->GetPresenceManager() &&
 			ClientInfoPin->ClientEndpointId != ClientSessionPin->GetSessionClientEndpointId())
 		{
@@ -512,7 +512,7 @@ void SActiveSession::Construct(const FArguments& InArgs, TSharedPtr<IConcertSync
 		]
 	];
 
-	// Create a timer to periodically poll the this client(s) info to detect if he changed its display name or avatar color because
+	// Create a timer to periodically poll the this client(s) info to detect if it changed its display name or avatar color because
 	// IConcertClientsession::OnSessionClientChanged() doesn't trigger when the 'local' client changes. This needs to be polled.
 	RegisterActiveTimer(1.0f, FWidgetActiveTimerDelegate::CreateSP(this, &SActiveSession::HandleLocalClientInfoChangePollingTimer));
 

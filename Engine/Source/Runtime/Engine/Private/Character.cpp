@@ -761,7 +761,7 @@ void ACharacter::SetBase( UPrimitiveComponent* NewBaseComponent, const FName InB
 
 		}
 
-		// Notify this actor of his new floor.
+		// Notify this actor of its new floor.
 		if ( bNotifyPawn )
 		{
 			BaseChange();
@@ -996,7 +996,7 @@ void ACharacter::OnMovementModeChanged(EMovementMode PrevMovementMode, uint8 Pre
 
 /** Don't process landed notification if updating client position by replaying moves. 
  * Allow event to be called if Pawn was initially falling (before starting to replay moves), 
- * and this is going to cause him to land. . */
+ * and this is going to cause it to land. . */
 bool ACharacter::ShouldNotifyLanded(const FHitResult& Hit)
 {
 	if (bClientUpdating && !bClientWasFalling)

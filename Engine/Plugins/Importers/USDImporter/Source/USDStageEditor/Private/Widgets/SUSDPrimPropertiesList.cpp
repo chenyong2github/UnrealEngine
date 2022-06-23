@@ -375,7 +375,7 @@ TSharedRef< SWidget > SUsdPrimPropertyRow::GenerateWidgetForColumn( const FName&
 					.OnSelectionChanged( this, &SUsdPrimPropertyRow::OnComboBoxSelectionChanged )
 					[
 						// Having an editable text box inside the combobox allows the user to pick through the most common ones but to
-						// also specify a custom kind/purpose/etc. if he wants to
+						// also specify a custom kind/purpose/etc. if they want to
 						SNew( SEditableTextBox )
 						.Text( this, &SUsdPrimPropertyRow::GetValueText )
 						.Font( FAppStyle::GetFontStyle( "PropertyWindow.NormalFont" ) )

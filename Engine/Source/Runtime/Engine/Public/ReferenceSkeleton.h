@@ -353,7 +353,7 @@ public:
 		if (ParentBoneIndex != INDEX_NONE)
 		{
 			// Bones are in strictly increasing order.
-			// So child must have an index greater than his parent.
+			// So child must have an index greater than its parent.
 			if (ChildBoneIndex > ParentBoneIndex)
 			{
 				int32 BoneIndex = GetParentIndex(ChildBoneIndex);

@@ -817,7 +817,7 @@ public:
 	static void GetSortedVolumeClasses( TArray< UClass* >* VolumeClasses );
 
 	/**
-	 * Checks the destination level visibility and warns the user if he is trying to paste to a hidden level, offering the option to cancel the operation or unhide the level that is hidden
+	 * Checks the destination level visibility and warns the user if they are trying to paste to a hidden level, offering the option to cancel the operation or unhide the level that is hidden
 	 * 
 	 * @param InWorld			World context
 	 */

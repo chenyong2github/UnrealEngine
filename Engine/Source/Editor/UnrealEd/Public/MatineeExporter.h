@@ -41,9 +41,9 @@ public:
 
 	/**
 	* Load the export option from the last save state and show the dialog if bShowOptionDialog is true.
-	* FullPath is the export file path we display it in the dialog
-	* If user cancel the dialog, the OutOperationCanceled will be true
-	* bOutExportAll will be true if the user want to use the same option for all other asset he want to export
+	* FullPath is the export file path we display in the dialog.
+	* If the user cancels the dialog, the OutOperationCanceled will be true.
+	* bOutExportAll will be true if the user wants to use the same option for all other assets they want to export.
 	*
 	* The function is saving the dialog state in a user ini file and reload it from there. It is not changing the CDO.
 	*/

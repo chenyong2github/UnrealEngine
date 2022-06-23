@@ -650,7 +650,7 @@ private:
 	/** Local Directory*/
 	FString LocalCaptureDir;
 
-	/** Unique guid for this guy to specify what*/
+	/** Unique guid for this serializer */
 	FGuid Guid;
 };
 

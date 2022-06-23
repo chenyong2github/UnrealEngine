@@ -98,7 +98,7 @@ int32 USpectatorBeaconState::GetReservationPlatformCount(const FString& InPlatfo
 
 bool USpectatorBeaconState::CrossPlayAllowed(const FSpectatorReservation& ReservationRequest) const
 {
-	// Since this player is a spectator, he won't be playing, so allow crossplay.
+	// Since this player is a spectator, it won't be playing, so allow crossplay.
 	return true;
 }
 

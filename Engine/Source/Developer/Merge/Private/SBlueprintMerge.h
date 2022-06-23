@@ -60,7 +60,7 @@ private:
 	bool IsActivelyMerging() const;
 
 	/** 
-	 * The user cannot start a merge until he/she has chosen a remote, base, &
+	 * The user cannot start a merge until they have chosen a remote, base, &
 	 * local asset/revision to use in the merge. This checks the state of their 
 	 * choices.
 	 *

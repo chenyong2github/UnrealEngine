@@ -203,9 +203,9 @@ namespace Chaos
 	 * @param    FieldState Field state that will be set on the handle
 	 * @param    RigidHandle Particle hadle on which the state will be set
 	 * @param    HasInitialLinearVelocity Boolean to check if we have to set the initial linear velocity 
-	 * @param    InitialLinearVelocity Initial linear velocity to potentially set onto he handle
+	 * @param    InitialLinearVelocity Initial linear velocity to potentially set onto the handle
 	 * @param    HasInitialAngularVelocity Boolean to check if we have to set the initial angular velocity 
-	 * @param    InitialAngularVelocity Initial angular velocity to potentially set onto he handle
+	 * @param    InitialAngularVelocity Initial angular velocity to potentially set onto the handle
 	 */
 	static bool ReportDynamicStateResult(Chaos::FPBDRigidsSolver* RigidSolver,
 		const Chaos::EObjectStateType FieldState, Chaos::FPBDRigidParticleHandle* RigidHandle,

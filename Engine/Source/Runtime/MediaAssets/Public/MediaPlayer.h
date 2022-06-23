@@ -848,7 +848,7 @@ public:
 	 * Delay of the player's time.
 	 *
 	 * This setting can be used to manually sync multiple sources.
-	 * Set to 1 seconds, if you would like that Player to play 1 second behind his current time.
+	 * Set to 1 seconds, if you would like that Player to play 1 second behind its current time.
 	 * If the value is too big, it is possible that the player would not hold that frame for that long.
 	 * @return true on success, false otherwise.
 	 * @see GetTimeDelay

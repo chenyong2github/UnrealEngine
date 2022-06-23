@@ -2931,7 +2931,7 @@ static void LoadTimecodeProvider(UEngine* Engine)
 #if PLATFORM_DESKTOP
 		NewTimecodeProvider->bUseHighPerformanceClock = false;
 #else
-		//If a user wish to have an accurate TC value on console, he should set an accurate TC provider in his project settings.
+		//If a user wishes to have an accurate TC value on console, they should set an accurate TC provider in their project settings.
 		NewTimecodeProvider->bUseHighPerformanceClock = true;
 #endif
 		Engine->SetTimecodeProvider(NewTimecodeProvider);
@@ -3959,7 +3959,7 @@ void UEngine::SwapControllerId(ULocalPlayer *NewPlayer, const int32 CurrentContr
 
 		if (LocalPlayers.Contains(NewPlayer))
 		{
-			// This is the world context that NewPlayer belongs to, see if anyone is using his CurrentControllerId
+			// This is the world context that NewPlayer belongs to, see if anyone is using its CurrentControllerId
 			for (ULocalPlayer* LocalPlayer : LocalPlayers)
 			{
 				if (LocalPlayer && LocalPlayer != NewPlayer && LocalPlayer->GetControllerId() == NewControllerID)

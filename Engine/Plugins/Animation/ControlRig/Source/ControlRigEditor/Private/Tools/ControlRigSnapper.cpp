@@ -359,7 +359,7 @@ bool FControlRigSnapper::SnapIt(FFrameNumber StartFrame, FFrameNumber EndFrame,c
 				}
 			}
 		}
-		//set transforms on these guys
+		//set transforms on these actors
 		for (FGuidAndActor& GuidActor : ActorsToSnap)
 		{
 			if (bSnapToFirstFrameNotParents || SnapSettings->bKeepOffset) //if we are snapping to the first frame or keep offset we just don't set the parent transforms

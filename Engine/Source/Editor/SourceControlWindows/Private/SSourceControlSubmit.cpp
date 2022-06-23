@@ -78,7 +78,7 @@ void SSourceControlSubmitWidget::Construct(const FArguments& InArgs)
 	SortMode = EColumnSortMode::Ascending;
 	if (!InArgs._Description.Get().IsEmpty())
 	{
-		// This is meant to restore the description entered by the user if he canceled a previous submit operation (or the submit failed somehow).
+		// This is meant to restore the description entered by the user if they canceled a previous submit operation (or the submit failed somehow).
 		SavedChangeListDescription = InArgs._Description.Get();
 	}
 	bAllowSubmit = InArgs._AllowSubmit.Get();

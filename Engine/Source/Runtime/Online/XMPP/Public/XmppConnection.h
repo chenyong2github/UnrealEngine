@@ -258,9 +258,9 @@ public:
 
 	/**
 	 * Get the jid of the last user login attempt
-	 * Note that he may be logged out
+	 * Note that they may be logged out
 	 *
-	 * @param jid to identity user
+	 * @param jid to identify user
 	 */
 	virtual const FXmppUserJid& GetUserJid() const = 0;
 

@@ -69,7 +69,7 @@ public:
 		ONLINE_JSON_SERIALIZE_MAP("additionalAuthData", AdditionalAuthData);
 	END_ONLINE_JSON_SERIALIZER
 };
-/** Mapping from user id to his internal online account info (only one per user) */
+/** Mapping from user id to internal online account info (only one per user) */
 typedef TMap<FString, TSharedRef<FUserOnlineAccountAmazon> > FUserOnlineAccountAmazonMap;
 
 /**

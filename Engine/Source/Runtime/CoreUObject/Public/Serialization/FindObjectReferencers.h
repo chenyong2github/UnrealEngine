@@ -49,7 +49,7 @@ public:
 				ReferenceCounts.Reset();
 				if ( FindReferencerAr.GetReferenceCounts(ReferenceCounts) > 0 )
 				{
-					// here we don't really care about the number of references from PotentialReferencer to the target object...just that he's a referencer
+					// here we don't really care about the number of references from PotentialReferencer to the target object...just that it's a referencer
 					ReferencedObjects.Reset();
 					ReferenceCounts.GenerateKeyArray(ReferencedObjects);
 					for ( int32 RefIndex = 0; RefIndex < ReferencedObjects.Num(); RefIndex++ )

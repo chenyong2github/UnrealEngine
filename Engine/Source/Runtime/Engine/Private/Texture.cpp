@@ -1941,7 +1941,7 @@ FTextureSource::FMipLock::FMipLock(FMipLock&& RHS) :
 	MipIndex(RHS.MipIndex),
 	Image(RHS.Image)
 {
-	// blank out RHS so he doesn't try to unlock :
+	// blank out RHS so it doesn't try to unlock :
 	RHS.LockState = ELockState::None;
 	RHS.Image = FImageView();
 	check( ! RHS.IsValid() );

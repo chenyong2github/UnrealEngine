@@ -91,7 +91,7 @@ namespace FEQSHelpers
 			UE_LOG(LogEQS, Error, TEXT("FBatchTrace::DoSingleSourceMultiDestinations called with unhandled trace type: %d"), int32(TraceType));
 		}
 
-		/** note that his function works slightly different in terms of discarding items. 
+		/** note that this function works slightly different in terms of discarding items. 
 		 *	"Accepted" items get added to the OutPoints array*/
 		template<EEnvTraceShape::Type TraceType>
 		void DoMultiSourceMultiDestinations2D(const TArray<FRayStartEnd>& Rays, TArray<FNavLocation>& OutPoints)

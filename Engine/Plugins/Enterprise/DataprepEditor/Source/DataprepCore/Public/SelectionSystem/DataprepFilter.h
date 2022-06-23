@@ -134,7 +134,7 @@ private:
 		return {};
 	}
 
-	// Is this filter a excluding filter (a filter that is inverse his normal output)
+	// Is this filter an excluding filter (a filter that produces the inverse of its normal output)
 	UPROPERTY(EditAnywhere, Category="Filter")
 	bool bIsExcludingResult = false;
 
@@ -245,7 +245,7 @@ public:
 	}
 
 private:
-	// Is this filter a excluding filter (a filter that is inverse his normal output)
+	// Is this filter an excluding filter (a filter that produces the inverse of its normal output)
 	UPROPERTY(EditAnywhere, Category="Filter")
 	bool bIsExcludingResult = false;
 };

@@ -7,7 +7,7 @@
 
 
 /**
- * Synchronization component. Synchronizes himself
+ * Synchronization component. Synchronizes itself
  */
 UCLASS(ClassGroup = (DisplayCluster), Blueprintable, meta = (BlueprintSpawnableComponent, DisplayName = "NDisplay Sync This"))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponentSyncThis

@@ -854,7 +854,7 @@ FAGXSurface::~FAGXSurface()
 	}
 	
 	
-	//do the same as above.  only do a [release] if it'st he same as texture.
+	//do the same as above.  only do a [release] if it's the same as texture.
 	if (MSAAResolveTexture.GetPtr())
 	{
 		if (Texture.GetPtr() != MSAAResolveTexture.GetPtr())

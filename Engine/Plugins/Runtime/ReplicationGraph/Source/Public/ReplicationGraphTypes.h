@@ -804,7 +804,7 @@ struct FGlobalActorReplicationInfoMap
 	/** Removes actor data from map */
 	int32 Remove(const FActorRepListType& RemovedActor)
 	{
-		// Clean the references to the removed actor from his dependency chain.
+		// Clean the references to the removed actor from its dependency chain.
 		if (FGlobalActorReplicationInfo* RemovedActorInfo = Find(RemovedActor))
 		{
 			// Remove child dependents
@@ -895,7 +895,7 @@ struct FGlobalActorReplicationInfoMap
 			return;
 		}
 		
-		// Remove this actor from all his parents
+		// Remove this actor from all its parents
 		for (FActorRepListType ParentActor : MainActorInfo->ParentActorList)
 		{
 			if (FGlobalActorReplicationInfo* ParentInfo = Find(ParentActor))

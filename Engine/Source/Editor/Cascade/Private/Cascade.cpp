@@ -3156,7 +3156,7 @@ void FCascade::DuplicateModule(bool bDoShare, bool bUseHighest)
 				int32 LODIndexToUse = bDoShare? DestLODLevel->Level: LODIndex;
 				SelectedModule->LODValidity &= ~(1 << LODIndexToUse);
 			}
-			// Turn on the LOD validity int he new module...
+			// Turn on the LOD validity in the new module...
 			NewModule->LODValidity |= (1 << LODIndex);
 
 			// Store the new module

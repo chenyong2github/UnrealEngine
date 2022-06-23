@@ -25,7 +25,7 @@ struct FMassArchetypeEntityCollection;
 class FOutputDevice;
 enum class EMassFragmentAccess : uint8;
 
-//@TODO: Comment this guy
+//@TODO: Comment this
 UCLASS()
 class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
 {

@@ -176,7 +176,7 @@ public:
 		}
 		else
 		{
-			//When simply importing we load the local config file of the user so he rerieve the last import options
+			//When simply importing we load the local config file of the user so they rerieve the last import options
 			SpeedTreeImportData->LoadConfig();
 		}
 

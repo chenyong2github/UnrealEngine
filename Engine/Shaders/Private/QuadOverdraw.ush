@@ -104,7 +104,7 @@ uint ComputeQuadCoverage(uint2 SvPosition, uint SvPrimitiveID, uniform int NumIt
 		{
 			uint CurrDesc = RWQuadDescriptor[QuadID];
 
-			// If the primitive ID has changed, then the owner as finished his process.
+			// If the primitive ID has changed, then the owner has finished its process.
 			[flatten]
 			if (GetPrimitiveID(CurrDesc) != SvPrimitiveID)
 			{

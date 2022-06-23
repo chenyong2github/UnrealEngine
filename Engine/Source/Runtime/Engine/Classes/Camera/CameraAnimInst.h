@@ -126,7 +126,7 @@ public:
 	/** advances the animation by the specified time - updates any modified interp properties, moves the group actor, etc */
 	void AdvanceAnim(float DeltaTime, bool bJump);
 	
-	/** Jumps he camera anim to the given (unscaled) time. */
+	/** Jumps the camera anim to the given (unscaled) time. */
 	void SetCurrentTime(float NewTime);
 
 	/** Returns the current playback time. */

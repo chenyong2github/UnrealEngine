@@ -870,7 +870,7 @@ FActiveGameplayEffectHandle UAbilitySystemComponent::ApplyGameplayEffectSpecToSe
 		(!bFoundExistingStackableGE || !Spec.Def->bSuppressStackingCues))
 	{
 		// We both added and activated the GameplayCue here.
-		// On the client, who will invoke the gameplay cue from an OnRep, he will need to look at the StartTime to determine
+		// On the client, which will invoke the gameplay cue from an OnRep, it will need to look at the StartTime to determine
 		// if the Cue was actually added+activated or just added (due to relevancy)
 
 		// Fixme: what if we wanted to scale Cue magnitude based on damage? E.g, scale an cue effect when the GE is buffed?
@@ -1292,8 +1292,8 @@ void UAbilitySystemComponent::AddGameplayCue_Internal(const FGameplayTag Gamepla
 		ForceReplication();
 		GameplayCueContainer.AddCue(GameplayCueTag, ScopedPredictionKey, GameplayCueParameters);
 		
-		// For mixed minimal replication mode, we do NOT want the owning client to play the OnActive event through this RPC, since he will get the full replicated 
-		// GE in his AGE array. Generate a server-side prediction key for him, which he will look for on the _Implementation function and ignore. (<--- Original Hack)
+		// For mixed minimal replication mode, we do NOT want the owning client to play the OnActive event through this RPC, since it will get the full replicated 
+		// GE in its AGE array. Generate a server-side prediction key for it, which it will look for on the _Implementation function and ignore. (<--- Original Hack)
 		{
 			FPredictionKey PredictionKeyForRPC = ScopedPredictionKey; // Key we send for RPC. Start with the regular old ScopedPredictionKey
 
@@ -1947,7 +1947,7 @@ void UAbilitySystemComponent::OnClientPrintDebug_Response(const TArray<FString>&
 	}
 
 
-	// Now that we've heard back from server, append his strings and broadcast the delegate
+	// Now that we've heard back from server, append its strings and broadcast the delegate
 	UAbilitySystemGlobals::Get().AbilitySystemDebugStrings.Append(Strings);
 	UAbilitySystemGlobals::Get().OnClientServerDebugAvailable.Broadcast();
 	UAbilitySystemGlobals::Get().AbilitySystemDebugStrings.Reset(); // we are done with this now. Clear it to signal that this can be ran again
@@ -2273,7 +2273,7 @@ void UAbilitySystemComponent::PrintDebug()
 
 	Debug_Internal(DebugInfo);
 
-	// Store our local strings in the global debug array. Wait for server to respond with his.
+	// Store our local strings in the global debug array. Wait for server to respond with its strings.
 	if (UAbilitySystemGlobals::Get().AbilitySystemDebugStrings.Num() > 0)
 	{
 		ABILITY_LOG(Warning, TEXT("UAbilitySystemComponent::PrintDebug called while AbilitySystemDebugStrings was not empty. Still waiting for server response from a previous call?"));

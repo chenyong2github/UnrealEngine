@@ -88,7 +88,7 @@ void UAnimationModifier::ApplyToAnimationSequence(class UAnimSequence* InAnimati
 
 	GLog->RemoveOutputDevice(&OutputLog);
 
-	// Check if warnings or errors have occurred and show dialog to user to inform her about this
+	// Check if warnings or errors have occurred and show dialog to user to inform them about this
 	const bool bWarnings = OutputLog.ContainsWarnings();
 	const bool bErrors = OutputLog.ContainsErrors();
 	bool bShouldRevert = bErrors;

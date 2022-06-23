@@ -218,7 +218,7 @@ struct SBlueprintFavoritesPaletteUtils
 						// so the tool tip shows up for the whole entry:
 						.Visibility(EVisibility::Visible)
 					+SHorizontalBox::Slot()
-						// match the padding with normal sub-men entries
+						// match the padding with normal sub-menu entries
 						.Padding(FMargin(18.f, 0.f, 6.f, 0.f))
 						.FillWidth(1.0f)
 					[

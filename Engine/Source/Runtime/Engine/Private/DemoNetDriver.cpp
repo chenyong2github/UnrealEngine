@@ -3941,7 +3941,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 	// Check for nullptr, which can be the case if we haven't played any of the demo yet but want to fast forward (joining live game for example)
 	if (SpectatorController != nullptr)
 	{
-		// Save off the SpectatorController's GUID so that we know not to queue his bunches
+		// Save off the SpectatorController's GUID so that we know not to queue its bunches
 		AddNonQueuedActorForScrubbing(SpectatorController);
 	}
 

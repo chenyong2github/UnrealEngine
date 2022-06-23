@@ -54,10 +54,10 @@ public:
 	/** Remove a subobject from many netcondition groups */
 	void UnregisterSubObjectFromMultipleGroups(UObject* SubObject, TArrayView<FName> NetConditionGroups);
 
-	/** Remove the subobject from all groups he was included into */
+	/** Remove the subobject from all groups it was included into */
 	void UnregisterSubObjectFromAllGroups(UObject* SubObject);
 
-	/** Return the groups the subobject is a part of. Will be empty if he wasn't added to any. */
+	/** Return the groups the subobject is a part of. Will be empty if it wasn't added to any. */
 	TArrayView<const FName> GetSubObjectNetConditionGroups(FObjectKey SubObjectKey) const
 	{
 		const FSubObjectGroupInfo* GroupInfo = SubObjectGroupMap.Find(SubObjectKey);

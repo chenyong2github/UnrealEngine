@@ -686,7 +686,7 @@ public:
 	uint8										bIsAssociatingLevel:1;
 	/** Whether this level is in the process of being disassociated with its world (i.e. we are within RemoveFromWorld for this level */
 	uint8										bIsDisassociatingLevel : 1;
-	/** Whether this level should be fully added to the world before rendering his components	*/
+	/** Whether this level should be fully added to the world before rendering its components	*/
 	uint8										bRequireFullVisibilityToRender:1;
 	/** Whether this level is specific to client, visibility state will not be replicated to server	*/
 	uint8										bClientOnlyVisible:1;

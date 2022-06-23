@@ -487,7 +487,7 @@ void AActor::RerunConstructionScripts()
 				// Determine if this component is an inner of a component added by the construction script
 				const bool bIsInnerComponent = (CSAddedComponent != Component);
 
-				// Poor man's topological sort - try to ensure that children are added to the list after the parents
+				// Try to ensure that children are added to the list after the parents.
 				// IndexOffset specifies how many items from the end new items are added.
 				const int32 Index = ComponentMapping.Num() - IndexOffset;
 				if (bIsInnerComponent)

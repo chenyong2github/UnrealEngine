@@ -565,7 +565,7 @@ TSharedRef<SWidget> STimedDataInputTableRow::OnEvaluationImageBuildMenu()
 	LambdaEvaluationType = ETimedDataInputEvaluationType::PlatformTime;
 	MenuBuilder.AddMenuEntry(
 		LOCTEXT("EvaluationTypePlatformTimeLabel", "Platform Time"),
-		LOCTEXT("EvaluationTypePlatformTimeTooltip", "Evaluate the input base ont he engine's time."),
+		LOCTEXT("EvaluationTypePlatformTimeTooltip", "Evaluate the input base on the engine's time."),
 		FSlateIcon(FTimedDataMonitorEditorStyle::Get().GetStyleSetName(), FTimedDataMonitorEditorStyle::NAME_PlatformTimeBrush),
 		FUIAction(
 			FExecuteAction::CreateSP(this, &STimedDataInputTableRow::SetInputEvaluationType, LambdaEvaluationType),

@@ -2987,7 +2987,7 @@ void UAbilitySystemComponent::OnRep_ReplicatedAnimMontage()
 					const int32 CurrentSectionID = LocalAnimMontageInfo.AnimMontage->GetSectionIndexFromPosition(AnimInstance->Montage_GetPosition(LocalAnimMontageInfo.AnimMontage));
 					if ((CurrentSectionID != RepSectionID) && (CurrentSectionID != RepNextSectionID))
 					{
-						// Client is in a wrong section, teleport him into the begining of the right section
+						// Client is in a wrong section, teleport it into the beginning of the right section
 						const float SectionStartTime = LocalAnimMontageInfo.AnimMontage->GetAnimCompositeSection(RepSectionID).GetTime();
 						AnimInstance->Montage_SetPosition(LocalAnimMontageInfo.AnimMontage, SectionStartTime);
 					}

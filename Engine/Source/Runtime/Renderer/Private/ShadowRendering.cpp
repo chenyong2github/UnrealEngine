@@ -58,7 +58,7 @@ static TAutoConsoleVariable<int32> CVarCSMDepthBoundsTest(
 static TAutoConsoleVariable<float> CVarShadowTransitionScale(
 	TEXT("r.Shadow.TransitionScale"),
 	60.0f,
-	TEXT("This controls the 'fade in' region between a caster and where his shadow shows up.  Larger values make a smaller region which will have more self shadowing artifacts"),
+	TEXT("This controls the 'fade in' region between a caster and where its shadow shows up.  Larger values make a smaller region which will have more self shadowing artifacts"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarCSMShadowReceiverBias(

@@ -141,7 +141,7 @@ float Luma_To_LumaLog(float x)
 /** Returns the exposure multiplier that should be used for the color transformation of the signal. */
 float GetSignalColorTransformationExposure()
 {
-	// TODO(Denoiser): expose that guy.
+	// TODO(Denoiser): expose that.
 	const float Tweak = 1;
 
 	float FrameExposureScale = EyeAdaptationLookup();

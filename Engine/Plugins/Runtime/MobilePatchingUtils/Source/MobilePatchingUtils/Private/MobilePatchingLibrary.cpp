@@ -337,7 +337,7 @@ static void OnRemoteManifestReady(FHttpRequestPtr Request, FHttpResponsePtr Resp
 	if (MobilePendingContent)
 	{
 		// We don't need to keep this object alive anymore, 
-		// on Success it will be passed to the User and it's up to him to keep a reference to it
+		// on Success it will be passed to the User and it's up to them to keep a reference to it
 		MobilePendingContent->RemoveFromRoot();
 	}
 		

@@ -4148,7 +4148,7 @@ void UStaticMesh::SetNumSourceModels(const int32 Num)
 		for (int32 ReverseIndex = Index - 1; ReverseIndex > 0; ReverseIndex--)
 		{
 			const FStaticMeshSourceModel& StaticMeshModel = SourceModels[ReverseIndex];
-			//If the custom import LOD is reduce and is not using himself as the source, do not consider it
+			//If the custom import LOD is reduced and is not using itself as the source, do not consider it
 			if (IsMeshDescriptionValid(ReverseIndex) && !(IsReductionActive(ReverseIndex) && StaticMeshModel.ReductionSettings.BaseLODModel != ReverseIndex))
 			{
 				PreviousCustomLODIndex = ReverseIndex;

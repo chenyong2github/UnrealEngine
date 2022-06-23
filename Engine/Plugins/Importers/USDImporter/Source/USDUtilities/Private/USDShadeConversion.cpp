@@ -1254,7 +1254,7 @@ namespace UE
 
 #if WITH_EDITOR
 			// Note that we will bake things that aren't supported on the default USD surface shader schema. These could be useful in case the user has a custom
-			// renderer though, and he can pick which properties he wants anyway
+			// renderer though, and they can pick which properties they want anyway
 			bool BakeMaterial( const UMaterialInterface& Material, const TArray<FPropertyEntry>& InMaterialProperties, const FIntPoint& InDefaultTextureSize, FBakeOutput& OutBakedData )
 			{
 				const bool bAllQualityLevels = true;
@@ -1388,7 +1388,7 @@ namespace UE
 					// For some reason the baked samples always have zero alpha and there is nothing we can do about it... It seems like the material baking module is made
 					// with the intent that the data ends up in UTexture2Ds, where they can be set to be compressed without alpha and have the value ignored.
 					// Since we need to write these to file, we must set them back up to full alpha. This is potentially useless as USD handles these at most as color3f, but
-					// it could be annoying for the user if he intends on using the textures for anything else
+					// it could be annoying for the user if they intend on using the textures for anything else
 					for ( FColor& Sample : *Samples )
 					{
 						Sample.A = 255;

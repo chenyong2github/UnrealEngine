@@ -47,7 +47,7 @@ public:
 		Silent,
 		/** Show the default or overriden message in a popup */
 		ShowMessage,
-		/** Show the default or overriden message in a popup, and ask user if he wants to open the Marketplace */
+		/** Show the default or overriden message in a popup, and ask the user if they want to open the Marketplace */
 		ShowMessageOpenStore
 	};
 

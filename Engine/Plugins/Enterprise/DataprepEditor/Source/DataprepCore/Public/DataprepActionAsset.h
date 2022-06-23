@@ -352,7 +352,7 @@ public:
 	FOnStepAboutToBeRemoved& GetOnStepAboutToBeRemoved();
 
 	/**
-	 * Allow an observer to be notified when a step was edited (the step himself or a sub object of it)
+	 * Allow an observer to be notified when a step was edited (the step itself or a sub object of it)
 	 * @return The event that will be broadcasted
 	 */
 	FOnStepWasEdited& GetOnStepWasEdited();

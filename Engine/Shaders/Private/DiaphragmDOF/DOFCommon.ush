@@ -158,7 +158,7 @@ RWTexture2D<float4> DebugOutput;
 // @return half res pixel radius
 float DepthToHalfResCocRadius(float4 CocModelParameters, float2 DepthBlurParameters, float SceneDepth)
 {
-	const float Focus = View.DepthOfFieldFocalDistance; // TODO: rename that guy to DepthOfFieldFocusDistance.
+	const float Focus = View.DepthOfFieldFocalDistance; // TODO: rename this to DepthOfFieldFocusDistance.
 	const float InfinityCocRadius = CocModelParameters.x;
 	const float MinCocRadius = CocModelParameters.y;
 	const float MaxCocRadius = CocModelParameters.z;

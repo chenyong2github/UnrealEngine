@@ -21,12 +21,12 @@ struct FConcertSyncTransactionActivity;
  *
  * @par User authentication
  * The UE Editor doesn't use a mechanism like login/password to authenticate
- * a users. To uniquely identify a user, Concert generates a unique GUID
+ * a user. To uniquely identify a user, Concert generates a unique GUID
  * for each UE Editor instance. The same person may open/close the editor
- * several times or run multiple instances in parallel. For each editor instance,
- * he will get a new unique GUID. When the same user runs the editor in
+ * several times or run multiple instances in parallel. Each editor instance
+ * will get a new unique GUID. When the same user runs the editor in
  * parallel, the user will be recognized as two different people. When a user
- * exit the editor (or crash), then rejoin a session from a new editor instance,
+ * exits the editor (or crash), then rejoins a session from a new editor instance,
  * the implementation will try to match its new identity to its previous one
  * and then assign all live transactions performed using the previous identity
  * to the new identity, if the user name, display name, machine name, ... match.

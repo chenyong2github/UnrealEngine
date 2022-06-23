@@ -47,7 +47,7 @@ namespace Audio
 			// The sound wave which is loading PCM data
 			USoundWave* SoundWave;
 
-			// The lambda function to call when t he sound wave finishes loading
+			// The lambda function to call when the sound wave finishes loading
 			TFunction<void(const USoundWave* SoundWave, const Audio::FSampleBuffer& LoadedSampleBuffer)> OnLoaded;
 
 

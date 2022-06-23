@@ -118,7 +118,7 @@ struct FActorClusterInstance
 };
 
 /**
- * Represents one actor and his owning container instance 
+ * Represents one actor and its owning container instance 
  */
 struct ENGINE_API FActorInstance
 {

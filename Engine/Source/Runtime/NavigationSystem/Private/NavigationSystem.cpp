@@ -2128,7 +2128,7 @@ FBox UNavigationSystemV1::GetWorldBounds() const
 		}
 		else
 		{
-			// @TODO - super slow! Need to ask tech guys where I can get this from
+			// @TODO - super slow! Need to ask where I can get this from
 			for (FActorIterator It(GetWorld()); It; ++It)
 			{
 				if (IsNavigationRelevant(*It))

@@ -2465,7 +2465,7 @@ protected:
 	/** Delegate to invoke to see if we can navigate or select item. */
 	FIsSelectableOrNavigable OnIsSelectableOrNavigable;
 
-	/** Called when the user clicks on an element int he list view with the left mouse button */
+	/** Called when the user clicks on an element in the list view with the left mouse button */
 	FOnMouseButtonClick OnClick;
 
 	/** Called when the user double-clicks on an element in the list view with the left mouse button */

@@ -904,7 +904,7 @@ bool FDatasmithImporterImpl::CheckAssetPersistenceValidity(const FString& Packag
 				FSourceControlStatePtr SourceControlState = SourceControlProvider.GetState(FakeAbsolutePathToAsset, EStateCacheUsage::Use);
 				if( SourceControlState.IsValid() && SourceControlState->CanCheckout() )
 				{
-					// User will be prompted to check out this file when he/she saves the asset. No need to warn.
+					// User will be prompted to check out this file when they save the asset. No need to warn.
 					bCanCheckedOut = true;
 				}
 			}

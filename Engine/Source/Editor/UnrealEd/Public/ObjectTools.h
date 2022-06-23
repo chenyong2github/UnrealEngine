@@ -290,7 +290,7 @@ namespace ObjectTools
 	 * Deletes the list of objects
 	 *
 	 * @param	ObjectsToDelete		The list of objects to delete
-	 * @param	bShowConfirmation	True when a dialog should prompt the user that he/she is about to delete something
+	 * @param	bShowConfirmation	True when a dialog should prompt the user that they are about to delete something
 	 *
 	 * @return The number of objects successfully deleted
 	 */
@@ -310,7 +310,7 @@ namespace ObjectTools
 	* Deletes the list of objects
 	*
 	* @param	AssetsToDelete		The list of assets to delete
-	* @param	bShowConfirmation	True when a dialog should prompt the user that he/she is about to delete something
+	* @param	bShowConfirmation	True when a dialog should prompt the user that they are about to delete something
 	*
 	* @return The number of assets successfully deleted
 	*/

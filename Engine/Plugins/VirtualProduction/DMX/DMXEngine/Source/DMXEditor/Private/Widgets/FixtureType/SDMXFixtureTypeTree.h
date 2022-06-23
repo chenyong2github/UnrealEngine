@@ -63,7 +63,7 @@ private:
 	/** Called when Fixture Patches were selected in Fixture Patch Shared Data */
 	void OnFixturePatchesSelected();
 
-	/** Called when an Entity was added fromt he edited DMX Library */
+	/** Called when an Entity was added from the edited DMX Library */
 	void OnEntitiesAdded(UDMXLibrary* Library, TArray<UDMXEntity*> Entities);
 
 	/** Called when an Entity was removed from the edited DMX Library */

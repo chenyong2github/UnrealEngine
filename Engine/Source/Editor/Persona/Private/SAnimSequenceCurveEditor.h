@@ -88,6 +88,6 @@ private:
 	/** The anim sequence we are editing */
 	UAnimSequenceBase* AnimSequence;
 
-	/** The tree widget int he curve editor */
+	/** The tree widget in the curve editor */
 	TSharedPtr<SCurveEditorTree> CurveEditorTree;
 };

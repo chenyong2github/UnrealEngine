@@ -147,7 +147,7 @@ bool AOnlineBeaconHost::HandleControlMessage(UNetConnection* Connection, uint8 M
 
 		// make one
 		ConnState = &ConnectionState.Add(Connection, FConnectionState());
-		Connection->OwningActor = this; // make sure we get OnNetCleanup if this guy dies
+		Connection->OwningActor = this; // make sure we get OnNetCleanup if this dies
 	}
 	check(ConnState != nullptr);
 

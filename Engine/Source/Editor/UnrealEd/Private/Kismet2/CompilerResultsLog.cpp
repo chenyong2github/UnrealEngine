@@ -91,7 +91,7 @@ UEdGraphPin* FBacktrackMap::FindSourcePin(UEdGraphPin* PossiblyDuplicatedPin)
 	}
 	else
 	{
-		// Not in the map, maybe its owning node was duplicated - and then maybe he GUID matches
+		// Not in the map, maybe its owning node was duplicated - and then maybe the GUID matches
 		// some node on the original node:
 		if (PossiblyDuplicatedPin)
 		{

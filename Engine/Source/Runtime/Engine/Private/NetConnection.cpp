@@ -4631,8 +4631,8 @@ void UNetConnection::FlushDormancy(class AActor* Actor)
 	// If channel is pending dormancy, cancel it
 			
 	// If the close bunch was already sent, that is fine, by reseting the dormant flag
-	// here, the server will not add the actor to the dormancy list when he closes the channel 
-	// after he gets the client ack. The result is the channel will close but be open again
+	// here, the server will not add the actor to the dormancy list when it closes the channel 
+	// after it gets the client ack. The result is the channel will close but be open again
 	// right away
 	UActorChannel* Ch = FindActorChannelRef(Actor);
 

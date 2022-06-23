@@ -181,7 +181,7 @@ protected:
 	bool bShiftPressedWhenStarted = false;
 	bool bCtrlPressedWhenStarted = false;
 	UWorld* TargetWorld = nullptr;		// target World we will raycast into
-	UInteractiveGizmoManager* GizmoManager = nullptr; //gizmo man
+	UInteractiveGizmoManager* GizmoManager = nullptr;
 
 	FTransform StartDragTransform;
 	bool bGizmoBeingDragged = false;

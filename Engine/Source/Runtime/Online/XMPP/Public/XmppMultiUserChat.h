@@ -88,7 +88,7 @@ namespace EXmppChatMemberRole
 	{
 		/* A moderator is the most powerful role within the context of the room, and can to some extent manage other occupants' roles in the room. */
 		Moderator,
-	    /* A participant has fewer privileges than a moderator, although he or she always has the right to speak. */
+	    /* A participant has fewer privileges than a moderator, although they always have the right to speak. */
 		Participant,
 		/* A visitor is a more restricted role within the context of a moderated room */
 		Visitor,

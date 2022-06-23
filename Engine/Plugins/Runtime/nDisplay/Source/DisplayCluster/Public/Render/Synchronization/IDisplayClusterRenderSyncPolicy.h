@@ -34,7 +34,7 @@ public:
 	*
 	* @param InOutSyncInterval - Sync interval (VSync)
 	*
-	* @return - true if we a caller needs to present frame by his own
+	* @return - true if we a caller needs to present frame by its own
 	*/
 	virtual bool SynchronizeClusterRendering(int32& InOutSyncInterval) = 0;
 

@@ -106,7 +106,7 @@ TFuture<FConcertDataStoreResult> FConcertClientDataStore::InternalCompareExchang
 	else
 	{
 		// No need to call the server, the expected value doesn't match the one in cache. This means the server
-		// pushed a newer value to this client or the client did not use the latest value he fetched. Return him
+		// pushed a newer value to this client or the client did not use the latest value it fetched. Return
 		// the latest value cached.
 		return MakeFulfilledPromise<FConcertDataStoreResult>(MoveTemp(Result)).GetFuture();
 	}
@@ -181,7 +181,7 @@ FConcertDataStoreResult FConcertClientDataStore::HandleResponse(const FName& Sen
 	// When a value is added or exchanged, the server doesn't send back the value payload to save bandwidth. We need to cache the value we sent.
 	if (Response.ResultCode == EConcertDataStoreResultCode::Added || Response.ResultCode == EConcertDataStoreResultCode::Exchanged)
 	{
-		// Ensure the server doesn't send data when the client initiated the operation (The client knows the value he sent).
+		// Ensure the server doesn't send data when the client initiated the operation (The client knows the value it sent).
 		check(Response.Value.TypeName.IsNone());
 		check(Response.Value.SerializedValue.PayloadTypeName.IsNone());
 		check(Response.Value.SerializedValue.bPayloadIsCompressed == false);

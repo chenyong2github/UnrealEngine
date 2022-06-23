@@ -56,7 +56,7 @@ bool UTickableWorldSubsystem::IsAllowedToTick() const
 {
 	// No matter what IsTickable says, don't let CDOs or uninitialized world subsystems tick :
 	// Note: even if GetTickableTickType was overridden by the child class and returns something else than ETickableTickType::Never for CDOs, 
-	//  it's probably a mistake, so by default, don't allow ticking. If the child class really intends its CDO to tick, he can always override IsAllowedToTick...
+	//  it's probably a mistake, so by default, don't allow ticking. If the child class really intends its CDO to tick, it can always override IsAllowedToTick...
 	return !IsTemplate() && bInitialized;
 }
 

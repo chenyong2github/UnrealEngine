@@ -593,7 +593,7 @@ void FSteamVRHMD::MetalBridge::Reset()
 
 IOSurfaceRef FSteamVRHMD::MetalBridge::GetSurface(const uint32 SizeX, const uint32 SizeY)
 {
-	// @todo: Get our man in MacVR to switch to a modern & secure method of IOSurface sharing...
+	// @todo: Get our contact in MacVR to switch to a modern & secure method of IOSurface sharing...
 	// @todo: Also add support for depth.
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	const NSDictionary* SurfaceDefinition = @{

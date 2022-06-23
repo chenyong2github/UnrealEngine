@@ -1665,7 +1665,7 @@ FReply SDesignerView::OnMouseButtonDown(const FGeometry& MyGeometry, const FPoin
 			// If the newly clicked item is a child of the active selection, add it to the pending set of selected 
 			// widgets, if they begin dragging we can just move the parent, but if it's not part of the parent set, 
 			// we want to immediately begin dragging it.  Also if the currently selected widget is the root widget, 
-			// we won't be moving him so just resolve immediately.
+			// we won't be moving it so just resolve immediately.
 			if ( bResolvePendingSelectionImmediately )
 			{
 				ResolvePendingSelectedWidgets();
@@ -3216,8 +3216,8 @@ void SDesignerView::HandleOnCommonResolutionSelected(const FPlayScreenResolution
 
 	if (UUserWidget* DefaultWidget = GetDefaultWidget())
 	{
-		// If we using custom or desired design time sizes and the user picks a screen size, he must
-		// want to also change his visualization to be custom on screen or desired on screen, doesn't
+		// If we using custom or desired design time sizes and the user picks a screen size, they must
+		// want to also change the visualization to be custom on screen or desired on screen, doesn't
 		// make sense to change it otherwise as it would have no effect.
 		if (DefaultWidget->DesignSizeMode == EDesignPreviewSizeMode::Custom)
 		{

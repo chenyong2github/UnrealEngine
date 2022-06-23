@@ -2333,7 +2333,7 @@ uint64 FStreamingManager::GetRequestRecordBuffer(TArray<uint32>& OutRequestData)
 	
 	// Write packed requests
 	// A request consists of two DWORDs. A resource DWORD and a pageindex/priority/repeat DWORD.
-	// The repeat bit indicates if the next request is to he same resource, so the resource DWORD can be omitted.
+	// The repeat bit indicates if the next request is to the same resource, so the resource DWORD can be omitted.
 	// As there are often many requests per resource, this encoding can safe upwards of half of the total DWORDs.
 	{
 		const uint32 NumOutputDwords = NumUniqueResources + Requests.Num();

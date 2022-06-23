@@ -3679,7 +3679,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 			}
 		}
 
-		// We have to place PIELevel at his local position in case EditorLevel was visible
+		// We have to place PIELevel at the local position in case EditorLevel was visible
 		// Correct placement will occur during UWorld::AddToWorld
 		if (EditorLevel->OwningWorld->WorldComposition && EditorLevel->bIsVisible)
 		{

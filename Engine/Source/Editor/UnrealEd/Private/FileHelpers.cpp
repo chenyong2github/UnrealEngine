@@ -2319,7 +2319,7 @@ ECommandResult::Type FEditorFileUtils::CheckoutPackages(const TArray<FString>& P
 }
 
 /**
- * Prompt the user with a check-box dialog allowing him/her to check out relevant level packages 
+ * Prompt the user with a check-box dialog allowing them to check out relevant level packages 
  * from source control
  *
  * @param	bCheckDirty					If true, non-dirty packages won't be added to the dialog
@@ -2371,7 +2371,7 @@ bool FEditorFileUtils::PromptToCheckoutLevels(bool bCheckDirty, const TArray<ULe
 
 /**
  * Overloaded version of PromptToCheckOutLevels which prompts the user with a check-box dialog allowing
- * him/her to check out the relevant level package if necessary
+ * them to check out the relevant level package if necessary
  *
  * @param	bCheckDirty				If true, non-dirty packages won't be added to the dialog
  * @param	SpecificLevelToCheckOut	The level whose package will display in the dialog if it is

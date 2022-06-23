@@ -126,7 +126,7 @@ protected:
 		check(Info.Payload.IsValid());
 		BaseClass* TypedDocumentID = FTabPayload_UObject::CastChecked<BaseClass>(Info.Payload);
 		return ConstructTabNameForObject(TypedDocumentID);
-		//@TODO: DOCMANAGEMENT: Need to incorporate Info.TabPrefix into these guys!
+		//@TODO: DOCMANAGEMENT: Need to incorporate Info.TabPrefix into these!
 	}
 
 	// Methods to override in subclasses that make life easier for UObject-based documents

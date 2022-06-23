@@ -324,7 +324,7 @@ TSharedRef<SWidget> SDataprepProducersWidget::CreateAddProducerMenuWidget()
 		FUIAction MenuAction;
 		int32 Index = 0;
 
-		// Find content producers the user could use for his/her data preparation
+		// Find content producers the user could use for their data preparation
 		for( TObjectIterator< UClass > It ; It ; ++It )
 		{
 			UClass* CurrentClass = (*It);

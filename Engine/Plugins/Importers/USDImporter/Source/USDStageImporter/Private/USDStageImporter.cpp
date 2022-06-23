@@ -388,7 +388,7 @@ namespace UsdStageImporterImpl
 			{
 				// If we have multiple LODs here we must have parsed the LOD variant set pattern. If our prims were named with the LOD
 				// pattern, go from e.g. '/Root/MyMesh/LOD0' to '/Root/MyMesh', or else every single LOD mesh will be named "SM_LOD0_X".
-				// We'll actually check though because if the user set a custom name for his prim other than LOD0 then we'll keep that
+				// We'll actually check though because if the user set a custom name for their prim other than LOD0 then we'll keep that
 				if ( Mesh->GetNumLODs() > 1 )
 				{
 					FString PrimName = FPaths::GetBaseFilename( AssetPath );

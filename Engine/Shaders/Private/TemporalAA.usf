@@ -775,7 +775,7 @@ struct FTAAInputParameters
 
 // Intermediary results for major function to conveniently share values between them.
 //
-// it is allowed to passdown this guy to major function with still unitialized variables.
+// it is allowed to passdown this to major function with still unitialized variables.
 struct FTAAIntermediaryResult
 {
 	// The filtered input.

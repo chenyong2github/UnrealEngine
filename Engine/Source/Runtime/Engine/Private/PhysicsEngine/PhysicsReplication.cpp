@@ -553,7 +553,7 @@ void FPhysicsReplication::OnTick(float DeltaSeconds, TMap<TWeakObjectPtr<UPrimit
 					const bool bIsReplicatedAutonomous = OwnerRole == ROLE_AutonomousProxy && PrimComp->bReplicatePhysicsToAutonomousProxy;
 					if (bIsSimulated || bIsReplicatedAutonomous)
 					{
-						// Get the ping of the guy who owns this thing. If nobody is,
+						// Get the ping of this thing's owner. If nobody owns it,
 						// then it's server authoritative.
 						const float OwnerPing = GetOwnerPing(OwningActor, PhysicsTarget);
 

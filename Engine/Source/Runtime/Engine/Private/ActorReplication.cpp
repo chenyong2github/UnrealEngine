@@ -592,8 +592,8 @@ void AActor::AddActorComponentReplicatedSubObject(UActorComponent* OwnerComponen
 	}
 	else
 	{
-		// If we have to create an entry it means the component is registering subobjects while not replicating or before he's registered in the actor.
-		// Let's allow him to register subobjects but set a condition that prevents him from getting replicated until we call IsAllowed.
+		// If we have to create an entry it means the component is registering subobjects while not replicating or before it's registered in the actor.
+		// Let's allow it to register subobjects but set a condition that prevents it from getting replicated until we call IsAllowed.
 		constexpr ELifetimeCondition NeverReplicate = COND_Never;
 
 		const int32 Index = ReplicatedComponentsInfo.Emplace(FReplicatedComponentInfo(OwnerComponent, NeverReplicate));

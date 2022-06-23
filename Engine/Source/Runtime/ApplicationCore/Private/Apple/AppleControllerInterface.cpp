@@ -231,7 +231,7 @@ void FAppleControllerInterface::SendControllerEvents()
  	{
 		FUserController& Controller = Controllers[i];
 		
-		// make sure the connection handler has run on this guy
+		// make sure the connection handler has run on this
 		if (Controller.PlayerIndex == PlayerIndex::PlayerUnset)
 		{
             continue;

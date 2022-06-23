@@ -1773,8 +1773,8 @@ public:
 	 */
 	virtual void RemoveLevelVariantSetsAt(int32 InIndex) = 0;
 
-	/** Attach the actor to his new parent. Detach the actor if he was already attach. */
+	/** Attach the actor to its new parent. Detach the actor if it was already attached. */
 	virtual void AttachActor(const TSharedPtr< IDatasmithActorElement >& NewParent, const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) = 0;
-	/** Attach the actor to the scene root. Detach the actor if he was already attach. */
+	/** Attach the actor to the scene root. Detach the actor if it was already attached. */
 	virtual void AttachActorToSceneRoot(const TSharedPtr< IDatasmithActorElement >& Child, EDatasmithActorAttachmentRule AttachmentRule) = 0;
 };

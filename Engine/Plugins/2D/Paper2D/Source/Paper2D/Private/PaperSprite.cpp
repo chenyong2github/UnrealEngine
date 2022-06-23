@@ -2210,7 +2210,7 @@ void FSpriteGeometryCollisionBuilderBase::AddPolygonCollisionShapesToBodySetup(c
 		Point = ConvertTextureSpaceToPivotSpace(Point) * UnrealUnitsPerPixel;
 	}
 
-	//@TODO: Use this guy instead: DecomposeMeshToHulls
+	//@TODO: Use this instead: DecomposeMeshToHulls
 	//@TODO: Merge triangles that are convex together!
 
 	// Bake it to the runtime structure

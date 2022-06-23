@@ -537,7 +537,7 @@ bool FBoneContainer::BoneIsChildOf(const FCompactPoseBoneIndex& BoneIndex, const
 	checkSlow((BoneIndex != INDEX_NONE) && (ParentBoneIndex != INDEX_NONE));
 
 	// Bones are in strictly increasing order.
-	// So child must have an index greater than his parent.
+	// So child must have an index greater than its parent.
 	if (BoneIndex > ParentBoneIndex)
 	{
 		FCompactPoseBoneIndex SearchBoneIndex = GetParentBoneIndex(BoneIndex);

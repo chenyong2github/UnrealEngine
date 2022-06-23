@@ -382,7 +382,7 @@ struct FConcertAdmin_RenameSessionRequest : public FConcertRequestData
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FString NewName;
 
-	// For now only the user name and device name of the client is used to id him as the owner of a session
+	// For now only the user name and device name of the client is used to id it as the owner of a session
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FString UserName;
 
@@ -415,7 +415,7 @@ struct FConcertAdmin_DeleteSessionRequest : public FConcertRequestData
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FGuid SessionId;
 
-	//For now only the user name and device name of the client is used to id him as the owner of a session
+	//For now only the user name and device name of the client is used to id it as the owner of a session
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FString UserName;
 
@@ -466,7 +466,7 @@ struct FConcertAdmin_BatchDeleteSessionRequest : public FConcertRequestData
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	EBatchSessionDeletionFlags Flags = EBatchSessionDeletionFlags::Strict;
 
-	//For now only the user name and device name of the client is used to id him as the owner of a session
+	//For now only the user name and device name of the client is used to id it as the owner of a session
 	UPROPERTY(VisibleAnywhere, Category = "Concert Message")
 	FString UserName;
 

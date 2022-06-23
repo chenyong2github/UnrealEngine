@@ -19,8 +19,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FSpawnActorDelegate, AActor*, Spawne
  *	task that limits the available classes to the games projectile class, and that does game specific stuff on spawn (for example, determining
  *	firing position from a weapon attachment - logic that we don't necessarily want in ability blueprints).
  *	
- *	Long term we can also use this task as a sync point. If the executing client could wait execution until the server creates and replicate sthe 
- *	actor down to him. We could potentially also use this to do predictive actor spawning / reconciliation.
+ *	Long term we can also use this task as a sync point. If the executing client could wait execution until the server creates and replicates the 
+ *	actor down to it. We could potentially also use this to do predictive actor spawning / reconciliation.
  */
 
 UCLASS()

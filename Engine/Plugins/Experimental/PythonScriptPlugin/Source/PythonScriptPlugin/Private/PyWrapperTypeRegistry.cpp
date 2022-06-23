@@ -2853,7 +2853,7 @@ void FPyWrapperTypeRegistry::GenerateStubCodeForWrappedType(PyTypeObject* PyType
 	const FString PyTypeName = UTF8_TO_TCHAR(PyType->tp_name);
 
 	// If type hinting is configured for IDE auto-completion:
-	//     - Be nice to the user, don't bother him with type coercion (typing.Union) or None type validation (typing.Optional), show the raw Unreal types.
+	//     - Be nice to the user, don't bother them with type coercion (typing.Union) or None type validation (typing.Optional), show the raw Unreal types.
 	//     - Be nice to the user, don't ellipse non-parsing default values.
 	// 
 	// If type hinting is configure for type checking:

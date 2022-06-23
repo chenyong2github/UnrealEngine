@@ -265,14 +265,14 @@ private:
 
 	/** 
 		Finds montage position in 'target' space, given current position in 'original' space.
-		This means given a montage position, we find his play back time.
+		This means given a montage position, we find its playback time.
 		This should only be used for montage position, as we cache results and lazily update it for performance.
 	*/
 	float FindMontagePosition_Target(float In_P_Original);
 
 	/**
 		Finds montage position in 'original' space, given current position in 'target' space.
-		This means given a montage play back time, we find his actual position.
+		This means given a montage playback time, we find its actual position.
 		This should only be used for montage position, as we cache results and lazily update it for performance.
 	*/
 	float FindMontagePosition_Original(float In_P_Target);

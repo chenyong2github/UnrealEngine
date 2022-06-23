@@ -1002,7 +1002,7 @@ bool UInterchangeManager::WarnIfInterchangeIsActive()
 	{
 		return false;
 	}
-	//Tell user he have to cancel the import before closing the editor
+	//Tell the user they have to cancel the import before closing the editor
 	FNotificationInfo Info(NSLOCTEXT("InterchangeManager", "WarnCannotProceed", "An import process is currently underway! Please cancel it to proceed!"));
 	Info.ExpireDuration = 5.0f;
 	TSharedPtr<SNotificationItem> WarnNotification = FSlateNotificationManager::Get().AddNotification(Info);

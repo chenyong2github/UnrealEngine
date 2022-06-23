@@ -78,7 +78,7 @@ struct FRefPoseOverride
 
 /** 
 * Info to map all the sections from a single source skeletal mesh to 
-* a final section entry int he merged skeletal mesh
+* a final section entry in the merged skeletal mesh
 */
 USTRUCT(BlueprintType)
 struct ENGINE_API FSkelMeshMergeSectionMapping

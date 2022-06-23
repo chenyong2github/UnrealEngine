@@ -28,7 +28,7 @@ class  UEngineMessage : public ULocalMessage
 	UPROPERTY()
 	FString LeftMessage;
 
-	/** Message when a player changes his name. */
+	/** Message when a player changes their name. */
 	UPROPERTY()
 	FString GlobalNameChange;
 

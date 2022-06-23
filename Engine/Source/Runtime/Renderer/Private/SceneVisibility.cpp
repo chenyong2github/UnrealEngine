@@ -2563,7 +2563,7 @@ struct FRelevancePacket
 
 				if (StaticMesh.bOverlayMaterial && !View.Family->EngineShowFlags.DistanceCulledPrimitives)
 				{
-					// Overlay mesh can have a his own cull distance that is shorter than primitive cull distance
+					// Overlay mesh can have its own cull distance that is shorter than primitive cull distance
 					float OverlayMaterialMaxDrawDistance = StaticMeshRelevance.ScreenSize;
 					if (OverlayMaterialMaxDrawDistance > 1.f && OverlayMaterialMaxDrawDistance != FLT_MAX)
 					{
