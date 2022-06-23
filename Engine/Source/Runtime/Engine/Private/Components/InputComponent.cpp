@@ -380,6 +380,23 @@ void UInputComponent::ClearBindingValues()
 	}
 }
 
+void UInputComponent::RemoveAxisBinding(FName AxisName)
+{
+	for (int32 AxisIdx = AxisBindings.Num() - 1; AxisIdx >= 0; --AxisIdx)
+	{
+		const FInputAxisBinding& Binding = AxisBindings[AxisIdx];
+		if (Binding.AxisName == AxisName)
+		{
+			AxisBindings.RemoveAt(AxisIdx, 1, false);
+		}
+	}
+}
+
+void UInputComponent::ClearAxisBindings()
+{
+	AxisBindings.Reset();
+}
+
 /* Deprecated functions (needed for Blueprints)
  *****************************************************************************/
 

@@ -915,6 +915,18 @@ public:
 	}
 
 	/**
+	* Removes the axis binding with the specified name.
+	*
+	* @param AxisName the name of the axis to remove.
+	*/
+	void RemoveAxisBinding(const FName AxisName);
+
+	/**
+	* Removes all axis bindings.
+	*/
+	void ClearAxisBindings();
+
+	/**
 	 * Indicates that the InputComponent is interested in knowing the Axis value
 	 * (via GetAxisValue) but does not want a delegate function called each frame.
 	 * Returned reference is only guaranteed to be valid until another axis is bound.
