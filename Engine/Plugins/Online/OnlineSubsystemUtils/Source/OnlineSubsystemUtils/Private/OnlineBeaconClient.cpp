@@ -317,7 +317,9 @@ void AOnlineBeaconClient::DestroyBeacon()
 
 void AOnlineBeaconClient::OnNetCleanup(UNetConnection* Connection)
 {
-	ensure(Connection == BeaconConnection);
+	// During the garbage collection of UNetConnection OnNetCleanup may be triggered.
+	// When this happens BeaconConnection will have already been set to nullptr by GC.
+	ensure(NetDriver == nullptr || Connection == BeaconConnection);
 	SetConnectionState(EBeaconConnectionState::Closed);
 
 	AOnlineBeaconHostObject* BeaconHostObject = GetBeaconOwner();

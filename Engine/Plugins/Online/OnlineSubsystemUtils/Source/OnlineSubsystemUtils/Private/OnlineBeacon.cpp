@@ -32,19 +32,7 @@ bool AOnlineBeacon::InitBase()
 
 void AOnlineBeacon::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
-	if (NetDriver)
-	{
-		if (NetDriver->IsInTick())
-		{
-			NetDriver->SetPendingDestruction(true);
-		}
-		else
-		{
-			GEngine->DestroyNamedNetDriver(GetWorld(), NetDriverName);
-		}
-		NetDriver = nullptr;
-	}
-
+	CleanupNetDriver();
 	Super::EndPlay(EndPlayReason);
 }
 
@@ -59,6 +47,12 @@ void AOnlineBeacon::DestroyBeacon()
 	UE_LOG(LogBeacon, Verbose, TEXT("Destroying beacon %s, netdriver %s"), *GetName(), NetDriver ? *NetDriver->GetDescription() : TEXT("NULL"));
 	GEngine->OnNetworkFailure().Remove(HandleNetworkFailureDelegateHandle);
 
+	CleanupNetDriver();
+	Destroy();
+}
+
+void AOnlineBeacon::CleanupNetDriver()
+{
 	if (NetDriver)
 	{
 		if (NetDriver->IsInTick())
@@ -66,13 +60,14 @@ void AOnlineBeacon::DestroyBeacon()
 			NetDriver->SetPendingDestruction(true);
 		}
 		else
-		{ 
+		{
 			GEngine->DestroyNamedNetDriver(GetWorld(), NetDriverName);
 		}
+		// If the net connection is currently in the middle of processing messages it is
+		// possible for the notifier to be fired again if not cleared.
+		NetDriver->Notify = nullptr;
 		NetDriver = nullptr;
 	}
-
-	Destroy();
 }
 
 void AOnlineBeacon::HandleNetworkFailure(UWorld *World, UNetDriver *InNetDriver, ENetworkFailure::Type FailureType, const FString& ErrorString)
@@ -87,19 +82,7 @@ void AOnlineBeacon::HandleNetworkFailure(UWorld *World, UNetDriver *InNetDriver,
 void AOnlineBeacon::OnFailure()
 {
 	GEngine->OnNetworkFailure().Remove(HandleNetworkFailureDelegateHandle);
-	
-	if (NetDriver)
-	{
-		if (NetDriver->IsInTick())
-		{
-			NetDriver->SetPendingDestruction(true);
-		}
-		else
-		{
-			GEngine->DestroyNamedNetDriver(GetWorld(), NetDriverName);
-		}
-		NetDriver = nullptr;
-	}
+	CleanupNetDriver();
 }
 
 void AOnlineBeacon::OnActorChannelOpen(FInBunch& Bunch, UNetConnection* Connection)

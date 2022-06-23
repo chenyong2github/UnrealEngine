@@ -1476,7 +1476,7 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 	bool bRestartedHandshake = false;
 	bool bIgnorePacket = true;
 
-	if (ConnectionlessHandler.IsValid() && StatelessConnectComponent.IsValid())
+	if (Notify != nullptr && ConnectionlessHandler.IsValid() && StatelessConnectComponent.IsValid())
 	{
 		StatelessConnect = StatelessConnectComponent.Pin();
 
@@ -1585,8 +1585,8 @@ UNetConnection* UIpNetDriver::ProcessConnectionlessPacket(FReceivedPacketView& P
 #endif
 	else
 	{
-		UE_LOG(LogNet, Log, TEXT("Invalid ConnectionlessHandler (%i) or StatelessConnectComponent (%i); can't accept connections."),
-				(int32)(ConnectionlessHandler.IsValid()), (int32)(StatelessConnectComponent.IsValid()));
+		UE_LOG(LogNet, Log, TEXT("Invalid Notify (%i) or ConnectionlessHandler (%i) or StatelessConnectComponent (%i); can't accept connections."),
+			(int32)(Notify != nullptr), (int32)(ConnectionlessHandler.IsValid()), (int32)(StatelessConnectComponent.IsValid()));
 	}
 
 	if (bPassedChallenge)

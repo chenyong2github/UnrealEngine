@@ -211,7 +211,7 @@ UWebSocketConnection* UWebSocketNetDriver::GetServerConnection()
 void UWebSocketNetDriver::OnWebSocketClientConnected(INetworkingWebSocket* ClientWebSocket)
 {
 	// Determine if allowing for client/server connections
-	const bool bAcceptingConnection = Notify->NotifyAcceptingConnection() == EAcceptConnection::Accept;
+	const bool bAcceptingConnection = Notify != nullptr && Notify->NotifyAcceptingConnection() == EAcceptConnection::Accept;
 	if (bAcceptingConnection)
 	{
 

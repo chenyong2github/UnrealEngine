@@ -3319,7 +3319,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 					Channel = CreateChannelByName( Bunch.ChName, EChannelCreateFlags::None, Bunch.ChIndex );
 
 					// Notify the server of the new channel.
-					if( !Driver->Notify->NotifyAcceptingChannel( Channel ) )
+					if( Driver->Notify == nullptr || !Driver->Notify->NotifyAcceptingChannel( Channel ) )
 					{
 						// Channel refused, so close it, flush it, and delete it.
 						UE_LOG(LogNet, Verbose, TEXT("      NotifyAcceptingChannel Failed! Channel: %s"), *Channel->Describe() );

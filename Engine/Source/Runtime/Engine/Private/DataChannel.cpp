@@ -1793,7 +1793,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 
 			break;
 		}
-		else
+		else if (Connection->Driver->Notify != nullptr)
 		{
 			// Process control message on client/server connection
 			Connection->Driver->Notify->NotifyControlMessage(Connection, MessageType, Bunch);

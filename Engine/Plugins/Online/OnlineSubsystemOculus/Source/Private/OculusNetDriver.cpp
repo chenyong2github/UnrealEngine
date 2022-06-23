@@ -190,11 +190,11 @@ void UOculusNetDriver::TickDispatch(float DeltaTime)
 			bool bPassedChallenge = false;
 			TSharedPtr<StatelessConnectHandlerComponent> StatelessConnect;
 
-			if (!ConnectionlessHandler.IsValid() || !StatelessConnectComponent.IsValid())
+			if (Notify == nullptr || !ConnectionlessHandler.IsValid() || !StatelessConnectComponent.IsValid())
 			{
 				UE_LOG(LogNet, Log,
-					TEXT("Invalid ConnectionlessHandler (%i) or StatelessConnectComponent (%i); can't accept connections."),
-					(int32)(ConnectionlessHandler.IsValid()), (int32)(StatelessConnectComponent.IsValid()));
+					TEXT("Invalid Notify (%i) or ConnectionlessHandler (%i) or StatelessConnectComponent (%i); can't accept connections."),
+					(int32)(Notify != nullptr), (int32)(ConnectionlessHandler.IsValid()), (int32)(StatelessConnectComponent.IsValid()));
 				continue;
 			}
 
@@ -346,7 +346,7 @@ void UOculusNetDriver::OnNewNetworkingPeerRequest(ovrMessageHandle Message, bool
 bool UOculusNetDriver::AddNewClientConnection(ovrID PeerID)
 {
 	// Ignore the peer if not accepting new connections
-	if (Notify->NotifyAcceptingConnection() != EAcceptConnection::Accept)
+	if (Notify == nullptr || Notify->NotifyAcceptingConnection() != EAcceptConnection::Accept)
 	{
 		UE_LOG(LogNet, Warning, TEXT("Not accepting more new connections"));
 		return false;

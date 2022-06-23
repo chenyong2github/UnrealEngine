@@ -95,6 +95,8 @@ class ONLINESUBSYSTEMUTILS_API AOnlineBeacon : public AActor, public FNetworkNot
 
 protected:
 
+	void CleanupNetDriver();
+
 	/** Time beacon will wait to establish a connection with the beacon host */
 	UPROPERTY(Config)
 	float BeaconConnectionInitialTimeout;

@@ -467,7 +467,7 @@ void USteamSocketsNetDriver::OnConnectionCreated(SteamSocketHandles ListenParent
 
 	// Unlike the other SteamNetworking functionality, connections that we don't want cannot just be ignored
 	// So instead of processing everything and then disconnecting unwanted connections, we drop them immediately.
-	if (Notify->NotifyAcceptingConnection() == EAcceptConnection::Accept)
+	if (Notify != nullptr && Notify->NotifyAcceptingConnection() == EAcceptConnection::Accept)
 	{
 		// Accept the connection with the API. We'll want to do this as quick as possible.
 		EResult AcceptedResult = FSteamSocketsSubsystem::GetSteamSocketsInterface()->AcceptConnection(SocketHandle);
