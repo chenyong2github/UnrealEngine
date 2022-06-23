@@ -29,6 +29,9 @@
 /** Whether should remove firefliers from input and history before comparison to improve stability. */
 #define CONFIG_FIREFLY_REMOVAL 1
 
+/** Whether to compose translucency to the input. */
+#define CONFIG_COMPOSE_TRANSLUCENCY (!DIM_SEPARATE_TRANSLUCENCY)
+
 
 //------------------------------------------------------- DERIVED
 
@@ -47,15 +50,20 @@
 //------------------------------------------------------- TYPEDEFS
 
 #define tsr_simd_half  TLaneVector<tsr_half, 1, SIMD_SIZE>
+#define tsr_simd_half4 TLaneVector<tsr_half, 4, SIMD_SIZE>
 #define tsr_simd_halfC TLaneVector<tsr_half, CONFIG_CHANNEL_COUNT, SIMD_SIZE>
 #define tsr_simd_bool  TLaneVector<bool, 1, SIMD_SIZE>
 
 
 //------------------------------------------------------- PARAMETERS
 
+FScreenTransform InputPixelPosToTranslucencyTextureUV;
+float2 TranslucencyTextureUVMin;
+float2 TranslucencyTextureUVMax;
 float3 HistoryGuideQuantizationError;
 
 Texture2D<tsr_halfC> InputTexture;
+Texture2D<tsr_half4> InputSceneTranslucencyTexture;
 Texture2D<tsr_halfC> ReprojectedHistoryGuideTexture;
 Texture2D<tsr_half> ParallaxRejectionMaskTexture;
 
@@ -293,6 +301,9 @@ void MainCS(
 		
 	// Load
 	tsr_simd_halfC OriginalInput;
+	#if CONFIG_COMPOSE_TRANSLUCENCY
+		tsr_simd_half4 OriginalTranslucencyInput;
+	#endif
 	tsr_simd_halfC OriginalHistory;
 	tsr_simd_half bIsValid;
 	ISOLATE
@@ -301,13 +312,37 @@ void MainCS(
 		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
 		{
 			tsr_short2 ClampedFetchPixelPos = GroupPixelOffset + GetLaneSimdPixelOffset(LaneIndex, SimdIndex);
+			float2 TranslucencyTextureUV = ApplyScreenTransform(float2(ClampedFetchPixelPos), InputPixelPosToTranslucencyTextureUV);
+
 			ClampedFetchPixelPos = ClampPixelOffset(ClampedFetchPixelPos, InputPixelPosMin, InputPixelPosMax);
+			TranslucencyTextureUV = clamp(TranslucencyTextureUV, TranslucencyTextureUVMin, TranslucencyTextureUVMax);
 
 			OriginalInput.SetElement(SimdIndex, InputTexture[ClampedFetchPixelPos]);
+			#if CONFIG_COMPOSE_TRANSLUCENCY
+				OriginalTranslucencyInput.SetElement(SimdIndex, InputSceneTranslucencyTexture.SampleLevel(GlobalBilinearClampedSampler, TranslucencyTextureUV, 0));
+			#endif
 			OriginalHistory.SetElement(SimdIndex, ReprojectedHistoryGuideTexture[ClampedFetchPixelPos]);
 			bIsValid.SetElement(SimdIndex, ParallaxRejectionMaskTexture[ClampedFetchPixelPos] > tsr_half(PARALLAX_REJECTION_MASK_THRESHOLD) ? tsr_half(1.0) : tsr_half(0.0));
 		}
 	}
+
+	#if CONFIG_COMPOSE_TRANSLUCENCY
+	{
+		UNROLL_N(SIMD_SIZE)
+		for (uint SimdIndex = 0; SimdIndex < SIMD_SIZE; SimdIndex++)
+		{
+			tsr_halfC Color = OriginalInput.GetElement(SimdIndex);
+			tsr_half4 Translucency = OriginalTranslucencyInput.GetElement(SimdIndex);
+
+			Color.rgb = Color.rgb * Translucency.a + Translucency.rgb;
+			#if CONFIG_SCENE_COLOR_APLHA
+				Color.a *= Translucency.a;
+			#endif 
+
+			OriginalInput.SetElement(SimdIndex, Color);
+		}
+	}
+	#endif
 		
 	// Compute AA Luma
 	tsr_simd_half CenterLumaLDR;

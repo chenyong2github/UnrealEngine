@@ -36,8 +36,13 @@
 	#define CONFIG_HIGH_FREQUENCY_YCOCG 0
 #endif
 
-#if 1
+#if DIM_SEPARATE_TRANSLUCENCY
 	#define CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY 1
+	#define CONFIG_COMPOSE_TRANSLUCENCY 0
+	#define CONFIG_REJECT_TRAMSLUCENCY_ON_RESPONSIVE_AA_ONLY 0
+#else
+	#define CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY 0
+	#define CONFIG_COMPOSE_TRANSLUCENCY 1
 	#define CONFIG_REJECT_TRAMSLUCENCY_ON_RESPONSIVE_AA_ONLY 0
 #endif
 
@@ -786,7 +791,7 @@ void MainCS(
 				for (uint PixelId = 0; PixelId < DPV_PIXEL_PER_LANE; PixelId++)
 				{
 					RawInputColorArray[SampleId][PixelId] = InputSceneColorTexture[dpv_access_pixel(InputSamplePixelPos, PixelId)];
-					#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY
+					#if CONFIG_ACCUMULATE_TRANSLUCENCY_SEPARATLY || CONFIG_COMPOSE_TRANSLUCENCY
 						RawTranslucencyColorArray[SampleId][PixelId] = InputSceneTranslucencyTexture[dpv_access_pixel(TranslucencySamplePixelPos, PixelId)];
 					#endif
 				}
@@ -812,6 +817,17 @@ void MainCS(
 			tsr_half2 SampleSpatialWeight = RawSampleSpatialWeightArray[SampleId];
 			tsr_halfCx2 InputColor = dpv_force_interleave_registers_array(RawInputColorArray[SampleId]);
 			tsr_half4x2 TranslucencyColor = dpv_force_interleave_registers_array(RawTranslucencyColorArray[SampleId]);
+
+			#if CONFIG_COMPOSE_TRANSLUCENCY
+			{
+				InputColor[0] = InputColor[0] * TranslucencyColor[3] + TranslucencyColor[0];
+				InputColor[1] = InputColor[1] * TranslucencyColor[3] + TranslucencyColor[1];
+				InputColor[2] = InputColor[2] * TranslucencyColor[3] + TranslucencyColor[2];
+				#if CONFIG_SCENE_COLOR_APLHA
+					InputColor[3] = InputColor[3] * TranslucencyColor[3];
+				#endif
+			}
+			#endif
 
 			#if CONFIG_SCENE_COLOR_OVERFLOW
 				#if CONFIG_SCENE_COLOR_APLHA
