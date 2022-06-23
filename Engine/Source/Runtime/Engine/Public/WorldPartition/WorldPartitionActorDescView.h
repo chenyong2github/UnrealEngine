@@ -59,8 +59,6 @@ public:
 
 	bool IsResaveNeeded() const;
 
-	void ResolveRuntimeDataLayers(const UActorDescContainer* InContainer);
-
 	bool operator==(const FWorldPartitionActorDescView& Other) const
 	{
 		return GetGuid() == Other.GetGuid();
