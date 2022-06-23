@@ -216,7 +216,7 @@ struct RIGVM_API FRigVMTemplateArgument
 	EArrayType GetArrayType() const;
 	
 	// Returns all compatible types given a category
-	static const TArray<FRigVMTemplateArgumentType> GetCompatibleTypes(ETypeCategory InCategory);
+	static const TArray<FRigVMTemplateArgumentType>& GetCompatibleTypes(ETypeCategory InCategory);
 
 protected:
 

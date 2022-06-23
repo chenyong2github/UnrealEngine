@@ -158,7 +158,7 @@ FRigVMTemplateArgument::EArrayType FRigVMTemplateArgument::GetArrayType() const
 	return EArrayType_Invalid;
 }
 
-const TArray<FRigVMTemplateArgumentType> FRigVMTemplateArgument::GetCompatibleTypes(ETypeCategory InCategory)
+const TArray<FRigVMTemplateArgumentType>& FRigVMTemplateArgument::GetCompatibleTypes(ETypeCategory InCategory)
 {
 	check(InCategory != ETypeCategory_Invalid);
 	

@@ -276,15 +276,12 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 			
 			static const TArray<FRigVMTemplateArgumentType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
 			static const TArray<FRigVMTemplateArgumentType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
-			static const TArray<FRigVMTemplateArgumentType>& ArrayArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue);
 
 			static TArray<FRigVMTemplateArgumentType> ArrayValueTypes, ElementTypes;
 			if(ArrayValueTypes.IsEmpty())
 			{
 				ArrayValueTypes.Append(ArrayTypes);
-				ArrayValueTypes.Append(ArrayArrayTypes);
 				ElementTypes.Append(SingleTypes);
-				ElementTypes.Append(ArrayTypes);
 			}
 
 			UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
