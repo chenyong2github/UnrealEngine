@@ -41,6 +41,7 @@ struct CORE_API FStringFormatArg
 	FStringFormatArg( const float Value );
 	FStringFormatArg( const double Value );
 	FStringFormatArg( FString Value );
+	FStringFormatArg( FStringView Value );
 	FStringFormatArg( const ANSICHAR* Value );
 	FStringFormatArg( const WIDECHAR* Value );
 	FStringFormatArg( const UCS2CHAR* Value );
