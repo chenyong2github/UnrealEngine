@@ -198,7 +198,22 @@ namespace UnrealBuildTool
 				// Note that we're relying on this not only sorting files within each directory, but also the directories
 				// themselves, so the whole list of file paths is the same across computers.
 				// Case-insensitive file path compare, because you never know what is going on with local file systems.
-				List<FileItem> SortedCPPFiles = CPPFiles.OrderBy(File => File.AbsolutePath, StringComparer.OrdinalIgnoreCase).ToList();
+				List<FileItem> SortedCPPFiles = new List<FileItem>(CPPFiles);
+				SortedCPPFiles.Sort((A, B) =>
+				{
+					// Generated files from UHT need to be first in the list because they implement templated functions that aren't
+					// declared in the header but are required to link. If they are placed later in the list, you will see
+					// compile errors because the templated function is instantiated but is defined later in the same translation unit
+					// which results in 'error C2908: explicit specialization; '*****' has already been instantiated'
+					bool bAIsGenerated = A.AbsolutePath.EndsWith(".gen.cpp");
+					bool bBIsGenerated = B.AbsolutePath.EndsWith(".gen.cpp");
+					if (bAIsGenerated && !bBIsGenerated)
+						return -1;
+					if (!bAIsGenerated && bBIsGenerated)
+						return 1;
+
+					return String.Compare(A.AbsolutePath, B.AbsolutePath, StringComparison.OrdinalIgnoreCase);
+				});
 
 				HashSet<FileItem> AdaptiveFileSet = new HashSet<FileItem>(AdaptiveFiles);
 				UnityFileBuilder CPPUnityFileBuilder = new UnityFileBuilder(bForceIntoSingleUnityFile ? -1 : Target.NumIncludedBytesPerUnityCPP);

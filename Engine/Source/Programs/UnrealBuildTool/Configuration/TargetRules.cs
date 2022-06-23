@@ -1138,6 +1138,13 @@ namespace UnrealBuildTool
 		public bool bForceUnityBuild = false;
 
 		/// <summary>
+		/// Whether to merge module and generated unity files for faster compilation.
+		/// </summary>
+		[CommandLine("-DisableMergingUnityFiles", Value = "false")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bMergeModuleAndGeneratedUnityFiles = true;
+
+		/// <summary>
 		/// Use a heuristic to determine which files are currently being iterated on and exclude them from unity blobs, result in faster
 		/// incremental compile times. The current implementation uses the read-only flag to distinguish the working set, assuming that files will
 		/// be made writable by the source control system if they are being modified. This is true for Perforce, but not for Git.
@@ -2802,6 +2809,10 @@ namespace UnrealBuildTool
 			get { return Inner.bForceUnityBuild; }
 		}
 
+		public bool bMergeModuleAndGeneratedUnityFiles
+		{
+			get { return Inner.bMergeModuleAndGeneratedUnityFiles; }
+		}
 		public bool bAdaptiveUnityDisablesOptimizations
 		{
 			get { return Inner.bAdaptiveUnityDisablesOptimizations; }
