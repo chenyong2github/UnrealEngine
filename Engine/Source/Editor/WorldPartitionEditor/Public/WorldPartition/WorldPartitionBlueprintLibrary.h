@@ -5,6 +5,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "WorldPartition/ActorDescContainer.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
+#include "WorldPartition/LoaderAdapter/LoaderAdapterActorList.h"
 #include "WorldPartitionBlueprintLibrary.generated.h"
 
 class FWorldPartitionActorDesc;
@@ -62,10 +63,40 @@ class UWorldPartitionBlueprintLibrary : public UBlueprintFunctionLibrary
 	static UWorld* GetEditorWorld();
 	static UWorldPartition* GetWorldPartition();
 
+	static void OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition);
+	static TMap<UWorldPartition*, TUniquePtr<FLoaderAdapterActorList>> LoaderAdapterActorListMap;
+	static FDelegateHandle OnWorldPartitionUninitializedHandle;
+
 	static bool GetActorDescs(const UActorDescContainer* InContainer, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs);
 	static bool GetIntersectingActorDescs(const UActorDescContainer* InContainer, const FBox& InBox, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs);
 
 public:
+	/**
+	 * Gets the editor world bounds, which includes all actor descriptors.
+	 * @return The editor world bounds.
+	 */
+	UFUNCTION(BlueprintCallable, Category="World Partition")
+	static FBox GetEditorWorldBounds();
+
+	/**
+	 * Gets the runtime world bounds, which only includes actor descriptors that aren't editor only.
+	 * @return The runtime world bounds.
+	 */
+	UFUNCTION(BlueprintCallable, Category="World Partition")
+	static FBox GetRuntimeWorldBounds();
+
+	/**
+	 * Load actors
+	 */
+	UFUNCTION(BlueprintCallable, Category="World Partition")
+	static void LoadActors(const TArray<FGuid>& InActorsToLoad);
+
+	/**
+	 * Unload actors
+	 */
+	UFUNCTION(BlueprintCallable, Category="World Partition")
+	static void UnloadActors(const TArray<FGuid>& InActorsToLoad);
+
 	/**
 	 * Gets all the actor descriptors into the provided array, recursing into actor containers.
 	 * @return True if the operation was successful.

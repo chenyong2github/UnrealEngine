@@ -29,7 +29,7 @@ class UWorldPartitionRuntimeHash;
 class UWorldPartitionStreamingPolicy;
 class IStreamingGenerationErrorHandler;
 class FLoaderAdapterAlwaysLoadedActors;
-class FLoaderAdapterPinnedActors;
+class FLoaderAdapterActorList;
 class FHLODActorDesc;
 class UHLODLayer;
 class UCanvas;
@@ -214,7 +214,7 @@ public:
 	TObjectPtr<UWorldPartitionEditorHash> EditorHash;
 
 	FLoaderAdapterAlwaysLoadedActors* AlwaysLoadedActors;
-	FLoaderAdapterPinnedActors* PinnedActors;
+	FLoaderAdapterActorList* PinnedActors;
 
 	IWorldPartitionEditor* WorldPartitionEditor;
 

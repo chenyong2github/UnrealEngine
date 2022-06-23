@@ -32,6 +32,9 @@ FActorDesc::FActorDesc(const FWorldPartitionActorDesc& InActorDesc, const FTrans
 	bActorIsEditorOnly = InActorDesc.GetActorIsEditorOnly();	
 }
 
+TMap<UWorldPartition*, TUniquePtr<FLoaderAdapterActorList>> UWorldPartitionBlueprintLibrary::LoaderAdapterActorListMap;
+FDelegateHandle UWorldPartitionBlueprintLibrary::OnWorldPartitionUninitializedHandle;
+
 UWorld* UWorldPartitionBlueprintLibrary::GetEditorWorld()
 {
 	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
@@ -45,6 +48,16 @@ UWorldPartition* UWorldPartitionBlueprintLibrary::GetWorldPartition()
 		return World->GetWorldPartition();
 	}
 	return nullptr;
+}
+
+void UWorldPartitionBlueprintLibrary::OnWorldPartitionUninitialized(UWorldPartition* InWorldPartition)
+{
+	verify(LoaderAdapterActorListMap.Remove(InWorldPartition));
+
+	if (LoaderAdapterActorListMap.IsEmpty())
+	{
+		InWorldPartition->GetWorld()->OnWorldPartitionUninitialized().Remove(OnWorldPartitionUninitializedHandle);
+	}
 }
 
 bool UWorldPartitionBlueprintLibrary::GetActorDescs(const UActorDescContainer* InContainer, const FTransform& InTransform, TArray<FActorDesc>& OutActorDescs)
@@ -127,6 +140,50 @@ bool UWorldPartitionBlueprintLibrary::GetIntersectingActorDescs(const UActorDesc
 	}
 
 	return bResult;
+}
+
+FBox UWorldPartitionBlueprintLibrary::GetEditorWorldBounds()
+{
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		return WorldPartition->GetEditorWorldBounds();
+	}
+	return FBox(ForceInit);
+}
+
+FBox UWorldPartitionBlueprintLibrary::GetRuntimeWorldBounds()
+{
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		return WorldPartition->GetRuntimeWorldBounds();
+	}
+	return FBox(ForceInit);
+}
+
+void UWorldPartitionBlueprintLibrary::LoadActors(const TArray<FGuid>& InActorsToLoad)
+{
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		if (LoaderAdapterActorListMap.IsEmpty())
+		{
+			OnWorldPartitionUninitializedHandle = WorldPartition->GetWorld()->OnWorldPartitionUninitialized().AddStatic(&UWorldPartitionBlueprintLibrary::OnWorldPartitionUninitialized);
+		}
+
+		TUniquePtr<FLoaderAdapterActorList>& LoaderAdapterActorList = LoaderAdapterActorListMap.FindOrAdd(WorldPartition, MakeUnique<FLoaderAdapterActorList>(WorldPartition->GetWorld()));
+
+		LoaderAdapterActorList->AddActors(InActorsToLoad);
+	}
+}
+
+void UWorldPartitionBlueprintLibrary::UnloadActors(const TArray<FGuid>& InActorsToLoad)
+{
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		if (TUniquePtr<FLoaderAdapterActorList>* LoaderAdapterActorList = LoaderAdapterActorListMap.Find(WorldPartition))
+		{
+			(*LoaderAdapterActorList)->RemoveActors(InActorsToLoad);
+		}
+	}
 }
 
 bool UWorldPartitionBlueprintLibrary::GetActorDescs(TArray<FActorDesc>& OutActorDescs)
