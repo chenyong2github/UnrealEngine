@@ -5,6 +5,7 @@
 #include "Online/AchievementsEOSGS.h"
 #include "Online/AuthEOSGS.h"
 #include "Online/LobbiesEOSGS.h"
+#include "Online/StatsEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
 
@@ -51,6 +52,7 @@ void FOnlineServicesEOSGS::RegisterComponents()
 	Components.Register<FAchievementsEOSGS>(*this);
 	Components.Register<FAuthEOSGS>(*this);
 	Components.Register<FLobbiesEOSGS>(*this);
+	Components.Register<FStatsEOSGS>(*this);
 	Super::RegisterComponents();
 }
 

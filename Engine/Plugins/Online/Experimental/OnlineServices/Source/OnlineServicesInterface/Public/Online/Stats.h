@@ -46,6 +46,8 @@ struct FQueryStats
 		FOnlineAccountIdHandle LocalUserId;
 		/* Target user id to query */
 		FOnlineAccountIdHandle TargetUserId;
+		/* The stats to query */
+		TArray<FString> StatNames;
 	};
 
 	struct Result
@@ -65,6 +67,8 @@ struct FBatchQueryStats
 		FOnlineAccountIdHandle LocalUserId;
 		/* The user ids to query */
 		TArray<FOnlineAccountIdHandle> TargetUserIds;
+		/* The stats to query */
+		TArray<FString> StatNames;
 	};
 
 	struct Result
