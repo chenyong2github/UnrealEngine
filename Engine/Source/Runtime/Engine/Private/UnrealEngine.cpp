@@ -14092,7 +14092,12 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 		}
 		else if (Context.PendingNetGame && Context.PendingNetGame->bSuccessfullyConnected && !Context.PendingNetGame->bSentJoinRequest && !Context.PendingNetGame->bLoadedMapSuccessfully && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayPendingNetGameTravel()))
 		{
-			if (!MakeSureMapNameIsValid(Context.PendingNetGame->URL.Map))
+			if (Context.PendingNetGame->HasFailedTravel())
+			{
+				BrowseToDefaultMap(Context);
+				BroadcastTravelFailure(Context.World(), ETravelFailure::TravelFailure, TEXT("Travel failed for unknown reason"));
+			}
+			else if (!MakeSureMapNameIsValid(Context.PendingNetGame->URL.Map))
 			{
 				BrowseToDefaultMap(Context);
 				BroadcastTravelFailure(Context.World(), ETravelFailure::PackageMissing, Context.PendingNetGame->URL.Map);
@@ -14109,7 +14114,7 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 					if (!Context.PendingNetGame->LoadMapCompleted(this, Context, bLoadedMapSuccessfully, Error))
 					{
 						BrowseToDefaultMap(Context);
-						BroadcastTravelFailure(Context.World(), ETravelFailure::TravelFailure, Error);
+						BroadcastTravelFailure(Context.World(), ETravelFailure::LoadMapFailure, Error);
 					}
 				}
 				else
@@ -14122,8 +14127,17 @@ void UEngine::TickWorldTravel(FWorldContext& Context, float DeltaSeconds)
 		
 		if (Context.PendingNetGame && Context.PendingNetGame->bLoadedMapSuccessfully && (Context.OwningGameInstance == NULL || !Context.OwningGameInstance->DelayCompletionOfPendingNetGameTravel()))
 		{
-			Context.PendingNetGame->TravelCompleted(this, Context);
-			Context.PendingNetGame = nullptr;
+			if (!Context.PendingNetGame->HasFailedTravel() )
+			{
+				Context.PendingNetGame->TravelCompleted(this, Context);
+				Context.PendingNetGame = nullptr;
+			}
+			else
+			{
+				CancelPending(Context);
+				BrowseToDefaultMap(Context);
+				BroadcastTravelFailure(Context.World(), ETravelFailure::LoadMapFailure, TEXT("Travel failed for unknown reason"));
+			}
 		}
 	}
 	else if (TransitionType == ETransitionType::WaitingToConnect)

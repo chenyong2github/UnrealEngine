@@ -63,6 +63,9 @@ public:
 	 */
 	ENGINE_API void SetEncryptionKey(const FEncryptionKeyResponse& Response);
 
+	bool HasFailedTravel() const {return bFailedTravel; }
+	void SetFailedTravel(bool bInFailedTravel) { bFailedTravel = bInFailedTravel; }
+
 public:
 	/** URL associated with this level. */
 	FURL					URL;
@@ -75,7 +78,10 @@ public:
 
 	/** set when we call LoadMapCompleted */
 	bool					bLoadedMapSuccessfully;
-
+private:
+	/** initialized to true, delaytravel steps can set this to false to indicate error during pendingnetgame travel */
+	bool					bFailedTravel;
+public:
 	/** @todo document */
 	FString					ConnectionError;
 

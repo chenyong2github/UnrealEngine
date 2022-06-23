@@ -23,6 +23,7 @@ void UPendingNetGame::Initialize(const FURL& InURL)
 	bSuccessfullyConnected = false;
 	bSentJoinRequest = false;
 	bLoadedMapSuccessfully = false;
+	bFailedTravel = false;
 }
 
 UPendingNetGame::UPendingNetGame(const FObjectInitializer& ObjectInitializer)
