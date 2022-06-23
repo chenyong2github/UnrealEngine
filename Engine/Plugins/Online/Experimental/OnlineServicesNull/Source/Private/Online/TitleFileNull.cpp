@@ -10,13 +10,13 @@
 
 namespace {
 
-const TCHAR* ConfigSection = TEXT("OnlineServices.Null.TitleFile");
-
 using FTitleFileContents = UE::Online::FTitleFileContents;
 using FTitleFileContentsRef = UE::Online::FTitleFileContentsRef;
 
 TMap<FString, FTitleFileContentsRef> GetTitleFilesFromConfig()
 {
+	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.TitleFile");
+
 	TMap<FString, FTitleFileContentsRef> Result;
 
 	for (int FileIdx = 0;; FileIdx++)

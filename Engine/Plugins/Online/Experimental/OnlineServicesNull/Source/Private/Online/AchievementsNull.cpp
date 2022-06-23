@@ -14,10 +14,10 @@ namespace UE::Online {
 
 namespace {
 
-const TCHAR* ConfigSection = TEXT("OnlineServices.Null.Achievements");
-
 TMap<FString, FAchievementDefinition> GetAchievementDefinitionsFromConfig()
 {
+	const TCHAR* ConfigSection = TEXT("OnlineServices.Null.Achievements");
+
 	TMap<FString, FAchievementDefinition> Result;
 
 	for (int AchievIdx = 0;; AchievIdx++)
