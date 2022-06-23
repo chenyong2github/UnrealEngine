@@ -8,13 +8,13 @@ template<class T>
 class SComboBox;
 
 
-class FDisplayClusterConfiguratorMediaTypeCustomization final
+class FDisplayClusterConfiguratorICVFXMediaCustomization final
 	: public FDisplayClusterConfiguratorBaseTypeCustomization
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
 	{
-		return MakeShared<FDisplayClusterConfiguratorMediaTypeCustomization>();
+		return MakeShared<FDisplayClusterConfiguratorICVFXMediaCustomization>();
 	}
 
 protected:

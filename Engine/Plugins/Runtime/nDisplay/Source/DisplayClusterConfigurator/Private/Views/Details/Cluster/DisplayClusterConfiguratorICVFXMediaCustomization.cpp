@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Views/Details/Cluster/DisplayClusterConfiguratorMediaTypeCustomization.h"
+#include "Views/Details/Cluster/DisplayClusterConfiguratorICVFXMediaCustomization.h"
 
 #include "DisplayClusterConfigurationTypes.h"
 #include "DisplayClusterConfiguratorBlueprintEditor.h"
@@ -12,9 +12,9 @@
 #include "PropertyHandle.h"
 
 
-void FDisplayClusterConfiguratorMediaTypeCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
+void FDisplayClusterConfiguratorICVFXMediaCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& InChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils)
 {
-	OutputNodeProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationMedia, MediaOutputNode));
+	OutputNodeProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDisplayClusterConfigurationICVFXMedia, MediaOutputNode));
 	check(OutputNodeProperty && OutputNodeProperty->IsValidHandle());
 	OutputNodeProperty->MarkHiddenByCustomization();
 
@@ -31,13 +31,13 @@ void FDisplayClusterConfiguratorMediaTypeCustomization::CustomizeChildren(TShare
 			[
 				SAssignNew(OutputNodeComboBox, SComboBox<TSharedPtr<FString>>)
 				.OptionsSource(&OutputNodeOptions)
-				.OnGenerateWidget(this, &FDisplayClusterConfiguratorMediaTypeCustomization::CreateComboWidget)
-				.OnSelectionChanged(this, &FDisplayClusterConfiguratorMediaTypeCustomization::OnNodeIdSelected)
+				.OnGenerateWidget(this, &FDisplayClusterConfiguratorICVFXMediaCustomization::CreateComboWidget)
+				.OnSelectionChanged(this, &FDisplayClusterConfiguratorICVFXMediaCustomization::OnNodeIdSelected)
 				.ContentPadding(2)
 				.Content()
 				[
 					SNew(STextBlock)
-					.Text(this, &FDisplayClusterConfiguratorMediaTypeCustomization::GetSelectedNodeIdText)
+					.Text(this, &FDisplayClusterConfiguratorICVFXMediaCustomization::GetSelectedNodeIdText)
 				]
 			];
 	}
@@ -60,7 +60,7 @@ void FDisplayClusterConfiguratorMediaTypeCustomization::CustomizeChildren(TShare
 	FDisplayClusterConfiguratorBaseTypeCustomization::CustomizeChildren(InPropertyHandle, InChildBuilder, CustomizationUtils);
 }
 
-void FDisplayClusterConfiguratorMediaTypeCustomization::BuildClusterNodeOptionsList()
+void FDisplayClusterConfiguratorICVFXMediaCustomization::BuildClusterNodeOptionsList()
 {
 	ADisplayClusterRootActor* DCRA = nullptr;
 
@@ -101,19 +101,19 @@ void FDisplayClusterConfiguratorMediaTypeCustomization::BuildClusterNodeOptionsL
 }
 
 
-void FDisplayClusterConfiguratorMediaTypeCustomization::OnNodeIdSelected(TSharedPtr<FString> PreviewNodeId, ESelectInfo::Type SelectInfo)
+void FDisplayClusterConfiguratorICVFXMediaCustomization::OnNodeIdSelected(TSharedPtr<FString> PreviewNodeId, ESelectInfo::Type SelectInfo)
 {
 	const FString NewValue = PreviewNodeId.IsValid() ? *PreviewNodeId : FString();
 	OutputNodeProperty->SetValue(NewValue);
 }
 
-FText FDisplayClusterConfiguratorMediaTypeCustomization::GetSelectedNodeIdText() const
+FText FDisplayClusterConfiguratorICVFXMediaCustomization::GetSelectedNodeIdText() const
 {
 	TSharedPtr<FString> CurSelection = OutputNodeComboBox->GetSelectedItem();
 	return FText::FromString(CurSelection.IsValid() ? *CurSelection : *FString());
 }
 
-TSharedRef<SWidget> FDisplayClusterConfiguratorMediaTypeCustomization::CreateComboWidget(TSharedPtr<FString> InItem)
+TSharedRef<SWidget> FDisplayClusterConfiguratorICVFXMediaCustomization::CreateComboWidget(TSharedPtr<FString> InItem)
 {
 	return SNew(STextBlock).Text(FText::FromString(*InItem));
 }

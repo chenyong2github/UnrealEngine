@@ -77,42 +77,14 @@ void FDisplayClusterMediaModule::InitializeMedia()
 			{
 				const FDisplayClusterConfigurationMedia& MediaSettings = ClusterNode->Media;
 
-				const FString MediaCaptureId = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_backbuffer_capture");
-				const FString MediaInputId   = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_backbuffer_input");
 				const bool bInputDataValid   = MediaSettings.MediaInput.MediaPlayer && MediaSettings.MediaInput.MediaSource && MediaSettings.MediaInput.MediaTexture;
 				const bool bOutputDataValid  = MediaSettings.MediaOutput.MediaOutput && MediaSettings.MediaOutput.RenderTarget;
 
-				// Media sharing
-				if (MediaSettings.IsMediaSharingRequired() && bInputDataValid && bOutputDataValid)
+				// Media input
+				if (MediaSettings.MediaInput.bEnabled && bInputDataValid)
 				{
-					const bool bThisNodeSharesMedia = ClusterNodeId.Equals(MediaSettings.MediaOutputNode, ESearchCase::IgnoreCase);
+					const FString MediaInputId = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_backbuffer_input");
 
-					// Share media
-					if (bThisNodeSharesMedia)
-					{
-						UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing backbuffer media capture for node '%s' (in-cluster shared)..."), *ClusterNodeId);
-
-						CaptureNode = MakeUnique<FDisplayClusterMediaCaptureNode>(
-							MediaCaptureId, ClusterNodeId,
-							MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
-
-						AllCaptures.Add(CaptureNode.Get());
-					}
-					// Consume media
-					else
-					{
-						UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing backbuffer media input for node '%s' (in-cluster shared)..."), *ClusterNodeId);
-
-						InputNode = MakeUnique<FDisplayClusterMediaInputNode>(
-							MediaInputId, ClusterNodeId,
-							MediaSettings.MediaInput.MediaSource, MediaSettings.MediaInput.MediaPlayer, MediaSettings.MediaInput.MediaTexture);
-
-						AllInputs.Add(InputNode.Get());
-					}
-				}
-				// Media input only
-				else if (MediaSettings.MediaInput.bEnabled && bInputDataValid)
-				{
 					UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing backbuffer media input for node '%s'..."), *ClusterNodeId);
 
 					InputNode = MakeUnique<FDisplayClusterMediaInputNode>(
@@ -121,9 +93,12 @@ void FDisplayClusterMediaModule::InitializeMedia()
 
 					AllInputs.Add(InputNode.Get());
 				}
-				// Media capture only
-				else if (MediaSettings.MediaOutput.bEnabled && bOutputDataValid)
+
+				// Media capture
+				if (MediaSettings.MediaOutput.bEnabled && bOutputDataValid)
 				{
+					const FString MediaCaptureId = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_backbuffer_capture");
+
 					UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing backbuffer media capture for node '%s'..."), *ClusterNodeId);
 
 					CaptureNode = MakeUnique<FDisplayClusterMediaCaptureNode>(
@@ -143,46 +118,14 @@ void FDisplayClusterMediaModule::InitializeMedia()
 					const FDisplayClusterConfigurationMedia& MediaSettings = Viewport->RenderSettings.Media;
 					if (MediaSettings.bEnabled)
 					{
-						const FString MediaCaptureId = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_") + ViewportIt.Key + FString("_viewport_capture");
-						const FString MediaInputId   = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_") + ViewportIt.Key + FString("_viewport_input");
 						const bool bInputDataValid   = MediaSettings.MediaInput.MediaPlayer && MediaSettings.MediaInput.MediaSource && MediaSettings.MediaInput.MediaTexture;
 						const bool bOutputDataValid  = MediaSettings.MediaOutput.MediaOutput && MediaSettings.MediaOutput.RenderTarget;
 
-						// Media sharing
-						if (MediaSettings.IsMediaSharingRequired() && bInputDataValid && bOutputDataValid)
+						// Media input
+						if (MediaSettings.MediaInput.bEnabled && bInputDataValid)
 						{
-							const bool bThisNodeSharesMedia = ClusterNodeId.Equals(MediaSettings.MediaOutputNode, ESearchCase::IgnoreCase);
+							const FString MediaInputId = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_") + ViewportIt.Key + FString("_viewport_input");
 
-							// Share media
-							if (bThisNodeSharesMedia)
-							{
-								UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing viewport media capture for viewport '%s' (in-cluster shared)..."), *ClusterNodeId);
-
-								TUniquePtr<FDisplayClusterMediaCaptureViewport> NewViewportCapture = MakeUnique<FDisplayClusterMediaCaptureViewport>(
-									MediaCaptureId, ClusterNodeId,
-									ViewportIt.Key,
-									MediaSettings.MediaOutput.MediaOutput, MediaSettings.MediaOutput.RenderTarget);
-
-								AllCaptures.Add(NewViewportCapture.Get());
-								CaptureViewports.Emplace(MediaCaptureId, MoveTemp(NewViewportCapture));
-							}
-							// Consume media
-							else
-							{
-								UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing viewport media input for viewport '%s' (in-cluster shared)..."), *ClusterNodeId);
-
-								TUniquePtr<FDisplayClusterMediaInputViewport> NewViewportInput = MakeUnique<FDisplayClusterMediaInputViewport>(
-									MediaInputId, ClusterNodeId,
-									ViewportIt.Key,
-									MediaSettings.MediaInput.MediaSource, MediaSettings.MediaInput.MediaPlayer, MediaSettings.MediaInput.MediaTexture);
-
-								AllInputs.Add(NewViewportInput.Get());
-								InputViewports.Emplace(MediaCaptureId, MoveTemp(NewViewportInput));
-							}
-						}
-						// Media input only
-						else if (MediaSettings.MediaInput.bEnabled && bInputDataValid)
-						{
 							UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing viewport media input for viewport '%s'..."), *ClusterNodeId);
 
 							TUniquePtr<FDisplayClusterMediaInputViewport> NewViewportInput = MakeUnique<FDisplayClusterMediaInputViewport>(
@@ -191,11 +134,14 @@ void FDisplayClusterMediaModule::InitializeMedia()
 								MediaSettings.MediaInput.MediaSource, MediaSettings.MediaInput.MediaPlayer, MediaSettings.MediaInput.MediaTexture);
 
 							AllInputs.Add(NewViewportInput.Get());
-							InputViewports.Emplace(MediaCaptureId, MoveTemp(NewViewportInput));
+							InputViewports.Emplace(MediaInputId, MoveTemp(NewViewportInput));
 						}
-						// Media capture only
-						else if (MediaSettings.MediaOutput.bEnabled && bOutputDataValid)
+
+						// Media capture
+						if (MediaSettings.MediaOutput.bEnabled && bOutputDataValid)
 						{
+							const FString MediaCaptureId = RootActor->GetName() + FString("_") + ClusterNodeId + FString("_") + ViewportIt.Key + FString("_viewport_capture");
+
 							UE_LOG(LogDisplayClusterMedia, Log, TEXT("Initializing viewport capture for viewport '%s'..."), *ViewportIt.Key);
 
 							TUniquePtr<FDisplayClusterMediaCaptureViewport> NewViewportCapture = MakeUnique<FDisplayClusterMediaCaptureViewport>(
@@ -220,7 +166,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 				{
 					if (const UDisplayClusterICVFXCameraComponent* const ICVFXCamera = Cast<UDisplayClusterICVFXCameraComponent>(Component))
 					{
-						const FDisplayClusterConfigurationMedia& MediaSettings = ICVFXCamera->CameraSettings.RenderSettings.Media;
+						const FDisplayClusterConfigurationICVFXMedia& MediaSettings = ICVFXCamera->CameraSettings.RenderSettings.Media;
 
 						if (MediaSettings.bEnabled)
 						{
@@ -259,7 +205,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 										MediaSettings.MediaInput.MediaSource, MediaSettings.MediaInput.MediaPlayer, MediaSettings.MediaInput.MediaTexture);
 
 									AllInputs.Add(NewICVFXInput.Get());
-									InputViewports.Emplace(MediaCaptureId, MoveTemp(NewICVFXInput));
+									InputViewports.Emplace(MediaInputId, MoveTemp(NewICVFXInput));
 								}
 							}
 							// Media input only
@@ -273,7 +219,7 @@ void FDisplayClusterMediaModule::InitializeMedia()
 									MediaSettings.MediaInput.MediaSource, MediaSettings.MediaInput.MediaPlayer, MediaSettings.MediaInput.MediaTexture);
 
 								AllInputs.Add(NewICVFXInput.Get());
-								InputViewports.Emplace(MediaCaptureId, MoveTemp(NewICVFXInput));
+								InputViewports.Emplace(MediaInputId, MoveTemp(NewICVFXInput));
 							}
 							// Media capture only
 							else if (MediaSettings.MediaOutput.bEnabled && bOutputDataValid)

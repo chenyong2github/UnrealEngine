@@ -323,7 +323,7 @@ public:
 
 	// Media settings
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = NDisplay, meta = (DisplayName = "Media"))
-	FDisplayClusterConfigurationMedia Media;
+	FDisplayClusterConfigurationICVFXMedia Media;
 
 	UPROPERTY()
 	FDisplayClusterConfigurationPostRender_BlurPostprocess PostprocessBlur;

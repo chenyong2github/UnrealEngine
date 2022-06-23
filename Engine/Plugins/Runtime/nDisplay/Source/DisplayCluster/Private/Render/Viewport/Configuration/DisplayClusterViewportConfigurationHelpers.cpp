@@ -212,16 +212,8 @@ void FDisplayClusterViewportConfigurationHelpers::UpdateBaseViewportSetting(FDis
 
 		if (MediaSettings.bEnabled)
 		{
-			const FString ThisClusterNodeId = IDisplayCluster::Get().GetClusterMgr()->GetNodeId();
-			const bool bThisNodeSharesMedia = MediaSettings.MediaOutputNode.Equals(ThisClusterNodeId, ESearchCase::IgnoreCase);
-
-			// In most cases there is no need to render viewport if media input set up. The only exception
-			// is when this viewport is used as media source for other cluster nodes. In this case media input
-			// settings are ignored, and media capture is used.
-			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.MediaInput.bEnabled ?
-					!(MediaSettings.MediaOutput.bEnabled && bThisNodeSharesMedia) :
-					false;
-
+			// In case this viewport consumes data from a media input device, there is no need to render scene
+			DstViewport.RenderSettings.bSkipSceneRenderingButLeaveResourcesAvailable = MediaSettings.MediaInput.bEnabled;
 			// Set media capture flag if media capture is used
 			DstViewport.RenderSettings.bIsBeingCaptured = InConfigurationViewport.RenderSettings.Media.MediaOutput.bEnabled;
 		}

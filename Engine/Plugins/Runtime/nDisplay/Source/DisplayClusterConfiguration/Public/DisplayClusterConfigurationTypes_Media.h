@@ -65,7 +65,7 @@ public:
 
 
 /*
- * ICVFX media override settings
+ * Media settings
  */
 USTRUCT(Blueprintable)
 struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationMedia
@@ -77,10 +77,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (DisplayName = "Enable"))
 	bool bEnabled = false;
 
-	/** When in-cluster media sharing us used, the cluster node specified here will be used as a source (Tx node) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
-	FString MediaOutputNode;
-
 	/** Media input settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
 	FDisplayClusterConfigurationMediaInput MediaInput;
@@ -88,6 +84,21 @@ public:
 	/** Media capture settings */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
 	FDisplayClusterConfigurationMediaOutput MediaOutput;
+};
+
+/*
+ * ICVFX media settings
+ */
+USTRUCT(Blueprintable)
+struct DISPLAYCLUSTERCONFIGURATION_API FDisplayClusterConfigurationICVFXMedia
+	: public FDisplayClusterConfigurationMedia
+{
+	GENERATED_BODY()
+
+public:
+	/** When in-cluster media sharing us used, the cluster node specified here will be used as a source (Tx node) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Media", meta = (EditCondition = "bEnabled"))
+	FString MediaOutputNode;
 
 public:
 	/** Returns true if media sharing is used */
