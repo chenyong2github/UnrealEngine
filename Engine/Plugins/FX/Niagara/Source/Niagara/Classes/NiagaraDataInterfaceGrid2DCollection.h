@@ -56,7 +56,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
 	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
-	TArray<FGrid2DBuffer, TInlineAllocator<2>> Buffers;
+	TArray<TUniquePtr<FGrid2DBuffer>, TInlineAllocator<2>> Buffers;
 	FGrid2DBuffer* CurrentData = nullptr;
 	FGrid2DBuffer* DestinationData = nullptr;
 

@@ -2531,19 +2531,20 @@ bool FGrid2DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 
 void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& GraphBuilder)
 {
-	for (FGrid2DBuffer& Buffer : Buffers)
+	for (TUniquePtr<FGrid2DBuffer>& Buffer : Buffers)
 	{
 		check(Buffer.IsValid());
-		if (&Buffer != CurrentData)
+		if (Buffer.Get() != CurrentData)
 		{
-			DestinationData = &Buffer;
+			DestinationData = Buffer.Get();
 			break;
 		}
 	}
 
 	if (DestinationData == nullptr)
 	{
-		DestinationData = &Buffers.AddDefaulted_GetRef();
+		DestinationData = new FGrid2DBuffer();
+		Buffers.Emplace(DestinationData);
 
 		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create2DArray(NumCells, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV, NumAttributes);
 		DestinationData->Initialize(GraphBuilder, TEXT("FGrid2DBuffer"), TextureDesc);
@@ -2565,9 +2566,9 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::ResetData(const FNDIGpuCom
 	}
 
 	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
-	for (FGrid2DBuffer& Buffer : ProxyData->Buffers)
+	for (TUniquePtr<FGrid2DBuffer>& Buffer : ProxyData->Buffers)
 	{
-		AddClearUAVPass(GraphBuilder, Buffer.GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
+		AddClearUAVPass(GraphBuilder, Buffer->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 	}
 }
 
@@ -2641,9 +2642,9 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(const FNDIGpu
 	// Clear out the transient resource we cached
 	if (Context.IsFinalPostSimulate())
 	{
-		for (FGrid2DBuffer& Buffer : ProxyData->Buffers)
+		for (TUniquePtr<FGrid2DBuffer>& Buffer : ProxyData->Buffers)
 		{
-			Buffer.EndGraphUsage();
+			Buffer->EndGraphUsage();
 		}
 
 		// Readers point to data not owned by themselves so can be caching resources on the 'other' proxy
@@ -2651,9 +2652,9 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(const FNDIGpu
 		if ( FNiagaraDataInterfaceProxyGrid2DCollectionProxy* OtherGrid3DProxy = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(ProxyData->OtherProxy) )
 		{
 			FGrid2DCollectionRWInstanceData_RenderThread& OtherProxyData = OtherGrid3DProxy->SystemInstancesToProxyData_RT.FindChecked(Context.GetSystemInstanceID());
-			for (FGrid2DBuffer& Buffer : OtherProxyData.Buffers)
+			for (TUniquePtr<FGrid2DBuffer>& Buffer : OtherProxyData.Buffers)
 			{
-				Buffer.EndGraphUsage();
+				Buffer->EndGraphUsage();
 			}
 		}
 	}

@@ -70,7 +70,7 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FIntVector4 PreviewAttribute = FIntVector4(INDEX_NONE, INDEX_NONE, INDEX_NONE, INDEX_NONE);
 #endif
 
-	TArray<FGrid3DBuffer, TInlineAllocator<2>> Buffers;
+	TArray<TUniquePtr<FGrid3DBuffer>, TInlineAllocator<2>> Buffers;
 	FGrid3DBuffer* CurrentData = nullptr;
 	FGrid3DBuffer* DestinationData = nullptr;
 

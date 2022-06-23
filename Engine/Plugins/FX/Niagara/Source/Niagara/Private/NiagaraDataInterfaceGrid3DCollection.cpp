@@ -2945,19 +2945,20 @@ bool FGrid3DCollectionRWInstanceData_GameThread::UpdateTargetTexture(ENiagaraGpu
 
 void FGrid3DCollectionRWInstanceData_RenderThread::BeginSimulate(FRDGBuilder& GraphBuilder, bool RequiresBuffering)
 {
-	for (FGrid3DBuffer& Buffer : Buffers)
+	for (TUniquePtr<FGrid3DBuffer>& Buffer : Buffers)
 	{
 		check(Buffer.IsValid());
-		if (&Buffer != CurrentData || !RequiresBuffering)
+		if (Buffer.Get() != CurrentData || !RequiresBuffering)
 		{
-			DestinationData = &Buffer;
+			DestinationData = Buffer.Get();
 			break;
 		}
 	}
 
 	if (DestinationData == nullptr)
 	{
-		DestinationData = &Buffers.AddDefaulted_GetRef();
+		DestinationData = new FGrid3DBuffer();
+		Buffers.Emplace(DestinationData);
 
 		const FIntVector TextureSize(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, NumCells.Z * NumTiles.Z);
 		const FRDGTextureDesc TextureDesc = FRDGTextureDesc::Create3D(TextureSize, PixelFormat, FClearValueBinding::Black, ETextureCreateFlags::ShaderResource | ETextureCreateFlags::UAV);
@@ -2991,9 +2992,9 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::ResetData(const FNDIGpuCom
 	}
 
 	FRDGBuilder& GraphBuilder = Context.GetGraphBuilder();
-	for (FGrid3DBuffer& Buffer : ProxyData->Buffers)
+	for (TUniquePtr<FGrid3DBuffer>& Buffer : ProxyData->Buffers)
 	{
-		AddClearUAVPass(GraphBuilder, Buffer.GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
+		AddClearUAVPass(GraphBuilder, Buffer->GetOrCreateUAV(GraphBuilder), FVector4f(ForceInitToZero));
 	}
 }
 
@@ -3073,9 +3074,9 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(const FNDIGpu
 	// Clear out the transient resource we cached
 	if (Context.IsFinalPostSimulate())
 	{
-		for (FGrid3DBuffer& Buffer : ProxyData->Buffers)
+		for (TUniquePtr<FGrid3DBuffer>& Buffer : ProxyData->Buffers)
 		{
-			Buffer.EndGraphUsage();
+			Buffer->EndGraphUsage();
 		}
 
 		// Readers point to data not owned by themselves so can be caching resources on the 'other' proxy
@@ -3083,9 +3084,9 @@ void FNiagaraDataInterfaceProxyGrid3DCollectionProxy::PostSimulate(const FNDIGpu
 		if (FNiagaraDataInterfaceProxyGrid3DCollectionProxy* OtherGrid3DProxy = static_cast<FNiagaraDataInterfaceProxyGrid3DCollectionProxy*>(ProxyData->OtherProxy))
 		{
 			FGrid3DCollectionRWInstanceData_RenderThread& OtherProxyData = OtherGrid3DProxy->SystemInstancesToProxyData_RT.FindChecked(Context.GetSystemInstanceID());
-			for (FGrid3DBuffer& Buffer : OtherProxyData.Buffers)
+			for (TUniquePtr<FGrid3DBuffer>& Buffer : OtherProxyData.Buffers)
 			{
-				Buffer.EndGraphUsage();
+				Buffer->EndGraphUsage();
 			}
 		}
 	}
