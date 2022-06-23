@@ -18,6 +18,7 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraRenderer.h"
 #include "NiagaraScript.h"
+#include "NiagaraShaderParametersBuilder.h"
 #include "NiagaraWorldManager.h"
 #include "Templates/AlignmentTemplates.h"
 #include "ShaderParameterUtils.h"
@@ -51,6 +52,56 @@ struct FNiagaraSkelMeshDIFunctionVersion
 
 namespace NDISkelMeshLocal
 {
+	static const TCHAR* CommonShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSkeletalMesh.ush");
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSkeletalMeshTemplate.ush");
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshIndexBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float>,		MeshVertexBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshSkinWeightBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshSkinWeightLookupBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	MeshCurrBonesBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	MeshPrevBonesBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	MeshCurrSamplingBonesBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	MeshPrevSamplingBonesBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	MeshTangentBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float2>,	MeshTexCoordBuffer)
+		SHADER_PARAMETER_SRV(Buffer<float4>,	MeshColorBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshTriangleSamplerProbAliasBuffer)
+		SHADER_PARAMETER(uint32,				MeshNumSamplingRegionTriangles)
+		SHADER_PARAMETER(uint32,				MeshNumSamplingRegionVertices)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshSamplingRegionsProbAliasBuffer)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshSampleRegionsTriangleIndices)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshSampleRegionsVertices)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		MeshTriangleMatricesOffsetBuffer)
+		SHADER_PARAMETER(uint32,				MeshTriangleCount)
+		SHADER_PARAMETER(uint32,				MeshVertexCount)
+		SHADER_PARAMETER(uint32,				MeshWeightStride)
+		SHADER_PARAMETER(uint32,				MeshSkinWeightIndexSize)
+		SHADER_PARAMETER(uint32,				MeshNumTexCoord)
+		SHADER_PARAMETER(uint32,				MeshNumWeights)
+		SHADER_PARAMETER(int,					NumBones)
+		SHADER_PARAMETER(int,					NumFilteredBones)
+		SHADER_PARAMETER(int,					NumUnfilteredBones)
+		SHADER_PARAMETER(int,					RandomMaxBone)
+		SHADER_PARAMETER(int,					ExcludeBoneIndex)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		FilteredAndUnfilteredBones)
+		SHADER_PARAMETER(int,					NumFilteredSockets)
+		SHADER_PARAMETER(int,					FilteredSocketBoneOffset)
+		SHADER_PARAMETER_SRV(Buffer<int>,		UvMappingBuffer)
+		SHADER_PARAMETER(uint32,				UvMappingBufferLength)
+		SHADER_PARAMETER(uint32,				UvMappingSet)
+		SHADER_PARAMETER_SRV(Buffer<uint>,		ConnectivityBuffer)
+		SHADER_PARAMETER(uint32,				ConnectivityBufferLength)
+		SHADER_PARAMETER(uint32,				ConnectivityMaxAdjacentPerVertex)
+		SHADER_PARAMETER(FMatrix44f,			InstanceTransform)
+		SHADER_PARAMETER(FMatrix44f,			InstancePrevTransform)
+		SHADER_PARAMETER(FQuat4f,				InstanceRotation)
+		SHADER_PARAMETER(FQuat4f,				InstancePrevRotation)
+		SHADER_PARAMETER(float,					InstanceInvDeltaTime)
+		SHADER_PARAMETER(uint32,				EnabledFeatures)
+	END_SHADER_PARAMETER_STRUCT()
+
 	int32 GetProbAliasDWORDSize(int32 TriangleCount)
 	{
 		const ENDISkelMesh_GpuUniformSamplingFormat::Type Format = GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat;
@@ -1384,286 +1435,6 @@ static void GetNiagaraDataInterfaceParametersName(FNDISkeletalMeshParametersName
 	Names.InstanceInvDeltaTimeName = UNiagaraDataInterfaceSkeletalMesh::InstanceInvDeltaTimeName + Suffix;
 	Names.EnabledFeaturesName = UNiagaraDataInterfaceSkeletalMesh::EnabledFeaturesName + Suffix;
 }
-
-struct FNiagaraDataInterfaceParametersCS_SkeletalMesh : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_SkeletalMesh, NonVirtual);
-public:
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		FNDISkeletalMeshParametersName ParamNames;
-		GetNiagaraDataInterfaceParametersName(ParamNames, ParameterInfo.DataInterfaceHLSLSymbol);
-
-		MeshIndexBuffer.Bind(ParameterMap, *ParamNames.MeshIndexBufferName);
-		MeshVertexBuffer.Bind(ParameterMap, *ParamNames.MeshVertexBufferName);
-		MeshSkinWeightBuffer.Bind(ParameterMap, *ParamNames.MeshSkinWeightBufferName);
-		MeshSkinWeightLookupBuffer.Bind(ParameterMap, *ParamNames.MeshSkinWeightLookupBufferName);
-		MeshCurrBonesBuffer.Bind(ParameterMap, *ParamNames.MeshCurrBonesBufferName);
-		MeshPrevBonesBuffer.Bind(ParameterMap, *ParamNames.MeshPrevBonesBufferName);
-		MeshCurrSamplingBonesBuffer.Bind(ParameterMap, *ParamNames.MeshCurrSamplingBonesBufferName);
-		MeshPrevSamplingBonesBuffer.Bind(ParameterMap, *ParamNames.MeshPrevSamplingBonesBufferName);
-		MeshTangentBuffer.Bind(ParameterMap, *ParamNames.MeshTangentBufferName);
-		MeshTexCoordBuffer.Bind(ParameterMap, *ParamNames.MeshTexCoordBufferName);
-		MeshColorBuffer.Bind(ParameterMap, *ParamNames.MeshColorBufferName);
-		MeshTriangleSamplerProbAliasBuffer.Bind(ParameterMap, *ParamNames.MeshTriangleSamplerProbAliasBufferName);
-		MeshNumSamplingRegionTriangles.Bind(ParameterMap, *ParamNames.MeshNumSamplingRegionTrianglesName);
-		MeshNumSamplingRegionVertices.Bind(ParameterMap, *ParamNames.MeshNumSamplingRegionVerticesName);
-		MeshSamplingRegionsProbAliasBuffer.Bind(ParameterMap, *ParamNames.MeshSamplingRegionsProbAliasBufferName);
-		MeshSampleRegionsTriangleIndices.Bind(ParameterMap, *ParamNames.MeshSampleRegionsTriangleIndicesName);
-		MeshSampleRegionsVertices.Bind(ParameterMap, *ParamNames.MeshSampleRegionsVerticesName);
-		MeshTriangleMatricesOffsetBuffer.Bind(ParameterMap, *ParamNames.MeshTriangleMatricesOffsetBufferName);
-		MeshTriangleCount.Bind(ParameterMap, *ParamNames.MeshTriangleCountName);
-		MeshVertexCount.Bind(ParameterMap, *ParamNames.MeshVertexCountName);
-		MeshWeightStride.Bind(ParameterMap, *ParamNames.MeshWeightStrideName);
-		MeshSkinWeightIndexSize.Bind(ParameterMap, *ParamNames.MeshSkinWeightIndexSizeName);
-		MeshNumTexCoord.Bind(ParameterMap, *ParamNames.MeshNumTexCoordName);
-		MeshNumWeights.Bind(ParameterMap, *ParamNames.MeshNumWeightsName);
-		NumBones.Bind(ParameterMap, *ParamNames.NumBonesName);
-		NumFilteredBones.Bind(ParameterMap, *ParamNames.NumFilteredBonesName);
-		NumUnfilteredBones.Bind(ParameterMap, *ParamNames.NumUnfilteredBonesName);
-		RandomMaxBone.Bind(ParameterMap, *ParamNames.RandomMaxBoneName);
-		ExcludeBoneIndex.Bind(ParameterMap, *ParamNames.ExcludeBoneIndexName);
-		FilteredAndUnfilteredBones.Bind(ParameterMap, *ParamNames.FilteredAndUnfilteredBonesName);
-		NumFilteredSockets.Bind(ParameterMap, *ParamNames.NumFilteredSocketsName);
-		FilteredSocketBoneOffset.Bind(ParameterMap, *ParamNames.FilteredSocketBoneOffsetName);
-		UvMappingBuffer.Bind(ParameterMap, *ParamNames.UvMappingBufferName);
-		UvMappingBufferLength.Bind(ParameterMap, *ParamNames.UvMappingBufferLengthName);
-		UvMappingSet.Bind(ParameterMap, *ParamNames.UvMappingSetName);
-		ConnectivityBuffer.Bind(ParameterMap, *ParamNames.ConnectivityBufferName);
-		ConnectivityBufferLength.Bind(ParameterMap, *ParamNames.ConnectivityBufferLengthName);
-		ConnectivityMaxAdjacentPerVertex.Bind(ParameterMap, *ParamNames.ConnectivityMaxAdjacentPerVertexName);
-		InstanceTransform.Bind(ParameterMap, *ParamNames.InstanceTransformName);
-		InstancePrevTransform.Bind(ParameterMap, *ParamNames.InstancePrevTransformName);
-		InstanceRotation.Bind(ParameterMap, *ParamNames.InstanceRotationName);
-		InstancePrevRotation.Bind(ParameterMap, *ParamNames.InstancePrevRotationName);
-		InstanceInvDeltaTime.Bind(ParameterMap, *ParamNames.InstanceInvDeltaTimeName);
-		EnabledFeatures.Bind(ParameterMap, *ParamNames.EnabledFeaturesName);
-	}
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(IsInRenderingThread());
-
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		FNiagaraDataInterfaceProxySkeletalMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxySkeletalMesh*>(Context.DataInterface);
-		FNiagaraDataInterfaceProxySkeletalMeshData* InstanceData = InterfaceProxy->SystemInstancesToData.Find(Context.SystemInstanceID);
-		if (InstanceData && InstanceData->StaticBuffers)
-		{
-			FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers = InstanceData->StaticBuffers;
-
-			// Bind mesh buffers
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshVertexBuffer, StaticBuffers->GetBufferPositionSRV());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshIndexBuffer, StaticBuffers->GetBufferIndexSRV());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, StaticBuffers->GetBufferTangentSRV());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, StaticBuffers->GetBufferTexCoordSRV());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, StaticBuffers->GetBufferColorSRV());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumTexCoord, StaticBuffers->GetNumTexCoord());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, StaticBuffers->GetTriangleCount());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, StaticBuffers->GetVertexCount());
-
-			// Set triangle sampling buffer
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbAliasBuffer, StaticBuffers->GetBufferTriangleUniformSamplerProbAliasSRV());
-
-			// Set triangle sampling region buffer
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionTriangles, StaticBuffers->GetNumSamplingRegionTriangles());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionVertices, StaticBuffers->GetNumSamplingRegionVertices());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbAliasBuffer, StaticBuffers->GetSampleRegionsProbAliasSRV());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsTriangleIndices, StaticBuffers->GetSampleRegionsTriangleIndicesSRV());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsVertices, StaticBuffers->GetSampleRegionsVerticesSRV());
-
-			FRHIShaderResourceView* MeshSkinWeightBufferSRV = InstanceData->MeshSkinWeightBuffer->GetSRV();
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, MeshSkinWeightBufferSRV ? MeshSkinWeightBufferSRV : FNiagaraRenderer::GetDummyUIntBuffer());
-			FRHIShaderResourceView* MeshSkinWeightLookupBufferSRV = InstanceData->MeshSkinWeightLookupBuffer->GetSRV();
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, MeshSkinWeightLookupBufferSRV ? MeshSkinWeightLookupBufferSRV : FNiagaraRenderer::GetDummyUIntBuffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, InstanceData->MeshWeightStrideByte/4);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshSkinWeightIndexSize, InstanceData->MeshSkinWeightIndexSizeByte);
-
-			uint32 EnabledFeaturesBits = 0;
-			EnabledFeaturesBits |= StaticBuffers->IsUseGpuUniformlyDistributedSampling() ? 1 : 0;
-			EnabledFeaturesBits |= StaticBuffers->IsSamplingRegionsAllAreaWeighted() ? 2 : 0;
-			EnabledFeaturesBits |= InstanceData->bUnlimitedBoneInfluences ? 4 : 0;
-			EnabledFeaturesBits |= StaticBuffers->HasMeshColors() ? 8 : 0;
-
-			FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffers = InstanceData->DynamicBuffer;
-			check(DynamicBuffers);
-			if(DynamicBuffers->DoesBoneDataExist())
-			{
-				SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumWeights, StaticBuffers->GetNumWeights());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrBonesBuffer, DynamicBuffers->GetRWBufferBone().SectionSRV);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshPrevBonesBuffer, DynamicBuffers->GetRWBufferPrevBone().SectionSRV);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrSamplingBonesBuffer, DynamicBuffers->GetRWBufferBone().SamplingSRV);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshPrevSamplingBonesBuffer, DynamicBuffers->GetRWBufferPrevBone().SamplingSRV);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleMatricesOffsetBuffer, StaticBuffers->GetBufferTriangleMatricesOffsetSRV());
-			}
-			// Bind dummy data for validation purposes only.  Code will not execute due to "EnabledFeatures" bits but validation can not determine that.
-			else
-			{
-				SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumWeights, 0);
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshPrevBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrSamplingBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshPrevSamplingBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleMatricesOffsetBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-			}
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumBones, DynamicBuffers->GetNumBones());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredBones, StaticBuffers->GetNumFilteredBones());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUnfilteredBones, StaticBuffers->GetNumUnfilteredBones());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, RandomMaxBone, StaticBuffers->GetExcludedBoneIndex() >= 0 ? DynamicBuffers->GetNumBones() - 2 : DynamicBuffers->GetNumBones() - 1);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ExcludeBoneIndex, StaticBuffers->GetExcludedBoneIndex());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredBones, StaticBuffers->GetFilteredAndUnfilteredBonesSRV());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, StaticBuffers->GetNumFilteredSockets());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, StaticBuffers->GetFilteredSocketBoneOffset());
-
-			if (InstanceData->UvMappingBuffer)
-			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, UvMappingBuffer, InstanceData->UvMappingBuffer->GetSrv());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingBufferLength, InstanceData->UvMappingBuffer->GetBufferSize());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingSet, InstanceData->UvMappingSet);
-			}
-			else
-			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, UvMappingBuffer, FNiagaraRenderer::GetDummyIntBuffer());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingBufferLength, 0);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingSet, 0);
-			}
-
-			if (InstanceData->ConnectivityBuffer)
-			{
-				const uint32 NumBufferElements = FMath::DivideAndRoundUp<uint32>(InstanceData->ConnectivityBuffer->GetBufferSize(), sizeof(uint32));
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, ConnectivityBuffer, InstanceData->ConnectivityBuffer->GetSrv());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityBufferLength, NumBufferElements);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityMaxAdjacentPerVertex, InstanceData->ConnectivityBuffer->MaxAdjacentTriangleCount);
-			}
-			else
-			{
-				SetSRVParameter(RHICmdList, ComputeShaderRHI, ConnectivityBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityBufferLength, 0);
-				SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityMaxAdjacentPerVertex, 0);
-			}
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, InstanceData->Transform);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, InstanceData->PrevTransform);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, InstanceData->Transform.GetMatrixWithoutScale().ToQuat());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, InstanceData->PrevTransform.GetMatrixWithoutScale().ToQuat());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, 1.0f / InstanceData->DeltaSeconds);
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, EnabledFeatures, EnabledFeaturesBits);
-		}
-		else
-		{
-			// Bind dummy buffers
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshVertexBuffer, FNiagaraRenderer::GetDummyFloatBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshIndexBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTangentBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumTexCoord, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTexCoordBuffer, FNiagaraRenderer::GetDummyFloat2Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshColorBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshTriangleCount, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshVertexCount, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleSamplerProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionTriangles, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumSamplingRegionVertices, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSamplingRegionsProbAliasBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsTriangleIndices, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSampleRegionsVertices, FNiagaraRenderer::GetDummyUIntBuffer());
-
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshSkinWeightLookupBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshWeightStride, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshSkinWeightIndexSize, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, MeshNumWeights, 0);
-
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshPrevBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshCurrSamplingBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshPrevSamplingBonesBuffer, FNiagaraRenderer::GetDummyFloat4Buffer());
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, MeshTriangleMatricesOffsetBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumBones, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredBones, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumUnfilteredBones, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, RandomMaxBone, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ExcludeBoneIndex, 0);
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, FilteredAndUnfilteredBones, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, NumFilteredSockets, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, FilteredSocketBoneOffset, 0);
-
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, UvMappingBuffer, FNiagaraRenderer::GetDummyIntBuffer());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingBufferLength, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, UvMappingSet, 0);
-
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, ConnectivityBuffer, FNiagaraRenderer::GetDummyUIntBuffer());
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityBufferLength, 0);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, ConnectivityMaxAdjacentPerVertex, 0);
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceTransform, FMatrix44f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevTransform, FMatrix44f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceRotation, FQuat4f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstancePrevRotation, FQuat4f::Identity);
-			SetShaderValue(RHICmdList, ComputeShaderRHI, InstanceInvDeltaTime, 0.0f);
-
-			SetShaderValue(RHICmdList, ComputeShaderRHI, EnabledFeatures, 0);
-		}
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, MeshIndexBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshVertexBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSkinWeightBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSkinWeightLookupBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshCurrBonesBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshPrevBonesBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshCurrSamplingBonesBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshPrevSamplingBonesBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshTangentBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshTexCoordBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshColorBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleSamplerProbAliasBuffer);
-	LAYOUT_FIELD(FShaderParameter, MeshNumSamplingRegionTriangles);
-	LAYOUT_FIELD(FShaderParameter, MeshNumSamplingRegionVertices);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSamplingRegionsProbAliasBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSampleRegionsTriangleIndices);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshSampleRegionsVertices);
-	LAYOUT_FIELD(FShaderResourceParameter, MeshTriangleMatricesOffsetBuffer);
-	LAYOUT_FIELD(FShaderParameter, MeshTriangleCount);
-	LAYOUT_FIELD(FShaderParameter, MeshVertexCount);
-	LAYOUT_FIELD(FShaderParameter, MeshWeightStride);
-	LAYOUT_FIELD(FShaderParameter, MeshSkinWeightIndexSize);
-	LAYOUT_FIELD(FShaderParameter, MeshNumTexCoord);
-	LAYOUT_FIELD(FShaderParameter, MeshNumWeights);
-	LAYOUT_FIELD(FShaderParameter, NumBones);
-	LAYOUT_FIELD(FShaderParameter, NumFilteredBones);
-	LAYOUT_FIELD(FShaderParameter, NumUnfilteredBones);
-	LAYOUT_FIELD(FShaderParameter, RandomMaxBone);
-	LAYOUT_FIELD(FShaderParameter, ExcludeBoneIndex);
-	LAYOUT_FIELD(FShaderResourceParameter, FilteredAndUnfilteredBones);
-	LAYOUT_FIELD(FShaderParameter, NumFilteredSockets);
-	LAYOUT_FIELD(FShaderParameter, FilteredSocketBoneOffset);
-	LAYOUT_FIELD(FShaderResourceParameter, UvMappingBuffer);
-	LAYOUT_FIELD(FShaderParameter, UvMappingBufferLength);
-	LAYOUT_FIELD(FShaderParameter, UvMappingSet);
-	LAYOUT_FIELD(FShaderResourceParameter, ConnectivityBuffer);
-	LAYOUT_FIELD(FShaderParameter, ConnectivityBufferLength);
-	LAYOUT_FIELD(FShaderParameter, ConnectivityMaxAdjacentPerVertex);
-	LAYOUT_FIELD(FShaderParameter, InstanceTransform);
-	LAYOUT_FIELD(FShaderParameter, InstancePrevTransform);
-	LAYOUT_FIELD(FShaderParameter, InstanceRotation);
-	LAYOUT_FIELD(FShaderParameter, InstancePrevRotation);
-	LAYOUT_FIELD(FShaderParameter, InstanceInvDeltaTime);
-	LAYOUT_FIELD(FShaderParameter, EnabledFeatures);
-};
-
-IMPLEMENT_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_SkeletalMesh);
-
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceSkeletalMesh, FNiagaraDataInterfaceParametersCS_SkeletalMesh);
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -3070,8 +2841,9 @@ bool UNiagaraDataInterfaceSkeletalMesh::AppendCompileHash(FNiagaraCompileHashVis
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
-	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSkeletalMesh.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceSkeletalMeshHLSLSource"), Hash.ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceSkeletalMeshHLSLSource"), GetShaderFileHash(NDISkelMeshLocal::CommonShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfaceSkeletalMeshTemplateHLSLSource"), GetShaderFileHash(NDISkelMeshLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateShaderParameters<NDISkelMeshLocal::FShaderParameters>();
 
 	InVisitor->UpdatePOD(TEXT("NDISkelmesh_Influences"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuMaxInfluences));
 	InVisitor->UpdatePOD(TEXT("NDISkelmesh_ProbAliasFormat"), int(GetDefault<UNiagaraSettings>()->NDISkelMesh_GpuUniformSamplingFormat));
@@ -3094,308 +2866,157 @@ void UNiagaraDataInterfaceSkeletalMesh::ModifyCompilationEnvironment(EShaderPlat
 #if WITH_EDITORONLY_DATA
 void UNiagaraDataInterfaceSkeletalMesh::GetCommonHLSL(FString& OutHLSL)
 {
-	OutHLSL += TEXT("#include \"/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSkeletalMesh.ush\"\n");
+	OutHLSL.Appendf(TEXT("#include \"%s\"\n"), NDISkelMeshLocal::CommonShaderFile);
+}
+
+void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
+{
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NDISkelMeshLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
-	FNDISkeletalMeshParametersName ParamNames;
-	GetNiagaraDataInterfaceParametersName(ParamNames, ParamInfo.DataInterfaceHLSLSymbol);
-	TMap<FString, FStringFormatArg> ArgsSample = {
-		{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
-		{TEXT("MeshTriCoordinateStructName"), TEXT("MeshTriCoordinate")},
-		{TEXT("MeshTriangleCount"), ParamNames.MeshTriangleCountName},
-		{TEXT("MeshVertexCount"), ParamNames.MeshVertexCountName},
-		{TEXT("GetDISkelMeshContextName"), TEXT("DISKELMESH_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
+	static const TSet<FName> ValidGpuFunctions =
+	{
+		FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName,
+		FSkeletalMeshInterfaceHelper::GetTriangleCountName,
+		FSkeletalMeshInterfaceHelper::GetFilteredTriangleCountName,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Bone Sampling
+		FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataName,
+		FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataInterpolatedName,
+		FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSName,
+		FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSInterpolatedName,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Vertex Sampling
+		FSkeletalMeshInterfaceHelper::GetVertexDataName,
+		FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName,
+		FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataWSName,
+		FSkeletalMeshInterfaceHelper::GetVertexColorName,
+		FSkeletalMeshInterfaceHelper::GetVertexUVName,
+		FSkeletalMeshInterfaceHelper::IsValidVertexName,
+		FSkeletalMeshInterfaceHelper::RandomVertexName,
+		FSkeletalMeshInterfaceHelper::GetVertexCountName,
+		FSkeletalMeshInterfaceHelper::IsValidFilteredVertexName,
+		FSkeletalMeshInterfaceHelper::RandomFilteredVertexName,
+		FSkeletalMeshInterfaceHelper::GetFilteredVertexCountName,
+		FSkeletalMeshInterfaceHelper::GetFilteredVertexAtName,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Filtered Bone
+		FSkeletalMeshInterfaceHelper::IsValidBoneName,
+		FSkeletalMeshInterfaceHelper::RandomBoneName,
+		FSkeletalMeshInterfaceHelper::GetBoneCountName,
+		FSkeletalMeshInterfaceHelper::GetParentBoneName,
+		FSkeletalMeshInterfaceHelper::GetFilteredBoneCountName,
+		FSkeletalMeshInterfaceHelper::GetFilteredBoneAtName,
+		FSkeletalMeshInterfaceHelper::RandomFilteredBoneName,
+		FSkeletalMeshInterfaceHelper::GetUnfilteredBoneCountName,
+		FSkeletalMeshInterfaceHelper::GetUnfilteredBoneAtName,
+		FSkeletalMeshInterfaceHelper::RandomUnfilteredBoneName,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Filtered Socket
+		FSkeletalMeshInterfaceHelper::GetFilteredSocketCountName,
+		FSkeletalMeshInterfaceHelper::GetFilteredSocketBoneAtName,
+		FSkeletalMeshInterfaceHelper::GetFilteredSocketTransformName,
+		FSkeletalMeshInterfaceHelper::RandomFilteredSocketName,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Misc bone functions
+		FSkeletalMeshInterfaceHelper::RandomFilteredSocketOrBoneName,
+		FSkeletalMeshInterfaceHelper::GetFilteredSocketOrBoneCountName,
+		FSkeletalMeshInterfaceHelper::GetFilteredSocketOrBoneAtName,
+		//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+		// Uv Mapping
+		FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName,
+		FSkeletalMeshInterfaceHelper::GetTriangleNeighborName,
 	};
 
+	if ( ValidGpuFunctions.Contains(FunctionInfo.DefinitionName) )
+	{
+		return true;
+	}
+
 	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Triangle Sampling
-	if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomTriCoordName)
+	// Special cases due to using FMeshTriCoordinate
+	TMap<FString, FStringFormatArg> FormatArgs =
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_RandomTriCoord(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::IsValidTriCoordName)
+		{TEXT("InstanceFunctionName"),	FunctionInfo.InstanceName},
+		{TEXT("ParameterName"),			ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	const TCHAR* FuncFormat = nullptr;
+	if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::IsValidTriCoordName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, out bool IsValid) { {GetDISkelMeshContextName} IsValid = InCoord.Tri < DIContext.MeshTriangleCount; }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleDataName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, out float3 OutPosition, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISkelMesh_GetPointOnTriangle(DIContext, InCoord.Tri, InCoord.BaryCoord, OutPosition, OutTangent, OutBinormal, OutNormal); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISKelMesh_GetSkinnedTriangleDataWS(DIContext, InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSInterpName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISKelMesh_GetSkinnedTriangleDataInterpolatedWS(DIContext, InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISKelMesh_GetSkinnedTriangleData(DIContext, InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataInterpName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISKelMesh_GetSkinnedTriangleDataInterpolated(DIContext, InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriUVName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, in int InUVSet, out float2 OutUV) { {GetDISkelMeshContextName} DISKelMesh_GetTriUV(DIContext, InCoord.Tri, InCoord.BaryCoord, InUVSet, OutUV); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriColorName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in {MeshTriCoordinateStructName} InCoord, out float4 OutColor) { {GetDISkelMeshContextName} DISkelMesh_GetTriColor(DIContext, InCoord.Tri, InCoord.BaryCoord, OutColor); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriCoordVerticesName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int TriangleIndex, out int OutVertexIndex0, out int OutVertexIndex1, out int OutVertexIndex2) { {GetDISkelMeshContextName} DISkelMesh_GetTriVertices(DIContext, TriangleIndex, OutVertexIndex0, OutVertexIndex1, OutVertexIndex2); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out bool bIsValid) { IsValidTriCoord_{ParameterName}(InCoord.Tri, bIsValid); }");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomTriangleName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_RandomTriangle(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCountName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomTriCoordName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISKelMesh_GetTriangleCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredTriangleName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_RandomFilteredTriangle(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredTriangleCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomFilteredTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int FilteredIndex, in float3 BaryCoord, out {MeshTriCoordinateStructName} OutCoord) { {GetDISkelMeshContextName} DISKelMesh_GetFilteredTriangleAt(DIContext, FilteredIndex, OutCoord.Tri); OutCoord.BaryCoord = BaryCoord; }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(int FilteredIndex, in float3 BaryCoord, out MeshTriCoordinate OutCoord) { GetFilteredTriangleAt_{ParameterName}(FilteredIndex, OutCoord.Tri); OutCoord.BaryCoord = BaryCoord; }");
 	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Bone Sampling
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleDataName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int InBone, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity) { {GetDISkelMeshContextName} DISkelMesh_GetSkinnedBone(DIContext, InBone, OutPosition, OutRotation, OutScale, OutVelocity); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetPointOnTriangle_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutTangent, OutBinormal, OutNormal); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataInterpolatedName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int InBone, in float Interp, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity) { {GetDISkelMeshContextName} DISkelMesh_GetSkinnedBoneInterpolated(DIContext, InBone, Interp, OutPosition, OutRotation, OutScale, OutVelocity); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataWS_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSInterpName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int InBone, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity) { {GetDISkelMeshContextName} DISkelMesh_GetSkinnedBoneWS(DIContext, InBone, OutPosition, OutRotation, OutScale, OutVelocity); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataInterpolatedWS_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedBoneDataWSInterpolatedName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int InBone, in float Interp, out float3 OutPosition, out float4 OutRotation, out float3 OutScale, out float3 OutVelocity) { {GetDISkelMeshContextName} DISkelMesh_GetSkinnedBoneInterpolatedWS(DIContext, InBone, Interp, OutPosition, OutRotation, OutScale, OutVelocity); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleData_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
 	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Vertex Sampling
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetVertexDataName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataInterpName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int Vertex, out float3 OutPosition, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISkelMesh_GetVertex(DIContext, Vertex, OutPosition, OutTangent, OutBinormal, OutNormal); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataInterpolated_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriUVName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int Vertex, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISkelMesh_GetSkinnedVertex(DIContext, Vertex, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in int InUVSet, out float2 OutUV) { GetTriUV_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InUVSet, OutUV); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedVertexDataWSName)
+	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriColorName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int Vertex, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { {GetDISkelMeshContextName} DISkelMesh_GetSkinnedVertexWS(DIContext, Vertex, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float4 OutColor) { GetTriColor_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutColor); }");
 	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetVertexColorName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int Vertex, out float4 OutColor) { {GetDISkelMeshContextName} DISkelMesh_GetVertexColor(DIContext, Vertex, OutColor); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetVertexUVName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int Vertex, in int UVSet, out float2 OutUV) { {GetDISkelMeshContextName} DISkelMesh_GetVertexUV(DIContext, Vertex, UVSet, OutUV); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::IsValidVertexName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int Vertex, out bool IsValid) { {GetDISkelMeshContextName} DISkelMesh_IsValidVertex(DIContext, Vertex, IsValid); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomVertexName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out int OutVertex) { {GetDISkelMeshContextName} DISkelMesh_GetRandomVertex(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutVertex); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetVertexCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int VertexCount) { {GetDISkelMeshContextName} DISkelMesh_GetVertexCount(DIContext, VertexCount); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::IsValidFilteredVertexName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int FilteredIndex, out bool IsValid) { {GetDISkelMeshContextName} DISkelMesh_IsValidFilteredVertex(DIContext, FilteredIndex, IsValid); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredVertexName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out int OutVertex) { {GetDISkelMeshContextName} DISkelMesh_GetRandomFilteredVertex(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutVertex); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredVertexCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int VertexCount) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredVertexCount(DIContext, VertexCount); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredVertexAtName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int FilteredIndex, out int VertexIndex) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredVertexAt(DIContext, FilteredIndex, VertexIndex); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Filtered Bone
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::IsValidBoneName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int BoneIndex, out bool IsValid) { {GetDISkelMeshContextName} DISkelMesh_IsValidBone(DIContext, BoneIndex, IsValid); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomBoneName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_RandomBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetBoneCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetBoneCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetParentBoneName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (int BoneIndex, out int ParentIndex) { {GetDISkelMeshContextName} DISkelMesh_GetParentBone(DIContext, BoneIndex, ParentIndex); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredBoneCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredBoneCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredBoneAtName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int BoneIndex, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredBoneAt(DIContext, BoneIndex, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredBoneName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetUnfilteredBoneCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetUnfilteredBoneCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetUnfilteredBoneAtName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int BoneIndex, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_GetUnfilteredBoneAt(DIContext, BoneIndex, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomUnfilteredBoneName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_RandomUnfilteredBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Filtered Socket
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketBoneAtName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int SocketIndex, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketBoneAt(DIContext, SocketIndex, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketTransformName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int SocketIndex, in bool bApplyTransform, out float3 OutTranslation, out float4 OutRotation, out float3 OutScale) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketTransform(DIContext, SocketIndex, bApplyTransform, OutTranslation, OutRotation, OutScale); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredSocketName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int SocketBone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredSocket(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, SocketBone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Misc bone functions
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredSocketOrBoneName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (NiagaraRandInfo InRandomInfo, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_RandomFilteredSocketOrBone(DIContext, InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketOrBoneCountName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (out int Count) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketOrBoneCount(DIContext, Count); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredSocketOrBoneAtName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int FilteredIndex, out int Bone) { {GetDISkelMeshContextName} DISkelMesh_GetFilteredSocketOrBoneAt(DIContext, FilteredIndex, Bone); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Uv Mapping
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool InEnabled, in float2 InUV, in float InTolerance, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordAtUV(DIContext, InEnabled, InUV, InTolerance, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
+		FuncFormat = TEXT("void {InstanceFunctionName}(in bool InEnabled, in float2 InUV, in float InTolerance, out MeshTriCoordinate OutCoord, out bool OutIsValid) { GetTriangleCoordAtUV_{ParameterName}(InEnabled, InUV, InTolerance, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName)
 	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in bool InEnabled, in float2 InUvMin, in float2 InUvMax, out {MeshTriCoordinateStructName} OutCoord, out bool OutIsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleCoordInAabb(DIContext, InEnabled, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Adjacency
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetAdjacentTriangleIndexName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int VertexId, in int AdjacencyIndex, out int TriangleIndex, out bool IsValid) { {GetDISkelMeshContextName} DISkelMesh_GetAdjacentTriangleIndex(DIContext, VertexId, max(0, AdjacencyIndex), TriangleIndex); IsValid = TriangleIndex != -1; }");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleNeighborName)
-	{
-		static const TCHAR* FormatSample = TEXT("void {InstanceFunctionName} (in int TriangleIndex, in int EdgeIndex, out int NeighborTriangleIndex, out int NeighborEdgeIndex, out bool IsValid) { {GetDISkelMeshContextName} DISkelMesh_GetTriangleNeighbor(DIContext, TriangleIndex, EdgeIndex, NeighborTriangleIndex, NeighborEdgeIndex); IsValid = NeighborTriangleIndex != -1;} ");
-		OutHLSL += FString::Format(FormatSample, ArgsSample);
-	}
-	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	// Unsupported functionality
-	else
-	{
-		// This function is not support
-		return false;
+		FuncFormat = TEXT("void {InstanceFunctionName}(in bool InEnabled, in float2 InUvMin, in float2 InUvMax, out MeshTriCoordinate OutCoord, out bool OutIsValid) { GetTriangleCoordInAabb_{ParameterName}(InEnabled, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
 	}
 
-	OutHLSL += TEXT("\n");
-	return true;
+	if ( FuncFormat != nullptr )
+	{
+		OutHLSL += FString::Format(FuncFormat, FormatArgs);
+		return true;
+	}
+
+	//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+	// Unsupported functionality
+	return false;
 }
 
 bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature)
@@ -3614,12 +3235,183 @@ bool UNiagaraDataInterfaceSkeletalMesh::UpgradeFunctionCall(FNiagaraFunctionSign
 
 	return bWasChanged;
 }
-
-void UNiagaraDataInterfaceSkeletalMesh::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
-{
-	OutHLSL += TEXT("DISKELMESH_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
-}
 #endif
+
+void UNiagaraDataInterfaceSkeletalMesh::BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const
+{
+	ShaderParametersBuilder.AddNestedStruct<NDISkelMeshLocal::FShaderParameters>();
+}
+
+void UNiagaraDataInterfaceSkeletalMesh::SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const
+{
+	FNiagaraDataInterfaceProxySkeletalMesh& DIProxy = Context.GetProxy<FNiagaraDataInterfaceProxySkeletalMesh>();
+	FNiagaraDataInterfaceProxySkeletalMeshData* InstanceData = DIProxy.SystemInstancesToData.Find(Context.GetSystemInstanceID());
+
+	NDISkelMeshLocal::FShaderParameters* ShaderParameters = Context.GetParameterNestedStruct<NDISkelMeshLocal::FShaderParameters>();
+	if (InstanceData && InstanceData->StaticBuffers)
+	{
+		FSkeletalMeshGpuSpawnStaticBuffers* StaticBuffers = InstanceData->StaticBuffers;
+
+		// Bind mesh buffers
+		ShaderParameters->MeshVertexBuffer = StaticBuffers->GetBufferPositionSRV();
+		ShaderParameters->MeshIndexBuffer = StaticBuffers->GetBufferIndexSRV();
+		ShaderParameters->MeshTangentBuffer = StaticBuffers->GetBufferTangentSRV();
+		ShaderParameters->MeshTexCoordBuffer = StaticBuffers->GetBufferTexCoordSRV();
+		ShaderParameters->MeshColorBuffer = StaticBuffers->GetBufferColorSRV();
+
+		ShaderParameters->MeshNumTexCoord = StaticBuffers->GetNumTexCoord();
+		ShaderParameters->MeshTriangleCount = StaticBuffers->GetTriangleCount();
+		ShaderParameters->MeshVertexCount = StaticBuffers->GetVertexCount();
+
+		// Set triangle sampling buffer
+		ShaderParameters->MeshTriangleSamplerProbAliasBuffer = StaticBuffers->GetBufferTriangleUniformSamplerProbAliasSRV();
+
+		// Set triangle sampling region buffer
+		ShaderParameters->MeshNumSamplingRegionTriangles = StaticBuffers->GetNumSamplingRegionTriangles();
+		ShaderParameters->MeshNumSamplingRegionVertices = StaticBuffers->GetNumSamplingRegionVertices();
+		ShaderParameters->MeshSamplingRegionsProbAliasBuffer = StaticBuffers->GetSampleRegionsProbAliasSRV();
+		ShaderParameters->MeshSampleRegionsTriangleIndices = StaticBuffers->GetSampleRegionsTriangleIndicesSRV();
+		ShaderParameters->MeshSampleRegionsVertices = StaticBuffers->GetSampleRegionsVerticesSRV();
+
+		ShaderParameters->MeshSkinWeightBuffer = FNiagaraRenderer::GetSrvOrDefaultUInt(InstanceData->MeshSkinWeightBuffer->GetSRV());
+		ShaderParameters->MeshSkinWeightLookupBuffer = FNiagaraRenderer::GetSrvOrDefaultUInt(InstanceData->MeshSkinWeightLookupBuffer->GetSRV());
+
+		ShaderParameters->MeshWeightStride = InstanceData->MeshWeightStrideByte / 4;
+		ShaderParameters->MeshSkinWeightIndexSize = InstanceData->MeshSkinWeightIndexSizeByte;
+
+		uint32 EnabledFeaturesBits = 0;
+		EnabledFeaturesBits |= StaticBuffers->IsUseGpuUniformlyDistributedSampling() ? 1 : 0;
+		EnabledFeaturesBits |= StaticBuffers->IsSamplingRegionsAllAreaWeighted() ? 2 : 0;
+		EnabledFeaturesBits |= InstanceData->bUnlimitedBoneInfluences ? 4 : 0;
+		EnabledFeaturesBits |= StaticBuffers->HasMeshColors() ? 8 : 0;
+
+		FSkeletalMeshGpuDynamicBufferProxy* DynamicBuffers = InstanceData->DynamicBuffer;
+		check(DynamicBuffers);
+		if (DynamicBuffers->DoesBoneDataExist())
+		{
+			ShaderParameters->MeshNumWeights = StaticBuffers->GetNumWeights();
+			ShaderParameters->MeshCurrBonesBuffer = DynamicBuffers->GetRWBufferBone().SectionSRV;
+			ShaderParameters->MeshPrevBonesBuffer = DynamicBuffers->GetRWBufferPrevBone().SectionSRV;
+			ShaderParameters->MeshCurrSamplingBonesBuffer = DynamicBuffers->GetRWBufferBone().SamplingSRV;
+			ShaderParameters->MeshPrevSamplingBonesBuffer = DynamicBuffers->GetRWBufferPrevBone().SamplingSRV;
+			ShaderParameters->MeshTriangleMatricesOffsetBuffer = StaticBuffers->GetBufferTriangleMatricesOffsetSRV();
+		}
+		// Bind dummy data for validation purposes only.  Code will not execute due to "EnabledFeatures" bits but validation can not determine that.
+		else
+		{
+			ShaderParameters->MeshNumWeights = 0;
+			ShaderParameters->MeshCurrBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+			ShaderParameters->MeshPrevBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+			ShaderParameters->MeshCurrSamplingBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+			ShaderParameters->MeshPrevSamplingBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+			ShaderParameters->MeshTriangleMatricesOffsetBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+		}
+
+		ShaderParameters->NumBones = DynamicBuffers->GetNumBones();
+
+		ShaderParameters->NumFilteredBones = StaticBuffers->GetNumFilteredBones();
+		ShaderParameters->NumUnfilteredBones = StaticBuffers->GetNumUnfilteredBones();
+		ShaderParameters->RandomMaxBone = StaticBuffers->GetExcludedBoneIndex() >= 0 ? DynamicBuffers->GetNumBones() - 2 : DynamicBuffers->GetNumBones() - 1;
+		ShaderParameters->ExcludeBoneIndex = StaticBuffers->GetExcludedBoneIndex();
+		ShaderParameters->FilteredAndUnfilteredBones = StaticBuffers->GetFilteredAndUnfilteredBonesSRV();
+
+		ShaderParameters->NumFilteredSockets = StaticBuffers->GetNumFilteredSockets();
+		ShaderParameters->FilteredSocketBoneOffset = StaticBuffers->GetFilteredSocketBoneOffset();
+
+		if (InstanceData->UvMappingBuffer)
+		{
+			ShaderParameters->UvMappingBuffer = InstanceData->UvMappingBuffer->GetSrv();
+			ShaderParameters->UvMappingBufferLength = InstanceData->UvMappingBuffer->GetBufferSize();
+			ShaderParameters->UvMappingSet = InstanceData->UvMappingSet;
+		}
+		else
+		{
+			ShaderParameters->UvMappingBuffer = FNiagaraRenderer::GetDummyIntBuffer();
+			ShaderParameters->UvMappingBufferLength = 0;
+			ShaderParameters->UvMappingSet = 0;
+		}
+
+		if (InstanceData->ConnectivityBuffer)
+		{
+			const uint32 NumBufferElements = FMath::DivideAndRoundUp<uint32>(InstanceData->ConnectivityBuffer->GetBufferSize(), sizeof(uint32));
+			ShaderParameters->ConnectivityBuffer = InstanceData->ConnectivityBuffer->GetSrv();
+			ShaderParameters->ConnectivityBufferLength = NumBufferElements;
+			ShaderParameters->ConnectivityMaxAdjacentPerVertex = InstanceData->ConnectivityBuffer->MaxAdjacentTriangleCount;
+		}
+		else
+		{
+			ShaderParameters->ConnectivityBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+			ShaderParameters->ConnectivityBufferLength = 0;
+			ShaderParameters->ConnectivityMaxAdjacentPerVertex = 0;
+		}
+
+		ShaderParameters->InstanceTransform = InstanceData->Transform;
+		ShaderParameters->InstancePrevTransform = InstanceData->PrevTransform;
+		ShaderParameters->InstanceRotation = InstanceData->Transform.GetMatrixWithoutScale().ToQuat();
+		ShaderParameters->InstancePrevRotation = InstanceData->PrevTransform.GetMatrixWithoutScale().ToQuat();
+		ShaderParameters->InstanceInvDeltaTime = 1.0f / InstanceData->DeltaSeconds;
+
+		ShaderParameters->EnabledFeatures = EnabledFeaturesBits;
+	}
+	else
+	{
+		// Bind dummy buffers
+		ShaderParameters->MeshVertexBuffer = FNiagaraRenderer::GetDummyFloatBuffer();
+		ShaderParameters->MeshIndexBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->MeshTangentBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+
+		ShaderParameters->MeshNumTexCoord = 0;
+		ShaderParameters->MeshTexCoordBuffer = FNiagaraRenderer::GetDummyFloat2Buffer();
+		ShaderParameters->MeshColorBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->MeshTriangleCount = 0;
+		ShaderParameters->MeshVertexCount = 0;
+		ShaderParameters->MeshTriangleSamplerProbAliasBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+
+		ShaderParameters->MeshNumSamplingRegionTriangles = 0;
+		ShaderParameters->MeshNumSamplingRegionVertices = 0;
+		ShaderParameters->MeshSamplingRegionsProbAliasBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->MeshSampleRegionsTriangleIndices = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->MeshSampleRegionsVertices = FNiagaraRenderer::GetDummyUIntBuffer();
+
+		ShaderParameters->MeshSkinWeightBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->MeshSkinWeightLookupBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+
+		ShaderParameters->MeshWeightStride = 0;
+		ShaderParameters->MeshSkinWeightIndexSize = 0;
+		ShaderParameters->MeshNumWeights = 0;
+
+		ShaderParameters->MeshCurrBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->MeshPrevBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->MeshCurrSamplingBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->MeshPrevSamplingBonesBuffer = FNiagaraRenderer::GetDummyFloat4Buffer();
+		ShaderParameters->MeshTriangleMatricesOffsetBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+
+		ShaderParameters->NumBones = 0;
+		ShaderParameters->NumFilteredBones = 0;
+		ShaderParameters->NumUnfilteredBones = 0;
+		ShaderParameters->RandomMaxBone = 0;
+		ShaderParameters->ExcludeBoneIndex = 0;
+		ShaderParameters->FilteredAndUnfilteredBones = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->NumFilteredSockets = 0;
+		ShaderParameters->FilteredSocketBoneOffset = 0;
+
+		ShaderParameters->UvMappingBuffer = FNiagaraRenderer::GetDummyIntBuffer();
+		ShaderParameters->UvMappingBufferLength = 0;
+		ShaderParameters->UvMappingSet = 0;
+
+		ShaderParameters->ConnectivityBuffer = FNiagaraRenderer::GetDummyUIntBuffer();
+		ShaderParameters->ConnectivityBufferLength = 0;
+		ShaderParameters->ConnectivityMaxAdjacentPerVertex = 0;
+
+		ShaderParameters->InstanceTransform = FMatrix44f::Identity;
+		ShaderParameters->InstancePrevTransform = FMatrix44f::Identity;
+		ShaderParameters->InstanceRotation = FQuat4f::Identity;
+		ShaderParameters->InstancePrevRotation = FQuat4f::Identity;
+		ShaderParameters->InstanceInvDeltaTime = 0.0f;
+
+		ShaderParameters->EnabledFeatures = 0;
+	}
+}
 
 void UNiagaraDataInterfaceSkeletalMesh::SetSourceComponentFromBlueprints(USkeletalMeshComponent* ComponentToUse)
 {
