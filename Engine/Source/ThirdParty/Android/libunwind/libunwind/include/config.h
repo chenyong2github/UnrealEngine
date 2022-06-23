@@ -84,15 +84,15 @@
 
 /* Define to 1 if you have the declaration of `PT_STEP', and to 0 if you
    don't. */
-#define HAVE_DECL_PT_STEP 0
+#define HAVE_DECL_PT_STEP 1
 
 /* Define to 1 if you have the declaration of `PT_SYSCALL', and to 0 if you
    don't. */
-#define HAVE_DECL_PT_SYSCALL 0
+#define HAVE_DECL_PT_SYSCALL 1
 
 /* Define to 1 if you have the declaration of `PT_TRACE_ME', and to 0 if you
    don't. */
-#define HAVE_DECL_PT_TRACE_ME 0
+#define HAVE_DECL_PT_TRACE_ME 1
 
 /* Define to 1 if you have the <dlfcn.h> header file. */
 #define HAVE_DLFCN_H 1
@@ -155,10 +155,11 @@
 #define HAVE_STRING_H 1
 
 /* Define to 1 if `dlpi_subs' is a member of `struct dl_phdr_info'. */
+// Available in Android R
 /* #undef HAVE_STRUCT_DL_PHDR_INFO_DLPI_SUBS */
 
 /* Define to 1 if the system has the type `struct elf_prstatus'. */
-/* #undef HAVE_STRUCT_ELF_PRSTATUS */
+#define HAVE_STRUCT_ELF_PRSTATUS 1
 
 /* Define to 1 if the system has the type `struct prstatus'. */
 /* #undef HAVE_STRUCT_PRSTATUS */
@@ -167,16 +168,16 @@
 #define HAVE_SYNC_ATOMICS 1
 
 /* Define to 1 if you have the <sys/elf.h> header file. */
-/* #undef HAVE_SYS_ELF_H */
+#define HAVE_SYS_ELF_H 1
 
 /* Define to 1 if you have the <sys/endian.h> header file. */
 #define HAVE_SYS_ENDIAN_H 1
 
 /* Define to 1 if you have the <sys/link.h> header file. */
-/* #undef HAVE_SYS_LINK_H */
+#define HAVE_SYS_LINK_H 1
 
 /* Define to 1 if you have the <sys/procfs.h> header file. */
-/* #undef HAVE_SYS_PROCFS_H */
+#define HAVE_SYS_PROCFS_H 1
 
 /* Define to 1 if you have the <sys/ptrace.h> header file. */
 #define HAVE_SYS_PTRACE_H 1
