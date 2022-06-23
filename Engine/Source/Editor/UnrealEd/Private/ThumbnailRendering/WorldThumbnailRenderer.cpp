@@ -110,6 +110,7 @@ FSceneView* UWorldThumbnailRenderer::CreateView(UWorld* World, FSceneViewFamily*
 			{
 				// Ensure a Level Bounds Actor exists for future renders
 				FActorSpawnParameters SpawnParameters;
+				SpawnParameters.ObjectFlags |= RF_Transient;
 				SpawnParameters.OverrideLevel = Level;
 				LevelBounds = World->SpawnActor<ALevelBounds>(SpawnParameters);
 				LevelBounds->UpdateLevelBoundsImmediately();
