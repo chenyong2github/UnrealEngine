@@ -103,6 +103,11 @@ namespace Chaos
 			const FReal Dt,
 			FCollisionContext& Context);
 
+		int32 GenerateCollisionProbeImpl(
+			const FReal CullDistance, 
+			const FReal Dt,
+			FCollisionContext& Context);
+
 		/**
 		 * @brief Whether the two shapes are separated by less than CullDistance (i.e., we should run the narrow phase).
 		 * Also returns true if bounds checking is disabled (globally or for this pair)
@@ -132,6 +137,7 @@ namespace Chaos
 				uint32 bEnableOBBCheck0 : 1;
 				uint32 bEnableOBBCheck1 : 1;
 				uint32 bEnableManifoldUpdate : 1;
+				uint32 bIsProbe : 1;
 			};
 			uint32 Bits;
 		} Flags;
