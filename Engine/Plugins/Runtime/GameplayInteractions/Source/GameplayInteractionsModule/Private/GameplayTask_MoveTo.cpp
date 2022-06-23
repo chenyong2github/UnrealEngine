@@ -713,5 +713,3 @@ void UGameplayTask_MoveTo::TickTask(float DeltaTime)
 	}
 #endif // ENABLE_VISUAL_LOG
 }
-
-PRAGMA_ENABLE_OPTIMIZATION
