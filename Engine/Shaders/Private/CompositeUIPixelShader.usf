@@ -196,3 +196,30 @@ void Main(
 	OutColor.xyz = mul(Rec2020_2_sRGB, OutColor.xyz / PaperWhiteInNits);
 #endif
 }
+
+#if DISPLAY_MAPPING_PS
+float4x4 TextureToOutputGamutMatrix;
+
+// Currently hard-coded to go from G2.2 to either PQ/Rec2020 or sRGB
+void DisplayMappingPS(
+	FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0
+	)
+{
+	const float4 SceneColor = Texture2DSampleLevel(SceneTexture, SceneSampler, Input.UV, 0) ;
+	OutColor = SceneColor;
+
+	float3 LinearSceneColor = pow(SceneColor.rgb, 2.2);
+	LinearSceneColor = mul((float3x3)TextureToOutputGamutMatrix, LinearSceneColor);
+	
+	if(OutputDevice == TONEMAPPER_OUTPUT_ACES1000nitST2084 || OutputDevice == TONEMAPPER_OUTPUT_ACES2000nitST2084)
+	{
+		OutColor.xyz = LinearToST2084(LinearSceneColor*300.f);
+	}
+	else
+	{
+		OutColor.xyz = LinearToSrgbBranchless(saturate(LinearSceneColor));
+	}
+}
+
+#endif
