@@ -149,7 +149,7 @@ bool APCGPartitionActor::RemoveGraphInstance(UPCGComponent* OriginalComponent)
 	LocalToOriginalMap.Remove(LocalComponent);
 
 	// TODO Add option to not cleanup?
-	LocalComponent->Cleanup(/*bRemoveComponents=*/true);
+	LocalComponent->CleanupLocal(/*bRemoveComponents=*/true);
 	LocalComponent->DestroyComponent();
 
 	return OriginalToLocalMap.IsEmpty();
@@ -182,7 +182,7 @@ bool APCGPartitionActor::CleanupDeadGraphInstances()
 
 		if (DeadInstance)
 		{
-			DeadInstance->Cleanup(/*bRemoveComponents=*/true);
+			DeadInstance->CleanupLocal(/*bRemoveComponents=*/true);
 			DeadInstance->DestroyComponent();
 		}
 	}

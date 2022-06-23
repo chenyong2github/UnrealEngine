@@ -83,10 +83,17 @@ public:
 	void Generate();
 	void Cleanup();
 
-	UFUNCTION(BlueprintCallable, Category = PCG)
+	/** Starts generation from a local (vs. remote) standpoint. Will not be replicated. */
+	void GenerateLocal(bool bForce);
+	/** Cleans up the generation from a local (vs. remote) standpoint. Will not be replicated. */
+	void CleanupLocal(bool bRemoveComponents, bool bSave = false);
+
+	/** Networked generation call that also activates the component as needed */
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
 	void Generate(bool bForce);
 
-	UFUNCTION(BlueprintCallable, Category = PCG)
+	/** Networked cleanup call */
+	UFUNCTION(BlueprintCallable, NetMulticast, Reliable, Category = PCG)
 	void Cleanup(bool bRemoveComponents, bool bSave = false);
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Settings)
@@ -185,6 +192,7 @@ private:
 	void OnActorAdded(AActor* InActor);
 	void OnActorDeleted(AActor* InActor);
 	void OnActorMoved(AActor* InActor);
+	void OnComponentTransformChanged(USceneComponent* InComponent, ETeleportType InTeleport);
 	void OnObjectPropertyChanged(UObject* InObject, FPropertyChangedEvent& InEvent);
 	bool ActorHasExcludedTag(AActor* InActor) const;
 	bool ActorIsTracked(AActor* InActor) const;

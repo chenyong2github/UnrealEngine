@@ -180,10 +180,17 @@ void UPCGComponent::Generate()
 	FScopedTransaction Transaction(LOCTEXT("PCGGenerate", "Execute generation on PCG component"));
 #endif
 
-	Generate(/*bForce=*/PCGComponent::bSaveOnCleanupAndGenerate);
+	GenerateLocal(/*bForce=*/PCGComponent::bSaveOnCleanupAndGenerate);
 }
 
-void UPCGComponent::Generate(bool bForce)
+void UPCGComponent::Generate_Implementation(bool bForce)
+{
+	// Force component activation so it's easier to control by BP.
+	bActivated = true;
+	GenerateLocal(bForce);
+}
+
+void UPCGComponent::GenerateLocal(bool bForce)
 {
 #if WITH_EDITOR
 	if (bIsGenerating)
@@ -324,10 +331,15 @@ void UPCGComponent::Cleanup()
 	FScopedTransaction Transaction(LOCTEXT("PCGCleanup", "Clean up PCG component"));
 #endif
 
-	Cleanup(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
+	CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
 }
 
-void UPCGComponent::Cleanup(bool bRemoveComponents, bool bSave)
+void UPCGComponent::Cleanup_Implementation(bool bRemoveComponents, bool bSave)
+{
+	CleanupLocal(bRemoveComponents, bSave);
+}
+
+void UPCGComponent::CleanupLocal(bool bRemoveComponents, bool bSave)
 {
 	if (!bGenerated || !GetSubsystem())
 	{
@@ -408,7 +420,7 @@ void UPCGComponent::BeginPlay()
 
 	if(bActivated && !bGenerated && !IsPartitioned())
 	{
-		Generate(/*bForce=*/false);
+		GenerateLocal(/*bForce=*/false);
 		bRuntimeGenerated = true;
 	}
 }
@@ -626,7 +638,7 @@ void UPCGComponent::PreEditUndo()
 	if (bGenerated)
 	{
 		// Cleanup so managed resources are cleaned in all cases
-		Cleanup(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
+		CleanupLocal(/*bRemoveComponents=*/true, /*bSave=*/PCGComponent::bSaveOnCleanupAndGenerate);
 		// Put back generated flag to its original value so it is captured properly
 		bGenerated = true;
 	}	
@@ -658,12 +670,14 @@ void UPCGComponent::PostEditUndo()
 void UPCGComponent::SetupActorCallbacks()
 {
 	GEngine->OnActorMoved().AddUObject(this, &UPCGComponent::OnActorMoved);
+	GEngine->OnComponentTransformChanged().AddUObject(this, &UPCGComponent::OnComponentTransformChanged);
 	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UPCGComponent::OnObjectPropertyChanged);
 }
 
 void UPCGComponent::TeardownActorCallbacks()
 {
 	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	GEngine->OnComponentTransformChanged().RemoveAll(this);
 	GEngine->OnActorMoved().RemoveAll(this);
 }
 
@@ -825,6 +839,17 @@ void UPCGComponent::OnActorMoved(AActor* InActor)
 			Refresh();
 		}
 	}
+}
+
+void UPCGComponent::OnComponentTransformChanged(USceneComponent* InComponent, ETeleportType InTeleport)
+{
+	if (!InComponent || InComponent->GetOwner() != GetOwner())
+	{
+		return;
+	}
+
+	DirtyGenerated(EPCGComponentDirtyFlag::Actor);
+	Refresh();
 }
 
 void UPCGComponent::UpdateTrackedLandscape(bool bBoundsCheck)
@@ -1105,7 +1130,7 @@ void UPCGComponent::Refresh()
 		else
 		{
 			bool bWasGenerated = bGenerated;
-			Cleanup(/*bRemoveComponents=*/false);
+			CleanupLocal(/*bRemoveComponents=*/false);
 			bGenerated = bWasGenerated;
 		}
 	}
@@ -1113,7 +1138,7 @@ void UPCGComponent::Refresh()
 	{
 		if (bGenerated && bRegenerateInEditor)
 		{
-			Generate(/*bForce=*/false);
+			GenerateLocal(/*bForce=*/false);
 		}
 		else if (IsPartitioned() && GetSubsystem())
 		{

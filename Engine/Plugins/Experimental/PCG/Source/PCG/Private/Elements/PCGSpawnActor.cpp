@@ -103,6 +103,9 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			continue;
 		}
 
+		const bool bHasAuthority = !Context->SourceComponent || (Context->SourceComponent->GetOwner() && Context->SourceComponent->GetOwner()->HasAuthority());
+		const bool bSpawnedActorsRequireAuthority = Settings->TemplateActorClass->GetDefaultObject<AActor>()->GetIsReplicated();
+
 		// First, create target instance transforms
 		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
 
@@ -169,7 +172,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 						Instances.Add(Point.Transform);
 					}
 				}
-				else if (Settings->Option != EPCGSpawnActorOption::CollapseActors)
+				else if (Settings->Option != EPCGSpawnActorOption::CollapseActors && (bHasAuthority || !bSpawnedActorsRequireAuthority))
 				{
 					FActorSpawnParameters SpawnParams;
 					SpawnParams.Owner = TargetActor;
