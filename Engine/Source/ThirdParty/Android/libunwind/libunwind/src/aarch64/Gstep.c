@@ -27,11 +27,35 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include "unwind_i.h"
 #include "offsets.h"
 
-PROTECTED int
-unw_handle_signal_frame (unw_cursor_t *cursor)
+/* Recognise PLT entries such as:
+  40ddf0:       b0000570        adrp    x16, 4ba000 <_GLOBAL_OFFSET_TABLE_+0x2a8>
+  40ddf4:       f9433611        ldr     x17, [x16,#1640]
+  40ddf8:       9119a210        add     x16, x16, #0x668
+  40ddfc:       d61f0220        br      x17 */
+static int
+is_plt_entry (struct dwarf_cursor *c)
+{
+  unw_word_t w0, w1;
+  unw_accessors_t *a;
+  int ret;
+
+  a = unw_get_accessors_int (c->as);
+  if ((ret = (*a->access_mem) (c->as, c->ip, &w0, 0, c->as_arg)) < 0
+      || (ret = (*a->access_mem) (c->as, c->ip + 8, &w1, 0, c->as_arg)) < 0)
+    return 0;
+
+  ret = (((w0 & 0xff0000009f000000) == 0xf900000090000000)
+         && ((w1 & 0xffffffffff000000) == 0xd61f022091000000));
+
+  Debug (14, "ip=0x%lx => 0x%016lx 0x%016lx, ret = %d\n", c->ip, w0, w1, ret);
+  return ret;
+}
+
+static int
+aarch64_handle_signal_frame (unw_cursor_t *cursor)
 {
   struct cursor *c = (struct cursor *) cursor;
-  int ret;
+  int i, ret;
   unw_word_t sc_addr, sp, sp_addr = c->dwarf.cfa;
   struct dwarf_loc sp_loc = DWARF_LOC (sp_addr, 0);
 
@@ -46,7 +70,7 @@ unw_handle_signal_frame (unw_cursor_t *cursor)
   c->sigcontext_sp = c->dwarf.cfa;
   c->sigcontext_pc = c->dwarf.ip;
 
-  if (ret)
+  if (ret > 0)
     {
       c->sigcontext_format = AARCH64_SCF_LINUX_RT_SIGFRAME;
       sc_addr = sp_addr + sizeof (siginfo_t) + LINUX_UC_MCONTEXT_OFF;
@@ -55,6 +79,11 @@ unw_handle_signal_frame (unw_cursor_t *cursor)
     return -UNW_EUNSPEC;
 
   c->sigcontext_addr = sc_addr;
+  c->frame_info.frame_type = UNW_AARCH64_FRAME_SIGRETURN;
+  c->frame_info.cfa_reg_offset = sc_addr - sp_addr;
+
+  for (i = 0; i < DWARF_NUM_PRESERVED_REGS; ++i)
+    c->dwarf.loc[i] = DWARF_NULL_LOC;
 
   /* Update the dwarf cursor.
      Set the location of the registers to the corresponding addresses of the
@@ -99,73 +128,81 @@ unw_handle_signal_frame (unw_cursor_t *cursor)
   dwarf_get (&c->dwarf, c->dwarf.loc[UNW_AARCH64_PC], &c->dwarf.ip);
 
   c->dwarf.pi_valid = 0;
+  c->dwarf.use_prev_instr = 0;
 
   return 1;
 }
 
-PROTECTED int
+int
 unw_step (unw_cursor_t *cursor)
 {
   struct cursor *c = (struct cursor *) cursor;
-  int ret = -UNW_ENOINFO;
+  int validate = c->validate;
+  int ret;
 
   Debug (1, "(cursor=%p, ip=0x%016lx, cfa=0x%016lx))\n",
-	 c, c->dwarf.ip, c->dwarf.cfa);
+         c, c->dwarf.ip, c->dwarf.cfa);
 
-  unw_word_t old_ip = c->dwarf.ip;
-  unw_word_t old_cfa = c->dwarf.cfa;
+  /* Validate all addresses before dereferencing. */
+  c->validate = 1;
 
   /* Check if this is a signal frame. */
-  if (unw_is_signal_frame (cursor))
-    /* ANDROID support update. */
-    ret = unw_handle_signal_frame (cursor);
-    /* End ANDROID update. */
-
-  /* ANDROID support update. */
-  if (ret < 0)
+  ret = unw_is_signal_frame (cursor);
+  if (ret > 0)
+    return aarch64_handle_signal_frame (cursor);
+  else if (unlikely (ret < 0))
     {
-      ret = dwarf_step (&c->dwarf);
-      Debug(1, "dwarf_step()=%d\n", ret);
+      /* IP points to non-mapped memory. */
+      /* This is probably SIGBUS. */
+      /* Try to load LR in IP to recover. */
+      Debug(1, "Invalid address found in the call stack: 0x%lx\n", c->dwarf.ip);
+      dwarf_get (&c->dwarf, c->dwarf.loc[UNW_AARCH64_X30], &c->dwarf.ip);
     }
 
-  if (ret < 0 && c->dwarf.frame == 0)
-    {
-      /* If this is the first frame, the code may be executing garbage
-       * in the middle of nowhere. In this case, try using the lr as
-       * the pc.
-       */
-      unw_word_t lr;
-      if (dwarf_get(&c->dwarf, c->dwarf.loc[UNW_AARCH64_X30], &lr) >= 0)
-        {
-          if (lr != c->dwarf.ip)
-            {
-              ret = 1;
-              c->dwarf.ip = lr;
-            }
-        }
-    }
-  /* End ANDROID update. */
+  /* Restore default memory validation state */
+  c->validate = validate;
 
-  if (ret >= 0)
-    {
-      if (c->dwarf.ip >= 4)
-        c->dwarf.ip -= 4;
-      /* If the decode yields the exact same ip/cfa as before, then indicate
-         the unwind is complete. */
-      if (c->dwarf.ip == old_ip && c->dwarf.cfa == old_cfa)
-        {
-          Dprintf ("%s: ip and cfa unchanged; stopping here (ip=0x%lx)\n",
-                   __FUNCTION__, (long) c->dwarf.ip);
-          return -UNW_EBADFRAME;
-        }
-      c->dwarf.frame++;
-    }
+  ret = dwarf_step (&c->dwarf);
+  Debug(1, "dwarf_step()=%d\n", ret);
 
   if (unlikely (ret == -UNW_ESTOPUNWIND))
     return ret;
 
-  if (unlikely (ret <= 0))
-    return 0;
+  if (unlikely (ret < 0))
+    {
+      /* DWARF failed. */
+      if (is_plt_entry (&c->dwarf))
+        {
+          Debug (2, "found plt entry\n");
+          c->frame_info.frame_type = UNW_AARCH64_FRAME_STANDARD;
+        }
+      else
+        {
+          Debug (2, "fallback\n");
+          c->frame_info.frame_type = UNW_AARCH64_FRAME_GUESSED;
+        }
+      /* Use link register (X30). */
+      c->frame_info.cfa_reg_offset = 0;
+      c->frame_info.cfa_reg_sp = 0;
+      c->frame_info.fp_cfa_offset = -1;
+      c->frame_info.lr_cfa_offset = -1;
+      c->frame_info.sp_cfa_offset = -1;
+      c->dwarf.loc[UNW_AARCH64_PC] = c->dwarf.loc[UNW_AARCH64_X30];
+      c->dwarf.loc[UNW_AARCH64_X30] = DWARF_NULL_LOC;
+      if (!DWARF_IS_NULL_LOC (c->dwarf.loc[UNW_AARCH64_PC]))
+        {
+          ret = dwarf_get (&c->dwarf, c->dwarf.loc[UNW_AARCH64_PC], &c->dwarf.ip);
+          if (ret < 0)
+            {
+              Debug (2, "failed to get pc from link register: %d\n", ret);
+              return ret;
+            }
+          Debug (2, "link register (x30) = 0x%016lx\n", c->dwarf.ip);
+          ret = 1;
+        }
+      else
+        c->dwarf.ip = 0;
+    }
 
   return (c->dwarf.ip == 0) ? 0 : 1;
 }

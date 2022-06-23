@@ -32,12 +32,37 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include "libunwind_i.h"
 
-#define aarch64_lock			UNW_OBJ(lock)
-#define aarch64_local_resume		UNW_OBJ(local_resume)
-#define aarch64_local_addr_space_init	UNW_OBJ(local_addr_space_init)
+/* DWARF column numbers for AArch64: */
+#define X29     29
+#define FP      29
+#define X30     30
+#define LR      30
+#define SP      31
+
+#define aarch64_lock                    UNW_OBJ(lock)
+#define aarch64_local_resume            UNW_OBJ(local_resume)
+#define aarch64_local_addr_space_init   UNW_OBJ(local_addr_space_init)
 
 extern void aarch64_local_addr_space_init (void);
 extern int aarch64_local_resume (unw_addr_space_t as, unw_cursor_t *cursor,
-			     void *arg);
+                             void *arg);
+
+/* By-pass calls to access_mem() when known to be safe. */
+#ifdef UNW_LOCAL_ONLY
+# undef ACCESS_MEM_FAST
+# define ACCESS_MEM_FAST(ret,validate,cur,addr,to)                     \
+  do {                                                                 \
+    if (unlikely(validate))                                            \
+      (ret) = dwarf_get ((cur), DWARF_MEM_LOC ((cur), (addr)), &(to)); \
+    else                                                               \
+      (ret) = 0, (to) = *(unw_word_t *)(addr);                         \
+  } while (0)
+#endif
+
+#if defined(__FreeBSD__)
+#define GET_FPCTX(uc) ((unw_tdep_context_t *)(&uc->uc_mcontext.mc_spare))
+#else
+#define GET_FPCTX(uc) ((unw_fpsimd_context_t *)(&uc->uc_mcontext.__reserved))
+#endif
 
 #endif /* unwind_i_h */

@@ -53,7 +53,7 @@ common_init_ppc32 (struct cursor *c, unsigned use_prev_instr)
     return ret;
 
   ret = dwarf_get (&c->dwarf, DWARF_REG_LOC (&c->dwarf, UNW_PPC32_R1),
-		   &c->dwarf.cfa);
+                   &c->dwarf.cfa);
   if (ret < 0)
     return ret;
 
@@ -61,16 +61,12 @@ common_init_ppc32 (struct cursor *c, unsigned use_prev_instr)
   c->sigcontext_addr = 0;
 
   c->dwarf.args_size = 0;
-  c->dwarf.ret_addr_column = 0;
   c->dwarf.stash_frames = 0;
   c->dwarf.use_prev_instr = use_prev_instr;
   c->dwarf.pi_valid = 0;
   c->dwarf.pi_is_dynamic = 0;
   c->dwarf.hint = 0;
   c->dwarf.prev_rs = 0;
-  /* ANDROID support update. */
-  c->dwarf.frame = 0;
-  /* End of ANDROID update. */
 
   return 0;
 }

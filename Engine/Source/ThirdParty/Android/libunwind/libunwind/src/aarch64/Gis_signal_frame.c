@@ -31,14 +31,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
    d4000001        svc     #0x0
 */
 
-PROTECTED int
+int
 unw_is_signal_frame (unw_cursor_t *cursor)
 {
 #ifdef __linux__
-  // ANDROID: prevent deref of IP and triggering xom signal.
-  if (unw_is_signal_frame_test_disabled())
-    return 0;
-  
   struct cursor *c = (struct cursor *) cursor;
   unw_word_t w0, ip;
   unw_addr_space_t as;
@@ -47,20 +43,14 @@ unw_is_signal_frame (unw_cursor_t *cursor)
   int ret;
 
   as = c->dwarf.as;
-  a = unw_get_accessors (as);
+  a = unw_get_accessors_int (as);
   arg = c->dwarf.as_arg;
 
   ip = c->dwarf.ip;
-  /* ANDROID support update. */
-  /* Undo the attempt to correct the PC or we'll be pointing to the nop instead of the mov. */
-  ip += 4;
-  /* ANDROID support update. */
 
   ret = (*a->access_mem) (as, ip, &w0, 0, arg);
   if (ret < 0)
-  /* ANDROID support update. */
-    return 0;
-  /* End ANDROID update. */
+    return ret;
 
   /* FIXME: distinguish 32bit insn vs 64bit registers.  */
   if (w0 != 0xd4000001d2801168)

@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2002 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    Modified for x86_64 by Max Asbock <masbock@us.ibm.com>
 
@@ -28,13 +28,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include "unwind_i.h"
 
 /* Avoid a trip to x86_64_r_uc_addr() for purely local initialisation. */
-#if defined UNW_LOCAL_ONLY && defined __linux
+#if defined UNW_LOCAL_ONLY && defined __linux__
 # define REG_INIT_LOC(c, rlc, ruc) \
-    DWARF_LOC ((unw_word_t) &c->uc->uc_mcontext.gregs[REG_ ## ruc], 0)
+    DWARF_LOC ((unw_word_t) &dwarf_get_uc(&c->dwarf)->uc_mcontext.gregs[REG_ ## ruc], 0)
 
 #elif defined UNW_LOCAL_ONLY && defined __FreeBSD__
 # define REG_INIT_LOC(c, rlc, ruc) \
-    DWARF_LOC ((unw_word_t) &c->uc->uc_mcontext.mc_ ## rlc, 0)
+    DWARF_LOC ((unw_word_t) &dwarf_get_uc(&c->dwarf)->uc_mcontext.mc_ ## rlc, 0)
 
 #else
 # define REG_INIT_LOC(c, rlc, ruc) \
@@ -69,7 +69,7 @@ common_init (struct cursor *c, unsigned use_prev_instr)
     return ret;
 
   ret = dwarf_get (&c->dwarf, DWARF_REG_LOC (&c->dwarf, UNW_X86_64_RSP),
-		   &c->dwarf.cfa);
+                   &c->dwarf.cfa);
   if (ret < 0)
     return ret;
 
@@ -77,16 +77,13 @@ common_init (struct cursor *c, unsigned use_prev_instr)
   c->sigcontext_addr = 0;
 
   c->dwarf.args_size = 0;
-  c->dwarf.ret_addr_column = RIP;
   c->dwarf.stash_frames = 0;
   c->dwarf.use_prev_instr = use_prev_instr;
   c->dwarf.pi_valid = 0;
   c->dwarf.pi_is_dynamic = 0;
   c->dwarf.hint = 0;
   c->dwarf.prev_rs = 0;
-  /* ANDROID support update. */
-  c->dwarf.frame = 0;
-  /* End of ANDROID update. */
+  c->dwarf.eh_valid_mask = 0;
 
   return 0;
 }

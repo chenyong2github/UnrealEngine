@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2003-2004 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -33,16 +33,12 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include "_UPT_internal.h"
 
 static int
-get_unwind_info (struct elf_dyn_info *edi, pid_t pid, unw_addr_space_t as, unw_word_t ip, void *as_arg)
+get_unwind_info (struct elf_dyn_info *edi, pid_t pid, unw_addr_space_t as, unw_word_t ip)
 {
-  /* ANDROID support update. */
   unsigned long segbase, mapoff;
-  struct elf_image ei;
-  int ret;
-  char *path = NULL;
-  /* End of ANDROID update. */
+  char path[PATH_MAX];
 
-#if UNW_TARGET_IA64 && defined(__linux)
+#if UNW_TARGET_IA64 && defined(__linux__)
   if (!edi->ktab.start_ip && _Uia64_get_kernel_table (&edi->ktab) < 0)
     return -UNW_ENOINFO;
 
@@ -62,15 +58,14 @@ get_unwind_info (struct elf_dyn_info *edi, pid_t pid, unw_addr_space_t as, unw_w
 
   invalidate_edi(edi);
 
-  /* ANDROID support update. */
-  if (tdep_get_elf_image (as, &ei, pid, ip, &segbase, &mapoff, &path, as_arg) < 0)
+  if (tdep_get_elf_image (&edi->ei, pid, ip, &segbase, &mapoff, path,
+                          sizeof(path)) < 0)
     return -UNW_ENOINFO;
 
-  ret = tdep_find_unwind_table (edi, &ei, as, path, segbase, mapoff, ip);
-  free(path);
-  if (ret < 0)
-    return ret;
-  /* End of ANDROID update. */
+  /* Here, SEGBASE is the starting-address of the (mmap'ped) segment
+     which covers the IP we're looking for.  */
+  if (tdep_find_unwind_table (edi, as, path, segbase, mapoff, ip) < 0)
+    return -UNW_ENOINFO;
 
   /* This can happen in corner cases where dynamically generated
      code falls into the same page that contains the data-segment
@@ -96,55 +91,55 @@ get_unwind_info (struct elf_dyn_info *edi, pid_t pid, unw_addr_space_t as, unw_w
 
 int
 _UPT_find_proc_info (unw_addr_space_t as, unw_word_t ip, unw_proc_info_t *pi,
-		     int need_unwind_info, void *arg)
+                     int need_unwind_info, void *arg)
 {
   struct UPT_info *ui = arg;
   int ret = -UNW_ENOINFO;
 
-  if (get_unwind_info (&ui->edi, ui->pid, as, ip, arg) < 0)
+  if (get_unwind_info (&ui->edi, ui->pid, as, ip) < 0)
     return -UNW_ENOINFO;
 
 #if UNW_TARGET_IA64
   if (ui->edi.ktab.format != -1)
     {
       /* The kernel unwind table resides in local memory, so we have
-	 to use the local address space to search it.  Since
-	 _UPT_put_unwind_info() has no easy way of detecting this
-	 case, we simply make a copy of the unwind-info, so
-	 _UPT_put_unwind_info() can always free() the unwind-info
-	 without ill effects.  */
+         to use the local address space to search it.  Since
+         _UPT_put_unwind_info() has no easy way of detecting this
+         case, we simply make a copy of the unwind-info, so
+         _UPT_put_unwind_info() can always free() the unwind-info
+         without ill effects.  */
       ret = tdep_search_unwind_table (unw_local_addr_space, ip, &ui->edi.ktab, pi,
-				      need_unwind_info, arg);
+                                      need_unwind_info, arg);
       if (ret >= 0)
-	{
-	  if (!need_unwind_info)
-	    pi->unwind_info = NULL;
-	  else
-	    {
-	      void *mem = malloc (pi->unwind_info_size);
+        {
+          if (!need_unwind_info)
+            pi->unwind_info = NULL;
+          else
+            {
+              void *mem = malloc (pi->unwind_info_size);
 
-	      if (!mem)
-		return -UNW_ENOMEM;
-	      memcpy (mem, pi->unwind_info, pi->unwind_info_size);
-	      pi->unwind_info = mem;
-	    }
-	}
+              if (!mem)
+                return -UNW_ENOMEM;
+              memcpy (mem, pi->unwind_info, pi->unwind_info_size);
+              pi->unwind_info = mem;
+            }
+        }
     }
 #endif
 
   if (ret == -UNW_ENOINFO && ui->edi.di_cache.format != -1)
     ret = tdep_search_unwind_table (as, ip, &ui->edi.di_cache,
-				    pi, need_unwind_info, arg);
+                                    pi, need_unwind_info, arg);
+
+  if (ret == -UNW_ENOINFO && ui->edi.di_debug.format != -1)
+    ret = tdep_search_unwind_table (as, ip, &ui->edi.di_debug, pi,
+                                    need_unwind_info, arg);
 
 #if UNW_TARGET_ARM
   if (ret == -UNW_ENOINFO && ui->edi.di_arm.format != -1)
     ret = tdep_search_unwind_table (as, ip, &ui->edi.di_arm, pi,
                                     need_unwind_info, arg);
 #endif
-
-  if (ret == -UNW_ENOINFO && ui->edi.di_debug.format != -1)
-    ret = tdep_search_unwind_table (as, ip, &ui->edi.di_debug, pi,
-				    need_unwind_info, arg);
 
   return ret;
 }

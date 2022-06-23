@@ -39,15 +39,69 @@ _UCD_access_reg (unw_addr_space_t as,
       return -UNW_EINVAL;
     }
 
+  if (regnum < 0)
+    goto badreg;
+
 #if defined(UNW_TARGET_AARCH64)
-  if (regnum < 0 || regnum >= UNW_AARCH64_FPCR)
+  if (regnum >= UNW_AARCH64_FPCR)
     goto badreg;
 #elif defined(UNW_TARGET_ARM)
-  if (regnum < 0 || regnum >= 16)
+  if (regnum >= 16)
     goto badreg;
 #elif defined(UNW_TARGET_SH)
-  if (regnum < 0 || regnum > UNW_SH_PR)
+  if (regnum > UNW_SH_PR)
     goto badreg;
+#elif defined(UNW_TARGET_TILEGX)
+  if (regnum > UNW_TILEGX_CFA)
+    goto badreg;
+#elif defined(UNW_TARGET_S390X)
+  if (regnum > UNW_S390X_R15)
+    goto badreg;
+#elif defined(UNW_TARGET_IA64) || defined(UNW_TARGET_HPPA) || defined(UNW_TARGET_PPC32) || defined(UNW_TARGET_PPC64)
+  if (regnum >= ARRAY_SIZE(ui->prstatus->pr_reg))
+    goto badreg;
+#elif defined(UNW_TARGET_RISCV)
+  if (regnum == UNW_RISCV_PC)
+    regnum = 0;
+  else if (regnum > UNW_RISCV_X31)
+    goto badreg;
+#elif defined(UNW_TARGET_LOONGARCH64)
+# include <asm/reg.h>
+
+  static const uint8_t remap_regs[] =
+    {
+      [UNW_LOONGARCH64_R0]  = LOONGARCH64_EF_R0,
+      [UNW_LOONGARCH64_R1]  = LOONGARCH64_EF_R1,
+      [UNW_LOONGARCH64_R2]  = LOONGARCH64_EF_R2,
+      [UNW_LOONGARCH64_R3]  = LOONGARCH64_EF_R3,
+      [UNW_LOONGARCH64_R4]  = LOONGARCH64_EF_R4,
+      [UNW_LOONGARCH64_R5]  = LOONGARCH64_EF_R5,
+      [UNW_LOONGARCH64_R6]  = LOONGARCH64_EF_R6,
+      [UNW_LOONGARCH64_R7]  = LOONGARCH64_EF_R7,
+      [UNW_LOONGARCH64_R8]  = LOONGARCH64_EF_R8,
+      [UNW_LOONGARCH64_R9]  = LOONGARCH64_EF_R9,
+      [UNW_LOONGARCH64_R10] = LOONGARCH64_EF_R10,
+      [UNW_LOONGARCH64_R11] = LOONGARCH64_EF_R11,
+      [UNW_LOONGARCH64_R12] = LOONGARCH64_EF_R12,
+      [UNW_LOONGARCH64_R13] = LOONGARCH64_EF_R13,
+      [UNW_LOONGARCH64_R14] = LOONGARCH64_EF_R14,
+      [UNW_LOONGARCH64_R15] = LOONGARCH64_EF_R15,
+      [UNW_LOONGARCH64_R16] = LOONGARCH64_EF_R16,
+      [UNW_LOONGARCH64_R17] = LOONGARCH64_EF_R17,
+      [UNW_LOONGARCH64_R18] = LOONGARCH64_EF_R18,
+      [UNW_LOONGARCH64_R19] = LOONGARCH64_EF_R19,
+      [UNW_LOONGARCH64_R20] = LOONGARCH64_EF_R20,
+      [UNW_LOONGARCH64_R21] = LOONGARCH64_EF_R21,
+      [UNW_LOONGARCH64_R22] = LOONGARCH64_EF_R22,
+      [UNW_LOONGARCH64_R23] = LOONGARCH64_EF_R23,
+      [UNW_LOONGARCH64_R24] = LOONGARCH64_EF_R24,
+      [UNW_LOONGARCH64_R25] = LOONGARCH64_EF_R25,
+      [UNW_LOONGARCH64_R28] = LOONGARCH64_EF_R28,
+      [UNW_LOONGARCH64_R29] = LOONGARCH64_EF_R29,
+      [UNW_LOONGARCH64_R30] = LOONGARCH64_EF_R30,
+      [UNW_LOONGARCH64_R31] = LOONGARCH64_EF_R31,
+      [UNW_LOONGARCH64_PC]  = LOONGARCH64_EF_CSR_EPC,
+    };
 #else
 #if defined(UNW_TARGET_MIPS)
   static const uint8_t remap_regs[] =
@@ -117,7 +171,7 @@ _UCD_access_reg (unw_addr_space_t as,
 #error Port me
 #endif
 
-  if (regnum < 0 || regnum >= (unw_regnum_t)ARRAY_SIZE(remap_regs))
+  if (regnum >= (unw_regnum_t)ARRAY_SIZE(remap_regs))
     goto badreg;
 
   regnum = remap_regs[regnum];
@@ -127,8 +181,8 @@ _UCD_access_reg (unw_addr_space_t as,
    * image.
    */
   Debug(1, "pr_reg[%d]:%ld (0x%lx)\n", regnum,
-		(long)ui->prstatus->pr_reg[regnum],
-		(long)ui->prstatus->pr_reg[regnum]
+                (long)ui->prstatus->pr_reg[regnum],
+                (long)ui->prstatus->pr_reg[regnum]
   );
   *valp = ui->prstatus->pr_reg[regnum];
 

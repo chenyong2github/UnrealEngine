@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2013 Garmin International
-	Contributed by Matt Fischer <matt.fischer@garmin.com>
+        Contributed by Matt Fischer <matt.fischer@garmin.com>
 
 This file is part of libunwind.
 
@@ -27,40 +27,43 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include "libunwind_i.h"
 
-/* ANDROID support update. */
+struct cb_info
+{
+    unw_word_t ip;
+    unsigned long segbase;
+    unsigned long offset;
+    const char *path;
+};
+
 static int callback(const struct dl_phdr_info *info, size_t size, void *data)
 {
-  struct map_info **map_list = (struct map_info **)data;
-  struct map_info *cur_map;
   int i;
   struct cb_info *cbi = (struct cb_info*)data;
   for(i=0; i<info->dlpi_phnum; i++) {
     int segbase = info->dlpi_addr + info->dlpi_phdr[i].p_vaddr;
-
-    cur_map = map_alloc_info ();
-    if (cur_map == NULL)
-      break;
-
-    cur_map->next = *map_list;
-    cur_map->start = info->dlpi_addr + info->dlpi_phdr[i].p_vaddr;
-    cur_map->end = cur_map->start + info->dlpi_phdr[i].p_memsz;
-    cur_map->offset = info->dlpi_phdr[i].p_offset;
-    cur_map->path = strdup(info->dlpi_name);
-    mutex_init (&cur_map->ei_lock);
-    cur_map->ei.size = 0;
-    cur_map->ei.image = NULL;
-    cur_map->ei.shared = 0;
-
-    *map_list = cur_map;
+    if(cbi->ip >= segbase && cbi->ip < segbase + info->dlpi_phdr[i].p_memsz)
+    {
+      cbi->path = info->dlpi_name;
+      cbi->offset = info->dlpi_phdr[i].p_offset;
+      cbi->segbase = segbase;
+      return 1;
+    }
   }
 
   return 0;
 }
 
-struct map_info *
-map_create_list (pid_t pid)
+int
+tdep_get_elf_image (struct elf_image *ei, pid_t pid, unw_word_t ip,
+                    unsigned long *segbase, unsigned long *mapoff,
+                    char *path, size_t pathlen)
 {
-  struct map_info *map_list = NULL;
+  struct cb_info cbi;
+  int ret = -1;
+  cbi.ip = ip;
+  cbi.segbase = 0;
+  cbi.offset = 0;
+  cbi.path = NULL;
 
   /* QNX's support for accessing symbol maps is severely broken.  There is
      a devctl() call that can be made on a proc node (DCMD_PROC_MAPDEBUG)
@@ -82,13 +85,33 @@ map_create_list (pid_t pid)
   */
 
   if (pid != getpid())
+  {
+    /* Return an error if an attempt is made to perform remote image lookup */
+    return -1;
+  }
+
+  if (dl_iterate_phdr (callback, &cbi) != 0)
+  {
+    if (path)
     {
-      /* Return an error if an attempt is made to perform remote image lookup */
-      return -1;
+      strncpy (path, cbi.path, pathlen);
     }
 
-  if (dl_iterate_phdr (callback, &map_list) != 0)
-    return map_list;
-  return NULL;
+    *mapoff = cbi.offset;
+    *segbase = cbi.segbase;
+
+    ret = elf_map_image (ei, cbi.path);
+  }
+
+  return ret;
 }
-/* End of ANDROID update. */
+
+#ifndef UNW_REMOTE_ONLY
+
+void
+tdep_get_exe_image_path (char *path)
+{
+  path[0] = 0; /* XXX */
+}
+
+#endif

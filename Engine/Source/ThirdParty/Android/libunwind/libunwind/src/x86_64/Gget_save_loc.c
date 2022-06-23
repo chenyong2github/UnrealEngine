@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2004 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
    Modified for x86_64 by Max Asbock <masbock@us.ibm.com>
 
@@ -27,13 +27,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include "unwind_i.h"
 
-PROTECTED int
+int
 unw_get_save_loc (unw_cursor_t *cursor, int reg, unw_save_loc_t *sloc)
 {
   struct cursor *c = (struct cursor *) cursor;
   dwarf_loc_t loc;
 
-  loc = DWARF_NULL_LOC;		/* default to "not saved" */
+  loc = DWARF_NULL_LOC;         /* default to "not saved" */
 
   switch (reg)
     {
@@ -44,6 +44,7 @@ unw_get_save_loc (unw_cursor_t *cursor, int reg, unw_save_loc_t *sloc)
     case UNW_X86_64_R13: loc = c->dwarf.loc[R13]; break;
     case UNW_X86_64_R14: loc = c->dwarf.loc[R14]; break;
     case UNW_X86_64_R15: loc = c->dwarf.loc[R15]; break;
+    case UNW_X86_64_RIP: loc = c->dwarf.loc[RIP]; break;
 
     default:
       break;

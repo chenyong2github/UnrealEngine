@@ -23,16 +23,25 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
-/* ANDROID support update. */
-#include <sys/types.h>
-/* End of ANDROID update. */
-
-#define UNW_VERSION_MAJOR	1
-#define UNW_VERSION_MINOR	1
+#define UNW_VERSION_MAJOR	
+#define UNW_VERSION_MINOR	
 #define UNW_VERSION_EXTRA	
 
 #define UNW_VERSION_CODE(maj,min)	(((maj) << 16) | (min))
 #define UNW_VERSION	UNW_VERSION_CODE(UNW_VERSION_MAJOR, UNW_VERSION_MINOR)
+
+#ifdef __sun
+// On SmartOS, gcc fails with the following error:
+//
+// ../include/libunwind-common.h:43:41: error: expected identifier or '(' before numeric constant
+// # define UNW_PREFIX UNW_PASTE(UNW_PASTE(_U,UNW_TARGET),_)
+//                                         ^
+//
+// workaround is to undefine _U explicitly.
+// see https://github.com/libunwind/libunwind/issues/118 for more details.
+//
+#undef _U
+#endif
 
 #define UNW_PASTE2(x,y)	x##y
 #define UNW_PASTE(x,y)	UNW_PASTE2(x,y)
@@ -40,17 +49,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #define UNW_ARCH_OBJ(fn) UNW_PASTE(UNW_PASTE(UNW_PASTE(_U,UNW_TARGET),_), fn)
 
 #ifdef UNW_LOCAL_ONLY
-# ifdef UNW_ADDITIONAL_PREFIX
-#  define UNW_PREFIX	UNW_PASTE(UNW_PASTE(_UUL,UNW_TARGET),_)
-# else
-#  define UNW_PREFIX	UNW_PASTE(UNW_PASTE(_UL,UNW_TARGET),_)
-# endif
+# define UNW_PREFIX	UNW_PASTE(UNW_PASTE(_UL,UNW_TARGET),_)
 #else /* !UNW_LOCAL_ONLY */
-# ifdef UNW_ADDITIONAL_PREFIX
-#  define UNW_PREFIX	UNW_PASTE(UNW_PASTE(_UU,UNW_TARGET),_)
-# else
-#  define UNW_PREFIX	UNW_PASTE(UNW_PASTE(_U,UNW_TARGET),_)
-# endif
+# define UNW_PREFIX	UNW_PASTE(UNW_PASTE(_U,UNW_TARGET),_)
 #endif /* !UNW_LOCAL_ONLY */
 
 /* Error codes.  The unwind routines return the *negated* values of
@@ -98,6 +99,12 @@ typedef enum
   }
 unw_caching_policy_t;
 
+typedef enum
+  {
+    UNW_INIT_SIGNAL_FRAME = 1           /* We know this is a signal frame */
+  }
+unw_init_local2_flags_t;
+
 typedef int unw_regnum_t;
 
 /* The unwind cursor starts at the youngest (most deeply nested) frame
@@ -138,6 +145,9 @@ typedef struct unw_proc_info
   {
     unw_word_t start_ip;	/* first IP covered by this procedure */
     unw_word_t end_ip;		/* first IP NOT covered by this procedure */
+#if defined(NEED_LAST_IP)
+    unw_word_t last_ip;		/* first IP that could begin another procedure */
+#endif
     unw_word_t lsda;		/* address of lang.-spec. data area (if any) */
     unw_word_t handler;		/* optional personality routine */
     unw_word_t gp;		/* global-pointer value for this procedure */
@@ -149,6 +159,11 @@ typedef struct unw_proc_info
     unw_tdep_proc_info_t extra;	/* target-dependent auxiliary proc-info */
   }
 unw_proc_info_t;
+
+typedef int (*unw_reg_states_callback)(void *token,
+				       void *reg_states_data,
+				       size_t reg_states_data_size,
+				       unw_word_t start_ip, unw_word_t end_ip);
 
 /* These are backend callback routines that provide access to the
    state of a "remote" process.  This can be used, for example, to
@@ -192,6 +207,24 @@ typedef struct unw_accessors
        NULL.  */
     int (*get_proc_name) (unw_addr_space_t, unw_word_t, char *, size_t,
 			  unw_word_t *, void *);
+
+    /* Optional call back to return a mask to be used with pointer
+     * authentication on arm64.
+     *
+     * The on bits in the returned mask indicate which bits in a return address
+     * are part of a pointer authentication code.  These are the bits in the
+     * return address to turn off so that the calling frame can be found
+     * for the unwinding to continue.
+     *
+     * The return value must be host-endian.  e.g. if the target is big-endian
+     * and the host is little endian, the implementation of this function
+     * must byte swap.
+     *
+     * This callback is optional and may be set to NULL.  In this case all
+     * the bits in the return address are used, as if no masking were done.
+     */
+    unw_word_t (*ptrauth_insn_mask) (unw_addr_space_t, void *);
+
   }
 unw_accessors_t;
 
@@ -216,100 +249,65 @@ typedef struct unw_save_loc
   }
 unw_save_loc_t;
 
-/* ANDROID support update. */
-typedef struct unw_map_cursor
-  {
-    void *map_list;
-    void *cur_map;
-  }
-unw_map_cursor_t;
-
-typedef struct unw_map
-  {
-    unw_word_t start;
-    unw_word_t end;
-    unw_word_t offset;
-    unw_word_t load_base;
-    char *path;
-    int flags;
-  }
-unw_map_t;
-/* End of ANDROID update. */
-
 /* These routines work both for local and remote unwinding.  */
 
-#define unw_local_access_addr_space_init UNW_OBJ(local_access_addr_space_init)
 #define unw_local_addr_space	UNW_OBJ(local_addr_space)
 #define unw_create_addr_space	UNW_OBJ(create_addr_space)
 #define unw_destroy_addr_space	UNW_OBJ(destroy_addr_space)
 #define unw_get_accessors	UNW_ARCH_OBJ(get_accessors)
+#define unw_get_accessors_int	UNW_ARCH_OBJ(get_accessors_int)
 #define unw_init_local		UNW_OBJ(init_local)
-#define unw_init_local2		UNW_OBJ(init_local2)
-
+#define unw_init_local2	        UNW_OBJ(init_local2)
 #define unw_init_remote		UNW_OBJ(init_remote)
 #define unw_step		UNW_OBJ(step)
 #define unw_resume		UNW_OBJ(resume)
 #define unw_get_proc_info	UNW_OBJ(get_proc_info)
 #define unw_get_proc_info_by_ip	UNW_OBJ(get_proc_info_by_ip)
+#define unw_reg_states_iterate  UNW_OBJ(reg_states_iterate)
+#define unw_apply_reg_state     UNW_OBJ(apply_reg_state)
 #define unw_get_reg		UNW_OBJ(get_reg)
 #define unw_set_reg		UNW_OBJ(set_reg)
 #define unw_get_fpreg		UNW_OBJ(get_fpreg)
 #define unw_set_fpreg		UNW_OBJ(set_fpreg)
 #define unw_get_save_loc	UNW_OBJ(get_save_loc)
 #define unw_is_signal_frame	UNW_OBJ(is_signal_frame)
-#define unw_handle_signal_frame	UNW_OBJ(handle_signal_frame)
 #define unw_get_proc_name	UNW_OBJ(get_proc_name)
 #define unw_get_proc_name_by_ip	UNW_OBJ(get_proc_name_by_ip)
 #define unw_set_caching_policy	UNW_OBJ(set_caching_policy)
+#define unw_set_cache_size	UNW_OBJ(set_cache_size)
 #define unw_regname		UNW_ARCH_OBJ(regname)
 #define unw_flush_cache		UNW_ARCH_OBJ(flush_cache)
 #define unw_strerror		UNW_ARCH_OBJ(strerror)
 
-extern void unw_local_access_addr_space_init (unw_addr_space_t);
 extern unw_addr_space_t unw_create_addr_space (unw_accessors_t *, int);
 extern void unw_destroy_addr_space (unw_addr_space_t);
 extern unw_accessors_t *unw_get_accessors (unw_addr_space_t);
+extern unw_accessors_t *unw_get_accessors_int (unw_addr_space_t);
 extern void unw_flush_cache (unw_addr_space_t, unw_word_t, unw_word_t);
 extern int unw_set_caching_policy (unw_addr_space_t, unw_caching_policy_t);
+extern int unw_set_cache_size (unw_addr_space_t, size_t, int);
 extern const char *unw_regname (unw_regnum_t);
 
 extern int unw_init_local (unw_cursor_t *, unw_context_t *);
-extern int unw_init_local2(unw_cursor_t *, unw_context_t *, int);
-
+extern int unw_init_local2 (unw_cursor_t *, unw_context_t *, int);
 extern int unw_init_remote (unw_cursor_t *, unw_addr_space_t, void *);
 extern int unw_step (unw_cursor_t *);
 extern int unw_resume (unw_cursor_t *);
 extern int unw_get_proc_info (unw_cursor_t *, unw_proc_info_t *);
 extern int unw_get_proc_info_by_ip (unw_addr_space_t, unw_word_t,
 				    unw_proc_info_t *, void *);
+extern int unw_reg_states_iterate (unw_cursor_t *, unw_reg_states_callback, void *);
+extern int unw_apply_reg_state (unw_cursor_t *, void *);
 extern int unw_get_reg (unw_cursor_t *, int, unw_word_t *);
 extern int unw_set_reg (unw_cursor_t *, int, unw_word_t);
 extern int unw_get_fpreg (unw_cursor_t *, int, unw_fpreg_t *);
 extern int unw_set_fpreg (unw_cursor_t *, int, unw_fpreg_t);
 extern int unw_get_save_loc (unw_cursor_t *, int, unw_save_loc_t *);
 extern int unw_is_signal_frame (unw_cursor_t *);
-extern int unw_handle_signal_frame (unw_cursor_t *);
 extern int unw_get_proc_name (unw_cursor_t *, char *, size_t, unw_word_t *);
 extern int unw_get_proc_name_by_ip (unw_addr_space_t, unw_word_t, char *,
 				    size_t, unw_word_t *, void *);
 extern const char *unw_strerror (int);
 extern int unw_backtrace (void **, int);
-
-/* ANDROID support update. */
-extern int unw_map_local_cursor_valid (unw_map_cursor_t *);
-extern void unw_map_local_cursor_get (unw_map_cursor_t *);
-extern int unw_map_local_cursor_get_next (unw_map_cursor_t *, unw_map_t *);
-extern int unw_map_local_create (void);
-extern void unw_map_local_destroy (void);
-extern void unw_map_set (unw_addr_space_t, unw_map_cursor_t *);
-extern void unw_map_cursor_reset (unw_map_cursor_t *);
-extern void unw_map_cursor_clear (unw_map_cursor_t *);
-extern int unw_map_cursor_create (unw_map_cursor_t *, pid_t);
-extern void unw_map_cursor_destroy (unw_map_cursor_t *);
-extern int unw_map_cursor_get_next (unw_map_cursor_t *, unw_map_t *);
-// option to disable unw_is_signal_frame test. it dereferences IP, reading executable memory on OS 10 can throw 'execute-only (no-read) memory access error' sigsegv.
-extern void unw_disable_signal_frame_test(int);
-extern int unw_is_signal_frame_test_disabled(void);
-/* End of ANDROID update. */
 
 extern unw_addr_space_t unw_local_addr_space;

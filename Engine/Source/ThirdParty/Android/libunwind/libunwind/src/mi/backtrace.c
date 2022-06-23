@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2001-2002 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -23,9 +23,9 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
-#ifndef UNW_REMOTE_ONLY
-
+#if !defined(UNW_REMOTE_ONLY) && !defined(UNW_LOCAL_ONLY)
 #define UNW_LOCAL_ONLY
+
 #include <libunwind.h>
 #include <libunwind_i.h>
 #include <string.h>
@@ -45,10 +45,10 @@ slow_backtrace (void **buffer, int size, unw_context_t *uc)
   while (unw_step (&cursor) > 0)
     {
       if (n >= size)
-	return n;
+        return n;
 
       if (unw_get_reg (&cursor, UNW_REG_IP, &ip) < 0)
-	return n;
+        return n;
       buffer[n++] = (void *) (uintptr_t) ip;
     }
   return n;
@@ -61,33 +61,23 @@ unw_backtrace (void **buffer, int size)
   unw_context_t uc;
   int n = size;
 
-  (void) tdep_getcontext_trace (&uc);
+  tdep_getcontext_trace (&uc);
 
   if (unlikely (unw_init_local (&cursor, &uc) < 0))
     return 0;
 
   if (unlikely (tdep_trace (&cursor, buffer, &n) < 0))
     {
-      (void) unw_getcontext (&uc);
+      unw_getcontext (&uc);
       return slow_backtrace (buffer, size, &uc);
     }
 
   return n;
 }
 
+#ifdef CONFIG_WEAK_BACKTRACE
 extern int backtrace (void **buffer, int size)
   WEAK ALIAS(unw_backtrace);
+#endif
 
 #endif /* !UNW_REMOTE_ONLY */
-
-HIDDEN int disable_signal_frame_test = 0;
-
-void unw_disable_signal_frame_test(int in_disable_signal_frame_test)
-{
-	disable_signal_frame_test = in_disable_signal_frame_test;
-}
-
-int unw_is_signal_frame_test_disabled(void)
-{
-	return disable_signal_frame_test;
-}

@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2003 Hewlett-Packard Co
-	Contributed by ...
+        Contributed by ...
 
 This file is part of libunwind.
 
@@ -43,8 +43,5 @@ common_init (struct cursor *c, unsigned use_prev_instr)
 
   c->dwarf.stash_frames = 0;
   c->dwarf.use_prev_instr = use_prev_instr;
-  /* ANDROID support update. */
-  c->dwarf.frame = 0;
-  /* End of ANDROID update. */
   return 0;
 }

@@ -21,7 +21,11 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
-#include <elf.h>
+#if defined(HAVE_ELF_H)
+# include <elf.h>
+#elif defined(HAVE_SYS_ELF_H)
+# include <sys/elf.h>
+#endif
 
 #include "_UCD_lib.h"
 #include "_UCD_internal.h"
@@ -40,17 +44,17 @@ CD_elf_map_image(struct UCD_info *ui, coredump_phdr_t *phdr)
       /* addr, length, prot, flags, fd, fd_offset */
       ei->image = mmap(NULL, phdr->p_memsz, PROT_READ, MAP_PRIVATE, ui->coredump_fd, phdr->p_offset);
       if (ei->image == MAP_FAILED)
-	{
-	  ei->image = NULL;
-	  return NULL;
-	}
+        {
+          ei->image = NULL;
+          return NULL;
+        }
       ei->size = phdr->p_filesz;
       size_t remainder_len = phdr->p_memsz - phdr->p_filesz;
       if (remainder_len > 0)
-	{
-	  void *remainder_base = (char*) ei->image + phdr->p_filesz;
-	  munmap(remainder_base, remainder_len);
-	}
+        {
+          void *remainder_base = (char*) ei->image + phdr->p_filesz;
+          munmap(remainder_base, remainder_len);
+        }
     } else {
       /* We have a backing file for this segment.
        * This file is always longer than phdr->p_memsz,
@@ -62,10 +66,10 @@ CD_elf_map_image(struct UCD_info *ui, coredump_phdr_t *phdr)
       /* addr, length, prot, flags, fd, fd_offset */
       ei->image = mmap(NULL, phdr->backing_filesize, PROT_READ, MAP_PRIVATE, phdr->backing_fd, 0);
       if (ei->image == MAP_FAILED)
-	{
-	  ei->image = NULL;
-	  return NULL;
-	}
+        {
+          ei->image = NULL;
+          return NULL;
+        }
       ei->size = phdr->backing_filesize;
     }
 
@@ -89,10 +93,10 @@ _UCD_get_elf_image(struct UCD_info *ui, unw_word_t ip)
     {
       coredump_phdr_t *phdr = &ui->phdrs[i];
       if (phdr->p_vaddr <= ip && ip < phdr->p_vaddr + phdr->p_memsz)
-	{
-	  phdr = CD_elf_map_image(ui, phdr);
-	  return phdr;
-	}
+        {
+          phdr = CD_elf_map_image(ui, phdr);
+          return phdr;
+        }
     }
   return NULL;
 }

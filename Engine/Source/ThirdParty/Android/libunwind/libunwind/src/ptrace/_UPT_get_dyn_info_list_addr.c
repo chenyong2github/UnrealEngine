@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2003-2005 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -25,13 +25,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include "_UPT_internal.h"
 
-#if UNW_TARGET_IA64 && defined(__linux)
+#if UNW_TARGET_IA64 && defined(__linux__)
 # include "elf64.h"
 # include "os-linux.h"
 
 static inline int
 get_list_addr (unw_addr_space_t as, unw_word_t *dil_addr, void *arg,
-	       int *countp)
+               int *countp)
 {
   unsigned long lo, hi, off;
   struct UPT_info *ui = arg;
@@ -41,24 +41,28 @@ get_list_addr (unw_addr_space_t as, unw_word_t *dil_addr, void *arg,
   int count = 0;
 
   maps_init (&mi, ui->pid);
-  while (maps_next (&mi, &lo, &hi, &off))
+  while (maps_next (&mi, &lo, &hi, &off, NULL))
     {
       if (off)
-	continue;
+        continue;
 
       invalidate_edi(&ui->edi);
+
+      if (elf_map_image (&ui->edi.ei, path) < 0)
+        /* ignore unmappable stuff like "/SYSV00001b58 (deleted)" */
+        continue;
 
       Debug (16, "checking object %s\n", path);
 
       if (tdep_find_unwind_table (&ui->edi, as, path, lo, off, 0) > 0)
-	{
-	  res = _Uia64_find_dyn_list (as, &ui->edi.di_cache, arg);
-	  if (res && count++ == 0)
-	    {
-	      Debug (12, "dyn_info_list_addr = 0x%lx\n", (long) res);
-	      *dil_addr = res;
-	    }
-	}
+        {
+          res = _Uia64_find_dyn_list (as, &ui->edi.di_cache, arg);
+          if (res && count++ == 0)
+            {
+              Debug (12, "dyn_info_list_addr = 0x%lx\n", (long) res);
+              *dil_addr = res;
+            }
+        }
     }
   maps_close (&mi);
   *countp = count;
@@ -67,13 +71,16 @@ get_list_addr (unw_addr_space_t as, unw_word_t *dil_addr, void *arg,
 
 #else
 
+/* XXX fix me: there is currently no way to locate the dyn-info list
+       by a remote unwinder.  On ia64, this is done via a special
+       unwind-table entry.  Perhaps something similar can be done with
+       DWARF2 unwind info.  */
+
 static inline int
 get_list_addr (unw_addr_space_t as, unw_word_t *dil_addr, void *arg,
-	       int *countp)
+               int *countp)
 {
-/* ANDROID support update. */
-# pragma message("Implement get_list_addr(), please.")
-/* End of ANDROID update. */
+# warning Implement get_list_addr(), please.
   *countp = 0;
   return 0;
 }
@@ -82,7 +89,7 @@ get_list_addr (unw_addr_space_t as, unw_word_t *dil_addr, void *arg,
 
 int
 _UPT_get_dyn_info_list_addr (unw_addr_space_t as, unw_word_t *dil_addr,
-			     void *arg)
+                             void *arg)
 {
   int count, ret;
 

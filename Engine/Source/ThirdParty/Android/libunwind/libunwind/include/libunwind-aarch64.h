@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2001-2004 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
    Copyright (C) 2013 Linaro Limited
 
 This file is part of libunwind.
@@ -34,19 +34,28 @@ extern "C" {
 #include <inttypes.h>
 #include <stddef.h>
 #include <ucontext.h>
+#include <stdalign.h>
 
-#define UNW_TARGET	aarch64
-#define UNW_TARGET_AARCH64	1
+#ifndef UNW_EMPTY_STRUCT
+#  define UNW_EMPTY_STRUCT uint8_t unused;
+#endif
 
-#define _U_TDEP_QP_TRUE	0	/* see libunwind-dynamic.h  */
+#define UNW_TARGET      aarch64
+#define UNW_TARGET_AARCH64      1
+
+#define _U_TDEP_QP_TRUE 0       /* see libunwind-dynamic.h  */
 
 /* This needs to be big enough to accommodate "struct cursor", while
    leaving some slack for future expansion.  Changing this value will
    require recompiling all users of this library.  Stack allocation is
    relatively cheap and unwind-state copying is relatively rare, so we
-   want to err on making it rather too big than too small.  */
+   want to err on making it rather too big than too small.
 
-#define UNW_TDEP_CURSOR_LEN	4096
+   Calculation is regs used (64 + 34) * 2 + 40 (bytes of rest of
+   cursor) + padding
+*/
+
+#define UNW_TDEP_CURSOR_LEN     250
 
 typedef uint64_t unw_word_t;
 typedef int64_t unw_sword_t;
@@ -56,9 +65,7 @@ typedef long double unw_tdep_fpreg_t;
 typedef struct
   {
     /* no aarch64-specific auxiliary proc-info */
-    /* ANDROID support update. */
-    char __reserved;
-    /* End of ANDROID update. */
+    UNW_EMPTY_STRUCT
   }
 unw_tdep_proc_info_t;
 
@@ -112,6 +119,9 @@ typedef enum
     UNW_AARCH64_PC,
     UNW_AARCH64_PSTATE,
 
+    /* Pseudo-register */
+    UNW_AARCH64_RA_SIGN_STATE = 34,
+
     /* 128-bit FP/Advanced SIMD registers.  */
     UNW_AARCH64_V0 = 64,
     UNW_AARCH64_V1,
@@ -157,37 +167,83 @@ typedef enum
 
     UNW_TDEP_IP = UNW_AARCH64_X30,
     UNW_TDEP_SP = UNW_AARCH64_SP,
-    UNW_TDEP_EH = UNW_AARCH64_X0,
+    UNW_TDEP_EH = UNW_AARCH64_X0
 
   }
 aarch64_regnum_t;
 
 /* Use R0 through R3 to pass exception handling information.  */
-#define UNW_TDEP_NUM_EH_REGS	4
+#define UNW_TDEP_NUM_EH_REGS    4
 
 typedef struct unw_tdep_save_loc
   {
     /* Additional target-dependent info on a save location.  */
-    /* ANDROID support update. */
-    char __reserved;
-    /* End of ANDROID update. */
+    UNW_EMPTY_STRUCT
   }
 unw_tdep_save_loc_t;
 
+#ifdef __linux__
+/* On AArch64, we can directly use ucontext_t as the unwind context,
+ * however, the __reserved struct is quite large: tune it down to only
+ * the necessary used fields.  */
 
+struct unw_sigcontext
+  {
+	uint64_t fault_address;
+	uint64_t regs[31];
+	uint64_t sp;
+	uint64_t pc;
+	uint64_t pstate;
+	alignas(16) uint8_t __reserved[(66 * 8)];
+};
+
+typedef struct
+  {
+	unsigned long uc_flags;
+	struct ucontext *uc_link;
+	stack_t uc_stack;
+#ifndef __ANDROID__
+	sigset_t uc_sigmask;
+#else
+	union {
+		sigset_t uc_sigmask;
+		sigset64_t uc_sigmask64;
+	};
+	char __padding[128 - sizeof(sigset_t)];
+#endif
+	struct unw_sigcontext uc_mcontext;
+  } unw_tdep_context_t;
+
+typedef struct
+  {
+	uint32_t _ctx_magic;
+	uint32_t _ctx_size;
+	uint32_t fpsr;
+	uint32_t fpcr;
+	uint64_t vregs[64];
+  } unw_fpsimd_context_t;
+#else
 /* On AArch64, we can directly use ucontext_t as the unwind context.  */
 typedef ucontext_t unw_tdep_context_t;
+#if defined(__FreeBSD__)
+typedef ucontext_t unw_fpsimd_context_t;
+#endif
+#endif
+
 
 #include "libunwind-common.h"
 #include "libunwind-dynamic.h"
 
-/* ANDROID support update. */
-/* There is no getcontext in Android. */
-#define unw_tdep_getcontext(uc) (({					\
+#if defined(__FreeBSD__)
+#define UNW_BASE register uint64_t unw_base __asm__ ("x0") = (uint64_t) unw_ctx->uc_mcontext.mc_gpregs.gp_x[0];
+#else
+#define UNW_BASE register uint64_t unw_base __asm__ ("x0") = (uint64_t) unw_ctx->uc_mcontext.regs;
+#endif
+
+#define unw_tdep_getcontext(uc) ({					\
   unw_tdep_context_t *unw_ctx = (uc);					\
-  register uint64_t *unw_base asm ("x0") = (uint64_t*) unw_ctx->uc_mcontext.regs;		\
-  __asm__ __volatile__ (						\
-     "1:\n" \
+  UNW_BASE \
+  __asm__ __volatile__ (					        \
      "stp x0, x1, [%[base], #0]\n" \
      "stp x2, x3, [%[base], #16]\n" \
      "stp x4, x5, [%[base], #32]\n" \
@@ -203,13 +259,14 @@ typedef ucontext_t unw_tdep_context_t;
      "stp x24, x25, [%[base], #192]\n" \
      "stp x26, x27, [%[base], #208]\n" \
      "stp x28, x29, [%[base], #224]\n" \
-     "str x30, [%[base], #240]\n" \
      "mov x1, sp\n" \
-     "adr x2, 1b\n" \
-     "stp x1, x2, [%[base], #248]\n" \
-     : [base] "+r" (unw_base) : : "x1", "x2", "memory"); \
-  }), 0)
-/* End of ANDROID update. */
+     "stp x30, x1, [%[base], #240]\n" \
+     "adr x1, ret%=\n" \
+     "str x1, [%[base], #256]\n" \
+     "mov %[base], #0\n" \
+     "ret%=:\n" \
+     : [base] "+r" (unw_base) : : "x1", "memory"); \
+  (int)unw_base; })
 #define unw_tdep_is_fpreg		UNW_ARCH_OBJ(is_fpreg)
 
 extern int unw_tdep_is_fpreg (int);

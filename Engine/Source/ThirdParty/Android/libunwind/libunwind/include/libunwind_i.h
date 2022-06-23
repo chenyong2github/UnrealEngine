@@ -1,7 +1,7 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2001-2005 Hewlett-Packard Co
    Copyright (C) 2007 David Mosberger-Tang
-	Contributed by David Mosberger-Tang <dmosberger@gmail.com>
+        Contributed by David Mosberger-Tang <dmosberger@gmail.com>
 
 This file is part of libunwind.
 
@@ -37,26 +37,26 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include "compiler.h"
 
-#ifdef HAVE___THREAD
-  /* For now, turn off per-thread caching.  It uses up too much TLS
-     memory per thread even when the thread never uses libunwind at
-     all.  */
-# undef HAVE___THREAD
+#if defined(HAVE___CACHE_PER_THREAD) && HAVE___CACHE_PER_THREAD
+#define UNWI_DEFAULT_CACHING_POLICY UNW_CACHE_PER_THREAD
+#else
+#define UNWI_DEFAULT_CACHING_POLICY UNW_CACHE_GLOBAL
 #endif
 
 /* Platform-independent libunwind-internal declarations.  */
 
-#include <sys/types.h>	/* HP-UX needs this before include of pthread.h */
+#include <sys/types.h>  /* HP-UX needs this before include of pthread.h */
 
 #include <assert.h>
 #include <libunwind.h>
 #include <pthread.h>
 #include <signal.h>
-#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 #include <sys/mman.h>
+#include <errno.h>
+#include <stdio.h>
 
 #if defined(HAVE_ELF_H)
 # include <elf.h>
@@ -65,28 +65,77 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #else
 # error Could not locate <elf.h>
 #endif
+#if defined(ELFCLASS32)
+# define UNW_ELFCLASS32 ELFCLASS32
+#else
+# define UNW_ELFCLASS32 1
+#endif
+#if defined(ELFCLASS64)
+# define UNW_ELFCLASS64 ELFCLASS64
+#else
+# define UNW_ELFCLASS64 2
+#endif
 
 #if defined(HAVE_ENDIAN_H)
 # include <endian.h>
 #elif defined(HAVE_SYS_ENDIAN_H)
 # include <sys/endian.h>
+#elif defined(HAVE_SYS_PARAM_H)
+# include <sys/param.h>
+#endif
+
+#if defined(__LITTLE_ENDIAN)
+# define UNW_LITTLE_ENDIAN __LITTLE_ENDIAN
+#elif defined(_LITTLE_ENDIAN)
+# define UNW_LITTLE_ENDIAN _LITTLE_ENDIAN
+#elif defined(LITTLE_ENDIAN)
+# define UNW_LITTLE_ENDIAN LITTLE_ENDIAN
 #else
-# define __LITTLE_ENDIAN	1234
-# define __BIG_ENDIAN		4321
+# define UNW_LITTLE_ENDIAN 1234
+#endif
+
+#if defined(__BIG_ENDIAN)
+# define UNW_BIG_ENDIAN __BIG_ENDIAN
+#elif defined(_BIG_ENDIAN)
+# define UNW_BIG_ENDIAN _BIG_ENDIAN
+#elif defined(BIG_ENDIAN)
+# define UNW_BIG_ENDIAN BIG_ENDIAN
+#else
+# define UNW_BIG_ENDIAN 4321
+#endif
+
+#if defined(__BYTE_ORDER)
+# define UNW_BYTE_ORDER __BYTE_ORDER
+#elif defined(_BYTE_ORDER)
+# define UNW_BYTE_ORDER _BYTE_ORDER
+#elif defined(BIG_ENDIAN)
+# define UNW_BYTE_ORDER BYTE_ORDER
+#else
 # if defined(__hpux)
-#   define __BYTE_ORDER __BIG_ENDIAN
-# elif defined(__QNX__)
-#   if defined(__BIGENDIAN__)
-#     define __BYTE_ORDER __BIG_ENDIAN
-#   elif defined(__LITTLEENDIAN__)
-#     define __BYTE_ORDER __LITTLE_ENDIAN
-#   else
-#     error Host has unknown byte-order.
-#   endif
+#  define UNW_BYTE_ORDER UNW_BIG_ENDIAN
 # else
-#   error Host has unknown byte-order.
+#  error Target has unknown byte ordering.
 # endif
 #endif
+
+static inline int
+byte_order_is_valid(int byte_order)
+{
+    return byte_order != UNW_BIG_ENDIAN
+        && byte_order != UNW_LITTLE_ENDIAN;
+}
+
+static inline int
+byte_order_is_big_endian(int byte_order)
+{
+    return byte_order == UNW_BIG_ENDIAN;
+}
+
+static inline int
+target_is_big_endian()
+{
+    return byte_order_is_big_endian(UNW_BYTE_ORDER);
+}
 
 #if defined(HAVE__BUILTIN_UNREACHABLE)
 # define unreachable() __builtin_unreachable()
@@ -95,9 +144,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #endif
 
 #ifdef DEBUG
-# define UNW_DEBUG	1
+# define UNW_DEBUG      1
 #else
-# define UNW_DEBUG	0
+# define UNW_DEBUG      0
 #endif
 
 /* Make it easy to write thread-safe code which may or may not be
@@ -109,60 +158,14 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #pragma weak pthread_mutex_lock
 #pragma weak pthread_mutex_unlock
 
-#define mutex_init(l)							\
-	(pthread_mutex_init != NULL ? pthread_mutex_init ((l), NULL) : 0)
-#define mutex_lock(l)							\
-	(pthread_mutex_lock != NULL ? pthread_mutex_lock (l) : 0)
-#define mutex_unlock(l)							\
-	(pthread_mutex_unlock != NULL ? pthread_mutex_unlock (l) : 0)
+#define mutex_init(l)                                                   \
+        (pthread_mutex_init != NULL ? pthread_mutex_init ((l), NULL) : 0)
+#define mutex_lock(l)                                                   \
+        (pthread_mutex_lock != NULL ? pthread_mutex_lock (l) : 0)
+#define mutex_unlock(l)                                                 \
+        (pthread_mutex_unlock != NULL ? pthread_mutex_unlock (l) : 0)
 
-#ifdef HAVE_ATOMIC_OPS_H
-# include <atomic_ops.h>
-static inline int
-cmpxchg_ptr (void *addr, void *old, void *new)
-{
-  union
-    {
-      void *vp;
-      AO_t *aop;
-    }
-  u;
-
-  u.vp = addr;
-  return AO_compare_and_swap(u.aop, (AO_t) old, (AO_t) new);
-}
-# define fetch_and_add1(_ptr)		AO_fetch_and_add1(_ptr)
-# define fetch_and_add(_ptr, value)	AO_fetch_and_add(_ptr, value)
-   /* GCC 3.2.0 on HP-UX crashes on cmpxchg_ptr() */
-#  if !(defined(__hpux) && __GNUC__ == 3 && __GNUC_MINOR__ == 2)
-#   define HAVE_CMPXCHG
-#  endif
-# define HAVE_FETCH_AND_ADD
-#elif defined(HAVE_SYNC_ATOMICS) || defined(HAVE_IA64INTRIN_H)
-# ifdef HAVE_IA64INTRIN_H
-#  include <ia64intrin.h>
-# endif
-static inline int
-cmpxchg_ptr (void *addr, void *old, void *new)
-{
-  union
-    {
-      void *vp;
-      long *vlp;
-    }
-  u;
-
-  u.vp = addr;
-  return __sync_bool_compare_and_swap(u.vlp, (long) old, (long) new);
-}
-# define fetch_and_add1(_ptr)		__sync_fetch_and_add(_ptr, 1)
-# define fetch_and_add(_ptr, value)	__sync_fetch_and_add(_ptr, value)
-# define HAVE_CMPXCHG
-# define HAVE_FETCH_AND_ADD
-#endif
-#define atomic_read(ptr)	(*(ptr))
-
-#define UNWI_OBJ(fn)	  UNW_PASTE(UNW_PREFIX,UNW_PASTE(I,fn))
+#define UNWI_OBJ(fn)      UNW_PASTE(UNW_PREFIX,UNW_PASTE(I,fn))
 #define UNWI_ARCH_OBJ(fn) UNW_PASTE(UNW_PASTE(UNW_PASTE(_UI,UNW_TARGET),_), fn)
 
 #define unwi_full_mask    UNWI_ARCH_OBJ(full_mask)
@@ -187,128 +190,98 @@ static inline void mark_as_used(void *v UNUSED) {
 # define SIGPROCMASK(how, new_mask, old_mask) mark_as_used(old_mask)
 #endif
 
-/* ANDROID support update. */
-#define __lock_acquire_internal(l, m, acquire_func)	\
-do {							\
-  SIGPROCMASK (SIG_SETMASK, &unwi_full_mask, &(m));	\
-  acquire_func (l);					\
-} while (0)
-#define __lock_release_internal(l, m, release_func)	\
-do {							\
-  release_func (l);					\
-  SIGPROCMASK (SIG_SETMASK, &(m), NULL);		\
-} while (0)
+/* Prefer adaptive mutexes if available */
+#ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+#define UNW_PTHREAD_MUTEX_INITIALIZER PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
+#else
+#define UNW_PTHREAD_MUTEX_INITIALIZER PTHREAD_MUTEX_INITIALIZER
+#endif
 
-#define lock_rdwr_var(name)				\
-  pthread_rwlock_t name
-#define lock_rdwr_init(l)	pthread_rwlock_init (l, NULL)
-#define lock_rdwr_wr_acquire(l, m)			\
-  __lock_acquire_internal(l, m, pthread_rwlock_wrlock)
-#define lock_rdwr_rd_acquire(l, m)			\
-  __lock_acquire_internal(l, m, pthread_rwlock_rdlock)
-#define lock_rdwr_release(l, m)				\
-  __lock_release_internal(l, m, pthread_rwlock_unlock)
-
-#define lock_var(name) \
-  pthread_mutex_t name
 #define define_lock(name) \
-  lock_var (name) = PTHREAD_MUTEX_INITIALIZER
-#define lock_init(l)		mutex_init (l)
-#define lock_acquire(l,m)				\
-  __lock_acquire_internal(l, m, mutex_lock)
-#define lock_release(l,m)			\
-  __lock_release_internal(l, m, mutex_unlock)
-/* End of ANDROID update. */
+  pthread_mutex_t name = UNW_PTHREAD_MUTEX_INITIALIZER
+#define lock_init(l)            mutex_init (l)
+#define lock_acquire(l,m)                               \
+do {                                                    \
+  SIGPROCMASK (SIG_SETMASK, &unwi_full_mask, &(m));     \
+  mutex_lock (l);                                       \
+} while (0)
+#define lock_release(l,m)                       \
+do {                                            \
+  mutex_unlock (l);                             \
+  SIGPROCMASK (SIG_SETMASK, &(m), NULL);        \
+} while (0)
 
-#define SOS_MEMORY_SIZE 16384	/* see src/mi/mempool.c */
+#define SOS_MEMORY_SIZE 16384   /* see src/mi/mempool.c */
 
 #ifndef MAP_ANONYMOUS
 # define MAP_ANONYMOUS MAP_ANON
 #endif
-#define GET_MEMORY(mem, size)				    		    \
-do {									    \
+#define GET_MEMORY(mem, size)                                               \
+do {                                                                        \
   /* Hopefully, mmap() goes straight through to a system call stub...  */   \
-  mem = mmap (NULL, size, PROT_READ | PROT_WRITE,			    \
-	      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);			    \
-  if (mem == MAP_FAILED)						    \
-    mem = NULL;								    \
+  mem = mmap (NULL, size, PROT_READ | PROT_WRITE,                           \
+              MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);                          \
+  if (mem == MAP_FAILED)                                                    \
+    mem = NULL;                                                             \
 } while (0)
 
-#define unwi_find_dynamic_proc_info	UNWI_OBJ(find_dynamic_proc_info)
-#define unwi_extract_dynamic_proc_info	UNWI_OBJ(extract_dynamic_proc_info)
-#define unwi_put_dynamic_unwind_info	UNWI_OBJ(put_dynamic_unwind_info)
-#define unwi_dyn_remote_find_proc_info	UNWI_OBJ(dyn_remote_find_proc_info)
-#define unwi_dyn_remote_put_unwind_info	UNWI_OBJ(dyn_remote_put_unwind_info)
-#define unwi_dyn_validate_cache		UNWI_OBJ(dyn_validate_cache)
+#define unwi_find_dynamic_proc_info     UNWI_OBJ(find_dynamic_proc_info)
+#define unwi_extract_dynamic_proc_info  UNWI_OBJ(extract_dynamic_proc_info)
+#define unwi_put_dynamic_unwind_info    UNWI_OBJ(put_dynamic_unwind_info)
+#define unwi_dyn_remote_find_proc_info  UNWI_OBJ(dyn_remote_find_proc_info)
+#define unwi_dyn_remote_put_unwind_info UNWI_OBJ(dyn_remote_put_unwind_info)
+#define unwi_dyn_validate_cache         UNWI_OBJ(dyn_validate_cache)
 
 extern int unwi_find_dynamic_proc_info (unw_addr_space_t as,
-					unw_word_t ip,
-					unw_proc_info_t *pi,
-					int need_unwind_info, void *arg);
+                                        unw_word_t ip,
+                                        unw_proc_info_t *pi,
+                                        int need_unwind_info, void *arg);
 extern int unwi_extract_dynamic_proc_info (unw_addr_space_t as,
-					   unw_word_t ip,
-					   unw_proc_info_t *pi,
-					   unw_dyn_info_t *di,
-					   int need_unwind_info,
-					   void *arg);
+                                           unw_word_t ip,
+                                           unw_proc_info_t *pi,
+                                           unw_dyn_info_t *di,
+                                           int need_unwind_info,
+                                           void *arg);
 extern void unwi_put_dynamic_unwind_info (unw_addr_space_t as,
-					  unw_proc_info_t *pi, void *arg);
+                                          unw_proc_info_t *pi, void *arg);
 
 /* These handle the remote (cross-address-space) case of accessing
    dynamic unwind info. */
 
 extern int unwi_dyn_remote_find_proc_info (unw_addr_space_t as,
-					   unw_word_t ip,
-					   unw_proc_info_t *pi,
-					   int need_unwind_info,
-					   void *arg);
+                                           unw_word_t ip,
+                                           unw_proc_info_t *pi,
+                                           int need_unwind_info,
+                                           void *arg);
 extern void unwi_dyn_remote_put_unwind_info (unw_addr_space_t as,
-					     unw_proc_info_t *pi,
-					     void *arg);
+                                             unw_proc_info_t *pi,
+                                             void *arg);
 extern int unwi_dyn_validate_cache (unw_addr_space_t as, void *arg);
 
 extern unw_dyn_info_list_t _U_dyn_info_list;
 extern pthread_mutex_t _U_dyn_info_list_lock;
 
 #if UNW_DEBUG
-# define unwi_debug_level		UNWI_ARCH_OBJ(debug_level)
+#define unwi_debug_level                UNWI_ARCH_OBJ(debug_level)
 extern long unwi_debug_level;
 
-# ifdef ANDROID
-# define LOG_TAG "libunwind"
-# include <log/log.h>
-
-# define Debug(level, format, ...)					\
-do {									\
-  if (unwi_debug_level >= (level))					\
-    { 									\
-      ALOGI("%*c>%s: " format, ((level) <= 16) ? (level) : 16, ' ',	\
-            __FUNCTION__, ##__VA_ARGS__);				\
-    } 									\
-} while (0)
-# define Dprintf(format, ...) ALOGI(format, ##__VA_ARGS__);
-#else
 # include <stdio.h>
-# define Debug(level,format...)						\
-do {									\
-  if (unwi_debug_level >= level)					\
-    {									\
-      int _n = level;							\
-      if (_n > 16)							\
-	_n = 16;							\
-      fprintf (stderr, "%*c>%s: ", _n, ' ', __FUNCTION__);		\
-      fprintf (stderr, format);						\
-    }									\
+# define Debug(level, /* format */ ...)                                 \
+do {                                                                    \
+  if (unwi_debug_level >= level)                                        \
+    {                                                                   \
+      int _n = level;                                                   \
+      if (_n > 16)                                                      \
+        _n = 16;                                                        \
+      fprintf (stderr, "%*c>%s: ", _n, ' ', __FUNCTION__);              \
+      fprintf (stderr, /* format */ __VA_ARGS__);                       \
+    }                                                                   \
 } while (0)
-# define Dprintf(format...) 	    fprintf (stderr, format)
-# ifdef __GNUC__
-#  undef inline
-#  define inline	UNUSED
-# endif
-# endif
+# define Dprintf(/* format */ ...)                                      \
+  fprintf (stderr, /* format */ __VA_ARGS__)
 #else
-# define Debug(level,format...)
-# define Dprintf(format...)
+# define Debug(level, /* format */ ...)
+# define Dprintf( /* format */ ...)
 #endif
 
 static ALWAYS_INLINE int
@@ -317,52 +290,29 @@ print_error (const char *string)
   return write (2, string, strlen (string));
 }
 
-#define mi_init		UNWI_ARCH_OBJ(mi_init)
+HIDDEN extern long unw_page_size;
 
-extern void mi_init (void);	/* machine-independent initializations */
+static inline unw_word_t uwn_page_start(unw_word_t addr)
+{
+  return addr & ~(unw_page_size - 1);
+}
+
+#define mi_init         UNWI_ARCH_OBJ(mi_init)
+
+extern void mi_init (void);     /* machine-independent initializations */
 extern unw_word_t _U_dyn_info_list_addr (void);
 
 /* This is needed/used by ELF targets only.  */
 
-/* This structure should contain memory that will not change during local
- * unwinds. For example, if a new member is added, then the function
- * move_cached_elf_data must be updated to make sure that the data is
- * properly copied. Any pointers in this structures must persist until
- * the map is destroyed in map_destroy_list and moved in the previously
- * mentioned move_cached_elf_data.
- */
 struct elf_image
   {
-    bool valid;			/* true if the image is a valid elf image */
-    bool load_attempted;	/* true if we've already attempted to load the elf */
-    bool mapped;		/* true if the elf image was mmap'd in */
-    void* mini_debug_info_data;  /* decompressed .gnu_debugdata section */
-    size_t mini_debug_info_size;
-    union
-      {
-        struct
-          {
-            void *image;		/* pointer to mmap'd image */
-            size_t size;		/* (file-) size of the image */
-          }
-        mapped;
-        struct
-          {
-            unw_addr_space_t as;	/* address space containing the access_mem function */
-            void *as_arg;		/* arg used with access_mem */
-            uintptr_t start;		/* The map start address. */
-            uintptr_t end;		/* The map end address. */
-          }
-        memory;
-      }
-    u;
+    void *image;                /* pointer to mmap'd image */
+    size_t size;                /* (file-) size of the image */
   };
 
 struct elf_dyn_info
   {
-    /* ANDROID support update.*/
-    /* Removed: struct elf_image ei; */
-    /* End of ANDROID update. */
+    struct elf_image ei;
     unw_dyn_info_t di_cache;
     unw_dyn_info_t di_debug;    /* additional table info for .debug_frame */
 #if UNW_TARGET_IA64
@@ -375,10 +325,8 @@ struct elf_dyn_info
 
 static inline void invalidate_edi (struct elf_dyn_info *edi)
 {
-  /* ANDROID support update.*/
-  /* Removed: if (edi->ei.image) */
-  /*            munmap (edi->ei.image, edi->ei.size); */
-  /* End of ANDROID update. */
+  if (edi->ei.image)
+    munmap (edi->ei.image, edi->ei.size);
   memset (edi, 0, sizeof (*edi));
   edi->di_cache.format = -1;
   edi->di_debug.format = -1;
@@ -399,16 +347,25 @@ static inline void invalidate_edi (struct elf_dyn_info *edi)
 /* Define GNU and processor specific values for the Phdr p_type field in case
    they aren't defined by <elf.h>.  */
 #ifndef PT_GNU_EH_FRAME
-# define PT_GNU_EH_FRAME	0x6474e550
+# define PT_GNU_EH_FRAME        0x6474e550
 #endif /* !PT_GNU_EH_FRAME */
 #ifndef PT_ARM_EXIDX
-# define PT_ARM_EXIDX		0x70000001	/* ARM unwind segment */
+# define PT_ARM_EXIDX           0x70000001      /* ARM unwind segment */
 #endif /* !PT_ARM_EXIDX */
 
 #include "tdep/libunwind_i.h"
 
+#ifndef TDEP_DWARF_SP
+#define TDEP_DWARF_SP UNW_TDEP_SP
+#endif
+
 #ifndef tdep_get_func_addr
-# define tdep_get_func_addr(as,addr,v)		(*(v) = addr, 0)
+# define tdep_get_func_addr(as,addr,v)          (*(v) = addr, 0)
+#endif
+
+#ifndef DWARF_VAL_LOC
+# define DWARF_IS_VAL_LOC(l)    0
+# define DWARF_VAL_LOC(c,v)     DWARF_NULL_LOC
 #endif
 
 #define UNW_ALIGN(x,a) (((x)+(a)-1UL)&~((a)-1UL))

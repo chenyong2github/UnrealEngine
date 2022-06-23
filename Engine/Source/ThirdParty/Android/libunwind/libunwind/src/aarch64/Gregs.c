@@ -28,7 +28,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 HIDDEN int
 tdep_access_reg (struct cursor *c, unw_regnum_t reg, unw_word_t *valp,
-		 int write)
+                 int write)
 {
   dwarf_loc_t loc = DWARF_NULL_LOC;
   unsigned int mask;
@@ -55,6 +55,9 @@ tdep_access_reg (struct cursor *c, unw_regnum_t reg, unw_word_t *valp,
         loc = c->dwarf.loc[reg];
       break;
 
+    case UNW_AARCH64_X30:
+      if (write)
+        c->dwarf.ip = *valp;            /* update the IP cache */
     case UNW_AARCH64_X4:
     case UNW_AARCH64_X5:
     case UNW_AARCH64_X6:
@@ -81,11 +84,13 @@ tdep_access_reg (struct cursor *c, unw_regnum_t reg, unw_word_t *valp,
     case UNW_AARCH64_X27:
     case UNW_AARCH64_X28:
     case UNW_AARCH64_X29:
-    case UNW_AARCH64_X30:
     case UNW_AARCH64_PC:
     case UNW_AARCH64_PSTATE:
       loc = c->dwarf.loc[reg];
       break;
+    case UNW_AARCH64_RA_SIGN_STATE:
+      Debug (1, "Reading from ra sign state not supported: %u\n", reg);
+      return -UNW_EBADREG;
 
     case UNW_AARCH64_SP:
       if (write)
@@ -106,8 +111,11 @@ tdep_access_reg (struct cursor *c, unw_regnum_t reg, unw_word_t *valp,
 
 HIDDEN int
 tdep_access_fpreg (struct cursor *c, unw_regnum_t reg, unw_fpreg_t *valp,
-		   int write)
+                   int write)
 {
-  Debug (1, "bad register number %u\n", reg);
-  return -UNW_EBADREG;
+  dwarf_loc_t loc = c->dwarf.loc[reg];
+  if (write)
+    return dwarf_putfp (&c->dwarf, loc, *valp);
+  else
+    return dwarf_getfp (&c->dwarf, loc, valp);
 }

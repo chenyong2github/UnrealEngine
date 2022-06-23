@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2001-2005 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
    Copyright (C) 2013 Linaro Limited
 
 This file is part of libunwind.
@@ -32,17 +32,31 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include <stdlib.h>
 #include <libunwind.h>
+#include <stdatomic.h>
 
 #include "elf64.h"
-/* ANDROID support update. */
-#include "map_info.h"
-/* End of ANDROID update. */
 #include "mempool.h"
 #include "dwarf.h"
 
+typedef enum
+  {
+    UNW_AARCH64_FRAME_STANDARD = -2,     /* regular fp, sp +/- offset */
+    UNW_AARCH64_FRAME_SIGRETURN = -1,    /* special sigreturn frame */
+    UNW_AARCH64_FRAME_OTHER = 0,         /* not cacheable (special or unrecognised) */
+    UNW_AARCH64_FRAME_GUESSED = 1        /* guessed it was regular, but not known */
+  }
+unw_tdep_frame_type_t;
+
 typedef struct
   {
-    /* no aarch64-specific fast trace */
+    uint64_t virtual_address;
+    int64_t frame_type     : 2;  /* unw_tdep_frame_type_t classification */
+    int64_t last_frame     : 1;  /* non-zero if last frame in chain */
+    int64_t cfa_reg_sp     : 1;  /* cfa dwarf base register is sp vs. fp */
+    int64_t cfa_reg_offset : 30; /* cfa is at this offset from base register value */
+    int64_t fp_cfa_offset  : 30; /* fp saved at this offset from cfa (-1 = not saved) */
+    int64_t lr_cfa_offset  : 30; /* lr saved at this offset from cfa (-1 = not saved) */
+    int64_t sp_cfa_offset  : 30; /* sp saved at this offset from cfa (-1 = not saved) */
   }
 unw_tdep_frame_t;
 
@@ -65,23 +79,19 @@ struct unw_addr_space
     struct unw_accessors acc;
     int big_endian;
     unw_caching_policy_t caching_policy;
-#ifdef HAVE_ATOMIC_OPS_H
-    AO_t cache_generation;
-#else
-    uint32_t cache_generation;
-#endif
+    _Atomic uint32_t cache_generation;
     unw_word_t dyn_generation;          /* see dyn-common.h */
-    unw_word_t dyn_info_list_addr;	/* (cached) dyn_info_list_addr */
+    unw_word_t dyn_info_list_addr;      /* (cached) dyn_info_list_addr */
     struct dwarf_rs_cache global_cache;
     struct unw_debug_frame_list *debug_frames;
-    /* ANDROID support update. */
-    struct map_info *map_list;
-    /* End of ANDROID update. */
    };
 
 struct cursor
   {
     struct dwarf_cursor dwarf;          /* must be first */
+
+    unw_tdep_frame_t frame_info;        /* quick tracing assist info */
+
     enum
       {
         AARCH64_SCF_NONE,
@@ -91,7 +101,16 @@ struct cursor
     unw_word_t sigcontext_addr;
     unw_word_t sigcontext_sp;
     unw_word_t sigcontext_pc;
+    int validate;
+    ucontext_t *uc;
   };
+
+static inline ucontext_t *
+dwarf_get_uc(const struct dwarf_cursor *cursor)
+{
+  const struct cursor *c = (struct cursor *) cursor->as_arg;
+  return c->uc;
+}
 
 #define DWARF_GET_LOC(l)        ((l).val)
 
@@ -101,65 +120,59 @@ struct cursor
 # define DWARF_LOC(r, t)        ((dwarf_loc_t) { .val = (r) })
 # define DWARF_IS_REG_LOC(l)    0
 # define DWARF_REG_LOC(c,r)     (DWARF_LOC((unw_word_t)                      \
-                                 tdep_uc_addr((c)->as_arg, (r)), 0))
+                                 tdep_uc_addr(dwarf_get_uc(c), (r)), 0))
 # define DWARF_MEM_LOC(c,m)     DWARF_LOC ((m), 0)
 # define DWARF_FPREG_LOC(c,r)   (DWARF_LOC((unw_word_t)                      \
-                                 tdep_uc_addr((c)->as_arg, (r)), 0))
+                                 tdep_uc_addr(dwarf_get_uc(c), (r)), 0))
 
 static inline int
 dwarf_getfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t *val)
 {
-/* ANDROID support update. */
-  unw_fpreg_t *addr = (unw_fpreg_t *) (uintptr_t) DWARF_GET_LOC (loc);
-  if (!addr || !map_local_is_readable ((unw_word_t) (uintptr_t) addr, sizeof(unw_fpreg_t)))
+  if (!DWARF_GET_LOC (loc))
     return -1;
-
-  *val = *addr;
+  *val = *(unw_fpreg_t *) DWARF_GET_LOC (loc);
   return 0;
-/* End of ANDROID update. */
 }
 
 static inline int
 dwarf_putfp (struct dwarf_cursor *c, dwarf_loc_t loc, unw_fpreg_t val)
 {
-/* ANDROID support update. */
-  unw_fpreg_t *addr = (unw_fpreg_t *) (uintptr_t) DWARF_GET_LOC (loc);
-  if (!addr || !map_local_is_writable ((unw_word_t) (uintptr_t) addr, sizeof(unw_fpreg_t)))
+  if (!DWARF_GET_LOC (loc))
     return -1;
-
-  *addr = val;
+  *(unw_fpreg_t *) DWARF_GET_LOC (loc) = val;
   return 0;
-/* End of ANDROID update. */
 }
 
 static inline int
 dwarf_get (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t *val)
 {
-/* ANDROID support update. */
   if (!DWARF_GET_LOC (loc))
     return -1;
-  return (*c->as->acc.access_mem) (c->as, DWARF_GET_LOC (loc), val,
-				   0, c->as_arg);
-/* End of ANDROID update. */
+  *val = *(unw_word_t *) DWARF_GET_LOC (loc);
+  return 0;
 }
 
 static inline int
 dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
 {
-/* ANDROID support update. */
   if (!DWARF_GET_LOC (loc))
     return -1;
-  return (*c->as->acc.access_mem) (c->as, DWARF_GET_LOC (loc), &val,
-				   1, c->as_arg);
-/* End of ANDROID update. */
+  *(unw_word_t *) DWARF_GET_LOC (loc) = val;
+  return 0;
 }
 
 #else /* !UNW_LOCAL_ONLY */
 # define DWARF_LOC_TYPE_FP      (1 << 0)
 # define DWARF_LOC_TYPE_REG     (1 << 1)
 # define DWARF_NULL_LOC         DWARF_LOC (0, 0)
-# define DWARF_IS_NULL_LOC(l)                                           \
-                ({ dwarf_loc_t _l = (l); _l.val == 0 && _l.type == 0; })
+
+static inline int
+dwarf_is_null_loc(dwarf_loc_t l)
+{
+  return l.val == 0 && l.type == 0;
+}
+
+# define DWARF_IS_NULL_LOC(l)   dwarf_is_null_loc(l)
 # define DWARF_LOC(r, t)        ((dwarf_loc_t) { .val = (r), .type = (t) })
 # define DWARF_IS_REG_LOC(l)    (((l).type & DWARF_LOC_TYPE_REG) != 0)
 # define DWARF_IS_FP_LOC(l)     (((l).type & DWARF_LOC_TYPE_FP) != 0)
@@ -258,22 +271,24 @@ dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
 
 
 
-#define tdep_getcontext_trace           unw_getcontext
-#define tdep_init_done			UNW_OBJ(init_done)
-#define tdep_init			UNW_OBJ(init)
+#define tdep_getcontext_trace           UNW_ARCH_OBJ(getcontext_trace)
+#define tdep_init_done                  UNW_OBJ(init_done)
+#define tdep_init_mem_validate          UNW_OBJ(init_mem_validate)
+#define tdep_init                       UNW_OBJ(init)
 /* Platforms that support UNW_INFO_FORMAT_TABLE need to define
    tdep_search_unwind_table.  */
-#define tdep_search_unwind_table	dwarf_search_unwind_table
-#define tdep_find_unwind_table	        dwarf_find_unwind_table
-#define tdep_uc_addr			UNW_OBJ(uc_addr)
-#define tdep_get_elf_image		UNW_ARCH_OBJ(get_elf_image)
-#define tdep_access_reg			UNW_OBJ(access_reg)
-#define tdep_access_fpreg		UNW_OBJ(access_fpreg)
-#define tdep_fetch_frame(c,ip,n)	do {} while(0)
-#define tdep_cache_frame(c,rs)		do {} while(0)
-#define tdep_reuse_frame(c,rs)		do {} while(0)
-#define tdep_stash_frame(c,rs)		do {} while(0)
-#define tdep_trace(cur,addr,n)		(-UNW_ENOINFO)
+#define tdep_search_unwind_table        dwarf_search_unwind_table
+#define tdep_find_unwind_table          dwarf_find_unwind_table
+#define tdep_uc_addr                    UNW_OBJ(uc_addr)
+#define tdep_get_elf_image              UNW_ARCH_OBJ(get_elf_image)
+#define tdep_get_exe_image_path         UNW_ARCH_OBJ(get_exe_image_path)
+#define tdep_access_reg                 UNW_OBJ(access_reg)
+#define tdep_access_fpreg               UNW_OBJ(access_fpreg)
+#define tdep_fetch_frame(c,ip,n)        do {} while(0)
+#define tdep_cache_frame(c)             0
+#define tdep_reuse_frame(c,frame)       do {} while(0)
+#define tdep_stash_frame                UNW_OBJ(tdep_stash_frame)
+#define tdep_trace                      UNW_OBJ(tdep_trace)
 
 #ifdef UNW_LOCAL_ONLY
 # define tdep_find_proc_info(c,ip,n)                            \
@@ -294,22 +309,25 @@ dwarf_put (struct dwarf_cursor *c, dwarf_loc_t loc, unw_word_t val)
 #define tdep_get_ip(c)                  ((c)->dwarf.ip)
 #define tdep_big_endian(as)             ((as)->big_endian)
 
-extern int tdep_init_done;
+extern atomic_bool tdep_init_done;
 
 extern void tdep_init (void);
+extern void tdep_init_mem_validate (void);
 extern int tdep_search_unwind_table (unw_addr_space_t as, unw_word_t ip,
-				     unw_dyn_info_t *di, unw_proc_info_t *pi,
-				     int need_unwind_info, void *arg);
+                                     unw_dyn_info_t *di, unw_proc_info_t *pi,
+                                     int need_unwind_info, void *arg);
 extern void *tdep_uc_addr (unw_tdep_context_t *uc, int reg);
-/* ANDROID support update. */
-extern int tdep_get_elf_image (unw_addr_space_t as, struct elf_image *ei,
-			       pid_t pid, unw_word_t ip,
-			       unsigned long *segbase, unsigned long *mapoff,
-			       char **path, void *as_arg);
-/* End of ANDROID update. */
+extern int tdep_get_elf_image (struct elf_image *ei, pid_t pid, unw_word_t ip,
+                               unsigned long *segbase, unsigned long *mapoff,
+                               char *path, size_t pathlen);
+extern void tdep_get_exe_image_path (char *path);
 extern int tdep_access_reg (struct cursor *c, unw_regnum_t reg,
-			    unw_word_t *valp, int write);
+                            unw_word_t *valp, int write);
 extern int tdep_access_fpreg (struct cursor *c, unw_regnum_t reg,
-			      unw_fpreg_t *valp, int write);
+                              unw_fpreg_t *valp, int write);
+extern int tdep_trace (unw_cursor_t *cursor, void **addresses, int *n);
+extern void tdep_stash_frame (struct dwarf_cursor *c,
+                              struct dwarf_reg_state *rs);
+extern int tdep_getcontext_trace (unw_tdep_context_t *);
 
 #endif /* AARCH64_LIBUNWIND_I_H */

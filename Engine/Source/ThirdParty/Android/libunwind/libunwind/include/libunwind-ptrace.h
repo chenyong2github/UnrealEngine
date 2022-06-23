@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2004 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -27,6 +27,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #define libunwind_ptrace_h
 
 #include <libunwind.h>
+#include <sys/types.h>
 
 #if defined(__cplusplus) || defined(c_plusplus)
 extern "C" {
@@ -40,18 +41,18 @@ extern "C" {
 extern void *_UPT_create (pid_t);
 extern void _UPT_destroy (void *);
 extern int _UPT_find_proc_info (unw_addr_space_t, unw_word_t,
-				unw_proc_info_t *, int, void *);
+                                unw_proc_info_t *, int, void *);
 extern void _UPT_put_unwind_info (unw_addr_space_t, unw_proc_info_t *, void *);
 extern int _UPT_get_dyn_info_list_addr (unw_addr_space_t, unw_word_t *,
-					void *);
+                                        void *);
 extern int _UPT_access_mem (unw_addr_space_t, unw_word_t, unw_word_t *, int,
-			    void *);
+                            void *);
 extern int _UPT_access_reg (unw_addr_space_t, unw_regnum_t, unw_word_t *,
-			    int, void *);
+                            int, void *);
 extern int _UPT_access_fpreg (unw_addr_space_t, unw_regnum_t, unw_fpreg_t *,
-			      int, void *);
+                              int, void *);
 extern int _UPT_get_proc_name (unw_addr_space_t, unw_word_t, char *, size_t,
-			       unw_word_t *, void *);
+                               unw_word_t *, void *);
 extern int _UPT_resume (unw_addr_space_t, unw_cursor_t *, void *);
 extern unw_accessors_t _UPT_accessors;
 

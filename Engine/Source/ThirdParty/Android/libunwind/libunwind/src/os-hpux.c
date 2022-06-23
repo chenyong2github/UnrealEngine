@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2003-2005 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -31,23 +31,13 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #include "elf64.h"
 
-/* ANDROID support update. */
-extern struct map_info *local_map_list;
-HIDDEN define_lock(os_map_lock);
-
-HIDDEN struct map_info *
-maps_create_list (pid_t pid)
-{
-  return NULL;
-}
-
-PROTECTED int
-tdep_get_elf_image (unw_addr_space_t as, struct elf_image **ei,
-                    pid_t pid, unw_word_t ip,
-                    unsigned long *segbase, unsigned long *mapoff, char **path)
+HIDDEN int
+tdep_get_elf_image (struct elf_image *ei, pid_t pid, unw_word_t ip,
+                    unsigned long *segbase, unsigned long *mapoff,
+                    char *path, size_t pathlen)
 {
   struct load_module_desc lmd;
-  const char *path;
+  const char *path2;
 
   if (pid != getpid ())
     {
@@ -55,90 +45,34 @@ tdep_get_elf_image (unw_addr_space_t as, struct elf_image **ei,
       return -UNW_ENOINFO;
     }
 
-  /* First check to see if this ip is in our cache. */
-  map = map_find_from_addr(as->map_list, ip);
-  if (map)
-    goto finish;
-
-  /* Lock while we update the list. */
-  lock_acquire (&os_map_lock, saved_mask);
-
-  /* Check again if ip is in the map. */
-  map = map_find_from_addr(as->map_list, ip);
-  if (map)
-    goto release_lock;
-
-  /* Not in the cache, try and find the data. */
   if (!dlmodinfo (ip, &lmd, sizeof (lmd), NULL, 0, 0))
-    goto release_lock;
+    return -UNW_ENOINFO;
 
-  path = dlgetname (&lmd, sizeof (lmd), NULL, 0, 0);
-  if (!path)
-    goto release_lock;
+  *segbase = lmd.text_base;
+  *mapoff = 0;                  /* XXX fix me? */
 
-  map = mempool_alloc (&map_pool);
-  if (!map)
-    goto release_lock;
-
-  map->start = lmd.text_base;
-  map->end = cur_map->start + lmd.text_size;
-  map->offset = 0;			/* XXX fix me? */
-  map->flags = ;
-  map->path = strdup(path2);
-  mutex_init (&cur_map->ei_lock);
-  map->ei.size = 0;
-  map->ei.image = NULL;
-  map->ei_shared = 0;
-  Debug(1, "segbase=%lx, mapoff=%lx, path=%s\n", map->start, map->offset, map->path);
-
-  if (elf_map_cached_image (map, ip) < 0)
+  path2 = dlgetname (&lmd, sizeof (lmd), NULL, 0, 0);
+  if (!path2)
+    return -UNW_ENOINFO;
+  if (path)
     {
-      free(map);
-      map = NULL;
+      strncpy(path, path2, pathlen);
+      path[pathlen - 1] = '\0';
+      if (strcmp(path, path2) != 0)
+        Debug(1, "buffer size (%d) not big enough to hold path\n", pathlen);
     }
-  else
-    {
-      /* Add this element into list in descending order by start. */
-      struct map_info *map_list = as->map_list;
-      if (as->map_list == NULL || map->start > as->map_list->start)
-        {
-          map->next = as->map_list;
-          as->map_list = map;
-        }
-      else
-        {
-          while (map_list->next != NULL && map->start <= map_list->next->start)
-            map_list = map_list->next;
-          map->next = map_list->next;
-          map_list->next = map;
-        }
-    }
-release_lock:
-  lock_release (&os_map_lock, saved_mask);
+  Debug(1, "segbase=%lx, mapoff=%lx, path=%s\n", *segbase, *mapoff, path);
 
-finish:
-  if (map)
-    {
-      *ei = &map->ei;
-      *segbase = map->start;
-      *mapoff = map->offset;
-      if (path != NULL)
-        {
-          *path = strdup (map->path);
-        }
-    }
-  return 0;
+  return elf_map_image (ei, path);
 }
 
-PROTECTED int
-maps_is_local_readable(struct map_info *map_list, unw_word_t addr)
+#ifndef UNW_REMOTE_ONLY
+
+void
+tdep_get_exe_image_path (char *path)
 {
-  return 1;
+  path[0] = 0; /* XXX */
 }
 
-PROTECTED int
-maps_is_local_writable(struct map_info *map_list, unw_word_t addr)
-{
-  return 1;
-}
-/* End of ANDROID update. */
+#endif
+

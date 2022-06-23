@@ -26,18 +26,17 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include <string.h>
 
 #include "unwind_i.h"
-#define PREVENT_MAP_ACCESS
 
 #ifdef UNW_REMOTE_ONLY
 
 /* unw_local_addr_space is a NULL pointer in this case.  */
-PROTECTED unw_addr_space_t unw_local_addr_space;
+unw_addr_space_t unw_local_addr_space;
 
 #else /* !UNW_REMOTE_ONLY */
 
 static struct unw_addr_space local_addr_space;
 
-PROTECTED unw_addr_space_t unw_local_addr_space = &local_addr_space;
+unw_addr_space_t unw_local_addr_space = &local_addr_space;
 
 static inline void *
 uc_addr (unw_tdep_context_t *uc, int reg)
@@ -50,35 +49,6 @@ uc_addr (unw_tdep_context_t *uc, int reg)
 
 # ifdef UNW_LOCAL_ONLY
 
-#ifdef PREVENT_MAP_ACCESS
-// Attempt to avoid building the whole mem map table..
-// Try to msync the page that contains address, if it succeeds page it lives in is valid.
-static bool is_pointer_valid(unw_word_t Address)
-{
-	size_t PageSize = sysconf(_SC_PAGESIZE);
-	void* PageBase = (void*)((((size_t)Address) / PageSize) * PageSize);
-	return msync(PageBase, PageSize, MS_ASYNC) == 0;
-}
-#endif
-
-static bool MemLocal_IsReadable(unw_word_t p, size_t bytes)
-{
-#ifdef PREVENT_MAP_ACCESS
-	return is_pointer_valid(p);
-#else
-	return map_local_is_readable(p, bytes);
-#endif
-}
-
-static bool MemLocal_IsWriteable(unw_word_t p, size_t bytes)
-{
-#ifdef PREVENT_MAP_ACCESS
-	return is_pointer_valid(p);
-#else
-	return map_local_is_writable(p, bytes);
-#endif
-}
-
 HIDDEN void *
 tdep_uc_addr (unw_tdep_context_t *uc, int reg)
 {
@@ -87,69 +57,86 @@ tdep_uc_addr (unw_tdep_context_t *uc, int reg)
 
 # endif /* UNW_LOCAL_ONLY */
 
-HIDDEN unw_dyn_info_list_t _U_dyn_info_list;
-
-/* XXX fix me: there is currently no way to locate the dyn-info list
-       by a remote unwinder.  On ia64, this is done via a special
-       unwind-table entry.  Perhaps something similar can be done with
-       DWARF2 unwind info.  */
-
 static int
 get_dyn_info_list_addr (unw_addr_space_t as, unw_word_t *dyn_info_list_addr,
-			void *arg)
+                        void *arg)
 {
-  *dyn_info_list_addr = (unw_word_t) &_U_dyn_info_list;
+#ifndef UNW_LOCAL_ONLY
+# pragma weak _U_dyn_info_list_addr
+  if (!_U_dyn_info_list_addr)
+    return -UNW_ENOINFO;
+#endif
+  // Access the `_U_dyn_info_list` from `LOCAL_ONLY` library, i.e. libunwind.so.
+  *dyn_info_list_addr = _U_dyn_info_list_addr ();
+  return 0;
+}
+
+/* Cache of already validated addresses */
+#define NLGA 4
+static unw_word_t last_good_addr[NLGA];
+static int lga_victim;
+
+static int
+validate_mem (unw_word_t addr)
+{
+  int i, victim;
+  size_t len = unw_page_size;
+  addr = uwn_page_start(addr);
+
+  if (addr == 0)
+    return -1;
+
+  for (i = 0; i < NLGA; i++)
+    {
+      if (last_good_addr[i] && (addr == last_good_addr[i]))
+      return 0;
+    }
+
+  if (msync ((void *) addr, len, MS_ASYNC) == -1)
+    return -1;
+
+  victim = lga_victim;
+  for (i = 0; i < NLGA; i++) {
+    if (!last_good_addr[victim]) {
+      last_good_addr[victim++] = addr;
+      return 0;
+    }
+    victim = (victim + 1) % NLGA;
+  }
+
+  /* All slots full. Evict the victim. */
+  last_good_addr[victim] = addr;
+  victim = (victim + 1) % NLGA;
+  lga_victim = victim;
+
   return 0;
 }
 
 static int
 access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
-	    void *arg)
+            void *arg)
 {
+  /* validate address */
+    const struct cursor *c = (const struct cursor *) arg;
+    if (c && validate_mem(addr))
+      return -1;
+
   if (write)
     {
-      /* ANDROID support update. */
-#ifdef UNW_LOCAL_ONLY
-      if (MemLocal_IsWriteable (addr, sizeof(unw_word_t)))
-        {
-#endif
-          Debug (16, "mem[%x] <- %x\n", addr, *val);
-          *(unw_word_t *) addr = *val;
-#ifdef UNW_LOCAL_ONLY
-        }
-      else
-        {
-          Debug (16, "Unwritable memory mem[%x] <- %x\n", addr, *val);
-          return -1;
-        }
-#endif
-      /* End of ANDROID update. */
+      Debug (16, "mem[%x] <- %x\n", addr, *val);
+      *(unw_word_t *) addr = *val;
     }
   else
     {
-      /* ANDROID support update. */
-#ifdef UNW_LOCAL_ONLY
-      if (MemLocal_IsReadable (addr, sizeof(unw_word_t)))
-        {
-#endif
-          *val = *(unw_word_t *) addr;
-          Debug (16, "mem[%x] -> %x\n", addr, *val);
-#ifdef UNW_LOCAL_ONLY
-        }
-      else
-        {
-          Debug (16, "Unreadable memory mem[%x] -> XXX\n", addr);
-          return -1;
-        }
-#endif
-      /* End of ANDROID update. */
+      *val = *(unw_word_t *) addr;
+      Debug (16, "mem[%x] -> %x\n", addr, *val);
     }
   return 0;
 }
 
 static int
 access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val, int write,
-	    void *arg)
+            void *arg)
 {
   unw_word_t *addr;
   unw_tdep_context_t *uc = arg;
@@ -180,7 +167,7 @@ Debug (16, "reg = %s\n", unw_regname (reg));
 
 static int
 access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
-	      int write, void *arg)
+              int write, void *arg)
 {
   unw_tdep_context_t *uc = arg;
   unw_fpreg_t *addr;
@@ -194,14 +181,14 @@ access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
   if (write)
     {
       Debug (12, "%s <- %08lx.%08lx.%08lx\n", unw_regname (reg),
-	     ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
+             ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
       *(unw_fpreg_t *) addr = *val;
     }
   else
     {
       *val = *(unw_fpreg_t *) addr;
       Debug (12, "%s -> %08lx.%08lx.%08lx\n", unw_regname (reg),
-	     ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
+             ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
     }
   return 0;
 
@@ -213,38 +200,17 @@ access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
 
 static int
 get_static_proc_name (unw_addr_space_t as, unw_word_t ip,
-		      char *buf, size_t buf_len, unw_word_t *offp,
-		      void *arg)
+                      char *buf, size_t buf_len, unw_word_t *offp,
+                      void *arg)
 {
-  return _Uelf32_get_proc_name (as, getpid (), ip, buf, buf_len, offp, arg);
-}
-
-static int
-access_mem_unrestricted (unw_addr_space_t as, unw_word_t addr, unw_word_t *val,
-                         int write, void *arg)
-{
-  if (write)
-    return -1;
-
-  *val = *(unw_word_t *) addr;
-  Debug (16, "mem[%x] -> %x\n", addr, *val);
-  return 0;
-}
-
-// This initializes just enough of the address space to call the
-// access memory function.
-PROTECTED void
-unw_local_access_addr_space_init (unw_addr_space_t as)
-{
-  memset (as, 0, sizeof (*as));
-  as->acc.access_mem = access_mem_unrestricted;
+  return _Uelf32_get_proc_name (as, getpid (), ip, buf, buf_len, offp);
 }
 
 HIDDEN void
 arm_local_addr_space_init (void)
 {
   memset (&local_addr_space, 0, sizeof (local_addr_space));
-  local_addr_space.caching_policy = UNW_CACHE_GLOBAL;
+  local_addr_space.caching_policy = UNWI_DEFAULT_CACHING_POLICY;
   local_addr_space.acc.find_proc_info = arm_find_proc_info;
   local_addr_space.acc.put_unwind_info = arm_put_unwind_info;
   local_addr_space.acc.get_dyn_info_list_addr = get_dyn_info_list_addr;
@@ -254,8 +220,6 @@ arm_local_addr_space_init (void)
   local_addr_space.acc.resume = arm_local_resume;
   local_addr_space.acc.get_proc_name = get_static_proc_name;
   unw_flush_cache (&local_addr_space, 0, 0);
-
-  map_local_init ();
 }
 
 #endif /* !UNW_REMOTE_ONLY */

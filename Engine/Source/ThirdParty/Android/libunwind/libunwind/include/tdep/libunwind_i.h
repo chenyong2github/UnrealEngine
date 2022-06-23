@@ -23,6 +23,14 @@
 # include "tdep-x86/libunwind_i.h"
 #elif defined __x86_64__
 # include "tdep-x86_64/libunwind_i.h"
+#elif defined __tilegx__
+# include "tdep-tilegx/libunwind_i.h"
+#elif defined __s390x__
+# include "tdep-s390x/libunwind_i.h"
+#elif defined __riscv || defined __riscv__
+# include "tdep-riscv/libunwind_i.h"
+#elif defined __loongarch64
+# include "tdep-loongarch64/libunwind_i.h"
 #else
 # error "Unsupported arch"
 #endif
@@ -30,6 +38,6 @@
 
 #else /* UNW_REMOTE_ONLY */
 
-# include "tdep-arm/libunwind_i.h"
+# include "tdep-aarch64/libunwind_i.h"
 
 #endif /* UNW_REMOTE_ONLY */

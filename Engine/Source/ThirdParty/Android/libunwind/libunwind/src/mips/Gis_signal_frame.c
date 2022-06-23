@@ -1,4 +1,5 @@
 /* libunwind - a platform-independent unwind library
+   Copyright (C) 2015 Imagination Technologies Limited
    Copyright (C) 2008 CodeSourcery
 
 This file is part of libunwind.
@@ -25,10 +26,9 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include "unwind_i.h"
 #include <stdio.h>
 
-PROTECTED int
+int
 unw_is_signal_frame (unw_cursor_t *cursor)
 {
-/* #ifdef __linux__ */
   struct cursor *c = (struct cursor *) cursor;
   unw_word_t w0, w1, ip;
   unw_addr_space_t as;
@@ -37,7 +37,7 @@ unw_is_signal_frame (unw_cursor_t *cursor)
   int ret;
 
   as = c->dwarf.as;
-  a = unw_get_accessors (as);
+  a = unw_get_accessors_int (as);
   arg = c->dwarf.as_arg;
 
   ip = c->dwarf.ip;

@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (c) 2004 Hewlett-Packard Development Company, L.P.
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -29,7 +29,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
 #ifndef UNW_REMOTE_ONLY
 
-#if defined(__linux)
+#if defined(__linux__)
 
 # include <sys/syscall.h>
 
@@ -40,20 +40,20 @@ my_rt_sigreturn (void *new_sp, int in_syscall)
   register unsigned long r20 __asm__ ("r20") = SYS_rt_sigreturn;
 
   __asm__ __volatile__ ("copy %0, %%sp\n"
-			"be,l 0x100(%%sr2,%%r0),%%sr0,%%r31\n"
-			"nop"
-			:
-			: "r"(new_sp), "r"(r20), "r"(r25)
-			: "memory");
+                        "be,l 0x100(%%sr2,%%r0),%%sr0,%%r31\n"
+                        "nop"
+                        :
+                        : "r"(new_sp), "r"(r20), "r"(r25)
+                        : "memory");
   abort ();
 }
 
-#endif /* __linux */
+#endif /* __linux__ */
 
 HIDDEN inline int
 hppa_local_resume (unw_addr_space_t as, unw_cursor_t *cursor, void *arg)
 {
-#if defined(__linux)
+#if defined(__linux__)
   struct cursor *c = (struct cursor *) cursor;
   ucontext_t *uc = c->dwarf.as_arg;
 
@@ -90,9 +90,9 @@ static inline int
 establish_machine_state (struct cursor *c)
 {
   int (*access_reg) (unw_addr_space_t, unw_regnum_t, unw_word_t *,
-		     int write, void *);
+                     int write, void *);
   int (*access_fpreg) (unw_addr_space_t, unw_regnum_t, unw_fpreg_t *,
-		       int write, void *);
+                       int write, void *);
   unw_addr_space_t as = c->dwarf.as;
   void *arg = c->dwarf.as_arg;
   unw_fpreg_t fpval;
@@ -108,20 +108,20 @@ establish_machine_state (struct cursor *c)
     {
       Debug (16, "copying %s %d\n", unw_regname (reg), reg);
       if (unw_is_fpreg (reg))
-	{
-	  if (tdep_access_fpreg (c, reg, &fpval, 0) >= 0)
-	    (*access_fpreg) (as, reg, &fpval, 1, arg);
-	}
+        {
+          if (tdep_access_fpreg (c, reg, &fpval, 0) >= 0)
+            (*access_fpreg) (as, reg, &fpval, 1, arg);
+        }
       else
-	{
-	  if (tdep_access_reg (c, reg, &val, 0) >= 0)
-	    (*access_reg) (as, reg, &val, 1, arg);
-	}
+        {
+          if (tdep_access_reg (c, reg, &val, 0) >= 0)
+            (*access_reg) (as, reg, &val, 1, arg);
+        }
     }
   return 0;
 }
 
-PROTECTED int
+int
 unw_resume (unw_cursor_t *cursor)
 {
   struct cursor *c = (struct cursor *) cursor;
@@ -141,5 +141,5 @@ unw_resume (unw_cursor_t *cursor)
     return ret;
 
   return (*c->dwarf.as->acc.resume) (c->dwarf.as, (unw_cursor_t *) c,
-				     c->dwarf.as_arg);
+                                     c->dwarf.as_arg);
 }

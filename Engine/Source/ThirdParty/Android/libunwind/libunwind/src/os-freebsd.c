@@ -56,7 +56,7 @@ get_pid_by_tid(int tid)
   size_t len, len1;
   char *buf;
   struct kinfo_proc *kv;
-  int i, pid;
+  unsigned i, pid;
 
   len = 0;
   mib[0] = CTL_KERN;
@@ -88,15 +88,14 @@ get_pid_by_tid(int tid)
   return (pid);
 }
 
-/* ANDROID support update. */
-struct map_info *
-map_create_list(pid_t pid)
+int
+tdep_get_elf_image (struct elf_image *ei, pid_t pid, unw_word_t ip,
+                    unsigned long *segbase, unsigned long *mapoff, char *path, size_t pathlen)
 {
   int mib[4], error, ret;
   size_t len, len1;
   char *buf, *bp, *eb;
   struct kinfo_vmentry *kv;
-  struct map_info *map_list = NULL;
 
   len = 0;
   mib[0] = CTL_KERN;
@@ -106,15 +105,13 @@ map_create_list(pid_t pid)
 
   error = sysctl(mib, 4, NULL, &len, NULL, 0);
   if (error == -1) {
-    if (errno == ESRCH)
-      {
-        mib[3] = get_pid_by_tid(pid);
-        if (mib[3] != -1)
-          error = sysctl(mib, 4, NULL, &len, NULL, 0);
-        if (error == -1)
-          return (-UNW_EUNSPEC);
-      }
-    else
+    if (errno == ESRCH) {
+      mib[3] = get_pid_by_tid(pid);
+      if (mib[3] != -1)
+        error = sysctl(mib, 4, NULL, &len, NULL, 0);
+      if (error == -1)
+        return (-UNW_EUNSPEC);
+    } else
       return (-UNW_EUNSPEC);
   }
   len1 = len * 4 / 3;
@@ -123,33 +120,47 @@ map_create_list(pid_t pid)
     return (-UNW_EUNSPEC);
   len = len1;
   error = sysctl(mib, 4, buf, &len, NULL, 0);
-  if (error == -1)
-    {
-      free_mem(buf, len1);
-      return (-UNW_EUNSPEC);
-    }
+  if (error == -1) {
+    free_mem(buf, len1);
+    return (-UNW_EUNSPEC);
+  }
   ret = -UNW_EUNSPEC;
-  for (bp = buf, eb = buf + len; bp < eb; bp += kv->kve_structsize)
-    {
-      kv = (struct kinfo_vmentry *)(uintptr_t)bp;
-      if (kv->kve_type != KVME_TYPE_VNODE)
-        continue;
-
-      cur_map = map_alloc_info ();
-      if (cur_map == NULL)
-        break;
-      cur_map->next = map_list;
-      cur_map->start = kv->kve_start;
-      cur_map->end = kv->kv_end;
-      cur_map->offset = kv->kve_offset;
-      cur_map->path = strdup(kv->kve_path);
-      mutex_init (&cur_map->ei_lock);
-      cur_map->ei.size = 0;
-      cur_map->ei.image = NULL;
-      cur_map->ei_shared = 0;
-    }
+  for (bp = buf, eb = buf + len; bp < eb; bp += kv->kve_structsize) {
+     kv = (struct kinfo_vmentry *)(uintptr_t)bp;
+     if (ip < kv->kve_start || ip >= kv->kve_end)
+       continue;
+     if (kv->kve_type != KVME_TYPE_VNODE)
+       continue;
+     *segbase = kv->kve_start;
+     *mapoff = kv->kve_offset;
+     if (path)
+       {
+         strncpy(path, kv->kve_path, pathlen);
+       }
+     ret = elf_map_image (ei, kv->kve_path);
+     break;
+  }
   free_mem(buf, len1);
-
-  return map_list;
+  return (ret);
 }
-/* End of ANDROID update. */
+
+#ifndef UNW_REMOTE_ONLY
+
+void
+tdep_get_exe_image_path (char *path)
+{
+  int mib[4], error;
+  size_t len;
+
+  len = 0;
+  mib[0] = CTL_KERN;
+  mib[1] = KERN_PROC;
+  mib[2] = KERN_PROC_PATHNAME;
+  mib[3] = getpid();
+
+  error = sysctl(mib, 4, path, &len, NULL, 0);
+  if (error == -1)
+	  path[0] = 0;
+}
+
+#endif

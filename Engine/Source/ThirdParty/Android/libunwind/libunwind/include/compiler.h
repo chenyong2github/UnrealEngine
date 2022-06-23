@@ -1,7 +1,7 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2001-2005 Hewlett-Packard Co
    Copyright (C) 2007 David Mosberger-Tang
-	Contributed by David Mosberger-Tang <dmosberger@gmail.com>
+        Contributed by David Mosberger-Tang <dmosberger@gmail.com>
 
 This file is part of libunwind.
 
@@ -31,31 +31,28 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #define COMPILER_H
 
 #ifdef __GNUC__
-# define ALIGNED(x)	__attribute__((aligned(x)))
-# define CONST_ATTR	__attribute__((__const__))
-# define UNUSED		__attribute__((unused))
-# define NOINLINE	__attribute__((noinline))
-# define NORETURN	__attribute__((noreturn))
-# define ALIAS(name)	__attribute__((alias (#name)))
+# define CONST_ATTR     __attribute__((__const__))
+# define UNUSED         __attribute__((unused))
+# define NOINLINE       __attribute__((noinline))
+# define NORETURN       __attribute__((noreturn))
+# define ALIAS2(name)   #name
+# define ALIAS(name)    __attribute__((alias (ALIAS2(name))))
 # if (__GNUC__ > 3) || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-#  define ALWAYS_INLINE	inline __attribute__((always_inline))
-#  define HIDDEN	__attribute__((visibility ("hidden")))
-#  define PROTECTED	__attribute__((visibility ("protected")))
+#  define ALWAYS_INLINE inline __attribute__((always_inline))
+#  define HIDDEN        __attribute__((visibility ("hidden")))
 # else
 #  define ALWAYS_INLINE
 #  define HIDDEN
-#  define PROTECTED
 # endif
-# define WEAK		__attribute__((weak))
+# define WEAK           __attribute__((weak))
 # if (__GNUC__ >= 3)
-#  define likely(x)	__builtin_expect ((x), 1)
-#  define unlikely(x)	__builtin_expect ((x), 0)
+#  define likely(x)     __builtin_expect ((x), 1)
+#  define unlikely(x)   __builtin_expect ((x), 0)
 # else
-#  define likely(x)	(x)
-#  define unlikely(x)	(x)
+#  define likely(x)     (x)
+#  define unlikely(x)   (x)
 # endif
 #else
-# define ALIGNED(x)
 # define ALWAYS_INLINE
 # define CONST_ATTR
 # define UNUSED
@@ -63,12 +60,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 # define NORETURN
 # define ALIAS(name)
 # define HIDDEN
-# define PROTECTED
 # define WEAK
-# define likely(x)	(x)
-# define unlikely(x)	(x)
+# define likely(x)      (x)
+# define unlikely(x)    (x)
 #endif
 
-#define ARRAY_SIZE(a)	(sizeof (a) / sizeof ((a)[0]))
+#define ARRAY_SIZE(a)   (sizeof (a) / sizeof ((a)[0]))
 
 #endif /* COMPILER_H */

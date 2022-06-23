@@ -27,11 +27,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 #include "unwind_i.h"
 #include "offsets.h"
 
-PROTECTED int
-unw_handle_signal_frame (unw_cursor_t *cursor)
+static int
+sh_handle_signal_frame (unw_cursor_t *cursor)
 {
   struct cursor *c = (struct cursor *) cursor;
-  int ret;
+  int i, ret;
   unw_word_t sc_addr, sp, sp_addr = c->dwarf.cfa;
   struct dwarf_loc sp_loc = DWARF_LOC (sp_addr, 0);
 
@@ -62,6 +62,9 @@ unw_handle_signal_frame (unw_cursor_t *cursor)
     return -UNW_EUNSPEC;
 
   c->sigcontext_addr = sc_addr;
+
+  for (i = 0; i < DWARF_NUM_PRESERVED_REGS; ++i)
+    c->dwarf.loc[i] = DWARF_NULL_LOC;
 
   /* Update the dwarf cursor.
      Set the location of the registers to the corresponding addresses of the
@@ -94,7 +97,7 @@ unw_handle_signal_frame (unw_cursor_t *cursor)
   return 1;
 }
 
-PROTECTED int
+int
 unw_step (unw_cursor_t *cursor)
 {
   struct cursor *c = (struct cursor *) cursor;
@@ -102,8 +105,8 @@ unw_step (unw_cursor_t *cursor)
 
   Debug (1, "(cursor=%p)\n", c);
 
-  if (unw_is_signal_frame (cursor))
-    return unw_handle_signal_frame (cursor);
+  if (unw_is_signal_frame (cursor) > 0)
+    return sh_handle_signal_frame (cursor);
 
   ret = dwarf_step (&c->dwarf);
 

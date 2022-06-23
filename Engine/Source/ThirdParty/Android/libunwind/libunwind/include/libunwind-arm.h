@@ -32,10 +32,14 @@ extern "C" {
 #include <inttypes.h>
 #include <stddef.h>
 
-#define UNW_TARGET	arm
-#define UNW_TARGET_ARM	1
+#ifndef UNW_EMPTY_STRUCT
+#  define UNW_EMPTY_STRUCT uint8_t unused;
+#endif
 
-#define _U_TDEP_QP_TRUE	0	/* see libunwind-dynamic.h  */
+#define UNW_TARGET      arm
+#define UNW_TARGET_ARM  1
+
+#define _U_TDEP_QP_TRUE 0       /* see libunwind-dynamic.h  */
 
 /* This needs to be big enough to accommodate "struct cursor", while
    leaving some slack for future expansion.  Changing this value will
@@ -44,7 +48,7 @@ extern "C" {
    want to err on making it rather too big than too small.  */
    
 /* FIXME for ARM. Too big?  What do other things use for similar tasks?  */
-#define UNW_TDEP_CURSOR_LEN	4096
+#define UNW_TDEP_CURSOR_LEN     4096
 
 typedef uint32_t unw_word_t;
 typedef int32_t unw_sword_t;
@@ -236,20 +240,18 @@ typedef enum
 
     UNW_TDEP_LAST_REG = UNW_ARM_D31,
 
-    UNW_TDEP_IP = UNW_ARM_R14,  /* A little white lie.  */
+    UNW_TDEP_IP = UNW_ARM_R15,
     UNW_TDEP_SP = UNW_ARM_R13,
     UNW_TDEP_EH = UNW_ARM_R0   /* FIXME.  */
   }
 arm_regnum_t;
 
-#define UNW_TDEP_NUM_EH_REGS	2	/* FIXME for ARM.  */
+#define UNW_TDEP_NUM_EH_REGS    2       /* FIXME for ARM.  */
 
 typedef struct unw_tdep_save_loc
   {
     /* Additional target-dependent info on a save location.  */
-    /* ANDROID support update. */
-    char __reserved;
-    /* End of ANDROID update. */
+    UNW_EMPTY_STRUCT
   }
 unw_tdep_save_loc_t;
 
@@ -262,27 +264,42 @@ typedef struct unw_tdep_context
   }
 unw_tdep_context_t;
 
-/* There is no getcontext() on ARM.  Use a stub version which only saves GP
-   registers.  FIXME: Not ideal, may not be sufficient for all libunwind
-   use cases.  Stores pc+8, which is only approximately correct, really.  */
+/* FIXME: this is a stub version which only saves GP registers.  Not ideal, but
+   may be sufficient for all libunwind use cases.
+   In thumb mode, we return directly back to thumb mode on return (with bx), to
+   avoid altering any registers after unw_resume. */
 #ifndef __thumb__
-#define unw_tdep_getcontext(uc) (({					\
+#define unw_tdep_getcontext(uc) ({					\
   unw_tdep_context_t *unw_ctx = (uc);					\
-  register unsigned long *unw_base asm ("r0") = unw_ctx->regs;		\
+  register unsigned long *r0 __asm__ ("r0");				\
+  unsigned long *unw_base = unw_ctx->regs;				\
   __asm__ __volatile__ (						\
-    "stmia %[base], {r0-r15}"						\
-    : : [base] "r" (unw_base) : "memory");				\
-  }), 0)
-#else /* __thumb__ */
-#define unw_tdep_getcontext(uc) (({					\
-  unw_tdep_context_t *unw_ctx = (uc);					\
-  register unsigned long *unw_base asm ("r0") = unw_ctx->regs;		\
-  __asm__ __volatile__ (						\
-    ".align 2\nbx pc\nnop\n.code 32\n"					\
+    "mov r0, #0\n"							\
     "stmia %[base], {r0-r15}\n"						\
-    "orr %[base], pc, #1\nbx %[base]"					\
-    : [base] "+r" (unw_base) : : "memory", "cc");			\
-  }), 0)
+    "nop\n" /* align return address to value stored by stmia */		\
+    : [r0] "=r" (r0) : [base] "r" (unw_base) : "memory");		\
+  (int)r0; })
+#else /* __thumb__ */
+#define unw_tdep_getcontext(uc) ({					\
+  unw_tdep_context_t *unw_ctx = (uc);					\
+  register unsigned long *r0 __asm__ ("r0");				\
+  unsigned long *unw_base = unw_ctx->regs;				\
+  __asm__ __volatile__ (						\
+    ".align 2\n"							\
+    "bx pc\n"								\
+    "nop\n"								\
+    ".code 32\n"							\
+    "mov r0, #0\n"							\
+    "stmia %[base], {r0-r14}\n"						\
+    "adr r0, ret%=+1\n"							\
+    "str r0, [%[base], #60]\n"						\
+    "orr r0, pc, #1\n"							\
+    "bx r0\n"								\
+    ".code 16\n"							\
+    "mov r0, #0\n"							\
+    "ret%=:\n"								\
+    : [r0] "=r" (r0) : [base] "r" (unw_base) : "memory", "cc");		\
+  (int)r0; })
 #endif
 
 #include "libunwind-dynamic.h"
@@ -290,15 +307,13 @@ unw_tdep_context_t;
 typedef struct
   {
     /* no arm-specific auxiliary proc-info */
-    /* ANDROID support update. */
-    char __reserved;
-    /* End of ANDROID update. */
+    UNW_EMPTY_STRUCT
   }
 unw_tdep_proc_info_t;
 
 #include "libunwind-common.h"
 
-#define unw_tdep_is_fpreg		UNW_ARCH_OBJ(is_fpreg)
+#define unw_tdep_is_fpreg               UNW_ARCH_OBJ(is_fpreg)
 extern int unw_tdep_is_fpreg (int);
 
 #if defined(__cplusplus) || defined(c_plusplus)

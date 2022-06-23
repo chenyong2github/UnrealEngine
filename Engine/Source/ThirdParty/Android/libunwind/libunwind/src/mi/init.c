@@ -1,6 +1,6 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2002-2005 Hewlett-Packard Co
-	Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
+        Contributed by David Mosberger-Tang <davidm@hpl.hp.com>
 
 This file is part of libunwind.
 
@@ -32,13 +32,37 @@ static const char rcsid[] UNUSED =
 
 #if UNW_DEBUG
 
-/* Must not be declared HIDDEN/PROTECTED because libunwind.so and
+/* Must not be declared HIDDEN because libunwind.so and
    libunwind-PLATFORM.so will both define their own copies of this
    variable and we want to use only one or the other when both
    libraries are loaded.  */
 long unwi_debug_level;
 
 #endif /* UNW_DEBUG */
+long unw_page_size;
+static void
+unw_init_page_size ()
+{
+  errno = 0;
+  long result = sysconf (_SC_PAGESIZE);
+  if (result == -1)
+    {
+      if (errno != 0)
+        {
+          print_error ("Failed to get _SC_PAGESIZE: ");
+          print_error (strerror(errno));
+          print_error ("\n");
+        }
+        else
+          print_error ("Failed to get _SC_PAGESIZE, errno was not set.\n");
+
+      unw_page_size = 4096;
+    }
+  else
+    {
+      unw_page_size = result;
+    }
+}
 
 HIDDEN void
 mi_init (void)
@@ -55,6 +79,6 @@ mi_init (void)
       setbuf (stderr, NULL);
     }
 #endif
-
-  assert (sizeof (struct cursor) <= sizeof (unw_cursor_t));
+  unw_init_page_size();
+  assert(sizeof(struct cursor) <= sizeof(unw_cursor_t));
 }

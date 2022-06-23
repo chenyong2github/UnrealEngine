@@ -1,7 +1,7 @@
 /* libunwind - a platform-independent unwind library
    Copyright (C) 2002 Hewlett-Packard Co
    Copyright (C) 2007 David Mosberger-Tang
-	Contributed by David Mosberger-Tang <dmosberger@gmail.com>
+        Contributed by David Mosberger-Tang <dmosberger@gmail.com>
 
    Modified for x86_64 by Max Asbock <masbock@us.ibm.com>
 
@@ -26,66 +26,32 @@ LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
 OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
 WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.  */
 
+#include "libunwind_i.h"
 #ifdef HAVE_CONFIG_H
 #include <config.h>
 #endif
 
+#include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/mman.h>
+#if defined(HAVE_SYS_SYSCALL_H)
+# include <sys/syscall.h>
+#endif
+#include <stdatomic.h>
 
 #include "unwind_i.h"
-#define PREVENT_MAP_ACCESS
-
-#ifdef UNW_LOCAL_ONLY
-#ifdef PREVENT_MAP_ACCESS
-// Attempt to avoid building the whole mem map table..
-// Try to msync the page that contains address, if it succeeds page it lives in is valid.
-static bool is_pointer_valid(unw_word_t Address)
-{
-	size_t PageSize = sysconf(_SC_PAGESIZE);
-	void* PageBase = (void*)((((size_t)Address) / PageSize) * PageSize);
-	return msync(PageBase, PageSize, MS_ASYNC) == 0;
-}
-#endif
-
-static bool MemLocal_IsReadable(unw_word_t p, size_t bytes)
-{
-#ifdef PREVENT_MAP_ACCESS
-	return is_pointer_valid(p);
-#else
-	return map_local_is_readable(p, bytes);
-#endif
-}
-
-static bool MemLocal_IsWriteable(unw_word_t p, size_t bytes)
-{
-#ifdef PREVENT_MAP_ACCESS
-	return is_pointer_valid(p);
-#else
-	return map_local_is_writable(p, bytes);
-#endif
-}
-#endif
-
 
 #ifdef UNW_REMOTE_ONLY
 
 /* unw_local_addr_space is a NULL pointer in this case.  */
-PROTECTED unw_addr_space_t unw_local_addr_space;
+unw_addr_space_t unw_local_addr_space;
 
 #else /* !UNW_REMOTE_ONLY */
 
 static struct unw_addr_space local_addr_space;
 
-PROTECTED unw_addr_space_t unw_local_addr_space = &local_addr_space;
-
-HIDDEN unw_dyn_info_list_t _U_dyn_info_list;
-
-/* XXX fix me: there is currently no way to locate the dyn-info list
-       by a remote unwinder.  On ia64, this is done via a special
-       unwind-table entry.  Perhaps something similar can be done with
-       DWARF2 unwind info.  */
+unw_addr_space_t unw_local_addr_space = &local_addr_space;
 
 static void
 put_unwind_info (unw_addr_space_t as, unw_proc_info_t *proc_info, void *arg)
@@ -95,26 +61,119 @@ put_unwind_info (unw_addr_space_t as, unw_proc_info_t *proc_info, void *arg)
 
 static int
 get_dyn_info_list_addr (unw_addr_space_t as, unw_word_t *dyn_info_list_addr,
-			void *arg)
+                        void *arg)
 {
-  *dyn_info_list_addr = (unw_word_t) &_U_dyn_info_list;
+#ifndef UNW_LOCAL_ONLY
+# pragma weak _U_dyn_info_list_addr
+  if (!_U_dyn_info_list_addr)
+    return -UNW_ENOINFO;
+#endif
+  // Access the `_U_dyn_info_list` from `LOCAL_ONLY` library, i.e. libunwind.so.
+  *dyn_info_list_addr = _U_dyn_info_list_addr ();
   return 0;
 }
 
-#define PAGE_SIZE 4096
-#define PAGE_START(a)	((a) & ~(PAGE_SIZE-1))
+static int mem_validate_pipe[2] = {-1, -1};
+
+#ifdef HAVE_PIPE2
+static inline void
+do_pipe2 (int pipefd[2])
+{
+  pipe2 (pipefd, O_CLOEXEC | O_NONBLOCK);
+}
+#else
+static inline void
+set_pipe_flags (int fd)
+{
+  int fd_flags = fcntl (fd, F_GETFD, 0);
+  int status_flags = fcntl (fd, F_GETFL, 0);
+
+  fd_flags |= FD_CLOEXEC;
+  fcntl (fd, F_SETFD, fd_flags);
+
+  status_flags |= O_NONBLOCK;
+  fcntl (fd, F_SETFL, status_flags);
+}
+
+static inline void
+do_pipe2 (int pipefd[2])
+{
+  pipe (pipefd);
+  set_pipe_flags(pipefd[0]);
+  set_pipe_flags(pipefd[1]);
+}
+#endif
+
+static inline void
+open_pipe (void)
+{
+  if (mem_validate_pipe[0] != -1)
+    close (mem_validate_pipe[0]);
+  if (mem_validate_pipe[1] != -1)
+    close (mem_validate_pipe[1]);
+
+  do_pipe2 (mem_validate_pipe);
+}
+
+ALWAYS_INLINE
+static int
+write_validate (void *addr)
+{
+  int ret = -1;
+  ssize_t bytes = 0;
+
+  do
+    {
+      char buf;
+      bytes = read (mem_validate_pipe[0], &buf, 1);
+    }
+  while ( errno == EINTR );
+
+  int valid_read = (bytes > 0 || errno == EAGAIN || errno == EWOULDBLOCK);
+  if (!valid_read)
+    {
+      // re-open closed pipe
+      open_pipe ();
+    }
+
+  do
+    {
+#ifdef HAVE_SYS_SYSCALL_H
+       /* use syscall insteadof write() so that ASAN does not complain */
+       ret = syscall (SYS_write, mem_validate_pipe[1], addr, 1);
+#else
+	  ret = write (mem_validate_pipe[1], addr, 1);
+#endif
+    }
+  while ( errno == EINTR );
+
+  return ret;
+}
 
 static int (*mem_validate_func) (void *addr, size_t len);
 static int msync_validate (void *addr, size_t len)
 {
-  return msync (addr, len, MS_ASYNC);
+  if (msync (addr, len, MS_ASYNC) != 0)
+    {
+      return -1;
+    }
+
+  return write_validate (addr);
 }
 
 #ifdef HAVE_MINCORE
 static int mincore_validate (void *addr, size_t len)
 {
   unsigned char mvec[2]; /* Unaligned access may cross page boundary */
-  return mincore (addr, len, mvec);
+
+  /* mincore could fail with EAGAIN but we conservatively return -1
+     instead of looping. */
+  if (mincore (addr, len, (unsigned char *)mvec) != 0)
+    {
+      return -1;
+    }
+
+  return write_validate (addr);
 }
 #endif
 
@@ -125,9 +184,17 @@ static int mincore_validate (void *addr, size_t len)
 HIDDEN void
 tdep_init_mem_validate (void)
 {
+  open_pipe ();
+
 #ifdef HAVE_MINCORE
   unsigned char present = 1;
-  if (mincore (&present, 1, &present) == 0)
+  size_t len = unw_page_size;
+  unw_word_t addr = uwn_page_start((unw_word_t)&present);
+  unsigned char mvec[1];
+  int ret;
+  while ((ret = mincore ((void*)addr, len, (unsigned char *)mvec)) == -1 &&
+         errno == EAGAIN) {}
+  if (ret == 0)
     {
       Debug(1, "using mincore to validate memory\n");
       mem_validate_func = mincore_validate;
@@ -142,39 +209,32 @@ tdep_init_mem_validate (void)
 
 /* Cache of already validated addresses */
 #define NLGA 4
-static unw_word_t last_good_addr[NLGA];
-static int lga_victim;
+#if defined(HAVE___CACHE_PER_THREAD) && HAVE___CACHE_PER_THREAD
+// thread-local variant
+static _Thread_local unw_word_t last_good_addr[NLGA];
+static _Thread_local int lga_victim;
 
 static int
-validate_mem (unw_word_t addr)
+is_cached_valid_mem(unw_word_t addr)
 {
-  int i, victim;
-  size_t len;
-
-  if (PAGE_START(addr + sizeof (unw_word_t) - 1) == PAGE_START(addr))
-    len = PAGE_SIZE;
-  else
-    len = PAGE_SIZE * 2;
-
-  addr = PAGE_START(addr);
-
-  if (addr == 0)
-    return -1;
-
+  int i;
   for (i = 0; i < NLGA; i++)
     {
-      if (last_good_addr[i] && (addr == last_good_addr[i]))
-	return 0;
+      if (addr == last_good_addr[i])
+        return 1;
     }
+  return 0;
+}
 
-  if (mem_validate_func ((void *) addr, len) == -1)
-    return -1;
-
+static void
+cache_valid_mem(unw_word_t addr)
+{
+  int i, victim;
   victim = lga_victim;
   for (i = 0; i < NLGA; i++) {
-    if (!last_good_addr[victim]) {
-      last_good_addr[victim++] = addr;
-      return 0;
+    if (last_good_addr[victim] == 0) {
+      last_good_addr[victim] = addr;
+      return;
     }
     victim = (victim + 1) % NLGA;
   }
@@ -183,68 +243,94 @@ validate_mem (unw_word_t addr)
   last_good_addr[victim] = addr;
   victim = (victim + 1) % NLGA;
   lga_victim = victim;
+}
+
+#else
+// global, thread safe variant
+static _Atomic unw_word_t last_good_addr[NLGA];
+static _Atomic int lga_victim;
+
+static int
+is_cached_valid_mem(unw_word_t addr)
+{
+  int i;
+  for (i = 0; i < NLGA; i++)
+    {
+      if (addr == atomic_load(&last_good_addr[i]))
+        return 1;
+    }
+  return 0;
+}
+
+static void
+cache_valid_mem(unw_word_t addr)
+{
+  int i, victim;
+  victim = atomic_load(&lga_victim);
+  unw_word_t zero = 0;
+  for (i = 0; i < NLGA; i++) {
+    if (atomic_compare_exchange_strong(&last_good_addr[victim], &zero, addr)) {
+      return;
+    }
+    victim = (victim + 1) % NLGA;
+  }
+
+  /* All slots full. Evict the victim. */
+  atomic_store(&last_good_addr[victim], addr);
+  victim = (victim + 1) % NLGA;
+  atomic_store(&lga_victim, victim);
+}
+#endif
+
+static int
+validate_mem (unw_word_t addr)
+{
+  size_t len = unw_page_size;
+  addr = uwn_page_start(addr);
+
+  if (addr == 0)
+    return -1;
+
+  if (is_cached_valid_mem(addr))
+    return 0;
+
+  if (mem_validate_func ((void *) addr, len) == -1)
+    return -1;
+
+  cache_valid_mem(addr);
 
   return 0;
 }
 
 static int
 access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
-	    void *arg)
+            void *arg)
 {
   if (unlikely (write))
     {
-      /* ANDROID support update. */
-#ifdef UNW_LOCAL_ONLY
-      if (MemLocal_IsWriteable (addr, sizeof(unw_word_t)))
-        {
-#endif
-          Debug (16, "mem[%016lx] <- %lx\n", addr, *val);
-          *(unw_word_t *) addr = *val;
-#ifdef UNW_LOCAL_ONLY
-        }
-      else
-        {
-          Debug (16, "Unwritable memory mem[%016lx] <- %lx\n", addr, *val);
-          return -1;
-        }
-#endif
-      /* End of ANDROID update. */
+      Debug (16, "mem[%016lx] <- %lx\n", addr, *val);
+      *(unw_word_t *) addr = *val;
     }
   else
     {
-      /* ANDROID support update. */
-#ifdef CONSERVATIVE_CHECKS
-      if (unlikely (validate_mem (addr)))
+      /* validate address */
+      if (unlikely (AS_ARG_GET_VALIDATE(arg))
+          && unlikely (validate_mem (addr))) {
+        Debug (16, "mem[%016lx] -> invalid\n", addr);
         return -1;
-#endif
-      /* End of ANDROID update. */
-
-      /* ANDROID support update. */
-#ifdef UNW_LOCAL_ONLY
-      if (MemLocal_IsReadable (addr, sizeof(unw_word_t)))
-        {
-#endif
-          *val = *(unw_word_t *) addr;
-          Debug (16, "mem[%016lx] -> %lx\n", addr, *val);
-#ifdef UNW_LOCAL_ONLY
-        }
-      else
-        {
-          Debug (16, "Unreadable memory mem[%016lx] -> XXX\n", addr);
-          return -1;
-        }
-#endif
-      /* End of ANDROID update. */
+      }
+      *val = *(unw_word_t *) addr;
+      Debug (16, "mem[%016lx] -> %lx\n", addr, *val);
     }
   return 0;
 }
 
 static int
 access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val, int write,
-	    void *arg)
+            void *arg)
 {
   unw_word_t *addr;
-  ucontext_t *uc = ((struct cursor *)arg)->uc;
+  ucontext_t *uc = AS_ARG_GET_UC_PTR(arg);
 
   if (unw_is_fpreg (reg))
     goto badreg;
@@ -271,9 +357,9 @@ access_reg (unw_addr_space_t as, unw_regnum_t reg, unw_word_t *val, int write,
 
 static int
 access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
-	      int write, void *arg)
+              int write, void *arg)
 {
-  ucontext_t *uc = ((struct cursor *)arg)->uc;
+  ucontext_t *uc = AS_ARG_GET_UC_PTR(arg);
   unw_fpreg_t *addr;
 
   if (!unw_is_fpreg (reg))
@@ -285,14 +371,14 @@ access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
   if (write)
     {
       Debug (12, "%s <- %08lx.%08lx.%08lx\n", unw_regname (reg),
-	     ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
+             ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
       *(unw_fpreg_t *) addr = *val;
     }
   else
     {
       *val = *(unw_fpreg_t *) addr;
       Debug (12, "%s -> %08lx.%08lx.%08lx\n", unw_regname (reg),
-	     ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
+             ((long *)val)[0], ((long *)val)[1], ((long *)val)[2]);
     }
   return 0;
 
@@ -304,38 +390,17 @@ access_fpreg (unw_addr_space_t as, unw_regnum_t reg, unw_fpreg_t *val,
 
 static int
 get_static_proc_name (unw_addr_space_t as, unw_word_t ip,
-		      char *buf, size_t buf_len, unw_word_t *offp,
-		      void *arg)
+                      char *buf, size_t buf_len, unw_word_t *offp,
+                      void *arg)
 {
-  return _Uelf64_get_proc_name (as, getpid (), ip, buf, buf_len, offp, arg);
-}
-
-static int
-access_mem_unrestricted (unw_addr_space_t as, unw_word_t addr, unw_word_t *val,
-                         int write, void *arg)
-{
-  if (write)
-    return -1;
-
-  *val = *(unw_word_t *) addr;
-  Debug (16, "mem[%016lx] -> %lx\n", addr, *val);
-  return 0;
-}
-
-// This initializes just enough of the address space to call the
-// access memory function.
-PROTECTED void
-unw_local_access_addr_space_init (unw_addr_space_t as)
-{
-  memset (as, 0, sizeof (*as));
-  as->acc.access_mem = access_mem_unrestricted;
+  return _Uelf64_get_proc_name (as, getpid (), ip, buf, buf_len, offp);
 }
 
 HIDDEN void
 x86_64_local_addr_space_init (void)
 {
   memset (&local_addr_space, 0, sizeof (local_addr_space));
-  local_addr_space.caching_policy = UNW_CACHE_GLOBAL;
+  local_addr_space.caching_policy = UNWI_DEFAULT_CACHING_POLICY;
   local_addr_space.acc.find_proc_info = dwarf_find_proc_info;
   local_addr_space.acc.put_unwind_info = put_unwind_info;
   local_addr_space.acc.get_dyn_info_list_addr = get_dyn_info_list_addr;
@@ -345,11 +410,6 @@ x86_64_local_addr_space_init (void)
   local_addr_space.acc.resume = x86_64_local_resume;
   local_addr_space.acc.get_proc_name = get_static_proc_name;
   unw_flush_cache (&local_addr_space, 0, 0);
-
-  memset (last_good_addr, 0, sizeof (unw_word_t) * NLGA);
-  lga_victim = 0;
-
-  map_local_init ();
 }
 
 #endif /* !UNW_REMOTE_ONLY */

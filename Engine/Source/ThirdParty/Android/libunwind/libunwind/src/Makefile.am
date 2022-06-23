@@ -60,6 +60,7 @@ libunwind_coredump_la_SOURCES = \
 	coredump/_UCD_elf_map_image.c \
 	coredump/_UCD_find_proc_info.c \
 	coredump/_UCD_get_proc_name.c \
+	coredump/_UCD_corefile_elf.c \
 	\
 	coredump/_UPT_elf.c \
 	coredump/_UPT_access_fpreg.c \
@@ -68,7 +69,8 @@ libunwind_coredump_la_SOURCES = \
 	coredump/_UPT_resume.c
 libunwind_coredump_la_LDFLAGS = $(COMMON_SO_LDFLAGS) \
 				-version-info $(COREDUMP_SO_VERSION)
-noinst_HEADERS += coredump/_UCD_internal.h
+libunwind_coredump_la_LIBADD = $(LIBLZMA) $(LIBZ)
+noinst_HEADERS += coredump/_UCD_internal.h coredump/_UCD_lib.h
 
 ### libunwind-setjmp:
 libunwind_setjmp_la_LDFLAGS		= $(COMMON_SO_LDFLAGS)		     \
@@ -108,7 +110,8 @@ libunwind_la_SOURCES_generic =						\
 	mi/Gput_dynamic_unwind_info.c mi/Gdestroy_addr_space.c		\
 	mi/Gget_reg.c mi/Gset_reg.c					\
 	mi/Gget_fpreg.c mi/Gset_fpreg.c					\
-	mi/Gset_caching_policy.c
+	mi/Gset_caching_policy.c					\
+	mi/Gset_cache_size.c
 
 if SUPPORT_CXX_EXCEPTIONS
 libunwind_la_SOURCES_local_unwind =					\
@@ -136,14 +139,15 @@ libunwind_la_SOURCES_local_nounwind =					\
 	mi/Lput_dynamic_unwind_info.c mi/Ldestroy_addr_space.c		\
 	mi/Lget_reg.c   mi/Lset_reg.c					\
 	mi/Lget_fpreg.c mi/Lset_fpreg.c					\
-	mi/Lset_caching_policy.c
+	mi/Lset_caching_policy.c					\
+	mi/Lset_cache_size.c
 
 libunwind_la_SOURCES_local =						\
 	$(libunwind_la_SOURCES_local_nounwind)				\
 	$(libunwind_la_SOURCES_local_unwind)
 
 noinst_HEADERS += os-linux.h
-libunwind_la_SOURCES_os_linux = os-linux.c
+libunwind_la_SOURCES_os_linux = os-linux.c dl-iterate-phdr.c
 
 libunwind_la_SOURCES_os_hpux = os-hpux.c
 
@@ -151,16 +155,18 @@ libunwind_la_SOURCES_os_freebsd = os-freebsd.c
 
 libunwind_la_SOURCES_os_qnx = os-qnx.c
 
+libunwind_la_SOURCES_os_solaris = os-solaris.c
+
 libunwind_dwarf_common_la_SOURCES = dwarf/global.c
 
 libunwind_dwarf_local_la_SOURCES = \
-	dwarf/Lexpr.c dwarf/Lfde.c dwarf/Lparser.c dwarf/Lpe.c dwarf/Lstep.c \
+	dwarf/Lexpr.c dwarf/Lfde.c dwarf/Lparser.c dwarf/Lpe.c \
 	dwarf/Lfind_proc_info-lsb.c \
 	dwarf/Lfind_unwind_table.c
 libunwind_dwarf_local_la_LIBADD = libunwind-dwarf-common.la
 
 libunwind_dwarf_generic_la_SOURCES = \
-	dwarf/Gexpr.c dwarf/Gfde.c dwarf/Gparser.c dwarf/Gpe.c dwarf/Gstep.c \
+	dwarf/Gexpr.c dwarf/Gfde.c dwarf/Gparser.c dwarf/Gpe.c \
 	dwarf/Gfind_proc_info-lsb.c \
 	dwarf/Gfind_unwind_table.c
 libunwind_dwarf_generic_la_LIBADD = libunwind-dwarf-common.la
@@ -178,6 +184,9 @@ noinst_HEADERS += elf32.h elf64.h elfxx.h
 libunwind_elf32_la_SOURCES = elf32.c
 libunwind_elf64_la_SOURCES = elf64.c
 libunwind_elfxx_la_SOURCES = elfxx.c
+libunwind_elf32_la_LIBADD  = $(LIBLZMA) $(LIBZ)
+libunwind_elf64_la_LIBADD  = $(LIBLZMA) $(LIBZ)
+libunwind_elfxx_la_LIBADD  = $(LIBLZMA) $(LIBZ)
 
 noinst_LTLIBRARIES += $(LIBUNWIND_ELF)
 libunwind_la_LIBADD += $(LIBUNWIND_ELF)
@@ -190,19 +199,22 @@ libunwind_la_SOURCES_aarch64_common = $(libunwind_la_SOURCES_common)	    \
 # The list of files that go into libunwind:
 libunwind_la_SOURCES_aarch64 = $(libunwind_la_SOURCES_aarch64_common)	    \
 	$(libunwind_la_SOURCES_local)					    \
+	aarch64/Lapply_reg_state.c aarch64/Lreg_states_iterate.c	    \
 	aarch64/Lcreate_addr_space.c aarch64/Lget_proc_info.c 		    \
 	aarch64/Lget_save_loc.c aarch64/Lglobal.c aarch64/Linit.c	    \
 	aarch64/Linit_local.c aarch64/Linit_remote.c 			    \
 	aarch64/Lis_signal_frame.c aarch64/Lregs.c aarch64/Lresume.c 	    \
-	aarch64/Lstep.c
+	aarch64/Lstash_frame.c aarch64/Lstep.c aarch64/Ltrace.c		    \
+	aarch64/getcontext.S
 
 libunwind_aarch64_la_SOURCES_aarch64 = $(libunwind_la_SOURCES_aarch64_common) \
 	$(libunwind_la_SOURCES_generic)					      \
+	aarch64/Gapply_reg_state.c aarch64/Greg_states_iterate.c	      \
 	aarch64/Gcreate_addr_space.c aarch64/Gget_proc_info.c 		      \
 	aarch64/Gget_save_loc.c aarch64/Gglobal.c aarch64/Ginit.c 	      \
 	aarch64/Ginit_local.c aarch64/Ginit_remote.c			      \
 	aarch64/Gis_signal_frame.c aarch64/Gregs.c aarch64/Gresume.c	      \
-	aarch64/Gstep.c
+	aarch64/Gstash_frame.c aarch64/Gstep.c aarch64/Gtrace.c
 
 # The list of files that go into libunwind and libunwind-arm:
 noinst_HEADERS += arm/init.h arm/offsets.h arm/unwind_i.h
@@ -211,25 +223,32 @@ libunwind_la_SOURCES_arm_common = $(libunwind_la_SOURCES_common)	    \
 
 # The list of files that go into libunwind:
 libunwind_la_SOURCES_arm = $(libunwind_la_SOURCES_arm_common)		    \
+	$(libunwind_la_SOURCES_arm_os_local)				    \
 	$(libunwind_la_SOURCES_local)					    \
 	arm/getcontext.S						    \
+	arm/Lapply_reg_state.c arm/Lreg_states_iterate.c		    \
 	arm/Lcreate_addr_space.c arm/Lget_proc_info.c arm/Lget_save_loc.c   \
 	arm/Lglobal.c arm/Linit.c arm/Linit_local.c arm/Linit_remote.c	    \
-	arm/Lis_signal_frame.c arm/Lregs.c arm/Lresume.c arm/Lstep.c	    \
-	arm/Lex_tables.c
+	arm/Lregs.c arm/Lresume.c arm/Lstep.c				    \
+	arm/Lex_tables.c arm/Lstash_frame.c arm/Ltrace.c
 
+# The list of files that go into libunwind-arm:
 libunwind_arm_la_SOURCES_arm = $(libunwind_la_SOURCES_arm_common)	    \
+	$(libunwind_la_SOURCES_arm_os)					    \
 	$(libunwind_la_SOURCES_generic)					    \
+	arm/Gapply_reg_state.c arm/Greg_states_iterate.c		    \
 	arm/Gcreate_addr_space.c arm/Gget_proc_info.c arm/Gget_save_loc.c   \
 	arm/Gglobal.c arm/Ginit.c arm/Ginit_local.c arm/Ginit_remote.c	    \
-	arm/Gis_signal_frame.c arm/Gregs.c arm/Gresume.c arm/Gstep.c	    \
-	arm/Gex_tables.c
+	arm/Gregs.c arm/Gresume.c arm/Gstep.c				    \
+	arm/Gex_tables.c arm/Gstash_frame.c arm/Gtrace.c
 
 # The list of files that go both into libunwind and libunwind-ia64:
 noinst_HEADERS += ia64/init.h ia64/offsets.h ia64/regs.h		    \
 	ia64/ucontext_i.h ia64/unwind_decoder.h ia64/unwind_i.h
 libunwind_la_SOURCES_ia64_common = $(libunwind_la_SOURCES_common)	    \
 	ia64/regname.c
+libunwind_la_EXTRAS_ia64 = ia64/mk_cursor_i ia64/mk_Lcursor_i.c	    \
+	ia64/mk_Gcursor_i.c
 
 # The list of files that go into libunwind:
 libunwind_la_SOURCES_ia64 = $(libunwind_la_SOURCES_ia64_common)		     \
@@ -237,6 +256,7 @@ libunwind_la_SOURCES_ia64 = $(libunwind_la_SOURCES_ia64_common)		     \
 									     \
 	ia64/dyn_info_list.S ia64/getcontext.S				     \
 									     \
+	ia64/Lapply_reg_state.c ia64/Lreg_states_iterate.c		     \
 	ia64/Lcreate_addr_space.c ia64/Lget_proc_info.c ia64/Lget_save_loc.c \
 	ia64/Lglobal.c ia64/Linit.c ia64/Linit_local.c ia64/Linit_remote.c   \
 	ia64/Linstall_cursor.S ia64/Lis_signal_frame.c ia64/Lparser.c	     \
@@ -246,6 +266,7 @@ libunwind_la_SOURCES_ia64 = $(libunwind_la_SOURCES_ia64_common)		     \
 # The list of files that go into libunwind-ia64:
 libunwind_ia64_la_SOURCES_ia64 = $(libunwind_la_SOURCES_ia64_common)	     \
 	$(libunwind_la_SOURCES_generic)					     \
+	ia64/Gapply_reg_state.c ia64/Greg_states_iterate.c		     \
 	ia64/Gcreate_addr_space.c ia64/Gget_proc_info.c ia64/Gget_save_loc.c \
 	ia64/Gglobal.c ia64/Ginit.c ia64/Ginit_local.c ia64/Ginit_remote.c   \
 	ia64/Ginstall_cursor.S ia64/Gis_signal_frame.c ia64/Gparser.c	     \
@@ -261,6 +282,7 @@ libunwind_la_SOURCES_hppa_common = $(libunwind_la_SOURCES_common)	\
 libunwind_la_SOURCES_hppa = $(libunwind_la_SOURCES_hppa_common)		\
 	$(libunwind_la_SOURCES_local)					\
 	hppa/getcontext.S hppa/setcontext.S				\
+	hppa/Lapply_reg_state.c hppa/Lreg_states_iterate.c		\
 	hppa/Lcreate_addr_space.c hppa/Lget_save_loc.c hppa/Lglobal.c	\
 	hppa/Linit.c hppa/Linit_local.c hppa/Linit_remote.c		\
 	hppa/Lis_signal_frame.c hppa/Lget_proc_info.c hppa/Lregs.c	\
@@ -269,13 +291,14 @@ libunwind_la_SOURCES_hppa = $(libunwind_la_SOURCES_hppa_common)		\
 # The list of files that go into libunwind-hppa:
 libunwind_hppa_la_SOURCES_hppa = $(libunwind_la_SOURCES_hppa_common)	\
 	$(libunwind_la_SOURCES_generic)					\
+	hppa/Gapply_reg_state.c hppa/Greg_states_iterate.c		\
 	hppa/Gcreate_addr_space.c hppa/Gget_save_loc.c hppa/Gglobal.c	\
 	hppa/Ginit.c hppa/Ginit_local.c hppa/Ginit_remote.c		\
 	hppa/Gis_signal_frame.c hppa/Gget_proc_info.c hppa/Gregs.c	\
 	hppa/Gresume.c hppa/Gstep.c
 
 # The list of files that go info libunwind and libunwind-mips:
-noinst_HEADERS += mips/init.h mips/offsets.h
+noinst_HEADERS += mips/init.h mips/offsets.h mips/unwind_i.h
 libunwind_la_SOURCES_mips_common = $(libunwind_la_SOURCES_common)	    \
 	mips/is_fpreg.c mips/regname.c
 
@@ -283,15 +306,84 @@ libunwind_la_SOURCES_mips_common = $(libunwind_la_SOURCES_common)	    \
 libunwind_la_SOURCES_mips = $(libunwind_la_SOURCES_mips_common)		    \
 	$(libunwind_la_SOURCES_local)					    \
 	mips/getcontext.S						    \
+	mips/Lapply_reg_state.c mips/Lreg_states_iterate.c		    \
 	mips/Lcreate_addr_space.c mips/Lget_proc_info.c mips/Lget_save_loc.c   \
 	mips/Lglobal.c mips/Linit.c mips/Linit_local.c mips/Linit_remote.c  \
 	mips/Lis_signal_frame.c mips/Lregs.c mips/Lresume.c mips/Lstep.c
 
 libunwind_mips_la_SOURCES_mips = $(libunwind_la_SOURCES_mips_common)	    \
 	$(libunwind_la_SOURCES_generic)					    \
+	mips/Gapply_reg_state.c mips/Greg_states_iterate.c		    \
 	mips/Gcreate_addr_space.c mips/Gget_proc_info.c mips/Gget_save_loc.c   \
 	mips/Gglobal.c mips/Ginit.c mips/Ginit_local.c mips/Ginit_remote.c	    \
 	mips/Gis_signal_frame.c mips/Gregs.c mips/Gresume.c mips/Gstep.c
+
+# The list of files that go info libunwind and libunwind-tilegx:
+noinst_HEADERS += tilegx/init.h tilegx/offsets.h tilegx/unwind_i.h
+libunwind_la_SOURCES_tilegx_common = $(libunwind_la_SOURCES_common)	    \
+	tilegx/is_fpreg.c tilegx/regname.c
+
+# The list of files that go into libunwind:
+libunwind_la_SOURCES_tilegx = $(libunwind_la_SOURCES_tilegx_common)		    \
+	$(libunwind_la_SOURCES_local)					    \
+	tilegx/getcontext.S						\
+	tilegx/Lapply_reg_state.c tilegx/Lreg_states_iterate.c		    \
+	tilegx/Lcreate_addr_space.c tilegx/Lget_proc_info.c tilegx/Lget_save_loc.c   \
+	tilegx/Lglobal.c tilegx/Linit.c tilegx/Linit_local.c tilegx/Linit_remote.c  \
+	tilegx/Lis_signal_frame.c tilegx/Lregs.c tilegx/Lresume.c tilegx/Lstep.c
+
+libunwind_tilegx_la_SOURCES_tilegx = $(libunwind_la_SOURCES_tilegx_common)	    \
+	$(libunwind_la_SOURCES_generic)					    \
+	tilegx/Gapply_reg_state.c tilegx/Greg_states_iterate.c			     \
+	tilegx/Gcreate_addr_space.c tilegx/Gget_proc_info.c tilegx/Gget_save_loc.c   \
+	tilegx/Gglobal.c tilegx/Ginit.c tilegx/Ginit_local.c tilegx/Ginit_remote.c	    \
+	tilegx/Gis_signal_frame.c tilegx/Gregs.c tilegx/Gresume.c tilegx/Gstep.c
+
+# The list of files that go info libunwind and libunwind-riscv:
+noinst_HEADERS += riscv/init.h riscv/offsets.h riscv/unwind_i.h riscv/asm.h
+libunwind_la_SOURCES_riscv_common = $(libunwind_la_SOURCES_common)	    \
+	riscv/is_fpreg.c riscv/regname.c
+
+# The list of files that go into libunwind:
+libunwind_la_SOURCES_riscv = $(libunwind_la_SOURCES_riscv_common)		    \
+	$(libunwind_la_SOURCES_local)					    \
+	riscv/getcontext.S riscv/setcontext.S \
+	riscv/Lapply_reg_state.c riscv/Lreg_states_iterate.c		    \
+	riscv/Lcreate_addr_space.c riscv/Lget_proc_info.c riscv/Lget_save_loc.c   \
+	riscv/Lglobal.c riscv/Linit.c riscv/Linit_local.c riscv/Linit_remote.c  \
+	riscv/Lis_signal_frame.c riscv/Lregs.c riscv/Lresume.c riscv/Lstep.c
+
+libunwind_riscv_la_SOURCES_riscv = $(libunwind_la_SOURCES_riscv_common)	    \
+	$(libunwind_la_SOURCES_generic)					    \
+	riscv/Gapply_reg_state.c riscv/Greg_states_iterate.c			     \
+	riscv/Gcreate_addr_space.c riscv/Gget_proc_info.c riscv/Gget_save_loc.c   \
+	riscv/Gglobal.c riscv/Ginit.c riscv/Ginit_local.c riscv/Ginit_remote.c	    \
+	riscv/Gis_signal_frame.c riscv/Gregs.c riscv/Gresume.c riscv/Gstep.c
+
+# The list of files that go info libunwind and libunwind-loongarch64:
+noinst_HEADERS += loongarch64/init.h loongarch64/offsets.h loongarch64/unwind_i.h
+libunwind_la_SOURCES_loongarch64_common = $(libunwind_la_SOURCES_common)       \
+	loongarch64/is_fpreg.c loongarch64/regname.c
+
+# The list of files that go into libunwind:
+libunwind_la_SOURCES_loongarch64 = $(libunwind_la_SOURCES_loongarch64_common)  \
+	$(libunwind_la_SOURCES_local)                                           \
+	loongarch64/getcontext.S                                                \
+	loongarch64/Lapply_reg_state.c loongarch64/Lreg_states_iterate.c	\
+	loongarch64/Lcreate_addr_space.c loongarch64/Lget_proc_info.c           \
+	loongarch64/Lget_save_loc.c loongarch64/Lglobal.c loongarch64/Linit.c   \
+	loongarch64/Linit_local.c loongarch64/Linit_remote.c                    \
+	loongarch64/Lis_signal_frame.c loongarch64/Lregs.c                      \
+	loongarch64/Lresume.c loongarch64/Lstep.c
+
+libunwind_loongarch64_la_SOURCES_loongarch64 = $(libunwind_la_SOURCES_loongarch64_common) \
+	$(libunwind_la_SOURCES_generic)                                         \
+	loongarch64/Gapply_reg_state.c loongarch64/Greg_states_iterate.c	\
+	loongarch64/Gcreate_addr_space.c loongarch64/Gget_proc_info.c           \
+	loongarch64/Gget_save_loc.c loongarch64/Gglobal.c loongarch64/Ginit.c   \
+	loongarch64/Ginit_local.c loongarch64/Ginit_remote.c                    \
+	loongarch64/Gis_signal_frame.c loongarch64/Gregs.c                      \
+	loongarch64/Gresume.c loongarch64/Gstep.c
 
 # The list of files that go both into libunwind and libunwind-x86:
 noinst_HEADERS += x86/init.h x86/offsets.h x86/unwind_i.h
@@ -302,6 +394,7 @@ libunwind_la_SOURCES_x86_common = $(libunwind_la_SOURCES_common)	\
 libunwind_la_SOURCES_x86 = $(libunwind_la_SOURCES_x86_common)		\
         $(libunwind_la_SOURCES_x86_os_local)				\
 	$(libunwind_la_SOURCES_local)					\
+	x86/Lapply_reg_state.c x86/Lreg_states_iterate.c		\
 	x86/Lcreate_addr_space.c x86/Lget_save_loc.c x86/Lglobal.c	\
 	x86/Linit.c x86/Linit_local.c x86/Linit_remote.c		\
 	x86/Lget_proc_info.c x86/Lregs.c				\
@@ -311,6 +404,7 @@ libunwind_la_SOURCES_x86 = $(libunwind_la_SOURCES_x86_common)		\
 libunwind_x86_la_SOURCES_x86 = $(libunwind_la_SOURCES_x86_common)	\
         $(libunwind_la_SOURCES_x86_os)					\
 	$(libunwind_la_SOURCES_generic)					\
+	x86/Gapply_reg_state.c x86/Greg_states_iterate.c		\
 	x86/Gcreate_addr_space.c x86/Gget_save_loc.c x86/Gglobal.c	\
 	x86/Ginit.c x86/Ginit_local.c x86/Ginit_remote.c		\
 	x86/Gget_proc_info.c x86/Gregs.c				\
@@ -327,6 +421,7 @@ libunwind_la_SOURCES_x86_64 = $(libunwind_la_SOURCES_x86_64_common)	    \
         $(libunwind_la_SOURCES_x86_64_os_local)			    	    \
 	$(libunwind_la_SOURCES_local)					    \
 	x86_64/setcontext.S						    \
+	x86_64/Lapply_reg_state.c x86_64/Lreg_states_iterate.c		    \
 	x86_64/Lcreate_addr_space.c x86_64/Lget_save_loc.c x86_64/Lglobal.c \
 	x86_64/Linit.c x86_64/Linit_local.c x86_64/Linit_remote.c	    \
 	x86_64/Lget_proc_info.c x86_64/Lregs.c x86_64/Lresume.c		    \
@@ -336,18 +431,19 @@ libunwind_la_SOURCES_x86_64 = $(libunwind_la_SOURCES_x86_64_common)	    \
 libunwind_x86_64_la_SOURCES_x86_64 = $(libunwind_la_SOURCES_x86_64_common)  \
         $(libunwind_la_SOURCES_x86_64_os)			    	    \
 	$(libunwind_la_SOURCES_generic)					    \
+	x86_64/Gapply_reg_state.c x86_64/Greg_states_iterate.c		    \
 	x86_64/Gcreate_addr_space.c x86_64/Gget_save_loc.c x86_64/Gglobal.c \
 	x86_64/Ginit.c x86_64/Ginit_local.c x86_64/Ginit_remote.c	    \
 	x86_64/Gget_proc_info.c x86_64/Gregs.c x86_64/Gresume.c		    \
 	x86_64/Gstash_frame.c x86_64/Gstep.c x86_64/Gtrace.c
 
 # The list of local files that go to Power 64 and 32:
-libunwind_la_SOURCES_ppc = ppc/Lcreate_addr_space.c 			\
+libunwind_la_SOURCES_ppc = \
 	ppc/Lget_proc_info.c ppc/Lget_save_loc.c ppc/Linit_local.c	\
 	ppc/Linit_remote.c ppc/Lis_signal_frame.c
 
 # The list of generic files that go to Power 64 and 32:
-libunwind_ppc_la_SOURCES_ppc_generic = ppc/Gcreate_addr_space.c		\
+libunwind_ppc_la_SOURCES_ppc_generic = \
 	ppc/Gget_proc_info.c ppc/Gget_save_loc.c ppc/Ginit_local.c	\
 	ppc/Ginit_remote.c ppc/Gis_signal_frame.c
 
@@ -360,6 +456,8 @@ libunwind_la_SOURCES_ppc32_common = $(libunwind_la_SOURCES_common)      \
 libunwind_la_SOURCES_ppc32 = $(libunwind_la_SOURCES_ppc32_common)       \
 	$(libunwind_la_SOURCES_local)                                   \
 	$(libunwind_la_SOURCES_ppc)					\
+	ppc32/Lapply_reg_state.c ppc32/Lreg_states_iterate.c		\
+	ppc32/Lcreate_addr_space.c					\
 	ppc32/Lglobal.c ppc32/Linit.c					\
 	ppc32/Lregs.c ppc32/Lresume.c ppc32/Lstep.c
 
@@ -367,6 +465,8 @@ libunwind_la_SOURCES_ppc32 = $(libunwind_la_SOURCES_ppc32_common)       \
 libunwind_ppc32_la_SOURCES_ppc32 = $(libunwind_la_SOURCES_ppc32_common) \
 	$(libunwind_la_SOURCES_generic)                                 \
 	$(libunwind_ppc_la_SOURCES_ppc_generic)				\
+	ppc32/Gapply_reg_state.c ppc32/Greg_states_iterate.c		\
+	ppc32/Gcreate_addr_space.c					\
 	ppc32/Gglobal.c ppc32/Ginit.c					\
 	ppc32/Gregs.c ppc32/Gresume.c ppc32/Gstep.c
 
@@ -379,6 +479,8 @@ libunwind_la_SOURCES_ppc64_common = $(libunwind_la_SOURCES_common)      \
 libunwind_la_SOURCES_ppc64 = $(libunwind_la_SOURCES_ppc64_common)       \
         $(libunwind_la_SOURCES_local)                                   \
 	$(libunwind_la_SOURCES_ppc)					\
+	ppc64/Lapply_reg_state.c ppc64/Lreg_states_iterate.c		\
+	ppc64/Lcreate_addr_space.c					\
 	ppc64/Lglobal.c ppc64/Linit.c					\
 	ppc64/Lregs.c ppc64/Lresume.c ppc64/Lstep.c
 
@@ -386,6 +488,8 @@ libunwind_la_SOURCES_ppc64 = $(libunwind_la_SOURCES_ppc64_common)       \
 libunwind_ppc64_la_SOURCES_ppc64 = $(libunwind_la_SOURCES_ppc64_common) \
         $(libunwind_la_SOURCES_generic)                                 \
 	$(libunwind_ppc_la_SOURCES_ppc_generic)				\
+	ppc64/Gapply_reg_state.c ppc64/Greg_states_iterate.c		\
+	ppc64/Gcreate_addr_space.c					\
 	ppc64/Gglobal.c ppc64/Ginit.c					\
 	ppc64/Gregs.c ppc64/Gresume.c ppc64/Gstep.c
 
@@ -397,15 +501,41 @@ libunwind_la_SOURCES_sh_common = $(libunwind_la_SOURCES_common)		\
 # The list of files that go into libunwind:
 libunwind_la_SOURCES_sh = $(libunwind_la_SOURCES_sh_common)		\
 	$(libunwind_la_SOURCES_local)					\
+	sh/Lapply_reg_state.c sh/Lreg_states_iterate.c			\
 	sh/Lcreate_addr_space.c sh/Lget_proc_info.c sh/Lget_save_loc.c	\
 	sh/Lglobal.c sh/Linit.c sh/Linit_local.c sh/Linit_remote.c	\
 	sh/Lis_signal_frame.c sh/Lregs.c sh/Lresume.c sh/Lstep.c
 
 libunwind_sh_la_SOURCES_sh = $(libunwind_la_SOURCES_sh_common)		\
 	$(libunwind_la_SOURCES_generic)					\
+	sh/Gapply_reg_state.c sh/Greg_states_iterate.c			\
 	sh/Gcreate_addr_space.c sh/Gget_proc_info.c sh/Gget_save_loc.c	\
 	sh/Gglobal.c sh/Ginit.c sh/Ginit_local.c sh/Ginit_remote.c	\
 	sh/Gis_signal_frame.c sh/Gregs.c sh/Gresume.c sh/Gstep.c
+
+# The list of files that go both into libunwind and libunwind-s390x:
+noinst_HEADERS += s390x/init.h s390x/unwind_i.h
+libunwind_la_SOURCES_s390x_common = $(libunwind_la_SOURCES_common)	\
+	s390x/is_fpreg.c s390x/regname.c
+
+# The list of files that go into libunwind:
+libunwind_la_SOURCES_s390x = $(libunwind_la_SOURCES_s390x_common)	    \
+	$(libunwind_la_SOURCES_local)					    \
+	s390x/Lapply_reg_state.c s390x/Lreg_states_iterate.c		    \
+	s390x/Lcreate_addr_space.c s390x/Lget_save_loc.c s390x/Lglobal.c    \
+	s390x/Linit.c s390x/Linit_local.c s390x/Linit_remote.c	            \
+	s390x/Lget_proc_info.c s390x/Lregs.c s390x/Lresume.c		    \
+	s390x/Lis_signal_frame.c s390x/Lstep.c				    \
+	s390x/getcontext.S s390x/setcontext.S
+
+# The list of files that go into libunwind-s390x:
+libunwind_s390x_la_SOURCES_s390x = $(libunwind_la_SOURCES_s390x_common)     \
+	$(libunwind_la_SOURCES_generic)					    \
+	s390x/Gapply_reg_state.c s390x/Greg_states_iterate.c	            \
+	s390x/Gcreate_addr_space.c s390x/Gget_save_loc.c s390x/Gglobal.c    \
+	s390x/Ginit.c s390x/Ginit_local.c s390x/Ginit_remote.c	            \
+	s390x/Gget_proc_info.c s390x/Gregs.c s390x/Gresume.c		    \
+	s390x/Gis_signal_frame.c s390x/Gstep.c
 
 if REMOTE_ONLY
 install-exec-hook:
@@ -418,7 +548,9 @@ else
 # to be there if the user configured with --disable-shared.
 #
 install-exec-hook:
-	cd $(DESTDIR)$(libdir) && $(LN_S) -f libunwind-$(arch).a libunwind-generic.a
+	if test -f $(DESTDIR)$(libdir)/libunwind-$(arch).a; then \
+		cd $(DESTDIR)$(libdir) && $(LN_S) -f libunwind-$(arch).a libunwind-generic.a; \
+	fi
 	if test -f $(DESTDIR)$(libdir)/libunwind-$(arch).so; then \
 		cd $(DESTDIR)$(libdir) && $(LN_S) -f libunwind-$(arch).so \
 		libunwind-generic.so; \
@@ -433,7 +565,11 @@ if OS_LINUX
  libunwind_la_SOURCES_x86_os_local    = x86/Los-linux.c
  libunwind_la_SOURCES_x86_64_os       = x86_64/Gos-linux.c
  libunwind_la_SOURCES_x86_64_os_local = x86_64/Los-linux.c
+ libunwind_la_SOURCES_arm_os          = arm/Gos-linux.c
+ libunwind_la_SOURCES_arm_os_local    = arm/Los-linux.c
  libunwind_coredump_la_SOURCES += coredump/_UCD_access_reg_linux.c
+ libunwind_coredump_la_SOURCES += coredump/_UCD_get_threadinfo_prstatus.c
+ libunwind_coredump_la_SOURCES += coredump/_UCD_get_mapinfo_linux.c
 endif
 
 if OS_HPUX
@@ -449,12 +585,24 @@ if OS_FREEBSD
  libunwind_la_SOURCES_x86_os_local    = x86/Los-freebsd.c
  libunwind_la_SOURCES_x86_64_os       = x86_64/Gos-freebsd.c
  libunwind_la_SOURCES_x86_64_os_local = x86_64/Los-freebsd.c
+ libunwind_la_SOURCES_arm_os          = arm/Gos-freebsd.c
+ libunwind_la_SOURCES_arm_os_local    = arm/Los-freebsd.c
  libunwind_coredump_la_SOURCES += coredump/_UCD_access_reg_freebsd.c
+ libunwind_coredump_la_SOURCES += coredump/_UCD_get_threadinfo_prstatus.c
+ libunwind_coredump_la_SOURCES += coredump/_UCD_get_mapinfo_generic.c
+endif
+
+if OS_SOLARIS
+ libunwind_la_SOURCES_os              = $(libunwind_la_SOURCES_os_solaris)
+ libunwind_la_SOURCES_x86_64_os       = x86_64/Gos-solaris.c
+ libunwind_la_SOURCES_x86_64_os_local = x86_64/Los-solaris.c
 endif
 
 if OS_QNX
  libunwind_la_SOURCES_os	= $(libunwind_la_SOURCES_os_qnx)
  libunwind_la_SOURCES_os_local	= $(libunwind_la_SOURCES_os_qnx_local)
+ libunwind_la_SOURCES_arm_os          = arm/Gos-other.c
+ libunwind_la_SOURCES_arm_os_local    = arm/Los-other.c
 endif
 
 if ARCH_AARCH64
@@ -527,6 +675,42 @@ if !REMOTE_ONLY
 endif
  libunwind_setjmp_la_SOURCES += mips/siglongjmp.S
 else
+if ARCH_TILEGX
+ lib_LTLIBRARIES += libunwind-tilegx.la
+ libunwind_la_SOURCES = $(libunwind_la_SOURCES_tilegx)
+ libunwind_tilegx_la_SOURCES = $(libunwind_tilegx_la_SOURCES_tilegx)
+ libunwind_tilegx_la_LDFLAGS = $(COMMON_SO_LDFLAGS) -version-info $(SOVERSION)
+ libunwind_tilegx_la_LIBADD = libunwind-dwarf-generic.la
+ libunwind_tilegx_la_LIBADD += libunwind-elfxx.la
+if !REMOTE_ONLY
+ libunwind_tilegx_la_LIBADD += libunwind.la -lc
+endif
+ libunwind_setjmp_la_SOURCES += tilegx/siglongjmp.S
+else
+if ARCH_RISCV
+ lib_LTLIBRARIES += libunwind-riscv.la
+ libunwind_la_SOURCES = $(libunwind_la_SOURCES_riscv)
+ libunwind_riscv_la_SOURCES = $(libunwind_riscv_la_SOURCES_riscv)
+ libunwind_riscv_la_LDFLAGS = $(COMMON_SO_LDFLAGS) -version-info $(SOVERSION)
+ libunwind_riscv_la_LIBADD = libunwind-dwarf-generic.la
+ libunwind_riscv_la_LIBADD += libunwind-elf64.la
+if !REMOTE_ONLY
+ libunwind_riscv_la_LIBADD += libunwind.la -lc
+endif
+ libunwind_setjmp_la_SOURCES += riscv/siglongjmp.S
+else
+if ARCH_LOONGARCH64
+ lib_LTLIBRARIES += libunwind-loongarch64.la
+ libunwind_la_SOURCES = $(libunwind_la_SOURCES_loongarch64)
+ libunwind_loongarch64_la_SOURCES = $(libunwind_loongarch64_la_SOURCES_loongarch64)
+ libunwind_loongarch64_la_LDFLAGS = $(COMMON_SO_LDFLAGS) -version-info $(SOVERSION)
+ libunwind_loongarch64_la_LIBADD = libunwind-dwarf-generic.la
+ libunwind_loongarch64_la_LIBADD += libunwind-elf64.la
+if !REMOTE_ONLY
+ libunwind_loongarch64_la_LIBADD += libunwind.la -lc
+endif
+ libunwind_setjmp_la_SOURCES += loongarch64/siglongjmp.S
+else
 if ARCH_X86
  lib_LTLIBRARIES += libunwind-x86.la
  libunwind_la_SOURCES = $(libunwind_la_SOURCES_x86) $(libunwind_x86_la_SOURCES_os)
@@ -586,12 +770,27 @@ if !REMOTE_ONLY
  libunwind_sh_la_LIBADD += libunwind.la -lc
 endif
  libunwind_setjmp_la_SOURCES += sh/siglongjmp.S
+else
+if ARCH_S390X
+ lib_LTLIBRARIES += libunwind-s390x.la
+ libunwind_la_SOURCES = $(libunwind_la_SOURCES_s390x)
+ libunwind_s390x_la_SOURCES = $(libunwind_s390x_la_SOURCES_s390x)
+ libunwind_s390x_la_LDFLAGS = $(COMMON_SO_LDFLAGS) -version-info $(SOVERSION)
+ libunwind_s390x_la_LIBADD = libunwind-dwarf-generic.la
+ libunwind_s390x_la_LIBADD += libunwind-elf64.la
+if !REMOTE_ONLY
+ libunwind_s390x_la_LIBADD += libunwind.la -lc
+endif
 
+endif # ARCH_S390X
 endif # ARCH_SH
 endif # ARCH_PPC64
 endif # ARCH_PPC32
 endif # ARCH_X86_64
 endif # ARCH_X86
+endif # ARCH_LOONGARCH64
+endif # ARCH_RISCV
+endif # ARCH_TILEGX
 endif # ARCH_MIPS
 endif # ARCH_HPPA
 endif # ARCH_IA64
@@ -611,7 +810,7 @@ endif
 libunwind_la_LDFLAGS =	$(COMMON_SO_LDFLAGS) -XCClinker -nostdlib \
 			$(LDFLAGS_STATIC_LIBCXA) -version-info $(SOVERSION)
 libunwind_la_LIBADD  += -lc $(LIBCRTS)
-libunwind_la_LIBADD += $(LIBLZMA)
+libunwind_la_LIBADD += $(LIBLZMA) $(LIBZ)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/include/tdep-$(arch) -I.
 AM_CCASFLAGS = $(AM_CPPFLAGS)
@@ -621,6 +820,7 @@ EXTRA_DIST =	$(libunwind_la_SOURCES_aarch64)			\
 		$(libunwind_la_SOURCES_arm)			\
 		$(libunwind_la_SOURCES_hppa)			\
 		$(libunwind_la_SOURCES_ia64)			\
+		$(libunwind_la_EXTRAS_ia64)			\
 		$(libunwind_la_SOURCES_mips)			\
 		$(libunwind_la_SOURCES_sh)			\
 		$(libunwind_la_SOURCES_x86)			\
@@ -628,6 +828,7 @@ EXTRA_DIST =	$(libunwind_la_SOURCES_aarch64)			\
 		$(libunwind_la_SOURCES_os_linux)		\
 		$(libunwind_la_SOURCES_os_hpux)			\
 		$(libunwind_la_SOURCES_os_qnx)			\
+		$(libunwind_la_SOURCES_os_solaris)		\
 		$(libunwind_la_SOURCES_common)			\
 		$(libunwind_la_SOURCES_local)			\
 		$(libunwind_la_SOURCES_generic)			\
