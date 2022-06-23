@@ -298,6 +298,7 @@ private:
 	void OnSelectKinematicBodies();
 	void OnSelectSimulatedBodies();
 	void OnSelectBodies(EPhysicsType PhysicsType = EPhysicsType::PhysType_Simulated);
+	void OnSelectShapes(const ECollisionEnabled::Type CollisionEnabled);
 	void OnSelectAllConstraints();
 	void OnToggleSelectionType(bool bIgnoreUserConstraints);
 	void OnToggleShowSelected();

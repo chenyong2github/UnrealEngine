@@ -65,8 +65,10 @@ public:
 	TSharedPtr<FUICommandInfo> EnableCollision;
 	TSharedPtr<FUICommandInfo> EnableCollisionAll;
 	TSharedPtr<FUICommandInfo> PrimitiveQueryAndPhysics;
+	TSharedPtr<FUICommandInfo> PrimitiveQueryAndProbe;
 	TSharedPtr<FUICommandInfo> PrimitiveQueryOnly;
 	TSharedPtr<FUICommandInfo> PrimitivePhysicsOnly;
+	TSharedPtr<FUICommandInfo> PrimitiveProbeOnly;
 	TSharedPtr<FUICommandInfo> PrimitiveNoCollision;
 	TSharedPtr<FUICommandInfo> PrimitiveContributeToMass;
 	TSharedPtr<FUICommandInfo> WeldToBody;
@@ -96,6 +98,11 @@ public:
 	TSharedPtr<FUICommandInfo> SelectAllBodies;
 	TSharedPtr<FUICommandInfo> SelectSimulatedBodies;
 	TSharedPtr<FUICommandInfo> SelectKinematicBodies;
+	TSharedPtr<FUICommandInfo> SelectShapesQueryOnly;
+	TSharedPtr<FUICommandInfo> SelectShapesQueryAndPhysics;
+	TSharedPtr<FUICommandInfo> SelectShapesPhysicsOnly;
+	TSharedPtr<FUICommandInfo> SelectShapesQueryAndProbe;
+	TSharedPtr<FUICommandInfo> SelectShapesProbeOnly;
 	TSharedPtr<FUICommandInfo> SelectAllConstraints;
 	TSharedPtr<FUICommandInfo> ToggleSelectionType;
 	TSharedPtr<FUICommandInfo> ToggleSelectionTypeWithUserConstraints;

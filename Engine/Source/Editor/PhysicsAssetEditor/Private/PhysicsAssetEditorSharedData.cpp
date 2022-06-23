@@ -518,12 +518,55 @@ void FPhysicsAssetEditorSharedData::RefreshPhysicsAssetChange(const UPhysicsAsse
 	}
 }
 
-void FPhysicsAssetEditorSharedData::SetSelectedBodyAnyPrim(int32 BodyIndex, bool bSelected)
+void FPhysicsAssetEditorSharedData::SetSelectedBodyAnyPrimitive(int32 BodyIndex, bool bSelected)
 {
-	SetSelectedBodiesAnyPrim({ BodyIndex }, bSelected);
+	SetSelectedBodiesAnyPrimitive({ BodyIndex }, bSelected);
 }
 
-void FPhysicsAssetEditorSharedData::SetSelectedBodiesAnyPrim(const TArray<int32>& BodiesIndices, bool bSelected)
+void FPhysicsAssetEditorSharedData::SetSelectedBodiesAnyPrimitive(const TArray<int32>& BodiesIndices, bool bSelected)
+{
+	SetSelectedBodiesPrimitives(BodiesIndices, bSelected, [](const TArray<FSelection>& CurrentSelection, const FKShapeElem& Primitive)
+	{
+		// Select the first primitive
+		return CurrentSelection.Num() == 0;
+	});
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedBodiesAllPrimitive(const TArray<int32>& BodiesIndices, bool bSelected)
+{
+	SetSelectedBodiesPrimitives(BodiesIndices, bSelected, [](const TArray<FSelection>& CurrentSelection, const FKShapeElem& Primitive)
+	{
+		// Select all primitives
+		return true;
+	});
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedBodiesPrimitivesWithCollisionType(const TArray<int32>& BodiesIndices, const ECollisionEnabled::Type CollisionType, bool bSelected)
+{
+	SetSelectedBodiesPrimitives(BodiesIndices, bSelected, [CollisionType](const TArray<FSelection>& CurrentSelection, const FKShapeElem& Primitive)
+	{
+		// Select primitives which match the collision type
+		return Primitive.GetCollisionEnabled() == CollisionType;
+	});
+}
+
+namespace
+{
+	template <typename TShapeElem>
+	void SetSelectedBodiesPrimitivesHelper(const int32 BodyIndex, const TArray<TShapeElem>& ShapeElems, TArray<FPhysicsAssetEditorSharedData::FSelection>& SelectedElems, const TFunction<bool(const TArray<FPhysicsAssetEditorSharedData::FSelection>&, const FKShapeElem&)>& Predicate)
+	{
+		for (int32 PrimitiveIndex = 0; PrimitiveIndex < ShapeElems.Num(); ++PrimitiveIndex)
+		{
+			const TShapeElem& ShapeElem = ShapeElems[PrimitiveIndex];
+			if (Predicate(SelectedElems, ShapeElem))
+			{
+				SelectedElems.Add(FPhysicsAssetEditorSharedData::FSelection(BodyIndex, ShapeElem.GetShapeType(), PrimitiveIndex));
+			}
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::SetSelectedBodiesPrimitives(const TArray<int32>& BodiesIndices, bool bSelected, const TFunction<bool(const TArray<FSelection>&, const FKShapeElem&)>& Predicate)
 {
 	if (BodiesIndices.Num() == 0)
 	{
@@ -542,86 +585,15 @@ void FPhysicsAssetEditorSharedData::SetSelectedBodiesAnyPrim(const TArray<int32>
 		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
 		check(BodySetup);
 
-		if (BodySetup->AggGeom.SphereElems.Num() > 0)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphere, 0));
-		}
-		else if (BodySetup->AggGeom.BoxElems.Num() > 0)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Box, 0));
-		}
-		else if (BodySetup->AggGeom.SphylElems.Num() > 0)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphyl, 0));
-		}
-		else if (BodySetup->AggGeom.ConvexElems.Num() > 0)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Convex, 0));
-		}
-		else if (BodySetup->AggGeom.TaperedCapsuleElems.Num() > 0)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::TaperedCapsule, 0));
-		}
-		else
-		{
-			UE_LOG(LogPhysicsAssetEditor, Fatal, TEXT("Body Setup with index %d has No Primitives!"), BodyIndex);
-		}
+		const FKAggregateGeom& AggGeom = BodySetup->AggGeom;
+		SetSelectedBodiesPrimitivesHelper(BodyIndex, AggGeom.SphereElems, NewSelection, Predicate);
+		SetSelectedBodiesPrimitivesHelper(BodyIndex, AggGeom.BoxElems, NewSelection, Predicate);
+		SetSelectedBodiesPrimitivesHelper(BodyIndex, AggGeom.SphylElems, NewSelection, Predicate);
+		SetSelectedBodiesPrimitivesHelper(BodyIndex, AggGeom.ConvexElems, NewSelection, Predicate);
+		SetSelectedBodiesPrimitivesHelper(BodyIndex, AggGeom.TaperedCapsuleElems, NewSelection, Predicate);
 	}
 
-	if (NewSelection.Num() > 0)
-	{
-		SetSelectedBodies(NewSelection, bSelected);
-	}
-}
-
-void FPhysicsAssetEditorSharedData::SetSelectedBodiesAllPrim(const TArray<int32>& BodiesIndices, bool bSelected)
-{
-	if (BodiesIndices.Num() == 0)
-	{
-		return;
-	}
-
-	if (BodiesIndices.Num() == 1 && BodiesIndices[0] == INDEX_NONE)
-	{
-		ClearSelectedBody();
-		return;
-	}
-
-	TArray<FSelection> NewSelection;
-	for (const int32 BodyIndex : BodiesIndices)
-	{
-		UBodySetup* BodySetup = PhysicsAsset->SkeletalBodySetups[BodyIndex];
-		check(BodySetup);
-
-		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.SphereElems.Num(); ++PrimitiveIndex)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphere, PrimitiveIndex));
-		}
-
-		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.BoxElems.Num(); ++PrimitiveIndex)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Box, PrimitiveIndex));
-		}
-
-		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.SphylElems.Num(); ++PrimitiveIndex)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Sphyl, PrimitiveIndex));
-		}
-
-		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.ConvexElems.Num(); ++PrimitiveIndex)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::Convex, PrimitiveIndex));
-		}
-		for (int32 PrimitiveIndex = 0; PrimitiveIndex < BodySetup->AggGeom.TaperedCapsuleElems.Num(); ++PrimitiveIndex)
-		{
-			NewSelection.Add(FSelection(BodyIndex, EAggCollisionShape::TaperedCapsule, PrimitiveIndex));
-		}
-	}
-
-	if (NewSelection.Num() > 0)
-	{
-		SetSelectedBodies(NewSelection, bSelected);
-	}
+	SetSelectedBodies(NewSelection, bSelected);
 }
 
 void FPhysicsAssetEditorSharedData::ClearSelectedBody()
@@ -725,7 +697,7 @@ void FPhysicsAssetEditorSharedData::ToggleSelectionType(bool bIgnoreUserConstrai
 	ClearSelectedBody();
 	ClearSelectedConstraints();
 
-	SetSelectedBodiesAllPrim(NewSelectedBodies.Array(), true);
+	SetSelectedBodiesAllPrimitive(NewSelectedBodies.Array(), true);
 	SetSelectedConstraints(NewSelectedConstraints.Array(), true);
 }
 
@@ -2019,7 +1991,7 @@ void FPhysicsAssetEditorSharedData::MakeNewBody(int32 NewBoneIndex, bool bAutoSe
 
 	if (bAutoSelect)
 	{
-		SetSelectedBodyAnyPrim(NewBodyIndex, true);
+		SetSelectedBodyAnyPrimitive(NewBodyIndex, true);
 	}
 	
 

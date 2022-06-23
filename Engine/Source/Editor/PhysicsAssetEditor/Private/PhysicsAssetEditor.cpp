@@ -504,7 +504,7 @@ void FPhysicsAssetEditor::OnFinishedChangingProperties(const FPropertyChangedEve
 		{ // bulk update
 			FScopedBulkSelection BulkSelection(SharedData);
 			SharedData->ClearSelectedBody();
-			SharedData->SetSelectedBodiesAnyPrim(SelectedBodyIndices, true);
+			SharedData->SetSelectedBodiesAnyPrimitive(SelectedBodyIndices, true);
 		}
 	}
 
@@ -692,13 +692,7 @@ void FPhysicsAssetEditor::ExtendMenu()
 		{
 			const FPhysicsAssetEditorCommands& Commands = FPhysicsAssetEditorCommands::Get();
 			MenuBarBuilder.BeginSection("Selection", LOCTEXT("PhatEditSelection", "Selection"));
-			MenuBarBuilder.AddMenuEntry(Commands.SelectAllBodies);
-			MenuBarBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
-			MenuBarBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
-			MenuBarBuilder.AddMenuEntry(Commands.SelectAllConstraints);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionType);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionTypeWithUserConstraints);
-			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
+
 			MenuBarBuilder.AddMenuEntry(Commands.ShowSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.HideSelected);
 			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowOnlySelected);
@@ -707,6 +701,27 @@ void FPhysicsAssetEditor::ExtendMenu()
 			MenuBarBuilder.AddMenuEntry(Commands.ShowAll);
 			MenuBarBuilder.AddMenuEntry(Commands.HideAll);
 			MenuBarBuilder.AddMenuEntry(Commands.DeselectAll);
+			MenuBarBuilder.AddMenuEntry(Commands.ToggleShowSelected);
+
+			// Bodies
+			MenuBarBuilder.BeginSection("Bodies & Constraints", LOCTEXT("PhatEditSelectionBodies", "Bodies & Constraints"));
+				MenuBarBuilder.AddMenuEntry(Commands.SelectAllBodies);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectSimulatedBodies);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectKinematicBodies);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectAllConstraints);
+				MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionType);
+				MenuBarBuilder.AddMenuEntry(Commands.ToggleSelectionTypeWithUserConstraints);
+			MenuBarBuilder.EndSection();
+
+			// Shapes
+			MenuBarBuilder.BeginSection("Shapes", LOCTEXT("PhatEditSelectionShapes", "Shapes"));
+				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryOnly);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryAndPhysics);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesPhysicsOnly);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesQueryAndProbe);
+				MenuBarBuilder.AddMenuEntry(Commands.SelectShapesProbeOnly);
+			MenuBarBuilder.EndSection();
+
 			MenuBarBuilder.EndSection();
 		}
 	};
@@ -816,6 +831,12 @@ void FPhysicsAssetEditor::BindCommands()
 		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsPrimitiveCollisionChecked, ECollisionEnabled::QueryAndPhysics));
 
 	ToolkitCommands->MapAction(
+		Commands.PrimitiveQueryAndProbe,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSetPrimitiveCollision, ECollisionEnabled::QueryAndProbe),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanSetPrimitiveCollision, ECollisionEnabled::QueryAndProbe),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsPrimitiveCollisionChecked, ECollisionEnabled::QueryAndProbe));
+
+	ToolkitCommands->MapAction(
 		Commands.PrimitiveQueryOnly,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSetPrimitiveCollision, ECollisionEnabled::QueryOnly),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanSetPrimitiveCollision, ECollisionEnabled::QueryOnly),
@@ -826,6 +847,12 @@ void FPhysicsAssetEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSetPrimitiveCollision, ECollisionEnabled::PhysicsOnly),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanSetPrimitiveCollision, ECollisionEnabled::PhysicsOnly),
 		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsPrimitiveCollisionChecked, ECollisionEnabled::PhysicsOnly));
+
+	ToolkitCommands->MapAction(
+		Commands.PrimitiveProbeOnly,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSetPrimitiveCollision, ECollisionEnabled::ProbeOnly),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanSetPrimitiveCollision, ECollisionEnabled::ProbeOnly),
+		FIsActionChecked::CreateSP(this, &FPhysicsAssetEditor::IsPrimitiveCollisionChecked, ECollisionEnabled::ProbeOnly));
 
 	ToolkitCommands->MapAction(
 		Commands.PrimitiveNoCollision,
@@ -1003,6 +1030,31 @@ void FPhysicsAssetEditor::BindCommands()
 	ToolkitCommands->MapAction(
 		Commands.SelectKinematicBodies,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectKinematicBodies),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SelectShapesQueryOnly,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectShapes, ECollisionEnabled::QueryOnly),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SelectShapesQueryAndPhysics,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectShapes, ECollisionEnabled::QueryAndPhysics),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SelectShapesPhysicsOnly,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectShapes, ECollisionEnabled::PhysicsOnly),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SelectShapesQueryAndProbe,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectShapes, ECollisionEnabled::QueryAndProbe),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
+
+	ToolkitCommands->MapAction(
+		Commands.SelectShapesProbeOnly,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnSelectShapes, ECollisionEnabled::ProbeOnly),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::IsNotSimulation));
 
 	ToolkitCommands->MapAction(
@@ -1362,10 +1414,12 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 				InSubMenuBuilder.AddMenuEntry( PhysicsAssetEditorCommands.DisableCollisionAll );
 				InSubMenuBuilder.EndSection();
 
-				InSubMenuBuilder.BeginSection("CollisionFilteringHeader", LOCTEXT("CollisionFilteringHeader", "CollisionFiltering"));
+				InSubMenuBuilder.BeginSection("CollisionFilteringHeader", LOCTEXT("CollisionFilteringHeader", "Collision Filtering"));
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryAndPhysics);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryOnly);
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveQueryAndProbe);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitivePhysicsOnly);
+				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveProbeOnly);
 				InSubMenuBuilder.AddMenuEntry(PhysicsAssetEditorCommands.PrimitiveNoCollision);
 				InSubMenuBuilder.EndSection();
 
@@ -1514,6 +1568,11 @@ void FPhysicsAssetEditor::BuildMenuWidgetSelection(FMenuBuilder& InMenuBuilder)
 		InMenuBuilder.AddMenuEntry( Commands.ToggleShowOnlyConstrained );
 		InMenuBuilder.AddMenuEntry( Commands.ShowAll );
 		InMenuBuilder.AddMenuEntry( Commands.HideAll );
+		InMenuBuilder.AddMenuEntry( Commands.SelectShapesQueryOnly);
+		InMenuBuilder.AddMenuEntry( Commands.SelectShapesQueryAndPhysics);
+		InMenuBuilder.AddMenuEntry( Commands.SelectShapesPhysicsOnly);
+		InMenuBuilder.AddMenuEntry( Commands.SelectShapesQueryAndProbe);
+		InMenuBuilder.AddMenuEntry( Commands.SelectShapesProbeOnly);
 		InMenuBuilder.EndSection();
 	}
 	InMenuBuilder.PopCommandList();
@@ -2034,7 +2093,7 @@ void FPhysicsAssetEditor::ResetBoneCollision()
 
 		//deselect first
 		SharedData->ClearSelectedBody();
-		SharedData->SetSelectedBodiesAnyPrim(BodyIndices, true);
+		SharedData->SetSelectedBodiesAnyPrimitive(BodyIndices, true);
 	}
 	else
 	{
@@ -3027,7 +3086,7 @@ void FPhysicsAssetEditor::OnSelectAllBodies()
 
 	//first deselect everything
 	SharedData->ClearSelectedBody();
-	SharedData->SetSelectedBodiesAllPrim(NewSelectedBodies, true);
+	SharedData->SetSelectedBodiesAllPrimitive(NewSelectedBodies, true);
 
 }
 
@@ -3061,7 +3120,19 @@ void FPhysicsAssetEditor::OnSelectBodies(EPhysicsType PhysicsType)
 
 	//first deselect everything
 	SharedData->ClearSelectedBody();
-	SharedData->SetSelectedBodiesAllPrim(NewSelectedBodies, true);
+	SharedData->SetSelectedBodiesAllPrimitive(NewSelectedBodies, true);
+}
+
+void FPhysicsAssetEditor::OnSelectShapes(const ECollisionEnabled::Type CollisionEnabled)
+{
+	UPhysicsAsset * const PhysicsAsset = SharedData->EditorSkelComp->GetPhysicsAsset();
+	TSet<int32> SelectedBodyIndices;
+	for (const FPhysicsAssetEditorSharedData::FSelection& SelectedBody : SharedData->SelectedBodies)
+	{
+		SelectedBodyIndices.Add(SelectedBody.Index);
+	}
+	SharedData->ClearSelectedBody();
+	SharedData->SetSelectedBodiesPrimitivesWithCollisionType(SelectedBodyIndices.Array(), CollisionEnabled, true);
 }
 
 void FPhysicsAssetEditor::OnSelectAllConstraints()
@@ -3241,7 +3312,7 @@ void FPhysicsAssetEditor::HandleGraphObjectsSelected(const TArrayView<UObject*>&
 			}
 		}
 
-		SharedData->SetSelectedBodiesAnyPrim(SelectedBodyIndices, true);
+		SharedData->SetSelectedBodiesAnyPrimitive(SelectedBodyIndices, true);
 		SharedData->SetSelectedConstraints(SelectedConstraintIndices, true);
 
 		SkeletonTree->SelectItemsBy([&SelectedBodySetups, &SelectedConstraintTemplates](const TSharedRef<ISkeletonTreeItem>& InItem, bool& bInOutExpand)
@@ -3331,7 +3402,7 @@ void FPhysicsAssetEditor::HandleSelectionChanged(const TArrayView<TSharedPtr<ISk
 			}
 
 			SharedData->SetSelectedBodies(SelectedBodies, true);
-			SharedData->SetSelectedBodiesAnyPrim(SelectedBodiesAnyPrim, true);
+			SharedData->SetSelectedBodiesAnyPrimitive(SelectedBodiesAnyPrim, true);
 			SharedData->SetSelectedConstraints(SelectedConstraints, true);
 
 			if(!bBoneSelected)

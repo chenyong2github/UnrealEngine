@@ -795,7 +795,7 @@ void FPhysicsAssetDetailsCustomization::SelectAllBodiesInCurrentPhysicalAnimatio
 		}
 	}
 	SharedData->ClearSelectedBody();	//clear selection
-	SharedData->SetSelectedBodiesAnyPrim(NewBodiesSelection, true);
+	SharedData->SetSelectedBodiesAnyPrimitive(NewBodiesSelection, true);
 
 	return;
 }
