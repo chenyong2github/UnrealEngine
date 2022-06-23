@@ -101,6 +101,12 @@ public:
 		{
 		}
 
+		FPinOverrideValue(URigVMPin* InPin, const TPair<FRigVMASTProxy, const TMap<FRigVMASTProxy, FPinOverrideValue>&>& InOverride)
+			: DefaultValue(InPin->GetDefaultValue(InOverride))
+			, BoundVariablePath(InPin->GetBoundVariablePath())
+		{
+		}
+
 		FString DefaultValue;
 		FString BoundVariablePath;
 	};
