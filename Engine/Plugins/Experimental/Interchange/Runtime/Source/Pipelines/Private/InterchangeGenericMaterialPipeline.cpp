@@ -998,6 +998,14 @@ void UInterchangeGenericMaterialPipeline::HandleTextureSampleNode(const UInterch
 				TextureFactoryNode->SetCustomSRGB(false);
 			}
 		}
+
+		if(bool bSRGB; TextureNode->GetCustomSRGB(bSRGB))
+		{
+			if(UInterchangeTextureFactoryNode* TextureFactoryNode = Cast<UInterchangeTextureFactoryNode>(BaseNodeContainer->GetFactoryNode(TextureFactoryUid)))
+			{
+				TextureFactoryNode->SetCustomSRGB(bSRGB);
+			}
+		}
 	}
 	else
 	{
