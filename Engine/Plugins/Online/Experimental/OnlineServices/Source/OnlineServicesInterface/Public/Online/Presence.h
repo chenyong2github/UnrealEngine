@@ -243,6 +243,46 @@ inline FPartialUpdatePresence::Params::FMutations& FPartialUpdatePresence::Param
 	return *this;
 }
 
+inline TSharedRef<FUserPresence> ApplyPresenceMutations(const FUserPresence& BasePresence, const FPartialUpdatePresence::Params::FMutations& Mutations)
+{
+	TSharedRef<FUserPresence> NewPresence = MakeShared<FUserPresence>();
+	*NewPresence = BasePresence;
+
+	if (Mutations.Status.IsSet())
+	{
+		NewPresence->Status = Mutations.Status.GetValue();
+	}
+
+	if (Mutations.Joinability.IsSet())
+	{
+		NewPresence->Joinability = Mutations.Joinability.GetValue();
+	}
+
+	if (Mutations.GameStatus.IsSet())
+	{
+		NewPresence->GameStatus = Mutations.GameStatus.GetValue();
+	}
+
+	if (Mutations.StatusString.IsSet())
+	{
+		NewPresence->StatusString = Mutations.StatusString.GetValue();
+	}
+
+	// Insert any updated keys / remove from removed
+	for (const TPair<FString, FPresenceVariant>& NewUpdatedProperty : Mutations.UpdatedProperties)
+	{
+		NewPresence->Properties.Add(NewUpdatedProperty.Key, NewUpdatedProperty.Value);
+	}
+
+	// Merge any removed keys / remove from updated
+	for (const FString& NewRemovedKey : Mutations.RemovedProperties)
+	{
+		NewPresence->Properties.Remove(NewRemovedKey);
+	}
+
+	return NewPresence;
+}
+
 /** Struct for PresenceUpdated event */
 struct FPresenceUpdated
 {

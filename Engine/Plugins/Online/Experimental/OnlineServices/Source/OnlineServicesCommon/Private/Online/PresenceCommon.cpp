@@ -54,18 +54,19 @@ public:
 				{
 					// push results
 					Result.Presences.Add(NewOp.GetOkValue().Presence);
-
-					// final calculations
-					if (--NumPresencesRemaining < 0)
-					{
-						Promise.SetValue(FBatchQueryPresenceHelperResult{MoveTemp(Result), MoveTemp(ErrorState)});
-					}
 				}
 				else
 				{
 					// error
 					// we're only reporting the most recent one, more verbose logging on each individual error can be found in the logs
 					ErrorState = NewOp.GetErrorValue();
+				}
+
+
+				// final calculations
+				if (--NumPresencesRemaining <= 0)
+				{
+					Promise.SetValue(FBatchQueryPresenceHelperResult{ MoveTemp(Result), MoveTemp(ErrorState) });
 				}
 			});
 		}
@@ -86,11 +87,11 @@ TOnlineAsyncOpHandle<FBatchQueryPresence> FPresenceCommon::BatchQueryPresence(FB
 {
 	TOnlineAsyncOpRef<FBatchQueryPresence> Op = GetOp<FBatchQueryPresence>(MoveTemp(Params));
 	TSharedRef<FBatchQueryPresenceHelper> Helper = MakeShared<FBatchQueryPresenceHelper>(Op, this->AsShared());
+
 	Op->Then([this, Helper](TOnlineAsyncOp<FBatchQueryPresence>& InAsyncOp) mutable
 	{
 		return Helper->GetPromise();
 	})
-	
 	.Then([this, Helper](TOnlineAsyncOp<FBatchQueryPresence>& InAsyncOp, FBatchQueryPresenceHelperResult Result) mutable
 	{
 		if (Result.ErrorState == Errors::Success())
@@ -101,7 +102,9 @@ TOnlineAsyncOpHandle<FBatchQueryPresence> FPresenceCommon::BatchQueryPresence(FB
 		{
 			InAsyncOp.SetError(MoveTemp(Result.ErrorState));
 		}
-	});
+	})
+	.Enqueue(Services.GetParallelQueue());
+
 	return Op->GetHandle();
 }
 
