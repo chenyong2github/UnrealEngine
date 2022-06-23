@@ -1017,38 +1017,55 @@ FName URigHierarchy::GetSafeNewDisplayName(const FRigElementKey& InParentElement
 	{
 		return NAME_None;
 	}
-	
+
+	TArray<FRigElementKey> KeysToCheck;
 	if(InParentElement.IsValid())
 	{
-		FString SanitizedName = InPotentialNewDisplayName;
-		SanitizeName(SanitizedName);
-		FString Name = SanitizedName;
-
-		const TArray<FRigElementKey> ChildKeys = GetChildren(InParentElement);
-		TArray<FString> DisplayNames;
-		Algo::Transform(ChildKeys, DisplayNames, [this](const FRigElementKey& InKey) -> FString
-		{
-			if(const FRigBaseElement* BaseElement = Find(InKey))
-			{
-				return BaseElement->GetDisplayName().ToString();
-			}
-			return FString();
-		});
-
-		int32 Suffix = 1;
-		while (DisplayNames.Contains(Name))
-		{
-			FString BaseString = SanitizedName;
-			if (BaseString.Len() > GetMaxNameLength() - 4)
-			{
-				BaseString.LeftChopInline(BaseString.Len() - (GetMaxNameLength() - 4));
-			}
-			Name = *FString::Printf(TEXT("%s_%d"), *BaseString, ++Suffix);
-		}
-
-		return *Name;
+		KeysToCheck = GetChildren(InParentElement);
 	}
-	return *InPotentialNewDisplayName;
+	else
+	{
+		// get all of the root elements
+		for(const FRigBaseElement* Element : Elements)
+		{
+			if(!Element->IsA<FRigTransformElement>())
+			{
+				continue;
+			}
+			
+			if(GetNumberOfParents(Element) == 0)
+			{
+				KeysToCheck.Add(Element->GetKey());
+			}
+		}
+	}
+
+	FString SanitizedName = InPotentialNewDisplayName;
+	SanitizeName(SanitizedName);
+	FString Name = SanitizedName;
+
+	TArray<FString> DisplayNames;
+	Algo::Transform(KeysToCheck, DisplayNames, [this](const FRigElementKey& InKey) -> FString
+	{
+		if(const FRigBaseElement* BaseElement = Find(InKey))
+		{
+			return BaseElement->GetDisplayName().ToString();
+		}
+		return FString();
+	});
+
+	int32 Suffix = 1;
+	while (DisplayNames.Contains(Name))
+	{
+		FString BaseString = SanitizedName;
+		if (BaseString.Len() > GetMaxNameLength() - 4)
+		{
+			BaseString.LeftChopInline(BaseString.Len() - (GetMaxNameLength() - 4));
+		}
+		Name = *FString::Printf(TEXT("%s_%d"), *BaseString, ++Suffix);
+	}
+
+	return *Name;
 }
 
 FEdGraphPinType URigHierarchy::GetControlPinType(FRigControlElement* InControlElement) const

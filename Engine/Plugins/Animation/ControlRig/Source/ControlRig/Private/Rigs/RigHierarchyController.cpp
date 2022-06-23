@@ -2017,13 +2017,16 @@ FName URigHierarchyController::SetDisplayName(FRigControlElement* InControlEleme
 		return NAME_None;
 	}
 
+	FRigElementKey ParentElementKey;
 	if(const FRigBaseElement* ParentElement = Hierarchy->GetFirstParent(InControlElement))
 	{
-		const FString DesiredDisplayName = InDisplayName.IsNone() ? FString() : InDisplayName.ToString();
-		const FName DisplayName = Hierarchy->GetSafeNewDisplayName(ParentElement->GetKey(), DesiredDisplayName);
-		InControlElement->Settings.DisplayName = DisplayName;
+		ParentElementKey = ParentElement->GetKey();
 	}
-	
+
+	const FString DesiredDisplayName = InDisplayName.IsNone() ? FString() : InDisplayName.ToString();
+	const FName DisplayName = Hierarchy->GetSafeNewDisplayName(ParentElementKey, DesiredDisplayName);
+	InControlElement->Settings.DisplayName = DisplayName;
+
 	Hierarchy->IncrementTopologyVersion();
 	Notify(ERigHierarchyNotification::ControlSettingChanged, InControlElement);
 

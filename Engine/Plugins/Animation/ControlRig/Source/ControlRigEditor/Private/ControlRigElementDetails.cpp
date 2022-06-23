@@ -3735,7 +3735,7 @@ FText FRigControlElementDetails::GetDisplayName() const
 	for(int32 ObjectIndex = 0; ObjectIndex < PerElementInfos.Num(); ObjectIndex++)
 	{
 		const FPerElementInfo& Info = PerElementInfos[ObjectIndex];
-		if(const FRigControlElement* ControlElement = Info.GetElement<FRigControlElement>())
+		if(const FRigControlElement* ControlElement = Info.GetDefaultElement<FRigControlElement>())
 		{
  			const FName ThisDisplayName =
  				(ControlElement->IsAnimationChannel()) ?
@@ -3765,7 +3765,7 @@ void FRigControlElementDetails::SetDisplayName(const FText& InNewText, ETextComm
 	for(int32 ObjectIndex = 0; ObjectIndex < PerElementInfos.Num(); ObjectIndex++)
 	{
 		const FPerElementInfo& Info = PerElementInfos[ObjectIndex];
-		if(const FRigControlElement* ControlElement = Info.GetElement<FRigControlElement>())
+		if(const FRigControlElement* ControlElement = Info.GetDefaultElement<FRigControlElement>())
 		{
 			SetDisplayNameForElement(InNewText, InCommitType, ControlElement->GetKey());
 		}
