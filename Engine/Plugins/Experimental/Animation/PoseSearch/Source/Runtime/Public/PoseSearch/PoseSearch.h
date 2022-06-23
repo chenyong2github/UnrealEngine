@@ -180,6 +180,7 @@ struct FPoseSearchBlockTransitionParameters
 	float SequenceEndInterval = 0.0f;
 };
 
+// @todo: move it into PoseSearchFeatureChannels after removing SampledBones_DEPRECATED 
 USTRUCT()
 struct POSESEARCH_API FPoseSearchBone
 {
@@ -199,6 +200,10 @@ struct POSESEARCH_API FPoseSearchBone
 
 	UPROPERTY(EditAnywhere, Category = Config)
 	bool bUsePhase = false;
+
+	// @todo: temporary location for the channel bone weight to help the weights refactoring
+	UPROPERTY(EditAnywhere, Category = Config)
+	float Weight = 1.f;
 };
 
 
@@ -228,17 +233,29 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 	UPROPERTY()
 	EPoseSearchFeatureType Type = EPoseSearchFeatureType::Invalid;
 
-	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator==
-	UPROPERTY()
-	int16 ValueOffset = 0;
-
 	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator== or else Schema->Layout.Features.Find(Feature); called by FPoseSearchFeatureVectorBuilder will fail
 	UPROPERTY()
 	int16 Cardinality = 0;
 
+	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator==
+	UPROPERTY()
+	int16 ValueOffset = 0;
+
 	bool operator==(const FPoseSearchFeatureDesc& Other) const;
 
 	bool IsValid() const { return Type != EPoseSearchFeatureType::Invalid; }
+
+	static FPoseSearchFeatureDesc Construct(int8 ChannelIdx, int8 ChannelFeatureId, int8 SubsampleIdx, EPoseSearchFeatureType Type, int16 Cardinality)
+	{
+		FPoseSearchFeatureDesc PoseSearchFeatureDesc;
+		PoseSearchFeatureDesc.ChannelIdx = ChannelIdx;
+		PoseSearchFeatureDesc.ChannelFeatureId = ChannelFeatureId;
+		PoseSearchFeatureDesc.SubsampleIdx = SubsampleIdx;
+		PoseSearchFeatureDesc.Type = Type;
+		PoseSearchFeatureDesc.Cardinality = Cardinality;
+		//PoseSearchFeatureDesc.ValueOffset
+		return PoseSearchFeatureDesc;
+	}
 };
 
 
@@ -401,15 +418,14 @@ public:
 	// Called during UPoseSearchSchema::Finalize to prepare the schema for this channel
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer);
 	
+	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
+
 	// Called at database build time to populate pose vectors with this channel's data
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
 	// Return this channel's range of sampling offsets in the requested sampling domain.
 	// Returns empty range if the channel has no horizon in the requested domain.
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GetHorizonRange, return FFloatRange::Empty(); );
-
-	// Return this channel's horizon sampling offsets
-	virtual TArrayView<const float> GetSampleOffsets () const PURE_VIRTUAL(UPoseSearchFeatureChannel::GetSampleOffsets, return {}; );
 
 	// Hash channel properties to produce a key for database derived data
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GenerateDDCKey, );
@@ -461,12 +477,10 @@ public:
 	int32 GetCurrentChannelIdx() const { return CurrentChannelIdx; }
 
 	int32 GetCurrentCardinalityFrom(int32 ChannelDataOffset) const { check(CurrentChannelDataOffset >= ChannelDataOffset);  return CurrentChannelDataOffset - ChannelDataOffset; }
-	void AddFeatures(int8 ChannelIdx, EPoseSearchFeatureType Type, int32 ChannelFeatureId, int32 NumSampleOffsets);
 	int32 GetCurrentChannelDataOffset() const { return CurrentChannelDataOffset; }
-
-private:
 	int32 AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDesc);
 
+private:
 	friend class ::UPoseSearchSchema;
 
 	int32 CurrentChannelIdx = 0;
@@ -559,8 +573,6 @@ public:
 	// Returns global range of sampling offsets among all channels in requested sampling domain.
 	// Returns empty range if the channel has no horizon in the requested domain.
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const;
-
-	TArrayView<const float> GetChannelSampleOffsets (int32 ChannelIdx) const;
 
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
@@ -755,6 +767,8 @@ struct POSESEARCH_API FPoseSearchIndex
 	TArrayView<const float> GetPoseValues(int32 PoseIdx) const;
 
 	int32 FindAssetIndex(const FPoseSearchIndexAsset* Asset) const;
+	const FGroupSearchIndex* FindGroup(int32 GroupIndex) const;
+
 	const FPoseSearchIndexAsset* FindAssetForPose(int32 PoseIdx) const;
 	float GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset* Asset) const;
 
@@ -768,104 +782,6 @@ struct POSESEARCH_API FPoseSearchIndex
 
 //////////////////////////////////////////////////////////////////////////
 // Database
-
-USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FPoseSearchChannelHorizonParams
-{
-	GENERATED_BODY()
-
-	// Total score contribution of all samples within this horizon, normalized with other horizons
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
-	float Weight = 1.0f;
-
-	// Whether to interpolate samples within this horizon
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Advanced")
-	bool bInterpolate = false;
-
-	// Horizon sample weights will be interpolated from InitialValue to 1.0 - InitialValue and then normalized
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Advanced", meta = (EditCondition = "bInterpolate", ClampMin="0.0", ClampMax="1.0"))
-	float InitialValue = 0.1f;
-
-	// Curve type for horizon interpolation 
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Advanced", meta = (EditCondition = "bInterpolate"))
-	EAlphaBlendOption InterpolationMethod = EAlphaBlendOption::Linear;
-};
-
-USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FPoseSearchChannelWeightParams
-{
-	GENERATED_BODY()
-
-	// Contribution of this score component. Normalized with other channels.
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings", meta = (ClampMin = "0.0"))
-	float ChannelWeight = 1.0f;
-
-	// History horizon params (for sample offsets <= 0)
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	FPoseSearchChannelHorizonParams HistoryParams;
-
-	// Prediction horizon params (for sample offsets > 0)
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	FPoseSearchChannelHorizonParams PredictionParams;
-
-	// Contribution of each type within this channel
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	TMap<EPoseSearchFeatureType, float> TypeWeights;
-
-	FPoseSearchChannelWeightParams();
-};
-
-USTRUCT(BlueprintType, Category = "Animation|Pose Search")
-struct POSESEARCH_API FPoseSearchWeightParams
-{
-	GENERATED_BODY()
-
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = "Settings")
-	TArray<FPoseSearchChannelWeightParams> ChannelWeights;
-
-	const FPoseSearchChannelWeightParams* GetChannelWeights(int32 ChannelIdx) const;
-};
-
-
-USTRUCT()
-struct POSESEARCH_API FPoseSearchWeights
-{
-	GENERATED_BODY()
-
-	UPROPERTY(Transient)
-	TArray<float> Weights;
-
-	bool IsInitialized() const { return !Weights.IsEmpty(); }
-	void Init(const FPoseSearchWeightParams& WeightParams, const UPoseSearchSchema* Schema);
-};
-
-USTRUCT()
-struct POSESEARCH_API FPoseSearchWeightsContext
-{
-	GENERATED_BODY()
-
-public:
-	// Computes and caches new group weights whenever the database changes
-	void Update(const UPoseSearchDatabase * Database);
-
-	const FPoseSearchWeights* GetGroupWeights (int32 WeightsGroupIdx) const;
-	
-private:
-	UPROPERTY(Transient)
-	TWeakObjectPtr<const UPoseSearchDatabase> Database = nullptr;
-
-	UPROPERTY(Transient)
-	FPoseSearchWeights ComputedDefaultGroupWeights;
-
-	UPROPERTY(Transient)
-	TArray<FPoseSearchWeights> ComputedGroupWeights;
-
-#if WITH_EDITOR
-	// used to check if the data has changed, which requires the weights to be recomputed
-	FIoHash SearchIndexHash = FIoHash::Zero;
-#endif
-};
-
 
 /** An entry in a UPoseSearchDatabase. */
 USTRUCT(BlueprintType, Category = "Animation|Pose Search")
@@ -947,12 +863,6 @@ struct POSESEARCH_API FPoseSearchDatabaseGroup
 public:
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	FGameplayTag Tag;
-
-	UPROPERTY(EditAnywhere, Category = "Settings")
-	bool bUseGroupWeights = false;
-
-	UPROPERTY(EditAnywhere, Category = "Settings", meta=(EditCondition="bUseGroupWeights", EditConditionHides))
-	FPoseSearchWeightParams Weights;
 };
 
 USTRUCT(BlueprintType)
@@ -1232,9 +1142,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Database", DisplayName="Config")
 	TObjectPtr<const UPoseSearchSchema> Schema = nullptr;
 
-	UPROPERTY(EditAnywhere, Category = "Database")
-	FPoseSearchWeightParams DefaultWeights;
-
 	// If there's a mirroring mismatch between the currently playing sequence and a search candidate, this cost will be 
 	// added to the candidate, making it less likely to be selected
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Database")
@@ -1358,14 +1265,12 @@ public:
 
 	FPoseSearchCost ComparePoses(
 		FPoseSearchContext& SearchContext,
-		FPoseSearchWeightsContext& WeightsContext,
 		int32 PoseIdx,
 		int32 GroupIdx,
 		const TArrayView<const float>& QueryValues) const;
 
 	FPoseSearchCost ComparePoses(
 		FPoseSearchContext& SearchContext,
-		FPoseSearchWeightsContext& WeightsContext,
 		int32 PoseIdx,
 		const TArrayView<const float>& QueryValues,
 		UE::PoseSearch::FPoseCostDetails& OutPoseCostDetails) const;

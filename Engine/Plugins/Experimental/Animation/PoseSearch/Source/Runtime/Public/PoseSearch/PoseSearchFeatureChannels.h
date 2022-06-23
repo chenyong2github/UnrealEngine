@@ -42,9 +42,9 @@ public:
 
 	// UPoseSearchFeatureChannel interface
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer) override;
+	virtual void FillWeights(TArray<float>& Weights) const override;
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const override;
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const override;
-	virtual TArrayView<const float> GetSampleOffsets () const override { return SampleTimes; }
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const override;
 	virtual bool BuildQuery(
 		FPoseSearchContext& SearchContext,
@@ -54,6 +54,11 @@ public:
 protected:
 	virtual void AddPoseFeatures(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector, const TArray<TArray<FVector2D>>& Phases) const;
 	void CalculatePhases(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput, TArray<TArray<FVector2D>>& OutPhases) const;
+
+	enum { PositionCardinality = 3 };
+	enum { RotationCardinality = 6 };
+	enum { LinearVelocityCardinality = 3 };
+	enum { PhaseCardinality = 2 };
 };
 
 
@@ -81,6 +86,10 @@ public:
 	UPROPERTY(EditAnywhere, Category="Settings")
 	EPoseSearchFeatureDomain Domain = EPoseSearchFeatureDomain::Time;
 
+	// @todo: temporary location for the channel bone weight to help the weights refactoring (later on it makes sense to have a weight per SampleOffsets, but right now for semplicity the traj will have just one weight)
+	UPROPERTY(EditAnywhere, Category = "Settings")
+	float Weight = 1.f;
+
 	UPROPERTY(EditAnywhere, Category = "Settings")
 	TArray<float> SampleOffsets;
 
@@ -89,9 +98,9 @@ public:
 
 	// UPoseSearchFeatureChannel interface
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer) override;
+	virtual void FillWeights(TArray<float>& Weights) const override;
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const override;
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const override;
-	virtual TArrayView<const float> GetSampleOffsets () const override { return SampleOffsets; }
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const override;
 	virtual bool BuildQuery(
 		FPoseSearchContext& SearchContext,
@@ -101,4 +110,8 @@ public:
 protected:
 	virtual void IndexTimeFeatures(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector) const;
 	virtual void IndexDistanceFeatures(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector) const;
+
+	enum { PositionCardinality = 3 };
+	enum { LinearVelocityCardinality = 3 };
+	enum { ForwardVectorCardinality = 3 };
 };

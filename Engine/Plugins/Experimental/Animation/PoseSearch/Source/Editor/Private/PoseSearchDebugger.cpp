@@ -1025,14 +1025,7 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 	check(ActiveView.Rows.Num() == 1);
 	check(ContinuingPoseView.Rows.Num() == 1);
 
-	FPoseSearchWeightsContext StateWeights;
-	StateWeights.Update(&Database);
-
 	FPoseSearchContext SearchContext;
-
-	FPoseSearchWeightsContext WeightsContext;
-	WeightsContext.Update(&Database);
-
 	if (const FPoseSearchIndexAsset* CurrentIndexAsset = Database.GetSearchIndex()->FindAssetForPose(State.DbPoseIdx))
 	{
 		SearchContext.QueryMirrorRequest = CurrentIndexAsset->bMirrored ? 
@@ -1049,7 +1042,6 @@ void SDebuggerDatabaseView::UpdateRows(const FTraceMotionMatchingStateMessage& S
 
 			Database.ComparePoses(
 				SearchContext, 
-				WeightsContext, 
 				PoseIdx, 
 				State.QueryVectorNormalized, 
 				Row->PoseCostDetails);

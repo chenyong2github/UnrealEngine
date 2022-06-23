@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PoseSearch/PoseSearchFeatureChannels.h"
-#include "PoseSearch/PoseSearch.h"
 #include "AnimationRuntime.h"
 #include "Animation/AnimationPoseData.h"
 #include "Animation/AttributesRuntime.h"
@@ -294,19 +293,31 @@ void UPoseSearchFeatureChannel_Pose::InitializeSchema(UE::PoseSearch::FSchemaIni
 		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 		if (SampledBone.bUsePosition)
 		{
-			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Position, ChannelBoneIdx, SampleTimes.Num());
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality));
+			}
 		}
 		if (SampledBone.bUseRotation)
 		{
-			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Rotation, ChannelBoneIdx, SampleTimes.Num());
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Rotation, RotationCardinality));
+			}
 		}
 		if (SampledBone.bUseVelocity)
 		{
-			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::LinearVelocity, ChannelBoneIdx, SampleTimes.Num());
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality));
+			}
 		}
 		if (SampledBone.bUsePhase)
 		{
-			Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Phase, ChannelBoneIdx, SampleTimes.Num());
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Phase, PhaseCardinality));
+			}
 		}
 	}
 
@@ -319,6 +330,51 @@ void UPoseSearchFeatureChannel_Pose::InitializeSchema(UE::PoseSearch::FSchemaIni
 		FeatureInfo.SchemaBoneIdx = Initializer.AddBoneReference(Bone.Reference);
 		FeatureParams.Add(FeatureInfo);
 	}
+}
+
+void UPoseSearchFeatureChannel_Pose::FillWeights(TArray<float>& Weights) const
+{
+	int32 DataOffset = ChannelDataOffset;
+
+	const int32 NumBones = SampledBones.Num();
+	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
+	{
+		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
+		if (SampledBone.bUsePosition)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Weights[DataOffset] = SampledBone.Weight;
+				DataOffset += PositionCardinality;
+			}
+		}
+		if (SampledBone.bUseRotation)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Weights[DataOffset] = SampledBone.Weight;
+				DataOffset += RotationCardinality;
+			}
+		}
+		if (SampledBone.bUseVelocity)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Weights[DataOffset] = SampledBone.Weight;
+				DataOffset += LinearVelocityCardinality;
+			}
+		}
+		if (SampledBone.bUsePhase)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				Weights[DataOffset] = SampledBone.Weight;
+				DataOffset += PhaseCardinality;
+			}
+		}
+	}
+
+	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
 // @todo: do we really need to use double(s) in all this math?
@@ -800,8 +856,6 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 	}
 }
 
-
-
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Trajectory
 void UPoseSearchFeatureChannel_Trajectory::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -817,20 +871,39 @@ void UPoseSearchFeatureChannel_Trajectory::InitializeSchema( UE::PoseSearch::FSc
 
 	if (bUsePositions)
 	{
-		Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::Position, 0, SampleOffsets.Num());
+		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
+		{
+			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality));
+		}
 	}
 
 	if (bUseLinearVelocities)
 	{
-		Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::LinearVelocity, 0, SampleOffsets.Num());
+		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
+		{
+			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality));
+		}
 	}
 
 	if (bUseFacingDirections)
 	{
-		Initializer.AddFeatures(GetChannelIndex(), EPoseSearchFeatureType::ForwardVector, 0, SampleOffsets.Num());
+		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
+		{
+			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::ForwardVector, ForwardVectorCardinality));
+		}
 	}
 
 	ChannelCardinality = Initializer.GetCurrentCardinalityFrom(ChannelDataOffset);
+}
+
+void UPoseSearchFeatureChannel_Trajectory::FillWeights(TArray<float>& Weights) const
+{
+	const int32 Begin = ChannelDataOffset;
+	const int32 End = ChannelDataOffset + ChannelCardinality;
+	for (int i = Begin; i < End; ++i)
+	{
+		Weights[i] = Weight;
+	}
 }
 
 void UPoseSearchFeatureChannel_Trajectory::IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
@@ -1011,6 +1084,7 @@ void UPoseSearchFeatureChannel_Trajectory::GenerateDDCKey(FBlake3& InOutKeyHashe
 	InOutKeyHasher.Update(&bUseFacingDirections, sizeof(bUseFacingDirections));
 	InOutKeyHasher.Update(&Domain, sizeof(Domain));
 	InOutKeyHasher.Update(MakeMemoryView(SampleOffsets));
+	InOutKeyHasher.Update(&Weight, sizeof(Weight));
 }
 
 bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(
