@@ -36,6 +36,22 @@ namespace PCGDeterminismTests
 		FRandomStream RandomStream;
 	};
 
+	struct FPCGDeterminismResult
+	{
+		int32 Index;
+		bool bIsDeterministic;
+		FName NodeTitle;
+		FString NodeNameString;
+		FString DataTestedString;
+		FString AdditionalDetailString;
+	};
+
+	/** Validates if a PCGNode is deterministic, updating the passed in result accordingly */
+	PCG_API void RunDeterminismTests(const UPCGNode* InPCGNode, FPCGDeterminismResult& OutResult);
+
+	/** Adds input data to test data, based on input pins' allowed types */
+	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* InPCGNode, FPCGDeterminismResult& OutResult);
+
 	/** Helper for adding PointData with a single Point to an InputData */
 	void AddSinglePointInputData(FPCGDataCollection& InputData, const FVector& Location, const FName& PinName = DefaultTestPinName);
 	/** Helper for adding PointData with multiple Points to an InputData */
@@ -85,7 +101,9 @@ namespace PCGDeterminismTests
 	bool ComparisonIsUnimplemented(const UPCGData* FirstData, const UPCGData* SecondData);
 
 	/** Determines if a PCG DataType is a type that should be compared */
-	bool DataIsComparable(EPCGDataType DataType);
+	bool DataTypeIsComparable(EPCGDataType DataType);
+	/** Validates PCGData and if its DataType is comparable */
+	bool DataIsComparable(const UPCGData* Data);
 
 	/** Randomizes the order of InputData */
 	void ShuffleInputOrder(FTestData& TestData);
@@ -94,9 +112,9 @@ namespace PCGDeterminismTests
 	TFunction<bool(const UPCGData*, const UPCGData*)> GetCompareFunction(EPCGDataType DataType);
 
 	/** Execute the elements for each valid input and compare if all the outputs are identical */
-	bool ExecutionIsDeterministic(FTestData& FirstTestData, FTestData& SecondTestData);
+	bool ExecutionIsDeterministic(FTestData& FirstTestData, FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
 	/** Execute the same element twice compare if all the outputs are identical */
-	bool ExecutionIsDeterministicSameData(FTestData& TestData);
+	bool ExecutionIsDeterministicSameData(FTestData& TestData, const UPCGNode* PCGNode = nullptr);
 
 	/** Generates settings based upon a UPCGSettings subclass */
 	template<typename SettingsType>

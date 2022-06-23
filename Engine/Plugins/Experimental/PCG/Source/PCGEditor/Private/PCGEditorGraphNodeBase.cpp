@@ -111,6 +111,13 @@ void UPCGEditorGraphNodeBase::GetNodeContextMenuActions(UToolMenu* Menu, class U
 			LOCTEXT("MultiCommentDesc", "Create Comment from Selection"),
 			LOCTEXT("CommentToolTip", "Create a resizable comment box around selection."));
 	}
+
+	{
+		FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaDeterminism", LOCTEXT("DeterminismHeader", "Determinism"));
+		Section.AddMenuEntry(FPCGEditorCommands::Get().RunDeterminismTest,
+			LOCTEXT("Determinism_RunTest", "Validate Determinism on Selection"),
+			LOCTEXT("Determinism_RunTestToolTip", "Run a test to validate the selected nodes for determinism."));
+	}
 }
 
 void UPCGEditorGraphNodeBase::AutowireNewNode(UEdGraphPin* FromPin)

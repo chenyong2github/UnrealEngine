@@ -9,6 +9,7 @@
 class FUICommandList;
 class IDetailsView;
 class SGraphEditor;
+class SPCGEditorGraphDeterminismListView;
 class SPCGEditorGraphFind;
 class SPCGEditorGraphNodePalette;
 class UPCGEditorGraph;
@@ -57,6 +58,11 @@ private:
 
 	/** Bring up the find tab */
 	void OnFind();
+
+	/** Can determinism be tested on this node */
+	bool CanRunDeterminismTests() const;
+	/** Summon the Determinism tab */
+	void OnDeterminismTests();
 
 	/** Select every node in the graph */
 	void SelectAllNodes();
@@ -115,6 +121,9 @@ private:
 	/** Create new find widget */
 	TSharedRef<SPCGEditorGraphFind> CreateFindWidget();
 
+	/** Create a new determinism tab widget */
+	TSharedRef<SPCGEditorGraphDeterminismListView> CreateDeterminismWidget();
+
 	/** Called when the selection changes in the GraphEditor */
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
@@ -144,11 +153,13 @@ private:
 	TSharedRef<SDockTab> SpawnTab_Attributes(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Viewport(const FSpawnTabArgs& Args);
 	TSharedRef<SDockTab> SpawnTab_Find(const FSpawnTabArgs& Args);
+	TSharedRef<SDockTab> SpawnTab_Determinism(const FSpawnTabArgs& Args);
 
 	TSharedPtr<SGraphEditor> GraphEditorWidget;
 	TSharedPtr<IDetailsView> PropertyDetailsWidget;
 	TSharedPtr<SPCGEditorGraphNodePalette> PaletteWidget;
 	TSharedPtr<SPCGEditorGraphFind> FindWidget;
+	TSharedPtr<SPCGEditorGraphDeterminismListView> DeterminismWidget;
 
 	TSharedPtr<FUICommandList> GraphEditorCommands;
 

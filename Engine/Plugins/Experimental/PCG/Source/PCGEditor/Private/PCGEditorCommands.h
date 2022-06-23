@@ -16,4 +16,5 @@ public:
 
 	TSharedPtr<FUICommandInfo> Find;
 	TSharedPtr<FUICommandInfo> CollapseNodes;
+	TSharedPtr<FUICommandInfo> RunDeterminismTest;
 };

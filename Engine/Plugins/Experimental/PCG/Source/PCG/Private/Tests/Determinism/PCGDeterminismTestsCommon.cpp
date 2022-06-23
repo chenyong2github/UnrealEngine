@@ -69,6 +69,67 @@ namespace PCGDeterminismTests
 		Settings = nullptr;
 	}
 
+	PCG_API void RunDeterminismTests(const UPCGNode* PCGNode, FPCGDeterminismResult& Result)
+	{
+		check(PCGNode);
+
+		FTestData TestData(DefaultSeed);
+		TestData.Settings = PCGNode->DefaultSettings;
+
+		// Generate random input data
+		AddInputDataBasedOnPins(TestData, PCGNode, Result);
+		Result.bIsDeterministic = ExecutionIsDeterministicSameData(TestData, PCGNode);
+
+		// TODO: Add other 4 determinism tests, ex. Order Independence, etc
+	}
+
+	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* PCGNode, FPCGDeterminismResult& Result)
+	{
+		check(PCGNode);
+
+		for (UPCGPin* InputPin : PCGNode->GetInputPins())
+		{
+			check(InputPin);
+
+			switch (InputPin->Properties.AllowedTypes)
+			{
+			case EPCGDataType::Point:
+				AddRandomizedMultiplePointInputData(TestData);
+				Result.DataTestedString = TEXT("Point");
+				break;
+			case EPCGDataType::Volume:
+				AddRandomizedVolumeInputData(TestData);
+				Result.DataTestedString = TEXT("Volume");
+				break;
+			case EPCGDataType::PolyLine:
+				AddRandomizedPolyLineInputData(TestData);
+				Result.DataTestedString = TEXT("PolyLine");
+				break;
+			case EPCGDataType::Primitive:
+				AddRandomizedPrimitiveInputData(TestData);
+				Result.DataTestedString = TEXT("Primitive");
+				break;
+			case EPCGDataType::Surface:
+				AddRandomizedSurfaceInputData(TestData);
+				Result.DataTestedString = TEXT("Surface");
+				break;
+			case EPCGDataType::Any:
+			case EPCGDataType::Spatial:
+				AddRandomizedMultiplePointInputData(TestData, 1000);
+				AddRandomizedVolumeInputData(TestData);
+				AddRandomizedPolyLineInputData(TestData);
+				AddRandomizedPrimitiveInputData(TestData);
+				AddRandomizedSurfaceInputData(TestData);
+				Result.DataTestedString = TEXT("Spatial");
+				break;
+			default:
+				Result.DataTestedString = TEXT("Unknown");
+				Result.AdditionalDetailString = TEXT("Unknown data Input Pin");
+				break;
+			}
+		}
+	}
+
 	void AddSinglePointInputData(FPCGDataCollection& InputData, const FVector& Location, const FName& PinName)
 	{
 		UPCGPointData* PointData = PCGTestsCommon::CreatePointData(Location);
@@ -214,7 +275,7 @@ namespace PCGDeterminismTests
 		// Find comparable data from first collection
 		for (int32 I = 0; I < FirstCollection.TaggedData.Num(); ++I)
 		{
-			if (DataIsComparable(FirstCollection.TaggedData[I].Data->GetDataType()))
+			if (DataIsComparable(FirstCollection.TaggedData[I].Data))
 			{
 				FirstCollectionComparableIndices.Emplace(I);
 			}
@@ -224,7 +285,7 @@ namespace PCGDeterminismTests
 		for (int32 I = 0; I < SecondCollection.TaggedData.Num(); ++I)
 		{
 			// Check if its a type we care about comparing
-			if (DataIsComparable(SecondCollection.TaggedData[I].Data->GetDataType()))
+			if (DataIsComparable(SecondCollection.TaggedData[I].Data))
 			{
 				SecondCollectionComparableIndices.Emplace(I);
 			}
@@ -467,7 +528,7 @@ namespace PCGDeterminismTests
 		return false;
 	}
 
-	bool DataIsComparable(EPCGDataType DataType)
+	bool DataTypeIsComparable(EPCGDataType DataType)
 	{
 		// Comparable data types
 		if (DataType == EPCGDataType::Spatial)
@@ -483,6 +544,11 @@ namespace PCGDeterminismTests
 
 		UE_LOG(LogPCG, Warning, TEXT("Unknown data comparison type: %s"), *UEnum::GetValueAsString(DataType));
 		return false;
+	}
+
+	bool DataIsComparable(const UPCGData* Data)
+	{
+		return Data && DataTypeIsComparable(Data->GetDataType());
 	}
 
 	void ShuffleInputOrder(FTestData& TestData)
@@ -501,7 +567,7 @@ namespace PCGDeterminismTests
 
 	TFunction<bool(const UPCGData*, const UPCGData*)> GetCompareFunction(EPCGDataType DataType)
 	{
-		if (!DataIsComparable(DataType))
+		if (!DataTypeIsComparable(DataType))
 		{
 			// Should never reach here
 			UE_LOG(LogPCG, Warning, TEXT("Attempting to compare incomparable data."));
@@ -518,13 +584,13 @@ namespace PCGDeterminismTests
 		}
 	}
 
-	bool ExecutionIsDeterministic(FTestData& FirstTestData, FTestData& SecondTestData)
+	bool ExecutionIsDeterministic(FTestData& FirstTestData, FTestData& SecondTestData, const UPCGNode* PCGNode)
 	{
 		FPCGElementPtr FirstElement = FirstTestData.Settings->GetElement();
 		FPCGElementPtr SecondElement = SecondTestData.Settings->GetElement();
 
-		TUniquePtr<FPCGContext> FirstContext(FirstElement->Initialize(FirstTestData.InputData, FirstTestData.TestPCGComponent, nullptr));
-		TUniquePtr<FPCGContext> SecondContext(SecondElement->Initialize(SecondTestData.InputData, SecondTestData.TestPCGComponent, nullptr));
+		TUniquePtr<FPCGContext> FirstContext(FirstElement->Initialize(FirstTestData.InputData, FirstTestData.TestPCGComponent, PCGNode));
+		TUniquePtr<FPCGContext> SecondContext(SecondElement->Initialize(SecondTestData.InputData, SecondTestData.TestPCGComponent, PCGNode));
 
 		FirstContext->NumAvailableTasks = 1;
 		SecondContext->NumAvailableTasks = 1;
@@ -541,8 +607,8 @@ namespace PCGDeterminismTests
 		return PCGDeterminismTests::DataCollectionsAreIdentical(FirstContext->OutputData, SecondContext->OutputData);
 	}
 
-	bool ExecutionIsDeterministicSameData(FTestData& TestData)
+	bool ExecutionIsDeterministicSameData(FTestData& TestData, const UPCGNode* PCGNode)
 	{
-		return ExecutionIsDeterministic(TestData, TestData);
+		return ExecutionIsDeterministic(TestData, TestData, PCGNode);
 	}
 }

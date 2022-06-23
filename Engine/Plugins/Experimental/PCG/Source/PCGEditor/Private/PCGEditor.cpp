@@ -19,8 +19,10 @@
 #include "PCGEditorGraphSchemaActions.h"
 #include "PCGEditorSettings.h"
 #include "PCGEditorUtils.h"
+#include "SPCGEditorGraphDeterminism.h"
 #include "SPCGEditorGraphFind.h"
 #include "SPCGEditorGraphNodePalette.h"
+#include "Tests/Determinism/PCGDeterminismTestsCommon.h"
 
 #include "EdGraphUtilities.h"
 #include "Editor.h"
@@ -59,6 +61,7 @@ namespace FPCGEditor_private
 	const FName AttributesID = FName(TEXT("Attributes"));
 	const FName ViewportID = FName(TEXT("Viewport"));
 	const FName FindID = FName(TEXT("Find"));
+	const FName DeterminismID = FName(TEXT("Determinism"));
 }
 
 void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<class IToolkitHost>& InToolkitHost, UPCGGraph* InPCGGraph)
@@ -80,6 +83,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 	GraphEditorWidget = CreateGraphEditorWidget();
 	PaletteWidget = CreatePaletteWidget();
 	FindWidget = CreateFindWidget();
+	DeterminismWidget = CreateDeterminismWidget();
 
 	BindCommands();
 
@@ -89,7 +93,6 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 			FTabManager::NewPrimaryArea()->SetOrientation(Orient_Horizontal)
 			->Split
 			(
-				
 				FTabManager::NewSplitter()->SetOrientation(Orient_Vertical)
 				->SetSizeCoefficient(0.10f)
 				->Split
@@ -124,6 +127,7 @@ void FPCGEditor::Initialize(const EToolkitMode::Type InMode, const TSharedPtr<cl
 					->SetSizeCoefficient(0.28)
 					->SetHideTabWell(true)
 					->AddTab(FPCGEditor_private::AttributesID, ETabState::OpenedTab)
+					->AddTab(FPCGEditor_private::DeterminismID, ETabState::ClosedTab)
 					->AddTab(FPCGEditor_private::FindID, ETabState::ClosedTab)
 				)
 			)
@@ -185,6 +189,10 @@ void FPCGEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager
 	InTabManager->RegisterTabSpawner(FPCGEditor_private::FindID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Find))
 		.SetDisplayName(LOCTEXT("FindTab", "Find"))
 		.SetGroup(WorkspaceMenuCategoryRef);
+
+	InTabManager->RegisterTabSpawner(FPCGEditor_private::DeterminismID, FOnSpawnTab::CreateSP(this, &FPCGEditor::SpawnTab_Determinism))
+		.SetDisplayName(LOCTEXT("DeterminismTab", "Determinism"))
+		.SetGroup(WorkspaceMenuCategoryRef);
 }
 
 void FPCGEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTabManager)
@@ -194,6 +202,8 @@ void FPCGEditor::UnregisterTabSpawners(const TSharedRef<class FTabManager>& InTa
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::PaletteID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::AttributesID);
 	InTabManager->UnregisterTabSpawner(FPCGEditor_private::ViewportID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::FindID);
+	InTabManager->UnregisterTabSpawner(FPCGEditor_private::DeterminismID);
 
 	FAssetEditorToolkit::UnregisterTabSpawners(InTabManager);
 }
@@ -254,6 +264,11 @@ void FPCGEditor::BindCommands()
 		PCGEditorCommands.CollapseNodes,
 		FExecuteAction::CreateSP(this, &FPCGEditor::OnCollapseNodesInSubgraph),
 		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanCollapseNodesInSubgraph));
+
+	GraphEditorCommands->MapAction(
+		PCGEditorCommands.RunDeterminismTest,
+		FExecuteAction::CreateSP(this, &FPCGEditor::OnDeterminismTests),
+		FCanExecuteAction::CreateSP(this, &FPCGEditor::CanRunDeterminismTests));
 }
 
 void FPCGEditor::OnFind()
@@ -262,6 +277,64 @@ void FPCGEditor::OnFind()
 	{
 		TabManager->TryInvokeTab(FPCGEditor_private::FindID);
 		FindWidget->FocusForUse();
+	}
+}
+
+bool FPCGEditor::CanRunDeterminismTests() const
+{
+	check(GraphEditorWidget.IsValid());
+
+	bool bValidObjectFound = false;
+	for (const UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		if (Cast<const UPCGEditorGraphNodeBase>(Object) && !Cast<const UPCGEditorGraphNodeInput>(Object) && !Cast<const UPCGEditorGraphNodeOutput>(Object))
+		{
+			bValidObjectFound = true;
+			break;
+		}
+	}
+
+	return bValidObjectFound;
+}
+
+void FPCGEditor::OnDeterminismTests()
+{
+	check(GraphEditorWidget.IsValid());
+
+	if (!DeterminismWidget.IsValid() || !DeterminismWidget->IsContructed())
+	{
+		return;
+	}
+
+	DeterminismWidget->Clear();
+
+	int32 Index = 1;
+	for (UObject* Object : GraphEditorWidget->GetSelectedNodes())
+	{
+		check(Object);
+
+		if (!Object->IsA<UPCGEditorGraphNodeInput>() && !Object->IsA<UPCGEditorGraphNodeOutput>())
+		{
+			if (const UPCGEditorGraphNodeBase* PCGEditorGraphNode = Cast<const UPCGEditorGraphNodeBase>(Object))
+			{
+				const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
+				check(PCGNode);
+
+				TSharedPtr<PCGDeterminismTests::FPCGDeterminismResult> NodeResult = MakeShared<PCGDeterminismTests::FPCGDeterminismResult>();
+				NodeResult->Index = Index++;
+				NodeResult->NodeTitle = PCGNode->GetNodeTitle();
+				NodeResult->NodeNameString = PCGNode->GetName();
+				PCGDeterminismTests::RunDeterminismTests(PCGNode, *NodeResult);
+
+				DeterminismWidget->AddItem(NodeResult);
+			}
+		}
+	}
+
+	// Give focus to the Determinism Output Tab
+	if (TabManager.IsValid())
+	{
+		TabManager->TryInvokeTab(FPCGEditor_private::DeterminismID);
 	}
 }
 
@@ -1098,6 +1171,11 @@ TSharedRef<SPCGEditorGraphFind> FPCGEditor::CreateFindWidget()
 	return SNew(SPCGEditorGraphFind, SharedThis(this));
 }
 
+TSharedRef<SPCGEditorGraphDeterminismListView> FPCGEditor::CreateDeterminismWidget()
+{
+	return SNew(SPCGEditorGraphDeterminismListView, SharedThis(this));
+}
+
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)
 {
 	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
@@ -1248,6 +1326,16 @@ TSharedRef<SDockTab> FPCGEditor::SpawnTab_Find(const FSpawnTabArgs& Args)
 		.TabColorScale(GetTabColorScale())
 		[
 			FindWidget.ToSharedRef()
+		];
+}
+
+TSharedRef<SDockTab> FPCGEditor::SpawnTab_Determinism(const FSpawnTabArgs& Args)
+{
+	return SNew(SDockTab)
+		.Label(LOCTEXT("PCGDeterminismTitle", "Determinism"))
+		.TabColorScale(GetTabColorScale())
+		[
+			DeterminismWidget.ToSharedRef()
 		];
 }
 
