@@ -22,7 +22,7 @@ public:
 	FAchievementsEOSGS(FOnlineServicesEOSGS& InOwningSubsystem);
 	virtual ~FAchievementsEOSGS() = default;
 
-	// IAuth
+	// IOnlineComponent
 	virtual void Initialize() override;
 	virtual void Shutdown() override;
 
