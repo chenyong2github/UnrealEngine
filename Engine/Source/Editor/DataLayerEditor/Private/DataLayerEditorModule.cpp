@@ -9,6 +9,7 @@
 #include "Editor.h"
 #include "Modules/ModuleManager.h"
 #include "DataLayer/DataLayerPropertyTypeCustomization.h"
+#include "DataLayer/DataLayerInstanceCustomization.h"
 #include "DataLayer/SDataLayerBrowser.h"
 #include "DataLayer/DataLayerNameEditSink.h"
 #include "DataLayer/DataLayerEditorSubsystem.h"
@@ -17,12 +18,13 @@
 IMPLEMENT_MODULE(FDataLayerEditorModule, DataLayerEditor );
 
 static const FName NAME_ActorDataLayer(TEXT("ActorDataLayer"));
-
+static const FName NAME_DataLayerInstance(TEXT("DataLayerInstance"));
 
 void FDataLayerEditorModule::StartupModule()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyModule.RegisterCustomPropertyTypeLayout(NAME_ActorDataLayer, FOnGetPropertyTypeCustomizationInstance::CreateLambda([] { return MakeShared<FDataLayerPropertyTypeCustomization>(); }));
+	PropertyModule.RegisterCustomClassLayout(NAME_DataLayerInstance, FOnGetDetailCustomizationInstance::CreateStatic(&FDataLayerInstanceDetails::MakeInstance));
 
 	FEditorWidgetsModule& EditorWidgetsModule = FModuleManager::LoadModuleChecked<FEditorWidgetsModule>("EditorWidgets");
 	EditorWidgetsModule.GetObjectNameEditSinkRegistry()->RegisterObjectNameEditSink(MakeShared<FDataLayerNameEditSink>());
@@ -33,6 +35,7 @@ void FDataLayerEditorModule::ShutdownModule()
 	if (FPropertyEditorModule* PropertyModule = FModuleManager::GetModulePtr<FPropertyEditorModule>("PropertyEditor"))
 	{
 		PropertyModule->UnregisterCustomPropertyTypeLayout(NAME_ActorDataLayer);
+		PropertyModule->UnregisterCustomPropertyTypeLayout(NAME_DataLayerInstance);
 	}
 }
 

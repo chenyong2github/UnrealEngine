@@ -96,6 +96,11 @@ bool UDataLayerInstance::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
+	if (!IsRuntime() && (InProperty->GetFName() == GET_MEMBER_NAME_CHECKED(UDataLayerInstance, InitialRuntimeState)))
+	{
+		return false;
+	}
+
 	return true;
 }
 

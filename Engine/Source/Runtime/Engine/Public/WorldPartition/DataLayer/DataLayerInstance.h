@@ -40,6 +40,7 @@ class ENGINE_API UDataLayerInstance : public UObject
 	GENERATED_UCLASS_BODY()
 
 	friend class UDataLayerConversionInfo;
+	friend class FDataLayerInstanceDetails;
 
 public:
 	virtual void PostLoad() override;
@@ -157,7 +158,7 @@ protected:
 	uint32 bIsLocked : 1;
 #endif
 
-	UPROPERTY(Category = "Data Layer|Advanced|Runtime", EditAnywhere, meta = (EditConditionHides, EditCondition = "bIsRuntime"))
+	UPROPERTY(Category = "Data Layer|Advanced|Runtime", EditAnywhere)
 	EDataLayerRuntimeState InitialRuntimeState;
 
 private:
