@@ -289,20 +289,6 @@ static bool TryReadTextureSourceFromCompactBinary(FCbFieldView Source, UE::Deriv
 	return true;
 }
 
-// Estimate peak memory usage required to cook this texture, excluding raw input / source data
-// Similar to UTexture::GetBuildRequiredMemory()
-// This is a rough blackbox estimate that can be improved
-static uint64 EstimateTextureBuildMemoryUsage(const FCbObject& Settings)
-{
-	uint64 InputSize = 0;
-	for (FCbField Mip : Settings["Source"]["Mips"])
-	{
-		InputSize += Mip["Size"].AsInt64();
-	}
-
-	return static_cast<uint64>(InputSize * 7.5);
-}
-
 FGuid FTextureBuildFunction::GetVersion() const
 {
 	UE::DerivedData::FBuildVersionBuilder Builder;
@@ -327,7 +313,10 @@ FGuid FTextureBuildFunction::GetVersion() const
 void FTextureBuildFunction::Configure(UE::DerivedData::FBuildConfigContext& Context) const
 {
 	Context.SetCacheBucket(UE::DerivedData::FCacheBucket(ANSITEXTVIEW("Texture")));
-	Context.SetRequiredMemory(EstimateTextureBuildMemoryUsage(Context.FindConstant(UTF8TEXTVIEW("Settings"))));
+
+	const FCbObject Settings = Context.FindConstant(UTF8TEXTVIEW("Settings"));
+	const int64 RequiredMemoryEstimate = Settings["RequiredMemoryEstimate"].AsInt64();
+	Context.SetRequiredMemory(RequiredMemoryEstimate);
 }
 
 void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
@@ -340,7 +329,7 @@ void FTextureBuildFunction::Build(UE::DerivedData::FBuildContext& Context) const
 	}
 
 	const FTextureBuildSettings BuildSettings = ReadBuildSettingsFromCompactBinary(Settings["Build"].AsObjectView());
-
+	
 	const uint16 RequiredTextureFormatVersion = Settings["FormatVersion"].AsUInt16();
 	if (ITextureFormatManagerModule* TFM = GetTextureFormatManager())
 	{

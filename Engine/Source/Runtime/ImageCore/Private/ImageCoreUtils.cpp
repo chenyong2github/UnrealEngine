@@ -37,11 +37,11 @@ EPixelFormat FImageCoreUtils::GetPixelFormatForRawImageFormat(ERawImageFormat::T
 		return PF_FloatRGBA;
 	case ERawImageFormat::RGBA32F: 
 		*pOutEquivalentFormat = ERawImageFormat::RGBA16F;
-		return PF_FloatRGBA;
+		return PF_FloatRGBA;  // @@!! could be PF_A32B32G32R32F only if bSupportFilteredFloat32Textures
 	case ERawImageFormat::R16F:	
 		return PF_R16F;
 	case ERawImageFormat::R32F:	
-		return PF_R32_FLOAT;
+		return PF_R32_FLOAT; // only if bSupportFilteredFloat32Textures
 	
 	default:
 		check(0);
@@ -95,5 +95,39 @@ IMAGECORE_API ETextureSourceFormat FImageCoreUtils::ConvertToTextureSourceFormat
 	default:
 		check(0);
 		return TSF_Invalid;
+	}
+}
+
+
+IMAGECORE_API FName FImageCoreUtils::ConvertToUncompressedTextureFormatName(ERawImageFormat::Type Format)
+{
+// from TextureFormatUncompressed.cpp :
+#define ENUM_SUPPORTED_FORMATS(op) \
+	op(BGRA8) \
+	op(G8) \
+	op(G16) \
+	op(RGBA16F) \
+	op(RGBA32F) \
+	op(R16F) \
+	op(R32F)
+#define DECL_FORMAT_NAME(FormatName) static FName TextureFormatName##FormatName = FName(TEXT(#FormatName));
+ENUM_SUPPORTED_FORMATS(DECL_FORMAT_NAME);
+#undef DECL_FORMAT_NAME
+
+	switch(Format)
+	{
+	case ERawImageFormat::G8:    return TextureFormatNameG8;
+	case ERawImageFormat::BGRA8: return TextureFormatNameBGRA8;
+	case ERawImageFormat::BGRE8: return TextureFormatNameRGBA16F; // <- not same
+	case ERawImageFormat::RGBA16:  return TextureFormatNameBGRA8; // <- not same
+	case ERawImageFormat::RGBA16F: return TextureFormatNameRGBA16F;
+	case ERawImageFormat::RGBA32F: return TextureFormatNameRGBA32F;
+	case ERawImageFormat::G16: return TextureFormatNameG16;
+	case ERawImageFormat::R16F:	return TextureFormatNameR16F;
+	case ERawImageFormat::R32F:	return TextureFormatNameR32F;
+	
+	default:
+		check(0);
+		return FName();
 	}
 }

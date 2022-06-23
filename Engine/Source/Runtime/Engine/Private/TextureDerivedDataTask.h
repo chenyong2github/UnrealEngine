@@ -155,7 +155,7 @@ class FTextureCacheDerivedDataWorker : public FNonAbandonableTask
 	int64 RequiredMemoryEstimate = -1;
 
 	/** true if caching has succeeded. */
-	bool bSucceeded;
+	bool bSucceeded = false;
 	/** true if the derived data was pulled from DDC */
 	bool bLoadedFromDDC = false;
 

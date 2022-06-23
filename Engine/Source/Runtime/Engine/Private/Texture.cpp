@@ -2730,28 +2730,9 @@ void UTexture::SetLayerFormatSettings(int32 LayerIndex, const FTextureFormatSett
 
 int64 UTexture::GetBuildRequiredMemory() const
 {
-	// If you improve this estimate, please update EstimateTextureBuildMemoryUsage() as well
+	// DEPRECATED use GetBuildRequiredMemoryEstimate
 
-	// Compute the memory it should take to uncompress the bulkdata in memory
-	int64 MemoryEstimate = 0;
-
-	// Compute the amount of memory necessary to uncompress the bulkdata in memory
-	for (int32 BlockIndex = 0; BlockIndex < Source.GetNumBlocks(); ++BlockIndex)
-	{
-		FTextureSourceBlock SourceBlock;
-		Source.GetBlock(BlockIndex, SourceBlock);
-
-		for (int32 LayerIndex = 0; LayerIndex < Source.GetNumLayers(); ++LayerIndex)
-		{
-			for (int32 MipIndex = 0; MipIndex < SourceBlock.NumMips; ++MipIndex)
-			{
-				MemoryEstimate += Source.CalcMipSize(BlockIndex, LayerIndex, MipIndex);
-			}
-		}
-	}
-
-	// Account for the multiple copies that are currently carried over during the compression phase
-	return MemoryEstimate <= 0 ? -1 /* Unknown */ : MemoryEstimate * 5;
+	return -1; /* Unknown */
 }
 
 #endif // #if WITH_EDITOR

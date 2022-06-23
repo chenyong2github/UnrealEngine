@@ -16,6 +16,7 @@ public class BaseTextureBuildWorker : TextureBuildWorker
 		{
 			"Core",
 			"TextureBuild",
+			"TextureBuildUtilities",
 			"TextureFormat",
 			"TextureFormatASTC",
 			"TextureFormatDXT",

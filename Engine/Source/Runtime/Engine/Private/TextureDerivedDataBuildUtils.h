@@ -13,6 +13,6 @@ class UTexture;
 struct FTextureBuildSettings;
 
 UE::DerivedData::FUtf8SharedString FindTextureBuildFunction(FName TextureFormatName);
-FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips, bool bUseCompositeTexture);
+FCbObject SaveTextureBuildSettings(const UTexture& Texture, const FTextureBuildSettings& BuildSettings, int32 LayerIndex, int32 NumInlineMips, bool bUseCompositeTexture, int64 RequiredMemoryEstimate);
 
 #endif // WITH_EDITOR

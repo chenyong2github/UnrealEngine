@@ -41,14 +41,17 @@ static AsyncCompilationHelpers::FAsyncCompilationStandardCVars CVarAsyncCompilat
 		}
 	));
 
+
+// AsyncAssetCompilationMemoryPerCore is actually the value used (in GB)
+//	for Required Memory when the Task reports -1 (Unknown)
+//	default is 4 GB
 static TAutoConsoleVariable<int32> CVarAsyncAssetCompilationMemoryPerCore(
 	TEXT("Editor.AsyncAssetCompilationMemoryPerCore"),
 	4,
-	TEXT("0 - No memory limit per asset.\n")
-	TEXT("N - Dynamically adjust concurrency limit by dividing free system memory by this number (in GB).\n")
-	TEXT("Limit concurrency for async processing based on RAM available.\n"),
+	TEXT("How much memory (in GB) should tasks reserve that report a required memory amount Unknown (-1).\n"),
 	ECVF_Default);
 
+// AsyncAssetCompilationMaxMemoryUsage clamps system available memory
 static TAutoConsoleVariable<int32> CVarAsyncAssetCompilationMaxMemoryUsage(
 	TEXT("Editor.AsyncAssetCompilationMaxMemoryUsage"),
 	0,
@@ -113,18 +116,31 @@ public:
 	int64 GetMemoryLimit() const
 	{
 		const FPlatformMemoryStats MemoryStats = FPlatformMemory::GetStats();
+		
+		// UsedPhysical = "working set"
+		// UsedVirtual  = "commit charge"
+		UE_LOG(LogAsyncCompilation, Verbose, TEXT("GetMemoryLimit UsedPhysical = %.3f MB (Peak %.3f MB) UsedVirtual = %.3f MB (Peak %.3f MB) AvailPhysical = %.3f MB AvailVirtual = %.3f MB "),
+				MemoryStats.UsedPhysical/(1024*1024.f),
+				MemoryStats.PeakUsedPhysical/(1024*1024.f),
+				MemoryStats.UsedVirtual/(1024*1024.f),
+				MemoryStats.PeakUsedVirtual/(1024*1024.f),
+				MemoryStats.AvailablePhysical/(1024*1024.f),
+				MemoryStats.AvailableVirtual/(1024*1024.f));
 
 		// Just make sure available physical fits in a int64, if it's bigger than that, we're not expecting to be memory limited anyway
 		// Also uses AvailableVirtual because the system might have plenty of physical memory but still be limited by virtual memory available in some cases.
 		//   (i.e. per-process quota, paging file size lower than actual memory available, etc.).
-		const int64 AvailableMemory = (int64)FMath::Min3(MemoryStats.AvailablePhysical, MemoryStats.AvailableVirtual, (uint64)INT64_MAX);
+		int64 AvailableMemory = (int64)FMath::Min3(MemoryStats.AvailablePhysical, MemoryStats.AvailableVirtual, (uint64)INT64_MAX);
 
 		int64 HardMemoryLimit = GetHardMemoryLimit();
 		if (HardMemoryLimit > 0)
 		{
-			return FMath::Min(HardMemoryLimit, AvailableMemory);
+			AvailableMemory = FMath::Min(HardMemoryLimit, AvailableMemory);
 		}
 		
+		const int64 LeaveMemoryHeadRoom = 64 * 1024 * 1024; // leave 64 MB head room
+		AvailableMemory = FMath::Max(0, AvailableMemory - LeaveMemoryHeadRoom);
+
 		return AvailableMemory;
 	}
 
@@ -135,7 +151,7 @@ public:
 		// If the task doesn't support a memory estimate, use global defined default
 		if (RequiredMemory == -1)
 		{
-			RequiredMemory = GetDefaultMemoryPerAsset();
+			RequiredMemory = GetDefaultMemoryPerAsset(); // 4 GB by default
 		}
 
 		return RequiredMemory;
@@ -165,6 +181,11 @@ public:
 		FMemoryBoundScheduledWork* Work = (FMemoryBoundScheduledWork*)InWork;
 		Work->RequiredMemory = GetRequiredMemory(InWork);
 		TotalEstimatedMemory += Work->RequiredMemory;
+
+		UE_LOG(LogAsyncCompilation, Verbose, TEXT("OnScheduled Work->RequiredMemory = %.3f MB TotalEstimatedMemory = %.3f MB"),
+				Work->RequiredMemory/(1024*1024.f),
+				TotalEstimatedMemory/(1024*1024.f));
+
 		UpdateCounters();
 	}
 
@@ -173,27 +194,54 @@ public:
 		FMemoryBoundScheduledWork* Work = (FMemoryBoundScheduledWork*)InWork;
 		TotalEstimatedMemory -= Work->RequiredMemory;
 		check(TotalEstimatedMemory >= 0);
+		
+		UE_LOG(LogAsyncCompilation, Verbose, TEXT("OnUnscheduled Work->RequiredMemory = %.3f MB TotalEstimatedMemory = %.3f MB"),
+				Work->RequiredMemory/(1024*1024.f),
+				TotalEstimatedMemory/(1024*1024.f));
+
 		UpdateCounters();
 	}
 
 	int32 GetMaxConcurrency() const override
 	{
-		int64 RequiredMemory = TotalEstimatedMemory;
+		int64 NewRequiredMemory = 0;
 		
 		// Add next work memory requirement to see if it still fits in available memory
 		if (IQueuedWork* NextWork = QueuedWork.Peek())
 		{
-			RequiredMemory += GetRequiredMemory(NextWork);
+			NewRequiredMemory += GetRequiredMemory(NextWork);
 		}
+
+		// TotalEstimatedMemory is the sum of all "RequiredMemory" for currently scheduled tasks
+		int64 TotalRequiredMemory = TotalEstimatedMemory.load() + NewRequiredMemory;
 
 		int32 DynamicMaxConcurrency = FQueuedThreadPoolWrapper::GetMaxConcurrency();
 		int32 Concurrency = FQueuedThreadPoolWrapper::GetCurrentConcurrency();
 
 		// Never limit below a concurrency of 1 or else we'll starve the asset processing and never be scheduled again
 		// The idea for now is to let assets get built one by one when starving on memory, which should not increase OOM compared to the old synchronous behavior.
-		if (RequiredMemory > 0 && Concurrency > 0 && RequiredMemory >= GetMemoryLimit())
+		if ( TotalRequiredMemory > 0 && Concurrency > 0 )
 		{
-			DynamicMaxConcurrency = Concurrency; // Limit concurrency to what we already allowed
+			int64 MemoryLimit = GetMemoryLimit();
+
+			// we check MemoryLimit which uses current system available memory against TotalRequiredMemory
+			//	which includes already running tasks
+			// those tasks may have already allocated, so they have been counted twice
+			//  this means we can count tasks as using twice as much memory as they actually do
+			//  eg. one 4 GB task can block all concurrency when there was 8 GB of room
+			//    because after it allocated there is 4 GB free but we also then subtract off the 4 GB the task requires
+			// this is conservative, so okay if we want to avoid OOM and are okay with less concurrency than possible
+
+			if ( TotalRequiredMemory >= MemoryLimit )
+			{
+				DynamicMaxConcurrency = Concurrency; // Limit concurrency to what we already allowed
+				// this will cause CanSchedule() to return false
+								
+				UE_LOG(LogAsyncCompilation, Verbose, TEXT("CONCURRENCY LIMITED; RequiredMemory = %.3f MB + %.3f MB MemoryLimit = %.3f MB "),
+					NewRequiredMemory/(1024*1024.f),
+					TotalEstimatedMemory/(1024*1024.f),
+					MemoryLimit/(1024*1024.f));
+			}
 		}
 
 		TRACE_COUNTER_SET(AsyncCompilationMaxConcurrency, DynamicMaxConcurrency);

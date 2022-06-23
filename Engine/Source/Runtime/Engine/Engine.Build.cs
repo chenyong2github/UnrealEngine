@@ -162,6 +162,13 @@ public class Engine : ModuleRules
 		// to prevent "causes WARNING: Non-editor build cannot depend on non-redistributable modules."
 		if (Target.bCompileAgainstEditor)
 		{
+
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"TextureBuildUtilities"
+				}
+			);
+
 			// for now we depend on these
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {

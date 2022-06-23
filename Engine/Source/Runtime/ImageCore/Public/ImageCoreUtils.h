@@ -33,6 +33,7 @@ namespace FImageCoreUtils
 	IMAGECORE_API EPixelFormat GetPixelFormatForRawImageFormat(ERawImageFormat::Type InFormat, 
 							ERawImageFormat::Type * pOutEquivalentFormat=nullptr);
 
-
+							
+	IMAGECORE_API FName ConvertToUncompressedTextureFormatName(ERawImageFormat::Type Format);
 
 };

@@ -188,9 +188,13 @@ namespace RuntimeVirtualTexture
 		FTileRenderResources RenderTileResources(TileSize, NumTilesX, NumTilesY, NumLayers, LayerFormats);
 		BeginInitResource(&RenderTileResources);
 
+		int64 RenderTileResourcesBytes = RenderTileResources.GetTotalSizeBytes();
+
+		UE_LOG(LogVirtualTexturing,Display,TEXT("Allocating %uMiB for RenderTileResourcesBytes"),(uint32)(RenderTileResourcesBytes/(1024*1024)));
+
 		// Final pixels will contain image data for each virtual texture layer in order
 		TArray64<uint8> FinalPixels;
-		FinalPixels.SetNumUninitialized(RenderTileResources.GetTotalSizeBytes());
+		FinalPixels.SetNumUninitialized(RenderTileResourcesBytes);
 
 		// Iterate over all tiles and render/store each one to the final image
 		for (int32 TileY = 0; TileY < NumTilesY && !Task.ShouldCancel(); TileY++)

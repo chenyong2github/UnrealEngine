@@ -1083,8 +1083,6 @@ public:
 		// input Image comes in as F32 in linear light
 		// for BC6 we just leave that alone
 		// for all others we must convert to 8 bit to get Gamma correction
-		// because Unreal only does Gamma correction on the 8 bit conversion
-		//	(this loses precision for BC4,5 which would like 16 bit input)
 		
 		EGammaSpace Gamma = InBuildSettings.GetDestGammaSpace();		
 		// note in unreal if Gamma == Pow22 due to legacy Gamma,
@@ -1125,9 +1123,9 @@ public:
 			// @todo we only need 1 or 2 channel 16-bit, not all 4; use our own converter
 			//	or just let our encoder take F32 input?
 
-			// input image format now will be BGRA8 (used to be RGBA32F)
-			// but to maintain matching output with previous RGBA32F format convert to RGBA16
-			// ideally should pass BGRA8 directly to Oodle if it is OK to use 8-bit components as input
+			// input image format now can be BGRA8 (used to always be RGBA32F)
+			// but to maintain matching output with previous RGBA32F format, still do convert to RGBA16
+			// ideally should pass BGRA8 directly to Oodle, but that changes output bits
 			ImageFormat = ERawImageFormat::RGBA16;
 			OodlePF = OodleTex_PixelFormat_4_U16;
 		}
@@ -1148,6 +1146,10 @@ public:
 		if (bNeedsImageCopy)
 		{
 			InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
+
+			// @todo Oodle : after we copy the image, we can usually/often free the source (always?)
+			//	would reduce peak mem use to do so immediately
+			//	(source is usually/often F32 RGBA so quite fat)
 		}
 		const FImage& Image = bNeedsImageCopy ? ImageCopy : InImage;
 

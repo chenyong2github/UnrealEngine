@@ -10,13 +10,14 @@
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "Misc/ScopedSlowTask.h"
 #include "TextureCompressorModule.h"
+#include "TextureBuildUtilities.h"
 #include "TextureDerivedDataTask.h"
+#include "ImageCoreUtils.h"
 
 // Debugging aid to dump tiles to disc as png files
 #define SAVE_TILES 0
 
 #if SAVE_TILES
-#include "ImageCoreUtils.h"
 #include "ImageUtils.h"
 #endif
 
@@ -343,12 +344,20 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	OutData.Chunks.Empty();
 	OutData.NumMips = DerivedInfo.NumMips;
 
+	// process original source to intermediate format, make mips, appply processing options
 	BuildSourcePixels(InSourceData, InCompositeSourceData);
+
+	// processed data is now in SourceBlocks , original InSourceData not needed anymore
+	// @todo Oodle : free InSourceData (and InCompositeSourceData) now ?
+	// InSourceData.ReleaseMemory();
+	// InCompositeSourceData.ReleaseMemory();
 
 	// override async compression if requested
 	bAllowAsync = bAllowAsync && CVarVTParallelTileCompression.GetValueOnAnyThread();
 
+	// encode SourceBlocks to VT Tiles and pack into chunks :
 	BuildPagesMacroBlocks(bAllowAsync);
+	// free SourceBlocks :
 	FreeSourcePixels();
 }
 
@@ -675,6 +684,10 @@ void FVirtualTextureDataBuilder::BuildTiles(const TArray<FVTSourceTileEntry>& Ti
 
 			const uint32 SizeRaw = CompressedMip[0].RawData.Num() * CompressedMip[0].RawData.GetTypeSize();
 			GeneratedData.TilePayload[TileIndex] = MoveTemp(CompressedMip[0].RawData);
+
+			// @todo Oodle: if the SourceBlocks we used has no more tiles that need to read from it, free it now?
+			//	  what we'd like to do is do all the tiles within each Block/Layer at a time and free that source Block/Layer
+			//	  immediately when all its tiles are done before starting the next Block/Layer
 		}, 
 		(bIsSingleThreaded ? EParallelForFlags::ForceSingleThread : EParallelForFlags::None));
 
@@ -799,45 +812,6 @@ int32 FVirtualTextureDataBuilder::FindSourceBlockIndex(int32 MipIndex, int32 Blo
 	return INDEX_NONE;
 }
 
-// Removes platform and other custom prefixes from the name.
-// Returns plain format name and the non-platform prefix (with trailing underscore).
-// i.e. PLAT_BLAH_AutoDXT returns AutoDXT and writes BLAH_ to OutPrefix.
-static const FName RemovePrefixFromName(FName const& InName, FName& OutPrefix)
-{
-	FString NameString = InName.ToString();
-
-	// Format names may have one of the following forms:
-	// - PLATFORM_PREFIX_FORMAT
-	// - PLATFORM_FORMAT
-	// - PREFIX_FORMAT
-	// - FORMAT
-	// We have to remove the platform prefix first, if it exists.
-	// Then we detect a non-platform prefix (such as codec name)
-	// and split the result into  explicit FORMAT and PREFIX parts.
-
-	for (FName PlatformName : FDataDrivenPlatformInfoRegistry::GetSortedPlatformNames(EPlatformInfoType::AllPlatformInfos))
-	{
-		FString PlatformTextureFormatPrefix = PlatformName.ToString();
-		PlatformTextureFormatPrefix += TEXT('_');
-		if (NameString.StartsWith(PlatformTextureFormatPrefix, ESearchCase::IgnoreCase))
-		{
-			// Remove platform prefix and proceed with non-platform prefix detection.
-			NameString = NameString.RightChop(PlatformTextureFormatPrefix.Len());
-			break;
-		}
-	}
-
-	int32 UnderscoreIndex = INDEX_NONE;
-	if (NameString.FindChar(TCHAR('_'), UnderscoreIndex))
-	{
-		// Non-platform prefix, we want to keep these
-		OutPrefix = *NameString.Left(UnderscoreIndex + 1);
-		return *NameString.RightChop(UnderscoreIndex + 1);
-	}
-
-	return *NameString;
-}
-
 // This builds an uncompressed version of the texture containing all other build settings baked in
 // color corrections, mip sharpening, ....
 void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& SourceData, const FTextureSourceData& CompositeSourceData)
@@ -857,33 +831,11 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		LayerData.GammaSpace = BuildSettingsForLayer.GetDestGammaSpace();
 		LayerData.bHasAlpha = BuildSettingsForLayer.bForceAlphaChannel;
 
-		FName TextureFormatPrefix;
-		const FName TextureFormatName = RemovePrefixFromName(BuildSettingsForLayer.TextureFormatName, TextureFormatPrefix);
-
-		const bool bIsHdr = BuildSettingsForLayer.bHDRSource || TextureFormatName == "BC6H" || TextureFormatName == "RGBA16F";
-		const bool bIsG16 = TextureFormatName == "G16";
-
-		if (bIsHdr)
-		{
-			LayerData.FormatName = "RGBA16F";
-			LayerData.PixelFormat = PF_FloatRGBA;
-			LayerData.SourceFormat = TSF_RGBA16F;
-			LayerData.ImageFormat = ERawImageFormat::RGBA16F;
-		}
-		else if (bIsG16)
-		{
-			LayerData.FormatName = "G16";
-			LayerData.PixelFormat = PF_G16;
-			LayerData.SourceFormat = TSF_G16;
-			LayerData.ImageFormat = ERawImageFormat::G16;
-		}
-		else
-		{
-			LayerData.FormatName = "BGRA8";
-			LayerData.PixelFormat = PF_B8G8R8A8;
-			LayerData.SourceFormat = TSF_BGRA8;
-			LayerData.ImageFormat = ERawImageFormat::BGRA8;
-		}
+		LayerData.ImageFormat = UE::TextureBuildUtilities::GetVirtualTextureBuildIntermediateFormat(BuildSettingsForLayer);
+		
+		LayerData.FormatName = FImageCoreUtils::ConvertToUncompressedTextureFormatName(LayerData.ImageFormat);
+		LayerData.PixelFormat = FImageCoreUtils::GetPixelFormatForRawImageFormat(LayerData.ImageFormat);
+		LayerData.SourceFormat = FImageCoreUtils::ConvertToTextureSourceFormat(LayerData.ImageFormat);
 	}
 
 	SourceBlocks.AddDefaulted(NumBlocks);
@@ -1183,7 +1135,7 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 		// Don't want platform specific swizzling for VT tile data, this tends to add extra padding for textures with odd dimensions
 		// (VT physical tiles generally not power-of-2 after adding border)
 		FName TextureFormatPrefix;
-		FName TextureFormatName = RemovePrefixFromName(BuildSettingsForLayer.TextureFormatName, TextureFormatPrefix);
+		FName TextureFormatName = UE::TextureBuildUtilities::TextureFormatRemovePrefixFromName(BuildSettingsForLayer.TextureFormatName, TextureFormatPrefix);
 
 		if ( TextureFormatPrefix.IsNone())
 		{

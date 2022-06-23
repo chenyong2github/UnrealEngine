@@ -1556,6 +1556,7 @@ public:
 	/**
 	 * Get an estimate of the peak amount of memory required to build this texture.
 	 */
+	UE_DEPRECATED(5.1,"Use GetBuildRequiredMemoryEstimate instead")
 	ENGINE_API int64 GetBuildRequiredMemory() const;
 
 	/**
