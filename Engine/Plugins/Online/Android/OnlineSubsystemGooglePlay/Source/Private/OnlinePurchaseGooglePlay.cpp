@@ -140,6 +140,13 @@ void FOnlinePurchaseGooglePlay::Checkout(const FUniqueNetId& UserId, const FPurc
 	}
 }
 
+void FOnlinePurchaseGooglePlay::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseReceiptlessCheckoutComplete& Delegate)
+{
+	// Not Supported
+	UE_LOG_ONLINE(Error, TEXT("FOnlinePurchaseGooglePlay::Checkout (receiptless) is not currently supported"));
+	Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::NotImplemented));
+}
+
 void FOnlinePurchaseGooglePlay::FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId)
 {
 	UE_LOG_ONLINE_PURCHASE(Verbose, TEXT("FOnlinePurchaseGooglePlay::FinalizePurchase %s %s"), *UserId.ToString(), *ReceiptId);
