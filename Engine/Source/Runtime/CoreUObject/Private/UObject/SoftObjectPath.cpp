@@ -375,6 +375,25 @@ bool FSoftObjectPath::ImportTextItem(const TCHAR*& Buffer, int32 PortFlags, UObj
 	}
 	else
 	{
+		if (*Buffer == TCHAR('('))
+		{
+			// Blueprints and other utilities may pass in () as a hardcoded value for an empty struct, so treat that like an empty string
+			Buffer++;
+
+			if (*Buffer == TCHAR(')'))
+			{
+				Buffer++;
+				Reset();
+				return true;
+			}
+			else
+			{
+				// Fall back to the default struct parsing, which will print an error message
+				Buffer--;
+				return false;
+			}
+		}
+
 		if (*Buffer == TCHAR('\''))
 		{
 			// A ' token likely means we're looking at a path string in the form "Texture2d'/Game/UI/HUD/Actions/Barrel'" and we need to read and append the path part
