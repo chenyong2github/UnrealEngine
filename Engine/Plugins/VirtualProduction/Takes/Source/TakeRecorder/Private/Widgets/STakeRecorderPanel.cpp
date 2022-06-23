@@ -570,7 +570,12 @@ bool STakeRecorderPanel::CanReviewLastLevelSequence() const
 	}
 	ITakeRecorderModule& TakeRecorderModule = FModuleManager::Get().LoadModuleChecked<ITakeRecorderModule>("TakeRecorder");
 	FCanReviewLastRecordedLevelSequence& CanReview = TakeRecorderModule.GetCanReviewLastRecordedLevelSequenceDelegate();
-	return CanReview.IsBound() && CanReview.Execute();
+	if (CanReview.IsBound())
+	{
+		return CanReview.Execute();
+	}
+	
+	return true;
 }
 
 ETakeRecorderMode STakeRecorderPanel::GetTakeRecorderMode() const
