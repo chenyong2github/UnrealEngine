@@ -141,6 +141,85 @@ void FOnlinePurchaseNull::CheckoutSuccessfully(const FUniqueNetIdNull& UserId, T
 	Delegate.ExecuteIfBound(FOnlineError(true), MakeShared<FPurchaseReceipt>(PurchaseReceipt));
 }
 
+void FOnlinePurchaseNull::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseReceiptlessCheckoutComplete& Delegate)
+{
+	// Lambda to wrap calling our delegate with an error and logging the message
+	auto CallDelegateError = [this, &Delegate](FString&& ErrorMessage)
+	{
+		NullSubsystem.ExecuteNextTick([Delegate, MovedErrorMessage = MoveTemp(ErrorMessage)]() mutable
+		{
+			UE_LOG_ONLINE(Error, TEXT("%s"), *MovedErrorMessage);
+
+			Delegate.ExecuteIfBound(FOnlineError(MoveTemp(MovedErrorMessage)));
+		});
+	};
+
+	if (CheckoutRequest.PurchaseOffers.Num() == 0)
+	{
+		CallDelegateError(TEXT("FOnlinePurchaseNull::Checkout failed, there were no entries passed to purchase"));
+		return;
+	}
+	else if (CheckoutRequest.PurchaseOffers.Num() != 1)
+	{
+		CallDelegateError(TEXT("FOnlinePurchaseNull::Checkout failed, there were more than one entry passed to purchase. We currently only support one."));
+		return;
+	}
+
+	check(CheckoutRequest.PurchaseOffers.IsValidIndex(0));
+	const FPurchaseCheckoutRequest::FPurchaseOfferEntry& Entry = CheckoutRequest.PurchaseOffers[0];
+
+	if (Entry.Quantity != 1)
+	{
+		CallDelegateError(TEXT("FOnlinePurchaseNull::Checkout failed, purchase quantity not set to one. We currently only support one."));
+		return;
+	}
+
+	if (Entry.OfferId.IsEmpty())
+	{
+		CallDelegateError(TEXT("FOnlinePurchaseNull::Checkout failed, OfferId is blank."));
+		return;
+	}
+
+	const IOnlineStoreV2Ptr NullStoreInt = NullSubsystem.GetStoreV2Interface();
+
+	TSharedPtr<FOnlineStoreOffer> NullOffer = NullStoreInt->GetOffer(Entry.OfferId);
+	if (!NullOffer.IsValid())
+	{
+		CallDelegateError(TEXT("FOnlinePurchaseNull::Checkout failed, Could not find corresponding offer."));
+		return;
+	}
+
+	if (PendingPurchaseHandle.IsValid())
+	{
+		CallDelegateError(TEXT("FOnlinePurchaseNull::Checkout failed, there was another purchase in progress."));
+		return;
+	}
+
+	PendingPurchaseHandle = Delegate.GetHandle();
+
+	TWeakPtr<FOnlinePurchaseNull, ESPMode::ThreadSafe> WeakMe = AsShared();
+	const FUniqueNetIdNull& NullUserId = static_cast<const FUniqueNetIdNull&>(UserId);
+
+	NullSubsystem.ExecuteNextTick([NullUserId, WeakMe, Delegate]
+		{
+			FOnlinePurchaseNullPtr StrongThis = WeakMe.Pin();
+			if (StrongThis.IsValid())
+			{
+				StrongThis->CheckoutSuccessfully(NullUserId, Delegate);
+			}
+		});
+}
+
+void FOnlinePurchaseNull::CheckoutSuccessfully(const FUniqueNetIdNull& UserId, FOnPurchaseReceiptlessCheckoutComplete Delegate)
+{
+	// Reset pending purchase handle
+	check(PendingPurchaseHandle.IsValid());
+	PendingPurchaseHandle.Reset();
+	
+	// Finish pending purchase
+	Delegate.ExecuteIfBound(FOnlineError(EOnlineErrorResult::Success));
+}
+
 void FOnlinePurchaseNull::FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId)
 {
 	const FUniqueNetIdNull& NullUserId = static_cast<const FUniqueNetIdNull&>(UserId);

@@ -213,6 +213,11 @@ public:
 DECLARE_DELEGATE_TwoParams(FOnPurchaseCheckoutComplete, const FOnlineError& /*Result*/, const TSharedRef<FPurchaseReceipt>& /*Receipt*/);
 
 /**
+* Delegate called when checkout process completes, this delegate is used when the entitlement or receipt information of the purchase is not needed by the caller.
+*/
+DECLARE_DELEGATE_OneParam(FOnPurchaseReceiptlessCheckoutComplete, const FOnlineError& /*Result*/);
+
+/**
  * Delegate called when code redemption process completes
  */
 DECLARE_DELEGATE_TwoParams(FOnPurchaseRedeemCodeComplete, const FOnlineError& /*Result*/, const TSharedRef<FPurchaseReceipt>& /*Receipt*/);
@@ -258,6 +263,17 @@ public:
 	 * @param Delegate completion callback (guaranteed to be called)
 	 */
 	virtual void Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseCheckoutComplete& Delegate) = 0;
+
+
+	/**
+	 * Initiate the checkout process for purchasing offers via payment without receipts returned
+	 * Recommended for use when the entitlement or receipt information of the purchase is not needed by the caller
+	 * 
+	 * @param UserId user initiating the request
+	 * @param CheckoutRequest info needed for the checkout request
+	 * @param Delegate completion callback (guaranteed to be called)
+	 */
+	virtual void Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseReceiptlessCheckoutComplete& Delegate) = 0;
 	
 	/**
 	 * Finalizes a purchase with the supporting platform
@@ -319,6 +335,9 @@ public:
 	 *
 	 */
 	DEFINE_ONLINE_DELEGATE_ONE_PARAM(OnUnexpectedPurchaseReceipt, const FUniqueNetId& /*UserId*/);
+
+private:
+	void OnRedirectToCheckoutComplete(const FOnlineError& ErrorResult, const TSharedRef<FPurchaseReceipt>& Receipt, const FOnPurchaseReceiptlessCheckoutComplete Delegate);
 };
 
 inline const TCHAR* LexToString(EPurchaseTransactionState State)

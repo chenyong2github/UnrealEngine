@@ -215,6 +215,7 @@ void FOnlineStoreEOSPlus::Checkout(const FUniqueNetId& UserId, const FPurchaseCh
 {
 	EOnlineErrorResult ErrorResult = EOnlineErrorResult::Unknown;
 	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+
 	if (NetIdPlus.IsValid())
 	{
 		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
@@ -239,6 +240,36 @@ void FOnlineStoreEOSPlus::Checkout(const FUniqueNetId& UserId, const FPurchaseCh
 	EOSPlus->ExecuteNextTick([this, ErrorResult, Delegate]() {
 		TSharedRef<FPurchaseReceipt> Receipt;
 		Delegate.ExecuteIfBound(FOnlineError(ErrorResult), Receipt);
+	});
+}
+
+void FOnlineStoreEOSPlus::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseReceiptlessCheckoutComplete& Delegate)
+{
+	EOnlineErrorResult ErrorResult = EOnlineErrorResult::Unknown;
+	FUniqueNetIdEOSPlusPtr NetIdPlus = GetNetIdPlus(UserId.ToString());
+	if (NetIdPlus.IsValid())
+	{
+		const bool bIsBaseNetIdValid = ensure(NetIdPlus->GetBaseNetId().IsValid());
+		const bool bIsBasePurchaseInterfaceValid = BasePurchaseInterface.IsValid();
+		if (bIsBaseNetIdValid && bIsBasePurchaseInterfaceValid)
+		{
+			BasePurchaseInterface->Checkout(*NetIdPlus->GetBaseNetId(), CheckoutRequest, Delegate);
+			return;
+		}
+		else
+		{
+			UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::Checkout] Unable to call method in base interface. IsBaseNetIdValid=%s IsBasePurchaseInterfaceValid=%s."), *LexToString(bIsBaseNetIdValid), *LexToString(bIsBasePurchaseInterfaceValid));
+			ErrorResult = bIsBasePurchaseInterfaceValid ? EOnlineErrorResult::MissingInterface : EOnlineErrorResult::InvalidUser;
+		}
+	}
+	else
+	{
+		UE_LOG_ONLINE(Warning, TEXT("[FOnlineStoreEOSPlus::Checkout] Unable to call method in base interface. Unknown user (%s)"), *UserId.ToString());
+		ErrorResult = EOnlineErrorResult::InvalidUser;
+	}
+
+	EOSPlus->ExecuteNextTick([this, ErrorResult, Delegate]() {
+		Delegate.ExecuteIfBound(FOnlineError(ErrorResult));
 	});
 }
 
