@@ -34,6 +34,7 @@ public:
 	virtual bool LoadRange(FString Path, int Start, int End);
 	virtual void UnloadAll();
 	virtual bool Fill3DTexture_RenderThread(int frame, FTextureRHIRef TextureToFill, FRHICommandListImmediate& RHICmdList);
+	virtual bool Fill3DTexture(int frame, FTextureRHIRef TextureToFill);
 	
 private:
 	TMap<int32, Vec4Grid::Ptr> OpenVDBGrids;
@@ -259,6 +260,36 @@ bool FOpenVDBCacheData::Fill3DTexture_RenderThread(int frame, FTextureRHIRef Tex
 			FMemory::Memcpy(TheData.Data, DataPtr, MemorySize);
 
 			RHICmdList.EndUpdateTexture3D(TheData);						
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
+bool FOpenVDBCacheData::Fill3DTexture(int frame, FTextureRHIRef TextureToFill)
+{
+	if (OpenVDBGrids.Contains(frame) && OpenVDBGrids[frame] != nullptr)
+	{
+		uint8* DataPtr = (uint8*)DenseGridPtr->data();
+
+		const int32 FormatSize = GPixelFormats[TextureToFill->GetFormat()].BlockBytes;
+
+		if (TextureToFill->GetSizeXYZ() != DenseResolution)
+		{
+			UE_LOG(LogVolumeCache, Warning, TEXT("Target texture resolution %s doesn't match OpenVDB grid resolution %s.  Regenerate your cache"), *TextureToFill->GetSizeXYZ().ToString(), *DenseResolution.ToString());
+		}
+		else
+		{
+			const FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, DenseResolution.X, DenseResolution.Y, DenseResolution.Z);
+			const SIZE_T MemorySize = static_cast<SIZE_T>(UpdateRegion.Width) * static_cast<SIZE_T>(UpdateRegion.Height) * static_cast<SIZE_T>(UpdateRegion.Depth) * static_cast<SIZE_T>(FormatSize);
+
+			FUpdateTexture3DData TheData = RHIBeginUpdateTexture3D(TextureToFill, 0, UpdateRegion);
+
+			FMemory::Memcpy(TheData.Data, DataPtr, MemorySize);
+
+			RHIEndUpdateTexture3D(TheData);
 		}
 
 		return true;

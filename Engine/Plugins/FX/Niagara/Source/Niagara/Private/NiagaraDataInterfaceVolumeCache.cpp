@@ -30,11 +30,14 @@ const FName UNiagaraDataInterfaceVolumeCache::GetCurrentFrameNumCells(TEXT("GetC
 struct FVolumeCacheInstanceData_RenderThread
 {
 	int						CurrFrame = 0;
+	bool					ReadFile = false;
 
 	FSamplerStateRHIRef		SamplerStateRHI = nullptr;
 	FTextureReferenceRHIRef	TextureReferenceRHI = nullptr;
 	FTextureRHIRef			ResolvedTextureRHI = nullptr;
 	FVector3f				TextureSize = FVector3f::ZeroVector;
+	
+	TSharedPtr<FVolumeCacheData> VolumeCacheData = nullptr;
 };
 
 struct FVolumeCacheInstanceData_GameThread
@@ -48,9 +51,25 @@ struct FVolumeCacheInstanceData_GameThread
 };
 
 struct FNiagaraDataInterfaceVolumeCacheProxy : public FNiagaraDataInterfaceProxy
-{
-	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }
-	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return 0; }
+{	
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override { return sizeof(FVolumeCacheInstanceData_GameThread); }
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* FromGameThreadData, const FNiagaraSystemInstanceID& InstanceID) override
+	{
+		FVolumeCacheInstanceData_GameThread* FromGameThread = reinterpret_cast<FVolumeCacheInstanceData_GameThread*>(FromGameThreadData);
+		FVolumeCacheInstanceData_RenderThread* InstanceData = InstanceData_RT.Find(InstanceID);
+
+		if (FromGameThread != nullptr && InstanceData != nullptr)
+		{
+			InstanceData->CurrFrame = FromGameThread->CurrFrame;
+			InstanceData->ReadFile = FromGameThread->ReadFile;
+			InstanceData->TextureSize = FVector3f(FromGameThread->NumCells.X, FromGameThread->NumCells.Y, FromGameThread->NumCells.Z);		
+
+			FromGameThread->~FVolumeCacheInstanceData_GameThread();
+		}
+	}
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
+
 
 	TMap<FNiagaraSystemInstanceID, FVolumeCacheInstanceData_RenderThread> InstanceData_RT;
 };
@@ -116,17 +135,19 @@ bool UNiagaraDataInterfaceVolumeCache::InitPerInstanceData(void* PerInstanceData
 	if (VolumeCache != nullptr)
 	{
 		InstanceData->NumCells = VolumeCache->Resolution;
+
+		// Push Updates to Proxy.
+		FNiagaraDataInterfaceVolumeCacheProxy* TheProxy = GetProxyAs<FNiagaraDataInterfaceVolumeCacheProxy>();
+		ENQUEUE_RENDER_COMMAND(FUpdateData)(
+			[TheProxy, RT_VolumeCacheData = VolumeCache->GetData(), InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
+		{
+			check(!TheProxy->InstanceData_RT.Contains(InstanceID));
+			FVolumeCacheInstanceData_RenderThread* TargetData = &TheProxy->InstanceData_RT.Add(InstanceID);
+			TargetData->VolumeCacheData = RT_VolumeCacheData;
+		});
 	}
 
-	// Push Updates to Proxy.
-	FNiagaraDataInterfaceVolumeCacheProxy* TheProxy = GetProxyAs<FNiagaraDataInterfaceVolumeCacheProxy>();
-	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[TheProxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
-	{
-		check(!TheProxy->InstanceData_RT.Contains(InstanceID));
-		FVolumeCacheInstanceData_RenderThread* TargetData = &TheProxy->InstanceData_RT.Add(InstanceID);
-
-	});
+	
 
 	return true;
 }
@@ -147,9 +168,47 @@ void UNiagaraDataInterfaceVolumeCache::DestroyPerInstanceData(void* PerInstanceD
 	);
 }
 
+void FNiagaraDataInterfaceVolumeCacheProxy::PreStage(const FNDIGpuComputePreStageContext& Context)
+{	
+	FVolumeCacheInstanceData_RenderThread* InstanceData = InstanceData_RT.Find(Context.GetSystemInstanceID());
+	
+	if (Context.IsInputStage() && InstanceData && InstanceData->ReadFile && InstanceData->VolumeCacheData != nullptr)
+	{
+	
+		FIntVector Size = FIntVector(InstanceData->TextureSize.X, InstanceData->TextureSize.Y, InstanceData->TextureSize.Z);
+
+		if (!InstanceData->ResolvedTextureRHI.IsValid())
+		{
+
+			// #todo(dmp): this should be in instance data
+			EPixelFormat Format = PF_FloatRGBA;
+
+			const FRHITextureCreateDesc Desc =
+				FRHITextureCreateDesc::Create3D(TEXT("stuff"), Size.X, Size.Y, Size.Z, Format)
+				.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoTiling);
+
+			InstanceData->ResolvedTextureRHI = RHICreateTexture(Desc);
+			InstanceData->TextureSize = FVector3f(Size.X, Size.Y, Size.Z);
+			InstanceData->SamplerStateRHI = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		}
+		// must make sure readfile, curr frame, size are in the instance data - must sync in provide instance data for render thread
+
+		InstanceData->VolumeCacheData->Fill3DTexture(InstanceData->CurrFrame, InstanceData->ResolvedTextureRHI);
+	}
+}
+
+void UNiagaraDataInterfaceVolumeCache::ProvidePerInstanceDataForRenderThread(void* InDataFromGT, void* InInstanceData, const FNiagaraSystemInstanceID& SystemInstance)
+{
+	FVolumeCacheInstanceData_GameThread* InstanceData = static_cast<FVolumeCacheInstanceData_GameThread*>(InInstanceData);
+	FVolumeCacheInstanceData_GameThread* DataFromGT = static_cast<FVolumeCacheInstanceData_GameThread*>(InDataFromGT);
+
+	DataFromGT->CurrFrame = InstanceData->CurrFrame;
+	DataFromGT->ReadFile = InstanceData->ReadFile;
+	DataFromGT->NumCells = InstanceData->NumCells;
+}
+
 void UNiagaraDataInterfaceVolumeCache::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {	
-
 	{
 		FNiagaraFunctionSignature Sig;
 		Sig.Name = SetFrameName;
@@ -216,6 +275,7 @@ void UNiagaraDataInterfaceVolumeCache::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+		Sig.bReadFunction = true;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Texture")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), TEXT("UVW")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), TEXT("MipLevel")));
@@ -233,6 +293,7 @@ void UNiagaraDataInterfaceVolumeCache::GetFunctions(TArray<FNiagaraFunctionSigna
 		Sig.bRequiresContext = false;
 		Sig.bSupportsCPU = false;
 		Sig.bSupportsGPU = true;
+		Sig.bReadFunction = true;
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition(GetClass()), TEXT("Texture")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("x")));
 		Sig.Inputs.Add(FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), TEXT("y")));
@@ -269,6 +330,12 @@ void UNiagaraDataInterfaceVolumeCache::SetFrame(FVectorVMExternalFunctionContext
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutSuccess(Context);
 
 	InstData->CurrFrame = InFrame.GetAndAdvance();
+
+	// cannot read from cache...spew errors or let it go?
+	if (VolumeCache == nullptr || !VolumeCache->LoadFile(InstData->CurrFrame))
+	{
+		UE_LOG(LogNiagara, Warning, TEXT("Cache Read failed: %s"), *GetName());
+	}
 
 	*OutSuccess.GetDestAndAdvance() = true;
 }
@@ -343,50 +410,8 @@ void UNiagaraDataInterfaceVolumeCache::GetVMExternalFunction(const FVMExternalFu
 }
 
 bool UNiagaraDataInterfaceVolumeCache::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
-{
-	FVolumeCacheInstanceData_GameThread* InstanceData = SystemInstancesToProxyData_GT.FindRef(SystemInstance->GetId());	
-
-	// we can run into the case where depending on the ordering of DI initialization, we might have not been able to grab the other grid's InstanceData
-	// in InitPerInstanceData.  If this is the case, we ensure it is correct here.
-	if (InstanceData && InstanceData->ReadFile && VolumeCache != nullptr)
-	{	
-		FNiagaraDataInterfaceVolumeCacheProxy* TextureProxy = GetProxyAs<FNiagaraDataInterfaceVolumeCacheProxy>();
-
-		//EPixelFormat Format = PF_A32B32G32R32F;
-		EPixelFormat Format = PF_FloatRGBA;
-		const int32 FormatSize = GPixelFormats[Format].BlockBytes;
-
-		// cannot read from cache...spew errors or let it go?
-		if (!VolumeCache->LoadFile(InstanceData->CurrFrame))
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Cache Read failed: %s"), *VolumeCache->GetName());
-			return false;
-		}
-		
-		ENQUEUE_RENDER_COMMAND(FVolumeCacheFillTexture)(
-			[RT_Frame = InstanceData->CurrFrame, RT_VolumeCacheData = VolumeCache->GetData(), Format, TextureProxy, SystemID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
-		{
-			FVolumeCacheInstanceData_RenderThread* InstanceData = TextureProxy->InstanceData_RT.Find(SystemID);
-			FIntVector Size = RT_VolumeCacheData->GetDenseResolution();
-
-			if (!InstanceData->ResolvedTextureRHI.IsValid())
-			{
-
-				const FRHITextureCreateDesc Desc =
-					FRHITextureCreateDesc::Create3D(TEXT("stuff"), Size.X, Size.Y, Size.Z, Format)
-					.SetFlags(ETextureCreateFlags::ShaderResource | ETextureCreateFlags::NoTiling);
-
-				InstanceData->ResolvedTextureRHI = RHICreateTexture(Desc);
-				InstanceData->TextureSize = FVector3f(Size.X, Size.Y, Size.Z);
-				InstanceData->SamplerStateRHI = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-			}
-				
-			RT_VolumeCacheData->Fill3DTexture_RenderThread(RT_Frame, InstanceData->ResolvedTextureRHI, RHICmdList);			
-		});
-	}
-
+{	
 	return false;
-
 }
 
 #if WITH_EDITORONLY_DATA

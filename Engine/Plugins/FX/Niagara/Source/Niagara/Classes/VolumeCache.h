@@ -71,6 +71,7 @@ public:
 	virtual bool LoadRange(FString Path, int Start, int End) = 0;
 	virtual void UnloadAll() = 0;
 	virtual bool Fill3DTexture_RenderThread(int frame, FTextureRHIRef TextureToFill, FRHICommandListImmediate& RHICmdList) = 0;
+	virtual bool Fill3DTexture(int frame, FTextureRHIRef TextureToFill) = 0;
 
 protected:
 	FIntVector DenseResolution;
