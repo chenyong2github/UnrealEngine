@@ -46,6 +46,12 @@ FString FWeakObjectProperty::GetCPPMacroType( FString& ExtendedTypeText ) const
 	return TEXT("WEAKOBJECT");
 }
 
+void FWeakObjectProperty::LinkInternal(FArchive& Ar)
+{
+	checkf(!HasAnyPropertyFlags(CPF_NonNullable), TEXT("Weak Object Properties can't be non nullable but \"%s\" is marked as CPF_NonNullable"), *GetFullName());
+	Super::LinkInternal(Ar);
+}
+
 void FWeakObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
@@ -54,7 +60,7 @@ void FWeakObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* V
 	Slot << *(FWeakObjectPtr*)Value;
 	if ((UnderlyingArchive.IsLoading() || UnderlyingArchive.IsModifyingWeakAndStrongReferences()) && ObjectValue != GetObjectPropertyValue(Value))
 	{
-		CheckValidObject(Value);
+		CheckValidObject(Value, nullptr); // FWeakObjectProperty is never non-nullable at this point so it's ok to pass null as the current value
 	}
 }
 

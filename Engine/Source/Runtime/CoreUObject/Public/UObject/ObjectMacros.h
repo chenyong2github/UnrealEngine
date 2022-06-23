@@ -403,7 +403,7 @@ enum EPropertyFlags : uint64
 	CPF_ZeroConstructor					= 0x0000000000000200,	///< memset is fine for construction
 	CPF_ReturnParm						= 0x0000000000000400,	///< Return value.
 	CPF_DisableEditOnTemplate			= 0x0000000000000800,	///< Disable editing of this property on an archetype/sub-blueprint
-	//CPF_      						= 0x0000000000001000,	///< 
+	CPF_NonNullable						= 0x0000000000001000,	///< Object property can never be null
 	CPF_Transient   					= 0x0000000000002000,	///< Property is transient: shouldn't be saved or loaded, except for Blueprint CDOs.
 	CPF_Config      					= 0x0000000000004000,	///< Property should be loaded/saved as permanent profile.
 	//CPF_								= 0x0000000000008000,	///< 

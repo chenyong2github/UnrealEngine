@@ -55,6 +55,7 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
 	FObjectPtr* ObjectPtr = (FObjectPtr*)GetPropertyValuePtr(Value);
+	UObject* CurrentValue = IsObjectHandleResolved(ObjectPtr->GetHandle()) ? ObjectPtr->Get() : nullptr;
 
 	if (UnderlyingArchive.IsObjectReferenceCollector())
 	{
@@ -62,7 +63,7 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 
 		if(!UnderlyingArchive.IsSaving() && IsObjectHandleResolved(ObjectPtr->GetHandle()))
 		{
-			ObjectProperty->CheckValidObject(ObjectPtr);
+			ObjectProperty->CheckValidObject(ObjectPtr, CurrentValue);
 		}
 	}
 	else
@@ -96,7 +97,7 @@ void FObjectPtrProperty::StaticSerializeItem(const FObjectPropertyBase* ObjectPr
 			//        to accommodate this (as it depends on finding itself as the set value)
 	#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-			ObjectProperty->CheckValidObject(Value);
+			ObjectProperty->CheckValidObject(Value, CurrentValue);
 		}
 	}
 }
@@ -149,12 +150,26 @@ UObject* FObjectPtrProperty::GetObjectPropertyValue_InContainer(const void* Cont
 
 void FObjectPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
-	SetPropertyValue(PropertyValueAddress, TCppType(Value));
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetPropertyValue(PropertyValueAddress, TCppType(Value));
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }
 
 void FObjectPtrProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
 {
-	SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }
 
 bool FObjectPtrProperty::AllowCrossLevel() const

@@ -53,6 +53,12 @@ bool FSoftObjectProperty::Identical( const void* A, const void* B, uint32 PortFl
 	return ObjectA.GetUniqueID() == ObjectB.GetUniqueID();
 }
 
+void FSoftObjectProperty::LinkInternal(FArchive& Ar)
+{
+	checkf(!HasAnyPropertyFlags(CPF_NonNullable), TEXT("Soft Object Properties can't be non nullable but \"%s\" is marked as CPF_NonNullable"), *GetFullName());
+	Super::LinkInternal(Ar);
+}
+
 void FSoftObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value, void const* Defaults ) const
 {
 	FArchive& UnderlyingArchive = Slot.GetUnderlyingArchive();
@@ -71,7 +77,7 @@ void FSoftObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* V
 		{
 			if (OldValue.GetUniqueID() != ((FSoftObjectPtr*)Value)->GetUniqueID())
 			{
-				CheckValidObject(Value);
+				CheckValidObject(Value, nullptr); // FSoftObjectProperty is never non-nullable at this point so it's ok to pass null as the current value
 			}
 		}
 #endif

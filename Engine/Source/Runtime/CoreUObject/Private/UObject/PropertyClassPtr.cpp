@@ -58,12 +58,26 @@ UObject* FClassPtrProperty::GetObjectPropertyValue_InContainer(const void* Conta
 
 void FClassPtrProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
-	SetPropertyValue(PropertyValueAddress, TCppType(Value));
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetPropertyValue(PropertyValueAddress, TCppType(Value));
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }
 
 void FClassPtrProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
 {
-	SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetWrappedObjectPropertyValue_InContainer<FObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }
 
 uint32 FClassPtrProperty::GetValueTypeHashInternal(const void* Src) const

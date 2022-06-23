@@ -67,7 +67,7 @@ EConvertFromTypeResult FObjectProperty::ConvertFromType(const FPropertyTag& Tag,
 		SetPropertyValue_InContainer(Data, PreviousValueObj, Tag.ArrayIndex);
 
 		// Validate the type is proper
-		CheckValidObject(GetPropertyValuePtr_InContainer(Data, Tag.ArrayIndex));
+		CheckValidObject(GetPropertyValuePtr_InContainer(Data, Tag.ArrayIndex), PreviousValueObj);
 
 		return EConvertFromTypeResult::Converted;
 	}
@@ -83,7 +83,7 @@ EConvertFromTypeResult FObjectProperty::ConvertFromType(const FPropertyTag& Tag,
 		}
 
 		SetPropertyValue_InContainer(Data, ObjectValue, Tag.ArrayIndex);
-		CheckValidObject(GetPropertyValuePtr_InContainer(Data, Tag.ArrayIndex));
+		CheckValidObject(GetPropertyValuePtr_InContainer(Data, Tag.ArrayIndex), ObjectValue);
 		return EConvertFromTypeResult::Converted;
 	}
 
@@ -102,7 +102,7 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 
 		if(!UnderlyingArchive.IsSaving())
 		{
-			CheckValidObject(ObjectPtr);
+			CheckValidObject(ObjectPtr, *ObjectPtr);
 		}
 	}
 	else
@@ -137,7 +137,7 @@ void FObjectProperty::SerializeItem( FStructuredArchive::FSlot Slot, void* Value
 			//        to accommodate this (as it depends on finding itself as the set value)
 	#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 
-			CheckValidObject(Value);
+			CheckValidObject(Value, CurrentValue);
 		}
 	}
 }
@@ -148,11 +148,10 @@ const TCHAR* FObjectProperty::ImportText_Internal(const TCHAR* Buffer, void* Con
 	if (Result)
 	{
 		void* Data = PointerToValuePtr(ContainerOrPropertyPtr, PropertyPointerType);
-		CheckValidObject(Data);
-
-#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 		UObject* ObjectValue = GetObjectPropertyValue(Data);
+		CheckValidObject(Data, ObjectValue);
 
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING		
 		if (ULinkerPlaceholderClass* PlaceholderClass = Cast<ULinkerPlaceholderClass>(ObjectValue))
 		{
 			// we use this tracker mechanism to help record the instance that is
@@ -199,7 +198,14 @@ UObject* FObjectProperty::GetObjectPropertyValue_InContainer(const void* Contain
 
 void FObjectProperty::SetObjectPropertyValue(void* PropertyValueAddress, UObject* Value) const
 {
-	SetPropertyValue(PropertyValueAddress, Value);
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetPropertyValue(PropertyValueAddress, Value);
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }
 
 void FObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress, UObject* Value, int32 ArrayIndex) const
@@ -214,5 +220,12 @@ void FObjectProperty::SetObjectPropertyValue_InContainer(void* ContainerAddress,
 		}
 		UObject* Obj = nullptr;
 	};
-	SetWrappedObjectPropertyValue_InContainer<FWrappedObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	if (Value || !HasAnyPropertyFlags(CPF_NonNullable))
+	{
+		SetWrappedObjectPropertyValue_InContainer<FWrappedObjectPtr>(ContainerAddress, Value, ArrayIndex);
+	}
+	else
+	{
+		UE_LOG(LogProperty, Verbose /*Warning*/, TEXT("Trying to assign null object value to non-nullable \"%s\""), *GetFullName());
+	}
 }

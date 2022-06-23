@@ -408,7 +408,7 @@ const TCHAR* FObjectPropertyBase::ImportText_Internal( const TCHAR* InBuffer, vo
 
 	if (PropertyPointerType == EPropertyPointerType::Container && HasSetter())
 	{
-		SetValue_InContainer(ContainerOrPropertyPtr, &Result); // @todo: need to make sure SetValue follows whatever SetObjectPropertyValue does for object properties
+		SetObjectPropertyValue_InContainer(ContainerOrPropertyPtr, Result);
 	}
 	else
 	{
@@ -603,9 +603,9 @@ bool FObjectPropertyBase::AllowObjectTypeReinterpretationTo(const FObjectPropert
 	return false;
 }
 
-void FObjectPropertyBase::CheckValidObject(void* Value) const
+void FObjectPropertyBase::CheckValidObject(void* ValueAddress, UObject* OldValue) const
 {
-	UObject *Object = GetObjectPropertyValue(Value);
+	UObject *Object = GetObjectPropertyValue(ValueAddress);
 	if (Object)
 	{
 		//
@@ -639,14 +639,30 @@ void FObjectPropertyBase::CheckValidObject(void* Value) const
 
 		if ((PropertyClass != nullptr) && !ObjectClass->IsChildOf(PropertyClass) && !ObjectClass->GetAuthoritativeClass()->IsChildOf(PropertyClass) && !bIsReplacingClassRefs && !bIsDeferringValueLoad)
 		{
-			UE_LOG(LogProperty, Warning,
-				TEXT("Serialized %s for a property of %s. Reference will be nullptred.\n    Property = %s\n    Item = %s"),
-				*Object->GetClass()->GetFullName(),
-				*PropertyClass->GetFullName(),
-				*GetFullName(),
-				*Object->GetFullName()
-			);
-			SetObjectPropertyValue(Value, nullptr);
+			if (!HasAnyPropertyFlags(CPF_NonNullable))
+			{
+				UE_LOG(LogProperty, Warning,
+					TEXT("Serialized %s for a property of %s. Reference will be nullptred.\n    Property = %s\n    Item = %s"),
+					*Object->GetClass()->GetFullName(),
+					*PropertyClass->GetFullName(),
+					*GetFullName(),
+					*Object->GetFullName()
+				);
+				SetObjectPropertyValue(ValueAddress, nullptr);
+			}
+			else
+			{
+				checkf(OldValue, TEXT("CheckValidObject(\"%s\") trying to assign null object value to non-nullable property \"%s\""), *Object->GetFullName(), *GetFullName());
+				UE_LOG(LogProperty, Warning,
+					TEXT("Serialized %s for a property of %s. Reference will be reverted back to %s.\n    Property = %s\n    Item = %s"),
+					*Object->GetClass()->GetFullName(),
+					*PropertyClass->GetFullName(),
+					*OldValue->GetFullName(),
+					*GetFullName(),
+					*Object->GetFullName()
+				);
+				SetObjectPropertyValue(ValueAddress, OldValue);
+			}
 		}
 	}
 }
