@@ -28,9 +28,13 @@ void UE::RenderPages::Private::SRenderPagesPageViewerPreview::Tick(const FGeomet
 			UpdateRerenderButton();
 			UpdateFrameSlider();
 
-			if (bRunRenderNewPreview)
+			if (FramesUntilRenderNewPreview > 0)
 			{
-				InternalRenderNewPreview();
+				FramesUntilRenderNewPreview--;
+				if (FramesUntilRenderNewPreview <= 0)
+				{
+					InternalRenderNewPreview();
+				}
 			}
 		}
 	}
@@ -43,7 +47,7 @@ void UE::RenderPages::Private::SRenderPagesPageViewerPreview::Construct(const FA
 	BlueprintEditorWeakPtr = InBlueprintEditor;
 	SelectedPageWeakPtr = nullptr;
 	CurrentJob = nullptr;
-	bRunRenderNewPreview = false;
+	FramesUntilRenderNewPreview = 0;
 	ImageBrushEmpty = FSlateBrush();
 	ImageBrushEmpty.DrawAs = ESlateBrushDrawType::Type::NoDrawType;
 	ImageBrush = FSlateBrush();
@@ -207,12 +211,11 @@ void UE::RenderPages::Private::SRenderPagesPageViewerPreview::FrameSliderValueCh
 
 void UE::RenderPages::Private::SRenderPagesPageViewerPreview::RenderNewPreview()
 {
-	bRunRenderNewPreview = true;
+	FramesUntilRenderNewPreview = 1;
 }
 
 void UE::RenderPages::Private::SRenderPagesPageViewerPreview::InternalRenderNewPreview()
 {
-	bRunRenderNewPreview = false;
 	InternalRenderNewPreviewOfPage(SelectedPageWeakPtr.Get());
 }
 

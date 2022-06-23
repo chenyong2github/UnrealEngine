@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "LevelSequence.h"
+#include "LevelSequencePlayer.h"
 #include "Widgets/SCompoundWidget.h"
 #include "SEditorViewport.h"
 
@@ -62,12 +63,28 @@ namespace UE::RenderPages::Private
 		virtual bool SupportsKeyboardFocus() const override { return false; }
 		//~ End SEditorViewport Interface
 
+		ULevelSequencePlayer* GetSequencePlayer();
+		void DestroySequencePlayer();
+
 	private:
 		/** The viewport client. */
 		TSharedPtr<FRenderPagesEditorViewportClient> ViewportClient;
 
+		/** The world that the level sequence actor was spawned in. */
+		UPROPERTY()
+		TWeakObjectPtr<UWorld> LevelSequencePlayerWorld;
+
 		/** The level sequence actor we spawned to play the sequence of any given page. */
-		TStrongObjectPtr<ALevelSequenceActor> LevelSequenceActor;
+		UPROPERTY()
+		TObjectPtr<ALevelSequenceActor> LevelSequencePlayerActor;
+
+		/** The level sequence player we created to play the sequence of any given page. */
+		UPROPERTY()
+		TObjectPtr<ULevelSequencePlayer> LevelSequencePlayer;
+
+		/** The level sequence that we're currently playing. */
+		UPROPERTY()
+		TObjectPtr<ULevelSequence> LevelSequence;
 
 		/** The time of the currently playing sequence. */
 		float LevelSequenceTime;

@@ -79,8 +79,8 @@ namespace UE::RenderPages::Private
 		/** A reference to the job that's currently rendering. */
 		TWeakObjectPtr<URenderPage> SelectedPageWeakPtr;
 
-		/** True if it should call RenderNewPreview() next frame. */
-		bool bRunRenderNewPreview;
+		/** 1 if it should call RenderNewPreview() next frame, 2+ if it should subtract 1 from its value next frame, 0 and below and it won't do anything. */
+		int32 FramesUntilRenderNewPreview;
 
 	private:
 		/** True if it has rendered before since the start of this application. Used for not hiding the rendering popup during the first render (since the first render can take a lot longer due to having to compile shaders etc). */

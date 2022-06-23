@@ -35,19 +35,16 @@ void UE::RenderPages::Private::SRenderPagesEditorViewport::Tick(const FGeometry&
 	{
 		return;
 	}
-	ViewportClient->Invalidate();// render
+	ViewportClient->Invalidate();// causes it to rerender
 
-	if (LevelSequenceActor.IsValid())
+	if (ULevelSequencePlayer* SequencePlayer = GetSequencePlayer(); IsValid(SequencePlayer))
 	{
-		if (ULevelSequencePlayer* SequencePlayer = LevelSequenceActor->GetSequencePlayer(); IsValid(SequencePlayer))
+		SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));// execute this every tick, in case any sequencer values get overwritten (by remote control props for example)
+		if (UCameraComponent* Camera = SequencePlayer->GetActiveCameraComponent(); IsValid(Camera))
 		{
-			SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));// execute every tick, in case any sequencer values get overwritten (by remote control props for example)
-			if (UCameraComponent* Camera = SequencePlayer->GetActiveCameraComponent(); IsValid(Camera))
-			{
-				ViewportClient->SetViewLocation(Camera->GetComponentLocation());
-				ViewportClient->SetViewRotation(Camera->GetComponentRotation());
-				return;
-			}
+			ViewportClient->SetViewLocation(Camera->GetComponentLocation());
+			ViewportClient->SetViewRotation(Camera->GetComponentRotation());
+			return;
 		}
 	}
 
@@ -77,57 +74,103 @@ void UE::RenderPages::Private::SRenderPagesEditorViewport::Tick(const FGeometry&
 
 void UE::RenderPages::Private::SRenderPagesEditorViewport::Construct(const FArguments& InArgs)
 {
-	LevelSequenceTime = 0.0f;
 	ViewportClient = MakeShareable(new FRenderPagesEditorViewportClient(nullptr, SharedThis(this)));
+	LevelSequencePlayerWorld = nullptr;
+	LevelSequencePlayerActor = nullptr;
+	LevelSequencePlayer = nullptr;
+	LevelSequence = nullptr;
+	LevelSequenceTime = 0.0f;
 
 	SEditorViewport::Construct(SEditorViewport::FArguments());
-
-	if (UWorld* World = GetWorld(); IsValid(World))
-	{
-		FActorSpawnParameters LevelSequenceSpawnParams;
-		LevelSequenceSpawnParams.ObjectFlags = RF_Transient | RF_DuplicateTransient;
-		LevelSequenceActor = TStrongObjectPtr(World->SpawnActor<ALevelSequenceActor>(LevelSequenceSpawnParams));
-		LevelSequenceActor->PlaybackSettings.LoopCount.Value = 0;
-		LevelSequenceActor->PlaybackSettings.bAutoPlay = false;
-		LevelSequenceActor->PlaybackSettings.bPauseAtEnd = true;
-		LevelSequenceActor->PlaybackSettings.bRestoreState = true;
-	}
 }
 
 UE::RenderPages::Private::SRenderPagesEditorViewport::~SRenderPagesEditorViewport()
 {
-	if (LevelSequenceActor.IsValid())
-	{
-		if (ULevelSequencePlayer* SequencePlayer = LevelSequenceActor->GetSequencePlayer(); IsValid(SequencePlayer))
-		{
-			SequencePlayer->Stop();
-		}
-		LevelSequenceActor->Destroy();
-	}
-	LevelSequenceActor.Reset();
+	DestroySequencePlayer();
 	ViewportClient.Reset();
 }
 
 bool UE::RenderPages::Private::SRenderPagesEditorViewport::ShowSequenceFrame(ULevelSequence* InSequence, const float InTime)
 {
 	LevelSequenceTime = InTime;
-	if (!LevelSequenceActor.IsValid() || !IsValid(InSequence))
+	if (!IsValid(InSequence))
 	{
+		LevelSequence = nullptr;
+		DestroySequencePlayer();
 		return false;
 	}
-	if (LevelSequenceActor->GetSequence() != InSequence)
+	if (!IsValid(LevelSequence) || (LevelSequence != InSequence))
 	{
-		if (ULevelSequencePlayer* SequencePlayer = LevelSequenceActor->GetSequencePlayer(); IsValid(SequencePlayer))
-		{
-			SequencePlayer->Stop();
-		}
-		LevelSequenceActor->SetSequence(InSequence);
+		LevelSequence = InSequence;
+		DestroySequencePlayer();
 	}
-	if (ULevelSequencePlayer* SequencePlayer = LevelSequenceActor->GetSequencePlayer(); IsValid(SequencePlayer))
+	if (ULevelSequencePlayer* SequencePlayer = GetSequencePlayer(); IsValid(SequencePlayer))
 	{
 		SequencePlayer->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequenceTime, EUpdatePositionMethod::Play));
 	}
 	return true;
+}
+
+ULevelSequencePlayer* UE::RenderPages::Private::SRenderPagesEditorViewport::GetSequencePlayer()
+{
+	if (!IsValid(LevelSequence))
+	{
+		return nullptr;
+	}
+	if (UWorld* World = GetWorld(); IsValid(World))
+	{
+		if (IsValid(LevelSequencePlayer) && LevelSequencePlayerWorld.IsValid() && (World == LevelSequencePlayerWorld))
+		{
+			return LevelSequencePlayer;
+		}
+
+		LevelSequencePlayerWorld = nullptr;
+		LevelSequencePlayerActor = nullptr;
+		LevelSequencePlayer = nullptr;
+
+		FMovieSceneSequencePlaybackSettings PlaybackSettings;
+		PlaybackSettings.LoopCount.Value = 0;
+		PlaybackSettings.bAutoPlay = false;
+		PlaybackSettings.bPauseAtEnd = true;
+		PlaybackSettings.bRestoreState = true;
+		FLevelSequenceCameraSettings CameraSettings;
+
+		ALevelSequenceActor* PlayerActor = nullptr;
+		if (ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, LevelSequence, PlaybackSettings, PlayerActor); IsValid(Player))
+		{
+			if (IsValid(PlayerActor))
+			{
+				Player->Initialize(LevelSequence, World->PersistentLevel, PlaybackSettings, CameraSettings);
+				Player->State.AssignSequence(MovieSceneSequenceID::Root, *LevelSequence, *Player);
+				Player->SetPlaybackPosition(FMovieSceneSequencePlaybackParams(LevelSequence->GetMovieScene()->GetPlaybackRange().GetLowerBoundValue().Value, EUpdatePositionMethod::Play));
+
+				LevelSequencePlayerWorld = World;
+				LevelSequencePlayerActor = PlayerActor;
+				LevelSequencePlayer = Player;
+				return Player;
+			}
+		}
+	}
+	return nullptr;
+}
+
+void UE::RenderPages::Private::SRenderPagesEditorViewport::DestroySequencePlayer()
+{
+	TObjectPtr<ALevelSequenceActor> PlayerActor = LevelSequencePlayerActor;
+	TObjectPtr<ULevelSequencePlayer> Player = LevelSequencePlayer;
+
+	LevelSequencePlayerWorld = nullptr;
+	LevelSequencePlayerActor = nullptr;
+	LevelSequencePlayer = nullptr;
+
+	if (IsValid(Player))
+	{
+		Player->Stop();
+	}
+	if (IsValid(PlayerActor))
+	{
+		PlayerActor->Destroy();
+	}
 }
 
 
