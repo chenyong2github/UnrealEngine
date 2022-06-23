@@ -23,7 +23,6 @@ using Horde.Build.Jobs.Graphs;
 using Horde.Build.Jobs.Templates;
 using Horde.Build.Jobs.TestData;
 using Horde.Build.Logs;
-using Horde.Build.Server;
 using Horde.Build.Streams;
 using Horde.Build.Tasks;
 using Horde.Build.Utilities;
@@ -284,8 +283,7 @@ namespace Horde.Build.Server
 					throw new StructuredRpcException(StatusCode.PermissionDenied, "User is not authenticated to create new agents");
 				}
 
-				const bool BEnabled = true;
-				agent = await _agentService.CreateAgentAsync(request.Name, BEnabled, null, null);
+				agent = await _agentService.CreateAgentAsync(request.Name, true, null, GetRequestedPoolsFromCapabilities(request.Capabilities));
 			}
 
 			// Make sure we're allowed to create sessions on this agent
@@ -311,6 +309,20 @@ namespace Horde.Build.Server
 			response.ExpiryTime = Timestamp.FromDateTime(agent.SessionExpiresAt!.Value);
 			response.Token = _agentService.IssueSessionToken(agent.Id, agent.SessionId!.Value);
 			return response;
+		}
+
+		private static List<StringId<IPool>>? GetRequestedPoolsFromCapabilities(RpcAgentCapabilities capabilities)
+		{
+			foreach (string property in capabilities.Properties)
+			{
+				const string Key = "RequestedPools=";
+				if (property.StartsWith(Key, StringComparison.InvariantCulture))
+				{
+					return property[Key.Length..].Split(",").Select(x => new StringId<IPool>(x)).ToList();
+				}
+			}
+
+			return null;
 		}
 
 		/// <summary>

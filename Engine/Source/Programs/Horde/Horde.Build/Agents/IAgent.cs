@@ -334,6 +334,11 @@ namespace Horde.Build.Agents
 		public const string Pool = "Pool";
 
 		/// <summary>
+		/// Pools requested by the agent to join when registering with server
+		/// </summary>
+		public const string RequestedPools = "RequestedPools";
+		
+		/// <summary>
 		/// Number of logical cores
 		/// </summary>
 		public const string LogicalCores = "LogicalCores";
