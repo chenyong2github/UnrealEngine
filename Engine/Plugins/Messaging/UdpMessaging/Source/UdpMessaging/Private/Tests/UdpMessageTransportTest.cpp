@@ -23,7 +23,10 @@ public:
 		: NumReceivedMessages(0)
 	{
 		TArray<FIPv4Endpoint> StaticEndpoints;
-		Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(UnicastEndpoint, MulticastEndpoint, MoveTemp(StaticEndpoints), MulticastTimeToLive);
+		TArray<FIPv4Endpoint> ExcludeEndpoints;
+		Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(UnicastEndpoint, MulticastEndpoint,
+																		  MoveTemp(StaticEndpoints),
+																		  MoveTemp(ExcludeEndpoints), MulticastTimeToLive);
 	}
 
 public:

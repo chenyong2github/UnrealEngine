@@ -128,6 +128,14 @@ public:
 	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
 	TArray<FString> StaticEndpoints;
 
+	/**
+	 * List of IP addresses that are banned from communicating with this client.
+	 *
+	 * The format is IP_ADDRESS:PORT_NUMBER.  If port number is 0 then all ports are blocked.
+	 */
+	UPROPERTY(config, EditAnywhere, Category=Transport, AdvancedDisplay)
+	TArray<FString> ExcludedEndpoints;
+
 public:
 
 	/** Whether the UDP tunnel is enabled. */

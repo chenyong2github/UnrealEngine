@@ -586,6 +586,30 @@ public:
 		return ErrorDelegate;
 	}
 
+	/** 
+	 * Returns a delegate that is executed when a socket fails to communicate
+	 * upon sending to a target endpoint.
+	 * @return The delegate
+	 * @note this delegate is broadcasted from the processor thread.
+	 */
+	DECLARE_DELEGATE_TwoParams(FOnErrorSendingToEndpoint, const FGuid& /*NodeId*/, const FIPv4Endpoint& /*SendersIpAddress*/)
+	FOnErrorSendingToEndpoint& OnErrorSendingToEndpoint_UdpMessageProcessorThread()
+	{
+		return ErrorSendingToEndpointDelegate;
+	}
+
+	/**
+	 * Returns a delegate that is executed when a socket fails to communicate
+	 * upon sending to a target endpoint.
+	 * @return The delegate
+	 * @note this delegate is broadcasted from the processor thread.
+	 */
+	DECLARE_DELEGATE_RetVal_TwoParams(bool, FCanAcceptEndpoint, const FGuid& /*NodeId*/, const FIPv4Endpoint& /*SendersIpAddress*/)
+	FCanAcceptEndpoint& OnCanAcceptEndpoint_UdpMessageProcessorThread()
+	{
+		return CanAcceptEndpointDelegate;
+	}
+
 	TArray<FIPv4Endpoint> GetKnownEndpoints() const;
 
 public:
@@ -630,7 +654,7 @@ protected:
 	 * @param Sender The segment sender.
 	 * @return true if the segment passed the filter, false otherwise.
 	 */
-	bool FilterSegment(const FUdpMessageSegment::FHeader& Header);
+	bool FilterSegment(const FUdpMessageSegment::FHeader& Header, const FIPv4Endpoint& Sender);
 
 	/**
 	 * Processes an Abort segment.
@@ -767,6 +791,9 @@ protected:
 
 private:
 
+	/** Handles a communication error to a particular endpoint.*/
+	void HandleSocketError(const FNodeInfo& NodeInfo) const;
+
 	/** Checks all known nodes to see if any segmenters have NeedSending set to true. */
 	bool MoreToSend();
 
@@ -844,6 +871,12 @@ private:
 
 	/** Holds a delegate to be invoked when a socket error happen. */
 	FOnError ErrorDelegate;
+
+	/** Holds a delegate to be invoked when a socket error occurs sending to a given endpoint. */
+	FOnErrorSendingToEndpoint ErrorSendingToEndpointDelegate;
+
+	/** Holds a delegate to be invoked when checking the validity of a given endpoint address. */
+	FCanAcceptEndpoint CanAcceptEndpointDelegate;
 
 	/** The configured message format (from UUdpMessagingSettings). */
 	EUdpMessageFormat MessageFormat;

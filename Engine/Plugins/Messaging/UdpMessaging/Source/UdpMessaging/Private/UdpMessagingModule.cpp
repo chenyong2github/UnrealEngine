@@ -472,6 +472,25 @@ protected:
 		return bParsedAddr;
 	}
 
+	TArray<FIPv4Endpoint> ParseStringArrayAddresses(const TArray<FString>& StringAddresses)
+	{
+		TArray<FIPv4Endpoint> Endpoints;
+		for (const FString& EndpointAsString : StringAddresses)
+		{
+			FIPv4Endpoint Endpoint;
+
+			if (ParseEndpoint(EndpointAsString, Endpoint))
+			{
+				Endpoints.Add(Endpoint);
+			}
+			else
+			{
+				UE_LOG(LogUdpMessaging, Warning, TEXT("Invalid UDP Messaging Endpoint '%s'"), *EndpointAsString);
+			}
+		}
+		return Endpoints;
+	}
+
 	/** Initializes the message bridge with the current settings. */
 	void InitializeBridge()
 	{
@@ -509,20 +528,10 @@ protected:
 
 		// Initialize the service with the additional endpoints added through the modular interface
 		TArray<FIPv4Endpoint> StaticEndpoints = AdditionalStaticEndpoints.Array();
+		StaticEndpoints += ParseStringArrayAddresses(Settings->StaticEndpoints);
 
-		for (auto& StaticEndpoint : Settings->StaticEndpoints)
-		{
-			FIPv4Endpoint Endpoint;
-
-			if (ParseEndpoint(StaticEndpoint, Endpoint))
-			{
-				StaticEndpoints.Add(Endpoint);
-			}
-			else
-			{
-				UE_LOG(LogUdpMessaging, Warning, TEXT("Invalid UDP Messaging Static Endpoint '%s'"), *StaticEndpoint);
-			}
-		}
+		// Addresses to deny on transport.
+		TArray<FIPv4Endpoint> ExcludedEndpoints = ParseStringArrayAddresses(Settings->ExcludedEndpoints);
 
 		if (Settings->MulticastTimeToLive == 0)
 		{
@@ -536,7 +545,8 @@ protected:
 		}
 		UE_LOG(LogUdpMessaging, Log, TEXT("Initializing bridge on interface %s to multicast group %s."), *UnicastEndpoint.ToString(), *MulticastEndpoint.ToText().ToString());
 
-		TSharedRef<FUdpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(UnicastEndpoint, MulticastEndpoint, MoveTemp(StaticEndpoints), Settings->MulticastTimeToLive);
+		TSharedRef<FUdpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(
+			UnicastEndpoint, MulticastEndpoint, MoveTemp(StaticEndpoints), MoveTemp(ExcludedEndpoints), Settings->MulticastTimeToLive);
 		WeakBridgeTransport = Transport;
 		MessageBridge = FMessageBridgeBuilder()
 			.UsingTransport(Transport);

@@ -1,8 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Transport/UdpMessageTransport.h"
+#include "Algo/AnyOf.h"
 #include "INetworkMessagingExtension.h"
 #include "Interfaces/IPv4/IPv4Address.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketBuilder.h"
@@ -29,7 +31,22 @@
 /* FUdpMessageTransport structors
  *****************************************************************************/
 
-FUdpMessageTransport::FUdpMessageTransport(const FIPv4Endpoint& InUnicastEndpoint, const FIPv4Endpoint& InMulticastEndpoint, TArray<FIPv4Endpoint> InStaticEndpoints, uint8 InMulticastTtl)
+TAutoConsoleVariable<int32> CVarMaxRetriesForBadEndpoint(
+	TEXT("MessageBus.UDP.MaxRetriesForBadEndpoint"),
+	5,
+	TEXT("The maximum number of retries that will be attempted when a socket connection fails to reach an endpoint."),
+	ECVF_Default
+);
+
+TAutoConsoleVariable<bool> CVarEndpointDenyListEnabled(
+	TEXT("MessageBus.UDP.EndpointDenyListEnabled"),
+	true,
+	TEXT("Specifies if the endpoint deny list is enabled. If enabled, a problematic endpoint will be tagged for possible exclusion from communication.")
+	TEXT("The maximum attempts allowed is determined by MessageBus.UDP.MaxRetriesForBadEndpoint"),
+	ECVF_Default
+);
+
+FUdpMessageTransport::FUdpMessageTransport(const FIPv4Endpoint& InUnicastEndpoint, const FIPv4Endpoint& InMulticastEndpoint, TArray<FIPv4Endpoint> InStaticEndpoints, TArray<FIPv4Endpoint> InExcludedEndpoints, uint8 InMulticastTtl)
 	: MessageProcessor(nullptr)
 	, MulticastEndpoint(InMulticastEndpoint)
 	, MulticastReceiver(nullptr)
@@ -43,6 +60,9 @@ FUdpMessageTransport::FUdpMessageTransport(const FIPv4Endpoint& InUnicastEndpoin
 	, UnicastSocket(nullptr)
 #endif
 	, StaticEndpoints(MoveTemp(InStaticEndpoints))
+	, ExcludedEndpoints(MoveTemp(InExcludedEndpoints))
+	, ClearDenyList(TEXT("MessageBus.UDP.ClearDenyList"), TEXT("Clear the UDP socket deny list."),
+					FConsoleCommandDelegate::CreateRaw(this, &FUdpMessageTransport::DoClearDenyCandidateList))
 {
 }
 
@@ -242,6 +262,8 @@ bool FUdpMessageTransport::StartTransport(IMessageTransportHandler& Handler)
 		MessageProcessor->OnNodeDiscovered().BindRaw(this, &FUdpMessageTransport::HandleProcessorNodeDiscovered);
 		MessageProcessor->OnNodeLost().BindRaw(this, &FUdpMessageTransport::HandleProcessorNodeLost);
 		MessageProcessor->OnError().BindRaw(this, &FUdpMessageTransport::HandleProcessorError);
+		MessageProcessor->OnErrorSendingToEndpoint_UdpMessageProcessorThread().BindRaw(this, &FUdpMessageTransport::HandleEndpointCommunicationError);
+		MessageProcessor->OnCanAcceptEndpoint_UdpMessageProcessorThread().BindRaw(this, &FUdpMessageTransport::HandleProcessorEndpointCheck);
 	}
 
 	if (MulticastSocket != nullptr)
@@ -355,6 +377,38 @@ void FUdpMessageTransport::HandleProcessorNodeLost(const FGuid& LostNodeId)
 	TransportHandler->ForgetTransportNode(LostNodeId);
 }
 
+bool FUdpMessageTransport::HandleProcessorEndpointCheck(const FGuid& EndpointNodeId, const FIPv4Endpoint& SenderIpAddress)
+{
+	if (CVarEndpointDenyListEnabled.GetValueOnAnyThread())
+	{
+		FDenyCandidate* DenyCandidate = DenyCandidateList.Find(EndpointNodeId);
+		if (DenyCandidate && DenyCandidate->EndpointFailureCount > CVarMaxRetriesForBadEndpoint.GetValueOnAnyThread())
+		{
+			return false;
+		}
+	}
+
+	for (const FIPv4Endpoint& Endpoint : ExcludedEndpoints)
+	{
+		if ((Endpoint.Port == 0 && SenderIpAddress.Address == Endpoint.Address)
+			|| SenderIpAddress == Endpoint)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+void FUdpMessageTransport::DoClearDenyCandidateList()
+{
+	DenyCandidateList.Reset();
+}
+
+void FUdpMessageTransport::HandleEndpointCommunicationError(const FGuid& EndpointId, const FIPv4Endpoint& /*Unused EndpointIdAddress*/)
+{
+	FDenyCandidate& DenyCandidate = DenyCandidateList.FindOrAdd(EndpointId);
+	DenyCandidate.EndpointFailureCount++;
+}
 
 void FUdpMessageTransport::HandleProcessorError()
 {

@@ -11,6 +11,7 @@
 #include "Templates/SharedPointer.h"
 #include "Async/Future.h"
 #include "Containers/Ticker.h"
+#include "HAL/IConsoleManager.h"
 
 class FArrayReader;
 class FUdpReassembledMessage;
@@ -44,9 +45,15 @@ public:
 	 *
 	 * @param InLocalEndpoint The local IP endpoint to receive messages on.
 	 * @param InMulticastEndpoint The multicast group endpoint to transport messages to.
+	 * @param InStaticEndpoints array of endpoints to include in communication
+	 * @param InExcludedEndpoints array of endpoints to exclude in communication
 	 * @param InMulticastTtl The multicast time-to-live.
 	 */
-	FUdpMessageTransport(const FIPv4Endpoint& InLocalEndpoint, const FIPv4Endpoint& InMulticastEndpoint, TArray<FIPv4Endpoint> InStaticEndpoints, uint8 InMulticastTtl);
+	FUdpMessageTransport(const FIPv4Endpoint& InLocalEndpoint,
+						 const FIPv4Endpoint& InMulticastEndpoint,
+						 TArray<FIPv4Endpoint> InStaticEndpoints,
+						 TArray<FIPv4Endpoint> InExcludedEndpoints,
+						 uint8 InMulticastTtl);
 
 	/** Virtual destructor. */
 	virtual ~FUdpMessageTransport();
@@ -103,6 +110,12 @@ private:
 	/** */
 	void HandleProcessorError();
 
+	/** Returns true if we can add this endpoint to the list of nodes we communicate with. */
+	bool HandleProcessorEndpointCheck(const FGuid& EndpointNodeId, const FIPv4Endpoint& SenderIpAddress);
+
+	/** Handle endpoint communication error. */
+	void HandleEndpointCommunicationError(const FGuid& EndpointId, const FIPv4Endpoint& EndpointIdAddress);
+
 	/** Launches a routine that attempts to restart the transport. */
 	void StartAutoRepairRoutine(uint32 MaxRetryAttempt);
 
@@ -119,6 +132,9 @@ private:
 	void HandleSocketDataReceived(const TSharedPtr<FArrayReader, ESPMode::ThreadSafe>& Data, const FIPv4Endpoint& Sender);
 
 private:
+	/** Clear the deny list */
+	void DoClearDenyCandidateList();
+
 	/** Holds any pending restart request. */
 	TFuture<void> ErrorFuture;
 
@@ -157,6 +173,20 @@ private:
 	FSocket* UnicastSocket;
 #endif
 
+	struct FDenyCandidate
+	{
+		int32 EndpointFailureCount = 0;
+	};
+
+	/** Deny list of node ids not allowed to talk to UDP processor */
+	TMap<FGuid, FDenyCandidate> DenyCandidateList;
+
 	/** Holds the static endpoints. */
 	TSet<FIPv4Endpoint> StaticEndpoints;
+
+	/** Excluded list of IP addresses not allowed to talk to UDP processor */
+	TArray<FIPv4Endpoint> ExcludedEndpoints;
+
+	/** Console command to reset the deny list */
+	FAutoConsoleCommand ClearDenyList;
 };

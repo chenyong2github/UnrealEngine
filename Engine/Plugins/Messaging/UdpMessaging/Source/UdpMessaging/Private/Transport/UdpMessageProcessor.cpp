@@ -3,7 +3,9 @@
 #include "Transport/UdpMessageProcessor.h"
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
+#include "HAL/IConsoleManager.h"
 #include "INetworkMessagingExtension.h"
+#include "Interfaces/IPv4/IPv4Endpoint.h"
 #include "UdpMessagingPrivate.h"
 
 #include "Common/UdpSocketSender.h"
@@ -30,9 +32,51 @@
 
 const int32 FUdpMessageProcessor::DeadHelloIntervals = 5;
 
+TAutoConsoleVariable<int32> CVarFakeSocketError(
+	TEXT("MessageBus.UDP.InduceSocketError"),
+	0,
+	TEXT("This CVar can be used to induce a socket failure on outbound communication.\n")
+	TEXT("Any non zero value will force the output socket connection to fail if the IP address matches\n")
+	TEXT("one of the values in MessageBus.UDP.ConnectionsToError. The list can be cleared by invoking\n")
+	TEXT("MessageBus.UDP.ClearDenyList."),
+	ECVF_Default
+);
+
+TAutoConsoleVariable<FString> CVarConnectionsToError(
+	TEXT("MessageBus.UDP.ConnectionsToError"),
+	TEXT(""),
+	TEXT("Connections to error out on when MessageBus.UDP.InduceSocketError is enabled.\n")
+	TEXT("This can be a comma separated list in the form IPAddr2:port,IPAddr3:port"),
+	ECVF_Default);
 
 namespace UE::Private::MessageProcessor
 {
+
+bool ShouldErrorOnConnection(const FIPv4Endpoint& InEndpoint)
+{
+	if (CVarFakeSocketError.GetValueOnAnyThread() == 0)
+	{
+		return false;
+	}
+
+	const FString ConnectionsToErrorString = CVarConnectionsToError.GetValueOnAnyThread();
+	TArray<FString> EndpointStrings;
+	ConnectionsToErrorString.ParseIntoArray(EndpointStrings, TEXT(","));
+	for (const FString& EndpointString : EndpointStrings)
+	{
+		FIPv4Endpoint Endpoint;
+		if (FIPv4Endpoint::Parse(EndpointString, Endpoint))
+		{
+			if (Endpoint.Address == InEndpoint.Address &&
+				(Endpoint.Port == 0 || Endpoint.Port == InEndpoint.Port))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 FOnTransferDataUpdated& OnSegmenterUpdated()
 {
 	static FOnTransferDataUpdated OnTransferUpdated;
@@ -405,7 +449,7 @@ void FUdpMessageProcessor::ConsumeInboundSegments()
 		FUdpMessageSegment::FHeader Header;
 		*Segment.Data << Header;
 
-		if (FilterSegment(Header))
+		if (FilterSegment(Header, Segment.Sender))
 		{
 			FNodeInfo& NodeInfo = KnownNodes.FindOrAdd(Header.SenderNodeId);
 
@@ -563,10 +607,15 @@ void FUdpMessageProcessor::ConsumeOutboundMessages()
 	}
 }
 
-bool FUdpMessageProcessor::FilterSegment(const FUdpMessageSegment::FHeader& Header)
+bool FUdpMessageProcessor::FilterSegment(const FUdpMessageSegment::FHeader& Header, const FIPv4Endpoint& Sender)
 {
 	// filter locally generated segments
 	if (Header.SenderNodeId == LocalNodeId)
+	{
+		return false;
+	}
+
+	if (!CanAcceptEndpointDelegate.Execute(Header.SenderNodeId, Sender))
 	{
 		return false;
 	}
@@ -864,6 +913,13 @@ bool FUdpMessageProcessor::MoreToSend()
 	return false;
 }
 
+void FUdpMessageProcessor::HandleSocketError(const FNodeInfo& NodeInfo) const
+{
+	UE_LOG(LogUdpMessaging, Error,
+		   TEXT("Socket error detected when communicating with %s. Banning communication to that endpoint."), *NodeInfo.Endpoint.ToString());
+	ErrorSendingToEndpointDelegate.Execute(NodeInfo.NodeId, NodeInfo.Endpoint);
+}
+
 void FUdpMessageProcessor::UpdateKnownNodes()
 {
 	SCOPED_MESSAGING_TRACE(FUdpMessageProcessor_UpdateKnownNodes);
@@ -879,9 +935,10 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 		int32 NodeByteSent = UpdateSegmenters(KnownNodePair.Value);
 		// if NodByteSent is negative, there is a socket error, continuing is useless
 		bSuccess = NodeByteSent >= 0;
-		if (!bSuccess)
+		if (!bSuccess || UE::Private::MessageProcessor::ShouldErrorOnConnection(KnownNodePair.Value.Endpoint))
 		{
-			UE_LOG(LogUdpMessaging, Verbose, TEXT("FUdpMessageProcessor::UpdateKnownNodes received negative NodeByteSent (%d) from socket sender."), NodeByteSent);
+			bSuccess = false; // To ensure we trigger the delegate on a forced error.
+			HandleSocketError(KnownNodePair.Value);
 			break;
 		}
 
@@ -889,6 +946,7 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 		// if there is a socket error, continuing is useless
 		if (!bSuccess)
 		{
+			HandleSocketError(KnownNodePair.Value);
 			break;
 		}
 
