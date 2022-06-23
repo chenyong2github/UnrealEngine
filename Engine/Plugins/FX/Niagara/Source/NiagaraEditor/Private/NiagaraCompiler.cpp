@@ -186,6 +186,7 @@ void FNiagaraCompileRequestDuplicateData::DuplicateReferencedGraphsRecursive(UNi
 						UNiagaraScript* DupeScript = FunctionScript->CreateCompilationCopy();
 						TArray<ENiagaraScriptUsage> CompileUsages = { DupeScript->GetUsage() };
 						UNiagaraScriptSource* DupeScriptSource = CastChecked<UNiagaraScriptSource>(DupeScript->GetSource(FunctionCallNode->SelectedScriptVersion))->CreateCompilationCopy(CompileUsages);
+						TrackedScriptSourceCopies.Add(DupeScriptSource);
 						UNiagaraGraph* DupeGraph = DupeScriptSource->NodeGraph;
 						DupeScript->SetSource(DupeScriptSource, FunctionCallNode->SelectedScriptVersion);
 						
@@ -446,12 +447,26 @@ void FNiagaraCompileRequestDuplicateData::ReleaseCompilationCopies()
 		SharedSourceGraphToDuplicatedGraphsMap->Empty();
 	}
 
-	// clean up script source
+	// clean up script sources
+	for (TWeakObjectPtr<UNiagaraScriptSource> Source : TrackedScriptSourceCopies)
+	{
+		if (Source.IsValid())
+		{
+			Source->ReleaseCompilationCopy();
+		}
+	}
+	TrackedScriptSourceCopies.Empty();
 	if (SourceDeepCopy.IsValid())
 	{
 		SourceDeepCopy->ReleaseCompilationCopy();
 	}
 	SourceDeepCopy = nullptr;
+
+	// clean up emitter data
+	for (TSharedPtr<FNiagaraCompileRequestDuplicateData, ESPMode::ThreadSafe> EmitterRequest : EmitterData)
+	{
+		EmitterRequest->ReleaseCompilationCopies();
+	}
 }
 
 void FNiagaraCompileRequestData::CompareAgainst(FNiagaraGraphCachedBuiltHistory* InCachedDataBase)

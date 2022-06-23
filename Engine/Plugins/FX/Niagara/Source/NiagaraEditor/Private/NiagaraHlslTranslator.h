@@ -204,6 +204,8 @@ public:
 
 protected:
 	void DuplicateReferencedGraphsRecursive(UNiagaraGraph* InGraph, const FCompileConstantResolver& ConstantResolver, TMap<UNiagaraNodeFunctionCall*, ENiagaraScriptUsage> FunctionsWithUsage);
+private:
+	TArray<TWeakObjectPtr<UNiagaraScriptSource>> TrackedScriptSourceCopies;
 };
 
 
