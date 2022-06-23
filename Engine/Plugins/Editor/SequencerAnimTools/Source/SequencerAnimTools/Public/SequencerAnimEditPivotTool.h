@@ -13,6 +13,7 @@
 #include "Framework/Commands/UICommandInfo.h"
 #include "BaseGizmos/TransformProxy.h"
 #include "BaseSequencerAnimTool.h"
+#include "ControlRig.h"
 #include "Styling/AppStyle.h"
 #include "SequencerAnimEditPivotTool.generated.h"
 
@@ -20,7 +21,6 @@ class USingleClickInputBehavior;
 class UClickDragInputBehavior;
 class UCombinedTransformGizmo;
 class ULevelSequence;
-class UControlRig;
 struct FRigControlElement;
 class ISequencer;
 class FUICommandList;
@@ -189,6 +189,7 @@ protected:
 	int32 TransactionIndex = -1;
 	TArray<FControlRigSelectionDuringDrag> ControlRigDrags;
 	TArray<FActorSelectonDuringDrag> ActorDrags;
+	TArray<TSharedPtr<FControlRigInteractionScope>> InteractionScopes;
 
 	//since we are selection based we can cache this
 	ULevelSequence* LevelSequence;

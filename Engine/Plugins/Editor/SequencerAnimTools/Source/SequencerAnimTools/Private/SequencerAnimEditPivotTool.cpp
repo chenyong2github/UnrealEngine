@@ -701,6 +701,33 @@ void USequencerPivotTool::GizmoTransformStarted(UTransformProxy* Proxy)
 	bGizmoBeingDragged = true;
 	bManipulatorMadeChange = false;
 	GizmoTransform = StartDragTransform;
+
+	InteractionScopes.Reset();
+	if(bInPivotMode)
+	{
+		TMap<UControlRig*, int32> RigToScopeIndex;
+		for(int32 IndexA = 0; IndexA < ControlRigDrags.Num(); IndexA++)
+		{
+			const FControlRigSelectionDuringDrag& ControlRigDrag = ControlRigDrags[IndexA];
+
+			// if we are hitting this for the first time
+			const int32 ScopeIndex = RigToScopeIndex.FindOrAdd(ControlRigDrag.ControlRig, InteractionScopes.Num());
+			if(!InteractionScopes.IsValidIndex(ScopeIndex))
+			{
+				// get all keys on the same control rig
+				TArray<FRigElementKey> Keys = {FRigElementKey(ControlRigDrag.ControlName, ERigElementType::Control)};
+				for(int32 IndexB = IndexA + 1; IndexB < ControlRigDrags.Num(); IndexB++)
+				{
+					if(ControlRigDrags[IndexB].ControlRig != ControlRigDrag.ControlRig)
+					{
+						continue;
+					}
+					Keys.Add(FRigElementKey(ControlRigDrags[IndexB].ControlName, ERigElementType::Control));
+				}
+				InteractionScopes.Emplace(MakeShareable(new FControlRigInteractionScope(ControlRigDrag.ControlRig, Keys)));
+			}
+		}
+	}
 }
 
 
@@ -881,6 +908,7 @@ void USequencerPivotTool::GizmoTransformEnded(UTransformProxy* Proxy)
 	}
 	bGizmoBeingDragged = false;
 	bManipulatorMadeChange = false;
+	InteractionScopes.Reset();
 	UpdateGizmoTransform();
 	SavePivotTransforms();
 }
