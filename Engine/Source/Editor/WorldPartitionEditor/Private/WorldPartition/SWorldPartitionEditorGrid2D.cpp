@@ -642,18 +642,24 @@ void SWorldPartitionEditorGrid2D::Tick(const FGeometry& AllottedGeometry, const 
 		IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter = EditorLoaderAdapter->GetLoaderAdapter();
 		check(LoaderAdapter);
 
-		ShownLoaderAdapters.Add(LoaderAdapter);
+		if (LoaderAdapter->GetBoundingBox().IsSet() && LoaderAdapter->GetBoundingBox()->IntersectXY(ViewRectWorld))
+		{
+			ShownLoaderAdapters.Add(LoaderAdapter);
 				
-		double OutDistance = DBL_MAX;
-		if (LoaderAdapter->GetBoundingBox().IsSet() && IsBoundsHoveredXY(MouseCursorPosWorld, *LoaderAdapter->GetBoundingBox(), OutDistance) && OutDistance < MinLoaderDistance)
-		{
-			MinLoaderDistance = OutDistance;
-			HoveredLoaderAdapter = EditorLoaderAdapter;
-		}
+			if (!LoaderAdapter->GetBoundingBox()->IsInsideXY(ViewRectWorld))
+			{
+				double OutDistance = DBL_MAX;
+				if (IsBoundsHoveredXY(MouseCursorPosWorld, *LoaderAdapter->GetBoundingBox(), OutDistance) && OutDistance < MinLoaderDistance)
+				{
+					MinLoaderDistance = OutDistance;
+					HoveredLoaderAdapter = EditorLoaderAdapter;
+				}
 
-		if (SelectedLoaderAdapters.Contains(EditorLoaderAdapter))
-		{
-			HighlightedLoaderAdapters.Add(LoaderAdapter);
+				if (SelectedLoaderAdapters.Contains(EditorLoaderAdapter))
+				{
+					HighlightedLoaderAdapters.Add(LoaderAdapter);
+				}
+			}
 		}
 	}
 
