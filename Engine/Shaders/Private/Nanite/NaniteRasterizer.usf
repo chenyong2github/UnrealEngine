@@ -20,7 +20,7 @@
 #define NANITE_PRIM_SHADER 0
 #endif
 
-#define NANITE_VERT_REUSE_BATCH (COMPILER_SUPPORTS_WAVE_PERMUTE && (NANITE_PRIM_SHADER || (COMPUTESHADER && NANITE_PIXEL_PROGRAMMABLE)))
+#define NANITE_VERT_REUSE_BATCH (COMPILER_SUPPORTS_WAVE_PERMUTE && ((NANITE_PRIM_SHADER && NANITE_VERTEX_PROGRAMMABLE) || (COMPUTESHADER && NANITE_PIXEL_PROGRAMMABLE)))
 
 #if NANITE_VERT_REUSE_BATCH
 // HWRasterizePS doesn't seem to work well in wave32 mode
@@ -1435,8 +1435,9 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
 
 #if NANITE_VERT_REUSE_BATCH
+#if VERTEX_TO_TRIANGLE_MASKS
 	GroupVertToTriMasks[GroupThreadID] = 0;
-
+#endif
 	const uint FirstTriIndex = RasterBin.y;
 	const uint TriIndex = FirstTriIndex + GroupThreadID;
 	const uint BatchTriCount = RasterBin.z - FirstTriIndex;
