@@ -280,6 +280,18 @@ bool UContentBrowserAliasDataSource::DoesAliasPassFilter(const FAliasData& Alias
 		&& (Filter.ExclusiveFilter.IsEmpty() || !AssetRegistry->IsAssetIncludedByFilter(AliasAssetData, Filter.ExclusiveFilter)); // Passes Exclusive
 }
 
+FName UContentBrowserAliasDataSource::GetAliasForObjectPath(const FName ObjectPath) const
+{
+	if (const TArray<FName>* Aliases = AliasesForObjectPath.Find(ObjectPath))
+	{
+		if (Aliases->Num() > 0)
+		{
+			return (*Aliases)[0];
+		}
+	}
+	return NAME_None;
+}
+
 void UContentBrowserAliasDataSource::AddAliases(const FAssetData& Asset, const TArray<FName>& Aliases, bool bInIsFromMetaData)
 {
 	for (const FName Alias : Aliases)
