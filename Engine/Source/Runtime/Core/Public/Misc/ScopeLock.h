@@ -32,7 +32,7 @@ public:
 	 *
 	 * @param InSynchObject The synchronization object to manage
 	 */
-	UE_NODISCARD FScopeLock( FCriticalSection* InSynchObject )
+	FScopeLock( FCriticalSection* InSynchObject )
 		: SynchObject(InSynchObject)
 	{
 		check(SynchObject);
@@ -99,7 +99,7 @@ public:
 	 *
 	 * @param InSynchObject The synchronization object to manage, can be null.
 	 */
-	UE_NODISCARD FScopeUnlock(FCriticalSection* InSynchObject)
+	FScopeUnlock(FCriticalSection* InSynchObject)
 		: SynchObject(InSynchObject)
 	{
 		if (InSynchObject)
@@ -151,7 +151,7 @@ namespace UE
 	public:
 		UE_NONCOPYABLE(TScopeLock);
 
-		UE_NODISCARD TScopeLock(MutexType& InMutex)
+		TScopeLock(MutexType& InMutex)
 			: Mutex(&InMutex)
 		{
 			check(Mutex);
@@ -193,7 +193,7 @@ namespace UE
 	public:
 		UE_NONCOPYABLE(TScopeUnlock);
 
-		UE_NODISCARD TScopeUnlock(MutexType& InMutex)
+		TScopeUnlock(MutexType& InMutex)
 			: Mutex(&InMutex)
 		{
 			check(Mutex);
