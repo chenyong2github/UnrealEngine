@@ -688,6 +688,14 @@ public:
 	UNREALED_API bool ImportFromFile(const FString& Filename, const FString& Type, bool bPreventMaterialNameClash = false);
 
 	/**
+	 * Prime the importer with an already existing scene object.
+	 *
+	 * @param Scene - The scene we want to load.
+	 */
+	UE_DEPRECATED(5.1, "Do not use this function.")
+	UNREALED_API void ImportFromScene(FbxScene* InScene);
+
+	/**
 	 * Retrieve the FBX loader's error message explaining its failure to read a given FBX file.
 	 * Note that the message should be valid even if the parser is successful and may contain warnings.
 	 *
