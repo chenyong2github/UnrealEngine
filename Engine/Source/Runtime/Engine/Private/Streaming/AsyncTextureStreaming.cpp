@@ -324,7 +324,7 @@ void FRenderAssetStreamingMipCalcTask::ApplyPakStateChanges_Async()
 
 	// Acquire the pending file state changes from the streaming manager.
 	{
-		FScopeLock(&StreamingManager.MountedStateDirtyFilesCS);
+		FScopeLock Lock(&StreamingManager.MountedStateDirtyFilesCS);
 		FMemory::Memswap(&MountedStateDirtyFiles, &StreamingManager.MountedStateDirtyFiles, sizeof(FIoFilenameHashSet));
 		FMemory::Memswap(&bRecacheAllFiles, &StreamingManager.bRecacheAllFiles, sizeof(bool));
 	}

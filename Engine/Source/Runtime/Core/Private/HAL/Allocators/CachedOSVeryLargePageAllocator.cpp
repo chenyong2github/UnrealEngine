@@ -104,7 +104,7 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 						LargePage->Unlink();
 						{
 #if UE_ALLOW_OSMEMORYLOCKFREE
-							FScopeUnlock FScopeUnlock(Mutex);
+							FScopeUnlock ScopeUnlock(Mutex);
 #endif
 							LLM_PLATFORM_SCOPE(ELLMTag::FMalloc);
 #if UE_USE_VERYLARGEPAGEALLOCATOR_FALLBACKPATH
@@ -113,7 +113,7 @@ void* FCachedOSVeryLargePageAllocator::Allocate(SIZE_T Size, uint32 AllocationHi
 #if UE_ALLOW_OSMEMORYLOCKFREE
 								if (Mutex != nullptr)
 								{
-									FScopeLock FScopeLock(Mutex);
+									FScopeLock Lock(Mutex);
 									LargePage->LinkHead(FreeLargePagesHead[AllocationHint]);
 								}
 								else
@@ -206,7 +206,7 @@ void FCachedOSVeryLargePageAllocator::Free(void* Ptr, SIZE_T Size, FCriticalSect
 				// need to move which list we are in and remove the backing store
 				{
 #if UE_ALLOW_OSMEMORYLOCKFREE
-					FScopeUnlock FScopeUnlock(Mutex);
+					FScopeUnlock ScopeUnlock(Mutex);
 #endif
 					Block.Decommit(LargePage->BaseAddress - AddressSpaceReserved, SizeOfLargePage);
 				}

@@ -89,7 +89,12 @@ void FRequestOwnerShared::Begin(IRequest* Request)
 	for (EPriority CheckPriority; ; NewPriority = CheckPriority)
 	{
 		Request->SetPriority(NewPriority);
-		CheckPriority = (FReadScopeLock(Lock), Priority);
+		
+		{
+			FReadScopeLock ScopeLock(Lock);
+			CheckPriority = Priority;
+		}
+
 		if (CheckPriority == NewPriority)
 		{
 			break;
@@ -255,7 +260,11 @@ void FRequestOwnerShared::KeepAlive()
 
 void FRequestOwnerShared::Destroy()
 {
-	const bool bLocalKeepAlive = (FWriteScopeLock(Lock), bKeepAlive);
+	bool bLocalKeepAlive;
+	{
+		FWriteScopeLock ScopeLock(Lock);
+		bLocalKeepAlive = bKeepAlive;
+	}
 	if (!bLocalKeepAlive)
 	{
 		Cancel();

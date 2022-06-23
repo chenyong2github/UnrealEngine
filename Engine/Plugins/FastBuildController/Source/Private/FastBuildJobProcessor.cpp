@@ -245,7 +245,7 @@ void FFastBuildJobProcessor::SubmitPendingJobs()
 	TArray<FTask*> TasksToSubmit;
 	FTask* PendingTask = nullptr;
 	{
-		FScopeLock(ControllerModule.GetTasksCS());
+		FScopeLock Lock(ControllerModule.GetTasksCS());
 		while (ControllerModule.AreTasksPending())
 		{
 			PendingTask = ControllerModule.DequeueTask();

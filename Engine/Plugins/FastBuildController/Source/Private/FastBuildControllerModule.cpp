@@ -288,14 +288,14 @@ void FFastBuildControllerModule::RegisterDispatchedTask(FTask* DispatchedTask)
 {
 	check(DispatchedTask)
 	{
-		FScopeLock(TasksCS.Get());
+		FScopeLock Lock(TasksCS.Get());
 		DispatchedTasks.Add(DispatchedTask->ID , DispatchedTask);
 	}
 }
 
 void FFastBuildControllerModule::ReEnqueueDispatchedTasks()
 {
-	FScopeLock(TasksCS.Get());
+	FScopeLock Lock(TasksCS.Get());
 	// Reclaim dispatched (incomplete) tasks 
 	for (const TPair<uint32, FTask*>& DispatchedTaskEntry : DispatchedTasks)
 	{
@@ -309,7 +309,7 @@ void FFastBuildControllerModule::DeRegisterDispatchedTasks(const TArray<uint32>&
 {
 	for (const uint32& TaskID : InTasksID)
 	{
-		FScopeLock(TasksCS.Get());
+		FScopeLock Lock(TasksCS.Get());
 		DispatchedTasks.Remove(TaskID);
 	}
 }
