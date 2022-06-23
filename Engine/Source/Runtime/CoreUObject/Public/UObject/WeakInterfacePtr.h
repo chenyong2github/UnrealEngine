@@ -189,6 +189,11 @@ struct TWeakInterfacePtr
 		return TScriptInterface<T>();
 	}
 
+	FORCEINLINE TWeakObjectPtr<UObject> GetWeakObjectPtr() const
+	{
+		return ObjectInstance;
+	}
+
 private:
 	TWeakObjectPtr<UObject> ObjectInstance;
 	T* InterfaceInstance;
