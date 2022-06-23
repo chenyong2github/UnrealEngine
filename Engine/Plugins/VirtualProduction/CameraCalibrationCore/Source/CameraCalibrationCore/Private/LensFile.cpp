@@ -611,7 +611,7 @@ bool ULensFile::EvaluateDistortionForParameters(float InFocus, float InZoom, FVe
 				LensInterpolationUtils::Interpolate(FocusBlendFactor, &PreviousFocusPreviousZoomPoint.DistortionInfo, &NextFocusPreviousZoomPoint.DistortionInfo, &State.DistortionInfo);
 
 				//Linearly interpolate the overscan factor
-				InterpolatedOverscanFactor = FMath::Lerp(FocusBlendFactor, BlendedOverscanFactors[0], BlendedOverscanFactors[1]);
+				InterpolatedOverscanFactor = FMath::Lerp(BlendedOverscanFactors[0], BlendedOverscanFactors[1], FocusBlendFactor);
 			}
 			else
 			{
@@ -814,7 +814,7 @@ bool ULensFile::EvaluateDistortionForSTMaps(float InFocus, float InZoom, FVector
 			//Linearly interpolate the overscan factor
 			const float PreviousPointOverscanFactor = ComputeOverscan(PreviousFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
 			const float NextPointOverscanFactor = ComputeOverscan(NextFocusPreviousZoomPoint.DerivedDistortionData.DistortionData, ImageCenter.PrincipalPoint);
-			InterpolatedOverscanFactor = FMath::Lerp(FocusBlendFactor, PreviousPointOverscanFactor, NextPointOverscanFactor);
+			InterpolatedOverscanFactor = FMath::Lerp(PreviousPointOverscanFactor, NextPointOverscanFactor, FocusBlendFactor);
 		}
 		else
 		{
