@@ -387,7 +387,7 @@ bool					GShouldSuspendRenderingThread	= false;
 /** Determines what kind of trace should occur, NAME_None for none.											*/
 FLazyName				GCurrentTraceName;
 /** How to print the time in log output																		*/
-TSAN_ATOMIC(ELogTimes::Type)	GPrintLogTimes			= ELogTimes::None;
+ELogTimes::Type	GPrintLogTimes			= ELogTimes::None;
 /** How to print the category in log output.																*/
 TSAN_ATOMIC(bool)		GPrintLogCategory				= true;
 /** How to print the verbosity in log output.																*/

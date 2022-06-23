@@ -496,7 +496,7 @@ extern CORE_API bool GShouldSuspendRenderingThread;
 extern CORE_API FLazyName GCurrentTraceName;
 
 /** How to print the time in log output. */
-extern CORE_API TSAN_ATOMIC(ELogTimes::Type) GPrintLogTimes;
+extern CORE_API ELogTimes::Type GPrintLogTimes;
 
 /** How to print the category in log output. */
 extern CORE_API TSAN_ATOMIC(bool) GPrintLogCategory;
