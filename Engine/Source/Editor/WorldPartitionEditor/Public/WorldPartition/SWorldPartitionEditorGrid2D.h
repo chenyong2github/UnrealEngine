@@ -2,10 +2,13 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "UObject/WeakInterfacePtr.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "Framework/Commands/Commands.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Layout/ArrangedChildren.h"
 #include "SWorldPartitionEditorGrid.h"
+#include "WorldPartition/WorldPartitionActorLoaderInterface.h"
 
 class SWorldPartitionEditorGrid2D : public SWorldPartitionEditorGrid
 {
@@ -37,10 +40,10 @@ public:
 	virtual void CreateRegionFromSelection();
 	virtual void LoadSelectedRegions();
 	virtual void UnloadSelectedRegions();
-	virtual void UnloadHoveredRegion();
 	virtual void ConvertSelectedRegionsToActors();
 	void MoveCameraHere();
 
+	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override;
 	virtual FReply OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent) override;
@@ -57,10 +60,10 @@ public:
 	virtual int32 PaintSoftwareCursor(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const;
 
 	virtual FReply FocusSelection();
-
 protected:
 	void UpdateTransform() const;
-	void UpdateSelection();
+	void UpdateSelectionBox();
+	void ClearSelection();
 
 	const TSharedRef<FUICommandList> CommandList;
 
@@ -85,8 +88,8 @@ protected:
 	mutable FTransform2d WorldToScreen;
 	mutable FTransform2d ScreenToWorld;
 
-	bool bIsSelecting;
-	bool bIsDragging;
+	bool bIsDragSelecting;
+	bool bIsPanning;
 	bool bShowActors;
 	FVector2D MouseCursorPos;
 	FVector2D MouseCursorPosWorld;
@@ -95,4 +98,32 @@ protected:
 	FVector2D SelectionEnd;
 	FBox SelectBox;
 	FSlateFontInfo SmallLayoutFont;
+
+	struct FKeyFuncs : public BaseKeyFuncs<TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, false>
+	{
+		static KeyInitType GetSetKey(ElementInitType Entry)
+		{
+			return Entry;
+		}
+
+		static bool Matches(KeyInitType A, KeyInitType B)
+		{
+			return A == B;
+		}
+
+		static uint32 GetKeyHash(KeyInitType Key)
+		{
+			return GetTypeHash(Key.GetWeakObjectPtr());
+		}
+	};
+
+	using FLoaderAdapterSet = TSet<TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, FKeyFuncs>;
+	FLoaderAdapterSet SelectedLoaderAdapters;
+	
+	// Updated every tick
+	TSet<FGuid> ShownActorGuids;
+	TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> ShownLoaderAdapters;
+	TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> HighlightedLoaderAdapters;
+	TWeakInterfacePtr<IWorldPartitionActorLoaderInterface> HoveredLoaderAdapter;
+	FGuid HoveredActor;
 };

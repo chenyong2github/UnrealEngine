@@ -16,6 +16,7 @@
 
 #if WITH_EDITOR
 #include "WorldPartition/WorldPartitionActorLoaderInterface.h"
+#include "WorldPartition/WorldPartitionEditorLoaderAdapter.h"
 #include "PackageSourceControlHelper.h"
 #include "CookPackageSplitter.h"
 #endif
@@ -296,26 +297,31 @@ private:
 public:
 	// Editor loader adapters management
 	template <typename T, typename... ArgsType>
-	T* CreateEditorLoaderAdapter(ArgsType&&... Args)
+	UWorldPartitionEditorLoaderAdapter* CreateEditorLoaderAdapter(ArgsType&&... Args)
 	{
-		T* LoaderAdapter = new T(Forward<ArgsType>(Args)...);
-		RegisteredEditorLoaderAdapters.Add(LoaderAdapter);
-		return LoaderAdapter;
+		UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter = NewObject<UWorldPartitionEditorLoaderAdapter>(GetTransientPackage());
+		EditorLoaderAdapter->SetLoaderAdapter(new T(Forward<ArgsType>(Args)...));
+		RegisteredEditorLoaderAdapters.Add(EditorLoaderAdapter);
+		return EditorLoaderAdapter;
 	}
 
-	void ReleaseEditorLoaderAdapter(IWorldPartitionActorLoaderInterface::ILoaderAdapter* LoaderAdapter)
+	void ReleaseEditorLoaderAdapter(UWorldPartitionEditorLoaderAdapter* EditorLoaderAdapter)
 	{
-		verify(RegisteredEditorLoaderAdapters.Remove(LoaderAdapter) != INDEX_NONE);
-		delete LoaderAdapter;
+		verify(RegisteredEditorLoaderAdapters.Remove(EditorLoaderAdapter) != INDEX_NONE);
+		EditorLoaderAdapter->Release();
 	}
 
-	const TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*>& GetRegisteredEditorLoaderAdapters() const
+	const TSet<TObjectPtr<UWorldPartitionEditorLoaderAdapter>>& GetRegisteredEditorLoaderAdapters() const
 	{
 		return RegisteredEditorLoaderAdapters;
 	}
 
 private:
-	TSet<IWorldPartitionActorLoaderInterface::ILoaderAdapter*> RegisteredEditorLoaderAdapters;
+#endif
+
+#if WITH_EDITORONLY_DATA
+	UPROPERTY(transient, NonTransactional)
+	TSet<TObjectPtr<UWorldPartitionEditorLoaderAdapter>> RegisteredEditorLoaderAdapters;
 #endif
 
 #if !UE_BUILD_SHIPPING
