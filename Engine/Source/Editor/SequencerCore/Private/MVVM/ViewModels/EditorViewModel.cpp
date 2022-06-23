@@ -29,6 +29,8 @@ void FEditorViewModel::InitializeEditor()
 {
 	ensureMsgf(!Outliner && !TrackArea, TEXT("This editor view-model has already been initialized"));
 
+	PreInitializeEditorImpl();
+
 	FViewModelChildren PanelChildren = GetEditorPanels();
 
 	Outliner = CreateOutlinerImpl();

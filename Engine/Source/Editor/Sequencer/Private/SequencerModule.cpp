@@ -21,6 +21,7 @@
 #include "AnimatedPropertyKey.h"
 #include "MovieSceneSignedObject.h"
 
+#include "MVVM/CurveEditorExtension.h"
 #include "MVVM/CurveEditorIntegrationExtension.h"
 #include "MVVM/FolderModelStorageExtension.h"
 #include "MVVM/ObjectBindingModelStorageExtension.h"
@@ -443,14 +444,20 @@ public:
 		}
 
 		FSequenceModel::CreateExtensionsEvent.AddLambda(
-			[&](FSequenceModel* InModel)
+			[&](TSharedPtr<FEditorViewModel> InEditor, TSharedPtr<FSequenceModel> InModel)
 			{
-				InModel->AddDynamicExtension(FCurveEditorIntegrationExtension::ID);
 				InModel->AddDynamicExtension(FFolderModelStorageExtension::ID);
 				InModel->AddDynamicExtension(FObjectBindingModelStorageExtension::ID);
 				InModel->AddDynamicExtension(FTrackModelStorageExtension::ID, TrackModelDelegates);
 				InModel->AddDynamicExtension(FTrackRowModelStorageExtension::ID);
 				InModel->AddDynamicExtension(FSectionModelStorageExtension::ID);
+
+				// If the editor supports a curve editor, add an integration extension to
+				// sync view-model hierarchies between the outliner and curve editor.
+				if (InEditor->CastDynamic<FCurveEditorExtension>())
+				{
+					InModel->AddDynamicExtension(FCurveEditorIntegrationExtension::ID);
+				}
 			}
 		);
 

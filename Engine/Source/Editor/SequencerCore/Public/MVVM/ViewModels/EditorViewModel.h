@@ -65,6 +65,8 @@ public:
 
 protected:
 
+	/** Initializes this view model before panels and root models are created */
+	virtual void PreInitializeEditorImpl() {}
 	/** Creates the root data model for this editor. */
 	virtual TSharedPtr<FViewModel> CreateRootModelImpl();
 	/** Creates the outliner for this editor. */

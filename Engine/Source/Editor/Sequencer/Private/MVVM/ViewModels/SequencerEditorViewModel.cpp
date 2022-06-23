@@ -4,6 +4,7 @@
 #include "MVVM/ViewModels/SequencerOutlinerViewModel.h"
 #include "MVVM/ViewModels/SequencerTrackAreaViewModel.h"
 #include "MVVM/CurveEditorExtension.h"
+#include "ISequencerModule.h"
 #include "Sequencer.h"
 #include "MovieSceneSequenceID.h"
 
@@ -12,9 +13,18 @@ namespace UE
 namespace Sequencer
 {
 
-FSequencerEditorViewModel::FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer)
+FSequencerEditorViewModel::FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer, const FSequencerHostCapabilities& InHostCapabilities)
 	: WeakSequencer(InSequencer)
+	, bSupportsCurveEditor(InHostCapabilities.bSupportsCurveEditor)
 {
+}
+
+void FSequencerEditorViewModel::PreInitializeEditorImpl()
+{
+	if (bSupportsCurveEditor)
+	{
+		AddDynamicExtension(FCurveEditorExtension::ID);
+	}
 }
 
 TSharedPtr<FViewModel> FSequencerEditorViewModel::CreateRootModelImpl()
@@ -34,11 +44,6 @@ TSharedPtr<FTrackAreaViewModel> FSequencerEditorViewModel::CreateTrackAreaImpl()
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	check(Sequencer.IsValid());
 	return MakeShared<FSequencerTrackAreaViewModel>(Sequencer.ToSharedRef());
-}
-
-void FSequencerEditorViewModel::InitializeEditorImpl()
-{
-	AddDynamicExtension(FCurveEditorExtension::ID);
 }
 
 TSharedPtr<ISequencer> FSequencerEditorViewModel::GetSequencer() const

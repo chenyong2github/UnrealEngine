@@ -9,6 +9,7 @@ struct FMovieSceneSequenceID;
 class ISequencer;
 class FSequencer;
 class UMovieSceneSequence;
+struct FSequencerHostCapabilities;
 
 namespace UE
 {
@@ -26,7 +27,7 @@ public:
 
 	UE_SEQUENCER_DECLARE_CASTABLE(FSequencerEditorViewModel, FEditorViewModel);
 
-	FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer);
+	FSequencerEditorViewModel(TSharedRef<ISequencer> InSequencer, const FSequencerHostCapabilities& InHostCapabilities);
 
 	// @todo_sequencer_mvvm remove this later
 	TSharedPtr<ISequencer> GetSequencer() const;
@@ -38,14 +39,15 @@ public:
 
 protected:
 
+	virtual void PreInitializeEditorImpl() override;
 	virtual TSharedPtr<FViewModel> CreateRootModelImpl() override;
 	virtual TSharedPtr<FOutlinerViewModel> CreateOutlinerImpl() override;
 	virtual TSharedPtr<FTrackAreaViewModel> CreateTrackAreaImpl() override;
-	virtual void InitializeEditorImpl() override;
 
 protected:
 
 	TWeakPtr<ISequencer> WeakSequencer;
+	bool bSupportsCurveEditor;
 };
 
 } // namespace Sequencer

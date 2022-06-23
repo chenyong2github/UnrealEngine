@@ -426,7 +426,7 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 		}
 	}
 
-	ViewModel = MakeShared<FSequencerEditorViewModel>(SharedThis(this));
+	ViewModel = MakeShared<FSequencerEditorViewModel>(SharedThis(this), GetHostCapabilities());
 	ViewModel->InitializeEditor();
 	ViewModel->SetSequence(InitParams.RootSequence);
 
@@ -493,7 +493,8 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 
 	if (GetHostCapabilities().bSupportsCurveEditor)
 	{
-		FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamicChecked<FCurveEditorExtension>();
+		FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamic<FCurveEditorExtension>();
+		check(CurveEditorExtension);
 		TSharedPtr<FCurveEditor> CurveEditor = CurveEditorExtension->GetCurveEditor();
 
 		CurveEditor->OnCurveArrayChanged.AddRaw(this, &FSequencer::OnCurveModelDisplayChanged);
@@ -13252,8 +13253,9 @@ void FSequencer::BindCommands()
 		Commands.RefreshUI,
 		FExecuteAction::CreateSP( this, &FSequencer::RefreshUI));
 
-	FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamicChecked<FCurveEditorExtension>();
-	if (CurveEditorExtension && CurveEditorExtension->GetCurveEditor())
+	// If this sequencer supports a curve editor, let's add bindings for it.
+	FCurveEditorExtension* CurveEditorExtension = ViewModel->CastDynamic<FCurveEditorExtension>();
+	if (CurveEditorExtension && ensure(CurveEditorExtension->GetCurveEditor()))
 	{
 		// We want a subset of the commands to work in the Curve Editor too, but bound to our functions. This minimizes code duplication
 		// while also freeing us up from issues that result from Sequencer already using two lists (for which our commands might be spread

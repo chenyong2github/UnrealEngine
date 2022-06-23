@@ -30,10 +30,11 @@ namespace UE
 namespace Sequencer
 {
 
+class FEditorViewModel;
 class FSequenceModel;
 class FSequencerEditorViewModel;
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnInitializeSequenceModel, FSequenceModel*);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInitializeSequenceModel, TSharedPtr<FEditorViewModel>, TSharedPtr<FSequenceModel>);
 
 class SEQUENCER_API FSequenceModel
 	: public FViewModel

@@ -48,7 +48,9 @@ void FSequenceModel::InitializeExtensions()
 	GetChildrenForList(&RootOutlinerItems).AddChild(BottomSpacer);
 
 	// Create extensions
-	CreateExtensionsEvent.Broadcast(this);
+	TSharedPtr<FSequencerEditorViewModel> Editor = WeakEditor.Pin();
+	check(Editor);
+	CreateExtensionsEvent.Broadcast(Editor, SharedThis(this));
 
 	// Post-initialize extensions - this does the bulk of the population work for the sequence model
 	PostInitializeExtensions();
