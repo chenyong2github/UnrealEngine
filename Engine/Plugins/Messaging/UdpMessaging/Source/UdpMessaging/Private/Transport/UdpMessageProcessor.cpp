@@ -956,6 +956,7 @@ void FUdpMessageProcessor::UpdateKnownNodes()
 	// if we had socket error, fire up the error delegate
 	if (!bSuccess || Beacon->HasSocketError())
 	{
+		bStopping = true;
 		ErrorDelegate.ExecuteIfBound();
 	}
 }
