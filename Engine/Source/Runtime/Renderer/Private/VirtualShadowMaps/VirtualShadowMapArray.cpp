@@ -1225,12 +1225,39 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 		FRDGBufferRef ScreenSpaceGridBoundsRDG = nullptr;
 			
 		{
-			// It's safe to overlap these passes that all write to page request flags
-			FRDGBufferUAVRef PageRequestFlagsUAV = GraphBuilder.CreateUAV(PageRequestFlagsRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
+			// Mark coarse pages
+			// NOTE: Must do this *first*. In the case where bIncludeNonNaniteGeometry is false we need to ensure that the request
+			// can be over-written by any pixel pages that *do* want Non-Nanite geometry. We avoid writing with atomics since that
+			// is much slower.
+			// Because of this we also cannot overlap this pass with the following ones.
+			bool bMarkCoarsePagesDirectional = CVarMarkCoarsePagesDirectional.GetValueOnRenderThread() != 0;
+			bool bMarkCoarsePagesLocal = CVarMarkCoarsePagesLocal.GetValueOnRenderThread() != 0;
+			if (bMarkCoarsePagesDirectional || bMarkCoarsePagesLocal)
+			{
+				FMarkCoarsePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkCoarsePagesCS::FParameters >();
+				PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
+				PassParameters->OutPageRequestFlags = GraphBuilder.CreateUAV(PageRequestFlagsRDG);
+				PassParameters->bMarkCoarsePagesLocal = bMarkCoarsePagesLocal ? 1 : 0;
+				PassParameters->ClipmapIndexMask = bMarkCoarsePagesDirectional ? FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask() : 0;
+				PassParameters->bIncludeNonNaniteGeometry = CVarCoarsePagesIncludeNonNanite.GetValueOnRenderThread();
+
+				auto ComputeShader = View.ShaderMap->GetShader<FMarkCoarsePagesCS>();
+
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("MarkCoarsePages"),
+					ComputeShader,
+					PassParameters,
+					FIntVector(FMath::DivideAndRoundUp(uint32(ShadowMaps.Num()), FMarkCoarsePagesCS::DefaultCSGroupX), 1, 1)
+				);
+			}
 
 			// Mark pages based on projected depth buffer pixels
 			if (CVarMarkPixelPages.GetValueOnRenderThread() != 0)
 			{
+				// It's currently safe to overlap these passes that all write to same page request flags
+				FRDGBufferUAVRef PageRequestFlagsUAV = GraphBuilder.CreateUAV(PageRequestFlagsRDG, ERDGUnorderedAccessViewFlags::SkipBarrier);
+
 				auto GeneratePageFlags = [&](const EVirtualShadowMapProjectionInputType InputType)
 				{
 					FGeneratePageFlagsFromPixelsCS::FPermutationDomain PermutationVector;
@@ -1282,28 +1309,6 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 				{
 					GeneratePageFlags(EVirtualShadowMapProjectionInputType::HairStrands);
 				}
-			}
-			// Mark coarse pages
-			bool bMarkCoarsePagesDirectional = CVarMarkCoarsePagesDirectional.GetValueOnRenderThread() != 0;
-			bool bMarkCoarsePagesLocal = CVarMarkCoarsePagesLocal.GetValueOnRenderThread() != 0;
-			if (bMarkCoarsePagesDirectional || bMarkCoarsePagesLocal)
-			{
-				FMarkCoarsePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters< FMarkCoarsePagesCS::FParameters >();
-				PassParameters->VirtualShadowMap = GetUniformBuffer(GraphBuilder);
-				PassParameters->OutPageRequestFlags = PageRequestFlagsUAV;
-				PassParameters->bMarkCoarsePagesLocal = bMarkCoarsePagesLocal ? 1 : 0;
-				PassParameters->ClipmapIndexMask = bMarkCoarsePagesDirectional ? FVirtualShadowMapClipmap::GetCoarsePageClipmapIndexMask() : 0;
-				PassParameters->bIncludeNonNaniteGeometry = CVarCoarsePagesIncludeNonNanite.GetValueOnRenderThread();
-
-				auto ComputeShader = View.ShaderMap->GetShader<FMarkCoarsePagesCS>();
-
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("MarkCoarsePages"),
-					ComputeShader,
-					PassParameters,
-					FIntVector(FMath::DivideAndRoundUp(uint32(ShadowMaps.Num()), FMarkCoarsePagesCS::DefaultCSGroupX), 1, 1)
-				);
 			}
 		}
 	}
