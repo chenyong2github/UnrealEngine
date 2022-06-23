@@ -769,6 +769,7 @@ void FControlRigEditorModule::BakeToControlRig(UClass* ControlRigClass, UAnimSeq
 						LevelAnimLinkItem.bExportMaterialCurves = true;
 						LevelAnimLinkItem.bExportTransforms = true;
 						LevelAnimLinkItem.bRecordInWorldSpace = false;
+						LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = false;
 						LevelAnimLink->AnimSequenceLinks.Add(LevelAnimLinkItem);
 						AssetUserDataInterface->AddAssetUserData(LevelAnimLink);
 					}

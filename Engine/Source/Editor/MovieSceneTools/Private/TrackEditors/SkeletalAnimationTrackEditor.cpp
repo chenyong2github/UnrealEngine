@@ -1256,11 +1256,13 @@ void FSkeletalAnimationTrackEditor::OnSequencerSaved(ISequencer& )
 						const bool bSavedExportMaterialCurves = AnimSeqExportOption->bExportMaterialCurves;
 						const bool bSavedExportTransforms = AnimSeqExportOption->bExportTransforms;
 						const bool bSavedIncludeComponentTransform = AnimSeqExportOption->bRecordInWorldSpace;
+						const bool bSavedEvaluateAllSkeletalMeshComponents = AnimSeqExportOption->bEvaluateAllSkeletalMeshComponents;
 						AnimSeqExportOption->bExportMorphTargets = Item.bExportMorphTargets;
 						AnimSeqExportOption->bExportAttributeCurves = Item.bExportAttributeCurves;
 						AnimSeqExportOption->bExportMaterialCurves = Item.bExportMaterialCurves;
 						AnimSeqExportOption->bExportTransforms = Item.bExportTransforms;
 						AnimSeqExportOption->bRecordInWorldSpace = Item.bRecordInWorldSpace;
+						AnimSeqExportOption->bEvaluateAllSkeletalMeshComponents = Item.bEvaluateAllSkeletalMeshComponents;
 
 						bool bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, AnimSeqExportOption, MovieScene, SequencerPtr.Get(), SkelMeshComp, Template, RootToLocalTransform);
 
@@ -1269,6 +1271,7 @@ void FSkeletalAnimationTrackEditor::OnSequencerSaved(ISequencer& )
 						AnimSeqExportOption->bExportMaterialCurves = bSavedExportMaterialCurves;
 						AnimSeqExportOption->bExportTransforms = bSavedExportTransforms;
 						AnimSeqExportOption->bRecordInWorldSpace = bSavedIncludeComponentTransform;
+						AnimSeqExportOption->bEvaluateAllSkeletalMeshComponents = bSavedEvaluateAllSkeletalMeshComponents;
 
 						//save the anim sequence to disk to make sure they are in sync
 						UPackage* const Package = AnimSequence->GetOutermost();
@@ -1460,6 +1463,7 @@ bool FSkeletalAnimationTrackEditor::CreateAnimationSequence(const TArray<UObject
 								LevelAnimLinkItem.bExportMaterialCurves = AnimSeqExportOption->bExportMaterialCurves;
 								LevelAnimLinkItem.bExportTransforms = AnimSeqExportOption->bExportTransforms;
 								LevelAnimLinkItem.bRecordInWorldSpace = AnimSeqExportOption->bRecordInWorldSpace;
+								LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = AnimSeqExportOption->bEvaluateAllSkeletalMeshComponents;
 
 								break;
 							}
@@ -1480,6 +1484,7 @@ bool FSkeletalAnimationTrackEditor::CreateAnimationSequence(const TArray<UObject
 						LevelAnimLinkItem.bExportMaterialCurves = AnimSeqExportOption->bExportMaterialCurves;
 						LevelAnimLinkItem.bExportTransforms = AnimSeqExportOption->bExportTransforms;
 						LevelAnimLinkItem.bRecordInWorldSpace = AnimSeqExportOption->bRecordInWorldSpace;
+						LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = AnimSeqExportOption->bEvaluateAllSkeletalMeshComponents;
 
 						LevelAnimLink->AnimSequenceLinks.Add(LevelAnimLinkItem);
 						AssetUserDataInterface->AddAssetUserData(LevelAnimLink);

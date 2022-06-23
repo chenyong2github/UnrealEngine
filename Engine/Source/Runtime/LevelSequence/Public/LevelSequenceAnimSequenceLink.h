@@ -31,6 +31,8 @@ public:
 	bool bExportMaterialCurves = true;
 	UPROPERTY(BlueprintReadWrite, Category = Property)
 	bool bRecordInWorldSpace = false;
+	UPROPERTY(BlueprintReadWrite, Category = Property)
+	bool bEvaluateAllSkeletalMeshComponents = false;
 
 	void SetAnimSequence(UAnimSequence* InAnimSequence);
 	UAnimSequence* ResolveAnimSequence();

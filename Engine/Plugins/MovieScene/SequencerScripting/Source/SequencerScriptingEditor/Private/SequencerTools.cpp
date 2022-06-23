@@ -390,6 +390,7 @@ bool USequencerToolsFunctionLibrary::LinkAnimSequence(ULevelSequence*  Sequence,
 						LevelAnimLinkItem.bExportMaterialCurves = ExportOptions->bExportMaterialCurves;
 						LevelAnimLinkItem.bExportTransforms = ExportOptions->bExportTransforms;
 						LevelAnimLinkItem.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
+						LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = ExportOptions->bEvaluateAllSkeletalMeshComponents;
 
 						break;
 					}
@@ -409,6 +410,7 @@ bool USequencerToolsFunctionLibrary::LinkAnimSequence(ULevelSequence*  Sequence,
 				LevelAnimLinkItem.bExportMaterialCurves = ExportOptions->bExportMaterialCurves;
 				LevelAnimLinkItem.bExportTransforms = ExportOptions->bExportTransforms;
 				LevelAnimLinkItem.bRecordInWorldSpace = ExportOptions->bRecordInWorldSpace;
+				LevelAnimLinkItem.bEvaluateAllSkeletalMeshComponents = ExportOptions->bEvaluateAllSkeletalMeshComponents;
 
 				LevelAnimLink->AnimSequenceLinks.Add(LevelAnimLinkItem);
 				AssetUserDataInterface->AddAssetUserData(LevelAnimLink);
