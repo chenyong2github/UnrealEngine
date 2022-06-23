@@ -9,8 +9,6 @@ NiagaraDataInterfaceRigidMeshCollisionQuery.ush
  * -----------------------------------------------------------------
  */
 
-#define SMALL_NUMBER 1e-8
-#define MAX_DISTANCE 1e+38
 #define BOX_INDEX 0
 #define SPHERE_INDEX 1
 #define CAPSULE_INDEX 2
@@ -499,8 +497,6 @@ void GetClosestPointMeshDistanceFieldNoNormal_{ParameterName}(in float3 WorldPos
 	}	
 }
 
-#undef SMALL_NUMBER
-#undef MAX_DISTANCE
 #undef BOX_INDEX
 #undef SPHERE_INDEX
 #undef CAPSULE_INDEX

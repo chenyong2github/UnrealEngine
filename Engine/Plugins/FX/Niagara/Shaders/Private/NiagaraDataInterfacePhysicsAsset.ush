@@ -15,7 +15,6 @@ NiagaraDataInterfacePhysicsAsset.ush
 #define PREVIOUS_OFFSET PHYSICS_ASSET_MAX_TRANSFORMS
 #define REST_OFFSET 2*PHYSICS_ASSET_MAX_TRANSFORMS
 
-#define MAX_DISTANCE 1e+38
 #define BOX_INDEX 0
 #define SPHERE_INDEX 1
 #define CAPSULE_INDEX 2
@@ -513,7 +512,6 @@ void GetProjectionPoint_{ParameterName}(in float3 NodePosition, in float DeltaTi
 #undef PREVIOUS_OFFSET
 #undef REST_OFFSET
 
-#undef MAX_DISTANCE
 #undef BOX_INDEX
 #undef SPHERE_INDEX
 #undef CAPSULE_INDEX

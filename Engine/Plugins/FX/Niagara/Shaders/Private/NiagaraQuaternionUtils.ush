@@ -3,7 +3,9 @@
 #pragma once
 
 #define QUATERNION_IDENTITY float4(0,0,0,1)
-#define SMALL_NUMBER 1e-8
+#ifndef SMALL_NUMBER
+	#define SMALL_NUMBER 1e-8
+#endif
 
 float4 NormalizeQuat(in float4 Quat)
 {

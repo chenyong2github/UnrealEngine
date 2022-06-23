@@ -8,6 +8,13 @@ NiagaraSimulationShader.usf:
 
 #include "NiagaraShaderVersion.ush"
 
+#ifndef SMALL_NUMBER
+	#define SMALL_NUMBER 1e-8
+#endif
+#ifndef MAX_DISTANCE
+	#define MAX_DISTANCE 1e+38
+#endif
+
 #if GPU_SIMULATION
 	#include "/Engine/Private/Common.ush"
 	#include "/Engine/Private/DistanceField/GlobalDistanceFieldShared.ush"
