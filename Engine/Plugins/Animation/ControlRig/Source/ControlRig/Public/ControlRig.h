@@ -583,6 +583,7 @@ private:
 	/** The event name used during an update */
 	UPROPERTY(transient)
 	TArray<FName> EventQueue;
+	TArray<FName> EventQueueToRun;
 
 	/** Copy the VM from the default object */
 	void InstantiateVMFromCDO();
