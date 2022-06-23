@@ -8,6 +8,7 @@
 #include "UObject/LinkerPlaceholderBase.h"
 #include "UObject/LinkerPlaceholderExportObject.h"
 #include "UObject/LinkerPlaceholderClass.h"
+#include "UObject/PropertyHelper.h"
 
 /*-----------------------------------------------------------------------------
 	FObjectProperty.
