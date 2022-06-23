@@ -395,7 +395,7 @@ void FModeToolkit::InvokeUI()
 				// Also build the toolkit here 
 				TArray<FName> PaletteNames;
 				GetToolPaletteNames(PaletteNames);
-				for (auto Palette : PaletteNames)
+				for (const FName& Palette : PaletteNames)
 				{
 					TSharedRef<SWidget> PaletteWidget = CreatePaletteWidget(CommandList, ScriptableMode->GetModeInfo().ToolbarCustomizationName, Palette);
 					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, GetToolPaletteDisplayName(Palette), PaletteWidget);
@@ -407,6 +407,37 @@ void FModeToolkit::InvokeUI()
 		}
 	}
 }
+
+
+
+void FModeToolkit::RebuildModeToolPalette()
+{
+	if (ModeUILayer.IsValid() && HasIntegratedToolPalettes())
+	{
+		if ( TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin() )
+		{
+			TSharedPtr<FUICommandList> CommandList;
+			if (GetScriptableEditorMode().IsValid())
+			{
+				UEdMode* ScriptableMode = GetScriptableEditorMode().Get();
+				CommandList = GetToolkitCommands();
+				ActiveToolBarRows.Reset();
+
+				TArray<FName> PaletteNames;
+				GetToolPaletteNames(PaletteNames);
+				for (const FName& Palette : PaletteNames)
+				{
+					TSharedRef<SWidget> PaletteWidget = CreatePaletteWidget(CommandList, ScriptableMode->GetModeInfo().ToolbarCustomizationName, Palette);
+					ActiveToolBarRows.Emplace(ScriptableMode->GetID(), Palette, GetToolPaletteDisplayName(Palette), PaletteWidget);
+				}
+
+				RebuildModeToolBar();
+			}
+		}
+	}
+
+}
+
 
 TSharedRef<SDockTab> FModeToolkit::CreatePrimaryModePanel(const FSpawnTabArgs& Args)
 {

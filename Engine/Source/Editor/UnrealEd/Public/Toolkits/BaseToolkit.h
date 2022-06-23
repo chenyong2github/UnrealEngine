@@ -163,6 +163,12 @@ public:
 	FName GetCurrentPalette() const;
 	void SetModeSettingsObject(UObject* InSettingsObject);
 	virtual void InvokeUI();
+
+	/**
+	 * Force the Mode Toolbar/Palette to be repopulated with the current ToolPaletteNames
+	 */
+	virtual void RebuildModeToolPalette();
+
 protected:
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool);
