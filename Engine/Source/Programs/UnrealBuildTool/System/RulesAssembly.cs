@@ -652,7 +652,7 @@ namespace UnrealBuildTool
 				List<string> DisallowedPlatformsAndGroups = Utils.MakeListOfUnsupportedPlatforms(Rules.OptedInModulePlatforms.ToList(), false, Logger);
 
 				// look in all plugins' paths to see if any disallowed
-				IEnumerable<PluginInfo> DisallowedPlugins = EnumeratePlugins().Where(Plugin =>
+				IEnumerable<PluginInfo> DisallowedPlugins = EnumeratePlugins().Where(x => x.ChoiceVersion != null).Select(x => x.ChoiceVersion!).Where(Plugin =>
 					Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, Unreal.EngineDirectory) ||
 					(Rules.ProjectFile != null && Plugin.File.ContainsAnyNames(DisallowedPlatformsAndGroups, Rules.ProjectFile.Directory)));
 				// log out the plugins we are disabling
@@ -796,7 +796,7 @@ namespace UnrealBuildTool
 		/// Enumerates all the plugins that are available
 		/// </summary>
 		/// <returns></returns>
-		public IEnumerable<PluginInfo> EnumeratePlugins()
+		public IEnumerable<PluginSet> EnumeratePlugins()
 		{
 			return global::UnrealBuildTool.Plugins.FilterPlugins(EnumeratePluginsInternal());
 		}

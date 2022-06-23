@@ -2974,7 +2974,7 @@ namespace UnrealBuildTool
 			}
 
 			// Add all the plugin modules that need to be compiled
-			List<PluginInfo> Plugins = RulesAssembly.EnumeratePlugins().ToList();
+			List<PluginInfo> Plugins = RulesAssembly.EnumeratePlugins().Where(x => x.ChoiceVersion != null).Select(x => x.ChoiceVersion!).ToList();
 			foreach (PluginInfo Plugin in Plugins)
 			{
 				// Ignore plugins which are specifically disabled by this target
@@ -3292,7 +3292,7 @@ namespace UnrealBuildTool
 		public void SetupPlugins(ILogger Logger)
 		{
 			// Find all the valid plugins
-			Dictionary<string, PluginInfo> NameToInfo = RulesAssembly.EnumeratePlugins().ToDictionary(x => x.Name, x => x, StringComparer.InvariantCultureIgnoreCase);
+			Dictionary<string, PluginSet> NameToInfos = RulesAssembly.EnumeratePlugins().ToDictionary(x => x.Name, x => x, StringComparer.InvariantCultureIgnoreCase);
 
 			// Remove any plugins for platforms we don't have
 			List<UnrealTargetPlatform> MissingPlatforms = new List<UnrealTargetPlatform>();
@@ -3317,7 +3317,7 @@ namespace UnrealBuildTool
 			if (ForeignPlugin != null)
 			{
 				PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(ForeignPlugin.GetFileNameWithoutExtension(), null, true);
-				AddPlugin(PluginReference, "command line", ExcludeFolders, NameToInstance, NameToInfo, Logger);
+				AddPlugin(PluginReference, "command line", ExcludeFolders, NameToInstance, NameToInfos, Logger);
 			}
 
 			// Configure plugins explicitly enabled via target settings
@@ -3326,7 +3326,7 @@ namespace UnrealBuildTool
 				if (ReferencedNames.Add(PluginName))
 				{
 					PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(PluginName, null, true);
-					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfo, Logger);
+					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfos, Logger);
 				}
 			}
 
@@ -3336,7 +3336,7 @@ namespace UnrealBuildTool
 				if (ReferencedNames.Add(PluginName))
 				{
 					PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(PluginName, null, false);
-					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfo, Logger);
+					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfos, Logger);
 				}
 			}
 
@@ -3360,7 +3360,7 @@ namespace UnrealBuildTool
 							}
 							else
 							{
-								AddPlugin(PluginReference, ProjectReferenceChain, ExcludeFolders, NameToInstance, NameToInfo, Logger);
+								AddPlugin(PluginReference, ProjectReferenceChain, ExcludeFolders, NameToInstance, NameToInfos, Logger);
 							}
 						}
 					}
@@ -3370,9 +3370,10 @@ namespace UnrealBuildTool
 			// Also synthesize references for plugins which are enabled by default
 			if (Rules.bCompileAgainstEngine || Rules.bCompileWithPluginSupport)
 			{
-				foreach (PluginInfo Plugin in NameToInfo.Values)
+				foreach (PluginSet PluginVersions in NameToInfos.Values)
 				{
-					if (Plugin.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ReferencedNames.Contains(Plugin.Name))
+					PluginInfo? Plugin = PluginVersions.ChoiceVersion;
+					if (Plugin != null && Plugin.IsEnabledByDefault(bAllowEnginePluginsEnabledByDefault) && !ReferencedNames.Contains(Plugin.Name))
 					{
 						ReferencedNames.Add(Plugin.Name);
 
@@ -3386,7 +3387,7 @@ namespace UnrealBuildTool
 							PluginReference.PlatformAllowList = PluginReference.SupportedTargetPlatforms; //synthesize allow list if it must be explicit
 						}
 
-						AddPlugin(PluginReference, "default plugins", ExcludeFolders, NameToInstance, NameToInfo, Logger);
+						AddPlugin(PluginReference, "default plugins", ExcludeFolders, NameToInstance, NameToInfos, Logger);
 					}
 				}
 			}
@@ -3404,7 +3405,7 @@ namespace UnrealBuildTool
 						if (ReferencedNames.Add(PluginName))
 						{
 							PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(PluginName, null, true);
-							AddPlugin(PluginReference, "DefaultEngine.ini", ExcludeFolders, NameToInstance, NameToInfo, Logger);
+							AddPlugin(PluginReference, "DefaultEngine.ini", ExcludeFolders, NameToInstance, NameToInfos, Logger);
 						}
 					}
 				}
@@ -3419,7 +3420,7 @@ namespace UnrealBuildTool
 				if (ReferencedNames.Add(PluginName))
 				{
 					PluginReferenceDescriptor PluginReference = new PluginReferenceDescriptor(PluginName, null, true);
-					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfo, Logger);
+					AddPlugin(PluginReference, "target settings", ExcludeFolders, NameToInstance, NameToInfos, Logger);
 				}
 			}
 
@@ -3437,10 +3438,10 @@ namespace UnrealBuildTool
 		/// <param name="ReferenceChain">Textual representation of the chain of references, for error reporting</param>
 		/// <param name="ExcludeFolders">Array of folder names to be excluded</param>
 		/// <param name="NameToInstance">Map from plugin name to instance of it</param>
-		/// <param name="NameToInfo">Map from plugin name to information</param>
+		/// <param name="NameToInfos">Map from plugin name to information</param>
 		/// <param name="Logger">Logger for diagnostic output</param>
 		/// <returns>Instance of the plugin, or null if it should not be used</returns>
-		private UEBuildPlugin? AddPlugin(PluginReferenceDescriptor Reference, string ReferenceChain, string[] ExcludeFolders, Dictionary<string, UEBuildPlugin> NameToInstance, Dictionary<string, PluginInfo> NameToInfo, ILogger Logger)
+		private UEBuildPlugin? AddPlugin(PluginReferenceDescriptor Reference, string ReferenceChain, string[] ExcludeFolders, Dictionary<string, UEBuildPlugin> NameToInstance, Dictionary<string, PluginSet> NameToInfos, ILogger Logger)
 		{
 			// Ignore disabled references
 			if (!Reference.bEnabled)
@@ -3461,7 +3462,7 @@ namespace UnrealBuildTool
 						foreach (PluginReferenceDescriptor NextReference in Instance.Descriptor.Plugins)
 						{
 							string NextReferenceChain = String.Format("{0} -> {1}", ReferenceChain, Instance.File.GetFileName());
-							AddPlugin(NextReference, NextReferenceChain, ExcludeFolders, NameToInstance, NameToInfo, Logger);
+							AddPlugin(NextReference, NextReferenceChain, ExcludeFolders, NameToInstance, NameToInfos, Logger);
 						}
 					}
 				}
@@ -3495,8 +3496,31 @@ namespace UnrealBuildTool
 				}
 
 				// Find the plugin being enabled
-				PluginInfo? Info;
-				if (!NameToInfo.TryGetValue(Reference.Name, out Info))
+				PluginInfo? Info = null;
+
+				PluginSet? PluginVersions;
+				if (NameToInfos.TryGetValue(Reference.Name, out PluginVersions))
+				{
+					if (Reference.RequestedVersion.HasValue)
+					{
+						Info = PluginVersions.KnownVersions.Find(x => x.Descriptor.Version == Reference.RequestedVersion.Value);
+						if (Info != null)
+						{
+							PluginVersions.ChoiceVersion = Info;
+						}
+						else
+						{
+							Logger.LogWarning("Failed to find specific version (v{RequestedVersion}) of plugin '{ReferenceName}' (referenced via {ReferenceChain}). Other versions exist, but the explicit version requested could not be found.",
+								Reference.RequestedVersion.Value, Reference.Name, ReferenceChain);
+						}
+					}
+					else
+					{
+						Info = PluginVersions.ChoiceVersion;
+					}
+				}
+
+				if (Info == null)
 				{
 					if (Reference.bOptional)
 					{
@@ -3566,7 +3590,7 @@ namespace UnrealBuildTool
 				{
 					foreach (PluginReferenceDescriptor NextReference in Info.Descriptor.Plugins)
 					{
-						UEBuildPlugin? NextInstance = AddPlugin(NextReference, PluginReferenceChain, ExcludeFolders, NameToInstance, NameToInfo, Logger);
+						UEBuildPlugin? NextInstance = AddPlugin(NextReference, PluginReferenceChain, ExcludeFolders, NameToInstance, NameToInfos, Logger);
 						if (NextInstance != null)
 						{
 							Dependencies.Add(NextInstance);

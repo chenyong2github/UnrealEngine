@@ -82,6 +82,11 @@ namespace UnrealBuildTool
 		/// </summary>
 		public bool bHasExplicitPlatforms;
 
+		/// <summary>
+		/// When set, specifies a specific version of the plugin that this references.
+		/// </summary>
+		public int? RequestedVersion;
+
 
 		/// <summary>
 		/// Constructor
@@ -149,6 +154,10 @@ namespace UnrealBuildTool
 			{
 				Writer.WriteValue("HasExplicitPlatforms",bHasExplicitPlatforms);
 			}
+			if (bEnabled && RequestedVersion != null)
+			{
+				Writer.WriteValue("Version", RequestedVersion.Value);
+			}
 			Writer.WriteObjectEnd();
 		}
 
@@ -213,6 +222,12 @@ namespace UnrealBuildTool
 				RawObject.TryGetEnumArrayFieldWithDeprecatedFallback<TargetType>("TargetDenyList", "BlacklistTargets", out Descriptor.TargetDenyList);
 				RawObject.TryGetStringArrayField("SupportedTargetPlatforms", out Descriptor.SupportedTargetPlatforms);
 				RawObject.TryGetBoolField("HasExplicitPlatforms", out Descriptor.bHasExplicitPlatforms);
+
+				int RequestedVersion = -1;
+				if (RawObject.TryGetIntegerField("Version", out RequestedVersion))
+				{
+					Descriptor.RequestedVersion = RequestedVersion;
+				}
 
 				Descriptor.VerifyPlatformNames(Descriptor.PlatformAllowList);
 				Descriptor.VerifyPlatformNames(Descriptor.PlatformDenyList);

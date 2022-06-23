@@ -150,6 +150,84 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Represents a group of plugins all sharing the same name -- notionally all different versions of the same plugin.
+	/// Since UE can only manage a single plugin of a given name (to avoid module conflicts, etc.), this object 
+	/// prioritizes and bubbles up a single "choice" plugin from the set -- see `ChoiceVersion`.
+	/// </summary>
+	public class PluginSet
+	{
+		/// <summary>
+		/// Shared name that all the plugins in the set go by.
+		/// </summary>
+		public readonly string Name;
+
+		/// <summary>
+		/// Unordered list of all the discovered plugins matching the above name.
+		/// </summary>
+		public readonly List<PluginInfo> KnownVersions = new List<PluginInfo>();
+
+		/// <summary>
+		/// Constructor which takes the specified PluginInfo and adds it to the set.
+		/// </summary>
+		/// <param name="FirstPlugin">The fist plugin discovered for this set -- will automatically be prioritized as the "choice" plugin.</param>
+		public PluginSet(PluginInfo FirstPlugin)
+		{
+			Name = FirstPlugin.Name;
+			Add(FirstPlugin, /*bPromoteToChoiceVersion =*/true);
+		}
+
+		/// <summary>
+		/// Pushes the specified PluginInfo into the set, and optionally promotes it to the new "choice" version.
+		/// </summary>
+		/// <param name="Plugin">The new plugin to add to this set (its name should match this set's name)</param>
+		/// <param name="bPromoteToChoiceVersion">Whether or not to make this the new prioritized "choice" plugin in the set.</param>
+		public void Add(PluginInfo Plugin, bool bPromoteToChoiceVersion = true)
+		{
+			if (bPromoteToChoiceVersion || KnownVersions.Count() == 0)
+			{
+				IndexOfChoiceVersion = KnownVersions.Count();
+			}
+			KnownVersions.Add(Plugin);
+		}
+
+		/// <summary>
+		/// The single plugin, out of the entire set, that we prioritize to be built and utilized by UE.
+		/// </summary>
+		public PluginInfo? ChoiceVersion
+		{
+			get
+			{
+				if (IndexOfChoiceVersion >= 0 && IndexOfChoiceVersion < KnownVersions.Count())
+				{
+					return KnownVersions[IndexOfChoiceVersion];
+				}
+				return null;
+			}
+
+			set
+			{
+				if (value == null)
+				{
+					throw new BuildException("Cannot manually set a PluginSet's ChoiceVersion to be null.");
+				}
+				else
+				{
+					IndexOfChoiceVersion = KnownVersions.FindIndex(x => x.File == value.File);
+					if (IndexOfChoiceVersion == -1)
+					{
+						Add(value, /*bPromoteToChoiceVersion =*/ true);
+					}
+				}
+			}
+		}
+		
+		/// <summary>
+		/// An index that we use to identify which plugin in the list is the prioritized "choice" version.
+		/// </summary>
+		private int IndexOfChoiceVersion = -1;
+	}
+
+	/// <summary>
 	/// Class for enumerating plugin metadata
 	/// </summary>
 	public static class Plugins
@@ -176,26 +254,27 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Plugins">List of plugins to filter</param>
 		/// <returns>Filtered Dictionary of plugins</returns>
-		public static Dictionary<string, PluginInfo> ToFilteredDictionary(IEnumerable<PluginInfo> Plugins)
+		public static Dictionary<string, PluginSet> ToFilteredDictionary(IEnumerable<PluginInfo> Plugins)
 		{
-			Dictionary<string, PluginInfo> NameToPluginInfo = new Dictionary<string, PluginInfo>(StringComparer.InvariantCultureIgnoreCase);
+			Dictionary<string, PluginSet> NameToPluginInfos = new Dictionary<string, PluginSet>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (PluginInfo Plugin in Plugins)
 			{
-				PluginInfo? ExistingPluginInfo;
-				if (!NameToPluginInfo.TryGetValue(Plugin.Name, out ExistingPluginInfo))
+				PluginSet? ExistingPluginSet;
+				if (!NameToPluginInfos.TryGetValue(Plugin.Name, out ExistingPluginSet))
 				{
-					NameToPluginInfo.Add(Plugin.Name, Plugin);
+					NameToPluginInfos.Add(Plugin.Name, new PluginSet(Plugin) );
 				}
-				else if (Plugin.Type > ExistingPluginInfo.Type)
+				else if (Plugin.Type > ExistingPluginSet.ChoiceVersion?.Type)
 				{
-					NameToPluginInfo[Plugin.Name] = Plugin;
+					ExistingPluginSet.Add(Plugin, /*bPromoteToChoiceVersion =*/true);
 				}
-				else if (Plugin.Type == ExistingPluginInfo.Type)
+				else
 				{
-					throw new BuildException(String.Format("Found '{0}' plugin in two locations ({1} and {2}). Plugin names must be unique.", Plugin.Name, ExistingPluginInfo.File, Plugin.File));
+					bool bPromoteToChoiceVersion = Plugin.Descriptor.Version > ExistingPluginSet.ChoiceVersion?.Descriptor.Version;
+					ExistingPluginSet.Add(Plugin, bPromoteToChoiceVersion);
 				}
 			}
-			return NameToPluginInfo;
+			return NameToPluginInfos;
 		}
 
 		/// <summary>
@@ -204,10 +283,10 @@ namespace UnrealBuildTool
 		/// </summary>
 		/// <param name="Plugins">List of plugins to filter</param>
 		/// <returns>Filtered list of plugins in the original order</returns>
-		public static IEnumerable<PluginInfo> FilterPlugins(IEnumerable<PluginInfo> Plugins)
+		public static IEnumerable<PluginSet> FilterPlugins(IEnumerable<PluginInfo> Plugins)
 		{
-			Dictionary<string, PluginInfo> NameToPluginInfo = ToFilteredDictionary(Plugins);
-			return Plugins.Where(x => NameToPluginInfo[x.Name] == x);
+			Dictionary<string, PluginSet> NameToPluginInfos = ToFilteredDictionary(Plugins);
+			return NameToPluginInfos.Values.AsEnumerable();
 		}
 
 		/// <summary>
