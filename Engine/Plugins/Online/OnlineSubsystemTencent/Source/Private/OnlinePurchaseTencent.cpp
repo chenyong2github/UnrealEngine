@@ -92,6 +92,16 @@ void FOnlinePurchaseTencent::Checkout_Complete(const FPurchaseProductsTaskResult
 	Delegate.ExecuteIfBound(Result.Error, Result.Error.WasSuccessful() ? Result.PurchaseReceipt.ToSharedRef() : EmptyReceipt);
 }
 
+void FOnlinePurchaseTencent::Checkout(const FUniqueNetId& UserId, const FPurchaseCheckoutRequest& CheckoutRequest, const FOnPurchaseReceiptlessCheckoutComplete& Delegate)
+{
+	// NYI - please use the other Checkout method
+	Subsystem->ExecuteNextTick([Delegate]()
+	{
+		static const FOnlineError NotImplementedResult(EOnlineErrorResult::NotImplemented);
+		Delegate.ExecuteIfBound(NotImplementedResult);
+	});
+}
+
 void FOnlinePurchaseTencent::FinalizePurchase(const FUniqueNetId& UserId, const FString& ReceiptId)
 {
 	// NYI
