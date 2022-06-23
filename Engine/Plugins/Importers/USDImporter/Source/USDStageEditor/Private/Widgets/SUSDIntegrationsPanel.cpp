@@ -156,6 +156,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					UE::FVtValue Value;
 					if ( UsdUtils::SetUnderlyingValue( Value, UsdPath ) && !Value.IsEmpty() )
 					{
+						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
 					}
 				} );
@@ -212,6 +213,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					UE::FVtValue Value;
 					if ( UsdUtils::SetUnderlyingValue( Value, UsdPath ) && !Value.IsEmpty() )
 					{
+						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
 					}
 				} );
@@ -269,6 +271,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					UE::FVtValue Value;
 					if ( UsdUtils::SetUnderlyingValue( Value, NewValue == ECheckBoxState::Checked ) && !Value.IsEmpty() )
 					{
+						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
 					}
 				})
@@ -293,6 +296,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					UE::FVtValue Value;
 					if ( UsdUtils::SetUnderlyingValue( Value, NewValue ) && !Value.IsEmpty() )
 					{
+						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
 					}
 				})
@@ -358,6 +362,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 				UE::FVtValue Value;
 				if ( UsdUtils::SetUnderlyingValue( Value, UsdValue ) && !Value.IsEmpty() )
 				{
+					UE::FSdfChangeBlock Block;
 					AttributeCopy->Set( Value );
 				}
 			});
@@ -395,6 +400,7 @@ TSharedRef< SWidget > SUsdIntegrationsPanelRow::GenerateWidgetForColumn( const F
 					UE::FVtValue Value;
 					if ( UsdUtils::SetUnderlyingValue( Value, NewState == ECheckBoxState::Checked ) && !Value.IsEmpty() )
 					{
+						UE::FSdfChangeBlock Block;
 						AttributeCopy->Set( Value );
 					}
 				})

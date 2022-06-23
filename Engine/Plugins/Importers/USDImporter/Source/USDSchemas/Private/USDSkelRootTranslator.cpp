@@ -1027,7 +1027,7 @@ namespace UsdSkelRootTranslatorImpl
 						}
 					}
 
-					FString CacheKey = UsdToUnreal::ConvertPath( Prim.GetPrimPath() ) + TEXT( "_DefaultAnimBlueprint" );
+					const FString CacheKey = UsdToUnreal::ConvertPath( Prim.GetPrimPath() ) + TEXT( "_DefaultAnimBlueprint" );
 
 					// Check if we can find an AnimBP for this prim in the asset cache (useful when doing Action->Import)
 					if ( !bAlreadyHasTransientAnimBP )
@@ -1072,8 +1072,9 @@ namespace UsdSkelRootTranslatorImpl
 				// Path is pointing to an existing, persistent AnimBP
 				else
 				{
-					// Force skeletons to be compatible
+					// Force skeletons to be compatible (we need both ways!)
 					AnimBP->TargetSkeleton->AddCompatibleSkeleton( Skeleton );
+					Skeleton->AddCompatibleSkeleton( AnimBP->TargetSkeleton );
 
 					// Check ExistingAnimBP so that we only emit this warning when we first set up the component (when we'll realistically not have an ExistingAnimBP yet),
 					// to try and prevent some warning spam
@@ -1190,9 +1191,20 @@ namespace UsdSkelRootTranslatorImpl
 				FCompilerResultsLog Results;
 				FBPCompileRequest Request( AnimBP, EBlueprintCompileOptions::None, &Results );
 				FBlueprintCompilationManager::CompileSynchronously( Request );
+
+				// We need to force the component to update its anim after we regenerate the blueprint class
+				Component->ClearAnimScriptInstance();
+				Component->InitAnim(true);
 			}
 
-			Component->SetAnimInstanceClass( AnimBP->GeneratedClass );
+			if ( AnimBP != ExistingAnimBP )
+			{
+				// This can internally change AnimationMode, but lets revert it to what it was so that we can control it from
+				// that single place in ::UpdateComponents
+				EAnimationMode::Type OldMode = Component->GetAnimationMode();
+				Component->SetAnimInstanceClass( AnimBP->GeneratedClass );
+				Component->SetAnimationMode( OldMode );
+			}
 		}
 	}
 
@@ -1245,6 +1257,14 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 		}
 	}
 
+	SkeletalMeshComponent->SetAnimationMode(
+		bPrimHasLiveLinkEnabled
+			? EAnimationMode::AnimationBlueprint
+			: Context->bSequencerIsAnimating
+				? EAnimationMode::AnimationCustomMode
+				: EAnimationMode::AnimationSingleNode
+	);
+
 	UE::FUsdPrim SkelAnimPrim = UsdUtils::FindFirstAnimationSource( Prim );
 	if ( SkelAnimPrim )
 	{
@@ -1254,11 +1274,7 @@ void FUsdSkelRootTranslator::UpdateComponents( USceneComponent* SceneComponent )
 			SkeletalMeshComponent->AnimationData.AnimToPlay = TargetAnimSequence;
 			SkeletalMeshComponent->AnimationData.bSavedLooping = false;
 			SkeletalMeshComponent->AnimationData.bSavedPlaying = false;
-
-			if ( SkeletalMeshComponent->GetAnimationMode() == EAnimationMode::AnimationSingleNode )
-			{
-				SkeletalMeshComponent->SetAnimation( TargetAnimSequence );
-			}
+			SkeletalMeshComponent->SetAnimation( TargetAnimSequence );
 		}
 	}
 
