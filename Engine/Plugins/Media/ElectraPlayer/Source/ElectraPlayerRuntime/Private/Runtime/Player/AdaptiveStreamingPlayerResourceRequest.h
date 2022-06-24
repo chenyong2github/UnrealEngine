@@ -114,6 +114,7 @@ public:
 		else if (Error == 1)					return FString(TEXT("Connection timeout"));
 		else if (Error == 2)					return FString(TEXT("Data timeout"));
 		else if (Error == 3)					return FString(TEXT("Connection closed"));
+		else if (Error == 4)					return FString(TEXT("No connection"));
 		else if (Error >= 100 && Error < 600)	return FString::Printf(TEXT("HTTP status code %d"), Error);
 		else									return FString::Printf(TEXT("Unknown <code %d>"), Error);
 	}

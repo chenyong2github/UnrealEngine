@@ -669,6 +669,15 @@ private:
 			MediaTimelineAtStart.Reset();
 			MediaTimelineAtEnd.Reset();
 			MediaDuration = 0.0;
+			MessageHistoryBuffer.Empty();
+		}
+		void AddMessageToHistory(FString InMessage)
+		{
+			if (MessageHistoryBuffer.Num() >= 20)
+			{
+				MessageHistoryBuffer.RemoveAt(0);
+			}
+			MessageHistoryBuffer.Emplace(MoveTemp(InMessage));
 		}
 
 		FString					InitialURL;
@@ -711,6 +720,7 @@ private:
 		FTimeRange				MediaTimelineAtStart;
 		FTimeRange				MediaTimelineAtEnd;
 		double					MediaDuration;
+		TArray<FString>			MessageHistoryBuffer;
 	};
 
 	struct FAnalyticsEvent
