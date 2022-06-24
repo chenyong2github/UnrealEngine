@@ -158,8 +158,10 @@ public:
 	/** Release any references this channel is holding to UObjects and object replicators and mark it as broken. */
 	void BreakAndReleaseReferences();
 
+	void ReleaseReferences(bool bKeepReplicators);
+
 	/** UActorChannel interface and accessors. */
-	AActor* GetActor() {return Actor;}
+	AActor* GetActor() const { return Actor; }
 
 	/** Replicate this channel's actor differences. Returns how many bits were replicated (does not include non-bunch packet overhead) */
 	int64 ReplicateActor();

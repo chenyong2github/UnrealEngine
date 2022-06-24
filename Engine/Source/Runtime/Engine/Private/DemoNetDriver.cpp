@@ -4068,7 +4068,7 @@ bool UDemoNetDriver::LoadCheckpoint(const FGotoResult& GotoResult)
 			UActorChannel* ActorChannel = Cast<UActorChannel>(OpenChannel);
 			if (ActorChannel != nullptr && KeepAliveActors.Contains(ActorChannel->Actor))
 			{
-				ActorChannel->Actor = nullptr;
+				ActorChannel->ReleaseReferences(false);
 			}
 		}
 	}
@@ -5008,8 +5008,7 @@ void UDemoNetDriver::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel)
 					check(Channel->OpenedLocally);
 					Channel->bClearRecentActorRefs = false;
 					Channel->SetClosingFlag();
-					Channel->Actor = nullptr;
-					Channel->CleanupReplicators(false);
+					Channel->ReleaseReferences(false);
 				}
 
 				Connection->DormantReplicatorMap.Remove(Actor);
@@ -5116,7 +5115,7 @@ void UDemoNetDriver::NotifyActorLevelUnloaded(AActor* Actor)
 		if (UActorChannel* ActorChannel = ServerConnection->FindActorChannelRef(Actor))
 		{
 			ServerConnection->RemoveActorChannel(Actor);
-			ActorChannel->Actor = nullptr;
+			ActorChannel->ReleaseReferences(false);
 			ActorChannel->ConditionalCleanUp(false, EChannelCloseReason::LevelUnloaded);
 		}
 	}

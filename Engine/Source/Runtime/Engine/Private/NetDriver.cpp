@@ -3588,9 +3588,7 @@ void UNetDriver::NotifyStreamingLevelUnload(ULevel* Level)
 			{
 				UE_LOG(LogNet, Log, TEXT("NotifyStreamingLevelUnload: BREAKING"));
 
-				Channel->Actor = NULL;
-				Channel->Broken = true;
-				Channel->CleanupReplicators();
+				Channel->BreakAndReleaseReferences();
 			}
 		}
 
@@ -3795,6 +3793,14 @@ void UNetDriver::PostGarbageCollect()
 		}
 	}
 	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	for (FObjectReplicator* Replicator : AllOwnedReplicators)
+	{
+		if (!Replicator->GetWeakObjectPtr().IsValid())
+		{
+			Replicator->ReleaseStrongReference();
+		}
+	}
 }
 
 void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
@@ -3813,7 +3819,11 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
 	{
-		Collector.AddReferencedObject(Replicator->ObjectPtr, This);
+		if (Replicator->GetWeakObjectPtr().IsValid())
+		{
+			Collector.AddReferencedObject(Replicator->ObjectPtr, This);
+		}
+
 		Collector.AddReferencedObject(Replicator->ObjectClass, This);
 	}
 

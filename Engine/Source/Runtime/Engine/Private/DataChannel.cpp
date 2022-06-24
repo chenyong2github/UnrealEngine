@@ -2163,12 +2163,17 @@ void UActorChannel::SetClosingFlag()
 	UChannel::SetClosingFlag();
 }
 
-void UActorChannel::BreakAndReleaseReferences()
+void UActorChannel::ReleaseReferences(bool bKeepReplicators)
 {
 	Actor = nullptr;
-	Broken = true;
-	CleanupReplicators();
+	CleanupReplicators(bKeepReplicators);
 	CreateSubObjects.Empty();
+}
+
+void UActorChannel::BreakAndReleaseReferences()
+{
+	Broken = true;
+	ReleaseReferences(false);
 }
 
 int64 UActorChannel::Close(EChannelCloseReason Reason)
@@ -2211,8 +2216,7 @@ int64 UActorChannel::Close(EChannelCloseReason Reason)
 			Connection->RemoveActorChannel( Actor );
 		}
 
-		Actor = nullptr;
-		CleanupReplicators( bKeepReplicators );
+		ReleaseReferences(bKeepReplicators);
 	}
 
 	return NumBits;
@@ -4832,7 +4836,8 @@ void UActorChannel::AddedToChannelPool()
 	check(QueuedMustBeMappedGuidsInLastBunch.Num() == 0);
 	check(QueuedExportBunches.Num() == 0);
 
-	Actor = nullptr;
+	ReleaseReferences(false);
+
 	ActorNetGUID = FNetworkGUID();
 	CustomTimeDilation = 0;
 	RelevantTime = 0;
@@ -4845,7 +4850,6 @@ void UActorChannel::AddedToChannelPool()
 	bClearRecentActorRefs = true;
 	QueuedBunchStartTime = 0;
 	bSuppressQueuedBunchWarningsDueToHitches = false;
-	CreateSubObjects.Empty();
 #if !UE_BUILD_SHIPPING
 	bBlockChannelFailure = false;
 #endif
