@@ -35,6 +35,7 @@ public:
 		, _FileTypeFilter(TEXT("All files (*.*)|*.*"))
 		, _Font()
 		, _IsReadOnly(false)
+		, _DialogReturnsFullPath(false)
 	{ }
 
 		/** Browse button image resource. */
@@ -63,6 +64,9 @@ public:
 
 		/** Whether the path text box can be modified by the user. */
 		SLATE_ATTRIBUTE(bool, IsReadOnly)
+
+		/** Whether the path returned by the dialog should be converted from relative to full */
+		SLATE_ATTRIBUTE(bool, DialogReturnsFullPath)
 
 		/** Called when a file path has been picked. */
 		SLATE_EVENT(FOnPathPicked, OnPathPicked)
@@ -103,6 +107,9 @@ private:
 
 	/** Holds the editable text box. */
 	TSharedPtr<SEditableTextBox> TextBox;
+
+	/** Holds the option for the dialog to return full path instead of relative. */
+	TAttribute<bool> DialogReturnsFullPath;
 
 private:
 

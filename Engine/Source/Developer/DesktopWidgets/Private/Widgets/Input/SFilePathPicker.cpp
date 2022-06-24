@@ -22,6 +22,7 @@ void SFilePathPicker::Construct( const FArguments& InArgs )
 	FilePath = InArgs._FilePath;
 	FileTypeFilter = InArgs._FileTypeFilter;
 	OnPathPicked = InArgs._OnPathPicked;
+	DialogReturnsFullPath = InArgs._DialogReturnsFullPath;
 
 	ChildSlot
 	[
@@ -91,7 +92,14 @@ FReply SFilePathPicker::HandleBrowseButtonClicked()
 
 	if (DesktopPlatform->OpenFileDialog(ParentWindowHandle, BrowseTitle.Get().ToString(), DefaultPath, TEXT(""), FileTypeFilter.Get(), EFileDialogFlags::None, OutFiles))
 	{
-		OnPathPicked.ExecuteIfBound(OutFiles[0]);
+		if (DialogReturnsFullPath.Get())
+		{
+			OnPathPicked.ExecuteIfBound(FPaths::ConvertRelativePathToFull(OutFiles[0]));
+		}
+		else
+		{
+			OnPathPicked.ExecuteIfBound(OutFiles[0]);
+		}
 	}
 
 	return FReply::Handled();

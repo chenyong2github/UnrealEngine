@@ -73,6 +73,7 @@ void FImgMediaSourceCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> I
 					.BrowseButtonImage(FAppStyle::GetBrush("PropertyWindow.Button_Ellipsis"))
 					.BrowseButtonStyle(FAppStyle::Get(), "HoverHintOnly")
 					.BrowseButtonToolTip(LOCTEXT("SequencePathBrowseButtonToolTip", "Choose a file from this computer"))
+					.DialogReturnsFullPath(true)
 					.BrowseDirectory_Lambda([this]() -> FString
 					{
 						const FString SequencePath = GetSequencePath();
@@ -159,10 +160,11 @@ void FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked(const FStr
 		const FString ExpandedPath = UImgMediaSource::ExpandSequencePathTokens(SanitizedPickedPath);
 
 		// We only need to interpret relative path (not absolute paths).
+		// Note: The path picker is set to only returns absolute paths.
 		if (FPaths::IsRelative(ExpandedPath))
 		{
 			// See if the path is relative to project root or content.
-			// Pick the one that exists (if any)
+			// Pick the one that exists
 
 			FString SanitizedPickedPathReplacement = SanitizedPickedPath;
 
@@ -185,22 +187,9 @@ void FImgMediaSourceCustomization::HandleSequencePathPickerPathPicked(const FStr
 				}
 			}
 
-			if (ExistedCnt == 0)
+			if (ExistedCnt == 1)
 			{
-				// If the path didn't exist relative to project or content, see if it is relative to the current process,
-				// which is the kind of path returned by the file picker.
-				// In that case, change to full path.
-
-				const FString CandidatePathRelativeToEngine = FPaths::Combine(FPlatformProcess::BaseDir(), ExpandedPath);
-
-				if (FPaths::FileExists(CandidatePathRelativeToEngine) || FPaths::DirectoryExists(CandidatePathRelativeToEngine))
-				{
-					SanitizedPickedPath = FPaths::ConvertRelativePathToFull(CandidatePathRelativeToEngine);
-				}
-			}
-			else if (ExistedCnt == 1)
-			{
-				// Re-interpret the base relative if the path was relative to either project or content (leave unaltered when both exist)
+				// Re-interpret the base relative if the path was relative to either project or content (otherwise leave unaltered)
 				SanitizedPickedPath = SanitizedPickedPathReplacement;
 			}
 		}
