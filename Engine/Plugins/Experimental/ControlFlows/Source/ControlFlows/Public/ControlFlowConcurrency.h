@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "Delegates/DelegateCombinations.h"
+#include "Delegates/Delegate.h"
 #include "Templates/SharedPointer.h"
 
 class FControlFlow;
