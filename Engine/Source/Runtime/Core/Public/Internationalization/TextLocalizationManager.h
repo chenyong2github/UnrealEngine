@@ -17,6 +17,8 @@
 #include "Internationalization/LocKeyFuncs.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
 
+#include <atomic>
+
 struct FPolyglotTextData;
 class ILocalizedTextSource;
 class IPakFile;
@@ -77,7 +79,7 @@ private:
 	typedef TMap<FTextId, FDisplayStringEntry> FDisplayStringLookupTable;
 
 private:
-	ETextLocalizationManagerInitializedFlags InitializedFlags = ETextLocalizationManagerInitializedFlags::None;
+	std::atomic<ETextLocalizationManagerInitializedFlags> InitializedFlags{ ETextLocalizationManagerInitializedFlags::None };
 	
 	bool IsInitialized() const
 	{
@@ -86,7 +88,7 @@ private:
 
 	bool IsInitializing() const
 	{
-		return EnumHasAnyFlags(InitializedFlags, ETextLocalizationManagerInitializedFlags::Initializing);
+		return EnumHasAnyFlags(InitializedFlags.load(), ETextLocalizationManagerInitializedFlags::Initializing);
 	}
 
 	mutable FCriticalSection DisplayStringLookupTableCS;
