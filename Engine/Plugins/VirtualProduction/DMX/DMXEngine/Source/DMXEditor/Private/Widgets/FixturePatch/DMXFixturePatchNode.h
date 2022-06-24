@@ -11,38 +11,9 @@ class SDMXFixturePatchFragment;
 class SDMXPatchedUniverse;
 class UDMXEntityFixturePatch;
 
-class SGridPanel;
-struct EVisibility;
-
-/** A fixture patch fragment in a grid. CreateFragments creates DMXFixturePatchFragment from a DMXFixturePatchNode. */
-class FDMXFixturePatchFragment
-	: public TSharedFromThis<FDMXFixturePatchFragment>
-{
-public:
-	/** Creates fragments of a patch spread across a grid */
-	static void CreateFragments(TWeakObjectPtr<UDMXEntityFixturePatch> InFixturePatch, int32 ChannelID, TArray<TSharedPtr<FDMXFixturePatchFragment>>& OutFragments);
-
-	/** Gets all fragments of a patch */
-	TArray<TSharedPtr<FDMXFixturePatchFragment>> GetFragments();
-
-	bool IsHead() const { return !LhsFragment.IsValid(); }
-	bool IsTail() const { return !RhsFragment.IsValid(); }
-
-	int32 ID;
-	int32 Row;
-	int32 Column;
-	int32 ColumnSpan;
-
-	TSharedPtr<FDMXFixturePatchFragment> LhsFragment;
-	TSharedPtr<FDMXFixturePatchFragment> RhsFragment;
-
-	TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch;
-};
-
-////////////////////////////////////////////////////////////////////////////////
 
 /** 
- * A fixture patch in a grid, consists of several fragments, displayed as SDMXFixturePatchNodes. 
+ * A fixture patch in a grid, consists of several fragments, displayed as SDMXFixturePatchNodes (see GenerateWidgets). 
  * The patch node does not necessarily have to present the state of the object, e.g. when
  * dragged or when containing an occuppied universe/channel. 
  */
@@ -50,14 +21,17 @@ class FDMXFixturePatchNode
 	: public TSharedFromThis<FDMXFixturePatchNode>
 {
 public:
-	/** Creates a new node from patch */
-	static TSharedPtr<FDMXFixturePatchNode> Create(TWeakPtr<FDMXEditor> InDMXEditor, TWeakObjectPtr<UDMXEntityFixturePatch> InFixturePatch);
-	
-	/** Updates the patch node. NewUniverse can be nullptr */
-	void Update(TSharedPtr<SDMXPatchedUniverse> NewUniverseWidget, int32 NewStartingChannel, int32 NewChannelSpan);
+	/** Creates a new node from Patch */
+	static TSharedPtr<FDMXFixturePatchNode> Create(TWeakPtr<FDMXEditor> InDMXEditor, const TWeakObjectPtr<UDMXEntityFixturePatch>& InFixturePatch);
 
-	/** Commits the patch to the object */
-	void CommitPatch(bool bTransacted);
+	/** Sets the Addresses of the Node */
+	void SetAddresses(const TSharedRef<SDMXPatchedUniverse>& OwningUniverseWidget, int32 NewStartingChannel, int32 NewChannelSpan, bool bTransacted);
+
+	/** Generates widgets. Requires Addresses to be set via SetAddresses */
+	TArray<TSharedPtr<SDMXFixturePatchFragment>> GenerateWidgets(const TArray<TSharedPtr<FDMXFixturePatchNode>>& FixturePatchNodeGroup);
+
+	/** Returns widgets */
+	const TArray<TSharedPtr<SDMXFixturePatchFragment>>& GetGeneratedWidgets() { return FixturePatchFragmentWidgets; };
 
 	/** Returns wether the patch uses specified channesl */
 	bool OccupiesChannels(int32 Channel, int32 Span) const;
@@ -68,14 +42,11 @@ public:
 	/** Returns true if the node is selected */
 	bool IsSelected() const;
 
-	/** Returns the fixture patch this node connects */
+	/** Returns the fixture patches this node holds */
 	TWeakObjectPtr<UDMXEntityFixturePatch> GetFixturePatch() const { return FixturePatch; }
 
 	/** Returns the universe this node resides in */
 	const TSharedPtr<SDMXPatchedUniverse>& GetUniverseWidget() const { return UniverseWidget; }
-
-	/** Returns fragmented widgets to visualize the node in a grid */
-	const TArray<TSharedPtr<SDMXFixturePatchFragment>>& GetFragmentedWidgets() const { return FragmentedWidgets; }
 
 	/** Returns the Universe ID the Node currently resides in. Returns a negative Value if not assigned to a Universe. */
 	int32 GetUniverseID() const;
@@ -86,6 +57,12 @@ public:
 	/** Returns the Channel Span the Node currently occupies */
 	int32 GetChannelSpan() const { return ChannelSpan; }
 
+	/** Sets the ZOrder of the Node */
+	void SetZOrder(int32 NewZOrder) { ZOrder = NewZOrder; }
+
+	/** Gets the ZOrder of the Node */
+	int32 GetZOrder() const { return ZOrder; }
+
 private:
 	/** Called when a patch node was selected */
 	void OnSelectionChanged();
@@ -93,7 +70,7 @@ private:
 	/** Universe the patch is assigned to */
 	TSharedPtr<SDMXPatchedUniverse> UniverseWidget;
 
-	/** Starting channel of the patch */
+	/** Starting channel of the patch */	
 	int32 StartingChannel = 0;
 
 	/** Channel span of the patch */
@@ -108,12 +85,15 @@ private:
 	/** If true the node is selected */
 	bool bSelected = false;
 
-	/** The widget fragments that visualize the patch */
-	TArray<TSharedPtr<SDMXFixturePatchFragment>> FragmentedWidgets;
+	/** ZOrder of this node */
+	int32 ZOrder = 0;
 
-	/** Weak refrence of the actual patch in the library */
+	/** Keep track of Fragment Widgets, useful to handle selection */
+	TArray<TSharedPtr<SDMXFixturePatchFragment>> FixturePatchFragmentWidgets;
+
+	/** The Fixture Patch this Node stands for */
 	TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch;
 
 	/** Weak DMXEditor refrence */
-	TWeakPtr<FDMXEditor> DMXEditor;
+	TWeakPtr<FDMXEditor> WeakDMXEditor;
 };

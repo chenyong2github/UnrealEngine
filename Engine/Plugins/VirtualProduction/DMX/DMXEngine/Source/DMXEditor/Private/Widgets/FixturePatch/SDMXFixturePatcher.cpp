@@ -31,146 +31,145 @@ void SDMXFixturePatcher::Construct(const FArguments& InArgs)
 {
 
 	DMXEditorPtr = InArgs._DMXEditor;
-
-	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
+	if (!DMXEditorPtr.IsValid())
 	{
-		SharedData = DMXEditor->GetFixturePatchSharedData();
-		check(SharedData.IsValid());
+		return;
+	}
+
+	SharedData = DMXEditorPtr.Pin()->GetFixturePatchSharedData();
 		
-		const FLinearColor BackgroundTint(0.6f, 0.6f, 0.6f, 1.0f);
-
-		ChildSlot			
+	const FLinearColor BackgroundTint(0.6f, 0.6f, 0.6f, 1.0f);
+	ChildSlot			
+		[
+			SNew(SBox)
+			.HAlign(HAlign_Left)
+			.ToolTipText(this, &SDMXFixturePatcher::GetTooltipText)
 			[
-				SNew(SBox)
-				.HAlign(HAlign_Left)
-				.ToolTipText(this, &SDMXFixturePatcher::GetTooltipText)
+				SNew(SVerticalBox)				
+
+				// Settings area
+
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Fill)
+				.AutoHeight()
 				[
-					SNew(SVerticalBox)				
 
-					// Settings area
-
-					+ SVerticalBox::Slot()
+					SNew(SBorder)					
 					.HAlign(HAlign_Fill)
-					.AutoHeight()
+					.BorderBackgroundColor(BackgroundTint)
+					.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
 					[
+						SNew(SHorizontalBox)			
 
-						SNew(SBorder)					
-						.HAlign(HAlign_Fill)
-						.BorderBackgroundColor(BackgroundTint)
-						.BorderImage(FAppStyle::GetBrush("DetailsView.CategoryTop"))
+						+ SHorizontalBox::Slot()						
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
 						[
-							SNew(SHorizontalBox)			
+							SNew(STextBlock)							
+							.MinDesiredWidth(75.0f)
+							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+							.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+							.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
+							.Text(LOCTEXT("UniverseSelectorLabel", "Universe"))
+						]
 
-							+ SHorizontalBox::Slot()						
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
+						[
+							SNew(SBox)
+							.MinDesiredWidth(210.0f)
+							.MaxDesiredWidth(420.0f)
 							[
-								SNew(STextBlock)							
-								.MinDesiredWidth(75.0f)
-								.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-								.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+								SNew(SSpinBox<int32>)								
+								.SliderExponent(1000.0f)								
+								.MinSliderValue(0)
+								.MaxSliderValue(DMX_MAX_UNIVERSE - 1)
+								.MinValue(0)
+								.MaxValue(DMX_MAX_UNIVERSE - 1)
 								.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
-								.Text(LOCTEXT("UniverseSelectorLabel", "Universe"))
-							]
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-							[
-								SNew(SBox)
-								.MinDesiredWidth(210.0f)
-								.MaxDesiredWidth(420.0f)
-								[
-									SNew(SSpinBox<int32>)								
-									.SliderExponent(1000.0f)								
-									.MinSliderValue(0)
-									.MaxSliderValue(DMX_MAX_UNIVERSE - 1)
-									.MinValue(0)
-									.MaxValue(DMX_MAX_UNIVERSE - 1)
-									.IsEnabled(this, &SDMXFixturePatcher::IsUniverseSelectionEnabled)
-									.Value(this, &SDMXFixturePatcher::GetSelectedUniverse)
-									.OnValueChanged(this, &SDMXFixturePatcher::SelectUniverse)
-								]
-							]
-						
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))						
-							[
-								SNew(SSeparator)
-								.Orientation(EOrientation::Orient_Vertical)
-							]
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-							[
-								SNew(STextBlock)
-								.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-								.Text(LOCTEXT("UniverseDisplayAllText", "Show all patched Universes"))
-							]
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							.VAlign(VAlign_Center)
-							.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
-							[
-								SAssignNew(ShowAllUniversesCheckBox, SCheckBox)
-								.IsChecked(false)
-								.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDisplayAllUniverses)
+								.Value(this, &SDMXFixturePatcher::GetSelectedUniverse)
+								.OnValueChanged(this, &SDMXFixturePatcher::SelectUniverse)
 							]
 						]
-					]
+						
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))						
+						[
+							SNew(SSeparator)
+							.Orientation(EOrientation::Orient_Vertical)
+						]
 
-					// Patched Universes
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
+						[
+							SNew(STextBlock)
+							.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+							.Text(LOCTEXT("UniverseDisplayAllText", "Show all patched Universes"))
+						]
 
-					+ SVerticalBox::Slot()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Fill)
-					[	
-						SAssignNew(PatchedUniverseScrollBox, SScrollBox)					
-						.Orientation(EOrientation::Orient_Vertical)	
-						.ScrollBarAlwaysVisible(true)
-						.ScrollBarThickness(FVector2D(5.f, 0.f))
+						+ SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(FMargin(4.0f, 4.0f, 15.0f, 4.0f))
+						[
+							SAssignNew(ShowAllUniversesCheckBox, SCheckBox)
+							.IsChecked(false)
+							.OnCheckStateChanged(this, &SDMXFixturePatcher::OnToggleDisplayAllUniverses)
+						]
 					]
 				]
-			];
 
-		// Bind to selection changes
-		SharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnFixturePatchSelectionChanged);
-		SharedData->OnUniverseSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnUniverseSelectionChanged);
+				// Patched Universes
 
-		// If the selected universe has no patches, try to find one with patches instead
-		UDMXLibrary* Library = GetDMXLibrary();
-		check(Library);
+				+ SVerticalBox::Slot()
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Fill)
+				[	
+					SAssignNew(PatchedUniverseScrollBox, SScrollBox)					
+					.Orientation(EOrientation::Orient_Vertical)	
+					.ScrollBarAlwaysVisible(true)
+					.ScrollBarThickness(FVector2D(5.f, 0.f))
+				]
+			]
+		];
 
-		// Bind to object changes
-		UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXFixturePatcher::OnFixturePatchChanged);
-		UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixturePatcher::OnFixtureTypeChanged);
-		Library->GetOnEntitiesAdded().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
-		Library->GetOnEntitiesRemoved().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
+	// Bind to selection changes
+	SharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnFixturePatchSelectionChanged);
+	SharedData->OnUniverseSelectionChanged.AddSP(this, &SDMXFixturePatcher::OnUniverseSelectionChanged);
 
-		TArray<UDMXEntityFixturePatch*> Patches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-		UDMXEntityFixturePatch** ExistingPatchPtr = Patches.FindByPredicate([&](UDMXEntityFixturePatch* Patch) {
-			return Patch->GetUniverseID() == SharedData->GetSelectedUniverse();
-			});
-		if (!ExistingPatchPtr && Patches.Num() > 0)
-		{
-			SharedData->SelectUniverse(Patches[0]->GetUniverseID());
-		}		
+	// If the selected universe has no patches, try to find one with patches instead
+	UDMXLibrary* Library = GetDMXLibrary();
+	check(Library);
 
-		// Bind to tabs being switched
-		FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
+	// Bind to object changes
+	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &SDMXFixturePatcher::OnFixtureTypeChanged);
+	Library->GetOnEntitiesAdded().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
+	Library->GetOnEntitiesRemoved().AddSP(this, &SDMXFixturePatcher::OnEntitiesAddedOrRemoved);
+
+	TArray<UDMXEntityFixturePatch*> Patches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	UDMXEntityFixturePatch** ExistingPatchPtr = Patches.FindByPredicate([&](UDMXEntityFixturePatch* Patch) {
+		return Patch->GetUniverseID() == SharedData->GetSelectedUniverse();
+		});
+	if (!ExistingPatchPtr && Patches.Num() > 0)
+	{
+		SharedData->SelectUniverse(Patches[0]->GetUniverseID());
+	}		
+
+	// Bind to tabs being switched
+	FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXFixturePatcher::OnActiveTabChanged));
 
 
-		GEditor->RegisterForUndo(this);
+	GEditor->RegisterForUndo(this);
 
-		ShowSelectedUniverse();
-	}
+	ShowSelectedUniverse();
+
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
 
@@ -182,43 +181,6 @@ void SDMXFixturePatcher::RefreshFromProperties()
 void SDMXFixturePatcher::RefreshFromLibrary()
 {
 	RefreshFixturePatchState = EDMXRefreshFixturePatcherState::RefreshFromLibrary;
-}
-
-void SDMXFixturePatcher::SelectUniverseThatContainsSelectedPatches()
-{
-	UDMXLibrary* Library = GetDMXLibrary();
-	if (Library)
-	{
-		// If the selected universe no longer contains a patch, select another universe with patches		
-		check(SharedData.IsValid());
-		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>& SelectedFixturePatches = SharedData->GetSelectedFixturePatches();
-
-		if (SelectedFixturePatches.Num() == 0)
-		{
-			return;
-		}
-
-		const int32 SelectedUniverseID = GetSelectedUniverse();
-		const int32 PatchInSelectedUniverseIndex = SelectedFixturePatches.IndexOfByPredicate([SelectedUniverseID](TWeakObjectPtr<UDMXEntityFixturePatch> Patch) {
-			return 
-				Patch.IsValid() && 
-				Patch->GetUniverseID() == SelectedUniverseID;
-			});
-		
-		const bool bIsAnySelectedPatchInSelectedUniverse = PatchInSelectedUniverseIndex != INDEX_NONE;
-		if (!bIsAnySelectedPatchInSelectedUniverse)
-		{
-			// Select arbitrary valid universe in selection
-			for(TWeakObjectPtr<UDMXEntityFixturePatch> SelectedPatch : SelectedFixturePatches)
-			{
-				if(SelectedPatch->GetUniverseID() >= 0)
-				{
-					SharedData->SelectUniverse(SelectedPatch->GetUniverseID());
-				}
-				break;
-			}
-		}
-	}
 }
 
 void SDMXFixturePatcher::OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated)
@@ -302,11 +264,7 @@ void SDMXFixturePatcher::OnDragEnterChannel(int32 UniverseID, int32 ChannelID, c
 					return ClampStartingChannel(StartingChannel, ChannelSpan);
 				}();
 
-				// Update the ChannelOffset
-				const int32 NewChannelOffset = ChannelID - NewStartingChannel;
-				FixturePatchDragDropOp->SetChannelOffset(NewChannelOffset);
-
-				// Patch the node but do not transact it (transact on drop or leave instead)
+				// Patch the node but do not transact it (transact on drop instead)
 				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
 
 				const bool bCreateTransaction = false;
@@ -376,15 +334,22 @@ FReply SDMXFixturePatcher::OnDropOntoChannel(int32 UniverseID, int32 ChannelID, 
 
 		if (DraggedNode.IsValid())
 		{
-			// Compensate Drag Offset
-			ChannelID = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
-
-			const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
-
-			bool bCreateTransaction = true;
-			if (Universe->Patch(DraggedNode, ChannelID, bCreateTransaction))
+			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
 			{
-				return FReply::Handled().EndDragDrop();
+				const int32 ChannelSpan = FixturePatch->GetChannelSpan();
+				const int32 NewStartingChannel = [this, ChannelID, &FixturePatchDragDropOp, ChannelSpan]()
+				{
+					int32 StartingChannel = ChannelID - FixturePatchDragDropOp->GetChannelOffset();
+					return ClampStartingChannel(StartingChannel, ChannelSpan);
+				}();
+
+				const TSharedPtr<SDMXPatchedUniverse>& Universe = PatchedUniversesByID.FindChecked(UniverseID);
+
+				bool bCreateTransaction = true;
+				if (Universe->Patch(DraggedNode, NewStartingChannel, bCreateTransaction))
+				{
+					return FReply::Handled().EndDragDrop();
+				}
 			}
 		}
 	}
@@ -398,6 +363,7 @@ TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::GetDraggedNode(const TArray
 	{
 		if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(DraggedEntities[0]))
 		{
+			const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatchArray = TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>({ FixturePatch });
 			TSharedPtr<FDMXFixturePatchNode> DraggedNode = FindPatchNode(FixturePatch);
 
 			if (!DraggedNode.IsValid())
@@ -470,21 +436,19 @@ void SDMXFixturePatcher::PostRedo(bool bSuccess)
 	RefreshFromProperties();
 }
 
-TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::FindPatchNode(TWeakObjectPtr<UDMXEntityFixturePatch> Patch) const
+TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::FindPatchNode(const TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) const
 {
-	if (Patch.IsValid())
+	TSharedPtr<FDMXFixturePatchNode> ExistingNode;
+	for (const TPair<int32, TSharedPtr<SDMXPatchedUniverse>>& UniverseByID : PatchedUniversesByID)
 	{
-		TSharedPtr<FDMXFixturePatchNode> ExistingNode;
-		for (const TPair<int32, TSharedPtr<SDMXPatchedUniverse>>& UniverseByID : PatchedUniversesByID)
-		{
-			ExistingNode = UniverseByID.Value->FindPatchNode(Patch);
+		ExistingNode = UniverseByID.Value->FindPatchNode(FixturePatch);
 
-			if (ExistingNode.IsValid())
-			{
-				return ExistingNode;
-			}
+		if (ExistingNode.IsValid())
+		{
+			return ExistingNode;
 		}
 	}
+
 	return nullptr;
 }
 
@@ -509,29 +473,6 @@ void SDMXFixturePatcher::OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArra
 	}
 }
 
-void SDMXFixturePatcher::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
-{
-	if (IsValid(FixturePatch))
-	{
-		// Const cast is ok here, as long as this function only updates the widget
-		UDMXEntityFixturePatch* NonConstFixturePatch = const_cast<UDMXEntityFixturePatch*>(FixturePatch);
-
-		if (const TSharedPtr<FDMXFixturePatchNode> PatchNode = FindPatchNode(NonConstFixturePatch))
-		{
-			if (FixturePatch->GetUniverseID() != PatchNode->GetUniverseID() ||
-				FixturePatch->GetStartingChannel() != PatchNode->GetStartingChannel() ||
-				FixturePatch->GetChannelSpan() != PatchNode->GetChannelSpan())
-			{
-				RefreshFromProperties();
-			}
-		}
-		else if (FixturePatch->GetParentLibrary() == GetDMXLibrary())
-		{
-			RefreshFromProperties();
-		}
-	}
-}
-
 void SDMXFixturePatcher::OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType)
 {
 	RefreshFromLibrary();
@@ -539,44 +480,53 @@ void SDMXFixturePatcher::OnFixtureTypeChanged(const UDMXEntityFixtureType* Fixtu
 
 void SDMXFixturePatcher::OnFixturePatchSelectionChanged()
 {
-	check(SharedData.IsValid());
-	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>& SelectedPatches = SharedData->GetSelectedFixturePatches();
-
-	// Only RefreshFromProperties if a node for a selected patch doesn't exist
-	// This avoids issues when a patch gets selected and detect drag is pending.	
-	for (TWeakObjectPtr<UDMXEntityFixturePatch> Patch : SelectedPatches)
+	const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
+	if (PatchedUniversesByID.Contains(SelectedUniverse))
 	{
-		if (!FindPatchNode(Patch).IsValid())
-		{
-			RefreshFromProperties();
-			break;
-		}
+		return;
 	}
 
-	SelectUniverseThatContainsSelectedPatches();
+	if (IsUniverseSelectionEnabled())
+	{
+		constexpr bool bReconstructWidget = true;
+		ShowSelectedUniverse(bReconstructWidget);
+	}
+	else
+	{
+		const TSharedPtr<SDMXPatchedUniverse>* const UniverseWidgetPtr = PatchedUniversesByID.Find(SelectedUniverse);
+		if (UniverseWidgetPtr)
+		{
+			PatchedUniverseScrollBox->ScrollDescendantIntoView(*UniverseWidgetPtr);
+		}
+	}
 }
 
 void SDMXFixturePatcher::OnUniverseSelectionChanged()
 {
+	const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
+	if (PatchedUniversesByID.Contains(SelectedUniverse))
+	{
+		return;
+	}
+
 	if (IsUniverseSelectionEnabled())
 	{
 		ShowSelectedUniverse();
 	}
-	else
+	else if(!PatchedUniversesByID.Contains(SharedData->GetSelectedUniverse()))
 	{
-		// The newly selected universe is not yet shown and may contain a patch.
-		// If so, show all universes anew, to include the newly selected universe.
-		check(SharedData.IsValid());
-		if (!PatchedUniversesByID.Contains(SharedData->GetSelectedUniverse()))
-		{
-			ShowAllPatchedUniverses();
-		}
+		ShowAllPatchedUniverses();
 	}
+
+	if (!ensureMsgf(PatchedUniversesByID.Contains(SelectedUniverse), TEXT("Tried to scroll universe into view after displaying it, but universe doesn't exist. This is not expected.")))
+	{
+		return;
+	}
+	PatchedUniverseScrollBox->ScrollDescendantIntoView(PatchedUniversesByID[SelectedUniverse]);
 }
 
 void SDMXFixturePatcher::SelectUniverse(int32 NewUniverseID)
 {
-	check(SharedData.IsValid());
 	UniverseToSetNextTick = NewUniverseID;
 }
 
@@ -590,6 +540,27 @@ void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
 {
 	int32 SelectedUniverseID = GetSelectedUniverse();
 
+	/** Select a patched universe if the selected Universe doesn't contain any universes */
+	UDMXLibrary* DMXLibrary = GetDMXLibrary();
+	if (!DMXLibrary)
+	{
+		return;
+	}
+	TArray<UDMXEntityFixturePatch*> FixturePatches = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	const bool bIsSelectedUniversePatched = FixturePatches.ContainsByPredicate([SelectedUniverseID](const UDMXEntityFixturePatch* FixturePatch)
+		{
+			return FixturePatch->GetUniverseID() == SelectedUniverseID;
+		});
+	if (!bIsSelectedUniversePatched && FixturePatches.Num() > 0)
+	{
+		FixturePatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+			{
+				return FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID();
+			});
+		SelectedUniverseID = FixturePatches[0]->GetUniverseID();
+	}
+
+	// Force reconstruct if requested
 	if (bForceReconstructWidget)
 	{
 		PatchedUniverseScrollBox->ClearChildren();
@@ -599,7 +570,7 @@ void SDMXFixturePatcher::ShowSelectedUniverse(bool bForceReconstructWidget)
 	// Create a new patched universe if required
 	if (PatchedUniversesByID.Num() != 1)
 	{
-		TSharedRef<SDMXPatchedUniverse> NewPatchedUniverse =
+		const TSharedRef<SDMXPatchedUniverse> NewPatchedUniverse =
 			SNew(SDMXPatchedUniverse)
 			.DMXEditor(DMXEditorPtr)
 			.UniverseID(SelectedUniverseID)
@@ -724,7 +695,8 @@ void SDMXFixturePatcher::AddUniverse(int32 UniverseID)
 
 void SDMXFixturePatcher::OnToggleDisplayAllUniverses(ECheckBoxState CheckboxState)
 {
-	bool bForceReconstructWidget = true;
+	constexpr bool bForceReconstructWidget = true;
+	const int32 SelectedUniverse = SharedData->GetSelectedUniverse();
 
 	switch (ShowAllUniversesCheckBox->GetCheckedState())
 	{
@@ -733,7 +705,7 @@ void SDMXFixturePatcher::OnToggleDisplayAllUniverses(ECheckBoxState CheckboxStat
 		return;
 
 	case ECheckBoxState::Unchecked:
-		SelectUniverseThatContainsSelectedPatches();
+		SelectUniverse(SelectedUniverse);
 		ShowSelectedUniverse(bForceReconstructWidget);
 		return;
 

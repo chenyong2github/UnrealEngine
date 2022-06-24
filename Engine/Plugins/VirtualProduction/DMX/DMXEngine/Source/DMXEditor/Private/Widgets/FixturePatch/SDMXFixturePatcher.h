@@ -48,9 +48,6 @@ public:
 	/** Refreshes the whole view from the library, considers library changes */
 	void RefreshFromLibrary();
 
-	/** Selects a universe that contains selected patches, if possible */
-	void SelectUniverseThatContainsSelectedPatches();
-
 protected:
 	/** Called when the active tab changed */
 	void OnActiveTabChanged(TSharedPtr<SDockTab> PreviouslyActive, TSharedPtr<SDockTab> NewlyActivated);
@@ -78,16 +75,13 @@ protected:
 	// End of FEditorUndoClient
 
 	/** Finds specified fixture patch in all universes */
-	TSharedPtr<FDMXFixturePatchNode> FindPatchNode(TWeakObjectPtr<UDMXEntityFixturePatch> Patch) const;
+	TSharedPtr<FDMXFixturePatchNode> FindPatchNode(const TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) const;
 
 	/** Returns first node with same fixture type */
 	TSharedPtr<FDMXFixturePatchNode> FindPatchNodeOfType(UDMXEntityFixtureType* Type, const TSharedPtr<FDMXFixturePatchNode>& IgoredNode) const;
 
 	/** Called when entities were added to or removed from a DMX Library */
 	void OnEntitiesAddedOrRemoved(UDMXLibrary* DMXLibrary, TArray<UDMXEntity*> Entities);
-
-	/** Called when a fixture patch changed */
-	void OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch);
 
 	/** Called when a fixture type changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);

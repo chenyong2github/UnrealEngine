@@ -3,6 +3,7 @@
 #include "Customizations/DMXEntityFixturePatchDetails.h"
 
 #include "DMXEditorUtils.h"
+#include "DMXFixturePatchSharedData.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Widgets/SDMXEntityDropdownMenu.h"
 
@@ -31,11 +32,12 @@ void FDMXEntityFixturePatchDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 	ParentFixtureTypeHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetParentFixtureTypeTemplatePropertyNameChecked());
 	ActiveModeHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetActiveModePropertyNameChecked());
 
-	// Bind to auto assign address changes to assign channels when it gets enabled
-	FSimpleDelegate OnAutoAssignAddressChangedDelegate = FSimpleDelegate::CreateSP(this, &FDMXEntityFixturePatchDetails::OnAutoAssignAddressChanged);
-	AutoAssignAddressHandle->SetOnPropertyValueChanged(OnAutoAssignAddressChangedDelegate);
+	// Handle Property changes
+	AutoAssignAddressHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXEntityFixturePatchDetails::OnAutoAssignAddressChanged));
+	UniverseIDHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetUniverseIDPropertyNameChecked());
+	UniverseIDHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXEntityFixturePatchDetails::OnUniverseIDChanged));
 
-	// Handle mode changes of the parent fixture type
+	// Handle Fixture Type changes
 	UDMXEntityFixtureType::GetOnFixtureTypeChanged().AddSP(this, &FDMXEntityFixturePatchDetails::OnFixtureTypeChanged);
 
 	// Make a Fixture Types dropdown for the Fixture Type template property
@@ -138,6 +140,21 @@ void FDMXEntityFixturePatchDetails::OnFixtureTypeChanged(const UDMXEntityFixture
 		}
 	
 		PropertyUtilities->ForceRefresh();
+	}
+}
+
+void FDMXEntityFixturePatchDetails::OnUniverseIDChanged()
+{
+	const TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin();
+	if (!DMXEditor.IsValid())
+	{
+		return;
+	}
+
+	int32 UniverseID;
+	if (UniverseIDHandle->GetValue(UniverseID) == FPropertyAccess::Success)
+	{
+		DMXEditor->GetFixturePatchSharedData()->SelectUniverse(UniverseID);
 	}
 }
 

@@ -39,12 +39,15 @@ private:
 
 	/** Called when the ParentFixtureType property changed */
 	void OnParentFixtureTypeChanged(UDMXEntity* NewTemplate) const;
-	
-	/** Called when the ActiveMode property changed */
-	void OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
 
 	/** Called when a Mode in the Modes Array property changed */
 	void OnFixtureTypeChanged(const UDMXEntityFixtureType* FixtureType);
+
+	/** Called when the UniverseID property changed */
+	void OnUniverseIDChanged();
+
+	/** Called when the ActiveMode property changed */
+	void OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
 
 	/** Called when the bAutoAssignAddress property changed */
 	void OnAutoAssignAddressChanged();
@@ -69,6 +72,9 @@ private:
 
 	/** Handle for the ParentFixtureType property */
 	TSharedPtr<IPropertyHandle> ParentFixtureTypeHandle;
+
+	/** Handle for the UniverseID property */
+	TSharedPtr<IPropertyHandle> UniverseIDHandle;
 
 	/** Handle for the ActiveMode property */
 	TSharedPtr<IPropertyHandle> ActiveModeHandle;

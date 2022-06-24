@@ -3,20 +3,24 @@
 #include "SDMXPatchedUniverse.h"
 
 #include "DMXEditor.h"
-#include "DMXFixturePatchNode.h"
 #include "DMXFixturePatchEditorDefinitions.h"
+#include "DMXFixturePatchNode.h"
+#include "DMXFixturePatchSharedData.h"
 #include "SDMXChannelConnector.h"
 #include "SDMXFixturePatchFragment.h"
+#include "DragDrop/DMXEntityFixturePatchDragDropOp.h"
 #include "IO/DMXInputPort.h"
 #include "IO/DMXOutputPort.h"
 #include "IO/DMXPortManager.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 
+#include "Framework/Commands/GenericCommands.h"
+#include "Framework/Commands/UICommandList.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Styling/AppStyle.h"
 #include "SlateOptMacros.h"
 #include "Widgets/Layout/SGridPanel.h"
-#include "Widgets/Layout/SScaleBox.h"
 
 
 #define LOCTEXT_NAMESPACE "SDMXPatchedUniverse"
@@ -33,73 +37,93 @@ void SDMXPatchedUniverse::Construct(const FArguments& InArgs)
 	OnDragLeaveChannel = InArgs._OnDragLeaveChannel;
 	OnDropOntoChannel = InArgs._OnDropOntoChannel;
 
-	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
+	const TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin();
+	if (!DMXEditor.IsValid())
 	{
-		ChildSlot
-		[
-			SNew (SVerticalBox)
-
-			+ SVerticalBox::Slot()
-			.HAlign(HAlign_Fill)
-			.AutoHeight()
-			[
-				SNew(SOverlay)
-				+ SOverlay::Slot()
-				[
-					SAssignNew(UniverseName, SBorder)
-					.VAlign(VAlign_Top)
-					.HAlign(HAlign_Fill)
-					.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 0.3f))
-					.ToolTipText(FText::Format(LOCTEXT("UniverseListCategoryTooltip", "Patches assigned to Universe {0}"), UniverseID))
-					[
-						SNew(STextBlock)
-						.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
-						.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
-						.Text(this, &SDMXPatchedUniverse::GetHeaderText)
-					]
-				]
-
-				+ SOverlay::Slot()
-				[
-					SNew(SBorder)
-					.BorderImage(FAppStyle::GetBrush("Graph.Node.DevelopmentBanner"))
-					.HAlign(HAlign_Fill)
-					.VAlign(VAlign_Fill)
-					.Visibility(this, &SDMXPatchedUniverse::GetPatchedUniverseReachabilityBannerVisibility)
-				]
-			]
-			
-			+ SVerticalBox::Slot()
-			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Fill)		
-			[					
-				SNew(SScaleBox)	
-				.VAlign(VAlign_Top)
-				.Stretch(EStretch::ScaleToFitX)						
-				.StretchDirection(EStretchDirection::DownOnly)				
-				[
-					SNew(SBox)
-					.HAlign(HAlign_Center)
-					.MinDesiredWidth(920.0f) // Avoids a slate issue, where SScaleBox ignores border size hence scales			
-					.Padding(FMargin(4.0f, 4.0f, 4.0f, 8.0f))
-					[
-						SAssignNew(Grid, SGridPanel)												
-					]
-				]
-			]
-		];
-
-		CreateChannelConnectors();
-
-		SetUniverseID(UniverseID);
-
-		UpdatePatchedUniverseReachability();
-
-		// Bind to port changes
-		FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPatchedUniverse::UpdatePatchedUniverseReachability);
+		return;
 	}
+	SharedData = DMXEditor->GetFixturePatchSharedData();
+	check(SharedData.IsValid());
+
+	ChildSlot
+	[
+		SNew (SVerticalBox)
+
+		+ SVerticalBox::Slot()
+		.HAlign(HAlign_Fill)
+		.AutoHeight()
+		[
+			SNew(SOverlay)
+			+ SOverlay::Slot()
+			[
+				SAssignNew(UniverseName, SBorder)
+				.VAlign(VAlign_Top)
+				.HAlign(HAlign_Fill)
+				.BorderBackgroundColor(FLinearColor(0.6f, 0.6f, 0.6f, 0.3f))
+				.ToolTipText(FText::Format(LOCTEXT("UniverseListCategoryTooltip", "Patches assigned to Universe {0}"), UniverseID))
+				[
+					SNew(STextBlock)
+					.Font(FAppStyle::GetFontStyle("PropertyWindow.NormalFont"))
+					.TextStyle(FAppStyle::Get(), "DetailsView.CategoryTextStyle")
+					.Text(this, &SDMXPatchedUniverse::GetHeaderText)
+				]
+			]
+
+			+ SOverlay::Slot()
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::GetBrush("Graph.Node.DevelopmentBanner"))
+				.HAlign(HAlign_Fill)
+				.VAlign(VAlign_Fill)
+				.Visibility(this, &SDMXPatchedUniverse::GetPatchedUniverseReachabilityBannerVisibility)
+			]
+		]
+			
+		+ SVerticalBox::Slot()
+		.VAlign(VAlign_Top)
+		.HAlign(HAlign_Fill)		
+		[					
+			SNew(SBox)
+			.HAlign(HAlign_Center)
+			.MinDesiredWidth(920.0f) // Avoids a slate issue, where SScaleBox ignores border size hence scales			
+			.Padding(FMargin(4.0f, 4.0f, 4.0f, 8.0f))
+			[
+				SAssignNew(Grid, SGridPanel)												
+			]
+		]
+	];
+
+	CreateChannelConnectors();
+
+	SetUniverseID(UniverseID);
+
+	UpdateZOrderOfNodes();
+	UpdatePatchedUniverseReachability();
+
+	RegisterCommands();
+
+	// Handle external changes
+	UDMXEntityFixturePatch::GetOnFixturePatchChanged().AddSP(this, &SDMXPatchedUniverse::OnFixturePatchChanged);
+	SharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXPatchedUniverse::OnSelectionChanged);
+	FDMXPortManager::Get().OnPortsChanged.AddSP(this, &SDMXPatchedUniverse::UpdatePatchedUniverseReachability);
 }
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+void SDMXPatchedUniverse::RequestRefresh()
+{
+	if (RequestRefreshTimerHandle.IsValid())
+	{
+		return;
+	}
+
+	RequestRefreshTimerHandle =
+		GEditor->GetTimerManager()->SetTimerForNextTick(
+			FTimerDelegate::CreateLambda([this]()
+				{
+					RefreshInternal();
+				})
+		);
+}
 
 void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 {
@@ -130,22 +154,22 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 				PatchesInUniverse.Add(Patch);
 			}
 		});
+		PatchesInUniverse.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+			{
+				return FixturePatchA.GetEndingChannel() <= FixturePatchB.GetEndingChannel();
+			});
 
 		// Add fixture patches to the grid
 		for (UDMXEntityFixturePatch* FixturePatch : PatchesInUniverse)
 		{
-			if (CanAssignFixturePatch(FixturePatch))
+			TSharedPtr<FDMXFixturePatchNode> Node = FindPatchNode(FixturePatch);
+			if (!Node.IsValid())
 			{
-				TSharedPtr<FDMXFixturePatchNode> Node = FindPatchNode(FixturePatch);
-
-				if (!Node.IsValid())
-				{
-					Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
-				}
-				check(Node.IsValid());
-
-				Patch(Node, FixturePatch->GetStartingChannel(), false);
+				Node = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
 			}
+			check(Node.IsValid());
+
+			Patch(Node, FixturePatch->GetStartingChannel(), false);
 		}
 
 		// Update the channel connectors' Universe ID
@@ -153,6 +177,8 @@ void SDMXPatchedUniverse::SetUniverseID(int32 NewUniverseID)
 		{
 			Connector->SetUniverseID(NewUniverseID);
 		}
+
+		RequestRefresh();
 	}
 }
 
@@ -182,6 +208,9 @@ void SDMXPatchedUniverse::CreateChannelConnectors()
 			SNew(SDMXChannelConnector)
 			.ChannelID(ChannelID)
 			.Value(0)
+			.OnMouseButtonDownOnChannel(this, &SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel)
+			.OnMouseButtonUpOnChannel(this, &SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel)
+			.OnDragDetectedOnChannel(this, &SDMXPatchedUniverse::HandleOnDragDetectedOnChannel)
 			.OnDragEnterChannel(this, &SDMXPatchedUniverse::HandleDragEnterChannel)
 			.OnDragLeaveChannel(this, &SDMXPatchedUniverse::HandleDragLeaveChannel)
 			.OnDropOntoChannel(this, &SDMXPatchedUniverse::HandleDropOntoChannel)
@@ -202,11 +231,6 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 {
 	check(Node.IsValid());
 
-	if (!CanAssignNode(Node, NewStartingChannel))
-	{
-		return false;
-	}
-
 	UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get();
 	if (!FixturePatch)
 	{
@@ -221,13 +245,8 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 		NewStartingChannel = FixturePatch->GetStartingChannel();
 	}
 
-	// Only fully valid channels are supported
-	check(NewStartingChannel > 0);
-	check(NewStartingChannel + NewChannelSpan - 1 <= DMX_UNIVERSE_SIZE);
-
 	// Unpatch from the old universe
-	TSharedPtr<SDMXPatchedUniverse> OldUniverseWidget = Node->GetUniverseWidget();
-	if (OldUniverseWidget.IsValid())
+	if (const TSharedPtr<SDMXPatchedUniverse>& OldUniverseWidget = Node->GetUniverseWidget())
 	{
 		OldUniverseWidget->Unpatch(Node);
 	}
@@ -236,51 +255,10 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 	check(!PatchedNodes.Contains(Node));
 	PatchedNodes.Add(Node);
 
-	// Update the node and commit to the changes
-	Node->Update(SharedThis(this), NewStartingChannel, NewChannelSpan);
-	Node->CommitPatch(bCreateTransaction);
-
-	// Assign the node's widgets to the grid
-	AddNodeToGrid(Node);
+	Node->SetAddresses(SharedThis(this), NewStartingChannel, NewChannelSpan, bCreateTransaction);
+	RequestRefresh();
 
 	return true;
-}
-
-void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
-{
-	check(Node.IsValid());
-	check(Grid.IsValid());
-
-	if (PatchedNodes.Contains(Node))
-	{
-		PatchedNodes.RemoveSingle(Node);
-		RemoveNodeFromGrid(Node);
-	}
-}
-
-void SDMXPatchedUniverse::AddNodeToGrid(const TSharedPtr<FDMXFixturePatchNode>& Node)
-{
-	check(Grid.IsValid());
-	for (const TSharedPtr<SDMXFixturePatchFragment>& Fragment : Node->GetFragmentedWidgets())
-	{
-		check(Fragment.IsValid());
-
-		Grid->AddSlot(Fragment->GetColumn(), Fragment->GetRow())
-			.ColumnSpan(Fragment->GetColumnSpan())
-			.Layer(1)
-			[
-				Fragment.ToSharedRef()
-			];
-	}
-}
-
-void SDMXPatchedUniverse::RemoveNodeFromGrid(const TSharedPtr<FDMXFixturePatchNode>& Node)
-{
-	check(Node.IsValid());
-	for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : Node->GetFragmentedWidgets())
-	{
-		Grid->RemoveSlot(Widget.ToSharedRef());
-	}
 }
 
 bool SDMXPatchedUniverse::CanAssignFixturePatch(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) const
@@ -341,15 +319,22 @@ bool SDMXPatchedUniverse::CanAssignNode(const TSharedPtr<FDMXFixturePatchNode>& 
 	return CanAssignFixturePatch(FixturePatch, StartingChannel);
 }
 
-TSharedPtr<FDMXFixturePatchNode> SDMXPatchedUniverse::FindPatchNode(const TWeakObjectPtr<UDMXEntityFixturePatch>& FixturePatch) const
+TSharedPtr<FDMXFixturePatchNode> SDMXPatchedUniverse::FindPatchNode(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch) const
 {
-	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
-	{
-		if (Node->GetFixturePatch() == FixturePatch)
+	const TSharedPtr<FDMXFixturePatchNode>* NodePtr = PatchedNodes.FindByPredicate([&FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node)
 		{
-			return Node;
-		}
+			if (Node->GetFixturePatch() == FixturePatch)
+			{
+				return true;
+			}
+			return false;
+		});
+
+	if (NodePtr)
+	{
+		return *NodePtr;
 	}
+
 	return nullptr;
 }
 
@@ -377,17 +362,162 @@ TSharedPtr<FDMXFixturePatchNode> SDMXPatchedUniverse::FindPatchNodeOfType(UDMXEn
 	return nullptr;
 }
 
-void SDMXPatchedUniverse::HandleDragEnterChannel(int32 ChannelID, const FDragDropEvent& DragDropEvent)
+void SDMXPatchedUniverse::Unpatch(const TSharedPtr<FDMXFixturePatchNode>& Node)
+{
+	check(Node.IsValid());
+	check(Grid.IsValid());
+
+	if (PatchedNodes.Contains(Node))
+	{
+		PatchedNodes.RemoveSingle(Node);
+
+		for (const TSharedPtr<SDMXFixturePatchFragment>& Widget : Node->GetGeneratedWidgets())
+		{
+			if (Widget.IsValid())
+			{
+				Grid->RemoveSlot(Widget.ToSharedRef());
+			}
+		}
+		RefreshInternal();
+	}
+}
+
+void SDMXPatchedUniverse::OnFixturePatchChanged(const UDMXEntityFixturePatch* FixturePatch)
+{
+	// Keep track of Universe Changes
+	const TSharedPtr<FDMXFixturePatchNode>* NodePtr = PatchedNodes.FindByPredicate([FixturePatch](const TSharedPtr<FDMXFixturePatchNode>& Node)
+		{
+			return Node->GetFixturePatch() == FixturePatch;
+		});
+
+	if (NodePtr && FixturePatch && UniverseID != FixturePatch->GetUniverseID())
+	{
+		Unpatch(*NodePtr);
+	}
+	else if (!NodePtr && UniverseID == FixturePatch->GetUniverseID())
+	{
+		SharedData->SelectUniverse(UniverseID);
+		SetUniverseID(UniverseID);
+	}
+
+	RequestRefresh();
+}
+
+void SDMXPatchedUniverse::RefreshInternal()
+{
+	RequestRefreshTimerHandle.Invalidate();
+	UpdateZOrderOfNodes();
+
+	// Remove old widgets from the grid
+	for (const TSharedPtr<SDMXFixturePatchFragment>& OldWidget : FixturePatchWidgets)
+	{
+		Grid->RemoveSlot(OldWidget.ToSharedRef());
+	}
+	FixturePatchWidgets.Reset();
+
+	// Create Groups of Nodes with same Universe/Address
+	TMap<int32, TArray<TSharedPtr<FDMXFixturePatchNode>>> AddressToNodeGroupMap;
+	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
+	{
+		const int32 Address = Node->GetStartingChannel();
+		AddressToNodeGroupMap.FindOrAdd(Address).Add(Node);
+	}
+
+	// Generate new widgets
+	for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
+	{
+		if (const TArray<TSharedPtr<FDMXFixturePatchNode>>* const NodeGroup = AddressToNodeGroupMap.Find(Node->GetStartingChannel()))
+		{
+			FixturePatchWidgets.Append(Node->GenerateWidgets(*NodeGroup));
+		}
+	}
+
+	// Add widgets to the grid
+	for (const TSharedPtr<SDMXFixturePatchFragment>& NewWidget : FixturePatchWidgets)
+	{
+		Grid->AddSlot(NewWidget->GetColumn(), NewWidget->GetRow())
+			.ColumnSpan(NewWidget->GetColumnSpan())
+			.Layer(1)
+			[
+				NewWidget.ToSharedRef()
+			];
+	}
+}
+
+FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent)
+{
+	if (PointerEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	{
+		if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannelID(ChannelID))
+		{
+			if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
+			{
+				SharedData->AddFixturePatchToSelection(Patch);
+			}
+			else
+			{
+				SharedData->SelectFixturePatch(Patch);
+			}
+
+			// SelectFixturePatch calls SetKeyboardFocus at some point; the call to SetKeyboardFocus is not enough for Slate: 
+			// We must also return the widget using FReply.
+			FReply Reply = FReply::Handled();
+			TSharedPtr<SWidget> WidgetThatWasFocusedBy_SelectFixturePatch = FSlateApplication::Get().GetKeyboardFocusedWidget();
+			if(WidgetThatWasFocusedBy_SelectFixturePatch.IsValid())
+			{
+				Reply.SetUserFocus(WidgetThatWasFocusedBy_SelectFixturePatch.ToSharedRef());
+			}
+			if (ensureMsgf(ChannelConnectors.IsValidIndex(ChannelID - 1), TEXT("Trying to drag Fixture Patch, but the dragged channel is not valid.")))
+			{
+				return Reply.DetectDrag(ChannelConnectors[ChannelID - 1].ToSharedRef(), EKeys::LeftMouseButton);
+			}
+		}
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent)
+{
+	if (PointerEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		const FVector2D& SummonLocation = PointerEvent.GetScreenSpacePosition();
+
+		TSharedRef<SWidget> MenuContent = CreateContextMenu(ChannelID);
+		FWidgetPath WidgetPath = PointerEvent.GetEventPath() ? *PointerEvent.GetEventPath() : FWidgetPath();
+		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuContent, SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
+
+		return FReply::Handled();
+	}
+
+	return FReply::Unhandled();
+}
+
+FReply SDMXPatchedUniverse::HandleOnDragDetectedOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent)
+{
+	if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannelID(ChannelID))
+	{
+		int32 ChannelOffset = ChannelID - Patch->GetStartingChannel();
+
+		TSharedRef<FDMXEntityFixturePatchDragDropOperation> DragDropOp = MakeShared<FDMXEntityFixturePatchDragDropOperation>(Patch->GetParentLibrary(), TArray<TWeakObjectPtr<UDMXEntity>>{ Patch }, ChannelOffset);
+
+		return FReply::Handled().BeginDragDrop(DragDropOp);
+	}
+
+	return FReply::Unhandled();
+}
+
+void SDMXPatchedUniverse::HandleDragEnterChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent)
 {
 	OnDragEnterChannel.ExecuteIfBound(UniverseID, ChannelID, DragDropEvent);
 }
 
-void SDMXPatchedUniverse::HandleDragLeaveChannel(int32 ChannelID, const FDragDropEvent& DragDropEvent)
+void SDMXPatchedUniverse::HandleDragLeaveChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent)
 {
 	OnDragLeaveChannel.ExecuteIfBound(UniverseID, ChannelID, DragDropEvent);
 }
 
-FReply SDMXPatchedUniverse::HandleDropOntoChannel(int32 ChannelID, const FDragDropEvent& DragDropEvent)
+FReply SDMXPatchedUniverse::HandleDropOntoChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent)
 {
 	return OnDropOntoChannel.Execute(UniverseID, ChannelID, DragDropEvent);
 }
@@ -414,6 +544,51 @@ FText SDMXPatchedUniverse::GetHeaderText() const
 	}
 
 	return FText::GetEmpty();
+}
+
+void SDMXPatchedUniverse::UpdateZOrderOfNodes()
+{
+	if (PatchedNodes.Num() == 0)
+	{
+		return;
+	}
+
+	TArray<TSharedPtr<FDMXFixturePatchNode>> Nodes = PatchedNodes;
+	// Sort by ZOrder descending
+	Nodes.StableSort([](const TSharedPtr<FDMXFixturePatchNode>& NodeA, const TSharedPtr<FDMXFixturePatchNode>& NodeB)
+		{
+			if (NodeA->GetStartingChannel() > NodeB->GetStartingChannel())
+			{
+				return true;
+			}
+			else if (NodeA->GetStartingChannel() == NodeB->GetStartingChannel())
+			{
+				const bool bNodeASelected = NodeA->IsSelected();
+				if (bNodeASelected)
+				{
+					return
+						!NodeB->IsSelected() ||
+						NodeA->GetZOrder() > NodeB->GetZOrder();
+				}
+				else
+				{
+					return
+						!NodeB->IsSelected() &&
+						NodeA->GetZOrder() > NodeB->GetZOrder();
+				}
+			}
+			return false;
+		});
+
+	int32 ZOrder = Nodes.Num();
+	for (const TSharedPtr<FDMXFixturePatchNode>& Node : Nodes)
+	{
+		if (Node.IsValid())
+		{
+			Node->SetZOrder(ZOrder);
+			--ZOrder;
+		}
+	}
 }
 
 EVisibility SDMXPatchedUniverse::GetPatchedUniverseReachabilityBannerVisibility() const
@@ -457,7 +632,7 @@ void SDMXPatchedUniverse::UpdatePatchedUniverseReachability()
 		{
 			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForInputAndOutputPorts;
 		}
-		else if(!bReachableForAnyOutput)
+		else if (!bReachableForAnyOutput)
 		{
 			PatchedUniverseReachability = EDMXPatchedUniverseReachability::UnreachableForOutputPorts;
 		}
@@ -468,6 +643,84 @@ void SDMXPatchedUniverse::UpdatePatchedUniverseReachability()
 	}
 }
 
+void SDMXPatchedUniverse::OnSelectionChanged()
+{
+	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> FixturePatches = SharedData->GetSelectedFixturePatches();
+	const bool bSelectionChanged = [&FixturePatches, this]()
+		{
+			for (const TSharedPtr<FDMXFixturePatchNode>& Node : PatchedNodes)
+			{
+				if (Node->IsSelected() ^ FixturePatches.Contains(Node->GetFixturePatch()))
+				{
+					return true;
+					break;
+				}
+			}
+			return false;
+		}();
+	if (bSelectionChanged)
+	{
+		RequestRefresh();
+	}
+}
+
+UDMXEntityFixturePatch* SDMXPatchedUniverse::GetTopmostFixturePatchOnChannelID(uint32 ChannelID) const
+{
+	TArray<TSharedPtr<FDMXFixturePatchNode>> Nodes(PatchedNodes);
+	Nodes.RemoveAll([ChannelID](const TSharedPtr<FDMXFixturePatchNode>& Node)
+			{
+				if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
+				{
+					const uint32 PatchStartingChannel = FixturePatch->GetStartingChannel();
+					const TRange<uint32> FixturePatchRange(PatchStartingChannel, PatchStartingChannel + FixturePatch->GetChannelSpan());
+
+					return !FixturePatchRange.Contains(ChannelID);
+				}
+				return true;
+			});
+
+	Nodes.Sort([](const TSharedPtr<FDMXFixturePatchNode>& NodeA, const TSharedPtr<FDMXFixturePatchNode>& NodeB)
+			{
+				return NodeA->GetZOrder() > NodeB->GetZOrder();
+			});
+
+	if (Nodes.IsEmpty())
+	{
+		return nullptr;
+	}
+	else
+	{
+		return Nodes[0]->GetFixturePatch().Get();
+	}
+}
+
+TArray<UDMXEntityFixturePatch*> SDMXPatchedUniverse::GetFixturePatchesOnChannelID(uint32 ChannelID) const
+{
+	TArray<TSharedPtr<FDMXFixturePatchNode>> Nodes(PatchedNodes);
+	Nodes.RemoveAll([ChannelID](const TSharedPtr<FDMXFixturePatchNode>& Node)
+		{
+			if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
+			{
+				const uint32 PatchStartingChannel = FixturePatch->GetStartingChannel();
+				const TRange<uint32> FixturePatchRange(PatchStartingChannel, PatchStartingChannel + FixturePatch->GetChannelSpan());
+
+				return !FixturePatchRange.Contains(ChannelID);
+			}
+			return true;
+		});
+
+	TArray<UDMXEntityFixturePatch*> Result;
+	for (const TSharedPtr<FDMXFixturePatchNode>& Node : Nodes)
+	{
+		if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
+		{
+			Result.Add(FixturePatch);
+		}
+	}
+
+	return Result;
+}
+
 UDMXLibrary* SDMXPatchedUniverse::GetDMXLibrary() const
 {
 	if (TSharedPtr<FDMXEditor> DMXEditor = DMXEditorPtr.Pin())
@@ -475,6 +728,99 @@ UDMXLibrary* SDMXPatchedUniverse::GetDMXLibrary() const
 		return DMXEditor->GetDMXLibrary();
 	}
 	return nullptr;
+}
+
+void SDMXPatchedUniverse::RegisterCommands()
+{
+	if (CommandList.IsValid())
+	{
+		return;
+	}
+
+	// listen to common editor shortcuts for copy/paste etc
+	CommandList = MakeShared<FUICommandList>();
+}
+
+TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 ChannelID) const
+{
+	UDMXLibrary* DMXLibrary = GetDMXLibrary();
+	if (!DMXLibrary)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	TArray<UDMXEntityFixturePatch*> FixturePatchesOnChannel = GetFixturePatchesOnChannelID(ChannelID);
+	if (FixturePatchesOnChannel.Num() == 0)
+	{
+		return SNullWidget::NullWidget;
+	}
+
+	constexpr bool bCloseWindowAfterMenuSelection = true;
+	FMenuBuilder MenuBuilder(bCloseWindowAfterMenuSelection, CommandList);
+
+	// Add a context menu
+	if (FixturePatchesOnChannel.Num() > 1)
+	{
+		// Common interactions
+		MenuBuilder.BeginSection("FixturePatchInteractions");
+		{
+			// Select All
+			const FUIAction Action(
+				FExecuteAction::CreateLambda([FixturePatchesOnChannel, this]()
+					{
+						if (SharedData.IsValid())
+						{
+							TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> WeakFixturePatchesOnChannel;
+							for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesOnChannel)
+							{
+								WeakFixturePatchesOnChannel.Add(FixturePatch);
+							}
+							SharedData->SelectFixturePatches(WeakFixturePatchesOnChannel);
+						}
+					}));
+
+			const FText SelectAllText = LOCTEXT("SelectAllFixturePatches", "Select all");
+			const TSharedRef<SWidget> Widget =
+				SNew(STextBlock)
+				.Text(SelectAllText);
+
+			MenuBuilder.AddMenuEntry(Action, Widget);
+		}
+		MenuBuilder.EndSection();
+
+		// Single fixture patch selection
+		MenuBuilder.BeginSection("BringFixturePatchForward", LOCTEXT("BringFixturePatchForwardLabel", "Bring Forward"));
+		{
+			const TArray<UDMXEntityFixturePatch*> DMXFixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+			FixturePatchesOnChannel.Sort([&DMXFixturePatchesInLibrary](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+				{
+					return DMXFixturePatchesInLibrary.IndexOfByKey(&FixturePatchA) < DMXFixturePatchesInLibrary.IndexOfByKey(&FixturePatchB);
+				});
+
+			for (TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch : FixturePatchesOnChannel)
+			{
+				const FUIAction Action(
+					FExecuteAction::CreateLambda([this, WeakFixturePatch]()
+						{
+							if (SharedData.IsValid() && WeakFixturePatch.IsValid())
+							{
+								SharedData->SelectFixturePatch(WeakFixturePatch.Get());
+							}
+						})
+				);
+
+				const FText FixturePatchName = FText::FromString(WeakFixturePatch->Name);
+				const TSharedRef<SWidget> Widget =
+					SNew(STextBlock)
+					.Text(FixturePatchName);
+
+				MenuBuilder.AddMenuEntry(Action, Widget);
+			}
+		}
+		MenuBuilder.EndSection();
+	}
+
+	return MenuBuilder.MakeWidget();
 }
 
 #undef LOCTEXT_NAMESPACE

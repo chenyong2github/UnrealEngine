@@ -14,14 +14,21 @@ class FDMXFixturePatchNode;
 class UDMXEntityFixturePatch;
 class UDMXLibrary;
 
+struct FSlateColorBrush;
+class SBorder;
+template <typename OptionType> class SComboBox;
+
 
 class SDMXFixturePatchFragment
-	: public SCompoundWidget
+	: public SCompoundWidget 
 {
 public:
 	SLATE_BEGIN_ARGS(SDMXFixturePatchFragment)
 		: _DMXEditor(nullptr)
-		, _Text(FText::GetEmpty())
+		, _IsHead(true)
+		, _IsTail(true)
+		, _IsText(false)
+		, _IsConflicting(false)
 		, _Column(-1)
 		, _Row(-1)
 		, _ColumnSpan(1)
@@ -29,7 +36,13 @@ public:
 	{}
 		SLATE_ARGUMENT(TWeakPtr<FDMXEditor>, DMXEditor)
 
-		SLATE_ATTRIBUTE(FText, Text)
+		SLATE_ARGUMENT(bool, IsHead)
+
+		SLATE_ARGUMENT(bool, IsTail)
+
+		SLATE_ARGUMENT(bool, IsText)
+
+		SLATE_ARGUMENT(bool, IsConflicting)
 
 		SLATE_ARGUMENT(int32, Column)
 
@@ -42,11 +55,17 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget */
-	void Construct(const FArguments& InArgs, TSharedPtr<FDMXFixturePatchNode> InPatchNode);
+	void Construct(const FArguments& InArgs, const TSharedPtr<FDMXFixturePatchNode>& InFixturePatchNode, const TArray<TSharedPtr<FDMXFixturePatchNode>>& InFixturePatchNodeGroup);
+
+	/** Refreshes the widget */
+	void Refresh(const TArray<TSharedPtr<FDMXFixturePatchNode>>& InFixturePatchNodeGroup);
 
 	/** Sets wether the fragment should be highlit */
-	void SetHighlight(bool bEnabled);
-	
+	void SetHighlight(bool bEnabled) { bHighlight = bEnabled; }
+
+	/** Sets if the fragment is conflicting with others */
+	void SetConflicting(bool bConflicting) { bIsConflicting = bConflicting; if (Column == 0 && Row == 0 && bIsConflicting) UE_LOG(LogTemp, Warning, TEXT("%s set to conflicting"), *FixturePatchNameText.ToString()); }
+
 	/** Returns the Column of the fragment */
 	int32 GetColumn() const { return Column; }
 
@@ -65,40 +84,75 @@ public:
 	/** Sets the Column span of the fragment */
 	void SetColumnSpan(int32 NewColumnSpan) { ColumnSpan = NewColumnSpan; }
 
-protected:
-	// Begin SWidget interface
-	virtual int32 OnPaint(const FPaintArgs& Args, const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId, const FWidgetStyle& InWidgetStyle, bool bParentEnabled) const override;
-	// End SWidget interface
+private:
+	/** Called when Fixture Patch Shared Data selected a Fixture Patch */
+	void OnFixturePatchSharedDataSelectedFixturePatch();
 
-	/** Gets the text displayed on the fragment */
-	FText GetText() const;
+	/** Updates the Fixture Patch Name Text */
+	void UpdateFixturePatchNameText();
 
-	/** Gets the tooltip text displayed on the fragment */
-	FText GetToolTipText() const;
+	/** Updates the Node Group Text */
+	void UpdateNodeGroupText();
 
-	/** Gets the color of the fragment */
-	FSlateColor GetColor() const;
+	/** Updates the Padding of the outermost Border */
+	void UpdateBorderPadding();
 
-	/** Gets the shadow brush of the fragment, depending on wether it's selected */
-	const FSlateBrush* GetShadowBrush(bool bSelected) const;
+	/** Updates the bTopmost memeber from the ZOrder of the node */
+	void UpdateIsTopmost();
 
-	/** Column of the fragment */
+	/** Returns the Border image */
+	const FSlateBrush& GetBorderImage() const;
+
+	/** Gets the Text Widget */
+	TSharedRef<SWidget> CreateTextWidget();
+
+	/** If true, the patch has the highest ZOrder in its node group */
+	bool bIsTopmost = false;
+
+	/** If true this is the Head of the Fixture Patch */
+	bool bIsHead = false;
+
+	/** If true this is the Tail of the Fixture Patch */
+	bool bIsTail = false;
+
+	/** If true, this fragment shows text */
+	bool bIsText;
+
+	/** Column of the Fragment */
 	int32 Column;
 
-	/** Row of the fragment */
+	/** Row of the Fragment */
 	int32 Row;
 
-	/** Column span of the fragment */
+	/** Column span of the Fragment */
 	int32 ColumnSpan;
 
-	/** If true, the widget shows a highlight */
+	/** If true, the Widget shows a highlight */
 	bool bHighlight = false;
 
-	/** Size of the shadow */
-	FVector2D ShadowSize;
+	/** If true, the Widget displays a conflict background */
+	bool bIsConflicting = false;
+
+	/** The Fixture Patch Name Text the Node displays */
+	FText FixturePatchNameText;
+
+	/** The Node Group Text the Node displays */
+	FText NodeGroupText;
+
+	/** The padding of the outermost border */
+	FMargin BorderPadding;
+	
+	/** The border that holds the color or text content */
+	TSharedPtr<SBorder> ContentBorder;
+
+	/** Color Brush the widget uses */
+	TSharedPtr<FSlateColorBrush> ColorBrush;
 
 	/** Fixture Patch Node being displayed by this widget */
-	TSharedPtr<FDMXFixturePatchNode> PatchNode;
+	TSharedPtr<FDMXFixturePatchNode> FixturePatchNode;
+
+	/** The group of nodes (same Universe, same Channel) this widget belongs to */
+	TArray<TSharedPtr<FDMXFixturePatchNode>> FixturePatchNodeGroup;
 
 	/** Weak DMXEditor refrence */
 	TWeakPtr<FDMXEditor> DMXEditorPtr;
