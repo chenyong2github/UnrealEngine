@@ -248,12 +248,12 @@ public:
 						TEXT("Call"), CallName,
 						TEXT("HitOrMiss"), HitOrMiss == EHitOrMiss::Hit ? TEXT("Hit") : TEXT("Miss"),
 						TEXT("Count"), GetAccumulatedValue(HitOrMiss, EStatType::Counter, bGameThread),
-						TEXT("TimeSec"), GetAccumulatedValue(HitOrMiss, EStatType::Cycles, bGameThread) * FPlatformTime::GetSecondsPerCycle(),
-						TEXT("MB"), GetAccumulatedValue(HitOrMiss, EStatType::Bytes, bGameThread) / (1024.0 * 1024.0),
+						TEXT("TimeSec"), (double)GetAccumulatedValue(HitOrMiss, EStatType::Cycles, bGameThread) * FPlatformTime::GetSecondsPerCycle(),
+						TEXT("MB"), (double)GetAccumulatedValue(HitOrMiss, EStatType::Bytes, bGameThread) / (1024.0 * 1024.0),
 						TEXT("MB/s"), GetAccumulatedValue(HitOrMiss, EStatType::Cycles, bGameThread) == 0
 							? 0.0
-							: GetAccumulatedValue(HitOrMiss, EStatType::Bytes, bGameThread) / (1024.0 * 1024.0) /
-							 (GetAccumulatedValue(HitOrMiss, EStatType::Cycles, bGameThread) * FPlatformTime::GetSecondsPerCycle()),
+							: (double)GetAccumulatedValue(HitOrMiss, EStatType::Bytes, bGameThread) / (1024.0 * 1024.0) /
+							 ((double)GetAccumulatedValue(HitOrMiss, EStatType::Cycles, bGameThread) * FPlatformTime::GetSecondsPerCycle()),
 						TEXT("Node"), NodeName
 						));
 				}

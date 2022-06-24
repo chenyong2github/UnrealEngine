@@ -118,7 +118,7 @@ uint32 UE::FStallDetectorRunnable::Run()
 		}
 
 		// Sleep an interval, the resolution at which we want to detect an overage
-		FPlatformProcess::SleepNoStats(0.005);
+		FPlatformProcess::SleepNoStats(0.005f);
 	}
 
 	return 0;
@@ -184,7 +184,7 @@ void UE::FStallDetectorStats::TabulateStats(TArray<TabulatedResult>& TabulatedRe
 			FScopeLock Lock(&InStats->StatsSection);
 			if (InStats->TriggerCount.Get() && InStats->BudgetSeconds > 0.0)
 			{
-				OverageRatio = (InStats->OverageSeconds.Get() / InStats->TriggerCount.Get()) / InStats->BudgetSeconds;
+				OverageRatio = (InStats->OverageSeconds.Get() / (double)InStats->TriggerCount.Get()) / InStats->BudgetSeconds;
 			}
 		}
 
@@ -586,7 +586,7 @@ void UE::FStallDetector::Startup()
 	{
 		UE_LOG(LogStall, Log, TEXT("Startup..."));
 
-		check(FPlatformTime::GetSecondsPerCycle());
+		check(FPlatformTime::GetSecondsPerCycle() > 0.0);
 
 		// Cannot be a global due to clock member
 		Runnable = new FStallDetectorRunnable();
