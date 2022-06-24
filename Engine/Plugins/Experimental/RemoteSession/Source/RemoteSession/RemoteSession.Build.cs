@@ -21,6 +21,7 @@ public class RemoteSession : ModuleRules
 				"Core",
 				"MediaIOCore",
 				"BackChannel",
+				"ApplicationCore",
 				// ... add other public dependencies that you statically link with here ...
 			}
 		);
