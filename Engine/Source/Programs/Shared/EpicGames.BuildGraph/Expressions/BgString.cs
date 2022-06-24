@@ -296,4 +296,103 @@ namespace EpicGames.BuildGraph.Expressions
 	}
 
 	#endregion
+
+	/// <summary>
+	/// Style for a string option
+	/// </summary>
+	public enum BgStringOptionStyle
+	{
+		/// <summary>
+		/// Free-form text entry
+		/// </summary>
+		Text,
+
+		/// <summary>
+		/// List of options
+		/// </summary>
+		DropList,
+	}
+
+	/// <summary>
+	/// A string option expression
+	/// </summary>
+	public class BgStringOption : BgString
+	{
+		/// <summary>
+		/// Name of the option
+		/// </summary>
+		public BgString Name { get; }
+
+		/// <summary>
+		/// Label to display next to the option
+		/// </summary>
+		public BgString? Label { get; }
+
+		/// <summary>
+		/// Help text to display for the user
+		/// </summary>
+		public BgString? Description { get; }
+
+		/// <summary>
+		/// Default value for the option
+		/// </summary>
+		public BgString? DefaultValue { get; set; }
+
+		/// <summary>
+		/// Style for this option
+		/// </summary>
+		public BgStringOptionStyle Style { get; }
+
+		/// <summary>
+		/// Regex for validating values for the option
+		/// </summary>
+		public BgString? Pattern { get; set; }
+
+		/// <summary>
+		/// Message to display if validation fails
+		/// </summary>
+		public BgString? PatternFailed { get; set; }
+
+		/// <summary>
+		/// List of values to choose from
+		/// </summary>
+		public BgList<BgString>? Values { get; set; }
+
+		/// <summary>
+		/// Matching list of descriptions for each value
+		/// </summary>
+		public BgList<BgString>? ValueDescriptions { get; set; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgStringOption(string name, BgString? label = null, BgString? description = null, BgString? defaultValue = null, BgStringOptionStyle style = BgStringOptionStyle.Text, BgString? pattern = null, BgString? patternFailed = null, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null)
+			: base(BgExprFlags.None)
+		{
+			Name = name;
+			Label = label;
+			Description = description;
+			Style = style;
+			DefaultValue = defaultValue;
+			Pattern = pattern;
+			PatternFailed = patternFailed;
+			Values = values;
+			ValueDescriptions = valueDescriptions;
+		}
+
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.StrOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteUnsignedInteger((int)Style);
+			writer.WriteExpr(DefaultValue ?? BgString.Empty);
+			writer.WriteExpr(Pattern ?? BgString.Empty);
+			writer.WriteExpr(PatternFailed ?? BgString.Empty);
+			writer.WriteExpr(Values ?? BgList<BgString>.Empty);
+			writer.WriteExpr(ValueDescriptions ?? BgList<BgString>.Empty);
+		}
+	}
 }

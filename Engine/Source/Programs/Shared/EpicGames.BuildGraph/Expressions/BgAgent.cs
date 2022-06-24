@@ -8,7 +8,7 @@ using EpicGames.BuildGraph.Expressions;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
-namespace EpicGames.BuildGraph
+namespace EpicGames.BuildGraph.Expressions
 {
 	/// <summary>
 	/// Describes an agent that can execute execute build steps

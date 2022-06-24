@@ -709,7 +709,7 @@ namespace AutomationTool
 				NodeToExecutor[Node] = executor;
 				return executor.Bind(NameToTask, TagNameToNodeOutput, Logger);
 			}
-			else if (Node is BgBytecodeNode BytecodeNode)
+			else if (Node is BgExpressionNodeDef BytecodeNode)
 			{
 				BgBytecodeNodeExecutor executor = new BgBytecodeNodeExecutor(BytecodeNode);
 				NodeToExecutor[Node] = executor;

@@ -164,4 +164,60 @@ namespace EpicGames.BuildGraph.Expressions
 	}
 
 	#endregion
+
+	/// <summary>
+	/// A boolean option expression
+	/// </summary>
+	public class BgBoolOption : BgBool
+	{
+		/// <summary>
+		/// Name of the option
+		/// </summary>
+		public BgString Name { get; }
+
+		/// <summary>
+		/// Label to display next to the option
+		/// </summary>
+		public BgString? Label { get; }
+
+		/// <summary>
+		/// Help text to display for the user
+		/// </summary>
+		public BgString? Description { get; }
+
+		/// <summary>
+		/// Default value for the option
+		/// </summary>
+		public BgBool? DefaultValue { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgBoolOption(BgString name, BgString? description = null, BgBool? defaultValue = null)
+			: this(name, null, description, defaultValue)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgBoolOption(BgString name, BgString? label, BgString? description, BgBool? defaultValue)
+			: base(BgExprFlags.None)
+		{
+			Name = name;
+			Label = label;
+			Description = description;
+			DefaultValue = defaultValue;
+		}
+
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.BoolOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteExpr(DefaultValue ?? BgBool.False);
+		}
+	}
 }

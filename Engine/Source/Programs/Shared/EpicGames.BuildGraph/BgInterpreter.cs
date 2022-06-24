@@ -459,12 +459,12 @@ namespace EpicGames.BuildGraph
 
 				case BgOpcode.FileSetFromNode:
 					{
-						BgBytecodeNode node = (BgBytecodeNode)Evaluate(frame);
+						BgExpressionNodeDef node = (BgExpressionNodeDef)Evaluate(frame);
 						return node.InputDependencies.SelectMany(x => x.Outputs).Concat(node.Outputs).ToArray();
 					}
 				case BgOpcode.FileSetFromNodeOutput:
 					{
-						BgBytecodeNode node = (BgBytecodeNode)Evaluate(frame);
+						BgExpressionNodeDef node = (BgExpressionNodeDef)Evaluate(frame);
 						int outputIndex = (int)ReadUnsignedInteger(frame);
 						return new[] { node.Outputs[outputIndex] };
 					}
@@ -579,7 +579,7 @@ namespace EpicGames.BuildGraph
 
 						string[] outputNames = Enumerable.Range(0, taggedOutputCount).Select(x => BgNode.GetDefaultTagName(name, x)).ToArray();
 
-						BgBytecodeNode node = new BgBytecodeNode(agent, name, method, arguments, inputs, outputNames, inputDependencies.ToArray(), orderDependencies.ToArray(), Array.Empty<FileReference>(), labels);
+						BgExpressionNodeDef node = new BgExpressionNodeDef(agent, name, method, arguments, inputs, outputNames, inputDependencies.ToArray(), orderDependencies.ToArray(), Array.Empty<FileReference>(), labels);
 						return node;
 					}
 				case BgOpcode.Agent:
@@ -614,25 +614,25 @@ namespace EpicGames.BuildGraph
 					}
 				case BgOpcode.Graph:
 					{
-						List<BgBytecodeNode> nodes = EvaluateList<BgBytecodeNode>(frame);
+						List<BgExpressionNodeDef> nodes = EvaluateList<BgExpressionNodeDef>(frame);
 						List<BgBytecodeAggregateDef> aggregates = EvaluateList<BgBytecodeAggregateDef>(frame);
 
 						BgGraphDef graph = new BgGraphDef();
 						foreach (BgBytecodeAggregateDef aggregate in aggregates)
 						{
 							graph.NameToAggregate[aggregate.Name] = aggregate;
-							nodes.AddRange(aggregate.RequiredNodes.Select(x => (BgBytecodeNode)x));
+							nodes.AddRange(aggregate.RequiredNodes.Select(x => (BgExpressionNodeDef)x));
 						}
 
 						HashSet<BgNodeDef> uniqueNodes = new HashSet<BgNodeDef>();
 						HashSet<BgAgentDef> uniqueAgents = new HashSet<BgAgentDef>();
-						foreach (BgBytecodeNode node in nodes)
+						foreach (BgExpressionNodeDef node in nodes)
 						{
 							RegisterNode(graph, node, uniqueNodes, uniqueAgents);
 						}
 
 						HashSet<BgLabelDef> labels = new HashSet<BgLabelDef>();
-						foreach (BgBytecodeNode node in nodes)
+						foreach (BgExpressionNodeDef node in nodes)
 						{
 							foreach (BgLabelDef label in node.Labels)
 							{
@@ -659,11 +659,11 @@ namespace EpicGames.BuildGraph
 			}
 		}
 
-		void RegisterNode(BgGraphDef graph, BgBytecodeNode node, HashSet<BgNodeDef> uniqueNodes, HashSet<BgAgentDef> uniqueAgents)
+		void RegisterNode(BgGraphDef graph, BgExpressionNodeDef node, HashSet<BgNodeDef> uniqueNodes, HashSet<BgAgentDef> uniqueAgents)
 		{
 			if (uniqueNodes.Add(node))
 			{
-				foreach (BgBytecodeNode inputNode in node.InputDependencies)
+				foreach (BgExpressionNodeDef inputNode in node.InputDependencies)
 				{
 					RegisterNode(graph, inputNode, uniqueNodes, uniqueAgents);
 				}

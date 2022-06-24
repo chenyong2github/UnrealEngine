@@ -10,6 +10,7 @@ using System.Runtime.CompilerServices;
 using System.Text;
 using EpicGames.Core;
 using EpicGames.Serialization;
+using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
 {

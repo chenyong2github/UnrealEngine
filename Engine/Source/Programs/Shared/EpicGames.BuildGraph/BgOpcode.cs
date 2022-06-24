@@ -2,6 +2,7 @@
 
 using System;
 using EpicGames.Serialization;
+using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
 {
@@ -166,7 +167,7 @@ namespace EpicGames.BuildGraph
 		StrReplace = 0x28,
 
 		/// <summary>
-		/// A string option (see <see cref="BgStrOption"/>)
+		/// A string option (see <see cref="BgStringOption"/>)
 		/// </summary>
 		StrOption = 0x29,
 

@@ -2,10 +2,9 @@
 
 using System;
 using System.Collections.Generic;
-using EpicGames.BuildGraph.Expressions;
 using Microsoft.Extensions.Logging;
 
-namespace EpicGames.BuildGraph
+namespace EpicGames.BuildGraph.Expressions
 {
 	/// <summary>
 	/// Specification for a graph in fluent syntax

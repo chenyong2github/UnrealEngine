@@ -226,4 +226,66 @@ namespace EpicGames.BuildGraph.Expressions
 	}
 
 	#endregion
+
+	/// <summary>
+	/// An integer option expression
+	/// </summary>
+	public class BgIntOption : BgInt
+	{
+		/// <summary>
+		/// Name of the option
+		/// </summary>
+		public BgString Name { get; }
+
+		/// <summary>
+		/// Label to display next to the option
+		/// </summary>
+		public BgString? Label { get; }
+
+		/// <summary>
+		/// Help text to display for the user
+		/// </summary>
+		public BgString? Description { get; }
+
+		/// <summary>
+		/// Default value for the option
+		/// </summary>
+		public BgInt? DefaultValue { get; }
+
+		/// <summary>
+		/// Minimum allowed value
+		/// </summary>
+		public BgInt? MinValue { get; }
+
+		/// <summary>
+		/// Maximum allowed value
+		/// </summary>
+		public BgInt? MaxValue { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgIntOption(string name, BgString? description = null, BgInt? defaultValue = null, BgInt? minValue = null, BgInt? maxValue = null, BgString? label = null)
+			: base(BgExprFlags.None)
+		{
+			Name = name;
+			Label = label;
+			Description = description;
+			DefaultValue = defaultValue;
+			MinValue = minValue;
+			MaxValue = maxValue;
+		}
+
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.IntOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteExpr(DefaultValue ?? (BgInt)0);
+			writer.WriteExpr(MinValue ?? (BgInt)(-1));
+			writer.WriteExpr(MaxValue ?? (BgInt)(-1));
+		}
+	}
 }

@@ -7,10 +7,9 @@ using System.Linq.Expressions;
 using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
-using EpicGames.BuildGraph.Expressions;
 using EpicGames.Core;
 
-namespace EpicGames.BuildGraph
+namespace EpicGames.BuildGraph.Expressions
 {
 	/// <summary>
 	/// Exception for constructing nodes

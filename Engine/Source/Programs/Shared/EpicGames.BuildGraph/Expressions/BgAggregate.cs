@@ -1,9 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using EpicGames.BuildGraph.Expressions;
 
-namespace EpicGames.BuildGraph
+namespace EpicGames.BuildGraph.Expressions
 {
 	/// <summary>
 	/// Specification for an aggregate target in the graph

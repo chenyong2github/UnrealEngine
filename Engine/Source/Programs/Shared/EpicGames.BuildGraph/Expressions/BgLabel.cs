@@ -2,9 +2,8 @@
 
 using System;
 using System.Linq;
-using EpicGames.BuildGraph.Expressions;
 
-namespace EpicGames.BuildGraph
+namespace EpicGames.BuildGraph.Expressions
 {
 	/// <summary>
 	/// Specification for a label

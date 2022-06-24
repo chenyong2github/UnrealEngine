@@ -8,6 +8,7 @@ using System.Reflection;
 using System.Threading.Tasks;
 using System.Xml;
 using EpicGames.Core;
+using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
 {
@@ -182,7 +183,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Node constructed from a bytecode expression
 	/// </summary>
-	public class BgBytecodeNode : BgNodeDef
+	public class BgExpressionNodeDef : BgNodeDef
 	{
 		/// <summary>
 		/// Agent declaring this node
@@ -207,7 +208,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgBytecodeNode(BgAgentDef agent, string name, BgMethod method, IReadOnlyList<object> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens, IReadOnlyList<BgLabelDef> labels)
+		public BgExpressionNodeDef(BgAgentDef agent, string name, BgMethod method, IReadOnlyList<object> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens, IReadOnlyList<BgLabelDef> labels)
 			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
 		{
 			Agent = agent;

@@ -115,7 +115,7 @@ namespace AutomationTool
 			BgBoolOption HostPlatformDDCOnly = new BgBoolOption("HostPlatformDDCOnly", "Whether to include DDC for the host platform only", true);
 			BgBoolOption SignExecutables = new BgBoolOption("SignExecutables", "Sign the executables produced where signing is available", false);
 
-			BgStrOption AnalyticsTypeOverride = new BgStrOption("AnalyticsTypeOverride", "Identifier for analytic events to send", "");
+			BgStringOption AnalyticsTypeOverride = new BgStringOption("AnalyticsTypeOverride", "Identifier for analytic events to send", "");
 			BgBool EmbedSrcSrvInfo = new BgBoolOption("EmbedSrcSrvInfo", "Whether to add Source indexing to Windows game apps so they can be added to a symbol server", false);
 
 			BgList<BgString> DefaultGameConfigurations = BgList<BgString>.Create(nameof(UnrealTargetConfiguration.DebugGame), nameof(UnrealTargetConfiguration.Development), nameof(UnrealTargetConfiguration.Shipping));
@@ -124,10 +124,10 @@ namespace AutomationTool
 
 			BgBoolOption WithFullDebugInfo = new BgBoolOption("WithFullDebugInfo", "Generate full debug info for binary editor and packaged application builds", false);
 
-			BgStrOption BuiltDirectory = new BgStrOption("BuiltDirectory", "Directory for outputting the built engine", RootDir + "/LocalBuilds/Engine");
+			BgStringOption BuiltDirectory = new BgStringOption("BuiltDirectory", "Directory for outputting the built engine", RootDir + "/LocalBuilds/Engine");
 
-			BgStrOption CrashReporterAPIURL = new BgStrOption("CrashReporterAPIURL", "The URL to use to talk to the CrashReporterClient API.", "");
-			BgStrOption CrashReporterAPIKey = new BgStrOption("CrashReporterAPIKey", "The API key to use to talk to the CrashReporterClient API.", "");
+			BgStringOption CrashReporterAPIURL = new BgStringOption("CrashReporterAPIURL", "The URL to use to talk to the CrashReporterClient API.", "");
+			BgStringOption CrashReporterAPIKey = new BgStringOption("CrashReporterAPIKey", "The API key to use to talk to the CrashReporterClient API.", "");
 
 			BgString CrashReporterCompileArgs = "";
 			CrashReporterCompileArgs = CrashReporterCompileArgs.If(CrashReporterAPIURL != "" & CrashReporterAPIKey != "", BgString.Format("-define:CRC_TELEMETRY_URL=\"{0}\" -define:CRC_TELEMETRY_KEY_DEV=\"{1}\" -define:CRC_TELEMETRY_KEY_RELEASE=\"{1}\" -OverrideBuildEnvironment", CrashReporterAPIURL, CrashReporterAPIKey));

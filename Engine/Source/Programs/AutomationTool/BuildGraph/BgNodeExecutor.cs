@@ -65,9 +65,9 @@ namespace AutomationTool
 			public override bool IsBuildMachine => CommandUtils.IsBuildMachine;
 		}
 
-		readonly BgBytecodeNode Node;
+		readonly BgExpressionNodeDef Node;
 
-		public BgBytecodeNodeExecutor(BgBytecodeNode node)
+		public BgBytecodeNodeExecutor(BgExpressionNodeDef node)
 		{
 			Node = node;
 		}
