@@ -137,8 +137,8 @@ class CORE_API FThreadHeartBeat : public FRunnable
 
 	bool bHangsAreFatal;
 
-	/** Global suspended count */
 	FThreadSafeCounter GlobalSuspendCount;
+	int32 CheckpointSuspendCount;
 
 	FThreadHeartBeatClock Clock;
 
