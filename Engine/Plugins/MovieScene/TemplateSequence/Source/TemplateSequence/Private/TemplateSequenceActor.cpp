@@ -45,13 +45,13 @@ void ATemplateSequenceActor::PostInitializeComponents()
 {
 	Super::PostInitializeComponents();
 
+	SequencePlayer->InitializeForTick(this);
+
 	InitializePlayer();
 }
 
 void ATemplateSequenceActor::BeginPlay()
 {
-	UMovieSceneSequenceTickManager::Get(this)->RegisterSequenceActor(this);
-
 	Super::BeginPlay();
 	
 	if (PlaybackSettings.bAutoPlay)
@@ -66,19 +66,10 @@ void ATemplateSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 	{
 		// See comment in LevelSequenceActor.cpp
 		SequencePlayer->Stop();
+		SequencePlayer->TearDown();
 	}
-
-	UMovieSceneSequenceTickManager::Get(this)->UnregisterSequenceActor(this);
 
 	Super::EndPlay(EndPlayReason);
-}
-
-void ATemplateSequenceActor::TickFromSequenceTickManager(float DeltaSeconds)
-{
-	if (SequencePlayer)
-	{
-		SequencePlayer->UpdateAsync(DeltaSeconds);
-	}
 }
 
 UTemplateSequence* ATemplateSequenceActor::GetSequence() const

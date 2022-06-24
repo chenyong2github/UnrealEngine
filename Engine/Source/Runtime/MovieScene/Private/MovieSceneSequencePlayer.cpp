@@ -117,6 +117,7 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, DurationFrames(0)
 	, DurationSubFrames(0.f)
 	, CurrentNumLoops(0)
+	, CurrentRunner(nullptr)
 {
 	PlayPosition.Reset(FFrameTime(0));
 
@@ -729,9 +730,9 @@ TOptional<TRange<FFrameTime>> UMovieSceneSequencePlayer::GetPauseRange(const FFr
 
 UMovieSceneEntitySystemLinker* UMovieSceneSequencePlayer::ConstructEntitySystemLinker()
 {
-	if (ensure(TickManager) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
+	if (ensure(TickManager && RegisteredTickInterval.IsSet()) && !EnumHasAnyFlags(Sequence->GetFlags(), EMovieSceneSequenceFlags::BlockingEvaluation))
 	{
-		return TickManager->GetLinker();
+		return TickManager->GetLinker(RegisteredTickInterval.GetValue());
 	}
 
 	return UMovieSceneEntitySystemLinker::CreateLinker(GetPlaybackContext(), UE::MovieScene::EEntitySystemLinkerRole::Standalone);
@@ -837,6 +838,18 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 		InitializeForTick(GetPlaybackContext());
 	}
 
+	FMovieSceneSequenceTickInterval TickInterval = PlaybackSettings.bInheritTickIntervalFromOwner
+		? FMovieSceneSequenceTickInterval::GetInheritedInterval(this)
+		: PlaybackSettings.TickInterval;
+
+	if (RegisteredTickInterval.IsSet() && RegisteredTickInterval.GetValue() != TickInterval)
+	{
+		TickManager->UnregisterTickClient(this);
+	}
+
+	RegisteredTickInterval = TickInterval;
+	TickManager->RegisterTickClient(RegisteredTickInterval.GetValue(), this);
+
 	RootTemplateInstance.Initialize(*Sequence, *this, nullptr);
 
 	LatentActionManager.ClearLatentActions();
@@ -887,6 +900,12 @@ void UMovieSceneSequencePlayer::Update(const float DeltaSeconds)
 	{
 		LastTickGameTimeSeconds = CurrentWorldTime;
 	}
+}
+
+void UMovieSceneSequencePlayer::TickFromSequenceTickManager(float DeltaSeconds, FMovieSceneEntitySystemRunner* InRunner)
+{
+	TGuardValue<FMovieSceneEntitySystemRunner*> RunnerGuard(CurrentRunner, InRunner);
+	UpdateAsync(DeltaSeconds);
 }
 
 void UMovieSceneSequencePlayer::UpdateAsync(const float DeltaSeconds)
@@ -1128,11 +1147,27 @@ void UMovieSceneSequencePlayer::UpdateMovieSceneInstance(FMovieSceneEvaluationRa
 		// Evaluate the sequence synchronously.
 		RootTemplateInstance.Evaluate(Context, *this);
 	}
+	else if (CurrentRunner)
+	{
+		CurrentRunner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+	}
 	else
 	{
-		// Queue an evaluation on the tick manager.
-		FMovieSceneEntitySystemRunner& Runner = TickManager->GetRunner();
-		Runner.QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+		// Look up the runner based on our tick interval
+		FMovieSceneEntitySystemRunner* Runner = TickManager->GetRunner(RegisteredTickInterval.GetValue());
+		if (ensure(Runner))
+		{
+			Runner->QueueUpdate(Context, RootTemplateInstance.GetRootInstanceHandle());
+		}
+	}
+}
+
+void UMovieSceneSequencePlayer::TearDown()
+{
+	if (TickManager)
+	{
+		TickManager->UnregisterTickClient(this);
+		TickManager = nullptr;
 	}
 }
 
@@ -1641,7 +1676,7 @@ void UMovieSceneSequencePlayer::BeginDestroy()
 {
 	RootTemplateInstance.BeginDestroy();
 
-	TickManager = nullptr;
+	TearDown();
 
 	Super::BeginDestroy();
 }
@@ -1700,7 +1735,10 @@ void UMovieSceneSequencePlayer::RunLatentActions()
 	}
 	else
 	{
-		LatentActionManager.RunLatentActions(RootTemplateInstance.GetEntitySystemRunner());
+		LatentActionManager.RunLatentActions([this]
+		{
+			this->RootTemplateInstance.GetEntitySystemRunner().Flush();
+		});
 	}
 }
 

@@ -41,12 +41,6 @@ void UActorSequenceComponent::BeginPlay()
 		{
 			SequencePlayer->Play();
 		}
-
-		UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager();
-		if (ensure(TickManager))
-		{
-			TickManager->RegisterSequenceActor(GetOwner(), this);
-		}
 	}
 }
 
@@ -57,11 +51,7 @@ void UActorSequenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		// Stop the internal sequence player during EndPlay when it's safer
 		// to modify other actor's state during state restoration.
 		SequencePlayer->Stop();
-
-		if (UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager())
-		{
-			TickManager->UnregisterSequenceActor(GetOwner(), this);
-		}
+		SequencePlayer->TearDown();
 	}
 	
 	Super::EndPlay(EndPlayReason);
@@ -70,13 +60,5 @@ void UActorSequenceComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 void UActorSequenceComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaSeconds, TickType, ThisTickFunction);
-}
-
-void UActorSequenceComponent::TickFromSequenceTickManager(float DeltaSeconds)
-{
-	if (SequencePlayer)
-	{
-		SequencePlayer->UpdateAsync(DeltaSeconds);
-	}
 }
 

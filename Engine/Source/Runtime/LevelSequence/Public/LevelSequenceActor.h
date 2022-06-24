@@ -10,7 +10,6 @@
 #include "LevelSequencePlayer.h"
 #include "MovieSceneBindingOwnerInterface.h"
 #include "MovieSceneBindingOverrides.h"
-#include "MovieSceneSequenceTickManager.h"
 #include "LevelSequenceActor.generated.h"
 
 class ULevelSequenceBurnIn;
@@ -61,7 +60,6 @@ protected:
 UCLASS(hideCategories=(Rendering, Physics, HLOD, Activation, Input))
 class LEVELSEQUENCE_API ALevelSequenceActor
 	: public AActor
-	, public IMovieSceneSequenceActor
 	, public IMovieScenePlaybackClient
 	, public IMovieSceneBindingOwnerInterface
 {
@@ -258,10 +256,6 @@ public:
 	const TArray<FMovieSceneObjectBindingID>& FindNamedBindings(FName Tag) const;
 
 protected:
-
-	//~ Begin IMovieSceneSequenceActor interface
-	virtual void TickFromSequenceTickManager(float DeltaSeconds) override;
-	//~ End IMovieSceneSequenceActor interface
 
 	//~ Begin IMovieScenePlaybackClient interface
 	virtual bool RetrieveBindingOverrides(const FGuid& InBindingId, FMovieSceneSequenceID InSequenceID, TArray<UObject*, TInlineAllocator<1>>& OutObjects) const override;

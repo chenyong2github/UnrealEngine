@@ -171,12 +171,6 @@ void ALevelSequenceActor::PostInitializeComponents()
 
 void ALevelSequenceActor::BeginPlay()
 {
-	UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager();
-	if (ensure(TickManager))
-	{
-		TickManager->RegisterSequenceActor(this);
-	}
-
 	Super::BeginPlay();
 
 	if (PlaybackSettings.bAutoPlay)
@@ -198,21 +192,10 @@ void ALevelSequenceActor::EndPlay(const EEndPlayReason::Type EndPlayReason)
 		SequencePlayer->OnPlayReverse.RemoveAll(this);
 		SequencePlayer->OnStop.RemoveAll(this);
 
-		if (UMovieSceneSequenceTickManager* TickManager = SequencePlayer->GetTickManager())
-		{
-			TickManager->UnregisterSequenceActor(this);
-		}
+		SequencePlayer->TearDown();
 	}
 
 	Super::EndPlay(EndPlayReason);
-}
-
-void ALevelSequenceActor::TickFromSequenceTickManager(float DeltaSeconds)
-{
-	if (SequencePlayer)
-	{
-		SequencePlayer->UpdateAsync(DeltaSeconds);
-	}
 }
 
 void ALevelSequenceActor::PostLoad()

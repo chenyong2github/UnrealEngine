@@ -15,6 +15,7 @@
 #include "Evaluation/MovieScenePlayback.h"
 #include "MovieSceneSequenceTickManager.h"
 #include "Evaluation/MovieScenePlayback.h"
+#include "MovieSceneSequenceTickManager.h"
 #include "MovieSceneSequencePlayer.generated.h"
 
 class UMovieSceneSequenceTickManager;
@@ -109,6 +110,7 @@ struct FMovieSceneSequencePlaybackSettings
 		, bHideHud(false)
 		, bDisableCameraCuts(false)
 		, bPauseAtEnd(false)
+		, bInheritTickIntervalFromOwner(true)
 	{ }
 
 	GENERATED_BODY()
@@ -120,6 +122,10 @@ struct FMovieSceneSequencePlaybackSettings
 	/** Number of times to loop playback. -1 for infinite, else the number of times to loop before stopping */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Playback", meta=(UIMin=1, DisplayName="Loop"))
 	FMovieSceneSequenceLoopCount LoopCount;
+
+	/** Overridable tick interval for this sequence to update at. When not overridden, the owning actor or component's tick interval will be used */
+	UPROPERTY(EditAnywhere, Category="Playback", meta=(ShowOnlyInnerProperties, Units=s, EditCondition="!bInheritTickIntervalFromOwner"))
+	FMovieSceneSequenceTickInterval TickInterval;
 
 	/** The rate at which to playback the animation */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Playback", meta=(Units=Multiplier))
@@ -160,6 +166,10 @@ struct FMovieSceneSequencePlaybackSettings
 	/** Pause the sequence when playback reaches the end rather than stopping it */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Playback")
 	uint32 bPauseAtEnd : 1;
+
+	/** When checked, a custom tick interval can be provided to define how often to update this sequence */
+	UPROPERTY(EditAnywhere, Category="Playback", meta=(InlineEditConditionToggle))
+	uint32 bInheritTickIntervalFromOwner : 1;
 
 	MOVIESCENE_API bool SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructuredArchive::FSlot Slot);
 };
@@ -250,6 +260,7 @@ UCLASS(Abstract, BlueprintType)
 class MOVIESCENE_API UMovieSceneSequencePlayer
 	: public UObject
 	, public IMovieScenePlayer
+	, public IMovieSceneSequenceTickManagerClient
 {
 public:
 	GENERATED_BODY()
@@ -508,6 +519,9 @@ public:
 	/** Update the sequence for the current time, if playing, asynchronously */
 	void UpdateAsync(const float DeltaSeconds);
 
+	/** Perform any tear-down work when this player is no longer (and will never) be needed */
+	void TearDown();
+
 public:
 
 	/**
@@ -603,6 +617,10 @@ protected:
 	virtual void PostNetReceive() override;
 	virtual void BeginDestroy() override;
 	/*~ End UObject interface */
+
+	//~ Begin IMovieSceneSequenceTickManagerClient interface
+	virtual void TickFromSequenceTickManager(float DeltaSeconds, FMovieSceneEntitySystemRunner* Runner) override;
+	//~ End IMovieSceneSequenceTickManagerClient interface
 
 protected:
 
@@ -705,6 +723,9 @@ protected:
 	UPROPERTY(transient)
 	FMovieSceneRootEvaluationTemplateInstance RootTemplateInstance;
 
+	/** Usually nullptr, but will be set when we are updating inside a TickFromSequenceTickManager call */
+	FMovieSceneEntitySystemRunner* CurrentRunner;
+
 	/** Play position helper */
 	FMovieScenePlaybackPosition PlayPosition;
 
@@ -749,6 +770,9 @@ private:
 
 	/** The event that will be broadcast every time the sequence is updated */
 	mutable FOnMovieSceneSequencePlayerUpdated OnMovieSceneSequencePlayerUpdate;
+
+	/** The tick interval we are currently registered with (if any) */
+	TOptional<FMovieSceneSequenceTickInterval> RegisteredTickInterval;
 
 	/** The maximum tick rate prior to playing (used for overriding delta time during playback). */
 	TOptional<double> OldMaxTickRate;

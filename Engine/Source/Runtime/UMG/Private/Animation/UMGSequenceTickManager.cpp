@@ -199,7 +199,7 @@ void UUMGSequenceTickManager::ForceFlush()
 	if (Runner.IsAttachedToLinker())
 	{
 		Runner.Flush();
-		LatentActionManager.RunLatentActions(Runner);
+		RunLatentActions();
 	}
 }
 
@@ -216,7 +216,7 @@ void UUMGSequenceTickManager::HandleSlatePostTick(float DeltaSeconds)
 		SCOPE_CYCLE_COUNTER(MovieSceneEval_FlushEndOfFrameAnimations);
 
 		Runner.Flush();
-		LatentActionManager.RunLatentActions(Runner);
+		RunLatentActions();
 	}
 }
 
@@ -232,7 +232,10 @@ void UUMGSequenceTickManager::ClearLatentActions(UObject* Object)
 
 void UUMGSequenceTickManager::RunLatentActions()
 {
-	LatentActionManager.RunLatentActions(Runner);
+	LatentActionManager.RunLatentActions([this]
+	{
+		this->Runner.Flush();
+	});
 }
 
 UUMGSequenceTickManager* UUMGSequenceTickManager::Get(UObject* PlaybackContext)

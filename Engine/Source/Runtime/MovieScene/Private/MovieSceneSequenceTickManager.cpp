@@ -5,20 +5,73 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
+#include "Algo/IndexOf.h"
+
 DECLARE_CYCLE_STAT(TEXT("Sequence Tick Manager"), MovieSceneEval_SequenceTickManager, STATGROUP_MovieSceneEval);
 
-TRACE_DECLARE_INT_COUNTER(MovieSceneEval_SequenceTickManagerLatentActionRuns, TEXT("MovieScene/LatentActionRuns"));
+namespace UE::MovieScene
+{
 
-static TAutoConsoleVariable<int32> CVarMovieSceneMaxLatentActionLoops(
+int32 GMovieSceneMaxLatentActionLoops = 100;
+static FAutoConsoleVariableRef CVarMovieSceneMaxLatentActionLoops(
 	TEXT("Sequencer.MaxLatentActionLoops"),
-	100,
+	GMovieSceneMaxLatentActionLoops,
 	TEXT("Defines the maximum number of latent action loops that can be run in one frame.\n"),
 	ECVF_Default
 );
 
+} // namespace UE::MovieScene
+
+UMovieSceneSequenceTickManager* UMovieSceneSequenceTickManager::Get(UObject* PlaybackContext)
+{
+	check(PlaybackContext != nullptr && PlaybackContext->GetWorld() != nullptr);
+	UWorld* World = PlaybackContext->GetWorld();
+
+
+	UMovieSceneSequenceTickManager* TickManager = FindObject<UMovieSceneSequenceTickManager>(World, TEXT("GlobalMovieSceneSequenceTickManager"));
+	if (!TickManager)
+	{
+		TickManager = NewObject<UMovieSceneSequenceTickManager>(World, TEXT("GlobalMovieSceneSequenceTickManager"));
+
+		FDelegateHandle Handle = World->AddMovieSceneSequenceTickHandler(
+				FOnMovieSceneSequenceTick::FDelegate::CreateUObject(TickManager, &UMovieSceneSequenceTickManager::TickSequenceActors));
+		check(Handle.IsValid());
+		TickManager->WorldTickDelegateHandle = Handle;
+	}
+	return TickManager;
+}
+
+
 UMovieSceneSequenceTickManager::UMovieSceneSequenceTickManager(const FObjectInitializer& Init)
 	: Super(Init)
 {
+	PendingActorOperations = nullptr;
+}
+
+UMovieSceneEntitySystemLinker* UMovieSceneSequenceTickManager::GetLinker(const FMovieSceneSequenceTickInterval& TickInterval)
+{
+	const int32 RoundedTickIntervalMs = TickInterval.RoundTickIntervalMs();
+	for (const FLinkerGroup& Group : LinkerGroups)
+	{
+		if (Group.RoundedTickIntervalMs == RoundedTickIntervalMs)
+		{
+			return Group.Linker;
+		}
+	}
+	return nullptr;
+}
+
+FMovieSceneEntitySystemRunner* UMovieSceneSequenceTickManager::GetRunner(const FMovieSceneSequenceTickInterval& TickInterval)
+{
+	const int32 RoundedTickIntervalMs = TickInterval.RoundTickIntervalMs();
+	for (FLinkerGroup& Group : LinkerGroups)
+	{
+		if (Group.RoundedTickIntervalMs == RoundedTickIntervalMs)
+		{
+			return &Group.Runner;
+		}
+	}
+	return nullptr;
 }
 
 void UMovieSceneSequenceTickManager::BeginDestroy()
@@ -36,85 +89,269 @@ void UMovieSceneSequenceTickManager::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UMovieSceneSequenceTickManager::RegisterTickClient(const FMovieSceneSequenceTickInterval& ResolvedTickInterval, TScriptInterface<IMovieSceneSequenceTickManagerClient> InTickInterface)
+{
+	using namespace UE::MovieScene;
+
+	UObject* InterfaceObject = InTickInterface.GetObject();
+	IMovieSceneSequenceTickManagerClient* ClientInterface = InTickInterface.GetInterface();
+	if (!ensure(InterfaceObject && ClientInterface))
+	{
+		return;
+	}
+
+	// If PendingActorOperations is non-null, it means we cannot mutate either TickableClients or LinkerGroups so we have to defer until afterwards
+	if (PendingActorOperations)
+	{
+		PendingActorOperations->Add(FPendingOperation{ InTickInterface, InterfaceObject, ResolvedTickInterval, FPendingOperation::EType::Register });
+		return;
+	}
+
+#if DO_GUARD_SLOW
+	UWorld* ThisWorld   = GetWorld();
+	UWorld* ObjectWorld = InterfaceObject->GetWorld();
+	checkfSlow(ObjectWorld == ThisWorld, TEXT("Attempting to register object %s that is a part of world %s to a sequence tick manager contained within world %s."),
+		*InterfaceObject->GetName(), ObjectWorld ? *ObjectWorld->GetName() : TEXT("nullptr"), ThisWorld ? *ThisWorld->GetName() : TEXT("nullptr"));
+#endif
+
+	const int32 DesiredTickIntervalMs = ResolvedTickInterval.RoundTickIntervalMs();
+
+	// Find a linker group with the specified tick interval
+	// Would be nice to use Algo::IndexOfBy here but that cannot work on TSparseArray since it is a non-contiguous range
+	int32 LinkerIndex = 0;
+	for (; LinkerIndex < LinkerGroups.GetMaxIndex(); ++LinkerIndex)
+	{
+		if (LinkerGroups.IsAllocated(LinkerIndex) && LinkerGroups[LinkerIndex].RoundedTickIntervalMs == DesiredTickIntervalMs)
+		{
+			break;
+		}
+	}
+
+	if (!LinkerGroups.IsValidIndex(LinkerIndex))
+	{
+		LinkerIndex = LinkerGroups.Emplace();
+
+		TStringBuilder<64> LinkerName;
+		LinkerName.Append(TEXT("MovieSceneSequencePlayerEntityLinker"));
+		if (DesiredTickIntervalMs != 0)
+		{
+			LinkerName.Appendf(TEXT("_%i_ms"), DesiredTickIntervalMs);
+		}
+
+
+		UMovieSceneEntitySystemLinker* Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(GetWorld(), EEntitySystemLinkerRole::LevelSequences, LinkerName.ToString());
+		check(Linker);
+
+		FLinkerGroup& NewGroup = LinkerGroups[LinkerIndex];
+		NewGroup.Linker = Linker;
+		NewGroup.Runner.AttachToLinker(Linker);
+		NewGroup.RoundedTickIntervalMs = DesiredTickIntervalMs;
+		NewGroup.NumClients = 1;
+	}
+	else
+	{
+		++LinkerGroups[LinkerIndex].NumClients;
+	}
+
+	checkSlow(LinkerIndex >= 0 && LinkerIndex < uint16(-1));
+
+	TickableClients.Add(FTickableClientData{
+		ClientInterface,
+		InterfaceObject,
+		static_cast<uint16>(LinkerIndex),
+		ResolvedTickInterval.bTickWhenPaused
+	});
+}
+
+void UMovieSceneSequenceTickManager::UnregisterTickClient(TScriptInterface<IMovieSceneSequenceTickManagerClient> InTickInterface)
+{
+	using namespace UE::MovieScene;
+
+	IMovieSceneSequenceTickManagerClient* ClientInterface = InTickInterface.GetInterface();
+	if (!ensure(ClientInterface))
+	{
+		return;
+	}
+
+	// If PendingActorOperations is non-null, it means we cannot mutate either TickableClients or LinkerGroups so we have to defer until afterwards
+	if (PendingActorOperations)
+	{
+		PendingActorOperations->Add(FPendingOperation{ InTickInterface, InTickInterface.GetObject(), FMovieSceneSequenceTickInterval(),  FPendingOperation::EType::Unregister });
+		return;
+	}
+
+	const int32 ClientIndex = Algo::IndexOfBy(TickableClients, ClientInterface, &FTickableClientData::Interface);
+	if (!ensure(TickableClients.IsValidIndex(ClientIndex)))
+	{
+		return;
+	}
+
+	const int32 LinkerIndex = TickableClients[ClientIndex].LinkerIndex;
+	checkSlow(LinkerGroups.IsValidIndex(LinkerIndex));
+
+	TickableClients.RemoveAtSwap(ClientIndex);
+
+	if (--LinkerGroups[LinkerIndex].NumClients == 0)
+	{
+		LinkerGroups.RemoveAt(LinkerIndex);
+	}
+}
+
+// DEPRECATED
 void UMovieSceneSequenceTickManager::RegisterSequenceActor(AActor* InActor)
 {
-	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface(InActor);
-	if (ensureMsgf(SequenceActorInterface, TEXT("The given actor doesn't implement the IMovieSceneSequenceActor interface!")))
-	{
-		SequenceActors.Add(FMovieSceneSequenceActorPointers{ InActor, SequenceActorInterface });
-	}
-}
+	TScriptInterface<IMovieSceneSequenceTickManagerClient> Interface(InActor);
+	check(InActor && Interface);
 
-void UMovieSceneSequenceTickManager::RegisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceActor> InActorInterface)
+	FMovieSceneSequenceTickInterval ResolvedTickInterval(InActor);
+	RegisterTickClient(ResolvedTickInterval, Interface);
+}
+// DEPRECATED
+void UMovieSceneSequenceTickManager::RegisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceTickManagerClient> InActorInterface)
 {
-	if (ensure(InActor && InActorInterface))
-	{
-		SequenceActors.Add(FMovieSceneSequenceActorPointers{ InActor, InActorInterface });
-	}
-}
+	check(InActor && InActorInterface);
 
+	FMovieSceneSequenceTickInterval ResolvedTickInterval(InActor);
+	RegisterTickClient(ResolvedTickInterval, InActorInterface);
+}
+// DEPRECATED
 void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor)
 {
-	TScriptInterface<IMovieSceneSequenceActor> SequenceActorInterface(InActor);
-	if (ensureMsgf(SequenceActorInterface, TEXT("The given actor doesn't implement the IMovieSceneSequenceActor interface!")))
-	{
-		int32 NumRemoved = SequenceActors.RemoveAll([=](FMovieSceneSequenceActorPointers& Item) { return Item.SequenceActor == InActor; });
-		ensureMsgf(NumRemoved > 0, TEXT("The given sequence actor wasn't registered"));
-	}
+	TScriptInterface<IMovieSceneSequenceTickManagerClient> Interface(InActor);
+	check(Interface);
+	UnregisterTickClient(Interface);
 }
-
-void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceActor> InActorInterface)
+// DEPRECATED
+void UMovieSceneSequenceTickManager::UnregisterSequenceActor(AActor* InActor, TScriptInterface<IMovieSceneSequenceTickManagerClient> InActorInterface)
 {
-	if (ensure(InActor && InActorInterface))
-	{
-		int32 NumRemoved = SequenceActors.RemoveAll([=](const FMovieSceneSequenceActorPointers& Item) { return Item.SequenceActor == InActor && Item.SequenceActorInterface == InActorInterface; });
-		ensureMsgf(NumRemoved > 0, TEXT("The given sequence actor wasn't registered"));
-	}
+	check(InActorInterface);
+	UnregisterTickClient(InActorInterface);
 }
 
 void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(MovieSceneEval_SequenceTickManager);
 
-	TRACE_COUNTER_SET(MovieSceneEval_SequenceTickManagerLatentActionRuns, 0);
-
-	// Let all level sequence actors update. Some of them won't do anything, others will do synchronous
+	// Let all tickable clients update. Some of them won't do anything, others will do synchronous
 	// things (e.g. start/stop, loop, etc.), but in 95% of cases, they will just queue up a normal evaluation
 	// request...
 	//
 	UWorld* World = GetTypedOuter<UWorld>();
-	check(World != nullptr);
+	checkSlow(World != nullptr);
+#if DO_GUARD_SLOW
 	ensure(LatentActionManager.IsEmpty());
-	
-	const bool bIsPaused = World->IsPaused();
+#endif
 
-	for (int32 i = SequenceActors.Num() - 1; i >= 0; --i)
+	const bool  bIsPaused                  = World->IsPaused();
+	const float CurrentUnpausedTimeSeconds = World->GetUnpausedTimeSeconds();
+	const float CurrentTimeSeconds         = World->GetTimeSeconds();
+
+	struct FUpdatedDeltaTimes
 	{
-		const FMovieSceneSequenceActorPointers& Pointers(SequenceActors[i]);
-		if (Pointers.SequenceActor)
+		float UnpausedDeltaTime;
+		float DeltaTime;
+	};
+
+	using InlineSparseAllocator = TSparseArrayAllocator<TInlineAllocator<16>, TInlineAllocator<4>>;
+
+	// Sparse array where an allocated entry maps to the FLinkerGroup within LinkerGroups
+	TSparseArray<FUpdatedDeltaTimes, InlineSparseAllocator> UpdatedDeltaTimes;
+
+	// -----------------------------------------------------------------------------
+	// Step 1: Check the tick intervals of all our linker groups, and mark any whose
+	//         interval has passed for update
+	for (int32 Index = 0; Index < LinkerGroups.GetMaxIndex(); ++Index)
+	{
+		if (LinkerGroups.IsAllocated(Index))
 		{
-			if (!bIsPaused || Pointers.SequenceActor->GetTickableWhenPaused())
+			// Check the delta time against the last update time for this group
+			FLinkerGroup& Group = LinkerGroups[Index];
+
+			float UnpausedDeltaTime = DeltaSeconds;
+			float DeltaTime = DeltaSeconds;
+
+			if (Group.LastUnpausedTimeSeconds >= 0.f)
 			{
-				check(Pointers.SequenceActorInterface);
-				check(Pointers.SequenceActor->GetWorld() == World);
-				Pointers.SequenceActorInterface->TickFromSequenceTickManager(DeltaSeconds);
+				UnpausedDeltaTime = CurrentUnpausedTimeSeconds - Group.LastUnpausedTimeSeconds;
+				DeltaTime = CurrentTimeSeconds - Group.LastTimeSeconds;
+
+				if (UnpausedDeltaTime < Group.RoundedTickIntervalMs * 0.001f)
+				{
+					// If the unpaused time is less than the required tick interval, leave this group alone this frame
+					// We don't need to check the paused delta-time because that will always be >= unpaused
+					continue;
+				}
 			}
+
+			// We know the unpaused delta-time is >= our interval, and thus so will the paused time
+			// Add this delta-time to the sparse array to indicate the group with the corresponding index needs updating
+			Group.LastUnpausedTimeSeconds = CurrentUnpausedTimeSeconds;
+			Group.LastTimeSeconds = CurrentTimeSeconds;
+
+			UpdatedDeltaTimes.Insert(Index, FUpdatedDeltaTimes{ UnpausedDeltaTime, DeltaTime });
 		}
 	}
 
-	// If we have nothing to do, we can early-out.
-	if (!Runner.HasQueuedUpdates())
+	// Skip any work if there are no updates scheduled
+	if (UpdatedDeltaTimes.Num() == 0)
 	{
 		return;
 	}
 
-	// Now we execute all those "normal evaluation requests" we mentioned above. All running level sequences
-	// will therefore be evaluated in a gloriously parallelized way.
-	//
-	if (ensure(Runner.IsAttachedToLinker()))
+	TArray<FPendingOperation> CurrentPendingActorOperations;
 	{
-		Runner.Flush();
-		LatentActionManager.RunLatentActions(Runner);
+		// Guard against any mutation while the entries are being ticked - anything added this tick cycle will have to wait until next tick
+		TGuardValue<TArray<FPendingOperation>*> Guard(PendingActorOperations, &CurrentPendingActorOperations);
+
+		// Step 2: Tick clients for any that need ticking
+		// 
+		for (const FTickableClientData& Client : TickableClients)
+		{
+			const bool bCanTick = (Client.bTickWhenPaused || !bIsPaused) && Client.WeakObject.Get() != nullptr;
+			if (bCanTick && UpdatedDeltaTimes.IsValidIndex(Client.LinkerIndex))
+			{
+				const FUpdatedDeltaTimes Delta = UpdatedDeltaTimes[Client.LinkerIndex];
+				const float DeltaTime = Client.bTickWhenPaused ? Delta.UnpausedDeltaTime : Delta.DeltaTime;
+
+				FMovieSceneEntitySystemRunner* Runner = &LinkerGroups[Client.LinkerIndex].Runner;
+				Client.Interface->TickFromSequenceTickManager(DeltaTime, Runner);
+			}
+		}
+
+		// Step 3: Update and flush linkers as needed
+		//
+		for (int32 Index = 0; Index < UpdatedDeltaTimes.GetMaxIndex(); ++Index)
+		{
+			if (UpdatedDeltaTimes.IsAllocated(Index))
+			{
+				LinkerGroups[Index].Runner.Flush();
+			}
+		}
+	}
+
+	// Process any pending operations that were added while we were updating
+	ProcessPendingOperations(CurrentPendingActorOperations);
+	// Run latent actions now we have finished flushing everything
+	RunLatentActions();
+}
+
+void UMovieSceneSequenceTickManager::ProcessPendingOperations(TArrayView<const FPendingOperation> InOperations)
+{
+	// Process any pending operations that were added while we were updating
+	for (const FPendingOperation& PendingOperation : InOperations)
+	{
+		// Check the object is still alive
+		if (PendingOperation.WeakObject.Get() != nullptr)
+		{
+			if (PendingOperation.Type == FPendingOperation::EType::Register)
+			{
+				RegisterTickClient(PendingOperation.TickInterval, PendingOperation.Interface);
+			}
+			else
+			{
+				UnregisterTickClient(PendingOperation.Interface);
+			}
+		}
 	}
 }
 
@@ -130,29 +367,26 @@ void UMovieSceneSequenceTickManager::AddLatentAction(FMovieSceneSequenceLatentAc
 
 void UMovieSceneSequenceTickManager::RunLatentActions()
 {
-	LatentActionManager.RunLatentActions(Runner);
+	LatentActionManager.RunLatentActions([this]
+	{
+		this->FlushRunners();
+	});
 }
 
-UMovieSceneSequenceTickManager* UMovieSceneSequenceTickManager::Get(UObject* PlaybackContext)
+void UMovieSceneSequenceTickManager::FlushRunners()
 {
-	check(PlaybackContext != nullptr && PlaybackContext->GetWorld() != nullptr);
-	UWorld* World = PlaybackContext->GetWorld();
-
-	UMovieSceneSequenceTickManager* TickManager = FindObject<UMovieSceneSequenceTickManager>(World, TEXT("GlobalMovieSceneSequenceTickManager"));
-	if (!TickManager)
+	TArray<FPendingOperation> CurrentPendingActorOperations;
 	{
-		TickManager = NewObject<UMovieSceneSequenceTickManager>(World, TEXT("GlobalMovieSceneSequenceTickManager"));
-
-		TickManager->Linker = UMovieSceneEntitySystemLinker::FindOrCreateLinker(World, UE::MovieScene::EEntitySystemLinkerRole::LevelSequences, TEXT("MovieSceneSequencePlayerEntityLinker"));
-		check(TickManager->Linker);
-		TickManager->Runner.AttachToLinker(TickManager->Linker);
-
-		FDelegateHandle Handle = World->AddMovieSceneSequenceTickHandler(
-				FOnMovieSceneSequenceTick::FDelegate::CreateUObject(TickManager, &UMovieSceneSequenceTickManager::TickSequenceActors));
-		check(Handle.IsValid());
-		TickManager->WorldTickDelegateHandle = Handle;
+		// Guard against any mutation while the entries are being ticked - anything added this tick cycle will have to wait until next tick
+		TGuardValue<TArray<FPendingOperation>*> Guard(PendingActorOperations, &CurrentPendingActorOperations);
+		for (FLinkerGroup& LinkerGroup : LinkerGroups)
+		{
+			LinkerGroup.Runner.Flush();
+		}
 	}
-	return TickManager;
+
+	// Process any pending operations that were added while we were updating
+	ProcessPendingOperations(CurrentPendingActorOperations);
 }
 
 void FMovieSceneLatentActionManager::AddLatentAction(FMovieSceneSequenceLatentActionDelegate Delegate)
@@ -184,7 +418,7 @@ void FMovieSceneLatentActionManager::ClearLatentActions()
 	}
 }
 
-void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRunner& Runner)
+void FMovieSceneLatentActionManager::RunLatentActions(TFunctionRef<void()> FlushCallback)
 {
 	if (bIsRunningLatentActions)
 	{
@@ -196,11 +430,9 @@ void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRun
 
 	TGuardValue<bool> IsRunningLatentActionsGuard(bIsRunningLatentActions, true);
 
-	int32 NumLoopsLeft = CVarMovieSceneMaxLatentActionLoops.GetValueOnGameThread();
+	int32 NumLoopsLeft = UE::MovieScene::GMovieSceneMaxLatentActionLoops;
 	while (LatentActions.Num() > 0)
 	{
-		TRACE_COUNTER_INCREMENT(MovieSceneEval_SequenceTickManagerLatentActionRuns);
-
 		// We can run *one* latent action per sequence player before having to flush the linker again.
 		// This way, if we have 42 sequence players with 2 latent actions each, we only flush the linker
 		// twice, as opposed to 42*2=84 times.
@@ -228,7 +460,7 @@ void FMovieSceneLatentActionManager::RunLatentActions(FMovieSceneEntitySystemRun
 			}
 		}
 
-		Runner.Flush();
+		FlushCallback();
 
 		--NumLoopsLeft;
 		if (!ensureMsgf(NumLoopsLeft > 0,
