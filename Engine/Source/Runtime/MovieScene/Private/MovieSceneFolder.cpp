@@ -277,6 +277,25 @@ UMovieSceneFolder* UMovieSceneFolder::FindFolderContaining(const FGuid& InObject
 	return nullptr;
 }
 
+UMovieSceneFolder* UMovieSceneFolder::FindFolderContaining(const UMovieSceneTrack* InTrack)
+{
+	if (ChildMasterTracks.Contains(InTrack))
+	{
+		return this;
+	}
+
+	for (UMovieSceneFolder* ChildFolder : GetChildFolders())
+	{
+		UMovieSceneFolder* Folder = ChildFolder->FindFolderContaining(InTrack);
+		if (Folder != nullptr)
+		{
+			return Folder;
+		}
+	}
+
+	return nullptr;
+}
+
 void
 TraverseFolder(UMovieSceneFolder* Folder, TMap<UMovieSceneFolder*, UMovieSceneFolder*>& ChildToParentMap)
 {

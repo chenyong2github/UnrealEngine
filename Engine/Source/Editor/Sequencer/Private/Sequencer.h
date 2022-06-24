@@ -358,16 +358,6 @@ public:
 protected:
 
 	/**
-	 * Attempts to add a new spawnable to the MovieScene for the specified asset, class, or actor
-	 *
-	 * @param	Object	The asset, class, or actor to add a spawnable for
-	 * @param	ActorFactory	Optional actor factory to use to create spawnable type
-	 *
-	 * @return	The spawnable ID, or invalid ID on failure
-	 */
-	FGuid AddSpawnable( UObject& Object, UActorFactory* ActorFactory = nullptr );
-
-	/**
 	 * Save default spawnable state for the currently selected objects
 	 */
 	void SaveSelectedNodesSpawnableState();
@@ -528,11 +518,6 @@ public:
 	FText GetNavigateForwardTooltip() const;
 	FText GetNavigateBackwardTooltip() const;
 
-	/** Called when a user executes the assign selected to track menu item */
-	void AddActorsToBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
-	void ReplaceBindingWithActors(FGuid ObjectBinding, const TArray<AActor*>& InActors);
-	void RemoveActorsFromBinding(FGuid ObjectBinding, const TArray<AActor*>& InActors);
-
 	/** Called when a user executes the delete node menu item */
 	void DeleteNode(TSharedRef<FViewModel> NodeToBeDeleted, const bool bKeepState);
 	void DeleteSelectedNodes(const bool bKeepState);
@@ -551,10 +536,10 @@ public:
 	void CopySelectedObjects(TArray<TSharedPtr<UE::Sequencer::FObjectBindingModel>>& ObjectNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
 	void CopySelectedTracks(TArray<TSharedPtr<UE::Sequencer::FViewModel>>& TrackNodes, const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
 	void CopySelectedFolders(const TArray<UMovieSceneFolder*>& Folders, /*out*/ FString& ExportedText);
-	void ExportObjectsToText(const TArray<UObject*>& ObjectsToExport, /*out*/ FString& ExportedText);
 
 	/** Called when a user executes the paste track menu item */
 	bool CanPaste(const FString& TextToImport);
+
 	/**
 	 * Attempts to paste from the clipboard
 	 * @return Whether the paste event was handled
@@ -562,13 +547,7 @@ public:
 	bool DoPaste(bool bClearSelection = false);
 	bool PasteTracks(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
 	bool PasteSections(const FString& TextToImport, TArray<FNotificationInfo>& PasteErrors);
-	bool PasteFolders(const FString& TextToImport, UMovieSceneFolder* ParentFolder, TArray<UMovieSceneFolder*>& OutFolders, TArray<FNotificationInfo>& PasteErrors);
 	bool PasteObjectBindings(const FString& TextToImport, UMovieSceneFolder* ParentFolder, const TArray<UMovieSceneFolder*>& InFolders, TArray<FNotificationInfo>& PasteErrors, bool bClearSelection = false);
-
-	void ImportTracksFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableTrack*>& ImportedTracks);
-	void ImportSectionsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneSection*>& ImportedSections);
-	void ImportFoldersFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneFolder*>& ImportedFolders);
-	void ImportObjectBindingsFromText(const FString& TextToImport, /*out*/ TArray<UMovieSceneCopyableBinding*>& ImportedObjects);
 
 	/** Called when a user executes the active node menu item */
 	void ToggleNodeActive();
@@ -648,12 +627,6 @@ public:
 
 	/** Promote a clipboard to the top of the clipboard stack, and update its timestamp */
 	void OnClipboardUsed(TSharedPtr<FMovieSceneClipboard> Clipboard);
-
-	/** Create camera and set it as the current camera cut. */
-	void CreateCamera();
-
-	/** Called when a new camera is added. Locks the viewport to the NewCamera. */
-	void NewCameraAdded(ACameraActor* NewCamera, FGuid CameraGuid);
 
 	/** Attempts to automatically fix up possessables whose object class don't match the object class of their currently bound objects */
 	void FixPossessableObjectClass();
@@ -1066,18 +1039,6 @@ private:
 
 	/** Updates viewport clients' actor locks if they relate to sequencer cameras */
 	void UpdateLevelViewportClientsActorLocks();
-
-	/** Expands Possessables with multiple bindings into indidual Possessables for each binding */
-	TArray<FGuid> ExpandMultiplePossessableBindings(FGuid PossessableGuid);
-
-	/** Internal conversion function that doesn't perform expensive reset/update tasks */
-	TArray<FMovieSceneSpawnable*> ConvertToSpawnableInternal(FGuid PossessableGuid);
-
-	/** Internal conversion function that doesn't perform expensive reset/update tasks */
-	FMovieScenePossessable* ConvertToPossessableInternal(FGuid SpawnableGuid);
-
-	/** Recurses through a folder to replace converted GUID with new GUID */
-	bool ReplaceFolderBindingGUID(UMovieSceneFolder *Folder, FGuid Original, FGuid Converted);
 
 	/** Internal function to render movie for a given start/end time */
 	void RenderMovieInternal(TRange<FFrameNumber> Range, bool bSetFrameOverrides = false) const;

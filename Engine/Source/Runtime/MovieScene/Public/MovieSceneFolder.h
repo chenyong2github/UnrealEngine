@@ -64,6 +64,9 @@ class MOVIESCENE_API UMovieSceneFolder : public UObject
 	/** Searches for a guid in this folder and its child folders, if found returns the folder containing the guid. */
 	UMovieSceneFolder* FindFolderContaining(const FGuid& InObjectBinding);
 
+	/** Searches for a track in this folder and its child folders, if found returns the folder containing the track. */
+	UMovieSceneFolder* FindFolderContaining(const UMovieSceneTrack* InTrack);
+
 	/** Get the folder path for this folder, stopping at the given root folders */
 	static void CalculateFolderPath(UMovieSceneFolder* InFolder, TArrayView<UMovieSceneFolder* const> RootFolders, TArray<FName>& FolderPath);
 	

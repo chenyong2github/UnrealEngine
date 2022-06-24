@@ -731,7 +731,10 @@ void FLevelSequenceEditorToolkit::AddShot(UMovieSceneCinematicShotTrack* ShotTra
 	{	
 		// Create a cine camera asset
 		ACineCameraActor* NewCamera = GCurrentLevelEditingViewportClient->GetWorld()->SpawnActor<ACineCameraActor>();
-		
+		NewCamera->SetActorLocation(GCurrentLevelEditingViewportClient->GetViewLocation(), false);
+		NewCamera->SetActorRotation(GCurrentLevelEditingViewportClient->GetViewRotation());
+		//pNewCamera->CameraComponent->FieldOfView = ViewportClient->ViewFOV; //@todo set the focal length from this field of view
+
 		const USequencerSettings* SequencerSettings = GetDefault<USequencerSettings>();
 		const bool bCreateSpawnableCamera = SequencerSettings->GetCreateSpawnableCameras() && ShotSequence->AllowsSpawnableObjects();
 
@@ -750,9 +753,6 @@ void FLevelSequenceEditorToolkit::AddShot(UMovieSceneCinematicShotTrack* ShotTra
 		{
 			CameraGuid = GetSequencer()->CreateBinding(*NewCamera, NewCamera->GetActorLabel());
 		}
-		NewCamera->SetActorLocation( GCurrentLevelEditingViewportClient->GetViewLocation(), false );
-		NewCamera->SetActorRotation( GCurrentLevelEditingViewportClient->GetViewRotation() );
-		//pNewCamera->CameraComponent->FieldOfView = ViewportClient->ViewFOV; //@todo set the focal length from this field of view
 		
 		AddDefaultTracksForActor(*NewCamera, CameraGuid);
 

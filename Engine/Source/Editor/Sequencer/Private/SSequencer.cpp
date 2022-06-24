@@ -3137,21 +3137,7 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 					continue;
 				}
 
-				FGuid NewGuid = SequencerRef.MakeNewSpawnable(*CurObject, DragDropOp.GetActorFactory());
-
-				UMovieScene* MovieScene = SequencerRef.GetFocusedMovieSceneSequence()->GetMovieScene();
-				if (MovieScene)
-				{
-					FMovieSceneSpawnable* Spawnable = MovieScene->FindSpawnable(NewGuid);
-
-					if (Spawnable)
-					{
-						if (ACameraActor* CameraActor = Cast<ACameraActor>(Spawnable->GetObjectTemplate()))
-						{
-							SequencerRef.NewCameraAdded(CameraActor, NewGuid);
-						}
-					}
-				}
+				SequencerRef.MakeNewSpawnable(*CurObject, DragDropOp.GetActorFactory());
 			}
 
 			DropResult = ESequencerDropResult::DropHandled;

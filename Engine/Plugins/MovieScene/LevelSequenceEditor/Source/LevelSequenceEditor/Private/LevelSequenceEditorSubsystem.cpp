@@ -5,6 +5,7 @@
 #include "Compilation/MovieSceneCompiledDataManager.h"
 #include "ISequencer.h"
 #include "ISequencerModule.h"
+#include "LevelSequence.h"
 #include "LevelSequenceEditorCommands.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
@@ -13,7 +14,7 @@
 #include "MovieSceneTimeHelpers.h"
 #include "SequencerSettings.h"
 #include "SequencerUtilities.h"
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 #include "SequenceTimeUnit.h"
 #include "Sections/MovieScene3DConstraintSection.h"
 #include "Sections/MovieScene3DTransformSection.h"
@@ -30,6 +31,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GameFramework/Actor.h"
+#include "HAL/PlatformApplicationMisc.h"
 #include "IContentBrowserSingleton.h"
 #include "LevelEditor.h"
 #include "Modules/ModuleManager.h"
@@ -38,6 +40,7 @@
 #include "ScopedTransaction.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
+
 DEFINE_LOG_CATEGORY(LogLevelSequenceEditor);
 
 #define LOCTEXT_NAMESPACE "LevelSequenceEditor"
@@ -176,11 +179,237 @@ TSharedPtr<ISequencer> ULevelSequenceEditorSubsystem::GetActiveSequencer()
 	{
 		if (Ptr.IsValid())
 		{
-			return Ptr.Pin();
+			UMovieSceneSequence* Sequence = Ptr.Pin()->GetFocusedMovieSceneSequence();
+			if (Sequence && Sequence->IsA<ULevelSequence>())
+			{
+				return Ptr.Pin();
+			}
 		}
 	}
 
 	return nullptr;
+}
+
+TArray<FMovieSceneBindingProxy> ULevelSequenceEditorSubsystem::AddActors(const TArray<AActor*>& InActors)
+{
+	TArray<FMovieSceneBindingProxy> BindingProxies;
+
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer == nullptr)
+	{
+		return BindingProxies;
+	}
+
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+	if (!Sequence)
+	{
+		return BindingProxies;
+	}
+
+	TArray<TWeakObjectPtr<AActor> > Actors;
+	for (AActor* Actor : InActors)
+	{
+		Actors.Add(Actor);
+	}
+
+	TArray<FGuid> Guids = FSequencerUtilities::AddActors(Sequencer.ToSharedRef(), Actors);
+	
+	for (const FGuid& Guid : Guids)
+	{
+		BindingProxies.Add(FMovieSceneBindingProxy(Guid, Sequence));
+	}
+
+	return BindingProxies;
+}
+
+FMovieSceneBindingProxy ULevelSequenceEditorSubsystem::CreateCamera(bool bSpawnable, ACineCameraActor*& OutActor)
+{
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer == nullptr)
+	{
+		return FMovieSceneBindingProxy();
+	}
+
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+	if (!Sequence)
+	{
+		return FMovieSceneBindingProxy();
+	}
+
+	FGuid Guid = FSequencerUtilities::CreateCamera(Sequencer.ToSharedRef(), bSpawnable, OutActor);
+
+	return FMovieSceneBindingProxy(Guid, Sequence);
+}
+
+TArray<FMovieSceneBindingProxy> ULevelSequenceEditorSubsystem::ConvertToSpawnable(const FMovieSceneBindingProxy& ObjectBinding)
+{
+	TArray<FMovieSceneBindingProxy> SpawnableProxies;
+
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer == nullptr)
+	{
+		return SpawnableProxies;
+	}
+
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+	if (!Sequence)
+	{
+		return SpawnableProxies;
+	}
+
+	TArray<FMovieSceneSpawnable*> Spawnables = FSequencerUtilities::ConvertToSpawnable(Sequencer.ToSharedRef(), ObjectBinding.BindingID);
+	for (FMovieSceneSpawnable* Spawnable : Spawnables)
+	{
+		if (Spawnable)
+		{
+			SpawnableProxies.Add(FMovieSceneBindingProxy(Spawnable->GetGuid(), Sequence));
+		}
+	}
+
+	return SpawnableProxies;
+}
+
+FMovieSceneBindingProxy ULevelSequenceEditorSubsystem::ConvertToPossessable(const FMovieSceneBindingProxy& ObjectBinding)
+{
+	FMovieSceneBindingProxy PossessableProxy;
+
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer == nullptr)
+	{
+		return PossessableProxy;
+	}
+
+	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
+	if (!Sequence)
+	{
+		return PossessableProxy;
+	}
+
+	if (FMovieScenePossessable* Possessable = FSequencerUtilities::ConvertToPossessable(Sequencer.ToSharedRef(), ObjectBinding.BindingID))
+	{
+		PossessableProxy = FMovieSceneBindingProxy(Possessable->GetGuid(), Sequence);
+	}
+
+	return PossessableProxy;
+}
+
+void ULevelSequenceEditorSubsystem::CopyFolders(const TArray<UMovieSceneFolder*>& Folders, FString& ExportedText)
+{
+	FSequencerUtilities::CopyFolders(Folders, ExportedText);
+
+	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+}
+
+bool ULevelSequenceEditorSubsystem::PasteFolders(const FString& InTextToImport, FMovieScenePasteFoldersParams PasteFoldersParams, TArray<UMovieSceneFolder*>& OutFolders)
+{
+	FString TextToImport = InTextToImport;
+	if (TextToImport.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	}
+
+	TArray<FNotificationInfo> PasteErrors;
+	if (!FSequencerUtilities::PasteFolders(TextToImport, PasteFoldersParams, OutFolders, PasteErrors))
+	{
+		for (FNotificationInfo PasteError : PasteErrors)
+		{
+			UE_LOG(LogLevelSequenceEditor, Error, TEXT("%s"), *PasteError.Text.Get().ToString());
+		}
+		return false;
+	}
+
+	return true;
+}
+
+void ULevelSequenceEditorSubsystem::CopySections(const TArray<UMovieSceneSection*>& Sections, FString& ExportedText)
+{
+	FSequencerUtilities::CopySections(Sections, ExportedText);
+
+	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+}
+
+bool ULevelSequenceEditorSubsystem::PasteSections(const FString& InTextToImport, FMovieScenePasteSectionsParams PasteSectionsParams, TArray<UMovieSceneSection*>& OutSections)
+{
+	FString TextToImport = InTextToImport;
+	if (TextToImport.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	}
+
+	TArray<FNotificationInfo> PasteErrors;
+	if (!FSequencerUtilities::PasteSections(TextToImport, PasteSectionsParams, OutSections, PasteErrors))
+	{
+		for (FNotificationInfo PasteError : PasteErrors)
+		{
+			UE_LOG(LogLevelSequenceEditor, Error, TEXT("%s"), *PasteError.Text.Get().ToString());
+		}
+		return false;
+	}
+
+	return true;
+}
+
+void ULevelSequenceEditorSubsystem::CopyTracks(const TArray<UMovieSceneTrack*>& Tracks, FString& ExportedText)
+{
+	TArray<UMovieSceneFolder*> Folders;
+	FSequencerUtilities::CopyTracks(Tracks, Folders, ExportedText);
+	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+}
+
+bool ULevelSequenceEditorSubsystem::PasteTracks(const FString& InTextToImport, FMovieScenePasteTracksParams PasteTracksParams, TArray<UMovieSceneTrack*>& OutTracks)
+{
+	FString TextToImport = InTextToImport;
+	if (TextToImport.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	}
+
+	TArray<FNotificationInfo> PasteErrors;
+	if (!FSequencerUtilities::PasteTracks(TextToImport, PasteTracksParams, OutTracks, PasteErrors))
+	{
+		for (FNotificationInfo PasteError : PasteErrors)
+		{
+			UE_LOG(LogLevelSequenceEditor, Error, TEXT("%s"), *PasteError.Text.Get().ToString());
+		}
+		return false;
+	}
+
+	return true;
+}
+
+void ULevelSequenceEditorSubsystem::CopyBindings(const TArray<FMovieSceneBindingProxy>& Bindings, FString& ExportedText)
+{
+	TArray<UMovieSceneFolder*> Folders;
+	FSequencerUtilities::CopyBindings(Bindings, Folders, ExportedText);
+	FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+}
+
+bool ULevelSequenceEditorSubsystem::PasteBindings(const FString& InTextToImport, FMovieScenePasteBindingsParams PasteBindingsParams, TArray<FMovieSceneBindingProxy>& OutObjectBindings)
+{
+	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
+	if (Sequencer == nullptr)
+	{
+		return false;
+	}
+
+	FString TextToImport = InTextToImport;
+	if (TextToImport.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	}
+
+	TArray<FNotificationInfo> PasteErrors;
+	TArray<FMovieSceneBindingProxy> OutBindings;
+	if (!FSequencerUtilities::PasteBindings(TextToImport, Sequencer.ToSharedRef(), PasteBindingsParams, OutBindings, PasteErrors))
+	{
+		for (FNotificationInfo PasteError : PasteErrors)
+		{
+			UE_LOG(LogLevelSequenceEditor, Error, TEXT("%s"), *PasteError.Text.Get().ToString());
+		}
+		return false;
+	}
+
+	return true;
 }
 
 void ULevelSequenceEditorSubsystem::SnapSectionsToTimelineUsingSourceTimecodeInternal()
@@ -395,10 +624,10 @@ void ULevelSequenceEditorSubsystem::BakeTransformInternal()
 	TArray<FGuid> ObjectBindings;
 	Sequencer->GetSelectedObjects(ObjectBindings);
 
-	TArray<FSequencerBindingProxy> BindingProxies;
+	TArray<FMovieSceneBindingProxy> BindingProxies;
 	for (FGuid Guid : ObjectBindings)
 	{
-		BindingProxies.Add(FSequencerBindingProxy(Guid, Sequencer->GetFocusedMovieSceneSequence()));
+		BindingProxies.Add(FMovieSceneBindingProxy(Guid, Sequencer->GetFocusedMovieSceneSequence()));
 	}
 
 	FMovieSceneScriptingParams Params;
@@ -406,7 +635,7 @@ void ULevelSequenceEditorSubsystem::BakeTransformInternal()
 	BakeTransform(BindingProxies, FFrameTime(InFrame), FFrameTime(OutFrame), ConvertFrameTime(1, DisplayRate, TickResolution), Params);
 }
 
-void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FSequencerBindingProxy>& ObjectBindings, const FFrameTime& BakeInTime, const FFrameTime& BakeOutTime, const FFrameTime& BakeInterval, const FMovieSceneScriptingParams& Params)
+void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FMovieSceneBindingProxy>& ObjectBindings, const FFrameTime& BakeInTime, const FFrameTime& BakeOutTime, const FFrameTime& BakeInterval, const FMovieSceneScriptingParams& Params)
 {
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
@@ -460,7 +689,7 @@ void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FSequencerBinding
 	};
 
 	TMap<FGuid, FBakeData> BakeDataMap;
-	for (const FSequencerBindingProxy& ObjectBinding : ObjectBindings)
+	for (const FMovieSceneBindingProxy& ObjectBinding : ObjectBindings)
 	{
 		BakeDataMap.Add(ObjectBinding.BindingID);
 	}
@@ -474,7 +703,7 @@ void ULevelSequenceEditorSubsystem::BakeTransform(const TArray<FSequencerBinding
 
 		Sequencer->SetLocalTimeDirectly(Range.GetTime());
 
-		for (const FSequencerBindingProxy& ObjectBinding : ObjectBindings)
+		for (const FMovieSceneBindingProxy& ObjectBinding : ObjectBindings)
 		{
 			FGuid Guid = ObjectBinding.BindingID;
 
@@ -810,7 +1039,7 @@ void ULevelSequenceEditorSubsystem::FixActorReferences()
 			// In that case, make sure we also replace the existing guid with the new guid 
 			FGuid ExistingGuid = Sequencer->FindObjectId(*ActorPtr, Sequencer->GetFocusedTemplateID());
 
-			FGuid NewGuid = FSequencerUtilities::DoAssignActor(Sequencer.Get(), ActorPtr, ActorPossessableToFix.GetGuid());
+			FGuid NewGuid = FSequencerUtilities::AssignActor(Sequencer.ToSharedRef(), ActorPtr, ActorPossessableToFix.GetGuid());
 
 			OldGuidToNewGuidMap.Add(OldGuid, NewGuid);
 
@@ -821,15 +1050,9 @@ void ULevelSequenceEditorSubsystem::FixActorReferences()
 		}
 	}
 
-	UMovieSceneCompiledDataManager* CompiledDataManager = FindObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), TEXT("SequencerCompiledDataManager"));
-	if (!CompiledDataManager)
-	{
-		CompiledDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), "SequencerCompiledDataManager");
-	}
-
 	for (TPair<FGuid, FGuid> GuidPair : OldGuidToNewGuidMap)
 	{
-		FSequencerUtilities::UpdateBindingIDs(Sequencer.Get(), CompiledDataManager, GuidPair.Key, GuidPair.Value);
+		FSequencerUtilities::UpdateBindingIDs(Sequencer.ToSharedRef(), GuidPair.Key, GuidPair.Value);
 	}
 }
 
@@ -848,109 +1071,22 @@ void ULevelSequenceEditorSubsystem::AddActorsToBindingInternal()
 		return;
 	}
 
-	FSequencerBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
+	FMovieSceneBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
 
 	TArray<AActor*> SelectedActors;
 	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors); 
 	AddActorsToBinding(SelectedActors, BindingProxy);
 }
 
-void ULevelSequenceEditorSubsystem::AddActorsToBinding(const TArray<AActor*>& Actors, const FSequencerBindingProxy& ObjectBinding)
+void ULevelSequenceEditorSubsystem::AddActorsToBinding(const TArray<AActor*>& Actors, const FMovieSceneBindingProxy& ObjectBinding)
 {
-	if (!Actors.Num())
-	{
-		return;
-	}
-
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
 	{
 		return;
 	}
 
-	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
-	if (!Sequence)
-	{
-		return;
-	}
-
-	UMovieScene* MovieScene = Sequence->GetMovieScene();
-	if (!MovieScene)
-	{
-		return;
-	}
-
-	UClass* ActorClass = nullptr;
-	int32 NumRuntimeObjects = 0;
-
-	FGuid Guid = ObjectBinding.BindingID;
-	TArrayView<TWeakObjectPtr<>> ObjectsInCurrentSequence = Sequencer->FindObjectsInCurrentSequence(Guid);
-
-	for (TWeakObjectPtr<> Ptr : ObjectsInCurrentSequence)
-	{
-		if (const AActor* Actor = Cast<AActor>(Ptr.Get()))
-		{
-			ActorClass = Actor->GetClass();
-			++NumRuntimeObjects;
-		}
-	}
-
-	FScopedTransaction AddSelectedToBinding(LOCTEXT("AddSelectedToBinding", "Add Selected to Binding"));
-
-	Sequence->Modify();
-	MovieScene->Modify();
-
-	// Bind objects
-	int32 NumObjectsAdded = 0;
-	for (AActor* ActorToAdd : Actors)
-	{
-		if (!ObjectsInCurrentSequence.Contains(ActorToAdd))
-		{
-			if (ActorClass == nullptr || UClass::FindCommonBase(ActorToAdd->GetClass(), ActorClass) != nullptr)
-			{
-				if (ActorClass == nullptr)
-				{
-					ActorClass = ActorToAdd->GetClass();
-				}
-
-				ActorToAdd->Modify();
-				Sequence->BindPossessableObject(Guid, *ActorToAdd, Sequencer->GetPlaybackContext());
-				++NumObjectsAdded;
-			}
-			else
-			{
-				const FText NotificationText = FText::Format(LOCTEXT("UnableToAssignObject", "Cannot assign object {0}. Expected class {1}"), FText::FromString(ActorToAdd->GetName()), FText::FromString(ActorClass->GetName()));
-				FNotificationInfo Info(NotificationText);
-				Info.ExpireDuration = 3.f;
-				Info.bUseLargeFont = false;
-				FSlateNotificationManager::Get().AddNotification(Info);
-			}
-		}
-	}
-
-	// Update label
-	if (NumRuntimeObjects + NumObjectsAdded > 0)
-	{
-		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(Guid);
-		if (Possessable && ActorClass != nullptr)
-		{
-			if (NumRuntimeObjects + NumObjectsAdded > 1)
-			{
-				FString NewLabel = ActorClass->GetName() + FString::Printf(TEXT(" (%d)"), NumRuntimeObjects + NumObjectsAdded);
-				Possessable->SetName(NewLabel);
-			}
-			else if (NumObjectsAdded > 0 && Actors.Num() > 0)
-			{
-				Possessable->SetName(Actors[0]->GetActorLabel());
-			}
-
-			Possessable->SetPossessedObjectClass(ActorClass);
-		}
-	}
-
-	Sequencer->RestorePreAnimatedState();
-
-	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+	FSequencerUtilities::AddActorsToBinding(Sequencer.ToSharedRef(), Actors, ObjectBinding);
 }
 
 void ULevelSequenceEditorSubsystem::ReplaceBindingWithActorsInternal()
@@ -968,14 +1104,14 @@ void ULevelSequenceEditorSubsystem::ReplaceBindingWithActorsInternal()
 		return;
 	}
 
-	FSequencerBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
+	FMovieSceneBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
 
 	TArray<AActor*> SelectedActors;
 	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors); 
 	ReplaceBindingWithActors(SelectedActors, BindingProxy);
 }
 
-void ULevelSequenceEditorSubsystem::ReplaceBindingWithActors(const TArray<AActor*>& Actors, const FSequencerBindingProxy& ObjectBinding)
+void ULevelSequenceEditorSubsystem::ReplaceBindingWithActors(const TArray<AActor*>& Actors, const FMovieSceneBindingProxy& ObjectBinding)
 {
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
@@ -983,33 +1119,7 @@ void ULevelSequenceEditorSubsystem::ReplaceBindingWithActors(const TArray<AActor
 		return;
 	}
 
-	FScopedTransaction ReplaceBindingWithActors(LOCTEXT("ReplaceBindingWithActors", "Replace Binding with Actors"));
-
-	FGuid Guid = ObjectBinding.BindingID;
-	TArray<AActor*> ExistingActors;
-	for (TWeakObjectPtr<> Ptr : Sequencer->FindObjectsInCurrentSequence(Guid))
-	{
-		if (AActor* Actor = Cast<AActor>(Ptr.Get()))
-		{
-			if (!Actors.Contains(Actor))
-			{
-				ExistingActors.Add(Actor);
-			}
-		}
-	}
-
-	RemoveActorsFromBinding(ExistingActors, ObjectBinding);
-
-	TArray<AActor*> NewActors;
-	for (AActor* NewActor : Actors)
-	{
-		if (!ExistingActors.Contains(NewActor))
-		{
-			NewActors.Add(NewActor);
-		}
-	}
-
-	AddActorsToBinding(NewActors, ObjectBinding);
+	FSequencerUtilities::ReplaceBindingWithActors(Sequencer.ToSharedRef(), Actors, ObjectBinding);
 }
 
 void ULevelSequenceEditorSubsystem::RemoveActorsFromBindingInternal()
@@ -1027,99 +1137,22 @@ void ULevelSequenceEditorSubsystem::RemoveActorsFromBindingInternal()
 		return;
 	}
 
-	FSequencerBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
+	FMovieSceneBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
 
 	TArray<AActor*> SelectedActors;
 	GEditor->GetSelectedActors()->GetSelectedObjects<AActor>(SelectedActors); 
 	RemoveActorsFromBinding(SelectedActors, BindingProxy);
 }
 
-void ULevelSequenceEditorSubsystem::RemoveActorsFromBinding(const TArray<AActor*>& Actors, const FSequencerBindingProxy& ObjectBinding)
+void ULevelSequenceEditorSubsystem::RemoveActorsFromBinding(const TArray<AActor*>& Actors, const FMovieSceneBindingProxy& ObjectBinding)
 {
-	if (!Actors.Num())
-	{
-		return;
-	}
-
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
 	{
 		return;
 	}
 
-	UMovieSceneSequence* Sequence = Sequencer->GetFocusedMovieSceneSequence();
-	if (!Sequence)
-	{
-		return;
-	}
-
-	UMovieScene* MovieScene = Sequence->GetMovieScene();
-	if (!MovieScene)
-	{
-		return;
-	}
-
-	UClass* ActorClass = nullptr;
-	int32 NumRuntimeObjects = 0;
-
-	FGuid Guid = ObjectBinding.BindingID;
-	for (TWeakObjectPtr<> Ptr : Sequencer->FindObjectsInCurrentSequence(Guid))
-	{
-		if (const AActor* Actor = Cast<AActor>(Ptr.Get()))
-		{
-			ActorClass = Actor->GetClass();
-			++NumRuntimeObjects;
-		}
-	}
-
-	FScopedTransaction RemoveSelectedFromBinding(LOCTEXT("RemoveSelectedFromBinding", "Remove Selected from Binding"));
-
-	TArray<UObject*> ObjectsToRemove;
-	for (AActor* ActorToRemove : Actors)
-	{
-		// Restore state on any components
-		for (UActorComponent* Component : TInlineComponentArray<UActorComponent*>(ActorToRemove))
-		{
-			if (Component)
-			{
-				Sequencer->PreAnimatedState.RestorePreAnimatedState(*Component);
-			}
-		}
-
-		// Restore state on the object itself
-		Sequencer->PreAnimatedState.RestorePreAnimatedState(*ActorToRemove);
-
-		ActorToRemove->Modify();
-
-		ObjectsToRemove.Add(ActorToRemove);
-	}
-	
-	Sequence->Modify();
-	MovieScene->Modify();
-
-	// Unbind objects
-	Sequence->UnbindObjects(Guid, ObjectsToRemove, Sequencer->GetPlaybackContext());
-
-	// Update label
-	if (NumRuntimeObjects - ObjectsToRemove.Num() > 0)
-	{
-		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(Guid);
-		if (Possessable && ActorClass != nullptr)
-		{
-			if (NumRuntimeObjects - ObjectsToRemove.Num() > 1)
-			{
-				FString NewLabel = ActorClass->GetName() + FString::Printf(TEXT(" (%d)"), NumRuntimeObjects - ObjectsToRemove.Num());
-
-				Possessable->SetName(NewLabel);
-			}
-			else if (ObjectsToRemove.Num() > 0 && Actors.Num() > 0)
-			{
-				Possessable->SetName(Actors[0]->GetActorLabel());
-			}
-		}
-	}
-
-	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+	FSequencerUtilities::RemoveActorsFromBinding(Sequencer.ToSharedRef(), Actors, ObjectBinding);
 }
 
 void ULevelSequenceEditorSubsystem::RemoveAllBindingsInternal()
@@ -1137,12 +1170,12 @@ void ULevelSequenceEditorSubsystem::RemoveAllBindingsInternal()
 		return;
 	}
 
-	FSequencerBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
+	FMovieSceneBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
 
 	RemoveAllBindings(BindingProxy);
 }
 
-void ULevelSequenceEditorSubsystem::RemoveAllBindings(const FSequencerBindingProxy& ObjectBinding)
+void ULevelSequenceEditorSubsystem::RemoveAllBindings(const FMovieSceneBindingProxy& ObjectBinding)
 {
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
@@ -1191,12 +1224,12 @@ void ULevelSequenceEditorSubsystem::RemoveInvalidBindingsInternal()
 		return;
 	}
 
-	FSequencerBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
+	FMovieSceneBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
 
 	RemoveInvalidBindings(BindingProxy);
 }
 
-void ULevelSequenceEditorSubsystem::RemoveInvalidBindings(const FSequencerBindingProxy& ObjectBinding)
+void ULevelSequenceEditorSubsystem::RemoveInvalidBindings(const FMovieSceneBindingProxy& ObjectBinding)
 {
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
@@ -1279,7 +1312,7 @@ void ULevelSequenceEditorSubsystem::AddAssignActorMenu(FMenuBuilder& MenuBuilder
 		return;
 	}
 
-	FSequencerBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
+	FMovieSceneBindingProxy BindingProxy(ObjectBindings[0], Sequencer->GetFocusedMovieSceneSequence());
 
 	TSet<const AActor*> BoundObjects;
 	{
@@ -1323,7 +1356,7 @@ void ULevelSequenceEditorSubsystem::AddAssignActorMenu(FMenuBuilder& MenuBuilder
 				FOnActorPicked::CreateLambda([=](AActor* Actor){
 					// Create a new binding for this actor
 					FSlateApplication::Get().DismissAllMenus();
-					FSequencerUtilities::DoAssignActor(Sequencer.Get(), Actor, ObjectBindings[0]);
+					FSequencerUtilities::AssignActor(Sequencer.ToSharedRef(), Actor, ObjectBindings[0]);
 				})
 			)
 		];
@@ -1425,17 +1458,17 @@ void ULevelSequenceEditorSubsystem::RebindComponentInternal(const FName& Compone
 		return;
 	}
 
-	TArray<FSequencerBindingProxy> BindingProxies;
+	TArray<FMovieSceneBindingProxy> BindingProxies;
 	for (const FGuid& ObjectBinding : ObjectBindings)
 	{
-		FSequencerBindingProxy BindingProxy(ObjectBinding, Sequencer->GetFocusedMovieSceneSequence());
+		FMovieSceneBindingProxy BindingProxy(ObjectBinding, Sequencer->GetFocusedMovieSceneSequence());
 		BindingProxies.Add(BindingProxy);
 	}
 
 	RebindComponent(BindingProxies, ComponentName);
 }
 
-void ULevelSequenceEditorSubsystem::RebindComponent(const TArray<FSequencerBindingProxy>& PossessableBindings, const FName& ComponentName)
+void ULevelSequenceEditorSubsystem::RebindComponent(const TArray<FMovieSceneBindingProxy>& PossessableBindings, const FName& ComponentName)
 {
 	TSharedPtr<ISequencer> Sequencer = GetActiveSequencer();
 	if (Sequencer == nullptr)
@@ -1461,7 +1494,7 @@ void ULevelSequenceEditorSubsystem::RebindComponent(const TArray<FSequencerBindi
 	MovieScene->Modify();
 
 	bool bAnythingChanged = false;
-	for (const FSequencerBindingProxy& PossessableBinding : PossessableBindings)
+	for (const FMovieSceneBindingProxy& PossessableBinding : PossessableBindings)
 	{
 		FMovieScenePossessable* ComponentPossessable = MovieScene->FindPossessable(PossessableBinding.BindingID);
 

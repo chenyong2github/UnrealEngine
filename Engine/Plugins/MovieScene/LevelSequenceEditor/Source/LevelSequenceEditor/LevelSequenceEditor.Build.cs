@@ -21,6 +21,7 @@ public class LevelSequenceEditor : ModuleRules
         
         PrivateDependencyModuleNames.AddRange(
 			new string[] {
+				"ApplicationCore",
 				"AppFramework",
                 "LevelSequence",
 				"BlueprintGraph",
