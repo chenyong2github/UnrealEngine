@@ -962,7 +962,7 @@ public:
 	static void OnAssetRegistryGenerated(IAssetRegistry& InAssetRegistry);
 
 	/** Called each time BeginCook is called, to initialize settings from config */
-	void SetBeginCookConfigSettings();
+	void SetBeginCookConfigSettings(FStringView CookShowInstigator);
 
 	/** FGCObject interface function - return a debug name describing this FGCObject. */
 	virtual FString GetReferencerName() const override;

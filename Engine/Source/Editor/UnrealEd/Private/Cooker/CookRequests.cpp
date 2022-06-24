@@ -162,12 +162,12 @@ void FFilePlatformRequest::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITa
 
 int32 FExternalRequests::GetNumRequests() const
 {
-	return RequestCount;
+	return RequestCount.load(std::memory_order_relaxed);
 }
 
 bool FExternalRequests::HasRequests() const
 {
-	return RequestCount > 0;
+	return GetNumRequests() > 0;
 }
 
 void FExternalRequests::AddCallback(FSchedulerCallback&& Callback)
@@ -175,7 +175,7 @@ void FExternalRequests::AddCallback(FSchedulerCallback&& Callback)
 	FScopeLock ScopeLock(&RequestLock);
 
 	Callbacks.Add(MoveTemp(Callback));
-	++RequestCount;
+	RequestCount.fetch_add(1, std::memory_order_relaxed);
 }
 
 void FExternalRequests::EnqueueUnique(FFilePlatformRequest&& FileRequest, bool bForceFrontOfQueue)
@@ -195,7 +195,7 @@ void FExternalRequests::EnqueueUnique(FFilePlatformRequest&& FileRequest, bool b
 			Queue.Add(Filename);
 		}
 
-		++RequestCount;
+		RequestCount.fetch_add(1, std::memory_order_relaxed);
 	}
 	else
 	{
@@ -236,12 +236,13 @@ EExternalRequestType FExternalRequests::DequeueNextCluster(TArray<FSchedulerCall
 	else if (Queue.Num())
 	{
 		OutBuildRequests.Reserve(Queue.Num() + OutBuildRequests.Num());
+		int32 NumDequeued = Queue.Num();
 		while (Queue.Num())
 		{
 			FName Filename = Queue.PopFrontValue();
 			OutBuildRequests.Add(RequestMap.FindAndRemoveChecked(Filename));
-			--RequestCount;
 		}
+		RequestCount.fetch_add(-NumDequeued, std::memory_order_relaxed);
 		return EExternalRequestType::Cook;
 	}
 	else
@@ -262,7 +263,7 @@ bool FExternalRequests::ThreadUnsafeDequeueCallbacks(TArray<FSchedulerCallback>&
 	{
 		OutCallbacks = MoveTemp(Callbacks);
 		Callbacks.Empty();
-		RequestCount -= OutCallbacks.Num();
+		RequestCount.fetch_add(-OutCallbacks.Num(), std::memory_order_relaxed);
 		return true;
 	}
 	else
@@ -278,7 +279,7 @@ void FExternalRequests::EmptyRequests()
 	Queue.Empty();
 	RequestMap.Empty();
 	Callbacks.Empty();
-	RequestCount = 0;
+	RequestCount.store(0, std::memory_order_relaxed);
 }
 
 void FExternalRequests::DequeueAll(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutCookRequests)
@@ -295,7 +296,7 @@ void FExternalRequests::DequeueAll(TArray<FSchedulerCallback>& OutCallbacks, TAr
 	RequestMap.Empty();
 	Queue.Empty();
 
-	RequestCount = 0;
+	RequestCount.store(0, std::memory_order_relaxed);
 }
 
 void FExternalRequests::OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform)

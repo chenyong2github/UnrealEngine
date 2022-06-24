@@ -447,10 +447,11 @@ FDateTime FLooseCookedPackageWriter::GetPreviousCookTime() const
 void FLooseCookedPackageWriter::Initialize(const FCookInfo& Info)
 {
 	bIterateSharedBuild = Info.bIterateSharedBuild;
-	if (Info.bFullBuild)
+	if (Info.bFullBuild && !Info.bWorkerOnSharedSandbox)
 	{
 		DeleteSandboxDirectory();
 	}
+	if (!Info.bWorkerOnSharedSandbox)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(SaveScriptObjects);
 		FPackageStoreOptimizer PackageStoreOptimizer;

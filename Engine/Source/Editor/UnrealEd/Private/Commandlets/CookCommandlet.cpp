@@ -401,6 +401,25 @@ namespace DetailedCookStats
 }
 #endif
 
+namespace UE::Cook
+{
+
+struct FScopeRootObject
+{
+	UObject* Object;
+	FScopeRootObject(UObject* InObject) : Object(InObject)
+	{
+		Object->AddToRoot();
+	}
+
+	~FScopeRootObject()
+	{
+		Object->RemoveFromRoot();
+	}
+};
+
+}
+
 UCookCommandlet::UCookCommandlet( const FObjectInitializer& ObjectInitializer )
 	: Super(ObjectInitializer)
 {
@@ -412,22 +431,8 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 {
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
 
-	struct FScopeRootObject
-	{
-		UObject *Object;
-		FScopeRootObject( UObject *InObject ) : Object( InObject )
-		{
-			Object->AddToRoot();
-		}
-
-		~FScopeRootObject()
-		{
-			Object->RemoveFromRoot();
-		}
-	};
-
 	// make sure that the cookonthefly server doesn't get cleaned up while we are garbage collecting below :)
-	FScopeRootObject S(CookOnTheFlyServer);
+	UE::Cook::FScopeRootObject S(CookOnTheFlyServer);
 
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
 	ECookInitializationFlags IterateFlags = ECookInitializationFlags::Iterative;
@@ -457,11 +462,6 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		{
 			return false;
 		}
-	}
-
-	if (bNoShaderCooking)
-	{
-		GShaderCompilingManager->SkipShaderCompilation(true);
 	}
 
 	FDateTime LastConnectionTime = FDateTime::UtcNow();
@@ -507,11 +507,6 @@ bool UCookCommandlet::CookOnTheFly( FGuid InstanceId, int32 Timeout, bool bForce
 		}
 	}
 
-	if (bNoShaderCooking)
-	{
-		GShaderCompilingManager->SkipShaderCompilation(false);
-	}
-
 	CookOnTheFlyServer->ShutdownCookOnTheFly();
 	return true;
 }
@@ -541,7 +536,6 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 	bPartialGC = Switches.Contains(TEXT("Partialgc"));
 	ShowErrorCount = !Switches.Contains(TEXT("DIFFONLY"));
 	ShowProgress = !Switches.Contains(TEXT("DIFFONLY"));
-	bNoShaderCooking = bCookOnTheFly; // Do not cook any shaders into the shader maps. Always true if we are running w/ cook on the fly
 	bIgnoreIniSettingsOutOfDate = Switches.Contains(TEXT("IgnoreIniSettingsOutOfDate"));
 	bFastCook = Switches.Contains(TEXT("FastCook"));
 
@@ -590,6 +584,10 @@ int32 UCookCommandlet::Main(const FString& CmdLineParams)
 
 		CookOnTheFly( InstanceId, Timeout, bForceClose, TargetPlatforms);
 	}
+	else if (Switches.Contains(TEXT("COOKWORKER")))
+	{
+		CookAsCookWorker();
+	}
 	else
 	{
 		const TArray<ITargetPlatform*>& Platforms = TPM.GetActiveTargetPlatforms();
@@ -622,23 +620,8 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 
 	COOK_STAT(FScopedDurationTimer CookByTheBookTimer(DetailedCookStats::CookByTheBookTimeSec));
 	UCookOnTheFlyServer *CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
-
-	struct FScopeRootObject
-	{
-		UObject *Object;
-		FScopeRootObject( UObject *InObject ) : Object( InObject )
-		{
-			Object->AddToRoot();
-		}
-
-		~FScopeRootObject()
-		{
-			Object->RemoveFromRoot();
-		}
-	};
-
 	// make sure that the cookonthefly server doesn't get cleaned up while we are garbage collecting below :)
-	FScopeRootObject S(CookOnTheFlyServer);
+	UE::Cook::FScopeRootObject S(CookOnTheFlyServer);
 
 	UCookerSettings const* CookerSettings = GetDefault<UCookerSettings>();
 	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
@@ -671,9 +654,6 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 
 	FString DLCName;
 	FParse::Value( *Params, TEXT("DLCNAME="), DLCName);
-
-	FString ChildCookFile;
-	FParse::Value(*Params, TEXT("cookchild="), ChildCookFile);
 
 	FString BasedOnReleaseVersion;
 	FParse::Value( *Params, TEXT("BasedOnReleaseVersion="), BasedOnReleaseVersion);
@@ -909,6 +889,34 @@ bool UCookCommandlet::CookByTheBook( const TArray<ITargetPlatform*>& Platforms)
 	return true;
 }
 
+bool UCookCommandlet::CookAsCookWorker()
+{
+#if OUTPUT_COOKTIMING
+	TRACE_CPUPROFILER_EVENT_SCOPE_ON_CHANNEL(CookAsCookWorker, CookChannel);
+#endif // OUTPUT_COOKTIMING
+
+	UCookOnTheFlyServer* CookOnTheFlyServer = NewObject<UCookOnTheFlyServer>();
+	// make sure that the cookonthefly server doesn't get cleaned up while we are garbage collecting below
+	UE::Cook::FScopeRootObject S(CookOnTheFlyServer);
+
+	if (!CookOnTheFlyServer->TryInitializeCookWorker())
+	{
+		return false;
+	}
+
+	{
+		DECLARE_SCOPE_CYCLE_COUNTER(TEXT("CookByTheBook.MainLoop"), STAT_CookByTheBook_MainLoop, STATGROUP_LoadTime);
+		while (CookOnTheFlyServer->IsInSession())
+		{
+			uint32 TickResults = CookOnTheFlyServer->TickCookWorker();
+			ConditionalCollectGarbage(TickResults, *CookOnTheFlyServer);
+		}
+	}
+	CookOnTheFlyServer->ShutdownCookAsCookWorker();
+
+	return true;
+}
+
 void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFlyServer& COTFS)
 {
 	if ((TickResults & UCookOnTheFlyServer::COSR_RequiresGC) == 0)
@@ -968,7 +976,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 	}
 #if OUTPUT_COOKTIMING
 	TOptional<FScopedDurationTimer> CBTBScopedDurationTimer;
-	if (COTFS.IsCookByTheBookMode())
+	if (!COTFS.IsCookOnTheFlyMode())
 	{
 		CBTBScopedDurationTimer.Emplace(DetailedCookStats::TickLoopGCTimeSec);
 	}
@@ -993,7 +1001,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 		}
 	};
 
-	if (COTFS.IsCookByTheBookMode())
+	if (!COTFS.IsCookOnTheFlyMode())
 	{
 		DumpMemStats();
 	}
@@ -1002,7 +1010,7 @@ void UCookCommandlet::ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFl
 
 	int32 NumObjectsAfterGC = GUObjectArray.GetObjectArrayNumMinusAvailable();
 	int32 NumObjectsAvailableAfterGC = GUObjectArray.GetObjectArrayEstimatedAvailable();
-	if (COTFS.IsCookByTheBookMode())
+	if (!COTFS.IsCookOnTheFlyMode())
 	{
 		UE_LOG(LogCookCommandlet, Display, TEXT("%s GC before %d available %d after %d available %d"),
 			(bPartialGC ? TEXT("Partial") : TEXT("Full")), NumObjectsBeforeGC, NumObjectsAvailableBeforeGC, NumObjectsAfterGC, NumObjectsAvailableAfterGC);

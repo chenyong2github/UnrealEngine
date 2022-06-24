@@ -369,7 +369,7 @@ void FZenStoreWriter::Initialize(const FCookInfo& Info)
 
 	if (!bInitialized)
 	{
-		if (Info.bFullBuild)
+		if (Info.bFullBuild && !Info.bWorkerOnSharedSandbox)
 		{
 			UE_LOG(LogZenStoreWriter, Display, TEXT("Deleting %s..."), *OutputPath);
 			const bool bRequireExists = false;

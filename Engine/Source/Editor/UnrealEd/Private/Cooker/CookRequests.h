@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include <atomic>
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "Containers/Map.h"
@@ -10,7 +11,9 @@
 #include "CookTypes.h"
 #include "Engine/ICookInfo.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/Event.h"
 #include "HAL/Platform.h"
+#include "HAL/PlatformProcess.h"
 #include "UObject/NameTypes.h"
 
 class FEvent;
@@ -18,6 +21,8 @@ class ITargetPlatform;
 
 namespace UE::Cook
 {
+
+struct FFreeFEvent { void operator()(FEvent* Ptr) const { if (Ptr) FPlatformProcess::ReturnSynchEventToPool(Ptr); } };
 
 /**
  * Structure holding the data for a request for the CookOnTheFlyServer to cook a FileName. Includes platform which file is requested for.
@@ -120,7 +125,7 @@ public:
 
 public:
 	/** An FEvent the scheduler can sleep on when waiting for new cookonthefly requests. */
-	FEvent* CookRequestEvent = nullptr;
+	TUniquePtr<FEvent, FFreeFEvent> CookRequestEvent;
 private:
 	/* Implementation for DequeueCallbacks that assumes the caller has entered the RequestLock. */
 	bool ThreadUnsafeDequeueCallbacks(TArray<FSchedulerCallback>& OutCallbacks);
@@ -131,7 +136,7 @@ private:
 	TMap<FName, FFilePlatformRequest> RequestMap;
 	TArray<FSchedulerCallback> Callbacks;
 	FCriticalSection RequestLock;
-	int32 RequestCount = 0;
+	std::atomic<int32> RequestCount = 0;
 };
 
 }

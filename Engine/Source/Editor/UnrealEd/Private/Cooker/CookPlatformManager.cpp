@@ -4,9 +4,9 @@
 
 #include "Commandlets/AssetRegistryGenerator.h"
 #include "CookOnTheSide/CookOnTheFlyServer.h"
-#include "CookRequests.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
+#include "IWorkerRequests.h"
 #include "Misc/ScopeRWLock.h"
 
 namespace UE
@@ -285,7 +285,7 @@ namespace Cook
 
 		if (!HasSessionPlatform(PlatformData->TargetPlatform))
 		{
-			CookOnTheFlyServer.ExternalRequests->AddCallback([PlatformName, LocalCookOnTheFlyServer = &CookOnTheFlyServer]()
+			CookOnTheFlyServer.WorkerRequests->AddCookOnTheFlyCallback([PlatformName, LocalCookOnTheFlyServer = &CookOnTheFlyServer]()
 				{
 					ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatform(PlatformName.ToString());
 					if (TargetPlatform)

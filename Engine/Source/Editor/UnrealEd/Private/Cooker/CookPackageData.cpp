@@ -2010,18 +2010,17 @@ FPackageDatas::FPackageDatas(UCookOnTheFlyServer& InCookOnTheFlyServer)
 {
 }
 
-void FPackageDatas::SetBeginCookConfigSettings()
+void FPackageDatas::SetBeginCookConfigSettings(FStringView CookShowInstigator)
 {
-	FString FileOrPackageName;
 	ShowInstigatorPackageData = nullptr;
-	if (FParse::Value(FCommandLine::Get(), TEXT("-CookShowInstigator="), FileOrPackageName))
+	if (!CookShowInstigator.IsEmpty())
 	{
 		FString LocalPath;
 		FString PackageName;
-		if (!FPackageName::TryConvertToMountedPath(FileOrPackageName, &LocalPath, &PackageName, nullptr, nullptr, nullptr))
+		if (!FPackageName::TryConvertToMountedPath(CookShowInstigator, &LocalPath, &PackageName, nullptr, nullptr, nullptr))
 		{
-			UE_LOG(LogCook, Fatal, TEXT("-CookShowInstigator argument %s is not a mounted filename or packagename"),
-				*FileOrPackageName);
+			UE_LOG(LogCook, Fatal, TEXT("-CookShowInstigator argument %.*s is not a mounted filename or packagename"),
+				CookShowInstigator.Len(), CookShowInstigator.GetData());
 		}
 		else
 		{
@@ -2029,8 +2028,8 @@ void FPackageDatas::SetBeginCookConfigSettings()
 			ShowInstigatorPackageData = TryAddPackageDataByPackageName(PackageFName);
 			if (!ShowInstigatorPackageData)
 			{
-				UE_LOG(LogCook, Fatal, TEXT("-CookShowInstigator argument %s could not be found on disk"),
-					*FileOrPackageName);
+				UE_LOG(LogCook, Fatal, TEXT("-CookShowInstigator argument %.*s could not be found on disk"),
+					CookShowInstigator.Len(), CookShowInstigator.GetData());
 			}
 		}
 	}

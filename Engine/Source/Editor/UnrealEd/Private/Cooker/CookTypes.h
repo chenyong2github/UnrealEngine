@@ -235,6 +235,39 @@ namespace UE::Cook
 		};
 		TMap<FName, FPendingBuildData> PendingBuilds;
 	};
+
+	struct FInitializeConfigSettings
+	{
+		void LoadLocal(const FString& InOutputDirectoryOverride);
+
+		FString OutputDirectoryOverride;
+		int32 MaxPrecacheShaderJobs = 0;
+		int32 MaxConcurrentShaderJobs = 0;
+		uint32 PackagesPerGC = 0;
+		float MemoryExpectedFreedToSpreadRatio = 0.f;
+		double IdleTimeToGC = 0.;
+		uint64 MemoryMaxUsedVirtual;
+		uint64 MemoryMaxUsedPhysical;
+		uint64 MemoryMinFreeVirtual;
+		uint64 MemoryMinFreePhysical;
+		int32 MinFreeUObjectIndicesBeforeGC;
+		int32 MaxNumPackagesBeforePartialGC;
+		TArray<FString> ConfigSettingDenyList;
+		TMap<FName, int32> MaxAsyncCacheForType; // max number of objects of a specific type which are allowed to async cache at once
+		bool bHybridIterativeDebug = false;
+	};
+
+	struct FBeginCookConfigSettings
+	{
+		/** Initialize NeverCookPackageList from packaging settings and platform-specific sources. */
+		void LoadLocal(FBeginCookContext& BeginContext);
+		void LoadNeverCookLocal(FBeginCookContext& BeginContext);
+
+		FString CookShowInstigator;
+		bool bHybridIterativeEnabled = true;
+		TArray<FName> NeverCookPackageList;
+		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
+	};
 }
 
 inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
@@ -336,16 +369,24 @@ struct FBeginCookContextPlatform
 	bool bPopulateMemoryResultsFromDiskResults = false;
 	/** If true we are cooking iteratively, from results in a shared build (e.g. from buildfarm) rather than from our previous cook. */
 	bool bIterateSharedBuild = false;
+	/** If true we are a CookWorker, and we are working on a Sandbox directory that has already been populated by a remote Director process. */
+	bool bWorkerOnSharedSandbox = false;
 };
 
 /** Data held on the stack and shared with multiple subfunctions when running StartCookByTheBook or StartCookOnTheFly */
 struct FBeginCookContext
 {
+	FBeginCookContext(UCookOnTheFlyServer& InCOTFS)
+		: COTFS(InCOTFS)
+	{
+	}
+
 	const UCookOnTheFlyServer::FCookByTheBookStartupOptions* StartupOptions = nullptr;
 	/** List of the platforms we are building, with startup context data about each one */
 	TArray<FBeginCookContextPlatform> PlatformContexts;
 	/** The list of platforms by themselves, for passing to functions that need just a list of platforms */
 	TArray<ITargetPlatform*> TargetPlatforms;
+	const UCookOnTheFlyServer& COTFS;
 };
 
 void LogCookerMessage(const FString& MessageText, EMessageSeverity::Type Severity);

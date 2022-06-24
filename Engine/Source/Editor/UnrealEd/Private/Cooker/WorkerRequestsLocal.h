@@ -1,0 +1,41 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "CookRequests.h"
+#include "IWorkerRequests.h"
+
+namespace UE::Cook
+{
+
+/** An IWorkerRequests for SingleProcess cooks: functions are passed through to the CookOnTheFlyServer. */
+class FWorkerRequestsLocal : public IWorkerRequests
+{
+public:
+	virtual bool HasExternalRequests() const override;
+	virtual int32 GetNumExternalRequests() const override;
+	virtual EExternalRequestType DequeueNextCluster(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutBuildRequests) override;
+	virtual bool DequeueSchedulerCallbacks(TArray<FSchedulerCallback>& OutCallbacks) override;
+	virtual void DequeueAllExternal(TArray<FSchedulerCallback>& OutCallbacks, TArray<FFilePlatformRequest>& OutCookRequests) override;
+	virtual void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap) override;
+	virtual void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform) override;
+	virtual void AddDiscoveredPackage(FPackageData& PackageData, FInstigator& Instigator, bool bLoadReady, bool& bOutShouldAddToQueue) override;
+	virtual void AddStartCookByTheBookRequest(FFilePlatformRequest&& Request) override;
+	virtual void InitializeCookOnTheFly() override;
+	virtual void AddCookOnTheFlyRequest(FFilePlatformRequest&& Request) override;
+	virtual void AddCookOnTheFlyCallback(FSchedulerCallback&& Callback) override;
+	virtual void WaitForCookOnTheFlyEvents(int TimeoutMs) override;
+	virtual void AddEditorActionCallback(FSchedulerCallback&& Callback) override;
+	virtual void AddPublicInterfaceRequest(FFilePlatformRequest&& Request, bool bForceFrontOfQueue) override;
+
+	virtual void ReportAccessedIniSettings(UCookOnTheFlyServer& COTFS, const FConfigFile& Config) override;
+	virtual void GetInitializeConfigSettings(UCookOnTheFlyServer& COTFS, const FString& OutputOverrideDirectory, UE::Cook::FInitializeConfigSettings& Settings) override;
+	virtual void GetBeginCookConfigSettings(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings& Settings) override;
+	virtual void GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext) override;
+	virtual ECookMode::Type GetDirectorCookMode(UCookOnTheFlyServer& COTFS) override;
+
+private:
+	FExternalRequests ExternalRequests;
+};
+
+}

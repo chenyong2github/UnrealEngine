@@ -58,8 +58,6 @@ class UCookCommandlet
 	bool bVerboseCookerWarnings;
 	/** only clean up objects which are not in use by the cooker when we gc (false will enable full gc) */
 	bool bPartialGC;
-	/** Do not cook any shaders.  Shader maps will be empty */
-	bool bNoShaderCooking;
 	/** Ignore ini settings out of date. */
 	bool bIgnoreIniSettingsOutOfDate;
 	/** All commandline tokens */
@@ -84,9 +82,13 @@ class UCookCommandlet
 	/** Cooks for specified targets */
 	bool CookByTheBook(const TArray<ITargetPlatform*>& Platforms);
 
+	bool CookAsCookWorker();
+
 	/** Collect garbage if the cooker's TickResults requested it */
 	void ConditionalCollectGarbage(uint32 TickResults, UCookOnTheFlyServer& COTFS);
 
+	UE_DEPRECATED(5.1, "No longer used")
+	bool bNoShaderCooking;
 public:
 
 	//~ Begin UCommandlet Interface

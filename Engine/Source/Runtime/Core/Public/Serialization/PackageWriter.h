@@ -230,6 +230,7 @@ public:
 		ECookMode CookMode = CookByTheBookMode;
 		bool bFullBuild = true;
 		bool bIterateSharedBuild = false;
+		bool bWorkerOnSharedSandbox = false;
 	};
 
 	/** Delete outdated cooked data, etc.

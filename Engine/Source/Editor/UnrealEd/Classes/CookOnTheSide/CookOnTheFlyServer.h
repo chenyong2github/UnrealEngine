@@ -108,6 +108,8 @@ namespace ECookMode
 		CookByTheBookFromTheEditor,
 		/** Cooking by the book (not in the editor). */
 		CookByTheBook,
+		/** Commandlet helper for a separate director process. Director might be in any of the other modes. */
+		CookWorker,
 	};
 }
 
@@ -123,13 +125,17 @@ ENUM_CLASS_FLAGS(ECookTickFlags);
 namespace UE::Cook
 {
 	class FBuildDefinitions;
-	class FExternalRequests;
+	class FCookDirector;
 	class FRequestCluster;
 	class FSaveCookedPackageContext;
+	class FWorkerRequestsLocal;
+	class FWorkerRequestsRemote;
 	class ICookOnTheFlyRequestManager;
 	class ICookOnTheFlyNetworkServer;
+	class IWorkerRequests;
 	enum class EPollStatus : uint8;
 	enum class EReleaseSaveReason : uint8;
+	struct FBeginCookConfigSettings;
 	struct FConstructPackageData;
 	struct FCookByTheBookOptions;
 	struct FCookOnTheFlyOptions;
@@ -137,6 +143,7 @@ namespace UE::Cook
 	struct FCookGenerationInfo;
 	struct FCookSavePackageContext;
 	struct FGeneratorPackage;
+	struct FInitializeConfigSettings;
 	struct FPackageData;
 	struct FPackageDatas;
 	struct FPackageTracker;
@@ -164,6 +171,9 @@ private:
 	int64 Minimum = 0;
 	int64 Maximum = 0;
 };
+
+// tmap of the Config name, Section name, Key name, to the value
+typedef TMap<FName, TMap<FName, TMap<FName, TArray<FString>>>> FIniSettingContainer;
 
 }
 UCLASS()
@@ -242,7 +252,9 @@ private:
 
 	/** Current cook mode the cook on the fly server is running in */
 	ECookMode::Type CurrentCookMode = ECookMode::CookOnTheFly;
-	/** Directory to output to instead of the default should be empty in the case of DLC cooking */ 
+	/** CookMode of the Cook Director, equal to CurrentCookMode if not a CookWorker, otherwise equal to Director's CurrentCookMode */
+	ECookMode::Type DirectorCookMode = ECookMode::CookOnTheFly;
+	/** Directory to output to instead of the default should be empty in the case of DLC cooking */
 	FString OutputDirectoryOverride;
 
 	TUniquePtr<UE::Cook::FCookByTheBookOptions> CookByTheBookOptions;
@@ -349,17 +361,14 @@ private:
 	// iterative ini settings checking
 	// growing list of ini settings which are accessed over the course of the cook
 
-	// tmap of the Config name, Section name, Key name, to the value
-	typedef TMap<FName, TMap<FName, TMap<FName, TArray<FString>>>> FIniSettingContainer;
-
 	mutable FCriticalSection ConfigFileCS;
-	mutable FIniSettingContainer AccessedIniStrings;
+	mutable UE::Cook::FIniSettingContainer AccessedIniStrings;
 	TArray<const FConfigFile*> OpenConfigFiles;
 	TArray<FString> ConfigSettingDenyList;
 	void OnFConfigDeleted(const FConfigFile* Config);
 	void OnFConfigCreated(const FConfigFile* Config);
 
-	void ProcessAccessedIniSettings(const FConfigFile* Config, FIniSettingContainer& AccessedIniStrings) const;
+	void ProcessAccessedIniSettings(const FConfigFile* Config, UE::Cook::FIniSettingContainer& AccessedIniStrings) const;
 
 	void OnRequestClusterCompleted(const UE::Cook::FRequestCluster& RequestCluster);
 
@@ -585,9 +594,16 @@ public:
 	*/
 	void CancelCookByTheBook();
 
-	bool IsCookByTheBookRunning() const;
-	/** Report whether the CookOnTheFlyServer is in a cook session, either CookByTheBook or CookOnTheFly. Used to restrict operations when cooking and reduce cputime when not cooking. */
+	/** Connect to the CookDirector host, Initialize this UCOTFS, and start the CookWorker session */
+	bool TryInitializeCookWorker();
+
+	/** Terminate the CookWorker session */
+	void ShutdownCookAsCookWorker();
+
+	/** Is the local CookOnTheFlyServer in a cook session in any CookMode? Used to restrict operations when cooking and reduce cputime when not cooking. */
 	bool IsInSession() const;
+	/** Is the local CookOnTheFlyServer in a cook session in CookByTheBook Mode? */
+	bool IsCookByTheBookRunning() const;
 
 	/**
 	* Get any packages which are in memory, these were probably required to be loaded because of the current package we are cooking, so we should probably cook them also
@@ -602,6 +618,8 @@ public:
 	uint32 TickCookByTheBook(const float TimeSlice, ECookTickFlags TickFlags = ECookTickFlags::None);
 	/** Tick COTF until it finishes or needs to yield. Should only be called when in CookOnTheFly Mode. */
 	uint32 TickCookOnTheFly(const float TimeSlice, ECookTickFlags TickFlags = ECookTickFlags::None);
+	/** Tick CookWorker until it finishes or needs to yield. Should only be called when in CookWorker Mode. */
+	uint32 TickCookWorker();
 
 	/**
 	 * Execute CookByTheBook as a load of all packages followed by a save of all packages. This mode is sometimes faster than normal CBTB.
@@ -609,7 +627,7 @@ public:
 	 */
 	uint32 CookFullLoadAndSave();
 
-	/** Return whether the configuration and commandline settings have selected FullLoadAndSave. */
+	/** Is the Local CookOnTheFLyServer using FullLoadAndSave? Used in SingleProcess cooks only, always false on CookWorkers or MPCook Directors. */
 	bool IsFullLoadAndSave() const;
 
 	/**
@@ -685,38 +703,30 @@ public:
 
 	uint32 NumConnections() const;
 
-	/**
-	* Is this cooker running in the editor
-	*
-	* @return true if we are running in the editor
-	*/
+	/** Is the local CookOnTheFlyServer running in the editor? */
 	bool IsCookingInEditor() const;
 
-	/**
-	* Is this cooker running in real time mode (where it needs to respect the timeslice) 
-	* 
-	* @return returns true if this cooker is running in realtime mode like in the editor
-	*/
+	/** Is the local CookOnTheFlyServer initialized to run in real time mode (where it needs to respect the timeslice), e.g. it is running in Editor? */
 	bool IsRealtimeMode() const;
 
-	/**
-	* Helper function returns if we are in any cook by the book mode
-	*
-	* @return if the cook mode is a cook by the book mode
-	*/
+	/** Is the local CookOnTheFlyServer initialized to run CookByTheBook (find all packages needed by the game and cook them)? */
 	bool IsCookByTheBookMode() const;
+	/** Is the CookDirector (local CookOnTheFlyServer for SPCook or MPDirector, or the remote MPDirector for a CookWorker) initialized to run CookByTheBook? */
+	bool IsDirectorCookByTheBook() const;
 
+	/** Is the local CookOnTheFlyServer in a mode that uses ShaderCodeLibraries rather than storing shaders in the Packages that use them? */
 	bool IsUsingShaderCodeLibrary() const;
 
+	/** Is the local CookOnTheFlyServer using ZenStore (cooked packages are stored in Zen's Cache storage rather than as loose files on disk)? */
 	bool IsUsingZenStore() const;
 
-	/**
-	* Helper function returns if we are in any cook on the fly mode
-	*
-	* @return if the cook mode is a cook on the fly mode
-	*/
+	/** Is the local CookOnTheFlyServer initialized to run CookOnTheFly (accept connections from game executables, cook what they ask for)? */
 	bool IsCookOnTheFlyMode() const;
+	/** Is the CookDirector (local CookOnTheFlyServer for SPCook or MPDirector, or the remote MPDirector for a CookWorker) initialized to run CookOnTheFly? */
+	bool IsDirectorCookOnTheFly() const;
 
+	/** Is the local CookOnTheFlyServer initialized to run as a CookWorker (connect to a Director cooker cooking CBTB or COTF, cook what it assigns to us)? */
+	bool IsCookWorkerMode() const;
 
 	virtual void BeginDestroy() override;
 
@@ -800,6 +810,7 @@ public:
 
 private:
 
+	/** Is the local CookOnTheFlyServer initialized to run in CookOnTheFly AND using the legacy scheduling method that predates COTF2? */
 	bool IsUsingLegacyCookOnTheFlyScheduling() const;
 
 	/** Update accumulators of editor data and consume editor changes since the last cook when starting cooks in the editor. */
@@ -842,7 +853,7 @@ private:
 	static void GetGameDefaultObjects(const TArray<ITargetPlatform*>& TargetPlatforms, TMap<FName, TArray<FName>>& GameDefaultObjectsOut);
 
 	/* Collect filespackages that should not be cooked from ini settings and commandline. Does not include checking UAssetManager, which has to be queried later */
-	TArray<FName> GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories = TArrayView<const FString>());
+	TArray<FName> GetNeverCookPackageFileNames(TArrayView<const FString> ExtraNeverCookDirectories = TArrayView<const FString>()) const; // const because it is not always called and should avoid side effects
 
 
 	/**
@@ -932,6 +943,13 @@ private:
 	void GetCookOnTheFlyUnsolicitedFiles(const ITargetPlatform* TargetPlatform, const FString& PlatformName, TArray<FString>& UnsolicitedFiles, const FString& Filename, bool bIsCookable);
 
 	//////////////////////////////////////////////////////////////////////////
+	// CookWorker specific functions
+	/** Start a CookWorker Session */
+	void StartCookAsCookWorker();
+	/** Construct the on-stack data for StartCook functions, based on the CookWorker's configuration */
+	FBeginCookContext CreateCookWorkerContext();
+
+	//////////////////////////////////////////////////////////////////////////
 	// general functions
 
 	/** Perform any special processing for freshly loaded packages 
@@ -951,14 +969,19 @@ private:
 		UE::Cook::FPackageData* ReportingPackageData = nullptr);
 
 	/** Read information about the previous cook from disk and set whether the current cook is iterative based on previous cook, config, and commandline. */
-	void SetBeginCookIterativeFlags(FBeginCookContext& BeginContext);
+	void LoadBeginCookIterativeFlags(FBeginCookContext& BeginContext);
+	void LoadBeginCookIterativeFlagsLocal(FBeginCookContext& BeginContext) const; // const because it is not always called and should avoid sideeffects
 	/** Initialize the sandbox for a new cook session */
 	void BeginCookSandbox(FBeginCookContext& BeginContext);
 
+	/** Set parameters that rely on config settings from startup and don't depend on information from StartCook* functions. */
+	void LoadInitializeConfigSettings(const FString& InOutputDirectoryOverride);
+	void SetInitializeConfigSettings(UE::Cook::FInitializeConfigSettings&& Settings);
+
 	/** Set parameters that rely on config and CookByTheBook settings. */
-	void SetBeginCookConfigSettings(FBeginCookContext& BeginContext);
-	/** Initialize NeverCookPackageList from packaging settings and platform-specific sources. */
-	void SetNeverCookPackageConfigSettings(FBeginCookContext& BeginContext);
+	void LoadBeginCookConfigSettings(FBeginCookContext& BeginContext);
+	void SetBeginCookConfigSettings(FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings&& Settings);
+	void SetNeverCookPackageConfigSettings(FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings& Settings);
 
 	/**
 	* Finalize the package store
@@ -980,7 +1003,8 @@ private:
 	* Build up a map of unsupported packages per platform that can be checked before saving.
 	*/
 	void DiscoverPlatformSpecificNeverCookPackages(
-		const TArrayView<const ITargetPlatform* const>& TargetPlatforms, const TArray<FString>& UBTPlatformStrings);
+		const TArrayView<const ITargetPlatform* const>& TargetPlatforms, const TArray<FString>& UBTPlatformStrings,
+		UE::Cook::FBeginCookConfigSettings& Settings) const; // const because it is not always called and should avoid side effects
 
 	/**
 	* GetDependentPackages
@@ -1056,7 +1080,7 @@ private:
 	* @param IniVersionStrings return list of the important current ini version strings
 	* @return false if function fails (should assume all platforms are out of date)
 	*/
-	bool GetCurrentIniVersionStrings( const ITargetPlatform* TargetPlatform, FIniSettingContainer& IniVersionStrings ) const;
+	bool GetCurrentIniVersionStrings( const ITargetPlatform* TargetPlatform, UE::Cook::FIniSettingContainer& IniVersionStrings ) const;
 
 	/**
 	* GetCookedIniVersionStrings gets the ini version strings used in previous cook for specified target platform
@@ -1064,7 +1088,7 @@ private:
 	* @param IniVersionStrings return list of the previous cooks ini version strings
 	* @return false if function fails to find the ini version strings
 	*/
-	bool GetCookedIniVersionStrings( const ITargetPlatform* TargetPlatform, FIniSettingContainer& IniVersionStrings, TMap<FString, FString>& AdditionalStrings ) const;
+	bool GetCookedIniVersionStrings( const ITargetPlatform* TargetPlatform, UE::Cook::FIniSettingContainer& IniVersionStrings, TMap<FString, FString>& AdditionalStrings ) const;
 
 	/** Test the CurrentCookSettings against the previous cooksettings to decide if we have to wipe the previous cook even when running iteratively. */
 	bool ArePreviousCookSettingsCompatible(const TMap<FName, FString>& CurrentCookSettings, const ITargetPlatform* TargetPlatform) const;
@@ -1102,11 +1126,10 @@ private:
 	/* Create the delete-old-cooked-directory helper.*/
 	FAsyncIODelete& GetAsyncIODelete();
 
+	/** Is the local CookOnTheFlyServer cooking a DLC plugin rather than a Project+Engine+EmbeddedPlugins? */
 	bool IsCookingDLC() const;
 
-	/**
-	* Returns true if we're cooking against a fixed release version
-	*/
+	/** Is the local CookOnTheFlyServer cooking a Project+Engine+EmbeddedPlugin Patch based on a previous Release? */
 	bool IsCookingAgainstFixedBase() const;
 
 	/**
@@ -1123,6 +1146,7 @@ private:
 
 	FString GetContentDirectoryForDLC() const;
 
+	/** Is the local CookOnTheFlyServer cooking a Project+Engine+EmbeddedPlugin Release that can be used as a base for future DLC or Patches? */
 	bool IsCreatingReleaseVersion();
 
 	/**
@@ -1149,12 +1173,7 @@ private:
 
 
 
-	/**
-	* IsCookFlagSet
-	* 
-	* @param InCookFlag used to check against the current cook flags
-	* @return true if the cook flag is set false otherwise
-	*/
+	/** Does the local CookOnTheFlyServer have all flags in InCookFlags set to true? */
 	bool IsCookFlagSet( const ECookInitializationFlags& InCookFlags ) const 
 	{
 		return (CookFlags & InCookFlags) != ECookInitializationFlags::None;
@@ -1221,8 +1240,10 @@ private:
 	UE::Cook::EPollStatus TryPopulateGeneratedPackage(UE::Cook::FGeneratorPackage& Generator, UE::Cook::FCookGenerationInfo& GeneratedInfo);
 
 	ICookedPackageWriter& FindOrCreatePackageWriter(const ITargetPlatform* TargetPlatform);
+	const ICookedPackageWriter* FindPackageWriter(const ITargetPlatform* TargetPlatform) const;
 	void FindOrCreateSaveContexts(TConstArrayView<const ITargetPlatform*> TargetPlatforms);
 	UE::Cook::FCookSavePackageContext& FindOrCreateSaveContext(const ITargetPlatform* TargetPlatform);
+	const UE::Cook::FCookSavePackageContext* FindSaveContext(const ITargetPlatform* TargetPlatform) const;
 	/** Allocate a new FCookSavePackageContext and ICookedPackageWriter for the given platform. */
 	UE::Cook::FCookSavePackageContext* CreateSaveContext(const ITargetPlatform* TargetPlatform);
 
@@ -1271,8 +1292,9 @@ private:
 	// These helper structs are all TUniquePtr rather than inline members so that we can keep their headers private.  See class header comments for their purpose.
 	TUniquePtr<UE::Cook::FPackageTracker> PackageTracker;
 	TUniquePtr<UE::Cook::FPackageDatas> PackageDatas;
-	TUniquePtr<UE::Cook::FExternalRequests> ExternalRequests;
+	TUniquePtr<UE::Cook::IWorkerRequests> WorkerRequests;
 	TUniquePtr<UE::Cook::FBuildDefinitions> BuildDefinitions;
+	TUniquePtr<UE::Cook::FCookDirector> CookDirector;
 
 	TArray<UE::Cook::FCookSavePackageContext*> SavePackageContexts;
 	/** Objects that were collected during the single-threaded PreGarbageCollect callback and that should be reported as referenced in CookerAddReferencedObjects. */
@@ -1301,11 +1323,15 @@ private:
 	double IdleStatusStartTime = 0.0;
 	uint32 CookedPackageCountSinceLastGC = 0;
 	float WaitForAsyncSleepSeconds = 0.0f;
+	float DisplayUpdatePeriodSeconds = 0.0f;
 	EIdleStatus IdleStatus = EIdleStatus::Done;
 
+	friend UE::Cook::FBeginCookConfigSettings;
+	friend UE::Cook::FGeneratorPackage;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;
 	friend UE::Cook::FPlatformManager;
 	friend UE::Cook::FRequestCluster;
-	friend UE::Cook::FGeneratorPackage;
+	friend UE::Cook::FWorkerRequestsLocal;
+	friend UE::Cook::FWorkerRequestsRemote;
 };
