@@ -43,65 +43,8 @@ namespace EpicGames.BuildGraph
 		/// <returns>The name of this output</returns>
 		public override string ToString()
 		{
-			return String.Format("{0}: {1}", ProducingNode.Name, TagName);
+			return String.Format("{0} [{1}]", TagName, ProducingNode.Name);
 		}
-	}
-
-	/// <summary>
-	/// Method to be executed for a node
-	/// </summary>
-	public class BgMethod
-	{
-		/// <summary>
-		/// Full name of the class containing the method to execute
-		/// </summary>
-		public string ClassName { get; }
-
-		/// <summary>
-		/// Name of the method to execute
-		/// </summary>
-		public string MethodName { get; }
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public BgMethod(string className, string methodName)
-		{
-			ClassName = className;
-			MethodName = methodName;
-		}
-
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public BgMethod(MethodInfo method)
-			: this(method.DeclaringType!.AssemblyQualifiedName!, method.Name)
-		{
-		}
-
-		/// <summary>
-		/// Bind this method name to a method instance
-		/// </summary>
-		/// <returns>The resolved method instance</returns>
-		public MethodInfo Bind()
-		{
-			Type? Type = Type.GetType(ClassName);
-			if (Type == null)
-			{
-				throw new BgNodeException($"Unable to find class '{ClassName}'");
-			}
-
-			MethodInfo? Method = Type.GetMethod(MethodName, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static);
-			if (Method == null)
-			{
-				throw new BgNodeException($"Unable to find method '{Type.FullName}.{MethodName}'");
-			}
-
-			return Method;
-		}
-
-		/// <inheritdoc/>
-		public override string ToString() => $"{MethodName}";
 	}
 
 	/// <summary>
@@ -165,7 +108,7 @@ namespace EpicGames.BuildGraph
 		public Dictionary<string, string> Annotations { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
-		/// Diagnostics for this node
+		/// Diagnostics to output if executing this node
 		/// </summary>
 		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
 
@@ -239,26 +182,38 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Node constructed from a bytecode expression
 	/// </summary>
-	public class BgExpressionNode : BgNode
+	public class BgBytecodeNode : BgNode
 	{
 		/// <summary>
-		/// The method to execute for this node
+		/// Agent declaring this node
+		/// </summary>
+		public BgAgent Agent { get; }
+
+		/// <summary>
+		/// Offset in the bytecode of this node. Used to lookup method calling information.
 		/// </summary>
 		public BgMethod Method { get; }
 
 		/// <summary>
-		/// Arguments for invoking the method
+		/// Expression arguments to the method
 		/// </summary>
-		public IReadOnlyList<object?> Arguments { get; }
+		public IReadOnlyList<object> Arguments { get; }
+
+		/// <summary>
+		/// Labels to add this node to
+		/// </summary>
+		public IReadOnlyList<BgLabel> Labels { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgExpressionNode(string name, BgMethod method, IReadOnlyList<object?> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+		public BgBytecodeNode(BgAgent agent, string name, BgMethod method, IReadOnlyList<object> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens, IReadOnlyList<BgLabel> labels)
 			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
 		{
+			Agent = agent;
 			Method = method;
 			Arguments = arguments;
+			Labels = labels;
 		}
 	}
 }

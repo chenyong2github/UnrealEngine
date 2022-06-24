@@ -9,7 +9,6 @@ using System.Text;
 using System.Threading.Tasks;
 using EpicGames.BuildGraph.Expressions;
 using EpicGames.Core;
-using Microsoft.Extensions.Logging;
 
 namespace EpicGames.BuildGraph
 {
@@ -49,87 +48,295 @@ namespace EpicGames.BuildGraph
 	}
 
 	/// <summary>
-	/// Specification for a node to execute
+	/// Information about the method bound to execute a node
 	/// </summary>
-	public class BgNodeSpec
+	public class BgMethod
 	{
-		internal BgMethod _method;
-		internal object?[] _arguments;
-		internal BgFileSet[] ResultExprs { get; }
+		/// <summary>
+		/// Method to call
+		/// </summary>
+		public MethodInfo Method { get; }
 
 		/// <summary>
-		/// Name of the node
+		/// Arguments to the method
 		/// </summary>
-		public BgString Name { get; set; }
-
-		/// <summary>
-		/// Tokens for inputs of this node
-		/// </summary>
-		public BgList<BgFileSet> InputDependencies { get; set; } = BgList<BgFileSet>.Empty;
-
-		/// <summary>
-		/// Weak dependency on outputs that must be generated for the node to run, without making those dependencies inputs.
-		/// </summary>
-		public BgList<BgFileSet> AfterDependencies { get; set; } = BgList<BgFileSet>.Empty;
-
-		/// <summary>
-		/// Token for the output of this node
-		/// </summary>
-		BgFileSet Output { get; }
-
-		/// <summary>
-		/// All inputs and outputs of this node
-		/// </summary>
-		BgList<BgFileSet> InputsAndOutputs => InputDependencies.Add(Output);
-
-		/// <summary>
-		/// Whether this node should start running as soon as its dependencies are ready, even if other nodes in the same agent are not.
-		/// </summary>
-		public BgBool CanRunEarly { get; set; } = BgBool.False;
-
-		/// <summary>
-		/// Diagnostics for running this node
-		/// </summary>
-		public BgList<BgDiagnosticSpec> Diagnostics { get; set; } = BgList<BgDiagnosticSpec>.Empty;
+		public IReadOnlyList<object?> Arguments { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgNodeSpec(MethodCallExpression call)
+		public BgMethod(MethodInfo method, IReadOnlyList<object?> arguments)
 		{
-			_method = new BgMethod(call.Method);
+			Method = method;
+			Arguments = arguments;
+		}
+	}
 
+	/// <summary>
+	/// Specification for a node to execute
+	/// </summary>
+	public class BgNodeSpec : BgExpr
+	{
+		/// <summary>
+		/// Name of the node
+		/// </summary>
+		public BgString Name { get; }
+
+		/// <summary>
+		/// Method to execute
+		/// </summary>
+		protected BgMethod Method { get; }
+
+		/// <summary>
+		/// Expression arguments from the bound function.
+		/// </summary>
+		protected BgExpr[] ExpressionArguments { get; }
+
+		/// <summary>
+		/// The default output of this node. Includes all other outputs. 
+		/// </summary>
+		public BgFileSet DefaultOutput { get; }
+
+		/// <summary>
+		/// Explicitly tagged outputs from this node
+		/// </summary>
+		public IReadOnlyList<BgExpr> TaggedOutputs { get; protected set; } = Array.Empty<BgExpr>();
+
+		/// <summary>
+		/// Agent for the node to be run on
+		/// </summary>
+		public BgAgentSpec Agent { get; }
+
+		/// <summary>
+		/// Tokens for inputs of this node
+		/// </summary>
+		public BgList<BgFileSet> Inputs { get; }
+
+		/// <summary>
+		/// Weak dependency on outputs that must be generated for the node to run, without making those dependencies inputs.
+		/// </summary>
+		public BgList<BgFileSet> Fences { get; }
+
+		/// <summary>
+		/// Whether this node should start running as soon as its dependencies are ready, even if other nodes in the same agent are not.
+		/// </summary>
+		public BgBool RunEarly { get; } = BgBool.False;
+
+		/// <summary>
+		/// Labels that this node contributes to
+		/// </summary>
+		public BgList<BgLabelSpec> Labels { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgNodeSpec(BgString name, BgMethod method, BgAgentSpec agent, BgList<BgFileSet> inputs, BgList<BgFileSet> fences, BgBool runEarly, BgList<BgLabelSpec> labels)
+			: base(BgExprFlags.ForceFragment)
+		{
+			Name = name;
+
+			ParameterInfo[] parameters = method.Method.GetParameters();
+			ExpressionArguments = new BgExpr[parameters.Length];
+
+			object?[] constantArguments = new object?[method.Arguments.Count];
+			for (int idx = 0; idx < parameters.Length; idx++)
+			{
+				if (typeof(BgExpr).IsAssignableFrom(parameters[idx].ParameterType))
+				{
+					ExpressionArguments[idx] = (BgExpr)method.Arguments[idx]!;
+					constantArguments[idx] = null;
+				}
+				else
+				{
+					ExpressionArguments[idx] = BgBool.False;
+					constantArguments[idx] = method.Arguments[idx];
+				}
+			}
+			Method = new BgMethod(method.Method, constantArguments);
+
+			Agent = agent;
+			DefaultOutput = new BgFileSetFromNodeOutputExpr(this, 0);
+			Inputs = inputs;
+			Fences = fences;
+			RunEarly = runEarly;
+			Labels = labels;
+		}
+
+		int written = 0;
+
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.Node);
+
+			writer.WriteExpr(Name ?? BgString.Empty);
+			writer.WriteExpr(Agent);
+			writer.WriteMethod(Method);
+
+			writer.WriteUnsignedInteger((uint)ExpressionArguments.Length);
+			foreach (BgExpr argument in ExpressionArguments)
+			{
+				writer.WriteExpr(argument);
+			}
+
+			writer.WriteExpr(Inputs);
+			writer.WriteExpr(Fences);
+			writer.WriteUnsignedInteger(TaggedOutputs.Count);
+			writer.WriteExpr(RunEarly);
+			writer.WriteExpr(Labels);
+			written++;
+		}
+
+		/// <summary>
+		/// Gets the default tag name for the numbered output index
+		/// </summary>
+		/// <param name="name">Name of the node</param>
+		/// <param name="index">Index of the output. Index zero is the default, others are explicit.</param>
+		/// <returns></returns>
+		internal static string GetDefaultTagName(string name, int index)
+		{
+			return $"#{name}${index}";
+		}
+
+		/// <summary>
+		/// Implicit conversion to a fileset
+		/// </summary>
+		/// <param name="node"></param>
+		public static implicit operator BgFileSet(BgNodeSpec node)
+		{
+			return new BgFileSetFromNodeExpr(node);
+		}
+
+		/// <summary>
+		/// Implicit conversion to a fileset
+		/// </summary>
+		/// <param name="node"></param>
+		public static implicit operator BgList<BgFileSet>(BgNodeSpec node)
+		{
+			return (BgFileSet)node;
+		}
+
+		/// <inheritdoc/>
+		public override BgString ToBgString() => Name ?? BgString.Empty;
+	}
+
+	/// <summary>
+	/// Nodespec with a typed return value
+	/// </summary>
+	/// <typeparam name="T"></typeparam>
+	public class BgNodeSpec<T> : BgNodeSpec
+	{
+		/// <summary>
+		/// Output from this node
+		/// </summary>
+		public T Output { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgNodeSpec(BgString name, BgMethod handler, BgAgentSpec agent, BgList<BgFileSet> inputs, BgList<BgFileSet> fences, BgBool runEarly, BgList<BgLabelSpec> labels)
+			: base(name, handler, agent, inputs, fences, runEarly, labels)
+		{
+			Output = CreateOutput();
+		}
+
+		T CreateOutput()
+		{
+			Type type = typeof(T);
+			if (IsValueTuple(type))
+			{
+				BgExpr[] outputs = CreateOutputExprs(type.GetGenericArguments());
+				TaggedOutputs = outputs;
+				return (T)Activator.CreateInstance(type, outputs)!;
+			}
+			else
+			{
+				BgExpr[] outputs = CreateOutputExprs(new[] { type });
+				TaggedOutputs = outputs;
+				return (T)(object)outputs[0];
+			}
+		}
+
+		BgExpr[] CreateOutputExprs(Type[] types)
+		{
+			BgExpr[] outputs = new BgExpr[types.Length];
+			for (int idx = 0; idx < types.Length; idx++)
+			{
+				outputs[idx] = CreateOutputExpr(types[idx], idx);
+			}
+			return outputs;
+		}
+
+		BgExpr CreateOutputExpr(Type type, int index)
+		{
+			if (type == typeof(BgFileSet))
+			{
+				return new BgFileSetFromNodeOutputExpr(this, index);
+			}
+			else
+			{
+				throw new NotImplementedException();
+			}
+		}
+
+		internal static bool IsValueTuple(Type returnType)
+		{
+			if (returnType.IsGenericType)
+			{
+				Type genericType = returnType.GetGenericTypeDefinition();
+				if (genericType.FullName != null && genericType.FullName.StartsWith("System.ValueTuple`", StringComparison.Ordinal))
+				{
+					return true;
+				}
+			}
+			return false;
+		}
+	}
+
+	/// <summary>
+	/// Class that allows constructing a nodespec
+	/// </summary>
+	public class BgNodeSpecBuilder
+	{
+		/// <inheritdoc cref="BgNodeSpec.Name"/>
+		public BgString Name { get; }
+
+		/// <inheritdoc cref="BgNodeSpec.Method"/>
+		protected BgMethod Handler { get; }
+
+		/// <inheritdoc cref="BgNodeSpec.Agent"/>
+		public BgAgentSpec Agent { get; }
+
+		/// <inheritdoc cref="BgNodeSpec.Inputs"/>
+		public BgList<BgFileSet> Inputs { get; set; } = BgList<BgFileSet>.Empty;
+
+		/// <inheritdoc cref="BgNodeSpec.Fences"/>
+		public BgList<BgFileSet> Fences { get; set; } = BgList<BgFileSet>.Empty;
+
+		/// <inheritdoc cref="BgNodeSpec.RunEarly"/>
+		public BgBool RunEarly { get; set; } = BgBool.False;
+
+		/// <inheritdoc cref="BgNodeSpec.Labels"/>
+		public BgList<BgLabelSpec> Labels { get; set; } = BgList<BgLabelSpec>.Empty;
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgNodeSpecBuilder(BgString? name, MethodCallExpression call, BgAgentSpec agent)
+		{
 			try
 			{
-				_arguments = CreateArgumentExprs(call);
-				Name = GetDefaultNodeName(call.Method, _arguments);
-				ResultExprs = CreateReturnExprs(call.Method, Name, call.Method.ReturnType);
+				object?[] arguments = CreateArgumentExprs(call);
+
+				Name = name ?? GetDefaultNodeName(call.Method, arguments);
+				Handler = new BgMethod(call.Method, arguments);
+				Agent = agent;
 			}
 			catch (Exception ex)
 			{
-				ExceptionUtils.AddContext(ex, $"while calling method {_method}");
+				ExceptionUtils.AddContext(ex, $"while calling method {call.Method}");
 				throw;
 			}
-
-			Output = new BgFileSetTagFromStringExpr(BgString.Format("#{0}", Name));
-		}
-
-		/// <summary>
-		/// Creates a node specification
-		/// </summary>
-		internal static BgNodeSpec Create(Expression<Func<BgContext, Task>> action)
-		{
-			MethodCallExpression call = (MethodCallExpression)action.Body;
-			return new BgNodeSpec(call);
-		}
-
-		/// <summary>
-		/// Creates a node specification
-		/// </summary>
-		internal static BgNodeSpec<T> Create<T>(Expression<Func<BgContext, Task<T>>> function)
-		{
-			MethodCallExpression call = (MethodCallExpression)function.Body;
-			return new BgNodeSpec<T>(call);
 		}
 
 		static object?[] CreateArgumentExprs(MethodCallExpression call)
@@ -137,8 +344,8 @@ namespace EpicGames.BuildGraph
 			object?[] args = new object?[call.Arguments.Count];
 			for (int idx = 0; idx < call.Arguments.Count; idx++)
 			{
-				Expression expr = call.Arguments[idx];
-				if (expr is ParameterExpression parameterExpr)
+				Expression argumentExpr = call.Arguments[idx];
+				if (argumentExpr is ParameterExpression parameterExpr)
 				{
 					if (parameterExpr.Type != typeof(BgContext))
 					{
@@ -147,59 +354,11 @@ namespace EpicGames.BuildGraph
 				}
 				else
 				{
-					Delegate compiled = Expression.Lambda(expr).Compile();
+					Delegate compiled = Expression.Lambda(argumentExpr).Compile();
 					args[idx] = compiled.DynamicInvoke();
 				}
 			}
 			return args;
-		}
-
-		static BgFileSet[] CreateReturnExprs(MethodInfo methodInfo, BgString name, Type type)
-		{
-			if (type == typeof(Task))
-			{
-				return Array.Empty<BgFileSet>();
-			}
-			else if (type.IsGenericType && type.GetGenericTypeDefinition() == typeof(Task<>))
-			{
-				return CreateReturnExprsInner(methodInfo, name, type.GetGenericArguments()[0]);
-			}
-			else
-			{
-				throw new NotImplementedException();
-			}
-		}
-
-		static BgFileSet[] CreateReturnExprsInner(MethodInfo methodInfo, BgString name, Type type)
-		{
-			Type[] outputTypes;
-			if (IsValueTuple(type))
-			{
-				outputTypes = type.GetGenericArguments();
-			}
-			else
-			{
-				outputTypes = new[] { type };
-			}
-
-			BgFileSet[] outputExprs = new BgFileSet[outputTypes.Length];
-			for (int idx = 0; idx < outputTypes.Length; idx++)
-			{
-				outputExprs[idx] = CreateOutputExpr(methodInfo, name, idx, outputTypes[idx]);
-			}
-			return outputExprs;
-		}
-
-		static BgFileSet CreateOutputExpr(MethodInfo methodInfo, BgString name, int index, Type type)
-		{
-			if (type == typeof(BgFileSet))
-			{
-				return new BgFileSetTagFromStringExpr(BgString.Format("#{0}${1}", name, index));
-			}
-			else
-			{
-				throw new BgNodeException($"Unsupported return type for {methodInfo.Name}: {type.Name}");
-			}
 		}
 
 		internal static bool IsValueTuple(Type returnType)
@@ -266,7 +425,7 @@ namespace EpicGames.BuildGraph
 						object? arg = args[paramIdx];
 						if (arg != null)
 						{
-							if (arg is IBgExpr expr)
+							if (arg is BgExpr expr)
 							{
 								fragments.Add(expr.ToBgString());
 							}
@@ -290,7 +449,14 @@ namespace EpicGames.BuildGraph
 			}
 			fragments.Add(template.Substring(lastIdx, template.Length - lastIdx));
 
-			return BgString.Join(BgString.Empty, fragments);
+			if (fragments.Count == 1)
+			{
+				return fragments[0];
+			}
+			else
+			{
+				return BgString.Join(BgString.Empty, fragments);
+			}
 		}
 
 		/// <summary>
@@ -332,68 +498,12 @@ namespace EpicGames.BuildGraph
 		}
 
 		/// <summary>
-		/// Gets the signature for a method
+		/// Construct a nodespec from the current parameters
 		/// </summary>
-		public static string GetSignature(MethodInfo methodInfo)
+		/// <returns>New nodespec</returns>
+		public BgNodeSpec Construct()
 		{
-			StringBuilder arguments = new StringBuilder();
-			foreach (ParameterInfo parameterInfo in methodInfo.GetParameters())
-			{
-				arguments.AppendLine(parameterInfo.ParameterType.FullName);
-			}
-			return $"{methodInfo.Name}:{Digest.Compute<Sha1>(arguments.ToString())}";
-		}
-
-		/// <summary>
-		/// Creates a concrete node
-		/// </summary>
-		/// <param name="context"></param>
-		/// <param name="graph"></param>
-		/// <param name="agent"></param>
-		/// <returns></returns>
-		internal void AddToGraph(BgExprContext context, BgGraph graph, BgAgent agent)
-		{
-			HashSet<string> inputTags = new HashSet<string>();
-			inputTags.UnionWith(InputDependencies.ComputeTags(context));
-			inputTags.UnionWith(_arguments.OfType<BgFileSet>().Select(x => x.ComputeTag(context)));
-			inputTags.UnionWith(_arguments.OfType<BgList<BgFileSet>>().SelectMany(x => x.GetEnumerable(context)).Select(x => x.ComputeTag(context)));
-
-			HashSet<string> afterTags = new HashSet<string>(inputTags);
-			afterTags.UnionWith(AfterDependencies.ComputeTags(context));
-
-			string name = Name.Compute(context);
-			BgNodeOutput[] inputDependencies = inputTags.Select(x => graph.TagNameToNodeOutput[x]).Distinct().ToArray();
-			BgNodeOutput[] afterDependencies = afterTags.Select(x => graph.TagNameToNodeOutput[x]).Distinct().ToArray();
-			string[] outputNames = Array.ConvertAll(ResultExprs, x => x.ComputeTag(context));
-			BgNode[] inputNodes = inputDependencies.Select(x => x.ProducingNode).Distinct().ToArray();
-			BgNode[] afterNodes = afterDependencies.Select(x => x.ProducingNode).Distinct().ToArray();
-			bool runEarly = CanRunEarly.Compute(context);
-
-			List<object?> arguments = _arguments.ConvertAll(x => (x is IBgExpr expr) ? expr.Compute(context) : x);
-			BgExpressionNode node = new BgExpressionNode(name, _method, arguments, inputDependencies, outputNames, inputNodes, afterNodes, Array.Empty<FileReference>());
-			node.RunEarly = runEarly;
-
-			agent.Nodes.Add(node);
-			graph.NameToNode.Add(name, node);
-
-			foreach (BgDiagnosticSpec precondition in Diagnostics.GetEnumerable(context))
-			{
-				precondition.AddToGraph(context, graph, agent, node);
-			}
-
-			foreach (BgNodeOutput output in node.Outputs)
-			{
-				graph.TagNameToNodeOutput.Add(output.TagName, output);
-			}
-		}
-
-		/// <summary>
-		/// Allows using the 
-		/// </summary>
-		/// <param name="nodeSpec"></param>
-		public static implicit operator BgList<BgFileSet>(BgNodeSpec nodeSpec)
-		{
-			return nodeSpec.InputsAndOutputs.Add(nodeSpec.Output);
+			return new BgNodeSpec(Name, Handler, Agent, Inputs, Fences, RunEarly, Labels);
 		}
 	}
 
@@ -401,28 +511,23 @@ namespace EpicGames.BuildGraph
 	/// Specification for a node to execute that returns one or more tagged outputs
 	/// </summary>
 	/// <typeparam name="T">Return type from the node. Must consist of latent Bg* types (eg. BgToken)</typeparam>
-	public class BgNodeSpec<T> : BgNodeSpec
+	public class BgNodeSpecBuilder<T> : BgNodeSpecBuilder
 	{
-		/// <summary>
-		/// Output value from this node
-		/// </summary>
-		public T Output { get; }
-
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgNodeSpec(MethodCallExpression call)
-			: base(call)
+		internal BgNodeSpecBuilder(BgString? name, MethodCallExpression call, BgAgentSpec agent)
+			: base(name, call, agent)
 		{
-			Type returnType = call.Method.ReturnType;
-			if (IsValueTuple(returnType))
-			{
-				Output = (T)Activator.CreateInstance(returnType, ResultExprs)!;
-			}
-			else
-			{
-				Output = (T)(object)ResultExprs[0];
-			}
+		}
+
+		/// <summary>
+		/// Construct a nodespec from the current parameters
+		/// </summary>
+		/// <returns>New nodespec</returns>
+		public new BgNodeSpec<T> Construct()
+		{
+			return new BgNodeSpec<T>(Name, Handler, Agent, Inputs, Fences, RunEarly, Labels);
 		}
 	}
 
@@ -432,60 +537,76 @@ namespace EpicGames.BuildGraph
 	public static class BgNodeExtensions
 	{
 		/// <summary>
+		/// Creates a node builder for the given agent
+		/// </summary>
+		/// <param name="agent">Agent to run the node</param>
+		/// <param name="func">Function to execute</param>
+		/// <returns>Node builder</returns>
+		public static BgNodeSpecBuilder AddNode(this BgAgentSpec agent, Expression<Func<BgContext, Task>> func)
+		{
+			MethodCallExpression call = (MethodCallExpression)func.Body;
+			return new BgNodeSpecBuilder(null, call, agent);
+		}
+
+		/// <summary>
+		/// Creates a node builder for the given agent
+		/// </summary>
+		/// <param name="agent">Agent to run the node</param>
+		/// <param name="func">Function to execute</param>
+		/// <returns>Node builder</returns>
+		public static BgNodeSpecBuilder<T> AddNode<T>(this BgAgentSpec agent, Expression<Func<BgContext, Task<T>>> func)
+		{
+			MethodCallExpression call = (MethodCallExpression)func.Body;
+			return new BgNodeSpecBuilder<T>(null, call, agent);
+		}
+
+		/// <summary>
 		/// Add dependencies onto other nodes or outputs. Outputs from the given tokens will be copied to the current machine before execution of the node.
 		/// </summary>
-		/// <param name="nodeSpec">The node specification</param>
-		/// <param name="tokens">Tokens to add dependencies on</param>
+		/// <param name="builder">The node builder</param>
+		/// <param name="inputs">Files to add as inputs</param>
 		/// <returns>The current node spec, to allow chaining calls</returns>
-		public static T Requires<T>(this T nodeSpec, params BgList<BgFileSet>[] tokens) where T : BgNodeSpec
+		public static T Requires<T>(this T builder, params BgNodeSpec[] inputs) where T : BgNodeSpecBuilder
 		{
-			foreach (BgList<BgFileSet> tokenSet in tokens)
-			{
-				nodeSpec.InputDependencies = nodeSpec.InputDependencies.Add(tokenSet);
-			}
-			return nodeSpec;
+			builder.Inputs = builder.Inputs.Add(inputs.Select(x => (BgFileSet)x));
+			return builder;
+		}
+
+		/// <summary>
+		/// Add dependencies onto other nodes or outputs. Outputs from the given tokens will be copied to the current machine before execution of the node.
+		/// </summary>
+		/// <param name="builder">The node builder</param>
+		/// <param name="inputs">Files to add as inputs</param>
+		/// <returns>The current node spec, to allow chaining calls</returns>
+		public static T Requires<T>(this T builder, params BgFileSet[] inputs) where T : BgNodeSpecBuilder
+		{
+			builder.Inputs = builder.Inputs.Add(inputs);
+			return builder;
+		}
+
+		/// <summary>
+		/// Add dependencies onto other nodes or outputs. Outputs from the given tokens will be copied to the current machine before execution of the node.
+		/// </summary>
+		/// <param name="builder">The node builder</param>
+		/// <param name="inputs">Files to add as inputs</param>
+		/// <returns>The current node spec, to allow chaining calls</returns>
+		public static T Requires<T>(this T builder, BgList<BgFileSet> inputs) where T : BgNodeSpecBuilder
+		{
+			builder.Inputs = builder.Inputs.Add(inputs);
+			return builder;
 		}
 
 		/// <summary>
 		/// Add weak dependencies onto other nodes or outputs. The producing nodes must complete successfully if they are part of the graph, but outputs from them will not be 
 		/// transferred to the machine running this node.
 		/// </summary>
-		/// <param name="nodeSpec">The node specification</param>
-		/// <param name="tokens">Tokens to add dependencies on</param>
+		/// <param name="builder">The node builder</param>
+		/// <param name="inputs">Files to add as inputs</param>
 		/// <returns>The current node spec, to allow chaining calls</returns>
-		public static T After<T>(this T nodeSpec, params BgList<BgFileSet>[] tokens) where T : BgNodeSpec
+		public static T After<T>(this T builder, params BgFileSet[] inputs) where T : BgNodeSpecBuilder
 		{
-			foreach (BgList<BgFileSet> tokenSet in tokens)
-			{
-				nodeSpec.AfterDependencies = nodeSpec.AfterDependencies.Add(tokenSet);
-			}
-			return nodeSpec;
-		}
-
-		/// <summary>
-		/// Adds a warning when executing this node
-		/// </summary>
-		/// <param name="nodeSpec">The node specification</param>
-		/// <param name="condition">Condition for writing the message</param>
-		/// <param name="message">Message to output</param>
-		/// <returns>The current node spec, to allow chaining calls</returns>
-		public static BgNodeSpec WarnIf<T>(this T nodeSpec, BgBool condition, BgString message) where T : BgNodeSpec
-		{
-			nodeSpec.Diagnostics = nodeSpec.Diagnostics.AddIf(condition, new BgDiagnosticSpec(LogLevel.Warning, message));
-			return nodeSpec;
-		}
-
-		/// <summary>
-		/// Adds an error when executing this node
-		/// </summary>
-		/// <param name="nodeSpec">The node specification</param>
-		/// <param name="condition">Condition for writing the message</param>
-		/// <param name="message">Message to output</param>
-		/// <returns>The current node spec, to allow chaining calls</returns>
-		public static BgNodeSpec ErrorIf<T>(this T nodeSpec, BgBool condition, BgString message) where T : BgNodeSpec
-		{
-			nodeSpec.Diagnostics = nodeSpec.Diagnostics.AddIf(condition, new BgDiagnosticSpec(LogLevel.Error, message));
-			return nodeSpec;
+			builder.Fences = builder.Fences.Add(inputs);
+			return builder;
 		}
 	}
 }

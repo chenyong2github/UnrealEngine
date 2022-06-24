@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
 using EpicGames.Core;
 
 namespace EpicGames.BuildGraph.Expressions
@@ -9,139 +10,140 @@ namespace EpicGames.BuildGraph.Expressions
 	/// Represents a placeholder for the output from a node, which can be exchanged for the artifacts produced by a node at runtime
 	/// </summary>
 	[BgType(typeof(BgFileSetType))]
-	public abstract class BgFileSet : IBgExpr<BgFileSet>
+	public abstract class BgFileSet : BgExpr
 	{
-		/// <inheritdoc/>
-		public BgFileSet IfThen(BgBool condition, BgFileSet valueIfTrue) => new BgFileSetIfThenExpr(condition, valueIfTrue, this);
-
-		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext context) => Compute(context);
-
-		/// <inheritdoc/>
-		public abstract BgFileSet Compute(BgExprContext context);
-
 		/// <summary>
-		/// Gets the tag name for this fileset
+		/// Constant empty fileset
 		/// </summary>
-		/// <returns></returns>
-		public string ComputeTag(BgExprContext context) => ((BgFileSetTagExpr)Compute(context)).Name;
+		public static BgFileSet Empty { get; } = new BgFileSetOutputExpr(FileSet.Empty);
 
 		/// <summary>
-		/// Gets the tag name for this fileset
+		/// Constructor
 		/// </summary>
-		/// <returns></returns>
-		public FileSet ComputeValue(BgExprContext context) => ((BgFileSetValueExpr)Compute(context)).FileSet;
+		/// <param name="flags"></param>
+		public BgFileSet(BgExprFlags flags)
+			: base(flags)
+		{
+		}
 
 		/// <summary>
-		/// Implicit conversion from a file set to a functional file set
+		/// Implicit conversion from a regular fileset
 		/// </summary>
 		/// <param name="fileSet"></param>
-		public static implicit operator BgFileSet(FileSet fileSet) => new BgFileSetValueExpr(fileSet);
+		public static implicit operator BgFileSet(FileSet fileSet)
+		{
+			return new BgFileSetOutputExpr(fileSet);
+		}
 
 		/// <inheritdoc/>
-		public BgString ToBgString() => new BgFileSetToStringExpr(this);
+		public override BgString ToBgString() => "{FileSet}";
 	}
 
 	/// <summary>
 	/// Traits for a <see cref="BgFileSet"/>
 	/// </summary>
-	class BgFileSetType : BgTypeBase<BgFileSet>
+	class BgFileSetType : BgType<BgFileSet>
 	{
 		/// <inheritdoc/>
-		public override BgFileSet DeserializeArgument(string text) => new BgFileSetTagExpr(text);
+		public override BgFileSet Constant(object value) => new BgFileSetInputExpr((BgNodeOutput[])value);
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgFileSet value, BgExprContext context) => ((BgFileSetTagExpr)value.Compute(context)).Name;
-
-		/// <inheritdoc/>
-		public override BgFileSet CreateConstant(object value) => new BgFileSetTagExpr(((BgFileSetTagExpr)value).Name);
-
-		/// <inheritdoc/>
-		public override IBgExprVariable<BgFileSet> CreateVariable() => throw new NotImplementedException();
+		public override BgFileSet Wrap(BgExpr expr) => new BgFileSetWrappedExpr(expr);
 	}
 
 	#region Expression classes
 
-	class BgFileSetIfThenExpr : BgFileSet
+	class BgFileSetInputExpr : BgFileSet
 	{
-		public BgBool Condition { get; }
-		public BgFileSet ValueIfTrue { get; }
-		public BgFileSet ValueIfFalse { get; }
+		public IReadOnlyList<BgNodeOutput> Outputs { get; }
 
-		public BgFileSetIfThenExpr(BgBool condition, BgFileSet valueIfTrue, BgFileSet valueIfFalse)
+		public BgFileSetInputExpr(BgNodeOutput[] outputs)
+			: base(BgExprFlags.None)
 		{
-			Condition = condition;
-			ValueIfTrue = valueIfTrue;
-			ValueIfFalse = valueIfFalse;
+			Outputs = outputs;
 		}
 
-		public override BgFileSet Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
-	}
-
-	class BgFileSetToStringExpr : BgString
-	{
-		public BgFileSet FileSet { get; }
-
-		internal BgFileSetToStringExpr(BgFileSet token)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			FileSet = token;
-		}
-
-		public override string Compute(BgExprContext context)
-		{
-			BgFileSet fileSetValue = FileSet.Compute(context);
-			if (fileSetValue is BgFileSetTagExpr tagExpr)
-			{
-				return tagExpr.Name;
-			}
-			else
-			{
-				return "{...}";
-			}
+			throw new NotImplementedException();
 		}
 	}
 
-	class BgFileSetTagExpr : BgFileSet
+	/// <summary>
+	/// /
+	/// </summary>
+	public class BgFileSetOutputExpr : BgFileSet
 	{
-		public string Name { get; set; }
+		/// <summary>
+		/// 
+		/// </summary>
+		public FileSet Value { get; }
 
-		public BgFileSetTagExpr(string name)
+		/// <summary>
+		/// 
+		/// </summary>
+		/// <param name="value"></param>
+		public BgFileSetOutputExpr(FileSet value)
+			: base(BgExprFlags.NotInterned)
 		{
-			Name = name;
+			Value = value;
 		}
 
-		public override BgFileSet Compute(BgExprContext context) => this;
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
+		{
+			throw new NotImplementedException();
+		}
 	}
 
-	class BgFileSetTagFromStringExpr : BgFileSet
+	class BgFileSetFromNodeExpr : BgFileSet
 	{
-		public BgString Name { get; }
+		public BgNodeSpec Node { get; }
 
-		public BgFileSetTagFromStringExpr(BgString name)
+		public BgFileSetFromNodeExpr(BgNodeSpec node)
+			: base(BgExprFlags.NotInterned)
 		{
-			Name = name;
+			Node = node;
 		}
 
-		public override BgFileSet Compute(BgExprContext context) => new BgFileSetTagExpr(Name.Compute(context));
-	}
-
-	class BgFileSetVariableExpr : BgFileSet, IBgExprVariable<BgFileSet>
-	{
-		public BgFileSet Value { get; set; } = new BgFileSetValueExpr(FileSet.Empty);
-
-		public override BgFileSet Compute(BgExprContext context) => Value.Compute(context);
-	}
-
-	class BgFileSetValueExpr : BgFileSet
-	{
-		public FileSet FileSet { get; }
-
-		public BgFileSetValueExpr(FileSet fileSet)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			FileSet = fileSet;
+			writer.WriteOpcode(BgOpcode.FileSetFromNode);
+			writer.WriteExpr(Node);
+		}
+	}
+
+	class BgFileSetFromNodeOutputExpr : BgFileSet
+	{
+		public BgNodeSpec Node { get; }
+		public int OutputIndex { get; }
+
+		public BgFileSetFromNodeOutputExpr(BgNodeSpec node, int outputIndex)
+			: base(BgExprFlags.NotInterned)
+		{
+			Node = node;
+			OutputIndex = outputIndex;
 		}
 
-		public override BgFileSet Compute(BgExprContext context) => this;
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.FileSetFromNodeOutput);
+			writer.WriteExpr(Node);
+			writer.WriteUnsignedInteger(OutputIndex);
+		}
+	}
+
+	class BgFileSetWrappedExpr : BgFileSet
+	{
+		public BgExpr Expr { get; }
+
+		public BgFileSetWrappedExpr(BgExpr expr)
+			: base(expr.Flags)
+		{
+			Expr = expr;
+		}
+
+		public override void Write(BgBytecodeWriter writer) => Expr.Write(writer);
 	}
 
 	#endregion

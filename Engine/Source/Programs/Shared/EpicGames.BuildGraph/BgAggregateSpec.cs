@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-using System.Linq;
+using System;
 using EpicGames.BuildGraph.Expressions;
 
 namespace EpicGames.BuildGraph
@@ -8,7 +8,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Specification for an aggregate target in the graph
 	/// </summary>
-	public class BgAggregateSpec
+	public class BgAggregateSpec : BgExpr
 	{
 		/// <summary>
 		/// Name of the aggregate
@@ -18,34 +18,58 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Outputs required for the aggregate
 		/// </summary>
-		public BgList<BgFileSet> RequiredOutputs { get; set; }
+		public BgList<BgFileSet> Requires { get; }
 
 		/// <summary>
-		/// Internal constructor. Use <see cref="BgGraphSpec.AddAggregate(BgString, BgList{BgFileSet})"/> to create an aggregate.
+		/// Label to apply to this aggregate
 		/// </summary>
-		internal BgAggregateSpec(BgString name, BgList<BgFileSet> requiredOutputs)
+		public BgLabelSpec? Label { get; }
+
+		/// <summary>
+		/// Constructor.
+		/// </summary>
+		public BgAggregateSpec(BgString name, params BgFileSet[] requires)
+			: this(name, BgList<BgFileSet>.Create(requires))
+		{
+		}
+
+		/// <summary>
+		/// Constructor.
+		/// </summary>
+		public BgAggregateSpec(BgString name, params BgList<BgFileSet>[] requires)
+			: this(name, BgList<BgFileSet>.Concat(requires))
+		{
+		}
+
+		/// <summary>
+		/// Constructor.
+		/// </summary>
+		public BgAggregateSpec(BgString name, BgList<BgFileSet> requires, string label)
+			: this(name, requires, new BgLabelSpec(label))
+		{
+		}
+
+		/// <summary>
+		/// Constructor.
+		/// </summary>
+		public BgAggregateSpec(BgString name, BgList<BgFileSet> requires, BgLabelSpec? label = null)
+			: base(BgExprFlags.None)
 		{
 			Name = name;
-			RequiredOutputs = requiredOutputs;
+			Requires = requires;
+			Label = label;
 		}
 
-		/// <summary>
-		/// Creates a concrete aggregate object from this specification.
-		/// </summary>
-		internal void AddToGraph(BgExprContext context, BgGraph graph)
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
 		{
-			BgAggregate aggregate = new BgAggregate(Name.Compute(context));
-			aggregate.RequiredNodes.UnionWith(RequiredOutputs.ComputeTags(context).Select(x => graph.TagNameToNodeOutput[x].ProducingNode));
-			graph.NameToAggregate.Add(aggregate.Name, aggregate);
+			writer.WriteOpcode(BgOpcode.Aggregate);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Requires);
+			writer.WriteExpr(Label ?? BgExpr.Null);
 		}
 
-		/// <summary>
-		/// Adds a set of dependencies to this aggregate
-		/// </summary>
-		/// <param name="tokens">List of token dependencies</param>
-		public void Requires(params BgFileSet[] tokens)
-		{
-			RequiredOutputs.Add(tokens);
-		}
+		/// <inheritdoc/>
+		public override BgString ToBgString() => Name;
 	}
 }

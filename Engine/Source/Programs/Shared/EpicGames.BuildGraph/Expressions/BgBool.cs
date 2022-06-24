@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace EpicGames.BuildGraph.Expressions
 {
@@ -8,7 +10,7 @@ namespace EpicGames.BuildGraph.Expressions
 	/// Abstract base class for expressions returning a boolean value 
 	/// </summary>
 	[BgType(typeof(BgBoolType))]
-	public abstract class BgBool : IBgExpr<BgBool>
+	public abstract class BgBool : BgExpr
 	{
 		/// <summary>
 		/// Constant value for false
@@ -20,8 +22,14 @@ namespace EpicGames.BuildGraph.Expressions
 		/// </summary>
 		public static BgBool True { get; } = true;
 
-		/// <inheritdoc/>
-		public BgBool IfThen(BgBool condition, BgBool valueIfTrue) => new BgBoolChooseExpr(condition, valueIfTrue, this);
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="flags">Flags for this expression</param>
+		public BgBool(BgExprFlags flags)
+			: base(flags)
+		{
+		}
 
 		/// <summary>
 		/// Implict conversion operator from a boolean literal
@@ -35,22 +43,19 @@ namespace EpicGames.BuildGraph.Expressions
 		public static BgBool operator !(BgBool inner) => new BgBoolNotExpr(inner);
 
 		/// <inheritdoc/>
-		public static BgBool operator &(BgBool lhs, BgBool rhs) => new BgBoolAndExpr(lhs, rhs);
+		public static BgBool operator &(BgBool lhs, BgBool rhs) => new BgBoolBinaryExpr(BgOpcode.BoolAnd, lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator |(BgBool lhs, BgBool rhs) => new BgBoolOrExpr(lhs, rhs);
+		public static BgBool operator |(BgBool lhs, BgBool rhs) => new BgBoolBinaryExpr(BgOpcode.BoolOr, lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator ==(BgBool lhs, BgBool rhs) => new BgBoolEqExpr(lhs, rhs);
+		public static BgBool operator ^(BgBool lhs, BgBool rhs) => new BgBoolBinaryExpr(BgOpcode.BoolXor, lhs, rhs);
 
 		/// <inheritdoc/>
-		public static BgBool operator !=(BgBool lhs, BgBool rhs) => new BgBoolNotExpr(new BgBoolEqExpr(lhs, rhs));
+		public static BgBool operator ==(BgBool lhs, BgBool rhs) => new BgBoolBinaryExpr(BgOpcode.BoolEq, lhs, rhs);
 
 		/// <inheritdoc/>
-		object IBgExpr.Compute(BgExprContext context) => Compute(context);
-
-		/// <inheritdoc/>
-		public abstract bool Compute(BgExprContext context);
+		public static BgBool operator !=(BgBool lhs, BgBool rhs) => !(lhs == rhs);
 
 		/// <inheritdoc/>
 		public sealed override bool Equals(object? obj) => throw new InvalidOperationException();
@@ -59,25 +64,19 @@ namespace EpicGames.BuildGraph.Expressions
 		public sealed override int GetHashCode() => throw new InvalidOperationException();
 
 		/// <inheritdoc/>
-		public BgString ToBgString() => new BgBoolFormatExpr(this);
+		public override BgString ToBgString() => new BgBoolToBgStringExpr(this);
 	}
 
 	/// <summary>
 	/// Type traits for a <see cref="BgBool"/>
 	/// </summary>
-	class BgBoolType : BgTypeBase<BgBool>
+	class BgBoolType : BgType<BgBool>
 	{
 		/// <inheritdoc/>
-		public override BgBool DeserializeArgument(string text) => Boolean.Parse(text);
+		public override BgBool Constant(object value) => new BgBoolConstantExpr((bool)value);
 
 		/// <inheritdoc/>
-		public override string SerializeArgument(BgBool value, BgExprContext context) => value.Compute(context).ToString();
-
-		/// <inheritdoc/>
-		public override BgBool CreateConstant(object value) => new BgBoolConstantExpr((bool)value);
-
-		/// <inheritdoc/>
-		public override IBgExprVariable<BgBool> CreateVariable() => new BgBoolVariableExpr();
+		public override BgBool Wrap(BgExpr expr) => new BgBoolWrappedExpr(expr);
 	}
 
 	#region Expression classes
@@ -87,76 +86,38 @@ namespace EpicGames.BuildGraph.Expressions
 		public BgBool Inner { get; }
 
 		public BgBoolNotExpr(BgBool inner)
+			: base(inner.Flags & BgExprFlags.Eager)
 		{
 			Inner = inner;
 		}
 
-		public override bool Compute(BgExprContext context) => !Inner.Compute(context);
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.BoolNot);
+			writer.WriteExpr(Inner);
+		}
 	}
 
-	class BgBoolEqExpr : BgBool
+	class BgBoolBinaryExpr : BgBool
 	{
+		public BgOpcode Opcode { get; }
 		public BgBool Lhs { get; }
 		public BgBool Rhs { get; }
 
-		public BgBoolEqExpr(BgBool lhs, BgBool rhs)
+		public BgBoolBinaryExpr(BgOpcode opcode, BgBool lhs, BgBool rhs)
+			: base(lhs.Flags & rhs.Flags & BgExprFlags.Eager)
 		{
+			Opcode = opcode;
 			Lhs = lhs;
 			Rhs = rhs;
 		}
 
-		public override bool Compute(BgExprContext context) => Lhs.Compute(context) == Rhs.Compute(context);
-	}
-
-	class BgBoolAndExpr : BgBool
-	{
-		public BgBool Lhs { get; }
-		public BgBool Rhs { get; }
-
-		public BgBoolAndExpr(BgBool lhs, BgBool rhs)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			Lhs = lhs;
-			Rhs = rhs;
+			writer.WriteOpcode(Opcode);
+			writer.WriteExpr(Lhs);
+			writer.WriteExpr(Rhs);
 		}
-
-		public override bool Compute(BgExprContext context) => Lhs.Compute(context) && Rhs.Compute(context);
-	}
-
-	class BgBoolOrExpr : BgBool
-	{
-		public BgBool Lhs { get; }
-		public BgBool Rhs { get; }
-
-		public BgBoolOrExpr(BgBool lhs, BgBool rhs)
-		{
-			Lhs = lhs;
-			Rhs = rhs;
-		}
-
-		public override bool Compute(BgExprContext context) => Lhs.Compute(context) || Rhs.Compute(context);
-	}
-
-	class BgBoolChooseExpr : BgBool
-	{
-		public BgBool Condition { get; }
-		public BgBool ValueIfTrue { get; }
-		public BgBool ValueIfFalse { get; }
-
-		public BgBoolChooseExpr(BgBool condition, BgBool valueIfTrue, BgBool valueIfFalse)
-		{
-			Condition = condition;
-			ValueIfTrue = valueIfTrue;
-			ValueIfFalse = valueIfFalse;
-		}
-
-		public override bool Compute(BgExprContext context) => Condition.Compute(context) ? ValueIfTrue.Compute(context) : ValueIfFalse.Compute(context);
-	}
-
-	class BgBoolVariableExpr : BgBool, IBgExprVariable<BgBool>
-	{
-		public BgBool Value { get; set; } = BgBool.False;
-
-		public override bool Compute(BgExprContext context) => Value.Compute(context);
 	}
 
 	class BgBoolConstantExpr : BgBool
@@ -164,23 +125,42 @@ namespace EpicGames.BuildGraph.Expressions
 		public bool Value { get; }
 
 		public BgBoolConstantExpr(bool value)
+			: base(BgExprFlags.NotInterned | BgExprFlags.Eager)
 		{
 			Value = value;
 		}
 
-		public override bool Compute(BgExprContext context) => Value;
+		public override void Write(BgBytecodeWriter writer) => writer.WriteOpcode(Value? BgOpcode.BoolTrue : BgOpcode.BoolFalse);
 	}
 
-	class BgBoolFormatExpr : BgString
+	class BgBoolWrappedExpr : BgBool
 	{
-		public BgBool Value { get; }
+		public BgExpr Expr { get; }
 
-		public BgBoolFormatExpr(BgBool value)
+		public BgBoolWrappedExpr(BgExpr expr)
+			: base(expr.Flags)
 		{
-			Value = value;
+			Expr = expr;
 		}
 
-		public override string Compute(BgExprContext context) => Value.Compute(context).ToString();
+		public override void Write(BgBytecodeWriter writer) => Expr.Write(writer);
+	}
+
+	class BgBoolToBgStringExpr : BgString
+	{
+		public BgExpr Expr { get; }
+
+		public BgBoolToBgStringExpr(BgExpr expr)
+			: base(expr.Flags & BgExprFlags.Eager)
+		{
+			Expr = expr;
+		}
+
+		public override void Write(BgBytecodeWriter writer)
+		{
+			writer.WriteOpcode(BgOpcode.BoolToString);
+			writer.WriteExpr(Expr);
+		}
 	}
 
 	#endregion

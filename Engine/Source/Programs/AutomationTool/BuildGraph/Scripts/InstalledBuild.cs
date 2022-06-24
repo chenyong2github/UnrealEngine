@@ -81,14 +81,14 @@ namespace AutomationTool
 			return Projects;
 		}
 
-		public override void SetupGraph(BgGraphSpec Graph)
+		public override BgGraphSpec CreateGraph(BgEnvironment Context)
 		{
 			string RootDir = CommandUtils.CmdEnv.LocalRoot;
 
-			BgBoolOption HostPlatformOnly = Graph.AddOption("HostPlatformOnly", "A helper option to make an installed build for your host platform only, so that you don't have to disable each platform individually", false);
-			BgBoolOption HostPlatformEditorOnly = Graph.AddOption("HostPlatformEditorOnly", "A helper option to make an installed build for your host platform only, so that you don't have to disable each platform individually", false);
-			BgBoolOption AllPlatforms = Graph.AddOption("AllPlatforms", "Include all target platforms by default", false);
-			BgBoolOption CompileDatasmithPlugins = Graph.AddOption("CompileDatasmithPlugins", "If Datasmith plugins should be compiled on a separate node.", false);
+			BgBoolOption HostPlatformOnly = new BgBoolOption("HostPlatformOnly", "A helper option to make an installed build for your host platform only, so that you don't have to disable each platform individually", false);
+			BgBoolOption HostPlatformEditorOnly = new BgBoolOption("HostPlatformEditorOnly", "A helper option to make an installed build for your host platform only, so that you don't have to disable each platform individually", false);
+			BgBoolOption AllPlatforms = new BgBoolOption("AllPlatforms", "Include all target platforms by default", false);
+			BgBoolOption CompileDatasmithPlugins = new BgBoolOption("CompileDatasmithPlugins", "If Datasmith plugins should be compiled on a separate node.", false);
 
 			UnrealTargetPlatform CurrentHostPlatform = HostPlatform.Current.HostEditorPlatform;
 
@@ -100,115 +100,127 @@ namespace AutomationTool
 			BgBool DefaultWithIOS = !((CurrentHostPlatform != UnrealTargetPlatform.Mac) & !AllPlatforms);
 			BgBool DefaultWithHoloLens = !((CurrentHostPlatform != UnrealTargetPlatform.Win64) & !AllPlatforms);
 
-			BgBoolOption WithWin64 = Graph.AddOption("WithWin64", "Include the Win64 target platform", DefaultWithWin64);
-			BgBoolOption WithMac = Graph.AddOption("WithMac", "Include the Mac target platform", DefaultWithMac);
-			BgBoolOption WithAndroid = Graph.AddOption("WithAndroid", "Include the Android target platform", DefaultWithPlatform);
-			BgBoolOption WithIOS = Graph.AddOption("WithIOS", "Include the iOS target platform", DefaultWithIOS);
-			BgBoolOption WithTVOS = Graph.AddOption("WithTVOS", "Include the tvOS target platform", DefaultWithIOS);
-			BgBoolOption WithLinux = Graph.AddOption("WithLinux", "Include the Linux target platform", DefaultWithLinux);
-			BgBoolOption WithLinuxArm64 = Graph.AddOption("WithLinuxArm64", "Include the Linux AArch64 target platform", DefaultWithLinuxArm64);
-			BgBoolOption WithHoloLens = Graph.AddOption("WithHoloLens", "Include the HoloLens target platform", DefaultWithHoloLens);
+			BgBoolOption WithWin64 = new BgBoolOption("WithWin64", "Include the Win64 target platform", DefaultWithWin64);
+			BgBoolOption WithMac = new BgBoolOption("WithMac", "Include the Mac target platform", DefaultWithMac);
+			BgBoolOption WithAndroid = new BgBoolOption("WithAndroid", "Include the Android target platform", DefaultWithPlatform);
+			BgBoolOption WithIOS = new BgBoolOption("WithIOS", "Include the iOS target platform", DefaultWithIOS);
+			BgBoolOption WithTVOS = new BgBoolOption("WithTVOS", "Include the tvOS target platform", DefaultWithIOS);
+			BgBoolOption WithLinux = new BgBoolOption("WithLinux", "Include the Linux target platform", DefaultWithLinux);
+			BgBoolOption WithLinuxArm64 = new BgBoolOption("WithLinuxArm64", "Include the Linux AArch64 target platform", DefaultWithLinuxArm64);
+			BgBoolOption WithHoloLens = new BgBoolOption("WithHoloLens", "Include the HoloLens target platform", DefaultWithHoloLens);
 
-			BgBoolOption WithClient = Graph.AddOption("WithClient", "Include precompiled client targets", false);
-			BgBoolOption WithServer = Graph.AddOption("WithServer", "Include precompiled server targets", false);
-			BgBoolOption WithDDC = Graph.AddOption("WithDDC", "Build a standalone derived-data cache for the engine content and templates", true);
-			BgBoolOption HostPlatformDDCOnly = Graph.AddOption("HostPlatformDDCOnly", "Whether to include DDC for the host platform only", true);
-			BgBoolOption SignExecutables = Graph.AddOption("SignExecutables", "Sign the executables produced where signing is available", false);
+			BgBoolOption WithClient = new BgBoolOption("WithClient", "Include precompiled client targets", false);
+			BgBoolOption WithServer = new BgBoolOption("WithServer", "Include precompiled server targets", false);
+			BgBoolOption WithDDC = new BgBoolOption("WithDDC", "Build a standalone derived-data cache for the engine content and templates", true);
+			BgBoolOption HostPlatformDDCOnly = new BgBoolOption("HostPlatformDDCOnly", "Whether to include DDC for the host platform only", true);
+			BgBoolOption SignExecutables = new BgBoolOption("SignExecutables", "Sign the executables produced where signing is available", false);
 
-			BgStringOption AnalyticsTypeOverride = Graph.AddOption("AnalyticsTypeOverride", "Identifier for analytic events to send", "");
-			BgBool EmbedSrcSrvInfo = Graph.AddOption("EmbedSrcSrvInfo", "Whether to add Source indexing to Windows game apps so they can be added to a symbol server", false);
+			BgStrOption AnalyticsTypeOverride = new BgStrOption("AnalyticsTypeOverride", "Identifier for analytic events to send", "");
+			BgBool EmbedSrcSrvInfo = new BgBoolOption("EmbedSrcSrvInfo", "Whether to add Source indexing to Windows game apps so they can be added to a symbol server", false);
 
-			BgList<BgEnum<UnrealTargetConfiguration>> DefaultGameConfigurations = BgList<BgEnum<UnrealTargetConfiguration>>.Create(UnrealTargetConfiguration.DebugGame, UnrealTargetConfiguration.Development, UnrealTargetConfiguration.Shipping);
-			BgList<BgEnum<UnrealTargetConfiguration>> GameConfigurations = Graph.AddOption("GameConfigurations", "Which game configurations to include for packaged applications", DefaultGameConfigurations);
-			BgBoolOption WithFullDebugInfo = Graph.AddOption("WithFullDebugInfo", "Generate full debug info for binary editor and packaged application builds", false);
+			BgList<BgString> DefaultGameConfigurations = BgList<BgString>.Create(nameof(UnrealTargetConfiguration.DebugGame), nameof(UnrealTargetConfiguration.Development), nameof(UnrealTargetConfiguration.Shipping));
+			BgList<BgString> GameConfigurationStrings = new BgListOptionSpec("GameConfigurations", description: "Which game configurations to include for packaged applications", style: BgListOptionStyle.CheckList, values: DefaultGameConfigurations);
+			BgList<BgEnum<UnrealTargetConfiguration>> GameConfigurations = GameConfigurationStrings.Select(x => BgEnum<UnrealTargetConfiguration>.Parse(x));
 
-			BgStringOption BuiltDirectory = Graph.AddOption("BuiltDirectory", "Directory for outputting the built engine", RootDir + "/LocalBuilds/Engine");
+			BgBoolOption WithFullDebugInfo = new BgBoolOption("WithFullDebugInfo", "Generate full debug info for binary editor and packaged application builds", false);
 
-			BgStringOption CrashReporterAPIURL = Graph.AddOption("CrashReporterAPIURL", "The URL to use to talk to the CrashReporterClient API.", "");
-			BgStringOption CrashReporterAPIKey = Graph.AddOption("CrashReporterAPIKey", "The API key to use to talk to the CrashReporterClient API.", "");
+			BgStrOption BuiltDirectory = new BgStrOption("BuiltDirectory", "Directory for outputting the built engine", RootDir + "/LocalBuilds/Engine");
+
+			BgStrOption CrashReporterAPIURL = new BgStrOption("CrashReporterAPIURL", "The URL to use to talk to the CrashReporterClient API.", "");
+			BgStrOption CrashReporterAPIKey = new BgStrOption("CrashReporterAPIKey", "The API key to use to talk to the CrashReporterClient API.", "");
 
 			BgString CrashReporterCompileArgs = "";
-			CrashReporterCompileArgs = CrashReporterCompileArgs.IfThen(CrashReporterAPIURL != "" & CrashReporterAPIKey != "", BgString.Format("-define:CRC_TELEMETRY_URL=\"{0}\" -define:CRC_TELEMETRY_KEY_DEV=\"{1}\" -define:CRC_TELEMETRY_KEY_RELEASE=\"{1}\" -OverrideBuildEnvironment", CrashReporterAPIURL, CrashReporterAPIKey));
+			CrashReporterCompileArgs = CrashReporterCompileArgs.If(CrashReporterAPIURL != "" & CrashReporterAPIKey != "", BgString.Format("-define:CRC_TELEMETRY_URL=\"{0}\" -define:CRC_TELEMETRY_KEY_DEV=\"{1}\" -define:CRC_TELEMETRY_KEY_RELEASE=\"{1}\" -OverrideBuildEnvironment", CrashReporterAPIURL, CrashReporterAPIKey));
+
+			List<BgAggregateSpec> Aggregates = new List<BgAggregateSpec>();
 
 			/////// EDITORS ////////////////////////////////////////////////
 
 			//// Windows ////
-			BgAgentSpec EditorWin64 = Graph.AddAgent("Editor Win64").Type("Win64_Licensee");
+			BgAgentSpec EditorWin64 = new BgAgentSpec("Editor Win64", "Win64_Licensee");
 
 			BgNodeSpec VersionFilesNode = EditorWin64
-				.AddNode(x => UpdateVersionFilesAsync(x));
+				.AddNode(x => UpdateVersionFilesAsync(x))
+				.Construct();
 
 			BgNodeSpec<BgFileSet> WinUhtNode = EditorWin64
 				.AddNode(x => CompileUnrealHeaderToolAsync(x, UnrealTargetPlatform.Win64))
-				.Requires(VersionFilesNode);
+				.Requires(VersionFilesNode)
+				.Construct();
 
 			BgNodeSpec<BgFileSet> WinEditorNode = EditorWin64
 				.AddNode(x => CompileUnrealEditorWin64Async(x, CrashReporterCompileArgs, EmbedSrcSrvInfo, CompileDatasmithPlugins, WithFullDebugInfo, SignExecutables))
-				.Requires(WinUhtNode);
-			
-			Graph.AddAggregate("Win64 Editor", WinEditorNode, label: "Editors/Win64");
+				.Requires(WinUhtNode)
+				.Construct();
+
+			Aggregates.Add(new BgAggregateSpec("Win64 Editor", WinEditorNode, label: "Editors/Win64"));
 
 
 			/////// TARGET PLATFORMS ////////////////////////////////////////////////
 
 			//// Win64 ////
 
-			BgAgentSpec TargetWin64 = Graph.AddAgent("Target Win64").Type("Win64_Licensee");
+			BgAgentSpec TargetWin64 = new BgAgentSpec("Target Win64", "Win64_Licensee");
 
 			BgNodeSpec<BgFileSet> WinGame = TargetWin64
 				.AddNode(x => CompileUnrealGameWin64(x, GameConfigurations, EmbedSrcSrvInfo, WithFullDebugInfo, SignExecutables))
-				.Requires(WinUhtNode);
+				.Requires(WinUhtNode)
+				.Construct();
 
-			Graph.AddAggregate("TargetPlatforms_Win64", WinGame);
+			Aggregates.Add(new BgAggregateSpec("TargetPlatforms_Win64", WinGame));
 
 			/////// TOOLS //////////////////////////////////////////////////////////
 
 			//// Build Rules ////
 
-			BgAgentSpec BuildRules = Graph.AddAgent("BuildRules").Type("Win64_Licensee");
+			BgAgentSpec BuildRules = new BgAgentSpec("BuildRules", "Win64_Licensee");
 
 			BgNodeSpec RulesAssemblies = BuildRules
-				.AddNode(x => CompileRulesAssemblies(x));
+				.AddNode(x => CompileRulesAssemblies(x))
+				.Construct();
 
 			//// Win Tools ////
 
-			BgAgentSpec ToolsGroupWin64 = Graph.AddAgent("Tools Group Win64").Type("Win64_Licensee");
+			BgAgentSpec ToolsGroupWin64 = new BgAgentSpec("Tools Group Win64", "Win64_Licensee");
 
 			BgNodeSpec<BgFileSet> WinTools = ToolsGroupWin64
 				.AddNode(x => BuildToolsWin64Async(x, CrashReporterCompileArgs))
-				.Requires(WinUhtNode);
+				.Requires(WinUhtNode)
+				.Construct();
 
 			BgNodeSpec<BgFileSet> CsTools = ToolsGroupWin64
 				.AddNode(x => BuildToolsCSAsync(x, SignExecutables))
-				.Requires(VersionFilesNode);
+				.Requires(VersionFilesNode)
+				.Construct();
 
 
 			/////// DDC //////////////////////////////////////////////////////////
 
-			BgAgentSpec DDCGroupWin64 = Graph.AddAgent("DDC Group Win64").Type("Win64_Licensee");
+			BgAgentSpec DDCGroupWin64 = new BgAgentSpec("DDC Group Win64", "Win64_Licensee");
 
 			BgList<BgString> DDCPlatformsWin64 = BgList<BgString>.Create("WindowsEditor");
-			DDCPlatformsWin64 = DDCPlatformsWin64.AddIf(WithWin64, "Windows");
+			DDCPlatformsWin64 = DDCPlatformsWin64.If(WithWin64, x => x.Add("Windows"));
 
 			BgNodeSpec DdcNode = DDCGroupWin64
 				.AddNode(x => BuildDDCWin64Async(x, DDCPlatformsWin64, BgList<BgFileSet>.Create(WinUhtNode.Output, WinEditorNode.Output, WinTools.Output)))
-				.Requires(WinEditorNode, WinTools);
+				.Requires(WinEditorNode, WinTools)
+				.Construct();
 
 
 			/////// STAGING ///////
 
 			// Windows 
-			BgAgentSpec WinStageAgent = Graph.AddAgent("Installed Build Group Win64").Type("Win64_Licensee");
+			BgAgentSpec WinStageAgent = new BgAgentSpec("Installed Build Group Win64", "Win64_Licensee");
 
 			BgList<BgFileSet> WinInstalledFiles = BgList<BgFileSet>.Empty;
 			WinInstalledFiles = WinInstalledFiles.Add(WinUhtNode.Output);
 			WinInstalledFiles = WinInstalledFiles.Add(WinEditorNode.Output);
 			WinInstalledFiles = WinInstalledFiles.Add(WinTools.Output);
 			WinInstalledFiles = WinInstalledFiles.Add(CsTools.Output);
-			WinInstalledFiles = WinInstalledFiles.AddIf(WithWin64, WinGame.Output);
+			WinInstalledFiles = WinInstalledFiles.If(WithWin64, x => x.Add(WinGame.Output));
 
 			BgList<BgString> WinPlatforms = BgList<BgString>.Empty;
-			WinPlatforms = WinPlatforms.AddIf(WithWin64, "Win64");
+			WinPlatforms = WinPlatforms.If(WithWin64, x => x.Add("Win64"));
 
 			BgList<BgString> WinContentOnlyPlatforms = BgList<BgString>.Empty;
 
@@ -217,9 +229,12 @@ namespace AutomationTool
 
 			BgNodeSpec WinInstalledNode = WinStageAgent
 				.AddNode(x => MakeInstalledBuildWin64Async(x, WinInstalledFiles, WinFinalizeArgs, WinOutputDir))
-				.Requires(WinInstalledFiles);
+				.Requires(WinInstalledFiles)
+				.Construct();
 
-			Graph.AddAggregate("HostPlatforms_Win64", WinInstalledNode, label: "Builds/Win64");
+			Aggregates.Add(new BgAggregateSpec("HostPlatforms_Win64", WinInstalledNode, label: "Builds/Win64"));
+
+			return new BgGraphSpec(BgList<BgNodeSpec>.Empty, Aggregates);
 		}
 
 		/// <summary>

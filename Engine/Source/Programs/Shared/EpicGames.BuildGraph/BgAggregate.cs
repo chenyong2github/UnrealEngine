@@ -22,10 +22,10 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="inName">Name of this aggregate</param>
-		public BgAggregate(string inName)
+		/// <param name="name">Name of this aggregate</param>
+		public BgAggregate(string name)
 		{
-			Name = inName;
+			Name = name;
 		}
 
 		/// <summary>
@@ -35,6 +35,27 @@ namespace EpicGames.BuildGraph
 		public override string ToString()
 		{
 			return Name;
+		}
+	}
+
+	/// <summary>
+	/// Aggregate that was created from bytecode
+	/// </summary>
+	public class BgBytecodeAggregate : BgAggregate
+	{
+		/// <summary>
+		/// Labels to add this aggregate to
+		/// </summary>
+		public BgLabel? Label { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgBytecodeAggregate(string name, IEnumerable<BgNode> nodes, BgLabel? label)
+			: base(name)
+		{
+			RequiredNodes.UnionWith(nodes);
+			Label = label;
 		}
 	}
 }

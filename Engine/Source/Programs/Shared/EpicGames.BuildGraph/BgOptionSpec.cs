@@ -9,222 +9,168 @@ using EpicGames.BuildGraph.Expressions;
 namespace EpicGames.BuildGraph
 {
 	/// <summary>
-	/// Exception thrown if an option fails validation
+	/// A boolean option expression
 	/// </summary>
-	sealed class BgOptionValidationException : Exception
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		/// <param name="message"></param>
-		public BgOptionValidationException(string message)
-			: base(message)
-		{
-		}
-	}
-
-	/// <summary>
-	/// Base class for option configuration
-	/// </summary>
-	public interface IBgOption : IBgExpr
+	public class BgBoolOption : BgBool
 	{
 		/// <summary>
 		/// Name of the option
 		/// </summary>
-		string Name { get; }
+		public BgString Name { get; }
 
 		/// <summary>
-		/// Label to show against the option in the UI
+		/// Label to display next to the option
 		/// </summary>
-		BgString? Label { get; set; }
+		public BgString? Label { get; }
 
 		/// <summary>
-		/// Description for the option
+		/// Help text to display for the user
 		/// </summary>
-		BgString Description { get; set; }
-	}
-
-	/// <summary>
-	/// A boolean option expression
-	/// </summary>
-	public class BgBoolOption : BgBool, IBgOption
-	{
-		/// <inheritdoc/>
-		public string Name { get; }
-
-		/// <inheritdoc/>
-		public BgString? Label { get; set; }
-
-		/// <inheritdoc/>
-		public BgString Description { get; set; }
+		public BgString? Description { get; }
 
 		/// <summary>
 		/// Default value for the option
 		/// </summary>
-		public BgBool DefaultValue { get; set; }
+		public BgBool? DefaultValue { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgBoolOption(string name, BgString description, BgBool defaultValue)
+		public BgBoolOption(BgString name, BgString? description = null, BgBool? defaultValue = null)
+			: this(name, null, description, defaultValue)
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		public BgBoolOption(BgString name, BgString? label, BgString? description, BgBool? defaultValue)
+			: base(BgExprFlags.None)
 		{
 			Name = name;
+			Label = label;
 			Description = description;
 			DefaultValue = defaultValue;
 		}
 
 		/// <inheritdoc/>
-		public override bool Compute(BgExprContext context)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			string? value;
-			if (context.Options.TryGetValue(Name, out value))
-			{
-				bool boolValue;
-				if (!Boolean.TryParse(value, out boolValue))
-				{
-					throw new BgOptionValidationException($"Argument for {Name} is not a valid bool ({value})");
-				}
-				return boolValue;
-			}
-			return DefaultValue.Compute(context);
+			writer.WriteOpcode(BgOpcode.BoolOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteExpr(DefaultValue ?? BgBool.False);
 		}
 	}
 
 	/// <summary>
 	/// An integer option expression
 	/// </summary>
-	public class BgIntOption : BgInt, IBgOption
+	public class BgIntOption : BgInt
 	{
-		/// <inheritdoc/>
-		public string Name { get; }
+		/// <summary>
+		/// Name of the option
+		/// </summary>
+		public BgString Name { get; }
 
-		/// <inheritdoc/>
-		public BgString? Label { get; set; }
+		/// <summary>
+		/// Label to display next to the option
+		/// </summary>
+		public BgString? Label { get; }
 
-		/// <inheritdoc/>
-		public BgString Description { get; set; }
+		/// <summary>
+		/// Help text to display for the user
+		/// </summary>
+		public BgString? Description { get; }
 
 		/// <summary>
 		/// Default value for the option
 		/// </summary>
-		public BgInt DefaultValue { get; set; }
+		public BgInt? DefaultValue { get; }
 
 		/// <summary>
 		/// Minimum allowed value
 		/// </summary>
-		public BgInt? MinValue { get; set; }
+		public BgInt? MinValue { get; }
 
 		/// <summary>
 		/// Maximum allowed value
 		/// </summary>
-		public BgInt? MaxValue { get; set; }
+		public BgInt? MaxValue { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgIntOption(string name, BgString description, BgInt defaultValue)
+		public BgIntOption(string name, BgString? description = null, BgInt? defaultValue = null, BgInt? minValue = null, BgInt? maxValue = null, BgString? label = null)
+			: base(BgExprFlags.None)
 		{
 			Name = name;
+			Label = label;
 			Description = description;
 			DefaultValue = defaultValue;
+			MinValue = minValue;
+			MaxValue = maxValue;
 		}
 
 		/// <inheritdoc/>
-		public override int Compute(BgExprContext context)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			string? value;
-			if (context.Options.TryGetValue(Name, out value))
-			{
-				int intValue;
-				if (!Int32.TryParse(value, out intValue))
-				{
-					throw new BgOptionValidationException($"Argument for '{Name}' is not a valid integer");
-				}
-				if (!(MinValue is null))
-				{
-					int intMinValue = MinValue.Compute(context);
-					if (intValue < intMinValue)
-					{
-						throw new BgOptionValidationException($"Argument for '{Name}' is less than the allowed minimum ({intValue} < {intMinValue})");
-					}
-				}
-				if (!(MaxValue is null))
-				{
-					int intMaxValue = MaxValue.Compute(context);
-					if (intValue > intMaxValue)
-					{
-						throw new BgOptionValidationException($"Argument for '{Name}' is greater than the allowed maximum ({intValue} > {intMaxValue})");
-					}
-				}
-			}
-			return DefaultValue.Compute(context);
+			writer.WriteOpcode(BgOpcode.IntOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteExpr(DefaultValue ?? (BgInt)0);
+			writer.WriteExpr(MinValue ?? (BgInt)(-1));
+			writer.WriteExpr(MaxValue ?? (BgInt)(-1));
 		}
+	}
+
+	/// <summary>
+	/// Style for a string option
+	/// </summary>
+	public enum BgStrOptionStyle
+	{
+		/// <summary>
+		/// Free-form text entry
+		/// </summary>
+		Text,
+
+		/// <summary>
+		/// List of options
+		/// </summary>
+		DropList,
 	}
 
 	/// <summary>
 	/// A string option expression
 	/// </summary>
-	public class BgEnumOption<TEnum> : BgEnum<TEnum>, IBgOption where TEnum : struct
+	public class BgStrOption : BgString
 	{
-		/// <inheritdoc/>
-		public string Name { get; }
+		/// <summary>
+		/// Name of the option
+		/// </summary>
+		public BgString Name { get; }
 
-		/// <inheritdoc/>
-		public BgString? Label { get; set; }
+		/// <summary>
+		/// Label to display next to the option
+		/// </summary>
+		public BgString? Label { get; }
 
-		/// <inheritdoc/>
-		public BgString Description { get; set; }
+		/// <summary>
+		/// Help text to display for the user
+		/// </summary>
+		public BgString? Description { get; }
 
 		/// <summary>
 		/// Default value for the option
 		/// </summary>
-		public BgEnum<TEnum> DefaultValue { get; set; }
+		public BgString? DefaultValue { get; set; }
 
 		/// <summary>
-		/// Constructor
+		/// Style for this option
 		/// </summary>
-		internal BgEnumOption(string name, BgString description, BgEnum<TEnum> defaultValue)
-		{
-			Name = name;
-			Description = description;
-			DefaultValue = defaultValue;
-		}
-
-		/// <inheritdoc/>
-		public override TEnum Compute(BgExprContext context)
-		{
-			string? value;
-			if (context.Options.TryGetValue(Name, out value))
-			{
-				TEnum enumValue;
-				if (!Enum.TryParse<TEnum>(value, true, out enumValue))
-				{
-					throw new BgOptionValidationException($"Argument '{Name}' is not a valid value for {typeof(TEnum).Name}");
-				}
-				return enumValue;
-			}
-			return DefaultValue.Compute(context);
-		}
-	}
-
-	/// <summary>
-	/// A string option expression
-	/// </summary>
-	public class BgStringOption : BgString, IBgOption
-	{
-		/// <inheritdoc/>
-		public string Name { get; }
-
-		/// <inheritdoc/>
-		public BgString? Label { get; set; }
-
-		/// <inheritdoc/>
-		public BgString Description { get; set; }
-
-		/// <summary>
-		/// Default value for the option
-		/// </summary>
-		public BgString DefaultValue { get; set; }
+		public BgStrOptionStyle Style { get; }
 
 		/// <summary>
 		/// Regex for validating values for the option
@@ -237,87 +183,144 @@ namespace EpicGames.BuildGraph
 		public BgString? PatternFailed { get; set; }
 
 		/// <summary>
-		/// Allowed values of the option
+		/// List of values to choose from
 		/// </summary>
-		public BgList<BgString>? Enum { get; set; }
+		public BgList<BgString>? Values { get; set; }
+
+		/// <summary>
+		/// Matching list of descriptions for each value
+		/// </summary>
+		public BgList<BgString>? ValueDescriptions { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgStringOption(string name, BgString description, BgString defaultValue)
+		public BgStrOption(string name, BgString? label = null, BgString? description = null, BgString? defaultValue = null, BgStrOptionStyle style = BgStrOptionStyle.Text, BgString? pattern = null, BgString? patternFailed = null, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null)
+			: base(BgExprFlags.None)
 		{
 			Name = name;
+			Label = label;
 			Description = description;
+			Style = style;
 			DefaultValue = defaultValue;
+			Pattern = pattern;
+			PatternFailed = patternFailed;
+			Values = values;
+			ValueDescriptions = valueDescriptions;
 		}
 
 		/// <inheritdoc/>
-		public override string Compute(BgExprContext context)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			string? value;
-			if (context.Options.TryGetValue(Name, out value))
-			{
-				if (!(Pattern is null))
-				{
-					string patternValue = Pattern.Compute(context);
-					if (!Regex.IsMatch(value, patternValue))
-					{
-						string patternFailedValue = PatternFailed?.Compute(context) ?? $"Argument '{Name}' does not match the required pattern: '{patternValue}'";
-						throw new BgOptionValidationException(patternFailedValue);
-					}
-				}
-				if (!(Enum is null))
-				{
-					List<string> enumValues = Enum.Compute(context);
-					if (!enumValues.Any(x => x.Equals(value, StringComparison.OrdinalIgnoreCase)))
-					{
-						throw new BgOptionValidationException($"Argument '{Name}' is invalid");
-					}
-				}
-				return value;
-			}
-			return DefaultValue.Compute(context);
+			writer.WriteOpcode(BgOpcode.StrOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteUnsignedInteger((int)Style);
+			writer.WriteExpr(DefaultValue ?? BgString.Empty);
+			writer.WriteExpr(Pattern ?? BgString.Empty);
+			writer.WriteExpr(PatternFailed ?? BgString.Empty);
+			writer.WriteExpr(Values ?? BgList<BgString>.Empty);
+			writer.WriteExpr(ValueDescriptions ?? BgList<BgString>.Empty);
 		}
+	}
+
+	/// <summary>
+	/// Style for a list option
+	/// </summary>
+	public enum BgListOptionStyle
+	{
+		/// <summary>
+		/// List of checkboxes
+		/// </summary>
+		CheckList = 0,
+
+		/// <summary>
+		/// Tag picker
+		/// </summary>
+		TagPicker = 1,
 	}
 
 	/// <summary>
 	/// A list option expression
 	/// </summary>
-	public class BgEnumListOption<TEnum> : BgList<BgEnum<TEnum>>, IBgOption where TEnum : struct
+	public class BgListOptionSpec : BgList<BgString>
 	{
-		/// <inheritdoc/>
-		public string Name { get; }
+		/// <summary>
+		/// Name of the option
+		/// </summary>
+		public BgString Name { get; }
 
-		/// <inheritdoc/>
-		public BgString? Label { get; set; }
+		/// <summary>
+		/// Label to display next to the option
+		/// </summary>
+		public BgString? Label { get; }
 
-		/// <inheritdoc/>
-		public BgString Description { get; set; }
+		/// <summary>
+		/// Help text to display for the user
+		/// </summary>
+		public BgString? Description { get; }
+
+		/// <summary>
+		/// Style for this list box
+		/// </summary>
+		public BgListOptionStyle Style { get; }
 
 		/// <summary>
 		/// Default value for the option
 		/// </summary>
-		public BgList<BgEnum<TEnum>> DefaultValue { get; set; }
+		public BgString? DefaultValue { get; set; }
+
+		/// <summary>
+		/// Regex for validating values for the option
+		/// </summary>
+		public BgString? Pattern { get; set; }
+
+		/// <summary>
+		/// Message to display if validation fails
+		/// </summary>
+		public BgString? PatternFailed { get; set; }
+
+		/// <summary>
+		/// List of values to choose from
+		/// </summary>
+		public BgList<BgString>? Values { get; set; }
+
+		/// <summary>
+		/// Matching list of descriptions for each value
+		/// </summary>
+		public BgList<BgString>? ValueDescriptions { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgEnumListOption(string name, BgString description, BgList<BgEnum<TEnum>> defaultValue)
+		public BgListOptionSpec(string name, BgString? label = null, BgString? description = null, BgString? defaultValue = null, BgListOptionStyle style = BgListOptionStyle.CheckList, BgString? pattern = null, BgString? patternFailed = null, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null)
+			: base(BgExprFlags.None)
 		{
 			Name = name;
+			Label = label;
 			Description = description;
 			DefaultValue = defaultValue;
+			Style = style;
+			Pattern = pattern;
+			PatternFailed = patternFailed;
+			Values = values;
+			ValueDescriptions = valueDescriptions;
 		}
 
 		/// <inheritdoc/>
-		public override IEnumerable<BgEnum<TEnum>> GetEnumerable(BgExprContext context)
+		public override void Write(BgBytecodeWriter writer)
 		{
-			BgList<BgEnum<TEnum>> value = DefaultValue;
-			if (context.Options.TryGetValue(Name, out string? valueText))
-			{
-				value = BgType.Get<BgList<BgEnum<TEnum>>>().DeserializeArgument(valueText);
-			}
-			return value.GetEnumerable(context);
+			writer.WriteOpcode(BgOpcode.ListOption);
+			writer.WriteExpr(Name);
+			writer.WriteExpr(Label ?? BgString.Empty);
+			writer.WriteExpr(Description ?? BgString.Empty);
+			writer.WriteUnsignedInteger((int)Style);
+			writer.WriteExpr(DefaultValue ?? BgString.Empty);
+			writer.WriteExpr(Pattern ?? BgString.Empty);
+			writer.WriteExpr(PatternFailed ?? BgString.Empty);
+			writer.WriteExpr(Values ?? BgList<BgString>.Empty);
+			writer.WriteExpr(ValueDescriptions ?? BgList<BgString>.Empty);
 		}
 	}
 }

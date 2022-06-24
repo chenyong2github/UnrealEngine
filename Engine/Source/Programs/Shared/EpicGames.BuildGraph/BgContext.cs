@@ -38,21 +38,18 @@ namespace EpicGames.BuildGraph
 		public abstract bool IsBuildMachine { get; }
 
 		/// <summary>
-		/// Context for evaluating expressions
-		/// </summary>
-		public BgExprContext Context { get; }
-
-		/// <summary>
 		/// All outputs for the node
 		/// </summary>
 		public HashSet<FileReference> BuildProducts { get; } = new HashSet<FileReference>();
 
+		Dictionary<string, FileSet> _tagNameToFileSet;
+
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgContext(BgExprContext context)
+		public BgContext(Dictionary<string, FileSet> tagNameToFileSet)
 		{
-			Context = context;
+			_tagNameToFileSet = tagNameToFileSet;
 		}
 
 		/// <summary>
@@ -60,21 +57,21 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="expr">The boolean expression</param>
 		/// <returns>Value of the expression</returns>
-		public bool Get(BgBool expr) => expr.Compute(Context);
+		public bool Get(BgBool expr) => ((BgBoolConstantExpr)expr).Value;
 
 		/// <summary>
 		/// Resolve an integer expression to a value
 		/// </summary>
 		/// <param name="expr">The integer expression</param>
 		/// <returns>Value of the expression</returns>
-		public int Get(BgInt expr) => expr.Compute(Context);
+		public int Get(BgInt expr) => ((BgIntConstantExpr)expr).Value;
 
 		/// <summary>
 		/// Resolve a string expression to a value
 		/// </summary>
 		/// <param name="expr">The string expression</param>
 		/// <returns>Value of the expression</returns>
-		public string Get(BgString expr) => expr.Compute(Context);
+		public string Get(BgString expr) => ((BgStringConstantExpr)expr).Value;
 
 		/// <summary>
 		/// Resolves an enum expression to a value
@@ -82,7 +79,7 @@ namespace EpicGames.BuildGraph
 		/// <typeparam name="TEnum">The enum type</typeparam>
 		/// <param name="expr">Enum expression</param>
 		/// <returns>The enum value</returns>
-		public TEnum Get<TEnum>(BgEnum<TEnum> expr) where TEnum : struct => expr.Compute(Context);
+		public TEnum Get<TEnum>(BgEnum<TEnum> expr) where TEnum : struct => ((BgEnumConstantExpr<TEnum>)expr).Value;
 
 		/// <summary>
 		/// Resolve a list of enums to a value
@@ -90,21 +87,33 @@ namespace EpicGames.BuildGraph
 		/// <typeparam name="TEnum">The enum type</typeparam>
 		/// <param name="expr">Enum expression</param>
 		/// <returns>The enum value</returns>
-		public List<TEnum> Get<TEnum>(BgList<BgEnum<TEnum>> expr) where TEnum : struct => expr.GetEnumerable(Context).Select(x => Get(x)).ToList();
+		public List<TEnum> Get<TEnum>(BgList<BgEnum<TEnum>> expr) where TEnum : struct => ((BgListConstantExpr<BgEnum<TEnum>>)expr).Value.Select(x => (TEnum)x).ToList();
 
 		/// <summary>
 		/// Resolve a list of strings
 		/// </summary>
 		/// <param name="expr">List expression</param>
 		/// <returns></returns>
-		public List<string> Get(BgList<BgString> expr) => expr.Compute(Context);
+		public List<string> Get(BgList<BgString> expr) => (((BgListConstantExpr<BgString>)expr).Value).ConvertAll(x => (string)x);
 
 		/// <summary>
 		/// Resolve a file set
 		/// </summary>
 		/// <param name="fileSet">The token expression</param>
 		/// <returns>Set of files for the token</returns>
-		public FileSet Get(BgFileSet fileSet) => fileSet.ComputeValue(Context);
+		public FileSet Get(BgFileSet fileSet)
+		{
+			FileSet result = FileSet.Empty;
+
+			BgFileSetInputExpr input = (BgFileSetInputExpr)fileSet;
+			foreach (BgNodeOutput output in input.Outputs)
+			{
+				FileSet set = _tagNameToFileSet[output.TagName];
+				result = FileSet.Union(result, set);
+			}
+
+			return result;
+		}
 
 		/// <summary>
 		/// Resolve a file set
@@ -114,24 +123,9 @@ namespace EpicGames.BuildGraph
 		public FileSet Get(BgList<BgFileSet> fileSets)
 		{
 			FileSet result = FileSet.Empty;
-			foreach (BgFileSet fileSet in fileSets.GetEnumerable(Context))
+			foreach (BgFileSet fileSet in ((BgListConstantExpr<BgFileSet>)fileSets).Value)
 			{
 				result += Get(fileSet);
-			}
-			return result;
-		}
-
-		/// <summary>
-		/// Resolve a file set
-		/// </summary>
-		/// <param name="fileSets">The token expression</param>
-		/// <returns>Set of files for the token</returns>
-		public FileSet Get(IEnumerable<BgFileSet> fileSets)
-		{
-			FileSet result = FileSet.Empty;
-			foreach (BgFileSet fileSet in fileSets)
-			{
-				result += fileSet.ComputeValue(Context);
 			}
 			return result;
 		}

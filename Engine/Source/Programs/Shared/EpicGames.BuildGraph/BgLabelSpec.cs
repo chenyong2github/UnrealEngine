@@ -7,79 +7,60 @@ using EpicGames.BuildGraph.Expressions;
 namespace EpicGames.BuildGraph
 {
 	/// <summary>
-	/// Configuration for a label
+	/// Specification for a label
 	/// </summary>
-	public class BgLabelConfig
+	public class BgLabelSpec : BgExpr
 	{
 		/// <summary>
 		/// Name of this badge
 		/// </summary>
-		public BgString? DashboardName { get; set; }
+		public BgString? DashboardName { get; }
 
 		/// <summary>
 		/// Category for this label
 		/// </summary>
-		public BgString? DashboardCategory { get; set; }
+		public BgString? DashboardCategory { get; }
 
 		/// <summary>
 		/// Name of the badge in UGS
 		/// </summary>
-		public BgString? UgsBadge { get; set; }
+		public BgString? UgsBadge { get; }
 
 		/// <summary>
 		/// Path to the project folder in UGS
 		/// </summary>
-		public BgString? UgsProject { get; set; }
+		public BgString? UgsProject { get; }
 
 		/// <summary>
 		/// Which change to show the badge for
 		/// </summary>
-		public BgString? Change { get; set; }
+		public BgString? Change { get; }
 
 		/// <summary>
-		/// Set of nodes that must be run for this label to be shown.
+		/// Constructor
 		/// </summary>
-		public BgList<BgFileSet> RequiredNodes { get; set; } = BgList<BgFileSet>.Empty;
-
-		/// <summary>
-		/// Set of nodes that will be included in this label if present.
-		/// </summary>
-		public BgList<BgFileSet> IncludedNodes { get; set; } = BgList<BgFileSet>.Empty;
-	}
-
-	/// <summary>
-	/// Specification for a label
-	/// </summary>
-	public class BgLabelSpec
-	{
-		private readonly BgLabelConfig _config;
-
-		internal BgLabelSpec(BgLabelConfig config)
+		public BgLabelSpec(BgString? name = null, BgString? category = null, BgString? ugsBadge = null, BgString? ugsProject = null, BgString? change = null)
+			: base(BgExprFlags.ForceFragment)
 		{
-			_config = config;
+			DashboardName = name;
+			DashboardCategory = category;
+			UgsBadge = ugsBadge;
+			UgsProject = ugsProject;
+			Change = change;
 		}
 
-		internal void AddToGraph(BgExprContext context, BgGraph graph)
+		/// <inheritdoc/>
+		public override void Write(BgBytecodeWriter writer)
 		{
-			string? dashboardName = _config.DashboardName?.Compute(context);
-			string? dashboardCategory = _config.DashboardCategory?.Compute(context);
-			string? ugsBadge = _config.UgsBadge?.Compute(context);
-			string? ugsProject = _config.UgsBadge?.Compute(context);
-
-			BgLabelChange labelChange;
-			if (_config.Change is null)
-			{
-				labelChange = BgLabelChange.Current;
-			}
-			else
-			{
-				labelChange = Enum.Parse<BgLabelChange>(_config.Change.Compute(context));
-			}
-
-			BgLabel label = new BgLabel(dashboardName, dashboardCategory, ugsBadge, ugsProject, labelChange);
-			label.RequiredNodes.UnionWith(_config.RequiredNodes.ComputeTags(context).Select(x => graph.TagNameToNodeOutput[x].ProducingNode));
-			label.IncludedNodes.UnionWith(_config.IncludedNodes.ComputeTags(context).Select(x => graph.TagNameToNodeOutput[x].ProducingNode));
-			graph.Labels.Add(label);
+			writer.WriteOpcode(BgOpcode.Label);
+			writer.WriteExpr(DashboardName ?? BgString.Empty);
+			writer.WriteExpr(DashboardCategory ?? BgString.Empty);
+			writer.WriteExpr(UgsBadge ?? BgString.Empty);
+			writer.WriteExpr(UgsProject ?? BgString.Empty);
+			writer.WriteExpr(Change ?? BgString.Empty);
 		}
+
+		/// <inheritdoc/>
+		public override BgString ToBgString() => "{Label}";
 	}
 }

@@ -20,6 +20,8 @@ using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 using OpenTracing;
 using OpenTracing.Util;
+using UnrealBuildBase;
+using UnrealBuildTool;
 
 #nullable enable
 
@@ -33,20 +35,46 @@ namespace AutomationTool
 		public abstract Task<bool> ExecuteAsync(JobContext Job, Dictionary<string, HashSet<FileReference>> TagNameToFileSet);
 	}
 
-	class BgExpressionNodeExecutor : BgNodeExecutor
+	class BgBytecodeNodeExecutor : BgNodeExecutor
 	{
-		readonly BgExpressionNode Node;
-		MethodInfo? method;
+		class BgContextImpl : BgContext
+		{
+			JobContext JobContext;
 
-		public BgExpressionNodeExecutor(BgExpressionNode node)
+			public BgContextImpl(JobContext JobContext, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
+				: base(TagNameToFileSet.ToDictionary(x => x.Key, x => FileSet.FromFiles(Unreal.RootDirectory, x.Value)))
+			{
+				this.JobContext = JobContext;
+			}
+
+			public override string Stream => CommandUtils.P4Enabled ? CommandUtils.P4Env.Branch : "";
+
+			public override int Change => CommandUtils.P4Enabled ? CommandUtils.P4Env.Changelist : 0;
+
+			public override int CodeChange => CommandUtils.P4Enabled ? CommandUtils.P4Env.CodeChangelist : 0;
+
+			public override (int Major, int Minor, int Patch) EngineVersion
+			{
+				get
+				{
+					ReadOnlyBuildVersion Current = ReadOnlyBuildVersion.Current;
+					return (Current.MajorVersion, Current.MinorVersion, Current.PatchVersion);
+				}
+			}
+
+			public override bool IsBuildMachine => CommandUtils.IsBuildMachine;
+		}
+
+		readonly BgBytecodeNode Node;
+
+		public BgBytecodeNodeExecutor(BgBytecodeNode node)
 		{
 			Node = node;
 		}
 
 		public bool Bind(ILogger logger)
 		{
-			method = Node.Method.Bind();
-			return method != null;
+			return true;
 		}
 
 		/// <summary>
@@ -57,10 +85,7 @@ namespace AutomationTool
 		/// <returns></returns>
 		public override async Task<bool> ExecuteAsync(JobContext Job, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			if (method == null)
-			{
-				throw new AutomationException("Node has not been bound");
-			}
+			MethodInfo method = Node.Method.Method;
 
 			HashSet<FileReference> BuildProducts = TagNameToFileSet[Node.DefaultOutput.TagName];
 
@@ -76,13 +101,13 @@ namespace AutomationTool
 				{
 					arguments[Idx] = Context;
 				}
-				else if (typeof(IBgExpr).IsAssignableFrom(ParameterType))
+				else if (typeof(BgExpr).IsAssignableFrom(ParameterType))
 				{
-					arguments[Idx] = BgType.Get(ParameterType).CreateConstant(Node.Arguments[Idx]!);
+					arguments[Idx] = BgType.Constant(ParameterType, Node.Arguments[Idx]);
 				}
 				else
 				{
-					arguments[Idx] = Node.Arguments[Idx];
+					arguments[Idx] = Node.Method.Arguments[Idx];
 				}
 			}
 
@@ -100,26 +125,21 @@ namespace AutomationTool
 				}
 
 				object?[] OutputValues;
-				if (Result is BgFileSet)
-				{
-					OutputValues = new[] { Result };
-				}
-				else if (Result is ITuple Tuple)
+				if (Result is ITuple Tuple)
 				{
 					OutputValues = Enumerable.Range(0, Tuple.Length).Select(x => Tuple[x]).ToArray();
 				}
 				else
 				{
-					OutputValues = Array.Empty<object>();
+					OutputValues = new[] { Result };
 				}
 
 				for (int Idx = 0; Idx < OutputValues.Length; Idx++)
 				{
-					if (OutputValues[Idx] is BgFileSet Token)
+					if (OutputValues[Idx] is BgFileSetOutputExpr FileSet)
 					{
-						string TagName = $"{Node.Name}${Idx}";
-						FileSet FileSet = Token.ComputeValue(Context.Context);
-						TagNameToFileSet[TagName] = new HashSet<FileReference>(FileSet.Flatten().Values);
+						string TagName = Node.Outputs[Idx + 1].TagName;
+						TagNameToFileSet[TagName] = new HashSet<FileReference>(FileSet.Value.Flatten().Values);
 						BuildProducts.UnionWith(TagNameToFileSet[TagName]);
 					}
 				}

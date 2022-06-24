@@ -30,7 +30,7 @@ namespace EpicGames.BuildGraph
 		public List<BgNode> Nodes { get; set; } = new List<BgNode>();
 
 		/// <summary>
-		/// Diagnostics for this agent
+		/// Diagnostics to output if executing this agent
 		/// </summary>
 		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
 

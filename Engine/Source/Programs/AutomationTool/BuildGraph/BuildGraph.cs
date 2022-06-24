@@ -104,6 +104,52 @@ namespace AutomationTool
 	}
 
 	/// <summary>
+	/// Environment for graph evaluation
+	/// </summary>
+	public class BgEnvironment
+	{
+		/// <summary>
+		/// The stream being built
+		/// </summary>
+		public BgString Stream { get; set; }
+
+		/// <summary>
+		/// Current changelist
+		/// </summary>
+		public BgInt Change { get; }
+
+		/// <summary>
+		/// Current code changelist
+		/// </summary>
+		public BgInt CodeChange { get; }
+
+		/// <summary>
+		/// Whether the graph is being run on a build machine
+		/// </summary>
+		public BgBool IsBuildMachine { get; }
+
+		/// <summary>
+		/// The current engine version
+		/// </summary>
+		public (BgInt Major, BgInt Minor, BgInt Patch) EngineVersion { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="P4Env"></param>
+		internal BgEnvironment(P4Environment P4Env)
+		{
+			this.Stream = P4Env?.Branch ?? "Unknown";
+			this.Change = P4Env?.Changelist ?? 0;
+			this.CodeChange = P4Env?.CodeChangelist ?? 0;
+			this.IsBuildMachine = CommandUtils.IsBuildMachine;
+
+			ReadOnlyBuildVersion Version = ReadOnlyBuildVersion.Current;
+			this.EngineVersion = (Version.MajorVersion, Version.MinorVersion, Version.PatchVersion);
+		}
+	}
+
+	/// <summary>
 	/// Tool to execute build automation scripts for UE projects, which can be run locally or in parallel across a build farm (assuming synchronization and resource allocation implemented by a separate system).
 	///
 	/// Build graphs are declared using an XML script using syntax similar to MSBuild, ANT or NAnt, and consist of the following components:
@@ -162,26 +208,6 @@ namespace AutomationTool
 	[Help("WriteToSharedStorage", "Allow writing to shared storage. If not set, but -SharedStorageDir is specified, build products will read but not written")]
 	public class BuildGraph : BuildCommand
 	{
-		class BgGraphConstants : IBgGraphConstants
-		{
-			public BgString Stream { get; set; }
-			public BgInt Change { get; }
-			public BgInt CodeChange { get; }
-			public BgBool IsBuildMachine { get; }
-			public (BgInt Major, BgInt Minor, BgInt Patch) EngineVersion { get; }
-
-			public BgGraphConstants(P4Environment P4Env)
-			{
-				this.Stream = P4Env?.Branch ?? "Unknown";
-				this.Change = P4Env?.Changelist ?? 0;
-				this.CodeChange = P4Env?.CodeChangelist ?? 0;
-				this.IsBuildMachine = CommandUtils.IsBuildMachine;
-
-				ReadOnlyBuildVersion Version = ReadOnlyBuildVersion.Current;
-				this.EngineVersion = (Version.MajorVersion, Version.MinorVersion, Version.PatchVersion);
-			}
-		}
-
 		/// <summary>
 		/// Main entry point for the BuildGraph command
 		/// </summary>
@@ -210,7 +236,6 @@ namespace AutomationTool
 			bool bSkipValidation = ParseParam("SkipValidation");
 			string ReportName = ParseParamValue("ReportName", null);
 			string BranchOverride = ParseParamValue("Branch", null);
-
 
 			GraphPrintOptions PrintOptions = GraphPrintOptions.ShowCommandLineOptions;
 			if(ParseParam("ShowDeps"))
@@ -355,12 +380,14 @@ namespace AutomationTool
 					return ExitCode.Error_Unknown;
 				}
 
-				BgGraphSpec GraphSpec = new BgGraphSpec(new BgGraphConstants(P4Enabled? P4Env : null));
-
 				BgGraphBuilder Builder = (BgGraphBuilder)Activator.CreateInstance(BuilderType);
-				Builder.SetupGraph(GraphSpec);
+				BgGraphSpec GraphSpec = Builder.CreateGraph(new BgEnvironment(P4Enabled ? P4Env : null));
 
-				Graph = GraphSpec.CreateGraph(Arguments);
+				(byte[] Data, BgMethod[] Methods) = BgCompiler.Compile(GraphSpec);
+
+				BgInterpreter Interpreter = new BgInterpreter(Data, Methods, Arguments);
+				Interpreter.Disassemble(Logger);
+				Graph = (BgGraph)Interpreter.Evaluate();
 			}
 			else
 			{
@@ -593,7 +620,7 @@ namespace AutomationTool
 			if(SingleNode == null && (!bListOnly || bShowDiagnostics))
 			{
 				List<BgDiagnostic> Diagnostics = Graph.GetAllDiagnostics();
-				foreach(BgDiagnostic Diagnostic in Diagnostics)
+				foreach (BgDiagnostic Diagnostic in Diagnostics)
 				{
 					if(Diagnostic.Level == LogLevel.Information)
 					{
@@ -608,7 +635,7 @@ namespace AutomationTool
 						CommandUtils.LogError("{0}({1}): error: {2}", Diagnostic.File, Diagnostic.Line, Diagnostic.Message);
 					}
 				}
-				if(Diagnostics.Any(x => x.Level == LogLevel.Error))
+				if (Diagnostics.Any(x => x.Level == LogLevel.Error))
 				{
 					return ExitCode.Error_Unknown;
 				}
@@ -682,9 +709,9 @@ namespace AutomationTool
 				NodeToExecutor[Node] = executor;
 				return executor.Bind(NameToTask, TagNameToNodeOutput, Logger);
 			}
-			else if (Node is BgExpressionNode ExpressionNode)
+			else if (Node is BgBytecodeNode BytecodeNode)
 			{
-				BgExpressionNodeExecutor executor = new BgExpressionNodeExecutor(ExpressionNode);
+				BgBytecodeNodeExecutor executor = new BgBytecodeNodeExecutor(BytecodeNode);
 				NodeToExecutor[Node] = executor;
 				return executor.Bind(Logger);
 			}
