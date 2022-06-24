@@ -10226,10 +10226,11 @@ uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 		{
 			Generators.Add(PlatformManager->GetPlatformData(Target)->RegistryGenerator.Get());
 		}
+		FCriticalSection AssetGeneratorLock;
 
 		int64 ParallelSavedPackages = 0;
 		ParallelFor(PackagesToSave.Num(),
-			[this, &PackagesToSave, &TargetPlatforms, &Generators, &ParallelSavedPackages, SaveFlags, bSaveConcurrent](int32 PackageIdx)
+			[this, &PackagesToSave, &TargetPlatforms, &Generators, &ParallelSavedPackages, SaveFlags, bSaveConcurrent, &AssetGeneratorLock](int32 PackageIdx)
 		{
 			UE::Cook::FPackageData& PackageData = *PackagesToSave[PackageIdx];
 			UPackage* Package = PackageData.GetPackage();
@@ -10355,8 +10356,12 @@ uint32 UCookOnTheFlyServer::CookFullLoadAndSave()
 						}
 
 						// Update asset registry
-						Generator.UpdateAssetRegistryPackageData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()));
-						FAssetPackageData* AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
+						FAssetPackageData* AssetPackageData = nullptr;
+						{
+							FScopeLock AssetGeneratorScopeLock(&AssetGeneratorLock);
+							Generator.UpdateAssetRegistryPackageData(*Package, SaveResult, MoveTemp(*CookContext.GetCookTagList()));
+							AssetPackageData = Generator.GetAssetPackageData(Package->GetFName());
+						}
 						check(AssetPackageData);
 
 						ICookedPackageWriter::FCommitPackageInfo CommitInfo;

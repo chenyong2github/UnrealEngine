@@ -271,14 +271,19 @@ void FLooseCookedPackageWriter::AsyncSaveOutputFiles(FRecord& Record, FCommitCon
 	{
 		ThisPackageHashes = new FPackageHashes();
 
-		// This looks weird but we're finding the _refcount_, not the hashes. So if it gets
-		// constructed, it's not actually assigned a pointer.
-		TRefCountPtr<FPackageHashes>& ExistingPackageHashes = AllPackageHashes.FindOrAdd(Context.Info.PackageName);
-		if (ExistingPackageHashes.IsValid())
+		bool bAlreadyExisted = false;
+		{
+			FScopeLock ConcurrentSaveScopeLock(&ConcurrentSaveLock);
+			TRefCountPtr<FPackageHashes>& ExistingPackageHashes = AllPackageHashes.FindOrAdd(Context.Info.PackageName);
+			// This calculation of bAlreadyExisted looks weird but we're finding the _refcount_, not the hashes. So if it gets
+			// constructed, it's not actually assigned a pointer.
+			bAlreadyExisted = ExistingPackageHashes.IsValid();
+			ExistingPackageHashes = ThisPackageHashes;
+		}
+		if (bAlreadyExisted)
 		{
 			UE_LOG(LogSavePackage, Error, TEXT("FLooseCookedPackageWriter encountered the same package twice in a cook! (%s)"), *Context.Info.PackageName.ToString());
 		}
-		ExistingPackageHashes = ThisPackageHashes;
 	}
 
 	UE::Tasks::Launch(TEXT("HashAndWriteLooseCookedFile"), [OutputFiles = MoveTemp(Context.OutputFiles), WriteOptions = Context.Info.WriteOptions, ThisPackageHashes = MoveTemp(ThisPackageHashes)]()
