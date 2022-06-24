@@ -10,19 +10,17 @@
 class UNiagaraMeshRendererProperties;
 class FNDIMeshRendererInfo;
 
-using FNDIMeshRendererInfoRef = TSharedRef<FNDIMeshRendererInfo, ESPMode::ThreadSafe>;
-using FNDIMeshRendererInfoPtr = TSharedPtr<FNDIMeshRendererInfo, ESPMode::ThreadSafe>;
-
 /** This Data Interface can be used to query information about the mesh renderers of an emitter */
 UCLASS(EditInlineNew, Category = "Mesh Particles", meta = (DisplayName = "Mesh Renderer Info"))
 class NIAGARA_API UNiagaraDataInterfaceMeshRendererInfo : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
 
-	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
-		SHADER_PARAMETER(uint32,			NumMeshes)
-		SHADER_PARAMETER_SRV(Buffer<float>,	MeshDataBuffer)
-	END_SHADER_PARAMETER_STRUCT()
+	struct FMeshData
+	{
+		FVector3f MinLocalBounds = FVector3f(ForceInitToZero);
+		FVector3f MaxLocalBounds = FVector3f(ForceInitToZero);
+	};
 
 public:
 	UNiagaraMeshRendererProperties* GetMeshRenderer() const { return MeshRenderer; }
@@ -36,6 +34,8 @@ public:
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
 #endif 
 	//UObject Interface End
+
+	void OnMeshRendererChanged(UNiagaraMeshRendererProperties* NewMeshRenderer);
 
 	//UNiagaraDataInterface Interface
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
@@ -62,12 +62,17 @@ protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	virtual void PushToRenderThreadImpl() override;
 
-	void GetNumMeshes(FVectorVMExternalFunctionContext& Context);
-	void GetMeshLocalBounds(FVectorVMExternalFunctionContext& Context);
+	void VMGetNumMeshes(FVectorVMExternalFunctionContext& Context);
+	void VMGetMeshLocalBounds(FVectorVMExternalFunctionContext& Context);
+	void VMGetSubUVDetails(FVectorVMExternalFunctionContext& Context);
 
 	/** The name of the mesh renderer */
 	UPROPERTY(EditAnywhere, Category = "Source")
 	TObjectPtr<UNiagaraMeshRendererProperties> MeshRenderer;
 
-	FNDIMeshRendererInfoPtr Info;
+	TArray<FMeshData> CachedMeshData;
+
+#if WITH_EDITOR
+	FDelegateHandle OnMeshRendererChangedHandle;
+#endif
 };

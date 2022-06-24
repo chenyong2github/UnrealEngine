@@ -288,6 +288,7 @@ bool UNiagaraDataInterfaceSpriteRendererInfo::CopyToInternal(UNiagaraDataInterfa
 	}
 
 	UNiagaraDataInterfaceSpriteRendererInfo* DestinationTyped = CastChecked<UNiagaraDataInterfaceSpriteRendererInfo>(Destination);
+	DestinationTyped->OnSpriteRendererChanged(nullptr);
 	DestinationTyped->SpriteRenderer = SpriteRenderer;
 	DestinationTyped->OnSpriteRendererChanged(SpriteRenderer);
 
