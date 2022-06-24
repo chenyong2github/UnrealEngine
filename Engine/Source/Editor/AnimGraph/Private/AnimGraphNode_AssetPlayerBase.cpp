@@ -5,6 +5,7 @@
 #include "Animation/AnimComposite.h"
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSpawner.h"
+#include "BlueprintAssetNodeSpawner.h"
 #include "UObject/UObjectIterator.h"
 #include "Animation/AnimLayerInterface.h"
 #include "IAnimBlueprintGeneratedClassCompiledData.h"
@@ -256,7 +257,7 @@ void UAnimGraphNode_AssetPlayerBase::GetMenuActionsHelper(
 			InSetupNewNodeFromAssetFunction(InNewNode, bInIsTemplateNode, InAssetData);
 		};
 
-		UBlueprintNodeSpawner* NodeSpawner = UBlueprintNodeSpawner::Create(InNodeClass.Get());
+		UBlueprintAssetNodeSpawner* NodeSpawner = UBlueprintAssetNodeSpawner::Create(InNodeClass.Get(), InAssetData);
 		NodeSpawner->CustomizeNodeDelegate = UBlueprintNodeSpawner::FCustomizeNodeDelegate::CreateLambda(AssetSetup);
 		NodeSpawner->DefaultMenuSignature.MenuName = InMenuNameFunction(InAssetData, InAssetData.GetClass());
 		NodeSpawner->DefaultMenuSignature.Category = InMenuCategoryFunction != nullptr ? InMenuCategoryFunction(InAssetData) : FText::GetEmpty();

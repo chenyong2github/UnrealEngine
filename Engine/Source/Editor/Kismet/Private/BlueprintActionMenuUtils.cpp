@@ -31,6 +31,7 @@
 #include "ContentBrowserModule.h"
 #include "ComponentAssetBroker.h"
 #include "BlueprintNamespaceHelper.h"
+#include "Editor/EditorEngine.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintActionMenuUtils"
 
@@ -485,6 +486,15 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 	LevelActorsFilter.Context = Context;
 	// only want bound actions for this menu section
 	LevelActorsFilter.AddRejectionTest(FBlueprintActionFilter::FRejectionTestDelegate::CreateStatic(IsUnBoundSpawner));
+
+	// Build asset reference filter
+	FAssetReferenceFilterContext AssetReferenceFilterContext;
+	for (UBlueprint* Blueprint : Context.Blueprints)
+	{
+		AssetReferenceFilterContext.ReferencingAssets.Add(FAssetData(Blueprint));
+	}
+
+	MainMenuFilter.AssetReferenceFilter = GEditor->MakeAssetReferenceFilter(AssetReferenceFilterContext);
 
 	const UBlueprintEditorSettings* BlueprintSettings = GetDefault<UBlueprintEditorSettings>();
 	bool bCanOperateOnLevelActors = bIsContextSensitive && (Context.Pins.Num() == 0);
