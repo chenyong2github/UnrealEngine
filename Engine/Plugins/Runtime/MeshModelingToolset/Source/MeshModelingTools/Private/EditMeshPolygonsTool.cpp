@@ -28,6 +28,7 @@
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/MinimalHoleFiller.h"
 #include "Operations/PolygroupRemesh.h"
+#include "Operations/WeldEdgeSequence.h"
 #include "Selection/PersistentMeshSelection.h"
 #include "Selection/StoredMeshSelectionUtil.h"
 #include "Selection/PolygonSelectionMechanic.h"
@@ -1655,44 +1656,109 @@ void UEditMeshPolygonsTool::ApplyCollapseEdge()
 
 
 
-
 void UEditMeshPolygonsTool::ApplyWeldEdges()
 {
-	bool bValidInput = SelectionMechanic->GetActiveSelection().SelectedEdgeIDs.Num() == 2 && BeginMeshBoundaryEdgeEditChange(true);
-	bValidInput = bValidInput && ActiveEdgeSelection.Num() == 2;		// one of the initial edges may not have been valid
-	if ( bValidInput == false )
+	if (SelectionMechanic->GetActiveSelection().SelectedEdgeIDs.Num() != 2)
 	{
-		GetToolManager()->DisplayMessage( LOCTEXT("OnWeldEdgesFailed", "Cannot Weld current selection"), EToolMessageLevel::UserWarning);
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnWeldEdgesFailedEdgeCount", "Cannot Weld current selection, selection must be exactly 2 edges."),
+			EToolMessageLevel::UserWarning);
 		return;
 	}
 
 	FDynamicMesh3* Mesh = CurrentMesh.Get();
+	FDynamicMesh3 MeshCopy(*Mesh);				// We are going to operate on this copy and, if successful, copy the changes back into Mesh
+	
+	FGroupTopologySelection CurrentSelection = SelectionMechanic->GetActiveSelection();
+	TArray<int32> SelectedEdgeIDs = CurrentSelection.SelectedEdgeIDs.Array();
+	FEdgeSpan& SpanA = Topology->Edges[SelectedEdgeIDs[0]].Span;
+	FEdgeSpan& SpanB = Topology->Edges[SelectedEdgeIDs[1]].Span;
+	
+	if (SpanA.Vertices[0] == SpanA.Vertices.Last() || SpanB.Vertices[0] == SpanB.Vertices.Last())
+	{
+		GetToolManager()->DisplayMessage(
+			LOCTEXT("OnWeldEdgesFailedEdgesAreLoops", "Cannot Weld current selection, selected edges must not be loops."),
+			EToolMessageLevel::UserWarning);
+		return;
+	}
 
 	FDynamicMeshChangeTracker ChangeTracker(Mesh);
 	ChangeTracker.BeginChange();
 
-	int32 EdgeIDA = Topology->GetGroupEdgeEdges(ActiveEdgeSelection[0].EdgeTopoID)[0];
-	int32 EdgeIDB = Topology->GetGroupEdgeEdges(ActiveEdgeSelection[1].EdgeTopoID)[0];
-	FIndex2i EdgeVerts[2] = { Mesh->GetEdgeV(EdgeIDA), Mesh->GetEdgeV(EdgeIDB) };
-	for (int j = 0; j < 2; ++j)
+	// Save one ring tri's for vertices along first edge
+	for (int Vert : SpanA.Vertices)
 	{
-		ChangeTracker.SaveVertexOneRingTriangles(EdgeVerts[j].A, true);
-		ChangeTracker.SaveVertexOneRingTriangles(EdgeVerts[j].B, true);
+		ChangeTracker.SaveVertexOneRingTriangles(Vert, true);
 	}
 
-	FDynamicMesh3::FMergeEdgesInfo MergeInfo;
-	EMeshResult Result = Mesh->MergeEdges(EdgeIDB, EdgeIDA, MergeInfo);
-	if (Result != EMeshResult::Ok)
+	// Save one ring tri's for vertices along second edge
+	for (int Vert : SpanB.Vertices)
 	{
-		GetToolManager()->DisplayMessage( LOCTEXT("OnWeldEdgesFailed", "Cannot Weld current selection"), EToolMessageLevel::UserWarning);
+		ChangeTracker.SaveVertexOneRingTriangles(Vert, true);
+	}
+
+	FWeldEdgeSequence EdgeWelder(&MeshCopy, SpanA, SpanB);
+	EdgeWelder.bAllowIntermediateTriangleDeletion = true;
+	EdgeWelder.bAllowFailedMerge = true;
+	
+	FWeldEdgeSequence::EWeldResult Result = EdgeWelder.Weld();
+	if (Result != FWeldEdgeSequence::EWeldResult::Ok)
+	{
+		switch (Result)
+		{
+		case FWeldEdgeSequence::EWeldResult::Failed_EdgesNotBoundaryEdges:
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("OnWeldEdgesFailedBoundary", "Cannot Weld current selection, selected edges must be boundary edges."),
+				EToolMessageLevel::UserWarning);
+			break;
+
+		case FWeldEdgeSequence::EWeldResult::Failed_CannotSplitEdge:
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("OnWeldEdgesFailedSplitEdge", "Cannot Weld current selection, failed to insert vertex."), 
+				EToolMessageLevel::UserWarning);
+			break;
+
+		case FWeldEdgeSequence::EWeldResult::Failed_TriangleDeletionDisabled:
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("OnWeldEdgesFailedTriDeleteDisabled", "Cannot Weld current selection, deletion of edges connecting selected edges is disabled."), 
+				EToolMessageLevel::UserWarning);
+			break;
+
+		case FWeldEdgeSequence::EWeldResult::Failed_CannotDeleteTriangle:
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("OnWeldEdgesFailedTriDeleteFailed", "Cannot Weld current selection, failed to delete edge connecting selected edges."), 
+				EToolMessageLevel::UserWarning);
+			break;
+
+		case FWeldEdgeSequence::EWeldResult::Failed_Other:
+		default:
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("OnWeldEdgesFailedOther", "Cannot Weld current selection, bad geometry."), 
+				EToolMessageLevel::UserWarning);
+			break;
+		}
+
 		return;
+	}
+	else
+	{
+		// On success, apply the result by copying over the existing mesh
+		*Mesh = MeshCopy;
+
+		if (EdgeWelder.UnmergedEdgePairsOut.Num() != 0)
+		{
+			GetToolManager()->DisplayMessage(
+				LOCTEXT("OnWeldEdgesCompletedSeamsRemain", "Warning: welding incomplete because it would create "
+					"invalid geometry (attached non manifold edge or duplicate triangle). Seam still exists at weld "
+					"location. Modify attached triangles and retry, or undo."),
+				EToolMessageLevel::UserWarning);
+		}
 	}
 
 	FGroupTopologySelection NewSelection;
 	EmitCurrentMeshChangeAndUpdate(LOCTEXT("PolyMeshWeldEdgeChange", "Weld Edges"),
 		ChangeTracker.EndChange(), NewSelection);
 }
-
 
 void UEditMeshPolygonsTool::ApplyStraightenEdges()
 {
