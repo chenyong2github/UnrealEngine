@@ -67,6 +67,8 @@
 #include "Misc/PathViews.h"
 #include "UObject/LinkerLoad.h"
 
+#include <atomic>
+
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 PRAGMA_DISABLE_OPTIMIZATION
 #endif
@@ -2313,7 +2315,7 @@ private:
 	TSet<FAsyncPackage2*> PackagesToCancel;
 
 	/** Async loading thread ID */
-	uint32 AsyncLoadingThreadID;
+	std::atomic<uint32> AsyncLoadingThreadID;
 
 	/** I/O Dispatcher */
 	FIoDispatcher& IoDispatcher;
