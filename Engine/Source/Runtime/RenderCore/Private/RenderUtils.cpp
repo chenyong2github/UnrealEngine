@@ -1042,6 +1042,12 @@ RENDERCORE_API bool AllowScreenSpaceReflection(const FStaticShaderPlatform Platf
 	return false;
 }
 
+RENDERCORE_API bool MobileSupportVolumetricFog(const FStaticShaderPlatform Platform)
+{
+	static TConsoleVariableData<int32>* CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.VolumetricFog"));
+	return (CVar && CVar->GetValueOnAnyThread() != 0) ? true : false;
+}
+
 RENDERCORE_API int32 GUseForwardShading = 0;
 static FAutoConsoleVariableRef CVarForwardShading(
 	TEXT("r.ForwardShading"),

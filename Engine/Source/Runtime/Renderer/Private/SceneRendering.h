@@ -675,15 +675,14 @@ class FVolumetricFogViewResources
 {
 public:
 	TUniformBufferRef<FVolumetricFogGlobalData> VolumetricFogGlobalData;
-
-	FRDGTextureRef IntegratedLightScatteringTexture = nullptr;
+	TRefCountPtr<IPooledRenderTarget> IntegratedLightScattering;
 
 	FVolumetricFogViewResources()
 	{}
 
 	void Release()
 	{
-		IntegratedLightScatteringTexture = nullptr;
+		IntegratedLightScattering.SafeRelease();
 	}
 };
 
@@ -1955,7 +1954,7 @@ protected:
 	 * Culls local lights and reflection probes to a grid in frustum space, builds one light list and grid per view in the current Views.  
 	 * Needed for forward shading or translucency using the Surface lighting mode, and clustered deferred shading. 
 	 */
-	void ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo &SortedLightSet);
+	void ComputeLightGrid(FRDGBuilder& GraphBuilder, bool bCullLightsToGrid, FSortedLightSetSceneInfo &SortedLightSet, bool bMobileForwardShading = false);
 
 	/**
 	* Used by RenderLights to figure out if light functions need to be rendered to the attenuation buffer.
@@ -2068,6 +2067,10 @@ protected:
 
 	void RenderScreenSpaceReflection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSceneRenderTargets& SceneContext);
 	void RenderScreenSpaceReflection(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorTexture, FRDGTextureRef WorldNormalRoughnessTexture, FRDGTextureRef ScreenSpaceReflectionTexture);
+
+	bool ShouldRenderVolumetricFog() const;
+	void SetupVolumetricFog();
+	void ComputeVolumetricFog(FRDGBuilder& GraphBuilder, FSceneRenderTargets& SceneContext);
 
 	/** Before SetupMobileBasePassAfterShadowInit, we need to update the uniform buffer and shadow info for all movable point lights.*/
 	void UpdateMovablePointLightUniformBufferAndShadowInfo();

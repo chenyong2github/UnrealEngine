@@ -23,7 +23,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters,)
 	SHADER_PARAMETER(float, ApplyVolumetricFog)
 	SHADER_PARAMETER_TEXTURE(TextureCube, FogInscatteringColorCubemap)
 	SHADER_PARAMETER_SAMPLER(SamplerState, FogInscatteringColorSampler)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, IntegratedLightScattering)
+	SHADER_PARAMETER_TEXTURE(Texture3D, IntegratedLightScattering)
 	SHADER_PARAMETER_SAMPLER(SamplerState, IntegratedLightScatteringSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 

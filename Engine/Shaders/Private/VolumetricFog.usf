@@ -5,12 +5,16 @@
 #include "Common.ush"
 #include "Definitions.usf"
 #define SUPPORT_CONTACT_SHADOWS 0
-#include "DeferredLightingCommon.ush"
 #include "LightGridCommon.ush"
 #include "HeightFogCommon.ush"
 #include "SHCommon.ush"
+
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+#include "DeferredLightingCommon.ush"
 #include "DistanceFieldAOShared.ush"
 #include "GlobalDistanceFieldShared.ush"
+#endif
+
 #include "VolumeLightingCommon.ush"
 #include "VolumetricLightmapShared.ush"
 #include "ForwardShadowingCommon.ush"
@@ -124,6 +128,7 @@ float PhaseFunction(float g, float CosTheta)
 	return HenyeyGreensteinPhase(g, CosTheta);
 }
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 struct FWriteToSliceVertexOutput
 {
 	FScreenVertexOutput Vertex;
@@ -170,6 +175,7 @@ void WriteToBoundingSphereVS(
 	Output.Vertex.UV = 0;
 	Output.LayerIndex = LayerIndex + MinZ;
 }
+#endif
 
 float HistoryWeight;
 float4 FrameJitterOffsets[16]; 
@@ -185,6 +191,7 @@ float InverseSquaredLightDistanceBiasScale;
 #define INVERSE_SQUARED_FALLOFF 1
 #endif
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 void InjectShadowedLocalLightPS(
 	FWriteToSliceGeometryOutput Input,
 	out float4 OutScattering : SV_Target0
@@ -298,6 +305,7 @@ void InjectShadowedLocalLightPS(
 		OutScattering.rgb /= (float)NumSuperSamples;
 	}
 }
+#endif
 
 Texture3D<float4> VBufferA;
 Texture3D<float4> VBufferB;
@@ -331,6 +339,7 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	float3 ConeDirection,
 	float TanConeHalfAngle)
 {
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	float MinStepSize = GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2 / 100.0f;
 	float InvAOGlobalMaxOcclusionDistance = 1.0f / AOGlobalMaxOcclusionDistance;
 
@@ -360,10 +369,13 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	}
 
 	return MinVisibility;
+#endif
+	return 1;
 }
 
 float HemisphereConeTraceAgainstGlobalDistanceField(float3 WorldShadingPosition, float3 ConeDirection, float TanConeHalfAngle)
 {
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	float MinVisibility = 1.0f;
 	float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[0].xyz, GlobalVolumeCenterAndExtent[0].www, WorldShadingPosition);
 
@@ -399,6 +411,8 @@ float HemisphereConeTraceAgainstGlobalDistanceField(float3 WorldShadingPosition,
 	}
 
 	return MinVisibility;
+#endif
+	return 1;
 }
 
 float SkyLightUseStaticShadowing;
@@ -559,6 +573,7 @@ void LightScatteringCS(
 		}
 #endif
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 		uint GridIndex = ComputeLightGridCellIndex(GridCoordinate.xy * VolumetricFog.FogGridToPixelXY, SceneDepth, 0);
 		const FCulledLightsGridData CulledLightsGrid = GetCulledLightsGrid(GridIndex, 0);
 
@@ -625,12 +640,15 @@ void LightScatteringCS(
 				//LightScattering += LocalLight.LightColorAndFalloffExponent.xyz * .0000001f;
 			}
 		}
+#endif
 	}
 
 	LightScattering /= (float)NumSuperSamples;
 
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 	// Shadowed point and spot lights were computed earlier
 	LightScattering += LocalShadowedLightScattering[GridCoordinate].xyz;
+#endif
 
 	float4 MaterialScatteringAndAbsorption = VBufferA[GridCoordinate];
 	float Extinction = MaterialScatteringAndAbsorption.w + Luminance(MaterialScatteringAndAbsorption.xyz);

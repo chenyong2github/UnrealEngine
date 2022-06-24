@@ -163,5 +163,6 @@ bool FMaterialQualityOverrides::HasAnyOverridesSet() const
 		|| bForceLQReflections != DefaultOverrides.bForceLQReflections
 		|| bForceDisablePreintegratedGF != DefaultOverrides.bForceDisablePreintegratedGF
 		|| bDisableMaterialNormalCalculation != DefaultOverrides.bDisableMaterialNormalCalculation
+		|| bVolumetricFogCalculation != DefaultOverrides.bVolumetricFogCalculation
 		|| bDiscardQualityDuringCook != DefaultOverrides.bDiscardQualityDuringCook;
 }
