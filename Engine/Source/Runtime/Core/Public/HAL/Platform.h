@@ -701,6 +701,20 @@
 	#define UE_NODISCARD
 #endif
 
+// Use before a constructor declaration to warn when an unnamed temporary object is ignored, e.g. FScopeLock(CS); instead of FScopeLock Lock(CS);
+// We can't just use UE_NODISCARD in this case because older compilers don't like [[nodiscard]] on constructors.
+#if !defined(UE_NODISCARD_CTOR) && defined(__has_cpp_attribute)
+	#if __has_cpp_attribute(nodiscard)
+		#if (defined(_MSC_VER) && _MSC_VER >= 1924) || (defined(__clang__) && __clang_major__ >= 10)
+			#define UE_NODISCARD_CTOR [[nodiscard]]
+		#endif
+	#endif
+#endif
+
+#ifndef UE_NODISCARD_CTOR
+	#define UE_NODISCARD_CTOR
+#endif
+
 /* Use before a function declaration to indicate that the function never returns */
 #if !defined(UE_NORETURN) && defined(__has_cpp_attribute)
 	#if __has_cpp_attribute(noreturn)

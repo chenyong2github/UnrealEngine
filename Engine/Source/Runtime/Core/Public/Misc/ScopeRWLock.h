@@ -11,7 +11,7 @@
 class FReadScopeLock
 {
 public:
-	explicit FReadScopeLock(FRWLock& InLock)
+	UE_NODISCARD_CTOR explicit FReadScopeLock(FRWLock& InLock)
 		: Lock(InLock)
 	{
 		Lock.ReadLock();
@@ -32,7 +32,7 @@ private:
 class FWriteScopeLock
 {
 public:
-	explicit FWriteScopeLock(FRWLock& InLock)
+	UE_NODISCARD_CTOR explicit FWriteScopeLock(FRWLock& InLock)
 		: Lock(InLock)
 	{
 		Lock.WriteLock();
@@ -67,7 +67,7 @@ enum FRWScopeLockType
 class FRWScopeLock
 {
 public:
-	explicit FRWScopeLock(FRWLock& InLockObject,FRWScopeLockType InLockType)
+	UE_NODISCARD_CTOR explicit FRWScopeLock(FRWLock& InLockObject,FRWScopeLockType InLockType)
 	: LockObject(InLockObject)
 	, LockType(InLockType)
 	{
