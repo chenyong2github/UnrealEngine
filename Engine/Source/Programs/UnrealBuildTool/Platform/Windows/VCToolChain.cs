@@ -1411,7 +1411,7 @@ namespace UnrealBuildTool
 				{
 					if (Target.WindowsPlatform.Compiler.IsMSVC() && !CompileAction.ForceClFilter)
 					{
-						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.json"));
+						CompileAction.DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.dep.json"));
 					}
 					else if (Target.WindowsPlatform.Compiler.IsClang())
 					{
