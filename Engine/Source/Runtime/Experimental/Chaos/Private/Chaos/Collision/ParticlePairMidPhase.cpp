@@ -425,7 +425,7 @@ namespace Chaos
 			PHYSICS_CSV_SCOPED_EXPENSIVE(PhysicsVerbose, NarrowPhase_UpdateConstraintProbe);
 
 			MidPhase.GetCollisionAllocator().ActivateConstraint(Constraint.Get());
-			LastUsedEpoch = LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
+			LastUsedEpoch = MidPhase.GetCollisionAllocator().GetCurrentEpoch();
 			return 1;
 		}
 
