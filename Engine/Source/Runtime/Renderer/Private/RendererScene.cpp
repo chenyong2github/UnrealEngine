@@ -2869,20 +2869,10 @@ void FScene::AddPrecomputedVolumetricLightmap(const FPrecomputedVolumetricLightm
 	FScene* Scene = this;
 
 	ENQUEUE_RENDER_COMMAND(AddVolumeCommand)
-		([Scene, Volume, bIsPersistentLevel](FRHICommandListImmediate& RHICmdList)
-		{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Volume && Scene->GetShadingPath() == EShadingPath::Mobile)
-			{
-				const FPrecomputedVolumetricLightmapData* VolumeData = Volume->Data;
-				if (VolumeData && VolumeData->BrickData.LQLightDirection.Data.Num() == 0)
-				{
-					FPlatformAtomics::InterlockedIncrement(&Scene->NumUncachedStaticLightingInteractions);
-				}
-			}
-#endif
+	([Scene, Volume, bIsPersistentLevel](FRHICommandListImmediate& RHICmdList)
+	{
 		Scene->VolumetricLightmapSceneData.AddLevelVolume(Volume, Scene->GetShadingPath(), bIsPersistentLevel);
-		});
+	});
 }
 
 void FScene::RemovePrecomputedVolumetricLightmap(const FPrecomputedVolumetricLightmap* Volume)
@@ -2890,20 +2880,10 @@ void FScene::RemovePrecomputedVolumetricLightmap(const FPrecomputedVolumetricLig
 	FScene* Scene = this; 
 
 	ENQUEUE_RENDER_COMMAND(RemoveVolumeCommand)
-		([Scene, Volume](FRHICommandListImmediate& RHICmdList) 
-		{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-			if (Volume && Scene->GetShadingPath() == EShadingPath::Mobile)
-			{
-				const FPrecomputedVolumetricLightmapData* VolumeData = Volume->Data;
-				if (VolumeData && VolumeData->BrickData.LQLightDirection.Data.Num() == 0)
-				{
-					FPlatformAtomics::InterlockedDecrement(&Scene->NumUncachedStaticLightingInteractions);
-				}
-			}
-#endif
+	([Scene, Volume](FRHICommandListImmediate& RHICmdList) 
+	{
 		Scene->VolumetricLightmapSceneData.RemoveLevelVolume(Volume);
-		});
+	});
 }
 
 void FScene::AddRuntimeVirtualTexture(class URuntimeVirtualTextureComponent* Component)

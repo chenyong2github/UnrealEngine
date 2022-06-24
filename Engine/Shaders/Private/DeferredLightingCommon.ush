@@ -49,7 +49,7 @@ struct FDeferredLightData
 	/** Intensity of non-shadow-casting contact shadows */
 	float ContactShadowNonShadowCastingIntensity;
 	float2 DistanceFadeMAD;
-	float4 ShadowMapChannelMask;
+	half4 ShadowMapChannelMask;
 	/** Whether ContactShadowLength is in World Space or in Screen Space. */
 	bool ContactShadowLengthInWS;
 	/** Whether to use inverse squared falloff. */
@@ -182,7 +182,7 @@ float ShadowRayCast(
 #error "Must set SUPPORT_CONTACT_SHADOWS"
 #endif
 
-void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 TranslatedWorldPosition, half3 L, half4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
+void GetShadowTerms(float SceneDepth, half4 PrecomputedShadowFactors, uint ShadingModelID, float ContactShadowOpacity, FDeferredLightData LightData, float3 TranslatedWorldPosition, half3 L, half4 LightAttenuation, float Dither, inout FShadowTerms Shadow)
 {
 	float ContactShadowLength = 0.0f;
 	const float ContactShadowLengthScreenScale = View.ClipToView[1][1] * SceneDepth;
@@ -195,10 +195,14 @@ void GetShadowTerms(float SceneDepth, float4 PrecomputedShadowFactors, uint Shad
 		// LightAttenuation: Light function + per-object shadows in z, per-object SSS shadowing in w, 
 		// Whole scene directional light shadows in x, whole scene directional light SSS shadows in y
 		// Get static shadowing from the appropriate GBuffer channel
-		float UsesStaticShadowMap = dot(LightData.ShadowMapChannelMask, float4(1, 1, 1, 1));
-		float StaticShadowing = lerp(1, dot(PrecomputedShadowFactors, LightData.ShadowMapChannelMask), UsesStaticShadowMap);
+#if ALLOW_STATIC_LIGHTING
+		half UsesStaticShadowMap = dot(LightData.ShadowMapChannelMask, half4(1, 1, 1, 1));
+		half StaticShadowing = lerp(1, dot(PrecomputedShadowFactors, LightData.ShadowMapChannelMask), UsesStaticShadowMap);
+#else
+		half StaticShadowing = 1.0f;
+#endif
 
-		if (LightData.bRadialLight)
+		if (LightData.bRadialLight || SHADING_PATH_MOBILE)
 		{
 			// Remapping the light attenuation buffer (see ShadowRendering.cpp)
 

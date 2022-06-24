@@ -649,7 +649,7 @@ FGBufferData MobileDecodeGBuffer(half4 InGBufferA, half4 InGBufferB, half4 InGBu
 	GBuffer.BaseColor = DecodeBaseColor(InGBufferC.rgb);
 #if ALLOW_STATIC_LIGHTING
 	GBuffer.GBufferAO = 1;
-	GBuffer.PrecomputedShadowFactors = InGBufferC.a;
+	GBuffer.PrecomputedShadowFactors = half4(InGBufferC.a, 1, 1, 1);
 #else
 	GBuffer.GBufferAO = InGBufferC.a;
 	GBuffer.PrecomputedShadowFactors = 1.0;

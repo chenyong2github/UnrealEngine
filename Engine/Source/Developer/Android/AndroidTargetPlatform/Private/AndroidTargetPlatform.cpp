@@ -502,12 +502,7 @@ void FAndroidTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray<
 
 	for (FName& TextureFormatName : LayerFormats)
 	{
-		if (Texture->LODGroup == TEXTUREGROUP_Shadowmap)
-		{
-			// forward rendering only needs one channel for shadow maps
-			TextureFormatName = FName(TEXT("G8"));
-		}
-		else if (Texture->LODGroup == TEXTUREGROUP_Terrain_Weightmap && bCompressLandscapeWeightMaps)
+		if (Texture->LODGroup == TEXTUREGROUP_Terrain_Weightmap && bCompressLandscapeWeightMaps)
 		{
 			TextureFormatName = AndroidTexFormat::NameAutoDXT;
 		}

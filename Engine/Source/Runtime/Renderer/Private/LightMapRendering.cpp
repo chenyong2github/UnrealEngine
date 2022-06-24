@@ -228,20 +228,6 @@ void InterpolateVolumetricLightmap(
 	LQSH.G = GetSHVector3(AmbientVector.Y, ReadSHCoefficient(2), ReadSHCoefficient(3));
 	LQSH.B = GetSHVector3(AmbientVector.Z, ReadSHCoefficient(4), ReadSHCoefficient(5));
 
-	if(VolumetricLightmapData.BrickData.LQLightColor.Data.Num())
-	{
-		// Add stationary direct lighting to match ILC's LQ behavior.
-		FLinearColor LQLightColour = FilteredVolumeLookup<FFloat3Packed>(BrickTextureCoordinate, VolumetricLightmapData.BrickDataDimensions, (const FFloat3Packed*)VolumetricLightmapData.BrickData.LQLightColor.Data.GetData());
-		FVector LQLightDirection = (FVector)FilteredVolumeLookup<FColor>(BrickTextureCoordinate, VolumetricLightmapData.BrickDataDimensions, (const FColor*)VolumetricLightmapData.BrickData.LQLightDirection.Data.GetData());
-		//Swap X and Z channel because it was swapped at ImportVolumetricLightmap for changing format from BGRA to RGBA
-		Swap(LQLightDirection.X, LQLightDirection.Z);
-
-		LQLightDirection = LQLightDirection*2.0f - FVector(1.0f, 1.0f, 1.0f);
-		LQLightDirection.Normalize();
-
-		LQSH.AddIncomingRadiance(LQLightColour, 1.0f, LQLightDirection);
-	}
-
 	// Pack the 3rd order SH as the shader expects
 	OutInterpolation.IndirectLightingSHCoefficients0[0] = FVector4f(LQSH.R.V[0], LQSH.R.V[1], LQSH.R.V[2], LQSH.R.V[3]) * INV_PI;
 	OutInterpolation.IndirectLightingSHCoefficients0[1] = FVector4f(LQSH.G.V[0], LQSH.G.V[1], LQSH.G.V[2], LQSH.G.V[3]) * INV_PI;

@@ -1356,10 +1356,6 @@ struct FIrradianceBrickData
 	TArray<FColor> SkyBentNormal;
 	TArray<uint8> DirectionalLightShadowing;
 
-	/** direct lighting from stationary lights for low quality light maps. */
-	TArray<FFloat3Packed> LQLightColor;
-	TArray<FColor> LQLightDirection;
-
 	TArray<FIrradianceVoxelImportProcessingData> VoxelImportProcessingData;
 
 	void SetFromVolumeLightingSample(int32 Index, const FVolumeLightingSample& Sample, bool bInsideGeometry, float MinDistanceToSurface, bool bBorderVoxel);
@@ -2176,7 +2172,6 @@ private:
 		bool bDebugThisSample,
 		FStaticLightingMappingContext& MappingContext,
 		TGatheredLightSample<SHOrder>& OutStaticDirectLighting,
-		TGatheredLightSample<SHOrder>& OutToggleableDirectLighting,
 		float& OutToggleableDirectionalLightShadowing) const;
 
 	void GatherVolumeImportancePhotonDirections(
@@ -2431,8 +2426,7 @@ private:
 		FShadowMapData2D*& ShadowMapData,
 		const FTexelToVertexMap& TexelToVertexMap, 
 		bool bDebugThisMapping,
-		const FLight* Light,
-		const bool bLowQualityLightMapsOnly) const;
+		const FLight* Light) const;
 
 	/** 
 	 * Calculate signed distance field shadowing from a single light,  

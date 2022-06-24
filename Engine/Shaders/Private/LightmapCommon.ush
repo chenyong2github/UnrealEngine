@@ -292,7 +292,7 @@ half4 GetPrecomputedShadowMasks(VTPageTableResult LightmapVTPageTableResult, FVe
 }
 
 // Used by mobile renderer only
-half GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPixelParameters MaterialParameters)
+half4 GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult, FVertexFactoryInterpolantsVSToPS Interpolants, FMaterialPixelParameters MaterialParameters)
 {
 	#if STATICLIGHTING_TEXTUREMASK && STATICLIGHTING_SIGNEDDISTANCEFIELD
 
@@ -302,15 +302,15 @@ half GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult
 
 		// Fetch the distance field data
 		#if LIGHTMAP_VT_ENABLED
-			half DistanceField = SampleLightmapVT(LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.VTStaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler);
+			half4 DistanceField = SampleLightmapVT(LightmapVTPageTableResult, 2u, LightmapDataIndex, LightmapResourceCluster.VTStaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler);
 		#else
-			half DistanceField = Texture2DSample(LightmapResourceCluster.StaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler, ShadowMapCoordinate).r;
+			half4 DistanceField = Texture2DSample(LightmapResourceCluster.StaticShadowTexture, LightmapResourceCluster.StaticShadowTextureSampler, ShadowMapCoordinate);
 		#endif
 		float4 InvUniformPenumbraSizes = GetLightmapData(LightmapDataIndex).InvUniformPenumbraSizes;
-		float DistanceFieldBias = -.5f * InvUniformPenumbraSizes.x + .5f;
+		float4 DistanceFieldBias = -.5f * InvUniformPenumbraSizes + .5f;
 		// Compute shadow factors by scaling and biasing the distance
-		half ShadowFactor = saturate( DistanceField * InvUniformPenumbraSizes.x + DistanceFieldBias );
-		return GetLightmapData(LightmapDataIndex).StaticShadowMapMasks.r * ShadowFactor * ShadowFactor;
+		half4 ShadowFactor = saturate( DistanceField * InvUniformPenumbraSizes + DistanceFieldBias );
+		return GetLightmapData(LightmapDataIndex).StaticShadowMapMasks * ShadowFactor * ShadowFactor;
 	#elif MOVABLE_DIRECTIONAL_LIGHT
 		// Do this before checking for lightmaps as we might have a lightmap + movable directional light
 		return 1.0f;
@@ -323,7 +323,7 @@ half GetPrimaryPrecomputedShadowMask(VTPageTableResult LightmapVTPageTableResult
 			// output per-primitive directional light shadowing if requested
 			if ((GetPrimitiveData(MaterialParameters).Flags & PRIMITIVE_SCENE_DATA_FLAG_USE_SINGLE_SAMPLE_SHADOW_SL) != 0 && ResolvedView.IndirectLightingCacheShowFlag > 0.0f)
 			{
-				return IndirectLightingCache.DirectionalLightShadowing;
+				return half4(IndirectLightingCache.DirectionalLightShadowing, 1, 1, 1);
 			}
 		#endif
 	#endif

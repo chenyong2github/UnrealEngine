@@ -210,11 +210,6 @@ public:
 		AddWeighted(FGatheredLightSampleUtil::PointLightWorldSpace<SHOrder>(IncomingRadiance, TangentSpaceDirection, WorldSpaceDirection), Weight);
 	}
 
-	inline void AddIncomingStationarySkyLight(const FLinearColor& IncomingSkyLight, float Weight, const FVector4f& TangentSpaceDirection, const FVector4f& WorldSpaceDirection)
-	{
-		StationarySkyLighting.AddWeighted(FGatheredLightSampleUtil::PointLightWorldSpace<SHOrder>(IncomingSkyLight, TangentSpaceDirection, WorldSpaceDirection), Weight);
-	}
-
 	bool AreFloatsValid() const;
 
 	TFinalGatherSample operator*(float Scalar) const
@@ -222,7 +217,6 @@ public:
 		TFinalGatherSample Result;
 		(TGatheredLightSample<SHOrder>&)Result = (const TGatheredLightSample<SHOrder>&)(*this) * Scalar;
 		Result.Occlusion = Occlusion * Scalar;
-		Result.StationarySkyLighting = StationarySkyLighting * Scalar;
 		return Result;
 	}
 
@@ -231,7 +225,6 @@ public:
 		TFinalGatherSample Result;
 		(TGatheredLightSample<SHOrder>&)Result = (const TGatheredLightSample<SHOrder>&)(*this) + (const TGatheredLightSample<SHOrder>&)SampleB;
 		Result.Occlusion = Occlusion + SampleB.Occlusion;
-		Result.StationarySkyLighting = StationarySkyLighting + SampleB.StationarySkyLighting;
 		return Result;
 	}
 };

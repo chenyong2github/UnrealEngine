@@ -182,33 +182,30 @@ half MobileDirectionalLightCSM(float2 ScreenPosition, float SceneDepth, inout fl
 	Mobile Directional Light.
 ------------------------------------------------------------------------------*/
 
-void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldPosition, half3 CameraVector, float4 ScreenPosition, float4 SvPosition, half Shadow, inout half4 DynamicShadowFactors, inout FLightAccumulator DirectLighting)
+void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldPosition, half3 CameraVector, float4 ScreenPosition, float4 SvPosition, inout half4 DynamicShadowFactors, inout FLightAccumulator DirectLighting)
 {
 #if USE_SHADOWMASKTEXTURE
 	half4 PreviewShadowMapChannelMask = half4(1.0f, 0.0f, 0.0f, 0.0f);
 	DynamicShadowFactors = Texture2DSample(MobileBasePass.ScreenSpaceShadowMaskTexture, MobileBasePass.ScreenSpaceShadowMaskSampler, SvPositionToBufferUV(SvPosition));
 	DynamicShadowFactors = DecodeLightAttenuation(DynamicShadowFactors);
 		
-	#if ENABLE_CLUSTERED_LIGHTS
-		const FDirectionalLightData DirectionalLightData = GetDirectionalLightData(0);
-		PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(DirectionalLightData.DirectionalLightShadowMapChannelMask >> 4);
-	#endif
+	PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(MobileDirectionalLight.DirectionalLightShadowMapChannelMask >> 4);
 
-	half ShadowMap = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
-	Shadow = ApplyPrecomputedShadowMask(ShadowMap, Shadow);
+	half DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 #else
 
 	float  ShadowPositionZ = 0;
 	half ShadowMap = MobileDirectionalLightCSM(ScreenPosition.xy, ScreenPosition.w, ShadowPositionZ);
+	half DynamicShadowing = 1.0f;
 
 	#if !MOBILE_DEFERRED_SHADING && DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 		// Cascaded Shadow Map
 		if (IsCSMEnabled())
 		{		
-			Shadow = ApplyPrecomputedShadowMask(ShadowMap, Shadow);
+			DynamicShadowing = ShadowMap;
 		}
 	#elif MOBILE_DEFERRED_SHADING
-		Shadow = min(ShadowMap, Shadow);
+		DynamicShadowing = ShadowMap;
 	#endif
 #endif
 
@@ -220,8 +217,9 @@ void AccumulateDirectionalLighting(FGBufferData GBuffer, float3 TranslatedWorldP
 	LightData.SpecularScale = MobileDirectionalLight.DirectionalLightDistanceFadeMADAndSpecularScale.z;
 	LightData.ShadowedBits = 1;
 	LightData.HairTransmittance = InitHairTransmittanceData();
+	LightData.ShadowMapChannelMask = UnpackShadowMapChannelMask(MobileDirectionalLight.DirectionalLightShadowMapChannelMask);
 
-	half4 LightAttenuation = half4(Shadow, Shadow, 1, 1);
+	half4 LightAttenuation = half4(1, 1, DynamicShadowing, DynamicShadowing);
 
 	float SurfaceShadow = 0;
 	FLightAccumulator NewLighting = AccumulateDynamicLighting(TranslatedWorldPosition, CameraVector, GBuffer, 1, GBuffer.ShadingModelID, LightData, LightAttenuation, 0, uint2(0, 0), SurfaceShadow);
@@ -443,7 +441,7 @@ FDeferredLightData ConvertLocalToDeferredLight(const FLocalLightData In)
 	// bits [7:0]
 //	Out.ShadowedBits = (LightTypeAndPackedShadowMapChannelMask & 0xFF) != 0 ? 1 : 0;
 	// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using PreviewShadowMapChannel
-//	Out.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
+	Out.ShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask);
 	Out.ShadowedBits = 1;
 	Out.HairTransmittance = InitHairTransmittanceData();
 	return Out;
@@ -499,18 +497,18 @@ void AccumulateLightGridLocalLighting(const FCulledLightsGridData InLightGridDat
 		// bits [17:16] really
 		uint LightType = LightTypeAndPackedShadowMapChannelMask >> 16;
 
-		half Shadow = 1.0f;
+		half DynamicShadowing = 1.0f;
 #if USE_SHADOWMASKTEXTURE
 		if (LightType == LIGHT_TYPE_SPOT)
 		{
 			half4 PreviewShadowMapChannelMask = UnpackShadowMapChannelMask(LightTypeAndPackedShadowMapChannelMask >> 4);
-			Shadow = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
+			DynamicShadowing = dot(PreviewShadowMapChannelMask, DynamicShadowFactors);
 		}
 #endif
 
 		FDeferredLightData LightData = ConvertLocalToDeferredLight(LocalLight);
 
-		half4 LightAttenuation = half4(1, 1, Shadow, Shadow);
+		half4 LightAttenuation = half4(1, 1, DynamicShadowing, DynamicShadowing);
 
 		float SurfaceShadow = 0;
 		FLightAccumulator NewLighting = AccumulateDynamicLighting(TranslatedWorldPosition, CameraVector, GBuffer, 1, GBuffer.ShadingModelID, LightData, LightAttenuation, 0, uint2(0, 0), SurfaceShadow);

@@ -597,12 +597,6 @@ void FIOSTargetPlatform::GetTextureFormats( const UTexture* Texture, TArray< TAr
 	TArray<FName>& TextureFormatNames = OutFormats.AddDefaulted_GetRef();
 	TextureFormatNames.Reserve(NumLayers);
 
-	// forward rendering only needs one channel for shadow maps
-	if (Texture->LODGroup == TEXTUREGROUP_Shadowmap && !SupportsMetalMRT())
-	{
-		TextureFormatNames.Init(NameG8, NumLayers);
-	}
-
 	// optionaly compress landscape weightmaps for a mobile rendering
 	static const auto CompressLandscapeWeightMapsVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.CompressLandscapeWeightMaps"));
 	static const bool bCompressLandscapeWeightMaps = (CompressLandscapeWeightMapsVar && CompressLandscapeWeightMapsVar->GetValueOnAnyThread() != 0);

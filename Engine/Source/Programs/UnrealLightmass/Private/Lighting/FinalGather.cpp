@@ -120,11 +120,9 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 	RepresentativeVertex.GenerateTriangleTangents();
 
 	FGatheredLightSample3 UpperStaticDirectLighting;
-	// Stationary point and spot light direct contribution
-	FGatheredLightSample3 UpperToggleableDirectLighting;
 	float UpperToggleableDirectionalLightShadowing = 1;
 
-	CalculateApproximateDirectLighting(RepresentativeVertex, LightingSample.GetRadius(), VertexOffsets, .1f, false, false, bDebugThisSample, MappingContext, UpperStaticDirectLighting, UpperToggleableDirectLighting, UpperToggleableDirectionalLightShadowing);
+	CalculateApproximateDirectLighting(RepresentativeVertex, LightingSample.GetRadius(), VertexOffsets, .1f, false, false, bDebugThisSample, MappingContext, UpperStaticDirectLighting, UpperToggleableDirectionalLightShadowing);
 	
 	const double EndUpperDirectLightingTime = FPlatformTime::Seconds();
 	MappingContext.Stats.VolumetricLightmapDirectLightingTime += EndUpperDirectLightingTime - EndGatherTime;
@@ -164,11 +162,9 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 
 	FLightingCacheGatherInfo LowerGatherInfo;
 	FGatheredLightSample3 LowerStaticDirectLighting;
-	// Stationary point and spot light direct contribution
-	FGatheredLightSample3 LowerToggleableDirectLighting;
 	float LowerToggleableDirectionalLightShadowing = 1;
 
-	CalculateApproximateDirectLighting(RepresentativeVertex, LightingSample.GetRadius(), VertexOffsets, .1f, false, false, bDebugThisSample, MappingContext, LowerStaticDirectLighting, LowerToggleableDirectLighting, LowerToggleableDirectionalLightShadowing);
+	CalculateApproximateDirectLighting(RepresentativeVertex, LightingSample.GetRadius(), VertexOffsets, .1f, false, false, bDebugThisSample, MappingContext, LowerStaticDirectLighting, LowerToggleableDirectionalLightShadowing);
 
 	const double EndLowerDirectLightingTime = FPlatformTime::Seconds();
 	MappingContext.Stats.VolumetricLightmapDirectLightingTime += EndLowerDirectLightingTime - EndUpperFinalGatherTime;
@@ -196,11 +192,6 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 
 	const FGatheredLightSample3 CombinedIndirectLighting = UpperHemisphereSample + LowerHemisphereSample;
 	const FGatheredLightSample3 CombinedHighQualitySample = UpperStaticDirectLighting + LowerStaticDirectLighting + CombinedIndirectLighting;
-	 
-	// Composite point and spot stationary direct lighting into the low quality volume samples, since we won't be applying them dynamically
-	FGatheredLightSample3 CombinedLowQualitySample = UpperStaticDirectLighting + UpperToggleableDirectLighting + LowerStaticDirectLighting + LowerToggleableDirectLighting + CombinedIndirectLighting;
-	// Composite stationary sky light contribution to the low quality volume samples, since we won't be applying it dynamically
-	CombinedLowQualitySample = CombinedLowQualitySample + UpperHemisphereSample.StationarySkyLighting + LowerHemisphereSample.StationarySkyLighting;
 
 	for (int32 CoefficientIndex = 0; CoefficientIndex < LM_NUM_SH_COEFFICIENTS; CoefficientIndex++)
 	{
@@ -208,9 +199,10 @@ void FStaticLightingSystem::CalculateVolumeSampleIncidentRadiance(
 		LightingSample.HighQualityCoefficients[CoefficientIndex][1] = CombinedHighQualitySample.SHVector.G.V[CoefficientIndex];
 		LightingSample.HighQualityCoefficients[CoefficientIndex][2] = CombinedHighQualitySample.SHVector.B.V[CoefficientIndex];
 
-		LightingSample.LowQualityCoefficients[CoefficientIndex][0] = CombinedLowQualitySample.SHVector.R.V[CoefficientIndex];
-		LightingSample.LowQualityCoefficients[CoefficientIndex][1] = CombinedLowQualitySample.SHVector.G.V[CoefficientIndex];
-		LightingSample.LowQualityCoefficients[CoefficientIndex][2] = CombinedLowQualitySample.SHVector.B.V[CoefficientIndex];
+		// Copy to LQ coefficients
+		LightingSample.LowQualityCoefficients[CoefficientIndex][0] = CombinedHighQualitySample.SHVector.R.V[CoefficientIndex];
+		LightingSample.LowQualityCoefficients[CoefficientIndex][1] = CombinedHighQualitySample.SHVector.G.V[CoefficientIndex];
+		LightingSample.LowQualityCoefficients[CoefficientIndex][2] = CombinedHighQualitySample.SHVector.B.V[CoefficientIndex];
 	}
 
 	LightingSample.DirectionalLightShadowing = FMath::Max(UpperToggleableDirectionalLightShadowing, LowerToggleableDirectionalLightShadowing);
@@ -1324,7 +1316,6 @@ SampleType FStaticLightingSystem::IncomingRadianceAdaptive(
 			CombinedSkyUnoccludedDirection += FilteredLighting.UnoccludedSkyVector;
 
 			IncomingRadiance.AddIncomingRadiance(Radiance, SampleWeight, TangentPathDirection, WorldPathDirection);
-			IncomingRadiance.AddIncomingStationarySkyLight(FilteredLighting.StationarySkyLighting, SampleWeight, TangentPathDirection, WorldPathDirection);
 			checkSlow(IncomingRadiance.AreFloatsValid());
 			NumSamplesOccluded += FilteredLighting.NumSamplesOccluded;
 		}

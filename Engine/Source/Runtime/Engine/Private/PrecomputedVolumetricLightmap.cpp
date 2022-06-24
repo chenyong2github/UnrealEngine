@@ -8,6 +8,7 @@
 #include "Stats/Stats.h"
 #include "EngineDefines.h"
 #include "UObject/RenderingObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "SceneManagement.h"
 #include "UnrealEngine.h"
 #include "Engine/MapBuildDataRegistry.h"
@@ -122,17 +123,12 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedVolumetricLightmapData& Volume)
 	
 	if (Ar.CustomVer(FMobileObjectVersion::GUID) >= FMobileObjectVersion::LQVolumetricLightmapLayers)
 	{
-		if (Ar.IsCooking() && !Ar.CookingTarget()->SupportsFeature(ETargetPlatformFeatures::LowQualityLightmaps))
+		if (Ar.CustomVer(FUE5MainStreamObjectVersion::GUID) < FUE5MainStreamObjectVersion::MobileStationaryLocalLights && Ar.IsLoading())
 		{
-			// Don't serialize cooked LQ data if the cook target does not want it.
+			// Don't serialize cooked LQ data
 			FVolumetricLightmapDataLayer Dummy;
 			Ar << Dummy;
 			Ar << Dummy;
-		}
-		else
-		{
-			Ar << Volume.BrickData.LQLightColor;
-			Ar << Volume.BrickData.LQLightDirection;
 		}
 	}
 
@@ -144,12 +140,6 @@ FArchive& operator<<(FArchive& Ar,FPrecomputedVolumetricLightmapData& Volume)
 
 	if (Ar.IsLoading())
 	{
-		if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5 && !GIsEditor)
-		{
-			// drop LQ data for SM4+
-			Volume.BrickData.DiscardLowQualityLayers();
-		}
-
 		Volume.bTransient = false;
 
 		const SIZE_T VolumeBytes = Volume.GetAllocatedBytes();

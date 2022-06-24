@@ -126,6 +126,9 @@ void FLightPrimitiveInteraction::Create(FLightSceneInfo* LightSceneInfo,FPrimiti
 	check(PrimitiveSceneInfo->Proxy && LightSceneInfo->Proxy);
 	PrimitiveSceneInfo->Proxy->GetLightRelevance(LightSceneInfo->Proxy, bDynamic, bRelevant, bIsLightMapped, bShadowMapped);
 
+	// Mobile renders stationary and dynamic local lights as dynamic
+	bDynamic |= (PrimitiveSceneInfo->Scene->GetShadingPath() == EShadingPath::Mobile && bShadowMapped && LightSceneInfo->Proxy->IsLocalLight());
+
 	if (bRelevant && bDynamic
 		// Don't let lights with static shadowing or static lighting affect primitives that should use static lighting, but don't have valid settings (lightmap res 0, etc)
 		// This prevents those components with invalid lightmap settings from causing lighting to remain unbuilt after a build
@@ -233,7 +236,7 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 		// Add the interaction to the light's interaction list.
 		PrevPrimitiveLink = PrimitiveSceneInfo->Proxy->IsMeshShapeOftenMoving() ? &LightSceneInfo->DynamicInteractionOftenMovingPrimitiveList : &LightSceneInfo->DynamicInteractionStaticPrimitiveList;
 
-		// mobile movable spotlights / point lights
+		// mobile local lights with dynamic lighting
 		if (PrimitiveSceneInfo->Scene->GetShadingPath() == EShadingPath::Mobile && LightSceneInfo->ShouldRenderLightViewIndependent())
 		{
 			const uint8 LightType = LightSceneInfo->Proxy->GetLightType();
@@ -246,8 +249,8 @@ FLightPrimitiveInteraction::FLightPrimitiveInteraction(
 			if( bIsValidLightType )
 			{
 				bMobileDynamicLocalLight = true;
-				PrimitiveSceneInfo->NumMobileMovableLocalLights++;
-				if (PrimitiveSceneInfo->NumMobileMovableLocalLights == 1)
+				PrimitiveSceneInfo->NumMobileDynamicLocalLights++;
+				if (PrimitiveSceneInfo->NumMobileDynamicLocalLights == 1)
 				{
 					// Update static meshes to choose the shader permutation with local lights.
 					PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();
@@ -311,8 +314,8 @@ FLightPrimitiveInteraction::~FLightPrimitiveInteraction()
 	// Track mobile movable local light count
 	if (bMobileDynamicLocalLight)
 	{
-		PrimitiveSceneInfo->NumMobileMovableLocalLights--;
-		if (PrimitiveSceneInfo->NumMobileMovableLocalLights == 0)
+		PrimitiveSceneInfo->NumMobileDynamicLocalLights--;
+		if (PrimitiveSceneInfo->NumMobileDynamicLocalLights == 0)
 		{
 			// Update static meshes to choose the shader permutation without local lights.
 			PrimitiveSceneInfo->BeginDeferredUpdateStaticMeshes();

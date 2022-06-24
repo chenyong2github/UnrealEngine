@@ -552,11 +552,10 @@ void Main(
 	FLightAccumulator DirectLighting = (FLightAccumulator)0;
 	LightAccumulator_AddSplit(DirectLighting, DiffuseColor, 0.0f, DiffuseColor, 1.0f, false);
 
-	half Shadow = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters).r;
+	GBuffer.PrecomputedShadowFactors = GetPrimaryPrecomputedShadowMask(LightmapVTPageTableResult, Interpolants, MaterialParameters);
 
 #if DEFERRED_SHADING_PATH
 	GBuffer.IndirectIrradiance = IndirectIrradiance;
-	GBuffer.PrecomputedShadowFactors.r = Shadow;
 	MobileEncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD);
 #else
 
@@ -565,7 +564,7 @@ void Main(
 	half4 DynamicShadowFactors = 1.0f;
 
 	// Directional light
-	AccumulateDirectionalLighting(GBuffer, MaterialParameters.WorldPosition_CamRelative, CameraVector, MaterialParameters.ScreenPosition, SvPosition, Shadow, DynamicShadowFactors, DirectLighting);
+	AccumulateDirectionalLighting(GBuffer, MaterialParameters.WorldPosition_CamRelative, CameraVector, MaterialParameters.ScreenPosition, SvPosition, DynamicShadowFactors, DirectLighting);
 
 	float2 LocalPosition = SvPosition.xy - ResolvedView.ViewRectMin.xy;
 	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SvPosition.w);

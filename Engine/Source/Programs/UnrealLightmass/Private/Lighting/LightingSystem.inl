@@ -26,7 +26,7 @@ TGatheredLightSample<SHOrder> FGatheredLightSampleUtil::PointLightWorldSpace(con
 
 	if (TangentDirection.Z >= 0.0f)
 	{
-		Result.SHVector.AddIncomingRadiance(Color, 1, (const FVector4&)WorldDirection);
+		Result.SHVector.AddIncomingRadiance(Color, 1, FVector4(WorldDirection));
 
 		FSHVector2 SH = FSHVector2::SHBasisFunction(FVector4(TangentDirection));
 		// Evaluate lighting along the smoothed vertex normal direction, so that later we can guarantee an SH intensity of 1 along the normal
@@ -100,7 +100,6 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 	bool bDebugThisSample,
 	FStaticLightingMappingContext& MappingContext,
 	TGatheredLightSample<SHOrder>& OutStaticDirectLighting,
-	TGatheredLightSample<SHOrder>& OutToggleableDirectLighting,
 	float& OutToggleableDirectionalLightShadowing) const
 {
 	check(VertexOffsets.Num() > 0);
@@ -214,10 +213,6 @@ void FStaticLightingSystem::CalculateApproximateDirectLighting(
 				else if (Light->GetDirectionalLight() != NULL)
 				{
 					OutToggleableDirectionalLightShadowing = Transmission.GetLuminance();
-				}
-				else
-				{
-					OutToggleableDirectLighting = OutToggleableDirectLighting + Lighting;
 				}
 			}
 		}

@@ -250,6 +250,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Revert the IAnimationDataModel changes. Animation assets 
 		BackoutAnimationDataModelInterface,
 
+		// Made stationary local and skylights behave similar to SM5
+		MobileStationaryLocalLights,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

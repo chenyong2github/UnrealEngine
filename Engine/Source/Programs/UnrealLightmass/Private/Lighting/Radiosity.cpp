@@ -418,12 +418,11 @@ void FStaticLightingSystem::RadiositySetupTextureMapping(FStaticLightingTextureM
 				if (ImportanceTracingSettings.bUseRadiositySolverForLightMultibounce)
 				{
 					FGatheredLightSample DirectLighting;
-					FGatheredLightSample Unused;
 					float Unused2;
 					TArray<FVector3f, TInlineAllocator<1>> VertexOffsets;
 					VertexOffsets.Add(FVector3f(0, 0, 0));
 
-					CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel, MappingContext, DirectLighting, Unused, Unused2);
+					CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel, MappingContext, DirectLighting, Unused2);
 
 					IncidentLightingForRadiosity += DirectLighting.IncidentLighting;
 				}

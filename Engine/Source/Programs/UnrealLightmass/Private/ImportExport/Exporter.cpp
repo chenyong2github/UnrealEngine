@@ -502,9 +502,6 @@ namespace Lightmass
 					WriteArray(TaskData.BrickData[BrickIndex].SHCoefficients[i]);
 				}
 
-				WriteArray(TaskData.BrickData[BrickIndex].LQLightColor);
-				WriteArray(TaskData.BrickData[BrickIndex].LQLightDirection);
-
 				WriteArray(TaskData.BrickData[BrickIndex].SkyBentNormal);
 				WriteArray(TaskData.BrickData[BrickIndex].DirectionalLightShadowing);
 				WriteArray(TaskData.BrickData[BrickIndex].VoxelImportProcessingData);

@@ -21,6 +21,7 @@ MapBuildData.cpp
 #include "UObject/MobileObjectVersion.h"
 #include "UObject/RenderingObjectVersion.h"
 #include "UObject/ReflectionCaptureObjectVersion.h"
+#include "UObject/UE5MainStreamObjectVersion.h"
 #include "ContentStreaming.h"
 #include "Components/ReflectionCaptureComponent.h"
 #include "Interfaces/ITargetPlatform.h"
@@ -459,6 +460,7 @@ void UMapBuildDataRegistry::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FMobileObjectVersion::GUID);
 	Ar.UsingCustomVersion(FReflectionCaptureObjectVersion::GUID);
 	Ar.UsingCustomVersion(FUE5ReleaseStreamObjectVersion::GUID);
+	Ar.UsingCustomVersion(FUE5MainStreamObjectVersion::GUID);
 
 	if (!StripFlags.IsDataStrippedForServer())
 	{

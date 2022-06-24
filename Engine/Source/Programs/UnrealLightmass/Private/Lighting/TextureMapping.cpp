@@ -665,12 +665,11 @@ void FStaticLightingSystem::FinalizeSurfaceCacheTextureMapping(FStaticLightingTe
 				if (GeneralSettings.ViewSingleBounceNumber < 0 || GeneralSettings.ViewSingleBounceNumber == 1)
 				{
 					FGatheredLightSample DirectLighting;
-					FGatheredLightSample Unused;
 					float Unused2;
 					TArray<FVector3f, TInlineAllocator<1>> VertexOffsets;
 					VertexOffsets.Add(FVector3f(0, 0, 0));
 
-					CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel && PhotonMappingSettings.bVisualizeCachedApproximateDirectLighting, MappingContext, DirectLighting, Unused, Unused2);
+					CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel && PhotonMappingSettings.bVisualizeCachedApproximateDirectLighting, MappingContext, DirectLighting, Unused2);
 					FinalIncidentLighting += DirectLighting.IncidentLighting;
 				}
 
@@ -812,7 +811,7 @@ void FStaticLightingSystem::ProcessTextureMapping(FStaticLightingTextureMapping*
 						if (Light->LightFlags & GI_LIGHT_USE_AREA_SHADOWS_FOR_SEPARATE_SHADOW_FACTOR)
 						{
 							FShadowMapData2D* ShadowMapData = new FShadowMapData2D(TextureMapping->CachedSizeX,TextureMapping->CachedSizeY);
-							CalculateDirectAreaLightingTextureMapping(TextureMapping, MappingContext, LightMapData, ShadowMapData, TexelToVertexMap, bDebugThisMapping, Light, false);
+							CalculateDirectAreaLightingTextureMapping(TextureMapping, MappingContext, LightMapData, ShadowMapData, TexelToVertexMap, bDebugThisMapping, Light);
 
 							if (ShadowMapData)
 							{
@@ -850,17 +849,6 @@ void FStaticLightingSystem::ProcessTextureMapping(FStaticLightingTextureMapping*
 								CalculateDirectSignedDistanceFieldLightingTextureMappingLightSpace(TextureMapping, MappingContext, LightMapData, SignedDistanceFieldShadowMaps, TexelToVertexMap, TexelToCornersMap, bDebugThisMapping, Light);
 							}
 						}
-
-						// Stationary directional light is never put into the lightmap, even with low quality lightmaps
-						if (!Light->GetDirectionalLight())
-						{
-							// Also calculate static lighting for simple light maps.  We'll force the shadows into simple light maps, but
-							// won't actually add the lights to the light guid list.  Instead, at runtime we'll check the shadow map guids
-							// for lights that are baked into light maps on platforms that don't support shadow mapping.
-							FShadowMapData2D* ShadowMapData = NULL;
-							const bool bLowQualityLightMapsOnly = true;
-							CalculateDirectAreaLightingTextureMapping(TextureMapping, MappingContext, LightMapData, ShadowMapData, TexelToVertexMap, bDebugThisMapping, Light, bLowQualityLightMapsOnly);
-						}
 					}
 					else if (Light->UseStaticLighting())
 					{
@@ -868,7 +856,7 @@ void FStaticLightingSystem::ProcessTextureMapping(FStaticLightingTextureMapping*
 
 						// Calculate direct lighting from area lights
 						// Shadow penumbras will be correctly shaped and will be softer for larger light sources and distant shadow casters.
-						CalculateDirectAreaLightingTextureMapping(TextureMapping, MappingContext, LightMapData, ShadowMapData, TexelToVertexMap, bDebugThisMapping, Light, false);
+						CalculateDirectAreaLightingTextureMapping(TextureMapping, MappingContext, LightMapData, ShadowMapData, TexelToVertexMap, bDebugThisMapping, Light);
 
 						if (Light->GetMeshAreaLight() == NULL)
 						{
@@ -1406,8 +1394,7 @@ void FStaticLightingSystem::CalculateDirectAreaLightingTextureMapping(
 	FShadowMapData2D*& ShadowMapData,
 	const FTexelToVertexMap& TexelToVertexMap, 
 	bool bDebugThisMapping,
-	const FLight* Light,
-	const bool bLowQualityLightMapsOnly) const
+	const FLight* Light) const
 {
 	LIGHTINGSTAT(FScopedRDTSCTimer AreaShadowsTimer(MappingContext.Stats.AreaShadowsThreadTime));
 
@@ -1731,14 +1718,7 @@ void FStaticLightingSystem::CalculateDirectAreaLightingTextureMapping(
 							const FGatheredLightSample DirectLighting = CalculatePointLighting(TextureMapping, CurrentVertex, TexelToVertex.ElementIndex, Light, LightIntensity, Transmission);
 
 							FGatheredLightMapSample& CurrentLightSample = LightMapData(X,Y);
-							if( bLowQualityLightMapsOnly )
-							{
-								CurrentLightSample.LowQuality.AddWeighted(DirectLighting, AdjustedShadowFactor);
-							}
-							else
-							{
-								CurrentLightSample.AddWeighted(DirectLighting, AdjustedShadowFactor);
-							}
+							CurrentLightSample.AddWeighted(DirectLighting, AdjustedShadowFactor);
 						}
 					}
 				}
@@ -2830,12 +2810,11 @@ void FStaticLightingSystem::CalculateDirectLightingTextureMappingPhotonMap(
 						NearestPhoton = FindNearestIrradiancePhoton(CurrentVertex, MappingContext, TempIrradiancePhotons, false, bDebugThisTexel);
 
 						FGatheredLightSample DirectLightingSample;
-						FGatheredLightSample Unused;
 						float Unused2;
 						TArray<FVector3f, TInlineAllocator<1>> VertexOffsets;
 						VertexOffsets.Add(FVector3f(0, 0, 0));
 
-						CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel, MappingContext, DirectLightingSample, Unused, Unused2);
+						CalculateApproximateDirectLighting(CurrentVertex, TexelToVertex.TexelRadius, VertexOffsets, .1f, true, true, bDebugThisTexel, MappingContext, DirectLightingSample, Unused2);
 
 						DirectLighting = DirectLightingSample.IncidentLighting;
 					}
@@ -3032,9 +3011,6 @@ void FStaticLightingSystem::ProcessInterpolateTask(FInterpolateIndirectTaskDescr
 				// Apply occlusion to indirect lighting and add this texel's indirect lighting to its running total
 				CurrentLightSample.AddWeighted(IndirectLighting, 1);
 				CurrentLightSample.HighQuality.AOMaterialMask = IndirectLighting.Occlusion;
-
-				// Stationary sky light contribution goes into low quality lightmap only, bent normal sky shadowing will be exported separately
-				CurrentLightSample.LowQuality.AddWeighted(IndirectLighting.StationarySkyLighting, 1);
 
 				if (AmbientOcclusionSettings.bUseAmbientOcclusion && AmbientOcclusionSettings.bVisualizeAmbientOcclusion)
 				{

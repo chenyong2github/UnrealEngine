@@ -292,9 +292,9 @@ namespace Lightmass
 
 				// U, V, W, LogL
 				// UVW stored in gamma space
-				DestCoefficients.Coefficients[0][0] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( FMath::Pow( U, 1.0f / 2.2f ) * 255.0f ), 0, 255 );
-				DestCoefficients.Coefficients[0][1] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( FMath::Pow( V, 1.0f / 2.2f ) * 255.0f ), 0, 255 );
-				DestCoefficients.Coefficients[0][2] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( FMath::Pow( W, 1.0f / 2.2f ) * 255.0f ), 0, 255 );
+				DestCoefficients.Coefficients[0][0] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( FMath::Sqrt(U) * 255.0f ), 0, 255 );
+				DestCoefficients.Coefficients[0][1] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( FMath::Sqrt(V) * 255.0f ), 0, 255 );
+				DestCoefficients.Coefficients[0][2] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( FMath::Sqrt(W) * 255.0f ), 0, 255 );
 				DestCoefficients.Coefficients[0][3] = (uint8)FMath::Clamp<int32>( FMath::RoundToInt( LogL * 255.0f ), 0, 255 );
 				
 				float Dx = SourceSample.Coefficients[1][0] * CoefficientMultiply[1][0] + CoefficientAdd[1][0];

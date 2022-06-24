@@ -229,6 +229,9 @@ void SetupMobileDirectionalLightUniformParameters(
 	bool bDynamicShadows,
 	FMobileDirectionalLightShaderParameters& Params)
 {
+	static const auto AllowStaticLightingVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
+	const bool bAllowStaticLighting = (!AllowStaticLightingVar || AllowStaticLightingVar->GetValueOnRenderThread() != 0);
+
 	ERHIFeatureLevel::Type FeatureLevel = Scene.GetFeatureLevel();
 	FLightSceneInfo* Light = Scene.MobileDirectionalLights[ChannelIdx];
 	if (Light)
@@ -240,6 +243,25 @@ void SetupMobileDirectionalLightUniformParameters(
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.X = FadeParams.Y;
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.Y = -FadeParams.X * FadeParams.Y;
 		Params.DirectionalLightDistanceFadeMADAndSpecularScale.Z = Light->Proxy->GetSpecularScale();
+
+		int32 ShadowMapChannel = Light->Proxy->GetShadowMapChannel();
+		int32 DynamicShadowMapChannel = Light->GetDynamicShadowMapChannel();
+
+		if (!bAllowStaticLighting)
+		{
+			ShadowMapChannel = INDEX_NONE;
+		}
+
+		// Static shadowing uses ShadowMapChannel, dynamic shadows are packed into light attenuation using DynamicShadowMapChannel
+		Params.DirectionalLightShadowMapChannelMask =
+			(ShadowMapChannel == 0 ? 1 : 0) |
+			(ShadowMapChannel == 1 ? 2 : 0) |
+			(ShadowMapChannel == 2 ? 4 : 0) |
+			(ShadowMapChannel == 3 ? 8 : 0) |
+			(DynamicShadowMapChannel == 0 ? 16 : 0) |
+			(DynamicShadowMapChannel == 1 ? 32 : 0) |
+			(DynamicShadowMapChannel == 2 ? 64 : 0) |
+			(DynamicShadowMapChannel == 3 ? 128 : 0);
 
 		if (bDynamicShadows && VisibleLightInfos.IsValidIndex(Light->Id) && VisibleLightInfos[Light->Id].AllProjectedShadows.Num() > 0)
 		{

@@ -495,21 +495,6 @@ void MobileBasePass::SetTranslucentRenderState(FMeshPassProcessorRenderState& Dr
 	}
 }
 
-bool MobileBasePass::StationarySkyLightHasBeenApplied(const FScene* Scene, ELightMapPolicyType LightMapPolicyType)
-{
-	return Scene
-		&& Scene->SkyLight
-		&& Scene->SkyLight->bWantsStaticShadowing
-		&& (LightMapPolicyType == LMP_LQ_LIGHTMAP
-			|| LightMapPolicyType == LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP
-			|| LightMapPolicyType == LMP_MOBILE_DISTANCE_FIELD_SHADOWS_LIGHTMAP_AND_CSM
-			|| LightMapPolicyType == LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_LIGHTMAP
-			|| LightMapPolicyType == LMP_MOBILE_DIRECTIONAL_LIGHT_AND_SH_INDIRECT
-			|| LightMapPolicyType == LMP_MOBILE_DIRECTIONAL_LIGHT_CSM_AND_SH_INDIRECT
-			|| LightMapPolicyType == LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_WITH_LIGHTMAP
-			|| LightMapPolicyType == LMP_MOBILE_MOVABLE_DIRECTIONAL_LIGHT_CSM_WITH_LIGHTMAP);
-}
-
 static FMeshDrawCommandSortKey GetBasePassStaticSortKey(EBlendMode BlendMode, bool bBackground)
 {
 	FMeshDrawCommandSortKey SortKey;
@@ -674,16 +659,7 @@ bool FMobileBasePassMeshProcessor::Process(
 	
 	if (Scene && Scene->SkyLight)
 	{
-		// Clustered reflection is always enabled on mobile deferred translucent material
-		const bool bEnableClusteredReflections = MobileEnableClusteredReflections(Scene->GetShaderPlatform());
-
-		//The stationary skylight contribution has been added both to the LowQuality Lightmap and ILC on mobile, so we should skip the sky light spherical harmonic contribution for it.
-		bool bStationarySkyLightHasBeenApplied = MobileBasePass::StationarySkyLightHasBeenApplied(Scene, LightMapPolicyType) && !bEnableClusteredReflections;
-
-		//Two side material should enable sky light for the back face since only the front face has light map and it will be corrected in base pass shader.
-		bool bSkipStationarySkyLight = bStationarySkyLightHasBeenApplied && !MaterialResource.IsTwoSided();
-
-		bEnableSkyLight = ShadingModels.IsLit() && Scene->ShouldRenderSkylightInBasePass(BlendMode) && (!bSkipStationarySkyLight);
+		bEnableSkyLight = ShadingModels.IsLit() && Scene->ShouldRenderSkylightInBasePass(BlendMode);
 	}
 
 	bool bEnableLocalLights = false;
@@ -693,7 +669,7 @@ bool FMobileBasePassMeshProcessor::Process(
 		// Clustered lighting could only be enabled on mobile forward and always enabled on mobile deferred translucent material
 		if (!bUsesDeferredShading && (MobileForwardEnableLocalLights(Scene->GetShaderPlatform()) || bIsTranslucentMaterialOnDeferred))
 		{
-			bEnableLocalLights = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->NumMobileMovableLocalLights > 0;
+			bEnableLocalLights = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->NumMobileDynamicLocalLights > 0;
 		}
 	}
 
