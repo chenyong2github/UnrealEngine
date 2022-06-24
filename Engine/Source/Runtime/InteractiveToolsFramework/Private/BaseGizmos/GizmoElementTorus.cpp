@@ -159,5 +159,3 @@ bool UGizmoElementTorus::GetEndCaps() const
 {
 	return bEndCaps;
 }
-
-#undef LOCTEXT_NAMESPACE

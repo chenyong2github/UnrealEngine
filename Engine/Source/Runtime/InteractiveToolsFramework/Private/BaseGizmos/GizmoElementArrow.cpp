@@ -291,5 +291,3 @@ void UGizmoElementArrow::UpdateArrowHead()
 
 	bUpdateArrowHead = false;
 }
-
-#undef LOCTEXT_NAMESPACE
