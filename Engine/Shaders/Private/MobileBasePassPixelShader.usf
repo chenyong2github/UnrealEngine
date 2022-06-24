@@ -562,9 +562,10 @@ void Main(
 	half3 CameraVector = -MaterialParameters.CameraVector;
 
 	half4 DynamicShadowFactors = 1.0f;
+	float DirectionalLightShadow = 1.0f;
 
 	// Directional light
-	AccumulateDirectionalLighting(GBuffer, MaterialParameters.WorldPosition_CamRelative, CameraVector, MaterialParameters.ScreenPosition, SvPosition, DynamicShadowFactors, DirectLighting);
+	AccumulateDirectionalLighting(GBuffer, MaterialParameters.WorldPosition_CamRelative, CameraVector, MaterialParameters.ScreenPosition, SvPosition, DynamicShadowFactors, DirectionalLightShadow, DirectLighting);
 
 	float2 LocalPosition = SvPosition.xy - ResolvedView.ViewRectMin.xy;
 	uint GridIndex = ComputeLightGridCellIndex(uint2(LocalPosition.x, LocalPosition.y), SvPosition.w);
@@ -611,7 +612,7 @@ void Main(
 		const float4 NullDistortionParams = 1.0f;
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			Shadow, GBuffer.Specular, NullDistortionParams,
+			DirectionalLightShadow, GBuffer.Specular, NullDistortionParams,
 			SunIlluminance, WaterDiffuseIndirectIlluminance, EnvBrdf,
 			CameraIsUnderWater, WaterVisibility, EyeIndex,
 			bSeparateMainDirLightLuminance, SeparatedWaterMainDirLightLuminance);
