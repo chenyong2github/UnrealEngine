@@ -180,7 +180,7 @@ public:
 	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
 
 	// set the world transform ( this needs to be called on the game thread ) 
-	void SetWorldTransform(const FTransform& WorldTransform);
+	void SetWorldTransform_External(const FTransform& WorldTransform);
 
 	const TArray<FClusterHandle*> GetParticles() const
 	{
@@ -247,11 +247,11 @@ public:
 
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
-	void DisableParticles(TArray<int32>&& TransformGroupIndices);
+	void DisableParticles_External(TArray<int32>&& TransformGroupIndices);
 
-	void BreakInternalClusterParents(TArray<int32>&& TransformGroupIndices);
-	void BreakClusters(TArray<int32>&& TransformGroupIndices);
-	void ApplyStrain(int32 TransformGroupIndex, const FVector& Location, float StrainValue);
+	void BreakInternalClusterParents_External(TArray<int32>&& TransformGroupIndices);
+	void BreakClusters_External(TArray<int32>&& TransformGroupIndices);
+	void ApplyStrain_External(int32 TransformGroupIndex, const FVector& Location, float StrainValue);
 
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }

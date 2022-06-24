@@ -1503,7 +1503,7 @@ void FGeometryCollectionPhysicsProxy::GetRelevantParticleHandles(
 #endif
 }
 
-void FGeometryCollectionPhysicsProxy::DisableParticles(TArray<int32>&& TransformGroupIndices)
+void FGeometryCollectionPhysicsProxy::DisableParticles_External(TArray<int32>&& TransformGroupIndices)
 {
 	check(IsInGameThread());
 
@@ -1533,7 +1533,7 @@ static void ApplyStrainToAllClusterChildren(Chaos::FRigidClustering& Clustering,
 }
 
 
-void FGeometryCollectionPhysicsProxy::BreakInternalClusterParents(TArray<int32>&& TransformGroupIndices)
+void FGeometryCollectionPhysicsProxy::BreakInternalClusterParents_External(TArray<int32>&& TransformGroupIndices)
 {
 	check(IsInGameThread());
 
@@ -1575,7 +1575,7 @@ void FGeometryCollectionPhysicsProxy::BreakInternalClusterParents(TArray<int32>&
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::BreakClusters(TArray<int32>&& TransformGroupIndices)
+void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<int32>&& TransformGroupIndices)
 {
 	check(IsInGameThread());
 
@@ -1605,7 +1605,7 @@ void FGeometryCollectionPhysicsProxy::BreakClusters(TArray<int32>&& TransformGro
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::ApplyStrain(int32 TransformGroupIndex, const FVector& Location, float StrainValue)
+void FGeometryCollectionPhysicsProxy::ApplyStrain_External(int32 TransformGroupIndex, const FVector& Location, float StrainValue)
 {
 	check(IsInGameThread());
 
@@ -1789,7 +1789,7 @@ void FGeometryCollectionPhysicsProxy::BufferGameState()
 }
 
 
-void FGeometryCollectionPhysicsProxy::SetWorldTransform(const FTransform& WorldTransform)
+void FGeometryCollectionPhysicsProxy::SetWorldTransform_External(const FTransform& WorldTransform)
 {
 	check(IsInGameThread());
 	GameThreadPerFrameData.SetWorldTransform(WorldTransform);

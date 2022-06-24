@@ -1916,7 +1916,7 @@ void UGeometryCollectionComponent::OnUpdateTransform(EUpdateTransformFlags Updat
 
 	if (PhysicsProxy)
 	{
-		PhysicsProxy->SetWorldTransform(GetComponentTransform());
+		PhysicsProxy->SetWorldTransform_External(GetComponentTransform());
 	}
 }
 
@@ -3647,11 +3647,11 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 
 		if (ToBreakParent.Num())
 		{
-			PhysicsProxy->BreakInternalClusterParents(MoveTemp(ToBreakParent));
+			PhysicsProxy->BreakInternalClusterParents_External(MoveTemp(ToBreakParent));
 		}
 		if (ToDisable.Num())
 		{
-			PhysicsProxy->DisableParticles(MoveTemp(ToDisable));
+			PhysicsProxy->DisableParticles_External(MoveTemp(ToDisable));
 		}
 	}
 }
@@ -3721,11 +3721,11 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 
 		if (ToCrumble.Num())
 		{
-			PhysicsProxy->BreakClusters(MoveTemp(ToCrumble));
+			PhysicsProxy->BreakClusters_External(MoveTemp(ToCrumble));
 		}
 		if (ToDisable.Num())
 		{
-			PhysicsProxy->DisableParticles(MoveTemp(ToDisable));
+			PhysicsProxy->DisableParticles_External(MoveTemp(ToDisable));
 		}
 	}
 }
@@ -3737,7 +3737,7 @@ void UGeometryCollectionComponent::ApplyExternalStrain(int32 Index, const FVecto
 		const int32 NumTransform = DynamicCollection->NumElements(FGeometryCollection::TransformGroup);
 		if (Index >= 0 && Index < NumTransform)
 		{
-			PhysicsProxy->ApplyStrain(Index, Location, Strain);
+			PhysicsProxy->ApplyStrain_External(Index, Location, Strain);
 		}
 	}
 }
@@ -3755,12 +3755,12 @@ bool UGeometryCollectionComponent::CrumbleCluster(int32 Index)
 			const bool bIsCluster = (DynamicCollection->Children[Index].Num() > 0);
 			if (bIsCluster)
 			{
-				PhysicsProxy->BreakClusters({Index});
+				PhysicsProxy->BreakClusters_External({Index});
 				Result = true;
 			}
 			else if (bHasInternalClusterParent)
 			{
-				PhysicsProxy->BreakInternalClusterParents({Index});
+				PhysicsProxy->BreakInternalClusterParents_External({Index});
 				Result = true;
 			}
 		}
