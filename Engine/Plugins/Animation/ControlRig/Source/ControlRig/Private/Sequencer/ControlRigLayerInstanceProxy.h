@@ -117,7 +117,7 @@ protected:
 	FAnimNode_Base* CurrentRoot;
 
 	/** ControlRig Nodes */
-	TArray<FAnimNode_ControlRig_ExternalSource> ControlRigNodes;
+	TArray<TSharedPtr<FAnimNode_ControlRig_ExternalSource>> ControlRigNodes;
 
 	/** mapping from sequencer index to internal player index */
 	TMap<int32, FAnimNode_ControlRig_ExternalSource*> SequencerToControlRigNodeMap;
