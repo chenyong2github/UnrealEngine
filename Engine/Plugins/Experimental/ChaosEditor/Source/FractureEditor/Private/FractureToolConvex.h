@@ -38,6 +38,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Automatic)
 	EConvexOverlapRemoval RemoveOverlaps = EConvexOverlapRemoval::All;
 
+	/** Overlap removal will be computed as if convex hulls were this percentage smaller (in range 0-100) */
+	UPROPERTY(EditAnywhere, Category = Automatic, meta = (UIMin = "0", ClampMax = "99.9"))
+	double OverlapRemovalShrinkPercent = 0.0;
+
 	/** Delete convex hulls from selected clusters.  Does not affect hulls on leaves. */
 	UFUNCTION(CallInEditor, Category = Custom, meta = (DisplayName = "Delete From Selected"))
 	void DeleteFromSelected();

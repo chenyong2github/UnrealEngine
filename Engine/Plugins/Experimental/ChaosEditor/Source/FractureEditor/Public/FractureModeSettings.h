@@ -48,6 +48,10 @@ public:
 	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults")
 	EConvexOverlapRemoval ConvexRemoveOverlaps = EConvexOverlapRemoval::All;
 
+	/** Default overlap removal shrink percent (in range 0-100) for convex hulls of new geometry collections. Overlap removal will be computed assuming convex shapes will be scaled down by this percentage. */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (UIMin = "0", ClampMax = "99.9"))
+	float ConvexOverlapRemovalShrinkPercent = 0;
+
 	// Apply Convex Generation Defaults to a GeometryCollection
 	void ApplyDefaultConvexSettings(FGeometryCollection& GeometryCollection) const;
 

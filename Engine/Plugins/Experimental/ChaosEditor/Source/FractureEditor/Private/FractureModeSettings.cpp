@@ -12,5 +12,6 @@ void UFractureModeSettings::ApplyDefaultConvexSettings(FGeometryCollection& Geom
 	Properties.SimplificationThreshold = ConvexSimplificationDistanceThreshold;
 	Properties.CanExceedFraction = ConvexCanExceedFraction;
 	Properties.RemoveOverlaps = ConvexRemoveOverlaps;
+	Properties.OverlapRemovalShrinkPercent = ConvexOverlapRemovalShrinkPercent;
 	GeometryCollection.SetConvexProperties(Properties);
 }

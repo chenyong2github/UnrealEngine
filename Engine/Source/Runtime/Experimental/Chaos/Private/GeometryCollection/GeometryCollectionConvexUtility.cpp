@@ -188,6 +188,32 @@ void FilterHullPoints(TArray<Chaos::FConvex::FVec3Type>& InOutPts, double Simpli
 	}
 }
 
+FVector ScaleHullPoints(TArray<Chaos::FConvex::FVec3Type>& InOutPts, double ShrinkPercentage)
+{
+	FVector Pivot = FVector::ZeroVector;
+	if (ShrinkPercentage == 0.0 || InOutPts.IsEmpty())
+	{
+		return Pivot;
+	}
+
+	double ScaleFactor = 1.0 - ShrinkPercentage / 100.0;
+	ensure(ScaleFactor != 0.0);
+
+	FVector Sum(0,0,0);
+	for (Chaos::FConvex::FVec3Type& Pt : InOutPts)
+	{
+		Sum += (FVector)Pt;
+	}
+
+	Pivot = Sum / (double)InOutPts.Num();
+	for (Chaos::FConvex::FVec3Type& Pt : InOutPts)
+	{
+		Pt = Chaos::FConvex::FVec3Type((FVector(Pt) - Pivot) * ScaleFactor + Pivot);
+	}
+
+	return Pivot;
+}
+
 Chaos::FConvex MakeHull(const TArray<Chaos::FConvex::FVec3Type>& Pts, double SimplificationDistanceThreshold)
 {
 	if (SimplificationDistanceThreshold > 0)
@@ -302,6 +328,12 @@ bool SplitHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, T
 	return true;
 }
 
+// Add a pivot and verify (in debug) that the pivot array and convexes array are in sync
+void AddPivot(TArray<TUniquePtr<Chaos::FConvex>>& Convexes, TArray<FVector>& ConvexPivots, FVector Pivot)
+{
+	ConvexPivots.Add(Pivot);
+	checkSlow(Convexes.Num() == ConvexPivots.Num());
+}
 
 /// Assumptions: 
 ///		Convexes is initialized to one convex hull for each leaf geometry in a SHARED coordinate space
@@ -309,6 +341,7 @@ bool SplitHull(const Chaos::FConvex& HullIn, FChaosPlane Plane, bool KeepSide, T
 ///		Parents, GeoProximity, and GeometryToTransformIndex are all initialized from the geometry collection
 void CreateNonoverlappingConvexHulls(
 	TArray<TUniquePtr<Chaos::FConvex>>& Convexes,
+	TArray<FVector>& ConvexPivots,
 	TArray<TSet<int32>>& TransformToConvexIndices,
 	TFunctionRef<bool(int32)> HasCustomConvexFn,
 	const TManagedArray<int32>& SimulationType,
@@ -321,7 +354,8 @@ void CreateNonoverlappingConvexHulls(
 	double FracAllowRemove,
 	double SimplificationDistanceThreshold,
 	double CanExceedFraction,
-	EConvexOverlapRemoval OverlapRemovalMethod
+	EConvexOverlapRemoval OverlapRemovalMethod,
+	double ShrinkPercentage
 )
 {
 	bool bRemoveOverlaps = OverlapRemovalMethod != EConvexOverlapRemoval::None;
@@ -764,6 +798,7 @@ void CreateNonoverlappingConvexHulls(
 					if (JoinedHullPts.Num() > 0)
 					{
 						FilterHullPoints(JoinedHullPts, SimplificationDistanceThreshold);
+						FVector Pivot = ScaleHullPoints(JoinedHullPts, ShrinkPercentage);
 						TUniquePtr<Chaos::FConvex> Hull = MakeUnique<Chaos::FConvex>(JoinedHullPts, UE_KINDA_SMALL_NUMBER);
 						bool bIsTooBig = false;
 						if (Volume)
@@ -778,6 +813,7 @@ void CreateNonoverlappingConvexHulls(
 						{
 							ConvexesCS.Lock();
 							int32 ConvexIdx = Convexes.Add(MoveTemp(Hull));
+							AddPivot(Convexes, ConvexPivots, Pivot);
 							ConvexesCS.Unlock();
 							TransformToConvexIndices[Bone].Add(ConvexIdx);
 						}
@@ -1014,10 +1050,12 @@ void HullsFromGeometry(
 	TArray<FTransform>& GlobalTransformArray,
 	TFunctionRef<bool(int32)> HasCustomConvexFn,
 	TArray<TUniquePtr<Chaos::FConvex>>& Convexes,
+	TArray<FVector>& ConvexPivots,
 	TArray<TSet<int32>>& TransformToConvexIndices,
 	const TManagedArray<int32>& SimulationType,
 	int32 RigidType,
-	double SimplificationDistanceThreshold
+	double SimplificationDistanceThreshold,
+	double OverlapRemovalShrinkPercent
 )
 {
 	TArray<FVector> GlobalVertices;
@@ -1029,6 +1067,8 @@ void HullsFromGeometry(
 	{
 		GlobalVertices[Idx] = GlobalTransformArray[Geometry.BoneMap[Idx]].TransformPosition(FVector(Geometry.Vertex[Idx]));
 	}
+
+	double ScaleFactor = 1 - OverlapRemovalShrinkPercent / 100.0;
 
 	int32 NumBones = Geometry.TransformToGeometryIndex.Num();
 	TransformToConvexIndices.SetNum(NumBones);
@@ -1043,15 +1083,20 @@ void HullsFromGeometry(
 			for (int32 OrigConvexIdx : OrigConvexData->TransformToConvexIndices[Idx])
 			{
 				TArray<Chaos::FConvex::FVec3Type> HullPts;
+				// As we already have a hull, use the center of mass as the pivot
+				FVector COM = (FVector)OrigConvexData->ConvexHull[OrigConvexIdx]->GetCenterOfMass();
 				HullPts.Reserve(OrigConvexData->ConvexHull[OrigConvexIdx]->NumVertices());
 				for (const Chaos::FConvex::FVec3Type& P : OrigConvexData->ConvexHull[OrigConvexIdx]->GetVertices())
 				{
-					HullPts.Add(Chaos::FConvex::FVec3Type(Transform.TransformPosition((FVector)P)));
+					HullPts.Add(Chaos::FConvex::FVec3Type(Transform.TransformPosition( // transform to the global space
+						(FVector(P) - COM) * ScaleFactor + COM // scale in the original coordinate frame
+						)));
 				}
 				// Do not simplify hulls when we're just trying to transform them
 				TUniquePtr Hull = MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER);
 				HullCS.Lock();
 				int32 NewConvexIdx = Convexes.Add(MoveTemp(Hull));
+				AddPivot(Convexes, ConvexPivots, COM);
 				HullCS.Unlock();
 				TransformToConvexIndices[Idx].Add(NewConvexIdx);
 			}
@@ -1069,9 +1114,11 @@ void HullsFromGeometry(
 			}
 			ensure(HullPts.Num() > 0);
 			FilterHullPoints(HullPts, SimplificationDistanceThreshold);
+			FVector Pivot = ScaleHullPoints(HullPts, OverlapRemovalShrinkPercent);
 			TUniquePtr Hull = MakeUnique<Chaos::FConvex>(HullPts, UE_KINDA_SMALL_NUMBER);
 			HullCS.Lock();
 			int32 ConvexIdx = Convexes.Add(MoveTemp(Hull));
+			AddPivot(Convexes, ConvexPivots, Pivot);
 			HullCS.Unlock();
 			TransformToConvexIndices[Idx].Add(ConvexIdx);
 		}
@@ -1081,9 +1128,20 @@ void HullsFromGeometry(
 void TransformHullsToLocal(
 	TArray<FTransform>& GlobalTransformArray,
 	TArray<TUniquePtr<Chaos::FConvex>>& Convexes,
-	TArray<TSet<int32>>& TransformToConvexIndices
+	TArray<FVector>& ConvexPivots,
+	TArray<TSet<int32>>& TransformToConvexIndices,
+	double OverlapRemovalShrinkPercent
 )
 {
+	checkSlow(Convexes.Num() == ConvexPivots.Num());
+	
+	double ScaleFactor = 1.0 - OverlapRemovalShrinkPercent / 100.0;
+	double InvScaleFactor = 1.0;
+	if (ensure(ScaleFactor != 0.0))
+	{
+		InvScaleFactor = 1.0 / ScaleFactor;
+	}
+
 	ParallelFor(TransformToConvexIndices.Num(), [&](int32 Bone)
 	{
 		FTransform& Transform = GlobalTransformArray[Bone];
@@ -1093,7 +1151,13 @@ void TransformHullsToLocal(
 			HullPts.Reset();
 			for (const Chaos::FConvex::FVec3Type& P : Convexes[ConvexIdx]->GetVertices())
 			{
-				HullPts.Add(FVector(Transform.InverseTransformPosition((FVector)P)));
+				FVector PVec(P);
+				if (OverlapRemovalShrinkPercent != 0.0)
+				{
+
+					PVec = (PVec - ConvexPivots[ConvexIdx]) * InvScaleFactor + ConvexPivots[ConvexIdx];
+				}
+				HullPts.Add(FVector(Transform.InverseTransformPosition(PVec)));
 			}
 			// Do not simplify hulls when we're just trying to transform them
 			*Convexes[ConvexIdx] = Chaos::FConvex(HullPts, UE_KINDA_SMALL_NUMBER);
@@ -1177,9 +1241,14 @@ double ComputeGeometryVolume(
 }
 
 FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollectionConvexUtility::CreateNonOverlappingConvexHullData(
-	FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, EConvexOverlapRemoval OverlapRemovalMethod)
+	FGeometryCollection* GeometryCollection, double FracAllowRemove, double SimplificationDistanceThreshold, double CanExceedFraction, EConvexOverlapRemoval OverlapRemovalMethod,
+	double OverlapRemovalShrinkPercent)
 {
 	check(GeometryCollection);
+
+	// Prevent ~100% shrink percentage, because it would not be reversible ...
+	// Note: Could alternatively just disable convex overlap removal in this case
+	OverlapRemovalShrinkPercent = FMath::Min(99.9, OverlapRemovalShrinkPercent);
 
 	TManagedArray<int32>* CustomConvexFlags = GetCustomConvexFlags(GeometryCollection, false);
 	auto ConvexFlagsAlwaysFalse = [](int32) -> bool { return false; };
@@ -1197,15 +1266,17 @@ FGeometryCollectionConvexUtility::FGeometryCollectionConvexData FGeometryCollect
 	const TManagedArray<TSet<int32>>* GCProximity = GeometryCollection->FindAttribute<TSet<int32>>("Proximity", FGeometryCollection::GeometryGroup);
 	const TManagedArray<float>* Volume = GeometryCollection->FindAttribute<float>("Volume", FGeometryCollection::TransformGroup);
 	TArray<TUniquePtr<Chaos::FConvex>> Convexes;
+	TArray<FVector> ConvexPivots;
 	TArray<TSet<int32>> TransformToConvexIndexArr;
 	TArray<FTransform> GlobalTransformArray;
 	GeometryCollectionAlgo::GlobalMatrices(GeometryCollection->Transform, GeometryCollection->Parent, GlobalTransformArray);
-	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Convexes, TransformToConvexIndexArr, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold);
+	HullsFromGeometry(*GeometryCollection, GlobalTransformArray, HasCustomConvexFn, Convexes, ConvexPivots, TransformToConvexIndexArr, GeometryCollection->SimulationType, 
+		FGeometryCollection::ESimulationTypes::FST_Rigid, SimplificationDistanceThreshold, OverlapRemovalShrinkPercent);
 
-	CreateNonoverlappingConvexHulls(Convexes, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None,
-		GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, OverlapRemovalMethod);
+	CreateNonoverlappingConvexHulls(Convexes, ConvexPivots, TransformToConvexIndexArr, HasCustomConvexFn, GeometryCollection->SimulationType, FGeometryCollection::ESimulationTypes::FST_Rigid, FGeometryCollection::ESimulationTypes::FST_None,
+		GeometryCollection->Parent, GCProximity, GeometryCollection->TransformIndex, Volume, FracAllowRemove, SimplificationDistanceThreshold, CanExceedFraction, OverlapRemovalMethod, OverlapRemovalShrinkPercent);
 
-	TransformHullsToLocal(GlobalTransformArray, Convexes, TransformToConvexIndexArr);
+	TransformHullsToLocal(GlobalTransformArray, Convexes, ConvexPivots, TransformToConvexIndexArr, OverlapRemovalShrinkPercent);
 
 	if (!GeometryCollection->HasGroup("Convex"))
 	{
