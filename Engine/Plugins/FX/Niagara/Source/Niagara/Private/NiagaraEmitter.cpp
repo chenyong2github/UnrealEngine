@@ -2116,14 +2116,12 @@ bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InV
 		const FNiagaraEmitterScriptProperties& SpawnScriptProps = EmitterData->SpawnScriptProps;
 		check(!SpawnScriptProps.Script->HasAnyFlags(RF_NeedPostLoad));
 
-		bool bContainsAttribute = SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+		bool bContainsAttribute = SpawnScriptProps.Script->GetVMExecutableData().Attributes.ContainsByPredicate(FNiagaraVariableMatch(InVar.GetType(), InVar.GetName()));
 		if (!bContainsAttribute && InVar.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 		{
 			// if we don't find a position type var we check for a vec3 type for backwards compatibility
 			OutBoundType = FNiagaraTypeDefinition::GetVec3Def();
-			FNiagaraVariableBase VarCopy = InVar;
-			VarCopy.SetType(OutBoundType);
-			bContainsAttribute = SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(VarCopy);
+			bContainsAttribute = SpawnScriptProps.Script->GetVMExecutableData().Attributes.ContainsByPredicate(FNiagaraVariableMatch(OutBoundType, InVar.GetName()));
 		}
 		return bContainsAttribute;
 	}

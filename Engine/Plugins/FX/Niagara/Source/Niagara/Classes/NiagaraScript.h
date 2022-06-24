@@ -1042,7 +1042,7 @@ public:
 	{
 		for (const FNiagaraCompilerTag& Tag : CachedScriptVM.CompileTags)
 		{
-			if (Tag.Variable == InVar)
+			if (static_cast<const FNiagaraVariableBase&>(Tag.Variable) == InVar)
 			{
 				if (Tag.Variable.IsDataAllocated())
 				{

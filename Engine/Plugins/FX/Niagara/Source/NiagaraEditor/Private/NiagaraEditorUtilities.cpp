@@ -1727,7 +1727,7 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 			
 			FilterTerm = &InFilterTerms[FilterIndex];
 
-			float MaxWeightOfKeywords = INDEX_NONE;
+			float MaxWeightOfKeywords = (float)INDEX_NONE;
 			EWordMatchStyle MaxFoundMatchStyle = EWordMatchStyle::Contains;
 
 			auto CalculateSupersedingMatch = [&](float IterativeWeight, EWordMatchStyle IterativeFoundWordMatchStyle)
@@ -1774,7 +1774,7 @@ int32 FNiagaraEditorUtilities::GetWeightForItem(const TSharedPtr<FNiagaraMenuAct
 				}
 			}
 
-			if(MaxWeightOfKeywords != INDEX_NONE)
+			if(MaxWeightOfKeywords != (float)INDEX_NONE)
 			{
 				// if the match style that applies is 'stricter' than the required match style of the array, we consider it a hit
 				if(MaxFoundMatchStyle >= WordMatchStyle)

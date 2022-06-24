@@ -1820,7 +1820,7 @@ FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(TArray< FNiagaraCompilerTag>& 
 {
 	for (FNiagaraCompilerTag& Tag : InTags)
 	{
-		if (Tag.Variable == InSearchVar)
+		if (static_cast<const FNiagaraVariableBase&>(Tag.Variable) == InSearchVar)
 			return &Tag;
 	}
 	return nullptr;
@@ -1831,7 +1831,7 @@ const FNiagaraCompilerTag* FNiagaraCompilerTag::FindTag(const TArray< FNiagaraCo
 {
 	for (const FNiagaraCompilerTag& Tag : InTags)
 	{
-		if (Tag.Variable == InSearchVar)
+		if (static_cast<const FNiagaraVariableBase&>(Tag.Variable) == InSearchVar)
 			return &Tag;
 	}
 	return nullptr;

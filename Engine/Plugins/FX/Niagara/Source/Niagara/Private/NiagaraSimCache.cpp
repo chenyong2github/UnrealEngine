@@ -131,7 +131,7 @@ struct FNiagaraSimCacheHelper
 		for (const FNiagaraSimCacheVariable& SourceVariable : CacheLayout.Variables)
 		{
 			// Find variable, if it doesn't exist that's ok as the cache contains more data than is required
-			const int32 DataSetVariableIndex = CompiledData.Variables.IndexOfByPredicate([&](const FNiagaraVariable& DataSetVariable) { return DataSetVariable == SourceVariable.Variable; });
+			const int32 DataSetVariableIndex = CompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(SourceVariable.Variable.GetType(), SourceVariable.Variable.GetName()));
 			const FNiagaraVariableLayoutInfo* DestVariableLayout = nullptr;
 			if (DataSetVariableIndex != INDEX_NONE)
 			{

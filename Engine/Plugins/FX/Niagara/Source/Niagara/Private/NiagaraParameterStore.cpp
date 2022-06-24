@@ -720,7 +720,7 @@ bool FNiagaraParameterStore::RemoveParameter(const FNiagaraVariableBase& ToRemov
 			const int32 ExistingOffset = Existing.Offset;
 
 			//Add all but the one to remove to our
-			if (ExistingVar != ToRemove)
+			if (static_cast<const FNiagaraVariableBase&>(ExistingVar) != ToRemove)
 			{
 				if (ExistingVar.GetType().IsDataInterface())
 				{

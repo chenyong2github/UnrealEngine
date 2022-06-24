@@ -207,8 +207,8 @@ FORCEINLINE_DEBUGGABLE FLinearColor UNiagaraDataInterfaceColorCurve::SampleCurve
 	float NextEntry = PrevEntry < LUTNumSamplesMinusOne ? PrevEntry + 1.0f : PrevEntry;
 	float Interp = RemappedX - PrevEntry;
 	
-	int32 AIndex = PrevEntry * CurveLUTNumElems;
-	int32 BIndex = NextEntry * CurveLUTNumElems;
+	int32 AIndex = (int32)(PrevEntry * (float)CurveLUTNumElems);
+	int32 BIndex = (int32)(NextEntry * (float)CurveLUTNumElems);
 	FLinearColor A = FLinearColor(ShaderLUT[AIndex], ShaderLUT[AIndex + 1], ShaderLUT[AIndex + 2], ShaderLUT[AIndex + 3]);
 	FLinearColor B = FLinearColor(ShaderLUT[BIndex], ShaderLUT[BIndex + 1], ShaderLUT[BIndex + 2], ShaderLUT[BIndex + 3]);
 	return FMath::Lerp(A, B, Interp);

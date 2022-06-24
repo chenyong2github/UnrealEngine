@@ -216,7 +216,7 @@ void UNiagaraComponentRendererProperties::PostLoad()
 		// Move old bindings over to new position type 
 		for (FNiagaraVariable OldVarType : OldTypes)
 		{
-			if (Binding.AttributeBinding.GetParamMapBindableVariable() == OldVarType)
+			if (Binding.AttributeBinding.GetParamMapBindableVariable() == static_cast<const FNiagaraVariableBase&>(OldVarType))
 			{
 				FNiagaraVariable NewVarType(FNiagaraTypeDefinition::GetPositionDef(), OldVarType.GetName());
 				Binding.AttributeBinding.Setup(NewVarType, NewVarType, InSourceMode);

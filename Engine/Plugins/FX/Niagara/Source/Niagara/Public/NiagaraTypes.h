@@ -1962,6 +1962,22 @@ private:
 	TArray<uint8> VarData;
 };
 
+struct FNiagaraVariableMatch
+{
+	explicit FNiagaraVariableMatch(const FNiagaraTypeDefinition& InType, const FName& InName)
+		: VariableBase(InType, InName)
+	{
+	}
+
+	bool operator()(const FNiagaraVariable& Other) const
+	{
+		return static_cast<const FNiagaraVariableBase&>(Other) == VariableBase;
+	}
+
+private:
+	FNiagaraVariableBase VariableBase;
+};
+
 
 template<>
 struct TStructOpsTypeTraits<FNiagaraVariable> : public TStructOpsTypeTraitsBase2<FNiagaraVariable>

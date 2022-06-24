@@ -192,7 +192,7 @@ struct FNiagaraDataSetAccessorFloat
 	{
 		ComponentIndex = INDEX_NONE;
 
-		const int32 FloatVariableIndex = DataSetCompiledData.Variables.IndexOfByKey(FNiagaraVariableBase(FNiagaraDataSetAccessorTypeInfo<TType>::GetFloatType(), VariableName));
+		const int32 FloatVariableIndex = DataSetCompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(FNiagaraDataSetAccessorTypeInfo<TType>::GetFloatType(), VariableName));
 		if (FloatVariableIndex != INDEX_NONE)
 		{
 			bIsFloat = true;
@@ -202,7 +202,7 @@ struct FNiagaraDataSetAccessorFloat
 
 		if (FNiagaraDataSetAccessorTypeInfo<TType>::bSupportsAlternateType)
 		{
-			const int32 AlternateVariableIndex = DataSetCompiledData.Variables.IndexOfByKey(FNiagaraVariableBase(FNiagaraDataSetAccessorTypeInfo<TType>::GetAlternateType(), VariableName));
+			const int32 AlternateVariableIndex = DataSetCompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(FNiagaraDataSetAccessorTypeInfo<TType>::GetAlternateType(), VariableName));
 			if (AlternateVariableIndex != INDEX_NONE)
 			{
 				bIsFloat = true;
@@ -213,7 +213,7 @@ struct FNiagaraDataSetAccessorFloat
 		
 		if (FNiagaraDataSetAccessorTypeInfo<TType>::bSupportsHalf)
 		{
-			const int32 HalfVariableIndex = DataSetCompiledData.Variables.IndexOfByKey(FNiagaraVariableBase(FNiagaraDataSetAccessorTypeInfo<TType>::GetHalfType(), VariableName));
+			const int32 HalfVariableIndex = DataSetCompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(FNiagaraDataSetAccessorTypeInfo<TType>::GetHalfType(), VariableName));
 			if (HalfVariableIndex != INDEX_NONE)
 			{
 				bIsFloat = false;
@@ -456,7 +456,7 @@ struct FNiagaraDataSetAccessorInt32
 	{
 		ComponentIndex = INDEX_NONE;
 
-		const int32 VariableIndex = DataSetCompiledData.Variables.IndexOfByKey(FNiagaraVariableBase(FNiagaraDataSetAccessorTypeInfo<TType>::GetIntType(), VariableName));
+		const int32 VariableIndex = DataSetCompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(FNiagaraDataSetAccessorTypeInfo<TType>::GetIntType(), VariableName));
 		if (VariableIndex != INDEX_NONE)
 		{
 			ComponentIndex = DataSetCompiledData.VariableLayouts[VariableIndex].Int32ComponentStart;
@@ -598,7 +598,7 @@ struct FNiagaraDataSetAccessorStruct
 	{
 		bIsValid = false;
 
-		const int32 VariableIndex = DataSetCompiledData.Variables.IndexOfByKey(FNiagaraVariableBase(FNiagaraDataSetAccessorTypeInfo<TType>::GetStructType(), VariableName));
+		const int32 VariableIndex = DataSetCompiledData.Variables.IndexOfByPredicate(FNiagaraVariableMatch(FNiagaraDataSetAccessorTypeInfo<TType>::GetStructType(), VariableName));
 		if (VariableIndex != INDEX_NONE)
 		{
 			bIsValid = true;

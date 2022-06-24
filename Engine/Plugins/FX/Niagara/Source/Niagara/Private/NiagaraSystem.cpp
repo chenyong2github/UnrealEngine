@@ -1935,14 +1935,12 @@ bool UNiagaraSystem::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar,
 	if (SystemSpawnScript)
 	{
 		OutBoundType = InVar.GetType();
-		bool bContainsAttribute = SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVar);
+		bool bContainsAttribute = SystemSpawnScript->GetVMExecutableData().Attributes.ContainsByPredicate(FNiagaraVariableMatch(OutBoundType, InVar.GetName()));
 		if (!bContainsAttribute && InVar.GetType() == FNiagaraTypeDefinition::GetPositionDef())
 		{
 			// if we don't find a position type var we check for a vec3 type for backwards compatibility
 			OutBoundType = FNiagaraTypeDefinition::GetVec3Def();
-			FNiagaraVariableBase VarCopy = InVar;
-			VarCopy.SetType(OutBoundType);
-			bContainsAttribute = SystemSpawnScript->GetVMExecutableData().Attributes.Contains(VarCopy);
+			bContainsAttribute = SystemSpawnScript->GetVMExecutableData().Attributes.ContainsByPredicate(FNiagaraVariableMatch(OutBoundType, InVar.GetName()));
 		}
 		return bContainsAttribute;
 	}
