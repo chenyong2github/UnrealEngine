@@ -98,9 +98,9 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgFileSetFromNodeExpr : BgFileSet
 	{
-		public BgNodeSpec Node { get; }
+		public BgNode Node { get; }
 
-		public BgFileSetFromNodeExpr(BgNodeSpec node)
+		public BgFileSetFromNodeExpr(BgNode node)
 			: base(BgExprFlags.NotInterned)
 		{
 			Node = node;
@@ -115,10 +115,10 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgFileSetFromNodeOutputExpr : BgFileSet
 	{
-		public BgNodeSpec Node { get; }
+		public BgNode Node { get; }
 		public int OutputIndex { get; }
 
-		public BgFileSetFromNodeOutputExpr(BgNodeSpec node, int outputIndex)
+		public BgFileSetFromNodeOutputExpr(BgNode node, int outputIndex)
 			: base(BgExprFlags.NotInterned)
 		{
 			Node = node;

@@ -7,7 +7,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Defines a agggregate within a graph, which give the combined status of one or more job steps, and allow building several steps at once.
 	/// </summary>
-	public class BgAggregate
+	public class BgAggregateDef
 	{
 		/// <summary>
 		/// Name of this badge
@@ -17,13 +17,13 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
 		/// </summary>
-		public HashSet<BgNode> RequiredNodes { get; } = new HashSet<BgNode>();
+		public HashSet<BgNodeDef> RequiredNodes { get; } = new HashSet<BgNodeDef>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="name">Name of this aggregate</param>
-		public BgAggregate(string name)
+		public BgAggregateDef(string name)
 		{
 			Name = name;
 		}
@@ -41,17 +41,17 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Aggregate that was created from bytecode
 	/// </summary>
-	public class BgBytecodeAggregate : BgAggregate
+	public class BgBytecodeAggregateDef : BgAggregateDef
 	{
 		/// <summary>
 		/// Labels to add this aggregate to
 		/// </summary>
-		public BgLabel? Label { get; }
+		public BgLabelDef? Label { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgBytecodeAggregate(string name, IEnumerable<BgNode> nodes, BgLabel? label)
+		public BgBytecodeAggregateDef(string name, IEnumerable<BgNodeDef> nodes, BgLabelDef? label)
 			: base(name)
 		{
 			RequiredNodes.UnionWith(nodes);

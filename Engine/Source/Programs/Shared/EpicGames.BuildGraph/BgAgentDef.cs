@@ -11,7 +11,7 @@ namespace EpicGames.BuildGraph
 	/// Stores a list of nodes which can be executed on a single agent
 	/// </summary>
 	[DebuggerDisplay("{Name}")]
-	public class BgAgent
+	public class BgAgentDef
 	{
 		/// <summary>
 		/// Name of this agent. Used for display purposes in a build system.
@@ -27,19 +27,19 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// List of nodes in this agent group.
 		/// </summary>
-		public List<BgNode> Nodes { get; set; } = new List<BgNode>();
+		public List<BgNodeDef> Nodes { get; set; } = new List<BgNodeDef>();
 
 		/// <summary>
 		/// Diagnostics to output if executing this agent
 		/// </summary>
-		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
+		public List<BgDiagnosticDef> Diagnostics { get; } = new List<BgDiagnosticDef>();
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="inName">Name of this agent group</param>
 		/// <param name="inPossibleTypes">Array of valid agent types. See comment for AgentTypes member.</param>
-		public BgAgent(string inName, string[] inPossibleTypes)
+		public BgAgentDef(string inName, string[] inPossibleTypes)
 		{
 			Name = inName;
 			PossibleTypes = inPossibleTypes;

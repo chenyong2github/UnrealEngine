@@ -10,22 +10,22 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Specification for a graph in fluent syntax
 	/// </summary>
-	public class BgGraphSpec : BgExpr
+	public class BgGraph : BgExpr
 	{
 		/// <summary>
 		/// Nodes for the graph
 		/// </summary>
-		public BgList<BgNodeSpec> Nodes { get; }
+		public BgList<BgNode> Nodes { get; }
 
 		/// <summary>
 		/// Aggregates for the graph
 		/// </summary>
-		public BgList<BgAggregateSpec> Aggregates { get; }
+		public BgList<BgAggregate> Aggregates { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgGraphSpec(BgList<BgNodeSpec> nodes, BgList<BgAggregateSpec> aggregates)
+		public BgGraph(BgList<BgNode> nodes, BgList<BgAggregate> aggregates)
 			: base(BgExprFlags.ForceFragment)
 		{
 			Nodes = nodes;
@@ -35,33 +35,33 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Implicit conversion from a node spec
 		/// </summary>
-		public static implicit operator BgGraphSpec(BgNodeSpec node)
+		public static implicit operator BgGraph(BgNode node)
 		{
-			return new BgGraphSpec(node, BgList<BgAggregateSpec>.Empty);
+			return new BgGraph(node, BgList<BgAggregate>.Empty);
 		}
 
 		/// <summary>
 		/// Implicit conversion from a list of node specs
 		/// </summary>
-		public static implicit operator BgGraphSpec(BgList<BgNodeSpec> nodes)
+		public static implicit operator BgGraph(BgList<BgNode> nodes)
 		{
-			return new BgGraphSpec(nodes, BgList<BgAggregateSpec>.Empty);
+			return new BgGraph(nodes, BgList<BgAggregate>.Empty);
 		}
 
 		/// <summary>
 		/// Implicit conversion from an aggregate spec
 		/// </summary>
-		public static implicit operator BgGraphSpec(BgAggregateSpec aggregate)
+		public static implicit operator BgGraph(BgAggregate aggregate)
 		{
-			return new BgGraphSpec(BgList<BgNodeSpec>.Empty, aggregate);
+			return new BgGraph(BgList<BgNode>.Empty, aggregate);
 		}
 
 		/// <summary>
 		/// Implicit conversion from a list of node specs
 		/// </summary>
-		public static implicit operator BgGraphSpec(BgList<BgAggregateSpec> aggregates)
+		public static implicit operator BgGraph(BgList<BgAggregate> aggregates)
 		{
-			return new BgGraphSpec(BgList<BgNodeSpec>.Empty, aggregates);
+			return new BgGraph(BgList<BgNode>.Empty, aggregates);
 		}
 
 		/// <inheritdoc/>

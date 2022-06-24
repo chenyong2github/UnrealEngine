@@ -339,27 +339,27 @@ namespace EpicGames.BuildGraph
 		#region Graph structures
 
 		/// <summary>
-		/// Defines a node (see <see cref="BgNodeSpec"/>)
+		/// Defines a node (see <see cref="BgNode"/>)
 		/// </summary>
 		Node = 0xf0,
 
 		/// <summary>
-		/// Defines an agent to execute work on (see <see cref="BgAgentSpec"/>)
+		/// Defines an agent to execute work on (see <see cref="BgAgent"/>)
 		/// </summary>
 		Agent = 0xf1,
 		
 		/// <summary>
-		/// Defines a label (see <see cref="BgLabelSpec"/>)
+		/// Defines a label (see <see cref="BgLabel"/>)
 		/// </summary>
 		Label = 0xf2,
 
 		/// <summary>
-		/// Defines an aggregate (see <see cref="BgAggregateSpec"/>)
+		/// Defines an aggregate (see <see cref="BgAggregate"/>)
 		/// </summary>
 		Aggregate = 0xf3,
 
 		/// <summary>
-		/// Defines a graph (see <see cref="BgGraphSpec"/>)
+		/// Defines a graph (see <see cref="BgGraph"/>)
 		/// </summary>
 		Graph = 0xf4,
 

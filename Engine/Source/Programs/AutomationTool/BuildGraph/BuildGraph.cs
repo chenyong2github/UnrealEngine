@@ -360,7 +360,7 @@ namespace AutomationTool
 			}
 
 			// Create the graph
-			BgGraph Graph;
+			BgGraphDef Graph;
 			if (ClassName != null)
 			{
 				// Find all the graph builders
@@ -381,13 +381,13 @@ namespace AutomationTool
 				}
 
 				BgGraphBuilder Builder = (BgGraphBuilder)Activator.CreateInstance(BuilderType);
-				BgGraphSpec GraphSpec = Builder.CreateGraph(new BgEnvironment(P4Enabled ? P4Env : null));
+				BgGraph GraphSpec = Builder.CreateGraph(new BgEnvironment(P4Enabled ? P4Env : null));
 
 				(byte[] Data, BgMethod[] Methods) = BgCompiler.Compile(GraphSpec);
 
 				BgInterpreter Interpreter = new BgInterpreter(Data, Methods, Arguments);
 				Interpreter.Disassemble(Logger);
-				Graph = (BgGraph)Interpreter.Evaluate();
+				Graph = (BgGraphDef)Interpreter.Evaluate();
 			}
 			else
 			{
@@ -457,7 +457,7 @@ namespace AutomationTool
 			}
 
 			// Convert the supplied target references into nodes 
-			HashSet<BgNode> TargetNodes = new HashSet<BgNode>();
+			HashSet<BgNodeDef> TargetNodes = new HashSet<BgNodeDef>();
 			if(TargetNames.Length == 0)
 			{
 				if (!bListOnly && SingleNodeName == null)
@@ -484,7 +484,7 @@ namespace AutomationTool
 
 				foreach (string TargetName in NodesToResolve)
 				{
-					BgNode[] Nodes;
+					BgNodeDef[] Nodes;
 					if(!Graph.TryResolveReference(TargetName, out Nodes))
 					{
 						LogError("Target '{0}' is not in graph", TargetName);
@@ -504,7 +504,7 @@ namespace AutomationTool
 				if (SingleNodeName == null)
 				{
 					CommandUtils.LogInformation("Required tokens:");
-					foreach(BgNode Node in TargetNodes)
+					foreach(BgNodeDef Node in TargetNodes)
 					{
 						foreach(FileReference RequiredToken in Node.RequiredTokens)
 						{
@@ -537,13 +537,13 @@ namespace AutomationTool
 					if(bSkipTargetsWithoutTokens)
 					{
 						// Find all the nodes we're going to skip
-						HashSet<BgNode> SkipNodes = new HashSet<BgNode>();
+						HashSet<BgNodeDef> SkipNodes = new HashSet<BgNodeDef>();
 						foreach(IGrouping<string, FileReference> MissingTokensForBuild in MissingTokens.GroupBy(x => x.Value, x => x.Key))
 						{
 							LogInformation("Skipping the following nodes due to {0}:", MissingTokensForBuild.Key);
 							foreach(FileReference MissingToken in MissingTokensForBuild)
 							{
-								foreach(BgNode SkipNode in TargetNodes.Where(x => x.RequiredTokens.Contains(MissingToken) && SkipNodes.Add(x)))
+								foreach(BgNodeDef SkipNode in TargetNodes.Where(x => x.RequiredTokens.Contains(MissingToken) && SkipNodes.Add(x)))
 								{
 									LogInformation("    {0}", SkipNode);
 								}
@@ -555,7 +555,7 @@ namespace AutomationTool
 						{
 							TargetNodes.ExceptWith(SkipNodes);
 							LogInformation("Remaining target nodes:");
-							foreach(BgNode TargetNode in TargetNodes)
+							foreach(BgNodeDef TargetNode in TargetNodes)
 							{
 								LogInformation("    {0}", TargetNode);
 							}
@@ -569,7 +569,7 @@ namespace AutomationTool
 					{
 						foreach(KeyValuePair<FileReference, string> Pair in MissingTokens)
 						{
-							List<BgNode> SkipNodes = TargetNodes.Where(x => x.RequiredTokens.Contains(Pair.Key)).ToList();
+							List<BgNodeDef> SkipNodes = TargetNodes.Where(x => x.RequiredTokens.Contains(Pair.Key)).ToList();
 							LogError("Cannot run {0} due to previous build: {1}", String.Join(", ", SkipNodes), Pair.Value);
 						}
 						foreach(FileReference CreatedToken in CreatedTokens)
@@ -602,7 +602,7 @@ namespace AutomationTool
 			}
 
 			// If we're just building a single node, find it 
-			BgNode SingleNode = null;
+			BgNodeDef SingleNode = null;
 			if(SingleNodeName != null && !Graph.NameToNode.TryGetValue(SingleNodeName, out SingleNode))
 			{
 				LogError("Node '{0}' is not in the trimmed graph", SingleNodeName);
@@ -612,15 +612,15 @@ namespace AutomationTool
 			// If we just want to show the contents of the graph, do so and exit.
 			if(bListOnly)
 			{ 
-				HashSet<BgNode> CompletedNodes = FindCompletedNodes(Graph, Storage);
+				HashSet<BgNodeDef> CompletedNodes = FindCompletedNodes(Graph, Storage);
 				Graph.Print(CompletedNodes, PrintOptions, Log.Logger);
 			}
 
 			// Print out all the diagnostic messages which still apply, unless we're running a step as part of a build system or just listing the contents of the file. 
 			if(SingleNode == null && (!bListOnly || bShowDiagnostics))
 			{
-				List<BgDiagnostic> Diagnostics = Graph.GetAllDiagnostics();
-				foreach (BgDiagnostic Diagnostic in Diagnostics)
+				List<BgDiagnosticDef> Diagnostics = Graph.GetAllDiagnostics();
+				foreach (BgDiagnosticDef Diagnostic in Diagnostics)
 				{
 					if(Diagnostic.Level == LogLevel.Information)
 					{
@@ -644,14 +644,14 @@ namespace AutomationTool
 			// Export the graph to a file
 			if(ExportFileName != null)
 			{
-				HashSet<BgNode> CompletedNodes = FindCompletedNodes(Graph, Storage);
+				HashSet<BgNodeDef> CompletedNodes = FindCompletedNodes(Graph, Storage);
 				Graph.Print(CompletedNodes, PrintOptions, Log.Logger);
 				Graph.Export(new FileReference(ExportFileName), CompletedNodes);
 				return ExitCode.Success;
 			}
 
 			// Create tasks for the entire graph
-			Dictionary<BgNode, BgNodeExecutor> NodeToExecutor = new Dictionary<BgNode, BgNodeExecutor>();
+			Dictionary<BgNodeDef, BgNodeExecutor> NodeToExecutor = new Dictionary<BgNodeDef, BgNodeExecutor>();
 			if (bSkipValidation && SingleNode != null)
 			{
 				if (!BindNodes(SingleNode, NameToTask, Graph.TagNameToNodeOutput, NodeToExecutor))
@@ -688,12 +688,12 @@ namespace AutomationTool
 			return ExitCode.Success;
 		}
 
-		bool BindNodes(BgGraph Graph, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor)
+		bool BindNodes(BgGraphDef Graph, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<BgNodeDef, BgNodeExecutor> NodeToExecutor)
 		{
 			bool bResult = true;
-			foreach (BgAgent Agent in Graph.Agents)
+			foreach (BgAgentDef Agent in Graph.Agents)
 			{
-				foreach (BgNode Node in Agent.Nodes)
+				foreach (BgNodeDef Node in Agent.Nodes)
 				{
 					bResult &= BindNodes(Node, NameToTask, Graph.TagNameToNodeOutput, NodeToExecutor);
 				}
@@ -701,7 +701,7 @@ namespace AutomationTool
 			return bResult;
 		}
 
-		bool BindNodes(BgNode Node, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<string, BgNodeOutput> TagNameToNodeOutput, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor)
+		bool BindNodes(BgNodeDef Node, Dictionary<string, ScriptTaskBinding> NameToTask, Dictionary<string, BgNodeOutput> TagNameToNodeOutput, Dictionary<BgNodeDef, BgNodeExecutor> NodeToExecutor)
 		{
 			if (Node is BgScriptNode ScriptNode)
 			{
@@ -887,10 +887,10 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="Graph">The graph instance</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
-		HashSet<BgNode> FindCompletedNodes(BgGraph Graph, TempStorage Storage)
+		HashSet<BgNodeDef> FindCompletedNodes(BgGraphDef Graph, TempStorage Storage)
 		{
-			HashSet<BgNode> CompletedNodes = new HashSet<BgNode>();
-			foreach(BgNode Node in Graph.Agents.SelectMany(x => x.Nodes))
+			HashSet<BgNodeDef> CompletedNodes = new HashSet<BgNodeDef>();
+			foreach(BgNodeDef Node in Graph.Agents.SelectMany(x => x.Nodes))
 			{
 				if(Storage.IsComplete(Node.Name))
 				{
@@ -908,15 +908,15 @@ namespace AutomationTool
 		/// <param name="NodeToExecutor">Map from node to executor</param>
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
 		/// <returns>True if everything built successfully</returns>
-		async Task<bool> BuildAllNodesAsync(JobContext Job, BgGraph Graph, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor, TempStorage Storage)
+		async Task<bool> BuildAllNodesAsync(JobContext Job, BgGraphDef Graph, Dictionary<BgNodeDef, BgNodeExecutor> NodeToExecutor, TempStorage Storage)
 		{
 			// Build a flat list of nodes to execute, in order
-			BgNode[] NodesToExecute = Graph.Agents.SelectMany(x => x.Nodes).ToArray();
+			BgNodeDef[] NodesToExecute = Graph.Agents.SelectMany(x => x.Nodes).ToArray();
 
 			// Check the integrity of any local nodes that have been completed. It's common to run formal builds locally between regular development builds, so we may have 
 			// stale local state. Rather than failing later, detect and clean them up now.
-			HashSet<BgNode> CleanedNodes = new HashSet<BgNode>();
-			foreach(BgNode NodeToExecute in NodesToExecute)
+			HashSet<BgNodeDef> CleanedNodes = new HashSet<BgNodeDef>();
+			foreach(BgNodeDef NodeToExecute in NodesToExecute)
 			{
 				if(NodeToExecute.InputDependencies.Any(x => CleanedNodes.Contains(x)) || !Storage.CheckLocalIntegrity(NodeToExecute.Name, NodeToExecute.Outputs.Select(x => x.TagName)))
 				{
@@ -927,7 +927,7 @@ namespace AutomationTool
 
 			// Execute them in order
 			int NodeIdx = 0;
-			foreach(BgNode NodeToExecute in NodesToExecute)
+			foreach(BgNodeDef NodeToExecute in NodesToExecute)
 			{
 				LogInformation("****** [{0}/{1}] {2}", ++NodeIdx, NodesToExecute.Length, NodeToExecute.Name);
 				if(!Storage.IsComplete(NodeToExecute.Name))
@@ -953,7 +953,7 @@ namespace AutomationTool
 		/// <param name="Storage">The temp storage backend which stores the shared state</param>
 		/// <param name="bWithBanner">Whether to write a banner before and after this node's log output</param>
 		/// <returns>True if the node built successfully, false otherwise.</returns>
-		async Task<bool> BuildNodeAsync(JobContext Job, BgGraph Graph, BgNode Node, Dictionary<BgNode, BgNodeExecutor> NodeToExecutor, TempStorage Storage, bool bWithBanner)
+		async Task<bool> BuildNodeAsync(JobContext Job, BgGraphDef Graph, BgNodeDef Node, Dictionary<BgNodeDef, BgNodeExecutor> NodeToExecutor, TempStorage Storage, bool bWithBanner)
 		{
 			DirectoryReference RootDir = new DirectoryReference(CommandUtils.CmdEnv.LocalRoot);
 
@@ -1047,10 +1047,10 @@ namespace AutomationTool
 
 			// Determine all the output files which are required to be copied to temp storage (because they're referenced by nodes in another agent)
 			HashSet<FileReference> ReferencedOutputFiles = new HashSet<FileReference>();
-			foreach(BgAgent Agent in Graph.Agents)
+			foreach(BgAgentDef Agent in Graph.Agents)
 			{
 				bool bSameAgent = Agent.Nodes.Contains(Node);
-				foreach(BgNode OtherNode in Agent.Nodes)
+				foreach(BgNodeDef OtherNode in Agent.Nodes)
 				{
 					if(!bSameAgent)
 					{

@@ -275,9 +275,9 @@ namespace AutomationTool
 	}
 
 	/// <summary>
-	/// Overridden version of <see cref="BgNode"/> which contains a list of tasks
+	/// Overridden version of <see cref="BgNodeDef"/> which contains a list of tasks
 	/// </summary>
-	class BgScriptNode : BgNode
+	class BgScriptNode : BgNodeDef
 	{
 		/// <summary>
 		/// List of tasks to execute
@@ -287,7 +287,7 @@ namespace AutomationTool
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgScriptNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+		public BgScriptNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
 			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
 		{
 		}
@@ -318,7 +318,7 @@ namespace AutomationTool
 		/// <summary>
 		/// The current graph
 		/// </summary>
-		readonly BgGraph _graph = new BgGraph();
+		readonly BgGraphDef _graph = new BgGraphDef();
 
 		/// <summary>
 		/// Arguments for evaluating the graph
@@ -345,7 +345,7 @@ namespace AutomationTool
 		/// </summary>
 		public int NumErrors { get; private set; }
 
-		BgAgent? _enclosingAgent;
+		BgAgentDef? _enclosingAgent;
 		BgScriptNode? _enclosingNode;
 
 		/// <summary>
@@ -382,7 +382,7 @@ namespace AutomationTool
 		/// <param name="logger">Logger for output messages</param>
 		/// <param name="singleNodeName">If a single node will be processed, the name of that node.</param>
 		/// <returns>True if the graph was read, false if there were errors</returns>
-		public static async Task<BgGraph?> ReadAsync(FileReference file, Dictionary<string, string> arguments, Dictionary<string, string> defaultProperties, BgScriptSchema schema, ILogger logger, string? singleNodeName = null)
+		public static async Task<BgGraphDef?> ReadAsync(FileReference file, Dictionary<string, string> arguments, Dictionary<string, string> defaultProperties, BgScriptSchema schema, ILogger logger, string? singleNodeName = null)
 		{
 			// Read the file and build the graph
 			BgScriptReader reader = new BgScriptReader(defaultProperties, arguments, singleNodeName, schema, logger);
@@ -950,7 +950,7 @@ namespace AutomationTool
 				string[] types = ReadListAttribute(element, "Type");
 
 				// Create the agent object, or continue an existing one
-				BgAgent? agent;
+				BgAgentDef? agent;
 				if (_graph.NameToAgent.TryGetValue(name, out agent))
 				{
 					if (types.Length > 0 && agent.PossibleTypes.Length > 0)
@@ -967,7 +967,7 @@ namespace AutomationTool
 					{
 						LogError(element, "Missing type for agent '{0}'", name);
 					}
-					agent = new BgAgent(name, types);
+					agent = new BgAgentDef(name, types);
 					_graph.NameToAgent.Add(name, agent);
 					_graph.Agents.Add(agent);
 				}
@@ -1048,8 +1048,8 @@ namespace AutomationTool
 			{
 				string[] requiredNames = ReadListAttribute(element, "Requires");
 
-				BgAggregate newAggregate = new BgAggregate(name);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				BgAggregateDef newAggregate = new BgAggregateDef(name);
+				foreach (BgNodeDef referencedNode in ResolveReferences(element, requiredNames))
 				{
 					newAggregate.RequiredNodes.Add(referencedNode);
 				}
@@ -1058,21 +1058,21 @@ namespace AutomationTool
 				string labelCategoryName = ReadAttribute(element, "Label");
 				if (!String.IsNullOrEmpty(labelCategoryName))
 				{
-					BgLabel label;
+					BgLabelDef label;
 
 					// Create the label
 					int slashIdx = labelCategoryName.IndexOf('/');
 					if (slashIdx != -1)
 					{
-						label = new BgLabel(labelCategoryName.Substring(slashIdx + 1), labelCategoryName.Substring(0, slashIdx), null, null, BgLabelChange.Current);
+						label = new BgLabelDef(labelCategoryName.Substring(slashIdx + 1), labelCategoryName.Substring(0, slashIdx), null, null, BgLabelChange.Current);
 					}
 					else
 					{
-						label = new BgLabel(labelCategoryName, "Other", null, null, BgLabelChange.Current);
+						label = new BgLabelDef(labelCategoryName, "Other", null, null, BgLabelChange.Current);
 					}
 
 					// Find all the included nodes
-					foreach (BgNode requiredNode in newAggregate.RequiredNodes)
+					foreach (BgNodeDef requiredNode in newAggregate.RequiredNodes)
 					{
 						label.RequiredNodes.Add(requiredNode);
 						label.IncludedNodes.Add(requiredNode);
@@ -1080,14 +1080,14 @@ namespace AutomationTool
 					}
 
 					string[] includedNames = ReadListAttribute(element, "Include");
-					foreach (BgNode includedNode in ResolveReferences(element, includedNames))
+					foreach (BgNodeDef includedNode in ResolveReferences(element, includedNames))
 					{
 						label.IncludedNodes.Add(includedNode);
 						label.IncludedNodes.UnionWith(includedNode.OrderDependencies);
 					}
 
 					string[] excludedNames = ReadListAttribute(element, "Exclude");
-					foreach (BgNode excludedNode in ResolveReferences(element, excludedNames))
+					foreach (BgNodeDef excludedNode in ResolveReferences(element, excludedNames))
 					{
 						label.IncludedNodes.Remove(excludedNode);
 						label.IncludedNodes.ExceptWith(excludedNode.OrderDependencies);
@@ -1110,7 +1110,7 @@ namespace AutomationTool
 				string[] requiredNames = ReadListAttribute(element, "Requires");
 
 				BgReport newReport = new BgReport(name);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				foreach (BgNodeDef referencedNode in ResolveReferences(element, requiredNames))
 				{
 					newReport.Nodes.Add(referencedNode);
 					newReport.Nodes.UnionWith(referencedNode.OrderDependencies);
@@ -1133,12 +1133,12 @@ namespace AutomationTool
 				string project = ReadAttribute(element, "Project");
 				int change = ReadIntegerAttribute(element, "Change", 0);
 
-				BgBadge newBadge = new BgBadge(name, project, change);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				BgBadgeDef newBadge = new BgBadgeDef(name, project, change);
+				foreach (BgNodeDef referencedNode in ResolveReferences(element, requiredNames))
 				{
 					newBadge.Nodes.Add(referencedNode);
 				}
-				foreach (BgNode referencedNode in ResolveReferences(element, targetNames))
+				foreach (BgNodeDef referencedNode in ResolveReferences(element, targetNames))
 				{
 					newBadge.Nodes.Add(referencedNode);
 					newBadge.Nodes.UnionWith(referencedNode.OrderDependencies);
@@ -1172,19 +1172,19 @@ namespace AutomationTool
 
 				BgLabelChange change = ReadEnumAttribute<BgLabelChange>(element, "Change", BgLabelChange.Current);
 
-				BgLabel newLabel = new BgLabel(name, category, ugsBadge, ugsProject, change);
-				foreach (BgNode referencedNode in ResolveReferences(element, requiredNames))
+				BgLabelDef newLabel = new BgLabelDef(name, category, ugsBadge, ugsProject, change);
+				foreach (BgNodeDef referencedNode in ResolveReferences(element, requiredNames))
 				{
 					newLabel.RequiredNodes.Add(referencedNode);
 					newLabel.IncludedNodes.Add(referencedNode);
 					newLabel.IncludedNodes.UnionWith(referencedNode.OrderDependencies);
 				}
-				foreach (BgNode includedNode in ResolveReferences(element, includedNames))
+				foreach (BgNodeDef includedNode in ResolveReferences(element, includedNames))
 				{
 					newLabel.IncludedNodes.Add(includedNode);
 					newLabel.IncludedNodes.UnionWith(includedNode.OrderDependencies);
 				}
-				foreach (BgNode excludedNode in ResolveReferences(element, excludedNames))
+				foreach (BgNodeDef excludedNode in ResolveReferences(element, excludedNames))
 				{
 					newLabel.IncludedNodes.Remove(excludedNode);
 					newLabel.IncludedNodes.ExceptWith(excludedNode.OrderDependencies);
@@ -1214,8 +1214,8 @@ namespace AutomationTool
 				HashSet<BgNodeOutput> inputs = ResolveInputReferences(element, requiresNames);
 
 				// Gather up all the input dependencies, and check they're all upstream of the current node
-				HashSet<BgNode> inputDependencies = new HashSet<BgNode>();
-				foreach (BgNode inputDependency in inputs.Select(x => x.ProducingNode).Distinct())
+				HashSet<BgNodeDef> inputDependencies = new HashSet<BgNodeDef>();
+				foreach (BgNodeDef inputDependency in inputs.Select(x => x.ProducingNode).Distinct())
 				{
 					inputDependencies.Add(inputDependency);
 				}
@@ -1224,7 +1224,7 @@ namespace AutomationTool
 				HashSet<FileReference> requiredTokens = new HashSet<FileReference>(tokenFileNames.Select(x => new FileReference(x)));
 
 				// Recursively include all their dependencies too
-				foreach (BgNode inputDependency in inputDependencies.ToArray())
+				foreach (BgNodeDef inputDependency in inputDependencies.ToArray())
 				{
 					requiredTokens.UnionWith(inputDependency.RequiredTokens);
 					inputDependencies.UnionWith(inputDependency.InputDependencies);
@@ -1250,11 +1250,11 @@ namespace AutomationTool
 				}
 
 				// Gather up all the order dependencies
-				HashSet<BgNode> orderDependencies = new HashSet<BgNode>(inputDependencies);
+				HashSet<BgNodeDef> orderDependencies = new HashSet<BgNodeDef>(inputDependencies);
 				orderDependencies.UnionWith(ResolveReferences(element, afterNames));
 
 				// Recursively include all their order dependencies too
-				foreach (BgNode orderDependency in orderDependencies.ToArray())
+				foreach (BgNodeDef orderDependency in orderDependencies.ToArray())
 				{
 					orderDependencies.UnionWith(orderDependency.OrderDependencies);
 				}
@@ -1263,7 +1263,7 @@ namespace AutomationTool
 				int agentIdx = _graph.Agents.IndexOf(_enclosingAgent!);
 				for (int idx = agentIdx + 1; idx < _graph.Agents.Count; idx++)
 				{
-					foreach (BgNode node in _graph.Agents[idx].Nodes.Where(x => orderDependencies.Contains(x)))
+					foreach (BgNodeDef node in _graph.Agents[idx].Nodes.Where(x => orderDependencies.Contains(x)))
 					{
 						LogError(element, "Node '{0}' has a dependency on '{1}', which was declared after the initial definition of '{2}'.", name, node.Name, _enclosingAgent!.Name);
 					}
@@ -1537,11 +1537,11 @@ namespace AutomationTool
 				bool bAbsolute = element.HasAttribute("Absolute") && ReadBooleanAttribute(element, "Absolute", true);
 
 				// Find the list of targets which are included, and recurse through all their dependencies
-				HashSet<BgNode> nodes = new HashSet<BgNode>();
+				HashSet<BgNodeDef> nodes = new HashSet<BgNodeDef>();
 				if (targetNames != null)
 				{
-					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
-					foreach (BgNode node in targetNodes)
+					HashSet<BgNodeDef> targetNodes = ResolveReferences(element, targetNames);
+					foreach (BgNodeDef node in targetNodes)
 					{
 						nodes.Add(node);
 						nodes.UnionWith(node.InputDependencies);
@@ -1551,19 +1551,19 @@ namespace AutomationTool
 				// Add all the individually referenced nodes
 				if (individualNodeNames != null)
 				{
-					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
+					HashSet<BgNodeDef> individualNodes = ResolveReferences(element, individualNodeNames);
 					nodes.UnionWith(individualNodes);
 				}
 
 				// Exclude all the exceptions
 				if (exceptNames != null)
 				{
-					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
+					HashSet<BgNodeDef> exceptNodes = ResolveReferences(element, exceptNames);
 					nodes.ExceptWith(exceptNodes);
 				}
 
 				// Update all the referenced nodes with the settings
-				foreach (BgNode node in nodes)
+				foreach (BgNodeDef node in nodes)
 				{
 					if (users != null)
 					{
@@ -1626,11 +1626,11 @@ namespace AutomationTool
 				Dictionary<string, string> annotations = ReadAnnotationsAttribute(element, "Values");
 
 				// Find the list of targets which are included, and recurse through all their dependencies
-				HashSet<BgNode> nodes = new HashSet<BgNode>();
+				HashSet<BgNodeDef> nodes = new HashSet<BgNodeDef>();
 				if (targetNames != null)
 				{
-					HashSet<BgNode> targetNodes = ResolveReferences(element, targetNames);
-					foreach (BgNode node in targetNodes)
+					HashSet<BgNodeDef> targetNodes = ResolveReferences(element, targetNames);
+					foreach (BgNodeDef node in targetNodes)
 					{
 						nodes.Add(node);
 						nodes.UnionWith(node.InputDependencies);
@@ -1640,19 +1640,19 @@ namespace AutomationTool
 				// Add all the individually referenced nodes
 				if (individualNodeNames != null)
 				{
-					HashSet<BgNode> individualNodes = ResolveReferences(element, individualNodeNames);
+					HashSet<BgNodeDef> individualNodes = ResolveReferences(element, individualNodeNames);
 					nodes.UnionWith(individualNodes);
 				}
 
 				// Exclude all the exceptions
 				if (exceptNames != null)
 				{
-					HashSet<BgNode> exceptNodes = ResolveReferences(element, exceptNames);
+					HashSet<BgNodeDef> exceptNodes = ResolveReferences(element, exceptNames);
 					nodes.ExceptWith(exceptNodes);
 				}
 
 				// Update all the referenced nodes with the settings
-				foreach (BgNode node in nodes)
+				foreach (BgNodeDef node in nodes)
 				{
 					foreach ((string key, string value) in annotations)
 					{
@@ -1673,7 +1673,7 @@ namespace AutomationTool
 			{
 				string message = ReadAttribute(element, "Message");
 
-				BgDiagnostic diagnostic = new BgDiagnostic(element.Location.File.FullName, element.Location.LineNumber, level, message);
+				BgDiagnosticDef diagnostic = new BgDiagnosticDef(element.Location.File.FullName, element.Location.LineNumber, level, message);
 				if (_enclosingNode != null)
 				{
 					_enclosingNode.Diagnostics.Add(diagnostic);
@@ -1741,12 +1741,12 @@ namespace AutomationTool
 		/// <param name="element">Element used to locate any errors</param>
 		/// <param name="referenceNames">Sequence of names to look up</param>
 		/// <returns>Hashset of all the nodes included by the given names</returns>
-		HashSet<BgNode> ResolveReferences(BgScriptElement element, IEnumerable<string> referenceNames)
+		HashSet<BgNodeDef> ResolveReferences(BgScriptElement element, IEnumerable<string> referenceNames)
 		{
-			HashSet<BgNode> nodes = new HashSet<BgNode>();
+			HashSet<BgNodeDef> nodes = new HashSet<BgNodeDef>();
 			foreach (string referenceName in referenceNames)
 			{
-				BgNode[]? otherNodes;
+				BgNodeDef[]? otherNodes;
 				if (_graph.TryResolveReference(referenceName, out otherNodes))
 				{
 					nodes.UnionWith(otherNodes);

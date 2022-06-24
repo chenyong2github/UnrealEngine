@@ -18,7 +18,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Set of nodes to include in the report
 		/// </summary>
-		public HashSet<BgNode> Nodes { get; } = new HashSet<BgNode>();
+		public HashSet<BgNodeDef> Nodes { get; } = new HashSet<BgNodeDef>();
 
 		/// <summary>
 		/// List of users to notify with this report

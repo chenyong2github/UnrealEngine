@@ -8,7 +8,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Specification for an aggregate target in the graph
 	/// </summary>
-	public class BgAggregateSpec : BgExpr
+	public class BgAggregate : BgExpr
 	{
 		/// <summary>
 		/// Name of the aggregate
@@ -23,12 +23,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Label to apply to this aggregate
 		/// </summary>
-		public BgLabelSpec? Label { get; }
+		public BgLabel? Label { get; }
 
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregateSpec(BgString name, params BgFileSet[] requires)
+		public BgAggregate(BgString name, params BgFileSet[] requires)
 			: this(name, BgList<BgFileSet>.Create(requires))
 		{
 		}
@@ -36,7 +36,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregateSpec(BgString name, params BgList<BgFileSet>[] requires)
+		public BgAggregate(BgString name, params BgList<BgFileSet>[] requires)
 			: this(name, BgList<BgFileSet>.Concat(requires))
 		{
 		}
@@ -44,15 +44,15 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregateSpec(BgString name, BgList<BgFileSet> requires, string label)
-			: this(name, requires, new BgLabelSpec(label))
+		public BgAggregate(BgString name, BgList<BgFileSet> requires, string label)
+			: this(name, requires, new BgLabel(label))
 		{
 		}
 
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregateSpec(BgString name, BgList<BgFileSet> requires, BgLabelSpec? label = null)
+		public BgAggregate(BgString name, BgList<BgFileSet> requires, BgLabel? label = null)
 			: base(BgExprFlags.None)
 		{
 			Name = name;

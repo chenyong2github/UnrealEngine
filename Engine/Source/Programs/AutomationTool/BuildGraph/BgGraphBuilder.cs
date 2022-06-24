@@ -17,6 +17,6 @@ namespace AutomationTool
 		/// Callback used to instantiate the graph
 		/// </summary>
 		/// <param name="env">The graph context</param>
-		public abstract BgGraphSpec CreateGraph(BgEnvironment env);
+		public abstract BgGraph CreateGraph(BgEnvironment env);
 	}
 }

@@ -19,7 +19,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// The node which produces the given output
 		/// </summary>
-		public BgNode ProducingNode { get; }
+		public BgNodeDef ProducingNode { get; }
 
 		/// <summary>
 		/// Name of the tag
@@ -31,7 +31,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="inProducingNode">Node which produces the given output</param>
 		/// <param name="inTagName">Name of the tag</param>
-		public BgNodeOutput(BgNode inProducingNode, string inTagName)
+		public BgNodeOutput(BgNodeDef inProducingNode, string inTagName)
 		{
 			ProducingNode = inProducingNode;
 			TagName = inTagName;
@@ -50,7 +50,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Defines a node, a container for tasks and the smallest unit of execution that can be run as part of a build graph.
 	/// </summary>
-	public class BgNode
+	public class BgNodeDef
 	{
 		/// <summary>
 		/// The node's name
@@ -70,12 +70,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Nodes which this node has input dependencies on
 		/// </summary>
-		public IReadOnlyList<BgNode> InputDependencies { get; set; }
+		public IReadOnlyList<BgNodeDef> InputDependencies { get; set; }
 
 		/// <summary>
 		/// Nodes which this node needs to run after
 		/// </summary>
-		public IReadOnlyList<BgNode> OrderDependencies { get; set; }
+		public IReadOnlyList<BgNodeDef> OrderDependencies { get; set; }
 
 		/// <summary>
 		/// Tokens which must be acquired for this node to run
@@ -110,7 +110,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Diagnostics to output if executing this node
 		/// </summary>
-		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
+		public List<BgDiagnosticDef> Diagnostics { get; } = new List<BgDiagnosticDef>();
 
 		/// <summary>
 		/// Constructor
@@ -121,7 +121,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="inputDependencies">Nodes which this node is dependent on for its inputs</param>
 		/// <param name="orderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
 		/// <param name="requiredTokens">Optional tokens which must be required for this node to run</param>
-		public BgNode(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+		public BgNodeDef(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
 		{
 			Name = name;
 			Inputs = inputs;
@@ -145,10 +145,10 @@ namespace EpicGames.BuildGraph
 		/// Determines the minimal set of direct input dependencies for this node to run
 		/// </summary>
 		/// <returns>Sequence of nodes that are direct inputs to this node</returns>
-		public IEnumerable<BgNode> GetDirectInputDependencies()
+		public IEnumerable<BgNodeDef> GetDirectInputDependencies()
 		{
-			HashSet<BgNode> directDependencies = new HashSet<BgNode>(InputDependencies);
-			foreach (BgNode inputDependency in InputDependencies)
+			HashSet<BgNodeDef> directDependencies = new HashSet<BgNodeDef>(InputDependencies);
+			foreach (BgNodeDef inputDependency in InputDependencies)
 			{
 				directDependencies.ExceptWith(inputDependency.InputDependencies);
 			}
@@ -159,10 +159,10 @@ namespace EpicGames.BuildGraph
 		/// Determines the minimal set of direct order dependencies for this node to run
 		/// </summary>
 		/// <returns>Sequence of nodes that are direct order dependencies of this node</returns>
-		public IEnumerable<BgNode> GetDirectOrderDependencies()
+		public IEnumerable<BgNodeDef> GetDirectOrderDependencies()
 		{
-			HashSet<BgNode> directDependencies = new HashSet<BgNode>(OrderDependencies);
-			foreach (BgNode orderDependency in OrderDependencies)
+			HashSet<BgNodeDef> directDependencies = new HashSet<BgNodeDef>(OrderDependencies);
+			foreach (BgNodeDef orderDependency in OrderDependencies)
 			{
 				directDependencies.ExceptWith(orderDependency.OrderDependencies);
 			}
@@ -182,12 +182,12 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Node constructed from a bytecode expression
 	/// </summary>
-	public class BgBytecodeNode : BgNode
+	public class BgBytecodeNode : BgNodeDef
 	{
 		/// <summary>
 		/// Agent declaring this node
 		/// </summary>
-		public BgAgent Agent { get; }
+		public BgAgentDef Agent { get; }
 
 		/// <summary>
 		/// Offset in the bytecode of this node. Used to lookup method calling information.
@@ -202,12 +202,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Labels to add this node to
 		/// </summary>
-		public IReadOnlyList<BgLabel> Labels { get; }
+		public IReadOnlyList<BgLabelDef> Labels { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgBytecodeNode(BgAgent agent, string name, BgMethod method, IReadOnlyList<object> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNode> inputDependencies, IReadOnlyList<BgNode> orderDependencies, IReadOnlyList<FileReference> requiredTokens, IReadOnlyList<BgLabel> labels)
+		public BgBytecodeNode(BgAgentDef agent, string name, BgMethod method, IReadOnlyList<object> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens, IReadOnlyList<BgLabelDef> labels)
 			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
 		{
 			Agent = agent;

@@ -75,7 +75,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Specification for a node to execute
 	/// </summary>
-	public class BgNodeSpec : BgExpr
+	public class BgNode : BgExpr
 	{
 		/// <summary>
 		/// Name of the node
@@ -105,7 +105,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Agent for the node to be run on
 		/// </summary>
-		public BgAgentSpec Agent { get; }
+		public BgAgent Agent { get; }
 
 		/// <summary>
 		/// Tokens for inputs of this node
@@ -125,12 +125,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Labels that this node contributes to
 		/// </summary>
-		public BgList<BgLabelSpec> Labels { get; }
+		public BgList<BgLabel> Labels { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgNodeSpec(BgString name, BgMethod method, BgAgentSpec agent, BgList<BgFileSet> inputs, BgList<BgFileSet> fences, BgBool runEarly, BgList<BgLabelSpec> labels)
+		public BgNode(BgString name, BgMethod method, BgAgent agent, BgList<BgFileSet> inputs, BgList<BgFileSet> fences, BgBool runEarly, BgList<BgLabel> labels)
 			: base(BgExprFlags.ForceFragment)
 		{
 			Name = name;
@@ -202,7 +202,7 @@ namespace EpicGames.BuildGraph
 		/// Implicit conversion to a fileset
 		/// </summary>
 		/// <param name="node"></param>
-		public static implicit operator BgFileSet(BgNodeSpec node)
+		public static implicit operator BgFileSet(BgNode node)
 		{
 			return new BgFileSetFromNodeExpr(node);
 		}
@@ -211,7 +211,7 @@ namespace EpicGames.BuildGraph
 		/// Implicit conversion to a fileset
 		/// </summary>
 		/// <param name="node"></param>
-		public static implicit operator BgList<BgFileSet>(BgNodeSpec node)
+		public static implicit operator BgList<BgFileSet>(BgNode node)
 		{
 			return (BgFileSet)node;
 		}
@@ -224,7 +224,7 @@ namespace EpicGames.BuildGraph
 	/// Nodespec with a typed return value
 	/// </summary>
 	/// <typeparam name="T"></typeparam>
-	public class BgNodeSpec<T> : BgNodeSpec
+	public class BgNode<T> : BgNode
 	{
 		/// <summary>
 		/// Output from this node
@@ -234,7 +234,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgNodeSpec(BgString name, BgMethod handler, BgAgentSpec agent, BgList<BgFileSet> inputs, BgList<BgFileSet> fences, BgBool runEarly, BgList<BgLabelSpec> labels)
+		public BgNode(BgString name, BgMethod handler, BgAgent agent, BgList<BgFileSet> inputs, BgList<BgFileSet> fences, BgBool runEarly, BgList<BgLabel> labels)
 			: base(name, handler, agent, inputs, fences, runEarly, labels)
 		{
 			Output = CreateOutput();
@@ -298,31 +298,31 @@ namespace EpicGames.BuildGraph
 	/// </summary>
 	public class BgNodeSpecBuilder
 	{
-		/// <inheritdoc cref="BgNodeSpec.Name"/>
+		/// <inheritdoc cref="BgNode.Name"/>
 		public BgString Name { get; }
 
-		/// <inheritdoc cref="BgNodeSpec.Method"/>
+		/// <inheritdoc cref="BgNode.Method"/>
 		protected BgMethod Handler { get; }
 
-		/// <inheritdoc cref="BgNodeSpec.Agent"/>
-		public BgAgentSpec Agent { get; }
+		/// <inheritdoc cref="BgNode.Agent"/>
+		public BgAgent Agent { get; }
 
-		/// <inheritdoc cref="BgNodeSpec.Inputs"/>
+		/// <inheritdoc cref="BgNode.Inputs"/>
 		public BgList<BgFileSet> Inputs { get; set; } = BgList<BgFileSet>.Empty;
 
-		/// <inheritdoc cref="BgNodeSpec.Fences"/>
+		/// <inheritdoc cref="BgNode.Fences"/>
 		public BgList<BgFileSet> Fences { get; set; } = BgList<BgFileSet>.Empty;
 
-		/// <inheritdoc cref="BgNodeSpec.RunEarly"/>
+		/// <inheritdoc cref="BgNode.RunEarly"/>
 		public BgBool RunEarly { get; set; } = BgBool.False;
 
-		/// <inheritdoc cref="BgNodeSpec.Labels"/>
-		public BgList<BgLabelSpec> Labels { get; set; } = BgList<BgLabelSpec>.Empty;
+		/// <inheritdoc cref="BgNode.Labels"/>
+		public BgList<BgLabel> Labels { get; set; } = BgList<BgLabel>.Empty;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgNodeSpecBuilder(BgString? name, MethodCallExpression call, BgAgentSpec agent)
+		public BgNodeSpecBuilder(BgString? name, MethodCallExpression call, BgAgent agent)
 		{
 			try
 			{
@@ -501,9 +501,9 @@ namespace EpicGames.BuildGraph
 		/// Construct a nodespec from the current parameters
 		/// </summary>
 		/// <returns>New nodespec</returns>
-		public BgNodeSpec Construct()
+		public BgNode Construct()
 		{
-			return new BgNodeSpec(Name, Handler, Agent, Inputs, Fences, RunEarly, Labels);
+			return new BgNode(Name, Handler, Agent, Inputs, Fences, RunEarly, Labels);
 		}
 	}
 
@@ -516,7 +516,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		internal BgNodeSpecBuilder(BgString? name, MethodCallExpression call, BgAgentSpec agent)
+		internal BgNodeSpecBuilder(BgString? name, MethodCallExpression call, BgAgent agent)
 			: base(name, call, agent)
 		{
 		}
@@ -525,9 +525,9 @@ namespace EpicGames.BuildGraph
 		/// Construct a nodespec from the current parameters
 		/// </summary>
 		/// <returns>New nodespec</returns>
-		public new BgNodeSpec<T> Construct()
+		public new BgNode<T> Construct()
 		{
-			return new BgNodeSpec<T>(Name, Handler, Agent, Inputs, Fences, RunEarly, Labels);
+			return new BgNode<T>(Name, Handler, Agent, Inputs, Fences, RunEarly, Labels);
 		}
 	}
 
@@ -542,7 +542,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="agent">Agent to run the node</param>
 		/// <param name="func">Function to execute</param>
 		/// <returns>Node builder</returns>
-		public static BgNodeSpecBuilder AddNode(this BgAgentSpec agent, Expression<Func<BgContext, Task>> func)
+		public static BgNodeSpecBuilder AddNode(this BgAgent agent, Expression<Func<BgContext, Task>> func)
 		{
 			MethodCallExpression call = (MethodCallExpression)func.Body;
 			return new BgNodeSpecBuilder(null, call, agent);
@@ -554,7 +554,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="agent">Agent to run the node</param>
 		/// <param name="func">Function to execute</param>
 		/// <returns>Node builder</returns>
-		public static BgNodeSpecBuilder<T> AddNode<T>(this BgAgentSpec agent, Expression<Func<BgContext, Task<T>>> func)
+		public static BgNodeSpecBuilder<T> AddNode<T>(this BgAgent agent, Expression<Func<BgContext, Task<T>>> func)
 		{
 			MethodCallExpression call = (MethodCallExpression)func.Body;
 			return new BgNodeSpecBuilder<T>(null, call, agent);
@@ -566,7 +566,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="builder">The node builder</param>
 		/// <param name="inputs">Files to add as inputs</param>
 		/// <returns>The current node spec, to allow chaining calls</returns>
-		public static T Requires<T>(this T builder, params BgNodeSpec[] inputs) where T : BgNodeSpecBuilder
+		public static T Requires<T>(this T builder, params BgNode[] inputs) where T : BgNodeSpecBuilder
 		{
 			builder.Inputs = builder.Inputs.Add(inputs.Select(x => (BgFileSet)x));
 			return builder;

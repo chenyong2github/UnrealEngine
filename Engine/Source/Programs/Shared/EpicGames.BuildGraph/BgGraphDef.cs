@@ -35,7 +35,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Definition of a graph.
 	/// </summary>
-	public class BgGraph
+	public class BgGraphDef
 	{
 		/// <summary>
 		/// List of options, in the order they were specified
@@ -45,17 +45,17 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// List of agents containing nodes to execute
 		/// </summary>
-		public List<BgAgent> Agents { get; } = new List<BgAgent>();
+		public List<BgAgentDef> Agents { get; } = new List<BgAgentDef>();
 
 		/// <summary>
 		/// Mapping from name to agent
 		/// </summary>
-		public Dictionary<string, BgAgent> NameToAgent { get; set; } = new Dictionary<string, BgAgent>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgAgentDef> NameToAgent { get; set; } = new Dictionary<string, BgAgentDef>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding node.
 		/// </summary>
-		public Dictionary<string, BgNode> NameToNode { get; set; } = new Dictionary<string, BgNode>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgNodeDef> NameToNode { get; set; } = new Dictionary<string, BgNodeDef>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// Mapping of names to the corresponding report.
@@ -70,27 +70,27 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Mapping of aggregate names to their respective nodes
 		/// </summary>
-		public Dictionary<string, BgAggregate> NameToAggregate { get; private set; } = new Dictionary<string, BgAggregate>(StringComparer.OrdinalIgnoreCase);
+		public Dictionary<string, BgAggregateDef> NameToAggregate { get; private set; } = new Dictionary<string, BgAggregateDef>(StringComparer.OrdinalIgnoreCase);
 
 		/// <summary>
 		/// List of badges that can be displayed for this build
 		/// </summary>
-		public List<BgBadge> Badges { get; } = new List<BgBadge>();
+		public List<BgBadgeDef> Badges { get; } = new List<BgBadgeDef>();
 
 		/// <summary>
 		/// List of labels that can be displayed for this build
 		/// </summary>
-		public List<BgLabel> Labels { get; } = new List<BgLabel>();
+		public List<BgLabelDef> Labels { get; } = new List<BgLabelDef>();
 
 		/// <summary>
 		/// Diagnostics at graph scope
 		/// </summary>
-		public List<BgDiagnostic> Diagnostics { get; } = new List<BgDiagnostic>();
+		public List<BgDiagnosticDef> Diagnostics { get; } = new List<BgDiagnosticDef>();
 
 		/// <summary>
 		/// Default constructor
 		/// </summary>
-		public BgGraph()
+		public BgGraphDef()
 		{
 		}
 
@@ -108,13 +108,13 @@ namespace EpicGames.BuildGraph
 		/// Gets diagnostics from all graph structures
 		/// </summary>
 		/// <returns>List of diagnostics</returns>
-		public List<BgDiagnostic> GetAllDiagnostics()
+		public List<BgDiagnosticDef> GetAllDiagnostics()
 		{
-			List<BgDiagnostic> diagnostics = new List<BgDiagnostic>(Diagnostics);
-			foreach (BgAgent agent in Agents)
+			List<BgDiagnosticDef> diagnostics = new List<BgDiagnosticDef>(Diagnostics);
+			foreach (BgAgentDef agent in Agents)
 			{
 				diagnostics.AddRange(agent.Diagnostics);
-				foreach (BgNode node in agent.Nodes)
+				foreach (BgNodeDef node in agent.Nodes)
 				{
 					diagnostics.AddRange(node.Diagnostics);
 				}
@@ -128,7 +128,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="name">The name to search for</param>
 		/// <param name="outNodes">If the name is a match, receives an array of nodes and their output names</param>
 		/// <returns>True if the name was found, false otherwise.</returns>
-		public bool TryResolveReference(string name, [NotNullWhen(true)] out BgNode[]? outNodes)
+		public bool TryResolveReference(string name, [NotNullWhen(true)] out BgNodeDef[]? outNodes)
 		{
 			// Check if it's a tag reference or node reference
 			if (name.StartsWith("#"))
@@ -137,22 +137,22 @@ namespace EpicGames.BuildGraph
 				BgNodeOutput? output;
 				if (TagNameToNodeOutput.TryGetValue(name, out output))
 				{
-					outNodes = new BgNode[] { output.ProducingNode };
+					outNodes = new BgNodeDef[] { output.ProducingNode };
 					return true;
 				}
 			}
 			else
 			{
 				// Check if it's a regular node or output name
-				BgNode? node;
+				BgNodeDef? node;
 				if (NameToNode.TryGetValue(name, out node))
 				{
-					outNodes = new BgNode[] { node };
+					outNodes = new BgNodeDef[] { node };
 					return true;
 				}
 
 				// Check if it's an aggregate name
-				BgAggregate? aggregate;
+				BgAggregateDef? aggregate;
 				if (NameToAggregate.TryGetValue(name, out aggregate))
 				{
 					outNodes = aggregate.RequiredNodes.ToArray();
@@ -160,7 +160,7 @@ namespace EpicGames.BuildGraph
 				}
 
 				// Check if it's a group name
-				BgAgent? agent;
+				BgAgentDef? agent;
 				if (NameToAgent.TryGetValue(name, out agent))
 				{
 					outNodes = agent.Nodes.ToArray();
@@ -195,7 +195,7 @@ namespace EpicGames.BuildGraph
 			else
 			{
 				// Check if it's a regular node or output name
-				BgNode? node;
+				BgNodeDef? node;
 				if (NameToNode.TryGetValue(name, out node))
 				{
 					outOutputs = node.Outputs.Union(node.Inputs).ToArray();
@@ -203,7 +203,7 @@ namespace EpicGames.BuildGraph
 				}
 
 				// Check if it's an aggregate name
-				BgAggregate? aggregate;
+				BgAggregateDef? aggregate;
 				if (NameToAggregate.TryGetValue(name, out aggregate))
 				{
 					outOutputs = aggregate.RequiredNodes.SelectMany(x => x.Outputs.Union(x.Inputs)).Distinct().ToArray();
@@ -216,11 +216,11 @@ namespace EpicGames.BuildGraph
 			return false;
 		}
 
-		static void AddDependencies(BgNode node, HashSet<BgNode> retainNodes)
+		static void AddDependencies(BgNodeDef node, HashSet<BgNodeDef> retainNodes)
 		{
 			if (retainNodes.Add(node))
 			{
-				foreach (BgNode inputDependency in node.InputDependencies)
+				foreach (BgNodeDef inputDependency in node.InputDependencies)
 				{
 					AddDependencies(inputDependency, retainNodes);
 				}
@@ -231,17 +231,17 @@ namespace EpicGames.BuildGraph
 		/// Cull the graph to only include the given nodes and their dependencies
 		/// </summary>
 		/// <param name="targetNodes">A set of target nodes to build</param>
-		public void Select(IEnumerable<BgNode> targetNodes)
+		public void Select(IEnumerable<BgNodeDef> targetNodes)
 		{
 			// Find this node and all its dependencies
-			HashSet<BgNode> retainNodes = new HashSet<BgNode>();
-			foreach (BgNode targetNode in targetNodes)
+			HashSet<BgNodeDef> retainNodes = new HashSet<BgNodeDef>();
+			foreach (BgNodeDef targetNode in targetNodes)
 			{
 				AddDependencies(targetNode, retainNodes);
 			}
 
 			// Remove all the nodes which are not marked to be kept
-			foreach (BgAgent agent in Agents)
+			foreach (BgAgentDef agent in Agents)
 			{
 				agent.Nodes = agent.Nodes.Where(x => retainNodes.Contains(x)).ToList();
 			}
@@ -259,14 +259,14 @@ namespace EpicGames.BuildGraph
 			NameToReport = NameToReport.Where(x => x.Value.Nodes.Count > 0).ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.InvariantCultureIgnoreCase);
 
 			// Remove all the order dependencies which are no longer part of the graph. Since we don't need to build them, we don't need to wait for them
-			foreach (BgNode node in retainNodes)
+			foreach (BgNodeDef node in retainNodes)
 			{
 				node.OrderDependencies = node.OrderDependencies.Where(x => retainNodes.Contains(x)).ToArray();
 			}
 
 			// Create a new list of aggregates for everything that's left
-			Dictionary<string, BgAggregate> newNameToAggregate = new Dictionary<string, BgAggregate>(NameToAggregate.Comparer);
-			foreach (BgAggregate aggregate in NameToAggregate.Values)
+			Dictionary<string, BgAggregateDef> newNameToAggregate = new Dictionary<string, BgAggregateDef>(NameToAggregate.Comparer);
+			foreach (BgAggregateDef aggregate in NameToAggregate.Values)
 			{
 				if (aggregate.RequiredNodes.All(x => retainNodes.Contains(x)))
 				{
@@ -276,7 +276,7 @@ namespace EpicGames.BuildGraph
 			NameToAggregate = newNameToAggregate;
 
 			// Remove any labels that are no longer value
-			foreach (BgLabel label in Labels)
+			foreach (BgLabelDef label in Labels)
 			{
 				label.RequiredNodes.RemoveWhere(x => !retainNodes.Contains(x));
 				label.IncludedNodes.RemoveWhere(x => !retainNodes.Contains(x));
@@ -292,11 +292,11 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="file">Output file to write</param>
 		/// <param name="completedNodes">Set of nodes which have been completed</param>
-		public void Export(FileReference file, HashSet<BgNode> completedNodes)
+		public void Export(FileReference file, HashSet<BgNodeDef> completedNodes)
 		{
 			// Find all the nodes which we're actually going to execute. We'll use this to filter the graph.
-			HashSet<BgNode> nodesToExecute = new HashSet<BgNode>();
-			foreach (BgNode node in Agents.SelectMany(x => x.Nodes))
+			HashSet<BgNodeDef> nodesToExecute = new HashSet<BgNodeDef>();
+			foreach (BgNodeDef node in Agents.SelectMany(x => x.Nodes))
 			{
 				if (!completedNodes.Contains(node))
 				{
@@ -311,9 +311,9 @@ namespace EpicGames.BuildGraph
 
 				// Write all the agents
 				jsonWriter.WriteArrayStart("Groups");
-				foreach (BgAgent agent in Agents)
+				foreach (BgAgentDef agent in Agents)
 				{
-					BgNode[] nodes = agent.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
+					BgNodeDef[] nodes = agent.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
 					if (nodes.Length > 0)
 					{
 						jsonWriter.WriteObjectStart();
@@ -325,7 +325,7 @@ namespace EpicGames.BuildGraph
 						}
 						jsonWriter.WriteArrayEnd();
 						jsonWriter.WriteArrayStart("Nodes");
-						foreach (BgNode node in nodes)
+						foreach (BgNodeDef node in nodes)
 						{
 							jsonWriter.WriteObjectStart();
 							jsonWriter.WriteValue("Name", node.Name);
@@ -346,14 +346,14 @@ namespace EpicGames.BuildGraph
 
 				// Write all the badges
 				jsonWriter.WriteArrayStart("Badges");
-				foreach (BgBadge badge in Badges)
+				foreach (BgBadgeDef badge in Badges)
 				{
-					BgNode[] dependencies = badge.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
+					BgNodeDef[] dependencies = badge.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
 					if (dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<BgNode> directDependencies = new HashSet<BgNode>(dependencies);
-						foreach (BgNode dependency in dependencies)
+						HashSet<BgNodeDef> directDependencies = new HashSet<BgNodeDef>(dependencies);
+						foreach (BgNodeDef dependency in dependencies)
 						{
 							directDependencies.ExceptWith(dependency.OrderDependencies);
 						}
@@ -379,12 +379,12 @@ namespace EpicGames.BuildGraph
 				jsonWriter.WriteArrayStart("Reports");
 				foreach (BgReport report in NameToReport.Values)
 				{
-					BgNode[] dependencies = report.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
+					BgNodeDef[] dependencies = report.Nodes.Where(x => nodesToExecute.Contains(x)).ToArray();
 					if (dependencies.Length > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<BgNode> directDependencies = new HashSet<BgNode>(dependencies);
-						foreach (BgNode dependency in dependencies)
+						HashSet<BgNodeDef> directDependencies = new HashSet<BgNodeDef>(dependencies);
+						foreach (BgNodeDef dependency in dependencies)
 						{
 							directDependencies.ExceptWith(dependency.OrderDependencies);
 						}
@@ -415,7 +415,7 @@ namespace EpicGames.BuildGraph
 			{
 				jsonWriter.WriteObjectStart();
 				jsonWriter.WriteArrayStart("Groups");
-				foreach (BgAgent agent in Agents)
+				foreach (BgAgentDef agent in Agents)
 				{
 					jsonWriter.WriteObjectStart();
 					jsonWriter.WriteArrayStart("Types");
@@ -425,7 +425,7 @@ namespace EpicGames.BuildGraph
 					}
 					jsonWriter.WriteArrayEnd();
 					jsonWriter.WriteArrayStart("Nodes");
-					foreach (BgNode node in agent.Nodes)
+					foreach (BgNodeDef node in agent.Nodes)
 					{
 						jsonWriter.WriteObjectStart();
 						jsonWriter.WriteValue("Name", node.Name);
@@ -461,12 +461,12 @@ namespace EpicGames.BuildGraph
 				jsonWriter.WriteArrayEnd();
 
 				jsonWriter.WriteArrayStart("Aggregates");
-				foreach (BgAggregate aggregate in NameToAggregate.Values)
+				foreach (BgAggregateDef aggregate in NameToAggregate.Values)
 				{
 					jsonWriter.WriteObjectStart();
 					jsonWriter.WriteValue("Name", aggregate.Name);
 					jsonWriter.WriteArrayStart("Nodes");
-					foreach (BgNode requiredNode in aggregate.RequiredNodes.OrderBy(x => x.Name))
+					foreach (BgNodeDef requiredNode in aggregate.RequiredNodes.OrderBy(x => x.Name))
 					{
 						jsonWriter.WriteValue(requiredNode.Name);
 					}
@@ -476,7 +476,7 @@ namespace EpicGames.BuildGraph
 				jsonWriter.WriteArrayEnd();
 
 				jsonWriter.WriteArrayStart("Labels");
-				foreach (BgLabel label in Labels)
+				foreach (BgLabelDef label in Labels)
 				{
 					jsonWriter.WriteObjectStart();
 					if (!String.IsNullOrEmpty(label.DashboardName))
@@ -501,13 +501,13 @@ namespace EpicGames.BuildGraph
 					}
 
 					jsonWriter.WriteArrayStart("RequiredNodes");
-					foreach (BgNode requiredNode in label.RequiredNodes.OrderBy(x => x.Name))
+					foreach (BgNodeDef requiredNode in label.RequiredNodes.OrderBy(x => x.Name))
 					{
 						jsonWriter.WriteValue(requiredNode.Name);
 					}
 					jsonWriter.WriteArrayEnd();
 					jsonWriter.WriteArrayStart("IncludedNodes");
-					foreach (BgNode includedNode in label.IncludedNodes.OrderBy(x => x.Name))
+					foreach (BgNodeDef includedNode in label.IncludedNodes.OrderBy(x => x.Name))
 					{
 						jsonWriter.WriteValue(includedNode.Name);
 					}
@@ -517,14 +517,14 @@ namespace EpicGames.BuildGraph
 				jsonWriter.WriteArrayEnd();
 
 				jsonWriter.WriteArrayStart("Badges");
-				foreach (BgBadge badge in Badges)
+				foreach (BgBadgeDef badge in Badges)
 				{
-					HashSet<BgNode> dependencies = badge.Nodes;
+					HashSet<BgNodeDef> dependencies = badge.Nodes;
 					if (dependencies.Count > 0)
 					{
 						// Reduce that list to the smallest subset of direct dependencies
-						HashSet<BgNode> directDependencies = new HashSet<BgNode>(dependencies);
-						foreach (BgNode dependency in dependencies)
+						HashSet<BgNodeDef> directDependencies = new HashSet<BgNodeDef>(dependencies);
+						foreach (BgNodeDef dependency in dependencies)
 						{
 							directDependencies.ExceptWith(dependency.OrderDependencies);
 						}
@@ -555,7 +555,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="completedNodes">Set of nodes which are already complete</param>
 		/// <param name="printOptions">Options for how to print the graph</param>
 		/// <param name="logger"></param>
-		public void Print(HashSet<BgNode> completedNodes, GraphPrintOptions printOptions, ILogger logger)
+		public void Print(HashSet<BgNodeDef> completedNodes, GraphPrintOptions printOptions, ILogger logger)
 		{
 			// Print the options
 			if ((printOptions & GraphPrintOptions.ShowCommandLineOptions) != 0)
@@ -595,21 +595,21 @@ namespace EpicGames.BuildGraph
 			// Output all the triggers in order
 			logger.LogInformation("");
 			logger.LogInformation("Graph:");
-			foreach (BgAgent agent in Agents)
+			foreach (BgAgentDef agent in Agents)
 			{
 				logger.LogInformation("        Agent: {0} ({1})", agent.Name, String.Join(";", agent.PossibleTypes));
-				foreach (BgNode node in agent.Nodes)
+				foreach (BgNodeDef node in agent.Nodes)
 				{
 					logger.LogInformation("            Node: {0}{1}", node.Name, completedNodes.Contains(node) ? " (completed)" : node.RunEarly ? " (early)" : "");
 					if (printOptions.HasFlag(GraphPrintOptions.ShowDependencies))
 					{
-						HashSet<BgNode> inputDependencies = new HashSet<BgNode>(node.GetDirectInputDependencies());
-						foreach (BgNode inputDependency in inputDependencies)
+						HashSet<BgNodeDef> inputDependencies = new HashSet<BgNodeDef>(node.GetDirectInputDependencies());
+						foreach (BgNodeDef inputDependency in inputDependencies)
 						{
 							logger.LogInformation("                input> {0}", inputDependency.Name);
 						}
-						HashSet<BgNode> orderDependencies = new HashSet<BgNode>(node.GetDirectOrderDependencies());
-						foreach (BgNode orderDependency in orderDependencies.Except(inputDependencies))
+						HashSet<BgNodeDef> orderDependencies = new HashSet<BgNodeDef>(node.GetDirectOrderDependencies());
+						foreach (BgNodeDef orderDependency in orderDependencies.Except(inputDependencies))
 						{
 							logger.LogInformation("                after> {0}", orderDependency.Name);
 						}
@@ -631,7 +631,7 @@ namespace EpicGames.BuildGraph
 			logger.LogInformation("");
 
 			// Print out all the non-empty aggregates
-			BgAggregate[] aggregates = NameToAggregate.Values.OrderBy(x => x.Name).ToArray();
+			BgAggregateDef[] aggregates = NameToAggregate.Values.OrderBy(x => x.Name).ToArray();
 			if (aggregates.Length > 0)
 			{
 				logger.LogInformation("Aggregates:");

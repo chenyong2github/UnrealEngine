@@ -9,7 +9,7 @@ namespace EpicGames.BuildGraph
 	/// Diagnostic message from the graph script. These messages are parsed at startup, then culled along with the rest of the graph nodes before output. Doing so
 	/// allows errors and warnings which are only output if a node is part of the graph being executed.
 	/// </summary>
-	public class BgDiagnostic
+	public class BgDiagnosticDef
 	{
 		/// <summary>
 		/// File containing the diagnostic
@@ -34,7 +34,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgDiagnostic(string file, int line, LogLevel level, string message)
+		public BgDiagnosticDef(string file, int line, LogLevel level, string message)
 		{
 			File = file;
 			Line = line;

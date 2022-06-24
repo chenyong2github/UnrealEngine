@@ -25,7 +25,7 @@ namespace EpicGames.BuildGraph
 	/// Defines a label within a graph. Labels are similar to badges, and give the combined status of one or more job steps. Unlike badges, they
 	/// separate the requirements for its status and optional nodes to be included in its status, allowing this to be handled externally.
 	/// </summary>
-	public class BgLabel
+	public class BgLabelDef
 	{
 		/// <summary>
 		/// Name of this badge
@@ -55,12 +55,12 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
 		/// </summary>
-		public HashSet<BgNode> RequiredNodes { get; } = new HashSet<BgNode>();
+		public HashSet<BgNodeDef> RequiredNodes { get; } = new HashSet<BgNodeDef>();
 
 		/// <summary>
 		/// Set of nodes that will be included in this label if present.
 		/// </summary>
-		public HashSet<BgNode> IncludedNodes { get; } = new HashSet<BgNode>();
+		public HashSet<BgNodeDef> IncludedNodes { get; } = new HashSet<BgNodeDef>();
 
 		/// <summary>
 		/// Constructor
@@ -70,7 +70,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="inUgsBadge">The UGS badge name</param>
 		/// <param name="inUgsProject">Project to display this badge for</param>
 		/// <param name="inChange">The change to show this badge on in UGS</param>
-		public BgLabel(string? inDashboardName, string? inDashboardCategory, string? inUgsBadge, string? inUgsProject, BgLabelChange inChange)
+		public BgLabelDef(string? inDashboardName, string? inDashboardCategory, string? inUgsBadge, string? inUgsProject, BgLabelChange inChange)
 		{
 			DashboardName = inDashboardName;
 			DashboardCategory = inDashboardCategory;

@@ -9,7 +9,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Specification for a label
 	/// </summary>
-	public class BgLabelSpec : BgExpr
+	public class BgLabel : BgExpr
 	{
 		/// <summary>
 		/// Name of this badge
@@ -39,7 +39,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgLabelSpec(BgString? name = null, BgString? category = null, BgString? ugsBadge = null, BgString? ugsProject = null, BgString? change = null)
+		public BgLabel(BgString? name = null, BgString? category = null, BgString? ugsBadge = null, BgString? ugsProject = null, BgString? change = null)
 			: base(BgExprFlags.ForceFragment)
 		{
 			DashboardName = name;

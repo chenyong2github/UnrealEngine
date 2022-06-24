@@ -27,7 +27,7 @@ namespace AutomationTool
 		/// <param name="graph">Graph to output</param>
 		/// <param name="file">The file to load</param>
 		/// <param name="schemaFile">Schema file for validation</param>
-		public static void Write(this BgGraph graph, FileReference file, FileReference schemaFile)
+		public static void Write(this BgGraphDef graph, FileReference file, FileReference schemaFile)
 		{
 			XmlWriterSettings settings = new XmlWriterSettings();
 			settings.Indent = true;
@@ -42,12 +42,12 @@ namespace AutomationTool
 					writer.WriteAttributeString("schemaLocation", "http://www.w3.org/2001/XMLSchema-instance", "http://www.epicgames.com/BuildGraph " + schemaFile.MakeRelativeTo(file.Directory));
 				}
 
-				foreach (BgAgent agent in graph.Agents)
+				foreach (BgAgentDef agent in graph.Agents)
 				{
 					agent.Write(writer);
 				}
 
-				foreach (BgAggregate aggregate in graph.NameToAggregate.Values)
+				foreach (BgAggregateDef aggregate in graph.NameToAggregate.Values)
 				{
 					// If the aggregate has no required elements, skip it.
 					if (aggregate.RequiredNodes.Count == 0)
@@ -61,7 +61,7 @@ namespace AutomationTool
 					writer.WriteEndElement();
 				}
 
-				foreach (BgLabel label in graph.Labels)
+				foreach (BgLabelDef label in graph.Labels)
 				{
 					writer.WriteStartElement("Label");
 					if (label.DashboardCategory != null)
@@ -71,7 +71,7 @@ namespace AutomationTool
 					writer.WriteAttributeString("Name", label.DashboardName);
 					writer.WriteAttributeString("Requires", String.Join(";", label.RequiredNodes.Select(x => x.Name)));
 
-					HashSet<BgNode> includedNodes = new HashSet<BgNode>(label.IncludedNodes);
+					HashSet<BgNodeDef> includedNodes = new HashSet<BgNodeDef>(label.IncludedNodes);
 					includedNodes.ExceptWith(label.IncludedNodes.SelectMany(x => x.InputDependencies));
 					includedNodes.ExceptWith(label.RequiredNodes);
 					if (includedNodes.Count > 0)
@@ -79,7 +79,7 @@ namespace AutomationTool
 						writer.WriteAttributeString("Include", String.Join(";", includedNodes.Select(x => x.Name)));
 					}
 
-					HashSet<BgNode> excludedNodes = new HashSet<BgNode>(label.IncludedNodes);
+					HashSet<BgNodeDef> excludedNodes = new HashSet<BgNodeDef>(label.IncludedNodes);
 					excludedNodes.UnionWith(label.IncludedNodes.SelectMany(x => x.InputDependencies));
 					excludedNodes.ExceptWith(label.IncludedNodes);
 					excludedNodes.ExceptWith(excludedNodes.ToArray().SelectMany(x => x.InputDependencies));
@@ -98,7 +98,7 @@ namespace AutomationTool
 					writer.WriteEndElement();
 				}
 
-				foreach (BgBadge badge in graph.Badges)
+				foreach (BgBadgeDef badge in graph.Badges)
 				{
 					writer.WriteStartElement("Badge");
 					writer.WriteAttributeString("Name", badge.Name);
@@ -123,12 +123,12 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="agent">Agent to output</param>
 		/// <param name="writer">The XML writer to output to</param>
-		public static void Write(this BgAgent agent, XmlWriter writer)
+		public static void Write(this BgAgentDef agent, XmlWriter writer)
 		{
 			writer.WriteStartElement("Agent");
 			writer.WriteAttributeString("Name", agent.Name);
 			writer.WriteAttributeString("Type", String.Join(";", agent.PossibleTypes));
-			foreach (BgNode node in agent.Nodes)
+			foreach (BgNodeDef node in agent.Nodes)
 			{
 				node.Write(writer);
 			}
@@ -140,7 +140,7 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="node">Node to output</param>
 		/// <param name="writer">The writer to output the node to</param>
-		public static void Write(this BgNode node, XmlWriter writer)
+		public static void Write(this BgNodeDef node, XmlWriter writer)
 		{
 			writer.WriteStartElement("Node");
 			writer.WriteAttributeString("Name", node.Name);

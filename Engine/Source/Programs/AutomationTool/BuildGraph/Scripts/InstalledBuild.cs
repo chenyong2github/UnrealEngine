@@ -81,7 +81,7 @@ namespace AutomationTool
 			return Projects;
 		}
 
-		public override BgGraphSpec CreateGraph(BgEnvironment Context)
+		public override BgGraph CreateGraph(BgEnvironment Context)
 		{
 			string RootDir = CommandUtils.CmdEnv.LocalRoot;
 
@@ -132,63 +132,63 @@ namespace AutomationTool
 			BgString CrashReporterCompileArgs = "";
 			CrashReporterCompileArgs = CrashReporterCompileArgs.If(CrashReporterAPIURL != "" & CrashReporterAPIKey != "", BgString.Format("-define:CRC_TELEMETRY_URL=\"{0}\" -define:CRC_TELEMETRY_KEY_DEV=\"{1}\" -define:CRC_TELEMETRY_KEY_RELEASE=\"{1}\" -OverrideBuildEnvironment", CrashReporterAPIURL, CrashReporterAPIKey));
 
-			List<BgAggregateSpec> Aggregates = new List<BgAggregateSpec>();
+			List<BgAggregate> Aggregates = new List<BgAggregate>();
 
 			/////// EDITORS ////////////////////////////////////////////////
 
 			//// Windows ////
-			BgAgentSpec EditorWin64 = new BgAgentSpec("Editor Win64", "Win64_Licensee");
+			BgAgent EditorWin64 = new BgAgent("Editor Win64", "Win64_Licensee");
 
-			BgNodeSpec VersionFilesNode = EditorWin64
+			BgNode VersionFilesNode = EditorWin64
 				.AddNode(x => UpdateVersionFilesAsync(x))
 				.Construct();
 
-			BgNodeSpec<BgFileSet> WinUhtNode = EditorWin64
+			BgNode<BgFileSet> WinUhtNode = EditorWin64
 				.AddNode(x => CompileUnrealHeaderToolAsync(x, UnrealTargetPlatform.Win64))
 				.Requires(VersionFilesNode)
 				.Construct();
 
-			BgNodeSpec<BgFileSet> WinEditorNode = EditorWin64
+			BgNode<BgFileSet> WinEditorNode = EditorWin64
 				.AddNode(x => CompileUnrealEditorWin64Async(x, CrashReporterCompileArgs, EmbedSrcSrvInfo, CompileDatasmithPlugins, WithFullDebugInfo, SignExecutables))
 				.Requires(WinUhtNode)
 				.Construct();
 
-			Aggregates.Add(new BgAggregateSpec("Win64 Editor", WinEditorNode, label: "Editors/Win64"));
+			Aggregates.Add(new BgAggregate("Win64 Editor", WinEditorNode, label: "Editors/Win64"));
 
 
 			/////// TARGET PLATFORMS ////////////////////////////////////////////////
 
 			//// Win64 ////
 
-			BgAgentSpec TargetWin64 = new BgAgentSpec("Target Win64", "Win64_Licensee");
+			BgAgent TargetWin64 = new BgAgent("Target Win64", "Win64_Licensee");
 
-			BgNodeSpec<BgFileSet> WinGame = TargetWin64
+			BgNode<BgFileSet> WinGame = TargetWin64
 				.AddNode(x => CompileUnrealGameWin64(x, GameConfigurations, EmbedSrcSrvInfo, WithFullDebugInfo, SignExecutables))
 				.Requires(WinUhtNode)
 				.Construct();
 
-			Aggregates.Add(new BgAggregateSpec("TargetPlatforms_Win64", WinGame));
+			Aggregates.Add(new BgAggregate("TargetPlatforms_Win64", WinGame));
 
 			/////// TOOLS //////////////////////////////////////////////////////////
 
 			//// Build Rules ////
 
-			BgAgentSpec BuildRules = new BgAgentSpec("BuildRules", "Win64_Licensee");
+			BgAgent BuildRules = new BgAgent("BuildRules", "Win64_Licensee");
 
-			BgNodeSpec RulesAssemblies = BuildRules
+			BgNode RulesAssemblies = BuildRules
 				.AddNode(x => CompileRulesAssemblies(x))
 				.Construct();
 
 			//// Win Tools ////
 
-			BgAgentSpec ToolsGroupWin64 = new BgAgentSpec("Tools Group Win64", "Win64_Licensee");
+			BgAgent ToolsGroupWin64 = new BgAgent("Tools Group Win64", "Win64_Licensee");
 
-			BgNodeSpec<BgFileSet> WinTools = ToolsGroupWin64
+			BgNode<BgFileSet> WinTools = ToolsGroupWin64
 				.AddNode(x => BuildToolsWin64Async(x, CrashReporterCompileArgs))
 				.Requires(WinUhtNode)
 				.Construct();
 
-			BgNodeSpec<BgFileSet> CsTools = ToolsGroupWin64
+			BgNode<BgFileSet> CsTools = ToolsGroupWin64
 				.AddNode(x => BuildToolsCSAsync(x, SignExecutables))
 				.Requires(VersionFilesNode)
 				.Construct();
@@ -196,12 +196,12 @@ namespace AutomationTool
 
 			/////// DDC //////////////////////////////////////////////////////////
 
-			BgAgentSpec DDCGroupWin64 = new BgAgentSpec("DDC Group Win64", "Win64_Licensee");
+			BgAgent DDCGroupWin64 = new BgAgent("DDC Group Win64", "Win64_Licensee");
 
 			BgList<BgString> DDCPlatformsWin64 = BgList<BgString>.Create("WindowsEditor");
 			DDCPlatformsWin64 = DDCPlatformsWin64.If(WithWin64, x => x.Add("Windows"));
 
-			BgNodeSpec DdcNode = DDCGroupWin64
+			BgNode DdcNode = DDCGroupWin64
 				.AddNode(x => BuildDDCWin64Async(x, DDCPlatformsWin64, BgList<BgFileSet>.Create(WinUhtNode.Output, WinEditorNode.Output, WinTools.Output)))
 				.Requires(WinEditorNode, WinTools)
 				.Construct();
@@ -210,7 +210,7 @@ namespace AutomationTool
 			/////// STAGING ///////
 
 			// Windows 
-			BgAgentSpec WinStageAgent = new BgAgentSpec("Installed Build Group Win64", "Win64_Licensee");
+			BgAgent WinStageAgent = new BgAgent("Installed Build Group Win64", "Win64_Licensee");
 
 			BgList<BgFileSet> WinInstalledFiles = BgList<BgFileSet>.Empty;
 			WinInstalledFiles = WinInstalledFiles.Add(WinUhtNode.Output);
@@ -227,14 +227,14 @@ namespace AutomationTool
 			BgString WinOutputDir = "LocalBuilds/Engine/Windows";
 			BgString WinFinalizeArgs = BgString.Format("-OutputDir=\"{0}\" -Platforms={1} -ContentOnlyPlatforms={2}", WinOutputDir, BgString.Join(";", WinPlatforms), BgString.Join(";", WinContentOnlyPlatforms));
 
-			BgNodeSpec WinInstalledNode = WinStageAgent
+			BgNode WinInstalledNode = WinStageAgent
 				.AddNode(x => MakeInstalledBuildWin64Async(x, WinInstalledFiles, WinFinalizeArgs, WinOutputDir))
 				.Requires(WinInstalledFiles)
 				.Construct();
 
-			Aggregates.Add(new BgAggregateSpec("HostPlatforms_Win64", WinInstalledNode, label: "Builds/Win64"));
+			Aggregates.Add(new BgAggregate("HostPlatforms_Win64", WinInstalledNode, label: "Builds/Win64"));
 
-			return new BgGraphSpec(BgList<BgNodeSpec>.Empty, Aggregates);
+			return new BgGraph(BgList<BgNode>.Empty, Aggregates);
 		}
 
 		/// <summary>

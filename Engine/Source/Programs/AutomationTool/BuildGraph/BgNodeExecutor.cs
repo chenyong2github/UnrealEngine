@@ -150,7 +150,7 @@ namespace AutomationTool
 	}
 
 	/// <summary>
-	/// Implementation of <see cref="BgNode"/> for graphs defined through XML syntax
+	/// Implementation of <see cref="BgNodeDef"/> for graphs defined through XML syntax
 	/// </summary>
 	class BgScriptNodeExecutor : BgNodeExecutor
 	{

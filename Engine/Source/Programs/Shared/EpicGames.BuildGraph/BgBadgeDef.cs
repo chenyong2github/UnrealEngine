@@ -7,7 +7,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Defines a badge which gives an at-a-glance summary of part of the build, and can be displayed in UGS
 	/// </summary>
-	public class BgBadge
+	public class BgBadgeDef
 	{
 		/// <summary>
 		/// Name of this badge
@@ -27,7 +27,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Set of nodes that this badge reports the status of
 		/// </summary>
-		public HashSet<BgNode> Nodes { get; } = new HashSet<BgNode>();
+		public HashSet<BgNodeDef> Nodes { get; } = new HashSet<BgNodeDef>();
 
 		/// <summary>
 		/// Constructor
@@ -35,7 +35,7 @@ namespace EpicGames.BuildGraph
 		/// <param name="inName">Name of this report</param>
 		/// <param name="inProject">Depot path to the project that this badge applies to</param>
 		/// <param name="inChange">The changelist to post the badge for</param>
-		public BgBadge(string inName, string inProject, int inChange)
+		public BgBadgeDef(string inName, string inProject, int inChange)
 		{
 			Name = inName;
 			Project = inProject;

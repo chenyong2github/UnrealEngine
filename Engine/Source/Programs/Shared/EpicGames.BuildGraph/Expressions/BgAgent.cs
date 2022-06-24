@@ -13,7 +13,7 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Describes an agent that can execute execute build steps
 	/// </summary>
-	public class BgAgentSpec : BgExpr
+	public class BgAgent : BgExpr
 	{
 		/// <summary>
 		/// Name of the agent
@@ -28,7 +28,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgAgentSpec(BgString name, BgString type)
+		public BgAgent(BgString name, BgString type)
 			: this(name, BgList<BgString>.Create(type))
 		{
 		}
@@ -36,7 +36,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgAgentSpec(BgString name, BgList<BgString> types)
+		public BgAgent(BgString name, BgList<BgString> types)
 			: base(BgExprFlags.ForceFragment)
 		{
 			Name = name;
