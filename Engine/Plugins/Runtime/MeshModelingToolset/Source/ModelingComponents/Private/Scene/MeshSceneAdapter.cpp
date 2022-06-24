@@ -564,7 +564,8 @@ public:
 			if (bUseDistanceShellForWinding == false || bRequiresWindingQueryFallback)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(MeshScene_WrapperBuild_DMesh_FWNTree);
-				FWNTree = MakeUnique<TFastWindingTree<FColliderMesh>>(&ColliderMesh.GetAABBTree(), true);
+				check( ColliderMesh.GetRawAABBTreeUnsafe() != nullptr );
+				FWNTree = MakeUnique<TFastWindingTree<FColliderMesh>>(ColliderMesh.GetRawAABBTreeUnsafe(), true);
 			}
 		}
 		return true;
@@ -650,7 +651,7 @@ public:
 			{
 				FVector3d UseP = (bHasBakedTransform) ? P : LocalToWorldTransform.InverseTransformPosition(P);
 				double NearestDistSqr;
-				int32 NearTriID = ColliderMesh.GetAABBTree().FindNearestTriangle(UseP, NearestDistSqr, IMeshSpatial::FQueryOptions(WindingShellThickness));
+				int32 NearTriID = ColliderMesh.FindNearestTriangle(UseP, NearestDistSqr, IMeshSpatial::FQueryOptions(WindingShellThickness));
 				if (NearTriID != IndexConstants::InvalidID)
 				{
 					// Do we even need to do this? won't we return InvalidID if we don't find point within distance?
@@ -688,7 +689,7 @@ public:
 		}
 
 		double RayHitT; int32 HitTID; FVector3d HitBaryCoords;
-		if (ColliderMesh.GetAABBTree().FindNearestHitTriangle(UseRay, RayHitT, HitTID, HitBaryCoords))
+		if (ColliderMesh.FindNearestHitTriangle(UseRay, RayHitT, HitTID, HitBaryCoords))
 		{
 			WorldHitResultOut.HitMeshTriIndex = HitTID;
 			WorldHitResultOut.HitMeshSpatialWrapper = this;

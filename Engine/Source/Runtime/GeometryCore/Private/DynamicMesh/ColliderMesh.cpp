@@ -103,9 +103,28 @@ void FColliderMesh::Initialize(const FDynamicMesh3& SourceMesh, const FBuildOpti
 }
 
 
-TMeshAABBTree3<FColliderMesh>& FColliderMesh::GetAABBTree()
+TMeshAABBTree3<FColliderMesh>* FColliderMesh::GetRawAABBTreeUnsafe()
 {
-	return AABBTree;
+	return &AABBTree;
+}
+
+
+bool FColliderMesh::FindNearestHitTriangle(const FRay3d& Ray, double& RayParameterOut, int& HitTriangleIDOut, FVector3d& BaryCoordsOut) const
+{
+	if ( AABBTree.IsValid(false) )
+	{
+		return AABBTree.FindNearestHitTriangle(Ray, RayParameterOut, HitTriangleIDOut, BaryCoordsOut);
+	}
+	return false;
+}
+
+int FColliderMesh::FindNearestTriangle(const FVector3d& Point, double& NearestDistSqrOut, const IMeshSpatial::FQueryOptions& Options) const
+{
+	if ( AABBTree.IsValid(false) )
+	{
+		return AABBTree.FindNearestTriangle(Point, NearestDistSqrOut, Options);
+	}
+	return IndexConstants::InvalidID;
 }
 
 
@@ -139,7 +158,7 @@ int32 FColliderMesh::GetSourceTriangleID(int32 TriangleID) const
 FVector3d FColliderMeshProjectionTarget::Project(const FVector3d& Point, int Identifier)
 {
 	double DistSqr;
-	int NearestTriID = ColliderMesh->GetAABBTree().FindNearestTriangle(Point, DistSqr);
+	int NearestTriID = ColliderMesh->FindNearestTriangle(Point, DistSqr);
 	if (NearestTriID < 0)
 	{
 		return Point;
@@ -165,7 +184,7 @@ FVector3d FColliderMeshProjectionTarget::Project(const FVector3d& Point, int Ide
 FVector3d FColliderMeshProjectionTarget::Project(const FVector3d& Point, FVector3d& ProjectNormalOut, int Identifier)
 {
 	double DistSqr;
-	int NearestTriID = ColliderMesh->GetAABBTree().FindNearestTriangle(Point, DistSqr);
+	int NearestTriID = ColliderMesh->FindNearestTriangle(Point, DistSqr);
 	if (NearestTriID < 0)
 	{
 		return Point;
