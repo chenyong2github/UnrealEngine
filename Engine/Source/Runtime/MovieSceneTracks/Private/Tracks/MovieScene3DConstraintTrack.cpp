@@ -35,7 +35,7 @@ const TArray<UMovieSceneSection*>& UMovieScene3DConstraintTrack::GetAllSections(
 
 void UMovieScene3DConstraintTrack::RemoveAllAnimationData()
 {
-	// do nothing
+	ConstraintSections.Empty();
 }
 
 
