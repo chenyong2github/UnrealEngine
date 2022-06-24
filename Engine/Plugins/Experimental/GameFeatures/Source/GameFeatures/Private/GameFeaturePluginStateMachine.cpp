@@ -44,6 +44,11 @@ namespace UE::GameFeatures
 		TEXT("Verify plugin assets are no longer in memory when unloading."),
 		ECVF_Default);
 
+	static TAutoConsoleVariable<bool> CVarVerifyPluginUnloadDumpChains(TEXT("GameFeaturePlugin.VerifyUnloadDumpChains"),
+		false,
+		TEXT("Dump reference chains for any detected plugin asset leaks."),
+		ECVF_Default);
+
 	FString ToString(const UE::GameFeatures::FResult& Result)
 	{
 		return Result.HasValue() ? FString(TEXT("Success")) : (FString(TEXT("Failure, ErrorCode=")) + Result.GetError());
@@ -81,10 +86,12 @@ namespace UE::GameFeatures
 			{
 				UE_LOG(LogGameFeatures, Error, TEXT("GFP %s failed to unload asset %s!"), *PluginName, *AssetData.GetFullName());
 
-				UObject* AssetObj = AssetData.GetAsset();
-				//EInternalObjectFlags InternalFlags = AssetObj->GetInternalFlags();
-
-				FReferenceChainSearch(AssetObj, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				if (CVarVerifyPluginUnloadDumpChains.GetValueOnGameThread())
+				{
+					UObject* AssetObj = AssetData.GetAsset();
+					//EInternalObjectFlags InternalFlags = AssetObj->GetInternalFlags();
+					FReferenceChainSearch(AssetObj, EReferenceChainSearchMode::Shortest | EReferenceChainSearchMode::PrintResults);
+				}
 
 				ensureAlwaysMsgf(false, TEXT("GFP %s failed to unload asset %s!"), *PluginName, *AssetData.GetFullName());
 			}
