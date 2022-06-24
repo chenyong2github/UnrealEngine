@@ -1924,7 +1924,7 @@ void FShaderCompileUtilities::DoReadTaskResults(const TArray<FShaderCommonCompil
 				FShaderCompileJob* SingleJob = CurrentJob->StageJobs[Index];
 				// cannot reissue a single stage of a pipeline job
 				ReadSingleJob(SingleJob, OutputFile);
-				CurrentJob->bFailedRemovingUnused = CurrentJob->bFailedRemovingUnused | SingleJob->Output.bFailedRemovingUnused;
+				CurrentJob->bFailedRemovingUnused = CurrentJob->bFailedRemovingUnused || SingleJob->Output.bFailedRemovingUnused;
 				CurrentJob->bSucceeded = CurrentJob->bSucceeded && SingleJob->bSucceeded;
 			}
 		}

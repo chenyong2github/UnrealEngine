@@ -30,6 +30,6 @@ public:
 	/**
 	 * Initialize this object for export by setting up any of the necessary scene view extensions with the specified initializer.
 	 */
-	UFUNCTION(BlueprintImplementableEvent, Category="Compsure|Export")
+	UFUNCTION(BlueprintImplementableEvent, Category="Composure|Export")
 	void InitializeForExport(UMovieSceneComposureExportInitializer* ExportInitializer);
 };

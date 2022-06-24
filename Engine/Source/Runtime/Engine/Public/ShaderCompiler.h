@@ -153,13 +153,13 @@ protected:
 	friend class FShaderCompilingManager;
 	friend class FShaderPipelineCompileJob;
 
-	FShaderCommonCompileJob(EShaderCompileJobType InType, uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriroity) :
+	FShaderCommonCompileJob(EShaderCompileJobType InType, uint32 InHash, uint32 InId, EShaderCompileJobPriority InPriority) :
 		NumRefs(0),
 		JobIndex(INDEX_NONE),
 		Hash(InHash),
 		Id(InId),
 		Type(InType),
-		Priority(InPriroity),
+		Priority(InPriority),
 		PendingPriority(EShaderCompileJobPriority::None),
 		CurrentWorker(EShaderCompilerWorkerType::None),
 		bFinalized(false),
@@ -171,7 +171,7 @@ protected:
 		bIsGlobalShader(false)
 
 	{
-		check(InPriroity != EShaderCompileJobPriority::None);
+		check(InPriority != EShaderCompileJobPriority::None);
 	}
 
 	virtual ~FShaderCommonCompileJob() {}

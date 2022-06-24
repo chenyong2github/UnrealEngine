@@ -28,7 +28,7 @@ public:
 	/**
 	 * Initialize the export to capture the specified named buffer visualization targets from a scene capture
 	 */
-	UFUNCTION(BlueprintCallable, Category="Compsure|Export")
+	UFUNCTION(BlueprintCallable, Category="Composure|Export")
 	void ExportSceneCaptureBuffers(ACompositingElement* CompShotElement, USceneCaptureComponent2D* SceneCapture, const TArray<FString>& BuffersToExport);
 
 	/** Implementation function */
