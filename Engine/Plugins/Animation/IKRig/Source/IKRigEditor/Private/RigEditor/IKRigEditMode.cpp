@@ -138,7 +138,7 @@ void FIKRigEditMode::RenderBones(FPrimitiveDrawInterface* PDI)
 	}
 
 	// IKRig processor initialized and running?
-	UIKRigProcessor* CurrentProcessor = Controller->AnimInstance->GetCurrentlyRunningProcessor();
+	UIKRigProcessor* CurrentProcessor = Controller->GetIKRigProcessor();
 	if (!IsValid(CurrentProcessor))
 	{
 		return;

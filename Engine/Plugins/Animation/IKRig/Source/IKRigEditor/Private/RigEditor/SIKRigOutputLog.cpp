@@ -6,7 +6,10 @@
 #include "MessageLogModule.h"
 #include "RetargetEditor/IKRetargetEditorController.h"
 
-void SIKRigOutputLog::Construct(const FArguments& InArgs, const FName InLogName, TSharedPtr<SIKRigOutputLog>& OutLog)
+void SIKRigOutputLog::Construct(
+	const FArguments& InArgs,
+	const FName& InLogName,
+	TSharedPtr<SIKRigOutputLog>& OutLog)
 {
 	OutLog = SharedThis(this);
 
@@ -22,6 +25,7 @@ void SIKRigOutputLog::Construct(const FArguments& InArgs, const FName InLogName,
 		InitOptions.bShowFilters = false;
 		InitOptions.bShowPages = false;
 		InitOptions.bAllowClear = false;
+		InitOptions.bShowInLogWindow = false;
 		MessageLogModule.RegisterLogListing(InLogName, FText::FromString("IK Rig Log"), InitOptions);
 		MessageLogListing = MessageLogModule.GetLogListing(InLogName);
 	}

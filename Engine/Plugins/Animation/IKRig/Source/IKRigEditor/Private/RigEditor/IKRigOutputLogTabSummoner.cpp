@@ -2,6 +2,7 @@
 #include "RigEditor/IKRigOutputLogTabSummoner.h"
 
 #include "IDocumentation.h"
+#include "IKRigProcessor.h"
 #include "RigEditor/IKRigToolkit.h"
 #include "RigEditor/IKRigEditorStyle.h"
 #include "RigEditor/SIKRigOutputLog.h"
@@ -31,11 +32,10 @@ TSharedPtr<SToolTip> FIKRigOutputLogTabSummoner::CreateTabToolTipWidget(const FW
 
 TSharedRef<SWidget> FIKRigOutputLogTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	const TSharedRef<FIKRigEditorController> Controller = IKRigEditor.Pin()->GetController();
-	TSharedPtr<SIKRigOutputLog>& OutputLogView = Controller->OutputLogView;
-	FName LogName = Controller->AssetController->GetAsset()->Log.GetLogTarget();
+	const TSharedRef<FIKRigEditorController>& Controller = IKRigEditor.Pin()->GetController();
+	const FName LogName = Controller->GetIKRigProcessor()->Log.GetLogTarget();
 	
-	return SNew(SIKRigOutputLog, LogName, OutputLogView);
+	return SNew(SIKRigOutputLog, LogName, Controller->OutputLogView);
 }
 
 #undef LOCTEXT_NAMESPACE 

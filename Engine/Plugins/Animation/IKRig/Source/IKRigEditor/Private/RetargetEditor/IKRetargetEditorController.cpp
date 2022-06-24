@@ -243,6 +243,7 @@ void FIKRetargetEditorController::ClearOutputLog() const
 	if (OutputLogView.IsValid())
 	{
 		OutputLogView.Get()->ClearLog();
+		GetRetargetProcessor()->Log.Clear();
 	}
 }
 

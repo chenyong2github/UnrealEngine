@@ -8,6 +8,12 @@
 
 #define LOCTEXT_NAMESPACE "IKRigProcessor"
 
+UIKRigProcessor::UIKRigProcessor()
+{
+	const FName LogName = FName("IKRig_",GetUniqueID());
+	Log.SetLogTarget(LogName);
+}
+
 void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkeletalMesh* SkeletalMesh)
 {
 	// we instantiate UObjects here which MUST be done on game thread...
@@ -30,15 +36,15 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 	
 	if (InRigAsset->Skeleton.BoneNames.IsEmpty())
 	{
-		InRigAsset->Log.LogError(FText::Format(
+		Log.LogError(FText::Format(
 			LOCTEXT("NoSkeleton", "Trying to initialize IK Rig, '{0}' that has no skeleton."),
 			FText::FromString(InRigAsset->GetName())));
 		return;
 	}
 
-	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(InRigAsset, SkeletalMesh))
+	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(InRigAsset, SkeletalMesh, &Log))
 	{
-		InRigAsset->Log.LogError(FText::Format(
+		Log.LogError(FText::Format(
 			LOCTEXT("SkeletonMissingRequiredBones", "Trying to initialize IKRig, '{0}' with a Skeleton that is missing required bones. See prior warnings."),
 			FText::FromString(InRigAsset->GetName())));
 		return;
@@ -64,7 +70,7 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 		// validate that the skeleton we are trying to solve this goal on contains the bone the goal expects
 		if (NewGoalBone.BoneIndex == INDEX_NONE)
 		{
-			InRigAsset->Log.LogError(FText::Format(
+			Log.LogError(FText::Format(
 				LOCTEXT("MissingGoalBone", "IK Rig, '{0}' has a Goal, '{1}' that references an unknown bone, '{2}'. Cannot evaluate."),
 				FText::FromString(InRigAsset->GetName()), FText::FromName(EffectorGoal->GoalName), FText::FromName(EffectorGoal->BoneName) ));
 			return;
@@ -76,7 +82,7 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 		{
 			if (Bone->BoneName != NewGoalBone.BoneName)
 			{
-				InRigAsset->Log.LogError(FText::Format(
+				Log.LogError(FText::Format(
 				LOCTEXT("DuplicateGoal", "IK Rig, '{0}' has a Goal, '{1}' that references different bones in different solvers, '{2}' and '{3}'. Cannot evaluate."),
                 FText::FromString(InRigAsset->GetName()),
                 FText::FromName(EffectorGoal->GoalName),
@@ -98,7 +104,7 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 		if (!IKRigSolver)
 		{
 			// this can happen if asset references deleted IK Solver type which should only happen during development (if at all)
-			InRigAsset->Log.LogWarning(FText::Format(
+			Log.LogWarning(FText::Format(
 				LOCTEXT("UnknownSolver", "IK Rig, '{0}' has null/unknown solver in it. Please remove it."),
 				FText::FromString(InRigAsset->GetName())));
 			continue;
@@ -112,14 +118,17 @@ void UIKRigProcessor::Initialize(const UIKRigDefinition* InRigAsset, const USkel
 		Solvers.Add(Solver);
 	}
 
-	InRigAsset->Log.LogEditorMessage(FText::Format(
+	Log.LogInfo(FText::Format(
 				LOCTEXT("SuccessfulInit", "IK Rig, '{0}' ready to run on {1}."),
 				FText::FromString(InRigAsset->GetName()), FText::FromString(SkeletalMesh->GetName())));
 	
 	bInitialized = true;
 }
 
-bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset,	const FIKRigInputSkeleton& InputSkeleton)
+bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(
+	const UIKRigDefinition* InRigAsset,
+	const FIKRigInputSkeleton& InputSkeleton,
+	const FIKRigLogger* Log)
 {
 	// first we validate that all the required bones are in the input skeleton...
 	
@@ -147,10 +156,13 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 	{
 		if (!InputSkeleton.BoneNames.Contains(RequiredBone))
 		{
-			InRigAsset->Log.LogError(FText::Format(
+			if (Log)
+			{
+				Log->LogError(FText::Format(
 			LOCTEXT("MissingBone", "IK Rig, '{0}' is missing a required bone, '{1}' in the Skeletal Mesh."),
-			FText::FromString(InRigAsset->GetName()),
-			FText::FromName(RequiredBone)));
+				FText::FromString(InRigAsset->GetName()),
+				FText::FromName(RequiredBone)));
+			}
 			
 			bAllRequiredBonesFound = false;
 		}
@@ -182,10 +194,13 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 			{
 				bAllParentsValid = false;
 
-				InRigAsset->Log.LogError(FText::Format(
-			LOCTEXT("InvalidParent", "IK Rig is running on a skeleton with a required bone, '{0}', that expected to have a valid parent. The expected parent was, '{1}'."),
-				FText::FromName(RequiredBone),
-				FText::FromName(AssetParentName)));
+				if (Log)
+				{
+					Log->LogError(FText::Format(
+					LOCTEXT("InvalidParent", "IK Rig is running on a skeleton with a required bone, '{0}', that expected to have a valid parent. The expected parent was, '{1}'."),
+					FText::FromName(RequiredBone),
+					FText::FromName(AssetParentName)));
+				}
 				
 				continue;
 			}
@@ -193,12 +208,16 @@ bool UIKRigProcessor::IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRi
 			const FName& InputParentName = InputSkeleton.BoneNames[InputParentIndex];
 			if (AssetParentName != InputParentName)
 			{
-				// we only warn about this, because it may be nice not to have the exact same hierarchy
-				InRigAsset->Log.LogWarning(FText::Format(
-				LOCTEXT("UnexpectedParent", "IK Rig is running on a skeleton with a required bone, '{0}', that has a different parent '{1}'. The expected parent was, '{2}'."),
-				FText::FromName(RequiredBone),
-				FText::FromName(InputParentName),
-				FText::FromName(AssetParentName)));
+				if (Log)
+				{
+					// we only warn about this, because it may be nice not to have the exact same hierarchy
+					Log->LogWarning(FText::Format(
+					LOCTEXT("UnexpectedParent", "IK Rig is running on a skeleton with a required bone, '{0}', that has a different parent '{1}'. The expected parent was, '{2}'."),
+					FText::FromName(RequiredBone),
+					FText::FromName(InputParentName),
+					FText::FromName(AssetParentName)));
+				}
+				
 				continue;
 			}
 		}

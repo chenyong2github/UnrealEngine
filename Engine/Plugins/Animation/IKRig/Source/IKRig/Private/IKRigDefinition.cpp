@@ -272,20 +272,6 @@ void UIKRigDefinition::Serialize(FArchive& Ar)
 	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
 }
 
-void UIKRigDefinition::PostLoad()
-{
-	Super::PostLoad();
-
-	Log.SetLogTarget(GetUniqueIDAsName(), false);
-}
-
-void UIKRigDefinition::PostInitProperties()
-{
-	UObject::PostInitProperties();
-
-	Log.SetLogTarget(GetUniqueIDAsName(), false);
-}
-
 const FBoneChain* UIKRigDefinition::GetRetargetChainByName(FName ChainName) const
 {
 	for (const FBoneChain& Chain : RetargetDefinition.BoneChains)
@@ -307,14 +293,6 @@ void UIKRigDefinition::SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDi
 USkeletalMesh* UIKRigDefinition::GetPreviewMesh() const
 {
 	return PreviewSkeletalMesh.LoadSynchronous();
-}
-
-FName UIKRigDefinition::GetUniqueIDAsName() const
-{
-	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
-	
-	static const FString IKRigIDPrefix("IKRig_");
-	return FName(IKRigIDPrefix + FString::FromInt(GetUniqueID()));
 }
 
 #undef LOCTEXT_NAMESPACE

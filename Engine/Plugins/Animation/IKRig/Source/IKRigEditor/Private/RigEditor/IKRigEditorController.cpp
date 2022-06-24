@@ -206,6 +206,16 @@ void FIKRigEditorController::Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit,
 	}
 }
 
+UIKRigProcessor* FIKRigEditorController::GetIKRigProcessor() const
+{
+	if (AnimInstance.IsValid())
+	{
+		return AnimInstance->GetCurrentlyRunningProcessor();
+	}
+
+	return nullptr;
+}
+
 void FIKRigEditorController::OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig)
 {
 	if (ModifiedIKRig != AssetController->GetAsset())
@@ -271,6 +281,7 @@ void FIKRigEditorController::ClearOutputLog() const
 	if (OutputLogView.IsValid())
 	{
 		OutputLogView->ClearLog();
+		GetIKRigProcessor()->Log.Clear();
 	}
 }
 

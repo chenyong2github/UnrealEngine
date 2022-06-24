@@ -9,8 +9,8 @@ DECLARE_LOG_CATEGORY_EXTERN(LogIKRig, Warning, All);
 
 struct IKRIG_API FIKRigLogger
 {
-	/** Set the name of the log to output messages to, and whether to suppress warnings */
-	void SetLogTarget(const FName InLogName, bool bInSuppressWarnings);
+	/** Set the name of the log to output messages to */
+	void SetLogTarget(const FName InLogName);
 	/** Get the name this log is currently outputting to */
 	FName GetLogTarget() const;
 	/** Log a warning message to display to user. */
@@ -18,7 +18,13 @@ struct IKRIG_API FIKRigLogger
 	/** Log a warning message to display to user. */
 	void LogWarning(const FText& Message) const;
 	/** Log a message to display to editor output log. */
-	void LogEditorMessage(const FText& Message) const;
+	void LogInfo(const FText& Message) const;
+	/** clear all the stored messages */
+	void Clear() const;
+	/** get a list of messages that have been logged since last Clear() */
+	const TArray<FText>& GetErrors() const { return Errors; };
+	const TArray<FText>& GetWarnings() const { return Warnings; };
+	const TArray<FText>& GetMessages() const { return Messages; };
 
 private:
 	/** the name of the output log this logger will send messages to
@@ -27,7 +33,9 @@ private:
 	 * that is being edited. Therefore we name the log using the unique ID of the UObject itself (valid for lifetime of UObject between loads)
 	 */
 	FName LogName;
-	
-	/** when true, warnings will not be printed out. */
-	bool bWarningsSuppressed = false;
+
+	/** store messages here so we can show them during anim graph compilation */
+	mutable TArray<FText> Errors;
+	mutable TArray<FText> Warnings;
+	mutable TArray<FText> Messages;
 };

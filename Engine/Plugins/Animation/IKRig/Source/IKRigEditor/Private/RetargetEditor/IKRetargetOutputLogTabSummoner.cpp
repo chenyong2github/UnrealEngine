@@ -32,10 +32,10 @@ TSharedPtr<SToolTip> FIKRetargetOutputLogTabSummoner::CreateTabToolTipWidget(con
 
 TSharedRef<SWidget> FIKRetargetOutputLogTabSummoner::CreateTabBody(const FWorkflowTabSpawnInfo& Info) const
 {
-	TSharedPtr<SIKRigOutputLog>& OutputLogView = IKRetargetEditor.Pin()->GetController()->OutputLogView;
-	FName LogName = IKRetargetEditor.Pin()->GetController()->AssetController->GetAsset()->Log.GetLogTarget();
+	const TSharedRef<FIKRetargetEditorController>& Controller = IKRetargetEditor.Pin()->GetController();
+	const FName LogName = Controller->GetRetargetProcessor()->Log.GetLogTarget();
 	
-	return SNew(SIKRigOutputLog, LogName, OutputLogView);
+	return SNew(SIKRigOutputLog, LogName, Controller->OutputLogView);
 }
 
 #undef LOCTEXT_NAMESPACE 

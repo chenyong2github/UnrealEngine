@@ -40,16 +40,6 @@ UIKRetargeter* UIKRetargeterController::GetAsset() const
 	return Asset;
 }
 
-FName UIKRetargeterController::GetAssetIDAsName() const 
-{
-	if (!Asset)
-	{
-		return NAME_None;
-	}
-
-	return Asset->GetUniqueIDAsName();
-}
-
 void UIKRetargeterController::SetSourceIKRig(UIKRigDefinition* SourceIKRig)
 {
 	Asset->SourceIKRigAsset = SourceIKRig;

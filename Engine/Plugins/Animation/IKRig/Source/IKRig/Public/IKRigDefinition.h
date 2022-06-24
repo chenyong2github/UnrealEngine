@@ -214,8 +214,6 @@ public:
 
 	/** UObject */
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void PostLoad() override;
-	virtual void PostInitProperties() override;
 	/** END UObject */
 	
 	/** hierarchy and bone-pose transforms */
@@ -241,12 +239,6 @@ public:
 	virtual void SetPreviewMesh(USkeletalMesh* PreviewMesh, bool bMarkAsDirty = true) override;
 	virtual USkeletalMesh* GetPreviewMesh() const override;
 	/** END IInterface_PreviewMeshProvider interface */
-
-	/** Get the unique ID of this UObject as a name. */
-	FName GetUniqueIDAsName() const;
-
-	/** logging system */
-	FIKRigLogger Log;
 
 #if WITH_EDITOR
 	/* Get name of Preview Mesh property */

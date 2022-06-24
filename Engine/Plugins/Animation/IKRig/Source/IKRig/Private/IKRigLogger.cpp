@@ -6,10 +6,9 @@
 
 DEFINE_LOG_CATEGORY(LogIKRig);
 
-void FIKRigLogger::SetLogTarget(const FName InLogName, bool bInSuppressWarnings)
+void FIKRigLogger::SetLogTarget(const FName InLogName)
 {
 	LogName = InLogName;
-	bWarningsSuppressed = bInSuppressWarnings;
 }
 
 FName FIKRigLogger::GetLogTarget() const
@@ -19,37 +18,25 @@ FName FIKRigLogger::GetLogTarget() const
 	
 void FIKRigLogger::LogError(const FText& Message) const
 {
-	// print to the global output log
-	UE_LOG(LogIKRig, Error, TEXT("%s"), *Message.ToString());
-
-	// print to the output log in the asset editor
-	FMessageLog MessageLog(LogName);
-	MessageLog.Error(Message);
+	FMessageLog(LogName).SuppressLoggingToOutputLog(true).Error(Message);
+	Errors.Add(Message);
 }
 
 void FIKRigLogger::LogWarning(const FText& Message) const
 {
-	if (bWarningsSuppressed)
-	{
-		return;
-	}
-
-	// print to the global output log
-	UE_LOG(LogIKRig, Warning, TEXT("%s"), *Message.ToString());
-
-	// print to the output log in the asset editor
-	FMessageLog MessageLog(LogName);
-	MessageLog.Warning(Message);
+	FMessageLog(LogName).SuppressLoggingToOutputLog(true).Warning(Message);
+	Warnings.Add(Message);
 }
 
-void FIKRigLogger::LogEditorMessage(const FText& Message) const
+void FIKRigLogger::LogInfo(const FText& Message) const
 {
-	if (bWarningsSuppressed)
-	{
-		return;
-	}
+	FMessageLog(LogName).SuppressLoggingToOutputLog(true).Info(Message);
+	Messages.Add(Message);
+}
 
-	// print to the output log in the asset editor
-	FMessageLog MessageLog(LogName);
-	MessageLog.Info(Message);
+void FIKRigLogger::Clear() const
+{
+	Errors.Empty();
+	Warnings.Empty();
+	Messages.Empty();
 }

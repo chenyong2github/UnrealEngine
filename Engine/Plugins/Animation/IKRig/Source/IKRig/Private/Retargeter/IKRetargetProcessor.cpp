@@ -1256,6 +1256,12 @@ void FRootRetargeter::DecodePose(TArray<FTransform>& OutTargetGlobalPose) const
 	TargetRootTransform.SetRotation(Rotation);
 }
 
+UIKRetargetProcessor::UIKRetargetProcessor()
+{
+	const FName LogName = FName("IKRetarget_",GetUniqueID());
+	Log.SetLogTarget(LogName);
+}
+
 void UIKRetargetProcessor::Initialize(
 		USkeletalMesh* SourceSkeletalMesh,
 		USkeletalMesh* TargetSkeletalMesh,
@@ -1278,27 +1284,27 @@ void UIKRetargetProcessor::Initialize(
 	// check prerequisite assets
 	if (!SourceSkeletalMesh)
 	{
-		RetargeterAsset->Log.LogError(LOCTEXT("MissingSourceMesh", "IK Retargeter unable to initialize. Missing source Skeletal Mesh asset."));
+		Log.LogError(LOCTEXT("MissingSourceMesh", "IK Retargeter unable to initialize. Missing source Skeletal Mesh asset."));
 		return;
 	}
 	if (!TargetSkeletalMesh)
 	{
-		RetargeterAsset->Log.LogError(LOCTEXT("MissingTargetMesh", "IK Retargeter unable to initialize. Missing target Skeletal Mesh asset."));
+		Log.LogError(LOCTEXT("MissingTargetMesh", "IK Retargeter unable to initialize. Missing target Skeletal Mesh asset."));
 		return;
 	}
 	if (!RetargeterAsset->GetSourceIKRig())
 	{
-		RetargeterAsset->Log.LogError(LOCTEXT("MissingSourceIKRig", "IK Retargeter unable to initialize. Missing source IK Rig asset."));
+		Log.LogError(LOCTEXT("MissingSourceIKRig", "IK Retargeter unable to initialize. Missing source IK Rig asset."));
 		return;
 	}
 	if (!RetargeterAsset->GetTargetIKRig())
 	{
-		RetargeterAsset->Log.LogError(LOCTEXT("MissingTargetIKRig", "IK Retargeter unable to initialize. Missing target IK Rig asset."));
+		Log.LogError(LOCTEXT("MissingTargetIKRig", "IK Retargeter unable to initialize. Missing target IK Rig asset."));
 		return;
 	}
 	if (!RetargeterAsset->GetCurrentRetargetPose())
 	{
-		RetargeterAsset->Log.LogError(LOCTEXT("MissingRetargetPose", "IK Retargeter unable to initialize. Missing retarget pose."));
+		Log.LogError(LOCTEXT("MissingRetargetPose", "IK Retargeter unable to initialize. Missing retarget pose."));
 		return;
 	}
 	
@@ -1318,7 +1324,7 @@ void UIKRetargetProcessor::Initialize(
 	if (!bAtLeastOneValidBoneChainPair)
 	{
 		// couldn't match up any BoneChain pairs, no limb retargeting possible
-		RetargeterAsset->Log.LogWarning( FText::Format(
+		Log.LogWarning( FText::Format(
 			LOCTEXT("NoMappedChains", "IK Retargeter unable to map any bone chains between source, {0} and target, {1}"),
 			FText::FromString(SourceSkeleton.SkeletalMesh->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
@@ -1328,7 +1334,7 @@ void UIKRetargetProcessor::Initialize(
 	if (!bIKRigInitialized)
 	{
 		// couldn't initialize the IK Rig, we don't disable the retargeter in this case, just warn the user
-		RetargeterAsset->Log.LogWarning( FText::Format(
+		Log.LogWarning( FText::Format(
 			LOCTEXT("CouldNotInitializeIKRig", "IK Retargeter was unable to initialize the IK Rig, {0} for the Skeletal Mesh {1}. See previous warnings."),
 			FText::FromString(RetargeterAsset->GetTargetIKRig()->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
@@ -1337,7 +1343,7 @@ void UIKRetargetProcessor::Initialize(
 	if (bRootsInitialized && bAtLeastOneValidBoneChainPair)
 	{
 		// confirm for the user that the IK Rig was initialized successfully
-		RetargeterAsset->Log.LogEditorMessage(FText::Format(
+		Log.LogInfo(FText::Format(
 				LOCTEXT("SuccessfulInit", "Success! The IK Retargeter is ready to transfer animation from the source, {0} to the target, {1}"),
 				FText::FromString(SourceSkeleton.SkeletalMesh->GetName()), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
@@ -1349,20 +1355,20 @@ bool UIKRetargetProcessor::InitializeRoots()
 {
 	// initialize root encoder
 	const FName SourceRootBoneName = RetargeterAsset->GetSourceIKRig()->GetRetargetRoot();
-	const bool bRootEncoderInit = RootRetargeter.InitializeSource(SourceRootBoneName, SourceSkeleton, RetargeterAsset->Log);
+	const bool bRootEncoderInit = RootRetargeter.InitializeSource(SourceRootBoneName, SourceSkeleton, Log);
 	if (!bRootEncoderInit)
 	{
-		RetargeterAsset->Log.LogWarning( FText::Format(
+		Log.LogWarning( FText::Format(
 			LOCTEXT("NoSourceRoot", "IK Retargeter unable to initialize source root, '{0}' on skeletal mesh: '{1}'"),
 			FText::FromName(SourceRootBoneName), FText::FromString(SourceSkeleton.SkeletalMesh->GetName())));
 	}
 
 	// initialize root decoder
 	const FName TargetRootBoneName = RetargeterAsset->GetTargetIKRig()->GetRetargetRoot();
-	const bool bRootDecoderInit = RootRetargeter.InitializeTarget(TargetRootBoneName, TargetSkeleton, RetargeterAsset->Log);
+	const bool bRootDecoderInit = RootRetargeter.InitializeTarget(TargetRootBoneName, TargetSkeleton, Log);
 	if (!bRootDecoderInit)
 	{
-		RetargeterAsset->Log.LogWarning( FText::Format(
+		Log.LogWarning( FText::Format(
 			LOCTEXT("NoTargetRoot", "IK Retargeter unable to initialize target root, '{0}' on skeletal mesh: '{1}'"),
 			FText::FromName(TargetRootBoneName), FText::FromString(TargetSkeleton.SkeletalMesh->GetName())));
 	}
@@ -1385,7 +1391,7 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 		const FBoneChain* TargetBoneChain = RetargeterAsset->GetTargetIKRig()->GetRetargetChainByName(ChainMap->TargetChain);
 		if (!TargetBoneChain)
 		{
-			RetargeterAsset->Log.LogWarning( FText::Format(
+			Log.LogWarning( FText::Format(
 			LOCTEXT("MissingTargetChain", "IK Retargeter missing target bone chain: {0}. Please update the mapping."),
 			FText::FromString(ChainMap->TargetChain.ToString())));
 			continue;
@@ -1401,7 +1407,7 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 		const FBoneChain* SourceBoneChain = RetargeterAsset->GetSourceIKRig()->GetRetargetChainByName(ChainMap->SourceChain);
 		if (!SourceBoneChain)
 		{
-			RetargeterAsset->Log.LogWarning( FText::Format(
+			Log.LogWarning( FText::Format(
 			LOCTEXT("MissingSourceChain", "IK Retargeter missing source bone chain: {0}"),
 			FText::FromString(ChainMap->SourceChain.ToString())));
 			continue;
@@ -1409,14 +1415,14 @@ bool UIKRetargetProcessor::InitializeBoneChainPairs()
 
 		// all chains are loaded as FK (giving IK better starting pose)
 		FRetargetChainPairFK ChainPair;
-		if (ChainPair.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton, RetargeterAsset->Log))
+		if (ChainPair.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton, Log))
 		{
 			ChainPairsFK.Add(ChainPair);
 		}
 		
 		// load IK chain
 		FRetargetChainPairIK ChainPairIK;
-		if (ChainPairIK.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton, RetargeterAsset->Log))
+		if (ChainPairIK.Initialize(ChainMap, *SourceBoneChain, *TargetBoneChain, SourceSkeleton, TargetSkeleton, Log))
 		{
 			ChainPairsIK.Add(ChainPairIK);
 		}
@@ -1485,7 +1491,7 @@ bool UIKRetargetProcessor::InitializeIKRig(UObject* Outer, const USkeletalMesh* 
 		// does the IK rig have the IK goal this bone chain requires?
 		if (!IKRigProcessor->GetGoalContainer().FindGoalByName(ChainPair.IKGoalName))
 		{
-			RetargeterAsset->Log.LogError( FText::Format(
+			Log.LogError( FText::Format(
 			LOCTEXT("TargetIKBoneNotInSolver", "IK Retargeter has target bone chain, {0} that references an IK Goal, {1} that is not present in any of the solvers in the IK Rig asset."),
 			FText::FromName(ChainPair.TargetBoneChainName), FText::FromName(ChainPair.IKGoalName)));
 			return false;

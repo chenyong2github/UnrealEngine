@@ -264,14 +264,11 @@ public:
 	URetargetRootSettings* GetRetargetRootSettings() const { return RootSettings; };
 	/** Get read-only access to a retarget pose */
 	const FIKRetargetPose* GetCurrentRetargetPose() const { return &RetargetPoses[CurrentRetargetPose]; };
-	/** Get the unique ID of this UObject as a name. */
-	FName GetUniqueIDAsName() const;
 	/* Get name of default pose */
 	static const FName GetDefaultPoseName();
 
 	/** UObject */
 	virtual void PostLoad() override;
-	virtual void PostInitProperties() override;
 	/** END UObject */
 
 #if WITH_EDITOR
@@ -331,9 +328,6 @@ public:
 	/** When false, IK is not applied as part of retargeter. Useful for debugging limb issues suspected to be caused by IK.*/
 	UPROPERTY(EditAnywhere, Category = RetargetPhases)
 	bool bRetargetIK = true;
-
-	/** log warnings and errors */
-	FIKRigLogger Log;
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()

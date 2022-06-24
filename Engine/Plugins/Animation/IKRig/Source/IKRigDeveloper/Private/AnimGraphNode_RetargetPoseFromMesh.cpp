@@ -97,6 +97,25 @@ void UAnimGraphNode_RetargetPoseFromMesh::ValidateAnimNodeDuringCompilation(USke
 		return;
 	}
 
+	// pull messages out of the processor's log
+	if (!Node.bSuppressWarnings)
+	{
+		if (const UIKRetargetProcessor* Processor = Node.GetRetargetProcessor())
+		{
+			const TArray<FText>& Warnings = Processor->Log.GetWarnings();
+			for (const FText& Warning : Warnings)
+			{
+				MessageLog.Warning(*Warning.ToString());
+			}
+		
+			const TArray<FText>& Errors = Processor->Log.GetErrors();
+			for (const FText& Error : Errors)
+			{
+				MessageLog.Error(*Error.ToString());
+			}
+		}
+	}
+
 	if (ForSkeleton && !Node.bSuppressWarnings)
 	{
 		// validate that target bone chains exist on this skeleton

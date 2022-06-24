@@ -80,6 +80,9 @@ public:
 	/** initialize the editor controller to an instance of the IK Rig editor */
 	void Initialize(TSharedPtr<FIKRigEditorToolkit> Toolkit, UIKRigDefinition* Asset);
 
+	/** get the currently active processor running the IK Rig in the editor */
+	UIKRigProcessor* GetIKRigProcessor() const;
+
 	/** callback when IK Rig requires re-initialization */
 	void OnIKRigNeedsInitialized(UIKRigDefinition* ModifiedIKRig);
 

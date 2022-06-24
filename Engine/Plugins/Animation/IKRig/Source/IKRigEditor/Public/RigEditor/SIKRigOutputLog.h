@@ -4,6 +4,7 @@
 
 #include "Widgets/Layout/SBox.h"
 
+struct FIKRigLogger;
 class IMessageLogListing;
 class FIKRetargetEditorController;
 
@@ -15,8 +16,11 @@ public:
 	SLATE_BEGIN_ARGS(SIKRigOutputLog) {}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const FName InLogName, TSharedPtr<SIKRigOutputLog>& OutLog);
-	
+	void Construct(
+		const FArguments& InArgs,
+		const FName& InLogName,
+		TSharedPtr<SIKRigOutputLog>& OutLog);
+
 	void ClearLog() const;
 	
 private:

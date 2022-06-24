@@ -85,17 +85,6 @@ void UIKRetargeter::PostLoad()
 	{
 		CurrentRetargetPose = UIKRetargeter::GetDefaultPoseName();
 	}
-
-	// set the log target
-	Log.SetLogTarget(GetUniqueIDAsName(), false);
-}
-
-void UIKRetargeter::PostInitProperties()
-{
-	UObject::PostInitProperties();
-
-	// set the log target
-	Log.SetLogTarget(GetUniqueIDAsName(), false);
 }
 
 void FIKRetargetPose::SetBoneRotationOffset(FName BoneName, FQuat RotationDelta, const FIKRigSkeleton& Skeleton)
@@ -125,13 +114,6 @@ void FIKRetargetPose::SortHierarchically(const FIKRigSkeleton& Skeleton)
 	{
 		return Skeleton.GetBoneIndexFromName(A) > Skeleton.GetBoneIndexFromName(B);
 	});
-}
-
-FName UIKRetargeter::GetUniqueIDAsName() const
-{
-	LLM_SCOPE_BYNAME(TEXT("Animation/IKRig"));
-	static const FString IKRetargetIDPrefix("IKRetargeter_");
-	return FName(IKRetargetIDPrefix + FString::FromInt(GetUniqueID()));
 }
 
 const FName UIKRetargeter::GetDefaultPoseName()

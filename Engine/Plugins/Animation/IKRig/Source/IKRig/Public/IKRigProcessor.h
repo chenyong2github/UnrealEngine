@@ -39,7 +39,9 @@ public:
 	* 5. Copy output transforms with CopyOutputGlobalPoseToArray()
 	* 
 	*/
-	 
+
+	UIKRigProcessor();
+	
 	/** setup a new processor to run the given IKRig asset
 	 *  NOTE!! this function creates new UObjects and consequently MUST be called from the main thread!!
 	 *  @param InRigAsset - the IK Rig defining the collection of solvers to execute and all the rig settings
@@ -86,11 +88,17 @@ public:
 	FIKRigSkeleton& GetSkeleton();
 
 	/** Used to determine if the IK Rig asset is compatible with a given skeleton. */
-	static bool IsIKRigCompatibleWithSkeleton(const UIKRigDefinition* InRigAsset, const FIKRigInputSkeleton& InputSkeleton);
+	static bool IsIKRigCompatibleWithSkeleton(
+		const UIKRigDefinition* InRigAsset,
+		const FIKRigInputSkeleton& InputSkeleton,
+		const FIKRigLogger* Log);
 
 	bool IsInitialized() const { return bInitialized; };
 
 	void SetNeedsInitialized();
+
+	/** logging system */
+	FIKRigLogger Log;
 
 #if WITH_EDITOR
 	/** Used to propagate setting values from the source asset at runtime (settings that do not require re-initialization) */

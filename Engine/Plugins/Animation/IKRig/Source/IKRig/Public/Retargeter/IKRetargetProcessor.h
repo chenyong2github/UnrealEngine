@@ -473,6 +473,8 @@ class IKRIG_API UIKRetargetProcessor : public UObject
 	GENERATED_BODY()
 
 public:
+
+	UIKRetargetProcessor();
 	
 	/**
 	* Initialize the retargeter to enable running it.
@@ -524,6 +526,9 @@ public:
 	
 	/** Reset the IK planting state. */
 	void ResetPlanting();
+
+	/** logging system */
+	FIKRigLogger Log;
 
 #if WITH_EDITOR
 	/** Set that this processor needs to be reinitialized. */

@@ -28,8 +28,6 @@ public:
 	/** Get access to the retargeter asset.
 	 *@warning Do not make modifications to the asset directly. Use this API instead. */
 	UIKRetargeter* GetAsset() const;
-	/** Get unique asset integer ID as a name */
-	FName GetAssetIDAsName() const;
 	/** Get access to the editor controller.*/
 	FIKRetargetEditorController* GetEditorController() const { return EditorController; };
 	/** Set the currently used editor controller.*/

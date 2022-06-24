@@ -416,11 +416,9 @@ bool UIKRigController::SetSkeletalMesh(USkeletalMesh* SkeletalMesh, bool bTransa
 	
 	// first determine runtime compatibility between the IK Rig asset and the skeleton we're trying to run it on
 	const FIKRigInputSkeleton InputSkeleton = FIKRigInputSkeleton(SkeletalMesh);
-	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(Asset, InputSkeleton))
+	if (!UIKRigProcessor::IsIKRigCompatibleWithSkeleton(Asset, InputSkeleton, nullptr))
 	{
-		Asset->Log.LogError( FText::Format(
-			LOCTEXT("IncompatibleSkeleton", "Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. {0}"),
-			FText::FromString(Asset->GetName())));
+		UE_LOG(LogTemp, Warning, TEXT("Trying to initialize IKRig with a Skeleton that is missing required bones. See output log. {0}"), *Asset->GetName());
 		return false;
 	}
 
