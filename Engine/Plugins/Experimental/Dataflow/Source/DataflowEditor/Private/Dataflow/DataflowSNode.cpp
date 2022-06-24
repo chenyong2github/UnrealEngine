@@ -57,38 +57,35 @@ UEdGraphNode* FAssetSchemaAction_Dataflow_CreateNode_DataflowEdNode::PerformActi
 	if (UDataflow* Dataflow = Cast<UDataflow>(ParentGraph))
 	{
 		const FName NodeName = MakeUniqueObjectName(Dataflow, UDataflowEdNode::StaticClass(), FName(GetMenuDescription().ToString()));
-		if (UDataflowEdNode* EdNode = NewObject<UDataflowEdNode>(Dataflow, UDataflowEdNode::StaticClass(), NodeName))
+		if (Dataflow::FNodeFactory* Factory = Dataflow::FNodeFactory::GetInstance())
 		{
-			//const FScopedTransaction Transaction(LOCTEXT("DataflowNewNode", "Generic Graph Editor: New Node"));
-			Dataflow->Modify();
-			if (FromPin != nullptr)
-				FromPin->Modify();
-
-			Dataflow->AddNode(EdNode, true, bSelectNewNode);
-
-			EdNode->CreateNewGuid();
-			EdNode->PostPlacedNewNode();
-
-			if (Dataflow::FNodeFactory* Factory = Dataflow::FNodeFactory::GetInstance())
+			if (TSharedPtr<FDataflowNode> DataflowNode = Factory->NewNodeFromRegisteredType(*Dataflow->GetDataflow(), { FGuid::NewGuid(),NodeTypeName,NodeName}))
 			{
-				if (TSharedPtr<FDataflowNode> DataflowNode = Factory->NewNodeFromRegisteredType(*Dataflow->GetDataflow(), { FGuid::NewGuid(),NodeTypeName,NodeName}))
+				if (UDataflowEdNode* EdNode = NewObject<UDataflowEdNode>(Dataflow, UDataflowEdNode::StaticClass(), NodeName))
 				{
+					Dataflow->Modify();
+					if (FromPin != nullptr)
+						FromPin->Modify();
+		
+					Dataflow->AddNode(EdNode, true, bSelectNewNode);
+		
+					EdNode->CreateNewGuid();
+					EdNode->PostPlacedNewNode();
+		
 					EdNode->SetDataflowGraph(Dataflow->GetDataflow());
 					EdNode->SetDataflowNodeGuid(DataflowNode->GetGuid());
 					EdNode->AllocateDefaultPins();
+		
+					EdNode->AutowireNewNode(FromPin);
+		
+					EdNode->NodePosX = Location.X;
+					EdNode->NodePosY = Location.Y;
+		
+					EdNode->SetFlags(RF_Transactional);
+		
+					return EdNode;
 				}
 			}
-
-			//EdNode->AllocateDefaultPins();
-			EdNode->AutowireNewNode(FromPin);
-
-			EdNode->NodePosX = Location.X;
-			EdNode->NodePosY = Location.Y;
-
-			//EdNode->GenericGraphNode->SetFlags(RF_Transactional);
-			EdNode->SetFlags(RF_Transactional);
-
-			return EdNode;
 		}
 	}
 	return nullptr;

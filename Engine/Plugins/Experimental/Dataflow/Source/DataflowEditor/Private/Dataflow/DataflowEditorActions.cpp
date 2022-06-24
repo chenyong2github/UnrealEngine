@@ -116,7 +116,7 @@ void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IStructureDetail
 					{
 						if (TSharedPtr<FDataflowNode> DataflowNode = DataflowGraph->FindBaseNode(EdNode->GetDataflowNodeGuid()))
 						{
-							TSharedPtr<FStructOnScope> Struct(DataflowNode->NewScructOnScope());
+							TSharedPtr<FStructOnScope> Struct(DataflowNode->NewStructOnScope());
 							PropertiesEditor->SetStructureData(Struct);
 						}
 					}

@@ -2,6 +2,7 @@
 
 #include "Dataflow/DataflowNode.h"
 
+#include "ChaosLog.h"
 #include "Dataflow/DataflowInputOutput.h"
 #include "Dataflow/DataflowArchive.h"
 
@@ -203,7 +204,7 @@ void FDataflowNode::InvalidateOutputs()
 
 void FDataflowNode::RegisterInputConnection(const void* Data)
 {
-	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewScructOnScope()))
+	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
@@ -224,7 +225,7 @@ void FDataflowNode::RegisterInputConnection(const void* Data)
 
 void FDataflowNode::RegisterOutputConnection(const void* Data)
 {
-	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewScructOnScope()))
+	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
@@ -246,38 +247,37 @@ void FDataflowNode::RegisterOutputConnection(const void* Data)
 
 bool FDataflowNode::ValidateConnections()
 {
-	bool bResult = true;
-	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewScructOnScope()))
+	bValid = true;
+	if (const TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
 			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
 			{
-				FProperty* Property = *PropertyIt;
+				const FProperty* Property = *PropertyIt;
 				FName PropName(Property->GetName());
-				FName PropType(Property->GetCPPType());
 #if WITH_EDITORONLY_DATA
 				if (Property->HasMetaData(TEXT("DataflowInput")))
 				{
-					FDataflowInput* Input = FindInput(PropName);
-					if (ensureMsgf(Input, TEXT("Missing dataflow RegisterInputConnection in constructor for (%s:%s)"), *GetName().ToString(), *PropName.ToString()))
+					if (!FindInput(PropName))
 					{
-						bResult = false;
+						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterInputConnection in constructor for (%s:%s)"), *GetName().ToString(), *PropName.ToString())
+						bValid = false;
 					}
 				}
 				if (Property->HasMetaData(TEXT("DataflowOutput")))
 				{
-					FDataflowOutput* Output = FindOutput(PropName);
-					if(ensureMsgf(Output,TEXT("Missing dataflow RegisterOutputConnection in constructor for (%s:%s)"), *GetName().ToString(),*PropName.ToString()))
+					if(!FindOutput(PropName))
 					{
-						bResult = false;
+						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterOutputConnection in constructor for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+						bValid = false;
 					}
 				}
 #endif
 			}
 		}
 	}
-	return bResult;
+	return bValid;
 }
 
 

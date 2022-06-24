@@ -101,7 +101,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	//
 
 	virtual void SerializeInternal(FArchive& Ar) { check(false); }
-	virtual FStructOnScope* NewScructOnScope() { return nullptr; }
+	virtual FStructOnScope* NewStructOnScope() { return nullptr; }
 
 	/** Register the Input and Outputs after the creation in the factory */
 	void RegisterInputConnection(const void*);
@@ -163,6 +163,12 @@ struct DATAFLOWCORE_API FDataflowNode
 
 	bool ValidateConnections();
 
+	bool IsValid() const { return bValid; }
+
+private:
+
+	bool bValid = true;
+
 };
 
 namespace Dataflow
@@ -176,7 +182,7 @@ namespace Dataflow
 		{A::StaticType(),A::StaticDisplay(),A::StaticCategory(),					\
 			A::StaticTags(),A::StaticToolTip()},									\
 		[](const FNewNodeParameters& InParam){										\
-				A* Val=new A({InParam.Name}, InParam.Guid);							\
+				TUniquePtr<A> Val = MakeUnique<A>(FNodeParameters{InParam.Name}, InParam.Guid);    \
 				Val->ValidateConnections(); return Val;});
 
 #define DATAFLOW_NODE_DEFINE_INTERNAL(TYPE, DISPLAY_NAME, CATEGORY, TAGS)			\
@@ -187,7 +193,7 @@ public:																				\
 	static FString StaticTags() {return TAGS;}										\
 	static FString StaticToolTip() {return FString("Create a dataflow node.");}		\
 	virtual FName GetType() const { return #TYPE; }									\
-	virtual FStructOnScope* NewScructOnScope() override {							\
+	virtual FStructOnScope* NewStructOnScope() override {							\
 	   return new FStructOnScope(TYPE::StaticStruct(), (uint8*)this);}				\
 	virtual void SerializeInternal(FArchive& Ar) override {							\
 		UScriptStruct* const Struct = TYPE::StaticStruct();							\

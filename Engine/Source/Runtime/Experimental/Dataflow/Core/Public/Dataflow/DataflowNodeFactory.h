@@ -40,7 +40,7 @@ namespace Dataflow
 	//
 	class DATAFLOWCORE_API FNodeFactory
 	{
-		typedef TFunction<FDataflowNode* (const FNewNodeParameters&)> FNewNodeFunction;
+		typedef TFunction<TUniquePtr<FDataflowNode> (const FNewNodeParameters&)> FNewNodeFunction;
 
 		// All Maps indexed by TypeName
 		TMap<FName, FNewNodeFunction > ClassMap;		// [TypeName] -> NewNodeFunction

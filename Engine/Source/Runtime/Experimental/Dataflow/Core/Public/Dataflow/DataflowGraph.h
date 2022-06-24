@@ -66,6 +66,13 @@ namespace Dataflow
 			return NewNode;
 		}
 
+		template<class T> TSharedPtr<T> AddNode(TUniquePtr<T> &&InNode)
+		{
+			TSharedPtr<T> NewNode(InNode.Release());
+			Nodes.AddUnique(NewNode);
+			return NewNode;
+		}
+
 		TSharedPtr<FDataflowNode> FindBaseNode(FGuid InGuid)
 		{
 			for (TSharedPtr<FDataflowNode> Node : Nodes)

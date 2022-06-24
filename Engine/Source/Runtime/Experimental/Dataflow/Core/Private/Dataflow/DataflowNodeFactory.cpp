@@ -3,6 +3,7 @@
 #include "Dataflow/DataflowNodeFactory.h"
 
 #include "Dataflow/DataflowNode.h"
+#include "Misc/MessageDialog.h"
 
 namespace Dataflow
 {
@@ -12,7 +13,16 @@ namespace Dataflow
 	{ 
 		if (ClassMap.Contains(Param.Type))
 		{
-			return Graph.AddNode(ClassMap[Param.Type](Param));
+			TUniquePtr<FDataflowNode> Node = ClassMap[Param.Type](Param);
+			if(Node->IsValid())
+			{
+				return Graph.AddNode(MoveTemp(Node));
+			}
+			
+			const FText ErrorTitle = FText::FromString("Node Factory");
+			const FString ErrorMessageString = FString::Printf(TEXT("Cannot create Node %s. Node Type %s is not well defined."), *Node->GetName().ToString(), *Node->GetDisplayName().ToString());
+			const FText ErrorMessage = FText::FromString(ErrorMessageString);
+			FMessageDialog::Debugf(ErrorMessage, &ErrorTitle);
 		}
 		return TSharedPtr<FDataflowNode>(nullptr);
 	}
