@@ -6,6 +6,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MovieSceneSequencePlayer.h"
 #include "MovieSceneObjectBindingID.h"
+#include "MovieSceneBindingProxy.h"
 #include "LevelSequenceEditorBlueprintLibrary.generated.h"
 
 class ISequencer;
@@ -136,8 +137,13 @@ public:
 	static TArray<UMovieSceneFolder*> GetSelectedFolders();
 
 	/** Gets the currently selected Object Guids*/
-	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	UE_DEPRECATED(5.1, "GetSelectedObjects is deprecated, please use GetSelectedBindings which returns an array of FMovieSceneBindingProxy")
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor", meta = (DeprecatedFunction, DeprecationMessage="GetSelectedObjects is deprecated, please use GetSelectedBindings which returns an array of FMovieSceneBindingProxy"))
 	static TArray<FGuid> GetSelectedObjects();
+
+	/** Gets the currently selected object bindings */
+	UFUNCTION(BlueprintPure, Category = "Level Sequence Editor")
+	static TArray<FMovieSceneBindingProxy> GetSelectedBindings();
 
 	/** Select tracks */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
@@ -156,8 +162,13 @@ public:
 	static void SelectFolders(const TArray<UMovieSceneFolder*>& Folders);
 
 	/** Select objects by GUID */
-	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	UE_DEPRECATED(5.1, "SelectObjects is deprecated, please use SelectBindings which takes an FMovieSceneBindingProxy")
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor", meta=(DeprecatedFunction, DeprecationMessage="SelectObjects is deprecated, please use SelectBindings which takes an FMovieSceneBindingProxy"))
 	static void SelectObjects(TArray<FGuid> ObjectBinding);
+
+	/** Select bindings */
+	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")
+	static void SelectBindings(const TArray<FMovieSceneBindingProxy>& ObjectBindings);
 
 	/** Empties the current selection. */
 	UFUNCTION(BlueprintCallable, Category = "Level Sequence Editor")

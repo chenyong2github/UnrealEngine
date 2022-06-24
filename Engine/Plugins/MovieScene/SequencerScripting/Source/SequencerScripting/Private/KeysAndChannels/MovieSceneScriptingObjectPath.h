@@ -13,7 +13,6 @@
 #include "MovieScene.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneSequence.h"
-#include "SequencerBindingProxy.h"
 
 #include "MovieSceneScriptingObjectPath.generated.h"
 

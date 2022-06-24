@@ -11,7 +11,6 @@
 #include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
 #include "MovieScene.h"
-#include "SequencerBindingProxy.h"
 
 #include "MovieSceneScriptingActorReference.generated.h"
 

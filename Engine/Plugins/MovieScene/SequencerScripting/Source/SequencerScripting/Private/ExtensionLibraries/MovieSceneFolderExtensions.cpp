@@ -152,15 +152,15 @@ bool UMovieSceneFolderExtensions::RemoveChildMasterTrack(UMovieSceneFolder* Fold
 	return true;
 }
 
-TArray<FSequencerBindingProxy> UMovieSceneFolderExtensions::GetChildObjectBindings(UMovieSceneFolder* Folder)
+TArray<FMovieSceneBindingProxy> UMovieSceneFolderExtensions::GetChildObjectBindings(UMovieSceneFolder* Folder)
 {
 	if (!Folder)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call GetChildObjectBindings with a null folder"), ELogVerbosity::Error);
-		return TArray<FSequencerBindingProxy>();
+		return TArray<FMovieSceneBindingProxy>();
 	}
 
-	TArray<FSequencerBindingProxy> Result;
+	TArray<FMovieSceneBindingProxy> Result;
 
 	// Attempt to get the sequence reference from the folder
 	UMovieScene* MovieScene = Cast<UMovieScene>(Folder->GetOuter());
@@ -168,13 +168,13 @@ TArray<FSequencerBindingProxy> UMovieSceneFolderExtensions::GetChildObjectBindin
 
 	for (FGuid ID : Folder->GetChildObjectBindings())
 	{
-		Result.Add(FSequencerBindingProxy(ID, Sequence));
+		Result.Add(FMovieSceneBindingProxy(ID, Sequence));
 	}
 
 	return Result;
 }
 
-bool UMovieSceneFolderExtensions::AddChildObjectBinding(UMovieSceneFolder* Folder, FSequencerBindingProxy InObjectBinding)
+bool UMovieSceneFolderExtensions::AddChildObjectBinding(UMovieSceneFolder* Folder, FMovieSceneBindingProxy InObjectBinding)
 {
 	if (!Folder)
 	{
@@ -191,7 +191,7 @@ bool UMovieSceneFolderExtensions::AddChildObjectBinding(UMovieSceneFolder* Folde
 	return false;
 }
 
-bool UMovieSceneFolderExtensions::RemoveChildObjectBinding(UMovieSceneFolder* Folder, const FSequencerBindingProxy InObjectBinding)
+bool UMovieSceneFolderExtensions::RemoveChildObjectBinding(UMovieSceneFolder* Folder, const FMovieSceneBindingProxy InObjectBinding)
 {
 	if (!Folder)
 	{

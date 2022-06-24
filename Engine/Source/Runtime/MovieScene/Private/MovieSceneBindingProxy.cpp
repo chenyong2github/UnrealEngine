@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 #include "MovieSceneSequence.h"
 
-UMovieScene* FSequencerBindingProxy::GetMovieScene() const
+UMovieScene* FMovieSceneBindingProxy::GetMovieScene() const
 {
 	return Sequence ? Sequence->GetMovieScene() : nullptr;
 }

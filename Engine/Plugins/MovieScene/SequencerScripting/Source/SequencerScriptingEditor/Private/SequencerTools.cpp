@@ -34,7 +34,6 @@
 #include "LevelSequenceAnimSequenceLink.h"
 #include "AnimSequenceLevelSequenceLink.h"
 
-
 #define LOCTEXT_NAMESPACE "SequencerTools"
 
 bool USequencerToolsFunctionLibrary::RenderMovie(UMovieSceneCapture* InCaptureSettings, FOnRenderMovieStopped OnFinishedCallback)
@@ -118,7 +117,7 @@ void USequencerToolsFunctionLibrary::CancelMovieRender()
 	}
 }
 
-TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, const FSequencerScriptingRange& InRange)
+TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const FSequencerScriptingRange& InRange)
 {
 	ALevelSequenceActor* OutActor;
 	FMovieSceneSequencePlaybackSettings Settings;
@@ -137,7 +136,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetBoundObjects(U
 	FMovieSceneSequenceID SequenceId = Player->State.FindSequenceId(InSequence);
 
 	TArray<FSequencerBoundObjects> BoundObjects;
-	for (FSequencerBindingProxy Binding : InBindings)
+	for (FMovieSceneBindingProxy Binding : InBindings)
 	{
 		FMovieSceneObjectBindingID ObjectBinding = UE::MovieScene::FFixedObjectBindingID(Binding.BindingID, SequenceId);
 		BoundObjects.Add(FSequencerBoundObjects(Binding, Player->GetBoundObjects(ObjectBinding)));
@@ -172,7 +171,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 		for (FMovieSceneObjectBindingID ObjectBinding : ObjectBindings)
 		{
 			FMovieSceneSequenceID SequenceID = ObjectBinding.ResolveSequenceID(MovieSceneSequenceID::Root, *Player);
-			FSequencerBindingProxy Binding(ObjectBinding.GetGuid(), Player->State.FindSequence(SequenceID));
+			FMovieSceneBindingProxy Binding(ObjectBinding.GetGuid(), Player->State.FindSequence(SequenceID));
 			BoundObjects.Add(FSequencerBoundObjects(Binding, TArray<UObject*>({ Object })));
 		}
 	}
@@ -182,7 +181,7 @@ TArray<FSequencerBoundObjects> USequencerToolsFunctionLibrary::GetObjectBindings
 	return BoundObjects;
 }
 
-void GatherDescendantBindings(const FSequencerBindingProxy& Binding, UMovieSceneSequence* Sequence, TArray<FSequencerBindingProxy>& AllBindings)
+void GatherDescendantBindings(const FMovieSceneBindingProxy& Binding, UMovieSceneSequence* Sequence, TArray<FMovieSceneBindingProxy>& AllBindings)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
@@ -191,14 +190,14 @@ void GatherDescendantBindings(const FSequencerBindingProxy& Binding, UMovieScene
 		FMovieScenePossessable& Possessable = MovieScene->GetPossessable(Index);
 		if (Possessable.GetParent() == Binding.BindingID)
 		{
-			FSequencerBindingProxy ChildBinding(Possessable.GetGuid(), Sequence);
+			FMovieSceneBindingProxy ChildBinding(Possessable.GetGuid(), Sequence);
 			AllBindings.Add(ChildBinding);
 			GatherDescendantBindings(ChildBinding, Sequence, AllBindings);
 		}
 	}
 }
 
-bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& MasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName, UMovieSceneSequencePlayer* Player)
+bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& MasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName, UMovieSceneSequencePlayer* Player)
 {
 	UnFbx::FFbxExporter* Exporter = UnFbx::FFbxExporter::GetInstance();
 	//Show the fbx export dialog options
@@ -206,8 +205,8 @@ bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 
-	TArray<FSequencerBindingProxy> AllBindings;
-	for (const FSequencerBindingProxy& Binding : InBindings)
+	TArray<FMovieSceneBindingProxy> AllBindings;
+	for (const FMovieSceneBindingProxy& Binding : InBindings)
 	{
 		AllBindings.Add(Binding);
 
@@ -215,7 +214,7 @@ bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 	}
 
 	TArray<FGuid> Bindings;
-	for (const FSequencerBindingProxy& Proxy : AllBindings)
+	for (const FMovieSceneBindingProxy& Proxy : AllBindings)
 	{
 		if (Proxy.Sequence == Sequence)
 		{
@@ -247,7 +246,7 @@ bool ExportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 	return bDidExport;
 }
 
-bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName)
+bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName)
 {
 	ALevelSequenceActor* OutActor;
 	FMovieSceneSequencePlaybackSettings Settings;
@@ -261,7 +260,7 @@ bool USequencerToolsFunctionLibrary::ExportLevelSequenceFBX(UWorld* World, ULeve
 	return bSuccess;
 }
 
-static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, const FSequencerBindingProxy& Binding)
+static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, const FMovieSceneBindingProxy& Binding)
 {
 	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 	for (TWeakObjectPtr<UObject> RuntimeObject : Player->FindBoundObjects(Binding.BindingID, Template))
@@ -288,7 +287,7 @@ static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, c
 	return nullptr;
 }
 
-bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions,const FSequencerBindingProxy& Binding, bool bCreateLink)
+bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions,const FMovieSceneBindingProxy& Binding, bool bCreateLink)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (Binding.Sequence != Sequence || !AnimSequence)
@@ -335,7 +334,7 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 	return bResult;
 }
 
-bool USequencerToolsFunctionLibrary::LinkAnimSequence(ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, const UAnimSeqExportOption* ExportOptions,const FSequencerBindingProxy& Binding)
+bool USequencerToolsFunctionLibrary::LinkAnimSequence(ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, const UAnimSeqExportOption* ExportOptions,const FMovieSceneBindingProxy& Binding)
 {
 	if (!Sequence || !AnimSequence || !ExportOptions || Binding.Sequence != Sequence)
 	{
@@ -557,7 +556,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UWorld* World, UMovieScen
 	MovieSceneToolHelpers::ImportFBXCameraToExisting(FbxImporter, Sequence, Player, TemplateID, InObjectBindingMap, bMatchByNameOnly, true);
 }
 
-bool ImportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* ImportFBXSettings, const FString&  ImportFilename, UMovieSceneSequencePlayer* Player)
+bool ImportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArray<FMovieSceneBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* ImportFBXSettings, const FString&  ImportFilename, UMovieSceneSequencePlayer* Player)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (!MovieScene || MovieScene->IsReadOnly())
@@ -565,8 +564,8 @@ bool ImportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 		return false;
 	}
 
-	TArray<FSequencerBindingProxy> AllBindings;
-	for (const FSequencerBindingProxy& Binding : InBindings)
+	TArray<FMovieSceneBindingProxy> AllBindings;
+	for (const FMovieSceneBindingProxy& Binding : InBindings)
 	{
 		AllBindings.Add(Binding);
 
@@ -574,7 +573,7 @@ bool ImportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 	}
 
 	TMap<FGuid, FString> ObjectBindingMap;
-	for (const FSequencerBindingProxy& Binding : AllBindings)
+	for (const FMovieSceneBindingProxy& Binding : AllBindings)
 	{
 		FString Name = MovieScene->GetObjectDisplayName(Binding.BindingID).ToString();
 		ObjectBindingMap.Add(Binding.BindingID, Name);
@@ -611,7 +610,7 @@ bool ImportFBXInternal(UWorld* World, UMovieSceneSequence* Sequence, const TArra
 	return bResult;
 }
 
-bool USequencerToolsFunctionLibrary::ImportLevelSequenceFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* ImportFBXSettings, const FString&  ImportFilename)
+bool USequencerToolsFunctionLibrary::ImportLevelSequenceFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FMovieSceneBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* ImportFBXSettings, const FString&  ImportFilename)
 {
 	ALevelSequenceActor* OutActor;
 	FMovieSceneSequencePlaybackSettings Settings;

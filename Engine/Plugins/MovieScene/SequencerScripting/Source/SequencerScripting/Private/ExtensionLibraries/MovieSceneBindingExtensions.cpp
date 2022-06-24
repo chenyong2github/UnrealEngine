@@ -2,12 +2,12 @@
 
 #include "ExtensionLibraries/MovieSceneBindingExtensions.h"
 #include "ExtensionLibraries/MovieSceneSequenceExtensions.h"
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 #include "MovieSceneSequence.h"
 #include "MovieScene.h"
 #include "Algo/Find.h"
 
-bool UMovieSceneBindingExtensions::IsValid(const FSequencerBindingProxy& InBinding)
+bool UMovieSceneBindingExtensions::IsValid(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
 	if (MovieScene && InBinding.BindingID.IsValid())
@@ -18,12 +18,12 @@ bool UMovieSceneBindingExtensions::IsValid(const FSequencerBindingProxy& InBindi
 	return false;
 }
 
-FGuid UMovieSceneBindingExtensions::GetId(const FSequencerBindingProxy& InBinding)
+FGuid UMovieSceneBindingExtensions::GetId(const FMovieSceneBindingProxy& InBinding)
 {
 	return InBinding.BindingID;
 }
 
-FText UMovieSceneBindingExtensions::GetDisplayName(const FSequencerBindingProxy& InBinding)
+FText UMovieSceneBindingExtensions::GetDisplayName(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
 	if (MovieScene && InBinding.BindingID.IsValid())
@@ -34,7 +34,7 @@ FText UMovieSceneBindingExtensions::GetDisplayName(const FSequencerBindingProxy&
 	return FText();
 }
 
-void UMovieSceneBindingExtensions::SetDisplayName(const FSequencerBindingProxy& InBinding, const FText& InDisplayName)
+void UMovieSceneBindingExtensions::SetDisplayName(const FMovieSceneBindingProxy& InBinding, const FText& InDisplayName)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
 	if (MovieScene && InBinding.BindingID.IsValid())
@@ -46,7 +46,7 @@ void UMovieSceneBindingExtensions::SetDisplayName(const FSequencerBindingProxy& 
 	}
 }
 
-FString UMovieSceneBindingExtensions::GetName(const FSequencerBindingProxy& InBinding)
+FString UMovieSceneBindingExtensions::GetName(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
 	if (MovieScene && InBinding.BindingID.IsValid())
@@ -67,7 +67,7 @@ FString UMovieSceneBindingExtensions::GetName(const FSequencerBindingProxy& InBi
 	return FString();
 }
 
-void UMovieSceneBindingExtensions::SetName(const FSequencerBindingProxy& InBinding, const FString& InName)
+void UMovieSceneBindingExtensions::SetName(const FMovieSceneBindingProxy& InBinding, const FString& InName)
 {
 	UMovieScene* MovieScene = InBinding.Sequence ? InBinding.Sequence->GetMovieScene() : nullptr;
 	if (MovieScene && InBinding.BindingID.IsValid())
@@ -88,7 +88,7 @@ void UMovieSceneBindingExtensions::SetName(const FSequencerBindingProxy& InBindi
 	}
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::GetTracks(const FSequencerBindingProxy& InBinding)
+TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::GetTracks(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -102,7 +102,7 @@ TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::GetTracks(const FSequenc
 	return TArray<UMovieSceneTrack*>();
 }
 
-void UMovieSceneBindingExtensions::RemoveTrack(const FSequencerBindingProxy& InBinding, UMovieSceneTrack* TrackToRemove)
+void UMovieSceneBindingExtensions::RemoveTrack(const FMovieSceneBindingProxy& InBinding, UMovieSceneTrack* TrackToRemove)
 {
 	if (!TrackToRemove)
 	{
@@ -117,7 +117,7 @@ void UMovieSceneBindingExtensions::RemoveTrack(const FSequencerBindingProxy& InB
 	}
 }
 
-void UMovieSceneBindingExtensions::Remove(const FSequencerBindingProxy& InBinding)
+void UMovieSceneBindingExtensions::Remove(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -129,7 +129,7 @@ void UMovieSceneBindingExtensions::Remove(const FSequencerBindingProxy& InBindin
 	}
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::FindTracksByType(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType)
+TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::FindTracksByType(const FMovieSceneBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType)
 {
 	UMovieScene* MovieScene   = InBinding.GetMovieScene();
 	UClass*      DesiredClass = TrackType.Get();
@@ -146,7 +146,7 @@ TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::FindTracksByType(const F
 	return TArray<UMovieSceneTrack*>();
 }
 
-TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::FindTracksByExactType(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType)
+TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::FindTracksByExactType(const FMovieSceneBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType)
 {
 	UMovieScene* MovieScene   = InBinding.GetMovieScene();
 	UClass*      DesiredClass = TrackType.Get();
@@ -163,7 +163,7 @@ TArray<UMovieSceneTrack*> UMovieSceneBindingExtensions::FindTracksByExactType(co
 	return TArray<UMovieSceneTrack*>();
 }
 
-UMovieSceneTrack* UMovieSceneBindingExtensions::AddTrack(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType)
+UMovieSceneTrack* UMovieSceneBindingExtensions::AddTrack(const FMovieSceneBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType)
 {
 	UMovieScene* MovieScene   = InBinding.GetMovieScene();
 	UClass*      DesiredClass = TrackType.Get();
@@ -184,9 +184,9 @@ UMovieSceneTrack* UMovieSceneBindingExtensions::AddTrack(const FSequencerBinding
 	return nullptr;
 }
 
-TArray<FSequencerBindingProxy> UMovieSceneBindingExtensions::GetChildPossessables(const FSequencerBindingProxy& InBinding)
+TArray<FMovieSceneBindingProxy> UMovieSceneBindingExtensions::GetChildPossessables(const FMovieSceneBindingProxy& InBinding)
 {
-	TArray<FSequencerBindingProxy> Result;
+	TArray<FMovieSceneBindingProxy> Result;
 
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -214,7 +214,7 @@ TArray<FSequencerBindingProxy> UMovieSceneBindingExtensions::GetChildPossessable
 	return Result;
 }
 
-UObject* UMovieSceneBindingExtensions::GetObjectTemplate(const FSequencerBindingProxy& InBinding)
+UObject* UMovieSceneBindingExtensions::GetObjectTemplate(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -228,7 +228,7 @@ UObject* UMovieSceneBindingExtensions::GetObjectTemplate(const FSequencerBinding
 	return nullptr;
 }
 
-UClass* UMovieSceneBindingExtensions::GetPossessedObjectClass(const FSequencerBindingProxy& InBinding)
+UClass* UMovieSceneBindingExtensions::GetPossessedObjectClass(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -244,7 +244,7 @@ UClass* UMovieSceneBindingExtensions::GetPossessedObjectClass(const FSequencerBi
 	return nullptr;
 }
 
-FSequencerBindingProxy UMovieSceneBindingExtensions::GetParent(const FSequencerBindingProxy& InBinding)
+FMovieSceneBindingProxy UMovieSceneBindingExtensions::GetParent(const FMovieSceneBindingProxy& InBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -252,14 +252,14 @@ FSequencerBindingProxy UMovieSceneBindingExtensions::GetParent(const FSequencerB
 		FMovieScenePossessable* Possessable = MovieScene->FindPossessable(InBinding.BindingID);
 		if (Possessable)
 		{
-			return FSequencerBindingProxy(Possessable->GetParent(), InBinding.Sequence);
+			return FMovieSceneBindingProxy(Possessable->GetParent(), InBinding.Sequence);
 		}
 	}
-	return FSequencerBindingProxy();
+	return FMovieSceneBindingProxy();
 }
 
 
-void UMovieSceneBindingExtensions::SetParent(const FSequencerBindingProxy& InBinding, const FSequencerBindingProxy& InParentBinding)
+void UMovieSceneBindingExtensions::SetParent(const FMovieSceneBindingProxy& InBinding, const FMovieSceneBindingProxy& InParentBinding)
 {
 	UMovieScene* MovieScene = InBinding.GetMovieScene();
 	if (MovieScene)
@@ -273,7 +273,7 @@ void UMovieSceneBindingExtensions::SetParent(const FSequencerBindingProxy& InBin
 	}
 }
 
-void UMovieSceneBindingExtensions::MoveBindingContents(const FSequencerBindingProxy& SourceBindingId, const FSequencerBindingProxy& DestinationBindingId)
+void UMovieSceneBindingExtensions::MoveBindingContents(const FMovieSceneBindingProxy& SourceBindingId, const FMovieSceneBindingProxy& DestinationBindingId)
 {
 	UMovieScene* MovieScene = SourceBindingId.GetMovieScene();
 	if (MovieScene)

@@ -201,6 +201,24 @@ TArray<FGuid> ULevelSequenceEditorBlueprintLibrary::GetSelectedObjects()
 	return OutSelectedGuids;
 }
 
+TArray<FMovieSceneBindingProxy> ULevelSequenceEditorBlueprintLibrary::GetSelectedBindings()
+{
+	TArray<FMovieSceneBindingProxy> OutSelectedBindings;
+	if (CurrentSequencer.IsValid())
+	{
+		TArray<FGuid> OutSelectedGuids;
+		CurrentSequencer.Pin()->GetSelectedObjects(OutSelectedGuids);
+
+		UMovieSceneSequence* Sequence = CurrentSequencer.Pin()->GetFocusedMovieSceneSequence();
+
+		for (const FGuid& SelectedGuid : OutSelectedGuids)
+		{
+			OutSelectedBindings.Add(FMovieSceneBindingProxy(SelectedGuid, Sequence));
+		}
+	}
+	return OutSelectedBindings;
+}
+
 void ULevelSequenceEditorBlueprintLibrary::SelectTracks(const TArray<UMovieSceneTrack*>& Tracks)
 {
 	if (CurrentSequencer.IsValid())
@@ -258,6 +276,17 @@ void ULevelSequenceEditorBlueprintLibrary::SelectObjects(TArray<FGuid> ObjectBin
 		for (FGuid ObjectBinding : ObjectBindings)
 		{
 			CurrentSequencer.Pin()->SelectObject(ObjectBinding);
+		}
+	}
+}
+
+void ULevelSequenceEditorBlueprintLibrary::SelectBindings(const TArray<FMovieSceneBindingProxy>& ObjectBindings)
+{
+	if (CurrentSequencer.IsValid())
+	{
+		for (const FMovieSceneBindingProxy& ObjectBinding : ObjectBindings)
+		{
+			CurrentSequencer.Pin()->SelectObject(ObjectBinding.BindingID);
 		}
 	}
 }

@@ -8,7 +8,7 @@
 #include "Modules/ModuleManager.h"
 #include "MovieSceneCaptureDialogModule.h"
 #include "Channels/MovieSceneEvent.h"
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 #include "SequencerScriptingRange.h"
 #include "SequencerTools.generated.h"
 
@@ -38,13 +38,13 @@ struct SEQUENCERSCRIPTINGEDITOR_API FSequencerBoundObjects
 	FSequencerBoundObjects()
 	{}
 
-	FSequencerBoundObjects(FSequencerBindingProxy InBindingProxy, const TArray<UObject*>& InBoundObjects)
+	FSequencerBoundObjects(FMovieSceneBindingProxy InBindingProxy, const TArray<UObject*>& InBoundObjects)
 		: BindingProxy(InBindingProxy)
 		, BoundObjects(InBoundObjects)
 	{}
 
 	UPROPERTY(BlueprintReadWrite, Category=Binding)
-	FSequencerBindingProxy BindingProxy;
+	FMovieSceneBindingProxy BindingProxy;
 
 	UPROPERTY(BlueprintReadWrite, Category=Binding)
 	TArray<TObjectPtr<UObject>> BoundObjects;
@@ -109,7 +109,7 @@ public:
 	 * which allows for retrieving spawnables in that period of time.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools")
-	static TArray<FSequencerBoundObjects> GetBoundObjects(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, const FSequencerScriptingRange& InRange);
+	static TArray<FSequencerBoundObjects> GetBoundObjects(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const FSequencerScriptingRange& InRange);
 
 	/*
 	 * Get the object bindings for the requested object. The sequence will be evaluated in lower bound of the specified range, 
@@ -130,7 +130,7 @@ public:
 	 * @InFBXFileName File to create
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
-	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
+	static bool ExportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FMovieSceneBindingProxy>& InBindings, const TArray<UMovieSceneTrack*>& InMasterTracks, UFbxExportOption* OverrideOptions, const FString& InFBXFileName);
 
 	/*
 	 * Export Passed in Binding as an Anim Seqquence.
@@ -144,7 +144,7 @@ public:
 	 * @bCreateLink If true will create a link between the animation sequence and the level sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
-	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FSequencerBindingProxy& Binding, bool bCreateLink);
+	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FMovieSceneBindingProxy& Binding, bool bCreateLink);
 
 	/*
 	 * Links a LevelSequence's SkeletalMesh binding to an existing anim sequence.
@@ -155,7 +155,7 @@ public:
 	 * @InBinding Binding that has a skelmesh component on it
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
-	static bool LinkAnimSequence(ULevelSequence* Sequence, UAnimSequence* AnimSequence, const UAnimSeqExportOption* ExportOptions, const FSequencerBindingProxy& Binding);
+	static bool LinkAnimSequence(ULevelSequence* Sequence, UAnimSequence* AnimSequence, const UAnimSeqExportOption* ExportOptions, const FMovieSceneBindingProxy& Binding);
 
 	/*
 	 * Get the link to the level sequence if it exists on this anim sequence
@@ -186,7 +186,7 @@ public:
 	 * @InPlayer Player to bind to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
-	static bool ImportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString& InImportFilename);
+	static bool ImportLevelSequenceFBX(UWorld* InWorld, ULevelSequence* InSequence, const TArray<FMovieSceneBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* InImportFBXSettings, const FString& InImportFilename);
 
 public:
 	/**

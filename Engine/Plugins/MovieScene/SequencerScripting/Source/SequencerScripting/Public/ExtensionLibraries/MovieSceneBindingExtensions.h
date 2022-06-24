@@ -7,7 +7,7 @@
 #include "Kismet/BlueprintFunctionLibrary.h"
 #include "MovieSceneTrack.h"
 #include "Templates/SubclassOf.h"
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 
 #include "MovieSceneBindingExtensions.generated.h"
 
@@ -24,7 +24,7 @@ public:
 	 * Check whether the specified binding is valid
 	 */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static bool IsValid(const FSequencerBindingProxy& InBinding);
+	static bool IsValid(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Get this binding's ID
@@ -33,7 +33,7 @@ public:
 	 * @return The guid that uniquely represents this binding
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static FGuid GetId(const FSequencerBindingProxy& InBinding);
+	static FGuid GetId(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Get this binding's name
@@ -42,7 +42,7 @@ public:
 	 * @return The display name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static FText GetDisplayName(const FSequencerBindingProxy& InBinding);
+	static FText GetDisplayName(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Set this binding's name
@@ -51,7 +51,7 @@ public:
 	 * @param InName The display name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod, DevelopmentOnly))
-	static void SetDisplayName(const FSequencerBindingProxy& InBinding, const FText& InDisplayName);
+	static void SetDisplayName(const FMovieSceneBindingProxy& InBinding, const FText& InDisplayName);
 
 	/**
 	 * Get this binding's object non-display name
@@ -60,7 +60,7 @@ public:
 	 * @return The name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static FString GetName(const FSequencerBindingProxy& InBinding);
+	static FString GetName(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Set this binding's object non-display name
@@ -69,7 +69,7 @@ public:
 	 * @param InName The name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static void SetName(const FSequencerBindingProxy& InBinding, const FString& InName);
+	static void SetName(const FMovieSceneBindingProxy& InBinding, const FString& InName);
 
 	/**
 	 * Get all the tracks stored within this binding
@@ -78,7 +78,7 @@ public:
 	 * @return An array containing all the binding's tracks
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<UMovieSceneTrack*> GetTracks(const FSequencerBindingProxy& InBinding);
+	static TArray<UMovieSceneTrack*> GetTracks(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Find all tracks within a given binding of the specified type
@@ -88,7 +88,7 @@ public:
 	 * @return An array containing any tracks that match the type specified
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
-	static TArray<UMovieSceneTrack*> FindTracksByType(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
+	static TArray<UMovieSceneTrack*> FindTracksByType(const FMovieSceneBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
 	 * Find all tracks within a given binding of the specified type, not allowing sub-classed types
@@ -98,7 +98,7 @@ public:
 	 * @return An array containing any tracks that are exactly the same as the type specified
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
-	static TArray<UMovieSceneTrack*> FindTracksByExactType(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
+	static TArray<UMovieSceneTrack*> FindTracksByExactType(const FMovieSceneBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
 	 * Remove the specified track from this binding
@@ -107,7 +107,7 @@ public:
 	 * @param TrackToRemove The track to remove
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static void RemoveTrack(const FSequencerBindingProxy& InBinding, UMovieSceneTrack* TrackToRemove);
+	static void RemoveTrack(const FMovieSceneBindingProxy& InBinding, UMovieSceneTrack* TrackToRemove);
 
 	/**
 	 * Remove the specified binding
@@ -115,7 +115,7 @@ public:
 	 * @param InBinding     The binding to remove the track from
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static void Remove(const FSequencerBindingProxy& InBinding);
+	static void Remove(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Add a new track to the specified binding
@@ -125,7 +125,7 @@ public:
 	 * @return The newly created track, if successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static UMovieSceneTrack* AddTrack(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
+	static UMovieSceneTrack* AddTrack(const FMovieSceneBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
 	* Get all the children of this binding
@@ -134,7 +134,7 @@ public:
 	* @return An array containing all the binding's children
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<FSequencerBindingProxy> GetChildPossessables(const FSequencerBindingProxy& InBinding);
+	static TArray<FMovieSceneBindingProxy> GetChildPossessables(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	* Get this binding's object template
@@ -143,7 +143,7 @@ public:
 	* @return The object template of the binding
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static UObject* GetObjectTemplate(const FSequencerBindingProxy& InBinding);
+	static UObject* GetObjectTemplate(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	* Get this binding's possessed object class
@@ -152,7 +152,7 @@ public:
 	* @return The possessed object class of the binding
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static UClass* GetPossessedObjectClass(const FSequencerBindingProxy& InBinding);
+	static UClass* GetPossessedObjectClass(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	* Get the parent of this binding
@@ -161,7 +161,7 @@ public:
 	* @return The binding's parent
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static FSequencerBindingProxy GetParent(const FSequencerBindingProxy& InBinding);
+	static FMovieSceneBindingProxy GetParent(const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Set the parent to this binding
@@ -170,7 +170,7 @@ public:
 	 * @param InParentBinding     The parent to set the InBinding to
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static void SetParent(const FSequencerBindingProxy& InBinding, const FSequencerBindingProxy& InParentBinding);
+	static void SetParent(const FMovieSceneBindingProxy& InBinding, const FMovieSceneBindingProxy& InParentBinding);
 
 	/**
      * Move all the contents (tracks, child bindings) of the specified binding ID onto another
@@ -179,5 +179,5 @@ public:
 	 * @param DestinationBindingId The identifier of the binding ID to move the contents to	 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static void MoveBindingContents(const FSequencerBindingProxy& SourceBindingId, const FSequencerBindingProxy& DestinationBindingId);
+	static void MoveBindingContents(const FMovieSceneBindingProxy& SourceBindingId, const FMovieSceneBindingProxy& DestinationBindingId);
 };

@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Containers/ArrayView.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 #include "SequencerScriptingRange.h"
 #include "Templates/SubclassOf.h"
 #include "MovieSceneTrack.h"
@@ -355,7 +355,7 @@ public:
 	 * @return A unique identifier for the binding, or invalid
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static FSequencerBindingProxy FindBindingByName(UMovieSceneSequence* Sequence, FString Name);
+	static FMovieSceneBindingProxy FindBindingByName(UMovieSceneSequence* Sequence, FString Name);
 
 	/**
 	 * Attempt to locate a binding in this sequence by its Id
@@ -365,7 +365,7 @@ public:
 	 * @return A unique identifier for the binding, or invalid
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static FSequencerBindingProxy FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId);
+	static FMovieSceneBindingProxy FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId);
 
 	/**
 	 * Get all the bindings in this sequence
@@ -374,7 +374,7 @@ public:
 	 * @return An array of unique identifiers for all the bindings in this sequence
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<FSequencerBindingProxy> GetBindings(UMovieSceneSequence* Sequence);
+	static TArray<FMovieSceneBindingProxy> GetBindings(UMovieSceneSequence* Sequence);
 
 	/**
 	* Get all the spawnables in this sequence
@@ -383,7 +383,7 @@ public:
 	* @return Spawnables in this sequence
 	*/
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<FSequencerBindingProxy> GetSpawnables(UMovieSceneSequence* Sequence);
+	static TArray<FMovieSceneBindingProxy> GetSpawnables(UMovieSceneSequence* Sequence);
 
 	/**
 	* Get all the possessables in this sequence
@@ -392,7 +392,7 @@ public:
 	* @return Possessables in this sequence
 	*/
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<FSequencerBindingProxy> GetPossessables(UMovieSceneSequence* Sequence);
+	static TArray<FMovieSceneBindingProxy> GetPossessables(UMovieSceneSequence* Sequence);
 
 	/**
 	 * Add a new binding to this sequence that will possess the specified object
@@ -402,7 +402,7 @@ public:
 	 * @return A unique identifier for the new binding
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static FSequencerBindingProxy AddPossessable(UMovieSceneSequence* Sequence, UObject* ObjectToPossess);
+	static FMovieSceneBindingProxy AddPossessable(UMovieSceneSequence* Sequence, UObject* ObjectToPossess);
 
 	/**
 	 * Add a new binding to this sequence that will spawn the specified object
@@ -412,7 +412,7 @@ public:
 	 * @return A unique identifier for the new binding
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static FSequencerBindingProxy AddSpawnableFromInstance(UMovieSceneSequence* Sequence, UObject* ObjectToSpawn);
+	static FMovieSceneBindingProxy AddSpawnableFromInstance(UMovieSceneSequence* Sequence, UObject* ObjectToSpawn);
 
 	/**
 	 * Add a new binding to this sequence that will spawn the specified object
@@ -422,7 +422,7 @@ public:
 	 * @return A unique identifier for the new binding
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static FSequencerBindingProxy AddSpawnableFromClass(UMovieSceneSequence* Sequence, UClass* ClassToSpawn);
+	static FMovieSceneBindingProxy AddSpawnableFromClass(UMovieSceneSequence* Sequence, UClass* ClassToSpawn);
 
 	/**
 	 * Locate all the objects that correspond to the specified object ID, using the specified context
@@ -433,7 +433,7 @@ public:
 	 * @return An array of all bound objects
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<UObject*> LocateBoundObjects(UMovieSceneSequence* Sequence, const FSequencerBindingProxy& InBinding, UObject* Context);
+	static TArray<UObject*> LocateBoundObjects(UMovieSceneSequence* Sequence, const FMovieSceneBindingProxy& InBinding, UObject* Context);
 
 
 	/**
@@ -446,7 +446,7 @@ public:
 	 */
 	UE_DEPRECATED(5.0, "Please migrate to GetBindingID or GetPortableBindingID depending on use-case.")
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod, DeprecatedFunction, DeprecationMessage="Please migrate to GetBindingID or GetPortableBindingID depending on use-case."))
-	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
+	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
 
 
 	/**
@@ -457,7 +457,7 @@ public:
 	 * @return The binding's id
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static FMovieSceneObjectBindingID GetBindingID(const FSequencerBindingProxy& InBinding);
+	static FMovieSceneObjectBindingID GetBindingID(const FMovieSceneBindingProxy& InBinding);
 
 
 	/**
@@ -471,7 +471,7 @@ public:
 	 * @return The binding's id
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static FMovieSceneObjectBindingID GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FSequencerBindingProxy& InBinding);
+	static FMovieSceneObjectBindingID GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FMovieSceneBindingProxy& InBinding);
 
 	/**
 	 * Make a binding for the given binding ID
@@ -481,7 +481,7 @@ public:
 	 * @return The new binding proxy
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta = (ScriptMethod))
-	static FSequencerBindingProxy ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID);
+	static FMovieSceneBindingProxy ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID);
 
 
 	/**

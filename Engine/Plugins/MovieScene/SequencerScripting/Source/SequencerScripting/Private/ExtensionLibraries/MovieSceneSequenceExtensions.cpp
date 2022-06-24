@@ -660,12 +660,12 @@ FTimecode UMovieSceneSequenceExtensions::GetTimecodeSource(UMovieSceneSequence* 
 	return MovieScene->GetEarliestTimecodeSource().Timecode;
 }
 
-FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSceneSequence* Sequence, FString Name)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSceneSequence* Sequence, FString Name)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call FindBindingByName on a null sequence"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
@@ -674,18 +674,18 @@ FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSc
 		const FMovieSceneBinding* Binding = Algo::FindBy(MovieScene->GetBindings(), Name, &FMovieSceneBinding::GetName);
 		if (Binding)
 		{
-			return FSequencerBindingProxy(Binding->GetObjectGuid(), Sequence);
+			return FMovieSceneBindingProxy(Binding->GetObjectGuid(), Sequence);
 		}
 	}
-	return FSequencerBindingProxy();
+	return FMovieSceneBindingProxy();
 }
 
-FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call FindBindingById on a null sequence"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
@@ -694,21 +694,21 @@ FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingById(UMovieScen
 		const FMovieSceneBinding* Binding = Algo::FindBy(MovieScene->GetBindings(), BindingId, &FMovieSceneBinding::GetObjectGuid);
 		if (Binding)
 		{
-			return FSequencerBindingProxy(Binding->GetObjectGuid(), Sequence);
+			return FMovieSceneBindingProxy(Binding->GetObjectGuid(), Sequence);
 		}
 	}
-	return FSequencerBindingProxy();
+	return FMovieSceneBindingProxy();
 }
 
-TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetBindings(UMovieSceneSequence* Sequence)
+TArray<FMovieSceneBindingProxy> UMovieSceneSequenceExtensions::GetBindings(UMovieSceneSequence* Sequence)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call GetBindings on a null sequence"), ELogVerbosity::Error);
-		return TArray<FSequencerBindingProxy>();
+		return TArray<FMovieSceneBindingProxy>();
 	}
 
-	TArray<FSequencerBindingProxy> AllBindings;
+	TArray<FMovieSceneBindingProxy> AllBindings;
 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
@@ -722,15 +722,15 @@ TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetBindings(UMovie
 	return AllBindings;
 }
 
-TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetSpawnables(UMovieSceneSequence* Sequence)
+TArray<FMovieSceneBindingProxy> UMovieSceneSequenceExtensions::GetSpawnables(UMovieSceneSequence* Sequence)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call GetSpawnables on a null sequence"), ELogVerbosity::Error);
-		return TArray<FSequencerBindingProxy>();
+		return TArray<FMovieSceneBindingProxy>();
 	}
 
-	TArray<FSequencerBindingProxy> AllSpawnables;
+	TArray<FMovieSceneBindingProxy> AllSpawnables;
 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
@@ -746,15 +746,15 @@ TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetSpawnables(UMov
 	return AllSpawnables;
 }
 
-TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetPossessables(UMovieSceneSequence* Sequence)
+TArray<FMovieSceneBindingProxy> UMovieSceneSequenceExtensions::GetPossessables(UMovieSceneSequence* Sequence)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call GetPossessables on a null sequence"), ELogVerbosity::Error);
-		return TArray<FSequencerBindingProxy>();
+		return TArray<FMovieSceneBindingProxy>();
 	}
 
-	TArray<FSequencerBindingProxy> AllPossessables;
+	TArray<FMovieSceneBindingProxy> AllPossessables;
 
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
@@ -770,61 +770,61 @@ TArray<FSequencerBindingProxy> UMovieSceneSequenceExtensions::GetPossessables(UM
 	return AllPossessables;
 }
 
-FSequencerBindingProxy UMovieSceneSequenceExtensions::AddPossessable(UMovieSceneSequence* Sequence, UObject* ObjectToPossess)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::AddPossessable(UMovieSceneSequence* Sequence, UObject* ObjectToPossess)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call AddPossessable on a null sequence"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	if (!ObjectToPossess)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call AddPossessable on a null object"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	FGuid NewGuid = Sequence->CreatePossessable(ObjectToPossess);
-	return FSequencerBindingProxy(NewGuid, Sequence);
+	return FMovieSceneBindingProxy(NewGuid, Sequence);
 }
 
-FSequencerBindingProxy UMovieSceneSequenceExtensions::AddSpawnableFromInstance(UMovieSceneSequence* Sequence, UObject* ObjectToSpawn)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::AddSpawnableFromInstance(UMovieSceneSequence* Sequence, UObject* ObjectToSpawn)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call AddSpawnableFromInstance on a null sequence"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	if (!ObjectToSpawn)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call AddSpawnableFromInstance on a null object"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	FGuid NewGuid = Sequence->AllowsSpawnableObjects() ? Sequence->CreateSpawnable(ObjectToSpawn) : FGuid();
-	return FSequencerBindingProxy(NewGuid, Sequence);
+	return FMovieSceneBindingProxy(NewGuid, Sequence);
 }
 
-FSequencerBindingProxy UMovieSceneSequenceExtensions::AddSpawnableFromClass(UMovieSceneSequence* Sequence, UClass* ClassToSpawn)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::AddSpawnableFromClass(UMovieSceneSequence* Sequence, UClass* ClassToSpawn)
 {
 	if (!Sequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call AddSpawnableFromClass on a null sequence"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	if (!ClassToSpawn)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call AddSpawnableFromClass on a null class"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	FGuid NewGuid = Sequence->AllowsSpawnableObjects() ? Sequence->CreateSpawnable(ClassToSpawn) : FGuid();
-	return FSequencerBindingProxy(NewGuid, Sequence);
+	return FMovieSceneBindingProxy(NewGuid, Sequence);
 }
 
-TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSequence* Sequence, const FSequencerBindingProxy& InBinding, UObject* Context)
+TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSequence* Sequence, const FMovieSceneBindingProxy& InBinding, UObject* Context)
 {
 	if (!Sequence)
 	{
@@ -840,7 +840,7 @@ TArray<UObject*> UMovieSceneSequenceExtensions::LocateBoundObjects(UMovieSceneSe
 	return Result;
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSceneSequence* MasterSequence, const FMovieSceneBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space)
 {
 	if (!MasterSequence)
 	{
@@ -858,12 +858,12 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSc
 	return BindingID;
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetBindingID(const FSequencerBindingProxy& InBinding)
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetBindingID(const FMovieSceneBindingProxy& InBinding)
 {
 	return UE::MovieScene::FRelativeObjectBindingID(InBinding.BindingID);
 }
 
-FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FSequencerBindingProxy& InBinding)
+FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(UMovieSceneSequence* MasterSequence, UMovieSceneSequence* DestinationSequence, const FMovieSceneBindingProxy& InBinding)
 {
 	if (!MasterSequence || !DestinationSequence || !InBinding.Sequence)
 	{
@@ -942,12 +942,12 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::GetPortableBindingID(U
 	return UE::MovieScene::FRelativeObjectBindingID(DestinationSequenceID.GetValue(), TargetSequenceID.GetValue(), InBinding.BindingID, Hierarchy);
 }
 
-FSequencerBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID)
+FMovieSceneBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID)
 {
 	if (!MasterSequence)
 	{
 		FFrame::KismetExecutionMessage(TEXT("Cannot call ResolveBindingID on a null sequence"), ELogVerbosity::Error);
-		return FSequencerBindingProxy();
+		return FMovieSceneBindingProxy();
 	}
 
 	UMovieSceneSequence* Sequence = MasterSequence;
@@ -963,7 +963,7 @@ FSequencerBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSce
 		}
 	}
 
-	return FSequencerBindingProxy(InObjectBindingID.GetGuid(), Sequence);
+	return FMovieSceneBindingProxy(InObjectBindingID.GetGuid(), Sequence);
 }
 
 TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequence(UMovieSceneSequence* Sequence)

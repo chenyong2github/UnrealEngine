@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "UObject/ObjectMacros.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
-#include "SequencerBindingProxy.h"
+#include "MovieSceneBindingProxy.h"
 
 #include "MovieSceneFolderExtensions.generated.h"
 
@@ -124,7 +124,7 @@ public:
 	 * @return The object bindings under the given folder
 	 */
 	UFUNCTION(BlueprintCallable, BlueprintPure, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static TArray<FSequencerBindingProxy> GetChildObjectBindings(UMovieSceneFolder* Folder);
+	static TArray<FMovieSceneBindingProxy> GetChildObjectBindings(UMovieSceneFolder* Folder);
 
 	/** 
 	 * Add a guid for an object binding to this folder 
@@ -134,7 +134,7 @@ public:
 	 * @return True if the addition is successful
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static bool AddChildObjectBinding(UMovieSceneFolder* Folder, FSequencerBindingProxy InObjectBinding);
+	static bool AddChildObjectBinding(UMovieSceneFolder* Folder, FMovieSceneBindingProxy InObjectBinding);
 
 	/** 
 	 * Remove an object binding from the given folder
@@ -144,5 +144,5 @@ public:
 	 * @return True if the operation succeeds
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequencer|Sequence", meta=(ScriptMethod))
-	static bool RemoveChildObjectBinding(UMovieSceneFolder* Folder, const FSequencerBindingProxy InObjectBinding);
+	static bool RemoveChildObjectBinding(UMovieSceneFolder* Folder, const FMovieSceneBindingProxy InObjectBinding);
 };
