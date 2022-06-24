@@ -445,7 +445,7 @@ void UIKRetargeterController::ResetRetargetPose(FName PoseToReset, const TArray<
 	{
 		FScopedTransaction Transaction(LOCTEXT("ResetRetargetPose", "Reset Retarget Pose"));
 		Asset->Modify();
-		
+
 		PoseToEdit.BoneRotationOffsets.Reset();
 		PoseToEdit.RootTranslationOffset = FVector::ZeroVector;
 	}
@@ -498,7 +498,7 @@ const FIKRetargetPose& UIKRetargeterController::GetCurrentRetargetPose() const
 	return GetAsset()->RetargetPoses[GetCurrentRetargetPoseName()];
 }
 
-void UIKRetargeterController::SetRotationOffsetForRetargetPoseBone(FName BoneName, FQuat RotationOffset) const
+void UIKRetargeterController::SetRotationOffsetForRetargetPoseBone(FName BoneName, const FQuat& RotationOffset) const
 {
 	const FIKRigSkeleton& Skeleton = Asset->GetTargetIKRig()->Skeleton;
 	Asset->RetargetPoses[Asset->CurrentRetargetPose].SetBoneRotationOffset(BoneName, RotationOffset, Skeleton);
@@ -515,9 +515,19 @@ FQuat UIKRetargeterController::GetRotationOffsetForRetargetPoseBone(FName BoneNa
 	return BoneOffsets[BoneName];
 }
 
+void UIKRetargeterController::SetTranslationOffsetOnRetargetRootBone(FVector TranslationOffset) const
+{
+	Asset->RetargetPoses[Asset->CurrentRetargetPose].SetRootTranslationDelta(TranslationOffset);
+}
+
+const FVector& UIKRetargeterController::GetTranslationOffsetOnRetargetRootBone() const
+{
+	return Asset->RetargetPoses[Asset->CurrentRetargetPose].RootTranslationOffset;
+}
+
 void UIKRetargeterController::AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const
 {
-	Asset->RetargetPoses[Asset->CurrentRetargetPose].AddTranslationDeltaToRoot(TranslationOffset);
+	Asset->RetargetPoses[Asset->CurrentRetargetPose].AddToRootTranslationDelta(TranslationOffset);
 }
 
 FName UIKRetargeterController::MakePoseNameUnique(FString PoseName) const

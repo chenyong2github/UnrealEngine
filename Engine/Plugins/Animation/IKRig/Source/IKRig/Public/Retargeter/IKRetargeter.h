@@ -195,18 +195,18 @@ struct IKRIG_API FIKRetargetPose
 public:
 	
 	FIKRetargetPose() = default;
-	
+
+	// a translational delta in GLOBAL space, applied only to the retarget root bone
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	FVector RootTranslationOffset = FVector::ZeroVector;
-	
+
+	// these are LOCAL-space rotation deltas to be applied to a bone to modify it's retarget pose
 	UPROPERTY(EditAnywhere, Category = RetargetPose)
 	TMap<FName, FQuat> BoneRotationOffsets;
-
-	// returns true if this is a new offset (not previously recorded)
+	
 	void SetBoneRotationOffset(FName BoneName, FQuat RotationOffset, const FIKRigSkeleton& Skeleton);
-
-	void AddTranslationDeltaToRoot(FVector TranslateDelta);
-
+	void SetRootTranslationDelta(FVector TranslationDelta);
+	void AddToRootTranslationDelta(FVector TranslationDelta);
 	void SortHierarchically(const FIKRigSkeleton& Skeleton);
 };
 
@@ -268,6 +268,7 @@ public:
 	static const FName GetDefaultPoseName();
 
 	/** UObject */
+	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 	/** END UObject */
 

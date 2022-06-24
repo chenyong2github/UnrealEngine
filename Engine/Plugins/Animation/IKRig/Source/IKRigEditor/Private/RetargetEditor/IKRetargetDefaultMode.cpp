@@ -260,9 +260,6 @@ void FIKRetargetDefaultMode::Enter()
 	Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(true);
 	Controller->SourceSkelMeshComponent->bSelectable = true;
 	Controller->TargetSkelMeshComponent->bSelectable = true;
-
-	// clear all selection when entering mode
-	Controller->ClearSelection();
 }
 
 void FIKRetargetDefaultMode::Exit()
@@ -273,13 +270,14 @@ void FIKRetargetDefaultMode::Exit()
 		return; 
 	}
 
-	// disable selection in other modes
-	Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(false);
-	Controller->SourceSkelMeshComponent->bSelectable = false;
-	Controller->TargetSkelMeshComponent->bSelectable = false;
-	
-	// deselect everything
-	Controller->ClearSelection();
+	// editor can be closed while in edit mode
+	if (Controller->Editor.IsValid())
+	{
+		// disable selection in other modes
+		Controller->Editor.Pin()->GetPersonaToolkit()->GetPreviewScene()->SetAllowMeshHitProxies(false);
+		Controller->SourceSkelMeshComponent->bSelectable = false;
+		Controller->TargetSkelMeshComponent->bSelectable = false;
+	}
 
 	IPersonaEditMode::Exit();
 }

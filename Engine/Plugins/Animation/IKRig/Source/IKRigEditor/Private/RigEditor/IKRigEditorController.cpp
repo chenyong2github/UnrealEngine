@@ -129,17 +129,6 @@ void UIKRigBoneDetails::OnComponentRelativeChanged(
 
 #if WITH_EDITOR
 
-namespace
-{
-
-template<typename DataType>
-void GetContentFromData(const DataType& InData, FString& Content)
-{
-	TBaseStructure<DataType>::Get()->ExportText(Content, &InData, &InData, nullptr, PPF_None, nullptr);
-}
-	
-}
-
 void UIKRigBoneDetails::OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const
 {
 	TOptional<FTransform> Optional = GetTransform(TransformType);

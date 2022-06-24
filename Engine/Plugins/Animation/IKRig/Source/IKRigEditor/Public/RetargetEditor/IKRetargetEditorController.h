@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "IKRetargetDetails.h"
 #include "IKRetargeterController.h"
 #include "IPersonaToolkit.h"
 #include "SIKRetargetAssetBrowser.h"
@@ -43,7 +44,7 @@ enum class EBoneSelectionEdit : uint8
 };
 
 /** a home for cross-widget communication to synchronize state across all tabs and viewport */
-class FIKRetargetEditorController : public TSharedFromThis<FIKRetargetEditorController>
+class FIKRetargetEditorController : public TSharedFromThis<FIKRetargetEditorController>, FGCObject
 {
 public:
 
@@ -104,6 +105,8 @@ public:
 	const USkeleton* GetTargetSkeleton() const;
 	/** get currently edited debug skeletal mesh */
 	UDebugSkelMeshComponent* GetEditedSkeletalMesh() const;
+	/** get the currently edited retarget skeleton */
+	const FRetargetSkeleton& GetCurrentlyEditedSkeleton(const UIKRetargetProcessor& Processor) const;
 	
 	/** get world space pose of a bone (with component scale / offset applied) */
 	FTransform GetGlobalRetargetPoseOfBone(
@@ -147,12 +150,20 @@ public:
 		const TArray<FName>& InBoneNames,
 		EBoneSelectionEdit EditMode,
 		const bool bFromHierarchyView);
-	void ClearSelection();
+	void ClearSelection(const bool bKeepBoneSelection=false);
 	const TArray<FName>& GetSelectedBones() const {return SelectedBones; };
 	/** mesh selection management (viewport view) */
 	void SetSelectedMesh(UPrimitiveComponent* InComponent);
 	UPrimitiveComponent* GetSelectedMesh();
 	void AddOffsetToMeshComponent(const FVector& Offset, USceneComponent* MeshComponent) const;
+
+	/** determine if bone in the specified skeleton is part of the retarget (in a mapped chain) */
+	bool IsBoneRetargeted(const FName& BoneName, EIKRetargetSkeletonMode WhichSkeleton) const;
+	/** get the name of the chain that contains this bone */
+	FName GetChainNameFromBone(const FName& BoneName, EIKRetargetSkeletonMode WhichSkeleton) const;
+
+	/** factory to get/create bone details object */
+	TObjectPtr<UIKRetargetBoneDetails> GetDetailsObjectForBone(const FName& BoneName);
 
 	/* START RETARGET POSES */
 	
@@ -220,6 +231,17 @@ public:
 	
 	/* END RETARGET POSES */
 
+	/** FGCObject interface */
+	virtual void AddReferencedObjects(FReferenceCollector& Collector) override
+	{
+		for (TTuple<FName, TObjectPtr<UIKRetargetBoneDetails>> Pair : AllBoneDetails)
+		{
+			Collector.AddReferencedObject(Pair.Value);
+		}
+	};
+	virtual FString GetReferencerName() const override { return TEXT("Retarget Editor"); };
+	/** END FGCObject interface */
+
 private:
 	
 	/** which skeleton are we editing / viewing? */
@@ -227,6 +249,10 @@ private:
 
 	/** current selection set */
 	TArray<FName> SelectedBones;
+	UPROPERTY()
+	TMap<FName,TObjectPtr<UIKRetargetBoneDetails>> AllBoneDetails;
+	TArray<UObject*> SelectedBoneDetails;
+	TObjectPtr<UIKRetargetBoneDetails> CreateBoneDetails(const FName& InBoneName);
 
 	/** currently selected mesh */
 	UPrimitiveComponent* SelectedMesh;

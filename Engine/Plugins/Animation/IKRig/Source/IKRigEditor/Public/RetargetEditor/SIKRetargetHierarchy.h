@@ -11,22 +11,15 @@
 
 class SIKRetargetHierarchy;
 
-class FIKRetargetTreeElement : public TSharedFromThis<FIKRetargetTreeElement>
+class FIKRetargetHierarchyElement : public TSharedFromThis<FIKRetargetHierarchyElement>
 {
 public:
 	
-	FIKRetargetTreeElement(const FText& InKey, const TSharedRef<FIKRetargetEditorController>& InEditorController);
-
-	TSharedRef<ITableRow> MakeTreeRowWidget(
-		TSharedRef<FIKRetargetEditorController> InEditorController,
-		const TSharedRef<STableViewBase>& InOwnerTable,
-		TSharedRef<FIKRetargetTreeElement> InRigTreeElement,
-		TSharedRef<FUICommandList> InCommandList,
-		TSharedPtr<SIKRetargetHierarchy> InHierarchy);
+	FIKRetargetHierarchyElement(const FName& InName, const TSharedRef<FIKRetargetEditorController>& InEditorController);
 
 	FText Key;
-	TSharedPtr<FIKRetargetTreeElement> Parent;
-	TArray<TSharedPtr<FIKRetargetTreeElement>> Children;
+	TSharedPtr<FIKRetargetHierarchyElement> Parent;
+	TArray<TSharedPtr<FIKRetargetHierarchyElement>> Children;
 	FName Name;
 
 private:
@@ -34,28 +27,38 @@ private:
 	TWeakPtr<FIKRetargetEditorController> EditorController;
 };
 
-class SIKRetargetHierarchyItem : public STableRow<TSharedPtr<FIKRetargetTreeElement>>
+class SIKRetargetHierarchyRow : public SMultiColumnTableRow<TSharedPtr<FIKRetargetHierarchyElement>>
 {
+	
 public:
+
+	SLATE_BEGIN_ARGS(SIKRetargetHierarchyRow) {}
+	SLATE_ARGUMENT(TSharedPtr<FIKRetargetEditorController>, EditorController)
+	SLATE_ARGUMENT(TSharedPtr<FIKRetargetHierarchyElement>, TreeElement)
+	SLATE_END_ARGS()
 	
 	void Construct(
 		const FArguments& InArgs,
-		TSharedRef<FIKRetargetEditorController> InEditorController,
-		const TSharedRef<STableViewBase>& OwnerTable,
-		TSharedRef<FIKRetargetTreeElement> InTreeElement,
-		TSharedRef<FUICommandList> InCommandList,
-		TSharedPtr<SIKRetargetHierarchy> InHierarchy);
+		const TSharedRef<STableViewBase>& InOwnerTable)
+	{
+		OwnerTable = InOwnerTable;
+		WeakTreeElement = InArgs._TreeElement;
+		EditorController = InArgs._EditorController;
+		
+		SMultiColumnTableRow<TSharedPtr<FIKRetargetHierarchyElement>>::Construct(FSuperRowType::FArguments(), InOwnerTable);
+	}
+
+	/** Overridden from SMultiColumnTableRow.  Generates a widget for this column of the list view. */
+	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnName) override;
 
 private:
-	
-	FText GetName() const;
 
-	TWeakPtr<FIKRetargetTreeElement> WeakTreeElement;
+	TSharedPtr<STableViewBase> OwnerTable;
+	TWeakPtr<FIKRetargetHierarchyElement> WeakTreeElement;
 	TWeakPtr<FIKRetargetEditorController> EditorController;
-	TWeakPtr<SIKRetargetHierarchy> HierarchyView;
 };
 
-typedef SBaseHierarchyTreeView<FIKRetargetTreeElement> SIKRetargetHierarchyTreeView;
+typedef SBaseHierarchyTreeView<FIKRetargetHierarchyElement> SIKRetargetHierarchyTreeView;
 
 class SIKRetargetHierarchy : public SCompoundWidget, public FEditorUndoClient
 {
@@ -77,20 +80,19 @@ private:
 	
 	/** tree view widget */
 	TSharedPtr<SIKRetargetHierarchyTreeView> TreeView;
-	TArray<TSharedPtr<FIKRetargetTreeElement>> RootElements;
-	TArray<TSharedPtr<FIKRetargetTreeElement>> AllElements;
+	TArray<TSharedPtr<FIKRetargetHierarchyElement>> RootElements;
+	TArray<TSharedPtr<FIKRetargetHierarchyElement>> AllElements;
 	
 	/** tree view callbacks */
 	void RefreshTreeView(bool IsInitialSetup=false);
-	TSharedRef<ITableRow> MakeTableRowWidget(TSharedPtr<FIKRetargetTreeElement> InItem, const TSharedRef<STableViewBase>& OwnerTable);
-	void HandleGetChildrenForTree(TSharedPtr<FIKRetargetTreeElement> InItem, TArray<TSharedPtr<FIKRetargetTreeElement>>& OutChildren);
-	void OnSelectionChanged(TSharedPtr<FIKRetargetTreeElement> Selection, ESelectInfo::Type SelectInfo);
-	void OnItemClicked(TSharedPtr<FIKRetargetTreeElement> InItem);
-	void OnItemDoubleClicked(TSharedPtr<FIKRetargetTreeElement> InItem);
-	void OnSetExpansionRecursive(TSharedPtr<FIKRetargetTreeElement> InItem, bool bShouldBeExpanded);
-	void SetExpansionRecursive(TSharedPtr<FIKRetargetTreeElement> InElement, bool bTowardsParent, bool bShouldBeExpanded);
+	void HandleGetChildrenForTree(TSharedPtr<FIKRetargetHierarchyElement> InElement, TArray<TSharedPtr<FIKRetargetHierarchyElement>>& OutChildren);
+	void OnSelectionChanged(TSharedPtr<FIKRetargetHierarchyElement> Selection, ESelectInfo::Type SelectInfo);
+	void OnItemClicked(TSharedPtr<FIKRetargetHierarchyElement> InElement);
+	void OnItemDoubleClicked(TSharedPtr<FIKRetargetHierarchyElement> InElement);
+	void OnSetExpansionRecursive(TSharedPtr<FIKRetargetHierarchyElement> InElement, bool bShouldBeExpanded);
+	void SetExpansionRecursive(TSharedPtr<FIKRetargetHierarchyElement> InElement, bool bTowardsParent, bool bShouldBeExpanded);
 	/** END tree view callbacks */
 
-	friend SIKRetargetHierarchyItem;
+	friend SIKRetargetHierarchyRow;
 	friend FIKRetargetEditorController;
 };

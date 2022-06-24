@@ -30,7 +30,7 @@ struct BoneEdit
 	FTransform LocalTransform;			// local transform of last selected bone
 	FQuat AccumulatedGlobalOffset;		// the accumulated offset from rotation gizmo
 	
-	TArray<FQuat> PrevLocalOffsets;		// the prev stored local offsets of all selected bones
+	TArray<FQuat> PreviousDeltaRotation;		// the prev stored local offsets of all selected bones
 
 	void Reset()
 	{
@@ -78,9 +78,6 @@ private:
 
 	// get the scale and offset associated with the currently edited skeletal mesh component
 	void GetEditedComponentScaleAndOffset(float& OutScale, FVector& OutOffset) const;
-
-	// get the scale and offset associated with the currently edited skeletal mesh component
-	int32 GetEditedRetargetRootBoneIndex(const UIKRetargetProcessor& Processor) const;
 
 	// render skeleton in viewport
 	void RenderSkeleton(

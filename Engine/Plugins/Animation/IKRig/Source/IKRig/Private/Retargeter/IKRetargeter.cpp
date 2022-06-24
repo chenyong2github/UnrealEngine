@@ -2,6 +2,8 @@
 
 #include "Retargeter/IKRetargeter.h"
 
+#include "IKRigObjectVersion.h"
+
 #if WITH_EDITOR
 const FName UIKRetargeter::GetSourceIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, SourceIKRigAsset); };
 const FName UIKRetargeter::GetTargetIKRigPropertyName() { return GET_MEMBER_NAME_STRING_CHECKED(UIKRetargeter, TargetIKRigAsset); };
@@ -26,6 +28,12 @@ UIKRetargeter::UIKRetargeter(const FObjectInitializer& ObjectInitializer)
 	RootSettings = CreateDefaultSubobject<URetargetRootSettings>(TEXT("RootSettings"));
 	RootSettings->SetFlags(RF_Transactional);
 }
+
+void UIKRetargeter::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+	Ar.UsingCustomVersion(FIKRigObjectVersion::GUID);
+};
 
 void UIKRetargeter::PostLoad()
 {
@@ -101,7 +109,12 @@ void FIKRetargetPose::SetBoneRotationOffset(FName BoneName, FQuat RotationDelta,
 	*RotOffset = RotationDelta;
 }
 
-void FIKRetargetPose::AddTranslationDeltaToRoot(FVector TranslateDelta)
+void FIKRetargetPose::SetRootTranslationDelta(FVector TranslationDelta)
+{
+	RootTranslationOffset = TranslationDelta;
+}
+
+void FIKRetargetPose::AddToRootTranslationDelta(FVector TranslateDelta)
 {
 	RootTranslationOffset += TranslateDelta;
 }
@@ -120,4 +133,4 @@ const FName UIKRetargeter::GetDefaultPoseName()
 {
 	static const FName DefaultPoseName = "Default Pose";
 	return DefaultPoseName;
-};
+}

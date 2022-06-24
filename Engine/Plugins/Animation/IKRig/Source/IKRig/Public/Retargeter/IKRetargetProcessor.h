@@ -8,6 +8,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "IKRetargetProcessor.generated.h"
 
+enum class EIKRetargetSkeletonMode : uint8;
 class URetargetChainSettings;
 class UIKRigDefinition;
 class UIKRigProcessor;
@@ -30,18 +31,18 @@ struct IKRIG_API FRetargetSkeleton
 	
 	USkeletalMesh* SkeletalMesh;
 
-	// true for bones that are in a retarget bone chain and thus are posed by a retarget pose
-	// the application of a retarget pose to a bone happens regardless of whether the chain is mapped or not
-	// (this must happen or else child chains may not end up in the correct retarget pose)
-	TArray<bool> IsBoneInAnyChain;
+	// record which chain is actually controlling each bone
+	TArray<FName> ChainThatContainsBone;
 
 	void Initialize(
 		USkeletalMesh* InSkeletalMesh,
-		const TArray<FBoneChain>& BoneChains);
+		const TArray<FBoneChain>& BoneChains,
+		const FIKRetargetPose* RetargetPose,
+		const FName& RetargetRootBone);
 
 	void Reset();
 
-	void GenerateRetargetPose();
+	void GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone);
 
 	int32 FindBoneIndexByName(const FName InName) const;
 
@@ -79,6 +80,8 @@ struct IKRIG_API FRetargetSkeleton
 	
 	bool IsParentOfChild(const int32 PotentialParentIndex, const int32 ChildBoneIndex) const;
 
+	FQuat GetRetargetPoseDeltaRotation(const FName BoneName, const FIKRetargetPose* InRetargetPose) const;
+
 private:
 	
 	/** One index per-bone. Lazy-filled on request. Stores the last element of the branch below the bone.
@@ -94,12 +97,10 @@ struct FTargetSkeleton : public FRetargetSkeleton
 	TArray<bool> IsBoneRetargeted;
 
 	void Initialize(
-		USkeletalMesh* InSkeletalMesh, 
+		USkeletalMesh* InSkeletalMesh,
+		const TArray<FBoneChain>& BoneChains,
 		const FIKRetargetPose* RetargetPose,
-		const FName& RetargetRootBone,
-		const TArray<FBoneChain>& TargetChains);
-
-	void GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone);
+		const FName& RetargetRootBone);
 
 	void Reset();
 
@@ -535,6 +536,10 @@ public:
 	void SetNeedsInitialized();
 	/** During editor preview, drive the target IK Rig with the settings from it's source asset */
 	void CopyAllSettingsFromAsset();
+	/** Returns true if the bone is part of a retarget chain or root bone, false otherwise. */
+	bool IsBoneRetargeted(const int32& BoneIndex, const int8& SkeletonToCheck) const;
+	/** Returns name of the chain associated with this bone. Returns NAME_None if bone is not in a chain. */
+	FName GetChainNameForBone(const int32& BoneIndex, const int8& SkeletonToCheck) const;
 #endif
 
 private:

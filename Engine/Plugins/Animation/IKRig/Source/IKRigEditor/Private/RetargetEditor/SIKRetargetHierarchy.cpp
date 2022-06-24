@@ -3,6 +3,7 @@
 #include "RetargetEditor/SIKRetargetHierarchy.h"
 
 #include "Preferences/PersonaOptions.h"
+#include "RetargetEditor/SIKRetargetPoseEditor.h"
 #include "Widgets/Input/SSegmentedControl.h"
 #include "Retargeter/IKRetargetProcessor.h"
 #include "RigEditor/IKRigEditorStyle.h"
@@ -10,74 +11,103 @@
 
 #define LOCTEXT_NAMESPACE "SIKRetargetHierarchy"
 
-FIKRetargetTreeElement::FIKRetargetTreeElement(
-	const FText& InKey,
+static const FName BoneColumnName(TEXT("BoneName"));
+static const FName ChainColumnName(TEXT("RetargetChainName"));
+
+FIKRetargetHierarchyElement::FIKRetargetHierarchyElement(
+	const FName& InName,
 	const TSharedRef<FIKRetargetEditorController>& InEditorController)
-	: Key(InKey)
-	, EditorController(InEditorController)
+	: Key(FText::FromName(InName)),
+	Name(InName),
+	EditorController(InEditorController)
 {}
 
-TSharedRef<ITableRow> FIKRetargetTreeElement::MakeTreeRowWidget(
-	TSharedRef<FIKRetargetEditorController> InEditorController,
-	const TSharedRef<STableViewBase>& InOwnerTable,
-	TSharedRef<FIKRetargetTreeElement> InTreeElement,
-	TSharedRef<FUICommandList> InCommandList,
-	TSharedPtr<SIKRetargetHierarchy> InHierarchy)
+TSharedRef<SWidget> SIKRetargetHierarchyRow::GenerateWidgetForColumn(const FName& ColumnName)
 {
-	return SNew(SIKRetargetHierarchyItem, InEditorController, InOwnerTable, InTreeElement, InCommandList, InHierarchy);
-}
+	FName BoneName = WeakTreeElement.Pin()->Name;
+	EIKRetargetSkeletonMode CurrentSkeleton = EditorController.Pin()->GetSkeletonMode();
+	const bool bIsBoneRetargeted = EditorController.Pin()->IsBoneRetargeted(BoneName, CurrentSkeleton);
+	const FText ChainName = FText::FromName(EditorController.Pin()->GetChainNameFromBone(BoneName, CurrentSkeleton));
 
-void SIKRetargetHierarchyItem::Construct(
-	const FArguments& InArgs,
-	TSharedRef<FIKRetargetEditorController> InEditorController,
-	const TSharedRef<STableViewBase>& OwnerTable,
-	TSharedRef<FIKRetargetTreeElement> InTreeElement,
-	TSharedRef<FUICommandList> InCommandList,
-	TSharedPtr<SIKRetargetHierarchy> InHierarchy)
-{
-	WeakTreeElement = InTreeElement;
-	EditorController = InEditorController;
-	HierarchyView = InHierarchy;
+	// determine icon based on if bone is retargeted
+	const FSlateBrush* Brush;
+	if (bIsBoneRetargeted)
+	{
+		Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
+	}
+	else
+	{
+		Brush = FAppStyle::Get().GetBrush("SkeletonTree.BoneNonWeighted");
+	}
 
-	const FSlateBrush* Brush = FAppStyle::Get().GetBrush("SkeletonTree.Bone");
+	// determine text based on if bone is retargeted
+	FTextBlockStyle NormalText = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.NormalText");
+	FTextBlockStyle ItalicText = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.ItalicText");
+	FSlateFontInfo TextFont;
+	FSlateColor TextColor;
+	if (bIsBoneRetargeted)
+	{
+		// elements connected to the selected solver are green
+		TextFont = ItalicText.Font;
+		TextColor = NormalText.ColorAndOpacity;
+	}
+	else
+	{
+		TextFont = NormalText.Font;
+		TextColor = FLinearColor(0.2f, 0.2f, 0.2f, 0.5f);
+	}
 	
-	const FTextBlockStyle NormalText = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.NormalText");
-	const FTextBlockStyle ItalicText = FIKRigEditorStyle::Get().GetWidgetStyle<FTextBlockStyle>("IKRig.Tree.ItalicText");
-	FSlateFontInfo TextFont = NormalText.Font;
-	FSlateColor TextColor = FLinearColor(0.2f, 0.2f, 0.2f, 0.5f);
-	
-	TSharedPtr<SHorizontalBox> HorizontalBox;
-	STableRow<TSharedPtr<FIKRetargetTreeElement>>::Construct(
-		STableRow<TSharedPtr<FIKRetargetTreeElement>>::FArguments()
-		.ShowWires(true)
-		.Content()
+	if (ColumnName == BoneColumnName)
+	{
+		TSharedPtr< SHorizontalBox > RowBox;
+		SAssignNew(RowBox, SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		[
-			SAssignNew(HorizontalBox, SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.MaxWidth(18)
-			.FillWidth(1.0)
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SImage)
-				.Image(Brush)
-			]
-		], OwnerTable);
+			SNew( SExpanderArrow, SharedThis(this) )
+			.ShouldDrawWires(true)
+		];
 
-	HorizontalBox->AddSlot()
+		RowBox->AddSlot()
+		.MaxWidth(18)
+		.FillWidth(1.0)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			SNew(SImage)
+			.Image(Brush)
+		];
+
+		RowBox->AddSlot()
 		.AutoWidth()
 		.VAlign(VAlign_Center)
 		[
 			SNew(STextBlock)
-			.Text(this, &SIKRetargetHierarchyItem::GetName)
+			.Text(FText::FromName(BoneName))
 			.Font(TextFont)
 			.ColorAndOpacity(TextColor)
 		];
-}
 
-FText SIKRetargetHierarchyItem::GetName() const
-{
-	return WeakTreeElement.Pin()->Key;
+		return RowBox.ToSharedRef();
+	}
+
+	if (ColumnName == ChainColumnName)
+	{
+		TSharedPtr< SHorizontalBox > RowBox;
+		SAssignNew(RowBox, SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(ChainName)
+			.Font(TextFont)
+			.ColorAndOpacity(TextColor)
+		];
+
+		return RowBox.ToSharedRef();
+	}
+	
+	return SNullWidget::NullWidget;
 }
 
 void SIKRetargetHierarchy::Construct(
@@ -91,6 +121,7 @@ void SIKRetargetHierarchy::Construct(
 	ChildSlot
 	[
 		SNew(SVerticalBox)
+
 		+SVerticalBox::Slot()
 		.Padding(2.0f)
 		.AutoHeight()
@@ -114,6 +145,13 @@ void SIKRetargetHierarchy::Construct(
 				.Text(LOCTEXT("TargetSkeleton", "Target"))
 			]
 		]
+		
+		+SVerticalBox::Slot()
+		.Padding(2.0f)
+		.AutoHeight()
+		[
+			SNew(SIKRetargetPoseEditor, InEditorController)
+		]
 
 		+SVerticalBox::Slot()
 		.Padding(2.0f)
@@ -125,7 +163,14 @@ void SIKRetargetHierarchy::Construct(
 				SAssignNew(TreeView, SIKRetargetHierarchyTreeView)
 				.TreeItemsSource(&RootElements)
 				.SelectionMode(ESelectionMode::Multi)
-				.OnGenerateRow(this, &SIKRetargetHierarchy::MakeTableRowWidget)
+				.OnGenerateRow_Lambda( [this](
+					TSharedPtr<FIKRetargetHierarchyElement> InItem,
+					const TSharedRef<STableViewBase>& OwnerTable) -> TSharedRef<ITableRow>
+				{
+					return SNew(SIKRetargetHierarchyRow, OwnerTable)
+					.EditorController(EditorController.Pin())
+					.TreeElement(InItem);
+				})
 				.OnGetChildren(this, &SIKRetargetHierarchy::HandleGetChildrenForTree)
 				.OnSelectionChanged(this, &SIKRetargetHierarchy::OnSelectionChanged)
 				.OnMouseButtonClick(this, &SIKRetargetHierarchy::OnItemClicked)
@@ -133,6 +178,18 @@ void SIKRetargetHierarchy::Construct(
 				.OnSetExpansionRecursive(this, &SIKRetargetHierarchy::OnSetExpansionRecursive)
 				.HighlightParentNodesForSelection(false)
 				.ItemHeight(24)
+				.HeaderRow
+				(
+					SNew(SHeaderRow)
+					
+					+ SHeaderRow::Column(BoneColumnName)
+					.DefaultLabel(LOCTEXT("RetargetBoneNameLabel", "Bone Name"))
+					.FillWidth(0.7f)
+						
+					+ SHeaderRow::Column(ChainColumnName)
+					.DefaultLabel(LOCTEXT("RetargetChainNameLabel", "Retarget Chain"))
+					.FillWidth(0.3f)
+				)
 			]
 		]
 	];
@@ -143,8 +200,8 @@ void SIKRetargetHierarchy::Construct(
 
 void SIKRetargetHierarchy::ShowItemAfterSelection(FName ItemName)
 {
-	TSharedPtr<FIKRetargetTreeElement> ItemToShow;
-	for (const TSharedPtr<FIKRetargetTreeElement>& Element : AllElements)
+	TSharedPtr<FIKRetargetHierarchyElement> ItemToShow;
+	for (const TSharedPtr<FIKRetargetHierarchyElement>& Element : AllElements)
 	{
 		if (Element.Get()->Name == ItemName)
 		{
@@ -159,7 +216,7 @@ void SIKRetargetHierarchy::ShowItemAfterSelection(FName ItemName)
 	
 	if(GetDefault<UPersonaOptions>()->bExpandTreeOnSelection)
 	{
-		TSharedPtr<FIKRetargetTreeElement> ItemToExpand = ItemToShow->Parent;
+		TSharedPtr<FIKRetargetHierarchyElement> ItemToExpand = ItemToShow->Parent;
 		while(ItemToExpand.IsValid())
 		{
 			TreeView->SetItemExpansion(ItemToExpand, true);
@@ -214,24 +271,21 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 	TMap<FName, int32> BoneTreeElementIndices;
 
 	// create all bone elements
+	// TODO, add filtering of retargeted bones, by name, etc..
 	for (const FName BoneName : BoneNames)
 	{
 		// create "Bone" tree element for this bone
-		const FText BoneDisplayName = FText::FromName(BoneName);
-		TSharedPtr<FIKRetargetTreeElement> BoneElement = MakeShared<FIKRetargetTreeElement>(BoneDisplayName, ControllerRef);
+		TSharedPtr<FIKRetargetHierarchyElement> BoneElement = MakeShared<FIKRetargetHierarchyElement>(BoneName, ControllerRef);
 		BoneElement.Get()->Name = BoneName;
 		const int32 BoneElementIndex = AllElements.Add(BoneElement);
 		BoneTreeElementIndices.Add(BoneName, BoneElementIndex);
-
-		// TODO, this will show ALL bones in the skeletal mesh. represent bone differently if it's in the retargeted set
-		// TODO, add filtering of retargeted bones, by name, etc..
 	}
 
 	// store children/parent pointers on all bone elements
 	for (int32 BoneIndex=0; BoneIndex<BoneNames.Num(); ++BoneIndex)
 	{
 		const FName BoneName = BoneNames[BoneIndex];
-		const TSharedPtr<FIKRetargetTreeElement> BoneTreeElement = AllElements[BoneTreeElementIndices[BoneName]];
+		const TSharedPtr<FIKRetargetHierarchyElement> BoneTreeElement = AllElements[BoneTreeElementIndices[BoneName]];
 		const int32 ParentIndex = ParentIndices[BoneIndex];
 		if (ParentIndex < 0)
 		{
@@ -243,7 +297,7 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 
 		// get parent tree element
 		const FName ParentBoneName = BoneNames[ParentIndex];
-		const TSharedPtr<FIKRetargetTreeElement> ParentBoneTreeElement = AllElements[BoneTreeElementIndices[ParentBoneName]];
+		const TSharedPtr<FIKRetargetHierarchyElement> ParentBoneTreeElement = AllElements[BoneTreeElementIndices[ParentBoneName]];
 		// store pointer to child on parent
 		ParentBoneTreeElement->Children.Add(BoneTreeElement);
 		// store pointer to parent on child
@@ -253,7 +307,7 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 	// expand all elements upon the initial construction of the tree
 	if (IsInitialSetup)
 	{
-		for (TSharedPtr<FIKRetargetTreeElement> RootElement : RootElements)
+		for (TSharedPtr<FIKRetargetHierarchyElement> RootElement : RootElements)
 		{
 			SetExpansionRecursive(RootElement, false, true);
 		}
@@ -261,7 +315,7 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 	else
 	{
 		// restore expansion and selection state
-		for (const TSharedPtr<FIKRetargetTreeElement>& Element : AllElements)
+		for (const TSharedPtr<FIKRetargetHierarchyElement>& Element : AllElements)
 		{
 			TreeView->RestoreState(Element);
 		}
@@ -270,22 +324,15 @@ void SIKRetargetHierarchy::RefreshTreeView(bool IsInitialSetup)
 	TreeView->RequestTreeRefresh();
 }
 
-TSharedRef<ITableRow> SIKRetargetHierarchy::MakeTableRowWidget(
-	TSharedPtr<FIKRetargetTreeElement> InItem,
-	const TSharedRef<STableViewBase>& OwnerTable)
-{
-	return InItem->MakeTreeRowWidget(EditorController.Pin().ToSharedRef(), OwnerTable, InItem.ToSharedRef(), CommandList.ToSharedRef(), SharedThis(this));
-}
-
 void SIKRetargetHierarchy::HandleGetChildrenForTree(
-	TSharedPtr<FIKRetargetTreeElement> InItem,
-	TArray<TSharedPtr<FIKRetargetTreeElement>>& OutChildren)
+	TSharedPtr<FIKRetargetHierarchyElement> InItem,
+	TArray<TSharedPtr<FIKRetargetHierarchyElement>>& OutChildren)
 {
 	OutChildren = InItem.Get()->Children;
 }
 
 void SIKRetargetHierarchy::OnSelectionChanged(
-	TSharedPtr<FIKRetargetTreeElement> Selection,
+	TSharedPtr<FIKRetargetHierarchyElement> Selection,
 	ESelectInfo::Type SelectInfo)
 {
 	if (SelectInfo == ESelectInfo::Direct)
@@ -300,7 +347,7 @@ void SIKRetargetHierarchy::OnSelectionChanged(
 	}
 
 	TArray<FName> SelectedBoneNames;
-	TArray<TSharedPtr<FIKRetargetTreeElement>> SelectedItems = TreeView->GetSelectedItems();
+	TArray<TSharedPtr<FIKRetargetHierarchyElement>> SelectedItems = TreeView->GetSelectedItems();
 	for (auto SelectedItem : SelectedItems)
 	{
 		SelectedBoneNames.Add(SelectedItem.Get()->Name);
@@ -310,12 +357,12 @@ void SIKRetargetHierarchy::OnSelectionChanged(
 	Controller->EditBoneSelection(SelectedBoneNames, EBoneSelectionEdit::Replace, bFromHierarchy);
 }
 
-void SIKRetargetHierarchy::OnItemClicked(TSharedPtr<FIKRetargetTreeElement> InItem)
+void SIKRetargetHierarchy::OnItemClicked(TSharedPtr<FIKRetargetHierarchyElement> InItem)
 {
 	// TODO show bone details
 }
 
-void SIKRetargetHierarchy::OnItemDoubleClicked(TSharedPtr<FIKRetargetTreeElement> InItem)
+void SIKRetargetHierarchy::OnItemDoubleClicked(TSharedPtr<FIKRetargetHierarchyElement> InItem)
 {
 	if (TreeView->IsItemExpanded(InItem))
 	{
@@ -327,13 +374,13 @@ void SIKRetargetHierarchy::OnItemDoubleClicked(TSharedPtr<FIKRetargetTreeElement
 	}
 }
 
-void SIKRetargetHierarchy::OnSetExpansionRecursive(TSharedPtr<FIKRetargetTreeElement> InItem, bool bShouldBeExpanded)
+void SIKRetargetHierarchy::OnSetExpansionRecursive(TSharedPtr<FIKRetargetHierarchyElement> InItem, bool bShouldBeExpanded)
 {
 	SetExpansionRecursive(InItem, false, bShouldBeExpanded);
 }
 
 void SIKRetargetHierarchy::SetExpansionRecursive(
-	TSharedPtr<FIKRetargetTreeElement> InElement,
+	TSharedPtr<FIKRetargetHierarchyElement> InElement,
 	bool bTowardsParent,
 	bool bShouldBeExpanded)
 {

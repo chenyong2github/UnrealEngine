@@ -43,7 +43,7 @@ FIKRetargetApplicationMode::FIKRetargetApplicationMode(
 	TabFactories.RegisterFactory(MakeShared<FIKRetargetHierarchyTabSummoner>(IKRetargetEditor));
 
 	// create tab layout
-	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.014")
+	TabLayout = FTabManager::NewLayout("Standalone_IKRetargetEditor_Layout_v1.017")
 		->AddArea
 		(
 			FTabManager::NewPrimaryArea()
@@ -55,34 +55,34 @@ FIKRetargetApplicationMode::FIKRetargetApplicationMode(
 				->SetOrientation(Orient_Horizontal)
 				->Split
 				(
-					FTabManager::NewSplitter()
-					->SetSizeCoefficient(0.8f)
-					->SetOrientation(Orient_Vertical)
+				FTabManager::NewSplitter()
+					//->SetSizeCoefficient(0.8f)
+					->SetOrientation(Orient_Horizontal)
 					->Split
 					(
-					FTabManager::NewSplitter()
-						//->SetSizeCoefficient(0.8f)
-						->SetOrientation(Orient_Horizontal)
-						->Split
-						(
-							FTabManager::NewStack()
-							->SetSizeCoefficient(0.2f)
-							->SetHideTabWell(true)
-							->AddTab(FIKRetargetHierarchyTabSummoner::TabID, ETabState::OpenedTab)
-						)
-						->Split
-						(
 						FTabManager::NewStack()
-							->SetSizeCoefficient(0.8f)
-							->SetHideTabWell(true)
-							->AddTab(FPersonaTabs::PreviewViewportID, ETabState::OpenedTab)
-						)
+						->SetSizeCoefficient(0.2f)
+						->SetHideTabWell(true)
+						->AddTab(FIKRetargetHierarchyTabSummoner::TabID, ETabState::OpenedTab)
 					)
 					->Split
 					(
-					FTabManager::NewStack()
-						->SetSizeCoefficient(0.2f)
-						->AddTab(FIKRetargetOutputLogTabSummoner::TabID, ETabState::OpenedTab)
+					FTabManager::NewSplitter()
+							->SetSizeCoefficient(0.8f)
+							->SetOrientation(Orient_Vertical)
+							->Split
+							(
+							FTabManager::NewStack()
+								->SetSizeCoefficient(0.9f)
+								->SetHideTabWell(true)
+								->AddTab(FPersonaTabs::PreviewViewportID, ETabState::OpenedTab)
+							)
+							->Split
+							(
+							FTabManager::NewStack()
+								->SetSizeCoefficient(0.1f)
+								->AddTab(FIKRetargetOutputLogTabSummoner::TabID, ETabState::OpenedTab)
+							)
 					)
 				)
 				->Split

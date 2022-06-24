@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "IKRigDetailCustomizations.h"
+#include "RigEditor/IKRigDetailCustomizations.h"
 
 #include "DetailLayoutBuilder.h"
 #include "DetailCategoryBuilder.h"

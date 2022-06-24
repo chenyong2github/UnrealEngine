@@ -16,7 +16,9 @@
 
 void FRetargetSkeleton::Initialize(
 	USkeletalMesh* InSkeletalMesh,
-	const TArray<FBoneChain>& BoneChains)
+	const TArray<FBoneChain>& BoneChains,
+	const FIKRetargetPose* RetargetPose,
+	const FName& RetargetRootBone)
 {	
 	// record which skeletal mesh this is running on
 	SkeletalMesh = InSkeletalMesh;
@@ -31,7 +33,7 @@ void FRetargetSkeleton::Initialize(
 
 	// determine set of bones referenced by one of the retarget bone chains
 	// this is the set of bones that will be affected by the retarget pose
-	IsBoneInAnyChain.Init(false, BoneNames.Num());
+	ChainThatContainsBone.Init(NAME_None, BoneNames.Num());
 	for (const FBoneChain& BoneChain : BoneChains)
 	{
 		TArray<int32> BonesInChain;
@@ -39,16 +41,17 @@ void FRetargetSkeleton::Initialize(
 		{
 			for (const int32 BoneInChain : BonesInChain)
 			{
-				IsBoneInAnyChain[BoneInChain] = true;
+				ChainThatContainsBone[BoneInChain] = BoneChain.ChainName;
 			}
 		}
 	}
 
-	// update retarget pose to reflect custom offsets
-	GenerateRetargetPose();
-
 	// initialize branch caching
 	CachedEndOfBranchIndices.Init(RETARGETSKELETON_INVALID_BRANCH_INDEX, ParentIndices.Num());
+
+	// update retarget pose to reflect custom offsets (applies stored offsets)
+	// NOTE: this must be done AFTER generating IsBoneInAnyTargetChain array above
+	GenerateRetargetPose(RetargetPose, RetargetRootBone);
 }
 
 void FRetargetSkeleton::Reset()
@@ -60,21 +63,72 @@ void FRetargetSkeleton::Reset()
 	SkeletalMesh = nullptr;
 }
 
-void FRetargetSkeleton::GenerateRetargetPose()
+void FRetargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone)
 {
 	// initialize retarget pose to the skeletal mesh reference pose
 	RetargetLocalPose = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
 	// copy local pose to global
 	RetargetGlobalPose = RetargetLocalPose;
 	// convert to global space
-	UpdateGlobalTransformsBelowBone(0, RetargetLocalPose, RetargetGlobalPose);
+	UpdateGlobalTransformsBelowBone(-1, RetargetLocalPose, RetargetGlobalPose);
+
+	// no retarget pose specified (will use default pose from skeletal mesh with no offsets)
+	if (InRetargetPose==nullptr  || RetargetRootBone == NAME_None)
+	{
+		return;
+	}
+
+	// apply retarget pose offsets (retarget pose is stored as offset relative to reference pose)
+	const TArray<FTransform>& RefPoseLocal = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
+	
+	// apply root translation offset
+	const int32 RootBoneIndex = FindBoneIndexByName(RetargetRootBone);
+	if (RootBoneIndex != INDEX_NONE)
+	{
+		FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
+		RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
+		UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
+	}
+
+	// apply bone rotation offsets
+	for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
+	{
+		const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
+		if (BoneIndex == INDEX_NONE)
+		{
+			// this can happen if a retarget pose recorded a bone offset for a bone that is not present in the
+			// target skeleton; ie, the retarget pose was generated from a different Skeletal Mesh with extra bones
+			continue;
+		}
+
+		const FQuat DeltaRotation = GetRetargetPoseDeltaRotation(BoneRotationOffset.Key, InRetargetPose);
+		const FQuat LocalBoneRotation = RefPoseLocal[BoneIndex].GetRotation() * DeltaRotation;
+		RetargetLocalPose[BoneIndex].SetRotation(LocalBoneRotation);
+	}
+
+	UpdateGlobalTransformsBelowBone(-1, RetargetLocalPose, RetargetGlobalPose);
+}
+
+FQuat FRetargetSkeleton::GetRetargetPoseDeltaRotation(const FName BoneName, const FIKRetargetPose* InRetargetPose) const
+{
+	const int32 BoneIndex = FindBoneIndexByName(BoneName);
+	check(BoneIndex!=INDEX_NONE)
+	check(InRetargetPose)
+	
+	if (const FQuat* BoneRotationOffset = InRetargetPose->BoneRotationOffsets.Find(BoneNames[BoneIndex]))
+	{
+		return *BoneRotationOffset;
+
+	}
+
+	return FQuat::Identity;
 }
 
 int32 FRetargetSkeleton::FindBoneIndexByName(const FName InName) const
 {
 	return BoneNames.IndexOfByPredicate([&InName](const FName& BoneName)
 	{
-			return BoneName == InName;
+		return BoneName == InName;
 	});
 }
 
@@ -83,7 +137,7 @@ void FRetargetSkeleton::UpdateGlobalTransformsBelowBone(
 	const TArray<FTransform>& InLocalPose,
 	TArray<FTransform>& OutGlobalPose) const
 {
-	check(BoneNames.IsValidIndex(StartBoneIndex));
+	check(BoneNames.IsValidIndex(StartBoneIndex+1));
 	check(BoneNames.Num() == InLocalPose.Num());
 	check(BoneNames.Num() == OutGlobalPose.Num());
 	
@@ -116,7 +170,9 @@ void FRetargetSkeleton::UpdateGlobalTransformOfSingleBone(
 	const int32 ParentIndex = ParentIndices[BoneIndex];
 	if (ParentIndex == INDEX_NONE)
 	{
-		return; // root always in global space
+		// root always in global space already, no conversion required
+		OutGlobalPose[BoneIndex] = InLocalPose[BoneIndex];
+		return; 
 	}
 	const FTransform& ChildLocalTransform = InLocalPose[BoneIndex];
 	const FTransform& ParentGlobalTransform = OutGlobalPose[ParentIndex];
@@ -252,12 +308,12 @@ int32 FRetargetSkeleton::GetParentIndex(const int32 BoneIndex) const
 }
 
 void FTargetSkeleton::Initialize(
-	USkeletalMesh* InSkeletalMesh, 
+	USkeletalMesh* InSkeletalMesh,
+	const TArray<FBoneChain>& BoneChains,
 	const FIKRetargetPose* RetargetPose,
-	const FName& RetargetRootBone,
-	const TArray<FBoneChain>& TargetChains)
+	const FName& RetargetRootBone)
 {
-	FRetargetSkeleton::Initialize(InSkeletalMesh, TargetChains);
+	FRetargetSkeleton::Initialize(InSkeletalMesh, BoneChains, RetargetPose, RetargetRootBone);
 
 	// make storage for per-bone "Is Retargeted" flag (used for hierarchy updates)
 	// these are bones that are in a target chain that is mapped to a source chain (ie, will actually be retargeted)
@@ -266,58 +322,6 @@ void FTargetSkeleton::Initialize(
 
 	// initialize storage for output pose (the result of the retargeting)
 	OutputGlobalPose = RetargetGlobalPose;
-
-	// generate the retarget pose (applies stored offsets)
-	// NOTE: this must be done AFTER generating IsBoneInAnyTargetChain array above (FRetargetSkeleton::Initialize)
-	GenerateRetargetPose(RetargetPose, RetargetRootBone);
-}
-
-void FTargetSkeleton::GenerateRetargetPose(const FIKRetargetPose* InRetargetPose, const FName& RetargetRootBone)
-{
-	// create a retarget pose by copying the ref pose
-	FRetargetSkeleton::GenerateRetargetPose();
-	
-	// no retarget pose specified (will use default pose from skeletal mesh with no offsets)
-	if (InRetargetPose==nullptr  || RetargetRootBone == NAME_None)
-	{
-		return;
-	}
-
-	// apply retarget pose offsets (retarget pose is stored as offset relative to reference pose)
-	const TArray<FTransform>& RefPoseLocal = SkeletalMesh->GetRefSkeleton().GetRefBonePose();
-	
-	// apply root translation offset
-	const int32 RootBoneIndex = FindBoneIndexByName(RetargetRootBone);
-	if (RootBoneIndex != INDEX_NONE)
-	{
-		FTransform& RootTransform = RetargetGlobalPose[RootBoneIndex];
-		RootTransform.AddToTranslation(InRetargetPose->RootTranslationOffset);
-		UpdateLocalTransformOfSingleBone(RootBoneIndex, RetargetLocalPose, RetargetGlobalPose);
-	}
-
-	// apply bone rotation offsets
-	for (const TTuple<FName, FQuat>& BoneRotationOffset : InRetargetPose->BoneRotationOffsets)
-	{
-		const int32 BoneIndex = FindBoneIndexByName(BoneRotationOffset.Key);
-		if (BoneIndex == INDEX_NONE)
-		{
-			// this can happen if a retarget pose recorded a bone offset for a bone that is not present in the
-			// target skeleton; ie, the retarget pose was generated from a different Skeletal Mesh with extra bones
-			continue;
-		}
-
-		if (!IsBoneInAnyChain[BoneIndex] && BoneIndex!=RootBoneIndex)
-		{
-			// this can happen if a retarget pose includes bone edits from a bone chain that was subsequently removed,
-			// and the asset has not run through the "CleanChainMapping" operation yet (happens on load)
-			continue;
-		}
-
-		const FQuat LocalBoneRotation = BoneRotationOffset.Value * RefPoseLocal[BoneIndex].GetRotation();
-		RetargetLocalPose[BoneIndex].SetRotation(LocalBoneRotation);
-	}
-
-	UpdateGlobalTransformsBelowBone(0, RetargetLocalPose, RetargetGlobalPose);
 }
 
 void FTargetSkeleton::Reset()
@@ -340,8 +344,10 @@ void FTargetSkeleton::UpdateGlobalTransformsAllNonRetargetedBones(TArray<FTransf
 	}
 }
 
-FResolvedBoneChain::FResolvedBoneChain( const FBoneChain& BoneChain, const FRetargetSkeleton& Skeleton,
-										TArray<int32>& OutBoneIndices)
+FResolvedBoneChain::FResolvedBoneChain(
+	const FBoneChain& BoneChain,
+	const FRetargetSkeleton& Skeleton,
+	TArray<int32>& OutBoneIndices)
 {
 	// validate start and end bones exist and are not the root
 	const int32 StartIndex = Skeleton.FindBoneIndexByName(BoneChain.StartBone.BoneName);
@@ -1309,12 +1315,16 @@ void UIKRetargetProcessor::Initialize(
 	}
 	
 	// initialize skeleton data for source and target
-	SourceSkeleton.Initialize(SourceSkeletalMesh, RetargeterAsset->GetSourceIKRig()->GetRetargetChains());
+	SourceSkeleton.Initialize(
+		SourceSkeletalMesh,
+		RetargeterAsset->GetSourceIKRig()->GetRetargetChains(),
+		nullptr,
+		NAME_None);
 	TargetSkeleton.Initialize(
 		TargetSkeletalMesh,
+		RetargeterAsset->GetTargetIKRig()->GetRetargetChains(),
 		RetargeterAsset->GetCurrentRetargetPose(),
-		RetargeterAsset->GetTargetIKRig()->GetRetargetRoot(),
-		RetargeterAsset->GetTargetIKRig()->GetRetargetChains());
+		RetargeterAsset->GetTargetIKRig()->GetRetargetRoot());
 
 	// initialize roots
 	bRootsInitialized = InitializeRoots();
@@ -1713,6 +1723,30 @@ void UIKRetargetProcessor::CopyAllSettingsFromAsset()
 	RootRetargeter.StaticOffset = RootSettings.StaticOffset;
 	RootRetargeter.StaticRotationOffset = RootSettings.StaticRotationOffset;
 }
+
+bool UIKRetargetProcessor::IsBoneRetargeted(
+	const int32& BoneIndex,
+	const int8& SkeletonToCheck) const
+{
+	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
+	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
+	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
+	return (Skeleton.ChainThatContainsBone[BoneIndex] != NAME_None) || BoneIndex==RootBoneIndex;
+}
+
+FName UIKRetargetProcessor::GetChainNameForBone(const int32& BoneIndex, const int8& SkeletonToCheck) const
+{
+	const bool bUseSourceSkeleton = SkeletonToCheck == 0;
+	const FRetargetSkeleton& Skeleton = bUseSourceSkeleton ? SourceSkeleton : TargetSkeleton;
+	const int32 RootBoneIndex = bUseSourceSkeleton ? GetSourceRetargetRoot() : GetTargetRetargetRoot();
+	if (RootBoneIndex == BoneIndex)
+	{
+		return FName("Retarget Root");
+	}
+
+	return Skeleton.ChainThatContainsBone[BoneIndex];
+}
+
 #endif
 
 #undef LOCTEXT_NAMESPACE

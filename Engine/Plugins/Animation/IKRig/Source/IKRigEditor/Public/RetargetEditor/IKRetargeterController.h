@@ -100,9 +100,13 @@ public:
 	/** Get the current retarget pose */
 	const FIKRetargetPose& GetCurrentRetargetPose() const;
 	/** Set a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
-	void SetRotationOffsetForRetargetPoseBone(FName BoneName, FQuat RotationOffset) const;
+	void SetRotationOffsetForRetargetPoseBone(FName BoneName, const FQuat& RotationOffset) const;
 	/** Get a delta rotation for a given bone for the current retarget pose (used in Edit Mode in the retarget editor) */
 	FQuat GetRotationOffsetForRetargetPoseBone(FName BoneName) const;
+	/** Set the delta translation of the root bone (used in Edit Mode in the retarget editor) */
+	void SetTranslationOffsetOnRetargetRootBone(FVector TranslationOffset) const;
+	/** Get the delta translation of the root bone (used in Edit Mode in the retarget editor) */
+	const FVector& GetTranslationOffsetOnRetargetRootBone() const;
 	/** Add a delta translation to the root bone (used in Edit Mode in the retarget editor) */
 	void AddTranslationOffsetToRetargetRootBone(FVector TranslationOffset) const;
 	/** Add a numbered suffix to the given pose name to make it unique. */

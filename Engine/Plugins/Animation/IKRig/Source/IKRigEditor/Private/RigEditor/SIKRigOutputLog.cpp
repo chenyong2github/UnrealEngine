@@ -26,6 +26,7 @@ void SIKRigOutputLog::Construct(
 		InitOptions.bShowPages = false;
 		InitOptions.bAllowClear = false;
 		InitOptions.bShowInLogWindow = false;
+		InitOptions.bDiscardDuplicates = true;
 		MessageLogModule.RegisterLogListing(InLogName, FText::FromString("IK Rig Log"), InitOptions);
 		MessageLogListing = MessageLogModule.GetLogListing(InLogName);
 	}

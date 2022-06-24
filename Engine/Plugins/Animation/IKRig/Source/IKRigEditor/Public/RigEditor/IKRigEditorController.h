@@ -64,8 +64,14 @@ public:
 	void OnCopyToClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType) const;
 	void OnPasteFromClipboard(ESlateTransformComponent::Type Component, EIKRigTransformType::Type TransformType);
 
-#endif
+	template <typename DataType>
+	void GetContentFromData(const DataType& InData, FString& Content) const
+	{
+		TBaseStructure<DataType>::Get()->ExportText(Content, &InData, &InData, nullptr, PPF_None, nullptr);
+	}
 
+#endif
+	
 private:
 	
 	static bool CurrentTransformRelative[3];
