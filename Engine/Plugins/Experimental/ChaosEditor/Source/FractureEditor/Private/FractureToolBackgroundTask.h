@@ -21,7 +21,7 @@ public:
 	int ResultGeometryIndex = -1;
 	TUniquePtr<FGeometryCollection> CollectionCopy;
 
-	TGeometryCollectionOperator(const FGeometryCollection& SourceCollection)
+	TGeometryCollectionOperator(const FGeometryCollection& SourceCollection) : UE::Geometry::TGenericDataOperator<ResultType>(false)
 	{
 		CollectionCopy = MakeUnique<FGeometryCollection>();
 		CollectionCopy->CopyMatchingAttributesFrom(SourceCollection, nullptr);
