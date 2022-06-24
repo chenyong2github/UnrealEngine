@@ -2559,6 +2559,8 @@ FGraphEvent::~FGraphEvent()
 	}
 #endif
 	CheckDontCompleteUntilIsEmpty(); // We should not have any wait untils outstanding
+
+	TaskTrace::Destroyed(GetTraceId());
 }
 
 #endif
