@@ -1502,6 +1502,7 @@ public:
 
 	TRDGUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightDataUniformBuffer;
 	TRDGUniformBufferRef<FRayTracingDecals>				RayTracingDecalUniformBuffer;
+	bool												bHasRayTracingDecals = false;
 
 	bool bHasAnyRayTracingPass = false;
 #endif // RHI_RAYTRACING

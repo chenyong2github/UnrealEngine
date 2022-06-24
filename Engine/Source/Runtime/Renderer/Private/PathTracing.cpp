@@ -419,6 +419,14 @@ struct FPathTracingState {
 	uint32_t FrameIndex = 0;
 };
 
+namespace PathTracing
+{
+	bool UsesDecals(const FSceneViewFamily& ViewFamily)
+	{
+		return ViewFamily.EngineShowFlags.Decals;
+	}
+}
+
 // This function prepares the portion of shader arguments that may involve invalidating the path traced state
 static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, FPathTracingData& PathTracingData)
 {
@@ -499,7 +507,7 @@ static void PreparePathTracingData(const FScene* Scene, const FViewInfo& View, F
 		&& (Scene->ExponentialFogs[0].FogData[0].Density > 0 ||
 			Scene->ExponentialFogs[0].FogData[1].Density > 0);
 
-	PathTracingData.EnableDecals = View.Family->EngineShowFlags.Decals && Scene->Decals.Num() > 0;
+	PathTracingData.EnableDecals = PathTracing::UsesDecals(*View.Family) && View.bHasRayTracingDecals;
 
 	PathTracingData.MaxRaymarchSteps = CVarPathTracingMaxRaymarchSteps.GetValueOnRenderThread();
 }
@@ -946,7 +954,6 @@ bool FRayTracingMeshProcessor::ProcessPathTracing(
 	const FMaterialRenderProxy& RESTRICT MaterialRenderProxy,
 	const FMaterial& RESTRICT MaterialResource)
 {
-
 	FMaterialShaderTypes ShaderTypes;
 
 	const bool bUseProceduralPrimitive = MeshBatch.VertexFactory->GetType()->SupportsRayTracingProceduralPrimitive() &&

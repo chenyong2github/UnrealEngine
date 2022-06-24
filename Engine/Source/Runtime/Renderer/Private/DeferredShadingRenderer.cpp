@@ -35,6 +35,7 @@
 #include "VT/VirtualTextureFeedback.h"
 #include "VT/VirtualTextureSystem.h"
 #include "GPUScene.h"
+#include "PathTracing.h"
 #include "RayTracing/RayTracingMaterialHitShaders.h"
 #include "RayTracing/RayTracingLighting.h"
 #include "RayTracing/RayTracingDecals.h"
@@ -547,6 +548,21 @@ static void RenderOpaqueFX(
 }
 
 #if RHI_RAYTRACING
+
+static bool ShouldPrepareRayTracingDecals(const FScene& Scene, const FSceneViewFamily& ViewFamily)
+{
+	if (!IsRayTracingEnabled() || !RHISupportsRayTracingCallableShaders(ViewFamily.GetShaderPlatform()))
+	{
+		return false;
+	}
+
+	if (Scene.Decals.Num() == 0 || GRayTracingExcludeDecals)
+	{
+		return false;
+	}
+
+	return ViewFamily.EngineShowFlags.PathTracing && PathTracing::UsesDecals(ViewFamily);
+}
 
 static void AddDebugRayTracingInstanceFlags(ERayTracingInstanceFlags& InOutFlags)
 {
@@ -2166,10 +2182,16 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const int32 ReferenceViewIndex = 0;
 	FViewInfo& ReferenceView = Views[ReferenceViewIndex];
 
-	if (ViewFamily.EngineShowFlags.PathTracing)
+	if (ShouldPrepareRayTracingDecals(*Scene, *ReferenceView.Family))
 	{
 		ReferenceView.RayTracingDecalUniformBuffer = CreateRayTracingDecalData(GraphBuilder, *Scene, ReferenceView, RayTracingScene.NumCallableShaderSlots);
+		ReferenceView.bHasRayTracingDecals = true;
 		RayTracingScene.NumCallableShaderSlots += Scene->Decals.Num();
+	}
+	else
+	{
+		ReferenceView.RayTracingDecalUniformBuffer = CreateNullRayTracingDecalsUniformBuffer(GraphBuilder);
+		ReferenceView.bHasRayTracingDecals = false;
 	}
 
 	// Prepare the scene for rendering this frame.

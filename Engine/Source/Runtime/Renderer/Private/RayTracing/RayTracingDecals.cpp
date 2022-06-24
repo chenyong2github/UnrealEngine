@@ -334,20 +334,20 @@ FTransientDecalRenderDataList GetSortedDecals(const TSparseArray<FDeferredDecalP
 	return SortedDecals;
 }
 
+TRDGUniformBufferRef<FRayTracingDecals> CreateNullRayTracingDecalsUniformBuffer(FRDGBuilder& GraphBuilder)
+{
+	auto* OutParameters = GraphBuilder.AllocParameters<FRayTracingDecals>();
+	OutParameters->Count = 0;
+	OutParameters->TranslatedBoundMin = FVector3f::ZeroVector;
+	OutParameters->TranslatedBoundMax = FVector3f::ZeroVector;
+	
+	BuildDecalGrid(GraphBuilder, 0, nullptr, *OutParameters);
+	
+	return GraphBuilder.CreateUniformBuffer(OutParameters);
+}
+
 TRDGUniformBufferRef<FRayTracingDecals> CreateRayTracingDecalData(FRDGBuilder& GraphBuilder, FScene& Scene, const FViewInfo& View, uint32 BaseCallableSlotIndex)
 {
-	if (!RHISupportsRayTracingCallableShaders(View.Family->GetShaderPlatform()))
-	{
-		auto* OutParameters = GraphBuilder.AllocParameters<FRayTracingDecals>();
-		OutParameters->Count = 0;
-		OutParameters->TranslatedBoundMin = FVector3f::ZeroVector;
-		OutParameters->TranslatedBoundMax = FVector3f::ZeroVector;
-
-		BuildDecalGrid(GraphBuilder, 0, nullptr, *OutParameters);
-
-		return GraphBuilder.CreateUniformBuffer(OutParameters);
-	}
-
 	const EShaderPlatform ShaderPlatform = View.Family->GetShaderPlatform();
 
 	FTransientDecalRenderDataList SortedDecals = GetSortedDecals(Scene.Decals, Scene, View);

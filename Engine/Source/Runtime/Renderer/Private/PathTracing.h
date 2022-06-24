@@ -16,5 +16,11 @@ END_SHADER_PARAMETER_STRUCT()
 class FRDGBuilder;
 class FScene;
 class FViewInfo;
+class FSceneViewFamily;
 
 bool PrepareSkyTexture(FRDGBuilder& GraphBuilder, FScene* Scene, const FViewInfo& View, bool SkylightEnabled, bool UseMISCompensation, FPathTracingSkylight* SkylightParameters);
+
+namespace PathTracing
+{
+	bool UsesDecals(const FSceneViewFamily& ViewFamily);
+}
