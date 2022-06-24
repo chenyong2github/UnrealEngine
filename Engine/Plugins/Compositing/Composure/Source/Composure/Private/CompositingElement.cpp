@@ -908,6 +908,7 @@ void ACompositingElement::PostLoad()
 
 void ACompositingElement::BeginPlay()
 {
+	Super::BeginPlay();
 	RefreshAllInternalPassLists();
 }
 
