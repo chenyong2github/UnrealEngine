@@ -891,12 +891,12 @@ namespace UnrealBuildTool
 				}
 
 				// Append the most common include paths to the search list.
-				if (Settings.MaxSharedIncludePaths > 0)
+				if (Settings.MaxSharedIncludePaths > 0 || ProjectFileFormat >= VCProjectFileFormat.VisualStudio2022)
 				{
 					foreach (DirectoryReference IncludePath in IncludePathToCount.OrderByDescending(x => x.Value).Select(x => x.Key))
 					{
 						string RelativePath = NormalizeProjectPath(IncludePath);
-						if (SharedIncludeSearchPaths.Length + RelativePath.Length >= Settings.MaxSharedIncludePaths)
+						if (ProjectFileFormat < VCProjectFileFormat.VisualStudio2022 && SharedIncludeSearchPaths.Length + RelativePath.Length >= Settings.MaxSharedIncludePaths)
 						{
 							break;
 						}
