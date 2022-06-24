@@ -288,7 +288,7 @@ protected:
 	virtual void RefreshChildrenInternal(const TArray<UNiagaraStackEntry*>& CurrentChildren, TArray<UNiagaraStackEntry*>& NewChildren, TArray<FStackIssue>& NewIssues) override;
 
 	bool UpdateRapidIterationParametersForAffectedScripts(const uint8* Data);
-	bool RemoveRapidIterationParametersForAffectedScripts();
+	bool RemoveRapidIterationParametersForAffectedScripts(bool bUpdateGraphGuidsForAffected = false);
 	FString ResolveDisplayNameArgument(const FString& InArg) const;
 	FStackIssueFixDelegate GetUpgradeDynamicInputVersionFix();
 
