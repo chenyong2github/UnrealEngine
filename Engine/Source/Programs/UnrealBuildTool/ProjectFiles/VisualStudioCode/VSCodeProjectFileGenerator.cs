@@ -389,7 +389,7 @@ namespace UnrealBuildTool
 						CommandBuilder.AppendFormat("{0} \"{1}\" {2}", UsingClang ? "-I" : "/I", IncludePath, Environment.NewLine);
 					}
 
-					ModuleDirectoryToCompileCommand.Add(Module.ModuleDirectory, CommandBuilder.ToString());
+					ModuleDirectoryToCompileCommand.TryAdd(Module.ModuleDirectory, CommandBuilder.ToString());
 				}
 			}
 
