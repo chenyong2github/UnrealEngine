@@ -128,17 +128,28 @@ namespace UnrealBuildTool
 				"DependencyIncludes",
 			};
 
+			static readonly string[] ObjectExtensions = new string[]
+			{
+				".o",
+				".obj",
+				".gch",
+				".pch",
+			};
+
 			public static string CsvHeader => string.Join(',', CsvColumns);
 			public string CsvLine => string.Join(',', CsvColumns.Select(x => GetType().GetProperty(x)!.GetValue(this)!.ToString()));
 
 			private long GetObjectSize()
 			{
-				FileReference ObjectFile = new FileReference($"{SourceFile.FullName}.{(SourceFile.HasExtension(".h") ? "gch" : "o")}");
-				if (!FileReference.Exists(ObjectFile))
+				foreach (string Extension in ObjectExtensions)
 				{
-					return 0;
+					FileReference ObjectFile = new FileReference($"{SourceFile.FullName}{Extension}");
+					if (FileReference.Exists(ObjectFile))
+					{
+						return ObjectFile.ToFileInfo().Length;
+					}
 				}
-				return ObjectFile.ToFileInfo().Length;
+				return 0;
 			}
 
 			private long CountIncludes()

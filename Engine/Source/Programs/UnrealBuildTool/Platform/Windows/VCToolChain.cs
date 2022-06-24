@@ -1299,7 +1299,7 @@ namespace UnrealBuildTool
 					}
 
 					// Experimental: support for JSON output of timing data
-					if (Target.WindowsPlatform.Compiler.IsClang() && Target.WindowsPlatform.bClangTimeTrace)
+					if (Target.WindowsPlatform.Compiler.IsClang() && (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bClangTimeTrace))
 					{
 						CompileAction.Arguments.Add("-Xclang -ftime-trace");
 						CompileAction.AdditionalProducedItems.Add(FileItem.GetItemByFileReference(ObjectFile.Location.ChangeExtension(".json")));
@@ -1400,7 +1400,7 @@ namespace UnrealBuildTool
 					CompileAction.CompiledModuleInterfaceFile = IfcFile;
 				}
 
-				if (Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace)
+				if ((Target.bPrintToolChainTimingInfo || Target.WindowsPlatform.bCompilerTrace) && Target.WindowsPlatform.Compiler.IsMSVC())
 				{
 					CompileAction.ForceClFilter = true;
 					CompileAction.TimingFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{SourceFile.Location.GetFileName()}.timing"));
@@ -1482,8 +1482,19 @@ namespace UnrealBuildTool
 			{
 				TargetMakefile Makefile = MakefileBuilder.Makefile;
 
-				List<IExternalAction> ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo).ToList();
-				List<FileItem> TimingJsonFiles = ParseTimingActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".cta"))).ToList();
+				List<FileItem> TimingJsonFiles = new List<FileItem>();
+
+				if (Target.WindowsPlatform.Compiler.IsMSVC())
+				{
+					List<IExternalAction> ParseTimingActions = Makefile.Actions.Where(x => x.ActionType == ActionType.ParseTimingInfo).ToList();
+					TimingJsonFiles = ParseTimingActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".cta"))).ToList();
+				}
+				else if (Target.WindowsPlatform.Compiler.IsClang())
+				{
+					List<IExternalAction> CompileActions = Makefile.Actions.Where(x => x.ActionType == ActionType.Compile && x.ProducedItems.Any(i => i.HasExtension(".json"))).ToList();
+					TimingJsonFiles = CompileActions.SelectMany(a => a.ProducedItems.Where(i => i.HasExtension(".json"))).ToList();
+				}
+
 				Makefile.OutputItems.AddRange(TimingJsonFiles);
 
 				// Handing generating aggregate timing information if we compiled more than one file.
@@ -1495,26 +1506,55 @@ namespace UnrealBuildTool
 					{
 						DirectoryReference.CreateDirectory(ManifestFile.Directory);
 					}
-					File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.AbsolutePath));
 
-					FileReference ExpectedCompileTimeFile = FileReference.FromString(Path.Combine(Makefile.ProjectIntermediateDirectory.FullName, $"{Target.Name}.json"));
-					List<string> ActionArgs = new List<string>()
+					if (Target.WindowsPlatform.Compiler.IsMSVC())
 					{
-						$"-Name={Target.Name}",
-						$"-ManifestFile={ManifestFile.FullName}",
-						$"-CompileTimingFile={ExpectedCompileTimeFile}",
-					};
+						File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.AbsolutePath));
 
-					Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
-					AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
-					AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
-					AggregateTimingInfoAction.bCanExecuteRemotely = false;
-					AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
-					AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+						FileReference ExpectedCompileTimeFile = FileReference.FromString(Path.Combine(Makefile.ProjectIntermediateDirectory.FullName, $"{Target.Name}.json"));
+						List<string> ActionArgs = new List<string>()
+						{
+							$"-Name={Target.Name}",
+							$"-ManifestFile={ManifestFile.FullName}",
+							$"-CompileTimingFile={ExpectedCompileTimeFile}",
+						};
 
-					FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.cta"));
-					AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
-					Makefile.OutputItems.Add(AggregateOutputFile);
+						Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateParsedTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
+						AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+						AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
+						AggregateTimingInfoAction.bCanExecuteRemotely = false;
+						AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
+						AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+
+						FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.cta"));
+						AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
+						Makefile.OutputItems.Add(AggregateOutputFile);
+					}
+					else if (Target.WindowsPlatform.Compiler.IsClang())
+					{
+						File.WriteAllLines(ManifestFile.FullName, TimingJsonFiles.Select(f => f.FullName.Remove(f.FullName.Length - ".json".Length)));
+
+						FileItem AggregateOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.trace.csv"));
+						FileItem HeadersOutputFile = FileItem.GetItemByFileReference(FileReference.Combine(Makefile.ProjectIntermediateDirectory, $"{Target.Name}.headers.csv"));
+						List<string> ActionArgs = new List<string>()
+						{
+							$"-AggregateFile={AggregateOutputFile.FullName}",
+							$"-ManifestFile={ManifestFile.FullName}",
+							$"-HeadersFile={HeadersOutputFile.FullName}",
+						};
+
+						Action AggregateTimingInfoAction = MakefileBuilder.CreateRecursiveAction<AggregateClangTimingInfo>(ActionType.ParseTimingInfo, string.Join(" ", ActionArgs));
+						AggregateTimingInfoAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+						AggregateTimingInfoAction.StatusDescription = $"Aggregating {TimingJsonFiles.Count} Timing File(s)";
+						AggregateTimingInfoAction.bCanExecuteRemotely = false;
+						AggregateTimingInfoAction.bCanExecuteRemotelyWithSNDBS = false;
+						AggregateTimingInfoAction.PrerequisiteItems.AddRange(TimingJsonFiles);
+
+						AggregateTimingInfoAction.ProducedItems.Add(AggregateOutputFile);
+						AggregateTimingInfoAction.ProducedItems.Add(HeadersOutputFile);
+						Makefile.OutputItems.Add(AggregateOutputFile);
+						Makefile.OutputItems.Add(HeadersOutputFile);
+					}
 				}
 			}
 		}
