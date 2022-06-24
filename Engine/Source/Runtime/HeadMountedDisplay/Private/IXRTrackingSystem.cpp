@@ -27,8 +27,7 @@ void IXRTrackingSystem::GetHMDData(UObject* WorldContext, FXRHMDData& HMDData)
 bool IXRTrackingSystem::IsHeadTrackingAllowedForWorld(UWorld& World) const
 {
 #if WITH_EDITOR
-	// For VR PIE only the first instance uses the headset
-	// This implementation is constrained by hotfix rules.  It would be better to cache this somewhere.
+	// For VR PIE only the primary instance uses the headset.
 
 	if (!IsHeadTrackingAllowed())
 	{
@@ -40,16 +39,8 @@ bool IXRTrackingSystem::IsHeadTrackingAllowedForWorld(UWorld& World) const
 		return true;
 	}
 
-	// If we are a pie instance then the first pie world that is not a dedicated server uses head tracking
-	const int32 MyPIEInstanceID = World.GetOutermost()->GetPIEInstanceID();
-	for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
-	{
-		if (WorldContext.WorldType == EWorldType::PIE && WorldContext.RunAsDedicated == false && WorldContext.World())
-		{
-			return WorldContext.World()->GetOutermost()->GetPIEInstanceID() == MyPIEInstanceID;
-		}
-	}
-	return false;
+	FWorldContext* const WorldContext = GEngine->GetWorldContextFromWorld(&World);
+	return WorldContext && WorldContext->bIsPrimaryPIEInstance;
 #else
 	return IsHeadTrackingAllowed();
 #endif

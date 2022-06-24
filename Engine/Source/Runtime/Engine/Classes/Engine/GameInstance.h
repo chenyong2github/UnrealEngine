@@ -107,6 +107,7 @@ struct FGameInstancePIEParameters
 		, bAnyBlueprintErrors(false)
 		, bStartInSpectatorMode(false)
 		, bRunAsDedicated(false)
+		, bIsPrimaryPIEClient(false)
 		, WorldFeatureLevel(ERHIFeatureLevel::Num)
 		, EditorPlaySettings(nullptr)
 		, NetMode(EPlayNetMode::PIE_Standalone)
@@ -123,6 +124,9 @@ struct FGameInstancePIEParameters
 
 	// Is this a dedicated server instance for PIE?
 	bool bRunAsDedicated;
+
+	// Is this the primary PIE client?
+	bool bIsPrimaryPIEClient;
 
 	// What time did we start PIE in the editor?
 	double PIEStartTime = 0;

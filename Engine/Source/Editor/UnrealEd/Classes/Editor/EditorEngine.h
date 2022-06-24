@@ -3102,7 +3102,7 @@ protected:
 	/** Stores the position of the window for that instance index. Doesn't save it to the CDO until the play session ends. */
 	void StoreWindowSizeAndPositionForInstanceIndex(const int32 InInstanceIndex, const FIntPoint& InSize, const FIntPoint& InPosition);
 	/** Returns the stored position at that index. */
-	void GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySettings& InEditorPlaySettings, const int32 InInstanceIndex, FIntPoint& OutSize, FIntPoint& OutPosition);
+	void GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySettings& InEditorPlaySettings, const int32 InInstanceIndex, const FWorldContext& InWorldContext, FIntPoint& OutSize, FIntPoint& OutPosition);
 
 	/** Start the queued Play Session Request. After this is called the queued play session request will be cleared. */
 	virtual void StartQueuedPlaySessionRequestImpl();

@@ -274,6 +274,8 @@ FGameInstancePIEResult UGameInstance::InitializeForPlayInEditor(int32 PIEInstanc
 
 	WorldContext->RunAsDedicated = Params.bRunAsDedicated;
 
+	WorldContext->bIsPrimaryPIEInstance = Params.bIsPrimaryPIEClient;
+
 	WorldContext->OwningGameInstance = this;
 	
 	const FString WorldPackageName = EditorEngine->EditorWorld->GetOutermost()->GetName();

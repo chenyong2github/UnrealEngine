@@ -373,6 +373,10 @@ private:
 	UPROPERTY(config, EditAnywhere, Category="Multiplayer Options|Client", meta=(ClampMin = "1", UIMin = "1", UIMax = "64"))
 	int32 PlayNumberOfClients;
 
+	/** In multiplayer PIE which client will be the 'primary'. (default = 0, the first client)*/
+	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Client", meta = (ClampMin = "-1", UIMin = "-1", UIMax = "64", ToolTip = "In multiplayer PIE which client will be the 'primary'. Considered most important and given a larger client window, access to unique hardware like a VirtualReality HMD, etc. Intended to help test issues that affect the second, etc client.  0 is the first client. If the setting is >= than the number of clients the last will be primary. -1 will result in no primary.  Note that this is an index only of PIE instance windows, in netmode 'Play as Client' pie instance zero is a windowless dedicated server, so setting 0 here would make the fist pie window the primary which would be PIEInstance 1, rather than 0 as in other netmodes.", DisplayName = "Primary PIE Client Index"))
+	int PrimaryPIEClientIndex = 0;
+
 	/** What port used by the server for simple networking */
 	UPROPERTY(config, EditAnywhere, Category = "Multiplayer Options|Server", meta=(ClampMin="1", UIMin="1", ClampMax="65535", EditCondition = "PlayNetMode != EPlayNetMode::PIE_Standalone || bLaunchSeparateServer"))
 	uint16 ServerPort;
@@ -497,6 +501,8 @@ public:
 	void SetPlayNumberOfClients( const int32 InPlayNumberOfClients ) { PlayNumberOfClients = InPlayNumberOfClients; }
 	bool IsPlayNumberOfClientsActive() const { return true; }
 	bool GetPlayNumberOfClients( int32 &OutPlayNumberOfClients ) const { OutPlayNumberOfClients = PlayNumberOfClients; return IsPlayNumberOfClientsActive(); }
+
+	int GetPrimaryPIEClientIndex() const { return PrimaryPIEClientIndex; }
 
 	void SetServerPort(const uint16 InServerPort) { ServerPort = InServerPort; }
 	bool IsServerPortActive() const { return (PlayNetMode != PIE_Standalone) || RunUnderOneProcess; }

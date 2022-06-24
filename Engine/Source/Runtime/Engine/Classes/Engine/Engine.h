@@ -372,6 +372,9 @@ struct FWorldContext
 	/** Is this world context waiting for an online login to complete (for PIE) */
 	bool	bWaitingOnOnlineSubsystem;
 
+	/** Is this the 'primary' PIE instance.  Primary is preferred when, for example, unique hardware like a VR headset can be used by only one PIE instance. */
+	bool	bIsPrimaryPIEInstance;
+
 	/** Handle to this world context's audio device.*/
 	uint32 AudioDeviceID;
 
@@ -428,6 +431,7 @@ struct FWorldContext
 		, PIEWorldFeatureLevel(ERHIFeatureLevel::Num)
 		, RunAsDedicated(false)
 		, bWaitingOnOnlineSubsystem(false)
+		, bIsPrimaryPIEInstance(false)
 		, AudioDeviceID(INDEX_NONE)
 		, ThisCurrentWorld(nullptr)
 	{ }

@@ -126,7 +126,8 @@ DEFINE_LOG_CATEGORY(LogPlayLevel);
 const static FName NAME_CategoryPIE("PIE");
 
 // Forward declare local utility functions
-FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const float FixedTick);
+FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const int32 InViewportIndex, const float FixedTick, const bool bVRPreview);
+bool IsPrimaryPIEClient(const FRequestPlaySessionParams& InPlaySessionParams, const int32 InClientIndex);
 
 // This class listens to output log messages, and forwards warnings and errors to the message log
 class FOutputLogErrorsToMessageLogProxy : public FOutputDevice
@@ -556,11 +557,11 @@ void UEditorEngine::EndPlayMap()
 				PlaySettingsConfig->MultipleInstancePositions.Add(PlayInEditorSessionInfo->CachedWindowInfo[WindowIndex].Position);
 			}
 
-			// Update the position where the first PIE window will be opened (this also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
-			if (WindowIndex == 0)
+			// Update the position where the primary PIE window will be opened (this also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
+			if (IsPrimaryPIEClient(PlayInEditorSessionInfo->OriginalRequestParams, WindowIndex))
 			{
 				// Remember last known size
-				PlaySettingsConfig->LastSize = PlayInEditorSessionInfo->CachedWindowInfo[0].Size;
+				PlaySettingsConfig->LastSize = PlayInEditorSessionInfo->CachedWindowInfo[WindowIndex].Size;
 
 				// Only update it if "Always center window to screen" is disabled, and the size was not 0 (which means it is attached to the editor rather than being an standalone window)
 				if (!PlaySettingsConfig->CenterNewWindow && PlaySettingsConfig->LastSize.X > 0 && PlaySettingsConfig->LastSize.Y > 0)
@@ -737,7 +738,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext& PieWorldContext)
 			{
 				if (FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(PlayWorld))
 				{
-					if (WorldContext->PIEInstance == 0)
+					if (WorldContext->bIsPrimaryPIEInstance)
 					{
 						if (FAudioDeviceManager* DeviceManager = AudioDevice->GetAudioDeviceManager())
 						{
@@ -1821,6 +1822,7 @@ void UEditorEngine::CreateNewPlayInEditorInstance(FRequestPlaySessionParams &InR
 		GameInstancePIEParameters.WorldFeatureLevel = PreviewPlatform.GetEffectivePreviewFeatureLevel();
 		GameInstancePIEParameters.NetMode = InNetMode;
 		GameInstancePIEParameters.OverrideMapURL = InRequestParams.GlobalMapOverride;
+		GameInstancePIEParameters.bIsPrimaryPIEClient = !bInDedicatedInstance && IsPrimaryPIEClient(InRequestParams, PlayInEditorSessionInfo->NumClientInstancesCreated);
 
 		PIELoginInfo.GameInstancePIEParameters = GameInstancePIEParameters;
 
@@ -3182,7 +3184,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 	return GameInstance;
 }
 
-FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const float FixedTick)
+FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFeatureLevel::Type InFeatureLevel, const FRequestPlaySessionParams& InSessionParams, const int32 ClientIndex, const float FixedTick, const bool bVRPreview)
 {
 #if PLATFORM_64BITS
 	const FString PlatformBitsString(TEXT("64"));
@@ -3203,15 +3205,14 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 	}
 	else if (InNetMode == PIE_ListenServer)
 	{
-		Args.Add(TEXT("NetMode"), FText::FromString(TEXT("Server")));
+		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Server %d"), ClientIndex)));
 	}
 	else
 	{
-		Args.Add(TEXT("NetMode"), FText::FromString(TEXT("Standalone")));
+		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Standalone %d"), ClientIndex)));
 	}
 
-	if (GEngine->StereoRenderingDevice && GEngine->StereoRenderingDevice.IsValid() && InSessionParams.SessionPreviewTypeOverride == EPlaySessionPreviewType::VRPreview &&
-		GEngine->XRSystem && GEngine->XRSystem.IsValid())
+	if (bVRPreview)
 	{
 		Args.Add(TEXT("XRSystemName"), FText::FromName(GEngine->XRSystem->GetSystemName()));
 		Args.Add(TEXT("XRRuntimeVersion"), FText::FromString(GEngine->XRSystem->GetVersionString()));
@@ -3280,11 +3281,11 @@ void UEditorEngine::TransferEditorSelectionToPlayInstances(const bool bInSelectI
 TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequestPlaySessionParams& InSessionParams, int32 InViewportIndex, const FWorldContext& InWorldContext, EPlayNetMode InNetMode, UGameViewportClient* InViewportClient, FSlatePlayInEditorInfo& InSlateInfo)
 {
 	FIntPoint WindowSize, WindowPosition;
-	GetWindowSizeAndPositionForInstanceIndex(*InSessionParams.EditorPlaySettings, InViewportIndex, WindowSize, WindowPosition);
+	GetWindowSizeAndPositionForInstanceIndex(*InSessionParams.EditorPlaySettings, InViewportIndex, InWorldContext, WindowSize, WindowPosition);
 	bool bCenterNewWindowOverride = false;
 	
 	// VR Preview overrides window location.
-	const bool bVRPreview = InSessionParams.SessionPreviewTypeOverride.Get(EPlaySessionPreviewType::NoPreview) == EPlaySessionPreviewType::VRPreview;
+	const bool bVRPreview = InWorldContext.bIsPrimaryPIEInstance && InSessionParams.SessionPreviewTypeOverride.Get(EPlaySessionPreviewType::NoPreview) == EPlaySessionPreviewType::VRPreview;
 	bool bUseOSWndBorder = bVRPreview;
 	if (bVRPreview)
 	{
@@ -3298,7 +3299,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// If they haven't provided a Slate Window (common), we will create one.
 	if (!bHasCustomWindow)
 	{
-		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds);
+		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds, bVRPreview);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
 			.Tag("PIEWindow")
@@ -3345,7 +3346,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 
 	bool bRenderDirectlyToWindow = bVRPreview;
-	bool bEnableStereoRendering = bVRPreview && (/* only first PIE instance can be VR */ InViewportIndex == 0);
+	bool bEnableStereoRendering = bVRPreview;
 
 	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
 	const EAlphaChannelMode::Type PropagateAlpha = EAlphaChannelMode::FromInt(CVarPropagateAlpha->GetValueOnGameThread());
@@ -3430,11 +3431,11 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 			}
 		};
 
-		FDelegateHandle PreviewFeatureLevelChangedHandle = OnPreviewFeatureLevelChanged().AddLambda([PieWindow, bHasCustomWindow, InViewportClient, InNetMode, InSessionParams, InWorldContext](ERHIFeatureLevel::Type NewFeatureLevel)
+		FDelegateHandle PreviewFeatureLevelChangedHandle = OnPreviewFeatureLevelChanged().AddLambda([PieWindow, bHasCustomWindow, InViewportClient, InNetMode, InSessionParams, InWorldContext, bVRPreview](ERHIFeatureLevel::Type NewFeatureLevel)
 			{
 				if (!bHasCustomWindow)
 				{
-					FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, NewFeatureLevel, InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds);
+					FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, NewFeatureLevel, InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds, bVRPreview);
 					PieWindow->SetTitle(ViewportName);
 				}
 				InViewportClient->GetWorld()->ChangeFeatureLevel(NewFeatureLevel);
@@ -3539,7 +3540,35 @@ void FitWindowPositionToWorkArea(FIntPoint &WinPos, FIntPoint &WinSize, const FM
 	WinPos.Y = FMath::Clamp(WinPos.Y, (int32)PreferredWorkArea.Top, (int32)PreferredWorkArea.Bottom);
 }
 
-void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySettings& InEditorPlaySettings, const int32 InInstanceIndex, FIntPoint& OutSize, FIntPoint& OutPosition)
+bool IsPrimaryPIEClient(const FRequestPlaySessionParams& InPlaySessionParams, const int32 InClientIndex)
+{
+	// Note: the InClientIndex here is the index of the pie clinet instances, meaning instances with pie windows, created not the pie instance index. These may differ, for example it is possible that pie instance 0 is a windowless dedicated server in netmode 'play as client'.
+
+	const ULevelEditorPlaySettings& EditorPlaySettings = InPlaySessionParams.EditorPlaySettings ? *InPlaySessionParams.EditorPlaySettings : *GetDefault<ULevelEditorPlaySettings>();
+
+	if (InClientIndex == EditorPlaySettings.GetPrimaryPIEClientIndex())
+	{
+		return true;
+	}
+
+	int32 ClientCount;
+	if (!EditorPlaySettings.GetPlayNumberOfClients(ClientCount))
+	{
+		return InClientIndex == 0;  // If we aren't doing 'number of clients' just primary the first client.
+	}
+
+	if ((EditorPlaySettings.GetPrimaryPIEClientIndex() >= ClientCount) && (InClientIndex == ClientCount - 1))
+	{
+		// If the number is set too high use the last client.  This could easily happen if the user reduces the number of clients and forgets to update this setting. We won't assume they are intentionally avoiding having a 'primary' in this way.
+		return true;
+	}
+
+	// Note any negative value returned by GetPrimaryPIEClientIndex() would result in no primary client at all.
+	return false;
+
+}
+
+void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySettings& InEditorPlaySettings, const int32 InViewportIndex, const FWorldContext& InWorldContext, FIntPoint& OutSize, FIntPoint& OutPosition)
 {
 	if (!ensureMsgf(PlayInEditorSessionInfo.IsSet(), TEXT("Cannot get saved Window Size/Position if a session has not been started.")))
 	{
@@ -3557,8 +3586,8 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 	}
 
 	// Alright, they don't have a saved position or don't want to load from the saved position. First, figure out
-	// how big the window should be. If it is the first client, it uses a different resolution source than additional.
-	if (InInstanceIndex == 0)
+	// how big the window should be. If it is the primary client, it uses a different resolution source than additional.
+	if (InWorldContext.bIsPrimaryPIEInstance)
 	{
 		OutSize = FIntPoint(InEditorPlaySettings.NewWindowWidth, InEditorPlaySettings.NewWindowHeight);
 	}
@@ -3586,7 +3615,7 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 
 
 	// Now we can position the window. If it is the first window, we can respect the center window flag.
-	if (InInstanceIndex == 0)
+	if (InWorldContext.bIsPrimaryPIEInstance)
 	{
 		// Center window if CenterNewWindow checked or if NewWindowPosition is FIntPoint::NoneValue (-1,-1)
 		if (InEditorPlaySettings.CenterNewWindow || InEditorPlaySettings.NewWindowPosition == FIntPoint::NoneValue)
@@ -3603,9 +3632,9 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 	}
 	else
 	{
-		if (InInstanceIndex < PlayInEditorSessionInfo->CachedWindowInfo.Num())
+		if (InViewportIndex < PlayInEditorSessionInfo->CachedWindowInfo.Num())
 		{
-			OutPosition = PlayInEditorSessionInfo->CachedWindowInfo[InInstanceIndex].Position;
+			OutPosition = PlayInEditorSessionInfo->CachedWindowInfo[InViewportIndex].Position;
 			FitWindowPositionToWorkArea(OutPosition, OutSize, WindowBorderSize);
 		}
 		// Add a new entry.
@@ -3623,21 +3652,22 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 		}
 	}
 	// Store this Size/Position for this duration
-	StoreWindowSizeAndPositionForInstanceIndex(InInstanceIndex, OutSize, OutPosition);
+	StoreWindowSizeAndPositionForInstanceIndex(InViewportIndex, OutSize, OutPosition);
 }
-void UEditorEngine::StoreWindowSizeAndPositionForInstanceIndex(const int32 InInstanceIndex, const FIntPoint& InSize, const FIntPoint& InPosition)
+void UEditorEngine::StoreWindowSizeAndPositionForInstanceIndex(const int32 InViewportIndex, const FIntPoint& InSize, const FIntPoint& InPosition)
 {
 	// Overwrite an existing one if we have it
-	if (InInstanceIndex < PlayInEditorSessionInfo->CachedWindowInfo.Num())
+	if (InViewportIndex < PlayInEditorSessionInfo->CachedWindowInfo.Num())
 	{
-		PlayInEditorSessionInfo->CachedWindowInfo[InInstanceIndex].Size = InSize;
-		PlayInEditorSessionInfo->CachedWindowInfo[InInstanceIndex].Position = InPosition;
+		PlayInEditorSessionInfo->CachedWindowInfo[InViewportIndex].Size = InSize;
+		PlayInEditorSessionInfo->CachedWindowInfo[InViewportIndex].Position = InPosition;
 	}
 	else
 	{
 		FPlayInEditorSessionInfo::FWindowSizeAndPos& NewInfo = PlayInEditorSessionInfo->CachedWindowInfo.Add_GetRef(FPlayInEditorSessionInfo::FWindowSizeAndPos());
 		NewInfo.Size = InSize;
 		NewInfo.Position = InPosition;
+		check(PlayInEditorSessionInfo->CachedWindowInfo.Num() == InViewportIndex + 1);
 	}
 }
 
