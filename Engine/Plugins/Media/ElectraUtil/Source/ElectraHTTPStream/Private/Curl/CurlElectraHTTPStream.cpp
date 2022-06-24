@@ -961,6 +961,8 @@ void FElectraHTTPStreamLibCurl::Close()
 	if (Thread)
 	{
 		Thread->Kill(true);
+		ThreadFinished.Lock();
+		ThreadFinished.Unlock();
 		delete Thread;
 		Thread = nullptr;
 	}
@@ -1109,6 +1111,8 @@ uint32 FElectraHTTPStreamLibCurl::Run()
 {
 	LLM_SCOPE(ELLMTag::MediaStreaming);
 
+	ThreadFinished.Lock();
+
 #if ELECTRA_HTTPSTREAM_CURL_USE_MULTIPOLL
 	WorkMultiPoll();
 #else
@@ -1131,6 +1135,7 @@ uint32 FElectraHTTPStreamLibCurl::Run()
 	}
 	RequestLock.Unlock();
 	HandleCompletedRequests();
+	ThreadFinished.Unlock();
 
 	return 0;
 }

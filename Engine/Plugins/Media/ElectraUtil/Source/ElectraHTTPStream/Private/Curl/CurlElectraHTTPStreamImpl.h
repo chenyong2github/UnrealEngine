@@ -84,6 +84,7 @@ private:
 	FThreadSafeCounter ExitRequest;
 	FRunnableThread* Thread = nullptr;
 	FTimeWaitableSignal HaveWorkSignal;
+	FCriticalSection ThreadFinished;
 
 	FElectraHTTPStreamThreadHandlerDelegate ThreadHandlerCallback;
 
