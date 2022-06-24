@@ -468,7 +468,7 @@ int32 FLiveLinkSubject::FindNewFrame_WorldTimeInternal(const FLiveLinkWorldTime&
 			if (FMath::IsNearlyEqual(FrameSourceTime, NewFrameSourceTime))
 			{
 				static const FName NAME_SameWorldTime = "LiveLinkSubject_SameWorldTime";
-				FLiveLinkLog::WarningOnce(NAME_SameWorldTime, SubjectKey, TEXT("A new frame data for subjet '%s' has the same time as a previous frame."), *SubjectKey.SubjectName.ToString());
+				FLiveLinkLog::WarningOnce(NAME_SameWorldTime, SubjectKey, TEXT("A new frame data for subject '%s' has the same time as a previous frame."), *SubjectKey.SubjectName.ToString());
 			}
 			break;
 		}
@@ -550,7 +550,7 @@ int32 FLiveLinkSubject::FindNewFrame_SceneTime(const FQualifiedFrameTime& Qualif
 				if (FMath::IsNearlyEqual(FrameSourceTime, NewFrameSourceTime))
 				{
 					static const FName NAME_SameWorldSceneTime = "LiveLinkSubject_SameWorldSceneTime";
-					FLiveLinkLog::WarningOnce(NAME_SameWorldSceneTime, SubjectKey, TEXT("A new frame data for subjet '%s' has the same timecode and the same time as a previous frame."), *SubjectKey.SubjectName.ToString());
+					FLiveLinkLog::WarningOnce(NAME_SameWorldSceneTime, SubjectKey, TEXT("A new frame data for subject '%s' has the same timecode and the same time as a previous frame."), *SubjectKey.SubjectName.ToString());
 				}
 				break;
 			}
@@ -570,7 +570,7 @@ int32 FLiveLinkSubject::FindNewFrame_SceneTime(const FQualifiedFrameTime& Qualif
 				if (FMath::IsNearlyEqual(FrameQFTSeconds, NewFrameQFTSeconds))
 				{
 					static const FName NAME_SameSceneTime = "LiveLinkSubject_SameSceneTime";
-					FLiveLinkLog::WarningOnce(NAME_SameSceneTime, SubjectKey, TEXT("A new frame data for subjet '%s' has the same timecode as a previous frame."), *SubjectKey.SubjectName.ToString());
+					FLiveLinkLog::WarningOnce(NAME_SameSceneTime, SubjectKey, TEXT("A new frame data for subject '%s' has the same timecode as a previous frame."), *SubjectKey.SubjectName.ToString());
 				}
 				break;
 			}
@@ -640,7 +640,7 @@ void FLiveLinkSubject::AdjustSubFrame_SceneTime(int32 InFrameIndex)
 		if (HigherInclusiveLimit - LowerInclusiveLimit >= static_cast<int32>(1.f / SubFrameIncrement))
 		{
 			static const FName NAME_TooManyFrameForGenerateSubFrame = "LiveLinkSubject_TooManyFrameForGenerateSubFrame";
-			FLiveLinkLog::WarningOnce(NAME_TooManyFrameForGenerateSubFrame, SubjectKey, TEXT("For subjet '%s' they are too many frames with the same timecode that exist to create subframe. Check the Frame Rate?"), *SubjectKey.SubjectName.ToString());
+			FLiveLinkLog::WarningOnce(NAME_TooManyFrameForGenerateSubFrame, SubjectKey, TEXT("For subject '%s' they are too many frames with the same timecode that exist to create subframe. Check the Frame Rate?"), *SubjectKey.SubjectName.ToString());
 			SubFrameIncrement = 1.f / (HigherInclusiveLimit - LowerInclusiveLimit + 1);
 		}
 
