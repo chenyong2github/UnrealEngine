@@ -11,3 +11,14 @@ FRDGTextureRef AddLocalExposureBlurredLogLuminancePass(
 	const FViewInfo& View,
 	const FEyeAdaptationParameters& EyeAdaptationParameters,
 	FScreenPassTexture InputTexture);
+
+void AddApplyLocalExposurePass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	FRDGTextureRef EyeAdaptationTexture,
+	FRDGTextureRef LocalExposureTexture,
+	FRDGTextureRef BlurredLogLuminanceTexture,
+	FScreenPassTexture Input,
+	FScreenPassTexture Output,
+	ERDGPassFlags PassFlags);

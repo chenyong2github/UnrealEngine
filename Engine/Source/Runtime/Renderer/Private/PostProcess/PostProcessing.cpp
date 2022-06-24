@@ -81,6 +81,12 @@ TAutoConsoleVariable<float> CVarDepthOfFieldMaxSize(
 	TEXT("Allows to clamp the gaussian depth of field radius (for better performance), default: 100"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
+TAutoConsoleVariable<bool> CVarBloomApplyLocalExposure(
+	TEXT("r.Bloom.ApplyLocalExposure"),
+	true,
+	TEXT("Whether to apply local exposure when calculating bloom, default: true"),
+	ECVF_Scalability | ECVF_RenderThreadSafe);
+
 TAutoConsoleVariable<int32> CVarPostProcessingPropagateAlpha(
 	TEXT("r.PostProcessing.PropagateAlpha"),
 	0,
@@ -862,16 +868,25 @@ void AddPostProcessingPasses(
 					InputResolutionFraction = 1.0f;
 				}
 
-				FFFTBloomOutput Outputs = AddFFTBloomPass(GraphBuilder, View, InputSceneColor, InputResolutionFraction);
+				FFFTBloomOutput Outputs = AddFFTBloomPass(
+					GraphBuilder, 
+					View,
+					InputSceneColor,
+					InputResolutionFraction,
+					EyeAdaptationParameters,
+					EyeAdaptationTexture,
+					CVarBloomApplyLocalExposure.GetValueOnRenderThread() ? LocalExposureTexture : nullptr,
+					LocalExposureBlurredLogLumTexture);
+
 				Bloom = Outputs.BloomTexture;
 				SceneColorApplyParameters = Outputs.SceneColorApplyParameters;
 			}
 			else
 			{
-				const bool bBloomThresholdEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f;
+				const bool bBloomSetupRequiredEnabled = View.FinalPostProcessSettings.BloomThreshold > -1.0f || LocalExposureTexture != nullptr;
 
-				// Reuse the main scene downsample chain if a threshold isn't required for gaussian bloom.
-				if (SceneDownsampleChain.IsInitialized() && !bBloomThresholdEnabled)
+				// Reuse the main scene downsample chain if setup isn't required for gaussian bloom.
+				if (SceneDownsampleChain.IsInitialized() && !bBloomSetupRequiredEnabled)
 				{
 					LensFlareSceneDownsampleChain = &SceneDownsampleChain;
 				}
@@ -879,13 +894,16 @@ void AddPostProcessingPasses(
 				{
 					FScreenPassTexture DownsampleInput = bProcessQuarterResolution ? QuarterResSceneColor : HalfResSceneColor;
 
-					if (bBloomThresholdEnabled)
+					if (bBloomSetupRequiredEnabled)
 					{
 						const float BloomThreshold = View.FinalPostProcessSettings.BloomThreshold;
 
 						FBloomSetupInputs SetupPassInputs;
 						SetupPassInputs.SceneColor = DownsampleInput;
 						SetupPassInputs.EyeAdaptationTexture = EyeAdaptationTexture;
+						SetupPassInputs.EyeAdaptationParameters = &EyeAdaptationParameters;
+						SetupPassInputs.LocalExposureTexture = CVarBloomApplyLocalExposure.GetValueOnRenderThread() ? LocalExposureTexture : nullptr;
+						SetupPassInputs.BlurredLogLuminanceTexture = LocalExposureBlurredLogLumTexture;
 						SetupPassInputs.Threshold = BloomThreshold;
 
 						DownsampleInput = AddBloomSetupPass(GraphBuilder, View, SetupPassInputs);

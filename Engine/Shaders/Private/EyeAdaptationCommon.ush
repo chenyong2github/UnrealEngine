@@ -10,14 +10,14 @@ Texture2D EyeAdaptationTexture;
 Buffer<float4> EyeAdaptationBuffer;
 
 #if SHADING_PATH_DEFERRED
-float EyeAdaptationLookupTexture2D(Texture2D InEyeAdaptation)
+float4 EyeAdaptationLookupTexture2D(Texture2D InEyeAdaptation)
 {
-	return InEyeAdaptation.Load(int3(0, 0, 0)).x;
+	return InEyeAdaptation.Load(int3(0, 0, 0));
 }
 #elif SHADING_PATH_MOBILE
-float EyeAdaptationLookupBuffer(Buffer<float4> InEyeAdaptation)
+float4 EyeAdaptationLookupBuffer(Buffer<float4> InEyeAdaptation)
 {
-	return InEyeAdaptation[0].x;
+	return InEyeAdaptation[0];
 }
 #else
 	#error Unknown shading path.
@@ -44,17 +44,17 @@ float EyeAdaptationLookup()
 	return 0.0f;
 #elif defined (EyeAdaptationStruct)
 	#if SHADING_PATH_DEFERRED
-		return EyeAdaptationLookupTexture2D(EyeAdaptationStruct.EyeAdaptationTexture);
+		return EyeAdaptationLookupTexture2D(EyeAdaptationStruct.EyeAdaptationTexture).x;
 	#elif SHADING_PATH_MOBILE
-		return EyeAdaptationLookupBuffer(EyeAdaptationStruct.EyeAdaptationBuffer);
+		return EyeAdaptationLookupBuffer(EyeAdaptationStruct.EyeAdaptationBuffer).x;
 	#else
 		#error Unknown shading path.
 	#endif
 #elif EYE_ADAPTATION_LOOSE_PARAMETERS
 	#if SHADING_PATH_DEFERRED
-		return EyeAdaptationLookupTexture2D(EyeAdaptationTexture);
+		return EyeAdaptationLookupTexture2D(EyeAdaptationTexture).x;
 	#elif SHADING_PATH_MOBILE
-		return EyeAdaptationLookupBuffer(EyeAdaptationBuffer);
+		return EyeAdaptationLookupBuffer(EyeAdaptationBuffer).x;
 	#else
 		#error Unknown shading path.
 	#endif

@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PostProcess/PostProcessFFTBloom.h"
-#include "PostProcess/PostProcessBloomSetup.h"
 #include "PostProcess/PostProcessTonemap.h"
+#include "PostProcess/PostProcessLocalExposure.h"
 #include "PostProcess/PostProcessDownsample.h"
 #include "GPUFastFourierTransform.h"
 #include "RendererModule.h"
@@ -631,7 +631,15 @@ void InitDomainAndGetKernel(
 	*OutKernelConstantsBuffer = KernelConstantsBuffer;
 }
 
-FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& InputSceneColor, float InputResolutionFraction)
+FFFTBloomOutput AddFFTBloomPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FScreenPassTexture& InputSceneColor,
+	float InputResolutionFraction,
+	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	FRDGTextureRef EyeAdaptationTexture,
+	FRDGTextureRef LocalExposureTexture,
+	FRDGTextureRef BlurredLogLuminanceTexture)
 {
 	check(InputSceneColor.IsValid());
 
@@ -729,6 +737,15 @@ FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View
 	else
 	{
 		FFTInputSceneColor = InputSceneColor;
+	}
+
+	if (LocalExposureTexture != nullptr)
+	{
+		FScreenPassTexture Temp = FFTInputSceneColor;
+
+		FFTInputSceneColor.Texture = GraphBuilder.CreateTexture(Temp.Texture->Desc, TEXT("Bloom.FFT.Input"));
+
+		AddApplyLocalExposurePass(GraphBuilder, View, EyeAdaptationParameters, EyeAdaptationTexture, LocalExposureTexture, BlurredLogLuminanceTexture, Temp, FFTInputSceneColor, Intermediates.ComputePassFlags);
 	}
 
 	// Init the domain data update the cached kernel if needed.

@@ -6,7 +6,7 @@
 #include "ScenePrivate.h"
 #include "ScreenPass.h"
 
-struct FBloomOutputs;
+class FEyeAdaptationParameters;
 
 // Returns whether FFT bloom is enabled for the view.
 bool IsFFTBloomEnabled(const FViewInfo& View);
@@ -19,4 +19,12 @@ struct FFFTBloomOutput
 	FRDGBufferRef SceneColorApplyParameters = nullptr;
 };
 
-FFFTBloomOutput AddFFTBloomPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FScreenPassTexture& InputSceneColor, float InputResolutionFraction);
+FFFTBloomOutput AddFFTBloomPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FScreenPassTexture& InputSceneColor,
+	float InputResolutionFraction,
+	const FEyeAdaptationParameters& EyeAdaptationParameters,
+	FRDGTextureRef EyeAdaptationTexture,
+	FRDGTextureRef LocalExposureTexture,
+	FRDGTextureRef BlurredLogLuminanceTexture);
