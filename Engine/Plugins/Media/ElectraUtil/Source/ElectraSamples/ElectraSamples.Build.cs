@@ -8,9 +8,7 @@ namespace UnrealBuildTool.Rules
 	{
 		public ElectraSamples(ReadOnlyTargetRules Target) : base(Target)
 		{
-
 			bLegalToDistributeObjectCode = true;
-			PCHUsage = PCHUsageMode.NoPCHs;
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {

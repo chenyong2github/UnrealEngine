@@ -6,7 +6,8 @@ namespace UnrealBuildTool.Rules
 	{
 		public ElectraCDM(ReadOnlyTargetRules Target) : base(Target)
 		{
-			PCHUsage = PCHUsageMode.NoPCHs;     // to get around the "xzy must be first header included" error in 3rdParty lib
+			PCHUsage = PCHUsageMode.UseSharedPCHs;
+			PrivatePCHHeaderFile = "Public/ElectraCDM.h";
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{

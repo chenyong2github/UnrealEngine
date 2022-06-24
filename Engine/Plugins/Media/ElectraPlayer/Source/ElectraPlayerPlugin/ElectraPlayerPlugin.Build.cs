@@ -8,7 +8,6 @@ namespace UnrealBuildTool.Rules
 		public ElectraPlayerPlugin(ReadOnlyTargetRules Target) : base(Target)
 		{
 			bLegalToDistributeObjectCode = true;
-			PCHUsage = PCHUsageMode.NoPCHs;
 
 			DynamicallyLoadedModuleNames.AddRange(
 				new string[] {

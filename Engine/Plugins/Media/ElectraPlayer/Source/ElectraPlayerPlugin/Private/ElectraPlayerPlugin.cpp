@@ -1,12 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "ElectraPlayerPlugin.h"
+
 #include "Misc/Optional.h"
 #include "IMediaEventSink.h"
 #include "IMediaOptions.h"
 #include "MediaSamples.h"
 #include "MediaPlayerOptions.h"
 
-#include "ElectraPlayerPlugin.h"
 #include "IElectraPlayerRuntimeModule.h"
 #include "IElectraPlayerPluginModule.h"
 #include "IElectraMetadataSample.h"
