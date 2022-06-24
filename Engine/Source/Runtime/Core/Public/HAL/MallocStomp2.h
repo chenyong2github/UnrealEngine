@@ -3,6 +3,7 @@
 #pragma once
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
+#include "HAL/PlatformTLS.h"
 
 #ifndef WITH_MALLOC_STOMP2
 #define WITH_MALLOC_STOMP2 0
