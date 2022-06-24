@@ -3423,32 +3423,25 @@ namespace UnrealBuildTool
 				Logger.LogInformation("Fixing minSdkVersion; requires minSdkVersion of {MinVer} with Gradle based on active plugins", MinimumSDKLevelForGradle);
 			}
 
-			// 64-bit targets must be android-21 or higher
+			// Get NDK API level and enforce minimum
 			NDKLevelInt = ToolChain.GetNdkApiLevelInt();
-			if (NDKLevelInt < 21)
+			if (NDKLevelInt < AndroidToolChain.MinimumNDKAPILevel)
 			{
-				// 21 is requred for GL ES3.1
-				NDKLevelInt = 21;
+				// 21 is required for GL ES3.1, 26 for ANativeWindow_setBuffersTransform
+				NDKLevelInt = AndroidToolChain.MinimumNDKAPILevel;
 			}
 
-			// fix up the MinSdkVersion
-			if (NDKLevelInt > 19)
+			// fix up the MinSdkVersion to be at least NDKLevelInt
+			if (MinSDKVersion < NDKLevelInt)
 			{
-				if (MinSDKVersion < 21)
-				{
-					MinSDKVersion = 21;
-					Logger.LogInformation("Fixing minSdkVersion; NDK level above 19 requires minSdkVersion of 21 (arch={Arch})", Arch.Substring(1));
-				}
+				Logger.LogInformation("Fixing minSdkVersion; NDK level is {NDKLevelInt} which is above minSdkVersion {MinSDKVersion}.", NDKLevelInt, MinSDKVersion);
+				MinSDKVersion = NDKLevelInt;
+			}
 
-				if (MinSDKVersion < NDKLevelInt)
-                {
-                    Logger.LogInformation("Fixing minSdkVersion; NDK level is {NdkLevel} which is above minSdkVersion {MinSdkVersion}.", NDKLevelInt, MinSDKVersion);
-					MinSDKVersion = NDKLevelInt;
-				}
-            }
-
+			// fix up the TargetSDK to be at least MinSdkVersion
 			if (TargetSDKVersion < MinSDKVersion)
 			{
+				Logger.LogInformation("Fixing targetSdkVersion; minSdkVersion is {MinSDKVersion} which is above targetSdkVersion {TargetSDKVersion}.", MinSDKVersion, TargetSDKVersion);
 				TargetSDKVersion = MinSDKVersion;
 			}
 		}

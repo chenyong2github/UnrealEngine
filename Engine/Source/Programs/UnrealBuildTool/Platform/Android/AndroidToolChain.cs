@@ -15,6 +15,9 @@ namespace UnrealBuildTool
 {
 	class AndroidToolChain : ClangToolChain, IAndroidToolChain
 	{
+		// Minimum NDK API level to allow
+		public const int MinimumNDKAPILevel = 26;
+
 		public static readonly string[] AllCpuSuffixes =
 		{
 			"-arm64",
@@ -261,14 +264,8 @@ namespace UnrealBuildTool
 				ArPathx64 = ArPathArm64;
 			}
 
-			// NDK setup (use no less than 21 for 64-bit targets)
-			int NDKApiLevel64Int = GetNdkApiLevelInt();
-			//string NDKApiLevel64Bit = GetNdkApiLevel();
-			if (NDKApiLevel64Int < 21)
-			{
-				NDKApiLevel64Int = 21;
-				//NDKApiLevel64Bit = "android-21";
-			}
+			// NDK setup (enforce minimum API level)
+			int NDKApiLevel64Int = GetNdkApiLevelInt(MinimumNDKAPILevel);
 
 			string GCCToolchainPath = Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePath);
 			string SysrootPath = Path.Combine(NDKPath, "toolchains", "llvm", ArchitecturePath, "sysroot");
@@ -391,7 +388,7 @@ namespace UnrealBuildTool
 			return Arches!;
 		}
 
-		public int GetNdkApiLevelInt(int MinNdk = 21)
+		public int GetNdkApiLevelInt(int MinNdk = MinimumNDKAPILevel)
 		{
 			string NDKVersion = GetNdkApiLevel();
 			int NDKVersionInt = MinNdk;
@@ -447,7 +444,7 @@ namespace UnrealBuildTool
 		}
 		
 		//This doesn't take into account SDK version overrides in packaging
-		public int GetMinSdkVersion(int MinSdk = 21)
+		public int GetMinSdkVersion(int MinSdk = MinimumNDKAPILevel)
 		{
 			int MinSDKVersion = MinSdk;
 			ConfigHierarchy Ini = ConfigCache.ReadHierarchy(ConfigHierarchyType.Engine, DirectoryReference.FromFile(ProjectFile), UnrealTargetPlatform.Android);
@@ -1138,13 +1135,13 @@ namespace UnrealBuildTool
 			}
 			*/
 
-			// NDK setup (use no less than 21 for 64-bit targets)
-			int NDKApiLevel64Int = GetNdkApiLevelInt();
+			// NDK setup (enforce minimum API level)
+			int NDKApiLevel64Int = GetNdkApiLevelInt(21);		// deliberately use 21 minimum to force NDKApiLevel64Bit to update if below minimum
 			string NDKApiLevel64Bit = GetNdkApiLevel();
-			if (NDKApiLevel64Int < 21)
+			if (NDKApiLevel64Int < MinimumNDKAPILevel)
 			{
-				NDKApiLevel64Int = 21;
-				NDKApiLevel64Bit = "android-21";
+				NDKApiLevel64Int = MinimumNDKAPILevel;
+				NDKApiLevel64Bit = "android-" + MinimumNDKAPILevel;
 			}
 
 			Log.TraceInformationOnce("Compiling Native 64-bit code with NDK API '{0}'", NDKApiLevel64Bit);
