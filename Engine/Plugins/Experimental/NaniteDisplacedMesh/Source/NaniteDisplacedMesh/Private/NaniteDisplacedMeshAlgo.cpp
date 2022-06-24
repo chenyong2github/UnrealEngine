@@ -118,7 +118,7 @@ void DisplacementShader( FStaticMeshBuildVertex& Vertex, TArrayView< FDisplaceme
 
 	int32 DisplacementIndex = FMath::FloorToInt( Vertex.UVs[1].X );
 	float Displacement = 0.0f;
-	if( DisplacementIndex < DisplacementMaps.Num() )
+	if( DisplacementMaps.IsValidIndex(DisplacementIndex) )
 		Displacement = DisplacementMaps[ DisplacementIndex ].Sample( Vertex.UVs[0] );
 
 	Vertex.TangentZ.Normalize();
