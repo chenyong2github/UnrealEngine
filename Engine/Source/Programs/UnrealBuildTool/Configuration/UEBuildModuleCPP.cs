@@ -1400,7 +1400,6 @@ namespace UnrealBuildTool
 				case "VulkanRHI":
 				case "OpenGLDrv":
 				case "MetalRHI":
-				case "AGXRHI":
 					return true;
 			}
 			return false;
