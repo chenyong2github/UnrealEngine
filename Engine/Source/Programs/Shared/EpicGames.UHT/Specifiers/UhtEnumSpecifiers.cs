@@ -19,7 +19,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Enum, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void FlagsSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtEnum enumObj = (UhtEnum)specifierContext.Scope.ScopeType;
+			UhtEnum enumObj = (UhtEnum)specifierContext.Type;
 			enumObj.EnumFlags |= EEnumFlags.Flags;
 		}
 	}

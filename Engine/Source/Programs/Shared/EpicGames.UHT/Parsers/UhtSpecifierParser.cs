@@ -77,7 +77,7 @@ namespace EpicGames.UHT.Parsers
 		public UhtSpecifierParser(UhtSpecifierContext specifierContext, StringView context, UhtSpecifierTable table)
 		{
 			this._specifierContext = specifierContext;
-			this._tokenReader = specifierContext.Scope.TokenReader;
+			this._tokenReader = specifierContext.TokenReader;
 			this._context = context;
 			this._table = table;
 
@@ -96,7 +96,7 @@ namespace EpicGames.UHT.Parsers
 		public void Reset(UhtSpecifierContext specifierContext, StringView context, UhtSpecifierTable table)
 		{
 			this._specifierContext = specifierContext;
-			this._tokenReader = specifierContext.Scope.TokenReader;
+			this._tokenReader = specifierContext.TokenReader;
 			this._context = context;
 			this._table = table;
 			this._deferredSpecifiers.Clear();
@@ -122,7 +122,7 @@ namespace EpicGames.UHT.Parsers
 		/// <returns>Specifier parser</returns>
 		public UhtSpecifierParser ParseFieldMetaData()
 		{
-			this._tokenReader = this._specifierContext.Scope.TokenReader;
+			this._tokenReader = this._specifierContext.TokenReader;
 			this._isParsingFieldMetaData = true;
 
 			using UhtMessageContext tokenContext = new(this);

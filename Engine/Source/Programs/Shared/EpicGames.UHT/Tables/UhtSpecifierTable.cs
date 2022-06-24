@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using EpicGames.Core;
 using EpicGames.UHT.Parsers; // It would be nice if we didn't need this here
+using EpicGames.UHT.Tokenizer;
 using EpicGames.UHT.Types;
 using EpicGames.UHT.Utils;
 
@@ -89,26 +90,41 @@ namespace EpicGames.UHT.Tables
 	/// </summary>
 	public class UhtSpecifierContext
 	{
+		private UhtType? _type = null;
+		private IUhtTokenReader? _tokenReader = null;
+		private IUhtMessageSite? _messageSite = null;
+		private UhtMetaData? _metaData = null;
 
 		/// <summary>
-		/// Current parsing scope (i.e. global, class, ...)
+		/// Get the type containing the specifiers.  For properties, this is the outer object and
+		/// not the property itself.
 		/// </summary>
-		public UhtParsingScope Scope { get; set; }
+		public UhtType Type { get => _type!; set => _type = value; }
+
+		/// <summary>
+		/// Return the currently active token reader
+		/// </summary>
+		public IUhtTokenReader TokenReader { get => _tokenReader!; set => _tokenReader = value; }
+
+		/// <summary>
+		/// Current access specifier
+		/// </summary>
+		public UhtAccessSpecifier AccessSpecifier { get; set; } = UhtAccessSpecifier.None;
 
 		/// <summary>
 		/// Message site for messages
 		/// </summary>
-		public IUhtMessageSite MessageSite { get; set; }
+		public IUhtMessageSite MessageSite { get => _messageSite!; set => _messageSite = value; }
 
 		/// <summary>
 		/// Meta data currently being parsed.
 		/// </summary>
-		public UhtMetaData MetaData { get; set; }
+		public UhtMetaData MetaData { get => _metaData!; set => _metaData = value; }
 
 		/// <summary>
 		/// Make data key index utilized by enumeration values
 		/// </summary>
-		public int MetaNameIndex { get; set; }
+		public int MetaNameIndex { get; set; } = UhtMetaData.IndexNone;
 
 		/// <summary>
 		/// Construct a new specifier context
@@ -119,10 +135,19 @@ namespace EpicGames.UHT.Tables
 		/// <param name="metaNameIndex"></param>
 		public UhtSpecifierContext(UhtParsingScope scope, IUhtMessageSite messageSite, UhtMetaData metaData, int metaNameIndex = UhtMetaData.IndexNone)
 		{
-			this.Scope = scope;
+			this.Type = scope.ScopeType;
+			this.TokenReader = scope.TokenReader;
+			this.AccessSpecifier = scope.AccessSpecifier;
 			this.MessageSite = messageSite;
 			this.MetaData = metaData;
 			this.MetaNameIndex = metaNameIndex;
+		}
+
+		/// <summary>
+		/// Construct an empty context.  Scope, MessageSite, and MetaData must be set at a later point
+		/// </summary>
+		public UhtSpecifierContext()
+		{
 		}
 	}
 
@@ -397,7 +422,7 @@ namespace EpicGames.UHT.Tables
 		{
 			if (value != null)
 			{
-				specifierContext.Scope.TokenReader.LogDeprecation($"Specifier '{this.Name}' has a value which is unused, future versions of UnrealHeaderTool will flag this as an error.");
+				specifierContext.TokenReader.LogDeprecation($"Specifier '{this.Name}' has a value which is unused, future versions of UnrealHeaderTool will flag this as an error.");
 			}
 			this._delegate(specifierContext);
 			return UhtSpecifierDispatchResults.Known;

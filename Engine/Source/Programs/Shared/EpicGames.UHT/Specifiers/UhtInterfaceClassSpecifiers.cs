@@ -21,14 +21,14 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void MinimalAPISpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClass clasObj = (UhtClass)specifierContext.Scope.ScopeType;
+			UhtClass clasObj = (UhtClass)specifierContext.Type;
 			clasObj.ClassFlags |= EClassFlags.MinimalAPI;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Interface, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void ConversionRootSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtClass classObj = (UhtClass)specifierContext.Scope.ScopeType;
+			UhtClass classObj = (UhtClass)specifierContext.Type;
 			classObj.MetaData.Add(UhtNames.IsConversionRoot, "true");
 		}
 	}

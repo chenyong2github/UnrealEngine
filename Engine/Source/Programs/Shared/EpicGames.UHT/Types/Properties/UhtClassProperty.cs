@@ -105,7 +105,7 @@ namespace EpicGames.UHT.Types
 
 				case UhtPropertyTextType.EventParameterMember:
 				case UhtPropertyTextType.EventParameterFunctionMember:
-					if (this.PropertyFlags.HasAnyFlags(EPropertyFlags.ReturnParm) && !this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper))
+					if (!this.PropertyFlags.HasAnyFlags(EPropertyFlags.UObjectWrapper))
 					{
 						builder.Append("UClass*");
 					}

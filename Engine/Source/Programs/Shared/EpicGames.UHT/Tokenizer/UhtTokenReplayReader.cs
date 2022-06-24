@@ -256,6 +256,10 @@ namespace EpicGames.UHT.Tokenizer
 			--this._savedStateCount;
 			this._currentTokenIndex = this._savedStates[this._savedStateCount].TokenIndex;
 			this._hasToken = this._savedStates[this._savedStateCount].HasToken;
+			if (this._hasToken)
+			{
+				this._currentToken = this._tokens.Span[this._currentTokenIndex];
+			}
 		}
 
 		/// <inheritdoc/>

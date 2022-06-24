@@ -204,8 +204,8 @@ namespace EpicGames.UHT.Parsers
 					UhtProperty? returnValueProperty = null;
 					if (hasReturnValue)
 					{
-						topScope.HeaderParser.GetCachedPropertyParser(topScope).Parse(EPropertyFlags.None,
-							function.GetPropertyParseOptions(true), UhtParsePropertyDeclarationStyle.None, UhtPropertyCategory.Return,
+						topScope.HeaderParser.GetCachedPropertyParser().Parse(topScope, EPropertyFlags.None,
+							function.GetPropertyParseOptions(true), UhtPropertyCategory.Return,
 							(UhtParsingScope topScope, UhtProperty property, ref UhtToken nameToken, UhtLayoutMacroType layoutMacroType) =>
 							{
 								property.PropertyFlags |= EPropertyFlags.Parm | EPropertyFlags.OutParm | EPropertyFlags.ReturnParm;
@@ -429,8 +429,8 @@ namespace EpicGames.UHT.Parsers
 						// Get return type.  C++ style functions always have a return value type, even if it's void
 						UhtToken funcNameToken = new();
 						UhtProperty? returnValueProperty = null;
-						topScope.HeaderParser.GetCachedPropertyParser(topScope).Parse(EPropertyFlags.None,
-							function.GetPropertyParseOptions(true), UhtParsePropertyDeclarationStyle.None, UhtPropertyCategory.Return,
+						topScope.HeaderParser.GetCachedPropertyParser().Parse(topScope, EPropertyFlags.None,
+							function.GetPropertyParseOptions(true), UhtPropertyCategory.Return,
 							(UhtParsingScope topScope, UhtProperty property, ref UhtToken nameToken, UhtLayoutMacroType layoutMacroType) =>
 							{
 								property.PropertyFlags |= EPropertyFlags.Parm | EPropertyFlags.OutParm | EPropertyFlags.ReturnParm;
@@ -559,7 +559,7 @@ namespace EpicGames.UHT.Parsers
 
 			topScope.TokenReader.RequireList(')', ',', false, () =>
 			{
-				topScope.HeaderParser.GetCachedPropertyParser(topScope).Parse(disallowFlags, options, UhtParsePropertyDeclarationStyle.None, propertyCategory,
+				topScope.HeaderParser.GetCachedPropertyParser().Parse(topScope, disallowFlags, options, propertyCategory,
 					(UhtParsingScope topScope, UhtProperty property, ref UhtToken nameToken, UhtLayoutMacroType layoutMacroType) =>
 					{
 						property.PropertyFlags |= EPropertyFlags.Parm;

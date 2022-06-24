@@ -1892,7 +1892,7 @@ bool IsDelegateFunction(FUnrealFieldDefinitionInfo& FieldDef)
 	return FunctionDef != nullptr && FunctionDef->IsDelegateFunction();
 }
 
-void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, uint32 Hash)
+void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, const TArray<FGeneratedCPP*>& ExportedSorted, uint32 Hash)
 {
 	UPackage* Package = PackageDef.GetPackage();
 	const FString& SingletonName = GetPackageSingletonNameFuncAddr(PackageDef, nullptr);
@@ -1926,6 +1926,10 @@ void FNativeClassHeaderGenerator::ExportGeneratedPackageInitCode(FOutputDevice& 
 	if (bIncludeDebugOutput)
 	{
 		Out.Log(TEXT("#if 0\r\n"));
+		for (FGeneratedCPP* gen : ExportedSorted)
+		{
+			Out.Logf(TEXT("\t%s\r\n"), *gen->SourceFile.GetFilename());
+		}
 		Out.Log(InDeclarations);
 		Out.Log(TEXT("#endif\r\n"));
 	}
@@ -6068,7 +6072,7 @@ void FNativeClassHeaderGenerator::Generate(
 						}
 					}
 
-					Generator.ExportGeneratedPackageInitCode(GeneratedFileInfo.GetGeneratedBody(), *GeneratedFunctionDeclarations, CombinedHash);
+					Generator.ExportGeneratedPackageInitCode(GeneratedFileInfo.GetGeneratedBody(), *GeneratedFunctionDeclarations, ExportedSorted, CombinedHash);
 					WriteSource(Module, GeneratedFileInfo, GeneratedFileInfo.GetGeneratedBody(), nullptr, TSet<FString>());
 				}
 			});

@@ -22,28 +22,28 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintAuthorityOnlySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionFlags |= EFunctionFlags.BlueprintAuthorityOnly;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintCallableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintCosmeticSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionFlags |= EFunctionFlags.BlueprintCosmetic;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintGetterSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
@@ -59,7 +59,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintImplementableEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
@@ -87,7 +87,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintNativeEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
@@ -114,7 +114,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
 		private static void BlueprintPureSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			// This function can be called, and is also pure.
 			function.FunctionFlags |= EFunctionFlags.BlueprintCallable;
@@ -132,7 +132,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void BlueprintSetterSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Event))
 			{
@@ -147,7 +147,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
 		private static void ClientSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
@@ -171,14 +171,14 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void CustomThunkSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionExportFlags |= UhtFunctionExportFlags.CustomThunk;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void ExecSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionFlags |= EFunctionFlags.Exec;
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.Net))
 			{
@@ -189,7 +189,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void NetMulticastSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
 				specifierContext.MessageSite.LogError("BlueprintImplementableEvent or BlueprintNativeEvent functions cannot be declared as Multicast");
@@ -202,21 +202,21 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void ReliableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionFlags |= EFunctionFlags.NetReliable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void SealedEventSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionExportFlags |= UhtFunctionExportFlags.SealedEvent;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalString)]
 		private static void ServerSpecifier(UhtSpecifierContext specifierContext, StringView? value)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
@@ -240,7 +240,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalEqualsKeyValuePairList)]
 		private static void ServiceRequestSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
@@ -263,7 +263,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.OptionalEqualsKeyValuePairList)]
 		private static void ServiceResponseSpecifier(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> value)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			if (function.FunctionFlags.HasAnyFlags(EFunctionFlags.BlueprintEvent))
 			{
@@ -286,14 +286,14 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.Legacy)]
 		private static void UnreliableSpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionExportFlags |= UhtFunctionExportFlags.Unreliable;
 		}
 
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.StringList)]
 		private static void WithValidationSpecifier(UhtSpecifierContext specifierContext, List<StringView>? value)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionFlags |= EFunctionFlags.NetValidate;
 
 			if (value != null && value.Count > 0)
@@ -305,7 +305,7 @@ namespace EpicGames.UHT.Parsers
 		[UhtSpecifier(Extends = UhtTableNames.Function, ValueType = UhtSpecifierValueType.None)]
 		private static void FieldNotifySpecifier(UhtSpecifierContext specifierContext)
 		{
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 			function.FunctionExportFlags |= UhtFunctionExportFlags.FieldNotify;
 		}
 
@@ -389,8 +389,8 @@ namespace EpicGames.UHT.Parsers
 
 		private static void ParseNetServiceIdentifiers(UhtSpecifierContext specifierContext, List<KeyValuePair<StringView, StringView>> identifiers)
 		{
-			IUhtTokenReader tokenReader = specifierContext.Scope.TokenReader;
-			UhtFunction function = (UhtFunction)specifierContext.Scope.ScopeType;
+			IUhtTokenReader tokenReader = specifierContext.TokenReader;
+			UhtFunction function = (UhtFunction)specifierContext.Type;
 
 			foreach (KeyValuePair<StringView, StringView> kvp in identifiers)
 			{

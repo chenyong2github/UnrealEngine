@@ -295,17 +295,12 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Get the cached property parser
 		/// </summary>
-		/// <param name="topScope">Top scope requesting parser</param>
 		/// <returns>Property parser</returns>
-		public UhtPropertyParser GetCachedPropertyParser(UhtParsingScope topScope)
+		public UhtPropertyParser GetCachedPropertyParser()
 		{
 			if (this.PropertyParser == null)
 			{
-				this.PropertyParser = new UhtPropertyParser(topScope, topScope.TokenReader);
-			}
-			else
-			{
-				this.PropertyParser.Reset(topScope, topScope.TokenReader);
+				this.PropertyParser = new();
 			}
 			return this.PropertyParser;
 		}

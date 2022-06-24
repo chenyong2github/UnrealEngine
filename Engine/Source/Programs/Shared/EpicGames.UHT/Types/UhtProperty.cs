@@ -734,7 +734,7 @@ namespace EpicGames.UHT.Types
 		/// <param name="parentPropertySettings">Parent container property</param>
 		/// <param name="sourceName">Name of the property</param>
 		/// <param name="messageSite">Message site used to construct meta data object</param>
-		public UhtPropertySettings(UhtPropertySettings parentPropertySettings, string sourceName, IUhtMessageSite messageSite)
+		public void Reset(UhtPropertySettings parentPropertySettings, string sourceName, IUhtMessageSite messageSite)
 		{
 			this.SourceName = sourceName;
 			this.EngineName = sourceName;

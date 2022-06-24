@@ -91,6 +91,10 @@ namespace EpicGames.UHT.Exporters.CodeGen
 				if (this.Session.IncludeDebugOutput)
 				{
 					builder.Append("#if 0\r\n");
+					foreach (UhtHeaderFile headerFile in packageSortedHeaders)
+					{
+						builder.Append('\t').Append(headerFile.FilePath).Append("\r\n");
+					}
 					builder.Append(declarations);
 					builder.Append("#endif\r\n");
 				}

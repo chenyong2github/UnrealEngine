@@ -110,23 +110,6 @@ namespace EpicGames.UHT.Parsers
 	}
 
 	/// <summary>
-	/// The property style of a variable declaration being parsed
-	/// </summary>
-	public enum UhtParsePropertyDeclarationStyle
-	{
-
-		/// <summary>
-		/// Property is a function return, parameters or this is a template argument
-		/// </summary>
-		None,
-
-		/// <summary>
-		/// Class or script structure property
-		/// </summary>
-		UPROPERTY
-	};
-
-	/// <summary>
 	/// Layout macro type
 	/// </summary>
 	public enum UhtLayoutMacroType
@@ -316,7 +299,7 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// The property settings being parsed
 		/// </summary>
-		public UhtPropertySettings PropertySettings { get; set; }
+		public UhtPropertySettings PropertySettings { get; } = new UhtPropertySettings();
 
 		/// <summary>
 		/// If true, editor specifier seen
@@ -337,16 +320,44 @@ namespace EpicGames.UHT.Parsers
 		/// If true, blueprint getter specifier seen
 		/// </summary>
 		public bool SeenBlueprintGetterSpecifier { get; set; } = false;
+	}
+
+	/// <summary>
+	/// Helper class thread specified object cache
+	/// </summary>
+	public struct UhtThreadBorrower<T> : IDisposable where T : new()
+	{
+		private static readonly ThreadLocal<List<T>> s_tls = new(() => new());
+		private readonly T _instance;
 
 		/// <summary>
-		/// Construct a new property specifier context
+		/// The borrowed instance
 		/// </summary>
-		/// <param name="scope">Scope being parsed</param>
-		/// <param name="messageSite">Message site</param>
-		public UhtPropertySpecifierContext(UhtParsingScope scope, IUhtMessageSite messageSite) : base(scope, messageSite, UhtMetaData.Empty)
+		public T Instance => _instance;
+
+		/// <summary>
+		/// Request a context
+		/// </summary>
+		public UhtThreadBorrower()
 		{
-			this.PropertySettings = new UhtPropertySettings();
-			this.PropertySettings.Reset(scope.ScopeType, 1, UhtPropertyCategory.Member, 0);
+			List<T> cache = s_tls.Value!;
+			if (cache.Count == 0)
+			{
+				_instance = new();
+			}
+			else
+			{
+				_instance = cache[^1];
+				cache.RemoveAt(cache.Count - 1);
+			}
+		}
+
+		/// <summary>
+		/// Return the borrowed buffer to the cache
+		/// </summary>
+		public void Dispose()
+		{
+			s_tls.Value!.Add(_instance);
 		}
 	}
 
@@ -434,14 +445,11 @@ namespace EpicGames.UHT.Parsers
 	/// </summary>
 	public class UhtPropertyParser : IUhtMessageExtraContext
 	{
-		private readonly UhtPropertySpecifierContext _specifierContext;
+		private UhtPropertyCategory _category = UhtPropertyCategory.Member;
 		private UhtPropertyParseOptions _options;
-		private UhtParsePropertyDeclarationStyle _declarationStyle;
-
-		private IUhtTokenReader TokenReader => this._specifierContext.Scope.TokenReader;
-		private UhtParsingScope TopScope => this._specifierContext.Scope;
 
 		// Scratch pad variables used by actions
+		private IUhtTokenReader? _currentTokenReader = null;
 		private List<UhtToken> _currentTypeTokens = new();
 		private int _currentTemplateDepth = 0;
 
@@ -462,55 +470,46 @@ namespace EpicGames.UHT.Parsers
 		/// <summary>
 		/// Construct a new property parser
 		/// </summary>
-		/// <param name="scope">Current scope being parsed</param>
-		/// <param name="messageSite">Message site</param>
-		public UhtPropertyParser(UhtParsingScope scope, IUhtMessageSite messageSite)
+		public UhtPropertyParser()
 		{
-			this._specifierContext = new UhtPropertySpecifierContext(scope, messageSite);
 			this._gatherTypeTokensDelegate = GatherTypeTokens;
-		}
-
-		/// <summary>
-		/// Reset the property parser for a new parse
-		/// </summary>
-		/// <param name="scope">Current scope being parsed</param>
-		/// <param name="messageSite">Message site</param>
-		public void Reset(UhtParsingScope scope, IUhtMessageSite messageSite)
-		{
-			this._specifierContext.Scope = scope;
-			this._specifierContext.MessageSite = messageSite;
 		}
 
 		/// <summary>
 		/// Parse the property
 		/// </summary>
+		/// <param name="topScope">Current parsing scope</param>
 		/// <param name="disallowPropertyFlags">Flags to be disallowed</param>
 		/// <param name="options">Parsing options</param>
-		/// <param name="declarationStyle">Style of declaration</param>
 		/// <param name="category">Property category</param>
 		/// <param name="propertyDelegate">Delegate to be invoked after property has been parsed</param>
 		/// <returns>The property parser</returns>
-		public UhtPropertyParser Parse(EPropertyFlags disallowPropertyFlags, UhtPropertyParseOptions options, UhtParsePropertyDeclarationStyle declarationStyle, UhtPropertyCategory category, UhtPropertyDelegate propertyDelegate)
+		public UhtPropertyParser Parse(UhtParsingScope topScope, EPropertyFlags disallowPropertyFlags, UhtPropertyParseOptions options, UhtPropertyCategory category, UhtPropertyDelegate propertyDelegate)
 		{
-			// Reset the context and create the property
-			this._specifierContext.PropertySettings.Reset(this._specifierContext.Scope.ScopeType, 0, category, disallowPropertyFlags);
-			this._specifierContext.MetaData = this._specifierContext.PropertySettings.MetaData;
-			this._specifierContext.MetaNameIndex = UhtMetaData.IndexNone;
-			this._specifierContext.SeenEditSpecifier = false;
-			this._specifierContext.SeenBlueprintWriteSpecifier = false;
-			this._specifierContext.SeenBlueprintReadOnlySpecifier = false;
-			this._specifierContext.SeenBlueprintGetterSpecifier = false;
+			// Initialize the property context
+			using UhtThreadBorrower<UhtPropertySpecifierContext> borrower = new();
+			UhtPropertySpecifierContext specifierContext = borrower.Instance;
+			specifierContext.Type = topScope.ScopeType;
+			specifierContext.TokenReader = topScope.TokenReader;
+			specifierContext.AccessSpecifier = topScope.AccessSpecifier;
+			specifierContext.MessageSite = topScope.TokenReader;
+			specifierContext.PropertySettings.Reset(specifierContext.Type, 0, category, disallowPropertyFlags);
+			specifierContext.MetaData = specifierContext.PropertySettings.MetaData;
+			specifierContext.MetaNameIndex = UhtMetaData.IndexNone;
+			specifierContext.SeenEditSpecifier = false;
+			specifierContext.SeenBlueprintWriteSpecifier = false;
+			specifierContext.SeenBlueprintReadOnlySpecifier = false;
+			specifierContext.SeenBlueprintGetterSpecifier = false;
 
-			// Initialize the property
-
+			// Initialize the settings
 			this._options = options;
-			this._declarationStyle = declarationStyle;
-
+			this._category = category;
+			this._currentTokenReader = topScope.TokenReader;
 			this._currentTypeTokens = new List<UhtToken>();
 			this._currentTemplateDepth = 0;
 
 			using UhtMessageContext tokenContext = new(this);
-			ParseInternal(propertyDelegate);
+			ParseInternal(topScope, specifierContext, propertyDelegate);
 			return this;
 		}
 
@@ -521,7 +520,7 @@ namespace EpicGames.UHT.Parsers
 			get
 			{
 				Stack<object?> extraContext = new(1);
-				extraContext.Push(this._specifierContext.PropertySettings.PropertyCategory.GetHintText());
+				extraContext.Push(this._category.GetHintText());
 				return extraContext;
 			}
 		}
@@ -626,9 +625,27 @@ namespace EpicGames.UHT.Parsers
 
 			// Save the token reader state.  We need this to restore back to the start when invoking the resolve methods.
 			{
-				using UhtTokenSaveState saveState = new(tokenReader);
-				UhtPropertySettings propertySettings = new(parentPropertySettings, paramName.ToString(), tokenReader);
+				using UhtThreadBorrower<UhtPropertySpecifierContext> borrower = new();
+				UhtPropertySpecifierContext specifierContext = borrower.Instance;
+				specifierContext.Type = parentPropertySettings.Outer;
+				specifierContext.TokenReader = tokenReader;
+				specifierContext.AccessSpecifier = UhtAccessSpecifier.None;
+				specifierContext.MessageSite = tokenReader;
+				specifierContext.PropertySettings.Reset(parentPropertySettings, paramName.ToString(), tokenReader);
+				specifierContext.MetaData = specifierContext.PropertySettings.MetaData;
+				specifierContext.MetaNameIndex = UhtMetaData.IndexNone;
+				specifierContext.SeenEditSpecifier = false;
+				specifierContext.SeenBlueprintWriteSpecifier = false;
+				specifierContext.SeenBlueprintReadOnlySpecifier = false;
+				specifierContext.SeenBlueprintGetterSpecifier = false;
 
+				// Preparse any UPARAM 
+				PreParseTypeInternal(specifierContext, true);
+
+				// Save the state at this point
+				using UhtTokenSaveState saveState = new(tokenReader);
+
+				UhtPropertySettings propertySettings = specifierContext.PropertySettings;
 				UhtPropertyType propertyType = new();
 				while (!tokenReader.IsEOF)
 				{
@@ -758,110 +775,43 @@ namespace EpicGames.UHT.Parsers
 			return outProperty;
 		}
 
-		private void ParseInternal(UhtPropertyDelegate propertyDelegate)
+		private void ParseInternal(UhtParsingScope topScope, UhtPropertySpecifierContext specifierContext, UhtPropertyDelegate propertyDelegate)
 		{
-			this._specifierContext.PropertySettings.LineNumber = this.TokenReader.InputLine;
+			UhtPropertySettings propertySettings = specifierContext.PropertySettings;
+			IUhtTokenReader tokenReader = topScope.TokenReader;
 
-			bool isParamList = this._specifierContext.PropertySettings.PropertyCategory != UhtPropertyCategory.Member && this.TokenReader.TryOptional("UPARAM");
+			propertySettings.LineNumber = tokenReader.InputLine;
 
-			UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(this._specifierContext, "Variable",
-				isParamList ? this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyArgument) : this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
-			if (_declarationStyle == UhtParsePropertyDeclarationStyle.UPROPERTY || isParamList)
-			{
-				specifiers.ParseSpecifiers();
-			}
+			// Parse type information including UPARAM that might appear in template arguments
+			PreParseTypeInternal(specifierContext, false);
 
-			if (this._specifierContext.PropertySettings.PropertyCategory != UhtPropertyCategory.Member)
-			{
-				// const before the variable type support (only for params)
-				if (this.TokenReader.TryOptional("const"))
-				{
-					this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.ConstParm;
-					this._specifierContext.PropertySettings.MetaData.Add(UhtNames.NativeConst, "");
-				}
-			}
-
-			UhtCompilerDirective compilerDirective = this.TopScope.HeaderParser.GetCurrentCompositeCompilerDirective();
+			UhtCompilerDirective compilerDirective = topScope.HeaderParser.GetCurrentCompositeCompilerDirective();
 			if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditorOnlyData))
 			{
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.EditorOnly;
+				propertySettings.PropertyFlags |= EPropertyFlags.EditorOnly;
 			}
 			else if (compilerDirective.HasAnyFlags(UhtCompilerDirective.WithEditor))
 			{
 				// Checking for this error is a bit tricky given legacy code.  
 				// 1) If already wrapped in WITH_EDITORONLY_DATA (see above), then we ignore the error via the else 
 				// 2) Ignore any module that is an editor module
-				UhtPackage package = this.TopScope.HeaderParser.HeaderFile.Package;
+				UhtPackage package = topScope.ScopeType.HeaderFile.Package;
 				UHTManifest.Module module = package.Module;
 				bool isEditorModule =
 					module.ModuleType == UHTModuleType.EngineEditor ||
 					module.ModuleType == UHTModuleType.GameEditor ||
 					module.ModuleType == UHTModuleType.EngineUncooked ||
 					module.ModuleType == UHTModuleType.GameUncooked;
-				if (this._specifierContext.PropertySettings.PropertyCategory == UhtPropertyCategory.Member && !isEditorModule)
+				if (propertySettings.PropertyCategory == UhtPropertyCategory.Member && !isEditorModule)
 				{
-					this.TokenReader.LogError("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead.");
+					tokenReader.LogError("UProperties should not be wrapped by WITH_EDITOR, use WITH_EDITORONLY_DATA instead.");
 				}
 			}
 
-			// Store the start and end positions of the parsed type
-			int startPos = this.TokenReader.InputPos;
-
-			// Process the specifiers
-			if (_declarationStyle == UhtParsePropertyDeclarationStyle.UPROPERTY || isParamList)
-			{
-				specifiers.ParseDeferred();
-			}
-
-			// If we saw a BlueprintGetter but did not see BlueprintSetter or 
-			// or BlueprintReadWrite then treat as BlueprintReadOnly
-			if (this._specifierContext.SeenBlueprintGetterSpecifier && !this._specifierContext.SeenBlueprintWriteSpecifier)
-			{
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.BlueprintReadOnly;
-			}
-
-			if (this._specifierContext.PropertySettings.MetaData.ContainsKey(UhtNames.ExposeOnSpawn))
-			{
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.ExposeOnSpawn;
-			}
-
-			UhtAccessSpecifier accessSpecifier = TopScope.AccessSpecifier;
-			if (accessSpecifier == UhtAccessSpecifier.Public || this._specifierContext.PropertySettings.PropertyCategory != UhtPropertyCategory.Member)
-			{
-				this._specifierContext.PropertySettings.PropertyFlags &= ~EPropertyFlags.Protected;
-				this._specifierContext.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.Public;
-				this._specifierContext.PropertySettings.PropertyExportFlags &= ~(UhtPropertyExportFlags.Private | UhtPropertyExportFlags.Protected);
-
-				this._specifierContext.PropertySettings.PropertyFlags &= ~EPropertyFlags.NativeAccessSpecifiers;
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.NativeAccessSpecifierPublic;
-			}
-			else if (accessSpecifier == UhtAccessSpecifier.Protected)
-			{
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.Protected;
-				this._specifierContext.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.Protected;
-				this._specifierContext.PropertySettings.PropertyExportFlags &= ~(UhtPropertyExportFlags.Public | UhtPropertyExportFlags.Private);
-
-				this._specifierContext.PropertySettings.PropertyFlags &= ~EPropertyFlags.NativeAccessSpecifiers;
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.NativeAccessSpecifierProtected;
-			}
-			else if (accessSpecifier == UhtAccessSpecifier.Private)
-			{
-				this._specifierContext.PropertySettings.PropertyFlags &= ~EPropertyFlags.Protected;
-				this._specifierContext.PropertySettings.PropertyExportFlags |= UhtPropertyExportFlags.Private;
-				this._specifierContext.PropertySettings.PropertyExportFlags &= ~(UhtPropertyExportFlags.Public | UhtPropertyExportFlags.Protected);
-
-				this._specifierContext.PropertySettings.PropertyFlags &= ~EPropertyFlags.NativeAccessSpecifiers;
-				this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.NativeAccessSpecifierPrivate;
-			}
-			else
-			{
-				throw new UhtIceException("Unknown access level");
-			}
-
 			// Swallow inline keywords
-			if (this._specifierContext.PropertySettings.PropertyCategory == UhtPropertyCategory.Return)
+			if (propertySettings.PropertyCategory == UhtPropertyCategory.Return)
 			{
-				this.TokenReader
+				tokenReader
 					.Optional("inline")
 					.Optional("FORCENOINLINE")
 					.OptionalStartsWith("FORCEINLINE");
@@ -872,17 +822,17 @@ namespace EpicGames.UHT.Parsers
 			UhtLayoutMacroType layoutMacroType = UhtLayoutMacroType.None;
 			if (this._options.HasAnyFlags(UhtPropertyParseOptions.ParseLayoutMacro))
 			{
-				ref UhtToken layoutToken = ref this.TokenReader.PeekToken();
+				ref UhtToken layoutToken = ref tokenReader.PeekToken();
 				if (layoutToken.IsIdentifier())
 				{
 					if (s_layoutMacroTypes.TryGetValue(layoutToken.Value, out layoutMacroType))
 					{
-						this.TokenReader.ConsumeToken();
-						this.TokenReader.Require('(');
-						hasWrapperBrackets = this.TokenReader.TryOptional('(');
+						tokenReader.ConsumeToken();
+						tokenReader.Require('(');
+						hasWrapperBrackets = tokenReader.TryOptional('(');
 						if (layoutMacroType.IsEditorOnly())
 						{
-							this._specifierContext.PropertySettings.PropertyFlags |= EPropertyFlags.EditorOnly;
+							propertySettings.PropertyFlags |= EPropertyFlags.EditorOnly;
 						}
 					}
 				}
@@ -893,159 +843,257 @@ namespace EpicGames.UHT.Parsers
 				//@TODO - deprecate
 				else // if (LayoutToken.IsSymbol(';'))
 				{
-					this.TokenReader.ConsumeToken();
+					tokenReader.ConsumeToken();
 				}
 			}
 
 			//@TODO: Should flag as settable from a const context, but this is at least good enough to allow use for C++ land
-			this.TokenReader.Optional("mutable");
+			tokenReader.Optional("mutable");
 
 			// Gather the type tokens and possibly the property name.
-			this.TokenReader.While(_gatherTypeTokensDelegate);
+			tokenReader.While(_gatherTypeTokensDelegate);
 
 			// Verify we at least have one type
 			if (this._currentTypeTokens.Count < 1)
 			{
-				throw new UhtException(this.TokenReader, $"{this._specifierContext.PropertySettings.PropertyCategory.GetHintText()}: Missing variable type or name");
+				throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Missing variable type or name");
 			}
 
 			// Consume the wrapper brackets.  This is just an extra set
 			if (hasWrapperBrackets)
 			{
-				this.TokenReader.Require(')');
+				tokenReader.Require(')');
 			}
 
 			// Check for any disallowed flags
-			if (this._specifierContext.PropertySettings.PropertyFlags.HasAnyFlags(this._specifierContext.PropertySettings.DisallowPropertyFlags))
+			if (propertySettings.PropertyFlags.HasAnyFlags(propertySettings.DisallowPropertyFlags))
 			{
-				this.TokenReader.LogError("Specified type modifiers not allowed here");
+				tokenReader.LogError("Specified type modifiers not allowed here");
 			}
 
 			if (this._options.HasAnyFlags(UhtPropertyParseOptions.AddModuleRelativePath))
 			{
-				UhtParsingScope.AddModuleRelativePathToMetaData(this._specifierContext.PropertySettings.MetaData, this._specifierContext.Scope.ScopeType.HeaderFile);
+				UhtParsingScope.AddModuleRelativePathToMetaData(propertySettings.MetaData, topScope.ScopeType.HeaderFile);
 			}
 
 			// Fetch the name of the property, bitfield and array size
 			if (layoutMacroType != UhtLayoutMacroType.None)
 			{
-				this.TokenReader.Require(',');
-				UhtToken nameToken = this.TokenReader.GetIdentifier();
+				tokenReader.Require(',');
+				UhtToken nameToken = tokenReader.GetIdentifier();
 				if (layoutMacroType.IsArray())
 				{
-					this.TokenReader.Require(',');
-					RequireArray(this._specifierContext.PropertySettings, ref nameToken, ')');
+					tokenReader.Require(',');
+					RequireArray(tokenReader, propertySettings, ref nameToken, ')');
 				}
 				else if (layoutMacroType.IsBitfield())
 				{
-					this.TokenReader.Require(',');
-					RequireBitfield(this._specifierContext.PropertySettings, ref nameToken);
+					tokenReader.Require(',');
+					RequireBitfield(tokenReader, propertySettings, ref nameToken);
 				}
 				else if (layoutMacroType.HasInitializer())
 				{
-					this.TokenReader.SkipBrackets('(', ')', 1);
+					tokenReader.SkipBrackets('(', ')', 1);
 				}
-				this.TokenReader.Require(')');
+				tokenReader.Require(')');
 
-				Finalize(ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
 			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.List))
 			{
 				// Extract the property name from the types
 				if (this._currentTypeTokens.Count < 2 || !this._currentTypeTokens[^1].IsIdentifier())
 				{
-					throw new UhtException(this.TokenReader, $"{this._specifierContext.PropertySettings.PropertyCategory.GetHintText()}: Expected name");
+					throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Expected name");
 				}
 				UhtToken nameToken = this._currentTypeTokens[^1];
 				this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
-				CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken);
+				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
 
 				ReadOnlyMemory<UhtToken> typeTokens = new(this._currentTypeTokens.ToArray());
 
 				while (true)
 				{
-					UhtProperty _ = Finalize(ref nameToken, typeTokens, layoutMacroType, propertyDelegate);
+					UhtProperty _ = Finalize(topScope, specifierContext, ref nameToken, typeTokens, layoutMacroType, propertyDelegate);
 
 					// If we have reached the end
-					if (!this.TokenReader.TryOptional(','))
+					if (!tokenReader.TryOptional(','))
 					{
 						break;
 					}
 
 					// While we could continue parsing, the old UHT would flag this as an error.
-					throw new UhtException(TopScope.TokenReader, $"Comma delimited properties cannot be converted");
+					throw new UhtException(tokenReader, $"Comma delimited properties cannot be converted");
 
 					// we'll need any metadata tags we parsed later on when we call ConvertEOLCommentToTooltip() so the tags aren't clobbered
 					//this.SpecifierContext.PropertySettings.MetaData = Property.MetaData.Clone();
 					//this.SpecifierContext.PropertySettings.ResetTrailingSettings();
 
 					// Get the next property name
-					//NameToken = this.TokenReader.GetIdentifier();
+					//NameToken = tokenReader.GetIdentifier();
 					//CheckForOptionalParts(this.SpecifierContext.PropertySettings, ref NameToken);
 				}
 			}
 			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.CommaSeparatedName))
 			{
-				this.TokenReader.Require(',');
-				UhtToken nameToken = this.TokenReader.GetIdentifier();
-				CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken);
-				Finalize(ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				tokenReader.Require(',');
+				UhtToken nameToken = tokenReader.GetIdentifier();
+				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
 			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.FunctionNameIncluded))
 			{
 				UhtToken nameToken = this._currentTypeTokens[^1];
 				nameToken.Value = new StringView("Function");
-				if (CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken))
+				if (CheckForOptionalParts(tokenReader, propertySettings, ref nameToken))
 				{
-					nameToken = this.TokenReader.GetIdentifier("function name");
+					nameToken = tokenReader.GetIdentifier("function name");
 				}
 				else
 				{
 					if (this._currentTypeTokens.Count < 2 || !this._currentTypeTokens[^1].IsIdentifier())
 					{
-						throw new UhtException(this.TokenReader, $"{this._specifierContext.PropertySettings.PropertyCategory.GetHintText()}: Expected name");
+						throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Expected name");
 					}
 					nameToken = this._currentTypeTokens[^1];
 					this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
 				}
-				Finalize(ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
 			else if (this._options.HasAnyFlags(UhtPropertyParseOptions.NameIncluded))
 			{
 				if (this._currentTypeTokens.Count < 2 || !this._currentTypeTokens[^1].IsIdentifier())
 				{
-					throw new UhtException(this.TokenReader, $"{this._specifierContext.PropertySettings.PropertyCategory.GetHintText()}: Expected name");
+					throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()}: Expected name");
 				}
 				UhtToken nameToken = this._currentTypeTokens[^1];
 				this._currentTypeTokens.RemoveAt(this._currentTypeTokens.Count - 1);
-				CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken);
-				Finalize(ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
 			}
 			else
 			{
 				UhtToken nameToken = new();
-				CheckForOptionalParts(this._specifierContext.PropertySettings, ref nameToken);
-				Finalize(ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+				CheckForOptionalParts(tokenReader, propertySettings, ref nameToken);
+				Finalize(topScope, specifierContext, ref nameToken, new ReadOnlyMemory<UhtToken>(this._currentTypeTokens.ToArray()), layoutMacroType, propertyDelegate);
+			}
+		}
+
+		/// <summary>
+		/// Parse the type elements excluding the type itself.
+		/// </summary>
+		/// <param name="specifierContext">Context of what is being parsed</param>
+		/// <param name="isTemplateArgument">If true, this is part of a template argument</param>
+		/// <exception cref="UhtIceException"></exception>
+		/// <exception cref="UhtException"></exception>
+		private static void PreParseTypeInternal(UhtPropertySpecifierContext specifierContext, bool isTemplateArgument)
+		{
+			UhtPropertySettings propertySettings = specifierContext.PropertySettings;
+			IUhtTokenReader tokenReader = specifierContext.TokenReader;
+			UhtSession session = specifierContext.Type.Session;
+
+			// We parse specifiers when:
+			//
+			// 1. This is the start of a member property (but not a template)
+			// 2. The UPARAM identifier is found
+			bool isMember = propertySettings.PropertyCategory == UhtPropertyCategory.Member;
+			bool parseSpecifiers = (isMember && !isTemplateArgument) || tokenReader.TryOptional("UPARAM");
+
+			UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(specifierContext, "Variable",
+				isMember ? session.GetSpecifierTable(UhtTableNames.PropertyMember) : session.GetSpecifierTable(UhtTableNames.PropertyArgument));
+			if (parseSpecifiers)
+			{
+				specifiers.ParseSpecifiers();
+			}
+
+			if (propertySettings.PropertyCategory != UhtPropertyCategory.Member && !isTemplateArgument)
+			{
+				// const before the variable type support (only for params)
+				if (tokenReader.TryOptional("const"))
+				{
+					propertySettings.PropertyFlags |= EPropertyFlags.ConstParm;
+					propertySettings.MetaData.Add(UhtNames.NativeConst, "");
+				}
+			}
+
+			// Process the specifiers
+			if (parseSpecifiers)
+			{
+				specifiers.ParseDeferred();
+			}
+
+			// If we saw a BlueprintGetter but did not see BlueprintSetter or 
+			// or BlueprintReadWrite then treat as BlueprintReadOnly
+			if (specifierContext.SeenBlueprintGetterSpecifier && !specifierContext.SeenBlueprintWriteSpecifier)
+			{
+				propertySettings.PropertyFlags |= EPropertyFlags.BlueprintReadOnly;
+			}
+
+			if (propertySettings.MetaData.ContainsKey(UhtNames.ExposeOnSpawn))
+			{
+				propertySettings.PropertyFlags |= EPropertyFlags.ExposeOnSpawn;
+			}
+
+			if (!isTemplateArgument)
+			{
+				UhtAccessSpecifier accessSpecifier = specifierContext.AccessSpecifier;
+				if (accessSpecifier == UhtAccessSpecifier.Public || propertySettings.PropertyCategory != UhtPropertyCategory.Member)
+				{
+					propertySettings.PropertyFlags &= ~EPropertyFlags.Protected;
+					propertySettings.PropertyExportFlags |= UhtPropertyExportFlags.Public;
+					propertySettings.PropertyExportFlags &= ~(UhtPropertyExportFlags.Private | UhtPropertyExportFlags.Protected);
+
+					propertySettings.PropertyFlags &= ~EPropertyFlags.NativeAccessSpecifiers;
+					propertySettings.PropertyFlags |= EPropertyFlags.NativeAccessSpecifierPublic;
+				}
+				else if (accessSpecifier == UhtAccessSpecifier.Protected)
+				{
+					propertySettings.PropertyFlags |= EPropertyFlags.Protected;
+					propertySettings.PropertyExportFlags |= UhtPropertyExportFlags.Protected;
+					propertySettings.PropertyExportFlags &= ~(UhtPropertyExportFlags.Public | UhtPropertyExportFlags.Private);
+
+					propertySettings.PropertyFlags &= ~EPropertyFlags.NativeAccessSpecifiers;
+					propertySettings.PropertyFlags |= EPropertyFlags.NativeAccessSpecifierProtected;
+				}
+				else if (accessSpecifier == UhtAccessSpecifier.Private)
+				{
+					propertySettings.PropertyFlags &= ~EPropertyFlags.Protected;
+					propertySettings.PropertyExportFlags |= UhtPropertyExportFlags.Private;
+					propertySettings.PropertyExportFlags &= ~(UhtPropertyExportFlags.Public | UhtPropertyExportFlags.Protected);
+
+					propertySettings.PropertyFlags &= ~EPropertyFlags.NativeAccessSpecifiers;
+					propertySettings.PropertyFlags |= EPropertyFlags.NativeAccessSpecifierPrivate;
+				}
+				else
+				{
+					throw new UhtIceException("Unknown access level");
+				}
 			}
 		}
 
 		/// <summary>
 		/// Finish creating the property
 		/// </summary>
+		/// <param name="topScope">Top most scope being parsed</param>
+		/// <param name="specifierContext">Context of the property being parsed</param>
 		/// <param name="nameToken">The name of the property</param>
 		/// <param name="typeTokens">Series of tokens that represent the type</param>
 		/// <param name="layoutMacroType">Optional layout macro type being parsed</param>
 		/// <param name="propertyDelegate">Delegate to invoke when processing has been completed</param>
 		/// <returns>The newly created property.  During the parsing phase, this will often be a temporary property if the type references engine types.</returns>
-		private UhtProperty Finalize(ref UhtToken nameToken, ReadOnlyMemory<UhtToken> typeTokens, UhtLayoutMacroType layoutMacroType, UhtPropertyDelegate propertyDelegate)
+		private UhtProperty Finalize(UhtParsingScope topScope, UhtPropertySpecifierContext specifierContext, ref UhtToken nameToken, 
+			ReadOnlyMemory<UhtToken> typeTokens, UhtLayoutMacroType layoutMacroType, UhtPropertyDelegate propertyDelegate)
 		{
-			this._specifierContext.PropertySettings.SourceName = this._specifierContext.PropertySettings.PropertyCategory == UhtPropertyCategory.Return ? "ReturnValue" : nameToken.Value.ToString();
+			UhtPropertySettings propertySettings = specifierContext.PropertySettings;
+			IUhtTokenReader tokenReader = specifierContext.TokenReader;
+
+			propertySettings.SourceName = propertySettings.PropertyCategory == UhtPropertyCategory.Return ? "ReturnValue" : nameToken.Value.ToString();
 
 			// Try to resolve the property using any immediate mode property types
-			UhtProperty? newProperty = ResolveProperty(UhtPropertyResolvePhase.Parsing, this._specifierContext.PropertySettings, this._specifierContext.PropertySettings.Outer.HeaderFile.Data.Memory, typeTokens);
+			UhtProperty? newProperty = ResolveProperty(UhtPropertyResolvePhase.Parsing, propertySettings, propertySettings.Outer.HeaderFile.Data.Memory, typeTokens);
 			if (newProperty == null)
 			{
-				newProperty = new UhtPreResolveProperty(this._specifierContext.PropertySettings, typeTokens);
+				newProperty = new UhtPreResolveProperty(propertySettings, typeTokens);
 			}
 
 			// Force the category in non-engine projects
@@ -1068,7 +1116,7 @@ namespace EpicGames.UHT.Parsers
 				{
 					if (deprecatedIndex != newProperty.SourceName.Length - 11)
 					{
-						this.TokenReader.LogError("Deprecated variables must end with _DEPRECATED");
+						tokenReader.LogError("Deprecated variables must end with _DEPRECATED");
 					}
 
 					// We allow deprecated properties in blueprints that have getters and setters assigned as they may be part of a backwards compatibility path
@@ -1078,12 +1126,12 @@ namespace EpicGames.UHT.Parsers
 
 					if (warnOnGetter)
 					{
-						this.TokenReader.LogWarning($"{newProperty.PropertyCategory.GetHintText()}: Deprecated property '{newProperty.SourceName}' should not be marked as blueprint visible without having a BlueprintGetter");
+						tokenReader.LogWarning($"{newProperty.PropertyCategory.GetHintText()}: Deprecated property '{newProperty.SourceName}' should not be marked as blueprint visible without having a BlueprintGetter");
 					}
 
 					if (warnOnSetter)
 					{
-						this.TokenReader.LogWarning($"{newProperty.PropertyCategory.GetHintText()}: Deprecated property '{newProperty.SourceName}' should not be marked as blueprint writable without having a BlueprintSetter");
+						tokenReader.LogWarning($"{newProperty.PropertyCategory.GetHintText()}: Deprecated property '{newProperty.SourceName}' should not be marked as blueprint writable without having a BlueprintSetter");
 					}
 
 					// Warn if a deprecated property is visible
@@ -1091,7 +1139,7 @@ namespace EpicGames.UHT.Parsers
 						(!blueprintVisible && newProperty.PropertyFlags.HasAnyFlags(EPropertyFlags.BlueprintReadOnly) &&
 						!newProperty.PropertyExportFlags.HasAnyFlags(UhtPropertyExportFlags.ImpliedBlueprintPure))) // Is BPRO, but not via Implied Flags and not caught by Getter/Setter path above
 					{
-						this.TokenReader.LogWarning($"{newProperty.PropertyCategory.GetHintText()}: Deprecated property '{newProperty.SourceName}' should not be marked as visible or editable");
+						tokenReader.LogWarning($"{newProperty.PropertyCategory.GetHintText()}: Deprecated property '{newProperty.SourceName}' should not be marked as visible or editable");
 					}
 
 					newProperty.PropertyFlags |= EPropertyFlags.Deprecated;
@@ -1102,62 +1150,64 @@ namespace EpicGames.UHT.Parsers
 			// Try gathering metadata for member fields
 			if (newProperty.PropertyCategory == UhtPropertyCategory.Member)
 			{
-				UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(this._specifierContext, newProperty.SourceName, this.TopScope.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
+				UhtSpecifierParser specifiers = UhtSpecifierParser.GetThreadInstance(specifierContext, newProperty.SourceName, 
+					specifierContext.Type.Session.GetSpecifierTable(UhtTableNames.PropertyMember));
 				specifiers.ParseFieldMetaData();
-				this.TopScope.AddFormattedCommentsAsTooltipMetaData(newProperty);
+				topScope.AddFormattedCommentsAsTooltipMetaData(newProperty);
 			}
 
-			propertyDelegate(this.TopScope, newProperty, ref nameToken, layoutMacroType);
+			propertyDelegate(topScope, newProperty, ref nameToken, layoutMacroType);
 
 			// Void properties don't get added when they are the return value
 			if (newProperty.PropertyCategory != UhtPropertyCategory.Return || !this._options.HasAnyFlags(UhtPropertyParseOptions.DontAddReturn))
 			{
-				this.TopScope.ScopeType.AddChild(newProperty);
+				topScope.ScopeType.AddChild(newProperty);
 			}
 			return newProperty;
 		}
 
-		private bool CheckForOptionalParts(UhtPropertySettings propertySettings, ref UhtToken nameToken)
+		private static bool CheckForOptionalParts(IUhtTokenReader tokenReader, UhtPropertySettings propertySettings, ref UhtToken nameToken)
 		{
 			bool gotOptionalParts = false;
 
-			if (this.TokenReader.TryOptional('['))
+			if (tokenReader.TryOptional('['))
 			{
-				RequireArray(propertySettings, ref nameToken, ']');
-				this.TokenReader.Require(']');
+				RequireArray(tokenReader, propertySettings, ref nameToken, ']');
+				tokenReader.Require(']');
 				gotOptionalParts = true;
 			}
 
-			if (this.TokenReader.TryOptional(':'))
+			if (tokenReader.TryOptional(':'))
 			{
-				RequireBitfield(propertySettings, ref nameToken);
+				RequireBitfield(tokenReader, propertySettings, ref nameToken);
 				gotOptionalParts = true;
 			}
 			return gotOptionalParts;
 		}
 
-		private void RequireBitfield(UhtPropertySettings propertySettings, ref UhtToken nameToken)
+		private static void RequireBitfield(IUhtTokenReader tokenReader, UhtPropertySettings propertySettings, ref UhtToken nameToken)
 		{
-			if (!this.TokenReader.TryOptionalConstInt(out int bitfieldSize) || bitfieldSize != 1)
+			if (!tokenReader.TryOptionalConstInt(out int bitfieldSize) || bitfieldSize != 1)
 			{
-				throw new UhtException(this.TokenReader, $"Bad or missing bit field size for '{nameToken.Value}', must be 1.");
+				throw new UhtException(tokenReader, $"Bad or missing bit field size for '{nameToken.Value}', must be 1.");
 			}
 			propertySettings.IsBitfield = true;
 		}
 
-		private void RequireArray(UhtPropertySettings propertySettings, ref UhtToken nameToken, char terminator)
+		private static void RequireArray(IUhtTokenReader tokenReader, UhtPropertySettings propertySettings, ref UhtToken nameToken, char terminator)
 		{
 			// Ignore how the actual array dimensions are actually defined - we'll calculate those with the compiler anyway.
-			propertySettings.ArrayDimensions = this.TokenReader.GetRawString(terminator, UhtRawStringOptions.DontConsumeTerminator).ToString();
+			propertySettings.ArrayDimensions = tokenReader.GetRawString(terminator, UhtRawStringOptions.DontConsumeTerminator).ToString();
 			if (propertySettings.ArrayDimensions.Length == 0)
 			{
-				throw new UhtException(this.TokenReader, $"{propertySettings.PropertyCategory.GetHintText()} {nameToken.Value}: Missing array dimensions or terminating '{terminator}'");
+				throw new UhtException(tokenReader, $"{propertySettings.PropertyCategory.GetHintText()} {nameToken.Value}: Missing array dimensions or terminating '{terminator}'");
 			}
 		}
 
 		private bool GatherTypeTokens(ref UhtToken token)
 		{
-			if (this._currentTemplateDepth == 0 && token.IsSymbol() && (token.IsValue(',') || token.IsValue('(') || token.IsValue(')') || token.IsValue(';') || token.IsValue('[') || token.IsValue(':') || token.IsValue('=') || token.IsValue('{')))
+			if (this._currentTemplateDepth == 0 && token.IsSymbol() && (token.IsValue(',') || token.IsValue('(') || token.IsValue(')') || 
+				token.IsValue(';') || token.IsValue('[') || token.IsValue(':') || token.IsValue('=') || token.IsValue('{')))
 			{
 				return false;
 			}
@@ -1171,7 +1221,7 @@ namespace EpicGames.UHT.Parsers
 			{
 				if (this._currentTemplateDepth == 0)
 				{
-					throw new UhtTokenException(TokenReader, token, "',' or ')'");
+					throw new UhtTokenException(this._currentTokenReader!, token, "',' or ')'");
 				}
 				--this._currentTemplateDepth;
 			}
@@ -1190,7 +1240,7 @@ namespace EpicGames.UHT.Parsers
 		private static UhtParseResult UPROPERTYKeyword(UhtParsingScope topScope, UhtParsingScope actionScope, ref UhtToken token)
 		{
 			UhtPropertyParseOptions options = UhtPropertyParseOptions.ParseLayoutMacro | UhtPropertyParseOptions.List | UhtPropertyParseOptions.AddModuleRelativePath;
-			topScope.HeaderParser.GetCachedPropertyParser(topScope).Parse(EPropertyFlags.ParmFlags, options, UhtParsePropertyDeclarationStyle.UPROPERTY, UhtPropertyCategory.Member, s_propertyDelegate);
+			topScope.HeaderParser.GetCachedPropertyParser().Parse(topScope, EPropertyFlags.ParmFlags, options, UhtPropertyCategory.Member, s_propertyDelegate);
 			topScope.TokenReader.Require(';');
 			return UhtParseResult.Handled;
 		}
