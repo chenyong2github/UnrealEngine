@@ -121,7 +121,7 @@ struct FVisualizeResult
 
 struct FRasterState
 {
-	ERasterizerCullMode CullMode = CM_CW;
+	bool bReverseCulling = false;
 	bool bNearClip = true;
 };
 

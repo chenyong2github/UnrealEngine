@@ -22,6 +22,10 @@
 
 #define NANITE_VERT_REUSE_BATCH (COMPILER_SUPPORTS_WAVE_PERMUTE && ((NANITE_PRIM_SHADER && NANITE_VERTEX_PROGRAMMABLE) || (COMPUTESHADER && NANITE_PIXEL_PROGRAMMABLE)))
 
+#ifndef NANITE_TWO_SIDED
+#define NANITE_TWO_SIDED 0
+#endif
+
 #if NANITE_VERT_REUSE_BATCH
 // HWRasterizePS doesn't seem to work well in wave32 mode
 #if !PIXELSHADER
@@ -341,13 +345,12 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData Int
 	float3 v01 = Verts[1] - Verts[0];
 	float3 v02 = Verts[2] - Verts[0];
 
-	const bool bIsTwoSided = (RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
-
 	float DetXY = v01.x * v02.y - v01.y * v02.x;
-	if( DetXY >= 0.0f ) // Backface culled (except if two sided)
-	{
-		Tri.bIsValid = bIsTwoSided;
-	}
+	const bool bBackFace = (DetXY >= 0.0f);
+
+#if !NANITE_TWO_SIDED
+	Tri.bIsValid = !bBackFace;
+#endif
 
 	float InvDet = rcp( DetXY );
 	float2 GradZ;
@@ -381,25 +384,28 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData Int
 	// Force 1 pixel
 	//MaxPixel = max( MaxPixel, MinPixel );
 	
+	// Limit the rasterizer bounds to a sensible max.
+	Tri.MaxPixel = min(Tri.MaxPixel, Tri.MinPixel + 63);
+
 	// Cull when no pixels covered
 	if( any( Tri.MinPixel > Tri.MaxPixel ) )
 		Tri.bIsValid = false;
-
-	// Limit the rasterizer bounds to a sensible max.
-	Tri.MaxPixel = min( Tri.MaxPixel, Tri.MinPixel + 63 );
 
 	// 4.8 fixed point
 	Tri.Edge01 = -v01.xy;
 	Tri.Edge12 = Vert1 - Vert2;
 	Tri.Edge20 = v02.xy;
 
-	if (bIsTwoSided && DetXY >= 0.0f)
+#if NANITE_TWO_SIDED
+	BRANCH
+	if( bBackFace )
 	{
 		// Swap winding order to support two sided materials
 		Tri.Edge01 *= -1.0f;
 		Tri.Edge12 *= -1.0f;
 		Tri.Edge20 *= -1.0f;
 	}
+#endif
 	
 	// Rebase off MinPixel with half pixel offset
 	// 4.8 fixed point
@@ -944,6 +950,28 @@ uint DeduplicateVertIndices(FInstanceSceneData InstanceData, FCluster Cluster, u
 }
 #endif
 
+struct FTriRange
+{
+	uint Start;
+	uint Num;
+};
+
+FTriRange GetTriangleRange(FCluster Cluster, bool bHasRasterBin, uint3 RasterBin)
+{
+	FTriRange Range;
+	if (bHasRasterBin)
+	{
+		Range.Start = RasterBin.y;
+		Range.Num = RasterBin.z - RasterBin.y;
+	}
+	else
+	{
+		Range.Start = 0;
+		Range.Num = Cluster.NumTris;
+	}
+	return Range;
+}
+
 #if COMPUTESHADER
 
 [numthreads(SWRASTER_NUM_THREADS, 1, 1)]
@@ -951,8 +979,7 @@ void MicropolyRasterize(
 	uint	VisibleIndex		: SV_GroupID,
 	uint	GroupThreadIndex	: SV_GroupIndex) 
 {
-	uint3 RasterBin = uint3(0,0,0);
-
+	uint3 RasterBin;
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
 	if (bHasRasterBin)
@@ -1001,7 +1028,8 @@ void MicropolyRasterize(
 	FInstanceDynamicData InstanceDynamicData = CalculateInstanceDynamicData(NaniteView, InstanceData);
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
-
+	FTriRange TriRange = GetTriangleRange(Cluster, bHasRasterBin, RasterBin);
+	
 	int4 ViewRect = NaniteView.ViewRect;
 
 #if VIRTUAL_TEXTURE_TARGET
@@ -1027,13 +1055,11 @@ void MicropolyRasterize(
 	Raster.PageTranslation		= PageTranslation;
 
 #if NANITE_VERT_REUSE_BATCH
-	const uint FirstTriIndex = RasterBin.y;
-	const uint TriIndex = FirstTriIndex + GroupThreadIndex;
-	const uint BatchTriCount = RasterBin.z - FirstTriIndex;
+	const uint TriIndex = TriRange.Start + GroupThreadIndex;
 
 	uint3 SrcLaneIndices;
 	uint MyVertIndex;
-	uint NumUniqueVerts = DeduplicateVertIndices(InstanceData, Cluster, FirstTriIndex, BatchTriCount, TriIndex, GroupThreadIndex, MyVertIndex, SrcLaneIndices);
+	uint NumUniqueVerts = DeduplicateVertIndices(InstanceData, Cluster, TriRange.Start, TriRange.Num, TriIndex, GroupThreadIndex, MyVertIndex, SrcLaneIndices);
 
 	FNaniteTransformedVert Vert;
 	float3 SubpixelCoords;
@@ -1061,7 +1087,7 @@ void MicropolyRasterize(
 	FRasterTri Tri = SetupTriangle( Raster, Verts, InterpData );
 
 	// TODO: distribute work?
-	if(GroupThreadIndex < BatchTriCount && Tri.bIsValid)
+	if(GroupThreadIndex < TriRange.Num && Tri.bIsValid)
 	{
 		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
 		const bool bScanline = WaveActiveAnyTrue( Tri.MaxPixel.x - Tri.MinPixel.x > 4 );
@@ -1080,23 +1106,25 @@ void MicropolyRasterize(
 	UNROLL
 	for( uint i = 0; i < VERTEX_CACHE_SIZE; i += SWRASTER_NUM_THREADS )
 	{
-		uint VertIndex = GroupThreadIndex + i;
-		if( VertIndex < Cluster.NumVerts )
-		{
-			// Transform vertex and store in group shared memory.
-			float3 PointLocal = DecodePosition(VertIndex, Cluster);
-		#if NANITE_PIXEL_PROGRAMMABLE
-			GroupVerts[VertIndex] = PointLocal;
-		#else
-			float3 WorldPositionOffset = 0.0f;
-		#if NANITE_VERTEX_PROGRAMMABLE
-			WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
-		#endif
-			float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
-			float4 PointSubpixelClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToSubpixelClip);
-			GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip);
-		#endif
-		}
+		const uint VertIndex = GroupThreadIndex + i;
+		
+		BRANCH
+		if (VertIndex >= Cluster.NumVerts)
+			break;
+
+		// Transform vertex and store in group shared memory.
+		float3 PointLocal = DecodePosition(VertIndex, Cluster);
+	#if NANITE_PIXEL_PROGRAMMABLE
+		GroupVerts[VertIndex] = PointLocal;
+	#else
+		float3 WorldPositionOffset = 0.0f;
+	#if NANITE_VERTEX_PROGRAMMABLE
+		WorldPositionOffset = EvaluateWorldPositionOffset(NaniteView, InstanceData, InstanceDynamicData, Cluster, VertIndex, PointLocal);
+	#endif
+		float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
+		float4 PointSubpixelClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToSubpixelClip);
+		GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip);
+	#endif
 	}
 
 	GroupMemoryBarrierWithGroupSync();
@@ -1104,23 +1132,17 @@ void MicropolyRasterize(
 	UNROLL
 	for( uint j = 0; j < NANITE_MAX_CLUSTER_TRIANGLES; j += SWRASTER_NUM_THREADS )
 	{
-		uint TriIndex = GroupThreadIndex + j;
-
+		const uint ThreadIndex = GroupThreadIndex + j;
+		
 		BRANCH
-		if (bHasRasterBin && (TriIndex < RasterBin.y || TriIndex >= RasterBin.z))
-		{
-			// Tri not contained in active rasterizer bin
-			continue;
-		}
+		if (ThreadIndex >= TriRange.Num)
+			break;
 
-		uint3 VertIndexes = 0;
-		if( TriIndex < Cluster.NumTris )
+		const uint TriIndex = ThreadIndex + TriRange.Start;
+		uint3 VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
+		if (ReverseWindingOrder(InstanceData))
 		{
-			VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
-			if (ReverseWindingOrder(InstanceData))
-			{
-				VertIndexes.yz = VertIndexes.zy;
-			}
+			VertIndexes.yz = VertIndexes.zy;
 		}
 
 		float3 Verts[3];
@@ -1222,8 +1244,7 @@ struct VSOut
 #endif
 #if VERTEX_TO_TRIANGLE_MASKS
 #if NANITE_VERT_REUSE_BATCH
-	nointerpolation uint BatchFirstTriIndex		: TEXCOORD6;
-	CUSTOM_INTERPOLATION uint ToTriangleMasks	: TEXCOORD3;
+	CUSTOM_INTERPOLATION uint2 ToTriangleMask_TriRangeStart : TEXCOORD3;
 #else
 	CUSTOM_INTERPOLATION uint4 ToTriangleMasks	: TEXCOORD3;
 #endif
@@ -1397,7 +1418,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	uint VisibleIndex = LDS.S.ClusterIndex;
 #endif
 
-	uint3 RasterBin = uint3(0,0,0);
+	uint3 RasterBin;
 
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
@@ -1433,22 +1454,30 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 #endif
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FTriRange TriRange = GetTriangleRange(Cluster, bHasRasterBin, RasterBin);
 
 #if NANITE_VERT_REUSE_BATCH
 #if VERTEX_TO_TRIANGLE_MASKS
 	GroupVertToTriMasks[GroupThreadID] = 0;
 #endif
-	const uint FirstTriIndex = RasterBin.y;
-	const uint TriIndex = FirstTriIndex + GroupThreadID;
-	const uint BatchTriCount = RasterBin.z - FirstTriIndex;
+	if (!bHasRasterBin)
+	{
+		// TODO: Ugly workaround
+		// The code was unconditionally reading RasterBin values even when bHasRasterBin was false.
+		// As RasterBin was 0 initialized, it would just render no triangles in that case.
+		// Keep doing that for now, until Jian submits the proper fix.
+		TriRange.Num = 0;
+	}
+	
+	const uint TriIndex = TriRange.Start + GroupThreadID;
 	
 	uint3 SrcLaneIndices;
 	uint MyVertIndex;
-	uint NumUniqueVerts = DeduplicateVertIndices(InstanceData, Cluster, FirstTriIndex, BatchTriCount, TriIndex, GroupThreadID, MyVertIndex, SrcLaneIndices);
+	uint NumUniqueVerts = DeduplicateVertIndices(InstanceData, Cluster, TriRange.Start, TriRange.Num, TriIndex, GroupThreadID, MyVertIndex, SrcLaneIndices);
 
 	PrimitiveOutput PrimOutput;
 	PrimOutput.VertCount = NumUniqueVerts;
-	PrimOutput.PrimCount = BatchTriCount;
+	PrimOutput.PrimCount = TriRange.Num;
 
 	if (GroupThreadID < NumUniqueVerts)
 	{
@@ -1456,13 +1485,13 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 		PrimOutput.Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, MyVertIndex, PixelValue);
 	}
 
-	if (GroupThreadID < BatchTriCount)
+	if (GroupThreadID < TriRange.Num)
 	{
 		PrimOutput.PrimExport = PackTriangleExport(SrcLaneIndices);
 	}
 
 #if VERTEX_TO_TRIANGLE_MASKS
-	if (GroupThreadID < BatchTriCount)
+	if (GroupThreadID < TriRange.Num)
 	{
 		InterlockedOr(GroupVertToTriMasks[SrcLaneIndices.x], 1 << GroupThreadID);
 		InterlockedOr(GroupVertToTriMasks[SrcLaneIndices.y], 1 << GroupThreadID);
@@ -1473,14 +1502,11 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	if (GroupThreadID < NumUniqueVerts)
 	{
-		PrimOutput.Out.BatchFirstTriIndex = FirstTriIndex;
-		PrimOutput.Out.ToTriangleMasks = GroupVertToTriMasks[GroupThreadID];
+		PrimOutput.Out.ToTriangleMask_TriRangeStart = uint2(GroupVertToTriMasks[GroupThreadID], TriRange.Start);
 	}
 #endif
 
 #else // !NANITE_VERT_REUSE_BATCH
-	uint FirstExportTriangle = 0;
-	uint NumExportTriangles = Cluster.NumTris;
 	uint NumExportVertices  = Cluster.NumVerts;
 
 	bool bNeedsCompaction = false;
@@ -1488,17 +1514,15 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	BRANCH
 	if (bHasRasterBin)
 	{
-		FirstExportTriangle = RasterBin.y;
-		NumExportTriangles  = RasterBin.z - RasterBin.y;
 		NumExportVertices   = Cluster.NumVerts;
-		bNeedsCompaction    = (NumExportTriangles != Cluster.NumTris);
+		bNeedsCompaction    = (Cluster.NumTris != Cluster.NumTris);
 	}
 
 	uint SrcVertexIndex = GroupThreadID;
 	uint3 TriangleIndices;
-	if (GroupThreadID < NumExportTriangles)
+	if (GroupThreadID < TriRange.Num)
 	{
-		TriangleIndices = ReadTriangleIndices(Cluster, FirstExportTriangle + GroupThreadID);
+		TriangleIndices = ReadTriangleIndices(Cluster, TriRange.Start + GroupThreadID);
 		if (ReverseWindingOrder(InstanceData))
 		{
 			TriangleIndices = TriangleIndices.xzy;
@@ -1521,7 +1545,7 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 			LDS.S.ReferencedVerticesMasks[GroupThreadID] = 0u;
 		}
 		GroupMemoryBarrierWithGroupSync();
-		if (GroupThreadID < NumExportTriangles)
+		if (GroupThreadID < TriRange.Num)
 		{
 			// Mark referenced vertices
 			InterlockedOr(LDS.S.ReferencedVerticesMasks[TriangleIndices.x >> 5], 1u << (TriangleIndices.x & 31));
@@ -1549,13 +1573,13 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 			{
 				// Fill mappings between old and new (compact) vertex indices
 				const uint NewVertexIndex = LDS.S.ReferencedVerticesPrefixSums[DwordIndex] + countbits(BitFieldExtractU32(LDS.S.ReferencedVerticesMasks[DwordIndex], BitIndex, 0));
-				LDS.S.OldToNewVertex[GroupThreadID] = NewVertexIndex;
-				LDS.S.NewToOldVertex[NewVertexIndex] = GroupThreadID;
+				LDS.S.OldToNewVertex[GroupThreadID] = (uchar)NewVertexIndex;
+				LDS.S.NewToOldVertex[NewVertexIndex] = (uchar)GroupThreadID;
 			}
 		}
 
 		GroupMemoryBarrierWithGroupSync();
-		if (GroupThreadID < NumExportTriangles)
+		if (GroupThreadID < TriRange.Num)
 		{
 			// Remap triangles to new vertex indices
 			TriangleIndices = uint3(LDS.S.OldToNewVertex[TriangleIndices.x], LDS.S.OldToNewVertex[TriangleIndices.y], LDS.S.OldToNewVertex[TriangleIndices.z]);
@@ -1569,9 +1593,9 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 	PrimitiveOutput PrimOutput;
 	PrimOutput.VertCount = NumExportVertices;
-	PrimOutput.PrimCount = NumExportTriangles;
+	PrimOutput.PrimCount = TriRange.Num;
 
-	if (GroupThreadID < NumExportTriangles)
+	if (GroupThreadID < TriRange.Num)
 	{
 		PrimOutput.PrimExport = PackTriangleExport(TriangleIndices);
 	}
@@ -1594,9 +1618,9 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 	}
 
 	GroupMemoryBarrierWithGroupSync();
-	if (GroupThreadID < NumExportTriangles)
+	if (GroupThreadID < TriRange.Num)
 	{
-		const uint TriangleID = FirstExportTriangle + GroupThreadID;
+		const uint TriangleID = TriRange.Start + GroupThreadID;
 		const uint DwordIndex = (TriangleID >> 5) & 3;
 		const uint TriangleMask = 1 << (TriangleID & 31);
 		InterlockedOr(LDS.VertexToTriangleMasks[TriangleIndices.x][DwordIndex], TriangleMask);
@@ -1643,7 +1667,7 @@ void HWRasterizeMS(
 {
 	uint VisibleIndex = GroupID;
 
-	uint3 RasterBin = uint3(0,0,0);
+	uint3 RasterBin;
 
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
@@ -1679,33 +1703,29 @@ void HWRasterizeMS(
 #endif
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FTriRange TriRange = GetTriangleRange(Cluster, bHasRasterBin, RasterBin);
 
-	SetMeshOutputCounts(Cluster.NumVerts, Cluster.NumTris);
+	SetMeshOutputCounts(Cluster.NumVerts, TriRange.Num);
 
-	if (GroupThreadID < Cluster.NumTris)
+	BRANCH
+	if (GroupThreadID < TriRange.Num)
 	{
-		uint TriangleIndex = GroupThreadID;
+		uint TriangleIndex = TriRange.Start + GroupThreadID;
 
-		uint3 TriangleIndices = uint3(0u, 0u, 0u);
-
-		BRANCH
-		if (!bHasRasterBin || (TriangleIndex >= RasterBin.y && TriangleIndex < RasterBin.z))
+		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
+		if (ReverseWindingOrder(InstanceData))
 		{
-			TriangleIndices = ReadTriangleIndices(Cluster, TriangleIndex);
-			if (ReverseWindingOrder(InstanceData))
-			{
-				TriangleIndices = TriangleIndices.xzy;
-			}
+			TriangleIndices = TriangleIndices.xzy;
 		}
 
-		MESH_SHADER_WRITE_TRIANGLE(TriangleIndex, TriangleIndices);
+		MESH_SHADER_WRITE_TRIANGLE(GroupThreadID, TriangleIndices);
 
 		PrimitiveAttributes Attributes;
 		Attributes.PackedData.x = VisibleIndex;
 		Attributes.PackedData.y = TriangleIndex;
 		Attributes.PackedData.z = asuint(NaniteView.ViewSizeAndInvSize.x);
 		Attributes.PackedData.w = asuint(NaniteView.ViewSizeAndInvSize.y);
-		MESH_SHADER_WRITE_PRIMITIVE(TriangleIndex, Attributes);
+		MESH_SHADER_WRITE_PRIMITIVE(GroupThreadID, Attributes);
 	}
 
 	const uint Vertex0 = GroupThreadID + 0;
@@ -1736,7 +1756,7 @@ VSOut HWRasterizeVS(
 	uint VisibleIndex	: SV_InstanceID
 	)
 {
-	uint3 RasterBin = uint3(0, 0, 0);
+	uint3 RasterBin;
 
 	const bool bHasRasterBin = (RenderFlags & NANITE_RENDER_FLAG_HAS_RASTER_BIN) != 0u;
 	BRANCH
@@ -1762,8 +1782,8 @@ VSOut HWRasterizeVS(
 
 	VisibleIndex = (MaxVisibleClusters - 1) - VisibleIndex; // HW clusters are written from the top (in the visible cluster list)
 
-	uint TriIndex = VertexID / 3;
-	VertexID = VertexID - TriIndex * 3;
+	uint LocalTriIndex = VertexID / 3;
+	VertexID = VertexID - LocalTriIndex * 3;
 
 	VSOut Out;
 	Out.Position = float4(0,0,0,1);
@@ -1779,27 +1799,26 @@ VSOut HWRasterizeVS(
 #endif
 
 	FCluster Cluster = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+	FTriRange TriRange = GetTriangleRange(Cluster, bHasRasterBin, RasterBin);
 
-	if( TriIndex < Cluster.NumTris )
+	BRANCH
+	if( LocalTriIndex < TriRange.Num )
 	{
-		BRANCH
-		if (!bHasRasterBin || (TriIndex >= RasterBin.y && TriIndex < RasterBin.z))
+		const uint TriIndex = TriRange.Start + LocalTriIndex;
+		uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
+		if (ReverseWindingOrder(InstanceData))
 		{
-			uint3 TriangleIndices = ReadTriangleIndices(Cluster, TriIndex);
-			if (ReverseWindingOrder(InstanceData))
-			{
-				TriangleIndices = TriangleIndices.xzy;
-			}
-		
-			const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
-			Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, TriangleIndices[VertexID], PixelValue);
-	#if BARYCENTRIC_MODE_EXPORT
-			Out.BarycentricsUV = float2(
-				VertexID == 0 ? 1 : 0,
-				VertexID == 1 ? 1 : 0
-			);
-	#endif
+			TriangleIndices = TriangleIndices.xzy;
 		}
+
+		const uint PixelValue = ((VisibleIndex + 1) << 7) | TriIndex;
+		Out = CommonRasterizerVS(NaniteView, InstanceData, VisibleCluster, Cluster, TriangleIndices[VertexID], PixelValue);
+#if BARYCENTRIC_MODE_EXPORT
+		Out.BarycentricsUV = float2(
+			VertexID == 0 ? 1 : 0,
+			VertexID == 1 ? 1 : 0
+		);
+#endif
 	}
 
 	return Out;
@@ -1827,11 +1846,12 @@ void HWRasterizePS(VSOut In
 
 #if VERTEX_TO_TRIANGLE_MASKS
 #if NANITE_VERT_REUSE_BATCH
-	uint Masks0 = GetAttributeAtVertex0( In.ToTriangleMasks );
-	uint Masks1 = GetAttributeAtVertex1( In.ToTriangleMasks );
-	uint Masks2 = GetAttributeAtVertex2( In.ToTriangleMasks );
-	uint Masks = Masks0 & Masks1 & Masks2;
-	uint TriangleIndex = In.BatchFirstTriIndex + firstbitlow(Masks);
+	uint2 Mask_TriRangeStart = GetAttributeAtVertex0( In.ToTriangleMask_TriRangeStart );
+	uint Mask0 = Mask_TriRangeStart.x;
+	uint Mask1 = GetAttributeAtVertex1( In.ToTriangleMask_TriRangeStart ).x;
+	uint Mask2 = GetAttributeAtVertex2( In.ToTriangleMask_TriRangeStart ).x;
+	uint Mask = Mask0 & Mask1 & Mask2;
+	uint TriangleIndex = Mask_TriRangeStart.y + firstbitlow(Mask);
 	PixelValue += TriangleIndex;
 #else
 	uint4 Masks0 = GetAttributeAtVertex0( In.ToTriangleMasks );

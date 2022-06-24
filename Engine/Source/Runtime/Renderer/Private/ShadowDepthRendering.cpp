@@ -1908,7 +1908,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRDGBuilder& GraphBuilder, FInstanceC
 
 				// Cubemap shadows reverse the cull mode due to the face matrices (see FShadowDepthPassMeshProcessor::AddMeshBatch)
 				Nanite::FRasterState RasterState;
-				RasterState.CullMode = CM_CCW;
+				RasterState.bReverseCulling = true;
 
 				const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 

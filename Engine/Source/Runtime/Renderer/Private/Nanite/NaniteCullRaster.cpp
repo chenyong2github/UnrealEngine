@@ -807,11 +807,12 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
+	class FTwoSidedDim : SHADER_PERMUTATION_BOOL("NANITE_TWO_SIDED");
 	class FVisualizeDim : SHADER_PERMUTATION_BOOL("VISUALIZE");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FVertexProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_VERTEX_PROGRAMMABLE");
 	class FPixelProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_PIXEL_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FDepthOnlyDim, FVisualizeDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FMultiViewDim, FDepthOnlyDim, FTwoSidedDim, FVisualizeDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -847,6 +848,11 @@ class FMicropolyRasterizeCS : public FNaniteMaterialShader
 		if (PermutationVector.Get<FDepthOnlyDim>() && PermutationVector.Get<FVisualizeDim>())
 		{
 			// Visualization not supported with depth only
+			return false;
+		}
+
+		if (!Parameters.MaterialParameters.bIsDefaultMaterial && PermutationVector.Get<FTwoSidedDim>() != Parameters.MaterialParameters.bIsTwoSided)
+		{
 			return false;
 		}
 
@@ -2343,6 +2349,7 @@ FBinningData AddPass_Rasterize(
 				// Programmable micropoly features
 				if (RasterizerPass.bVertexProgrammable || RasterizerPass.bPixelProgrammable)
 				{
+					PermutationVectorCS.Set<FMicropolyRasterizeCS::FTwoSidedDim>(RasterizerPass.RasterPipeline.bIsTwoSided);
 					PermutationVectorCS.Set<FMicropolyRasterizeCS::FVertexProgrammableDim>(bVertexProgrammable);
 					PermutationVectorCS.Set<FMicropolyRasterizeCS::FPixelProgrammableDim>(bPixelProgrammable);
 					ProgrammableShaderTypes.AddShaderType<FMicropolyRasterizeCS>(PermutationVectorCS.ToDimensionValueId());
@@ -2449,6 +2456,7 @@ FBinningData AddPass_Rasterize(
 			const FMaterialShaderMap* ComputeShaderMap = RasterizerPass.ComputeMaterialProxy->GetMaterialWithFallback(Scene.GetFeatureLevel(), RasterizerPass.ComputeMaterialProxy).GetRenderingThreadShaderMap();
 			check(ComputeShaderMap);
 			
+			PermutationVectorCS.Set<FMicropolyRasterizeCS::FTwoSidedDim>(RasterizerPass.RasterPipeline.bIsTwoSided);
 			PermutationVectorCS.Set<FMicropolyRasterizeCS::FVertexProgrammableDim>(RasterizerPass.bVertexProgrammable);
 			PermutationVectorCS.Set<FMicropolyRasterizeCS::FPixelProgrammableDim>(RasterizerPass.bPixelProgrammable);
 			RasterizerPass.RasterComputeShader = ComputeShaderMap->GetShader<FMicropolyRasterizeCS>(PermutationVectorCS);
@@ -2467,7 +2475,7 @@ FBinningData AddPass_Rasterize(
 
 	auto* RasterPassParameters = GraphBuilder.AllocParameters<FRasterizePassParameters>();
 	RasterPassParameters->RenderFlags = RenderFlags;
-	if (RasterState.CullMode == CM_CCW)
+	if (RasterState.bReverseCulling)
 	{
 		RasterPassParameters->RenderFlags |= NANITE_RENDER_FLAG_REVERSE_CULLING;
 	}
@@ -2493,26 +2501,11 @@ FBinningData AddPass_Rasterize(
 		RasterPassParameters->VirtualShadowMap = VirtualTargetParameters;
 	}
 
-	const auto PatchRasterizePassParameters = [](FRasterizePassParameters& Parameters, const FRasterizerPass& RasterizerPass, ERasterizerCullMode CullMode)
-	{
-		// Support CM_None for all rasterizer bins, or for specific two-sided material rasterizer bins
-		if (CullMode == CM_None || RasterizerPass.RasterPipeline.bIsTwoSided)
-		{
-			Parameters.RenderFlags |= NANITE_RENDER_FLAG_TWO_SIDED;
-		}
-		else
-		{
-			Parameters.RenderFlags &= ~NANITE_RENDER_FLAG_TWO_SIDED;
-		}
-
-		Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
-	};
-
 	GraphBuilder.AddPass(
 		bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
 		RasterPassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
-		[RasterPassParameters, PatchRasterizePassParameters, &RasterizerPasses, ViewRect, &SceneView, RPInfo, CullMode = RasterState.CullMode, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
+		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
 		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
@@ -2536,12 +2529,12 @@ FBinningData AddPass_Rasterize(
 			SCOPED_DRAW_EVENTF(RHICmdList, HWRaster, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
 #endif
 
-			PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
+			Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 
 			// NOTE: We do *not* use RasterState.CullMode here because HWRasterize[VS/MS] already
 			// changes the index order in cases where the culling should be flipped.
 			// The exception is if CM_None is specified for two sided materials, or if the entire raster pass has CM_None specified.
-			const bool bCullModeNone = (Parameters.RenderFlags & NANITE_RENDER_FLAG_TWO_SIDED) != 0u;
+			const bool bCullModeNone = RasterizerPass.RasterPipeline.bIsTwoSided;
 			GraphicsPSOInit.RasterizerState = GetStaticRasterizerState<false>(FM_Solid, bCullModeNone ? CM_None : CM_CW);
 
 			if (bUseMeshShader)
@@ -2598,7 +2591,7 @@ FBinningData AddPass_Rasterize(
 			bMainPass ? RDG_EVENT_NAME("Main Pass: SW Rasterize") : RDG_EVENT_NAME("Post Pass: SW Rasterize"),
 			RasterPassParameters,
 			ComputePassFlags,
-			[RasterPassParameters, &RasterizerPasses, PatchRasterizePassParameters, &SceneView, CullMode = RasterState.CullMode](FRHIComputeCommandList& RHICmdList)
+			[RasterPassParameters, &RasterizerPasses, &SceneView](FRHIComputeCommandList& RHICmdList)
 		{
 			FRasterizePassParameters Parameters = *RasterPassParameters;
 			Parameters.IndirectArgs->MarkResourceAsUsed();
@@ -2610,7 +2603,7 @@ FBinningData AddPass_Rasterize(
 				SCOPED_DRAW_EVENTF(RHICmdList, SWRaster, TEXT("%s"), RasterMaterial ? *RasterMaterial->GetMaterialName() : TEXT("Fixed Function"));
 #endif
 
-				PatchRasterizePassParameters(Parameters, RasterizerPass, CullMode);
+				Parameters.ActiveRasterizerBin = RasterizerPass.RasterizerBin;
 
 				FRHIBuffer* IndirectArgsBuffer = Parameters.IndirectArgs->GetIndirectRHICallBuffer();
 				FRHIComputeShader* ShaderRHI = RasterizerPass.RasterComputeShader.GetComputeShader();
