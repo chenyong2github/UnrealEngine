@@ -2953,59 +2953,59 @@ bool UNiagaraDataInterfaceSkeletalMesh::GetFunctionHLSL(const FNiagaraDataInterf
 	const TCHAR* FuncFormat = nullptr;
 	if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::IsValidTriCoordName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out bool bIsValid) { IsValidTriCoord_{ParameterName}(InCoord.Tri, bIsValid); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out bool bIsValid) { IsValidTriCoord_{ParameterName}(InCoord.Tri, bIsValid); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomTriangleName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomTriCoordName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::RandomFilteredTriangleName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomFilteredTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(NiagaraRandInfo InRandomInfo, out MeshTriCoordinate OutCoord) { RandomFilteredTriangle_{ParameterName}(InRandomInfo.Seed1, InRandomInfo.Seed2, InRandomInfo.Seed3, OutCoord.Tri, OutCoord.BaryCoord); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetFilteredTriangleAtName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(int FilteredIndex, in float3 BaryCoord, out MeshTriCoordinate OutCoord) { GetFilteredTriangleAt_{ParameterName}(FilteredIndex, OutCoord.Tri); OutCoord.BaryCoord = BaryCoord; }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(int FilteredIndex, in float3 BaryCoord, out MeshTriCoordinate OutCoord) { GetFilteredTriangleAt_{ParameterName}(FilteredIndex, OutCoord.Tri); OutCoord.BaryCoord = BaryCoord; }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleDataName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetPointOnTriangle_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutTangent, OutBinormal, OutNormal); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetPointOnTriangle_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutTangent, OutBinormal, OutNormal); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataWS_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataWS_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataWSInterpName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataInterpolatedWS_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataInterpolatedWS_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleData_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleData_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetSkinnedTriangleDataInterpName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataInterpolated_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in float InInterp, out float3 OutPosition, out float3 OutVelocity, out float3 OutNormal, out float3 OutBinormal, out float3 OutTangent) { GetSkinnedTriangleDataInterpolated_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InInterp, OutPosition, OutVelocity, OutNormal, OutBinormal, OutTangent); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriUVName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in int InUVSet, out float2 OutUV) { GetTriUV_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InUVSet, OutUV); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, in int InUVSet, out float2 OutUV) { GetTriUV_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, InUVSet, OutUV); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriColorName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float4 OutColor) { GetTriColor_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutColor); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in MeshTriCoordinate InCoord, out float4 OutColor) { GetTriColor_{ParameterName}(InCoord.Tri, InCoord.BaryCoord, OutColor); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordAtUVName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in bool InEnabled, in float2 InUV, in float InTolerance, out MeshTriCoordinate OutCoord, out bool OutIsValid) { GetTriangleCoordAtUV_{ParameterName}(InEnabled, InUV, InTolerance, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in bool InEnabled, in float2 InUV, in float InTolerance, out MeshTriCoordinate OutCoord, out bool OutIsValid) { GetTriangleCoordAtUV_{ParameterName}(InEnabled, InUV, InTolerance, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }\n");
 	}
 	else if (FunctionInfo.DefinitionName == FSkeletalMeshInterfaceHelper::GetTriangleCoordInAabbName)
 	{
-		FuncFormat = TEXT("void {InstanceFunctionName}(in bool InEnabled, in float2 InUvMin, in float2 InUvMax, out MeshTriCoordinate OutCoord, out bool OutIsValid) { GetTriangleCoordInAabb_{ParameterName}(InEnabled, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }");
+		FuncFormat = TEXT("void {InstanceFunctionName}(in bool InEnabled, in float2 InUvMin, in float2 InUvMax, out MeshTriCoordinate OutCoord, out bool OutIsValid) { GetTriangleCoordInAabb_{ParameterName}(InEnabled, InUvMin, InUvMax, OutCoord.Tri, OutCoord.BaryCoord, OutIsValid); }\n");
 	}
 
 	if ( FuncFormat != nullptr )
