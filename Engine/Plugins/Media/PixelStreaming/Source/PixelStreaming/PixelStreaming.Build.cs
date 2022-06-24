@@ -10,11 +10,11 @@ namespace UnrealBuildTool.Rules
 {
 	public class PixelStreaming : ModuleRules
 	{
-		const string PixelStreamingProgramsDirectory = "../../Samples/PixelStreaming";
+		const string PixelStreamingProgramsDirectory = "../../Engine/Plugins/Media/PixelStreaming/Resources";
 
 		private void AddFolder(string Folder)
 		{
-			string DirectoryToAdd = new DirectoryInfo(PixelStreamingProgramsDirectory + "/WebServers/" + Folder).FullName;
+			string DirectoryToAdd = new DirectoryInfo(PixelStreamingProgramsDirectory + "/ps-infra/" + Folder).FullName;
 
 			if (!Directory.Exists(DirectoryToAdd))
 			{
@@ -118,9 +118,12 @@ namespace UnrealBuildTool.Rules
 			// When we build a Game target we also package the servers with it as runtime dependencies
 			if(Target.Type == TargetType.Game)
 			{
-				//AddFolder("SignallingWebServer");
-				//AddFolder("Matchmaker");
-				//AddFolder("SFU");
+				AddFolder("SignallingWebServer");
+				AddFolder("Matchmaker");
+				AddFolder("SFU");
+
+				RuntimeDependencies.Add("$(PluginDir)/Resources/get_ps_servers.bat", StagedFileType.NonUFS);
+				RuntimeDependencies.Add("$(PluginDir)/Resources/get_ps_servers.sh", StagedFileType.NonUFS);
 			}
 		}
 	}
