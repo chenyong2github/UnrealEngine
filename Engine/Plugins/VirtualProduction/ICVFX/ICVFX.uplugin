@@ -117,6 +117,10 @@
 		{
 			"Name": "ConsoleVariables",
 			"Enabled": true
+		},
+		{
+			"Name": "EpicStageApp",
+			"Enabled": true
 		}
 	]
 }
