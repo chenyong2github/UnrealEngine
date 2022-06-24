@@ -180,7 +180,11 @@ APPLICATIONCORE_API
 @property (assign) bool bBatteryState;
 @property (assign) int BatteryLevel;
 
+@property (assign) float ScreenScale;	// UIScreen.scale
+@property (assign) float NativeScale;	// UIWindow.screen.nativeScale
 @property (assign) float MobileContentScaleFactor;
+@property (assign) int RequestedResX;
+@property (assign) int RequestedResY;
 @property (assign) bool bUpdateAvailable;
 
 /**
@@ -195,8 +199,7 @@ APPLICATIONCORE_API
 +(bool)WaitAndRunOnGameThread:(TUniqueFunction<void()>)Function;
 -(void)NoUrlCommandLine;
 
--(void)LoadMobileContentScaleFactor;
--(float)GetMobileContentScaleFactor;
+-(void)LoadScreenResolutionModifiers;
 
 -(int)GetAudioVolume;
 -(bool)AreHeadphonesPluggedIn;

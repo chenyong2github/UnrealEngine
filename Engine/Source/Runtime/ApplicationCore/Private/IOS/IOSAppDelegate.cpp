@@ -825,11 +825,16 @@ static IOSAppDelegate* CachedDelegate = nil;
 #endif
 }
 
-- (void)LoadMobileContentScaleFactor
+- (void)LoadScreenResolutionModifiers
 {
+	// cache these UI thread sensitive vars for later use
+	self.ScreenScale = [[UIScreen mainScreen] scale];
+	self.NativeScale = [[UIScreen mainScreen] nativeScale];
+
 	// need to cache the MobileContentScaleFactor for framebuffer creation.
-	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
-	self.MobileContentScaleFactor = CVar ? CVar->GetFloat() : 0;
+	static IConsoleVariable* CVarScale = IConsoleManager::Get().FindConsoleVariable(TEXT("r.MobileContentScaleFactor"));
+	check(CVarScale);
+	self.MobileContentScaleFactor = CVarScale ? CVarScale->GetFloat() : 0;
 
 	// Can also be overridden from the commandline using "mcsf="
 	FString CmdLineCSF;
@@ -837,11 +842,34 @@ static IOSAppDelegate* CachedDelegate = nil;
 	{
 		self.MobileContentScaleFactor = FCString::Atof(*CmdLineCSF);
 	}
-}
 
-- (float)GetMobileContentScaleFactor
-{
-	return self.MobileContentScaleFactor;
+	static IConsoleVariable* CVarResX = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResX"));
+	static IConsoleVariable* CVarResY = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResY"));
+	check(CVarResX);
+	check(CVarResY);
+		
+	self.RequestedResX = CVarResX ? CVarResX->GetInt() : 0;
+	self.RequestedResY = CVarResY ? CVarResY->GetInt() : 0;
+		
+	static bool bOnFirstUse = true;
+	if (bOnFirstUse)
+	{
+		FString CmdLineMDRes;
+		if (FParse::Value(FCommandLine::Get(), TEXT("mobileresx="), CmdLineMDRes, false))
+		{
+				self.RequestedResX = FCString::Atoi(*CmdLineMDRes);
+		}
+		if (FParse::Value(FCommandLine::Get(), TEXT("mobileresy="), CmdLineMDRes, false))
+		{
+				self.RequestedResY = FCString::Atoi(*CmdLineMDRes);
+		}
+
+		CVarScale->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&FIOSWindow::OnScaleFactorChanged));
+		CVarResX->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&FIOSWindow::OnConsoleResolutionChanged));
+		CVarResY->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&FIOSWindow::OnConsoleResolutionChanged));
+			
+		bOnFirstUse = false;
+	}
 }
 
 - (void)CheckForZoomAccessibility

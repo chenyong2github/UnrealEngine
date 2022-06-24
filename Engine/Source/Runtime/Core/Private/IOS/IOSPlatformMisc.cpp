@@ -74,8 +74,9 @@ static int32 GetFreeMemoryMB()
 void FIOSPlatformMisc::PlatformInit()
 {
 	// PlatformInit() starts the UI thread which creates the framebuffer and it requires
-	// "r.MobileContentScaleFactor" to be available before it's creation, so need to cache that value now.
-	[[IOSAppDelegate GetDelegate] LoadMobileContentScaleFactor];
+	// "r.MobileContentScaleFactor" and "r.Mobile.DesiredResX/Y" to be available before 
+	// it's creation, so need to cache those value now.
+	[[IOSAppDelegate GetDelegate] LoadScreenResolutionModifiers];
 		
 	FAppEntry::PlatformInit();
 
@@ -321,7 +322,7 @@ bool FIOSPlatformMisc::HasPlatformFeature(const TCHAR* FeatureName)
 {
 	if (FCString::Stricmp(FeatureName, TEXT("Metal")) == 0)
 	{
-		return [IOSAppDelegate GetDelegate].IOSView->bIsUsingMetal;
+		return true;
 	}
 
 	return FGenericPlatformMisc::HasPlatformFeature(FeatureName);

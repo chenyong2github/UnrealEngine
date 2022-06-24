@@ -7,12 +7,9 @@
 #include "IOS/IOSInputInterface.h"
 
 #import <UIKit/UIKit.h>
-#import <OpenGLES/EAGL.h>
 
-#if HAS_METAL
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
-#endif
 
 #if WITH_ACCESSIBILITY
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
@@ -50,17 +47,10 @@ APPLICATIONCORE_API
 	float PreviousForces[10];
 	bool HasMoved[10];
 
-
-	//// METAL MEMBERS
-#if HAS_METAL
 	// global metal device
 	id<MTLDevice> MetalDevice;
 	id<CAMetalDrawable> PanicDrawable;
-#endif
 
-	// are we using the Metal API?
-	bool bIsUsingMetal;
-	
 	//// KEYBOARD MEMBERS
 	
 	// whether or not to use the new style virtual keyboard that sends events to the engine instead of using an alert
@@ -76,7 +66,6 @@ APPLICATIONCORE_API
 	BOOL bSecureTextEntry;
 	
 	volatile int32 KeyboardShowCount;
-
 }
 
 #if WITH_ACCESSIBILITY
@@ -85,25 +74,19 @@ APPLICATIONCORE_API
 #endif
 
 //// SHARED FUNCTIONALITY
-@property (nonatomic) GLuint SwapCount;
+@property (nonatomic) uint SwapCount;
+@property (assign, nonatomic) CGSize ViewSize;
 
--(bool)CreateFramebuffer:(bool)bIsForOnDevice;
+-(bool)CreateFramebuffer;
 -(void)DestroyFramebuffer;
 -(void)UpdateRenderWidth:(uint32)Width andHeight:(uint32)Height;
+-(void)CalculateContentScaleFactor:(int32)ScreenWidth ScreenHeight:(int32)ScreenHeight;
 
-//// GL FUNCTIONALITY
-@property (nonatomic) GLuint OnScreenColorRenderBuffer;
-@property (nonatomic) GLuint OnScreenColorRenderBufferMSAA;
-
-- (void)MakeCurrent;
-- (void)UnmakeCurrent;
 - (void)SwapBuffers;
 
 //// METAL FUNCTIONALITY
-#if HAS_METAL
 // Return a drawable object (ie a back buffer texture) for the RHI to render to
 - (id<CAMetalDrawable>)MakeDrawable;
-#endif
 
 //// KEYBOARD FUNCTIONALITY
 -(void)InitKeyboard;

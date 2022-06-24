@@ -24,13 +24,12 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 	OwningApplication = Application;
 	Definition = InDefinition;
     
-    UIWindow        *foundKeyWindow = nil;
     NSArray         *allWindows = [[UIApplication sharedApplication]windows];
     for (UIWindow   *currentWindow in allWindows)
     {
         if (currentWindow.isKeyWindow)
         {
-            Window = foundKeyWindow;
+			Window = currentWindow;
             break;
         }
     }
@@ -61,19 +60,76 @@ void FIOSWindow::Initialize( class FIOSApplication* const Application, const TSh
 #endif
 }
 
+void FIOSWindow::OnScaleFactorChanged(IConsoleVariable* CVar)
+{
+	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
+	FIOSView* View = AppDelegate.IOSView;
+		
+	// If r.MobileContentScaleFactor is set by a console command, clear out the r.mobile.DesiredResX/Y CVars
+	if ((CVar->GetFlags() & ECVF_SetByMask) == ECVF_SetByConsole)
+	{
+		IConsoleVariable* CVarResX = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResX"));
+		IConsoleVariable* CVarResY = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.DesiredResY"));
+		
+		// If CVarResX/Y needs to be reset, let that CVar callback handle the layout change
+		bool OtherCVarChanged = false;
+		if (CVarResX && CVarResX->GetInt() != 0)
+		{
+			CVarResX->Set(0, ECVF_SetByConsole);
+			OtherCVarChanged = true;
+		}
+		if (CVarResY && CVarResY->GetInt() != 0)
+		{
+			CVarResY->Set(0, ECVF_SetByConsole);
+			OtherCVarChanged = true;
+		}
+		
+		if (OtherCVarChanged)
+		{
+			return;
+		}
+	}
+		
+	// Load the latest Cvars that might affect screen size
+	[AppDelegate LoadScreenResolutionModifiers];
+		
+	// Force a re-layout of our views as the size has probably changed
+	CGRect Frame = [View frame];
+	[View CalculateContentScaleFactor:Frame.size.width ScreenHeight:Frame.size.height];
+	[View layoutSubviews];
+}
+
+void FIOSWindow::OnConsoleResolutionChanged(IConsoleVariable* CVar)
+{
+	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
+	FIOSView* View = AppDelegate.IOSView;
+		
+	// Load the latest Cvars that might affect screen size
+	[AppDelegate LoadScreenResolutionModifiers];
+		
+	// Force a re-layout of our views as the size has probably changed
+	CGRect Frame = [View frame];
+	[View CalculateContentScaleFactor:Frame.size.width ScreenHeight:Frame.size.height];
+	[View layoutSubviews];
+}
+
 FPlatformRect FIOSWindow::GetScreenRect()
 {
 	// get the main view's frame
 	IOSAppDelegate* AppDelegate = [IOSAppDelegate GetDelegate];
-	UIView* View = AppDelegate.IOSView;
-	CGRect Frame = [View frame];
-	CGFloat Scale = View.contentScaleFactor;
-
+	FIOSView* View = AppDelegate.IOSView;
+	
 	FPlatformRect ScreenRect;
-	ScreenRect.Top = Frame.origin.y * Scale;
-	ScreenRect.Bottom = (Frame.origin.y + Frame.size.height) * Scale;
-	ScreenRect.Left = Frame.origin.x * Scale;
-	ScreenRect.Right = (Frame.origin.x + Frame.size.width) * Scale;
+	if (View != nil)
+	{
+		CGRect Frame = [View frame];
+		CGFloat Scale = View.contentScaleFactor;
+		
+		ScreenRect.Top = Frame.origin.y * Scale;
+		ScreenRect.Bottom = (Frame.origin.y + View.ViewSize.height) * Scale;
+		ScreenRect.Left = Frame.origin.x * Scale;
+		ScreenRect.Right = (Frame.origin.x + View.ViewSize.width) * Scale;
+	}
 
 	return ScreenRect;
 }
@@ -93,7 +149,6 @@ FPlatformRect FIOSWindow::GetUIWindowRect()
 
 	return WindowRect;
 }
-
 
 bool FIOSWindow::GetFullScreenInfo( int32& X, int32& Y, int32& Width, int32& Height ) const
 {

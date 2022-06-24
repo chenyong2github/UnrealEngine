@@ -3,6 +3,7 @@
 #include "IOS/IOSApplication.h"
 #include "IOS/IOSInputInterface.h"
 #include "IOS/IOSCursor.h"
+#include "IOS/IOSView.h"
 #include "IOSWindow.h"
 #include "Misc/CoreDelegates.h"
 #include "IOS/IOSAppDelegate.h"
@@ -141,6 +142,10 @@ UIEdgeInsets CachedInsets;
 
 void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
 {
+	const FPlatformRect& Rect = FIOSWindow::GetUIWindowRect();
+	const FIOSView *View = [[IOSAppDelegate GetDelegate] IOSView];
+	[View CalculateContentScaleFactor:Rect.Right ScreenHeight:Rect.Bottom];
+	
 	// Get screen rect
 	OutDisplayMetrics.PrimaryDisplayWorkAreaRect = FIOSWindow::GetScreenRect();
 	OutDisplayMetrics.VirtualDisplayRect = OutDisplayMetrics.PrimaryDisplayWorkAreaRect;
@@ -149,11 +154,8 @@ void FDisplayMetrics::RebuildDisplayMetrics(FDisplayMetrics& OutDisplayMetrics)
     OutDisplayMetrics.PrimaryDisplayWidth = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Right - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Left;
     OutDisplayMetrics.PrimaryDisplayHeight = OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Bottom - OutDisplayMetrics.PrimaryDisplayWorkAreaRect.Top;
     
-    // Get ui window rect
-    OutDisplayMetrics.IosUiWindowAreaRect = FIOSWindow::GetUIWindowRect();
-    
 #if !PLATFORM_TVOS
-    const float RequestedContentScaleFactor = [[IOSAppDelegate GetDelegate].IOSView contentScaleFactor];
+    const float RequestedContentScaleFactor = View.contentScaleFactor;
     
     //we need to set these according to the orientation
     TAutoConsoleVariable<float>* CVar_Left = nullptr;

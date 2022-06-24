@@ -376,11 +376,6 @@ struct FDisplayMetrics
 	/** Virtual display coordinate range (includes all active displays) */
 	FPlatformRect VirtualDisplayRect;
 
-#if PLATFORM_IOS
-	/** Area of the UIWindow on IOS devices */
-	FPlatformRect IosUiWindowAreaRect;
-#endif
-
 	/**
 	 * The safe area for all content on TVs (see http://en.wikipedia.org/wiki/Safe_area_%28television%29) - content will be inset 
 	 * Left - X

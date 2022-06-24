@@ -355,7 +355,7 @@ static void MainThreadInit()
 	[AppDelegate.RootView addSubview:AppDelegate.IOSView];
 
 	// initialize the backbuffer of the view (so the RHI can use it)
-	[AppDelegate.IOSView CreateFramebuffer:YES];
+	[AppDelegate.IOSView CreateFramebuffer];
 #endif
 }
 
@@ -385,9 +385,6 @@ void FAppEntry::PlatformInit()
 #endif
 		FPlatformProcess::Sleep(0.005f);
 	}
-
-	// set the GL context to this thread
-	[AppDelegate.IOSView MakeCurrent];
 
 	// Set GSystemResolution now that we have the size.
 	FDisplayMetrics DisplayMetrics;
