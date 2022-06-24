@@ -117,8 +117,8 @@ public class ModifyStageContext
 		// cache some useful properties
 		ProjectDirectory = Params.RawProjectPath.Directory;
 		ProjectName = Params.RawProjectPath.GetFileNameWithoutAnyExtensions();
-		IniPlatformName = ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.IniPlatformType);
-		bIsDLC = Params.DLCFile != null && SC.MetadataDir != null; // MetadataDir needs to be set for DLC
+		IniPlatformName = ConfigHierarchy.GetIniPlatformName(SC.StageTargetPlatform.PlatformType);
+		bIsDLC = Params.DLCFile != null;
 
 		Console.WriteLine("---> eleaeOverrideDir = {0}, MetadataDrir = {1}", Params.BasedOnReleaseVersionPathOverride, SC.MetadataDir);
 
@@ -167,7 +167,6 @@ public class ModifyStageContext
 		}
 
 		// remove already-cooked assets to be replaced with 
-		List<StagedFileReference> UncookedFilesThatDoNotExist = new List<StagedFileReference>();
 		string[] CookedExtensions = { ".uasset", ".umap", ".ubulk", ".uexp", ".uptnl" };
 		foreach (var UncookedFile in StagedUncookFiles)
 		{
@@ -180,19 +179,6 @@ public class ModifyStageContext
 				SC.FilesToStage.UFSFiles.Remove(PathWithExtension);
 				StagedUFSFiles.Remove(PathWithExtension);
 			}
-
-			// Some uncooked packages are generated at cook time and do not exist in the uncooked depot.
-			// We removed the cooked version of these files from staging above, but we should not add an entry for their
-			// non-existent uncooked file. Add them to a list for removal after the loop.
-			FileReference FullPathToUncooked = UncookedFile.Value;
-			if (!FullPathToUncooked.ToFileInfo().Exists)
-			{
-				UncookedFilesThatDoNotExist.Add(UncookedFile.Key);
-			}
-		}
-		foreach (StagedFileReference UncookedFile in UncookedFilesThatDoNotExist)
-		{
-			StagedUncookFiles.Remove(UncookedFile);
 		}
 
 		// stage the filtered UFSFiles
@@ -228,7 +214,7 @@ public class ModifyStageContext
 		else if (Ref.IsUnderDirectory(EngineDirectory))
 		{
 			RootDir = EngineDirectory;
-			return Project.ApplyDirectoryRemap(SC, new StagedFileReference( "Engine/" + Ref.MakeRelativeTo(EngineDirectory).Replace('\\', '/')));
+			return Project.ApplyDirectoryRemap(SC, new StagedFileReference("Engine/" + Ref.MakeRelativeTo(EngineDirectory).Replace('\\', '/')));
 		}
 		throw new Exception();
 	}
@@ -377,10 +363,6 @@ public class MakeCookedEditor : BuildCommand
 
 	protected ConfigHelper ConfigHelper;
 
-	// used to remember the locations of stating output exactly as calculated by the staging code
-	protected DirectoryReference CookedEditorStageDirectory = null;
-	protected DirectoryReference ReleaseStageDirectory = null;
-
 	// with -makerelease, this will have the location of optional editor only files, but a subclass can just set this if the optional files
 	// were made and saved off somewhere, it can point to this and the optional files will be automatically staged into Content/Paks
 	protected DirectoryReference ReleaseOptionalFileStageDirectory = null;
@@ -395,30 +377,12 @@ public class MakeCookedEditor : BuildCommand
 		// set up config sections and the like
 		ConfigHelper = new ConfigHelper(BuildHostPlatform.Current.Platform, ProjectFile, bIsCookedCooker);
 
+
 		ProjectParams BuildParams = GetParams();
 
+		LogInformation("Build? {0}", BuildParams.Build);
 
 		Project.Build(this, BuildParams);
-
-		// after the editor is built, if we are building against a release, and if desired, make that release first to make sure we have it to build against
-		ProjectParams ReleaseParams = null;
-
-		string MakeReleaseOptions = ParseParamValue("makerelease", "");
-		if (MakeReleaseOptions != "")
-		{
-			if (string.IsNullOrEmpty(BuildParams.BasedOnReleaseVersion))
-			{
-				throw new AutomationException("-makerelease was specified but the project doesn't have bBuildAgainstRelease set to true");
-			}
-
-			ReleaseParams = GetReleaseParams(BuildParams, MakeReleaseOptions.Split(','));
-			Project.Build(this, ReleaseParams);
-			Project.Cook(ReleaseParams);
-			Project.CopyBuildToStagingDirectory(ReleaseParams);
-
-			FinalizeRelease(ReleaseParams);
-		}
-
 		Project.Cook(BuildParams);
 		Project.CopyBuildToStagingDirectory(BuildParams);
 
@@ -427,25 +391,8 @@ public class MakeCookedEditor : BuildCommand
 
 		Project.Archive(BuildParams);
 		PrintRunTime();
-//		Project.Deploy(BuildParams);
+		Project.Deploy(BuildParams);
 
-		if (ReleaseParams != null)
-		{
-			string CombinedPath = ParseParamValue("CombineBuilds", "");
-			if (CombinedPath != "")
-			{
-				if (CookedEditorStageDirectory == null || ReleaseStageDirectory == null)
-				{
-					LogError("Combining Release and CookedEditor together currently requires that both are staged this run (-stage -makerelease=stage)");
-					return;
-				}
-
-				LogInformation($"Combinging {ReleaseStageDirectory} + {CookedEditorStageDirectory} -> {CombinedPath}");
-				DirectoryReference Combined = new DirectoryReference(CombinedPath);
-				CopyDirectory_NoExceptions(ReleaseStageDirectory.FullName, Combined.FullName, CopyDirectoryOptions.Default);
-				CopyDirectory_NoExceptions(CookedEditorStageDirectory.FullName, Combined.FullName, CopyDirectoryOptions.Merge);
-			}
-		}
 
 	}
 
@@ -609,7 +556,7 @@ public class MakeCookedEditor : BuildCommand
 					}
 				}
 			}
-			catch(Exception)
+			catch (Exception)
 			{
 				// skip json files that fail
 			}
@@ -674,14 +621,6 @@ public class MakeCookedEditor : BuildCommand
 	{
 	}
 
-	protected virtual void ModifyReleaseParams(ProjectParams ReleaseParams)
-	{
-	}
-
-	protected virtual void FinalizeRelease(ProjectParams ReleaseParams)
-	{
-	}
-
 	protected virtual void PreModifyDeploymentContext(ProjectParams Params, DeploymentContext SC)
 	{
 		ModifyStageContext Context = CreateContext(Params, SC);
@@ -711,19 +650,11 @@ public class MakeCookedEditor : BuildCommand
 			SC.FilesToStage.NonUFSDebugFiles.Remove(new StagedFileReference(Path.Combine(Context.ProjectName, "Binaries", "Linux", MainCookedTarget + ".sym")));
 		}
 
-		CookedEditorStageDirectory = SC.StageDirectory;
 	}
 
 	protected virtual void SetupDLCMode(FileReference ProjectFile, out string DLCName, out string ReleaseVersion, out TargetType Type)
 	{
 		bool bBuildAgainstRelease = ConfigHelper.GetBool("bBuildAgainstRelease");
-
-		if (ParseParamValue("MakeRelease", null) != null && !bBuildAgainstRelease)
-		{
-			LogWarning("-makerelease is meant for projects that have bBuildAgainstRelease set. Will force it on, with default settings for [DLCPluginName, ReleaseName, ReleaseTargetType]");
-			bBuildAgainstRelease = true;
-		}
-
 		if (bBuildAgainstRelease)
 		{
 			DLCName = ConfigHelper.GetString("DLCPluginName");
@@ -957,20 +888,6 @@ public class MakeCookedEditor : BuildCommand
 		Context.UFSFilesToStage.RemoveAll(x => UFSIncompatibleExtensions.Contains(x.GetExtension()));
 	}
 
-	protected virtual string GetReleaseTargetName(UnrealTargetPlatform Platform, TargetType ReleaseType)
-	{
-		// make the platform name, like "WindowsClient", or "LinuxGame", of the premade build we are cooking/staging against
-		string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
-		string ReleaseTargetName = IniPlatformName + (ReleaseType == TargetType.Game ? "" : ReleaseType.ToString());
-
-		return ReleaseTargetName;
-	}
-
-	protected virtual string GetReleaseVersionPath(string ReleaseVersionName, string ReleaseTargetName)
-	{
-		return CommandUtils.CombinePaths(ProjectFile.Directory.FullName, "Releases", ReleaseVersionName, ReleaseTargetName);
-	}
-
 	private ProjectParams GetParams()
 	{
 		// setup DLC defaults, then ask project if it should 
@@ -978,29 +895,27 @@ public class MakeCookedEditor : BuildCommand
 		string BasedOnReleaseVersion;
 		TargetType ReleaseType;
 		SetupDLCMode(ProjectFile, out DLCName, out BasedOnReleaseVersion, out ReleaseType);
-		bool bIsDLC = DLCName != null;
 
 		var Params = new ProjectParams
 		(
-			Command: this
-			, RawProjectPath: ProjectFile
+			Command: this,
+			RawProjectPath: ProjectFile
 
+			// standard cookededitor settings
+			//			, Client:false
+			//			, EditorTargets: new ParamList<string>()
+			// , SkipBuildClient: true
 			, NoBootstrapExe: true
+			// , Client: true
 			, DLCName: DLCName
 			, BasedOnReleaseVersion: BasedOnReleaseVersion
 			, DedicatedServer: bIsCookedCooker
 			, NoClient: bIsCookedCooker
-			, OptionalContent: true
-
 		);
-
-		// cook the cooked editor targetplatorm as the "client"
-		//Params.ClientCookedTargets.Add("CrashReportClientEditor");
 
 		string TargetPlatformType = bIsCookedCooker ? "CookedCooker" : "CookedEditor";
 		string TargetName = ConfigHelper.GetString(bIsCookedCooker ? "CookedCookerTargetName" : "CookedEditorTargetName");
-		UnrealTargetPlatform Platform = bIsCookedCooker ? Params.ServerTargetPlatforms[0].Type : Params.ClientTargetPlatforms[0].Type;
-
+		UnrealTargetPlatform Platform;
 
 		// look to see if ini didn't override target name
 		if (string.IsNullOrEmpty(TargetName))
@@ -1009,20 +924,24 @@ public class MakeCookedEditor : BuildCommand
 			TargetName = ProjectFile.GetFileNameWithoutAnyExtensions() + TargetPlatformType;
 		}
 
+		// cook the cooked editor targetplatorm as the "client"
+		//Params.ClientCookedTargets.Add("CrashReportClientEditor");
+
 		// control the server/client taregts
 		Params.ServerCookedTargets.Clear();
 		Params.ClientCookedTargets.Clear();
-		List<TargetPlatformDescriptor> TargetPlatformList = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Platform, TargetPlatformType) };
 		if (bIsCookedCooker)
 		{
+			Platform = Params.ServerTargetPlatforms[0].Type;
 			Params.EditorTargets.Add(TargetName);
 			Params.ServerCookedTargets.Add(TargetName);
-			Params.ServerTargetPlatforms = TargetPlatformList;
+			Params.ServerTargetPlatforms = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Platform, TargetPlatformType) };
 		}
 		else
 		{
+			Platform = Params.ClientTargetPlatforms[0].Type;
 			Params.ClientCookedTargets.Add(TargetName);
-			Params.ClientTargetPlatforms = TargetPlatformList;
+			Params.ClientTargetPlatforms = new List<TargetPlatformDescriptor>() { new TargetPlatformDescriptor(Platform, TargetPlatformType) };
 		}
 
 
@@ -1038,24 +957,21 @@ public class MakeCookedEditor : BuildCommand
 		// and choose to cook them or not (generally for editoronly assets)
 		Params.AdditionalCookerOptions += " -DlcReevaluateUncookedAssets";
 
-		// set up cooking against a client, as DLC
-		if (bIsDLC)
-		{
-			// cook and stage into our project, instead of the Engine's plugins
-			DirectoryReference BaseOutputDirectory = DirectoryReference.Combine(ProjectFile.Directory, "Saved", "CookedEditor");
-			string TargetPlatformName = ConfigHierarchy.GetIniPlatformName(Platform) + TargetPlatformList[0].CookFlavor;
-			Params.CookOutputDir = DirectoryReference.Combine(BaseOutputDirectory, "Cooked", TargetPlatformName).FullName;
-			Params.StageDirectoryParam = DirectoryReference.Combine(BaseOutputDirectory, "Staged").FullName;
+		// Params.AdditionalCookerOptions += " -NoFilterAssetRegistry";
 
-			// make WindowsClient or LinuxGame, etc
-			string ReleaseTargetName = GetReleaseTargetName(Platform, ReleaseType);
+		// set up cooking against a client, as DLC
+		if (BasedOnReleaseVersion != null)
+		{
+			// make the platform name, like "WindowsClient", or "LinuxGame", of the premade build we are cooking/staging against
+			string IniPlatformName = ConfigHierarchy.GetIniPlatformName(Platform);
+			string ReleaseTargetName = IniPlatformName + (ReleaseType == TargetType.Game ? "NoEditor" : ReleaseType.ToString());
 
 			Params.AdditionalCookerOptions += " -CookAgainstFixedBase";
 			Params.AdditionalCookerOptions += $" -DevelopmentAssetRegistryPlatformOverride={ReleaseTargetName}";
 			Params.AdditionalIoStoreOptions += $" -DevelopmentAssetRegistryPlatformOverride={ReleaseTargetName}";
 
 			// point to where the premade asset registry can be found
-			Params.BasedOnReleaseVersionPathOverride = GetReleaseVersionPath(BasedOnReleaseVersion, ReleaseTargetName);
+			Params.BasedOnReleaseVersionPathOverride = CommandUtils.CombinePaths(ProjectFile.Directory.FullName, "Releases", BasedOnReleaseVersion, ReleaseTargetName);
 
 			Params.DLCOverrideStagedSubDir = "";
 			Params.DLCIncludeEngineContent = true;
@@ -1073,45 +989,6 @@ public class MakeCookedEditor : BuildCommand
 		return Params;
 	}
 
-	private ProjectParams GetReleaseParams(ProjectParams MainParams, string[] Options)
-	{
-		ProjectParams ReleaseParams = new ProjectParams(
-			Command: this
-			, RawProjectPath: MainParams.RawProjectPath
-
-			, Client: MainParams.Client
-			, CreateReleaseVersion: MainParams.BasedOnReleaseVersion
-			// tell the Params that we want cooked data
-			, Build: true
-			, Cook: true
-			, Stage: true
-			// MainParams already builds the editor
-			, SkipBuildEditor: true
-			, NoBootstrapExe: true
-			// if the param to build/cook is specified, then actually build/cook, otherwise assume the Release is already built/cooked
-			, SkipBuildClient: !Options.Contains("build", StringComparer.InvariantCultureIgnoreCase)
-			, SkipCook: !Options.Contains("cook", StringComparer.InvariantCultureIgnoreCase)
-			, SkipStage: !Options.Contains("stage", StringComparer.InvariantCultureIgnoreCase)
-		);
-
-		// if the MainParams override the ReleaseVersion path, use it directly
-		ReleaseParams.BasedOnReleaseVersionPathOverride = MainParams.BasedOnReleaseVersionPathOverride;
-		// if the MainParams have specified a base location to read the release info from, use that as the location to write 
-		// to when creating the Release
-		ReleaseParams.CreateReleaseVersionBasePath = MainParams.BasedOnReleaseVersionBasePath;
-
-		// copy off the staging dir
-		ReleaseParams.PreModifyDeploymentContextCallback = new Action<ProjectParams, DeploymentContext>((ProjectParams P, DeploymentContext SC) => { ReleaseStageDirectory = SC.StageDirectory; });
-
-		// cooked editor doesn't work without OptionalContent now, so always generated it, and save it somewhere that staging of the cookededitor will get
-		ReleaseOptionalFileStageDirectory = DirectoryReference.Combine(MainParams.RawProjectPath.Directory, "Saved", "CookedEditor", "OptionalData");
-		ReleaseParams.OptionalContent = true;
-		ReleaseParams.OptionalFileStagingDirectory = ReleaseOptionalFileStageDirectory.FullName;
-
-		ModifyReleaseParams(ReleaseParams);
-
-		return ReleaseParams;
-	}
 
 
 	protected static void GatherTargetDependencies(ProjectParams Params, DeploymentContext SC, ModifyStageContext Context, string ReceiptName)
@@ -1238,7 +1115,7 @@ public class MakeCookedEditor : BuildCommand
 		foreach (string AProp in Props)
 		{
 			string Prop = AProp.Trim(" \t".ToCharArray());
-			// find the first = (UE properties can't have an equal sign, so it's valid to do)
+			// find the first = (UE4 properties can't have an equal sign, so it's valid to do)
 			int Equals = Prop.IndexOf('=');
 			// we must have one
 			if (Equals == -1)
