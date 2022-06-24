@@ -75,21 +75,14 @@ void SetupFogUniformParameters(FRDGBuilder* GraphBuilder, const FViewInfo& View,
 
 	// Volumetric Fog
 	{
-		if (View.VolumetricFogResources.IntegratedLightScatteringTexture)
+		if (View.VolumetricFogResources.IntegratedLightScattering)
 		{
-			OutParameters.IntegratedLightScattering = View.VolumetricFogResources.IntegratedLightScatteringTexture;
+			OutParameters.IntegratedLightScattering = View.VolumetricFogResources.IntegratedLightScattering->GetRenderTargetItem().TargetableTexture;
 			OutParameters.ApplyVolumetricFog = 1.0f;
 		}
 		else
 		{
-			if (GraphBuilder)
-			{
-				OutParameters.IntegratedLightScattering = GBlackAlpha1VolumeTexture->GetRDG(*GraphBuilder);
-			}
-			else
-			{
-				OutParameters.IntegratedLightScattering = GBlackAlpha1VolumeTexture->GetPassthroughRDG();
-			}
+			OutParameters.IntegratedLightScattering = GSystemTextures.VolumetricBlackDummy->GetRenderTargetItem().TargetableTexture;
 			OutParameters.ApplyVolumetricFog = 0.0f;
 		}
 		OutParameters.IntegratedLightScatteringSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

@@ -54,6 +54,7 @@
 #include "GPUSortManager.h"
 #include "MobileDeferredShadingPass.h"
 #include "PlanarReflectionSceneProxy.h"
+#include "VolumetricFog.h"
 
 uint32 GetShadowQuality();
 
@@ -518,6 +519,11 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 				View.ForwardLightingResources = View.ForwardLightingResourcesStorage.Get();
 			}
 		}
+		else
+		{
+			extern FForwardLightingViewResources* GetMinimalDummyForwardLightingResources();
+			View.ForwardLightingResources = GetMinimalDummyForwardLightingResources();
+		}
 	
 		if (View.ViewState)
 		{
@@ -557,17 +563,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	// update buffers used in cached mesh path
-	// in case there are multiple views, these buffers will be updated before rendering each view
-	if (Views.Num() > 0)
-	{
-		const FViewInfo& View = Views[0];
-		// We want to wait for the extension jobs only when the view is being actually rendered for the first time
-		Scene->UniformBuffers.UpdateViewUniformBuffer(View, false);
-		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
-		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
-		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
-	}
 	if (bDeferredShading)
 	{
 		SetupSceneReflectionCaptureBuffer(RHICmdList);
@@ -576,7 +571,6 @@ void FMobileSceneRenderer::InitViews(FRHICommandListImmediate& RHICmdList)
 
 	// Now that the indirect lighting cache is updated, we can update the uniform buffers.
 	UpdatePrimitiveIndirectLightingCacheBuffers();
-	
 	OnStartRender(RHICmdList);
 
 	// Whether to submit cmdbuffer with offscreen rendering before doing post-processing
@@ -665,13 +659,13 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 	
 	FSortedLightSetSceneInfo SortedLightSet;
-	if (bDeferredShading)
+	if (bDeferredShading || ShouldRenderVolumetricFog())
 	{
 		GatherAndSortLights(SortedLightSet);
 		int32 NumReflectionCaptures = Views[0].NumBoxReflectionCaptures + Views[0].NumSphereReflectionCaptures;
-		bool bCullLightsToGrid = (NumReflectionCaptures > 0 || GMobileUseClusteredDeferredShading != 0);
+		bool bCullLightsToGrid = (NumReflectionCaptures > 0 || GMobileUseClusteredDeferredShading != 0 || IsMobilePlatform(ShaderPlatform));
 		FRDGBuilder GraphBuilder(RHICmdList);
-		ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet);
+		ComputeLightGrid(GraphBuilder, bCullLightsToGrid, SortedLightSet, !bDeferredShading);
 		GraphBuilder.Execute();
 	}
 
@@ -709,6 +703,14 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ViewList.Add(&Views[ViewIndex]);
 	}
 
+	{
+		SetupVolumetricFog();
+
+		FRDGBuilder GraphBuilder(RHICmdList);
+		ComputeVolumetricFog(GraphBuilder, SceneContext);
+		GraphBuilder.Execute();
+	}
+
 	// Custom depth
 	// bShouldRenderCustomDepth has been initialized in InitViews on mobile platform
 	if (bShouldRenderCustomDepth)
@@ -716,6 +718,18 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		FRDGBuilder GraphBuilder(RHICmdList);
 		RenderCustomDepthPass(GraphBuilder);
 		GraphBuilder.Execute();
+	}
+
+	// update buffers used in cached mesh path
+	// in case there are multiple views, these buffers will be updated before rendering each view
+	if (Views.Num() > 0)
+	{
+		const FViewInfo& View = Views[0];
+		// We want to wait for the extension jobs only when the view is being actually rendered for the first time
+		Scene->UniformBuffers.UpdateViewUniformBuffer(View, false);
+		UpdateOpaqueBasePassUniformBuffer(RHICmdList, View);
+		UpdateTranslucentBasePassUniformBuffer(RHICmdList, View);
+		UpdateDirectionalLightUniformBuffers(RHICmdList, View);
 	}
 	
 	FRHITexture* SceneColor = nullptr;

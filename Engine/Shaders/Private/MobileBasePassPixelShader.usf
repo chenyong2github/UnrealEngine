@@ -71,6 +71,10 @@ int NumDynamicPointLights;
 #define MOBILE_QL_DISABLE_MATERIAL_NORMAL 0
 #endif
 
+#ifndef MOBILE_QL_SUPPORT_VOLUMETRIC_FOG
+#define MOBILE_QL_SUPPORT_VOLUMETRIC_FOG 0
+#endif
+
 #define FULLY_ROUGH (MATERIAL_FULLY_ROUGH || MOBILE_QL_FORCE_FULLY_ROUGH)
 #define NONMETAL (MATERIAL_NONMETAL || MOBILE_QL_FORCE_NONMETAL)
 #define HQ_REFLECTIONS (MATERIAL_HQ_FORWARD_REFLECTIONS && !MOBILE_QL_FORCE_LQ_REFLECTIONS)
@@ -79,6 +83,7 @@ int NumDynamicPointLights;
 #define DEFERRED_SHADING_PATH (MOBILE_DEFERRED_SHADING && ((MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER))
 
 #define ALLOW_CUBE_REFLECTIONS HQ_REFLECTIONS
+#define MOBILE_SUPPORT_VOLUMETRIC_FOG MOBILE_QL_VOLUMETRIC_FOG
 
 #include "SHCommon.ush"
 #include "MobileBasePassCommon.ush"
@@ -89,6 +94,7 @@ int NumDynamicPointLights;
 #include "MobileShadingModels.ush"
 #include "DynamicLightingCommon.ush"
 #include "PlanarReflectionShared.ush"
+#include "HeightFogCommon.ush"
 
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	#include "SingleLayerWaterShading.ush"
@@ -893,7 +899,15 @@ void Main(
 #endif
 #endif
 	// NEEDS_BASEPASS_PIXEL_FOGGING is not allowed on mobile for the sake of performance.
-				 
+
+#if MOBILE_SUPPORT_VOLUMETRIC_FOG
+	if (FogStruct.ApplyVolumetricFog > 0)
+	{
+		float3 VolumeUV = ComputeVolumeUV(MaterialParameters.AbsoluteWorldPosition, ResolvedView.WorldToClip);
+		VertexFog = CombineVolumetricFog(VertexFog, VolumeUV, 0);
+	}
+#endif
+
 	half3 Emissive = GetMaterialEmissive(PixelMaterialInputs);
 #if MATERIAL_SHADINGMODEL_THIN_TRANSLUCENT
 	Emissive *= TopMaterialCoverage;
