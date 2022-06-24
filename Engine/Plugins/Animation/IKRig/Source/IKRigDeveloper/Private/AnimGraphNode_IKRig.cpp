@@ -325,6 +325,11 @@ void UAnimGraphNode_IKRig::ValidateAnimNodeDuringCompilation(USkeleton* ForSkele
 	}
 }
 
+UObject* UAnimGraphNode_IKRig::GetJumpTargetForDoubleClick() const
+{
+	return Node.RigDefinitionAsset;
+}
+
 void UAnimGraphNode_IKRig::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {	
 	const FName PropertyName = PropertyChangedEvent.GetPropertyName();

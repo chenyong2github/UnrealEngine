@@ -110,6 +110,10 @@ public:
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
 	// End of UAnimGraphNode_Base interface
 
+	// UK2Node interface
+	UObject* GetJumpTargetForDoubleClick() const;
+	// END UK2Node
+
 	// Begin UObject Interface.
 	virtual void PostLoad() override;
 	// End UObject Interface.
