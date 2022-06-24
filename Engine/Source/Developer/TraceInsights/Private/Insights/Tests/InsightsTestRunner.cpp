@@ -40,7 +40,6 @@ void FInsightsTestRunner::ScheduleCommand(const FString& InCmd)
 	if (!ActualCmd.StartsWith(TEXT("Automation RunTests")))
 	{
 		UE_LOG(InsightsTestRunner, Warning, TEXT("[InsightsTestRunner] Command %s does not start with Automation RunTests. Command will be ignored."), *InCmd);
-
 		return;
 	}
 

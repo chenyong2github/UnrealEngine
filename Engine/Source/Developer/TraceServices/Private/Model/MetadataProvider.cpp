@@ -158,10 +158,11 @@ FName FMetadataProvider::GetRegisteredMetadataName(uint16 Type) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
+
 const FMetadataSchema* FMetadataProvider::GetRegisteredMetadataSchema(uint16 Type) const
 {
 	Lock.ReadAccessCheck();
-	
+
 	const int32 Index = (int32)Type;
 	return Index < RegisteredTypes.Num() ? &RegisteredTypes[Index] : nullptr;
 }
@@ -271,7 +272,8 @@ void FMetadataProvider::PopScopedMetadata(uint32 ThreadId, uint16 Type)
 		return;
 	}
 
-	if (Top.StoreIndex == InvalidMetadataStoreIndex && Top.StoreEntry.Size > MaxInlinedMetadataSize)
+	if (Top.StoreIndex == InvalidMetadataStoreIndex &&
+		Top.StoreEntry.Size > MaxInlinedMetadataSize)
 	{
 		FMemory::Free(Top.StoreEntry.Ptr);
 		check(AllocationCount > 0);

@@ -37,7 +37,7 @@ enum class EFilterOperator : uint8
 	Lt = 2, // Less Than
 	Lte = 3, // Less than or equal to
 	Gt = 4, // Greater than
-	Gte = 5, // Greater than or equal to 
+	Gte = 5, // Greater than or equal to
 	Contains = 6,
 	NotContains = 7,
 };
@@ -58,20 +58,23 @@ template<typename T>
 class FFilterOperator : public IFilterOperator
 {
 public:
-
 	typedef TFunction<bool(T, T)> OperatorFunc;
 
 	FFilterOperator(EFilterOperator InKey, FString InName, OperatorFunc InFunc)
 		: Func(InFunc)
 		, Key(InKey)
 		, Name(InName)
-	{}
-	virtual ~FFilterOperator() {};
+	{
+	}
+	virtual ~FFilterOperator()
+	{
+	}
 
 	virtual EFilterOperator GetKey() override { return Key; }
 	virtual FString GetName() override { return Name; };
 
 	OperatorFunc Func;
+
 private:
 	EFilterOperator Key;
 	FString Name;
@@ -93,7 +96,8 @@ struct FFilterGroupOperator
 		: Type(InType)
 		, Name(InName)
 		, Desc(InDesc)
-	{}
+	{
+	}
 
 	EFilterGroupOperator Type;
 	FText Name;
@@ -126,10 +130,13 @@ public:
 		, Desc(InDesc)
 		, DataType(InDataType)
 		, SupportedOperators(InSupportedOperators)
-	{}
-	virtual ~FFilter() {}
+	{
+	}
+	virtual ~FFilter()
+	{
+	}
 
-	SupportedOperatorsArrayPtr GetSupportedOperators() { return SupportedOperators;	}
+	SupportedOperatorsArrayPtr GetSupportedOperators() const { return SupportedOperators; }
 
 	int32 Key;
 	FText Name;
@@ -150,9 +157,12 @@ struct FFilterWithSuggestions : FFilter
 public:
 	FFilterWithSuggestions(int32 InKey, FText InName, FText InDesc, EFilterDataType InDataType, SupportedOperatorsArrayPtr InSupportedOperators)
 		: FFilter(InKey, InName, InDesc, InDataType, InSupportedOperators)
-	{ }
+	{
+	}
 
-	virtual ~FFilterWithSuggestions() {}
+	virtual ~FFilterWithSuggestions()
+	{
+	}
 
 	GetSuggestionsCallback Callback;
 };
@@ -188,11 +198,11 @@ public:
 		FilterGroupOperators.Add(MakeShared<FFilterGroupOperator>(EFilterGroupOperator::Or, LOCTEXT("AnyOf", "Any Of (OR)"), LOCTEXT("AnyOfDesc", "Any of the children must be true for the group to return true. Equivalent to an OR operation.")));
 	}
 
-	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() { return FilterGroupOperators; }
+	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() const { return FilterGroupOperators; }
 
-	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() { return DoubleOperators; }
-	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() { return IntegerOperators; }
-	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetStringOperators() { return StringOperators; }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() const { return DoubleOperators; }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() const { return IntegerOperators; }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetStringOperators() const { return StringOperators; }
 
 private:
 	TArray<TSharedPtr<FFilterGroupOperator>> FilterGroupOperators;
@@ -216,11 +226,11 @@ public:
 	void RegisterTabSpawner();
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
-	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() { return FilterStorage.GetFilterGroupOperators(); }
+	const TArray<TSharedPtr<FFilterGroupOperator>>& GetFilterGroupOperators() const { return FilterStorage.GetFilterGroupOperators(); }
 
-	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() { return FilterStorage.GetDoubleOperators(); }
-	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() { return FilterStorage.GetIntegerOperators(); }
-	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetStringOperators() { return FilterStorage.GetStringOperators(); }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetDoubleOperators() const { return FilterStorage.GetDoubleOperators(); }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetIntegerOperators() const { return FilterStorage.GetIntegerOperators(); }
+	TSharedPtr<TArray<TSharedPtr<IFilterOperator>>> GetStringOperators() const { return FilterStorage.GetStringOperators(); }
 
 	TSharedPtr<SWidget> CreateFilterConfiguratorWidget(TSharedPtr<class FFilterConfigurator> FilterConfiguratorViewModel);
 
@@ -269,7 +279,7 @@ public:
 		return DataMap.Contains(Key);
 	}
 
-	bool GetReturnValueForUnsetFilters() const { return bReturnValueForUnsetFilters;	}
+	bool GetReturnValueForUnsetFilters() const { return bReturnValueForUnsetFilters; }
 	void SetReturnValueForUnsetFilters(bool InValue) { bReturnValueForUnsetFilters = InValue; }
 
 private:
