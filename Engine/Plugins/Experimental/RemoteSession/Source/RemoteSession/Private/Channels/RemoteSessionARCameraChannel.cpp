@@ -561,11 +561,11 @@ void FRemoteSessionARCameraChannel::UpdateRenderingTexture()
 		FUpdateTextureRegion2D* Region = new FUpdateTextureRegion2D(0, 0, 0, 0, DecompressedImage->Width, DecompressedImage->Height);
 		TArray<uint8>* TextureData = new TArray<uint8>(MoveTemp(DecompressedImage->ImageData));
 
-		RenderingTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * DecompressedImage->Width, sizeof(FColor), TextureData->GetData(), [this, NextImage](auto InTextureData, auto InRegions)
+		RenderingTextures[NextImage]->UpdateTextureRegions(0, 1, Region, 4 * DecompressedImage->Width, sizeof(FColor), TextureData->GetData(), [this, NextImage, TextureData](auto InTextureData, auto InRegions)
 		{
 			RenderingTextureIndex.Set(NextImage);
 			RenderingTexturesUpdateCount[NextImage].Decrement();
-			delete InTextureData;
+			delete TextureData;
 			delete InRegions;
 		});
 	} //-V773
