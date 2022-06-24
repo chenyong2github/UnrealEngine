@@ -26,6 +26,9 @@ UFractureToolMeshCut::UFractureToolMeshCut(const FObjectInitializer& ObjInit)
 {
 	MeshCutSettings = NewObject<UFractureMeshCutSettings>(GetTransientPackage(), UFractureMeshCutSettings::StaticClass());
 	MeshCutSettings->OwnerTool = this;
+	CutterSettings->bDrawSitesToggleEnabled = false;
+	DisableNoiseSettings();
+	DisableGroutSetting();
 }
 
 FText UFractureToolMeshCut::GetDisplayText() const
@@ -53,7 +56,7 @@ TArray<UObject*> UFractureToolMeshCut::GetSettingsObjects() const
  {
 	TArray<UObject*> Settings;
 	Settings.Add(MeshCutSettings);
-	//Settings.Add(CutterSettings); // TODO: add cutter settings if/when we support noise and grout
+	Settings.Add(CutterSettings);
 	Settings.Add(CollisionSettings);
 	return Settings;
 }
@@ -179,6 +182,8 @@ void UFractureToolMeshCut::GenerateMeshTransforms(const FFractureToolContext& Co
 
 void UFractureToolMeshCut::FractureContextChanged()
 {
+	SetMandateGroupFracture(MeshCutSettings->CutDistribution == EMeshCutDistribution::SingleCut);
+
 	UpdateDefaultRandomSeed();
 	TArray<FFractureToolContext> FractureContexts = GetFractureToolContexts();
 
