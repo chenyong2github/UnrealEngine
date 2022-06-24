@@ -46,16 +46,25 @@ void UGizmoElementRectangle::Render(IToolsContextRenderAPI* RenderAPI, const FRe
 	}
 }
 
-FInputRayHit UGizmoElementRectangle::LineTrace(const FVector RayOrigin, const FVector RayDirection)
+FInputRayHit UGizmoElementRectangle::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (IsHittableInView())
+	if (!IsHittable())
 	{
-		const FVector WorldUpAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
-		const FVector WorldSideAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
+		return FInputRayHit();
+	}
+
+	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
+	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Center, CurrentLineTraceState);
+
+	if (bHittableViewDependent)
+	{
+		FTransform LocalToWorldTransform = CurrentLineTraceState.LocalToWorldTransform;
+		const FVector WorldUpAxis = LocalToWorldTransform.TransformVectorNoScale(UpDirection);
+		const FVector WorldSideAxis = LocalToWorldTransform.TransformVectorNoScale(SideDirection);
 		const FVector WorldNormal = FVector::CrossProduct(WorldUpAxis, WorldSideAxis);
-		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector);
-		const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
-		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
+		const FVector WorldCenter = LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const double Scale = LocalToWorldTransform.GetScale3D().X;
+		const double PixelHitThresholdAdjust = CurrentLineTraceState.PixelToWorldScale * PixelHitDistanceThreshold;
 		const double WorldHeight = Scale * Height + PixelHitThresholdAdjust * 2.0;
 		const double WorldWidth = Scale * Width + PixelHitThresholdAdjust * 2.0;
 		const FVector Base = WorldCenter - WorldUpAxis * WorldHeight * 0.5 - WorldSideAxis * WorldWidth * 0.5;

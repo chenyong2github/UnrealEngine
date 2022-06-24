@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "BaseGizmos/GizmoInterfaces.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "BaseGizmos/HitTargets.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "GizmoElementHitTargets.generated.h"
 
 class UGizmoElementBase;
@@ -27,6 +29,12 @@ public:
 	UPROPERTY()
 	TObjectPtr<UGizmoElementBase> GizmoElement;
 
+	UPROPERTY()
+	TObjectPtr<UGizmoViewContext> GizmoViewContext;
+
+	UPROPERTY()
+	TObjectPtr<UTransformProxy> GizmoTransformProxy;
+
 	/**
 	 * If set, this condition is checked before performing the hit test. This gives a way
 	 * to disable the hit test without hiding the component. This is useful, for instance,
@@ -45,6 +53,7 @@ public:
 public:
 	static UGizmoElementHitTarget* Construct(
 		UGizmoElementBase* InGizmoElement,
+		UGizmoViewContext* InGizmoViewContext,
 		UObject* Outer = (UObject*)GetTransientPackage());
 };
 
@@ -69,6 +78,12 @@ public:
 	 */
 	UPROPERTY()
 	TObjectPtr<UGizmoElementBase> GizmoElement;
+
+	UPROPERTY()
+	TObjectPtr<UGizmoViewContext> GizmoViewContext;
+
+	UPROPERTY()
+	TObjectPtr<UTransformProxy> GizmoTransformProxy;
 
 	/**
 	 * If set, this condition is checked before performing the hit test. This gives a way
@@ -98,6 +113,7 @@ protected:
 public:
 	static UGizmoElementHitMultiTarget* Construct(
 		UGizmoElementBase* InGizmoElement,
+		UGizmoViewContext* InGizmoViewContext,
 		UObject* Outer = (UObject*)GetTransientPackage());
 
 };

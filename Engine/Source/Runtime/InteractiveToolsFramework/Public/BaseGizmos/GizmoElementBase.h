@@ -14,6 +14,7 @@
 #include "GizmoElementBase.generated.h"
 
 class UMaterialInterface;
+class UGizmoViewContext;
 
 /**
  * Base class for 2d and 3d primitive objects intended to be used as part of 3D Gizmos.
@@ -88,28 +89,39 @@ public:
 		}
 	};
 
+	struct FLineTraceTraversalState
+	{
+		// LocalToWorld transform 
+		// Note: non-uniform scale is not supported and the X scale element will be used for uniform scaling.
+		FTransform LocalToWorldTransform;
+
+		// Pixel to world scale
+		double PixelToWorldScale = 1.0;
+
+		// Initialize state 
+		void Initialize(const UGizmoViewContext* InGizmoViewContext, FTransform InTransform)
+		{
+			LocalToWorldTransform = InTransform;
+			PixelToWorldScale = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(InGizmoViewContext, InTransform.GetLocation());
+		}
+	};
+
 public:
 
 	// Render enabled visible element.
 	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) PURE_VIRTUAL(UGizmoElementBase::Render);
 
 	// Line trace enabled hittable element.
-	virtual FInputRayHit LineTrace(const FVector Start, const FVector Direction) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
+	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) PURE_VIRTUAL(UGizmoElementBase::LineTrace, return FInputRayHit(););
 
 	// Calcute box sphere bounds for use when hit testing.
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const PURE_VIRTUAL(UGizmoElementBase::CalcBounds, return FBoxSphereBounds(););
-
-	// Reset the cached render state.
-	virtual void ResetCachedRenderState();
 
 	// Whether this object is visible.
 	virtual bool IsVisible() const;
 
 	// Whether this object is hittable.
 	virtual bool IsHittable() const;
-
-	// Whether this object is hittable in the most recently cached view.
-	virtual bool IsHittableInView() const;
 
 	// Render and LineTrace should only occur when bEnabled is true.
 	virtual void SetEnabled(bool InEnabled);
@@ -327,48 +339,72 @@ protected:
 	UPROPERTY()
 	float PixelHitDistanceThreshold = 7.0;
 
-	// Render stores the last cached transform, used by line trace.
-	UPROPERTY()
-	FTransform CachedLocalToWorldTransform = FTransform::Identity;
+protected:
 
-	// Render stores the last pixel to world scale, used by line trace.
-	UPROPERTY()
-	float CachedPixelToWorldScale = 1.0;
+	// Returns whether object is visible in input FSceneView based on view-dependent visibility settings 
+	virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
-	// Whether last transform has been cached.
-	UPROPERTY()
-	bool bHasCachedLocalToWorldTransform = false;
+	// Returns whether object is visible in input gizmo view context based on view-dependent visibility settings
+	virtual bool GetViewDependentVisibility(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
-	// Whether visible object was visible during the last render.
-	UPROPERTY()
-	bool bCachedVisibleViewDependent = true;
+	// Returns whether object is visible based input view parameters and view-dependent visibility settings
+	virtual bool GetViewDependentVisibility(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
-	// Cached box sphere bounds.
-	UPROPERTY()
-	FBoxSphereBounds CachedBoxSphereBounds;
+	// Returns whether object is hittable in input FSceneView based on element state and view-dependent settings. 
+	virtual bool GetViewDependentHittable(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
 
-	// Cached box sphere bounds.
-	UPROPERTY()
-	bool bHasCachedBoxSphereBounds;
+	// Returns whether object is hittable in input gizmo view context based on element state and view-dependent settings. 
+	virtual bool GetViewDependentHittable(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+
+	// Returns whether object is hittable based on input view parameters, element state and view-dependent settings. 
+	virtual bool GetViewDependentHittable(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+
+	// Return whether this element has a view alignment rotation based on input FSceneView and view-dependent alignment settings.
+	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
+	virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+
+	// Return whether this element has a view alignment rotation based on input gizmo view context and view-dependent alignment settings.
+	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
+	virtual bool GetViewAlignRot(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+
+	// Return whether this element has a view alignment rotation based on input view parameters and view-dependent alignment settings.
+	// @param OutAlignRot the rotation to align this element in local space, should be prepended to the local-to-world transform.
+	virtual bool GetViewAlignRot(const FVector& InViewLocation, const FVector& InViewDirection, const FVector& InViewUp, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
+
+	// Update render state during render traversal, determines the current render state for this element 
+	// @param RenderAPI - tools render context
+	// @param InLocalCenter - local element center position
+	// @param InOutRenderState - render state's local to world transform will be updated with translation to center and view-dependent alignment rotation, if applicable.
+	// @return view dependent visibility, true if this element is visible in the current view. 
+	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState);
+
+	// Update render state during render traversal, determines the current render state for this element, same parameters as
+	// Same parameters as UpdateRenderState above plus two output parameters:
+	// @param bOutHasAlignRot - whether alignment rotation was applied to output state
+	// @param OutAlignRot - alignment rotation applied to output state, if applicable.
+	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot);
+
+	// Update line trace state during line trace traversal, determines the current state for this element 
+	// @param ViewContext - current gizmo view context
+	// @param InLocalCenter - local element center position, this will update InOutLineTraceState's LocalToWorldTransform with a translation to LocalCenter
+	// @param InOutLineTraceState - line trace state's local to world transform will be updated with translation to center and view-dependent alignment rotation, if applicable.
+	// @return view dependent visibility, true if this element is visible in the current view. 
+	virtual bool UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutLineTraceState);
+
+	// Update line trace state during line trace traversal, determines the current state for this element 
+	// Same parameters as UpdateLineTraceState above plus two output parameters:
+	// @param bOutHasAlignRot - whether alignment rotation was applied to output state
+	// @param OutAlignRot - alignment rotation applied to output state, if applicable.
+	virtual bool UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot);
 
 protected:
 
-	// Returns whether object is visible based on view-dependent visibility settings. 
-	virtual bool GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const;
+	// Helper method to verify scale is uniform. If it is non-uniform, a one-time warning log is issued.
+	// Returns true if scale is uniform.
+	bool VerifyUniformScale(const FVector& Scale) const;
 
-	// Returns true when view alignment is enabled. OutAlignRot is the rotation in local space which will align the object to the view base
-	// on view-dependent alignment settings. So it should be prepended to the local-to-world transform.
-	virtual bool GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const;
-
-	// Helper method to calculate rotation between coord spaces.
-	FQuat GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceSide, FVector SourceUp, FVector TargetForward, FVector TargetSide, FVector TargetUp) const;
-
-	// Update render state during render traversal, determines the current render state for this element 
-	// @return view dependent visibility, true if this element is visible in the current view. 
-	virtual bool UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState);
-
-	// Cache render state during render traversal to be used subsequently when line tracing.
-	virtual void CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent = true);
-
+	// Helper method for view alignment.
+	// Returns rotation between source and target input coordinate spaces.
+	FQuat GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceRight, FVector SourceUp, FVector TargetForward, FVector TargetRight, FVector TargetUp) const;
 };
 

@@ -21,7 +21,7 @@ public:
 
 	//~ Begin UGizmoElementBase Interface.
 	virtual void Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState) override;
-	virtual FInputRayHit LineTrace(const FVector Start, const FVector Direction) override;
+	virtual FInputRayHit LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection) override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End UGizmoElementBase Interface.
 
@@ -39,9 +39,6 @@ public:
 
 	// Update group and contained elements' interaction state for elements in specified gizmo parts.
 	virtual void UpdatePartInteractionState(EGizmoElementInteractionState InInteractionState, uint32 InPartIdentifier);
-
-	// Reset cached render state
-	virtual void ResetCachedRenderState();
 
 	// When true, maintains view-dependent constant scale for this gizmo object hierarchy
 	virtual void SetConstantScale(bool InConstantScale);
@@ -61,4 +58,7 @@ protected:
 	// Gizmo elements within this group
 	UPROPERTY()
 	TArray<TObjectPtr<UGizmoElementBase>> Elements;
+
+	// Applies constant scale to the current local to world transform, if constant scale is true
+	virtual void ApplyConstantScale(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform);
 };

@@ -32,16 +32,25 @@ void UGizmoElementBox::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTr
 	}
 }
 
-FInputRayHit UGizmoElementBox::LineTrace(const FVector RayOrigin, const FVector RayDirection)
+FInputRayHit UGizmoElementBox::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (IsHittableInView())
+	if (!IsHittable())
 	{
-		const FVector YAxis = CachedLocalToWorldTransform.TransformVectorNoScale(SideDirection);
-		const FVector ZAxis = CachedLocalToWorldTransform.TransformVectorNoScale(UpDirection);
+		return FInputRayHit();
+	}
+
+	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
+	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Center, CurrentLineTraceState);
+
+	if (bHittableViewDependent)
+	{
+		const FVector YAxis = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(SideDirection);
+		const FVector ZAxis = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(UpDirection);
 		const FVector XAxis = FVector::CrossProduct(YAxis, ZAxis);
-		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector);
-		const double Scale = CachedLocalToWorldTransform.GetScale3D().X;
-		const FVector WorldExtent = Dimensions * Scale * 0.5;
+		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const double Scale = CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X;
+		const double PixelHitThresholdAdjust = CurrentLineTraceState.PixelToWorldScale * PixelHitDistanceThreshold;
+		const FVector WorldExtent = Dimensions * Scale * 0.5 + FVector(PixelHitThresholdAdjust);
 
 		double HitDepth = 0.0;
 		UE::Geometry::TRay<double> Ray(RayOrigin, RayDirection);

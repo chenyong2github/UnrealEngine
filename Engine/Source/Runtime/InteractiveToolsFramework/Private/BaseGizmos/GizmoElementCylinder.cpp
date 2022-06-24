@@ -35,20 +35,27 @@ void UGizmoElementCylinder::Render(IToolsContextRenderAPI* RenderAPI, const FRen
 }
 
 
-
-FInputRayHit UGizmoElementCylinder::LineTrace(const FVector RayOrigin, const FVector RayDirection)
+FInputRayHit UGizmoElementCylinder::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (IsHittableInView())
+	if (!IsHittable())
+	{
+		return FInputRayHit();
+	}
+
+	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
+	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Base, CurrentLineTraceState);
+
+	if (bHittableViewDependent)
 	{
 		bool bIntersects = false;
 		double RayParam = 0.0;
 		
-		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
-		const double WorldHeight = Height * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
-		const double WorldRadius = Radius * CachedLocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust;
-		const FVector WorldDirection = CachedLocalToWorldTransform.TransformVectorNoScale(Direction);
+		const double PixelHitThresholdAdjust = CurrentLineTraceState.PixelToWorldScale * PixelHitDistanceThreshold;
+		const double WorldHeight = Height * CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust * 2.0;
+		const double WorldRadius = Radius * CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X + PixelHitThresholdAdjust;
+		const FVector WorldDirection = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Direction);
 		const FVector LocalCenter = Direction * Height * 0.5;
-		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(LocalCenter);
+		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.TransformPosition(LocalCenter);
 
 		GizmoMath::RayCylinderIntersection(
 			WorldCenter,

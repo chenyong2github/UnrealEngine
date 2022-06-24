@@ -36,7 +36,7 @@ void UGizmoElementTorus::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 
 
 
-FInputRayHit UGizmoElementTorus::LineTrace(const FVector RayOrigin, const FVector RayDirection)
+FInputRayHit UGizmoElementTorus::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
 	// Line trace is not supported for torus.
 	return FInputRayHit();
@@ -160,3 +160,4 @@ bool UGizmoElementTorus::GetEndCaps() const
 	return bEndCaps;
 }
 
+#undef LOCTEXT_NAMESPACE

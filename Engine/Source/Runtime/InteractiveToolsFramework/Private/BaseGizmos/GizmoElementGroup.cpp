@@ -1,6 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "BaseGizmos/GizmoElementGroup.h"
+#include "BaseGizmos/GizmoViewContext.h"
+
+
+void UGizmoElementGroup::ApplyConstantScale(float PixelToWorldScale, FTransform& InOutLocalToWorldTransform)
+{
+	float Scale = InOutLocalToWorldTransform.GetScale3D().X;
+	if (bConstantScale)
+	{
+		Scale *= PixelToWorldScale;
+	}
+	InOutLocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
+}
 
 void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRenderTraversalState& RenderState)
 {
@@ -16,13 +28,7 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 
 	if (bVisibleViewDependent)
 	{
-		// Compute constant scale, if applicable
-		float Scale = CurrentRenderState.LocalToWorldTransform.GetScale3D().X;
-		if (bConstantScale)
-		{
-			Scale *= CurrentRenderState.PixelToWorldScale;
-		}
-		CurrentRenderState.LocalToWorldTransform.SetScale3D(FVector(Scale, Scale, Scale));
+		ApplyConstantScale(CurrentRenderState.PixelToWorldScale, CurrentRenderState.LocalToWorldTransform);
 
 		// Continue render even if not visible so all transforms will be cached 
 		// for subsequent line tracing.
@@ -36,17 +42,22 @@ void UGizmoElementGroup::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 	}
 }
 
-FInputRayHit UGizmoElementGroup::LineTrace(const FVector Start, const FVector Direction)
+FInputRayHit UGizmoElementGroup::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
 	FInputRayHit Hit;
 
-	if (IsHittable())
+	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
+	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, FVector::ZeroVector, CurrentLineTraceState);
+
+	if (bHittableViewDependent)
 	{
+		ApplyConstantScale(CurrentLineTraceState.PixelToWorldScale, CurrentLineTraceState.LocalToWorldTransform);
+
 		for (UGizmoElementBase* Element : Elements)
 		{
 			if (Element)
 			{
-				FInputRayHit NewHit = Element->LineTrace(Start, Direction);
+				FInputRayHit NewHit = Element->LineTrace(ViewContext, CurrentLineTraceState, RayOrigin, RayDirection);
 				if (!Hit.bHit || NewHit.HitDepth < Hit.HitDepth)
 				{
 					Hit = NewHit;
@@ -135,19 +146,6 @@ void UGizmoElementGroup::UpdatePartInteractionState(EGizmoElementInteractionStat
 		if (Element)
 		{
 			Element->UpdatePartInteractionState(InInteractionState, InPartIdentifier);
-		}
-	}
-}
-
-void UGizmoElementGroup::ResetCachedRenderState()
-{
-	Super::ResetCachedRenderState();
-
-	for (UGizmoElementBase* Element : Elements)
-	{
-		if (Element)
-		{
-			Element->ResetCachedRenderState();
 		}
 	}
 }

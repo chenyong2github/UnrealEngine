@@ -2,14 +2,18 @@
 
 #include "BaseGizmos/GizmoElementHitTargets.h"
 #include "BaseGizmos/GizmoElementBase.h"
+#include "BaseGizmos/GizmoViewContext.h"
+#include "BaseGizmos/TransformProxy.h"
 #include "Engine/EngineTypes.h"    // FHitResult
 
 
 FInputRayHit UGizmoElementHitTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
-	if (GizmoElement && (!Condition || Condition(ClickPos)))
+	if (GizmoElement && GizmoViewContext && GizmoTransformProxy && (!Condition || Condition(ClickPos)))
 	{
-		return GizmoElement->LineTrace(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction);
+		UGizmoElementBase::FLineTraceTraversalState LineTraceState;
+		LineTraceState.Initialize(GizmoViewContext, GizmoTransformProxy->GetTransform());
+		return GizmoElement->LineTrace(GizmoViewContext, LineTraceState, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction);
 	}
 	return FInputRayHit();
 }
@@ -48,18 +52,21 @@ void UGizmoElementHitTarget::UpdateInteractingState(bool bInteracting)
 	}
 }
 
-UGizmoElementHitTarget* UGizmoElementHitTarget::Construct(UGizmoElementBase* InGizmoElement, UObject* Outer)
+UGizmoElementHitTarget* UGizmoElementHitTarget::Construct(UGizmoElementBase* InGizmoElement, UGizmoViewContext* InGizmoViewContext, UObject* Outer)
 {
 	UGizmoElementHitTarget* NewHitTarget = NewObject<UGizmoElementHitTarget>(Outer);
 	NewHitTarget->GizmoElement = InGizmoElement;
+	NewHitTarget->GizmoViewContext = InGizmoViewContext;
 	return NewHitTarget;
 }
 
 FInputRayHit UGizmoElementHitMultiTarget::IsHit(const FInputDeviceRay& ClickPos) const
 {
-	if (GizmoElement && (!Condition || Condition(ClickPos)))
+	if (GizmoElement && GizmoViewContext && GizmoTransformProxy && (!Condition || Condition(ClickPos)))
 	{
-		return GizmoElement->LineTrace(ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction);
+		UGizmoElementBase::FLineTraceTraversalState LineTraceState;
+		LineTraceState.Initialize(GizmoViewContext, GizmoTransformProxy->GetTransform());
+		return GizmoElement->LineTrace(GizmoViewContext, LineTraceState, ClickPos.WorldRay.Origin, ClickPos.WorldRay.Direction);
 	}
 	return FInputRayHit();
 }
@@ -114,10 +121,11 @@ void UGizmoElementHitMultiTarget::UpdateHittableState(bool bHittable, uint32 Par
 	GizmoElement->UpdatePartHittableState(bHittable, PartIdentifier);
 }
 
-UGizmoElementHitMultiTarget* UGizmoElementHitMultiTarget::Construct(UGizmoElementBase* InGizmoElement, UObject* Outer)
+UGizmoElementHitMultiTarget* UGizmoElementHitMultiTarget::Construct(UGizmoElementBase* InGizmoElement, UGizmoViewContext* InGizmoViewContext, UObject* Outer)
 {
 	UGizmoElementHitMultiTarget* NewHitTarget = NewObject<UGizmoElementHitMultiTarget>(Outer);
 	NewHitTarget->GizmoElement = InGizmoElement;
+	NewHitTarget->GizmoViewContext = InGizmoViewContext;
 	return NewHitTarget;
 }
 

@@ -3,11 +3,75 @@
 #include "BaseGizmos/GizmoElementBase.h"
 #include "BaseGizmos/GizmoInterfaces.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
+#include "BaseGizmos/GizmoViewContext.h"
 #include "Materials/MaterialInterface.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogGizmoElementBase, Log, All);
 
+namespace GizmoElementBaseLocals
+{
+	template <class ViewType>
+	void GetViewInfo(const ViewType* View,
+		FVector& OutViewLocation, FVector& OutViewDirection, FVector& OutViewUp, bool& OutIsPerspectiveView)
+	{
+		OutIsPerspectiveView = View->IsPerspectiveProjection();
+		OutViewLocation = View->ViewLocation;
+		OutViewDirection = View->GetViewDirection();
+		OutViewUp = View->GetViewUp();
+	}
+}
+
 bool UGizmoElementBase::GetViewDependentVisibility(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	bool bIsPerspectiveView;
+	FVector ViewLocation, ViewDirection, ViewUp;
+	GizmoElementBaseLocals::GetViewInfo<FSceneView>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
+	return GetViewDependentVisibility(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
+}
+
+bool UGizmoElementBase::GetViewDependentVisibility(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	bool bIsPerspectiveView;
+	FVector ViewLocation, ViewDirection, ViewUp;
+	GizmoElementBaseLocals::GetViewInfo<UGizmoViewContext>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
+	return GetViewDependentVisibility(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
+}
+
+
+bool UGizmoElementBase::GetViewDependentHittable(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	bool bIsPerspectiveView;
+	FVector ViewLocation, ViewDirection, ViewUp;
+	GizmoElementBaseLocals::GetViewInfo<FSceneView>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
+	return GetViewDependentHittable(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
+}
+
+bool UGizmoElementBase::GetViewDependentHittable(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
+{
+	bool bIsPerspectiveView;
+	FVector ViewLocation, ViewDirection, ViewUp;
+	GizmoElementBaseLocals::GetViewInfo<UGizmoViewContext>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
+	return GetViewDependentHittable(ViewLocation, ViewDirection, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter);
+}
+
+
+bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
+{
+	bool bIsPerspectiveView;
+	FVector ViewLocation, ViewDirection, ViewUp;
+	GizmoElementBaseLocals::GetViewInfo<FSceneView>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
+	return GetViewAlignRot(ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter, OutAlignRot);
+}
+
+bool UGizmoElementBase::GetViewAlignRot(const UGizmoViewContext* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
+{
+	bool bIsPerspectiveView;
+	FVector ViewLocation, ViewDirection, ViewUp;
+	GizmoElementBaseLocals::GetViewInfo<UGizmoViewContext>(View, ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView);
+	return GetViewAlignRot(ViewLocation, ViewDirection, ViewUp, bIsPerspectiveView, InLocalToWorldTransform, InLocalCenter, OutAlignRot);
+}
+
+bool UGizmoElementBase::GetViewDependentVisibility(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
 {
 	if (ViewDependentType == EGizmoElementViewDependentType::None || ViewAlignType == EGizmoElementViewAlignType::PointOnly || ViewAlignType == EGizmoElementViewAlignType::PointEye)
 	{
@@ -15,18 +79,16 @@ bool UGizmoElementBase::GetViewDependentVisibility(const FSceneView* View, const
 	}
 
 	FVector ViewDir;
-
-	if (View->IsPerspectiveProjection())
+	if (bInPerspectiveView)
 	{
-
 		FVector WorldCenter = InLocalToWorldTransform.TransformPosition(InLocalCenter);
-		ViewDir = WorldCenter - View->ViewLocation;
-		ViewDir.Normalize();
+		ViewDir = WorldCenter - InViewLocation;
 	}
 	else
 	{
-		ViewDir = View->GetViewDirection();
+		ViewDir = InViewDirection;
 	}
+	ViewDir.Normalize();
 
 	bool bVisibleViewDependent;
 	if (ViewDependentType == EGizmoElementViewDependentType::Axis)
@@ -42,25 +104,17 @@ bool UGizmoElementBase::GetViewDependentVisibility(const FSceneView* View, const
 
 }
 
-
-bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
+bool UGizmoElementBase::GetViewDependentHittable(const FVector& InViewLocation, const FVector& InViewDirection, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter) const
 {
-	if (ViewAlignType == EGizmoElementViewAlignType::None)
-	{
-		return false;
-	}
+	return (IsHittable() && (!IsVisible() || GetViewDependentVisibility(InViewLocation, InViewDirection, bInPerspectiveView, InLocalToWorldTransform, InLocalCenter)));
+}
 
+bool UGizmoElementBase::GetViewAlignRot(const FVector& InViewLocation, const FVector& InViewDirection, const FVector& InViewUp, bool bInPerspectiveView, const FTransform& InLocalToWorldTransform, const FVector& InLocalCenter, FQuat& OutAlignRot) const
+{
 	FVector Scale = InLocalToWorldTransform.GetScale3D();
-	if (!FMath::IsNearlyEqual(Scale.X, Scale.Y, KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Scale.X, Scale.Z, KINDA_SMALL_NUMBER))
+
+	if (ViewAlignType == EGizmoElementViewAlignType::None || !VerifyUniformScale(Scale))
 	{
-		// Warn that non-uniform scale is not currently supported 
-		bool bNonUniformScaleWarning = true;
-		if (bNonUniformScaleWarning)
-		{
-			UE_LOG(LogGizmoElementBase, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f %f %f)."),
-				Scale.X, Scale.Y, Scale.Z);
-			bNonUniformScaleWarning = false;
-		}
 		return false;
 	}
 
@@ -68,15 +122,15 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 
 	FTransform WorldToLocalTransform = InLocalToWorldTransform.Inverse();
 
-	if (View->IsPerspectiveProjection() && ViewAlignType != EGizmoElementViewAlignType::PointScreen)
+	if (bInPerspectiveView && ViewAlignType != EGizmoElementViewAlignType::PointScreen)
 	{
-		FVector LocalViewLocation = WorldToLocalTransform.TransformPosition(View->ViewLocation);
+		FVector LocalViewLocation = WorldToLocalTransform.TransformPosition(InViewLocation);
 		LocalViewDir = InLocalCenter - LocalViewLocation;
 		LocalViewDir.Normalize();
 	}
 	else
 	{
-		FVector WorldViewDir = View->GetViewDirection();
+		FVector WorldViewDir = InViewDirection;
 		LocalViewDir = WorldToLocalTransform.GetRotation().RotateVector(WorldViewDir);
 		LocalViewDir.Normalize();
 	}
@@ -91,7 +145,7 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 		Right.Normalize();
 		FVector Up = ViewAlignNormal ^ Right;
 
-		FVector LocalViewUp = WorldToLocalTransform.TransformVector(View->GetViewUp());
+		FVector LocalViewUp = WorldToLocalTransform.TransformVector(InViewUp);
 		FVector TargetFwd = -LocalViewDir;
 		FVector TargetRight = LocalViewUp ^ TargetFwd;
 		TargetRight.Normalize();
@@ -117,6 +171,23 @@ bool UGizmoElementBase::GetViewAlignRot(const FSceneView* View, const FTransform
 	return true;
 }
 
+bool UGizmoElementBase::VerifyUniformScale(const FVector& Scale) const
+{
+	if (!FMath::IsNearlyEqual(Scale.X, Scale.Y, KINDA_SMALL_NUMBER) || !FMath::IsNearlyEqual(Scale.X, Scale.Z, KINDA_SMALL_NUMBER))
+	{
+		// Log one-time warning that non-uniform scale is not currently supported 
+		static bool bNonUniformScaleWarning = true;
+		if (bNonUniformScaleWarning)
+		{
+			UE_LOG(LogGizmoElementBase, Warning, TEXT("Gizmo element library view-dependent alignment does not currently support non-uniform scale (%f %f %f)."),
+				Scale.X, Scale.Y, Scale.Z);
+			bNonUniformScaleWarning = false;
+		}
+		return false;
+	}
+	return true;
+}
+
 FQuat UGizmoElementBase::GetAlignRotBetweenCoordSpaces(FVector SourceForward, FVector SourceRight, FVector SourceUp, FVector TargetForward, FVector TargetRight, FVector TargetUp) const
 {
 	FMatrix SourceToCanonical(
@@ -137,27 +208,21 @@ FQuat UGizmoElementBase::GetAlignRotBetweenCoordSpaces(FVector SourceForward, FV
 	return Result;
 }
 
-void UGizmoElementBase::CacheRenderState(const FTransform& InLocalToWorldState, double InPixelToWorldScale, bool InVisibleViewDependent)
+bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalCenter, FRenderTraversalState& InOutRenderState)
 {
-	CachedLocalToWorldTransform = InLocalToWorldState;
-	CachedPixelToWorldScale = InPixelToWorldScale;
-	bHasCachedLocalToWorldTransform = true;
-	bCachedVisibleViewDependent = InVisibleViewDependent;
+	FQuat AlignRot;
+	bool bHasAlignRot;
+	return UpdateRenderState(RenderAPI, InLocalCenter, InOutRenderState, bHasAlignRot, AlignRot);
 }
 
-void UGizmoElementBase::ResetCachedRenderState()
-{
-	bHasCachedLocalToWorldTransform = false;
-	CachedLocalToWorldTransform = FTransform::Identity;
-	CachedPixelToWorldScale = 1.0f;
-	bCachedVisibleViewDependent = true;
-}
-
-bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector& InLocalOrigin, FRenderTraversalState& InOutRenderState)
+bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, const FVector & InLocalCenter, FRenderTraversalState & InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot)
 {
 	check(RenderAPI);
 	const FSceneView* View = RenderAPI->GetSceneView();
 	check(View);
+
+	OutAlignRot = FQuat::Identity;
+	bOutHasAlignRot = false;
 
 	if (InOutRenderState.InteractionState == EGizmoElementInteractionState::None)
 	{
@@ -166,24 +231,40 @@ bool UGizmoElementBase::UpdateRenderState(IToolsContextRenderAPI* RenderAPI, con
 
 	InOutRenderState.MeshRenderState.Update(MeshRenderAttributes);
 
-	bool bVisibleViewDependent = GetViewDependentVisibility(View, InOutRenderState.LocalToWorldTransform, InLocalOrigin);
+	bool bVisibleViewDependent = GetViewDependentVisibility(View, InOutRenderState.LocalToWorldTransform, InLocalCenter);
 
 	if (bVisibleViewDependent)
 	{
-		FQuat AlignRot;
-		if (GetViewAlignRot(View, InOutRenderState.LocalToWorldTransform, InLocalOrigin, AlignRot))
-		{
-			InOutRenderState.LocalToWorldTransform = FTransform(AlignRot, InLocalOrigin) * InOutRenderState.LocalToWorldTransform;
-		}
-		else
-		{
-			InOutRenderState.LocalToWorldTransform = FTransform(InLocalOrigin) * InOutRenderState.LocalToWorldTransform;
-		}
+		bOutHasAlignRot = GetViewAlignRot(View, InOutRenderState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
+		InOutRenderState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutRenderState.LocalToWorldTransform;
 	}
 
-	CacheRenderState(InOutRenderState.LocalToWorldTransform, InOutRenderState.PixelToWorldScale, bVisibleViewDependent);
-
 	return bVisibleViewDependent;
+}
+
+bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState)
+{
+	FQuat AlignQuat;
+	bool bHasAlignRot;
+	return UpdateLineTraceState(ViewContext, InLocalCenter, InOutRenderState, bHasAlignRot, AlignQuat);
+}
+
+bool UGizmoElementBase::UpdateLineTraceState(const UGizmoViewContext* ViewContext, const FVector& InLocalCenter, FLineTraceTraversalState& InOutRenderState, bool& bOutHasAlignRot, FQuat& OutAlignRot)
+{
+	check(ViewContext);
+
+	OutAlignRot = FQuat::Identity;
+	bOutHasAlignRot = false;
+
+	bool bHittableViewDependent = GetViewDependentHittable(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter);
+
+	if (bHittableViewDependent)
+	{
+		bOutHasAlignRot = GetViewAlignRot(ViewContext, InOutRenderState.LocalToWorldTransform, InLocalCenter, OutAlignRot);
+		InOutRenderState.LocalToWorldTransform = FTransform(OutAlignRot, InLocalCenter) * InOutRenderState.LocalToWorldTransform;
+	}
+
+	return bHittableViewDependent;
 }
 
 bool UGizmoElementBase::IsVisible() const
@@ -196,11 +277,6 @@ bool UGizmoElementBase::IsHittable() const
 {
 	bool bHittable = static_cast<uint8>(ElementState) & static_cast<uint8>(EGizmoElementState::Hittable);
 	return (bEnabled && bHittable);
-}
-
-bool UGizmoElementBase::IsHittableInView() const
-{
-	return (IsHittable() && bHasCachedLocalToWorldTransform && (!IsVisible() || bCachedVisibleViewDependent));
 }
 
 void UGizmoElementBase::SetEnabled(bool InEnabled)

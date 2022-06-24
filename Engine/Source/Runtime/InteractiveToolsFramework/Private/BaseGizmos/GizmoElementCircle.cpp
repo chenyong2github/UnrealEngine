@@ -48,14 +48,22 @@ void UGizmoElementCircle::Render(IToolsContextRenderAPI* RenderAPI, const FRende
 	}
 }
 
-FInputRayHit UGizmoElementCircle::LineTrace(const FVector RayOrigin, const FVector RayDirection)
+FInputRayHit UGizmoElementCircle::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (IsHittableInView())
+	if (!IsHittable())
 	{
-		const FVector WorldNormal = CachedLocalToWorldTransform.TransformVectorNoScale(Normal);
-		const FVector WorldCenter = CachedLocalToWorldTransform.TransformPosition(FVector::ZeroVector);
-		const double PixelHitThresholdAdjust = CachedPixelToWorldScale * PixelHitDistanceThreshold;
-		double WorldRadius = CachedLocalToWorldTransform.GetScale3D().X * Radius;
+		return FInputRayHit();
+	}
+
+	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
+	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Center, CurrentLineTraceState);
+
+	if (bHittableViewDependent)
+	{
+		const FVector WorldNormal = CurrentLineTraceState.LocalToWorldTransform.TransformVectorNoScale(Normal);
+		const FVector WorldCenter = CurrentLineTraceState.LocalToWorldTransform.TransformPosition(FVector::ZeroVector);
+		const double PixelHitThresholdAdjust = CurrentLineTraceState.PixelToWorldScale * PixelHitDistanceThreshold;
+		double WorldRadius = CurrentLineTraceState.LocalToWorldTransform.GetScale3D().X * Radius;
 
 		// if ray is parallel to circle, no hit
 		if (FMath::IsNearlyZero(FVector::DotProduct(WorldNormal, RayDirection)))

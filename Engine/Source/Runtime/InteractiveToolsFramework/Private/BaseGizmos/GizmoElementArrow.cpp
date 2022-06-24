@@ -42,8 +42,7 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 	if (bVisibleViewDependent)
 	{
 		check(CylinderElement);
-		UGizmoElementBase* Element = Cast<UGizmoElementBase>(CylinderElement);
-		Element->Render(RenderAPI, CurrentRenderState);
+		CylinderElement->Render(RenderAPI, CurrentRenderState);
 
 		if (HeadType == EGizmoElementArrowHeadType::Cone)
 		{
@@ -58,27 +57,35 @@ void UGizmoElementArrow::Render(IToolsContextRenderAPI* RenderAPI, const FRender
 	}
 }
 
-FInputRayHit UGizmoElementArrow::LineTrace(const FVector RayOrigin, const FVector RayDirection)
+FInputRayHit UGizmoElementArrow::LineTrace(const UGizmoViewContext* ViewContext, const FLineTraceTraversalState& LineTraceState, const FVector& RayOrigin, const FVector& RayDirection)
 {
-	if (!IsHittableInView())
+	if (!IsHittable())
+	{
+		return FInputRayHit();
+	}
+
+	FLineTraceTraversalState CurrentLineTraceState(LineTraceState);
+	bool bHittableViewDependent = UpdateLineTraceState(ViewContext, Base, CurrentLineTraceState);
+
+	if (!bHittableViewDependent)
 	{
 		return FInputRayHit();
 	}
 
 	check(CylinderElement);
-	FInputRayHit Hit = CylinderElement->LineTrace(RayOrigin, RayDirection);
+	FInputRayHit Hit = CylinderElement->LineTrace(ViewContext, CurrentLineTraceState, RayOrigin, RayDirection);
 
 	if (!Hit.bHit)
 	{
 		if (HeadType == EGizmoElementArrowHeadType::Cone)
 		{
 			check(ConeElement);
-			Hit = ConeElement->LineTrace(RayOrigin, RayDirection);
+			Hit = ConeElement->LineTrace(ViewContext, CurrentLineTraceState, RayOrigin, RayDirection);
 		}
 		else // (HeadType == EGizmoElementArrowHeadType::Cube)
 		{
 			check(BoxElement);
-			Hit = BoxElement->LineTrace(RayOrigin, RayDirection);
+			Hit = BoxElement->LineTrace(ViewContext, CurrentLineTraceState, RayOrigin, RayDirection);
 		}
 	}
 
@@ -284,3 +291,5 @@ void UGizmoElementArrow::UpdateArrowHead()
 
 	bUpdateArrowHead = false;
 }
+
+#undef LOCTEXT_NAMESPACE
