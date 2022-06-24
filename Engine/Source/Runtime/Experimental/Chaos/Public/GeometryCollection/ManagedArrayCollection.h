@@ -81,6 +81,22 @@ public:
 		bool bReindexDependentAttibutes;
 	};
 
+	struct FManagedType
+	{
+		FManagedType(EManagedArrayType InType, FName InName, FName InGroup)
+			: Type(InType), Name(InName), Group(InGroup) {}
+		EManagedArrayType Type = EManagedArrayType::FNoneType;
+		FName Name = "";
+		FName Group = "";
+	};
+
+	template<class T>
+	struct TManagedType : FManagedType
+	{
+		TManagedType(FName InName, FName InGroup) :
+			FManagedType(ManagedArrayType<T>(), InName, InGroup) {}			
+	};
+
 	/**
 	* Add an attribute of Type(T) to the group
 	* @param Name - The name of the attribute
@@ -362,6 +378,12 @@ public:
 	* @param Group - The group that manages the attribute
 	*/
 	bool HasAttribute(FName Name, FName Group) const;
+
+	/**
+	* Check for the existence of a attribute
+	* @param TArray<ManagedType> - Attributes to search for
+	*/
+	bool HasAttributes(const TArray<FManagedType>& Types) const;
 
 	/**
 	* Check for the existence of a group
