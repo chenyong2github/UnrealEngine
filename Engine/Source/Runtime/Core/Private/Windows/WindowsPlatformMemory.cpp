@@ -73,13 +73,13 @@ void FWindowsPlatformMemory::Init()
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
 #if PLATFORM_32BITS	
 	UE_LOG(LogMemory, Log, TEXT("Memory total: Physical=%.1fGB (%dGB approx) Virtual=%.1fGB"), 
-		float(MemoryConstants.TotalPhysical/1024.0/1024.0/1024.0),
+		(double)MemoryConstants.TotalPhysical/1024.0/1024.0/1024.0,
 		MemoryConstants.TotalPhysicalGB, 
-		float(MemoryConstants.TotalVirtual/1024.0/1024.0/1024.0) );
+		(double)MemoryConstants.TotalVirtual/1024.0/1024.0/1024.0 );
 #else
 	// Logging virtual memory size for 64bits is pointless.
 	UE_LOG(LogMemory, Log, TEXT("Memory total: Physical=%.1fGB (%dGB approx)"), 
-		float(MemoryConstants.TotalPhysical/1024.0/1024.0/1024.0),
+		(double)MemoryConstants.TotalPhysical/1024.0/1024.0/1024.0,
 		MemoryConstants.TotalPhysicalGB );
 #endif //PLATFORM_32BITS
 

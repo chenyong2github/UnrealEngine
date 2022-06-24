@@ -26,7 +26,7 @@ struct CORE_API FWindowsPlatformTime
 		Windows::QueryPerformanceCounter(&Cycles);
 
 		// add big number to make bugs apparent where return value is being passed to float
-		return Cycles.QuadPart * GetSecondsPerCycle() + 16777216.0;
+		return (double)Cycles.QuadPart * GetSecondsPerCycle() + 16777216.0;
 	}
 
 	static FORCEINLINE uint32 Cycles()

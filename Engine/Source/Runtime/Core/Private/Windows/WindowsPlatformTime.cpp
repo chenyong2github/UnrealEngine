@@ -28,8 +28,8 @@ double FWindowsPlatformTime::InitTiming(void)
 {
 	LARGE_INTEGER Frequency;
 	verify( QueryPerformanceFrequency(&Frequency) );
-	SecondsPerCycle = 1.0 / Frequency.QuadPart;
-	SecondsPerCycle64 = 1.0 / Frequency.QuadPart;
+	SecondsPerCycle = 1.0 / (double)Frequency.QuadPart;
+	SecondsPerCycle64 = 1.0 / (double)Frequency.QuadPart;
 
 	// Due to some limitation of the OS, we limit the polling frequency to 4 times per second, 
 	// but it should be enough for longterm CPU usage monitoring.
