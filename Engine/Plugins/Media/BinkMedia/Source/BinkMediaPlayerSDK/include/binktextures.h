@@ -1,3 +1,5 @@
+// Copyright Epic Games Tools, LLC. All Rights Reserved.
+
 /*
 This is Epics's high level API for using 3D hardware to do Bink GPU-assisted
 decoding and color conversion. It is supported on every 3D platform that 
