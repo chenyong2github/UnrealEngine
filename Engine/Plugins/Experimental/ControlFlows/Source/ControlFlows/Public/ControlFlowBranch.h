@@ -11,7 +11,7 @@ static int32 UnnamedControlFlowBranchCounter = 0;
 class FControlFlowBranch : public TSharedFromThis<FControlFlowBranch>
 {
 public:
-	FControlFlow& AddOrGetBranch(const int32& InKey, const FString& BranchName = TEXT(""))
+	FControlFlow& AddOrGetBranch(const int32& InKey, const FString& DebugBranchName = TEXT(""))
 	{
 		if (TSharedRef<FControlFlow>* ExistingBranch = Branches.Find(InKey))
 		{
@@ -19,8 +19,8 @@ public:
 		}
 		else
 		{
-			const FString& NameToUse = BranchName.IsEmpty() ? FString::Format(TEXT("UnnamedBranch_{0}"), { (UnnamedControlFlowBranchCounter++) }) : BranchName;
-			TSharedRef<FControlFlow> NewControlFlow = MakeShared<FControlFlow>(NameToUse);
+			const FString& DebugNameToUse = DebugBranchName.IsEmpty() ? FString::Format(TEXT("UnnamedBranch_{0}"), { (UnnamedControlFlowBranchCounter++) }) : DebugBranchName;
+			TSharedRef<FControlFlow> NewControlFlow = MakeShared<FControlFlow>(DebugNameToUse);
 
 			Branches.Add(InKey, NewControlFlow);
 			return NewControlFlow.Get();

@@ -32,6 +32,8 @@ private:
 	FString DebugName;
 };
 
+//////////////////////////////////////////////////////////////////////////////
+
 class FControlFlowSimpleSubTask : public FControlFlowSubTaskBase
 {
 public:
@@ -56,6 +58,8 @@ private:
 	TSharedPtr<FControlFlow> TaskFlow = nullptr;
 };
 
+//////////////////////////////////////////////////////////////////////////////
+
 class FControlFlowTask_Loop : public FControlFlowSimpleSubTask
 {
 public:
@@ -73,6 +77,8 @@ private:
 
 	FControlFlowLoopComplete TaskCompleteDecider;
 };
+
+//////////////////////////////////////////////////////////////////////////////
 
 class FControlFlowTask_BranchLegacy : public FControlFlowSubTaskBase
 {
@@ -119,6 +125,8 @@ private:
 	int32 SelectedBranch = INDEX_NONE;
 };
 
+//////////////////////////////////////////////////////////////////////////////
+
 class FControlFlowTask_Branch : public FControlFlowSubTaskBase
 {
 public:
@@ -142,4 +150,31 @@ private:
 
 	FControlFlowBranchDefiner BranchDelegate;
 	TSharedPtr<FControlFlow> SelectedBranchFlow;
+};
+
+//////////////////////////////////////////////////////////////////////////////
+
+class FControlFlowTask_ConcurrentFlows : public FControlFlowSubTaskBase
+{
+public:
+	friend class FControlFlow;
+
+public:
+	FControlFlowTask_ConcurrentFlows(const FString& TaskName)
+		: FControlFlowSubTaskBase(TaskName)
+	{}
+
+	FConcurrentFlowsDefiner& GetDelegate() { return ConcurrentFlowDelegate; }
+
+protected:
+	virtual void Execute() override;
+	virtual void Cancel() override;
+
+private:
+
+	void HandleConcurrentFlowsCompleted();
+	void HandleConcurrentFlowsCancelled();
+
+	FConcurrentFlowsDefiner ConcurrentFlowDelegate;
+	TSharedPtr<FConcurrentControlFlows> ConcurrentFlows;
 };

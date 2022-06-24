@@ -3,6 +3,7 @@
 #include "ControlFlowTask.h"
 #include "ControlFlows.h"
 #include "ControlFlowBranch.h"
+#include "ControlFlowConcurrency.h"
 
 //////////////////////////
 //FControlFlowTask
@@ -302,6 +303,55 @@ void FControlFlowTask_Branch::HandleBranchCancelled()
 	if (BranchDelegate.IsBound())
 	{
 		BranchDelegate.Unbind();
+	}
+
+	OnCancelled().ExecuteIfBound();
+}
+
+//////////////////////////////////
+//FControlFlowTask_ConcurrentBranch
+//////////////////////////////////
+
+void FControlFlowTask_ConcurrentFlows::Execute()
+{
+	if (ensureAlways(ConcurrentFlowDelegate.IsBound() && !ConcurrentFlows.IsValid()))
+	{
+		ConcurrentFlows = MakeShared<FConcurrentControlFlows>();
+		ConcurrentFlows->OnConcurrencyCompleted.BindSP(SharedThis(this), &FControlFlowTask_ConcurrentFlows::HandleConcurrentFlowsCompleted);
+		ConcurrentFlows->OnConcurrencyCancelled.BindSP(SharedThis(this), &FControlFlowTask_ConcurrentFlows::HandleConcurrentFlowsCancelled);
+
+		ConcurrentFlowDelegate.Execute(ConcurrentFlows.ToSharedRef());
+		ConcurrentFlows->Execute();
+	}
+	else
+	{
+		HandleConcurrentFlowsCompleted();
+	}
+}
+
+void FControlFlowTask_ConcurrentFlows::Cancel()
+{
+	if (ensureAlwaysMsgf(ConcurrentFlows.IsValid(), TEXT("Did you call execute flow on a subflow? Do not do this! You only need to call ExecuteFlow once per FControlFlowStatics::Create!")))
+	{
+		ConcurrentFlows->CancelAll();
+	}
+}
+
+void FControlFlowTask_ConcurrentFlows::HandleConcurrentFlowsCompleted()
+{
+	if (ConcurrentFlowDelegate.IsBound())
+	{
+		ConcurrentFlowDelegate.Unbind();
+	}
+
+	OnComplete().ExecuteIfBound();
+}
+
+void FControlFlowTask_ConcurrentFlows::HandleConcurrentFlowsCancelled()
+{
+	if (ConcurrentFlowDelegate.IsBound())
+	{
+		ConcurrentFlowDelegate.Unbind();
 	}
 
 	OnCancelled().ExecuteIfBound();

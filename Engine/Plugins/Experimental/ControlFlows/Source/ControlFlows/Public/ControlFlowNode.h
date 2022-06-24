@@ -10,6 +10,8 @@ class FControlFlowNode;
 class FControlFlowNode_Task;
 class FControlFlowSubTaskBase;
 class FControlFlowBranch;
+class FConcurrentControlFlows;
+class FConcurrentControlFlowBehavior;
 
 using FControlFlowNodePtr = TSharedPtr<FControlFlowNode>;
 using FControlFlowNodeRef = TSharedRef<FControlFlowNode>;
@@ -22,6 +24,8 @@ DECLARE_DELEGATE_RetVal(int32, FControlFlowBranchDecider_Legacy)
 
 // Would be nice to not force people to use int32 for the branch key, but finding the syntax to get it to work properly proved to be more difficult than it was worth. End result is callers have to cast to an int32.
 DECLARE_DELEGATE_RetVal_OneParam(int32, FControlFlowBranchDefiner, TSharedRef<FControlFlowBranch>);
+
+DECLARE_DELEGATE_OneParam(FConcurrentFlowsDefiner, TSharedRef<FConcurrentControlFlows>);
 
 class FControlFlowNode : public TSharedFromThis<FControlFlowNode>
 {

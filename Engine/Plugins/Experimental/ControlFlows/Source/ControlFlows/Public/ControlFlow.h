@@ -105,11 +105,19 @@ public:
 		return *this;
 	}
 
+	template<typename FunctionT, typename...ArgsT>
+	FControlFlow& ForkFlow(FunctionT InForkLambda, ArgsT...Params)
+	{
+		QueueConcurrentFlows(FormatOrGetNewNodeDebugName()).BindLambda(InForkLambda, Params...);
+		return *this;
+	}
+
 public:
 	FSimpleDelegate& QueueFunction(const FString& FlowNodeDebugName = TEXT(""));
 	FControlFlowWaitDelegate& QueueWait(const FString& FlowNodeDebugName = TEXT(""));
 	FControlFlowPopulator& QueueControlFlow(const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
 	FControlFlowBranchDefiner& QueueControlFlowBranch(const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
+	FConcurrentFlowsDefiner& QueueConcurrentFlows(const FString& TaskName = TEXT(""), const FString& FlowNodeDebugName = TEXT(""));
 
 private:
 	template<typename BindingObjectT, typename...PayloadParamsT>
@@ -142,6 +150,12 @@ private:
 private:
 	
 	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_TSharedFromThis(const FString& InDebugName, TSharedRef<BindingObjectClassT> InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(TSharedRef<FConcurrentControlFlows>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
+	{
+		QueueConcurrentFlows(InDebugName).BindSP(InBindingObject, InFunction, Params...);
+	}
+
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
 	void QueueStep_Internal_TSharedFromThis(const FString& InDebugName, TSharedRef<BindingObjectClassT> InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, int32(TSharedRef<FControlFlowBranch>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
 		QueueControlFlowBranch(InDebugName).BindSP(InBindingObject, InFunction, Params...);
@@ -166,6 +180,13 @@ private:
 	}
 
 private:
+
+	template<typename BindingObjectClassT, typename...PayloadParamsT>
+	void QueueStep_Internal_UObject(const FString& InDebugName, BindingObjectClassT* InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, void(TSharedRef<FConcurrentControlFlows>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
+	{
+		QueueConcurrentFlows(InDebugName).BindUObject(InBindingObject, InFunction, Params...);
+	}
+
 	template<typename BindingObjectClassT, typename...PayloadParamsT>
 	void QueueStep_Internal_UObject(const FString& InDebugName, BindingObjectClassT* InBindingObject, typename TMemFunPtrType<false, BindingObjectClassT, int32(TSharedRef<FControlFlowBranch>, PayloadParamsT...)>::Type InFunction, PayloadParamsT...Params)
 	{
@@ -198,6 +219,7 @@ private:
 	friend class FControlFlowTask_Loop;
 	friend class FControlFlowTask_BranchLegacy;
 	friend class FControlFlowTask_Branch;
+	friend struct FConcurrencySubFlowContainer;
 
 public:
 	/** These work, but they are a bit clunky to use. The heart of the issue is that it requires the caller to define two functions. We want only the caller to use one function.
