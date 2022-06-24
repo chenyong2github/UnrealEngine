@@ -101,7 +101,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Enables dead code/data stripping and common code folding.
 		/// </summary>
-		EnableDeadStripping = 1 << 15
+		EnableDeadStripping = 1 << 15,
+
+		/// <summary>
+		/// Indicates that the target is a moduler build i.e. Target.LinkType == TargetLinkType.Modular
+		/// </summary>
+		ModularBuild = 1 << 16
 	}
 
 	abstract class ClangToolChain : ISPCToolChain
