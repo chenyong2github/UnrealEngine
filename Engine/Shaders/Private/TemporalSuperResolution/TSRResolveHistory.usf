@@ -145,7 +145,7 @@ void MainCS(
 				tsr_half SampleHistoryValidity = SampleMetadata.x;
 				tsr_half InvSampleHistoryValidity = SafeRcp(SampleHistoryValidity);
 
-				#if 1
+				#if DIM_SEPARATE_TRANSLUCENCY
 				{
 					SampleLowFrequencyColor.rgb  = SampleLowFrequencyColor.rgb  * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb;
 					SampleHighFrequencyColor.rgb = SampleHighFrequencyColor.rgb * SampleTranslucencyAlpha + SampleTranslucencyColor.rgb * SampleHistoryValidity;
