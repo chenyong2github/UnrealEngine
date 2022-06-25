@@ -74,6 +74,7 @@ public:
 	
 	void Construct(const FArguments& InArgs, URemoteControlPreset* InPreset, TSharedPtr<IToolkitHost> InToolkitHost);
 	~SRemoteControlPanel();
+	static void Shutdown();
 
 	//~ FEditorUndoClient interface
 	virtual void PostUndo(bool bSuccess) override;
@@ -335,7 +336,7 @@ private:
 	/** Wrapper widget for entity details view. */
 	TSharedPtr<SBorder> WrappedEntityDetailsView;
 	/** Helper widget for entity details view and protocol details view. */
-	static TSharedRef<SBox> NoneSelectedWidget;
+	static TSharedPtr<SBox> NoneSelectedWidget;
 	/** Holds the field's protocol details. */
 	TSharedPtr<SBox> EntityProtocolDetails;
 	/** Whether to show the rebind all button. */

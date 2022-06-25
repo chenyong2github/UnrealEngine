@@ -81,7 +81,7 @@ const FName SRemoteControlPanel::DefaultRemoteControlPanelToolBarName("RemoteCon
 const FName SRemoteControlPanel::AuxiliaryRemoteControlPanelToolBarName("RemoteControlPanel.AuxiliaryToolBar");
 const float SRemoteControlPanel::MinimumPanelWidth = 640.f;
 
-TSharedRef<SBox> SRemoteControlPanel::NoneSelectedWidget = SNew(SBox)
+TSharedPtr<SBox> SRemoteControlPanel::NoneSelectedWidget = SNew(SBox)
 			.Padding(0.f)
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Center)
@@ -751,6 +751,11 @@ SRemoteControlPanel::~SRemoteControlPanel()
 	// Remove protocol bindings
 	IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>("RemoteControlProtocolWidgets");
 	ProtocolWidgetsModule.ResetProtocolBindingList();	
+}
+
+void SRemoteControlPanel::Shutdown()
+{
+	NoneSelectedWidget.Reset();
 }
 
 void SRemoteControlPanel::PostUndo(bool bSuccess)
@@ -1623,7 +1628,7 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateEntityDetailsView()
 	}
 	else
 	{
-		WrappedEntityDetailsView->SetContent(NoneSelectedWidget);
+		WrappedEntityDetailsView->SetContent(NoneSelectedWidget.ToSharedRef());
 	}
 
 	return EntityDetailsDockPanel;
@@ -1658,7 +1663,7 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 	}
 	else
 	{
-		WrappedEntityDetailsView->SetContent(NoneSelectedWidget);
+		WrappedEntityDetailsView->SetContent(NoneSelectedWidget.ToSharedRef());
 	}
 
 	static const FName ProtocolWidgetsModuleName = "RemoteControlProtocolWidgets";	
@@ -1673,13 +1678,13 @@ void SRemoteControlPanel::UpdateEntityDetailsView(const TSharedPtr<SRCPanelTreeN
 			}
 			else
 			{
-				EntityProtocolDetails->SetContent(NoneSelectedWidget);
+				EntityProtocolDetails->SetContent(NoneSelectedWidget.ToSharedRef());
 			}
 		}
 	}
 	else
 	{
-		EntityProtocolDetails->SetContent(NoneSelectedWidget);
+		EntityProtocolDetails->SetContent(NoneSelectedWidget.ToSharedRef());
 	}
 
 	// Trigger search to list the search results specific to selected group.

@@ -35,7 +35,7 @@
 
 #define LOCTEXT_NAMESPACE "SRCActionPanel"
 
-TSharedRef<SBox> SRCActionPanel::NoneSelectedWidget = SNew(SBox)
+TSharedPtr<SBox> SRCActionPanel::NoneSelectedWidget = SNew(SBox)
 			.Padding(0.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -68,6 +68,11 @@ void SRCActionPanel::Construct(const FArguments& InArgs, const TSharedRef<SRemot
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+void SRCActionPanel::Shutdown()
+{
+	NoneSelectedWidget.Reset();
+}
 
 void SRCActionPanel::OnBehaviourSelectionChanged(TSharedPtr<FRCBehaviourModel> InBehaviourItem)
 {
@@ -210,7 +215,7 @@ void SRCActionPanel::UpdateWrappedWidget(TSharedPtr<FRCBehaviourModel> InBehavio
 	}
 	else
 	{
-		WrappedBoxWidget->SetContent(NoneSelectedWidget);
+		WrappedBoxWidget->SetContent(NoneSelectedWidget.ToSharedRef());
 	}
 }
 

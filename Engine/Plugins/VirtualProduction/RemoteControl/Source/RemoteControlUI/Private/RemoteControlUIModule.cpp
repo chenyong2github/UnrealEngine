@@ -25,6 +25,8 @@
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
 #include "Textures/SlateIcon.h"
+#include "UI/Action/SRCActionPanel.h"
+#include "UI/Behaviour/SRCBehaviourPanel.h"
 #include "UI/Customizations/FPassphraseCustomization.h"
 #include "UI/Customizations/RemoteControlEntityCustomization.h"
 #include "UI/SRCPanelExposedField.h"
@@ -268,6 +270,9 @@ void FRemoteControlUIModule::ShutdownModule()
 	UnregisterAssetTools();
 	UnbindRemoteControlCommands();
 	FRemoteControlPanelStyle::Shutdown();
+	SRemoteControlPanel::Shutdown();
+	SRCActionPanel::Shutdown();
+	SRCBehaviourPanel::Shutdown();
 }
 
 FDelegateHandle FRemoteControlUIModule::AddPropertyFilter(FOnDisplayExposeIcon OnDisplayExposeIcon)

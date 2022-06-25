@@ -27,6 +27,9 @@ public:
 	/** Constructs this widget with InArgs */
 	void Construct(const FArguments& InArgs, const TSharedRef<SRemoteControlPanel>& InPanel);
 
+	/** Shutdown panel */
+	static void Shutdown();
+
 	/** Whether the Behaviour list widget currently has focus. Used for Delete Item UI command */
 	bool IsListFocused() const;
 
@@ -70,7 +73,7 @@ private:
 	TSharedPtr<class SRCBehaviourPanelList> BehaviourPanelList;
 
 	/** Helper widget for behavior details. */
-	static TSharedRef<SBox> NoneSelectedWidget;
+	static TSharedPtr<SBox> NoneSelectedWidget;
 
 	/** Panel Style reference. */
 	const FRCPanelStyle* RCPanelStyle;

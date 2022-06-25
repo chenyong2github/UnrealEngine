@@ -23,7 +23,7 @@
 
 #define LOCTEXT_NAMESPACE "SRCBehaviourPanel"
 
-TSharedRef<SBox> SRCBehaviourPanel::NoneSelectedWidget = SNew(SBox)
+TSharedPtr<SBox> SRCBehaviourPanel::NoneSelectedWidget = SNew(SBox)
 			.Padding(0.f)
 			.VAlign(VAlign_Center)
 			.HAlign(HAlign_Center)
@@ -56,6 +56,11 @@ void SRCBehaviourPanel::Construct(const FArguments& InArgs, const TSharedRef<SRe
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
+
+void SRCBehaviourPanel::Shutdown()
+{
+	NoneSelectedWidget.Reset();
+}
 
 void SRCBehaviourPanel::OnControllerSelectionChanged(TSharedPtr<FRCControllerModel> InControllerItem)
 {
@@ -128,7 +133,7 @@ void SRCBehaviourPanel::UpdateWrappedWidget(TSharedPtr<FRCControllerModel> InCon
 	}
 	else
 	{
-		WrappedBoxWidget->SetContent(NoneSelectedWidget);
+		WrappedBoxWidget->SetContent(NoneSelectedWidget.ToSharedRef());
 	}
 }
 
