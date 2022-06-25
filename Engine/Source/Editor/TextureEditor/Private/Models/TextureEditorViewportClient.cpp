@@ -271,23 +271,23 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 }
 
 
-bool FTextureEditorViewportClient::InputKey(FViewport* Viewport, int32 ControllerId, FKey Key, EInputEvent Event, float AmountDepressed, bool Gamepad)
+bool FTextureEditorViewportClient::InputKey(const FInputKeyEventArgs& InEventArgs)
 {
-	if (Event == IE_Pressed)
+	if (InEventArgs.Event == IE_Pressed)
 	{
-		if (Key == EKeys::MouseScrollUp)
+		if (InEventArgs.Key == EKeys::MouseScrollUp)
 		{
 			TextureEditorPtr.Pin()->ZoomIn();
 
 			return true;
 		}
-		else if (Key == EKeys::MouseScrollDown)
+		else if (InEventArgs.Key == EKeys::MouseScrollDown)
 		{
 			TextureEditorPtr.Pin()->ZoomOut();
 
 			return true;
 		}
-		else if (Key == EKeys::RightMouseButton)
+		else if (InEventArgs.Key == EKeys::RightMouseButton)
 		{
 			TextureEditorPtr.Pin()->SetVolumeOrientation(FRotator(90, 0, -90));
 		}
@@ -300,7 +300,7 @@ bool IsTextureUsingVolumeOrientation(UTexture* Texture)
 	return Texture && (Cast<UVolumeTexture>(Texture) || Cast<UTextureRenderTargetVolume>(Texture));
 }
 
-bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, int32 ControllerId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
+bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
 	if (Key == EKeys::MouseX || Key == EKeys::MouseY)
 	{
