@@ -20,8 +20,7 @@ namespace NDIMeshRendererInfoInternal
 		SHADER_PARAMETER_SRV(Buffer<float>,	MeshDataBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
-
-	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceSpriteRendererInfoTemplate.ush");
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/FX/Niagara/Private/NiagaraDataInterfaceMeshRendererInfoTemplate.ush");
 
 	static const FName GetNumMeshesName("GetNumMeshes");
 	static const FName GetMeshLocalBoundsName("GetMeshLocalBounds");

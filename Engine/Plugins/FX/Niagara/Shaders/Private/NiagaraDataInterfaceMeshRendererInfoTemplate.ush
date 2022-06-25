@@ -5,12 +5,12 @@ float2			{ParameterName}_SubImageSize;
 uint			{ParameterName}_NumMeshes;
 Buffer<float>	{ParameterName}_MeshDataBuffer;
 
-void GetNumMeshes(out int OutNumMeshes)
+void GetNumMeshes_{ParameterName}(out int OutNumMeshes)
 {
 	OutNumMeshes = int({ParameterName}_NumMeshes);
 }
 
-void GetMeshLocalBounds(int MeshIndex, out float3 OutMinBounds, out float3 OutMaxBounds, out float3 OutSize)
+void GetMeshLocalBounds_{ParameterName}(int MeshIndex, out float3 OutMinBounds, out float3 OutMaxBounds, out float3 OutSize)
 {
 	OutMinBounds = (float3)0;
 	OutMaxBounds = (float3)0;
