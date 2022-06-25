@@ -122,6 +122,7 @@ FTextureEditorToolkit::FTextureEditorToolkit()
 	: Texture(nullptr)
 	, VolumeOpacity(1.f)
 	, VolumeOrientation(90, 0, -90)
+	, CubemapOrientation(0, 0, 0)
 {
 }
 
@@ -726,9 +727,11 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	SizeOptions.UseGrouping = false;
 	SizeOptions.MaximumFractionalDigits = 0;
 
-	// Cubes are previewed as longlat unwrapped 2D textures in case when face index is not specified.
+	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
+
+	// Cubes are previewed as longlat unwrapped 2D textures in 2D view mode when face index is not specified.
 	// These have 2x the width of a cube face.
-	if (IsCubeTexture() && GetFace() < 0)
+	if (IsCubeTexture() && Settings.CubemapViewMode == TextureEditorCubemapViewMode_2DView && GetFace() < 0)
 	{
 		PreviewEffectiveTextureWidth *= 2;
 	}
@@ -748,7 +751,6 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 		CurrentText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}x{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options ), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), FText::AsNumber(PreviewEffectiveTextureDepth, &Options)));
 		MaxInGameText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_3x_v1", "Max In-Game: {0}x{1}x{2}"), FText::AsNumber(MaxInGameWidth, &Options), FText::AsNumber(MaxInGameHeight, &Options), FText::AsNumber(MaxInGameDepth, &Options)));
 
-		UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
 		if (Settings.VolumeViewMode == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
 		{
 			PreviewEffectiveTextureWidth = PreviewEffectiveTextureHeight = FMath::Max(PreviewEffectiveTextureWidth, PreviewEffectiveTextureHeight);
@@ -901,6 +903,16 @@ void FTextureEditorToolkit::SetVolumeOrientation(const FRotator& InOrientation)
 	VolumeOrientation = InOrientation;
 }
 
+const FRotator& FTextureEditorToolkit::GetCubemapOrientation() const
+{
+	return CubemapOrientation;
+}
+
+void FTextureEditorToolkit::SetCubemapOrientation(const FRotator& InOrientation)
+{
+	CubemapOrientation = InOrientation;
+}
+
 /* IToolkit interface
  *****************************************************************************/
 
@@ -1029,6 +1041,20 @@ void FTextureEditorToolkit::BindCommands( )
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleVolumeViewModeActionIsChecked, TextureEditorVolumeViewMode_VolumeTrace));
 	// End - Volume Texture Specifics
+
+	// Begin - Cubemap Texture Specifics
+	ToolkitCommands->MapAction(
+		Commands.Cubemap2DView,
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionExecute, TextureEditorCubemapViewMode_2DView),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionIsChecked, TextureEditorCubemapViewMode_2DView));
+
+	ToolkitCommands->MapAction(
+		Commands.Cubemap3DView,
+		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionExecute, TextureEditorCubemapViewMode_3DView),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionIsChecked, TextureEditorCubemapViewMode_3DView));
+	// End - Cubemap Texture Specifics
 
 	ToolkitCommands->MapAction(
 		Commands.TextureBorder,
@@ -1926,7 +1952,7 @@ TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateMipMapLevelMenu()
 TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateSettingsMenu()
 {
 	FMenuBuilder MenuBuilder(true, ToolkitCommands);
-	FTextureEditorViewOptionsMenu::MakeMenu(MenuBuilder, IsVolumeTexture());
+	FTextureEditorViewOptionsMenu::MakeMenu(MenuBuilder, IsVolumeTexture(), IsCubeTexture());
 
 	return MenuBuilder.MakeWidget();
 }
@@ -2040,7 +2066,7 @@ bool FTextureEditorToolkit::HandleCheckeredBackgroundActionIsChecked( ETextureEd
 	return (Background == Settings.Background);
 }
 
-// Callback for toggling the volume display action.
+// Callback for toggling the volume view action.
 void FTextureEditorToolkit::HandleVolumeViewModeActionExecute(ETextureEditorVolumeViewMode InViewMode)
 {
 	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
@@ -2048,7 +2074,7 @@ void FTextureEditorToolkit::HandleVolumeViewModeActionExecute(ETextureEditorVolu
 	Settings.PostEditChange();
 }
 
-// Callback for getting the checked state of the volume display action.
+// Callback for getting the checked state of the volume view action.
 bool FTextureEditorToolkit::HandleVolumeViewModeActionIsChecked(ETextureEditorVolumeViewMode InViewMode)
 {
 	const UTextureEditorSettings& Settings = *GetDefault<UTextureEditorSettings>();
@@ -2056,6 +2082,20 @@ bool FTextureEditorToolkit::HandleVolumeViewModeActionIsChecked(ETextureEditorVo
 	return (InViewMode == Settings.VolumeViewMode);
 }
 
+// Callback for toggling the cubemap view action.
+void FTextureEditorToolkit::HandleCubemapViewModeActionExecute(ETextureEditorCubemapViewMode InViewMode)
+{
+	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
+	Settings.CubemapViewMode = InViewMode;
+	Settings.PostEditChange();
+}
+
+// Callback for getting the checked state of the cubemap view action.
+bool FTextureEditorToolkit::HandleCubemapViewModeActionIsChecked(ETextureEditorCubemapViewMode InViewMode)
+{
+	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
+	return Settings.CubemapViewMode == InViewMode;
+}
 
 void FTextureEditorToolkit::HandleCompressNowActionExecute( )
 {

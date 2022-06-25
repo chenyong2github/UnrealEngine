@@ -79,7 +79,7 @@ public:
 	FCubemapTexturePropertiesPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters);
-	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float FaceIndex, float GammaValue, bool bIsTextureCubeArray);
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* InTexture, const FMatrix& InColorWeightsValue, float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, const FMatrix44f& InViewMatrix, bool bInShowLongLatUnwrap, float InGammaValue);
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, CubeTexture);
@@ -88,17 +88,20 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ColorWeights);
 	LAYOUT_FIELD(FShaderParameter, Gamma);
 	LAYOUT_FIELD(FShaderParameter, NumSlices);
+	LAYOUT_FIELD(FShaderParameter, SliceIndex);
+	LAYOUT_FIELD(FShaderParameter, ViewMatrix);
 };
 
 
 class ENGINE_API FMipLevelBatchedElementParameters : public FBatchedElementParameters
 {
 public:
-	FMipLevelBatchedElementParameters(float InMipLevel, float InSliceIndex, float InFaceIndex, bool bInIsTextureCubeArray, bool bInHDROutput = false)
+	FMipLevelBatchedElementParameters(float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, const FMatrix44f& InViewMatrix, bool bInShowLongLatUnwrap, bool bInHDROutput)
 		: bHDROutput(bInHDROutput)
 		, MipLevel(InMipLevel)
 		, SliceIndex(InSliceIndex)
-		, FaceIndex(InFaceIndex)
+		, ViewMatrix(InViewMatrix)
+		, bShowLongLatUnwrap(bInShowLongLatUnwrap)
 		, bIsTextureCubeArray(bInIsTextureCubeArray)
 	{
 	}
@@ -112,7 +115,8 @@ private:
 	/** Parameters that need to be passed to the shader */
 	float MipLevel;
 	float SliceIndex;
-	float FaceIndex;
+	FMatrix44f ViewMatrix;
+	bool bShowLongLatUnwrap;
 
 	/** Parameters that are used to select a shader permutation */
 	bool bIsTextureCubeArray;

@@ -28,6 +28,13 @@ enum ETextureEditorVolumeViewMode
 };
 
 UENUM()
+enum ETextureEditorCubemapViewMode
+{
+	TextureEditorCubemapViewMode_2DView UMETA(DisplayName = "2D View"),
+	TextureEditorCubemapViewMode_3DView UMETA(DisplayName = "3D View"),
+};
+
+UENUM()
 enum class ETextureEditorZoomMode : uint8
 {
 	Custom    UMETA(DisplayName = "Specific Zoom Level"), // First so that any new modes added don't change serialized value
@@ -50,9 +57,13 @@ public:
 	UPROPERTY(config)
 	TEnumAsByte<ETextureEditorBackgrounds> Background;
 
-	/** The type of display when viewing volume textures. */
+	/** The view mode when previewing volume textures. */
 	UPROPERTY(config)
 	TEnumAsByte<ETextureEditorVolumeViewMode> VolumeViewMode;
+
+	/** The view mode when previewing cubemap textures. */
+	UPROPERTY(config)
+	TEnumAsByte<ETextureEditorCubemapViewMode> CubemapViewMode;
 
 	/** Background and foreground color used by Texture preview view ports. */
 	UPROPERTY(config, EditAnywhere, Category=Background)

@@ -20,7 +20,7 @@ public:
 	 *
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 */
-	static void MakeMenu( FMenuBuilder& MenuBuilder, bool bIsVolumeTexture )
+	static void MakeMenu(FMenuBuilder& MenuBuilder, bool bIsVolumeTexture, bool bIsCubemapTexture)
 	{
 		// view port options
 		MenuBuilder.BeginSection("ViewportSection", LOCTEXT("ViewportSectionHeader", "Viewport Options"));
@@ -33,12 +33,12 @@ public:
 				FNewMenuDelegate::CreateStatic(&FTextureEditorViewOptionsMenu::GenerateBackgroundMenuContent)
 			);
 
-			if (bIsVolumeTexture)
+			if (bIsVolumeTexture || bIsCubemapTexture)
 			{
 				MenuBuilder.AddSubMenu(
 					LOCTEXT("ViewMode", "View Mode"),
 					LOCTEXT("ViewModeTooltip", "Set the view mode"),
-					FNewMenuDelegate::CreateStatic(&FTextureEditorViewOptionsMenu::GenerateVolumeDisplayModeMenuContent)
+					FNewMenuDelegate::CreateStatic(bIsVolumeTexture ? &FTextureEditorViewOptionsMenu::GenerateVolumeViewModeMenuContent : &FTextureEditorViewOptionsMenu::GenerateCubemapViewModeMenuContent)
 				);
 			}
 
@@ -65,14 +65,25 @@ protected:
 	}
 
 	/**
-	 * Creates the 'Display Mode' sub-menu.
+	 * Creates the 'View Mode' sub-menu for volume textures.
 	 *
 	 * @param MenuBuilder The builder for the menu that owns this menu.
 	 */
-	static void GenerateVolumeDisplayModeMenuContent( FMenuBuilder& MenuBuilder )
+	static void GenerateVolumeViewModeMenuContent( FMenuBuilder& MenuBuilder )
 	{
 		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().DepthSlices);
 		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().TraceIntoVolume);
+	}
+
+	/**
+	 * Creates the 'View Mode' sub-menu for cubemap textures.
+	 *
+	 * @param MenuBuilder The builder for the menu that owns this menu.
+	 */
+	static void GenerateCubemapViewModeMenuContent(FMenuBuilder& MenuBuilder)
+	{
+		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().Cubemap2DView);
+		MenuBuilder.AddMenuEntry(FTextureEditorCommands::Get().Cubemap3DView);
 	}
 };
 

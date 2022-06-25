@@ -112,8 +112,22 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 	{
 		if (TextureCube || TextureCubeArray || RTTextureCube)
 		{
-			const float FaceIndex = (float)TextureEditorPinned->GetFace();
-			BatchedElementParameters = new FMipLevelBatchedElementParameters(MipLevel, SliceIndex, FaceIndex, TextureCubeArray != nullptr, false);
+			const int32 FaceIndex = TextureEditorPinned->GetFace();
+			const FVector4f& IdentityW = FVector4f(FVector3f::ZeroVector, 1);
+			// when the face index is not specified, generate a view matrix based on the tracked orientation in the texture editor
+			// (assuming that identity matrix displays the face 0 properly oriented in space),
+			// otherwise generate a view matrix which displays the selected face using DDS orientation and face order
+			// (positive x, negative x, positive y, negative y, positive z, negative z)
+			const FMatrix44f& ViewMatrix =
+				FaceIndex < 0 ? FMatrix44f(FRotationMatrix::Make(TextureEditorPinned->GetCubemapOrientation())) :
+				FaceIndex == 0 ? FMatrix44f(FVector3f::ForwardVector, FVector3f::DownVector, FVector3f::RightVector, IdentityW) :
+				FaceIndex == 1 ? FMatrix44f(FVector3f::BackwardVector, FVector3f::UpVector, FVector3f::RightVector, IdentityW) :
+				FaceIndex == 2 ? FMatrix44f(FVector3f::RightVector, FVector3f::ForwardVector, FVector3f::DownVector, IdentityW) :
+				FaceIndex == 3 ? FMatrix44f(FVector3f::LeftVector, FVector3f::ForwardVector, FVector3f::UpVector, IdentityW) :
+				FaceIndex == 4 ? FMatrix44f(FVector3f::UpVector, FVector3f::ForwardVector, FVector3f::RightVector, IdentityW) :
+				FMatrix44f(FVector3f::DownVector, FVector3f::BackwardVector, FVector3f::RightVector, IdentityW);
+			const bool bShowLongLatUnwrap = Settings.CubemapViewMode == TextureEditorCubemapViewMode_2DView && FaceIndex < 0;
+			BatchedElementParameters = new FMipLevelBatchedElementParameters(MipLevel, SliceIndex, TextureCubeArray != nullptr, ViewMatrix, bShowLongLatUnwrap, false);
 		}
 		else if (VolumeTexture)
 		{
@@ -306,6 +320,20 @@ bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, int32 Controll
 
 			TextureEditorPtr.Pin()->SetVolumeOrientation((FRotationMatrix::Make(DeltaRotator) * FRotationMatrix::Make(TextureEditorPtr.Pin()->GetVolumeOrientation())).Rotator());
 		}
+		else if (IsTextureUsingCubemapOrientation() && Viewport->KeyState(EKeys::LeftMouseButton))
+		{
+			FRotator Orienation = TextureEditorPtr.Pin()->GetCubemapOrientation();
+			const float RotationSpeed = .2f;
+			if (Key == EKeys::MouseY)
+			{
+				Orienation.Pitch += Delta * RotationSpeed;
+			}
+			else
+			{
+				Orienation.Yaw += Delta * RotationSpeed;
+			}
+			TextureEditorPtr.Pin()->SetCubemapOrientation(Orienation);
+		}
 		else if (ShouldUseMousePanning(Viewport))
 		{
 			TSharedPtr<STextureEditorViewport> EditorViewport = TextureEditorViewportPtr.Pin();
@@ -332,6 +360,14 @@ bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, int32 Controll
 	}
 
 	return false;
+}
+
+bool FTextureEditorViewportClient::IsTextureUsingCubemapOrientation() const
+{
+	TSharedPtr<ITextureEditorToolkit> TextureEditorPinned = TextureEditorPtr.Pin();
+	UTexture* Texture = TextureEditorPinned->GetTexture();
+	return Texture && (Texture->IsA(UTextureCube::StaticClass()) || Texture->IsA(UTextureRenderTargetCube::StaticClass()) || Texture->IsA(UTextureCubeArray::StaticClass())) &&
+		TextureEditorPinned->GetFace() < 0 && GetDefault<UTextureEditorSettings>()->CubemapViewMode == TextureEditorCubemapViewMode_3DView;
 }
 
 bool FTextureEditorViewportClient::ShouldUseMousePanning(FViewport* Viewport) const

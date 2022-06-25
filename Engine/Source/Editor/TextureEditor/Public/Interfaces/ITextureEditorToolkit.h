@@ -49,6 +49,8 @@ public:
 	virtual void SetVolumeOpacity( float VolumeOpacity ) = 0;
 	virtual const FRotator& GetVolumeOrientation( ) const = 0;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) = 0;
+	virtual const FRotator& GetCubemapOrientation() const = 0;
+	virtual void SetCubemapOrientation(const FRotator& InOrientation) = 0;
 	virtual int32 GetExposureBias() const = 0;
 	virtual bool IsVolumeTexture() const = 0;
 public:

@@ -36,7 +36,7 @@ namespace CubemapHelpers
 	bool GenerateLongLatUnwrap(const FTextureResource* TextureResource, const uint32 AxisDimenion, const EPixelFormat SourcePixelFormat, TArray64<uint8>& BitsOUT, FIntPoint& SizeOUT, EPixelFormat& FormatOUT)
 	{
 		TRefCountPtr<FBatchedElementParameters> BatchedElementParameters;
-		BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0, (float)-1, (float)-1, false, true);
+		BatchedElementParameters = new FMipLevelBatchedElementParameters((float)0, (float)-1, false, FMatrix44f::Identity, true, true);
 		const FIntPoint LongLatDimensions(AxisDimenion * 2, AxisDimenion);
 
 		// If the source format is 8 bit per channel or less then select a LDR target format.
@@ -128,6 +128,8 @@ FCubemapTexturePropertiesPS::FCubemapTexturePropertiesPS(const ShaderMetaType::C
 	PackedProperties0.Bind(Initializer.ParameterMap, TEXT("PackedProperties0"));
 	Gamma.Bind(Initializer.ParameterMap, TEXT("Gamma"));
 	NumSlices.Bind(Initializer.ParameterMap, TEXT("NumSlices"));
+	SliceIndex.Bind(Initializer.ParameterMap, TEXT("SliceIndex"));
+	ViewMatrix.Bind(Initializer.ParameterMap, TEXT("ViewMatrix"));
 }
 
 bool FCubemapTexturePropertiesPS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -145,24 +147,26 @@ bool FCubemapTexturePropertiesPS::ShouldCompilePermutation(const FGlobalShaderPe
 	return true;
 }
 
-void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture, const FMatrix& ColorWeightsValue, float MipLevel, float SliceIndex, float FaceIndex, float GammaValue, bool bIsTextureCubeArray)
+void FCubemapTexturePropertiesPS::SetParameters(FRHICommandList& RHICmdList, const FTexture* InTexture, const FMatrix& InColorWeightsValue, float InMipLevel, float InSliceIndex, bool bInIsTextureCubeArray, const FMatrix44f& InViewMatrix, bool bInShowLongLatUnwrap, float InGammaValue)
 {
 	FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 
-	SetTextureParameter(RHICmdList, ShaderRHI, CubeTexture, CubeTextureSampler, Texture);
+	SetTextureParameter(RHICmdList, ShaderRHI, CubeTexture, CubeTextureSampler, InTexture);
 
-	FVector4f PackedProperties0Value(MipLevel, SliceIndex, FaceIndex, 0);
+	FVector4f PackedProperties0Value(InMipLevel, bInShowLongLatUnwrap ? 1.0f : -1.0f, 0, 0);
 	SetShaderValue(RHICmdList, ShaderRHI, PackedProperties0, PackedProperties0Value);
-	SetShaderValue(RHICmdList, ShaderRHI, ColorWeights, (FMatrix44f)ColorWeightsValue);
-	SetShaderValue(RHICmdList, ShaderRHI, Gamma, GammaValue);
+	SetShaderValue(RHICmdList, ShaderRHI, ColorWeights, (FMatrix44f)InColorWeightsValue);
+	SetShaderValue(RHICmdList, ShaderRHI, Gamma, InGammaValue);
+	SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ViewMatrix, InViewMatrix);
 
-	// store slice count for the texture cube array
-	if (bIsTextureCubeArray)
+	// store slice count and selected slice index for the texture cube array
+	if (bInIsTextureCubeArray)
 	{
 		// GetSizeZ() returns the total number of slices stored in the platform data
 		// for a TextureCube array this value is equal to the size of the array multiplied by 6
-		const float NumSlicesData = (float)(Texture ? FMath::Max((int32)Texture->GetSizeZ() / 6, 1) : 1);
+		const float NumSlicesData = (float)(InTexture ? FMath::Max((int32)InTexture->GetSizeZ() / 6, 1) : 1);
 		SetShaderValue(RHICmdList, ShaderRHI, NumSlices, NumSlicesData);
+		SetShaderValue(RHICmdList, ShaderRHI, SliceIndex, InSliceIndex);
 	}
 }
 
@@ -187,7 +191,7 @@ void FMipLevelBatchedElementParameters::BindShaders(FRHICommandList& RHICmdList,
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
 
 	VertexShader->SetParameters(RHICmdList, InTransform);
-	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, FaceIndex, InGamma, bIsTextureCubeArray);
+	PixelShader->SetParameters(RHICmdList, Texture, ColorWeights, MipLevel, SliceIndex, bIsTextureCubeArray, ViewMatrix, bShowLongLatUnwrap, InGamma);
 }
 
 void FIESLightProfilePS::SetParameters( FRHICommandList& RHICmdList, const FTexture* Texture, float InBrightnessInLumens )

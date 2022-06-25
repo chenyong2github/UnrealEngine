@@ -85,6 +85,8 @@ public:
 	virtual void SetVolumeOpacity( float VolumeOpacity ) override;
 	virtual const FRotator& GetVolumeOrientation( ) const override;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) override;
+	virtual const FRotator& GetCubemapOrientation() const override;
+	virtual void SetCubemapOrientation(const FRotator& InOrientation) override;
 	virtual int32 GetExposureBias() const override
 	{
 		return ExposureBias;
@@ -194,11 +196,17 @@ private:
 	// Callback for getting the checked state of the Checkered Background action.
 	bool HandleCheckeredBackgroundActionIsChecked( ETextureEditorBackgrounds Background );
 
-	// Callback for toggling the volume display action.
+	// Callback for toggling the volume view action.
 	void HandleVolumeViewModeActionExecute( ETextureEditorVolumeViewMode InViewMode );
 
-	// Callback for getting the checked state of the volume display action.
+	// Callback for getting the checked state of the volume view action.
 	bool HandleVolumeViewModeActionIsChecked( ETextureEditorVolumeViewMode InViewMode );
+
+	// Callback for toggling the cubemap view action.
+	void HandleCubemapViewModeActionExecute(ETextureEditorCubemapViewMode InViewMode);
+
+	// Callback for getting the checked state of the cubemap view action.
+	bool HandleCubemapViewModeActionIsChecked(ETextureEditorCubemapViewMode InViewMode);
 
 	// Callback for toggling the Compress Now action.
 	void HandleCompressNowActionExecute( );
@@ -464,6 +472,9 @@ private:
 
 	// For volume texture, the orientation when tracing.
 	FRotator VolumeOrientation;
+
+	// For cubemap texture, the orientation when previewing the texture as a 3d rendered cube.
+	FRotator CubemapOrientation;
 
 	bool bIsVolumeTexture;
 

@@ -317,45 +317,14 @@ TextureCube CubeTexture;
 
 SamplerState CubeTextureSampler;
 
-float3 GetCubemapVector(float2 ScaledUVs, uint CubeFace)
-{
-	float3 CubeCoordinates;
-	
-	// calculation of the cube coordinates matches the DDS orientaion and face order: positive x, negative x, positive y, negative y, positive z, negative z
-	if (CubeFace == 0)
-	{
-		CubeCoordinates = float3(1, -ScaledUVs.y, -ScaledUVs.x);
-	}
-	else if (CubeFace == 1)
-	{
-		CubeCoordinates = float3(-1, -ScaledUVs.y, ScaledUVs.x);
-	}
-	else if (CubeFace == 2)
-	{
-		CubeCoordinates = float3(ScaledUVs.x, 1, ScaledUVs.y);
-	}
-	else if (CubeFace == 3)
-	{
-		CubeCoordinates = float3(ScaledUVs.x, -1, -ScaledUVs.y);
-	}
-	else if (CubeFace == 4)
-	{
-		CubeCoordinates = float3(ScaledUVs.x, -ScaledUVs.y, 1);
-	}
-	else
-	{
-		CubeCoordinates = float3(-ScaledUVs.x, -ScaledUVs.y, -1);
-	}
-
-	return CubeCoordinates;
-}
-
-// .x:MipLevel, .y: SliceIndex, .z: FaceIndex, .w:unused
+// .x:MipLevel, .y:bShowLongLatUnwrap, .zw:unused
 float4 PackedProperties0;
 float4x4 ColorWeights;
+float4x4 ViewMatrix;
 
 #if TEXTURECUBE_ARRAY
 float NumSlices;
+float SliceIndex;
 #endif
 
 // used in the Texture info dialog when looking at a cubemap texture
@@ -369,78 +338,48 @@ void CubemapTextureProperties(
 	)
 {
 	float MipLevel = PackedProperties0.x;
-	float FaceIndex = PackedProperties0.z;
+	float bShowLongLatUnwrap = PackedProperties0.y;
+	float3 CubeCoordinates;
 	float4 BaseColor;
 
-#if TEXTURECUBE_ARRAY
+	if (bShowLongLatUnwrap > 0.0)
+	{
+		float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
+		float s = sin(Angles.y);
+		CubeCoordinates = float3(s * sin(Angles.x), -s * cos(Angles.x), cos(Angles.y));
+	}
+	else
+	{
+		float2 ScaledUVs = TextureCoordinate * 2 - 1;
+		// identity view matrix displays the face 0 properly oriented in space
+		CubeCoordinates = mul(float3(1, ScaledUVs.x, -ScaledUVs.y), ViewMatrix);
+	}
 
+#if TEXTURECUBE_ARRAY
 	// SliceIndex represents an index of a cubemap in the array
-	float SliceIndex = PackedProperties0.y;
 	if (SliceIndex < 0.0)
 	{
 		// if the slice index is not specified, display a portion of each cubemap from the TextureCube array
 		SliceIndex = floor(TextureCoordinate.y * NumSlices);
 	}
+#endif
 
-	if (FaceIndex >= 0.0)
+	if (MipLevel >= 0.0)
 	{
-		float4 CubeArrayCoordinates = float4(GetCubemapVector(TextureCoordinate * 2 - 1, FaceIndex), SliceIndex);
-		if (MipLevel >= 0.0)
-		{
-			BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, CubeArrayCoordinates, MipLevel);
-		}
-		else
-		{
-			BaseColor = TextureCubeArraySample(CubeTexture, CubeTextureSampler, CubeArrayCoordinates);
-		}
+#if TEXTURECUBE_ARRAY
+		BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, float4(CubeCoordinates, SliceIndex), MipLevel);
+#else
+		BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, CubeCoordinates, MipLevel);
+#endif
 	}
 	else
 	{
-		// if the face index is not specified, display the cubemap as a longlat unwrap
-		float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
-		float s = sin(Angles.y);
-		float4 CubeArrayCoordinates = float4(s * sin(Angles.x), -s * cos(Angles.x), cos(Angles.y), SliceIndex);
-		if (MipLevel >= 0.0)
-		{
-			BaseColor = TextureCubeArraySampleLevel(CubeTexture, CubeTextureSampler, CubeArrayCoordinates, MipLevel);
-		}
-		else
-		{
-			BaseColor = TextureCubeArraySample(CubeTexture, CubeTextureSampler, CubeArrayCoordinates);
-		}
+#if TEXTURECUBE_ARRAY
+		BaseColor = TextureCubeArraySample(CubeTexture, CubeTextureSampler, float4(CubeCoordinates, SliceIndex));
+#else
+		BaseColor = TextureCubeSample(CubeTexture, CubeTextureSampler, CubeCoordinates);
+#endif
 	}
-
-#else //TEXTURECUBE_ARRAY
-
-	if (FaceIndex >= 0.0)
-	{
-		float3 CubeCoordinates = GetCubemapVector(TextureCoordinate * 2 - 1, FaceIndex);
-		if (MipLevel >= 0.0)
-		{
-			BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, CubeCoordinates, MipLevel);
-		}
-		else
-		{
-			BaseColor = TextureCubeSample(CubeTexture, CubeTextureSampler, CubeCoordinates);
-		}
-	}
-	else
-	{
-		// if the face index is not specified, display the cubemap as a longlat unwrap
-		float2 Angles = float2(2 * PI * (TextureCoordinate.x + 0.5f), PI * TextureCoordinate.y);
-		float s = sin(Angles.y);
-		float3 CubeCoordinates = float3(s * sin(Angles.x), -s * cos(Angles.x), cos(Angles.y));
-		if (MipLevel >= 0.0)
-		{
-			BaseColor = TextureCubeSampleLevel(CubeTexture, CubeTextureSampler, CubeCoordinates, MipLevel);
-		}
-		else
-		{
-			BaseColor = TextureCubeSample(CubeTexture, CubeTextureSampler, CubeCoordinates);
-		}
-	}
-
-#endif //TEXTURECUBE_ARRAY
 
 	float4 FinalColor;
 

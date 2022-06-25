@@ -70,6 +70,14 @@ public:
 	TSharedPtr<FUICommandInfo> TraceIntoVolume;
 // End - Volume Texture Specifics
 
+// Begin - Cubemap Texture Specifics
+	/** For cubemap texture, displays LongLat projection or individual faces of the cubemap */
+	TSharedPtr<FUICommandInfo> Cubemap2DView;
+
+	/** For cubemap texture, displays 3D rendered cubemap */
+	TSharedPtr<FUICommandInfo> Cubemap3DView;
+// End - Cubemap Texture Specifics
+
 	/** If enabled, a border is drawn around the texture */
 	TSharedPtr<FUICommandInfo> TextureBorder;
 
