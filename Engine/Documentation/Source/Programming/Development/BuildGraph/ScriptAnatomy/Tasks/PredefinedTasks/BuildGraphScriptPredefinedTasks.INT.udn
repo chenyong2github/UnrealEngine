@@ -60,26 +60,6 @@ Creates a new AWS ECS task definition and updates the ECS service to use this ne
 | LogOutput          | Boolean   | Optional | Write output to the log                                                                      |
 | If                 | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false.            |
 
-### CallMethod
-
-Invokes a C# method.
-
-|        |           |          |                                                                                   |
-| ------ | --------- | -------- | --------------------------------------------------------------------------------- |
-| Class  | String    | Required | Name of the class to run a method in                                              |
-| Method | String    | Required | The method name to execute.                                                       |
-| Arg1   | String    | Optional | Argument value                                                                    |
-| Arg2   | String    | Optional | Argument value                                                                    |
-| Arg3   | String    | Optional | Argument value                                                                    |
-| Arg4   | String    | Optional | Argument value                                                                    |
-| Arg5   | String    | Optional | Argument value                                                                    |
-| Arg6   | String    | Optional | Argument value                                                                    |
-| Arg7   | String    | Optional | Argument value                                                                    |
-| Arg8   | String    | Optional | Argument value                                                                    |
-| Arg9   | String    | Optional | Argument value                                                                    |
-| Tags   | String    | Optional | List of tags for outputs                                                          |
-| If     | Condition | Optional | Whether to execute this task. It is ignored if this condition evaluates to false. |
-
 ### Command
 
 Invokes an AutomationTool child process to run the given command.
