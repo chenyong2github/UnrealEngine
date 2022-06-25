@@ -62,16 +62,12 @@ public:
 		return true;
 	}
 
-#if WITH_EDITOR
-	virtual bool HasPreviewMesh() override
+	virtual bool ShouldUseAdditionalTargetableResource() const override
 	{
+		// Request additional targetable resources for warp&blend output
 		return true;
 	}
 
-	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
-#endif
-
-public:
 	virtual void UpdateProxyData(IDisplayClusterViewport* InViewport) override;
 
 protected:
@@ -91,6 +87,15 @@ private:
 
 #if WITH_EDITOR
 protected:
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	// IDisplayClusterProjectionPolicyPreview
+	//////////////////////////////////////////////////////////////////////////////////////////////
+	virtual bool HasPreviewMesh() override
+	{
+		return true;
+	}
+	virtual class UMeshComponent* GetOrCreatePreviewMeshComponent(IDisplayClusterViewport* InViewport, bool& bOutIsRootActorComponent) override;
+
 	void ReleasePreviewMeshComponent();
 
 private:

@@ -53,6 +53,27 @@ static TAutoConsoleVariable<int32> CVarClearFrameRTTEnabled(
 );
 
 ///////////////////////////////////////////////////////////////////////////////////////
+namespace DisplayClusterViewportManagerProxyHelpers
+{
+	// Support warp blend logic
+	static inline bool ShouldApplyWarpBlend(IDisplayClusterViewportProxy* ViewportProxy)
+	{
+		if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
+		{
+			// When used override texture, disable warp blend
+			return false;
+		}
+
+		const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+
+		// Ask current projection policy if it's warp&blend compatible
+		return PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
+	}
+};
+
+using namespace DisplayClusterViewportManagerProxyHelpers;
+
+///////////////////////////////////////////////////////////////////////////////////////
 //          FDisplayClusterViewportManagerProxy
 ///////////////////////////////////////////////////////////////////////////////////////
 FDisplayClusterViewportManagerProxy::FDisplayClusterViewportManagerProxy()
@@ -337,7 +358,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 	// Do postprocess before warp&blend
 	if (PostProcessManager.IsValid())
 	{
-		PostProcessManager->PerformPostProcessBeforeWarpBlend_RenderThread(RHICmdList, this);
+		PostProcessManager->PerformPostProcessViewBeforeWarpBlend_RenderThread(RHICmdList, this);
 	}
 
 	// Support viewport overlap order sorting:
@@ -364,71 +385,67 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 		// Update deferred resources for viewports
 		for (FDisplayClusterViewportProxy* ViewportProxy : SortedViewportProxy)
 		{
-			if (ViewportProxy)
+			// Iterate over visible viewports:
+			if (ViewportProxy && ViewportProxy->GetRenderSettings_RenderThread().bVisible)
 			{
-				// Iterate over visible viewports:
-				if (ViewportProxy->GetRenderSettings_RenderThread().bVisible)
+				if (bWarpBlendEnabled && ShouldApplyWarpBlend(ViewportProxy))
 				{
 					const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
-
-					bool bShouldApplyWarpBlend = bWarpBlendEnabled;
-					if (bShouldApplyWarpBlend)
+					switch ((EWarpPass)WarpPass)
 					{
-						// Support warp blend logic
-						if (ViewportProxy->GetPostRenderSettings_RenderThread().Replace.IsEnabled())
-						{
-							// When used override texture, disable warp blend
-							bShouldApplyWarpBlend = false;
-						}
-						else
-						{
-							
-							// Ask current projection policy if it's warp&blend compatible
-							bShouldApplyWarpBlend = PrjPolicy.IsValid() && PrjPolicy->IsWarpBlendSupported();
-						}
-					}
+					case EWarpPass::Begin:
+						IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreWarpViewport_RenderThread().Broadcast(RHICmdList, ViewportProxy);
+						PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+						break;
 
-					if (bShouldApplyWarpBlend)
-					{
-						switch ((EWarpPass)WarpPass)
-						{
-						case EWarpPass::Begin:
-							IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPreWarpViewport_RenderThread().Broadcast(RHICmdList, ViewportProxy);
-							PrjPolicy->BeginWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-							break;
+					case EWarpPass::Render:
+						PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+						break;
 
-						case EWarpPass::Render:
-							PrjPolicy->ApplyWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+					case EWarpPass::End:
+						PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
+						IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostWarpViewport_RenderThread().Broadcast(RHICmdList, ViewportProxy);
+						break;
 
-							ViewportProxy->PostResolveViewport_RenderThread(RHICmdList);
-							break;
-
-						case EWarpPass::End:
-							PrjPolicy->EndWarpBlend_RenderThread(RHICmdList, ViewportProxy);
-							IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostWarpViewport_RenderThread().Broadcast(RHICmdList, ViewportProxy);
-							break;
-
-						default:
-							break;
-						}
-					}
-					else
-					{
-						switch ((EWarpPass)WarpPass)
-						{
-						case EWarpPass::Render:
-							// just resolve not warped viewports to frame target texture
-							ViewportProxy->ResolveResources_RenderThread(RHICmdList, EDisplayClusterViewportResourceType::InputShaderResource, ViewportProxy->GetOutputResourceType_RenderThread());
-							
-							ViewportProxy->PostResolveViewport_RenderThread(RHICmdList);
-							break;
-
-						default:
-							break;
-						}
+					default:
+						break;
 					}
 				}
 			}
+		}
+	}
+
+	if (PostProcessManager.IsValid())
+	{
+		// per-frame handle
+		PostProcessManager->HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(RHICmdList, this);
+
+		// Per-view postprocess
+		PostProcessManager->PerformPostProcessViewAfterWarpBlend_RenderThread(RHICmdList, this);
+	}
+
+	// Post resolve to Frame RTT
+	// All warp&blend results are now inside AdditionalTargetableResource. Viewport images of other projection policies are still stored in the InputShaderResource.
+	for (FDisplayClusterViewportProxy* ViewportProxy : SortedViewportProxy)
+	{
+		// Iterate over visible viewports:
+		if (ViewportProxy && ViewportProxy->GetRenderSettings_RenderThread().bVisible)
+		{
+			EDisplayClusterViewportResourceType ViewportSource = EDisplayClusterViewportResourceType::InputShaderResource;
+			if (bWarpBlendEnabled && ShouldApplyWarpBlend(ViewportProxy))
+			{
+				const TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe>& PrjPolicy = ViewportProxy->GetProjectionPolicy_RenderThread();
+				if (PrjPolicy->ShouldUseAdditionalTargetableResource())
+				{
+					ViewportSource = EDisplayClusterViewportResourceType::AdditionalTargetableResource;
+				}
+			}
+
+			// resolve viewports to the frame target texture
+			ViewportProxy->ResolveResources_RenderThread(RHICmdList, ViewportSource, ViewportProxy->GetOutputResourceType_RenderThread());
+
+			// Apply post-warp (viewport remap, etc)
+			ViewportProxy->PostResolveViewport_RenderThread(RHICmdList);
 		}
 	}
 
@@ -436,7 +453,7 @@ void FDisplayClusterViewportManagerProxy::UpdateFrameResources_RenderThread(FRHI
 
 	if (PostProcessManager.IsValid())
 	{
-		PostProcessManager->PerformPostProcessAfterWarpBlend_RenderThread(RHICmdList, this);
+		PostProcessManager->PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, this);
 	}
 }
 

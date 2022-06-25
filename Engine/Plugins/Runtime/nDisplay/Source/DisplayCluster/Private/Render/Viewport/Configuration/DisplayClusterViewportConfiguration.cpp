@@ -105,6 +105,12 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 
 				RenderFrameSettings.bIsRenderingInEditor = true;
 				RenderFrameSettings.bIsPreviewRendering = true;
+				
+				if (InPreviewSettings->bIsPIE)
+				{
+					// Allow TextureShare+nDisplay from PIE
+					RenderFrameSettings.bIsPreviewRendering = false;
+				}
 			}
 			else
 			{
@@ -120,7 +126,7 @@ bool FDisplayClusterViewportConfiguration::ImplUpdateConfiguration(EDisplayClust
 			ConfigurationICVFX.PostUpdate();
 
 #if WITH_EDITOR
-			if (InPreviewSettings != nullptr && !InPreviewSettings->bIsPIE)
+			if (RenderFrameSettings.bIsPreviewRendering)
 			{
 				ConfigurationICVFX.PostUpdatePreview_Editor(*InPreviewSettings);
 			}

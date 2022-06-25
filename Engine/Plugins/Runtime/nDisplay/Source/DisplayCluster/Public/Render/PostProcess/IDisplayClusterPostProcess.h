@@ -35,7 +35,7 @@ public:
 	/**
 	* Return postprocess type
 	*/
-	virtual const FString GetTypeId() const = 0;
+	virtual const FString& GetType() const = 0;
 
 	/**
 	* Return postprocess configuration
@@ -95,6 +95,12 @@ public:
 	*
 	*/
 	virtual void HandleBeginUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+	{ }
+
+	/**
+	* Called every time the render thread runs after the entire warpblend has completed.
+	*/
+	virtual void HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 	{ }
 
 	/**

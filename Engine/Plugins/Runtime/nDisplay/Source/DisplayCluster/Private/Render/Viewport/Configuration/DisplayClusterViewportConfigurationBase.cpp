@@ -97,12 +97,28 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 		TSharedPtr<FDisplayClusterViewportPostProcessManager, ESPMode::ThreadSafe> PPManager = ViewportManager.GetPostProcessManager();
 		if (PPManager.IsValid())
 		{
+			static const FString TextureShareID(TEXT("TextureShare"));
+			IConsoleVariable* const CVarTextureShareEnabled = IConsoleManager::Get().FindConsoleVariable(TEXT("nDisplay.render.texturesharing"));
+
+			// TextureShare with nDisplay is only supported for PIE and Runtime.
+			// For PIE in nDisplay, the node must be selected in the preview options.
+			const bool bEnableTextureSharePP = (CVarTextureShareEnabled && CVarTextureShareEnabled->GetInt() != 0) && ClusterNode->bEnableTextureShare && !InRenderFrameSettings.bIsPreviewRendering;
+
 			{
 				// Find unused PP:
 				TArray<FString> UnusedPP;
 				for (const FString& It : PPManager->GetPostprocess())
 				{
-					if (!ClusterNode->Postprocess.Contains(It))
+					// Leave defined postprocess (dynamic reconf)
+					bool IsDefinedPostProcess = ClusterNode->Postprocess.Contains(It);
+
+					// Support TextureShare dynamic reconf
+					if(bEnableTextureSharePP && It == TextureShareID)
+					{
+						IsDefinedPostProcess = true;
+					}
+
+					if (!IsDefinedPostProcess)
 					{
 						UnusedPP.Add(It);
 					}
@@ -133,10 +149,7 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 			}
 
 			// Texture sharing is not supported in preview mode.
-			if(InRenderFrameSettings.bIsPreviewRendering == false)
-			{
-				static const FString TextureShareID(TEXT("TextureShare"));
-				if (ClusterNode->bEnableTextureShare)
+			if(bEnableTextureSharePP)
 				{
 					TSharedPtr<IDisplayClusterPostProcess, ESPMode::ThreadSafe> ExistPostProcess = PPManager->FindPostProcess(TextureShareID);
 					if (!ExistPostProcess.IsValid())
@@ -148,11 +161,6 @@ void FDisplayClusterViewportConfigurationBase::UpdateClusterNodePostProcess(cons
 						PPManager->CreatePostprocess(TextureShareID, &TextureShareConfiguration);
 					}
 				}
-				else
-				{
-					PPManager->RemovePostprocess(TextureShareID);
-				}
-			}
 
 			// Update OutputRemap PP
 			{
