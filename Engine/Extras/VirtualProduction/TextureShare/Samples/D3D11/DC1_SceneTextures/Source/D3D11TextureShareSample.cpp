@@ -1,4 +1,4 @@
- // Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "D3D11TextureShareSample.h"
 #include "D3D11TextureShareSampleSetup.h"
