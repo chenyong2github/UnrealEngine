@@ -12,10 +12,10 @@
 
 namespace UE::ConcertSyncCore
 {
-	FHistoryDeletionRequirements AnalyseActivityDeletion(const TSet<FActivityID>& ActivitiesToDelete, const FConcertSyncSessionDatabase& Database, bool bAddActivitiesToDelete)
+	FHistoryEditionArgs AnalyseActivityDependencies(const TSet<FActivityID>& ActivitiesToDelete, const FConcertSyncSessionDatabase& Database, bool bAddActivitiesToDelete)
 	{
 		const FActivityDependencyGraph Graph = BuildDependencyGraphFrom(Database);
-		return AnalyseActivityDeletion(ActivitiesToDelete, Graph, bAddActivitiesToDelete);
+		return AnalyseActivityDependencies(ActivitiesToDelete, Graph, bAddActivitiesToDelete);
 	}
 
 	/**
@@ -24,9 +24,9 @@ namespace UE::ConcertSyncCore
 	 */
 	static void AddSavePackageActivityAssociatedWithRenamePackageActivity(const FActivityDependencyGraph& DependencyGraph, const FActivityNode& PossibleRenameActivityNode, TSet<FActivityNodeID>& DoubleEnqueuingProtection, TQueue<FActivityNodeID>& ActivitiesToAnalyse);
 	
-	FHistoryDeletionRequirements AnalyseActivityDeletion(const TSet<FActivityID>& ActivitiesToDelete, const FActivityDependencyGraph& DependencyGraph, bool bAddActivitiesToDelete)
+	FHistoryEditionArgs AnalyseActivityDependencies(const TSet<FActivityID>& ActivitiesToEdit, const FActivityDependencyGraph& DependencyGraph, bool bAddEditedAsHardDependencies)
 	{
-		FHistoryDeletionRequirements Result;
+		FHistoryEditionArgs Result;
 
 		TSet<FActivityNodeID> PossibleDoubleEnqueuingProtection;
 		TQueue<FActivityNodeID> PossibleDependencyActivitiesToAnalyse;
@@ -34,7 +34,7 @@ namespace UE::ConcertSyncCore
 		
 		TSet<FActivityNodeID> HardDoubleEnqueuingProtection;
 		TQueue<FActivityNodeID> HardDependencyActivitiesToAnalyse;
-		for (const FActivityID ActivityToDelete : ActivitiesToDelete)
+		for (const FActivityID ActivityToDelete : ActivitiesToEdit)
 		{
 			const TOptional<FActivityNodeID> NodeID = DependencyGraph.FindNodeByActivity(ActivityToDelete);
 			if (ensureMsgf(NodeID, TEXT("Graph does not correspond to ActivitiesToDelete")))
@@ -65,7 +65,7 @@ namespace UE::ConcertSyncCore
 			const FActivityNode& ActivityNode = DependencyGraph.GetNodeById(CurrentActivityID);
 
 			const FActivityID ActivityID = ActivityNode.GetActivityId();
-			if (bAddActivitiesToDelete || !ActivitiesToDelete.Contains(ActivityID))
+			if (bAddEditedAsHardDependencies || !ActivitiesToEdit.Contains(ActivityID))
 			{
 				Result.HardDependencies.Add(ActivityID);
 			}

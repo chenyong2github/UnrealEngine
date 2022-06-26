@@ -5,7 +5,6 @@
 #include "CoreMinimal.h"
 #include "ConcertMessageData.h"
 #include "IConcertSyncServer.h"
-
 #include "Dialog/SCustomDialog.h"
 #include "HistoryEdition/HistoryAnalysis.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -17,7 +16,7 @@ class SDeleteActivityDependenciesDialog : public SCustomDialog
 {
 public:
 
-	DECLARE_DELEGATE_OneParam(FConfirmDeletion, const UE::ConcertSyncCore::FHistoryDeletionRequirements& /*SelectedRequirements*/)
+	DECLARE_DELEGATE_OneParam(FConfirmDeletion, const UE::ConcertSyncCore::FHistoryEditionArgs& /*SelectedRequirements*/)
 
 	SLATE_BEGIN_ARGS(SDeleteActivityDependenciesDialog)
 	{}
@@ -28,11 +27,11 @@ public:
 	/**
 	 * @param InDeletionRequirements Specifies which activities must be deleted and which are optional.
 	 */
-	void Construct(const FArguments& InArgs, const FGuid& SessionId, const TSharedRef<IConcertSyncServer>& SyncServer, UE::ConcertSyncCore::FHistoryDeletionRequirements InDeletionRequirements);
+	void Construct(const FArguments& InArgs, const FGuid& SessionId, const TSharedRef<IConcertSyncServer>& SyncServer, UE::ConcertSyncCore::FHistoryEditionArgs InDeletionRequirements);
 
 private:
 	
-	UE::ConcertSyncCore::FHistoryDeletionRequirements DeletionRequirements;
+	UE::ConcertSyncCore::FHistoryEditionArgs DeletionRequirements;
 	FConfirmDeletion OnConfirmDeletionFunc;
 	
 	/** Maps each activity with a possible dependency to whether it will be deleted or not. */
@@ -41,7 +40,7 @@ private:
 	/** Filters out all activities that are not part of the deletion requirements. */
 	TSharedPtr<FArchivedSessionHistoryController> FilteredSessionHistoryController;
 
-	TSharedRef<SWidget> CreateBody(const FGuid& InSessionId, const TSharedRef<IConcertSyncServer>& InSyncServer, UE::ConcertSyncCore::FHistoryDeletionRequirements InDeletionRequirements);
+	TSharedRef<SWidget> CreateBody(const FGuid& InSessionId, const TSharedRef<IConcertSyncServer>& InSyncServer, UE::ConcertSyncCore::FHistoryEditionArgs InDeletionRequirements);
 
 	void OnConfirmPressed();
 };

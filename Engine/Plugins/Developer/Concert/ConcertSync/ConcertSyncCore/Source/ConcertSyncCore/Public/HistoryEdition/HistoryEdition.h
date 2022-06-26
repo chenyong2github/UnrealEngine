@@ -6,26 +6,27 @@
 #include "HistoryAnalysis.h"
 
 class IConcertServer;
+class IConcertSyncServer;
 
 namespace UE::ConcertSyncCore
 {
-	struct FDeleteSessionErrorResult
+	struct FOperationErrorResult
 	{
 		TOptional<FText> ErrorMessage;
 
-		explicit FDeleteSessionErrorResult(TOptional<FText> ErrorMessage = {})
+		explicit FOperationErrorResult(TOptional<FText> ErrorMessage = {})
 			: ErrorMessage(ErrorMessage)
 		{}
 
-		static FDeleteSessionErrorResult MakeSuccess() { return FDeleteSessionErrorResult(); }
-		static FDeleteSessionErrorResult MakeError(FText Error) { return FDeleteSessionErrorResult(MoveTemp(Error)); }
+		static FOperationErrorResult MakeSuccess() { return FOperationErrorResult(); }
+		static FOperationErrorResult MakeError(FText Error) { return FOperationErrorResult(MoveTemp(Error)); }
 
 		bool WasSuccessful() const { return !ErrorMessage.IsSet(); }
 		bool HadError() const { return !WasSuccessful(); }
 	};
 
 	/** Utility functions that converts FHistoryDeletionRequirements into a single TSet. */
-	CONCERTSYNCCORE_API TSet<FActivityID> CombineRequirements(const FHistoryDeletionRequirements& ToDelete);
+	CONCERTSYNCCORE_API TSet<FActivityID> CombineRequirements(const FHistoryEditionArgs& ToDelete);
 
 	/**
 	 * Deletes the given sessions in ToDelete from ArchivedSessionDatabase.
@@ -35,5 +36,5 @@ namespace UE::ConcertSyncCore
 	 *	2. Delete the archived session
 	 *	3. Archive the live session created in step 1 with the old guid.
 	 */
-	CONCERTSYNCCORE_API FDeleteSessionErrorResult DeleteActivitiesInArchivedSession(const TSharedRef<IConcertServer>& Server, const FGuid& SessionToDeleteFrom, const TSet<FActivityID>& ToDelete);
+	CONCERTSYNCCORE_API FOperationErrorResult DeleteActivitiesInArchivedSession(const TSharedRef<IConcertServer>& Server, const FGuid& ArchivedSessionId, const TSet<FActivityID>& ToDelete);
 }

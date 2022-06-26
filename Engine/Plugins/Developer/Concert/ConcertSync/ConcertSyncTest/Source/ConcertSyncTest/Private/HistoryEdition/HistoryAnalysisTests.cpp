@@ -22,7 +22,7 @@ namespace UE::ConcertSyncTests
 		const FString& TestBaseName,
 		FAutomationTestBase& Test,
 		const RenameEditAndDeleteMapsFlowTest::TTestActivityArray<FActivityID> Activities,
-		const ConcertSyncCore::FHistoryDeletionRequirements& ToValidate = {},
+		const ConcertSyncCore::FHistoryEditionArgs& ToValidate = {},
 		const TSet<RenameEditAndDeleteMapsFlowTest::ETestActivity>& ExpectedHardDependencies = {},
 		const TSet<RenameEditAndDeleteMapsFlowTest::ETestActivity>& ExpectedPossibleDependencies = {}
 		)
@@ -73,7 +73,7 @@ namespace UE::ConcertSyncTests::AnalysisTests
 
 		// Delete /Game/Foo > Nearly everything has hard dependency
 		{
-			const FHistoryDeletionRequirements DeleteFooRequirements = AnalyseActivityDeletion({ Activities[_1_NewPackageFoo] }, DependencyGraph);
+			const FHistoryEditionArgs DeleteFooRequirements = AnalyseActivityDependencies({ Activities[_1_NewPackageFoo] }, DependencyGraph);
 			/* _1_NewPackageFoo: is what we're "deleting".
 			 * _5_SavePackageBar: Bar is created as result of a rename but has no dependency to _1_NewPackageFoo.
 			 * All other activities transitively depend on _1_NewPackageFoo (put above log into GraphViz to visualise).
@@ -90,7 +90,7 @@ namespace UE::ConcertSyncTests::AnalysisTests
 		// Delete rename transaction > No dependencies
 			// because the rename basically just changes AActor::ActorLabel
 		{
-			const FHistoryDeletionRequirements DeleteRenameRequirements = AnalyseActivityDeletion({ Activities[_3_RenameActor] }, DependencyGraph);
+			const FHistoryEditionArgs DeleteRenameRequirements = AnalyseActivityDependencies({ Activities[_3_RenameActor] }, DependencyGraph);
 			TestEqual(TEXT("Delete renaming actor: HardDependencies.Num() == 0"), DeleteRenameRequirements.HardDependencies.Num(), 0);
 			TestEqual(TEXT("Delete renaming actor: PossibleDependencies.Num() == 1"), DeleteRenameRequirements.PossibleDependencies.Num(), 1);
 			TestTrue(TEXT("Delete renaming actor: Edit activity may depend on deleted activity"), DeleteRenameRequirements.PossibleDependencies.Contains(Activities[_4_EditActor]));
@@ -98,7 +98,7 @@ namespace UE::ConcertSyncTests::AnalysisTests
 
 		// Delete actor creation > All transactions operating on actor are hard dependencies
 		{
-			const FHistoryDeletionRequirements DeleteCreateActorRequirements = AnalyseActivityDeletion({ Activities[_2_AddActor] }, DependencyGraph);
+			const FHistoryEditionArgs DeleteCreateActorRequirements = AnalyseActivityDependencies({ Activities[_2_AddActor] }, DependencyGraph);
 			TestEqual(TEXT("Delete actor creation: HardDependencies.Num() == 2"), DeleteCreateActorRequirements.HardDependencies.Num(), 2);
 			TestEqual(TEXT("Delete actor creation: PossibleDependencies.Num() == 0"), DeleteCreateActorRequirements.PossibleDependencies.Num(), 0);
 			TestTrue(TEXT("Delete actor creation: Rename depends on created actor"), DeleteCreateActorRequirements.HardDependencies.Contains(Activities[_3_RenameActor]));
@@ -108,7 +108,7 @@ namespace UE::ConcertSyncTests::AnalysisTests
 		// Deleting a rename activity > Rename activity should have a possible dependency to activities that saved the renamed-to package
 			// because MU internally creates a Save Package activity before a rename activity (so secretly rename activities is two related activities)
 		{
-			const FHistoryDeletionRequirements DeleteRenameRequirements = AnalyseActivityDeletion({ Activities[_5_RenameFooToBar] }, DependencyGraph);
+			const FHistoryEditionArgs DeleteRenameRequirements = AnalyseActivityDependencies({ Activities[_5_RenameFooToBar] }, DependencyGraph);
 
 			// Not really what we want to test - but we're doing it for completness
 			TestEqual(TEXT("Delete rename package: HardDependencies.Num() == 4"), DeleteRenameRequirements.HardDependencies.Num(), 4);
@@ -162,7 +162,7 @@ namespace UE::ConcertSyncTests::AnalysisTests
 		DependencyGraph.AddDependency(LeafNodeID, FActivityDependencyEdge(BNodeID, EActivityDependencyReason::EditAfterPreviousPackageEdit, EDependencyStrength::HardDependency));
 		DependencyGraph.AddDependency(BNodeID, FActivityDependencyEdge(RootNodeID, EActivityDependencyReason::EditAfterPreviousPackageEdit, EDependencyStrength::HardDependency));
 
-		const FHistoryDeletionRequirements DeleteFooRequirements = AnalyseActivityDeletion({ RootActivityID }, DependencyGraph);
+		const FHistoryEditionArgs DeleteFooRequirements = AnalyseActivityDependencies({ RootActivityID }, DependencyGraph);
 
 		TestEqual(TEXT("HardDependencies.Num() == 2"), DeleteFooRequirements.HardDependencies.Num(), 2);
 		TestTrue(TEXT("HardDependencies.Contains(B)"), DeleteFooRequirements.HardDependencies.Contains(BActivityID));

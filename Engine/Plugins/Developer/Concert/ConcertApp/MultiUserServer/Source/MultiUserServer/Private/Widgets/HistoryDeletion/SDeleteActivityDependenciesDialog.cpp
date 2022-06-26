@@ -12,7 +12,7 @@
 
 #define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
 
-void SDeleteActivityDependenciesDialog::Construct(const FArguments& InArgs, const FGuid& SessionId, const TSharedRef<IConcertSyncServer>& SyncServer, UE::ConcertSyncCore::FHistoryDeletionRequirements InDeletionRequirements)
+void SDeleteActivityDependenciesDialog::Construct(const FArguments& InArgs, const FGuid& SessionId, const TSharedRef<IConcertSyncServer>& SyncServer, UE::ConcertSyncCore::FHistoryEditionArgs InDeletionRequirements)
 {
 	DeletionRequirements = MoveTemp(InDeletionRequirements);
 	OnConfirmDeletionFunc = InArgs._OnConfirmDeletion;
@@ -52,7 +52,7 @@ void SDeleteActivityDependenciesDialog::Construct(const FArguments& InArgs, cons
 	);
 }
 
-TSharedRef<SWidget> SDeleteActivityDependenciesDialog::CreateBody(const FGuid& InSessionId, const TSharedRef<IConcertSyncServer>& InSyncServer, UE::ConcertSyncCore::FHistoryDeletionRequirements InDeletionRequirements)
+TSharedRef<SWidget> SDeleteActivityDependenciesDialog::CreateBody(const FGuid& InSessionId, const TSharedRef<IConcertSyncServer>& InSyncServer, UE::ConcertSyncCore::FHistoryEditionArgs InDeletionRequirements)
 {
 	for (FActivityID HardDependency : DeletionRequirements.HardDependencies)
 	{

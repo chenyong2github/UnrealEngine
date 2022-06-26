@@ -30,7 +30,7 @@ namespace UE::MultiUserServer
 	}
 }
 
-void SActivityDependencyView::Construct(const FArguments& InArgs, const UE::ConcertSyncCore::FHistoryDeletionRequirements& DeletionRequirements)
+void SActivityDependencyView::Construct(const FArguments& InArgs, const UE::ConcertSyncCore::FHistoryEditionArgs& DeletionRequirements)
 {
 	check(InArgs._CreateSessionHistory.IsBound());
 

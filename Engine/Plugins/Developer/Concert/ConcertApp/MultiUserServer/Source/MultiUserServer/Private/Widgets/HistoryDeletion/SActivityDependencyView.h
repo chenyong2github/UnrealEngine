@@ -12,7 +12,7 @@ namespace UE
 {
 	namespace ConcertSyncCore
 	{
-		struct FHistoryDeletionRequirements;
+		struct FHistoryEditionArgs;
 	}
 }
 
@@ -33,5 +33,5 @@ public:
 		SLATE_ARGUMENT(FText, CustomActivityColumnLabel)
     SLATE_END_ARGS()
 	
-	void Construct(const FArguments& InArgs, const UE::ConcertSyncCore::FHistoryDeletionRequirements& DeletionRequirements);
+	void Construct(const FArguments& InArgs, const UE::ConcertSyncCore::FHistoryEditionArgs& DeletionRequirements);
 };
