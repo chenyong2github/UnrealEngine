@@ -1,68 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AudioGameplayVolumeProxyMutator.h"
-#include "AudioGameplayVolumeProxy.h"
+#include "AudioGameplayVolumeMutator.h"
 #include "AudioGameplayVolumeListener.h"
 #include "AudioGameplayVolumeSubsystem.h"
-#include "AudioDevice.h"
-
-void FAudioProxyMutatorSearchObject::SearchVolumes(const TArray<TWeakObjectPtr<UAudioGameplayVolumeProxy>>& ProxyVolumes, FAudioProxyMutatorSearchResult& OutResult)
-{
-	check(IsInAudioThread());
-	SCOPED_NAMED_EVENT(FAudioProxyMutatorSearchObject_SearchVolumes, FColor::Blue);
-
-	OutResult.Reset();
-	FAudioProxyMutatorPriorities MutatorPriorities;
-	MutatorPriorities.PayloadType = PayloadType;
-	MutatorPriorities.bFilterPayload = bFilterPayload;
-	
-	for (const TWeakObjectPtr<UAudioGameplayVolumeProxy>& ProxyVolume : ProxyVolumes)
-	{
-		if (!ProxyVolume.IsValid() || ProxyVolume->GetWorldID() != WorldID)
-		{
-			continue;
-		}
-
-		if (bFilterPayload && !ProxyVolume->HasPayloadType(PayloadType))
-		{
-			continue;
-		}
-
-		if (!ProxyVolume->ContainsPosition(Location))
-		{
-			continue;
-		}
-
-		if (bCollectMutators)
-		{
-			// We only need to calculate priorities for mutators if we're collecting them.
-			ProxyVolume->FindMutatorPriority(MutatorPriorities);
-		}
-		OutResult.VolumeSet.Add(ProxyVolume->GetVolumeID());
-	}
-
-	// Use 'world settings' as a starting point
-	if (!bAffectedByLegacySystem && AudioDeviceHandle.IsValid())
-	{
-		AudioDeviceHandle->GetDefaultAudioSettings(WorldID, OutResult.ReverbSettings, OutResult.InteriorSettings);
-	}
-
-	if (bCollectMutators)
-	{
-		for (const TWeakObjectPtr<UAudioGameplayVolumeProxy>& ProxyVolume : ProxyVolumes)
-		{
-			if (!ProxyVolume.IsValid())
-			{
-				continue;
-			}
-
-			if (OutResult.VolumeSet.Contains(ProxyVolume->GetVolumeID()))
-			{
-				ProxyVolume->GatherMutators(MutatorPriorities, OutResult);
-			}
-		}
-	}
-}
 
 FAudioProxyActiveSoundParams::FAudioProxyActiveSoundParams(const FAudioGameplayActiveSoundInfo& SoundInfo, const FAudioGameplayVolumeListener& InListener)
 	: SourceInteriorVolume(SoundInfo.SourceInteriorVolume)
@@ -140,6 +80,7 @@ void FAudioProxyActiveSoundParams::UpdateInteriorValues()
 	}
 }
 
+
 constexpr TCHAR FProxyVolumeMutator::MutatorBaseName[];
 
 FProxyVolumeMutator::FProxyVolumeMutator()
@@ -184,4 +125,58 @@ void FProxyVolumeMutator::Apply(FInteriorSettings& InteriorSettings) const
 bool FProxyVolumeMutator::HasPayloadType(PayloadFlags InType) const
 {
 	return (PayloadType & InType) != PayloadFlags::AGCP_None;
+}
+
+UAudioGameplayVolumeMutator::UAudioGameplayVolumeMutator(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+}
+
+void UAudioGameplayVolumeMutator::SetPriority(int32 InPriority)
+{
+	if (Priority != InPriority)
+	{
+		Priority = InPriority;
+		NotifyDataChanged();
+	}
+}
+
+TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeMutator::CreateMutator() const
+{
+	TSharedPtr<FProxyVolumeMutator> ProxyMutator = FactoryMutator();
+	if (ProxyMutator.IsValid())
+	{
+		CopyAudioDataToMutatorBase(ProxyMutator);
+	}
+
+	return ProxyMutator;
+}
+
+TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeMutator::FactoryMutator() const
+{
+	return TSharedPtr<FProxyVolumeMutator>();
+}
+
+void UAudioGameplayVolumeMutator::NotifyDataChanged() const
+{
+	if (IsActive())
+	{
+		TInlineComponentArray<UAudioGameplayVolumeProxyComponent*> VolumeComponents(GetOwner());
+		if (ensureMsgf(VolumeComponents.Num() == 1, TEXT("Expecting exactly one AudioGameplayVolumeProxyComponent on an actor!")))
+		{
+			if (VolumeComponents[0])
+			{
+				VolumeComponents[0]->OnComponentDataChanged();
+			}
+		}
+	}
+}
+
+void UAudioGameplayVolumeMutator::CopyAudioDataToMutatorBase(TSharedPtr<FProxyVolumeMutator>& Mutator) const
+{
+	check(Mutator.IsValid());
+	Mutator->PayloadType = PayloadType;
+	Mutator->Priority = Priority;
+
+	CopyAudioDataToMutator(Mutator);
 }

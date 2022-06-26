@@ -4,8 +4,7 @@
 #include "AudioGameplayVolumeLogs.h"
 #include "AudioGameplayVolumeComponent.h"
 #include "AudioGameplayVolumeProxy.h"
-#include "AudioGameplayVolumeProxyMutator.h"
-#include "AudioGameplayFlags.h"
+#include "AudioGameplayVolumeMutator.h"
 #include "AudioDevice.h"
 #include "Misc/CoreMisc.h"
 
@@ -60,6 +59,64 @@ void FAudioGameplayActiveSoundInfo::Update(double ListenerInteriorStartTime)
 	}
 
 	InteriorSettings.UpdateInteriorValues();
+}
+
+void FAudioProxyMutatorSearchObject::SearchVolumes(const TArray<TWeakObjectPtr<UAudioGameplayVolumeProxy>>& ProxyVolumes, FAudioProxyMutatorSearchResult& OutResult)
+{
+	check(IsInAudioThread());
+	SCOPED_NAMED_EVENT(FAudioProxyMutatorSearchObject_SearchVolumes, FColor::Blue);
+
+	OutResult.Reset();
+	FAudioProxyMutatorPriorities MutatorPriorities;
+	MutatorPriorities.PayloadType = PayloadType;
+	MutatorPriorities.bFilterPayload = bFilterPayload;
+
+	for (const TWeakObjectPtr<UAudioGameplayVolumeProxy>& ProxyVolume : ProxyVolumes)
+	{
+		if (!ProxyVolume.IsValid() || ProxyVolume->GetWorldID() != WorldID)
+		{
+			continue;
+		}
+
+		if (bFilterPayload && !ProxyVolume->HasPayloadType(PayloadType))
+		{
+			continue;
+		}
+
+		if (!ProxyVolume->ContainsPosition(Location))
+		{
+			continue;
+		}
+
+		if (bCollectMutators)
+		{
+			// We only need to calculate priorities for mutators if we're collecting them.
+			ProxyVolume->FindMutatorPriority(MutatorPriorities);
+		}
+		OutResult.VolumeSet.Add(ProxyVolume->GetVolumeID());
+	}
+
+	// Use 'world settings' as a starting point
+	if (!bAffectedByLegacySystem && AudioDeviceHandle.IsValid())
+	{
+		AudioDeviceHandle->GetDefaultAudioSettings(WorldID, OutResult.ReverbSettings, OutResult.InteriorSettings);
+	}
+
+	if (bCollectMutators)
+	{
+		for (const TWeakObjectPtr<UAudioGameplayVolumeProxy>& ProxyVolume : ProxyVolumes)
+		{
+			if (!ProxyVolume.IsValid())
+			{
+				continue;
+			}
+
+			if (OutResult.VolumeSet.Contains(ProxyVolume->GetVolumeID()))
+			{
+				ProxyVolume->GatherMutators(MutatorPriorities, OutResult);
+			}
+		}
+	}
 }
 
 void FAudioGameplayVolumeProxyInfo::Update(const TArray<FAudioGameplayVolumeListener>& VolumeListeners, FAudioGameplayProxyUpdateResult& OutResult)

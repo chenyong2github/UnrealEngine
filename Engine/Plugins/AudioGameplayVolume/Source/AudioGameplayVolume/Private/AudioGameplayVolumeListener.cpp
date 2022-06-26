@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioGameplayVolumeListener.h"
-#include "AudioGameplayVolumeProxyMutator.h"
+#include "AudioGameplayVolumeMutator.h"
+#include "AudioGameplayVolumeSubsystem.h"
 #include "Misc/App.h"
 
 void FInterpolatedInteriorSettings::Apply(const FInteriorSettings& NewSettings)

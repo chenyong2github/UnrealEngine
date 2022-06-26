@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "AudioGameplayVolumeComponent.h"
-#include "AudioGameplayVolumeProxyMutator.h"
+#include "AudioGameplayVolumeMutator.h"
 #include "Sound/ReverbSettings.h"
 #include "ReverbVolumeComponent.generated.h"
 
@@ -31,7 +30,7 @@ protected:
  *  UReverbVolumeComponent - Audio Gameplay Volume component for reverb settings
  */
 UCLASS(Blueprintable, Config = Game, ClassGroup = ("AudioGameplayVolume"), meta = (BlueprintSpawnableComponent, DisplayName = "Reverb"))
-class AUDIOGAMEPLAYVOLUME_API UReverbVolumeComponent : public UAudioGameplayVolumeComponentBase
+class AUDIOGAMEPLAYVOLUME_API UReverbVolumeComponent : public UAudioGameplayVolumeMutator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -46,10 +45,10 @@ public:
 
 private:
 
-	//~ Begin UAudioGameplayVolumeComponentBase interface
+	//~ Begin UAudioGameplayVolumeMutator interface
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const override;
 	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const override;
-	//~ End UAudioGameplayVolumeComponentBase interface
+	//~ End UAudioGameplayVolumeMutator interface
 
 	/** Reverb settings to use with this component */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Reverb, meta = (AllowPrivateAccess = "true"))

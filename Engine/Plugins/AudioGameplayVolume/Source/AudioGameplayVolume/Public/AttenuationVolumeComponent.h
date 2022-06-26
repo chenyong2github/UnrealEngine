@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "AudioGameplayVolumeComponent.h"
-#include "AudioGameplayVolumeProxyMutator.h"
+#include "AudioGameplayVolumeMutator.h"
 #include "AttenuationVolumeComponent.generated.h"
 
 /**
@@ -33,7 +32,7 @@ protected:
  *  UAttenuationVolumeComponent - Audio Gameplay Volume component for occlusion settings (volume attenuation)
  */
 UCLASS(Blueprintable, Config = Game, ClassGroup = ("AudioGameplayVolume"), meta = (BlueprintSpawnableComponent, DisplayName = "Attenuation"))
-class AUDIOGAMEPLAYVOLUME_API UAttenuationVolumeComponent : public UAudioGameplayVolumeComponentBase
+class AUDIOGAMEPLAYVOLUME_API UAttenuationVolumeComponent : public UAudioGameplayVolumeMutator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -55,10 +54,10 @@ public:
 
 private:
 
-	//~ Begin UAudioGameplayVolumeComponentBase interface
+	//~ Begin UAudioGameplayVolumeMutator interface
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const override;
 	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const override;
-	//~ End UAudioGameplayVolumeComponentBase interface
+	//~ End UAudioGameplayVolumeMutator interface
 
 	// The desired volume of sounds outside the volume when the player is inside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeAttenuation", meta = (AllowPrivateAccess = "true"))

@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioGameplayVolumeProxy.h"
-#include "AudioGameplayVolumeProxyMutator.h"
+#include "AudioGameplayVolumeMutator.h"
+#include "AudioGameplayVolumeSubsystem.h"
 #include "AudioGameplayVolumeLogs.h"
 #include "AudioGameplayVolumeComponent.h"
 #include "Interfaces/IAudioGameplayCondition.h"
@@ -32,8 +33,8 @@ void UAudioGameplayVolumeProxy::InitFromComponent(const UAudioGameplayVolumeProx
 	PayloadType = PayloadFlags::AGCP_None;
 	ProxyVolumeMutators.Reset();
 
-	TInlineComponentArray<UAudioGameplayVolumeComponentBase*> Components(Component->GetOwner());
-	for (UAudioGameplayVolumeComponentBase* Comp : Components)
+	TInlineComponentArray<UAudioGameplayVolumeMutator*> Components(Component->GetOwner());
+	for (UAudioGameplayVolumeMutator* Comp : Components)
 	{
 		if (!Comp || !Comp->IsActive())
 		{

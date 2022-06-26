@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "AudioGameplayVolumeComponent.h"
-#include "AudioGameplayVolumeProxyMutator.h"
-#include "Sound/AudioVolume.h"
+#include "AudioGameplayVolumeMutator.h"
 #include "SubmixSendVolumeComponent.generated.h"
 
 /**
@@ -30,7 +28,7 @@ protected:
  *  USubmixSendVolumeComponent - Audio Gameplay Volume component for submix sends
  */
 UCLASS(Blueprintable, Config = Game, ClassGroup = ("AudioGameplayVolume"), meta = (BlueprintSpawnableComponent, DisplayName = "Submix Send"))
-class AUDIOGAMEPLAYVOLUME_API USubmixSendVolumeComponent : public UAudioGameplayVolumeComponentBase
+class AUDIOGAMEPLAYVOLUME_API USubmixSendVolumeComponent : public UAudioGameplayVolumeMutator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -45,10 +43,10 @@ public:
 
 private:
 
-	//~ Begin UAudioGameplayVolumeComponentBase interface
+	//~ Begin UAudioGameplayVolumeMutator interface
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const override;
 	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const override;
-	//~ End UAudioGameplayVolumeComponentBase interface
+	//~ End UAudioGameplayVolumeMutator interface
 
 	/** Submix send settings to use for this component. Allows audio to dynamically send to submixes based on source and listener locations (relative to parent volume.) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Submixes, meta = (AllowPrivateAccess = "true"))

@@ -2,9 +2,7 @@
 
 #pragma once
 
-#include "AudioGameplayVolumeComponent.h"
-#include "AudioGameplayVolumeProxyMutator.h"
-#include "AudioDefines.h"
+#include "AudioGameplayVolumeMutator.h"
 #include "FilterVolumeComponent.generated.h"
 
 /**
@@ -34,7 +32,7 @@ protected:
  *  UFilterVolumeComponent - Audio Gameplay Volume component for occlusion settings (volume filter)
  */
 UCLASS(Blueprintable, Config = Game, ClassGroup = ("AudioGameplayVolume"), meta = (BlueprintSpawnableComponent, DisplayName = "Filter"))
-class AUDIOGAMEPLAYVOLUME_API UFilterVolumeComponent : public UAudioGameplayVolumeComponentBase
+class AUDIOGAMEPLAYVOLUME_API UFilterVolumeComponent : public UAudioGameplayVolumeMutator
 {
 	GENERATED_UCLASS_BODY()
 
@@ -56,10 +54,10 @@ public:
 
 private:
 
-	//~ Begin UAudioGameplayVolumeComponentBase interface
+	//~ Begin UAudioGameplayVolumeMutator interface
 	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const override;
 	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const override;
-	//~ End UAudioGameplayVolumeComponentBase interface
+	//~ End UAudioGameplayVolumeMutator interface
 
 	// The desired LPF frequency cutoff (in hertz) of sounds outside the volume when the player is inside the volume
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "VolumeFilter", meta = (AllowPrivateAccess = "true"))

@@ -6,56 +6,14 @@
 #include "AudioGameplayVolumeComponent.generated.h"
 
 // Forward Declarations 
-class FProxyVolumeMutator;
 class UAudioGameplayVolumeProxy;
 class UAudioGameplayVolumeSubsystem;
-
-/**
- *  UAudioGameplayVolumeComponentBase - Base component for use with audio gameplay volumes
- */
-UCLASS(Abstract, HideDropdown)
-class AUDIOGAMEPLAYVOLUME_API UAudioGameplayVolumeComponentBase : public UAudioGameplayComponent
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-
-	virtual ~UAudioGameplayVolumeComponentBase() = default;
-
-	UFUNCTION(BlueprintCallable, Category = "AudioGameplay")
-	void SetPriority(int32 InPriority);
-
-	int32 GetPriority() const { return Priority; }
-
-	/** Create and fill the appropriate proxy mutator for this component */
-	virtual TSharedPtr<FProxyVolumeMutator> CreateMutator() const final;
-
-protected:
-
-	/** Create this component's type of mutator */
-	virtual TSharedPtr<FProxyVolumeMutator> FactoryMutator() const;
-
-	/** Override in child classes to copy additional data needed to mutators */
-	virtual void CopyAudioDataToMutator(TSharedPtr<FProxyVolumeMutator>& Mutator) const {}
-
-	/** Notify our parent volume our proxy may need updating */
-	void NotifyDataChanged() const;
-
-	// The priority of this component.  In the case of overlapping volumes or multiple affecting components, the highest priority is chosen.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "AudioGameplay", Meta = (AllowPrivateAccess = "true"))
-	int32 Priority = 0;
-
-private:
-
-	/** Called for you during mutator creation. See CopyAudioDataToMutator for adding data to derived classes */
-	void CopyAudioDataToMutatorBase(TSharedPtr<FProxyVolumeMutator>& Mutator) const;
-};
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnAudioGameplayVolumeProxyStateChange);
 
 /**
  *  UAudioGameplayVolumeProxyComponent - Component used to drive interaction with AudioGameplayVolumeSubsystem.
- *   NOTE: Do not inherit from this class, use UAudioGameplayVolumeComponentBase to create extendable functionality
+ *   NOTE: Do not inherit from this class, use UAudioGameplayVolumeMutator to create extendable functionality
  */
 UCLASS(Config = Game, ClassGroup = ("AudioGameplay"), meta = (BlueprintSpawnableComponent, IsBlueprintBase = false, DisplayName = "Volume Proxy"))
 class AUDIOGAMEPLAYVOLUME_API UAudioGameplayVolumeProxyComponent final : public UAudioGameplayComponent

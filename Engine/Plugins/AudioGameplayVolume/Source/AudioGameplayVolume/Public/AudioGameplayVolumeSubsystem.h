@@ -4,7 +4,9 @@
 
 #include "ActiveSoundUpdateInterface.h"
 #include "Subsystems/AudioEngineSubsystem.h"
+#include "AudioGameplayFlags.h"
 #include "AudioGameplayVolumeListener.h"
+#include "Templates/SharedPointer.h"
 #include "AudioGameplayVolumeSubsystem.generated.h"
 
 // Forward Declarations 
@@ -41,6 +43,45 @@ struct FAudioGameplayProxyUpdateResult
 	TSet<uint32> EnteredProxies;
 	TSet<uint32> ExitedProxies;
 	bool bForceUpdate = false;
+};
+
+/**
+ *  FAudioProxyMutatorSearchResult - Results from a audio proxy mutator search (see below).
+ */
+struct FAudioProxyMutatorSearchResult
+{
+	TSet<uint32> VolumeSet;
+	TArray<TSharedPtr<FProxyVolumeMutator>> MatchingMutators;
+	FReverbSettings ReverbSettings;
+	FInteriorSettings InteriorSettings;
+
+	void Reset()
+	{
+		VolumeSet.Reset();
+		MatchingMutators.Empty();
+		ReverbSettings = FReverbSettings();
+		InteriorSettings = FInteriorSettings();
+	}
+};
+
+/**
+ *  FAudioProxyMutatorSearchObject - Used for searching through proxy volumes to find relevant proxy mutators
+ */
+struct FAudioProxyMutatorSearchObject
+{
+	using PayloadFlags = AudioGameplay::EComponentPayload;
+
+	// Search parameters
+	uint32 WorldID = INDEX_NONE;
+	FVector Location = FVector::ZeroVector;
+	PayloadFlags PayloadType = PayloadFlags::AGCP_None;
+	FAudioDeviceHandle AudioDeviceHandle;
+	bool bAffectedByLegacySystem = false;
+	bool bFilterPayload = true;
+	bool bCollectMutators = true;
+	bool bGetDefaultAudioSettings = true;
+
+	void SearchVolumes(const TArray<TWeakObjectPtr<UAudioGameplayVolumeProxy>>& ProxyVolumes, FAudioProxyMutatorSearchResult& OutResult);
 };
 
 /**

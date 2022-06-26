@@ -3,63 +3,8 @@
 #include "AudioGameplayVolumeComponent.h"
 #include "AudioGameplayVolumeSubsystem.h"
 #include "AudioGameplayVolumeProxy.h"
-#include "AudioGameplayVolumeProxyMutator.h"
 #include "Interfaces/IAudioGameplayVolumeInteraction.h"
 #include "AudioDevice.h"
-
-UAudioGameplayVolumeComponentBase::UAudioGameplayVolumeComponentBase(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
-void UAudioGameplayVolumeComponentBase::SetPriority(int32 InPriority)
-{
-	if (Priority != InPriority)
-	{
-		Priority = InPriority;
-		NotifyDataChanged();
-	}
-}
-
-TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeComponentBase::CreateMutator() const
-{
-	TSharedPtr<FProxyVolumeMutator> ProxyMutator = FactoryMutator();
-	if (ProxyMutator.IsValid())
-	{
-		CopyAudioDataToMutatorBase(ProxyMutator);
-	}
-
-	return ProxyMutator;
-}
-
-TSharedPtr<FProxyVolumeMutator> UAudioGameplayVolumeComponentBase::FactoryMutator() const
-{
-	return TSharedPtr<FProxyVolumeMutator>();
-}
-
-void UAudioGameplayVolumeComponentBase::NotifyDataChanged() const
-{
-	if (IsActive())
-	{
-		TInlineComponentArray<UAudioGameplayVolumeProxyComponent*> VolumeComponents(GetOwner());
-		if (ensureMsgf(VolumeComponents.Num() == 1, TEXT("Expecting exactly one AudioGameplayVolumeProxyComponent on an actor!")))
-		{
-			if (VolumeComponents[0])
-			{
-				VolumeComponents[0]->OnComponentDataChanged();
-			}
-		}
-	}
-}
-
-void UAudioGameplayVolumeComponentBase::CopyAudioDataToMutatorBase(TSharedPtr<FProxyVolumeMutator>& Mutator) const
-{
-	check(Mutator.IsValid());
-	Mutator->PayloadType = PayloadType;
-	Mutator->Priority = Priority;
-
-	CopyAudioDataToMutator(Mutator);
-}
 
 UAudioGameplayVolumeProxyComponent::UAudioGameplayVolumeProxyComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
