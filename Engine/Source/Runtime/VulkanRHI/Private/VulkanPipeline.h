@@ -708,12 +708,15 @@ public:
 	}
 
 	void DeleteVkPipeline(bool bImmediate);
-	void GetOrCreateShaderModules(TRefCountPtr<FVulkanShaderModule>(&ShaderModulesOUT)[ShaderStage::NumStages], FVulkanShader* const* Shaders);
+	void GetOrCreateShaderModules(FVulkanShader*const* Shaders);
 	void PurgeShaderModules(FVulkanShader*const* Shaders);
+	void PurgeLoadedShaderModules(FVulkanDevice* InDevice);
+
 
 
 	bool								bHasInputAttachments = false;
 	bool								bIsRegistered;
+	bool								bShaderModulesLoaded = false;
 
 	uint64								ShaderKeys[ShaderStage::NumStages];
 	TEnumAsByte<EPrimitiveType>			PrimitiveType;
@@ -725,6 +728,7 @@ public:
 	FVulkanDevice* Device;
 	FGfxPipelineDesc Desc;
 	FVulkanShader* VulkanShaders[ShaderStage::NumStages];
+	VkShaderModule ShaderModules[ShaderStage::NumStages];
 	const FVulkanRenderPass* RenderPass;
 
 

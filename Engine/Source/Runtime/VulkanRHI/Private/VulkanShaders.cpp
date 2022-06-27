@@ -38,7 +38,6 @@ static FAutoConsoleVariableRef GVulkanCompressSPIRVCVar(
 	TEXT("1 SPIRV source is compressed on load and decompressed as when needed, this saves RAM but can introduce hitching when creating shaders."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe
 );
-FCriticalSection FVulkanShader::VulkanShaderModulesMapCS;
 
 FVulkanShaderFactory::~FVulkanShaderFactory()
 {
@@ -139,13 +138,6 @@ FArchive& operator<<(FArchive& Ar, FVulkanShader::FSpirvContainer& SpirvContaine
 	return Ar;
 }
 
-FVulkanDevice* FVulkanShaderModule::Device = nullptr;
-
-FVulkanShaderModule::~FVulkanShaderModule()
-{
-	Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ShaderModule, ActualShaderModule);
-}
-
 FVulkanShader::FSpirvCode FVulkanShader::GetSpirvCode()
 {
 	if (SpirvContainer.IsCompressed())
@@ -206,7 +198,7 @@ void FVulkanShader::Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 
 #endif
 }
 
-static TRefCountPtr<FVulkanShaderModule> CreateShaderModule(FVulkanDevice* Device, FVulkanShader::FSpirvCode& SpirvCode)
+static VkShaderModule CreateShaderModule(FVulkanDevice* Device, FVulkanShader::FSpirvCode& SpirvCode)
 {
 	const TArrayView<uint32> Spirv = SpirvCode.GetCodeView();
 	VkShaderModule ShaderModule;
@@ -228,10 +220,7 @@ static TRefCountPtr<FVulkanShaderModule> CreateShaderModule(FVulkanDevice* Devic
 #endif
 
 	VERIFYVULKANRESULT(VulkanRHI::vkCreateShaderModule(Device->GetInstanceHandle(), &ModuleCreateInfo, VULKAN_CPU_ALLOCATOR, &ShaderModule));
-	
-	TRefCountPtr<FVulkanShaderModule> ReturnPtr = TRefCountPtr<FVulkanShaderModule>(new FVulkanShaderModule(Device, ShaderModule));
-
-	return ReturnPtr;
+	return ShaderModule;
 }
 
 /*
@@ -318,9 +307,8 @@ bool FVulkanShader::NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& De
 	return (Desc.RasterizationSamples > 1 && CodeHeader.InputAttachments.Num() > 0);
 }
 
-TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
+VkShaderModule FVulkanShader::CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
 {
-	FScopeLock Lock(&VulkanShaderModulesMapCS);
 	FSpirvCode Spirv = GetSpirvCode();
 
 	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
@@ -329,18 +317,17 @@ TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FGfxPipeline
 		Spirv = PatchSpirvInputAttachments(Spirv);
 	}
 
-	TRefCountPtr<FVulkanShaderModule> Module = CreateShaderModule(Device, Spirv);
+	VkShaderModule Module = CreateShaderModule(Device, Spirv);
 	ShaderModules.Add(LayoutHash, Module);
 	return Module;
 }
 
-TRefCountPtr<FVulkanShaderModule> FVulkanShader::CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
+VkShaderModule FVulkanShader::CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 {
-	FScopeLock Lock(&VulkanShaderModulesMapCS);
 	FSpirvCode Spirv = GetSpirvCode();
 
 	Layout->PatchSpirvBindings(Spirv, Frequency, CodeHeader, StageFlag);
-	TRefCountPtr<FVulkanShaderModule> Module = CreateShaderModule(Device, Spirv);
+	VkShaderModule Module = CreateShaderModule(Device, Spirv);
 	ShaderModules.Add(LayoutHash, Module);
 	return Module;
 }
@@ -353,7 +340,11 @@ FVulkanShader::~FVulkanShader()
 
 void FVulkanShader::PurgeShaderModules()
 {
-	FScopeLock Lock(&VulkanShaderModulesMapCS);
+	for (const auto& Pair : ShaderModules)
+	{
+		VkShaderModule ShaderModule = Pair.Value;
+		Device->GetDeferredDeletionQueue().EnqueueResource(VulkanRHI::FDeferredDeletionQueue2::EType::ShaderModule, ShaderModule);
+	}
 	ShaderModules.Empty(0);
 }
 

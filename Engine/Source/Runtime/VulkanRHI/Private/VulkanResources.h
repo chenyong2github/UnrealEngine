@@ -79,24 +79,8 @@ public:
 
 struct FGfxPipelineDesc;
 
-class FVulkanShaderModule : public FThreadSafeRefCountedObject
-{
-	static FVulkanDevice* Device;
-	VkShaderModule ActualShaderModule;
-public:
-	FVulkanShaderModule(FVulkanDevice* DeviceIn, VkShaderModule ShaderModuleIn) : ActualShaderModule(ShaderModuleIn) 
-	{
-		check(DeviceIn && (Device == DeviceIn || !Device));
-		Device = DeviceIn;
-	}
-	virtual ~FVulkanShaderModule();
-	VkShaderModule& GetVkShaderModule() { return ActualShaderModule; }
-};
-
 class FVulkanShader : public IRefCountedObject
 {
-	static FCriticalSection VulkanShaderModulesMapCS;
-
 public:
 	FVulkanShader(FVulkanDevice* InDevice, EShaderFrequency InFrequency, VkShaderStageFlagBits InStageFlag)
 		: ShaderKey(0)
@@ -112,10 +96,9 @@ public:
 
 	void Setup(TArrayView<const uint8> InShaderHeaderAndCode, uint64 InShaderKey);
 
-	TRefCountPtr<FVulkanShaderModule> GetOrCreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
+	VkShaderModule GetOrCreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash)
 	{
-		FScopeLock Lock(&VulkanShaderModulesMapCS);
-		TRefCountPtr<FVulkanShaderModule>* Found = ShaderModules.Find(LayoutHash);
+		VkShaderModule* Found = ShaderModules.Find(LayoutHash);
 		if (Found)
 		{
 			return *Found;
@@ -124,15 +107,14 @@ public:
 		return CreateHandle(Layout, LayoutHash);
 	}
 	
-	TRefCountPtr<FVulkanShaderModule> GetOrCreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
+	VkShaderModule GetOrCreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash)
 	{
-		FScopeLock Lock(&VulkanShaderModulesMapCS);
 		if (NeedsSpirvInputAttachmentPatching(Desc))
 		{
 			LayoutHash = HashCombine(LayoutHash, 1);
 		}
 		
-		TRefCountPtr<FVulkanShaderModule>* Found = ShaderModules.Find(LayoutHash);
+		VkShaderModule* Found = ShaderModules.Find(LayoutHash);
 		if (Found)
 		{
 			return *Found;
@@ -186,7 +168,7 @@ protected:
 
 	/** External bindings for this shader. */
 	FVulkanShaderHeader				CodeHeader;
-	TMap<uint32, TRefCountPtr<FVulkanShaderModule>>	ShaderModules;
+	TMap<uint32, VkShaderModule>	ShaderModules;
 	const VkShaderStageFlagBits		StageFlag;
 	EShaderFrequency				Frequency;
 
@@ -211,8 +193,8 @@ protected:
 
 	FVulkanDevice*					Device;
 
-	TRefCountPtr<FVulkanShaderModule> CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash);
-	TRefCountPtr<FVulkanShaderModule> CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash);
+	VkShaderModule CreateHandle(const FVulkanLayout* Layout, uint32 LayoutHash);
+	VkShaderModule CreateHandle(const FGfxPipelineDesc& Desc, const FVulkanLayout* Layout, uint32 LayoutHash);
 	
 	bool NeedsSpirvInputAttachmentPatching(const FGfxPipelineDesc& Desc) const;
 

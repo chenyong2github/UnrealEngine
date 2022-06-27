@@ -52,6 +52,9 @@ static TAtomic<uint64> SPipelineGfxCount;
 
 static const double HitchTime = 1.0 / 1000.0;
 
+static FCriticalSection FVulkanShaderHandleCS;
+
+
 TAutoConsoleVariable<int32> CVarPipelineDebugForceEvictImmediately(
 	TEXT("r.Vulkan.PipelineDebugForceEvictImmediately"),
 	0,
@@ -251,32 +254,56 @@ FVulkanRHIGraphicsPipelineState::~FVulkanRHIGraphicsPipelineState()
 	}
 
 	Device->PipelineStateCache->NotifyDeletedGraphicsPSO(this);
+	if (bShaderModulesLoaded)
+	{
+		PurgeLoadedShaderModules(Device);
+	}
 }
 
-void FVulkanRHIGraphicsPipelineState::GetOrCreateShaderModules(TRefCountPtr<FVulkanShaderModule> (&ShaderModulesOUT)[ShaderStage::NumStages], FVulkanShader*const* Shaders)
+void FVulkanRHIGraphicsPipelineState::GetOrCreateShaderModules(FVulkanShader*const* Shaders)
 {
+	FScopeLock Lock(&FVulkanShaderHandleCS); // this lock is to stop concurrent access to VulkanShader's ShaderModules container. 
 	for (int32 Index = 0; Index < ShaderStage::NumStages; ++Index)
 	{
-		check(!ShaderModulesOUT[Index].IsValid());
 		FVulkanShader* Shader = Shaders[Index];
 		if (Shader)
 		{
-			ShaderModulesOUT[Index] = Shader->GetOrCreateHandle(Desc, Layout, Layout->GetDescriptorSetLayoutHash());
+			ShaderModules[Index] = Shader->GetOrCreateHandle(Desc, Layout, Layout->GetDescriptorSetLayoutHash());
 		}
 	}
 }
 
 void FVulkanRHIGraphicsPipelineState::PurgeShaderModules(FVulkanShader*const* Shaders)
 {
+	check(!bShaderModulesLoaded);
+
 	for (int32 Index = 0; Index < ShaderStage::NumStages; ++Index)
 	{
 		FVulkanShader* Shader = Shaders[Index];
 		if (Shader)
 		{
 			Shader->PurgeShaderModules();
+			ShaderModules[Index] = VK_NULL_HANDLE;
 		}
 	}
 }
+
+void FVulkanRHIGraphicsPipelineState::PurgeLoadedShaderModules(FVulkanDevice* InDevice)
+{
+	check(bShaderModulesLoaded);
+
+	for (int32 Index = 0; Index < ShaderStage::NumStages; ++Index)
+	{
+		if (ShaderModules[Index] != VK_NULL_HANDLE)
+		{
+			VulkanRHI::vkDestroyShaderModule(InDevice->GetInstanceHandle(), ShaderModules[Index], VULKAN_CPU_ALLOCATOR);
+			ShaderModules[Index] = VK_NULL_HANDLE;
+		}
+	}
+
+	bShaderModulesLoaded = false;
+}
+
 
 FVulkanPipelineStateCacheManager::FVulkanPipelineStateCacheManager(FVulkanDevice* InDevice)
 	: Device(InDevice)
@@ -1107,9 +1134,10 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 		Shaders[ShaderStage::Pixel] = ResourceCast(TShaderMapRef<FNULLPS>(GetGlobalShaderMap(GMaxRHIFeatureLevel)).GetPixelShader());
 	}
 
-	TRefCountPtr<FVulkanShaderModule> ShaderModules[ShaderStage::NumStages];
-
-	PSO->GetOrCreateShaderModules(ShaderModules, Shaders);
+	if (!PSO->bShaderModulesLoaded)
+	{
+		PSO->GetOrCreateShaderModules(Shaders);
+	}
 
 	// Pipeline
 	VkGraphicsPipelineCreateInfo PipelineInfo;
@@ -1163,7 +1191,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 	ANSICHAR EntryPoints[ShaderStage::NumStages][24];
 	for (int32 ShaderStage = 0; ShaderStage < ShaderStage::NumStages; ++ShaderStage)
 	{
-		if (!ShaderModules[ShaderStage].IsValid())
+		if (!PSO->ShaderModules[ShaderStage])
 		{
 			continue;
 		}
@@ -1172,7 +1200,7 @@ bool FVulkanPipelineStateCacheManager::CreateGfxPipelineFromEntry(FVulkanRHIGrap
 		ShaderStages[PipelineInfo.stageCount].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 		VkShaderStageFlagBits Stage = UEFrequencyToVKStageBit(ShaderStage::GetFrequencyForGfxStage(CurrStage));
 		ShaderStages[PipelineInfo.stageCount].stage = Stage;
-		ShaderStages[PipelineInfo.stageCount].module = ShaderModules[CurrStage]->GetVkShaderModule();
+		ShaderStages[PipelineInfo.stageCount].module = PSO->ShaderModules[CurrStage];
 		Shaders[ShaderStage]->GetEntryPoint(EntryPoints[PipelineInfo.stageCount], 24);
 		ShaderStages[PipelineInfo.stageCount].pName = EntryPoints[PipelineInfo.stageCount];
 		PipelineInfo.stageCount++;
@@ -1711,6 +1739,7 @@ FVulkanRHIGraphicsPipelineState::FVulkanRHIGraphicsPipelineState(FVulkanDevice* 
 
 	PSOInitializer = PSOInitializer_;
 #endif
+	FMemory::Memset(ShaderModules, 0, sizeof(ShaderModules));
 	INC_DWORD_STAT(STAT_VulkanNumGraphicsPSOs);
 	INC_DWORD_STAT_BY(STAT_VulkanPSOKeyMemory, this->VulkanKey.GetDataRef().Num());
 }
@@ -1995,13 +2024,13 @@ FVulkanComputePipeline* FVulkanPipelineStateCacheManager::CreateComputePipelineF
 		ComputeLayout->ComputePipelineDescriptorInfo.Initialize(Layout->GetDescriptorSetsLayout().RemappingInfo);
 	}
 
-	TRefCountPtr<FVulkanShaderModule> ShaderModule = Shader->GetOrCreateHandle(Layout, Layout->GetDescriptorSetLayoutHash());
+	VkShaderModule ShaderModule = Shader->GetOrCreateHandle(Layout, Layout->GetDescriptorSetLayoutHash());
 
 	VkComputePipelineCreateInfo PipelineInfo;
 	ZeroVulkanStruct(PipelineInfo, VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO);
 	PipelineInfo.stage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	PipelineInfo.stage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-	PipelineInfo.stage.module = ShaderModule->GetVkShaderModule();
+	PipelineInfo.stage.module = ShaderModule;
 	// main_00000000_00000000
 	ANSICHAR EntryPoint[24];
 	Shader->GetEntryPoint(EntryPoint, 24);
@@ -2238,7 +2267,7 @@ void FVulkanPipelineStateCacheManager::LRUTouch(FVulkanRHIGraphicsPipelineState*
 	}
 	FScopeLock Lock(&LRUCS);
 	check((PSO->GetVulkanPipeline() == 0) == (PSO->LRUNode == 0));
-
+	
 	if(PSO->LRUNode)
 	{
 		check(PSO->GetVulkanPipeline());
@@ -2341,6 +2370,7 @@ void FVulkanPipelineStateCacheManager::LRURemove(FVulkanRHIGraphicsPipelineState
 		PSO->DeleteVkPipeline(bImmediate);
 		if (GVulkanReleaseShaderModuleWhenEvictingPSO)
 		{
+			FScopeLock Lock(&FVulkanShaderHandleCS); // this lock is here to stop concurrent access to VulkanShaders ShaderModules container. 
 	        for (int ShaderStageIndex = 0; ShaderStageIndex < ShaderStage::NumStages; ShaderStageIndex++)
 	        {
 				if (PSO->VulkanShaders[ShaderStageIndex] != nullptr)
