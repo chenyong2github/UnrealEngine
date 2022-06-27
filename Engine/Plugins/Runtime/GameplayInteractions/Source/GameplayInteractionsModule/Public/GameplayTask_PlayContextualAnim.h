@@ -169,6 +169,12 @@ protected:
 	
 	FGameplayTransitionCompleted OnTransitionCompleted;
 
+	UPROPERTY(BlueprintAssignable)
+	FGenericGameplayTaskDelegate OnRequestFailed;
+
+	UPROPERTY(BlueprintAssignable)
+	FGameplayTaskActuationCompleted OnCompleted;
+
 	UPROPERTY(Replicated)
 	int32 SectionIdx = INDEX_NONE;
 

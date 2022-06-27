@@ -108,7 +108,7 @@ void UGameplayTask_PlayContextualAnim::InitSimulatedTask(UGameplayTasksComponent
 	Super::InitSimulatedTask(InGameplayTasksComponent);
 
 	SharedInitAndApply();
-	UE_VLOG_UELOG(GetGameplayTasksComponent(), LogGameplayTasks, Log, TEXT("%s: %s"), ANSI_TO_TCHAR(__FUNCTION__), *GetName());
+	UE_VLOG_UELOG(GetGameplayTasksComponent(), LogGameplayTasks, Log, TEXT("%s: %s - %s"), ANSI_TO_TCHAR(__FUNCTION__), *GetName(), *UEnum::GetValueAsString(Status));
 }
 
 UGameplayTask_PlayContextualAnim* UGameplayTask_PlayContextualAnim::PlayContextualAnim(
@@ -215,6 +215,12 @@ void UGameplayTask_PlayContextualAnim::Activate()
 {
 	Super::Activate();
 	SharedInitAndApply();
+	UE_VLOG_UELOG(GetGameplayTasksComponent(), LogGameplayTasks, Log, TEXT("%s: %s - %s"), ANSI_TO_TCHAR(__FUNCTION__), *GetName(), *UEnum::GetValueAsString(Status));
+
+	if (Status == EPlayContextualAnimStatus::Failed)
+	{
+		OnRequestFailed.Broadcast();
+	}
 }
 
 void UGameplayTask_PlayContextualAnim::TransitionToSection()
@@ -321,6 +327,8 @@ void UGameplayTask_PlayContextualAnim::OnSectionEndTimeReached(UContextualAnimSc
 	Status = EPlayContextualAnimStatus::DonePlaying;
 
 	OnTransitionCompleted.Broadcast(EGameplayTransitionResult::Succeeded, this);
+
+	OnCompleted.Broadcast(EGameplayTaskActuationResult::Succeeded, GetAvatarActor());
 }
 
 void UGameplayTask_PlayContextualAnim::SharedInitAndApply()
