@@ -1136,7 +1136,7 @@ export class Backend {
             const params: any = {
                 jobId: jobId,
                 filter: 'id,key,change,jobId,stepId,streamId',
-                count: 200,
+                count: 500,
             };
 
             if (stepId) {
