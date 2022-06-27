@@ -5,6 +5,7 @@
 #include "NaniteAttributeDecode.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapPageAccessCommon.ush"
 #include "../VirtualShadowMaps/VirtualShadowMapStaticCaching.ush"
+#include "../VirtualShadowMaps/VirtualShadowMapPageOverlap.ush"
 #include "NaniteWritePixel.ush"
 
 // Material includes
@@ -141,6 +142,7 @@ struct FRaster
 #if VIRTUAL_TEXTURE_TARGET
 	uint2						pPageAddress;
 	uint2						vPage;
+	bool						bSinglePage;
 #endif
 #if VISUALIZE
 	uint2						VisualizeValues;
@@ -181,7 +183,51 @@ struct FRasterTri
 #else
 	#define VERTEX_CACHE_SIZE 384
 #endif
-groupshared float3 GroupVerts[VERTEX_CACHE_SIZE];
+
+groupshared uint GroupVerts[NANITE_VERT_REUSE_BATCH ? NANITE_VSM_PAGE_TABLE_CACHE_DIM * NANITE_VSM_PAGE_TABLE_CACHE_DIM : VERTEX_CACHE_SIZE * 3];
+
+void GroupVertsStore(float3 Value, uint Index)
+{
+	GroupVerts[Index] = asuint(Value.x);
+	GroupVerts[Index + VERTEX_CACHE_SIZE] = asuint(Value.y);
+	GroupVerts[Index + VERTEX_CACHE_SIZE * 2] = asuint(Value.z);
+}
+
+float3 GroupVertsLoad(uint Index)
+{
+	return float3(asfloat(GroupVerts[Index]), asfloat(GroupVerts[Index + VERTEX_CACHE_SIZE]), asfloat(GroupVerts[Index + VERTEX_CACHE_SIZE * 2]));
+}
+
+void VsmPageTableStore(uint2 pPage, uint2 Coords)
+{
+	uint pPagePacked = (pPage.y << 16) | pPage.x;
+	uint Index = Coords.y * NANITE_VSM_PAGE_TABLE_CACHE_DIM + Coords.x;
+	GroupVerts[Index] = pPagePacked;
+}
+
+uint2 VsmPageTableLoad(uint2 Coords)
+{
+	uint Index = Coords.y * NANITE_VSM_PAGE_TABLE_CACHE_DIM + Coords.x;
+	uint pPagePacked = GroupVerts[Index];
+	return uint2(pPagePacked & 0xffff, pPagePacked >> 16);
+}
+
+void FetchAndCachePageTableEntry(FNaniteView NaniteView, uint2 vPageStart, uint2 vPageEnd, uint PageFlagMask, uint CacheIndex)
+{
+	uint2 CacheCoords = uint2(CacheIndex & 0x7, CacheIndex >> 3);
+	uint LevelOffset = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
+	if (all(vPageStart + CacheCoords <= vPageEnd))
+	{
+		uint PageEntryOffset = LevelOffset + CalcPageOffsetInLevel(NaniteView.TargetMipLevel, vPageStart + CacheCoords);
+		uint PageFlag = VirtualShadowMap.PageFlags[PageEntryOffset];
+		uint2 pPageAddress = 0xffff;
+		if ((PageFlag & PageFlagMask) != 0)
+		{
+			pPageAddress = ShadowGetPhysicalPage(PageEntryOffset).PhysicalAddress;	
+		}
+		VsmPageTableStore(pPageAddress, CacheCoords);
+	}
+}
 
 float3 GetPerspectiveCorrectBarycentrics(float3 C, float3 InvW)
 {
@@ -215,7 +261,7 @@ float3 CalculateSubpixelCoordinates(FRaster Raster, float4 PointSubpixelClip)
 {
 	float3 Subpixel = PointSubpixelClip.xyz / PointSubpixelClip.w;
 #if VIRTUAL_TEXTURE_TARGET
-	Subpixel.xy += ( (float2)Raster.pPageAddress - (float2)Raster.vPage ) * VSM_PAGE_SIZE * NANITE_SUBPIXEL_SAMPLES;
+	Subpixel.xy += ( (float2)(NANITE_LATE_VSM_PAGE_TRANSLATION && !Raster.bSinglePage ? 0 : Raster.pPageAddress) - (float2)Raster.vPage ) * VSM_PAGE_SIZE * NANITE_SUBPIXEL_SAMPLES;
 #endif
 	Subpixel.xy = floor(Subpixel.xy);
 	return Subpixel;
@@ -289,12 +335,25 @@ void WriteToVisBuffer(SVisBufferWriteParameters Params)
 #endif	// VIRTUAL_TEXTURE_TARGET
 }
 
-void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRaster Raster, FRasterTri Tri )
+void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRaster Raster, FRasterTri Tri, const bool bSinglePage )
 {
+	uint2 PixelPosPhysical = PixelPos;
+#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
+	if (!bSinglePage)
+	{
+		uint2 pPage = VsmPageTableLoad(PixelPos / VSM_PAGE_SIZE);
+		if (pPage.x == 0xffff)
+		{
+			return;
+		}
+		PixelPosPhysical = pPage * VSM_PAGE_SIZE + (PixelPos & VSM_PAGE_SIZE_MASK);
+	}
+#endif
+
 	float MaterialMask = 1.0f;
 	float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
 
-	SVisBufferWriteParameters WriteParams = InitializeVisBufferWriteParameters(PixelPos, Raster.PageTranslation, PixelValue, DeviceZ);
+	SVisBufferWriteParameters WriteParams = InitializeVisBufferWriteParameters(PixelPosPhysical, Raster.PageTranslation, PixelValue, DeviceZ);
 #if ENABLE_EARLY_Z_TEST
 	BRANCH
 	if (!EarlyTestVisBuffer(WriteParams))
@@ -308,7 +367,7 @@ void WritePixelSW( uint PixelValue, uint2 PixelPos, float DeviceZ, float3 C, FRa
 	float4 SvPosition = float4(float(PixelPos.x) + 0.5f, float(PixelPos.y) + 0.5f, DeviceZ, 1.0f);
 	
 #if VIRTUAL_TEXTURE_TARGET
-	// SvPosition is in physical coords; translate it to virtual page
+	// Translate it to virtual page
 	SvPosition.xy = SvPosition.xy - Raster.ViewRect.xy + Raster.vPage * VSM_PAGE_SIZE;
 #endif
 
@@ -454,7 +513,7 @@ FRasterTri SetupTriangle( FRaster Raster, float3 Verts[3], FRasterInterpData Int
 	return Tri;
 }
 
-void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
+void RasterizeTri_Rect_Inner( FRaster Raster, FRasterTri Tri, uint PixelValue, const bool bSinglePage )
 {
 	float CY0 = Tri.C0;
 	float CY1 = Tri.C1;
@@ -467,7 +526,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		int x = Tri.MinPixel.x;
 		if (min3(CY0, CY1, CY2) >= 0)
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZY, float3(CY0, CY1, CY2), Raster, Tri );
+			WritePixelSW( PixelValue, uint2(x,y), ZY, float3(CY0, CY1, CY2), Raster, Tri, bSinglePage );
 		}
 
 		if (x < Tri.MaxPixel.x)
@@ -483,7 +542,7 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 			{
 				if (min3(CX0, CX1, CX2) >= 0)
 				{
-					WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri );
+					WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri, bSinglePage );
 				}
 
 				if (x >= Tri.MaxPixel.x)
@@ -508,6 +567,21 @@ void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue )
 	}
 }
 
+void RasterizeTri_Rect( FRaster Raster, FRasterTri Tri, uint PixelValue)
+{
+#if VIRTUAL_TEXTURE_TARGET
+	if (!Raster.bSinglePage)
+	{
+		RasterizeTri_Rect_Inner(Raster, Tri, PixelValue, false);
+	}
+	else
+#endif
+	{
+		RasterizeTri_Rect_Inner(Raster, Tri, PixelValue, true);
+	}
+}
+
+#if 0
 void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 {
 	float CY0 = Tri.C0;
@@ -559,8 +633,9 @@ void RasterizeTri_RectSingle( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		}
 	}
 }
+#endif
 
-void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
+void RasterizeTri_Scanline_Inner( FRaster Raster, FRasterTri Tri, uint PixelValue, const bool bSinglePage )
 {
 	float CY0 = Tri.C0;
 	float CY1 = Tri.C1;
@@ -601,7 +676,7 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		x1 += Tri.MinPixel.x;
 		for( float x = x0; x <= x1; x++ )
 		{
-			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri );
+			WritePixelSW( PixelValue, uint2(x,y), ZX, float3(CX0, CX1, CX2), Raster, Tri, bSinglePage );
 
 			CX0 -= Tri.Edge12.y;
 			CX1 -= Tri.Edge20.y;
@@ -617,6 +692,20 @@ void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue )
 		CY2 += Tri.Edge01.x;
 		ZY  += Tri.DepthPlane.y;
 		y++;
+	}
+}
+
+void RasterizeTri_Scanline( FRaster Raster, FRasterTri Tri, uint PixelValue)
+{
+#if VIRTUAL_TEXTURE_TARGET
+	if (!Raster.bSinglePage)
+	{
+		RasterizeTri_Scanline_Inner(Raster, Tri, PixelValue, false);
+	}
+	else
+#endif
+	{
+		RasterizeTri_Scanline_Inner(Raster, Tri, PixelValue, true);
 	}
 }
 
@@ -709,15 +798,15 @@ void StoreWorkData(uint GroupThreadIndex, float3 DepthPlane, uint2 MinPixel)
 	uint PackedMinPixel = (MinPixel.x & 0xFFFFu) | (MinPixel.y << 16);
 	
 	// re-use the vertex cache
-	GroupVerts[GroupThreadIndex] = DepthPlane;
-	GroupVerts[GroupThreadIndex + SWRASTER_NUM_THREADS].x = asfloat(PackedMinPixel);
+	GroupVertsStore(DepthPlane, GroupThreadIndex);
+	GroupVerts[GroupThreadIndex + SWRASTER_NUM_THREADS] = PackedMinPixel;
 }
 
 void LoadWorkData(uint GroupThreadIndex, out float3 DepthPlane, out uint2 MinPixel)
 {
 	// re-use the vertex cache
-	DepthPlane = GroupVerts[GroupThreadIndex];
-	const uint PackedMinPixel = asuint(GroupVerts[GroupThreadIndex + SWRASTER_NUM_THREADS].x);
+	DepthPlane = GroupVertsLoad(GroupThreadIndex);
+	const uint PackedMinPixel = GroupVerts[GroupThreadIndex + SWRASTER_NUM_THREADS];
 
 	MinPixel.x = PackedMinPixel & 0xFFFFu;
 	MinPixel.y = PackedMinPixel >> 16;
@@ -784,7 +873,11 @@ void DoWork( FWorkContext Context, FWorkSourceType WorkSource, uint LocalItemInd
 		const float CX1 = Context.Tri.C1 - TilePos.x * Context.Tri.Edge20.y + TilePos.y * Context.Tri.Edge20.x;
 		const float CX2 = Context.Tri.C2 - TilePos.x * Context.Tri.Edge01.y + TilePos.y * Context.Tri.Edge01.x;
 
-		WritePixelSW( PixelValue, PixelPos, ZX, float3(CX0, CX1, CX2), Context.Raster, Context.Tri );
+		bool bSinglePage = true;
+	#if VIRTUAL_TEXTURE_TARGET
+		bSinglePage = Context.Raster.bSinglePage;
+	#endif
+		WritePixelSW( PixelValue, PixelPos, ZX, float3(CX0, CX1, CX2), Context.Raster, Context.Tri, bSinglePage );
 	}
 }
 
@@ -1021,7 +1114,12 @@ void MicropolyRasterize(
 
 	// Scalar
 	uint2 vPage = VisibleCluster.vPage;
-	uint2 pPageAddress = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;	
+	bool bSinglePage = all(vPage == VisibleCluster.vPageEnd);
+	uint2 pPageAddress;
+	if (bSinglePage)
+	{
+		pPageAddress = ShadowGetPhysicalPage( CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel ) + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage ) ).PhysicalAddress;
+	}
 	PageTranslation.ArrayIndex = bVirtualTargetStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
 #endif
 
@@ -1033,8 +1131,19 @@ void MicropolyRasterize(
 	int4 ViewRect = NaniteView.ViewRect;
 
 #if VIRTUAL_TEXTURE_TARGET
-	ViewRect.xy = pPageAddress * VSM_PAGE_SIZE;
-	ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
+#if NANITE_LATE_VSM_PAGE_TRANSLATION
+	const uint PageFlagMask = GetPageFlagMaskForRendering(InstanceData, InstanceDynamicData.bHasMoved);
+	if (!bSinglePage)
+	{
+		ViewRect.xy = 0;
+		ViewRect.zw = (VisibleCluster.vPageEnd - vPage) * VSM_PAGE_SIZE + VSM_PAGE_SIZE;
+	}
+	else
+#endif
+	{
+		ViewRect.xy = pPageAddress * VSM_PAGE_SIZE;
+		ViewRect.zw = ViewRect.xy + VSM_PAGE_SIZE;
+	}
 #endif
 
 	// Set up the rasterization context
@@ -1048,6 +1157,7 @@ void MicropolyRasterize(
 #if VIRTUAL_TEXTURE_TARGET
 	Raster.pPageAddress			= pPageAddress;
 	Raster.vPage				= vPage;
+	Raster.bSinglePage			= bSinglePage;
 #endif
 #if VISUALIZE
 	Raster.VisualizeValues		= GetVisualizeValues();
@@ -1055,6 +1165,17 @@ void MicropolyRasterize(
 	Raster.PageTranslation		= PageTranslation;
 
 #if NANITE_VERT_REUSE_BATCH
+#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
+	if (!Raster.bSinglePage)
+	{
+		UNROLL
+		for (uint Offset = 0; Offset < NANITE_VSM_PAGE_TABLE_CACHE_DIM * NANITE_VSM_PAGE_TABLE_CACHE_DIM; Offset += SWRASTER_NUM_THREADS)
+		{
+			FetchAndCachePageTableEntry(NaniteView, vPage, VisibleCluster.vPageEnd, PageFlagMask, Offset + GroupThreadIndex);
+		}
+	}
+#endif
+
 	const uint TriIndex = TriRange.Start + GroupThreadIndex;
 
 	uint3 SrcLaneIndices;
@@ -1115,7 +1236,7 @@ void MicropolyRasterize(
 		// Transform vertex and store in group shared memory.
 		float3 PointLocal = DecodePosition(VertIndex, Cluster);
 	#if NANITE_PIXEL_PROGRAMMABLE
-		GroupVerts[VertIndex] = PointLocal;
+		GroupVertsStore(PointLocal, VertIndex);
 	#else
 		float3 WorldPositionOffset = 0.0f;
 	#if NANITE_VERTEX_PROGRAMMABLE
@@ -1123,7 +1244,7 @@ void MicropolyRasterize(
 	#endif
 		float3 PointWorld = mul(float4(PointLocal, 1), InstanceDynamicData.LocalToTranslatedWorld).xyz + WorldPositionOffset;
 		float4 PointSubpixelClip = mul(float4(PointWorld, 1), NaniteView.TranslatedWorldToSubpixelClip);
-		GroupVerts[VertIndex] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip);
+		GroupVertsStore(CalculateSubpixelCoordinates(Raster, PointSubpixelClip), VertIndex);
 	#endif
 	}
 
@@ -1133,11 +1254,6 @@ void MicropolyRasterize(
 	for( uint j = 0; j < NANITE_MAX_CLUSTER_TRIANGLES; j += SWRASTER_NUM_THREADS )
 	{
 		const uint ThreadIndex = GroupThreadIndex + j;
-		
-		BRANCH
-		if (ThreadIndex >= TriRange.Num)
-			break;
-
 		const uint TriIndex = ThreadIndex + TriRange.Start;
 		uint3 VertIndexes = ReadTriangleIndices(Cluster, TriIndex);
 		if (ReverseWindingOrder(InstanceData))
@@ -1146,19 +1262,31 @@ void MicropolyRasterize(
 		}
 
 		float3 Verts[3];
+		Verts[0] = GroupVertsLoad(VertIndexes.x);
+		Verts[1] = GroupVertsLoad(VertIndexes.y);
+		Verts[2] = GroupVertsLoad(VertIndexes.z);
+
+	#if VIRTUAL_TEXTURE_TARGET && NANITE_LATE_VSM_PAGE_TRANSLATION
+		if (j == 0 && !Raster.bSinglePage)
+		{
+			GroupMemoryBarrierWithGroupSync();
+			// Only done once but must happen after loading cached vertices because it reuses the first 64 dwords of LDS
+			FetchAndCachePageTableEntry(NaniteView, vPage, VisibleCluster.vPageEnd, PageFlagMask, GroupThreadIndex);
+			GroupMemoryBarrierWithGroupSync();
+		}
+	#endif
+		
+		BRANCH
+		if (ThreadIndex >= TriRange.Num)
+			break;
+
 		FRasterInterpData InterpData;
 	#if NANITE_PIXEL_PROGRAMMABLE
 		// Transform the triangle from local space points
-		const float3 PointLocal[3] =
-		{
-			GroupVerts[VertIndexes.x],
-			GroupVerts[VertIndexes.y],
-			GroupVerts[VertIndexes.z]
-		};			
 		FNaniteRawAttributeData RawAttributeData[3];
 		GetRawAttributeData3(RawAttributeData, Raster.Cluster, VertIndexes, NANITE_NUM_TEXCOORDS_TO_DECODE);
 		
-		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, PointLocal, RawAttributeData, VertIndexes, true);
+		InterpData.TransformedTri = TransformNaniteTriangle(Raster.InstanceData, Raster.VertTransforms, Verts, RawAttributeData, VertIndexes, true);
 
 		const float4 PointSubpixelClip[3] =
 		{
@@ -1173,10 +1301,6 @@ void MicropolyRasterize(
 		Verts[2] = CalculateSubpixelCoordinates(Raster, PointSubpixelClip[2]);
 	#else
 		InterpData.InvW = (float3)1.0f; // no need to interpolate anything for non-programmable
-
-		Verts[0] = GroupVerts[VertIndexes.x];
-		Verts[1] = GroupVerts[VertIndexes.y];
-		Verts[2] = GroupVerts[VertIndexes.z];
 	#endif
 
 		FRasterTri Tri = SetupTriangle( Raster, Verts, InterpData );
@@ -1295,7 +1419,7 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	PointClip.xy += PointClip.w * ( float2(-2, 2) / VSM_RASTER_WINDOW_PAGES ) * VisibleCluster.vPage;
 
 	Out.ViewRect.xy = VisibleCluster.vPage * VSM_PAGE_SIZE;
-	Out.ViewRect.zw = NaniteView.ViewRect.zw;
+	Out.ViewRect.zw = VisibleCluster.vPageEnd * VSM_PAGE_SIZE + VSM_PAGE_SIZE;
 #elif NANITE_MULTI_VIEW
 	PointClip.xy = NaniteView.ClipSpaceScaleOffset.xy * PointClip.xy + NaniteView.ClipSpaceScaleOffset.zw * PointClip.w;
 	Out.ViewRect = NaniteView.ViewRect;

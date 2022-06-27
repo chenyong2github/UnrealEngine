@@ -31,6 +31,7 @@ struct FVisibleCluster
 	uint	PageIndex;
 	uint	ClusterIndex;
 	uint2	vPage;
+	uint2	vPageEnd;		// Last page to render (inclusive). Only used during SW rasterization currently
 };
 
 struct FPageHeader
@@ -203,8 +204,11 @@ uint4 PackVisibleCluster(uint ClusterIdx, FVisibleCluster VisibleCluster, bool b
 	WriteBits(RawData, BitPos, VisibleCluster.ClusterIndex, NANITE_MAX_CLUSTERS_PER_PAGE_BITS);
 	if (bHasPageData)
 	{
-		WriteBits(RawData, BitPos, VisibleCluster.vPage.x, 16);
-		WriteBits(RawData, BitPos, VisibleCluster.vPage.y, 16);
+		WriteBits(RawData, BitPos, VisibleCluster.vPage.x, 13);
+		WriteBits(RawData, BitPos, VisibleCluster.vPage.y, 13);
+		uint2 Delta = (VisibleCluster.vPageEnd - VisibleCluster.vPage) & 0x7;
+		WriteBits(RawData, BitPos, Delta.x, 3);
+		WriteBits(RawData, BitPos, Delta.y, 3);
 	}
 	return RawData;
 }
@@ -220,8 +224,11 @@ FVisibleCluster UnpackVisibleCluster(uint4 RawData, bool bHasPageData = false)
 	VisibleCluster.ClusterIndex	= ReadBits( RawData, BitPos, NANITE_MAX_CLUSTERS_PER_PAGE_BITS );
 	if( bHasPageData )
 	{
-		VisibleCluster.vPage.x	= ReadBits( RawData, BitPos, 16 );
-		VisibleCluster.vPage.y	= ReadBits( RawData, BitPos, 16 );
+		VisibleCluster.vPage.x	= ReadBits( RawData, BitPos, 13 );
+		VisibleCluster.vPage.y	= ReadBits( RawData, BitPos, 13 );
+		VisibleCluster.vPageEnd.x	= ReadBits( RawData, BitPos, 3 );
+		VisibleCluster.vPageEnd.y	= ReadBits( RawData, BitPos, 3 );
+		VisibleCluster.vPageEnd += VisibleCluster.vPage;
 	}
 	else
 	{

@@ -315,56 +315,35 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	{
 		PageTableLevelOffset = CalcPageTableLevelOffset( NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel );
 
-		if( bUseHWRaster )
+		// Clip rect to the mapped pages.
+		uint4 RectPagesMapped = RectPages.zwxy;
+		for( uint y = RectPages.y; y <= RectPages.w; y++ )
 		{
-			// Clip rect to the mapped pages.
-			uint4 RectPagesMapped = RectPages.zwxy;
-			for( uint y = RectPages.y; y <= RectPages.w; y++ )
+			for( uint x = RectPages.x; x <= RectPages.z; x++ )
 			{
-				for( uint x = RectPages.x; x <= RectPages.z; x++ )
+				uint2 vPage = uint2(x,y);
+				uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage );
+				uint PageFlag = VirtualShadowMap.PageFlags[ PageFlagOffset ];
+				if ((PageFlag & PageFlagMask) != 0)
 				{
-					uint2 vPage = uint2(x,y);
-					uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, vPage );
-					uint PageFlag = VirtualShadowMap.PageFlags[ PageFlagOffset ];
-					if ((PageFlag & PageFlagMask) != 0)
+					RectPagesMapped.xy = min( RectPagesMapped.xy, vPage );
+					RectPagesMapped.zw = max( RectPagesMapped.zw, vPage );
+					++NumClustersToEmit;
+					if (!bWasOccluded)
 					{
-						RectPagesMapped.xy = min( RectPagesMapped.xy, vPage );
-						RectPagesMapped.zw = max( RectPagesMapped.zw, vPage );
-						if (!bWasOccluded)
-						{
-							// Mark the page dirty so we regenerate HZB, etc.
-							OutDirtyPageFlags[ PageFlagOffset ] = 1;
-						}
+						// Mark the page dirty so we regenerate HZB, etc.
+						OutDirtyPageFlags[ PageFlagOffset ] = 1;
 					}
 				}
-			}
-			RectPages = RectPagesMapped;
-
-			if( all( RectPages.xy <= RectPages.zw ) )
-			{
-				uint2 MacroTiles = ( RectPages.zw - RectPages.xy ) / VSM_RASTER_WINDOW_PAGES + 1;
-				NumClustersToEmit = MacroTiles.x * MacroTiles.y;
 			}
 		}
-		else
+		RectPages = RectPagesMapped;
+
+		if( (bUseHWRaster || NANITE_LATE_VSM_PAGE_TRANSLATION) && all( RectPages.xy <= RectPages.zw ) )
 		{
-			for( uint y = RectPages.y; y <= RectPages.w; y++ )
-			{
-				for( uint x = RectPages.x; x <= RectPages.z; x++ )
-				{
-					uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, uint2(x,y) );
-					uint PageFlag = VirtualShadowMap.PageFlags[ PageFlagOffset ];
-					if ((PageFlag & PageFlagMask) != 0)
-					{
-						++NumClustersToEmit;
-						if (!bWasOccluded)
-						{
-							// Mark the page dirty so we regenerate HZB, etc.
-							OutDirtyPageFlags[ PageFlagOffset ] = 1;
-						}
-					}
-				}
-			}
+			uint WindowSize = bUseHWRaster ? VSM_RASTER_WINDOW_PAGES : NANITE_VSM_PAGE_TABLE_CACHE_DIM;
+			uint2 MacroTiles = ( RectPages.zw - RectPages.xy ) / WindowSize + 1;
+			NumClustersToEmit = MacroTiles.x * MacroTiles.y;
 		}
 	}
 #endif
@@ -423,37 +402,26 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 			else
 				ClusterIndex = VisibleClusterOffsetSW;	// SW clusters written from the bottom
 
-			if( bUseHWRaster )
+			uint WindowSize = bUseHWRaster ? VSM_RASTER_WINDOW_PAGES : (NANITE_LATE_VSM_PAGE_TRANSLATION ? NANITE_VSM_PAGE_TABLE_CACHE_DIM : 1);
+			for( uint y = RectPages.y; y <= RectPages.w; y += WindowSize )
 			{
-				for( uint y = RectPages.y; y <= RectPages.w; y += VSM_RASTER_WINDOW_PAGES )
+				for( uint x = RectPages.x; x <= RectPages.z; x += WindowSize )
 				{
-					for( uint x = RectPages.x; x <= RectPages.z; x += VSM_RASTER_WINDOW_PAGES )
-					{
-						VisibleCluster.vPage = uint2(x,y);
-						if (ClusterIndex < MaxVisibleClusters)
-						{
-							StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
-						}
-					}
-				}
-			}
-			else
-			{
-				for( uint y = RectPages.y; y <= RectPages.w; y++ )
-				{
-					for( uint x = RectPages.x; x <= RectPages.z; x++ )
+					if (!bUseHWRaster && !NANITE_LATE_VSM_PAGE_TRANSLATION)
 					{
 						uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel( NaniteView.TargetMipLevel, uint2(x,y) );
 						uint PageFlag = VirtualShadowMap.PageFlags[ PageFlagOffset ];
 
-						if ((PageFlag & PageFlagMask) != 0)
+						if ((PageFlag & PageFlagMask) == 0)
 						{
-							VisibleCluster.vPage = uint2(x,y);
-							if (ClusterIndex < MaxVisibleClusters)
-							{
-								StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
-							}
+							continue;
 						}
+					}
+					VisibleCluster.vPage = uint2(x,y);
+					VisibleCluster.vPageEnd = min(WindowSize - 1 + VisibleCluster.vPage, RectPages.zw);
+					if (ClusterIndex < MaxVisibleClusters)
+					{
+						StoreVisibleCluster( OutVisibleClustersSWHW, ClusterIndex++, VisibleCluster, VIRTUAL_TEXTURE_TARGET );
 					}
 				}
 			}
