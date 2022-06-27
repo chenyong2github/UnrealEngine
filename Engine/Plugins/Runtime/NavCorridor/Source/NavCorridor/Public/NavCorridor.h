@@ -13,45 +13,45 @@ struct NAVCORRIDOR_API FNavCorridorParams
 {
 	GENERATED_BODY()
 
+	/** Sets good default values for the params based on corridor width. */
 	void SetFromWidth(const float InWidth)
 	{
 		Width = InWidth;
-		ClusterDraftLength = Width * 0.5f;
 		SmallSectorThreshold = Width * 0.3f;
 		LargeSectorThreshold = Width;
 		SimplifyEdgeThreshold = Width * 0.1f;
 	}
 	
 	/** Width of the corridor to build */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding", meta=(ClampMin="10.0"))
 	float Width = 200.0f;
 
-	/** How much the outer edges of obstacles are tapered (per width of the corridor). This prevents small sectors and local traps.  */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
-	float ClusterDraftLength = 100.0f;
+	/** How much the outer edges of obstacles are tapered out. This prevents small sectors and local traps.  */
+	UPROPERTY(EditAnywhere, Category = "Pathfinding", meta=(ClampMin="10.0", ClampMax="45.0"))
+	float ObstacleTaperAngle = 30.0f;
 
 	/** Attempt to remove sectors narrower than this from the corridor. */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding", meta=(ClampMin="0.0"))
 	float SmallSectorThreshold = 60.0f;
 
 	/** Simplification is skipped if two neighbour sectors combined are longer than this. This ensures that long sectors do not lose volume due to simplification. */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding", meta=(ClampMin="0.0"))
 	float LargeSectorThreshold = 200.0f;
 
 	/** Corridor edge max simplification distance. */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding", meta=(ClampMin="0.0"))
 	float SimplifyEdgeThreshold = 20.0f;
 
 	/** If true do flip portals simplification. */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding")
 	bool bSimplifyFlipPortals = true;
 	
 	/** If true do convex portals simplification. */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding")
 	bool bSimplifyConvexPortals = true;
 	
 	/** If true do concave portals simplification. */
-	UPROPERTY(EditAnywhere, Category=Pathfinding)
+	UPROPERTY(EditAnywhere, Category = "Pathfinding")
 	bool bSimplifyConcavePortals = true;
 };
 
