@@ -234,6 +234,23 @@ namespace EpicGames.BuildGraph
 					}
 				case BgOpcode.IntNegate:
 					return -(int)Evaluate(frame);
+				case BgOpcode.IntOption:
+					{
+						string name = (string)Evaluate(frame);
+						string label = (string)Evaluate(frame);
+						string description = (string)Evaluate(frame);
+						int defaultValue = (int)Evaluate(frame);
+						int minValue = (int)Evaluate(frame);
+						int maxValue = (int)Evaluate(frame);
+
+						int value = defaultValue;
+						if (_options.TryGetValue(name, out string? str))
+						{
+							value = Int32.Parse(str);
+						}
+
+						return value;
+					}
 
 				#endregion
 				#region String opcodes
@@ -864,6 +881,14 @@ namespace EpicGames.BuildGraph
 					Disassemble(frame, logger);
 					break;
 				case BgOpcode.IntNegate:
+					Disassemble(frame, logger);
+					break;
+				case BgOpcode.IntOption:
+					Disassemble(frame, logger);
+					Disassemble(frame, logger);
+					Disassemble(frame, logger);
+					Disassemble(frame, logger);
+					Disassemble(frame, logger);
 					Disassemble(frame, logger);
 					break;
 
