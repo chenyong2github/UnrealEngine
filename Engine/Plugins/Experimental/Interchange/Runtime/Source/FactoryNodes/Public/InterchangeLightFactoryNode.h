@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Engine/Scene.h"
 #include "InterchangeActorFactoryNode.h"
 
 #include "InterchangeLightFactoryNode.generated.h"
