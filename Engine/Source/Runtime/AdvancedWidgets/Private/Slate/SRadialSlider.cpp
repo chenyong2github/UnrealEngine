@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Slate/SRadialSlider.h"
+#include "Widgets/SRadialSlider.h"
 
 #include "Brushes/SlateColorBrush.h"
 #include "Fonts/FontMeasure.h"

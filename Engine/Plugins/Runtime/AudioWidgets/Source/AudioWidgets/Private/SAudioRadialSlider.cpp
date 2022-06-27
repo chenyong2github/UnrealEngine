@@ -3,7 +3,7 @@
 #include "SAudioRadialSlider.h"
 
 #include "DSP/Dsp.h"
-#include "Slate/SRadialSlider.h"
+#include "Widgets/SRadialSlider.h"
 #include "Styling/SlateStyleRegistry.h"
 
 const FVector2D SAudioRadialSlider::LinearRange = FVector2D(0.0f, 1.0f);
