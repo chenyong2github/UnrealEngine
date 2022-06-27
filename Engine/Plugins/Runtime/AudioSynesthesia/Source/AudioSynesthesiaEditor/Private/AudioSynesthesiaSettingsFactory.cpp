@@ -4,6 +4,7 @@
 
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
+#include "EngineAnalytics.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "Modules/ModuleManager.h"
 #include "AudioSynesthesiaClassFilter.h"
@@ -54,6 +55,11 @@ UObject* UAudioSynesthesiaSettingsFactory::FactoryCreateNew(UClass* InClass, UOb
 	if (AudioSynesthesiaSettingsClass != nullptr)
 	{
 		NewAudioSynesthesiaSettings = NewObject<UAudioSynesthesiaSettings>(InParent, AudioSynesthesiaSettingsClass, InName, Flags);
+
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioSynesthesia.SettingsFactoryCreated"));
+		}
 	}
 	return NewAudioSynesthesiaSettings;
 }

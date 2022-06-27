@@ -4,6 +4,7 @@
 
 #include "ClassViewerFilter.h"
 #include "ClassViewerModule.h"
+#include "EngineAnalytics.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "SoundModulationGenerator.h"
 #include "Templates/SharedPointer.h"
@@ -75,6 +76,10 @@ UObject* USoundModulationGeneratorFactory::FactoryCreateNew(UClass* InClass, UOb
 {
 	if (GeneratorClass)
 	{
+		if (FEngineAnalytics::IsAvailable())
+		{
+			FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioModulation.ModulationGeneratorCreated"));
+		}
 		return NewObject<USoundModulationGenerator>(InParent, GeneratorClass, InName, Flags);
 	}
 

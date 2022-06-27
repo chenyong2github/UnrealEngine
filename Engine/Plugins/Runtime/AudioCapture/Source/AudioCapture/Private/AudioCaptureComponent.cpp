@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AudioCaptureComponent.h"
+#include "EngineAnalytics.h"
 
 static const unsigned int MaxBufferSize = 2 * 5 * 48000;
 
@@ -29,6 +30,12 @@ bool UAudioCaptureComponent::Init(int32& SampleRate)
 		{
 			// This may fail if capture synths aren't supported on a given platform or if something went wrong with the capture device
 			bIsStreamOpen = CaptureSynth.OpenDefaultStream();
+
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.AudioCapture.AudioCaptureComponentInitialized"));
+			}
+
 			return true;
 		}
 		else
