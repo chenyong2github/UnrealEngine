@@ -136,7 +136,7 @@ private:
 	#define DEFINE_LOG_CATEGORY_STATIC(...)
 	#define DECLARE_LOG_CATEGORY_CLASS(...)
 	#define DEFINE_LOG_CATEGORY_CLASS(...)
-	#define UE_SECURITY_LOG(...)
+	#define UE_SECURITY_LOG(...) DEPRECATED_MACRO(5.1, "UE_SECURITY_LOG has been deprecated in favor of UE_LOG")
 
 #else
 
@@ -275,13 +275,14 @@ private:
 	***/
 	#define UE_SECURITY_LOG(NetConnection, SecurityEventType, Format, ...) \
 	{ \
+		DEPRECATED_MACRO(5.1, "UE_SECURITY_LOG has been deprecated in favor of UE_LOG") \
 		static_assert(TIsArrayOrRefOfType<decltype(Format), TCHAR>::Value, "Formatting string must be a TCHAR array."); \
 		check(NetConnection != nullptr); \
 		CA_CONSTANT_IF((ELogVerbosity::Warning & ELogVerbosity::VerbosityMask) <= ELogVerbosity::COMPILED_IN_MINIMUM_VERBOSITY && (ELogVerbosity::Warning & ELogVerbosity::VerbosityMask) <= FLogCategoryLogSecurity::CompileTimeVerbosity) \
 		{ \
 			if (!LogSecurity.IsSuppressed(ELogVerbosity::Warning)) \
 			{ \
-				FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, LogSecurity.GetCategoryName(), ELogVerbosity::Warning, TEXT("%s: %s: ") Format, *(NetConnection->RemoteAddressToString()), ToString(SecurityEventType), ##__VA_ARGS__); \
+				FMsg::Logf_Internal(UE_LOG_SOURCE_FILE(__FILE__), __LINE__, LogSecurity.GetCategoryName(), ELogVerbosity::Warning, TEXT("%s: %s: %s"), *(NetConnection->RemoteAddressToString()), ToString(SecurityEventType), *FString::Printf(Format, ##__VA_ARGS__)); \
 			} \
 		} \
 	}
@@ -403,11 +404,12 @@ private:
 ***/
 #define CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION_INNER(NetConnection, SecurityEventType, Format, ...) \
 { \
+	DEPRECATED_MACRO(5.1, "CLOSE_CONNECTION_DUE_TO_SECURITY_VIOLATION has been deprecated") \
 	static_assert(TIsArrayOrRefOfType<decltype(Format), TCHAR>::Value, "Formatting string must be a TCHAR array."); \
 	check(NetConnection != nullptr); \
 	FString SecurityPrint = FString::Printf(Format, ##__VA_ARGS__); \
-	UE_SECURITY_LOG(NetConnection, SecurityEventType, Format, ##__VA_ARGS__); \
-	UE_SECURITY_LOG(NetConnection, ESecurityEvent::Closed, TEXT("Connection closed")); \
+	UE_LOG(LogSecurity, Warning, TEXT("%s: %s: %s"), *(NetConnection)->RemoteAddressToString(), ToString(SecurityEventType), SecurityEventType, *SecurityPrint); \
+	UE_LOG(LogSecurity, Warning, TEXT("%s: Closed: Connection closed"), *(NetConnection)->RemoteAddressToString()); \
 	NetConnection->Close({FromSecurityEvent(SecurityEventType), SecurityPrint}); \
 }
 #if USE_SERVER_PERF_COUNTERS

@@ -1753,7 +1753,7 @@ void UControlChannel::ReceivedBunch( FInBunch& Bunch )
 			FString DebugMessage;
 			if (FNetControlMessage<NMT_SecurityViolation>::Receive(Bunch, DebugMessage))
 			{
-				UE_SECURITY_LOG(Connection, ESecurityEvent::Closed, TEXT("%s"), *DebugMessage);
+				UE_LOG(LogSecurity, Warning, TEXT("%s: Closed: %s"), *Connection->RemoteAddressToString(), *DebugMessage);
 				break;
 			}
 		}

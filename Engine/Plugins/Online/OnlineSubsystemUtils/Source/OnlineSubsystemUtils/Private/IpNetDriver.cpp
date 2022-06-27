@@ -1270,7 +1270,7 @@ void UIpNetDriver::TickDispatch(float DeltaTime)
 
 					if (Connection != nullptr)
 					{
-						UE_SECURITY_LOG(Connection, ESecurityEvent::Malformed_Packet, TEXT("Received Packet with bytes > max MTU"));
+						UE_LOG(LogSecurity, Warning, TEXT("%s: Malformed_Packet: Received Packet with bytes > max MTU"), *Connection->RemoteAddressToString());
 					}
 				}
 				else
