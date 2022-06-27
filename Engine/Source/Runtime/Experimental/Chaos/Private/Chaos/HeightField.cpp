@@ -619,6 +619,7 @@ namespace Chaos
 		OutData.MinValue = ToRealFunc(BufferView[0]);
 		OutData.MaxValue = ToRealFunc(BufferView[0]);
 		OutData.Scale = InScale;
+		OutData.ScaleSimd = MakeVectorRegisterFloatFromDouble(MakeVectorRegisterDouble(InScale.X, InScale.Y, InScale.Z, 0.0));
 
 		for(int32 HeightIndex = 1; HeightIndex < NumHeights; ++HeightIndex)
 		{
