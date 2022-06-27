@@ -91,7 +91,9 @@
 	#include "/Engine/Private/SkyAtmosphereCommon.ush"
 #endif
 
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || POST_PROCESS_MATERIAL // For WaterSampleSceneDepthWithoutWater() and SINGLE_LAYER_WATER_DEPTH_SCALE
+// This is currently included for post processing materials even if the SceneDepthWithoutWater texture is not sampled.
+// It might be worth it to add a switch to only include it if the texture is actually required by the material.
 	#include "/Engine/Private/SingleLayerWaterCommon.ush"
 #endif
 
@@ -1654,17 +1656,42 @@ float3 MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(FMaterialPi
 #endif
 }
 
-/** 
-	Get the scene depth from the scene below the single layer water surface. This is only valid in the single layer water rendering pass.
+#if POST_PROCESS_MATERIAL
+uint bSceneDepthWithoutWaterTextureAvailable;
+Texture2D SceneDepthWithoutSingleLayerWaterTexture;
+SamplerState SceneDepthWithoutSingleLayerWaterSampler;
+float4 SceneWithoutSingleLayerWaterMinMaxUV;
+float2 SceneWithoutSingleLayerWaterTextureSize;
+float2 SceneWithoutSingleLayerWaterInvTextureSize;
+#endif
+
+/**
+	Get the scene depth from the scene below the single layer water surface. This is only valid in the single layer water rendering pass or during post processing.
 	Returns the chosen fallback depth if the material doesn't support reading back the correct depth.
 */
 float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float FallbackDepth)
 {
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !SCENE_TEXTURES_DISABLED && (!SIMPLE_SINGLE_LAYER_WATER || SINGLE_LAYER_WATER_SIMPLE_FORWARD)
-
 	const float2 ClampedViewportUV = clamp(ViewportUV, SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy, SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.zw);
-
-	return SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+	return WaterSampleSceneDepthWithoutWater(SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 
+		SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize, SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize) * SINGLE_LAYER_WATER_DEPTH_SCALE;
+#elif POST_PROCESS_MATERIAL
+	if (bSceneDepthWithoutWaterTextureAvailable)
+	{
+		const float2 ClampedViewportUV = clamp(ViewportUV, SceneWithoutSingleLayerWaterMinMaxUV.xy, SceneWithoutSingleLayerWaterMinMaxUV.zw);
+		return WaterSampleSceneDepthWithoutWater(SceneDepthWithoutSingleLayerWaterTexture, SceneDepthWithoutSingleLayerWaterSampler, ClampedViewportUV, 
+			SceneWithoutSingleLayerWaterTextureSize, SceneWithoutSingleLayerWaterInvTextureSize) * SINGLE_LAYER_WATER_DEPTH_SCALE;
+	}
+	else
+	{
+#if SHADING_PATH_DEFERRED
+		return CalcSceneDepth(uint2(ViewportUV * View.BufferSizeAndInvSize.xy));
+#elif SHADING_PATH_MOBILE
+		return CalcSceneDepth(ViewportUV);
+#else
+		return FallbackDepth;
+#endif
+	}
 #else
 	return FallbackDepth;
 #endif

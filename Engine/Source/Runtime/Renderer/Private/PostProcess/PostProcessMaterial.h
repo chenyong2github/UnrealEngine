@@ -7,6 +7,7 @@
 #include "Strata/Strata.h"
 
 class UMaterialInterface;
+struct FSceneWithoutWaterTextures;
 
 const uint32 kPostProcessMaterialInputCountMax = 5;
 
@@ -47,6 +48,12 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPostProcessMaterialParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, EyeAdaptationBuffer)
 	SHADER_PARAMETER(uint32, bFlipYAxis)
 	SHADER_PARAMETER(uint32, bMetalMSAAHDRDecode)
+	SHADER_PARAMETER(uint32, bSceneDepthWithoutWaterTextureAvailable)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
+	SHADER_PARAMETER_SAMPLER(SamplerState, SceneDepthWithoutSingleLayerWaterSampler)
+	SHADER_PARAMETER(FVector4f, SceneWithoutSingleLayerWaterMinMaxUV)
+	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterTextureSize)
+	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterInvTextureSize)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -102,6 +109,9 @@ struct FPostProcessMaterialInputs
 
 	/** The uniform buffer containing all scene textures. */
 	FSceneTextureShaderParameters SceneTextures;
+
+	/** Depth and color textures of the scene without single layer water. May be nullptr if not available. */
+	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr;
 
 	/** Performs a vertical axis flip if the RHI allows it. */
 	bool bFlipYAxis = false;

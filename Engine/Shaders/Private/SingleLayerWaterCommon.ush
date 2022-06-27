@@ -5,12 +5,15 @@
 
 // Scale for encoding depth into SceneDepthWithoutSingleLayerWaterTexture
 // Must match FDeferredShadingSceneRenderer::RenderUnderWaterFog
+// Originally used to work around precision issues with a float16 linear depth buffer.
+// TODO: Do we still need this?
 #define SINGLE_LAYER_WATER_DEPTH_SCALE 100.0f
 
 #ifndef SIMPLE_SINGLE_LAYER_WATER
 #define SIMPLE_SINGLE_LAYER_WATER 0
 #endif
 
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define SingleLayerWaterSceneColorSampler View.SharedBilinearClampedSampler
 #if METAL_PROFILE
@@ -21,7 +24,8 @@
 #else
 	#define SingleLayerWaterSceneColorSampler SingleLayerWater.SceneColorWithoutSingleLayerWaterSampler
 	#define SingleLayerWaterSceneDepthSampler SingleLayerWater.SceneDepthWithoutSingleLayerWaterSampler
-#endif
+#endif // SUPPORTS_INDEPENDENT_SAMPLERS
+#endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
 // We use our own refract because the HLSL one was not working on all platforms (ES3.1 preview for instance)
 bool WaterRefract(float3 V, float3 N, float Eta, out float3 R)

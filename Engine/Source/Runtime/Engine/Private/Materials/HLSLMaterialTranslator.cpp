@@ -9185,19 +9185,24 @@ int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 Viewpo
 		return Errorf(TEXT("Cannot read scene depth without water from the vertex shader."));
 	}
 
-	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
-	}
-	
-	if (Material->GetMaterialDomain() != MD_Surface)
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
-	}
+	const EMaterialDomain MaterialDomain = Material->GetMaterialDomain();
 
-	if (IsTranslucentBlendMode(Material->GetBlendMode()))
+	if (MaterialDomain != MD_PostProcess)
 	{
-		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
+		if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
+		{
+			return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water or when material Domain is PostProcess."));
+		}
+
+		if (MaterialDomain != MD_Surface)
+		{
+			return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface or PostProcess."));
+		}
+
+		if (IsTranslucentBlendMode(Material->GetBlendMode()))
+		{
+			return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
+		}
 	}
 
 	if (Offset == INDEX_NONE && bUseOffset)
