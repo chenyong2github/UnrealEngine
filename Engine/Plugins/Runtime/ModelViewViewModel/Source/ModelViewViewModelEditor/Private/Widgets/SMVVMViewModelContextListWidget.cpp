@@ -385,8 +385,11 @@ namespace UE::MVVM::Private
 
 			auto MakeFieldWidget = [](FMVVMConstFieldVariant Field)
 			{
+				FMVVMBlueprintPropertyPath Path;
+				Path.SetBasePropertyPath(Field);
+
 				return SNew(SMVVMFieldEntry)
-					.Field(Field);
+					.Field(Path);
 			};
 
 			UClass* InBindableClass = Cast<UClass>(InOwnerStruct);

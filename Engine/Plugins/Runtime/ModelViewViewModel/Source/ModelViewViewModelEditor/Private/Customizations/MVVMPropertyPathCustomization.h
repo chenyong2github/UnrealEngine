@@ -4,7 +4,6 @@
 
 #include "IPropertyTypeCustomization.h"
 #include "MVVMBlueprintView.h"
-#include "MVVMPropertyPathHelpers.h"
 #include "PropertyHandle.h"
 #include "Types/MVVMFieldVariant.h"
 
@@ -33,14 +32,16 @@ namespace UE::MVVM
 
 	private:
 		void OnSourceSelectionChanged(FBindingSource Selected);
-		void OnPropertySelectionChanged(FMVVMConstFieldVariant Selected);
+		void OnPropertySelectionChanged(FMVVMBlueprintPropertyPath Selected);
 
 		void OnOtherPropertyChanged();
 
-		TArray<IFieldPathHelper*> GetRawPathHelpers() const;
-		TArray<IFieldPathHelper*> GetRawOtherHelpers() const;
-		
 		EMVVMBindingMode GetCurrentBindingMode() const;
+		TArray<UE::MVVM::FBindingSource> OnGetSources() const;
+		UE::MVVM::FBindingSource OnGetSelectedSource() const;
+
+		TArray<FMVVMBlueprintPropertyPath> OnGetFields() const;
+		FMVVMBlueprintPropertyPath OnGetSelectedField() const;
 
 		void HandleBlueprintChanged(UBlueprint* Blueprint);
 
@@ -51,9 +52,7 @@ namespace UE::MVVM
 		TSharedPtr<SMVVMSourceSelector> SourceSelector;
 		TSharedPtr<SMVVMFieldSelector> FieldSelector;
 
-		TArray<TSharedPtr<IFieldPathHelper>> PathHelpers;
-		TArray<TSharedPtr<IFieldPathHelper>> OtherHelpers;
-
+		bool bIsWidget = false;
 		bool bPropertySelectionChanging = false;
 
 		FDelegateHandle OnBlueprintChangedHandle;

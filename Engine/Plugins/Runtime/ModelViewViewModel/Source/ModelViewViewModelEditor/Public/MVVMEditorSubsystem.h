@@ -6,10 +6,13 @@
 
 #include "MVVMBlueprintView.h"
 #include "Templates/SubclassOf.h"
+#include "Types/MVVMBindingMode.h"
+#include "Types/MVVMBindingSource.h"
 #include "Types/MVVMFieldVariant.h"
 
 #include "MVVMEditorSubsystem.generated.h"
 
+class UEdGraph;
 class UMVVMViewModelBase;
 class UWidgetBlueprint;
 
@@ -24,7 +27,7 @@ public:
 	UMVVMBlueprintView* RequestView(UWidgetBlueprint* WidgetBlueprint) const;
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	UMVVMBlueprintView* GetView(UWidgetBlueprint* WidgetBlueprint) const;
+	UMVVMBlueprintView* GetView(const UWidgetBlueprint* WidgetBlueprint) const;
 	
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	void RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel);
@@ -41,7 +44,36 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	void RemoveBinding(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding);
 
-	TArray<UE::MVVM::FMVVMConstFieldVariant> GetChildViewModels(UClass* Class);
+	void SetSourceToDestinationConversionFunction(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction);
+	void SetDestinationToSourceConversionFunction(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction);
+	void SetWidgetForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FName Widget);
+	void SetWidgetPropertyForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FMVVMBlueprintPropertyPath Field);
+	void SetViewModelForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FMVVMBlueprintViewModelContext ViewModel);
+	void SetViewModelPropertyForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FMVVMBlueprintPropertyPath Field);
+	void SetUpdateModeForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, EMVVMViewBindingUpdateMode Mode);
+	void SetBindingTypeForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, EMVVMBindingMode Type);
+	void SetEnabledForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, bool bEnabled);
+	void SetCompileForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, bool bCompile);
 
-	TArray<const UFunction*> GetAvailableConversionFunctions(const UE::MVVM::FMVVMConstFieldVariant& Source, const UE::MVVM::FMVVMConstFieldVariant& Dest) const;
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	bool IsValidConversionFunction(const UFunction* Function, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const;
+
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	UEdGraph* GetConversionFunctionGraph(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
+
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	TArray<UFunction*> GetAvailableConversionFunctions(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& Source, const FMVVMBlueprintPropertyPath& Destination) const;
+
+	FMVVMBlueprintPropertyPath GetPathForConversionFunctionArgument(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, FName ArgumentName, bool bSourceToDestination) const;
+	void SetPathForConversionFunctionArgument(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FName ArgumentName, const FMVVMBlueprintPropertyPath& Path, bool bSourceToDestination) const;
+
+	TArray<UE::MVVM::FBindingSource> GetBindableWidgets(const UWidgetBlueprint* WidgetBlueprint) const;
+	
+	TArray<UE::MVVM::FBindingSource> GetAllViewModels(const UWidgetBlueprint* WidgetBlueprint) const;
+
+	TArray<UE::MVVM::FMVVMConstFieldVariant> GetChildViewModels(const UClass* Class);
+
+private:
+	FName GetConversionFunctionWrapperName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const;
+	UEdGraph* CreateConversionFunctionWrapperGraph(UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, const UFunction* ConversionFunction, bool bSourceToDestination);
 };

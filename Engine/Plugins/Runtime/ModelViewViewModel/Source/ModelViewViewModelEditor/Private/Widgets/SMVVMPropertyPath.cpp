@@ -2,10 +2,13 @@
 
 #include "Widgets/SMVVMPropertyPath.h"
 
+#include "Blueprint/WidgetTree.h"
+#include "Editor.h"
 #include "MVVMBlueprintView.h"
+#include "MVVMEditorSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "Widgets/SMVVMFieldIcon.h"
 #include "Styling/MVVMEditorStyle.h"
+#include "Widgets/SMVVMFieldIcon.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SBorder.h"
@@ -14,37 +17,12 @@
 
 #define LOCTEXT_NAMESPACE "SMVVMPropertyPath"
 
-void SMVVMPropertyPathBase::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint)
+void SMVVMPropertyPath::Construct(const FArguments& InArgs)
 {
-	WidgetBlueprint = InWidgetBlueprint;
-
-	const UE::MVVM::IFieldPathHelper& PathHelper = GetPathHelper();
-	SelectedSource = PathHelper.GetSelectedSource();
-	SelectedField = PathHelper.GetSelectedField();
-
-	auto GetContextText = [this]()
-	{
-		if (SelectedSource.IsSet())
-		{
-			return SelectedSource.GetValue().DisplayName;
-		}
-		return FText::GetEmpty();
-	};
-
-	auto GetPathText = [this]()
-	{
-		if (SelectedField.IsProperty())
-		{
-			return SelectedField.GetProperty()->GetDisplayNameText();
-		}
-
-		if (SelectedField.IsFunction())
-		{
-			return SelectedField.GetFunction()->GetDisplayNameText();
-		}
-
-		return FText::GetEmpty();
-	};
+	WidgetBlueprint = InArgs._WidgetBlueprint;
+	check(InArgs._WidgetBlueprint != nullptr);
+	PropertyPath = InArgs._PropertyPath;
+	check(PropertyPath);
 
 	ChildSlot
 	[
@@ -55,7 +33,7 @@ void SMVVMPropertyPathBase::Construct(const FArguments& InArgs, const UWidgetBlu
 		[
 			SNew(STextBlock)
 			.TextStyle(FMVVMEditorStyle::Get(), "PropertyPath.ContextText")
-			.Text_Lambda(GetContextText)
+			.Text(this, &SMVVMPropertyPath::GetSourceDisplayName)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(5, 0, 0, 0))
@@ -63,7 +41,7 @@ void SMVVMPropertyPathBase::Construct(const FArguments& InArgs, const UWidgetBlu
 		.AutoWidth()
 		[
 			SNew(SMVVMFieldIcon)
-			.Field(SelectedField)
+			.Field(GetLastField())
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(2, 0, 5, 0))
@@ -72,24 +50,38 @@ void SMVVMPropertyPathBase::Construct(const FArguments& InArgs, const UWidgetBlu
 		[
 			SNew(STextBlock)
 			.TextStyle(FMVVMEditorStyle::Get(), "PropertyPath.ContextText")
-			.Text_Lambda(GetPathText)
+			.Text(this, &SMVVMPropertyPath::GetFieldDisplayName)
 		]
 	];
 }
 
-void SMVVMWidgetPropertyPath::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint)
+FText SMVVMPropertyPath::GetSourceDisplayName() const
 {
-	PathHelper = UE::MVVM::FWidgetFieldPathHelper(InArgs._WidgetPath, InWidgetBlueprint);
-
-	SMVVMPropertyPathBase::Construct(SMVVMPropertyPathBase::FArguments(), InWidgetBlueprint);
+	if (PropertyPath->IsFromWidget())
+	{
+		const UWidget* Widget = WidgetBlueprint->WidgetTree->FindWidget(PropertyPath->GetWidgetName());
+		return FText::FromString(Widget->GetDisplayLabel());
+	}
+	else if (PropertyPath->IsFromViewModel())
+	{
+		const UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		if (const UMVVMBlueprintView* View = Subsystem->GetView(WidgetBlueprint.Get()))
+		{
+			const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(PropertyPath->GetViewModelId());
+			return ViewModel->GetDisplayName();
+		}
+	}
+	return FText::GetEmpty();
 }
 
-void SMVVMViewModelPropertyPath::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint)
+FText SMVVMPropertyPath::GetFieldDisplayName() const
 {
-	PathHelper = UE::MVVM::FViewModelFieldPathHelper(InArgs._ViewModelPath, InWidgetBlueprint);
-
-	SMVVMPropertyPathBase::Construct(SMVVMPropertyPathBase::FArguments(), InWidgetBlueprint);
+	return FText::FromString(PropertyPath->GetBasePropertyPath());
 }
 
+UE::MVVM::FMVVMConstFieldVariant SMVVMPropertyPath::GetLastField() const
+{
+	return PropertyPath->GetFields().Last();
+}
 
 #undef LOCTEXT_NAMESPACE

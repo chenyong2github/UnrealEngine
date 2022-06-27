@@ -3,7 +3,17 @@
 #pragma once
 
 #include "IPropertyTypeCustomization.h"
+#include "Layout/Visibility.h"
+#include "Styling/SlateTypes.h"
+#include "Templates/ValueOrError.h"
+#include "Types/MVVMBindingSource.h"
+#include "Types/MVVMFieldVariant.h"
+#include "MVVMPropertyPath.h"
 
+struct FMVVMPropertyPathBase;
+class FStructOnScope;
+class SGraphPin;
+class SMVVMFieldSelector;
 class UWidgetBlueprint;
 
 namespace UE::MVVM
@@ -22,15 +32,35 @@ namespace UE::MVVM
 		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
 
 	private:
-		FText GetSourceToDestinationPath() const;
-		FText GetDestinationToSourcePath() const;
+		FText GetFunctionPathText(TSharedRef<IPropertyHandle> Property) const;
+		void AddRowForProperty(IDetailChildrenBuilder& ChildBuilder, const TSharedPtr<IPropertyHandle>& Property, bool bSourceToDestination);
 
-		void OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, bool bSourceToDestination);
-		void OnFunctionPathChanged(const UFunction* NewPath, bool bSourceToDestination);
+		void OnTextCommitted(const FText& NewValue, ETextCommit::Type CommitType, TSharedRef<IPropertyHandle> Property, bool bSourceToDestination);
+		void OnFunctionPathChanged(const UFunction* NewFunction, TSharedRef<IPropertyHandle> Property, bool bSourceToDestination);
+		void RefreshDetailsView() const;
+
+		TArray<FBindingSource> OnGetAvailableSources(bool bSourceToDestination) const;
+		FBindingSource OnGetSelectedSource(FName ArgumentName, bool bSourceToDestination) const;
+		void OnSetSource(FBindingSource Source, FName ArgumentName, bool bSourceToDestination);
+
+		TArray<FMVVMBlueprintPropertyPath> OnGetAvailableFields(FName ArgumentName, bool bSourceToDestination) const;
+		FMVVMBlueprintPropertyPath OnGetSelectedField(FName ArgumentName, bool bSourceToDestination) const;
+		void OnSetProperty(FMVVMBlueprintPropertyPath NewSelection, FName ArgumentName, bool bSourceToDestination);
+
+		ECheckBoxState OnGetIsArgumentBound(FName ArgumentName, bool bSourceToDestination) const;
+		void OnCheckedBindArgument(ECheckBoxState CheckState, FName ArgumentName, bool bSourceToDestination);
+		EVisibility GetArgumentWidgetVisibility(FName ArgumentName, bool bSourceToDestination, bool bDefaultValue) const;
+
+		FEdGraphPinType GetArgumentPinType(FName ArgumentName, bool bSourceToDestination) const;
 
 	private:
 		UWidgetBlueprint* WidgetBlueprint = nullptr;
-		TSharedPtr<IPropertyHandle> DestinationToSourceProperty;
-		TSharedPtr<IPropertyHandle> SourceToDestinationProperty;
+
+		TSharedPtr<IPropertyHandle> ParentHandle;
+		TSharedPtr<IPropertyHandle> BindingModeHandle;
+		TWeakPtr<IPropertyUtilities> WeakPropertyUtilities;
+
+		TArray<TSharedPtr<SGraphPin>> ArgumentPinWidgets; 
+		TArray<TSharedPtr<SMVVMFieldSelector>> ArgumentFieldSelectors;
 	};
 }

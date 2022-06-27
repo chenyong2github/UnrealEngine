@@ -2,12 +2,11 @@
 
 #pragma once
 
-#include "MVVMPropertyPathHelpers.h"
 #include "Styling/CoreStyle.h"
 #include "Styling/ISlateStyle.h"
 #include "Styling/SlateTypes.h"
 #include "Styling/SlateWidgetStyleAsset.h"
-#include "Types/MVVMFieldVariant.h"
+#include "Types/MVVMBindingSource.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
 

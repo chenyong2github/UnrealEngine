@@ -7,9 +7,10 @@
 #include "BlueprintEditor.h"
 #include "Components/Widget.h"
 #include "DetailWidgetRow.h"
+#include "MVVMEditorSubsystem.h"
+#include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
 #include "PropertyHandle.h"
-#include "ScopedTransaction.h"
 #include "SSimpleButton.h"
 #include "Templates/UnrealTemplate.h"
 #include "WidgetBlueprint.h"
@@ -25,44 +26,6 @@
 
 namespace UE::MVVM
 {
-	namespace Private
-	{
-		// figure out what the selection is - if any is different in the case of a multiselection, then return null
-		// this is required for getting the selection of the other pair
-		TArray<TSharedPtr<IFieldPathHelper>> GetPathHelpersForProperty(const TSharedPtr<IPropertyHandle>& PropertyHandle, UWidgetBlueprint* WidgetBlueprint, bool bIsWidget)
-		{
-			TArray<TSharedPtr<IFieldPathHelper>> Result;
-
-			TArray<void*> RawData;
-			PropertyHandle->AccessRawData(RawData);
-
-			for (void* Datum : RawData)
-			{
-				const FProperty* ThisSelected = nullptr;
-				
-				if (bIsWidget)
-				{
-					Result.Add(MakeShared<FWidgetFieldPathHelper>(reinterpret_cast<FMVVMBlueprintPropertyPath*>(Datum), WidgetBlueprint));
-				}
-				else
-				{
-					Result.Add(MakeShared<FViewModelFieldPathHelper>(reinterpret_cast<FMVVMBlueprintPropertyPath*>(Datum), WidgetBlueprint));
-				}
-			}
-			return Result;
-		}
-
-		TArray<IFieldPathHelper*> GetRawPathHelperPointers(const TArray<TSharedPtr<IFieldPathHelper>>& SharedPtrs)
-		{
-			TArray<IFieldPathHelper*> RawPointers;
-			RawPointers.Reserve(SharedPtrs.Num());
-
-			Algo::Transform(SharedPtrs, RawPointers, [](const TSharedPtr<IFieldPathHelper>& X) { return X.Get(); });
-
-			return RawPointers;
-		}
-	}
-
 	FPropertyPathCustomization::FPropertyPathCustomization(UWidgetBlueprint* InWidgetBlueprint) :
 		WidgetBlueprint(InWidgetBlueprint)
 	{
@@ -80,8 +43,6 @@ namespace UE::MVVM
 	{
 		PropertyHandle = InPropertyHandle;
 
-		bool bIsWidget = false;
-
 		const FName PropertyName = PropertyHandle->GetProperty()->GetFName();
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath))
 		{
@@ -91,8 +52,10 @@ namespace UE::MVVM
 		{
 			bIsWidget = false;
 		}
-
-		PathHelpers = Private::GetPathHelpersForProperty(PropertyHandle, WidgetBlueprint, bIsWidget);
+		else
+		{
+			ensureMsgf(false, TEXT("MVVMPropertyPathCustomization used in unknown context."));
+		}
 
 		TSharedPtr<IPropertyHandle> ParentHandle = PropertyHandle->GetParentHandle();
 		TSharedPtr<IPropertyHandle> OtherHandle;
@@ -109,7 +72,6 @@ namespace UE::MVVM
 		if (OtherHandle.IsValid() && OtherHandle->IsValidHandle())
 		{
 			OtherHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FPropertyPathCustomization::OnOtherPropertyChanged));
-			OtherHelpers = Private::GetPathHelpersForProperty(OtherHandle, WidgetBlueprint, !bIsWidget);
 		}
 		else
 		{
@@ -145,7 +107,8 @@ namespace UE::MVVM
 				[
 					SAssignNew(SourceSelector, SMVVMSourceSelector)
 					.TextStyle(FAppStyle::Get(), "SmallText")
-					.PathHelpers(this, &FPropertyPathCustomization::GetRawPathHelpers)
+					.AvailableSources(this, &FPropertyPathCustomization::OnGetSources)
+					.SelectedSource(this, &FPropertyPathCustomization::OnGetSelectedSource)
 					.OnSelectionChanged(this, &FPropertyPathCustomization::OnSourceSelectionChanged)
 				]
 			+ SHorizontalBox::Slot()
@@ -154,22 +117,13 @@ namespace UE::MVVM
 				[
 					SAssignNew(FieldSelector, SMVVMFieldSelector)
 					.TextStyle(FAppStyle::Get(), "SmallText")
-					.PathHelpers(GetRawPathHelpers())
-					.CounterpartHelpers(GetRawOtherHelpers())
 					.BindingMode(this, &FPropertyPathCustomization::GetCurrentBindingMode)
+					.SelectedSource(this, &FPropertyPathCustomization::OnGetSelectedSource)
 					.OnSelectionChanged(this, &FPropertyPathCustomization::OnPropertySelectionChanged)
+					.AvailableFields(this, &FPropertyPathCustomization::OnGetFields)
+					.SelectedField(this, &FPropertyPathCustomization::OnGetSelectedField)
 				]				
 			];
-	}
-
-	TArray<IFieldPathHelper*> FPropertyPathCustomization::GetRawPathHelpers() const
-	{
-		return Private::GetRawPathHelperPointers(PathHelpers);
-	}
-
-	TArray<IFieldPathHelper*> FPropertyPathCustomization::GetRawOtherHelpers() const
-	{
-		return Private::GetRawPathHelperPointers(OtherHelpers);
 	}
 
 	void FPropertyPathCustomization::OnOtherPropertyChanged()
@@ -191,14 +145,29 @@ namespace UE::MVVM
 
 	void FPropertyPathCustomization::OnSourceSelectionChanged(FBindingSource Selected)
 	{
-		FScopedTransaction Transaction(LOCTEXT("ChangeSource", "Change binding source."));
-
 		PropertyHandle->NotifyPreChange();
 
-		for (const TSharedPtr<IFieldPathHelper>& Path : PathHelpers)
+		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		
+		TArray<void*> RawData;
+		PropertyHandle->AccessRawData(RawData);
+
+		for (void* RawPtr : RawData)
 		{
-			Path->SetSelectedSource(Selected);
-			Path->ResetBinding(); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
+			if (RawPtr == nullptr)
+			{
+				continue;
+			}
+
+			FMVVMBlueprintPropertyPath* PropertyPath = (FMVVMBlueprintPropertyPath*) RawPtr;
+			if (bIsWidget)
+			{
+				PropertyPath->SetWidgetName(Selected.Name);
+			}
+			else
+			{
+				PropertyPath->SetViewModelId(Selected.ViewModelId);
+			}
 		}
 
 		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
@@ -206,7 +175,7 @@ namespace UE::MVVM
 		FieldSelector->Refresh();
 	}
 
-	void FPropertyPathCustomization::OnPropertySelectionChanged(FMVVMConstFieldVariant Selected)
+	void FPropertyPathCustomization::OnPropertySelectionChanged(FMVVMBlueprintPropertyPath Selected)
 	{
 		if (bPropertySelectionChanging)
 		{
@@ -214,15 +183,20 @@ namespace UE::MVVM
 		}
 		TGuardValue<bool> ReentrantGuard(bPropertySelectionChanging, true);
 
-		FScopedTransaction Transaction(LOCTEXT("ChangeBindingProperty", "Change binding property."));
-
 		PropertyHandle->NotifyPreChange();
 
-		// This is currently handled in SMVVMFieldSelector, but I wonder if it should be here...
-		TArray<IFieldPathHelper*> Helpers = GetRawPathHelpers();
-		for (const IFieldPathHelper* Helper : Helpers)
+		TArray<void*> RawData;
+		PropertyHandle->AccessRawData(RawData);
+
+		for (void* RawPtr : RawData)
 		{
-			Helper->SetBindingReference(Selected);
+			if (RawPtr == nullptr)
+			{
+				continue;
+			}
+
+			FMVVMBlueprintPropertyPath* PropertyPath = (FMVVMBlueprintPropertyPath*) RawPtr;
+			*PropertyPath = Selected;
 		}
 
 		PropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
@@ -232,6 +206,163 @@ namespace UE::MVVM
 	{
 		SourceSelector->Refresh();
 		FieldSelector->Refresh();
+	}
+
+	TArray<UE::MVVM::FBindingSource> FPropertyPathCustomization::OnGetSources() const 
+	{
+		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		if (bIsWidget)
+		{
+			return Subsystem->GetBindableWidgets(WidgetBlueprint);
+		}
+		else
+		{
+			return Subsystem->GetAllViewModels(WidgetBlueprint);
+		}
+	}
+
+	UE::MVVM::FBindingSource FPropertyPathCustomization::OnGetSelectedSource() const
+	{
+		TArray<void*> RawData;
+		PropertyHandle->AccessRawData(RawData);
+
+		FGuid SelectedGuid;
+		FName SelectedName;
+
+		bool bFirst = true;
+
+		for (void* RawPtr : RawData)
+		{
+			if (RawPtr == nullptr)
+			{
+				continue;
+			}
+
+			FMVVMBlueprintPropertyPath* PropertyPath = (FMVVMBlueprintPropertyPath*) RawPtr;
+			if (bIsWidget)
+			{
+				if (bFirst)
+				{
+					SelectedName = PropertyPath->GetWidgetName();
+				}
+				else if (SelectedName != PropertyPath->GetWidgetName())
+				{
+					SelectedName = FName();
+					break;
+				}
+			}
+			else
+			{
+				if (bFirst)
+				{
+					SelectedGuid = PropertyPath->GetViewModelId();
+				}
+				else if (SelectedGuid != PropertyPath->GetViewModelId())
+				{
+					SelectedGuid = FGuid();
+					break;
+				}
+			}
+
+			bFirst = false;
+		}
+
+		if (bIsWidget)
+		{
+			return UE::MVVM::FBindingSource::CreateForWidget(WidgetBlueprint, SelectedName);
+		}
+		else
+		{
+			return UE::MVVM::FBindingSource::CreateForViewModel(WidgetBlueprint, SelectedGuid);
+		}
+	}
+
+	TArray<FMVVMBlueprintPropertyPath> FPropertyPathCustomization::OnGetFields() const
+	{
+		UE::MVVM::FBindingSource Source = OnGetSelectedSource();
+
+		TArray<FMVVMAvailableBinding> AvailableBindings;
+
+		UClass* Class = Source.Class;
+		UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
+		if (bIsWidget)
+		{
+			AvailableBindings = Subsystem->GetWidgetAvailableBindings(Class);
+		}
+		else
+		{
+			AvailableBindings = Subsystem->GetViewModelAvailableBindings(Class);
+		}
+
+		TArray<FMVVMBlueprintPropertyPath> AvailablePaths;
+		Algo::Transform(AvailableBindings, AvailablePaths, 
+			[this, Class, Source](const FMVVMAvailableBinding& Binding)
+			{
+				FName BindingName = Binding.GetBindingName().ToName();
+
+				UE::MVVM::FMVVMConstFieldVariant Variant;
+
+				if (const UFunction* Function = Class->FindFunctionByName(BindingName))
+				{
+					Variant = UE::MVVM::FMVVMConstFieldVariant(Function);
+				}
+				else if (const FProperty* Property = Class->FindPropertyByName(BindingName))
+				{
+					Variant = UE::MVVM::FMVVMConstFieldVariant(Property);
+				}
+
+				FMVVMBlueprintPropertyPath Path;
+
+				if (!Variant.IsEmpty())
+				{
+					if (bIsWidget)
+					{
+						Path.SetWidgetName(Source.Name);
+					}
+					else
+					{
+						Path.SetViewModelId(Source.ViewModelId);
+					}
+
+					Path.SetBasePropertyPath(Variant);
+				}
+
+				return Path;
+			});
+
+		return AvailablePaths;
+	}
+
+	FMVVMBlueprintPropertyPath FPropertyPathCustomization::OnGetSelectedField() const
+	{
+		TArray<void*> RawData;
+		PropertyHandle->AccessRawData(RawData);
+
+		FMVVMBlueprintPropertyPath SelectedField;
+
+		bool bFirst = true;
+
+		for (void* RawPtr : RawData)
+		{
+			if (RawPtr == nullptr)
+			{
+				continue;
+			}
+
+			FMVVMBlueprintPropertyPath* PropertyPath = (FMVVMBlueprintPropertyPath*) RawPtr;
+			if (bFirst)
+			{
+				SelectedField = *PropertyPath;
+			}
+			else if (SelectedField != *PropertyPath)
+			{
+				SelectedField = FMVVMBlueprintPropertyPath();
+				break;
+			}
+			bFirst = false;
+		}
+
+		return SelectedField;
 	}
 }
 

@@ -757,7 +757,7 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompile
 		Result.FieldIds.Add(FieldId.IdHandle, FieldId.CompiledFieldId);
 	}
 
-	auto GetCompiledFiledPath = [this](const FFieldPathHandle Handle)
+	auto GetCompiledFieldPath = [this](const FFieldPathHandle Handle)
 	{
 		const Private::FRawFieldPath* FoundBinding = Impl->FieldPaths.FindByPredicate([Handle](const Private::FRawFieldPath& Other)
 			{
@@ -770,20 +770,19 @@ TValueOrError<FCompiledBindingLibraryCompiler::FCompileResult, FString> FCompile
 		return FMVVMVCompiledFieldPath();
 	};
 
-
 	// Create the requested FMVVMVCompiledBinding
 	for (Private::FRawBinding& Binding : Impl->Bindings)
 	{
 		Binding.CompiledBinding.CompiledBindingLibraryId = Result.Library.CompiledBindingLibraryId;
 		check(Binding.CompiledBinding.CompiledBindingLibraryId.IsValid());
 
-		Binding.CompiledBinding.SourceFieldPath = GetCompiledFiledPath(Binding.SourcePathHandles[0]);
+		Binding.CompiledBinding.SourceFieldPath = GetCompiledFieldPath(Binding.SourcePathHandles[0]);
 		check(Binding.CompiledBinding.SourceFieldPath.IsValid());
 
-		Binding.CompiledBinding.DestinationFieldPath = GetCompiledFiledPath(Binding.DestinationPathHandle);
+		Binding.CompiledBinding.DestinationFieldPath = GetCompiledFieldPath(Binding.DestinationPathHandle);
 		check(Binding.CompiledBinding.DestinationFieldPath.IsValid());
 
-		Binding.CompiledBinding.ConversionFunctionFieldPath = GetCompiledFiledPath(Binding.ConversionFunctionPathHandle);
+		Binding.CompiledBinding.ConversionFunctionFieldPath = GetCompiledFieldPath(Binding.ConversionFunctionPathHandle);
 
 		Result.Bindings.Add(Binding.BindingHandle, Binding.CompiledBinding);
 	}

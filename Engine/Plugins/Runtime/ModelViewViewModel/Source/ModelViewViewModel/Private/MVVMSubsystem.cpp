@@ -128,18 +128,15 @@ namespace UE::MVVM::Private
 		TArray<FMVVMAvailableBinding> Result;
 		Result.Reserve(FieldDescriptors.Num());
 
-		for (TFieldIterator<const UFunction> FunctionItt(Class, EFieldIteratorFlags::IncludeSuper); FunctionItt; ++FunctionItt)
+		for (TFieldIterator<const UFunction> FunctionIt(Class, EFieldIteratorFlags::IncludeSuper); FunctionIt; ++FunctionIt)
 		{
-			const UFunction* Function = *FunctionItt;
+			const UFunction* Function = *FunctionIt;
 			check(Function);
-			if (!Function->HasAnyFunctionFlags(FUNC_Private | FUNC_Protected))
+			const bool bIsReadable = FieldDescriptors.Contains(Function->GetFName()) && BindingHelper::IsValidForSourceBinding(Function);
+			const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Function);
+			if (bIsReadable || bIsWritable)
 			{
-				const bool bIsReadable = FieldDescriptors.Contains(Function->GetFName()) && BindingHelper::IsValidForSourceBinding(Function);
-				const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Function);
-				if (bIsReadable || bIsWritable)
-				{
-					Result.Add(FMVVMAvailableBinding(FMVVMBindingName(Function->GetFName()), bIsReadable, bIsWritable));
-				}
+				Result.Add(FMVVMAvailableBinding(FMVVMBindingName(Function->GetFName()), bIsReadable, bIsWritable));
 			}
 		}
 
@@ -254,26 +251,26 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FDirectionalBindingA
 TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBindingArgs Args) const
 {
 	// Test Source
-	TValueOrError<const FProperty*, FString> GetterProperty = UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Args.SourceBinding);
-	if (GetterProperty.HasError())
+	TValueOrError<const FProperty*, FString> SourceResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForSourceBinding(Args.SourceBinding);
+	if (SourceResult.HasError())
 	{
-		return MakeError(GetterProperty.StealError());
+		return MakeError(SourceResult.StealError());
 	}
 
-	const FProperty* SourceProperty = GetterProperty.StealValue();
+	const FProperty* SourceProperty = SourceResult.StealValue();
 	if (SourceProperty == nullptr)
 	{
 		return MakeError(TEXT("There is no value to bind at the source."));
 	}
 
 	// Test Destination
-	TValueOrError<const FProperty*, FString> SetterProperty = UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Args.DestinationBinding);
-	if (SetterProperty.HasError())
+	TValueOrError<const FProperty*, FString> DestinationResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForDestinationBinding(Args.DestinationBinding);
+	if (DestinationResult.HasError())
 	{
-		return MakeError(SetterProperty.StealError());
+		return MakeError(DestinationResult.StealError());
 	}
 
-	const FProperty* DestinationProperty = SetterProperty.StealValue();
+	const FProperty* DestinationProperty = DestinationResult.StealValue();
 	if (DestinationProperty == nullptr)
 	{
 		return MakeError(TEXT("There is no value to bind at the destination."));
@@ -282,23 +279,42 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 	// Test the conversion function
 	if (Args.ConversionFunction)
 	{
-		TValueOrError<UE::MVVM::BindingHelper::FConversionFunctionArguments, FString> ConversionResult = UE::MVVM::BindingHelper::TryGetPropertyTypeForConversionFunction(Args.ConversionFunction);
-		if (ConversionResult.HasError())
+		TValueOrError<const FProperty*, FString> ReturnResult = UE::MVVM::BindingHelper::TryGetReturnTypeForConversionFunction(Args.ConversionFunction);
+		if (ReturnResult.HasError())
 		{
-			return MakeError(ConversionResult.StealError());
+			return MakeError(ReturnResult.StealError());
+		}
+
+		TValueOrError<TArray<const FProperty*>, FString> ArgumentsResult = UE::MVVM::BindingHelper::TryGetArgumentsForConversionFunction(Args.ConversionFunction);
+		if (ArgumentsResult.HasError())
+		{
+			return MakeError(ArgumentsResult.StealError());
 		}
 
 		// The compiled version should look like Setter(Conversion(Getter())).
-		const FProperty* ConversionReturnProperty = ConversionResult.GetValue().ReturnProperty;
-		if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ConversionReturnProperty, DestinationProperty))
+		const FProperty* ReturnProperty = ReturnResult.GetValue();
+		if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(ReturnProperty, DestinationProperty))
 		{
-			return MakeError(FString::Printf(TEXT("The destination property '%s' (%s) does not match the return type of the conversion function (%s)."), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType(), *ConversionReturnProperty->GetCPPType()));
+			return MakeError(FString::Printf(TEXT("The destination property '%s' (%s) does not match the return type of the conversion function (%s)."), *DestinationProperty->GetName(), *DestinationProperty->GetCPPType(), *ReturnProperty->GetCPPType()));
 		}
 
-		const FProperty* ConversionArgProperty = ConversionResult.GetValue().ArgumentProperty;
-		if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ConversionArgProperty))
+		bool bAnyCompatible = false;
+
+		const TArray<const FProperty*>& ArgumentProperties = ArgumentsResult.GetValue();
+		for (const FProperty* ArgumentProperty : ArgumentProperties)
 		{
-			return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match the argument type of the conversion function (%s)."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *DestinationProperty->GetCPPType()));
+			if (UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, ArgumentProperty))
+			{
+				bAnyCompatible = true;
+				break;
+			}
+		}
+
+		if (!bAnyCompatible)
+		{
+			FString ArgumentsString = FString::JoinBy(ArgumentProperties, TEXT(", "), [](const FProperty* Property) { return Property->GetCPPType(); });
+
+			return MakeError(FString::Printf(TEXT("The source property '%s' (%s) does not match any of the argument types of the conversion function (%s)."), *SourceProperty->GetName(), *SourceProperty->GetCPPType(), *ArgumentsString));
 		}
 	}
 	else if (!UE::MVVM::BindingHelper::ArePropertiesCompatible(SourceProperty, DestinationProperty))
@@ -308,4 +324,3 @@ TValueOrError<bool, FString> UMVVMSubsystem::IsBindingValid(FConstDirectionalBin
 
 	return MakeValue(true);
 }
-

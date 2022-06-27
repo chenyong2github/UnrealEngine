@@ -13,24 +13,30 @@ class UMVVMBlueprintView;
 *
 */
 USTRUCT(BlueprintType)
-struct FMVVMBlueprintViewConversionPath
+struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewConversionPath
 {
 	GENERATED_BODY()
 
 	/** The Conversion function when converting the value from the destination to the source. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
 	FMemberReference DestinationToSourceFunction;
+	
+	UPROPERTY()
+	FName DestinationToSourceWrapper;
 
 	/** The Conversion function when converting the value from the source to the destination. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
 	FMemberReference SourceToDestinationFunction;
+
+	UPROPERTY()
+	FName SourceToDestinationWrapper;
 };
 
 /**
 *
 */
 USTRUCT(BlueprintType)
-struct FMVVMBlueprintViewBinding
+struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewBinding
 {
 	GENERATED_BODY()
 
@@ -63,9 +69,14 @@ struct FMVVMBlueprintViewBinding
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	bool bCompile = true;
 
+	/**
+	 * Get an internal name. For use in the UI, use GetDisplayNameString()
+	 */
+	FName GetFName(const UMVVMBlueprintView* View) const;
+
 	/** 
 	 * Get a string that identifies this binding. 
 	 * This is of the form: ViewModel.Property -> Widget.Property
 	 */
-	FString GetNameString(const UMVVMBlueprintView* View) const;
+	FString GetDisplayNameString(const UMVVMBlueprintView* View) const;
 };

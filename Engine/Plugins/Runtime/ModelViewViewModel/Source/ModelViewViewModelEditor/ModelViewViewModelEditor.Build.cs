@@ -24,9 +24,9 @@ public class ModelViewViewModelEditor : ModuleRules
 			new string[]
 			{
 				"AssetTools",
-				
 				"EditorWidgets",
 				"BlueprintGraph",
+				"GraphEditor",
 				"InputCore",
 				"Kismet",
 				"MessageLog",

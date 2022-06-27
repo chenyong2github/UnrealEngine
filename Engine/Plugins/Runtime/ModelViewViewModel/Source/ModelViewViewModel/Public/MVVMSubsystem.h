@@ -4,7 +4,6 @@
 
 #include "Subsystems/EngineSubsystem.h"
 #include "Templates/ValueOrError.h"
-
 #include "Types/MVVMBindingName.h"
 #include "Types/MVVMFieldVariant.h"
 #include "Types/MVVMBindingMode.h"
@@ -30,7 +29,6 @@ public:
 	virtual void Deinitialize() override;
 	//~ End UEngineSubsystem interface
 
-public:
 	UFUNCTION(BlueprintCallable, Category="MVVM")
 	UMVVMView* GetViewFromUserWidget(const UUserWidget* UserWidget) const;
 
@@ -64,14 +62,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> Class) const;
 
-public:
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	UMVVMViewModelCollectionObject* GetGlobalViewModelCollection() const
 	{
 		return GlobalViewModelCollection;
 	}
-
-public:
 
 	struct FConstDirectionalBindingArgs
 	{

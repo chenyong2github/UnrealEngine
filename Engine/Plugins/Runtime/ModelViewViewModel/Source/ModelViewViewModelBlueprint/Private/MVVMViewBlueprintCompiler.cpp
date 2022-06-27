@@ -19,7 +19,7 @@ namespace UE::MVVM::Private
 
 void FMVVMViewBlueprintCompiler::AddErrorForBinding(FMVVMBlueprintViewBinding& Binding, const UMVVMBlueprintView* View, const FString& Message) const
 {
-	const FString BindingName = Binding.GetNameString(View);
+	const FString BindingName = Binding.GetDisplayNameString(View);
 	WidgetBlueprintCompilerContext.MessageLog.Error(*(BindingName + TEXT(": ") + Message));
 	Binding.Errors.Add(FText::FromString(BindingName + TEXT(": ") + Message));
 }
@@ -639,7 +639,7 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 		}
 
 		FMVVMViewBlueprintCompiler* Self = this;
-		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields, TArrayView<UE::MVVM::FMVVMConstFieldVariant> SetterFields, const FMemberReference& ConversionFunctionReference) -> TValueOrError<FCompilerBinding, FString>
+		auto AddBinding = [Self](UWidgetBlueprintGeneratedClass* Class, const TArrayView<TArray<UE::MVVM::FMVVMConstFieldVariant>> GetterFields, TArrayView<UE::MVVM::FMVVMConstFieldVariant> SetterFields, const UFunction* ConversionFunction) -> TValueOrError<FCompilerBinding, FString>
 		{
 			FCompilerBinding Result;
 
@@ -667,16 +667,8 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				Result.DestinationWrite = FieldPathResult.GetValue();
 			}
 
-
-			if (!ConversionFunctionReference.GetMemberName().IsNone())
+			if (ConversionFunction != nullptr)
 			{
-				const UFunction* ConversionFunction = ConversionFunctionReference.ResolveMember<UFunction>(Class);
-				if (ConversionFunction == nullptr)
-				{
-					return MakeError(FString::Printf(TEXT("The Conversion Function '%s' could not be resolved.")
-						, *ConversionFunctionReference.GetMemberName().ToString()));
-				}
-
 				TValueOrError<FCompiledBindingLibraryCompiler::FFieldPathHandle, FString> FieldPathResult = Self->BindingLibraryCompiler.AddConversionFunctionFieldPath(Class, ConversionFunction);
 				if (FieldPathResult.HasError())
 				{
@@ -760,7 +752,15 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				}
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, Binding.Conversion.SourceToDestinationFunction);
+			FMemberReference ConversionFunctionRef = Binding.Conversion.SourceToDestinationFunction;
+			if (!Binding.Conversion.SourceToDestinationWrapper.IsNone())
+			{
+				ConversionFunctionRef.SetSelfMember(Binding.Conversion.SourceToDestinationWrapper);
+			}
+
+			const UFunction* ConversionFunction = ConversionFunctionRef.ResolveMember<UFunction>(Class);
+
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, ConversionFunction);
 			if (AddBindingResult.HasError())
 			{
 				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));
@@ -828,7 +828,15 @@ bool FMVVMViewBlueprintCompiler::PreCompileBindings(UWidgetBlueprintGeneratedCla
 				}
 			}
 
-			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, Binding.Conversion.DestinationToSourceFunction);
+			FMemberReference ConversionFunctionRef = Binding.Conversion.DestinationToSourceFunction;
+			if (!Binding.Conversion.DestinationToSourceWrapper.IsNone())
+			{
+				ConversionFunctionRef.SetSelfMember(Binding.Conversion.DestinationToSourceWrapper);
+			}
+
+			const UFunction* ConversionFunction = ConversionFunctionRef.ResolveMember<UFunction>(Class);
+
+			TValueOrError<FCompilerBinding, FString> AddBindingResult = AddBinding(Class, GetterFields, SetterPath, ConversionFunction);
 			if (AddBindingResult.HasError())
 			{
 				AddErrorForBinding(Binding, BlueprintView, FString::Printf(TEXT("The binding could not be created. %s"), *AddBindingResult.GetError()));

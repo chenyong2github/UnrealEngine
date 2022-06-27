@@ -6,7 +6,6 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "MVVMBlueprintViewBinding.h"
 #include "MVVMEditorSubsystem.h"
-#include "MVVMPropertyPathHelpers.h"
 #include "MVVMSubsystem.h"
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/StyleColors.h"
@@ -146,38 +145,6 @@ FReply SMVVMConversionPath::OnButtonClicked() const
 
 void SMVVMConversionPath::SetConversionFunction(const UFunction* Function)
 {
-	TArray<FMVVMBlueprintViewBinding*> ViewBindings = Bindings.Get(TArray<FMVVMBlueprintViewBinding*>());
-	if (ViewBindings.Num() == 0)
-	{
-		return;
-	}
-
-	for (FMVVMBlueprintViewBinding* Binding : ViewBindings)
-	{
-		if (bSourceToDestination)
-		{
-			if (Function)
-			{
-				Binding->Conversion.SourceToDestinationFunction.SetFromField<UFunction>(Function, WidgetBlueprint->SkeletonGeneratedClass);
-			}
-			else
-			{
-				Binding->Conversion.SourceToDestinationFunction = FMemberReference();
-			}
-		}
-		else
-		{
-			if (Function)
-			{
-				Binding->Conversion.DestinationToSourceFunction.SetFromField<UFunction>(Function, WidgetBlueprint->SkeletonGeneratedClass);
-			}
-			else
-			{
-				Binding->Conversion.DestinationToSourceFunction = FMemberReference();
-			}
-		}
-	}
-
 	OnFunctionChanged.ExecuteIfBound(Function);
 }
 
@@ -209,30 +176,23 @@ TSharedRef<SWidget> SMVVMConversionPath::GetFunctionMenuContent()
 		return SNullWidget::NullWidget;
 	}
 
-	TSet<const UFunction*> ConversionFunctions;
+	TSet<UFunction*> ConversionFunctions;
 
-	for (FMVVMBlueprintViewBinding* Binding : ViewBindings)
+	for (const FMVVMBlueprintViewBinding* Binding : ViewBindings)
 	{
-		UE::MVVM::FViewModelFieldPathHelper ViewModelHelper(&Binding->ViewModelPath, WidgetBlueprint);
-		UE::MVVM::FMVVMConstFieldVariant ViewModelField = ViewModelHelper.GetSelectedField();
-
-		UE::MVVM::FWidgetFieldPathHelper WidgetHelper(&Binding->WidgetPath, WidgetBlueprint);
-		UE::MVVM::FMVVMConstFieldVariant WidgetField = WidgetHelper.GetSelectedField();
-
-		UMVVMSubsystem::FConstDirectionalBindingArgs Args;
-		Args.SourceBinding = bSourceToDestination ? ViewModelField : WidgetField;
-		Args.DestinationBinding = bSourceToDestination ? WidgetField : ViewModelField;
+		FMVVMBlueprintPropertyPath SourcePath = bSourceToDestination ? Binding->ViewModelPath : Binding->WidgetPath;
+		FMVVMBlueprintPropertyPath DestPath = bSourceToDestination ? Binding->WidgetPath : Binding->ViewModelPath;
 
 		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		TArray<const UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(Args.SourceBinding, Args.DestinationBinding);
+		TArray<UFunction*> FunctionsForThis = EditorSubsystem->GetAvailableConversionFunctions(WidgetBlueprint, SourcePath, DestPath);
 
 		if (ConversionFunctions.Num() > 0)
 		{
-			ConversionFunctions = ConversionFunctions.Intersect(TSet<const UFunction*>(FunctionsForThis));
+			ConversionFunctions = ConversionFunctions.Intersect(TSet<UFunction*>(FunctionsForThis));
 		}
 		else
 		{
-			ConversionFunctions = TSet<const UFunction*>(FunctionsForThis);
+			ConversionFunctions = TSet<UFunction*>(FunctionsForThis);
 		}
 	}
 

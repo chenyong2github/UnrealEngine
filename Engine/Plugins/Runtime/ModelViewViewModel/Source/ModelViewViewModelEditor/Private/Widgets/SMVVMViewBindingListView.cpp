@@ -2,7 +2,9 @@
 
 #include "Widgets/SMVVMViewBindingListView.h"
 
+#include "Algo/Transform.h"
 #include "Bindings/MVVMBindingHelper.h"
+#include "Blueprint/WidgetTree.h"
 #include "Dialog/SCustomDialog.h"
 #include "Editor.h"
 #include "Styling/AppStyle.h"
@@ -13,10 +15,8 @@
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewBinding.h"
 #include "MVVMEditorSubsystem.h"
-#include "MVVMPropertyPathHelpers.h"
 #include "MVVMSubsystem.h"
 #include "MVVMWidgetBlueprintExtension_View.h"
-#include "ScopedTransaction.h"
 #include "SEnumCombo.h"
 #include "SSimpleButton.h" 
 #include "Styling/MVVMEditorStyle.h"
@@ -71,9 +71,6 @@ public:
 		OnBlueprintChangedHandle = WidgetBlueprint->OnChanged().AddSP(this, &SMVVMViewBindingListEntryRow::HandleBlueprintChanged);
 
 		FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding();
-
-		ViewModelHelper = MakeUnique<UE::MVVM::FViewModelFieldPathHelper>(&ViewModelBinding->ViewModelPath, WidgetBlueprint);
-		WidgetHelper = MakeUnique<UE::MVVM::FWidgetFieldPathHelper>(&ViewModelBinding->WidgetPath, WidgetBlueprint);
 
 		SMultiColumnTableRow<FMVVMViewBindingListEntryPtr>::Construct(
 			FSuperRowType::FArguments()
@@ -137,7 +134,8 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(ViewModelSourceSelector, SMVVMSourceSelector)
-					.PathHelpers(this, &SMVVMViewBindingListEntryRow::GetViewModelHelpers)
+					.AvailableSources(this, &SMVVMViewBindingListEntryRow::GetAvailableViewModels)
+					.SelectedSource(this, &SMVVMViewBindingListEntryRow::GetSelectedViewModel)
 					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnViewModelSelectionChanged)
 				];
 		}
@@ -149,8 +147,9 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(ViewModelFieldSelector, SMVVMFieldSelector)
-					.PathHelpers(GetViewModelHelpers())
-					.CounterpartHelpers(GetWidgetHelpers())
+					.SelectedSource(this, &SMVVMViewBindingListEntryRow::GetSelectedViewModel)
+					.AvailableFields(this, &SMVVMViewBindingListEntryRow::GetAvailableViewModelProperties)
+					.SelectedField(this, &SMVVMViewBindingListEntryRow::GetSelectedViewModelProperty)
 					.BindingMode(this, &SMVVMViewBindingListEntryRow::GetCurrentBindingMode)
 					.IsSource(true)
 					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnViewModelPropertySelectionChanged)
@@ -199,7 +198,8 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(WidgetSourceSelector, SMVVMSourceSelector)
-					.PathHelpers(this, &SMVVMViewBindingListEntryRow::GetWidgetHelpers)
+					.AvailableSources(this, &SMVVMViewBindingListEntryRow::GetAvailableWidgets)
+					.SelectedSource(this, &SMVVMViewBindingListEntryRow::GetSelectedWidget)
 					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnWidgetSelectionChanged)
 				];
 		}
@@ -210,8 +210,9 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SAssignNew(WidgetFieldSelector, SMVVMFieldSelector)
-					.PathHelpers(GetWidgetHelpers())
-					.CounterpartHelpers(GetViewModelHelpers())
+					.SelectedSource(this, &SMVVMViewBindingListEntryRow::GetSelectedWidget)
+					.AvailableFields(this, &SMVVMViewBindingListEntryRow::GetAvailableWidgetProperties)
+					.SelectedField(this, &SMVVMViewBindingListEntryRow::GetSelectedWidgetProperty)
 					.BindingMode(this, &SMVVMViewBindingListEntryRow::GetCurrentBindingMode)
 					.IsSource(false)
 					.OnSelectionChanged(this, &SMVVMViewBindingListEntryRow::OnWidgetPropertySelectionChanged)
@@ -343,21 +344,18 @@ private:
 
 	UMVVMSubsystem::FConstDirectionalBindingArgs GetCurrentBindingArgs(bool bIsGetter) const
 	{
-		UE::MVVM::FMVVMConstFieldVariant ViewModelField = ViewModelHelper->GetSelectedField();
-		UE::MVVM::FMVVMConstFieldVariant WidgetField = WidgetHelper->GetSelectedField();
-
 		const FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding();
 
 		UMVVMSubsystem::FConstDirectionalBindingArgs Args;
 		if (bIsGetter)
 		{
-			Args.SourceBinding = ViewModelField;
-			Args.DestinationBinding = WidgetField;
+			Args.SourceBinding = ViewModelBinding->ViewModelPath.GetFields().Last();
+			Args.DestinationBinding = ViewModelBinding->WidgetPath.GetFields().Last();
 		}
 		else
 		{
-			Args.SourceBinding = WidgetField;
-			Args.DestinationBinding = ViewModelField;
+			Args.SourceBinding = ViewModelBinding->WidgetPath.GetFields().Last();
+			Args.DestinationBinding = ViewModelBinding->ViewModelPath.GetFields().Last();
 		}
 
 		return MoveTemp(Args);
@@ -374,176 +372,244 @@ private:
 			];
 	}
 
-	void OnPreEditChange(FName PropertyName) const
+	void OnConversionFunctionChanged(const UFunction* Function, bool bSourceToDest)
 	{
-		if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			FProperty* ChangedProperty = FMVVMBlueprintViewBinding::StaticStruct()->FindPropertyByName(PropertyName);
-			check(ChangedProperty != nullptr);
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
 
-			FEditPropertyChain EditChain;
-			EditChain.AddTail(UMVVMBlueprintView::StaticClass()->FindPropertyByName("Bindings"));
-			EditChain.AddTail(ChangedProperty);
-			EditChain.SetActivePropertyNode(ChangedProperty);
-
-			BlueprintViewPtr->PreEditChange(EditChain);
+			if (bSourceToDest)
+			{
+				EditorSubsystem->SetSourceToDestinationConversionFunction(WidgetBlueprint, *ViewBinding, Function);
+			} 
+			else
+			{
+				EditorSubsystem->SetDestinationToSourceConversionFunction(WidgetBlueprint, *ViewBinding, Function);
+			}
 		}
 	}
 
-	void OnPostEditChange(FName PropertyName) const
+	TArray<UE::MVVM::FBindingSource> GetAvailableViewModels() const
 	{
-		if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		return EditorSubsystem->GetAllViewModels(WidgetBlueprint);
+	}
+
+	UE::MVVM::FBindingSource GetSelectedViewModel() const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			FProperty* ChangedProperty = FMVVMBlueprintViewBinding::StaticStruct()->FindPropertyByName(PropertyName);
-			check(ChangedProperty != nullptr);
-
-			FEditPropertyChain EditChain;
-			EditChain.AddTail(UMVVMBlueprintView::StaticClass()->FindPropertyByName("Bindings"));
-			EditChain.AddTail(ChangedProperty);
-			EditChain.SetActivePropertyNode(ChangedProperty);
-
-			FPropertyChangedEvent ChangeEvent(ChangedProperty, EPropertyChangeType::ValueSet);
-			FPropertyChangedChainEvent ChainEvent(EditChain, ChangeEvent);
-			BlueprintViewPtr->PostEditChangeChainProperty(ChainEvent);
+			return UE::MVVM::FBindingSource::CreateForViewModel(WidgetBlueprint, ViewBinding->ViewModelPath.GetViewModelId());
 		}
+
+		return UE::MVVM::FBindingSource();
+	}
+
+	TArray<FMVVMBlueprintPropertyPath> GetAvailableViewModelProperties() const
+	{
+		TArray<FMVVMBlueprintPropertyPath> AvailablePaths;
+
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get();
+			if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintViewPtr->FindViewModel(ViewBinding->ViewModelPath.GetViewModelId()))
+			{
+				UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
+				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetViewModelAvailableBindings(ViewModel->GetViewModelClass());
+
+				Algo::Transform(AvailableBindings, AvailablePaths, [ViewModel](const FMVVMAvailableBinding& Binding)
+					{
+						const UClass* Class = ViewModel->GetViewModelClass();
+						FName BindingName = Binding.GetBindingName().ToName();
+						
+						UE::MVVM::FMVVMConstFieldVariant Variant; 
+
+						if (const UFunction* Function = Class->FindFunctionByName(BindingName))
+						{
+							Variant = UE::MVVM::FMVVMConstFieldVariant(Function);
+						}
+						else if (const FProperty* Property = Class->FindPropertyByName(BindingName))
+						{
+							Variant = UE::MVVM::FMVVMConstFieldVariant(Property);
+						}
+
+						FMVVMBlueprintPropertyPath Path;
+
+						if (!Variant.IsEmpty())
+						{
+							Path.SetViewModelId(ViewModel->GetViewModelId());
+							Path.SetBasePropertyPath(Variant);
+						}
+
+						return Path;
+					});
+			}
+		}
+
+		return AvailablePaths;
+	}
+
+	FMVVMBlueprintPropertyPath GetSelectedViewModelProperty() const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			return ViewBinding->ViewModelPath;
+		}
+
+		return FMVVMBlueprintPropertyPath();
 	}
 
 	void OnViewModelSelectionChanged(UE::MVVM::FBindingSource Source)
 	{
-		OnSourceSelectionChanged(Source, ViewModelHelper.Get(), false);
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			const FMVVMBlueprintViewModelContext* ViewModel = BlueprintView.Get()->FindViewModel(Source.ViewModelId);
+
+			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			EditorSubsystem->SetViewModelForBinding(WidgetBlueprint, *ViewBinding, ViewModel != nullptr ? *ViewModel : FMVVMBlueprintViewModelContext());
+		}
+
 		if (ViewModelFieldSelector.IsValid())
 		{
 			ViewModelFieldSelector->Refresh();
 		}
 	}
 
+	TArray<UE::MVVM::FBindingSource> GetAvailableWidgets() const
+	{
+		UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+		return EditorSubsystem->GetBindableWidgets(WidgetBlueprint);
+	}
+	
+	TArray<FMVVMBlueprintPropertyPath> GetAvailableWidgetProperties() const
+	{
+		TArray<FMVVMBlueprintPropertyPath> AvailablePaths;
+
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			UClass* Class = nullptr;
+
+			const FName WidgetName = ViewBinding->WidgetPath.GetWidgetName();
+			if (WidgetName.IsEqual(WidgetBlueprint->GetFName()))
+			{
+				Class = WidgetBlueprint->GeneratedClass;
+			}
+			else if (const UWidget* Widget = WidgetBlueprint->WidgetTree->FindWidget(WidgetName))
+			{
+				Class = Widget->GetClass();
+			}
+
+			if (Class != nullptr)
+			{
+				UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
+				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetWidgetAvailableBindings(Class);
+
+				Algo::Transform(AvailableBindings, AvailablePaths, [Class, WidgetName](const FMVVMAvailableBinding& Binding)
+					{
+						FName BindingName = Binding.GetBindingName().ToName();
+
+						UE::MVVM::FMVVMConstFieldVariant Variant;
+
+						if (const UFunction* Function = Class->FindFunctionByName(BindingName))
+						{
+							Variant = UE::MVVM::FMVVMConstFieldVariant(Function);
+						}
+						else if (const FProperty* Property = Class->FindPropertyByName(BindingName))
+						{
+							Variant = UE::MVVM::FMVVMConstFieldVariant(Property);
+						}
+
+						FMVVMBlueprintPropertyPath Path;
+
+						if (!Variant.IsEmpty())
+						{
+							Path.SetWidgetName(WidgetName);
+							Path.SetBasePropertyPath(Variant);
+						}
+
+						return Path;
+					});
+			}
+		}
+
+		return AvailablePaths;
+	}
+
+	FMVVMBlueprintPropertyPath GetSelectedWidgetProperty() const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			return ViewBinding->WidgetPath;
+		}
+
+		return FMVVMBlueprintPropertyPath();
+	}
+
+	UE::MVVM::FBindingSource GetSelectedWidget() const
+	{
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			return UE::MVVM::FBindingSource::CreateForWidget(WidgetBlueprint, ViewBinding->WidgetPath.GetWidgetName());
+		}
+
+		return UE::MVVM::FBindingSource();
+	}
+
 	void OnWidgetSelectionChanged(UE::MVVM::FBindingSource Source)
 	{
-		OnSourceSelectionChanged(Source, WidgetHelper.Get(), true);
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
+		{
+			GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->SetWidgetForBinding(WidgetBlueprint, *ViewBinding, Source.Name);
+		}
+
 		if (WidgetFieldSelector.IsValid())
 		{
 			WidgetFieldSelector->Refresh();
 		}
 	}
 
-	void OnSourceSelectionChanged(UE::MVVM::FBindingSource SelectedSource, UE::MVVM::IFieldPathHelper* PathHelper, bool bIsWidget)
+	void OnViewModelPropertySelectionChanged(FMVVMBlueprintPropertyPath SelectedField)
 	{
-		if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			FScopedTransaction Transaction(LOCTEXT("SetBindingSource", "Set Binding Source"));
-
-			FName ChangedProperty;
-			if (bIsWidget)
+			if (ViewBinding->ViewModelPath != SelectedField)
 			{
-				ChangedProperty = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath);
-			}
-			else
-			{
-				ChangedProperty = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath);
-			}
+				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+				Subsystem->SetWidgetPropertyForBinding(WidgetBlueprint, *ViewBinding, SelectedField);
 
-			OnPreEditChange(ChangedProperty);
-
-			PathHelper->SetSelectedSource(SelectedSource);
-			PathHelper->ResetBinding(); // Might make sense to keep this around in case we retarget to a compatible widget or switch back.
-
-			OnPostEditChange(ChangedProperty);
-		}
-	}
-
-	void OnViewModelPropertySelectionChanged(UE::MVVM::FMVVMConstFieldVariant SelectedField)
-	{
-		UE::MVVM::FMVVMConstFieldVariant CurrentField = ViewModelHelper->GetSelectedField();
-		if (CurrentField != SelectedField)
-		{
-			OnPropertySelectionChanged(SelectedField, ViewModelHelper.Get(), false);
-
-			if (WidgetFieldSelector.IsValid())
-			{
-				WidgetFieldSelector->Refresh();
+				if (WidgetFieldSelector.IsValid())
+				{
+					WidgetFieldSelector->Refresh();
+				}
 			}
 		}
 	}
 
-	void OnWidgetPropertySelectionChanged(UE::MVVM::FMVVMConstFieldVariant SelectedField)
+	void OnWidgetPropertySelectionChanged(FMVVMBlueprintPropertyPath SelectedField)
 	{
-		UE::MVVM::FMVVMConstFieldVariant CurrentField = WidgetHelper->GetSelectedField();
-		if (CurrentField != SelectedField)
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			OnPropertySelectionChanged(SelectedField, WidgetHelper.Get(), true);
-
-			if (ViewModelFieldSelector.IsValid())
+			if (ViewBinding->WidgetPath != SelectedField)
 			{
-				ViewModelFieldSelector->Refresh();
+				UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+				Subsystem->SetViewModelPropertyForBinding(WidgetBlueprint, *ViewBinding, SelectedField);
+
+				if (ViewModelFieldSelector.IsValid())
+				{
+					ViewModelFieldSelector->Refresh();
+				}
 			}
 		}
-	}
-
-	void OnPropertySelectionChanged(UE::MVVM::FMVVMConstFieldVariant SelectedField, UE::MVVM::IFieldPathHelper* PathHelper, bool bIsWidget)
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetBindingProperty", "Set Binding Property"));
-
-		FName ChangedProperty;
-		if (bIsWidget)
-		{
-			ChangedProperty = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath);
-		}
-		else
-		{
-			ChangedProperty = GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath);
-		}
-
-		OnPreEditChange(ChangedProperty);
-
-		PathHelper->SetBindingReference(SelectedField);
-
-		OnPostEditChange(ChangedProperty);
 	}
 
 	void OnUpdateModeSelectionChanged(int32 Value, ESelectInfo::Type)
 	{
-		if (FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			if (ViewModelBinding->UpdateMode != (EMVVMViewBindingUpdateMode) Value)
-			{
-				FScopedTransaction Transaction(LOCTEXT("SetUpdateMode", "Set Update Mode"));
-
-				OnPreEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, UpdateMode));
-
-				ViewModelBinding->UpdateMode = (EMVVMViewBindingUpdateMode) Value;
-
-				OnPostEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, UpdateMode));
-			}
-		}
+			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			Subsystem->SetUpdateModeForBinding(WidgetBlueprint, *ViewBinding, (EMVVMViewBindingUpdateMode) Value);
+		}			
 	}
-
-	void OnConversionFunctionChanged(const UFunction* Function, bool bSourceToDestination)
-	{
-		if (FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
-		{
-			FScopedTransaction Transaction(LOCTEXT("SetConversionFunction", "Set Conversion Function"));
-
-			FMemberReference NewReference;
-			if (Function != nullptr)
-			{
-				NewReference.SetFromField<UFunction>(Function, WidgetBlueprint->SkeletonGeneratedClass);
-			}
-				
-			OnPreEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, Conversion));
-
-			if (bSourceToDestination)
-			{
-				ViewModelBinding->Conversion.SourceToDestinationFunction = NewReference;
-			}
-			else
-			{
-				ViewModelBinding->Conversion.DestinationToSourceFunction = NewReference;
-			}
-
-			OnPostEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, Conversion));
-		}
-	}
-
 
 	int32 GetUpdateModeValue() const
 	{
@@ -557,17 +623,10 @@ private:
 			return;
 		}
 
-		if (FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			bool bNewEnabled = (NewState == ECheckBoxState::Checked);
-			if (ViewModelBinding->bEnabled != bNewEnabled)
-			{
-				OnPreEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, bEnabled));
-
-				ViewModelBinding->bEnabled = bNewEnabled;
-
-				OnPostEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, bEnabled));
-			}
+			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			Subsystem->SetEnabledForBinding(WidgetBlueprint, *ViewBinding, NewState == ECheckBoxState::Checked);
 		}
 	}
 
@@ -578,20 +637,10 @@ private:
 			return;
 		}
 
-		if (FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
-			bool bNewCompile = (NewState == ECheckBoxState::Checked);
-			if (ViewModelBinding->bCompile != bNewCompile)
-			{
-				if (UMVVMBlueprintView* BlueprintViewPtr = BlueprintView.Get())
-				{
-					BlueprintViewPtr->PreEditChange(UMVVMBlueprintView::StaticClass()->FindPropertyByName("Bindings"));
-
-					ViewModelBinding->bCompile = bNewCompile;
-
-					BlueprintViewPtr->PostEditChange();
-				}
-			}
+			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			Subsystem->SetCompileForBinding(WidgetBlueprint, *ViewBinding, NewState == ECheckBoxState::Checked);
 		}
 	}
 
@@ -675,20 +724,21 @@ private:
 
 	void OnModeSelectionChanged(FName ValueName, ESelectInfo::Type)
 	{
-		if (FMVVMBlueprintViewBinding* ViewModelBinding = GetThisViewBinding())
+		if (FMVVMBlueprintViewBinding* ViewBinding = GetThisViewBinding())
 		{
 			const UEnum* ModeEnum = StaticEnum<EMVVMBindingMode>();
 			EMVVMBindingMode NewMode = (EMVVMBindingMode) ModeEnum->GetValueByName(ValueName);
 
-			if (ViewModelBinding->BindingType != NewMode)
+			UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+			Subsystem->SetBindingTypeForBinding(WidgetBlueprint, *ViewBinding, NewMode);
+
+			if (ViewModelFieldSelector.IsValid())
 			{
-				OnPreEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, BindingType));
-
-				ViewModelBinding->BindingType = NewMode;
-
-				OnPostEditChange(GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, BindingType));
-
 				ViewModelFieldSelector->Refresh();
+			}
+
+			if (WidgetFieldSelector.IsValid())
+			{
 				WidgetFieldSelector->Refresh();
 			}
 		}
@@ -716,16 +766,6 @@ private:
 		return FReply::Handled();
 	}
 
-	TArray<UE::MVVM::IFieldPathHelper*> GetWidgetHelpers() const
-	{
-		return TArray<UE::MVVM::IFieldPathHelper*> { WidgetHelper.Get() };
-	}
-
-	TArray<UE::MVVM::IFieldPathHelper*> GetViewModelHelpers() const
-	{
-		return TArray<UE::MVVM::IFieldPathHelper*> { ViewModelHelper.Get() };
-	}
-
 	void HandleBlueprintChanged(UBlueprint* Blueprint)
 	{
 		ViewModelSourceSelector->Refresh();
@@ -738,8 +778,6 @@ private:
 	FMVVMViewBindingListEntryPtr Entry;
 	TWeakObjectPtr<UMVVMBlueprintView> BlueprintView;
 	UWidgetBlueprint* WidgetBlueprint = nullptr;
-	TUniquePtr<UE::MVVM::FViewModelFieldPathHelper> ViewModelHelper;
-	TUniquePtr<UE::MVVM::FWidgetFieldPathHelper> WidgetHelper;
 	TSharedPtr<SMVVMSourceSelector> ViewModelSourceSelector;
 	TSharedPtr<SMVVMFieldSelector> ViewModelFieldSelector;
 	TSharedPtr<SMVVMSourceSelector> WidgetSourceSelector;
