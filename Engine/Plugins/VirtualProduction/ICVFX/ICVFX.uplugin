@@ -121,6 +121,10 @@
 		{
 			"Name": "EpicStageApp",
 			"Enabled": true
+		},
+		{
+			"Name": "RivermaxMedia",
+			"Enabled": true
 		}
 	]
 }
