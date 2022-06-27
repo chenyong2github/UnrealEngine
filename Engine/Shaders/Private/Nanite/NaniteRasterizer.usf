@@ -112,15 +112,13 @@ uint2 GetVisualizeValues()
 {
 	uint VisualizeValueMax = 0; // InterlockedMax64 using depth (value associated with surviving fragment)
 	uint VisualizeValueAdd = 0; // InterlockedAdd32 (value accumulated with every evaluated fragment)
-	
-	if (VisualizeModeBitMask & NANITE_VISUALIZE_RASTER_MODE)
-	{
-	#if SOFTWARE_RASTER
-		VisualizeValueMax = 2; // Software Raster
-	#else
-		VisualizeValueMax = 1; // Hardware Raster
-	#endif
-	}
+
+	// TODO: Make 32b mask instead of data that is mutually exclusive to a particular active view mode
+#if SOFTWARE_RASTER
+	VisualizeValueMax = 2; // Software Raster
+#else
+	VisualizeValueMax = 1; // Hardware Raster
+#endif
 
 	if (VisualizeModeBitMask & NANITE_VISUALIZE_OVERDRAW)
 	{

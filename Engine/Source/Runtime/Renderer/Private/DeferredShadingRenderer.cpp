@@ -75,6 +75,7 @@
 #include "Lumen/LumenFrontLayerTranslucency.h"
 
 extern int32 GNaniteShowStats;
+extern int32 GNanitePickingDomain;
 
 static TAutoConsoleVariable<int32> CVarClearCoatNormal(
 	TEXT("r.ClearCoatNormal"),
@@ -2808,17 +2809,25 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 				}
 			}
 
-		if (bVisualizeNanite)
-		{
-			Nanite::AddVisualizationPasses(
-				GraphBuilder,
-				Scene,
-				SceneTextures,
+			if (bVisualizeNanite)
+			{
+				FNanitePickingFeedback PickingFeedback = { 0 };
+
+				Nanite::AddVisualizationPasses(
+					GraphBuilder,
+					Scene,
+					SceneTextures,
 					ViewFamily.EngineShowFlags,
-				Views,
-				NaniteRasterResults
-			);
-		}
+					Views,
+					NaniteRasterResults,
+					PickingFeedback
+				);
+
+				OnGetOnScreenMessages.AddLambda([this, PickingFeedback, ScenePtr = Scene](FScreenMessageWriter& ScreenMessageWriter)->void
+				{
+					Nanite::DisplayPicking(ScenePtr, PickingFeedback, ScreenMessageWriter);
+				});
+			}
 		}
 
 		// VisualizeVirtualShadowMap TODO

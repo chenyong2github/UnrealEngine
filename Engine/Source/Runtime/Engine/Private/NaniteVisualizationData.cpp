@@ -6,10 +6,22 @@
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SceneManagement.h"
+#if WITH_EDITORONLY_DATA
+#include "Editor.h"
+#include "LevelEditorViewport.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "FNaniteVisualizationData"
 
 static FNaniteVisualizationData GNaniteVisualizationData;
+
+// Force center crosshair for debug picking, even if mouse control is available
+int32 GNanitePickingCrosshair = 0;
+static FAutoConsoleVariableRef CVarNanitePickingCrosshair(
+	TEXT("r.Nanite.Picking.Crosshair"),
+	GNanitePickingCrosshair,
+	TEXT("")
+);
 
 void FNaniteVisualizationData::Initialize()
 {
@@ -23,11 +35,11 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("Primitives"), LOCTEXT("Primitives", "Primitives"), FModeType::Standard, NANITE_VISUALIZE_PRIMITIVES, true);
 		AddVisualizationMode(TEXT("Instances"), LOCTEXT("Instances", "Instances"), FModeType::Standard, NANITE_VISUALIZE_INSTANCES, true);
 		AddVisualizationMode(TEXT("Overdraw"), LOCTEXT("Overdraw", "Overdraw"), FModeType::Standard, NANITE_VISUALIZE_OVERDRAW, false);
-		AddVisualizationMode(TEXT("MaterialComplexity"), LOCTEXT("MaterialComplexity", "Material Complexity"), FModeType::Standard, NANITE_VISUALIZE_MATERIAL_COMPLEXITY, false);
 		AddVisualizationMode(TEXT("MaterialID"), LOCTEXT("MaterialID", "Material ID"), FModeType::Standard, NANITE_VISUALIZE_MATERIAL_DEPTH, true);
 		AddVisualizationMode(TEXT("LightmapUV"), LOCTEXT("LightmapUV", "Lightmap UV"), FModeType::Standard, NANITE_VISUALIZE_LIGHTMAP_UVS, true);
 		AddVisualizationMode(TEXT("EvaluateWPO"), LOCTEXT("EvaluateWPO", "Evaluate WPO"), FModeType::Standard, NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET, true);
 
+		AddVisualizationMode(TEXT("Picking"), LOCTEXT("Picking", "Picking"), FModeType::Advanced, NANITE_VISUALIZE_PICKING, true);
 		AddVisualizationMode(TEXT("Groups"), LOCTEXT("Groups", "Groups"), FModeType::Advanced, NANITE_VISUALIZE_GROUPS, true);
 		AddVisualizationMode(TEXT("Pages"), LOCTEXT("Pages", "Pages"), FModeType::Advanced, NANITE_VISUALIZE_PAGES, true);
 		AddVisualizationMode(TEXT("Hierarchy"), LOCTEXT("Hierarchy", "Hierarchy"), FModeType::Advanced, NANITE_VISUALIZE_HIERARCHY_OFFSET, true);
@@ -47,6 +59,7 @@ void FNaniteVisualizationData::Initialize()
 		AddVisualizationMode(TEXT("LightmapDataIndex"), LOCTEXT("LightmapDataIndex", "Lightmap Data Index"), FModeType::Advanced, NANITE_VISUALIZE_LIGHTMAP_DATA_INDEX, true);
 		AddVisualizationMode(TEXT("PositionBits"), LOCTEXT("PositionBits", "Position Bits"), FModeType::Advanced, NANITE_VISUALIZE_POSITION_BITS, true);
 		AddVisualizationMode(TEXT("VSMStatic"), LOCTEXT("VSMStatic", "Virtual Shadow Map Static"), FModeType::Advanced, NANITE_VISUALIZE_VSM_STATIC_CACHING, true);
+		AddVisualizationMode(TEXT("MaterialComplexity"), LOCTEXT("MaterialComplexity", "Material Complexity"), FModeType::Advanced, NANITE_VISUALIZE_MATERIAL_COMPLEXITY, false);
 
 		ConfigureConsoleCommand();
 
@@ -290,6 +303,54 @@ FNaniteVisualizationData& GetNaniteVisualizationData()
 	}
 
 	return GNaniteVisualizationData;
+}
+
+void FNaniteVisualizationData::Pick(UWorld* World)
+{
+	if (!IsActive() || GetActiveModeID() != NANITE_VISUALIZE_PICKING)
+	{
+		return;
+	}
+
+	FVector2f NaniteDebugMousePos = FVector2f::ZeroVector;
+	FIntPoint NaniteDebugScreenSize = FIntPoint(0, 0);
+
+	bool bValidPosition = false;
+
+	if (World && World->GetNumPlayerControllers() > 0)
+	{
+		APlayerController* Controller = World->GetFirstPlayerController();
+		Controller->GetMousePosition(NaniteDebugMousePos.X, NaniteDebugMousePos.Y);
+		Controller->GetViewportSize(NaniteDebugScreenSize.X, NaniteDebugScreenSize.Y);
+		bValidPosition = true;
+	}
+#if WITH_EDITORONLY_DATA
+	// While in the editor we don't necessarily have a player controller, so we query the viewport object instead
+	else if (GCurrentLevelEditingViewportClient)
+	{
+		if (GCurrentLevelEditingViewportClient->Viewport->IsCursorVisible())
+		{
+			NaniteDebugMousePos.X = GCurrentLevelEditingViewportClient->Viewport->GetMouseX();
+			NaniteDebugMousePos.Y = GCurrentLevelEditingViewportClient->Viewport->GetMouseY();
+			bValidPosition = true;
+		}
+		
+		NaniteDebugScreenSize = GCurrentLevelEditingViewportClient->Viewport->GetSizeXY();
+	}
+#endif
+
+	if (!bValidPosition || GNanitePickingCrosshair != 0)
+	{
+		NaniteDebugMousePos.X = NaniteDebugScreenSize.X >> 1u;
+		NaniteDebugMousePos.Y = NaniteDebugScreenSize.Y >> 1u;
+	}
+
+	ENQUEUE_RENDER_COMMAND(UpdateNaniteDebugPicking)(
+	[this, NaniteDebugMousePos, NaniteDebugScreenSize](FRHICommandList& RHICmdList)
+	{
+		MousePos = NaniteDebugMousePos;
+		ScreenSize = NaniteDebugScreenSize;
+	});
 }
 
 #undef LOCTEXT_NAMESPACE

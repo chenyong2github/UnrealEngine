@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 
+class UWorld;
 class FNaniteVisualizationData
 {
 public:
@@ -108,6 +109,18 @@ public:
 		return TEXT("r.Nanite.VisualizeOverview");
 	}
 
+	ENGINE_API void Pick(UWorld* World);
+
+	inline const FVector2f& GetPickingMousePos() const
+	{
+		return MousePos;
+	}
+
+	inline const FIntPoint& GetPickingScreenSize() const
+	{
+		return ScreenSize;
+	}
+
 private:
 	/** Internal helper function for creating the Nanite visualization system console commands. */
 	void ConfigureConsoleCommand();
@@ -141,6 +154,10 @@ private:
 	/** Storage for console variable documentation strings. **/
 	FString ConsoleDocumentationVisualizationMode;
 	FString ConsoleDocumentationOverviewTargets;
+
+	/** Mouse picking information */
+	FVector2f MousePos;
+	FIntPoint ScreenSize;
 
 	/** Flag indicating if system is initialized. **/
 	bool bIsInitialized;

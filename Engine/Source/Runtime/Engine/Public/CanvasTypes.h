@@ -1312,10 +1312,15 @@ struct FScreenMessageWriter
 		, Y(InY)
 	{}
 
+	inline void EmptyLine()
+	{
+		Y += 14;
+	}
+
 	void DrawLine(const FText& Message, int32 X = 10, const FLinearColor& Color = FLinearColor(1.0, 0.05, 0.05, 1.0))
 	{
 		Canvas.DrawShadowedText(X, Y, Message, GetStatsFont(), Color);
-		Y += 14;
+		EmptyLine();
 	}
 
 	FCanvas& Canvas;

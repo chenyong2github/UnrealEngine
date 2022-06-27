@@ -6,6 +6,7 @@
 #include "NaniteCullRaster.h"
 
 struct FNaniteMaterialPassCommand;
+struct FScreenMessageWriter;
 
 namespace Nanite
 {
@@ -16,7 +17,14 @@ void AddVisualizationPasses(
 	const FSceneTextures& SceneTextures,
 	const FEngineShowFlags& EngineShowFlags,
 	TArrayView<const FViewInfo> Views,
-	TArrayView<Nanite::FRasterResults> Results
+	TArrayView<Nanite::FRasterResults> Results,
+	FNanitePickingFeedback& PickingFeedback
+);
+
+void DisplayPicking(
+	const FScene* Scene,
+	const FNanitePickingFeedback& PickingFeedback,
+	FScreenMessageWriter& ScreenMessageWriter
 );
 
 #if WITH_DEBUG_VIEW_MODES

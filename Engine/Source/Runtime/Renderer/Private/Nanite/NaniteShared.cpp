@@ -183,6 +183,7 @@ void FGlobalResources::InitRHI()
 #if !UE_BUILD_SHIPPING
 		FeedbackManager = new FFeedbackManager();
 #endif
+		PickingBuffers.AddZeroed(MaxPickingBuffers);
 	}
 }
 
@@ -191,6 +192,17 @@ void FGlobalResources::ReleaseRHI()
 	if (DoesPlatformSupportNanite(GMaxRHIShaderPlatform))
 	{
 		LLM_SCOPE_BYTAG(Nanite);
+
+		for (int32 BufferIndex = 0; BufferIndex < PickingBuffers.Num(); ++BufferIndex)
+		{
+			if (PickingBuffers[BufferIndex])
+			{
+				delete PickingBuffers[BufferIndex];
+				PickingBuffers[BufferIndex] = nullptr;
+			}
+		}
+
+		PickingBuffers.Reset();
 
 		MainPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();
 		PostPassBuffers.StatsRasterizeArgsSWHWBuffer.SafeRelease();

@@ -78,6 +78,7 @@
 #include "Rendering/NaniteStreamingManager.h"
 #include "RectLightTextureManager.h"
 #include "DynamicResolutionState.h"
+#include "NaniteVisualizationData.h"
 
 /*-----------------------------------------------------------------------------
 	Globals
@@ -4553,8 +4554,10 @@ void FRendererModule::BeginRenderingViewFamilies(FCanvas* Canvas, TArrayView<FSc
 		World = Scene->GetWorld();
 		if (World)
 		{
-			//guarantee that all render proxies are up to date before kicking off a BeginRenderViewFamily.
+			// Guarantee that all render proxies are up to date before kicking off a BeginRenderViewFamily.
 			World->SendAllEndOfFrameUpdates();
+
+			GetNaniteVisualizationData().Pick(World);
 		}
 	}
 

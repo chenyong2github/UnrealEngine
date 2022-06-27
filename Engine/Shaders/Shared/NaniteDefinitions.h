@@ -166,41 +166,49 @@
 #define NANITE_RASTERIZER_ARG_COUNT 8u
 
 // Debug Visualization Modes
-#define NANITE_VISUALIZE_OVERVIEW						0u
-#define NANITE_VISUALIZE_TRIANGLES						(1u << 0u)
-#define NANITE_VISUALIZE_CLUSTERS						(1u << 1u)
-#define NANITE_VISUALIZE_PRIMITIVES						(1u << 2u)
-#define NANITE_VISUALIZE_INSTANCES						(1u << 3u)
-#define NANITE_VISUALIZE_GROUPS							(1u << 4u)
-#define NANITE_VISUALIZE_PAGES							(1u << 5u)
-#define NANITE_VISUALIZE_OVERDRAW						(1u << 6u)
-#define NANITE_VISUALIZE_RASTER_MODE					(1u << 7u)
-#define NANITE_VISUALIZE_RASTER_BINS					(1u << 8u)
-#define NANITE_VISUALIZE_SCENE_Z_MIN					(1u << 9u)
-#define NANITE_VISUALIZE_SCENE_Z_MAX					(1u << 10u)
-#define NANITE_VISUALIZE_SCENE_Z_DELTA					(1u << 11u)
-#define NANITE_VISUALIZE_MATERIAL_Z_MIN					(1u << 12u)
-#define NANITE_VISUALIZE_MATERIAL_Z_MAX					(1u << 13u)
-#define NANITE_VISUALIZE_MATERIAL_Z_DELTA				(1u << 14u)
-#define NANITE_VISUALIZE_MATERIAL_COUNT					(1u << 15u)
-#define NANITE_VISUALIZE_MATERIAL_MODE					(1u << 16u)
-#define NANITE_VISUALIZE_MATERIAL_INDEX					(1u << 17u)
-#define NANITE_VISUALIZE_MATERIAL_DEPTH					(1u << 18u)
-#define NANITE_VISUALIZE_MATERIAL_COMPLEXITY			(1u << 19u)
-#define NANITE_VISUALIZE_HIT_PROXY_DEPTH				(1u << 20u)
-#define NANITE_VISUALIZE_NANITE_MASK					(1u << 21u)
-#define NANITE_VISUALIZE_LIGHTMAP_UVS					(1u << 22u)
-#define NANITE_VISUALIZE_LIGHTMAP_UV_INDEX				(1u << 23u)
-#define NANITE_VISUALIZE_LIGHTMAP_DATA_INDEX			(1u << 24u)
-#define NANITE_VISUALIZE_HIERARCHY_OFFSET				(1u << 25u)
-#define NANITE_VISUALIZE_POSITION_BITS					(1u << 26u)
-#define NANITE_VISUALIZE_VSM_STATIC_CACHING				(1u << 27u)
-#define NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET	(1u << 28u)
+#define NANITE_VISUALIZE_OVERVIEW							0u
+#define NANITE_VISUALIZE_TRIANGLES							(1u << 0u)
+#define NANITE_VISUALIZE_CLUSTERS							(1u << 1u)
+#define NANITE_VISUALIZE_PRIMITIVES							(1u << 2u)
+#define NANITE_VISUALIZE_INSTANCES							(1u << 3u)
+#define NANITE_VISUALIZE_GROUPS								(1u << 4u)
+#define NANITE_VISUALIZE_PAGES								(1u << 5u)
+#define NANITE_VISUALIZE_OVERDRAW							(1u << 6u)
+#define NANITE_VISUALIZE_RASTER_MODE						(1u << 7u)
+#define NANITE_VISUALIZE_RASTER_BINS						(1u << 8u)
+#define NANITE_VISUALIZE_SCENE_Z_MIN						(1u << 9u)
+#define NANITE_VISUALIZE_SCENE_Z_MAX						(1u << 10u)
+#define NANITE_VISUALIZE_SCENE_Z_DELTA						(1u << 11u)
+#define NANITE_VISUALIZE_MATERIAL_Z_MIN						(1u << 12u)
+#define NANITE_VISUALIZE_MATERIAL_Z_MAX						(1u << 13u)
+#define NANITE_VISUALIZE_MATERIAL_Z_DELTA					(1u << 14u)
+#define NANITE_VISUALIZE_MATERIAL_COUNT						(1u << 15u)
+#define NANITE_VISUALIZE_MATERIAL_MODE						(1u << 16u)
+#define NANITE_VISUALIZE_MATERIAL_INDEX						(1u << 17u)
+#define NANITE_VISUALIZE_MATERIAL_DEPTH						(1u << 18u)
+#define NANITE_VISUALIZE_MATERIAL_COMPLEXITY				(1u << 19u)
+#define NANITE_VISUALIZE_HIT_PROXY_DEPTH					(1u << 20u)
+#define NANITE_VISUALIZE_NANITE_MASK						(1u << 21u)
+#define NANITE_VISUALIZE_LIGHTMAP_UVS						(1u << 22u)
+#define NANITE_VISUALIZE_LIGHTMAP_UV_INDEX					(1u << 23u)
+#define NANITE_VISUALIZE_LIGHTMAP_DATA_INDEX				(1u << 24u)
+#define NANITE_VISUALIZE_HIERARCHY_OFFSET					(1u << 25u)
+#define NANITE_VISUALIZE_POSITION_BITS						(1u << 26u)
+#define NANITE_VISUALIZE_VSM_STATIC_CACHING					(1u << 27u)
+#define NANITE_VISUALIZE_EVALUATE_WORLD_POSITION_OFFSET		(1u << 28u)
+#define NANITE_VISUALIZE_PICKING							(1u << 29u)
+
+#define NANITE_PICKING_DOMAIN_TRIANGLE		0
+#define NANITE_PICKING_DOMAIN_CLUSTER		1
+#define NANITE_PICKING_DOMAIN_INSTANCE		2
+#define NANITE_PICKING_DOMAIN_PRIMITIVE		3
 
 #if defined(__cplusplus)
 #define UINT_TYPE unsigned int
+#define  INT_TYPE int
 #else
 #define UINT_TYPE uint
+#define  INT_TYPE int
 #endif
 
 struct FNaniteStats
@@ -225,4 +233,32 @@ struct FNaniteStats
 	UINT_TYPE NumEmptyShadingBins;
 };
 
+struct FNanitePickingFeedback
+{
+	UINT_TYPE PixelX;
+	UINT_TYPE PixelY;
+	UINT_TYPE PrimitiveId;
+	UINT_TYPE InstanceId;
+
+	UINT_TYPE PersistentIndex;
+	UINT_TYPE ClusterIndex;
+	UINT_TYPE GroupIndex;
+	UINT_TYPE PageIndex;
+
+	UINT_TYPE TriangleIndex;
+	UINT_TYPE DepthInt;
+	UINT_TYPE RasterSlot;
+	UINT_TYPE RasterMode;
+
+	UINT_TYPE MaterialSlot;
+	UINT_TYPE MaterialIndex;
+	UINT_TYPE MaterialDepthId;
+	UINT_TYPE MaterialCount;
+
+	UINT_TYPE MaterialMode;
+	UINT_TYPE HierarchyOffset;
+	UINT_TYPE RuntimeResourceID;
+};
+
+#undef  INT_TYPE
 #undef UINT_TYPE

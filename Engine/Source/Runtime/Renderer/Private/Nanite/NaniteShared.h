@@ -150,6 +150,11 @@ public:
 	uint32 StatsRenderFlags = 0;
 	uint32 StatsDebugFlags = 0;
 
+	const int32 MaxPickingBuffers = 4;
+	int32 PickingBufferWriteIndex = 0;
+	int32 PickingBufferNumPending = 0;
+	TArray<FRHIGPUBufferReadback*> PickingBuffers;
+
 public:
 	virtual void InitRHI() override;
 	virtual void ReleaseRHI() override;

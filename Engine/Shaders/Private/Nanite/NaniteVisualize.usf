@@ -24,6 +24,9 @@ ByteAddressBuffer		MaterialHitProxyTable;
 int4					VisualizeConfig;
 int4					VisualizeScales;
 uint					RegularMaterialRasterSlotCount;
+int2					PickingPixelPos;
+
+RWStructuredBuffer<FNanitePickingFeedback> FeedbackBuffer;
 
 // TODO: Try N.V to improve shading look
 float3 ApplySobelFilter(uint2 PixelPosXY, uint DepthInt, float3 Color, float3 OutlineColor, bool bDarkOutline)
@@ -85,6 +88,11 @@ uint GetVisualizeMode()
 	return VisualizeConfig.x;
 }
 
+uint GetPickingDomain()
+{
+	return VisualizeConfig.y;
+}
+
 float GetOverdrawScale()
 {
 	return clamp(float(VisualizeScales.x), 0.0f, 100.0f) / 100.0f;
@@ -108,8 +116,9 @@ bool ShouldApplySobelFilter()
 [numthreads(8, 8, 1)]
 void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 {
-	const uint2 PixelPos = DTID.xy;
-	const uint2 TilePos  = GID.xy; // 8x8 tile 2D coord
+	const uint2 PickingPos	= uint2(PickingPixelPos);
+	const uint2 PixelPos	= DTID.xy;
+	const uint2 TilePos		= GID.xy; // 8x8 tile 2D coord
 
 	const UlongType VisPixel = VisBuffer64[PixelPos];
 
@@ -125,11 +134,10 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 	uint ResolvedMaterialSlot = 0;
 	UnpackMaterialResolve(MaterialResolve[PixelPos], IsNanitePixel, IsDecalReceiver, ResolvedMaterialSlot);
 
-	const float3 Velocity = float3(0.0f, 0.0f, 0.0f);
-
 	float3 Result = float3(0, 0, 0);
 	float3 OutlineColor = 1;
 	bool bDarkOutline = false;
+	bool bApplySobel = true;
 
 	if (VisibleClusterIndex != 0xFFFFFFFF && (!GetCompositeWithSceneDepth() | IsNanitePixel))
 	{
@@ -320,6 +328,57 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		{
 			Result = ShouldCacheInstanceAsStatic(InstanceData) ? float3(0, 1, 0) : float3(1, 0, 0);
 		}
+		else if (VisualizeMode == NANITE_VISUALIZE_PICKING)
+		{
+			bApplySobel = false;
+
+			const UlongType PickedVisPixel = VisBuffer64[PickingPos];
+
+			uint PickedDepthInt;
+			uint PickedVisibleClusterIndex;
+			uint PickedTriIndex;
+			UnpackVisPixel(PickedVisPixel, PickedDepthInt, PickedVisibleClusterIndex, PickedTriIndex);
+
+			FVisibleCluster PickedVisibleCluster	= GetVisibleCluster(PickedVisibleClusterIndex);
+			FInstanceSceneData PickedInstanceData	= GetInstanceSceneData(PickedVisibleCluster, false);
+
+			bool bPicked = false;
+			switch (GetPickingDomain())
+			{
+				case NANITE_PICKING_DOMAIN_TRIANGLE:
+					bPicked = (VisibleClusterIndex == PickedVisibleClusterIndex && PickedTriIndex == TriIndex);
+					Result = IntToColor(TriIndex) * 0.8 + 0.2;
+					break;
+
+				case NANITE_PICKING_DOMAIN_CLUSTER:
+					bPicked = (VisibleClusterIndex == PickedVisibleClusterIndex);
+					Result = IntToColor(VisibleCluster.ClusterIndex) * 0.8;
+					break;
+
+				case NANITE_PICKING_DOMAIN_INSTANCE:
+					bPicked = (VisibleCluster.InstanceId == PickedVisibleCluster.InstanceId);
+					Result = IntToColor(VisibleCluster.InstanceId) * 0.8;
+					break;
+
+				case NANITE_PICKING_DOMAIN_PRIMITIVE:
+					bPicked = (InstanceData.PrimitiveId == PickedInstanceData.PrimitiveId);
+					Result = IntToColor(InstanceData.PrimitiveId) * 0.8;
+					break;
+
+				default:
+					// Invalid picking domain
+					break;
+			}
+
+			if (bPicked)
+			{
+				Result = float3(1.0f, 0.0f, 1.0f);
+			}
+			else
+			{
+				Result *= 0.3f;
+			}
+		}
 	}
 	else
 	{
@@ -334,10 +393,73 @@ void VisualizeCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
 		}
 	}
 
-	if (ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsNanitePixel))
+	if (bApplySobel && ShouldApplySobelFilter() && (!GetCompositeWithSceneDepth() | IsNanitePixel))
 	{
 		Result = ApplySobelFilter(PixelPos, DepthInt, Result, OutlineColor, bDarkOutline);
 	}
 
 	DebugOutput[PixelPos] = float4(Result, 0);
+}
+
+[numthreads(1, 1, 1)]
+void PickingCS(uint3 DTID : SV_DispatchThreadID, uint3 GID : SV_GroupID)
+{
+	FNanitePickingFeedback FeedbackResults = (FNanitePickingFeedback)0;
+
+	const uint2 PickingPos	= uint2(PickingPixelPos);
+	FeedbackResults.PixelX = PickingPos.x;
+	FeedbackResults.PixelY = PickingPos.y;
+
+	const UlongType PickedPixel = VisBuffer64[PickingPos];
+
+	uint DepthInt;
+	uint VisibleClusterIndex;
+	uint TriIndex;
+	UnpackVisPixel(PickedPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+	FNaniteView NaniteView = GetNaniteView(0);
+
+	bool IsNanitePixel = false;
+	bool IsDecalReceiver = false;
+	uint ResolvedMaterialSlot = 0;
+	UnpackMaterialResolve(MaterialResolve[PickingPos], IsNanitePixel, IsDecalReceiver, ResolvedMaterialSlot);
+
+	if (VisibleClusterIndex != 0xFFFFFFFFu && IsNanitePixel)
+	{
+		UlongType DbgPixel = DbgBuffer64[PickingPos];
+		uint DebugDepthInt;
+		uint DebugValueMax;
+		UnpackDbgPixel(DbgPixel, DebugDepthInt, DebugValueMax);
+		uint DebugValueAdd = DbgBuffer32[PickingPos];
+
+		FVisibleCluster VisibleCluster				= GetVisibleCluster(VisibleClusterIndex);
+		FInstanceSceneData InstanceData				= GetInstanceSceneData(VisibleCluster, false);
+		FInstanceDynamicData InstanceDynamicData	= CalculateInstanceDynamicData(NaniteView, InstanceData);
+		FPrimitiveSceneData PrimitiveData			= GetPrimitiveData(InstanceData.PrimitiveId);
+		FCluster Cluster							= GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+
+		FeedbackResults.PrimitiveId			= InstanceData.PrimitiveId;
+		FeedbackResults.InstanceId			= VisibleCluster.InstanceId;
+		FeedbackResults.PersistentIndex		= PrimitiveData.PersistentPrimitiveIndex;
+		FeedbackResults.ClusterIndex		= VisibleCluster.ClusterIndex;
+		FeedbackResults.GroupIndex			= Cluster.GroupIndex;
+		FeedbackResults.PageIndex			= VisibleCluster.PageIndex;
+		FeedbackResults.TriangleIndex		= TriIndex;
+		FeedbackResults.DepthInt			= DepthInt;
+		FeedbackResults.RasterSlot			= GetMaterialRasterSlot(Cluster, InstanceData.PrimitiveId, TriIndex, RegularMaterialRasterSlotCount, MaterialSlotTable);
+		FeedbackResults.RasterMode			= DebugValueMax;
+		FeedbackResults.MaterialSlot		= ResolvedMaterialSlot;
+		FeedbackResults.MaterialIndex		= GetRelativeMaterialIndex(Cluster, TriIndex);
+		FeedbackResults.MaterialDepthId		= GetMaterialDepthId(ResolvedMaterialSlot, MaterialDepthTable);
+		FeedbackResults.MaterialCount		= GetMaterialCount(Cluster);
+		FeedbackResults.MaterialMode		= IsMaterialFastPath(Cluster) ? 0u : 1u;
+		FeedbackResults.HierarchyOffset		= InstanceData.NaniteHierarchyOffset;
+		FeedbackResults.RuntimeResourceID	= InstanceData.NaniteRuntimeResourceID;
+	}
+	else
+	{
+		FeedbackResults.PrimitiveId			= INVALID_PRIMITIVE_ID;
+	}
+
+	FeedbackBuffer[0] = FeedbackResults;
 }
