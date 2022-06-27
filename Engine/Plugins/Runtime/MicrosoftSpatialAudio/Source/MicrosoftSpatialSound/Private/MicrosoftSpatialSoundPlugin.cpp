@@ -193,7 +193,7 @@ void FMicrosoftSpatialSound::Initialize(const FAudioPluginInitializationParams I
 	// Spatial sound processes 1% of the frames per callback
 	MinFramesRequiredPerObjectUpdate = InitParams.SampleRate / 100;
 
-	SAC = WindowsMixedReality::SpatialAudioClient::CreateSpatialAudioClient();
+	SAC = SpatialAudioClient::CreateSpatialAudioClient();
 	if (SAC)
 	{
 		bool bSuccess = SAC->Start(InitParams.NumSources, InitParams.SampleRate);
@@ -338,7 +338,7 @@ uint32 FMicrosoftSpatialSound::Run()
 	{
 		if (SAC->WaitTillBufferCompletionEvent())
 		{
-			UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound buffer completion event timed out."));
+			//UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound buffer completion event timed out."));
 		}
 
 		// We need to lock while updating the spatial renderer		
@@ -395,54 +395,51 @@ uint32 FMicrosoftSpatialSound::Run()
 	return 0;
 }
 
+#if PLATFORM_DESKTOP
+	#if PLATFORM_64BITS
+		#define TARGET_ARCH TEXT("x64")
+	#endif
+#else //HoloLens
+	#if PLATFORM_CPU_ARM_FAMILY
+		#if (defined(__aarch64__) || defined(_M_ARM64))
+			#define TARGET_ARCH TEXT("arm64")
+		#endif
+	#else
+		#if PLATFORM_64BITS
+			#define TARGET_ARCH TEXT("x64")
+		#endif
+	#endif
+#endif
 
 void FMicrosoftSpatialSoundModule::StartupModule()
 {
-#if PLATFORM_WINDOWS
-	FString OSVersionLabel;
-	FString OSSubVersionLabel;
-	FPlatformMisc::GetOSVersions(OSVersionLabel, OSSubVersionLabel);
+	const FString LibraryName = "SpatialAudioClientInterop";
 
-	if (!OSVersionLabel.Contains(TEXT("Windows 10")) && !OSVersionLabel.Contains(TEXT("Windows 11")))
-	{
-		UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Microsoft Spatial Sound for Unreal currently only supports windows 10 and windows 11)"));
-		return;
-	}
+	const FString DllName = FString::Printf(TEXT("%s.dll"), *LibraryName);
 
-	// Load the mixed reality interop library
-	FString EngineDir = FPaths::EngineDir();
-	FString BinariesSubDir = FPlatformProcess::GetBinariesSubdirectory();
-#if WINDOWS_MIXED_REALITY_DEBUG_DLL_SPATSOUND
-	FString DLLName(TEXT("MixedRealityInteropDebug.dll"));
-#else // WINDOWS_MIXED_REALITY_DEBUG_DLL
-	FString DLLName(TEXT("MixedRealityInterop.dll"));
-#endif // WINDOWS_MIXED_REALITY_DEBUG_DLL
-	FString MRInteropLibraryPath = EngineDir / "Binaries/ThirdParty/Windows/x64" / DLLName;
-
-#if PLATFORM_64BITS
-	// Load these dependencies first or MixedRealityInteropLibraryHandle fails to load since it doesn't look in the correct path for its dependencies automatically
-	FString HoloLensLibraryDir = EngineDir / "Binaries/ThirdParty/Windows/x64";
-	FPlatformProcess::PushDllDirectory(*HoloLensLibraryDir);
-	FPlatformProcess::GetDllHandle(_TEXT("PerceptionDevice.dll"));
-	FPlatformProcess::GetDllHandle(_TEXT("Microsoft.Holographic.AppRemoting.dll"));
-	FPlatformProcess::PopDllDirectory(*HoloLensLibraryDir);
-#endif // PLATFORM_64BITS && WITH_EDITOR	
-	
-	// Then finally try to load the WMR Interop Library
-	void* MixedRealityInteropLibraryHandle = !MRInteropLibraryPath.IsEmpty() ? FPlatformProcess::GetDllHandle(*MRInteropLibraryPath) : nullptr;
-	if (!MixedRealityInteropLibraryHandle)
-	{
-		UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Failed to load the microsoft mixed reality interop DLL"));
-
-		return;
-	}
+#if UE_BUILD_DEBUG && !defined(NDEBUG)	// Use !defined(NDEBUG) to check to see if we actually are linking with Debug third party libraries (bDebugBuildsActuallyUseDebugCRT)
+	const FString ConfigName = "Debug";
+#else
+	const FString ConfigName = "Release";
 #endif
+
+	const FString ThirdPartyDir = FPaths::EngineDir() / "Binaries/ThirdParty" / LibraryName / FPlatformProperties::IniPlatformName() / ConfigName / TARGET_ARCH;
+
+	LibraryHandle = FPlatformProcess::GetDllHandle(*(ThirdPartyDir / DllName));
+	if (LibraryHandle == nullptr)
+	{
+		UE_LOG(LogMicrosoftSpatialSound, Warning, TEXT("Failed to load the SpatialAudioClientInterop DLL"));
+	}
 
 	IModularFeatures::Get().RegisterModularFeature(FMicrosoftSpatialSoundPluginFactory::GetModularFeatureName(), &PluginFactory);
 }
 
 void FMicrosoftSpatialSoundModule::ShutdownModule()
 {
+	if (LibraryHandle != nullptr)
+	{
+		FPlatformProcess::FreeDllHandle(LibraryHandle);
+	}
 }
 
 IMPLEMENT_MODULE(FMicrosoftSpatialSoundModule, MicrosoftSpatialSound)

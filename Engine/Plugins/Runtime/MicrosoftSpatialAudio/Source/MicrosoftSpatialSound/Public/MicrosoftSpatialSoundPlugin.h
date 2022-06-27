@@ -10,7 +10,7 @@
 #include "HAL/RunnableThread.h"
 #include "Templates/Function.h"
 #include "Containers/Queue.h"
-#include "MixedRealityInterop.h"
+#include "SpatialAudioClientInterop.h"
 
 // Struct to hold dynamic object data for Microsoft Spatial Sound API
 struct FSpatialSoundSourceObjectData
@@ -97,7 +97,7 @@ private:
 	// If the spatial audio render thread is running
 	FThreadSafeBool bIsRendering;
 
-	WindowsMixedReality::SpatialAudioClient* SAC;
+	SpatialAudioClient* SAC;
 
 	bool bIsInitialized;
 
@@ -134,5 +134,6 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+	void* LibraryHandle = nullptr;
 	FMicrosoftSpatialSoundPluginFactory PluginFactory;
 };

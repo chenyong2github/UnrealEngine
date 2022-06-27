@@ -174,16 +174,34 @@ void* FHoloLensProcess::GetDllHandle(const TCHAR* Filename)
 	if (DllDirectoryStack.Num() > 0)
 	{
 		// If a path has been pushed on the stack use that
-		FString Path = DllDirectoryStack.Top() / PackageRelativePath;
-		return ::LoadPackagedLibrary(*Path, 0ul);
+		PackageRelativePath = DllDirectoryStack.Top() / PackageRelativePath;
 	}
 	else
 	{
 		// Incoming paths are relative to the BaseDir, but LoadPackagedLibrary wants package relative
 		// which in UE terms is the RootDir.
 		FPaths::MakePathRelativeTo(PackageRelativePath, *(FPaths::RootDir() + TEXT("/")));
-		return ::LoadPackagedLibrary(*PackageRelativePath, 0ul);
 	}
+
+	DWORD ErrorMode = 0;
+	DWORD PrevErrorMode = 0;
+	BOOL bHavePrevErrorMode = ::SetThreadErrorMode(ErrorMode, &PrevErrorMode);
+
+	// Load the DLL, avoiding windows dialog boxes if missing
+	void* const Handle = ::LoadPackagedLibrary(*PackageRelativePath, 0ul);
+
+	if (Handle == nullptr)
+	{
+		DWORD Error = GetLastError();
+		ensureMsgf(DllDirectoryStack.Num() > 0, TEXT("GetDllHandle failed for %s Error %d"), Filename, Error);
+	}
+
+	if (bHavePrevErrorMode)
+	{
+		::SetThreadErrorMode(PrevErrorMode, NULL);
+	}
+
+	return Handle;
 }
 
 void FHoloLensProcess::FreeDllHandle(void* DllHandle)
