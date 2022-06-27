@@ -4,6 +4,58 @@
 
 namespace UE::Online {
 
+const TCHAR* LexToString(ESessionsComparisonOp Comparison)
+{
+	switch (Comparison)
+	{
+	case ESessionsComparisonOp::Equals:				return TEXT("Equals");
+	case ESessionsComparisonOp::NotEquals:			return TEXT("NotEquals");
+	case ESessionsComparisonOp::GreaterThan:		return TEXT("GreaterThan");
+	case ESessionsComparisonOp::GreaterThanEquals:	return TEXT("GreaterThanEquals");
+	case ESessionsComparisonOp::LessThan:			return TEXT("LessThan");
+	case ESessionsComparisonOp::LessThanEquals:		return TEXT("LessThanEquals");
+	default:										checkNoEntry(); // Intentional fallthrough
+	case ESessionsComparisonOp::Near:				return TEXT("Near");
+	}
+}
+
+void LexFromString(ESessionsComparisonOp& OutComparison, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("Equals")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::Equals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("NotEquals")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::NotEquals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GreaterThan")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::GreaterThan;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("GreaterThanEquals")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::GreaterThanEquals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("LessThan")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::LessThan;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("LessThanEquals")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::LessThanEquals;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Near")) == 0)
+	{
+		OutComparison = ESessionsComparisonOp::Near;
+	}
+	else
+	{
+		checkNoEntry();
+		OutComparison = ESessionsComparisonOp::Near;
+	}
+}
+
 const TCHAR* LexToString(ECustomSessionSettingVisibility Value)
 {
 	switch (Value)
@@ -251,6 +303,20 @@ FSessionSettingsUpdate& FSessionSettingsUpdate::operator+=(FSessionSettingsUpdat
 	}
 
 	return *this;
+}
+
+FSession::FSession()
+{
+
+}
+
+FSession::FSession(const FSession& InSession)
+	: OwnerUserId(InSession.OwnerUserId)
+	, SessionId(InSession.SessionId)
+	, CurrentState(InSession.CurrentState)
+	, SessionSettings(InSession.SessionSettings)
+{
+
 }
 
 /* UE::Online */ }

@@ -10,6 +10,7 @@
 #include "Online/PresenceNull.h"
 #include "Online/TitleFileNull.h"
 #include "Online/UserFileNull.h"
+#include "Online/SessionsNull.h"
 
 namespace UE::Online {
 
@@ -39,50 +40,87 @@ void FOnlineServicesNull::RegisterComponents()
 	Components.Register<FAuthNull>(*this);
 	Components.Register<FPresenceNull>(*this);
 	Components.Register<FStatsNull>(*this);
-#if WITH_ENGINE
 	Components.Register<FLobbiesNull>(*this);
-#endif
 	Components.Register<FTitleFileNull>(*this);
 	Components.Register<FUserFileNull>(*this);
+	Components.Register<FSessionsNull>(*this);
 	FOnlineServicesCommon::RegisterComponents();
 }
 
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesNull::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
-#if WITH_ENGINE
-	ILobbiesPtr LobbiesPtr = GetLobbiesInterface();
-	check(LobbiesPtr);
-
-	TOnlineResult<FGetJoinedLobbies> JoinedLobbies = LobbiesPtr->GetJoinedLobbies({ Params.LocalUserId });
-	if (JoinedLobbies.IsOk())
+	if(Params.LobbyId.IsValid())
 	{
-		for (TSharedRef<const FLobby>& Lobby : JoinedLobbies.GetOkValue().Lobbies)
+		ILobbiesPtr LobbiesPtr = GetLobbiesInterface();
+		check(LobbiesPtr);
+
+		TOnlineResult<FGetJoinedLobbies> JoinedLobbies = LobbiesPtr->GetJoinedLobbies({ Params.LocalUserId });
+		if (JoinedLobbies.IsOk())
 		{
-			if (Lobby->LobbyId == Params.LobbyId)
+			for (TSharedRef<const FLobby>& Lobby : JoinedLobbies.GetOkValue().Lobbies)
 			{
-				FName Tag = FName(TEXT("ConnectAddress")); // todo: global tag
-				if(Lobby->Attributes.Contains(Tag))
+				if (Lobby->LobbyId == Params.LobbyId)
 				{
-					FGetResolvedConnectString::Result Result;
-					Result.ResolvedConnectString = Lobby->Attributes[Tag].GetString();
- 					return TOnlineResult<FGetResolvedConnectString>(Result);
-				}
-				else
-				{
-					continue;
+					FName Tag = FName(TEXT("ConnectAddress")); // todo: global tag
+					if(Lobby->Attributes.Contains(Tag))
+					{
+						FGetResolvedConnectString::Result Result;
+						Result.ResolvedConnectString = Lobby->Attributes[Tag].GetString();
+ 						return TOnlineResult<FGetResolvedConnectString>(Result);
+					}
+					else
+					{
+						continue;
+					}
 				}
 			}
+
+			// No matching lobby
+			return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
 		}
-		// No matching lobby
-		return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
+		else
+		{
+			return TOnlineResult<FGetResolvedConnectString>(JoinedLobbies.GetErrorValue());
+		}
+	}
+	else if (Params.SessionId.IsValid())
+	{
+		ISessionsPtr SessionsPtr = GetSessionsInterface();
+		check(SessionsPtr);
+
+		FGetAllSessions::Params GetAllSessionsParams;
+		TOnlineResult<FGetAllSessions> JoinedSessions = SessionsPtr->GetAllSessions(MoveTemp(GetAllSessionsParams));
+		if (JoinedSessions.IsOk())
+		{
+			for (TSharedRef<const FSession>& Session : JoinedSessions.GetOkValue().Sessions)
+			{
+				if (Session->SessionId == Params.SessionId)
+				{
+					if (Session->SessionSettings.CustomSettings.Contains(CONNECT_STRING_TAG))
+					{
+						FGetResolvedConnectString::Result Result;
+						Result.ResolvedConnectString = Session->SessionSettings.CustomSettings[CONNECT_STRING_TAG].Data.Get<FString>();
+						return TOnlineResult<FGetResolvedConnectString>(Result);
+					}
+					else
+					{
+						continue;
+					}
+				}
+			}
+
+			// No matching session
+			return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
+		}
+		else
+		{
+			return TOnlineResult<FGetResolvedConnectString>(JoinedSessions.GetErrorValue());
+		}
 	}
 	else
 	{
-		return TOnlineResult<FGetResolvedConnectString>(JoinedLobbies.GetErrorValue());
+		return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
 	}
-#else
-	return Super::GetResolvedConnectString(MoveTemp(Params));
-#endif
 }
 
 void FOnlineServicesNull::Initialize()

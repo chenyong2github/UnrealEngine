@@ -9,9 +9,33 @@
 
 namespace UE::Online {
 
+enum class ESessionsComparisonOp : uint8
+{
+	Equals,
+	NotEquals,
+	GreaterThan,
+	GreaterThanEquals,
+	LessThan,
+	LessThanEquals,
+	Near
+};
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(ESessionsComparisonOp EnumVal);
+ONLINESERVICESINTERFACE_API void LexFromString(ESessionsComparisonOp& OutComparison, const TCHAR* InStr);
+
 struct FFindSessionsSearchFilter
 {
-	// TODO: Will share this type with Lobbies, so the implementation will be identical for now
+	// TODO: Will change after SchemaVariant work
+
+	using FVariantType = TVariant<FString, int64, double, bool>;
+
+	/** Name of the custom setting to be used as filter */
+	FName Key;
+
+	/** The type of comparison to perform */
+	ESessionsComparisonOp ComparisonOp;
+
+	/** Value to use when comparing the filter */
+	FVariantType Value;
 };
 
 enum class ECustomSessionSettingVisibility : uint8
@@ -177,8 +201,11 @@ struct FSessionSettingsUpdate
 	FSessionSettingsUpdate& operator+=(FSessionSettingsUpdate&& UpdatedValue);
 };
 
-struct FSession
+struct ONLINESERVICESINTERFACE_API FSession
 {
+	FSession();
+	FSession(const FSession& InSession);
+
 	/** The user who currently owns the session */
 	FOnlineAccountIdHandle OwnerUserId;
 
@@ -215,7 +242,7 @@ struct FGetAllSessions
 
 	struct Result
 	{
-		TArray<TSharedRef<FSession>> Sessions;
+		TArray<TSharedRef<const FSession>> Sessions;
 	};
 };
 
@@ -230,7 +257,9 @@ struct FGetSessionByName
 
 	struct Result
 	{
-		TSharedRef<FSession> Session;
+		TSharedRef<const FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -245,7 +274,9 @@ struct FGetSessionById
 
 	struct Result
 	{
-		TSharedRef<FSession> Session;
+		TSharedRef<const FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -264,13 +295,15 @@ struct FCreateSession
 		/** Settings object to define session properties during creation */
 		FSessionSettings SessionSettings;
 
-		/** Local users who will be joining the session on successful creation, along with the session creator */
+		/** Information for all local users who will join the session (includes the session creator) */
 		FSessionMembersMap LocalUsers;
 	};
 
 	struct Result
 	{
 		TSharedRef<const FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -293,6 +326,8 @@ struct FUpdateSession
 	struct Result
 	{
 		TSharedRef<const FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -308,13 +343,16 @@ struct FLeaveSession
 		/* The local name for the session. */
 		FName SessionName;
 
+		/** Ids for local users (other than the main caller) who will also be leaving the session */
+		TArray<FOnlineAccountIdHandle> AdditionalLocalUsers;
+
 		/* Whether the call should attempt to destroy the session instead of just leave it */
 		bool bDestroySession;
 	};
 
 	struct Result
 	{
-		TSharedRef<const FSession> Session;
+
 	};
 };
 
@@ -352,7 +390,10 @@ struct FStartMatchmaking
 
 	struct Params
 	{
-		/* Local users who will be joining the session */
+		/** The local user agent which will perform the action. */
+		FOnlineAccountIdHandle LocalUserId;
+
+		/* Information for all local users who will join the session (includes the session creator) */
 		FSessionMembersMap LocalUsers;
 
 		/* Local name for the session */
@@ -368,6 +409,8 @@ struct FStartMatchmaking
 	struct Result
 	{
 		TSharedRef<const FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -384,15 +427,17 @@ struct FJoinSession
 		FName SessionName;
 
 		/* A reference to the session to be joined. */
-		TSharedRef<FSession> Session;
+		TSharedRef<const FSession> Session;
 
-		/* Local users who will be joining the session. */
+		/* Information for all local users who will join the session (includes the session creator)*/
 		FSessionMembersMap LocalUsers;
 	};
 
 	struct Result
 	{
 		TSharedRef<const FSession> Session;
+
+		Result() = delete; // cannot default construct due to TSharedRef
 	};
 };
 
@@ -503,7 +548,7 @@ struct FSessionJoined
 	TArray<FOnlineAccountIdHandle> LocalUserIds;
 
 	/* A shared reference to the session joined. */
-	TSharedRef<FSession> Session;
+	TSharedRef<const FSession> Session;
 };
 
 struct FSessionLeft
@@ -822,11 +867,11 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FLeaveSession::Params)
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, SessionName),
+	ONLINE_STRUCT_FIELD(FLeaveSession::Params, AdditionalLocalUsers),
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, bDestroySession)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FLeaveSession::Result)
-	ONLINE_STRUCT_FIELD(FLeaveSession::Result, Session)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FFindSessions::Params)
@@ -842,6 +887,7 @@ BEGIN_ONLINE_STRUCT_META(FFindSessions::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FStartMatchmaking::Params)
+	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, LocalUsers),
 	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionName),
 	ONLINE_STRUCT_FIELD(FStartMatchmaking::Params, SessionSettings),

@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "NboSerializer.h"
 #include "Online/AuthNull.h"
+#include "Online/LobbiesNull.h"
+#include "Online/SessionsNull.h"
 #include "Online/CoreOnline.h"
 
 /**
@@ -33,6 +35,14 @@ public:
 	friend inline FNboSerializeToBufferNullSvc& operator<<(FNboSerializeToBufferNullSvc& Ar, const FOnlineAccountIdHandle& UniqueId)
 	{
 		TArray<uint8> Data = FOnlineAccountIdRegistryNull::Get().ToReplicationData(UniqueId);
+		Ar << Data.Num();
+		Ar.WriteBinary(Data.GetData(), Data.Num());
+		return Ar;
+	}
+
+	friend inline FNboSerializeToBufferNullSvc& operator<<(FNboSerializeToBufferNullSvc& Ar, const FOnlineSessionIdHandle& SessionId)
+	{
+		TArray<uint8> Data = FOnlineSessionIdRegistryNull::Get().ToReplicationData(SessionId);
 		Ar << Data.Num();
 		Ar.WriteBinary(Data.GetData(), Data.Num());
 		return Ar;
@@ -73,6 +83,16 @@ public:
 		Ar >> Size;
 		Ar.ReadBinaryArray(Data, Size);
 		UniqueId = FOnlineAccountIdRegistryNull::Get().FromReplicationData(Data);
+		return Ar;
+	}
+
+	friend inline FNboSerializeFromBufferNullSvc& operator>>(FNboSerializeFromBufferNullSvc& Ar, FOnlineSessionIdHandle& SessionId)
+	{
+		TArray<uint8> Data;
+		int32 Size;
+		Ar >> Size;
+		Ar.ReadBinaryArray(Data, Size);
+		SessionId = FOnlineSessionIdRegistryNull::Get().FromReplicationData(Data);
 		return Ar;
 	}
 	
