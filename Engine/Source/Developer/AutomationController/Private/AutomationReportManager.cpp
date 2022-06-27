@@ -91,6 +91,10 @@ void FAutomationReportManager::GetEnabledTestNames(TArray<FString>& OutEnabledTe
 	ReportRoot->GetEnabledTestNames(OutEnabledTestNames,FString());
 }
 
+void FAutomationReportManager::GetFilteredTestNames(TArray<FString>& OutFilteredTestNames) const
+{
+	ReportRoot->GetFilteredTestNames(OutFilteredTestNames, FString());
+}
 
 void FAutomationReportManager::SetEnabledTests(const TArray<FString>& EnabledTests)
 {

@@ -24,6 +24,7 @@
 #include "Widgets/Input/SSpinBox.h"
 #include "SAutomationWindowCommandBar.h"
 #include "AutomationFilter.h"
+#include "AutomationGroupFilter.h"
 #include "AutomationPresetManager.h"
 #include "SAutomationTestItemContextMenu.h"
 #include "SAutomationTestItem.h"
@@ -40,6 +41,7 @@
 #include "Widgets/Input/SHyperlink.h"
 #include "Internationalization/Regex.h"
 #include "AutomationWindowStyle.h"
+#include "AutomationControllerSettings.h"
 
 
 #define LOCTEXT_NAMESPACE "AutomationTest"
@@ -171,9 +173,11 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 	// Create the search filter and set criteria
 	AutomationTextFilter = MakeShareable( new AutomationReportTextFilter( AutomationReportTextFilter::FItemToStringArray::CreateSP( this, &SAutomationWindow::PopulateReportSearchStrings ) ) );
 	AutomationGeneralFilter = MakeShareable( new FAutomationFilter() ); 
+	AutomationGroupFilter = MakeShareable( new FAutomationGroupFilter() );
 	AutomationFilters = MakeShareable( new AutomationFilterCollection() );
 	AutomationFilters->Add( AutomationTextFilter );
 	AutomationFilters->Add( AutomationGeneralFilter );
+	AutomationFilters->Add( AutomationGroupFilter );
 
 	bIsRequestingTests = false;
 
@@ -275,6 +279,26 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 	RequestedFilterComboList.Add(MakeShareable(new FString(TEXT("Standard Tests"))));
 	RequestedFilterComboList.Add(MakeShareable(new FString(TEXT("Negative Tests"))));
 
+	UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
+	TArray<FAutomatedTestGroup> TestGroups = Settings->Groups;
+	GroupComboList.Empty();
+	GroupFiltersMap.Empty();
+	if (TestGroups.Num() > 0)
+	{
+		const FString AllGroups = TEXT("All Groups");
+		GroupComboList.Add(MakeShareable(new FString(AllGroups)));
+		GroupFiltersMap.Add(AllGroups, TArray<FAutomatedTestFilter>());
+		for (int TestGroupIdx = 0; TestGroupIdx < TestGroups.Num(); TestGroupIdx++)
+		{
+			GroupComboList.Add(MakeShareable(new FString(TestGroups[TestGroupIdx].Name)));
+			GroupFiltersMap.Add(TestGroups[TestGroupIdx].Name, TestGroups[TestGroupIdx].Filters);
+		}
+	}
+	else
+	{
+		GroupComboBox->SetVisibility(EVisibility::Collapsed);
+	}
+	
 	TSharedRef<SNotificationList> NotificationList = SNew(SNotificationList) .Visibility( EVisibility::HitTestInvisible );
 
 	//build the actual guts of the window
@@ -347,6 +371,26 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 												[
 													SNew(STextBlock)
 													.Text(this, &SAutomationWindow::GetRequestedFilterComboText)
+												]
+											]
+										]
+
+										+ SHorizontalBox::Slot()
+										.AutoWidth()
+										.VAlign(VAlign_Center)
+										[
+											SNew(SBox)
+											.MinDesiredWidth(130.0f)
+											[
+												SAssignNew(GroupComboBox, SComboBox< TSharedPtr<FString> >)
+												.OptionsSource(&GroupComboList)
+												.InitiallySelectedItem(GroupComboList[0])
+												.OnGenerateWidget(this, &SAutomationWindow::GenerateGroupComboItem)
+												.OnSelectionChanged(this, &SAutomationWindow::HandleGroupChanged)
+												.ContentPadding(FMargin(4.0, 1.0f))
+												[
+													SNew(STextBlock)
+													.Text(this, &SAutomationWindow::GetGroupComboText)
 												]
 											]
 										]
@@ -989,6 +1033,11 @@ void SAutomationWindow::HandleRequesteFilterChanged(TSharedPtr<FString> Item, ES
 	AutomationController->SetRequestedTestFlags(NewRequestedFlags);
 }
 
+void SAutomationWindow::HandleGroupChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo)
+{
+	AutomationGroupFilter->SetFilters(GroupFiltersMap[*Item.Get()]);
+	OnRefreshTestCallback();
+}
 
 void SAutomationWindow::ExpandEnabledTests( TSharedPtr< IAutomationReport > InReport )
 {
@@ -1057,6 +1106,17 @@ FText SAutomationWindow::GetRequestedFilterComboText() const
 	}
 }
 
+FText SAutomationWindow::GetGroupComboText() const
+{
+	if (GroupComboBox->GetSelectedItem().IsValid())
+	{
+		return FText::FromString(*GroupComboBox->GetSelectedItem());
+	}
+	else
+	{
+		return LOCTEXT("AutomationGroupComboLabel", "All Groups");
+	}
+}
 
 TSharedRef<SWidget> SAutomationWindow::GeneratePresetComboItem(TSharedPtr<FAutomationTestPreset> InItem)
 {
@@ -1073,6 +1133,12 @@ TSharedRef<SWidget> SAutomationWindow::GeneratePresetComboItem(TSharedPtr<FAutom
 }
 
 TSharedRef<SWidget> SAutomationWindow::GenerateRequestedFilterComboItem(TSharedPtr<FString> InItem)
+{
+	return SNew(STextBlock)
+		.Text(FText::FromString(*InItem));
+}
+
+TSharedRef<SWidget> SAutomationWindow::GenerateGroupComboItem(TSharedPtr<FString> InItem)
 {
 	return SNew(STextBlock)
 		.Text(FText::FromString(*InItem));

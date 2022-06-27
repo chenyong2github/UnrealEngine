@@ -255,6 +255,9 @@ public:
 	/** Gets the names of all the enabled tests */
 	virtual void GetEnabledTestNames(TArray<FString>& OutEnabledTestNames, FString CurrentPath) const = 0;
 
+	/** Gets the names of all the filtered tests */
+	virtual void GetFilteredTestNames(TArray<FString>& OutFilteredTestNames, FString CurrentPath) const = 0;
+
 	/** Sets which tests are enabled based off the enabled tests list */
 	virtual void SetEnabledTests(const TArray<FString>& EnabledTests, FString CurrentPath) = 0;
 

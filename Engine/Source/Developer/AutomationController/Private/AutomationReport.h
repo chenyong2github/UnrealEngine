@@ -32,6 +32,7 @@ public:
 	virtual int32 GetTotalNumFilteredChildren() const override;
 	virtual int32 GetEnabledTestsNum() const override;
 	virtual void GetEnabledTestNames(TArray<FString>& OutEnabledTestNames, FString CurrentPath) const override;
+	virtual void GetFilteredTestNames(TArray<FString>& OutFilteredTestNames, FString CurrentPath) const override;
 	virtual void SetEnabledTests(const TArray<FString>& EnabledTests, FString CurrentPath) override;
 	virtual bool IsEnabled() const override;
 	virtual void SetEnabled(bool bShouldBeEnabled) override;

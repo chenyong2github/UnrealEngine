@@ -278,6 +278,11 @@ public:
 		ReportManager.GetEnabledTestNames(OutEnabledTestNames);
 	}
 
+	virtual void GetFilteredTestNames(TArray<FString>& OutFilteredTestNames) const override
+	{
+		ReportManager.GetFilteredTestNames(OutFilteredTestNames);
+	}
+
 	virtual void SetEnabledTests(const TArray<FString>& EnabledTests) override
 	{
 		ReportManager.SetEnabledTests(EnabledTests);

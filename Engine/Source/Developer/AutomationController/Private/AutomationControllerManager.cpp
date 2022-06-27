@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#include "AutomationControllerManager.h"
 #include "CoreMinimal.h"
 #include "HAL/FileManager.h"
 #include "Misc/CommandLine.h"
@@ -15,7 +16,6 @@
 #include "Modules/ModuleManager.h"
 #include "AssetEditorMessages.h"
 #include "ImageComparer.h"
-#include "AutomationControllerManager.h"
 #include "AutomationControllerSettings.h"
 #include "Interfaces/IScreenShotToolsModule.h"
 #include "Serialization/JsonSerializer.h"

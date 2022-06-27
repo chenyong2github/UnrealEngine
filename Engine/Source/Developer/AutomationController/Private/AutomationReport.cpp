@@ -136,6 +136,40 @@ void FAutomationReport::GetEnabledTestNames(TArray<FString>& OutEnabledTestNames
 	return;
 }
 
+void FAutomationReport::GetFilteredTestNames(TArray<FString>& OutFilteredTestNames, FString CurrentPath) const
+{
+	// start from FilteredChildReports
+	if (CurrentPath.IsEmpty())
+	{
+		for (int32 FilteredChildIndex = 0; FilteredChildIndex < FilteredChildReports.Num(); ++FilteredChildIndex)
+		{
+			FilteredChildReports[FilteredChildIndex]->GetFilteredTestNames(OutFilteredTestNames, TestInfo.GetDisplayName());
+		}
+	}
+	else // then continue collecting all leaf nodes
+	{
+		//if this is a leaf collect full test name
+		if (FilteredChildReports.Num() == 0)
+		{
+			const FString FullTestName = CurrentPath.Len() > 0 ? CurrentPath.AppendChar(TCHAR('.')) + TestInfo.GetDisplayName() : TestInfo.GetDisplayName();
+			OutFilteredTestNames.Add(FullTestName);
+		}
+		else
+		{
+			if (!CurrentPath.IsEmpty())
+			{
+				CurrentPath += TEXT(".");
+			}
+			CurrentPath += TestInfo.GetDisplayName();
+			//recurse through the hierarchy
+			for (int32 ChildIndex = 0; ChildIndex < FilteredChildReports.Num(); ++ChildIndex)
+			{
+				FilteredChildReports[ChildIndex]->GetFilteredTestNames(OutFilteredTestNames, CurrentPath);
+			}
+		}
+	}
+	return;
+}
 
 void FAutomationReport::SetEnabledTests(const TArray<FString>& InEnabledTests, FString CurrentPath)
 {
@@ -682,7 +716,6 @@ void FAutomationReport::GetEnabledTestReports(TArray<TSharedPtr<IAutomationRepor
 		}
 	}
 }
-
 
 const bool FAutomationReport::HasErrors()
 {

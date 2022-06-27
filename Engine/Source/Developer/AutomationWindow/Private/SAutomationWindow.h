@@ -22,6 +22,8 @@
 #endif
 
 class FAutomationFilter;
+class FAutomationGroupFilter;
+struct FAutomatedTestFilter;
 class FAutomationTestPresetManager;
 class FUICommandList;
 class SAutomationWindowCommandBar;
@@ -221,6 +223,13 @@ private:
 	 * @return New combo item widget.
 	 */
 	TSharedRef<SWidget> GenerateRequestedFilterComboItem(TSharedPtr<FString> InItem);
+
+	/**
+	 * Creates a combo item for a test group.
+	 *
+	 * @return New combo item widget.
+	 */
+	TSharedRef<SWidget> GenerateGroupComboItem(TSharedPtr<FString> InItem);
 		
 	/**
 	 * Populates OutSearchStrings with the strings that should be used in searching.
@@ -470,6 +479,8 @@ private:
 	void HandlePresetChanged( TSharedPtr<FAutomationTestPreset> Item, ESelectInfo::Type SelectInfo );
 	/** Called when the user changes the requested test filter */
 	void HandleRequesteFilterChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
+	/** Called when the user changes the test group */
+	void HandleGroupChanged(TSharedPtr<FString> Item, ESelectInfo::Type SelectInfo);
 
 	/** Expands the test tree to show all enabled tests. */
 	void ExpandEnabledTests( TSharedPtr< IAutomationReport > InReport );
@@ -478,6 +489,8 @@ private:
 	FText GetPresetComboText() const;
 	/** Gets the text to display for the requested filter combo box. */
 	FText GetRequestedFilterComboText() const;
+	/** Gets the combo box text to display for the selected group. */
+	FText GetGroupComboText() const;
 
 	/**
 	 * Handle the copy button clicked in the command bar.
@@ -577,6 +590,9 @@ private:
 	/** The automation general filter - for smoke tests / warnings and Errors. */
 	TSharedPtr< FAutomationFilter > AutomationGeneralFilter;
 
+	/** The automation group filter - filters tests based on selected group filter. */
+	TSharedPtr< FAutomationGroupFilter > AutomationGroupFilter;
+
 	/** The automation filter collection - contains the automation filters. */
 	TSharedPtr< AutomationFilterCollection > AutomationFilters;
 
@@ -613,6 +629,13 @@ private:
 	/** Holds a pointer to the preset combo box widget. */
 	TSharedPtr< SComboBox< TSharedPtr<FString> > >	RequestedFilterComboBox;
 	TArray< TSharedPtr< FString > >					RequestedFilterComboList;
+
+	/** Holds a pointer to the groups combo box widget. */
+	TSharedPtr< SComboBox< TSharedPtr<FString> > >	GroupComboBox;
+	TArray< TSharedPtr< FString > >					GroupComboList;
+
+	/** Map for fast access of test group filters by name. */
+	TMap< FString, TArray<FAutomatedTestFilter> > GroupFiltersMap;
 
 	/** Holds a pointer to the preset text box. */
 	TSharedPtr<SEditableTextBox> PresetTextBox;

@@ -71,6 +71,9 @@ public:
 	/** Gets the names of enabled tests. */
 	void GetEnabledTestNames(TArray<FString>& OutEnabledTestNames) const;
 
+	/** Gets the names of filtered tests. */
+	void GetFilteredTestNames(TArray<FString>& OutFilteredTestNames) const;
+
 	/** Sets the enabled tests based off the passed list of enabled tests. */
 	void SetEnabledTests(const TArray<FString>& EnabledTests);
 

@@ -15,6 +15,7 @@
 #include "Misc/FileHelper.h"
 #include "AssetRegistry/AssetRegistryModule.h"
 #include "AutomationControllerSettings.h"
+#include "AutomationGroupFilter.h"
 #include "Containers/Ticker.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogAutomationCommandLine, Log, All);
@@ -124,17 +125,13 @@ public:
 		return false;
 	}
 
-
-	
-	void GenerateTestNamesFromCommandLine(const TArray<FString>& AllTestNames, TArray<FString>& OutTestNames)
+	void GenerateTestNamesFromCommandLine(TSharedPtr <AutomationFilterCollection> InFilters, TArray<FString>& OutFilteredTestNames)
 	{
-		OutTestNames.Empty();
+		OutFilteredTestNames.Empty();
 		
 		//Split the argument names up on +
 		TArray<FString> ArgumentNames;
 		StringCommand.ParseIntoArray(ArgumentNames, TEXT("+"), true);
-
-		TArray<FAutomatedTestFilter> Filters;
 
 		// get our settings CDO where things are stored
 		UAutomationControllerSettings* Settings = UAutomationControllerSettings::StaticClass()->GetDefaultObject<UAutomationControllerSettings>();
@@ -160,7 +157,8 @@ public:
 					FilterName += TEXT(".");
 				}
 
-				Filters.Add(FAutomatedTestFilter(FilterName, true));
+				FAutomationGroupFilter* Filter = new FAutomationGroupFilter(FAutomatedTestFilter(FilterName, true, false));
+				InFilters->Add(MakeShareable(Filter));
 			}
 			else if (ArgumentName.StartsWith(GroupPrefix))
 			{
@@ -178,10 +176,8 @@ public:
 						// if found add all this groups filters to our current list
 						if (GroupEntry->Filters.Num() > 0)
 						{
-							for (const FAutomatedTestFilter& GroupFilter : GroupEntry->Filters)
-							{
-								Filters.Add(GroupFilter);
-							}
+							FAutomationGroupFilter* Filter = new FAutomationGroupFilter(GroupEntry->Filters);
+							InFilters->Add(MakeShareable(Filter));
 						}
 						else
 						{
@@ -211,50 +207,15 @@ public:
 					ArgumentName.LeftChopInline(1);
 				}
 
-				Filters.Add(FAutomatedTestFilter(ArgumentName, bMatchFromStart, bMatchFromEnd));
-			}
-		}
-		
-		for (int32 TestIndex = 0; TestIndex < AllTestNames.Num(); ++TestIndex)
-		{
-			FString TestName = AllTestNames[TestIndex];
-
-			for (const FAutomatedTestFilter& Filter : Filters)
-			{
-				FString FilterString = Filter.Contains;
-
-				bool bNeedStartMatch = Filter.MatchFromStart;
-				bool bNeedEndMatch = Filter.MatchFromEnd;
-				bool bMeetsMatch = true;	// assume true
-
-				// If we need to match at the start or end, 
-				if (bNeedStartMatch || bNeedEndMatch)
-				{
-					if (bNeedStartMatch)
-					{
-						bMeetsMatch = TestName.StartsWith(FilterString);
-					}
-
-					if (bNeedEndMatch && bMeetsMatch)
-					{
-						bMeetsMatch = TestName.EndsWith(FilterString);
-					}
-				}
-				else
-				{
-					// match anywhere
-					bMeetsMatch = TestName.Contains(FilterString);
-				}
-
-				if (bMeetsMatch)
-				{
-					OutTestNames.Add(TestName);
-					TestCount++;
-					break;
-				}
+				FAutomationGroupFilter* Filter = new FAutomationGroupFilter(FAutomatedTestFilter(ArgumentName, bMatchFromStart, bMatchFromEnd));
+				InFilters->Add(MakeShareable(Filter));
 			}
 		}
 
+		// SetFilter applies all filters from the AutomationFilters array
+		AutomationController->SetFilter(InFilters);
+		// Fill OutFilteredTestNames array with filtered test names
+		AutomationController->GetFilteredTestNames(OutFilteredTestNames);
 	}
 
 	void FindWorkers(float DeltaTime)
@@ -312,7 +273,8 @@ public:
 
 		// We have found some workers
 		// Create a filter to add to the automation controller, otherwise we don't get any reports
-		AutomationController->SetFilter(MakeShareable(new AutomationFilterCollection()));
+		TSharedPtr <AutomationFilterCollection> AutomationFilters = MakeShareable(new AutomationFilterCollection());
+		AutomationController->SetFilter(AutomationFilters);
 		AutomationController->SetVisibleTestsEnabled(true);
 		AutomationController->GetEnabledTestNames(AllTestNames);
 
@@ -333,7 +295,7 @@ public:
 		else if (AutomationCommand == EAutomationCommand::RunCommandLineTests)
 		{
 			TArray<FString> FilteredTestNames;
-			GenerateTestNamesFromCommandLine(AllTestNames, FilteredTestNames);
+			GenerateTestNamesFromCommandLine(AutomationFilters, FilteredTestNames);
 			
 			if (FilteredTestNames.Num() == 0)
 			{

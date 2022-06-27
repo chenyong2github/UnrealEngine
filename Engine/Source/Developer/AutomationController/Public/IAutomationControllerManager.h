@@ -273,6 +273,13 @@ public:
 	virtual void GetEnabledTestNames(TArray<FString>& OutEnabledTestNames) const = 0;
 
 	/**
+	* Gets the names of all the filtered tests.
+	*
+	* @param OutFilteredTestNames The list to populate with filtered test names.
+	*/
+	virtual void GetFilteredTestNames(TArray<FString>& OutFilteredTestNames) const = 0;
+
+	/**
 	 * Sets any tests that match a name in the enabled tests array.
 	 *
 	 * @param EnabledTests An array of test names that will be enabled.
