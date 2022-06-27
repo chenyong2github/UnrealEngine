@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 		protected override void GetValidVersionRange(out string MinVersion, out string MaxVersion)
 		{
 			// all that matters is the number after the v, according to TryConvertVersionToInt()
-			MinVersion = "v10_clang-5.0.0-centos7";
+			MinVersion = "v20_clang-13.0.1-centos7";
 			MaxVersion = "v20_clang-13.0.1-centos7";
 		}
 
