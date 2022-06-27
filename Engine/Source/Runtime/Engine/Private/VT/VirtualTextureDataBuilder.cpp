@@ -308,7 +308,7 @@ bool FVirtualTextureBuilderDerivedInfo::InitializeFromBuildSettings(const FTextu
 	return true;
 }
 
-void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, const FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync)
+void FVirtualTextureDataBuilder::Build(FTextureSourceData& InSourceData, FTextureSourceData& InCompositeSourceData, const FTextureBuildSettings* InSettingsPerLayer, bool bAllowAsync)
 {
 	const int32 NumLayers = InSourceData.Layers.Num();
 	checkf(NumLayers <= (int32)VIRTUALTEXTURE_DATA_MAXLAYERS, TEXT("The maximum amount of layers is exceeded."));
@@ -348,9 +348,9 @@ void FVirtualTextureDataBuilder::Build(const FTextureSourceData& InSourceData, c
 	BuildSourcePixels(InSourceData, InCompositeSourceData);
 
 	// processed data is now in SourceBlocks , original InSourceData not needed anymore
-	// @todo Oodle : free InSourceData (and InCompositeSourceData) now ?
-	// InSourceData.ReleaseMemory();
-	// InCompositeSourceData.ReleaseMemory();
+	// can free InSourceData (and InCompositeSourceData) now
+	InSourceData.ReleaseMemory();
+	InCompositeSourceData.ReleaseMemory();
 
 	// override async compression if requested
 	bAllowAsync = bAllowAsync && CVarVTParallelTileCompression.GetValueOnAnyThread();

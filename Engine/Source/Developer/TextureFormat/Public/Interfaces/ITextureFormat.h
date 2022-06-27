@@ -194,7 +194,7 @@ public:
 	/**
 	 * Compresses a single image.
 	 *
-	 * @param Image The input image.
+	 * @param Image The input image.  Image.RawData may be freed or modified by CompressImage; do not use after calling this.
 	 * @param BuildSettings Build settings.
 	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
@@ -202,7 +202,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool CompressImage(
-		const struct FImage& Image,
+		FImage& Image,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
@@ -212,7 +212,7 @@ public:
 	/**
 	 * Compress an image (or images for a miptail) into a single mip blob.
 	 *
-	 * @param Images The input image(s)
+	 * @param Images The input image(s).  Image.RawData may be freed or modified by CompressImage; do not use after calling this.
 	 * @param NumImages The number of images (for a miptail, this number should match what was returned in GetExtendedDataForTexture, mostly used for verification)
 	 * @param BuildSettings Build settings.
 	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
@@ -222,7 +222,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool CompressImageEx(
-		const struct FImage* Images,
+		FImage* Images,
 		const uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,
@@ -249,7 +249,7 @@ public:
 	/**
 	 * Compress an image (or images for a miptail) into a single mip blob with device-specific tiling.
 	 *
-	 * @param Image The input image.
+	 * @param Image The input image.  May be freed!
 	 * @param BuildSettings Build settings.
 	 * @param bImageHasAlphaChannel true if the image has a non-white alpha channel.
 	 * @param DebugTexturePathName The path name of the texture we are building, for debug logging/filtering/dumping.
@@ -258,7 +258,7 @@ public:
 	 * @returns true on success, false otherwise.
 	 */
 	virtual bool CompressImageTiled(
-		const struct FImage* Images,
+		FImage* Images,
 		uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,

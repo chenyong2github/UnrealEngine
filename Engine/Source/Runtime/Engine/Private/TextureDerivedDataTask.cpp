@@ -424,21 +424,22 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 		{
 			DerivedData->VTData = new FVirtualTextureBuiltData();
 		}
+		
+		FVirtualTextureBuilderDerivedInfo PredictedInfo;
+		PredictedInfo.InitializeFromBuildSettings(TextureData, InBuildSettingsPerLayer.GetData());
 
 		FVirtualTextureDataBuilder Builder(*DerivedData->VTData, TexturePathName, Compressor, ImageWrapper);
 		Builder.Build(TextureData, CompositeTextureData, &InBuildSettingsPerLayer[0], true);
+
+		// TextureData was freed by Build (FTextureSourceData.ReleaseMemory), don't use it from here down
 
 		DerivedData->SizeX = DerivedData->VTData->Width;
 		DerivedData->SizeY = DerivedData->VTData->Height;
 		DerivedData->PixelFormat = DerivedData->VTData->LayerTypes[0];
 		DerivedData->SetNumSlices(1);
 
-		{
-			// Verify our predicted count matches.
-			FVirtualTextureBuilderDerivedInfo Info;
-			Info.InitializeFromBuildSettings(TextureData, InBuildSettingsPerLayer.GetData());
-			check(Info.NumMips == DerivedData->VTData->GetNumMips());
-		}
+		// Verify our predicted count matches.
+		check(PredictedInfo.NumMips == DerivedData->VTData->GetNumMips());
 
 		bool bCompressionValid = true;
 		if (CVarVTValidateCompressionOnSave.GetValueOnAnyThread())
@@ -483,6 +484,12 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 			// This can happen if user attempts to use lightmaps or other layered VT without VT enabled
 			UE_LOG(LogTexture, Log, TEXT("Texture %s has %d layers but VirtualTexturing is not enabled, only the first layer will be available"),
 				*TexturePathName, TextureData.Layers.Num());
+		}
+
+		int32 PredictedNumMips;
+		{
+			const TArray<FImage>& SourceMips = TextureData.Blocks[0].MipsPerLayer[0];
+			PredictedNumMips = Compressor->GetMipCountForBuildSettings(SourceMips[0].SizeX, SourceMips[0].SizeY, SourceMips[0].NumSlices, SourceMips.Num(), InBuildSettingsPerLayer[0]);
 		}
 
 		check(DerivedData->Mips.Num() == 0);
@@ -573,13 +580,8 @@ void FTextureCacheDerivedDataWorker::BuildTexture(TArray<FTextureBuildSettings>&
 
 			DerivedData->SetOptData(OptData);
 
-			{
-				// Verify our predicted count matches.
-				const TArray<FImage>& SourceMips = TextureData.Blocks[0].MipsPerLayer[0];
-				int32 NumMips = Compressor->GetMipCountForBuildSettings(SourceMips[0].SizeX, SourceMips[0].SizeY, SourceMips[0].NumSlices, SourceMips.Num(), InBuildSettingsPerLayer[0]);
-				check (NumMips == CompressedMips.Num());
-			}
-
+			// verify PredictedNumMips matches
+			check (PredictedNumMips == CompressedMips.Num());
 
 			// Store it in the cache.
 			// @todo: This will remove the streaming bulk data, which we immediately reload below!

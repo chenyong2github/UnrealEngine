@@ -487,7 +487,7 @@ public:
 	}
 
 	virtual bool CompressImage(
-		const FImage& InImage,
+		FImage& InImage,
 		const struct FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,

@@ -170,7 +170,7 @@ public:
 	}
 
 	bool CompressBaseImage(
-		const FImage& InImage,
+		FImage& InImage,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,
@@ -189,7 +189,7 @@ public:
 	}
 
 	bool CompressBaseImageTiled(
-		const FImage* Images,
+		FImage* Images,
 		uint32 NumImages,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,

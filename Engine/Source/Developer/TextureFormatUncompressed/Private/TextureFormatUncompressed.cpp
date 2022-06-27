@@ -174,7 +174,7 @@ class FTextureFormatUncompressed : public ITextureFormat
 	}
 
 	virtual bool CompressImage(
-		const FImage& InImage,
+		FImage& InImage,
 		const FTextureBuildSettings& BuildSettings,
 		FStringView DebugTexturePathName,
 		bool bImageHasAlphaChannel,

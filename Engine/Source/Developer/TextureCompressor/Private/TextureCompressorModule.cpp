@@ -2903,9 +2903,10 @@ void FTextureBuildSettings::GetEncodedTextureDescription(FEncodedTextureDescript
 }
 
 // compress mip-maps in InMipChain and add mips to Texture, might alter the source content
+// MipChain FImage payloads are freed by this function (RawData.Empty() is called)
 static bool CompressMipChain(
 	const ITextureFormat* TextureFormat,
-	const TArray<FImage>& MipChain,
+	TArray<FImage>& MipChain, 
 	const FTextureBuildSettings& Settings,
 	const bool bImageHasAlphaChannel,
 	FStringView DebugTexturePathName,
@@ -2983,6 +2984,14 @@ static bool CompressMipChain(
 				ExtData,
 				OutMips[MipIndex]
 			);
+
+			// note: MipChain[MipIndex].RawData may be freed or mutated by CompressImage
+			// do not use it after the call to CompressImage
+			// go ahead and free it now if CompressImage didn't :
+			for(int MipSubIndex=0;MipSubIndex<MipsToCompress;MipSubIndex++)
+			{
+				MipChain[MipIndex+MipSubIndex].RawData.Empty();
+			}
 		}
 
 		return bSuccess;

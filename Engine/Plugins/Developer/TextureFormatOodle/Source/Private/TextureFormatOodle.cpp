@@ -991,7 +991,7 @@ public:
 		return true;
 	}
 
-	virtual bool CompressImage(const FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
+	virtual bool CompressImage(FImage& InImage, const FTextureBuildSettings& InBuildSettings, FStringView DebugTexturePathName, const bool bInHasAlpha, FCompressedImage2D& OutImage) const override
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(Texture.Oodle_CompressImage);
 
@@ -1030,8 +1030,9 @@ public:
 			return false;
 		}
 
-		// InImage always comes in as F32 in linear light
+		// InImage usually comes in as F32 in linear light
 		//	(Unreal has just made mips in that format)
+		//	(when no processing is needed, eg for VT tiles, it can come in different formats now)
 		// we are run simultaneously on all mips or VT tiles
 		
 		// bHasAlpha = DetectAlphaChannel , scans the A's for non-opaque , in in CompressMipChain
@@ -1146,10 +1147,11 @@ public:
 		if (bNeedsImageCopy)
 		{
 			InImage.CopyTo(ImageCopy, ImageFormat, Gamma);
-
-			// @todo Oodle : after we copy the image, we can usually/often free the source (always?)
-			//	would reduce peak mem use to do so immediately
-			//	(source is usually/often F32 RGBA so quite fat)
+			
+			// after we copy the image, we can free the source
+			//	can reduce peak mem use to do so immediately
+			//	(source is usually/often F32 RGBA (when not VT) so quite fat)
+			InImage.RawData.Empty();
 		}
 		const FImage& Image = bNeedsImageCopy ? ImageCopy : InImage;
 
