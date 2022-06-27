@@ -7,7 +7,7 @@
 
 UMoviePipelineExecutorBase* UMoviePipelineQueueEngineSubsystem::RenderQueueWithExecutor(TSubclassOf<UMoviePipelineExecutorBase> InExecutorType)
 {
-	if (!ensureMsgf(!InExecutorType.Get(), TEXT("RenderQueueWithExecutor cannot be called with a null class type!")))
+	if (!ensureMsgf(InExecutorType.Get(), TEXT("RenderQueueWithExecutor cannot be called with a null class type!")))
 	{
 		FFrame::KismetExecutionMessage(TEXT("RenderQueueWithExecutor cannot be called with a null class type!"), ELogVerbosity::Error);
 		return nullptr;
