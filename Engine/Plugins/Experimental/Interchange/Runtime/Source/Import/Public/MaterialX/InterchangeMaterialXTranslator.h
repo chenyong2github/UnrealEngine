@@ -18,6 +18,8 @@ PRAGMA_ENABLE_MISSING_BRACES_WARNINGS
 
 class UInterchangeTextureNode;
 class UInterchangeShaderNode;
+class UInterchangeBaseLightNode;
+class UInterchangeSceneNode;
 
 UCLASS(BlueprintType, Experimental)
 class UInterchangeMaterialXTranslator : public UInterchangeTranslatorBase, public IInterchangeTexturePayloadInterface
@@ -29,6 +31,11 @@ public:
 	UInterchangeMaterialXTranslator();
 
 	/** Begin UInterchangeTranslatorBase API*/
+
+	virtual EInterchangeTranslatorType GetTranslatorType() const override;
+
+	virtual bool DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const override;
+
 	virtual TArray<FString> GetSupportedFormats() const override;
 
 	/**
@@ -50,9 +57,48 @@ protected:
 	 * 
 	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
 	 * @param StandardSurfaceNode - The <standard_surface> in the MaterialX file
+	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
 	 */
 	void ProcessStandardSurface(UInterchangeBaseNodeContainer & NodeContainer, MaterialX::NodePtr StandardSurfaceNode, MaterialX::DocumentPtr Document) const;
 
+	/**
+	 * Process light shader, MaterialX doesn't standardized lights, but defines the 3 common ones, directional, point and spot
+	 * 
+	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param LightShaderNode - a MaterialX light shader node
+	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
+	 */
+	void ProcessLightShader(UInterchangeBaseNodeContainer& NodeContainer, MaterialX::NodePtr LightShaderNode, MaterialX::DocumentPtr Document) const;
+
+	/**
+	 * Create a directional light node and set the proper transform in the scene node
+	 *
+	 * @param DirectionalLightShaderNode - The MaterialX node related to a <directional_light>
+	 * @param SceneNode - The interchange scene node, to which the node will be attached to
+	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
+	 */
+	UInterchangeBaseLightNode* CreateDirectionalLightNode(MaterialX::NodePtr DirectionalLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const;
+
+	/**
+	 * Create a point  light node and set the proper transform in the scene node
+	 *
+	 * @param PointLightShaderNode - The MaterialX node related to a <point_light>
+	 * @param SceneNode - The interchange scene node, to which the node will be attached to
+	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
+	 */
+	UInterchangeBaseLightNode* CreatePointLightNode(MaterialX::NodePtr PointLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const;
+	
+	/**
+	 * Create a spot light node and set the proper transform in the scene node
+	 *
+	 * @param SpotLightShaderNode - The MaterialX node related to a <spot_light>
+	 * @param SceneNode - The interchange scene node, to which the node will be attached to
+	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
+	 */
+	UInterchangeBaseLightNode* CreateSpotLightNode(MaterialX::NodePtr SpotLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const;
 	/**
 	 * Connect an ouput in the NodeGraph to the ShaderGraph
 	 * 
@@ -142,6 +188,45 @@ protected:
 	MaterialX::InputPtr GetStandardSurfaceInput(MaterialX::NodePtr StandardSurface, const char* InputName, MaterialX::DocumentPtr Document) const;
 
 	/**
+	 * Retrieve the input from a point_light node, or take the default input from the library,
+	 * this function should only be called after testing the MaterialX libraries have been successfully imported, meaning the node definition of the point_light
+	 * should always be valid
+	 *
+	 * @param PointLight - the <point_light> node
+	 * @param InputName - the input name to retrieve
+	 * @param Document - the MaterialX library which has the node definition of the standard_surface
+	 *
+	 * @return the input from the given name
+	 */
+	MaterialX::InputPtr GetPointLightInput(MaterialX::NodePtr PointLight, const char* InputName, MaterialX::DocumentPtr Document) const;
+
+	/**
+	 * Retrieve the input from a directional_light node, or take the default input from the library,
+	 * this function should only be called after testing the MaterialX libraries have been successfully imported, meaning the node definition of the directional_light
+	 * should always be valid
+	 *
+	 * @param DirectionalLight - the <directional_light> node
+	 * @param InputName - the input name to retrieve
+	 * @param Document - the MaterialX library which has the node definition of the standard_surface
+	 *
+	 * @return the input from the given name
+	 */
+	MaterialX::InputPtr GetDirectionalLightInput(MaterialX::NodePtr DirectionalLight, const char* InputName, MaterialX::DocumentPtr Document) const;
+
+	/**
+	 * Retrieve the input from a spot_light node, or take the default input from the library,
+	 * this function should only be called after testing the MaterialX libraries have been successfully imported, meaning the node definition of the spot_light
+	 * should always be valid
+	 *
+	 * @param SpotLight - the <spot_light > node
+	 * @param InputName - the input name to retrieve
+	 * @param Document - the MaterialX library which has the node definition of the standard_surface
+	 *
+	 * @return the input from the given name
+	 */
+	MaterialX::InputPtr GetSpotLightInput(MaterialX::NodePtr SpotLight, const char* InputName, MaterialX::DocumentPtr Document) const;
+
+	/**
 	 * Add an attribute to a shader node, only floats and linear colors are supported for the moment
 	 * 
 	 * @param Input - The MaterialX input to retrieve and add the value from, must be of type float/color/vector
@@ -175,6 +260,26 @@ protected:
 	 * @return true if the attribute was successfully added
 	 */
 	bool AddLinearColorAttribute(MaterialX::InputPtr Input, const FString& InputChannelName, UInterchangeShaderNode* ShaderNode, const FLinearColor& DefaultValue) const;
+
+	/**
+	 * Return the innermost file prefix of an element in the current scope, if it has none, it will take the one from its parents
+	 * 
+	 * @param Element - the Element to retrieve the file prefix from (can be anything, an input, a node, a nodegraph, etc.)
+	 * 
+	 * @return a file prefix or an empty string
+	 * 
+	 */
+	FString GetFilePrefix(MaterialX::ElementPtr Element) const;
+
+	/**
+	 * Return the innermost color space of an element in the current scope, if it has none, it will take the one from its parents
+	 *
+	 * @param Element - the Element to retrieve the color space from (can be anything, an input, a node, a nodegraph, etc.)
+	 *
+	 * @return a color space or an empty string
+	 *
+	 */
+	FString GetColorSpace(MaterialX::ElementPtr Element) const;
 
 private:
 
