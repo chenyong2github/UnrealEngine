@@ -234,6 +234,20 @@ public:
 	UPROPERTY(BlueprintReadOnly, Category = "Functional Testing")
 	FString TestLabel;
 
+	/**
+	 * The author is the group or person responsible for the test.  Generally you should use a group name
+	 * like 'Editor Team' or 'Rendering Team'.  When a test fails it may not be obvious who should investigate
+	 * so this provides a associate responsible groups with tests.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (MultiLine = "true"))
+	FString Author;
+
+	/**
+	 * A description of the test, like what is this test trying to determine.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (MultiLine = "true"))
+	FString Description;
+
 private:
 	UPROPERTY()
 	TObjectPtr<UBillboardComponent> SpriteComponent;
@@ -257,20 +271,6 @@ protected:
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Functional Testing", meta = (ScriptName = "LogWarningHandling"))
 	EFunctionalTestLogHandling LogWarningHandling;
-
-	/**
-	 * The author is the group or person responsible for the test.  Generally you should use a group name
-	 * like 'Editor Team' or 'Rendering Team'.  When a test fails it may not be obvious who should investigate
-	 * so this provides a associate responsible groups with tests.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Functional Testing", meta=( MultiLine="true" ))
-	FString Author;
-
-	/**
-	 * A description of the test, like what is this test trying to determine.
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Functional Testing", meta=( MultiLine="true" ))
-	FString Description;
 
 	/**
 	 * Allows you to specify another actor to view the test from.  Usually this is a camera you place
