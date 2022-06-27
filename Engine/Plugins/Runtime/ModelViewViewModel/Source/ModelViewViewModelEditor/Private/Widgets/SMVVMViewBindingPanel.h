@@ -42,8 +42,11 @@ private:
 	FReply HandleCreateViewClicked();
 
 	TSharedRef<SWidget> GenerateEditViewWidget();
+
 	void AddDefaultBinding();
 	bool CanAddBinding() const;
+	FText GetAddBindingToolTip() const;
+
 	TSharedRef<SWidget> GenerateSettingsMenu();
 
 	void ShowManageViewModelsWindow();
