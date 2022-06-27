@@ -9,6 +9,7 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
 #include "WaveTableSampler.h"
+#include "DSP/EnvelopeFollower.h"
 
 
 namespace WaveTable
@@ -24,27 +25,30 @@ namespace WaveTable
 		};
 	}
 
-	FImporter::FImporter(const FWaveTableSettings& InOptions, EWaveTableResolution InResolution)
-		: Options(InOptions)
+	FImporter::FImporter(const FWaveTableSettings& InSettings, EWaveTableResolution InResolution, bool bInBipolar)
+		: Settings(InSettings)
 		, Resolution(InResolution)
+		, bBipolar(bInBipolar)
 	{
 		Sampler.SetInterpolationMode(FWaveTableSampler::EInterpolationMode::Cubic);
-		Sampler.SetPhase(Options.Phase);
+		Sampler.SetPhase(Settings.Phase);
 	}
 
 	void FImporter::Process(TArray<float>& OutWaveTable)
 	{
 		using namespace ImporterPrivate;
 
+		const int32 ResolutionInt = ResolutionToInt32(Resolution);
+
 		OutWaveTable.Reset();
-		OutWaveTable.AddZeroed(ResolutionToInt32(Resolution));
+		OutWaveTable.AddZeroed(ResolutionInt);
 
 		if (Resolution == EWaveTableResolution::None)
 		{
 			return;
 		}
 
-		int32 SourceNumSamples = Options.SourcePCMData.Num();
+		int32 SourceNumSamples = Settings.SourcePCMData.Num();
 		if (SourceNumSamples == 0)
 		{
 			return;
@@ -52,61 +56,70 @@ namespace WaveTable
 
 		// 1. Use Top & Tail to determine start offset & sample count of SourceArrayView
 		int32 SourceTopOffset = 0;
-		if (Options.Top > 0.0f)
+		if (Settings.Top > 0.0f)
 		{
-			SourceTopOffset = ImporterPrivate::RatioToIndex(Options.Top, SourceNumSamples);
+			SourceTopOffset = ImporterPrivate::RatioToIndex(Settings.Top, SourceNumSamples);
 			SourceNumSamples -= SourceTopOffset;
 		}
 
-		if (Options.Tail > 0.0f)
+		if (Settings.Tail > 0.0f)
 		{
-			const int32 SourceTailOffset = RatioToIndex(Options.Tail, SourceNumSamples);
+			const int32 SourceTailOffset = RatioToIndex(Settings.Tail, SourceNumSamples);
 			SourceNumSamples -= SourceTailOffset;
 		}
 
-		if (SourceNumSamples > 0 && SourceTopOffset < Options.SourcePCMData.Num() && !OutWaveTable.IsEmpty())
+		if (SourceNumSamples > 0 && SourceTopOffset < Settings.SourcePCMData.Num() && !OutWaveTable.IsEmpty())
 		{
-			TArrayView<const float> SourceArrayView(Options.SourcePCMData.GetData() + SourceTopOffset, SourceNumSamples);
-			TArrayView<float> WaveTableView(OutWaveTable);
-			Sampler.Process(SourceArrayView, WaveTableView);
+			TArrayView<const float> SourceArrayView(Settings.SourcePCMData.GetData() + SourceTopOffset, SourceNumSamples);
 
-			if (Options.FadeIn > 0.0f)
-			{
-				const int32 FadeLength = RatioToIndex(Options.FadeIn, OutWaveTable.Num());
-				TArrayView<float> FadeView(OutWaveTable.GetData(), FadeLength);
-				Audio::ArrayFade(FadeView, 0.0f, 1.0f);
-			}
+			// 2. Resample into table
+			Sampler.Reset();
+			Sampler.Process(SourceArrayView, OutWaveTable);
 
-			if (Options.FadeOut > 0.0f)
+			// 3. Apply offset
+			float TableOffset = 0.0f;
+			if (Settings.bRemoveOffset || !bBipolar)
 			{
-				const int32 FadeLastIndex = RatioToIndex(Options.FadeOut, OutWaveTable.Num());
-				const int32 FadeInitIndex = RatioToIndex(1.0f - Options.FadeOut, OutWaveTable.Num());
-				TArrayView<float> FadeView = TArrayView<float>(&OutWaveTable[FadeInitIndex], FadeLastIndex + 1);
-				Audio::ArrayFade(FadeView, 1.0f, 0.0f);
-			}
-
-			if (Options.bRemoveOffset)
-			{
-				const float TableOffset = Audio::ArrayGetAverageValue(OutWaveTable);
+				TableOffset = Audio::ArrayGetAverageValue(OutWaveTable);
 				Audio::ArrayAddConstantInplace(OutWaveTable, -1.0f * TableOffset);
 			}
 
-			if (Options.bConvertToEnvelope)
-			{
-				Audio::ArrayAbsInPlace(OutWaveTable);
-			}
-			else
-			{
-				Audio::ArrayAddConstantInplace(OutWaveTable, 1.0f);
-				Audio::ArrayMultiplyByConstantInPlace(OutWaveTable, 0.5f);
-			}
-
-			if (Options.bNormalize)
+			// 4. Normalize
+			if (Settings.bNormalize)
 			{
 				const float MaxValue = Audio::ArrayMaxAbsValue(OutWaveTable);
 				if (MaxValue > 0.0f)
 				{
 					Audio::ArrayMultiplyByConstantInPlace(OutWaveTable, 1.0f / MaxValue);
+				}
+			}
+
+			// 6. Apply fades
+			if (Settings.FadeIn > 0.0f)
+			{
+				const int32 FadeLength = RatioToIndex(Settings.FadeIn, OutWaveTable.Num());
+				TArrayView<float> FadeView(OutWaveTable.GetData(), FadeLength);
+				Audio::ArrayFade(FadeView, 0.0f, 1.0f);
+			}
+
+			if (Settings.FadeOut > 0.0f)
+			{
+				const int32 FadeLastIndex = RatioToIndex(Settings.FadeOut, OutWaveTable.Num());
+				const int32 FadeInitIndex = RatioToIndex(1.0f - Settings.FadeOut, OutWaveTable.Num());
+				TArrayView<float> FadeView = TArrayView<float>(&OutWaveTable[FadeInitIndex], FadeLastIndex + 1);
+				Audio::ArrayFade(FadeView, 1.0f, 0.0f);
+			}
+
+			// 7. Finalize if unipolar source
+			if (!bBipolar)
+			{
+				Audio::ArrayAbsInPlace(OutWaveTable);
+
+				// If not requesting offset removal, add back (is always removed above for
+				// unipolar to ensure fades are centered around offset)
+				if (!Settings.bRemoveOffset)
+				{
+					Audio::ArrayAddConstantInplace(OutWaveTable, TableOffset);
 				}
 			}
 		}

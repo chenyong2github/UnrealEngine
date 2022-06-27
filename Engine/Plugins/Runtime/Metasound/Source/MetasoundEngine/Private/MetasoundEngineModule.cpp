@@ -10,12 +10,15 @@
 #include "MetasoundSource.h"
 #include "MetasoundUObjectRegistry.h"
 #include "MetasoundWave.h"
+#include "MetasoundWaveTable.h"
 #include "Modules/ModuleManager.h"
 #include "Sound/AudioSettings.h"
 
 DEFINE_LOG_CATEGORY(LogMetasoundEngine);
 
 REGISTER_METASOUND_DATATYPE(Metasound::FWaveAsset, "WaveAsset", Metasound::ELiteralType::UObjectProxy, USoundWave);
+REGISTER_METASOUND_DATATYPE(WaveTable::FWaveTable, "WaveTable", Metasound::ELiteralType::FloatArray)
+REGISTER_METASOUND_DATATYPE(Metasound::FWaveTableBankAsset, "WaveTableBankAsset", Metasound::ELiteralType::UObjectProxy, UWaveTableBank);
 
 class FMetasoundEngineModule : public IMetasoundEngineModule
 {
@@ -26,6 +29,7 @@ class FMetasoundEngineModule : public IMetasoundEngineModule
 		FModuleManager::Get().LoadModuleChecked("MetasoundStandardNodes");
 		FModuleManager::Get().LoadModuleChecked("MetasoundGenerator");
 		FModuleManager::Get().LoadModuleChecked("AudioCodecEngine");
+		FModuleManager::Get().LoadModuleChecked("WaveTable");
 
 		// Register engine-level parameter interfaces if not done already.
 		// (Potentially not already called if plugin is loaded while cooking.)

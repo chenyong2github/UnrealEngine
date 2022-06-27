@@ -17,6 +17,7 @@
 
 // Forward Declarations
 class FCurveEditor;
+struct FWaveTableTransform;
 class IToolkitHost;
 class SCurveEditorPanel;
 class UCurveFloat;
@@ -25,11 +26,11 @@ namespace WaveTable
 {
 	namespace Editor
 	{
-		class WAVETABLEEDITOR_API FWaveTableBankEditor : public FAssetEditorToolkit, public FNotifyHook, public FEditorUndoClient
+		class WAVETABLEEDITOR_API FBankEditorBase : public FAssetEditorToolkit, public FNotifyHook, public FEditorUndoClient
 		{
 		public:
-			FWaveTableBankEditor();
-			virtual ~FWaveTableBankEditor() = default;
+			FBankEditorBase();
+			virtual ~FBankEditorBase() = default;
 
 			void Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* InParentObject);
 
@@ -59,23 +60,26 @@ namespace WaveTable
 			virtual void PostUndo(bool bSuccess) override;
 			virtual void PostRedo(bool bSuccess) override;
 
-			virtual bool GetIsPropertyEditorDisabled() const = 0;
+			virtual bool GetIsPropertyEditorDisabled() const { return false; }
 
-			/** Generates expression curve at the given index. */
-			virtual void GenerateExpressionCurve(FCurveData& OutCurveData, int32 InInputIndex, EWaveTableCurveSource InSource, bool bInIsUnset = false) = 0;
+			virtual EWaveTableResolution GetBankResolution() const = 0;
+			virtual bool GetBankIsBipolar() const = 0;
 
-			virtual TUniquePtr<FWaveTableCurveModelBase> ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource) = 0;
+			virtual TUniquePtr<FWaveTableCurveModel> ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource) = 0;
 
-			virtual EWaveTableCurve GetCurveType(int32 InInputIndex) const = 0;
-			virtual FRichCurve& GetCustomCurveChecked(int32 InInputIndex) const = 0;
-			virtual UCurveFloat* GetSharedCurve(int32 InInputIndex) const = 0;
-			virtual int32 GetNumCurves() const = 0;
+			virtual FWaveTableTransform* GetTransform (int32 InIndex) const = 0;
 
-			void SetCurve(int32 InInputIndex, FRichCurve& InRichCurve, EWaveTableCurveSource InSource);
+			virtual int32 GetNumTransforms() const = 0;
+
+			void SetCurve(int32 InTransformIndex, FRichCurve& InRichCurve, EWaveTableCurveSource InSource);
 
 		private:
-			void ResetCurves();
+			/** Generates expression curve at the given index. */
+			void GenerateExpressionCurve(FCurveData& OutCurveData, int32 InTransformIndex, EWaveTableCurveSource InSource, bool bInIsUnset = false);
+
 			void InitCurves();
+
+			void ResetCurves();
 
 			/** Updates & redraws curves. */
 			void RefreshCurves();
@@ -93,9 +97,9 @@ namespace WaveTable
 			static void TrimKeys(FRichCurve& OutCurve);
 
 			/** Clears the expression curve at the given input index */
-			void ClearExpressionCurve(int32 InInputIndex);
+			void ClearExpressionCurve(int32 InTransformIndex);
 
-			bool RequiresNewCurve(int32 InInputIndex, const FRichCurve& InRichCurve) const;
+			bool RequiresNewCurve(int32 InTransformIndex, const FRichCurve& InRichCurve) const;
 
 			TSharedPtr<FUICommandList> ToolbarCurveTargetCommands;
 
@@ -111,6 +115,21 @@ namespace WaveTable
 			static const FName AppIdentifier;
 			static const FName CurveTabId;
 			static const FName PropertiesTabId;
+		};
+
+		class FBankEditor : public WaveTable::Editor::FBankEditorBase
+		{
+		public:
+			FBankEditor() = default;
+			virtual ~FBankEditor() = default;
+
+		protected:
+			virtual EWaveTableResolution GetBankResolution() const override;
+			virtual bool GetBankIsBipolar() const override;
+			virtual int32 GetNumTransforms() const override;
+			virtual FWaveTableTransform* GetTransform(int32 InIndex) const override;
+
+			virtual TUniquePtr<WaveTable::Editor::FWaveTableCurveModel> ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource) override;
 		};
 	} // namespace Editor
 } // namespace WaveTable

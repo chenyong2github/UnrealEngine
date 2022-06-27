@@ -14,6 +14,7 @@ UENUM(BlueprintType)
 enum class EWaveTableResolution : uint8
 {
 	None		= 0 UMETA(DisplayName = "None"),
+	Res_8		= 3 UMETA(DisplayName = "8"),
 	Res_16		= 4 UMETA(DisplayName = "16"),
 	Res_32		= 5 UMETA(DisplayName = "32"),
 	Res_64		= 6 UMETA(DisplayName = "64"),
@@ -62,17 +63,12 @@ struct WAVETABLE_API FWaveTableSettings
 	float FadeOut = 0.0f;
 
 	// Whether or not to normalize the WaveTable.
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayAfter = "FilePath"))
 	bool bNormalize = true;
-
-	// If true, converts to envelope, effectively taking
-	// the absolute value of the given file's waveform.
-	UPROPERTY(EditAnywhere, Category = Options)
-	bool bConvertToEnvelope = false;
 
 	// Whether or not to remove offset from original file
 	// (analogous to "DC offset" in circuit theory).
-	UPROPERTY(EditAnywhere, Category = Options)
+	UPROPERTY(EditAnywhere, Category = Options, meta = (DisplayAfter = "bNormalize"))
 	bool bRemoveOffset = false;
 
 	// SourcePCM Data
@@ -83,12 +79,15 @@ struct WAVETABLE_API FWaveTableSettings
 UENUM(BlueprintType)
 enum class EWaveTableCurve : uint8
 {
-	Linear		UMETA(DisplayName = "Linear"),
+	Linear		UMETA(DisplayName = "Linear (Ramp In)"),
+	Linear_Inv	UMETA(DisplayName = "Linear (Ramp Out)"),
 	Exp			UMETA(DisplayName = "Exponential"),
 	Exp_Inverse UMETA(DisplayName = "Exponential (Inverse)"),
 	Log			UMETA(DisplayName = "Log"),
-	Sin			UMETA(DisplayName = "Sin (Quarter)"),
-	SCurve		UMETA(DisplayName = "Sin (S-Curve)"),
+
+	Sin			UMETA(DisplayName = "Sin (90 deg)"),
+	Sin_Full	UMETA(DisplayName = "Sin (360 deg)"),
+	SCurve		UMETA(DisplayName = "Sin (+/- 90 deg)"),
 
 	// Reference a shared curve asset
 	Shared		UMETA(DisplayName = "Shared"),
@@ -104,6 +103,10 @@ enum class EWaveTableCurve : uint8
 
 namespace WaveTable
 {
-	WAVETABLE_API int32 ResolutionToInt32(EWaveTableResolution InResolution);
-	WAVETABLE_API int32 ResolutionToInt32(EWaveTableCurve InCurve, EWaveTableResolution FileResolution);
+	// Converts WaveTableResolution to integer resolution value
+	WAVETABLE_API int32 ResolutionToInt32(EWaveTableResolution InWaveTableResolution);
+
+	// Converts WaveTableResolution to integer resolution value.  If WaveTableResolution is set to none, uses
+	// default value associated with provided curve.
+	WAVETABLE_API int32 ResolutionToInt32(EWaveTableResolution InWaveTableResolution, EWaveTableCurve InCurve);
 } // namespace WaveTable

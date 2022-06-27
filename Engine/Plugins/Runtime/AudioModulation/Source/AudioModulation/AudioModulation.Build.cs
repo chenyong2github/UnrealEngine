@@ -27,7 +27,8 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DeveloperSettings",
 					"Engine",
-					"SignalProcessing"
+					"SignalProcessing",
+					"WaveTable"
 				}
 			);
 

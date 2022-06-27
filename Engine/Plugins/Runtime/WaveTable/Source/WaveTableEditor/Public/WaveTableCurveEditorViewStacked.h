@@ -15,6 +15,7 @@
 
 // Forward Declarations
 class UCurveFloat;
+struct FWaveTableTransform;
 
 
 UENUM()
@@ -31,34 +32,30 @@ namespace WaveTable
 {
 	namespace Editor
 	{
-		class WAVETABLEEDITOR_API FWaveTableCurveModelBase : public FRichCurveEditorModelRaw
+		class WAVETABLEEDITOR_API FWaveTableCurveModel : public FRichCurveEditorModelRaw
 		{
 		public:
-			static ECurveEditorViewID ViewId;
+			static ECurveEditorViewID WaveTableViewId;
 
-			FWaveTableCurveModelBase(FRichCurve& InRichCurve, UObject* InOwner, EWaveTableCurveSource InSource);
+			FWaveTableCurveModel(FRichCurve& InRichCurve, UObject* InOwner, EWaveTableCurveSource InSource);
 
 			const FText& GetAxesDescriptor() const;
 			const UObject* GetParentObject() const;
 			EWaveTableCurveSource GetSource() const;
-			void Refresh(int32 InCurveIndex);
+			void Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex);
 
+			virtual ECurveEditorViewID GetViewId() const { return WaveTableViewId; }
 			virtual bool IsReadOnly() const override;
 			virtual FLinearColor GetColor() const override;
 
-			int32 GetCurveIndex() const
-			{
-				return CurveIndex;
-			}
+			int32 GetCurveIndex() const { return CurveIndex; }
 
 		protected:
-			virtual void RefreshCurveDescriptorText(FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName) = 0;
-
-			virtual UCurveFloat* GetSharedCurve() = 0;
-
-			virtual FColor GetCurveColor() const = 0;
-			virtual bool GetPropertyEditorDisabled() const = 0;
-			virtual FText GetPropertyEditorDisabledText() const = 0;
+			virtual void RefreshCurveDescriptorText(const FWaveTableTransform& InTransform, FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName);
+			virtual FWaveTableTransform* GetTransform();
+			virtual FColor GetCurveColor() const;
+			virtual bool GetPropertyEditorDisabled() const;
+			virtual FText GetPropertyEditorDisabledText() const;
 
 			TWeakObjectPtr<UObject> ParentObject;
 
@@ -88,8 +85,8 @@ namespace WaveTable
 			virtual void DrawViewGrids(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const override;
 			virtual void DrawLabels(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const override;
 
-			virtual void FormatInputLabel(const FWaveTableCurveModelBase& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
-			virtual void FormatOutputLabel(const FWaveTableCurveModelBase& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
+			virtual void FormatInputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
+			virtual void FormatOutputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
 
 		private:
 			struct FGridDrawInfo

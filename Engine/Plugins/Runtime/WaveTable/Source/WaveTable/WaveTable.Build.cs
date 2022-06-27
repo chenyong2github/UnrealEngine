@@ -11,6 +11,7 @@ namespace UnrealBuildTool.Rules
 			PublicDependencyModuleNames.AddRange(
 				new string[]
 				{
+					"AudioExtensions",
 					"Core"
 				}
 			);
@@ -19,6 +20,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"CoreUObject",
+					"Engine",
 					"SignalProcessing"
 				}
 			);

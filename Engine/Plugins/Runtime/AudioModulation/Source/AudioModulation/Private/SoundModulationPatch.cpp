@@ -9,7 +9,6 @@
 #include "SoundControlBus.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationPatchProxy.h"
-#include "SoundModulationTransform.h"
 
 
 #define LOCTEXT_NAMESPACE "SoundModulationPatch"
@@ -41,6 +40,14 @@ const Audio::FModulationParameter& USoundModulationPatch::GetOutputParameter() c
 #if WITH_EDITOR
 void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent)
 {
+	if (InPropertyChangedEvent.Property && InPropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		for (FSoundControlModulationInput& Input : PatchSettings.Inputs)
+		{
+			Input.Transform.CacheWaveTable(PatchSettings.WaveTableResolution, false /* bBipolar */);
+		}
+	}
+
 	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.UpdateModulator(*this);
@@ -51,12 +58,33 @@ void USoundModulationPatch::PostEditChangeProperty(FPropertyChangedEvent& InProp
 
 void USoundModulationPatch::PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent)
 {
+	if (InPropertyChangedEvent.Property && InPropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
+	{
+		for (FSoundControlModulationInput& Input : PatchSettings.Inputs)
+		{
+			Input.Transform.CacheWaveTable(PatchSettings.WaveTableResolution, false /* bBipolar */);
+		}
+	}
+
 	AudioModulation::IterateModulationManagers([this](AudioModulation::FAudioModulationManager& OutModulation)
 	{
 		OutModulation.UpdateModulator(*this);
 	});
 
 	Super::PostEditChangeChainProperty(InPropertyChangedEvent);
+}
+
+void USoundModulationPatch::PreSave(FObjectPreSaveContext InSaveContext)
+{
+	if (!InSaveContext.IsCooking())
+	{
+		for (FSoundControlModulationInput& Input : PatchSettings.Inputs)
+		{
+			Input.Transform.CacheWaveTable(PatchSettings.WaveTableResolution, false /* bBipolar */);
+		}
+	}
+
+	Super::PreSave(InSaveContext);
 }
 #endif // WITH_EDITOR
 

@@ -20,8 +20,10 @@
 #include "Tree/SCurveEditorTree.h"
 #include "Tree/ICurveEditorTreeItem.h"
 #include "Tree/SCurveEditorTreePin.h"
-#include "WaveTableSettings.h"
+#include "WaveTableBank.h"
 #include "WaveTableSampler.h"
+#include "WaveTableSettings.h"
+#include "WaveTableTransform.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SNumericDropDown.h"
@@ -37,21 +39,21 @@ namespace WaveTable
 {
 	namespace Editor
 	{
-		const FName FWaveTableBankEditor::AppIdentifier(TEXT("WaveTableEditorApp"));
-		const FName FWaveTableBankEditor::CurveTabId(TEXT("WaveTableEditor_Curves"));
-		const FName FWaveTableBankEditor::PropertiesTabId(TEXT("WaveTableEditor_Properties"));
+		const FName FBankEditorBase::AppIdentifier(TEXT("WaveTableEditorApp"));
+		const FName FBankEditorBase::CurveTabId(TEXT("WaveTableEditor_Curves"));
+		const FName FBankEditorBase::PropertiesTabId(TEXT("WaveTableEditor_Properties"));
 
-		FWaveTableBankEditor::FWaveTableBankEditor()
+		FBankEditorBase::FBankEditorBase()
 		{
 		}
 
-		void FWaveTableBankEditor::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
+		void FBankEditorBase::RegisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 		{
 			WorkspaceMenuCategory = InTabManager->AddLocalWorkspaceMenuCategory(LOCTEXT("WorkspaceMenu_WaveTableEditor", "WaveTable Editor"));
 
 			FAssetEditorToolkit::RegisterTabSpawners(InTabManager);
 
-			InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FWaveTableBankEditor::SpawnTab_Properties))
+			InTabManager->RegisterTabSpawner(PropertiesTabId, FOnSpawnTab::CreateSP(this, &FBankEditorBase::SpawnTab_Properties))
 				.SetDisplayName(LOCTEXT("DetailsTab", "Details"))
 				.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 				.SetIcon(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.Details"));
@@ -63,13 +65,13 @@ namespace WaveTable
 				.SetIcon(CurveIcon);
 		}
 
-		void FWaveTableBankEditor::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
+		void FBankEditorBase::UnregisterTabSpawners(const TSharedRef<FTabManager>& InTabManager)
 		{
 			InTabManager->UnregisterTabSpawner(PropertiesTabId);
 			InTabManager->UnregisterTabSpawner(CurveTabId);
 		}
 
-		void FWaveTableBankEditor::Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* InParentObject)
+		void FBankEditorBase::Init(const EToolkitMode::Type Mode, const TSharedPtr<IToolkitHost>& InitToolkitHost, UObject* InParentObject)
 		{
 			check(InParentObject);
 
@@ -154,24 +156,87 @@ namespace WaveTable
 			}
 		}
 
-		void FWaveTableBankEditor::ClearExpressionCurve(int32 InCurveIndex)
+		void FBankEditorBase::ClearExpressionCurve(int32 InTransformIndex)
 		{
-			if (CurveData.IsValidIndex(InCurveIndex))
+			if (CurveData.IsValidIndex(InTransformIndex))
 			{
-				CurveData[InCurveIndex].ExpressionCurve.Reset();
+				CurveData[InTransformIndex].ExpressionCurve.Reset();
 			}
 		}
 
-		bool FWaveTableBankEditor::RequiresNewCurve(int32 InCurveIndex, const FRichCurve& InRichCurve) const
+		void FBankEditorBase::GenerateExpressionCurve(WaveTable::Editor::FBankEditorBase::FCurveData& OutCurveData, int32 InTransformIndex, EWaveTableCurveSource InSource, bool bInIsUnset)
 		{
-			const FCurveModelID CurveModelID = CurveData[InCurveIndex].ModelID;
+			TSharedPtr<FRichCurve>& Curve = OutCurveData.ExpressionCurve;
+			if (!Curve.IsValid())
+			{
+				Curve = MakeShared<FRichCurve>();
+			}
+
+			const bool bIsBipolar = GetBankIsBipolar();
+
+			if (!GetIsPropertyEditorDisabled())
+			{
+				Curve->Reset();
+
+				if (const FWaveTableTransform* Transform = GetTransform(InTransformIndex))
+				{
+					// Need at least first and last point to generate curve
+					const EWaveTableResolution BankResolution = GetBankResolution();
+					const int32 PointCount = FMath::Max(WaveTable::ResolutionToInt32(BankResolution, Transform->Curve), 2);
+
+					TArray<FRichCurveKey> NewKeys;
+
+					if (BankResolution == EWaveTableResolution::None)
+					{
+						// Terminate curves at last constant point for non-wavetables
+						TArray<float> KeyTable;
+						KeyTable.AddZeroed(PointCount);
+						Transform->BuildWaveTable(KeyTable, bIsBipolar);
+
+						const float Delta = 1.0 / KeyTable.Num();
+						for (int32 i = 0; i < KeyTable.Num(); ++i)
+						{
+							NewKeys.Add({ Delta * i, KeyTable[i] });
+						}
+
+						float TermPoint = 1.0f;
+						Transform->Apply(TermPoint, bIsBipolar);
+						NewKeys.Add({ 1.0f, TermPoint });
+					}
+					else
+					{
+						// Terminate curves at initial point for wavetables
+						TArray<float> KeyTable;
+						KeyTable.AddZeroed(PointCount);
+						Transform->BuildWaveTable(KeyTable, bIsBipolar);
+
+						const float Delta = 1.0 / KeyTable.Num();
+						for (int32 i = 0; i < KeyTable.Num(); ++i)
+						{
+							NewKeys.Add({ Delta * i, KeyTable[i] });
+						}
+
+						NewKeys.Add({ 1.0f, KeyTable[0] });
+					}
+
+					Curve->SetKeys(NewKeys);
+				}
+			}
+
+			const EWaveTableCurveSource Source = bInIsUnset ? EWaveTableCurveSource::Unset : EWaveTableCurveSource::Expression;
+			SetCurve(InTransformIndex, *Curve.Get(), Source);
+		}
+
+		bool FBankEditorBase::RequiresNewCurve(int32 InTransformIndex, const FRichCurve& InRichCurve) const
+		{
+			const FCurveModelID CurveModelID = CurveData[InTransformIndex].ModelID;
 			const TUniquePtr<FCurveModel>* CurveModel = CurveEditor->GetCurves().Find(CurveModelID);
 			if (!CurveModel || !CurveModel->IsValid())
 			{
 				return true;
 			}
 
-			FWaveTableCurveModelBase* PatchCurveModel = static_cast<FWaveTableCurveModelBase*>(CurveModel->Get());
+			FWaveTableCurveModel* PatchCurveModel = static_cast<FWaveTableCurveModel*>(CurveModel->Get());
 			check(PatchCurveModel);
 			if (&PatchCurveModel->GetRichCurve() != &InRichCurve)
 			{
@@ -181,62 +246,68 @@ namespace WaveTable
 			return false;
 		}
 
-		void FWaveTableBankEditor::SetCurve(int32 InCurveIndex, FRichCurve& InRichCurve, EWaveTableCurveSource InSource)
+		void FBankEditorBase::SetCurve(int32 InTransformIndex, FRichCurve& InRichCurve, EWaveTableCurveSource InSource)
 		{
 			check(CurveEditor.IsValid());
 
-			if (!ensure(CurveData.IsValidIndex(InCurveIndex)))
+			if (!ensure(CurveData.IsValidIndex(InTransformIndex)))
 			{
 				return;
 			}
 
-			FCurveData& CurveDataEntry = CurveData[InCurveIndex];
+			FWaveTableTransform* Transform = GetTransform(InTransformIndex);
+			if (!ensure(Transform))
+			{
+				return;
+			}
 
-			const bool bRequiresNewCurve = RequiresNewCurve(InCurveIndex, InRichCurve);
+			FCurveData& CurveDataEntry = CurveData[InTransformIndex];
+
+			const bool bRequiresNewCurve = RequiresNewCurve(InTransformIndex, InRichCurve);
 			if (bRequiresNewCurve)
 			{
-				TUniquePtr<FWaveTableCurveModelBase> NewCurve = ConstructCurveModel(InRichCurve, GetEditingObject(), InSource);
-				NewCurve->Refresh(InCurveIndex);
+				TUniquePtr<FWaveTableCurveModel> NewCurve = ConstructCurveModel(InRichCurve, GetEditingObject(), InSource);
+				NewCurve->Refresh(*Transform, InTransformIndex);
 				CurveDataEntry.ModelID = CurveEditor->AddCurve(MoveTemp(NewCurve));
 			}
 			else
 			{
 				const TUniquePtr<FCurveModel>& CurveModel = CurveEditor->GetCurves().FindChecked(CurveDataEntry.ModelID);
 				check(CurveModel.Get());
-				static_cast<FWaveTableCurveModelBase*>(CurveModel.Get())->Refresh(InCurveIndex);
+				static_cast<FWaveTableCurveModel*>(CurveModel.Get())->Refresh(*Transform, InTransformIndex);
 			}
 
 			CurveEditor->PinCurve(CurveDataEntry.ModelID);
 		}
 
-		FName FWaveTableBankEditor::GetToolkitFName() const
+		FName FBankEditorBase::GetToolkitFName() const
 		{
 			return FName("WaveTableEditor");
 		}
 
-		FText FWaveTableBankEditor::GetBaseToolkitName() const
+		FText FBankEditorBase::GetBaseToolkitName() const
 		{
 			return LOCTEXT( "AppLabel", "WaveTable Editor" );
 		}
 
-		FString FWaveTableBankEditor::GetWorldCentricTabPrefix() const
+		FString FBankEditorBase::GetWorldCentricTabPrefix() const
 		{
 			return LOCTEXT("WorldCentricTabPrefix", "WaveTable ").ToString();
 		}
 
-		FLinearColor FWaveTableBankEditor::GetWorldCentricTabColorScale() const
+		FLinearColor FBankEditorBase::GetWorldCentricTabColorScale() const
 		{
 			return FLinearColor( 0.0f, 0.0f, 0.2f, 0.5f );
 		}
 
-		EOrientation FWaveTableBankEditor::GetSnapLabelOrientation() const
+		EOrientation FBankEditorBase::GetSnapLabelOrientation() const
 		{
 			return FMultiBoxSettings::UseSmallToolBarIcons.Get()
 				? EOrientation::Orient_Horizontal
 				: EOrientation::Orient_Vertical;
 		}
 
-		void FWaveTableBankEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
+		void FBankEditorBase::NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged)
 		{
 			if (PropertyChangedEvent.ChangeType != EPropertyChangeType::Interactive)
 			{
@@ -244,7 +315,7 @@ namespace WaveTable
 			}
 		}
 
-		TSharedRef<SDockTab> FWaveTableBankEditor::SpawnTab_Properties(const FSpawnTabArgs& Args)
+		TSharedRef<SDockTab> FBankEditorBase::SpawnTab_Properties(const FSpawnTabArgs& Args)
 		{
 			check(Args.GetTabId() == PropertiesTabId);
 
@@ -255,7 +326,7 @@ namespace WaveTable
 				];
 		}
 
-		TSharedRef<SDockTab> FWaveTableBankEditor::SpawnTab_OutputCurve(const FSpawnTabArgs& Args)
+		TSharedRef<SDockTab> FBankEditorBase::SpawnTab_OutputCurve(const FSpawnTabArgs& Args)
 		{
 			RefreshCurves();
 			CurveEditor->ZoomToFit();
@@ -275,7 +346,7 @@ namespace WaveTable
 				return NewDockTab;
 		}
 
-		void FWaveTableBankEditor::PostUndo(bool bSuccess)
+		void FBankEditorBase::PostUndo(bool bSuccess)
 		{
 			if (bSuccess)
 			{
@@ -283,28 +354,35 @@ namespace WaveTable
 			}
 		}
 
-		void FWaveTableBankEditor::ResetCurves()
+		void FBankEditorBase::ResetCurves()
 		{
 			check(CurveEditor.IsValid());
 
 			CurveEditor->RemoveAllCurves();
 			CurveData.Reset();
-			CurveData.AddDefaulted(GetNumCurves());
+			CurveData.AddDefaulted(GetNumTransforms());
 		}
 
-		void FWaveTableBankEditor::InitCurves()
+		void FBankEditorBase::InitCurves()
 		{
-			for (int32 i = 0; i < GetNumCurves(); ++i)
+			for (int32 i = 0; i < GetNumTransforms(); ++i)
 			{
-				EWaveTableCurve CurveType = GetCurveType(i);
-				switch (CurveType)
+				const FWaveTableTransform* Transform = GetTransform(i);
+				if (!ensure(Transform))
+				{
+					continue;
+				}
+
+				switch (Transform->Curve)
 				{
 					case EWaveTableCurve::Exp:
 					case EWaveTableCurve::Exp_Inverse:
 					case EWaveTableCurve::Linear:
+					case EWaveTableCurve::Linear_Inv:
 					case EWaveTableCurve::Log:
 					case EWaveTableCurve::SCurve:
 					case EWaveTableCurve::Sin:
+					case EWaveTableCurve::Sin_Full:
 					case EWaveTableCurve::File:
 					{
 						if (RequiresNewCurve(i, *CurveData[i].ExpressionCurve.Get()))
@@ -316,7 +394,7 @@ namespace WaveTable
 
 					case EWaveTableCurve::Shared:
 					{
-						if (const UCurveFloat* SharedCurve = GetSharedCurve(i))
+						if (const UCurveFloat* SharedCurve = Transform->CurveShared)
 						{
 							if (RequiresNewCurve(i, SharedCurve->FloatCurve))
 							{
@@ -332,7 +410,7 @@ namespace WaveTable
 
 					case EWaveTableCurve::Custom:
 					{
-						if (RequiresNewCurve(i, GetCustomCurveChecked(i)))
+						if (RequiresNewCurve(i, Transform->CurveCustom))
 						{
 							ResetCurves();
 						}
@@ -341,14 +419,14 @@ namespace WaveTable
 
 					default:
 					{
-						static_assert(static_cast<int32>(EWaveTableCurve::Count) == 9, "Possible missing case coverage for output curve.");
+						static_assert(static_cast<int32>(EWaveTableCurve::Count) == 11, "Possible missing case coverage for output curve.");
 					}
 					break;
 				}
 			}
 		}
 
-		void FWaveTableBankEditor::RefreshCurves()
+		void FBankEditorBase::RefreshCurves()
 		{
 			check(CurveEditor.IsValid());
 
@@ -363,7 +441,7 @@ namespace WaveTable
 				return;
 			}
 
-			const int32 NumCurves = GetNumCurves();
+			const int32 NumCurves = GetNumTransforms();
 			if (NumCurves == CurveData.Num())
 			{
 				InitCurves();
@@ -373,24 +451,30 @@ namespace WaveTable
 				ResetCurves();
 			}
 
-			for (int32 i = 0; i < GetNumCurves(); ++i)
+			for (int32 i = 0; i < GetNumTransforms(); ++i)
 			{
-				const EWaveTableCurve CurveType = GetCurveType(i);
 				if (!CurveData.IsValidIndex(i))
 				{
 					continue;
 				}
-
 				FCurveData& CurveDataEntry = CurveData[i];
 
-				switch (CurveType)
+				FWaveTableTransform* Transform = GetTransform(i);
+				if (!Transform)
+				{
+					continue;
+				}
+
+				switch (Transform->Curve)
 				{
 					case EWaveTableCurve::Exp:
 					case EWaveTableCurve::Exp_Inverse:
 					case EWaveTableCurve::Linear:
+					case EWaveTableCurve::Linear_Inv:
 					case EWaveTableCurve::Log:
 					case EWaveTableCurve::SCurve:
 					case EWaveTableCurve::Sin:
+					case EWaveTableCurve::Sin_Full:
 					case EWaveTableCurve::File:
 					{
 						GenerateExpressionCurve(CurveDataEntry, i, EWaveTableCurveSource::Expression);
@@ -399,7 +483,7 @@ namespace WaveTable
 
 					case EWaveTableCurve::Shared:
 					{
-						if (UCurveFloat* SharedCurve = GetSharedCurve(i))
+						if (UCurveFloat* SharedCurve = Transform->CurveShared)
 						{
 							ClearExpressionCurve(i);
 							SetCurve(i, SharedCurve->FloatCurve, EWaveTableCurveSource::Shared);
@@ -415,7 +499,7 @@ namespace WaveTable
 
 					case EWaveTableCurve::Custom:
 					{
-						FRichCurve& CustomCurve = GetCustomCurveChecked(i);
+						FRichCurve& CustomCurve = Transform->CurveCustom;
 						TrimKeys(CustomCurve);
 						ClearExpressionCurve(i);
 						SetCurve(i, CustomCurve, EWaveTableCurveSource::Custom);
@@ -424,7 +508,7 @@ namespace WaveTable
 
 					default:
 					{
-						static_assert(static_cast<int32>(EWaveTableCurve::Count) == 9, "Possible missing case coverage for output curve.");
+						static_assert(static_cast<int32>(EWaveTableCurve::Count) == 11, "Possible missing case coverage for output curve.");
 					}
 					break;
 				}
@@ -453,7 +537,7 @@ namespace WaveTable
 			}
 		}
 
-		void FWaveTableBankEditor::PostRedo(bool bSuccess)
+		void FBankEditorBase::PostRedo(bool bSuccess)
 		{
 			if (bSuccess)
 			{
@@ -461,7 +545,7 @@ namespace WaveTable
 			}
 		}
 
-		void FWaveTableBankEditor::TrimKeys(FRichCurve& OutCurve)
+		void FBankEditorBase::TrimKeys(FRichCurve& OutCurve)
 		{
 			while (OutCurve.GetNumKeys() > 0 && 0.0f > OutCurve.GetFirstKey().Time)
 			{
@@ -472,6 +556,55 @@ namespace WaveTable
 			{
 				OutCurve.DeleteKey(OutCurve.GetLastKeyHandle());
 			}
+		}
+
+		TUniquePtr<WaveTable::Editor::FWaveTableCurveModel> FBankEditor::ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource)
+		{
+			using namespace WaveTable::Editor;
+			return MakeUnique<FWaveTableCurveModel>(InRichCurve, GetEditingObject(), InSource);
+		}
+
+		EWaveTableResolution FBankEditor::GetBankResolution() const
+		{
+			if (UWaveTableBank* Bank = Cast<UWaveTableBank>(GetEditingObject()))
+			{
+				return Bank->Resolution;
+			}
+
+			return EWaveTableResolution::None;
+		}
+
+		bool FBankEditor::GetBankIsBipolar() const
+		{
+			if (UWaveTableBank* Bank = Cast<UWaveTableBank>(GetEditingObject()))
+			{
+				return Bank->bBipolar;
+			}
+
+			return false;
+		}
+
+		int32 FBankEditor::GetNumTransforms() const
+		{
+			if (UWaveTableBank* Bank = Cast<UWaveTableBank>(GetEditingObject()))
+			{
+				return Bank->Entries.Num();
+			}
+
+			return 0;
+		}
+
+		FWaveTableTransform* FBankEditor::GetTransform(int32 InIndex) const
+		{
+			if (UWaveTableBank* Bank = Cast<UWaveTableBank>(GetEditingObject()))
+			{
+				if (Bank->Entries.IsValidIndex(InIndex))
+				{
+					return &Bank->Entries[InIndex].Transform;
+				}
+			}
+
+			return nullptr;
 		}
 	} // namespace Editor
 } // namespace WaveTable

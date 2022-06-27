@@ -24,7 +24,7 @@
 #include "Modules/ModuleManager.h"
 #include "Sound/SoundBase.h"
 #include "SoundModulationParameter.h"
-#include "SoundModulationTransform.h"
+#include "SoundModulationPatch.h"
 #include "Templates/SharedPointer.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/UObjectIterator.h"
@@ -109,7 +109,7 @@ void FAudioModulationEditorModule::StartupModule()
 	RegisterCustomPropertyLayouts();
 
 	ICurveEditorModule& CurveEditorModule = FModuleManager::LoadModuleChecked<ICurveEditorModule>("CurveEditor");
-	FModPatchCurveEditorModel::ViewId = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
+	FModPatchCurveEditorModel::ModPatchViewId = CurveEditorModule.RegisterView(FOnCreateCurveEditorView::CreateStatic(
 		[](TWeakPtr<FCurveEditor> WeakCurveEditor) -> TSharedRef<SCurveEditorView>
 		{
 			return SNew(SModulationPatchEditorViewStacked, WeakCurveEditor);
@@ -187,9 +187,10 @@ void FAudioModulationEditorModule::ShutdownModule()
 
 	if (ICurveEditorModule* CurveEditorModule = FModuleManager::GetModulePtr<ICurveEditorModule>("CurveEditor"))
 	{
-		CurveEditorModule->UnregisterView(FModPatchCurveEditorModel::ViewId);
+		CurveEditorModule->UnregisterView(FModPatchCurveEditorModel::ModPatchViewId);
 	}
-	FModPatchCurveEditorModel::ViewId = ECurveEditorViewID::Invalid;
+
+	FModPatchCurveEditorModel::ModPatchViewId = ECurveEditorViewID::Invalid;
 
 	FSlateStyleRegistry::UnRegisterSlateStyle(*StyleSet.Get());
 }

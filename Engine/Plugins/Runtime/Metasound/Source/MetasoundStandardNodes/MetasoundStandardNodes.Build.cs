@@ -9,15 +9,17 @@ namespace UnrealBuildTool.Rules
 	{
 		public MetasoundStandardNodes(ReadOnlyTargetRules Target) : base(Target)
 		{
+			OptimizeCode = CodeOptimization.Never;
+
 			PublicDependencyModuleNames.AddRange
 			(
 				new string[]
 				{
-					"Core",
-					"Serialization",
-					"SignalProcessing",
 					"AudioExtensions",
-					"MetasoundFrontend"
+					"Core",
+					"MetasoundFrontend",
+					"Serialization",
+					"SignalProcessing"
 				}
 			);
 
@@ -25,8 +27,9 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
+					"CoreUObject",
 					"MetasoundGraphCore",
-					"CoreUObject"
+					"WaveTable"
 				}
 			);
 		}

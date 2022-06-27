@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "AssetTypeActions_Base.h"
+#include "Containers/Array.h"
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
 
@@ -19,6 +21,9 @@ namespace WaveTable
 			virtual void StartupModule() override;
 
 			virtual void ShutdownModule() override;
+
+		private:
+			TArray<TSharedPtr<FAssetTypeActions_Base>> AssetActions;
 		};
 	} // namespace Editor
 } // namespace WaveTable

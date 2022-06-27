@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Algo/Transform.h"
 #include "AudioDeviceManager.h"
 #include "IAudioModulation.h"
 #include "SoundControlBusProxy.h"
 #include "SoundModulationParameter.h"
+#include "SoundModulationPatch.h"
 #include "SoundModulationProxy.h"
 #include "Templates/Function.h"
 
@@ -87,9 +89,14 @@ namespace AudioModulation
 		{
 			for (const FSoundControlModulationInput& Input : InPatch.PatchSettings.Inputs)
 			{
-				if (Input.GetBus())
+				if (Input.Bus)
 				{
-					InputSettings.Add(FModulationInputSettings(Input));
+					FModulationInputSettings NewInputSettings(Input);
+
+					// Required to avoid referencing external UObject from settings on non-audio/game threads
+					NewInputSettings.Transform.CacheCurve();
+
+					InputSettings.Add(MoveTemp(NewInputSettings));
 				}
 			}
 		}

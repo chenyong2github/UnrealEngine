@@ -1,21 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
-
 #include "Curves/SimpleCurve.h"
 #include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
 #include "PropertyHandle.h"
 #include "SCurveEditor.h"
-#include "SoundModulationTransform.h"
+#include "WaveTableTransformLayout.h"
 
 
 // Forward Declarations
+struct FSoundControlModulationInput;
 struct FSoundModulationTransform;
+class USoundModulationPatch;
 
-class FSoundModulationTransformLayoutCustomization : public IPropertyTypeCustomization
+class FSoundModulationTransformLayoutCustomization : public WaveTable::Editor::FTransformLayoutCustomizationBase
 {
 public:
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance()
@@ -23,12 +23,10 @@ public:
 		return MakeShared<FSoundModulationTransformLayoutCustomization>();
 	}
 
-	//~ Begin IPropertyTypeCustomization
-	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils) override;
-	//~ End IPropertyTypeCustomization
-
-private:
-	bool IsScaleableCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
-	bool IsSharedCurve(TSharedPtr<IPropertyHandle> CurveHandle) const;
+protected:
+	//~ Begin FTransformLayoutCustomizationBase
+	virtual const EWaveTableResolution* GetResolution() const override;
+	virtual FWaveTableTransform* GetTransform() const override;
+	virtual bool IsBipolar() const override;
+	//~ End FTransformLayoutCustomizationBase
 };

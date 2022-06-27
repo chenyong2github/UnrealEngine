@@ -21,6 +21,22 @@ namespace WaveTable
 			COUNT
 		};
 
+		// Mode of interpolation between last value in table and subsequent input index.
+		enum class ESingleSampleMode : uint8
+		{
+			// Interpolates last value to zero (0.0f) in table if sampled index is beyond last position
+			Zero = 0,
+
+			// Interpolates last value to unit (1.0f) in table if sampled index is beyond last position
+			Unit = 1,
+
+			// Holds last value in table if index is beyond last position
+			Hold,
+
+			// Interpolates last value and first value in table if sampled index is beyond last position
+			Loop,
+		};
+
 		struct WAVETABLE_API FSettings
 		{
 			float Amplitude = 1.0f;
@@ -39,18 +55,26 @@ namespace WaveTable
 		FWaveTableSampler();
 		FWaveTableSampler(FSettings&& InSettings);
 
-		void Process(TArrayView<const float> InTableView, TArrayView<float> OutSamplesView);
-		void Process(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<float> OutSamplesView);
+		// Interpolates and converts values in the given table for each provided index in the index-to-samples TArrayView (an array of sub-sample, floating point, indices)
+		static void Interpolate(TArrayView<const float> InTableView, TArrayView<float> InOutIndexToSamplesView, EInterpolationMode InterpMode = EInterpolationMode::Linear);
+
+		float Process(TArrayView<const float> InTableView, float& OutSample, ESingleSampleMode InMode = ESingleSampleMode::Zero);
+		float Process(TArrayView<const float> InTableView, TArrayView<float> OutSamplesView);
+		float Process(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InPhaseModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutSamplesView);
+
+		void Reset();
+
+		const FSettings& GetSettings() const;
 
 		void SetInterpolationMode(EInterpolationMode InMode);
 		void SetFreq(float InFreq);
 		void SetPhase(float InPhase);
 
 	private:
-		void ComputeIndexFrequency(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<float> OutSamplesView) const;
-		void ComputeIndexPhase(TArrayView<const float> InTableView, TArrayView<const float> InPhaseModulator, TArrayView<float> OutSamplesView);
+		void ComputeIndexFrequency(TArrayView<const float> InTableView, TArrayView<const float> InFreqModulator, TArrayView<const float> InSyncTriggers, TArrayView<float> OutIndicesView);
+		void ComputeIndexPhase(TArrayView<const float> InTableView, TArrayView<const float> InPhaseModulator, TArrayView<float> OutIndicesView);
 
-		float LastIndex = 0.0;
+		float LastIndex = 0.0f;
 
 		TArray<float> PhaseModScratch;
 		FSettings Settings;

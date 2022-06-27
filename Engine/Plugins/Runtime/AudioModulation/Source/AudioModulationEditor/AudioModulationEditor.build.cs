@@ -32,6 +32,8 @@ public class AudioModulationEditor : ModuleRules
 				"CurveEditor",
 				"EditorWidgets",
 				"ToolWidgets",
+				"WaveTable",
+				"WaveTableEditor"
 			}
 		);
 

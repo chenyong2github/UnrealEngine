@@ -10,7 +10,6 @@
 #include "SoundControlBusProxy.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationProxy.h"
-#include "SoundModulationTransform.h"
 
 
 namespace AudioModulation

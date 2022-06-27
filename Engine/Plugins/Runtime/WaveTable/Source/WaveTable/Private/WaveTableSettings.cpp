@@ -4,31 +4,33 @@
 
 namespace WaveTable
 {
-	int32 ResolutionToInt32(EWaveTableResolution InResolution)
+	int32 ResolutionToInt32(EWaveTableResolution InWaveTableResolution)
 	{
-		if (InResolution == EWaveTableResolution::None)
+		if (InWaveTableResolution == EWaveTableResolution::None)
 		{
 			return 0;
 		}
 
-		return 1 << static_cast<int32>(InResolution);
+		return 1 << static_cast<int32>(InWaveTableResolution);
 	}
 
-	int32 ResolutionToInt32(EWaveTableCurve InCurve, EWaveTableResolution FileResolution)
+	int32 ResolutionToInt32(EWaveTableResolution InWaveTableResolution, EWaveTableCurve InCurve)
 	{
-		EWaveTableResolution Resolution = EWaveTableResolution::None;
+		if (InWaveTableResolution != EWaveTableResolution::None)
+		{
+			return ResolutionToInt32(InWaveTableResolution);
+		}
+
 		switch (InCurve)
 		{
-			// File uses the incoming resolution
+			// File always uses the incoming resolution, even if 'None'
 			case EWaveTableCurve::File:
-			{
-				Resolution = FileResolution;
-			}
 			break;
 
 			case EWaveTableCurve::Linear:
+			case EWaveTableCurve::Linear_Inv:
 			{
-				Resolution = EWaveTableResolution::Res_16;
+				InWaveTableResolution = EWaveTableResolution::Res_8;
 			}
 			break;
 
@@ -36,25 +38,26 @@ namespace WaveTable
 			case EWaveTableCurve::Exp_Inverse:
 			case EWaveTableCurve::Log:
 			{
-				Resolution = EWaveTableResolution::Res_256;
+				InWaveTableResolution = EWaveTableResolution::Res_256;
 			}
 			break;
 
 			case EWaveTableCurve::Sin:
 			case EWaveTableCurve::SCurve:
+			case EWaveTableCurve::Sin_Full:
 			{
-				Resolution = EWaveTableResolution::Res_64;
+				InWaveTableResolution = EWaveTableResolution::Res_64;
 			}
 			break;
 
 
 			default:
 			{
-				Resolution = EWaveTableResolution::Res_128;
+				InWaveTableResolution = EWaveTableResolution::Res_128;
 			}
 			break;
 		}
 
-		return ResolutionToInt32(Resolution);
+		return ResolutionToInt32(InWaveTableResolution);
 	}
 } // namespace WaveTable

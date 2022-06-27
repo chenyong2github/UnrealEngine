@@ -32,5 +32,9 @@
 			"Name": "MetaSound",
 			"Enabled": true
 		},
+		{
+			"Name": "WaveTable",
+			"Enabled": true
+		}
 	]	
 }

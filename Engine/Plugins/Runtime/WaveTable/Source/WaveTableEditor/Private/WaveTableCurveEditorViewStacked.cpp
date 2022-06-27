@@ -10,6 +10,7 @@
 #include "SCurveEditorPanel.h"
 #include "SGraphActionMenu.h"
 #include "Styling/AppStyle.h"
+#include "WaveTableTransform.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "WaveTableEditor"
@@ -19,7 +20,7 @@ namespace WaveTable
 {
 	namespace Editor
 	{
-		FWaveTableCurveModelBase::FWaveTableCurveModelBase(FRichCurve& InRichCurve, UObject* InOwner, EWaveTableCurveSource InSource)
+		FWaveTableCurveModel::FWaveTableCurveModel(FRichCurve& InRichCurve, UObject* InOwner, EWaveTableCurveSource InSource)
 			: FRichCurveEditorModelRaw(&InRichCurve, InOwner)
 			, ParentObject(InOwner)
 			, Source(InSource)
@@ -27,24 +28,23 @@ namespace WaveTable
 			check(InOwner);
 		}
 
-		void FWaveTableCurveModelBase::Refresh(int32 InCurveIndex)
+		void FWaveTableCurveModel::Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex)
 		{
 			// Must be set prior to remainder of refresh to avoid
 			// child class implementation acting on incorrect cached index
-			// (Editor May re-purpose models resulting in index change).
+			// (Editor may re-purpose models resulting in index change).
 			CurveIndex = InCurveIndex;
 
 			Color = GetCurveColor();
 
 			FText OutputAxisName;
-			RefreshCurveDescriptorText(ShortDisplayName, InputAxisName, OutputAxisName);
+			RefreshCurveDescriptorText(InTransform, ShortDisplayName, InputAxisName, OutputAxisName);
 
-			ShortDisplayName = GetShortDisplayName();
 			AxesDescriptor = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_AxesFormat", "X = {0}, Y = {1}"), InputAxisName, OutputAxisName);
 
 			bKeyDrawEnabled = true;
 			IntentionName = TEXT("AudioControlValue");
-			SupportedViews = ViewId;
+			SupportedViews = GetViewId();
 
 			bKeyDrawEnabled = false;
 
@@ -58,15 +58,7 @@ namespace WaveTable
 				UEnum* Enum = StaticEnum<EWaveTableCurveSource>();
 				check(Enum);
 
-				FString EnumValueName = Enum->GetValueAsString(Source);
-				int32 DelimIndex = -1;
-				EnumValueName.FindLastChar(':', DelimIndex);
-				if (DelimIndex > 0 && DelimIndex < EnumValueName.Len() - 1)
-				{
-					EnumValueName.RightChopInline(DelimIndex + 1);
-				}
-
-				FText CurveSourceText = FText::FromString(EnumValueName);
+				LongDisplayName = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_NameFormat", "{0}: {1}"), FText::AsNumber(CurveIndex), ShortDisplayName);
 
 				if (Source == EWaveTableCurveSource::Custom)
 				{
@@ -74,44 +66,79 @@ namespace WaveTable
 				}
 				else if (Source == EWaveTableCurveSource::Shared)
 				{
-					const UCurveFloat* SharedCurve = GetSharedCurve();
-					check(SharedCurve);
-					CurveSourceText = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_SharedNameFormat", "Shared, {0}"), FText::FromString(SharedCurve->GetName()));
 					bKeyDrawEnabled = true;
+
+					if (FWaveTableTransform* Transform = GetTransform())
+					{
+						if (const UCurveFloat* SharedCurve = Transform->CurveShared)
+						{
+							const FText CurveSourceText = FText::FromString(SharedCurve->GetName());
+							LongDisplayName = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_NameSharedFormat", "{0}: {1}, Shared Curve '{2}'"), FText::AsNumber(CurveIndex), ShortDisplayName, CurveSourceText);
+						}
+					}
 				}
 
-				LongDisplayName = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_NameFormat", "{0}: {1} ({2})"), FText::AsNumber(CurveIndex), ShortDisplayName, CurveSourceText);
 			}
 		}
 
-		FLinearColor FWaveTableCurveModelBase::GetColor() const
+		FLinearColor FWaveTableCurveModel::GetColor() const
 		{
 			return !GetPropertyEditorDisabled() && (Source == EWaveTableCurveSource::Custom)
 				? Color
 				: Color.Desaturate(0.35f);
 		}
 
-		const FText& FWaveTableCurveModelBase::GetAxesDescriptor() const
+		const FText& FWaveTableCurveModel::GetAxesDescriptor() const
 		{
 			return AxesDescriptor;
 		}
 
-		EWaveTableCurveSource FWaveTableCurveModelBase::GetSource() const
+		EWaveTableCurveSource FWaveTableCurveModel::GetSource() const
 		{
 			return Source;
 		}
 
-		const UObject* FWaveTableCurveModelBase::GetParentObject() const
+		const UObject* FWaveTableCurveModel::GetParentObject() const
 		{
 			return ParentObject.Get();
 		}
 
-		bool FWaveTableCurveModelBase::IsReadOnly() const
+		FWaveTableTransform* FWaveTableCurveModel::GetTransform()
+		{
+			return nullptr;
+		}
+
+		bool FWaveTableCurveModel::IsReadOnly() const
 		{
 			return Source != EWaveTableCurveSource::Custom;
 		}
 
-		ECurveEditorViewID FWaveTableCurveModelBase::ViewId = ECurveEditorViewID::Invalid;
+		ECurveEditorViewID FWaveTableCurveModel::WaveTableViewId = ECurveEditorViewID::Invalid;
+
+		void FWaveTableCurveModel::RefreshCurveDescriptorText(const FWaveTableTransform& InTransform, FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName)
+		{
+			UEnum* Enum = StaticEnum<EWaveTableCurve>();
+			check(Enum);
+
+			Enum->GetDisplayValueAsText(InTransform.Curve, OutShortDisplayName);
+			OutInputAxisName = LOCTEXT("WaveTableCurveModel_DefaultInputAxisName", "Unit Phase (Table Index)");
+			OutOutputAxisName = LOCTEXT("WaveTableCurveModel_DefaultOutputAxisName", "Amplitude");
+		}
+
+		FColor FWaveTableCurveModel::GetCurveColor() const
+		{
+			return FColor { 232, 122, 0, 255 };
+		}
+		
+		bool FWaveTableCurveModel::GetPropertyEditorDisabled() const
+		{
+			return false;
+		}
+
+		FText FWaveTableCurveModel::GetPropertyEditorDisabledText() const
+		{
+			return LOCTEXT("WaveTableCurveModel_Disabled", "Disabled");
+		}
 
 		void SViewStacked::Construct(const FArguments& InArgs, TWeakPtr<FCurveEditor> InCurveEditor)
 		{
@@ -186,7 +213,7 @@ namespace WaveTable
 				FSlateDrawElement::MakeText(OutDrawElements, LabelLayerId + 1, LabelGeometry, Label, FontInfo, DrawEffects, Curve->GetColor());
 
 				// Render axes descriptor
-				FText Descriptor = static_cast<FWaveTableCurveModelBase*>(Curve)->GetAxesDescriptor();
+				FText Descriptor = static_cast<FWaveTableCurveModel*>(Curve)->GetAxesDescriptor();
 
 				const FVector2D DescriptorSize = FontMeasure->Measure(Descriptor, FontInfo);
 
@@ -235,7 +262,7 @@ namespace WaveTable
 				TArray<FText> CurveModelGridLabelsX = MajorGridLabelsX;
 				check(MajorGridLinesX.Num() == CurveModelGridLabelsX.Num());
 
-				if (const FWaveTableCurveModelBase* EditorModel = static_cast<const FWaveTableCurveModelBase*>(DrawInfo.GetCurveModel()))
+				if (const FWaveTableCurveModel* EditorModel = static_cast<const FWaveTableCurveModel*>(DrawInfo.GetCurveModel()))
 				{
 					for (int32 i = 0; i < CurveModelGridLabelsX.Num(); ++i)
 					{
@@ -322,7 +349,7 @@ namespace WaveTable
 
 			FText Label = FText::AsNumber(FMath::Lerp(ValueMin, ValueMax, OffsetAlpha), &DrawInfo.LabelFormat);
 
-			if (const FWaveTableCurveModelBase* CurveModel = static_cast<const FWaveTableCurveModelBase*>(DrawInfo.GetCurveModel()))
+			if (const FWaveTableCurveModel* CurveModel = static_cast<const FWaveTableCurveModel*>(DrawInfo.GetCurveModel()))
 			{
 				FormatOutputLabel(*CurveModel, DrawInfo.LabelFormat, Label);
 			}
