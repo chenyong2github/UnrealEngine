@@ -6,12 +6,20 @@
 #include "Modules/ModuleInterface.h"
 
 
+namespace UE::PropertyViewer
+{
+class FPropertyValueFactory;
+}
+
+
 /**
  * Advanced Widgets module
  */
 class ADVANCEDWIDGETS_API FAdvancedWidgetsModule : public IModuleInterface
 {
 public:
+	static FAdvancedWidgetsModule& GetModule();
+	static FAdvancedWidgetsModule* GetModulePtr();
 
 	/**
 	 * Called right after the plugin DLL has been loaded and the plugin object has been created
@@ -23,6 +31,9 @@ public:
 	 */
 	virtual void ShutdownModule();
 
-	/** Advanced Widgets app identifier string */
-	static const FName AdvancedWidgetsAppIdentifier;
+public:
+	UE::PropertyViewer::FPropertyValueFactory& GetPropertyValueFactory() const;
+
+private:
+	TUniquePtr<UE::PropertyViewer::FPropertyValueFactory> PropertyValueFactory;
 };

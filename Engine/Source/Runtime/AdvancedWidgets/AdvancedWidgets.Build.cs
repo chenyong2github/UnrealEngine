@@ -6,17 +6,27 @@ public class AdvancedWidgets : ModuleRules
 {
 	public AdvancedWidgets(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PrivateDependencyModuleNames.AddRange(
+		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
 				"CoreUObject",
-				"Engine",
-				"InputCore",
-				"Slate",
 				"SlateCore",
 				"UMG"
 			}
 		);
+		PrivateDependencyModuleNames.AddRange(
+			new string[]
+			{
+				"Engine",
+				"InputCore",
+				"Slate",
+			}
+		);
+
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.Add("UnrealEd");
+		}
 	}
 }
