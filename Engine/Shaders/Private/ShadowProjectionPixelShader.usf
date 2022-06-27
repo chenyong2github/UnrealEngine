@@ -111,7 +111,7 @@ void Main(
 	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
 #if SUBPIXEL_SHADOW
 	const bool bUseFadePlane = bCascadeUseFadePlane > 0;
-	SceneW = ConvertFromDeviceZ(HairStrands.HairOnlyDepthTexture.Load(PixelCoord));
+	SceneW = ConvertFromDeviceZ(HairStrands.HairOnlyDepthTexture.Load(PixelCoord).x);
 	bIsSubsurfaceCompatible = false;
 #endif
 
@@ -385,7 +385,7 @@ void MainOnePassPointLightPS(
 
 #if SUBPIXEL_SHADOW
 	const uint3 PixelCoord = uint3(floor(SVPos.xy), 0);
-	const float HairSampleDepth = HairStrands.HairOnlyDepthTexture.Load(PixelCoord);
+	const float HairSampleDepth = HairStrands.HairOnlyDepthTexture.Load(PixelCoord).x;
 	if (HairSampleDepth > 0)
 	{
 		SceneW = ConvertFromDeviceZ(HairSampleDepth);

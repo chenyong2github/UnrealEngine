@@ -89,7 +89,7 @@ void RayTracingDynamicGeometryConverterCS(uint3 DispatchThreadId : SV_DispatchTh
 #elif RAY_TRACING_DYNAMIC_MESH_IN_LOCAL_SPACE
 		// Move the point back into local space because the RT instance will be placed there
 		// This the recommended default behavior so that the transform applied by the VertexFactory and the RT transform are always the same
-		WorldPosition.xyz = LWCMultiply(LWCPromote(WorldPosition), VertexFactoryGetWorldToLocal(VFIntermediates));
+		WorldPosition.xyz = LWCMultiply(LWCPromote(WorldPosition), VertexFactoryGetWorldToLocal(VFIntermediates)).xyz;
 #elif RAY_TRACING_DYNAMIC_MESH_IN_WORLD_SPACE
 		// There are a few geometry types which natively generate positions in world space and therefore not need any extra processing here.
 		// This behavior must be explicitly opted-in to so as to make the code more self-documenting and avoid un-intended mismatched transforms.

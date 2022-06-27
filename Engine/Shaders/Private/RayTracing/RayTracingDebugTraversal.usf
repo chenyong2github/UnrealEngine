@@ -59,7 +59,7 @@ struct FNaniteTraceRayInlineCallback : FDefaultTraceRayInlineCallback
 [numthreads(INLINE_RAY_TRACING_THREAD_GROUP_SIZE_X, INLINE_RAY_TRACING_THREAD_GROUP_SIZE_Y, 1)]
 void RayTracingDebugTraversalCS(uint3 DispatchThread : SV_DispatchThreadID)
 {
-	uint2 PixelCoord = DispatchThread.xy + View.ViewRectMin;
+	uint2 PixelCoord = DispatchThread.xy + View.ViewRectMin.xy;
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 

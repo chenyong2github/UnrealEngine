@@ -77,7 +77,7 @@ void MainPS(
 
 	if (bIsRenderedVelocity)
 	{
-		OutColor.rgb = (Luma + PrevLuma).xxx * 0.5 + abs(Color - PrevColor);
+		OutColor.rgb = (Luma + PrevLuma).xxx * 0.5 + abs(Color.xyz - PrevColor.xyz);
 		//OutColor.rgb = (Color + PrevColor) * 0.5;
 		OutColor.a = min(Color.a, PrevColor.a);
 	}

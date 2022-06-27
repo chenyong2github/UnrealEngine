@@ -7,7 +7,7 @@
 #include "../Common.ush"
 #include "MipTreeCommon.ush"
 
-uint3 Dimensions;
+uint2 Dimensions;
 Buffer<float> MipTreePosX;
 Buffer<float> MipTreeNegX;
 Buffer<float> MipTreePosY;

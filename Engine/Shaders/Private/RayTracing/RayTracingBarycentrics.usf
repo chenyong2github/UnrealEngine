@@ -53,7 +53,7 @@ struct FNaniteTraceRayInlineCallback : FDefaultTraceRayInlineCallback
 
 void RayTracingBarycentricsCommon(uint2 DispatchThreadIndex)
 {
-	uint2 PixelCoord = DispatchThreadIndex.xy + View.ViewRectMin;
+	uint2 PixelCoord = DispatchThreadIndex.xy + View.ViewRectMin.xy;
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 

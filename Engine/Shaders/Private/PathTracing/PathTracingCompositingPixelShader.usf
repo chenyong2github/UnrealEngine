@@ -51,7 +51,7 @@ void CompositeMain(
 	{
 		// Draw a progress meter for how far along we are to the max number of passes
 		float Aspect = View.BufferSizeAndInvSize.y * View.BufferSizeAndInvSize.z;
-		float Size = 50.0 * View.BufferSizeAndInvSize.zz;
+		float Size = 50.0 * View.BufferSizeAndInvSize.z;
 		float2 P = float2(UV.x, UV.y * Aspect);
 		float2 RectMin = View.ViewRectMin.xy;
 		float2 RectMax = View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy;

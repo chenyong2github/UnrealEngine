@@ -104,7 +104,7 @@ bool DisocclusionHeuristic(float2 ScreenPos, float DeviceZ, float2 HistoryUV)
 	// Empirically chosen threshold to balance between aliasing/noise from false positives and ghosting from false negatives
 	float DisocclusionMaxDeviceZ = 0.001;
 
-	return and(PrevDeviceZ - DeviceZ > DisocclusionMaxDeviceZ, CompensatedPrevDeviceZ - PrevExpectedDeviceZ > DisocclusionMaxDeviceZ);
+	return and(PrevDeviceZ - DeviceZ > DisocclusionMaxDeviceZ, CompensatedPrevDeviceZ - PrevExpectedDeviceZ > DisocclusionMaxDeviceZ).x;
 }
 
 float RgbLuma(float3 Color)

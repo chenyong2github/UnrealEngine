@@ -346,7 +346,7 @@ void HistogramConvertCS(uint3 GroupThreadId : SV_GroupThreadID)
 	UNROLL_N(HISTOGRAMS_PER_THREAD)
 	for (uint t = 0; t < HISTOGRAMS_PER_THREAD; t++)
 	{
-		uint index = GroupThreadId*HISTOGRAMS_PER_THREAD + t;
+		uint index = GroupThreadId.x*HISTOGRAMS_PER_THREAD + t;
 		BRANCH
 		if (index < HISTOGRAM_SIZE /4)
 		{

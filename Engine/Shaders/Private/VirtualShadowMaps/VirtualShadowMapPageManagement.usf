@@ -1055,7 +1055,7 @@ float4 Gather4VisZ(uint2 PixelCoord)
 
 #if COMPILER_SUPPORTS_GATHER_UINT
 	// Offset to 2x2 footprint center and scale to UV space
-	float2 UV = float2(PixelCoord + uint2(1U, 1U)) * VirtualShadowMap.RecPhysicalPoolSize;
+	float2 UV = float2(PixelCoord + uint2(1U, 1U)) * VirtualShadowMap.RecPhysicalPoolSize.xy;
 	return asfloat(PhysicalPagePool.Gather(PhysicalPagePoolSampler, float3(UV, ArrayIndex), 0));
 #else
 	uint4 PixelRect = uint4(PixelCoord.xy, PixelCoord.xy + uint2(1U, 1U));

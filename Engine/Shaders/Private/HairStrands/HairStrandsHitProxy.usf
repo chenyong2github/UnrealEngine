@@ -61,7 +61,7 @@ void EmitPS(
 	in float4 SvPosition : SV_Position,
 	out float OutDepth : SV_Depth)
 {
-	const float2 UV = SvPosition * InvViewportResolution;
+	const float2 UV = SvPosition.xy * InvViewportResolution;
 	const uint2 PixelCoord = UV * View.ViewSizeAndInvSize.xy;
 
 	// Take the first sample

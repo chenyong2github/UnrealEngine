@@ -372,7 +372,7 @@ float4 SampleSceneColor(float2 SceneUV)
 half3 LookupSceneColor(float2 SceneUV, float2 PixelOffset)
 {
 	float2 SampleUV = SceneUV + PixelOffset * Color_ExtentInverse;
-	return SampleSceneColor(SampleUV);
+	return SampleSceneColor(SampleUV).xyz;
 }
 
 float4 TonemapCommonPS(
@@ -554,7 +554,7 @@ float4 TonemapCommonPS(
 
 		#if SUPPORTS_SCENE_COLOR_APPLY_PARAMETERS
 		{
-			float4 SceneColorMultiply = SceneColorApplyParamaters[0];
+			float3 SceneColorMultiply = SceneColorApplyParamaters[0].xyz;
 			LinearColor *= SceneColorMultiply;
 		}
 		#endif

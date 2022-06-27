@@ -489,7 +489,7 @@ void DebugLightGridPS(
 
 	const uint2 TileTopLeftPixelCoord = (LocalPixelPosDynRes  >> GridData.LightGridPixelSizeShift) << GridData.LightGridPixelSizeShift;
 	const uint2 TileTopLeftPixelCoord2= (LocalPixelPosDynRes2 >> GridData.LightGridPixelSizeShift) << GridData.LightGridPixelSizeShift;
-	const uint TileSize = (0x1 << GridData.LightGridPixelSizeShift) - 1;
+	const uint TileSize = (0x1u << GridData.LightGridPixelSizeShift) - 1;
 
 	if (DebugNumLocalLights > 0)
 	{

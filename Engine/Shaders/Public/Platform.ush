@@ -1147,5 +1147,5 @@ uint WaveGetActiveLaneIndexLast()
 #define DECLARE_SCALAR_ARRAY(ScalarType, ScalarName, ElementCount) ScalarType##4 ScalarName[CALC_SCALAR_ARRAY_SIZE(ElementCount)]
 #endif
 #ifndef GET_SCALAR_ARRAY_ELEMENT
-#define GET_SCALAR_ARRAY_ELEMENT(PackedArray, ElementIndex) PackedArray[ElementIndex>>2u][ElementIndex&3u]
+#define GET_SCALAR_ARRAY_ELEMENT(PackedArray, ElementIndex) PackedArray[(uint)ElementIndex>>2u][(uint)ElementIndex&3u]
 #endif

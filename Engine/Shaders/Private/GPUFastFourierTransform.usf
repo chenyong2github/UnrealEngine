@@ -775,7 +775,7 @@ uint InversePartialBitReverse(in uint InValue, in uint BitReverseCount, in uint 
 	// -- for testing
 	if (false && BitReverseCount == 1) 
 	{
-		uint HalfTransformLength = 1 << (BitRange -1);
+		uint HalfTransformLength = 1u << (BitRange -1);
 		if (InValue < HalfTransformLength )
 		{
 			ResultValue = 2 * InValue;
@@ -806,8 +806,8 @@ void ReorderFFTPassCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_Group
 	const uint BitReverseCount = BitCount;
 
 	// The lenght of the transform.
-	const uint TransformLenght = 1 << LogTwoLength;
-	const uint NumSubLengths = 1 << BitCount;
+	const uint TransformLenght = 1u << LogTwoLength;
+	const uint NumSubLengths = 1u << BitCount;
 	
 	// When inverting the transform the correct scale is 1 / TransformLenght
 	// But the group shared sub transforms will scale by NumSubLengths / TransformLength.
@@ -1080,7 +1080,7 @@ void ComplexFFTPassCS(uint3 GroupID : SV_GroupID, uint3 GroupThreadID : SV_Group
 	float4 SrcValueA;
 	float4 SrcValueB;
 
-	const uint TransformLength = 1 << (BitCount-1);
+	const uint TransformLength = 1u << (BitCount-1);
 	
 	float4 Scale = DstPostFilterParameters[0] * ((Ns == 1 && !bIsForward) ? 1.f / float(TransformLength) : 1.f);
 

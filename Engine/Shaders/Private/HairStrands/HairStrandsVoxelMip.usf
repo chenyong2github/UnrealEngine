@@ -26,14 +26,14 @@ uint ComputeMipDensity(
 
 	// Propagate no shadow casting flag, only if other valid/non-empty voxels are also no-shadow caster
 	const bool bHasShadowCaster =
-		(RawDensity0 & VOXEL_HAIR_MASK) > 0 && (RawDensity0 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity1 & VOXEL_HAIR_MASK) > 0 && (RawDensity1 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity2 & VOXEL_HAIR_MASK) > 0 && (RawDensity2 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity3 & VOXEL_HAIR_MASK) > 0 && (RawDensity3 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity4 & VOXEL_HAIR_MASK) > 0 && (RawDensity4 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity5 & VOXEL_HAIR_MASK) > 0 && (RawDensity5 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity6 & VOXEL_HAIR_MASK) > 0 && (RawDensity6 & VOXEL_CAST_NO_SHADOW_MASK)==0 ||
-		(RawDensity7 & VOXEL_HAIR_MASK) > 0 && (RawDensity7 & VOXEL_CAST_NO_SHADOW_MASK)==0;
+		((RawDensity0 & VOXEL_HAIR_MASK) > 0 && (RawDensity0 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity1 & VOXEL_HAIR_MASK) > 0 && (RawDensity1 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity2 & VOXEL_HAIR_MASK) > 0 && (RawDensity2 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity3 & VOXEL_HAIR_MASK) > 0 && (RawDensity3 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity4 & VOXEL_HAIR_MASK) > 0 && (RawDensity4 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity5 & VOXEL_HAIR_MASK) > 0 && (RawDensity5 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity6 & VOXEL_HAIR_MASK) > 0 && (RawDensity6 & VOXEL_CAST_NO_SHADOW_MASK)==0) ||
+		((RawDensity7 & VOXEL_HAIR_MASK) > 0 && (RawDensity7 & VOXEL_CAST_NO_SHADOW_MASK)==0);
 
 	uint TotalHair = 
 		(RawDensity0 & VOXEL_HAIR_MASK) +

@@ -374,7 +374,7 @@ void MainCS(
 		return;
 	}
 	const uint2 TileCoord = TileDataBuffer[LinearIndex];
-	uint2 PixelCoord = TileCoord * TileSize + GroupThreadId;
+	uint2 PixelCoord = TileCoord * TileSize + GroupThreadId.xy;
 #else
 	uint2 PixelCoord = DispatchThreadId.xy + ResolutionOffset;
 #endif // PERMUTATION_TILE

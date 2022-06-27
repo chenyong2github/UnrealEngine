@@ -200,7 +200,7 @@ float4 DebugRayTracingInstance(RayDesc Ray)
 
 RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 {
-	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin;
+	uint2 PixelCoord = DispatchRaysIndex().xy + View.ViewRectMin.xy;
 
 	float2 RenderTargetUV = (float2(PixelCoord) + .5f) * View.BufferSizeAndInvSize.zw;
 
@@ -245,7 +245,7 @@ float3 ComputeWorldNormal()
 	};
 	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
 
-	float3x3 InverseTranspose3x3 = transpose(WorldToObject4x3());
+	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
 	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
 
 	return WorldNormal;

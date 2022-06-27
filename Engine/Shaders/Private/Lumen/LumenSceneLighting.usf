@@ -112,7 +112,7 @@ uint GetPriorityBucketIndex(FLumenCardData Card, FLumenCardPageData CardPage, ui
 
 		for (uint ViewIndex = 0; ViewIndex < NumCameraOrigins; ViewIndex++)
 		{
-			float3 CardSpaceViewPosition = mul(WorldCameraOrigins[ViewIndex] - Card.Origin, Card.WorldToLocalRotation);
+			float3 CardSpaceViewPosition = mul(WorldCameraOrigins[ViewIndex].xyz - Card.Origin, Card.WorldToLocalRotation);
 			float3 CardPageLocalCenter;
 			float3 CardPageLocalExtent;
 			GetCardPageLocalBBox(CardPage, Card, CardPageLocalCenter, CardPageLocalExtent);

@@ -63,7 +63,7 @@ float3 ComputeWorldNormal(uint PrimitiveIndex)
 	};
 	float3 LocalNormal = cross(LocalEdges[1], LocalEdges[0]);
 
-	float3x3 InverseTranspose3x3 = transpose(WorldToObject4x3());
+	float3x3 InverseTranspose3x3 = transpose((float3x3)WorldToObject4x3());
 	float3 WorldNormal = normalize(mul(LocalNormal, InverseTranspose3x3));
 #endif
 	return WorldNormal;

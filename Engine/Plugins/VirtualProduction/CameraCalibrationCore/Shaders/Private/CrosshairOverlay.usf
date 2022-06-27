@@ -39,14 +39,14 @@ void MainPS(float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
 	float4 Color = float4(0.0, 0.0, 0.0, 0.0); // Transparent
     
     if (IsEqualCoordinate(PixelCoordinate.x, CenterCoordinate.x) && (
-        (PixelCoordinate.y > (CenterCoordinate.y - LengthInPixels) && PixelCoordinate.y < (CenterCoordinate.y - GapSizeInPixels)) || 
-        (PixelCoordinate.y < (CenterCoordinate.y + LengthInPixels)) && (PixelCoordinate.y > (CenterCoordinate.y + GapSizeInPixels))))
+        ((PixelCoordinate.y > (CenterCoordinate.y - LengthInPixels) && PixelCoordinate.y < (CenterCoordinate.y - GapSizeInPixels))) || 
+        ((PixelCoordinate.y < (CenterCoordinate.y + LengthInPixels)) && (PixelCoordinate.y > (CenterCoordinate.y + GapSizeInPixels)))))
     {
 		Color = OutputColor;
     }   
     else if (IsEqualCoordinate(PixelCoordinate.y, CenterCoordinate.y) && (
-        (PixelCoordinate.x > (CenterCoordinate.x - LengthInPixels) && PixelCoordinate.x < (CenterCoordinate.x - GapSizeInPixels)) || 
-        (PixelCoordinate.x < (CenterCoordinate.x + LengthInPixels)) && (PixelCoordinate.x > (CenterCoordinate.x + GapSizeInPixels))))
+        ((PixelCoordinate.x > (CenterCoordinate.x - LengthInPixels) && PixelCoordinate.x < (CenterCoordinate.x - GapSizeInPixels))) || 
+        ((PixelCoordinate.x < (CenterCoordinate.x + LengthInPixels)) && (PixelCoordinate.x > (CenterCoordinate.x + GapSizeInPixels)))))
     {
 		Color = OutputColor;
     }

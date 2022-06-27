@@ -111,7 +111,7 @@ void BuildEnergyTableCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const float3 H = normalize(V + L);
 		const float VoH = dot(V, H);
 		const float NoH = H.z;
-		const float DiffuseWeight = NoL > 0 && NoV > 0 ? PI * Diffuse_Chan(float3(1, 1, 1), Alpha.x, NoV, NoL, VoH, NoH, 1.0f) : 0.0f;
+		const float DiffuseWeight = NoL > 0 && NoV > 0 ? PI * Diffuse_Chan(float3(1, 1, 1), Alpha.x, NoV, NoL, VoH, NoH, 1.0f).x : 0.0f;
 
 		Weight = float2(DiffuseWeight, 1.f);
 #endif

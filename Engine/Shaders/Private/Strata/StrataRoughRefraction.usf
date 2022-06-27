@@ -18,7 +18,7 @@ float GaussianFunction(float2 P, float2 Mean, float Variance)
 {
 	float StandardDeviation = sqrt(Variance);
 	float FactorA = 1 / (StandardDeviation * sqrt(2 * PI));
-	float2 Bell = exp(-((P.x - Mean.x) * (P.x - Mean.x)) / (2 * Variance) - ((P.y - Mean.y) * (P.y - Mean.y)) / (2 * Variance));
+	float Bell = exp(-((P.x - Mean.x) * (P.x - Mean.x)) / (2 * Variance) - ((P.y - Mean.y) * (P.y - Mean.y)) / (2 * Variance));
 	return FactorA * Bell;
 }
 

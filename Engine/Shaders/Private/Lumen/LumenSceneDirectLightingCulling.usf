@@ -246,7 +246,7 @@ void BuildLightTilesCS(
 			uint NumCulledLightsPerTile = 0;
 			for (uint LightIndex = 0; LightIndex < NumLights; ++LightIndex)
 			{
-				FLumenLight LumenLight = LoadLumenLight(LightIndex, PreViewTranslation[ViewIndex]);
+				FLumenLight LumenLight = LoadLumenLight(LightIndex, PreViewTranslation[ViewIndex].xyz);
 
 				bool bLightAffectsCard = DoesLightAffectCardPageUVRange(LumenLight, CardPage, Card, UVMin, UVMax);
 				if (bLightAffectsCard)

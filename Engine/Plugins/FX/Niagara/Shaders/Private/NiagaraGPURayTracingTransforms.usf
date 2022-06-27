@@ -50,7 +50,7 @@ RWStructuredBuffer<float4> TLASTransforms;
 
 float GetFloat(int RegisterIdx, uint InstanceID)
 {
-	RegisterIdx &= (~(1 << 31));
+	RegisterIdx &= (~(1u << 31));
 	return ParticleDataFloatBuffer[(RegisterIdx * ParticleDataFloatStride + InstanceID)];
 }
 

@@ -55,7 +55,7 @@ float3 DebugVisualizeClipmap(float2 PixelUV, FVirtualShadowMapProjectionShaderDa
 			}
 			else
 			{
-				UVScale = max(UVScale, NewUVScale / float(1 << (LastValidLevelIndex - Index)));
+				UVScale = max(UVScale, NewUVScale / float(1u << (LastValidLevelIndex - Index)));
 			}
 		}
 	}

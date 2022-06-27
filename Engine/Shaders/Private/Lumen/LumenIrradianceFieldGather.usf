@@ -59,7 +59,7 @@ void MarkRadianceProbesUsedByGBufferCS(
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 SvPosition = DispatchThreadId + View.ViewRectMinAndSize.xy;
+	uint2 SvPosition = DispatchThreadId.xy + View.ViewRectMinAndSize.xy;
 	float2 ScreenUV = (SvPosition + 0.5) * View.BufferSizeAndInvSize.zw;
 	float SceneDepth = CalcSceneDepth(ScreenUV);
 	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);

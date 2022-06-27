@@ -1213,7 +1213,7 @@ void FixupBordersAndGenerateMipsCS(
 		uint MipLevel = 1;
 		uint ParentMipSize = FinalProbeResolution >> (MipLevel - 1);
 		uint MipSize = FinalProbeResolution >> MipLevel;
-		uint ThreadgroupSizeForMip = THREADGROUP_SIZE >> MipLevel;
+		uint ThreadgroupSizeForMip = (uint)THREADGROUP_SIZE >> MipLevel;
 		uint2 MipProbeTexelCoord = GroupThreadId.xy + ThreadgroupSizeForMip * GroupId.xy;
 
 		if (all(and(GroupThreadId.xy < ThreadgroupSizeForMip, MipProbeTexelCoord < MipSize)))
@@ -1252,7 +1252,7 @@ void FixupBordersAndGenerateMipsCS(
 		uint MipLevel = 2;
 		uint ParentMipSize = FinalProbeResolution >> (MipLevel - 1);
 		uint MipSize = FinalProbeResolution >> MipLevel;
-		uint ThreadgroupSizeForMip = THREADGROUP_SIZE >> MipLevel;
+		uint ThreadgroupSizeForMip = (uint)THREADGROUP_SIZE >> MipLevel;
 		uint2 MipProbeTexelCoord = GroupThreadId.xy + ThreadgroupSizeForMip * GroupId.xy;
 
 		if (all(and(GroupThreadId.xy < ThreadgroupSizeForMip, MipProbeTexelCoord < MipSize)))

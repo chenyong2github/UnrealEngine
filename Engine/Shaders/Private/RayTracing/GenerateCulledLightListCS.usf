@@ -138,7 +138,7 @@ void GenerateCulledLightListCS(
 		if (ThreadId.x == 0)
 		{
 			// unset packed bit
-			LightCount &= ~(1<<31);
+			LightCount &= ~(1u<<31);
 
 			uint Address = (GroupId.x + CellCount * (GroupId.y + (GroupId.z * CellCount)));
 			LightCullingVolume[Address] = uint4(LightCount, LightIndexBufferOffset, 0, 0);
