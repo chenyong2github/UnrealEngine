@@ -18,6 +18,7 @@
 #include "RenderGraphDefinitions.h"
 #include "Elements/Framework/TypedElementListFwd.h"
 #include "DynamicRenderScaling.h"
+#include "GenericPlatform/GenericPlatformInputDeviceMapper.h"
 
 class FCanvas;
 class FViewport;
@@ -804,13 +805,14 @@ public:
 
 	FInputKeyEventArgs(FViewport* InViewport, FInputDeviceId InInputDevice, FKey InKey, EInputEvent InEvent)
 		: Viewport(InViewport)
-		, ControllerId(0)
 		, InputDevice(InInputDevice)
 		, Key(InKey)
 		, Event(InEvent)
 		, AmountDepressed(1.0f)
 		, bIsTouchEvent(false)
 	{
+		FPlatformUserId UserID = IPlatformInputDeviceMapper::Get().GetUserForInputDevice(InInputDevice);
+		ControllerId = FPlatformMisc::GetUserIndexForPlatformUser(UserID);
 	}
 
 	FInputKeyEventArgs(FViewport* InViewport, int32 InControllerId, FKey InKey, EInputEvent InEvent, float InAmountDepressed, bool bInIsTouchEvent)
@@ -826,13 +828,14 @@ public:
 	
 	FInputKeyEventArgs(FViewport* InViewport, FInputDeviceId InInputDevice, FKey InKey, EInputEvent InEvent, float InAmountDepressed, bool bInIsTouchEvent)
 		: Viewport(InViewport)
-		, ControllerId(0)
 		, InputDevice(InInputDevice)
 		, Key(InKey)
 		, Event(InEvent)
 		, AmountDepressed(InAmountDepressed)
 		, bIsTouchEvent(bInIsTouchEvent)
 	{
+		FPlatformUserId UserID = IPlatformInputDeviceMapper::Get().GetUserForInputDevice(InInputDevice);
+		ControllerId = FPlatformMisc::GetUserIndexForPlatformUser(UserID);
 	}
 
 	bool IsGamepad() const { return Key.IsGamepadKey(); }
