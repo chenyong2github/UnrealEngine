@@ -404,6 +404,43 @@ namespace UE { namespace ConcurrentQueuesTests
 			}
 		}
 
+		{	// test `Peek()`
+			struct FMovableOnly
+			{
+				explicit FMovableOnly(int32 InId)
+					: Id(InId)
+				{
+				}
+
+				FMovableOnly(FMovableOnly&&) = default;
+				FMovableOnly& operator=(FMovableOnly&&) = default;
+
+				int32 Id;
+			};
+
+			{
+				TSpscQueue<FMovableOnly> Q;
+				Q.Enqueue(42);
+				FMovableOnly* Peeked = Q.Peek();
+				check(Peeked);
+				check(Peeked->Id == 42);
+				TOptional<FMovableOnly> Dequeued = Q.Dequeue();
+				check(Dequeued);
+				check(Dequeued.GetValue().Id == Peeked->Id);
+			}
+
+			{
+				TMpscQueue<FMovableOnly> Q;
+				Q.Enqueue(42);
+				FMovableOnly* Peeked = Q.Peek();
+				check(Peeked);
+				check(Peeked->Id == 42);
+				TOptional<FMovableOnly> Dequeued = Q.Dequeue();
+				check(Dequeued);
+				check(Dequeued.GetValue().Id == Peeked->Id);
+			}
+		}
+
 		UE_BENCHMARK(5, TestTCircularQueueSingleThread<5'000'000>);
 		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Spsc>>>);
 		UE_BENCHMARK(5, TestQueueSingleThread<5'000'000, TQueueAdapter<TQueue<uint32, EQueueMode::Mpsc>>>);

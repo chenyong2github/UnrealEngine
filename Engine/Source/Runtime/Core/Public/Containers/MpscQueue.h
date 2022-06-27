@@ -85,6 +85,21 @@ public:
 		return false;
 	}
 
+	// as there can be only one consumer, a consumer can safely "peek" the tail of the queue.
+	// returns a pointer to the tail if the queue is not empty, nullptr otherwise
+	// there's no overload with TOptional as it doesn't support references
+	ElementType* Peek() const
+	{
+		FNode* Next = Tail->Next.load(std::memory_order_acquire);
+
+		if (Next == nullptr)
+		{
+			return nullptr;
+		}
+
+		return (ElementType*)&Next->Value;
+	}
+
 	bool IsEmpty() const
 	{
 		return Tail->Next.load(std::memory_order_acquire) != nullptr;

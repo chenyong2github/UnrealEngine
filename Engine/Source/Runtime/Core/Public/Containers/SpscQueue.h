@@ -99,6 +99,22 @@ public:
 		return LocalTailNext != nullptr;
 	}
 
+	// as there can be only one consumer, a consumer can safely "peek" the tail of the queue.
+	// returns a pointer to the tail if the queue is not empty, nullptr otherwise
+	// there's no overload with TOptional as it doesn't support references
+	ElementType* Peek() const
+	{
+		FNode* LocalTail = Tail.load(std::memory_order_relaxed);
+		FNode* LocalTailNext = LocalTail->Next.load(std::memory_order_acquire);
+
+		if (LocalTailNext == nullptr)
+		{
+			return nullptr;
+		}
+
+		return (ElementType*)&LocalTailNext->Value;
+	}
+
 private:
 	struct FNode
 	{
