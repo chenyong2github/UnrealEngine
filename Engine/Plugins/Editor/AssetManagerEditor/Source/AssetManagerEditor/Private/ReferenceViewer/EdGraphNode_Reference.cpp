@@ -61,21 +61,29 @@ void UEdGraphNode_Reference::SetupReferenceNode(const FIntPoint& NodeLoc, const 
 	FPrimaryAssetId PrimaryAssetID = NewIdentifiers[0].GetPrimaryAssetId();
 	if (PrimaryAssetID.IsValid())  // Management References (PrimaryAssetIDs)
 	{
-		MainAssetName = PrimaryAssetID.PrimaryAssetName.ToString();
-		AssetTypeName = PrimaryAssetID.PrimaryAssetType.ToString();
+		static FText ManagerText = LOCTEXT("ReferenceManager", "Manager");
+		MainAssetName = PrimaryAssetID.PrimaryAssetType.ToString() + TEXT(":") + PrimaryAssetID.PrimaryAssetName.ToString();
+		AssetTypeName = ManagerText.ToString();
 		bIsPackage = false;
 		bIsPrimaryAsset = true;
 	}
-	else if (First.IsValue()) // Searchable Names (GamePlay Tags)
+	else if (First.IsValue()) // Searchable Names (GamePlay Tags, Data Table Row Handle)
 	{
 		MainAssetName = First.ValueName.ToString();
 		AssetTypeName = First.ObjectName.ToString();
+		static const FName NAME_DataTable(TEXT("DataTable"));
+		static const FText InDataTableText = LOCTEXT("InDataTable", "In DataTable");
+		if (InAssetData.AssetClassPath.GetAssetName() == NAME_DataTable)
+		{
+			AssetTypeName = InDataTableText.ToString() + TEXT(" ") + AssetTypeName;
+		}
+
 		bIsPackage = false;
 	}
 	else if (First.IsPackage() && !InAssetData.IsValid()) 
 	{
 		const FString PackageNameStr = Identifiers[0].PackageName.ToString();
-		if ( PackageNameStr.StartsWith(TEXT("/Script")) )// Native Packages (/Script Code)
+		if ( PackageNameStr.StartsWith(TEXT("/Script")) )// C++ Packages (/Script Code)
 		{
 			MainAssetName = PackageNameStr.RightChop(8);
 			AssetTypeName = TEXT("Script");

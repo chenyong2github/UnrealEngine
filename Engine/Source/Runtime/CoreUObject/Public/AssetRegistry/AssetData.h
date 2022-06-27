@@ -822,6 +822,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
  * Helper struct for FAssetIdentifier (e.g., for the FOnViewAssetIdentifiersInReferenceViewer delegate and Reference Viewer functions).
  */
 #if WITH_EDITORONLY_DATA
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 struct FReferenceViewerParams
 {
 	FReferenceViewerParams()
@@ -836,6 +837,7 @@ struct FReferenceViewerParams
 		, bShowShowReferencesOptions(true)
 		, bShowShowSearchableNames(true)
 		, bShowShowNativePackages(true)
+		, bShowShowCodePackages(true)
 		, bShowShowFilteredPackagesOnly(true)
 		, bShowCompactMode(true)
 	{}
@@ -869,12 +871,16 @@ struct FReferenceViewerParams
 	/** Whether to visually show to the user the option of "Show Searchable Names" */
 	bool bShowShowSearchableNames;
 	/** Whether to visually show to the user the option of "Show Native Packages" */
+	UE_DEPRECATED(5.1, "bShowShowNativePackages is deprecated, please use bShowShowCodePackages instead.")
 	bool bShowShowNativePackages;
+	/** Whether to visually show to the user the option of "Show C++ Packages" */
+	bool bShowShowCodePackages;
 	/** Whether to visually show to the user the option of "Show Filtered Packages Only" */
 	bool bShowShowFilteredPackagesOnly;
 	/** Whether to visually show to the user the option of "Compact Mode" */
 	bool bShowCompactMode;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif // WITH_EDITORONLY_DATA
 
 /** A structure defining a thing that can be reference by something else in the asset registry. Represents either a package of a primary asset id */

@@ -52,9 +52,9 @@ bool UReferenceViewerSettings::IsShowSearchableNames() const
 	return bIsShowSearchableNames;
 }
 
-bool UReferenceViewerSettings::IsShowNativePackages() const
+bool UReferenceViewerSettings::IsShowCodePackages() const
 {
-	return bIsShowNativePackages;
+	return bIsShowCodePackages;
 }
 
 bool UReferenceViewerSettings::IsShowReferencers() const
@@ -127,9 +127,9 @@ void UReferenceViewerSettings::SetShowSearchableNames(bool newEnabled)
 	SaveConfig();
 }
 
-void UReferenceViewerSettings::SetShowNativePackages(bool newEnabled)
+void UReferenceViewerSettings::SetShowCodePackages(bool newEnabled)
 {
-	bIsShowNativePackages = newEnabled;
+	bIsShowCodePackages = newEnabled;
 	SaveConfig();
 }
 

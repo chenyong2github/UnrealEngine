@@ -77,8 +77,8 @@ public:
 	bool IsShowSearchableNames() const;
 	void SetShowSearchableNames(bool newEnabled);
 
-	bool IsShowNativePackages() const;
-	void SetShowNativePackages(bool newEnabled);
+	bool IsShowCodePackages() const;
+	void SetShowCodePackages(bool newEnabled);
 
 	bool IsShowDuplicates() const;
 	void SetShowDuplicatesEnabled(bool newEnabled);
@@ -157,7 +157,7 @@ private:
 	
 	/* Show/Hide Native Packages  */
 	UPROPERTY(config)
-	bool bIsShowNativePackages;
+	bool bIsShowCodePackages;
 	
 	/* Whether to show duplicate asset references */
 	UPROPERTY(config)

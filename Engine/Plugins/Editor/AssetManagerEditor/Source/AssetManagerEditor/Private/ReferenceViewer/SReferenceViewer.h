@@ -150,8 +150,8 @@ private:
 	bool IsShowManagementReferencesChecked() const;
 	void OnShowSearchableNamesChanged();
 	bool IsShowSearchableNamesChecked() const;
-	void OnShowNativePackagesChanged();
-	bool IsShowNativePackagesChecked() const;
+	void OnShowCodePackagesChanged();
+	bool IsShowCodePackagesChecked() const;
 
 	int32 GetSearchBreadthCount() const;
 	void OnSearchBreadthCommitted(int32 NewValue);
@@ -242,8 +242,8 @@ private:
 	bool bShowShowReferencesOptions;
 	/** Whether to visually show to the user the option of "Show Searchable Names" */
 	bool bShowShowSearchableNames;
-	/** Whether to visually show to the user the option of "Show Native Packages" */
-	bool bShowShowNativePackages;
+	/** Whether to visually show to the user the option of "Show C++ Packages" */
+	bool bShowShowCodePackages;
 	/** Whether to visually show to the user the option of "Show Filtered Packages Only" */
 	bool bShowShowFilteredPackagesOnly;
 	/** True if our view is out of date due to asset registry changes */

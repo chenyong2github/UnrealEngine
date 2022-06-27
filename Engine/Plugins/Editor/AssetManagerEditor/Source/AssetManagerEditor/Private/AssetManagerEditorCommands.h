@@ -73,11 +73,11 @@ public:
 	// Toggles visiblity of Management References (i.e. PrimaryAssetIDs)
 	TSharedPtr<FUICommandInfo> ShowManagementReferences;
 
-	// Toggles visiblity of GameplayTags
-	TSharedPtr<FUICommandInfo> ShowGamePlayTags;
+	// Toggles visiblity of Name References (i.e. Gameplay Tags and Data Table Row Handles)
+	TSharedPtr<FUICommandInfo> ShowNameReferences;
 
 	// Toggles visiblity of Native Packages
-	TSharedPtr<FUICommandInfo> ShowNativePackages;
+	TSharedPtr<FUICommandInfo> ShowCodePackages;
 
 	// Toggles visiblity of Duplicate References
 	TSharedPtr<FUICommandInfo> ShowDuplicates;

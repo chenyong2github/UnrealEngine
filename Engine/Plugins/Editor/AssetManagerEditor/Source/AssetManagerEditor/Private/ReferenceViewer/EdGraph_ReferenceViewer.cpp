@@ -371,10 +371,23 @@ void UEdGraph_ReferenceViewer::GetSortedLinks(const TArray<FAssetIdentifier>& Id
 	{
 		switch (InCategory)
 		{
-		case EDependencyCategory::Package: return 0;
-		case EDependencyCategory::Manage: return 1;
-		case EDependencyCategory::SearchableName: return 2;
-		default: check(false);  return 3;
+			case EDependencyCategory::Package: 
+			{
+				return 0;
+			}
+			case EDependencyCategory::Manage:
+			{
+				return 1;
+			}
+			case EDependencyCategory::SearchableName: 
+			{
+				return 2;
+			}
+			default: 
+			{
+				check(false);
+				return 3;
+			}
 		}
 	};
 	auto IsHard = [](EDependencyProperty Properties)
@@ -455,7 +468,7 @@ bool UEdGraph_ReferenceViewer::IsPackageIdentifierPassingFilter(const FAssetIden
 {
 	if (!InAssetIdentifier.IsValue())
 	{
-		if (!Settings->IsShowNativePackages() && InAssetIdentifier.PackageName.ToString().StartsWith(TEXT("/Script")))
+		if (!Settings->IsShowCodePackages() && InAssetIdentifier.PackageName.ToString().StartsWith(TEXT("/Script")))
 		{
 			return false;
 		}

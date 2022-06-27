@@ -113,7 +113,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	bShowCollectionFilter = true;
 	bShowShowReferencesOptions = true;
 	bShowShowSearchableNames = true;
-	bShowShowNativePackages = true;
+	bShowShowCodePackages = true;
 	bShowShowFilteredPackagesOnly = true;
 	bShowCompactMode = true;
 	bDirtyResults = false;
@@ -469,7 +469,7 @@ void SReferenceViewer::SetGraphRootIdentifiers(const TArray<FAssetIdentifier>& N
 	bShowCollectionFilter = ReferenceViewerParams.bShowCollectionFilter;
 	bShowShowReferencesOptions = ReferenceViewerParams.bShowShowReferencesOptions;
 	bShowShowSearchableNames = ReferenceViewerParams.bShowShowSearchableNames;
-	bShowShowNativePackages = ReferenceViewerParams.bShowShowNativePackages;
+	bShowShowCodePackages = ReferenceViewerParams.bShowShowCodePackages;
 
 	bShowShowFilteredPackagesOnly = ReferenceViewerParams.bShowShowFilteredPackagesOnly;
 	if (ReferenceViewerParams.bShowFilteredPackagesOnly.IsSet())
@@ -1069,15 +1069,15 @@ bool SReferenceViewer::IsShowSearchableNamesChecked() const
 	return Settings->IsShowSearchableNames();
 }
 
-void SReferenceViewer::OnShowNativePackagesChanged()
+void SReferenceViewer::OnShowCodePackagesChanged()
 {
-	Settings->SetShowNativePackages(!Settings->IsShowNativePackages());
+	Settings->SetShowCodePackages(!Settings->IsShowCodePackages());
 	RebuildGraph();
 }
 
-bool SReferenceViewer::IsShowNativePackagesChecked() const
+bool SReferenceViewer::IsShowCodePackagesChecked() const
 {
-	return Settings->IsShowNativePackages();
+	return Settings->IsShowCodePackages();
 }
 
 int32 SReferenceViewer::GetSearchBreadthCount() const
@@ -1197,18 +1197,18 @@ void SReferenceViewer::RegisterActions()
 		FIsActionButtonVisible::CreateSP(this, &SReferenceViewer::GetManagementReferencesVisibility));
 
 	ReferenceViewerActions->MapAction(
-		FAssetManagerEditorCommands::Get().ShowGamePlayTags,
+		FAssetManagerEditorCommands::Get().ShowNameReferences,
 		FExecuteAction::CreateSP(this, &SReferenceViewer::OnShowSearchableNamesChanged),
 		FCanExecuteAction(),	
 		FIsActionChecked::CreateSP(this, &SReferenceViewer::IsShowSearchableNamesChecked),
 		FIsActionButtonVisible::CreateLambda([this] { return bShowShowSearchableNames; }));
 
 	ReferenceViewerActions->MapAction(
-		FAssetManagerEditorCommands::Get().ShowNativePackages,
-		FExecuteAction::CreateSP(this, &SReferenceViewer::OnShowNativePackagesChanged),
+		FAssetManagerEditorCommands::Get().ShowCodePackages,
+		FExecuteAction::CreateSP(this, &SReferenceViewer::OnShowCodePackagesChanged),
 		FCanExecuteAction(),	
-		FIsActionChecked::CreateSP(this, &SReferenceViewer::IsShowNativePackagesChecked),
-		FIsActionButtonVisible::CreateLambda([this] { return bShowShowNativePackages; }));
+		FIsActionChecked::CreateSP(this, &SReferenceViewer::IsShowCodePackagesChecked),
+		FIsActionButtonVisible::CreateLambda([this] { return bShowShowCodePackages; }));
 
 
 	ReferenceViewerActions->MapAction(
@@ -1900,8 +1900,8 @@ TSharedRef<SWidget> SReferenceViewer::GetShowMenuContent()
 
 	MenuBuilder.BeginSection("Assets", LOCTEXT("Assets", "Assets"));
 	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowManagementReferences);
-	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowGamePlayTags);
-	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowNativePackages);
+	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowNameReferences);
+	MenuBuilder.AddMenuEntry(FAssetManagerEditorCommands::Get().ShowCodePackages);
 	MenuBuilder.EndSection();
 
 	MenuBuilder.BeginSection("ViewOptions", LOCTEXT("ViewOptions", "View Options"));
