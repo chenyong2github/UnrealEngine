@@ -3,7 +3,6 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MVVMPropertyPathHelpers.h"
 #include "Types/MVVMBindingSource.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/SCompoundWidget.h"
@@ -21,7 +20,8 @@ public:
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ATTRIBUTE(TArray<UE::MVVM::IFieldPathHelper*>, PathHelpers)
+		SLATE_ATTRIBUTE(UE::MVVM::FBindingSource, SelectedSource)
+		SLATE_ATTRIBUTE(TArray<UE::MVVM::FBindingSource>, AvailableSources)
 		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
 	SLATE_END_ARGS()
 
@@ -35,8 +35,9 @@ private:
 	FReply OnClearSource();
 
 private:
-	TAttribute<TArray<UE::MVVM::IFieldPathHelper*>> PathHelpers;
 	FSelectionChanged OnSelectionChanged;
+	TAttribute<TArray<UE::MVVM::FBindingSource>> AvailableSourcesAttribute;
+	TAttribute< UE::MVVM::FBindingSource> SelectedSourceAttribute;
 	TSharedPtr<SComboBox<UE::MVVM::FBindingSource>> SourceComboBox;
 	TArray<UE::MVVM::FBindingSource> AvailableSources;
 	UE::MVVM::FBindingSource SelectedSource;
