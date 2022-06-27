@@ -1077,7 +1077,7 @@ namespace Chaos
 			const FVec3 ScaleSign = GeomData.Scale.GetSignVector();
 
 			const FVec3 DirScaled = Dir / ScaledDx;
-			const FReal SumPlaneAxis = DirScaled[0] + DirScaled[1];
+			const FReal SumPlaneAxis = FMath::Abs(DirScaled[0]) + FMath::Abs(DirScaled[1]);
 			const bool bCanWalk = SumPlaneAxis > UE_SMALL_NUMBER;
 			if (bCanWalk)
 			{
