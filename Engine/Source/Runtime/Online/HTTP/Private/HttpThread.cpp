@@ -174,11 +174,17 @@ bool FHttpThread::NeedsSingleThreadTick() const
 
 void FHttpThread::UpdateConfigs()
 {
-	GConfig->GetInt(TEXT("HTTP.HttpThread"), TEXT("RunningThreadedRequestLimit"), RunningThreadedRequestLimit, GEngineIni);
-	if (RunningThreadedRequestLimit < 1)
+	int32 LocalRunningThreadedRequestLimit = -1;
+	if (GConfig->GetInt(TEXT("HTTP.HttpThread"), TEXT("RunningThreadedRequestLimit"), LocalRunningThreadedRequestLimit, GEngineIni))
 	{
-		UE_LOG(LogHttp, Warning, TEXT("RunningThreadedRequestLimit must be configured as a number greater than 0. Current value is %d."), RunningThreadedRequestLimit);
-		RunningThreadedRequestLimit = INT_MAX;
+		if (LocalRunningThreadedRequestLimit < 1)
+		{
+			UE_LOG(LogHttp, Warning, TEXT("RunningThreadedRequestLimit must be configured as a number greater than 0. The configured value is %d. Ignored. The current value is still %d"), LocalRunningThreadedRequestLimit, RunningThreadedRequestLimit.load());
+		}
+		else
+		{
+			RunningThreadedRequestLimit = LocalRunningThreadedRequestLimit;
+		}
 	}
 }
 
