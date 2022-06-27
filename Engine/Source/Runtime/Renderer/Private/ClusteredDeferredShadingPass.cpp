@@ -127,6 +127,9 @@ class FClusteredShadingPS : public FGlobalShader
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		FForwardLightingParameters::ModifyCompilationEnvironment(Parameters.Platform, OutEnvironment);
 		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+
+		// Occupancy is very poor on this shader - this helps a bit in the mean time
+		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
 };
 
