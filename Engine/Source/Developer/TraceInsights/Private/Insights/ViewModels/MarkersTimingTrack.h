@@ -69,6 +69,9 @@ public:
 	void SetBookmarksTrack() { SetBookmarksTrackFlag(true); SetDirtyFlag(); }
 	void SetLogsTrack() { SetBookmarksTrackFlag(false); SetDirtyFlag(); }
 
+	bool SaveScreenshot_CanExecute();
+	void SaveScreenshot_Execute();
+
 	// Stats
 	int32 GetNumLogMessages() const { return NumLogMessages; }
 	int32 GetNumBoxes() const { return TimeMarkerBoxes.Num(); }
@@ -100,6 +103,8 @@ private:
 
 	void UpdateCategory(const TraceServices::FLogCategoryInfo*& InOutCategory, const TCHAR* CategoryName);
 
+	bool TryGetHoveredEventScreenshotId(uint32& OutScreenshotId);
+
 private:
 	TArray<FTimeMarkerBoxInfo> TimeMarkerBoxes;
 	TArray<FTimeMarkerTextInfo> TimeMarkerTexts;
@@ -118,6 +123,7 @@ private:
 	// Slate resources
 	const FSlateBrush* WhiteBrush;
 	const FSlateFontInfo Font;
+	uint32 LastScreenshotId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

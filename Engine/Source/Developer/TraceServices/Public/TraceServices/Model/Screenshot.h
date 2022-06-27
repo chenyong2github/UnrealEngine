@@ -18,6 +18,8 @@ struct FScreenshot
 	uint32 ChunkNum;
 	uint32 Size;
 	TArray<uint8> Data;
+
+	static const uint32 InvalidScreenshotId = (uint32)-1;
 };
 
 class IScreenshotProvider
