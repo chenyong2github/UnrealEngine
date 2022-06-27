@@ -3,10 +3,10 @@
 #pragma once
 
 #include "MVVMFieldVariantListTraits.h"
+#include "MVVMPropertyPathHelpers.h" 
 #include "Styling/CoreStyle.h"
 #include "Templates/ValueOrError.h"
 #include "Types/MVVMBindingMode.h"
-#include "Types/MVVMBindingSource.h"
 #include "Types/MVVMFieldVariant.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
@@ -22,7 +22,7 @@ class SMVVMFieldIcon;
 class STextBlock; 
 
 using FIsFieldValidResult = TValueOrError<bool, FString>;
-DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, FMVVMBlueprintPropertyPath);
+DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, UE::MVVM::FMVVMConstFieldVariant);
 
 class SMVVMFieldEntry : public SCompoundWidget
 {
@@ -32,16 +32,16 @@ public:
 		_TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )
 		{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, Field)
+		SLATE_ARGUMENT(UE::MVVM::FMVVMConstFieldVariant, Field)
 		SLATE_EVENT(FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
 	void Refresh(); 
-	void SetField(const FMVVMBlueprintPropertyPath& InField);
+	void SetField(const UE::MVVM::FMVVMConstFieldVariant& InField);
 
 private:
-	FMVVMBlueprintPropertyPath Field;
+	UE::MVVM::FMVVMConstFieldVariant Field;
 	FIsFieldValid OnValidateField;
 	TSharedPtr<SMVVMFieldIcon> Icon;
 	TSharedPtr<STextBlock> Label;
@@ -50,7 +50,7 @@ private:
 class SMVVMFieldSelector : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FSelectionChanged, FMVVMBlueprintPropertyPath);
+	DECLARE_DELEGATE_OneParam(FSelectionChanged, UE::MVVM::FMVVMConstFieldVariant);
 
 	SLATE_BEGIN_ARGS(SMVVMFieldSelector) :
 		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText")),
@@ -58,17 +58,11 @@ public:
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
+		SLATE_ARGUMENT(TArray<UE::MVVM::IFieldPathHelper*>, PathHelpers)
+		SLATE_ARGUMENT(TArray<UE::MVVM::IFieldPathHelper*>, CounterpartHelpers)
 		SLATE_ATTRIBUTE(EMVVMBindingMode, BindingMode)
 		SLATE_ARGUMENT(bool, IsSource)
-		SLATE_ATTRIBUTE(UE::MVVM::FBindingSource, SelectedSource)
-		SLATE_ATTRIBUTE(FMVVMBlueprintPropertyPath, SelectedField)
-		SLATE_ATTRIBUTE(TArray<FMVVMBlueprintPropertyPath>, AvailableFields)
 		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
-
-		/**
-		  * Would the given field be a valid entry for this combo box? 
-		  * The error string returned will be used as a tooltip.
-		  */
 		SLATE_EVENT(FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
@@ -76,28 +70,29 @@ public:
 	void Refresh();
 
 private:
-	TSharedRef<SWidget> OnGenerateFieldWidget(FMVVMBlueprintPropertyPath Path) const;
-	void OnComboBoxSelectionChanged(FMVVMBlueprintPropertyPath Selected, ESelectInfo::Type SelectionType);
+	TSharedRef<SWidget> OnGenerateFieldWidget(UE::MVVM::FMVVMConstFieldVariant FieldPath) const;
+	void OnComboBoxSelectionChanged(UE::MVVM::FMVVMConstFieldVariant Selected, ESelectInfo::Type SelectionType);
+	TOptional<UE::MVVM::FBindingSource> GetSelectedSource() const;
 
-	TValueOrError<bool, FString> ValidateField(FMVVMBlueprintPropertyPath Field) const;
+	TValueOrError<bool, FString> IsValidBindingForField(const UE::MVVM::FMVVMConstFieldVariant& Field, const UE::MVVM::FMVVMConstFieldVariant& CounterpartField) const;
+	TValueOrError<bool, FString> ValidateField(UE::MVVM::FMVVMConstFieldVariant Field) const;
 
 	EVisibility GetClearVisibility() const;
 	FReply OnClearBinding();
 
 private:
+	TArray<UE::MVVM::IFieldPathHelper*> PathHelpers;
+	TArray<UE::MVVM::IFieldPathHelper*> CounterpartHelpers;
 	TAttribute<EMVVMBindingMode> BindingMode;
-	TSharedPtr<SMVVMFieldEntry> SelectedEntryWidget;
-	TAttribute<UE::MVVM::FBindingSource> SelectedSource;
-	TAttribute<FMVVMBlueprintPropertyPath> SelectedField;
-	TAttribute<TArray<FMVVMBlueprintPropertyPath>> AvailableFields;
-
+	TSharedPtr<SMVVMFieldEntry> SelectedEntry;
+	TOptional<UE::MVVM::FBindingSource> SelectedSource;
 	const FTextBlockStyle* TextStyle = nullptr;
 	bool bIsSource = false;
 
-	TSharedPtr<SComboBox<FMVVMBlueprintPropertyPath>> FieldComboBox;
+	TSharedPtr<SComboBox<UE::MVVM::FMVVMConstFieldVariant>> FieldComboBox;
 
 	FSelectionChanged OnSelectionChangedDelegate;
 	FIsFieldValid OnValidateFieldDelegate;
 
-	TArray<FMVVMBlueprintPropertyPath> CachedAvailableFields;
+	TArray<UE::MVVM::FMVVMConstFieldVariant> AvailableFields;
 }; 

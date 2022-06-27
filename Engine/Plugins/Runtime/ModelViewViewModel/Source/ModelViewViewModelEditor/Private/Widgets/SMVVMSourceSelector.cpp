@@ -11,13 +11,33 @@
 
 using namespace UE::MVVM;
 
+static FBindingSource GetSelectedSource(const TArray<IFieldPathHelper*>& Helpers)
+{
+	bool bFirst = true;
+	TOptional<FBindingSource> Result;
+
+	for (const IFieldPathHelper* Helper : Helpers)
+	{
+		TOptional<FBindingSource> ThisSelection = Helper->GetSelectedSource();
+		if (bFirst)
+		{
+			Result = ThisSelection;
+		}
+		else if (Result != ThisSelection)
+		{
+			// all don't share the same value
+			Result.Reset();
+			break;
+		}
+	}
+
+	return Result.Get(FBindingSource());
+}
+
 void SMVVMSourceSelector::Construct(const FArguments& Args)
 {
+	PathHelpers = Args._PathHelpers;
 	TextStyle = Args._TextStyle;
-	AvailableSourcesAttribute = Args._AvailableSources;
-	check(AvailableSourcesAttribute.IsSet());
-	SelectedSourceAttribute = Args._SelectedSource;
-	check(SelectedSourceAttribute.IsSet());
 
 	Refresh();
 
@@ -71,8 +91,36 @@ void SMVVMSourceSelector::OnComboBoxSelectionChanged(FBindingSource Selected, ES
 
 void SMVVMSourceSelector::Refresh()
 {
-	SelectedSource = SelectedSourceAttribute.Get();
-	AvailableSources = AvailableSourcesAttribute.Get();
+	AvailableSources.Reset();
+	SelectedSource = FBindingSource();
+
+	TArray<IFieldPathHelper*> Helpers = PathHelpers.Get(TArray<IFieldPathHelper*>());
+
+	bool bFirst = true;
+
+	TSet<FBindingSource> SourceIntersection;
+	TOptional<FBindingSource> NewSelection;
+
+	for (const IFieldPathHelper* Helper : Helpers)
+	{
+		// get available sources
+		TSet<FBindingSource> Sources;
+		Helper->GetAvailableSources(Sources);
+
+		if (bFirst)
+		{
+			bFirst = false; 
+
+			SourceIntersection.Append(Sources);
+		}
+		else
+		{
+			SourceIntersection.Intersect(Sources);
+		}
+	}
+
+	AvailableSources = SourceIntersection.Array();
+	SelectedSource = GetSelectedSource(Helpers);
 
 	if (SourceComboBox.IsValid())
 	{
@@ -83,7 +131,16 @@ void SMVVMSourceSelector::Refresh()
 
 EVisibility SMVVMSourceSelector::GetClearVisibility() const
 {
-	return SelectedSource.IsValid() ? EVisibility::Visible : EVisibility::Collapsed;
+	for (const IFieldPathHelper* Helper : PathHelpers.Get())
+	{
+		const FBindingSource ThisSelection = Helper->GetSelectedSource();
+		if (ThisSelection.IsValid())
+		{
+			return EVisibility::Visible;
+		}
+	}
+
+	return EVisibility::Collapsed;
 }
 
 FReply SMVVMSourceSelector::OnClearSource()

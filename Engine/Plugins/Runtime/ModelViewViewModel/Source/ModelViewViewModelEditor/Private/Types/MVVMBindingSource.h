@@ -5,20 +5,19 @@
 #include "CoreMinimal.h"
 #include "Framework/Views/TableViewTypeTraits.h"
 
-class UWidgetBlueprint;
-
 namespace UE::MVVM
 {
 	struct FBindingSource
 	{
-		FGuid ViewModelId;
+		FGuid SourceGuid;
 		FName Name;
-		UClass* Class = nullptr;
+		const UClass* Class = nullptr;
 		FText DisplayName;
+		bool IsSelected = false;
 
 		bool operator==(const FBindingSource& Other) const
 		{
-			return ViewModelId == Other.ViewModelId && Name == Other.Name && Class == Other.Class;
+			return SourceGuid == Other.SourceGuid && Name == Other.Name && Class == Other.Class;
 		}
 
 		bool operator!=(const FBindingSource& Other) const
@@ -28,27 +27,24 @@ namespace UE::MVVM
 
 		friend int32 GetTypeHash(const FBindingSource& Source)
 		{
-			uint32 Hash = HashCombine(GetTypeHash(Source.ViewModelId), GetTypeHash(Source.Name));
+			uint32 Hash = HashCombine(GetTypeHash(Source.SourceGuid), GetTypeHash(Source.Name));
 			Hash = HashCombine(Hash, GetTypeHash(Source.Class));
 			return Hash;
 		}
 
 		bool IsValid() const
 		{
-			return Class != nullptr && (ViewModelId.IsValid() || !Name.IsNone());
+			return SourceGuid.IsValid() || !Name.IsNone();
 		}
 
 		void Reset()
 		{
-			ViewModelId = FGuid();
+			SourceGuid = FGuid();
 			Name = FName();
 			Class = nullptr;
 			DisplayName = FText::GetEmpty();
+			IsSelected = false;
 		}
-
-		static FBindingSource CreateForWidget(const UWidgetBlueprint* WidgetBlueprint, FName WidgetName);
-		static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FGuid ViewModelId);
-		static FBindingSource CreateForViewModel(const UWidgetBlueprint* WidgetBlueprint, FName ViewModelName);
 	};
 }
 
