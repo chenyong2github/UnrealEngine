@@ -79,7 +79,7 @@ public:
 
 	inline bool Poll() const
 	{
-		if (BuildTask && !BuildTask->IsWorkDone())
+		if (BuildTask && !BuildTask->IsDone())
 		{
 			return false;
 		}
@@ -474,10 +474,6 @@ void UNaniteDisplacedMesh::BeginDestroy()
 	Super::BeginDestroy();
 
 	ReleaseResources();
-
-#if WITH_EDITOR
-	TryCancelAsyncTasks();
-#endif
 }
 
 bool UNaniteDisplacedMesh::IsReadyForFinishDestroy()
@@ -486,6 +482,13 @@ bool UNaniteDisplacedMesh::IsReadyForFinishDestroy()
 	{
 		return false;
 	}
+
+#if WITH_EDITOR
+	if (!TryCancelAsyncTasks())
+	{
+		return false;
+	}
+#endif
 
 	return ReleaseResourcesFence.IsFenceComplete();
 }
@@ -685,12 +688,19 @@ bool UNaniteDisplacedMesh::IsCompiling() const
 
 bool UNaniteDisplacedMesh::TryCancelAsyncTasks()
 {
-	for (auto& Pair : CacheTasksByKeyHash)
+	for (auto It = CacheTasksByKeyHash.CreateIterator(); It; ++It)
 	{
-		Pair.Value->Cancel();
+		if (It->Value->Poll())
+		{
+			It.RemoveCurrent();
+		}
+		else
+		{
+			It->Value->Cancel();
+		}
 	}
 	
-	return true;
+	return CacheTasksByKeyHash.IsEmpty();
 }
 
 bool UNaniteDisplacedMesh::IsAsyncTaskComplete() const
