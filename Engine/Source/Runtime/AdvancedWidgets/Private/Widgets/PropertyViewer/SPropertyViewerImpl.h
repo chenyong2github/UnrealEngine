@@ -46,7 +46,7 @@ public:
 	void* GetBuffer() const
 	{
 		UObject* PinObjectInstance = ObjectInstance.Get();
-		return bIsObject ? reinterpret_cast<void*>(&PinObjectInstance) : StructInstance;
+		return bIsObject ? reinterpret_cast<void*>(PinObjectInstance) : StructInstance;
 	}
 
 	const UStruct* GetStruct()

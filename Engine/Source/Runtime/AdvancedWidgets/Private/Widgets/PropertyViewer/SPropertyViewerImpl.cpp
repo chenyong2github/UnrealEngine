@@ -201,19 +201,25 @@ void FTreeNode::GetFilterStrings(TArray<FString>& OutStrings) const
 	if (Property)
 	{
 		OutStrings.Add(Property->GetName());
+#if WITH_EDITORONLY_DATA
 		OutStrings.Add(Property->GetDisplayNameText().ToString());
+#endif
 	}
 	if (const UFunction* FunctionPtr = Function.Get())
 	{
 		OutStrings.Add(FunctionPtr->GetName());
+#if WITH_EDITORONLY_DATA
 		OutStrings.Add(FunctionPtr->GetDisplayNameText().ToString());
+#endif
 	}
 	if (const TSharedPtr<FContainer> ContainerPtr = Container.Pin())
 	{
 		if (const UStruct* StructPtr = ContainerPtr->GetStruct())
 		{
 			OutStrings.Add(StructPtr->GetName());
+#if WITH_EDITORONLY_DATA
 			OutStrings.Add(StructPtr->GetDisplayNameText().ToString());
+#endif
 		}
 	}
 	if (GetOverrideDisplayName().IsSet())
@@ -804,10 +810,10 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 						FFieldVariant Field = ItemPin->GetField();
 						if (!Field.IsUObject())
 						{
-							INotifyHook* NotifyHook = nullptr;
+							INotifyHook* LocalNotifyHook = nullptr;
 							if (const TSharedPtr<FPropertyViewerImpl> PropertyViewer = PropertyViewOwner.Pin())
 							{
-								NotifyHook = PropertyViewer->NotifyHook;
+								LocalNotifyHook = PropertyViewer->NotifyHook;
 							}
 
 							bool bCanEditContainer = false;
@@ -818,7 +824,7 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 
 							FPropertyValueFactory::FGenerateArgs Args;
 							Args.Path = ItemPin->GetPropertyPath();
-							Args.NotifyHook = NotifyHook;
+							Args.NotifyHook = LocalNotifyHook;
 							Args.bCanEditValue = bCanEditContainer
 								&& PropertyViewOwnerPin->PropertyVisibility == SPropertyViewer::EPropertyVisibility::Editable
 								&& Args.Path.GetLastProperty() != nullptr

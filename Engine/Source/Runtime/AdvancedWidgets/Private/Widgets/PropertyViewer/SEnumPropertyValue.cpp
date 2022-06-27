@@ -110,9 +110,15 @@ TSharedRef<SWidget> SEnumPropertyValue::OnGetMenuContent()
 			if (!EnumPtr->HasMetaData(TEXT("Hidden"), Index))
 #endif
 			{
+#if WITH_EDITOR
+				FText Tooltip = EnumPtr->GetToolTipTextByIndex(Index);
+#else
+				FText Tooltip = FText::GetEmpty();
+#endif
+
 				MenuBuilder.AddMenuEntry(
 					EnumPtr->GetDisplayNameTextByIndex(Index),
-					EnumPtr->GetToolTipTextByIndex(Index),
+					Tooltip,
 					FSlateIcon(),
 					FUIAction
 					(

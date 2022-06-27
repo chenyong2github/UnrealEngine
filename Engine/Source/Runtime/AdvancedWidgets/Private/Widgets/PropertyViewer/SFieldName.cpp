@@ -30,7 +30,11 @@ void SFieldName::Construct(const FArguments& InArgs, const UClass* Class)
 	}
 	else
 	{
+#if WITH_EDITORONLY_DATA
 		DisplayName = InArgs._bSanitizeName ? Class->GetDisplayNameText() : FText::FromName(Class->GetFName());
+#else
+		DisplayName = FText::FromName(Class->GetFName());
+#endif
 	}
 
 	Field = Class;
@@ -55,7 +59,11 @@ void SFieldName::Construct(const FArguments& InArgs, const UScriptStruct* Struct
 	}
 	else
 	{
+#if WITH_EDITORONLY_DATA
 		DisplayName = InArgs._bSanitizeName ? Struct->GetDisplayNameText() : FText::FromName(Struct->GetFName());
+#else
+		DisplayName = FText::FromName(Class->GetFName());
+#endif
 	}
 
 	Field = Struct;
@@ -80,7 +88,11 @@ void SFieldName::Construct(const FArguments& InArgs, const FProperty* Property)
 	}
 	else
 	{
+#if WITH_EDITORONLY_DATA
 		DisplayName = InArgs._bSanitizeName ? Property->GetDisplayNameText() : FText::FromName(Property->GetFName());
+#else
+		DisplayName = FText::FromName(Class->GetFName());
+#endif
 	}
 
 	Field = Property;
@@ -105,7 +117,11 @@ void SFieldName::Construct(const FArguments& InArgs, const UFunction* Function)
 	}
 	else
 	{
+#if WITH_EDITORONLY_DATA
 		DisplayName = InArgs._bSanitizeName ? Function->GetDisplayNameText() : FText::FromName(Function->GetFName());
+#else
+		DisplayName = FText::FromName(Class->GetFName());
+#endif
 	}
 
 	Field = Function;
@@ -145,7 +161,10 @@ void SFieldName::Construct(const FArguments& InArgs, const FText& DisplayName, T
 			.HighlightText(InArgs._HighlightText)
 		];
 	}
+
+#if WITH_EDITORONLY_DATA
 	SetToolTip(TAttribute<TSharedPtr<IToolTip>>::CreateSP(this, &SFieldName::CreateToolTip));
+#endif
 }
 
 
@@ -159,6 +178,7 @@ void SFieldName::SetHighlightText(TAttribute<FText> InHighlightText)
 
 TSharedPtr<IToolTip> SFieldName::CreateToolTip() const
 {
+#if WITH_EDITORONLY_DATA
 	if (FProperty* PropertyPtr = Field.Get<FProperty>())
 	{
 		return FSlateApplicationBase::Get().MakeToolTip(PropertyPtr->GetToolTipText());
@@ -167,6 +187,7 @@ TSharedPtr<IToolTip> SFieldName::CreateToolTip() const
 	{
 		return FSlateApplicationBase::Get().MakeToolTip(FieldPtr->GetToolTipText());
 	}
+#endif
 	return TSharedPtr<IToolTip>();
 }
 
