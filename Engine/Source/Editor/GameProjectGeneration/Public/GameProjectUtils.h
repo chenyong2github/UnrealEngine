@@ -284,6 +284,9 @@ public:
 	/** Checks the name for illegal characters */
 	static bool NameContainsOnlyLegalCharacters(const FString& TestName, FString& OutIllegalCharacters);
 
+	/** Checks the name to see if it matches platform module names */
+	static bool NameMatchesPlatformModuleName(const FString& TestName);
+
 	/** Returns a list of #include lines formed from InList */
 	static FString MakeIncludeList(const TArray<FString>& InList);
 

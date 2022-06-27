@@ -630,6 +630,14 @@ bool GameProjectUtils::IsValidProjectFileForCreation(const FString& ProjectFile,
 		return false;
 	}
 
+	if (NameMatchesPlatformModuleName(BaseProjectFile))
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("PlatformModuleName"), FText::FromString(BaseProjectFile));
+		OutFailReason = FText::Format(LOCTEXT("ProjectNameConflictsWithPlatformModuleName", "Project name conflicts with a platform name: {PlatformModuleName}"), Args);
+		return false;
+	}
+
 	if ( !FPaths::ValidatePath(FPaths::GetPath(ProjectFile), &OutFailReason) )
 	{
 		return false;
@@ -1946,6 +1954,28 @@ bool GameProjectUtils::NameContainsOnlyLegalCharacters(const FString& TestName, 
 	}
 
 	return !bContainsIllegalCharacters;
+}
+
+bool GameProjectUtils::NameMatchesPlatformModuleName(const FString& TestName)
+{
+	for (auto Pair : FDataDrivenPlatformInfoRegistry::GetAllPlatformInfos())
+	{
+		FString PlatformNameString = Pair.Key.ToString();
+		if ((PlatformNameString == TestName) || ((PlatformNameString += "TargetPlatform") == TestName))
+		{
+			return true;
+		}
+	}
+	TArray<FString> CustomTargetPlatformModules;
+	GConfig->GetArray(TEXT("CustomTargetPlatforms"), TEXT("ModuleName"), CustomTargetPlatformModules, GEditorIni);
+	for (const FString& ModuleName : CustomTargetPlatformModules)
+	{
+		if (TestName == ModuleName)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool GameProjectUtils::ProjectFileExists(const FString& ProjectFile)
