@@ -101,46 +101,6 @@ namespace MaterialX
 		}
 	}
 
-	namespace Lights
-	{
-		//There's no input per se in a Light, but we can find some common inputs among those lights
-		namespace Input
-		{
-			static constexpr const char* Color = "color";
-			static constexpr const char* Intensity = "intensity";
-		}
-
-		namespace PointLight
-		{
-			namespace Input
-			{
-				using namespace Lights::Input;
-				static constexpr const char* Position = "position";
-				static constexpr const char* DecayRate = "decay_rate";
-			}
-		}
-
-		namespace DirectionalLight
-		{			
-			namespace Input
-			{
-				using namespace Lights::Input;
-				static constexpr const char* Direction = "direction";
-			}
-		}
-
-		namespace SpotLight
-		{
-			namespace Input
-			{
-				using namespace PointLight::Input;
-				using namespace DirectionalLight::Input;
-				static constexpr const char* InnerAngle = "inner_angle";
-				static constexpr const char* OuterAngle = "outer_angle";
-			}
-		}
-	}
-
 	namespace Attributes
 	{
 		static constexpr const char* IsVisited = "UE:IsVisited";
@@ -172,15 +132,11 @@ namespace MaterialX
 		static constexpr const char* PointLight = "point_light";
 		static constexpr const char* DirectionalLight = "directional_light";
 		static constexpr const char* SpotLight = "spot_light";
-		static constexpr const char* StandardSurface = "standard_surface";
 	}
 
 	namespace NodeDefinition
 	{
 		static constexpr const char* StandardSurface = "ND_standard_surface_surfaceshader";
-		static constexpr const char* PointLight = "ND_point_light";
-		static constexpr const char* DirectionalLight = "ND_directional_light";
-		static constexpr const char* SpotLight = "ND_spot_light";
 	}
 
 	namespace Library

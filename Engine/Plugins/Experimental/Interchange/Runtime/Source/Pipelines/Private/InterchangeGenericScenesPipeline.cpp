@@ -7,13 +7,11 @@
 #include "InterchangeCineCameraFactoryNode.h"
 #include "InterchangeCommonPipelineDataFactoryNode.h"
 #include "InterchangeLightNode.h"
-#include "InterchangeLightFactoryNode.h"
 #include "InterchangeMeshActorFactoryNode.h"
 #include "InterchangeMeshNode.h"
 #include "InterchangePipelineLog.h"
 #include "InterchangePipelineMeshesUtilities.h"
 #include "InterchangeSceneNode.h"
-#include "Nodes/InterchangeUserDefinedAttribute.h"
 
 #include "Animation/SkeletalMeshActor.h"
 #include "CineCameraActor.h"
@@ -125,35 +123,18 @@ void UInterchangeGenericLevelPipeline::ExecuteSceneNodePreImport(UInterchangeBas
 
 UInterchangeActorFactoryNode* UInterchangeGenericLevelPipeline::CreateActorFactoryNode(const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
 {
-	if(TranslatedAssetNode)
+	if (TranslatedAssetNode && TranslatedAssetNode->IsA<UInterchangeCameraNode>())
 	{
-		if(TranslatedAssetNode->IsA<UInterchangeCameraNode>())
-		{
-			return NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
-		}
-		else if(TranslatedAssetNode->IsA<UInterchangeMeshNode>())
-		{
-			return NewObject<UInterchangeMeshActorFactoryNode>(FactoryNodeContainer, NAME_None);
-		}
-		else if(TranslatedAssetNode->IsA<UInterchangeSpotLightNode>())
-		{
-			return NewObject<UInterchangeSpotLightFactoryNode>(FactoryNodeContainer, NAME_None);
-		}
-		else if(TranslatedAssetNode->IsA<UInterchangePointLightNode>())
-		{
-			return NewObject<UInterchangePointLightFactoryNode>(FactoryNodeContainer, NAME_None);
-		}
-		else if(TranslatedAssetNode->IsA<UInterchangeRectLightNode>())
-		{
-			return NewObject<UInterchangeRectLightFactoryNode>(FactoryNodeContainer, NAME_None);
-		}
-		else if(TranslatedAssetNode->IsA<UInterchangeDirectionalLightNode>())
-		{
-			return NewObject<UInterchangeDirectionalLightFactoryNode>(FactoryNodeContainer, NAME_None);
-		}
+		return NewObject<UInterchangeCineCameraFactoryNode>(FactoryNodeContainer, NAME_None);
 	}
-
-	return NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	else if (TranslatedAssetNode && TranslatedAssetNode->IsA<UInterchangeMeshNode>())
+	{
+		return NewObject<UInterchangeMeshActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
+	else
+	{
+		return NewObject<UInterchangeActorFactoryNode>(FactoryNodeContainer, NAME_None);
+	}
 }
 
 void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactoryNode* ActorFactoryNode, const UInterchangeSceneNode* SceneNode, const UInterchangeBaseNode* TranslatedAssetNode, UInterchangeBaseNodeContainer* FactoryNodeContainer) const
@@ -185,124 +166,22 @@ void UInterchangeGenericLevelPipeline::SetUpFactoryNode(UInterchangeActorFactory
 			MeshActorFactoryNode->AddFactoryDependencyUid(UInterchangeFactoryBaseNode::BuildFactoryNodeUid(MeshNode->GetUniqueID()));
 		}
 	}
-	else if (const UInterchangeBaseLightNode* BaseLightNode = Cast<UInterchangeBaseLightNode>(TranslatedAssetNode))
+	else if (const UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(TranslatedAssetNode))
 	{
-		if (UInterchangeBaseLightFactoryNode* BaseLightFactoryNode = Cast<UInterchangeBaseLightFactoryNode>(ActorFactoryNode))
-		{
-			if (FLinearColor LightColor; BaseLightNode->GetCustomLightColor(LightColor))
-			{
-				BaseLightFactoryNode->SetCustomLightColor(LightColor.ToFColor(true));
-			}
-
-			if (float Intensity; BaseLightNode->GetCustomIntensity(Intensity))
-			{
-				BaseLightFactoryNode->SetCustomIntensity(Intensity);
-			}
-
-			if(bool bUseTemperature; BaseLightNode->GetCustomUseTemperature(bUseTemperature))
-			{
-				BaseLightFactoryNode->SetCustomUseTemperature(bUseTemperature);
-
-				if(float Temperature; BaseLightNode->GetCustomTemperature(Temperature))
-				{
-					BaseLightFactoryNode->SetCustomTemperature(Temperature);
-				}
-			}
-
-			if (const UInterchangeLightNode* LightNode = Cast<UInterchangeLightNode>(BaseLightNode))
-			{
-				if (UInterchangeLightFactoryNode* LightFactoryNode = Cast<UInterchangeLightFactoryNode>(BaseLightFactoryNode))
-				{
-					if (ELightUnits IntensityUnits; LightNode->GetCustomIntensityUnits(IntensityUnits))
-					{
-						LightFactoryNode->SetCustomIntensityUnits(IntensityUnits);
-					}
-
-					if (float AttenuationRadius; LightNode->GetCustomAttenuationRadius(AttenuationRadius))
-					{
-						LightFactoryNode->SetCustomAttenuationRadius(AttenuationRadius);
-					}
-
-					// RectLight
-					// Needs more discussion, n/a for the moment
-					/*
-					if(const UInterchangeRectLightNode* RectLightNode = Cast<UInterchangeRectLightNode>(LightNode))
-					{
-						if(UInterchangeRectLightFactoryNode* RectLightFactoryNode = Cast<UInterchangeRectLightFactoryNode>(LightFactoryNode))
-						{
-							if(float SourceWidth; RectLightNode->GetCustomSourceWidth(SourceWidth))
-							{
-								RectLightFactoryNode->SetCustomSourceWidth(SourceWidth);
-							}
-
-							if(float SourceHeight; RectLightNode->GetCustomSourceHeight(SourceHeight))
-							{
-								RectLightFactoryNode->SetCustomSourceHeight(SourceHeight);
-							}
-
-							if(float BarnDoorAngle; RectLightNode->GetCustomBarnDoorAngle(BarnDoorAngle))
-							{
-								RectLightFactoryNode->SetCustomBarnDoorAngle(BarnDoorAngle);
-							}
-
-							if(float BarnDoorLength; RectLightNode->GetCustomBarnDoorLength(BarnDoorLength))
-							{
-								RectLightFactoryNode->SetCustomBarnDoorLength(BarnDoorLength);
-							}
-						}
-					}
-					*/
-
-					// Point Light
-					if (const UInterchangePointLightNode* PointLightNode = Cast<UInterchangePointLightNode>(LightNode))
-					{
-						if (UInterchangePointLightFactoryNode* PointLightFactoryNode = Cast<UInterchangePointLightFactoryNode>(LightFactoryNode))
-						{
-							if (bool bUseInverseSquaredFalloff; PointLightNode->GetCustomUseInverseSquaredFalloff(bUseInverseSquaredFalloff))
-							{
-								PointLightFactoryNode->SetCustomUseInverseSquaredFalloff(bUseInverseSquaredFalloff);
-
-								if (float LightFalloffExponent; PointLightNode->GetCustomLightFalloffExponent(LightFalloffExponent))
-								{
-									PointLightFactoryNode->SetCustomLightFalloffExponent(LightFalloffExponent);
-								}
-							}
-
-
-							// Spot Light
-							if (const UInterchangeSpotLightNode* SpotLightNode = Cast<UInterchangeSpotLightNode>(PointLightNode))
-							{
-								UInterchangeSpotLightFactoryNode* SpotLightFactoryNode = Cast<UInterchangeSpotLightFactoryNode>(PointLightFactoryNode);
-								if (float InnerConeAngle; SpotLightNode->GetCustomInnerConeAngle(InnerConeAngle))
-								{
-									SpotLightFactoryNode->SetCustomInnerConeAngle(InnerConeAngle);
-								}
-
-								if (float OuterConeAngle; SpotLightNode->GetCustomOuterConeAngle(OuterConeAngle))
-								{
-									SpotLightFactoryNode->SetCustomOuterConeAngle(OuterConeAngle);
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-
 		//Test for spot before point since a spot light is a point light
-		if (BaseLightNode->IsA<UInterchangeSpotLightNode>())
+		if (LightNode->IsA<UInterchangeSpotLightNode>())
 		{
 			ActorFactoryNode->SetCustomActorClassName(ASpotLight::StaticClass()->GetPathName());
 		}
-		else if (BaseLightNode->IsA<UInterchangePointLightNode>())
+		else if (LightNode->IsA<UInterchangePointLightNode>())
 		{
 			ActorFactoryNode->SetCustomActorClassName(APointLight::StaticClass()->GetPathName());
 		}
-		else if (BaseLightNode->IsA<UInterchangeRectLightNode>())
+		else if (LightNode->IsA<UInterchangeRectLightNode>())
 		{
 			ActorFactoryNode->SetCustomActorClassName(ARectLight::StaticClass()->GetPathName());
 		}
-		else if (BaseLightNode->IsA<UInterchangeDirectionalLightNode>())
+		else if (LightNode->IsA<UInterchangeDirectionalLightNode>())
 		{
 			ActorFactoryNode->SetCustomActorClassName(ADirectionalLight::StaticClass()->GetPathName());
 		}
