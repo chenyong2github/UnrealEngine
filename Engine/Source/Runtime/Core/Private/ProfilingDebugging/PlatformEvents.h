@@ -62,6 +62,7 @@ EPlatformEvent PlatformEvents_GetEvent(const FString& Name);
 #if PLATFORM_SUPPORTS_PLATFORM_EVENTS
 
 void PlatformEvents_Init(uint32 SamplingIntervalUsec);
+void PlatformEvents_PostInit();
 void PlatformEvents_Enable(EPlatformEvent Event);
 void PlatformEvents_Disable(EPlatformEvent Event);
 void PlatformEvents_Stop();
@@ -69,6 +70,7 @@ void PlatformEvents_Stop();
 #else // PLATFORM_SUPPORTS_PLATFORM_EVENTS
 
 static void PlatformEvents_Init(uint32 SamplingIntervalUsec) {}
+static void PlatformEvents_PostInit() {}
 static void PlatformEvents_Enable(EPlatformEvent Event) {}
 static void PlatformEvents_Disable(EPlatformEvent Event) {}
 static void PlatformEvents_Stop() {}

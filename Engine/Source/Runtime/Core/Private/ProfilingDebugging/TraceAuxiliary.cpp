@@ -1348,6 +1348,7 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 	uint32 Microseconds = 1000;
 	FParse::Value(CommandLine, TEXT("-samplinginterval="), Microseconds);
 	PlatformEvents_Init(Microseconds);
+	PlatformEvents_PostInit();
 
 #if CSV_PROFILER
 	FCoreDelegates::OnEndFrame.AddRaw(&GTraceAuxiliary, &FTraceAuxiliaryImpl::UpdateCsvStats);

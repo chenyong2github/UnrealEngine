@@ -29,3 +29,23 @@ EPlatformEvent PlatformEvents_GetEvent(const FString& Name)
 		return EPlatformEvent::None;
 	}
 }
+
+/////////////////////////////////////////////////////////////////////
+
+#if PLATFORM_SUPPORTS_PLATFORM_EVENTS
+
+void PlatformEvents_PostInit()
+{
+	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ContextSwitchChannel))
+	{
+		PlatformEvents_Enable(EPlatformEvent::ContextSwitch);
+	}
+	else if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(StackSamplingChannel))
+	{
+		PlatformEvents_Enable(EPlatformEvent::StackSampling);
+	}
+}
+
+#endif // PLATFORM_SUPPORTS_PLATFORM_EVENTS
+
+/////////////////////////////////////////////////////////////////////
