@@ -37,6 +37,8 @@ void SWaterWavesEditorViewport::Construct(const FArguments& InArgs)
 	UWaterBodyComponent* WaterBodyComponent = CustomWaterBody->GetWaterBodyComponent();
 	check(WaterBodyComponent);
 	WaterBodyComponent->SetWaterMeshOverride(GetDefault<UWaterEditorSettings>()->WaterBodyCustomDefaults.GetWaterMesh());
+	WaterBodyComponent->SetWaterMaterial(GetDefault<UWaterEditorSettings>()->WaterBodyCustomDefaults.GetWaterMaterial());
+
 
 	UWaterSplineComponent* WaterSpline = CustomWaterBody->GetWaterSpline();
 	check(WaterSpline);
