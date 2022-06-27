@@ -31,7 +31,7 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Puts the most common include paths in the IncludePath property in the MSBuild project. This significantly reduces Visual Studio
 		/// memory usage (measured 1.1GB -> 500mb), but seems to be causing issues with Visual Assist. Value here specifies maximum length
-		/// of the include path list in KB. Ignored for VS2022.
+		/// of the include path list in KB.
 		/// </summary>
 		[XmlConfigFile(Category = "VCProjectFileGenerator")]
 		public int MaxSharedIncludePaths = 24 * 1024;
