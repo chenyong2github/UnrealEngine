@@ -887,4 +887,19 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
 	bool RenameControlRigControlChannels(ULevelSequence* InSequence, UControlRig* InControlRig, const TArray<FName>& InOldControlNames, const TArray<FName>& InNewControlNames);
 
+	/** Get the controls mask for the given ControlName */
+	UFUNCTION(BlueprintPure, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static bool GetControlsMask(UMovieSceneSection* InSection, FName ControlName);
+
+	/** Set the controls mask for the given ControlNames */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static void SetControlsMask(UMovieSceneSection* InSection, const TArray<FName>& ControlNames, bool bVisible);
+
+	/** Shows all of the controls for the given section */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static void ShowAllControls(UMovieSceneSection* InSection);
+
+	/** Hides all of the controls for the given section */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Control Rig")
+	static void HideAllControls(UMovieSceneSection* InSection);
 };

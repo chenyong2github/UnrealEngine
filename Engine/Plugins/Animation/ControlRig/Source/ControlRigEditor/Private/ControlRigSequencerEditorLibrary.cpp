@@ -2412,4 +2412,93 @@ FRigElementKey UControlRigSequencerEditorLibrary::GetWorldSpaceReferenceKey()
 	return URigHierarchy::GetWorldSpaceReferenceKey();
 }
 
+bool UControlRigSequencerEditorLibrary::GetControlsMask(UMovieSceneSection* InSection, FName ControlName)
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = Cast<UMovieSceneControlRigParameterSection>(InSection);
+	if (!ParameterSection)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call GetControlsMask without a UMovieSceneControlRigParameterSection"), ELogVerbosity::Error);
+		return false;
+	}
+	
+	UControlRig* ControlRig = ParameterSection->GetControlRig();
+	if (!ControlRig)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Section does not have a control rig"), ELogVerbosity::Error);
+		return false;
+	}
+
+	TArray<FRigControlElement*> Controls;
+	ControlRig->GetControlsInOrder(Controls);
+	int32 Index = 0;
+	for (const FRigControlElement* RigControl : Controls)
+	{
+		if (RigControl->GetName() == ControlName)
+		{
+			return ParameterSection->GetControlsMask(Index);
+		}
+		++Index;
+	}
+
+	FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Control Name ('%s') not found"), *ControlName.ToString()), ELogVerbosity::Error);
+	return false;
+}
+
+void UControlRigSequencerEditorLibrary::SetControlsMask(UMovieSceneSection* InSection, const TArray<FName>& ControlNames, bool bVisible)
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = Cast<UMovieSceneControlRigParameterSection>(InSection);
+	if (!ParameterSection)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call SetControlsMask without a UMovieSceneControlRigParameterSection"), ELogVerbosity::Error);
+		return;
+	}
+
+	UControlRig* ControlRig = ParameterSection->GetControlRig();
+	if (!ControlRig)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Section does not have a control rig"), ELogVerbosity::Error);
+		return;
+	}
+
+	ParameterSection->Modify();
+
+	TArray<FRigControlElement*> Controls;
+	ControlRig->GetControlsInOrder(Controls);
+	int32 Index = 0;
+	for (const FRigControlElement* RigControl : Controls)
+	{
+		if (ControlNames.Contains(RigControl->GetName()))
+		{
+			ParameterSection->SetControlsMask(Index, bVisible);
+		}
+		++Index;
+	}
+}
+
+void UControlRigSequencerEditorLibrary::ShowAllControls(UMovieSceneSection* InSection)
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = Cast<UMovieSceneControlRigParameterSection>(InSection);
+	if (!ParameterSection)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call ShowAllControls without a UMovieSceneControlRigParameterSection"), ELogVerbosity::Error);
+		return;
+	}
+
+	ParameterSection->Modify();
+	ParameterSection->FillControlsMask(true);
+}
+
+void UControlRigSequencerEditorLibrary::HideAllControls(UMovieSceneSection* InSection)
+{
+	UMovieSceneControlRigParameterSection* ParameterSection = Cast<UMovieSceneControlRigParameterSection>(InSection);
+	if (!ParameterSection)
+	{
+		FFrame::KismetExecutionMessage(TEXT("Cannot call HideAllControls without a UMovieSceneControlRigParameterSection"), ELogVerbosity::Error);
+		return;
+	}
+
+	ParameterSection->Modify();
+	ParameterSection->FillControlsMask(false);
+}
+
 #undef LOCTEXT_NAMESPACE
