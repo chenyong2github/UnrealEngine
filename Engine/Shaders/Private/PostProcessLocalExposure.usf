@@ -41,9 +41,8 @@ void ApplyLocalExposureCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		float MiddleGreyLumValue = log2(0.18 * ExposureScaleMiddleGrey.y * EyeAdaptation_LocalExposureMiddleGreyExposureCompensation);
 
 		float4 SceneColor = InputTexture.Load(uint3(DispatchThreadId + Input_ViewportMin, 0));
-		SceneColor.rgb *= View.OneOverPreExposure;
 
-		float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.rgb);
+		float LuminanceVal = CalculateEyeAdaptationLuminance(SceneColor.rgb * View.OneOverPreExposure);
 		float LogLuminance = log2(LuminanceVal);
 
 		float BaseLogLum = CalculateBaseLogLuminance(LogLuminance, EyeAdaptation_LocalExposureBlurredLuminanceBlend, ExposureScale, UV, LumBilateralGrid, BlurredLogLum, TextureSampler, TextureSampler);

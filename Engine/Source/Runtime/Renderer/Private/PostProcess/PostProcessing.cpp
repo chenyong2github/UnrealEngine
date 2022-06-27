@@ -83,8 +83,8 @@ TAutoConsoleVariable<float> CVarDepthOfFieldMaxSize(
 
 TAutoConsoleVariable<bool> CVarBloomApplyLocalExposure(
 	TEXT("r.Bloom.ApplyLocalExposure"),
-	true,
-	TEXT("Whether to apply local exposure when calculating bloom, default: true"),
+	false,
+	TEXT("Whether to apply local exposure when calculating bloom, default: false"),
 	ECVF_Scalability | ECVF_RenderThreadSafe);
 
 TAutoConsoleVariable<int32> CVarPostProcessingPropagateAlpha(
