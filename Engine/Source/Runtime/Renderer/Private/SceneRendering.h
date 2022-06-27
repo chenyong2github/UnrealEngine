@@ -1284,7 +1284,6 @@ public:
 	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
 
 	FRayTracingCullingParameters RayTracingCullingParameters;
-	FGraphEventArray RayTracingPerInstanceCullingTaskList;
 
 	// Data required for FRayTracingScene, depends on RT instance culling tasks
 	FRayTracingSceneWithGeometryInstances RayTracingSceneInitData;

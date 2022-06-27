@@ -34,7 +34,7 @@ bool ShouldSkipPerInstanceCullingForPrimitive(const FRayTracingCullingParameters
 
 struct FRayTracingCullPrimitiveInstancesClosure
 {
-	FScene* Scene;
+	const FScene* Scene;
 	int32 PrimitiveIndex;
 	const FPrimitiveSceneInfo* SceneInfo;
 	bool bIsFarFieldPrimitive;
