@@ -17,7 +17,7 @@ bool LoadFromCompactBinary(FCbFieldView Field, FUtf8SharedString& OutString)
 
 bool LoadFromCompactBinary(FCbFieldView Field, FWideSharedString& OutString)
 {
-	TWideStringBuilder<128> String;
+	TWideStringBuilder<512> String;
 	if (LoadFromCompactBinary(Field, String))
 	{
 		OutString = String;
