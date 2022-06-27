@@ -26,7 +26,7 @@ namespace UE::ConcertSyncCore
 	};
 
 	/** Utility functions that converts FHistoryDeletionRequirements into a single TSet. */
-	CONCERTSYNCCORE_API TSet<FActivityID> CombineRequirements(const FHistoryEditionArgs& ToDelete);
+	CONCERTSYNCCORE_API TSet<FActivityID> CombineRequirements(const FHistoryAnalysisResult& ToDelete);
 
 	/**
 	 * Deletes the given sessions in ToDelete from ArchivedSessionDatabase.

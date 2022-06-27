@@ -12,7 +12,7 @@ namespace UE::ConcertSyncCore
 {
 	static FConcertSessionFilter BuildFilterFrom(const TSet<FActivityID>& ToDelete);
 
-	TSet<FActivityID> CombineRequirements(const FHistoryEditionArgs& ToDelete)
+	TSet<FActivityID> CombineRequirements(const FHistoryAnalysisResult& ToDelete)
 	{
 		TSet<FActivityID> Result;
 		for (const FActivityID ActivityID : ToDelete.HardDependencies)

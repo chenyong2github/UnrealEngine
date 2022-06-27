@@ -16,7 +16,7 @@ class SDeleteActivityDependenciesDialog : public SCustomDialog
 {
 public:
 
-	DECLARE_DELEGATE_OneParam(FConfirmDeletion, const UE::ConcertSyncCore::FHistoryEditionArgs& /*SelectedRequirements*/)
+	DECLARE_DELEGATE_OneParam(FConfirmDeletion, const UE::ConcertSyncCore::FHistoryAnalysisResult& /*SelectedRequirements*/)
 
 	SLATE_BEGIN_ARGS(SDeleteActivityDependenciesDialog)
 	{}
@@ -27,11 +27,11 @@ public:
 	/**
 	 * @param InDeletionRequirements Specifies which activities must be deleted and which are optional.
 	 */
-	void Construct(const FArguments& InArgs, const FGuid& SessionId, const TSharedRef<IConcertSyncServer>& SyncServer, UE::ConcertSyncCore::FHistoryEditionArgs InDeletionRequirements);
+	void Construct(const FArguments& InArgs, const FGuid& SessionId, const TSharedRef<IConcertSyncServer>& SyncServer, UE::ConcertSyncCore::FHistoryAnalysisResult InDeletionRequirements);
 
 private:
 	
-	UE::ConcertSyncCore::FHistoryEditionArgs DeletionRequirements;
+	UE::ConcertSyncCore::FHistoryAnalysisResult DeletionRequirements;
 	FConfirmDeletion OnConfirmDeletionFunc;
 	
 	/** Maps each activity with a possible dependency to whether it will be deleted or not. */
@@ -40,7 +40,7 @@ private:
 	/** Filters out all activities that are not part of the deletion requirements. */
 	TSharedPtr<FArchivedSessionHistoryController> FilteredSessionHistoryController;
 
-	TSharedRef<SWidget> CreateBody(const FGuid& InSessionId, const TSharedRef<IConcertSyncServer>& InSyncServer, UE::ConcertSyncCore::FHistoryEditionArgs InDeletionRequirements);
+	TSharedRef<SWidget> CreateBody(const FGuid& InSessionId, const TSharedRef<IConcertSyncServer>& InSyncServer, UE::ConcertSyncCore::FHistoryAnalysisResult InDeletionRequirements);
 
 	void OnConfirmPressed();
 };

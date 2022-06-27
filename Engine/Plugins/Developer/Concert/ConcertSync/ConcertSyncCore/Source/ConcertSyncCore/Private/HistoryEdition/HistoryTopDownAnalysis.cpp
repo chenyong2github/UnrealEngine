@@ -2,7 +2,6 @@
 
 #include "HistoryEdition/HistoryAnalysis.h"
 
-#include "Algo/AnyOf.h"
 #include "Algo/Find.h"
 
 #include "HistoryEdition/ActivityGraphIDs.h"
@@ -12,10 +11,10 @@
 
 namespace UE::ConcertSyncCore
 {
-	FHistoryEditionArgs AnalyseActivityDependencies(const TSet<FActivityID>& ActivitiesToDelete, const FConcertSyncSessionDatabase& Database, bool bAddActivitiesToDelete)
+	FHistoryAnalysisResult AnalyseActivityDependencies_TopDown(const TSet<FActivityID>& ActivitiesToDelete, const FConcertSyncSessionDatabase& Database, bool bAddActivitiesToDelete)
 	{
 		const FActivityDependencyGraph Graph = BuildDependencyGraphFrom(Database);
-		return AnalyseActivityDependencies(ActivitiesToDelete, Graph, bAddActivitiesToDelete);
+		return AnalyseActivityDependencies_TopDown(ActivitiesToDelete, Graph, bAddActivitiesToDelete);
 	}
 
 	/**
@@ -24,9 +23,9 @@ namespace UE::ConcertSyncCore
 	 */
 	static void AddSavePackageActivityAssociatedWithRenamePackageActivity(const FActivityDependencyGraph& DependencyGraph, const FActivityNode& PossibleRenameActivityNode, TSet<FActivityNodeID>& DoubleEnqueuingProtection, TQueue<FActivityNodeID>& ActivitiesToAnalyse);
 	
-	FHistoryEditionArgs AnalyseActivityDependencies(const TSet<FActivityID>& ActivitiesToEdit, const FActivityDependencyGraph& DependencyGraph, bool bAddEditedAsHardDependencies)
+	FHistoryAnalysisResult AnalyseActivityDependencies_TopDown(const TSet<FActivityID>& ActivitiesToEdit, const FActivityDependencyGraph& DependencyGraph, bool bAddEditedAsHardDependencies)
 	{
-		FHistoryEditionArgs Result;
+		FHistoryAnalysisResult Result;
 
 		TSet<FActivityNodeID> PossibleDoubleEnqueuingProtection;
 		TQueue<FActivityNodeID> PossibleDependencyActivitiesToAnalyse;

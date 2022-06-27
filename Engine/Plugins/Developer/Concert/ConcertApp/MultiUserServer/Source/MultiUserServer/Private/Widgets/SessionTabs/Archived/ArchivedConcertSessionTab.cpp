@@ -67,11 +67,11 @@ void FArchivedConcertSessionTab::OnRequestDeleteActivity(const TSet<TSharedRef<F
 		{
 			return Activity->Activity.ActivityId;
 		});
-		FHistoryEditionArgs DeletionRequirements = AnalyseActivityDependencies(RequestedForDelete, DependencyGraph, true);
+		FHistoryAnalysisResult DeletionRequirements = AnalyseActivityDependencies_TopDown(RequestedForDelete, DependencyGraph, true);
 
 		TWeakPtr<const FArchivedConcertSessionTab> WeakTabThis = SharedThis(this);
 		TSharedRef<SDeleteActivityDependenciesDialog> Dialog = SNew(SDeleteActivityDependenciesDialog, InspectedSessionID, SyncServer, MoveTemp(DeletionRequirements))
-			.OnConfirmDeletion_Lambda([WeakTabThis](const FHistoryEditionArgs& SelectedRequirements)
+			.OnConfirmDeletion_Lambda([WeakTabThis](const FHistoryAnalysisResult& SelectedRequirements)
 			{
 				// Because the dialog is non-modal, the user may have closed the program in the mean time
 				if (const TSharedPtr<const FArchivedConcertSessionTab> PinnedThis = WeakTabThis.Pin())
