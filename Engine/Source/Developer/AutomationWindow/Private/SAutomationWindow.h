@@ -472,6 +472,9 @@ private:
 	/** Handles if the add preset text box should be visible. */
 	EVisibility HandlePresetTextVisibility( ) const;
 
+	/** Handles if the groups combo box should be visible. */
+	EVisibility HandleGroupsVisibility() const;
+
 	/** Called when the user commits the text in the add preset text box. */
 	void HandlePresetTextCommited( const FText& CommittedText, ETextCommit::Type CommitType );
 

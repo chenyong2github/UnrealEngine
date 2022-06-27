@@ -283,21 +283,14 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 	TArray<FAutomatedTestGroup> TestGroups = Settings->Groups;
 	GroupComboList.Empty();
 	GroupFiltersMap.Empty();
-	if (TestGroups.Num() > 0)
+	const FString AllGroups = TEXT("All Groups");
+	GroupComboList.Add(MakeShareable(new FString(AllGroups)));
+	GroupFiltersMap.Add(AllGroups, TArray<FAutomatedTestFilter>());
+	for (int TestGroupIdx = 0; TestGroupIdx < TestGroups.Num(); TestGroupIdx++)
 	{
-		const FString AllGroups = TEXT("All Groups");
-		GroupComboList.Add(MakeShareable(new FString(AllGroups)));
-		GroupFiltersMap.Add(AllGroups, TArray<FAutomatedTestFilter>());
-		for (int TestGroupIdx = 0; TestGroupIdx < TestGroups.Num(); TestGroupIdx++)
-		{
-			GroupComboList.Add(MakeShareable(new FString(TestGroups[TestGroupIdx].Name)));
-			GroupFiltersMap.Add(TestGroups[TestGroupIdx].Name, TestGroups[TestGroupIdx].Filters);
-		}
-	}
-	else
-	{
-		GroupComboBox->SetVisibility(EVisibility::Collapsed);
-	}
+		GroupComboList.Add(MakeShareable(new FString(TestGroups[TestGroupIdx].Name)));
+		GroupFiltersMap.Add(TestGroups[TestGroupIdx].Name, TestGroups[TestGroupIdx].Filters);
+	}	
 	
 	TSharedRef<SNotificationList> NotificationList = SNew(SNotificationList) .Visibility( EVisibility::HitTestInvisible );
 
@@ -383,6 +376,7 @@ void SAutomationWindow::Construct( const FArguments& InArgs, const IAutomationCo
 											.MinDesiredWidth(130.0f)
 											[
 												SAssignNew(GroupComboBox, SComboBox< TSharedPtr<FString> >)
+												.Visibility(this, &SAutomationWindow::HandleGroupsVisibility)
 												.OptionsSource(&GroupComboList)
 												.InitiallySelectedItem(GroupComboList[0])
 												.OnGenerateWidget(this, &SAutomationWindow::GenerateGroupComboItem)
@@ -921,6 +915,11 @@ EVisibility SAutomationWindow::HandlePresetComboVisibility( ) const
 EVisibility SAutomationWindow::HandlePresetTextVisibility( ) const
 {
 	return bAddingTestPreset ? EVisibility::Visible : EVisibility::Hidden;
+}
+
+EVisibility SAutomationWindow::HandleGroupsVisibility() const
+{
+	return GroupComboList.Num() == 1 ? EVisibility::Collapsed : EVisibility::Visible;
 }
 
 bool SAutomationWindow::IsAddButtonEnabled() const
