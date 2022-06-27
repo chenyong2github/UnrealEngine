@@ -8,6 +8,7 @@
 #include "Subsystems/PanelExtensionSubsystem.h"
 #include "ToolMenus.h"
 #include "LevelEditorMenuContext.h"
+#include "ViewportToolBarContext.h"
 #include "Modules/ModuleManager.h"
 #include "Widgets/Layout/SBorder.h"
 #include "Widgets/Layout/SBox.h"
@@ -172,6 +173,9 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 
+	UViewportToolBarContext* ExtensionContextObject = NewObject<UViewportToolBarContext>();
+	ExtensionContextObject->ViewportToolBar = SharedThis(this);
+
 	const FMargin ToolbarSlotPadding(4.0f, 1.0f);
 
 	ChildSlot
@@ -249,6 +253,15 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 					.Visibility(EVisibility::Collapsed)
 				]
 				+ SHorizontalBox::Slot()
+				.Padding(ToolbarSlotPadding)
+				.HAlign(HAlign_Left)
+				.VAlign(VAlign_Fill)
+				[
+					SAssignNew(ExtensionPanel, SExtensionPanel)
+					.ExtensionPanelID("LevelViewportToolBar.LeftExtension")
+					.ExtensionContext(ExtensionContextObject)
+				]
+				+ SHorizontalBox::Slot()
 				.AutoWidth()
 				.Padding(ToolbarSlotPadding)
 				[
@@ -286,6 +299,7 @@ void SLevelViewportToolBar::Construct( const FArguments& InArgs )
 				[
 					SAssignNew(ExtensionPanel, SExtensionPanel)
 					.ExtensionPanelID("LevelViewportToolBar.MiddleExtension")
+					.ExtensionContext(ExtensionContextObject)
 				]
 				+ SHorizontalBox::Slot()
 				.Padding(ToolbarSlotPadding)
