@@ -8,7 +8,7 @@
 #include "../PositionReconstructionCommon.ush"
 #include "HairStrandsVisibilityCommon.ush"
 #include "HairStrandsAABBCommon.ush" 
-
+ 
 ////////////////////////////////////////////////////////////////////////////////////////////////
 
 void AddNewLine(float2 OriginalPos, inout float2 Pos)
