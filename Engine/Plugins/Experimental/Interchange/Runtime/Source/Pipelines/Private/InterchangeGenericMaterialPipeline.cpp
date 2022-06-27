@@ -1186,14 +1186,14 @@ void UInterchangeGenericMaterialPipeline::HandleMaskNode(const UInterchangeShade
 	MaskFactoryNode->SetCustomExpressionClassName(UMaterialExpressionComponentMask::StaticClass()->GetName());
 
 	bool bRChannel = false;
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::R, bRChannel);
 	bool bGChannel = false;
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::G, bGChannel);
 	bool bBChannel = false;
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::B, bBChannel);
 	bool bAChannel = false;
-	bool bIsAnyMaskChannelSet = 
-		ShaderNode->GetBooleanAttribute(Mask::Attributes::R, bRChannel) ||
-		ShaderNode->GetBooleanAttribute(Mask::Attributes::G, bGChannel) ||
-		ShaderNode->GetBooleanAttribute(Mask::Attributes::B, bBChannel) ||
-		ShaderNode->GetBooleanAttribute(Mask::Attributes::A, bAChannel);
+	ShaderNode->GetBooleanAttribute(Mask::Attributes::A, bAChannel);
+	bool bIsAnyMaskChannelSet = bRChannel || bGChannel || bBChannel || bAChannel;
 
 	if(bIsAnyMaskChannelSet)
 	{
