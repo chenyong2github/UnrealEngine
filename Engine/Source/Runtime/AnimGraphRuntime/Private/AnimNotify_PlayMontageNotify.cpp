@@ -27,6 +27,11 @@ void UAnimNotify_PlayMontageNotify::BranchingPointNotify(FBranchingPointNotifyPa
 	}
 }
 
+FString UAnimNotify_PlayMontageNotify::GetNotifyName_Implementation() const
+{
+	return NotifyName.ToString();
+}
+
 #if WITH_EDITOR
 bool UAnimNotify_PlayMontageNotify::CanBePlaced(UAnimSequenceBase* Animation) const
 {
@@ -71,6 +76,11 @@ void UAnimNotify_PlayMontageNotifyWindow::BranchingPointNotifyEnd(FBranchingPoin
 			AnimInstance->OnPlayMontageNotifyEnd.Broadcast(NotifyName, BranchingPointPayload);
 		}
 	}
+}
+
+FString UAnimNotify_PlayMontageNotifyWindow::GetNotifyName_Implementation() const
+{
+	return NotifyName.ToString();
 }
 
 #if WITH_EDITOR

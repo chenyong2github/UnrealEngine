@@ -17,6 +17,8 @@ class ANIMGRAPHRUNTIME_API UAnimNotify_PlayMontageNotify : public UAnimNotify
 public:
 
 	virtual void BranchingPointNotify(FBranchingPointNotifyPayload& BranchingPointPayload) override;
+	
+	virtual FString GetNotifyName_Implementation() const override;
 
 #if WITH_EDITOR
 	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const override;
@@ -41,6 +43,8 @@ class ANIMGRAPHRUNTIME_API UAnimNotify_PlayMontageNotifyWindow : public UAnimNot
 public:
 	virtual void BranchingPointNotifyBegin(FBranchingPointNotifyPayload& BranchingPointPayload) override;
 	virtual void BranchingPointNotifyEnd(FBranchingPointNotifyPayload& BranchingPointPayload) override;
+
+	virtual FString GetNotifyName_Implementation() const override;
 
 #if WITH_EDITOR
 	virtual bool CanBePlaced(UAnimSequenceBase* Animation) const override;
