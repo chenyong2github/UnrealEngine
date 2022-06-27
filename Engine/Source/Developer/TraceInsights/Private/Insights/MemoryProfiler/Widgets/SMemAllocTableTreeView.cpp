@@ -399,6 +399,7 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 					Alloc.Tag = Provider.GetTagName(Allocation->GetTag());
 
 					Alloc.Asset = nullptr;
+					Alloc.ClassName = nullptr;
 					const uint32 MetadataId = Allocation->GetMetadataId();
 					if (MetadataId != TraceServices::IMetadataProvider::InvalidMetadataId && MetadataProvider && DefinitionProvider)
 					{
@@ -415,6 +416,12 @@ void SMemAllocTableTreeView::UpdateQuery(TraceServices::IAllocationsProvider::EQ
 									if (AssetName)
 									{
 										Alloc.Asset = AssetName->Display;
+									}
+									const auto ClassNameRef = Reader.GetValueAs<UE::Trace::FEventRef32>((uint8*)Data, 1);
+									const auto ClassName = DefinitionProvider->Get<TraceServices::FStringDefinition>(*ClassNameRef);
+									if (ClassName)
+									{
+										Alloc.ClassName = ClassName->Display;
 									}
 									return false;
 								}
@@ -886,6 +893,68 @@ void SMemAllocTableTreeView::InitAvailableViewPresets()
 	AvailableViewPresets.Add(MakeShared<FAssetViewPreset>());
 
 	//////////////////////////////////////////////////
+	// Class Name Breakdown View
+
+	class FClassNameViewPreset : public IViewPreset
+	{
+	public:
+		virtual FText GetName() const override
+		{
+			return LOCTEXT("ClassName_PresetName", "Class Name");
+		}
+		virtual FText GetToolTip() const override
+		{
+			return LOCTEXT("ClassName_PresetToolTip", "Class Breakdown View\nConfigure the tree view to show a breakdown of allocations by their Class name.");
+		}
+		virtual FName GetSortColumn() const override
+		{
+			return FTable::GetHierarchyColumnId();
+		}
+		virtual EColumnSortMode::Type GetSortMode() const override
+		{
+			return EColumnSortMode::Type::Ascending;
+		}
+		virtual void SetCurrentGroupings(const TArray<TSharedPtr<FTreeNodeGrouping>>& InAvailableGroupings, TArray<TSharedPtr<FTreeNodeGrouping>>& InOutCurrentGroupings) const override
+		{
+			InOutCurrentGroupings.Reset();
+
+			check(InAvailableGroupings[0]->Is<FTreeNodeGroupingFlat>());
+			InOutCurrentGroupings.Add(InAvailableGroupings[0]);
+
+			const TSharedPtr<FTreeNodeGrouping>* ClassNameGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FTreeNodeGroupingByUniqueValueCString>() &&
+						   Grouping->As<FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FMemAllocTableColumns::ClassNameColumnId;
+				});
+			if (ClassNameGrouping)
+			{
+				InOutCurrentGroupings.Add(*ClassNameGrouping);
+			}
+
+			const TSharedPtr<FTreeNodeGrouping>* AssetGrouping = InAvailableGroupings.FindByPredicate(
+				[](TSharedPtr<FTreeNodeGrouping>& Grouping)
+				{
+					return Grouping->Is<FTreeNodeGroupingByUniqueValueCString>() &&
+						   Grouping->As<FTreeNodeGroupingByUniqueValueCString>().GetColumnId() == FMemAllocTableColumns::AssetColumnId;
+				});
+			if (AssetGrouping)
+			{
+				InOutCurrentGroupings.Add(*AssetGrouping);
+			}
+		}
+		virtual void GetColumnConfigSet(TArray<FColumnConfig>& InOutConfigSet) const override
+		{
+			InOutConfigSet.Add({ FTable::GetHierarchyColumnId(),          true, 200.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::CountColumnId,    true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::SizeColumnId,     true, 100.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::TagColumnId,      true, 120.0f });
+			InOutConfigSet.Add({ FMemAllocTableColumns::FunctionColumnId, true, 400.0f });
+		}
+	};
+	AvailableViewPresets.Add(MakeShared<FClassNameViewPreset>());
+
+	//////////////////////////////////////////////////
 	// (Inverted) Callstack Breakdown View
 
 	class FCallstackViewPreset : public IViewPreset
@@ -1201,11 +1270,11 @@ void SMemAllocTableTreeView::InternalCreateGroupings()
 			else if (Grouping->Is<FTreeNodeGroupingByPathBreakdown>())
 			{
 				const FName ColumnId = Grouping->As<FTreeNodeGroupingByPathBreakdown>().GetColumnId();
-				if (ColumnId == FMemAllocTableColumns::FunctionColumnId)
+				if (ColumnId == FMemAllocTableColumns::FunctionColumnId ||
+					ColumnId == FMemAllocTableColumns::ClassNameColumnId)
 				{
 					return true;
 				}
-
 			}
 			return false;
 		});

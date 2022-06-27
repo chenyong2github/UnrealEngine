@@ -32,6 +32,7 @@ public:
 	TraceServices::TagIdType GetTagId() const { return TagId; }
 	const TCHAR* GetTag() const { return Tag; }
 	const TCHAR* GetAsset() const { return Asset; }
+	const TCHAR* GetClassName() const { return ClassName; }
 	const TraceServices::FCallstack* GetCallstack() const { return Callstack; }
 	const TraceServices::FCallstack* GetFreeCallstack() const { return FreeCallstack; }
 	FText GetFullCallstack() const;
@@ -48,6 +49,7 @@ private:
 	TraceServices::TagIdType TagId;
 	const TCHAR* Tag;
 	const TCHAR* Asset;
+	const TCHAR* ClassName;
 	const TraceServices::FCallstack* Callstack;
 	const TraceServices::FCallstack* FreeCallstack;
 	HeapId RootHeap;
