@@ -4648,6 +4648,25 @@ void FEngineLoop::Exit()
 	FThreadStats::StopThread();
 #endif
 
+	// Clean up the thread pool
+	// GThreadPool might be a wrapper around GLargeThreadPool so we have to destroy it first
+	if (GThreadPool != nullptr)
+	{
+		GThreadPool->Destroy();
+	}
+
+#if WITH_EDITOR
+	if (GLargeThreadPool != nullptr)
+	{
+		GLargeThreadPool->Destroy();
+	}
+#endif // WITH_EDITOR
+
+	if (GBackgroundPriorityThreadPool != nullptr)
+	{
+		GBackgroundPriorityThreadPool->Destroy();
+	}
+
 	FTaskGraphInterface::Shutdown();
 
 	RHIExit();
@@ -6236,25 +6255,6 @@ void FEngineLoop::AppPreExit( )
 	// more frames in flight. Note that simply incrementing the value doesn't work, because FGenericRHIGPUFence::WriteInternal adds
 	// GNumAlternateFrameRenderingGroups to the current frame number to account for multi-GPU, and we don't want to depend on that RHI export here.
 	GFrameNumberRenderThread = MAX_uint32;
-
-	// Clean up the thread pool
-	// GThreadPool might be a wrapper around GLargeThreadPool so we have to destroy it first
-	if (GThreadPool != nullptr)
-	{
-		GThreadPool->Destroy();
-	}
-
-#if WITH_EDITOR
-	if (GLargeThreadPool != nullptr)
-	{
-		GLargeThreadPool->Destroy();
-	}
-#endif // WITH_EDITOR
-
-	if (GBackgroundPriorityThreadPool != nullptr)
-	{
-		GBackgroundPriorityThreadPool->Destroy();
-	}
 
 	if (GIOThreadPool != nullptr)
 	{
