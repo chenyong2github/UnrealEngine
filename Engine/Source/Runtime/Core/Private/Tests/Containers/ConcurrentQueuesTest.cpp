@@ -333,8 +333,8 @@ namespace UE { namespace ConcurrentQueuesTests
 			// SPSC
 
 			{	// destroy queue while it's holding one unconsumed item
-				TSpscQueue<FNonTrivial> Q;
-				Q.Enqueue(MakeUnique<int>(1));
+			TSpscQueue<FNonTrivial> Q;
+			Q.Enqueue(MakeUnique<int>(1));
 			}
 
 			{	// destroy queue while it's holding one cached consumed time
@@ -402,6 +402,24 @@ namespace UE { namespace ConcurrentQueuesTests
 				Res = Q.Dequeue();
 				verify(Res.IsSet() && *Res.GetValue().Value == 2);
 			}
+		}
+
+		{ // test `TSpscQueue::IsEmpty()`
+			TSpscQueue<int> Q;
+			check(Q.IsEmpty());
+			Q.Enqueue(42);
+			check(!Q.IsEmpty());
+			Q.Dequeue();
+			check(Q.IsEmpty());
+		}
+
+		{ // test `TMpscQueue::IsEmpty()`
+			TMpscQueue<int> Q;
+			check(Q.IsEmpty());
+			Q.Enqueue(42);
+			check(!Q.IsEmpty());
+			Q.Dequeue();
+			check(Q.IsEmpty());
 		}
 
 		{	// test `Peek()`

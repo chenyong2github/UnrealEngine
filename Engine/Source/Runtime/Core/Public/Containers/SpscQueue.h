@@ -96,7 +96,7 @@ public:
 	{
 		FNode* LocalTail = Tail.load(std::memory_order_relaxed);
 		FNode* LocalTailNext = LocalTail->Next.load(std::memory_order_acquire);
-		return LocalTailNext != nullptr;
+		return LocalTailNext == nullptr;
 	}
 
 	// as there can be only one consumer, a consumer can safely "peek" the tail of the queue.

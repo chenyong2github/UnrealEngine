@@ -102,7 +102,7 @@ public:
 
 	bool IsEmpty() const
 	{
-		return Tail->Next.load(std::memory_order_acquire) != nullptr;
+		return Tail->Next.load(std::memory_order_acquire) == nullptr;
 	}
 
 private:
