@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Widgets/SWidget.h"
 #include "Framework/SlateDelegates.h"
+#include "Misc/FrameTime.h"
 #include "MovieSceneBindingProxy.h"
 #include "SequencerUtilities.generated.h"
 

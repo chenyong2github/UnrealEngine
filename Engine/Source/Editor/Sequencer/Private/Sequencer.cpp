@@ -5549,35 +5549,37 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 
 		for ( AActor* Actor : DroppedActors )
 		{
-			AActor* NewActor = Actor;
-			FGuid PossessableGuid = FSequencerUtilities::CreateBinding(AsShared(), *NewActor, NewActor->GetActorLabel());
-			FGuid NewGuid = PossessableGuid;
-
-			OnActorAddedToSequencerEvent.Broadcast(NewActor, PossessableGuid);
-
-			if (bAddSpawnable)
+			if (AActor* NewActor = Actor)
 			{
-				TArray<FMovieSceneSpawnable*> Spawnables = FSequencerUtilities::ConvertToSpawnable(AsShared(), PossessableGuid);
-				if (Spawnables.Num() > 0)
+				FGuid PossessableGuid = FSequencerUtilities::CreateBinding(AsShared(), *NewActor, NewActor->GetActorLabel());
+				FGuid NewGuid = PossessableGuid;
+
+				OnActorAddedToSequencerEvent.Broadcast(NewActor, PossessableGuid);
+
+				if (bAddSpawnable)
 				{
-					for (TWeakObjectPtr<> WeakObject : FindBoundObjects(Spawnables[0]->GetGuid(), ActiveTemplateIDs.Top()))
+					TArray<FMovieSceneSpawnable*> Spawnables = FSequencerUtilities::ConvertToSpawnable(AsShared(), PossessableGuid);
+					if (Spawnables.Num() > 0)
 					{
-						AActor* SpawnedActor = Cast<AActor>(WeakObject.Get());
-						if (SpawnedActor)
+						for (TWeakObjectPtr<> WeakObject : FindBoundObjects(Spawnables[0]->GetGuid(), ActiveTemplateIDs.Top()))
 						{
-							SpawnedActors.Add(SpawnedActor);
-							NewActor = SpawnedActor;
+							AActor* SpawnedActor = Cast<AActor>(WeakObject.Get());
+							if (SpawnedActor)
+							{
+								SpawnedActors.Add(SpawnedActor);
+								NewActor = SpawnedActor;
+							}
 						}
+						NewGuid = Spawnables[0]->GetGuid();
 					}
-					NewGuid = Spawnables[0]->GetGuid();
 				}
-			}
 
-			if (NewActor->GetClass() == ACameraRig_Rail::StaticClass() ||
-				NewActor->GetClass() == ACameraRig_Crane::StaticClass())
-			{
-				ACineCameraActor* OutActor;
-				FSequencerUtilities::CreateCameraWithRig(AsShared(), NewActor, bAddSpawnable, OutActor);
+				if (NewActor->GetClass() == ACameraRig_Rail::StaticClass() ||
+					NewActor->GetClass() == ACameraRig_Crane::StaticClass())
+				{
+					ACineCameraActor* OutActor;
+					FSequencerUtilities::CreateCameraWithRig(AsShared(), NewActor, bAddSpawnable, OutActor);
+				}
 			}
 		}
 

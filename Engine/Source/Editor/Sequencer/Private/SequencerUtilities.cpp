@@ -601,7 +601,14 @@ FGuid AddSpawnable(TSharedRef<ISequencer> Sequencer, UObject& Object, UActorFact
 
 	FNewSpawnable& NewSpawnable = Result.GetValue();
 
-	NewSpawnable.Name = SpawnableName == NAME_None ? MovieSceneHelpers::MakeUniqueSpawnableName(OwnerMovieScene, NewSpawnable.Name) : SpawnableName.ToString();
+	if (SpawnableName == NAME_None)
+	{
+		NewSpawnable.Name = MovieSceneHelpers::MakeUniqueSpawnableName(OwnerMovieScene, NewSpawnable.Name);
+	}
+	else
+	{
+		NewSpawnable.Name = SpawnableName.ToString();
+	}
 
 	FGuid NewGuid = OwnerMovieScene->AddSpawnable(NewSpawnable.Name, *NewSpawnable.ObjectTemplate);
 
