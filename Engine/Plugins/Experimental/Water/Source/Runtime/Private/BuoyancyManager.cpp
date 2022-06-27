@@ -100,7 +100,14 @@ void ABuoyancyManager::Register(UBuoyancyComponent* BuoyancyComponent)
 {
 	check(BuoyancyComponent);
 	BuoyancyComponents.AddUnique(BuoyancyComponent);
-	InitializeAsyncAux(BuoyancyComponent);
+	if(AsyncCallback)
+	{
+		InitializeAsyncAux(BuoyancyComponent);
+	}
+	else // AsyncCallback is not setup yet. We need to register this component at a later time.
+	{
+		BuoyancyComponentsToRegister.Emplace(BuoyancyComponent);
+	}
 }
 
 void ABuoyancyManager::Unregister(UBuoyancyComponent* BuoyancyComponent)
@@ -252,6 +259,15 @@ void ABuoyancyManager::BeginPlay()
 			OnPhysScenePreTickHandle = PhysScene->OnPhysScenePreTick.AddUObject(this, &ABuoyancyManager::Update);
 			AsyncCallback = PhysScene->GetSolver()->CreateAndRegisterSimCallbackObject_External<FBuoyancyManagerAsyncCallback>();
 		}
+
+		for (const TWeakObjectPtr<UBuoyancyComponent>& BuoyancyComponentPtr : BuoyancyComponentsToRegister)
+		{
+			if (UBuoyancyComponent* BuoyancyComponent = BuoyancyComponentPtr.Get())
+			{
+				InitializeAsyncAux(BuoyancyComponent);
+			}
+		}
+		BuoyancyComponentsToRegister.Empty();
 	}
 
 	Super::BeginPlay();
