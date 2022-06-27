@@ -176,6 +176,7 @@ private:
 	struct FDenyCandidate
 	{
 		int32 EndpointFailureCount = 0;
+		FDateTime LastFailTime = FDateTime::UtcNow();
 	};
 
 	/** Deny list of node ids not allowed to talk to UDP processor */

@@ -38,6 +38,13 @@ TAutoConsoleVariable<int32> CVarMaxRetriesForBadEndpoint(
 	ECVF_Default
 );
 
+TAutoConsoleVariable<int32> CVarBadEndpointPeriod(
+	TEXT("MessageBus.UDP.BadEndpointPeriod"),
+	60,
+	TEXT("The period of time, in seconds, between endpoint socket errors to be considered a bad endpoint."),
+	ECVF_Default
+);
+
 TAutoConsoleVariable<bool> CVarEndpointDenyListEnabled(
 	TEXT("MessageBus.UDP.EndpointDenyListEnabled"),
 	true,
@@ -407,7 +414,16 @@ void FUdpMessageTransport::DoClearDenyCandidateList()
 void FUdpMessageTransport::HandleEndpointCommunicationError(const FGuid& EndpointId, const FIPv4Endpoint& /*Unused EndpointIdAddress*/)
 {
 	FDenyCandidate& DenyCandidate = DenyCandidateList.FindOrAdd(EndpointId);
-	DenyCandidate.EndpointFailureCount++;
+	FDateTime CurrentTime = FDateTime::UtcNow();
+	if ((CurrentTime - DenyCandidate.LastFailTime).GetSeconds() < CVarBadEndpointPeriod.GetValueOnAnyThread())
+	{
+		DenyCandidate.EndpointFailureCount++;
+	}
+	else
+	{
+		DenyCandidate.EndpointFailureCount = 0;
+	}
+	DenyCandidate.LastFailTime = CurrentTime;
 }
 
 void FUdpMessageTransport::HandleProcessorError()
