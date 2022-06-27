@@ -558,8 +558,8 @@ namespace UnrealBuildTool
 			if (ShouldUseLibcxx(CompileEnvironment.Architecture))
 			{
 				Arguments.Add("-nostdinc++");
-				Arguments.Add("-I" + "ThirdParty/Unix/LibCxx/include/");
-				Arguments.Add("-I" + "ThirdParty/Unix/LibCxx/include/c++/v1");
+				Arguments.Add(GetSystemIncludePathArgument(DirectoryReference.Combine(Unreal.EngineSourceDirectory, "ThirdParty", "Unix", "LibCxx", "include")));
+				Arguments.Add(GetSystemIncludePathArgument(DirectoryReference.Combine(Unreal.EngineSourceDirectory, "ThirdParty", "Unix", "LibCxx", "include", "c++", "v1")));
 			}
 
 			if (CompilerVersionGreaterOrEqual(12, 0, 0))
@@ -644,24 +644,22 @@ namespace UnrealBuildTool
 				: string.Format("{0}={1}", Key, Value);
 		}
 
-		protected virtual string GetLinkArguments(LinkEnvironment LinkEnvironment)
+		protected virtual void GetLinkArguments(LinkEnvironment LinkEnvironment, List<string> Arguments)
 		{
-			string Result = "";
-
-			Result += (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? " -fuse-ld=lld.exe" : " -fuse-ld=lld";
+			Arguments.Add((BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Win64) ? "-fuse-ld=lld.exe" : "-fuse-ld=lld");
 
 			// debugging symbols
 			// Applying to all configurations @FIXME: temporary hack for FN to enable callstack in Shipping builds (proper resolution: UEPLAT-205)
-			Result += " -rdynamic";   // needed for backtrace_symbols()...
+			Arguments.Add("-rdynamic");   // needed for backtrace_symbols()...
 
 			if (LinkEnvironment.bIsBuildingDLL)
 			{
-				Result += " -shared";
+				Arguments.Add("-shared");
 			}
 			else
 			{
 				// ignore unresolved symbols in shared libs
-				Result += string.Format(" -Wl,--unresolved-symbols=ignore-in-shared-libs");
+				Arguments.Add("-Wl,--unresolved-symbols=ignore-in-shared-libs");
 			}
 
 			if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer) ||
@@ -669,36 +667,36 @@ namespace UnrealBuildTool
 				Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer) ||
 				Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 			{
-				Result += " -g";
+				Arguments.Add("-g");
 
 				if (Options.HasFlag(ClangToolChainOptions.EnableSharedSanitizer))
 				{
-					Result += " -shared-libsan";
+					Arguments.Add("-shared-libsan");
 				}
 
 				if (Options.HasFlag(ClangToolChainOptions.EnableAddressSanitizer))
 				{
-					Result += " -fsanitize=address";
+					Arguments.Add("-fsanitize=address");
 				}
 				else if (Options.HasFlag(ClangToolChainOptions.EnableThreadSanitizer))
 				{
-					Result += " -fsanitize=thread";
+					Arguments.Add("-fsanitize=thread");
 				}
 				else if (Options.HasFlag(ClangToolChainOptions.EnableUndefinedBehaviorSanitizer))
 				{
-					Result += " -fsanitize=undefined";
+					Arguments.Add("-fsanitize=undefined");
 				}
 				else if (Options.HasFlag(ClangToolChainOptions.EnableMemorySanitizer))
 				{
 					// -fsanitize-memory-track-origins adds a 1.5x-2.5x slow ontop of MSan normal amount of overhead
 					// -fsanitize-memory-track-origins=1 is faster but collects only allocation points but not intermediate stores
-					Result += " -fsanitize=memory -fsanitize-memory-track-origins";
+					Arguments.Add("-fsanitize=memory -fsanitize-memory-track-origins");
 				}
 
 				if (CrossCompiling())
 				{
-					Result += string.Format(" -Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
-							BaseLinuxPath, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch);
+					Arguments.Add(string.Format("-Wl,-rpath=\"{0}/lib/clang/{1}.{2}.{3}/lib/linux\"",
+							BaseLinuxPath, ClangVersionMajor, ClangVersionMinor, ClangVersionPatch));
 				}
 			}
 
@@ -706,48 +704,48 @@ namespace UnrealBuildTool
 			{
 				// Generate .gdb_index section. On my machine, this cuts symbol loading time (breaking at main) from 45
 				// seconds to 17 seconds (with gdb v8.3.1).
-				Result += " -Wl,--gdb-index";
+				Arguments.Add("-Wl,--gdb-index");
 			}
 
 			// RPATH for third party libs
-			Result += " -Wl,-rpath=${ORIGIN}";
-			Result += " -Wl,-rpath-link=${ORIGIN}";
-			Result += " -Wl,-rpath=${ORIGIN}/..";   // for modules that are in sub-folders of the main Engine/Binary/Linux folder
+			Arguments.Add("-Wl,-rpath=${ORIGIN}");
+			Arguments.Add("-Wl,-rpath-link=${ORIGIN}");
+			Arguments.Add("-Wl,-rpath=${ORIGIN}/..");   // for modules that are in sub-folders of the main Engine/Binary/Linux folder
 			if (LinkEnvironment.Architecture.StartsWith("x86_64"))
 			{
-				Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/Qualcomm/Linux";
+				Arguments.Add("-Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/Qualcomm/Linux");
 			}
 			else
 			{
 				// x86_64 is now using updated ICU that doesn't need extra .so
-				Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Unix/" + LinkEnvironment.Architecture;
+				Arguments.Add("-Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/ICU/icu4c-53_1/Unix/" + LinkEnvironment.Architecture);
 			}
 
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/OpenVR/OpenVRv1_5_17/linux64";
+			Arguments.Add("-Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/OpenVR/OpenVRv1_5_17/linux64");
 
 			// @FIXME: Workaround for generating RPATHs for launching on devices UE-54136
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/PhysX3/Unix/x86_64-unknown-linux-gnu";
-			Result += " -Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu/lib";
+			Arguments.Add("-Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/PhysX3/Unix/x86_64-unknown-linux-gnu");
+			Arguments.Add("-Wl,-rpath=${ORIGIN}/../../../Engine/Binaries/ThirdParty/Intel/Embree/Embree2140/Linux/x86_64-unknown-linux-gnu/lib");
 
 			// Some OS ship ld with new ELF dynamic tags, which use DT_RUNPATH vs DT_RPATH. Since DT_RUNPATH do not propagate to dlopen()ed DSOs,
 			// this breaks the editor on such systems. See https://kenai.com/projects/maxine/lists/users/archive/2011-01/message/12 for details
-			Result += " -Wl,--disable-new-dtags";
+			Arguments.Add("-Wl,--disable-new-dtags");
 
 			// This severely improves runtime linker performance. Without using FixDeps the impact on link time is not as big.
-			Result += " -Wl,--as-needed";
+			Arguments.Add("-Wl,--as-needed");
 
 			// Additionally speeds up editor startup by 1-2s
-			Result += " -Wl,--hash-style=gnu";
+			Arguments.Add("-Wl,--hash-style=gnu");
 
 			// This apparently can help LLDB speed up symbol lookups
-			Result += " -Wl,--build-id";
+			Arguments.Add("-Wl,--build-id");
 			if (!LinkEnvironment.bIsBuildingDLL)
 			{
-				Result += " -Wl,--gc-sections";
+				Arguments.Add("-Wl,--gc-sections");
 
 				if (bSuppressPIE)
 				{
-					Result += " -Wl,-no-pie";
+					Arguments.Add("-Wl,-no-pie");
 				}
 			}
 
@@ -761,15 +759,15 @@ namespace UnrealBuildTool
 				//
 				// Disable this warning. It's far too verbose.
 				//
-				Result += " -Wno-backend-plugin";
+				Arguments.Add("-Wno-backend-plugin");
 
 				Log.TraceInformationOnce("Enabling Profile Guided Optimization (PGO). Linking will take a while.");
-				Result += string.Format(" -fprofile-instr-use=\"{0}\"", Path.Combine(LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix!));
+				Arguments.Add(string.Format("-fprofile-instr-use=\"{0}\"", Path.Combine(LinkEnvironment.PGODirectory!, LinkEnvironment.PGOFilenamePrefix!)));
 			}
 			else if (LinkEnvironment.bPGOProfile)
 			{
 				Log.TraceInformationOnce("Enabling Profile Guided Instrumentation (PGI). Linking will take a while.");
-				Result += " -fprofile-generate";
+				Arguments.Add("-fprofile-generate");
 			}
 
 			// whether we actually can do that is checked in CanUseAdvancedLinkerFeatures() earlier
@@ -777,31 +775,29 @@ namespace UnrealBuildTool
 			{
 				if ((Options & ClangToolChainOptions.EnableThinLTO) != 0)
 				{
-					Result += String.Format(" -flto=thin -Wl,--thinlto-jobs={0}", Utils.GetPhysicalProcessorCount());
+					Arguments.Add(String.Format(" -flto=thin -Wl,--thinlto-jobs={0}", Utils.GetPhysicalProcessorCount()));
 				}
 				else
 				{
-					Result += " -flto";
+					Arguments.Add("-flto");
 				}
 			}
 
 			if (CrossCompiling())
 			{
-				Result += String.Format(" -target {0}", LinkEnvironment.Architecture);        // Set target triple
+				Arguments.Add(String.Format(" -target {0}", LinkEnvironment.Architecture));        // Set target triple
 				string SysRootPath = BaseLinuxPath!.TrimEnd(new char[] { '\\', '/' });
-				Result += String.Format(" \"--sysroot={0}\"", SysRootPath);
+				Arguments.Add(String.Format(" \"--sysroot={0}\"", SysRootPath));
 
 				// Linking with the toolchain on linux appears to not search usr/
 				if (BuildHostPlatform.Current.Platform == UnrealTargetPlatform.Linux)
 				{
-					Result += String.Format(" -B\"{0}/usr/lib/\"", SysRootPath);
-					Result += String.Format(" -B\"{0}/usr/lib64/\"", SysRootPath);
-					Result += String.Format(" -L\"{0}/usr/lib/\"", SysRootPath);
-					Result += String.Format(" -L\"{0}/usr/lib64/\"", SysRootPath);
+					Arguments.Add(String.Format(" -B\"{0}/usr/lib/\"", SysRootPath));
+					Arguments.Add(String.Format(" -B\"{0}/usr/lib64/\"", SysRootPath));
+					Arguments.Add(String.Format(" -L\"{0}/usr/lib/\"", SysRootPath));
+					Arguments.Add(String.Format(" -L\"{0}/usr/lib64/\"", SysRootPath));
 				}
 			}
-
-			return Result;
 		}
 
 		string GetArchiveArguments(LinkEnvironment LinkEnvironment)
@@ -1237,7 +1233,9 @@ namespace UnrealBuildTool
 			LinkCommandString = "\"" + ClangPath + "\"";
 
 			// Get link arguments.
-			LinkCommandString += GetLinkArguments(LinkEnvironment);
+			List<string> LinkArguments = new List<string>();
+			GetLinkArguments(LinkEnvironment, LinkArguments);
+			LinkCommandString += " " + string.Join(' ', LinkArguments);
 
 			// Tell the action that we're building an import library here and it should conditionally be
 			// ignored as a prerequisite for other actions
