@@ -13,7 +13,7 @@ class FTextureShareCoreModule
 public:
 	virtual ~FTextureShareCoreModule()
 	{
-		ShutdownModule();
+		ShutdownModuleImpl();
 	}
 
 	virtual void StartupModule() override;
@@ -26,6 +26,9 @@ public:
 	 * This limits visibility to other engine modules, and allows implementations to be changed in hotfixes.
 	 */
 	virtual ITextureShareCoreAPI& GetTextureShareCoreAPI() override;
+
+protected:
+	void ShutdownModuleImpl();
 
 private:
 	TUniquePtr<FTextureShareCore> TextureShareCoreAPI;

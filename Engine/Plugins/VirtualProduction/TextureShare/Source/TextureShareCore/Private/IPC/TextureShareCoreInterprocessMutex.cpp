@@ -7,10 +7,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 // FTextureShareCoreInterprocessMutex
 //////////////////////////////////////////////////////////////////////////////////////////////
-FTextureShareCoreInterprocessMutex::FTextureShareCoreInterprocessMutex(const FString& InMutexId)
-	: MutexId(InMutexId)
-{ }
-
 FTextureShareCoreInterprocessMutex::~FTextureShareCoreInterprocessMutex()
 {
 	ReleaseInterprocessMutex();

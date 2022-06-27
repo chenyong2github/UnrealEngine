@@ -17,52 +17,15 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FTextureShareCoreSecurityAttributes
-//////////////////////////////////////////////////////////////////////////////////////////////
-class FSharedEventSecurityAttributes
+class FWindowsSecurityAttributesHelper
 {
 public:
-	FSharedEventSecurityAttributes()
+	FWindowsSecurityAttributesHelper(const ETextureShareSecurityAttributesType InType)
 	{
-		ZeroMemory(&SecurityDescriptor, sizeof(SecurityDescriptor));
-
-		if (InitializeSecurityDescriptor(&SecurityDescriptor, SECURITY_DESCRIPTOR_REVISION) && SetSecurityDescriptorDacl(&SecurityDescriptor, true, (PACL)NULL, false))
-		{
-			ZeroMemory(&SecurityAttributes, sizeof(SecurityAttributes));
-			SecurityAttributes.nLength = sizeof(SecurityAttributes);
-			SecurityAttributes.lpSecurityDescriptor = &SecurityDescriptor;
-			SecurityAttributes.bInheritHandle = false;
-
-			bEnabled = true;
-		}
+		Initialize(InType);
 	}
 
-	~FSharedEventSecurityAttributes() = default;
-
-	SECURITY_ATTRIBUTES* GetSecurityAttributes()
-	{
-		return bEnabled ? &SecurityAttributes : nullptr;
-	}
-
-private:
-	SECURITY_DESCRIPTOR SecurityDescriptor;
-	SECURITY_ATTRIBUTES SecurityAttributes;
-
-	bool bEnabled = false;
-};
-
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FSharedResourceSecurityAttributes
-//////////////////////////////////////////////////////////////////////////////////////////////
-class FSharedResourceSecurityAttributes
-{
-public:
-	FSharedResourceSecurityAttributes()
-	{
-		Initialize();
-	}
-
-	~FSharedResourceSecurityAttributes()
+	~FWindowsSecurityAttributesHelper()
 	{
 		Release();
 	}
@@ -73,8 +36,8 @@ public:
 	}
 
 protected:
+	bool Initialize(const ETextureShareSecurityAttributesType InType);
 	void Release();
-	bool Initialize();
 
 private:
 	PSID pEveryoneSID = nullptr;
@@ -87,38 +50,59 @@ private:
 	bool bEnabled = false;
 };
 
-void FSharedResourceSecurityAttributes::Release()
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FTextureShareCoreD3DResource
+//////////////////////////////////////////////////////////////////////////////////////////////
+FTextureShareCoreSecurityAttributes::FTextureShareCoreSecurityAttributes()
 {
-	if (pEveryoneSID)
+	for (int32 TypeIndex= 0; TypeIndex < (uint8)ETextureShareSecurityAttributesType::COUNT; TypeIndex++)
 	{
-		FreeSid(pEveryoneSID);
+		SecurityAttributes[TypeIndex] = MakeUnique<FWindowsSecurityAttributesHelper>((ETextureShareSecurityAttributesType)TypeIndex);
 	}
-
-	if (pAdminSID)
-	{
-		FreeSid(pAdminSID);
-	}
-
-	if (pACL)
-	{
-		LocalFree(pACL);
-	}
-
-	if (SecurityDescriptorPtr)
-	{
-		LocalFree(SecurityDescriptorPtr);
-	}
-
-	bEnabled = false;
 }
 
-bool FSharedResourceSecurityAttributes::Initialize()
+FTextureShareCoreSecurityAttributes::~FTextureShareCoreSecurityAttributes()
+{
+	for (int32 TypeIndex = 0; TypeIndex < (uint8)ETextureShareSecurityAttributesType::COUNT; TypeIndex++)
+	{
+		SecurityAttributes[TypeIndex].Reset();
+	}
+}
+const void* FTextureShareCoreSecurityAttributes::GetSecurityAttributes(const ETextureShareSecurityAttributesType InType) const
+{
+	if (InType < ETextureShareSecurityAttributesType::COUNT)
+	{
+		if (SecurityAttributes[(uint8)InType].IsValid())
+		{
+			SecurityAttributes[(uint8)InType]->GetSecurityAttributes();
+		}
+	}
+
+	return nullptr;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////
+// FWindowsSecurityAttributesHelper
+//////////////////////////////////////////////////////////////////////////////////////////////
+bool FWindowsSecurityAttributesHelper::Initialize(const ETextureShareSecurityAttributesType InType)
 {
 	DWORD dwRes;
 
 	EXPLICIT_ACCESS ExplicitAccess[2];
 	SID_IDENTIFIER_AUTHORITY SIDAuthWorld = SECURITY_WORLD_SID_AUTHORITY;
 	SID_IDENTIFIER_AUTHORITY SIDAuthNT = SECURITY_NT_AUTHORITY;
+
+	DWORD InGRFAccessPermissions = KEY_ALL_ACCESS;
+
+	switch (InType)
+	{
+	case ETextureShareSecurityAttributesType::Event:
+		InGRFAccessPermissions = KEY_NOTIFY;
+	default:
+		break;
+	}
+
 
 	// Create a well-known SID for the Everyone group.
 	if (!AllocateAndInitializeSid(&SIDAuthWorld, 1,
@@ -135,7 +119,7 @@ bool FSharedResourceSecurityAttributes::Initialize()
 	// Initialize an EXPLICIT_ACCESS structure for an ACE.
 	// The ACE will allow Everyone read access to the key.
 	ZeroMemory(&ExplicitAccess, 2 * sizeof(EXPLICIT_ACCESS));
-	ExplicitAccess[0].grfAccessPermissions = KEY_ALL_ACCESS;
+	ExplicitAccess[0].grfAccessPermissions = InGRFAccessPermissions;
 	ExplicitAccess[0].grfAccessMode = SET_ACCESS;
 	ExplicitAccess[0].grfInheritance = NO_INHERITANCE;
 	ExplicitAccess[0].Trustee.TrusteeForm = TRUSTEE_IS_SID;
@@ -159,7 +143,7 @@ bool FSharedResourceSecurityAttributes::Initialize()
 	// Initialize an EXPLICIT_ACCESS structure for an ACE.
 	// The ACE will allow the Administrators group full access to
 	// the key.
-	ExplicitAccess[1].grfAccessPermissions = KEY_ALL_ACCESS;
+	ExplicitAccess[1].grfAccessPermissions = InGRFAccessPermissions;
 	ExplicitAccess[1].grfAccessMode = SET_ACCESS;
 	ExplicitAccess[1].grfInheritance = NO_INHERITANCE;
 	ExplicitAccess[1].Trustee.TrusteeForm = TRUSTEE_IS_SID;
@@ -218,28 +202,27 @@ bool FSharedResourceSecurityAttributes::Initialize()
 	return true;
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-// FTextureShareCoreD3DResource
-//////////////////////////////////////////////////////////////////////////////////////////////
-FTextureShareCoreSecurityAttributes::FTextureShareCoreSecurityAttributes()
+void FWindowsSecurityAttributesHelper::Release()
 {
-	ResourceSecurityAttributes = MakeUnique<FSharedResourceSecurityAttributes>();
-	EventSecurityAttributes = MakeUnique<FSharedEventSecurityAttributes>();
-}
+	if (pEveryoneSID)
+	{
+		FreeSid(pEveryoneSID);
+	}
 
-FTextureShareCoreSecurityAttributes::~FTextureShareCoreSecurityAttributes()
-{
-	ResourceSecurityAttributes.Reset();
-	EventSecurityAttributes.Reset();
-}
+	if (pAdminSID)
+	{
+		FreeSid(pAdminSID);
+	}
 
-//////////////////////////////////////////////////////////////////////////////////////////////
-const void* FTextureShareCoreSecurityAttributes::GetResourceSecurityAttributes() const
-{
-	return ResourceSecurityAttributes.IsValid() ? ResourceSecurityAttributes->GetSecurityAttributes() : nullptr;
-}
+	if (pACL)
+	{
+		LocalFree(pACL);
+	}
 
-const void* FTextureShareCoreSecurityAttributes::GetEventSecurityAttributes() const
-{
-	return EventSecurityAttributes.IsValid() ? EventSecurityAttributes->GetSecurityAttributes() : nullptr;
+	if (SecurityDescriptorPtr)
+	{
+		LocalFree(SecurityDescriptorPtr);
+	}
+
+	bEnabled = false;
 }

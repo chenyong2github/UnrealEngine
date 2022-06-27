@@ -73,7 +73,7 @@ TSharedPtr<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe> FTextureShar
 		// Create thread mutex for local process
 		for (int32 Index = 0; Index < (uint8)ETextureShareThreadMutex::COUNT; Index++)
 		{
-			TSharedPtr<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe> NewMemoryMutex = MakeShared<FTextureShareCoreInterprocessMutex>();
+			TSharedPtr<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe> NewMemoryMutex = MakeShared<FTextureShareCoreInterprocessMutex, ESPMode::ThreadSafe>();
 			if (NewMemoryMutex.IsValid() && NewMemoryMutex->Initialize())
 			{
 				ThreadMutexMap.Emplace((ETextureShareThreadMutex)Index, NewMemoryMutex);

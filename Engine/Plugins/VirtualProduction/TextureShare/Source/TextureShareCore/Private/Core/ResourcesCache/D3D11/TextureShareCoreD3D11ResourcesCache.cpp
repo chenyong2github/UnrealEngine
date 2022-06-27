@@ -24,7 +24,7 @@ bool FTextureShareCoreD3D11ResourcesCache::CreateSharedResource(const FTextureSh
 	}
 
 	// Create new resource
-	TSharedPtr<FTextureShareCoreResourcesCacheItem> NewResourcesCacheItem = MakeShared<FTextureShareCoreD3D11ResourcesCacheItem>(InResourceD3D11, InResourceDesc, SecurityAttributes->GetResourceSecurityAttributes());
+	TSharedPtr<FTextureShareCoreResourcesCacheItem> NewResourcesCacheItem = MakeShared<FTextureShareCoreD3D11ResourcesCacheItem>(InResourceD3D11, InResourceDesc, SecurityAttributes->GetSecurityAttributes(ETextureShareSecurityAttributesType::Resource));
 	if (NewResourcesCacheItem.IsValid() && NewResourcesCacheItem->GetNativeResource())
 	{
 		ObjectResources.Resources.Add(NewResourcesCacheItem);

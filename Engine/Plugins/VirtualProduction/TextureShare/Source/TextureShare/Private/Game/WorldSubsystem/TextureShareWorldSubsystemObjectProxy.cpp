@@ -15,7 +15,6 @@
 //////////////////////////////////////////////////////////////////////////////////////////////
 struct FReceiveTexture
 {
-	FReceiveTexture() = default;
 	FReceiveTexture(const FString& InTextureId, FTextureRenderTargetResource* InTextureResource)
 		: Name(InTextureId), Texture(InTextureResource)
 	{ }
@@ -26,7 +25,6 @@ struct FReceiveTexture
 
 struct FSendTexture
 {
-	FSendTexture() = default;
 	FSendTexture(const FString& InTextureId, FTextureResource* InTextureResource)
 		: Name(InTextureId), Texture(InTextureResource)
 	{ }
@@ -41,7 +39,6 @@ struct FProxyResourcesData
 	TArray<FSendTexture>    Send;
 
 public:
-	FProxyResourcesData() = default;
 	FProxyResourcesData(const UTextureShareObject* InTextureShareObject)
 	{
 		if (InTextureShareObject)

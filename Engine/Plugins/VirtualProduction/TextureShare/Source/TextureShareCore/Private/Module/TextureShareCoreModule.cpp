@@ -55,6 +55,11 @@ void FTextureShareCoreModule::ShutdownModule()
 {
 	UE_LOG(LogTextureShareCore, Log, TEXT("TextureShareCore module shutdown"));
 
+	ShutdownModuleImpl();
+}
+
+void FTextureShareCoreModule::ShutdownModuleImpl()
+{
 	if (TextureShareCoreAPI.IsValid())
 	{
 		TextureShareCoreAPI->EndSession();

@@ -58,17 +58,17 @@
   <ItemDefinitionGroup Condition="'$(Platform)'=='x64'">
     <PostBuildEvent>
       <Command>
-               xcopy ..\..\..\TextureShareSDK\Binaries\Win64\TextureShareSDK*.dll $(OutDir)  /Y 1&gt;nul
-               xcopy ..\..\..\TextureShareSDK\Binaries\Win64\TextureShareSDK*.pdb $(OutDir)  /Y 1&gt;nul
-               xcopy ..\..\..\TextureShareSDK\Binaries\Win64\tbb.dll $(OutDir)  /Y 1&gt;nul
+xcopy ..\..\..\TextureShareSDK\Binaries\Win64\TextureShareSDK*.dll $(OutDir)  /Y 1&gt;nul
+xcopy ..\..\..\TextureShareSDK\Binaries\Win64\TextureShareSDK*.pdb $(OutDir)  /Y 1&gt;nul
+xcopy ..\..\..\TextureShareSDK\Binaries\Win64\tbb.dll $(OutDir)  /Y 1&gt;nul
       </Command>
     </PostBuildEvent>
     <PreBuildEvent>
       <Command>
-				xcopy $(ProjectDir)\..\..\ThirdParty\AppCoreD3D11\Resources\*.fx $(OutDir)Resources /Y /I 1&gt;nul
-				xcopy $(ProjectDir)\..\..\ThirdParty\AppCoreD3D11\Resources\*.hlsl $(OutDir)Resources /Y /I 1&gt;nul
-				xcopy $(ProjectDir)\..\..\ThirdParty\AppCoreD3D11\Resources\*.dds $(OutDir)Resources /Y /I 1&gt;nul
-	  </Command>
+xcopy $(ProjectDir)..\..\ThirdParty\AppCoreD3D11\Resources\*.fx $(OutDir)Resources /Y /I 1&gt;nul
+xcopy $(ProjectDir)..\..\ThirdParty\AppCoreD3D11\Resources\*.hlsl $(OutDir)Resources /Y /I 1&gt;nul
+xcopy $(ProjectDir)..\..\ThirdParty\AppCoreD3D11\Resources\*.dds $(OutDir)Resources /Y /I 1&gt;nul
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -87,7 +87,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <AdditionalDependencies>d3d11.lib;d3dcompiler.lib;dxguid.lib;winmm.lib;Shlwapi.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+      <DelayLoadDLLs></DelayLoadDLLs>
     </Link>
     <CustomBuildStep>
       <TreatOutputAsContent>true</TreatOutputAsContent>
@@ -127,7 +127,7 @@
       <EnableCOMDATFolding>true</EnableCOMDATFolding>
       <OptimizeReferences>true</OptimizeReferences>
       <AdditionalDependencies>d3d11.lib;d3dcompiler.lib;dxguid.lib;winmm.lib;Shlwapi.lib;comctl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
-      <DelayLoadDLLs>d3d12.dll</DelayLoadDLLs>
+      <DelayLoadDLLs></DelayLoadDLLs>
     </Link>
     <CustomBuildStep>
       <TreatOutputAsContent>true</TreatOutputAsContent>

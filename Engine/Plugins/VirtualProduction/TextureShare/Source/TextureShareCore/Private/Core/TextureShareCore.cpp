@@ -134,14 +134,14 @@ TSharedPtr<FEvent, ESPMode::ThreadSafe> FTextureShareCore::CreateInterprocessEve
 {
 	check(SecurityAttributes.IsValid());
 
-	return FTextureShareCoreInterprocessEventWin::CreateInterprocessEvent(InEventGuid, SecurityAttributes->GetEventSecurityAttributes());
+	return FTextureShareCoreInterprocessEventWin::CreateInterprocessEvent(InEventGuid, SecurityAttributes->GetSecurityAttributes(ETextureShareSecurityAttributesType::Event));
 }
 
 TSharedPtr<FEvent, ESPMode::ThreadSafe> FTextureShareCore::OpenInterprocessEvent(const FGuid& InEventGuid)
 {
 	check(SecurityAttributes.IsValid());
 
-	return FTextureShareCoreInterprocessEventWin::OpenInterprocessEvent(InEventGuid, SecurityAttributes->GetEventSecurityAttributes());
+	return FTextureShareCoreInterprocessEventWin::OpenInterprocessEvent(InEventGuid, SecurityAttributes->GetSecurityAttributes(ETextureShareSecurityAttributesType::Event));
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////

@@ -10,6 +10,8 @@
 #include "ITextureShareCoreAPI.h"
 #include "ITextureShareCoreObject.h"
 
+#include "Framework/Application/SlateApplication.h"
+
 //////////////////////////////////////////////////////////////////////////////////////////////
 namespace TextureShareAPIHelper
 {

@@ -3,6 +3,16 @@
 #pragma once
 #include "CoreMinimal.h"
 
+class FWindowsSecurityAttributesHelper;
+
+enum class ETextureShareSecurityAttributesType : uint8
+{
+	Resource = 0,
+	Event,
+
+	COUNT
+};
+
 /**
  * Windows security descriptors for IPC
  */
@@ -13,10 +23,8 @@ public:
 	~FTextureShareCoreSecurityAttributes();
 
 public:
-	const void* GetResourceSecurityAttributes() const;
-	const void* GetEventSecurityAttributes() const;
+	const void* GetSecurityAttributes(const ETextureShareSecurityAttributesType InType) const;
 
 private:
-	TUniquePtr<class FSharedResourceSecurityAttributes> ResourceSecurityAttributes;
-	TUniquePtr<class FSharedEventSecurityAttributes>    EventSecurityAttributes;
+	TUniquePtr<FWindowsSecurityAttributesHelper> SecurityAttributes[(uint8)ETextureShareSecurityAttributesType::COUNT];
 };

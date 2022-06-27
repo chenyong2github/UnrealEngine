@@ -41,7 +41,7 @@ public:
 	void PushCrossGPUTransfer_RenderThread(const ECrossGPUTransferType InType, FTextureShareResource* InSharedResource, const int32 InSrcGPUIndex, const int32 InDestGPUIndex);
 	void RunCrossGPUTransfer_RenderThread(const ECrossGPUTransferType InType, FRHICommandListImmediate& RHICmdList, const ETextureShareSyncStep InSyncStep);
 
-	// Support deffere receive (RHI stuff)
+	// Support deferred receive (RHI stuff)
 	void PushReceiveResource_RenderThread(const FTextureShareCoreResourceRequest& InResourceRequest, FTextureShareResource* InSrcSharedResource, FRHITexture* InDestTexture, const FIntRect* InDestTextureSubRect);
 	void RunReceiveResources_RenderThread(FRHICommandListImmediate& RHICmdList, const ETextureShareSyncStep InSyncStep);
 
@@ -80,7 +80,6 @@ private:
 
 	struct FRegisteredResourceData
 	{
-		FRegisteredResourceData() = default;
 		FRegisteredResourceData(const FTextureShareCoreResourceRequest& InResourceRequest, FTextureShareResource* InSharedResource)
 			: ResourceRequest(InResourceRequest), SharedResource(InSharedResource)
 		{ }
@@ -98,7 +97,6 @@ private:
 
 	struct FReceiveResourceData
 	{
-		FReceiveResourceData() = default;
 		FReceiveResourceData(const FTextureShareCoreResourceRequest& InResourceRequest, FTextureShareResource* InSrcSharedResource, FRHITexture* InDestTexture, const FIntRect* InDestTextureSubRect)
 			: ResourceRequest(InResourceRequest), SrcSharedResource(InSrcSharedResource), DestTexture(InDestTexture)
 			, InDestTextureSubRect(InDestTextureSubRect ? *InDestTextureSubRect : FIntRect())
@@ -119,7 +117,6 @@ private:
 
 	struct FResourceCrossGPUTransferData
 	{
-		FResourceCrossGPUTransferData() = default;
 		FResourceCrossGPUTransferData(FTextureShareResource* InSharedResource, const int32 InSrcGPUIndex, const int32 InDestGPUIndex)
 			: SharedResource(InSharedResource), SrcGPUIndex(InSrcGPUIndex), DestGPUIndex(InDestGPUIndex)
 		{ }

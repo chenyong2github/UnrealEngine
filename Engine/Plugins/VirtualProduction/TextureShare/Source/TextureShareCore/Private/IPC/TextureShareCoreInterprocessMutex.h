@@ -10,8 +10,14 @@
 class FTextureShareCoreInterprocessMutex
 {
 public:
-	FTextureShareCoreInterprocessMutex() = default;
-	FTextureShareCoreInterprocessMutex(const FString& MutexId);
+	FTextureShareCoreInterprocessMutex()
+		: MutexId()
+	{ }
+
+	FTextureShareCoreInterprocessMutex(const FString& InMutexId)
+		: MutexId(InMutexId)
+	{ }
+
 
 	~FTextureShareCoreInterprocessMutex();
 

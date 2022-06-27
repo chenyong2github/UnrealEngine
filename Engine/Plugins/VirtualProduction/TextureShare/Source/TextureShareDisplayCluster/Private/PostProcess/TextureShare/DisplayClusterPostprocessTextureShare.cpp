@@ -137,19 +137,22 @@ void FDisplayClusterPostProcessTextureShare::HandleSetupNewFrame(IDisplayCluster
 
 void FDisplayClusterPostProcessTextureShare::HandleBeginNewFrame(IDisplayClusterViewportManager* InViewportManager, FDisplayClusterRenderFrame& InOutRenderFrame)
 {
-	if (IsActive() && Object->IsFrameSyncActive() && Object->FrameSync(ETextureShareSyncStep::FrameSetupBegin) && Object->IsFrameSyncActive())
+	if (IsActive() && Object->IsFrameSyncActive())
 	{
-		// Register viewport mapping
-		UpdateViews(InViewportManager);
-
-		Object->EndFrameSync(GetDisplayViewport(InViewportManager));
-
-		// Immediatelly begin proxy frame
-		ENQUEUE_RENDER_COMMAND(DisplayClusterPostProcessTextureShare_UpdateObjectProxy)(
-			[ObjectProxyRef = ObjectProxy.ToSharedRef()](FRHICommandListImmediate& RHICmdList)
+		if (Object->FrameSync(ETextureShareSyncStep::FrameSetupBegin) && Object->IsFrameSyncActive())
 		{
-			ObjectProxyRef->BeginFrameSync_RenderThread(RHICmdList);
-		});
+			// Register viewport mapping
+			UpdateViews(InViewportManager);
+
+			Object->EndFrameSync(GetDisplayViewport(InViewportManager));
+
+			// Immediatelly begin proxy frame
+			ENQUEUE_RENDER_COMMAND(DisplayClusterPostProcessTextureShare_UpdateObjectProxy)(
+				[ObjectProxyRef = ObjectProxy.ToSharedRef()](FRHICommandListImmediate& RHICmdList)
+				{
+					ObjectProxyRef->BeginFrameSync_RenderThread(RHICmdList);
+				});
+		}
 	}
 }
 

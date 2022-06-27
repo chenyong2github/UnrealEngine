@@ -175,10 +175,11 @@ public:
 
 	void Initialize(const TArraySerializable<FString>& InStringList);
 
-	static FTextureShareCoreSMD5HashList& Create(const TArraySerializable<FString>& InStringList)
+	static FTextureShareCoreSMD5HashList Create(const TArraySerializable<FString>& InStringList)
 	{
 		FTextureShareCoreSMD5HashList Result;
 		Result.Initialize(InStringList);
+
 		return Result;
 	}
 };
