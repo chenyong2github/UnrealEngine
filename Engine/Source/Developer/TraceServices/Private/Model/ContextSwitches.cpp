@@ -241,7 +241,9 @@ void FContextSwitchesProvider::EnumerateCpuCoreEventsBackwards(uint32 CoreNumber
 		return;
 	}
 
-	auto Iterator = PageIndex < CpuCoreEvents->NumPages() ? CpuCoreEvents->GetIteratorFromPage(PageIndex) : CpuCoreEvents->end();
+	auto Iterator = PageIndex < CpuCoreEvents->NumPages() ?
+		CpuCoreEvents->GetIteratorFromPage(PageIndex) :
+		CpuCoreEvents->GetIteratorFromItem(CpuCoreEvents->Num() - 1);
 	const FCpuCoreEvent* CurrentCpuCoreEvent = Iterator.GetCurrentItem();
 	while (CurrentCpuCoreEvent && CurrentCpuCoreEvent->End > StartTime)
 	{
