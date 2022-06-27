@@ -518,7 +518,7 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 				{
 					if (GameThreadCollection.Implicits[ParentToFixIndex] == nullptr)
 					{
-						const Chaos::FRigidTransform3 ParentShapeTransform =  GameThreadCollection.MassToLocal[ParentToFixIndex] * GameThreadCollection.Transform[ParentToFixIndex];
+						const Chaos::FRigidTransform3 ParentShapeTransform =  GameThreadCollection.MassToLocal[ParentToFixIndex];
 				
 						// Make a union of the children geometry
 						TArray<TUniquePtr<Chaos::FImplicitObject>> ChildImplicits;
