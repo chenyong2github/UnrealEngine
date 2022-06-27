@@ -1027,6 +1027,7 @@ bool DoCompileMetalShader(
 			
 			switch (VersionEnum)
 			{
+#if PLATFORM_MAC
 				case 7:
 				{
 					TargetDesc.Version = 20400;
@@ -1037,17 +1038,40 @@ bool DoCompileMetalShader(
 					TargetDesc.Version = 20300;
 					break;
 				}
-				case 5:
-				{
-					TargetDesc.Version = 20200;
-					break;
-				}
+                case 5:
+                {
+                    TargetDesc.Version = 20200;
+                    break;
+                }
 				default:
 				{
-					UE_LOG(LogShaders, Warning, TEXT("Metal Shader Version Unsupported, switching to default 2.2"));
+					UE_LOG(LogShaders, Warning, TEXT("Metal Shader Version Unsupported, switching to default 2.2")); //EMacMetalShaderStandard::MacMetalSLStandard_Minimum
 					TargetDesc.Version = 20200;
 					break;
 				}
+#else
+                case 8:
+                {
+                    TargetDesc.Version = 30000;
+                    break;
+                }
+                case 7:
+                {
+                    TargetDesc.Version = 20400;
+                    break;
+                }
+                case 6:
+                {
+                    TargetDesc.Version = 20300;
+                    break;
+                }
+                default:
+                {
+                    UE_LOG(LogShaders, Warning, TEXT("Metal Shader Version Unsupported, switching to default 2.3")); //EIOSMetalShaderStandard::IOSMetalSLStandard_Minimum
+                    TargetDesc.Version = 20300;
+                    break;
+                }
+#endif
 			}
 		}
 

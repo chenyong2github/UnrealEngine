@@ -52,6 +52,9 @@ mtlpp::LanguageVersion ValidateVersion(uint32 Version)
     Result = mtlpp::LanguageVersion::Version2_2;
     switch(Version)
     {
+        case 7:
+            Result = mtlpp::LanguageVersion::Version2_4;
+            break;
         case 6:
             Result = mtlpp::LanguageVersion::Version2_3;
             break;
@@ -71,6 +74,9 @@ mtlpp::LanguageVersion ValidateVersion(uint32 Version)
     Result = mtlpp::LanguageVersion::Version2_3;
     switch(Version)
     {
+        case 8:
+            Result = mtlpp::LanguageVersion::Version3_0;
+            break;
         case 7:
             Result = mtlpp::LanguageVersion::Version2_4;
             break;

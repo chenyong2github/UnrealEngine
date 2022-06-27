@@ -171,7 +171,8 @@ namespace mtlpp
         Version2_1 MTLPP_AVAILABLE(10_14, 12_0) = (2 << 16) + 1,
         Version2_2 MTLPP_AVAILABLE(10_15, 13_0) = (2 << 16) + 2,
 		Version2_3 MTLPP_AVAILABLE(11_0, 14_0) = (2 << 16) + 3,
-     	Version2_4 MTLPP_AVAILABLE(12_0, 15_0) = (2 << 16) + 4
+     	Version2_4 MTLPP_AVAILABLE(12_0, 15_0) = (2 << 16) + 4,
+     	Version3_0 MTLPP_AVAILABLE(13_0, 16_0) = (3 << 16)
 
     }
     MTLPP_AVAILABLE(10_11, 9_0);

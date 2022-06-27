@@ -900,6 +900,23 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 	FString StandardVersion;
 	switch(VersionEnum)
 	{
+    case 8:
+        TypeMode = EMetalTypeBufferModeTB;
+        StandardVersion = TEXT("3.0");
+        if (bAppleTV)
+        {
+            MinOSVersion = TEXT("-mtvos-version-min=16.0");
+        }
+        else if (bIsMobile)
+        {
+            MinOSVersion = TEXT("-mios-version-min=16.0");
+        }
+        else
+        {
+            MinOSVersion = TEXT("-mmacosx-version-min=13");
+        }
+        break;
+
 	case 7:
 		TypeMode = EMetalTypeBufferModeTB;
 		StandardVersion = TEXT("2.4");
@@ -933,30 +950,32 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
 			MinOSVersion = TEXT("-mmacosx-version-min=11");
 		}
 		break;
-
+#if PLATFORM_MAC
 	case 5:
     case 0:
 		TypeMode = EMetalTypeBufferModeTB;
 		StandardVersion = TEXT("2.2");
-		if (bAppleTV)
-		{
-			MinOSVersion = TEXT("-mtvos-version-min=13.0");
-		}
-		else if (bIsMobile)
-		{
-			MinOSVersion = TEXT("-mios-version-min=13.0");
-		}
-		else
-		{
-			MinOSVersion = TEXT("-mmacosx-version-min=10.15");
-		}
+		MinOSVersion = TEXT("-mmacosx-version-min=10.15");
 		break;
-            
+#else
+        case 0:
+            TypeMode = EMetalTypeBufferModeTB;
+            StandardVersion = TEXT("2.3");
+            if (bAppleTV)
+            {
+                MinOSVersion = TEXT("-mtvos-version-min=14.0");
+            }
+            else if (bIsMobile)
+            {
+                MinOSVersion = TEXT("-mios-version-min=14.0");
+            }
+            break;
+#endif
         default:
 		Output.bSucceeded = false;
 		{
 			FShaderCompilerError* NewError = new(Output.Errors) FShaderCompilerError();
-			NewError->StrippedErrorMessage = FString::Printf(TEXT("Minimum Metal Version is 2.2 in UE5.0"));
+			NewError->StrippedErrorMessage = FString::Printf(TEXT("Minimum Metal Version is 2.3 for iOS and 2.2 for MacOS in UE5.1"));
 			return;
 		}
 		break;
@@ -967,7 +986,15 @@ void CompileShader_Metal(const FShaderCompilerInput& _Input,FShaderCompilerOutpu
         AdditionalDefines.SetDefine(TEXT("FORCE_FLOATS"), (uint32)1);
     }
 
-	FString Standard = FString::Printf(TEXT("-std=%s-metal%s"), StandardPlatform, *StandardVersion);
+    FString Standard;
+    if (VersionEnum >= 8)
+    {
+        Standard = FString::Printf(TEXT("-std=metal%s"), *StandardVersion);
+    }
+    else
+    {
+        Standard = FString::Printf(TEXT("-std=%s-metal%s"), StandardPlatform, *StandardVersion);
+    }
 	
 	bool const bDirectCompile = FParse::Param(FCommandLine::Get(), TEXT("directcompile"));
 	if (bDirectCompile)
