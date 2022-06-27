@@ -215,7 +215,7 @@ bool IPlatformInputDeviceMapper::Internal_ChangeInputDeviceUserMapping(FInputDev
 	if (FPlatformInputDeviceState* ExistingDeviceState = MappedInputDevices.Find(DeviceId))
 	{
 		// Only change the platform user of this device if the old user matches up with the one that was given
-		if (ensureMsgf(ExistingDeviceState->OwningPlatformUser == OldUserId, TEXT("Attempting to change the Input Device User Mapping with a mismatched OldUserId!")))
+		if (ExistingDeviceState->OwningPlatformUser == OldUserId)
 		{
 			ExistingDeviceState->OwningPlatformUser = NewUserId;
 		}
