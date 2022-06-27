@@ -347,7 +347,7 @@ public:
 	 *
 	 */
 	template<typename... ConstructDelegateParamTypes>
-	FOnlineEventDelegateHandle Add(ConstructDelegateParamTypes&&... Params)
+	UE_NODISCARD FOnlineEventDelegateHandle Add(ConstructDelegateParamTypes&&... Params)
 	{
 		return Event.Add(Forward<ConstructDelegateParamTypes>(Params)...);
 	}
