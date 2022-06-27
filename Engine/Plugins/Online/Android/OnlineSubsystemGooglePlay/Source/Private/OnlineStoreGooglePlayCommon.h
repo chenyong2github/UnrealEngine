@@ -2,9 +2,8 @@
 
 #pragma once
 
-#include "Interfaces/OnlineStoreInterface.h"
-#include "Interfaces/OnlineStoreInterfaceV2.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
+#include "Interfaces/OnlineStoreInterfaceV2.h"
 
 struct FGoogleTransactionData;
 
@@ -105,24 +104,7 @@ enum class EInAppPurchaseResult : uint8
 	Cancelled,
 };
 
-#if OSSGOOGLEPLAY_WITH_AIDL
-/**
- * Implementation of the Platform Purchase receipt. For this we provide an identifier and the encrypted data.
- */
-class FGooglePlayPurchaseReceipt : public IPlatformPurchaseReceipt
-{
-public:
-	// Product identifier
-	FString Identifier;
-
-	// The encrypted receipt data
-	FString Data;
-};
-
-typedef FInAppPurchaseProductInfo FProvidedProductInformation;
-#else
 typedef FOnlineStoreOffer FProvidedProductInformation;
-#endif
 
  /**
   * Delegate fired when an IAP query for available offers has completed

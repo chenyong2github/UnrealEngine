@@ -36,7 +36,6 @@ FOnlineSubsystemGooglePlay::FOnlineSubsystemGooglePlay(FName InInstanceName)
 	, IdentityInterface(nullptr)
 	, LeaderboardsInterface(nullptr)
 	, AchievementsInterface(nullptr)
-	, StoreInterface(nullptr)
 	, CurrentLoginTask(nullptr)
 	, CurrentShowLoginUITask(nullptr)
 	, CurrentLogoutTask(nullptr)
@@ -46,11 +45,6 @@ FOnlineSubsystemGooglePlay::FOnlineSubsystemGooglePlay(FName InInstanceName)
 IOnlineIdentityPtr FOnlineSubsystemGooglePlay::GetIdentityInterface() const
 {
 	return IdentityInterface;
-}
-
-IOnlineStorePtr FOnlineSubsystemGooglePlay::GetStoreInterface() const
-{
-	return StoreInterface;
 }
 
 IOnlineStoreV2Ptr FOnlineSubsystemGooglePlay::GetStoreV2Interface() const
@@ -145,18 +139,10 @@ bool FOnlineSubsystemGooglePlay::Init()
 
 	if (IsInAppPurchasingEnabled())
 	{
-		if (IsV2StoreEnabled())
-		{
-			StoreV2Interface = MakeShareable(new FOnlineStoreGooglePlayV2(this));
-			StoreV2Interface->Init();
-			PurchaseInterface = MakeShareable(new FOnlinePurchaseGooglePlay(this));
-			PurchaseInterface->Init();
-		}
-		else
-		{
-			StoreInterface = MakeShareable(new FOnlineStoreGooglePlay(this));
-			StoreInterface->Init();
-		}
+        StoreV2Interface = MakeShareable(new FOnlineStoreGooglePlayV2(this));
+		StoreV2Interface->Init();
+		PurchaseInterface = MakeShareable(new FOnlinePurchaseGooglePlay(this));
+		PurchaseInterface->Init();
 	}
 	
 	extern struct android_app* GNativeAndroidApp;
@@ -205,7 +191,6 @@ bool FOnlineSubsystemGooglePlay::Shutdown()
 	}
 
 	// Destruct the interfaces
-	DESTRUCT_INTERFACE(StoreInterface);
 	DESTRUCT_INTERFACE(StoreV2Interface);
 	DESTRUCT_INTERFACE(PurchaseInterface);
 	DESTRUCT_INTERFACE(ExternalUIInterface);
@@ -255,14 +240,6 @@ bool FOnlineSubsystemGooglePlay::IsEnabled() const
 		bEnabled = FOnlineSubsystemImpl::IsEnabled();
 	}
 	return bEnabled;
-}
-
-bool FOnlineSubsystemGooglePlay::IsV2StoreEnabled()
-{
-	bool bUseStoreV2 = false;
-	GConfig->GetBool(TEXT("OnlineSubsystemGooglePlay.Store"), TEXT("bUseStoreV2"), bUseStoreV2, GEngineIni);
-	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("FOnlineSubsystemGooglePlay::IsV2StoreEnabled %d"), bUseStoreV2);
-	return bUseStoreV2;
 }
 
 bool FOnlineSubsystemGooglePlay::IsInAppPurchasingEnabled()

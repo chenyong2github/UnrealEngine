@@ -9,7 +9,6 @@
 #include "OnlineFriendsInterfaceIOS.h"
 #include "OnlineIdentityInterfaceIOS.h"
 #include "OnlineLeaderboardsInterfaceIOS.h"
-#include "OnlineStoreInterfaceIOS.h"
 #include "OnlineStoreIOS.h"
 #include "OnlinePurchaseIOS.h"
 #include "OnlineAchievementsInterfaceIOS.h"
@@ -49,7 +48,6 @@ public:
 	virtual IOnlineIdentityPtr GetIdentityInterface() const override;
 	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override;
 	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override;
-	virtual IOnlineStorePtr GetStoreInterface() const override;
 	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override;
 	virtual IOnlinePurchasePtr GetPurchaseInterface() const override;
 	virtual IOnlineEventsPtr GetEventsInterface() const override;
@@ -94,13 +92,7 @@ PACKAGE_SCOPE:
 	 * @return true if enabled, false otherwise
 	 */
 	static bool IsCloudKitEnabled();
-	
-	/**
-	 * Is Store v2 enabled (disabling legacy store interface)
-	 * @return true if enabled, false otherwise
-	 */
-	static bool IsV2StoreEnabled();
-	
+		
 	/**
 	 * @return access to the app store utility class
 	 */
@@ -141,9 +133,6 @@ private:
 
 	/** Interface to the profile information */
 	FOnlineLeaderboardsIOSPtr LeaderboardsInterface;
-
-	/** Interface to the online store */
-	FOnlineStoreInterfaceIOSPtr StoreInterface;
 	
 	/** Interface to the online catalog */
 	FOnlineStoreIOSPtr StoreV2Interface;

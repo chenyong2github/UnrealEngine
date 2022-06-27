@@ -51,50 +51,10 @@ void FOnlineStoreGooglePlayV2::Init()
 	AndroidThunkCpp_Iap_SetupIapService(GooglePlayLicenseKey);
 }
 
-#if OSSGOOGLEPLAY_WITH_AIDL
-TSharedRef<FOnlineStoreOffer> ConvertProductToStoreOffer(const FInAppPurchaseProductInfo& Product)
-{
-	TSharedRef<FOnlineStoreOffer> NewProductInfo = MakeShareable(new FOnlineStoreOffer());
-
-	NewProductInfo->OfferId = Product.Identifier;
-
-	FString Title = Product.DisplayName;
-	int32 OpenParenIdx = -1;
-	int32 CloseParenIdx = -1;
-	if (Title.FindLastChar(TEXT(')'), CloseParenIdx) && Title.FindLastChar(TEXT('('), OpenParenIdx) && (OpenParenIdx < CloseParenIdx))
-	{
-		Title.LeftInline(OpenParenIdx);
-		Title.TrimEndInline();
-	}
-
-	NewProductInfo->Title = FText::FromString(Title);
-	NewProductInfo->Description = FText::FromString(Product.DisplayDescription); // Google has only one description, map it to (short) description to match iOS
-	//NewProductInfo->LongDescription = FText::FromString(Product.DisplayDescription); // leave this empty so we know it's not set (client can apply more info from MCP)
-	NewProductInfo->PriceText = FText::FromString(Product.DisplayPrice);
-	NewProductInfo->CurrencyCode = Product.CurrencyCode;
-
-	// Convert the backend stated price into its base units
-	FInternationalization& I18N = FInternationalization::Get();
-	const FCulture& Culture = *I18N.GetCurrentCulture();
-
-	const FDecimalNumberFormattingRules& FormattingRules = Culture.GetCurrencyFormattingRules(NewProductInfo->CurrencyCode);
-	const FNumberFormattingOptions& FormattingOptions = FormattingRules.CultureDefaultFormattingOptions;
-	double Val = static_cast<double>(Product.RawPrice) * static_cast<double>(FMath::Pow(10.0f, FormattingOptions.MaximumFractionalDigits));
-
-	NewProductInfo->NumericPrice = FMath::TruncToInt(Val + 0.5);
-
-	// Google doesn't support these fields, set to min and max defaults
-	NewProductInfo->ReleaseDate = FDateTime::MinValue();
-	NewProductInfo->ExpirationDate = FDateTime::MaxValue();
-
-	return NewProductInfo;
-}
-#else
 TSharedRef<FOnlineStoreOffer> ConvertProductToStoreOffer(const FOnlineStoreOffer& Product)
 {
 	return MakeShared<FOnlineStoreOffer>(Product);
 }
-#endif
 
 void FOnlineStoreGooglePlayV2::OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponseCode, const TArray<FProvidedProductInformation>& InProvidedProductInformation)
 { 
@@ -205,8 +165,6 @@ TSharedPtr<FOnlineStoreOffer> FOnlineStoreGooglePlayV2::GetOffer(const FUniqueOf
 	return Result;
 }
 
-#if !OSSGOOGLEPLAY_WITH_AIDL
-
 JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_nativeQueryComplete(JNIEnv* jenv, jobject thiz, jsize responseCode, jobjectArray productIDs, jobjectArray titles, jobjectArray descriptions, jobjectArray prices, jfloatArray pricesRaw, jobjectArray currencyCodes, jobjectArray originalJson)
 {
 	TArray<FOnlineStoreOffer> ProvidedProductInformation;
@@ -307,5 +265,3 @@ JNI_METHOD void Java_com_epicgames_unreal_GooglePlayStoreHelper_nativeQueryCompl
 		ENamedThreads::GameThread
 		);
 }
-
-#endif

@@ -72,11 +72,6 @@ IOnlineEntitlementsPtr FOnlineSubsystemApple::GetEntitlementsInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemApple::GetStoreInterface() const
-{
-	return nullptr;
-}
-
 IOnlineStoreV2Ptr FOnlineSubsystemApple::GetStoreV2Interface() const
 {
 	return nullptr;

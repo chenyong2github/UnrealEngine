@@ -2,7 +2,6 @@
 
 #include "OnlineStoreKitHelper.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
-#include "Interfaces/OnlineStoreInterface.h"
 #include "OnlineSubsystemIOS.h"
 #include "IOS/IOSAppDelegate.h"
 #include "Misc/CommandLine.h"
@@ -27,10 +26,10 @@ FString convertReceiptToString(const SKPaymentTransaction* transaction)
 	}
 	else
 	{
-		UE_LOG_ONLINE_STORE(Log, TEXT("No receipt data found for transaction"));
+        UE_LOG_ONLINE_STOREV2(Log, TEXT("No receipt data found for transaction"));
 	}
 	
-	UE_LOG_ONLINE_STORE(VeryVerbose, TEXT("FStoreKitHelper::convertReceiptToString %s"), *ReceiptData);
+    UE_LOG_ONLINE_STOREV2(VeryVerbose, TEXT("FStoreKitHelper::convertReceiptToString %s"), *ReceiptData);
 	return ReceiptData;
 }
 
@@ -50,14 +49,14 @@ FString GetOriginalTransactionId(const SKPaymentTransaction* Transaction)
 		int32 RecurseCount = 0;	
 		if (Transaction != Transaction.originalTransaction)
 		{
-			UE_LOG_ONLINE_STORE(Log, TEXT("GetOriginalTransactionId TransactionId=%s"), *FString(Transaction.transactionIdentifier));
+            UE_LOG_ONLINE_STOREV2(Log, TEXT("GetOriginalTransactionId TransactionId=%s"), *FString(Transaction.transactionIdentifier));
 
 			OriginalTransaction = Transaction.originalTransaction;
 			while (OriginalTransaction.originalTransaction && (RecurseCount < 100))
 			{
 				++RecurseCount;
 				OriginalTransaction = OriginalTransaction.originalTransaction;
-				UE_LOG_ONLINE_STORE(Log, TEXT("GetOriginalTransactionId RecurseCount=%d, OriginalTransactionId=%s"), RecurseCount, *FString(OriginalTransaction.transactionIdentifier));
+                UE_LOG_ONLINE_STOREV2(Log, TEXT("GetOriginalTransactionId RecurseCount=%d, OriginalTransactionId=%s"), RecurseCount, *FString(OriginalTransaction.transactionIdentifier));
 			}
 		}
 	}
@@ -122,249 +121,26 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)onPaymentTransactionObserverEventReceived
 {
-	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-	{
-		[self pumpObserverEventQueue];
-
-		return true;
-	}];
-}
-
--(void)pumpObserverEventQueue
-{
-	FPaymentTransactionObserver* Observer = [FPaymentTransactionObserver sharedInstance];
-
-	FPaymentTransactionObserverEvent ObserverEvent;
-	while ([Observer getEventQueue].Dequeue(ObserverEvent))
-	{
-		switch (ObserverEvent.Type)
-		{
-		case EPaymentTransactionObserverEventType::UpdatedTransaction:
-			[self updatedTransaction : ObserverEvent.Transaction];
-			break;
-		case EPaymentTransactionObserverEventType::RemovedTransaction:
-			[self removedTransaction : ObserverEvent.Transaction];
-			break;
-		case EPaymentTransactionObserverEventType::RestoreCompletedTransactionsFailed:
-			[self restoreCompletedTransactionsFailedWithError : ObserverEvent.ErrorCode];
-			break;
-		case EPaymentTransactionObserverEventType::RestoreCompletedTransactionsFinished:
-			[self restoreCompletedTransactionsFinished];
-			break;
-		default:
-			break;
-		}
-	}
-}
-
--(void)updatedTransaction : (SKPaymentTransaction*)transaction
-{
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::updatedTransaction"));
-
-	// Parse the generic transaction update into appropriate execution paths
-	switch ([transaction transactionState])
-	{
-	case SKPaymentTransactionStatePurchased:
-		if (FParse::Param(FCommandLine::Get(), TEXT("disableiosredeem")))
-		{
-			UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::completeTransaction (disabled)"));
-		}
-		else
-		{
-			[self completeTransaction : transaction] ;
-		}
-		break;
-	case SKPaymentTransactionStateFailed:
-		[self failedTransaction : transaction] ;
-		break;
-	case SKPaymentTransactionStateRestored:
-		[self restoreTransaction : transaction] ;
-		break;
-	case SKPaymentTransactionStatePurchasing:
-		[self purchaseInProgress : transaction] ;
-		break;
-	case SKPaymentTransactionStateDeferred:
-		[self purchaseDeferred : transaction] ;
-		break;
-	default:
-		UE_LOG_ONLINE_STORE(Warning, TEXT("FStoreKitHelper unhandled state: %d"), [transaction transactionState]);
-		break;
-	}
 }
 
 -(void)removedTransaction : (SKPaymentTransaction*)transaction
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::removedTransaction"));
-}
-
--(void)restoreCompletedTransactionsFinished
-{
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::paymentQueueRestoreCompletedTransactionsFinished"));
-
-	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
-	if (ensure(OnlineSub))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-		if (ensure(StoreInterface.IsValid()))
-		{
-			if (StoreInterface->CachedPurchaseRestoreObject.IsValid())
-			{
-				StoreInterface->CachedPurchaseRestoreObject->ReadState = EOnlineAsyncTaskState::Done;
-			}
-			StoreInterface->ProcessRestorePurchases(EInAppPurchaseState::Restored);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
--(void)restoreCompletedTransactionsFailedWithError : (int)error
-{
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::failedRestore"));
-
-	EInAppPurchaseState::Type CompletionState = EInAppPurchaseState::Unknown;
-	switch (error)
-	{
-	case SKErrorPaymentCancelled:
-		CompletionState = EInAppPurchaseState::Cancelled;
-		break;
-	case SKErrorClientInvalid:
-	case SKErrorStoreProductNotAvailable:
-	case SKErrorPaymentInvalid:
-		CompletionState = EInAppPurchaseState::Invalid;
-		break;
-	case SKErrorPaymentNotAllowed:
-		CompletionState = EInAppPurchaseState::NotAllowed;
-		break;
-	}
-
-	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
-	if (ensure(OnlineSub))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-		if (ensure(StoreInterface.IsValid()))
-		{
-			if (StoreInterface->CachedPurchaseRestoreObject.IsValid())
-			{
-				StoreInterface->CachedPurchaseRestoreObject->ReadState = EOnlineAsyncTaskState::Done;
-			}
-
-			StoreInterface->ProcessRestorePurchases(CompletionState);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-}
-
--(void)completeTransaction: (SKPaymentTransaction *)transaction
-{
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::completeTransaction"));
-
-	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
-	if (ensure(OnlineSub))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-		if (ensure(StoreInterface.IsValid()))
-		{
-			if (StoreInterface->CachedPurchaseStateObject.IsValid())
-			{
-				const FString ReceiptData = convertReceiptToString(transaction);
-
-				StoreInterface->CachedPurchaseStateObject->ProvidedProductInformation.ReceiptData = ReceiptData;
-				StoreInterface->CachedPurchaseStateObject->ProvidedProductInformation.TransactionIdentifier = transaction.transactionIdentifier;
-				StoreInterface->CachedPurchaseStateObject->ReadState = EOnlineAsyncTaskState::Done;
-			}
-
-			StoreInterface->TriggerOnInAppPurchaseCompleteDelegates(EInAppPurchaseState::Success);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	// Remove the transaction from the payment queue.
-	[[SKPaymentQueue defaultQueue]finishTransaction:transaction];
-}
-
--(void)restoreTransaction: (SKPaymentTransaction *)transaction
-{
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::restoreTransaction"));
-
-	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
-	if (ensure(OnlineSub))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-		if (ensure(StoreInterface.IsValid()))
-		{
-			if (StoreInterface->CachedPurchaseRestoreObject.IsValid())
-			{
-				const FString ReceiptData = convertReceiptToString(transaction);
-
-				FInAppPurchaseRestoreInfo RestoreInfo;
-				RestoreInfo.Identifier = FString(transaction.originalTransaction.payment.productIdentifier);
-				RestoreInfo.ReceiptData = ReceiptData;
-				StoreInterface->CachedPurchaseRestoreObject->ProvidedRestoreInformation.Add(RestoreInfo);
-			}
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	[[SKPaymentQueue defaultQueue] finishTransaction:transaction];
-}
-
--(void)failedTransaction: (SKPaymentTransaction *)transaction
-{
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::failedTransaction - %s"), *FString([transaction.error localizedDescription]));
-
-	EInAppPurchaseState::Type CompletionState = EInAppPurchaseState::Unknown;
-	switch (transaction.error.code)
-	{
-		case SKErrorPaymentCancelled:
-			CompletionState = EInAppPurchaseState::Cancelled;
-			break;
-		case SKErrorClientInvalid:
-		case SKErrorStoreProductNotAvailable:
-		case SKErrorPaymentInvalid:
-			CompletionState = EInAppPurchaseState::Invalid;
-			break;
-		case SKErrorPaymentNotAllowed:
-			CompletionState = EInAppPurchaseState::NotAllowed;
-			break;
-	}
-
-	IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
-	if (ensure(OnlineSub))
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-		if (ensure(StoreInterface.IsValid()))
-		{
-			if (StoreInterface->CachedPurchaseStateObject.IsValid())
-			{
-				StoreInterface->CachedPurchaseStateObject->ReadState = EOnlineAsyncTaskState::Done;
-			}
-
-			StoreInterface->TriggerOnInAppPurchaseCompleteDelegates(CompletionState);
-		}
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-
-	[[SKPaymentQueue defaultQueue] finishTransaction:transaction];
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::removedTransaction"));
 }
 
 -(void)purchaseInProgress: (SKPaymentTransaction *)transaction
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::purchaseInProgress"));
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::purchaseInProgress"));
 }
 
 -(void)purchaseDeferred: (SKPaymentTransaction *)transaction
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::purchaseDeferred"));
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::purchaseDeferred"));
 }
 
 -(void)requestProductData: (NSMutableSet*)productIDs
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::requestProductData"));
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::requestProductData"));
 
 	Request = [[SKProductsRequest alloc] initWithProductIdentifiers:productIDs];
 	Request.delegate = self;
@@ -374,7 +150,7 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)makePurchase: (NSMutableSet*)productIDs
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::makePurchase"));
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::makePurchase"));
 
 	Request = [[SKProductsRequest alloc] initWithProductIdentifiers:productIDs];
 	Request.delegate = self;
@@ -384,20 +160,13 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)productsRequest: (SKProductsRequest *)request didReceiveResponse : (SKProductsResponse *)response
 {
-	UE_LOG_ONLINE_STORE(Log, TEXT("FStoreKitHelper::didReceiveResponse"));
+    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::didReceiveResponse"));
 	// Direct the response back to the store interface
 	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
 	{
 		IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
 		if (ensure(OnlineSub))
 		{
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FOnlineStoreInterfaceIOSPtr StoreInterface = StaticCastSharedPtr<FOnlineStoreInterfaceIOS>(OnlineSub->GetStoreInterface());
-			if (ensure(StoreInterface.IsValid()))
-			{
-				StoreInterface->ProcessProductsResponse(response);
-			}
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		
 		return true;
@@ -411,16 +180,6 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	if ([Request isKindOfClass : [SKReceiptRefreshRequest class]])
 	{
 		[[SKPaymentQueue defaultQueue] restoreCompletedTransactions];
-	}
-}
-
--(void)request:(SKRequest*)request didFailWithError : (NSError *)error
-{
-	if ([Request isKindOfClass : [SKReceiptRefreshRequest class]])
-	{
-		[self restoreCompletedTransactionsFailedWithError : error.code];
-		[Request release];
-		Request = nullptr;
 	}
 }
 

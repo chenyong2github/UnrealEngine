@@ -29,10 +29,6 @@ void FOnlineAsyncTaskGooglePlayQueryInAppPurchases::Finalize()
 void FOnlineAsyncTaskGooglePlayQueryInAppPurchases::TriggerDelegates()
 {
 	UE_LOG_ONLINE(Verbose, TEXT("FOnlineAsyncTaskGooglePlayQueryInAppPurchases::TriggerDelegates"));
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	Subsystem->GetStoreInterface()->TriggerOnQueryForAvailablePurchasesCompleteDelegates(bWasSuccessful);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FOnlineAsyncTaskGooglePlayQueryInAppPurchases::Tick()

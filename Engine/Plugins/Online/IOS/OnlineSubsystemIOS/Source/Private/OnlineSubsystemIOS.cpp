@@ -80,11 +80,6 @@ IOnlineEntitlementsPtr FOnlineSubsystemIOS::GetEntitlementsInterface() const
 	return nullptr;
 }
 
-IOnlineStorePtr FOnlineSubsystemIOS::GetStoreInterface() const
-{
-	return StoreInterface;
-}
-
 IOnlineStoreV2Ptr FOnlineSubsystemIOS::GetStoreV2Interface() const
 {
 	return StoreV2Interface;
@@ -174,16 +169,9 @@ bool FOnlineSubsystemIOS::Init()
 
 		if (IsInAppPurchasingEnabled())
 		{
-			if (IsV2StoreEnabled())
-			{
-				StoreV2Interface = MakeShareable(new FOnlineStoreIOS(this));
-				PurchaseInterface = MakeShareable(new FOnlinePurchaseIOS(this));
-				InitStoreKitHelper();
-			}
-			else
-			{
-				StoreInterface = MakeShareable(new FOnlineStoreInterfaceIOS());
-			}
+			StoreV2Interface = MakeShareable(new FOnlineStoreIOS(this));
+			PurchaseInterface = MakeShareable(new FOnlinePurchaseIOS(this));
+			InitStoreKitHelper();
 		}
 
 		if (UserCloudInterface && IsCloudKitEnabled())
@@ -212,8 +200,6 @@ void FOnlineSubsystemIOS::InitStoreKitHelper()
 	StoreV2Interface->InitStoreKit(StoreHelper);
 	PurchaseInterface->InitStoreKit(StoreHelper);
 
-	// Pump the event queue to handle any events that came in between launch and now.
-	[StoreHelper pumpObserverEventQueue];
 }
 
 void FOnlineSubsystemIOS::CleanupStoreKitHelper()
@@ -284,7 +270,6 @@ bool FOnlineSubsystemIOS::Shutdown()
 	DESTRUCT_INTERFACE(TurnBasedInterface);
 	DESTRUCT_INTERFACE(UserCloudInterface);
 	DESTRUCT_INTERFACE(SharedCloudInterface);
-	DESTRUCT_INTERFACE(StoreInterface);
 	DESTRUCT_INTERFACE(StoreV2Interface);
 	DESTRUCT_INTERFACE(PurchaseInterface);
 
@@ -358,14 +343,6 @@ bool FOnlineSubsystemIOS::IsCloudKitEnabled()
 	GConfig->GetBool(TEXT("/Script/IOSRuntimeSettings.IOSRuntimeSettings"), TEXT("bEnableCloudKitSupport"), bEnableCloudKit, GEngineIni);
 
 	return bEnableCloudKit;
-}
-
-
-bool FOnlineSubsystemIOS::IsV2StoreEnabled()
-{
-	bool bUseStoreV2 = false;
-	GConfig->GetBool(TEXT("OnlineSubsystemIOS.Store"), TEXT("bUseStoreV2"), bUseStoreV2, GEngineIni);
-	return bUseStoreV2;
 }
 
 bool FOnlineSubsystemIOS::IsInAppPurchasingEnabled()

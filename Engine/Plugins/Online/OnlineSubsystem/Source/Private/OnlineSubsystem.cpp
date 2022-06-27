@@ -15,7 +15,6 @@
 #include "Interfaces/OnlineUserInterface.h"
 #include "Interfaces/OnlineEventsInterface.h"
 #include "Interfaces/OnlineSessionInterface.h"
-#include "Interfaces/OnlineStoreInterface.h"
 #include "Interfaces/OnlineStoreInterfaceV2.h"
 #include "Interfaces/OnlinePurchaseInterface.h"
 #include "Interfaces/OnlineSharingInterface.h"
@@ -50,7 +49,6 @@ DEFINE_LOG_CATEGORY(LogOnlineTitleFile);
 DEFINE_LOG_CATEGORY(LogOnlineEntitlement);
 DEFINE_LOG_CATEGORY(LogOnlineEvents);
 DEFINE_LOG_CATEGORY(LogOnlineSharing);
-DEFINE_LOG_CATEGORY(LogOnlineStore);
 DEFINE_LOG_CATEGORY(LogOnlineStoreV2);
 DEFINE_LOG_CATEGORY(LogOnlinePurchase);
 DEFINE_LOG_CATEGORY(LogOnlineTournament);

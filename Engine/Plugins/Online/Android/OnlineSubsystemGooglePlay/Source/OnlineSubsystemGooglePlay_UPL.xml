@@ -3,36 +3,23 @@
 <root xmlns:android="http://schemas.android.com/apk/res/android">	
 	<init>
 	  <log text="Subsystem Google Play SDK Android init"/>
-	  
-	  <setBoolFromProperty result="bUseGooglePlayBillingApiV2" ini="Engine" section="OnlineSubsystemGooglePlay.Store" property="bUseGooglePlayBillingApiV2" default="true"/>
 	</init>
 	
 	<prebuildCopies>
-		<if condition="bUseGooglePlayBillingApiV2">
-			<true>
-				<log text="Copying Google Play BillingApiV2 java files"/>
-				<copyDir src="$S(PluginDir)/Java/BillingApiV2"
-						 dst = "$S(BuildDir)/src" />
-			</true>
-			<false>
-				<log text="Copying Google Play AIDL java files"/>
-				<copyDir src="$S(PluginDir)/Java/AIDL"
-						 dst = "$S(BuildDir)/src" />
-			</false>
-		</if>
+		<log text="Copying Google Play BillingApiV2 java files"/>
+		<copyDir src="$S(PluginDir)/Java/BillingApiV2"
+				 dst = "$S(BuildDir)/src" />
 	</prebuildCopies>
 	
 	<!-- gradle dependencies additions -->
 	<buildGradleAdditions>
-		<if condition="bUseGooglePlayBillingApiV2">
-			<true>
-				<insert>
-					dependencies {
-					implementation 'com.android.billingclient:billing:3.0.0'
-					}
-				</insert>
-			</true>
-		</if>
+		<true>
+			<insert>
+				dependencies {
+				implementation 'com.android.billingclient:billing:3.0.0'
+				}
+			</insert>
+		</true>
 	</buildGradleAdditions>
 
 	<gameActivityAndroidThunkJavaIapBeginPurchase>
@@ -75,31 +62,27 @@ public boolean AndroidThunkJava_IapBeginPurchase(String ProductId, String Accoun
 }
 		</insert>
 	</gameActivityAndroidThunkJavaIapBeginPurchase>
-	
-	<gameActivityOnActivityResultIapStoreHelperHandler>
-		<if condition="bUseGooglePlayBillingApiV2">
-			<false>
-				<insert>
-		else if( IapStoreHelper != null )
+		if (getPackageManager().checkPermission("com.android.vending.BILLING", getPackageName()) == getPackageManager().PERMISSION_GRANTED)
 		{
-			if(!IapStoreHelper.onActivityResult(requestCode, resultCode, data))
+			IapStoreHelper = new GooglePlayStoreHelper(InProductKey, this, Log);
+			if (IapStoreHelper != null)
 			{
-				super.onActivityResult(requestCode, resultCode, data);
+				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Setup started");
 			}
 			else
 			{
-				Log.debug("[JAVA] - Store Helper handled onActivityResult");
+				Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Failed to setup IAP service");
 			}
 		}
-				</insert>
-			</false>
-		</if>
-	</gameActivityOnActivityResultIapStoreHelperHandler>
+		else
+		{
+			Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - You do not have the appropriate permission setup.");
+			Log.debug("[JAVA] - AndroidThunkJava_IapSetupService - Please ensure com.android.vending.BILLING is added to the manifest.");
+		}
 
 	<!-- optional additions to GameActivity imports in GameActivity.java -->
 	<gameActivityImportAdditions>
 		<insert>
-import com.epicgames.unreal.GooglePlayStoreHelper;
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -107,18 +90,6 @@ import java.security.NoSuchAlgorithmException;
 	</gameActivityImportAdditions>
 
 	<!-- optional additions to GameActivity class in GameActivity.java -->
-	<gameActivityClassAdditions>
-		<insert>
-	/** Implement this if app wants to handle IAB activity launch. **/
-	GooglePlayStoreHelper.PurchaseLaunchCallback purchaseLaunchCallback = null;
-
-	public GooglePlayStoreHelper.PurchaseLaunchCallback getPurchaseLaunchCallback()
-	{
-		return purchaseLaunchCallback;
-	}
-		</insert>
-	</gameActivityClassAdditions>
-
 	<gameActivityIapSetupServiceAdditions>
 		<insert>
 		if (getPackageManager().checkPermission("com.android.vending.BILLING", getPackageName()) == getPackageManager().PERMISSION_GRANTED)

@@ -73,10 +73,8 @@ private:
 	void OnGooglePlayAvailableIAPQueryComplete(EGooglePlayBillingResponseCode InResponse, const TArray<FProvidedProductInformation>& InProvidedProductInformation);
 	FDelegateHandle AvailableIAPQueryDelegateHandle;
 
-#if !OSSGOOGLEPLAY_WITH_AIDL
 	/** Delegate fired when a query for purchases has completed, whether successful or unsuccessful */
 	FOnQueryForAvailablePurchasesComplete OnQueryForAvailablePurchasesCompleteDelegate;
-#endif
 };
 
 typedef TSharedPtr<FOnlineStoreGooglePlayV2, ESPMode::ThreadSafe> FOnlineStoreGooglePlayV2Ptr;

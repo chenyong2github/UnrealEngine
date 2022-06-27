@@ -6,9 +6,6 @@ using UnrealBuildTool;
 
 public class OnlineSubsystemGooglePlay : ModuleRules
 {
-	[ConfigFile(ConfigHierarchyType.Engine, "OnlineSubsystemGooglePlay.Store")]
-	bool bUseGooglePlayBillingApiV2 = true;
-
 	public OnlineSubsystemGooglePlay(ReadOnlyTargetRules Target) : base(Target)
     {
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
@@ -16,8 +13,7 @@ public class OnlineSubsystemGooglePlay : ModuleRules
 		ConfigCache.ReadSettings(DirectoryReference.FromFile(Target.ProjectFile), Target.Platform, this);
 
 		PublicDefinitions.Add("ONLINESUBSYSTEMGOOGLEPLAY_PACKAGE=1");
-		PublicDefinitions.Add("OSSGOOGLEPLAY_WITH_AIDL=" + (bUseGooglePlayBillingApiV2 ? "0" : "1"));
-
+        
 		PrivateIncludePaths.AddRange(
 			new string[] {
 				"Private",    

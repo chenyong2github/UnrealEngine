@@ -11,7 +11,6 @@
 #include "OnlineExternalUIInterfaceGameCircle.h"
 #include "OnlineFriendsInterfaceGameCircle.h"
 #include "OnlineAGSCallbackManager.h"
-#include "OnlineStoreInterfaceGameCircle.h"
 #include "Templates/UniquePtr.h"
 
 #include <string>
@@ -40,9 +39,6 @@ public:
 	virtual IOnlineIdentityPtr GetIdentityInterface() const override;
 	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override;
 	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override;
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	virtual IOnlineStorePtr GetStoreInterface() const override;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override { return nullptr; }
 	virtual IOnlinePurchasePtr GetPurchaseInterface() const override { return nullptr; }
 	virtual IOnlineEventsPtr GetEventsInterface() const override { return nullptr; }
@@ -120,8 +116,6 @@ private:
 
 	/** Interface to the online identity system */
 	FOnlineIdentityGameCirclePtr IdentityInterface;
-
-	FOnlineStoreGameCirclePtr StoreInterface;
 
 	/** Interface to the online leaderboards */
 	FOnlineLeaderboardsGameCirclePtr LeaderboardsInterface;

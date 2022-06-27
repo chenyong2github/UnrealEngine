@@ -20,11 +20,6 @@ IOnlineIdentityPtr FOnlineSubsystemGameCircle::GetIdentityInterface() const
 	return IdentityInterface;
 }
 
-IOnlineStorePtr FOnlineSubsystemGameCircle::GetStoreInterface() const
-{
-	return StoreInterface;
-}
-
 IOnlineSessionPtr FOnlineSubsystemGameCircle::GetSessionInterface() const
 {
 	return nullptr;

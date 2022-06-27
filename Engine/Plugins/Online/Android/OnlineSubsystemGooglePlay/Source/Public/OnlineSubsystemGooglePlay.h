@@ -9,7 +9,6 @@
 #include "OnlineAsyncTaskManagerGooglePlay.h"
 #include "Templates/UniquePtr.h"
 #include "HAL/RunnableThread.h"
-#include "OnlineStoreInterfaceGooglePlay.h"
 #include "OnlineStoreGooglePlay.h"
 #include "OnlinePurchaseGooglePlay.h"
 
@@ -22,7 +21,6 @@ THIRD_PARTY_INCLUDES_END
 
 /** Forward declarations of all interface classes */
 typedef TSharedPtr<class FOnlineIdentityGooglePlay,  ESPMode::ThreadSafe> FOnlineIdentityGooglePlayPtr;
-typedef TSharedPtr<class FOnlineStoreGooglePlay, ESPMode::ThreadSafe> FOnlineStoreGooglePlayPtr;
 typedef TSharedPtr<class FOnlineStoreGooglePlayV2, ESPMode::ThreadSafe> FOnlineStoreGooglePlayV2Ptr;
 typedef TSharedPtr<class FOnlinePurchaseGooglePlay, ESPMode::ThreadSafe> FOnlinePurchaseGooglePlayPtr;
 typedef TSharedPtr<class FOnlineLeaderboardsGooglePlay, ESPMode::ThreadSafe> FOnlineLeaderboardsGooglePlayPtr;
@@ -58,7 +56,6 @@ public:
 	virtual IOnlineIdentityPtr GetIdentityInterface() const override;
 	virtual IOnlineTitleFilePtr GetTitleFileInterface() const override;
 	virtual IOnlineEntitlementsPtr GetEntitlementsInterface() const override;
-	virtual IOnlineStorePtr GetStoreInterface() const override;
 	virtual IOnlineStoreV2Ptr GetStoreV2Interface() const override;
 	virtual IOnlinePurchasePtr GetPurchaseInterface() const override;
 	virtual IOnlineEventsPtr GetEventsInterface() const override { return nullptr; }
@@ -120,12 +117,6 @@ PACKAGE_SCOPE:
 	 * @return true if IAP should be available, false otherwise
 	 */
 	bool IsInAppPurchasingEnabled();
-
-	/**
-	 * Is Store v2 enabled (disabling legacy store interface)
-	 * @return true if enabled, false otherwise
-	 */
-	bool IsV2StoreEnabled();
 
 	/**
 	 * Delegate fired internally when the Java query for available in app purchases has completed, notifying any GooglePlay OSS listeners
@@ -194,8 +185,6 @@ private:
 
 	/** Interface to the online identity system */
 	FOnlineIdentityGooglePlayPtr IdentityInterface;
-
-	FOnlineStoreGooglePlayPtr StoreInterface;
 
 	/** Interface to the online catalog */
 	FOnlineStoreGooglePlayV2Ptr StoreV2Interface;
