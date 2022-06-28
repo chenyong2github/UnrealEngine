@@ -412,7 +412,7 @@ void FModeToolkit::InvokeUI()
 
 void FModeToolkit::RebuildModeToolPalette()
 {
-	if (ModeUILayer.IsValid() && HasIntegratedToolPalettes())
+	if (ModeUILayer.IsValid() && HasIntegratedToolPalettes() == false)
 	{
 		if ( TSharedPtr<FAssetEditorModeUILayer> ModeUILayerPtr = ModeUILayer.Pin() )
 		{
