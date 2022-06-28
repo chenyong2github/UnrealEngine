@@ -4031,7 +4031,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 
 		TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
 			.Title(LOCTEXT("DeleteUnusedVariablesDialog_Title", "Delete Unused Variables"))
-			.IconBrush("NotificationList.DefaultMessage")
+			.Icon(FAppStyle::Get().GetBrush("NotificationList.DefaultMessage"))
 			.Content()
 			[
 				DialogContain

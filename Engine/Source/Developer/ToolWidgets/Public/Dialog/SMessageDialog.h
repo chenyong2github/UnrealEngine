@@ -16,7 +16,9 @@ public:
 	using FButton = SCustomDialog::FButton;
 
 	SLATE_BEGIN_ARGS(SMessageDialog)
-		:  _WrapMessageAt(512.f)
+		: _AutoCloseOnButtonPress(true)
+		, _Icon(nullptr)
+		, _WrapMessageAt(512.f)
 	{}
 
 		/********** Functional **********/
@@ -36,10 +38,13 @@ public:
 		/** Provides default values for SWindow::FArguments not overriden by SCustomDialog. */
 		SLATE_ARGUMENT(SWindow::FArguments, WindowArguments)
 	
+		/** Whether to automatically close this window when any button is pressed (default: true) */
+		SLATE_ARGUMENT(bool, AutoCloseOnButtonPress)
+	
 		/********** Cosmetic **********/
 	
-		/** Optional icon to display in the dialog. (default: none) */
-		SLATE_ARGUMENT(FName, IconBrush)
+		/** Optional icon to display in the dialog. (default: empty) */
+		SLATE_ARGUMENT(const FSlateBrush*, Icon)
 
 		/** Should this dialog use a scroll box for over-sized content? (default: true) */
 		SLATE_ARGUMENT(bool, UseScrollBox)

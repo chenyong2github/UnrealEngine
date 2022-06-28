@@ -88,7 +88,7 @@ void SConcertServerSessionBrowser::DeleteSessionsWithFakeModalQuestion(const FTe
 	};
 	const TSharedRef<SMessageDialog> Dialog = SNew(SMessageDialog)
 		.Title(LOCTEXT("DisconnectUsersTitle", "Delete session?"))
-		.IconBrush("Icons.WarningWithColor.Large")
+		.Icon(FAppStyle::Get().GetBrush("Icons.WarningWithColor.Large"))
 		.Message(Message)
 		.UseScrollBox(false)
 		.Buttons({

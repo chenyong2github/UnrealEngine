@@ -6,12 +6,7 @@
 
 #include "Styling/AppStyle.h"
 #include "Styling/SlateBrush.h"
-#include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SSpacer.h"
-#include "Widgets/Layout/SScrollBox.h"
-#include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SHyperlink.h"
 
 void SMessageDialog::Construct(const FArguments& InArgs)
@@ -30,7 +25,8 @@ void SMessageDialog::Construct(const FArguments& InArgs)
 		.WindowArguments(InArgs._WindowArguments)
 		.RootPadding(16.f)
 		.Buttons(InArgs._Buttons)
-		.IconBrush(InArgs._IconBrush)
+		.AutoCloseOnButtonPress(InArgs._AutoCloseOnButtonPress)
+		.Icon(InArgs._Icon)
 		.HAlignContent(HAlign_Fill)
 		.VAlignContent(VAlign_Fill)
 		.IconDesiredSizeOverride(FVector2D(24.f, 24.f))

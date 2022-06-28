@@ -2,8 +2,6 @@
 
 #include "Dialog/SCustomDialog.h"
 
-#include "HAL/PlatformApplicationMisc.h"
-
 #include "Framework/Application/SlateApplication.h"
 #include "Framework/Docking/TabManager.h"
 #include "Logging/LogMacros.h"
@@ -12,13 +10,23 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
-#include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
 #include "Widgets/SBoxPanel.h"
+#include "Widgets/SNullWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogCustomDialog, Log, All);
+
+SCustomDialog::FArguments& SCustomDialog::FArguments::IconBrush(FName InIconBrush)
+{
+	const FSlateBrush* ImageBrush = FAppStyle::Get().GetBrush(InIconBrush);
+	if (ensureMsgf(ImageBrush != nullptr, TEXT("Brush %s is unknown"), *InIconBrush.ToString()))
+	{
+		_Icon = ImageBrush;
+	}
+	return *this;
+}
 
 void SCustomDialog::Construct(const FArguments& InArgs)
 {
@@ -26,6 +34,7 @@ void SCustomDialog::Construct(const FArguments& InArgs)
 	check(InArgs._Buttons.Num() > 0);
 	
 	OnClosed = InArgs._OnClosed;
+	bAutoCloseOnButtonPress = InArgs._AutoCloseOnButtonPress;
 	
 	SWindow::Construct( SWindow::FArguments(InArgs._WindowArguments)
 		.Title(InArgs._Title)
@@ -74,23 +83,19 @@ TSharedRef<SWidget> SCustomDialog::CreateContentBox(const FArguments& InArgs)
 {
 	TSharedRef<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 
-	if (InArgs._IconBrush.IsValid())
-	{
-		const FSlateBrush* ImageBrush = FAppStyle::Get().GetBrush(InArgs._IconBrush);
-		if (ensureMsgf(ImageBrush != nullptr, TEXT("Brush %s is unknown"), *InArgs._IconBrush.ToString()))
-		{
-			ContentBox->AddSlot()
-				.AutoWidth()
-				.VAlign(InArgs._VAlignIcon)
-				.HAlign(InArgs._HAlignIcon)
-				.Padding(0, 0, 8, 0)
-				[
-					SNew(SImage)
-					.DesiredSizeOverride(InArgs._IconDesiredSizeOverride)
-					.Image(ImageBrush)
-				];
-		}
-	}
+	ContentBox->AddSlot()
+		.AutoWidth()
+		.VAlign(InArgs._VAlignIcon)
+		.HAlign(InArgs._HAlignIcon)
+		.Padding(0, 0, 8, 0)
+		[
+			!InArgs._Icon.IsSet() || !InArgs._Icon.Get()
+				// If no icon is specified, we still want to pad the content towards the right
+				? SNullWidget::NullWidget
+				: SNew(SImage)
+				.DesiredSizeOverride(InArgs._IconDesiredSizeOverride)
+				.Image(InArgs._Icon)
+		];
 
 	if (InArgs._UseScrollBox)
 	{
@@ -202,7 +207,10 @@ FReply SCustomDialog::OnButtonClicked(FSimpleDelegate OnClicked, int32 ButtonInd
 {
 	LastPressedButton = ButtonIndex;
 
-	FSlateApplication::Get().RequestDestroyWindow(StaticCastSharedRef<SWindow>(this->AsShared()));
+	if (bAutoCloseOnButtonPress)
+	{
+		RequestDestroyWindow();
+	}
 
 	OnClicked.ExecuteIfBound();
 	return FReply::Handled();

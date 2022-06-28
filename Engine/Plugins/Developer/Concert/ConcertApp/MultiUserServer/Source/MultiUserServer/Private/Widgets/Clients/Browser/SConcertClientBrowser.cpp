@@ -170,7 +170,7 @@ TSharedRef<SWidget> UE::MultiUserServer::SConcertClientBrowser::CreateKeepDiscon
 				
 				const TSharedRef<SMessageDialog> Dialog = SNew(SMessageDialog)
 					.Title(LOCTEXT("RemoveDisconnectedClients.Title", "Remove disconnected clients?"))
-					.IconBrush("Icons.WarningWithColor.Large")
+					.Icon(FAppStyle::Get().GetBrush("Icons.WarningWithColor.Large"))
 					.Message(FText::Format(LOCTEXT("RemoveDisconnectedClients.MessageFmt", "There are {0} disconnected clients. If you proceed, these clients will be removed from the session browser; opened log tabs will remain open.\nProceed?"), NumDisconnected))
 					.UseScrollBox(false)
 					.Buttons({

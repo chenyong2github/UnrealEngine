@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Styling/AppStyle.h"
 #include "Widgets/SWindow.h"
 
 /**
@@ -56,7 +57,9 @@ public:
 	};
 
 	SLATE_BEGIN_ARGS(SCustomDialog) 
-		:  _HAlignIcon(HAlign_Left)
+		: _AutoCloseOnButtonPress(true)
+		, _Icon(nullptr)
+		, _HAlignIcon(HAlign_Left)
 		, _VAlignIcon(VAlign_Center)
 		, _RootPadding(FMargin(4.f))
 		, _ButtonAreaPadding(FMargin(20.f, 0.f, 0.f, 0.f))
@@ -84,12 +87,14 @@ public:
 
 		/** Provides default values for SWindow::FArguments not overriden by SCustomDialog. */
 		SLATE_ARGUMENT(SWindow::FArguments, WindowArguments)
-	
+
+		/** Whether to automatically close this window when any button is pressed (default: true) */
+		SLATE_ARGUMENT(bool, AutoCloseOnButtonPress)
 
 		/*********** Cosmetic ***********/
 
-		/** Optional icon to display in the dialog (default: none) */
-		SLATE_ARGUMENT(FName, IconBrush)
+		/** Optional icon to display (default: empty, translucent)*/
+		SLATE_ATTRIBUTE(const FSlateBrush*, Icon)
 	
 		/** When specified, ignore the brushes size and report the DesiredSizeOverride as the desired image size (default: use icon size) */
 		SLATE_ATTRIBUTE(TOptional<FVector2D>, IconDesiredSizeOverride)
@@ -130,6 +135,10 @@ public:
 
 
 		/********** Legacy - do not use **********/
+		
+		/** Optional icon to display in the dialog (default: none) */
+		UE_DEPRECATED(5.1, "Use Icon() instead")
+		FArguments& IconBrush(FName InIconBrush);
 	
 		/** Content for the dialog (deprecated - use Content instead)*/
 		SLATE_ARGUMENT_DEPRECATED(TSharedPtr<SWidget>, DialogContent, 5.1, "Use Content() instead.")
@@ -159,4 +168,6 @@ private:
 	int32 LastPressedButton = -1;
 
 	FSimpleDelegate OnClosed;
+
+	bool bAutoCloseOnButtonPress;
 };

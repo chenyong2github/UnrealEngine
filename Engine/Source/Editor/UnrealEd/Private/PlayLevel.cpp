@@ -1569,7 +1569,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 
 	CustomDialog = SNew(SCustomDialog)
 		.Title(DialogTitle)
-		.IconBrush("NotificationList.DefaultMessage")
+		.Icon(FAppStyle::Get().GetBrush("NotificationList.DefaultMessage"))
 		.Content()
 		[
 			DialogContents
