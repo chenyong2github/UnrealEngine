@@ -2,7 +2,7 @@
 
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
-namespace EpicGames.Serialization.Tests
+namespace EpicGames.Core.Tests
 {
 	[TestClass]
 	public class VarIntTests

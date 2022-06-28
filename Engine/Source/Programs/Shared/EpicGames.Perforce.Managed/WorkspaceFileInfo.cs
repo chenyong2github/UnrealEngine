@@ -95,7 +95,7 @@ namespace EpicGames.Perforce.Managed
 	{
 		public static WorkspaceFileInfo ReadWorkspaceFileInfo(this MemoryReader reader, WorkspaceDirectoryInfo directory)
 		{
-			Utf8String name = reader.ReadString();
+			Utf8String name = reader.ReadNullTerminatedUtf8String();
 			long length = reader.ReadInt64();
 			long lastModifiedTicks = reader.ReadInt64();
 			bool bReadOnly = reader.ReadBoolean();
@@ -105,7 +105,7 @@ namespace EpicGames.Perforce.Managed
 
 		public static void WriteWorkspaceFileInfo(this MemoryWriter writer, WorkspaceFileInfo fileInfo)
 		{
-			writer.WriteString(fileInfo.Name);
+			writer.WriteNullTerminatedUtf8String(fileInfo.Name);
 			writer.WriteInt64(fileInfo._length);
 			writer.WriteInt64(fileInfo._lastModifiedTicks);
 			writer.WriteBoolean(fileInfo._bReadOnly);
@@ -114,7 +114,7 @@ namespace EpicGames.Perforce.Managed
 
 		public static int GetSerializedSize(this WorkspaceFileInfo fileInfo)
 		{
-			return fileInfo.Name.GetSerializedSize() + sizeof(long) + sizeof(long) + sizeof(byte) + fileInfo.ContentId.GetSerializedSize();
+			return fileInfo.Name.GetNullTerminatedSize() + sizeof(long) + sizeof(long) + sizeof(byte) + fileInfo.ContentId.GetSerializedSize();
 		}
 	}
 }

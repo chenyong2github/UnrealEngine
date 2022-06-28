@@ -154,7 +154,7 @@ namespace Horde.Build.Logs.Data
 			{
 				List<LogSubChunkData> subChunks = new List<LogSubChunkData>();
 				subChunks.Add(new LogSubChunkData(LogType.Json, offset, lineIndex, new ReadOnlyLogText(reader.Memory)));
-				reader.Offset = reader.Memory.Length;
+				reader.Advance(reader.Memory.Length);
 				return new LogChunkData(offset, lineIndex, subChunks);
 			}
 
@@ -162,7 +162,7 @@ namespace Horde.Build.Logs.Data
 			if (version == 0)
 			{
 				List<LogSubChunkData> subChunks = ReadSubChunkList(reader, offset, lineIndex);
-				reader.ReadVariableLengthBytes();
+				reader.ReadVariableLengthBytesWithInt32Length();
 				return new LogChunkData(offset, lineIndex, subChunks);
 			}
 			else
@@ -206,7 +206,7 @@ namespace Horde.Build.Logs.Data
 		{
 			MemoryReader reader = new MemoryReader(memory);
 			LogChunkData chunkData = Read(reader, offset, lineIndex);
-			reader.CheckOffset(memory.Length);
+			reader.CheckEmpty();
 			return chunkData;
 		}
 
@@ -235,7 +235,7 @@ namespace Horde.Build.Logs.Data
 			byte[] data = new byte[GetSerializedSize(logger)];
 			MemoryWriter writer = new MemoryWriter(data);
 			Write(writer, logger);
-			writer.CheckOffset(data.Length);
+			writer.CheckEmpty();
 			return data;
 		}
 

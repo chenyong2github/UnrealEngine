@@ -4,7 +4,7 @@ using System;
 using System.Numerics;
 using EpicGames.Core;
 
-namespace EpicGames.Serialization
+namespace EpicGames.Core
 {
 	/// <summary>
 	/// Methods for reading VarUInt values
@@ -63,9 +63,19 @@ namespace EpicGames.Serialization
 		public static ulong ReadUnsigned(ReadOnlySpan<byte> buffer, out int bytesRead)
 		{
 			bytesRead = (int)Measure(buffer);
+			return ReadUnsignedKnownSize(buffer, bytesRead);
+		}
 
-			ulong value = (ulong)(buffer[0] & (0xff >> bytesRead));
-			for (int i = 1; i < bytesRead; i++)
+		/// <summary>
+		/// Read a variable-length unsigned integer.
+		/// </summary>
+		/// <param name="buffer">A variable-length encoding of an unsigned integer</param>
+		/// <param name="numBytes">The number of bytes consumed from the input</param>
+		/// <returns></returns>
+		internal static ulong ReadUnsignedKnownSize(ReadOnlySpan<byte> buffer, int numBytes)
+		{
+			ulong value = (ulong)(buffer[0] & (0xff >> numBytes));
+			for (int i = 1; i < numBytes; i++)
 			{
 				value <<= 8;
 				value |= buffer[i];
@@ -233,41 +243,66 @@ namespace EpicGames.Serialization
 	public static class VarIntExtensions
 	{
 		/// <summary>
-		/// Writes a signed VarInt to a byte array
+		/// Read an unsigned VarInt from the given reader
 		/// </summary>
-		/// <param name="builder">Builder to write to</param>
-		/// <param name="value">Value to write</param>
-		public static void WriteSignedVarInt(this ByteArrayBuilder builder, int value)
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>The deserialized value</returns>
+		public static long ReadSignedVarInt(this IMemoryReader reader)
 		{
-			WriteUnsignedVarInt(builder, VarInt.EncodeSigned(value));
+			ulong value = ReadUnsignedVarInt(reader);
+			return VarInt.DecodeSigned(value);
+		}
+
+		/// <summary>
+		/// Read an unsigned VarInt from the given reader
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>The deserialized value</returns>
+		public static ulong ReadUnsignedVarInt(this IMemoryReader reader)
+		{
+			int length = VarInt.Measure(reader.GetSpan(1));
+			ReadOnlySpan<byte> span = reader.GetSpan(length);
+			reader.Advance(length);
+			return VarInt.ReadUnsignedKnownSize(span, length);
 		}
 
 		/// <summary>
 		/// Writes a signed VarInt to a byte array
 		/// </summary>
-		/// <param name="builder">Builder to write to</param>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteSignedVarInt(this ByteArrayBuilder builder, long value)
+		public static void WriteSignedVarInt(this IMemoryWriter writer, int value)
 		{
-			WriteUnsignedVarInt(builder, VarInt.EncodeSigned(value));
+			WriteUnsignedVarInt(writer, VarInt.EncodeSigned(value));
+		}
+
+		/// <summary>
+		/// Writes a signed VarInt to a byte array
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void WriteSignedVarInt(this IMemoryWriter writer, long value)
+		{
+			WriteUnsignedVarInt(writer, VarInt.EncodeSigned(value));
 		}
 
 		/// <summary>
 		/// Writes a unsigned VarInt to a byte array
 		/// </summary>
-		/// <param name="builder">Builder to write to</param>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteUnsignedVarInt(this ByteArrayBuilder builder, int value) => WriteUnsignedVarInt(builder, (ulong)value);
+		public static void WriteUnsignedVarInt(this IMemoryWriter writer, int value) => WriteUnsignedVarInt(writer, (ulong)value);
 
 		/// <summary>
 		/// Writes a unsigned VarInt to a byte array
 		/// </summary>
-		/// <param name="builder">Builder to write to</param>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public static void WriteUnsignedVarInt(this ByteArrayBuilder builder, ulong value)
+		public static void WriteUnsignedVarInt(this IMemoryWriter writer, ulong value)
 		{
 			int length = VarInt.MeasureUnsigned(value);
-			VarInt.WriteUnsigned(builder.GetWritableSpan(length), value);
+			VarInt.WriteUnsigned(writer.GetSpan(length), value);
+			writer.Advance(length);
 		}
 	}
 }

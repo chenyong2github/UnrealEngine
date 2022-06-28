@@ -266,7 +266,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static IoHash ReadIoHash(this MemoryReader reader)
+		public static IoHash ReadIoHash(this IMemoryReader reader)
 		{
 			return new IoHash(reader.ReadFixedLengthBytes(IoHash.NumBytes).Span);
 		}
@@ -276,9 +276,10 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="writer"></param>
 		/// <param name="hash"></param>
-		public static void WriteIoHash(this MemoryWriter writer, IoHash hash)
+		public static void WriteIoHash(this IMemoryWriter writer, IoHash hash)
 		{
-			hash.CopyTo(writer.AllocateSpan(IoHash.NumBytes));
+			hash.CopyTo(writer.GetSpan(IoHash.NumBytes));
+			writer.Advance(IoHash.NumBytes);
 		}
 	}
 

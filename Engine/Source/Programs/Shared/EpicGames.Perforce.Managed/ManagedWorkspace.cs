@@ -393,7 +393,7 @@ namespace EpicGames.Perforce.Managed
 				writer.WriteCachedFileInfo(trackedFile);
 			}
 			writer.WriteWorkspaceDirectoryInfo(_workspace);
-			writer.CheckOffset(serializedSize);
+			writer.CheckEmpty();
 
 			// Write it to disk
 			FileReference dataFile = FileReference.Combine(_baseDir, DataFileName);

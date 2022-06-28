@@ -356,7 +356,7 @@ namespace EpicGames.Perforce.Managed
 			int numSubDirectories = reader.ReadInt32();
 			for (int idx = 0; idx < numSubDirectories; idx++)
 			{
-				Utf8String name = reader.ReadString();
+				Utf8String name = reader.ReadNullTerminatedUtf8String();
 
 				WorkspaceDirectoryInfo subDirectory = new WorkspaceDirectoryInfo(directoryInfo, name, null);
 				reader.ReadWorkspaceDirectoryInfo(subDirectory, version);
@@ -377,14 +377,14 @@ namespace EpicGames.Perforce.Managed
 			writer.WriteInt32(directoryInfo.NameToSubDirectory.Count);
 			foreach (WorkspaceDirectoryInfo subDirectory in directoryInfo.NameToSubDirectory.Values)
 			{
-				writer.WriteString(subDirectory.Name);
+				writer.WriteNullTerminatedUtf8String(subDirectory.Name);
 				writer.WriteWorkspaceDirectoryInfo(subDirectory);
 			}
 		}
 
 		public static int GetSerializedSize(this WorkspaceDirectoryInfo directoryInfo)
 		{
-			return Digest<Sha1>.Length + sizeof(int) + directoryInfo.NameToFile.Values.Sum(x => x.GetSerializedSize()) + sizeof(int) + directoryInfo.NameToSubDirectory.Values.Sum(x => x.Name.GetSerializedSize() + x.GetSerializedSize());
+			return Digest<Sha1>.Length + sizeof(int) + directoryInfo.NameToFile.Values.Sum(x => x.GetSerializedSize()) + sizeof(int) + directoryInfo.NameToSubDirectory.Values.Sum(x => x.Name.GetNullTerminatedSize() + x.GetSerializedSize());
 		}
 	}
 }

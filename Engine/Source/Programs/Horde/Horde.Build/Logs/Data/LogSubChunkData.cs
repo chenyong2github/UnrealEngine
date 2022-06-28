@@ -149,8 +149,8 @@ namespace Horde.Build.Logs.Data
 				LogType type = (LogType)reader.ReadInt32();
 				int length = reader.ReadInt32();
 				int lineCount = reader.ReadInt32();
-				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytes();
-				reader.ReadVariableLengthBytes();
+				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytesWithInt32Length();
+				reader.ReadVariableLengthBytesWithInt32Length();
 				return new LogSubChunkData(type, offset, length, lineIndex, lineCount, compressedText, null);
 			}
 			else if (version == 1)
@@ -158,8 +158,8 @@ namespace Horde.Build.Logs.Data
 				LogType type = (LogType)reader.ReadInt32();
 				int length = reader.ReadInt32();
 				int lineCount = reader.ReadInt32();
-				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytes();
-				ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytesWithInt32Length();
+				ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytesWithInt32Length();
 				ReadOnlyTrie trie = reader.ReadTrie();
 				LogIndexBlock indexBlock = new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 				LogIndexData index = new LogIndexData(trie, 0, new[] { indexBlock });
@@ -170,7 +170,7 @@ namespace Horde.Build.Logs.Data
 				LogType type = (LogType)reader.ReadInt32();
 				int length = reader.ReadInt32();
 				int lineCount = reader.ReadInt32();
-				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytes();
+				ReadOnlyMemory<byte> compressedText = reader.ReadVariableLengthBytesWithInt32Length();
 				LogIndexData index = reader.ReadLogIndexData();
 				index.SetBaseLineIndex(lineIndex); // Fix for incorrectly saved data
 				return new LogSubChunkData(type, offset, length, lineIndex, lineCount, compressedText, index);
@@ -190,7 +190,7 @@ namespace Horde.Build.Logs.Data
 			writer.WriteInt32(Length);
 			writer.WriteInt32(LineCount);
 
-			writer.WriteVariableLengthBytes(DeflateText().Span);
+			writer.WriteVariableLengthBytesWithInt32Length(DeflateText().Span);
 			writer.WriteLogIndexData(BuildIndex(logger));
 		}
 
@@ -204,7 +204,7 @@ namespace Horde.Build.Logs.Data
 
 			MemoryWriter writer = new MemoryWriter(data);
 			Write(writer, logger);
-			writer.CheckOffset(data.Length);
+			writer.CheckEmpty();
 
 			return data;
 		}

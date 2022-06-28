@@ -1,24 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.Buffers.Binary;
+using System.Text;
 
 namespace EpicGames.Core
 {
+	public interface IMemoryWriter
+	{
+		/// <summary>
+		/// Gets a block of memory with at least the given size
+		/// </summary>
+		/// <param name="minSize">Minimum size of the returned data</param>
+		/// <returns>Memory of at least the given size</returns>
+		Memory<byte> GetMemory(int minSize);
+
+		/// <summary>
+		/// Updates the current position within the input buffer
+		/// </summary>
+		/// <param name="length">Number of bytes to advance by</param>
+		void Advance(int length);
+	}
+
 	/// <summary>
 	/// Writes into a fixed size memory block
 	/// </summary>
-	public class MemoryWriter
+	public class MemoryWriter : IMemoryWriter
 	{
 		/// <summary>
 		/// The memory block to write to
 		/// </summary>
-		readonly Memory<byte> _memory;
-
-		/// <summary>
-		/// Current offset within the memory
-		/// </summary>
-		int _offset;
+		Memory<byte> _memory;
 
 		/// <summary>
 		/// Constructor
@@ -27,147 +40,209 @@ namespace EpicGames.Core
 		public MemoryWriter(Memory<byte> memory)
 		{
 			_memory = memory;
-			_offset = 0;
 		}
 
 		/// <summary>
 		/// Checks that we've used the exact buffer length
 		/// </summary>
 		/// <param name="expectedOffset">Expected offset within the output buffer</param>
-		public void CheckOffset(int expectedOffset)
+		public void CheckEmpty()
 		{
-			if (_offset != expectedOffset)
+			if (_memory.Length > 0)
 			{
-				throw new Exception("Serialization is not at expected offset within the output buffer");
+				throw new Exception($"Serialization is not at expected offset within the output buffer ({_memory.Length} bytes unused)");
 			}
 		}
+
+		/// <inheritdoc/>
+		public Memory<byte> GetMemory(int length) => _memory;
+
+		/// <inheritdoc/>
+		public void Advance(int length) => _memory = _memory.Slice(length);
+	}
+
+	/// <summary>
+	/// Extension methods for <see cref="IMemoryWriter"/>
+	/// </summary>
+	public static class MemoryWriterExtensions
+	{
+		/// <summary>
+		/// Writes a byte to memory
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="minSize">Minimum size for the returned span</param>
+		public static Span<byte> GetSpan(this IMemoryWriter writer, int minSize) => writer.GetMemory(minSize).Span;
 
 		/// <summary>
 		/// Writes a boolean to memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteBoolean(bool value)
+		public static void WriteBoolean(this IMemoryWriter writer, bool value)
 		{
-			WriteUInt8(value ? (byte)1 : (byte)0);
+			WriteUInt8(writer, value ? (byte)1 : (byte)0);
 		}
 
 		/// <summary>
 		/// Writes a byte to memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteInt8(sbyte value)
+		public static void WriteInt8(this IMemoryWriter writer, sbyte value)
 		{
-			_memory.Span[_offset] = (byte)value;
-			_offset++;
+			WriteUInt8(writer, (byte)value);
 		}
 
 		/// <summary>
 		/// Writes a byte to memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteUInt8(byte value)
+		public static void WriteUInt8(this IMemoryWriter writer, byte value)
 		{
-			_memory.Span[_offset] = value;
-			_offset++;
+			writer.GetSpan(1)[0] = (byte)value;
+			writer.Advance(1);
 		}
 
 		/// <summary>
 		/// Writes an int16 to the memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteInt16(short value)
+		public static void WriteInt16(this IMemoryWriter writer, short value)
 		{
-			BinaryPrimitives.WriteInt16LittleEndian(_memory.Span.Slice(_offset), value);
-			_offset += sizeof(short);
+			Span<byte> span = GetSpan(writer, sizeof(short));
+			BinaryPrimitives.WriteInt16LittleEndian(span, value);
+			writer.Advance(sizeof(short));
 		}
 
 		/// <summary>
 		/// Writes a uint16 to the memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteUInt16(ushort value)
+		public static void WriteUInt16(this IMemoryWriter writer, ushort value)
 		{
-			BinaryPrimitives.WriteUInt16LittleEndian(_memory.Span.Slice(_offset), value);
-			_offset += sizeof(ushort);
+			Span<byte> span = GetSpan(writer, sizeof(ushort));
+			BinaryPrimitives.WriteUInt16LittleEndian(span, value);
+			writer.Advance(sizeof(ushort));
 		}
 
 		/// <summary>
 		/// Writes an int32 to the memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteInt32(int value)
+		public static void WriteInt32(this IMemoryWriter writer, int value)
 		{
-			BinaryPrimitives.WriteInt32LittleEndian(_memory.Span.Slice(_offset), value);
-			_offset += sizeof(int);
+			Span<byte> span = GetSpan(writer, sizeof(int));
+			BinaryPrimitives.WriteInt32LittleEndian(span, value);
+			writer.Advance(sizeof(int));
 		}
 
 		/// <summary>
 		/// Writes a uint32 to the memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteUInt32(uint value)
+		public static void WriteUInt32(this IMemoryWriter writer, uint value)
 		{
-			BinaryPrimitives.WriteUInt32LittleEndian(_memory.Span.Slice(_offset), value);
-			_offset += sizeof(uint);
+			Span<byte> span = GetSpan(writer, sizeof(uint));
+			BinaryPrimitives.WriteUInt32LittleEndian(span, value);
+			writer.Advance(sizeof(uint));
 		}
 
 		/// <summary>
 		/// Writes an int64 to the memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteInt64(long value)
+		public static void WriteInt64(this IMemoryWriter writer, long value)
 		{
-			BinaryPrimitives.WriteInt64LittleEndian(_memory.Span.Slice(_offset), value);
-			_offset += sizeof(long);
+			Span<byte> span = GetSpan(writer, sizeof(long));
+			BinaryPrimitives.WriteInt64LittleEndian(span, value);
+			writer.Advance(sizeof(long));
 		}
 
 		/// <summary>
 		/// Writes a uint64 to the memory
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="value">Value to write</param>
-		public void WriteUInt64(ulong value)
+		public static void WriteUInt64(this IMemoryWriter writer, ulong value)
 		{
-			BinaryPrimitives.WriteUInt64LittleEndian(_memory.Span.Slice(_offset), value);
-			_offset += sizeof(ulong);
+			Span<byte> span = GetSpan(writer, sizeof(ulong));
+			BinaryPrimitives.WriteUInt64LittleEndian(span, value);
+			writer.Advance(sizeof(ulong));
+		}
+
+		/// <summary>
+		/// Appends a sequence of bytes to the buffer
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="sequence">Sequence to append</param>
+		public static void WriteSequence(this IMemoryWriter writer, ReadOnlySequence<byte> sequence)
+		{
+			Memory<byte> memory = writer.GetMemory((int)sequence.Length);
+			sequence.CopyTo(memory.Span);
 		}
 
 		/// <summary>
 		/// Writes a variable length span of bytes
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="bytes">The bytes to write</param>
-		public void WriteVariableLengthBytes(ReadOnlySpan<byte> bytes)
+		public static void WriteVariableLengthBytes(this IMemoryWriter writer, ReadOnlySpan<byte> bytes)
 		{
-			WriteInt32(bytes.Length);
-			WriteFixedLengthBytes(bytes);
+			int lengthBytes = VarInt.MeasureUnsigned(bytes.Length);
+			Span<byte> span = GetSpan(writer, lengthBytes + bytes.Length);
+			VarInt.WriteUnsigned(span, bytes.Length);
+			bytes.CopyTo(span[lengthBytes..]);
+		}
+
+		/// <summary>
+		/// Writes a variable length span of bytes
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="bytes">The bytes to write</param>
+		public static void WriteVariableLengthBytesWithInt32Length(this IMemoryWriter writer, ReadOnlySpan<byte> bytes)
+		{
+			writer.WriteInt32(bytes.Length);
+			writer.WriteFixedLengthBytes(bytes);
 		}
 
 		/// <summary>
 		/// Write a fixed-length sequence of bytes to the buffer
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="bytes">The bytes to write</param>
-		public void WriteFixedLengthBytes(ReadOnlySpan<byte> bytes)
+		public static void WriteFixedLengthBytes(this IMemoryWriter writer, ReadOnlySpan<byte> bytes)
 		{
-			bytes.CopyTo(_memory.Span.Slice(_offset));
-			_offset += bytes.Length;
+			Span<byte> span = GetSpan(writer, bytes.Length);
+			bytes.CopyTo(span);
+			writer.Advance(bytes.Length);
 		}
 
 		/// <summary>
 		/// Writes a variable length array
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="array">The array to write</param>
 		/// <param name="writeItem">Delegate to write an individual item</param>
-		public void WriteVariableLengthArray<T>(T[] array, Action<T> writeItem)
+		public static void WriteVariableLengthArray<T>(this IMemoryWriter writer, T[] array, Action<T> writeItem)
 		{
-			WriteInt32(array.Length);
-			WriteFixedLengthArray(array, writeItem);
+			WriteInt32(writer, array.Length);
+			WriteFixedLengthArray(writer, array, writeItem);
 		}
 
 		/// <summary>
 		/// Writes a fixed length array
 		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
 		/// <param name="array">The array to write</param>
 		/// <param name="writeItem">Delegate to write an individual item</param>
-		public void WriteFixedLengthArray<T>(T[] array, Action<T> writeItem)
+		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter")]
+		public static void WriteFixedLengthArray<T>(this IMemoryWriter writer, T[] array, Action<T> writeItem)
 		{
 			for (int idx = 0; idx < array.Length; idx++)
 			{
@@ -176,15 +251,52 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
-		/// Allocate a writable span from the buffer
+		/// Read a string from memory
 		/// </summary>
-		/// <param name="length">Length of the span to allocate</param>
-		/// <returns>Span that can be written to</returns>
-		public Span<byte> AllocateSpan(int length)
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <returns>The string that was read</returns>
+		public static string ReadString(this IMemoryReader reader) => ReadString(reader, Encoding.UTF8);
+
+		/// <summary>
+		/// Read a string from memory
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="encoding">Encoding to use for the string</param>
+		/// <returns>The string that was read</returns>
+		public static string ReadString(this IMemoryReader reader, Encoding encoding)
 		{
-			Span<byte> span = _memory.Span.Slice(_offset, length);
-			_offset += length;
-			return span;
+			int length = (int)reader.ReadUnsignedVarInt();
+
+			ReadOnlySpan<byte> span = reader.GetSpan(length).Slice(0, length);
+			string str = encoding.GetString(span);
+			reader.Advance(length);
+
+			return str;
+		}
+
+		/// <summary>
+		/// Write a string to memory
+		/// </summary>
+		/// <param name="writer">Reader to deserialize from</param>
+		/// <param name="str">The string to be written</param>
+		public static void WriteString(this IMemoryWriter writer, string str) => WriteString(writer, str, Encoding.UTF8);
+
+		/// <summary>
+		/// Write a string to memory
+		/// </summary>
+		/// <param name="writer">Reader to deserialize from</param>
+		/// <param name="str">The string to be written</param>
+		/// <param name="encoding">Encoding to use for the string</param>
+		public static void WriteString(this IMemoryWriter writer, string str, Encoding encoding)
+		{
+			int stringBytes = encoding.GetByteCount(str);
+			int lengthBytes = VarInt.MeasureUnsigned(stringBytes);
+
+			Span<byte> span = writer.GetSpan(lengthBytes + stringBytes);
+			VarInt.WriteUnsigned(span, stringBytes);
+			encoding.GetBytes(str, span[lengthBytes..]);
+
+			writer.Advance(lengthBytes + stringBytes);
 		}
 	}
 }

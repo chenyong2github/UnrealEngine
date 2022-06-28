@@ -327,7 +327,7 @@ namespace EpicGames.Core
 		/// <returns></returns>
 		public static Digest ReadDigest(this MemoryReader reader)
 		{
-			return new Digest(reader.ReadVariableLengthBytes());
+			return new Digest(reader.ReadVariableLengthBytesWithInt32Length());
 		}
 
 		/// <summary>
@@ -348,7 +348,7 @@ namespace EpicGames.Core
 		/// <param name="digest"></param>
 		public static void WriteDigest(this MemoryWriter writer, Digest digest)
 		{
-			writer.WriteVariableLengthBytes(digest.Span);
+			writer.WriteVariableLengthBytesWithInt32Length(digest.Span);
 		}
 
 		/// <summary>

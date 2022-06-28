@@ -244,7 +244,7 @@ namespace Horde.Build.Logs
 		/// <returns>New trie</returns>
 		public static ReadOnlyTrie Read(MemoryReader reader)
 		{
-			ReadOnlyMemory<byte> nodes = reader.ReadVariableLengthBytes();
+			ReadOnlyMemory<byte> nodes = reader.ReadVariableLengthBytesWithInt32Length();
 			ushort[] nodeData = MemoryMarshal.Cast<byte, ushort>(nodes.Span).ToArray();
 			return new ReadOnlyTrie(nodeData);
 		}
@@ -255,7 +255,7 @@ namespace Horde.Build.Logs
 		/// <param name="writer">Writer to output to</param>
 		public void Write(MemoryWriter writer)
 		{
-			writer.WriteVariableLengthBytes(MemoryMarshal.AsBytes<ushort>(NodeData));
+			writer.WriteVariableLengthBytesWithInt32Length(MemoryMarshal.AsBytes<ushort>(NodeData));
 		}
 
 		/// <summary>

@@ -9,7 +9,7 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Class for building byte sequences, similar to StringBuilder. Allocates memory in chunks to avoid copying data.
 	/// </summary>
-	public class ByteArrayBuilder
+	public class ByteArrayBuilder : IMemoryWriter
 	{
 		class Chunk
 		{
@@ -86,6 +86,24 @@ namespace EpicGames.Core
 		{
 			Span<byte> target = GetWritableSpan((int)sequence.Length);
 			sequence.CopyTo(target);
+		}
+
+		/// <inheritdoc/>
+		public Memory<byte> GetMemory(int minSize)
+		{
+			if (_currentChunk.Length + minSize > _currentChunk.Data.Length)
+			{
+				_currentChunk = new Chunk(_currentChunk.RunningIndex + _currentChunk.Length, Math.Max(minSize, _chunkSize));
+				_chunks.Add(_currentChunk);
+			}
+			return _currentChunk.Data.AsMemory(_currentChunk.Length, minSize);
+		}
+
+		/// <inheritdoc/>
+		public void Advance(int length)
+		{
+			_currentChunk.Length += length;
+			Length += length;
 		}
 
 		/// <summary>

@@ -191,9 +191,11 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="reader"></param>
 		/// <returns></returns>
-		public static Sha1Hash ReadSha1Hash(this MemoryReader reader)
+		public static Sha1Hash ReadSha1Hash(this IMemoryReader reader)
 		{
-			return new Sha1Hash(reader.ReadFixedLengthBytes(Sha1Hash.NumBytes).Span);
+			ReadOnlySpan<byte> span = reader.GetSpan(Sha1Hash.NumBytes);
+			reader.Advance(Sha1Hash.NumBytes);
+			return new Sha1Hash(span);
 		}
 
 		/// <summary>
@@ -201,9 +203,11 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="writer"></param>
 		/// <param name="hash"></param>
-		public static void WriteSha1Hash(this MemoryWriter writer, Sha1Hash hash)
+		public static void WriteSha1Hash(this IMemoryWriter writer, Sha1Hash hash)
 		{
-			hash.CopyTo(writer.AllocateSpan(Sha1Hash.NumBytes));
+			Span<byte> span = writer.GetSpan(Sha1Hash.NumBytes);
+			writer.Advance(Sha1Hash.NumBytes);
+			hash.CopyTo(span);
 		}
 	}
 

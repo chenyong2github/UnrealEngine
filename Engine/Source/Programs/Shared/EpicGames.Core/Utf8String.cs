@@ -474,30 +474,70 @@ namespace EpicGames.Core
 	/// <summary>
 	/// Extension methods for ReadOnlyUtf8String objects
 	/// </summary>
-	public static class MemoryWriterExtensions
+	public static class Utf8StringExtensions
 	{
 		/// <summary>
-		/// Reads a null-terminated utf8 string from the buffer
+		/// Reads a null-terminated utf8 string from the buffer, without copying it
 		/// </summary>
 		/// <returns>The string data</returns>
-		public static Utf8String ReadString(this MemoryReader reader)
+		public static Utf8String ReadUtf8String(this IMemoryReader reader)
 		{
-			ReadOnlySpan<byte> span = reader.Span;
-			int length = span.IndexOf((byte)0);
-			Utf8String value = new Utf8String(reader.ReadFixedLengthBytes(length));
-			reader.ReadInt8();
-			return value;
+			return ReadUtf8StringWithoutCopy(reader).Clone();
 		}
 
 		/// <summary>
-		/// Writes a UTF8 string into memory with a null terminator
+		/// Reads a null-terminated utf8 string from the buffer, without copying it
 		/// </summary>
-		/// <param name="writer">The memory writer to serialize to</param>
-		/// <param name="str">String to write</param>
-		public static void WriteString(this MemoryWriter writer, Utf8String str)
+		/// <returns>The string data</returns>
+		public static Utf8String ReadUtf8StringWithoutCopy(this IMemoryReader reader)
 		{
-			writer.WriteFixedLengthBytes(str.Span);
-			writer.WriteInt8(0);
+			return new Utf8String(reader.ReadVariableLengthBytes());
+		}
+
+		/// <summary>
+		/// Reads a null-terminated utf8 string from the buffer, without copying it
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="str">String to write</param>
+		public static void WriteUtf8String(this IMemoryWriter writer, Utf8String str)
+		{
+			writer.WriteVariableLengthBytes(str.Span);
+		}
+
+		/// <summary>
+		/// Reads a null-terminated utf8 string from the buffer, without copying it
+		/// </summary>
+		/// <returns>The string data</returns>
+		public static Utf8String ReadNullTerminatedUtf8String(this IMemoryReader reader)
+		{
+			int minSize = 1;
+			for (; ; )
+			{
+				ReadOnlyMemory<byte> memory = reader.GetMemory(minSize);
+
+				int length = memory.Span.IndexOf((byte)0);
+				if (length != -1)
+				{
+					Utf8String str = new Utf8String(memory.Slice(0, length));
+					reader.Advance(length + 1);
+					return str;
+				}
+
+				minSize = memory.Length + 1;
+			}
+		}
+
+		/// <summary>
+		/// Writes a null-terminated utf8 string to the buffer
+		/// </summary>
+		/// <param name="writer">Writer for the output data</param>
+		/// <param name="str">String to write</param>
+		public static void WriteNullTerminatedUtf8String(this IMemoryWriter writer, Utf8String str)
+		{
+			Span<byte> span = writer.GetSpan(str.Length + 1);
+			str.Span.CopyTo(span);
+			span[str.Length] = 0;
+			writer.Advance(str.Length + 1);
 		}
 
 		/// <summary>
@@ -505,7 +545,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="str">The string to measure</param>
 		/// <returns>Size of the serialized string</returns>
-		public static int GetSerializedSize(this Utf8String str)
+		public static int GetNullTerminatedSize(this Utf8String str)
 		{
 			return str.Length + 1;
 		}

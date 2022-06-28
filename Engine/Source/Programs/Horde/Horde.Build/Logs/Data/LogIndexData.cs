@@ -78,7 +78,7 @@ namespace Horde.Build.Logs.Data
 		{
 			int lineIndex = reader.ReadInt32();
 			int lineCount = reader.ReadInt32();
-			ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+			ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytesWithInt32Length();
 			return new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 		}
 
@@ -91,7 +91,7 @@ namespace Horde.Build.Logs.Data
 		{
 			writer.WriteInt32(block.LineIndex);
 			writer.WriteInt32(block.LineCount);
-			writer.WriteVariableLengthBytes(block.CompressedPlainText.Span);
+			writer.WriteVariableLengthBytesWithInt32Length(block.CompressedPlainText.Span);
 		}
 
 		/// <summary>
@@ -519,7 +519,7 @@ namespace Horde.Build.Logs.Data
 				{
 					int lineIndex = (idx > 0) ? (blocks[idx - 1].LineIndex + blocks[idx - 1].LineCount) : 0;
 					int lineCount = reader.ReadInt32();
-					ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+					ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytesWithInt32Length();
 					reader.ReadTrie();
 					blocks[idx] = new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 				}
@@ -536,7 +536,7 @@ namespace Horde.Build.Logs.Data
 				{
 					int lineIndex = reader.ReadInt32();
 					int lineCount = reader.ReadInt32();
-					ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytes();
+					ReadOnlyMemory<byte> compressedPlainText = reader.ReadVariableLengthBytesWithInt32Length();
 					reader.ReadTrie();
 					blocks[idx] = new LogIndexBlock(lineIndex, lineCount, null, compressedPlainText);
 				}
@@ -597,7 +597,7 @@ namespace Horde.Build.Logs.Data
 
 			MemoryWriter writer = new MemoryWriter(buffer);
 			Write(writer);
-			writer.CheckOffset(buffer.Length);
+			writer.CheckEmpty();
 
 			return buffer;
 		}

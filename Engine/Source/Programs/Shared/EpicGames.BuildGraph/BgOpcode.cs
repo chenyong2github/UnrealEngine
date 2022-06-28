@@ -132,7 +132,7 @@ namespace EpicGames.BuildGraph
 		StrLiteral = 0x21,
 
 		/// <summary>
-		/// Compares two strings for equality, using a <see cref="StringComparison"/> value encoded into the byte stream as an unsigned <see cref="VarInt"/>.
+		/// Compares two strings for equality, using a <see cref="StringComparison"/> value encoded into the byte stream as an unsigned <see cref="EpicGames.Core.VarInt"/>.
 		/// </summary>
 		StrCompare = 0x22,
 
