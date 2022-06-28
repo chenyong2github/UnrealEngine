@@ -85,7 +85,7 @@ public class AclEntry
                     claimFound = true;
                 }
             }
-            else if (user.HasClaim(claim => claim.Type == expectedClaim))
+            else if (user.HasClaim(claim => string.Equals(claim.Type, expectedClaim, StringComparison.OrdinalIgnoreCase)))
             {
                 claimFound = true;
             }
