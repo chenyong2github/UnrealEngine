@@ -233,6 +233,14 @@ void SNiagaraBakerWidget::Construct(const FArguments& InArgs)
 
 	BakerToolbarBuilder.AddComboButton(
 		FUIAction(),
+		FOnGetContent::CreateSP(this, &SNiagaraBakerWidget::MakeSettingsMenu),
+		FText::GetEmpty(),
+		LOCTEXT("SettingsToolTip", "Modify baker settings"),
+		FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "NiagaraEditor.BakerSettings")
+	);
+
+	BakerToolbarBuilder.AddComboButton(
+		FUIAction(),
 		FOnGetContent::CreateSP(this, &SNiagaraBakerWidget::MakeCameraModeMenu),
 		TAttribute<FText>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentCameraModeText),
 		LOCTEXT("CameraModeToolTip", "Change the camera used to render from"),
@@ -558,6 +566,89 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeCameraModeMenu()
 	return MenuBuilder.MakeWidget();
 }
 
+TSharedRef<SWidget> SNiagaraBakerWidget::MakeSettingsMenu()
+{
+	using namespace NiagaraBakerWidgetLocal;
+
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
+	check(ViewModel != nullptr);
+
+	FMenuBuilder MenuBuilder(true, nullptr);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ShowRealtimePreview", "Show Realtime Preview"),
+		LOCTEXT("ShowRealtimePreviewTooltip", "When enabled shows a live preview of what will be rendered, this may not be accurate with all visualization modes."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleRealtimePreview),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowRealtimePreview)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ShowBakedView", "Show Baked View"),
+		LOCTEXT("ShowBakedViewTooltip", "When enabled shows the baked texture."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleBakedView),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowBakedView)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ShowCheckerboard", "Show Checkerboard"),
+		LOCTEXT("ShowCheckerboardTooltip", "Show a checkerboard rather than a solid color to easily visualize alpha blending."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleCheckerboardEnabled),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsCheckerboardEnabled)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ShowInfoText", "Show Info Text"),
+		LOCTEXT("ShowInfoTextTooltip", "Shows information about the preview and baked outputs."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleInfoText),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowInfoText)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ShowNiagaraOnly", "Render Niagara Only"),
+		LOCTEXT("ShowNiagaraOnlyTooltip", "Renders only the Niagara System when enabled."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleRenderComponentOnly),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowRenderComponentOnly)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	MenuBuilder.AddSubMenu(
+		LOCTEXT("SimulationTickRate", "Simulation Tick Rate"),
+		LOCTEXT("SimulationTickRateToolTip", "The rate at which the simulation will tick, i.e. 120fps, 60fps, 30fps, etc."),
+		FNewMenuDelegate::CreateSP(this, &SNiagaraBakerWidget::MakeSimTickRateMenu)
+	);
+
+	return MenuBuilder.MakeWidget();
+}
+
 TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 {
 	using namespace NiagaraBakerWidgetLocal;
@@ -567,147 +658,72 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeViewOptionsMenu()
 
 	FMenuBuilder MenuBuilder(true, nullptr);
 
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("PreviewSettings", "Preview Settings"));
-	{
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowRealtimePreview", "Show Realtime Preview"),
-			LOCTEXT("ShowRealtimePreviewTooltip", "When enabled shows a live preview of what will be rendered, this may not be accurate with all visualization modes."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleRealtimePreview),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowRealtimePreview)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+	MenuBuilder.AddWidget(
+		FMakeVectorBox::Construct(
+			FMakeVectorBox::FGetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentCameraLocation),
+			FMakeVectorBox::FSetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCurrentCameraLocation)
+		),
+		LOCTEXT("CameraLocation", "Camera Location")
+	);
 
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowBakedView", "Show Baked View"),
-			LOCTEXT("ShowBakedViewTooltip", "When enabled shows the baked texture."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleBakedView),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowBakedView)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
+	MenuBuilder.AddWidget(
+		FMakeRotatorBox::Construct(
+			FMakeRotatorBox::FGetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentCameraRotation),
+			FMakeRotatorBox::FSetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCurrentCameraRotation)
+		),
+		LOCTEXT("CameraRotation", "Camera Rotation")
+	);
 
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowCheckerboard", "Show Checkerboard"),
-			LOCTEXT("ShowCheckerboardTooltip", "Show a checkerboard rather than a solid color to easily visualize alpha blending."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleCheckerboardEnabled),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsCheckerboardEnabled)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowInfoText", "Show Info Text"),
-			LOCTEXT("ShowInfoTextTooltip", "Shows information about the preview and baked outputs."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleInfoText),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowInfoText)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowNiagaraOnly", "Render Niagara Only"),
-			LOCTEXT("ShowNiagaraOnlyTooltip", "Renders only the Niagara System when enabled."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleRenderComponentOnly),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::ShowRenderComponentOnly)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		//DetailCategory.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bPreviewLooping));
-		//DetailCategory.HideProperty(GET_MEMBER_NAME_CHECKED(UNiagaraBakerSettings, bRenderComponentOnly));
-	}
-
-	MenuBuilder.BeginSection(NAME_None, LOCTEXT("Camera", "Camera"));
+	if ( ViewModel->IsCurrentCameraPerspective() )
 	{
 		MenuBuilder.AddWidget(
-			FMakeVectorBox::Construct(
-				FMakeVectorBox::FGetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentCameraLocation),
-				FMakeVectorBox::FSetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCurrentCameraLocation)
-			),
-			LOCTEXT("CameraLocation", "Camera Location")
+			MakeSpinBox<float>(1.0f, 170.0f, 1.0f, 170.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraFOV), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraFOV)),
+			LOCTEXT("FOVAngle", "Field of View (H)")
 		);
 
 		MenuBuilder.AddWidget(
-			FMakeRotatorBox::Construct(
-				FMakeRotatorBox::FGetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCurrentCameraRotation),
-				FMakeRotatorBox::FSetter::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCurrentCameraRotation)
-			),
-			LOCTEXT("CameraRotation", "Camera Rotation")
-		);
-
-		if ( ViewModel->IsCurrentCameraPerspective() )
-		{
-			MenuBuilder.AddWidget(
-				MakeSpinBox<float>(1.0f, 170.0f, 1.0f, 170.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraFOV), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraFOV)),
-				LOCTEXT("FOVAngle", "Field of View (H)")
-			);
-
-			MenuBuilder.AddWidget(
-				MakeSpinBox<float>(0.0f, TOptional<float>(), 0.0f, 1000.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraOrbitDistance), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraOrbitDistance)),
-				LOCTEXT("OrbitDistance", "Orbit Distance")
-			);
-		}
-		else
-		{
-			MenuBuilder.AddWidget(
-				MakeSpinBox<float>(0.1f, TOptional<float>(), 0.1f, 1000.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraOrthoWidth), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraOrthoWidth)),
-				LOCTEXT("CameraOrthoWidth", "Camera Orthographic Width")
-			);
-		}
-
-		//-TODO: Clean this up
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("CustomAspectRatio", "Custom Aspect Ratio"),
-			LOCTEXT("CustomAspectRatioTooltip", "Use a custom aspect ratio to render with."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleCameraAspectRatioEnabled),
-				FCanExecuteAction(),
-				FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsCameraAspectRatioEnabled)
-			),
-			NAME_None,
-			EUserInterfaceActionType::ToggleButton
-		);
-
-		if ( ViewModel->IsCameraAspectRatioEnabled() )
-		{
-			MenuBuilder.AddWidget(
-				MakeSpinBox<float>(0.1f, 5.0f, 0.1f, 5.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraAspectRatio), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraAspectRatio)),
-				LOCTEXT("CameraAspectRatio", "Camera Aspect Ratio")
-			);
-		}
-
-		MenuBuilder.AddMenuEntry(
-			LOCTEXT("ResetCamera", "Reset Camera"),
-			LOCTEXT("ResetCameraTooltip", "Resets the current camera back to the default settings."),
-			FSlateIcon(),
-			FUIAction(
-				FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ResetCurrentCamera)
-			)
+			MakeSpinBox<float>(0.0f, TOptional<float>(), 0.0f, 1000.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraOrbitDistance), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraOrbitDistance)),
+			LOCTEXT("OrbitDistance", "Orbit Distance")
 		);
 	}
-	MenuBuilder.EndSection();
+	else
+	{
+		MenuBuilder.AddWidget(
+			MakeSpinBox<float>(0.1f, TOptional<float>(), 0.1f, 1000.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraOrthoWidth), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraOrthoWidth)),
+			LOCTEXT("CameraOrthoWidth", "Camera Orthographic Width")
+		);
+	}
+
+	//-TODO: Clean this up
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("CustomAspectRatio", "Custom Aspect Ratio"),
+		LOCTEXT("CustomAspectRatioTooltip", "Use a custom aspect ratio to render with."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ToggleCameraAspectRatioEnabled),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsCameraAspectRatioEnabled)
+		),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
+	if ( ViewModel->IsCameraAspectRatioEnabled() )
+	{
+		MenuBuilder.AddWidget(
+			MakeSpinBox<float>(0.1f, 5.0f, 0.1f, 5.0f, TAttribute<float>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetCameraAspectRatio), SSpinBox<float>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetCameraAspectRatio)),
+			LOCTEXT("CameraAspectRatio", "Camera Aspect Ratio")
+		);
+	}
+
+	MenuBuilder.AddMenuEntry(
+		LOCTEXT("ResetCamera", "Reset Camera"),
+		LOCTEXT("ResetCameraTooltip", "Resets the current camera back to the default settings."),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::ResetCurrentCamera)
+		)
+	);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -759,6 +775,42 @@ TSharedRef<SWidget> SNiagaraBakerWidget::MakeAddOutputMenu()
 	}
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SNiagaraBakerWidget::MakeSimTickRateMenu(FMenuBuilder& MenuBuilder) const
+{
+	using namespace NiagaraBakerWidgetLocal;
+
+	FNiagaraBakerViewModel* ViewModel = WeakViewModel.Pin().Get();
+	check(ViewModel != nullptr);
+
+	MenuBuilder.AddWidget(
+		MakeSpinBox<int>(1, 480, 1, 480, TAttribute<int>::CreateSP(ViewModel, &FNiagaraBakerViewModel::GetSimTickRate), SSpinBox<int>::FOnValueChanged::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetSimTickRate)),
+		LOCTEXT("SimTickRate", "Simulation Tick Rate")
+	);
+
+	MenuBuilder.BeginSection("FPS", LOCTEXT("FPS", "FPS"));
+	{
+		static const int32 DefaultFPS[] = { 240, 120, 60, 50, 30, 20, 15 };
+
+		for (int32 FPS : DefaultFPS)
+		{
+			FText FPSText = FText::Format(LOCTEXT("FPSFormat", "{0} fps"), FPS);
+			MenuBuilder.AddMenuEntry(
+				FPSText,
+				FText::GetEmpty(),
+				FSlateIcon(),
+				FUIAction(
+					FExecuteAction::CreateSP(ViewModel, &FNiagaraBakerViewModel::SetSimTickRate, FPS),
+					FCanExecuteAction(),
+					FIsActionChecked::CreateSP(ViewModel, &FNiagaraBakerViewModel::IsSimTickRate, FPS)
+				),
+				NAME_None,
+				EUserInterfaceActionType::ToggleButton
+			);
+		}
+	}
+	MenuBuilder.EndSection();
 }
 
 void SNiagaraBakerWidget::FindWarnings()

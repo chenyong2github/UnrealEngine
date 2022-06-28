@@ -9,6 +9,7 @@ class FNiagaraBakerViewModel;
 class SNiagaraBakerViewport;
 class SNiagaraBakerTimelineWidget;
 class IDetailsView;
+class FMenuBuilder;
 
 class SNiagaraBakerWidget : public SCompoundWidget
 {
@@ -27,9 +28,12 @@ public:
 	TSharedRef<SWidget> MakeSettingsWidget();
 
 	TSharedRef<SWidget> MakeCameraModeMenu();
+	TSharedRef<SWidget> MakeSettingsMenu();
 	TSharedRef<SWidget> MakeViewOptionsMenu();
 	TSharedRef<SWidget> MakeOutputSelectMenu();
 	TSharedRef<SWidget> MakeAddOutputMenu();
+
+	void MakeSimTickRateMenu(FMenuBuilder& MenuBuilder) const;
 
 	void FindWarnings();
 	bool HasWarnings() const { return FoundWarnings.Num() > 0; }

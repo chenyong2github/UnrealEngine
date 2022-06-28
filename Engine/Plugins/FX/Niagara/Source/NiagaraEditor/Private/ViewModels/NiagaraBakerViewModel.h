@@ -103,6 +103,10 @@ public:
 
 	void ResetCurrentCamera();
 
+	bool IsSimTickRate(int TickRate) const;
+	int GetSimTickRate() const;
+	void SetSimTickRate(int TickRate);
+
 	void AddOutput(UClass* Class);
 	void RemoveCurrentOutput();
 	bool CanRemoveCurrentOutput() const;

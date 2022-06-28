@@ -348,6 +348,32 @@ void FNiagaraBakerViewModel::ResetCurrentCamera()
 	}
 }
 
+bool FNiagaraBakerViewModel::IsSimTickRate(int TickRate) const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->FramesPerSecond == TickRate : false;
+}
+
+int FNiagaraBakerViewModel::GetSimTickRate() const
+{
+	UNiagaraBakerSettings* BakerSettings = GetBakerSettings();
+	return BakerSettings ? BakerSettings->FramesPerSecond : 60;
+}
+
+void FNiagaraBakerViewModel::SetSimTickRate(int TickRate)
+{
+	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
+	{
+		TickRate = FMath::Max(TickRate, 1);
+		if (BakerSettings->FramesPerSecond != TickRate)
+		{
+			const FScopedTransaction Transaction(LOCTEXT("SetSimTickRate", "SetSimTickRate"));
+			BakerSettings->Modify();
+			BakerSettings->FramesPerSecond = TickRate;
+		}
+	}
+}
+
 void FNiagaraBakerViewModel::AddOutput(UClass* Class)
 {
 	if (UNiagaraBakerSettings* BakerSettings = GetBakerSettings())
