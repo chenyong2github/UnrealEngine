@@ -68,11 +68,12 @@ TEXTUREBUILDUTILITIES_API const FName TextureFormatRemovePrefixFromName(FName co
 
 TEXTUREBUILDUTILITIES_API ERawImageFormat::Type GetVirtualTextureBuildIntermediateFormat(const FTextureBuildSettings& BuildSettings)
 {
-	FName TextureFormatPrefix;
-	const FName TextureFormatName = TextureFormatRemovePrefixFromName(BuildSettings.TextureFormatName, TextureFormatPrefix);
+	const FName TextureFormatName = TextureFormatRemovePrefixFromName(BuildSettings.TextureFormatName);
 
-	// @todo Oodle: @@!! bIsHdr shouldn't be looking at HDRSource !
-	//	FIX ME beware possible changes to output; have to verify it's a nop on real data
+	// note: using RGBA16F when the Source is HDR but the output is not HDR is not needed
+	//	you could use BGRA8 intermediate in that case
+	//	but it's rare and not a big problem, so leave it alone for now
+
 	const bool bIsHdr = BuildSettings.bHDRSource || TextureFormatIsHdr(TextureFormatName);
 
 	if (bIsHdr)

@@ -70,6 +70,7 @@
 // This is put in the DDC1 key but NOT in the DDC2 key
 #define TEXTURE_VT_DERIVEDDATA_VER	TEXT("7C16439390E24F1F9468894FB4D4BC54")
 
+
 #if ENABLE_COOK_STATS
 namespace TextureCookStats
 {
@@ -194,6 +195,15 @@ static void SerializeForKey(FArchive& Ar, const FTextureBuildSettings& Settings)
 		TempByte = 0; Ar << TempByte;
 		TempByte = Settings.LossyCompressionAmount; Ar << TempByte; // Lossy compression currently only used by VT
 		TempByte = Settings.bApplyYCoCgBlockScale; Ar << TempByte; // YCoCg currently only used by VT
+
+		
+		// @todo SerializeForKey these can go away whenever we bump the overall ddc key:
+		if ( Settings.bSRGB && Settings.bUseLegacyGamma )
+		{
+			// processing changed, modify ddc key :
+			TempGuid = FGuid(0xA227BEFC,0x9F8643C6,0x81580369,0xC4C6F73E);
+			Ar << TempGuid;
+		}
 	}
 
 	// Avoid changing key if texture is not being downscaled

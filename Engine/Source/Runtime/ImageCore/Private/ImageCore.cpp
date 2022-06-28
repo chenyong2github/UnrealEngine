@@ -752,6 +752,7 @@ static FLinearColor SampleImage(const FLinearColor* Pixels, int Width, int Heigh
 
 static void ResizeImage(const FImage& SrcImage, FImage& DestImage)
 {
+	// Src and Dest should both now be RGBA32F and Linear gamma
 	const FLinearColor* SrcPixels = SrcImage.AsRGBA32F().GetData();
 	FLinearColor* DestPixels = DestImage.AsRGBA32F().GetData();
 	const float DestToSrcScaleX = (float)SrcImage.SizeX / (float)DestImage.SizeX;
@@ -871,9 +872,20 @@ void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawI
 		CopyTo(TempSrcImage, ERawImageFormat::RGBA32F, EGammaSpace::Linear);
 		SrcImagePtr = &TempSrcImage;
 	}
+	else if ( GammaSpace != EGammaSpace::Linear )
+	{
+		UE_LOG(LogImageCore, Warning, TEXT("Resize from source Format RGBA32F was called but source GammaSpace is not Linear"));
+	}
+
+	// now SrcImagePtr should be RGBA32F and Linear
 
 	if (DestFormat == ERawImageFormat::RGBA32F)
 	{
+		if ( DestGammaSpace != EGammaSpace::Linear )
+		{
+			UE_LOG(LogImageCore, Warning, TEXT("Resize to DestFormat RGBA32F was called but DestGammaSpace is not Linear"));
+		}
+
 		DestImage.SizeX = DestSizeX;
 		DestImage.SizeY = DestSizeY;
 		DestImage.NumSlices = 1;
@@ -884,14 +896,21 @@ void FImage::ResizeTo(FImage& DestImage, int32 DestSizeX, int32 DestSizeY, ERawI
 	}
 	else
 	{
+		// first resize from RGBA32F to RGBA32F
 		FImage TempDestImage;
 		TempDestImage.SizeX = DestSizeX;
 		TempDestImage.SizeY = DestSizeY;
 		TempDestImage.NumSlices = 1;
 		TempDestImage.Format = ERawImageFormat::RGBA32F;
-		TempDestImage.GammaSpace = DestGammaSpace;
+		TempDestImage.GammaSpace = EGammaSpace::Linear;
 		InitImageStorage(TempDestImage);
 		ResizeImage(*SrcImagePtr, TempDestImage);
+
+		// then convert to dest format/gamma :
+		if ( DestGammaSpace == EGammaSpace::Pow22 )
+		{
+			UE_LOG(LogImageCore, Warning, TEXT("Resize incorrectly used with Pow22 Dest Gamma"));
+		}
 		TempDestImage.CopyTo(DestImage, DestFormat, DestGammaSpace);
 	}
 }

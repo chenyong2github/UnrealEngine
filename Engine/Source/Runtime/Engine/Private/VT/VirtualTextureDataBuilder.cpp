@@ -937,14 +937,21 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 				for (const FImage& SrcMip : SourceMips)
 				{
 					FImage* ScaledMip = new(ScaledSourceMips) FImage;
-					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
+					// Pow22 cannot be used as a destination gamma, so change it to sRGB now :
+					EGammaSpace GammaSpace = (SrcMip.GammaSpace == EGammaSpace::Pow22) ? EGammaSpace::sRGB : SrcMip.GammaSpace;
+					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, GammaSpace);
 				}
 
 				for (const FImage& SrcMip : *CompositeSourceMips)
 				{
 					FImage* ScaledMip = new(ScaledCompositeMips) FImage;
-					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, SrcMip.GammaSpace);
+					// Pow22 cannot be used as a destination gamma, so change it to sRGB now :
+					EGammaSpace GammaSpace = (SrcMip.GammaSpace == EGammaSpace::Pow22) ? EGammaSpace::sRGB : SrcMip.GammaSpace;
+					SrcMip.ResizeTo(*ScaledMip, SrcMip.SizeX * LocalBlockSizeScale, SrcMip.SizeY * LocalBlockSizeScale, SrcMip.Format, GammaSpace);
 				}
+
+				// Pow22 was converted to sRGB by Resize :
+				TBSettings.bUseLegacyGamma = false;
 
 				uint32 NumMipsInTail, ExtData;
 				bBuildTextureResult = Compressor->BuildTexture(ScaledSourceMips, ScaledCompositeMips, TBSettings, CurDebugTexturePathName, CompressedMips, NumMipsInTail, ExtData);
