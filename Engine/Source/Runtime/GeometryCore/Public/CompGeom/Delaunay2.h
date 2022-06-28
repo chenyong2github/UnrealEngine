@@ -220,6 +220,33 @@ public:
 	// @return true if the edge is in the triangulation
 	bool HasEdge(const FIndex2i& Edge, bool bRemapDuplicates);
 
+	/**
+	 * Get Voronoi diagram cells as dual of the Delaunay triangulation.  You must call Triangulate() before calling this.
+	 * @param Vertices			Vertices of the Delaunay triangulation, to be used as the sites of the Voronoi diagram
+	 * @param bIncludeBoundary	If true, include the cells on the boundary of the diagram.  These cells are conceptually infinite, but will be clipped to a bounding box.
+	 * @param ClipBounds		If non-empty, all Voronoi diagram cells will be clipped to this rectangle.
+	 * @param ExpandBounds		Amount to expand the clipping bounds beyond the Bounds argument (or the bounding box of non-boundary Voronoi cells, if Bounds was empty)
+	 * @return					The cells of each Voronoi site, or an empty array if the Triangulation was not yet computed
+	 */
+	TArray<TArray<FVector2d>> GetVoronoiCells(TArrayView<const FVector2d> Vertices, bool bIncludeBoundary = false, FAxisAlignedBox2d ClipBounds = FAxisAlignedBox2d::Empty(), double ExpandBounds = 0.0) const;
+	TArray<TArray<FVector2f>> GetVoronoiCells(TArrayView<const FVector2f> Vertices, bool bIncludeBoundary = false, FAxisAlignedBox2f ClipBounds = FAxisAlignedBox2f::Empty(), float ExpandBounds = 0.0f) const;
+
+	/**
+	 * Compute Voronoi diagram cells
+	 * @param Sites				Positions to use as the sites of the Voronoi diagram
+	 * @param bIncludeBoundary	If true, include the cells on the boundary of the diagram.  These cells are conceptually infinite, but will be clipped to a bounding box.
+	 * @param ClipBounds		If non-empty, all Voronoi diagram cells will be clipped to this rectangle.
+	 * @param ExpandBounds		Amount to expand the clipping bounds beyond the Bounds argument (or the bounding box of non-boundary Voronoi cells, if Bounds was empty)
+	 * @return					The cells of each Voronoi site, or an empty array if the Triangulation was not yet computed
+	 */
+	template<typename RealType>
+	static TArray<TArray<TVector2<RealType>>> ComputeVoronoiCells(TArrayView<const TVector2<RealType>> Sites, bool bIncludeBoundary = false, TAxisAlignedBox2<RealType> ClipBounds = FAxisAlignedBox2f::Empty(), RealType ExpandBounds = (RealType)0)
+	{
+		FDelaunay2 Delaunay;
+		Delaunay.Triangulate(Sites);
+		return Delaunay.GetVoronoiCells(Sites, bIncludeBoundary, ClipBounds, ExpandBounds);
+	}
+
 protected:
 	TPimplPtr<FDelaunay2Connectivity> Connectivity;
 

@@ -418,6 +418,31 @@ namespace VectorUtil
 	}
 
 
+	/**
+	 * @return circumcenter of triangle ABC
+	 */
+	template<typename RealType>
+	inline TVector2<RealType> Circumcenter(TVector2<RealType> A, TVector2<RealType> B, const TVector2<RealType>& C, RealType Epsilon = TMathUtilConstants<RealType>::Epsilon)
+	{
+		// Compute in offset space w/ A translated to origin
+		TVector2<RealType> AB = B - A;
+		TVector2<RealType> AC = C - A;
+		
+		RealType Denom = 2 * DotPerp(AB,AC);
+		if (FMath::Abs(Denom) <= Epsilon)
+		{
+			// degenerate (flat) triangle does not have a (finite) circumcenter ...
+			// we'll just fall back to the centroid in this case
+			return A + (AB + AC) * RealType(1.0/3.0);
+		}
+		RealType ABLenSq = AB.SquaredLength();
+		RealType ACLenSq = AC.SquaredLength();
+		TVector2<RealType> Center(
+			A.X + (AC.Y * ABLenSq - AB.Y * ACLenSq) / Denom,
+			A.Y + (AB.X * ACLenSq - AC.X * ABLenSq) / Denom
+			);
+		return Center;
+	}
 
 	/**
 	 * @return sign of Bitangent relative to Normal and Tangent
