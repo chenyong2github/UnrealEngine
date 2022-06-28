@@ -14,7 +14,10 @@
 #include "CADKernel/Mesh/Structure/Grid.h"
 #include "CADKernel/Topo/Shell.h"
 #include "CADKernel/Topo/TopologicalEdge.h"
+
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Topo/TopologyReport.h"
+#endif
 
 namespace CADKernel
 {
@@ -337,6 +340,7 @@ const FTopologicalEdge* FTopologicalFace::GetLinkedEdge(const FTopologicalEdge& 
 	return nullptr;
 }
 
+#ifdef CADKERNEL_DEV
 void FTopologicalFace::FillTopologyReport(FTopologyReport& Report) const
 {
 	Report.Add(this);
@@ -349,6 +353,7 @@ void FTopologicalFace::FillTopologyReport(FTopologyReport& Report) const
 		}
 	}
 }
+#endif
 
 void FTopologicalFace::GetEdgeIndex(const FTopologicalEdge& Edge, int32& OutBoundaryIndex, int32& OutEdgeIndex) const
 {

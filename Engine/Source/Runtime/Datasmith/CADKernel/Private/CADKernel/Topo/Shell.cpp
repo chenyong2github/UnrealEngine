@@ -4,7 +4,10 @@
 #include "CADKernel/Geo/GeoEnum.h"
 #include "CADKernel/Topo/Body.h"
 #include "CADKernel/Topo/TopologicalFace.h"
+
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Topo/TopologyReport.h"
+#endif
 
 namespace CADKernel
 {
@@ -249,7 +252,8 @@ void FShell::CheckTopology(TArray<FFaceSubset>& Subshells)
 	ResetMarkersRecursively();
 }
 
-void FShell::FillTopologyReport(FTopologyReport& Report) const 
+#ifdef CADKERNEL_DEV
+void FShell::FillTopologyReport(FTopologyReport& Report) const
 {
 	Report.Add(this);
 	for (const FOrientedFace& OrientedFace : GetFaces())
@@ -257,6 +261,7 @@ void FShell::FillTopologyReport(FTopologyReport& Report) const
 		OrientedFace.Entity->FillTopologyReport(Report);
 	}
 }
+#endif
 
 int32 FShell::Orient()
 {

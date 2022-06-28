@@ -3,8 +3,10 @@
 
 #include "CADKernel/Topo/Model.h"
 #include "CADKernel/Topo/Shell.h"
-#include "CADKernel/Topo/TopologyReport.h"
 
+#ifdef CADKERNEL_DEV
+#include "CADKernel/Topo/TopologyReport.h"
+#endif
 
 namespace CADKernel
 {
@@ -46,7 +48,6 @@ FInfoEntity& FBody::GetInfo(FInfoEntity& Info) const
 {
 	return FTopologicalShapeEntity::GetInfo(Info).Add(TEXT("Shells"), Shells);
 }
-#endif
 
 void FBody::FillTopologyReport(FTopologyReport& Report) const
 {
@@ -56,5 +57,6 @@ void FBody::FillTopologyReport(FTopologyReport& Report) const
 		Shell->FillTopologyReport(Report);
 	}
 }
+#endif
 
 }

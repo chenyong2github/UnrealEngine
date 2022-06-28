@@ -46,7 +46,9 @@ namespace CADKernel
 		 */
 		virtual void SpreadBodyOrientation() = 0;
 
+#ifdef CADKERNEL_DEV
 		virtual void FillTopologyReport(FTopologyReport& Report) const = 0;
+#endif
 
 		FTopologicalShapeEntity* GetHost()
 		{

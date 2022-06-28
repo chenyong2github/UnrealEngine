@@ -6,7 +6,10 @@
 #include "CADKernel/Topo/TopologicalEdge.h"
 #include "CADKernel/Topo/TopologicalFace.h"
 #include "CADKernel/Topo/TopologicalVertex.h"
+
+#ifdef CADKERNEL_DEV
 #include "CADKernel/Topo/TopologyReport.h"
+#endif
 
 namespace CADKernel
 {
@@ -193,6 +196,7 @@ for (const FFaceSubset& Subset : SubShells)
 	}
 }
 
+#ifdef CADKERNEL_DEV
 void FModel::FillTopologyReport(FTopologyReport& Report) const
 {
 	for (TSharedPtr<FBody> Body : Bodies)
@@ -205,6 +209,7 @@ void FModel::FillTopologyReport(FTopologyReport& Report) const
 		Face->FillTopologyReport(Report);
 	}
 }
+#endif
 
 void FModel::Orient()
 {

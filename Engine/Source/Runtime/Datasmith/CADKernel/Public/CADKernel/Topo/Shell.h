@@ -132,7 +132,10 @@ public:
 	virtual void UpdateShellOrientation();
 
 	void CheckTopology(TArray<FFaceSubset>& Subshells);
+
+#ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;
+#endif
 
 	/**
 	 * @return true if the shell has at least one border edge

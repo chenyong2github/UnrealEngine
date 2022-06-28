@@ -114,7 +114,9 @@ public:
 		}
 	}
 
+#ifdef CADKERNEL_DEV
 	virtual void FillTopologyReport(FTopologyReport& Report) const override;
+#endif
 
 };
 
