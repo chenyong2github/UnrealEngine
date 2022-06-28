@@ -160,6 +160,8 @@ void FAutomationWorkerModule::Initialize()
 	ExecutionCount = INDEX_NONE;
 	bExecutingNetworkCommandResults = false;
 	bSendAnalytics = false;
+
+	FParse::Value(FCommandLine::Get(), TEXT("-DeviceTag="), DeviceTag);
 }
 
 void FAutomationWorkerModule::ReportNetworkCommandComplete()
@@ -329,8 +331,11 @@ void FAutomationWorkerModule::SendWorkerFound(const FMessageAddress& ControllerA
 	FString OSVersionString = OSMajorVersionString + TEXT(" ") + OSSubVersionString;
 	FString CPUModelString = FPlatformMisc::GetCPUBrand().TrimStart();
 
-	Response->DeviceName = FPlatformProcess::ComputerName();
-	Response->InstanceName = FString::Printf(TEXT("%s-%i"), FPlatformProcess::ComputerName(), FPlatformProcess::GetCurrentProcessId());
+	FString DeviceName = DeviceTag.IsEmpty() ? FPlatformProcess::ComputerName() : DeviceTag;
+	FString DeviceId = FPlatformMisc::GetDeviceId().IsEmpty() ? DeviceName : FPlatformMisc::GetDeviceId();
+
+	Response->DeviceName = DeviceName;
+	Response->InstanceName = FString::Printf(TEXT("%s-%s"), *DeviceId, *FApp::GetSessionId().ToString());
 	Response->Platform = FPlatformProperties::PlatformName();
 	Response->SessionId = FApp::GetSessionId();
 	Response->OSVersionName = OSVersionString;

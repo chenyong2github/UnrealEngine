@@ -732,6 +732,12 @@ namespace Gauntlet
 					// todo - should this be elsewhere?
 					AppConfig.Sandbox = Sandbox;
 
+					// Tag the device for report result
+					if(BuildHostPlatform.Current.Platform != Device.Platform)
+					{
+						AppConfig.CommandLineParams.Add("DeviceTag", Device.Name);
+					}
+
 					IAppInstall Install = null;
 
 					IDeviceUsageReporter.RecordStart(Device.Name, Device.Platform, IDeviceUsageReporter.EventType.Device, IDeviceUsageReporter.EventState.Success);

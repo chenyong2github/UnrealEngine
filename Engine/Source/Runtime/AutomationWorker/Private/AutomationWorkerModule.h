@@ -162,4 +162,7 @@ private:
 
 	/** Delegate to fire when the test is complete */
 	FStopTestEvent StopTestEvent;
+
+	/** Tag for the device on which the worker is running */
+	FString DeviceTag;
 };
