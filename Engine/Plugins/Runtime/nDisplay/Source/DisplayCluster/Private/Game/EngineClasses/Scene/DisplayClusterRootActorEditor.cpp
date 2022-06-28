@@ -424,7 +424,7 @@ bool ADisplayClusterRootActor::ImplRenderPassPreviewClusterNode_Editor()
 
 void ADisplayClusterRootActor::ImplRenderPreview_Editor()
 {
-	if (!bPreviewEnable || !ViewportManager.IsValid())
+	if (CurrentConfigData == nullptr || !bPreviewEnable || !ViewportManager.IsValid())
 	{
 		// no preview
 		return;
@@ -499,7 +499,7 @@ void ADisplayClusterRootActor::ImplRenderPreview_Editor()
 
 void ADisplayClusterRootActor::ImplRenderPreviewFrustums_Editor()
 {
-	if (!ViewportManager.IsValid())
+	if (CurrentConfigData == nullptr || !ViewportManager.IsValid())
 	{
 		return;
 	}
