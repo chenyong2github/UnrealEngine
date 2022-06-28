@@ -12,7 +12,7 @@ const FName SConcertArchivedSessionTabView::HistoryTabId("HistoryTabId");
 
 void SConcertArchivedSessionTabView::Construct(const FArguments& InArgs, FName InStatusBarID)
 {
-	check(InArgs._MakeSessionHistory.IsBound() && InArgs._CanDeleteActivity.IsBound());
+	check(InArgs._MakeSessionHistory.IsBound() && InArgs._CanDeleteActivities.IsBound() && InArgs._CanMuteActivities.IsBound());
 	SConcertTabViewWithManagerBase::Construct(
 		SConcertTabViewWithManagerBase::FArguments()
 		.ConstructUnderWindow(InArgs._ConstructUnderWindow)
@@ -28,7 +28,15 @@ void SConcertArchivedSessionTabView::Construct(const FArguments& InArgs, FName I
 
 void SConcertArchivedSessionTabView::CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs)
 {
-	InTabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertArchivedSessionTabView::SpawnActivityHistory, InArgs._MakeSessionHistory, InArgs._CanDeleteActivity, InArgs._DeleteActivity))
+	InTabManager->RegisterTabSpawner(HistoryTabId, FOnSpawnTab::CreateSP(this, &SConcertArchivedSessionTabView::SpawnActivityHistory,
+		InArgs._MakeSessionHistory,
+		InArgs._CanDeleteActivities,
+		InArgs._DeleteActivities,
+		InArgs._CanMuteActivities,
+		InArgs._MuteActivities,
+		InArgs._CanUnmuteActivities,
+		InArgs._UnmuteActivities
+		))
 		.SetDisplayName(LOCTEXT("ActivityHistoryLabel", "History"));
 	InLayout->AddArea
 		(
@@ -46,13 +54,21 @@ void SConcertArchivedSessionTabView::CreateTabs(const TSharedRef<FTabManager>& I
 TSharedRef<SDockTab> SConcertArchivedSessionTabView::SpawnActivityHistory(
 	const FSpawnTabArgs& Args,
 	SEditableSessionHistory::FMakeSessionHistory MakeSessionHistory,
-	SEditableSessionHistory::FCanDeleteActivities CanDeleteActivity,
-	SEditableSessionHistory::FRequestDeleteActivities DeleteActivity)
+	SEditableSessionHistory::FCanPerformActionOnActivities CanDeleteActivities,
+	SEditableSessionHistory::FRequestActivitiesAction DeleteActivities,
+	SEditableSessionHistory::FCanPerformActionOnActivities CanMuteActivities,
+	SEditableSessionHistory::FRequestActivitiesAction MuteActivities,
+	SEditableSessionHistory::FCanPerformActionOnActivities CanUnmuteActivities,
+	SEditableSessionHistory::FRequestActivitiesAction UnmuteActivities)
 {
 	SessionHistory = SNew(SEditableSessionHistory)
 		.MakeSessionHistory(MoveTemp(MakeSessionHistory))
-		.CanDeleteActivity(MoveTemp(CanDeleteActivity))
-		.DeleteActivity(MoveTemp(DeleteActivity));
+		.CanDeleteActivities(MoveTemp(CanDeleteActivities))
+		.DeleteActivities(MoveTemp(DeleteActivities))
+		.CanMuteActivities(MoveTemp(CanMuteActivities))
+		.MuteActivities(MoveTemp(MuteActivities))
+		.CanUnmuteActivities(MoveTemp(CanUnmuteActivities))
+		.UnmuteActivities(MoveTemp(UnmuteActivities));
 	return SNew(SDockTab)
 		.Label(LOCTEXT("ActivityHistoryLabel", "History"))
 		.TabRole(PanelTab)

@@ -73,7 +73,8 @@ void SSessionHistory::Construct(const FArguments& InArgs)
 		.IsAutoScrollEnabled(true)
 		.ColumnVisibilitySnapshot(InArgs._ColumnVisibilitySnapshot)
 		.SaveColumnVisibilitySnapshot(InArgs._SaveColumnVisibilitySnapshot)
-		.SelectionMode(InArgs._SelectionMode);
+		.SelectionMode(InArgs._SelectionMode)
+		.DarkenMutedActivities(InArgs._DarkenMutedActivities);
 
 	ChildSlot
 	[

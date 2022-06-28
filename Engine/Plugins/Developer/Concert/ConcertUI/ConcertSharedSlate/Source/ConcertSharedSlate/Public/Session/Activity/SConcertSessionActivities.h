@@ -84,7 +84,9 @@ public:
 		, _TransactionActivitiesVisibility(EVisibility::Visible)
 		, _IgnoredActivitiesVisibility(EVisibility::Hidden)
 		, _DetailsAreaVisibility(EVisibility::Hidden)
-		, _IsAutoScrollEnabled(false){ }
+		, _IsAutoScrollEnabled(false)
+		, _DarkenMutedActivities(true)
+		{ }
 
 		/** If bound, invoked to populate the view. */
 		SLATE_EVENT(FFetchActivitiesFunc, OnFetchActivities)
@@ -140,8 +142,11 @@ public:
 		SLATE_EVENT(UE::ConcertSharedSlate::FSaveColumnVisibilitySnapshot, SaveColumnVisibilitySnapshot)
 	
 
-		/** How the activities may be selected */
+		/** Optional. How the activities may be selected */
 		SLATE_ARGUMENT(TOptional<ESelectionMode::Type>, SelectionMode)
+
+		/** Optional. Whether to reduce focus to activities by darkening when the activity is muted (default: true). */
+		SLATE_ARGUMENT(bool, DarkenMutedActivities)
 	SLATE_END_ARGS();
 	
 	/**
@@ -192,6 +197,13 @@ public:
 	TOptional<FConcertClientInfo> GetClientInfo(const FGuid& Guid) const { return GetActivityUserFn.IsBound() ? GetActivityUserFn.Execute(Guid) : TOptional<FConcertClientInfo>{}; }
 	TSharedPtr<SHeaderRow> GetHeaderRow() const { return HeaderRow; }
 
+	const TArray<TSharedPtr<FConcertSessionActivity>>& GetActivities() const { return Activities; }
+	void SetSelectedActivities(const TArray<TSharedPtr<FConcertSessionActivity>>& ActivitiesToSelect)
+	{
+		ActivityView->ClearSelection();
+		ActivityView->SetItemSelection(ActivitiesToSelect, true);
+	}
+
 private:
 
 	// Widget creation
@@ -237,6 +249,9 @@ private:
 
 	/** Used to overlay a widget over a column widget (add an extra layer above the normal one) */
 	FMakeColumnOverlayWidgetFunc MakeColumnOverlayWidgetFn;
+
+	/** Whether to darken muted activities */
+	bool bDarkenMutedActivities = true;
 
 	/** Returns which text should be highlighted. */
 	TAttribute<FText> HighlightText;

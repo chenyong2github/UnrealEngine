@@ -29,6 +29,7 @@ public:
 		})
 		, _DetailsAreaVisibility(EVisibility::Visible)
 		, _SelectionMode(ESelectionMode::Single)
+		, _DarkenMutedActivities(true)
 	{}
 	
 		SLATE_EVENT(SConcertSessionActivities::FGetPackageEvent, GetPackageEvent)
@@ -58,6 +59,9 @@ public:
 		/** Optional. How the activities may be selected. Default to Single. */
 		SLATE_ARGUMENT(ESelectionMode::Type, SelectionMode)
 
+		/** Optional. Whether to reduce focus to activities by darkening when the activity is muted (default: true). */
+		SLATE_ARGUMENT(bool, DarkenMutedActivities)
+	
 		/** Optional. An area to the left of the search bar intended for adding buttons to. */
 		SLATE_NAMED_SLOT(FArguments, SearchButtonArea)
 	
@@ -79,6 +83,8 @@ public:
 	bool IsLastColumn(FName ColumnId) const { return ActivityListView->IsLastColumn(ColumnId); }
 	
 	TSet<TSharedRef<FConcertSessionActivity>> GetSelectedActivities() const;
+	const TArray<TSharedPtr<FConcertSessionActivity>>& GetActivities() const { return ActivityListView->GetActivities(); }
+	void SetSelectedActivities(const TArray<TSharedPtr<FConcertSessionActivity>>& ActivitiesToSelect) { ActivityListView->SetSelectedActivities(ActivitiesToSelect); }
 
 	void OnColumnVisibilitySettingsChanged(const FColumnVisibilitySnapshot& ColumnSnapshot);
 

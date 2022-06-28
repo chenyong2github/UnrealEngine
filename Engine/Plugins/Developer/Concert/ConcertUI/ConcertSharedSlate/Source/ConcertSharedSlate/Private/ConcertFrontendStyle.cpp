@@ -94,6 +94,10 @@ void FConcertFrontendStyle::Initialize()
 	StyleSet->Set("Concert.HidePresence",       new IMAGE_PLUGIN_BRUSH("Icons/icon_PresenceEyeOff_32x",     Icon16x16, IconColorAndOpacity));
 	StyleSet->Set("Concert.ShowPresence",       new IMAGE_PLUGIN_BRUSH("Icons/icon_PresenceEyeOn_32x",      Icon16x16, IconColorAndOpacity));
 
+	// Multi-user archived session browser
+	StyleSet->Set("Concert.MuteActivities",     new IMAGE_PLUGIN_BRUSH("Icons/icon_PresenceEyeOff_32x",      Icon16x16, IconColorAndOpacity));
+	StyleSet->Set("Concert.UnmuteActivities",     new IMAGE_PLUGIN_BRUSH("Icons/icon_PresenceEyeOn_32x",      Icon16x16, IconColorAndOpacity));
+
 	// 24x24/48x48 -> For sequencer toolbar.
 	StyleSet->Set("Concert.Sequencer.SyncTimeline",       new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncTimeline_48x", Icon48x48, IconColorAndOpacity)); // Enable/disable playback and time scrubbing from a remote client.
 	StyleSet->Set("Concert.Sequencer.SyncTimeline.Small", new IMAGE_PLUGIN_BRUSH("Icons/icon_SequencerSyncTimeline_48x", Icon24x24, IconColorAndOpacity));

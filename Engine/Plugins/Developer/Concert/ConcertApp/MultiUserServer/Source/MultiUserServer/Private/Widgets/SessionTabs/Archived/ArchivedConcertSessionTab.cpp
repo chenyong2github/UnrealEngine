@@ -4,25 +4,24 @@
 
 #include "ArchivedSessionHistoryController.h"
 #include "ConcertLogGlobal.h"
+#include "ConcertSyncSessionDatabase.h"
 #include "HistoryEdition/ActivityNode.h"
-#include "HistoryEdition/DebugDependencyGraph.h"
-#include "HistoryEdition/DependencyGraphBuilder.h"
 #include "HistoryEdition/HistoryAnalysis.h"
 #include "HistoryEdition/HistoryEdition.h"
-#include "MultiUserServerConsoleVariables.h"
 #include "MultiUserServerModule.h"
 #include "Session/History/SEditableSessionHistory.h"
 #include "Session/History/SSessionHistory.h"
 #include "Window/ModalWindowManager.h"
-#include "Widgets/HistoryDeletion/SDeleteActivityDependenciesDialog.h"
+#include "Widgets/HistoryEdition/SDeleteActivityDependenciesDialog.h"
 #include "Widgets/SessionTabs/Archived/SConcertArchivedSessionTabView.h"
+#include "Widgets/HistoryEdition/SMuteActivityDependenciesDialog.h"
 
 #include "Algo/AllOf.h"
 #include "Algo/Transform.h"
 #include "Dialog/SMessageDialog.h"
 #include "Widgets/Docking/SDockTab.h"
 
-#define LOCTEXT_NAMESPACE "UnrealMultiUserUI"
+#define LOCTEXT_NAMESPACE "UnrealMultiUserUI.FArchivedConcertSessionTab"
 
 FArchivedConcertSessionTab::FArchivedConcertSessionTab(FGuid InspectedSessionID, TSharedRef<IConcertSyncServer> SyncServer, TAttribute<TSharedRef<SWindow>> ConstructUnderWindow)
 	: FConcertSessionTabBase(InspectedSessionID, SyncServer)
@@ -45,38 +44,36 @@ void FArchivedConcertSessionTab::CreateDockContent(const TSharedRef<SDockTab>& I
 			.ConstructUnderMajorTab(InDockTab)
 			.ConstructUnderWindow(ConstructUnderWindow.Get())
 			.MakeSessionHistory(MoveTemp(MakeSessionHistory))
-			.DeleteActivity_Raw(this, &FArchivedConcertSessionTab::OnRequestDeleteActivity)
-			.CanDeleteActivity_Raw(this, &FArchivedConcertSessionTab::CanDeleteActivity)
+			.DeleteActivities_Raw(this, &FArchivedConcertSessionTab::OnRequestDeleteActivities)
+			.CanDeleteActivities_Raw(this, &FArchivedConcertSessionTab::CanDeleteActivities)
+			.MuteActivities_Raw(this, &FArchivedConcertSessionTab::OnRequestMuteActivities)
+			.CanMuteActivities_Raw(this, &FArchivedConcertSessionTab::CanMuteActivities)
+			.UnmuteActivities_Raw(this, &FArchivedConcertSessionTab::OnRequestUnmuteActivities)
+			.CanUnmuteActivities_Raw(this, &FArchivedConcertSessionTab::CanUnmuteActivities)
 		);
 }
 
-void FArchivedConcertSessionTab::OnRequestDeleteActivity(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
+void FArchivedConcertSessionTab::OnRequestDeleteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
 {
 	using namespace UE::ConcertSyncCore;
+	using namespace UE::MultiUserServer;
 	
 	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> SessionDatabase = SyncServer->GetArchivedSessionDatabase(InspectedSessionID))
 	{
-		const FActivityDependencyGraph DependencyGraph = BuildDependencyGraphFrom(*SessionDatabase);
-		if (UE::MultiUserServer::ConsoleVariables::CVarLogActivityDependencyGraphOnDelete.GetValueOnGameThread())
-		{
-			UE_LOG(LogConcert, Log, TEXT("%s"), *UE::ConcertSyncCore::Graphviz::ExportToGraphviz(DependencyGraph, *SessionDatabase));
-		}
-		
 		TSet<FActivityID> RequestedForDelete;
 		Algo::Transform(ActivitiesToDelete, RequestedForDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
 		{
 			return Activity->Activity.ActivityId;
 		});
-		FHistoryAnalysisResult DeletionRequirements = AnalyseActivityDependencies_TopDown(RequestedForDelete, DependencyGraph, true);
 
-		TWeakPtr<const FArchivedConcertSessionTab> WeakTabThis = SharedThis(this);
-		TSharedRef<SDeleteActivityDependenciesDialog> Dialog = SNew(SDeleteActivityDependenciesDialog, InspectedSessionID, SyncServer, MoveTemp(DeletionRequirements))
-			.OnConfirmDeletion_Lambda([WeakTabThis](const FHistoryAnalysisResult& SelectedRequirements)
+		const TWeakPtr<const FArchivedConcertSessionTab> WeakTabThis = SharedThis(this);
+		const TSharedRef<SDeleteActivityDependenciesDialog> Dialog = SNew(SDeleteActivityDependenciesDialog, InspectedSessionID, SyncServer, MoveTemp(RequestedForDelete))
+			.OnConfirmDeletion_Lambda([WeakTabThis](const TSet<FActivityID>& Selection)
 			{
 				// Because the dialog is non-modal, the user may have closed the program in the mean time
 				if (const TSharedPtr<const FArchivedConcertSessionTab> PinnedThis = WeakTabThis.Pin())
 				{
-					const FOperationErrorResult ErrorResult = DeleteActivitiesInArchivedSession(PinnedThis->SyncServer->GetConcertServer(), PinnedThis->InspectedSessionID, CombineRequirements(SelectedRequirements));
+					const FOperationErrorResult ErrorResult = DeleteActivitiesInArchivedSession(PinnedThis->SyncServer->GetConcertServer(), PinnedThis->InspectedSessionID, Selection);
 					if (ErrorResult.HadError())
 					{
 						UE_LOG(LogConcert, Error, TEXT("Failed to delete activities from session %s: %s"), *PinnedThis->InspectedSessionID.ToString(), *ErrorResult.ErrorMessage->ToString());
@@ -98,13 +95,13 @@ void FArchivedConcertSessionTab::OnRequestDeleteActivity(const TSet<TSharedRef<F
 				}
 			});
 		
-		UE::MultiUserServer::FConcertServerUIModule::Get()
+		FConcertServerUIModule::Get()
 			.GetModalWindowManager()
 			->ShowFakeModalWindow(Dialog);
 	}
 }
 
-FCanDeleteActivitiesResult FArchivedConcertSessionTab::CanDeleteActivity(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
+FCanPerformActionResult FArchivedConcertSessionTab::CanDeleteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
 {
 	const bool bOnlyPackagesAndTransactions =  Algo::AllOf(ActivitiesToDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
 	{
@@ -112,10 +109,127 @@ FCanDeleteActivitiesResult FArchivedConcertSessionTab::CanDeleteActivity(const T
 	});
 	if (!bOnlyPackagesAndTransactions)
 	{
-		return FCanDeleteActivitiesResult::No(LOCTEXT("CanDeleteActivity.OnlyPackagesAndTransactionsReason", "Only package and transaction activities can be deleted (the current selection includes other activity types)."));
+		return FCanPerformActionResult::No(LOCTEXT("Delete.CanDeleteActivity.OnlyPackagesAndTransactionsReason", "Only package and transaction activities can be deleted (the current selection includes other activity types)."));
 	}
 
-	return FCanDeleteActivitiesResult::Yes();
+	return FCanPerformActionResult::Yes();
+}
+
+void FArchivedConcertSessionTab::OnRequestMuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToMute) const
+{
+	constexpr bool bShouldMute = true;
+	SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToMute);
+}
+
+FCanPerformActionResult FArchivedConcertSessionTab::CanMuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
+{
+	const bool bOnlyPackagesAndTransactions = Algo::AllOf(ActivitiesToDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
+	{
+		return Activity->Activity.EventType == EConcertSyncActivityEventType::Package || Activity->Activity.EventType == EConcertSyncActivityEventType::Transaction;
+	});
+	if (!bOnlyPackagesAndTransactions)
+	{
+		return FCanPerformActionResult::No(LOCTEXT("Mute.CanMuteActivity.OnlyPackagesAndTransactionsReason", "Only package and transaction activities can be deleted (the current selection includes other activity types)."));
+	}
+
+	const bool bAreAllUnmuted = Algo::AllOf(ActivitiesToDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
+	{
+		return (Activity->Activity.Flags & EConcertSyncActivityFlags::Muted) == EConcertSyncActivityFlags::None;
+	});
+	if (!bAreAllUnmuted)
+	{
+		return FCanPerformActionResult::No(LOCTEXT("Mute.CanMuteActivity.NotAllUnmuted", "Some of the selected activities are muted."));
+	}
+
+	return FCanPerformActionResult::Yes();
+}
+
+void FArchivedConcertSessionTab::OnRequestUnmuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToUnmute) const
+{
+	constexpr bool bShouldMute = false;
+	SpawnDialogForMutingOrUnmuting(bShouldMute, ActivitiesToUnmute);
+}
+
+FCanPerformActionResult FArchivedConcertSessionTab::CanUnmuteActivities(const TSet<TSharedRef<FConcertSessionActivity>>& ActivitiesToDelete) const
+{
+	const bool bOnlyPackagesAndTransactions = Algo::AllOf(ActivitiesToDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
+	{
+		return Activity->Activity.EventType == EConcertSyncActivityEventType::Package || Activity->Activity.EventType == EConcertSyncActivityEventType::Transaction;
+	});
+	if (!bOnlyPackagesAndTransactions)
+	{
+		return FCanPerformActionResult::No(LOCTEXT("Mute.CanMuteActivity.OnlyPackagesAndTransactionsReason", "Only package and transaction activities can be deleted (the current selection includes other activity types)."));
+	}
+
+	const bool bAreAllMuted = Algo::AllOf(ActivitiesToDelete, [](const TSharedRef<FConcertSessionActivity>& Activity)
+	{
+		return (Activity->Activity.Flags & EConcertSyncActivityFlags::Muted) != EConcertSyncActivityFlags::None;
+	});
+	if (!bAreAllMuted)
+	{
+		return FCanPerformActionResult::No(LOCTEXT("Mute.CanMuteActivity.NotAllMuted", "Some of the selected activities are not muted."));
+	}
+
+	return FCanPerformActionResult::Yes();
+}
+
+void FArchivedConcertSessionTab::SpawnDialogForMutingOrUnmuting(bool bShouldMute, const TSet<TSharedRef<FConcertSessionActivity>>& Activities) const
+{
+	using namespace UE::ConcertSyncCore;
+	using namespace UE::MultiUserServer;
+	
+	if (const TOptional<FConcertSyncSessionDatabaseNonNullPtr> SessionDatabase = SyncServer->GetArchivedSessionDatabase(InspectedSessionID))
+	{
+		TSet<FActivityID> Requested;
+		Algo::Transform(Activities, Requested, [](const TSharedRef<FConcertSessionActivity>& Activity)
+		{
+			return Activity->Activity.ActivityId;
+		});
+
+		const TWeakPtr<const FArchivedConcertSessionTab> WeakTabThis = SharedThis(this);
+		const TSharedRef<SMuteActivityDependenciesDialog> Dialog = SNew(SMuteActivityDependenciesDialog, InspectedSessionID, SyncServer, MoveTemp(Requested))
+			.MuteOperation(bShouldMute ? SMuteActivityDependenciesDialog::EMuteOperation::Mute : SMuteActivityDependenciesDialog::EMuteOperation::Unmute)
+			.OnConfirmMute_Lambda([WeakTabThis, bShouldMute, this](const TSet<FActivityID>& Selection)
+			{
+				// Because the dialog is non-modal, the user may have closed the program in the mean time
+				if (const TSharedPtr<const FArchivedConcertSessionTab> PinnedThis = WeakTabThis.Pin())
+				{
+					const bool bSuccess = PinnedThis->SyncServer->GetArchivedSessionDatabase(PinnedThis->InspectedSessionID)->SetActivities(Selection, [bShouldMute](FConcertSyncActivity& Activity)
+					{
+						if (bShouldMute)
+						{
+							Activity.Flags |= EConcertSyncActivityFlags::Muted;
+						}
+						else
+						{
+							Activity.Flags &= ~EConcertSyncActivityFlags::Muted;
+						}
+					});
+					if (bSuccess)
+					{
+						// Need to update model for history widget
+						HistoryController->ReloadActivities();
+					}
+					else
+					{
+						UE_LOG(LogConcert, Error, TEXT("Failed to mute activities from session %s"), *PinnedThis->InspectedSessionID.ToString(EGuidFormats::DigitsWithHyphens));
+						
+						const TSharedRef<SMessageDialog> ErrorDialog = SNew(SMessageDialog)
+							.Title(LOCTEXT("ErrorMutingSessions.Title", "Error muting sessions"))
+							.Message(LOCTEXT("ErrorMutingSessions.Description", "Error writing to database"))
+							.Buttons({
+								SMessageDialog::FButton(LOCTEXT("Ok", "Ok"))
+								.SetPrimary(true)
+							});
+						ErrorDialog->Show();
+					}
+				}
+			});
+		
+		FConcertServerUIModule::Get()
+			.GetModalWindowManager()
+			->ShowFakeModalWindow(Dialog);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

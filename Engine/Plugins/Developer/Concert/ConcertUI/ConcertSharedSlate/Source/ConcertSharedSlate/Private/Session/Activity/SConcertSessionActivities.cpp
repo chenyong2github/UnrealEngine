@@ -79,9 +79,12 @@ public:
 	
 	SLATE_BEGIN_ARGS(SConcertSessionActivityRow)
 		: _OnMakeColumnOverlayWidget()
+		, _DarkenMutedActivities(true)
 	{}
 		/** Function invoked when generating a row to add a widget above the column widget. */
-		SLATE_ARGUMENT(SConcertSessionActivities::FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget) 
+		SLATE_ARGUMENT(SConcertSessionActivities::FMakeColumnOverlayWidgetFunc, OnMakeColumnOverlayWidget)
+		/** Optional. Whether to reduce focus to activities by darkening when the activity is muted (default: true). */
+		SLATE_ARGUMENT(bool, DarkenMutedActivities) 
 	SLATE_END_ARGS()
 
 	/**
@@ -111,6 +114,7 @@ private:
 	FText AbsoluteDateTime;
 	FText ClientName;
 	SConcertSessionActivities::FMakeColumnOverlayWidgetFunc OnMakeColumnOverlayWidget;
+	bool bDarkenMutedActivities;
 };
 
 
@@ -124,11 +128,13 @@ void SConcertSessionActivityRow::Construct(const FArguments& InArgs, TSharedRef<
 	OnMakeColumnOverlayWidget = InArgs._OnMakeColumnOverlayWidget;
 	AbsoluteDateTime = ConcertFrontendUtils::FormatTime(InActivity->Activity.EventTime, ETimeFormat::Absolute); // Cache the absolute time. It doesn't changes.
 	ClientName = ConcertSessionActivityUtils::GetClientName(InActivityClient);
-
+	bDarkenMutedActivities = InArgs._DarkenMutedActivities;
+	
 	// Construct base class
 	SMultiColumnTableRow<TSharedPtr<FConcertSessionActivity>>::Construct(FSuperRowType::FArguments(), InOwnerTableView);
 
-	if (InActivity->Activity.bIgnored)
+	const bool bDarkenMutedActivity = bDarkenMutedActivities && (InActivity->Activity.Flags & EConcertSyncActivityFlags::Muted) != EConcertSyncActivityFlags::None;
+	if (InActivity->Activity.bIgnored || bDarkenMutedActivity)
 	{
 		SetColorAndOpacity(FLinearColor(0.5, 0.5, 0.5, 0.5));
 	}
@@ -195,6 +201,12 @@ FText SConcertSessionActivityRow::MakeTooltipText() const
 			TextBuilder.AppendLine();
 			TextBuilder.AppendLine(LOCTEXT("IgnoredActivity", "** This activity cannot be recovered (likely recorded during a Multi-User session). It is displayed for crash inspection only. It will be ignored on restore."));
 		}
+		
+		const bool bDarkenMutedActivity = bDarkenMutedActivities && (ActivityPin->Activity.Flags & EConcertSyncActivityFlags::Muted) != EConcertSyncActivityFlags::None;
+		if (bDarkenMutedActivity)
+		{
+			TextBuilder.AppendLine(LOCTEXT("MutedActivity", "** This activity is muted."));
+		}
 
 		return TextBuilder.ToText();
 	}
@@ -209,6 +221,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	GetTransactionEventFn = InArgs._OnGetTransactionEvent;
 	GetPackageEventFn = InArgs._OnGetPackageEvent;
 	MakeColumnOverlayWidgetFn = InArgs._OnMakeColumnOverlayWidget;
+
 	
 	HighlightText = InArgs._HighlightText;
 	
@@ -220,6 +233,7 @@ void SConcertSessionActivities::Construct(const FArguments& InArgs)
 	IgnoredActivitiesVisibility = InArgs._IgnoredActivitiesVisibility;
 	DetailsAreaVisibility = InArgs._DetailsAreaVisibility;
 	bAutoScrollDesired = InArgs._IsAutoScrollEnabled;
+	bDarkenMutedActivities = InArgs._DarkenMutedActivities;
 
 	SearchTextFilter = MakeShared<TTextFilter<const FConcertSessionActivity&>>(TTextFilter<const FConcertSessionActivity&>::FItemToStringArray::CreateSP(this, &SConcertSessionActivities::PopulateSearchStrings));
 	SearchTextFilter->OnChanged().AddSP(this, &SConcertSessionActivities::OnActivityFilterUpdated);
@@ -410,7 +424,8 @@ TSharedRef<ITableRow> SConcertSessionActivities::OnGenerateActivityRowWidget(TSh
 	});
 	
 	return SNew(SConcertSessionActivityRow, SharedThis(this), Activity.ToSharedRef(), ColumnGetter, ActivityClient, OwnerTable)
-		.OnMakeColumnOverlayWidget(MakeColumnOverlayWidgetFn);
+		.OnMakeColumnOverlayWidget(MakeColumnOverlayWidgetFn)
+		.DarkenMutedActivities(bDarkenMutedActivities);
 }
 
 void SConcertSessionActivities::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)

@@ -25,8 +25,15 @@ public:
 		SLATE_ARGUMENT(TSharedPtr<SDockTab>, ConstructUnderMajorTab)
 		SLATE_ARGUMENT(TSharedPtr<SWindow>, ConstructUnderWindow)
 		SLATE_EVENT(SEditableSessionHistory::FMakeSessionHistory, MakeSessionHistory)
-		SLATE_EVENT(SEditableSessionHistory::FCanDeleteActivities, CanDeleteActivity)
-		SLATE_EVENT(SEditableSessionHistory::FRequestDeleteActivities, DeleteActivity)
+	
+		SLATE_EVENT(SEditableSessionHistory::FCanPerformActionOnActivities, CanDeleteActivities)
+		SLATE_EVENT(SEditableSessionHistory::FRequestActivitiesAction, DeleteActivities)
+	
+		SLATE_EVENT(SEditableSessionHistory::FCanPerformActionOnActivities, CanMuteActivities)
+		SLATE_EVENT(SEditableSessionHistory::FRequestActivitiesAction, MuteActivities)
+	
+		SLATE_EVENT(SEditableSessionHistory::FCanPerformActionOnActivities, CanUnmuteActivities)
+		SLATE_EVENT(SEditableSessionHistory::FRequestActivitiesAction, UnmuteActivities)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, FName InStatusBarID);
@@ -38,7 +45,11 @@ private:
 	void CreateTabs(const TSharedRef<FTabManager>& InTabManager, const TSharedRef<FTabManager::FLayout>& InLayout, const FArguments& InArgs);
 	TSharedRef<SDockTab> SpawnActivityHistory(const FSpawnTabArgs& Args,
 		SEditableSessionHistory::FMakeSessionHistory FMakeSessionHistory,
-		SEditableSessionHistory::FCanDeleteActivities CanDeleteActivity,
-		SEditableSessionHistory::FRequestDeleteActivities DeleteActivity
+		SEditableSessionHistory::FCanPerformActionOnActivities CanDeleteActivities,
+		SEditableSessionHistory::FRequestActivitiesAction DeleteActivities,
+		SEditableSessionHistory::FCanPerformActionOnActivities CanMuteActivities,
+		SEditableSessionHistory::FRequestActivitiesAction MuteActivities,
+		SEditableSessionHistory::FCanPerformActionOnActivities CanUnmuteActivities,
+		SEditableSessionHistory::FRequestActivitiesAction UnmuteActivities
 		);
 };

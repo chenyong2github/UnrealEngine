@@ -219,10 +219,15 @@ void UE::MultiUserServer::FClientBrowserModel::AddClientAdminEndpoint(const FCon
 
 void UE::MultiUserServer::FClientBrowserModel::RemoveClientAdminEndpoint(const FConcertEndpointContext& Context)
 {
-	const FMessageNodeId NodeId = EndpointToNodeId[Context.EndpointId];
-	const int32 Index = Clients.IndexOfByPredicate([&NodeId](const TSharedPtr<FClientBrowserItem>& Item)
+	const FMessageNodeId* NodeId = EndpointToNodeId.Find(Context.EndpointId);
+	if (!NodeId)
 	{
-		return Item->MessageNodeId == NodeId;
+		return;
+	}
+	
+	const int32 Index = Clients.IndexOfByPredicate([NodeId](const TSharedPtr<FClientBrowserItem>& Item)
+	{
+		return Item->MessageNodeId == *NodeId;
 	});
 	
 	if (ensure(Clients.IsValidIndex(Index)))

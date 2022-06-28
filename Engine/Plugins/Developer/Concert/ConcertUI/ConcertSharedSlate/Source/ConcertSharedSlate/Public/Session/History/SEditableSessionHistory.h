@@ -10,16 +10,16 @@
 class SSessionHistory;
 struct FConcertSessionActivity;
 
-struct FCanDeleteActivitiesResult
+struct FCanPerformActionResult
 {
 	TOptional<FText> DeletionReason;
 
-	static FCanDeleteActivitiesResult Yes() { return FCanDeleteActivitiesResult(); }
-	static FCanDeleteActivitiesResult No(FText Reason) { return FCanDeleteActivitiesResult(MoveTemp(Reason)); }
+	static FCanPerformActionResult Yes() { return FCanPerformActionResult(); }
+	static FCanPerformActionResult No(FText Reason) { return FCanPerformActionResult(MoveTemp(Reason)); }
 
-	bool CanDelete() const { return !DeletionReason.IsSet(); }
+	bool CanPerformAction() const { return !DeletionReason.IsSet(); }
 
-	explicit FCanDeleteActivitiesResult(TOptional<FText> DeletionReason = {})
+	explicit FCanPerformActionResult(TOptional<FText> DeletionReason = {})
 		: DeletionReason(DeletionReason)
 	{}
 };
@@ -30,14 +30,26 @@ class CONCERTSHAREDSLATE_API SEditableSessionHistory : public SCompoundWidget
 public:
 
 	DECLARE_DELEGATE_RetVal_OneParam(TSharedRef<SSessionHistory>, FMakeSessionHistory, SSessionHistory::FArguments)
-	DECLARE_DELEGATE_RetVal_OneParam(FCanDeleteActivitiesResult, FCanDeleteActivities, const TSet<TSharedRef<FConcertSessionActivity>>& /*Activities*/)
-	DECLARE_DELEGATE_OneParam(FRequestDeleteActivities, const TSet<TSharedRef<FConcertSessionActivity>>&)
+	DECLARE_DELEGATE_RetVal_OneParam(FCanPerformActionResult, FCanPerformActionOnActivities, const TSet<TSharedRef<FConcertSessionActivity>>& /*Activities*/)
+	DECLARE_DELEGATE_OneParam(FRequestActivitiesAction, const TSet<TSharedRef<FConcertSessionActivity>>&)
 
 	SLATE_BEGIN_ARGS(SEditableSessionHistory)
 	{}
 		SLATE_EVENT(FMakeSessionHistory, MakeSessionHistory)
-		SLATE_EVENT(FCanDeleteActivities, CanDeleteActivity)
-		SLATE_EVENT(FRequestDeleteActivities, DeleteActivity)
+	
+		/** Can selected activities be deleted? */
+		SLATE_EVENT(FCanPerformActionOnActivities, CanDeleteActivities)
+		/** Delete the selected activities */
+		SLATE_EVENT(FRequestActivitiesAction, DeleteActivities)
+		/** Can selected activities be muted? */
+		SLATE_EVENT(FCanPerformActionOnActivities, CanMuteActivities)
+		/** Mute the selected activities */
+		SLATE_EVENT(FRequestActivitiesAction, MuteActivities)
+		/** Can selected activities be unmuted? */
+		SLATE_EVENT(FCanPerformActionOnActivities, CanUnmuteActivities)
+		/** Unmute the selected activities */
+		SLATE_EVENT(FRequestActivitiesAction, UnmuteActivities)
+	
 		SLATE_NAMED_SLOT(FArguments, StatusBar)
 	SLATE_END_ARGS()
 
@@ -51,10 +63,24 @@ private:
 
 	TSharedPtr<SSessionHistory> SessionHistory;
 
-	FCanDeleteActivities CanDeleteActivityFunc;
-	FRequestDeleteActivities DeleteActivityFunc;
+	FCanPerformActionOnActivities CanDeleteActivitiesFunc;
+	FRequestActivitiesAction DeleteActivitiesFunc;
+	FCanPerformActionOnActivities CanMuteActivitiesFunc;
+	FRequestActivitiesAction MuteActivitiesFunc;
+	FCanPerformActionOnActivities CanUnmuteActivitiesFunc;
+	FRequestActivitiesAction UnmuteActivitiesFunc;
 
-	FReply OnClickDeleteActivityButton() const;
-	FText GetDeleteActivityToolTip() const;
+	FReply OnClickDeleteActivitiesButton() const;
+	FText GetDeleteActivitiesToolTip() const;
 	bool IsDeleteButtonEnabled() const;
+	
+	FReply OnClickMuteActivitesButton() const;
+	FText GetMuteActivitiesToolTip() const;
+	bool IsMuteButtonEnabled() const;
+	
+	FReply OnClickUnmuteActivitesButton() const;
+	FText GetUnmuteActivitiesToolTip() const;
+	bool IsUnmuteButtonEnabled() const;
+
+	FText GenerateTooltip(const FCanPerformActionOnActivities& CanPerformAction, FText SelectActivityToolTip, FText PerformActionToolTipFmt, FText CannotPerformActionToolTipFmt) const;
 };
