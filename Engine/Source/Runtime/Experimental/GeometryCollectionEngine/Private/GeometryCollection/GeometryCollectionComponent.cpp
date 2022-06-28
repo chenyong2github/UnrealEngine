@@ -2630,7 +2630,7 @@ void FScopedColorEdit::ToggleSelectedBones(const TArray<int32>& SelectedBonesIn,
 		
 			if (bAdd) // shift select
 			{
-				Component->SelectedBones.Add(BoneIndex);
+				Component->SelectedBones.Add(ContextBoneIndex);
 			}
 			else // ctrl select (toggle)
 			{ 
