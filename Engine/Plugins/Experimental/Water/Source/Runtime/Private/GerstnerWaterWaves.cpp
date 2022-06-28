@@ -4,6 +4,7 @@
 #include "GerstnerWaterWaveSubsystem.h"
 #include "WaterModule.h"
 #include "Engine/Engine.h"
+#include "Core/Public/Misc/LargeWorldRenderPosition.h"
 
 // ----------------------------------------------------------------------------------
 
@@ -59,11 +60,14 @@ float UGerstnerWaterWaves::GetWaveHeightAtPosition(const FVector& InPosition, fl
 
 	FVector SummedNormal(ForceInitToZero);
 
+	// Use the offset of the normalized tile as world position to match the shader behavior (see GerstnerWaveFunctions.ush).
+	FVector WorldPosition(FLargeWorldRenderPosition(InPosition).GetOffset());
+
 	for (const FGerstnerWave& Params : GetGerstnerWaves())
 	{
 		float FirstOffset1D;
 		FVector FirstNormal;
-		FVector FirstOffset = GetWaveOffsetAtPosition(Params, InPosition, InTime, FirstNormal, FirstOffset1D);
+		FVector FirstOffset = GetWaveOffsetAtPosition(Params, WorldPosition, InTime, FirstNormal, FirstOffset1D);
 
 		// Only non-zero steepness requires a second sample.
 		if (Params.Q != 0)
@@ -74,7 +78,7 @@ float UGerstnerWaterWaves::GetWaveHeightAtPosition(const FVector& InPosition, fl
 			//Lerp between the two sampled heights and normals.
 			const float TwoPi = 2 * PI;
 			const float WaveTime = Params.WaveSpeed * InTime;
-			float Position1D = FVector2D::DotProduct(FVector2D(InPosition.X, InPosition.Y), Params.WaveVector) - WaveTime;
+			float Position1D = FVector2D::DotProduct(FVector2D(WorldPosition.X, WorldPosition.Y), Params.WaveVector) - WaveTime;
 			float MappedPosition1D = Position1D >= 0.f ? FMath::Fmod(Position1D, TwoPi) : TwoPi - FMath::Abs(FMath::Fmod(Position1D, TwoPi)); //get positive modulos from negative numbers too
 
 			FVector SecondNormal;
@@ -88,7 +92,7 @@ float UGerstnerWaterWaves::GetWaveHeightAtPosition(const FVector& InPosition, fl
 			{
 				GuessOffset = -Params.Direction * Params.Q;
 			}
-			const FVector GuessPosition = InPosition + GuessOffset;
+			const FVector GuessPosition = WorldPosition + GuessOffset;
 			FVector SecondOffset = GetWaveOffsetAtPosition(Params, GuessPosition, InTime, SecondNormal, SecondOffset1D);
 			SecondOffset1D += (MappedPosition1D < PI) ? Params.Q : -Params.Q;
 			if (!(MappedPosition1D < PI))
@@ -120,10 +124,12 @@ float UGerstnerWaterWaves::GetWaveHeightAtPosition(const FVector& InPosition, fl
 float UGerstnerWaterWaves::GetSimpleWaveHeightAtPosition(const FVector& InPosition, float InWaterDepth, float InTime) const
 {
 	float WaveHeight = 0.f;
+	// Use the offset of the normalized tile as world position to match the shader behavior (see GerstnerWaveFunctions.ush).
+	FVector WorldPosition(FLargeWorldRenderPosition(InPosition).GetOffset());
 
 	for (const FGerstnerWave& Wave : GetGerstnerWaves())
 	{
-		WaveHeight += GetSimpleWaveOffsetAtPosition(Wave, InPosition, InTime);
+		WaveHeight += GetSimpleWaveOffsetAtPosition(Wave, WorldPosition, InTime);
 	}
 
 	return WaveHeight;
@@ -142,6 +148,7 @@ FVector UGerstnerWaterWaves::GetWaveOffsetAtPosition(const FGerstnerWave& InWave
 
 	float WaveSin = 0, WaveCos = 0;
 	FMath::SinCos(&WaveSin, &WaveCos, WavePosition);
+	BlendWaveBetweenLWCTiles(InWaveParams, InPosition, InTime, WaveSin, WaveCos);
 
 	FVector Offset;
 	OutOffset1D = -InWaveParams.Q * WaveSin;
@@ -158,9 +165,30 @@ float UGerstnerWaterWaves::GetSimpleWaveOffsetAtPosition(const FGerstnerWave& In
 {
 	const float WaveTime = InWaveParams.WaveSpeed * InTime;
 	const float WavePosition = FVector2D::DotProduct(FVector2D(InPosition.X, InPosition.Y), InWaveParams.WaveVector) - WaveTime;
-	const float WaveCos = FMath::Cos(WavePosition);
+	float WaveCos = FMath::Cos(WavePosition);
+	float WaveSinDummy = 0.0f;
+	BlendWaveBetweenLWCTiles(InWaveParams, InPosition, InTime, WaveSinDummy, WaveCos);
 	const float HeightOffset = WaveCos * InWaveParams.Amplitude;
 	return HeightOffset;
+}
+
+void UGerstnerWaterWaves::BlendWaveBetweenLWCTiles(const FGerstnerWave& InWaveParams, const FVector& InPosition, float InTime, float& WaveSin, float& WaveCos) const
+{
+	const FVector TileBorderDist = FVector(FLargeWorldRenderScalar::GetTileSize() * 0.5) - InPosition.GetAbs();
+	const double BlendZoneWidth = 400.0; // Blend over a range of 4 meters on each side of the tile
+	if (TileBorderDist.X < BlendZoneWidth || TileBorderDist.Y < BlendZoneWidth)
+	{
+		const FVector2D BlendWorldPos = FVector2D(TileBorderDist.X, TileBorderDist.Y);
+		const double BlendAlpha = FMath::Clamp(BlendWorldPos.X / BlendZoneWidth, 0.0, 1.0) * FMath::Clamp(BlendWorldPos.Y / BlendZoneWidth, 0.0, 1.0);
+
+		const float WaveTime = InWaveParams.WaveSpeed * InTime;
+		const float BlendWavePos = FVector2D::DotProduct(BlendWorldPos, InWaveParams.WaveVector) - WaveTime;
+		float BlendWaveSin = 0.0f;
+		float BlendWaveCos = 0.0f;
+		FMath::SinCos(&BlendWaveSin, &BlendWaveCos, BlendWavePos);
+		WaveSin = FMath::Lerp(BlendWaveSin, WaveSin, BlendAlpha);
+		WaveCos = FMath::Lerp(BlendWaveCos, WaveCos, BlendAlpha);
+	}
 }
 
 void UGerstnerWaterWaves::RecomputeWaves(bool bAllowBPScript)

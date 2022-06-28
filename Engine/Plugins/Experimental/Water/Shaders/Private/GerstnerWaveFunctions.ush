@@ -345,43 +345,62 @@ float3 PackNormalAndWPONew(WaveOutput inWave)
 	return packedoutput;
 }
 
-WaveOutput GetSingleGerstnerWaveNew(int InWaveIndex, FWaterBodyHeader InWaterBodyHeader, float InTime, float2 InWorldPos)
+WaveOutput GetSingleGerstnerWaveNew(int InWaveIndex, FWaterBodyHeader InWaterBodyHeader, float InTime, FLWCVector2 InWorldPos)
 {
 	WaveOutput OutWave = (WaveOutput)0;
 		
 	FWaveParams CurrentWave = GetWaveDataNew(InWaveIndex, InWaterBodyHeader);
 		
-	float dispersion = 2 * PI / CurrentWave.Wavelength;
-	float2 wavevector = CurrentWave.Direction * dispersion;
-	float wavespeed = sqrt(dispersion * Gravity);
-	float wavetime = wavespeed * InTime;
+	float Dispersion = 2 * PI / CurrentWave.Wavelength;
+	float2 WaveVector = CurrentWave.Direction * Dispersion;
+	float WaveSpeed = sqrt(Dispersion * Gravity);
+	float WaveTime = WaveSpeed * InTime;
 
-	float wavepos = dot(InWorldPos, wavevector) - wavetime;
+	// Use the offset of the normalized tile as world position.
+	// Doing proper LWC math is both more expensive and leads to less smooth/precise results.
+	InWorldPos = LWCNormalizeTile(InWorldPos);
+	float2 WorldPos = InWorldPos.Offset;
+
+	float WavePos = dot(WorldPos, WaveVector) - WaveTime;
+	float WaveSin = sin(WavePos);
+	float WaveCos = cos(WavePos);
+
+	// Fix up tile borders by blending between them
+	const float2 TileBorderDist = (UE_LWC_RENDER_TILE_SIZE * 0.5f) - abs(WorldPos);
+	const float BlendZoneWidth = 400.0f; // Blend over a range of 4 meters on each side of the tile
+	if (any(TileBorderDist < BlendZoneWidth))
+	{
+		const float2 BlendWorldPos = TileBorderDist;
+
+		const float2 BlendAlpha2 = saturate(TileBorderDist / BlendZoneWidth);
+		const float BlendAlpha = BlendAlpha2.x * BlendAlpha2.y;
+
+		const float BlendWavePos = dot(BlendWorldPos, WaveVector) - WaveTime;
+		WaveSin = lerp(sin(BlendWavePos), WaveSin, BlendAlpha);
+		WaveCos = lerp(cos(BlendWavePos), WaveCos, BlendAlpha);
+	}
 		
-	float wavesin = sin(wavepos);
-	float wavecos = cos(wavepos);
-		
-	float wKA = CurrentWave.Amplitude * dispersion;
+	float wKA = CurrentWave.Amplitude * Dispersion;
 		
 	float q = CurrentWave.Steepness / wKA;
 		
-	OutWave.Normal.xy = wavesin * wKA * CurrentWave.Direction;
+	OutWave.Normal.xy = WaveSin * wKA * CurrentWave.Direction;
 		
 #if SOLVE_NORMAL_Z
-		OutWave.Normal.z = wavecos *  CurrentWave.Steepness * saturate( (CurrentWave.Amplitude * SteepnessThreshold) / CurrentWave.Wavelength );
-		//OutWave.Normal.z = wavecos *  wKA * (q/MaxWaves);
+		OutWave.Normal.z = WaveCos *  CurrentWave.Steepness * saturate( (CurrentWave.Amplitude * SteepnessThreshold) / CurrentWave.Wavelength );
+		//OutWave.Normal.z = WaveCos *  wKA * (q/MaxWaves);
 #else
 		OutWave.Normal.z = 0;
 #endif
 
-	OutWave.WPO.xy = -q * wavesin * CurrentWave.Direction *  CurrentWave.Amplitude;
-	OutWave.WPO.z = wavecos * CurrentWave.Amplitude;
+	OutWave.WPO.xy = -q * WaveSin * CurrentWave.Direction *  CurrentWave.Amplitude;
+	OutWave.WPO.z = WaveCos * CurrentWave.Amplitude;
 
 	return OutWave;
 		
 }
 
-WaveOutput GetAllGerstnerWavesNew(int InWaterBodyIndex, float InTime, float2 InWorldPos)
+WaveOutput GetAllGerstnerWavesNew(int InWaterBodyIndex, float InTime, FLWCVector2 InWorldPos)
 {		
 	WaveOutput OutWaves = (WaveOutput)0;
 	WaveOutput CurrentWave = (WaveOutput)0;
@@ -399,7 +418,7 @@ WaveOutput GetAllGerstnerWavesNew(int InWaterBodyIndex, float InTime, float2 InW
 	return OutWaves;
 }
 	
-WaveOutput GetRangeGerstnerWavesNew(int InMinWaveIndex, int InMaxWaveIndex, int InWaterBodyIndex, float InTime, float2 InWorldPos)
+WaveOutput GetRangeGerstnerWavesNew(int InMinWaveIndex, int InMaxWaveIndex, int InWaterBodyIndex, float InTime, FLWCVector2 InWorldPos)
 {
 	WaveOutput OutWaves = (WaveOutput)0;
 	WaveOutput CurrentWave = (WaveOutput)0;
