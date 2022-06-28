@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "OnlineDelegateMacros.h"
+#include "OnlineStoreInterfaceV2.generated.h"
 
 ONLINESUBSYSTEM_API DECLARE_LOG_CATEGORY_EXTERN(LogOnlineStoreV2, Log, All);
 
