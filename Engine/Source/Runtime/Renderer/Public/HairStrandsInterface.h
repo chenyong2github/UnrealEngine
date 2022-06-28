@@ -241,6 +241,9 @@ public:
 	bool GetLODVisibility() const { return bLODVisibility; }
 
 	uint32 GetClusterCount() const { return ClusterCount;  }
+
+	void UpdateTemporalIndex();
+
 	struct FVertexFactoryInput 
 	{
 		struct FStrands
@@ -341,6 +344,10 @@ public:
 	float LODIndex = -1;		// Current LOD used for all views
 	float LODBias = 0;			// Current LOD bias
 	bool bLODVisibility = true; // Enable/disable hair rendering for this component
+
+	FBoxSphereBounds ContinuousLODBounds; 	//used by Continuous LOD
+	float MaxScreenSize = 0.f; 				//used by Continuous LOD
+	uint32 TemporalIndex = 0; 				//used by Temporal Layering
 
 	// Debug
 	bool  bDebugDrawLODInfo = false; // Enable/disable hair LOD info

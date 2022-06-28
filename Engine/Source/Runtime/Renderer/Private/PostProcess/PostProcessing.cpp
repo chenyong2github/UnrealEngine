@@ -577,7 +577,7 @@ void AddPostProcessingPasses(
 
 			if (GetHairStrandsComposition() == EHairStrandsCompositionType::AfterSeparateTranslucent)
 			{
-				RenderHairComposition(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture);
+				RenderHairComposition(GraphBuilder, View, SceneColor.Texture, SceneDepth.Texture, Velocity.Texture);
 			}
 		}
 

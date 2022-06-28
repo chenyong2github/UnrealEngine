@@ -745,6 +745,21 @@ static void RunHairLODSelection(
 			// Feedback game thread with LOD selection 
 			Instance->Debug.LODPredictedIndex = LODViewIndex;
 			Instance->HairGroupPublicData->DebugScreenSize = MaxScreenSize;
+
+			if (IsHairStrandContinuousDecimationReorderingEnabled())
+			{
+				if (IsHairVisibilityComputeRasterContinuousLODEnabled())
+				{
+					Instance->HairGroupPublicData->ContinuousLODBounds = SphereBound;
+					Instance->HairGroupPublicData->MaxScreenSize = MaxScreenSize;
+				}
+
+				Instance->HairGroupPublicData->UpdateTemporalIndex();
+			}
+			else
+			{
+				Instance->HairGroupPublicData->MaxScreenSize = 1.0;
+			}
 		}
 
 		// Function for selecting, loading, & initializing LOD resources

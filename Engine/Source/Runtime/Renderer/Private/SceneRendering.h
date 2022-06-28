@@ -1049,6 +1049,9 @@ struct FPreviousViewInfo
 	FTemporalAAHistory SSRHistory;
 	FTemporalAAHistory WaterSSRHistory;
 
+	// Temporal AA history for Hair
+	FTemporalAAHistory HairHistory;
+
 	// Temporal AA history for the editor primitive depth upsampling
 	FTemporalAAHistory EditorPrimtiveDepthHistory;
 

@@ -80,13 +80,13 @@ static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_Contin
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering(
-	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering"), 0,
+	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering"), 1,
 	TEXT("Enable Experimental WIP Temporal Layering (requires TAA changes to work well)"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering_LayerCount(
-	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering.LayerCount"), 8,
-	TEXT("Enable Temporal Layering Override Index  8)"),
+	TEXT("r.HairStrands.Visibility.ComputeRaster.TemporalLayering.LayerCount"), 2,
+	TEXT("Temporal Layering Layer Count (default: 2)"),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarHairStrandsVisibilityComputeRaster_TemporalLayering_OverrideIndex(
@@ -470,7 +470,8 @@ bool IsHairVisibilityComputeRasterContinuousLODEnabled()
 
 float GetHairVisibilityComputeRasterContinuousLODScale(float ScreenSize)
 {
-	return FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 8.0f, 1.0f), 2.0f);
+	//TODO: make values in this calculation customizable per groom 
+	return FMath::Pow(FMath::Clamp(ScreenSize, 1.0f / 16.0f, 1.0f), 1.0f);
 }
 
 bool IsHairVisibilityComputeRasterTemporalLayeringEnabled()
@@ -484,7 +485,7 @@ int32 GetHairVisibilityComputeRasterTemporalLayerCount()
 	return LayerCount;
 }
 
-uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, uint32 InVertexCount)
+uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalIndex, uint32 InVertexCount)
 {
 	uint32 VertexStart = 0;
 
@@ -495,7 +496,7 @@ uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, u
 
 		const uint32 VertexCount = InVertexCount / LayerCount;
 
-		VertexStart = (((OverrideIndex >= 0) ? OverrideIndex : TemporalAASampleIndex) % LayerCount) * VertexCount;
+		VertexStart = (((OverrideIndex >= 0) ? OverrideIndex : TemporalIndex) % LayerCount) * VertexCount;
 	}
 
 	return VertexStart;
@@ -518,11 +519,11 @@ uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVert
 	return VertexCount;
 }
 
-float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize)
+float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemporalWeight)
 {
 	float SampleWeight = 1.0;
 
-	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled())
+	if (IsHairVisibilityComputeRasterTemporalLayeringEnabled() && bUseTemporalWeight)
 	{
 		// sample weight should increase if layer count increases
 		SampleWeight *= GetHairVisibilityComputeRasterTemporalLayerCount();
@@ -537,6 +538,10 @@ float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize)
 	return SampleWeight;
 }
 
+void FHairGroupPublicData::UpdateTemporalIndex()
+{
+	TemporalIndex = IsHairVisibilityComputeRasterTemporalLayeringEnabled() ? ((TemporalIndex + 1) % GetHairVisibilityComputeRasterTemporalLayerCount()) : 0;
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Bookmark API

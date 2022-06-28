@@ -13,10 +13,12 @@ void RenderHairComposition(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture);
+	FRDGTextureRef SceneDepthTexture, 
+	FRDGTextureRef VelocityTexture);
 
 void RenderHairComposition(
 	FRDGBuilder& GraphBuilder, 
 	const TArray<FViewInfo>& Views,
 	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture);
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef VelocityTexture);

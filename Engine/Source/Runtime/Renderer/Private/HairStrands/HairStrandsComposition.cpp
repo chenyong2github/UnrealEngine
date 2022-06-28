@@ -11,6 +11,7 @@
 #include "HairStrandsRendering.h"
 #include "HairStrandsTile.h"
 #include "FogRendering.h"
+#include "TemporalAA.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
@@ -37,7 +38,8 @@ enum EHairStrandsCommonPassType
 	Composition,
 	DOF,
 	TAAFastResolve,
-	GBuffer
+	GBuffer,
+	Blit
 };
 
 template<typename TPassParameter, typename TPixelShader>
@@ -88,6 +90,10 @@ void InternalCommonDrawPass(
 			// 1: invalid pixel (background)
 			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_InverseSourceAlpha>::GetRHI();
 		}
+		else if (Type == EHairStrandsCommonPassType::Blit) //used to write data into the temporal input buffer
+		{
+			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+		}
 		else
 		{
 			GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Max, BF_One, BF_One>::GetRHI();
@@ -111,7 +117,7 @@ void InternalCommonDrawPass(
 				false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
 				STENCIL_TEMPORAL_RESPONSIVE_AA_MASK, STENCIL_TEMPORAL_RESPONSIVE_AA_MASK>::GetRHI();
 		}
-		else if (Type == EHairStrandsCommonPassType::GBuffer)
+		else if ((Type == EHairStrandsCommonPassType::GBuffer) || (Type == EHairStrandsCommonPassType::Blit))
 		{
 			if (bWriteDepth)
 			{
@@ -165,7 +171,8 @@ class FHairVisibilityComposeSamplePS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityComposeSamplePS, FGlobalShader);
 
 	class FDebug : SHADER_PERMUTATION_BOOL("PERMUTATION_DEBUG");
-	using FPermutationDomain = TShaderPermutationDomain<FDebug>;
+	class FTemporal : SHADER_PERMUTATION_BOOL("PERMUTATION_TEMPORAL");
+	using FPermutationDomain = TShaderPermutationDomain<FDebug, FTemporal>;
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -175,6 +182,9 @@ class FHairVisibilityComposeSamplePS : public FGlobalShader
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FHairStrandsViewUniformParameters, HairStrands)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairLightingSampleBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairDOFDepthTexture)
+		SHADER_PARAMETER(uint32, TemporalLayerCount)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, HairTemporalAccumulationTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint>, OutMetaTexture)
 		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FFogUniformParameters, FogStruct)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
@@ -190,17 +200,23 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityComposeSamplePS, "/Engine/Private/HairStrands/HairStrandsVisibilityComposeSubPixelPS.usf", "ComposeSamplePS", SF_Pixel);
 
+int32 GetHairVisibilityComputeRasterTemporalLayerCount();
+
 static void AddHairVisibilityComposeSamplePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FHairStrandsVisibilityData& VisibilityData,
 	const FRDGTextureRef& CategorizationTexture,
 	const FRDGTextureRef& HairDOFDepthTexture,
+	const FRDGTextureRef& HairTemporalAccumulationTexture,
 	FRDGTextureRef& OutColorTexture,
-	FRDGTextureRef& OutDepthTexture)
+	FRDGTextureRef& OutDepthTexture,
+	const bool bTemporalLayeringEnabled)
 {
 	check(VisibilityData.SampleLightingTexture);
 	const bool bDOFEnable = HairDOFDepthTexture != nullptr ? 1 : 0;
+
+	const bool bTemporal = HairTemporalAccumulationTexture != nullptr ? 1 : 0;
 
 	TRDGUniformBufferRef<FFogUniformParameters> FogBuffer = CreateFogUniformBuffer(GraphBuilder, View);
 
@@ -212,19 +228,22 @@ static void AddHairVisibilityComposeSamplePass(
 	Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	Parameters->HairStrands = View.HairStrandsViewData.UniformBuffer;
 	Parameters->FogStruct = FogBuffer;
-	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, ERenderTargetLoadAction::ELoad);
-	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
+	Parameters->TemporalLayerCount = bTemporal ? GetHairVisibilityComputeRasterTemporalLayerCount() : 1;
+	Parameters->HairTemporalAccumulationTexture = bTemporal ? HairTemporalAccumulationTexture : GSystemTextures.GetBlackDummy(GraphBuilder);
+	Parameters->RenderTargets[0] = FRenderTargetBinding(OutColorTexture, bTemporal ? ERenderTargetLoadAction::ELoad : (bTemporalLayeringEnabled ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad) );
+	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(OutDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);	
 
 	const bool bDebugComposition = View.Family->EngineShowFlags.LODColoration;
 	FHairVisibilityComposeSamplePS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FHairVisibilityComposeSamplePS::FDebug>(bDebugComposition);
+	PermutationVector.Set<FHairVisibilityComposeSamplePS::FTemporal>(bTemporal);
 	TShaderMapRef<FHairVisibilityComposeSamplePS> PixelShader(View.ShaderMap, PermutationVector);
 	InternalCommonDrawPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("HairStrands::ComposeSample"),
 		View,
 		OutColorTexture->Desc.Extent,
-		EHairStrandsCommonPassType::Composition,
+		bTemporal ? EHairStrandsCommonPassType::Composition : (bTemporalLayeringEnabled ? EHairStrandsCommonPassType::Blit : EHairStrandsCommonPassType::Composition),
 		false,
 		VisibilityData.TileData,
 		PixelShader,
@@ -467,11 +486,14 @@ static void AddHairVisibilityGBufferWritePass(
 		Parameters);
 }
 
+bool IsHairVisibilityComputeRasterTemporalLayeringEnabled();
+
 static void InternalRenderHairComposition(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture)
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef SceneVelocityTexture)
 {
 	DECLARE_GPU_STAT(HairStrandsComposition);
 	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsComposition");
@@ -500,14 +522,57 @@ static void InternalRenderHairComposition(
 						SceneDepthTexture);
 				}
 
+				FRDGTextureRef AccumulatedColor = nullptr;
+
+				const bool bTemporalLayeringEnabled = IsHairVisibilityComputeRasterTemporalLayeringEnabled() && View.ViewState;
+
+				if (bTemporalLayeringEnabled)
+				{
+					FIntPoint OutputResolution = SceneColorTexture->Desc.Extent;
+
+					FRDGTextureDesc HairColorInputDesc = FRDGTextureDesc::Create2D(OutputResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)), TexCreate_RenderTargetable | TexCreate_ShaderResource | TexCreate_UAV, 1);
+					FRDGTextureRef HairColorInputTexture = GraphBuilder.CreateTexture(HairColorInputDesc, TEXT("Hair.ColorInputTexture"));
+
+					AddHairVisibilityComposeSamplePass(
+						GraphBuilder,
+						View,
+						VisibilityData,
+						VisibilityData.CoverageTexture,
+						DOFDepth,
+						nullptr,
+						HairColorInputTexture,
+						SceneDepthTexture,
+						bTemporalLayeringEnabled);
+
+
+					check(View.ViewState);
+					FTAAPassParameters TAASettings(View);
+					TAASettings.SceneDepthTexture = SceneDepthTexture;
+					TAASettings.SceneVelocityTexture = SceneVelocityTexture;
+					TAASettings.Pass = ETAAPassConfig::Hair;
+					TAASettings.SceneColorInput = HairColorInputTexture;
+					TAASettings.bOutputRenderTargetable = true;
+
+					FTAAOutputs TAAOutputs = AddTemporalAAPass(
+						GraphBuilder,
+						View,
+						TAASettings,
+						View.PrevViewInfo.HairHistory,
+						&View.ViewState->PrevFrameViewInfo.HairHistory);
+
+					AccumulatedColor = TAAOutputs.SceneColor;			
+				}
+
 				AddHairVisibilityComposeSamplePass(
 					GraphBuilder,
 					View,
 					VisibilityData,
 					VisibilityData.CoverageTexture,
 					DOFDepth,
+					AccumulatedColor,
 					SceneColorTexture,
-					SceneDepthTexture);
+					SceneDepthTexture,
+					bTemporalLayeringEnabled);
 
 				if (VisibilityData.ResolveMaskTexture)
 				{
@@ -568,7 +633,8 @@ void RenderHairComposition(
 	FRDGBuilder& GraphBuilder,
 	const TArray<FViewInfo>& Views,
 	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture)
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef SceneVelocityTexture)
 {
 	for (const FViewInfo& View : Views)
 	{		
@@ -578,7 +644,8 @@ void RenderHairComposition(
 				GraphBuilder,
 				View,
 				SceneColorTexture,
-				SceneDepthTexture);
+				SceneDepthTexture,
+				SceneVelocityTexture);
 		}
 	}
 }
@@ -587,7 +654,8 @@ void RenderHairComposition(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	FRDGTextureRef SceneColorTexture,
-	FRDGTextureRef SceneDepthTexture)
+	FRDGTextureRef SceneDepthTexture,
+	FRDGTextureRef SceneVelocityTexture)
 {
 	if (View.Family && HairStrands::HasViewHairStrandsData(View))
 	{
@@ -595,6 +663,7 @@ void RenderHairComposition(
 			GraphBuilder,
 			View,
 			SceneColorTexture,
-			SceneDepthTexture);
+			SceneDepthTexture,
+			SceneVelocityTexture);
 	}
 }

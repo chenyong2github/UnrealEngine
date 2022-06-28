@@ -3015,7 +3015,7 @@ IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputeRasterizeCS, "/Engine/Private/Hai
 
 uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, uint32 InVertexCount);
 uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount);
-float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize);
+float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemporalWeight);
 bool IsHairStrandContinuousDecimationReorderingEnabled();
 
 static FRasterComputeOutput AddVisibilityComputeRasterPass(
@@ -3105,8 +3105,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 	const uint32 GroupSize = GetVendorOptimalGroupSize1D();
 	
-	const uint32 TemporalAASampleIndex = ViewInfo.ViewState ? ViewInfo.ViewState->GetCurrentTemporalAASampleIndex() : 0;
-
 	FVisiblityRasterComputeBinningCS::FPermutationDomain BinningPermutationVector_CullingOff;
 	BinningPermutationVector_CullingOff.Set<FVisiblityRasterComputeBinningCS::FGroupSize>(GroupSize);
 	BinningPermutationVector_CullingOff.Set<FVisiblityRasterComputeBinningCS::FCulling>(false);
@@ -3138,8 +3136,6 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 	{
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
 
-		const FSphere MacroBoundsSphere = MacroGroup.Bounds.GetSphere();
-
 		for (const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo : PrimitiveSceneInfos)
 		{
 			check(PrimitiveInfo.Mesh && PrimitiveInfo.Mesh->Elements.Num() > 0);
@@ -3151,11 +3147,13 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 
 			const bool bCullingEnable = GHairVisibilityComputeRaster_Culling ? HairGroupPublicData->GetCullingResultAvailable() : false;
 			
-			const float ScreenSize = ComputeBoundsScreenSize(FVector4(MacroBoundsSphere.Center, 1), MacroBoundsSphere.W, ViewInfo);
+			// allow fewer strands to be rasterized if screen size for current view is smaller than max screen size
+			const FSphere BoundsSphere = HairGroupPublicData->ContinuousLODBounds.GetSphere();
+			const float ScreenSize = FMath::Min(ComputeBoundsScreenSize(FVector4(BoundsSphere.Center, 1), BoundsSphere.W, ViewInfo), HairGroupPublicData->MaxScreenSize);
 
-			const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(TemporalAASampleIndex, VFInput.Strands.VertexCount);
+			const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(HairGroupPublicData->TemporalIndex, VFInput.Strands.VertexCount);
 			const uint32 VertexCount = GetHairVisibilityComputeRasterVertexCount(ScreenSize, VFInput.Strands.VertexCount);
-			const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(ScreenSize);
+			const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(ScreenSize, false);
 
 			//reset buffers
 			uint32 IndexGridClearValues[4] = { 0x0,0x0,0x0,0x0 };
@@ -3215,7 +3213,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 			RasterParameters->OutputResolutionf = FVector2f(Out.SuperResolution.X, Out.SuperResolution.Y);
 			RasterParameters->ResolutionMultiplier = Out.ResolutionMultiplier;
 			RasterParameters->MacroGroupId = MacroGroup.MacroGroupId;
-			RasterParameters->MaxRasterCount = TileSize; //TODO: implement tile clipping in raster pass to exisiting avoid edge case
+			RasterParameters->MaxRasterCount = TileSize; //TODO: implement tile clipping in raster pass to avoid exisiting edge case
 			RasterParameters->HairMaterialId = PrimitiveInfo.MaterialId;
 			RasterParameters->ViewUniformBuffer = ViewUniformShaderParameters;
 			RasterParameters->SceneDepthTexture = SceneDepthTexture;

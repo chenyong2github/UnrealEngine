@@ -1265,9 +1265,9 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVoxelRasterComputeCS, "/Engine/Private/HairStrands/HairStrandsVoxelRasterCompute.usf", "MainCS", SF_Compute);
 
-uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalAASampleIndex, uint32 InVertexCount);
+uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalIndex, uint32 InVertexCount);
 uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount);
-float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize);
+float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemporalWeight);
 bool IsHairStrandContinuousDecimationReorderingEnabled();
 
 static void AddVirtualVoxelizationComputeRasterPass(
@@ -1284,8 +1284,6 @@ static void AddVirtualVoxelizationComputeRasterPass(
 
 	if (ViewInfo)
 	{
-		const uint32 TemporalAASampleIndex = ViewInfo->ViewState ? ViewInfo->ViewState->GetCurrentTemporalAASampleIndex() : 0;
-
 		const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitiveSceneInfos = MacroGroup.PrimitivesInfos;
 
 		FRDGBufferSRVRef VoxelizationViewInfoBufferSRV = GraphBuilder.CreateSRV(VoxelResources.VoxelizationViewInfoBuffer);
@@ -1317,9 +1315,9 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
-				const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(TemporalAASampleIndex, VFInput.Strands.VertexCount);
-				const uint32 VertexCount = GetHairVisibilityComputeRasterVertexCount(HairGroupPublicData->DebugScreenSize, VFInput.Strands.VertexCount);
-				const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(HairGroupPublicData->DebugScreenSize);
+				const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(HairGroupPublicData->TemporalIndex, VFInput.Strands.VertexCount);
+				const uint32 VertexCount = GetHairVisibilityComputeRasterVertexCount(HairGroupPublicData->MaxScreenSize, VFInput.Strands.VertexCount);
+				const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(HairGroupPublicData->MaxScreenSize, true);
 
 				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
 				LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);

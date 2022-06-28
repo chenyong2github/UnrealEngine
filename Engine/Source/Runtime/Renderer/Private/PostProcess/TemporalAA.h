@@ -43,6 +43,9 @@ enum class ETAAPassConfig
 	// Permutation for DOF that handle Coc.
 	DiaphragmDOF,
 	DiaphragmDOFUpsampling,
+	
+	// Permutation for hair.
+	Hair,
 
 	MAX
 };

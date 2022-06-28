@@ -342,6 +342,7 @@ const TCHAR* const kTAAOutputNames[] = {
 	TEXT("LightShaft.TemporalAA"),
 	TEXT("DOF.TemporalAA"),
 	TEXT("DOF.TemporalAA"),
+	TEXT("Hair.TemporalAA"),
 };
 
 const TCHAR* const kTAAPassNames[] = {
@@ -352,6 +353,7 @@ const TCHAR* const kTAAPassNames[] = {
 	TEXT("LightShaft"),
 	TEXT("DOF"),
 	TEXT("DOFUpsampling"),
+	TEXT("Hair"),
 };
 
 const TCHAR* const kTAAQualityNames[] = {
