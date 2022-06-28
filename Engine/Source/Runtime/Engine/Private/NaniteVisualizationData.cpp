@@ -6,6 +6,7 @@
 #include "Materials/Material.h"
 #include "Misc/ConfigCacheIni.h"
 #include "SceneManagement.h"
+#include "GameFramework/PlayerController.h"
 #if WITH_EDITORONLY_DATA
 #include "Editor.h"
 #include "LevelEditorViewport.h"
