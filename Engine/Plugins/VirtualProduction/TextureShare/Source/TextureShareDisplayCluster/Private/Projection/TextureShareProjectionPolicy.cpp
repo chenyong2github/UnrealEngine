@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Projection/TextureShare/DisplayClusterProjectionTextureSharePolicy.h"
-#include "Projection/DisplayClusterProjectionStrings.h"
+#include "Projection/TextureShareProjectionPolicy.h"
+#include "Projection/TextureShareProjectionStrings.h"
+
 #include "Module/TextureShareDisplayClusterLog.h"
 
 #include "Game/IDisplayClusterGameManager.h"
@@ -12,26 +13,26 @@
 #include "Containers/TextureShareCoreContainers.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterProjectionTextureSharePolicy
+// FTextureShareProjectionPolicy
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterProjectionTextureSharePolicy::FDisplayClusterProjectionTextureSharePolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
-	: FDisplayClusterProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
+FTextureShareProjectionPolicy::FTextureShareProjectionPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+	: FTextureShareProjectionPolicyBase(ProjectionPolicyId, InConfigurationProjectionPolicy)
 {
 }
 
-FDisplayClusterProjectionTextureSharePolicy::~FDisplayClusterProjectionTextureSharePolicy()
+FTextureShareProjectionPolicy::~FTextureShareProjectionPolicy()
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-const FString& FDisplayClusterProjectionTextureSharePolicy::GetType() const
+const FString& FTextureShareProjectionPolicy::GetType() const
 {
-	static const FString Type(DisplayClusterProjectionStrings::Projection::TextureShare);
+	static const FString Type(TextureShareProjectionStrings::Projection::TextureShare);
 
 	return Type;
 }
 
-bool FDisplayClusterProjectionTextureSharePolicy::SetCustomProjection(const TArray<FTextureShareCoreManualProjection>& InProjectionData)
+bool FTextureShareProjectionPolicy::SetCustomProjection(const TArray<FTextureShareCoreManualProjection>& InProjectionData)
 {
 	check(IsInGameThread());
 
@@ -73,17 +74,17 @@ bool FDisplayClusterProjectionTextureSharePolicy::SetCustomProjection(const TArr
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterProjectionTextureSharePolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
+bool FTextureShareProjectionPolicy::HandleStartScene(class IDisplayClusterViewport* InViewport)
 {
 	return true;
 }
 
-void FDisplayClusterProjectionTextureSharePolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
+void FTextureShareProjectionPolicy::HandleEndScene(class IDisplayClusterViewport* InViewport)
 {
 
 }
 
-bool FDisplayClusterProjectionTextureSharePolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float InNCP, const float InFCP)
+bool FTextureShareProjectionPolicy::CalculateView(class IDisplayClusterViewport* InViewport, const uint32 InContextNum, FVector& InOutViewLocation, FRotator& InOutViewRotation, const FVector& ViewOffset, const float WorldToMeters, const float InNCP, const float InFCP)
 {
 	check(IsInGameThread());
 
@@ -141,7 +142,7 @@ bool FDisplayClusterProjectionTextureSharePolicy::CalculateView(class IDisplayCl
 	return true;
 }
 
-bool FDisplayClusterProjectionTextureSharePolicy::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
+bool FTextureShareProjectionPolicy::GetProjectionMatrix(IDisplayClusterViewport* InViewport, const uint32 InContextNum, FMatrix& OutPrjMatrix)
 {
 	check(IsInGameThread());
 

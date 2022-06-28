@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Projection/DisplayClusterProjectionPolicyBase.h"
-#include "Projection/DisplayClusterProjectionStrings.h"
+#include "Projection/TextureShareProjectionPolicyBase.h"
+#include "Projection/TextureShareProjectionStrings.h"
 
 #include "IDisplayCluster.h"
 #include "Game/IDisplayClusterGameManager.h"
@@ -12,19 +12,19 @@
 #include "Render/Viewport/IDisplayClusterViewport.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterProjectionPolicyBase
+// FTextureShareProjectionPolicyBase
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterProjectionPolicyBase::FDisplayClusterProjectionPolicyBase(const FString& InProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
+FTextureShareProjectionPolicyBase::FTextureShareProjectionPolicyBase(const FString& InProjectionPolicyId, const FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy)
 	: ProjectionPolicyId(InProjectionPolicyId)
 {
 	Parameters.Append(InConfigurationProjectionPolicy->Parameters);
 }
 
-FDisplayClusterProjectionPolicyBase::~FDisplayClusterProjectionPolicyBase()
+FTextureShareProjectionPolicyBase::~FTextureShareProjectionPolicyBase()
 {
 }
 
-bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode_RenderThread(const IDisplayClusterViewportProxy* InViewportProxy)
+bool FTextureShareProjectionPolicyBase::IsEditorOperationMode_RenderThread(const IDisplayClusterViewportProxy* InViewportProxy)
 {
 	check(IsInRenderingThread());
 
@@ -36,7 +36,7 @@ bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode_RenderThread(con
 	return true;
 }
 
-bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(class IDisplayClusterViewport* InViewport)
+bool FTextureShareProjectionPolicyBase::IsEditorOperationMode(class IDisplayClusterViewport* InViewport)
 {
 	check(IsInGameThread());
 
@@ -69,7 +69,7 @@ bool FDisplayClusterProjectionPolicyBase::IsEditorOperationMode(class IDisplayCl
 	return false;
 }
 
-bool FDisplayClusterProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
+bool FTextureShareProjectionPolicyBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy) const
 {
 	if (InConfigurationProjectionPolicy->Parameters.Num() != Parameters.Num())
 	{

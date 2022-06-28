@@ -7,7 +7,7 @@
 /**
  * Postprocess factory for TextureShare over nDisplay
  */
-class FDisplayClusterPostProcessTextureShareFactory
+class FTextureSharePostprocessFactory
 	: public IDisplayClusterPostProcessFactory
 {
 public:

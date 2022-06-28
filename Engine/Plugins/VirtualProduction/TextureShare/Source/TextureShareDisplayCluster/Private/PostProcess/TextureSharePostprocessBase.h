@@ -6,12 +6,12 @@
 /**
  * Base postprocess
  */
-class FDisplayClusterPostprocessBase
+class FTextureSharePostprocessBase
 	: public IDisplayClusterPostProcess
 {
 public:
-	FDisplayClusterPostprocessBase(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
-	virtual ~FDisplayClusterPostprocessBase() = 0;
+	FTextureSharePostprocessBase(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
+	virtual ~FTextureSharePostprocessBase() = 0;
 
 	virtual const FString& GetId() const override
 	{

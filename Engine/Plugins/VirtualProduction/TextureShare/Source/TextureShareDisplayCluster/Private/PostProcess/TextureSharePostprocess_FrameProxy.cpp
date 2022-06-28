@@ -1,18 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PostProcess/TextureShare/DisplayClusterPostprocessTextureShare.h"
-#include "PostProcess/DisplayClusterPostprocessStrings.h"
+#include "PostProcess/TextureSharePostprocess.h"
+
+#include "PostProcess/TextureSharePostprocessStrings.h"
 #include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "Module/TextureShareDisplayClusterLog.h"
-
 #include "Containers/TextureShareCoreEnums.h"
 
 #include "ITextureShareObjectProxy.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManagerProxy.h"
 #include "Render/Viewport/IDisplayClusterViewportProxy.h"
-
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -37,9 +36,9 @@ namespace DisplayClusterPostProcessTextureShareHelpers
 using namespace DisplayClusterPostProcessTextureShareHelpers;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterPostProcessTextureShare
+// FTextureSharePostprocess
 //////////////////////////////////////////////////////////////////////////////////////////////// Copyright Epic Games, Inc. All Rights Reserved.
-void FDisplayClusterPostProcessTextureShare::ShareViewport_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy, const ETextureShareSyncStep InReceiveSyncStep, const EDisplayClusterViewportResourceType InResourceType, const FString& InTextureId, bool bAfterWarpBlend) const
+void FTextureSharePostprocess::ShareViewport_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy, const ETextureShareSyncStep InReceiveSyncStep, const EDisplayClusterViewportResourceType InResourceType, const FString& InTextureId, bool bAfterWarpBlend) const
 {
 	if (InViewportManagerProxy)
 	{
@@ -89,7 +88,7 @@ void FDisplayClusterPostProcessTextureShare::ShareViewport_RenderThread(FRHIComm
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::ShareFrame_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy, const ETextureShareSyncStep InReceiveSyncStep, const EDisplayClusterViewportResourceType InResourceType, const FString& InTextureId) const
+void FTextureSharePostprocess::ShareFrame_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy, const ETextureShareSyncStep InReceiveSyncStep, const EDisplayClusterViewportResourceType InResourceType, const FString& InTextureId) const
 {
 	if (InViewportManagerProxy)
 	{

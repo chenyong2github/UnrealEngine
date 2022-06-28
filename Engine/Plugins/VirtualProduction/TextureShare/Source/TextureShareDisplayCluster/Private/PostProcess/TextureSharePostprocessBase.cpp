@@ -1,28 +1,28 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PostProcess/DisplayClusterPostprocessBase.h"
-#include "PostProcess/DisplayClusterPostprocessStrings.h"
+#include "PostProcess/TextureSharePostprocessBase.h"
+#include "PostProcess/TextureSharePostprocessStrings.h"
 #include "Module/TextureShareDisplayClusterLog.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "DisplayClusterConfigurationTypes.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterPostprocessBase
+// FTextureSharePostprocessBase
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterPostprocessBase::FDisplayClusterPostprocessBase(const FString& InProjectionPolicyId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
+FTextureSharePostprocessBase::FTextureSharePostprocessBase(const FString& InProjectionPolicyId, const FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
 	: PostprocessId(InProjectionPolicyId)
 {
 	Parameters.Append(InConfigurationPostprocess->Parameters);
 	Order = InConfigurationPostprocess->Order;
 }
 
-FDisplayClusterPostprocessBase::~FDisplayClusterPostprocessBase()
+FTextureSharePostprocessBase::~FTextureSharePostprocessBase()
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-bool FDisplayClusterPostprocessBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess) const
+bool FTextureSharePostprocessBase::IsConfigurationChanged(const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess) const
 {
 	if (InConfigurationPostprocess->Type.Compare(GetType(), ESearchCase::IgnoreCase) != 0)
 	{

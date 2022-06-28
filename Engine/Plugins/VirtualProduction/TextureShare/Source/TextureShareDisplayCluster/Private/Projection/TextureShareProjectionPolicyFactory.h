@@ -7,7 +7,7 @@
 /**
  * Projection policy factory for the 'TextureShare' policy
  */
-class FDisplayClusterProjectionTextureSharePolicyFactory
+class FTextureShareProjectionPolicyFactory
 	: public IDisplayClusterProjectionPolicyFactory
 {
 public:

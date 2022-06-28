@@ -2,19 +2,19 @@
 
 #pragma once
 
-#include "Projection/DisplayClusterProjectionPolicyBase.h"
+#include "Projection/TextureShareProjectionPolicyBase.h"
 
 struct FTextureShareCoreManualProjection;
 
 /**
  * Manual projection policy for TextureShare
  */
-class FDisplayClusterProjectionTextureSharePolicy
-	: public FDisplayClusterProjectionPolicyBase
+class FTextureShareProjectionPolicy
+	: public FTextureShareProjectionPolicyBase
 {
 public:
-	FDisplayClusterProjectionTextureSharePolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionTextureSharePolicy();
+	FTextureShareProjectionPolicy(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+	virtual ~FTextureShareProjectionPolicy();
 
 public:
 	virtual const FString& GetType() const;

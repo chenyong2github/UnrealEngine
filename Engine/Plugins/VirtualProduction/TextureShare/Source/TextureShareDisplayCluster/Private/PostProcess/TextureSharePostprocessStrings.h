@@ -3,7 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 
-namespace DisplayClusterPostprocessStrings
+namespace TextureSharePostprocessStrings
 {
 	namespace Postprocess
 	{

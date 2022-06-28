@@ -1,8 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PostProcess/TextureShare/DisplayClusterPostprocessTextureShare.h"
-#include "PostProcess/DisplayClusterPostprocessStrings.h"
-#include "Projection/DisplayClusterProjectionStrings.h"
+#include "PostProcess/TextureSharePostprocess.h"
+
+#include "PostProcess/TextureSharePostprocessStrings.h"
+#include "Projection/TextureShareProjectionStrings.h"
 #include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "Module/TextureShareDisplayClusterLog.h"
@@ -11,19 +12,17 @@
 
 #include "ITextureShare.h"
 #include "ITextureShareObject.h"
-
 #include "ITextureShareDisplayCluster.h"
 #include "ITextureShareDisplayClusterAPI.h"
 
 #include "Render/Viewport/IDisplayClusterViewportManager.h"
 #include "Render/Viewport/IDisplayClusterViewport.h"
-
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterPostProcessTextureShare
+// FTextureSharePostprocess
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterPostProcessTextureShare::UpdateSupportedViews(IDisplayClusterViewportManager* InViewportManager)
+void FTextureSharePostprocess::UpdateSupportedViews(IDisplayClusterViewportManager* InViewportManager)
 {
 	if (InViewportManager)
 	{
@@ -43,14 +42,14 @@ void FDisplayClusterPostProcessTextureShare::UpdateSupportedViews(IDisplayCluste
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::UpdateManualProjectionPolicy(IDisplayClusterViewportManager* InViewportManager)
+void FTextureSharePostprocess::UpdateManualProjectionPolicy(IDisplayClusterViewportManager* InViewportManager)
 {
 	if (InViewportManager)
 	{
 		for (IDisplayClusterViewport* ViewportIt : InViewportManager->GetViewports())
 		{
 			TSharedPtr<IDisplayClusterProjectionPolicy, ESPMode::ThreadSafe> PrjPolicy = ViewportIt->GetProjectionPolicy();
-			if (PrjPolicy.IsValid() && PrjPolicy->GetType() == DisplayClusterProjectionStrings::Projection::TextureShare)
+			if (PrjPolicy.IsValid() && PrjPolicy->GetType() == TextureShareProjectionStrings::Projection::TextureShare)
 			{
 				// Search the custom manual projection for viewport with the "TextureShare" projection policy type 
 				TArray<FTextureShareCoreManualProjection> ManualProjections;
@@ -75,7 +74,7 @@ void FDisplayClusterPostProcessTextureShare::UpdateManualProjectionPolicy(IDispl
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::UpdateViews(IDisplayClusterViewportManager* InViewportManager)
+void FTextureSharePostprocess::UpdateViews(IDisplayClusterViewportManager* InViewportManager)
 {
 	if (InViewportManager)
 	{

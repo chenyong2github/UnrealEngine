@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "PostProcess/TextureShare/DisplayClusterPostprocessTextureShare.h"
-#include "PostProcess/DisplayClusterPostprocessStrings.h"
+#include "PostProcess/TextureSharePostprocess.h"
+#include "PostProcess/TextureSharePostprocessStrings.h"
+
 #include "Misc/TextureShareDisplayClusterStrings.h"
 
 #include "Module/TextureShareDisplayClusterLog.h"
@@ -44,10 +45,10 @@ namespace DisplayClusterPostProcessTextureShareHelpers
 using namespace DisplayClusterPostProcessTextureShareHelpers;
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-// FDisplayClusterPostProcessTextureShare
+// FTextureSharePostprocess
 //////////////////////////////////////////////////////////////////////////////////////////////
-FDisplayClusterPostProcessTextureShare::FDisplayClusterPostProcessTextureShare(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
-	: FDisplayClusterPostprocessBase(PostprocessId, InConfigurationPostprocess)
+FTextureSharePostprocess::FTextureSharePostprocess(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess)
+	: FTextureSharePostprocessBase(PostprocessId, InConfigurationPostprocess)
 {
 	if (TextureShareAPI().IsObjectExist(TextureShareDisplayClusterStrings::Default::ShareName))
 	{
@@ -82,7 +83,7 @@ FDisplayClusterPostProcessTextureShare::FDisplayClusterPostProcessTextureShare(c
 	}
 }
 
-FDisplayClusterPostProcessTextureShare::~FDisplayClusterPostProcessTextureShare()
+FTextureSharePostprocess::~FTextureSharePostprocess()
 {
 	if (Object.IsValid())
 	{
@@ -91,14 +92,14 @@ FDisplayClusterPostProcessTextureShare::~FDisplayClusterPostProcessTextureShare(
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-const FString& FDisplayClusterPostProcessTextureShare::GetType() const
+const FString& FTextureSharePostprocess::GetType() const
 {
-	static const FString Type(DisplayClusterPostprocessStrings::Postprocess::TextureShare);
+	static const FString Type(TextureSharePostprocessStrings::Postprocess::TextureShare);
 
 	return Type;
 }
 
-void FDisplayClusterPostProcessTextureShare::ReleaseDisplayClusterPostProcessTextureShare()
+void FTextureSharePostprocess::ReleaseDisplayClusterPostProcessTextureShare()
 {
 	ObjectProxy.Reset();
 	Object.Reset();
@@ -106,17 +107,17 @@ void FDisplayClusterPostProcessTextureShare::ReleaseDisplayClusterPostProcessTex
 	TextureShareAPI().RemoveObject(TextureShareDisplayClusterStrings::Default::ShareName);
 }
 
-bool FDisplayClusterPostProcessTextureShare::HandleStartScene(IDisplayClusterViewportManager* InViewportManager)
+bool FTextureSharePostprocess::HandleStartScene(IDisplayClusterViewportManager* InViewportManager)
 {
 	return true;
 }
 
-void FDisplayClusterPostProcessTextureShare::HandleEndScene(IDisplayClusterViewportManager* InViewportManager)
+void FTextureSharePostprocess::HandleEndScene(IDisplayClusterViewportManager* InViewportManager)
 {
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterPostProcessTextureShare::HandleSetupNewFrame(IDisplayClusterViewportManager* InViewportManager)
+void FTextureSharePostprocess::HandleSetupNewFrame(IDisplayClusterViewportManager* InViewportManager)
 {
 	if (IsActive() && Object->BeginFrameSync() && Object->IsFrameSyncActive())
 	{
@@ -135,7 +136,7 @@ void FDisplayClusterPostProcessTextureShare::HandleSetupNewFrame(IDisplayCluster
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::HandleBeginNewFrame(IDisplayClusterViewportManager* InViewportManager, FDisplayClusterRenderFrame& InOutRenderFrame)
+void FTextureSharePostprocess::HandleBeginNewFrame(IDisplayClusterViewportManager* InViewportManager, FDisplayClusterRenderFrame& InOutRenderFrame)
 {
 	if (IsActive() && Object->IsFrameSyncActive())
 	{
@@ -157,7 +158,7 @@ void FDisplayClusterPostProcessTextureShare::HandleBeginNewFrame(IDisplayCluster
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterPostProcessTextureShare::HandleRenderFrameSetup_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+void FTextureSharePostprocess::HandleRenderFrameSetup_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
 	check(IsInRenderingThread());
 
@@ -170,7 +171,7 @@ void FDisplayClusterPostProcessTextureShare::HandleRenderFrameSetup_RenderThread
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::HandleBeginUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+void FTextureSharePostprocess::HandleBeginUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
 	check(IsInRenderingThread());
 
@@ -184,7 +185,7 @@ void FDisplayClusterPostProcessTextureShare::HandleBeginUpdateFrameResources_Ren
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+void FTextureSharePostprocess::HandleUpdateFrameResourcesAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
 	check(IsInRenderingThread());
 
@@ -197,7 +198,7 @@ void FDisplayClusterPostProcessTextureShare::HandleUpdateFrameResourcesAfterWarp
 	}
 }
 
-void FDisplayClusterPostProcessTextureShare::HandleEndUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
+void FTextureSharePostprocess::HandleEndUpdateFrameResources_RenderThread(FRHICommandListImmediate& RHICmdList, const IDisplayClusterViewportManagerProxy* InViewportManagerProxy)
 {
 	check(IsInRenderingThread());
 

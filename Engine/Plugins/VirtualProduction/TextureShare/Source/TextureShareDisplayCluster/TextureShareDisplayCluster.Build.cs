@@ -15,16 +15,33 @@ public class TextureShareDisplayCluster : ModuleRules
 			}
 		);
 
+		// List of modules names (no path needed) with header files that our module's public headers needs access to, but we don't need to "import" or link against.
+		PublicIncludePathModuleNames.AddRange(
+			new string[]
+			{
+				"DisplayCluster",
+				"DisplayClusterShaders",
+				"DisplayClusterConfiguration",
+
+				// Module names for DisplayClusterConfiguration
+				"ActorLayerUtilities",
+				"CinematicCamera",
+				"MediaAssets",
+				"Media",
+				"MediaUtils",
+				"MediaIOCore",
+				"OpenColorIO",
+			});
+
+		// List of public dependency module names (no path needed) (automatically does the private/public include). These are modules that are required by our public source files.
 		PublicDependencyModuleNames.AddRange(
 			new string[]
 			{
 				"Core",
 				"CoreUObject",
-				"DisplayCluster",
-				"DisplayClusterShaders",
-				"DisplayClusterConfiguration",
 			});
 
+		// List of private dependency module names.  These are modules that our private code depends on but nothing in our public include files depend on.
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{

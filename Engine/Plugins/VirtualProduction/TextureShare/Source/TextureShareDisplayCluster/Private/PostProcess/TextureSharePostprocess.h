@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "PostProcess/DisplayClusterPostprocessBase.h"
+#include "PostProcess/TextureSharePostprocessBase.h"
 #include "Render/Viewport/Containers/DisplayClusterViewport_Enums.h"
 #include "Containers/TextureShareContainers.h"
 
@@ -17,12 +17,12 @@ class IDisplayClusterViewportManagerProxy;
 /**
  * TextureShare over nDisplay post-process interface
  */
-class FDisplayClusterPostProcessTextureShare
-	: public FDisplayClusterPostprocessBase
+class FTextureSharePostprocess
+	: public FTextureSharePostprocessBase
 {
 public:
-	FDisplayClusterPostProcessTextureShare(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
-	virtual ~FDisplayClusterPostProcessTextureShare();
+	FTextureSharePostprocess(const FString& PostprocessId, const struct FDisplayClusterConfigurationPostprocess* InConfigurationPostprocess);
+	virtual ~FTextureSharePostprocess();
 
 	virtual const FString& GetType() const override;
 

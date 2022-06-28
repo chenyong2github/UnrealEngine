@@ -3,14 +3,14 @@
 #include "Module/TextureShareDisplayClusterAPI.h"
 #include "Module/TextureShareDisplayClusterLog.h"
 
-#include "Projection/TextureShare/DisplayClusterProjectionTextureSharePolicyFactory.h"
-#include "Projection/TextureShare/DisplayClusterProjectionTextureSharePolicy.h"
-#include "Projection/DisplayClusterProjectionStrings.h"
+#include "Projection/TextureShareProjectionPolicyFactory.h"
+#include "Projection/TextureShareProjectionPolicy.h"
+#include "Projection/TextureShareProjectionStrings.h"
 
 #include "Render/Projection/IDisplayClusterProjectionPolicy.h"
 
-#include "PostProcess/TextureShare/DisplayClusterPostprocessTextureShareFactory.h"
-#include "PostProcess/DisplayClusterPostprocessStrings.h"
+#include "PostProcess/TextureSharePostprocessFactory.h"
+#include "PostProcess/TextureSharePostprocessStrings.h"
 
 #include "IDisplayCluster.h"
 
@@ -35,13 +35,13 @@ FTextureShareDisplayClusterAPI::FTextureShareDisplayClusterAPI()
 	TSharedPtr<IDisplayClusterProjectionPolicyFactory> Factory;
 
 	// TextureShare projection
-	Factory = MakeShared<FDisplayClusterProjectionTextureSharePolicyFactory>();
-	ProjectionPolicyFactories.Emplace(DisplayClusterProjectionStrings::Projection::TextureShare, Factory);
+	Factory = MakeShared<FTextureShareProjectionPolicyFactory>();
+	ProjectionPolicyFactories.Emplace(TextureShareProjectionStrings::Projection::TextureShare, Factory);
 
 	TSharedPtr<IDisplayClusterPostProcessFactory> Postprocess;
 
-	Postprocess = MakeShared<FDisplayClusterPostProcessTextureShareFactory>();
-	PostprocessAssets.Emplace(DisplayClusterPostprocessStrings::Postprocess::TextureShare, Postprocess);
+	Postprocess = MakeShared<FTextureSharePostprocessFactory>();
+	PostprocessAssets.Emplace(TextureSharePostprocessStrings::Postprocess::TextureShare, Postprocess);
 }
 
 FTextureShareDisplayClusterAPI::~FTextureShareDisplayClusterAPI()
@@ -124,7 +124,7 @@ bool FTextureShareDisplayClusterAPI::TextureSharePolicySetProjectionData(const T
 	{
 		if (InPolicy.IsValid())
 		{
-			if (FDisplayClusterProjectionTextureSharePolicy* TSPolicyObject = static_cast<FDisplayClusterProjectionTextureSharePolicy*>(InPolicy.Get()))
+			if (FTextureShareProjectionPolicy* TSPolicyObject = static_cast<FTextureShareProjectionPolicy*>(InPolicy.Get()))
 			{
 				return TSPolicyObject->SetCustomProjection(InProjectionData);
 			}

@@ -3,7 +3,7 @@
 #pragma once
 #include "CoreMinimal.h"
 
-namespace DisplayClusterProjectionStrings
+namespace TextureShareProjectionStrings
 {
 	namespace Projection
 	{

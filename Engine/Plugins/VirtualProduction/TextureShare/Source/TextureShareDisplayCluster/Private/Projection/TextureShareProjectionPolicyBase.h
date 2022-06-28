@@ -7,12 +7,12 @@
 /**
 * Base projection policy
 */
-class FDisplayClusterProjectionPolicyBase
+class FTextureShareProjectionPolicyBase
 	: public IDisplayClusterProjectionPolicy
 {
 public:
-	FDisplayClusterProjectionPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
-	virtual ~FDisplayClusterProjectionPolicyBase() = 0;
+	FTextureShareProjectionPolicyBase(const FString& ProjectionPolicyId, const struct FDisplayClusterConfigurationProjection* InConfigurationProjectionPolicy);
+	virtual ~FTextureShareProjectionPolicyBase() = 0;
 
 	virtual const FString& GetId() const override
 	{
