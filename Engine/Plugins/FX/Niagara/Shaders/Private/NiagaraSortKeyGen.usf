@@ -16,7 +16,6 @@
 
 #include "/Engine/Private/Common.ush"
 
-#define NIAGARA_KEY_GEN_MAX_CULL_PLANES 10 // must match the code
 Buffer<float> NiagaraParticleDataFloat;
 Buffer<half> NiagaraParticleDataHalf;
 Buffer<int> NiagaraParticleDataInt;

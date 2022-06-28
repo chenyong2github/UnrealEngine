@@ -27,8 +27,34 @@ static FAutoConsoleVariableRef CVarNiagaraGPUCullingCPUToGPUThreshold(
 
 IMPLEMENT_GLOBAL_SHADER(FNiagaraSortKeyGenCS, "/Plugin/FX/Niagara/Private/NiagaraSortKeyGen.usf", "GenerateParticleSortKeys", SF_Compute);
 
+bool FNiagaraSortKeyGenCS::ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+{
+	FPermutationDomain PermutationVector(Parameters.PermutationId);
+
+	ERHIFeatureSupport WaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Parameters.Platform);
+	if (PermutationVector.Get<FUseWaveOps>())
+	{
+		if ( WaveOpsSupport == ERHIFeatureSupport::Unsupported )
+		{
+			return false;
+		}
+	}
+	else
+	{
+		if (WaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed)
+		{
+			return false;
+		}
+	}
+
+	return RHISupportsComputeShaders(Parameters.Platform);
+}
+
 void FNiagaraSortKeyGenCS::ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
+	FPermutationDomain PermutationVector(Parameters.PermutationId);
+	const bool bUseWaveIntrinsics = PermutationVector.Get<FUseWaveOps>();
+
 	FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_KEY_GEN_THREAD_COUNT);
 	OutEnvironment.SetDefine(TEXT("SORT_NONE"), (uint8)ENiagaraSortMode::None);
@@ -36,8 +62,7 @@ void FNiagaraSortKeyGenCS::ModifyCompilationEnvironment(const FGlobalShaderPermu
 	OutEnvironment.SetDefine(TEXT("SORT_VIEW_DISTANCE"), (uint8)ENiagaraSortMode::ViewDistance);
 	OutEnvironment.SetDefine(TEXT("SORT_CUSTOM_ASCENDING"), (uint8)ENiagaraSortMode::CustomAscending);
 	OutEnvironment.SetDefine(TEXT("SORT_CUSTOM_DESCENDING"), (uint8)ENiagaraSortMode::CustomDecending);
-
-	bool bUseWaveIntrinsics = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(Parameters.Platform) != ERHIFeatureSupport::Unsupported;
+	OutEnvironment.SetDefine(TEXT("NIAGARA_KEY_GEN_MAX_CULL_PLANES"), NIAGARA_KEY_GEN_MAX_CULL_PLANES);
 	OutEnvironment.SetDefine(TEXT("USE_WAVE_INTRINSICS"), bUseWaveIntrinsics);
 	if (bUseWaveIntrinsics)
 	{
@@ -45,3 +70,8 @@ void FNiagaraSortKeyGenCS::ModifyCompilationEnvironment(const FGlobalShaderPermu
 	}
 }
 
+bool FNiagaraSortKeyGenCS::UseWaveOps(EShaderPlatform ShaderPlatform)
+{
+	const ERHIFeatureSupport UseWaveOpsSupport = FDataDrivenShaderPlatformInfo::GetSupportsWaveOperations(ShaderPlatform);
+	return (GRHISupportsWaveOperations && UseWaveOpsSupport == ERHIFeatureSupport::RuntimeDependent) || (UseWaveOpsSupport == ERHIFeatureSupport::RuntimeGuaranteed);
+}
