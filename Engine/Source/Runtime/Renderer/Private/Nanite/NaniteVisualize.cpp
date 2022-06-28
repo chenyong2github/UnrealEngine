@@ -314,6 +314,12 @@ static FRDGBufferRef PerformPicking(
 
 void DisplayPicking(const FScene* Scene, const FNanitePickingFeedback& PickingFeedback, FScreenMessageWriter& Writer)
 {
+	const FNaniteVisualizationData& VisualizationData = GetNaniteVisualizationData();
+	if (VisualizationData.GetActiveModeID() != NANITE_VISUALIZE_PICKING)
+	{
+		return;
+	}
+
 	switch (GNanitePickingDomain)
 	{
 	case NANITE_PICKING_DOMAIN_TRIANGLE:
