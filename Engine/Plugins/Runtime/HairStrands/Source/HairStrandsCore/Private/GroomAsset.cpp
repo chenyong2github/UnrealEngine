@@ -2190,6 +2190,10 @@ bool UGroomAsset::CacheStrandsData(uint32 GroupIndex, FString& OutDerivedDataKey
 		Ar.SerializeCompressed(DecompressionBuffer, UncompressedSize, NAME_Zlib);
 
 		FHairGroupData& HairGroupData = HairGroupsData[GroupIndex];
+
+		// Reset hair group data to ensure previously loaded bulk data are cleared/cleaned priori to load new data.
+		HairGroupData = FHairGroupData();
+
 		FLargeMemoryReader LargeMemReader(DecompressionBuffer, UncompressedSize, ELargeMemoryReaderFlags::Persistent | ELargeMemoryReaderFlags::TakeOwnership);
 		InternalSerialize(LargeMemReader, this, HairGroupData);
 	}
