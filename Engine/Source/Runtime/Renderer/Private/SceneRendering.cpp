@@ -3865,6 +3865,9 @@ void FSceneRenderer::CreateSceneRenderers(TArrayView<const FSceneViewFamily*> In
 					bShouldUpdateRayTracingScene = false;
 				}
 			}
+
+			// Clear flag that tracks whether ray tracing was used this frame
+			SceneRenderers[0]->Scene->RayTracingScene.bUsedThisFrame = false;
 		});
 	}
 #endif  // RHI_RAYTRACING
@@ -4293,6 +4296,9 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 {
 	LLM_SCOPE(ELLMTag::SceneRender);
 
+	// All renderers point to the same Scene (calling code asserts this)
+	FScene* const Scene = SceneRenderers[0]->Scene;
+
 	// We need to execute the pre-render view extensions before we do any view dependent work.
 	for (FSceneRenderer* SceneRenderer : SceneRenderers)
 	{
@@ -4388,9 +4394,9 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 	{
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PostRenderCleanUp);
 
-		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, SceneRenderers[0]->Scene->GetShaderPlatform()) && (SceneRenderers[0]->AllFamilyViews.Num() > 0) && !bAnyShowHitProxies)
+		if (IsHairStrandsEnabled(EHairStrandsShaderType::All, Scene->GetShaderPlatform()) && (SceneRenderers[0]->AllFamilyViews.Num() > 0) && !bAnyShowHitProxies)
 		{
-			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(SceneRenderers[0]->Scene, SceneRenderers[0]->Views, SceneRenderers[0]->AllFamilyViews);
+			FHairStrandsBookmarkParameters Parameters = CreateHairStrandsBookmarkParameters(Scene, SceneRenderers[0]->Views, SceneRenderers[0]->AllFamilyViews);
 			if (Parameters.HasInstances())
 			{
 				RunHairStrandsBookmark(EHairStrandsBookmark::ProcessEndOfFrame, Parameters);
@@ -4400,12 +4406,12 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 		// Only reset per-frame scene state once all views have processed their frame, including those in planar reflections
 		for (int32 CacheType = 0; CacheType < UE_ARRAY_COUNT(SceneRenderers[0]->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds); CacheType++)
 		{
-			ResetAndShrinkModifiedBounds(SceneRenderers[0]->Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType]);
+			ResetAndShrinkModifiedBounds(Scene->DistanceFieldSceneData.PrimitiveModifiedBounds[CacheType]);
 		}
 
-		if (SceneRenderers[0]->Scene->LumenSceneData)
+		if (Scene->LumenSceneData)
 		{
-			ResetAndShrinkModifiedBounds(SceneRenderers[0]->Scene->LumenSceneData->PrimitiveModifiedBounds);
+			ResetAndShrinkModifiedBounds(Scene->LumenSceneData->PrimitiveModifiedBounds);
 		}
 
 		// Immediately issue EndFrame() for all extensions in case any of the outstanding tasks they issued getting out of this frame
@@ -4417,12 +4423,20 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 		}
 	}
 
+#if RHI_RAYTRACING
+	// Release the ray tracing scene resources if ray tracing wasn't used
+	if (!Scene->RayTracingScene.bUsedThisFrame)
+	{
+		Scene->RayTracingScene.ResetAndReleaseResources();
+	}
+#endif  // RHI_RAYTRACING
+
 #if STATS
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderViewFamily_RenderThread_MemStats);
 
 		// Update scene memory stats that couldn't be tracked continuously
-		SET_MEMORY_STAT(STAT_RenderingSceneMemory, SceneRenderers[0]->Scene->GetSizeBytes());
+		SET_MEMORY_STAT(STAT_RenderingSceneMemory, Scene->GetSizeBytes());
 
 		SIZE_T ViewStateMemory = 0;
 		for (FSceneRenderer* SceneRenderer : SceneRenderers)

@@ -1775,10 +1775,11 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 		{
 			RHICmdList.ClearRayTracingBindings(RayTracingScene.GetRHIRayTracingScene());
 
-			// If we did not end up rendering anything this frame, then release all ray tracing scene resources.
-			if (RayTracingScene.Instances.Num() == 0)
+			// Track if we ended up rendering anything this frame.  After rendering all view families, we'll release the
+			// ray tracing scene resources if nothing used ray tracing.
+			if (RayTracingScene.Instances.Num() > 0)
 			{
-				RayTracingScene.ResetAndReleaseResources();
+				RayTracingScene.bUsedThisFrame = true;
 			}
 		}
 

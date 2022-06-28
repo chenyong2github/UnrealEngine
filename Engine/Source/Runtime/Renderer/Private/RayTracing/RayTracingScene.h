@@ -90,6 +90,8 @@ public:
 	// This must be filled before calling CreateRayTracingSceneWithGeometryInstances() and Create().
 	TArray<FRayTracingGeometryInstance> Instances;
 
+	bool bUsedThisFrame = false;
+
 	uint32 NumCallableShaderSlots = 0;
 	TArray<FRayTracingShaderCommand> CallableCommands;
 
