@@ -4,11 +4,12 @@
 
 #ifdef USE_TECHSOFT_SDK
 
+#include "CADSceneGraph.h"
+#include "CADFileReport.h"
 #include "TechSoftInterface.h"
 #include "TechSoftFileParser.h"
 #include "TechSoftUtils.h"
 #include "TUniqueTechSoftObj.h"
-#include "CADFileReport.h"
 
 #include "CADKernel/Core/Session.h"
 
@@ -218,7 +219,7 @@ CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FS
 	//CADKernel working unit is mm
 	BodyScale = InBodyScale * 10.;
 
-	FEntityMetaData BRepMetaData;
+	FArchiveCADObject BRepMetaData;
 	Parser.ExtractMetaData(A3DBRepModel, BRepMetaData);
 	FString* Name = MetaData.Find(TEXT("Name"));
 	if(Name != nullptr)
@@ -260,7 +261,7 @@ CADKernel::FBody* FTechSoftBridge::AddBody(A3DRiBrepModel* A3DBRepModel, TMap<FS
 
 void FTechSoftBridge::TraverseBrepData(const A3DTopoBrepData* A3DBrepData, TSharedRef<CADKernel::FBody>& Body)
 {
-	FEntityMetaData MetaData;
+	FArchiveCADObject MetaData;
 	Parser.ExtractMetaData(A3DBrepData, MetaData);
 
 	{
@@ -293,7 +294,7 @@ void FTechSoftBridge::TraverseBrepData(const A3DTopoBrepData* A3DBrepData, TShar
 
 void FTechSoftBridge::TraverseConnex(const A3DTopoConnex* A3DTopoConnex, TSharedRef<CADKernel::FBody>& Body)
 {
-	FEntityMetaData MetaData;
+	FArchiveCADObject MetaData;
 	Parser.ExtractMetaData(A3DTopoConnex, MetaData);
 
 	TUniqueTSObj<A3DTopoConnexData> TopoConnexData(A3DTopoConnex);
@@ -308,7 +309,7 @@ void FTechSoftBridge::TraverseConnex(const A3DTopoConnex* A3DTopoConnex, TShared
 
 void FTechSoftBridge::TraverseShell(const A3DTopoShell* A3DShell, TSharedRef<CADKernel::FBody>& Body)
 {
-	FEntityMetaData MetaData;
+	FArchiveCADObject MetaData;
 	Parser.ExtractMetaData(A3DShell, MetaData);
 
 	TSharedRef<CADKernel::FShell> Shell = CADKernel::FEntity::MakeShared<CADKernel::FShell>();
@@ -697,7 +698,7 @@ void FTechSoftBridge::AddFace(const A3DTopoFace* A3DFace, CADKernel::EOrientatio
 {
 	Report.FaceCount++;
 
-	FEntityMetaData MetaData;
+	FArchiveCADObject MetaData;
 	Parser.ExtractMetaData(A3DFace, MetaData);
 
 	TUniqueTSObj<A3DTopoFaceData> TopoFaceData(A3DFace);
@@ -796,7 +797,7 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddSurface(const A3DSurfBase* A
 {
 	Report.SurfaceCount++;
 
-	FEntityMetaData MetaData;
+	FArchiveCADObject MetaData;
 	Parser.ExtractMetaData(A3DSurface, MetaData);
 
 	A3DEEntityType Type;
@@ -1222,15 +1223,15 @@ TSharedPtr<CADKernel::FSurface> FTechSoftBridge::AddSurfaceAsNurbs(const A3DSurf
 
 }
 
-void FTechSoftBridge::AddMetadata(FEntityMetaData& MetaData, CADKernel::FTopologicalShapeEntity& Entity)
+void FTechSoftBridge::AddMetadata(FArchiveCADObject& MetaData, CADKernel::FTopologicalShapeEntity& Entity)
 {
 	FString* Name = MetaData.MetaData.Find(TEXT("Name"));
 	if(Name != nullptr)
 	{
 		Entity.SetName(*Name);
 	}
-	Entity.SetColorId(MetaData.ColorName);
-	Entity.SetMaterialId(MetaData.MaterialName);
+	Entity.SetColorId(MetaData.ColorUId);
+	Entity.SetMaterialId(MetaData.MaterialUId);
 }
 
 }

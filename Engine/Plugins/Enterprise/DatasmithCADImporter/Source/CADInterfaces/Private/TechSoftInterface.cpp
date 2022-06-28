@@ -464,7 +464,8 @@ A3DStatus SewModel(A3DAsmModelFile* ModelPtr, double ToleranceInCM, A3DSewOption
 
 A3DStatus SewBReps(A3DRiBrepModel** BRepsToSew, uint32 const BRepCount, double ToleranceInCM, double FileUnit, A3DSewOptionsData const* SewOptions, A3DRiBrepModel*** OutNewBReps, uint32& OutNewBRepCount)
 {
-	const double ToleranceInFileUnit = ToleranceInCM * 10. / FileUnit; 
+	const double CmToMm = 10.;
+	const double ToleranceInFileUnit = ToleranceInCM * CmToMm / FileUnit;
 
 	A3DUns32 NewBRepCount = 0;
 	A3DStatus Status = A3DSewBrep(&BRepsToSew, BRepCount, ToleranceInFileUnit, SewOptions, OutNewBReps, &NewBRepCount);

@@ -35,8 +35,8 @@ class FTopologicalShapeEntity;
 namespace CADLibrary
 {
 
+class FArchiveCADObject;
 class FTechSoftFileParser;
-struct FEntityMetaData;
 
 namespace TechSoftUtils
 {
@@ -243,7 +243,7 @@ private:
 
 	TSharedPtr<CADKernel::FCurve> AddCurveAsNurbs(const A3DCrvBase* A3DCurve, const TechSoftUtils::FUVReparameterization& UVReparameterization);
 
-	void AddMetadata(FEntityMetaData& EntityData, CADKernel::FTopologicalShapeEntity& Entity);
+	void AddMetadata(FArchiveCADObject& EntityData, CADKernel::FTopologicalShapeEntity& Entity);
 };
 }
 

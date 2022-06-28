@@ -756,7 +756,7 @@ FString CleanCatiaReferenceName(const FString& Name)
 	}
 	return Name;
 }
-FString CleanNameByRemoving_prt(const FString& Name)
+FString CleanCreoName(const FString& Name)
 {
 	int32 Position;
 	if (Name.FindLastChar(TEXT('.'), Position))

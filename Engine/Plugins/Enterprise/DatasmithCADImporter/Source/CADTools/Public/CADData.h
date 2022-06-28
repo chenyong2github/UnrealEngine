@@ -53,6 +53,21 @@ enum class ECADParsingResult : uint8
 	FileNotFound,
 };
 
+enum EComponentType : uint8
+{
+	Reference = 0,
+	Instance,
+	Body,
+	LastType
+};
+
+enum class ECADGraphicPropertyInheritance : uint8
+{
+	Unset,
+	FatherHerit,
+	ChildHerit,
+};
+
 // TODO: Remove from hear and replace by DatasmithUtils::GetCleanFilenameAndExtension... But need to remove DatasmithCore dependancies 
 CADTOOLS_API void GetCleanFilenameAndExtension(const FString& InFilePath, FString& OutFilename, FString& OutExtension);
 CADTOOLS_API FString GetExtension(const FString& InFilePath);
@@ -79,6 +94,73 @@ struct CADTOOLS_API FObjectDisplayDataId
 	FMaterialUId DefaultMaterialUId = 0;
 	FMaterialUId MaterialUId = 0;
 	FMaterialUId ColorUId = 0;
+};
+
+class CADTOOLS_API FArchiveGraphicProperties
+{
+public:
+	FArchiveGraphicProperties()
+		: ColorUId(0)
+		, MaterialUId(0)
+	{
+	}
+
+	FArchiveGraphicProperties(const FArchiveGraphicProperties& Parent)
+		: ColorUId(Parent.ColorUId)
+		, MaterialUId(Parent.MaterialUId)
+	{
+	}
+
+	virtual ~FArchiveGraphicProperties() = default;
+
+public:
+	FMaterialUId ColorUId = 0;
+	FMaterialUId MaterialUId = 0;
+	bool bIsRemoved = false;
+	bool bShow = true;
+	ECADGraphicPropertyInheritance Inheritance = ECADGraphicPropertyInheritance::Unset;
+
+	/**
+	 * If a graphic property is undefined, define it with Source property
+	 */
+	void DefineGraphicsPropertiesFromNoOverwrite(const FArchiveGraphicProperties& Source)
+	{
+		if (!ColorUId)
+		{
+			ColorUId = Source.ColorUId;
+		}
+
+		if (!MaterialUId)
+		{
+			MaterialUId = Source.MaterialUId;
+		}
+	}
+
+	/**
+	 * If a source property is defined, set the property with it
+	 */
+	void SetGraphicProperties(const FArchiveGraphicProperties& Source)
+	{
+		if (Source.ColorUId)
+		{
+			ColorUId = Source.ColorUId;
+		}
+
+		if (Source.MaterialUId)
+		{
+			MaterialUId = Source.MaterialUId;
+		}
+	}
+
+	bool IsDeleted() const
+	{
+		return bIsRemoved;
+	}
+
+	bool IsShown() const
+	{
+		return bShow;
+	}
 };
 
 class CADTOOLS_API FFileDescriptor
@@ -211,7 +293,7 @@ private:
  * CoreTech mesh are defined surface by surface. The mesh is not connected
  * CADKernel mesh is connected.
  */
-struct CADTOOLS_API FTessellationData
+struct CADTOOLS_API FTessellationData : public FArchiveGraphicProperties
 {
 	friend CADTOOLS_API FArchive& operator<<(FArchive& Ar, FTessellationData& Tessellation);
 
@@ -230,9 +312,6 @@ struct CADTOOLS_API FTessellationData
 	/** UV coordinates of each vertex */
 	TArray<FVector2D> TexCoordArray;
 
-	FMaterialUId ColorUId = 0;
-	FMaterialUId MaterialUId = 0;
-
 	int32 PatchId;
 };
 
@@ -247,6 +326,19 @@ public:
 	friend FArchive& operator<<(FArchive& Ar, FBodyMesh& BodyMesh);
 
 public:
+
+	void AddGraphicPropertiesFrom(const FArchiveGraphicProperties& GraphicProperties)
+	{
+		if (GraphicProperties.ColorUId)
+		{
+			ColorSet.Add(GraphicProperties.ColorUId);
+		}
+		if (GraphicProperties.MaterialUId)
+		{
+			MaterialSet.Add(GraphicProperties.MaterialUId);
+		}
+	}
+
 	TArray<FVector> VertexArray; // set by CADKernel, filled by FillKioVertexPosition that merges coincident vertices (CoreTechHelper)
 	TArray<FTessellationData> Faces;
 	FBox BBox;

@@ -20,7 +20,7 @@ FString Clean3dxmlInstanceSdkName(const FString& Name);
 FString Clean3dxmlReferenceSdkName(const FString& Name);
 FString CleanSwInstanceSdkName(const FString& Name);
 FString CleanSwReferenceSdkName(const FString& Name);
-FString CleanNameByRemoving_prt(const FString& Name);
+FString CleanCreoName(const FString& Name);
 bool CheckIfNameExists(TMap<FString, FString>& MetaData);
 bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key);
 

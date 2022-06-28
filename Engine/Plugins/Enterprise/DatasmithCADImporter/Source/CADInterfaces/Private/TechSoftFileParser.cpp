@@ -94,28 +94,6 @@ inline void RemoveUnwantedChar(FString& StringToClean, TCHAR UnwantedChar)
 	StringToClean = MoveTemp(NewString);
 }
 
-bool CheckIfNameExists(TMap<FString, FString>& MetaData)
-{
-	FString* NamePtr = MetaData.Find(TEXT("Name"));
-	if (NamePtr != nullptr)
-	{
-		return true;
-	}
-	return false;
-}
-
-bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key)
-{
-	FString* NamePtr = MetaData.Find(Key);
-	if (NamePtr != nullptr)
-	{
-		FString& Name = MetaData.FindOrAdd(TEXT("Name"));
-		Name = *NamePtr;
-		return true;
-	}
-	return false;
-}
-
 // Functions used in traverse model process
 
 void TraverseAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, FString>& OutMetaData)
@@ -280,6 +258,7 @@ double ExtractUniformScale(FVector3d& Scale)
 
 FTechSoftFileParser::FTechSoftFileParser(FCADFileData& InCADData, const FString& EnginePluginsPath)
 	: CADFileData(InCADData)
+	, SceneGraph(InCADData.GetSceneGraphArchive())
 	, TechSoftInterface(FTechSoftInterface::Get())
 {
 	TechSoftInterface.InitializeKernel(*EnginePluginsPath);
@@ -385,12 +364,13 @@ ECADParsingResult FTechSoftFileParser::Process()
 	if (Result == ECADParsingResult::ProcessOk)
 	{
 		GenerateBodyMeshes();
-	}
 
-	FString TechSoftVersion = TechSoftInterface::GetTechSoftVersion();
-	if (!TechSoftVersion.IsEmpty() && CADFileData.ReferenceCount() > 0)
-	{
-		CADFileData.GetReferenceAt(0).MetaData.Add(TEXT("TechsoftVersion"), TechSoftVersion);
+		FString TechSoftVersion = TechSoftInterface::GetTechSoftVersion();
+		if (!TechSoftVersion.IsEmpty())
+		{
+			FArchiveReference& RootReference = SceneGraph.GetReference(1);
+			RootReference.MetaData.Add(TEXT("TechsoftVersion"), TechSoftVersion);
+		}
 	}
 
 	ModelFile.Reset();
@@ -412,7 +392,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 	for (TPair<A3DRiRepresentationItem*, FCadId>& Entry : RepresentationItemsCache)
 	{
 		A3DRiRepresentationItem* RepresentationItemPtr = Entry.Key;
-		FArchiveBody& Body = CADFileData.GetBodyAt(Entry.Value);
+		FArchiveBody& Body = SceneGraph.GetBody(Entry.Value);
 		GenerateBodyMesh(RepresentationItemPtr, Body);
 	}
 }
@@ -420,6 +400,7 @@ void FTechSoftFileParser::GenerateBodyMeshes()
 void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representation, FArchiveBody& Body)
 {
 	FBodyMesh& BodyMesh = CADFileData.AddBodyMesh(Body.Id, Body);
+	BodyMesh.AddGraphicPropertiesFrom(Body);
 
 	uint32 NewBRepCount = 0;
 	A3DRiBrepModel** NewBReps = nullptr;
@@ -440,52 +421,34 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 	{
 		for (uint32 Index = 0; Index < NewBRepCount; ++Index)
 		{
-			TechSoftUtils::FillBodyMesh(NewBReps[Index], CADFileData.GetImportParameters(), Body.BodyUnit, BodyMesh);
+			TechSoftUtils::FillBodyMesh(NewBReps[Index], CADFileData.GetImportParameters(), Body.Unit, BodyMesh);
 		}
 	} 
 	else
 	{
-		TechSoftUtils::FillBodyMesh(Representation, CADFileData.GetImportParameters(), Body.BodyUnit, BodyMesh);
+		TechSoftUtils::FillBodyMesh(Representation, CADFileData.GetImportParameters(), Body.Unit, BodyMesh);
 	}
 
 	if (BodyMesh.TriangleCount == 0)
 	{
 		// the mesh of the body is empty, the body is deleted.
-		// Todo (jira UETOOL-5148): add a boolean in Body to flag that the body should not be build
-		Body.ParentId = 0;
-		Body.MeshActorUId = 0;
+		Body.Delete();
 	}
 
 	// Convert material
-	FCadUuid DefaultColorUId = Body.ColorFaceSet.Num() > 0 ? *Body.ColorFaceSet.begin() : 0;
-	FCadUuid DefaultMaterialUId = Body.MaterialFaceSet.Num() > 0 ? *Body.MaterialFaceSet.begin() : 0;
-
 	for (FTessellationData& Tessellation : BodyMesh.Faces)
 	{
-		FCadUuid ColorUId = DefaultColorUId;
-		FCadUuid MaterialUId = DefaultMaterialUId;
-
 		// Extract proper color or material based on style index
-		uint32 CachedStyleIndex = Tessellation.MaterialUId;
+		FMaterialUId CachedStyleIndex = Tessellation.MaterialUId;
 		Tessellation.MaterialUId = 0;
 
-		constexpr uint32 GraphStyleDataDefaultValue =  65535;
-		if (CachedStyleIndex != GraphStyleDataDefaultValue)
+		if (CachedStyleIndex != FTechSoftDefaultValue::Style)
 		{
-			ExtractGraphStyleProperties(CachedStyleIndex, ColorUId, MaterialUId);
+			ExtractGraphStyleProperties(CachedStyleIndex, Tessellation);
 		}
+		Tessellation.DefineGraphicsPropertiesFromNoOverwrite(Body);
 
-		if (ColorUId)
-		{
-			Tessellation.ColorUId = ColorUId;
-			BodyMesh.ColorSet.Add(ColorUId);
-		}
-
-		if (MaterialUId)
-		{
-			Tessellation.MaterialUId = MaterialUId;
-			BodyMesh.MaterialSet.Add(MaterialUId);
-		}
+		BodyMesh.AddGraphicPropertiesFrom(Tessellation);
 	}
 
 	Body.ColorFaceSet = BodyMesh.ColorSet;
@@ -505,11 +468,18 @@ void FTechSoftFileParser::GenerateBodyMesh(A3DRiRepresentationItem* Representati
 			// Save body unit and default color and material attributes in a json string
 			// This will be used when the file is reloaded
 			JsonObject->SetNumberField(JSON_ENTRY_BODY_UNIT, Body.BodyUnit);
-			JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, DefaultColorUId);
-			JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, DefaultMaterialUId);
+
+			if(Body.ColorUId)
+			{
+				JsonObject->SetNumberField(JSON_ENTRY_COLOR_NAME, Body.ColorUId);
+			}
+			if(Body.MaterialUId)
+			{
+				JsonObject->SetNumberField(JSON_ENTRY_MATERIAL_NAME, Body.MaterialUId);
+			}
 
 			FString JsonString;
-			TSharedRef< TJsonWriter< TCHAR, TPrettyJsonPrintPolicy<TCHAR> > > JsonWriter = TJsonWriterFactory< TCHAR, TPrettyJsonPrintPolicy<TCHAR> >::Create(&JsonString);
+			TSharedRef<TJsonWriter<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>> JsonWriter = TJsonWriterFactory<TCHAR, TPrettyJsonPrintPolicy<TCHAR>>::Create(&JsonString);
 
 			FJsonSerializer::Serialize(JsonObject.ToSharedRef(), JsonWriter);
 
@@ -525,11 +495,9 @@ void FTechSoftFileParser::ReserveCADFileData()
 
 	CADFileData.ReserveBodyMeshes(ComponentCount[EComponentType::Body]);
 
-	FArchiveSceneGraph& SceneGraphArchive = CADFileData.GetSceneGraphArchive();
-	SceneGraphArchive.Reserve(ComponentCount[EComponentType::Occurrence], ComponentCount[EComponentType::Reference], ComponentCount[EComponentType::Body]);
-
+	SceneGraph.Reserve(ComponentCount);
 	uint32 MaterialNum = CountColorAndMaterial();
-	SceneGraphArchive.MaterialHIdToMaterial.Reserve(MaterialNum);
+	SceneGraph.MaterialHIdToMaterial.Reserve(MaterialNum);
 }
 
 void FTechSoftFileParser::CountUnderModel()
@@ -540,7 +508,7 @@ void FTechSoftFileParser::CountUnderModel()
 		return;
 	}
 
-	ComponentCount[EComponentType::Occurrence] ++;
+	ComponentCount[EComponentType::Reference] ++;
 
 	for (uint32 Index = 0; Index < ModelFileData->m_uiPOccurrencesSize; ++Index)
 	{
@@ -563,28 +531,29 @@ ECADParsingResult FTechSoftFileParser::TraverseModel()
 		return ECADParsingResult::ProcessFailed;
 	}
 
-	FEntityMetaData MetaData;
-	ExtractMetaData(ModelFile.Get(), MetaData);
-	ExtractSpecificMetaData(ModelFile.Get(), MetaData);
-	BuildReferenceName(MetaData);
+	FArchiveInstance EmptyInstance;
+	FArchiveReference& Reference = SceneGraph.AddReference(EmptyInstance);
+	ExtractMetaData(ModelFile.Get(), Reference);
+	ExtractSpecificMetaData(ModelFile.Get(), Reference);
+	BuildReferenceName(Reference);
+	Reference.Unit = FileUnit;
 
 	for (uint32 Index = 0; Index < ModelFileData->m_uiPOccurrencesSize; ++Index)
 	{
 		if (IsConfigurationSet(ModelFileData->m_ppPOccurrences[Index]))
 		{
-			TraverseConfigurationSet(ModelFileData->m_ppPOccurrences[Index], FileUnit);
+			TraverseConfigurationSet(ModelFileData->m_ppPOccurrences[Index], Reference);
 		}
 		else
 		{
-			FString* ModelNamePtr = MetaData.MetaData.Find(TEXT("Name"));
-			TraverseReference(ModelFileData->m_ppPOccurrences[Index], ModelNamePtr ? *ModelNamePtr : FString(), FMatrix::Identity, FileUnit);
+			TraverseReference(ModelFileData->m_ppPOccurrences[Index], Reference);
 		}
 	}
 
 	return ECADParsingResult::ProcessOk;
 }
 
-void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSetPtr, double ParentUnit)
+void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence* ConfigurationSetPtr, FArchiveReference& Reference)
 {
 	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationSetData(ConfigurationSetPtr);
 	if (!ConfigurationSetData.IsValid())
@@ -592,20 +561,16 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 		return;
 	}
 
-	FEntityMetaData MetaData;
-	ExtractMetaData(ConfigurationSetPtr, MetaData);
-	ExtractSpecificMetaData(ConfigurationSetPtr, MetaData);
-	BuildReferenceName(MetaData);
-	FString ConfigurationName = MetaData.MetaData.FindOrAdd(TEXT("Name"));
+	ExtractMetaData(ConfigurationSetPtr, Reference);
+	ExtractSpecificMetaData(ConfigurationSetPtr, Reference);
+	BuildReferenceName(Reference);
 
 	const FString& ConfigurationToLoad = CADFileData.GetCADFileDescription().GetConfiguration();
 
-	FMatrix TransformMatrix = FMatrix::Identity;;
-	double OccurenceUnit = ParentUnit;
 	A3DMiscTransformation* Location = ConfigurationSetData->m_pLocation;
 	if (Location)
 	{
-		TransformMatrix = ExtractTransformation(Location, OccurenceUnit);
+		ExtractTransformation(Location, Reference);
 	}
 
 	TUniqueTSObj<A3DAsmProductOccurrenceData> ConfigurationData;
@@ -622,12 +587,11 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 			bool bIsConfigurationToLoad = false;
 			if (!ConfigurationToLoad.IsEmpty())
 			{
-				FEntityMetaData ConfigurationMetaData;
-				ExtractMetaData(ConfigurationSetData->m_ppPOccurrences[Index], ConfigurationMetaData);
-				const FString* Configuration = ConfigurationMetaData.MetaData.Find(TEXT("SDKName"));
-				if (Configuration)
+				FArchiveCADObject Configuration;
+				ExtractMetaData(ConfigurationSetData->m_ppPOccurrences[Index], Configuration);
+				if (!Configuration.Label.IsEmpty())
 				{
-					bIsConfigurationToLoad = (Configuration->Equals(ConfigurationToLoad));
+					bIsConfigurationToLoad = (Configuration.Label.Equals(ConfigurationToLoad));
 				}
 			}
 			else
@@ -637,7 +601,7 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 
 			if (bIsConfigurationToLoad)
 			{
-				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index], ConfigurationName, TransformMatrix, OccurenceUnit);
+				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index], Reference);
 				return;
 			}
 		}
@@ -656,7 +620,7 @@ void FTechSoftFileParser::TraverseConfigurationSet(const A3DAsmProductOccurrence
 
 			if (ConfigurationData->m_uiProductFlags & A3D_PRODUCT_FLAG_CONFIG)
 			{
-				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index], ConfigurationName, TransformMatrix, OccurenceUnit);
+				TraverseReference(ConfigurationSetData->m_ppPOccurrences[Index], Reference);
 			}
 		}
 	}
@@ -686,12 +650,11 @@ void FTechSoftFileParser::CountUnderConfigurationSet(const A3DAsmProductOccurren
 			bool bIsConfigurationToLoad = false;
 			if (!ConfigurationToLoad.IsEmpty())
 			{
-				FEntityMetaData ConfigurationMetaData;
-				ExtractMetaData(ConfigurationSetData->m_ppPOccurrences[Index], ConfigurationMetaData);
-				const FString* ConfigurationName = ConfigurationMetaData.MetaData.Find(TEXT("SDKName"));
-				if (ConfigurationName)
+				FArchiveCADObject Configuration;
+				ExtractMetaData(ConfigurationSetData->m_ppPOccurrences[Index], Configuration);
+				if (!Configuration.Label.IsEmpty())
 				{
-					bIsConfigurationToLoad = (ConfigurationName->Equals(ConfigurationToLoad));
+					bIsConfigurationToLoad = (Configuration.Label.Equals(ConfigurationToLoad));
 				}
 			}
 			else
@@ -726,154 +689,72 @@ void FTechSoftFileParser::CountUnderConfigurationSet(const A3DAsmProductOccurren
 	}
 }
 
-void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* ReferencePtr, const FString& RootName, const FMatrix& ParentMatrix, double ParentUnit)
+void FTechSoftFileParser::TraverseReference(const A3DAsmProductOccurrence* A3DReferencePtr, FArchiveReference& Reference)
 {
-	FEntityMetaData MetaData;
-	ExtractMetaData(ReferencePtr, MetaData);
-
-	if (MetaData.bRemoved || !MetaData.bShow)
-	{
-		return;
-	}
-
-	ExtractSpecificMetaData(ReferencePtr, MetaData);
-
-	if (!RootName.IsEmpty())
-	{
-		MetaData.MetaData.FindOrAdd(TEXT("Name"), RootName);
-	}
-	else
-	{
-		BuildReferenceName(MetaData);
-	}
-
-	FArchiveInstance EmptyInstance;
-	FArchiveReference& Reference = FTechSoftFileParser::AddReference(MetaData, EmptyInstance);
-
-	TUniqueTSObj<A3DAsmProductOccurrenceData> ReferenceData(ReferencePtr);
+	TUniqueTSObj<A3DAsmProductOccurrenceData> ReferenceData(A3DReferencePtr);
 	if (!ReferenceData.IsValid())
 	{
+		SceneGraph.RemoveLastReference();
 		return;
+	}
+
+	if (Reference.bIsRemoved || !Reference.bShow)
+	{
+		SceneGraph.RemoveLastReference();
+		return;
+	}
+
+	ExtractSpecificMetaData(A3DReferencePtr, Reference);
+
+	if (!Reference.IsNameDefined())
+	{
+		BuildReferenceName(Reference);
 	}
 
 	FMatrix ReferenceMatrix = FMatrix::Identity;
-	double ReferenceUnit = ParentUnit;
-
 	A3DMiscTransformation* Location = ReferenceData->m_pLocation;
 	if (Location)
 	{
-		ReferenceMatrix = ExtractTransformation(Location, ReferenceUnit);
+		ExtractTransformation(Location, Reference);
 	}
+	Reference.TransformMatrix = Reference.TransformMatrix * ReferenceMatrix;
 
-	Reference.TransformMatrix = ParentMatrix * ReferenceMatrix;
-
-	const FString& OccurenceNameBase = Reference.MetaData.FindOrAdd(TEXT("Name"));
-	for (uint32 OccurenceIndex = 0; OccurenceIndex < ReferenceData->m_uiPOccurrencesSize; ++OccurenceIndex)
-	{
-		int32 ChildrenId = TraverseOccurrence(ReferenceData->m_ppPOccurrences[OccurenceIndex], OccurenceNameBase + TEXT("_") + FString::FromInt(OccurenceIndex+1), ReferenceUnit);
-		Reference.Children.Add(ChildrenId);
-	}
-
-	if (ReferenceData->m_pPart)
-	{
-		TraversePartDefinition(ReferenceData->m_pPart, Reference, ReferenceUnit);
-	}
+	FArchiveInstance EmptyInstance;
+	ProcessReference(A3DReferencePtr, EmptyInstance, Reference);
 }
 
-FArchiveInstance& FTechSoftFileParser::AddInstance(FEntityMetaData& InstanceMetaData)
+void FTechSoftFileParser::ProcessUnloadedReference(const FArchiveInstance& Instance, FArchiveUnloadedReference& Reference)
 {
-	FCadId InstanceId = LastEntityId++;
-	int32 InstanceIndex = CADFileData.AddInstance(InstanceId);
-	FArchiveInstance& Instance = CADFileData.GetInstanceAt(InstanceIndex);
-	Instance.MetaData = MoveTemp(InstanceMetaData.MetaData);
-	return Instance;
-}
-
-FArchiveReference& FTechSoftFileParser::AddReference(FEntityMetaData& ReferenceMetaData, FArchiveInstance& Instance)
-{
-	FCadId ReferenceId = LastEntityId++;
-	int32 ReferenceIndex = CADFileData.AddReference(ReferenceId);
-	FArchiveReference& Prototype = CADFileData.GetReferenceAt(ReferenceIndex);
-	Prototype.MetaData = MoveTemp(ReferenceMetaData.MetaData);
-
-	Instance.ReferenceNodeId = ReferenceId;
-
-	return Prototype;
-}
-
-FArchiveUnloadedReference& FTechSoftFileParser::AddUnloadedReference(FEntityMetaData& ReferenceMetaData, FArchiveInstance& Instance)
-{
-	FCadId ReferenceId = LastEntityId++;
-	int32 ReferenceIndex = CADFileData.AddUnloadedReference(ReferenceId);
-	FArchiveUnloadedReference& Reference = CADFileData.GetUnloadedReferenceAt(ReferenceIndex);
-	Reference.MetaData = MoveTemp(ReferenceMetaData.MetaData);
-
-	Instance.bIsExternalReference = true;
-	Instance.ReferenceNodeId = ReferenceId;
-
 	// Make sure that the ExternalFile path is right otherwise try to find the file and update.
-	TechSoftFileParserImpl::UpdateFileDescriptor(ReferenceMetaData.ExternalFile);
+	TechSoftFileParserImpl::UpdateFileDescriptor(Reference.ExternalFile);
 
-	Instance.ExternalReference = ReferenceMetaData.ExternalFile;
-
-	if (Format == ECADFormat::SOLIDWORKS /*|| CADFileData.FileFormat() == ECADFormat::JT*/)
+	switch (Format)
 	{
-		if (FString* ConfigurationName = Reference.MetaData.Find(TEXT("ConfigurationName")))
+	case ECADFormat::SOLIDWORKS:
+		if (const FString* ConfigurationName = Instance.MetaData.Find(TEXT("ConfigurationName")))
 		{
-			Instance.ExternalReference.SetConfiguration(*ConfigurationName);
+			Reference.ExternalFile.SetConfiguration(*ConfigurationName);
 		}
+		break;
+
+	case ECADFormat::NX:
+		// todo
+		break;
+	default:
+		break;
 	}
 
-	CADFileData.AddExternalRef(Instance.ExternalReference);
-
-	return Reference;
+	SceneGraph.AddExternalReferenceFile(Reference);
 }
 
-FArchiveReference& FTechSoftFileParser::AddOccurence(FEntityMetaData& InstanceMetaData, FCadId& OutReferenceId)
-{
-	FArchiveInstance& Instance = AddInstance(InstanceMetaData);
-	OutReferenceId = Instance.Id;
-	FEntityMetaData ReferenceMetaData;
-	FArchiveReference& Prototype = AddReference(ReferenceMetaData, Instance);
-	return Prototype;
-}
-
-FArchiveReference& FTechSoftFileParser::AddOccurence(FEntityMetaData& InstanceMetaData, FEntityMetaData& ReferenceMetaData, FCadId& OutReferenceId)
-{
-	FArchiveInstance& Instance = AddInstance(InstanceMetaData);
-	OutReferenceId = Instance.Id;
-	FArchiveReference& Prototype = AddReference(ReferenceMetaData, Instance);
-	return Prototype;
-}
-
-int32 FTechSoftFileParser::AddBody(FEntityMetaData& BodyMetaData, const FMatrix& Matrix, const FCadId ParentId, double BodyUnit)
-{
-	FCadId BodyId = LastEntityId++;
-	int32 BodyIndex = CADFileData.AddBody(BodyId);
-	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
-	Body.ParentId = ParentId;
-	Body.TransformMatrix = Matrix;
-	Body.BodyUnit = BodyUnit;
-	Body.MetaData = MoveTemp(BodyMetaData.MetaData);
-	if (BodyMetaData.ColorName != 0)
-	{
-		Body.ColorFaceSet.Add(BodyMetaData.ColorName);
-	}
-	if (BodyMetaData.MaterialName != 0)
-	{
-		Body.MaterialFaceSet.Add(BodyMetaData.MaterialName);
-	}
-	return BodyIndex;
-}
-
-FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* OccurrencePtr, const FString& DefaultOccurrenceName, double ParentUnit)
+void FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* OccurrencePtr, FArchiveReference& ParentReference)
 {
 	// first product occurence with m_pPart != nullptr || m_uiPOccurrencesSize > 0
 	const A3DAsmProductOccurrence* CachedOccurrencePtr = OccurrencePtr;
 	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(OccurrencePtr);
 	if (!OccurrenceData.IsValid())
 	{
-		return 0;
+		return;
 	}
 
 	bool bContinueTraverse = OccurrenceData->m_pPrototype
@@ -882,59 +763,64 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 		|| OccurrenceData->m_uiPOccurrencesSize > 0;
 	if (!bContinueTraverse)
 	{
-		return 0;
+		return;
 	}
 
-	// Todo
-	// the life time of FEntityMetaData end at the creation of FArchiveInstance.
-	// This variable should not be accessible after
-	FEntityMetaData InstanceMetaData;
-	ExtractMetaData(OccurrencePtr, InstanceMetaData);
+	FArchiveInstance& Instance = SceneGraph.AddInstance(ParentReference);
+	ExtractMetaData(OccurrencePtr, Instance);
+	Instance.DefineGraphicsPropertiesFromNoOverwrite(ParentReference);
 
-	if (InstanceMetaData.bRemoved || !InstanceMetaData.bShow)
+	if (Instance.bIsRemoved || !Instance.bShow)
 	{
-		return 0;
+		SceneGraph.RemoveLastInstance();
+		return;
 	}
 
-	ExtractSpecificMetaData(OccurrencePtr, InstanceMetaData);
-	BuildInstanceName(InstanceMetaData, DefaultOccurrenceName);
+	ParentReference.AddChild(Instance.Id);
 
-	FArchiveInstance& Instance = AddInstance(InstanceMetaData);
+	ExtractSpecificMetaData(OccurrencePtr, Instance);
+	BuildInstanceName(Instance, ParentReference);
 
 	A3DMiscTransformation* Location = OccurrenceData->m_pLocation;
 
-	// Todo
-	// the life time of FEntityMetaData end at the creation of FArchive(Unloaded)Reference.
-	// This variable should not be accessible after
-	FEntityMetaData PrototypeMetaData;
+	FArchiveUnloadedReference& UnloadedReference = SceneGraph.AddUnloadedReference(Instance);
 	if (OccurrenceData->m_pPrototype)
 	{
-		ProcessPrototype(OccurrenceData->m_pPrototype, PrototypeMetaData, &Location);
+		ProcessPrototype(OccurrenceData->m_pPrototype, UnloadedReference, &Location);
+	}
+	else
+	{
+		UnloadedReference.bIsUnloaded = false;
 	}
 
-	double OccurrenceUnit = ParentUnit;
+	Instance.Unit = ParentReference.Unit;
 	if (Location)
 	{
-		Instance.TransformMatrix = ExtractTransformation(Location, OccurrenceUnit);
+		ExtractTransformation(Location, Instance);
 	}
 
-	if (PrototypeMetaData.bUnloaded)
+	if (UnloadedReference.bIsUnloaded)
 	{
-		FArchiveUnloadedReference& UnloadedReference = AddUnloadedReference(PrototypeMetaData, Instance);
-		return Instance.Id;
+		ProcessUnloadedReference(Instance, UnloadedReference);
 	}
-	
+	else
+	{
+		FArchiveReference& NewReference = SceneGraph.AddReference(UnloadedReference);
+		Instance.bIsExternalReference = false;
+		ProcessReference(OccurrencePtr, Instance, NewReference);
+	}
+}
+
+void FTechSoftFileParser::ProcessReference(const A3DAsmProductOccurrence* OccurrencePtr, FArchiveInstance& Instance, FArchiveReference& Reference)
+{
+	const A3DAsmProductOccurrence* CachedOccurrencePtr = OccurrencePtr;
+	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(OccurrencePtr);
+
 	// If the prototype hasn't name, set its name with the name of the instance 
+	if (!Reference.IsNameDefined())
 	{
-		FString& PrototypeName = PrototypeMetaData.MetaData.FindOrAdd(TEXT("Name"));
-		if (PrototypeName.IsEmpty())
-		{
-			const FString& InstanceName = Instance.MetaData.FindOrAdd(TEXT("Name"));
-			PrototypeName = InstanceName;
-		}
+		Reference.Label = Instance.Label;
 	}
-
-	FArchiveReference& Reference = AddReference(PrototypeMetaData, Instance);
 
 	while (OccurrenceData->m_pPrototype != nullptr && OccurrenceData->m_pPart == nullptr && OccurrenceData->m_uiPOccurrencesSize == 0 && OccurrenceData->m_pExternalData == nullptr)
 	{
@@ -944,7 +830,7 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 
 	if(OccurrenceData->m_pPart == nullptr && OccurrenceData->m_uiPOccurrencesSize == 0 && OccurrenceData->m_pExternalData == nullptr)
 	{
-		return Instance.Id;
+		return;
 	}
 
 	// Add part
@@ -955,7 +841,7 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 	if (OccurrenceData->m_pPart != nullptr)
 	{
 		A3DAsmPartDefinition* PartDefinition = OccurrenceData->m_pPart;
-		TraversePartDefinition(PartDefinition, Reference, OccurrenceUnit);
+		TraversePartDefinition(PartDefinition, Reference);
 	}
 
 	// Add Occurrence's Children
@@ -967,12 +853,9 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 
 	uint32 ChildrenCount = OccurrenceData->m_uiPOccurrencesSize;
 	A3DAsmProductOccurrence** Children = OccurrenceData->m_ppPOccurrences;
-	const FString& InstanceName = Instance.MetaData.FindOrAdd(TEXT("Name"));
 	for (uint32 Index = 0; Index < ChildrenCount; ++Index)
 	{
-		const FString DefaultChildName = InstanceName + TEXT("_") + FString::FromInt(Index + 1);
-		int32 ChildrenId = TraverseOccurrence(Children[Index], DefaultChildName, OccurrenceUnit);
-		Reference.Children.Add(ChildrenId);
+		TraverseOccurrence(Children[Index], Reference);
 	}
 
 	// Add External data
@@ -987,20 +870,16 @@ FCadId FTechSoftFileParser::TraverseOccurrence(const A3DAsmProductOccurrence* Oc
 		if (ExternalData->m_pPart != nullptr)
 		{
 			A3DAsmPartDefinition* PartDefinition = ExternalData->m_pPart;
-			TraversePartDefinition(PartDefinition, Reference, OccurrenceUnit);
+			TraversePartDefinition(PartDefinition, Reference);
 		}
 
 		uint32 ExternalChildrenCount = ExternalData->m_uiPOccurrencesSize;
 		A3DAsmProductOccurrence** ExternalChildren = ExternalData->m_ppPOccurrences;
 		for (uint32 Index = 0; Index < ExternalChildrenCount; ++Index)
 		{
-			const FString DefaultChildName = InstanceName + TEXT("_") + FString::FromInt(Index + 1);
-			int32 ChildId = TraverseOccurrence(ExternalChildren[Index], DefaultChildName, OccurrenceUnit);
-			Reference.Children.Add(ChildId);
+			TraverseOccurrence(ExternalChildren[Index], Reference);
 		}
 	}
-
-	return Instance.Id;
 }
 
 void FTechSoftFileParser::CountUnderOccurrence(const A3DAsmProductOccurrence* Occurrence)
@@ -1008,7 +887,7 @@ void FTechSoftFileParser::CountUnderOccurrence(const A3DAsmProductOccurrence* Oc
 	TUniqueTSObj<A3DAsmProductOccurrenceData> OccurrenceData(Occurrence);
 	if (Occurrence && OccurrenceData.IsValid())
 	{
-		ComponentCount[EComponentType::Occurrence]++;
+		ComponentCount[EComponentType::Instance]++;
 		ComponentCount[EComponentType::Reference]++;
 
 		const A3DAsmProductOccurrence* CachedOccurrencePtr = Occurrence;
@@ -1095,10 +974,8 @@ void FTechSoftFileParser::CountUnderSubPrototype(const A3DAsmProductOccurrence* 
 	}
 }
 
-void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InPrototypePtr, FEntityMetaData& OutPrototypeMetaData, A3DMiscTransformation** OutLocation)
+void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InPrototypePtr, FArchiveUnloadedReference& OutReference, A3DMiscTransformation** OutLocation)
 {
-	OutPrototypeMetaData.bUnloaded = true;
-
 	const A3DAsmProductOccurrence* PrototypePtr = InPrototypePtr;
 	TUniqueTSObj<A3DAsmProductOccurrenceData> PrototypeData;
 	while (PrototypePtr)
@@ -1111,8 +988,8 @@ void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InProt
 
 		if (PrototypeData->m_pPart != nullptr || PrototypeData->m_uiPOccurrencesSize != 0 || PrototypeData->m_pExternalData != nullptr || PrototypeData->m_pPrototype == nullptr)
 		{
-			ExtractMetaData(PrototypePtr, OutPrototypeMetaData);
-			ExtractSpecificMetaData(PrototypePtr, OutPrototypeMetaData);
+			ExtractMetaData(PrototypePtr, OutReference);
+			ExtractSpecificMetaData(PrototypePtr, OutReference);
 
 			TUniqueTSObj<A3DUTF8Char*> FilePathUTF8Ptr;
 			FilePathUTF8Ptr.FillWith(&TechSoftInterface::GetFilePathName, PrototypePtr);
@@ -1127,16 +1004,16 @@ void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InProt
 				FString FileName = FPaths::GetCleanFilename(FilePath);
 				if (!FileName.IsEmpty() && FileName != CADFileData.GetCADFileDescription().GetFileName())
 				{
-					OutPrototypeMetaData.ExternalFile = FFileDescriptor(*FilePath, nullptr, *CADFileData.GetCADFileDescription().GetRootFolder());
+					OutReference.ExternalFile = FFileDescriptor(*FilePath, nullptr, *CADFileData.GetCADFileDescription().GetRootFolder());
 				}
 			}
 		}
 		
-		// Case of DWG file, external reference is in fact internal data as a part or a Reference
+		// Case of DWG file, external reference is in fact internal data as a part or a component
 		// Case of CATProduct referencing CGR files: unloaded references are saved in ExternalData. In this case non empty ExternalFile means unloaded reference
-		if (PrototypeData->m_pPart != nullptr|| PrototypeData->m_uiPOccurrencesSize != 0 || (PrototypeData->m_pExternalData != nullptr && OutPrototypeMetaData.ExternalFile.IsEmpty()))
+		if (PrototypeData->m_pPart != nullptr|| PrototypeData->m_uiPOccurrencesSize != 0 || (PrototypeData->m_pExternalData != nullptr && OutReference.ExternalFile.IsEmpty()))
 		{
-			OutPrototypeMetaData.bUnloaded = false;
+			OutReference.bIsUnloaded = false;
 			PrototypePtr = nullptr;
 		}
 		else
@@ -1162,16 +1039,16 @@ void FTechSoftFileParser::ProcessPrototype(const A3DAsmProductOccurrence* InProt
 		}
 	}
 
-	if (OutPrototypeMetaData.bUnloaded)
+	if (OutReference.bIsUnloaded)
 	{
-		OutPrototypeMetaData.MetaData.Add(TEXT("Name"), OutPrototypeMetaData.ExternalFile.GetFileName());
+		OutReference.Label = OutReference.ExternalFile.GetFileName();
 	}
 	else
 	{
-		OutPrototypeMetaData.ExternalFile.Empty();
+		OutReference.ExternalFile.Empty();
 	}
 
-	BuildReferenceName(OutPrototypeMetaData);
+	BuildReferenceName(OutReference);
 }
 
 void FTechSoftFileParser::CountUnderPrototype(const A3DAsmProductOccurrence* Prototype)
@@ -1185,44 +1062,25 @@ void FTechSoftFileParser::CountUnderPrototype(const A3DAsmProductOccurrence* Pro
 	ComponentCount[EComponentType::Reference] ++;
 }
 
-void FTechSoftFileParser::TraversePartDefinition(const A3DAsmPartDefinition* PartDefinitionPtr, FArchiveReference& Part, double ParentUnit)
+void FTechSoftFileParser::TraversePartDefinition(const A3DAsmPartDefinition* PartDefinitionPtr, FArchiveReference& Part)
 {
-	FEntityMetaData PartMetaData;
-	ExtractMetaData(PartDefinitionPtr, PartMetaData);
+	ExtractMetaData(PartDefinitionPtr, Part);
 
-	if (PartMetaData.bRemoved || !PartMetaData.bShow)
+	if (Part.bIsRemoved || !Part.bShow)
 	{
 		return;
 	}
 
-	ExtractSpecificMetaData(PartDefinitionPtr, PartMetaData);
+	ExtractSpecificMetaData(PartDefinitionPtr, Part);
 
-	// A top/down propagation of the color and material is needed. This is done in 5.0.3 with minimal code modification. 
-	// However the model parsing need to be rewrite in the next version. (Jira UE-152691)
-	const FString* Material = Part.MetaData.Find(TEXT("MaterialName"));
-	const FString* Color = Part.MetaData.Find(TEXT("ColorName"));
-	if (Material && !Material->IsEmpty() && PartMetaData.MaterialName == 0)
-	{
-		uint32 MaterialName = (uint32) FCString::Atoi64(**Material);
-		PartMetaData.MetaData.Add(TEXT("Material"), *Material);
-		PartMetaData.MaterialName = MaterialName;
-	}
-	if (Color && !Color->IsEmpty() && PartMetaData.ColorName == 0)
-	{
-		uint32 ColorName = (uint32)FCString::Atoi64(**Color);
-		PartMetaData.MetaData.Add(TEXT("Color"), *Color);
-		PartMetaData.ColorName = ColorName;
-	}
-
-	BuildPartName(PartMetaData, Part);
+	BuildPartName(Part);
 
 	TUniqueTSObj<A3DAsmPartDefinitionData> PartData(PartDefinitionPtr);
 	if (PartData.IsValid())
 	{
-		for (unsigned int Index = 0; Index < PartData->m_uiRepItemsSize; ++Index)
+		for (A3DUns32 Index = 0; Index < PartData->m_uiRepItemsSize; ++Index)
 		{
-			int32 ChildId = TraverseRepresentationItem(PartData->m_ppRepItems[Index], PartMetaData, Part.Id, ParentUnit, Index);
-			Part.Children.Add(ChildId);
+			TraverseRepresentationItem(PartData->m_ppRepItems[Index], Part);
 		}
 	}
 }
@@ -1233,7 +1091,7 @@ void FTechSoftFileParser::CountUnderPartDefinition(const A3DAsmPartDefinition* P
 	if (PartDefinition && PartData.IsValid())
 	{
 		ComponentCount[EComponentType::Reference] ++;
-		ComponentCount[EComponentType::Occurrence] ++;
+		ComponentCount[EComponentType::Instance] ++;
 
 		for (unsigned int Index = 0; Index < PartData->m_uiRepItemsSize; ++Index)
 		{
@@ -1242,23 +1100,33 @@ void FTechSoftFileParser::CountUnderPartDefinition(const A3DAsmPartDefinition* P
 	}
 }
 
-FCadId FTechSoftFileParser::TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex)
+void FTechSoftFileParser::TraverseRepresentationItem(A3DRiRepresentationItem* RepresentationItem, FArchiveReference& Part)
 {
+	if (!RepresentationItem)
+	{
+		return;
+	}
+
+	if (FCadId* BodyIndexPtr = RepresentationItemsCache.Find(RepresentationItem))
+	{
+		Part.AddChild(*BodyIndexPtr);
+		return;
+	}
+
 	A3DEEntityType Type;
 	A3DEntityGetType(RepresentationItem, &Type);
 
 	switch (Type)
 	{
 	case kA3DTypeRiSet:
-		return TraverseRepresentationSet(RepresentationItem, PartMetaData, ParentUnit);
+		return TraverseRepresentationSet(RepresentationItem, Part);
 	case kA3DTypeRiBrepModel:
-		return TraverseBRepModel(RepresentationItem, PartMetaData, ParentId, ParentUnit, ItemIndex);
+		return TraverseBRepModel(RepresentationItem, Part);
 	case kA3DTypeRiPolyBrepModel:
-		return TraversePolyBRepModel(RepresentationItem, PartMetaData, ParentId, ParentUnit, ItemIndex);
+		return TraversePolyBRepModel(RepresentationItem, Part);
 	default:
 		break;
 	}
-	return 0;
 }
 
 void FTechSoftFileParser::CountUnderRepresentationItem(const A3DRiRepresentationItem* RepresentationItem)
@@ -1281,31 +1149,30 @@ void FTechSoftFileParser::CountUnderRepresentationItem(const A3DRiRepresentation
 	}
 }
 
-FCadId FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* RepresentationSetPtr, const FEntityMetaData& PartMetaData, double ParentUnit)
+void FTechSoftFileParser::TraverseRepresentationSet(const A3DRiSet* RepresentationSetPtr, FArchiveReference& Parent)
 {
 	TUniqueTSObj<A3DRiSetData> RepresentationSetData(RepresentationSetPtr);
 	if (!RepresentationSetData.IsValid())
 	{
-		return 0;
-	}
-
-	FEntityMetaData RepresentationSetMetaData;
-	ExtractMetaData(RepresentationSetPtr, RepresentationSetMetaData);
-
-	if (RepresentationSetMetaData.bRemoved || !RepresentationSetMetaData.bShow)
-	{
-		return 0;
+		return;
 	}
 
 	FCadId RepresentationSetId = 0;
-	FArchiveReference& RepresentationSet = AddOccurence(RepresentationSetMetaData, RepresentationSetId);
+	FArchiveReference& RepresentationSet = SceneGraph.AddOccurence(Parent);
+	ExtractMetaData(RepresentationSetPtr, RepresentationSet);
+	RepresentationSet.DefineGraphicsPropertiesFromNoOverwrite(Parent);
+	BuildRepresentationSetName(RepresentationSet, Parent);
+
+	if (RepresentationSet.bIsRemoved || !RepresentationSet.bShow)
+	{
+		SceneGraph.RemoveLastOccurence();
+		return;
+	}
 
 	for (A3DUns32 Index = 0; Index < RepresentationSetData->m_uiRepItemsSize; ++Index)
 	{
-		int32 ChildId = TraverseRepresentationItem(RepresentationSetData->m_ppRepItems[Index], RepresentationSetMetaData, RepresentationSet.Id, ParentUnit, Index);
-		RepresentationSet.Children.Add(ChildId);
+		TraverseRepresentationItem(RepresentationSetData->m_ppRepItems[Index], RepresentationSet);
 	}
-	return RepresentationSetId;
 }
 
 void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* RepresentationSet)
@@ -1313,7 +1180,7 @@ void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* Representa
 	TUniqueTSObj<A3DRiSetData> RepresentationSetData(RepresentationSet);
 	if (RepresentationSet && RepresentationSetData.IsValid())
 	{
-		ComponentCount[EComponentType::Occurrence] ++;
+		ComponentCount[EComponentType::Instance] ++;
 		ComponentCount[EComponentType::Reference] ++;
 
 		for (A3DUns32 Index = 0; Index < RepresentationSetData->m_uiRepItemsSize; ++Index)
@@ -1323,132 +1190,70 @@ void FTechSoftFileParser::CountUnderRepresentationSet(const A3DRiSet* Representa
 	}
 }
 
-FCadId FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex)
+void FTechSoftFileParser::TraverseBRepModel(A3DRiBrepModel* BRepModelPtr, FArchiveReference& Parent)
 {
-	if (!BRepModelPtr)
+	FArchiveBody& BRep = SceneGraph.AddBody(Parent);
+	ExtractMetaData(BRepModelPtr, BRep);
+	BRep.DefineGraphicsPropertiesFromNoOverwrite(Parent);
+
+	ExtractSpecificMetaData(BRepModelPtr, BRep);
+
+
+	if (!BRep.bShow || BRep.bIsRemoved)
 	{
-		return 0;
+		SceneGraph.RemoveLastBody();
+		return;
 	}
 
-	FEntityMetaData BRepMetaData;
-	ExtractMetaData(BRepModelPtr, BRepMetaData);
-
-	if (!BRepMetaData.bShow || BRepMetaData.bRemoved)
-	{
-		return 0;
-	}
+	Parent.AddChild(BRep.Id);
+	RepresentationItemsCache.Add(BRepModelPtr, BRep.Id);
 
 	TUniqueTSObj<A3DRiBrepModelData> BRepModelData(BRepModelPtr);
-	BuildBodyName(BRepMetaData, PartMetaData, ItemIndex, (bool) BRepModelData->m_bSolid);
+	BRep.bIsASolid = (bool)BRepModelData->m_bSolid;
+	BuildBodyName(BRep, Parent);
 
-	if (FCadId* BodyIndexPtr = RepresentationItemsCache.Find(BRepModelPtr))
-	{
-		return CADFileData.GetBodyAt(*BodyIndexPtr).Id;
-	}
-
-	// if BRep model has not material or color, use the ones from the part
-	// A top/down propagation of the color and material is needed. This is done in 5.0.3 with minimal code modification. 
-	// However the model parsing need to be rewrite in the next version. (Jira UE-152691)
-	if (BRepMetaData.MaterialName == 0 && BRepMetaData.ColorName == 0)
-	{
-		if (PartMetaData.MaterialName)
-		{
-			BRepMetaData.MaterialName = PartMetaData.MaterialName;
-			BRepMetaData.MetaData.Add(TEXT("MaterialName"), FString::Printf(TEXT("%u"), PartMetaData.MaterialName));
-		}
-		if (PartMetaData.ColorName)
-		{
-			BRepMetaData.ColorName = PartMetaData.ColorName;
-			BRepMetaData.MetaData.Add(TEXT("ColorName"), FString::Printf(TEXT("%u"), PartMetaData.ColorName));
-		}
-	}
-
-	ExtractSpecificMetaData(BRepModelPtr, BRepMetaData);
-
-	FMatrix Matrix = FMatrix::Identity;
-	double BRepUnit = ParentUnit;
 	TUniqueTSObj<A3DRiRepresentationItemData> RepresentationData(BRepModelPtr);
-	if (RepresentationData->m_pCoordinateSystem)
-	{
-		Matrix = ExtractCoordinateSystem(RepresentationData->m_pCoordinateSystem, BRepUnit);
-	}
-
-	int32 BodyIndex = AddBody(BRepMetaData, Matrix, ParentId, BRepUnit);
-	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
-
-	RepresentationItemsCache.Add(BRepModelPtr, BodyIndex);
-
-	return Body.Id;
+	ExtractCoordinateSystem(RepresentationData->m_pCoordinateSystem, BRep);
 }
 
-FCadId FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalPtr, const FEntityMetaData& PartMetaData, const FCadId ParentId, double ParentUnit, int32 ItemIndex)
+void FTechSoftFileParser::TraversePolyBRepModel(A3DRiPolyBrepModel* PolygonalPtr, FArchiveReference& Parent)
 {
-	if (!PolygonalPtr)
+	FArchiveBody& BRep = SceneGraph.AddBody(Parent);
+	ExtractMetaData(PolygonalPtr, BRep);
+	BRep.DefineGraphicsPropertiesFromNoOverwrite(Parent);
+
+	ExtractSpecificMetaData(PolygonalPtr, BRep);
+
+	if (!BRep.bShow || BRep.bIsRemoved)
 	{
-		return 0;
+		SceneGraph.RemoveLastBody();
+		return;
 	}
 
-	FEntityMetaData BRepMetaData;
-	ExtractMetaData(PolygonalPtr, BRepMetaData);
-
-	if (!BRepMetaData.bShow || BRepMetaData.bRemoved)
-	{
-		return 0;
-	}
+	Parent.AddChild(BRep.Id);
+	RepresentationItemsCache.Add(PolygonalPtr, BRep.Id);
 
 	TUniqueTSObj<A3DRiPolyBrepModelData> BRepModelData(PolygonalPtr);
-	BuildBodyName(BRepMetaData, PartMetaData, ItemIndex, (bool) BRepModelData->m_bIsClosed);
+	BRep.bIsASolid = (bool)BRepModelData->m_bIsClosed;
+	BuildBodyName(BRep, Parent);
 
-	if (FCadId* BodyIndexPtr = RepresentationItemsCache.Find(PolygonalPtr))
-	{
-		return CADFileData.GetBodyAt(*BodyIndexPtr).Id;
-	}
-
-	// if BRep model has not material or color, add part one
-	if (BRepMetaData.MaterialName == 0 && BRepMetaData.ColorName == 0)
-	{
-		if (PartMetaData.MaterialName)
-		{
-			BRepMetaData.MaterialName = PartMetaData.MaterialName;
-			BRepMetaData.MetaData.Add(TEXT("MaterialName"), FString::Printf(TEXT("%u"), PartMetaData.MaterialName));
-		}
-		if (PartMetaData.ColorName)
-		{
-			BRepMetaData.ColorName = PartMetaData.ColorName;
-			BRepMetaData.MetaData.Add(TEXT("ColorName"), FString::Printf(TEXT("%u"), PartMetaData.ColorName));
-		}
-	}
-
-	ExtractSpecificMetaData(PolygonalPtr, BRepMetaData);
-
-	FMatrix Matrix = FMatrix::Identity;
-	double BRepUnit = ParentUnit;
 	TUniqueTSObj<A3DRiRepresentationItemData> RepresentationData(PolygonalPtr);
-	if (RepresentationData->m_pCoordinateSystem)
-	{
-		Matrix = ExtractCoordinateSystem(RepresentationData->m_pCoordinateSystem, BRepUnit);
-	}
-
-	int32 BodyIndex = AddBody(BRepMetaData, Matrix, ParentId, BRepUnit);
-	FArchiveBody& Body = CADFileData.GetBodyAt(BodyIndex);
-
-	RepresentationItemsCache.Add(PolygonalPtr, BodyIndex);
-
-	return Body.Id;
+	ExtractCoordinateSystem(RepresentationData->m_pCoordinateSystem, BRep);
 }
 
-void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FEntityMetaData& OutMetaData)
+
+void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FArchiveCADObject& OutObject)
 {
 	TUniqueTSObj<A3DRootBaseData> MetaData(Entity);
 	if (MetaData.IsValid())
 	{
 		if (MetaData->m_pcName && MetaData->m_pcName[0] != '\0')
 		{
-			FString SDKName = UTF8_TO_TCHAR(MetaData->m_pcName);
-			if(SDKName != TEXT("unnamed"))  // "unnamed" is create by Techsoft. This name is ignored 
+			FString Name = UTF8_TO_TCHAR(MetaData->m_pcName);
+			if(Name != TEXT("unnamed"))  // "unnamed" is create by Techsoft. This name is ignored 
 			{
-				SDKName = TechSoftUtils::CleanSdkName(SDKName);
-				OutMetaData.MetaData.Emplace(TEXT("SDKName"), SDKName);
+				Name = TechSoftUtils::CleanSdkName(Name);
+				OutObject.Label = Name;
 			}
 		}
 
@@ -1458,7 +1263,7 @@ void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FEntityMetaDa
 			AttributeData.FillFrom(MetaData->m_ppAttributes[Index]);
 			if (AttributeData.IsValid())
 			{
-				TechSoftFileParserImpl::TraverseAttribute(*AttributeData, OutMetaData.MetaData);
+				TechSoftFileParserImpl::TraverseAttribute(*AttributeData, OutObject.MetaData);
 			}
 		}
 	}
@@ -1470,218 +1275,154 @@ void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FEntityMetaDa
 		{
 			if (MetaDataWithGraphics->m_pGraphics != NULL)
 			{
-				ExtractGraphicProperties(MetaDataWithGraphics->m_pGraphics, OutMetaData);
+				ExtractGraphicProperties(MetaDataWithGraphics->m_pGraphics, OutObject);
 			}
 		}
 	}
 }
 
-void FTechSoftFileParser::BuildReferenceName(FEntityMetaData& ReferenceData)
+void FTechSoftFileParser::BuildReferenceName(FArchiveCADObject& ReferenceData)
 {
 	TMap<FString, FString>& MetaData = ReferenceData.MetaData;
-	if (MetaData.IsEmpty())
-	{
-		return;
-	}
 
 	FString* NamePtr = MetaData.Find(TEXT("InstanceName"));
 	if (NamePtr != nullptr && !NamePtr->IsEmpty())
 	{
-		FString& Name = MetaData.FindOrAdd(TEXT("Name"));
-		Name = *NamePtr;
 		if (Format == ECADFormat::CATIA)
 		{
-			Name = TechSoftUtils::CleanCatiaReferenceName(Name);
+			ReferenceData.Label = TechSoftUtils::CleanCatiaReferenceName(*NamePtr);
 		}
-		return;
-	}
-
-	if (Format == ECADFormat::JT)
-	{
-		if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("SDKName")))
+		else
 		{
-			return;
+			ReferenceData.Label = *NamePtr;
 		}
-	}
-
-	if (TechSoftFileParserImpl::CheckIfNameExists(MetaData))
-	{
 		return;
 	}
 
-	if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("PartNumber")))
+	switch (Format)
 	{
-		return;
-	}
+	case ECADFormat::CATIA_3DXML:
+		ReferenceData.Label = TechSoftUtils::Clean3dxmlReferenceSdkName(ReferenceData.Label);
+		break;
 
-	NamePtr = MetaData.Find(TEXT("SDKName"));
-	if (NamePtr != nullptr && !NamePtr->IsEmpty())
-	{
-		FString SdkName = *NamePtr;
+	case ECADFormat::SOLIDWORKS:
+		ReferenceData.Label = TechSoftUtils::CleanSwReferenceSdkName(ReferenceData.Label);
+		break;
 
-		switch (Format)
-		{
-		case ECADFormat::CATIA_3DXML:
-			SdkName = TechSoftUtils::Clean3dxmlReferenceSdkName(SdkName);
-			break;
-
-		case ECADFormat::SOLIDWORKS:
-			SdkName = TechSoftUtils::CleanSwReferenceSdkName(SdkName);
-			break;
-
-		default:
-			break;
-		}
-
-		MetaData.FindOrAdd(TEXT("Name"), SdkName);
-		return;
+	default:
+		break;
 	}
 }
 
-void FTechSoftFileParser::BuildInstanceName(FEntityMetaData& InstanceData, const FString& DefaultName)
+void FTechSoftFileParser::BuildInstanceName(FArchiveInstance& InstanceData, const FArchiveReference& Parent)
 {
 	TMap<FString, FString>& MetaData = InstanceData.MetaData;
 
-	if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("InstanceName")))
+	if (InstanceData.SetNameWithAttributeValue(TEXT("InstanceName")))
 	{
 		return;
 	}
 
-	if (TechSoftFileParserImpl::CheckIfNameExists(MetaData))
+	if (InstanceData.IsNameDefined())
 	{
-		return;
-	}
-
-	FString* NamePtr = MetaData.Find(TEXT("SDKName"));
-	if (NamePtr != nullptr && !NamePtr->IsEmpty())
-	{
-		FString SdkName = *NamePtr;
-
 		switch (Format)
 		{
 		case ECADFormat::CATIA:
-			SdkName = TechSoftUtils::CleanCatiaInstanceSdkName(SdkName);
+			InstanceData.Label = TechSoftUtils::CleanCatiaInstanceSdkName(InstanceData.Label);
 			break;
 		
 		case ECADFormat::CATIA_3DXML:
-			SdkName = TechSoftUtils::Clean3dxmlInstanceSdkName(SdkName);
+			InstanceData.Label = TechSoftUtils::Clean3dxmlInstanceSdkName(InstanceData.Label);
 			break;
 
 		case ECADFormat::SOLIDWORKS:
-			SdkName = TechSoftUtils::CleanSwInstanceSdkName(SdkName);
+			InstanceData.Label = TechSoftUtils::CleanSwInstanceSdkName(InstanceData.Label);
 			break;
 
 		default:
 			break;
 		}
-
-		MetaData.FindOrAdd(TEXT("Name"), SdkName);
 		return;
 	}
 
-	if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("PartNumber")))
+	if (InstanceData.SetNameWithAttributeValue(TEXT("PartNumber")))
 	{
 		return;
 	}
 
-	FString& Name = MetaData.FindOrAdd(TEXT("Name"));
-	if (Name.IsEmpty())
+	if (InstanceData.Label.IsEmpty())
 	{
-		Name = DefaultName;
+		InstanceData.Label = Parent.Label + "_" + FString::FromInt(Parent.Children.Num());
 	}
 }
 
-void FTechSoftFileParser::BuildPartName(FEntityMetaData& PartData, const FArchiveReference& Reference)
+void FTechSoftFileParser::BuildPartName(FArchiveCADObject& PartData)
 {
-	TMap<FString, FString>& MetaData = PartData.MetaData;
-	if (!MetaData.IsEmpty())
+	if (PartData.SetNameWithAttributeValue(TEXT("PartNumber")))
 	{
-		if (TechSoftFileParserImpl::CheckIfNameExists(MetaData))
-		{
-			return;
-		}
-
-		if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("PartNumber")))
-		{
-			return;
-		}
-
-		if (TechSoftFileParserImpl::ReplaceOrAddNameValue(MetaData, TEXT("SDKName")))
-		{
-			return;
-		}
-	}
-
-	// If a name hasn't been found for the Part, the name of its parent (component) is used
-	const FString* ReferenceName = Reference.MetaData.Find(TEXT("Name"));
-	if (ReferenceName && !ReferenceName->IsEmpty())
-	{
-		MetaData.Add(TEXT("Name"), *ReferenceName);
 		return;
 	}
 }
 
-void FTechSoftFileParser::BuildBodyName(FEntityMetaData& BodyData, const FEntityMetaData& PartMetaData, int32 ItemIndex, bool bIsSolid)
+void FTechSoftFileParser::BuildBodyName(FArchiveBody& Body, const FArchiveReference& Parent)
 {
-	TMap<FString, FString>& MetaData = BodyData.MetaData;
-
-	if (TechSoftFileParserImpl::CheckIfNameExists(MetaData))
+	if (Format == ECADFormat::CREO)
 	{
-		return;
+		Body.Label = TechSoftUtils::CleanCreoName(Body.Label);
 	}
 
-	FString* NamePtr = MetaData.Find(TEXT("SDKName"));
-	if (NamePtr != nullptr)
+	if(Body.IsNameDefined())
 	{
-		FString SdkName = *NamePtr;
-		if (Format == ECADFormat::CREO)
-		{
-			SdkName = TechSoftUtils::CleanNameByRemoving_prt(SdkName);
-		}
-
-		MetaData.FindOrAdd(TEXT("Name"), SdkName);
 		return;
 	}
 
 	if (Format == ECADFormat::CATIA)
 	{
-		NamePtr = MetaData.Find(TEXT("BodyID"));
-		if (NamePtr != nullptr && !NamePtr->IsEmpty())
+		if(Body.SetNameWithAttributeValue(TEXT("BodyID")))
 		{
-			MetaData.FindOrAdd(TEXT("Name"), *NamePtr);
 			return;
 		}
 	}
 
-	FString& Name = MetaData.FindOrAdd(TEXT("Name"));
-	if (Name.IsEmpty())
+	FString& Label = Body.Label;
+	if (Parent.IsNameDefined())
 	{
-		const FString* PartName = PartMetaData.MetaData.Find(TEXT("Name"));
-		if (PartName != nullptr && !PartName->IsEmpty())
+		Label = Parent.Label + TEXT("_body");
+	}
+	else
+	{
+		if (Body.bIsASolid)
 		{
-			Name = *PartName;
-		}
-
-		if (!Name.IsEmpty())
-		{
-			Name += TEXT("_body");
+			Label = TEXT("Solid");
 		}
 		else
 		{
-			if (bIsSolid)
-			{
-				Name = TEXT("Solid");
-			}
-			else
-			{
-				Name = TEXT("Shell");
-			}
+			Label = TEXT("Shell");
 		}
-		Name += FString::FromInt(ItemIndex + 1);
 	}
+	Label += FString::FromInt(Parent.Children.Num());
 }
 
-void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FEntityMetaData& OutMetaData)
+void FTechSoftFileParser::BuildRepresentationSetName(FArchiveCADObject& Occurrence, const FArchiveReference& Parent)
+{
+	if (Occurrence.IsNameDefined())
+	{
+		return;
+	}
+
+	FString& Label = Occurrence.Label;
+	if (Parent.IsNameDefined())
+	{
+		Label = Parent.Label;
+	}
+	else
+	{
+		Label = TEXT("Product");
+	}
+	Label += FString::FromInt(Parent.Children.Num());
+}
+
+void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence* Occurrence, FArchiveCADObject& OutMetaData)
 {
 	//----------- Export Specific information per CAD format -----------
 	switch (ModellerType)
@@ -1703,6 +1444,7 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 	}
 	case ModellerUnigraphics:
 	{
+#ifdef WIP
 		TUniqueTSObj<A3DAsmProductOccurrenceDataUg> UnigraphicsSpecificData(Occurrence);
 		if (UnigraphicsSpecificData.IsValid())
 		{
@@ -1711,10 +1453,25 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 				FString PartUID = UTF8_TO_TCHAR(UnigraphicsSpecificData->m_psPartUID);
 				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsPartUID"), PartUID);
 			}
+			if (UnigraphicsSpecificData->m_psFileName)
+			{
+				FString FileName = UTF8_TO_TCHAR(UnigraphicsSpecificData->m_psFileName);
+				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsFileName"), FileName);
+			}
 			if (UnigraphicsSpecificData->m_psInstanceFileName)
 			{
 				FString InstanceFileName = UTF8_TO_TCHAR(UnigraphicsSpecificData->m_psInstanceFileName);
-				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsPartUID"), InstanceFileName);
+				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsInstanceFileName"), InstanceFileName);
+			}
+			if (UnigraphicsSpecificData->m_psRefSet)
+			{
+				FString RefSet = UTF8_TO_TCHAR(UnigraphicsSpecificData->m_psRefSet);
+				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsInstanceRefSet"), RefSet);
+			}
+			if (UnigraphicsSpecificData->m_psPartUID)
+			{
+				FString PartUID = UTF8_TO_TCHAR(UnigraphicsSpecificData->m_psPartUID);
+				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsInstancePartUID"), PartUID);
 			}
 
 			if (UnigraphicsSpecificData->m_uiInstanceTag)
@@ -1722,7 +1479,34 @@ void FTechSoftFileParser::ExtractSpecificMetaData(const A3DAsmProductOccurrence*
 				FString InstanceTag = FString::FromInt(UnigraphicsSpecificData->m_uiInstanceTag);
 				OutMetaData.MetaData.Emplace(TEXT("UnigraphicsInstanceTag"), InstanceTag);
 			}
+
+			for (uint32 Index = 0; Index < UnigraphicsSpecificData->m_uiPromotedBodiesSize; ++Index)
+			{
+				A3DPromotedBodyUg PromotedBody = UnigraphicsSpecificData->m_asPromotedBodies[Index];
+			}
+
+			for (uint32 Index = 0; Index < UnigraphicsSpecificData->m_uiChildrenByRefsetsSize; ++Index)
+			{
+				A3DElementsByRefsetUg Refset = UnigraphicsSpecificData->m_asChildrenByRefsets[Index];
+			}
+
+			if(UnigraphicsSpecificData->m_uiSolidsByRefsetsSize)
+			{
+				OutMetaData.BodyIdentsOfConfigurations.SetNum(UnigraphicsSpecificData->m_uiSolidsByRefsetsSize);
+				for (uint32 Index = 0; Index < UnigraphicsSpecificData->m_uiSolidsByRefsetsSize; ++Index)
+				{
+					A3DElementsByRefsetUg Refset = UnigraphicsSpecificData->m_asSolidsByRefsets[Index];
+					TPair<FString, TArray<uint32>>& BodyIdentsOfConfiguration = OutMetaData.BodyIdentsOfConfigurations[Index];
+					BodyIdentsOfConfiguration.Key = UTF8_TO_TCHAR(Refset.m_psRefset);
+					BodyIdentsOfConfiguration.Value.Reserve(Refset.m_uiElementsSize);
+					for (uint32 Andex = 0; Andex < Refset.m_uiElementsSize; ++Andex)
+					{
+						BodyIdentsOfConfiguration.Value.Add(Refset.m_auiElements[Andex]);
+					}
+				}
+			}
 		}
+#endif
 		break;
 	}
 
@@ -1794,7 +1578,7 @@ FArchiveMaterial& FTechSoftFileParser::AddMaterialAt(uint32 MaterialIndexToSave,
 
 // Look at TechSoftUtils::BuildCADMaterial if any loigc changes in this method
 // or any of the methods it calls
-FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(uint32 MaterialIndex, const A3DGraphStyleData& GraphStyleData)
+FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(FMaterialUId MaterialIndex, const A3DGraphStyleData& GraphStyleData)
 {
 	if (FArchiveMaterial* MaterialArchive = CADFileData.FindMaterial(MaterialIndex))
 	{
@@ -1825,7 +1609,7 @@ FArchiveMaterial& FTechSoftFileParser::FindOrAddMaterial(uint32 MaterialIndex, c
 	}
 }
 
-void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, FEntityMetaData& OutMetaData)
+void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, FArchiveCADObject& OutMetaData)
 {
 	TUniqueTSObj<A3DGraphicsData> GraphicsData(Graphics);
 	if (!GraphicsData.IsValid())
@@ -1833,51 +1617,29 @@ void FTechSoftFileParser::ExtractGraphicProperties(const A3DGraphics* Graphics, 
 		return;
 	}
 
-	bool bFatherHeritColor = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritColor;
-	bool bSonHeritColor = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritColor;
-
-	//To do if needed
-	//bool bFatherHeritLayer = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritLayer;
-	//bool bSonHeritLayer = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritLayer;
-	//bool bFatherHeritTransparency = GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritTransparency;
-	//bool bSonHeritTransparency = GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritTransparency;
-
-	OutMetaData.bRemoved = GraphicsData->m_usBehaviour & kA3DGraphicsRemoved;
+	OutMetaData.bIsRemoved = GraphicsData->m_usBehaviour & kA3DGraphicsRemoved;
 	OutMetaData.bShow = GraphicsData->m_usBehaviour & kA3DGraphicsShow;
+
+	if (GraphicsData->m_usBehaviour & kA3DGraphicsFatherHeritColor)
+	{
+		OutMetaData.Inheritance = ECADGraphicPropertyInheritance::FatherHerit;
+	}
+	else if (GraphicsData->m_usBehaviour & kA3DGraphicsSonHeritColor)
+	{
+		OutMetaData.Inheritance = ECADGraphicPropertyInheritance::ChildHerit;
+	}
 
 	if (GraphicsData->m_uiStyleIndex == A3D_DEFAULT_STYLE_INDEX)
 	{
 		return;
 	}
 
-	FCadUuid& ColorName = OutMetaData.ColorName;
-	FCadUuid& MaterialName = OutMetaData.MaterialName;
-
-	ExtractGraphStyleProperties(GraphicsData->m_uiStyleIndex, ColorName, MaterialName);
-
-	if(bSonHeritColor)
-	{
-		OutMetaData.MetaData.Add(TEXT("GraphicsBehaviour"), TEXT("SonHerit"));
-	}
-	else if (bFatherHeritColor)
-	{
-		OutMetaData.MetaData.Add(TEXT("GraphicsBehaviour"), TEXT("FatherHerit"));
-	}
-
-	if (ColorName)
-	{
-		OutMetaData.MetaData.Add(TEXT("ColorName"), FString::Printf(TEXT("%u"), ColorName));
-	}
-
-	if (MaterialName)
-	{
-		OutMetaData.MetaData.Add(TEXT("MaterialName"), FString::Printf(TEXT("%u"), MaterialName));
-	}
+	ExtractGraphStyleProperties(GraphicsData->m_uiStyleIndex, OutMetaData);
 }
 
 // Please review TechSoftUtils::GetMaterialValues if anything changes
 // in this method or the methods it calls
-void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCadUuid& OutColorName, FCadUuid& OutMaterialName)
+void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FArchiveGraphicProperties& OutGraphicProperties)
 {
 	TUniqueTSObjFromIndex<A3DGraphStyleData> GraphStyleData(StyleIndex);
 
@@ -1886,7 +1648,7 @@ void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCadUui
 		if (GraphStyleData->m_bMaterial)
 		{
 			FArchiveMaterial& MaterialArchive = FindOrAddMaterial(GraphStyleData->m_uiRgbColorIndex, *GraphStyleData);
-			OutMaterialName = MaterialArchive.UEMaterialUId;
+			OutGraphicProperties.MaterialUId = MaterialArchive.UEMaterialUId;
 		}
 		else
 		{
@@ -1897,7 +1659,7 @@ void FTechSoftFileParser::ExtractGraphStyleProperties(uint32 StyleIndex, FCadUui
 			}
 
 			FArchiveColor& ColorArchive = FindOrAddColor(GraphStyleData->m_uiRgbColorIndex, Alpha);
-			OutColorName = ColorArchive.UEMaterialUId;
+			OutGraphicProperties.ColorUId = ColorArchive.UEMaterialUId;
 		}
 	}
 }
@@ -1987,11 +1749,11 @@ FMatrix FTechSoftFileParser::ExtractGeneralTransformation(const A3DMiscTransform
 	return FMatrix::Identity;
 }
 
-FMatrix FTechSoftFileParser::ExtractTransformation(const A3DMiscTransformation* Transformation3D, double& InOutUnit)
+void FTechSoftFileParser::ExtractTransformation(const A3DMiscTransformation* Transformation3D, FArchiveCADObject& Component)
 {
 	if (Transformation3D == NULL)
 	{
-		return FMatrix::Identity;
+		return;
 	}
 
 	A3DEEntityType Type = kA3DTypeUnknown;
@@ -1999,23 +1761,25 @@ FMatrix FTechSoftFileParser::ExtractTransformation(const A3DMiscTransformation* 
 
 	if (Type == kA3DTypeMiscCartesianTransformation)
 	{
-		return ExtractTransformation3D(Transformation3D, InOutUnit);
+		Component.TransformMatrix = ExtractTransformation3D(Transformation3D, Component.Unit);
 	}
 	else if (Type == kA3DTypeMiscGeneralTransformation)
 	{
-		return ExtractGeneralTransformation(Transformation3D, InOutUnit);
+		Component.TransformMatrix = ExtractGeneralTransformation(Transformation3D, Component.Unit);
 	}
-	return FMatrix::Identity;
 }
 
-FMatrix FTechSoftFileParser::ExtractCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem, double& InOutUnit)
+void FTechSoftFileParser::ExtractCoordinateSystem(const A3DRiCoordinateSystem* CoordinateSystem, FArchiveCADObject& OutMetaData)
 {
 	TUniqueTSObj<A3DRiCoordinateSystemData> CoordinateSystemData(CoordinateSystem);
 	if (CoordinateSystemData.IsValid())
 	{
-		return ExtractTransformation3D(CoordinateSystemData->m_pTransformation, InOutUnit);
+		OutMetaData.TransformMatrix = ExtractTransformation3D(CoordinateSystemData->m_pTransformation, OutMetaData.Unit);
 	}
-	return FMatrix::Identity;
+	else
+	{
+		OutMetaData.TransformMatrix = FMatrix::Identity;
+	}
 }
 
 bool FTechSoftFileParser::IsConfigurationSet(const A3DAsmProductOccurrence* Occurrence)
@@ -2141,7 +1905,7 @@ void FTechSoftFileParser::ReadMaterialsAndColors()
 				A3DEntity* PicturePtr = TechSoftInterface::GetPointerFromIndex(PictureIndex, kA3DTypeGraphPicture);
 				if (PicturePtr)
 				{
-					FEntityMetaData PictureMetaData;
+					FArchiveCADObject PictureMetaData;
 					ExtractMetaData(PicturePtr, PictureMetaData);
 				}
 

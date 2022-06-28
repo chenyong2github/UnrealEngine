@@ -30,17 +30,6 @@ namespace TechSoftInterface
 class FTechSoftInterface;
 }
 
-struct FEntityMetaData
-{
-	TMap<FString, FString> MetaData;
-	bool bRemoved = false;
-	bool bShow = true;
-	bool bUnloaded = false;
-	FCadUuid ColorName = 0;
-	FCadUuid MaterialName = 0;
-	FFileDescriptor ExternalFile;
-};
-
 namespace TechSoftUtils
 {
 

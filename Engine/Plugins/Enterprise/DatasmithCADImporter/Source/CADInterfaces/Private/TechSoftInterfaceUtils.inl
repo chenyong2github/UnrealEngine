@@ -170,7 +170,7 @@ private:
 			Tessellation.PatchId = Index;
 
 			Tessellation.MaterialUId = 0;
-			if (FaceTessData.m_uiStyleIndexesSize != FTechSoftDefaultValue::Style)
+			if (FaceTessData.m_uiStyleIndexesSize != 0)
 			{
 				// Store the StyleIndex on the MaterialName. It will be processed after tessellation
 				Tessellation.MaterialUId = FaceTessData.m_puiStyleIndexes[0];
