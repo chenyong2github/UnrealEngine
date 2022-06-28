@@ -90,7 +90,7 @@ public class Catch2 : ModuleRules
 
 		string RelativeLibPath = Path.Combine(RelativeBaseLibPath, IsDebugConfig ? "debug" : "release", LibName);
 
-		PublicAdditionalLibraries.Add(Path.Combine(Catch2Root, "v3.0.0-preview5", "lib", RelativeLibPath));
-		PublicIncludePaths.Add(Path.Combine(Unreal.EngineDirectory.FullName, "Source", "ThirdParty", "Catch2", "v3.0.0-preview5", "src"));
+		PublicAdditionalLibraries.Add(Path.Combine(Catch2Root, "v3.0.1", "lib", RelativeLibPath));
+		PublicIncludePaths.Add(Path.Combine(Unreal.EngineDirectory.FullName, "Source", "ThirdParty", "Catch2", "v3.0.1", "src"));
 	}
 }

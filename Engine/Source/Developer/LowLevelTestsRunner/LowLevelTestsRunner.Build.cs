@@ -15,7 +15,7 @@ public class LowLevelTestsRunner : ModuleRules
 			new string[]
 			{
 				"Runtime/Launch/Public",
-				Path.Combine(Target.UEThirdPartySourceDirectory, "Catch2", "v3.0.0-preview5", "src")
+				Path.Combine(Target.UEThirdPartySourceDirectory, "Catch2", "v3.0.1", "src")
 			}
 		);
 
