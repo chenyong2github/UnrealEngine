@@ -19,7 +19,6 @@ namespace UE::WaterInfo
 		TArray<UWaterBodyComponent*> WaterBodies;
 		TArray<TWeakObjectPtr<AActor>> GroundActors;
 		float CaptureZ;
-		int32 LandscapeLODOverride;
 	};
 	
 void UpdateWaterInfoRendering(
