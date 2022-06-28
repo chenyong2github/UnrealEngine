@@ -1799,14 +1799,8 @@ bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, 
 	return Result;
 }
 
-void FFbxImporter::ImportFromScene(FbxScene* InScene)
+void FFbxImporter::SetScene(FbxScene* InScene)
 {
-	if (!InScene)
-	{
-		UE_LOG(LogFbx, Warning, TEXT("Attempted to import invalid scene."));
-		return;
-	}
-
 	ClearAllCaches();
 	Scene = InScene;
 	FbxCreator = EFbxCreator::Unknow;

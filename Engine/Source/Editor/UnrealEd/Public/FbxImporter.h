@@ -693,7 +693,7 @@ public:
 	 * @param Scene - The scene we want to load.
 	 */
 	UE_DEPRECATED(5.1, "Do not use this function.")
-	UNREALED_API void ImportFromScene(FbxScene* InScene);
+	UNREALED_API void SetScene(FbxScene* InScene);
 
 	/**
 	 * Retrieve the FBX loader's error message explaining its failure to read a given FBX file.
