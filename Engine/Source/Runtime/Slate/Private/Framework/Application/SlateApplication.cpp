@@ -2409,12 +2409,12 @@ int32 FSlateApplication::GetUserIndexForKeyboard() const
 	return InputManager->GetUserIndexForKeyboard();
 }
 
-int32 FSlateApplication::GetInputDeviceIdForMouse() const
+FInputDeviceId FSlateApplication::GetInputDeviceIdForMouse() const
 {
 	return InputManager->GetInputDeviceIdForMouse();
 }
 
-int32 FSlateApplication::GetInputDeviceIdForKeyboard() const
+FInputDeviceId FSlateApplication::GetInputDeviceIdForKeyboard() const
 {
 	return InputManager->GetInputDeviceIdForKeyboard();
 }
