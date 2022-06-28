@@ -599,7 +599,7 @@ namespace Jupiter
         public long MemoryBufferSize { get; set; } = int.MaxValue;
 
         // enable to unhide potentially personal information, see https://aka.ms/IdentityModel/PII
-        public bool ShowPII { get; set; } = true;
+        public bool ShowPII { get; set; } = false;
         public bool DisableHealthChecks { get; set; } = false;
         public bool HostSwaggerDocumentation { get; set; } = true;
 
