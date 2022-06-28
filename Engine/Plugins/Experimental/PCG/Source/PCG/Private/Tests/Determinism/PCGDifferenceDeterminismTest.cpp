@@ -9,43 +9,83 @@ IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismSingleSameDataT
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismSingleIdenticalDataTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.SingleMultipleData", PCGTestsCommon::TestFlags)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismMultipleSameDataTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.MultipleSameData", PCGTestsCommon::TestFlags)
 IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismMultipleIdenticalDataTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.MultipleIdenticalData", PCGTestsCommon::TestFlags)
-// TODO: Temporarily disabled while more testing into this is conducted
-//IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismOrderIndependenceTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.OrderIndependence", PCGTestsCommon::TestFlags)
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGDifferenceDeterminismOrderIndependenceTest, FPCGTestBaseClass, "pcg.tests.Difference.Determinism.OrderIndependence", PCGTestsCommon::TestFlags)
 
 namespace
 {
-	void DifferenceTestBase(PCGDeterminismTests::FTestData& TestData)
+	void SetSettingsModeInferred(PCGDeterminismTests::FTestData& TestData)
 	{
-		PCGDeterminismTests::GenerateSettings<UPCGDifferenceSettings>(TestData);
-		// Source
-		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, FVector::ZeroVector, FVector::OneVector * 2000.f, FVector::OneVector * 200.f, PCGDifferenceConstants::SourceLabel);
-
-		// Difference 
-		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, FVector::ZeroVector, FVector::OneVector * 500.f, FVector::OneVector * 200.f, PCGDifferenceConstants::DifferencesLabel);
+		UPCGDifferenceSettings* Settings = CastChecked<UPCGDifferenceSettings>(TestData.Settings);
+		Settings->Mode = EPCGDifferenceMode::Inferred;
 	}
 
-	void DifferenceTestMultiple(PCGDeterminismTests::FTestData& TestData)
+	void SetSettingsModeContinuous(PCGDeterminismTests::FTestData& TestData)
 	{
-		DifferenceTestBase(TestData);
+		UPCGDifferenceSettings* Settings = CastChecked<UPCGDifferenceSettings>(TestData.Settings);
+		Settings->Mode = EPCGDifferenceMode::Continuous;
+	}
+
+	void SetSettingsModeDiscrete(PCGDeterminismTests::FTestData& TestData)
+	{
+		UPCGDifferenceSettings* Settings = CastChecked<UPCGDifferenceSettings>(TestData.Settings);
+		Settings->Mode = EPCGDifferenceMode::Discrete;
+	}
+
+	void DifferenceTestBase(PCGDeterminismTests::FTestData& TestData, EPCGDifferenceMode DifferenceMode)
+	{
+		TFunction<void(PCGDeterminismTests::FTestData& TestData)> AdditionalSettingsDelegate;
+
+		switch (DifferenceMode)
+		{
+		case EPCGDifferenceMode::Inferred: // To PointData if points in source and difference inputs
+			AdditionalSettingsDelegate = SetSettingsModeInferred;
+			break;
+		case EPCGDifferenceMode::Continuous: // Stays DifferenceData
+			AdditionalSettingsDelegate = SetSettingsModeContinuous;
+			break;
+		case EPCGDifferenceMode::Discrete: // To PointData
+			AdditionalSettingsDelegate = SetSettingsModeDiscrete;
+			break;
+		default:
+			break;
+		}
+
+		PCGDeterminismTests::GenerateSettings<UPCGDifferenceSettings>(TestData, AdditionalSettingsDelegate);
+		// Source
+		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, FVector::ZeroVector, PCGDeterminismTests::Defaults::LargeVector, PCGDeterminismTests::Defaults::SmallVector, PCGDifferenceConstants::SourceLabel);
+
+		// Difference 
+		PCGDeterminismTests::AddVolumeInputData(TestData.InputData, FVector::ZeroVector, PCGDeterminismTests::Defaults::MediumVector, PCGDeterminismTests::Defaults::SmallVector, PCGDifferenceConstants::DifferencesLabel);
+	}
+
+	void DifferenceTestMultiple(PCGDeterminismTests::FTestData& TestData, EPCGDifferenceMode DifferenceMode)
+	{
+		DifferenceTestBase(TestData, DifferenceMode);
 
 		// Randomized Sources
 		PCGDeterminismTests::AddRandomizedVolumeInputData(TestData, PCGDifferenceConstants::SourceLabel);
 		PCGDeterminismTests::AddRandomizedMultiplePointInputData(TestData, 20, PCGDifferenceConstants::SourceLabel);
 
 		// Randomized Differences
+		PCGDeterminismTests::AddRandomizedVolumeInputData(TestData, PCGDifferenceConstants::DifferencesLabel);
 		PCGDeterminismTests::AddRandomizedMultiplePointInputData(TestData, 20, PCGDifferenceConstants::DifferencesLabel);
 	}
-
 }
 
 bool FPCGDifferenceDeterminismSingleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test single same data
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData TestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData TestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData TestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
 
-	DifferenceTestBase(TestData);
+	DifferenceTestBase(TestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestBase(TestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestBase(TestDataDiscrete, EPCGDifferenceMode::Discrete);
 
-	TestTrue("Same single input and settings, same output", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestData));
+	TestTrue("Same single input, same output, 'Inferred' mode", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestDataInferred));
+	TestTrue("Same single input, same output, 'Continuous' mode", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestDataContinuous));
+	TestTrue("Same single input, same output, 'Discrete' mode", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestDataDiscrete));
 
 	return true;
 }
@@ -53,13 +93,23 @@ bool FPCGDifferenceDeterminismSingleSameDataTest::RunTest(const FString& Paramet
 bool FPCGDifferenceDeterminismSingleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test single identical data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData FirstTestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData FirstTestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData FirstTestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
 
-	DifferenceTestBase(FirstTestData);
-	DifferenceTestBase(SecondTestData);
+	DifferenceTestBase(FirstTestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestBase(FirstTestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestBase(FirstTestDataDiscrete, EPCGDifferenceMode::Discrete);
+	DifferenceTestBase(SecondTestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestBase(SecondTestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestBase(SecondTestDataDiscrete, EPCGDifferenceMode::Discrete);
 
-	TestTrue("Identical single input and settings, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
+	TestTrue("Identical single input, same output, 'Inferred' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataInferred, SecondTestDataInferred));
+	TestTrue("Identical single input, same output, 'Continuous' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataContinuous, SecondTestDataContinuous));
+	TestTrue("Identical single input, same output, 'Discrete' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataDiscrete, SecondTestDataDiscrete));
 
 	return true;
 }
@@ -67,11 +117,17 @@ bool FPCGDifferenceDeterminismSingleIdenticalDataTest::RunTest(const FString& Pa
 bool FPCGDifferenceDeterminismMultipleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple same data
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData TestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData TestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData TestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
 
-	DifferenceTestMultiple(TestData);
+	DifferenceTestMultiple(TestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestMultiple(TestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestMultiple(TestDataDiscrete, EPCGDifferenceMode::Discrete);
 
-	TestTrue("Identical multiple input, same output", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestData));
+	TestTrue("Same single input, same output, 'Inferred' mode", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestDataInferred));
+	TestTrue("Same single input, same output, 'Continuous' mode", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestDataContinuous));
+	TestTrue("Same single input, same output, 'Discrete' mode", PCGDeterminismTests::ExecutionIsDeterministicSameData(TestDataDiscrete));
 
 	return true;
 }
@@ -79,32 +135,53 @@ bool FPCGDifferenceDeterminismMultipleSameDataTest::RunTest(const FString& Param
 bool FPCGDifferenceDeterminismMultipleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple identical data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData FirstTestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData FirstTestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData FirstTestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
 
-	DifferenceTestMultiple(FirstTestData);
-	DifferenceTestMultiple(SecondTestData);
+	DifferenceTestMultiple(FirstTestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestMultiple(FirstTestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestMultiple(FirstTestDataDiscrete, EPCGDifferenceMode::Discrete);
+	DifferenceTestMultiple(SecondTestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestMultiple(SecondTestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestMultiple(SecondTestDataDiscrete, EPCGDifferenceMode::Discrete);
 
-	TestTrue("Identical single input and settings, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
+	TestTrue("Identical single input, same output, 'Inferred' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataInferred, SecondTestDataInferred));
+	TestTrue("Identical single input, same output, 'Continuous' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataContinuous, SecondTestDataContinuous));
+	TestTrue("Identical single input, same output, 'Discrete' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataDiscrete, SecondTestDataDiscrete));
 
 	return true;
 }
 
-// TODO: Temporarily disabled while more testing into this is conducted
-//bool FPCGDifferenceDeterminismOrderIndependenceTest::RunTest(const FString& Parameters)
-//{
-//	// Test multiple identical data
-//	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-//	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
-//
-//	DifferenceTestMultiple(FirstTestData);
-//	DifferenceTestMultiple(SecondTestData);
-//
-//	PCGDeterminismTests::ShuffleInputOrder(SecondTestData);
-//
-//	TestTrue("Shuffled input order, same output", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestData, SecondTestData));
-//
-//	return true;
-//}
+bool FPCGDifferenceDeterminismOrderIndependenceTest::RunTest(const FString& Parameters)
+{
+	// Test multiple identical data, shuffled
+	PCGDeterminismTests::FTestData FirstTestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData FirstTestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData FirstTestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataInferred(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataContinuous(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestDataDiscrete(PCGDeterminismTests::Defaults::Seed);
+
+	DifferenceTestMultiple(FirstTestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestMultiple(FirstTestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestMultiple(FirstTestDataDiscrete, EPCGDifferenceMode::Discrete);
+	DifferenceTestMultiple(SecondTestDataInferred, EPCGDifferenceMode::Inferred);
+	DifferenceTestMultiple(SecondTestDataContinuous, EPCGDifferenceMode::Continuous);
+	DifferenceTestMultiple(SecondTestDataDiscrete, EPCGDifferenceMode::Discrete);
+
+	PCGDeterminismTests::ShuffleInputOrder(SecondTestDataInferred);
+	PCGDeterminismTests::ShuffleInputOrder(SecondTestDataContinuous);
+	PCGDeterminismTests::ShuffleInputOrder(SecondTestDataDiscrete);
+
+	TestTrue("Shuffled input order, same output, 'Inferred' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataInferred, SecondTestDataInferred));
+	TestTrue("Shuffled input order, same output, 'Continuous' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataContinuous, SecondTestDataContinuous));
+	TestTrue("Shuffled input order, same output, 'Discrete' mode", PCGDeterminismTests::ExecutionIsDeterministic(FirstTestDataDiscrete, SecondTestDataDiscrete));
+
+	return true;
+}
 
 #endif

@@ -27,13 +27,13 @@ namespace
 
 	void CreateNewRandomizedSpatialDataSet(TArray<PCGDeterminismTests::FTestData>& TestDataSet,
 		int32 NumSpatialSetsToAdd = 1,
-		int32 NumPointsToCreatePerSet = PCGDeterminismTests::DefaultNumPointsToGenerate,
-		int32 NumPolyLinePointsToCreatePerSet = PCGDeterminismTests::DefaultNumPolyLinePointsToGenerate)
+		int32 NumPointsToCreatePerSet = PCGDeterminismTests::Defaults::NumPointsToGenerate,
+		int32 NumPolyLinePointsToCreatePerSet = PCGDeterminismTests::Defaults::NumPolyLinePointsToGenerate)
 	{
 		check(NumSpatialSetsToAdd > 0 && NumPointsToCreatePerSet > 0 && NumPolyLinePointsToCreatePerSet > 0);
 
 		TestDataSet.Empty();
-		TestDataSet.Init(PCGDeterminismTests::FTestData(PCGDeterminismTests::DefaultSeed), NumTestableSpatialDataTypes);
+		TestDataSet.Init(PCGDeterminismTests::FTestData(PCGDeterminismTests::Defaults::Seed), NumTestableSpatialDataTypes);
 
 		for (PCGDeterminismTests::FTestData& Data : TestDataSet)
 		{

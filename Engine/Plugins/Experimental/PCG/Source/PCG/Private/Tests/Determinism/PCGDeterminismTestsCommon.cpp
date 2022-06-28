@@ -7,6 +7,7 @@
 #include "PCGHelpers.h"
 #include "PCGPoint.h"
 #include "Data/PCGDifferenceData.h"
+#include "Data/PCGIntersectionData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPrimitiveData.h"
 #include "Data/PCGSplineData.h"
@@ -24,11 +25,6 @@
 
 namespace PCGDeterminismTests
 {
-	constexpr static FVector::FReal SmallDistance = 50.0;
-	constexpr static FVector::FReal MediumDistance = 200.0;
-	constexpr static FVector::FReal LargeDistance = 500.0;
-	constexpr static int32 NumSamplingStepsPerDimension = 50;
-
 	FTestData::FTestData(int32 RandomSeed) :
 		Seed(RandomSeed),
 		RandomStream(Seed)
@@ -73,7 +69,7 @@ namespace PCGDeterminismTests
 	{
 		check(PCGNode);
 
-		FTestData TestData(DefaultSeed);
+		FTestData TestData(Defaults::Seed);
 		TestData.Settings = PCGNode->DefaultSettings;
 
 		// Generate random input data
@@ -185,7 +181,7 @@ namespace PCGDeterminismTests
 		check(PointNum > 0);
 		for (int32 I = 0; I < PointNum; ++I)
 		{
-			AddSinglePointInputData(TestData.InputData, TestData.RandomStream.VRand() * LargeDistance, PinName);
+			AddSinglePointInputData(TestData.InputData, TestData.RandomStream.VRand() * Defaults::LargeDistance, PinName);
 		}
 	}
 
@@ -197,7 +193,7 @@ namespace PCGDeterminismTests
 		Points.SetNumUninitialized(PointNum);
 		for (int32 I = 0; I < PointNum; ++I)
 		{
-			FVector NewLocation = TestData.RandomStream.VRand() * LargeDistance;
+			FVector NewLocation = TestData.RandomStream.VRand() * Defaults::LargeDistance;
 			FTransform NewTransform(FRotator::ZeroRotator, NewLocation, FVector::OneVector * TestData.RandomStream.FRandRange(0.5, 1.5));
 			int PointSeed = PCGHelpers::ComputeSeed(static_cast<int>(NewLocation.X), static_cast<int>(NewLocation.Y), static_cast<int>(NewLocation.Z));
 			Points[I] = FPCGPoint(NewTransform, 1.f, PCGHelpers::ComputeSeed(PointSeed, TestData.Seed));
@@ -208,9 +204,11 @@ namespace PCGDeterminismTests
 
 	void AddRandomizedVolumeInputData(FTestData& TestData, const FName& PinName)
 	{
-		AddVolumeInputData(TestData.InputData, TestData.RandomStream.VRand() * LargeDistance,
-			FVector::OneVector * LargeDistance + TestData.RandomStream.VRand() * MediumDistance,
-			FVector::OneVector * MediumDistance + TestData.RandomStream.VRand() * 0.5f * MediumDistance, PinName);
+		AddVolumeInputData(TestData.InputData,
+			TestData.RandomStream.VRand() * Defaults::MediumDistance,
+			Defaults::MediumVector + TestData.RandomStream.VRand() * 0.5f * Defaults::MediumDistance,
+			Defaults::SmallVector + TestData.RandomStream.VRand() * 0.5f * Defaults::SmallDistance,
+			PinName);
 	}
 
 	void AddRandomizedSurfaceInputData(FTestData& TestData, const FName& PinName)
@@ -231,7 +229,7 @@ namespace PCGDeterminismTests
 		check(PointNum > 1);
 		for (int32 I = 0; I < PointNum; ++I)
 		{
-			TestSplineComponent->AddSplinePoint(TestData.RandomStream.VRand() * LargeDistance, ESplineCoordinateSpace::Type::World, false);
+			TestSplineComponent->AddSplinePoint(TestData.RandomStream.VRand() * Defaults::LargeDistance, ESplineCoordinateSpace::Type::World, false);
 			TestSplineComponent->AddRelativeRotation(FRotator(
 				TestData.RandomStream.FRandRange(-90.0, 90.0),
 				TestData.RandomStream.FRandRange(-90.0, 90.0),
@@ -255,11 +253,11 @@ namespace PCGDeterminismTests
 
 		TestPrimitiveComponent->SetWorldTransform(FTransform(
 			FRotator(TestData.RandomStream.FRandRange(0.0, 90.0), TestData.RandomStream.FRandRange(0.0, 90.0), TestData.RandomStream.FRandRange(0.0, 90.0)),
-			TestData.RandomStream.VRand() * LargeDistance,
+			TestData.RandomStream.VRand() * Defaults::LargeDistance,
 			FVector::OneVector * TestData.RandomStream.FRandRange(0.5, 1.5)));
 
 		// TODO: Probably more varieties to add in the future
-		AddPrimitiveInputData(TestData.InputData, TestPrimitiveComponent, FVector::OneVector * MediumDistance + TestData.RandomStream.VRand() * 0.5f * MediumDistance, PinName);
+		AddPrimitiveInputData(TestData.InputData, TestPrimitiveComponent, Defaults::MediumVector + TestData.RandomStream.VRand() * 0.5f * Defaults::MediumDistance, PinName);
 	}
 
 	bool DataCollectionsAreIdentical(const FPCGDataCollection& FirstCollection, const FPCGDataCollection& SecondCollection)
@@ -353,9 +351,9 @@ namespace PCGDeterminismTests
 		{
 			return PrimitiveDataIsIdentical(FirstData, SecondData);
 		}
-		else if (BothDataCastsToDataType<const UPCGDifferenceData>(FirstData, SecondData))
+		else if (BothDataCastsToDataType<const UPCGSpatialData>(FirstData, SecondData))
 		{
-			return DifferenceDataIsIdentical(FirstData, SecondData);
+			return SampledSpatialDataIsIdentical(Cast<const UPCGSpatialData>(FirstData), Cast<const UPCGSpatialData>(SecondData));
 		}
 
 		return false;
@@ -468,23 +466,20 @@ namespace PCGDeterminismTests
 		return false;
 	}
 
-	bool DifferenceDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData)
+	bool SampledSpatialDataIsIdentical(const UPCGSpatialData* FirstSpatialData, const UPCGSpatialData* SecondSpatialData)
 	{
-		const UPCGDifferenceData* FirstDifferenceData = CastChecked<const UPCGDifferenceData>(FirstData);
-		const UPCGDifferenceData* SecondDifferenceData = CastChecked<const UPCGDifferenceData>(SecondData);
-
-		if (!SpatialBasicsAreIdentical(FirstDifferenceData, SecondDifferenceData))
+		if (!SpatialBasicsAreIdentical(FirstSpatialData, SecondSpatialData))
 		{
 			return false;
 		}
 
 		// At this point, bounds has already been checked for equality
-		const FBox SampleBounds = FirstDifferenceData->GetBounds();
+		const FBox SampleBounds = Defaults::TestingVolume;
 		const FVector SampleExtent = SampleBounds.GetExtent();
 
 		FPCGPoint FirstPoint;
 		FPCGPoint SecondPoint;
-		FVector StepInterval = SampleExtent * 2.0 / FMath::Max(NumSamplingStepsPerDimension, 1);
+		FVector StepInterval = SampleExtent * 2.0 / FMath::Max(Defaults::NumSamplingStepsPerDimension, 1);
 		FVector StartingOffset = SampleBounds.Min + StepInterval * 0.5;
 
 		// Sample points across the 3D volume
@@ -495,8 +490,8 @@ namespace PCGDeterminismTests
 				for (FVector::FReal Z = StartingOffset.Z; Z < SampleBounds.Max.Z; Z += StepInterval.Z)
 				{
 					FTransform PointTransform(FVector(X, Y, Z));
-					bool bFirstPointWasSampled = FirstDifferenceData->SamplePoint(PointTransform, SampleBounds, FirstPoint, nullptr);
-					bool bSecondPointWasSampled = SecondDifferenceData->SamplePoint(PointTransform, SampleBounds, SecondPoint, nullptr);
+					bool bFirstPointWasSampled = FirstSpatialData->SamplePoint(PointTransform, SampleBounds, FirstPoint, nullptr);
+					bool bSecondPointWasSampled = SecondSpatialData->SamplePoint(PointTransform, SampleBounds, SecondPoint, nullptr);
 
 					if (bFirstPointWasSampled != bSecondPointWasSampled)
 					{

@@ -13,16 +13,19 @@ IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPCGVolumeSamplerDeterminismOrderIndepen
 
 namespace
 {
+	constexpr static int32 NumInputVolumesToAdd = 10;
+
 	void RandomizeVolumeSettingsVoxelSize(PCGDeterminismTests::FTestData& TestData)
 	{
-		CastChecked<UPCGVolumeSamplerSettings>(TestData.Settings)->VoxelSize = FVector::OneVector * 200.f + TestData.RandomStream.VRand() * 100.f;
+		UPCGVolumeSamplerSettings* Settings = CastChecked<UPCGVolumeSamplerSettings>(TestData.Settings);
+		Settings->VoxelSize = PCGDeterminismTests::Defaults::MediumVector + TestData.RandomStream.VRand() * 0.5 * PCGDeterminismTests::Defaults::MediumDistance;
 	}
 }
 
 bool FPCGVolumeSamplerDeterminismSingleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test single same data
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(TestData, RandomizeVolumeSettingsVoxelSize);
 	PCGDeterminismTests::AddRandomizedVolumeInputData(TestData);
@@ -35,8 +38,8 @@ bool FPCGVolumeSamplerDeterminismSingleSameDataTest::RunTest(const FString& Para
 bool FPCGVolumeSamplerDeterminismSingleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test single identical data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
 
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, RandomizeVolumeSettingsVoxelSize);
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, RandomizeVolumeSettingsVoxelSize);
@@ -52,12 +55,12 @@ bool FPCGVolumeSamplerDeterminismSingleIdenticalDataTest::RunTest(const FString&
 bool FPCGVolumeSamplerDeterminismMultipleSameDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple same data
-	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData TestData(PCGDeterminismTests::Defaults::Seed);
 
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(TestData, RandomizeVolumeSettingsVoxelSize);
 
 	// Add many random volumes
-	for (int32 I = 0; I < 10; ++I)
+	for (int32 I = 0; I < NumInputVolumesToAdd; ++I)
 	{
 		PCGDeterminismTests::AddRandomizedVolumeInputData(TestData);
 	}
@@ -70,14 +73,14 @@ bool FPCGVolumeSamplerDeterminismMultipleSameDataTest::RunTest(const FString& Pa
 bool FPCGVolumeSamplerDeterminismMultipleIdenticalDataTest::RunTest(const FString& Parameters)
 {
 	// Test multiple identical data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
 
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, RandomizeVolumeSettingsVoxelSize);
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, RandomizeVolumeSettingsVoxelSize);
 
 	// Add many random volumes
-	for (int32 I = 0; I < 10; ++I)
+	for (int32 I = 0; I < NumInputVolumesToAdd; ++I)
 	{
 		PCGDeterminismTests::AddRandomizedVolumeInputData(FirstTestData);
 		PCGDeterminismTests::AddRandomizedVolumeInputData(SecondTestData);
@@ -91,14 +94,14 @@ bool FPCGVolumeSamplerDeterminismMultipleIdenticalDataTest::RunTest(const FStrin
 bool FPCGVolumeSamplerDeterminismOrderIndependenceTest::RunTest(const FString& Parameters)
 {
 	// Test shuffled input data
-	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::DefaultSeed);
-	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::DefaultSeed);
+	PCGDeterminismTests::FTestData FirstTestData(PCGDeterminismTests::Defaults::Seed);
+	PCGDeterminismTests::FTestData SecondTestData(PCGDeterminismTests::Defaults::Seed);
 
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(FirstTestData, RandomizeVolumeSettingsVoxelSize);
 	PCGDeterminismTests::GenerateSettings<UPCGVolumeSamplerSettings>(SecondTestData, RandomizeVolumeSettingsVoxelSize);
 
 	// Add many random volumes
-	for (int32 I = 0; I < 10; ++I)
+	for (int32 I = 0; I < NumInputVolumesToAdd; ++I)
 	{
 		PCGDeterminismTests::AddRandomizedVolumeInputData(FirstTestData);
 		PCGDeterminismTests::AddRandomizedVolumeInputData(SecondTestData);
