@@ -43,6 +43,7 @@ SamplerState LinearSampler;
 Buffer<uint> HairVisibilityIndirectArgsBuffer;
 
 Buffer<int> HairMacroGroupAABBBuffer;
+Buffer<int> HairMacroGroupVoxelAlignedAABBBuffer;
 
 #define MATERIAL_DATA 1
 #define DETAIL_DATA 1
@@ -87,8 +88,16 @@ void MainCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Dispatc
 		// Macro groups bounds
 		for (uint GroupIndex =0;GroupIndex< HairMacroGroupCount; GroupIndex++)
 		{
-			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
+			const float4 InstanceBoundColor = float4(0.25f, 1.f, 0.25f, 1.0f); 
 			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupAABBBuffer);
+			AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
+		}
+
+		// Voxel aligned macro groups bounds
+		for (uint GroupIndex = 0; GroupIndex < HairMacroGroupCount; GroupIndex++)
+		{
+			const float4 InstanceBoundColor = float4(1.f, 0.5f, 0.5f, 1.0f);
+			FHairAABB Bound = ReadHairAABB(GroupIndex, HairMacroGroupVoxelAlignedAABBBuffer);
 			AddAABBTWS(Bound.Min, Bound.Max, InstanceBoundColor);
 		}
 

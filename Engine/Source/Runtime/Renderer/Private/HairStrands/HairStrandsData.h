@@ -273,7 +273,8 @@ struct FHairStrandsDeepShadowResources
 struct FHairStrandsMacroGroupResources
 {
 	uint32 MacroGroupCount = 0;
-	FRDGBufferRef MacroGroupAABBsBuffer = nullptr;
+	FRDGBufferRef MacroGroupAABBsBuffer = nullptr; // Tight bounding boxes
+	FRDGBufferRef MacroGroupVoxelAlignedAABBsBuffer = nullptr; // Contents of MacroGroupAABBsBuffer, but snapped to the voxel page boundaries
 	FRDGBufferRef MacroGroupVoxelSizeBuffer = nullptr;
 };
 

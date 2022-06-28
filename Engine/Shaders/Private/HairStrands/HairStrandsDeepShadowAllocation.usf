@@ -85,12 +85,9 @@ void ComputeTranslatedWorldToLightClip(
 	const FHairAABB Light_AABB = Transform(TranslatedWorld_AABB, Coarse_TranslatedWorldToLight);
 	const float3 Light_Extents = GetExtents(Light_AABB);
 
-	const float Radius = length(Light_Extents.xy) * AABBScale;
+	const float Radius = length(GetExtents(TranslatedWorld_AABB)) * AABBScale;
 	float MinZ = -Light_Extents.z * AABBScale;
 	float MaxZ = +Light_Extents.z * AABBScale;
-
-	// Update AABB center based on the tigher Z entents
-	Center = ((MaxZ * OutLightDirection) + (MinZ * OutLightDirection)) * 0.5f + Center;
 
 	const float StrandHairStableRasterizationScale = max(RasterizationScale, 1.0f);
 	OutMinStrandRadiusAtDepth1 = 1;

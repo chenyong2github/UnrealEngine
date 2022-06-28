@@ -27,7 +27,8 @@ uint				CPU_bUseCPUData;
 
 Buffer<float>								GPUVoxelWorldSize;
 Buffer<float>								MacroGroupVoxelSizeBuffer;
-RWBuffer<int>								MacroGroupAABBBuffer;
+Buffer<int>									MacroGroupAABBBuffer;
+RWBuffer<int>								MacroGroupVoxelAlignedAABBBuffer;
 RWBuffer<uint4>								OutPageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>								OutPageIndexAllocationIndirectBufferArgs;
 RWStructuredBuffer<FVoxelizationViewInfo>	OutVoxelizationViewInfoBuffer;
@@ -67,7 +68,11 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 	// Page index allocation
 	int3 PageIndexResolution = 0;
 	{
-		// Snap the max AABB to the voxel size
+		// Snap the max AABB to the voxel size.
+		
+		// The contents of MacroGroupAABBBuffer (tight fitting AABBs) and MacroGroupVoxelAlignedAABBBuffer diverge here
+		// because the macro group AABBs for voxelization need to be snapped to the voxel page boundary.
+		
 		// Allocate enough pages to cover the AABB, where page (0,0,0) origin sit on MinAABB.
 		float3 MacroGroupSize = 0;
 		if (bIsValid)
@@ -102,7 +107,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		if (bIsValid)
 		{
 			OutPageIndexResolutionAndOffsetBuffer[MacroGroupId] = uint4(PageIndexResolution, PageIndexOffset);
-			WriteHairAABB(MacroGroupId, Bound, MacroGroupAABBBuffer);
+			WriteHairAABB(MacroGroupId, Bound, MacroGroupVoxelAlignedAABBBuffer);
 		}
 		else
 		{
@@ -135,7 +140,7 @@ void AllocatePageIndex(uint2 DispatchThreadId : SV_DispatchThreadID)
 		Bound.Min = CPU_TranslatedWorldMinAABB;
 		Bound.Max = CPU_TranslatedWorldMaxAABB;
 		PageIndexResolution = CPU_PageIndexResolution;
-		WriteHairAABB(MacroGroupId, Bound, MacroGroupAABBBuffer);
+		WriteHairAABB(MacroGroupId, Bound, MacroGroupVoxelAlignedAABBBuffer);
 	}
 
 	// Prepare indirect buffer for doing the actual page index allocation and filling the page index
@@ -280,7 +285,7 @@ uint			bForceDirectPageAllocation;
 
 Buffer<int>		GroupAABBsBuffer;
 Buffer<int>		ClusterAABBsBuffer;
-Buffer<int>		MacroGroupAABBBuffer;
+Buffer<int>		MacroGroupVoxelAlignedAABBBuffer;
 Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
 
 RWBuffer<uint>	OutValidPageIndexBuffer;
@@ -317,7 +322,7 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		return;
 
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-	FHairAABB MacroGroupBound				 = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	FHairAABB MacroGroupBound				 = ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
 	const int3 PageIndexResolution			 = PageIndexResolutionAndOffset.xyz;
 	const uint PageIndexOffset				 = PageIndexResolutionAndOffset.w;
 
@@ -388,7 +393,7 @@ void MarkValid_PrepareCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 void MarkValid_PrepareCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-	const FHairAABB MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	const FHairAABB MacroGroupBound = ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
 	const int3 PageIndexResolution = PageIndexResolutionAndOffset.xyz;
 	const uint PageIndexOffset = PageIndexResolutionAndOffset.w;
 
@@ -489,7 +494,7 @@ float3			CPU_TranslatedWorldMaxAABB;
 uint			MacroGroupId;
 
 Buffer<int>		ClusterAABBsBuffer;
-Buffer<int>		MacroGroupAABBBuffer;
+Buffer<int>		MacroGroupVoxelAlignedAABBBuffer;
 Buffer<uint4>	PageIndexResolutionAndOffsetBuffer;
 RWBuffer<uint>	OutValidPageIndexBuffer;
 
@@ -523,7 +528,7 @@ void MarkValidCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 #if PERMUTATION_GPU_DRIVEN == 1
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
 
-	MacroGroupBound			= ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	MacroGroupBound			= ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
 	PageIndexResolution		= PageIndexResolutionAndOffset.xyz;
 	PageIndexOffset			= PageIndexResolutionAndOffset.w;
 #else
@@ -656,7 +661,7 @@ float CPU_VoxelWorldSize;
 uint bUseCPUVoxelWorldSize; // When adaptive voxel size is disabled, we use CPU voxel size value
 
 Buffer<float> GPU_VoxelWorldSize;
-Buffer<int> MacroGroupAABBBuffer;
+Buffer<int> MacroGroupVoxelAlignedAABBBuffer;
 Buffer<float> MacroGroupVoxelSizeBuffer;
 Buffer<uint4> PageIndexResolutionAndOffsetBuffer;
 RWStructuredBuffer<FPackedVirtualVoxelNodeDesc> OutNodeDescBuffer;
@@ -668,7 +673,7 @@ void AddDescCS(uint GroupIndex : SV_GroupIndex, uint3 DispatchThreadId : SV_Disp
 
 #if PERMUTATION_GPU_DRIVEN == 1
 	const uint4 PageIndexResolutionAndOffset = PageIndexResolutionAndOffsetBuffer.Load(MacroGroupId);
-	const FHairAABB TranslatedWorldBound = ReadHairAABB(MacroGroupId, MacroGroupAABBBuffer);
+	const FHairAABB TranslatedWorldBound = ReadHairAABB(MacroGroupId, MacroGroupVoxelAlignedAABBBuffer);
 	const float VoxelWorldSize = MacroGroupVoxelSizeBuffer[MacroGroupId];
 
 	Node.TranslatedWorldMinAABB = TranslatedWorldBound.Min;
