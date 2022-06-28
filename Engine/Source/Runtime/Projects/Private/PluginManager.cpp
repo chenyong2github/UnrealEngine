@@ -219,7 +219,7 @@ namespace DiscoveredPluginMapUtils
 		FDiscoveredPluginMap::ValueType* PluginList = Map.Find(Name);
 
 		// Ensure the specified plugin is in the array
-		if (ensureAlwaysMsgf(PluginList && PluginList->GetData() >= PluginPtr && PluginPtr < PluginList->GetData() + PluginList->Num(),
+		if (ensureAlwaysMsgf(PluginList && PluginList->GetData() <= PluginPtr && PluginPtr < PluginList->GetData() + PluginList->Num(),
 			TEXT("Specified plugin is not registered under the name '%s'. Failed to promote it."), *Name))
 		{
 			TSharedRef<FPlugin>* TopPluginPtr = &PluginList->Top();
