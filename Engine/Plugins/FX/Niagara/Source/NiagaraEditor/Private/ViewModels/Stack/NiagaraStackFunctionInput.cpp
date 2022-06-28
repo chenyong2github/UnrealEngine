@@ -579,6 +579,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 
 		if (bHasStaleRapidIterationVar)
 		{
+			/*
 			NewIssues.Add(FStackIssue(
 				EStackIssueSeverity::Warning,
 				LOCTEXT("InvalidRapidIterationOverrideShort", "Invalid Rapid Iteration override"),
@@ -590,6 +591,7 @@ void UNiagaraStackFunctionInput::RefreshChildrenInternal(const TArray<UNiagaraSt
 					FStackIssueFixDelegate::CreateLambda([this]() { this->RemoveRapidIterationParametersForAffectedScripts(true); }))
 				}
 			));
+			*/
 		}
 	}
 
