@@ -69,11 +69,11 @@ static TAutoConsoleVariable<int32> CVarLumenHardwareRayTracingMaxTranslucentSkip
 bool Lumen::UseHardwareRayTracing(const FSceneViewFamily& ViewFamily)
 {
 #if RHI_RAYTRACING
-	return IsRayTracingEnabled() 
+	return IsRayTracingEnabled()
 		&& (GRHISupportsRayTracingShaders || GRHISupportsInlineRayTracing)
-		&& CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0 
-		// Ray Tracing does not support split screen yet
-		&& ViewFamily.Views.Num() == 1;
+		&& CVarLumenUseHardwareRayTracing.GetValueOnAnyThread() != 0
+		// Ray Tracing does not support split screen yet, but stereo views can be allowed
+		&& (ViewFamily.Views.Num() == 1 || (ViewFamily.Views.Num() == 2 && IStereoRendering::IsStereoEyeView(*ViewFamily.Views[0])));
 #else
 	return false;
 #endif

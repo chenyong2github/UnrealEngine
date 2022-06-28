@@ -728,7 +728,7 @@ void LumenRadiosity::AddRadiosityPass(
 		const bool bUseMinimalPayload = true;
 		const bool bInlineRayTracing = Lumen::UseHardwareInlineRayTracing(*FirstView.Family);
 
-		checkf(Views.Num() == 1, TEXT("Radiosity HW tracing needs to be updated for splitscreen support"));
+		checkf((Views.Num() == 1 || IStereoRendering::IsStereoEyeView(FirstView)), TEXT("Radiosity HW tracing needs to be updated for splitscreen support"));
 		uint32 ViewIndex = 0;
 		const FViewInfo& View = Views[ViewIndex];
 
