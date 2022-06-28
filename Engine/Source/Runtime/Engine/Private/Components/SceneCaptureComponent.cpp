@@ -171,7 +171,8 @@ USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectI
 void USceneCaptureComponent::OnRegister()
 {
 #if WITH_EDITORONLY_DATA
-	if (AActor* MyOwner = GetOwner())
+	AActor* MyOwner = GetOwner();
+	if ((MyOwner != nullptr) && !IsRunningCommandlet())
 	{
 		if (ProxyMeshComponent == nullptr)
 		{
@@ -510,7 +511,8 @@ void USceneCaptureComponent2D::OnRegister()
 	Super::OnRegister();
 
 #if WITH_EDITORONLY_DATA
-	if (AActor* MyOwner = GetOwner())
+	AActor* MyOwner = GetOwner();
+	if ((MyOwner != nullptr) && !IsRunningCommandlet())
 	{
 		if (DrawFrustum == nullptr)
 		{
@@ -1095,7 +1097,8 @@ void USceneCaptureComponentCube::OnRegister()
 	Super::OnRegister();
 
 #if WITH_EDITORONLY_DATA
-	if (AActor* MyOwner = GetOwner())
+	AActor* MyOwner = GetOwner();
+	if ((MyOwner != nullptr) && !IsRunningCommandlet())
 	{
 		if (DrawFrustum == nullptr)
 		{
