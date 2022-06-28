@@ -560,8 +560,13 @@ namespace Horde.Build.Issues
 						}
 					}
 
+					// Only update sentinels for issues which aren't quarantined
+					List<IIssue> quarantined = await _issueCollection.FindIssuesAsync(openSpans.Select(x => x.IssueId).Distinct());
+					quarantined = quarantined.Where(x => x.QuarantinedByUserId != null).ToList();
+					List<IIssueSpan> sentinels = openSpans.Where(x => !quarantined.Any(y => x.IssueId == y.Id)).ToList();
+
 					// Try to update the sentinels for any other open steps
-					if (!await TryUpdateSentinelsAsync(openSpans, stream, job, batch, step))
+					if (!await TryUpdateSentinelsAsync(sentinels, stream, job, batch, step))
 					{
 						continue;
 					}
