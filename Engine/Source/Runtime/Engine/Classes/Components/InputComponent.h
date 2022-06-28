@@ -723,7 +723,7 @@ struct FCachedKeyToActionInfo
  *
  * @see https://docs.unrealengine.com/latest/INT/Gameplay/Input/index.html
  */
-UCLASS(transient, config=Input, hidecategories=(Activation, "Components|Activation"))
+UCLASS(NotBlueprintable, transient, config=Input, hidecategories=(Activation, "Components|Activation"))
 class ENGINE_API UInputComponent
 	: public UActorComponent
 {
