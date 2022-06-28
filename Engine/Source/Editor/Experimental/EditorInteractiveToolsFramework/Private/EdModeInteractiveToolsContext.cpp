@@ -254,10 +254,16 @@ public:
 		int NumActors = SelectionChange.Actors.Num();
 		for (int k = 0; k < NumActors; ++k)
 		{
-			GEditor->SelectActor(SelectionChange.Actors[k], bAdd, false, true, false);
+			// Calling GEditor->NoteSelectionChange(true) will not send out change notifications on the TypedElementSelectionSet.
+			// The selection change will work but any Editor stuff listening for changes will not be notified.
+			// This may be a bug, needs further investigation.
+			// In the meantime, just send out the notification on the last SelectActor() call
+			bool bNotify = (k == NumActors-1);
+			GEditor->SelectActor(SelectionChange.Actors[k], bAdd, bNotify, true, false);
 		}
 
 		GEditor->NoteSelectionChange(true);
+
 		return true;
 	}
 
@@ -440,6 +446,7 @@ void UEditorInteractiveToolsContext::Tick(FEditorViewportClient* ViewportClient,
 	// tick our stuff
 	ToolManager->Tick(DeltaTime);
 	GizmoManager->Tick(DeltaTime);
+	OnTick.Broadcast(DeltaTime);
 }
 
 

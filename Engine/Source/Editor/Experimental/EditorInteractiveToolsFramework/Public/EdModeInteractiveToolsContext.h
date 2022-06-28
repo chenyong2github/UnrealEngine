@@ -77,12 +77,14 @@ public:
 	virtual void Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI);
 	virtual void DrawHUD(FViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View, FCanvas* Canvas);
 
-	// These delegates can be used to hook in to Render() and DrawHUD() calls. In particular, non-legacy UEdMode's
+	// These delegates can be used to hook into the Render() / DrawHUD() / Tick() calls above. In particular, non-legacy UEdMode's
 	// don't normally receive Render() and DrawHUD() calls from the mode manager, but can attach to these.
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnRender, IToolsContextRenderAPI* RenderAPI);
 	FOnRender OnRender;
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnDrawHUD, FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 	FOnDrawHUD OnDrawHUD;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnTick, float DeltaTime);
+	FOnTick OnTick;
 
 	/** @return true if selected actors/components can be deleted */
 	virtual bool ProcessEditDelete();
