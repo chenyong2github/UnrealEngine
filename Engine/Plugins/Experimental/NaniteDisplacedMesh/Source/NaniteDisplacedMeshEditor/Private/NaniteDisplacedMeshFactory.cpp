@@ -47,6 +47,8 @@ UObject* UNaniteDisplacedMeshFactory::FactoryCreateNew(UClass* Class, UObject* I
 
 UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDisplacedMesh, const FNaniteDisplacedMeshParams& InParameters, const FString& DisplacedMeshFolder, bool bCreateTransientAsset)
 {
+	checkf(GEditor, TEXT("There is no need to run that code if we don't have the editor"));
+
 	// We always need a valid base mesh for displacement, and non-zero magnitude on at least one displacement map
 	bool bApplyDisplacement = false;
 	for( auto& DisplacementMap : InParameters.DisplacementMaps )
@@ -82,7 +84,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 	FString DisplacedAssetPath = FPaths::Combine(DisplacedMeshFolder, DisplacedMeshName);
 
 	// The mesh needed might already exist. Using load object because it's faster then using the asset registry which might still be loading
-	if (UNaniteDisplacedMesh* LoadedDisplacedMesh = LoadObject<UNaniteDisplacedMesh>(nullptr, *DisplacedAssetPath))
+	if (UNaniteDisplacedMesh* LoadedDisplacedMesh = LoadObject<UNaniteDisplacedMesh>(nullptr, *DisplacedAssetPath, nullptr, LOAD_Quiet))
 	{
 		// Finish loading the object if needed
 		if (LoadedDisplacedMesh->HasAnyFlags(RF_NeedLoad))
