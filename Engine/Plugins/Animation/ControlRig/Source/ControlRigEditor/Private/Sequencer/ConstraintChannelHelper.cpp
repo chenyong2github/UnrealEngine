@@ -188,16 +188,18 @@ UMovieSceneControlRigParameterSection* FConstraintChannelHelper::GetControlSecti
 		return nullptr;
 	}
 
-	const TWeakObjectPtr<UControlRig> ControlRig = InHandle->ControlRig;
-	
-	const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
-	for (const FMovieSceneBinding& Binding : Bindings)
-	{
-		UMovieSceneTrack* Track = MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid());
-		UMovieSceneControlRigParameterTrack* ControlRigTrack = Cast<UMovieSceneControlRigParameterTrack>(Track);
-		if (ControlRigTrack && ControlRigTrack->GetControlRig() == ControlRig)
+	const TWeakObjectPtr<UControlRig> ControlRig = InHandle->ControlRig.LoadSynchronous();
+	if(ControlRig.IsValid())
+	{	
+		const TArray<FMovieSceneBinding>& Bindings = MovieScene->GetBindings();
+		for (const FMovieSceneBinding& Binding : Bindings)
 		{
-			return Cast<UMovieSceneControlRigParameterSection>(ControlRigTrack->FindSection(0));
+			UMovieSceneTrack* Track = MovieScene->FindTrack(UMovieSceneControlRigParameterTrack::StaticClass(), Binding.GetObjectGuid());
+			UMovieSceneControlRigParameterTrack* ControlRigTrack = Cast<UMovieSceneControlRigParameterTrack>(Track);
+			if (ControlRigTrack && ControlRigTrack->GetControlRig() == ControlRig)
+			{
+				return Cast<UMovieSceneControlRigParameterSection>(ControlRigTrack->FindSection(0));
+			}
 		}
 	}
 

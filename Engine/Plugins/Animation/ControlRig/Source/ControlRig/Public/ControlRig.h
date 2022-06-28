@@ -39,6 +39,7 @@ class UScriptStruct;
 class USkeletalMesh;
 class USkeletalMeshComponent;
 class AActor;
+class UTransformableControlHandle;
 
 struct FReferenceSkeleton;
 struct FRigUnit;
@@ -90,6 +91,7 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = ControlRig)
 	static TArray<UControlRig*> FindControlRigs(UObject* Outer, TSubclassOf<UControlRig> OptionalClass);
+
 
 private:
 	/** Current delta time */
@@ -152,6 +154,12 @@ public:
 	/** Returns the current frames per second (this may change over time) */
 	UFUNCTION(BlueprintPure, Category = "Control Rig")
 	float GetCurrentFramesPerSecond() const;
+
+	/** Creates a transformable control handle for the specified control to be used by the constraints system. Should use the UObject from 
+	ConstraintsScriptingLibrary::GetManager(UWorld* InWorld)*/
+	UFUNCTION(BlueprintPure, Category = "Control Rig | Constraints")
+	UTransformableControlHandle* CreateTransformableControlHandle(UObject* Outer, const FName& ControlName);
+
 
 #if WITH_EDITOR
 	/** Get the category of this ControlRig (for display in menus) */

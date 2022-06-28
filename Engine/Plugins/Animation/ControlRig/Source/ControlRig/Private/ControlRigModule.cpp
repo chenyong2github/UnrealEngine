@@ -10,6 +10,7 @@
 #include "ControlRigObjectVersion.h"
 #include "Constraints/ControlRigTransformableHandle.h"
 #include "UObject/DevObjectVersion.h"
+#include "ControlRig.h"
 
 // Unique Control Rig Object version id
 const FGuid FControlRigObjectVersion::GUID(0xA7820CFB, 0x20A74359, 0x8C542C14, 0x9623CF50);
@@ -43,11 +44,11 @@ void FControlRigModule::RegisterTransformableCustomization() const
 	{
 		if (const AControlRigShapeActor* ControlActor = Cast<AControlRigShapeActor>(InObject))
 		{
-			UTransformableControlHandle* CtrlHandle = NewObject<UTransformableControlHandle>(Outer);
-			CtrlHandle->ControlRig = ControlActor->ControlRig;
-			CtrlHandle->ControlName = ControlActor->ControlName;
-			CtrlHandle->RegisterDelegates();
-			return CtrlHandle;
+			if (UControlRig* ControlRig = ControlActor->ControlRig.Get())
+			{
+				UTransformableControlHandle* CtrlHandle = ControlRig->CreateTransformableControlHandle(Outer, ControlActor->ControlName);
+				return CtrlHandle;
+			}
 		}
 		return nullptr;
 	};

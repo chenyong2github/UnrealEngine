@@ -278,11 +278,14 @@ void SDroppableConstraintItem::CreateConstraint(
 	// create constraints
 	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
 	bool bCreated = false;
-	for (const AActor* Child: Selection)
+	for (AActor* Child: Selection)
 	{
 		if (Child != InParent)
 		{
-			bCreated |= TransformConstraintUtils::Create(World, InParent, Child, InConstraintType);
+			if (FTransformConstraintUtils::CreateAndAddFromActors(World, InParent, Child, InConstraintType) != nullptr)
+			{
+				bCreated = true;
+			}
 		}
 	}
 
@@ -723,13 +726,13 @@ void SConstraintsEditionWidget::RefreshConstraintList()
 	if (bIsConstraintsActor)
 	{
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
-		Constraints = Controller.GetConstrainsArray();
+		Constraints = Controller.GetConstraintsArray();
 	}
 	else
 	{
 		for (const AActor* Actor : Selection)
 		{
-			TransformConstraintUtils::GetParentConstraints(World, Actor, Constraints);
+			FTransformConstraintUtils::GetParentConstraints(World, Actor, Constraints);
 		}
 	}
 	

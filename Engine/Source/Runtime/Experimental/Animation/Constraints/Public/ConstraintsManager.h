@@ -65,7 +65,7 @@ struct TStructOpsTypeTraits<FConstraintTickFunction> : public TStructOpsTypeTrai
  * Represents the basic interface of constraint within the constraints manager.
  **/
 
-UCLASS(Abstract)
+UCLASS(Abstract, Blueprintable)
 class CONSTRAINTS_API UTickableConstraint : public UObject
 {
 	GENERATED_BODY()
@@ -100,28 +100,35 @@ public:
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	// End of UObject interface
 #endif
-
 	/** @todo documentation. */
-	UPROPERTY(EditAnywhere, DisplayName="Active State", Category="Constraint")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, DisplayName="Active State", Category="Constraint")
 	bool Active = true;
 };
+
 
 /** 
  * UConstraintsManager
  * This object gathers the different constraints of the level and is held by the ConstraintsActor (unique in the level)
  **/
 
-UCLASS()
+UCLASS(BLUEPRINTABLE)
 class CONSTRAINTS_API UConstraintsManager : public UObject
 {
 	GENERATED_BODY()
 public:
 
 	using ConstraintPtr = TObjectPtr<UTickableConstraint>;
+
+	/** Dynamic blueprintable delegates for knowing when a constraints are added or deleted*/
+	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FOnConstraintAdded, UConstraintsManager, OnConstraintAdded_BP, UConstraintsManager*, Mananger, UTickableConstraint*, Constraint);
+	DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FOnConstraintRemoved, UConstraintsManager, OnConstraintRemoved_BP, UConstraintsManager*, Mananger, UTickableConstraint*, Constraint);
+
 	
 	UConstraintsManager();
 	virtual ~UConstraintsManager();
 	
+	//UObjects
+	virtual void PostLoad() override;
 	/** Get the existing Constraints Manager if existing or create a new one. */
 	static UConstraintsManager* Get(UWorld* InWorld);
 
@@ -137,8 +144,17 @@ public:
 		FConstraintTickFunction* InFunctionToTickAfter);
 
 	/** @todo document */
-	void Clear();
+	void Clear(UWorld* World);
+
+
+	/** BP Delegate fired when constraints are added*/
+	UPROPERTY(BlueprintAssignable, Category = Constraints, meta = (DisplayName = "OnConstraintAdded"))
+	FOnConstraintAdded OnConstraintAdded_BP;
 	
+	/** BP Delegate fired when constraints are removed*/
+	UPROPERTY(BlueprintAssignable, Category = Constraints, meta = (DisplayName = "OnConstraintRemoved"))
+	FOnConstraintAdded OnConstraintRemoved_BP;
+
 private:
 
 	/** @todo document */
@@ -146,15 +162,11 @@ private:
 	
 	void OnActorDestroyed(AActor* InActor);
 
-	void RegisterDelegates();
-	void UnregisterDelegates();
+	void RegisterDelegates(UWorld* World);
+	void UnregisterDelegates(UWorld* World);
 	
 	/** @todo document */
 	void Dump() const;
-
-	/** @todo document */
-	UPROPERTY()
-	TObjectPtr<UWorld> World = nullptr;
 
 	/** @todo document */
 	UPROPERTY()
@@ -188,23 +200,21 @@ public:
 		// unique name (we may want to use another approach here to manage uniqueness)
 		const FName Name = MakeUniqueObjectName(Manager, TConstraint::StaticClass(), InBaseName);
 
-		TConstraint* NewConstraint = NewObject<TConstraint>(Manager, Name);
-		AddConstraint(NewConstraint);
-		
+		TConstraint* NewConstraint = NewObject<TConstraint>(Manager, Name);		
 		return NewConstraint;
 	}
 
 	/** @todo document */
-	void AddConstraint(UTickableConstraint* InConstraint) const;
+	bool AddConstraint(UTickableConstraint* InConstraint) const;
 	
 	/** Get the index of the given constraint's name. */
 	int32 GetConstraintIndex(const FName& InConstraintName) const;
 	
 	/** Remove the constraint by name. */
-	void RemoveConstraint(const FName& InConstraintName) const;
+	bool RemoveConstraint(const FName& InConstraintName) const;
 
 	/** Remove the constraint at the given index. */
-	void RemoveConstraint(const int32 InConstraintIndex) const;
+	bool RemoveConstraint(const int32 InConstraintIndex) const;
 
 	/** @todo document */
 	UTickableConstraint* GetConstraint(const FName& InConstraintName) const;
@@ -213,8 +223,8 @@ public:
 	UTickableConstraint* GetConstraint(const int32 InConstraintIndex) const;
 	
 	/** Get read-only access to the array of constraints. */
-	const TArray< TObjectPtr<UTickableConstraint> >& GetConstrainsArray() const;
-	
+	const TArray< TObjectPtr<UTickableConstraint> >& GetConstraintsArray() const;
+
 	/** Get parent constraints of the specified child. If bSorted is true, then the constraints will be sorted by dependency. */
 	TArray< TObjectPtr<UTickableConstraint> > GetParentConstraints(
 		const uint32 InTargetHash,

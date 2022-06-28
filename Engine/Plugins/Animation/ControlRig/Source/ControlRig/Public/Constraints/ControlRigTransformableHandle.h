@@ -18,7 +18,7 @@ struct FRigControlElement;
  * UTransformableControlHandle
  */
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONTROLRIG_API UTransformableControlHandle : public UTransformableHandle 
 {
 	GENERATED_BODY()
@@ -60,11 +60,11 @@ public:
 #endif
 
 	/** @todo document */
-	UPROPERTY()
-	TWeakObjectPtr<UControlRig> ControlRig;
+	UPROPERTY(BlueprintReadOnly, Category = "Object")
+	TSoftObjectPtr<UControlRig> ControlRig;
 
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Object")
 	FName ControlName;
 	
 private:

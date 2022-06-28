@@ -4,10 +4,13 @@
 
 #include "Constraint.h"
 #include "ConstraintsManager.h"
+#include "Kismet/BlueprintFunctionLibrary.h"
 
 #include "TransformConstraint.generated.h"
 
 class UTransformableHandle;
+class UTransformableComponentHandle;
+class USceneComponent;
 
 using SetTransformFunc = TFunction<void(const FTransform&)>;
 using GetTransformFunc = TFunction<FTransform()>;
@@ -16,7 +19,7 @@ using GetTransformFunc = TFunction<FTransform()>;
  * UTickableTransformConstraint
  **/
 
-UCLASS(Abstract)
+UCLASS(Abstract, Blueprintable)
 class CONSTRAINTS_API UTickableTransformConstraint : public UTickableConstraint
 {
 	GENERATED_BODY()
@@ -36,22 +39,23 @@ public:
 	virtual bool ReferencesObject(TWeakObjectPtr<UObject> InObject) const override;
 	
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Handle")
 	TObjectPtr<UTransformableHandle> ParentTRSHandle;
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadWrite, Category = "Handle")
 	TObjectPtr<UTransformableHandle> ChildTRSHandle;
 
 	/** @todo document */
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
 	bool bMaintainOffset = true;
 
 	/** @todo document */
-	// UPROPERTY(EditAnywhere, Category="Weight", meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	// UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Weight", meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	//@benoit when not EditAnywhere?
 	UPROPERTY(meta = (Input, ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
 	float Weight = 1.f;
 
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
 	bool bDynamicOffset = false;
 
 	/** @todo document. */
@@ -98,7 +102,7 @@ public:
  * UTickableTranslationConstraint
  **/
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONSTRAINTS_API UTickableTranslationConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
@@ -114,7 +118,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
 	FVector OffsetTranslation = FVector::ZeroVector;
 };
 
@@ -122,7 +126,7 @@ protected:
  * UTickableRotationConstraint
  **/
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONSTRAINTS_API UTickableRotationConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
@@ -138,7 +142,7 @@ protected:
 	virtual void ComputeOffset() override;
 	
 	/** @todo document */
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Offset")
 	FQuat OffsetRotation = FQuat::Identity;
 };
 
@@ -146,7 +150,7 @@ protected:
  * UTickableScaleConstraint
  **/
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONSTRAINTS_API UTickableScaleConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
@@ -162,7 +166,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Offset")
 	FVector OffsetScale = FVector::OneVector;
 };
 
@@ -170,7 +174,7 @@ protected:
  * UTickableParentConstraint
  **/
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONSTRAINTS_API UTickableParentConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
@@ -186,7 +190,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category="Offset")
 	FTransform OffsetTransform = FTransform::Identity;
 
 	/** @todo document */
@@ -206,7 +210,7 @@ protected:
  * UTickableLookAtConstraint
  **/
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONSTRAINTS_API UTickableLookAtConstraint : public UTickableTransformConstraint
 {
 	GENERATED_BODY()
@@ -222,7 +226,7 @@ protected:
 	virtual void ComputeOffset() override;
 
 	/** @todo document */
-	UPROPERTY(EditAnywhere, Category="Offset")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite,Category="Offset")
 	FTransform OffsetTransform = FTransform::Identity;
 };
 
@@ -230,29 +234,38 @@ protected:
  * TransformConstraintUtils
  **/
 
-struct CONSTRAINTS_API TransformConstraintUtils
+struct CONSTRAINTS_API FTransformConstraintUtils
 {
-	/** @todo document */
-	static bool Create(
-		UWorld* World,
-		const AActor* InParent,
-		const AActor* InChild,
-		const ETransformConstraintType InType = ETransformConstraintType::Parent,
-		const bool bMaintainOffset = true);
 
 	/** @todo document */
 	static void GetParentConstraints(
 		UWorld* World,
 		const AActor* InChild,
 		TArray< TObjectPtr<UTickableConstraint> >& OutConstraints);
-	
-private:
-	
+		
+	/** Create a handle for the scene component.*/
+	static UTransformableComponentHandle* CreateHandleForSceneComponent(
+		USceneComponent* InSceneComponent, 
+		UObject* Outer);
+
+	/** @todo document */
+	static UTickableTransformConstraint* CreateFromType(
+		UWorld* InWorld,
+		const ETransformConstraintType InType);
+
+	/** @todo document */
+	static UTickableTransformConstraint* CreateAndAddFromActors(
+		UWorld* InWorld,
+		AActor* InParent,
+		AActor* InChild,
+		const ETransformConstraintType InType,
+		const bool bMaintainOffset = true);
+
 	/** Registers a new transform constraint within the constraints manager. */	
-	static bool AddConst(
+	static bool AddConstraint(
 		UWorld* InWorld,
 		UTransformableHandle* InParentHandle,
 		UTransformableHandle* InChildHandle,
-		const ETransformConstraintType InType,
+		UTickableTransformConstraint* Constraint,
 		const bool bMaintainOffset = true);
 };

@@ -13,7 +13,7 @@ class USceneComponent;
  * UTransformableHandle
  */
 
-UCLASS(Abstract)
+UCLASS(Abstract, Blueprintable)
 class CONSTRAINTS_API UTransformableHandle : public UObject 
 {
 	GENERATED_BODY()
@@ -34,6 +34,8 @@ public:
 	virtual FTransform GetGlobalTransform() const PURE_VIRTUAL(GetGlobalTransform, return FTransform::Identity;);
 	/** Gets the local transform of the underlying transformable object in it's parent space. */
 	virtual FTransform GetLocalTransform() const PURE_VIRTUAL(GetLocalTransform, return FTransform::Identity;);
+	/** Gets the parent transform of the object*/
+	virtual FTransform GetParentTransform() const PURE_VIRTUAL(GetParentTransform, return FTransform::Identity;);
 
 	/**
 	 * Returns the target object containing the tick function (returned in GetTickFunction).
@@ -63,7 +65,7 @@ public:
  * UTransformableComponentHandle
  */
 
-UCLASS()
+UCLASS(Blueprintable)
 class CONSTRAINTS_API UTransformableComponentHandle : public UTransformableHandle 
 {
 	GENERATED_BODY()
@@ -83,6 +85,8 @@ public:
 	virtual FTransform GetGlobalTransform() const override;
 	/** @todo document */
 	virtual FTransform GetLocalTransform() const override;
+	/** @todo document */
+	virtual FTransform GetParentTransform() const override;
 
 	/** @todo document */
 	virtual UObject* GetPrerequisiteObject() const override;
@@ -101,6 +105,6 @@ public:
 #endif
 	
 	/** @todo document */
-	UPROPERTY()
+	UPROPERTY(BlueprintReadOnly, Category = "Object")
 	TWeakObjectPtr<USceneComponent> Component;
 };

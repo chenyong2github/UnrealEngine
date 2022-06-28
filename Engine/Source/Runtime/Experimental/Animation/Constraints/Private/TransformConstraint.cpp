@@ -1,7 +1,6 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TransformConstraint.h"
-
 #include "Animation/Constraints/Public/TransformableHandle.h"
 #include "ConstraintsManager.h"
 #include "TransformableRegistry.h"
@@ -82,13 +81,13 @@ void UTickableTransformConstraint::SetupDependencies()
 void UTickableTransformConstraint::PostLoad()
 {
 	Super::PostLoad();
-
 	ConstraintTick.RegisterFunction(GetFunction() );
 }
 
 void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
+	ConstraintTick.RegisterFunction(GetFunction());
 }
 
 uint32 UTickableTransformConstraint::GetTargetHash() const
@@ -452,13 +451,13 @@ FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFuncti
 }
 
 /** 
- * TransformConstraintUtils
+ * FTransformConstraintUtils
  **/
 
 namespace
 {
 
-UTransformableHandle* GetHandle(const AActor* InActor, UObject* Outer)
+UTransformableHandle* GetHandle(AActor* InActor, UObject* Outer)
 {
 	// look for customized transform handle
 	const FTransformableRegistry& Registry = FTransformableRegistry::Get();
@@ -467,11 +466,13 @@ UTransformableHandle* GetHandle(const AActor* InActor, UObject* Outer)
 		return CreateFunction(InActor, Outer);
 	}
 
-	// scene component handle
-	UTransformableComponentHandle* ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
-	ComponentHandle->Component = InActor->GetRootComponent();
-	
-	return ComponentHandle;
+	// need to make sure it's moveable
+	if (InActor->GetRootComponent())
+	{
+		return FTransformConstraintUtils::CreateHandleForSceneComponent(InActor->GetRootComponent(), Outer);
+
+	}
+	return nullptr;
 }
 	
 uint32 GetConstrainableHash(const AActor* InActor)
@@ -490,7 +491,19 @@ uint32 GetConstrainableHash(const AActor* InActor)
 	
 }
 
-void TransformConstraintUtils::GetParentConstraints(
+UTransformableComponentHandle* FTransformConstraintUtils::CreateHandleForSceneComponent(USceneComponent* InSceneComponent, UObject* Outer)
+{
+	UTransformableComponentHandle* ComponentHandle = nullptr;
+	if (InSceneComponent)
+	{
+		ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
+		ComponentHandle->Component = InSceneComponent;
+		InSceneComponent->SetMobility(EComponentMobility::Movable);
+	}
+	return ComponentHandle;
+}
+
+void FTransformConstraintUtils::GetParentConstraints(
 	UWorld* InWorld,
 	const AActor* InChild,
 	TArray< TObjectPtr<UTickableConstraint> >& OutConstraints)
@@ -511,76 +524,30 @@ void TransformConstraintUtils::GetParentConstraints(
 	OutConstraints.Append(Controller.GetParentConstraints(ChildHash, bSorted));
 }
 
-bool TransformConstraintUtils::Create(
+UTickableTransformConstraint* FTransformConstraintUtils::CreateFromType(
 	UWorld* InWorld,
-	const AActor* InParent,
-	const AActor* InChild,
-	const ETransformConstraintType InType,
-	const bool bMaintainOffset)
+	const ETransformConstraintType InType)
 {
-	// SANITY CHECK
-	if (!InWorld || !InParent || !InChild)
+	if (!InWorld)
 	{
-		UE_LOG(LogTemp, Error, TEXT("TransformConstraintUtils::Create sanity check failed."));
-		return false;
+		UE_LOG(LogTemp, Error, TEXT("FTransformConstraintUtils::CreateFromType sanity check failed."));
+		return nullptr;
 	}
-	
-	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
-	if (!ConstraintsManager)
-	{
-		UE_LOG(LogTemp, Error, TEXT("TransformConstraintUtils::Create constraint manager is null."));
-		return false;
-	}
-
-	UTransformableHandle* ParentHandle = GetHandle(InParent, ConstraintsManager);
-	UTransformableHandle* ChildHandle = GetHandle(InChild, ConstraintsManager);
-	
-	// DO IT
-	if (ParentHandle->IsValid() && ChildHandle->IsValid())
-	{
-		return AddConst(InWorld, ParentHandle, ChildHandle, InType, bMaintainOffset);
-	}
-	
-	return false;
-}
-
-bool TransformConstraintUtils::AddConst(
-	UWorld* InWorld,
-	UTransformableHandle* InParentHandle,
-	UTransformableHandle* InChildHandle,
-	const ETransformConstraintType InType,
-	const bool bMaintainOffset)
-{
-	const bool bIsValidParent = InParentHandle && InParentHandle->IsValid();
-	const bool bIsValidChild = InChildHandle && InChildHandle->IsValid();
-	if (!bIsValidParent || !bIsValidChild)
-	{
-		UE_LOG(LogTemp, Error, TEXT("TransformConstraintUtils::AddConst error creating constraint"));
-		return false;
-	}
-
 	const UEnum* ETransformConstraintTypeEnum = StaticEnum<ETransformConstraintType>();
 	if (!ETransformConstraintTypeEnum->IsValidEnumValue(static_cast<int64>(InType)))
 	{
 		UE_LOG(LogTemp, Error, TEXT("Constraint Type %d not recognized"), InType);
-		return false;
+		return nullptr;
 	}
-	
+
+
 	// unique name (we may want to use another approach here to manage uniqueness)
 	const FString ConstraintTypeStr = ETransformConstraintTypeEnum->GetNameStringByValue((uint8)InType);
 	const FName BaseName(*FString::Printf(TEXT("%sConstraint"), *ConstraintTypeStr));
 
-	auto SetupConstraint = [InParentHandle, InChildHandle, bMaintainOffset](UTickableTransformConstraint* InConstraint)
-	{
-		InConstraint->ParentTRSHandle = InParentHandle;
-		InConstraint->ChildTRSHandle = InChildHandle;
-		InConstraint->bMaintainOffset = bMaintainOffset;
-		InConstraint->Setup();
-	};
-	
 	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
-	
 	UTickableTransformConstraint* Constraint = nullptr;
+
 	switch (InType)
 	{
 	case ETransformConstraintType::Translation:
@@ -600,8 +567,82 @@ bool TransformConstraintUtils::AddConst(
 		break;
 	default:
 		ensure(false);
+		break;
+	}
+	return Constraint;
+}
+
+UTickableTransformConstraint* FTransformConstraintUtils::CreateAndAddFromActors(
+	UWorld* InWorld,
+	AActor* InParent,
+	AActor* InChild,
+	const ETransformConstraintType InType,
+	const bool bMaintainOffset)
+{
+	// SANITY CHECK
+	if (!InWorld || !InParent || !InChild)
+	{
+		UE_LOG(LogTemp, Error, TEXT("FTransformConstraintUtils::CreateAndAddFromActors sanity check failed."));
+		return nullptr;
+	}
+	
+	UConstraintsManager* ConstraintsManager = UConstraintsManager::Get(InWorld);
+	if (!ConstraintsManager)
+	{
+		UE_LOG(LogTemp, Error, TEXT("FTransformConstraintUtils::CreateAndAddFromActors constraint manager is null."));
+		return nullptr;
+	}
+
+	UTransformableHandle* ParentHandle = GetHandle(InParent, ConstraintsManager);
+	UTransformableHandle* ChildHandle = GetHandle(InChild, ConstraintsManager);
+	
+	UTickableTransformConstraint* Constraint = FTransformConstraintUtils::CreateFromType(InWorld, InType);
+
+
+	if (Constraint && (ParentHandle->IsValid() && ChildHandle->IsValid()))
+	{
+		if (AddConstraint(InWorld, ParentHandle, ChildHandle, Constraint, bMaintainOffset) == false)
+		{
+			Constraint->MarkAsGarbage();
+			Constraint = nullptr;
+		}
+	}
+	return Constraint;
+}
+
+bool FTransformConstraintUtils::AddConstraint(
+	UWorld* InWorld,
+	UTransformableHandle* InParentHandle,
+	UTransformableHandle* InChildHandle,
+	UTickableTransformConstraint* Constraint,
+	const bool bMaintainOffset)
+{
+	const bool bIsValidParent = InParentHandle && InParentHandle->IsValid();
+	const bool bIsValidChild = InChildHandle && InChildHandle->IsValid();
+	if (!bIsValidParent || !bIsValidChild)
+	{
+		UE_LOG(LogTemp, Error, TEXT("FTransformConstraintUtils::AddConst error adding constraint"));
 		return false;
 	}
+
+	if (Constraint == nullptr)
+	{
+		UE_LOG(LogTemp, Error, TEXT("FTransformConstraintUtils::AddConst error creating constraint"));
+		return false;
+	}
+
+
+	auto SetupConstraint = [InParentHandle, InChildHandle, bMaintainOffset](UTickableTransformConstraint* InConstraint)
+	{
+		InConstraint->ParentTRSHandle = InParentHandle;
+		InConstraint->ChildTRSHandle = InChildHandle;
+		InConstraint->bMaintainOffset = bMaintainOffset;
+		InConstraint->Setup();
+	};
+	
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+	
+	Controller.AddConstraint(Constraint);
 
 	SetupConstraint(Constraint);
 

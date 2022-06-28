@@ -306,7 +306,7 @@ struct ANIMATIONCORE_API FTransformConstraint
 /// new changes of constraints
 
 /** Constraint Types*/
-UENUM()
+UENUM(BlueprintType)
 enum class EConstraintType : uint8
 {
 	/** Transform Constraint */
@@ -384,7 +384,7 @@ struct TStructOpsTypeTraits<FConstraintDescriptionEx> : public TStructOpsTypeTra
 };
 
 /** Transform Constraint Types*/
-UENUM()
+UENUM(Blueprintable)
 enum class ETransformConstraintType : uint8
 {
 	Translation,

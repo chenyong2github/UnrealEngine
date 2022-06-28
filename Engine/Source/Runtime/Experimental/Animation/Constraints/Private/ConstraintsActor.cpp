@@ -23,16 +23,16 @@ AConstraintsActor::~AConstraintsActor()
 
 void AConstraintsActor::BeginDestroy()
 {
+	if (ConstraintsManager)
+	{
+		ConstraintsManager->Clear(GetWorld());
+	}
+
 	Super::BeginDestroy();
 }
 
 void AConstraintsActor::Destroyed()
 {
-	if(ConstraintsManager)
-	{
-		ConstraintsManager->Clear();
-	}
-	
 	Super::Destroyed();
 }
 
@@ -48,7 +48,13 @@ void AConstraintsActor::Tick(float DeltaTime)
 
 void AConstraintsActor::PostRegisterAllComponents()
 {
-	Super::PostRegisterAllComponents();	
+	Super::PostRegisterAllComponents();
+
+	if (ConstraintsManager == nullptr)
+	{
+		ConstraintsManager = NewObject<UConstraintsManager>(this);
+	}
+	ConstraintsManager->Init(GetWorld());
 	RegisterConstraintsTickFunctions();
 }
 

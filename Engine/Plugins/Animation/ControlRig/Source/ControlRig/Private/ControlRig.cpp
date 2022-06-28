@@ -28,6 +28,7 @@
 #include "RigVMDeveloperTypeUtils.h"
 #endif// WITH_EDITOR
 #include "ControlRigComponent.h"
+#include "Constraints/ControlRigTransformableHandle.h"
 
 #define LOCTEXT_NAMESPACE "ControlRig"
 
@@ -3350,6 +3351,16 @@ uint32 UControlRig::GetHashForInitializeVMSnapShot()
 	Hash = HashCombine(CachedMemoryHash, Hash);
 
 	return Hash;
+}
+
+UTransformableControlHandle* UControlRig::CreateTransformableControlHandle(UObject* InOuter, const FName& InControlName)
+{
+	UTransformableControlHandle* CtrlHandle = NewObject<UTransformableControlHandle>(InOuter);
+	ensure(CtrlHandle);
+	CtrlHandle->ControlRig = this;
+	CtrlHandle->ControlName = InControlName;
+	CtrlHandle->RegisterDelegates();
+	return CtrlHandle;
 }
 
 void UControlRig::OnHierarchyTransformUndoRedo(URigHierarchy* InHierarchy, const FRigElementKey& InKey, ERigTransformType::Type InTransformType, const FTransform& InTransform, bool bIsUndo)
