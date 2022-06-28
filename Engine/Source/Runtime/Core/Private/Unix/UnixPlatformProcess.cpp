@@ -1424,11 +1424,11 @@ FGenericPlatformProcess::EWaitAndForkResult FUnixPlatformProcess::WaitAndFork()
 
 	struct FMemoryStatsHolder
 	{
-		float AvailablePhysical;
-		float PeakUsedPhysical;
-		float PeakUsedVirtual;
+		double AvailablePhysical;
+		double PeakUsedPhysical;
+		double PeakUsedVirtual;
 
-		constexpr float ByteToMiB(uint64 InBytes) { return InBytes / (1024.f * 1024.f); }
+		constexpr double ByteToMiB(uint64 InBytes) { return static_cast<double>(InBytes) / (1024.0 * 1024.0); }
 
 		FMemoryStatsHolder(const FPlatformMemoryStats& PlatformStats)
 			: AvailablePhysical(ByteToMiB(PlatformStats.AvailablePhysical))

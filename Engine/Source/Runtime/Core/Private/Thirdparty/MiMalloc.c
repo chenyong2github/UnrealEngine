@@ -15,7 +15,18 @@
 #pragma warning(disable : 4668) // Avoid undefined __cplusplus warnings in older versions
 #endif
 
+// Avoid pulling in headers
+#if defined(__clang__)
+_Pragma("clang diagnostic push") \
+_Pragma("clang diagnostic ignored \"-Wimplicit-int-float-conversion\"")
+_Pragma("clang diagnostic ignored \"-Wimplicit-int-conversion\"")
+#endif
+
 #include "ThirdParty/mimalloc/src/static.c"
+
+#if defined(__clang__)
+_Pragma("clang diagnostic pop")
+#endif
 
 #ifdef _MSC_VER
 #pragma warning(pop)

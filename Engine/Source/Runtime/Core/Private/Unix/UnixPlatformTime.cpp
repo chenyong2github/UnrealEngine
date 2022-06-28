@@ -24,7 +24,7 @@ namespace FUnixTimeInternal
 
 	constexpr uint64 TimeSpecToNanoSec(timespec &ts)
 	{
-		return static_cast<uint64>(ts.tv_sec) * 1e9 + static_cast<uint64>(ts.tv_nsec);
+		return static_cast<uint64>(static_cast<double>(ts.tv_sec) * 1e9 + static_cast<double>(ts.tv_nsec));
 	}
 
 	constexpr double MicroSecondsToSeconds(double MicroSec)
@@ -125,9 +125,11 @@ FCPUTime FUnixTime::GetThreadCPUTime()
 					FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilization);
 }
 
-bool FUnixTime::UpdateCPUTime(float DeltaTimeInMs)
+bool FUnixTime::UpdateCPUTime(float InDeltaTimeInMs)
 {
 	rusage Usage;
+
+	double DeltaTimeInMs = InDeltaTimeInMs;
 
 	if (getrusage(RUSAGE_SELF, &Usage) == 0)
 	{
@@ -200,9 +202,9 @@ bool FUnixTime::UpdateThreadCPUTime(float/*= 0.0*/)
 		const uint64 ElapsedThreadCPUTimeNS = ThreadTimeNS - ThreadTimeInfo.LastThreadTimeNS;
 		const double ThreadCPUUtilizationHighPrec = (static_cast<double>(ElapsedThreadCPUTimeNS) / static_cast<double>(DeltaTimeNS)) * 100.0;
 
-		FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilization = ThreadCPUUtilizationHighPrec;
+		FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilization = static_cast<float>(ThreadCPUUtilizationHighPrec);
 		FUnixTimeInternal::CurrentThreadCPUStats.ThreadCPUUtilizationNormalized =
-																ThreadCPUUtilizationHighPrec / FPlatformMisc::NumberOfCoresIncludingHyperthreads();
+																static_cast<float>(ThreadCPUUtilizationHighPrec / FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 
 		ThreadTimeInfo.LastThreadTimeNS = ThreadTimeNS;
 		FUnixTimeInternal::CurrentThreadCPUStats.LastIntervalThreadTimeNS = ElapsedThreadCPUTimeNS;

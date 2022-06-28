@@ -34,9 +34,9 @@ namespace
 		}
 
 		return FFileStatData(
-			UnixEpoch + FTimespan::FromSeconds(FileInfo.st_ctime), 
-			UnixEpoch + FTimespan::FromSeconds(FileInfo.st_atime), 
-			UnixEpoch + FTimespan::FromSeconds(FileInfo.st_mtime), 
+			UnixEpoch + FTimespan::FromSeconds(static_cast<double>(FileInfo.st_ctime)),
+			UnixEpoch + FTimespan::FromSeconds(static_cast<double>(FileInfo.st_atime)),
+			UnixEpoch + FTimespan::FromSeconds(static_cast<double>(FileInfo.st_mtime)),
 			FileSize,
 			bIsDirectory,
 			!(FileInfo.st_mode & S_IWUSR)
@@ -984,7 +984,7 @@ void FUnixPlatformFile::SetTimeStamp(const TCHAR* Filename, const FDateTime Date
 	// change the modification time only
 	struct utimbuf Times;
 	Times.actime = FileInfo.st_atime;
-	Times.modtime = (DateTime - UnixEpoch).GetTotalSeconds();
+	Times.modtime = static_cast<__time_t>((DateTime - UnixEpoch).GetTotalSeconds());
 	utime(TCHAR_TO_UTF8(*CaseSensitiveFilename), &Times);
 }
 

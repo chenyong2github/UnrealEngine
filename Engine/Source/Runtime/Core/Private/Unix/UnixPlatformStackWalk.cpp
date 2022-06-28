@@ -764,8 +764,8 @@ namespace
 {
 	void WaitForSignalHandlerToFinishOrCrash(ThreadStackUserData& ThreadStack)
 	{
-		float EndWaitTimestamp = FPlatformTime::Seconds() + CVarUnixPlatformThreadCallStackMaxWait.AsVariable()->GetFloat();
-		float CurrentTimestamp = FPlatformTime::Seconds();
+		double EndWaitTimestamp = FPlatformTime::Seconds() + CVarUnixPlatformThreadCallStackMaxWait.AsVariable()->GetFloat();
+		double CurrentTimestamp = FPlatformTime::Seconds();
 
 		while (!ThreadStack.bDone)
 		{

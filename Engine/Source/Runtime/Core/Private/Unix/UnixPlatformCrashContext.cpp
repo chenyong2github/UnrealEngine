@@ -154,7 +154,7 @@ void GracefulTerminationHandler(int32 Signal, siginfo_t* Info, void* Context)
 	// do not flush logs at this point; this can result in a deadlock if the signal was received while we were holding lock in the malloc (flushing allocates memory)
 	if( !IsEngineExitRequested() && !GShouldRequestExit )
 	{
-		FPlatformMisc::RequestExitWithStatus(false, 128 + Signal);	// Keeping the established shell practice of returning 128 + signal for terminations by signal. Allows to distinguish SIGINT/SIGTERM/SIGHUP.
+		FPlatformMisc::RequestExitWithStatus(false, static_cast<uint8>(128 + Signal));	// Keeping the established shell practice of returning 128 + signal for terminations by signal. Allows to distinguish SIGINT/SIGTERM/SIGHUP.
 	}
 	else
 	{
@@ -479,7 +479,7 @@ namespace UnixCrashReporterTracker
 				return false;
 			}
 
-			FPlatformProcess::Sleep(SleepIntervalInSec);
+			FPlatformProcess::Sleep(static_cast<float>(SleepIntervalInSec));
 		};
 
 		return true;
@@ -755,7 +755,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter() const
 				bool bFoundEmptySlot = false;
 
 				constexpr double kEnsureTimeOut = 45.0;
-				constexpr double kEnsureSleepInterval = 0.1;
+				constexpr float kEnsureSleepInterval = 0.1f;
 				double kTimeOutTimer = 0.0;
 
 				while (!bFoundEmptySlot)
