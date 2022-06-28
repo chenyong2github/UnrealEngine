@@ -901,7 +901,6 @@ namespace UnrealBuildTool
 		{
 			List<string> GlobalArguments = new();
 			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
-			List<string> PCHArguments = new();
 
 			//var BuildPlatform = UEBuildPlatform.GetBuildPlatform(CompileEnvironment.Platform);
 
@@ -910,16 +909,6 @@ namespace UnrealBuildTool
 				PrintBuildDetails(CompileEnvironment, Logger);
 
 				bHasPrintedBuildDetails = true;
-			}
-
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				// Validate PCH inputs by content if mtime check fails
-				if (CompilerVersionGreaterOrEqual(11, 0, 0))
-				{
-					PCHArguments.Add("-fpch-validate-input-files-content");
-				}
-				PCHArguments.Add(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
 			}
 
 			// Create a compile action for each source file.
@@ -956,13 +945,9 @@ namespace UnrealBuildTool
 				}
 				else
 				{
+					// Compile the file as C++ code.
 					GetCompileArguments_CPP(CompileEnvironment, FileArguments);
-
-					// only use PCH for .cpp files
-					FileArguments.AddRange(PCHArguments);
 				}
-
-				GetCompileArguments_ForceInclude(CompileEnvironment, FileArguments);
 
 				// Add the C++ source file and its included files to the prerequisite item list.
 				CompileAction.PrerequisiteItems.Add(SourceFile);

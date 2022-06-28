@@ -238,12 +238,23 @@ namespace UnrealBuildTool
 		protected virtual void GetCompileArguments_CPP(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x c++");
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include && CompilerVersionGreaterOrEqual(11, 0, 0))
+			{
+				// Validate PCH inputs by content if mtime check fails
+				Arguments.Add("-fpch-validate-input-files-content");
+			}
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 		}
 
 		protected virtual void GetCompileArguments_C(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x c");
+
+			// Only force include PCH for c++ files
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+			}
 		}
 
 		protected virtual void GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -252,6 +263,12 @@ namespace UnrealBuildTool
 			Arguments.Add("-fobjc-abi-version=2");
 			Arguments.Add("-fobjc-legacy-dispatch");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+
+			// Only force include PCH for c++ files
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+			}
 		}
 
 		protected virtual void GetCompileArguments_M(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -260,6 +277,12 @@ namespace UnrealBuildTool
 			Arguments.Add("-fobjc-abi-version=2");
 			Arguments.Add("-fobjc-legacy-dispatch");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
+
+			// Only force include PCH for c++ files
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+			}
 		}
 
 		protected virtual void GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -267,6 +290,7 @@ namespace UnrealBuildTool
 			Arguments.Add("-x c++-header");
 			if (CompilerVersionGreaterOrEqual(11, 0, 0))
 			{
+				// Validate PCH inputs by content if mtime check fails
 				Arguments.Add("-fpch-validate-input-files-content");
 				Arguments.Add("-fpch-instantiate-templates");
 			}
@@ -319,6 +343,14 @@ namespace UnrealBuildTool
 
 		protected virtual void GetCompileArguments_ForceInclude(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
+			// Add the precompiled header file's path to the force include path
+			// This needs to be before the other force include paths to ensure clang uses it instead of the source header file.
+			// Will be removed if compiling non c++ files.
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				Arguments.Add(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+			}
+
 			Arguments.AddRange(CompileEnvironment.ForceIncludeFiles.Select(ForceIncludeFile => GetForceIncludeFileArgument(ForceIncludeFile)));
 		}
 
@@ -526,6 +558,9 @@ namespace UnrealBuildTool
 
 			// Add include paths to the argument list.
 			GetCompileArguments_IncludePaths(CompileEnvironment, Arguments);
+
+			// Add force include paths to the argument list.
+			GetCompileArguments_ForceInclude(CompileEnvironment, Arguments);
 
 			// Add preprocessor definitions to the argument list.
 			GetCompileArguments_PreprocessorDefinitions(CompileEnvironment, Arguments);

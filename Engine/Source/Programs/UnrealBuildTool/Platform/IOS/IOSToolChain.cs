@@ -489,20 +489,6 @@ namespace UnrealBuildTool
 			List<string> GlobalArguments = new();
 
 			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
-			List<string> PCHArguments = new();
-
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				// Add the precompiled header file's path to the include path so GCC can find it.
-				// This needs to be before the other include paths to ensure GCC uses it instead of the source header file.
-				PCHArguments.Add(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-				if (GetClangVersion().Major >= 11)
-				{
-					PCHArguments.Add("-fpch-validate-input-files-content");
-				}
-			}
-
-			GetCompileArguments_ForceInclude(CompileEnvironment, GlobalArguments);
 
 			CPPOutput Result = new CPPOutput();
 			// Create a compile action for each source file.
@@ -544,9 +530,6 @@ namespace UnrealBuildTool
 					GetCompileArguments_CPP(CompileEnvironment, FileArguments);
 					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
 					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
-
-					// only use PCH for .cpp files
-					FilePCHArguments.AddRange(PCHArguments);
 				}
 
 				// Add the C++ source file and its included files to the prerequisite item list.
