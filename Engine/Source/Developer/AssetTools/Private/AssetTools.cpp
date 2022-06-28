@@ -2343,6 +2343,8 @@ TArray<UObject*> UAssetToolsImpl::ImportAssetsInternal(const TArray<FString>& Fi
 				continue;
 			}
 
+			Pkg->SetIsExternallyReferenceable(CreateAssetsAsExternallyReferenceable);
+
 			Factory->SetAutomatedAssetImportData(Params.ImportData);
 			Factory->SetAssetImportTask(Params.AssetImportTask);
 
