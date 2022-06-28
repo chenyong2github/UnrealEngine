@@ -1114,6 +1114,9 @@ public:
 			// TFO just passes the F32 to Oodle
 			// FImageCore::SanitizeFloat16AndSetAlphaOpaqueForBC6H is not needed here
 			// Oodle will convert the F32 to F16 and also clamp in [0,F16_max] (no negatives, no +inf)
+			
+			// @@!! @todo Oodle : if source is RGBA16F , don't convert, pass that through?
+			//	this happens for VT BC6 for example
 		}
 		else if ((OodleBCN == OodleTex_BC4U || OodleBCN == OodleTex_BC5U) &&
 			Gamma == EGammaSpace::Linear &&			
