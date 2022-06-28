@@ -15,6 +15,26 @@ FRigVMRegistry& FRigVMRegistry::Get()
 	return s_RigVMRegistry;
 }
 
+const TArray<UScriptStruct*>& FRigVMRegistry::GetMathTypes()
+{
+	// The list of base math types to automatically register 
+	static const TArray<UScriptStruct*> MathTypes = { 
+		TBaseStructure<FRotator>::Get(),
+		TBaseStructure<FQuat>::Get(),
+		TBaseStructure<FTransform>::Get(),
+		TBaseStructure<FLinearColor>::Get(),
+		TBaseStructure<FColor>::Get(),
+		TBaseStructure<FPlane>::Get(),
+		TBaseStructure<FVector>::Get(),
+		TBaseStructure<FVector2D>::Get(),
+		TBaseStructure<FVector4>::Get(),
+		TBaseStructure<FBox2D>::Get()
+	};
+
+	return MathTypes;
+}
+
+
 void FRigVMRegistry::InitializeIfNeeded()
 {
 	if(!Types.IsEmpty())
@@ -32,9 +52,9 @@ void FRigVMRegistry::InitializeIfNeeded()
 	TypesPerCategory.Add(ETypeCategory_SingleSimpleValue, TArray<int32>()).Reserve(8);
 	TypesPerCategory.Add(ETypeCategory_ArraySimpleValue, TArray<int32>()).Reserve(8);
 	TypesPerCategory.Add(ETypeCategory_ArrayArraySimpleValue, TArray<int32>()).Reserve(8);
-	TypesPerCategory.Add(ETypeCategory_SingleMathStructValue, TArray<int32>()).Reserve(MathTypes.Num());
-	TypesPerCategory.Add(ETypeCategory_ArrayMathStructValue, TArray<int32>()).Reserve(MathTypes.Num());
-	TypesPerCategory.Add(ETypeCategory_ArrayArrayMathStructValue, TArray<int32>()).Reserve(MathTypes.Num());
+	TypesPerCategory.Add(ETypeCategory_SingleMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
+	TypesPerCategory.Add(ETypeCategory_ArrayMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
+	TypesPerCategory.Add(ETypeCategory_ArrayArrayMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
 	TypesPerCategory.Add(ETypeCategory_SingleScriptStructValue, TArray<int32>()).Reserve(128);
 	TypesPerCategory.Add(ETypeCategory_ArrayScriptStructValue, TArray<int32>()).Reserve(128);
 	TypesPerCategory.Add(ETypeCategory_ArrayArrayScriptStructValue, TArray<int32>()).Reserve(128);
@@ -63,7 +83,7 @@ void FRigVMRegistry::InitializeIfNeeded()
 	RigVMTypeUtils::TypeIndex::WildCardArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::GetWildCardArrayCPPTypeName(), RigVMTypeUtils::GetWildCardCPPTypeObject()));
 
 	// register the default math types
-	for(UScriptStruct* MathType : MathTypes)
+	for(UScriptStruct* MathType : GetMathTypes())
 	{
 		FindOrAddType(FRigVMTemplateArgumentType(*MathType->GetStructCPPName(), MathType));
 	}
@@ -217,7 +237,7 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 		{
 			if(IsAllowedType(Struct))
 			{
-				if(MathTypes.Contains(CPPTypeObject))
+				if(GetMathTypes().Contains(CPPTypeObject))
 				{
 					switch(ArrayDimension)
 					{

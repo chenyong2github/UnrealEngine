@@ -122,19 +122,7 @@ public:
 	// Defines and retrieves a template given its arguments
 	const FRigVMTemplate* GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments);
 
-	// The list of base math types to automatically register 
-	inline static const TArray<UScriptStruct*> MathTypes = { 
-		TBaseStructure<FRotator>::Get(),
-		TBaseStructure<FQuat>::Get(),
-		TBaseStructure<FTransform>::Get(),
-		TBaseStructure<FLinearColor>::Get(),
-		TBaseStructure<FColor>::Get(),
-		TBaseStructure<FPlane>::Get(),
-		TBaseStructure<FVector>::Get(),
-		TBaseStructure<FVector2D>::Get(),
-		TBaseStructure<FVector4>::Get(),
-		TBaseStructure<FBox2D>::Get()
-	};
+	static const TArray<UScriptStruct*>& GetMathTypes();
 
 private:
 
