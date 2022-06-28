@@ -106,7 +106,7 @@ void UMoviePipelineNewProcessExecutor::Execute_Implementation(UMoviePipelineQueu
 	CommandLineArgs += TEXT(" ");
 	for (const FString& Arg : OutCommandLineArgs)
 	{
-		CommandLineArgs += FString::Printf(TEXT("%s,"), *Arg);
+		CommandLineArgs += FString::Printf(TEXT(" %s"), *Arg);
 	}
 
 	if (OutDeviceProfileCVars.Num() > 0)
