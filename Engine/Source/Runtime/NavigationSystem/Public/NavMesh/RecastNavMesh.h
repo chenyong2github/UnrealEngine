@@ -434,7 +434,7 @@ struct NAVIGATIONSYSTEM_API FRecastNavMeshTileGenerationDebug
 	uint32 bHeightfieldSolidFromRasterization : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
-	uint32 bHeightfieldSolidPostRadiusFiltering : 1;
+	uint32 bHeightfieldSolidPostInclusionBoundsFiltering : 1;
 
 	UPROPERTY(EditAnywhere, Category = Debug)
 	uint32 bHeightfieldSolidPostHeightFiltering : 1;
@@ -629,10 +629,11 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category=Display)
 	uint32 bDrawClusters:1;
 
-	/** Draw edges of every navmesh's triangle */
+	/** Draw octree used to store navigation relevant actors */
 	UPROPERTY(EditAnywhere, Category = Display)
 	uint32 bDrawOctree : 1;
 
+	/** Draw octree used to store navigation relevant actors with the elements bounds */
 	UPROPERTY(EditAnywhere, Category = Display, meta=(editcondition = "bDrawOctree"))
 	uint32 bDrawOctreeDetails : 1;
 

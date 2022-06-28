@@ -3330,7 +3330,7 @@ bool FRecastTileGenerator::GenerateCompressedLayers(FNavMeshBuildContext& BuildC
 	}
 
 #if RECAST_INTERNAL_DEBUG_DATA
-	if (IsTileDebugActive() && TileDebugSettings.bHeightfieldSolidPostRadiusFiltering)
+	if (IsTileDebugActive() && TileDebugSettings.bHeightfieldSolidPostInclusionBoundsFiltering)
 	{
 		duDebugDrawHeightfieldSolid(&BuildContext.InternalDebugData, *RasterContext.SolidHF);
 	}
