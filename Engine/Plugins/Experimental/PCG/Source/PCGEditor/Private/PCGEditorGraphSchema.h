@@ -4,6 +4,7 @@
 
 #include "EdGraph/EdGraphSchema.h"
 #include "ConnectionDrawingPolicy.h"
+#include "PCGEditorCommon.h"
 
 #include "PCGEditorGraphSchema.generated.h"
 
@@ -15,7 +16,7 @@ class UPCGEditorGraphSchema : public UEdGraphSchema
 	GENERATED_BODY()
 
 public:
-	void GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const;
+	void GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder, const EPCGElementType InPCGElementTypeFilter) const;
 
 	//~ Begin EdGraphSchema Interface
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const;

@@ -31,6 +31,7 @@ namespace UnrealBuildTool.Rules
 					"EditorScriptingUtilities",
 					"EditorStyle",
 					"EditorSubsystem",
+					"EditorWidgets",
 					"GraphEditor",
 					"InputCore",
 					"Kismet",

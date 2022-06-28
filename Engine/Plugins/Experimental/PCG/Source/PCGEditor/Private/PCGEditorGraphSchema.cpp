@@ -20,12 +20,24 @@
 #define LOCTEXT_NAMESPACE "PCGEditorGraphSchema"
 
 
-void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder) const
+void UPCGEditorGraphSchema::GetPaletteActions(FGraphActionMenuBuilder& ActionMenuBuilder, const EPCGElementType InPCGElementTypeFilter) const
 {
-	GetNativeElementActions(ActionMenuBuilder);
-	GetSubgraphElementActions(ActionMenuBuilder);
-	GetBlueprintElementActions(ActionMenuBuilder);
-	GetExtraElementActions(ActionMenuBuilder);
+	if (!!(InPCGElementTypeFilter & EPCGElementType::Native))
+	{
+		GetNativeElementActions(ActionMenuBuilder);
+	}
+	if (!!(InPCGElementTypeFilter & EPCGElementType::Subgraph))
+	{
+		GetSubgraphElementActions(ActionMenuBuilder);
+	}
+	if (!!(InPCGElementTypeFilter & EPCGElementType::Blueprint))
+	{
+		GetBlueprintElementActions(ActionMenuBuilder);
+	}
+	if (!!(InPCGElementTypeFilter & EPCGElementType::Other))
+	{
+		GetExtraElementActions(ActionMenuBuilder);
+	}
 }
 
 void UPCGEditorGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const

@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "PCGEditorCommon.h"
+
 #include "SGraphPalette.h"
 
 class SPCGEditorGraphNodePaletteItem : public SGraphPaletteItem
@@ -38,4 +39,9 @@ protected:
 private:
 	void OnAssetChanged(const FAssetData& InAssetData);
 	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InNewAssetName);
+	void OnTypeSelectionChanged(int32, ESelectInfo::Type SelectInfo);
+	
+	int32 GetTypeValue() const;
+	
+	EPCGElementType ElementType = EPCGElementType::All;
 };

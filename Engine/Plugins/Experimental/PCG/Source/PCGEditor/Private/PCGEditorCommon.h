@@ -2,6 +2,19 @@
 
 #pragma once
 
+#include "PCGEditorCommon.generated.h"
+
+UENUM()
+enum class EPCGElementType : uint8
+{
+	Native = 1 << 0,
+	Blueprint = 1 << 1,
+	Subgraph = 1 << 2,
+	Other = 1 << 3,
+	All = (1 << 4) - 1
+};
+ENUM_CLASS_FLAGS(EPCGElementType);
+
 namespace FPCGEditorCommon
 {
 	const FString ContextIdentifier = TEXT("PCGEditorContext");
