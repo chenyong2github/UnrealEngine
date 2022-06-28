@@ -11,6 +11,11 @@ UObject* UContextObjectStore::FindContextByClass(UClass* InClass) const
 			return ContextObject;
 		}
 	}
+	
+	if (UContextObjectStore* ParentStore = Cast<UContextObjectStore>(GetOuter()))
+	{
+		return ParentStore->FindContextByClass(InClass);
+	}
 
 	return nullptr;
 }
