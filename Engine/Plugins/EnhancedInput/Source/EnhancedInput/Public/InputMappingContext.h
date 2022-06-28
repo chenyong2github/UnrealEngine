@@ -35,6 +35,7 @@ public:
 	FText ContextDescription;
 
 	friend class FInputContextDetails;
+	friend class FActionMappingsNodeBuilderEx;
 
 public:
 
