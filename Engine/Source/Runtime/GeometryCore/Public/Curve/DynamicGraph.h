@@ -438,10 +438,15 @@ public:
 		}
 		
 		// update middle vertex refcounts
-		vertices_refcount.Increment(f, FIncr);
-		if (BIncr)
+		vertices_refcount.Increment(f, (unsigned short) FIncr);
+		if (BIncr > 0)
 		{
-			vertices_refcount.Increment(B, BIncr);
+			vertices_refcount.Increment(B, (unsigned short) BIncr);
+		}
+		if (BIncr < 0)
+		{
+			unsigned short BDecr = (unsigned short) (-BIncr);
+			vertices_refcount.Decrement(B, BDecr);
 		}
 
 		Split.VNew = f;
