@@ -61,6 +61,7 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 	virtual void PushToRenderThreadImpl() override;
+	void UpdateCachedData();
 
 	void VMGetNumMeshes(FVectorVMExternalFunctionContext& Context);
 	void VMGetMeshLocalBounds(FVectorVMExternalFunctionContext& Context);
