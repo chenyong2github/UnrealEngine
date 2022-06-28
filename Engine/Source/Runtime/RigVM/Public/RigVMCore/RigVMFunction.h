@@ -62,6 +62,7 @@ struct RIGVM_API FRigVMFunction
 	int32 Index;
 	int32 TemplateIndex;
 	TArray<FRigVMFunctionArgument> Arguments;
+	mutable TArray<int32> ArgumentTypeIndices;
 
 	FRigVMFunction()
 		: Name(nullptr)
@@ -70,6 +71,7 @@ struct RIGVM_API FRigVMFunction
 		, Index(INDEX_NONE)
 		, TemplateIndex(INDEX_NONE)
 		, Arguments()
+		, ArgumentTypeIndices()
 	{
 	}
 
@@ -89,6 +91,7 @@ struct RIGVM_API FRigVMFunction
 	FString GetModuleName() const;
 	FString GetModuleRelativeHeaderPath() const;
 	const TArray<FRigVMFunctionArgument>& GetArguments() const { return Arguments; }
+	const TArray<int32>& GetArgumentTypeIndices() const;
 	bool IsAdditionalArgument(const FRigVMFunctionArgument& InArgument) const;
 	const FRigVMTemplate* GetTemplate() const;
 };

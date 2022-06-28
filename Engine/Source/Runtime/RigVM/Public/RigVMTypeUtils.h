@@ -45,6 +45,27 @@ namespace RigVMTypeUtils
 	const FName FNameArrayTypeName = *FNameArrayType;
 	const FName FStringArrayTypeName = *FStringArrayType;
 
+	class RIGVM_API TypeIndex
+	{
+	public:
+		static inline int32 Bool = INDEX_NONE;	
+		static inline int32 Float = INDEX_NONE;	
+		static inline int32 Double = INDEX_NONE;	
+		static inline int32 Int32 = INDEX_NONE;	
+		static inline int32 UInt8 = INDEX_NONE;	
+		static inline int32 FName = INDEX_NONE;	
+		static inline int32 FString = INDEX_NONE;
+		static inline int32 WildCard = INDEX_NONE;	
+		static inline int32 BoolArray = INDEX_NONE;	
+		static inline int32 FloatArray = INDEX_NONE;	
+		static inline int32 DoubleArray = INDEX_NONE;	
+		static inline int32 Int32Array = INDEX_NONE;	
+		static inline int32 UInt8Array = INDEX_NONE;	
+		static inline int32 FNameArray = INDEX_NONE;	
+		static inline int32 FStringArray = INDEX_NONE;	
+		static inline int32 WildCardArray = INDEX_NONE;	
+	};
+
 	// Returns true if the type specified is an array
 	FORCEINLINE bool IsArrayType(const FString& InCPPType)
 	{
@@ -89,16 +110,28 @@ namespace RigVMTypeUtils
 		return WildCardTypeObject;
 	}
 
-	static const FString GetWildCardCPPType()
+	static const FString& GetWildCardCPPType()
 	{
 		static const FString WildCardCPPType = FRigVMUnknownType::StaticStruct()->GetStructCPPName(); 
 		return WildCardCPPType;
 	}
 
-	static const FString GetWildCardArrayCPPType()
+	static const FName& GetWildCardCPPTypeName()
+	{
+		static const FName WildCardCPPTypeName = *GetWildCardCPPType(); 
+		return WildCardCPPTypeName;
+	}
+
+	static const FString& GetWildCardArrayCPPType()
 	{
 		static const FString WildCardArrayCPPType = ArrayTypeFromBaseType(GetWildCardCPPType()); 
 		return WildCardArrayCPPType;
+	}
+
+	static const FName& GetWildCardArrayCPPTypeName()
+	{
+		static const FName WildCardArrayCPPTypeName = *GetWildCardArrayCPPType(); 
+		return WildCardArrayCPPTypeName;
 	}
 
 	FORCEINLINE FString PostProcessCPPType(const FString& InCPPType, UObject* InCPPTypeObject)

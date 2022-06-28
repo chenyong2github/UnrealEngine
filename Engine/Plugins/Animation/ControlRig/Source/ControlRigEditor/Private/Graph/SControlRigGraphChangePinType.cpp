@@ -64,7 +64,7 @@ FText SControlRigChangePinType::GetBindingText(const FRigVMTemplateArgumentType&
 	}
 	else
 	{
-		FString CPPType = InType.CPPType;
+		FString CPPType = InType.CPPType.ToString();
 		if(RigVMTypeUtils::IsArrayType(CPPType))
 		{
 			CPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
@@ -192,8 +192,8 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 		FRigVMTemplateArgumentType Type;
 	};
 
-	typedef TPair<FRigVMTemplateArgumentType, FArgumentInfo> FTypePair;
-	TMap<FRigVMTemplateArgumentType, FArgumentInfo> Types;
+	typedef TPair<int32, FArgumentInfo> FTypePair;
+	TMap<int32, FArgumentInfo> Types;
 	for(URigVMPin* ModelPin : ModelPins)
 	{
 		if(!ModelPin->IsRootPin())
@@ -208,29 +208,29 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 				const FName ArgumentName = ModelPin->GetFName();
 				if(const FRigVMTemplateArgument* Argument = Template->FindArgument(ArgumentName))
 				{
-					const TArray<FRigVMTemplateArgumentType>& AllArgumentTypes = Argument->GetTypes();
-					const TArray<FRigVMTemplateArgumentType>& FilteredArgumentTypes = Argument->GetSupportedTypes(TemplateNode->GetFilteredPermutationsIndices());
+					const TArray<int32>& AllArgumentTypes = Argument->GetTypeIndices();
+					const TArray<int32>& FilteredArgumentTypes = Argument->GetSupportedTypeIndices(TemplateNode->GetFilteredPermutationsIndices());
 					
 					for(int32 PermutationIndex = 0; PermutationIndex < Template->NumPermutations(); PermutationIndex++)
 					{
-						FRigVMTemplateArgumentType ArgumentType = AllArgumentTypes[PermutationIndex];
+						int32 ArgumentTypeIndex = AllArgumentTypes[PermutationIndex];
 					
 						bool bIsFilteredOut = false;
-						if(!FilteredArgumentTypes.Contains(ArgumentType))
+						if(!FilteredArgumentTypes.Contains(ArgumentTypeIndex))
 						{
 							bIsFilteredOut = true;
 						}
 
-						if(ArgumentType.CPPType == RigVMTypeUtils::FloatType)
+						if(ArgumentTypeIndex == RigVMTypeUtils::TypeIndex::Float)
 						{
-							ArgumentType.CPPType = RigVMTypeUtils::DoubleType;
+							ArgumentTypeIndex = RigVMTypeUtils::TypeIndex::Double;
 						}
-						else if(ArgumentType.CPPType == RigVMTypeUtils::FloatArrayType)
+						else if(ArgumentTypeIndex == RigVMTypeUtils::TypeIndex::FloatArray)
 						{
-							ArgumentType.CPPType = RigVMTypeUtils::DoubleArrayType;
+							ArgumentTypeIndex = RigVMTypeUtils::TypeIndex::DoubleArray;
 						}
 						
-						if(Types.Contains(ArgumentType))
+						if(Types.Contains(ArgumentTypeIndex))
 						{
 							continue;
 						}
@@ -241,13 +241,14 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 							{
 								if(const FProperty* Property = FunctionStruct->FindPropertyByName(ArgumentName))
 								{
-									Types.Add(ArgumentType, FArgumentInfo::Make(Property, bIsFilteredOut));
+									Types.Add(ArgumentTypeIndex, FArgumentInfo::Make(Property, bIsFilteredOut));
 								}
 							}
 						}
 						else
 						{
-							Types.Add(ArgumentType, FArgumentInfo::Make(ArgumentType, bIsFilteredOut));
+							const FRigVMTemplateArgumentType ArgumentType = FRigVMRegistry::Get().GetType(ArgumentTypeIndex);
+							Types.Add(ArgumentTypeIndex, FArgumentInfo::Make(ArgumentType, bIsFilteredOut));
 						}
 					}
 				}
@@ -277,8 +278,10 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 	}
 	SortedTypes.Sort([](const FTypePair& A, const FTypePair& B) -> bool
 	{
-		const FString BaseTypeA = A.Key.GetBaseCPPType();
-		const FString BaseTypeB = B.Key.GetBaseCPPType();
+		const FRigVMTemplateArgumentType TypeA = FRigVMRegistry::Get().GetType(A.Key);
+		const FRigVMTemplateArgumentType TypeB = FRigVMRegistry::Get().GetType(B.Key);
+		const FString BaseTypeA = TypeA.GetBaseCPPType();
+		const FString BaseTypeB = TypeB.GetBaseCPPType();
 
 		const int32 IndexA = SortOrder.Find(BaseTypeA);  
 		const int32 IndexB = SortOrder.Find(BaseTypeB);
@@ -301,12 +304,13 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 		const bool bHasAllTypes =
 			SortedTypes.Num() >=
-				FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue).Num();
+				FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue).Num();
 		
-		for(int32 TypeIndex=0; TypeIndex < SortedTypes.Num(); TypeIndex++)
+		for(int32 SortedIndex=0; SortedIndex < SortedTypes.Num(); SortedIndex++)
 		{
-			const FRigVMTemplateArgumentType& Type = SortedTypes[TypeIndex].Key;
-			const bool bIsFilteredOut = SortedTypes[TypeIndex].Value.bIsFilteredOut;
+			const int32& TypeIndex = SortedTypes[SortedIndex].Key;
+			const FRigVMTemplateArgumentType Type = FRigVMRegistry::Get().GetType(TypeIndex);
+			const bool bIsFilteredOut = SortedTypes[SortedIndex].Value.bIsFilteredOut;
 			if (Type.CPPTypeObject != nullptr && !IsValid(Type.CPPTypeObject))
 			{
 				continue;
@@ -323,8 +327,10 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 				if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Type.CPPTypeObject))
 				{
-					if(!FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue).Contains(
-						FRigVMTemplateArgumentType(ScriptStruct->GetStructCPPName(), ScriptStruct)))
+					const FRigVMTemplateArgumentType MathType(*ScriptStruct->GetStructCPPName(), ScriptStruct);
+					const int32 MathTypeIndex = FRigVMRegistry::Get().GetTypeIndex(MathType);
+					
+					if(!FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleMathStructValue).Contains(MathTypeIndex))
 					{
 						continue;
 					}
@@ -394,7 +400,8 @@ void SControlRigChangePinType::HandlePinTypeChanged(FRigVMTemplateArgumentType I
 			continue;
 		}
 
-		Controller->ResolveWildCardPin(ModelPin->GetPinPath(), InType.CPPType, InType.GetCPPTypeObjectPath(), true, true);
+		const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(InType);
+		Controller->ResolveWildCardPin(ModelPin->GetPinPath(), TypeIndex, true, true);
 	}
 }
 

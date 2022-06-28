@@ -2,6 +2,7 @@
 
 #include "RigVMCore/RigVMRegistry.h"
 #include "RigVMCore/RigVMStruct.h"
+#include "RigVMTypeUtils.h"
 #include "RigVMModule.h"
 #include "UObject/UObjectIterator.h"
 
@@ -10,12 +11,571 @@ const FName FRigVMRegistry::TemplateNameMetaName = TEXT("TemplateName");
 
 FRigVMRegistry& FRigVMRegistry::Get()
 {
+	s_RigVMRegistry.InitializeIfNeeded();
 	return s_RigVMRegistry;
+}
+
+void FRigVMRegistry::InitializeIfNeeded()
+{
+	if(!Types.IsEmpty())
+	{
+		return;
+	}
+
+	Types.Reserve(512);
+	TypeToIndex.Reserve(512);
+	TypesPerCategory.Reserve(18);
+	
+	TypesPerCategory.Add(ETypeCategory_SingleAnyValue, TArray<int32>()).Reserve(256);
+	TypesPerCategory.Add(ETypeCategory_ArrayAnyValue, TArray<int32>()).Reserve(256);
+	TypesPerCategory.Add(ETypeCategory_ArrayArrayAnyValue, TArray<int32>()).Reserve(256);
+	TypesPerCategory.Add(ETypeCategory_SingleSimpleValue, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(ETypeCategory_ArraySimpleValue, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(ETypeCategory_ArrayArraySimpleValue, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(ETypeCategory_SingleMathStructValue, TArray<int32>()).Reserve(MathTypes.Num());
+	TypesPerCategory.Add(ETypeCategory_ArrayMathStructValue, TArray<int32>()).Reserve(MathTypes.Num());
+	TypesPerCategory.Add(ETypeCategory_ArrayArrayMathStructValue, TArray<int32>()).Reserve(MathTypes.Num());
+	TypesPerCategory.Add(ETypeCategory_SingleScriptStructValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_ArrayScriptStructValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_ArrayArrayScriptStructValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_SingleEnumValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_ArrayEnumValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_ArrayArrayEnumValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_SingleObjectValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_ArrayObjectValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(ETypeCategory_ArrayArrayObjectValue, TArray<int32>()).Reserve(128);
+
+	RigVMTypeUtils::TypeIndex::Bool = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::BoolTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::Float = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FloatTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::Double = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::DoubleTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::Int32 = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::Int32TypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::UInt8 = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::UInt8TypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::FName = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FNameTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::FString = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FStringTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::WildCard = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::GetWildCardCPPTypeName(), RigVMTypeUtils::GetWildCardCPPTypeObject()));
+	RigVMTypeUtils::TypeIndex::BoolArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::BoolArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::FloatArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FloatArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::DoubleArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::DoubleArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::Int32Array = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::Int32ArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::UInt8Array = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::UInt8ArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::FNameArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FNameArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::FStringArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FStringArrayTypeName, nullptr));
+	RigVMTypeUtils::TypeIndex::WildCardArray = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::GetWildCardArrayCPPTypeName(), RigVMTypeUtils::GetWildCardCPPTypeObject()));
+
+	// register the default math types
+	for(UScriptStruct* MathType : MathTypes)
+	{
+		FindOrAddType(FRigVMTemplateArgumentType(*MathType->GetStructCPPName(), MathType));
+	}
+
+	// add all user defined structs
+	for (TObjectIterator<UScriptStruct> ScriptIt; ScriptIt; ++ScriptIt)
+	{
+		UScriptStruct* ScriptStruct = *ScriptIt;
+		if(!IsAllowedType(ScriptStruct))
+		{
+			continue;
+		}
+
+		// if this is a C++ type - skip it
+		if(ScriptStruct->IsNative())
+		{
+			continue;
+		}
+
+		const FString CPPType = ScriptStruct->GetStructCPPName();
+		FindOrAddType(FRigVMTemplateArgumentType(*CPPType, ScriptStruct));
+	}
+
+	// add all user defined enums
+	for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
+	{
+		UEnum* Enum = (*EnumIt);
+		if(!IsAllowedType(Enum))
+		{
+			continue;
+		}
+
+		// if this is a C++ type - skip it
+		if(Enum->IsNative())
+		{
+			continue;
+		}
+
+		const FString CPPType = Enum->CppType.IsEmpty() ? Enum->GetName() : Enum->CppType;
+		FindOrAddType(FRigVMTemplateArgumentType(*CPPType, Enum));
+	}
 }
 
 void FRigVMRegistry::Refresh()
 {
 }
+
+int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
+{
+	int32 Index = GetTypeIndex(InType);
+	if(Index == INDEX_NONE)
+	{
+		{
+			FTypeInfo Info;
+			Info.Type = InType;
+			Info.bIsArray = InType.IsArray();
+			Index = Types.Add(Info);
+		}
+
+		TypeToIndex.Add(InType, Index);
+
+		// add the type to the category map
+		static constexpr TCHAR ArrayArrayPrefix[] = TEXT("TArray<TArray<");
+		const int32 ArrayDimension = Types[Index].bIsArray ?
+			(InType.CPPType.ToString().StartsWith(ArrayArrayPrefix) ? 2 : 1) : 0;
+		const UObject* CPPTypeObject = Types[Index].Type.CPPTypeObject;
+
+		// simple types
+		if(CPPTypeObject == nullptr)
+		{
+			switch(ArrayDimension)
+			{
+				default:
+				case 0:
+				{
+					TypesPerCategory.FindChecked(ETypeCategory_SingleSimpleValue).Add(Index);
+					TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+					break;
+				}
+				case 1:
+				{
+					TypesPerCategory.FindChecked(ETypeCategory_ArraySimpleValue).Add(Index);
+					TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+					break;
+				}
+				case 2:
+				{
+					TypesPerCategory.FindChecked(ETypeCategory_ArrayArraySimpleValue).Add(Index);
+					TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+					break;
+				}
+			}
+		}
+		else if(const UClass* Class = Cast<UClass>(CPPTypeObject))
+		{
+			if(IsAllowedType(Class))
+			{
+				switch(ArrayDimension)
+				{
+					default:
+					case 0:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_SingleObjectValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+						break;
+					}
+					case 1:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayObjectValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+						break;
+					}
+					case 2:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayObjectValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+						break;
+					}
+				}
+			}	
+		}
+		else if(const UEnum* Enum = Cast<UEnum>(CPPTypeObject))
+		{
+			if(IsAllowedType(Enum))
+			{
+				switch(ArrayDimension)
+				{
+					default:
+					case 0:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_SingleEnumValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+						break;
+					}
+					case 1:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayEnumValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+						break;
+					}
+					case 2:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayEnumValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+						break;
+					}
+				}
+			}
+		}
+		else if(const UStruct* Struct = Cast<UStruct>(CPPTypeObject))
+		{
+			if(IsAllowedType(Struct))
+			{
+				if(MathTypes.Contains(CPPTypeObject))
+				{
+					switch(ArrayDimension)
+					{
+						default:
+						case 0:
+						{
+							TypesPerCategory.FindChecked(ETypeCategory_SingleMathStructValue).Add(Index);
+							break;
+						}
+						case 1:
+						{
+							TypesPerCategory.FindChecked(ETypeCategory_ArrayMathStructValue).Add(Index);
+							break;
+						}
+						case 2:
+						{
+							TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayMathStructValue).Add(Index);
+							break;
+						}
+					}
+				}
+				
+				switch(ArrayDimension)
+				{
+					default:
+					case 0:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_SingleScriptStructValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+						break;
+					}
+					case 1:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayScriptStructValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+						break;
+					}
+					case 2:
+					{
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayScriptStructValue).Add(Index);
+						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+						break;
+					}
+				}
+			}
+		}
+
+		// register the opposing type
+		if(!Types[Index].bIsArray)
+		{
+			FRigVMTemplateArgumentType ArrayType = InType;
+			ArrayType.ConvertToArray();
+			Types[Index].ArrayTypeIndex = FindOrAddType(ArrayType);
+			if(Types[Index].ArrayTypeIndex != INDEX_NONE)
+			{
+				Types[Types[Index].ArrayTypeIndex].BaseTypeIndex = Index;
+			}
+		}
+		else
+		{
+			FRigVMTemplateArgumentType ElementType = InType;
+			ElementType.ConvertToBaseElement();
+			Types[Index].BaseTypeIndex = FindOrAddType(ElementType);
+			if(Types[Index].BaseTypeIndex != INDEX_NONE)
+			{
+				Types[Types[Index].BaseTypeIndex].ArrayTypeIndex = Index;
+
+				// also automatically do the two dimensional array
+				if(GetArrayDimensionsForType(Index) == 1)
+				{
+					FRigVMTemplateArgumentType ArrayArrayType = InType;
+					ArrayArrayType.ConvertToArray();
+					Types[Index].ArrayTypeIndex = FindOrAddType(ArrayArrayType);
+					if(Types[Index].ArrayTypeIndex != INDEX_NONE)
+					{
+						Types[Types[Index].ArrayTypeIndex].BaseTypeIndex = Index;
+					}
+				}
+			}
+		}
+
+		// if the type is a structure
+		// then add all of its sub property types
+		if(!Types[Index].bIsArray)
+		{
+			if(const UStruct* Struct = Cast<UStruct>(Types[Index].Type.CPPTypeObject))
+			{
+				for (TFieldIterator<FProperty> It(Struct); It; ++It)
+				{
+					FProperty* Property = *It;
+					if(IsAllowedType(Property, true))
+					{
+						// by creating a template argument for the child property
+						// the type will be added by calling ::FindOrAddType recursively.
+						FRigVMTemplateArgument DummyArgument(Property);
+					}
+				}
+			}
+		}
+	}
+	
+	return Index;
+}
+
+int32 FRigVMRegistry::GetTypeIndex(const FRigVMTemplateArgumentType& InType) const
+{
+	if(const int32* Index = TypeToIndex.Find(InType))
+	{
+		return *Index;
+	}
+	return INDEX_NONE;
+}
+
+const FRigVMTemplateArgumentType& FRigVMRegistry::GetType(int32 InTypeIndex) const
+{
+	if(ensure(Types.IsValidIndex(InTypeIndex)))
+	{
+		return Types[InTypeIndex].Type;
+	}
+	static FRigVMTemplateArgumentType EmptyType;
+	return EmptyType;
+}
+
+const FRigVMTemplateArgumentType& FRigVMRegistry::FindTypeFromCPPType(const FString& InCPPType) const
+{
+	const int32 TypeIndex = GetTypeIndexFromCPPType(InCPPType);
+	if(ensure(Types.IsValidIndex(TypeIndex)))
+	{
+		return Types[TypeIndex].Type;
+	}
+
+	static FRigVMTemplateArgumentType EmptyType;
+	return EmptyType;
+}
+
+int32 FRigVMRegistry::GetTypeIndexFromCPPType(const FString& InCPPType) const
+{
+	if(ensure(!InCPPType.IsEmpty()))
+	{
+		const FName CPPTypeName = *InCPPType;
+		return Types.IndexOfByPredicate([CPPTypeName](const FTypeInfo& Info) -> bool
+		{
+			return Info.Type.CPPType == CPPTypeName;
+		});
+	}
+	return INDEX_NONE;
+}
+
+bool FRigVMRegistry::IsArrayType(int32 InTypeIndex) const
+{
+	if(ensure(Types.IsValidIndex(InTypeIndex)))
+	{
+		return Types[InTypeIndex].bIsArray;
+	}
+	return false;
+}
+
+int32 FRigVMRegistry::GetArrayDimensionsForType(int32 InTypeIndex) const
+{
+	if(ensure(Types.IsValidIndex(InTypeIndex)))
+	{
+		const FTypeInfo& Info = Types[InTypeIndex];
+		if(Info.bIsArray)
+		{
+			return 1 + GetArrayDimensionsForType(Info.BaseTypeIndex);
+		}
+	}
+	return 0;
+}
+
+bool FRigVMRegistry::IsWildCardType(int32 InTypeIndex) const
+{
+	return RigVMTypeUtils::TypeIndex::WildCard == InTypeIndex ||
+		RigVMTypeUtils::TypeIndex::WildCardArray == InTypeIndex;
+}
+
+bool FRigVMRegistry::CanMatchTypes(int32 InTypeIndexA, int32 InTypeIndexB, bool bAllowFloatingPointCasts) const
+{
+	if(!ensure(Types.IsValidIndex(InTypeIndexA)) || !ensure(Types.IsValidIndex(InTypeIndexB)))
+	{
+		return false;
+	}
+
+	if(InTypeIndexA == InTypeIndexB)
+	{
+		return true;
+	}
+
+	if(bAllowFloatingPointCasts)
+	{
+		// swap order since float is known to registered before double
+		if(InTypeIndexA > InTypeIndexB)
+		{
+			Swap(InTypeIndexA, InTypeIndexB);
+		}
+		if(InTypeIndexA == RigVMTypeUtils::TypeIndex::Float && InTypeIndexB == RigVMTypeUtils::TypeIndex::Double)
+		{
+			return true;
+		}
+		if(InTypeIndexA == RigVMTypeUtils::TypeIndex::FloatArray && InTypeIndexB == RigVMTypeUtils::TypeIndex::DoubleArray)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+const TArray<int32>& FRigVMRegistry::GetCompatibleTypes(int32 InTypeIndex) const
+{
+	if(InTypeIndex == RigVMTypeUtils::TypeIndex::Float)
+	{
+		static const TArray<int32> CompatibleTypes = {RigVMTypeUtils::TypeIndex::Double};
+		return CompatibleTypes;
+	}
+	if(InTypeIndex == RigVMTypeUtils::TypeIndex::Double)
+	{
+		static const TArray<int32> CompatibleTypes = {RigVMTypeUtils::TypeIndex::Float};
+		return CompatibleTypes;
+	}
+	if(InTypeIndex == RigVMTypeUtils::TypeIndex::FloatArray)
+	{
+		static const TArray<int32> CompatibleTypes = {RigVMTypeUtils::TypeIndex::DoubleArray};
+		return CompatibleTypes;
+	}
+	if(InTypeIndex == RigVMTypeUtils::TypeIndex::DoubleArray)
+	{
+		static const TArray<int32> CompatibleTypes = {RigVMTypeUtils::TypeIndex::FloatArray};
+		return CompatibleTypes;
+	}
+
+	static const TArray<int32> EmptyTypes;
+	return EmptyTypes;
+}
+
+const TArray<int32>& FRigVMRegistry::GetTypesForCategory(ETypeCategory InCategory)
+{
+	check(InCategory != ETypeCategory_Invalid);
+	return TypesPerCategory.FindChecked(InCategory);
+}
+
+int32 FRigVMRegistry::GetArrayTypeFromBaseTypeIndex(int32 InTypeIndex) const
+{
+	if(ensure(Types.IsValidIndex(InTypeIndex)))
+	{
+		return Types[InTypeIndex].ArrayTypeIndex;
+	}
+	return INDEX_NONE;
+}
+
+int32 FRigVMRegistry::GetBaseTypeFromArrayTypeIndex(int32 InTypeIndex) const
+{
+	if(ensure(Types.IsValidIndex(InTypeIndex)))
+	{
+		return Types[InTypeIndex].BaseTypeIndex;
+	}
+	return INDEX_NONE;
+}
+
+bool FRigVMRegistry::IsAllowedType(const FProperty* InProperty, bool bCheckFlags)
+{
+	if(bCheckFlags)
+	{
+		if(!InProperty->HasAnyPropertyFlags(
+			CPF_BlueprintVisible |
+			CPF_BlueprintReadOnly |
+			CPF_Edit))
+		{
+			return false;
+		}
+	}
+
+	if(InProperty->IsA<FBoolProperty>() ||
+		InProperty->IsA<FUInt32Property>() ||
+		InProperty->IsA<FInt8Property>() ||
+		InProperty->IsA<FInt16Property>() ||
+		InProperty->IsA<FIntProperty>() ||
+		InProperty->IsA<FInt64Property>() ||
+		InProperty->IsA<FFloatProperty>() ||
+		InProperty->IsA<FDoubleProperty>() ||
+		InProperty->IsA<FNumericProperty>() ||
+		InProperty->IsA<FNameProperty>() ||
+		InProperty->IsA<FStrProperty>())
+	{
+		return true;
+	}
+
+	if(const FArrayProperty* ArrayProperty  = CastField<FArrayProperty>(InProperty))
+	{
+		return IsAllowedType(ArrayProperty->Inner, false);
+	}
+	if(const FStructProperty* StructProperty = CastField<FStructProperty>(InProperty))
+	{
+		return IsAllowedType(StructProperty->Struct);
+	}
+	if(const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(InProperty))
+	{
+		return IsAllowedType(ObjectProperty->PropertyClass);
+	}
+	if(const FEnumProperty* EnumProperty = CastField<FEnumProperty>(InProperty))
+	{
+		return IsAllowedType(EnumProperty->GetEnum());
+	}
+	if(const FByteProperty* ByteProperty = CastField<FByteProperty>(InProperty))
+	{
+		if(const UEnum* Enum = ByteProperty->Enum)
+		{
+			return IsAllowedType(Enum);
+		}
+		return true;
+	}
+	return false;
+}
+
+bool FRigVMRegistry::IsAllowedType(const UEnum* InEnum)
+{
+	return !InEnum->HasAnyFlags(DisallowedFlags()) && InEnum->HasAllFlags(NeededFlags());
+}
+
+bool FRigVMRegistry::IsAllowedType(const UStruct* InStruct)
+{
+	if(InStruct->HasAnyFlags(DisallowedFlags()) || !InStruct->HasAllFlags(NeededFlags()))
+	{
+		return false;
+	}
+	if(InStruct->IsChildOf(FRigVMStruct::StaticStruct()))
+	{
+		return false;
+	}
+	if(InStruct->IsChildOf(FRigVMUnknownType::StaticStruct()))
+	{
+		return false;
+	}
+	if(InStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+	{
+		return false;
+	}
+	for (TFieldIterator<FProperty> It(InStruct); It; ++It)
+	{
+		if(!IsAllowedType(*It))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool FRigVMRegistry::IsAllowedType(const UClass* InClass)
+{
+	if(InClass->HasAnyClassFlags(CLASS_Hidden | CLASS_Abstract))
+	{
+		return false;
+	}
+
+	// note: currently we don't allow UObjects
+	return false;
+	//return IsAllowedType(Cast<UStruct>(InClass));
+}
+
 
 void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct, const TArray<FRigVMFunctionArgument>& InArguments)
 {
@@ -133,35 +693,35 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 	{
 		if(!Argument.IsSingleton() && NumPermutations > 1)
 		{
-			if(Argument.Types.Num() != NumPermutations)
+			if(Argument.TypeIndices.Num() != NumPermutations)
 			{
 				UE_LOG(LogRigVM, Error, TEXT("Failed to add template '%s' since the arguments' types counts don't match."), *InName.ToString());
 				return nullptr;
 			}
 		}
-		NumPermutations = FMath::Max(NumPermutations, Argument.Types.Num()); 
+		NumPermutations = FMath::Max(NumPermutations, Argument.TypeIndices.Num()); 
 	}
 
 	// if any of the arguments are wildcards we'll need to update the types
 	for(FRigVMTemplateArgument& Argument : Template.Arguments)
 	{
-		if(Argument.Types.Num() == 1 && Argument.Types[0].IsWildCard())
+		if(Argument.TypeIndices.Num() == 1 && IsWildCardType(Argument.TypeIndices[0]))
 		{
-			if(Argument.Types[0].IsArray())
+			if(IsArrayType(Argument.TypeIndices[0]))
 			{
-				Argument.Types = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
+				Argument.TypeIndices = GetTypesForCategory(ETypeCategory_ArrayAnyValue);
 			}
 			else
 			{
-				Argument.Types = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
+				Argument.TypeIndices = GetTypesForCategory(ETypeCategory_SingleAnyValue);
 			}
 
-			for (int32 i = 0; i < Argument.Types.Num(); ++i)
+			for (int32 i = 0; i < Argument.TypeIndices.Num(); ++i)
 			{
-				Argument.TypeToPermutations.Add(Argument.Types[i].CPPType, {i});				
+				Argument.TypeToPermutations.Add(Argument.TypeIndices[i], {i});				
 			}
 			
-			NumPermutations = FMath::Max(NumPermutations, Argument.Types.Num()); 
+			NumPermutations = FMath::Max(NumPermutations, Argument.TypeIndices.Num()); 
 		}
 	}
 
@@ -170,18 +730,18 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 	{
 		for(FRigVMTemplateArgument& Argument : Template.Arguments)
 		{
-			if(Argument.Types.Num() == 1)
+			if(Argument.TypeIndices.Num() == 1)
 			{
-				const FRigVMTemplateArgumentType Type = Argument.Types[0];
-				Argument.Types.SetNum(NumPermutations);
+				const int32 TypeIndex = Argument.TypeIndices[0];
+				Argument.TypeIndices.SetNum(NumPermutations);
 				TArray<int32> ArgTypePermutations;
 				ArgTypePermutations.SetNum(NumPermutations);
 				for(int32 Index=0;Index<NumPermutations;Index++)
 				{
-					Argument.Types[Index] = Type;
+					Argument.TypeIndices[Index] = TypeIndex;
 					ArgTypePermutations[Index] = Index;
 				}
-				Argument.TypeToPermutations.Add(Type.CPPType, ArgTypePermutations);
+				Argument.TypeToPermutations.Add(TypeIndex, ArgTypePermutations);
 			}
 		}
 	}

@@ -4224,7 +4224,7 @@ void UControlRigBlueprint::PatchParameterNodesOnLoad()
 				{
 					FRigVMGraphParameterDescription Description = ParameterNode->GetParameterDescription();
 
-					const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(Description.CPPType, Description.CPPTypeObject);
+					const FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(*Description.CPPType, Description.CPPTypeObject);
 
 					int32 VariableIndex = INDEX_NONE;
 					bool bFoundName = false;
@@ -4678,6 +4678,10 @@ void UControlRigBlueprint::OnVariableAdded(const FName& InVarName)
 			CPPType = CPPTypeObject->GetPathName();
 		}
 	}
+
+	// register the type in the registry
+	FRigVMRegistry::Get().FindOrAddType(FRigVMTemplateArgumentType(*CPPType, CPPTypeObject));
+	
     RigVMPythonUtils::Print(GetFName().ToString(),
 		FString::Printf(TEXT("blueprint.add_member_variable('%s', '%s', %s, %s, '%s')"),
 			*InVarName.ToString(),
@@ -4784,6 +4788,9 @@ void UControlRigBlueprint::OnVariableTypeChanged(const FName& InVarName, FEdGrap
 			}
 		}
 	}
+
+	// register the type in the registry
+	FRigVMRegistry::Get().FindOrAddType(FRigVMTemplateArgumentType(*CPPType, CPPTypeObject));
 
 	RigVMPythonUtils::Print(GetFName().ToString(),
 		FString::Printf(TEXT("blueprint.change_member_variable_type('%s', '%s')"),

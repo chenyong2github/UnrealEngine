@@ -3,6 +3,7 @@
 #include "RigVMCore/RigVMFunction.h"
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMCore/RigVMRegistry.h"
+#include "RigVMCore/RigVMExternalVariable.h"
 
 FString FRigVMFunction::GetName() const
 {
@@ -47,6 +48,26 @@ FString FRigVMFunction::GetModuleRelativeHeaderPath() const
 	}
 #endif
 	return FString();
+}
+
+const TArray<int32>& FRigVMFunction::GetArgumentTypeIndices() const
+{
+	if(ArgumentTypeIndices.IsEmpty() && !Arguments.IsEmpty())
+	{
+		for(const FRigVMFunctionArgument& Argument : Arguments)
+		{
+			if(const FProperty* Property = Struct->FindPropertyByName(Argument.Name))
+			{
+				FName CPPType = NAME_None;
+				UObject* CPPTypeObject = nullptr;
+				FRigVMExternalVariable::GetTypeFromProperty(Property, CPPType, CPPTypeObject);
+
+				const FRigVMTemplateArgumentType Type(CPPType, CPPTypeObject);
+				ArgumentTypeIndices.Add(FRigVMRegistry::Get().FindOrAddType(Type));
+			}
+		}
+	}
+	return ArgumentTypeIndices;
 }
 
 bool FRigVMFunction::IsAdditionalArgument(const FRigVMFunctionArgument& InArgument) const

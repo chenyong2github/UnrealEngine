@@ -1158,7 +1158,7 @@ struct FRigVMSetPreferredTemplatePermutationsAction : public FRigVMBaseAction
 public:
 
 	FRigVMSetPreferredTemplatePermutationsAction() {}
-	FRigVMSetPreferredTemplatePermutationsAction(URigVMTemplateNode* InNode, const TArray<FString>& InPreferredPermutation);
+	FRigVMSetPreferredTemplatePermutationsAction(URigVMTemplateNode* InNode, const TArray<FRigVMTemplatePreferredType>& InPreferredTypes);
 	virtual ~FRigVMSetPreferredTemplatePermutationsAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMSetTemplateFilteredPermutationsAction::StaticStruct(); }
 	virtual bool Merge(const FRigVMBaseAction* Other);
@@ -1169,10 +1169,10 @@ public:
 	FString NodePath;
 
 	UPROPERTY()
-	TArray<FString> OldPreferredPermutationTypes;
+	TArray<FRigVMTemplatePreferredType> OldPreferredPermutationTypes;
 
 	UPROPERTY()
-	TArray<FString> NewPreferredPermutationTypes;
+	TArray<FRigVMTemplatePreferredType> NewPreferredPermutationTypes;
 };
 
 /**
@@ -1294,7 +1294,7 @@ struct FRigVMChangePinTypeAction : public FRigVMBaseAction
 public:
 
 	FRigVMChangePinTypeAction();
-	FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins);
+	FRigVMChangePinTypeAction(URigVMPin* InPin, int32 InTypeIndex, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins);
 	virtual ~FRigVMChangePinTypeAction() {};
 	virtual UScriptStruct* GetScriptStruct() const override { return FRigVMChangePinTypeAction::StaticStruct(); }
 	virtual bool Undo(URigVMController* InController) override;
@@ -1304,16 +1304,10 @@ public:
 	FString PinPath;
 
 	UPROPERTY()
-	FString OldCPPType;
+	int32 OldTypeIndex;
 
 	UPROPERTY()
-	FName OldCPPTypeObjectPath;
-
-	UPROPERTY()
-	FString NewCPPType;
-
-	UPROPERTY()
-	FName NewCPPTypeObjectPath;
+	int32 NewTypeIndex;
 
 	UPROPERTY()
 	bool bSetupOrphanPins;

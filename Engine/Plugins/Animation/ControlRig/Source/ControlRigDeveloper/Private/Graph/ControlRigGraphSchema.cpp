@@ -1795,7 +1795,10 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 							URigVMPin::SplitPinPathAtEnd(InPin->ParentPin->GetName(), PinPath, PinName);
 							CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 						}
-						if(!Template->ArgumentSupportsType(*PinName, CPPType))
+
+						const FRigVMTemplateArgumentType Type(*CPPType, CPPTypeObject);
+						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(Type);
+						if(!Template->ArgumentSupportsTypeIndex(*PinName, TypeIndex))
 						{
 							return false;
 						}

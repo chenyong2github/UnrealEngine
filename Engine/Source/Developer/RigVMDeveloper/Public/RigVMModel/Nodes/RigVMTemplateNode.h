@@ -6,6 +6,34 @@
 #include "RigVMCore/RigVMTemplate.h"
 #include "RigVMTemplateNode.generated.h"
 
+USTRUCT()
+struct RIGVMDEVELOPER_API FRigVMTemplatePreferredType
+{
+	GENERATED_BODY()
+	
+	FRigVMTemplatePreferredType()
+		: Argument(NAME_None)
+		, TypeIndex(INDEX_NONE)
+	{}
+	
+	FRigVMTemplatePreferredType(const FName& InArgument, int32 InTypeIndex)
+		: Argument(InArgument)
+		, TypeIndex(InTypeIndex)
+	{}
+	
+	void UpdateStringFromIndex();
+	void UpdateIndexFromString();
+
+	UPROPERTY()
+	FName Argument;
+
+	UPROPERTY()
+	int32 TypeIndex;
+
+	UPROPERTY()
+	FString TypeString;
+};
+
 /**
  * The Template Node represents an unresolved function.
  * Template nodes can morph into all functions implementing
@@ -22,6 +50,7 @@ public:
 	URigVMTemplateNode();
 
 	// UObject interface
+	virtual void PreSave(FObjectPreSaveContext SaveContext) override;
 	virtual void PostLoad() override;
 
 	// URigVMNode interface
@@ -43,10 +72,10 @@ public:
 	virtual bool IsSingleton() const;
 
 	// returns true if a pin supports a given type
-	bool SupportsType(const URigVMPin* InPin, const FString& InCPPType, FString* OutCPPType = nullptr);
+	bool SupportsType(const URigVMPin* InPin, int32 InTypeIndex, int32* OutTypeIndex = nullptr);
 
 	// returns true if a pin supports a given type after filtering
-	bool FilteredSupportsType(const URigVMPin* InPIn, const FString& InCPPType, FString* OutCPPType = nullptr, bool bAllowFloatingPointCasts = true);
+	bool FilteredSupportsType(const URigVMPin* InPin, int32 InTypeIndex, int32* OutTypeIndex = nullptr, bool bAllowFloatingPointCasts = true);
 
 	// returns the resolved functions for the template
 	TArray<const FRigVMFunction*> GetResolvedPermutations() const;
@@ -75,14 +104,14 @@ public:
 	const TArray<int32>& GetFilteredPermutationsIndices() const;
 
 	// returns the filtered types of this pin
-	TArray<FRigVMTemplateArgumentType> GetFilteredTypesForPin(URigVMPin* InPin) const;
+	TArray<int32> GetFilteredTypesForPin(URigVMPin* InPin) const;
 
 	// returns true if updating pin filters with InTypes would result in different filters 
-	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes);
+	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<int32>& InTypeIndices);
 	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, URigVMPin* LinkedPin);
 
 	// updates the filtered permutations given a link or the types for a pin
-	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes);
+	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<int32>& InTypeIndices);
 	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
 
 	// initializes the filtered permutations to all possible permutations
@@ -90,16 +119,22 @@ public:
 
 	// Initializes the filtered permutations and preferred permutation from the types of the pins
 	void InitializeFilteredPermutationsFromTypes();
-	
+
+	// Converts the preferred types per pin from index to string
+	void ConvertPreferredTypesToString();
+
+	// Converts the preferred types per pin from string to indices
+	void ConvertPreferredTypesToTypeIndex();
+
 protected:
 
 	virtual void InvalidateCache() override;
 	
 	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
-	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<FRigVMTemplateArgumentType>& InTypes);
+	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<int32>& InTypeIndices);
 
-	TArray<int32> FindPermutationsForTypes(const TArray<FString>& ArgumentTypes, bool bAllowCasting = false);
-	TArray<FString> GetArgumentTypesForPermutation(const int32 InPermutationIndex);
+	TArray<int32> FindPermutationsForTypes(const TArray<FRigVMTemplatePreferredType>& ArgumentTypes, bool bAllowCasting = false) const;
+	TArray<FRigVMTemplatePreferredType> GetArgumentTypesForPermutation(const int32 InPermutationIndex) const;
 
 	UPROPERTY()
 	FName TemplateNotation;
@@ -110,10 +145,13 @@ protected:
 	// Indicates a preferred permuation using the types of the arguments
 	// Each element is in the format "ArgumentName:CPPType"
 	UPROPERTY()
-	TArray<FString> PreferredPermutationTypes;
-	
+	TArray<FString> PreferredPermutationTypes_DEPRECATED;
+
+	UPROPERTY()
+	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs;
+
 	TArray<int32> FilteredPermutations;
-	TMap<FString, TPair<bool, FRigVMTemplateArgumentType>> SupportedTypesCache;
+	TMap<TPair<FName,int32>, TPair<bool, int32>> SupportedTypesCache;
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable const FRigVMFunction* CachedFunction;

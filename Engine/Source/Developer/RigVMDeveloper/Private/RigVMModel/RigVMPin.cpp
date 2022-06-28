@@ -191,6 +191,7 @@ URigVMPin::URigVMPin()
 	, CPPTypeObjectPath(NAME_None)
 	, DefaultValue(FString())
 	, BoundVariablePath_DEPRECATED()
+	, LastKnownTypeIndex(INDEX_NONE)
 {
 #if UE_BUILD_DEBUG
 	CachedPinPath = GetPinPath();
@@ -612,7 +613,23 @@ FString URigVMPin::GetArrayElementCppType() const
 
 FRigVMTemplateArgumentType URigVMPin::GetTemplateArgumentType() const
 {
-	return FRigVMTemplateArgumentType(GetCPPType(), GetCPPTypeObject());
+	return FRigVMRegistry::Get().GetType(GetTypeIndex());
+}
+
+int32 URigVMPin::GetTypeIndex() const
+{
+	if(LastKnownCPPType != GetCPPType())
+	{
+		LastKnownTypeIndex = INDEX_NONE;
+	}
+	if(LastKnownTypeIndex == INDEX_NONE)
+	{
+		LastKnownCPPType = GetCPPType();
+		const FRigVMTemplateArgumentType Type(*LastKnownCPPType, GetCPPTypeObject());
+		LastKnownTypeIndex = FRigVMRegistry::Get().FindOrAddType(Type);
+		ensure(LastKnownTypeIndex != INDEX_NONE);
+	}
+	return LastKnownTypeIndex;
 }
 
 bool URigVMPin::IsStringType() const
@@ -1226,7 +1243,7 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 	}
 
 	const FString CPPBaseType = IsArray() ? GetArrayElementCppType() : GetCPPType();
-	return RigVMTypeUtils::AreCompatible(CPPBaseType, GetCPPTypeObject(), ExternalCPPType.ToString(), ExternalCPPTypeObject);
+	return RigVMTypeUtils::AreCompatible(*CPPBaseType, GetCPPTypeObject(), ExternalCPPType, ExternalCPPTypeObject);
 }
 
 bool URigVMPin::ShowInDetailsPanelOnly() const
@@ -1298,6 +1315,9 @@ void URigVMPin::UpdateTypeInformationIfRequired() const
 		{
 			URigVMPin* MutableThis = (URigVMPin*)this;
 			MutableThis->CPPTypeObject = FindObjectFromCPPTypeObjectPath(CPPTypeObjectPath.ToString());
+			MutableThis->CPPType = RigVMTypeUtils::PostProcessCPPType(CPPType, CPPTypeObject);
+			MutableThis->LastKnownTypeIndex = FRigVMRegistry::Get().FindOrAddType(FRigVMTemplateArgumentType(*CPPType, CPPTypeObject));
+			MutableThis->LastKnownCPPType = MutableThis->CPPType; 
 		}
 	}
 
@@ -1678,7 +1698,7 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		static const FString Float = TEXT("float");
 		static const FString Double = TEXT("double");
 
-		if (RigVMTypeUtils::AreCompatible(InSourcePin->CPPType, InSourcePin->CPPTypeObject, InTargetPin->CPPType, InTargetPin->CPPTypeObject))
+		if (FRigVMRegistry::Get().CanMatchTypes(InSourcePin->GetTypeIndex(), InTargetPin->GetTypeIndex(), true))
 		{
 			bCPPTypesDiffer = false;
 		}
@@ -1686,11 +1706,11 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 		if (bCPPTypesDiffer)
 		{
 			{
-				auto TemplateNodeSupportsType = [](URigVMPin* InPin, const FString& InCPPType, FString* OutFailureReason) -> bool
+				auto TemplateNodeSupportsType = [](URigVMPin* InPin, const int32& InTypeIndex, FString* OutFailureReason) -> bool
 				{
 					if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InPin->GetNode()))
 					{
-						if (TemplateNode->SupportsType(InPin, InCPPType))
+						if (TemplateNode->SupportsType(InPin, InTypeIndex))
 						{
 							if (OutFailureReason)
 							{
@@ -1733,11 +1753,11 @@ bool URigVMPin::CanLink(URigVMPin* InSourcePin, URigVMPin* InTargetPin, FString*
 				
 				if(IsPinValidForTypeChange(InSourcePin, false, InUserLinkDirection))
 				{
-					return TemplateNodeSupportsType(InSourcePin, InTargetPin->GetCPPType(), OutFailureReason);
+					return TemplateNodeSupportsType(InSourcePin, InTargetPin->GetTypeIndex(), OutFailureReason);
 				}
 				else if(IsPinValidForTypeChange(InTargetPin, true, InUserLinkDirection))
 				{
-					return TemplateNodeSupportsType(InTargetPin, InSourcePin->GetCPPType(), OutFailureReason);
+					return TemplateNodeSupportsType(InTargetPin, InSourcePin->GetTypeIndex(), OutFailureReason);
 				}
 			}
 		}

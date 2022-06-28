@@ -5757,7 +5757,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 		FName ChannelValue = Key.Name;
 		TArray<FName> NamePins;
 		TArray<FName> ChannelPins;
-		TMap<FName, FRigVMTemplateArgumentType> PinsToResolve; 
+		TMap<FName, int32> PinsToResolve; 
 
 		if(FRigControlElement* ControlElement = Hierarchy->Find<FRigControlElement>(Key))
 		{
@@ -5789,7 +5789,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 						{
 							StructTemplate = FRigUnit_SetBoolAnimationChannel::StaticStruct();
 						}
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType));
+						PinsToResolve.Add(ValueName, RigVMTypeUtils::TypeIndex::Bool);
 						break;
 					}
 					case ERigControlType::Float:
@@ -5802,7 +5802,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 						{
 							StructTemplate = FRigUnit_SetFloatAnimationChannel::StaticStruct();
 						}
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(RigVMTypeUtils::FloatType));
+						PinsToResolve.Add(ValueName, RigVMTypeUtils::TypeIndex::Float);
 						break;
 					}
 					case ERigControlType::Integer:
@@ -5815,7 +5815,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 						{
 							StructTemplate = FRigUnit_SetIntAnimationChannel::StaticStruct();
 						}
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type));
+						PinsToResolve.Add(ValueName, RigVMTypeUtils::TypeIndex::Int32);
 						break;
 					}
 					case ERigControlType::Vector2D:
@@ -5830,7 +5830,9 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 						}
 
 						UScriptStruct* ValueStruct = TBaseStructure<FVector2D>::Get();
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
+						PinsToResolve.Add(ValueName, TypeIndex);
 						break;
 					}
 					case ERigControlType::Position:
@@ -5845,7 +5847,9 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 							StructTemplate = FRigUnit_SetVectorAnimationChannel::StaticStruct();
 						}
 						UScriptStruct* ValueStruct = TBaseStructure<FVector>::Get();
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
+						PinsToResolve.Add(ValueName, TypeIndex);
 						break;
 					}
 					case ERigControlType::Rotator:
@@ -5859,7 +5863,9 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 							StructTemplate = FRigUnit_SetRotatorAnimationChannel::StaticStruct();
 						}
 						UScriptStruct* ValueStruct = TBaseStructure<FRotator>::Get();
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
+						PinsToResolve.Add(ValueName, TypeIndex);
 						break;
 					}
 					case ERigControlType::Transform:
@@ -5875,7 +5881,9 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 							StructTemplate = FRigUnit_SetTransformAnimationChannel::StaticStruct();
 						}
 						UScriptStruct* ValueStruct = TBaseStructure<FTransform>::Get();
-						PinsToResolve.Add(ValueName, FRigVMTemplateArgumentType(ValueStruct->GetStructCPPName(), ValueStruct));
+						const FRigVMTemplateArgumentType TypeForStruct(*ValueStruct->GetStructCPPName(), ValueStruct);
+						const int32 TypeIndex = FRigVMRegistry::Get().GetTypeIndex(TypeForStruct);
+						PinsToResolve.Add(ValueName, TypeIndex);
 						break;
 					}
 					default:
@@ -6117,7 +6125,7 @@ void FControlRigEditor::HandleMakeElementGetterSetter(ERigElementGetterSetterTyp
 			NewNode.Name = ModelNode->GetFName();
 			NewNodes.Add(NewNode);
 
-			for (const TPair<FName, FRigVMTemplateArgumentType>& PinToResolve : PinsToResolve)
+			for (const TPair<FName, int32>& PinToResolve : PinsToResolve)
 			{
 				if(URigVMPin* Pin = ModelNode->FindPin(PinToResolve.Key.ToString()))
 				{

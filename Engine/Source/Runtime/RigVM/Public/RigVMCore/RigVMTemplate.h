@@ -14,29 +14,29 @@ struct RIGVM_API FRigVMTemplateArgumentType
 	GENERATED_BODY()
 
 	UPROPERTY()
-	FString CPPType;
+	FName CPPType;
 	
 	UPROPERTY()
 	TObjectPtr<UObject> CPPTypeObject; 
 
 	FRigVMTemplateArgumentType()
-		: CPPType()
+		: CPPType(NAME_None)
 		, CPPTypeObject(nullptr)
 	{
-		CPPType = RigVMTypeUtils::GetWildCardCPPType();
+		CPPType = RigVMTypeUtils::GetWildCardCPPTypeName();
 		CPPTypeObject = RigVMTypeUtils::GetWildCardCPPTypeObject();
 	}
 
-	FRigVMTemplateArgumentType(const FString& InCPPType, UObject* InCPPTypeObject = nullptr)
+	FRigVMTemplateArgumentType(const FName& InCPPType, UObject* InCPPTypeObject = nullptr)
 		: CPPType(InCPPType)
 		, CPPTypeObject(InCPPTypeObject)
 	{
-		check(!CPPType.IsEmpty());
+		check(!CPPType.IsNone());
 	}
 
 	static FRigVMTemplateArgumentType Array()
 	{
-		return FRigVMTemplateArgumentType(RigVMTypeUtils::GetWildCardArrayCPPType(), RigVMTypeUtils::GetWildCardCPPTypeObject());
+		return FRigVMTemplateArgumentType(RigVMTypeUtils::GetWildCardArrayCPPTypeName(), RigVMTypeUtils::GetWildCardCPPTypeObject());
 	}
 
 	bool operator == (const FRigVMTemplateArgumentType& InOther) const
@@ -54,55 +54,6 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		return GetTypeHash(InType.CPPType);
 	}
 
-	FORCEINLINE bool Matches(const FString& InCPPType, bool bAllowFloatingPointCasts = true) const
-	{
-		if(CPPType == InCPPType)
-		{
-			return true;
-		}
-		if(bAllowFloatingPointCasts)
-		{
-			if(InCPPType == RigVMTypeUtils::FloatType && CPPType == RigVMTypeUtils::DoubleType)
-			{
-				return true;
-			}
-			if(InCPPType == RigVMTypeUtils::DoubleType && CPPType == RigVMTypeUtils::FloatType)
-			{
-				return true;
-			}
-			if(InCPPType == RigVMTypeUtils::FloatArrayType && CPPType == RigVMTypeUtils::DoubleArrayType)
-			{
-				return true;
-			}
-			if(InCPPType == RigVMTypeUtils::DoubleArrayType && CPPType == RigVMTypeUtils::FloatArrayType)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-
-	static TArray<FString> GetCompatibleTypes(const FString& InCPPType)
-	{
-		if(InCPPType == RigVMTypeUtils::FloatType)
-		{
-			return {RigVMTypeUtils::DoubleType};
-		}
-		if(InCPPType == RigVMTypeUtils::DoubleType)
-		{
-			return {RigVMTypeUtils::FloatType};
-		}
-		if(InCPPType == RigVMTypeUtils::FloatArrayType)
-		{
-			return {RigVMTypeUtils::DoubleArrayType};
-		}
-		if(InCPPType == RigVMTypeUtils::DoubleArrayType)
-		{
-			return {RigVMTypeUtils::FloatArrayType};
-		}
-		return {};
-	}
-
 	FName GetCPPTypeObjectPath() const
 	{
 		if(CPPTypeObject)
@@ -115,32 +66,32 @@ struct RIGVM_API FRigVMTemplateArgumentType
 	bool IsWildCard() const
 	{
 		return CPPTypeObject == RigVMTypeUtils::GetWildCardCPPTypeObject() ||
-			CPPType == RigVMTypeUtils::GetWildCardCPPType() ||
-			CPPType == RigVMTypeUtils::GetWildCardArrayCPPType();
+			CPPType == RigVMTypeUtils::GetWildCardCPPTypeName() ||
+			CPPType == RigVMTypeUtils::GetWildCardArrayCPPTypeName();
 	}
 
 	bool IsArray() const
 	{
-		return RigVMTypeUtils::IsArrayType(CPPType);
+		return RigVMTypeUtils::IsArrayType(CPPType.ToString());
 	}
 
 	FString GetBaseCPPType() const
 	{
 		if(IsArray())
 		{
-			return RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+			return RigVMTypeUtils::BaseTypeFromArrayType(CPPType.ToString());
 		}
-		return CPPType;
+		return CPPType.ToString();
 	}
 
 	void ConvertToArray() 
 	{
-		CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
+		CPPType = *RigVMTypeUtils::ArrayTypeFromBaseType(CPPType.ToString());
 	}
 
 	void ConvertToBaseElement() 
 	{
-		CPPType = RigVMTypeUtils::BaseTypeFromArrayType(CPPType);
+		CPPType = *RigVMTypeUtils::BaseTypeFromArrayType(CPPType.ToString());
 	}
 };
 
@@ -162,34 +113,11 @@ struct RIGVM_API FRigVMTemplateArgument
 		EArrayType_Invalid
 	};
 
-	enum ETypeCategory
-	{
-		ETypeCategory_SingleAnyValue,
-		ETypeCategory_ArrayAnyValue,
-		ETypeCategory_ArrayArrayAnyValue,
-		ETypeCategory_SingleSimpleValue,
-		ETypeCategory_ArraySimpleValue,
-		ETypeCategory_ArrayArraySimpleValue,
-		ETypeCategory_SingleMathStructValue,
-		ETypeCategory_ArrayMathStructValue,
-		ETypeCategory_ArrayArrayMathStructValue,
-		ETypeCategory_SingleScriptStructValue,
-		ETypeCategory_ArrayScriptStructValue,
-		ETypeCategory_ArrayArrayScriptStructValue,
-		ETypeCategory_SingleEnumValue,
-		ETypeCategory_ArrayEnumValue,
-		ETypeCategory_ArrayArrayEnumValue,
-		ETypeCategory_SingleObjectValue,
-		ETypeCategory_ArrayObjectValue,
-		ETypeCategory_ArrayArrayObjectValue,
-		ETypeCategory_Invalid
-	};
-
 	// default constructor
 	FRigVMTemplateArgument();
 
-	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const FRigVMTemplateArgumentType& InType);
-	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<FRigVMTemplateArgumentType>& InTypes);
+	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, int32 InType);
+	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<int32>& InTypeIndices);
 
 	// returns the name of the argument
 	const FName& GetName() const { return Name; }
@@ -198,26 +126,25 @@ struct RIGVM_API FRigVMTemplateArgument
 	ERigVMPinDirection GetDirection() const { return Direction; }
 
 	// returns true if this argument supports a given type across a set of permutations
-	bool SupportsType(const FString& InCPPType, FRigVMTemplateArgumentType* OutType = nullptr) const;
+	bool SupportsTypeIndex(int32 InTypeIndex, int32* OutTypeIndex = nullptr) const;
 
 	// returns the flat list of types (including duplicates) of this argument
-	const TArray<FRigVMTemplateArgumentType>& GetTypes() const;
+	const TArray<int32>& GetTypeIndices() const;
 
 	// returns an array of all of the supported types
-	TArray<FRigVMTemplateArgumentType> GetSupportedTypes(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
+	TArray<int32> GetSupportedTypeIndices(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
-	// returns an array of all supported types as strings
+#if WITH_EDITOR
+	// returns an array of all supported types as strings. this is used for automated testing only.
 	TArray<FString> GetSupportedTypeStrings(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
-
+#endif
+	
 	// returns true if an argument is singleton (same type for all variants)
 	bool IsSingleton(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
 	// returns true if the argument uses an array container
 	EArrayType GetArrayType() const;
 	
-	// Returns all compatible types given a category
-	static const TArray<FRigVMTemplateArgumentType>& GetCompatibleTypes(ETypeCategory InCategory);
-
 protected:
 
 	UPROPERTY()
@@ -230,9 +157,9 @@ protected:
 	ERigVMPinDirection Direction;
 
 	UPROPERTY()
-	TArray<FRigVMTemplateArgumentType> Types;
+	TArray<int32> TypeIndices;
 
-	TMap<FString, TArray<int32>> TypeToPermutations;
+	TMap<int32, TArray<int32>> TypeToPermutations;
 
 	// constructor from a property
 	FRigVMTemplateArgument(FProperty* InProperty);
@@ -254,8 +181,8 @@ struct RIGVM_API FRigVMTemplate
 	GENERATED_BODY()
 public:
 
-	typedef TMap<FName, FRigVMTemplateArgumentType> FTypeMap;
-	typedef TPair<FName, FRigVMTemplateArgumentType> FTypePair;
+	typedef TMap<FName, int32> FTypeMap;
+	typedef TPair<FName, int32> FTypePair;
 
 	// Default constructor
 	FRigVMTemplate();
@@ -285,7 +212,7 @@ public:
 	const FRigVMTemplateArgument* FindArgument(const FName& InArgumentName) const;
 
 	// returns true if a given arg supports a type
-	bool ArgumentSupportsType(const FName& InArgumentName, const FString& InCPPType, FRigVMTemplateArgumentType* OutType = nullptr) const;
+	bool ArgumentSupportsTypeIndex(const FName& InArgumentName, int32 InTypeIndex, int32* OutTypeIndex = nullptr) const;
 
 	// returns the number of permutations supported by this template
 	int32 NumPermutations() const { return Permutations.Num(); }
@@ -306,7 +233,7 @@ public:
 	bool Resolve(FTypeMap& InOutTypes, TArray<int32> & OutPermutationIndices, bool bAllowFloatingPointCasts) const;
 
 	// returns true if the template can resolve an argument to a new type
-	bool ResolveArgument(const FName& InArgumentName, const FRigVMTemplateArgumentType& InType, FTypeMap& InOutTypes) const;
+	bool ResolveArgument(const FName& InArgumentName, const int32 InTypeIndex, FTypeMap& InOutTypes) const;
 
 	// returns true if a given argument is valid for a template
 	static bool IsValidArgumentForTemplate(const FRigVMTemplateArgument& InArgument);

@@ -45,11 +45,11 @@ const FRigVMTemplate* URigVMSelectNode::GetTemplate() const
 		static TArray<FRigVMTemplateArgument> Arguments;
 		if(Arguments.IsEmpty())
 		{
-			static const TArray<FRigVMTemplateArgumentType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
-			static const TArray<FRigVMTemplateArgumentType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
-			static const TArray<FRigVMTemplateArgumentType>& ArrayArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue);
+			static const TArray<int32>& SingleTypes = FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue);
+			static const TArray<int32>& ArrayTypes = FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_ArrayAnyValue);
+			static const TArray<int32>& ArrayArrayTypes = FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_ArrayArrayAnyValue);
 
-			static TArray<FRigVMTemplateArgumentType> ResultTypes, ValueTypes;
+			static TArray<int32> ResultTypes, ValueTypes;
 			if(ResultTypes.IsEmpty())
 			{
 				ResultTypes.Append(SingleTypes);
@@ -59,7 +59,7 @@ const FRigVMTemplate* URigVMSelectNode::GetTemplate() const
 			}
 
 			Arguments.Reserve(3);
-			Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+			Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 			Arguments.Emplace(*ValueName, ERigVMPinDirection::Input, ValueTypes);
 			Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, ResultTypes);
 		}

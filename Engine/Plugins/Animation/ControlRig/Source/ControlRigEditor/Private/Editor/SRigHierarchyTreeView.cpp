@@ -805,43 +805,43 @@ FLinearColor SRigHierarchyItem::GetColorForControlType(ERigControlType InControl
 	{
 		case ERigControlType::Bool:
 		{
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::BoolType, nullptr);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::BoolTypeName, nullptr);
 			break;
 		}
 		case ERigControlType::Float:
 		{
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::FloatType, nullptr);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::FloatTypeName, nullptr);
 			break;
 		}
 		case ERigControlType::Integer:
 		{
 			if(InControlEnum)
 			{
-				PinType = RigVMTypeUtils::PinTypeFromCPPType(FString(), InControlEnum);
+				PinType = RigVMTypeUtils::PinTypeFromCPPType(NAME_None, InControlEnum);
 			}
 			else
 			{
-				PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::Int32Type, nullptr);
+				PinType = RigVMTypeUtils::PinTypeFromCPPType(RigVMTypeUtils::Int32TypeName, nullptr);
 			}
 			break;
 		}
 		case ERigControlType::Vector2D:
 		{
 			UScriptStruct* Struct = TBaseStructure<FVector2D>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
 			break;
 		}
 		case ERigControlType::Position:
 		case ERigControlType::Scale:
 		{
 			UScriptStruct* Struct = TBaseStructure<FVector>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
 			break;
 		}
 		case ERigControlType::Rotator:
 		{
 			UScriptStruct* Struct = TBaseStructure<FRotator>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
 			break;
 		}
 		case ERigControlType::Transform:
@@ -850,7 +850,7 @@ FLinearColor SRigHierarchyItem::GetColorForControlType(ERigControlType InControl
 		default:
 		{
 			UScriptStruct* Struct = TBaseStructure<FTransform>::Get(); 
-			PinType = RigVMTypeUtils::PinTypeFromCPPType(Struct->GetStructCPPName(), Struct);
+			PinType = RigVMTypeUtils::PinTypeFromCPPType(*Struct->GetStructCPPName(), Struct);
 			break;
 		}
 	}

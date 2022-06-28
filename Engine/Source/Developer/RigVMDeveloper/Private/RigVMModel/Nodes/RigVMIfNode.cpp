@@ -34,16 +34,15 @@ const FRigVMTemplate* URigVMIfNode::GetTemplate() const
 		static TArray<FRigVMTemplateArgument> Arguments;
 		if(Arguments.IsEmpty())
 		{
-			static TArray<FRigVMTemplateArgumentType> Types;
+			static TArray<int32> Types;
 			if(Types.IsEmpty())
 			{
-				Types.Reserve(3);
-				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue));
-				Types.Append(FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue));
+				Types.Append(FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue));
+				Types.Append(FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_ArrayAnyValue));
 			}
 
 			Arguments.Reserve(4);
-			Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType, nullptr));
+			Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool);
 			Arguments.Emplace(*TrueName, ERigVMPinDirection::Input, Types);
 			Arguments.Emplace(*FalseName, ERigVMPinDirection::Input, Types);
 			Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, Types);

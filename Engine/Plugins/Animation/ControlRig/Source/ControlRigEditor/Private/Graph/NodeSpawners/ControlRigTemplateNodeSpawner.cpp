@@ -96,11 +96,10 @@ bool UControlRigTemplateNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionF
 							{
 								if (const FRigVMTemplate* Template = FRigVMRegistry::Get().FindTemplate(TemplateNotation))
 								{
-									FRigVMTemplateArgumentType Type(ModelPin->GetCPPType(), ModelPin->GetCPPTypeObject());
 									for (int32 i=0; i<Template->NumArguments(); ++i)
 									{
 										const FRigVMTemplateArgument* Argument = Template->GetArgument(i);
-										if (Template->ArgumentSupportsType(Argument->GetName(), Type.CPPType))
+										if (Template->ArgumentSupportsTypeIndex(Argument->GetName(), ModelPin->GetTypeIndex()))
 										{
 											return false;
 										}

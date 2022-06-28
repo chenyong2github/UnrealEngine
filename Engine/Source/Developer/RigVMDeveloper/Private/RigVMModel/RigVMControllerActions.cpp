@@ -788,7 +788,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 		else
 		{
 			InverseAction.AddAction(FRigVMAddTemplateNodeAction(TemplateNode), InController);
-			InverseAction.AddAction(FRigVMSetPreferredTemplatePermutationsAction(TemplateNode, TemplateNode->PreferredPermutationTypes), InController);
+			InverseAction.AddAction(FRigVMSetPreferredTemplatePermutationsAction(TemplateNode, TemplateNode->PreferredPermutationPairs), InController);
 			InverseAction.AddAction(FRigVMSetTemplateFilteredPermutationsAction(TemplateNode, nullptr, {}), InController);
 
 			for (URigVMPin* Pin : TemplateNode->GetPins())
@@ -801,7 +801,7 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode, URigVMControl
 						{
 							if (!Argument->IsSingleton())
 							{
-								InverseAction.AddAction(FRigVMChangePinTypeAction(Pin, Pin->GetCPPType(), *Pin->GetCPPTypeObject()->GetPathName(), false, false, false), InController);
+								InverseAction.AddAction(FRigVMChangePinTypeAction(Pin, Pin->GetTypeIndex(), false, false, false), InController);
 							}
 						}
 					}			
@@ -1418,10 +1418,10 @@ bool FRigVMSetTemplateFilteredPermutationsAction::Redo(URigVMController* InContr
 	return FRigVMBaseAction::Redo(InController);
 }
 
-FRigVMSetPreferredTemplatePermutationsAction::FRigVMSetPreferredTemplatePermutationsAction(URigVMTemplateNode* InNode, const TArray<FString>& InPreferredPermutationTypes)
+FRigVMSetPreferredTemplatePermutationsAction::FRigVMSetPreferredTemplatePermutationsAction(URigVMTemplateNode* InNode, const TArray<FRigVMTemplatePreferredType>& InPreferredTypes)
 : NodePath(InNode->GetNodePath())
-, OldPreferredPermutationTypes(InNode->PreferredPermutationTypes)
-, NewPreferredPermutationTypes(InPreferredPermutationTypes)
+, OldPreferredPermutationTypes(InNode->PreferredPermutationPairs)
+, NewPreferredPermutationTypes(InPreferredTypes)
 {
 	
 }
@@ -1452,7 +1452,7 @@ bool FRigVMSetPreferredTemplatePermutationsAction::Undo(URigVMController* InCont
 
 	if (URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(InController->GetGraph()->FindNode(NodePath)))
 	{
-		TemplateNode->PreferredPermutationTypes = OldPreferredPermutationTypes;
+		TemplateNode->PreferredPermutationPairs = OldPreferredPermutationTypes;
 		return true;
 	}
 	return false;
@@ -1465,7 +1465,7 @@ bool FRigVMSetPreferredTemplatePermutationsAction::Redo(URigVMController* InCont
 	{
 		return false;
 	}
-	TemplateNode->PreferredPermutationTypes = NewPreferredPermutationTypes;
+	TemplateNode->PreferredPermutationPairs = NewPreferredPermutationTypes;
 	return FRigVMBaseAction::Redo(InController);
 }
 
@@ -1569,29 +1569,21 @@ bool FRigVMBreakLinkAction::Redo(URigVMController* InController)
 
 FRigVMChangePinTypeAction::FRigVMChangePinTypeAction()
 : PinPath()
-, OldCPPType()
-, OldCPPTypeObjectPath(NAME_None)
-, NewCPPType()
-, NewCPPTypeObjectPath(NAME_None)
+, OldTypeIndex(INDEX_NONE)
+, NewTypeIndex(INDEX_NONE)
 , bSetupOrphanPins(true)
 , bBreakLinks(true)
 , bRemoveSubPins(true)
 {}
 
-FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins)
+FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, int32 InTypeIndex, bool InSetupOrphanPins, bool InBreakLinks, bool InRemoveSubPins)
 : PinPath(InPin->GetPinPath())
-, OldCPPType(InPin->GetCPPType())
-, OldCPPTypeObjectPath(NAME_None)
-, NewCPPType(InCppType)
-, NewCPPTypeObjectPath(InCppTypeObjectPath)
+, OldTypeIndex(InPin->GetTypeIndex())
+, NewTypeIndex(InTypeIndex)
 , bSetupOrphanPins(InSetupOrphanPins)
 , bBreakLinks(InBreakLinks)
 , bRemoveSubPins(InRemoveSubPins)
 {
-	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
-	{
-		OldCPPTypeObjectPath = *CPPTypeObject->GetPathName();
-	}
 }
 
 bool FRigVMChangePinTypeAction::Undo(URigVMController* InController)
@@ -1600,13 +1592,34 @@ bool FRigVMChangePinTypeAction::Undo(URigVMController* InController)
 	{
 		return false;
 	}
-	
-	return InController->ChangePinType(PinPath, OldCPPType, OldCPPTypeObjectPath, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
+
+	if(const URigVMGraph* Graph = InController->GetGraph())
+	{
+		if(URigVMPin* Pin = Graph->FindPin(PinPath))
+		{
+			return InController->ChangePinType(Pin, OldTypeIndex, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins);
+		}
+	}
+	return false;
 }
 
 bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
 {
-	if(!InController->ChangePinType(PinPath, NewCPPType, NewCPPTypeObjectPath, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins))
+	if(const URigVMGraph* Graph = InController->GetGraph())
+	{
+		if(URigVMPin* Pin = Graph->FindPin(PinPath))
+		{
+			if(!InController->ChangePinType(Pin, NewTypeIndex, false, bSetupOrphanPins, bBreakLinks, bRemoveSubPins))
+			{
+				return false;
+			}
+		}
+		else
+		{
+			return false;
+		}
+	}
+	else
 	{
 		return false;
 	}

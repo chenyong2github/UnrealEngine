@@ -1209,7 +1209,7 @@ bool UControlRigGraphNode::ShouldDrawNodeAsControlPointOnly(int32& OutInputPinIn
 
 FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPin)
 {
-	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(InModelPin->GetCPPType(), InModelPin->GetCPPTypeObject());
+	FEdGraphPinType PinType = RigVMTypeUtils::PinTypeFromCPPType(*InModelPin->GetCPPType(), InModelPin->GetCPPTypeObject());
 	PinType.bIsConst = InModelPin->IsDefinedAsConstant();
 	return PinType;
 }

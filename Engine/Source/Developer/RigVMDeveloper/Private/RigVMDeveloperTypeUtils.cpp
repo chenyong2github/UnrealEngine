@@ -267,43 +267,43 @@ FRigVMExternalVariable RigVMTypeUtils::ExternalVariableFromCPPType(const FName& 
 	return Variable;
 }
 
-FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FString& InCPPType, UObject* InCPPTypeObject)
+FEdGraphPinType RigVMTypeUtils::PinTypeFromCPPType(const FName& InCPPType, UObject* InCPPTypeObject)
 {
 	FEdGraphPinType PinType;
 	PinType.ResetToDefaults();
 	PinType.PinCategory = NAME_None;
 
-	FString BaseCPPType = InCPPType;
+	FName BaseCPPType = InCPPType;
 	PinType.ContainerType = EPinContainerType::None;
-	if (RigVMTypeUtils::IsArrayType(InCPPType))
+	if (RigVMTypeUtils::IsArrayType(InCPPType.ToString()))
 	{
-		BaseCPPType = RigVMTypeUtils::BaseTypeFromArrayType(InCPPType);
+		BaseCPPType = *RigVMTypeUtils::BaseTypeFromArrayType(InCPPType.ToString());
 		PinType.ContainerType = EPinContainerType::Array;
 	}
 
-	if (BaseCPPType == BoolType)
+	if (BaseCPPType == BoolTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Boolean;
 	}
-	else if (BaseCPPType == Int32Type)
+	else if (BaseCPPType == Int32TypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
 	}
-	else if (BaseCPPType == FloatType)
+	else if (BaseCPPType == FloatTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Float;
 	}
-	else if (BaseCPPType == DoubleType)
+	else if (BaseCPPType == DoubleTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Real;
 		PinType.PinSubCategory = UEdGraphSchema_K2::PC_Double;
 	}
-	else if (BaseCPPType == FNameType)
+	else if (BaseCPPType == FNameTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 	}
-	else if (BaseCPPType == FStringType)
+	else if (BaseCPPType == FStringTypeName)
 	{
 		PinType.PinCategory = UEdGraphSchema_K2::PC_String;
 	}
@@ -724,7 +724,7 @@ bool RigVMTypeUtils::CPPTypeFromExternalVariable(const FRigVMExternalVariable& I
 	return true;
 }
 
-bool RigVMTypeUtils::AreCompatible(const FString& InCPPTypeA, UObject* InCPPTypeObjectA, const FString& InCPPTypeB,	UObject* InCPPTypeObjectB)
+bool RigVMTypeUtils::AreCompatible(const FName& InCPPTypeA, UObject* InCPPTypeObjectA, const FName& InCPPTypeB,	UObject* InCPPTypeObjectB)
 {
 	return AreCompatible(PinTypeFromCPPType(InCPPTypeA, InCPPTypeObjectA), PinTypeFromCPPType(InCPPTypeB, InCPPTypeObjectB));
 }

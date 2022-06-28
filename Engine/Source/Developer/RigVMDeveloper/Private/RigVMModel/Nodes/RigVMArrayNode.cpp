@@ -265,6 +265,7 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 
 		if(TemplatesPerOpCode[OpCodeIndex])
 		{
+			CachedTemplate = TemplatesPerOpCode[OpCodeIndex]; 
 			return TemplatesPerOpCode[OpCodeIndex];
 		}
 		
@@ -274,10 +275,10 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 		{
 			Arguments.Reserve(8);
 			
-			static const TArray<FRigVMTemplateArgumentType>& SingleTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
-			static const TArray<FRigVMTemplateArgumentType>& ArrayTypes = FRigVMTemplateArgument::GetCompatibleTypes(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
+			static const TArray<int32>& SingleTypes = FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue);
+			static const TArray<int32>& ArrayTypes = FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_ArrayAnyValue);
 
-			static TArray<FRigVMTemplateArgumentType> ArrayValueTypes, ElementTypes;
+			static TArray<int32> ArrayValueTypes, ElementTypes;
 			if(ArrayValueTypes.IsEmpty())
 			{
 				ArrayValueTypes.Append(ArrayTypes);
@@ -285,73 +286,74 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 			}
 
 			UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
-			FRigVMTemplateArgumentType ExecuteType(ExecuteStruct->GetStructCPPName(), ExecuteStruct);
+			const FRigVMTemplateArgumentType ExecuteType(*ExecuteStruct->GetStructCPPName(), ExecuteStruct);
+			const int32 ExecuteTypeIndex = FRigVMRegistry::Get().FindOrAddType(ExecuteType);
 		
 			switch(OpCode)
 			{
 				case ERigVMOpCode::ArrayReset:
 				case ERigVMOpCode::ArrayReverse:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::IO, ArrayValueTypes);
 					break;
 				}
 				case ERigVMOpCode::ArrayGetNum:
 				{
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::Input, ArrayValueTypes);
-					Arguments.Emplace(*NumName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+					Arguments.Emplace(*NumName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
 					break;
 				} 
 				case ERigVMOpCode::ArraySetNum:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::IO, ArrayValueTypes);
-					Arguments.Emplace(*NumName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+					Arguments.Emplace(*NumName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					break;
 				}
 				case ERigVMOpCode::ArrayGetAtIndex:
 				{
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::Input, ArrayValueTypes);
-					Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+					Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(*ElementName, ERigVMPinDirection::Output, ElementTypes);
 					break;
 				}  
 				case ERigVMOpCode::ArraySetAtIndex:
 				case ERigVMOpCode::ArrayInsert:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::IO, ArrayValueTypes);
-					Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+					Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					Arguments.Emplace(*ElementName, ERigVMPinDirection::Input, ElementTypes);
 					break;
 				}
 				case ERigVMOpCode::ArrayAdd:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::IO, ArrayValueTypes);
 					Arguments.Emplace(*ElementName, ERigVMPinDirection::Input, ElementTypes);
-					Arguments.Emplace(*IndexName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+					Arguments.Emplace(*IndexName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
 					break;
 				}
 				case ERigVMOpCode::ArrayRemove:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::IO, ArrayValueTypes);
-					Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
+					Arguments.Emplace(*IndexName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Int32);
 					break;
 				}
 				case ERigVMOpCode::ArrayFind:
 				{
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::Input, ArrayValueTypes);
 					Arguments.Emplace(*ElementName, ERigVMPinDirection::Input, ElementTypes);
-					Arguments.Emplace(*IndexName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
-					Arguments.Emplace(*SuccessName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::BoolType, nullptr));
+					Arguments.Emplace(*IndexName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
+					Arguments.Emplace(*SuccessName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Bool);
 					break;
 				}
 				case ERigVMOpCode::ArrayAppend:
 				case ERigVMOpCode::ArrayUnion:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::IO, ArrayValueTypes);
 					Arguments.Emplace(*OtherName, ERigVMPinDirection::Input, ArrayValueTypes);
 					break;
@@ -364,14 +366,14 @@ const FRigVMTemplate* URigVMArrayNode::GetTemplate() const
 				}
 				case ERigVMOpCode::ArrayIterator:
 				{
-					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteType);
+					Arguments.Emplace(*FRigVMStruct::ExecuteContextName.ToString(), ERigVMPinDirection::IO, ExecuteTypeIndex);
 					Arguments.Emplace(*ArrayName, ERigVMPinDirection::Input, ArrayValueTypes);
 					Arguments.Emplace(*ElementName, ERigVMPinDirection::Output, ElementTypes);
-					Arguments.Emplace(*IndexName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
-					Arguments.Emplace(*CountName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::Int32Type, nullptr));
-					Arguments.Emplace(*RatioName, ERigVMPinDirection::Output, FRigVMTemplateArgumentType(RigVMTypeUtils::FloatType, nullptr));
-					Arguments.Emplace(*ContinueName, ERigVMPinDirection::Hidden, ExecuteType);
-					Arguments.Emplace(*CompletedName, ERigVMPinDirection::Output, ExecuteType);
+					Arguments.Emplace(*IndexName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
+					Arguments.Emplace(*CountName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Int32);
+					Arguments.Emplace(*RatioName, ERigVMPinDirection::Output, RigVMTypeUtils::TypeIndex::Float);
+					Arguments.Emplace(*ContinueName, ERigVMPinDirection::Hidden, ExecuteTypeIndex);
+					Arguments.Emplace(*CompletedName, ERigVMPinDirection::Output, ExecuteTypeIndex);
 					break;
 				}
 				case ERigVMOpCode::ArrayDifference:
