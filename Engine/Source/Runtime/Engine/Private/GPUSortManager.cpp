@@ -291,7 +291,8 @@ void FGPUSortManager::FValueBuffer::Allocate(FAllocationInfo& OutInfo, int32 Val
 	check(UsedCount <= AllocatedCount);
 	if (EnumHasAnyFlags(Flags, EGPUSortFlags::ValuesAsInt32))
 	{
-		OutInfo.BufferSRV = Int32SRV;
+		// Note that the sorting shader reads the indices as UInt32 (see FParticleSortBuffers::InitRHI()).
+		OutInfo.BufferSRV = UInt32SRV;
 	}
 	else
 	{

@@ -5,7 +5,7 @@
 #include "/Engine/Private/GPUScene/GPUSceneWriter.ush"
 #include "NiagaraMeshParticleUtils.ush"
 
-Buffer<int> SortedIndices;
+Buffer<uint> SortedIndices;
 int SortedIndicesOffset;
 
 float3 SystemLWCTile;

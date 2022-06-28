@@ -63,6 +63,7 @@ FGlobalDynamicReadBuffer::FGlobalDynamicReadBuffer()
 {
 	FloatBufferPool = new FDynamicReadBufferPool();
 	Int32BufferPool = new FDynamicReadBufferPool();
+	UInt32BufferPool = new FDynamicReadBufferPool();
 	HalfBufferPool = new FDynamicReadBufferPool();
 }
 
@@ -83,6 +84,12 @@ void FGlobalDynamicReadBuffer::Cleanup()
 	{
 		delete Int32BufferPool;
 		Int32BufferPool = nullptr;
+	}
+
+	if (UInt32BufferPool)
+	{
+		delete UInt32BufferPool;
+		UInt32BufferPool = nullptr;
 	}
 
 	if (HalfBufferPool)
@@ -186,79 +193,54 @@ FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateInt32(ui
 	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_SINT, int32>(Int32BufferPool, Num);
 }
 
+FGlobalDynamicReadBuffer::FAllocation FGlobalDynamicReadBuffer::AllocateUInt32(uint32 Num)
+{
+	IncrementTotalAllocations(Num);
+	return FGlobalDynamicReadBuffer_AllocateInternal<PF_R32_UINT, uint32>(UInt32BufferPool, Num);
+}
+
 bool FGlobalDynamicReadBuffer::IsRenderAlarmLoggingEnabled() const
 {
 	return GMaxReadBufferRenderingBytesAllocatedPerFrame > 0 && TotalAllocatedSinceLastCommit >= (size_t)GMaxReadBufferRenderingBytesAllocatedPerFrame;
 }
 
+static void RemoveUnusedBuffers(FDynamicReadBufferPool* BufferPool)
+{
+	for (int32 BufferIndex = 0, NumBuffers = BufferPool->Buffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
+	{
+		FDynamicAllocReadBuffer& Buffer = BufferPool->Buffers[BufferIndex];
+		if (Buffer.MappedBuffer != nullptr)
+		{
+			Buffer.Unlock();
+		}
+		else if (GGlobalBufferNumFramesUnusedThresold && !Buffer.AllocatedByteCount)
+		{
+			++Buffer.NumFramesUnused;
+			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
+			{
+				// Remove the buffer, assumes they are unordered.
+				Buffer.Release();
+				BufferPool->Buffers.RemoveAtSwap(BufferIndex);
+				--BufferIndex;
+				--NumBuffers;
+			}
+		}
+	}
+}
+
 void FGlobalDynamicReadBuffer::Commit()
 {
-	for (int32 BufferIndex = 0, NumBuffers = FloatBufferPool->Buffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
-	{
-		FDynamicAllocReadBuffer& Buffer = FloatBufferPool->Buffers[BufferIndex];
-		if (Buffer.MappedBuffer != nullptr)
-		{
-			Buffer.Unlock();
-		}
-		else if (GGlobalBufferNumFramesUnusedThresold && !Buffer.AllocatedByteCount)
-		{
-			++Buffer.NumFramesUnused;
-			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
-			{
-				// Remove the buffer, assumes they are unordered.
-				Buffer.Release();
-				FloatBufferPool->Buffers.RemoveAtSwap(BufferIndex);
-				--BufferIndex;
-				--NumBuffers;
-			}
-		}
-	}
+	RemoveUnusedBuffers(FloatBufferPool);
 	FloatBufferPool->CurrentBuffer = nullptr;
 
-	for (int32 BufferIndex = 0, NumBuffers = Int32BufferPool->Buffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
-	{
-		FDynamicAllocReadBuffer& Buffer = Int32BufferPool->Buffers[BufferIndex];
-		if (Buffer.MappedBuffer != nullptr)
-		{
-			Buffer.Unlock();
-		}
-		else if (GGlobalBufferNumFramesUnusedThresold && !Buffer.AllocatedByteCount)
-		{
-			++Buffer.NumFramesUnused;
-			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
-			{
-				// Remove the buffer, assumes they are unordered.
-				Buffer.Release();
-				Int32BufferPool->Buffers.RemoveAtSwap(BufferIndex);
-				--BufferIndex;
-				--NumBuffers;
-			}
-		}
-	}
+	RemoveUnusedBuffers(Int32BufferPool);
 	Int32BufferPool->CurrentBuffer = nullptr;
 
-	for (int32 BufferIndex = 0, NumBuffers = HalfBufferPool->Buffers.Num(); BufferIndex < NumBuffers; ++BufferIndex)
-	{
-		FDynamicAllocReadBuffer& Buffer = HalfBufferPool->Buffers[BufferIndex];
-		if (Buffer.MappedBuffer != nullptr)
-		{
-			Buffer.Unlock();
-		}
-		else if (GGlobalBufferNumFramesUnusedThresold && !Buffer.AllocatedByteCount)
-		{
-			++Buffer.NumFramesUnused;
-			if (Buffer.NumFramesUnused >= GGlobalBufferNumFramesUnusedThresold)
-			{
-				// Remove the buffer, assumes they are unordered.
-				Buffer.Release();
-				HalfBufferPool->Buffers.RemoveAtSwap(BufferIndex);
-				--BufferIndex;
-				--NumBuffers;
-			}
-		}
-	}
-	HalfBufferPool->CurrentBuffer = nullptr;
+	RemoveUnusedBuffers(UInt32BufferPool);
+	UInt32BufferPool->CurrentBuffer = nullptr;
 
+	RemoveUnusedBuffers(HalfBufferPool);
+	HalfBufferPool->CurrentBuffer = nullptr;
 
 	TotalAllocatedSinceLastCommit = 0;
 }

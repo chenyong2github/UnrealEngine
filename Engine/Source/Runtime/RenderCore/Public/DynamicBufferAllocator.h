@@ -76,6 +76,7 @@ public:
 	FAllocation AllocateHalf(uint32 Num);
 	FAllocation AllocateFloat(uint32 Num);
 	FAllocation AllocateInt32(uint32 Num);
+	FAllocation AllocateUInt32(uint32 Num);
 
 	/**
 	* Commits allocated memory to the GPU.
@@ -98,6 +99,7 @@ protected:
 	FDynamicReadBufferPool* HalfBufferPool;
 	FDynamicReadBufferPool* FloatBufferPool;
 	FDynamicReadBufferPool* Int32BufferPool;
+	FDynamicReadBufferPool* UInt32BufferPool;
 
 	/** A total of all allocations made since the last commit. Used to alert about spikes in memory usage. */
 	size_t TotalAllocatedSinceLastCommit;

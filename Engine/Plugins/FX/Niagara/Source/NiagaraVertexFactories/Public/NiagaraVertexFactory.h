@@ -25,12 +25,12 @@ public:
 	{
 		// create a static vertex buffer
 		FRHIResourceCreateInfo CreateInfo(TEXT("FNiagaraNullSortedIndicesVertexBuffer"));
-		VertexBufferRHI = RHICreateBuffer(sizeof(int32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
-		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, sizeof(int32), RLM_WriteOnly);
-		FMemory::Memzero(BufferData, sizeof(int32));
+		VertexBufferRHI = RHICreateBuffer(sizeof(uint32), BUF_Static | BUF_VertexBuffer | BUF_ShaderResource, 0, ERHIAccess::VertexOrIndexBuffer | ERHIAccess::SRVMask, CreateInfo);
+		void* BufferData = RHILockBuffer(VertexBufferRHI, 0, sizeof(uint32), RLM_WriteOnly);
+		FMemory::Memzero(BufferData, sizeof(uint32));
 		RHIUnlockBuffer(VertexBufferRHI);
 
-		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(int32), PF_R32_SINT);
+		VertexBufferSRV = RHICreateShaderResourceView(VertexBufferRHI, sizeof(uint32), PF_R32_UINT);
 	}
 
 	virtual void ReleaseRHI() override

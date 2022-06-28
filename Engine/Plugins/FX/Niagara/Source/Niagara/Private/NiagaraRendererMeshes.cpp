@@ -634,7 +634,7 @@ uint32 FNiagaraRendererMeshes::PerformSortAndCull(FParticleMeshRenderData& Parti
 		else
 		{
 			FGlobalDynamicReadBuffer::FAllocation SortedIndices;
-			SortedIndices = ReadBuffer.AllocateInt32(NumInstances);
+			SortedIndices = ReadBuffer.AllocateUInt32(NumInstances);
 			NumInstances = SortAndCullIndices(SortInfo, *ParticleMeshRenderData.SourceParticleData, SortedIndices);
 			ParticleMeshRenderData.ParticleSortedIndicesSRV = SortedIndices.SRV;
 			ParticleMeshRenderData.ParticleSortedIndicesOffset = 0;
