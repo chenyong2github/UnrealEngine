@@ -138,6 +138,11 @@ public:
 	bool AddPackageActivity(const FConcertSyncActivity& InPackageActivity, const FConcertPackageInfo& InPackageInfo, FConcertPackageDataStream& InPackageDataStream, int64& OutActivityId, int64& OutPackageEventId);
 
 	/**
+	 * Iterates the given range, calls UpdateCallback on each element, and commits the update.
+	 */
+	bool SetActivities(const TSet<int64>& ActivityIds, TFunctionRef<void(FConcertSyncActivity&)> UpdateCallback);
+	
+	/**
 	 * Set a connection activity in this database, creating or replacing it.
 	 * @note The endpoint ID referenced by the activity must exist in the database (@see SetEndpoint).
 	 * @note This function is expected to be called on the client to populate its version of the session database from data synced from the server.
@@ -383,6 +388,17 @@ public:
 	 */
 	bool EnumerateActivityIdsAndEventTypesInRange(const int64 InFirstActivityId, const int64 InMaxNumActivities, TFunctionRef<bool(int64, EConcertSyncActivityEventType)> InCallback) const;
 
+	/**
+	 * Enumerate the IDs, event types and flags of the activities in this database in the given range.
+	 *
+	 * @param InFirstActivityId			The first activity ID to include in the results.
+	 * @param InMaxNumActivities		The maximum number of activities to include in the results.
+	 * @param InCallback				Callback invoked for each activity; return true to continue enumeration, or false to stop.
+	 *
+	 * @return True if the activities were enumerated without error, false otherwise.
+	 */
+	bool EnumerateActivityIdsWithEventTypesAndFlagsInRange(const int64 InFirstActivityId, const int64 InMaxNumActivities, TFunctionRef<bool(int64, EConcertSyncActivityEventType, EConcertSyncActivityFlags)> InCallback) const;
+	
 	/**
 	 * Get the maximum ID of the activities in this database.
 	 *

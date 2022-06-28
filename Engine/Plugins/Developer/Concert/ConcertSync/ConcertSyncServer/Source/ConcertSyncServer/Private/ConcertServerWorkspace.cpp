@@ -227,8 +227,13 @@ void FConcertServerWorkspace::HandleSyncRequestedEvent(const FConcertSessionCont
 	});
 
 	// Sync all activity
-	LiveSession->GetSessionDatabase().EnumerateActivityIdsAndEventTypesInRange(FirstActivityIdToSync, NumActivitiesToSync, [this, &Context](const int64 InActivityId, const EConcertSyncActivityEventType InEventType)
+	LiveSession->GetSessionDatabase().EnumerateActivityIdsWithEventTypesAndFlagsInRange(FirstActivityIdToSync, NumActivitiesToSync, [this, &Context](const int64 InActivityId, const EConcertSyncActivityEventType InEventType, const EConcertSyncActivityFlags InFlags)
 	{
+		if ((InFlags & EConcertSyncActivityFlags::Muted) != EConcertSyncActivityFlags::None)
+		{
+			return true;
+		}
+		
 		SyncCommandQueue->QueueCommand(Context.SourceEndpointId, [this, SyncActivityId = InActivityId, SyncEventType = InEventType](const FConcertServerSyncCommandQueue::FSyncCommandContext& InSyncCommandContext, const FGuid& InEndpointId)
 		{
 			switch (SyncEventType)

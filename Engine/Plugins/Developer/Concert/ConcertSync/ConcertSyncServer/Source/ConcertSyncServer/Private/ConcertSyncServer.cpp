@@ -416,7 +416,7 @@ bool FConcertSyncServer::GetSessionActivitiesInternal(const FConcertSyncSessionD
 	OutActivities.Reset(FMath::Min(ActivityCount, MaxActivityId));
 
 	// Retrieve the generic part of activities.
-	Database.EnumerateActivityIdsAndEventTypesInRange(FromActivityId, ActivityCount, [&Database, &OutActivities, &OutEndpointClientInfoMap, bIncludeDetails](const int64 InActivityId, const EConcertSyncActivityEventType InEventType)
+	Database.EnumerateActivityIdsWithEventTypesAndFlagsInRange(FromActivityId, ActivityCount, [&Database, &OutActivities, &OutEndpointClientInfoMap, bIncludeDetails](const int64 InActivityId, const EConcertSyncActivityEventType InEventType, const EConcertSyncActivityFlags InFlags)
 	{
 		// Maps endpoint client id to the client info.
 		auto UpdateEndpointMap = [](const FConcertSyncSessionDatabase& Database, FGuid EndpointId, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap)
@@ -473,7 +473,11 @@ bool FConcertSyncServer::GetSessionActivitiesInternal(const FConcertSyncSessionD
 			}
 		}
 
-		OutActivities.Add(MoveTemp(SerializedSyncActivityPayload));
+		const bool bIsAllowed = (InFlags & EConcertSyncActivityFlags::Muted) == EConcertSyncActivityFlags::None; 
+		if (bIsAllowed)
+		{
+			OutActivities.Add(MoveTemp(SerializedSyncActivityPayload));
+		}
 
 		return true; // Continue until 'ActivityCount' is fetched or the last activity is reached.
 	});

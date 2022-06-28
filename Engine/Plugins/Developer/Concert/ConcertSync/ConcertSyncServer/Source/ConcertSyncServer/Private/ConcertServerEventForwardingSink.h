@@ -86,7 +86,7 @@ public:
 		return bSuccess;
 	}
 
-	virtual bool GetSessionActivities(const IConcertServer& InServer, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& OutActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, bool bIncludeDetails) final
+	virtual bool GetUnmutedSessionActivities(const IConcertServer& InServer, const FGuid& SessionId, int64 FromActivityId, int64 ActivityCount, TArray<FConcertSessionSerializedPayload>& OutActivities, TMap<FGuid, FConcertClientInfo>& OutEndpointClientInfoMap, bool bIncludeDetails) final
 	{
 		return This()->GetSessionActivitiesImpl(InServer, SessionId, FromActivityId, ActivityCount, OutActivities, OutEndpointClientInfoMap, bIncludeDetails);
 	}

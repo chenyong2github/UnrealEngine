@@ -162,6 +162,18 @@ struct FConcertSyncPackageEventData
 	FConcertPackageDataStream PackageDataStream;
 };
 
+UENUM()
+enum class EConcertSyncActivityFlags : uint8
+{
+	None = 0,
+	/**
+	 * This activity will never be sent to clients by the server.
+	 * For all activities a client receives (Flags & EConcertSyncActivityFlags::Muted) == EConcertSyncActivityFlags::None holds. 
+	 */
+	Muted = 1 << 0,
+};
+ENUM_CLASS_FLAGS(EConcertSyncActivityFlags)
+
 /** Data for an activity entry in a Concert Sync Session */
 USTRUCT()
 struct FConcertSyncActivity
@@ -175,6 +187,10 @@ struct FConcertSyncActivity
 	/** True if this activity is included for tracking purposes only, and can be ignored when migrating a database */
 	UPROPERTY()
 	bool bIgnored = false;
+
+	/** Additional information about this activity */
+	UPROPERTY()
+	EConcertSyncActivityFlags Flags = EConcertSyncActivityFlags::None;
 
 	/** The ID of the endpoint that produced the activity */
 	UPROPERTY()

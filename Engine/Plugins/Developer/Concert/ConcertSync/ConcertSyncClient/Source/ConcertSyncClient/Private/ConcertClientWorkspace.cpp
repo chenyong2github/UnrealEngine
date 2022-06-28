@@ -910,6 +910,7 @@ void FConcertClientWorkspace::HandleWorkspaceSyncActivityEvent(const FConcertSes
 
 	check(ActivityPayload.IsValid() && ActivityPayload.GetStruct()->IsChildOf(FConcertSyncActivity::StaticStruct()));
 	FConcertSyncActivity* Activity = (FConcertSyncActivity*)ActivityPayload.GetStructMemory();
+	ensureAlwaysMsgf((Activity->Flags & EConcertSyncActivityFlags::Muted) == EConcertSyncActivityFlags::None, TEXT("Clients are not supposed to receive muted activities!"));
 
 	// Update slow task dialog
 	if (InitialSyncSlowTask.IsValid())
