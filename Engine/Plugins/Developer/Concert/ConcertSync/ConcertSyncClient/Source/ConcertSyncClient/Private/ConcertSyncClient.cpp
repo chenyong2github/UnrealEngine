@@ -12,6 +12,7 @@
 #include "ConcertSourceControlProxy.h"
 
 #define LOCTEXT_NAMESPACE "ConcertSyncClient"
+LLM_DEFINE_TAG(Concert_ConcertSyncClient);
 
 FConcertSyncClient::FConcertSyncClient(const FString& InRole, IConcertClientPackageBridge* InPackageBridge, IConcertClientTransactionBridge* InTransactionBridge)
 	: ConcertClient(IConcertModule::Get().CreateClient(InRole))
@@ -38,6 +39,7 @@ FConcertSyncClient::~FConcertSyncClient()
 
 void FConcertSyncClient::Startup(const UConcertClientConfig* InClientConfig, const EConcertSyncSessionFlags InSessionFlags)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertSyncClient);
 	SessionFlags = InSessionFlags;
 
 	// Boot the client instance

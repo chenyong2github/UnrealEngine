@@ -12,6 +12,8 @@
 #include "Backends/CborStructSerializerBackend.h"
 #include "Backends/CborStructDeserializerBackend.h"
 
+LLM_DEFINE_TAG(Concert_ConcertClientInfo);
+
 void FConcertInstanceInfo::Initialize()
 {
 	InstanceId = FApp::GetInstanceId();
@@ -77,6 +79,7 @@ FText FConcertServerInfo::ToDisplayString() const
 
 void FConcertClientInfo::Initialize()
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClientInfo);
 	InstanceInfo.Initialize();
 	DeviceName = FPlatformProcess::ComputerName();
 	PlatformName = FPlatformProperties::PlatformName();

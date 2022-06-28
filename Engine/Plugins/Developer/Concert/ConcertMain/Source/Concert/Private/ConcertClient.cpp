@@ -22,6 +22,7 @@
 
 #define LOCTEXT_NAMESPACE "ConcertClient"
 
+LLM_DEFINE_TAG(Concert_ConcertClient);
 
 namespace ConcertUtil
 {
@@ -672,6 +673,7 @@ const FString& FConcertClient::GetRole() const
 
 void FConcertClient::Configure(const UConcertClientConfig* InSettings)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
 	ClientInfo.Initialize();
 	check(InSettings != nullptr);
 	Settings = TStrongObjectPtr<const UConcertClientConfig>(InSettings);
@@ -709,6 +711,7 @@ bool FConcertClient::IsStarted() const
 
 void FConcertClient::Startup()
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertClient);
 	check(IsConfigured());
 	if (!ClientAdminEndpoint.IsValid() && EndpointProvider.IsValid())
 	{

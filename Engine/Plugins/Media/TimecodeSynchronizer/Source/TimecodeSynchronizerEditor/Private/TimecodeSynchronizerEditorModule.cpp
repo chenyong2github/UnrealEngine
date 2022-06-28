@@ -22,6 +22,7 @@ class FTimecodeSynchronizerEditorModule : public ITimecodeSynchronizerEditorModu
 public:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYNAME(TEXT("TimecodeSynchronizerEditor"));
 		// Disable any UI feature if running in command mode
 		if (!IsRunningCommandlet())
 		{

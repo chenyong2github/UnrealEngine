@@ -14,6 +14,8 @@
 #include "Misc/DateTime.h"
 #include "Stats/Stats.h"
 
+LLM_DEFINE_TAG(Concert_ConcertLocalEndpoint);
+
 class FConcertLocalEndpointKeepAliveRunnable : public FRunnable
 {
 public:
@@ -326,6 +328,7 @@ FConcertRemoteEndpointPtr FConcertLocalEndpoint::FindRemoteEndpoint(const FMessa
 
 bool FConcertLocalEndpoint::HandleTick(float DeltaTime)
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertLocalEndpoint);
 	SCOPED_CONCERT_TRACE(FConcertLocalEndpoint_HandleTick);
 
 

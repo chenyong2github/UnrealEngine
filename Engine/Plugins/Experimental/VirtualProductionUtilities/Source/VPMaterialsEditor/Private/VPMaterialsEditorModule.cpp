@@ -10,6 +10,7 @@ void FVPMaterialsEditorModule::StartupModule()
 	// Add bottom extender for material item
 	FMaterialList::OnAddMaterialItemViewExtraBottomWidget.AddLambda([](const TSharedRef<FMaterialItemView>& InMaterialItemView, UActorComponent* InCurrentComponent, IDetailLayoutBuilder& InDetailBuilder, TArray<TSharedPtr<SWidget>>& OutExtensions)
 	{
+		LLM_SCOPE_BYNAME("VirtualProduction/VPMaterialsEditor");
 		OutExtensions.Add(SNew(SMaterialDynamicView, InMaterialItemView, InCurrentComponent));
 	});
 }

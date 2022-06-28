@@ -40,6 +40,7 @@
 	#include "SDisasterRecoveryHub.h"
 #endif
 
+LLM_DEFINE_TAG(Concert_DisasterRecoveryClient);
 DEFINE_LOG_CATEGORY(LogDisasterRecovery);
 
 #define LOCTEXT_NAMESPACE "DisasterRecoveryClient"
@@ -78,6 +79,8 @@ class FDisasterRecoveryClientModule : public IDisasterRecoveryClientModule
 public:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Concert_DisasterRecoveryClient);
+
 		if (!FApp::HasProjectName())
 		{
 			UE_LOG(LogDisasterRecovery, Warning, TEXT("The current project doesn't have any name. Recovery Hub will be disabled! Please set your project name."));

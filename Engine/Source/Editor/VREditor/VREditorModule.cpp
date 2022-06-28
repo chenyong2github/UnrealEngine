@@ -67,6 +67,7 @@ namespace VREd
 
 void FVREditorModule::StartupModule()
 {
+	LLM_SCOPE_BYNAME(TEXT("VREditor"));
 	RadialMenuExtender = MakeShareable(new FExtender());
 }
 

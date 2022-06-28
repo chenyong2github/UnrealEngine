@@ -23,7 +23,7 @@
 #include "ToolMenus.h"
 #include "Widgets/SOpenColorIODisplay.h"
 
-
+LLM_DEFINE_TAG(Compositing_OpenColorIOEditor);
 DEFINE_LOG_CATEGORY(LogOpenColorIOEditor);
 
 #define LOCTEXT_NAMESPACE "OpenColorIOEditorModule"
@@ -31,6 +31,7 @@ DEFINE_LOG_CATEGORY(LogOpenColorIOEditor);
 
 void FOpenColorIOEditorModule::StartupModule()
 {
+	LLM_SCOPE_BYTAG(Compositing_OpenColorIOEditor);
 	FWorldDelegates::OnPreWorldInitialization.AddRaw(this, &FOpenColorIOEditorModule::OnWorldInit);
 
 	// Register asset type actions for OpenColorIOConfiguration class

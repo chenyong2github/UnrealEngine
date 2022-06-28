@@ -14,6 +14,7 @@ class FRemoteSessionEditorModule : public IModuleInterface
 public:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYNAME(TEXT("RemoteSessionEditor"));
 		FRemoteSessionEditorStyle::Register();
 		SRemoteSessionStream::RegisterNomadTabSpawner();
 	}

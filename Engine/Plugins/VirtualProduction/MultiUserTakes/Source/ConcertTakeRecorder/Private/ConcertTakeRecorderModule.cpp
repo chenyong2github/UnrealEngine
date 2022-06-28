@@ -6,6 +6,8 @@
 #include "ConcertTakeRecorderManager.h"
 #include "ConcertTakeRecorderStyle.h"
 
+LLM_DEFINE_TAG(Concert_ConcertTakeRecorder);
+
 /**
  * Module that adds multi user synchronization to take recorder.
  */
@@ -14,6 +16,7 @@ class FConcertTakeRecorderModule : public IModuleInterface
 private:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Concert_ConcertTakeRecorder);
 		FConcertTakeRecorderStyle::Initialize();
 		ConcertManager = MakeUnique<FConcertTakeRecorderManager>();
 	}

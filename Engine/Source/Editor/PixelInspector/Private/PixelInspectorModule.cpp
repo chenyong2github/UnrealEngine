@@ -123,6 +123,7 @@ void FPixelInspectorModule::OnTabClosed(TSharedRef<SDockTab> TabBeingClosed)
 
 void FPixelInspectorModule::RegisterTabSpawner(const TSharedPtr<FWorkspaceItem>& WorkspaceGroup)
 {
+	LLM_SCOPE_BYNAME(TEXT("PixelInspector"));
 	if (bHasRegisteredTabSpawners)
 	{
 		UnregisterTabSpawner();

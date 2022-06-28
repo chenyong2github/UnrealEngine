@@ -80,6 +80,8 @@ static const TCHAR MultiUserSlateServerAppName[] = TEXT("UnrealMultiUserSlateSer
 
 #define LOCTEXT_NAMESPACE "MultiUserClient"
 
+LLM_DEFINE_TAG(Concert_MultiUserClient);
+
 namespace MultiUserClientUtil
 {
 
@@ -593,6 +595,8 @@ class FMultiUserClientModule : public IMultiUserClientModule
 public:
 	virtual void StartupModule() override
 	{
+		LLM_SCOPE_BYTAG(Concert_MultiUserClient);
+
 		// Hook to the PreExit callback, needed to execute UObject related shutdowns
 		FCoreDelegates::OnPreExit.AddRaw(this, &FMultiUserClientModule::HandleAppPreExit);
 

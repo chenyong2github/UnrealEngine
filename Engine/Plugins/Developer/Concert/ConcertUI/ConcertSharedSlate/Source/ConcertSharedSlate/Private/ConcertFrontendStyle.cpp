@@ -8,6 +8,8 @@
 #include "SlateOptMacros.h"
 #include "Styling/StarshipCoreStyle.h"
 
+LLM_DEFINE_TAG(Concert_ConcertFrontendStyle);
+
 #define IMAGE_PLUGIN_BRUSH( RelativePath, ... ) FSlateImageBrush( FConcertFrontendStyle::InContent( RelativePath, ".png" ), __VA_ARGS__ )
 #define IMAGE_BRUSH(RelativePath, ...) FSlateImageBrush(StyleSet->RootToContentDir(RelativePath, TEXT(".png")), __VA_ARGS__)
 #define BOX_BRUSH(RelativePath, ... ) FSlateBoxBrush( StyleSet->RootToContentDir(RelativePath, TEXT(".png") ), __VA_ARGS__ )
@@ -28,6 +30,7 @@ FName FConcertFrontendStyle::GetStyleSetName()
 
 void FConcertFrontendStyle::Initialize()
 {
+	LLM_SCOPE_BYTAG(Concert_ConcertFrontendStyle);
 	// Only register once
 	if (StyleSet.IsValid())
 	{
