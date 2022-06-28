@@ -184,7 +184,8 @@ struct FHairCardsGeometry
 	TArray<FVector3f>Tangents;
 	TArray<FVector3f>Positions;
 	TArray<uint32>   Indices;
-	TArray<float>    CoordU; // Transient data storing [0..1] parametric value along main axis. This is used for generating guides & interpolation data
+	TArray<float>    CoordU;  // Transient data storing [0..1] parametric value along main axis. This is used for generating guides & interpolation data
+	TArray<FVector2f>LocalUVs;// Transient data storing [0..1, 0..1] local UV of the cards. U is aligned with the card's main direction, and V is aligned perpendicularity
 
 	// Vertex offset and vertex count of each cards geometry
 	// No longer used, kept only for backward compatibility
