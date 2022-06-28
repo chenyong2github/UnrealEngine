@@ -1534,9 +1534,13 @@ void FControlRigParameterTrackEditor::OnAddTransformKeysForSelectedObjects(EMovi
 
 	TMap<UControlRig*, TArray<FRigElementKey>> SelectedControls;
 	ControlRigEditMode->GetAllSelectedControls(SelectedControls);
-
+	if (SelectedControls.Num() <= 0)
+	{
+		return;
+	}
 	const EControlRigContextChannelToKey ChannelsToKey = static_cast<EControlRigContextChannelToKey>(Channel); 
-	
+	FScopedTransaction KeyTransaction(LOCTEXT("SetKeysOnControls", "Set Keys On Controls"), !GIsTransacting);
+
 	for (const TPair<UControlRig*, TArray<FRigElementKey>>& Selection : SelectedControls)
 	{
 		UControlRig* ControlRig = Selection.Key;
