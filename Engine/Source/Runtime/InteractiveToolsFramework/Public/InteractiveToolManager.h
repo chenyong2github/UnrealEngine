@@ -238,6 +238,23 @@ public:
 	/** Let active Tools do their screen space drawing. Called by UInteractiveToolsContext. */
 	virtual void DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI);
 
+	/**
+	 * A Tool (or other code) can call this function to request that the Tool be deactivated.
+	 * The Tool must be active. By default, ::DeactivateTool() wil be called. However if some
+	 * external code has bound to the OnToolShutdownRequest delegate, the request will be
+	 * forwarded to that function first (::DeactivateTool() will still be called if it returns false)
+	 */
+	virtual bool PostActiveToolShutdownRequest(UInteractiveTool* Tool, EToolShutdownType ShutdownType);
+
+	DECLARE_DELEGATE_RetVal_ThreeParams(bool, FOnToolShutdownRequest, UInteractiveToolManager*, UInteractiveTool*, EToolShutdownType);
+	/**
+	 * If bound, OnToolShutdownRequest is called by PostActiveToolShutdownRequest to optionally handle
+	 * requests to shut down a Tool (which may be sent by the Tool itself). Return true to indicate
+	 * that the request will be handled, otherwise ::DeactivateTool() will be called
+	 */
+	FOnToolShutdownRequest OnToolShutdownRequest;
+	 
+
 
 	//
 	// access to APIs, etc

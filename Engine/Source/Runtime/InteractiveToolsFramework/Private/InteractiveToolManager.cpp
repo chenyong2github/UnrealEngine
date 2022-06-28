@@ -434,6 +434,27 @@ bool UInteractiveToolManager::RequestSelectionChange(const FSelectedOjectsChange
 }
 
 
+bool UInteractiveToolManager::PostActiveToolShutdownRequest(UInteractiveTool* Tool, EToolShutdownType ShutdownType)
+{
+	bool bIsActiveTool = (Tool != nullptr) && (ActiveLeftTool == Tool || ActiveRightTool == Tool);
+	if (!bIsActiveTool)
+	{
+		return false;
+	}
+
+	bool bHandled = false;
+	if (OnToolShutdownRequest.IsBound())
+	{
+		bHandled = OnToolShutdownRequest.Execute(this, Tool, ShutdownType);
+	}
+	if (!bHandled)
+	{
+		EToolSide WhichSide = (ActiveLeftTool == Tool) ? EToolSide::Left : EToolSide::Right;
+		DeactivateTool(WhichSide, ShutdownType);
+	}
+	return true;
+}
+
 
 
 
