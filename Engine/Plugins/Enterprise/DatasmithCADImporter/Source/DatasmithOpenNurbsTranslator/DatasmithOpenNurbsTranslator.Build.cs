@@ -35,9 +35,9 @@ namespace UnrealBuildTool.Rules
 				}
 			);
 
-			if (System.Type.GetType("OpenNurbs6") != null)
+			if (System.Type.GetType("OpenNurbs7") != null)
 			{
-				PrivateDependencyModuleNames.Add("OpenNurbs6");
+				PrivateDependencyModuleNames.Add("OpenNurbs7");
 			}
 
             if (Target.Type == TargetType.Editor)
