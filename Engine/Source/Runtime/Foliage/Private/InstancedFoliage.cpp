@@ -543,7 +543,7 @@ UFoliageType::UFoliageType(const FObjectInitializer& ObjectInitializer)
 	OverriddenLightMapRes = 8;
 	bUseAsOccluder = false;
 	bVisibleInRayTracing = true;
-	bEvaluateWorldPositionOffset = false;
+	bEvaluateWorldPositionOffset = true;
 
 	BodyInstance.SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 

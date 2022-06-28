@@ -201,7 +201,7 @@ UStaticMeshComponent::UStaticMeshComponent(const FObjectInitializer& ObjectIniti
 	bForceNavigationObstacle = true;
 	bDisallowMeshPaintPerInstance = false;
 	bDisallowNanite = false;
-	bEvaluateWorldPositionOffset = false;
+	bEvaluateWorldPositionOffset = true;
 	bEvaluateWorldPositionOffsetInRayTracing = false;
 	bInitialEvaluateWorldPositionOffset = false;
 	DistanceFieldIndirectShadowMinVisibility = .1f;
@@ -372,7 +372,7 @@ void UStaticMeshComponent::Serialize(FArchive& Ar)
 	Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) < FFortniteMainBranchObjectVersion::RemappedEvaluateWorldPositionOffsetInRayTracing)
 	{
 		bEvaluateWorldPositionOffsetInRayTracing = bEvaluateWorldPositionOffset;
-		bEvaluateWorldPositionOffset = false; // Default WPO evaluation off
+		bEvaluateWorldPositionOffset = true; // Default WPO evaluation on
 	}
 
 	NotifyIfStaticMeshChanged();
