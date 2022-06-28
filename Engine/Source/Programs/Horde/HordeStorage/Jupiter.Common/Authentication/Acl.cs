@@ -80,7 +80,7 @@ public class AclEntry
                 int separatorIndex = expectedClaim.IndexOf('=', StringComparison.InvariantCultureIgnoreCase);
                 string claimName = expectedClaim.Substring(0, separatorIndex);
                 string claimValue = expectedClaim.Substring(separatorIndex + 1);
-                if (user.HasClaim(claim => claim.Type == claimName && claim.Value == claimValue))
+                if (user.HasClaim(claim => string.Equals(claim.Type, claimName, StringComparison.OrdinalIgnoreCase) && string.Equals(claim.Value, claimValue, StringComparison.OrdinalIgnoreCase)))
                 {
                     claimFound = true;
                 }
