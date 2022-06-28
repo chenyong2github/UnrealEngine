@@ -5,17 +5,18 @@
 #include "NaniteDisplacedMesh.h"
 #include "NaniteDisplacedMeshEditorModule.h"
 
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetToolsModule.h"
+#include "DerivedDataBuildVersion.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Engine/Selection.h"
 #include "Engine/StaticMesh.h"
-#include "DerivedDataBuildVersion.h"
-#include "AssetRegistry/AssetRegistryModule.h"
-#include "AssetToolsModule.h"
+#include "FileHelpers.h"
 #include "IAssetTools.h"
 #include "Misc/StringBuilder.h"
 #include "Subsystems/EditorAssetSubsystem.h"
-#include "FileHelpers.h"
+#include "UObject/LinkerLoad.h"
 #include "UObject/Package.h"
 
 #define LOCTEXT_NAMESPACE "NaniteDisplacedMeshEditor"
@@ -80,25 +81,50 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 	// Generate unique asset path
 	FString DisplacedAssetPath = FPaths::Combine(DisplacedMeshFolder, DisplacedMeshName);
 
-	UEditorAssetSubsystem* EditorAssetSubsystem = GEditor->GetEditorSubsystem<UEditorAssetSubsystem>();
-	if (EditorAssetSubsystem->DoesAssetExist(DisplacedAssetPath))
+	// The mesh needed might already exist. Using load object because it's faster then using the asset registry which might still be loading
+	if (UNaniteDisplacedMesh* LoadedDisplacedMesh = LoadObject<UNaniteDisplacedMesh>(nullptr, *DisplacedAssetPath))
 	{
-		// The Nanite displaced mesh permutation needed already exists.
-		UObject* LoadedObject = EditorAssetSubsystem->LoadAsset(DisplacedAssetPath);
-		if (UNaniteDisplacedMesh* LoadedDisplacedMesh = Cast<UNaniteDisplacedMesh>(LoadedObject))
+		// Finish loading the object if needed
+		if (LoadedDisplacedMesh->HasAnyFlags(RF_NeedLoad))
 		{
-			// The asset path may match, but someone could have (incorrectly) directly modified the parameters
-			// on the displaced mesh asset.
-			if (LoadedDisplacedMesh->Parameters == InParameters)
-			//if (GetAggregatedId(*LoadedDisplacedMesh) == GetAggregatedId(InParameters))
+			if (FLinkerLoad* TextureLinker = LoadedDisplacedMesh->GetLinker())
 			{
-				return LoadedDisplacedMesh;
+				TextureLinker->Preload(LoadedDisplacedMesh);
 			}
 		}
 
-		// Existing asset was wrong type, or the IDs don't match; sanitize
-		bool bDeleteOK = EditorAssetSubsystem->DeleteAsset(DisplacedAssetPath);
-		ensure(bDeleteOK);
+		LoadedDisplacedMesh->ConditionalPostLoad();
+
+
+		// The asset path may match, but someone could have (incorrectly) directly modified the parameters
+		// on the displaced mesh asset.
+		if (LoadedDisplacedMesh->Parameters == InParameters)
+		{
+			return LoadedDisplacedMesh;
+		}
+		else
+		{
+			FString LoadedDisplacedMeshId = GetAggregatedIdString(LoadedDisplacedMesh->Parameters);
+
+			UE_LOG(
+				LogNaniteDisplacedMesh,
+				Error,
+				TEXT("The NaniteDisplacementMesh parameters doesn't match the guid from its name (Current parameters: %s). Updating parameters of (%s). Consider saving the displaced mesh again to remove this error."),
+				*LoadedDisplacedMeshId,
+				*(LoadedDisplacedMesh->GetPathName())
+			);
+
+			// If this check assert we will need to update how we generate the id because we have a hash collision.
+			check(LoadedDisplacedMeshId != GetAggregatedIdString(InParameters));
+
+			LoadedDisplacedMesh->PreEditChange(nullptr);
+			LoadedDisplacedMesh->Parameters = InParameters;
+			LoadedDisplacedMesh->bIsEditable = false;
+			LoadedDisplacedMesh->PostEditChange();
+
+
+			return LoadedDisplacedMesh;
+		}
 	}
 
 	if (bCreateTransientAsset)
