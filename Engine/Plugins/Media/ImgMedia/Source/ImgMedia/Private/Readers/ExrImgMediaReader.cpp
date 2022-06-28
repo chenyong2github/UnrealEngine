@@ -55,19 +55,19 @@ bool FExrImgMediaReader::GetFrameInfo(const FString& ImagePath, FImgMediaFrameIn
 	return GetInfo(ImagePath, OutInfo);
 }
 
-FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
+FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTiles
 	( uint16* Buffer
 	, int64 BufferSize
 	, const FString& ImagePath
 	, int32 FrameId
 	, const TArray<FIntRect>& TileRegions
 	, TSharedPtr<FSampleConverterParameters> ConverterParams
-	, const int32 CurrentMipLevel)
+	, const int32 CurrentMipLevel
+	, TArray<UE::Math::TIntPoint<int64>>& OutBufferRegionsToCopy)
 {
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
-	EReadResult bResult = Success;
+	EReadResult Result = Success;
 
-	int64 CurrentBufferPos = 0;
 	FExrReader ChunkReader;
 	int MipLevelDiv = 1 << CurrentMipLevel;
 
@@ -99,6 +99,7 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 		}
 	}
 	{
+		int64 CurrentBufferPos = 0;
 		TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(TEXT("FExrImgMediaReader_ReadTilesCustom_ReadTiles")));
 		for (const FIntRect& TileRegion : TileRegions)
 		{
@@ -109,8 +110,8 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 					FScopeLock RegionScopeLock(&CanceledFramesCriticalSection);
 					if (CanceledFrames.Remove(FrameId) > 0)
 					{
-						UE_LOG(LogImgMedia, Warning, TEXT("Reader %p: Canceling Frame %i At tile row # %i"), this, FrameId, TileRow);
-						bResult = Cancelled;
+						UE_LOG(LogImgMedia, Verbose, TEXT("Reader %p: Canceling Frame %i At tile row # %i"), this, FrameId, TileRow);
+						Result = Cancelled;
 						break;
 					}
 				}
@@ -130,7 +131,7 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 				if (!ChunkReader.GetByteOffsetForTile(StartTileIndex, MipLevel, ByteOffsetStart)
 					|| !ChunkReader.GetByteOffsetForTile(EndTileIndex, MipLevel, ByteOffsetEnd))
 				{
-					bResult = Fail;
+					Result = Fail;
 					break;
 				}
 
@@ -141,10 +142,12 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 
 				if (!ChunkReader.ReadExrImageChunk(reinterpret_cast<char*>(Buffer) + CurrentBufferPos, ByteChunkToRead))
 				{
-					bResult = Fail;
+					Result = Fail;
 					break;
 				}
+				OutBufferRegionsToCopy.Add({ CurrentBufferPos, ByteChunkToRead });
 			}
+
 		}
 	}
 	{
@@ -154,7 +157,8 @@ FExrImgMediaReader::EReadResult FExrImgMediaReader::ReadTilesCustom
 		{
 			return Fail;
 		}
-		return bResult;
+
+		return Result;
 	}
 #else
 	return Fail;
@@ -264,7 +268,8 @@ bool FExrImgMediaReader::ReadFrame(int32 FrameId, const TMap<int32, FImgMediaTil
 					ConverterParams->NumMipLevels = Loader->GetNumMipLevels();
 					ConverterParams->bCustomExr = OutFrame->Info.FormatName == TEXT("EXR CUSTOM");
 
-					EReadResult ReadResult = ReadTilesCustom((uint16*)MipDataPtr, GetMipBufferTotalSize(Dim / MipLevelDiv), Image, FrameId, TileRegions, ConverterParams, CurrentMipLevel);
+					TArray<UE::Math::TIntPoint<int64>> OutBufferRegionsToCopy;
+					EReadResult ReadResult = ReadTiles((uint16*)MipDataPtr, GetMipBufferTotalSize(Dim / MipLevelDiv), Image, FrameId, TileRegions, ConverterParams, CurrentMipLevel, OutBufferRegionsToCopy);
 					if (ReadResult != Fail)
 					{
 						OutFrame->MipTilesPresent.Emplace(CurrentMipLevel, CurrentTileSelection);

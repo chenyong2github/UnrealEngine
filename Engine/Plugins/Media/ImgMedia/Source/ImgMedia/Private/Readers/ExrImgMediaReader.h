@@ -57,6 +57,9 @@ protected:
 		/** General file information including its header. */
 		FImgMediaFrameInfo FrameInfo;
 
+		/** Frame Id. */
+		int32 FrameId;
+
 		/** Resolution of the highest quality mip. */
 		FIntPoint FullResolution;
 
@@ -67,7 +70,9 @@ protected:
 		TMap<int32, TArray<FIntRect>> Viewports;
 
 #if defined(PLATFORM_WINDOWS) && PLATFORM_WINDOWS
-		/** Contain information about individual tiles. Used to convert buffer data into a 2D Texture. */
+		/** Contain information about individual tiles. Used to convert buffer data into a 2D Texture. 
+		* The size of this array is the exact number of complete and partial tiles for each mip level.
+		*/
 		TArray<TArray<FExrReader::FTileDesc>> TileInfoPerMipLevel;
 #endif
 
@@ -96,8 +101,24 @@ protected:
 	/**
 	 * Reads tiles from exr files in tile rows based on Tile region. If frame is pending for cancelation
 	 * stops reading tiles at the current tile row.
+	 * 
+	 * @param Buffer					A buffer to read into from hard drive.
+	 * @param BufferSize				The total size of the buffer. Used to limit reader to buffer region.
+	 * @param ImagePath					Path to the file to read.
+	 * @param FrameId					Frame id used to determine if frame has been canceled.
+	 * @param TileRegions				Rectangular tile regions that we read from the hard drive line by line.
+	 * @param ConverterParams			Full information about the current frame.
+	 * @param OutBufferRegionsToCopy	This buffer is used to issue copy commands on GPU Copy thread.
 	*/
-	EReadResult ReadTilesCustom(uint16* Buffer, int64 BufferSize, const FString& ImagePath, int32 FrameId, const TArray<FIntRect>& TileRegions, TSharedPtr<FSampleConverterParameters> ConverterParams, const int32 CurrentMipLevel);
+	EReadResult ReadTiles
+		( uint16* Buffer
+		, int64 BufferSize
+		, const FString& ImagePath
+		, int32 FrameId
+		, const TArray<FIntRect>& TileRegions
+		, TSharedPtr<FSampleConverterParameters> ConverterParams
+		, const int32 CurrentMipLevel
+		, TArray<UE::Math::TIntPoint<int64>>& OutBufferRegionsToCopy);
 
 	/**
 	 * Sets parameters of our custom format images.

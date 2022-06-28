@@ -16,23 +16,29 @@ struct FStructuredBufferPoolItem
 {
 	/**
 	* This is the actual buffer reference that we need to keep after it is locked and until it is unlocked.
+	* The buffer is used as an upload heap and will not be accessed by shader if CVarExrReaderUseUploadHeap is set.
 	*/
-	FBufferRHIRef BufferRef;
+	FBufferRHIRef UploadBufferRef;
 
 	/** 
 	* A pointer to mapped GPU memory.
 	*/
-	void* MappedBuffer;
+	void* UploadBufferMapped;
+
+	/**
+	* This buffer is used by the swizzling shader if CVarExrReaderUseUploadHeap is set and UploadBufferRef contents are copied into it.
+	*/
+	FBufferRHIRef ShaderAccessBufferRef;
 
 	/** 
 	* Resource View used by swizzling shader.
 	*/
-	FShaderResourceViewRHIRef ShaderResrouceView;
+	FShaderResourceViewRHIRef ShaderResourceView;
 
 	/** 
 	* A Gpu fence that identifies if this pool item is available for use again.
 	*/
-	FGPUFenceRHIRef Fence;
+	FGPUFenceRHIRef RenderFence;
 
 	/**
 	* This boolean is used as a flag in combination with fences to indicate if rendering thread 
