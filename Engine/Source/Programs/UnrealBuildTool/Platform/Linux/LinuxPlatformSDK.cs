@@ -32,21 +32,21 @@ namespace UnrealBuildTool
 		{
 			// @todo turnkey: ForceUseSystemCompiler() returns true, we should probably run system clang -V or similar to get version
 
-			string? SDKDir = GetSDKLocation();
-			if (string.IsNullOrEmpty(SDKDir))
+			DirectoryReference? SDKDir = GetSDKLocation();
+			if (SDKDir == null)
 			{
 				return null;
 			}
 
-			string VersionFile = Path.Combine(SDKDir, SDKVersionFileName());
+			FileReference VersionFile = FileReference.Combine(SDKDir, SDKVersionFileName());
 
-			if (!File.Exists(VersionFile))
+			if (!FileReference.Exists(VersionFile))
 			{
 				// ErrorMessage = "Cannot use an old toolchain (missing " + PlatformSDK.SDKVersionFileName() + " file, assuming version earlier than v11)";
 				return null;
 			}
 
-			StreamReader SDKVersionFile = new StreamReader(VersionFile);
+			StreamReader SDKVersionFile = new StreamReader(VersionFile.FullName);
 			string? SDKVersionString = SDKVersionFile.ReadLine();
 			SDKVersionFile.Close();
 
@@ -196,12 +196,12 @@ namespace UnrealBuildTool
 		/// WARNING: Do not cache this value - it may be changed after sourcing OutputEnvVars.txt
 		/// </summary>
 		/// <returns>Valid SDK string</returns>
-		public virtual string? GetSDKLocation()
+		public virtual DirectoryReference? GetSDKLocation()
 		{
 			// if new multi-arch toolchain is used, prefer it
-			string? MultiArchRoot = Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT");
+			DirectoryReference? MultiArchRoot = DirectoryReference.FromString(Environment.GetEnvironmentVariable("LINUX_MULTIARCH_ROOT"));
 
-			if (String.IsNullOrEmpty(MultiArchRoot))
+			if (MultiArchRoot == null)
 			{
 				// check if in-tree SDK is available
 				DirectoryReference InTreeSDKVersionRoot = GetInTreeSDKRoot();
@@ -210,7 +210,7 @@ namespace UnrealBuildTool
 					DirectoryReference InTreeSDKVersionPath = DirectoryReference.Combine(InTreeSDKVersionRoot, GetMainVersion());
 					if (DirectoryReference.Exists(InTreeSDKVersionPath))
 					{
-						MultiArchRoot = InTreeSDKVersionPath.FullName;
+						MultiArchRoot = InTreeSDKVersionPath;
 					}
 				}
 			}
@@ -221,21 +221,21 @@ namespace UnrealBuildTool
 		/// Returns the SDK path for a specific architecture
 		/// WARNING: Do not cache this value - it may be changed after sourcing OutputEnvVars.txt
 		/// </summary>
-		/// <returns>Valid SDK string</returns>
-		public virtual string? GetBaseLinuxPathForArchitecture(string Architecture)
+		/// <returns>Valid SDK DirectoryReference</returns>
+		public virtual DirectoryReference? GetBaseLinuxPathForArchitecture(string Architecture)
 		{
 			// if new multi-arch toolchain is used, prefer it
-			string? MultiArchRoot = GetSDKLocation();
-			string? BaseLinuxPath;
+			DirectoryReference? MultiArchRoot = GetSDKLocation();
+			DirectoryReference? BaseLinuxPath;
 
-			if (!String.IsNullOrEmpty(MultiArchRoot))
+			if (MultiArchRoot != null )
 			{
-				BaseLinuxPath = Path.Combine(MultiArchRoot, Architecture);
+				BaseLinuxPath = DirectoryReference.Combine(MultiArchRoot, Architecture);
 			}
 			else
 			{
 				// use cross linux toolchain if LINUX_ROOT is specified
-				BaseLinuxPath = Environment.GetEnvironmentVariable("LINUX_ROOT");
+				BaseLinuxPath = DirectoryReference.FromString(Environment.GetEnvironmentVariable("LINUX_ROOT"));
 			}
 			return BaseLinuxPath;
 		}
@@ -257,7 +257,7 @@ namespace UnrealBuildTool
 			// FIXME: UBT should loop across all the architectures and compile for all the selected ones.
 
 			// do not cache this value - it may be changed after sourcing OutputEnvVars.txt
-			string? BaseLinuxPath = GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultHostArchitecture);
+			DirectoryReference? BaseLinuxPath = GetBaseLinuxPathForArchitecture(LinuxPlatform.DefaultHostArchitecture);
 
 			if (ForceUseSystemCompiler())
 			{
@@ -266,12 +266,10 @@ namespace UnrealBuildTool
 					return SDKStatus.Valid;
 				}
 			}
-			else if (!String.IsNullOrEmpty(BaseLinuxPath))
+			else if (BaseLinuxPath != null)
 			{
 				// paths to our toolchains if BaseLinuxPath is specified
-				BaseLinuxPath = BaseLinuxPath.Replace("\"", "");
-
-				if (IsValidClangPath(new DirectoryReference(BaseLinuxPath)))
+				if (IsValidClangPath(BaseLinuxPath))
 				{
 					return SDKStatus.Valid;
 				}
