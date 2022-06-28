@@ -108,6 +108,15 @@ void UMetasoundEditorGraphMember::InitializeLiteral()
 	if (!Literal || Literal->GetClass() != LiteralClass)
 	{
 		UMetasoundEditorGraphMemberDefaultLiteral* NewLiteral = NewObject<UMetasoundEditorGraphMemberDefaultLiteral>(this, LiteralClass, FName(), RF_Transactional);
+
+		// Set default widget type from editor settings for float inputs 
+		if (Cast<UMetasoundEditorGraphInput>(this) && LiteralClass == UMetasoundEditorGraphMemberDefaultFloat::StaticClass())
+		{
+			if (const UMetasoundEditorSettings* EditorSettings = ::GetDefault<UMetasoundEditorSettings>())
+			{
+				Cast<UMetasoundEditorGraphMemberDefaultFloat>(NewLiteral)->WidgetType = EditorSettings->DefaultInputWidgetType;
+			}
+		}
 		Literal = NewLiteral;
 	}
 }

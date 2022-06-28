@@ -630,19 +630,21 @@ namespace Metasound
 			TSharedPtr<SHorizontalBox> ContentBox = SNew(SHorizontalBox);
 			TSharedPtr<SWidget> OuterContentBox; // currently only used for input float nodes to accommodate the input widget
 
-			// If float input node, check if custom widget required
-			bool IsFloatMemberNode = false;
+			// If editable float input node, check if custom widget required
+			bool bShowInputWidget = false;
 			if (UMetasoundEditorGraphInput* GraphMember = Cast<UMetasoundEditorGraphInput>(GetMetaSoundMember()))
 			{
-				if (UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(GraphMember->GetLiteral()))
+				const UMetasoundEditorGraph* OwningGraph = GraphMember->GetOwningGraph();
+				if (OwningGraph && OwningGraph->IsEditable())
 				{
-					if (DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None)
+					UMetasoundEditorGraphMemberDefaultFloat* DefaultFloat = Cast<UMetasoundEditorGraphMemberDefaultFloat>(GraphMember->GetLiteral());
+					if (DefaultFloat && DefaultFloat->WidgetType != EMetasoundMemberDefaultWidget::None)
 					{
 						constexpr float WidgetPadding = 3.0f;
 						static const FVector2D SliderDesiredSizeVertical = FVector2D(30.0f, 250.0f);
 						static const FVector2D RadialSliderDesiredSize = FVector2D(56.0f, 87.0f);
 
-						IsFloatMemberNode = true;
+						bShowInputWidget = true;
 
 						auto OnValueChangedLambda = [DefaultFloat, GraphMember, this](float Value)
 						{
@@ -887,7 +889,7 @@ namespace Metasound
 				.VAlign(VAlign_Fill)
 				.Padding(FMargin(0,3))
 				[
-					(IsFloatMemberNode ? OuterContentBox : ContentBox).ToSharedRef()
+					(bShowInputWidget ? OuterContentBox : ContentBox).ToSharedRef()
 				];
 		}
 	} // namespace Editor

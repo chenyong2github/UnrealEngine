@@ -35,8 +35,8 @@ enum class EAudioParameterType : uint8
 	// 'Default' results in behavior that is resolved
 	// based on the system interpreting it.  To support
 	// legacy implementation, SoundCues cache all typed values
-	// associated with a given parameter name, whereas MetaSounds
-	// only use the last typed value set.
+	// associated with a given parameter name. 
+	// For MetaSounds, use a specific Type instead of this one. 
 	None UMETA(DisplayName = "Default"),
 
 	// Boolean value

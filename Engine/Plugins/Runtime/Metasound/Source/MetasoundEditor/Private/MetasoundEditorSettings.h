@@ -129,7 +129,7 @@ public:
 
 	/** Widget type to show on input nodes by default */
 	UPROPERTY(EditAnywhere, config, Category = General)
-	EMetasoundMemberDefaultWidget DefaultInputWidgetType = EMetasoundMemberDefaultWidget::None;
+	EMetasoundMemberDefaultWidget DefaultInputWidgetType = EMetasoundMemberDefaultWidget::RadialSlider;
 
 	/** Determines which details view to show in Metasounds Editor */
 	UPROPERTY(Transient)

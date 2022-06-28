@@ -139,7 +139,6 @@ private:
 	float Default = 0.f;
 
 public:
-	UMetasoundEditorGraphMemberDefaultFloat();
 	virtual ~UMetasoundEditorGraphMemberDefaultFloat() = default;
 
 	UPROPERTY(EditAnywhere, Category = DefaultValue, meta=(EditCondition = "WidgetType == EMetasoundMemberDefaultWidget::None", EditConditionHides))

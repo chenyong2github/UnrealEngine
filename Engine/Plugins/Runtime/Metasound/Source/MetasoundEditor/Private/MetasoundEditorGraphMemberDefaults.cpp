@@ -144,14 +144,6 @@ void UMetasoundEditorGraphMemberDefaultIntArray::UpdatePreviewInstance(const Met
 	InParameterInterface->SetIntArrayParameter(InParameterName, IntArray);
 }
 
-UMetasoundEditorGraphMemberDefaultFloat::UMetasoundEditorGraphMemberDefaultFloat()
-{
-	if (const UMetasoundEditorSettings* EditorSettings = ::GetDefault<UMetasoundEditorSettings>())
-	{
-		WidgetType = EditorSettings->DefaultInputWidgetType;
-	}
-}
-
 FMetasoundFrontendLiteral UMetasoundEditorGraphMemberDefaultFloat::GetDefault() const
 {
 	FMetasoundFrontendLiteral Literal;
