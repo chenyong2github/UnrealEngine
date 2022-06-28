@@ -537,6 +537,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Dynamic Mesh Component|Collision");
 	bool bDeferCollisionUpdates = false;
 
+	/**
+	 * The bDeferCollisionUpdates property is a serialized Component setting that controls when collision is regenerated.
+	 * However, in some cases where a UDynamicMesh is being programmatically edited (eg like a live deformation/etc), we
+	 * want to defer collision updates during the user interaction, but not change the serialized property. 
+	 * In this case a non-serialized version of the flag can be *temporarily* set via this function in C++. 
+	 */
+	void SetTransientDeferCollisionUpdates(bool bEnabled);
+
 protected:
 	UPROPERTY(Instanced)
 	TObjectPtr<UBodySetup> MeshBodySetup;
@@ -544,6 +552,7 @@ protected:
 	virtual void InvalidatePhysicsData();
 	virtual void RebuildPhysicsData();
 
+	bool bTransientDeferCollisionUpdates = false;
 	bool bCollisionUpdatePending = false;
 
 protected:

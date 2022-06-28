@@ -1050,7 +1050,7 @@ void UDynamicMeshComponent::OnMeshObjectChanged(UDynamicMesh* ChangedMeshObject,
 
 	// Rebuild body setup. Should this be deferred until proxy creation? Sometimes multiple changes are emitted...
 	// todo: can possibly skip this in some change situations, eg if only changing attributes
-	if (bDeferCollisionUpdates)
+	if (bDeferCollisionUpdates || bTransientDeferCollisionUpdates )
 	{
 		InvalidatePhysicsData();
 	}
@@ -1080,7 +1080,7 @@ void UDynamicMeshComponent::SetDynamicMesh(UDynamicMesh* NewMesh)
 	OnMeshChanged.Broadcast();
 
 	// Rebuild physics data
-	if (bDeferCollisionUpdates)
+	if (bDeferCollisionUpdates || bTransientDeferCollisionUpdates)
 	{
 		InvalidatePhysicsData();
 	}
@@ -1397,6 +1397,14 @@ void UDynamicMeshComponent::SetDeferredCollisionUpdatesEnabled(bool bEnabled, bo
 		{
 			UpdateCollision(true);
 		}
+	}
+}
+
+void UDynamicMeshComponent::SetTransientDeferCollisionUpdates(bool bEnabled)
+{
+	if (bTransientDeferCollisionUpdates != bEnabled)
+	{
+		bTransientDeferCollisionUpdates = bEnabled;
 	}
 }
 
