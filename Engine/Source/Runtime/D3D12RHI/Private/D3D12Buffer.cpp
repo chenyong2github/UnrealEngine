@@ -822,11 +822,19 @@ void FD3D12DynamicRHI::RHICopyBuffer(FRHIBuffer* SourceBufferRHI, FRHIBuffer* De
 		FD3D12Resource* pDestResource = DestBuffer->ResourceLocation.GetResource();
 		D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
 
-		check(SourceBufferDesc.Width == DestBufferDesc.Width);
+		check(SourceBuffer->GetSize() == DestBuffer->GetSize());
 
 		FD3D12CommandContext& Context = Device->GetDefaultCommandContext();
 		Context.numCopies++;
-		Context.CommandListHandle->CopyResource(pDestResource->GetResource(), pSourceResource->GetResource());
+
+		// The underlying D3D12 buffer can be larger than the RHI buffer due to pooling.
+		Context.CommandListHandle->CopyBufferRegion(
+			pDestResource->GetResource(), 
+			DestBuffer->ResourceLocation.GetOffsetFromBaseOfResource(), 
+			pSourceResource->GetResource(), 
+			SourceBuffer->ResourceLocation.GetOffsetFromBaseOfResource(), 
+			SourceBufferRHI->GetSize());
+
 		Context.CommandListHandle.UpdateResidency(pDestResource);
 		Context.CommandListHandle.UpdateResidency(pSourceResource);
 

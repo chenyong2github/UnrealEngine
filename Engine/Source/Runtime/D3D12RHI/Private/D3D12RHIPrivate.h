@@ -1343,7 +1343,8 @@ public:
 		if (!pResource->RequiresResourceStateTracking())
 		{
 			CurrentState = pResource->GetDefaultResourceState();
-			if (CurrentState != DesiredState)
+			// Some states such as D3D12_RESOURCE_STATE_GENERIC_READ already includes D3D12_RESOURCE_STATE_COPY_SOURCE as well as other states, therefore transition isn't required.
+			if (CurrentState != DesiredState && !EnumHasAllFlags(CurrentState, InDesiredState))
 			{
 				// we will add a transition, we need to transition back to the default state when the scoped object dies : 
 				bRestoreState = true;
