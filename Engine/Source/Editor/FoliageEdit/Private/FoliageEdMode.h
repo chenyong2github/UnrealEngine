@@ -697,7 +697,6 @@ private:
 
 	bool bToolActive;
 	bool bCanAltDrag;
-	bool bAdjustBrushRadius;
 
 	TArray<FFoliageMeshUIInfoPtr>	FoliageMeshList;
 	EColumnSortMode::Type			FoliageMeshListSortMode;
