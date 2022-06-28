@@ -25,8 +25,11 @@ public:
 	/** Returns array of connect endpoints */
 	void GetConnectToEndpoints(TArray<FString>& Endpoints) const;
 
-	/** Returns connection delay */
+	/** Returns reconnection delay */
 	int32 GetConnectionRetryDelay() const;
+
+	/** Returns reconnection period */
+	int32 GetConnectionRetryPeriod() const;
 
 	/** Returns whether to stop the transport service when the application deactivates */
 	bool ShouldStopServiceWhenAppDeactivates() const;
@@ -60,6 +63,13 @@ private:
 	 */
 	UPROPERTY(config, EditAnywhere, Category = Transport)
 	int32 ConnectionRetryDelay;
+
+	/**
+	 * Period time during which attempts to re-establish outgoing connections that become disconnected or fail to connect
+	 * 0 means it will be retried only once
+	 */
+	UPROPERTY(config, EditAnywhere, Category = Transport)
+	int32 ConnectionRetryPeriod;
 
 	/** Whether to stop the transport service when the application deactivates, and restart it when the application is reactivated */
 	UPROPERTY(config)

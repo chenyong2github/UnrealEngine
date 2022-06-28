@@ -39,8 +39,9 @@ public:
 	 * @param InSocket The socket to use for this connection.
 	 * @param InRemoteAddress The IP endpoint of the remote client.
 	 * @param int32 InConnectionRetryDelay Delay before retrying connection, 0 disables
+	 * @param int32 InConnectionRetryPeriod period during which retrying connection, 0 means to retry only once
 	 */
-	FTcpMessageTransportConnection(FSocket* InSocket, const FIPv4Endpoint& InRemoteEndpoint, int32 InConnectionRetryDelay);
+	FTcpMessageTransportConnection(FSocket* InSocket, const FIPv4Endpoint& InRemoteEndpoint, int32 InConnectionRetryDelay, int32 InConnectionRetryPeriod = 0);
 
 	/** Virtual destructor. */
 	virtual ~FTcpMessageTransportConnection();
@@ -214,6 +215,9 @@ private:
 
 	/** Delay before re-establishing connection if it drops, 0 disables */
 	int32 ConnectionRetryDelay;
+
+	/** Period during which re-establishing connection if it drops, 0 means it will retry only once */
+	int32 ConnectionRetryPeriod;
 
 	/** Message data we're currently in the process of receiving, if any */
 	TSharedPtr<FArrayReader, ESPMode::ThreadSafe> RecvMessageData;

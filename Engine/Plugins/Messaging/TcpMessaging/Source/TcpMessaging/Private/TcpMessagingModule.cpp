@@ -242,7 +242,7 @@ protected:
 
 		UE_LOG(LogTcpMessaging, Log, TEXT("%s"), *Status);
 
-		TSharedRef<FTcpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, Settings->GetConnectionRetryDelay()));
+		TSharedRef<FTcpMessageTransport, ESPMode::ThreadSafe> Transport = MakeShareable(new FTcpMessageTransport(ListenEndpoint, ConnectToEndpoints, Settings->GetConnectionRetryDelay(), Settings->GetConnectionRetryPeriod()));
 		
 		// Safe weak pointer for adding/removing connections
 		MessageTransportPtr = Transport;
@@ -384,6 +384,11 @@ void UTcpMessagingSettings::GetConnectToEndpoints(TArray<FString>& Endpoints) co
 int32 UTcpMessagingSettings::GetConnectionRetryDelay() const
 {
 	return ConnectionRetryDelay;
+}
+
+int32 UTcpMessagingSettings::GetConnectionRetryPeriod() const
+{
+	return ConnectionRetryPeriod;
 }
 
 bool UTcpMessagingSettings::ShouldStopServiceWhenAppDeactivates() const

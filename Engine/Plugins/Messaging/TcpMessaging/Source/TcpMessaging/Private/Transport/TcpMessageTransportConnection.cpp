@@ -54,7 +54,7 @@ struct FTcpMessageHeader
 /* FTcpMessageTransportConnection structors
  *****************************************************************************/
 
-FTcpMessageTransportConnection::FTcpMessageTransportConnection(FSocket* InSocket, const FIPv4Endpoint& InRemoteEndpoint, int32 InConnectionRetryDelay)
+FTcpMessageTransportConnection::FTcpMessageTransportConnection(FSocket* InSocket, const FIPv4Endpoint& InRemoteEndpoint, int32 InConnectionRetryDelay, int32 InConnectionRetryPeriod)
 	: ConnectionState(STATE_Connecting)
 	, OpenedTime(FDateTime::UtcNow())
 	, RemoteEndpoint(InRemoteEndpoint)
@@ -68,6 +68,7 @@ FTcpMessageTransportConnection::FTcpMessageTransportConnection(FSocket* InSocket
 	, TotalBytesSent(0)
 	, bRun(false)
 	, ConnectionRetryDelay(InConnectionRetryDelay)
+	, ConnectionRetryPeriod(InConnectionRetryPeriod)
 	, RecvMessageDataRemaining(0)
 {
 	int32 NewSize = 0;
@@ -172,6 +173,7 @@ uint32 FTcpMessageTransportConnection::Run()
 			if (ConnectionRetryDelay > 0)
 			{
 				bool bReconnectPending = false;
+				float TimeSpentRetrying = 0;
 
 				{
 				    // Wait for any sending before we close the socket
@@ -179,37 +181,46 @@ uint32 FTcpMessageTransportConnection::Run()
     
 				    Socket->Close();
 				    ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
-				    Socket = nullptr;
-    
-				    UE_LOG(LogTcpMessaging, Verbose, TEXT("Connection to '%s' failed, retrying..."), *RemoteEndpoint.ToString());
-				    FPlatformProcess::Sleep(ConnectionRetryDelay);
-    
-				    Socket = FTcpSocketBuilder(TEXT("FTcpMessageTransport.RemoteConnection"))
-						.WithSendBufferSize(TCP_MESSAGING_SEND_BUFFER_SIZE)
-						.WithReceiveBufferSize(TCP_MESSAGING_RECEIVE_BUFFER_SIZE);
+					Socket = nullptr;
 
-				    if (Socket && Socket->Connect(RemoteEndpoint.ToInternetAddr().Get()))
-				    {
-					    bSentHeader = false;
-					    bReceivedHeader = false;
-						ConnectionState = STATE_DisconnectReconnectPending;
-					    RemoteNodeId.Invalidate();
-						bReconnectPending = true;
-				    }
-				    else
-				    {
-					    if (Socket)
-					    {
-						    ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
-						    Socket = nullptr;
-					    }
-					    bRun = false;
-				    }
+					while (TimeSpentRetrying <= ConnectionRetryPeriod && Socket == nullptr)
+					{
+						UE_LOG(LogTcpMessaging, Log, TEXT("Connection to '%s' failed, retrying..."), *RemoteEndpoint.ToString());
+						FPlatformProcess::Sleep(ConnectionRetryDelay);
+						TimeSpentRetrying += ConnectionRetryDelay;
+
+						Socket = FTcpSocketBuilder(TEXT("FTcpMessageTransport.RemoteConnection"))
+							.WithSendBufferSize(TCP_MESSAGING_SEND_BUFFER_SIZE)
+							.WithReceiveBufferSize(TCP_MESSAGING_RECEIVE_BUFFER_SIZE);
+
+						if (Socket && Socket->Connect(RemoteEndpoint.ToInternetAddr().Get()))
+						{
+							bSentHeader = false;
+							bReceivedHeader = false;
+							ConnectionState = STATE_DisconnectReconnectPending;
+							RemoteNodeId.Invalidate();
+							bReconnectPending = true;
+						}
+						else
+						{
+							if (Socket)
+							{
+								ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->DestroySocket(Socket);
+								Socket = nullptr;
+							}
+						}
+					}
+
+					bRun = Socket != nullptr;
 				}
 
 				if (bReconnectPending)
 				{
 					ConnectionStateChangedDelegate.ExecuteIfBound();
+				}
+				else
+				{
+					UE_LOG(LogTcpMessaging, Error, TEXT("Reconnection to '%s' failed."), *RemoteEndpoint.ToString());
 				}
 			}
 			else

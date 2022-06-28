@@ -17,10 +17,11 @@
 /* FTcpMessageTransport structors
  *****************************************************************************/
 
-FTcpMessageTransport::FTcpMessageTransport(const FIPv4Endpoint& InListenEndpoint, const TArray<FIPv4Endpoint>& InConnectToEndpoints, int32 InConnectionRetryDelay)
+FTcpMessageTransport::FTcpMessageTransport(const FIPv4Endpoint& InListenEndpoint, const TArray<FIPv4Endpoint>& InConnectToEndpoints, int32 InConnectionRetryDelay, int32 InConnectionRetryPeriod)
 	: ListenEndpoint(InListenEndpoint)
 	, ConnectToEndpoints(InConnectToEndpoints)
 	, ConnectionRetryDelay(InConnectionRetryDelay)
+	, ConnectionRetryPeriod(InConnectionRetryPeriod)
 	, bStopping(false)
 	, SocketSubsystem(ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM))
 	, Listener(nullptr)
@@ -81,7 +82,7 @@ void FTcpMessageTransport::AddOutgoingConnection(const FIPv4Endpoint& Endpoint)
 	}
 	else
 	{
-		PendingConnections.Enqueue(MakeShareable(new FTcpMessageTransportConnection(Socket, Endpoint, ConnectionRetryDelay)));
+		PendingConnections.Enqueue(MakeShareable(new FTcpMessageTransportConnection(Socket, Endpoint, ConnectionRetryDelay, ConnectionRetryPeriod)));
 	}
 }
 

@@ -50,7 +50,7 @@ public:
 	 * Creates and initializes a new instance.
 	 *
 	 */
-	FTcpMessageTransport(const FIPv4Endpoint& InListenEndpoint, const TArray<FIPv4Endpoint>& InConnectToEndpoints, int32 InConnectionRetryDelay);
+	FTcpMessageTransport(const FIPv4Endpoint& InListenEndpoint, const TArray<FIPv4Endpoint>& InConnectToEndpoints, int32 InConnectionRetryDelay, int32 InConnectionRetryPeriod = 0);
 
 	/** Virtual destructor. */
 	virtual ~FTcpMessageTransport();
@@ -96,6 +96,7 @@ private:
 	FIPv4Endpoint ListenEndpoint;
 	TArray<FIPv4Endpoint> ConnectToEndpoints;
 	int32 ConnectionRetryDelay;
+	int32 ConnectionRetryPeriod;
 
 	/** For the thread */
 	bool bStopping;
