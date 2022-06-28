@@ -114,14 +114,8 @@ namespace EpicGames.OIDC
 		private static byte[] GetEntropy(string oidcProvider)
 		{
 			byte[] providerBytes = Encoding.UTF8.GetBytes(oidcProvider);
-			byte[] assemblyBytes = Encoding.UTF8.GetBytes(Assembly.GetEntryAssembly()!.GetName().FullName);
 
-			byte[] mergedBytes = new byte[providerBytes.Length + assemblyBytes.Length];
-			Array.Copy(providerBytes, mergedBytes, providerBytes.Length);
-			int bytesWritten = providerBytes.Length;
-			Array.Copy(assemblyBytes, 0, mergedBytes, bytesWritten, assemblyBytes.Length);
-
-			return mergedBytes;
+			return providerBytes;
 		}
 
 		public void AddRefreshToken(string providerIdentifier, string refreshToken)
