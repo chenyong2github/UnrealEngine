@@ -47,7 +47,7 @@ enum class EUnit : uint8
 	Lumens, Candela, Lux, CandelaPerMeter2,
 
 	/** Time units */
-	Milliseconds, Seconds, Minutes, Hours, Days, Months, Years,
+	Nanoseconds, Microseconds, Milliseconds, Seconds, Minutes, Hours, Days, Months, Years,
 
 	/** Pixel density units */
 	PixelsPerInch,
