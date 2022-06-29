@@ -8,6 +8,7 @@
 #include "EntitySystem/MovieSceneComponentRegistry.h"
 #include "EntitySystem/BuiltInComponentTypes.h"
 #include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
+#include "EntitySystem/MovieSceneEntitySystemRunner.h"
 #include "MovieSceneFwd.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectGlobals.h"
