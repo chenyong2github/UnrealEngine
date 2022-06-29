@@ -25,7 +25,7 @@ namespace PerfReportTool
 {
     class Version
     {
-        private static string VersionString = "4.81";
+        private static string VersionString = "4.82";
 
         public static string Get() { return VersionString; }
     };
@@ -164,6 +164,7 @@ namespace PerfReportTool
 			"       -summaryTableToJsonFastMode : exit after serializing json data (skips making summary tables)\n" +
 			"       -summaryTableToJsonWriteAllElementData : write all element data, including tooltips, flags\n" +
 			"       -summaryTableToJsonMetadataOnly : only write CsvMetadata elements to json\n" +
+			"       -summaryTableToJsonFileStream : use a file stream to write Json. Experimental but can avoid OOMs\n" +
 			"       -jsonToPrcs <json filename> : write PRCs. PRC files will be written to -summaryTableCache folder\n" +
 			"\n" +
 			"Performance args for bulk mode:\n" +
@@ -610,7 +611,7 @@ namespace PerfReportTool
 
 			if (summaryTableJsonHelper != null)
 			{
-				summaryTableJsonHelper.WriteJsonFile();
+				summaryTableJsonHelper.WriteJsonFile(GetBoolArg("summaryTableToJsonFileStream"));
 				perfLog.LogTiming("WriteSummaryDataJson");
 				if (GetBoolArg("summaryTableToJsonFastMode"))
 				{

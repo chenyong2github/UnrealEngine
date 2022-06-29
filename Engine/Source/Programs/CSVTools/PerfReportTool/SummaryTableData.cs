@@ -31,18 +31,26 @@ namespace PerfSummaries
 			Dict.Add(rowData.dict["csvid"].value, rowData.ToJsonDict(bCsvMetadataOnly, bWriteAllElementData));
 		}
 
-		public void WriteJsonFile()
-		{
-			Task task = WriteJsonFileAsyncPrivate();
-			task.Wait();
-
-		}
-
-		private async Task WriteJsonFileAsyncPrivate() 
+		public void WriteJsonFile(bool bSerializeToStream)
 		{
 			Console.WriteLine("Writing summary table row data to json: " + JsonFilename);
+
 			JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
 
+			if (bSerializeToStream)
+			{
+				Task task = WriteJsonFileAsyncPrivate(options);
+				task.Wait();
+			}
+			else
+			{
+				string jsonString = JsonSerializer.Serialize(Dict, options);
+				File.WriteAllText(JsonFilename, jsonString);
+			}
+		}
+
+		private async Task WriteJsonFileAsyncPrivate(JsonSerializerOptions options) 
+		{
 			// serialize JSON directly to a file
 			FileStream createStream = File.Create(JsonFilename);
 			await JsonSerializer.SerializeAsync(createStream, Dict);
