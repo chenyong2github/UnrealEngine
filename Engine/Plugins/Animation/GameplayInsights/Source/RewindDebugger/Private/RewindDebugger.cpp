@@ -643,11 +643,7 @@ void FRewindDebugger::Tick(float DeltaTime)
 	TRACE_CPUPROFILER_EVENT_SCOPE(FRewindDebugger::Tick);
 	if (const TraceServices::IAnalysisSession* Session = GetAnalysisSession())
 	{
-		if (bRecording)
-		{
-			// if you select a debug target before you start recording, update component list when it becomes valid
-			RefreshDebugTracks();
-		}
+		RefreshDebugTracks();
 		
 		const IAnimationProvider* AnimationProvider = Session->ReadProvider<IAnimationProvider>("AnimationProvider");
 		const IGameplayProvider* GameplayProvider = Session->ReadProvider<IGameplayProvider>("GameplayProvider");
