@@ -266,11 +266,15 @@ ECADFormat FileFormat(const FString& Extension)
 	{
 		return ECADFormat::AUTOCAD;
 	}
+	else if (Extension == TEXT("ifc"))
+	{
+		return ECADFormat::IFC;
+	}
 	else if (Extension == TEXT("dgn"))
 	{
 		return ECADFormat::MICROSTATION;
 	}
-	else if (Extension == TEXT("hsf"))
+	else if (Extension == TEXT("hsf") || Extension == TEXT("prc"))
 	{
 		return ECADFormat::TECHSOFT;
 	}

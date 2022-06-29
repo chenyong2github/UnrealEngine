@@ -165,6 +165,12 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 		break;
 	}
 
+	case CADLibrary::ECADFormat::IFC:
+	{
+		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
+		break;
+	}
+
 	default:
 		break;
 	}
