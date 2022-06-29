@@ -5,6 +5,7 @@
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGS.h"
 #include "Online/OnlineServicesRegistry.h"
+#include "Online/OnlineServicesEOSGSPlatformFactory.h"
 
 #include "CoreMinimal.h"
 
@@ -15,6 +16,7 @@ class FOnlineServicesEOSGSModule : public IModuleInterface
 {
 public:
 	virtual void StartupModule() override;
+	virtual void ShutdownModule() override;
 protected:
 };
 
@@ -33,6 +35,14 @@ void FOnlineServicesEOSGSModule::StartupModule()
 {
 	FOnlineServicesRegistry::Get().RegisterServicesFactory(EOnlineServices::Epic, MakeUnique<FOnlineServicesFactoryEOSGS>());
 	FOnlineIdRegistryRegistry::Get().RegisterAccountIdRegistry(EOnlineServices::Epic, &FOnlineAccountIdRegistryEOSGS::Get());
+
+	// Initialize the platform factory on startup.  This is necessary for the SDK to bind to rendering and input very early.
+	FOnlineServicesEOSGSPlatformFactory::Get();
+}
+
+void FOnlineServicesEOSGSModule::ShutdownModule()
+{
+	UE::Online::FOnlineServicesEOSGSPlatformFactory::TearDown();
 }
 
 /* UE::Online */ }

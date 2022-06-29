@@ -31,6 +31,8 @@ public:
 	virtual EOnlineServices GetServicesProvider() const override { return EOnlineServices::Epic; }
 
 	EOS_HPlatform GetEOSPlatformHandle() const;
+
+	static const TCHAR* GetConfigNameStatic() { return TEXT("EOS"); }
 protected:
 	IEOSPlatformHandlePtr EOSPlatformHandle;
 

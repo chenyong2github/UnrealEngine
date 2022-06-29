@@ -9,10 +9,7 @@
 #include "Online/SessionsEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
-
-#include "EOSShared.h"
-#include "EOSSharedTypes.h"
-#include "IEOSSDKManager.h"
+#include "Online/OnlineServicesEOSGSPlatformFactory.h"
 
 #if WITH_ENGINE
 #include "InternetAddrEOS.h"
@@ -22,29 +19,8 @@
 
 namespace UE::Online {
 
-struct FEOSPlatformConfig
-{
-	FString ProductId;
-	FString SandboxId;
-	FString DeploymentId;
-	FString ClientId;
-	FString ClientSecret;
-};
-
-namespace Meta {
-
-BEGIN_ONLINE_STRUCT_META(FEOSPlatformConfig)
-	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ProductId),
-	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, SandboxId),
-	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, DeploymentId),
-	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientId),
-	ONLINE_STRUCT_FIELD(FEOSPlatformConfig, ClientSecret)
-END_ONLINE_STRUCT_META()
-
-/* Meta */ }
-
 FOnlineServicesEOSGS::FOnlineServicesEOSGS(FName InInstanceName)
-	: Super(TEXT("EOS"), InInstanceName)
+	: Super(GetConfigNameStatic(), InInstanceName)
 {
 }
 
@@ -60,48 +36,19 @@ void FOnlineServicesEOSGS::RegisterComponents()
 
 void FOnlineServicesEOSGS::Initialize()
 {
-	IEOSSDKManager* SDKManager = IEOSSDKManager::Get();
-	if (!SDKManager)
+	FOnlineServicesEOSGSPlatformFactory& PlatformFactory = FOnlineServicesEOSGSPlatformFactory::Get();
+	if (InstanceName.IsNone())
 	{
-		return;
+		EOSPlatformHandle = PlatformFactory.GetDefaultPlatform();
 	}
-
-	EOS_EResult InitResult = SDKManager->Initialize();
-	if (InitResult != EOS_EResult::EOS_Success)
+	else
 	{
-		return;
+		EOSPlatformHandle = PlatformFactory.CreatePlatform();
 	}
-
-	FEOSPlatformConfig EOSPlatformConfig;
-	LoadConfig(EOSPlatformConfig);
-
-	const FTCHARToUTF8 ProductId(*EOSPlatformConfig.ProductId);
-	const FTCHARToUTF8 SandboxId(*EOSPlatformConfig.SandboxId);
-	const FTCHARToUTF8 DeploymentId(*EOSPlatformConfig.DeploymentId);
-	const FTCHARToUTF8 ClientId(*EOSPlatformConfig.ClientId);
-	const FTCHARToUTF8 ClientSecret(*EOSPlatformConfig.ClientSecret);
-	const FTCHARToUTF8 CacheDirectory(*(SDKManager->GetCacheDirBase() / TEXT("OnlineServicesEOS")));
-
-	EOS_Platform_Options PlatformOptions = {};
-	PlatformOptions.ApiVersion = EOS_PLATFORM_OPTIONS_API_LATEST;
-	PlatformOptions.Reserved = nullptr;
-	PlatformOptions.bIsServer = EOS_FALSE;
-	PlatformOptions.OverrideCountryCode = nullptr;
-	PlatformOptions.OverrideLocaleCode = nullptr;
-	PlatformOptions.Flags = EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D9 | EOS_PF_WINDOWS_ENABLE_OVERLAY_D3D10 | EOS_PF_WINDOWS_ENABLE_OVERLAY_OPENGL; // Enable overlay support for D3D9/10 and OpenGL. This sample uses D3D11 or SDL.
-
-	PlatformOptions.ProductId = ProductId.Get();
-	PlatformOptions.SandboxId = SandboxId.Get();
-	PlatformOptions.DeploymentId = DeploymentId.Get();
-	PlatformOptions.ClientCredentials.ClientId = ClientId.Get();
-	PlatformOptions.ClientCredentials.ClientSecret = ClientSecret.Get();
-	PlatformOptions.CacheDirectory = CacheDirectory.Get();
-
-	EOSPlatformHandle = SDKManager->CreatePlatform(PlatformOptions);
 	if (EOSPlatformHandle)
 	{
 #if WITH_ENGINE
-		SocketSubsystem = MakeShareable(new FSocketSubsystemEOS(EOSPlatformHandle, MakeShareable(new FSocketSubsystemEOSUtils_OnlineServicesEOS(*this))));
+		SocketSubsystem = MakeShared<FSocketSubsystemEOS>(EOSPlatformHandle, MakeShared< FSocketSubsystemEOSUtils_OnlineServicesEOS>(*this));
 		check(SocketSubsystem);
 
 		FString ErrorStr;
