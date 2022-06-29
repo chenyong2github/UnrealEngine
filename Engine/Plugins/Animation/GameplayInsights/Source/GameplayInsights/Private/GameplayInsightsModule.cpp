@@ -419,13 +419,16 @@ bool FGameplayInsightsModule::IsObjectPropertyTraceEnabled(UObject* Object)
 
 void FGameplayInsightsModule::StartTrace()
 {
-	const bool bConnected = FTraceAuxiliary::Start(
-		FTraceAuxiliary::EConnectionType::Network,
-		TEXT("127.0.0.1"),
-		nullptr);
+	if (!bTraceStarted)
+	{
+		bTraceStarted = FTraceAuxiliary::Start(
+			FTraceAuxiliary::EConnectionType::Network,
+			TEXT("127.0.0.1"),
+			nullptr);
 	
-	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-	UnrealInsightsModule.StartAnalysisForLastLiveSession();
+		IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+		UnrealInsightsModule.StartAnalysisForLastLiveSession();
+	}
 }
 
 #endif

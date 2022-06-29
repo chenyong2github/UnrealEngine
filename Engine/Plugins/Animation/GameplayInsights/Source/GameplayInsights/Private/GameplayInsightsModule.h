@@ -60,4 +60,6 @@ private:
 	TSharedPtr<UE::Trace::FStoreService> StoreService;
 #endif
 	TWeakPtr<FTabManager> WeakTimingProfilerTabManager;
+	
+	bool bTraceStarted = false;
 };
