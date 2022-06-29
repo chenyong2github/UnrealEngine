@@ -4572,7 +4572,6 @@ void UMaterial::RebuildShadingModelField()
 			{
 				MaterialDomain = EMaterialDomain::MD_Surface;
 				ShadingModel = MSM_Hair;
-				BlendMode = EBlendMode::BLEND_Opaque;
 			}
 			else if (StrataMaterialInfo.HasOnlyShadingModel(SSM_Eye))
 			{
