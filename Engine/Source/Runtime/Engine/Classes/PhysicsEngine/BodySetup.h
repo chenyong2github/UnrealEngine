@@ -15,7 +15,9 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "BodySetupCore.h"
+#if WITH_EDITOR
 #include "Factories.h"
+#endif
 #include "BodySetup.generated.h"
 
 class ITargetPlatform;
@@ -447,6 +449,7 @@ public:
 
 };
 
+#if WITH_EDITOR
 
 class FBodySetupObjectTextFactory : public FCustomizableTextObjectFactory
 {
@@ -459,3 +462,4 @@ public:
 	TArray<UBodySetup*> NewBodySetups;
 };
 
+#endif // WITH_EDITOR

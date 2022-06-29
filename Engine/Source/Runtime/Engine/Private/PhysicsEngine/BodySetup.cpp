@@ -2265,6 +2265,8 @@ void FKLevelSetElem::ScaleElem(FVector DeltaSize, float MinSize)
 	SetTransform(ScaledTransform);
 }
 
+#if WITH_EDITOR
+
 bool FBodySetupObjectTextFactory::CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const
 {
 	return (InObjectClass->IsChildOf<UBodySetup>());
@@ -2278,5 +2280,7 @@ void FBodySetupObjectTextFactory::ProcessConstructedObject(UObject* NewObject)
 		NewBodySetups.Add(Cast<UBodySetup>(NewObject));
 	}
 }
+
+#endif // WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE
