@@ -19,6 +19,7 @@ enum class EPCGMetadataTypes : uint8
 	Transform,
 	String,
 	Boolean,
+	Rotator,
 	Unknown = 255
 };
 
@@ -44,6 +45,7 @@ namespace PCG
 		PCGMetadataGenerateDataTypes(FTransform, Transform);
 		PCGMetadataGenerateDataTypes(FString, String);
 		PCGMetadataGenerateDataTypes(bool, Boolean);
+		PCGMetadataGenerateDataTypes(FRotator, Rotator);
 
 #undef PCGMetadataGenerateDataTypes
 
@@ -254,6 +256,53 @@ namespace PCG
 			static FQuat ZeroValue()
 			{
 				return FQuat::Identity;
+			}
+		};
+
+		// Rotator
+		template<>
+		struct MetadataTraits<FRotator>
+		{
+			enum { CompressData = false };
+			enum { CanMinMax = false };
+			enum { CanSubAdd = true };
+			enum { CanMulDiv = true };
+			enum { CanInterpolate = true };
+
+			static bool Equal(const FRotator& A, const FRotator& B)
+			{
+				return A == B;
+			}
+
+			static FRotator Add(const FRotator& A, const FRotator& B)
+			{
+				return A + B;
+			}
+
+			static FRotator Sub(const FRotator& A, const FRotator& B)
+			{
+				return A - B;
+			}
+
+			static FRotator Mul(const FRotator& A, const FRotator& B)
+			{
+				return A + B;
+			}
+
+			static FRotator Div(const FRotator& A, const FRotator& B)
+			{
+				return A - B;
+			}
+
+			static FRotator WeightedSum(const FRotator& A, const FRotator& B, float Weight)
+			{
+				// TODO review this, should we use TCustomLerp<UE::Math::TRotator<T>> ?
+				return A + (B * Weight);
+			}
+
+			static FRotator ZeroValue()
+			{
+				return FRotator::ZeroRotator;
 			}
 		};
 

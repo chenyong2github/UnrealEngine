@@ -156,7 +156,7 @@ namespace PCGSettingsHelpers
 			else if (PropertyTypeName == NAME_Quat)
 			{
 				FQuat Value = FQuat::Identity;
-				if (GetParamValue<FQuat>(Value, MatchingAttribute))
+				if (GetParamValue<FQuat, FRotator>(Value, MatchingAttribute))
 				{
 					*reinterpret_cast<FQuat*>(PropertyValue) = Value;
 				}
@@ -173,7 +173,18 @@ namespace PCGSettingsHelpers
 					bTypeError = true;
 				}
 			}
-			//else if(PropertyTypeName == NAME_Rotator)
+			else if (PropertyTypeName == NAME_Rotator)
+			{
+				FRotator Value = FRotator::ZeroRotator;
+				if (GetParamValue<FRotator, FQuat>(Value, MatchingAttribute))
+				{
+					*reinterpret_cast<FRotator*>(PropertyValue) = Value;
+				}
+				else
+				{
+					bTypeError = true;
+				}
+			}
 			//else if (PropertyTypeName == NAME_Color)
 			//else if (PropertyTypeName == NAME_LinearColor)
 			//else if soft object path to something?
