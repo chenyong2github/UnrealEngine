@@ -89,6 +89,7 @@
 #include "AnimGraphNode_BlendSpaceGraph.h"
 #include "ScopedTransaction.h"
 #include "Preferences/PersonaOptions.h"
+#include "Settings/AnimBlueprintSettings.h"
 
 #define LOCTEXT_NAMESPACE "AnimationBlueprintEditor"
 
@@ -1704,6 +1705,58 @@ void FAnimationBlueprintEditor::OnBlueprintChangedImpl(UBlueprint* InBlueprint, 
 void FAnimationBlueprintEditor::CreateEditorModeManager()
 {
 	EditorModeManager = MakeShareable(FModuleManager::LoadModuleChecked<FPersonaModule>("Persona").CreatePersonaEditorModeManager());
+}
+
+bool FAnimationBlueprintEditor::IsSectionVisible(NodeSectionID::Type InSectionID) const
+{
+	const UAnimBlueprintSettings* AnimBlueprintSettings = GetDefault<UAnimBlueprintSettings>();
+
+	switch (InSectionID)
+	{
+	case NodeSectionID::GRAPH:
+		return AnimBlueprintSettings->bAllowEventGraphs;
+	case NodeSectionID::ANIMGRAPH:
+	case NodeSectionID::ANIMLAYER:
+	case NodeSectionID::FUNCTION:
+	case NodeSectionID::FUNCTION_OVERRIDABLE:
+	case NodeSectionID::INTERFACE:
+		return true;
+	case NodeSectionID::MACRO:
+		return AnimBlueprintSettings->bAllowMacros;
+	case NodeSectionID::VARIABLE:
+		return true;
+	case NodeSectionID::COMPONENT:
+		return false;
+	case NodeSectionID::DELEGATE:
+		return AnimBlueprintSettings->bAllowDelegates;
+	case NodeSectionID::USER_ENUM:
+	case NodeSectionID::LOCAL_VARIABLE:
+	case NodeSectionID::USER_STRUCT:
+	case NodeSectionID::USER_SORTED:
+		return true;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+bool FAnimationBlueprintEditor::AreEventGraphsAllowed() const
+{
+	const UAnimBlueprintSettings* AnimBlueprintSettings = GetDefault<UAnimBlueprintSettings>();
+	return AnimBlueprintSettings->bAllowEventGraphs;
+}
+
+bool FAnimationBlueprintEditor::AreMacrosAllowed() const
+{
+	const UAnimBlueprintSettings* AnimBlueprintSettings = GetDefault<UAnimBlueprintSettings>();
+	return AnimBlueprintSettings->bAllowMacros;
+}
+
+bool FAnimationBlueprintEditor::AreDelegatesAllowed() const
+{
+	const UAnimBlueprintSettings* AnimBlueprintSettings = GetDefault<UAnimBlueprintSettings>();
+	return AnimBlueprintSettings->bAllowDelegates;
 }
 
 void FAnimationBlueprintEditor::OnCreateComment()

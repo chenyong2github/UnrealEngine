@@ -4,7 +4,7 @@
 #include "UObject/FrameworkObjectVersion.h"
 #include "Animation/AnimBlueprintGeneratedClass.h"
 #if WITH_EDITOR
-#include "Settings/EditorExperimentalSettings.h"
+#include "Settings/AnimBlueprintSettings.h"
 #include "Modules/ModuleManager.h"
 #endif
 #if WITH_EDITORONLY_DATA
@@ -215,6 +215,26 @@ void UAnimBlueprint::SetObjectBeingDebugged(UObject* NewObject)
 	AnimationEditorUtils::SetupDebugLinkedAnimInstances(this, NewObject);
 
 	Super::SetObjectBeingDebugged(NewObject);
+}
+
+bool UAnimBlueprint::SupportsEventGraphs() const
+{
+	return GetDefault<UAnimBlueprintSettings>()->bAllowEventGraphs;
+}
+
+bool UAnimBlueprint::SupportsAnimLayers() const
+{
+	return true;
+}
+
+bool UAnimBlueprint::SupportsDelegates() const
+{
+	return GetDefault<UAnimBlueprintSettings>()->bAllowDelegates;
+}
+
+bool UAnimBlueprint::SupportsMacros() const
+{
+	return GetDefault<UAnimBlueprintSettings>()->bAllowMacros;
 }
 
 #endif

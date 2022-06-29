@@ -176,7 +176,11 @@ class ENGINE_API UAnimBlueprint : public UBlueprint, public IInterface_PreviewMe
 	virtual void PostLoad() override;
 	virtual bool FindDiffs(const UBlueprint* OtherBlueprint, FDiffResults& Results) const override;
 	virtual void SetObjectBeingDebugged(UObject* NewObject) override;
-	
+	virtual bool SupportsAnimLayers() const override;
+	virtual bool SupportsEventGraphs() const override;
+	virtual bool SupportsDelegates() const override;
+	virtual bool SupportsMacros() const override;
+
 protected:
 	// Broadcast when an override is changed, allowing derived blueprints to be updated
 	FOnOverrideChangedMulticaster OnOverrideChanged;

@@ -1230,7 +1230,7 @@ public:
 	/**
 	 * Returns true if this blueprint supports animation layers
 	 */
-	virtual bool SupportsAnimLayers() const { return true; }
+	virtual bool SupportsAnimLayers() const { return false; }
 
 	/**
 	 * Copies a given graph into a text buffer. Returns true if successful.

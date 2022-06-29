@@ -458,7 +458,7 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprint(UClass* ParentClass, UObject
 	}
 
 	// Create default event graph(s)
-	if (FBlueprintEditorUtils::DoesSupportEventGraphs(NewBP))
+	if (FBlueprintEditorUtils::DoesSupportEventGraphs(NewBP) && NewBP->SupportsEventGraphs())
 	{
 		check(NewBP->UbergraphPages.Num() == 0);
 		CreateDefaultEventGraphs(NewBP);

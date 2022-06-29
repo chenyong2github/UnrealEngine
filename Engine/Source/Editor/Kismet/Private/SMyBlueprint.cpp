@@ -1341,6 +1341,8 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 	check(BlueprintObj);
 
+	TSharedPtr<FBlueprintEditor> BlueprintEditor = BlueprintEditorPtr.Pin();
+
 	EFieldIteratorFlags::SuperClassFlags FieldIteratorSuperFlag = EFieldIteratorFlags::IncludeSuper;
 	if ( ShowUserVarsOnly() )
 	{
@@ -1411,7 +1413,7 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 			NewVarAction->SetVariableInfo(PropertyName, BlueprintObj->SkeletonGeneratedClass, CastField<FBoolProperty>(TestProperty) != nullptr);
 			SortList.AddAction( UserCategoryName, NewVarAction );
 		}
-		else if (bShouldShowAsDelegate)
+		else if (bShouldShowAsDelegate && BlueprintEditor.IsValid() && BlueprintEditor->AreDelegatesAllowed())
 		{
 			TSharedPtr<FEdGraphSchemaAction_K2Delegate> NewDelegateAction;
 			// Delegate is visible in MyBlueprint when not-native or its category name is not empty.
@@ -1471,30 +1473,33 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 		ImplementedFunctionCache.Add(Graph->GetFName());
 	}
 
-	// Grab macros implemented by the blueprint
-	for (int32 i = 0; i < BlueprintObj->MacroGraphs.Num(); i++)
+	if(BlueprintEditor.IsValid() && BlueprintEditor->AreMacrosAllowed())
 	{
-		UEdGraph* Graph = BlueprintObj->MacroGraphs[i];
-		check(Graph);
+		// Grab macros implemented by the blueprint
+		for (int32 i = 0; i < BlueprintObj->MacroGraphs.Num(); i++)
+		{
+			UEdGraph* Graph = BlueprintObj->MacroGraphs[i];
+			check(Graph);
 		
-		const FName MacroName = Graph->GetFName();
+			const FName MacroName = Graph->GetFName();
 
-		FGraphDisplayInfo DisplayInfo;
-		Graph->GetSchema()->GetGraphDisplayInformation(*Graph, DisplayInfo);
+			FGraphDisplayInfo DisplayInfo;
+			Graph->GetSchema()->GetGraphDisplayInformation(*Graph, DisplayInfo);
 
-		FText MacroCategory = GetGraphCategory(Graph);
+			FText MacroCategory = GetGraphCategory(Graph);
 
-		TSharedPtr<FEdGraphSchemaAction_K2Graph> NewMacroAction = MakeShareable(new FEdGraphSchemaAction_K2Graph(EEdGraphSchemaAction_K2Graph::Macro, MacroCategory, DisplayInfo.PlainName, DisplayInfo.Tooltip, 1, NodeSectionID::MACRO));
-		NewMacroAction->FuncName = MacroName;
-		NewMacroAction->EdGraph = Graph;
+			TSharedPtr<FEdGraphSchemaAction_K2Graph> NewMacroAction = MakeShareable(new FEdGraphSchemaAction_K2Graph(EEdGraphSchemaAction_K2Graph::Macro, MacroCategory, DisplayInfo.PlainName, DisplayInfo.Tooltip, 1, NodeSectionID::MACRO));
+			NewMacroAction->FuncName = MacroName;
+			NewMacroAction->EdGraph = Graph;
 
-		const FString UserCategoryName = FEditorCategoryUtils::GetCategoryDisplayString(MacroCategory.ToString());
-		SortList.AddAction(UserCategoryName, NewMacroAction);
+			const FString UserCategoryName = FEditorCategoryUtils::GetCategoryDisplayString(MacroCategory.ToString());
+			SortList.AddAction(UserCategoryName, NewMacroAction);
 
-		GetChildGraphs(Graph, NewMacroAction->GetSectionID(), SortList, MacroCategory);
-		GetChildEvents(Graph, NewMacroAction->GetSectionID(), SortList, MacroCategory);
+			GetChildGraphs(Graph, NewMacroAction->GetSectionID(), SortList, MacroCategory);
+			GetChildEvents(Graph, NewMacroAction->GetSectionID(), SortList, MacroCategory);
 
-		ImplementedFunctionCache.Add(MacroName);
+			ImplementedFunctionCache.Add(MacroName);
+		}
 	}
 
 	OverridableFunctionActions.Reset();
@@ -1650,22 +1655,26 @@ void SMyBlueprint::CollectAllActions(FGraphActionListBuilderBase& OutAllActions)
 		}
 	}
 
-	// Grab ubergraph pages
-	for (int32 i = 0; i < BlueprintObj->UbergraphPages.Num(); i++)
+	
+	if(BlueprintEditor.IsValid() && BlueprintEditor->AreEventGraphsAllowed())
 	{
-		UEdGraph* Graph = BlueprintObj->UbergraphPages[i];
-		check(Graph);
+		// Grab ubergraph pages
+		for (int32 i = 0; i < BlueprintObj->UbergraphPages.Num(); i++)
+		{
+			UEdGraph* Graph = BlueprintObj->UbergraphPages[i];
+			check(Graph);
 		
-		FGraphDisplayInfo DisplayInfo;
-		Graph->GetSchema()->GetGraphDisplayInformation(*Graph, DisplayInfo);
+			FGraphDisplayInfo DisplayInfo;
+			Graph->GetSchema()->GetGraphDisplayInformation(*Graph, DisplayInfo);
 
-		TSharedPtr<FEdGraphSchemaAction_K2Graph> NeUbergraphAction = MakeShareable(new FEdGraphSchemaAction_K2Graph(EEdGraphSchemaAction_K2Graph::Graph, FText::GetEmpty(), DisplayInfo.PlainName, DisplayInfo.Tooltip, 2, NodeSectionID::GRAPH));
-		NeUbergraphAction->FuncName = Graph->GetFName();
-		NeUbergraphAction->EdGraph = Graph;
-		OutAllActions.AddAction(NeUbergraphAction);
+			TSharedPtr<FEdGraphSchemaAction_K2Graph> NeUbergraphAction = MakeShareable(new FEdGraphSchemaAction_K2Graph(EEdGraphSchemaAction_K2Graph::Graph, FText::GetEmpty(), DisplayInfo.PlainName, DisplayInfo.Tooltip, 2, NodeSectionID::GRAPH));
+			NeUbergraphAction->FuncName = Graph->GetFName();
+			NeUbergraphAction->EdGraph = Graph;
+			OutAllActions.AddAction(NeUbergraphAction);
 
-		GetChildGraphs(Graph, NeUbergraphAction->GetSectionID(), SortList);
-		GetChildEvents(Graph, NeUbergraphAction->GetSectionID(), SortList);
+			GetChildGraphs(Graph, NeUbergraphAction->GetSectionID(), SortList);
+			GetChildEvents(Graph, NeUbergraphAction->GetSectionID(), SortList);
+		}
 	}
 
 	// Grab intermediate pages

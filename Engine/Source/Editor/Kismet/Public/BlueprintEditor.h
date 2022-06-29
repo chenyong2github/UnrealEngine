@@ -1316,6 +1316,15 @@ public://@TODO
 	/** Update all nodes' unrelated states when the graph has changed */
 	void UpdateNodesUnrelatedStatesAfterGraphChange();
 
+	/** Whether event graphs are allowed to be displayed/created in a blueprint */
+	virtual bool AreEventGraphsAllowed() const;
+
+	/** Whether macros are allowed  to be displayed/created in a blueprint */
+	virtual bool AreMacrosAllowed() const;
+
+	/** Whether delegates are allowed  to be displayed/created in a blueprint */
+	virtual bool AreDelegatesAllowed() const;
+
 protected:
 
 	/** Should intermediate build products be saved when recompiling? */

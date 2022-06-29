@@ -70,7 +70,7 @@ TSharedRef<IAnimationBlueprintEditor> FAnimationBlueprintEditorModule::CreateAni
 
 void FAnimationBlueprintEditorModule::OnNewBlueprintCreated(UBlueprint* InBlueprint)
 {
-	if (ensure(InBlueprint->UbergraphPages.Num() > 0))
+	if (InBlueprint->UbergraphPages.Num() > 0)
 	{
 		UEdGraph* EventGraph = InBlueprint->UbergraphPages[0];
 

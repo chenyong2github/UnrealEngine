@@ -10422,6 +10422,21 @@ void FBlueprintEditor::OnBlueprintEditorPreferencesChanged(UObject*, struct FPro
 	ModifyDuringPIEStatus = ESafeToModifyDuringPIEStatus::Unknown;
 }
 
+bool FBlueprintEditor::AreEventGraphsAllowed() const
+{
+	return true;
+}
+
+bool FBlueprintEditor::AreMacrosAllowed() const
+{
+	return true;
+}
+
+bool FBlueprintEditor::AreDelegatesAllowed() const
+{
+	return true;
+}
+
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
 /////////////////////////////////////////////////////
