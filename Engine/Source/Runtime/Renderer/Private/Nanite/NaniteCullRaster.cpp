@@ -1681,9 +1681,7 @@ static void AddPass_NodeAndClusterCull(
 	if (GNanitePersistentThreadsCulling)
 	{
 		AddPass_NodeAndClusterCull( GraphBuilder,
-									CullingPass == CULLING_PASS_NO_OCCLUSION ? RDG_EVENT_NAME("Main Pass: PersistentCull - No occlusion") :
-									CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME("Main Pass: PersistentCull") :
-									RDG_EVENT_NAME("Post Pass: PersistentCull"),
+									RDG_EVENT_NAME("PersistentCull"),
 									CullingParameters, SharedContext, CullingContext, GPUSceneParameters,
 									MainAndPostNodesAndClusterBatchesBuffer, MainAndPostCandididateClustersBuffer,
 									VirtualShadowMapArray, VirtualTargetParameters,
@@ -1694,6 +1692,8 @@ static void AddPass_NodeAndClusterCull(
 	}
 	else
 	{
+		RDG_EVENT_SCOPE(GraphBuilder, "NodeAndClusterCull");
+
 		FRDGBufferRef NodeCullArgs = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(3), TEXT("Nanite.NodeCullArgs"));
 
 		const uint32 MaxNodeLevels = 12;	// TODO: Calculate max based on installed pages?
@@ -1703,9 +1703,7 @@ static void AddPass_NodeAndClusterCull(
 			
 			AddPass_NodeAndClusterCull(
 				GraphBuilder,
-				CullingPass == CULLING_PASS_NO_OCCLUSION ? RDG_EVENT_NAME("Main Pass: NodeCull_%d - No occlusion", NodeLevel) :
-				CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME("Main Pass: NodeCull_%d", NodeLevel) :
-				RDG_EVENT_NAME("Post Pass: NodeCull_%d", NodeLevel),
+				RDG_EVENT_NAME("NodeCull_%d", NodeLevel),
 				CullingParameters, SharedContext, CullingContext, GPUSceneParameters,
 				MainAndPostNodesAndClusterBatchesBuffer, MainAndPostCandididateClustersBuffer,
 				VirtualShadowMapArray, VirtualTargetParameters,
@@ -1721,9 +1719,7 @@ static void AddPass_NodeAndClusterCull(
 
 		AddPass_NodeAndClusterCull(
 			GraphBuilder,
-			CullingPass == CULLING_PASS_NO_OCCLUSION ? RDG_EVENT_NAME("Main Pass: ClusterCull - No occlusion") :
-			CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME("Main Pass: ClusterCull") :
-			RDG_EVENT_NAME("Post Pass: ClusterCull"),
+			RDG_EVENT_NAME("ClusterCull"),
 			CullingParameters, SharedContext, CullingContext, GPUSceneParameters,
 			MainAndPostNodesAndClusterBatchesBuffer, MainAndPostCandididateClustersBuffer,
 			VirtualShadowMapArray, VirtualTargetParameters,
@@ -1805,8 +1801,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			CullingPass == CULLING_PASS_OCCLUSION_MAIN ? RDG_EVENT_NAME( "Main Pass: InstanceCullVSM" ) 
-			                                           : RDG_EVENT_NAME( "Main Pass: InstanceCullVSM - No occlusion" ),
+			RDG_EVENT_NAME( "InstanceCullVSM" ),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCountWrapped(CullingContext.NumInstancesPreCull, 64)
@@ -1884,7 +1879,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 			PassParameters->IndirectArgs = CullingContext.OccludedInstancesArgs;
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME( "Post Pass: InstanceCull" ),
+				RDG_EVENT_NAME( "InstanceCull" ),
 				ComputeShader,
 				PassParameters,
 				PassParameters->IndirectArgs,
@@ -1895,9 +1890,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 		{
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				InstanceCullingPass == CULLING_PASS_OCCLUSION_MAIN ?	RDG_EVENT_NAME( "Main Pass: InstanceCull" ) : 
-				InstanceCullingPass == CULLING_PASS_NO_OCCLUSION ?		RDG_EVENT_NAME( "Main Pass: InstanceCull - No occlusion" ) :
-																		RDG_EVENT_NAME( "Main Pass: InstanceCull - Explicit list" ),
+				InstanceCullingPass == CULLING_PASS_EXPLICIT_LIST ?	RDG_EVENT_NAME( "InstanceCull - Explicit List" ) : RDG_EVENT_NAME( "InstanceCull" ),
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCountWrapped(CullingContext.NumInstancesPreCull, 64)
@@ -1965,7 +1958,7 @@ static void AddPass_InstanceHierarchyAndClusterCull(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			bPostPass ? RDG_EVENT_NAME("Post Pass: CalculateSafeRasterizerArgs") : RDG_EVENT_NAME("Main Pass: CalculateSafeRasterizerArgs"),
+			RDG_EVENT_NAME("CalculateSafeRasterizerArgs"),
 			ComputeShader,
 			PassParameters,
 			FIntVector(1, 1, 1)
@@ -2041,7 +2034,7 @@ static void AddPass_Binning(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			bMainPass ? RDG_EVENT_NAME("Main Pass: RasterBinClassify") : RDG_EVENT_NAME("Post Pass: RasterBinClassify"),
+			RDG_EVENT_NAME("RasterBinClassify"),
 			ComputeShader,
 			PassParameters,
 			PassParameters->IndirectArgs,
@@ -2087,7 +2080,7 @@ static void AddPass_Binning(
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			bMainPass ? RDG_EVENT_NAME("Main Pass: RasterBinScatter") : RDG_EVENT_NAME("Post Pass: RasterBinScatter"),
+			RDG_EVENT_NAME("RasterBinScatter"),
 			ComputeShader,
 			PassParameters,
 			PassParameters->IndirectArgs,
@@ -2497,12 +2490,12 @@ FBinningData AddPass_Rasterize(
 	}
 
 	GraphBuilder.AddPass(
-		bMainPass ? RDG_EVENT_NAME("Main Pass: HW Rasterize") : RDG_EVENT_NAME("Post Pass: HW Rasterize"),
+		RDG_EVENT_NAME("HW Rasterize"),
 		RasterPassParameters,
 		ERDGPassFlags::Raster | ERDGPassFlags::SkipRenderPass,
 		[RasterPassParameters, &RasterizerPasses, ViewRect, &SceneView, RPInfo, bMainPass, bUsePrimitiveShader, bUseMeshShader](FRHICommandList& RHICmdList)
 	{
-		RHICmdList.BeginRenderPass(RPInfo, bMainPass ? TEXT("Main Pass: HW Rasterize") : TEXT("Post Pass: HW Rasterize"));
+		RHICmdList.BeginRenderPass(RPInfo, TEXT("HW Rasterize"));
 		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, FMath::Min(ViewRect.Max.X, 32767), FMath::Min(ViewRect.Max.Y, 32767), 1.0f);
 		RHICmdList.SetStreamSource(0, nullptr, 0);
 
@@ -2583,7 +2576,7 @@ FBinningData AddPass_Rasterize(
 	if (Scheduling != ERasterScheduling::HardwareOnly)
 	{
 		GraphBuilder.AddPass(
-			bMainPass ? RDG_EVENT_NAME("Main Pass: SW Rasterize") : RDG_EVENT_NAME("Post Pass: SW Rasterize"),
+			RDG_EVENT_NAME("SW Rasterize"),
 			RasterPassParameters,
 			ComputePassFlags,
 			[RasterPassParameters, &RasterizerPasses, &SceneView](FRHIComputeCommandList& RHICmdList)
@@ -3078,51 +3071,57 @@ void CullRasterize(
 		CullingContext
 	);
 	
-	// No Occlusion Pass / Occlusion Main Pass
-	AddPass_InstanceHierarchyAndClusterCull(
-		GraphBuilder,
-		Scene,
-		CullingParameters,
-		Views,
-		NumPrimaryViews,
-		SharedContext,
-		CullingContext,
-		RasterContext,
-		RasterState,
-		GPUSceneParameters,
-		MainAndPostNodesAndClusterBatchesBuffer,
-		MainAndPostCandididateClustersBuffer,
-		CullingContext.Configuration.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
-		VirtualShadowMapArray,
-		VirtualTargetParameters
-	);
-
 	FBinningData MainPassBinning{};
 	FBinningData PostPassBinning{};
 
-	MainPassBinning = AddPass_Rasterize(
-		GraphBuilder,
-		RasterPipelines,
-		Views,
-		Scene,
-		SceneView,
-		SharedContext,
-		RasterContext,
-		RasterState,
-		CullingContext.PageConstants,
-		CullingContext.RenderFlags,
-		CullingContext.ViewsBuffer,
-		CullingContext.VisibleClustersSWHW,
-		nullptr,
-		CullingContext.ClusterCountSWHW,
-		CullingContext.ClusterClassifyArgs,
-		CullingContext.SafeMainRasterizeArgsSWHW,
-		CullingContext.TotalPrevDrawClustersBuffer,
-		GPUSceneParameters,
-		true,
-		VirtualShadowMapArray,
-		VirtualTargetParameters
-	);
+	// No Occlusion Pass / Occlusion Main Pass
+	{
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, !CullingContext.Configuration.bTwoPassOcclusion, "NoOcclusionPass");
+		RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, CullingContext.Configuration.bTwoPassOcclusion, "MainPass");
+
+		AddPass_InstanceHierarchyAndClusterCull(
+			GraphBuilder,
+			Scene,
+			CullingParameters,
+			Views,
+			NumPrimaryViews,
+			SharedContext,
+			CullingContext,
+			RasterContext,
+			RasterState,
+			GPUSceneParameters,
+			MainAndPostNodesAndClusterBatchesBuffer,
+			MainAndPostCandididateClustersBuffer,
+			CullingContext.Configuration.bTwoPassOcclusion ? CULLING_PASS_OCCLUSION_MAIN : CULLING_PASS_NO_OCCLUSION,
+			VirtualShadowMapArray,
+			VirtualTargetParameters
+		);
+
+		MainPassBinning = AddPass_Rasterize(
+			GraphBuilder,
+			RasterPipelines,
+			Views,
+			Scene,
+			SceneView,
+			SharedContext,
+			RasterContext,
+			RasterState,
+			CullingContext.PageConstants,
+			CullingContext.RenderFlags,
+			CullingContext.ViewsBuffer,
+			CullingContext.VisibleClustersSWHW,
+			nullptr,
+			CullingContext.ClusterCountSWHW,
+			CullingContext.ClusterClassifyArgs,
+			CullingContext.SafeMainRasterizeArgsSWHW,
+			CullingContext.TotalPrevDrawClustersBuffer,
+			GPUSceneParameters,
+			true,
+			VirtualShadowMapArray,
+			VirtualTargetParameters
+		);
+	}
+
 	
 	// Occlusion post pass. Retest instances and clusters that were not visible last frame. If they are visible now, render them.
 	if (CullingContext.Configuration.bTwoPassOcclusion)
@@ -3173,6 +3172,7 @@ void CullRasterize(
 			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
 		}
 
+		RDG_EVENT_SCOPE(GraphBuilder, "PostPass");
 		// Post Pass
 		AddPass_InstanceHierarchyAndClusterCull(
 			GraphBuilder,
