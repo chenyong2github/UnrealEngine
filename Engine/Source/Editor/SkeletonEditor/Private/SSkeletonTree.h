@@ -171,13 +171,13 @@ private:
 	TSharedRef< SWidget > CreateNewMenuWidget();
 
 	/** Called to create the add new menu */
-	void CreateNewMenu();
+	void RegisterNewMenu();
 
 	/** Called to display the filter menu */
 	TSharedRef< SWidget > CreateFilterMenuWidget();
 
 	/** Called to create the filter menu */
-	void CreateFilterMenu();
+	void RegisterFilterMenu();
 
 	/** Function to copy selected bone name to the clipboard */
 	void OnCopyBoneNames();
@@ -338,8 +338,11 @@ private:
 	/** Removes the active Blend Profile */
 	void OnDeleteCurrentBlendProfile();
 
-	/** Generate Blend Profile Menu */
-	void CreateBlendProfileMenu(UToolMenu* InMenu = nullptr);
+	/** Register Blend Profile Menu */
+	void RegisterBlendProfileMenu();
+
+	/** Create Blend Profile Menu */
+	void CreateBlendProfileMenu(UToolMenu* InMenu);
 
 	TSharedRef<SWidget> GetBlendProfileColumnMenuContent();
 
