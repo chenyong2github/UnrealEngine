@@ -189,9 +189,10 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 		// a pointer to the object, you see the object's properties.
 		static const FName Name_EditInline("EditInline");
 		static const FName Name_ShowInnerProperties("ShowInnerProperties");
+		static const FName Name_NoEditInline("NoEditInline");
 
 		// we are EditInlineNew if this property has the flag, or if inside a container that has the flag.
-		bIsEditInlineNew = GotReadAddresses && bIsObjectOrInterface &&
+		bIsEditInlineNew = GotReadAddresses && bIsObjectOrInterface && !MyProperty->HasMetaData(Name_NoEditInline) && 
 			(MyProperty->HasMetaData(Name_EditInline) || (bIsInsideContainer && OwnerProperty->HasMetaData(Name_EditInline)));
 		bShowInnerObjectProperties = bIsObjectOrInterface && MyProperty->HasMetaData(Name_ShowInnerProperties);
 

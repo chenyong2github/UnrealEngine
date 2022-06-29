@@ -1371,6 +1371,9 @@ namespace UM
 		/// [PropertyMetadata] Property wont have a 'reset to default' button when displayed in property windows
 		NoResetToDefault,
 
+		/// [PropertyMetadata] Object properties pointing to an UObject instance whos class is marked editinline will not show their properties inline in property windows. Useful for getting actor components to appear in the component tree but not inline in the root actor details panel.
+		NoEditInline,
+
 		/// [PropertyMetadata] Used for integer and float properties. Indicates that the spin box element of the number editing widget should not be displayed.
 		NoSpinbox,
 
