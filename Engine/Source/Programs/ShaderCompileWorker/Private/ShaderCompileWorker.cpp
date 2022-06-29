@@ -601,7 +601,9 @@ private:
 			// (Otherwise quick changes to a shader file can result in the wrong output.)
 			FName ShaderPlatformName;
 			InputFile << ShaderPlatformName;
-			FlushShaderFileCache(&ShaderPlatformName);
+
+			// temp-fix for non-Windows platforms
+			//FlushShaderFileCache(&ShaderPlatformName);
 			
 			for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 			{
