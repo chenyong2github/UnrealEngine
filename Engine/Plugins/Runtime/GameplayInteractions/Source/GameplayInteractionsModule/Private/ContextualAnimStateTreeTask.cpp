@@ -7,7 +7,6 @@
 #include "StateTreeLinker.h"
 #include "GameplayTask_PlayContextualAnim.h"
 #include "VisualLogger/VisualLogger.h"
-#include "AIResources.h"
 
 
 #define ST_ANIM_TASK_LOG(Verbosity, Format, ...) UE_VLOG_UELOG(Context.GetOwner(), LogStateTree, Verbosity, TEXT("[%s] ") Format, *StaticStruct()->GetName(), ##__VA_ARGS__)
@@ -19,18 +18,6 @@
 bool FContextualAnimStateTreeTask::Link(FStateTreeLinker& Linker)
 {
 	Linker.LinkExternalData(InteractorActorHandle);
-	Linker.LinkInstanceDataProperty(InteractorRoleHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, InteractorRole));
-
-	Linker.LinkInstanceDataProperty(InteractableObjectHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, InteractableObject));
-	Linker.LinkInstanceDataProperty(InteractableObjectRoleHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, InteractableObjectRole));
-
-	Linker.LinkInstanceDataProperty(ContextualAnimAssetHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, ContextualAnimAsset));
-
-	Linker.LinkInstanceDataProperty(TaskHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, Task));
-	Linker.LinkInstanceDataProperty(AbortContextHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, AbortContext));
-
-	Linker.LinkInstanceDataProperty(DurationHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, Duration));
-	Linker.LinkInstanceDataProperty(TimeHandle, STATETREE_INSTANCEDATA_PROPERTY(InstanceDataType, Time));
 	
 	return true;
 }
@@ -42,14 +29,15 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 		return EStateTreeRunStatus::Succeeded;
 	}
 
-	const UContextualAnimSceneAsset* SceneAsset = Context.GetInstanceData(ContextualAnimAssetHandle);
+	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	const UContextualAnimSceneAsset* SceneAsset = InstanceData.ContextualAnimAsset;
 	if (SceneAsset == nullptr)
 	{
 		ST_ANIM_TASK_LOG(Error, TEXT("ContextualAnimSceneAsset required."));
 		return EStateTreeRunStatus::Failed;
 	}
 	AActor& Interactor = Context.GetExternalData(InteractorActorHandle);
-	AActor* InteractableObject = Context.GetInstanceData(InteractableObjectHandle);
+	AActor* InteractableObject = InstanceData.InteractableObject;
 	if (InteractableObject == nullptr)
 	{
 		ST_ANIM_TASK_LOG(Error, TEXT("Interactable object actor required."));
@@ -57,13 +45,13 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::EnterState(FStateTreeExecution
 	}
 	
 	// Create task which will also be simulated on the clients
-	UGameplayTask_PlayContextualAnim*& Task = Context.GetInstanceData(TaskHandle);
+	UGameplayTask_PlayContextualAnim*& Task = InstanceData.Task;
 
 	Task = UGameplayTask_PlayContextualAnim::PlayContextualAnim(
 		&Interactor,
-		Context.GetInstanceData(InteractorRoleHandle),
+		InstanceData.InteractorRole,
 		InteractableObject,
-		Context.GetInstanceData(InteractableObjectRoleHandle),
+		InstanceData.InteractableObjectRole,
 		Section,
 		ExitSection,
 		SceneAsset
@@ -84,10 +72,11 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::Tick(FStateTreeExecutionContex
 {
 	EStateTreeRunStatus Status = EStateTreeRunStatus::Running;
 
-	const float Duration = Context.GetInstanceData(DurationHandle);
+	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	const float Duration = InstanceData.Duration;
 	if (Duration > 0.f)
 	{
-		float& Time = Context.GetInstanceData(TimeHandle);
+		float& Time = InstanceData.Time;
 		Time += DeltaTime;
 		if (Time >= Duration)
 		{
@@ -96,7 +85,7 @@ EStateTreeRunStatus FContextualAnimStateTreeTask::Tick(FStateTreeExecutionContex
 	}
 	else
 	{
-		UGameplayTask_PlayContextualAnim*& Task = Context.GetInstanceData(TaskHandle);
+		UGameplayTask_PlayContextualAnim*& Task = InstanceData.Task;
 		if (Task == nullptr)
 		{
 			return EStateTreeRunStatus::Running;
@@ -119,8 +108,9 @@ void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context
 	{
 		return;
 	}
-	
-	UGameplayTask_PlayContextualAnim*& Task = Context.GetInstanceData(TaskHandle);
+
+	FInstanceDataType& InstanceData = Context.GetInstanceData<FInstanceDataType>(*this);
+	UGameplayTask_PlayContextualAnim*& Task = InstanceData.Task;
 	if (Task == nullptr)
 	{
 		ST_ANIM_TASK_LOG(Error, TEXT("Unable to access gameplay task."));
@@ -128,7 +118,7 @@ void FContextualAnimStateTreeTask::ExitState(FStateTreeExecutionContext& Context
 	}
 
 	// Update exit parameters if we are handling an interruption
-	const FGameplayInteractionAbortContext& AbortContext = Context.GetInstanceData(AbortContextHandle);
+	const FGameplayInteractionAbortContext& AbortContext = InstanceData.AbortContext;
 	if (AbortContext.Reason != EGameplayInteractionAbortReason::Unset)
 	{
 		switch (AbortContext.Reason)

@@ -53,28 +53,16 @@ struct FContextualAnimStateTreeTask : public FGameplayInteractionStateTreeTask
 	GENERATED_BODY()
 
 protected:
-	typedef FContextualAnimStateTreeTaskInstanceData InstanceDataType;
+	typedef FContextualAnimStateTreeTaskInstanceData FInstanceDataType;
 
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return InstanceDataType::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); }
 
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 	virtual void ExitState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
-	TStateTreeInstanceDataPropertyHandle<FName> InteractorRoleHandle;
 	TStateTreeExternalDataHandle<AActor> InteractorActorHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FName> InteractableObjectRoleHandle;
-	TStateTreeInstanceDataPropertyHandle<AActor*> InteractableObjectHandle;
-
-	TStateTreeInstanceDataPropertyHandle<UContextualAnimSceneAsset*> ContextualAnimAssetHandle;
-
-	TStateTreeInstanceDataPropertyHandle<UGameplayTask_PlayContextualAnim*> TaskHandle;
-	TStateTreeInstanceDataPropertyHandle<FGameplayInteractionAbortContext> AbortContextHandle;
-
-	TStateTreeInstanceDataPropertyHandle<float> DurationHandle;
-	TStateTreeInstanceDataPropertyHandle<float> TimeHandle;
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FName Section;
