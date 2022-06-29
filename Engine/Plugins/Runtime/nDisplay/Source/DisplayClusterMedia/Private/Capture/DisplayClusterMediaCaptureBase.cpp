@@ -3,6 +3,8 @@
 #include "Capture/DisplayClusterMediaCaptureBase.h"
 #include "DisplayClusterMediaHelpers.h"
 #include "DisplayClusterMediaLog.h"
+#include "IDisplayCluster.h"
+#include "IDisplayClusterCallbacks.h"
 
 #include "MediaCapture.h"
 #include "MediaOutput.h"
@@ -18,8 +20,15 @@ FDisplayClusterMediaCaptureBase::FDisplayClusterMediaCaptureBase(const FString& 
 {
 	// We expect these to always be valid
 	check(InMediaOutput && InRenderTarget);
+
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostTick().AddRaw(this, &FDisplayClusterMediaCaptureBase::OnPostClusterTick);
 }
 
+
+FDisplayClusterMediaCaptureBase::~FDisplayClusterMediaCaptureBase()
+{
+	IDisplayCluster::Get().GetCallbacks().OnDisplayClusterPostTick().RemoveAll(this);
+}
 
 void FDisplayClusterMediaCaptureBase::AddReferencedObjects(FReferenceCollector& Collector)
 {
@@ -41,22 +50,8 @@ bool FDisplayClusterMediaCaptureBase::StartCapture()
 		{
 			MediaCapture->SetMediaOutput(MediaOutput);
 
-			FMediaCaptureOptions MediaCaptureOptions;
-			MediaCaptureOptions.NumberOfFramesToCapture = -1;
-			MediaCaptureOptions.bResizeSourceBuffer = true;
-			MediaCaptureOptions.bSkipFrameWhenRunningExpensiveTasks = false;
-
-			const bool bCaptureStarted = MediaCapture->CaptureTextureRenderTarget2D(RenderTarget, MediaCaptureOptions);
-			if (bCaptureStarted)
-			{
-				UE_LOG(LogDisplayClusterMedia, Log, TEXT("Started media capture: '%s'"), *GetMediaId());
-			}
-			else
-			{
-				UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Couldn't start media capture '%s'"), *GetMediaId());
-			}
-
-			return bCaptureStarted;
+			bWasCaptureStarted = StartMediaCapture();
+			return bWasCaptureStarted;
 		}
 	}
 
@@ -69,6 +64,7 @@ void FDisplayClusterMediaCaptureBase::StopCapture()
 	{
 		MediaCapture->StopCapture(false);
 		MediaCapture = nullptr;
+		bWasCaptureStarted = false;
 	}
 }
 
@@ -96,4 +92,43 @@ void FDisplayClusterMediaCaptureBase::ExportMediaData(FRHICommandListImmediate& 
 			DisplayClusterMediaHelpers::ResampleTexture_RenderThread(RHICmdList, SrcTexture, DstTexture, TextureInfo.Region, FIntRect(FIntPoint::ZeroValue, DstTexture->GetDesc().Extent));
 		}
 	}
+}
+
+void FDisplayClusterMediaCaptureBase::OnPostClusterTick()
+{
+	if (MediaCapture && bWasCaptureStarted)
+	{
+		if (MediaCapture->GetState() == EMediaCaptureState::Error)
+		{
+			constexpr double Interval = 1.0;
+			const double CurrentTime = FPlatformTime::Seconds();
+			if (CurrentTime - LastRestartTimestamp > Interval)
+			{
+				UE_LOG(LogDisplayClusterMedia, Log, TEXT("MediaCapture '%s' is in error, restarting it."), *GetMediaId());
+
+				StartMediaCapture();
+				LastRestartTimestamp = CurrentTime;
+			}
+		}
+	}
+}
+
+bool FDisplayClusterMediaCaptureBase::StartMediaCapture()
+{
+	FMediaCaptureOptions MediaCaptureOptions;
+	MediaCaptureOptions.NumberOfFramesToCapture = -1;
+	MediaCaptureOptions.bResizeSourceBuffer = true;
+	MediaCaptureOptions.bSkipFrameWhenRunningExpensiveTasks = false;
+
+	const bool bCaptureStarted = MediaCapture->CaptureTextureRenderTarget2D(RenderTarget, MediaCaptureOptions);
+	if (bCaptureStarted)
+	{
+		UE_LOG(LogDisplayClusterMedia, Log, TEXT("Started media capture: '%s'"), *GetMediaId());
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Couldn't start media capture '%s'"), *GetMediaId());
+	}
+
+	return bCaptureStarted;
 }

@@ -29,6 +29,20 @@ namespace UE::RivermaxCore::Private
 		rmax_in_memblock HeaderMemory;
 	};
 
+	struct FInputStreamStats
+	{
+		uint64 InvalidHeadercount = 0;
+		uint64 FramePacketLossCount = 0;
+		uint64 TotalPacketLossCount = 0;
+		uint64 BiggerFramesCount = 0;
+		uint64 InvalidFramesCount = 0;
+		uint64 BytesReceived = 0;
+		uint64 FramesReceived = 0;
+		uint64 ChunksReceived = 0;
+		uint64 EndOfFrameReceived = 0;
+		uint64 EmptyCompletionCount = 0;
+	};
+
 	struct FInputStreamData
 	{
 		uint64 LastSequenceNumber = 0;
@@ -74,6 +88,7 @@ namespace UE::RivermaxCore::Private
 		void ParseChunk(const rmax_in_completion& Completion);
 		bool IsExtendedSequenceNumber() const;
 		void PrepareNextFrame();
+		void LogStats();
 
 	private:
 
@@ -90,9 +105,12 @@ namespace UE::RivermaxCore::Private
 		bool bIsFirstFrameReceived = false;
 		ERivermaxStreamType RivermaxStreamType = ERivermaxStreamType::VIDEO_2110_20_STREAM;
 		FInputStreamData StreamData;
+		FInputStreamStats StreamStats;
 		IRivermaxInputStreamListener* Listener;
 		std::atomic<bool> bIsShuttingDown;
 		TFuture<void> InitTaskFuture;
+		double LastLoggingTimestamp = 0.0;
+
 	};
 }
 

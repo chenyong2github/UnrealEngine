@@ -35,17 +35,9 @@ bool FDisplayClusterMediaInputBase::Play()
 		MediaPlayer->PlayOnOpen = true;
 		MediaPlayer->OnMediaEvent().AddRaw(this, &FDisplayClusterMediaInputBase::OnMediaEvent);
 
-		const bool bIsPlaying = MediaPlayer->OpenSource(MediaSource);
-		if (bIsPlaying)
-		{
-			UE_LOG(LogDisplayClusterMedia, Log, TEXT("Started playing media: %s"), *GetMediaId());
-		}
-		else
-		{
-			UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Couldn't start playing media: %s"), *GetMediaId());
-		}
-
-		return bIsPlaying;
+		bWasPlayerStarted = MediaPlayer->OpenSource(MediaSource);
+		
+		return bWasPlayerStarted;
 	}
 
 	return false;
@@ -55,6 +47,7 @@ void FDisplayClusterMediaInputBase::Stop()
 {
 	if (MediaPlayer)
 	{
+		bWasPlayerStarted = false;
 		MediaPlayer->Close();
 		MediaPlayer->OnMediaEvent().RemoveAll(this);
 	}
@@ -97,7 +90,7 @@ void FDisplayClusterMediaInputBase::OnMediaEvent(EMediaEvent MediaEvent)
 	{
 	/** The player started connecting to the media source. */
 	case EMediaEvent::MediaConnecting:
-		UE_LOG(LogDisplayClusterMedia, Log, TEXT("Media event for '%s': Connectiong"), *GetMediaId());
+		UE_LOG(LogDisplayClusterMedia, Log, TEXT("Media event for '%s': Connection"), *GetMediaId());
 		break;
 
 	/** A new media source has been opened. */
@@ -108,6 +101,7 @@ void FDisplayClusterMediaInputBase::OnMediaEvent(EMediaEvent MediaEvent)
 	/** The current media source has been closed. */
 	case EMediaEvent::MediaClosed:
 		UE_LOG(LogDisplayClusterMedia, Log, TEXT("Media event for '%s': Closed"), *GetMediaId());
+		OnPlayerClosed();
 		break;
 		
 	/** A media source failed to open. */
@@ -118,5 +112,36 @@ void FDisplayClusterMediaInputBase::OnMediaEvent(EMediaEvent MediaEvent)
 	default:
 		UE_LOG(LogDisplayClusterMedia, Log, TEXT("Media event for '%s': %d"), *GetMediaId(), static_cast<int32>(MediaEvent));
 		break;
+	}
+}
+
+bool FDisplayClusterMediaInputBase::StartPlayer()
+{
+	const bool bIsPlaying = MediaPlayer->OpenSource(MediaSource);
+	if (bIsPlaying)
+	{
+		UE_LOG(LogDisplayClusterMedia, Log, TEXT("Started playing media: %s"), *GetMediaId());
+	}
+	else
+	{
+		UE_LOG(LogDisplayClusterMedia, Warning, TEXT("Couldn't start playing media: %s"), *GetMediaId());
+	}
+
+	return bIsPlaying;
+}
+
+void FDisplayClusterMediaInputBase::OnPlayerClosed()
+{
+	if (MediaPlayer && bWasPlayerStarted)
+	{
+		constexpr double Interval = 1.0;
+		const double CurrentTime = FPlatformTime::Seconds();
+		if (CurrentTime - LastRestartTimestamp > Interval)
+		{
+			UE_LOG(LogDisplayClusterMedia, Log, TEXT("MediaPlayer '%s' is in error, restarting it."), *GetMediaId());
+
+			StartPlayer();
+			LastRestartTimestamp = CurrentTime;
+		}
 	}
 }

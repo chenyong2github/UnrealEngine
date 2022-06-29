@@ -21,6 +21,7 @@ class FDisplayClusterMediaCaptureBase
 {
 public:
 	FDisplayClusterMediaCaptureBase(const FString& MediaId, const FString& ClusterNodeId, UMediaOutput* MediaOutput, UTextureRenderTarget2D* RenderTarget);
+	virtual ~FDisplayClusterMediaCaptureBase();
 
 public:
 	//~ Begin FGCObject interface
@@ -42,6 +43,8 @@ public:
 
 protected:
 	void ExportMediaData(FRHICommandListImmediate& RHICmdList, const FMediaTextureInfo& TextureInfo);
+	void OnPostClusterTick();
+	bool StartMediaCapture();
 
 private:
 	//~ Begin GC by AddReferencedObjects
@@ -49,4 +52,10 @@ private:
 	UMediaCapture*          MediaCapture = nullptr;
 	UTextureRenderTarget2D* RenderTarget = nullptr;
 	//~ End GC by AddReferencedObjects
+
+	// Used to restart media capture in the case it falls in error
+	bool bWasCaptureStarted = false;
+
+	// Used to control the rate at which we try to restart the capture
+	double LastRestartTimestamp = 0;
 };

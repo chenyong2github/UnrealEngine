@@ -13,9 +13,15 @@
 #include <WS2tcpip.h>
 #endif
 
-
 namespace UE::RivermaxCore::Private
 {
+	static TAutoConsoleVariable<int32> CVarUseIncompleteFrames(
+		TEXT("Rivermax.Input.UseIncompleteFrames"),
+		1,
+		TEXT("Whether to keep incomplete frames in the case of missing packets or drop them."),
+		ECVF_Default);
+
+
 #if PLATFORM_SUPPORTS_PRAGMA_PACK
 #pragma pack(push, 1)
 #endif
@@ -244,6 +250,7 @@ namespace UE::RivermaxCore::Private
 		while (bIsActive)
 		{
 			Process_AnyThread();
+			LogStats();
 		}
 
 		if (StreamId)
@@ -298,8 +305,11 @@ namespace UE::RivermaxCore::Private
 
 	void FRivermaxInputStream::ParseChunk(const rmax_in_completion& Completion)
 	{
+		
 		for (uint64 StrideIndex = 0; StrideIndex < Completion.chunk_size; ++StrideIndex)
 		{
+			++StreamStats.ChunksReceived;
+		
 			ensure(Completion.hdr_ptr);
 			if (Completion.hdr_ptr == nullptr)
 			{
@@ -318,7 +328,8 @@ namespace UE::RivermaxCore::Private
 				{
 					if (bIsFirstFrameReceived)
 					{
-						//stats  rx count, received bytes++
+						StreamStats.BytesReceived += Completion.packet_info_arr[StrideIndex].data_size + Completion.packet_info_arr[StrideIndex].hdr_size;
+
 						uint64 LastSequenceNumberIncremented = StreamData.LastSequenceNumber + 1;
 						if (IsExtendedSequenceNumber() == false)
 						{
@@ -332,6 +343,9 @@ namespace UE::RivermaxCore::Private
 							bCanProcessChunk = false;
 							StreamData.WritingOffset = 0;
 							StreamData.ReceivedSize = 0;
+							++StreamStats.TotalPacketLossCount;
+							++StreamStats.FramePacketLossCount;
+							
 							UE_LOG(LogRivermax, Warning, TEXT("Lost %uld packets"), LostPackets);
 						}
 
@@ -370,19 +384,23 @@ namespace UE::RivermaxCore::Private
 								UE_LOG(LogRivermax, Warning, TEXT("Received too much data (%d). Expected %d but received (%d)"), StreamData.ReceivedSize - StreamData.ExpectedSize, StreamData.ExpectedSize, StreamData.ReceivedSize);
 								StreamData.WritingOffset = 0;
 								StreamData.ReceivedSize = 0;
+								++StreamStats.BiggerFramesCount;
 							}
 							else if (HeaderStart->MarkerBit)
 							{
 								if (StreamData.ReceivedSize == StreamData.ExpectedSize)
 								{
 									TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxInputStream::ProcessingReceivedFrame)
+
+									++StreamStats.FramesReceived;
+
 									FRivermaxInputVideoFrameDescriptor Descriptor;
 									Descriptor.Width = Options.Resolution.X;
 									Descriptor.Height = Options.Resolution.Y;
 									Descriptor.Stride = Options.Stride;
 									FRivermaxInputVideoFrameReception NewFrame;
 									NewFrame.VideoBuffer = StreamData.CurrentFrame;
-									Listener->OnVideoFrameReceived(Descriptor, NewFrame);//todo stride
+									Listener->OnVideoFrameReceived(Descriptor, NewFrame);
 									PrepareNextFrame();
 								}
 								else
@@ -390,7 +408,11 @@ namespace UE::RivermaxCore::Private
 									UE_LOG(LogRivermax, Warning, TEXT("End of frame received (Marker bit) but not enough data was received (missing %d). Expected %d but received (%d)"), StreamData.ExpectedSize - StreamData.ReceivedSize, StreamData.ExpectedSize, StreamData.ReceivedSize);
 									StreamData.WritingOffset = 0;
 									StreamData.ReceivedSize = 0;
+									++StreamStats.InvalidFramesCount;
 								}
+								
+								StreamStats.FramePacketLossCount = 0;
+								++StreamStats.EndOfFrameReceived;
 							}
 						}
 
@@ -408,6 +430,14 @@ namespace UE::RivermaxCore::Private
 					//todo why  Reset RTP header
 					*(uint32_t*)GetRTPHeaderPointer(HeaderPtr) = 0;
 				}
+				else
+				{
+					++StreamStats.InvalidHeadercount;
+				}
+			}
+			else
+			{
+				++StreamStats.EmptyCompletionCount;
 			}
 
 			//todo why?
@@ -433,6 +463,31 @@ namespace UE::RivermaxCore::Private
 		StreamData.ReceivedSize = 0;
 		StreamData.ExpectedSize = Descriptor.VideoBufferSize;
 	}
+
+	void FRivermaxInputStream::LogStats()
+	{
+		static constexpr double LoggingInterval = 1.0;
+
+		const double CurrentTime = FPlatformTime::Seconds();
+		if (CurrentTime - LastLoggingTimestamp >= LoggingInterval)
+		{
+			LastLoggingTimestamp = CurrentTime;
+			UE_LOG(LogRivermax, Verbose, TEXT("Stream %d stats: FrameCount: %llu, EndOfFrame: %llu, Chunks: %llu, Bytes: %llu, PacketLossInFrame: %llu, TotalPacketLoss: %llu, BiggerFrames: %llu, InvalidFrames: %llu, InvalidHeader: %llu, EmptyCompletion: %llu")
+			, StreamId
+			, StreamStats.FramesReceived
+			, StreamStats.EndOfFrameReceived
+			, StreamStats.ChunksReceived
+			, StreamStats.BytesReceived
+			, StreamStats.FramePacketLossCount
+			, StreamStats.TotalPacketLossCount
+			, StreamStats.BiggerFramesCount
+			, StreamStats.InvalidFramesCount
+			, StreamStats.InvalidHeadercount
+			, StreamStats.EmptyCompletionCount
+			);
+		}
+	}
+
 }
 
 

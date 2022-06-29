@@ -58,6 +58,8 @@ protected:
 
 private:
 	void OnMediaEvent(EMediaEvent MediaEvent);
+	bool StartPlayer();
+	void OnPlayerClosed();
 
 private:
 	//~ Begin GC by AddReferencedObjects
@@ -65,4 +67,10 @@ private:
 	UMediaPlayer*  MediaPlayer = nullptr;
 	UMediaTexture* MediaTexture = nullptr;
 	//~ End GC by AddReferencedObjects
+
+	// Used to restart media player in the case it falls in error
+	bool bWasPlayerStarted = false;
+
+	// Used to control the rate at which we try to restart the player
+	double LastRestartTimestamp = 0;
 };
