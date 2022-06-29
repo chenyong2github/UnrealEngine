@@ -136,6 +136,9 @@ private:
 
 	/** Bit array specifying FCompositePropertyTypeID's for properties contained within BlendedPropertyMask */
 	TBitArray<> CachedRelevantProperties;
+
+	/** Whether the current entity manager contains any non-property based blends */
+	bool bContainsNonPropertyBlends = false;
 };
 
 } // namespace MovieScene
