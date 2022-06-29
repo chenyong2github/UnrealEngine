@@ -6,6 +6,7 @@
 
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/LazySingleton.h"
+#include "Modules/ModuleManager.h"
 
 #include "EOSShared.h"
 #include "EOSSharedTypes.h"
@@ -32,6 +33,15 @@ FEOSPlatformConfig LoadEOSPlatformConfig()
 	GConfig->GetString(*ConfigSection, TEXT("ClientId"), PlatformConfig.ClientId, GEngineIni);
 	GConfig->GetString(*ConfigSection, TEXT("ClientSecret"), PlatformConfig.ClientSecret, GEngineIni);
 	return PlatformConfig;
+}
+
+bool IsEOSPlatformConfigValid(const FEOSPlatformConfig& InConfig)
+{
+	return !InConfig.ProductId.IsEmpty() &&
+		!InConfig.SandboxId.IsEmpty() &&
+		!InConfig.DeploymentId.IsEmpty() &&
+		!InConfig.ClientId.IsEmpty() &&
+		!InConfig.ClientSecret.IsEmpty();
 }
 
 namespace UE::Online {
@@ -72,6 +82,10 @@ IEOSPlatformHandlePtr FOnlineServicesEOSGSPlatformFactory::CreatePlatform()
 
 	// Load config
 	FEOSPlatformConfig EOSPlatformConfig = LoadEOSPlatformConfig();
+	if (!IsEOSPlatformConfigValid(EOSPlatformConfig))
+	{
+		return {};
+	}
 	const FTCHARToUTF8 ProductId(*EOSPlatformConfig.ProductId);
 	const FTCHARToUTF8 SandboxId(*EOSPlatformConfig.SandboxId);
 	const FTCHARToUTF8 DeploymentId(*EOSPlatformConfig.DeploymentId);
