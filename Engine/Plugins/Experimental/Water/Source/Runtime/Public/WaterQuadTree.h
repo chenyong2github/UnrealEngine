@@ -297,7 +297,7 @@ private:
 		}
 
 		/** Total memory dynamically allocated by this object */
-		uint32 GetAllocatedSize() const { InstanceData.GetAllocatedSize(); }
+		uint32 GetAllocatedSize() const { return InstanceData.GetAllocatedSize(); }
 
 		/** Cached material index */
 		int16 MaterialIndex = INDEX_NONE;
