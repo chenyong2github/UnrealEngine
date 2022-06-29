@@ -291,6 +291,15 @@ namespace UE
 				}
 			}
 
+			if (!string.IsNullOrEmpty(VerboseLogCategories))
+			{
+				string LogCmdsString = string.Join(',',
+					VerboseLogCategories
+					.Split(',')
+					.Select(LogName => LogName + " Verbose"));
+				AppConfig.CommandLine += string.Format(" -LogCmds=\"{0}\"", LogCmdsString);
+			}
+
 		}
 	}
 

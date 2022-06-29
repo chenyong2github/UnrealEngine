@@ -658,6 +658,12 @@ namespace Gauntlet
 		[AutoParam(false)]
 		public bool CookedEditor { get; set; }
 
+		/// <summary>
+		/// Enforce Verbose logging for a list of loggers
+		/// </summary>
+		[AutoParam]
+		public string VerboseLogCategories { get; set; }
+
 		// Member variables 
 
 		/// <summary>
