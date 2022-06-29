@@ -26,8 +26,6 @@ bool UParametricSurfaceData::SetFile(const TCHAR* FilePath)
 void UParametricSurfaceData::SetImportParameters(const CADLibrary::FImportParameters& InSceneParameters)
 {
 	SceneParameters.ModelCoordSys = uint8(InSceneParameters.GetModelCoordSys());
-	SceneParameters.MetricUnit = InSceneParameters.GetMetricUnit();
-	SceneParameters.ScaleFactor = InSceneParameters.GetScaleFactor();
 }
 
 void UParametricSurfaceData::SetMeshParameters(const CADLibrary::FMeshParameters& InMeshParameters)

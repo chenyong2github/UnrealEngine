@@ -305,9 +305,7 @@ public:
 			DatasmithScene->SetProductVersion(TEXT("Alias 2022.2"));
 		}
 
-		const double MetricUnit = 0.001; // ImportParameters MetricUnit is defined in meter
-		const double ScaleFactor = 1;    // MetricUnit to Modeler unit i.e. mm
-		CADLibrary::FImportParameters ImportParameters(MetricUnit, ScaleFactor);
+		CADLibrary::FImportParameters ImportParameters;
 		if(CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
 			TSharedRef<FAliasModelToTechSoftConverter> AliasToTechSoftConverter = MakeShared<FAliasModelToTechSoftConverter>(ImportParameters);
@@ -1918,7 +1916,7 @@ void FWireTranslatorImpl::DagForLeavesNoMerge(const TSharedPtr<AlDagNode>& DagNo
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(AlDagNode& DagNode, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
 	// Wire unit is cm
-	CADModelConverter->InitializeProcess(0.01);
+	CADModelConverter->InitializeProcess();
 
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
 
@@ -1962,7 +1960,7 @@ TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(A
 TOptional<FMeshDescription> FWireTranslatorImpl::MeshDagNodeWithExternalMesher(TSharedRef<BodyData> Body, TSharedRef<IDatasmithMeshElement> MeshElement, CADLibrary::FMeshParameters& MeshParameters)
 {
 	// Wire unit is cm
-	CADModelConverter->InitializeProcess(0.01);
+	CADModelConverter->InitializeProcess();
 
 	EAliasObjectReference ObjectReference = EAliasObjectReference::LocalReference;
 	if (MeshParameters.bIsSymmetric)

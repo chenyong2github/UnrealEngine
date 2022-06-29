@@ -80,7 +80,7 @@ namespace CADLibrary
 		{
 			for (const FVector& Vertex : CTTessellation.PositionArray)
 			{
-				VertexDataSet.Emplace(GlobalVertexCount, Vertex * ImportParams.GetScaleFactor());
+				VertexDataSet.Emplace(GlobalVertexCount, Vertex);
 				++GlobalVertexCount;
 			}
 		}
@@ -263,12 +263,6 @@ namespace CADLibrary
 		TVertexAttributesRef<FVector3f> VertexPositions = MeshDescription.GetVertexPositions();
 
 		TArray<FVector>& VertexArray = Body.VertexArray;
-
-		for (FVector& Vertex : VertexArray)
-		{
-			Vertex *= ImportParams.GetScaleFactor();
-		}
-
 		TArray<int32>& VertexIdSet = Body.VertexIds;
 		int32 VertexCount = VertexArray.Num();
 		VertexIdSet.SetNumZeroed(VertexCount);

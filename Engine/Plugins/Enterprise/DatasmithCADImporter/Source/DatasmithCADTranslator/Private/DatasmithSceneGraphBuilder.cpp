@@ -82,7 +82,7 @@ void AddTransformToActor(const CADLibrary::FArchiveCADObject& Object, TSharedPtr
 	FTransform LocalTransform(Object.TransformMatrix);
 	FTransform LocalUETransform = FDatasmithUtils::ConvertTransform(ImportParameters.GetModelCoordSys(), LocalTransform);
 
-	Actor->SetTranslation(LocalUETransform.GetTranslation() * ImportParameters.GetScaleFactor());
+	Actor->SetTranslation(LocalUETransform.GetTranslation());
 	Actor->SetScale(LocalUETransform.GetScale3D());
 	Actor->SetRotation(LocalUETransform.GetRotation());
 }
@@ -204,8 +204,6 @@ FDatasmithSceneBaseGraphBuilder::FDatasmithSceneBaseGraphBuilder(CADLibrary::FAr
 	, ImportParameters(InImportParameters)
 	, ImportParametersHash(ImportParameters.GetHash())
 	, RootFileDescription(*InSource.GetSourceFile())
-	, bPreferMaterial(false)
-	, bMaterialPropagationIsTopDown(ImportParameters.GetPropagation() == CADLibrary::EDisplayDataPropagationMode::TopDown)
 {
 	if (InSceneGraph)
 	{

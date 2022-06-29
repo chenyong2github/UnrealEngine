@@ -644,9 +644,7 @@ public:
 			TranslationCache = MakeShared<FTranslationCache>();
 		}
 
-		const double IPMetricUnit = 0.001; // CAD Tools works in mm
-		const double IPScaleFactor = 1.;
-		CADLibrary::FImportParameters ImportParameters(IPMetricUnit, IPScaleFactor, FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
+		CADLibrary::FImportParameters ImportParameters(FDatasmithUtils::EModelCoordSystem::ZUp_RightHanded_FBXLegacy);
 
 		if (CADLibrary::FImportParameters::bGDisableCADKernelTessellation)
 		{
@@ -2982,7 +2980,7 @@ bool FOpenNurbsTranslatorImpl::TranslateBRep(ON_Brep* Brep, const ON_3dmObjectAt
 		// Ref. visitBRep
 		CADModelConverter->SetImportParameters(OpenNurbsOptions.ChordTolerance, OpenNurbsOptions.MaxEdgeLength, OpenNurbsOptions.NormalTolerance, (CADLibrary::EStitchingTechnique)OpenNurbsOptions.StitchingTechnique);
 
-		CADModelConverter->InitializeProcess(CADModelConverter->GetMetricUnit());
+		CADModelConverter->InitializeProcess();
 
 		OpenNurbsBRepConverter->AddBRep(*Brep, Offset);
 		CADModelConverter->RepairTopology();

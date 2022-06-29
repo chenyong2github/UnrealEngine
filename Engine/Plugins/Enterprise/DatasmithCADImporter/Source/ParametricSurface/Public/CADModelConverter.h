@@ -37,11 +37,7 @@ class ICADModelConverter
 public:
 	virtual ~ICADModelConverter() = default;
 
-	/**	 
-	 * @param FileMetricUnit: Handle input file unit number of meters per file unit.
-	 * eg. For a file in inches, arg should be 0.0254
-	 */
-	virtual void InitializeProcess(double InMetricUnit) = 0;
+	virtual void InitializeProcess() = 0;
 
 	virtual bool RepairTopology() = 0;
 	virtual bool SaveModel(const TCHAR* OutputPath, TSharedRef<IDatasmithMeshElement>& MeshElement) = 0;
@@ -57,10 +53,6 @@ public:
 	 * @param bScaleUVMap : Scale the UV map to a world unit.
 	 */
 	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) = 0;
-
-	virtual void SetMetricUnit(double NewMetricUnit) = 0;
-	virtual double GetScaleFactor() const = 0;
-	virtual double GetMetricUnit() const = 0;
 
 	virtual bool IsSessionValid() = 0;
 

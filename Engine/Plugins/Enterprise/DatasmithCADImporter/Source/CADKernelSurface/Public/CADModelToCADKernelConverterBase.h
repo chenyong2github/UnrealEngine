@@ -22,14 +22,14 @@ class FCADModelToCADKernelConverterBase : public CADLibrary::ICADModelConverter
 public:
 
 	FCADModelToCADKernelConverterBase(CADLibrary::FImportParameters InImportParameters)
-		: CADKernelSession(0.00001 / InImportParameters.GetMetricUnit())
+		: CADKernelSession(0.01)
 		, ImportParameters(InImportParameters)
-		, GeometricTolerance(0.00001 / InImportParameters.GetMetricUnit())
+		, GeometricTolerance(0.01)
 		, SquareTolerance(GeometricTolerance* GeometricTolerance)
 	{
 	}
 
-	virtual void InitializeProcess(double InMetricUnit) override
+	virtual void InitializeProcess() override
 	{
 		CADKernelSession.Clear();
 	}
@@ -40,7 +40,7 @@ public:
 		if(ImportParameters.GetStitchingTechnique() != CADLibrary::StitchingNone)
 		{
 			// the joining tolerance is set to 0.1 mm until the user can specify it
-			double JoiningTolerance = ImportParameters.ConvertMMToImportUnit(0.1);
+			const double JoiningTolerance = 0.1;
 			CADKernel::FTopomaker Topomaker(CADKernelSession, JoiningTolerance);
 			Topomaker.Sew();
 			Topomaker.OrientShells();
@@ -66,21 +66,6 @@ public:
 	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) override
 	{
 		ImportParameters.SetTesselationParameters(ChordTolerance, MaxEdgeLength, NormalTolerance, StitchingTechnique);
-	}
-
-	virtual void SetMetricUnit(double NewMetricUnit) override
-	{
-		ImportParameters.SetMetricUnit(NewMetricUnit);
-	}
-
-	virtual double GetScaleFactor() const override
-	{
-		return ImportParameters.GetScaleFactor();
-	}
-
-	virtual double GetMetricUnit() const override
-	{
-		return ImportParameters.GetMetricUnit();
 	}
 
 	virtual bool IsSessionValid() override

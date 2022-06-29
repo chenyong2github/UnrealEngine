@@ -102,9 +102,6 @@ protected:
 	TMap<FMaterialUId, CADLibrary::FArchiveMaterial> MaterialUIdToMaterialArchive; 
 
 	TArray<uint32> AncestorSceneGraphHash;
-
-	bool bPreferMaterial;
-	bool bMaterialPropagationIsTopDown;
 };
 
 class DATASMITHCADTRANSLATOR_API FDatasmithSceneGraphBuilder : public FDatasmithSceneBaseGraphBuilder

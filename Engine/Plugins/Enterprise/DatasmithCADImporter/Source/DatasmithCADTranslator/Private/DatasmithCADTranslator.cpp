@@ -137,15 +137,12 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	{
 	case CADLibrary::ECADFormat::NX:
 	{
-		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
-		ImportParameters.SetPropagationMode(CADLibrary::EDisplayDataPropagationMode::BodyOnly);
 		break;
 	}
 
 	case CADLibrary::ECADFormat::SOLIDWORKS:
 	{
 		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::YUp_RightHanded);
-		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
 		break;
 	}
 
@@ -153,15 +150,11 @@ bool FDatasmithCADTranslator::LoadScene(TSharedRef<IDatasmithScene> DatasmithSce
 	case CADLibrary::ECADFormat::CREO:
 	{
 		ImportParameters.SetModelCoordinateSystem(FDatasmithUtils::EModelCoordSystem::YUp_RightHanded);
-		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
-		ImportParameters.SetPropagationMode(CADLibrary::EDisplayDataPropagationMode::BodyOnly);
 		break;
 	}
 
 	case CADLibrary::ECADFormat::DWG:
 	{
-		ImportParameters.SetDisplayPreference(CADLibrary::EDisplayPreference::ColorOnly);
-		ImportParameters.SetPropagationMode(CADLibrary::EDisplayDataPropagationMode::BodyOnly);
 		break;
 	}
 

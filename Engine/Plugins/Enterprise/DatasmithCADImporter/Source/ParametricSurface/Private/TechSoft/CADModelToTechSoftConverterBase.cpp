@@ -24,7 +24,7 @@ bool FCADModelToTechSoftConverterBase::RepairTopology()
 		A3DRiBrepModel** OutNewBReps;
 		uint32 OutNewBRepCount;
 		const double SewTolerance = CADLibrary::FImportParameters::GStitchingTolerance;
-		const double FileUnit = ImportParameters.GetMetricUnit() * 1000; // ImportParameters MetricUnit is defined in meter, CADLibrary::TechSoftInterface::SewBReps expectes it in mm
+		const double FileUnit = 1.; // BReps from Rhino and Alias are converted in mm
 		CADLibrary::TechSoftInterface::SewBReps((A3DRiBrepModel**) RiRepresentationItems.GetData(), RiRepresentationItems.Num(), SewTolerance, FileUnit, SewOptionsData.GetPtr(), &OutNewBReps, OutNewBRepCount);
 
 		RiRepresentationItems.Empty(OutNewBRepCount);
@@ -37,7 +37,7 @@ bool FCADModelToTechSoftConverterBase::RepairTopology()
 	return true;
 }
 
-void FCADModelToTechSoftConverterBase::InitializeProcess(double InMetricUnit)
+void FCADModelToTechSoftConverterBase::InitializeProcess()
 {
 	RiRepresentationItems.Empty();
 	ModelFile.Reset();

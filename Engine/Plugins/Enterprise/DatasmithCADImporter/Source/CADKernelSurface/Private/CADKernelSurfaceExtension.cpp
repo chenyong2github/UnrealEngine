@@ -34,7 +34,7 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 	bool bSuccessfulTessellation = false;
 
 #if WITH_EDITOR
-	CADLibrary::FImportParameters ImportParameters((double) SceneParameters.MetricUnit, (double) SceneParameters.ScaleFactor);
+	CADLibrary::FImportParameters ImportParameters;
 	ImportParameters.SetModelCoordinateSystem((FDatasmithUtils::EModelCoordSystem) SceneParameters.ModelCoordSys);
 	ImportParameters.SetTesselationParameters(RetessellateOptions.ChordTolerance, RetessellateOptions.MaxEdgeLength, RetessellateOptions.NormalTolerance, (CADLibrary::EStitchingTechnique) RetessellateOptions.StitchingTechnique);
 
@@ -56,7 +56,8 @@ bool UCADKernelParametricSurfaceData::Tessellate(UStaticMesh& StaticMesh, const 
 			CADLibrary::CopyPatchGroups(*DestinationMeshDescription, MeshDescription);
 		}
 
-		TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(0.00001 / ImportParameters.GetMetricUnit());
+		const double GeometricTolerance = 0.01; // mm
+		TSharedRef<CADKernel::FSession> CADKernelSession = MakeShared<CADKernel::FSession>(GeometricTolerance);
 		CADKernelSession->AddDatabase(RawData);
 
 		CADKernel::FModel& CADKernelModel = CADKernelSession->GetModel();

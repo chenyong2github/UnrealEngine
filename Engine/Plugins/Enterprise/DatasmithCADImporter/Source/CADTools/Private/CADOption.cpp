@@ -76,8 +76,6 @@ uint32 GetTypeHash(const FImportParameters& ImportParameters)
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.ChordTolerance));
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.MaxEdgeLength));
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.MaxNormalAngle));
-	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.MetricUnit));
-	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.ScaleFactor));
 	ParametersHash = HashCombine(ParametersHash, ::GetTypeHash(ImportParameters.StitchingTechnique));
 	return ParametersHash;
 }

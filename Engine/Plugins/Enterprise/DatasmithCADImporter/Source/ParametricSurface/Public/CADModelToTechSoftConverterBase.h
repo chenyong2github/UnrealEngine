@@ -29,7 +29,7 @@ public:
 	{
 	}
 
-	virtual void InitializeProcess(double InMetricUnit) override;
+	virtual void InitializeProcess() override;
 
 	virtual bool RepairTopology() override;
 
@@ -40,21 +40,6 @@ public:
 	virtual void SetImportParameters(double ChordTolerance, double MaxEdgeLength, double NormalTolerance, CADLibrary::EStitchingTechnique StitchingTechnique) override
 	{
 		ImportParameters.SetTesselationParameters(ChordTolerance, MaxEdgeLength, NormalTolerance, StitchingTechnique);
-	}
-
-	virtual void SetMetricUnit(double NewMetricUnit) override
-	{
-		ImportParameters.SetMetricUnit(NewMetricUnit);
-	}
-
-	virtual double GetScaleFactor() const override
-	{
-		return ImportParameters.GetScaleFactor();
-	}
-
-	virtual double GetMetricUnit() const override
-	{
-		return ImportParameters.GetMetricUnit();
 	}
 
 	virtual bool IsSessionValid() override
