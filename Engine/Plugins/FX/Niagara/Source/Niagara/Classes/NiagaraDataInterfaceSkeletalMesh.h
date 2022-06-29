@@ -730,6 +730,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Mesh", meta = (DisplayName = "Source Actor"))
 	TSoftObjectPtr<AActor> SoftSourceActor;
 
+	/** If defined, the supplied tags will be used to identify a valid component */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	TArray<FName> ComponentTags;
+
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TObjectPtr<AActor> Source_DEPRECATED;
