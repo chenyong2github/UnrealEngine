@@ -21,6 +21,7 @@ protected:
 	// SGraphNodeK2Composite interface
 	virtual UEdGraph* GetInnerGraph() const override;
 	virtual TArray<FOverlayWidgetInfo> GetOverlayWidgets(bool bSelected, const FVector2D& WidgetSize) const override;
+	virtual TSharedRef<SWidget> CreateNodeBody() override;
 	// End of SGraphNodeK2Composite interface
 
 private:
