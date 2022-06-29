@@ -726,6 +726,7 @@ public:
 	TSoftObjectPtr<USkeletalMesh> PreviewMesh;
 #endif
 
+protected:
 	/** The source actor from which to sample. Takes precedence over the direct mesh. Note that this can only be set when used as a user variable on a component in the world.*/
 	UPROPERTY(EditAnywhere, Category = "Mesh", meta = (DisplayName = "Source Actor"))
 	TSoftObjectPtr<AActor> SoftSourceActor;
@@ -739,13 +740,14 @@ public:
 	TObjectPtr<AActor> Source_DEPRECATED;
 #endif
 
-	/** Reference to a user parameter if we're reading one. */
-	UPROPERTY(EditAnywhere, Category = "Mesh")
-	FNiagaraUserParameterBinding MeshUserParameter;
-
 	/** The source component from which to sample. Takes precedence over the direct mesh. Not exposed to the user, only indirectly accessible from blueprints. */
 	UPROPERTY(Transient)
 	TObjectPtr<USkeletalMeshComponent> SourceComponent;
+
+public:
+	/** Reference to a user parameter if we're reading one. */
+	UPROPERTY(EditAnywhere, Category = "Mesh")
+	FNiagaraUserParameterBinding MeshUserParameter;
 
 	/** Selects which skinning mode to use, for most cases Skin On The Fly will cover your requirements, see individual tooltips for more information. */
 	UPROPERTY(EditAnywhere, Category="Mesh")
@@ -840,6 +842,9 @@ public:
 	/** Finds the skeletal mesh based on settings of the DI and the hierarchy of the object provided */
 	USkeletalMesh* GetSkeletalMesh(UNiagaraComponent* Component);
 
+	USkeletalMeshComponent* GetSourceComponent() const { return SourceComponent; }
+	AActor* GetSourceActor() const { return SoftSourceActor.Get(); }
+
 	int32 CalculateLODIndexAndSamplingRegions(USkeletalMesh* InMesh, TArray<int32>& OutSamplingRegionIndices, bool& OutAllRegionsAreAreaWeighting) const;
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
@@ -891,6 +896,13 @@ public:
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
+
+	// Bind/unbind delegates to release references to the source actor & component.
+	void UnbindSourceDelegates();
+	void BindSourceDelegates();
+
+	UFUNCTION()
+	void OnSourceEndPlay(AActor* InSource, EEndPlayReason::Type Reason);
 
 	//////////////////////////////////////////////////////////////////////////
 	//Triangle sampling
