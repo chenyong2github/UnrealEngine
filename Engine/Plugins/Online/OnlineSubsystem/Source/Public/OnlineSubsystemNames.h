@@ -78,7 +78,6 @@
 #endif
 
 UE_DEPRECATED(4.27, "OnlineSubsystemWeChat has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName WECHAT_SUBSYSTEM;
-UE_DEPRECATED(4.27, "OnlineSubsystemTwitch has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName TWITCH_SUBSYSTEM;
 UE_DEPRECATED(4.27, "OnlineSubsystemLive has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName LIVE_SUBSYSTEM;
 UE_DEPRECATED(4.27, "OnlineSubsystemLiveServer has been deprecated and will be removed") ONLINESUBSYSTEM_API extern FName LIVESERVER_SUBSYSTEM;
 
