@@ -2211,14 +2211,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	}
 #endif // RHI_RAYTRACING
 
-	// Dynamic vertex and index buffers need to be committed before rendering.
-	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
-		DynamicIndexBufferForInitViews.Commit();
-		DynamicVertexBufferForInitViews.Commit();
-		DynamicReadBufferForInitViews.Commit();
-	}
-
 	// Notify the FX system that the scene is about to be rendered.
 	if (FXSystem && Views.IsValidIndex(0))
 	{
@@ -2290,6 +2282,14 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		GatherRayTracingWorldInstancesForView(GraphBuilder, ReferenceView, RayTracingScene, MoveTemp(RayTracingRelevantPrimitiveList));
 	}
 #endif // RHI_RAYTRACING
+
+	// Dynamic vertex and index buffers need to be committed before rendering.
+	{
+		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_FGlobalDynamicVertexBuffer_Commit);
+		DynamicIndexBufferForInitViews.Commit();
+		DynamicVertexBufferForInitViews.Commit();
+		DynamicReadBufferForInitViews.Commit();
+	}
 
 	const bool bUseGBuffer = IsUsingGBuffers(ShaderPlatform);
 	
