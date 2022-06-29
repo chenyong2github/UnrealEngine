@@ -17,10 +17,12 @@
 #include "BuiltInComponentTypes.generated.h"
 
 enum class EMovieSceneBlendType : uint8;
+struct FMovieSceneBoolChannel;
 struct FMovieSceneByteChannel;
 struct FMovieSceneIntegerChannel;
 struct FMovieSceneFloatChannel;
 struct FMovieSceneDoubleChannel;
+struct FMovieSceneObjectPathChannel;
 struct FMovieScenePropertyBinding;
 
 class UMovieSceneSection;
@@ -90,6 +92,22 @@ namespace UE
 {
 namespace MovieScene
 {
+
+/**
+ * The component data for evaluating a bool channel
+ */
+struct FSourceBoolChannel
+{
+	FSourceBoolChannel()
+		: Source(nullptr)
+	{}
+
+	FSourceBoolChannel(const FMovieSceneBoolChannel* InSource)
+		: Source(InSource)
+	{}
+
+	const FMovieSceneBoolChannel* Source;
+};
 
 /**
  * The component data for evaluating a byte channel
@@ -170,6 +188,20 @@ struct FEvaluationHookFlags
 	bool bHasBegun = false;
 };
 
+struct FSourceObjectPathChannel
+{
+	FSourceObjectPathChannel()
+		: Source(nullptr)
+	{}
+
+	FSourceObjectPathChannel(const FMovieSceneObjectPathChannel* InSource)
+		: Source(InSource)
+	{}
+
+	const FMovieSceneObjectPathChannel* Source;
+};
+
+
 /**
  * Pre-defined built in component types
  */
@@ -236,6 +268,9 @@ public:
 	// An integer representing the base value for the integer channel for the purposes of "additive from base" blending.
 	TComponentTypeID<int32> BaseInteger;
 
+	// An FMovieSceneBoolChannel
+	TComponentTypeID<FSourceBoolChannel> BoolChannel;
+
 	// An FMovieSceneFloatChannel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
 	TComponentTypeID<FSourceFloatChannel> FloatChannel[9];
 	TComponentTypeID<FSourceFloatChannelFlags> FloatChannelFlags[9];
@@ -247,6 +282,9 @@ public:
 	// An FMovieSceneFloatChannel that represents an arbitrary weight
 	TComponentTypeID<FSourceFloatChannel> WeightChannel;
 	TComponentTypeID<FSourceFloatChannelFlags> WeightChannelFlags;
+
+	// FMovieSceneObjectPathChannel that represents a changing object path over time
+	TComponentTypeID<FSourceObjectPathChannel> ObjectPathChannel;
 
 	// A float representing the output of the channel considered to be at index N within the source structure (ie 0 = Location.X, Vector.X, Color.R; 1 = Location.Y, Vector.Y, Color.G)
 	TComponentTypeID<float> FloatResult[9];
@@ -265,6 +303,9 @@ public:
 
 	// A float representing the evaluated output of a weight channel
 	TComponentTypeID<float> WeightResult;
+
+	// The result of an evaluated FMovieSceneObjectPathChannel
+	TComponentTypeID<UObject*> ObjectResult;
 
 public:
 

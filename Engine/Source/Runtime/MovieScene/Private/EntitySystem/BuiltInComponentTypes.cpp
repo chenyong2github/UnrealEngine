@@ -36,6 +36,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&SceneComponentBinding,   TEXT("USceneComponent Binding ID"));
 	ComponentRegistry->NewComponentType(&SpawnableBinding,        TEXT("Spawnable Binding"));
 	ComponentRegistry->NewComponentType(&TrackInstance,           TEXT("Track Instance"));
+	ComponentRegistry->NewComponentType(&BoolChannel,             TEXT("Bool Channel"));
 	ComponentRegistry->NewComponentType(&ByteChannel,             TEXT("Byte Channel"));
 	ComponentRegistry->NewComponentType(&IntegerChannel,          TEXT("Integer Channel"));
 	ComponentRegistry->NewComponentType(&FloatChannel[0],         TEXT("Float Channel 0"));
@@ -57,6 +58,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&DoubleChannel[7],        TEXT("Double Channel 7"));
 	ComponentRegistry->NewComponentType(&DoubleChannel[8],        TEXT("Double Channel 8"));
 	ComponentRegistry->NewComponentType(&WeightChannel,           TEXT("Weight Channel"));
+	ComponentRegistry->NewComponentType(&ObjectPathChannel,       TEXT("Object Path Channel"));
 
 	ComponentRegistry->NewComponentType(&FloatChannelFlags[0],    TEXT("Float Channel 0 Flags"));
 	ComponentRegistry->NewComponentType(&FloatChannelFlags[1],    TEXT("Float Channel 1 Flags"));
@@ -112,6 +114,7 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	ComponentRegistry->NewComponentType(&DoubleResult[6],       TEXT("Double Result 6"));
 	ComponentRegistry->NewComponentType(&DoubleResult[7],       TEXT("Double Result 7"));
 	ComponentRegistry->NewComponentType(&DoubleResult[8],       TEXT("Double Result 8"));
+	ComponentRegistry->NewComponentType(&ObjectResult,          TEXT("Object Result"));
 
 	ComponentRegistry->NewComponentType(&BaseInteger,			TEXT("Base Integer"));
 	ComponentRegistry->NewComponentType(&BaseFloat[0],          TEXT("Base Float 0"));
@@ -199,7 +202,9 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 	
 	// Bool channel relationships
 	{
+		ComponentRegistry->Factories.DuplicateChildComponent(BoolChannel);
 		ComponentRegistry->Factories.DuplicateChildComponent(BoolResult);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(BoolChannel, BoolResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(BoolResult, EvalTime);
 	}
 
@@ -302,6 +307,16 @@ FBuiltInComponentTypes::FBuiltInComponentTypes()
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(Easing, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(HierarchicalEasingChannel, WeightAndEasingResult);
 		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(WeightResult, WeightAndEasingResult);
+	}
+
+	// Object path channel relationships
+	{
+		// Object channel components should be duplicated to children
+		ComponentRegistry->Factories.DuplicateChildComponent(ObjectPathChannel);
+
+		// Object channel components need a time and result to evaluate
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(ObjectPathChannel, EvalTime);
+		ComponentRegistry->Factories.DefineMutuallyInclusiveComponent(ObjectPathChannel, ObjectResult);
 	}
 
 	// Track instances always produce inputs
