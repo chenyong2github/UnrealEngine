@@ -218,7 +218,7 @@ namespace EpicGames.Core
 		/// <returns>Sequence of bytes</returns>
 		public static ReadOnlyMemory<byte> ReadFixedLengthBytes(this IMemoryReader reader, int length)
 		{
-			ReadOnlyMemory<byte> bytes = reader.GetMemory(length);
+			ReadOnlyMemory<byte> bytes = reader.GetMemory(length).Slice(0, length);
 			reader.Advance(length);
 			return bytes;
 		}
@@ -230,7 +230,7 @@ namespace EpicGames.Core
 		/// <param name="readItem">Delegate to write an individual item</param>
 		public static T[] ReadVariableLengthArray<T>(this IMemoryReader reader, Func<T> readItem)
 		{
-			int length = ReadInt32(reader);
+			int length = (int)reader.ReadUnsignedVarInt();
 			return ReadFixedLengthArray(reader, length, readItem);
 		}
 

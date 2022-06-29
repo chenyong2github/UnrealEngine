@@ -3,6 +3,7 @@
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
+using System.Collections.Generic;
 using System.Text;
 
 namespace EpicGames.Core
@@ -198,6 +199,7 @@ namespace EpicGames.Core
 			Span<byte> span = GetSpan(writer, lengthBytes + bytes.Length);
 			VarInt.WriteUnsigned(span, bytes.Length);
 			bytes.CopyTo(span[lengthBytes..]);
+			writer.Advance(lengthBytes + bytes.Length);
 		}
 
 		/// <summary>
@@ -227,26 +229,26 @@ namespace EpicGames.Core
 		/// Writes a variable length array
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
-		/// <param name="array">The array to write</param>
+		/// <param name="list">The array to write</param>
 		/// <param name="writeItem">Delegate to write an individual item</param>
-		public static void WriteVariableLengthArray<T>(this IMemoryWriter writer, T[] array, Action<T> writeItem)
+		public static void WriteVariableLengthArray<T>(this IMemoryWriter writer, IReadOnlyList<T> list, Action<T> writeItem)
 		{
-			WriteInt32(writer, array.Length);
-			WriteFixedLengthArray(writer, array, writeItem);
+			writer.WriteUnsignedVarInt(list.Count);
+			WriteFixedLengthArray(writer, list, writeItem);
 		}
 
 		/// <summary>
 		/// Writes a fixed length array
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>
-		/// <param name="array">The array to write</param>
+		/// <param name="list">The array to write</param>
 		/// <param name="writeItem">Delegate to write an individual item</param>
 		[System.Diagnostics.CodeAnalysis.SuppressMessage("Style", "IDE0060:Remove unused parameter")]
-		public static void WriteFixedLengthArray<T>(this IMemoryWriter writer, T[] array, Action<T> writeItem)
+		public static void WriteFixedLengthArray<T>(this IMemoryWriter writer, IReadOnlyList<T> list, Action<T> writeItem)
 		{
-			for (int idx = 0; idx < array.Length; idx++)
+			for (int idx = 0; idx < list.Count; idx++)
 			{
-				writeItem(array[idx]);
+				writeItem(list[idx]);
 			}
 		}
 

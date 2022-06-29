@@ -27,16 +27,6 @@ namespace EpicGames.Core
 			public ReadOnlyMemory<byte> WrittenMemory => Data.AsMemory(0, Length);
 		}
 
-		class Segment : ReadOnlySequenceSegment<byte>
-		{
-			public Segment(Chunk chunk, Segment? next)
-			{
-				Memory = chunk.WrittenMemory;
-				RunningIndex = chunk.RunningIndex;
-				Next = next;
-			}
-		}
-
 		readonly List<Chunk> _chunks = new List<Chunk>();
 		readonly int _chunkSize;
 		Chunk _currentChunk;
@@ -126,10 +116,27 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Appends data in this builder to the given sequence
+		/// </summary>
+		/// <param name="builder">Sequence builder</param>
+		public void AppendTo(ReadOnlySequenceBuilder<byte> builder)
+		{
+			foreach (Chunk chunk in _chunks)
+			{
+				builder.Append(chunk.WrittenMemory);
+			}
+		}
+
+		/// <summary>
 		/// Gets a sequence representing the bytes that have been written so far
 		/// </summary>
 		/// <returns>Sequence of bytes</returns>
-		public ReadOnlySequence<byte> AsSequence() => AsSequence(0);
+		public ReadOnlySequence<byte> AsSequence()
+		{
+			ReadOnlySequenceBuilder<byte> builder = new ReadOnlySequenceBuilder<byte>();
+			AppendTo(builder);
+			return builder.Construct();
+		}
 
 		/// <summary>
 		/// Gets a sequence representing the bytes that have been written so far, starting at the given offset
@@ -138,22 +145,8 @@ namespace EpicGames.Core
 		/// <returns>Sequence of bytes</returns>
 		public ReadOnlySequence<byte> AsSequence(int offset)
 		{
-			if (offset == Length)
-			{
-				return ReadOnlySequence<byte>.Empty;
-			}
-			else
-			{
-				Segment last = new Segment(_chunks[^1], null);
-
-				Segment first = last;
-				for (int idx = _chunks.Count - 1; idx >= 0 && offset < _chunks[idx].RunningIndex + _chunks[idx].Length; idx--)
-				{
-					first = new Segment(_chunks[idx], first);
-				}
-
-				return new ReadOnlySequence<byte>(first, offset - (int)first.RunningIndex, last, last.Memory.Length);
-			}
+			// TODO: could do a binary search for offset and work forwards from there
+			return AsSequence().Slice(offset);
 		}
 
 		/// <summary>
@@ -164,8 +157,8 @@ namespace EpicGames.Core
 		/// <returns>Sequence of bytes</returns>
 		public ReadOnlySequence<byte> AsSequence(int offset, int length)
 		{
-			// TODO: could do a binary search for offset + length and work back from there
-			return AsSequence(offset).Slice(0, length);
+			// TODO: could do a binary search for offset and work fowards from there
+			return AsSequence().Slice(offset, length);
 		}
 
 		/// <summary>
