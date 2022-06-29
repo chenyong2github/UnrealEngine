@@ -326,25 +326,20 @@ FVisualLogEntry* FVisualLogger::GetEntryToWriteInternal(const UObject* Object, c
 
 		FReadScopeLock RedirectScopeLock(RedirectRWLock);
 		FOwnerToChildrenRedirectionMap& RedirectionMap = GetRedirectionMap(LogOwner);
-		if (RedirectionMap.Contains(LogOwner))
+		if (const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(LogOwner))
 		{
-			if (const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(LogOwner))
-			{
-				DebugSnapshotInterface->GrabDebugSnapshot(CurrentEntry);
-			}
-			for (TWeakObjectPtr<const UObject>& Child : RedirectionMap[LogOwner])
+			DebugSnapshotInterface->GrabDebugSnapshot(CurrentEntry);
+		}
+		
+		TArray<TWeakObjectPtr<const UObject>>* Children = RedirectionMap.Find(LogOwner);
+		if (Children != nullptr)
+		{
+			for (TWeakObjectPtr<const UObject>& Child : *Children)
 			{
 				if (const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(Child.Get()))
 				{
 					DebugSnapshotInterface->GrabDebugSnapshot(CurrentEntry);
 				}
-			}
-		}
-		else
-		{
-			if (const IVisualLoggerDebugSnapshotInterface* DebugSnapshotInterface = Cast<const IVisualLoggerDebugSnapshotInterface>(LogOwner))
-			{
-				DebugSnapshotInterface->GrabDebugSnapshot(CurrentEntry);
 			}
 		}
 	}
@@ -693,24 +688,59 @@ UObject* FVisualLogger::RedirectInternal(const UObject* FromObject, const UObjec
 	}
 
 	const TWeakObjectPtr<const UObject> FromWeakPtr(FromObject);
-	UObject* OldRedirection = FindRedirectionInternal(FromObject);
-	UObject* NewRedirection = FindRedirectionInternal(ToObject);
 
-	if (OldRedirection != NewRedirection)
+	TWeakObjectPtr<const UObject>& WeakOwnerEntry = ChildToOwnerMap.FindOrAdd(FromObject);
+	const UObject* DirectOwner = WeakOwnerEntry.Get();
+	const UObject* NewDirectOwner = ToObject;
+
+	if (DirectOwner != ToObject)
 	{
 		FOwnerToChildrenRedirectionMap& OwnerToChildrenMap = GetRedirectionMap(FromObject);
+		const TArray<TWeakObjectPtr<const UObject>>* ObjectChildren = OwnerToChildrenMap.Find(FromObject);
 
-		TArray<TWeakObjectPtr<const UObject>>* OldArray = OwnerToChildrenMap.Find(OldRedirection);
-		if (OldArray)
+		// A valid direct owner indicates that FromObject was in one or many list(s)
+		// of children so remove it and its children from the owner hierarchy
+		if (DirectOwner != nullptr)
 		{
-			OldArray->RemoveSingleSwap(FromWeakPtr);
+			const UObject* Owner = DirectOwner;
+			while (Owner != nullptr)
+			{
+				if (TArray<TWeakObjectPtr<const UObject>>* DirectOwnerChildren = OwnerToChildrenMap.Find(Owner))
+				{
+					DirectOwnerChildren->RemoveSingleSwap(FromWeakPtr);
+					if (ObjectChildren != nullptr)
+					{
+						for (const TWeakObjectPtr<const UObject>& Child : *ObjectChildren)
+						{
+							DirectOwnerChildren->RemoveSingleSwap(Child);
+						}
+					}
+				}
+
+				const TWeakObjectPtr<const UObject>* WeakOwner = ChildToOwnerMap.Find(Owner);
+				Owner = WeakOwner ? WeakOwner->Get() : nullptr;
+			}
 		}
 
-		OwnerToChildrenMap.FindOrAdd(NewRedirection).AddUnique(FromWeakPtr);
+		// Add this child with its children (if any) to the owner hierarchy
+		const UObject* Owner = NewDirectOwner;
+		while (Owner != nullptr)
+		{
+			TArray<TWeakObjectPtr<const UObject>>& NewHighestOwnerChildren = OwnerToChildrenMap.FindOrAdd(Owner);
+			NewHighestOwnerChildren.Add(FromWeakPtr);
+			if (ObjectChildren != nullptr)
+			{
+				NewHighestOwnerChildren.Append(*ObjectChildren);
+			}
+
+			const TWeakObjectPtr<const UObject>* WeakOwner = ChildToOwnerMap.Find(Owner);
+			Owner = WeakOwner ? WeakOwner->Get() : nullptr;
+		}
 	}
 
-	ChildToOwnerMap.FindOrAdd(FromWeakPtr.Get(true/*bEvenIfPendingKill*/)) = ToObject;
+	WeakOwnerEntry = ToObject;
 
+	UObject* NewRedirection = FindRedirectionInternal(ToObject);
 	return NewRedirection;
 }
 
