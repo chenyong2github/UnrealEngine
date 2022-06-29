@@ -20,7 +20,8 @@ public class OnlineServicesEOSGS : ModuleRules
 				"CoreOnline",
 				"CoreUObject",
 				"EOSSDK",
-				"EOSShared"
+				"EOSShared",
+				"Sockets"
 			}
 		);
 
@@ -29,8 +30,7 @@ public class OnlineServicesEOSGS : ModuleRules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
-					"SocketSubsystemEOS",
-					"Sockets"
+					"SocketSubsystemEOS"
 				}
 			);
 		}

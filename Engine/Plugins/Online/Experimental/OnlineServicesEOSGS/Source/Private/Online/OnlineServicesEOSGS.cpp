@@ -6,6 +6,7 @@
 #include "Online/AuthEOSGS.h"
 #include "Online/LobbiesEOSGS.h"
 #include "Online/StatsEOSGS.h"
+#include "Online/SessionsEOSGS.h"
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
 
@@ -53,6 +54,7 @@ void FOnlineServicesEOSGS::RegisterComponents()
 	Components.Register<FAuthEOSGS>(*this);
 	Components.Register<FLobbiesEOSGS>(*this);
 	Components.Register<FStatsEOSGS>(*this);
+	Components.Register<FSessionsEOSGS>(*this);
 	Super::RegisterComponents();
 }
 
@@ -120,33 +122,67 @@ void FOnlineServicesEOSGS::Initialize()
 
 TOnlineResult<FGetResolvedConnectString> FOnlineServicesEOSGS::GetResolvedConnectString(FGetResolvedConnectString::Params&& Params)
 {
-	ILobbiesPtr LobbiesEOS = GetLobbiesInterface();
-	check(LobbiesEOS);
+	if (Params.LobbyId.IsValid())
+	{
+		ILobbiesPtr LobbiesEOS = GetLobbiesInterface();
+		check(LobbiesEOS);
 
-	TOnlineResult<FGetJoinedLobbies> JoinedLobbies = LobbiesEOS->GetJoinedLobbies({ Params.LocalUserId });
-	if (JoinedLobbies.IsOk())
-	{
-		for (TSharedRef<const FLobby>& Lobby : JoinedLobbies.GetOkValue().Lobbies)
+		TOnlineResult<FGetJoinedLobbies> JoinedLobbies = LobbiesEOS->GetJoinedLobbies({ Params.LocalUserId });
+		if (JoinedLobbies.IsOk())
 		{
-			if (Lobby->LobbyId == Params.LobbyId)
+			for (TSharedRef<const FLobby>& Lobby : JoinedLobbies.GetOkValue().Lobbies)
 			{
+				if (Lobby->LobbyId == Params.LobbyId)
+				{
 #if WITH_ENGINE
- 				//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
- 				FString NetDriverName = GetDefault<UNetDriverEOSBase>()->NetDriverName.ToString();
- 				FInternetAddrEOS TempAddr(GetProductUserIdChecked(Lobby->OwnerAccountId), NetDriverName, GetTypeHash(NetDriverName));
- 				return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
+					//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
+					FString NetDriverName = GetDefault<UNetDriverEOSBase>()->NetDriverName.ToString();
+					FInternetAddrEOS TempAddr(GetProductUserIdChecked(Lobby->OwnerAccountId), NetDriverName, GetTypeHash(NetDriverName));
+					return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
 #else
-				return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
+					return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
 #endif
+				}
 			}
+
+			// No matching lobby
+			return TOnlineResult<FGetResolvedConnectString>(Errors::NotFound());
 		}
-		// No matching lobby
-		return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
+		else
+		{
+			return TOnlineResult<FGetResolvedConnectString>(JoinedLobbies.GetErrorValue());
+		}
 	}
-	else
+	else if (Params.SessionId.IsValid())
 	{
-		return TOnlineResult<FGetResolvedConnectString>(JoinedLobbies.GetErrorValue());
+		ISessionsPtr SessionsEOS = GetSessionsInterface();
+		check(SessionsEOS);
+
+		TOnlineResult<FGetSessionById> Result = SessionsEOS->GetSessionById({ Params.SessionId });
+		if (Result.IsOk())
+		{
+#if WITH_ENGINE
+			TSharedRef<const FSession> Session = Result.GetOkValue().Session;
+
+			//It should look like this: "EOS:0002aeeb5b2d4388a3752dd6d31222ec:GameNetDriver:97"
+			FString NetDriverName = GetDefault<UNetDriverEOSBase>()->NetDriverName.ToString();
+			FInternetAddrEOS TempAddr(GetProductUserIdChecked(Session->OwnerUserId), NetDriverName, GetTypeHash(NetDriverName));
+			return TOnlineResult<FGetResolvedConnectString>({ TempAddr.ToString(true) });
+#else
+			return TOnlineResult<FGetResolvedConnectString>(Errors::NotImplemented());
+#endif
+		}
+		else
+		{
+			return TOnlineResult<FGetResolvedConnectString>(Result.GetErrorValue());
+		}
+
+		// No matching session
+		return TOnlineResult<FGetResolvedConnectString>(Errors::NotFound());
 	}
+
+	// No valid lobby or session id set
+	return TOnlineResult<FGetResolvedConnectString>(Errors::InvalidParams());
 }
 
 EOS_HPlatform FOnlineServicesEOSGS::GetEOSPlatformHandle() const
