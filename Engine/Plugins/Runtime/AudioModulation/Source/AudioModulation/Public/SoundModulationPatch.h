@@ -15,7 +15,7 @@ class USoundControlBus;
 
 
 USTRUCT(BlueprintType)
-struct FSoundModulationTransform : public FWaveTableTransform
+struct AUDIOMODULATION_API FSoundModulationTransform : public FWaveTableTransform
 {
 	GENERATED_USTRUCT_BODY()
 };
@@ -61,7 +61,7 @@ struct AUDIOMODULATION_API FSoundControlModulationPatch
 	TArray<FSoundControlModulationInput> Inputs;
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
-	EWaveTableResolution WaveTableResolution;
+	EWaveTableResolution WaveTableResolution = EWaveTableResolution::None;
 };
 
 UCLASS(config = Engine, editinlinenew, BlueprintType)
