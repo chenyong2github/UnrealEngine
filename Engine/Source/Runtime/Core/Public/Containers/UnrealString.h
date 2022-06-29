@@ -26,6 +26,7 @@
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Traits/IsCharType.h"
+#include "Traits/IsCharEncodingSimplyConvertibleTo.h"
 
 struct FStringFormatArg;
 template<typename InKeyType,typename InValueType,typename SetAllocator ,typename KeyFuncs > class TMap;
@@ -410,7 +411,7 @@ public:
 	>
 	FORCEINLINE FString& operator+=(AppendedCharType Char)
 	{
-		if constexpr (FPlatformString::IsCharEncodingSimplyConvertibleTo<AppendedCharType, TCHAR>())
+		if constexpr (TIsCharEncodingSimplyConvertibleTo_V<AppendedCharType, TCHAR>)
 		{
 			return AppendChar((TCHAR)Char);
 		}

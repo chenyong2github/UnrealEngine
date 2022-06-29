@@ -11,6 +11,7 @@
 #include "Net/Common/Packets/PacketTraits.h"
 #include "IPAddress.h"
 #include "Serialization/BitReader.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 #include "ReplayTypes.generated.h"
 
 ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogDemo, Log, All);
@@ -459,7 +460,7 @@ public:
 private:
 	void EnableFastStringSerialization()
 	{
-		if (FPlatformString::IsCharEncodingCompatibleWith<WIDECHAR, TCHAR>())
+		if constexpr (TIsCharEncodingCompatibleWith<WIDECHAR, TCHAR>::Value)
 		{
 			Archive.SetForceUnicode(true);
 		}
@@ -467,7 +468,7 @@ private:
 
 	void RestoreStringSerialization()
 	{
-		if (FPlatformString::IsCharEncodingCompatibleWith<WIDECHAR, TCHAR>())
+		if constexpr (TIsCharEncodingCompatibleWith<WIDECHAR, TCHAR>::Value)
 		{
 			Archive.SetForceUnicode(bWasUnicode);
 		}

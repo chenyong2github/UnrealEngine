@@ -12,6 +12,7 @@
 #include "String/Find.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/ElementType.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsCharType.h"
 #include "Traits/IsContiguousContainer.h"
 #include <type_traits>
@@ -99,8 +100,15 @@ public:
 	}
 
 	/** Construct a view of the null-terminated string pointed to by InData. */
-	template <typename OtherCharType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()>* = nullptr>
+	template <
+		typename OtherCharType,
+		std::enable_if_t<
+			TAnd<
+				TIsCharType<OtherCharType>,
+				TIsCharEncodingCompatibleWith<OtherCharType, CharType>
+			>::Value
+		>* = nullptr
+	>
 	constexpr inline TStringView(const OtherCharType* InData)
 		: DataPtr((const CharType*)InData)
 		, Size(InData ? TCString<CharType>::Strlen((const CharType*)InData) : 0)
@@ -108,8 +116,15 @@ public:
 	}
 
 	/** Construct a view of InSize characters beginning at InData. */
-	template <typename OtherCharType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<OtherCharType, CharType>()>* = nullptr>
+	template <
+		typename OtherCharType,
+		std::enable_if_t<
+			TAnd<
+				TIsCharType<OtherCharType>,
+				TIsCharEncodingCompatibleWith<OtherCharType, CharType>
+			>::Value
+		>* = nullptr
+	>
 	constexpr inline TStringView(const OtherCharType* InData, int32 InSize)
 		: DataPtr((const CharType*)InData)
 		, Size(InSize)
@@ -119,9 +134,11 @@ public:
 	/** Construct a view from a contiguous range of characters, such as FString or TStringBuilder. */
 	template <typename CharRangeType,
 		std::enable_if_t<
-			TIsContiguousContainer<CharRangeType>::Value &&
-			TIsCharType<TElementType_T<CharRangeType>>::Value &&
-			FPlatformString::IsCharEncodingCompatibleWith<TElementType_T<CharRangeType>, CharType>() &&
+			TAnd<
+				TIsContiguousContainer<CharRangeType>,
+				TIsCharType<TElementType_T<CharRangeType>>,
+				TIsCharEncodingCompatibleWith<TElementType_T<CharRangeType>, CharType>
+			>::Value &&
 			!std::is_array_v<std::remove_reference_t<CharRangeType>> &&
 			!std::is_same_v<CharRangeType, ViewType>
 		>* = nullptr>
@@ -152,7 +169,7 @@ public:
 	/** Modifies the view to remove the given number of characters from the end. */
 	inline void RemoveSuffix(int32 CharCount) { Size -= CharCount; }
 	/** Resets to an empty view */
-	inline void Reset() { DataPtr = nullptr; Size = 0; }
+	inline void		Reset()								{ DataPtr = nullptr; Size = 0; }
 
 	// Operations
 
@@ -210,7 +227,7 @@ public:
 	 * Check whether this view is equivalent to a character range.
 	 *
 	 * @param Other        A character range that is comparable with the character type of this view.
-	 * @param SearchCase   Whether the comparison should ignore case.
+	 * @param SearchCase Whether the comparison should ignore case.
 	 */
 	template <typename OtherRangeType, decltype(MakeStringView(DeclVal<OtherRangeType>()))* = nullptr>
 	[[nodiscard]] inline bool Equals(OtherRangeType&& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const
@@ -223,7 +240,7 @@ public:
 	 * Check whether this view is equivalent to a string view.
 	 *
 	 * @param Other        A string that is comparable with the character type of this view.
-	 * @param SearchCase   Whether the comparison should ignore case.
+	 * @param SearchCase Whether the comparison should ignore case.
 	 */
 	template <typename OtherCharType,
 		std::enable_if_t<TIsCharType<OtherCharType>::Value>* = nullptr>
@@ -233,7 +250,7 @@ public:
 	 * Compare this view with a character range.
 	 *
 	 * @param Other        A character range that is comparable with the character type of this view.
-	 * @param SearchCase   Whether the comparison should ignore case.
+	 * @param SearchCase Whether the comparison should ignore case.
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
 	template <typename OtherRangeType, decltype(MakeStringView(DeclVal<OtherRangeType>()))* = nullptr>
@@ -257,7 +274,7 @@ public:
 	 * Compare this view with a null-terminated string.
 	 *
 	 * @param Other        A null-terminated string that is comparable with the character type of this view.
-	 * @param SearchCase   Whether the comparison should ignore case.
+	 * @param SearchCase Whether the comparison should ignore case.
 	 * @return 0 is equal, negative if this view is less, positive if this view is greater.
 	 */
 	template <typename OtherCharType>
@@ -299,7 +316,7 @@ public:
 	 * Search the view for the first occurrence of a character.
 	 *
 	 * @param Search           The character to search for. Comparison is lexicographic.
-	 * @param OutIndex [out]   The position at which the character was found, or INDEX_NONE if not found.
+	 * @param OutIndex [out] The position at which the character was found, or INDEX_NONE if not found.
 	 * @return True if the character was found in the view, otherwise false.
 	 */
 	inline bool FindChar(CharType Search, int32& OutIndex) const;
@@ -308,7 +325,7 @@ public:
 	 * Search the view for the last occurrence of a character.
 	 *
 	 * @param Search           The character to search for. Comparison is lexicographic.
-	 * @param OutIndex [out]   The position at which the character was found, or INDEX_NONE if not found.
+	 * @param OutIndex [out] The position at which the character was found, or INDEX_NONE if not found.
 	 * @return True if the character was found in the view, otherwise false.
 	 */
 	inline bool FindLastChar(CharType Search, int32& OutIndex) const;
@@ -620,14 +637,14 @@ inline bool TStringView<CharType>::EndsWith(ViewType Suffix, ESearchCase::Type S
 
 template <typename CharType>
 inline int32 TStringView<CharType>::Find(const ViewType Search, const int32 StartPosition) const
-{
+			{
 	const int32 Index = UE::String::FindFirst(RightChop(StartPosition), Search);
 	return Index == INDEX_NONE ? INDEX_NONE : Index + StartPosition;
 }
 
 template <typename CharType>
 inline bool TStringView<CharType>::FindChar(const CharType Search, int32& OutIndex) const
-{
+	{
 	OutIndex = UE::String::FindFirstChar(*this, Search);
 	return OutIndex != INDEX_NONE;
 }

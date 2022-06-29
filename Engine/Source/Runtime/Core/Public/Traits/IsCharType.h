@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 
 /**
- * Type trait which tests if a type is a char type.
+ * Type trait which tests if a type is a character encoding type.
  */
 template<typename T> struct TIsCharType            { enum { Value = false }; };
 template<>           struct TIsCharType<ANSICHAR>  { enum { Value = true  }; };
@@ -19,3 +19,6 @@ template<>           struct TIsCharType<UTF32CHAR> { enum { Value = true  }; };
 #if PLATFORM_TCHAR_IS_CHAR16
 template<>           struct TIsCharType<wchar_t>   { enum { Value = true  }; };
 #endif
+
+template <typename T>
+constexpr inline bool TIsCharType_V = TIsCharType<T>::Value;

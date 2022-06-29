@@ -18,6 +18,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "Templates/UnrealTypeTraits.h"
 #include "Traits/ElementType.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsContiguousContainer.h"
 #include <type_traits>
 
@@ -32,7 +33,7 @@ public:
 
 	template <
 		typename CharType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<CharType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<CharType, FromType>>* = nullptr
 	>
 	FORCEINLINE static void Convert(To* Dest, int32 DestLen, const CharType* Source, int32 SourceLen)
 	{
@@ -42,7 +43,7 @@ public:
 
 	template <
 		typename CharType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<CharType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<CharType, FromType>>* = nullptr
 	>
 	static int32 ConvertedLength(const CharType* Source, int32 SourceLen)
 	{
@@ -293,7 +294,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE int32 Convert(IntendedToType* Dest, int32 DestLen, const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -307,7 +308,7 @@ public:
 	}
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE int32 Convert(ToType* Dest, int32 DestLen, const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -322,7 +323,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE int32 ConvertedLength(const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -347,7 +348,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE void Convert(ToType* Dest, const int32 DestLen, const SrcBufferType* Source, const int32 SourceLen)
 	{
@@ -367,7 +368,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static int32 ConvertedLength(const SrcBufferType* Source, const int32 SourceLen)
 	{
@@ -455,7 +456,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE void Convert(ToType* Dest, int32 DestLen, const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -469,7 +470,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE int32 ConvertedLength(const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -531,7 +532,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static FORCEINLINE void Convert(ToType* Dest, const int32 DestLen, const SrcBufferType* Source, const int32 SourceLen)
 	{
@@ -547,7 +548,7 @@ public:
 	 */
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	static int32 ConvertedLength(const SrcBufferType* Source, const int32 SourceLen)
 	{
@@ -672,7 +673,7 @@ class TStringConversion : private Converter, private TInlineAllocator<DefaultCon
 public:
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	explicit TStringConversion(const SrcBufferType* Source)
 	{
@@ -693,7 +694,7 @@ public:
 
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	TStringConversion(const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -729,9 +730,9 @@ public:
 		std::enable_if_t<
 			TAnd<
 				TIsContiguousContainer<FromRangeType>,
-				TNot<TIsArray<typename TRemoveReference<FromRangeType>::Type>>
-			>::Value &&
-			FPlatformString::IsCharEncodingCompatibleWith<FromRangeCharType, FromType>()
+				TNot<TIsArray<typename TRemoveReference<FromRangeType>::Type>>,
+				TIsCharEncodingCompatibleWith<FromRangeCharType, FromType>
+			>::Value
 		>* = nullptr
 	>
 	TStringConversion(FromRangeType&& Source)
@@ -824,7 +825,7 @@ public:
 public:
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	explicit TStringPointer(const SrcBufferType* Source)
 	{
@@ -842,7 +843,7 @@ public:
 
 	template <
 		typename SrcBufferType,
-		std::enable_if_t<FPlatformString::IsCharEncodingCompatibleWith<SrcBufferType, FromType>()>* = nullptr
+		std::enable_if_t<TIsCharEncodingCompatibleWith_V<SrcBufferType, FromType>>* = nullptr
 	>
 	TStringPointer(const SrcBufferType* Source, int32 SourceLen)
 	{
@@ -873,9 +874,9 @@ public:
 		std::enable_if_t<
 			TAnd<
 				TIsContiguousContainer<FromRangeType>,
-				TNot<TIsArray<typename TRemoveReference<FromRangeType>::Type>>
-			>::Value &&
-			FPlatformString::IsCharEncodingCompatibleWith<FromRangeCharType, FromType>()
+				TNot<TIsArray<typename TRemoveReference<FromRangeType>::Type>>,
+				TIsCharEncodingCompatibleWith<FromRangeCharType, FromType>
+			>::Value
 		>* = nullptr
 	>
 	TStringPointer(FromRangeType&& Source)
@@ -1061,7 +1062,7 @@ typedef TStringPointer<wchar_t, TCHAR> FWCharToTCHAR;
 template <typename To, int32 DefaultConversionSize = DEFAULT_STRING_CONVERSION_SIZE, typename From>
 FORCEINLINE auto StringCast(const From* Str)
 {
-	if constexpr (FPlatformString::IsCharEncodingCompatibleWith<From, To>())
+	if constexpr (TIsCharEncodingCompatibleWith_V<From, To>)
 	{
 		return TStringPointer<To>((const To*)Str);
 	}
@@ -1080,7 +1081,7 @@ FORCEINLINE auto StringCast(const From* Str)
 template <typename To, int32 DefaultConversionSize = DEFAULT_STRING_CONVERSION_SIZE, typename From>
 FORCEINLINE auto StringCast(const From* Str, int32 Len)
 {
-	if constexpr (FPlatformString::IsCharEncodingCompatibleWith<From, To>())
+	if constexpr (TIsCharEncodingCompatibleWith_V<From, To>)
 	{
 		return TStringPointer<To>((const To*)Str, Len);
 	}
@@ -1208,7 +1209,7 @@ private:
 template <typename From, typename To, int32 DefaultConversionSize = DEFAULT_STRING_CONVERSION_SIZE>
 FORCEINLINE auto StringMemoryPassthru(To* Buffer, int32 BufferSize, int32 SourceLength)
 {
-	if constexpr (FPlatformString::IsCharEncodingCompatibleWith<From, To>())
+	if constexpr (TIsCharEncodingCompatibleWith_V<From, To>)
 	{
 		check(SourceLength <= BufferSize);
 		return TPassthruPointer<From>((From*)Buffer);

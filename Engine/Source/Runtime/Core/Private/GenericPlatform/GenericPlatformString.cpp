@@ -676,7 +676,7 @@ namespace UE::Core::Private
 template <typename DestEncoding, typename SourceEncoding>
 void FGenericPlatformString::LogBogusChars(const SourceEncoding* Src, int32 SrcSize)
 {
-	static_assert(IsFixedWidthEncoding<SourceEncoding>(), "Currently unimplemented for non-fixed-width source conversions");
+	static_assert(TIsFixedWidthCharEncoding_V<SourceEncoding>, "Currently unimplemented for non-fixed-width source conversions");
 
 	FString SrcStr;
 	bool    bFoundBogusChars = false;

@@ -12,6 +12,7 @@
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/UnrealTemplate.h"
 #include "Traits/IsCharType.h"
+#include "Traits/IsCharEncodingSimplyConvertibleTo.h"
 #include "Traits/IsContiguousContainer.h"
 #include <type_traits>
 
@@ -165,7 +166,7 @@ public:
 	>
 	inline BuilderType& AppendChar(AppendedCharType Char)
 	{
-		if constexpr (FPlatformString::IsCharEncodingSimplyConvertibleTo<AppendedCharType, CharType>())
+		if constexpr (TIsCharEncodingSimplyConvertibleTo_V<AppendedCharType, CharType>)
 	{
 		EnsureAdditionalCapacity(1);
 			*CurPos++ = (CharType)Char;
