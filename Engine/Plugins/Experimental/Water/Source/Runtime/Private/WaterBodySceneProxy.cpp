@@ -200,7 +200,8 @@ uint32 FWaterBodySceneProxy::GetMemoryFootprint() const
 
 uint32 FWaterBodySceneProxy::GetAllocatedSize() const
 {
-	return FPrimitiveSceneProxy::GetAllocatedSize();
+
+	return FPrimitiveSceneProxy::GetAllocatedSize() + Sections.GetAllocatedSize() + DilatedSections.GetAllocatedSize();
 }
 
 bool FWaterBodySceneProxy::IsShown(const FSceneView* View) const

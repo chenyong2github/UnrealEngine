@@ -247,6 +247,15 @@ void UBuoyancyComponent::TickComponent(float DeltaTime, enum ELevelTick TickType
 	Update(DeltaTime);
 }
 
+void UBuoyancyComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	// Account for all non-editor data properties :
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(CurAsyncInput) + sizeof(CurAsyncOutput) + sizeof(NextAsyncOutput) + sizeof(CurAsyncType) + sizeof(OutputInterpAlpha) + OutputsWaitingOn.GetAllocatedSize()
+		+ sizeof(PontoonConfiguration) + ConfiguredPontoonCoefficients.GetAllocatedSize() + sizeof(VelocityPontoonIndex));
+}
+
 void UBuoyancyComponent::SetupWaterBodyOverlaps()
 {
 	//SimulatingComponent->SetCollisionObjectType(ECollisionChannel::ECC_PhysicsBody);

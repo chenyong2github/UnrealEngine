@@ -26,6 +26,10 @@ public:
 
 	void RebuildGPUData() { bRebuildGPUData = true; }
 
+	//~ Begin UObject Interface.	
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	//~ End UObject Interface
+
 private:
 	void BeginFrameCallback();
 

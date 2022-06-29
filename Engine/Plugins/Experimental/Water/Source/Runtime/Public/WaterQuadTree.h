@@ -175,10 +175,10 @@ struct FWaterQuadTree
 	const TArray<FMaterialRenderProxy*>& GetWaterMaterials() const { return WaterMaterials; }
 
 	/** Calculate the world distance to a LOD */
-	static float GetLODDistance(int32 InLODLevel, float InLODScale)
-	{
-		return FMath::Pow(2.0f, (float)(InLODLevel + 1)) * InLODScale;
-	}
+	static float GetLODDistance(int32 InLODLevel, float InLODScale) { return FMath::Pow(2.0f, (float)(InLODLevel + 1)) * InLODScale; }
+
+	/** Total memory dynamically allocated by this object */
+	uint32 GetAllocatedSize() const { return NodeData.GetAllocatedSize() + WaterMaterials.GetAllocatedSize() + FarMeshData.GetAllocatedSize(); }
 
 #if WITH_WATER_SELECTION_SUPPORT
 	/** Obtain all possible hit proxies (proxies of all the water bodies) */
@@ -267,6 +267,9 @@ private:
 
 		/** Render data for all water bodies in this tree, indexed by the nodes */
 		TArray<FWaterBodyRenderData> WaterBodyRenderData;
+
+		/** Total memory dynamically allocated by this object */
+		uint32 GetAllocatedSize() const { return Nodes.GetAllocatedSize() + WaterBodyRenderData.GetAllocatedSize(); }
 	} NodeData;
 
 	TArray<FMaterialRenderProxy*> WaterMaterials;
@@ -286,15 +289,18 @@ private:
 		/** Material for the Far Distance Mesh, its material render proxy will be cached in WaterMaterials when BuildMaterialIndices is called */
 		const UMaterialInterface* Material = nullptr;
 
-		/** Cached material index */
-		int16 MaterialIndex = INDEX_NONE;
-
 		void Clear()
 		{
 			InstanceData.Empty();
 			Material = nullptr;
 			MaterialIndex = INDEX_NONE;
 		}
+
+		/** Total memory dynamically allocated by this object */
+		uint32 GetAllocatedSize() const { InstanceData.GetAllocatedSize(); }
+
+		/** Cached material index */
+		int16 MaterialIndex = INDEX_NONE;
 
 	} FarMeshData;
 

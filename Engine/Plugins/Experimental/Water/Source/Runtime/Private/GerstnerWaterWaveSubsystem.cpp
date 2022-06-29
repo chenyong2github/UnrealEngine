@@ -38,6 +38,13 @@ void UGerstnerWaterWaveSubsystem::Unregister(FGerstnerWaterWaveViewExtension* In
 	GerstnerWaterWaveViewExtensions.Remove(InViewExtension);
 }
 
+void UGerstnerWaterWaveSubsystem::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(GerstnerWaterWaveViewExtensions.GetAllocatedSize());
+}
+
 void UGerstnerWaterWaveSubsystem::BeginFrameCallback()
 {
 	// In case there was a change, all registered view extensions need to update their GPU data : 

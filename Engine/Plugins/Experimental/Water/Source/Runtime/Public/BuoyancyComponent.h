@@ -20,14 +20,17 @@ class WATER_API UBuoyancyComponent : public UActorComponent
 public:
 	UBuoyancyComponent(const FObjectInitializer& ObjectInitializer);
 
+	//~ Begin UActorComponent Interface.	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
-
-	virtual void PostLoad() override;
-
-	virtual void Serialize(FArchive& Ar) override;
-
 	virtual void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
+	//~ End UActorComponent Interface
+
+	//~ Begin UObject Interface.	
+	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
+	virtual void PostLoad() override;
+	virtual void Serialize(FArchive& Ar) override;
+	//~ End UObject Interface
 
 	virtual void Update(float DeltaTime);
 

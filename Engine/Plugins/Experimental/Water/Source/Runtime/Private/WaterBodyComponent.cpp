@@ -1312,6 +1312,18 @@ void UWaterBodyComponent::OnGenerateOverlapEventsChanged()
 	}
 }
 
+void UWaterBodyComponent::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize)
+{
+	Super::GetResourceSizeEx(CumulativeResourceSize);
+
+	// Account for all non-editor data properties :
+	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(
+		WaterBodyMeshIndices.GetAllocatedSize()
+		+ WaterBodyMeshVertices.GetAllocatedSize()
+		+ DilatedWaterBodyMeshIndices.GetAllocatedSize()
+		+ DilatedWaterBodyMeshVertices.GetAllocatedSize());
+}
+
 bool UWaterBodyComponent::SetDynamicParametersOnMID(UMaterialInstanceDynamic* InMID)
 {
 	UWaterSubsystem* WaterSubsystem = UWaterSubsystem::GetWaterSubsystem(GetWorld());
@@ -1534,6 +1546,12 @@ void UWaterBodyComponent::UpdateWaterBodyRenderData()
 	{
 		GenerateWaterBodyMesh();
 		MarkRenderStateDirty();
+
+		// Compact the arrays since they are not going to change unless everything is rebuilt
+		WaterBodyMeshVertices.Shrink();
+		WaterBodyMeshIndices.Shrink();
+		DilatedWaterBodyMeshVertices.Shrink();
+		DilatedWaterBodyMeshIndices.Shrink();
 
 		if (AWaterZone* WaterZone = GetWaterZone())
 		{
