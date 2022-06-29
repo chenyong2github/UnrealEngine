@@ -198,10 +198,8 @@ extern int32 GNaniteShowStats;
 
 static bool UseMeshShader(EShaderPlatform ShaderPlatform, Nanite::EPipeline Pipeline)
 {
-	const bool bNoVendorExtensions = !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(ShaderPlatform);
-
 	// We require tier1 support to utilize primitive attributes
-	const bool bSupported = bNoVendorExtensions && GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
+	const bool bSupported = GNaniteMeshShaderRasterization != 0 && GRHISupportsMeshShadersTier1;
 	return bSupported && (GNaniteVSMMeshShaderRasterization != 0 || Pipeline != Nanite::EPipeline::Shadows);
 }
 
@@ -212,10 +210,7 @@ static bool UsePrimitiveShader()
 
 static bool AllowProgrammableRaster(EShaderPlatform ShaderPlatform)
 {
-	// Piggy-back on the vendor extensions for atomics flag to assume we don't have SM6 support. This fixes errors that were occurring
-	// from the Nanite material rasterizer CS because of compiling ddx/ddy in SM5 (even if unused).
-	// TODO: Remove this DDPI check when removing vendor extension support
-	return GNaniteAllowProgrammableRaster != 0 && !FDataDrivenShaderPlatformInfo::GetRequiresVendorExtensionsForAtomics(ShaderPlatform);
+	return GNaniteAllowProgrammableRaster != 0;
 }
 
 struct FCompactedViewInfo
