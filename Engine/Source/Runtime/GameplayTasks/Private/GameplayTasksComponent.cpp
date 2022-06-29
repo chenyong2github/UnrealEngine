@@ -61,6 +61,8 @@ void UGameplayTasksComponent::BeginPlay()
 {
 	Super::BeginPlay();
 
+	REDIRECT_TO_VLOG(GetOwner());
+	
 	if (IsUsingRegisteredSubObjectList())
 	{
 		for (UGameplayTask* SimulatedTask : SimulatedTasks)
@@ -708,6 +710,17 @@ void UGameplayTasksComponent::DescribeSelfToVisLog(FVisualLogEntry* Snapshot) co
 		else
 		{
 			NotInQueueDesc += TEXT("\nNULL");
+		}
+	}
+
+	for (TObjectPtr<UGameplayTask> Task : SimulatedTasks)
+	{
+		if (Task && !KnownTasks.Contains(Task))
+		{
+			NotInQueueDesc += FString::Printf(TEXT("\n%s %s %s %s"),
+					*GetTaskStateName(Task->GetState()), *Task->GetDebugDescription(),
+					Task->IsTickingTask() ? TEXT("[TICK]") : TEXT(""),
+					Task->IsSimulatedTask() ? TEXT("[REP]") : TEXT(""));
 		}
 	}
 

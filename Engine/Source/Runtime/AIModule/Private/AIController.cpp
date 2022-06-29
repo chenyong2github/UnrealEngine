@@ -502,8 +502,6 @@ void AAIController::OnPossess(APawn* InPawn)
 	if (CachedGameplayTasksComponent && !CachedGameplayTasksComponent->OnClaimedResourcesChange.Contains(this, GET_FUNCTION_NAME_CHECKED(AAIController, OnGameplayTaskResourcesClaimed)))
 	{
 		CachedGameplayTasksComponent->OnClaimedResourcesChange.AddDynamic(this, &AAIController::OnGameplayTaskResourcesClaimed);
-
-		REDIRECT_OBJECT_TO_VLOG(CachedGameplayTasksComponent, this);
 	}
 
 	if (Blackboard && Blackboard->GetBlackboardAsset())

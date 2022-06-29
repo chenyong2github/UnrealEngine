@@ -58,6 +58,13 @@ UGameplayTask* UGameplayActuationComponent::TryMakeTransitionTask(const FConstSt
 	return Result;
 }
 
+void UGameplayActuationComponent::BeginPlay()
+{
+	Super::BeginPlay();
+	
+	REDIRECT_TO_VLOG(GetOwner());
+}
+
 void UGameplayActuationComponent::EndPlay(const EEndPlayReason::Type EndPlayReason)
 {
 	if (FGameplayActuationStateBase* State = ActuationState.GetMutablePtr<FGameplayActuationStateBase>())
