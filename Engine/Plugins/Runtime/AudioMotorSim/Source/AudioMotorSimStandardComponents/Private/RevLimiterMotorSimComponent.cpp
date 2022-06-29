@@ -23,7 +23,6 @@ void URevLimiterMotorSimComponent::Update(FAudioMotorSimInputContext& Input, FAu
 	if (TimeRemaining > 0.0f)
 	{
 		Input.Throttle = 0.0f;
-		RuntimeInfo.Gear = 0;
 
 		TimeRemaining -= Input.DeltaTime;
 		Input.bClutchEngaged = true;
