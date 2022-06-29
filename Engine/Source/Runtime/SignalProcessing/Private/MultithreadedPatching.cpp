@@ -4,6 +4,8 @@
 
 #include "DSP/FloatArrayMath.h"
 #include "HAL/IConsoleManager.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Event.h"
 
 static int32 MultithreadedPatchingPushCallsPerOutputCleanupCheckCVar = 256;
 FAutoConsoleVariableRef CVarMultithreadedPatchingPushCallsPerOutputCleanupCheck(
@@ -23,6 +25,8 @@ namespace Audio
 		, PreviousGain(InGain)
 		, PatchID(++PatchIDCounter)
 		, NumAliveInputs(0)
+		, SamplesFilledEvent(nullptr)
+		, NumSamplesToWaitFor(0)
 	{
 
 	}
@@ -34,7 +38,18 @@ namespace Audio
 		, PreviousGain(0.0f)
 		, PatchID(INDEX_NONE)
 		, NumAliveInputs(0)
+		, SamplesFilledEvent(nullptr)
+		, NumSamplesToWaitFor(0)
 	{
+	}
+
+	FPatchOutput::~FPatchOutput()
+	{
+		if (SamplesFilledEvent)
+		{
+			FPlatformProcess::ReturnSynchEventToPool(SamplesFilledEvent);
+			SamplesFilledEvent = nullptr;
+		}
 	}
 
 	int32 FPatchOutput::PopAudio(float* OutBuffer, int32 NumSamples, bool bUseLatestAudio)
@@ -44,6 +59,10 @@ namespace Audio
 			return INDEX_NONE;
 		}
 
+		const int32 CurrSamplesAvailable = GetNumSamplesAvailable();
+		const int32 CurrCapacity = InternalBuffer.GetCapacity();
+		const int32 CurrSamplesFilled = CurrCapacity - CurrSamplesAvailable;
+		
 		if (bUseLatestAudio && InternalBuffer.Num() > (uint32) NumSamples)
 		{
 			InternalBuffer.SetNum((uint32)NumSamples);
@@ -71,6 +90,25 @@ namespace Audio
 	{
 		return NumAliveInputs == 0;
 	}
+
+	int32 FPatchOutput::PushAudioToInternalBuffer(const float* InBuffer, int32 NumSamples)
+	{
+		const int32 NumSamplesPushed = InternalBuffer.Push(InBuffer, NumSamples);
+
+		// Check to see if we need to notify anybody waiting on this patch output getting filled
+		if (SamplesFilledEvent && NumSamplesToWaitFor > 0 && GetNumSamplesAvailable() >= NumSamplesToWaitFor)
+		{
+			SamplesFilledEvent->Trigger();
+			NumSamplesToWaitFor = 0;
+		}
+
+		const int32 CurrSamplesAvailable = GetNumSamplesAvailable();
+		const int32 CurrCapacity = InternalBuffer.GetCapacity();
+		const int32 CurrSamplesFilled = CurrCapacity - CurrSamplesAvailable;
+		
+		return NumSamplesPushed;
+	}
+
 
 	int32 FPatchOutput::MixInAudio(float* OutBuffer, int32 NumSamples, bool bUseLatestAudio)
 	{
@@ -110,9 +148,26 @@ namespace Audio
 	}
 
 
-	int32 FPatchOutput::GetNumSamplesAvailable()
+	int32 FPatchOutput::GetNumSamplesAvailable() const
 	{
 		return InternalBuffer.Num();
+	}
+
+	bool FPatchOutput::WaitUntilNumSamplesAvailable(int32 InNumSamplesToWaitFor, uint32 TimeOutMilliseconds)
+	{
+		// No need to wait if we have that many available already
+		if (GetNumSamplesAvailable() >= InNumSamplesToWaitFor)
+		{
+			return true;
+		}
+		NumSamplesToWaitFor = InNumSamplesToWaitFor;
+		
+		if (!SamplesFilledEvent)
+		{
+			SamplesFilledEvent = FPlatformProcess::GetSynchEventFromPool(false);
+		}
+	
+		return SamplesFilledEvent->Wait(TimeOutMilliseconds);
 	}
 
 	FPatchInput::FPatchInput(const FPatchOutputStrongPtr& InOutput)
@@ -178,7 +233,7 @@ namespace Audio
 			return INDEX_NONE;
 		}
 
-		int32 SamplesPushed = OutputHandle->InternalBuffer.Push(InBuffer, NumSamples);
+		int32 SamplesPushed = OutputHandle->PushAudioToInternalBuffer(InBuffer, NumSamples);
 
 		// Periodically check to see if the output handle has been destroyed and clean it up.
 		// If the buffer is full, check as well to determine if it is possibly due to the

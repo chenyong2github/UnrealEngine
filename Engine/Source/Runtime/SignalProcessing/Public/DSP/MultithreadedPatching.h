@@ -6,8 +6,12 @@
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/Dsp.h"
 
+class FEvent;
+
 namespace Audio
 {
+
+	
 	/**
 	 * This class can be thought of as an output for a single constructed instance of FPatchInput.
 	 * Each FPatchOutput can only be connected to one FPatchInput. To route multiple outputs, see FPatchSplitter.
@@ -33,6 +37,8 @@ namespace Audio
 		/** The default constructor will result in an uninitialized, disconnected patch point. */
 		FPatchOutput();
 
+		virtual ~FPatchOutput();
+		
 		/** Copies the minimum of NumSamples or however many samples are available into OutBuffer. Returns the number of samples copied, or -1 if this output's corresponding input has been destroyed. */
 		int32 PopAudio(float* OutBuffer, int32 NumSamples, bool bUseLatestAudio);
 
@@ -40,8 +46,11 @@ namespace Audio
 		int32 MixInAudio(float* OutBuffer, int32 NumSamples, bool bUseLatestAudio);
 
 		/** Returns the current number of samples buffered on this output. */
-		int32 GetNumSamplesAvailable();
+		int32 GetNumSamplesAvailable() const;
 
+		/** Pauses the current thread until there are the given number of samples available to pop. Will return true if it succeeded, false if it timed out. */
+		bool WaitUntilNumSamplesAvailable(int32 NumSamples, uint32 TimeOutMilliseconds = MAX_uint32);
+		
 		/** Returns true if the input for this patch has been destroyed. */
 		bool IsInputStale() const;
 
@@ -49,7 +58,9 @@ namespace Audio
 		friend class FPatchMixer;
 		friend class FPatchSplitter;
 	private:
-
+		
+		int32 PushAudioToInternalBuffer(const float* InBuffer, int32 NumSamples);
+		
 		// Internal buffer.
 		TCircularAudioBuffer<float> InternalBuffer;
 
@@ -66,6 +77,10 @@ namespace Audio
 		// Counter that is incremented/decremented to allow FPatchInput to be copied around safely.
 		int32 NumAliveInputs;
 
+		// Event to pause the current thread until a given number of samples has been filled
+		FEvent* SamplesFilledEvent;
+		int32 NumSamplesToWaitFor;
+		
 		static TAtomic<int32> PatchIDCounter;
 	};
 
