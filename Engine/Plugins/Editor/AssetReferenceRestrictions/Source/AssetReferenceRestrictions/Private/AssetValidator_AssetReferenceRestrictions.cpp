@@ -24,7 +24,7 @@ bool UAssetValidator_AssetReferenceRestrictions::CanValidateAsset_Implementation
 		const FAssetData AssetData(InAsset);
 		TSharedPtr<FDomainData> DomainData = GEditor->GetEditorSubsystem<UAssetReferencingPolicySubsystem>()->GetDomainDB()->FindDomainFromAssetData(AssetData);
 
-		const bool bIsInUnrestrictedFolder = DomainData->IsValid() && DomainData->bCanSeeEverything;
+		const bool bIsInUnrestrictedFolder = DomainData && DomainData->IsValid() && DomainData->bCanSeeEverything;
 		if (!bIsInUnrestrictedFolder)
 		{
 			return true;
