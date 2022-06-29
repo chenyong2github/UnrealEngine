@@ -126,7 +126,7 @@ void FNiagaraSystemToolkitModeBase::OnEditedScriptGraphChanged(const FEdGraphEdi
 	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
 	// We need to update the parameter panel view model with new parameters potentially
 	if (Toolkit->GetSystemViewModel()->GetParameterPanelViewModel())
-		Toolkit->GetSystemViewModel()->GetParameterPanelViewModel()->RefreshNextTick();
+		Toolkit->GetSystemViewModel()->GetParameterPanelViewModel()->RefreshFullNextTick(true);
 }
 
 void FNiagaraSystemToolkitModeBase::OnParameterPanelViewModelExternalSelectionChanged()
@@ -150,20 +150,7 @@ void FNiagaraSystemToolkitModeBase::OnParameterPanelViewModelExternalSelectionCh
 
 void FNiagaraSystemToolkitModeBase::OnSystemSelectionChanged()
 {
-	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
-	TSharedPtr<SDockTab>  ActiveTab = Toolkit->GetSystemViewModel()->GetDocumentViewModel()->GetActiveDocumentTab().Pin();
-	if (ActiveTab.IsValid())
-	{
-		if (ActiveTab->GetLayoutIdentifier().TabType != SystemOverviewTabID)
-		{
-			TSharedPtr<SDockTab> FoundOverviewTab = Toolkit->GetTabManager()->FindExistingLiveTab(SystemOverviewTabID);
-			if (FoundOverviewTab.IsValid())
-			{
-				FoundOverviewTab->DrawAttention();
-				FoundOverviewTab->ActivateInParent(ETabActivationCause::SetDirectly);
-			}
-		}
-	}
+	// Do nothing for now
 }
 
 void FNiagaraSystemToolkitModeBase::UpdateSelectionForActiveDocument()
@@ -203,6 +190,10 @@ void FNiagaraSystemToolkitModeBase::UpdateSelectionForActiveDocument()
 		ObjectSelection->ClearSelectedObjects();
 		ObjectSelectionSubHeaderText = LOCTEXT("EmptySelection", "Nothing selected");
 	}
+
+	// We need to update the parameter panel view model with new parameters potentially
+	if (Toolkit->GetSystemViewModel()->GetParameterPanelViewModel())
+		Toolkit->GetSystemViewModel()->GetParameterPanelViewModel()->RefreshDueToActiveDocumentChanged();
 }
 
 void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
@@ -277,7 +268,7 @@ void FNiagaraSystemToolkitModeBase::RegisterTabFactories(TSharedPtr<FTabManager>
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.SystemOverview"));
 
 	InTabManager->RegisterTabSpawner(ScratchPadScriptsTabID, FOnSpawnTab::CreateSP(this, &FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPadScripts))
-		.SetDisplayName(LOCTEXT("ScratchPadScriptsTabName", "Local Scripts"))
+		.SetDisplayName(LOCTEXT("ScratchPadScriptsTabName", "Local Modules"))
 		.SetGroup(WorkspaceMenuCategory.ToSharedRef())
 		.SetIcon(FSlateIcon(FNiagaraEditorStyle::Get().GetStyleSetName(), "Tab.ScratchPad"));
 
@@ -703,7 +694,7 @@ TSharedRef<SDockTab> FNiagaraSystemToolkitModeBase::SpawnTab_ScratchPadScripts(c
 	}
 
 	TSharedRef<SDockTab> SpawnedTab = SNew(SDockTab)
-		.Label(LOCTEXT("ScratchPadTabLabel", "Local Scripts"))
+		.Label(LOCTEXT("ScratchPadTabLabel", "Local Modules"))
 		[
 			SystemToolkit.Pin()->GetScriptScratchpadManager().ToSharedRef()
 		];

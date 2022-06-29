@@ -70,6 +70,12 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	ParameterPanelViewModel->GetOnNotifyParameterPendingNamespaceModifierRenameDelegate().BindSP(this, &SNiagaraParameterPanel::AddParameterPendingNamespaceModifierRename);
 	ParameterPanelViewModel->GetParametersWithNamespaceModifierRenamePendingDelegate().BindSP(this, &SNiagaraParameterPanel::GetParametersWithNamespaceModifierRenamePending);
 
+	if (ParameterPanelViewModel->UsesCategoryFilteringForInitialExpansion())
+	{
+		FilterCategoryExpandedDelegate.BindRaw(ParameterPanelViewModel.Get(), &INiagaraImmutableParameterPanelViewModel::IsCategoryExpandedByDefault);
+	}
+
+
 	SAssignNew(ItemSelector, SNiagaraParameterPanelSelector)
 	.PreserveSelectionOnRefresh(true)
 	.PreserveExpansionOnRefresh(true)
@@ -91,11 +97,13 @@ void SNiagaraParameterPanel::Construct(const FArguments& InArgs, const TSharedPt
 	.ClearSelectionOnClick(true)
 	.CategoryRowStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.Parameters.TableRow")
 	.OnGetCategoryBackgroundImage(this, &SNiagaraParameterPanel::GetCategoryBackgroundImage)
+	.OnItemExpandedInitially(FilterCategoryExpandedDelegate)
 	.CategoryBorderBackgroundColor(FLinearColor(.6, .6, .6, 1.0f))
 	.CategoryChildSlotPadding(FMargin(0.0f, 2.0f, 0.0f, 0.0f))
 	.CategoryBorderBackgroundPadding(FMargin(0.0f, 3.0f))
 	.OnGetKeyForItem(this, &SNiagaraParameterPanel::OnGetKeyForItem)
-	.OnGetKeyForCategory(this, &SNiagaraParameterPanel::OnGetKeyForCategory);
+	.OnGetKeyForCategory(this, &SNiagaraParameterPanel::OnGetKeyForCategory)
+	.ExpandInitially(false);
 
 	// Finalize the widget
 	ChildSlot
@@ -144,19 +152,20 @@ void SNiagaraParameterPanel::ConstructSectionButtons()
 	SectionSelectorBox->ClearChildren();
 
 	SectionSelectorBox->SetVisibility(ParameterPanelViewModel->GetShowSections() ? EVisibility::Visible : EVisibility::Collapsed);
-	for (FText Section : ParameterPanelViewModel->GetSections())
+	for (const INiagaraParameterPanelViewModel::FSectionDesc& Section : ParameterPanelViewModel->GetSections())
 	{
 		SectionSelectorBox->AddSlot()
 			[
 				SNew(SCheckBox)
 				.Style(FAppStyle::Get(), "DetailsView.SectionButton")
-				.OnCheckStateChanged(this, &SNiagaraParameterPanel::OnSectionChecked, Section)
-				.IsChecked(this, &SNiagaraParameterPanel::GetSectionCheckState, Section)
-				.ToolTipText(ParameterPanelViewModel->GetTooltipForSection(Section))
+				.OnCheckStateChanged(this, &SNiagaraParameterPanel::OnSectionChecked, Section.DisplayName)
+				.IsChecked(this, &SNiagaraParameterPanel::GetSectionCheckState, Section.DisplayName)
+				.IsEnabled(this, &SNiagaraParameterPanel::GetSectionEnabled, Section.DisplayName)
+				.ToolTipText(Section.Description)
 				[
 					SNew(STextBlock)
 					.TextStyle(FAppStyle::Get(), "SmallText")
-					.Text(Section)
+					.Text(Section.DisplayName)
 				]
 			];
 	}
@@ -168,10 +177,19 @@ ECheckBoxState SNiagaraParameterPanel::GetSectionCheckState(FText Section) const
 }
 
 
+bool SNiagaraParameterPanel::GetSectionEnabled(FText Section) const
+{
+	return ParameterPanelViewModel->GetSectionEnabled(Section);
+}
+
+
 void SNiagaraParameterPanel::OnSectionChecked(ECheckBoxState CheckState, FText Section)
 {
 	if (CheckState == ECheckBoxState::Checked)
 	{
+		TArray<FNiagaraParameterPanelCategory> ExpandedItems;
+		ItemSelector->GetExpandedCategoryItems(ExpandedItems);
+		ParameterPanelViewModel->PreSectionChange(ExpandedItems);
 		ParameterPanelViewModel->SetActiveSection(Section);
 		Refresh();
 	}
@@ -504,7 +522,8 @@ void SNiagaraParameterPanel::Tick(const FGeometry& AllottedGeometry, const doubl
 		if (bPendingRefresh)
 		{
 			bPendingRefresh = false;
-			Refresh();
+			Refresh(bRunCategoryExpansionFilter);
+			bRunCategoryExpansionFilter = false;
 		}
 		else if (bParameterItemsPendingChange)
 		{
@@ -643,15 +662,26 @@ bool SNiagaraParameterPanel::OnParameterNameTextVerifyChanged(const FText& InNew
 	return ParameterPanelViewModel->GetCanRenameParameterAndToolTip(ItemToBeRenamed, InNewText, bCheckEmptyNameText, OutErrorMessage);
 }
 
-void SNiagaraParameterPanel::Refresh()
+void SNiagaraParameterPanel::Refresh(bool bInRunCategoryExpansionFilter)
 {
 	ItemSelector->RefreshItemsAndDefaultCategories(ParameterPanelViewModel->GetViewedParameterItems(), ParameterPanelViewModel->GetDefaultCategories());
+	if (bInRunCategoryExpansionFilter && FilterCategoryExpandedDelegate.IsBound() && ParameterPanelViewModel->UsesCategoryFilteringForInitialExpansion())
+	{	
+		ItemSelector->ExpandTreeByFilter(FilterCategoryExpandedDelegate);
+	}
 }
 
-void SNiagaraParameterPanel::RefreshNextTick()
+void SNiagaraParameterPanel::RefreshNextTick(bool bInRunCategoryExpansionFilter)
 {
 	bPendingRefresh = true;
+
+	// We want to make sure that if anyone requested the expansion filter, it doesn't get cleared out, so only set if it isn't already true...
+	if (!bRunCategoryExpansionFilter)
+	{
+		bRunCategoryExpansionFilter = bInRunCategoryExpansionFilter;
+	}
 }
+
 
 void SNiagaraParameterPanel::SelectParameterItemByName(const FName ParameterName) const
 {
@@ -660,8 +690,9 @@ void SNiagaraParameterPanel::SelectParameterItemByName(const FName ParameterName
 		if (Item.GetVariable().GetName() == ParameterName)
 		{
 			const TArray<FNiagaraParameterPanelItem> ItemsToSelect = { Item };
-			ItemSelector->SetSelectedItems(ItemsToSelect);
+			ItemSelector->SetSelectedItems(ItemsToSelect, true);
 			ItemSelector->RequestScrollIntoView(Item);
+			
 			return;
 		}
 	}

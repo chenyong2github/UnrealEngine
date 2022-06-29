@@ -212,6 +212,26 @@ struct NIAGARAEDITOR_API FNiagaraActionColors
 	FLinearColor DeveloperColor;
 };
 
+
+USTRUCT()
+struct NIAGARAEDITOR_API FNiagaraParameterPanelSectionStorage
+{
+	GENERATED_BODY()
+		
+	FNiagaraParameterPanelSectionStorage() {}
+
+	FNiagaraParameterPanelSectionStorage(const FGuid& InGuid) : ParamStorageId(InGuid) 
+	{
+		check(InGuid.IsValid());
+	}
+
+	UPROPERTY()
+	FGuid ParamStorageId;
+
+	UPROPERTY()
+	TArray<FGuid> ExpandedCategories;
+};
+
 FORCEINLINE uint32 GetTypeHash(const FNiagaraNamespaceMetadata& NamespaceMetaData)
 {
 	return GetTypeHash(NamespaceMetaData.GetGuid());
@@ -337,6 +357,9 @@ public:
 	const TMap<FString, FString>& GetHLSLKeywordReplacementsMap()const { return HLSLKeywordReplacements; }
 
 	FLinearColor GetSourceColor(EScriptSource Source) const;
+
+	FNiagaraParameterPanelSectionStorage& FindOrAddParameterPanelSectionStorage(FGuid PanelSectionId, bool& bOutAdded);
+
 private:
 	void SetupNamespaceMetadata();
 	void BuildCachedPlaybackSpeeds() const;
@@ -420,6 +443,10 @@ private:
 
 	UPROPERTY(config)
 	bool bShowGpuTickInformation;
+
+
+	UPROPERTY(config)
+	TArray<FNiagaraParameterPanelSectionStorage> SystemParameterPanelSectionData;
 
 public:
 	bool IsShowInstructionsCount() const;

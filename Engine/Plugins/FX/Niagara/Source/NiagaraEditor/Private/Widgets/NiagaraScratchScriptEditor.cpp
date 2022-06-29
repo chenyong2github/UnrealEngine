@@ -16,7 +16,6 @@
 
 void SNiagaraScratchPadScriptEditor::Construct(const FArguments& InArgs, TSharedRef<FNiagaraScratchPadScriptViewModel> InScriptViewModel)
 {
-	ScriptViewModel = InScriptViewModel;
 
 	ChildSlot
 		[
@@ -63,7 +62,7 @@ void SNiagaraScratchPadScriptEditor::Construct(const FArguments& InArgs, TShared
 					SNew(STextBlock)
 					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
 					.Text(this, &SNiagaraScratchPadScriptEditor::GetNameText)
-					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
+					.ToolTipText(this, &SNiagaraScratchPadScriptEditor::GetNameToolTipText)
 				]
 				+ SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
@@ -74,19 +73,32 @@ void SNiagaraScratchPadScriptEditor::Construct(const FArguments& InArgs, TShared
 					.Visibility(this, &SNiagaraScratchPadScriptEditor::GetUnappliedChangesVisibility)
 					.TextStyle(FNiagaraEditorStyle::Get(), "NiagaraEditor.ScratchPad.EditorHeaderText")
 					.Text(FText::FromString(TEXT("*")))
-					.ToolTipText(ScriptViewModel.ToSharedRef(), &FNiagaraScratchPadScriptViewModel::GetToolTip)
+					.ToolTipText(this, &SNiagaraScratchPadScriptEditor::GetNameToolTipText)
 				]
 			]
 			+ SVerticalBox::Slot()
 			[
-				SAssignNew(Graph, SNiagaraScriptGraph, ScriptViewModel->GetGraphViewModel())
+				SAssignNew(Graph, SNiagaraScriptGraph, InScriptViewModel->GetGraphViewModel())
 				.ZoomToFitOnLoad(true)
 				.ShowHeader(false)
 			]
 		];
 
+	SetViewModel(InScriptViewModel);
+}
+
+void SNiagaraScratchPadScriptEditor::SetViewModel(TSharedPtr<FNiagaraScratchPadScriptViewModel> InScriptViewModel)
+{
+	ClearHandles();
+
+	ScriptViewModel = InScriptViewModel;
+
 	if (ScriptViewModel)
 	{
+		if (Graph.IsValid() && Graph->GetViewModel() != InScriptViewModel->GetGraphViewModel())
+		{
+			Graph->UpdateViewModel(InScriptViewModel->GetGraphViewModel());
+		}
 		NodeIDHandle = ScriptViewModel->OnNodeIDFocusRequested().AddLambda(
 			[this](FNiagaraScriptIDAndGraphFocusInfo* FocusInfo)
 			{
@@ -108,6 +120,7 @@ void SNiagaraScratchPadScriptEditor::Construct(const FArguments& InArgs, TShared
 		);
 	}
 }
+
 
 void FNiagaraGraphTabHistory::EvokeHistory(TSharedPtr<FTabInfo> InTabInfo, bool bPrevTabMatches)
 {

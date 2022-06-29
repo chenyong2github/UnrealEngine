@@ -9,6 +9,7 @@
 #include "NiagaraEditorSettings.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
+#include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 
@@ -299,6 +300,22 @@ void FNiagaraSystemToolkitMode_Default::ExtendToolbar()
 	// FNiagaraEditorModule& NiagaraEditorModule = FModuleManager::LoadModuleChecked<FNiagaraEditorModule>("NiagaraEditor");
 	// SystemToolkit.Pin()->AddToolbarExtender(NiagaraEditorModule.GetToolBarExtensibilityManager()->GetAllExtenders(SystemToolkit.Pin()->GetToolkitCommands(), SystemToolkit.Pin()->GetObjectsBeingEdited()));
 }
+
+void FNiagaraSystemToolkitMode_Default::PostActivateMode()
+{
+	// We need to register the primary tab ID with the document system so that we can easily update and 
+	// reference it elsewhere and only this class knows it's identity since it is dynamically allocated.
+	TSharedPtr<FNiagaraSystemToolkit> Toolkit = StaticCastSharedPtr<FNiagaraSystemToolkit>(SystemToolkit.Pin());
+	if (Toolkit.IsValid())
+	{
+		TSharedPtr<FNiagaraSystemViewModel> SystemVM = Toolkit->GetSystemViewModel();
+		if (SystemVM.IsValid())
+		{
+			SystemVM->GetDocumentViewModel()->SetPrimaryDocumentID(SystemOverviewTabID);
+		}
+	}
+}
+
 
 void FNiagaraSystemToolkitMode_Default::RegisterTabFactories(TSharedPtr<FTabManager> InTabManager)
 {

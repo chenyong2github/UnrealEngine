@@ -57,3 +57,28 @@ void UNiagaraScratchPadContainer::AppendScripts(TObjectPtr<UNiagaraScratchPadCon
 	}
 #endif
 }
+int32 UNiagaraScratchPadContainer::FindIndexForScript(UNiagaraScript* InScript) const
+{
+#if WITH_EDITORONLY_DATA
+	for (int32 i = 0; i < Scripts.Num(); i++)
+	{
+		if (Scripts[i] == InScript)
+		{
+			return i;
+		}
+	}
+#endif
+	return INDEX_NONE;
+}
+
+UNiagaraScript* UNiagaraScratchPadContainer::FindScriptAtIndex(int32 Index) const
+{
+#if WITH_EDITORONLY_DATA
+	if (Scripts.IsValidIndex(Index))
+	{
+		return Scripts[Index];
+	}
+#endif
+	return nullptr;
+}
+

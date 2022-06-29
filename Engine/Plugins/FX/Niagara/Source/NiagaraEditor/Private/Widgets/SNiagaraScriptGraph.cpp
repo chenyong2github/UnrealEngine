@@ -68,12 +68,24 @@ SNiagaraScriptGraph::~SNiagaraScriptGraph()
 
 void SNiagaraScriptGraph::UpdateViewModel(TSharedRef<FNiagaraScriptGraphViewModel> InNewModel)
 {
+	bool bKeepOldGraphView = false;
+	FVector2D Location;
+	float ZoomAmount =1.0f;
+	FGuid BookmarkId = FGuid();
+
 	// remove old listeners
 	if (ViewModel)
 	{
 		ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().RemoveAll(this);
 		ViewModel->OnNodesPasted().RemoveAll(this);
 		ViewModel->OnGraphChanged().RemoveAll(this);
+
+		if (GraphEditor.IsValid())
+		{
+			bKeepOldGraphView = true;
+			GraphEditor->GetViewLocation(Location, ZoomAmount);
+			GraphEditor->GetViewBookmark(BookmarkId);
+		}
 	}
 
 	// set model and listeners
@@ -81,6 +93,13 @@ void SNiagaraScriptGraph::UpdateViewModel(TSharedRef<FNiagaraScriptGraphViewMode
 	ViewModel->GetNodeSelection()->OnSelectedObjectsChanged().AddSP(this, &SNiagaraScriptGraph::ViewModelSelectedNodesChanged);
 	ViewModel->OnNodesPasted().AddSP(this, &SNiagaraScriptGraph::NodesPasted);
 	ViewModel->OnGraphChanged().AddSP(this, &SNiagaraScriptGraph::GraphChanged);
+
+	RecreateGraphWidget();
+
+	if (bKeepOldGraphView && GraphEditor.IsValid())
+	{
+		GraphEditor->SetViewLocation(Location, ZoomAmount, BookmarkId);
+	}
 }
 
 void SNiagaraScriptGraph::RecreateGraphWidget()
@@ -270,6 +289,7 @@ TSharedRef<SGraphEditor> SNiagaraScriptGraph::ConstructGraphEditor()
 
 	return CreatedGraphEditor;
 }
+
 
 void SNiagaraScriptGraph::ViewModelSelectedNodesChanged()
 {

@@ -681,6 +681,41 @@ UNiagaraScript* FNiagaraScratchPadMergeAdapter::GetScratchPadScriptForFunctionId
 	return ParentScratchPadScriptPtr != nullptr ? *ParentScratchPadScriptPtr : nullptr;
 }
 
+
+TArray< FNiagaraScratchPadMergeAdapter::FMergeRecord > FNiagaraScratchPadMergeAdapter::GetMergedEmitterRecords() const
+{
+	TArray< FNiagaraScratchPadMergeAdapter::FMergeRecord > FoundArray;
+
+	// Logic needs to be kept in sync with FNiagaraScratchPadMergeAdapter::Initialize()
+	TArray<FVersionedNiagaraEmitter> ParentEmitters;
+	FVersionedNiagaraEmitter CurrentParent = ParentEmitter;
+	while (CurrentParent.Emitter != nullptr)
+	{
+		ParentEmitters.Insert(CurrentParent, 0);
+		CurrentParent = CurrentParent.GetEmitterData()->GetParent();
+	}
+
+	for (FVersionedNiagaraEmitter CurrentParentEmitter : ParentEmitters)
+	{
+		FVersionedNiagaraEmitterData* CurrentParentEmitterData = CurrentParentEmitter.GetEmitterData();
+		if (CurrentParentEmitterData->GetParent().Emitter == nullptr)
+		{
+			for (UNiagaraScript* Script : CurrentParentEmitterData->ParentScratchPads->Scripts)
+			{
+				// Right now we don't version scratch scripts. If we end up doing that, we'll need to account for that here.
+				FoundArray.Emplace(CurrentParentEmitter, Script, FGuid());
+			}
+		}
+		for (UNiagaraScript* Script : CurrentParentEmitterData->ScratchPads->Scripts)
+		{
+			// Right now we don't version scratch scripts. If we end up doing that, we'll need to account for that here.
+			FoundArray.Emplace(CurrentParentEmitter, Script, FGuid());
+		}
+	}
+
+	return FoundArray;
+}
+
 void FNiagaraScratchPadMergeAdapter::Initialize()
 {
 	FVersionedNiagaraEmitterData* TargetEmitterData = TargetEmitter.GetEmitterData();
@@ -1777,6 +1812,73 @@ bool FNiagaraScriptMergeManager::HasBaseModule(const FVersionedNiagaraEmitter& B
 	TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter = GetEmitterMergeAdapterUsingCache(BaseEmitter);
 	TSharedPtr<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter = BaseEmitterAdapter->GetScriptStack(ScriptUsage, ScriptUsageId);
 	return BaseScriptStackAdapter.IsValid() && BaseScriptStackAdapter->GetModuleFunctionById(ModuleId).IsValid();
+}
+
+bool FNiagaraScriptMergeManager::FindBaseModule(const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, class UNiagaraScript*& OutActualScript, FGuid& OutScriptVersionGuid, FVersionedNiagaraEmitter& OutBaseEmitter)
+{
+	// Search through the existing scratch pads local to this versioned emitter and the ones inherited from parents.
+	OutScriptVersionGuid = FGuid();
+	OutActualScript = nullptr;
+	OutBaseEmitter = FVersionedNiagaraEmitter();
+
+	TSharedRef<FNiagaraEmitterMergeAdapter> BaseEmitterAdapter = GetEmitterMergeAdapterUsingCache(BaseEmitter);
+	TSharedRef<FNiagaraScratchPadMergeAdapter> ScratchPadMergeAdapter = GetScratchPadMergeAdapterUsingCache(BaseEmitter);
+	TSharedPtr<FNiagaraScriptStackMergeAdapter> BaseScriptStackAdapter = BaseEmitterAdapter->GetScriptStack(ScriptUsage, ScriptUsageId);
+	if (BaseScriptStackAdapter.IsValid())
+	{
+		TSharedPtr<FNiagaraStackFunctionMergeAdapter> AdapterFound = BaseScriptStackAdapter->GetModuleFunctionById(ModuleId);
+		if (AdapterFound.IsValid())
+		{
+			UNiagaraNodeFunctionCall* CallNode = AdapterFound->GetFunctionCallNode();
+			if (CallNode)
+			{
+				UNiagaraScript* Script = CallNode->FunctionScript;
+				if (Script)
+				{
+					int32 IndexToMatch = INDEX_NONE;
+					bool bParents = false;
+					FVersionedNiagaraEmitterData* EmitterData = BaseEmitter.Emitter->GetEmitterData(BaseEmitter.Version);
+					if (EmitterData)
+					{
+						if (!EmitterData->ScratchPads.IsNull())
+						{
+							IndexToMatch = EmitterData->ScratchPads->FindIndexForScript(Script);
+						}
+						if (INDEX_NONE == IndexToMatch && !EmitterData->ParentScratchPads.IsNull())
+						{
+							IndexToMatch = EmitterData->ParentScratchPads->FindIndexForScript(Script);
+							bParents = true;
+						}
+					}
+
+					if (bParents && IndexToMatch != INDEX_NONE)
+					{
+						TArray< FNiagaraScratchPadMergeAdapter::FMergeRecord > MergeRecordsInOrder = ScratchPadMergeAdapter->GetMergedEmitterRecords();
+						if (MergeRecordsInOrder.IsValidIndex(IndexToMatch))
+						{
+							OutScriptVersionGuid = MergeRecordsInOrder[IndexToMatch].OriginalScriptVersion;
+							OutActualScript = MergeRecordsInOrder[IndexToMatch].OriginalScript;
+							OutBaseEmitter = MergeRecordsInOrder[IndexToMatch].OriginalEmitter;
+							return true;
+						}
+
+					}
+					else if (!bParents && IndexToMatch != INDEX_NONE)
+					{
+						OutScriptVersionGuid = CallNode->SelectedScriptVersion;
+						OutActualScript = Script;
+						OutBaseEmitter = BaseEmitter;
+						return true;
+					}
+
+					
+				}
+				return false;
+			}
+		}
+	}
+
+	return false;
 }
 
 bool FNiagaraScriptMergeManager::IsModuleInputDifferentFromBase(const FVersionedNiagaraEmitter& Emitter, const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FString InputName)

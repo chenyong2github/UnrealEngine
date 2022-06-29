@@ -21,6 +21,11 @@ public:
 	void SetScripts(const TArray<TObjectPtr<UNiagaraScript>>& InScripts);
 	void AppendScripts(const TArray<TObjectPtr<UNiagaraScript>>& InScripts);
 	void AppendScripts(TObjectPtr<UNiagaraScratchPadContainer> InScripts);
+	
+	// The scripts get added in specific ordering through inheritance. These accessors just allow us to deal with checks 
+	// for known scripts 
+	int32 FindIndexForScript(UNiagaraScript* InScript) const;
+	UNiagaraScript* FindScriptAtIndex(int32 Index) const;
 
 #if WITH_EDITORONLY_DATA
 

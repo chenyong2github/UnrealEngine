@@ -75,6 +75,8 @@ public:
 	DECLARE_DELEGATE_RetVal_OneParam(const SectionKeyType&, FOnGetKeyForSection, const SectionType& /* Section */);
 	DECLARE_DELEGATE_OneParam(FOnSuggestionUpdated, int32 /* Suggestion Index*/)
 
+	DECLARE_DELEGATE_RetVal_OneParam(bool, FOnCategoryPassesFilter, const CategoryType& /* CategoryA */);
+
 public:
 	SLATE_BEGIN_ARGS(SItemSelector)
 		: _AllowMultiselect(false)
@@ -218,6 +220,9 @@ public:
 	
 		/** Whether we want to expand the tree initially or not. */
 		SLATE_ARGUMENT(bool, ExpandInitially)
+
+		/** An optional delegate called when initially creating this and ExpandInitially is false. */
+		SLATE_EVENT(FOnCategoryPassesFilter, OnItemExpandedInitially)
 
 		/** Slot for additional widget content to go adjacent to right of the search box. */
 		SLATE_NAMED_SLOT(FArguments, SearchBoxAdjacentContent)
@@ -1693,6 +1698,10 @@ public:
 		{
 			ExpandTree();
 		}
+		else if (InArgs._OnItemExpandedInitially.IsBound())
+		{
+			ExpandTreeByFilter(InArgs._OnItemExpandedInitially);
+		}
 
 		ExpandSections();
 
@@ -1733,7 +1742,7 @@ public:
 		return SelectedCategories;
 	}
 
-	void SetSelectedItems(const TArray<ItemType>& NewSelectedItems)
+	void SetSelectedItems(const TArray<ItemType>& NewSelectedItems, bool bExpandToShow = false)
 	{
 		checkf(OnCompareItemsForEquality.IsBound(), TEXT("OnCompareItemsForEquality event must be handled to use the SetSelectedItems function."));
 		TGuardValue<bool> SelectionGuard(bIsSettingSelection, true);
@@ -1748,6 +1757,16 @@ public:
 			for (TSharedRef<FItemSelectorItemViewModel> SelectedItemViewModel : SelectedItemViewModels)
 			{
 				ItemTree->SetSelection(SelectedItemViewModel);
+				if (bExpandToShow)
+				{
+					TSharedPtr<FRootViewModel> RootViewModel = ViewModelUtilities->GetRootViewModel();
+					if (RootViewModel.IsValid())
+					{
+						bool bFound = false;
+						TSharedRef < FItemSelectorItemViewModel> AsBase = RootViewModel.ToSharedRef();
+						FindAndExpandModelAndParents(bFound, AsBase, SelectedItemViewModel);
+					}
+				}
 			}
 		}
 		OnSelectionChanged.ExecuteIfBound();
@@ -1928,6 +1947,20 @@ public:
 		}
 	}
 
+	void ExpandTreeByFilter(const FOnCategoryPassesFilter& InFilter)
+	{
+		TArray<TSharedRef<FItemSelectorItemViewModel>> ItemsToProcess;
+		ItemsToProcess.Append(*ViewModelUtilities->GetRootItems());
+		while (ItemsToProcess.Num() > 0)
+		{
+			TSharedRef<FItemSelectorItemViewModel> ItemToProcess = ItemsToProcess[0];
+			ItemsToProcess.RemoveAtSwap(0);
+
+			TOptional<bool> bForce;
+			ExpandTreeByFilterRecursive(ItemToProcess, InFilter, bForce);
+		}
+	}
+
 	bool IsItemSelected(const ItemType Item)
 	{
 		const TArray<ItemType> ItemArr = {Item};
@@ -1945,11 +1978,78 @@ public:
 		return ItemTree->IsPendingRefresh();
 	}
 
+	void GetExpandedCategoryItems(TArray<CategoryType >& OutExpandedItems)
+	{
+		if (ItemTree.IsValid())
+		{
+			TSet<TSharedRef<FItemSelectorItemViewModel>> ExpandedItemViewModels;
+			ItemTree->GetExpandedItems(ExpandedItemViewModels);
+			for (const TSharedRef<FItemSelectorItemViewModel>& ExpandedItemViewModel : ExpandedItemViewModels)
+			{
+				if (ExpandedItemViewModel->GetType() == EItemSelectorItemViewModelType::Category)
+				{					
+					OutExpandedItems.AddUnique(StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(ExpandedItemViewModel)->GetCategory());
+				}
+			}
+		}
+	}
+
+
 private:
+	void ExpandTreeByFilterRecursive(TSharedRef<FItemSelectorItemViewModel>& ItemToProcess, const FOnCategoryPassesFilter& InFilter, TOptional<bool> bForce)
+	{
+		if (!bForce.IsSet() && ItemToProcess->GetType() == EItemSelectorItemViewModelType::Category)
+		{
+			bool bExpand = InFilter.Execute(StaticCastSharedRef<FItemSelectorItemCategoryViewModel>(ItemToProcess)->GetCategory());
+			ItemTree->SetItemExpansion(ItemToProcess, bExpand);
+			bForce = bExpand;
+		}
+		else if (bForce.IsSet())
+		{
+			ItemTree->SetItemExpansion(ItemToProcess, bForce.GetValue());
+		}
+
+		TArray<TSharedRef<FItemSelectorItemViewModel>> ItemsToProcess;
+		ItemToProcess->GetChildren(ItemsToProcess);
+
+		for (TSharedRef<FItemSelectorItemViewModel>& Child : ItemsToProcess)
+		{
+			ExpandTreeByFilterRecursive(Child, InFilter, bForce);
+		}
+	}
+
 	EVisibility GetSearchBoxVisibility() const
 	{
 		return OnDoesItemMatchFilterText.IsBound() ? EVisibility::Visible : EVisibility::Collapsed;
 	}
+
+	void FindAndExpandModelAndParents(bool& bFound, const TSharedRef<FItemSelectorItemViewModel>& Current, const TSharedRef<FItemSelectorItemViewModel>& Target)
+	{
+		if (!bFound && Current == Target)
+		{
+			bFound = true;
+		}
+
+		if (!bFound)
+		{
+			TArray<TSharedRef<FItemSelectorItemViewModel>> Children;
+
+			Current->GetChildren(Children);
+			for (TSharedRef<FItemSelectorItemViewModel> Child : Children)
+			{
+				FindAndExpandModelAndParents(bFound, Child, Target);
+				if (bFound)
+				{
+					break;
+				}
+			}
+		}
+
+		if (bFound)
+		{
+			ItemTree->SetItemExpansion(Current, true);
+		}
+	};
 
 	void OnSearchTextChanged(const FText& SearchText)
 	{

@@ -34,6 +34,8 @@
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemLinkedInputCollection.h"
 #include "ViewModels/Stack/NiagaraStackModuleItemOutputCollection.h"
+#include "NiagaraEditorModule.h"
+#include "Toolkits/NiagaraSystemToolkit.h"
 
 // TODO: Remove these
 #include "ViewModels/Stack/NiagaraStackViewModel.h"
@@ -1632,6 +1634,61 @@ UObject* UNiagaraStackModuleItem::GetExternalAsset() const
 bool UNiagaraStackModuleItem::CanDrag() const
 {
 	return true;
+}
+
+bool UNiagaraStackModuleItem::OpenSourceAsset() const
+{
+	// Helper to open scratch script or function script in the appropriate sub editor based on type.
+	const UNiagaraNodeFunctionCall& ModuleFunctionCall = GetModuleNode();
+	if (ModuleFunctionCall.FunctionScript != nullptr)
+	{
+		if (ModuleFunctionCall.FunctionScript->IsAsset() || GbShowNiagaraDeveloperWindows > 0)
+		{
+			ModuleFunctionCall.FunctionScript->VersionToOpenInEditor = ModuleFunctionCall.SelectedScriptVersion;
+			return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(ToRawPtr(ModuleFunctionCall.FunctionScript));
+		}
+		else if (IsScratchModule())
+		{
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ModuleFunctionCall.FunctionScript);
+			if (ScratchPadScriptViewModel.IsValid())
+			{
+				GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				return true;
+			}
+		}
+		else if (GetIsInherited() && !ModuleFunctionCall.FunctionScript->IsAsset() && GetOutputNode() && GetEmitterViewModel())
+		{
+			TSharedRef<FNiagaraScriptMergeManager> MergeManager = FNiagaraScriptMergeManager::Get();
+
+			FVersionedNiagaraEmitter BaseEmitter = GetEmitterViewModel()->GetParentEmitter();
+
+			UNiagaraScript* FoundScript = nullptr;
+			FGuid FoundScriptVersion;
+			FVersionedNiagaraEmitter FoundBaseEmitter;
+			if (MergeManager->FindBaseModule(BaseEmitter, GetOutputNode()->GetUsage(), OutputNode->GetUsageId(), ModuleFunctionCall.NodeGuid, FoundScript, FoundScriptVersion, FoundBaseEmitter) && FoundScript && FoundBaseEmitter.Emitter)
+			{
+				if (GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(FoundBaseEmitter.Emitter))
+				{
+					if (FNiagaraSystemToolkit* EditorInstance = static_cast<FNiagaraSystemToolkit*>(GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(FoundBaseEmitter.Emitter, true)))
+					{
+						EditorInstance->SwitchToVersion(FoundBaseEmitter.Version);
+						TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = EditorInstance->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(FoundScript->GetFName());
+						if (ScratchPadScriptViewModel.IsValid())
+						{
+							EditorInstance->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+							return true;
+						}
+					}
+					return true;
+				}
+			}
+			else
+			{
+				FNiagaraEditorUtilities::InfoWithToastAndLog(FText::Format(LOCTEXT("CannotAutoOpenBaseModule", "Cannot auto-open base module {0} as this was created before merging tracked this data. Newer assets should work. You should be able to open it manually however."), FText::FromString(ModuleFunctionCall.FunctionScript->GetName())));
+			}
+		}
+	}
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

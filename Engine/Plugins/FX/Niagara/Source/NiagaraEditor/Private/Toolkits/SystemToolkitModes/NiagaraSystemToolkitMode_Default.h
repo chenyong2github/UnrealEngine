@@ -15,4 +15,7 @@ public:
 	virtual void RegisterTabFactories(TSharedPtr<FTabManager> InTabManager) override;
 	
 	void ExtendToolbar();
+
+
+	virtual void PostActivateMode() override;
 };

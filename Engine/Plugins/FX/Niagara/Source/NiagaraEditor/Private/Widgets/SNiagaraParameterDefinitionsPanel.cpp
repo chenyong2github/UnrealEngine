@@ -258,7 +258,7 @@ FReply SNiagaraParameterDefinitionsPanel::OnParameterItemsDragged(const TArray<F
 	return ParameterDefinitionsPanelViewModel->OnParameterItemsDragged(DraggedItems, MouseEvent);
 }
 
-void SNiagaraParameterDefinitionsPanel::Refresh()
+void SNiagaraParameterDefinitionsPanel::Refresh(bool bExpandCategories)
 {
 	ItemSelector->RefreshItemsAndDefaultCategories(GetViewedParameterDefinitionsItems(), GetDefaultCategories()); 
 }

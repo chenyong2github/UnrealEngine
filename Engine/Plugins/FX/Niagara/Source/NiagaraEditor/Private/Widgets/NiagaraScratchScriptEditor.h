@@ -23,11 +23,7 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 
 	~SNiagaraScratchPadScriptEditor()
 	{
-		if (ScriptViewModel)
-		{
-			ScriptViewModel->OnNodeIDFocusRequested().Remove(NodeIDHandle);
-			ScriptViewModel->OnPinIDFocusRequested().Remove(PinIDHandle);
-		}
+		ClearHandles();
 	}
 
 	TSharedPtr<SGraphEditor> GetGraphEditor()
@@ -43,11 +39,28 @@ class SNiagaraScratchPadScriptEditor : public SCompoundWidget
 		return ScriptViewModel;
 	}
 
+	void SetViewModel(TSharedPtr<FNiagaraScratchPadScriptViewModel> InViewModel);
+
 
 private:
+
+	void ClearHandles()
+	{
+		if (ScriptViewModel)
+		{
+			ScriptViewModel->OnNodeIDFocusRequested().Remove(NodeIDHandle);
+			ScriptViewModel->OnPinIDFocusRequested().Remove(PinIDHandle);
+		}
+	}
+
 	FText GetNameText() const
 	{
 		return ScriptViewModel->GetDisplayName();
+	}
+
+	FText GetNameToolTipText() const
+	{
+		return ScriptViewModel->GetToolTip();
 	}
 
 	EVisibility GetUnappliedChangesVisibility() const

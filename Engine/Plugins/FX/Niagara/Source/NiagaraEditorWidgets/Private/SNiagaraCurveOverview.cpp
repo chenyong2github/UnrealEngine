@@ -19,6 +19,7 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "Widgets/SNiagaraParameterName.h"
+#include "ViewModels/NiagaraSystemEditorDocumentsViewModel.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCurveEditor"
 
@@ -536,6 +537,8 @@ void SNiagaraCurveOverview::CurveTreeItemDoubleClicked(FCurveEditorTreeItemID Tr
 			{
 				SystemViewModel->GetSelectionViewModel()->EmptySelection();
 				SystemViewModel->GetSelectionViewModel()->AddEntryToSelectionByDisplayedObjectKeyDeferred(DisplayedObjectKey.GetValue());
+
+				SystemViewModel->GetDocumentViewModel()->DrawAttentionToPrimaryDocument();
 			}
 		}
 	}

@@ -44,6 +44,8 @@ public:
 
 	void RecreateGraphWidget();
 
+	TSharedPtr<FNiagaraScriptGraphViewModel> GetViewModel() { return ViewModel; };
+
 private:
 	/** Constructs the graph editor widget for the current graph. */
 	TSharedRef<SGraphEditor> ConstructGraphEditor();
@@ -115,7 +117,7 @@ private:
 	void OnDistributeNodesH();
 	void OnDistributeNodesV();
 
-
+	void RebuildCommands();
 private:
 	/** The combined commands used by the graph editor. */
 	TSharedPtr<FUICommandList> Commands;

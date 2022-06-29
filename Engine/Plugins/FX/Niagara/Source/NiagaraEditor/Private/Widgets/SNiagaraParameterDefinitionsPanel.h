@@ -59,7 +59,7 @@ public:
 	void OnCategoryActivated(const FNiagaraParameterDefinitionsPanelCategory& ActivatedCategory) const;
 	//~ End SItemSelector
 
-	void Refresh();
+	void Refresh(bool bExpandCategories);
 	void AddParameterDefinitions(UNiagaraParameterDefinitions* NewParameterDefinitions) const;
 	void OnParameterItemSelected(const FNiagaraParameterDefinitionsPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const;
 	FReply OnParameterItemsDragged(const TArray<FNiagaraParameterDefinitionsPanelItem>& DraggedItems, const FPointerEvent& MouseEvent) const;

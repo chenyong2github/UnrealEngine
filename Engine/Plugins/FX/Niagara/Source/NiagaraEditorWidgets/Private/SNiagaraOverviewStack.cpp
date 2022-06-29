@@ -290,6 +290,7 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 	{
 		if (UNiagaraStackModuleItem* ModuleItem = Cast<UNiagaraStackModuleItem>(StackEntry))
 		{
+			
 			// if the user double-clicks a collapsed module we uncollapse it
 			UNiagaraStackEditorData& StackEditorData = ModuleItem->GetSystemViewModel()->GetEditorData().GetStackEditorData();
 			if (ModuleItem->GetIsEnabled() == false && StackEditorData.bHideDisabledModules)
@@ -298,25 +299,10 @@ class SNiagaraSystemOverviewEntryListRow : public STableRow<UNiagaraStackEntry*>
 				return FReply::Handled();
 			}
 			
-			const UNiagaraNodeFunctionCall& ModuleFunctionCall = ModuleItem->GetModuleNode();
-			if (ModuleFunctionCall.FunctionScript != nullptr)
+			if (ModuleItem->OpenSourceAsset())
 			{
-				if (ModuleFunctionCall.FunctionScript->IsAsset() || GbShowNiagaraDeveloperWindows > 0)
-				{
-					ModuleFunctionCall.FunctionScript->VersionToOpenInEditor = ModuleFunctionCall.SelectedScriptVersion;
-					GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(const_cast<UNiagaraScript*>(ToRawPtr(ModuleFunctionCall.FunctionScript)));
-					return FReply::Handled();
-				}
-				else if (ModuleItem->IsScratchModule())
-				{
-					TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(ModuleFunctionCall.FunctionScript);
-					if (ScratchPadScriptViewModel.IsValid())
-					{
-						ModuleItem->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
-						return FReply::Handled();
-					}
-				}
-			}
+				return FReply::Handled();
+			}			
 		}
 		return FReply::Unhandled();
 	}

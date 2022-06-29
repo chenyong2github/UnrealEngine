@@ -240,6 +240,19 @@ public:
 
 	UNiagaraScript* GetScratchPadScriptForFunctionId(FGuid FunctionId);
 
+	// Struct to aid in book-keeping around scratch pads and merge inheritance.
+	struct FMergeRecord
+	{
+		FMergeRecord(FVersionedNiagaraEmitter& InOriginalEmitter, UNiagaraScript* InOriginalScript, const FGuid& InOriginalScriptVersion) : OriginalEmitter(InOriginalEmitter), OriginalScript(InOriginalScript), OriginalScriptVersion(InOriginalScriptVersion){}
+
+		FVersionedNiagaraEmitter OriginalEmitter;
+		UNiagaraScript* OriginalScript;
+		FGuid OriginalScriptVersion;
+	};
+
+	// Get the collapsed merge records for this merge session
+	TArray< FMergeRecord > GetMergedEmitterRecords() const;
+
 private:
 	void Initialize();
 
@@ -441,6 +454,9 @@ public:
 	bool IsMergeableScriptUsage(ENiagaraScriptUsage ScriptUsage) const;
 
 	bool HasBaseModule(const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId);
+
+	// Find the module originating this module id in the scratch lists
+	bool FindBaseModule(const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, class UNiagaraScript*& OutActualScript, FGuid& OutScriptVersionGuid, FVersionedNiagaraEmitter& OutBaseEmitter);
 
 	bool IsModuleInputDifferentFromBase(const FVersionedNiagaraEmitter& Emitter, const FVersionedNiagaraEmitter& BaseEmitter, ENiagaraScriptUsage ScriptUsage, FGuid ScriptUsageId, FGuid ModuleId, FString InputName);
 

@@ -2679,9 +2679,16 @@ const UNiagaraStackFunctionInput::FCollectedUsageData& UNiagaraStackFunctionInpu
 		INiagaraParameterPanelViewModel* ParamVM = SystemVM->GetParameterPanelViewModel();
 		if (ParamVM)
 		{
+			bool bFoundOverride = false;
+			if (InputValues.Mode == EValueMode::Linked)
+			{
+				FNiagaraVariableBase Var(InputType, InputValues.LinkedHandle.GetParameterHandleString());
+				bFoundOverride = ParamVM->IsVariableSelected(Var);
+			}
 			FNiagaraVariableBase Var(InputType, AliasedInputParameterHandle.GetParameterHandleString());
-			CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = ParamVM->IsVariableSelected(Var);
+			CachedCollectedUsageData.GetValue().bHasReferencedParameterRead = ParamVM->IsVariableSelected(Var) || bFoundOverride;
 		}
+
 	}
 
 	return CachedCollectedUsageData.GetValue();
@@ -3042,6 +3049,31 @@ void UNiagaraStackFunctionInput::RemoveOverridePin()
 		OverrideNode->Modify();
 		OverrideNode->RemovePin(OverridePin);
 	}
+}
+
+bool UNiagaraStackFunctionInput::OpenSourceAsset() const
+{
+	// Helper to open scratch script or function script in the right sub-editor.
+	UNiagaraNodeFunctionCall* DynamicInputNode = GetDynamicInputNode();
+	if (DynamicInputNode->FunctionScript != nullptr)
+	{
+		if (DynamicInputNode->FunctionScript->IsAsset())
+		{
+			DynamicInputNode->FunctionScript->VersionToOpenInEditor = DynamicInputNode->SelectedScriptVersion;
+			return GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DynamicInputNode->FunctionScript);
+		}
+		else
+		{
+			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(DynamicInputNode->FunctionScript);
+			if (ScratchPadScriptViewModel.IsValid())
+			{
+				GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
+				return true;
+			}
+		}
+	}
+
+	return false;
 }
 
 #undef LOCTEXT_NAMESPACE

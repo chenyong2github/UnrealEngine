@@ -12,6 +12,7 @@
 
 class FNiagaraSystemViewModel;
 class FNiagaraScratchPadScriptViewModel;
+class FNiagaraSystemGraphSelectionViewModel;
 class FNiagaraObjectSelection;
 class UNiagaraScript;
 class UEdGraph;
@@ -35,8 +36,10 @@ public:
 	void OpenChildScript(UEdGraph* Graph);
 	void CloseChildScript(UEdGraph* Graph);
 
-	TArray<class UNiagaraGraph*> GetEditableGraphsForActiveDocument();
-	
+	TArray<class UNiagaraGraph*> GetEditableGraphsForActiveScriptDocument();
+	TArray<class UNiagaraGraph*> GetAllGraphsForActiveScriptDocument();
+	TArray<class UNiagaraGraph*> GetEditableGraphsForPrimaryDocument();
+	TArray<class UNiagaraGraph*> GetAllGraphsForPrimaryDocument();
 	void InitializePreTabManager(TSharedPtr<class FNiagaraSystemToolkit> InToolkit);
 	void InitializePostTabManager(TSharedPtr<class FNiagaraSystemToolkit> InToolkit);
 
@@ -46,8 +49,13 @@ public:
 		return ActiveDocChangedDelegate;
 	}
 
+	bool IsPrimaryDocumentActive() const;
 	TSharedPtr<class FNiagaraScratchPadScriptViewModel> GetActiveScratchPadViewModelIfSet();
 	static TSharedPtr < class FNiagaraScratchPadScriptViewModel> GetScratchPadViewModelFromGraph(FNiagaraSystemViewModel* InSysViewModel, UEdGraph* InTargetGraph);
+
+	void DrawAttentionToPrimaryDocument();
+	void SetPrimaryDocumentID(const FName& TabId) { PrimaryDocumentTabId = TabId; }
+	void SwapEditableScripts(TSharedPtr < class FNiagaraScratchPadScriptViewModel> OldScriptViewModel, TSharedPtr < class FNiagaraScratchPadScriptViewModel> NewScriptViewModel);
 
 protected:
 	TSharedPtr<SDockTab> OpenDocument(const UObject* DocumentID, FDocumentTracker::EOpenDocumentCause Cause);
@@ -59,6 +67,8 @@ protected:
 	// Finds any open tabs containing the specified document and adds them to the specified array; returns true if at least one is found
 	bool FindOpenTabsContainingDocument(const UObject* DocumentID, /*inout*/ TArray< TSharedPtr<SDockTab> >& Results);
 
+	FName PrimaryDocumentTabId;
+
 
 private:
 	TSharedRef<FNiagaraSystemViewModel> GetSystemViewModel();
@@ -66,6 +76,7 @@ private:
 	FScriptToolkitsActiveDocumentChanged ActiveDocChangedDelegate;
 
 	TWeakPtr<FNiagaraSystemViewModel> SystemViewModelWeak;
+	TWeakPtr< FNiagaraSystemGraphSelectionViewModel> SystemGraphSelectionVMWeak;
 
 	TSharedRef<class SNiagaraScratchPadScriptEditor> CreateGraphEditorWidget(TSharedRef<FTabInfo> InTabInfo, UEdGraph* InGraph);
 

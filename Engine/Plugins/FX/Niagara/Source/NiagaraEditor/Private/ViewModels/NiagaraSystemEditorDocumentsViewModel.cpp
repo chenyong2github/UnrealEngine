@@ -6,6 +6,7 @@
 #include "ViewModels/NiagaraScratchPadViewModel.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
+#include "ViewModels/NiagaraSystemScriptViewModel.h"
 #include "ViewModels/NiagaraParameterPanelViewModel.h"
 #include "ViewModels/Stack/NiagaraStackModuleItem.h"
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
@@ -49,12 +50,126 @@ void UNiagaraSystemEditorDocumentsViewModel::Finalize()
 	ActiveDocumentTabScriptViewModel.Reset();
 }
 
-TArray<UNiagaraGraph*> UNiagaraSystemEditorDocumentsViewModel::GetEditableGraphsForActiveDocument()
+TArray<UNiagaraGraph*> UNiagaraSystemEditorDocumentsViewModel::GetAllGraphsForActiveScriptDocument()
 {
 	if (ActiveDocumentTabScriptViewModel.IsValid())
+	{
 		return ActiveDocumentTabScriptViewModel->GetEditableGraphs();
+	}
+	else if (ActiveDocumentTab.IsValid())
+	{
+		if (ActiveDocumentTab.Pin()->GetLayoutIdentifier().TabType != PrimaryDocumentTabId)
+		{
+			ActiveDocumentTabScriptViewModel = GetActiveScratchPadViewModelIfSet();
+
+			if (ActiveDocumentTabScriptViewModel.IsValid())
+			{
+				return ActiveDocumentTabScriptViewModel->GetEditableGraphs();
+			}
+		}
+	}
+	return TArray<UNiagaraGraph*>();
+}
+
+TArray<UNiagaraGraph*> UNiagaraSystemEditorDocumentsViewModel::GetEditableGraphsForActiveScriptDocument()
+{
+	if (ActiveDocumentTabScriptViewModel.IsValid())
+	{
+		return ActiveDocumentTabScriptViewModel->GetEditableGraphs();
+	}
+	else if (ActiveDocumentTab.IsValid())
+	{
+		if (ActiveDocumentTab.Pin()->GetLayoutIdentifier().TabType != PrimaryDocumentTabId)
+		{
+			ActiveDocumentTabScriptViewModel = GetActiveScratchPadViewModelIfSet();
+			
+			if (ActiveDocumentTabScriptViewModel.IsValid())
+			{
+				return ActiveDocumentTabScriptViewModel->GetEditableGraphs();
+			}
+		}	
+	}
+	
+	return TArray<UNiagaraGraph*>();
+}
+
+TArray<UNiagaraGraph*> UNiagaraSystemEditorDocumentsViewModel::GetAllGraphsForPrimaryDocument()
+{
+	TArray<UNiagaraGraph*> OutGraphs;
+
+	// Helper lambda to null check graph weak object ptrs before adding them to the retval array.
+	auto AddToOutGraphsChecked = [&OutGraphs](const TWeakObjectPtr<UNiagaraGraph>& WeakGraph) {
+		UNiagaraGraph* Graph = WeakGraph.Get();
+		if (Graph == nullptr)
+		{
+			ensureMsgf(false, TEXT("Encountered null graph when gathering editable graphs for system parameter panel viewmodel!"));
+			return;
+		}
+		OutGraphs.Add(Graph);
+	};
+	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = GetSystemViewModel();
+	if (SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset)
+	{
+		TArray<UNiagaraGraph*> Graphs;
+		AddToOutGraphsChecked(SystemViewModel->GetSystemScriptViewModel()->GetGraphViewModel()->GetGraph());
+
+		const TArray<TSharedRef<FNiagaraEmitterHandleViewModel>>& EmitterHandleViewModels = SystemViewModel->GetEmitterHandleViewModels();
+		for (const TSharedRef<FNiagaraEmitterHandleViewModel>& EmitterHandleViewModel : EmitterHandleViewModels)
+		{
+			FNiagaraEmitterHandle* EmitterHandle = EmitterHandleViewModel->GetEmitterHandle();
+			if (EmitterHandle == nullptr)
+			{
+				continue;
+			}
+			UNiagaraGraph* Graph = Cast<UNiagaraScriptSource>(EmitterHandle->GetEmitterData()->GraphSource)->NodeGraph;
+			if (Graph)
+			{
+				OutGraphs.Add(Graph);
+			}
+		}
+	}
 	else
-		return TArray<UNiagaraGraph*>();
+	{
+		FNiagaraEmitterHandle* EmitterHandle = SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle();
+		if (EmitterHandle != nullptr)
+		{
+			OutGraphs.Add(Cast<UNiagaraScriptSource>(EmitterHandle->GetEmitterData()->GraphSource)->NodeGraph);
+		}
+	}
+	return OutGraphs;
+}
+
+TArray<UNiagaraGraph*> UNiagaraSystemEditorDocumentsViewModel::GetEditableGraphsForPrimaryDocument()
+{
+	
+	TArray<UNiagaraGraph*> EditableGraphs;
+
+	// Helper lambda to null check graph weak object ptrs before adding them to the retval array.
+	auto AddToEditableGraphChecked = [&EditableGraphs](const TWeakObjectPtr<UNiagaraGraph>& WeakGraph) {
+		UNiagaraGraph* Graph = WeakGraph.Get();
+		if (Graph == nullptr)
+		{
+			ensureMsgf(false, TEXT("Encountered null graph when gathering editable graphs for system parameter panel viewmodel!"));
+			return;
+		}
+		EditableGraphs.Add(Graph);
+	};
+
+	TSharedRef<FNiagaraSystemViewModel> SystemViewModel = GetSystemViewModel();
+	if (SystemViewModel->GetEditMode() == ENiagaraSystemViewModelEditMode::SystemAsset && ensureMsgf(SystemGraphSelectionVMWeak.IsValid(), TEXT("SystemGraphSelectionViewModel was null for System edit mode!")))
+	{
+		for (const TWeakObjectPtr<UNiagaraGraph>& WeakGraph : SystemGraphSelectionVMWeak.Pin()->GetSelectedEmitterScriptGraphs())
+		{
+			AddToEditableGraphChecked(WeakGraph);
+		}
+		AddToEditableGraphChecked(SystemViewModel->GetSystemScriptViewModel()->GetGraphViewModel()->GetGraph());
+	}
+	else
+	{
+		EditableGraphs.Add(Cast<UNiagaraScriptSource>(SystemViewModel->GetEmitterHandleViewModels()[0]->GetEmitterHandle()->GetEmitterData()->GraphSource)->NodeGraph);
+	}
+
+	return EditableGraphs;
 }
 
 void UNiagaraSystemEditorDocumentsViewModel::OpenChildScript(UEdGraph* InGraph)
@@ -66,9 +181,44 @@ void UNiagaraSystemEditorDocumentsViewModel::OpenChildScript(UEdGraph* InGraph)
 	}
 	else if (Results.Num() > 0)
 	{
-		TabManager->DrawAttention(Results[0].ToSharedRef());
+		if (Results[0].IsValid())
+		{
+			TabManager->DrawAttention(Results[0].ToSharedRef());
+			Results[0]->ActivateInParent(ETabActivationCause::SetDirectly);
+			SetActiveDocumentTab(Results[0]);
+		}
 	}
 }
+
+void UNiagaraSystemEditorDocumentsViewModel::SwapEditableScripts(TSharedPtr < class FNiagaraScratchPadScriptViewModel> OldScriptViewModel, TSharedPtr < class FNiagaraScratchPadScriptViewModel> NewScriptViewModel)
+{
+	// In the event of an inheritance update, we might be called upon to do a hotswap of the currently editable scratch scripts,
+	// which are never overwritten by the parent. However, they were on graphs that need to be propagated to the 
+	// documents that are currently open if already in use for editing.
+	if (OldScriptViewModel.IsValid())
+	{
+		TArray< TSharedPtr<SDockTab> > Results;
+		UEdGraph* OldGraph = OldScriptViewModel->GetGraphViewModel()->GetGraph();
+		if (FindOpenTabsContainingDocument(OldGraph, Results))
+		{
+			for (TSharedPtr<SDockTab> Tab : Results)
+			{
+				if (Tab.IsValid() && Tab->GetLayoutIdentifier().TabType == TEXT("Document"))
+				{
+					TSharedRef<SNiagaraScratchPadScriptEditor> GraphEditor = StaticCastSharedRef<SNiagaraScratchPadScriptEditor>(Tab->GetContent());
+					GraphEditor->SetViewModel(NewScriptViewModel);
+
+					if (ActiveDocumentTabScriptViewModel == OldScriptViewModel)
+					{
+						ActiveDocumentTabScriptViewModel = NewScriptViewModel;
+					}
+				}
+			}
+		}
+	}
+
+}
+
 
 void UNiagaraSystemEditorDocumentsViewModel::CloseChildScript(UEdGraph* InGraph)
 {
@@ -106,6 +256,25 @@ void UNiagaraSystemEditorDocumentsViewModel::InitializePostTabManager(TSharedPtr
 {
 	TabManager = InToolkit->GetTabManager();
 	DocumentManager->SetTabManager(TabManager.ToSharedRef());
+	SystemGraphSelectionVMWeak = InToolkit->GetSystemGraphSelectionViewModel();
+}
+
+void UNiagaraSystemEditorDocumentsViewModel::DrawAttentionToPrimaryDocument()
+{
+	// Flash the system overivew in the UI
+	TSharedPtr<SDockTab>  ActiveTab = GetActiveDocumentTab().Pin();
+	if (ActiveTab.IsValid())
+	{
+		if (ActiveTab->GetLayoutIdentifier().TabType != PrimaryDocumentTabId)
+		{
+			TSharedPtr<SDockTab> FoundPrimaryDocumentTab = TabManager->FindExistingLiveTab(PrimaryDocumentTabId);
+			if (FoundPrimaryDocumentTab.IsValid())
+			{
+				FoundPrimaryDocumentTab->DrawAttention();
+				FoundPrimaryDocumentTab->ActivateInParent(ETabActivationCause::SetDirectly);
+			}
+		}
+	}
 }
 
 
@@ -166,11 +335,24 @@ void UNiagaraSystemEditorDocumentsViewModel::SetActiveDocumentTab(TSharedPtr<SDo
 
 	ActiveDocChangedDelegate.Broadcast(Tab);
 
-
 	// We need to update the parameter panel view model with new parameters potentially
-	if (GetSystemViewModel()->GetParameterPanelViewModel())
-		GetSystemViewModel()->GetParameterPanelViewModel()->RefreshNextTick();
+	INiagaraParameterPanelViewModel* PanelVM = GetSystemViewModel()->GetParameterPanelViewModel();
+	if (PanelVM)
+	{
+		PanelVM->RefreshNextTick();
+	}
 }
+
+bool UNiagaraSystemEditorDocumentsViewModel::IsPrimaryDocumentActive() const
+{
+	TSharedPtr<SDockTab> Tab = ActiveDocumentTab.Pin();
+	if (Tab.IsValid() && Tab->GetLayoutIdentifier().TabType == PrimaryDocumentTabId)
+	{
+		return true;
+	}
+	return false;
+}
+
 
 TSharedPtr<FNiagaraScratchPadScriptViewModel> UNiagaraSystemEditorDocumentsViewModel::GetScratchPadViewModelFromGraph(FNiagaraSystemViewModel* InSysViewModel, UEdGraph* InTargetGraph)
 {

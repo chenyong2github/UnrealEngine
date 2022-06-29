@@ -71,8 +71,8 @@ public:
 	NIAGARAEDITOR_API virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
 	/** Refreshes the items for the item selector. */
-	void Refresh();
-	void RefreshNextTick();
+	void Refresh(bool bRunCategoryExpansionFilter = false);
+	void RefreshNextTick(bool bRunCategoryExpansionFilter = false);
 
 	void OnParameterItemSelected(const FNiagaraParameterPanelItem& SelectedItem, ESelectInfo::Type SelectInfo) const;
 	FReply OnParameterItemsDragged(const TArray<FNiagaraParameterPanelItem>& DraggedItems, const FPointerEvent& MouseEvent) const;
@@ -115,6 +115,7 @@ private:
 	void HandleExternalSelectionChanged(const UObject* Obj);
 
 	const FSlateBrush* GetCategoryBackgroundImage(bool bIsCategoryHovered, bool bIsCategoryExpanded) const;
+	bool GetCategoryExpandedInitially(const FNiagaraParameterPanelCategory& Category) const;
 
 	TSharedRef<SWidget> GetViewOptionsMenu();
 
@@ -127,6 +128,7 @@ private:
 	void ConstructSectionButtons();
 
 	ECheckBoxState GetSectionCheckState(FText Section) const;
+	bool GetSectionEnabled(FText Section) const;
 
 	void OnSectionChecked(ECheckBoxState CheckState, FText Section);
 
@@ -138,6 +140,7 @@ private:
 	mutable bool bPendingRefresh;
 	mutable bool bPendingSelectionRestore;
 	mutable bool bParameterItemsPendingChange;
+	mutable bool bRunCategoryExpansionFilter = false;
 
 	/** Tracking list for parameters that are awaiting entering selection. */
 	TArray<FName> ParametersWithSelectionPending;
@@ -166,4 +169,7 @@ private:
 
 	/** Whether or not to display the reference counter for each parameter entry. */
 	bool bShowParameterReferenceCounter;
+
+	SNiagaraParameterPanelSelector::FOnCategoryPassesFilter FilterCategoryExpandedDelegate;
+
 };

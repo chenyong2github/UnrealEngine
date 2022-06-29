@@ -282,6 +282,8 @@ public:
 
 
 	virtual const FCollectedUsageData& GetCollectedUsageData() const override;
+
+	bool OpenSourceAsset() const;
 protected:
 	//~ UNiagaraStackEntry interface
 	virtual void FinalizeInternal() override;

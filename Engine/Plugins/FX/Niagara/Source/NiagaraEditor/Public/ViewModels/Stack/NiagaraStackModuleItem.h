@@ -127,7 +127,8 @@ public:
 
 	FOnNoteModeSet& OnNoteModeSet() { return OnNoteModeSetDelegate;}
 
-	
+	bool OpenSourceAsset() const;
+
 protected:
 	FOnRequestDeprecationRecommended DeprecationDelegate;
 

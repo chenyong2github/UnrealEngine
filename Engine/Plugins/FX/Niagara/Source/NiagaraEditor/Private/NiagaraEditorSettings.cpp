@@ -6,19 +6,20 @@
 #include "NiagaraConstants.h"
 #include "NiagaraEditorModule.h"
 
-const FGuid FNiagaraEditorGuids::SystemNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ModuleNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ModuleOutputNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ModuleLocalNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::TransientNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::StackContextNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::EngineNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::UserNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid = FGuid::NewGuid();
-const FGuid FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid = FGuid::NewGuid();
+// These GUIDs are now statically defined so that they can be serialized out in settings for the parameter panel category expansion.
+const FGuid FNiagaraEditorGuids::SystemNamespaceMetaDataGuid = FGuid(TEXT("7B4AFB34D0DF46189A05349E361CE735"));
+const FGuid FNiagaraEditorGuids::EmitterNamespaceMetaDataGuid = FGuid(TEXT("1BA31433B3314F6BB258AECFBB466AC7"));
+const FGuid FNiagaraEditorGuids::ParticleAttributeNamespaceMetaDataGuid = FGuid(TEXT("530A57A84EF444F482CCC0A4B6D8D364"));
+const FGuid FNiagaraEditorGuids::ModuleNamespaceMetaDataGuid = FGuid(TEXT("FCA14ABEFAD14BB58786362887FEED09"));
+const FGuid FNiagaraEditorGuids::ModuleOutputNamespaceMetaDataGuid = FGuid(TEXT("8945EAA4041E43F6824AC3B0AF2AEA20"));
+const FGuid FNiagaraEditorGuids::ModuleLocalNamespaceMetaDataGuid = FGuid(TEXT("1DAA70FAC2ED4512914BD788D5BC3C9D"));
+const FGuid FNiagaraEditorGuids::TransientNamespaceMetaDataGuid = FGuid(TEXT("39BA69CE1CB74A168469C1F49C4E37DE"));
+const FGuid FNiagaraEditorGuids::StackContextNamespaceMetaDataGuid = FGuid(TEXT("65275FF7723C4CF28A82EB033EB3FAA6"));
+const FGuid FNiagaraEditorGuids::EngineNamespaceMetaDataGuid = FGuid(TEXT("18363BDD94D549038AA825175F92DDF9"));
+const FGuid FNiagaraEditorGuids::UserNamespaceMetaDataGuid = FGuid(TEXT("A3AC42514BF24B84AD2C52D2276414DA"));
+const FGuid FNiagaraEditorGuids::ParameterCollectionNamespaceMetaDataGuid = FGuid(TEXT("A5843E1CF9924F16B52016676332DEDC"));
+const FGuid FNiagaraEditorGuids::DataInstanceNamespaceMetaDataGuid = FGuid(TEXT("17F5FC610A914BA58D7EA8FD39B9A1D0"));
+const FGuid FNiagaraEditorGuids::StaticSwitchNamespaceMetaDataGuid = FGuid(TEXT("6A44CDD2EC3D4495BDC7FE28CAE00604"));
 
 
 FNiagaraNamespaceMetadata::FNiagaraNamespaceMetadata()
@@ -128,6 +129,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetDescription(LOCTEXT("ModuleDescription", "A value which exposes a module input to the system and emitter editor."))
 			.SetBackgroundColor(FLinearColor(FColor(136, 66, 65)))
 			.SetSortId(40)
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInDefinitions)
 			.SetGuid(FNiagaraEditorGuids::ModuleNamespaceMetaDataGuid),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::OutputNamespace}, FNiagaraConstants::ModuleNamespace)
@@ -148,6 +150,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(191, 176, 84)))
 			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.SetSortId(50)
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInDefinitions)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
 			.SetGuid(FNiagaraEditorGuids::ModuleLocalNamespaceMetaDataGuid),
@@ -219,6 +222,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetBackgroundColor(FLinearColor(FColor(170, 170, 170)))
 			.SetForegroundStyle("NiagaraEditor.ParameterName.NamespaceTextDark")
 			.SetSortId(100)
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInScript)
 			.AddOption(ENiagaraNamespaceMetadataOptions::AdvancedInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInDefinitions)
@@ -230,6 +234,7 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 			.SetDisplayName(LOCTEXT("StatisSwitchDisplayName", "Static Switch Inputs"))
 			.SetDescription(LOCTEXT("StaticSwitchDescription", "Values which can only be set at edit time."))
 			.SetSortId(45)
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem)
 			.AddOption(ENiagaraNamespaceMetadataOptions::HideInDefinitions)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespace)
 			.AddOption(ENiagaraNamespaceMetadataOptions::PreventEditingNamespaceModifier)
@@ -260,7 +265,8 @@ void UNiagaraEditorSettings::SetupNamespaceMetadata()
 		FNiagaraNamespaceMetadata({FNiagaraConstants::ModuleNamespace})
 			.SetDisplayName(LOCTEXT("ModuleModifierDisplayName", "Module"))
 			.SetDescription(LOCTEXT("ModuleModifierDescription", "A namespace modifier which makes that attribute unique to the module\ninstance by appending the unique module name."))
-			.SetBackgroundColor(FLinearColor(FColor(102, 102, 152))),
+			.SetBackgroundColor(FLinearColor(FColor(102, 102, 152)))
+			.AddOption(ENiagaraNamespaceMetadataOptions::HideInSystem),
 		FNiagaraNamespaceMetadata({FNiagaraConstants::SystemNamespace})
 			.SetDisplayName(LOCTEXT("SystemModifierDisplayName", "System"))
 			.SetDescription(LOCTEXT("SystemModifierDescription", "A namespace modifier which specifies that an engine provided parameter comes from the system."))
@@ -451,6 +457,25 @@ void UNiagaraEditorSettings::SetDisplayAdvancedParameterPanelCategories(bool bIn
 		SaveConfig();
 		SettingsChangedDelegate.Broadcast(GET_MEMBER_NAME_CHECKED(UNiagaraEditorSettings, bDisplayAdvancedParameterPanelCategories).ToString(), this);
 	}
+}
+
+// Use the guids from the list at the top of this file to register last known expansion state.
+FNiagaraParameterPanelSectionStorage& UNiagaraEditorSettings::FindOrAddParameterPanelSectionStorage(FGuid PanelSectionId, bool& bOutAdded)
+{
+	bOutAdded = false;
+	check(PanelSectionId.IsValid());
+	for (FNiagaraParameterPanelSectionStorage& Storage : SystemParameterPanelSectionData)
+	{
+		if (PanelSectionId == Storage.ParamStorageId)
+		{
+			return Storage;
+		}
+	}
+
+	int32 Idx = SystemParameterPanelSectionData.Emplace(PanelSectionId);
+	bOutAdded = true;
+	return SystemParameterPanelSectionData[Idx];
+
 }
 
 bool UNiagaraEditorSettings::GetDisplayAffectedAssetStats() const

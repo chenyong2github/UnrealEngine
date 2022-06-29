@@ -13,6 +13,7 @@
 #include "NiagaraParameterDefinitions.h"
 #include "ViewModels/NiagaraScratchPadUtilities.h"
 #include "ViewModels/NiagaraScriptGraphViewModel.h"
+#include "ViewModels/NiagaraSystemViewModel.h"
 
 #include "ScopedTransaction.h"
 #include "Framework/Commands/UICommandList.h"
@@ -47,17 +48,30 @@ FNiagaraScratchPadScriptViewModel::~FNiagaraScratchPadScriptViewModel()
 	}
 }
 
-void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
+void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<FNiagaraSystemViewModel> InMasterViewModel)
 {
 	OriginalScript = Script;
-	EditScript.Script = CastChecked<UNiagaraScript>(StaticDuplicateObject(Script, GetTransientPackage()));
-	SetScript(EditScript);
+	SystemViewModel = InMasterViewModel;
+
+	// Copy over the old edited graph, as this initialize might be incoming from inheritance changes and we want to maintain
+	// the edits to the old graph we were working on.
+	if (InEditScript)
+	{
+		EditScript.Script = InEditScript;
+		SetScript(EditScript);
+	}
+	else
+	{
+		EditScript.Script = CastChecked<UNiagaraScript>(StaticDuplicateObject(Script, GetTransientPackage()));
+		SetScript(EditScript);
+	}
 	UNiagaraScriptSource* EditScriptSource = CastChecked<UNiagaraScriptSource>(EditScript.Script->GetLatestSource());
 	OnGraphNeedsRecompileHandle = EditScriptSource->NodeGraph->AddOnGraphNeedsRecompileHandler(FOnGraphChanged::FDelegate::CreateSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptGraphChanged));
 	EditScript.Script->OnPropertyChanged().AddSP(this, &FNiagaraScratchPadScriptViewModel::OnScriptPropertyChanged);
 	ParameterPanelCommands = MakeShared<FUICommandList>();
 
 	ParameterPaneViewModel = MakeShared<FNiagaraScriptToolkitParameterPanelViewModel>(this->AsShared());
+	ExternalSelectionChangedDelegate = ParameterPaneViewModel->GetOnExternalSelectionChangedDelegate().AddRaw(this, &FNiagaraScratchPadScriptViewModel::OnGraphSubObjectSelectionChanged);
 	FScriptToolkitUIContext UIContext = FScriptToolkitUIContext(
 		FSimpleDelegate::CreateSP(ParameterPaneViewModel.ToSharedRef(), &INiagaraImmutableParameterPanelViewModel::Refresh),
 		FSimpleDelegate(), //@todo(ng) skip binding refresh parameter definitions panel as scratchpad does not have a parameter definitions panel currently
@@ -66,11 +80,17 @@ void FNiagaraScratchPadScriptViewModel::Initialize(UNiagaraScript* Script)
 	ParameterPaneViewModel->Init(UIContext);
 }
 
+void FNiagaraScratchPadScriptViewModel::OnGraphSubObjectSelectionChanged(const UObject* Obj)
+{
+	OnGraphSelectionChanged().Broadcast(Obj);
+}
+
 void FNiagaraScratchPadScriptViewModel::Finalize()
 {
 	// This pointer needs to be reset manually here because there is a shared ref cycle.
 	if (ParameterPaneViewModel.IsValid())
 	{
+		ParameterPaneViewModel->GetOnExternalSelectionChangedDelegate().Remove(ExternalSelectionChangedDelegate);
 		ParameterPaneViewModel.Reset();
 	}
 }
@@ -163,6 +183,17 @@ void FNiagaraScratchPadScriptViewModel::SetIsPinned(bool bInIsPinned)
 		OnPinnedChangedDelegate.Broadcast();
 	}
 }
+
+void FNiagaraScratchPadScriptViewModel::TransferFromOldWhenDoingApply(TSharedPtr< FNiagaraScratchPadScriptViewModel> InOldScriptVM)
+{
+	// Copy over has pending changes, as this might be incoming from inheritance changes and we want to maintain
+	// the edits to the old graph we were working on.
+	if (InOldScriptVM.IsValid())
+	{
+		bHasPendingChanges = InOldScriptVM->bHasPendingChanges;
+	}
+}
+
 
 float FNiagaraScratchPadScriptViewModel::GetEditorHeight() const
 {

@@ -614,25 +614,11 @@ void SNiagaraStackFunctionInputValue::OnExpressionTextCommitted(const FText& Nam
 
 FReply SNiagaraStackFunctionInputValue::DynamicInputTextDoubleClicked(const FGeometry& MyGeometry, const FPointerEvent& PointerEvent)
 {
-	UNiagaraNodeFunctionCall* DynamicInputNode = FunctionInput->GetDynamicInputNode();
-	if (DynamicInputNode->FunctionScript != nullptr)
+	if (FunctionInput->OpenSourceAsset())
 	{
-		if (DynamicInputNode->FunctionScript->IsAsset())
-		{
-			DynamicInputNode->FunctionScript->VersionToOpenInEditor = DynamicInputNode->SelectedScriptVersion;
-			GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(DynamicInputNode->FunctionScript);
-			return FReply::Handled();
-		}
-		else
-		{
-			TSharedPtr<FNiagaraScratchPadScriptViewModel> ScratchPadScriptViewModel = FunctionInput->GetSystemViewModel()->GetScriptScratchPadViewModel()->GetViewModelForScript(DynamicInputNode->FunctionScript);
-			if(ScratchPadScriptViewModel.IsValid())
-			{
-				FunctionInput->GetSystemViewModel()->GetScriptScratchPadViewModel()->FocusScratchPadScriptViewModel(ScratchPadScriptViewModel.ToSharedRef());
-				return FReply::Handled();
-			}
-		}
+		return FReply::Handled();
 	}
+	
 	return FReply::Unhandled();
 }
 

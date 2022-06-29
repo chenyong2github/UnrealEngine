@@ -19,12 +19,15 @@ public:
 	DECLARE_MULTICAST_DELEGATE(FOnChangesApplied);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnNodeIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPinIDFocusRequested, FNiagaraScriptIDAndGraphFocusInfo*  /* FocusInfo */);
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGraphSubObjectSelectionChanged, const UObject*);
 
 	FNiagaraScratchPadScriptViewModel(bool bInIsForDataProcessingOnly);
 
 	~FNiagaraScratchPadScriptViewModel();
 
-	void Initialize(UNiagaraScript* Script);
+	void Initialize(UNiagaraScript* Script, UNiagaraScript* InEditScript, TWeakPtr<class FNiagaraSystemViewModel> InSystemViewModel);
+
+	void TransferFromOldWhenDoingApply(TSharedPtr< FNiagaraScratchPadScriptViewModel> InOldScriptVM);
 
 	void Finalize();
 
@@ -38,6 +41,10 @@ public:
 protected:
 	virtual INiagaraParameterDefinitionsSubscriber* GetParameterDefinitionsSubscriber() override { return &EditScript; };
 	//~ End NiagaraParameterDefinitionsSubscriberViewModel Interface
+
+	void OnGraphSubObjectSelectionChanged(const UObject* Obj);
+
+	FDelegateHandle ExternalSelectionChangedDelegate;
 
 public:
 	virtual FString GetReferencerName() const override
@@ -88,6 +95,8 @@ public:
 	FOnNodeIDFocusRequested& OnNodeIDFocusRequested();
 	FOnPinIDFocusRequested& OnPinIDFocusRequested();
 
+	FOnGraphSubObjectSelectionChanged& OnGraphSelectionChanged() { return OnGraphSubObjectSelectionChangedDelegate;	};
+
 	void RaisePinFocusRequested(FNiagaraScriptIDAndGraphFocusInfo*  InFocusInfo);
 	void RaiseNodeFocusRequested(FNiagaraScriptIDAndGraphFocusInfo* InFocusInfo);
 
@@ -105,6 +114,8 @@ private:
 	UNiagaraScript* OriginalScript = nullptr;
 	FVersionedNiagaraScript EditScript;
 
+	TWeakPtr<FNiagaraSystemViewModel> SystemViewModel;
+
 	bool bHasPendingChanges;
 
 	TSharedPtr<FUICommandList> ParameterPanelCommands;
@@ -117,6 +128,7 @@ private:
 	FOnHasUnappliedChangesChanged OnHasUnappliedChangesChangedDelegate;
 	FOnChangesApplied OnChangesAppliedDelegate;
 	FSimpleDelegate	OnRequestDiscardChangesDelegate;
+	FOnGraphSubObjectSelectionChanged OnGraphSubObjectSelectionChangedDelegate;
 
 	FOnNodeIDFocusRequested OnNodeIDFocusRequestedDelegate;
 	FOnPinIDFocusRequested OnPinIDFocusRequestedDelegate;
