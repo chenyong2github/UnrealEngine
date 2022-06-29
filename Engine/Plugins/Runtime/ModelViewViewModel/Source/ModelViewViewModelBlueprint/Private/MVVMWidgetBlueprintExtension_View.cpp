@@ -48,7 +48,7 @@ void UMVVMWidgetBlueprintExtension_View::HandlePreloadObjectsForCompilation(UBlu
 		{
 			if (AvailableViewModel.GetViewModelClass())
 			{
-				UBlueprint::ForceLoad(AvailableViewModel.GetViewModelClass().Get());
+				UBlueprint::ForceLoad(AvailableViewModel.GetViewModelClass());
 			}
 			//UBlueprint::ForceLoad(ViewModelPropertyPath);
 		}

@@ -2,12 +2,16 @@
 
 #include "MVVMBlueprintViewModelContext.h"
 
-FMVVMBlueprintViewModelContext::FMVVMBlueprintViewModelContext(TSubclassOf<UMVVMViewModelBase> InClass, FName InViewModelName)
-	: ViewModelContextId(FGuid::NewGuid())
-	, ViewModelClass(InClass)
-	, ViewModelName(InViewModelName)
-{
+#include "FieldNotification/IFieldValueChanged.h"
 
+FMVVMBlueprintViewModelContext::FMVVMBlueprintViewModelContext(const UClass* InClass, FName InViewModelName)
+{
+	if (InClass && InClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+	{
+		ViewModelContextId = FGuid::NewGuid();
+		NotifyFieldValueClass = const_cast<UClass*>(InClass);
+		ViewModelName = InViewModelName;
+	}
 }
 
 

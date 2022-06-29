@@ -38,7 +38,7 @@ UE::MVVM::FBindingSource UE::MVVM::FBindingSource::CreateForViewModel(const UWid
 		if (const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(Source.ViewModelId))
 		{
 			Source.DisplayName = ViewModel->GetDisplayName();
-			Source.Class = ViewModel->GetViewModelClass().Get();
+			Source.Class = ViewModel->GetViewModelClass();
 		}
 	}
 
@@ -56,7 +56,7 @@ UE::MVVM::FBindingSource UE::MVVM::FBindingSource::CreateForViewModel(const UWid
 		{
 			Source.ViewModelId = ViewModel->GetViewModelId();
 			Source.DisplayName = ViewModel->GetDisplayName();
-			Source.Class = ViewModel->GetViewModelClass().Get();
+			Source.Class = ViewModel->GetViewModelClass();
 		}
 	}
 

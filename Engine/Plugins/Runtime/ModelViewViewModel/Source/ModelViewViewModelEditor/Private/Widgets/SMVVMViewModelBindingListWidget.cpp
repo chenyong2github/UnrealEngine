@@ -140,7 +140,7 @@ void SViewModelBindingListWidget::SetRawFilterText(const FText& InFilterText)
 {
 	if (PropertyViewer)
 	{
-		//PropertyViewer->SetRawFilterText(InFilterText);
+		PropertyViewer->SetRawFilterText(InFilterText);
 	}
 }
 

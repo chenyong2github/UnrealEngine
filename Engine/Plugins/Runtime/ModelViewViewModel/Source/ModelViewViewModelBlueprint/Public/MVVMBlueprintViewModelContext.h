@@ -31,7 +31,7 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewModelContext
 
 public:
 	FMVVMBlueprintViewModelContext() = default;
-	FMVVMBlueprintViewModelContext(TSubclassOf<UMVVMViewModelBase> InClass, FName InViewModelName);
+	FMVVMBlueprintViewModelContext(const UClass* InClass, FName InViewModelName);
 
 	FGuid GetViewModelId() const
 	{
@@ -45,9 +45,9 @@ public:
 
 	FText GetDisplayName() const;
 
-	TSubclassOf<UMVVMViewModelBase> GetViewModelClass() const
+	UClass* GetViewModelClass() const
 	{
-		return ViewModelClass;
+		return NotifyFieldValueClass;
 	}
 
 	void PostSerialize(const FArchive& Ar)
@@ -62,16 +62,28 @@ public:
 			{
 				ViewModelName = *ViewModelContextId.ToString();
 			}
+			if (ViewModelClass_DEPRECATED.Get())
+			{
+				NotifyFieldValueClass = ViewModelClass_DEPRECATED.Get();
+			}
 		}
+	}
+
+	bool IsValid() const
+	{
+		return NotifyFieldValueClass != nullptr;
 	}
 
 private:
 	/** When the view is spawn, create an instance of the viewmodel. */
-	UPROPERTY(EditAnywhere, Category = "MVVM")
+	UPROPERTY(VisibleAnywhere, Category = "MVVM")
 	FGuid ViewModelContextId;
 
 	UPROPERTY(EditAnywhere, Category = "MVVM")
-	TSubclassOf<UMVVMViewModelBase> ViewModelClass;
+	UClass* NotifyFieldValueClass = nullptr;
+
+	UPROPERTY()
+	TSubclassOf<UMVVMViewModelBase> ViewModelClass_DEPRECATED;
 
 	UPROPERTY()
 	FText OverrideDisplayName_DEPRECATED;

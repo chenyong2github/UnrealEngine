@@ -198,6 +198,43 @@ UMVVMBlueprintView* UMVVMEditorSubsystem::GetView(const UWidgetBlueprint* Widget
 	return nullptr;
 }
 
+FName UMVVMEditorSubsystem::AddViewModel(UWidgetBlueprint* WidgetBlueprint, const UClass* ViewModelClass)
+{
+	FName Result;
+	if (ViewModelClass)
+	{
+		if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
+		{
+			FString ClassName = ViewModelClass->ClassGeneratedBy != nullptr ? ViewModelClass->ClassGeneratedBy->GetName() : ViewModelClass->GetAuthoredName();
+			FString ViewModelName = ClassName;
+			FKismetNameValidator NameValidator(WidgetBlueprint);
+
+			int32 Index = 1;
+			while (NameValidator.IsValid(ViewModelName) != EValidatorResult::Ok)
+			{
+				ViewModelName = ClassName + "_";
+				ViewModelName.AppendInt(Index);
+
+				++Index;
+			}
+
+			Result = *ViewModelName;
+			FMVVMBlueprintViewModelContext Context = FMVVMBlueprintViewModelContext(ViewModelClass, Result);
+			if (Context.IsValid())
+			{
+				const FScopedTransaction Transaction(LOCTEXT("AddViewModel", "Add viewmodel"));
+				View->Modify();
+				View->AddViewModel(Context);
+			}
+			else
+			{
+				Result = FName();
+			}
+		}
+	}
+	return Result;
+}
+
 void UMVVMEditorSubsystem::RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel)
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
@@ -1015,7 +1052,7 @@ TArray<UE::MVVM::FBindingSource> UMVVMEditorSubsystem::GetAllViewModels(const UW
 			UE::MVVM::FBindingSource Source;
 			Source.ViewModelId = ViewModel.GetViewModelId();
 			Source.DisplayName = ViewModel.GetDisplayName();
-			Source.Class = ViewModel.GetViewModelClass().Get();
+			Source.Class = ViewModel.GetViewModelClass();
 			Sources.Add(Source);
 		}
 	}

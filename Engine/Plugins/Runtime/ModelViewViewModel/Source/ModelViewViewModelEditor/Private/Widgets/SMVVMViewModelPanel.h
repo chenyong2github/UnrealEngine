@@ -9,6 +9,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class FWidgetBlueprintEditor;
+class SPositiveActionButton;
 class UBlueprintExtension;
 class UMVVMBlueprintView;
 
@@ -32,11 +33,14 @@ private:
 	void HandleViewModelsUpdated();
 	//bool HandleViewModelRenamed(const SViewModelBindingListWidget::FViewModel& ViewModel, const FText& RenameTo, bool bCommit, FText& OutErrorMessage);
 	TSharedRef<SWidget> MakeAddMenu();
+	void HandleCancelAddMenu();
+	void HandleAddMenuViewModel(const UClass* SelectedClass);
 	bool HandleCanEditViewmodelList() const;
 
 	void FillViewModel();
 
 private:
+	TSharedPtr<SPositiveActionButton> AddMenuButton;
 	TSharedPtr<UE::PropertyViewer::SPropertyViewer> ViewModelTreeView;
 	FFieldIterator_ViewModel ViewModelFieldIterator;
 

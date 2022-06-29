@@ -28,6 +28,9 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	UMVVMBlueprintView* GetView(const UWidgetBlueprint* WidgetBlueprint) const;
+
+	UFUNCTION(BlueprintCallable, Category = "MVVM")
+	FName AddViewModel(UWidgetBlueprint* WidgetBlueprint, const UClass* ViewModel);
 	
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	void RemoveViewModel(UWidgetBlueprint* WidgetBlueprint, FName ViewModel);

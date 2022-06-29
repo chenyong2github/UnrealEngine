@@ -415,7 +415,7 @@ private:
 			if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintViewPtr->FindViewModel(ViewBinding->ViewModelPath.GetViewModelId()))
 			{
 				UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
-				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetViewModelAvailableBindings(ViewModel->GetViewModelClass());
+				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(ViewModel->GetViewModelClass());
 
 				Algo::Transform(AvailableBindings, AvailablePaths, [ViewModel](const FMVVMAvailableBinding& Binding)
 					{

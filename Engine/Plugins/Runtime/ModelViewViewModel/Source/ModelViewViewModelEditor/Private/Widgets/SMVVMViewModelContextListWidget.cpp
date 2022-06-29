@@ -29,7 +29,7 @@
 
 namespace UE::MVVM::Private
 {
-	static bool IsPropertyTypeChildOf(const FProperty* Property, TSubclassOf<UMVVMViewModelBase> ParentClass)
+	static bool IsPropertyTypeChildOf(const FProperty* Property, const UClass* ParentClass)
 	{
 		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 		{
@@ -42,7 +42,7 @@ namespace UE::MVVM::Private
 		return false;
 	}
 
-	static bool HasBindableViewModelFieldRecursive(UStruct* InStruct, TSubclassOf<UMVVMViewModelBase> InParentClass, TSet<UStruct*>& VisitedSet, uint32 RecursionDepth)
+	static bool HasBindableViewModelFieldRecursive(UStruct* InStruct, const UClass* InParentClass, TSet<UStruct*>& VisitedSet, uint32 RecursionDepth)
 	{
 		if (RecursionDepth > 10)
 		{
@@ -393,9 +393,9 @@ namespace UE::MVVM::Private
 			};
 
 			UClass* InBindableClass = Cast<UClass>(InOwnerStruct);
-			TSubclassOf<UMVVMViewModelBase> ViewModelClass = Entry->GetViewModelClass();
+			const UClass* ViewModelClass = Entry->GetViewModelClass();
 
-			check(ViewModelClass.Get());
+			check(ViewModelClass);
 
 			bool bHasFunctionEntry = false;
 			MenuBuilder.BeginSection("Functions", LOCTEXT("Functions", "Functions"));

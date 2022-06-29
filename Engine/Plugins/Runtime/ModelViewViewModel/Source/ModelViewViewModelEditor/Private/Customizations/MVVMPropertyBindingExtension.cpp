@@ -100,7 +100,7 @@ static void ExtendBindingsMenu(FMenuBuilder& MenuBuilder, const UWidgetBlueprint
 		MenuBuilder.AddSubMenu(ViewModel.GetDisplayName(), ViewModel.GetDisplayName(),
 			FNewMenuDelegate::CreateLambda([ViewModel, Widget, Property, Schema, CreatePropertyWidget, CreateBinding](FMenuBuilder& MenuBuilder)
 				{
-					const UClass* ViewModelClass = ViewModel.GetViewModelClass().Get();
+					const UClass* ViewModelClass = ViewModel.GetViewModelClass();
 
 					MenuBuilder.BeginSection("ValidDataTypes", LOCTEXT("ValidDataTypes", "Valid Data Types"));
 

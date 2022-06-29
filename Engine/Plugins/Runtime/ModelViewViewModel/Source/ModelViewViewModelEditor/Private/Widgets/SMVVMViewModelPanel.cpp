@@ -21,7 +21,9 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/Layout/SBox.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
+#include "Widgets/SMVVMSelectViewModel.h"
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
 
 #include "SPositiveActionButton.h"
@@ -54,7 +56,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.FieldIterator(&ViewModelFieldIterator)
 		.SearchBoxPreSlot()
 		[
-			SNew(SPositiveActionButton)
+			SAssignNew(AddMenuButton, SPositiveActionButton)
 			.OnGetMenuContent(this, &SMVVMViewModelPanel::MakeAddMenu)
 			.Text(LOCTEXT("Viewmodel", "Viewmodel"))
 			.IsEnabled(this, &SMVVMViewModelPanel::HandleCanEditViewmodelList)
@@ -106,12 +108,23 @@ void SMVVMViewModelPanel::FillViewModel()
 		{
 			for (const FMVVMBlueprintViewModelContext& ViewModelContext : View->GetViewModels())
 			{
-				UObject* ViewModelInstance = ViewModelContext.GetViewModelClass().GetDefaultObject();
-				
-				FViewModelHandle ViewModelHandle;
-				ViewModelHandle.Key = ViewModelContext.GetViewModelId();
-				ViewModelHandle.Value = ViewModelTreeView->AddInstance(ViewModelInstance);
-				ViewModelHandles.Add(ViewModelHandle);
+				if (ViewModelContext.GetViewModelClass())
+				{
+					UObject* ViewModelInstance = ViewModelContext.GetViewModelClass()->GetDefaultObject();
+
+					FViewModelHandle ViewModelHandle;
+					ViewModelHandle.Key = ViewModelContext.GetViewModelId();
+					ViewModelHandle.Value = ViewModelTreeView->AddInstance(ViewModelInstance, ViewModelContext.GetDisplayName());
+					ViewModelHandles.Add(ViewModelHandle);
+				}
+				else
+				{
+					FViewModelHandle ViewModelHandle;
+					ViewModelHandle.Key = ViewModelContext.GetViewModelId();
+					// Find a way to show context that are not valid anymore
+					//ViewModelHandle.Value = ViewModelTreeView->AddInstance(ViewModelInstance, ViewModelContext.GetDisplayName());
+					ViewModelHandles.Add(ViewModelHandle);
+				}
 			}
 		}
 	}
@@ -155,17 +168,44 @@ void SMVVMViewModelPanel::HandleViewModelsUpdated()
 
 TSharedRef<SWidget> SMVVMViewModelPanel::MakeAddMenu()
 {
-	//using namespace UE::Sequencer;
+	return SNew(SBox)
+		.WidthOverride(600)
+		.HeightOverride(500)
+		[
+			SNew(SMVVMSelectViewModel)
+			.OnCancel(this, &SMVVMViewModelPanel::HandleCancelAddMenu)
+			.OnViewModelCommitted(this, &SMVVMViewModelPanel::HandleAddMenuViewModel)
+		];
+}
 
-	//TSharedPtr<FExtender> Extender = FExtender::Combine(AddMenuExtenders);
-	//FMenuBuilder MenuBuilder(true, nullptr, Extender);
-	//{
-	//	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
-	//	Sequencer->GetViewModel()->GetOutliner()->CastThisChecked<FSequencerOutlinerViewModel>()->BuildContextMenu(MenuBuilder);
-	//}
 
-	//return MenuBuilder.MakeWidget();
-	return SNullWidget::NullWidget;
+void SMVVMViewModelPanel::HandleCancelAddMenu()
+{
+	if (AddMenuButton)
+	{
+		AddMenuButton->SetIsMenuOpen(false, false);
+	}
+}
+
+
+void SMVVMViewModelPanel::HandleAddMenuViewModel(const UClass* SelectedClass)
+{
+	if (AddMenuButton)
+	{
+		AddMenuButton->SetIsMenuOpen(false, false);
+		if (SelectedClass)
+		{
+			if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
+			{
+				if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj())
+				{
+					UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+					check(EditorSubsystem);
+					EditorSubsystem->AddViewModel(WidgetBlueprint, SelectedClass);
+				}
+			}
+		}
+	}
 }
 
 
