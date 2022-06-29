@@ -30,25 +30,44 @@ const FRigVMTemplate* URigVMIfNode::GetTemplate() const
 		{
 			return IfNodeTemplate;
 		}
-		
+
+		static const FName ConditionFName = *ConditionName;
+		static const FName TrueFName = *TrueName;
+		static const FName FalseFName = *FalseName;
+		static const FName ResultFName = *ResultName;
+
 		static TArray<FRigVMTemplateArgument> Arguments;
 		if(Arguments.IsEmpty())
 		{
-			static TArray<int32> Types;
-			if(Types.IsEmpty())
-			{
-				Types.Append(FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue));
-				Types.Append(FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_ArrayAnyValue));
-			}
-
+			static const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+				FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
+				FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
+			};
 			Arguments.Reserve(4);
-			Arguments.Emplace(*ConditionName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool);
-			Arguments.Emplace(*TrueName, ERigVMPinDirection::Input, Types);
-			Arguments.Emplace(*FalseName, ERigVMPinDirection::Input, Types);
-			Arguments.Emplace(*ResultName, ERigVMPinDirection::Output, Types);
+			Arguments.Emplace(ConditionFName, ERigVMPinDirection::Input, RigVMTypeUtils::TypeIndex::Bool);
+			Arguments.Emplace(TrueFName, ERigVMPinDirection::Input, Categories);
+			Arguments.Emplace(FalseFName, ERigVMPinDirection::Input, Categories);
+			Arguments.Emplace(ResultFName, ERigVMPinDirection::Output, Categories);
 		}
-		
-		IfNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*IfName, Arguments);
+
+		FRigVMTemplateDelegates Delegates;
+		Delegates.NewArgumentTypeDelegate = 
+			FRigVMTemplate_NewArgumentTypeDelegate::CreateLambda([](const FRigVMTemplate*, const FName& InArgumentName, int32 InTypeIndex)
+			{
+				FRigVMTemplateTypeMap Types;
+
+				if(InArgumentName == TrueFName || InArgumentName == FalseFName || InArgumentName == ResultFName)
+				{
+					Types.Add(ConditionFName, RigVMTypeUtils::TypeIndex::Bool);
+					Types.Add(TrueFName, InTypeIndex);
+					Types.Add(FalseFName, InTypeIndex);
+					Types.Add(ResultFName, InTypeIndex);
+				}
+
+				return Types;
+			});
+
+		IfNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*IfName, Arguments, Delegates);
 	}
 	return CachedTemplate;
 }

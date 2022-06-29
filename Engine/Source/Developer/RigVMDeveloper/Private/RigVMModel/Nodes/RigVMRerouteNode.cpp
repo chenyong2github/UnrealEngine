@@ -89,21 +89,25 @@ const FRigVMTemplate* URigVMRerouteNode::GetTemplate() const
 		static TArray<FRigVMTemplateArgument> Arguments;
 		if(Arguments.IsEmpty())
 		{
-			static TArray<int32> Types;
-			if(Types.IsEmpty())
-			{
-				Types.Append(FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue));
-				Types.Append(FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_ArrayAnyValue));
-
-				UScriptStruct* ExecuteStruct = GetGraph()->GetExecuteContextStruct();
-				const FRigVMTemplateArgumentType ExecuteType(*ExecuteStruct->GetStructCPPName(), ExecuteStruct);
-				const int32 ExecuteTypeIndex = FRigVMRegistry::Get().FindOrAddType(ExecuteType);
-				Types.Add(ExecuteTypeIndex);
-			}
-		
-			Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Types);
+			static const TArray<FRigVMTemplateArgument::ETypeCategory> Categories = {
+				FRigVMTemplateArgument::ETypeCategory_Execute,
+				FRigVMTemplateArgument::ETypeCategory_SingleAnyValue,
+				FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue
+			};
+			Arguments.Emplace(TEXT("Value"), ERigVMPinDirection::IO, Categories);
 		}
-		RerouteNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*RerouteName, Arguments);
+
+		FRigVMTemplateDelegates Delegates;
+		Delegates.NewArgumentTypeDelegate = 
+			FRigVMTemplate_NewArgumentTypeDelegate::CreateLambda([](const FRigVMTemplate*, const FName& InArgumentName, int32 InTypeIndex)
+			{
+				// since a reroute has only one argument this is simple
+				FRigVMTemplateTypeMap Types;
+				Types.Add(InArgumentName, InTypeIndex);
+				return Types;
+			});
+
+		RerouteNodeTemplate = CachedTemplate = FRigVMRegistry::Get().GetOrAddTemplateFromArguments(*RerouteName, Arguments, Delegates);
 	}
 	return CachedTemplate;
 }

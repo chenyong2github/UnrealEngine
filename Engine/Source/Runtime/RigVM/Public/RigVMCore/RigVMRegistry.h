@@ -7,6 +7,11 @@
 #include "RigVMFunction.h"
 #include "RigVMTemplate.h"
 
+struct RIGVM_API FRigVMTemplateDelegates
+{
+	FRigVMTemplate_NewArgumentTypeDelegate NewArgumentTypeDelegate;
+};
+
 /**
  * The FRigVMRegistry is used to manage all known function pointers
  * for use in the RigVM. The Register method is called automatically
@@ -60,6 +65,9 @@ public:
 	// Returns true if the type is an array
 	bool IsArrayType(int32 InTypeIndex) const;
 
+	// Returns true if the type is an execute type
+	bool IsExecuteType(int32 InTypeIndex) const;
+
 	// Returns the dimensions of the array 
 	int32 GetArrayDimensionsForType(int32 InTypeIndex) const;
 
@@ -72,31 +80,8 @@ public:
 	// Returns the list of compatible types for a given type
 	const TArray<int32>& GetCompatibleTypes(int32 InTypeIndex) const;
 
-	enum ETypeCategory
-	{
-		ETypeCategory_SingleAnyValue,
-		ETypeCategory_ArrayAnyValue,
-		ETypeCategory_ArrayArrayAnyValue,
-		ETypeCategory_SingleSimpleValue,
-		ETypeCategory_ArraySimpleValue,
-		ETypeCategory_ArrayArraySimpleValue,
-		ETypeCategory_SingleMathStructValue,
-		ETypeCategory_ArrayMathStructValue,
-		ETypeCategory_ArrayArrayMathStructValue,
-		ETypeCategory_SingleScriptStructValue,
-		ETypeCategory_ArrayScriptStructValue,
-		ETypeCategory_ArrayArrayScriptStructValue,
-		ETypeCategory_SingleEnumValue,
-		ETypeCategory_ArrayEnumValue,
-		ETypeCategory_ArrayArrayEnumValue,
-		ETypeCategory_SingleObjectValue,
-		ETypeCategory_ArrayObjectValue,
-		ETypeCategory_ArrayArrayObjectValue,
-		ETypeCategory_Invalid
-	};
-
 	// Returns all compatible types given a category
-	const TArray<int32>& GetTypesForCategory(ETypeCategory InCategory);
+	const TArray<int32>& GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory InCategory);
 
 	// Returns the type index of the array matching the given element type index
 	int32 GetArrayTypeFromBaseTypeIndex(int32 InTypeIndex) const;
@@ -120,7 +105,10 @@ public:
 	const TChunkedArray<FRigVMTemplate>& GetTemplates() const;
 
 	// Defines and retrieves a template given its arguments
-	const FRigVMTemplate* GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments);
+	const FRigVMTemplate* GetOrAddTemplateFromArguments(
+		const FName& InName,
+		const TArray<FRigVMTemplateArgument>& InArguments,
+		const FRigVMTemplateDelegates& InDelegates);
 
 	static const TArray<UScriptStruct*>& GetMathTypes();
 
@@ -142,12 +130,14 @@ private:
 			, BaseTypeIndex(INDEX_NONE)
 			, ArrayTypeIndex(INDEX_NONE)
 			, bIsArray(false)
+			, bIsExecute(false)
 		{}
 		
 		FRigVMTemplateArgumentType Type;
 		int32 BaseTypeIndex;
 		int32 ArrayTypeIndex;
 		bool bIsArray;
+		bool bIsExecute;
 	};
 
 	FORCEINLINE static EObjectFlags DisallowedFlags()
@@ -164,6 +154,8 @@ private:
 	static bool IsAllowedType(const UEnum* InEnum);
 	static bool IsAllowedType(const UStruct* InStruct);
 	static bool IsAllowedType(const UClass* InClass);
+
+	void RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, int32 InTypeIndex);
 
 	// memory for all (known) types
 	// We use TChunkedArray because we need the memory locations to be stable, since we only ever add and never remove.
@@ -184,7 +176,10 @@ private:
 	TMap<FName, int32> TemplateNotationToIndex;
 
 	// Maps storing the default types per type category
-	TMap<ETypeCategory, TArray<int32>> TypesPerCategory;
+	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<int32>> TypesPerCategory;
+
+	// Lookup per type category to know which argument to keep in sync
+	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<TPair<int32,int32>>> ArgumentsPerCategory;
 
 	static FRigVMRegistry s_RigVMRegistry;
 	friend struct FRigVMStruct;

@@ -8,6 +8,11 @@
 #include "RigVMTypeUtils.h"
 #include "RigVMTemplate.generated.h"
 
+struct FRigVMTemplate;
+typedef TMap<FName, int32> FRigVMTemplateTypeMap;
+
+DECLARE_DELEGATE_RetVal_ThreeParams(FRigVMTemplateTypeMap, FRigVMTemplate_NewArgumentTypeDelegate, const FRigVMTemplate* /* InTemplate */, const FName& /* InArgumentName */, int32 /* InTypeIndexToAdd */);
+
 USTRUCT()
 struct RIGVM_API FRigVMTemplateArgumentType
 {
@@ -32,6 +37,12 @@ struct RIGVM_API FRigVMTemplateArgumentType
 		, CPPTypeObject(InCPPTypeObject)
 	{
 		check(!CPPType.IsNone());
+	}
+
+	FRigVMTemplateArgumentType(UScriptStruct* InScriptStruct)
+	: CPPType(*InScriptStruct->GetStructCPPName())
+	, CPPTypeObject(InScriptStruct)
+	{
 	}
 
 	static FRigVMTemplateArgumentType Array()
@@ -113,11 +124,36 @@ struct RIGVM_API FRigVMTemplateArgument
 		EArrayType_Invalid
 	};
 
+	enum ETypeCategory
+	{
+		ETypeCategory_Execute,
+		ETypeCategory_SingleAnyValue,
+		ETypeCategory_ArrayAnyValue,
+		ETypeCategory_ArrayArrayAnyValue,
+		ETypeCategory_SingleSimpleValue,
+		ETypeCategory_ArraySimpleValue,
+		ETypeCategory_ArrayArraySimpleValue,
+		ETypeCategory_SingleMathStructValue,
+		ETypeCategory_ArrayMathStructValue,
+		ETypeCategory_ArrayArrayMathStructValue,
+		ETypeCategory_SingleScriptStructValue,
+		ETypeCategory_ArrayScriptStructValue,
+		ETypeCategory_ArrayArrayScriptStructValue,
+		ETypeCategory_SingleEnumValue,
+		ETypeCategory_ArrayEnumValue,
+		ETypeCategory_ArrayArrayEnumValue,
+		ETypeCategory_SingleObjectValue,
+		ETypeCategory_ArrayObjectValue,
+		ETypeCategory_ArrayArrayObjectValue,
+		ETypeCategory_Invalid
+	};
+
 	// default constructor
 	FRigVMTemplateArgument();
 
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, int32 InType);
 	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<int32>& InTypeIndices);
+	FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories);
 
 	// returns the name of the argument
 	const FName& GetName() const { return Name; }
@@ -142,9 +178,12 @@ struct RIGVM_API FRigVMTemplateArgument
 	// returns true if an argument is singleton (same type for all variants)
 	bool IsSingleton(const TArray<int32>& InPermutationIndices = TArray<int32>()) const;
 
+	// returns true if this argument is an execute
+	bool IsExecute() const;
+
 	// returns true if the argument uses an array container
 	EArrayType GetArrayType() const;
-	
+
 protected:
 
 	UPROPERTY()
@@ -160,9 +199,12 @@ protected:
 	TArray<int32> TypeIndices;
 
 	TMap<int32, TArray<int32>> TypeToPermutations;
+	TArray<ETypeCategory> TypeCategories;
 
 	// constructor from a property
 	FRigVMTemplateArgument(FProperty* InProperty);
+
+	void UpdateTypeToPermutations();
 
 	friend struct FRigVMTemplate;
 	friend class URigVMController;
@@ -181,7 +223,7 @@ struct RIGVM_API FRigVMTemplate
 	GENERATED_BODY()
 public:
 
-	typedef TMap<FName, int32> FTypeMap;
+	typedef FRigVMTemplateTypeMap FTypeMap;
 	typedef TPair<FName, int32> FTypePair;
 
 	// Default constructor
@@ -266,6 +308,13 @@ public:
 
 #endif
 
+	// Adds a new argument to the template. The template needs to rely on the delegate to ask the
+	// template factory how to deal with the new type.
+	bool AddTypeForArgument(const FName& InArgumentName, int32 InTypeIndex);
+
+	// Returns the delegate to be able to react to type changes dynamically
+	FRigVMTemplate_NewArgumentTypeDelegate& OnNewArgumentType() { return NewArgumentTypeDelegate; }
+
 private:
 
 	// Constructor from a struct, a template name and a function index
@@ -285,6 +334,8 @@ private:
 
 	UPROPERTY()
 	TArray<int32> Permutations;
+
+	FRigVMTemplate_NewArgumentTypeDelegate NewArgumentTypeDelegate; 
 
 	friend struct FRigVMRegistry;
 	friend class URigVMController;

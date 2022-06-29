@@ -48,6 +48,7 @@ namespace RigVMTypeUtils
 	class RIGVM_API TypeIndex
 	{
 	public:
+		static inline int32 Execute = INDEX_NONE;	
 		static inline int32 Bool = INDEX_NONE;	
 		static inline int32 Float = INDEX_NONE;	
 		static inline int32 Double = INDEX_NONE;	

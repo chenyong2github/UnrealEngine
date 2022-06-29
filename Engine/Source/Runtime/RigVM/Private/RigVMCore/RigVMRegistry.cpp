@@ -44,27 +44,50 @@ void FRigVMRegistry::InitializeIfNeeded()
 
 	Types.Reserve(512);
 	TypeToIndex.Reserve(512);
-	TypesPerCategory.Reserve(18);
+	TypesPerCategory.Reserve(19);
+	ArgumentsPerCategory.Reserve(19);
 	
-	TypesPerCategory.Add(ETypeCategory_SingleAnyValue, TArray<int32>()).Reserve(256);
-	TypesPerCategory.Add(ETypeCategory_ArrayAnyValue, TArray<int32>()).Reserve(256);
-	TypesPerCategory.Add(ETypeCategory_ArrayArrayAnyValue, TArray<int32>()).Reserve(256);
-	TypesPerCategory.Add(ETypeCategory_SingleSimpleValue, TArray<int32>()).Reserve(8);
-	TypesPerCategory.Add(ETypeCategory_ArraySimpleValue, TArray<int32>()).Reserve(8);
-	TypesPerCategory.Add(ETypeCategory_ArrayArraySimpleValue, TArray<int32>()).Reserve(8);
-	TypesPerCategory.Add(ETypeCategory_SingleMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
-	TypesPerCategory.Add(ETypeCategory_ArrayMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
-	TypesPerCategory.Add(ETypeCategory_ArrayArrayMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
-	TypesPerCategory.Add(ETypeCategory_SingleScriptStructValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_ArrayScriptStructValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_ArrayArrayScriptStructValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_SingleEnumValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_ArrayEnumValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_ArrayArrayEnumValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_SingleObjectValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_ArrayObjectValue, TArray<int32>()).Reserve(128);
-	TypesPerCategory.Add(ETypeCategory_ArrayArrayObjectValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_Execute, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, TArray<int32>()).Reserve(256);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, TArray<int32>()).Reserve(256);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, TArray<int32>()).Reserve(256);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleSimpleValue, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArraySimpleValue, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArraySimpleValue, TArray<int32>()).Reserve(8);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayMathStructValue, TArray<int32>()).Reserve(GetMathTypes().Num());
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleEnumValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayEnumValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayEnumValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleObjectValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayObjectValue, TArray<int32>()).Reserve(128);
+	TypesPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayObjectValue, TArray<int32>()).Reserve(128);
 
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_Execute, TArray<TPair<int32,int32>>()).Reserve(8);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleSimpleValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArraySimpleValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArraySimpleValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayMathStructValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayMathStructValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleEnumValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayEnumValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayEnumValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_SingleObjectValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayObjectValue, TArray<TPair<int32,int32>>()).Reserve(64);
+	ArgumentsPerCategory.Add(FRigVMTemplateArgument::ETypeCategory_ArrayArrayObjectValue, TArray<TPair<int32,int32>>()).Reserve(64);
+
+	RigVMTypeUtils::TypeIndex::Execute = FindOrAddType(FRigVMTemplateArgumentType(FRigVMExecuteContext::StaticStruct()));
 	RigVMTypeUtils::TypeIndex::Bool = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::BoolTypeName, nullptr));
 	RigVMTypeUtils::TypeIndex::Float = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::FloatTypeName, nullptr));
 	RigVMTypeUtils::TypeIndex::Double = FindOrAddType(FRigVMTemplateArgumentType(RigVMTypeUtils::DoubleTypeName, nullptr));
@@ -85,7 +108,7 @@ void FRigVMRegistry::InitializeIfNeeded()
 	// register the default math types
 	for(UScriptStruct* MathType : GetMathTypes())
 	{
-		FindOrAddType(FRigVMTemplateArgumentType(*MathType->GetStructCPPName(), MathType));
+		FindOrAddType(FRigVMTemplateArgumentType(MathType));
 	}
 
 	// add all user defined structs
@@ -98,13 +121,13 @@ void FRigVMRegistry::InitializeIfNeeded()
 		}
 
 		// if this is a C++ type - skip it
-		if(ScriptStruct->IsNative())
+		if(ScriptStruct->IsNative() && !ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
 		{
 			continue;
 		}
 
 		const FString CPPType = ScriptStruct->GetStructCPPName();
-		FindOrAddType(FRigVMTemplateArgumentType(*CPPType, ScriptStruct));
+		FindOrAddType(FRigVMTemplateArgumentType(ScriptStruct));
 	}
 
 	// add all user defined enums
@@ -136,10 +159,31 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 	int32 Index = GetTypeIndex(InType);
 	if(Index == INDEX_NONE)
 	{
+		FRigVMTemplateArgumentType ElementType;
+		ElementType.CPPType = NAME_None;
+		if(InType.IsArray())
+		{
+			ElementType = InType;
+			ElementType.ConvertToBaseElement();
+		}
+		FRigVMTemplateArgumentType ArrayType = InType;
+		ArrayType.ConvertToArray();
+
 		{
 			FTypeInfo Info;
 			Info.Type = InType;
 			Info.bIsArray = InType.IsArray();
+			if(UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InType.CPPTypeObject))
+			{
+				Info.bIsExecute = ScriptStruct->IsChildOf(FRigVMExecuteContext::StaticStruct());
+			}
+
+			if(!ElementType.CPPType.IsNone())
+			{
+				Info.BaseTypeIndex = GetTypeIndex(ElementType);
+			}
+			Info.ArrayTypeIndex = GetTypeIndex(ArrayType);
+			
 			Index = Types.Add(Info);
 		}
 
@@ -159,20 +203,20 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 				default:
 				case 0:
 				{
-					TypesPerCategory.FindChecked(ETypeCategory_SingleSimpleValue).Add(Index);
-					TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleSimpleValue, Index);
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
 					break;
 				}
 				case 1:
 				{
-					TypesPerCategory.FindChecked(ETypeCategory_ArraySimpleValue).Add(Index);
-					TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArraySimpleValue, Index);
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
 					break;
 				}
 				case 2:
 				{
-					TypesPerCategory.FindChecked(ETypeCategory_ArrayArraySimpleValue).Add(Index);
-					TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArraySimpleValue, Index);
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
 					break;
 				}
 			}
@@ -186,20 +230,20 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 					default:
 					case 0:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_SingleObjectValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleObjectValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
 						break;
 					}
 					case 1:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayObjectValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayObjectValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
 						break;
 					}
 					case 2:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayObjectValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayObjectValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
 						break;
 					}
 				}
@@ -214,20 +258,20 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 					default:
 					case 0:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_SingleEnumValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleEnumValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
 						break;
 					}
 					case 1:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayEnumValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayEnumValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
 						break;
 					}
 					case 2:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayEnumValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayEnumValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
 						break;
 					}
 				}
@@ -244,17 +288,17 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 						default:
 						case 0:
 						{
-							TypesPerCategory.FindChecked(ETypeCategory_SingleMathStructValue).Add(Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue, Index);
 							break;
 						}
 						case 1:
 						{
-							TypesPerCategory.FindChecked(ETypeCategory_ArrayMathStructValue).Add(Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayMathStructValue, Index);
 							break;
 						}
 						case 2:
 						{
-							TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayMathStructValue).Add(Index);
+							RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayMathStructValue, Index);
 							break;
 						}
 					}
@@ -265,22 +309,29 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 					default:
 					case 0:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_SingleScriptStructValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_SingleAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleScriptStructValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue, Index);
 						break;
 					}
 					case 1:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayScriptStructValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayScriptStructValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue, Index);
 						break;
 					}
 					case 2:
 					{
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayScriptStructValue).Add(Index);
-						TypesPerCategory.FindChecked(ETypeCategory_ArrayArrayAnyValue).Add(Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayScriptStructValue, Index);
+						RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_ArrayArrayAnyValue, Index);
 						break;
 					}
+				}
+			}
+			else if(Struct->IsChildOf(FRigVMExecuteContext::StaticStruct()))
+			{
+				if(!Types[Index].bIsArray)
+				{
+					RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory_Execute, Index);
 				}
 			}
 		}
@@ -288,8 +339,6 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 		// register the opposing type
 		if(!Types[Index].bIsArray)
 		{
-			FRigVMTemplateArgumentType ArrayType = InType;
-			ArrayType.ConvertToArray();
 			Types[Index].ArrayTypeIndex = FindOrAddType(ArrayType);
 			if(Types[Index].ArrayTypeIndex != INDEX_NONE)
 			{
@@ -298,8 +347,6 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 		}
 		else
 		{
-			FRigVMTemplateArgumentType ElementType = InType;
-			ElementType.ConvertToBaseElement();
 			Types[Index].BaseTypeIndex = FindOrAddType(ElementType);
 			if(Types[Index].BaseTypeIndex != INDEX_NONE)
 			{
@@ -308,9 +355,7 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 				// also automatically do the two dimensional array
 				if(GetArrayDimensionsForType(Index) == 1)
 				{
-					FRigVMTemplateArgumentType ArrayArrayType = InType;
-					ArrayArrayType.ConvertToArray();
-					Types[Index].ArrayTypeIndex = FindOrAddType(ArrayArrayType);
+					Types[Index].ArrayTypeIndex = FindOrAddType(ArrayType);
 					if(Types[Index].ArrayTypeIndex != INDEX_NONE)
 					{
 						Types[Types[Index].ArrayTypeIndex].BaseTypeIndex = Index;
@@ -340,6 +385,22 @@ int32 FRigVMRegistry::FindOrAddType(const FRigVMTemplateArgumentType& InType)
 	}
 	
 	return Index;
+}
+
+void FRigVMRegistry::RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, int32 InTypeIndex)
+{
+	check(InCategory != FRigVMTemplateArgument::ETypeCategory_Invalid);
+
+	TypesPerCategory.FindChecked(InCategory).Add(InTypeIndex);
+
+	// when adding a new type - we need to update template arguments which expect to have access to that type 
+	const TArray<TPair<int32,int32>>& ArgumentsToUseType = ArgumentsPerCategory.FindChecked(InCategory);
+	for(const TPair<int32,int32>& Pair : ArgumentsToUseType)
+	{
+		FRigVMTemplate& Template = Templates[Pair.Key];
+		const FRigVMTemplateArgument* Argument = Template.GetArgument(Pair.Value);
+		Template.AddTypeForArgument(Argument->GetName(), InTypeIndex);
+	}
 }
 
 int32 FRigVMRegistry::GetTypeIndex(const FRigVMTemplateArgumentType& InType) const
@@ -391,6 +452,15 @@ bool FRigVMRegistry::IsArrayType(int32 InTypeIndex) const
 	if(ensure(Types.IsValidIndex(InTypeIndex)))
 	{
 		return Types[InTypeIndex].bIsArray;
+	}
+	return false;
+}
+
+bool FRigVMRegistry::IsExecuteType(int32 InTypeIndex) const
+{
+	if(ensure(Types.IsValidIndex(InTypeIndex)))
+	{
+		return Types[InTypeIndex].bIsExecute;
 	}
 	return false;
 }
@@ -472,9 +542,9 @@ const TArray<int32>& FRigVMRegistry::GetCompatibleTypes(int32 InTypeIndex) const
 	return EmptyTypes;
 }
 
-const TArray<int32>& FRigVMRegistry::GetTypesForCategory(ETypeCategory InCategory)
+const TArray<int32>& FRigVMRegistry::GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory InCategory)
 {
-	check(InCategory != ETypeCategory_Invalid);
+	check(InCategory != FRigVMTemplateArgument::ETypeCategory_Invalid);
 	return TypesPerCategory.FindChecked(InCategory);
 }
 
@@ -650,7 +720,7 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 					Template.Index = Templates.Num();
 					Functions[Function.Index].TemplateIndex = Template.Index;
 					Templates.AddElement(Template);
-
+					
 					if(ExistingTemplateIndexPtr == nullptr)
 					{
 						TemplateNotationToIndex.Add(Template.GetNotation(), Template.Index);
@@ -706,7 +776,7 @@ const TChunkedArray<FRigVMTemplate>& FRigVMRegistry::GetTemplates() const
 	return Templates;
 }
 
-const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments)
+const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName& InName, const TArray<FRigVMTemplateArgument>& InArguments, const FRigVMTemplateDelegates& InDelegates)
 {
 	FRigVMTemplate Template(InName, InArguments, INDEX_NONE);
 	if(const FRigVMTemplate* ExistingTemplate = FindTemplate(Template.GetNotation()))
@@ -736,11 +806,13 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 		{
 			if(IsArrayType(Argument.TypeIndices[0]))
 			{
-				Argument.TypeIndices = GetTypesForCategory(ETypeCategory_ArrayAnyValue);
+				Argument.TypeIndices = GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
+				Argument.TypeCategories.Add(FRigVMTemplateArgument::ETypeCategory_ArrayAnyValue);
 			}
 			else
 			{
-				Argument.TypeIndices = GetTypesForCategory(ETypeCategory_SingleAnyValue);
+				Argument.TypeIndices = GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
+				Argument.TypeCategories.Add(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue);
 			}
 
 			for (int32 i = 0; i < Argument.TypeIndices.Num(); ++i)
@@ -781,6 +853,16 @@ const FRigVMTemplate* FRigVMRegistry::GetOrAddTemplateFromArguments(const FName&
 
 	const int32 Index = Templates.AddElement(Template);
 	Templates[Index].Index = Index;
+	Templates[Index].OnNewArgumentType() = InDelegates.NewArgumentTypeDelegate;
 	TemplateNotationToIndex.Add(Template.GetNotation(), Index);
+
+	for(int32 ArgumentIndex=0; ArgumentIndex < Templates[Index].Arguments.Num(); ArgumentIndex++)
+	{
+		for(const FRigVMTemplateArgument::ETypeCategory& ArgumentTypeCategory : Templates[Index].Arguments[ArgumentIndex].TypeCategories)
+		{
+			ArgumentsPerCategory.FindChecked(ArgumentTypeCategory).AddUnique(TPair<int32, int32>(Index, ArgumentIndex));
+		}
+	}
+	
 	return &Templates[Index];
 }

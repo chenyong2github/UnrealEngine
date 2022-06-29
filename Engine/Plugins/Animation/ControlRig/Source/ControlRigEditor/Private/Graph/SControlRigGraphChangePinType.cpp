@@ -304,7 +304,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 
 		const bool bHasAllTypes =
 			SortedTypes.Num() >=
-				FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleAnyValue).Num();
+				FRigVMRegistry::Get().GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory_SingleAnyValue).Num();
 		
 		for(int32 SortedIndex=0; SortedIndex < SortedTypes.Num(); SortedIndex++)
 		{
@@ -330,7 +330,7 @@ void SControlRigChangePinType::FillPinTypeMenu(FMenuBuilder& MenuBuilder)
 					const FRigVMTemplateArgumentType MathType(*ScriptStruct->GetStructCPPName(), ScriptStruct);
 					const int32 MathTypeIndex = FRigVMRegistry::Get().GetTypeIndex(MathType);
 					
-					if(!FRigVMRegistry::Get().GetTypesForCategory(FRigVMRegistry::ETypeCategory_SingleMathStructValue).Contains(MathTypeIndex))
+					if(!FRigVMRegistry::Get().GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory_SingleMathStructValue).Contains(MathTypeIndex))
 					{
 						continue;
 					}

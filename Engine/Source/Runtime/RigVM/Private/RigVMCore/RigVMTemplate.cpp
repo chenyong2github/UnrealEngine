@@ -61,7 +61,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 , Direction(InDirection)
 , TypeIndices({InTypeIndex})
 {
-	TypeToPermutations.Add(InTypeIndex, {0});	
+	UpdateTypeToPermutations();
 }
 
 FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<int32>& InTypeIndices)
@@ -72,6 +72,25 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 {
 	check(TypeIndices.Num() > 0);
 
+	UpdateTypeToPermutations();
+}
+
+FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<ETypeCategory>& InTypeCategories)
+: Index(INDEX_NONE)
+, Name(InName)
+, Direction(InDirection)
+, TypeCategories(InTypeCategories)
+{
+	for(ETypeCategory TypeCategory : TypeCategories)
+	{
+		TypeIndices.Append(FRigVMRegistry::Get().GetTypesForCategory(TypeCategory));
+	}
+	
+	UpdateTypeToPermutations();
+}
+
+void FRigVMTemplateArgument::UpdateTypeToPermutations()
+{
 	for(int32 TypeIndex=0;TypeIndex<TypeIndices.Num();TypeIndex++)
 	{
 		if (TArray<int32>* Permutations = TypeToPermutations.Find(TypeIndices[TypeIndex]))
@@ -128,6 +147,19 @@ bool FRigVMTemplateArgument::IsSingleton(const TArray<int32>& InPermutationIndic
 	for (int32 PermutationIndex = 1; PermutationIndex < InPermutationIndices.Num(); PermutationIndex++)
 	{
 		if (TypeIndices[InPermutationIndices[PermutationIndex]] != TypeIndexToCheck)
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+bool FRigVMTemplateArgument::IsExecute() const
+{
+	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	for (int32 PermutationIndex = 0; PermutationIndex < TypeIndices.Num(); PermutationIndex++)
+	{
+		if (!Registry.IsExecuteType(TypeIndices[PermutationIndex]))
 		{
 			return false;
 		}
@@ -1062,3 +1094,35 @@ FString FRigVMTemplate::GetKeywords() const
 }
 
 #endif
+
+bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, int32 InTypeIndex)
+{
+	if(OnNewArgumentType().IsBound())
+	{
+		const FRigVMTemplateTypeMap Types = OnNewArgumentType().Execute(this, InArgumentName, InTypeIndex);
+		if(Types.Num() == Arguments.Num())
+		{
+			for(FRigVMTemplateArgument& Argument : Arguments)
+			{
+				const int32* TypeIndex = Types.Find(Argument.Name);
+				if(TypeIndex == nullptr)
+				{
+					return false;
+				}
+				if(*TypeIndex == INDEX_NONE)
+				{
+					return false;
+				}
+			}
+			for(FRigVMTemplateArgument& Argument : Arguments)
+			{
+				const int32 TypeIndex = Types.FindChecked(Argument.Name);
+				Argument.TypeIndices.Add(TypeIndex);
+				Argument.TypeToPermutations.FindOrAdd(TypeIndex).Add(Permutations.Num());
+			}
+
+			Permutations.Add(INDEX_NONE);
+		}
+	}
+	return false;
+}
