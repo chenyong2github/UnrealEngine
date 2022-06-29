@@ -682,12 +682,10 @@ public:
 	uint32 UniqueID;
 
 	/**
-	 * The scene pointer may be NULL -- it's only filled in if a UWorld with a valid Scene pointer was passed into the original call
-	 * to FSceneViewStateReference::Allocate.  Currently, the Scene pointer in the class is only used for constructing and cleaning up
-	 * the ViewVirtualShadowMapCache member, if the user chooses to enable per-view shadow caching via AddVirtualShadowMapCache().
-	 * If the Scene isn't present, AddVirtualShadowMapCache() has no effect.
-	 * 
-	 * TODO:  deprecate support for allocating an FSceneViewState without a valid Scene...
+	 * The scene pointer may be NULL -- it's filled in by certain API calls that require a FSceneViewState and FScene to know about each other,
+	 * such as FSceneViewState::AddVirtualShadowMapCache.  Whenever a ViewState and Scene get linked, this pointer is set, and a pointer
+	 * to the ViewState is added to an array in the Scene.  The linking is necessary in cases where incremental FScene updates need to be
+	 * reflected in cached data stored in FSceneViewState.
 	 */
 	FScene* Scene;
 
@@ -1486,8 +1484,8 @@ public:
 		return SequencerState;
 	}
 
-	virtual void AddVirtualShadowMapCache() override;
-	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache() const override;
+	virtual void AddVirtualShadowMapCache(FSceneInterface* InScene) override;
+	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(const FScene* InScene) const override;
 
 	/** Information about visibility/occlusion states in past frames for individual primitives. */
 	TSet<FPrimitiveOcclusionHistory,FPrimitiveOcclusionHistoryKeyFuncs> PrimitiveOcclusionHistorySet;
@@ -3365,10 +3363,6 @@ public:
 protected:
 
 private:
-	/**
-	 * Internal view state allocation interface, used by FSceneViewState
-	 */
-	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget) override;
 	void RemoveViewState_RenderThread(FSceneViewStateInterface*);
 
 	/**

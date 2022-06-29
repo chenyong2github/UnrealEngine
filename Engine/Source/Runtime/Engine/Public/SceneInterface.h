@@ -571,8 +571,6 @@ public:
 	virtual bool RequestGPUSceneUpdate(FPrimitiveSceneInfo& PrimitiveSceneInfo, EPrimitiveDirtyState PrimitiveDirtyState) { return false; }
 
 protected:
-	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget = nullptr) = 0;
-
 	virtual ~FSceneInterface() {}
 
 	/** This scene's feature level */

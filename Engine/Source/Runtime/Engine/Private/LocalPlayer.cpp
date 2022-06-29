@@ -811,7 +811,7 @@ bool ULocalPlayer::CalcSceneViewInitOptions(
 		const UWorld* CurrentWorld = GetWorld();
 		const ERHIFeatureLevel::Type FeatureLevel = CurrentWorld ? CurrentWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel;
 
-		ViewStates[ViewIndex].Allocate(FeatureLevel, CurrentWorld);
+		ViewStates[ViewIndex].Allocate(FeatureLevel);
 	}
 
 	ViewInitOptions.SceneViewStateInterface = ViewStates[ViewIndex].GetReference();

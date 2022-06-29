@@ -364,20 +364,12 @@ void FSceneViewStateReference::AllocateInternal(ERHIFeatureLevel::Type FeatureLe
 		ShareOriginInterface = ShareOriginTarget->Reference;
 	}
 
-	if (World && World->Scene)
-	{
-		Reference = World->Scene->AllocateViewState(ShareOriginInterface);
-	}
-	else
-	{
-		Reference = GetRendererModule().AllocateViewState(FeatureLevel, ShareOriginInterface);
-	}
+	Reference = GetRendererModule().AllocateViewState(FeatureLevel, ShareOriginInterface);
 }
 
-void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel, const UWorld* InWorld)
+void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(!Reference);
-	World = InWorld;
 
 	AllocateInternal(FeatureLevel);
 
@@ -385,14 +377,9 @@ void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel, con
 	GlobalListLink.LinkHead(GetSceneViewStateList());
 }
 
-void FSceneViewStateReference::Allocate(ERHIFeatureLevel::Type FeatureLevel)
-{
-	Allocate(FeatureLevel, nullptr);
-}
-
 void FSceneViewStateReference::Allocate()
 {
-	Allocate(GMaxRHIFeatureLevel, nullptr);
+	Allocate(GMaxRHIFeatureLevel);
 }
 
 ENGINE_API void FSceneViewStateReference::ShareOrigin(FSceneViewStateReference* Target)

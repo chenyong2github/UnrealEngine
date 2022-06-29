@@ -256,9 +256,9 @@ public:
 
 	/**
 	* Adds a per-view virtual shadow map cache, which can help performance, at a cost in memory.  Does nothing if one is already present.
-	* Requires the View State to have been originally allocated with a UWorld with a valid Scene pointer.
+	* The cache only works for the first Scene this function is called for.
 	*/
-	virtual void AddVirtualShadowMapCache() {}
+	virtual void AddVirtualShadowMapCache(FSceneInterface* InScene) {}
 
 protected:
 	// Don't allow direct deletion of the view state, Destroy should be called instead.
@@ -273,7 +273,7 @@ private:
 	/** Reference counts the number of children parented to this state. */
 	int32							NumChildren;
 
-	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache() const { return nullptr; }
+	virtual FVirtualShadowMapArrayCacheManager* GetVirtualShadowMapCache(const FScene* InScene) const { return nullptr; }
 	friend class FScene;
 };
 

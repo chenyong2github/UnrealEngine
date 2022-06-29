@@ -437,24 +437,6 @@ FSceneViewState::~FSceneViewState()
 	}
 }
 
-FSceneViewStateInterface* FScene::AllocateViewState(FSceneViewStateInterface* ShareOriginTarget)
-{
-	check(!ShareOriginTarget || (((FSceneViewState*)ShareOriginTarget)->Scene == this));
-
-	FSceneViewState* Result = new FSceneViewState(FeatureLevel, (FSceneViewState*)ShareOriginTarget);
-	Result->Scene = this;
-
-	// Modification of scene structure needs to happen on render thread
-	FScene* Scene = this;
-	ENQUEUE_RENDER_COMMAND(SceneViewStateAdd)(
-		[Scene, Result](FRHICommandList&)
-		{
-			Scene->ViewStates.Add(Result);
-		});
-
-	return Result;
-}
-
 void FScene::RemoveViewState_RenderThread(FSceneViewStateInterface* ViewState)
 {
 	for (int32 ViewStateIndex = 0; ViewStateIndex < ViewStates.Num(); ViewStateIndex++)
@@ -765,10 +747,22 @@ FFXSystemInterface* FScene::GetFXSystem()
 	return FXSystem;
 }
 
-void FSceneViewState::AddVirtualShadowMapCache()
+void FSceneViewState::AddVirtualShadowMapCache(FSceneInterface* InScene)
 {
-	// Can only allocate a virtual shadow map cache if we have a scene pointer available
-	if (Scene)
+	check(InScene);
+	if (!Scene)
+	{
+		Scene = (FScene*)InScene;
+
+		// Modification of scene structure needs to happen on render thread
+		ENQUEUE_RENDER_COMMAND(SceneViewStateAdd)(
+			[RenderScene = Scene, RenderViewState = this](FRHICommandList&)
+			{
+				RenderScene->ViewStates.Add(RenderViewState);
+			});
+	}
+
+	if (Scene == InScene)
 	{
 		// Don't add the cache if one has already been added.  We have a separate bool since the write to the cache
 		// pointer is deferred to the render thread.
@@ -788,9 +782,10 @@ void FSceneViewState::AddVirtualShadowMapCache()
 	}
 }
 
-FVirtualShadowMapArrayCacheManager* FSceneViewState::GetVirtualShadowMapCache() const
+FVirtualShadowMapArrayCacheManager* FSceneViewState::GetVirtualShadowMapCache(const FScene* InScene) const
 {
-	return ViewVirtualShadowMapCache;
+	// Per-view VSM cache can only be used for the Scene the view state was previously linked to
+	return Scene == InScene ? ViewVirtualShadowMapCache : nullptr;
 }
 
 FVirtualShadowMapArrayCacheManager* FScene::GetVirtualShadowMapCache(FSceneView& View) const
@@ -798,7 +793,7 @@ FVirtualShadowMapArrayCacheManager* FScene::GetVirtualShadowMapCache(FSceneView&
 	FVirtualShadowMapArrayCacheManager* Result = DefaultVirtualShadowMapCache;
 	if (View.State)
 	{
-		FVirtualShadowMapArrayCacheManager* ViewCache = View.State->GetVirtualShadowMapCache();
+		FVirtualShadowMapArrayCacheManager* ViewCache = View.State->GetVirtualShadowMapCache(this);
 		if (ViewCache)
 		{
 			Result = ViewCache;
@@ -816,7 +811,8 @@ void FScene::GetAllVirtualShadowMapCacheManagers(TArray<FVirtualShadowMapArrayCa
 	}
 	for (const FSceneViewState* ViewState : ViewStates)
 	{
-		if (ViewState->ViewVirtualShadowMapCache)
+		// Per-view VSM cache can only be used for the Scene the view state was previously linked to
+		if (ViewState->ViewVirtualShadowMapCache && ViewState->Scene == this)
 		{
 			OutCacheManagers.Add(ViewState->ViewVirtualShadowMapCache);
 		}
@@ -1382,7 +1378,20 @@ FScene::~FScene()
 	checkf(RemovedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive removal operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
 	checkf(AddedPrimitiveSceneInfos.Num() == 0, TEXT("All pending primitive addition operations are expected to be flushed when the scene is destroyed. Remaining operations are likely to cause a memory leak."));
 	checkf(Primitives.Num() == 0, TEXT("All primitives are expected to be removed before the scene is destroyed. Remaining primitives are likely to cause a memory leak."));
-	checkf(ViewStates.Num() == 0, TEXT("All scene view states are expected to be removed before the scene is destroyed."));
+
+	// Unlink any view states from the scene
+	for (FSceneViewState* ViewState : ViewStates)
+	{
+		check(ViewState->Scene == this);
+		ViewState->Scene = nullptr;
+
+		if (ViewState->ViewVirtualShadowMapCache)
+		{
+			delete ViewState->ViewVirtualShadowMapCache;
+			ViewState->ViewVirtualShadowMapCache = nullptr;
+		}
+	}
+	ViewStates.Empty();
 
 	// Delete default cache
 	if (DefaultVirtualShadowMapCache)
@@ -5536,12 +5545,6 @@ public:
 	}
 
 	virtual bool HasAnyLights() const override { return false; }
-
-protected:
-	virtual FSceneViewStateInterface* AllocateViewState(FSceneViewStateInterface* ShareOriginTarget) override
-	{
-		return new FSceneViewState(FeatureLevel, (FSceneViewState*)ShareOriginTarget);
-	}
 
 private:
 	UWorld* World;
