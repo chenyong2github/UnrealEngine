@@ -1958,8 +1958,9 @@ namespace EpicGames.MCP.Automation
 		/// Gets an OAuth client token for an environment using the default client id and client secret
 		/// </summary>
 		/// <param name="McpConfig">A descriptor for the environment we want a token for</param>
+		/// <param name="bSuppressLogs">Whether to suppress output logs</param>
 		/// <returns>An OAuth client token for the specified environment.</returns>
-		public string GetClientToken(McpConfigData McpConfig)
+		public string GetClientToken(McpConfigData McpConfig, bool bSuppressLogs = false)
 		{
 			lock(CachedTokensLock)
 			{
@@ -1968,7 +1969,10 @@ namespace EpicGames.MCP.Automation
 					Tuple<string, DateTime> TokenWithExpiry = CachedTokens[McpConfig.Name];
 					if (TokenWithExpiry.Item2 > DateTime.UtcNow)
 					{
-						CommandUtils.LogInformation("Reusing client token for {0} with expiry {1:yyyy-MM-dd HH:mm:ss}", McpConfig.Name, TokenWithExpiry.Item2);
+						if(!bSuppressLogs)
+						{
+							CommandUtils.LogInformation("Reusing client token for {0} with expiry {1:yyyy-MM-dd HH:mm:ss}", McpConfig.Name, TokenWithExpiry.Item2);
+						}
 						return TokenWithExpiry.Item1;
 					}
 				}
@@ -1987,7 +1991,10 @@ namespace EpicGames.MCP.Automation
 				{
 					CachedTokens.Add(McpConfig.Name, new Tuple<string, DateTime>(Result, Expiry));
 				}
-				CommandUtils.LogInformation("Obtained new client token for {0} with expiry {1:yyyy-MM-dd HH:mm:ss}", McpConfig.Name, Expiry);
+				if (!bSuppressLogs)
+				{
+					CommandUtils.LogInformation("Obtained new client token for {0} with expiry {1:yyyy-MM-dd HH:mm:ss}", McpConfig.Name, Expiry);
+				}
 			}
 			return Result;
 		}
