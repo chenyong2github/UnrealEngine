@@ -231,6 +231,13 @@ FSimpleMulticastDelegate& FCoreDelegates::GetOutOfMemoryDelegate()
 	return OnOOM;
 }
 
+/**	 Implemented as a function to address global ctor issues */
+FCoreDelegates::FGPUOutOfMemoryDelegate& FCoreDelegates::GetGPUOutOfMemoryDelegate()
+{
+	static FGPUOutOfMemoryDelegate OnGPUOOM;
+	return OnGPUOOM;
+}
+
 FCoreDelegates::FGetOnScreenMessagesDelegate FCoreDelegates::OnGetOnScreenMessages;
 
 typedef void(*TSigningKeyFunc)(TArray<uint8>&, TArray<uint8>&);

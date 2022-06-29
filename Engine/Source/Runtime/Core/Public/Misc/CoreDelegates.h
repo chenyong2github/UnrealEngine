@@ -581,6 +581,10 @@ public:
 	// Called when OOM event occurs, after backup memory has been freed, so there's some hope of being effective
 	static FSimpleMulticastDelegate& GetOutOfMemoryDelegate();
 
+	// Called from TerminateOnOutOfMemory in D3D11Util.cpp/D3D12Util.cpp
+	DECLARE_MULTICAST_DELEGATE_TwoParams(FGPUOutOfMemoryDelegate, const uint64, const uint64);
+	static FGPUOutOfMemoryDelegate& GetGPUOutOfMemoryDelegate();
+
 	enum class EOnScreenMessageSeverity : uint8
 	{
 		Info,

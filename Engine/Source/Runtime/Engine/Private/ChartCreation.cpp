@@ -601,15 +601,15 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	TotalRHIThreadBoundHitchCount = 0;
 	TotalGPUBoundHitchCount = 0;
 	MaxDrawCalls = 0;
-	MinDrawCalls = INT_MAX;
+	MinDrawCalls = TNumericLimits<decltype(MinDrawCalls)>::Max();
 	TotalDrawCalls = 0;
 	MaxPlayerTicks = 0;
-	MinPlayerTicks = INT_MAX;
+	MinPlayerTicks = TNumericLimits<decltype(MinPlayerTicks)>::Max();
 	TotalPlayerTicks = 0;
 	MaxVehicleTicks = 0;
 	TotalVehicleTicks = 0;
 	MaxDrawnPrimitives = 0;
-	MinDrawnPrimitives = INT_MAX;
+	MinDrawnPrimitives = TNumericLimits<decltype(MinDrawnPrimitives)>::Max();
 	TotalDrawnPrimitives = 0;
 	AccumulatedChartTime = 0.0;
 	TimeDisregarded = 0.0;
@@ -617,9 +617,9 @@ void FPerformanceTrackingChart::Reset(const FDateTime& InStartTime)
 	NumFramesAtCriticalMemoryPressure = 0;
 	MaxPhysicalMemory = 0;
 	MaxVirtualMemory = 0;
-	MinPhysicalMemory = ULONG_MAX;
-	MinVirtualMemory = ULONG_MAX;
-	MinAvailablePhysicalMemory = ULONG_MAX;
+	MinPhysicalMemory = TNumericLimits<decltype(MinPhysicalMemory)>::Max();
+	MinVirtualMemory = TNumericLimits<decltype(MinVirtualMemory)>::Max();
+	MinAvailablePhysicalMemory = TNumericLimits<decltype(MinAvailablePhysicalMemory)>::Max();
 	TotalPhysicalMemoryUsed = 0;
 	TotalVirtualMemoryUsed = 0;
 

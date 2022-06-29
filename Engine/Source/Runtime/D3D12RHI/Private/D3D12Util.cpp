@@ -682,6 +682,29 @@ extern CORE_API bool GIsGPUCrashed;
 static void TerminateOnOutOfMemory(ID3D12Device* InDevice, HRESULT D3DResult, bool bCreatingTextures)
 {
 #if PLATFORM_WINDOWS
+	// send telemetry event with current adapter's memory info
+	FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
+	FD3D12Adapter* Adapter = nullptr;
+	D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
+		{
+			if (InDevice == IterationDevice->GetDevice())
+			{
+				Adapter = IterationDevice->GetParentAdapter();
+			}
+		});
+	// if InDevice == nullptr, just pick the first available adapter
+	if (!Adapter && D3D12RHI->GetNumAdapters() == 1)
+	{
+		check(!InDevice);
+		Adapter = &D3D12RHI->GetAdapter(0);
+	}
+	if (Adapter)
+	{
+		const auto& MemoryInfo = Adapter->GetMemoryInfo().LocalMemoryInfo;
+		FCoreDelegates::GetGPUOutOfMemoryDelegate().Broadcast(MemoryInfo.Budget, MemoryInfo.CurrentUsage);
+	}
+
+
 	if (bCreatingTextures)
 	{
 		FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *LOCTEXT("OutOfVideoMemoryTextures", "Out of video memory trying to allocate a texture! Make sure your video card has the minimum required memory, try lowering the resolution and/or closing other applications that are running. Exiting...").ToString(), TEXT("Error"));
@@ -697,7 +720,6 @@ static void TerminateOnOutOfMemory(ID3D12Device* InDevice, HRESULT D3DResult, bo
 	static IConsoleVariable* GPUCrashOOM = IConsoleManager::Get().FindConsoleVariable(TEXT("r.GPUCrashOnOutOfMemory"));
 	if (GPUCrashOOM && GPUCrashOOM->GetInt())
 	{
-		FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
 		// If no device provided then try and log the DRED status of each device
 		D3D12RHI->ForEachDevice(InDevice, [&](FD3D12Device* IterationDevice)
 			{
@@ -707,7 +729,6 @@ static void TerminateOnOutOfMemory(ID3D12Device* InDevice, HRESULT D3DResult, bo
 					LogMemoryInfo(Adapter);
 				}
 			});
-
 		UE_LOG(LogD3D12RHI, Fatal, TEXT("Out of video memory trying to allocate a rendering resource"));
 	}
 	else
