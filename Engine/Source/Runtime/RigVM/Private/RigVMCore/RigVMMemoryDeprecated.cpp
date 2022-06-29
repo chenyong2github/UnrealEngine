@@ -123,7 +123,14 @@ void FRigVMRegisterOffset::Load(FArchive& Ar)
 		FName ScriptStructPath;
 		Ar << ScriptStructPath;
 
-		ScriptStruct = UClass::TryFindTypeSlow<UScriptStruct>(ScriptStructPath.ToString());
+		if(ScriptStructPath.IsNone())
+		{
+			ScriptStruct = nullptr;
+		}
+		else
+		{
+			ScriptStruct = UClass::TryFindTypeSlow<UScriptStruct>(ScriptStructPath.ToString());
+		}
 	}
 	else
 	{
