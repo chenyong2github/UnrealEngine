@@ -64,5 +64,6 @@ protected:
 
 private:
 	void FocusActorBounds() const;
+	void CopyActorFilePathtoClipboard() const;
 	FGuid ActorGuid;
 };
