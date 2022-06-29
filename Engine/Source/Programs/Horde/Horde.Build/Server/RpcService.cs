@@ -246,16 +246,16 @@ namespace Horde.Build.Server
 			properties = new List<string>();
 			resources = new Dictionary<string, int>();
 
-			if (capabilities != null && capabilities.Devices.Count > 0)
-			{
-				RpcDeviceCapabilities device = capabilities.Devices[0];
-				if (device.Properties != null)
-				{
-					properties = new List<string>(device.Properties);
-					CopyPropertyToResource(KnownPropertyNames.LogicalCores, properties, resources);
-					CopyPropertyToResource(KnownPropertyNames.Ram, properties, resources);
-				}
-			}
+			if (capabilities == null) return;
+			properties.AddRange(capabilities.Properties);
+
+			if (capabilities.Devices.Count <= 0) return;
+			RpcDeviceCapabilities device = capabilities.Devices[0];
+			if (device.Properties == null) return;
+
+			properties.AddRange(device.Properties);
+			CopyPropertyToResource(KnownPropertyNames.LogicalCores, properties, resources);
+			CopyPropertyToResource(KnownPropertyNames.Ram, properties, resources);
 		}
 
 		/// <summary>
