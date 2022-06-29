@@ -4,11 +4,11 @@
 #include "NaniteDisplacedMeshLog.h"
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
+#include "Interfaces/ITargetPlatform.h"
+#include "Interfaces/ITargetPlatformManagerModule.h"
 #if WITH_EDITOR
 #include "DerivedDataCache.h"
 #include "DerivedDataRequestOwner.h"
-#include "Interfaces/ITargetPlatform.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Serialization/MemoryHasher.h"
 #include "Async/Async.h"
 #include "MeshDescription.h"
@@ -23,6 +23,25 @@
 #endif
 
 DEFINE_LOG_CATEGORY(LogNaniteDisplacedMesh);
+
+static bool DoesTargetPlatformSupportNanite(const ITargetPlatform* TargetPlatform)
+{
+	if (TargetPlatform != nullptr)
+	{
+		TArray<FName> DesiredShaderFormats;
+		TargetPlatform->GetAllTargetedShaderFormats(DesiredShaderFormats);
+		for (int32 FormatIndex = 0; FormatIndex < DesiredShaderFormats.Num(); FormatIndex++)
+		{
+			const EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(DesiredShaderFormats[FormatIndex]);
+			if (DoesPlatformSupportNanite(ShaderPlatform))
+			{
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
 
 #if WITH_EDITOR
 
@@ -493,6 +512,11 @@ bool UNaniteDisplacedMesh::IsReadyForFinishDestroy()
 	return ReleaseResourcesFence.IsFenceComplete();
 }
 
+bool UNaniteDisplacedMesh::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const
+{
+	return DoesTargetPlatformSupportNanite(TargetPlatform);
+}
+
 void UNaniteDisplacedMesh::InitResources()
 {
 	if (!FApp::CanEverRender())
@@ -570,6 +594,11 @@ void UNaniteDisplacedMesh::BeginCacheForCookedPlatformData(const ITargetPlatform
 bool UNaniteDisplacedMesh::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
 {
 	const FIoHash KeyHash = CreateDerivedDataKeyHash(TargetPlatform);
+	if (KeyHash.IsZero())
+	{
+		return true;
+	}
+
 	if (PollCacheDerivedData(KeyHash))
 	{
 		EndCacheDerivedData(KeyHash);
@@ -610,6 +639,11 @@ void UNaniteDisplacedMesh::NotifyOnRebuild()
 
 FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* TargetPlatform)
 {
+	if (!DoesTargetPlatformSupportNanite(TargetPlatform))
+	{
+		return FIoHash::Zero;
+	}
+
 	FMemoryHasherBlake3 Writer;
 
 	FGuid DisplacedMeshVersionGuid(0x6929A94E, 0xE7B046CC, 0xA178FC5D, 0x8BBB0E6C);
@@ -648,7 +682,7 @@ FIoHash UNaniteDisplacedMesh::BeginCacheDerivedData(const ITargetPlatform* Targe
 {
 	const FIoHash KeyHash = CreateDerivedDataKeyHash(TargetPlatform);
 
-	if (DataKeyHash == KeyHash || DataByPlatformKeyHash.Contains(KeyHash))
+	if (KeyHash.IsZero() || DataKeyHash == KeyHash || DataByPlatformKeyHash.Contains(KeyHash))
 	{
 		return KeyHash;
 	}
@@ -726,6 +760,11 @@ void UNaniteDisplacedMesh::Reschedule(FQueuedThreadPool* InThreadPool, EQueuedWo
 
 bool UNaniteDisplacedMesh::PollCacheDerivedData(const FIoHash& KeyHash) const
 {
+	if (KeyHash.IsZero())
+	{
+		return true;
+	}
+
 	if (const TPimplPtr<FNaniteBuildAsyncCacheTask>* Task = CacheTasksByKeyHash.Find(KeyHash))
 	{
 		return (*Task)->Poll();
@@ -736,6 +775,11 @@ bool UNaniteDisplacedMesh::PollCacheDerivedData(const FIoHash& KeyHash) const
 
 void UNaniteDisplacedMesh::EndCacheDerivedData(const FIoHash& KeyHash)
 {
+	if (KeyHash.IsZero())
+	{
+		return;
+	}
+
 	TPimplPtr<FNaniteBuildAsyncCacheTask> Task;
 	if (CacheTasksByKeyHash.RemoveAndCopyValue(KeyHash, Task))
 	{

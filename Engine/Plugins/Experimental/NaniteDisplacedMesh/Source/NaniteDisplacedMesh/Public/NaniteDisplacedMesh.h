@@ -130,6 +130,7 @@ public:
 	virtual void PostLoad() override;
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
+	virtual bool NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform) const override;
 
 	void InitResources();
 	void ReleaseResources();
