@@ -56,11 +56,6 @@ FTransform UTransformableComponentHandle::GetGlobalTransform() const
 	return Component.IsValid() ? Component->GetComponentTransform() : FTransform::Identity;
 }
 
-FTransform UTransformableComponentHandle::GetParentTransform() const
-{
-	return (Component.IsValid() && Component->GetAttachParent()) ? Component->GetAttachParent()->GetComponentTransform() : FTransform::Identity;
-}
-
 UObject* UTransformableComponentHandle::GetPrerequisiteObject() const
 {
 	return Component.Get(); 
