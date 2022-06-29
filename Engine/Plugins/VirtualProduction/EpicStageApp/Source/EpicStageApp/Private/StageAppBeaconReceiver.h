@@ -82,7 +82,7 @@ private:
 	uint32 WebsocketPort;
 
 	/** Socket used to listen for and reply to beacon messages from the app. */
-	FSocket* Socket;
+	FSocket* Socket = nullptr;
 
 	/** Flag indicating that the thread is stopping. */
 	TAtomic<bool> bStopping;

@@ -8,7 +8,10 @@ void FEpicStageAppModule::StartupModule()
 	IWebRemoteControlModule& WebRemoteControl = FModuleManager::LoadModuleChecked<IWebRemoteControlModule>("WebRemoteControl");
 	RouteHandler.RegisterRoutes(WebRemoteControl);
 
-	StageAppBeaconReceiver.Startup();
+	if (!IsRunningCommandlet())
+	{
+		StageAppBeaconReceiver.Startup();
+	}
 }
 
 void FEpicStageAppModule::ShutdownModule()
@@ -18,5 +21,8 @@ void FEpicStageAppModule::ShutdownModule()
 		RouteHandler.UnregisterRoutes(*WebRemoteControl);
 	}
 
-	StageAppBeaconReceiver.Shutdown();
+	if (!IsRunningCommandlet())
+	{
+		StageAppBeaconReceiver.Shutdown();
+	}
 }
