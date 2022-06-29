@@ -547,7 +547,7 @@ namespace Horde.Build.Logs.Data
 			{
 				ReadOnlyTrie index = reader.ReadTrie();
 				int numBlockBits = reader.ReadInt32();
-				LogIndexBlock[] blocks = reader.ReadVariableLengthArray(() => reader.ReadLogIndexBlock());
+				LogIndexBlock[] blocks = reader.ReadVariableLengthArrayWithInt32Length(() => reader.ReadLogIndexBlock());
 				for(int idx = 1; idx < blocks.Length; idx++)
 				{
 					if(blocks[idx].LineIndex == 0)
@@ -573,7 +573,7 @@ namespace Horde.Build.Logs.Data
 			writer.WriteInt32(3);
 			writer.WriteTrie(BuildTrie());
 			writer.WriteInt32(_numBlockBits);
-			writer.WriteVariableLengthArray(_blocks, x => writer.WriteLogIndexBlock(x));
+			writer.WriteVariableLengthArrayWithInt32Length(_blocks, x => writer.WriteLogIndexBlock(x));
 		}
 
 		/// <summary>

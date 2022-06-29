@@ -238,6 +238,18 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes a variable length array
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="array">The array to write</param>
+		/// <param name="writeItem">Delegate to write an individual item</param>
+		public static void WriteVariableLengthArrayWithInt32Length<T>(this IMemoryWriter writer, T[] array, Action<T> writeItem)
+		{
+			WriteInt32(writer, array.Length);
+			WriteFixedLengthArray(writer, array, writeItem);
+		}
+
+		/// <summary>
 		/// Writes a fixed length array
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>

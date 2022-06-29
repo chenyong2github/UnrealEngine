@@ -235,6 +235,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads a variable length array
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		/// <param name="readItem">Delegate to write an individual item</param>
+		public static T[] ReadVariableLengthArrayWithInt32Length<T>(this IMemoryReader reader, Func<T> readItem)
+		{
+			int length = ReadInt32(reader);
+			return ReadFixedLengthArray(reader, length, readItem);
+		}
+
+		/// <summary>
 		/// Writes a fixed length array
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
