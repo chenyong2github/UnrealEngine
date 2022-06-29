@@ -1394,6 +1394,10 @@ void ULevelInstanceSubsystem::FActorDescContainerInstanceManager::FActorDescCont
 	Bounds.Init();
 	for (FActorDescList::TIterator<> ActorDescIt(Container); ActorDescIt; ++ActorDescIt)
 	{
+		if (ActorDescIt->GetActorNativeClass()->IsChildOf<ALevelBounds>())
+		{
+			continue;
+		}
 		Bounds += ActorDescIt->GetBounds();
 	}
 }
