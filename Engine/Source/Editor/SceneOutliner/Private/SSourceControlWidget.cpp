@@ -87,7 +87,6 @@ FReply SSourceControlWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeome
 	if (SourceControlState.IsValid())
 	{
 		UpdateSourceControlStateIcon(SourceControlState);
-
 	}
 	return FReply::Handled();
 }
@@ -158,12 +157,13 @@ void SSourceControlWidget::UpdateSourceControlStateIcon(FSourceControlStatePtr S
 	if(SourceControlState.IsValid())
 	{
 		FSlateIcon Icon = SourceControlState->GetIcon();
-		
 		SetFromSlateIcon(Icon);
+		SetToolTipText(SourceControlState->GetDisplayTooltip());
 	}
 	else
 	{
 		SetImage(nullptr);
+		SetToolTipText(FText::GetEmpty());
 		RemoveAllLayers();
 	}
 }
