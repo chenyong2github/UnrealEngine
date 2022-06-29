@@ -79,6 +79,9 @@ public:
 	 */
 	UPROPERTY()
 	TObjectPtr<UStaticMeshDescriptionBulkData> StaticMeshDescriptionBulkData;
+
+	// Only allow safe read of the mesh description from the game thread while a build is running (not sure about the rest. the UStaticMeshDescription stuff look particularly dangerous)
+	mutable FCriticalSection StaticMeshDescriptionBulkDataCS;
 #endif
 
 #if WITH_EDITOR
@@ -197,7 +200,6 @@ public:
 	void SerializeBulkData(FArchive& Ar, UObject* Owner);
 
 	void ConvertRawMesh(int32 LodIndex);
-
 #endif
 };
 
