@@ -229,13 +229,13 @@ void FTreeNode::GetFilterStrings(TArray<FString>& OutStrings) const
 }
 
 
-void FTreeNode::BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander)
+void FTreeNode::BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode)
 {
-	BuildChildNodesRecursive(FieldIterator, FieldExpander, 2);
+	BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, 2);
 }
 
 
-void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, int32 RecursiveCount)
+void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode, int32 RecursiveCount)
 {
 	if (RecursiveCount <= 0)
 	{
@@ -295,16 +295,19 @@ void FTreeNode::BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldEx
 			if (const FProperty* PropertyIt = FieldIt.Get<FProperty>())
 			{
 				TSharedPtr<FTreeNode> Node = MakeField(AsShared(), PropertyIt, TOptional<FText>());
-				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, RecursiveCount);
+				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, RecursiveCount);
 			}
 			if (const UFunction* FunctionIt = FieldIt.Get<UFunction>())
 			{
 				TSharedPtr<FTreeNode> Node = MakeField(AsShared(), FunctionIt, TOptional<FText>());
-				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, RecursiveCount);
+				Node->BuildChildNodesRecursive(FieldIterator, FieldExpander, bSortChildNode, RecursiveCount);
 			}
 		}
 
-		ChildNodes.Sort(Sort);
+		if (bSortChildNode)
+		{
+			ChildNodes.Sort(Sort);
+		}
 	}
 
 	bChildGenerated = true;
@@ -377,6 +380,7 @@ FPropertyViewerImpl::FPropertyViewerImpl(const SPropertyViewer::FArguments& InAr
 	PropertyVisibility = InArgs._PropertyVisibility;
 	bSanitizeName = InArgs._bSanitizeName;
 	bShowFieldIcon = InArgs._bShowFieldIcon;
+	bSortChildNode = InArgs._bSortChildNode;
 
 #if WITH_EDITOR
 	if (GEditor)
@@ -510,7 +514,7 @@ void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifi
 void FPropertyViewerImpl::AddContainerInternal(SPropertyViewer::FHandle Identifier, TSharedPtr<FContainer>& NewContainer)
 {
 	TSharedPtr<FTreeNode> NewNode = FTreeNode::MakeContainer(NewContainer, TOptional<FText>());
-	NewNode->BuildChildNodes(*FieldIterator, *FieldExpander);
+	NewNode->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode);
 	TreeSource.Add(NewNode);
 
 	if (TreeWidget)
@@ -810,12 +814,6 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 						FFieldVariant Field = ItemPin->GetField();
 						if (!Field.IsUObject())
 						{
-							INotifyHook* LocalNotifyHook = nullptr;
-							if (const TSharedPtr<FPropertyViewerImpl> PropertyViewer = PropertyViewOwner.Pin())
-							{
-								LocalNotifyHook = PropertyViewer->NotifyHook;
-							}
-
 							bool bCanEditContainer = false;
 							if (const TSharedPtr<FContainer> OwnerContainer = ItemPin->GetOwnerContainer())
 							{
@@ -824,7 +822,7 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 
 							FPropertyValueFactory::FGenerateArgs Args;
 							Args.Path = ItemPin->GetPropertyPath();
-							Args.NotifyHook = LocalNotifyHook;
+							Args.NotifyHook = PropertyViewOwnerPin->NotifyHook;
 							Args.bCanEditValue = bCanEditContainer
 								&& PropertyViewOwnerPin->PropertyVisibility == SPropertyViewer::EPropertyVisibility::Editable
 								&& Args.Path.GetLastProperty() != nullptr
@@ -914,7 +912,7 @@ void FPropertyViewerImpl::HandleGetChildren(TSharedPtr<FTreeNode> InParent, TArr
 		// Do not build when filtering (only search in what it's already been built)
 		if (FilterHandler == nullptr || !FilterHandler->GetIsEnabled())
 		{
-			InParent->BuildChildNodes(*FieldIterator, *FieldExpander);
+			InParent->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode);
 		}
 	}
 	OutChildren = InParent->ChildNodes;

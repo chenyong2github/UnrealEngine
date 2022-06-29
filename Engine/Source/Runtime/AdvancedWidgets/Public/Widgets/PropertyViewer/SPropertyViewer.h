@@ -63,6 +63,8 @@ public:
 		SLATE_ARGUMENT_DEFAULT(bool, bSanitizeName) = false;
 		/** Show the icon next to the field name. */
 		SLATE_ARGUMENT_DEFAULT(bool, bShowFieldIcon) = true;
+		/** Sort the field after building the list of fields. */
+		SLATE_ARGUMENT_DEFAULT(bool, bSortChildNode) = false;
 		/** Show a search box. */
 		SLATE_ARGUMENT_DEFAULT(bool, bShowSearchBox) = false;
 		/** Which properties/functions to show. FFieldIterator_BlueprintVisible is the default. */

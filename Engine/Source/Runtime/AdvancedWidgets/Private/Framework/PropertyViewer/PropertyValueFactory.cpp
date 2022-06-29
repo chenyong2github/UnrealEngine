@@ -58,6 +58,7 @@ FPropertyValueFactory::FPropertyValueFactory()
 	Register(FEnumProperty::StaticClass(), FPropertyValueFactory::FOnGenerate::CreateStatic(SEnumPropertyValue::CreateInstance));
 	Register(FStrProperty::StaticClass(), FPropertyValueFactory::FOnGenerate::CreateStatic(SStringPropertyValue::CreateInstance));
 	Register(FTextProperty::StaticClass(), FPropertyValueFactory::FOnGenerate::CreateStatic(SStringPropertyValue::CreateInstance));
+	Register(FNameProperty::StaticClass(), FPropertyValueFactory::FOnGenerate::CreateStatic(SStringPropertyValue::CreateInstance));
 }
 
 

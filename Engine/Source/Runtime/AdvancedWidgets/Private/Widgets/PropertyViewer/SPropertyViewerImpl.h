@@ -152,10 +152,10 @@ public:
 
 	void GetFilterStrings(TArray<FString>& OutStrings) const;
 
-	void BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander);
+	void BuildChildNodes(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode);
 
 private:
-	void BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, int32 RecursiveCount);
+	void BuildChildNodesRecursive(IFieldIterator& FieldIterator, IFieldExpander& FieldExpander, bool bSortChildNode, int32 RecursiveCount);
 
 	static bool Sort(const TSharedPtr<FTreeNode>& NodeA, const TSharedPtr<FTreeNode>& NodeB);
 };
@@ -193,6 +193,7 @@ private:
 	bool bSanitizeName = false;
 	bool bShowFieldIcon = false;
 	bool bUseRows = false;
+	bool bSortChildNode = false;
 	
 	IFieldIterator* FieldIterator = nullptr;
 	IFieldExpander* FieldExpander = nullptr;
