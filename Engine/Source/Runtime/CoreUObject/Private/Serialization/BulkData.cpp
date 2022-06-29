@@ -994,7 +994,9 @@ void* FBulkData::Realloc(int64 ElementCount, int64 ElementSize)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FBulkData::Realloc"), STAT_UBD_Realloc, STATGROUP_Memory);
 
 	checkf(IsLocked(), TEXT("BulkData must be locked for 'write' before reallocating!"));
+#if !WITH_EDITOR
 	checkf(!CanLoadFromDisk(), TEXT("Cannot re-allocate a FBulkDataBase object that represents a file on disk!"));
+#endif //!WITH_EDITOR
 
 	// We might want to consider this a valid use case if anyone can come up with one?
 	checkf(!IsUsingIODispatcher(), TEXT("Attempting to re-allocate data loaded from the IoDispatcher"));
