@@ -164,8 +164,8 @@ int32 ChaosImmediate_SolverType = (int32)Chaos::EConstraintSolverType::QuasiPbd;
 FAutoConsoleVariableRef CVarChaosImmPhysSolverType(TEXT("p.Chaos.ImmPhys.SolverType"), ChaosImmediate_SolverType, TEXT("0 = None; 1 = GbfPbd; 2 = Pbd; 3 = QuasiPbd"));
 
 // Whether to use the linear joint solver which is significantly faster than the non-linear one but less accurate. Only applies to the QuasiPBD Solver
-bool bChaosImmediate_Joint_UseLinearSolver = true;
-FAutoConsoleVariableRef CVarChaosImmPhysJointUseCachedSolver(TEXT("p.Chaos.ImmPhys.Joint.UseLinearSolver"), bChaosImmediate_Joint_UseLinearSolver, TEXT("Use linear version of joint solver. (default is true"));
+int32 ChaosImmediate_Joint_UseLinearSolver = -1;
+FAutoConsoleVariableRef CVarChaosImmPhysJointUseCachedSolver(TEXT("p.Chaos.ImmPhys.Joint.UseLinearSolver"), ChaosImmediate_Joint_UseLinearSolver, TEXT("Force use of linear or non-linear joint solver. (-1 to use PhysicsAsset setting)"));
 
 //
 // end remove when finished
@@ -742,7 +742,7 @@ namespace ImmediatePhysics_Chaos
 		SimSpaceSettings.EulerAlpha = ChaosImmediate_Evolution_SimSpaceEulerAlpha;
 	}
 
-	void FSimulation::SetSolverSettings(const FReal FixedDt, const FReal CullDistance, const FReal MaxDepenetrationVelocity, const int32 PositionIts, const int32 VelocityIts, const int32 ProjectionIts)
+	void FSimulation::SetSolverSettings(const FReal FixedDt, const FReal CullDistance, const FReal MaxDepenetrationVelocity, const int32 UseLinearJointSolver, const int32 PositionIts, const int32 VelocityIts, const int32 ProjectionIts)
 	{
 		if (FixedDt >= FReal(0))
 		{
@@ -772,6 +772,11 @@ namespace ImmediatePhysics_Chaos
 		if (ProjectionIts >= 0)
 		{
 			Implementation->Evolution.SetNumProjectionIterations(ProjectionIts);
+		}
+
+		if (UseLinearJointSolver >= 0)
+		{
+			Implementation->Joints.SetUseLinearJointSolver(UseLinearJointSolver != 0);
 		}
 	}
 
@@ -849,6 +854,7 @@ namespace ImmediatePhysics_Chaos
 					ChaosImmediate_Evolution_FixedStepTime,
 					ChaosImmediate_Collision_CullDistance,
 					ChaosImmediate_Collision_MaxDepenetrationVelocity,
+					ChaosImmediate_Joint_UseLinearSolver,
 					ChaosImmediate_Evolution_PositionIterations,
 					ChaosImmediate_Evolution_VelocityIterations,
 					ChaosImmediate_Evolution_ProjectionIterations);
@@ -889,11 +895,10 @@ namespace ImmediatePhysics_Chaos
 			JointsSettings.LinearDriveDampingOverride = ChaosImmediate_Joint_LinearDriveDamping;
 			JointsSettings.AngularDriveStiffnessOverride = ChaosImmediate_Joint_AngularDriveStiffness;
 			JointsSettings.AngularDriveDampingOverride = ChaosImmediate_Joint_AngularDriveDamping;
-			JointsSettings.bUseLinearSolver = false;
 			if (SolverType == EConstraintSolverType::QuasiPbd)
 			{
+				// NOTE: bUseLinearSolver is set via SetSolverSettings above for QPBD
 				JointsSettings.NumShockPropagationIterations = ChaosImmediate_Joint_NumShockPropagationIterations;
-				JointsSettings.bUseLinearSolver = bChaosImmediate_Joint_UseLinearSolver;
 			}
 			else
 			{

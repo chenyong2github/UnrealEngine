@@ -844,6 +844,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 				SolverSettings.FixedTimeStep,
 				SolverSettings.CullDistance,
 				SolverSettings.MaxDepenetrationVelocity,
+				SolverSettings.bUseLinearJointSolver,
 				SolverSettings.PositionIterations,
 				SolverSettings.VelocityIterations,
 				SolverSettings.ProjectionIterations);
@@ -1274,6 +1275,7 @@ void FAnimNode_RigidBody::InitPhysics(const UAnimInstance* InAnimInstance)
 			SolverSettings.FixedTimeStep,
 			SolverSettings.CullDistance,
 			SolverSettings.MaxDepenetrationVelocity,
+			SolverSettings.bUseLinearJointSolver,
 			SolverSettings.PositionIterations,
 			SolverSettings.VelocityIterations,
 			SolverSettings.ProjectionIterations);

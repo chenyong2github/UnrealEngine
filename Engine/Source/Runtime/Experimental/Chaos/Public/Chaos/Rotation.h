@@ -113,6 +113,21 @@ namespace Chaos
 		}
 
 		/**
+		* Convert to a matrix and return as the 3 matrix axes.
+		*/
+		inline void ToMatrixAxes(TVector<FRealSingle, 3>& OutX, TVector<FRealSingle, 3>& OutY, TVector<FRealSingle, 3>& OutZ)
+		{
+			const FRealSingle x2 = X + X;    const FRealSingle y2 = Y + Y;    const FRealSingle z2 = Z + Z;
+			const FRealSingle xx = X * x2;   const FRealSingle xy = X * y2;   const FRealSingle xz = X * z2;
+			const FRealSingle yy = Y * y2;   const FRealSingle yz = Y * z2;   const FRealSingle zz = Z * z2;
+			const FRealSingle wx = W * x2;   const FRealSingle wy = W * y2;   const FRealSingle wz = W * z2;
+
+			OutX = TVector<FRealSingle, 3>(1.0f - (yy + zz), xy + wz, xz - wy);
+			OutY = TVector<FRealSingle, 3>(xy - wz, 1.0f - (xx + zz), yz + wx);
+			OutZ = TVector<FRealSingle, 3>(xz + wy, yz - wx, 1.0f - (xx + yy));
+		}
+
+		/**
 		 * Extract the Swing and Twist rotations, assuming that the Twist Axis is (1,0,0).
 		 * /see ToSwingTwist
 		 */
@@ -314,6 +329,21 @@ namespace Chaos
 
 			OutAxis = DefaultAxis;
 			return false;
+		}
+
+		/**
+		* Convert to a matrix and return as the 3 matrix axes.
+		*/
+		inline void ToMatrixAxes(TVector<FRealDouble, 3>& OutX, TVector<FRealDouble, 3>& OutY, TVector<FRealDouble, 3>& OutZ)
+		{
+			const FRealDouble x2 = X + X;    const FRealDouble y2 = Y + Y;    const FRealDouble z2 = Z + Z;
+			const FRealDouble xx = X * x2;   const FRealDouble xy = X * y2;   const FRealDouble xz = X * z2;
+			const FRealDouble yy = Y * y2;   const FRealDouble yz = Y * z2;   const FRealDouble zz = Z * z2;
+			const FRealDouble wx = W * x2;   const FRealDouble wy = W * y2;   const FRealDouble wz = W * z2;
+
+			OutX = TVector<FRealDouble, 3>(1.0f - (yy + zz), xy + wz, xz - wy);
+			OutY = TVector<FRealDouble, 3>(xy - wz, 1.0f - (xx + zz), yz + wx);
+			OutZ = TVector<FRealDouble, 3>(xz + wy, yz - wx, 1.0f - (xx + yy));
 		}
 
 		/**

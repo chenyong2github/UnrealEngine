@@ -688,6 +688,101 @@ namespace Chaos
 			}
 		}
 
+		/**
+		 * Approximate Asin(X) to 1st order ~= X + ...
+		 * Returns an approximation for all valid input range [-1, 1] with an error that increases as the input magnitude approaches 1.
+		 */
+		template<typename T>
+		inline T AsinEst1(const T X)
+		{
+			return X /*+...*/;
+		}
+
+
+		/**
+		 * Approximate Asin(X) to 3rd order ~= X + (1/6)X^3 + ...
+		 * Returns an approximation for all valid input range [-1, 1] with an error that increases as the input magnitude approaches 1.
+		 */
+		template<typename T>
+		inline T AsinEst3(const T X)
+		{
+			constexpr T C0 = T(1.0);
+			constexpr T C1 = T(1.0 / 6.0);
+			const T X2 = X * X;
+			return X * (C0 + X2 * (C1 /*+...*/));
+		}
+
+		/**
+		 * Approximate Asin(X) to 5th order ~= X + (1/6)X^3 + (3/40)X^5 + ...
+		 * Returns an approximation for all valid input range [-1, 1] with an error that increases as the input magnitude approaches 1.
+		 */
+		template<typename T>
+		inline T AsinEst5(const T X)
+		{
+			constexpr T C0 = T(1.0);
+			constexpr T C1 = T(1.0 / 6.0);
+			constexpr T C2 = T(3.0 / 40.0);
+			const T X2 = X * X;
+			return X * (C0 + X2 * (C1 + X2 * (C2 /*+...*/)));
+
+		}
+
+		/**
+		 * Approximate Asin(X) to 7th order ~= X + (1/6)X^3 + (3/40)X^5 + (15/336)X^7 + ...
+		 * Returns an approximation for all valid input range [-1, 1] with an error that increases as the input magnitude approaches 1.
+		 */
+		template<typename T>
+		inline T AsinEst7(const T X)
+		{
+			constexpr T C0 = T(1.0);
+			constexpr T C1 = T(1.0 / 6.0);
+			constexpr T C2 = T(3.0 / 40.0);
+			constexpr T C3 = T(15.0 / 336.0);
+			const T X2 = X * X;
+			return X * (C0 + X2 * (C1 + X2 * (C2 + X2 * (C3 /*+...*/))));
+		}
+
+		/**
+		 * Approximate Asin using expansion to the specified Order (must be 1, 3, 5, or 7). Defaults to 5th order.
+		*/
+		template<typename T, int Order = 5>
+		inline T AsinEst(const T X)
+		{
+			static_assert((Order == 1) || (Order == 3) || (Order == 5) || (Order == 7), "AsinEst: Only 1, 3, 5, or 7 is supported for the Order");
+			if (Order == 1)
+			{
+				return AsinEst1(X);
+			}
+			else if (Order == 3)
+			{
+				return AsinEst3(X);
+			}
+			else if (Order == 5)
+			{
+				return AsinEst5(X);
+			}
+			else
+			{
+				return AsinEst7(X);
+			}
+		}
+
+		/**
+		 * Approximate Asin(X). Like AsinApprox but with a crossover to FMath::Asin for larger input magnitudes.
+		 */
+		template<typename T, int Order = 5>
+		inline T AsinEstCrossover(const T X, const T Crossover = T(0.7))
+		{
+			if (FMath::Abs(X) < Crossover)
+			{
+				return AsinEst<T, Order>(X);
+			}
+			else
+			{
+				return FMath::Asin(X);
+			}
+		}
+
 		template <class T, class TV, class TV_INT4>
 		void TetMeshFromGrid(const TUniformGrid<T, 3>& Grid, TArray<TV_INT4>& Mesh, TArray<TV>& X)
 		{

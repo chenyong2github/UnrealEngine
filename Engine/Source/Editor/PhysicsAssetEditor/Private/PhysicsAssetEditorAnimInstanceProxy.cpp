@@ -85,6 +85,7 @@ bool FPhysicsAssetEditorAnimInstanceProxy::Evaluate_WithRoot(FPoseContext& Outpu
 			SolverSettings.FixedTimeStep,
 			SolverSettings.CullDistance,
 			SolverSettings.MaxDepenetrationVelocity,
+			SolverSettings.bUseLinearJointSolver,
 			SolverSettings.PositionIterations,
 			SolverSettings.VelocityIterations,
 			SolverSettings.ProjectionIterations);

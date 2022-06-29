@@ -70,6 +70,15 @@ struct ENGINE_API FPhysicsAssetSolverSettings
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings, meta = (ClampMin = 0))
 	float FixedTimeStep;
+
+	/**
+	 * Whether to use the linear or non-linear solver for RBAN Joints. The linear solver is significantly cheaper than
+	 * the non-linear solver when you are running multiple iterations, but is more likely to suffer from jitter. 
+	 * In general you should try to use the linear solver and increase the PositionIterations to improve stability if 
+	 * possible, only using the non-linear solver as a last resort.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SolverSettings)
+	bool bUseLinearJointSolver;
 };
 
 

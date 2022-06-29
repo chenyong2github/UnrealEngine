@@ -36,6 +36,9 @@ struct CORE_API FFortniteNCBranchObjectVersion
 		// Added ability to mark shapes as probes
 		AddShapeIsProbe,
 
+		// Transfer PhysicsAsset SolverSettings (iteration counts etc) to new structure
+		PhysicsAssetNewSolverSettings,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

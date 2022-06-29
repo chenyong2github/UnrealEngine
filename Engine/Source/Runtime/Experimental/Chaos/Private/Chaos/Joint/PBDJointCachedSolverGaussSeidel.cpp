@@ -1700,27 +1700,27 @@ void FPBDJointCachedSolver::InitSLerpDrive(
 	TargetAngPos.EnforceShortestArcWith(R01);
 	const FRotation3 R1Error = TargetAngPos.Inverse() * R01;
 
-	// @todo(chaos): try approximation for Asin. Try (x), (x + (1/6) x^3), or (x + (1/2) x^7)
-	const FReal AxisAngles[3] = 
-	{ 
-		2.0f * FMath::Asin(R1Error.X), 
-		2.0f * FMath::Asin(R1Error.Y), 
-		2.0f * FMath::Asin(R1Error.Z) 
-	};
-
-	const FRotation3& AxesRotation = ConnectorRs[1];
-	const FVec3 Axes[3] = {
-		AxesRotation.GetAxisX(),
-		AxesRotation.GetAxisY(),
-		AxesRotation.GetAxisZ()
-	};
-
-	const FVec3 TargetAngVel = ConnectorRs[0] * JointSettings.AngularDriveVelocityTarget;
-
-	for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+	FReal AxisAngles[3] =
 	{
-		InitRotationConstraintDrive(AxisIndex, Axes[AxisIndex],  Dt, AxisAngles[AxisIndex]);
-		RotationDrives.ConstraintVX[AxisIndex] = FVec3::DotProduct(TargetAngVel, RotationDrives.ConstraintAxis[AxisIndex]);
+		2.0f * Utilities::AsinEst(R1Error.X),
+		2.0f * Utilities::AsinEst(R1Error.Y),
+		2.0f * Utilities::AsinEst(R1Error.Z)
+	};
+
+	FVec3 Axes[3];
+	ConnectorRs[1].ToMatrixAxes(Axes[0], Axes[1], Axes[2]);
+
+	InitRotationConstraintDrive(0, Axes[0], Dt, AxisAngles[0]);
+	InitRotationConstraintDrive(1, Axes[1], Dt, AxisAngles[1]);
+	InitRotationConstraintDrive(2, Axes[2], Dt, AxisAngles[2]);
+
+	// @todo(chaos): pass constraint target velocity into InitRotationConstraintDrive (it currently sets it ConstraintVX to 0)
+	if (!JointSettings.AngularDriveVelocityTarget.IsNearlyZero())
+	{
+		const FVec3 TargetAngVel = ConnectorRs[0] * JointSettings.AngularDriveVelocityTarget;
+		RotationDrives.ConstraintVX[0] = FVec3::DotProduct(TargetAngVel, Axes[0]);
+		RotationDrives.ConstraintVX[1] = FVec3::DotProduct(TargetAngVel, Axes[1]);
+		RotationDrives.ConstraintVX[2] = FVec3::DotProduct(TargetAngVel, Axes[2]);
 	}
 }
 

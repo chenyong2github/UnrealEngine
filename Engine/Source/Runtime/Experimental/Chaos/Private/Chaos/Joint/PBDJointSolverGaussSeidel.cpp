@@ -1950,7 +1950,6 @@ namespace Chaos
 		}
 	}
 
-
 	void FPBDJointSolver::ApplySLerpDrive(
 		const FReal Dt,
 		const FPBDJointSolverSettings& SolverSettings,
@@ -1960,34 +1959,33 @@ namespace Chaos
 		const FReal AngularDriveDamping = FPBDJointUtilities::GetAngularSLerpDriveDamping(SolverSettings, JointSettings);
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
 
-		// NOTE: Slerp target velocity only works properly if we have a stiffness of zero.
 		const FRotation3 R01 = ConnectorRs[0].Inverse() * ConnectorRs[1];
 		FRotation3 TargetAngPos = JointSettings.AngularDrivePositionTarget;
 		TargetAngPos.EnforceShortestArcWith(R01);
 		const FRotation3 R1Error = TargetAngPos.Inverse() * R01;
-		FReal AxisAngles[3] = 
+
+		FReal AxisAngles[3] =
 		{ 
-			2.0f * FMath::Asin(R1Error.X), 
-			2.0f * FMath::Asin(R1Error.Y), 
-			2.0f * FMath::Asin(R1Error.Z) 
+			2.0f * Utilities::AsinEst(R1Error.X),
+			2.0f * Utilities::AsinEst(R1Error.Y),
+			2.0f * Utilities::AsinEst(R1Error.Z)
 		};
 
-		const FRotation3& AxesRotation = ConnectorRs[1];
-		const FVec3 Axes[3] = {
-			AxesRotation.GetAxisX(),
-			AxesRotation.GetAxisY(),
-			AxesRotation.GetAxisZ()
-		};
+		FVec3 Axes[3];
+		ConnectorRs[1].ToMatrixAxes(Axes[0], Axes[1], Axes[2]);
 
-		const FVec3 TargetAngVel = ConnectorRs[0] * JointSettings.AngularDriveVelocityTarget;
-
-		for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
+		FReal AxisAngVel[3] = {0, 0, 0};
+		if (!JointSettings.AngularDriveVelocityTarget.IsNearlyZero())
 		{
-			FReal ReturnedLambda = RotationDriveLambdas[AxisIndex];
-			const FReal AxisAngVel = FVec3::DotProduct(TargetAngVel, Axes[AxisIndex]);
-			ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, Axes[AxisIndex], AxisAngles[AxisIndex], AxisAngVel, ReturnedLambda);
-			RotationDriveLambdas[AxisIndex] = ReturnedLambda;
+			const FVec3 TargetAngVel = ConnectorRs[0] * JointSettings.AngularDriveVelocityTarget;
+			AxisAngVel[0] = FVec3::DotProduct(TargetAngVel, Axes[0]);
+			AxisAngVel[1] = FVec3::DotProduct(TargetAngVel, Axes[1]);
+			AxisAngVel[2] = FVec3::DotProduct(TargetAngVel, Axes[2]);
 		}
+
+		ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, Axes[0], AxisAngles[0], AxisAngVel[0], RotationDriveLambdas[0]);
+		ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, Axes[1], AxisAngles[1], AxisAngVel[1], RotationDriveLambdas[1]);
+		ApplyRotationConstraintSoft(Dt, AngularDriveStiffness, AngularDriveDamping, bAccelerationMode, Axes[2], AxisAngles[2], AxisAngVel[2], RotationDriveLambdas[2]);
 	}
 
 

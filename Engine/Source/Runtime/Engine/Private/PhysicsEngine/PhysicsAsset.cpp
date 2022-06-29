@@ -15,6 +15,7 @@
 #include "UObject/ReleaseObjectVersion.h"
 #include "Logging/MessageLog.h"
 #include "UObject/UObjectIterator.h"
+#include "UObject/FortniteNCBranchObjectVersion.h"
 
 #if WITH_EDITOR
 #include "Misc/MessageDialog.h"
@@ -32,6 +33,7 @@ FPhysicsAssetSolverSettings::FPhysicsAssetSolverSettings()
 	, CullDistance(3.0f)
 	, MaxDepenetrationVelocity(0.0f)
 	, FixedTimeStep(0.0f)
+	, bUseLinearJointSolver(true)
 {
 }
 
@@ -207,6 +209,8 @@ void UPhysicsAsset::PostLoad()
 
 void UPhysicsAsset::Serialize(FArchive& Ar)
 {
+	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+
 	Super::Serialize(Ar);
 	Ar << CollisionDisableTable;
 
@@ -218,14 +222,17 @@ void UPhysicsAsset::Serialize(FArchive& Ar)
 	}
 #endif
 
-	// If the legacy iteration defaults were changed, but the new settings were not, pass the legacy changes on to the new
-	if ((SolverSettings.PositionIterations == 6) && ((SolverIterations.SolverIterations != 3) || (SolverIterations.JointIterations != 2)))
+	// Transfer the legacy solver iteration counts to the new ones. These settings are used by the RBAN solver.
+	// These settings are intended to be roughly equivalent to the previous settings (the new solver adds VelocityIterations
+	// and provides the linear/non-linear joint solver option). Any new PhysicsAssets will get the defaults (new linear solver etc)
+	const bool bRequiresSettingsTransfer = (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::PhysicsAssetNewSolverSettings);
+	if (bRequiresSettingsTransfer)
 	{
 		SolverSettings.PositionIterations = SolverIterations.SolverIterations * SolverIterations.JointIterations;
-	}
-	if ((SolverSettings.VelocityIterations == 1) && ((SolverIterations.SolverPushOutIterations != 1) || (SolverIterations.JointIterations != 1)))
-	{
-		SolverSettings.VelocityIterations = SolverIterations.SolverPushOutIterations * SolverIterations.JointIterations;
+		SolverSettings.VelocityIterations = 1;
+		SolverSettings.ProjectionIterations = SolverIterations.SolverPushOutIterations;
+		SolverSettings.bUseLinearJointSolver = false;
+		SolverSettings.CullDistance = 1.0f;
 	}
 
 	Ar.UsingCustomVersion(FFrameworkObjectVersion::GUID);

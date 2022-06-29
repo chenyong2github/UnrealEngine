@@ -81,6 +81,7 @@ namespace ImmediatePhysics_Chaos
 			const FReal FixedDt,
 			const FReal CullDistance,
 			const FReal MaxDepenetrationVelocity,
+			const int32 UseLinearJointSolver,
 			const int32 PositionIts,
 			const int32 VelocityIts,
 			const int32 ProjectionIts);

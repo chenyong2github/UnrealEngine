@@ -30,6 +30,81 @@ namespace ChaosTest
 		}
 	}
 
+	template<int Order>
+	void TestAsinEst(const FReal ExpectedMaxError, const FReal SmallError, const FReal SmallErrorX)
+	{
+		const int32 NumSteps = 21;
+		for (int32 I = 0; I < NumSteps; ++I)
+		{
+			// X from 0 to +1 in steps
+			const FReal X = FMath::Clamp(FReal(I) / FReal(NumSteps - 1), FReal(0), FReal(1));
+			const FReal Y = Utilities::AsinEst<FReal, Order>(X);
+			const FReal YNeg = Utilities::AsinEst<FReal, Order>(-X);
+			const FReal YExact = FMath::Asin(X);
+
+			// Asin(X) == -Asin(-X)
+			EXPECT_NEAR(Y, -YNeg, UE_SMALL_NUMBER);
+
+			// Total error percent less than expected
+			const FReal Error = (YExact > 0) ? FMath::Abs(Y - YExact) / YExact : UE_SMALL_NUMBER;
+			EXPECT_LT(Error, ExpectedMaxError);
+
+			// Error percent should be less than SmallError for X < ExpectedXAtSmallError
+			if (Error > SmallError)
+			{
+				EXPECT_GT(X, SmallErrorX - UE_SMALL_NUMBER);
+			}
+		}
+	}
+
+	TEST(MathTests, TestAsinEst3)
+	{
+		const FReal MaxError = FReal(0.26);			// expected error - 26% at X=1
+		const FReal SmallError = FReal(0.01);		// expected error - 1% at X=0.6
+		const FReal SmallErrorX = FReal(0.6);
+
+		TestAsinEst<3>(MaxError, SmallError, SmallErrorX);
+	}
+
+	TEST(MathTests, TestAsinEst5)
+	{
+		const FReal MaxError = FReal(0.21);			// expected error - 21% at X=1
+		const FReal SmallError = FReal(0.01);		// expected error - 1% at X=0.75
+		const FReal SmallErrorX = FReal(0.75);
+
+		TestAsinEst<5>(MaxError, SmallError, SmallErrorX);
+	}
+
+	TEST(MathTests, TestAsinEst7)
+	{
+		const FReal MaxError = FReal(0.19);			// expected error - 19% at X=1
+		const FReal SmallError = FReal(0.01);		// expected error - 1% at X=0.8
+		const FReal SmallErrorX = FReal(0.8);
+
+		TestAsinEst<7>(MaxError, SmallError, SmallErrorX);
+	}
+
+	TEST(MathTests, TestAsinEstCrossover)
+	{
+		const FReal MaxError = FReal(0.01);	// 1%
+		const int32 NumSteps = 21;
+		for (int32 I = 0; I < NumSteps; ++I)
+		{
+			// X from 0 to +1 in steps
+			const FReal X = FMath::Clamp(FReal(I) / FReal(NumSteps - 1), FReal(0), FReal(1));
+			const FReal Y = Utilities::AsinEstCrossover(X);
+			const FReal YNeg = Utilities::AsinEstCrossover(-X);
+			const FReal YExact = FMath::Asin(X);
+
+			// F(X) == -F(-X)
+			EXPECT_NEAR(Y, -YNeg, UE_SMALL_NUMBER);
+
+			// Total error less than expected
+			const FReal Error = (YExact > 0) ? FMath::Abs(Y - YExact) / YExact : UE_SMALL_NUMBER;
+			EXPECT_LT(Error, MaxError);
+		}
+	}
+
 	Chaos::TVector<double, 4> 
 	ToVec4(const TArray<double>& x)
 	{

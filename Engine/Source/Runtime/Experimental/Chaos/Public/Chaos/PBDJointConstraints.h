@@ -121,6 +121,8 @@ namespace Chaos
 		const FPBDJointSolverSettings& GetSettings() const;
 		void SetSettings(const FPBDJointSolverSettings& InSettings);
 
+		void SetUseLinearJointSolver(const bool bInEnable) { Settings.bUseLinearSolver = bInEnable; }
+
 		void SetNumPairIterations(const int32 NumPairIterationss) { Settings.ApplyPairIterations = NumPairIterationss; }
 		void SetNumPushOutPairIterations(const int32 NumPairIterationss) { Settings.ApplyPushOutPairIterations = NumPairIterationss; }
 
