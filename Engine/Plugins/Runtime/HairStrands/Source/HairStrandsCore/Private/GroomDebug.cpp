@@ -770,9 +770,6 @@ static void AddDrawDebugCardsGuidesPass(
 	// Force ShaderPrint on.
 	ShaderPrint::SetEnabled(true);
 
-	const uint32 MaxCount = 128000;
-	ShaderPrint::RequestSpaceForLines(MaxCount);
-
 	if (ShaderPrintData == nullptr || !ShaderPrint::IsEnabled(*ShaderPrintData))
 	{
 		return;
@@ -790,11 +787,16 @@ static void AddDrawDebugCardsGuidesPass(
 	}
 
 	const FHairGroupInstance::FCards::FLOD& LOD = Instance->Cards.LODs[HairLODIndex];
-	
 	if (!LOD.Guides.Data)
 	{
 		return;
 	}
+	
+	const uint32 MaxCount = FMath::Max(
+		Instance->Guides.RestResource ? Instance->Guides.RestResource->GetVertexCount() * 2 : 0,
+		LOD.Guides.RestResource ? LOD.Guides.RestResource->GetVertexCount() * 2 : 0);
+	ShaderPrint::RequestSpaceForLines(MaxCount);
+
 	TShaderMapRef<FDrawDebugCardGuidesCS> ComputeShader(ShaderMap);
 	const bool bGuideValid			= Instance->Guides.RestResource != nullptr;
 	const bool bGuideDeformValid	= Instance->Guides.DeformedResource != nullptr;

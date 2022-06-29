@@ -69,6 +69,7 @@ FGroomEditorViewportClient::FGroomEditorViewportClient(FAdvancedPreviewScene& In
 	EngineShowFlags.DisableAdvancedFeatures();
 	EngineShowFlags.SetSnap(0);
 	EngineShowFlags.SetTemporalAA(true);
+	EngineShowFlags.SetShaderPrint(true);
 	
 	OverrideNearClipPlane(1.0f);	
 
@@ -89,8 +90,7 @@ void FGroomEditorViewportClient::Tick(float DeltaSeconds)
 
 void FGroomEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 {
-	TSharedPtr<SGroomEditorViewport> GroomEditorViewport = GroomEditorViewportPtr.Pin();	
-	
+	TSharedPtr<SGroomEditorViewport> GroomEditorViewport = GroomEditorViewportPtr.Pin();
 	FEditorViewportClient::Draw(InViewport, Canvas);
 }
 
