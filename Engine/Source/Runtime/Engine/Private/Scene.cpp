@@ -480,7 +480,9 @@ FPostProcessSettings::FPostProcessSettings()
 
 	AutoExposureApplyPhysicalCameraExposure = 1;
 
-	LocalExposureContrastScale = 1.0f;
+	LocalExposureContrastScale_DEPRECATED = 1.0f;
+	LocalExposureHighlightContrastScale = 1.0f;
+	LocalExposureShadowContrastScale = 1.0f;
 	LocalExposureDetailStrength = 1.0f;
 	LocalExposureBlurredLuminanceBlend = 0.6f;
 	LocalExposureBlurredLuminanceKernelSizePercent = 50.0f;
@@ -698,7 +700,9 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_AutoExposureApplyPhysicalCameraExposure(Settings.bOverride_AutoExposureApplyPhysicalCameraExposure)
 	, bOverride_HistogramLogMin(Settings.bOverride_HistogramLogMin)
 	, bOverride_HistogramLogMax(Settings.bOverride_HistogramLogMax)
-	, bOverride_LocalExposureContrastScale(Settings.bOverride_LocalExposureContrastScale)
+	, bOverride_LocalExposureContrastScale_DEPRECATED(Settings.bOverride_LocalExposureContrastScale_DEPRECATED)
+	, bOverride_LocalExposureHighlightContrastScale(Settings.bOverride_LocalExposureHighlightContrastScale)
+	, bOverride_LocalExposureShadowContrastScale(Settings.bOverride_LocalExposureShadowContrastScale)
 	, bOverride_LocalExposureDetailStrength(Settings.bOverride_LocalExposureDetailStrength)
 	, bOverride_LocalExposureBlurredLuminanceBlend(Settings.bOverride_LocalExposureBlurredLuminanceBlend)
 	, bOverride_LocalExposureBlurredLuminanceKernelSizePercent(Settings.bOverride_LocalExposureBlurredLuminanceKernelSizePercent)
@@ -916,7 +920,9 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, HistogramLogMin(Settings.HistogramLogMin)
 	, HistogramLogMax(Settings.HistogramLogMax)
 	, AutoExposureCalibrationConstant_DEPRECATED(Settings.AutoExposureCalibrationConstant_DEPRECATED)
-	, LocalExposureContrastScale(Settings.LocalExposureContrastScale)
+	, LocalExposureContrastScale_DEPRECATED(Settings.LocalExposureContrastScale_DEPRECATED)
+	, LocalExposureHighlightContrastScale(Settings.LocalExposureHighlightContrastScale)
+	, LocalExposureShadowContrastScale(Settings.LocalExposureShadowContrastScale)
 	, LocalExposureDetailStrength(Settings.LocalExposureDetailStrength)
 	, LocalExposureBlurredLuminanceBlend(Settings.LocalExposureBlurredLuminanceBlend)
 	, LocalExposureBlurredLuminanceKernelSizePercent(Settings.LocalExposureBlurredLuminanceKernelSizePercent)

@@ -16,7 +16,8 @@ float EyeAdaptation_ExposureSpeedDown;
 float EyeAdaptation_HistogramScale;
 float EyeAdaptation_HistogramBias;
 float EyeAdaptation_LuminanceMin;
-float EyeAdaptation_LocalExposureContrastScale;
+float EyeAdaptation_LocalExposureHighlightContrastScale;
+float EyeAdaptation_LocalExposureShadowContrastScale;
 float EyeAdaptation_LocalExposureDetailStrength;
 float EyeAdaptation_LocalExposureBlurredLuminanceBlend;
 float EyeAdaptation_LocalExposureMiddleGreyExposureCompensation;
@@ -228,10 +229,13 @@ float CalculateBaseLogLuminance(float LogLum, float BlurredLumBlend, float Expos
 	return CalculateBaseLogLuminance(BilateralLum, BlurredLum, BlurredLumBlend, ExposureScale);
 }
 
-float CalculateLocalExposure(float LogLum, float BaseLogLum, float LogMiddleGrey, float ContrastReduction, float DetailStrength)
+float CalculateLocalExposure(float LogLum, float BaseLogLum, float LogMiddleGrey, float HighlightContrastScale, float ShadowContrastScale, float DetailStrength)
 {
 	float DetailLogLum = LogLum - BaseLogLum;
 
-	float LogLocalLum = LogMiddleGrey + (BaseLogLum - LogMiddleGrey) * ContrastReduction + DetailLogLum * DetailStrength;
+	float BaseCentered = (BaseLogLum - LogMiddleGrey);
+	float ContrastScale = BaseCentered > 0 ? HighlightContrastScale : ShadowContrastScale;
+
+	float LogLocalLum = LogMiddleGrey + BaseCentered * ContrastScale + DetailLogLum * DetailStrength;
 	return exp2(LogLocalLum - LogLum);
 }
