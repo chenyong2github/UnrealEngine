@@ -663,7 +663,7 @@ void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, F
 }
 #endif
 
-FString CleanSdkName(const FString& Name)
+FString CleanLabel(const FString& Name)
 {
 	int32 Index;
 	if (Name.FindLastChar(TEXT('['), Index))
@@ -673,7 +673,7 @@ FString CleanSdkName(const FString& Name)
 	return Name;
 }
 
-FString CleanCatiaInstanceSdkName(const FString& Name)
+FString CleanCatiaInstanceLabel(const FString& Name)
 {
 	int32 Index;
 	if (Name.FindChar(TEXT('('), Index))
@@ -688,9 +688,9 @@ FString CleanCatiaInstanceSdkName(const FString& Name)
 	return Name;
 }
 
-FString Clean3dxmlInstanceSdkName(const FString& Name)
+FString Clean3dxmlInstanceLabel(const FString& Name)
 {
-	FString NewName = CleanCatiaInstanceSdkName(Name);
+	FString NewName = CleanCatiaInstanceLabel(Name);
 
 	int32 Index = NewName.Find(TEXT("_InstanceRep"));
 	if (Index != INDEX_NONE)
@@ -701,7 +701,7 @@ FString Clean3dxmlInstanceSdkName(const FString& Name)
 	return NewName;
 }
 
-FString Clean3dxmlReferenceSdkName(const FString& Name)
+FString Clean3dxmlReferenceLabel(const FString& Name)
 {
 	int32 Index;
 	if (Name.FindChar(TEXT('('), Index))
@@ -720,7 +720,7 @@ FString Clean3dxmlReferenceSdkName(const FString& Name)
 	return Name;
 }
 
-FString CleanSwInstanceSdkName(const FString& Name)
+FString CleanSwInstanceLabel(const FString& Name)
 {
 	int32 Position;
 	if (Name.FindLastChar(TEXT('-'), Position))
@@ -731,7 +731,7 @@ FString CleanSwInstanceSdkName(const FString& Name)
 	return Name;
 }
 
-FString CleanSwReferenceSdkName(const FString& Name)
+FString CleanSwReferenceLabel(const FString& Name)
 {
 	int32 Position;
 	if (Name.FindLastChar(TEXT('-'), Position))
@@ -742,7 +742,7 @@ FString CleanSwReferenceSdkName(const FString& Name)
 	return Name;
 }
 
-FString CleanCatiaReferenceName(const FString& Name)
+FString CleanCatiaReferenceLabel(const FString& Name)
 {
 	int32 Position;
 	if (Name.FindLastChar(TEXT('.'), Position))
@@ -756,7 +756,7 @@ FString CleanCatiaReferenceName(const FString& Name)
 	}
 	return Name;
 }
-FString CleanCreoName(const FString& Name)
+FString CleanCreoLabel(const FString& Name)
 {
 	int32 Position;
 	if (Name.FindLastChar(TEXT('.'), Position))

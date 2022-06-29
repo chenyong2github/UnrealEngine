@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "CoreMinimal.h"
+
 #include "TechSoftInterface.h"
 
 namespace CADLibrary
@@ -13,14 +15,14 @@ namespace TechSoftUtils
 void ExtractAttribute(const A3DMiscAttributeData& AttributeData, TMap<FString, FString>& OutMetaData);
 #endif
 
-FString CleanSdkName(const FString& Name);
-FString CleanCatiaInstanceSdkName(const FString& Name);
-FString CleanCatiaReferenceName(const FString& Name);
-FString Clean3dxmlInstanceSdkName(const FString& Name);
-FString Clean3dxmlReferenceSdkName(const FString& Name);
-FString CleanSwInstanceSdkName(const FString& Name);
-FString CleanSwReferenceSdkName(const FString& Name);
-FString CleanCreoName(const FString& Name);
+FString CleanLabel(const FString& Name);
+FString CleanCatiaInstanceLabel(const FString& Name);
+FString Clean3dxmlInstanceLabel(const FString& Name);
+FString CleanCatiaReferenceLabel(const FString& Name);
+FString Clean3dxmlReferenceLabel(const FString& Name);
+FString CleanSwInstanceLabel(const FString& Name);
+FString CleanSwReferenceLabel(const FString& Name);
+FString CleanCreoLabel(const FString& Name);
 bool CheckIfNameExists(TMap<FString, FString>& MetaData);
 bool ReplaceOrAddNameValue(TMap<FString, FString>& MetaData, const TCHAR* Key);
 

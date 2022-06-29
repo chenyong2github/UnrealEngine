@@ -1252,7 +1252,7 @@ void FTechSoftFileParser::ExtractMetaData(const A3DEntity* Entity, FArchiveCADOb
 			FString Name = UTF8_TO_TCHAR(MetaData->m_pcName);
 			if(Name != TEXT("unnamed"))  // "unnamed" is create by Techsoft. This name is ignored 
 			{
-				Name = TechSoftUtils::CleanSdkName(Name);
+				Name = TechSoftUtils::CleanLabel(Name);
 				OutObject.Label = Name;
 			}
 		}
@@ -1290,7 +1290,7 @@ void FTechSoftFileParser::BuildReferenceName(FArchiveCADObject& ReferenceData)
 	{
 		if (Format == ECADFormat::CATIA)
 		{
-			ReferenceData.Label = TechSoftUtils::CleanCatiaReferenceName(*NamePtr);
+			ReferenceData.Label = TechSoftUtils::CleanCatiaReferenceLabel(*NamePtr);
 		}
 		else
 		{
@@ -1302,11 +1302,11 @@ void FTechSoftFileParser::BuildReferenceName(FArchiveCADObject& ReferenceData)
 	switch (Format)
 	{
 	case ECADFormat::CATIA_3DXML:
-		ReferenceData.Label = TechSoftUtils::Clean3dxmlReferenceSdkName(ReferenceData.Label);
+		ReferenceData.Label = TechSoftUtils::Clean3dxmlReferenceLabel(ReferenceData.Label);
 		break;
 
 	case ECADFormat::SOLIDWORKS:
-		ReferenceData.Label = TechSoftUtils::CleanSwReferenceSdkName(ReferenceData.Label);
+		ReferenceData.Label = TechSoftUtils::CleanSwReferenceLabel(ReferenceData.Label);
 		break;
 
 	default:
@@ -1328,15 +1328,15 @@ void FTechSoftFileParser::BuildInstanceName(FArchiveInstance& InstanceData, cons
 		switch (Format)
 		{
 		case ECADFormat::CATIA:
-			InstanceData.Label = TechSoftUtils::CleanCatiaInstanceSdkName(InstanceData.Label);
+			InstanceData.Label = TechSoftUtils::CleanCatiaInstanceLabel(InstanceData.Label);
 			break;
 		
 		case ECADFormat::CATIA_3DXML:
-			InstanceData.Label = TechSoftUtils::Clean3dxmlInstanceSdkName(InstanceData.Label);
+			InstanceData.Label = TechSoftUtils::Clean3dxmlInstanceLabel(InstanceData.Label);
 			break;
 
 		case ECADFormat::SOLIDWORKS:
-			InstanceData.Label = TechSoftUtils::CleanSwInstanceSdkName(InstanceData.Label);
+			InstanceData.Label = TechSoftUtils::CleanSwInstanceLabel(InstanceData.Label);
 			break;
 
 		default:
@@ -1368,7 +1368,7 @@ void FTechSoftFileParser::BuildBodyName(FArchiveBody& Body, const FArchiveRefere
 {
 	if (Format == ECADFormat::CREO)
 	{
-		Body.Label = TechSoftUtils::CleanCreoName(Body.Label);
+		Body.Label = TechSoftUtils::CleanCreoLabel(Body.Label);
 	}
 
 	if(Body.IsNameDefined())
