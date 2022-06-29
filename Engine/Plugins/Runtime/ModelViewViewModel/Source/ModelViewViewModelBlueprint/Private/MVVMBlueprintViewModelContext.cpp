@@ -2,22 +2,16 @@
 
 #include "MVVMBlueprintViewModelContext.h"
 
-FMVVMBlueprintViewModelContext::FMVVMBlueprintViewModelContext(TSubclassOf<UMVVMViewModelBase> InClass, FGuid InGuid) :
-	ViewModelContextId(InGuid),
-	ViewModelClass(InClass)
+FMVVMBlueprintViewModelContext::FMVVMBlueprintViewModelContext(TSubclassOf<UMVVMViewModelBase> InClass, FName InViewModelName)
+	: ViewModelContextId(FGuid::NewGuid())
+	, ViewModelClass(InClass)
+	, ViewModelName(InViewModelName)
 {
 
 }
 
+
 FText FMVVMBlueprintViewModelContext::GetDisplayName() const
 {
-	if (!OverrideDisplayName.IsEmpty())
-	{
-		return OverrideDisplayName;
-	}
-	if (ViewModelClass.Get())
-	{
-		return ViewModelClass->GetDisplayNameText();
-	}
-	return FText::GetEmpty();
+	return FText::FromName(ViewModelName);
 }

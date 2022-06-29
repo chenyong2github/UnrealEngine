@@ -187,7 +187,7 @@ namespace UE::MVVM::Private
 						.OnTextCommitted_Lambda(
 							[TempEntry](const FText& NewText, ETextCommit::Type CommitType)
 							{
-								TempEntry->OverrideDisplayName = NewText;
+								TempEntry->ViewModelName = *NewText.ToString();
 							})
 						.OnVerifyTextChanged_Lambda(
 							[Self](const FText& InText, FText& OutErrorMessage) -> bool
@@ -744,7 +744,7 @@ void SMVVMViewModelContextListWidget::AddViewModelContext(TSubclassOf<UMVVMViewM
 		ExistingContextNames.Add(Context->GetDisplayName().ToString());
 	}
 
-	TSharedPtr<FMVVMBlueprintViewModelContext> NewContext = MakeShared<FMVVMBlueprintViewModelContext>(ViewModelClass, FGuid::NewGuid());
+	TSharedPtr<FMVVMBlueprintViewModelContext> NewContext = MakeShared<FMVVMBlueprintViewModelContext>(ViewModelClass, ViewModelClass->GetFName());
 	FString ClassName = ViewModelClass->ClassGeneratedBy != nullptr ? ViewModelClass->ClassGeneratedBy->GetName() : ViewModelClass->GetAuthoredName();
 	FString TempNewName = ClassName;
 	FKismetNameValidator NameValidator(WidgetBlueprint);
@@ -758,7 +758,7 @@ void SMVVMViewModelContextListWidget::AddViewModelContext(TSubclassOf<UMVVMViewM
 		++Index;
 	}
 
-	NewContext->OverrideDisplayName = FText::FromString(TempNewName);
+	NewContext->ViewModelName = *TempNewName;
 	ContextListSource.Add(NewContext);
 	ContextListWidget->RequestListRefresh();
 }
@@ -781,7 +781,7 @@ bool SMVVMViewModelContextListWidget::IsContextNameAvailable(FGuid Guid, FText C
 			continue;
 		}
 
-		if (Context->OverrideDisplayName.EqualTo(ContextName))
+		if (Context->ViewModelName == *ContextName.ToString())
 		{
 			return false;
 		}

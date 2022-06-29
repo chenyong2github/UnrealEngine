@@ -79,7 +79,7 @@ bool UMVVMBlueprintView::RenameViewModel(FName OldViewModelName, FName NewViewMo
 			});
 	if (ViewModelContext)
 	{
-		ViewModelContext->OverrideDisplayName = FText::FromName(NewViewModelName);
+		ViewModelContext->ViewModelName = NewViewModelName;
 
 		FBlueprintEditorUtils::ReplaceVariableReferences(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), OldViewModelName, NewViewModelName);
 		FBlueprintEditorUtils::ValidateBlueprintChildVariables(GetOuterUMVVMWidgetBlueprintExtension_View()->GetWidgetBlueprint(), NewViewModelName);

@@ -30,8 +30,8 @@ struct MODELVIEWVIEWMODELBLUEPRINT_API FMVVMBlueprintViewModelContext
 	GENERATED_BODY()
 
 public:
-	FMVVMBlueprintViewModelContext() {}
-	FMVVMBlueprintViewModelContext(TSubclassOf<UMVVMViewModelBase> InClass, FGuid InGuid);
+	FMVVMBlueprintViewModelContext() = default;
+	FMVVMBlueprintViewModelContext(TSubclassOf<UMVVMViewModelBase> InClass, FName InViewModelName);
 
 	FGuid GetViewModelId() const
 	{
@@ -40,8 +40,7 @@ public:
 
 	FName GetViewModelName() const
 	{
-		//todo change that to the fname
-		return *GetDisplayName().ToString();
+		return ViewModelName;
 	}
 
 	FText GetDisplayName() const;
@@ -49,6 +48,21 @@ public:
 	TSubclassOf<UMVVMViewModelBase> GetViewModelClass() const
 	{
 		return ViewModelClass;
+	}
+
+	void PostSerialize(const FArchive& Ar)
+	{
+		if (Ar.IsLoading())
+		{
+			if (ViewModelName.IsNone())
+			{
+				ViewModelName = *OverrideDisplayName_DEPRECATED.ToString();
+			}
+			if (ViewModelName.IsNone() )
+			{
+				ViewModelName = *ViewModelContextId.ToString();
+			}
+		}
 	}
 
 private:
@@ -59,9 +73,13 @@ private:
 	UPROPERTY(EditAnywhere, Category = "MVVM")
 	TSubclassOf<UMVVMViewModelBase> ViewModelClass;
 
+	UPROPERTY()
+	FText OverrideDisplayName_DEPRECATED;
+
 public:
+	/** Property name that will be generated. */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
-	FText OverrideDisplayName;
+	FName ViewModelName;
 
 	/** When the view is spawn, create an instance of the viewmodel. */
 	UPROPERTY(EditAnywhere, Category = "MVVM")
@@ -78,4 +96,13 @@ public:
 	/** Generate a setter function for this viewmodel. */
 	UPROPERTY(EditAnywhere, Category = "MVVM", AdvancedDisplay)
 	bool bCreateSetterFunction = false;
+};
+
+template<>
+struct TStructOpsTypeTraits<FMVVMBlueprintViewModelContext> : public TStructOpsTypeTraitsBase2<FMVVMBlueprintViewModelContext>
+{
+	enum
+	{
+		WithPostSerialize = true,
+	};
 };
