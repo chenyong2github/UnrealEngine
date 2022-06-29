@@ -255,6 +255,9 @@ public:
 	// Called when appInit is called, very early in startup
 	static FSimpleMulticastDelegate OnInit;
 
+	// Called during FEngineLoop::PreInit after GWarn & GError have been first set so that they can be overridden before anything in PreInit uses them
+	static FSimpleMulticastDelegate OnOutputDevicesInit;
+
 	// Called at the end of UEngine::Init, right before loading PostEngineInit modules for both normal execution and commandlets
 	static FSimpleMulticastDelegate OnPostEngineInit;
 

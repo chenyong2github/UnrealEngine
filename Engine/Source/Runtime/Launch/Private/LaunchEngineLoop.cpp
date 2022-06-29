@@ -1789,6 +1789,8 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 		GError = FPlatformOutputDevices::GetError();
 		GWarn = FPlatformOutputDevices::GetFeedbackContext();
 #endif
+
+		FCoreDelegates::OnOutputDevicesInit.Broadcast();
 	}
 
 	// Avoiding potential exploits by not exposing command line overrides in the shipping games.
