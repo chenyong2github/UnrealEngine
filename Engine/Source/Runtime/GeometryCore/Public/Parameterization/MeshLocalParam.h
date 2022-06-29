@@ -91,7 +91,7 @@ public:
 			Node->GraphDistance = Node->UV.Length();
 			Node->bFrozen = true;
 			check(Queue.Contains(NbrPointID) == false);
-			Queue.Insert(NbrPointID, Node->GraphDistance);
+			Queue.Insert(NbrPointID, float(Node->GraphDistance));
 		}
 
 		ProcessQueueUntilTermination(ComputeToMaxDistanceIn);
@@ -450,14 +450,14 @@ protected:
 				{
 					NbrNode->ParentPointID = Parent->PointID;
 					NbrNode->GraphDistance = NbrDist;
-					Queue.Update(NbrPointID, NbrNode->GraphDistance);
+					Queue.Update(NbrPointID, float(NbrNode->GraphDistance));
 				}
 			}
 			else 
 			{
 				NbrNode->ParentPointID = Parent->PointID;
 				NbrNode->GraphDistance = NbrDist;
-				Queue.Insert(NbrPointID, NbrNode->GraphDistance);
+				Queue.Insert(NbrPointID, float(NbrNode->GraphDistance));
 			}
 		}
 	}

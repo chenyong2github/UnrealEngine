@@ -89,7 +89,7 @@ public:
 				Node->GraphDistance = SeedPoint.StartDistance;
 				Node->FrozenTimestamp = CurrentSeedTimestamp;
 				Node->SeedID = NewIndex;
-				Queue.Insert(PointID, Node->GraphDistance);
+				Queue.Insert(PointID, float(Node->GraphDistance));
 			}
 		}
 
@@ -273,7 +273,7 @@ private:
 					NbrNode->ParentPointID = Parent->PointID;
 					NbrNode->SeedID = Parent->SeedID;
 					NbrNode->GraphDistance = NbrDist;
-					Queue.Update(NbrPointID, NbrNode->GraphDistance);
+					Queue.Update(NbrPointID, float(NbrNode->GraphDistance));
 				}
 			}
 			else 
@@ -283,7 +283,7 @@ private:
 					NbrNode->ParentPointID = Parent->PointID;
 					NbrNode->SeedID = Parent->SeedID;
 					NbrNode->GraphDistance = NbrDist;
-					Queue.Insert(NbrPointID, NbrNode->GraphDistance);
+					Queue.Insert(NbrPointID, float(NbrNode->GraphDistance));
 				}
 			}
 		}
