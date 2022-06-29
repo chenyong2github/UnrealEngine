@@ -79,7 +79,7 @@ void GetPrecomputedLightingParameters(
 	{
 		Parameters.ShadowMapCoordinateScaleBias = FVector4(1, 1, 0, 0);
 		Parameters.StaticShadowMapMasks = FVector4(1, 1, 1, 1);
-		Parameters.InvUniformPenumbraSizes = FVector4(0, 0, 0, 0);
+		Parameters.InvUniformPenumbraSizes = FVector4(1, 1, 1, 1);
 	}
 
 

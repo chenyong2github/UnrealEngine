@@ -273,7 +273,7 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 			}
 			else
 			{
-				if (ShadowMapInteraction.GetType() == SMIT_Texture &&
+				if ((ShadowMapInteraction.GetType() == SMIT_Texture || bUseStaticAndCSM ) &&
 					ReadOnlyCVARCache.bMobileAllowDistanceFieldShadows)
 				{
 					SelectedLightmapPolicy = LMP_MOBILE_DISTANCE_FIELD_SHADOWS_AND_LQ_LIGHTMAP;

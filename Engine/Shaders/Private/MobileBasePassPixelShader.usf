@@ -807,17 +807,27 @@ float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTr
 	IndirectIrradiance *= MaterialAO;
 
 	// Shadow
+	half CSMOverlapStaitcShadowMask = 0;
 	half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
 #if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
 	{
+<<<<<<< HEAD
 		half ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w);
+=======
+		float bias = 0;
+		#if NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIRTEST
+			bias = GetShadingModelHairTest6(MaterialParameters).x;
+		#endif
+		half ShadowMap = 0;
+		ShadowMap = MobileDirectionalLightCSM(MaterialParameters.ScreenPosition.xy, MaterialParameters.ScreenPosition.w,bias);
+		CSMOverlapStaitcShadowMask = (ShadowMap < 0.01f && Shadow < 0.01f);
+>>>>>>> ba60a155927 (Fixed: CSM shadow overlapping with static shadow.)
 	#if MOVABLE_DIRECTIONAL_LIGHT
 		Shadow = ShadowMap;
 	#else
-		const bool bInBothShadows = (ShadowMap < 0.01f && Shadow < 0.01f);
-		Shadow = bInBothShadows ? -OverlapWithStaticShadowAmount : min(Shadow, ShadowMap);
+		Shadow = min(ShadowMap, Shadow);
 	#endif
 	}
 #endif /* DIRECTIONAL_LIGHT_CSM */
@@ -962,6 +972,50 @@ float3 LightVector = MobileDirectionalLight.DirectionalLightDirectionAndShadowTr
 
 #endif
 
+<<<<<<< HEAD
+=======
+	float4 FillLightData = 0.0;
+	#if NUM_MATERIAL_OUTPUTS_GETSHADINGMODELSUBSURFACE
+		FillLightData = GetShadingModelSubsurface4(MaterialParameters);
+	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIRTEST
+		FillLightData = GetShadingModelHairTest4(MaterialParameters);
+	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELHAIR
+		FillLightData = GetShadingModelHair4(MaterialParameters);
+	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELEYE
+		FillLightData = GetShadingModelEye4(MaterialParameters);
+	#elif NUM_MATERIAL_OUTPUTS_GETSHADINGMODELCLOTH
+		FillLightData = GetShadingModelCloth4(MaterialParameters);
+	#endif
+
+	BRANCH
+	if(FillLightData.x>0)
+	{
+		half FillLightMask = dot(float3(MaterialParameters.WorldNormal),normalize(float3(MobileDirectionalLight.DirectionalLightDirectionAndShadowTransition.xy,0.0)));
+		FillLightMask = lerp(1,1-max(0,FillLightMask),ShadowMaskMap*Shadow);
+
+		half3 FillL = normalize(MaterialParameters.CameraVector);
+		half FillNoL = 0.5 + 0.5 * dot(MaterialParameters.WorldNormal, FillL);
+		FMobileDirectLighting Lightings = MobileIntegrateBxDF(ShadingModelContext, GBuffer, AdvancedData, btn,MaterialParameters.WorldNormal, MaterialParameters.CameraVector,FillL, H, NoH);
+		//LightColor_backup = LightType < 0.5 ? LightColor_backup:LightColor;
+
+		LightAccumulator(Lightings,
+						ShadingModelContext,
+						MaterialParameters, 
+						GBuffer, 
+						AdvancedData,
+						2.0, 					//LightType
+						Color,
+						FillLightData.rgb,
+						FillLightMask*FillNoL, 
+						FillLightData.a,
+						ShadowMaskMap, 
+						1.0);
+		//Color += (FillLightMask * FillNoL) * FillLightData.rgb * (Lightings.Diffuse + Lightings.Specular * FillLightData.a);			
+	}
+
+	Color -= CSMOverlapStaitcShadowMask ? OverlapWithStaticShadowAmount * Color : 0;
+
+>>>>>>> ba60a155927 (Fixed: CSM shadow overlapping with static shadow.)
 	// Skylight
 #if ENABLE_SKY_LIGHT
 	//@mw todo
