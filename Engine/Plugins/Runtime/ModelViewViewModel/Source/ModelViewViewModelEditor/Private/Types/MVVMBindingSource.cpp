@@ -1,7 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#pragma once
-
 #include "Types/MVVMBindingSource.h"
 #include "Blueprint/WidgetTree.h"
 #include "Components/Widget.h"
