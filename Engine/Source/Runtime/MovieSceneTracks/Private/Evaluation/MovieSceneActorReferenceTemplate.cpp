@@ -35,11 +35,6 @@ namespace PropertyTemplate
 		return InWeakPtr.Get();
 	}
 
-	static bool IsValueValid(UObject* InValue)
-	{
-		return InValue != nullptr;
-	}
-
 	template<> IMovieScenePreAnimatedTokenPtr CacheExistingState<UObject*, FMovieSceneObjectBindingID>(UObject& Object, FTrackInstancePropertyBindings& PropertyBindings)
 	{
 		return TCachedState<UObject*, TWeakObjectPtr<>>(PropertyBindings.GetCurrentValue<UObject*>(Object), PropertyBindings);
