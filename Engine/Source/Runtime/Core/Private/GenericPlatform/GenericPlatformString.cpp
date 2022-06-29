@@ -604,6 +604,12 @@ namespace UE::Core::Private
 		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen);
 		return Result;
 	}
+	int32 GetConvertedLength(const UTF8CHAR*, const UTF32CHAR* Source, int32 SourceLen)
+	{
+		TCountingOutputIterator<UTF8CHAR> Dest;
+		int32 Result = ConvertToUTF8(Dest, INT32_MAX, Source, SourceLen);
+		return Result;
+	}
 	int32 GetConvertedLength(const ANSICHAR*, const UTF8CHAR* Source, int32 SourceLen)
 	{
 		TCountingOutputIterator<ANSICHAR> Dest;
@@ -640,6 +646,14 @@ namespace UE::Core::Private
 		return Dest;
 	}
 	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UCS2CHAR* Src, int32 SrcLen)
+	{
+		if (ConvertToUTF8(Dest, DestLen, Src, SrcLen) == -1)
+		{
+			return nullptr;
+		}
+		return Dest;
+	}
+	UTF8CHAR* Convert(UTF8CHAR* Dest, int32 DestLen, const UTF32CHAR* Src, int32 SrcLen)
 	{
 		if (ConvertToUTF8(Dest, DestLen, Src, SrcLen) == -1)
 		{
