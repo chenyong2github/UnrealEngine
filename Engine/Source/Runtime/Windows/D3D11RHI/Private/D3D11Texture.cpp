@@ -1707,7 +1707,11 @@ void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHITexture* TextureRHI, const TCHA
 	FName DebugName(Name);
 	Texture->SetName(DebugName);
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
-	Texture->GetResource()->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(Name) + 1, TCHAR_TO_ANSI(Name));
+	ID3D11Resource* ResourceD3D = Texture->GetResource();
+	if (ResourceD3D != nullptr)
+	{
+		ResourceD3D->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(Name) + 1, TCHAR_TO_ANSI(Name));
+	}
 #endif
 }
 

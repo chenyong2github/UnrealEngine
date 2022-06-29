@@ -271,6 +271,9 @@ void FD3D11DynamicRHI::RHIBindDebugLabelName(FRHIBuffer* BufferRHI, const TCHAR*
 	BufferRHI->SetName(DebugName);
 #if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	FD3D11Buffer* BufferD3D = ResourceCast(BufferRHI);
-	BufferD3D->Resource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(Name) + 1, TCHAR_TO_ANSI(Name));
+	if (BufferD3D->Resource != nullptr)
+	{
+		BufferD3D->Resource->SetPrivateData(WKPDID_D3DDebugObjectName, FCString::Strlen(Name) + 1, TCHAR_TO_ANSI(Name));
+	}
 #endif
 }
