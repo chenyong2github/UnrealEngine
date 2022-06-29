@@ -599,8 +599,10 @@ private:
 
 			// Flush cache, to make sure we load the latest version of the input file.
 			// (Otherwise quick changes to a shader file can result in the wrong output.)
-			FlushShaderFileCache();
-
+			FName ShaderPlatformName;
+			InputFile << ShaderPlatformName;
+			FlushShaderFileCache(&ShaderPlatformName);
+			
 			for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 			{
 				// Deserialize the job's inputs.
@@ -915,6 +917,7 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 	FString InputFile;
 
 	FName FormatName;
+	FName ShaderPlatformName;
 	FString Entry = TEXT("Main");
 	bool bPipeline = false;
 	bool bUseMCPP = false;
@@ -939,6 +942,10 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 				{
 					Entry = Entry.Mid(1, Entry.Len() - 2);
 				}
+			}
+			else if (Token.StartsWith(TEXT("shaderPlatformName=")))
+			{
+				ShaderPlatformName = FName(*Token.RightChop(19));
 			}
 			else if (Token.StartsWith(TEXT("cflags=")))
 			{
@@ -1021,6 +1028,7 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
 	FShaderCompilerInput Input;
 	Input.EntryPointName = Entry;
 	Input.ShaderFormat = FormatName;
+	Input.ShaderPlatformName = ShaderPlatformName;
 	Input.VirtualSourceFilePath = InputFile;
 	Input.Target.Platform =  ShaderFormatNameToShaderPlatform(FormatName);
 	Input.Target.Frequency = Frequency;

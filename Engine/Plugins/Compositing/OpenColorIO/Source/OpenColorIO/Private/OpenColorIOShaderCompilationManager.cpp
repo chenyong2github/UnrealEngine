@@ -82,7 +82,7 @@ OPENCOLORIO_API void FOpenColorIOShaderCompilationManager::AddJobs(TArray<FShade
 			CurrentJob->Input.Environment.CompilerFlags.Add(CFLAG_NoFastMath);
 		}
 
-		CurrentJob->Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / LegacyShaderPlatformToShaderFormat(EShaderPlatform(CurrentJob->Input.Target.Platform)).ToString();
+		CurrentJob->Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / CurrentJob->Input.ShaderPlatformName.ToString();
 		FPaths::NormalizeDirectoryName(CurrentJob->Input.DumpDebugInfoRootPath);
 		CurrentJob->Input.DebugExtension.Empty();
 		CurrentJob->Input.DumpDebugInfoPath.Empty();

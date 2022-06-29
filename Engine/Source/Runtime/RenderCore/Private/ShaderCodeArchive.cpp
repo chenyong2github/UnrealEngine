@@ -1643,7 +1643,7 @@ void FIoStoreShaderCodeArchive::SaveIoStoreShaderCodeArchive(const FIoStoreShade
 
 FIoStoreShaderCodeArchive* FIoStoreShaderCodeArchive::Create(EShaderPlatform InPlatform, const FString& InLibraryName, FIoDispatcher& InIoDispatcher)
 {
-	const FName PlatformName = LegacyShaderPlatformToShaderFormat(InPlatform);
+	const FName PlatformName = FName(FDataDrivenShaderPlatformInfo::GetShaderFormat(InPlatform).ToString() + TEXT("-") + FDataDrivenShaderPlatformInfo::GetName(InPlatform).ToString());
 	FIoChunkId ChunkId = GetShaderCodeArchiveChunkId(InLibraryName, PlatformName);
 	if (InIoDispatcher.DoesChunkExist(ChunkId))
 	{

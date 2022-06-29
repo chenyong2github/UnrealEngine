@@ -1445,6 +1445,9 @@ bool FShaderCompileUtilities::DoWriteTasks(const TArray<FShaderCommonCompileJobP
 		int32 NumBatches = QueuedSingleJobs.Num();
 		TransferFile << NumBatches;
 
+		FName ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(GMaxRHIShaderPlatform);
+		TransferFile << ShaderPlatformName;
+
 		// Serialize all the batched jobs
 		for (int32 JobIndex = 0; JobIndex < QueuedSingleJobs.Num(); JobIndex++)
 		{
@@ -5357,6 +5360,7 @@ void GlobalBeginCompileShader(
 #endif
 
 	Input.Target = Target;
+	Input.ShaderPlatformName = FDataDrivenShaderPlatformInfo::GetName(ShaderPlatform);
 	Input.ShaderFormat = ShaderFormatName;
 	Input.CompressionFormat = GetShaderCompressionFormat();
 	GetShaderCompressionOodleSettings(Input.OodleCompressor, Input.OodleLevel);
@@ -5365,7 +5369,7 @@ void GlobalBeginCompileShader(
 	Input.bCompilingForShaderPipeline = false;
 	Input.bIncludeUsedOutputs = false;
 	Input.bGenerateDirectCompileFile = (GDumpShaderDebugInfoSCWCommandLine != 0);
-	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / ShaderFormatName.ToString();
+	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Input.ShaderPlatformName.ToString();
 	// asset material name or "Global"
 	Input.DebugGroupName = DebugGroupName;
 	Input.DebugDescription = DebugDescription;
@@ -6750,7 +6754,7 @@ void VerifyGlobalShaders(EShaderPlatform Platform, bool bLoadedFromCacheFile, co
 
 #include "Misc/PreLoadFile.h"
 #include "Serialization/LargeMemoryReader.h"
-static FPreLoadFile GGlobalShaderPreLoadFile(*(FString(TEXT("../../../Engine")) / TEXT("GlobalShaderCache-SF_") + FPlatformProperties::IniPlatformName() + TEXT(".bin")));
+static FPreLoadFile GGlobalShaderPreLoadFile(*(FString(TEXT("../../../Engine")) / TEXT("GlobalShaderCache-SP_") + FPlatformProperties::IniPlatformName() + TEXT(".bin")));
 
 static const ITargetPlatform* GGlobalShaderTargetPlatform[SP_NumPlatforms] = { nullptr };
 
@@ -6765,12 +6769,12 @@ static FString GetGlobalShaderCacheOverrideFilename(EShaderPlatform Platform)
 		DirectoryPrefix = GGlobalShaderCacheOverrideDirectory / TEXT("GlobalShaderCache-");
 	}
 
-	return DirectoryPrefix + LegacyShaderPlatformToShaderFormat(Platform).ToString() + TEXT(".bin");
+	return DirectoryPrefix + FDataDrivenShaderPlatformInfo::GetName(Platform).ToString() + TEXT(".bin");
 }
 
 static FString GetGlobalShaderCacheFilename(EShaderPlatform Platform)
 {
-	return FString(TEXT("Engine")) / TEXT("GlobalShaderCache-") + LegacyShaderPlatformToShaderFormat(Platform).ToString() + TEXT(".bin");
+	return FString(TEXT("Engine")) / TEXT("GlobalShaderCache-") + FDataDrivenShaderPlatformInfo::GetName(Platform).ToString() + TEXT(".bin");
 }
 
 #if WITH_EDITOR

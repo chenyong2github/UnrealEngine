@@ -923,6 +923,10 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	Text += Input.ShaderFormat.GetPlainNameString();
 	Text += TEXT(" -entry=");
 	Text += Input.EntryPointName;
+
+	Text += TEXT(" -shaderPlatformName=");
+	Text += Input.ShaderPlatformName.GetPlainNameString();
+
 	switch (Input.Target.Frequency)
 	{
 	case SF_Vertex:			Text += TEXT(" -vs"); break;
