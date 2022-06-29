@@ -95,14 +95,16 @@ public:
 	void Construct(const FArguments& InArgs, const UFunction* Function);
 
 public:
-	FHandle AddContainer(const UScriptStruct* Struct);
-	FHandle AddContainer(const UClass* Class);
-	FHandle AddContainer(const UFunction* Function);
-	FHandle AddInstance(const UScriptStruct* Struct, void* Data);
-	FHandle AddInstance(UObject* ObjectInstance);
+	FHandle AddContainer(const UScriptStruct* Struct, TOptional<FText> DisplayName = TOptional<FText>());
+	FHandle AddContainer(const UClass* Class, TOptional<FText> DisplayName = TOptional<FText>());
+	FHandle AddContainer(const UFunction* Function, TOptional<FText> DisplayName = TOptional<FText>());
+	FHandle AddInstance(const UScriptStruct* Struct, void* Data, TOptional<FText> DisplayName = TOptional<FText>());
+	FHandle AddInstance(UObject* ObjectInstance, TOptional<FText> DisplayName = TOptional<FText>());
 
 	void Remove(FHandle Identifier);
 	void RemoveAll();
+
+	void SetRawFilterText(const FText& InFilterText);
 
 private:
 	void ConstructInternal(const FArguments& InArgs);

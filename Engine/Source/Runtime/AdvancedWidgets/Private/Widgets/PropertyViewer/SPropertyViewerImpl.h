@@ -33,9 +33,9 @@ namespace UE::PropertyViewer::Private
  */
 struct FContainer
 {
-	FContainer(SPropertyViewer::FHandle InIdentifier, UObject* InstanceToDisplay);
-	FContainer(SPropertyViewer::FHandle InIdentifier, const UStruct* ClassToDisplay);
-	FContainer(SPropertyViewer::FHandle InIdentifier, const UScriptStruct* Struct, void* Data);
+	FContainer(SPropertyViewer::FHandle InIdentifier, TOptional<FText> DisplayName, const UStruct* ClassToDisplay);
+	FContainer(SPropertyViewer::FHandle InIdentifier, TOptional<FText> DisplayName, UObject* InstanceToDisplay);
+	FContainer(SPropertyViewer::FHandle InIdentifier, TOptional<FText> DisplayName, const UScriptStruct* Struct, void* Data);
 
 public:
 	SPropertyViewer::FHandle GetIdentifier() const
@@ -84,6 +84,11 @@ public:
 		return StructInstance;
 	}
 
+	TOptional<FText> GetDisplayName() const
+	{
+		return DisplayName;
+	}
+
 	bool IsValid() const;
 
 private:
@@ -91,6 +96,7 @@ private:
 	TWeakObjectPtr<const UStruct> Container;
 	TWeakObjectPtr<UObject> ObjectInstance;
 	void* StructInstance = nullptr;
+	TOptional<FText> DisplayName;
 	bool bIsObject = false;
 };
 
@@ -204,11 +210,12 @@ private:
 public:
 	TSharedRef<SWidget> Construct(const SPropertyViewer::FArguments& InArgs);
 
-	void AddContainer(SPropertyViewer::FHandle Identifier, const UStruct* Struct);
-	void AddContainerInstance(SPropertyViewer::FHandle Identifier, UObject* Object);
-	void AddContainerInstance(SPropertyViewer::FHandle Identifier, const UScriptStruct* Struct, void* Data);
+	void AddContainer(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UStruct* Struct);
+	void AddContainerInstance(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, UObject* Object);
+	void AddContainerInstance(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UScriptStruct* Struct, void* Data);
 	void Remove(SPropertyViewer::FHandle Identifier);
 	void RemoveAll();
+	void SetRawFilterText(const FText& InFilterText);
 
 private:
 	void AddContainerInternal(SPropertyViewer::FHandle Identifier, TSharedPtr<FContainer>& NewContainer);
@@ -217,7 +224,7 @@ private:
 	TSharedRef<SWidget> CreateTree(bool bHasPreWidget, bool bShowPropertyValue, bool bHasPostWidget);
 
 	void HandleSearchChanged(const FText& InFilterText);
-	FText SetRawFilterText(const FText& InFilterText);
+	FText SetRawFilterTextInternal(const FText& InFilterText);
 	void SetHighlightTextRecursive(const TSharedPtr<FTreeNode>& OwnerNode, const FText& HighlightText);
 	void HandleGetFilterStrings(TSharedPtr<FTreeNode> Item, TArray<FString>& OutStrings);
 

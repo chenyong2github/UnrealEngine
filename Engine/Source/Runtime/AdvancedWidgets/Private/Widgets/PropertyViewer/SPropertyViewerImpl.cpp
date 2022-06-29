@@ -48,26 +48,29 @@ static FName ColumnName_FieldPostWidget = "FieldPostWidget";
 /**
  * FContainer
  */
-FContainer::FContainer(SPropertyViewer::FHandle InIdentifier, UObject* InstanceToDisplay)
+FContainer::FContainer(SPropertyViewer::FHandle InIdentifier, TOptional<FText> InDisplayName, const UStruct* ClassToDisplay)
+	: Identifier(InIdentifier)
+	, Container(ClassToDisplay)
+	, DisplayName(InDisplayName)
+{
+}
+
+
+FContainer::FContainer(SPropertyViewer::FHandle InIdentifier, TOptional<FText> InDisplayName, UObject* InstanceToDisplay)
 	: Identifier(InIdentifier)
 	, Container(InstanceToDisplay->GetClass())
 	, ObjectInstance(InstanceToDisplay)
+	, DisplayName(InDisplayName)
 	, bIsObject(true)
 {
 }
 
 
-FContainer::FContainer(SPropertyViewer::FHandle InIdentifier, const UStruct* ClassToDisplay)
-	: Identifier(InIdentifier)
-	, Container(ClassToDisplay)
-{
-}
-
-
-FContainer::FContainer(SPropertyViewer::FHandle InIdentifier, const UScriptStruct* Struct, void* Data)
+FContainer::FContainer(SPropertyViewer::FHandle InIdentifier, TOptional<FText> InDisplayName, const UScriptStruct* Struct, void* Data)
 	: Identifier(InIdentifier)
 	, Container(Struct)
 	, StructInstance(Data)
+	, DisplayName(InDisplayName)
 {
 }
 
@@ -412,6 +415,13 @@ FPropertyViewerImpl::~FPropertyViewerImpl()
 
 TSharedRef<SWidget> FPropertyViewerImpl::Construct(const SPropertyViewer::FArguments& InArgs)
 {
+	SearchFilter = MakeShared<FTextFilter>(FTextFilter::FItemToStringArray::CreateSP(this, &FPropertyViewerImpl::HandleGetFilterStrings));
+
+	FilterHandler = MakeShared<FTreeFilter>();
+	FilterHandler->SetFilter(SearchFilter.Get());
+	FilterHandler->SetRootItems(&TreeSource, &FilteredTreeSource);
+	FilterHandler->SetGetChildrenDelegate(FTreeFilter::FOnGetChildren::CreateRaw(this, &FPropertyViewerImpl::HandleGetChildren));
+
 	TSharedPtr<SHorizontalBox> SearchBox;
 	if (InArgs._bShowSearchBox || InArgs._SearchBoxPreSlot.Widget != SNullWidget::NullWidget || InArgs._SearchBoxPostSlot.Widget != SNullWidget::NullWidget)
 	{
@@ -484,27 +494,27 @@ TSharedRef<SWidget> FPropertyViewerImpl::Construct(const SPropertyViewer::FArgum
 }
 
 
-void FPropertyViewerImpl::AddContainer(SPropertyViewer::FHandle Identifier, const UStruct* Struct)
+void FPropertyViewerImpl::AddContainer(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UStruct* Struct)
 {
-	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, Struct);
+	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, DisplayName, Struct);
 	Containers.Add(NewContainer);
 
 	AddContainerInternal(Identifier, NewContainer);
 }
 
 
-void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifier, UObject* Object)
+void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, UObject* Object)
 {
-	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, Object);
+	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, DisplayName, Object);
 	Containers.Add(NewContainer);
 
 	AddContainerInternal(Identifier, NewContainer);
 }
 
 
-void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifier, const UScriptStruct* Struct, void* Data)
+void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifier, TOptional<FText> DisplayName, const UScriptStruct* Struct, void* Data)
 {
-	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, Struct, Data);
+	TSharedPtr<FContainer> NewContainer = MakeShared<FContainer>(Identifier, DisplayName, Struct, Data);
 	Containers.Add(NewContainer);
 
 	AddContainerInternal(Identifier, NewContainer);
@@ -513,7 +523,7 @@ void FPropertyViewerImpl::AddContainerInstance(SPropertyViewer::FHandle Identifi
 
 void FPropertyViewerImpl::AddContainerInternal(SPropertyViewer::FHandle Identifier, TSharedPtr<FContainer>& NewContainer)
 {
-	TSharedPtr<FTreeNode> NewNode = FTreeNode::MakeContainer(NewContainer, TOptional<FText>());
+	TSharedPtr<FTreeNode> NewNode = FTreeNode::MakeContainer(NewContainer, NewContainer->GetDisplayName());
 	NewNode->BuildChildNodes(*FieldIterator, *FieldExpander, bSortChildNode);
 	TreeSource.Add(NewNode);
 
@@ -589,20 +599,19 @@ void FPropertyViewerImpl::RemoveAll()
 
 TSharedRef<SWidget> FPropertyViewerImpl::CreateSearch()
 {
-	SearchFilter = MakeShared<FTextFilter>(FTextFilter::FItemToStringArray::CreateSP(this, &FPropertyViewerImpl::HandleGetFilterStrings));
-
-	FilterHandler = MakeShared<FTreeFilter>();
-	FilterHandler->SetFilter(SearchFilter.Get());
-	FilterHandler->SetRootItems(&TreeSource, &FilteredTreeSource);
-	FilterHandler->SetGetChildrenDelegate(FTreeFilter::FOnGetChildren::CreateRaw(this, &FPropertyViewerImpl::HandleGetChildren));
-
 	return SAssignNew(SearchBoxWidget, SSearchBox)
 		.HintText(LOCTEXT("SearchHintText", "Search"))
 		.OnTextChanged(this, &FPropertyViewerImpl::HandleSearchChanged);
 }
 
 
-FText FPropertyViewerImpl::SetRawFilterText(const FText& InFilterText)
+void FPropertyViewerImpl::SetRawFilterText(const FText& InFilterText)
+{
+	SetRawFilterTextInternal(InFilterText);
+}
+
+
+FText FPropertyViewerImpl::SetRawFilterTextInternal(const FText& InFilterText)
 {
 	const bool bNewFilteringEnabled = !InFilterText.IsEmpty();
 	FilterHandler->SetIsEnabled(bNewFilteringEnabled);
@@ -840,6 +849,7 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 								return SNew(SHorizontalBox)
 								+ SHorizontalBox::Slot()
 								.AutoWidth()
+								.VAlign(EVerticalAlignment::VAlign_Center)
 								[
 									ValueWidget.ToSharedRef()
 								]
@@ -960,7 +970,7 @@ void FPropertyViewerImpl::HandleSearchChanged(const FText& InFilterText)
 {
 	if (SearchBoxWidget)
 	{
-		SearchBoxWidget->SetError(SetRawFilterText(InFilterText));
+		SearchBoxWidget->SetError(SetRawFilterTextInternal(InFilterText));
 	}
 }
 

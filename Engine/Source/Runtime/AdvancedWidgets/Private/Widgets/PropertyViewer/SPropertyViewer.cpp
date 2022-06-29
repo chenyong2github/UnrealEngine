@@ -24,66 +24,66 @@ void SPropertyViewer::Construct(const FArguments& InArgs)
 void SPropertyViewer::Construct(const FArguments& InArgs, const UScriptStruct* Struct)
 {
 	Implementation = MakeShared<Private::FPropertyViewerImpl>(InArgs);
-	Implementation->AddContainer(MakeContainerIdentifier(), Struct);
+	Implementation->AddContainer(MakeContainerIdentifier(), TOptional<FText>(), Struct);
 	ConstructInternal(InArgs);
 }
 void SPropertyViewer::Construct(const FArguments& InArgs, const UScriptStruct* Struct, void* InData)
 {
 	Implementation = MakeShared<Private::FPropertyViewerImpl>(InArgs);
-	Implementation->AddContainerInstance(MakeContainerIdentifier(), Struct, InData);
+	Implementation->AddContainerInstance(MakeContainerIdentifier(), TOptional<FText>(), Struct, InData);
 	ConstructInternal(InArgs);
 }
 void SPropertyViewer::Construct(const FArguments& InArgs, const UClass* Class)
 {
 	Implementation = MakeShared<Private::FPropertyViewerImpl>(InArgs);
-	Implementation->AddContainer(MakeContainerIdentifier(), Class);
+	Implementation->AddContainer(MakeContainerIdentifier(), TOptional<FText>(), Class);
 	ConstructInternal(InArgs);
 }
 void SPropertyViewer::Construct(const FArguments& InArgs, UObject* ObjectInstance)
 {
 	Implementation = MakeShared<Private::FPropertyViewerImpl>(InArgs);
-	Implementation->AddContainerInstance(MakeContainerIdentifier(), ObjectInstance);
+	Implementation->AddContainerInstance(MakeContainerIdentifier(), TOptional<FText>(), ObjectInstance);
 	ConstructInternal(InArgs);
 }
 void SPropertyViewer::Construct(const FArguments& InArgs, const UFunction* Function)
 {
 	Implementation = MakeShared<Private::FPropertyViewerImpl>(InArgs);
-	Implementation->AddContainer(MakeContainerIdentifier(), Function);
+	Implementation->AddContainer(MakeContainerIdentifier(), TOptional<FText>(), Function);
 	ConstructInternal(InArgs);
 }
 
 
-SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UScriptStruct* Struct)
+SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UScriptStruct* Struct, TOptional<FText> DisplayName)
 {
 	SPropertyViewer::FHandle Result = MakeContainerIdentifier();
-	Implementation->AddContainer(Result, Struct);
+	Implementation->AddContainer(Result, DisplayName, Struct);
 	return Result;
 }
-SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UClass* Class)
+SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UClass* Class, TOptional<FText> DisplayName)
 {
 	SPropertyViewer::FHandle Result = MakeContainerIdentifier();
-	Implementation->AddContainer(Result, Class);
+	Implementation->AddContainer(Result, DisplayName, Class);
 	return Result;
 }
-SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UFunction* Function)
+SPropertyViewer::FHandle SPropertyViewer::AddContainer(const UFunction* Function, TOptional<FText> DisplayName)
 {
 	SPropertyViewer::FHandle Result = MakeContainerIdentifier();
-	Implementation->AddContainer(Result, Function);
+	Implementation->AddContainer(Result, DisplayName, Function);
 	return Result;
 }
 
 
-SPropertyViewer::FHandle SPropertyViewer::AddInstance(const UScriptStruct* Struct, void* InData)
+SPropertyViewer::FHandle SPropertyViewer::AddInstance(const UScriptStruct* Struct, void* InData, TOptional<FText> DisplayName)
 {
 	check(InData);
 	SPropertyViewer::FHandle Result = MakeContainerIdentifier();
-	Implementation->AddContainerInstance(Result, Struct, InData);
+	Implementation->AddContainerInstance(Result, DisplayName, Struct, InData);
 	return Result;
 }
-SPropertyViewer::FHandle SPropertyViewer::AddInstance(UObject* ObjectInstance)
+SPropertyViewer::FHandle SPropertyViewer::AddInstance(UObject* ObjectInstance, TOptional<FText> DisplayName)
 {
 	SPropertyViewer::FHandle Result = MakeContainerIdentifier();
-	Implementation->AddContainerInstance(Result, ObjectInstance);
+	Implementation->AddContainerInstance(Result, DisplayName, ObjectInstance);
 	return Result;
 }
 
@@ -96,8 +96,13 @@ void SPropertyViewer::Remove(FHandle Identifier)
 
 void SPropertyViewer::RemoveAll()
 {
-
 	Implementation->RemoveAll();
+}
+
+
+void SPropertyViewer::SetRawFilterText(const FText& InFilterText)
+{
+	Implementation->SetRawFilterText(InFilterText);
 }
 
 
