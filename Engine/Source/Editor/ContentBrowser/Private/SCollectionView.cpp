@@ -777,7 +777,7 @@ FReply SCollectionView::OnDrop( const FGeometry& MyGeometry, const FDragDropEven
 	return FReply::Unhandled();
 }
 
-void SCollectionView::MakeSaveDynamicCollectionMenu(FText InQueryString)
+void SCollectionView::MakeSaveDynamicCollectionMenu(FText InQueryString, FSimpleDelegate OnSaveSearchClicked)
 {
 	// Get all menu extenders for this context menu from the content browser module
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
@@ -797,6 +797,11 @@ void SCollectionView::MakeSaveDynamicCollectionMenu(FText InQueryString)
 
 	CollectionContextMenu->UpdateProjectSourceControl();
 
+	if(OnSaveSearchClicked.IsBound())
+	{
+		MakeSaveSearchMenu(MenuBuilder, OnSaveSearchClicked);
+	}
+
 	CollectionContextMenu->MakeSaveDynamicCollectionSubMenu(MenuBuilder, InQueryString);
 
 	FWidgetPath WidgetPath;
@@ -810,6 +815,20 @@ void SCollectionView::MakeSaveDynamicCollectionMenu(FText InQueryString)
 			FPopupTransitionEffect(FPopupTransitionEffect::TopMenu)
 		);
 	}
+}
+
+void SCollectionView::MakeSaveSearchMenu(FMenuBuilder& InMenuBuilder, FSimpleDelegate OnSaveSearchClicked) const
+{
+	InMenuBuilder.BeginSection("ContentBrowserSaveSearch", LOCTEXT("ContentBrowserCreateFilterMenuHeading", "Create Filter"));
+
+	InMenuBuilder.AddMenuEntry(
+		LOCTEXT("ContentBrowserSaveAsCustomFilter", "Save as Custom Filter"),
+		LOCTEXT("ContentBrowserSaveAsCustomFilterTooltip", "Save the current search text as a custom filter in the filter bar"),
+		FSlateIcon(),
+		FUIAction(OnSaveSearchClicked)
+	);
+	
+	InMenuBuilder.EndSection();
 }
 
 FReply SCollectionView::OnAddCollectionClicked()

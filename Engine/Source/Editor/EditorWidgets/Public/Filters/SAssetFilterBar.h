@@ -13,6 +13,7 @@
 #include "SlateGlobals.h"
 #include "Logging/LogMacros.h"
 #include "Styling/SlateIconFinder.h"
+#include "Filters/FilterBarConfig.h"
 
 #include "SAssetFilterBar.generated.h"
 
@@ -35,6 +36,31 @@ class EDITORWIDGETS_API UAssetFilterBarContext : public UObject
 public:
 	TSharedPtr<FFilterCategory> MenuExpansion;
 	FOnPopulateAddAssetFilterMenu PopulateFilterMenu;
+};
+
+/** A non-templated base class for SAssetFilterBar, where functionality that does not depend on the type of item
+ *  being filtered lives
+ */
+class EDITORWIDGETS_API FFilterBarBase
+{
+protected:
+
+	/** Get a mutable version of this filter bar's config */
+	FFilterBarSettings* GetMutableConfig();
+
+	/** Get a const version of this filter bar's config */
+	const FFilterBarSettings* GetConstConfig() const;
+
+	/** Save this filte bar's data to the config file */
+	void SaveConfig();
+
+	/** Initialize and load this filter bar's config */
+	void InitializeConfig();
+
+protected:
+
+	/* Unique name for this filter bar */
+	FName FilterBarIdentifier;
 };
 
 
@@ -72,14 +98,14 @@ public:
 *  }
 */
 template<typename FilterType>
-class SAssetFilterBar : public SBasicFilterBar<FilterType>
+class SAssetFilterBar : public SBasicFilterBar<FilterType>, public FFilterBarBase
 {
 public:
 	
 	using FOnFilterChanged = typename SBasicFilterBar<FilterType>::FOnFilterChanged;
 	using FOnExtendAddFilterMenu = typename SBasicFilterBar<FilterType>::FOnExtendAddFilterMenu;
 	using FCreateTextFilter = typename SBasicFilterBar<FilterType>::FCreateTextFilter;
-
+	
 	SLATE_BEGIN_ARGS( SAssetFilterBar<FilterType> )
 		: _UseDefaultAssetFilters(true)
 		{
@@ -109,6 +135,9 @@ public:
 		 */
 		SLATE_ARGUMENT(TSharedPtr<SFilterSearchBox>, FilterSearchBox)
 
+		/** A unique identifier for this filter bar needed to enable saving settings in a config file */
+		SLATE_ARGUMENT(FName, FilterBarIdentifier)
+	
 		/** Whether the filter bar should provide the default asset filters */
 		SLATE_ARGUMENT(bool, UseDefaultAssetFilters)
 	
@@ -120,6 +149,7 @@ public:
 		bUseDefaultAssetFilters = InArgs._UseDefaultAssetFilters;
 		CustomClassFilters = InArgs._CustomClassFilters;
 		UserCustomClassFilters = InArgs._CustomClassFilters;
+		FilterBarIdentifier = InArgs._FilterBarIdentifier;
 		
 		typename SBasicFilterBar<FilterType>::FArguments Args;
 		Args._OnFilterChanged = InArgs._OnFilterChanged;
@@ -130,6 +160,8 @@ public:
 		
 		SBasicFilterBar<FilterType>::Construct(Args);
 
+		InitializeConfig();
+		
 		// Create the Asset Type Action filters if requested
 		CreateAssetTypeActionFilters();
 
@@ -141,8 +173,176 @@ public:
 
 	}
 
+	virtual void SaveSettings()
+	{
+		FFilterBarSettings* FilterBarConfig = GetMutableConfig();
+		
+		if(!FilterBarConfig)
+		{
+			UE_LOG(LogSlate, Error, TEXT("SFilterBar Requires that you specify a FilterBarIdentifier to save settings"));
+			return;
+		}
+
+		// Empty the config, we are just going to re-save everything
+		FilterBarConfig->Empty();
+
+		SaveCustomTextFilters(FilterBarConfig);
+		SaveFilters(FilterBarConfig);
+
+		SaveConfig();
+	}
+
+	virtual void LoadSettings()
+	{
+		const FFilterBarSettings* FilterBarConfig = GetConstConfig();
+		
+		if(!FilterBarConfig)
+		{
+			UE_LOG(LogSlate, Error, TEXT("SFilterBar Requires that you specify a FilterBarIdentifier to load settings"));
+			return;
+		}
+
+		if(!FilterBarConfig->CustomTextFilters.IsEmpty())
+		{
+			// We must have a CreateTextFilter bound if we have any custom text filters saved!!
+			check(this->CreateTextFilter.IsBound());
+		}
+
+		LoadFilters(FilterBarConfig);
+		LoadCustomTextFilters(FilterBarConfig);
+
+		this->OnFilterChanged.ExecuteIfBound();
+	}
+	
 protected:
 
+	/** Save all the custom class filters (created by the user) into the specified config */
+	void SaveCustomTextFilters(FFilterBarSettings* FilterBarConfig)
+	{
+		/* Go through all the custom text filters (including unchecked ones) to save them, so that the user does not
+		 * lose the text filters they created from the menu or a saved search
+		 */
+		for (const TSharedRef<ICustomTextFilter<FilterType>>& CustomTextFilter : this->CustomTextFilters)
+		{
+			// Get the actual FFilterBase
+			TSharedRef<FFilterBase<FilterType>> CustomFilter = CustomTextFilter->GetFilter().ToSharedRef();
+			
+			// Is the filter "checked", i.e visible in the filter bar
+			bool bIsChecked = this->IsFrontendFilterInUse(CustomFilter);
+
+			// Is the filter "active", i.e visible and enabled in the filter bar
+			bool bIsActive = this->IsFilterActive(CustomFilter);
+
+			// Get the data associated with this filter
+			FCustomTextFilterData FilterData = CustomTextFilter->CreateCustomTextFilterData();
+
+			FCustomTextFilterState FilterState;
+			FilterState.bIsChecked = bIsChecked;
+			FilterState.bIsActive = bIsActive;
+			FilterState.FilterData = FilterData;
+
+			FilterBarConfig->CustomTextFilters.Add(FilterState);
+		}
+	}
+
+	/** Save all the custom filters (created programatically) into the specified config */
+	void SaveFilters(FFilterBarSettings* FilterBarConfig)
+	{
+		/* For the remaining (custom and type) filters, go through the currently active (i.e visible in the filter bar)
+		 * ones to save their state, since they will be added to the filter bar programatically every time
+		 */
+		for ( const TSharedPtr<SFilter> Filter : this->Filters )
+		{
+			const FString FilterName = Filter->GetFilterName();
+
+			// Ignore custom text filters, since we saved them previously
+			if(FilterName == FCustomTextFilter<FilterType>::GetFilterTypeName().ToString())
+			{
+				continue;
+			}
+			// If it is a FrontendFilter
+			else if ( Filter->GetFrontendFilter().IsValid() )
+			{
+				FilterBarConfig->CustomFilters.Add(FilterName, Filter->IsEnabled());
+			}
+			// Otherwise we assume it is a type filter
+			else
+			{
+				FilterBarConfig->TypeFilters.Add(FilterName, Filter->IsEnabled());
+			}
+		}
+	}
+
+	/** Load all the custom class filters (created by the user) from the specified config */
+	void LoadCustomTextFilters(const FFilterBarSettings* FilterBarConfig)
+	{
+		// Load all the custom text filters
+		for(const FCustomTextFilterState& FilterState : FilterBarConfig->CustomTextFilters)
+		{
+			// Create an ICustomTextFilter using the provided delegate
+			TSharedRef<ICustomTextFilter<FilterType>> NewTextFilter = this->CreateTextFilter.Execute().ToSharedRef();
+
+			// Get the actual FFilterBase
+			TSharedRef<FFilterBase<FilterType>> NewFilter = NewTextFilter->GetFilter().ToSharedRef();
+
+			// Set the internals of the custom text filter from what we have saved
+			NewTextFilter->SetFromCustomTextFilterData(FilterState.FilterData);
+
+			// Add this to our list of custom text filters
+			this->CustomTextFilters.Add(NewTextFilter);
+
+			// If the filter was checked previously, add it to the filter bar
+			if(FilterState.bIsChecked)
+			{
+				TSharedRef<SFilter> AddedFilter = this->AddFilterToBar(NewFilter);
+
+				// Set the filter as active if it was previously
+				AddedFilter->SetEnabled(FilterState.bIsActive, false);
+				
+				this->SetFrontendFilterActive(NewFilter, FilterState.bIsActive);
+			}
+		}
+	}
+	
+	/** Load all the custom filters (created programatically) from the specified config */
+	void LoadFilters(const FFilterBarSettings* FilterBarConfig)
+	{
+		// Load all the custom filters (i.e FrontendFilters)
+		for ( auto FrontendFilterIt = this->AllFrontendFilters.CreateIterator(); FrontendFilterIt; ++FrontendFilterIt )
+		{
+			TSharedRef<FFilterBase<FilterType>>& FrontendFilter = *FrontendFilterIt;
+			const FString& FilterName = FrontendFilter->GetName();
+			
+			if (!this->IsFrontendFilterInUse(FrontendFilter))
+			{
+				// Try to find this type filter in our list of saved filters
+				if ( const bool* bIsActive = FilterBarConfig->CustomFilters.Find(FilterName) )
+				{
+					TSharedRef<SFilter> NewFilter = this->AddFilterToBar(FrontendFilter);
+					
+					NewFilter->SetEnabled(*bIsActive, false);
+					this->SetFrontendFilterActive(FrontendFilter, NewFilter->IsEnabled());
+				}
+			}
+		}
+
+		// Load all the type filters
+		for(const TSharedRef<FCustomClassFilterData> &CustomClassFilter : this->CustomClassFilters)
+		{
+			if(!this->IsClassTypeInUse(CustomClassFilter))
+			{
+				const FString FilterName = CustomClassFilter->GetFilterName();
+
+				// Try to find this type filter in our list of saved filters
+				if ( const bool* bIsActive = FilterBarConfig->TypeFilters.Find(CustomClassFilter->GetFilterName()) )
+				{
+					TSharedRef<SFilter> NewFilter = this->AddAssetFilterToBar(CustomClassFilter);
+					NewFilter->SetEnabled(*bIsActive, false);
+				}
+			}
+		}
+	}
+	
 	typedef typename SBasicFilterBar<FilterType>::SFilter SFilter;
 
 	/** A subclass of SFilter in SBasicFilterBar to add functionality for Asset Filters */

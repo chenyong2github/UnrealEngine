@@ -235,6 +235,7 @@ void SAssetPicker::Construct( const FArguments& InArgs )
 			.OnFilterChanged(this, &SAssetPicker::OnFilterChanged)
 			.FrontendFilters(FrontendFilters)
 			.InitialClassFilters(FilterClassList)
+			.FilterBarIdentifier(FName(SaveSettingsName))
 			.ExtraFrontendFilters(InArgs._AssetPickerConfig.ExtraFrontendFilters)
 		];
 
@@ -701,7 +702,7 @@ void SAssetPicker::LoadSettings()
 		// Load all our data using the settings string as a key in the user settings ini
 		if (FilterListPtr.IsValid())
 		{
-			FilterListPtr->LoadSettings(GEditorPerProjectIni, SContentBrowser::SettingsIniSection, SettingsString);
+			FilterListPtr->LoadSettings();
 		}
 		
 		AssetViewPtr->LoadSettings(GEditorPerProjectIni, SContentBrowser::SettingsIniSection, SettingsString);
@@ -717,7 +718,7 @@ void SAssetPicker::SaveSettings() const
 		// Save all our data using the settings string as a key in the user settings ini
 		if (FilterListPtr.IsValid())
 		{
-			FilterListPtr->SaveSettings(GEditorPerProjectIni, SContentBrowser::SettingsIniSection, SettingsString);
+			FilterListPtr->SaveSettings();
 		}
 
 		AssetViewPtr->SaveSettings(GEditorPerProjectIni, SContentBrowser::SettingsIniSection, SettingsString);

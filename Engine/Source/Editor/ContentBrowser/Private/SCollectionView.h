@@ -102,7 +102,7 @@ public:
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override;
 
 	/** Creates the menu for the save dynamic collection button */
-	void MakeSaveDynamicCollectionMenu(FText InQueryString);
+	void MakeSaveDynamicCollectionMenu(FText InQueryString, FSimpleDelegate OnSaveSearchClicked = FSimpleDelegate());
 
 	/** Creates the menu for the add collection button */
 	FReply OnAddCollectionClicked();
@@ -257,6 +257,9 @@ private:
 
 	/** Get the active filter text */
 	FText GetCollectionsSearchFilterText() const;
+
+	/** Make the menu to save a search using the given delegate */
+	void MakeSaveSearchMenu(FMenuBuilder& InMenuBuilder, FSimpleDelegate OnSaveSearchClicked) const;
 private:
 
 	/** A helper class to manage PreventSelectionChangedDelegateCount by incrementing it when constructed (on the stack) and decrementing when destroyed */

@@ -12,48 +12,39 @@
 void SCustomTextFilterDialog::Construct( const FArguments& InArgs )
 {
 	FilterData = InArgs._FilterData;
+	InitialFilterData = FilterData;
 	bInEditMode = InArgs._InEditMode;
 	OnCreateFilter = InArgs._OnCreateFilter;
 	OnDeleteFilter = InArgs._OnDeleteFilter;
 	OnCancelClicked = InArgs._OnCancelClicked;
 	OnModifyFilter = InArgs._OnModifyFilter;
+	OnGetFilterLabels = InArgs._OnGetFilterLabels;
 	
 	TSharedPtr<SHorizontalBox> ButtonBox = SNew(SHorizontalBox);
 
 	// Buttons for when we are editing a filter
 	if(bInEditMode)
 	{
+	    // Button to modify the current filter
+       	ButtonBox->AddSlot()
+		.FillWidth(1.0)
+       	.Padding(0, 0, 16, 0)
+       	.HAlign(HAlign_Right)
+       	[
+       		SNew(SPrimaryButton)
+       		.Text(LOCTEXT("ModifyFilterButton", "Save"))
+       		.OnClicked(this, &SCustomTextFilterDialog::OnModifyButtonClicked)
+       	];
+	
 		// Button to delete the current filter
 		ButtonBox->AddSlot()
-		.FillWidth(1.0)
+		.AutoWidth()
 		.Padding(0, 0, 16, 0)
 		.HAlign(HAlign_Right)
 		[
 			SNew(SButton)
 			.Text(LOCTEXT("DeleteButton", "Delete"))
 			.OnClicked(this, &SCustomTextFilterDialog::OnDeleteButtonClicked)
-		];
-
-		// Button to create a new filter with the current data
-		ButtonBox->AddSlot()
-		.AutoWidth()
-		.Padding(0, 0, 16, 0)
-		.HAlign(HAlign_Right)
-		[
-			SNew(SButton)
-			.Text(LOCTEXT("CreateNewButton", "Create New"))
-			.OnClicked(this, &SCustomTextFilterDialog::OnCreateFilterButtonClicked, false)
-		];
-
-		// Button to modify the current filter
-		ButtonBox->AddSlot()
-		.AutoWidth()
-		.Padding(0, 0, 16, 0)
-		.HAlign(HAlign_Right)
-		[
-			SNew(SPrimaryButton)
-			.Text(LOCTEXT("ModifyFilterButton", "Modify"))
-			.OnClicked(this, &SCustomTextFilterDialog::OnModifyButtonClicked)
 		];
 	}
 	else
@@ -231,8 +222,26 @@ bool SCustomTextFilterDialog::CheckFilterValidity() const
 	if(FilterData.FilterLabel.IsEmpty())
 	{
 		FilterLabelTextBox->SetError(LOCTEXT("EmptyFilterLabelError", "Filter Label cannot be empty"));
-		
 		return false;
+	}
+
+	if(OnGetFilterLabels.IsBound())
+	{
+		TArray<FText> ExistingFilterLabels;
+		OnGetFilterLabels.Execute(ExistingFilterLabels);
+
+		// Check for duplicate filter labels
+		for(const FText& FilterLabel : ExistingFilterLabels)
+		{
+			/* Special Case: If we are editing a filter and don't change the filter label, it will be considered a duplicate of itself!
+			 * To prevent this we check against the original filter label if we are in edit mode
+			 */
+			if(FilterLabel.EqualTo(FilterData.FilterLabel) && !(bInEditMode && FilterLabel.EqualTo(InitialFilterData.FilterLabel)))
+			{
+				FilterLabelTextBox->SetError(LOCTEXT("DuplicateFilterLabelError", "A filter with this label already exists!"));
+				return false;
+			}
+		}
 	}
 
 	return true;

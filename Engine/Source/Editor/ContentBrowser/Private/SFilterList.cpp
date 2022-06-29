@@ -39,9 +39,12 @@
 // SFilterList
 /////////////////////
 
+const FName SFilterList::SharedIdentifier("FilterListSharedSettings");
+SFilterList::FCustomTextFilterEvent SFilterList::CustomTextFilterEvent;
 
 void SFilterList::Construct( const FArguments& InArgs )
 {
+	bUseSharedSettings = InArgs._UseSharedSettings;
 	OnGetContextMenu = InArgs._OnGetContextMenu;
 	this->OnFilterChanged = InArgs._OnFilterChanged;
 	this->ActiveFilters = InArgs._FrontendFilters;
@@ -113,8 +116,22 @@ void SFilterList::Construct( const FArguments& InArgs )
 	/** Explicitly setting this to true as it should ALWAYS be true for SFilterList */
 	Args._UseDefaultAssetFilters = true;
 	Args._OnFilterChanged = this->OnFilterChanged;
-	
+	Args._CreateTextFilter = InArgs._CreateTextFilter;
+	Args._FilterBarIdentifier = InArgs._FilterBarIdentifier;
+
 	SAssetFilterBar<FAssetFilterType>::Construct(Args);
+
+	/* If we are using shared settings, add a default config for the shared settings in case it doesnt exist
+	 * This needs to go after SAssetFilterBar<FAssetFilterType>::Construct() to ensure UFilterBarConfig is valid
+	 */
+	if(bUseSharedSettings)
+	{
+		UFilterBarConfig::Get()->FilterBars.FindOrAdd(SharedIdentifier);
+
+		// Bind our delegate for when another SFilterList creates a custom text filter, so we can sync our list
+		CustomTextFilterEvent.AddSP(this, &SFilterList::OnExternalCustomTextFilterCreated);
+	}
+	
 }
 
 FReply SFilterList::OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent )
@@ -255,140 +272,6 @@ void SFilterList::DisableFiltersThatHideItems(TArrayView<const FContentBrowserIt
 	}
 }
 
-void SFilterList::SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const
-{
-	FString ActiveTypeFilterString;
-	FString EnabledTypeFilterString;
-	FString ActiveFrontendFilterString;
-	FString EnabledFrontendFilterString;
-	for ( const TSharedPtr<SFilter> Filter : this->Filters )
-	{
-		const FString FilterName = Filter->GetFilterName();
-
-		// If it is a FrontendFilter
-		if ( Filter->GetFrontendFilter().IsValid() )
-		{
-			if ( ActiveFrontendFilterString.Len() > 0 )
-			{
-				ActiveFrontendFilterString += TEXT(",");
-			}
-			ActiveFrontendFilterString += FilterName;
-		
-			if ( Filter->IsEnabled() )
-			{
-				if ( EnabledFrontendFilterString.Len() > 0 )
-				{
-					EnabledFrontendFilterString += TEXT(",");
-				}
-
-				EnabledFrontendFilterString += FilterName;
-			}
-
-			const TSharedPtr<FFilterBase<FAssetFilterType>>& FrontendFilter = Filter->GetFrontendFilter();
-			const FString CustomSettingsString = FString::Printf(TEXT("%s.CustomSettings.%s"), *SettingsString, *FilterName);
-			FrontendFilter->SaveSettings(IniFilename, IniSection, CustomSettingsString);
-
-		}
-		// Otherwise we assume it is a type filter
-		else
-		{
-			if ( ActiveTypeFilterString.Len() > 0 )
-			{
-				ActiveTypeFilterString += TEXT(",");
-			}
-			ActiveTypeFilterString += FilterName;
-		
-			if ( Filter->IsEnabled() )
-			{
-				if ( EnabledTypeFilterString.Len() > 0 )
-				{
-					EnabledTypeFilterString += TEXT(",");
-				}
-
-				EnabledTypeFilterString += FilterName;
-			}
-		}
-	}
-
-	GConfig->SetString(*IniSection, *(SettingsString + TEXT(".ActiveTypeFilters")), *ActiveTypeFilterString, IniFilename);
-	GConfig->SetString(*IniSection, *(SettingsString + TEXT(".EnabledTypeFilters")), *EnabledTypeFilterString, IniFilename);
-	GConfig->SetString(*IniSection, *(SettingsString + TEXT(".ActiveFrontendFilters")), *ActiveFrontendFilterString, IniFilename);
-	GConfig->SetString(*IniSection, *(SettingsString + TEXT(".EnabledFrontendFilters")), *EnabledFrontendFilterString, IniFilename);
-}
-
-void SFilterList::LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString)
-{
-	{
-		// Add all the type filters that were found in the ActiveTypeFilters
-		FString ActiveTypeFilterString;
-		FString EnabledTypeFilterString;
-		GConfig->GetString(*IniSection, *(SettingsString + TEXT(".ActiveTypeFilters")), ActiveTypeFilterString, IniFilename);
-		GConfig->GetString(*IniSection, *(SettingsString + TEXT(".EnabledTypeFilters")), EnabledTypeFilterString, IniFilename);
-
-		// Parse comma delimited strings into arrays
-		TArray<FString> TypeFilterNames;
-		TArray<FString> EnabledTypeFilterNames;
-		ActiveTypeFilterString.ParseIntoArray(TypeFilterNames, TEXT(","), /*bCullEmpty=*/true);
-		EnabledTypeFilterString.ParseIntoArray(EnabledTypeFilterNames, TEXT(","), /*bCullEmpty=*/true);
-
-		for(const TSharedRef<FCustomClassFilterData> &CustomClassFilter : CustomClassFilters)
-		{
-			if(!this->IsClassTypeInUse(CustomClassFilter))
-			{
-				const FString FilterName = CustomClassFilter->GetFilterName();
-				if ( TypeFilterNames.Contains(FilterName) )
-				{
-					TSharedRef<SFilter> NewFilter = AddAssetFilterToBar(CustomClassFilter);
-
-					if ( EnabledTypeFilterNames.Contains(FilterName) )
-					{
-						NewFilter->SetEnabled(true, false);
-					}
-				}
-			}
-		}
-	}
-
-	{
-		// Add all the frontend filters that were found in the ActiveFrontendFilters
-		FString ActiveFrontendFilterString;	
-		FString EnabledFrontendFilterString;
-		GConfig->GetString(*IniSection, *(SettingsString + TEXT(".ActiveFrontendFilters")), ActiveFrontendFilterString, IniFilename);
-		GConfig->GetString(*IniSection, *(SettingsString + TEXT(".EnabledFrontendFilters")), EnabledFrontendFilterString, IniFilename);
-
-		// Parse comma delimited strings into arrays
-		TArray<FString> FrontendFilterNames;
-		TArray<FString> EnabledFrontendFilterNames;
-		ActiveFrontendFilterString.ParseIntoArray(FrontendFilterNames, TEXT(","), /*bCullEmpty=*/true);
-		EnabledFrontendFilterString.ParseIntoArray(EnabledFrontendFilterNames, TEXT(","), /*bCullEmpty=*/true);
-
-		// For each FrontendFilter, add any that were active and enable any that were previously enabled
-		for ( auto FrontendFilterIt = AllFrontendFilters.CreateIterator(); FrontendFilterIt; ++FrontendFilterIt )
-		{
-			TSharedRef<FFilterBase<FAssetFilterType>>& FrontendFilter = *FrontendFilterIt;
-			const FString& FilterName = FrontendFilter->GetName();
-			if (!IsFrontendFilterInUse(FrontendFilter))
-			{
-				if ( FrontendFilterNames.Contains(FilterName) )
-				{
-					TSharedRef<SFilter> NewFilter = AddFilterToBar(FrontendFilter);
-
-					if ( EnabledFrontendFilterNames.Contains(FilterName) )
-					{
-						NewFilter->SetEnabled(true, false);
-						SetFrontendFilterActive(FrontendFilter, NewFilter->IsEnabled());
-					}
-				}
-			}
-
-			const FString CustomSettingsString = FString::Printf(TEXT("%s.CustomSettings.%s"), *SettingsString, *FilterName);
-			FrontendFilter->LoadSettings(IniFilename, IniSection, CustomSettingsString);
-		}
-	}
-
-	OnFilterChanged.ExecuteIfBound();
-}
-
 void SFilterList::SetFrontendFilterCheckState(const TSharedPtr<FFrontendFilter>& InFrontendFilter, ECheckBoxState CheckState)
 {
 	this->SetFilterCheckState(InFrontendFilter, CheckState);
@@ -493,5 +376,324 @@ TSharedRef<SWidget> SFilterList::MakeAddFilterMenu(EAssetTypeCategories::Type Me
 
 	return UToolMenus::Get()->GenerateWidget(FilterMenuName, ToolMenuContext);
 }
+
+void SFilterList::CreateCustomFilterDialog(const FText& InText)
+{
+	CreateCustomTextFilterFromSearch(InText);
+}
+
+void SFilterList::OnCreateCustomTextFilter(const FCustomTextFilterData& InFilterData, bool bApplyFilter)
+{
+	SAssetFilterBar<FAssetFilterType>::OnCreateCustomTextFilter(InFilterData, bApplyFilter);
+
+	// If we are using shared settings (i.e sharing custom text filters) broadcast the event for all other instances to update
+	if(bUseSharedSettings)
+	{
+		// First save the shared settings for other instances to use
+		SaveSettings();
+		CustomTextFilterEvent.Broadcast(AsShared());
+	}
+}
+
+void SFilterList::OnModifyCustomTextFilter(const FCustomTextFilterData& InFilterData, TSharedPtr<ICustomTextFilter<FAssetFilterType>> InFilter)
+{
+	SAssetFilterBar<FAssetFilterType>::OnModifyCustomTextFilter(InFilterData, InFilter);
+
+	// If we are using shared settings (i.e sharing custom text filters) broadcast the event for all other instances to update
+	if(bUseSharedSettings)
+	{
+		// First save the shared settings for other instances to use
+		SaveSettings();
+		CustomTextFilterEvent.Broadcast(AsShared());
+	}
+}
+
+void SFilterList::OnDeleteCustomTextFilter(const TSharedPtr<ICustomTextFilter<FAssetFilterType>> InFilter)
+{
+	SAssetFilterBar<FAssetFilterType>::OnDeleteCustomTextFilter(InFilter);
+
+	// If we are using shared settings (i.e sharing custom text filters) broadcast the event for all other instances to update
+	if(bUseSharedSettings)
+	{
+		// First save the shared settings for other instances to use
+		SaveSettings();
+		CustomTextFilterEvent.Broadcast(AsShared());
+	}
+}
+
+void SFilterList::RestoreCustomTextFilterState(const FCustomTextFilterState& InFilterState)
+{
+	// Find the filter associated with the current instance data from our list of custom text filters
+	TSharedRef< ICustomTextFilter<FAssetFilterType> >* Filter =
+		CustomTextFilters.FindByPredicate([&InFilterState](const TSharedRef< ICustomTextFilter<FAssetFilterType> >& Element)
+	{
+		return Element->CreateCustomTextFilterData().FilterLabel.EqualTo(InFilterState.FilterData.FilterLabel);
+	});
+
+	// InFilterState should always be a filter that already exists!
+	check(Filter);
+
+	// Get the actual FFilterBase
+	TSharedRef<FFilterBase<FAssetFilterType>> ActualFilter = Filter->Get().GetFilter().ToSharedRef();
+
+	// Add it to the filter bar, since if it exists in this list it is checked
+	TSharedRef<SFilter> AddedFilter = this->AddFilterToBar(ActualFilter);
+
+	// Set the filter as active if it was previously
+	AddedFilter->SetEnabled(InFilterState.bIsActive, false);
+	this->SetFrontendFilterActive(ActualFilter, InFilterState.bIsActive);
+}
+
+void SFilterList::OnExternalCustomTextFilterCreated(TSharedPtr<SWidget> BroadcastingFilterList)
+{
+	// Do nothing if we aren't using shared settings or if the event was broadcasted by this filter list
+	if(!bUseSharedSettings || BroadcastingFilterList == AsShared())
+	{
+		return;
+	}
+
+	/* We are going to remove all our custom text filters and re-load them from the shared settings, since a different
+	 * instance modified them.
+	 */
+
+	// To preserve the state of any checked/active custom text filters
+	TArray<FCustomTextFilterState> CurrentCustomTextFilterStates;
+	
+	for (const TSharedRef<ICustomTextFilter<FAssetFilterType>>& CustomTextFilter : this->CustomTextFilters)
+	{
+		// Get the actual FFilterBase
+		TSharedRef<FFilterBase<FAssetFilterType>> CustomFilter = CustomTextFilter->GetFilter().ToSharedRef();
+			
+		// Is the filter "checked", i.e visible in the filter bar
+		bool bIsChecked = IsFrontendFilterInUse(CustomFilter);
+
+		// Is the filter "active", i.e visible and enabled in the filter bar
+		bool bIsActive = IsFilterActive(CustomFilter);
+
+		// Only save the state if the filter is checked so we can restore it
+		if(bIsChecked)
+		{
+			/* Remove the filter from the list (calling SBasicFilterBar::RemoveFilter because we get a compiler error
+			*  due to SAssetFilterBar overriding RemoveFilter that takes in an SFilter that hides the parent class function
+			*/
+			SBasicFilterBar<FAssetFilterType>::RemoveFilter(CustomFilter, false);
+			
+			FCustomTextFilterState FilterState;
+			FilterState.FilterData = CustomTextFilter->CreateCustomTextFilterData();
+			FilterState.bIsChecked = bIsChecked;
+			FilterState.bIsActive = bIsActive;
+			
+			CurrentCustomTextFilterStates.Add(FilterState);
+		}
+	}
+
+	// Get the shared settings and reload the filters
+	FFilterBarSettings* SharedSettings = &UFilterBarConfig::Get()->FilterBars.FindOrAdd(SharedIdentifier);
+	LoadCustomTextFilters(SharedSettings);
+
+	// Restore the state of any previously active ones
+	for(const FCustomTextFilterState& SavedFilterState : CurrentCustomTextFilterStates)
+	{
+		RestoreCustomTextFilterState(SavedFilterState);
+	}
+}
+
+void SFilterList::UpdateCustomTextFilterIncludes(const bool InIncludeClassName, const bool InIncludeAssetPath, const bool InIncludeCollectionNames)
+{
+	bIncludeClassName = InIncludeClassName;
+	bIncludeAssetPath = InIncludeAssetPath;
+	bIncludeCollectionNames = InIncludeCollectionNames;
+
+	for (TSharedPtr<ICustomTextFilter<FAssetFilterType>> CustomTextFilter : CustomTextFilters)
+	{
+		// This is a safe cast, since SFilterList will always and only have FFilterListCustomTextFilters
+		if(TSharedPtr<FFrontendFilter_CustomText> FilterListCustomTextFilter = StaticCastSharedPtr<FFrontendFilter_CustomText>(CustomTextFilter))
+		{
+			FilterListCustomTextFilter->UpdateCustomTextFilterIncludes(bIncludeClassName, bIncludeAssetPath, bIncludeCollectionNames);
+		}
+	}
+}
+
+void SFilterList::SaveSettings()
+{
+	// If this instance doesn't want to use the shared settings, save the settings normally
+	if(!bUseSharedSettings)
+	{
+		SAssetFilterBar<FAssetFilterType>::SaveSettings();
+		return;
+	}
+
+	if(FilterBarIdentifier.IsNone())
+	{
+		UE_LOG(LogSlate, Error, TEXT("SFilterList Requires that you specify a FilterBarIdentifier to save settings"));
+		return;
+	}
+
+	// Get the settings unique to this instance and the common settings
+	FFilterBarSettings* InstanceSettings = &UFilterBarConfig::Get()->FilterBars.FindOrAdd(FilterBarIdentifier);
+	FFilterBarSettings* SharedSettings = &UFilterBarConfig::Get()->FilterBars.FindOrAdd(SharedIdentifier);
+
+	// Empty both the configs, we are just going to re-save everything there
+	InstanceSettings->Empty();
+	SharedSettings->Empty();
+
+	// Save all the programatically added filters normally
+	SaveFilters(InstanceSettings);
+
+	/** For each custom text filter: Save the filterdata into the common settings, so that all instances that use it
+	 *	are synced.
+	 *	For each CHECKED custom text filter: Save just the filter name, and the checked and active state into the
+	 *	instance settings. Those are specific to this instance (i.e we don't want a filter to be active in all
+	 *	instances if activated in one)
+	 */
+	for (const TSharedRef<ICustomTextFilter<FAssetFilterType>>& CustomTextFilter : this->CustomTextFilters)
+	{
+		// Get the actual FFilterBase
+		TSharedRef<FFilterBase<FAssetFilterType>> CustomFilter = CustomTextFilter->GetFilter().ToSharedRef();
+			
+		// Is the filter "checked", i.e visible in the filter bar
+		bool bIsChecked = IsFrontendFilterInUse(CustomFilter);
+
+		// Is the filter "active", i.e visible and enabled in the filter bar
+		bool bIsActive = IsFilterActive(CustomFilter);
+
+		// Get the data associated with this filter
+		FCustomTextFilterData FilterData = CustomTextFilter->CreateCustomTextFilterData();
+
+		// Just save the filter data into the shared settings
+		FCustomTextFilterState SharedFilterState;
+		SharedFilterState.FilterData = FilterData;
+		SharedSettings->CustomTextFilters.Add(SharedFilterState);
+
+		if(bIsChecked)
+		{
+			// Create a duplicate filter data that just contains the filter label for this instance to know
+			FCustomTextFilterData InstanceFilterData;
+			InstanceFilterData.FilterLabel = FilterData.FilterLabel;
+			
+			// Just save the filter name and enabled/active state into the shared settings
+			FCustomTextFilterState InstanceFilterState;
+			InstanceFilterState.bIsChecked = bIsChecked;
+			InstanceFilterState.bIsActive = bIsActive;
+			InstanceFilterState.FilterData = InstanceFilterData;
+			
+			InstanceSettings->CustomTextFilters.Add(InstanceFilterState);
+		}
+		
+	}
+
+
+	SaveConfig();
+}
+
+void SFilterList::LoadSettings()
+{
+	// If this instance doesn't want to use the shared settings, load the settings normally
+	if(!bUseSharedSettings)
+	{
+		SAssetFilterBar<FAssetFilterType>::LoadSettings();
+		return;
+	}
+
+	if(FilterBarIdentifier.IsNone())
+	{
+		UE_LOG(LogSlate, Error, TEXT("SFilterList Requires that you specify a FilterBarIdentifier to load settings"));
+		return;
+	}
+
+	// Get the settings unique to this instance and the common settings
+	const FFilterBarSettings* InstanceSettings = UFilterBarConfig::Get()->FilterBars.Find(FilterBarIdentifier);
+	const FFilterBarSettings* SharedSettings = UFilterBarConfig::Get()->FilterBars.Find(SharedIdentifier);
+
+	// Load the filters specified programatically normally
+	LoadFilters(InstanceSettings);
+
+	// Load the custom text filters from the shared settings
+	LoadCustomTextFilters(SharedSettings);
+	
+	// From the instance settings, get each checked filter and set the checked and active state
+	for(const FCustomTextFilterState& FilterState : InstanceSettings->CustomTextFilters)
+	{
+		RestoreCustomTextFilterState(FilterState);
+	}
+	
+	this->OnFilterChanged.ExecuteIfBound();
+}
+
+void SFilterList::LoadCustomTextFilters(const FFilterBarSettings* FilterBarConfig)
+{
+	CustomTextFilters.Empty();
+	
+	// Extract just the filter data from the common settings
+	for(const FCustomTextFilterState& FilterState : FilterBarConfig->CustomTextFilters)
+	{
+		// Create an ICustomTextFilter using the provided delegate
+		TSharedRef<ICustomTextFilter<FAssetFilterType>> NewTextFilter = this->CreateTextFilter.Execute().ToSharedRef();
+
+		// Get the actual FFilterBase
+		TSharedRef<FFilterBase<FAssetFilterType>> NewFilter = NewTextFilter->GetFilter().ToSharedRef();
+
+		// Set the internals of the custom text filter from what we have saved
+		NewTextFilter->SetFromCustomTextFilterData(FilterState.FilterData);
+
+		// Add this to our list of custom text filters
+		CustomTextFilters.Add(NewTextFilter);
+	}
+}
+
+/////////////////////////////////////////
+// FFilterListCustomTextFilter
+/////////////////////////////////////////
+
+
+FString FFrontendFilter_CustomText::GetName() const
+{
+	return TEXT("FFrontendFilter_CustomText");
+}
+
+FText FFrontendFilter_CustomText::GetDisplayName() const
+{
+	return DisplayName;
+}
+FText FFrontendFilter_CustomText::GetToolTipText() const
+{
+	return GetRawFilterText();
+}
+
+FLinearColor FFrontendFilter_CustomText::GetColor() const
+{
+	return Color;
+}
+
+void FFrontendFilter_CustomText::UpdateCustomTextFilterIncludes(const bool InIncludeClassName, const bool InIncludeAssetPath, const bool InIncludeCollectionNames)
+{
+	SetIncludeClassName(InIncludeClassName);
+	SetIncludeAssetPath(InIncludeAssetPath);
+	SetIncludeCollectionNames(InIncludeCollectionNames);
+}
+
+void FFrontendFilter_CustomText::SetFromCustomTextFilterData(const FCustomTextFilterData& InFilterData)
+{
+	Color = InFilterData.FilterColor;
+	DisplayName = InFilterData.FilterLabel;
+	SetRawFilterText(InFilterData.FilterString);
+}
+
+FCustomTextFilterData FFrontendFilter_CustomText::CreateCustomTextFilterData() const
+{
+	FCustomTextFilterData CustomTextFilterData;
+
+	CustomTextFilterData.FilterColor = Color;
+	CustomTextFilterData.FilterLabel = DisplayName;
+	CustomTextFilterData.FilterString = GetRawFilterText();
+
+	return CustomTextFilterData;
+}
+
+TSharedPtr<FFilterBase<FAssetFilterType>> FFrontendFilter_CustomText::GetFilter()
+{
+	return AsShared();
+}
+
 
 #undef LOCTEXT_NAMESPACE

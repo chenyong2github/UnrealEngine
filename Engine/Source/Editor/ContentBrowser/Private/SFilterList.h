@@ -10,6 +10,7 @@
 #include "AssetRegistry/AssetData.h"
 #include "AssetRegistry/ARFilter.h"
 #include "FrontendFilterBase.h"
+#include "FrontendFilters.h"
 #include "Filters/SAssetFilterBar.h"
 
 class UToolMenu;
@@ -17,6 +18,8 @@ struct FToolMenuSection;
 class SFilter;
 class SWrapBox;
 enum class ECheckBoxState : uint8;
+class FFilterListCustomTextFilter;
+class FFrontendFilter_Text;
 
 /**
  * A list of filters currently applied to an asset view.
@@ -26,10 +29,19 @@ class SFilterList : public SAssetFilterBar<FAssetFilterType>
 public:
 
 	DECLARE_DELEGATE_RetVal( TSharedPtr<SWidget>, FOnGetContextMenu );
-
+	/**
+	 * An event delegate that is executed when a custom text filter has been created/modified/deleted in any FilterList
+	 * that is using shared settings.
+	 */
+	DECLARE_EVENT_OneParam(SFilterList, FCustomTextFilterEvent, TSharedPtr<SWidget> /* BroadcastingFilterList */);
+	
 	using FOnFilterChanged = typename SAssetFilterBar<FAssetFilterType>::FOnFilterChanged;
 
-	SLATE_BEGIN_ARGS( SFilterList ){}
+	SLATE_BEGIN_ARGS( SFilterList ):
+	_UseSharedSettings(false)
+	{
+		
+	}
 
 		/** Called when an asset is right clicked */
 		SLATE_EVENT( FOnGetContextMenu, OnGetContextMenu )
@@ -45,6 +57,19 @@ public:
 
 		/** Custom front end filters to be displayed */
 		SLATE_ARGUMENT( TArray< TSharedRef<FFrontendFilter> >, ExtraFrontendFilters )
+	
+		/** A delegate to create a Text Filter for FilterType items. If provided, will allow creation of custom text filters
+		 *  from the filter dropdown menu.
+		 */
+		SLATE_ARGUMENT(FCreateTextFilter, CreateTextFilter)
+	
+		/** A unique identifier for this filter bar needed to enable saving settings in a config file */
+		SLATE_ARGUMENT(FName, FilterBarIdentifier)
+
+		/** If true, CustomTextFilters are saved/loaded from a config shared between multiple SFilterLists
+		 *	Currently used to sync all content browser custom text filters.
+		 */
+		SLATE_ARGUMENT(bool, UseSharedSettings)
 
 	SLATE_END_ARGS()
 
@@ -69,28 +94,47 @@ public:
 	/** Disables any active filters that would hide the supplied items */
 	void DisableFiltersThatHideItems(TArrayView<const FContentBrowserItem> ItemList);
 
-	/** Saves any settings to config that should be persistent between editor sessions */
-	void SaveSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString) const;
-
-	/** Loads any settings to config that should be persistent between editor sessions */
-	void LoadSettings(const FString& IniFilename, const FString& IniSection, const FString& SettingsString);
-
 	virtual FReply OnMouseButtonUp( const FGeometry& MyGeometry, const FPointerEvent& MouseEvent ) override;
 
 	/** Returns the class filters specified at construction using argument 'InitialClassFilters'. */
 	const TArray<UClass*>& GetInitialClassFilters();
 
+	/** Open the dialog to create a custom filter from the given text */
+	void CreateCustomFilterDialog(const FText& InText);
+	
+	/** Updates bIncludeClassName, bIncludeAssetPath and bIncludeCollectionNames for all custom text filters */
+	void UpdateCustomTextFilterIncludes(const bool InIncludeClassName, const bool InIncludeAssetPath, const bool InIncludeCollectionNames);
+
+	virtual void SaveSettings()override;
+	virtual void LoadSettings() override;
+
 protected:
 	
 	/** Handler for when the add filter button was clicked */
 	TSharedRef<SWidget> MakeAddFilterMenu() override;
+	
+	/** Handler for when a custom text filter is created */
+	virtual void OnCreateCustomTextFilter(const FCustomTextFilterData& InFilterData, bool bApplyFilter) override;
+	/** Handler for when a custom text filter is modified */
+	virtual void OnModifyCustomTextFilter(const FCustomTextFilterData& InFilterData, TSharedPtr<ICustomTextFilter<FAssetFilterType>> InFilter) override;
+	/** Handler for when a custom text filter is deleted */
+	virtual void OnDeleteCustomTextFilter(const TSharedPtr<ICustomTextFilter<FAssetFilterType>> InFilter) override;
 
 private:
 
-	// Exists for backwards compatibility with ExternalMakeAddFilterMenu
+	/** Exists for backwards compatibility with ExternalMakeAddFilterMenu */
 	TSharedRef<SWidget> MakeAddFilterMenu(EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic);
 
 	void PopulateAddFilterMenu_Internal(UToolMenu* Menu);
+
+	/** Handler for when another SFilterList using shared settings creates a custom text filter */
+	void OnExternalCustomTextFilterCreated(TSharedPtr<SWidget> BroadcastingFilterList);
+	
+	/** Empty our list of custom text filters, and load from the given config */
+	void LoadCustomTextFilters(const FFilterBarSettings* FilterBarConfig);
+
+	/** Find the custom text filter corresponding to the specified state, and restore it's state to what is specified */
+	void RestoreCustomTextFilterState(const FCustomTextFilterState& InFilterState);
 	
 private:
 
@@ -105,4 +149,62 @@ private:
 
 	/** A reference to AllFrontEndFilters so we can access the filters as FFrontEndFilter instead of FFilterBase<FAssetFilterType> */
 	TArray< TSharedRef<FFrontendFilter> > AllFrontendFilters_Internal;
+
+	/** An identifier shared by all SFilterLists, used to save and load settings common to every instance */
+	static const FName SharedIdentifier;
+
+	/** If bIncludeClassName is true, custom text filters will include an asset's class name in the search */
+	bool bIncludeClassName;
+
+	/** If bIncludeAssetPath is true, custom text filters will match against full Asset path */
+	bool bIncludeAssetPath;
+
+	/** If bIncludeCollectionNames is true, custom text filters will match against collection names as well */
+	bool bIncludeCollectionNames;
+
+	/** Whether this FilterList wants to load/save from the settings common to all instances */
+	bool bUseSharedSettings;
+
+	/** The event that executes when a custom text filter is created/modified/deleted in any filter list that is using Shared Settings */
+	static FCustomTextFilterEvent CustomTextFilterEvent;
+};
+
+/* A custom implementation of ICustomTextFilter that uses FFrontendFilter_Text to handle comparing items in the
+ * Asset View to Custom Text Filters. This ensures that the advanced search syntax etc behaves properly when used
+ * by a custom text filter created by saving a search
+ */
+class FFrontendFilter_CustomText :
+	public ICustomTextFilter<FAssetFilterType>,
+	public FFrontendFilter_Text,
+	public TSharedFromThis<FFrontendFilter_CustomText>
+{
+public:
+
+	// FFrontendFilter implementation
+	virtual FString GetName() const override;
+	virtual FText GetDisplayName() const override;
+	virtual FText GetToolTipText() const override;
+	virtual FLinearColor GetColor() const override;
+	
+	/** Updates bIncludeClassName, bIncludeAssetPath and bIncludeCollectionNames for this filter */
+	void UpdateCustomTextFilterIncludes(const bool InIncludeClassName, const bool InIncludeAssetPath, const bool InIncludeCollectionNames);
+
+	//ICustomTextFilter interface
+	
+	/** Set the internals of this filter from an FCustomTextFilterData */
+	virtual void SetFromCustomTextFilterData(const FCustomTextFilterData& InFilterData) override;
+
+	/** Create an FCustomTextFilterData from the internals of this filter */
+	virtual FCustomTextFilterData CreateCustomTextFilterData() const override;
+
+	/** Get the actual filter */
+	virtual TSharedPtr<FFilterBase<FAssetFilterType>> GetFilter() override;
+
+protected:
+
+	/* The Display Name of this custom filter that the user sees */
+	FText DisplayName;
+
+	/* The Color of this filter pill */
+	FLinearColor Color;
 };

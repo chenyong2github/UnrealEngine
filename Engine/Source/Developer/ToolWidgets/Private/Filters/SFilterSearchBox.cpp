@@ -16,6 +16,8 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 	MaxSearchHistory = InArgs._MaxSearchHistory;
 	OnTextChanged = InArgs._OnTextChanged;
 	OnTextCommitted = InArgs._OnTextCommitted;
+	bShowSearchHistory = InArgs._ShowSearchHistory;
+	OnSaveSearchClicked = InArgs._OnSaveSearchClicked;
 
 	// Default text shown when there are no items in the search history
 	EmptySearchHistoryText = MakeShareable(new FText(LOCTEXT("EmptySearchHistoryText", "The Search History is Empty")));
@@ -36,6 +38,8 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 				.OnTextChanged(this, &SFilterSearchBox::HandleTextChanged)
 				.OnTextCommitted(this, &SFilterSearchBox::HandleTextCommitted)
 				.SelectAllTextWhenFocused( false )
+				.DelayChangeNotificationsWhileTyping( InArgs._DelayChangeNotificationsWhileTyping )
+				.OnKeyDownHandler(InArgs._OnKeyDownHandler)
 			]
 			+ SOverlay::Slot()
 			.HAlign(HAlign_Right)
@@ -44,37 +48,45 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 
 				+SHorizontalBox::Slot()
 				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Right)
 				[
 					// Button to save the currently occuring search 
 					SNew(SButton)
+					.ContentPadding(0)
 					.Visibility_Lambda([this]()
 					{
-						// Only visible if there is a search active currently, and the 
-						return this->GetText().IsEmpty() || !this->OnClickedAddSearchHistoryButton.IsBound() ? EVisibility::Collapsed : EVisibility::Visible;
+						// Only visible if there is a search active currently and the OnSaveSearchClicked delegate is bound
+						return this->GetText().IsEmpty() || !this->OnSaveSearchClicked.IsBound() ? EVisibility::Collapsed : EVisibility::Visible;
 					})
-					.ButtonStyle(FAppStyle::Get(), "NoBorder")
+					.ButtonStyle(FAppStyle::Get(), "HoverOnlyButton")
 					.OnClicked_Lambda([this]()
 					{
-						this->OnClickedAddSearchHistoryButton.ExecuteIfBound(this->GetText());
+						this->OnSaveSearchClicked.ExecuteIfBound(this->GetText());
 						return FReply::Handled();
 					})
 					[
 						SNew(SImage)
 						.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
 
 				+SHorizontalBox::Slot()
+				.HAlign(HAlign_Right)
+				.Padding(0, 0, 4, 0)
 				[
 					// Chevron to open the search history dropdown
 					SNew(SButton)
-					.ButtonStyle(FAppStyle::Get(), "NoBorder")
+					.ContentPadding(0)
+					.ButtonStyle(FAppStyle::Get(), "HoverOnlyButton")
 					.ClickMethod(EButtonClickMethod::MouseDown)
 					.OnClicked(this, &SFilterSearchBox::OnClickedSearchHistory)
 					.ToolTipText(LOCTEXT("SearchHistoryToolTipText", "Click to show the Search History"))
+					.Visibility(this, &SFilterSearchBox::GetSearchHistoryVisibility)
 					[
 						SNew(SImage)
 						.Image(FAppStyle::Get().GetBrush("Icons.ChevronDown"))
+						.ColorAndOpacity(FSlateColor::UseForeground())
 					]
 				]
 			]
@@ -87,14 +99,20 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 			[
 				SAssignNew(SearchHistoryListView, SListView< TSharedPtr<FText> >)
 				.ListItemsSource(&SearchHistory)
-				.SelectionMode( ESelectionMode::Single )							// Ideally the mouse over would not highlight while keyboard controls the UI
+				.SelectionMode( ESelectionMode::Single )
 				.OnGenerateRow(this, &SFilterSearchBox::MakeSearchHistoryRowWidget)
 				.OnSelectionChanged( this, &SFilterSearchBox::OnSelectionChanged)
 				.ItemHeight(18)
-				.ScrollbarDragFocusCause(EFocusCause::SetDirectly) // Use SetDirect so that clicking the scrollbar doesn't close the suggestions list
+				.ScrollbarDragFocusCause(EFocusCause::SetDirectly) 
 			]
 		)
 	];
+}
+
+bool SFilterSearchBox::HasKeyboardFocus() const
+{
+	// Since keyboard focus is forwarded to our editable text, we will test it instead
+	return SearchBox->HasKeyboardFocus();
 }
 
 /** Handler for when text in the editable text box changed */
@@ -168,32 +186,7 @@ TSharedRef<ITableRow> SFilterSearchBox::MakeSearchHistoryRowWidget(TSharedPtr<FT
 		SNew(STextBlock)
 		.Text(*SearchText.Get())
 	];
-
-	// If the Search History is not empty, add the button to save the search history
-	if(!bIsEmptySearchHistory)
-	{
-		RowWidget->AddSlot()
-		.HAlign(HAlign_Right)
-		[
-			SNew(SButton)
-			.ButtonStyle(FAppStyle::Get(), "NoBorder")
-			.OnClicked_Lambda([this, SearchText]()
-			{
-				this->OnClickedAddSearchHistoryButton.ExecuteIfBound(*SearchText.Get());
-				return FReply::Handled();
-			})
-			.Visibility_Lambda([this]()
-			{
-				return this->OnClickedAddSearchHistoryButton.IsBound() ? EVisibility::Visible : EVisibility::Collapsed;
-			})
-			.ToolTipText(LOCTEXT("SaveSearchHistoryToolTipText", "Save this search as a custom filter"))
-			[
-				SNew(SImage)
-				.Image(FAppStyle::Get().GetBrush("Icons.PlusCircle"))
-			]
-		];
-	}
-
+	
 	return SNew(STableRow< TSharedPtr<FString> >, OwnerTable)
 			.ShowSelection(!bIsEmptySearchHistory)
 			[
@@ -250,6 +243,16 @@ FReply SFilterSearchBox::OnClickedSearchHistory()
 	}
 	
 	return FReply::Handled();
+}
+
+void SFilterSearchBox::SetOnSaveSearchHandler(FOnSaveSearchClicked InOnSaveSearchHandler)
+{
+	OnSaveSearchClicked = InOnSaveSearchHandler;
+}
+
+EVisibility SFilterSearchBox::GetSearchHistoryVisibility() const
+{
+	return bShowSearchHistory.Get() ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 #undef LOCTEXT_NAMESPACE

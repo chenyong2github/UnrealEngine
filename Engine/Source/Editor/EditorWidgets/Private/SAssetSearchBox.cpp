@@ -59,14 +59,18 @@ void SAssetSearchBox::Construct( const FArguments& InArgs )
 			SAssignNew(SuggestionBox, SMenuAnchor)
 			.Placement( InArgs._SuggestionListPlacement )
 			[
-				SAssignNew(InputText, SSearchBox)
+				/* Use an SFilterSearchBox internally to add the ability to show search history and potentially
+				 * save searches as filters if used with a Filter Bar widget (@see SBasicFilterBar etc)
+				 */
+				SAssignNew(InputText, SFilterSearchBox)
 				.InitialText(InArgs._InitialText)
 				.HintText(InArgs._HintText)
 				.OnTextChanged(this, &SAssetSearchBox::HandleTextChanged)
 				.OnTextCommitted(this, &SAssetSearchBox::HandleTextCommitted)
-				.SelectAllTextWhenFocused( false )
 				.DelayChangeNotificationsWhileTyping( InArgs._DelayChangeNotificationsWhileTyping )
 				.OnKeyDownHandler(this, &SAssetSearchBox::HandleKeyDown)
+				.ShowSearchHistory(InArgs._ShowSearchHistory)
+				.OnSaveSearchClicked(InArgs._OnSaveSearchClicked)
 			]
 			.MenuContent
 				(
@@ -400,4 +404,9 @@ FText SAssetSearchBox::DefaultSuggestionChosenImpl(const FText& SearchText, cons
 {
 	// Default implementation just uses the suggestion as the search text
 	return FText::FromString(Suggestion);
+}
+
+void SAssetSearchBox::SetOnSaveSearchHandler(SFilterSearchBox::FOnSaveSearchClicked InOnSaveSearchHandler)
+{
+	InputText->SetOnSaveSearchHandler(InOnSaveSearchHandler);
 }

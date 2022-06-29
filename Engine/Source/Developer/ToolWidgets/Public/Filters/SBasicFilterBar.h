@@ -68,7 +68,7 @@ public:
 	DECLARE_DELEGATE_OneParam( FOnExtendAddFilterMenu, UToolMenu* );
 	
 	/** Delegate to create a TTextFilter used to compare FilterType with text queries */
-    DECLARE_DELEGATE_RetVal( TSharedPtr<TTextFilter<FilterType>>, FCreateTextFilter);
+    DECLARE_DELEGATE_RetVal( TSharedPtr<ICustomTextFilter<FilterType>>, FCreateTextFilter);
 	
  	SLATE_BEGIN_ARGS( SBasicFilterBar<FilterType> ){}
 
@@ -81,14 +81,15 @@ public:
 		/** Initial List of Custom Filters that will be added to the AddFilter Menu */
 		SLATE_ARGUMENT( TArray<TSharedRef<FFilterBase<FilterType>>>, CustomFilters)
 
-		/** A delegate to create a TTextFilter for FilterType items. If provided, will allow creation of custom text filters
-		 *  from the filter dropdown menu.
+		/** A delegate to create a Text Filter for FilterType items. If provided, will allow creation of custom
+		 * text filters from the filter dropdown menu.
+		 * @see FCustomTextFilter
 		 */
 		SLATE_ARGUMENT(FCreateTextFilter, CreateTextFilter)
 		
 		/** An SFilterSearchBox that can be attached to this filter bar. When provided along with a CreateTextFilter
 		 *  delegate, allows the user to save searches from the Search Box as text filters for the filter bar.
-		 *	NOTE: Will bind a delegate to SFilterSearchBox::OnClickedAddSearchHistoryButton
+		 *	NOTE: Will bind a delegate to SFilterSearchBox::OnSaveSearchClicked
 		 */
         SLATE_ARGUMENT(TSharedPtr<SFilterSearchBox>, FilterSearchBox)
 	
@@ -152,15 +153,15 @@ public:
 				];
  	}
 
-	/** Attach an SFilterSearchBox to this filter bar, overriding theSFilterSearchBox:: OnClickedAddSearchHistoryButton
+	/** Attach an SFilterSearchBox to this filter bar, overriding the SFilterSearchBox:: OnSaveSearchClicked
 	 *  event to save a search as a filter
 	 */
 	void AttachFilterSearchBox(TSharedPtr<SFilterSearchBox> InFilterSearchBox)
  	{
 		if(InFilterSearchBox)
 		{
-			InFilterSearchBox->SetOnClickedAddSearchHistoryButton(
-				 SFilterSearchBox::FOnClickedAddSearchHistoryButton::CreateSP(this, &SBasicFilterBar<FilterType>::CreateCustomTextFilterFromSearch));
+			InFilterSearchBox->SetOnSaveSearchHandler(
+				 SFilterSearchBox::FOnSaveSearchClicked::CreateSP(this, &SBasicFilterBar<FilterType>::CreateCustomTextFilterFromSearch));
 		}
  	}
 
@@ -1080,7 +1081,7 @@ protected:
  	}
  	
  	/** Handler for when a checkbox next to a custom text filter is clicked */
-    void CustomTextFilterClicked(ECheckBoxState CheckBoxState, TSharedRef<FCustomTextFilter<FilterType>> FrontendFilter)
+	void CustomTextFilterClicked(ECheckBoxState CheckBoxState, TSharedRef<FFilterBase<FilterType>> FrontendFilter)
     {
     	if (CheckBoxState == ECheckBoxState::Unchecked)
     	{
@@ -1094,30 +1095,36 @@ protected:
     }
 
 	/** Handler for when a custom text filter is created */
-	void OnCreateCustomTextFilter(const FCustomTextFilterData& InFilterData, bool bApplyFilter)
+	virtual void OnCreateCustomTextFilter(const FCustomTextFilterData& InFilterData, bool bApplyFilter)
 	{
-		// Create a TTextFilter for the current filter we are making using the provided delegate
-		TSharedRef<TTextFilter<FilterType>> NewTextFilter = CreateTextFilter.Execute().ToSharedRef();
+		// Create the text filter using the given delegate
+		TSharedRef<ICustomTextFilter<FilterType>> NewTextFilter = CreateTextFilter.Execute().ToSharedRef();
 		
-		// Create the actual text filter
-		TSharedRef<FCustomTextFilter<FilterType>> NewFilter = MakeShared<FCustomTextFilter<FilterType>>(NewTextFilter);
-
 		// Fill in the data the widget gives us
-		NewFilter->SetFromCustomTextFilterData(InFilterData);
+		NewTextFilter->SetFromCustomTextFilterData(InFilterData);
 
-		CustomTextFilters.Add(NewFilter);
+		TSharedPtr<FFilterBase<FilterType>> NewFilter = NewTextFilter->GetFilter();
+
+		if(!NewFilter)
+		{
+			// Close the create custom filter dialog 		
+			OnCancelCustomTextFilterDialog();
+			return; // TODO: error message? Some way to ensure the user always implements NewTextFilter->GetFilter()?
+		}
 		
-		TSharedRef<SFilter> AddedFilter = AddFilterToBar(NewFilter);
+		CustomTextFilters.Add(NewTextFilter);
+		
+		TSharedRef<SFilter> AddedFilter = AddFilterToBar(NewFilter.ToSharedRef());
 		
 		AddedFilter->SetEnabled(bApplyFilter);
-		SetFrontendFilterActive(NewFilter, bApplyFilter);
+		SetFrontendFilterActive(NewFilter.ToSharedRef(), bApplyFilter);
 
 		// Close the create custom filter dialog 		
 		OnCancelCustomTextFilterDialog();
 	}
 
 	/** Handler for when a custom text filter is modified */
-	void OnModifyCustomTextFilter(const FCustomTextFilterData& InFilterData, TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	virtual void OnModifyCustomTextFilter(const FCustomTextFilterData& InFilterData, TSharedPtr<ICustomTextFilter<FilterType>> InFilter)
 	{
 		// Update the filter with the data the widget has given us
 		if(InFilter)
@@ -1125,19 +1132,21 @@ protected:
 			InFilter->SetFromCustomTextFilterData(InFilterData);
 		}
 
+		TSharedPtr<FFilterBase<FilterType>> NewFilter = InFilter->GetFilter();
+		
 		// If the filter we modified is active in the bar, remove and re-add it to update the data
 		for (const TSharedRef<SFilter>& Filter : Filters)
 		{
-			if (Filter->GetFrontendFilter() == InFilter)
+			if (Filter->GetFrontendFilter() == NewFilter)
 			{
 				bool bWasEnabled = Filter->IsEnabled();
 				
-				RemoveFilter(InFilter.ToSharedRef());
+				RemoveFilter(NewFilter.ToSharedRef());
 
-				TSharedRef<SFilter> AddedFilter = AddFilterToBar(InFilter.ToSharedRef());
+				TSharedRef<SFilter> AddedFilter = AddFilterToBar(NewFilter.ToSharedRef());
 				
 				AddedFilter->SetEnabled(bWasEnabled);
-				SetFrontendFilterActive(InFilter.ToSharedRef(), bWasEnabled);
+				SetFrontendFilterActive(NewFilter.ToSharedRef(), bWasEnabled);
 			}
 		}
 
@@ -1145,12 +1154,15 @@ protected:
 	}
 
 	/** Handler for when a custom text filter is deleted */
-	void OnDeleteCustomTextFilter(const TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	virtual void OnDeleteCustomTextFilter(const TSharedPtr<ICustomTextFilter<FilterType>> InFilter)
 	{
 		if(InFilter)
 		{
 			CustomTextFilters.RemoveSingle(InFilter.ToSharedRef());
-			RemoveFilter(InFilter.ToSharedRef());
+
+			TSharedPtr<FFilterBase<FilterType>> NewFilter = InFilter->GetFilter();
+			
+			RemoveFilter(NewFilter.ToSharedRef());
 
 			// We fire this delegate here, since a CustomTextFilter was removed from the list 
 			OnFilterChanged.ExecuteIfBound();
@@ -1160,7 +1172,7 @@ protected:
 	}
 
 	/** Handler to close the custom text filter dialog */
-	void OnCancelCustomTextFilterDialog()
+	virtual void OnCancelCustomTextFilterDialog()
 	{
 		if(CustomTextFilterWindow.IsValid())
 		{
@@ -1168,8 +1180,17 @@ protected:
 		}
 	}
 
+	void GetAllCustomTextFilterLabels(TArray<FText>& OutFilterLabels)
+	{
+		for (const TSharedRef<ICustomTextFilter<FilterType>>& Filter : CustomTextFilters)
+		{
+			FCustomTextFilterData FilterData = Filter->CreateCustomTextFilterData();
+			OutFilterLabels.Add(FilterData.FilterLabel);
+		}
+	}
+
 	/** Creates a dialog box with the SCustomTextFilterDialog Widget */
-	void CreateCustomTextFilterWindow(const FCustomTextFilterData& CustomTextFilterData, TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	void CreateCustomTextFilterWindow(const FCustomTextFilterData& CustomTextFilterData, TSharedPtr<ICustomTextFilter<FilterType>> InFilter)
 	{
 		/** If we already have a window, delete it */
 		OnCancelCustomTextFilterDialog();
@@ -1184,6 +1205,7 @@ protected:
 			.HasCloseButton(true)
 			.SupportsMaximize(false)
 			.SupportsMinimize(false)
+			.SizingRule(ESizingRule::FixedSize)
 			.ClientSize(FVector2D(724, 183));
 		
 		TSharedPtr<SCustomTextFilterDialog> CustomTextFilterDialog =
@@ -1193,7 +1215,8 @@ protected:
 			.OnCreateFilter(this, &SBasicFilterBar<FilterType>::OnCreateCustomTextFilter)
 			.OnDeleteFilter(this, &SBasicFilterBar<FilterType>::OnDeleteCustomTextFilter, InFilter)
 			.OnModifyFilter(this, &SBasicFilterBar<FilterType>::OnModifyCustomTextFilter, InFilter)
-			.OnCancelClicked(this, &SBasicFilterBar<FilterType>::OnCancelCustomTextFilterDialog);
+			.OnCancelClicked(this, &SBasicFilterBar<FilterType>::OnCancelCustomTextFilterDialog)
+			.OnGetFilterLabels(this, &SBasicFilterBar<FilterType>::GetAllCustomTextFilterLabels);
 
 		NewTextFilterWindow->SetContent(CustomTextFilterDialog.ToSharedRef());
 		FSlateApplication::Get().AddWindow(NewTextFilterWindow.ToSharedRef());
@@ -1208,7 +1231,7 @@ protected:
 	}
 
 	/** Creates a dialog box to Edit an existing custom text filter */
-	void CreateEditCustomTextFilterWindow(TSharedPtr<FCustomTextFilter<FilterType>> InFilter)
+	void CreateEditCustomTextFilterWindow(TSharedPtr<ICustomTextFilter<FilterType>> InFilter)
 	{
 		if(!InFilter)
 		{
@@ -1247,8 +1270,10 @@ protected:
 
 		FToolMenuSection& CustomFiltersSection = InMenu->AddSection("FilterBarCustomTextFiltersSection");
 		
-		for (const TSharedRef<FCustomTextFilter<FilterType>>& FrontendFilter : CustomTextFilters)
+		for (const TSharedRef<ICustomTextFilter<FilterType>>& Filter : CustomTextFilters)
 		{
+			const TSharedRef<FFilterBase<FilterType>>& FrontendFilter = Filter->GetFilter().ToSharedRef();
+			
 			bool bIsFilterChecked = IsFrontendFilterInUse(FrontendFilter);
 			
 			TSharedPtr<SHorizontalBox> CustomTextFilterWidget = SNew(SHorizontalBox);
@@ -1288,9 +1313,9 @@ protected:
 			[
 				SNew(SSimpleButton)
 				.Icon(FAppStyle::GetBrush("Icons.Edit"))
-				.OnClicked_Lambda([this, &FrontendFilter]()
+				.OnClicked_Lambda([this, &Filter]()
 				{
-					this->CreateEditCustomTextFilterWindow(FrontendFilter);
+					this->CreateEditCustomTextFilterWindow(Filter);
 					return FReply::Handled();
 				})
 			];
@@ -1417,7 +1442,7 @@ protected:
 	FCreateTextFilter CreateTextFilter;
 	
 	/** Custom text filters that a user can create */
-	TArray< TSharedRef< FCustomTextFilter<FilterType> > > CustomTextFilters;
+	TArray< TSharedRef< ICustomTextFilter<FilterType> > > CustomTextFilters;
 
 	/** The window containing the custom text filter dialog */
 	TWeakPtr<SWindow> CustomTextFilterWindow;

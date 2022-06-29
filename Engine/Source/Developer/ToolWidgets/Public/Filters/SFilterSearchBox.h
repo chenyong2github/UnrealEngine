@@ -10,7 +10,7 @@ class SMenuAnchor;
 class SSearchBox;
 template <typename T> class SListView;
 
-/** A SearchBox widget that contains support for displaying search history.
+/** A SearchBox widget that contains support for displaying search history
  * When used with a FilterBar widget (@see SBasicFilterBar or SFilterBar), it allows the user to save searches from the
  * history as filter pills
  */
@@ -18,14 +18,16 @@ class TOOLWIDGETS_API SFilterSearchBox : public SCompoundWidget
 {
 public:
 
-	DECLARE_DELEGATE_OneParam(FOnClickedAddSearchHistoryButton, const FText&)
+	DECLARE_DELEGATE_OneParam(FOnSaveSearchClicked, const FText&)
 
 	SLATE_BEGIN_ARGS(SFilterSearchBox)
 	: _OnTextChanged()
 	, _OnTextCommitted()
 	, _InitialText()
 	, _HintText()
+	, _ShowSearchHistory(true)
 	, _MaxSearchHistory(5)
+	, _DelayChangeNotificationsWhileTyping( false )
 	{}
 
 	/** Invoked whenever the text changes */
@@ -46,6 +48,15 @@ public:
 	/** The maximum number of items to show in the Search History */
 	SLATE_ARGUMENT(int32, MaxSearchHistory)
 
+	/** Whether the SearchBox should delay notifying listeners of text changed events until the user is done typing */
+	SLATE_ATTRIBUTE( bool, DelayChangeNotificationsWhileTyping )
+
+	/** Callback delegate to have first chance handling of the OnKeyDown event */
+	SLATE_EVENT(FOnKeyDown, OnKeyDownHandler)
+
+	/** Handler for when the + Button next to a search is clicked */
+	SLATE_EVENT(FOnSaveSearchClicked, OnSaveSearchClicked)
+
 	SLATE_END_ARGS()
 
 	/** Constructs this widget with InArgs */
@@ -63,11 +74,10 @@ public:
 
 	/** SWidget interface */
 	void OnFocusLost(const FFocusEvent& InFocusEvent) override;
+	virtual bool HasKeyboardFocus() const override;
 
-	void SetOnClickedAddSearchHistoryButton(FOnClickedAddSearchHistoryButton InOnClickedAddSearchHistoryButton)
-	{
-		OnClickedAddSearchHistoryButton = InOnClickedAddSearchHistoryButton;
-	}
+	/** Show a + button next to the current search, and set the handler for when that is clicked */
+	void SetOnSaveSearchHandler(FOnSaveSearchClicked InOnSaveSearchHandler);
 
 private:
 	
@@ -89,8 +99,14 @@ private:
 	/** Handler for when the chevron to open the search history is clicked */
 	FReply OnClickedSearchHistory();
 
+	/** Whether the search history dropdown chevron is visible */
+	EVisibility GetSearchHistoryVisibility() const;
+
 private:
 
+	/* Whether we are showing the search history */
+	TAttribute<bool> bShowSearchHistory;
+	
 	/** The actual Search Box */
 	TSharedPtr<SSearchBox> SearchBox;
 	
@@ -101,7 +117,7 @@ private:
 	FOnTextCommitted OnTextCommitted;
 
 	/** Delegate for when the Plus icon next to an item in the search history is clicked */
-	FOnClickedAddSearchHistoryButton OnClickedAddSearchHistoryButton;
+	FOnSaveSearchClicked OnSaveSearchClicked;
 
 	/** The max amount of items to show in the Search History */
 	int32 MaxSearchHistory;

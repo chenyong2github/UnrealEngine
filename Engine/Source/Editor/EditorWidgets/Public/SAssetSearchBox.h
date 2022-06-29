@@ -10,6 +10,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
+#include "Filters/SFilterSearchBox.h"
 
 class SMenuAnchor;
 
@@ -42,6 +43,8 @@ DECLARE_DELEGATE_RetVal_TwoParams(FText, FOnAssetSearchBoxSuggestionChosen, cons
 
 /**
  * A widget to provide a search box with a filtered dropdown menu.
+ * Also provides the functionality to show search history optionally, and a button/delegate to save a search via
+ * SetOnSaveSearchHandler
  */
 
 class EDITORWIDGETS_API SAssetSearchBox : public SCompoundWidget
@@ -56,6 +59,7 @@ public:
 		, _PossibleSuggestions(TArray<FAssetSearchBoxSuggestion>())
 		, _DelayChangeNotificationsWhileTyping( false )
 		, _MustMatchPossibleSuggestions( false )
+		, _ShowSearchHistory(false)
 	{}
 
 		/** Where to place the suggestion list */
@@ -90,6 +94,12 @@ public:
 
 		/** Callback delegate to have first chance handling of the OnKeyDown event */
 		SLATE_EVENT( FOnKeyDown, OnKeyDownHandler )
+	
+		/** Whether we should show a dropdown containing the last few searches */
+		SLATE_ATTRIBUTE(bool, ShowSearchHistory)
+
+		/** Handler for when the + Button next to a search is clicked */
+		SLATE_EVENT(SFilterSearchBox::FOnSaveSearchClicked, OnSaveSearchClicked)
 
 	SLATE_END_ARGS()
 
@@ -103,6 +113,9 @@ public:
 	void SetError( const FText& InError );
 	void SetError( const FString& InError );
 
+	/** Show a + button next to the current search and set the handler for when that is clicked */
+	void SetOnSaveSearchHandler(SFilterSearchBox::FOnSaveSearchClicked InOnSaveSearchHandler);
+	
 	// SWidget implementation
 	virtual FReply OnPreviewKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
 	virtual bool SupportsKeyboardFocus() const override;
@@ -152,7 +165,7 @@ private:
 
 private:
 	/** The editable text field */
-	TSharedPtr< SSearchBox > InputText;
+	TSharedPtr< SFilterSearchBox > InputText;
 
 	/** The the state of the text prior to being committed */
 	FText PreCommittedText;

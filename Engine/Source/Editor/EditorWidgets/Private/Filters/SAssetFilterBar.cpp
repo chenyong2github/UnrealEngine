@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Filters/SFilterBar.h"
+#include "Filters/SAssetFilterBar.h"
 
 FFilterBarSettings* FFilterBarBase::GetMutableConfig()
 {

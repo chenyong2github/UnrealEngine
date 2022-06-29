@@ -139,6 +139,7 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
  	bIsLocked = InArgs._InitiallyLocked;
 	bCanSetAsPrimaryBrowser = Config != nullptr ? Config->bCanSetAsPrimaryBrowser : true;
 	bIsDrawer = InArgs._IsDrawer;
+	this->InstanceName = InInstanceName;
 
 	HistoryManager.SetOnApplyHistoryData(FOnApplyHistoryData::CreateSP(this, &SContentBrowser::OnApplyHistoryData));
 	HistoryManager.SetOnUpdateHistoryData(FOnUpdateHistoryData::CreateSP(this, &SContentBrowser::OnUpdateHistoryData));
@@ -487,7 +488,6 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 	HistoryManager.AddHistoryData();
 
 	// Load settings if they were specified
-	this->InstanceName = InInstanceName;
 	LoadSettings(InInstanceName);
 
 	if( Config != nullptr )
@@ -654,9 +654,16 @@ void SContentBrowser::TogglePrivateContentEdit(const TArray<FString>& FolderPath
 
 void SContentBrowser::HandleAssetViewSearchOptionsChanged()
 {
-	TextFilter->SetIncludeClassName(AssetViewPtr->IsIncludingClassNames());
-	TextFilter->SetIncludeAssetPath(AssetViewPtr->IsIncludingAssetPaths());
-	TextFilter->SetIncludeCollectionNames(AssetViewPtr->IsIncludingCollectionNames());
+	bool bIncludeClassName = AssetViewPtr->IsIncludingClassNames();
+	bool bIncludeAssetPath = AssetViewPtr->IsIncludingAssetPaths();
+	bool bIncludeCollectionNames = AssetViewPtr->IsIncludingCollectionNames();
+	
+	TextFilter->SetIncludeClassName(bIncludeClassName);
+	TextFilter->SetIncludeAssetPath(bIncludeAssetPath);
+	TextFilter->SetIncludeCollectionNames(bIncludeCollectionNames);
+
+	// Make sure all custom text filters get the updated Asset View Search Options
+	FilterListPtr->UpdateCustomTextFilterIncludes(bIncludeClassName, bIncludeAssetPath, bIncludeCollectionNames);
 }
 
 TSharedRef<SWidget> SContentBrowser::CreateToolBar(const FContentBrowserConfig* Config)
@@ -708,8 +715,19 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 					.OnGetContextMenu(this, &SContentBrowser::GetFilterContextMenu)
 					.Visibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed)
 					.FrontendFilters(FrontendFilters)
-					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFilters")));
+					.FilterBarIdentifier(InstanceName)
+					.UseSharedSettings(true)
+					.CreateTextFilter(SFilterList::FCreateTextFilter::CreateLambda([this]
+					{
+						TSharedPtr<FFrontendFilter_CustomText> NewFilter = MakeShareable(new FFrontendFilter_CustomText);
 
+						// Make sure the new filter has the right search options from the AssetView. We only have to set it once, SFilterList handles syncing it on change
+						NewFilter->UpdateCustomTextFilterIncludes(AssetViewPtr->IsIncludingClassNames(), AssetViewPtr->IsIncludingAssetPaths(), AssetViewPtr->IsIncludingCollectionNames());
+
+						return NewFilter;
+					}))
+					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFilters")));
+	
 	// Create the Filter Combo Button
 	TSharedPtr<SWidget> FilterComboButton = SFilterList::MakeAddFilterButton(FilterListPtr.ToSharedRef());
 	
@@ -750,36 +768,18 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 						[
 							SAssignNew(SearchBoxPtr, SAssetSearchBox)
 							.HintText(this, &SContentBrowser::GetSearchAssetsHintText)
+							.ShowSearchHistory(true)
 							.OnTextChanged(this, &SContentBrowser::OnSearchBoxChanged)
 							.OnTextCommitted(this, &SContentBrowser::OnSearchBoxCommitted)
 							.OnKeyDownHandler(this, &SContentBrowser::OnSearchKeyDown)
+							.OnSaveSearchClicked(this, &SContentBrowser::OnSaveSearchButtonClicked)
 							.OnAssetSearchBoxSuggestionFilter(this, &SContentBrowser::OnAssetSearchSuggestionFilter)
 							.OnAssetSearchBoxSuggestionChosen(this, &SContentBrowser::OnAssetSearchSuggestionChosen)
 							.DelayChangeNotificationsWhileTyping(true)
 							.Visibility((Config != nullptr ? Config->bCanShowAssetSearch : true) ? EVisibility::Visible : EVisibility::Collapsed)
 							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserSearchAssets")))
 						]
-					
-						// Save Search
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.VAlign(VAlign_Center)
-						.Padding(2.0f, 0.0f, 0.0f, 0.0f)
-						[
-							SNew(SButton)
-							.ButtonStyle(FAppStyle::Get(), "SimpleButton")
-							.ToolTipText(LOCTEXT("SaveSearchButtonTooltip", "Save the current search as a dynamic collection."))
-							.IsEnabled(this, &SContentBrowser::IsSaveSearchButtonEnabled)
-							.OnClicked(this, &SContentBrowser::OnSaveSearchButtonClicked)
-							.ContentPadding(FMargin(1, 1))
-							.Visibility((!bHideSaveSearchButton && (Config != nullptr ? Config->bCanShowAssetSearch : true)) ? EVisibility::Visible : EVisibility::Collapsed)
-							[
-								SNew(STextBlock)
-								.TextStyle(FAppStyle::Get(), "GenericFilters.TextStyle")
-								.Font(FAppStyle::Get().GetFontStyle("FontAwesome.10"))
-								.Text(FEditorFontGlyphs::Floppy_O)
-							]
-						]
+						
 						// Filter dropdown
 						+ SHorizontalBox::Slot()
 						.AutoWidth()
@@ -1486,7 +1486,7 @@ void SContentBrowser::SaveSettings() const
 
 
 	// Save all our data using the settings string as a key in the user settings ini
-	FilterListPtr->SaveSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString);
+	FilterListPtr->SaveSettings();
 	PathViewPtr->SaveSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString);
 	FavoritePathViewPtr->SaveSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString + TEXT(".Favorites"));
 	CollectionViewPtr->SaveSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString);
@@ -1636,7 +1636,7 @@ void SContentBrowser::LoadSettings(const FName& InInstanceName)
 	}
 
 	// Save all our data using the settings string as a key in the user settings ini
-	FilterListPtr->LoadSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString);
+	FilterListPtr->LoadSettings();
 	PathViewPtr->LoadSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString);
 	FavoritePathViewPtr->LoadSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString + TEXT(".Favorites"));
 	CollectionViewPtr->LoadSettings(GEditorPerProjectIni, SettingsIniSection, SettingsString);
@@ -1964,7 +1964,7 @@ bool SContentBrowser::IsSaveSearchButtonEnabled() const
 	return !TextFilter->GetRawFilterText().IsEmptyOrWhitespace();
 }
 
-FReply SContentBrowser::OnSaveSearchButtonClicked()
+void SContentBrowser::OnSaveSearchButtonClicked(const FText& InSearchText)
 {
 	// Need to make sure we can see the collections view
 	if (!bSourcesViewExpanded)
@@ -2007,8 +2007,12 @@ FReply SContentBrowser::OnSaveSearchButtonClicked()
 		FinalQueryText = FText::FromString(FString::Printf(TEXT("(%s) AND (%s)"), *TextFilter->GetRawFilterText().ToString(), *SelectedPathsQuery));
 	}
 
-	CollectionViewPtr->MakeSaveDynamicCollectionMenu(FinalQueryText);
-	return FReply::Handled();
+	CollectionViewPtr->MakeSaveDynamicCollectionMenu(FinalQueryText, FSimpleDelegate::CreateSP(this, &SContentBrowser::SaveSearchAsFilter));
+}
+
+void SContentBrowser::SaveSearchAsFilter()
+{
+	FilterListPtr->CreateCustomFilterDialog(TextFilter->GetRawFilterText());
 }
 
 void SContentBrowser::OnPathClicked( const FString& CrumbData )

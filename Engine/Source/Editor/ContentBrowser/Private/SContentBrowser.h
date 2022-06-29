@@ -276,8 +276,11 @@ private:
 	/** Should the "Save Search" button be enabled? */
 	bool IsSaveSearchButtonEnabled() const;
 
-	/** Open the menu to let you save the current search text as a dynamic collection */
-	FReply OnSaveSearchButtonClicked();
+	/** Open the menu to let you save the current search text as a filter or dynamic collection */
+	void OnSaveSearchButtonClicked(const FText& InSearchText);
+
+	/** Save the current search as a filter pill */
+	void SaveSearchAsFilter();
 
 	/** Called when a crumb in the path breadcrumb trail or menu is clicked */
 	void OnPathClicked(const FString& CrumbData);
