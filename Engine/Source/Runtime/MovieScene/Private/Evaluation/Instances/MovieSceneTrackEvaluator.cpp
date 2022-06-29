@@ -179,7 +179,7 @@ const FMovieSceneEvaluationGroup* FMovieSceneTrackEvaluator::SetupFrame(UMovieSc
 	RootOverridePath.Reset(InOverrideRootID, RootHierarchy);
 
 	const FMovieSceneEvaluationField* OverrideRootField = nullptr;
-	FFrameTime RootTime = Context.GetTime();
+	FFrameTime RootTime = Context.GetEvaluationFieldTime();
 
 	if (InOverrideRootID == MovieSceneSequenceID::Root)
 	{

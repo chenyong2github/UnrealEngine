@@ -6,6 +6,7 @@
 #include "MovieSceneFwd.h"
 #include "Misc/FrameTime.h"
 #include "Evaluation/MovieSceneSequenceTransform.h"
+#include "MovieSceneTimeHelpers.h"
 
 
 /** Enumeration specifying whether we're playing forwards or backwards */
@@ -84,6 +85,24 @@ struct MOVIESCENE_API FMovieSceneEvaluationRange
 		}
 
 		return Direction == EPlayDirection::Forwards ? EvaluationRange.GetUpperBoundValue() : EvaluationRange.GetLowerBoundValue();
+	}
+
+	/**
+	 * Get the current time to use for looking up within an evaluation field.
+	 * Subtly different from GetTime in that it returns the previous tick for exclusive boundaries
+	 */
+	FORCEINLINE FFrameNumber GetEvaluationFieldTime() const
+	{
+		TRange<FFrameNumber> Range = GetFrameNumberRange();
+
+		if (Direction == EPlayDirection::Forwards)
+		{
+			return UE::MovieScene::DiscreteExclusiveUpper(Range)-1;
+		}
+		else
+		{
+			return UE::MovieScene::DiscreteInclusiveLower(Range);
+		}
 	}
 
 	/**

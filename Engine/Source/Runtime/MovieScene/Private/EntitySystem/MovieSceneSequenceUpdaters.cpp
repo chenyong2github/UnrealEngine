@@ -92,21 +92,6 @@ private:
 	FMovieSceneSequenceID RootOverrideSequenceID;
 };
 
-FFrameNumber ImportTimeFromContext(const FMovieSceneContext& Context)
-{
-	TRange<FFrameNumber> Range = Context.GetFrameNumberRange();
-
-	FFrameTime Epsilon(0, 1.f - FFrameTime::MaxSubframe);
-	if (Context.GetDirection() == EPlayDirection::Forwards)
-	{
-		return DiscreteExclusiveUpper(Range)-1;
-	}
-	else
-	{
-		return DiscreteInclusiveLower(Range);
-	}
-}
-
 void DissectRange(TArrayView<const FFrameTime> InDissectionTimes, const TRange<FFrameTime>& Bounds, TArray<TRange<FFrameTime>>& OutDissections)
 {
 	if (InDissectionTimes.Num() == 0)
@@ -246,7 +231,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FRootI
 
 	FMovieSceneEvaluationFieldEntitySet EntitiesScratch;
 
-	FFrameNumber ImportTime = ImportTimeFromContext(Context);
+	FFrameNumber ImportTime = Context.GetEvaluationFieldTime();
 		
 	const bool bOutsideCachedRange = !CachedEntityRange.Contains(ImportTime);
 	if (bOutsideCachedRange)
@@ -456,7 +441,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		}
 	}
 
-	FFrameNumber ImportTime = ImportTimeFromContext(RootContext);
+	FFrameNumber ImportTime = RootContext.GetEvaluationFieldTime();
 	const bool bGatherEntities = !CachedEntityRange.Contains(ImportTime);
 
 	// ------------------------------------------------------------------------------------------------
@@ -578,7 +563,7 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				const FMovieSceneEntityComponentField* SubComponentField = CompiledDataManager->FindEntityComponentField(SubDataID);
 
 				// Update entities if necessary
-				const FFrameTime SubSequenceTime = ImportTimeFromContext(SubContext);
+				const FFrameTime SubSequenceTime = SubContext.GetEvaluationFieldTime();
 
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = SubSequenceHandle;
