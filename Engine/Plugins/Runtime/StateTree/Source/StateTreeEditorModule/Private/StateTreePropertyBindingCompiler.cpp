@@ -201,6 +201,22 @@ EStateTreePropertyCopyType FStateTreePropertyBindingCompiler::GetCopyType(const 
 		}
 	}
 
+	// Handle FStateTreeStructRef
+	if (const FStructProperty* TargetStructProperty = CastField<const FStructProperty>(TargetProperty))
+	{
+		if (TargetStructProperty->Struct == TBaseStructure<FStateTreeStructRef>::Get())
+		{
+			if (const FStructProperty* SourceStructProperty = CastField<const FStructProperty>(SourceProperty))
+			{
+				// FStateTreeStructRef to FStateTreeStructRef is copied as usual.
+				if (SourceStructProperty->Struct != TBaseStructure<FStateTreeStructRef>::Get())
+				{
+					return EStateTreePropertyCopyType::StructReference;
+				}
+			}
+		}
+	}
+
 	const EPropertyAccessCompatibility Compatibility = GetPropertyCompatibility(SourceProperty, TargetProperty);
 
 	// Extract underlying types for enums

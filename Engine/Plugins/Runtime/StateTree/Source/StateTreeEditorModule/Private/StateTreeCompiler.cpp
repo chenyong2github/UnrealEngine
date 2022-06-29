@@ -19,6 +19,25 @@ namespace UE::StateTree::Compiler
 		Log.Reportf(EMessageSeverity::Error, ContextStruct, TEXT("The StateTree is too complex. Compact index %s out of range %d/%d."), ContextText, Value, MaxValue);
 	}
 
+	const UScriptStruct* GetBaseStructFromMetaData(const FProperty* Property, FString& OutBaseStructName)
+	{
+		static const FName NAME_BaseStruct = "BaseStruct";
+
+		const UScriptStruct* Result = nullptr;
+		OutBaseStructName = Property->GetMetaData(NAME_BaseStruct);
+	
+		if (!OutBaseStructName.IsEmpty())
+		{
+			Result = UClass::TryFindTypeSlow<UScriptStruct>(OutBaseStructName);
+			if (!Result)
+			{
+				Result = LoadObject<UScriptStruct>(nullptr, *OutBaseStructName);
+			}
+		}
+
+		return Result;
+	}
+
 }; // UE::StateTree::Compiler
 
 bool FStateTreeCompiler::Compile(UStateTree& InStateTree)
@@ -866,11 +885,95 @@ bool FStateTreeCompiler::IsPropertyAnyEnum(const FStateTreeBindableStructDesc& S
 		{
 			if (const FStructProperty* OwnerStructProperty = CastField<FStructProperty>(OwnerProperty))
 			{
-				bIsAnyEnum = OwnerStructProperty->Struct == FStateTreeAnyEnum::StaticStruct();
+				bIsAnyEnum = OwnerStructProperty->Struct == TBaseStructure<FStateTreeAnyEnum>::Get();
 			}
 		}
 	}
 	return bIsAnyEnum;
+}
+
+bool FStateTreeCompiler::ValidateStructRef(const FStateTreeBindableStructDesc& SourceStruct, FStateTreeEditorPropertyPath SourcePath,
+											const FStateTreeBindableStructDesc& TargetStruct, FStateTreeEditorPropertyPath TargetPath) const
+{
+	TArray<FStateTreePropertySegment> Segments;
+
+	const FProperty* TargetLeafProperty = nullptr;
+	int32 TargetLeafArrayIndex = INDEX_NONE;
+	if (FStateTreePropertyBindingCompiler::ResolvePropertyPath(TargetStruct, TargetPath, Segments, TargetLeafProperty, TargetLeafArrayIndex) == false)
+	{
+		// This will later be reported by the bindings compiler.
+		return true;
+	}
+
+	// Early out if the target is not FStateTreeStructRef.
+	const FStructProperty* TargetStructProperty = CastField<FStructProperty>(TargetLeafProperty);
+	if (TargetStructProperty == nullptr || TargetStructProperty->Struct != TBaseStructure<FStateTreeStructRef>::Get())
+	{
+		return true;
+	}
+
+	FString TargetBaseStructName;
+	const UScriptStruct* TargetBaseStruct = UE::StateTree::Compiler::GetBaseStructFromMetaData(TargetStructProperty, TargetBaseStructName);
+	if (TargetBaseStruct == nullptr)
+	{
+		Log.Reportf(EMessageSeverity::Error, TargetStruct,
+				TEXT("Could not find base struct '%s' for target '%s:%s'."),
+				*TargetBaseStructName, *TargetStruct.Name.ToString(), *TargetPath.ToString());
+		return false;
+	}
+	
+	const FProperty* SourceLeafProperty = nullptr;
+	int32 SourceLeafArrayIndex = INDEX_NONE;
+	if (FStateTreePropertyBindingCompiler::ResolvePropertyPath(SourceStruct, SourcePath, Segments, SourceLeafProperty, SourceLeafArrayIndex) == false)
+	{
+		// This will later be reported by the bindings compiler.
+		return true;
+	}
+
+	// Exit if the source is not a struct property.
+	const FStructProperty* SourceStructProperty = CastField<FStructProperty>(SourceLeafProperty);
+	if (SourceStructProperty == nullptr)
+	{
+		return true;
+	}
+	
+	if (SourceStructProperty->Struct == TBaseStructure<FStateTreeStructRef>::Get())
+	{
+		// Source is struct ref too, check the types match.
+		FString SourceBaseStructName;
+		const UScriptStruct* SourceBaseStruct = UE::StateTree::Compiler::GetBaseStructFromMetaData(SourceStructProperty, SourceBaseStructName);
+		if (SourceBaseStruct == nullptr)
+		{
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+					TEXT("Could not find base struct '%s' for bidning source '%s:%s'."),
+					*SourceBaseStructName, *SourceStruct.Name.ToString(), *SourcePath.ToString());
+			return false;
+		}
+
+		if (SourceBaseStruct->IsChildOf(TargetBaseStruct) == false)
+		{
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+						TEXT("Type mismatch between source '%s:%s' and target '%s:%s' types, '%s' is not child of '%s'."),
+						*SourceStruct.Name.ToString(), *SourcePath.ToString(),
+						*TargetStruct.Name.ToString(), *TargetPath.ToString(),
+						*GetNameSafe(SourceBaseStruct), *GetNameSafe(TargetBaseStruct));
+			return false;
+		}
+	}
+	else
+	{
+		if (!SourceStructProperty->Struct || SourceStructProperty->Struct->IsChildOf(TargetBaseStruct) == false)
+		{
+			Log.Reportf(EMessageSeverity::Error, TargetStruct,
+						TEXT("Type mismatch between source '%s:%s' and target '%s:%s' types, '%s' is not child of '%s'."),
+						*SourceStruct.Name.ToString(), *SourcePath.ToString(),
+						*TargetStruct.Name.ToString(), *TargetPath.ToString(),
+						*GetNameSafe(SourceStructProperty->Struct), *GetNameSafe(TargetBaseStruct));
+			return false;
+		}
+	}
+
+	return true;
 }
 
 bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const
@@ -936,6 +1039,12 @@ bool FStateTreeCompiler::GetAndValidateBindings(const FStateTreeBindableStructDe
 		else
 		{
 			OutBindings.Add(Binding);
+		}
+
+		// Check if the bindings is for struct ref and validate the types.
+		if (!ValidateStructRef(SourceStruct, Binding.SourcePath, TargetStruct, Binding.TargetPath))
+		{
+			return false;
 		}
 	}
 

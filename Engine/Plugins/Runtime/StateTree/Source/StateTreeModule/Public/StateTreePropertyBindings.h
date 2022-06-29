@@ -227,6 +227,8 @@ enum class EStateTreePropertyCopyType : uint8
 	CopyName,					// FName needs special case because its size changes between editor/compiler and runtime.
 	CopyFixedArray,				// Array needs special handling for fixed size TArrays
 
+	StructReference,			// Copies pointer to a source struct into a FStateTreeStructRef.
+
 	/* Promote the type during the copy */
 
 	/* Bool promotions */
@@ -448,7 +450,7 @@ struct STATETREEMODULE_API FStateTreePropertyBindings
 protected:
 	[[nodiscard]] bool ResolvePath(const UStruct* Struct, const FStateTreePropertySegment& FirstPathSegment, FStateTreePropertyIndirection& OutFirstIndirection, const FProperty*& OutLeafProperty);
 	[[nodiscard]] bool ValidateCopy(FStateTreePropCopy& Copy) const;
-	void PerformCopy(const FStateTreePropCopy& Copy, const uint8* SourceAddress, uint8* TargetAddress) const;
+	void PerformCopy(const FStateTreePropCopy& Copy, uint8* SourceAddress, uint8* TargetAddress) const;
 	uint8* GetAddress(FStateTreeDataView InStructView, const FStateTreePropertyIndirection& FirstIndirection, const FProperty* LeafProperty) const;
 	FString GetPathAsString(const FStateTreePropertySegment& FirstPathSegment, const FStateTreePropertySegment* HighlightedSegment = nullptr, const TCHAR* HighlightPrefix = nullptr, const TCHAR* HighlightPostfix = nullptr);
 

@@ -22,7 +22,7 @@ bool FMassZoneGraphFindEscapeTarget::Link(FStateTreeLinker& Linker)
 	Linker.LinkExternalData(ZoneGraphSubsystemHandle);
 	Linker.LinkExternalData(ZoneGraphAnnotationSubsystemHandle);
 
-	Linker.LinkInstanceDataProperty(EscapeTargetLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphFindEscapeTargetInstangeData, EscapeTargetLocation));
+	Linker.LinkInstanceDataProperty(EscapeTargetLocationHandle, STATETREE_INSTANCEDATA_PROPERTY(FMassZoneGraphFindEscapeTargetInstanceData, EscapeTargetLocation));
 
 	return true;
 }

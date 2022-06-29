@@ -5,6 +5,7 @@
 #include "StateTree.h"
 #include "StateTreePropertyBindings.h"
 #include "StateTreeInstanceData.h"
+#include "StateTreeNodeBase.h"
 #include "StateTreeExecutionContext.generated.h"
 
 struct FStateTreeEvaluatorBase;
@@ -255,9 +256,25 @@ public:
 		}
 		return nullptr;
 	}
-	
+
+	/** @returns pointer to the instance data of specified node. */
+	template <typename T>
+	T* GetInstanceDataPtr(const FStateTreeNodeBase& Node) const
+	{
+		return DataViews[Node.DataViewIndex.Get()].template GetMutablePtr<T>();
+	}
+
+	/** @returns reference to the instance data of specified node. */
+	template <typename T>
+	T& GetInstanceData(const FStateTreeNodeBase& Node) const
+	{
+		return DataViews[Node.DataViewIndex.Get()].template GetMutable<T>();
+	}
+
+	/** @return the status of the last tick function */
 	EStateTreeRunStatus GetLastTickStatus(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
+	/** @return reference to the list of currently active states. */
 	const FStateTreeActiveStates& GetActiveStates(const FStateTreeInstanceData* ExternalInstanceData = nullptr) const;
 
 #if WITH_GAMEPLAY_DEBUGGER

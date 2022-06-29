@@ -15,7 +15,7 @@ class UZoneGraphAnnotationSubsystem;
  * Updates TargetLocation to a escape target based on the agents current location on ZoneGraph, and disturbance annotation.
  */
 USTRUCT()
-struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTargetInstangeData
+struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTargetInstanceData
 {
 	GENERATED_BODY()
 
@@ -32,7 +32,7 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphFindEscapeTarget : public FMassStateTree
 
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindEscapeTargetInstangeData::StaticStruct(); }
+	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphFindEscapeTargetInstanceData::StaticStruct(); }
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 
 	TStateTreeExternalDataHandle<FMassZoneGraphLaneLocationFragment> LocationHandle;

@@ -639,3 +639,83 @@ struct STATETREEMODULE_API FStateTreeExternalDataDesc
 
 #define STATETREE_INSTANCEDATA_PROPERTY(Struct, Member) \
 		decltype(Struct::Member){}, Struct::StaticStruct(), TEXT(#Member)
+
+/**
+ * StateTree struct ref allows to get a reference/pointer to a specified type via property binding.
+ * It is useful for referencing larger properties to avoid copies of the data, or to be able to write to a bounds property.
+ *
+ * The expected type of the reference should be set in "BaseStruct" meta tag.
+ *
+ * Example:
+ *
+ *	USTRUCT()
+ *	struct FAwesomeTaskInstanceData
+ *	{
+ *		GENERATED_BODY()
+ *
+ *		UPROPERTY(VisibleAnywhere, Category = Input, meta = (BaseStruct = "/Script/AwesomeModule.AwesomeData"))
+ *		FStateTreeStructRef Data;
+ *	};
+ *
+ *
+ *	if (const FAwesomeData* Awesome = InstanceData.Data.GetPtr<FAwesomeData>())
+ *	{
+ *		...
+ *	}
+ */
+USTRUCT(BlueprintType)
+struct STATETREEMODULE_API FStateTreeStructRef
+{
+	GENERATED_BODY()
+
+	FStateTreeStructRef() = default;
+
+	/** @return true if the reference is valid (safe to use the reference getters). */
+	bool IsValid() const
+	{
+		return Data.IsValid();
+	}
+
+	/** Sets the struct ref (used by property copy) */
+	void Set(FStructView NewData)
+	{
+		Data = NewData;
+	}
+
+	/** Returns const reference to the struct, this getter assumes that all data is valid. */
+	template <typename T>
+	const T& Get() const
+	{
+		return Data.template Get<T>();
+	}
+
+	/** Returns const pointer to the struct, or nullptr if cast is not valid. */
+	template <typename T>
+	const T* GetPtr() const
+	{
+		return Data.template GetPtr<T>();
+	}
+
+	/** Returns mutable reference to the struct, this getter assumes that all data is valid. */
+	template <typename T>
+    T& GetMutable() const
+	{
+		return Data.template GetMutable<T>();
+	}
+
+	/** Returns mutable pointer to the struct, or nullptr if cast is not valid. */
+	template <typename T>
+    T* GetMutablePtr() const
+	{
+		return Data.template GetMutablePtr<T>();
+	}
+
+	/** @return Struct describing the data type. */
+	const UScriptStruct* GetScriptStruct() const
+	{
+		return Data.GetScriptStruct();
+	}
+
+protected:
+	FStructView Data;
+};

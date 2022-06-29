@@ -22,8 +22,8 @@ struct MASSAIBEHAVIOR_API FMassClaimSmartObjectTaskInstanceData
 	GENERATED_BODY()
 
 	/** Result of the candidates search request (Input) */
-	UPROPERTY(VisibleAnywhere, Category = Input)
-	FMassSmartObjectCandidateSlots CandidateSlots;
+	UPROPERTY(VisibleAnywhere, Category = Input, meta = (BaseStruct = "/Script/MassSmartObjects.MassSmartObjectCandidateSlots"))
+	FStateTreeStructRef CandidateSlots;
 
 	UPROPERTY(VisibleAnywhere, Category = Output)
 	FSmartObjectClaimHandle ClaimedSlot;
@@ -46,9 +46,6 @@ protected:
 	TStateTreeExternalDataHandle<FMassSmartObjectUserFragment> SmartObjectUserHandle;
 	TStateTreeExternalDataHandle<USmartObjectSubsystem> SmartObjectSubsystemHandle;
 	TStateTreeExternalDataHandle<UMassSignalSubsystem> MassSignalSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FMassSmartObjectCandidateSlots> CandidateSlotsHandle;
-	TStateTreeInstanceDataPropertyHandle<FSmartObjectClaimHandle> ClaimedSlotHandle;
 
 	/** Delay in seconds before trying to use another smart object */
 	UPROPERTY(EditAnywhere, Category = Parameter)

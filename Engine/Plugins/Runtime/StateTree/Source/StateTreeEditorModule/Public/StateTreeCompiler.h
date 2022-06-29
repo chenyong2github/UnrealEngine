@@ -47,6 +47,8 @@ private:
 	bool CreateEvaluator(const FStateTreeEditorNode& EvalNode);
 	bool GetAndValidateBindings(const FStateTreeBindableStructDesc& TargetStruct, TArray<FStateTreeEditorPropertyBinding>& OutBindings) const;
 	bool IsPropertyAnyEnum(const FStateTreeBindableStructDesc& Struct, FStateTreeEditorPropertyPath Path) const;
+	bool ValidateStructRef(const FStateTreeBindableStructDesc& SourceStruct, FStateTreeEditorPropertyPath SourcePath,
+							const FStateTreeBindableStructDesc& TargetStruct, FStateTreeEditorPropertyPath TargetPath) const;
 
 	FStateTreeCompilerLog& Log;
 	UStateTree* StateTree = nullptr;
@@ -129,5 +131,13 @@ namespace UE::StateTree::Compiler
 	{
 		return FValidationResult(Count >= 0 && Count <= MAX_uint8, Count, MAX_uint8);
 	}
+
+	/**
+	 * Returns UScriptStruct defined in "BaseStruct" metadata of given property.
+	 * @param Property Handle to property where value is got from.
+	 * @param OutBaseStructName Handle to property where value is got from.
+	 * @return Script struct defined by the BaseStruct or nullptr if not found.
+	 */
+	const UScriptStruct* GetBaseStructFromMetaData(const FProperty* Property, FString& OutBaseStructName);
 
 }; // UE::StateTree::Compiler

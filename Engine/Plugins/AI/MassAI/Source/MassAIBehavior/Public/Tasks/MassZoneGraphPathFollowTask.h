@@ -72,8 +72,8 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphPathFollowTaskInstanceData
 {
 	GENERATED_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Input)
-	FMassZoneGraphTargetLocation TargetLocation;
+	UPROPERTY(EditAnywhere, Category = Input, meta=(BaseStruct = "/Script/MassAIBehavior.MassZoneGraphTargetLocation"))
+	FStateTreeStructRef TargetLocation; 
 
 	UPROPERTY(EditAnywhere, Category = Parameter)
 	FMassMovementStyleRef MovementStyle;
@@ -87,9 +87,11 @@ struct MASSAIBEHAVIOR_API FMassZoneGraphPathFollowTask : public FMassStateTreeTa
 {
 	GENERATED_BODY()
 
+	using FInstanceDataType = FMassZoneGraphPathFollowTaskInstanceData;
+
 protected:
 	virtual bool Link(FStateTreeLinker& Linker) override;
-	virtual const UStruct* GetInstanceDataType() const override { return FMassZoneGraphPathFollowTaskInstanceData::StaticStruct(); };
+	virtual const UStruct* GetInstanceDataType() const override { return FInstanceDataType::StaticStruct(); };
 	virtual EStateTreeRunStatus EnterState(FStateTreeExecutionContext& Context, const EStateTreeStateChangeType ChangeType, const FStateTreeTransitionResult& Transition) const override;
 	virtual EStateTreeRunStatus Tick(FStateTreeExecutionContext& Context, const float DeltaTime) const override;
 
@@ -103,8 +105,4 @@ protected:
 	TStateTreeExternalDataHandle<FAgentRadiusFragment> AgentRadiusHandle;
 	TStateTreeExternalDataHandle<FMassMovementParameters> MovementParamsHandle;
 	TStateTreeExternalDataHandle<UZoneGraphSubsystem> ZoneGraphSubsystemHandle;
-
-	TStateTreeInstanceDataPropertyHandle<FMassZoneGraphTargetLocation> TargetLocationHandle;
-	TStateTreeInstanceDataPropertyHandle<FMassMovementStyleRef> MovementStyleHandle;
-	TStateTreeInstanceDataPropertyHandle<float> SpeedScaleHandle;
 };
