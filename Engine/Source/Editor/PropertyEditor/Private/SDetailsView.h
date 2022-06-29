@@ -220,4 +220,6 @@ private:
 	FDelegateHandle PostUndoRedoDelegateHandle;
 	/** The section selector widget to show if DetailsViewArgs.bShowSectionSelector is true. */
 	TSharedPtr<class SWrapBox> SectionSelectorBox;
+	/** True when currently in the middle of a refreshing the object array */
+	bool bIsRefreshing;
 };

@@ -19,6 +19,7 @@
 #include "PropertyEditorHelpers.h"
 #include "SDetailNameArea.h"
 #include "Styling/StyleColors.h"
+#include "Templates/UnrealTemplate.h"
 #include "UserInterface/PropertyDetails/PropertyDetailsUtilities.h"
 #include "Widgets/Colors/SColorPicker.h"
 #include "Widgets/Images/SImage.h"
@@ -73,6 +74,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 	SetClassViewerFilters(InDetailsViewArgs.ClassViewerFilters);
 
 	bViewingClassDefaultObject = false;
+	bIsRefreshing = false;
 
 	PropertyUtilities = MakeShareable( new FPropertyDetailsUtilities( *this ) );
 	PropertyGenerationUtilities = MakeShareable( new FDetailsViewPropertyGenerationUtilities(*this) );
@@ -676,6 +678,14 @@ int32 SDetailsView::GetNumObjects() const
 
 void SDetailsView::SetObjectArrayPrivate(const TArray<UObject*>& InObjects)
 {
+	if (bIsRefreshing)
+	{
+		// SetObjectArrayPrivate can not be performed while in the middle of a previous refresh
+		return;
+	}
+
+	TGuardValue<bool> RefreshGuard(bIsRefreshing, true);
+
 	double StartTime = FPlatformTime::Seconds();
 
 	const TArray<FDetailsViewObjectRoot> Roots = ObjectFilter->FilterObjects(InObjects);
