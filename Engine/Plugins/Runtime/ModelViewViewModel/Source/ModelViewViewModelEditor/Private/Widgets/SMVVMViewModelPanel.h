@@ -4,14 +4,11 @@
 
 #include "CoreMinimal.h"
 
+#include "Widgets/PropertyViewer/SPropertyViewer.h"
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
 #include "Widgets/SCompoundWidget.h"
 
 class FWidgetBlueprintEditor;
-class SSearchBox;
-class STableViewBase;
-template<typename ItemType>
-class SListView;
 class UBlueprintExtension;
 class UMVVMBlueprintView;
 
@@ -31,20 +28,24 @@ public:
 	virtual ~SMVVMViewModelPanel();
 
 private:
-	void HandleViewUpdated(UBlueprintExtension*);
+	void HandleViewUpdated(UBlueprintExtension* Extension);
 	void HandleViewModelsUpdated();
-	void HandleSearchChanged(const FText& InFilterText);
-	bool HandleViewModelRenamed(const SViewModelBindingListWidget::FViewModel& ViewModel, const FText& RenameTo, bool bCommit, FText& OutErrorMessage);
-	void HandleBlueprintCompiled();
+	//bool HandleViewModelRenamed(const SViewModelBindingListWidget::FViewModel& ViewModel, const FText& RenameTo, bool bCommit, FText& OutErrorMessage);
+	TSharedRef<SWidget> MakeAddMenu();
+	bool HandleCanEditViewmodelList() const;
 
-	void GenerateViewModelTreeView();
+	void FillViewModel();
 
 private:
-	TSharedPtr<SSearchBox> SearchBoxPtr;
-	TSharedPtr<SViewModelBindingListWidget> ViewModelTreeView;
+	TSharedPtr<UE::PropertyViewer::SPropertyViewer> ViewModelTreeView;
+	FFieldIterator_ViewModel ViewModelFieldIterator;
+
+	using FViewModelHandle = TPair<FGuid, UE::PropertyViewer::SPropertyViewer::FHandle>;
+	TArray<FViewModelHandle> ViewModelHandles;
 
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;
 	TWeakObjectPtr<UMVVMBlueprintView> WeakBlueprintView;
+	FDelegateHandle ViewModelsUpdatedHandle;
 };
 
 } // namespace

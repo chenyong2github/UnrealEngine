@@ -17,10 +17,11 @@ struct FMVVMAvailableBinding
 public:
 	FMVVMAvailableBinding() = default;
 
-	explicit FMVVMAvailableBinding(FMVVMBindingName InBindingName, bool bReadable, bool bWritable)
+	explicit FMVVMAvailableBinding(FMVVMBindingName InBindingName, bool bInReadable, bool bInWritable, bool bInHasNotify)
 		: BindingName(InBindingName)
-		, bIsReadable(bReadable)
-		, bIsWritable(bWritable)
+		, bIsReadable(bInReadable)
+		, bIsWritable(bInWritable)
+		, bHasNotify(bInHasNotify)
 	{
 
 	}
@@ -29,6 +30,11 @@ public:
 	FMVVMBindingName GetBindingName() const
 	{
 		return BindingName;
+	}
+
+	bool HasNotify() const
+	{
+		return bHasNotify;
 	}
 
 	bool IsReadable() const
@@ -48,12 +54,15 @@ public:
 
 	bool operator==(const FMVVMAvailableBinding& Other) const 
 	{
-		return BindingName == Other.BindingName && bIsReadable == Other.bIsReadable && bIsWritable == Other.bIsWritable;
+		return BindingName == Other.BindingName
+			&& bIsReadable == Other.bIsReadable
+			&& bIsWritable == Other.bIsWritable
+			&& bHasNotify == Other.bHasNotify;
 	}
 
 	bool operator!=(const FMVVMAvailableBinding& Other) const
 	{
-		return BindingName == Other.BindingName && bIsReadable == Other.bIsReadable && bIsWritable == Other.bIsWritable;
+		return !(this->operator==(Other));
 	}
 
 	friend int32 GetTypeHash(const FMVVMAvailableBinding& Value)
@@ -70,4 +79,7 @@ private:
 
 	UPROPERTY()
 	bool bIsWritable = false;
+
+	UPROPERTY()
+	bool bHasNotify = false;
 };

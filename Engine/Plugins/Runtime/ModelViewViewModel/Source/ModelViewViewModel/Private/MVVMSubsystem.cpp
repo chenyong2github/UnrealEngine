@@ -116,14 +116,17 @@ bool UMVVMSubsystem::DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree
 
 namespace UE::MVVM::Private
 {
-	TArray<FMVVMAvailableBinding> GetAvailableBindings(const UClass* Class, const UE::FieldNotification::IClassDescriptor& ClassDescriptor)
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(const UClass* Class, const UE::FieldNotification::IClassDescriptor* ClassDescriptor)
 	{
 		TSet<FName> FieldDescriptors;
-		ClassDescriptor.ForEachField(Class, [&FieldDescriptors](UE::FieldNotification::FFieldId FieldId)
+		if (ClassDescriptor)
+		{
+			ClassDescriptor->ForEachField(Class, [&FieldDescriptors](UE::FieldNotification::FFieldId FieldId)
 			{
 				FieldDescriptors.Add(FieldId.GetName());
 				return true;
 			});
+		}
 
 		TArray<FMVVMAvailableBinding> Result;
 		Result.Reserve(FieldDescriptors.Num());
@@ -132,11 +135,15 @@ namespace UE::MVVM::Private
 		{
 			const UFunction* Function = *FunctionIt;
 			check(Function);
-			const bool bIsReadable = FieldDescriptors.Contains(Function->GetFName()) && BindingHelper::IsValidForSourceBinding(Function);
-			const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Function);
-			if (bIsReadable || bIsWritable)
+			//if (!Function->HasAnyFunctionFlags(FUNC_Private | FUNC_Protected)) // todo fix for property and BlueprintPrivate in IsValidForSourceBindnig
 			{
-				Result.Add(FMVVMAvailableBinding(FMVVMBindingName(Function->GetFName()), bIsReadable, bIsWritable));
+				const bool bIsReadable = BindingHelper::IsValidForSourceBinding(Function);
+				const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Function);
+				const bool bHasNotify = FieldDescriptors.Contains(Function->GetFName()) && bIsReadable;
+				if (bIsReadable || bIsWritable || bHasNotify)
+				{
+					Result.Add(FMVVMAvailableBinding(FMVVMBindingName(Function->GetFName()), bIsReadable, bIsWritable, bHasNotify));
+				}
 			}
 		}
 
@@ -149,11 +156,13 @@ namespace UE::MVVM::Private
 		for (TFieldIterator<const FProperty> PropertyIt(Class, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
 			const FProperty* Property = *PropertyIt;
-			const bool bIsReadable = FieldDescriptors.Contains(Property->GetFName()) && BindingHelper::IsValidForSourceBinding(Property);
+			const bool bIsReadable = BindingHelper::IsValidForSourceBinding(Property);
 			const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Property);
-			if (bIsReadable || bIsWritable)
+			const bool bHasNotify = FieldDescriptors.Contains(Property->GetFName()) && bIsReadable;
+			if (bIsReadable || bIsWritable || bHasNotify)
 			{
 #if WITH_EDITOR
+				// Remove any BlueprintGetter & BlueprintSetter and use the Property instead.
 				if (bIsReadable)
 				{
 					const FString& PropertyGetter = Property->GetMetaData(NAME_BlueprintGetter);
@@ -181,7 +190,7 @@ namespace UE::MVVM::Private
 					}
 				}
 #endif
-				Result.Add(FMVVMAvailableBinding(FMVVMBindingName(Property->GetFName()), bIsReadable, bIsWritable));
+				Result.Add(FMVVMAvailableBinding(FMVVMBindingName(Property->GetFName()), bIsReadable, bIsWritable, bHasNotify));
 			}
 		}
 
@@ -194,10 +203,12 @@ namespace UE::MVVM::Private
 		{
 			TScriptInterface<INotifyFieldValueChanged> DefaultObject = InSubClass.GetDefaultObject();
 			const UE::FieldNotification::IClassDescriptor& ClassDescriptor = DefaultObject->GetFieldNotificationDescriptor();
-			return GetAvailableBindings(InSubClass.Get(), ClassDescriptor);
+			return GetAvailableBindings(InSubClass.Get(), &ClassDescriptor);
 		}
-
-		return TArray<FMVVMAvailableBinding>();
+		else
+		{
+			return GetAvailableBindings(InSubClass.Get(), nullptr);
+		}
 	}
 } //namespace
 

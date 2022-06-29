@@ -2,12 +2,14 @@
 
 #include "Widgets/SMVVMViewModelPanel.h"
 
+#include "Bindings/MVVMBindingHelper.h"
 #include "Editor.h"
 #include "Editor/EditorEngine.h"
 #include "Kismet2/Kismet2NameValidators.h"
 #include "MVVMBlueprintView.h"
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorSubsystem.h"
+#include "MVVMSubsystem.h"
 #include "MVVMViewModelBase.h"
 #include "WidgetBlueprint.h"
 #include "WidgetBlueprintEditor.h"
@@ -19,7 +21,10 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SBorder.h"
+#include "Widgets/PropertyViewer/SPropertyViewer.h"
 #include "Widgets/SMVVMViewModelBindingListWidget.h"
+
+#include "SPositiveActionButton.h"
 
 #define LOCTEXT_NAMESPACE "ViewModelPanel"
 
@@ -35,43 +40,37 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 	WeakBlueprintEditor = WidgetBlueprintEditor;
 	WeakBlueprintView = CurrentBlueprintView;
 
-	WidgetBlueprint->OnExtensionAdded.AddSP(this, &SMVVMViewModelPanel::HandleViewUpdated);
-	WidgetBlueprint->OnExtensionRemoved.AddSP(this, &SMVVMViewModelPanel::HandleViewUpdated);
-
 	if (CurrentBlueprintView)
 	{
 		// Listen to when the viewmodel are modified
-		CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
+		ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
 	}
 
-	GEditor->OnBlueprintCompiled().AddSP(this, &SMVVMViewModelPanel::HandleBlueprintCompiled);
+	ViewModelTreeView = SNew(UE::PropertyViewer::SPropertyViewer)
+		.PropertyVisibility(UE::PropertyViewer::SPropertyViewer::EPropertyVisibility::Visible)
+		.bShowSearchBox(true)
+		.bShowFieldIcon(true)
+		.bSanitizeName(true)
+		.FieldIterator(&ViewModelFieldIterator)
+		.SearchBoxPreSlot()
+		[
+			SNew(SPositiveActionButton)
+			.OnGetMenuContent(this, &SMVVMViewModelPanel::MakeAddMenu)
+			.Text(LOCTEXT("Viewmodel", "Viewmodel"))
+			.IsEnabled(this, &SMVVMViewModelPanel::HandleCanEditViewmodelList)
+		]
+		;
+		//.OnRenamed(this, &SMVVMViewModelPanel::HandleViewModelRenamed);
 
-	ViewModelTreeView = SNew(SViewModelBindingListWidget)
-		.OnRenamed(this, &SMVVMViewModelPanel::HandleViewModelRenamed);
-
-	GenerateViewModelTreeView();
+	FillViewModel();
 
 	ChildSlot
 	[
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.Padding(4)
-		.AutoHeight()
+		SNew(SBorder)
+		.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
+		.Padding(0)
 		[
-			SAssignNew(SearchBoxPtr, SSearchBox)
-			.HintText(LOCTEXT("SearchViewmodel", "Search"))
-			.OnTextChanged(this, &SMVVMViewModelPanel::HandleSearchChanged)
-		]
-		+ SVerticalBox::Slot()
-		.FillHeight(1.0f)
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-			.Padding(0)
-			[
-				ViewModelTreeView.ToSharedRef()
-			]
+			ViewModelTreeView.ToSharedRef()
 		]
 	];
 }
@@ -79,11 +78,6 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 
 SMVVMViewModelPanel::~SMVVMViewModelPanel()
 {
-	if (GEditor)
-	{
-		GEditor->OnBlueprintCompiled().RemoveAll(this);
-	}
-
 	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
 	{
 		if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj())
@@ -96,29 +90,30 @@ SMVVMViewModelPanel::~SMVVMViewModelPanel()
 	if (UMVVMBlueprintView* CurrentBlueprintView = WeakBlueprintView.Get())
 	{
 		// bind to check if the view is enabled
-		CurrentBlueprintView->OnViewModelsUpdated.RemoveAll(this);
+		CurrentBlueprintView->OnViewModelsUpdated.Remove(ViewModelsUpdatedHandle);
 	}
 }
 
 
-void SMVVMViewModelPanel::GenerateViewModelTreeView()
+void SMVVMViewModelPanel::FillViewModel()
 {
 	if (ViewModelTreeView)
 	{
-		TArray<SViewModelBindingListWidget::FViewModel, TInlineAllocator<16>> ViewModelList;
+		ViewModelTreeView->RemoveAll();
+		ViewModelHandles.Reset();
+
 		if (UMVVMBlueprintView* View = WeakBlueprintView.Get())
 		{
 			for (const FMVVMBlueprintViewModelContext& ViewModelContext : View->GetViewModels())
 			{
-				SViewModelBindingListWidget::FViewModel ViewModel;
-				ViewModel.Class = ViewModelContext.GetViewModelClass();
-				ViewModel.ViewModelId = ViewModelContext.GetViewModelId();
-				ViewModel.Name = ViewModelContext.GetViewModelName();
-				ViewModelList.Add(ViewModel);
+				UObject* ViewModelInstance = ViewModelContext.GetViewModelClass().GetDefaultObject();
+				
+				FViewModelHandle ViewModelHandle;
+				ViewModelHandle.Key = ViewModelContext.GetViewModelId();
+				ViewModelHandle.Value = ViewModelTreeView->AddInstance(ViewModelInstance);
+				ViewModelHandles.Add(ViewModelHandle);
 			}
 		}
-
-		ViewModelTreeView->SetViewModels(ViewModelList);
 	}
 }
 
@@ -126,82 +121,105 @@ void SMVVMViewModelPanel::GenerateViewModelTreeView()
 void SMVVMViewModelPanel::HandleViewUpdated(UBlueprintExtension*)
 {
 	bool bViewUpdated = false;
-	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
-	{
-		if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj())
-		{
-			UMVVMBlueprintView* CurrentBlueprintView = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->GetView(WidgetBlueprint);
-			WeakBlueprintView = CurrentBlueprintView;
 
-			if (CurrentBlueprintView)
+	if (!ViewModelsUpdatedHandle.IsValid())
+	{
+		if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
+		{
+			if (UWidgetBlueprint* WidgetBlueprint = WidgetBlueprintEditor->GetWidgetBlueprintObj())
 			{
-				CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
+				UMVVMBlueprintView* CurrentBlueprintView = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->GetView(WidgetBlueprint);
+				WeakBlueprintView = CurrentBlueprintView;
+
+				if (CurrentBlueprintView)
+				{
+					ViewModelsUpdatedHandle = CurrentBlueprintView->OnViewModelsUpdated.AddSP(this, &SMVVMViewModelPanel::HandleViewModelsUpdated);
+					bViewUpdated = true;
+				}
 			}
 		}
 	}
-	GenerateViewModelTreeView();
+
+	if (bViewUpdated)
+	{
+		FillViewModel();
+	}
 }
 
 
 void SMVVMViewModelPanel::HandleViewModelsUpdated()
 {
-	GenerateViewModelTreeView();
+	FillViewModel();
 }
 
 
-void SMVVMViewModelPanel::HandleSearchChanged(const FText& InFilterText)
+TSharedRef<SWidget> SMVVMViewModelPanel::MakeAddMenu()
 {
-	SearchBoxPtr->SetError(ViewModelTreeView->SetRawFilterText(InFilterText));
+	//using namespace UE::Sequencer;
+
+	//TSharedPtr<FExtender> Extender = FExtender::Combine(AddMenuExtenders);
+	//FMenuBuilder MenuBuilder(true, nullptr, Extender);
+	//{
+	//	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+	//	Sequencer->GetViewModel()->GetOutliner()->CastThisChecked<FSequencerOutlinerViewModel>()->BuildContextMenu(MenuBuilder);
+	//}
+
+	//return MenuBuilder.MakeWidget();
+	return SNullWidget::NullWidget;
 }
 
 
-bool SMVVMViewModelPanel::HandleViewModelRenamed(const SViewModelBindingListWidget::FViewModel& ViewModel, const FText& RenameTo, bool bCommit, FText& OutErrorMessage)
+bool SMVVMViewModelPanel::HandleCanEditViewmodelList() const
 {
-	if (RenameTo.IsEmptyOrWhitespace())
-	{
-		OutErrorMessage = LOCTEXT("EmptyWidgetName", "Empty Widget Name");
-		return false;
-	}
-
-	const FString& NewNameString = RenameTo.ToString();
-	if (NewNameString.Len() >= NAME_SIZE)
-	{
-		OutErrorMessage = LOCTEXT("WidgetNameTooLong", "Widget Name is Too Long");
-		return false;
-	}
-
-	FString GeneratedName = SlugStringForValidName(NewNameString);
-	if (GeneratedName.IsEmpty())
-	{
-		OutErrorMessage = LOCTEXT("EmptyWidgetName", "Empty Widget Name");
-		return false;
-	}
-
-	const FName GeneratedFName(*GeneratedName);
-	check(GeneratedFName.IsValidXName(INVALID_OBJECTNAME_CHARACTERS));
-
 	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
 	{
-		if (UWidgetBlueprint* WidgetBP = WidgetBlueprintEditor->GetWidgetBlueprintObj())
-		{
-			if (bCommit)
-			{
-				return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->RenameViewModel(WidgetBP, ViewModel.Name, *NewNameString, OutErrorMessage);
-			}
-			else
-			{
-				return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->VerifyViewModelRename(WidgetBP, ViewModel.Name, *NewNameString, OutErrorMessage);
-			}
-		}
+		return WidgetBlueprintEditor->InEditingMode();
 	}
 	return false;
 }
 
 
-void SMVVMViewModelPanel::HandleBlueprintCompiled()
-{
-	GenerateViewModelTreeView();
-}
+//bool SMVVMViewModelPanel::HandleViewModelRenamed(const SViewModelBindingListWidget::FViewModel& ViewModel, const FText& RenameTo, bool bCommit, FText& OutErrorMessage)
+//{
+//	if (RenameTo.IsEmptyOrWhitespace())
+//	{
+//		OutErrorMessage = LOCTEXT("EmptyViewmodelName", "Empty viewmodel name");
+//		return false;
+//	}
+//
+//	const FString& NewNameString = RenameTo.ToString();
+//	if (NewNameString.Len() >= NAME_SIZE)
+//	{
+//		OutErrorMessage = LOCTEXT("ViewmodelNameTooLong", "Viewmodel name is too long");
+//		return false;
+//	}
+//
+//	FString GeneratedName = SlugStringForValidName(NewNameString);
+//	if (GeneratedName.IsEmpty())
+//	{
+//		OutErrorMessage = LOCTEXT("EmptyViewmodelName", "Empty viewmodel name");
+//		return false;
+//	}
+//
+//	const FName GeneratedFName(*GeneratedName);
+//	check(GeneratedFName.IsValidXName(INVALID_OBJECTNAME_CHARACTERS));
+//
+//	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
+//	{
+//		if (UWidgetBlueprint* WidgetBP = WidgetBlueprintEditor->GetWidgetBlueprintObj())
+//		{
+//			if (bCommit)
+//			{
+//				return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->RenameViewModel(WidgetBP, ViewModel.Name, *NewNameString, OutErrorMessage);
+//			}
+//			else
+//			{
+//				return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->VerifyViewModelRename(WidgetBP, ViewModel.Name, *NewNameString, OutErrorMessage);
+//			}
+//		}
+//	}
+//	return false;
+//}
 
 } // namespace
 

@@ -166,7 +166,7 @@ namespace UE::MVVM::Private
 			WidgetBlueprint->FunctionGraphs.Remove(Graph);
 		}
 	}
-}
+} //namespace
 
 FName UMVVMEditorSubsystem::GetConversionFunctionWrapperName(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintViewBinding& Binding, bool bSourceToDestination) const
 {
@@ -749,7 +749,7 @@ void UMVVMEditorSubsystem::SetPathForConversionFunctionArgument(UWidgetBlueprint
 			++ArgumentIndex;
 		}
 	}
-	
+
 	if (!ensure(ArgumentPin != nullptr))
 	{
 		return;
@@ -1023,49 +1023,35 @@ TArray<UE::MVVM::FBindingSource> UMVVMEditorSubsystem::GetAllViewModels(const UW
 	return Sources;
 }
 
-
-TArray<UE::MVVM::FMVVMConstFieldVariant> UMVVMEditorSubsystem::GetChildViewModels(const UClass* Class)
+TArray<FMVVMAvailableBinding> UMVVMEditorSubsystem::GetChildViewModels(TSubclassOf<UObject> Class)
 {
-	auto IsValidObjectProperty = [](const FProperty* Property)
+	if (Class.Get() == nullptr)
 	{
-		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
-		{
-			return ObjectProperty->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass());
-		}
-		return false;
-	};
-
-
-	TArray<UE::MVVM::FMVVMConstFieldVariant> Result;
-	for (TFieldIterator<const FProperty> PropertyIt(Class, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
-	{
-		const FProperty* Property = *PropertyIt;
-		if (IsValidObjectProperty(Property) && UE::MVVM::BindingHelper::IsValidForSourceBinding(Property))
-		{
-			Result.Add(UE::MVVM::FMVVMConstFieldVariant(Property));
-		}
+		return TArray<FMVVMAvailableBinding>();
 	}
 
-	for (TFieldIterator<const UFunction> FunctionItt(Class, EFieldIteratorFlags::IncludeSuper); FunctionItt; ++FunctionItt)
-	{
-		const UFunction* Function = *FunctionItt;
-		check(Function);
-		if (!Function->HasAnyFunctionFlags(FUNC_Private | FUNC_Protected))
+	TArray<FMVVMAvailableBinding> ViewModelAvailableBindingsList = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindings(Class);
+	ViewModelAvailableBindingsList.RemoveAllSwap([Class](const FMVVMAvailableBinding& Value)
 		{
-			if (UE::MVVM::BindingHelper::IsValidForSourceBinding(Function))
+			UE::MVVM::FMVVMFieldVariant Variant = UE::MVVM::BindingHelper::FindFieldByName(Class.Get(), Value.GetBindingName());
+			const FProperty* Property = nullptr;
+			if (Variant.IsProperty())
 			{
-				if (const FProperty* ReturnValue = UE::MVVM::BindingHelper::GetReturnProperty(Function))
-				{
-					if (IsValidObjectProperty(ReturnValue))
-					{
-						Result.Add(UE::MVVM::FMVVMConstFieldVariant(Function));
-					}
-				}
+				Property = Variant.GetProperty();
 			}
-		}
-	}
+			else if (Variant.IsFunction() && Variant.GetFunction())
+			{
+				Property = UE::MVVM::BindingHelper::GetReturnProperty(Variant.GetFunction());
+			}
 
-	return Result;
+			if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
+			{
+				return !ObjectProperty->PropertyClass->ImplementsInterface(UNotifyFieldValueChanged::StaticClass());
+			}
+			return true;
+		});
+
+	return ViewModelAvailableBindingsList;
 }
 
 #undef LOCTEXT_NAMESPACE
