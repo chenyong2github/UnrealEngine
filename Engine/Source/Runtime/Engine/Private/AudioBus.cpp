@@ -3,12 +3,19 @@
 
 #include "Sound/AudioBus.h"
 #include "AudioDeviceManager.h"
-#include "EngineGlobals.h"
 #include "Engine/Engine.h"
-#include "UObject/UObjectIterator.h"
-#include "ActiveSound.h"
 #include "AudioDevice.h"
 #include "AudioMixerDevice.h"
+
+FAudioBusProxy::FAudioBusProxy(UAudioBus* InAudioBus)
+{
+	if (InAudioBus)
+	{
+		AudioBusId = InAudioBus->GetUniqueID();
+		NumChannels = InAudioBus->GetNumChannels();
+	}
+}
+
 
 UAudioBus::UAudioBus(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -50,46 +57,26 @@ void UAudioBus::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 		return;
 	}
 
-	FName PropertyName = PropertyChangedEvent.Property->GetFName();
-	if (PropertyName != GET_MEMBER_NAME_CHECKED(UAudioBus, AudioBusChannels))
+	const FName PropertyName = PropertyChangedEvent.Property->GetFName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UAudioBus, AudioBusChannels))
 	{
-		return;
-	}
-
-	const UAudioSettings* AudioSettings = GetDefault<UAudioSettings>();
-	if (!AudioSettings)
-	{
-		return;
-	}
-
-	for (const FDefaultAudioBusSettings& DefaultBusSettings : AudioSettings->DefaultAudioBuses)
-	{
-		if (DefaultBusSettings.AudioBus.ResolveObject() != this)
+		if (FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get())
 		{
-			continue;
-		}
-
-		FAudioDeviceManager* DeviceManager = FAudioDeviceManager::Get();
-		if (!DeviceManager)
-		{
-			continue;
-		}
-
-		// Restart bus with new channel count
-		UObject* AudioBus = DefaultBusSettings.AudioBus.ResolveObject();
-		if (this != AudioBus)
-		{
-			continue;
-		}
-
-		DeviceManager->IterateOverAllDevices([BusId = AudioBus->GetUniqueID(), NumChannels = AudioBusChannels](Audio::FDeviceId, FAudioDevice* InDevice)
-		{
-			if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(InDevice))
+			DeviceManager->IterateOverAllDevices([BusId = GetUniqueID(), NumChannels = AudioBusChannels](Audio::FDeviceId, FAudioDevice* InDevice)
 			{
-				MixerDevice->StopAudioBus(BusId);
-				MixerDevice->StartAudioBus(BusId, (int32)NumChannels + 1, false /* bInIsAutomatic */);
-			}
-		});
+				if (Audio::FMixerDevice* MixerDevice = static_cast<Audio::FMixerDevice*>(InDevice))
+				{
+					MixerDevice->StopAudioBus(BusId);
+					MixerDevice->StartAudioBus(BusId, (int32)NumChannels + 1, false /* bInIsAutomatic */);
+				}
+			});
+		}
 	}
 }
 #endif // WITH_EDITOR
+
+ TUniquePtr<Audio::IProxyData> UAudioBus::CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams)
+{
+	return MakeUnique<FAudioBusProxy>(this);
+}
+
