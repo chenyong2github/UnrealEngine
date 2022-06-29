@@ -1558,7 +1558,9 @@ void SavePreloadDependencies(FStructuredArchive::FRecord& StructuredArchiveRoot,
 void WriteGatherableText(FStructuredArchive::FRecord& StructuredArchiveRoot, FSaveContext& SaveContext)
 {
 	FStructuredArchive::FStream Stream = StructuredArchiveRoot.EnterStream(TEXT("GatherableTextData"));
-	if (!SaveContext.IsFilterEditorOnly()
+	// Do not gather text data during cooking since the data isn't only scrubbed off of editor packages
+	if (!SaveContext.IsCooking()
+		&& !SaveContext.IsFilterEditorOnly()
 		// We can only cache packages that:
 		//	1) Don't contain script data, as script data is very volatile and can only be safely gathered after it's been compiled (which happens automatically on asset load).
 		//	2) Don't contain text keyed with an incorrect package localization ID, as these keys will be changed later during save.

@@ -78,7 +78,7 @@ bool ConditionallyExcludeObjectForTarget(FSaveContext& SaveContext, UObject* Obj
 	}
 	else if (!SaveContext.GetHarvestedRealm(HarvestingContext).IsIncluded(Obj))
 	{
-		const EObjectMark ExcludedObjectMarks = SaveContext.GetExcludedObjectMarks();
+		const EObjectMark ExcludedObjectMarks = SaveContext.GetExcludedObjectMarks(HarvestingContext);
 		const ITargetPlatform* TargetPlatform = SaveContext.GetTargetPlatform();
 		EObjectMark ObjectMarks = GenerateMarksForObject(Obj, TargetPlatform);
 		if (!(ObjectMarks & ExcludedObjectMarks))

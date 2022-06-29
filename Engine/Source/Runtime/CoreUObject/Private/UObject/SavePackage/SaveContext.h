@@ -465,10 +465,10 @@ public:
 		return TargetPackagePath;
 	}
 
-	EObjectMark GetExcludedObjectMarks() const
+	EObjectMark GetExcludedObjectMarks(ESaveRealm HarvestingRealm) const
 	{
 		// When considering excluded objects for a platform, do not consider editor only object in the optional context as excluded
-		return (CurrentHarvestingRealm == ESaveRealm::Optional) ? (EObjectMark)(ExcludedObjectMarks & ~EObjectMark::OBJECTMARK_EditorOnly) : ExcludedObjectMarks;
+		return (HarvestingRealm == ESaveRealm::Optional) ? (EObjectMark)(ExcludedObjectMarks & ~EObjectMark::OBJECTMARK_EditorOnly) : ExcludedObjectMarks;
 	}
 
 	EObjectFlags GetTopLevelFlags() const
