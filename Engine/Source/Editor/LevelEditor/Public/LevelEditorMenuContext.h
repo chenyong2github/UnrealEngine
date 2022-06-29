@@ -61,7 +61,7 @@ public:
 
 	/** If the ContextType is Viewport this property can be set to the HitProxy actor that triggered the ContextMenu. */
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category="LevelEditor|Menu")
-	TObjectPtr<AActor> HitProxyActor = nullptr;
+	TWeakObjectPtr<AActor> HitProxyActor = nullptr;
 
 	UFUNCTION(BlueprintCallable, Category = "LevelEditor | Menu", DisplayName="Get Hit Proxy Element", meta=(ScriptName="GetHitProxyElement"))
 	FScriptTypedElementHandle GetScriptHitProxyElement();

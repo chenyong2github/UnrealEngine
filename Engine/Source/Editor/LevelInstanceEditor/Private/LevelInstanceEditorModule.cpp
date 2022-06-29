@@ -733,7 +733,7 @@ void FLevelInstanceEditorModule::ExtendContextMenu()
 		{
 			// Use the actor under the cursor if available (e.g. right-click menu).
 			// Otherwise use the first selected actor if there's one (e.g. Actor pulldown menu or outliner).
-			AActor* ContextActor = LevelEditorMenuContext->HitProxyActor;
+			AActor* ContextActor = LevelEditorMenuContext->HitProxyActor.Get();
 			if (!ContextActor && GEditor->GetSelectedActorCount() != 0)
 			{
 				ContextActor = Cast<AActor>(GEditor->GetSelectedActors()->GetSelectedObject(0));
