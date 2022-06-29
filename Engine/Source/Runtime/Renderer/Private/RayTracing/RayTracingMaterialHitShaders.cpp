@@ -9,6 +9,7 @@
 #include "RayTracingInstance.h"
 #include "BuiltInRayTracingShaders.h"
 #include "RaytracingOptions.h"
+#include "RayTracingLighting.h"
 
 int32 GEnableRayTracingMaterials = 1;
 static FAutoConsoleVariableRef CVarEnableRayTracingMaterials(
@@ -579,6 +580,11 @@ static bool PipelineContainsHitShaders(FRayTracingPipelineState* Pipeline, const
 	return true;
 }
 
+FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingDefaultMissShader(const FViewInfo& View)
+{
+	return View.ShaderMap->GetShader<FPackedMaterialClosestHitPayloadMS>().GetRayTracingShader();
+}
+
 FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMaterialPipeline(
 	FRHICommandList& RHICmdList,
 	FViewInfo& View,
@@ -595,20 +601,15 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 	Initializer.MaxPayloadSizeInBytes = RAY_TRACING_MAX_ALLOWED_PAYLOAD_SIZE; // sizeof(FPackedMaterialClosestHitPayload)
 	Initializer.bAllowHitGroupIndexing = true;
 
-	FRHIRayTracingShader* DefaultMissShader = View.ShaderMap->GetShader<FPackedMaterialClosestHitPayloadMS>().GetRayTracingShader();
+	FRHIRayTracingShader* DefaultMissShader = GetRayTracingDefaultMissShader(View);
 
-	FRHIRayTracingShader* RayTracingMissShaderLibrary[RAY_TRACING_NUM_MISS_SHADER_SLOTS] = {};
-	RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_DEFAULT] = DefaultMissShader;
-	if (bIsPathTracing)
-	{
-		// TODO: path tracer will want a different light miss shader
-		Initializer.SetMissShaderTable(TArrayView<FRHIRayTracingShader*>(RayTracingMissShaderLibrary, 1));
-	}
-	else
-	{
-		RayTracingMissShaderLibrary[RAY_TRACING_MISS_SHADER_SLOT_LIGHTING] = GetRayTracingLightingMissShader(View);
-		Initializer.SetMissShaderTable(RayTracingMissShaderLibrary);
-	}
+	TArray<FRHIRayTracingShader*> RayTracingMissShaderLibrary;
+	FShaderMapResource::GetRayTracingMissShaderLibrary(RayTracingMissShaderLibrary, DefaultMissShader);
+
+	// make sure we have at least one miss shader present
+	check(RayTracingMissShaderLibrary.Num() > 0);
+
+	Initializer.SetMissShaderTable(RayTracingMissShaderLibrary);
 
 	Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
@@ -663,16 +664,16 @@ FRayTracingPipelineState* FDeferredShadingSceneRenderer::CreateRayTracingMateria
 		Initializer.SetCallableTable(RayTracingCallableShaderLibrary);
 	}
 
-	FRayTracingPipelineState* FallbackPipelineState = GRayTracingNonBlockingPipelineCreation && View.ViewState
+	const bool bAllowNonBlockingPipelineCreation = GRayTracingNonBlockingPipelineCreation && !View.bIsOfflineRender;
+	FRayTracingPipelineState* FallbackPipelineState = bAllowNonBlockingPipelineCreation && View.ViewState
 		? PipelineStateCache::GetRayTracingPipelineState(View.ViewState->LastRayTracingMaterialPipelineSignature)
 		: nullptr;
 
 	ERayTracingPipelineCacheFlags PipelineCacheFlags = ERayTracingPipelineCacheFlags::Default;
-	if (GRayTracingNonBlockingPipelineCreation
-		&& FallbackPipelineState
-		&& View.ViewState
+	if (FallbackPipelineState
 		&& IsCompatibleFallbackPipelineSignature(View.ViewState->LastRayTracingMaterialPipelineSignature, Initializer)
 		&& PipelineContainsHitShaders(FallbackPipelineState, RequiredHitShaders)
+		&& FindRayTracingMissShaderIndex(FallbackPipelineState, DefaultMissShader, false) != INDEX_NONE
 		&& (!bCallableShadersSupported || FindRayTracingCallableShaderIndex(FallbackPipelineState, DefaultCallableShader, false) != INDEX_NONE))
 	{
 		PipelineCacheFlags |= ERayTracingPipelineCacheFlags::NonBlocking;

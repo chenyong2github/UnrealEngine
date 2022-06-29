@@ -31,20 +31,13 @@ FRayTracingSceneWithGeometryInstances FRayTracingScene::BuildInitializationData(
 		Instances,
 		uint8(ERayTracingSceneLayer::NUM),
 		RAY_TRACING_NUM_SHADER_SLOTS,
-		RAY_TRACING_NUM_MISS_SHADER_SLOTS,
+		NumMissShaderSlots,
 		NumCallableShaderSlots);
 }
 
 void FRayTracingScene::Create(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices)
 {
-	FRayTracingSceneWithGeometryInstances InitializationData = CreateRayTracingSceneWithGeometryInstances(
-		Instances,
-		uint8(ERayTracingSceneLayer::NUM),
-		RAY_TRACING_NUM_SHADER_SLOTS,
-		RAY_TRACING_NUM_MISS_SHADER_SLOTS,
-		NumCallableShaderSlots);
-
-	CreateWithInitializationData(GraphBuilder, GPUScene, ViewMatrices, MoveTemp(InitializationData));
+	CreateWithInitializationData(GraphBuilder, GPUScene, ViewMatrices, BuildInitializationData());
 }
 
 void FRayTracingScene::CreateWithInitializationData(FRDGBuilder& GraphBuilder, const FGPUScene& GPUScene, const FViewMatrices& ViewMatrices, FRayTracingSceneWithGeometryInstances SceneWithGeometryInstances)
@@ -296,6 +289,7 @@ void FRayTracingScene::Reset()
 	WaitForTasks();
 
 	Instances.Reset();
+	NumMissShaderSlots = 1;
 	NumCallableShaderSlots = 0;
 	CallableCommands.Reset();
 	UniformBuffers.Reset();

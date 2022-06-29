@@ -6,9 +6,12 @@
 
 #include "/Engine/Private/Strata/Strata.ush" 
 
+// This ifdef is to allow shaders(notably the ratracing miss shader implementing light functions) to override where these parameters come from.
+#ifndef LightFunctionParameters
 /** Tan of spotlight cone outer angle in x, ShadowFadeFraction in y, IsSpotLight in z, IsPointLight in w. */
 float4 LightFunctionParameters;
 float4x4 LightFunctionTranslatedWorldToLight;
+#endif
 
 /** 
  * Calculates the light function color with the given light vector. 

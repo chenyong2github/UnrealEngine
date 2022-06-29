@@ -369,6 +369,53 @@ FRayTracingLocalShaderBindings* FMeshDrawShaderBindings::SetRayTracingShaderBind
 	return SetRayTracingShaderBindingsForHitGroup(BindingWriter, 0, 0, ShaderIndexInPipeline, ShaderSlot);
 }
 
+void FMeshDrawShaderBindings::SetRayTracingShaderBindingsForMissShader(
+	FRHICommandList& RHICmdList,
+	FRHIRayTracingScene* Scene,
+	FRayTracingPipelineState* PipelineState,
+	uint32 ShaderIndexInPipeline,
+	uint32 ShaderSlot) const
+{
+	check(ShaderLayouts.Num() == 1);
+
+	FReadOnlyMeshDrawSingleShaderBindings SingleShaderBindings(ShaderLayouts[0], GetData());
+
+	FShaderBindingState BindingState;
+
+	const int32 MaxUniformBuffers = UE_ARRAY_COUNT(BindingState.UniformBuffers);
+
+	FRHIUniformBuffer* const* RESTRICT UniformBufferBindings = SingleShaderBindings.GetUniformBufferStart();
+	const FShaderParameterInfo* RESTRICT UniformBufferParameters = SingleShaderBindings.ParameterMapInfo.UniformBuffers.GetData();
+	const int32 NumUniformBufferParameters = SingleShaderBindings.ParameterMapInfo.UniformBuffers.Num();
+
+	checkf(SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num() == 0, TEXT("Texture sampler parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
+	checkf(SingleShaderBindings.ParameterMapInfo.SRVs.Num() == 0, TEXT("SRV parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
+
+	// Measure parameter memory requirements
+
+	int32 MaxUniformBufferUsed = -1;
+	for (int32 UniformBufferIndex = 0; UniformBufferIndex < NumUniformBufferParameters; UniformBufferIndex++)
+	{
+		FShaderParameterInfo Parameter = UniformBufferParameters[UniformBufferIndex];
+		checkSlow(Parameter.BaseIndex < MaxUniformBuffers);
+		FRHIUniformBuffer* UniformBuffer = UniformBufferBindings[UniformBufferIndex];
+		if (Parameter.BaseIndex < MaxUniformBuffers)
+		{
+			BindingState.UniformBuffers[Parameter.BaseIndex] = UniformBuffer;
+			MaxUniformBufferUsed = FMath::Max((int32)Parameter.BaseIndex, MaxUniformBufferUsed);
+		}
+	}
+
+	checkf(SingleShaderBindings.ParameterMapInfo.TextureSamplers.Num() == 0, TEXT("Texture sampler parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
+	checkf(SingleShaderBindings.ParameterMapInfo.SRVs.Num() == 0, TEXT("SRV parameters are not supported for ray tracing. UniformBuffers must be used for all resource binding."));
+	checkf(SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers.Num() == 0, TEXT("Ray tracing miss shaders may not have loose parameters"));
+
+	uint32 NumUniformBuffersToSet = MaxUniformBufferUsed + 1;
+	const uint32 UserData = 0; // UserData could be used to store material ID or any other kind of per-material constant. This can be retrieved in hit shaders via GetHitGroupUserData().
+	RHICmdList.SetRayTracingMissShader(Scene, ShaderSlot, PipelineState, ShaderIndexInPipeline,
+		NumUniformBuffersToSet, BindingState.UniformBuffers,
+		UserData);
+}
 #endif // RHI_RAYTRACING
 
 FGraphicsMinimalPipelineStateId FGraphicsMinimalPipelineStateId::GetPersistentId(const FGraphicsMinimalPipelineStateInitializer& InPipelineState)

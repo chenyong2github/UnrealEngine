@@ -32,7 +32,7 @@ struct FRTLightingData
 	uint Type;
 	int LightProfileIndex;
 	float RectLightAtlasMaxLevel;
-	uint Pad;
+	uint LightMissShaderIndex;
 	float3 TranslatedLightPosition;
 	float InvRadius;
 	float3 Direction;
@@ -70,7 +70,7 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 	Data.Type = Element.x;
 	Data.LightProfileIndex = Element.y;
 	Data.RectLightAtlasMaxLevel = asfloat(Element.z);
-	Data.Pad = Element.w;
+	Data.LightMissShaderIndex = Element.w;
 
 	Element = LightDataBuffer[LightIndex++];
 
@@ -113,7 +113,8 @@ FRTLightingData GetRayTracingLightData(int LightIndex)
 
 FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 	inout int OutLightProfileIndex,
-	inout uint OutLightType)
+	inout uint OutLightType,
+	inout uint OutLightMissShaderIndex)
 {
 	FDeferredLightData LightData = (FDeferredLightData)0;
 	FRTLightingData RayTracingLightData = GetRayTracingLightData(LightIndex);
@@ -160,8 +161,17 @@ FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
 
 	OutLightProfileIndex = RayTracingLightData.LightProfileIndex;
 	OutLightType = LightType;
+	OutLightMissShaderIndex = RayTracingLightData.LightMissShaderIndex;
 
 	return LightData;
+}
+
+FDeferredLightData GetRayTracingDeferredLightData(int LightIndex,
+	inout int OutLightProfileIndex,
+	inout uint OutLightType)
+{
+	uint LightMissShaderIndex = 0;
+	return GetRayTracingDeferredLightData(LightIndex, OutLightProfileIndex, OutLightType, LightMissShaderIndex);
 }
 
 FRectTexture GetRayTracingRectTextureData(FDeferredLightData In)
@@ -415,7 +425,8 @@ float3 ComputeDirectLighting(
 
 		int LightProfileIndex = -1;
 		uint LightType = 0;
-		FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightProfileIndex, LightType);
+		uint LightMissShaderIndex = 0;
+		FDeferredLightData LightData = GetRayTracingDeferredLightData(LightIndex, LightProfileIndex, LightType, LightMissShaderIndex);
 
 		float3 ShadowRayDirection;
 		// ToLight should not be normalized because its length is used to compute the shadow ray TMax 
@@ -492,7 +503,7 @@ float3 ComputeDirectLighting(
 		// use the bound miss shader lighting evaluation if lighting, else nothing
 		if (bMissFarField)
 		{
-			uint MissShaderIndex = Lit ? RAY_TRACING_MISS_SHADER_SLOT_LIGHTING : RAY_TRACING_MISS_SHADER_SLOT_DEFAULT;
+			uint MissShaderIndex = Lit ? LightMissShaderIndex : RAY_TRACING_MISS_SHADER_SLOT_DEFAULT;
 			TraceShadowRayMissShaderLighting(ShadowRay, RayFlags, InstanceInclusionMask, TLAS, MissShaderIndex, PixelCoord, Payload);
 		}
 	}

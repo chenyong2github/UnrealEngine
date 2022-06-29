@@ -13,6 +13,10 @@
 #define STRATA_SSS_MATERIAL_OVERRIDE 0
 #define MATERIAL_FULLY_ROUGH 0
 
+#ifndef SUPPORT_LIGHT_FUNCTION
+#define SUPPORT_LIGHT_FUNCTION 0
+#endif
+
 #include "../SceneTextureParameters.ush"
 #include "RayTracingCommon.ush"
 
@@ -28,6 +32,17 @@
 #include "RayTracingLightingCommon.ush" 
 #if STRATA_ENABLED
 #include "../Strata/StrataDeferredLighting.ush"
+#endif
+
+#if SUPPORT_LIGHT_FUNCTION
+#include "/Engine/Generated/Material.ush"
+
+// TODO: if we could just bind loose parameters, we could avoid this workaround for getting the shader parameters needed by the routines in LightFunctionCommon.ush
+#define LightFunctionParameters RaytracingLightFunctionParameters.LightFunctionParameters
+#define LightFunctionTranslatedWorldToLight RaytracingLightFunctionParameters.LightFunctionTranslatedWorldToLight
+
+#include "../LightFunctionCommon.ush"
+#include "RayTracingLightFunctionCommon.ush"
 #endif
 
 RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, PackedPayload)
@@ -103,6 +118,11 @@ RAY_TRACING_ENTRY_MISS(RayTracingLightingMS, FPackedMaterialClosestHitPayload, P
 	FGBufferData GBufferData = GetGBufferDataFromPayload(Payload);
 	float3 LightContribution = GetDynamicLighting(WorldPosition, CameraVector, GBufferData, 1.0f, GBufferData.ShadingModelID, LightData, LightAttenuation, Dither, SVPos, SurfaceShadow).xyz;
 #endif // STRATA_ENABLED
+
+#if SUPPORT_LIGHT_FUNCTION
+	float3 LightFunctionMult = GetRayTracingLightFunction(WorldPosition);
+	LightProfileMultiplier *= dot(LightFunctionMult, .3333f); // convert to greyscale (for compatibility with the appearance in the primary view)
+#endif
 
 	float3 AccumulatedRadiance = Payload.Radiance + LightContribution * LightProfileMultiplier;
 

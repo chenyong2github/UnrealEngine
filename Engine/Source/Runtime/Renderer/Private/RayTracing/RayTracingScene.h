@@ -91,7 +91,7 @@ public:
 	TArray<FRayTracingGeometryInstance> Instances;
 
 	bool bUsedThisFrame = false;
-
+	uint32 NumMissShaderSlots = 1; // we must have a default miss shader, so always include it from the start
 	uint32 NumCallableShaderSlots = 0;
 	TArray<FRayTracingShaderCommand> CallableCommands;
 

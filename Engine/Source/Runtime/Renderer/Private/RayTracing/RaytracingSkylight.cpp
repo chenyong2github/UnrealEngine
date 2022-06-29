@@ -470,6 +470,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			SetShaderParameters(GlobalResources, RayGenerationShader, *PassParameters);
 
 			FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			if (CVarRayTracingSkyLightEnableMaterials.GetValueOnRenderThread() == 0)
 			{
 				// Declare default pipeline
@@ -482,10 +483,11 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 				Initializer.SetHitGroupTable(HitGroupTable);
 				Initializer.bAllowHitGroupIndexing = false; // Use the same hit shader for all geometry in the scene by disabling SBT indexing.
 
+				// TODO(UE-157946): This pipeline does not bind any miss shader and relies on the pipeline to do this automatically. This should be made explicit.
 				Pipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
+				RHICmdList.SetRayTracingMissShader(RayTracingSceneRHI, 0, Pipeline, 0 /* ShaderIndexInPipeline */, 0, nullptr, 0);
 			}
 
-			FRHIRayTracingScene* RayTracingSceneRHI = View.GetRayTracingSceneChecked();
 			RHICmdList.RayTraceDispatch(Pipeline, RayGenerationShader.GetRayTracingShader(), RayTracingSceneRHI, GlobalResources, RayTracingResolution.X, RayTracingResolution.Y);
 		});
 

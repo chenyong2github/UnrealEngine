@@ -30,9 +30,7 @@ struct FRTLightingData
 	int32 Type;
 	int32 LightProfileIndex;
 	float RectLightAtlasMaxLevel;
-
-	// Force alignment before next vector
-	int32 Pad;
+	uint32 LightMissShaderIndex;
 
 	FVector3f TranslatedLightPosition;
 	float InvRadius;
@@ -55,11 +53,26 @@ struct FRTLightingData
 
 static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size.");
 
+using FRayTracingLightFunctionMap = TMap<const FLightSceneInfo*, int32>;
+FRayTracingLightFunctionMap GatherLightFunctionLights(FScene* Scene, const FEngineShowFlags EngineShowFlags, ERHIFeatureLevel::Type InFeatureLevel);
+
 TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
-	const TSparseArray<FLightSceneInfoCompact, TAlignedSparseArrayAllocator<alignof(FLightSceneInfoCompact)>>& Lights,
+	const FScene* Scene,
 	const FSceneView& View,
+	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
 	FGlobalShaderMap* ShaderMap,
 	uint32& NumOfSkippedRayTracingLights);
+
+void BindLightFunctionShaders(
+	FRHICommandList& RHICmdList,
+	const FScene* Scene,
+	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
+	const class FViewInfo& View);
+
+void PrepareLightFunctionMissShaders(
+	const TArray<FLightSceneInfo*>& LightFunctionLights,
+	const class FViewInfo& View,
+	TArray<FRHIRayTracingShader*>& OutMissShaders);
 
 #endif

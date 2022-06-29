@@ -1779,7 +1779,7 @@ public:
 	#endif // USE_STATIC_ROOT_SIGNATURE
 	}
 
-	void Init(const FInitializer& Initializer, FD3D12Device* Device)
+	void Init(const FInitializer& Initializer, FD3D12Device* Device, const TArrayView<const FD3D12ShaderIdentifier>& RaygenIdentifiers, const FD3D12ShaderIdentifier& DefaultHitGroupIdentifier)
 	{
 		checkf(Initializer.LocalRootDataSize <= 4096, TEXT("The maximum size of a local root signature is 4KB.")); // as per section 4.22.1 of DXR spec v1.0
 		checkf(Initializer.NumRayGenShaders >= 1, TEXT("All shader tables must contain at least one raygen shader."));
@@ -1844,6 +1844,13 @@ public:
 		NumLocalRecords = (TotalDataSize - LocalShaderTableOffset) / LocalRecordStride;
 
 		Data.SetNumZeroed(TotalDataSize);
+#if DO_CHECK
+		bWasDefaultMissShaderSet = false;
+#endif
+		SetRayGenIdentifiers(RaygenIdentifiers);
+		SetDefaultHitGroupIdentifier(DefaultHitGroupIdentifier);
+		SetDefaultMissShaderIdentifier(FD3D12ShaderIdentifier::Null);
+		SetDefaultCallableShaderIdentifier(FD3D12ShaderIdentifier::Null);
 
 		// Keep CPU-side data after upload
 		Data.SetAllowCPUAccess(true);
@@ -1892,6 +1899,12 @@ public:
 	void SetMissIdentifier(uint32 RecordIndex, const FD3D12ShaderIdentifier& ShaderIdentifier)
 	{
 		const uint32 WriteOffset = MissShaderTableOffset + RecordIndex * LocalRecordStride;
+#if DO_CHECK
+		if (RecordIndex == 0)
+		{
+			bWasDefaultMissShaderSet = true;
+		}
+#endif
 		WriteData(WriteOffset, ShaderIdentifier.Data, ShaderIdentifierSize);
 	}
 
@@ -1924,22 +1937,20 @@ public:
 		}
 	}
 
-	void SetMissIdentifiers(const TArrayView<const FD3D12ShaderIdentifier>& Identifiers)
+	void SetDefaultMissShaderIdentifier(const FD3D12ShaderIdentifier& ShaderIdentifier)
 	{
-		// Set all to the default
-		check(Identifiers.Num());
+		// Set all slots to the same default
 		for (uint32 Index = 0; Index < NumMissRecords; ++Index)
 		{
-			SetMissIdentifier(Index, Identifiers[0]);
+			SetLocalShaderIdentifier(MissShaderRecordIndexOffset + Index, ShaderIdentifier);
 		}
 	}
 
-	void SetLocalShaderIdentifiers(uint32 RecordIndexOffset, const TArrayView<const FD3D12ShaderIdentifier>& Identifiers)
+	void SetDefaultCallableShaderIdentifier(const FD3D12ShaderIdentifier& ShaderIdentifier)
 	{
-		check(Identifiers.Num() == NumCallableRecords);
-		for (int32 Index = 0; Index < Identifiers.Num(); ++Index)
+		for (uint32 Index = 0; Index < NumCallableRecords; ++Index)
 		{
-			SetLocalShaderIdentifier(RecordIndexOffset + Index, Identifiers[Index]);
+			SetLocalShaderIdentifier(CallableShaderRecordIndexOffset + Index, ShaderIdentifier);
 		}
 	}
 
@@ -1950,6 +1961,8 @@ public:
 		check(IsInRHIThread() || !IsRunningRHIInSeparateThread());
 
 		checkf(Data.Num(), TEXT("Shader table is expected to be initialized before copying to GPU."));
+
+		checkf(bWasDefaultMissShaderSet, TEXT("At least the first miss shader must have been set before copying to GPU."));
 
 		FD3D12Device* Device = CommandContext.GetParentDevice();
 		FD3D12Adapter* Adapter = Device->GetParentAdapter();
@@ -2019,7 +2032,6 @@ public:
 	static constexpr uint32 ShaderIdentifierSize = D3D12_SHADER_IDENTIFIER_SIZE_IN_BYTES;
 	uint32 NumHitRecords = 0;
 	uint32 NumRayGenShaders = 0;
-	uint32 NumMissShaders = 0;
 	uint32 NumCallableRecords = 0;
 	uint32 NumMissRecords = 0;
 	uint32 NumLocalRecords = 0;
@@ -2045,6 +2057,9 @@ public:
 
 	bool bIsDirty = true;
 	TRefCountPtr<FD3D12Buffer> Buffer;
+#if DO_CHECK
+	bool bWasDefaultMissShaderSet = false;
+#endif
 
 	// SBTs have their own descriptor heaps
 	FD3D12RayTracingDescriptorCache* DescriptorCache = nullptr;
@@ -2525,16 +2540,6 @@ public:
 			MissShaders.Shaders.Add(Shader);
 		}
 
-		// Ensure miss shader 0 (default) requires no parameters
-		if (!Initializer.bPartial)
-		{
-			FD3D12RayTracingShader* Shader = FD3D12DynamicRHI::ResourceCast(InitializerMissShaders[0]);
-
-			const uint32 ShaderViewDescriptors = Shader->ResourceCounts.NumSRVs + Shader->ResourceCounts.NumUAVs;
-			
-			checkf(ShaderViewDescriptors == 0, TEXT("Default miss shader (miss shader 0) must take no parameters"));
-		}
-
 		// Add hit groups
 
 		TArray<FD3D12RayTracingPipelineCache::FEntry*> HitGroupEntries;
@@ -2735,10 +2740,11 @@ public:
 		for (uint32 GPUIndex : FRHIGPUMask::All())
 		{
 			FD3D12Device* NodeDevice = Adapter->GetDevice(GPUIndex);
-			DefaultShaderTables[GPUIndex].Init(SBTInitializer, NodeDevice);
-			DefaultShaderTables[GPUIndex].SetRayGenIdentifiers(RayGenShaders.Identifiers);
-			DefaultShaderTables[GPUIndex].SetMissIdentifiers(MissShaders.Identifiers);
-			DefaultShaderTables[GPUIndex].SetDefaultHitGroupIdentifier(HitGroupShaders.Identifiers[0]);
+			DefaultShaderTables[GPUIndex].Init(
+				SBTInitializer,
+				NodeDevice,
+				RayGenShaders.Identifiers,
+				HitGroupShaders.Identifiers[0]);
 		}
 
 		PipelineStackSize = PipelineProperties->GetPipelineStackSize();
@@ -4323,10 +4329,7 @@ FD3D12RayTracingShaderTable* FD3D12RayTracingScene::FindOrCreateShaderTable(cons
 	SBTInitializer.LocalRootDataSize = Pipeline->MaxLocalRootSignatureSize;
 	SBTInitializer.MaxViewDescriptorsPerRecord = Pipeline->MaxHitGroupViewDescriptors;
 
-	CreatedShaderTable->Init(SBTInitializer, Device);
-	CreatedShaderTable->SetRayGenIdentifiers(Pipeline->RayGenShaders.Identifiers);
-	CreatedShaderTable->SetMissIdentifiers(Pipeline->MissShaders.Identifiers);
-	CreatedShaderTable->SetDefaultHitGroupIdentifier(Pipeline->HitGroupShaders.Identifiers[0]);
+	CreatedShaderTable->Init(SBTInitializer, Device, Pipeline->RayGenShaders.Identifiers, Pipeline->HitGroupShaders.Identifiers[0]);
 
 	ShaderTables[GPUIndex].Add(Pipeline, CreatedShaderTable);
 
@@ -5597,7 +5600,7 @@ static void SetRayTracingMissShader(
 		LooseParameterDataSize, LooseParameterData, // Loose parameters
 		ResourceBinder);
 
-	ShaderTable->SetLocalShaderIdentifier(RecordIndex,
+	ShaderTable->SetMissIdentifier(ShaderSlotInScene,
 		bResourcesBound
 		? Pipeline->MissShaders.Identifiers[ShaderIndexInPipeline]
 		: FD3D12ShaderIdentifier::Null);
@@ -5733,9 +5736,6 @@ void FD3D12CommandContext::RHISetRayTracingCallableShader(
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
 	FD3D12RayTracingPipelineState* Pipeline = FD3D12DynamicRHI::ResourceCast(InPipeline);
-
-	checkf(ShaderSlotInScene < Scene->Initializer.NumCallableShaderSlots, TEXT("Shader slot is invalid. Make sure that NumCallableShaderSlots is correct on FRayTracingSceneInitializer."));
-
 	FD3D12RayTracingShaderTable* ShaderTable = Scene->FindOrCreateShaderTable(Pipeline, GetParentDevice());
 	const uint32 WorkerIndex = 0;
 
@@ -5750,33 +5750,13 @@ void FD3D12CommandContext::RHISetRayTracingMissShader(
 {
 	FD3D12RayTracingScene* Scene = FD3D12DynamicRHI::ResourceCast(InScene);
 	FD3D12RayTracingPipelineState* Pipeline = FD3D12DynamicRHI::ResourceCast(InPipeline);
-
-	checkf(ShaderSlotInScene < Scene->Initializer.NumMissShaderSlots, TEXT("Shader slot is invalid. Make sure that NumMissShaderSlots is correct on FRayTracingSceneInitializer."));
-	checkf(ShaderSlotInScene > 0, TEXT("Shader slot 0 is reserved for the default MissShader."));
-
 	FD3D12RayTracingShaderTable* ShaderTable = Scene->FindOrCreateShaderTable(Pipeline, GetParentDevice());
-
-	const uint32 RecordIndex = ShaderTable->MissShaderRecordIndexOffset + ShaderSlotInScene;
-
-	const uint32 UserDataOffset = offsetof(FHitGroupSystemParameters, RootConstants) + offsetof(FHitGroupSystemRootConstants, UserData);
-	ShaderTable->SetLocalShaderParameters(RecordIndex, UserDataOffset, UserData);
-
-	const FD3D12RayTracingShader* Shader = Pipeline->MissShaders.Shaders[ShaderIndexInPipeline];
-
-	uint32 WorkerIndex = 0;
-	FD3D12RayTracingLocalResourceBinder ResourceBinder(*GetParentDevice(), *ShaderTable, *(Shader->pRootSignature), RecordIndex, WorkerIndex);
-	const bool bResourcesBound = SetRayTracingShaderResources(Shader,
-		0, nullptr, // Textures
-		0, nullptr, // SRVs
+	const uint32 WorkerIndex = 0;
+	SetRayTracingMissShader(GetParentDevice(), ShaderTable, Scene, Pipeline,
+		ShaderSlotInScene, ShaderIndexInPipeline,
 		NumUniformBuffers, UniformBuffers,
-		0, nullptr, // Samplers
-		0, nullptr, // UAVs
 		0, nullptr, // Loose parameters
-		ResourceBinder);
-
-	ShaderTable->SetLocalShaderIdentifier(RecordIndex,
-		bResourcesBound
-		? Pipeline->MissShaders.Identifiers[ShaderIndexInPipeline]
-		: FD3D12ShaderIdentifier::Null);
+		UserData,
+		WorkerIndex);
 }
 #endif // D3D12_RHI_RAYTRACING

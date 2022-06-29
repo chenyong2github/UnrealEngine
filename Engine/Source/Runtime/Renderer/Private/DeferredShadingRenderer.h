@@ -18,6 +18,7 @@
 #include "ScreenSpaceDenoise.h"
 #include "Lumen/LumenProbeHierarchy.h"
 #include "Lumen/LumenSceneRendering.h"
+#include "RayTracing/RayTracingLighting.h"
 #include "IndirectLightRendering.h"
 #include "ScreenSpaceRayTracing.h"
 #include "RenderGraphUtils.h"
@@ -991,6 +992,9 @@ private:
 		int32 HeightFog,
 		float ResolutionFraction);
 
+	/** Setup the default miss shader (required for any raytracing pipeline) */
+	void SetupRayTracingDefaultMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+
 	/** Lighting Evaluation shader setup (used by ray traced reflections and translucency) */
 	void SetupRayTracingLightingMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
 
@@ -1004,7 +1008,7 @@ private:
 	void ComputePathCompaction(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FRHITexture* RadianceTexture, FRHITexture* SampleCountTexture, FRHITexture* PixelPositionTexture,
 		FRHIUnorderedAccessView* RadianceSortedRedUAV, FRHIUnorderedAccessView* RadianceSortedGreenUAV, FRHIUnorderedAccessView* RadianceSortedBlueUAV, FRHIUnorderedAccessView* RadianceSortedAlphaUAV, FRHIUnorderedAccessView* SampleCountSortedUAV);
 
-	void WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer);
+	void WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer, FRayTracingLightFunctionMap& RayTracingLightFunctionMap);
 
 	/** Debug ray tracing functions. */
 	void RenderRayTracingDebug(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SceneColorOutputTexture);
@@ -1014,7 +1018,7 @@ private:
 	bool GatherRayTracingWorldInstancesForView(FRDGBuilder& GraphBuilder, FViewInfo& View, FRayTracingScene& RayTracingScene, struct FRayTracingRelevantPrimitiveList&& RelevantPrimitiveList);
 
 	bool SetupRayTracingPipelineStates(FRDGBuilder& GraphBuilder);
-	void SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder);
+	void SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder, const FRayTracingLightFunctionMap& RayTracingLightFunctionMap);
 	bool DispatchRayTracingWorldUpdates(FRDGBuilder& GraphBuilder, FRDGBufferRef& OutDynamicGeometryScratchBuffer);
 
 	/** Functions to create ray tracing pipeline state objects for various effects */
@@ -1066,7 +1070,8 @@ private:
 	static void PrepareLumenHardwareRayTracingDirectLightingLumenMaterial(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 
 	/** Lighting evaluation shader registration */
-	static FRHIRayTracingShader* GetRayTracingLightingMissShader(FViewInfo& View);
+	static FRHIRayTracingShader* GetRayTracingDefaultMissShader(const FViewInfo& View);
+	static FRHIRayTracingShader* GetRayTracingLightingMissShader(const FViewInfo& View);
 
 	const FRHITransition* RayTracingDynamicGeometryUpdateEndTransition = nullptr; // Signaled when all AS for this frame are built
 #endif // RHI_RAYTRACING

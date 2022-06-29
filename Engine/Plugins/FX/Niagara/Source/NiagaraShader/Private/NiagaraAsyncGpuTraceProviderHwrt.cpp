@@ -244,6 +244,7 @@ static void BindNiagaraRayTracingMeshCommands(
 		NumTotalBindings,
 		Bindings,
 		bCopyDataToInlineStorage);
+	RHICmdList.SetRayTracingMissShader(RayTracingScene, 0, Pipeline, 0 /* ShaderIndexInPipeline */, 0, nullptr, 0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
