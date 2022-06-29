@@ -868,7 +868,48 @@ int32 FGeometryCollectionClusteringUtility::FindLowestCommonAncestor(FGeometryCo
 	return INDEX_NONE;
 }
 
-void FGeometryCollectionClusteringUtility::RemoveDanglingClusters(FGeometryCollection* GeometryCollection)
+bool FGeometryCollectionClusteringUtility::RemoveClustersOfOnlyOneChild(FGeometryCollection* GeometryCollection)
+{
+	check(GeometryCollection);
+
+	bool bRemovedAny = false;
+
+	TArray<int32> DeletionList;
+	do
+	{
+		DeletionList.Reset();
+
+		for (int32 Idx = 0, Num = GeometryCollection->Transform.Num(); Idx < Num; ++Idx)
+		{
+			int32 ParentIdx = GeometryCollection->Parent[Idx];
+			if (ParentIdx != INDEX_NONE && GeometryCollection->IsClustered(Idx))
+			{
+				if (GeometryCollection->Children[Idx].Num() == 1)
+				{
+					DeletionList.Add(Idx);
+					GeometryCollectionAlgo::ParentTransforms(GeometryCollection, ParentIdx, GeometryCollection->Children[Idx].Array());
+					UpdateHierarchyLevelOfChildren(GeometryCollection, ParentIdx);
+					RecursivelyUpdateChildBoneNames(ParentIdx, GeometryCollection->Children, GeometryCollection->BoneName);
+				}
+			}
+		}
+
+		if (DeletionList.Num())
+		{
+			// Note: List is ordered by construction, so do not need to Sort()
+			FManagedArrayCollection::FProcessingParameters Params;
+			Params.bDoValidation = false; // for perf reasons
+			GeometryCollection->RemoveElements(FGeometryCollection::TransformGroup, DeletionList, Params);
+			bRemovedAny = true;
+		}
+
+		// Need to repeat until an iteration doesn't remove any nodes, to fully collapse any chains of single-child clusters
+	} while (DeletionList.Num());
+
+	return bRemovedAny;
+}
+
+bool FGeometryCollectionClusteringUtility::RemoveDanglingClusters(FGeometryCollection* GeometryCollection)
 {
 	check(GeometryCollection);
 
@@ -892,11 +933,14 @@ void FGeometryCollectionClusteringUtility::RemoveDanglingClusters(FGeometryColle
 
 	if (DeletionList.Num())
 	{
-		DeletionList.Sort();
+		// Note: List is ordered by construction, so do not need to Sort()
 		FManagedArrayCollection::FProcessingParameters Params;
 		Params.bDoValidation = false; // for perf reasons
 		GeometryCollection->RemoveElements(FGeometryCollection::TransformGroup, DeletionList, Params);
+		return true;
 	}
+
+	return false;
 }
 
 

@@ -118,8 +118,11 @@ public:
 	/** Find the lowest common ancestor index of currently selected nodes. Returns INDEX_NODE if there is no common ancestor. */
 	static int32 FindLowestCommonAncestor(FGeometryCollection* GeometryCollection, const TArray<int32>& SelectedBones);
 
-	/** Delete any cluster nodes discovered to have no children */
-	static void RemoveDanglingClusters(FGeometryCollection* GeometryCollection);
+	/** Delete any cluster nodes discovered to have no children. Returns true if any nodes were removed. */
+	static bool RemoveDanglingClusters(FGeometryCollection* GeometryCollection);
+
+	/** Simplify the geometry collection by removing cluster nodes w/ a parent and only one child, re-parenting the child to its grand-parent. Returns true if any nodes were removed. */
+	static bool RemoveClustersOfOnlyOneChild(FGeometryCollection* GeometryCollection);
 
 	static void ValidateResults(FGeometryCollection* GeometryCollection);
 

@@ -234,6 +234,12 @@ void UFractureToolUnhide::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit
 	}
 }
 
+UFractureToolValidate::UFractureToolValidate(const FObjectInitializer& ObjInit) : Super(ObjInit)
+{
+	ValidationSettings = NewObject<UFractureValidateSettings>(GetTransientPackage(), UFractureValidateSettings::StaticClass());
+	ValidationSettings->OwnerTool = this;
+}
+
 
 FText UFractureToolValidate::GetDisplayText() const
 {
@@ -256,24 +262,33 @@ void UFractureToolValidate::RegisterUICommand(FFractureEditorCommands* BindingCo
 	BindingContext->Validate = UICommandInfo;
 }
 
+TArray<UObject*> UFractureToolValidate::GetSettingsObjects() const
+{
+	TArray<UObject*> Settings;
+	Settings.Add(ValidationSettings);
+	return Settings;
+}
+
 void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolkit)
 {
 	if (InToolkit.IsValid())
 	{
 		FFractureEditorModeToolkit* Toolkit = InToolkit.Pin().Get();
 
+		bool bUpdatedCollections = false;
+
 		TSet<UGeometryCollectionComponent*> GeomCompSelection;
 		GetSelectedGeometryCollectionComponents(GeomCompSelection);
 		for (UGeometryCollectionComponent* GeometryCollectionComponent : GeomCompSelection)
 		{
+			bool bDirty = false;
+
 			FGeometryCollectionEdit GeometryCollectionEdit = GeometryCollectionComponent->EditRestCollection();
 			if (UGeometryCollection* GeometryCollectionObject = GeometryCollectionEdit.GetRestCollection())
 			{
 				TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollectionPtr = GeometryCollectionObject->GetGeometryCollection();
 				if (FGeometryCollection* GeometryCollection = GeometryCollectionPtr.Get())
 				{
-					bool bDirty = false;
-
 					TManagedArray<int32>& TransformToGeometry = GeometryCollection->TransformToGeometryIndex;
 					constexpr bool bClustersCanHaveGeometry = true;
 					if (!bClustersCanHaveGeometry)
@@ -292,30 +307,47 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 					}
 
 					// Remove any unreferenced geometry
-					TManagedArray<int32>& TransformIndex = GeometryCollection->TransformIndex;
-					const int32 GeometryCount = TransformIndex.Num();
-
-					TArray<int32> RemoveGeometry;
-					RemoveGeometry.Reserve(GeometryCount);
-
-					for (int32 Idx = 0; Idx < GeometryCount; ++Idx)
+					if (ValidationSettings->bRemoveUnreferencedGeometry)
 					{
-						if ((TransformIndex[Idx] == INDEX_NONE) || (TransformToGeometry[TransformIndex[Idx]] != Idx))
+						TManagedArray<int32>& TransformIndex = GeometryCollection->TransformIndex;
+						const int32 GeometryCount = TransformIndex.Num();
+
+						TArray<int32> RemoveGeometry;
+						RemoveGeometry.Reserve(GeometryCount);
+
+						for (int32 Idx = 0; Idx < GeometryCount; ++Idx)
 						{
-							RemoveGeometry.Add(Idx);
-							UE_LOG(LogFractureTool, Warning, TEXT("Removed dangling geometry at index %d."), Idx);
+							if ((TransformIndex[Idx] == INDEX_NONE) || (TransformToGeometry[TransformIndex[Idx]] != Idx))
+							{
+								RemoveGeometry.Add(Idx);
+								UE_LOG(LogFractureTool, Warning, TEXT("Removed dangling geometry at index %d."), Idx);
+								bDirty = true;
+							}
+						}
+
+						if (RemoveGeometry.Num() > 0)
+						{
+							FManagedArrayCollection::FProcessingParameters Params;
+							Params.bDoValidation = false; // for perf reasons
+							GeometryCollection->RemoveElements(FGeometryCollection::GeometryGroup, RemoveGeometry);
+						}
+					}
+
+					if (ValidationSettings->bRemoveClustersOfOne)
+					{
+						if (FGeometryCollectionClusteringUtility::RemoveClustersOfOnlyOneChild(GeometryCollection))
+						{
 							bDirty = true;
 						}
 					}
 
-					if (RemoveGeometry.Num() > 0)
+					if (ValidationSettings->bRemoveDanglingClusters)
 					{
-						GeometryCollection->RemoveElements(FGeometryCollection::GeometryGroup, RemoveGeometry);
+						if (FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeometryCollection))
+						{
+							bDirty = true;
+						}
 					}
-
-					// remove dangling clusters
-					// #todo leaving this out for the moment because we don't want to invalidate existing caches.
-					// FGeometryCollectionClusteringUtility::RemoveDanglingClusters(GeometryCollection);
 
 					if (bDirty)
 					{
@@ -346,9 +378,22 @@ void UFractureToolValidate::Execute(TWeakPtr<FFractureEditorModeToolkit> InToolk
 
 			GeometryCollectionComponent->InitializeEmbeddedGeometry();
 
-			FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
-			EditBoneColor.ResetBoneSelection();
-			EditBoneColor.ResetHighlightedBones();
+			if (bDirty)
+			{
+				// reset bone selection because bones may have been deleted
+				FScopedColorEdit EditBoneColor = GeometryCollectionComponent->EditBoneSelection();
+				EditBoneColor.ResetBoneSelection();
+				EditBoneColor.ResetHighlightedBones();
+
+				// flag that at least one geometry collection has changed
+				bUpdatedCollections = true;
+			}
+		}
+
+		if (bUpdatedCollections)
+		{
+			Toolkit->RegenerateHistogram();
+			Toolkit->RegenerateOutliner();
 		}
 
 		Toolkit->OnSetLevelViewValue(-1);

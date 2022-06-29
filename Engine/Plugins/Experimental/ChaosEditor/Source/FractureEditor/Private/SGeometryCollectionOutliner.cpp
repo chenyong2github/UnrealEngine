@@ -582,6 +582,10 @@ void FGeometryCollectionTreeItemComponent::GetChildrenForBone(FGeometryCollectio
 
 			if (const int32* BoneIndex = GuidIndexMap.Find(BoneItem.GetGuid()))
 			{
+				if (!ensure(*BoneIndex >= 0 && *BoneIndex < Collection->NumElements(FGeometryCollection::TransformGroup)))
+				{
+					return;
+				}
 				const TManagedArray<TSet<int32>>& Children = Collection->Children;
 				const TManagedArray<FGuid>& Guids = Collection->GetAttribute<FGuid>("GUID", "Transform");
 				for (auto ChildIndex : Children[*BoneIndex])
