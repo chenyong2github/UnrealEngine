@@ -17,4 +17,5 @@ public:
 	/** IModuleInterface implementation end */
 
 	void OnPlacementModeRefresh(FName CategoryName);
+	void OnPostEngineInit();
 };

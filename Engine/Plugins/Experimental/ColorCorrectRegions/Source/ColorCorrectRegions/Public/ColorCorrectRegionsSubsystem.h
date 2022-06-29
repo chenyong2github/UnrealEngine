@@ -80,6 +80,9 @@ public:
 	/** Sorts regions based on priority. */
 	void SortRegionsByPriority();
 
+	/** Sorts regions based on distance from the camera. */
+	void SortRegionsByDistance(const FVector& ViewLocation);
+
 private:
 
 	/** Repopulates array of region actors. */
@@ -87,8 +90,11 @@ private:
 
 public:
 
-	/** Stores pointers to all ColorCorrectRegion Actors. */
-	TArray<AColorCorrectRegion*> Regions;
+	/** Stores pointers to ColorCorrectRegion Actors that use priority for sorting. */
+	TArray<AColorCorrectRegion*> RegionsPriorityBased;
+
+	/** Stores pointers to ColorCorrectRegion Actors that are based on distance from camera. */
+	TArray<AColorCorrectRegion*> RegionsDistanceBased;
 
 private:
 

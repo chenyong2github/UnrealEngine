@@ -136,16 +136,8 @@ public:
 	class FShaderType : SHADER_PERMUTATION_ENUM_CLASS("SHAPE_TYPE", EColorCorrectRegionsType);
 	class FTemperatureType : SHADER_PERMUTATION_ENUM_CLASS("TEMPERATURE_TYPE", ETemperatureType);
 	class FAdvancedShader : SHADER_PERMUTATION_BOOL("ADVANCED_CC");
-	class FDisplayBoundingRect : SHADER_PERMUTATION_BOOL("CCR_SHADER_DISPLAY_BOUNDING_RECT");
-	class FClipPixelsOutsideAABB : SHADER_PERMUTATION_BOOL("CLIP_PIXELS_OUTSIDE_AABB");
 
-	/** 
-	* On lower scalability settings Scene texture has only 3 channels.
-	* Which means we cannot sample it for opacity and need to get it from a different source.
-	*/
-	class FSampleOpacityFromGbuffer : SHADER_PERMUTATION_BOOL("SAMPLE_OPACITY_FROM_GBUFFER");
-
-	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader, FDisplayBoundingRect, FClipPixelsOutsideAABB, FSampleOpacityFromGbuffer>;
+	using FPermutationDomain = TShaderPermutationDomain<FShaderType, FTemperatureType, FAdvancedShader>;
 
 	FColorCorrectRegionMaterialPS() = default;
 	FColorCorrectRegionMaterialPS(const ShaderMetaType::CompiledShaderInitializerType & Initializer)

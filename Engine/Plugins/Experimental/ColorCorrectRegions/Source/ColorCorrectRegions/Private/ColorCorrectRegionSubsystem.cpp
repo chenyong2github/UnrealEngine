@@ -53,11 +53,17 @@ void UColorCorrectRegionsSubsystem::Deinitialize()
 	}
 #endif
 	GetWorld()->OnLevelsChanged().RemoveAll(this);
-	for (AColorCorrectRegion* Region : Regions)
+	for (AColorCorrectRegion* Region : RegionsPriorityBased)
 	{
 		Region->Cleanup();
 	}
-	Regions.Reset();
+	RegionsPriorityBased.Reset();	
+	
+	for (AColorCorrectRegion* Region : RegionsDistanceBased)
+	{
+		Region->Cleanup();
+	}
+	RegionsDistanceBased.Reset();
 
 	// Prevent this SVE from being gathered, in case it is kept alive by a strong reference somewhere else.
 	{
@@ -83,14 +89,19 @@ void UColorCorrectRegionsSubsystem::OnActorSpawned(AActor* InActor)
 	if (IsRegionValid(AsRegion, GetWorld()))
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-
+		EColorCorrectRegionsType CCRType = AsRegion->Type;
 		// We wouldn't have to do a check here except in case of nDisplay we need to populate this list during OnLevelsChanged 
 		// because nDisplay can release Actors while those are marked as BeginningPlay. Therefore we want to avoid 
 		// adding regions twice.
-		if (!Regions.Contains(AsRegion))
+		TArray<AColorCorrectRegion*>* RegionsToAddTo = CCRType == EColorCorrectRegionsType::Plane ? &RegionsDistanceBased : &RegionsPriorityBased;
+		if (!RegionsToAddTo->Contains(AsRegion))
 		{
-			Regions.Add(AsRegion);
-			SortRegionsByPriority();
+			RegionsToAddTo->Add(AsRegion);
+			// Distance based CCR can only be sorted on render, when View info is available.
+			if (CCRType != EColorCorrectRegionsType::Plane)
+			{
+				SortRegionsByPriority();
+			}
 		}
 	}
 }
@@ -106,7 +117,8 @@ void UColorCorrectRegionsSubsystem::OnActorDeleted(AActor* InActor)
 #endif
 	{
 		FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
-		Regions.Remove(AsRegion);
+		RegionsPriorityBased.Remove(AsRegion);
+		RegionsDistanceBased.Remove(AsRegion);
 	}
 }
 
@@ -114,26 +126,52 @@ void UColorCorrectRegionsSubsystem::SortRegionsByPriority()
 {
 	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 
-	Regions.Sort([](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
+	RegionsPriorityBased.Sort([](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
 		// Regions with the same priority could potentially cause flickering on overlap
 		return A.Priority < B.Priority;
 	});
+}
+
+void UColorCorrectRegionsSubsystem::SortRegionsByDistance(const FVector& ViewLocation)
+{
+	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
+	TMap<AColorCorrectRegion*, double> DistanceMap;
+	for (AColorCorrectRegion* Region : RegionsDistanceBased)
+	{
+		FVector BoxCenter, BoxExtents;
+		Region->GetBounds(BoxCenter, BoxExtents);
+		FVector CameraToRegionVec = (BoxCenter - ViewLocation);
+		DistanceMap.Add(Region, CameraToRegionVec.Dot(CameraToRegionVec));
+	}
+
+	RegionsDistanceBased.Sort([&DistanceMap](const AColorCorrectRegion& A, const AColorCorrectRegion& B) {
+		// Regions with the same distance could potentially cause flickering on overlap
+		return DistanceMap[&A] > DistanceMap[&B];
+	});
+
 }
 
 void UColorCorrectRegionsSubsystem::RefreshRegions()
 {
 	FScopeLock RegionScopeLock(&RegionAccessCriticalSection);
 
-	Regions.Reset();
+	RegionsPriorityBased.Reset();
+	RegionsDistanceBased.Reset();
 	for (TActorIterator<AColorCorrectRegion> It(GetWorld()); It; ++It)
 	{
 		AColorCorrectRegion* AsRegion = *It;
 		if (IsRegionValid(AsRegion, GetWorld()))
 		{
-			Regions.Add(AsRegion);
+			if (AsRegion->Type != EColorCorrectRegionsType::Plane)
+			{
+				RegionsPriorityBased.Add(AsRegion);
+			}
+			else
+			{
+				RegionsDistanceBased.Add(AsRegion);
+			}
 		}
 	}
 	SortRegionsByPriority();
 }
-
 

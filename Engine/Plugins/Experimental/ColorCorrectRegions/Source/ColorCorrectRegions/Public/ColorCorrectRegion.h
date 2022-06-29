@@ -20,6 +20,7 @@ enum class EColorCorrectRegionsType : uint8
 	Box			UMETA(DisplayName = "Box"),
 	Cylinder	UMETA(DisplayName = "Cylinder"),
 	Cone		UMETA(DisplayName = "Cone"),
+	Plane		UMETA(DisplayName = "Plane (Window CCR)"),
 	MAX
 };
 
@@ -50,7 +51,11 @@ public:
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Correction")
 	EColorCorrectRegionsType Type;
 
-	/** Render priority/order. */
+	/** 
+	* Render priority/order. The higher the number the later region will be applied. 
+	* A region with Priority 1 will be rendered before a region with Priority 10. 
+	* This property is hidden if priority is determined by distance from the camera (When Window CCR is being used). 
+	*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Color Correction")
 	int32 Priority;
 

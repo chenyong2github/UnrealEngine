@@ -4,6 +4,7 @@
 #include "Editor/PlacementMode/Public/IPlacementModeModule.h"
 #include "ColorCorrectRegion.h"
 #include "ColorCorrectRegionsStyle.h"
+#include "ColorCorrectRegionCustomization.h"
 #include "ActorFactories/ActorFactoryBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "FColorCorrectRegionsModule"
@@ -12,6 +13,9 @@ void FColorCorrectRegionsEditorModule::StartupModule()
 {
 	IPlacementModeModule::Get().OnPlacementModeCategoryRefreshed().AddRaw(this, &FColorCorrectRegionsEditorModule::OnPlacementModeRefresh);
 	FColorCorrectRegionsStyle::Initialize();
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.RegisterCustomClassLayout(AColorCorrectRegion::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FColorCorrectRegionDetails::MakeInstance));
 }
 
 void FColorCorrectRegionsEditorModule::OnPlacementModeRefresh(FName CategoryName)

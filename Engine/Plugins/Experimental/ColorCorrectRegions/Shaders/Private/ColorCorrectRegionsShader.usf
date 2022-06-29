@@ -2,86 +2,17 @@
 
 #include "/Engine/Private/Common.ush"
 #include "/Engine/Private/ColorUtils.ush"
-#include "/Engine/Private/SceneTexturesCommon.ush"
-#include "/Engine/Private/Random.ush"
 #include "/Engine/Private/DistanceField/GlobalDistanceFieldShared.ush"
+#include "/Engine/Generated/GeneratedUniformBuffers.ush" 
+#include "/Engine/Private/Random.ush"
+#include "/Engine/Private/SceneTexturesCommon.ush"
 #include "/Engine/Private/SceneData.ush"
 #include "/Engine/Private/ScreenPass.ush"
-#include "/Engine/Generated/GeneratedUniformBuffers.ush" 
 #include "/Engine/Private/SceneTextureParameters.ush"
 
 
 #include "/ColorCorrectRegionsShaders/Private/ColorCorrectRegionsColorTemperature.ush"
-
-#ifdef NEEDS_SCENE_TEXTURES
-	#undef NEEDS_SCENE_TEXTURES
-#endif
-#define NEEDS_SCENE_TEXTURES 1
-
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_0)
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_1)
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_2)
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_3)
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_4)
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessOutput)
-
-Texture2D PostProcessInput_0_Texture;
-Texture2D PostProcessInput_1_Texture;
-Texture2D PostProcessInput_2_Texture;
-Texture2D PostProcessInput_3_Texture;
-Texture2D PostProcessInput_4_Texture;
-
-SamplerState PostProcessInput_0_Sampler;
-SamplerState PostProcessInput_1_Sampler;
-SamplerState PostProcessInput_2_Sampler;
-SamplerState PostProcessInput_3_Sampler;
-SamplerState PostProcessInput_4_Sampler;
-
-
-SamplerState PostProcessInputSampler;
-SamplerState PostProcessInput_BilinearSampler;
-
-#define PostProcessInput_0_SharedSampler PostProcessInput_0_Sampler
-#define PostProcessInput_1_SharedSampler PostProcessInput_1_Sampler
-#define PostProcessInput_2_SharedSampler PostProcessInput_2_Sampler
-#define PostProcessInput_3_SharedSampler PostProcessInput_3_Sampler
-#define PostProcessInput_4_SharedSampler PostProcessInput_4_Sampler
-
-
-//////////////////////////////////////////////////////////////////////////
-//! Must match ESceneTextureId
-
-#define PPI_SceneColor 0
-#define PPI_SceneDepth 1
-#define PPI_DiffuseColor 2
-#define PPI_SpecularColor 3
-#define PPI_SubsurfaceColor 4
-#define PPI_BaseColor 5
-#define PPI_Specular 6
-#define PPI_Metallic 7
-#define PPI_WorldNormal 8
-#define PPI_SeparateTranslucency 9
-#define PPI_Opacity 10
-#define PPI_Roughness 11
-#define PPI_MaterialAO 12
-#define PPI_CustomDepth 13
-#define PPI_PostProcessInput0 14
-#define PPI_PostProcessInput1 15
-#define PPI_PostProcessInput2 16
-#define PPI_PostProcessInput3 17
-#define PPI_PostProcessInput4 18
-#define PPI_PostProcessInput5 19 // (UNUSED)
-#define PPI_PostProcessInput6 20 // (UNUSED)
-#define PPI_DecalMask 21
-#define PPI_ShadingModelColor 22
-#define PPI_ShadingModelID 23
-#define PPI_AmbientOcclusion 24
-#define PPI_CustomStencil 25
-#define PPI_StoredBaseColor 26
-#define PPI_StoredSpecular 27
-#define PPI_Velocity 28
-#define PPI_WorldTangent 29
-#define PPI_Anisotropy 30
+#include "/ColorCorrectRegionsShaders/Private/ColorCorrectRegionsCommon.usf"
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -90,412 +21,22 @@ SamplerState PostProcessInput_BilinearSampler;
 #define SHAPE_TYPE_BOX 1
 #define SHAPE_TYPE_CYLINDER 2
 #define SHAPE_TYPE_CONE 3
+#define SHAPE_TYPE_PLANE 4
 
 #define TEMPERATURE_TYPE_LEGACY 0
 #define TEMPERATURE_TYPE_WHITE_BALANCE 1
 #define TEMPERATURE_TYPE_COLOR_TEMP 2
 #define TEMPERATURE_TYPE_SKIP 3
 
-
-/** 
- * Parameters calculated from the pixel material inputs.
- */
-struct FPixelMaterialInputs
-{
-	MaterialFloat3 EmissiveColor;
-	MaterialFloat Opacity;
-	MaterialFloat OpacityMask;
-	MaterialFloat3 BaseColor;
-	MaterialFloat Metallic;
-	MaterialFloat Specular;
-	MaterialFloat Roughness;
-	MaterialFloat Anisotropy;
-	MaterialFloat3 Normal;
-	MaterialFloat3 Tangent;
-	MaterialFloat4 Subsurface;
-	MaterialFloat AmbientOcclusion;
-	MaterialFloat2 Refraction;
-	MaterialFloat PixelDepthOffset;
-	uint ShadingModel;
-
-};
-
-
-/** 
- * Parameters needed by pixel shader material inputs, related to Geometry.
- * These are independent of vertex factory.
- */
-struct FMaterialPixelParameters
-{
-
-    /** Interpolated vertex color, in linear color space. */
-	half4 VertexColor;
-
-    /** Normalized world space normal. */
-	half3 WorldNormal;
-    
-    /** Normalized world space tangent. */
-	half3 WorldTangent;
-
-    /** Normalized world space reflected camera vector. */
-	half3 ReflectionVector;
-
-    /** Normalized world space camera vector, which is the vector from the point being shaded to the camera position. */
-	half3 CameraVector;
-
-    /** World space light vector, only valid when rendering a light function. */
-	half3 LightVector;
-
-    /**
-     * Like SV_Position (.xy is pixel position at pixel center, z:DeviceZ, .w:SceneDepth)
-     * using shader generated value SV_POSITION
-     * Note: this is not relative to the current viewport.  RelativePixelPosition = MaterialParameters.SvPosition.xy - View.ViewRectMin.xy;
-     */
-	float4 SvPosition;
-        
-    /** Post projection position reconstructed from SvPosition, before the divide by W. left..top -1..1, bottom..top -1..1  within the viewport, W is the SceneDepth */
-	float4 ScreenPosition;
-
-	half UnMirrored;
-
-	half TwoSidedSign;
-
-    /**
-     * Orthonormal rotation-only transform from tangent space to world space
-     * The transpose(TangentToWorld) is WorldToTangent, and TangentToWorld[2] is WorldVertexNormal
-     */
-	half3x3 TangentToWorld;
-
-    /** 
-     * Interpolated worldspace position of this pixel
-     * todo: Make this TranslatedWorldPosition and also rename the VS WorldPosition to be TranslatedWorldPosition
-     */
-	float3 AbsoluteWorldPosition;
-
-    /** 
-     * Interpolated worldspace position of this pixel, centered around the camera
-     */
-	float3 WorldPosition_CamRelative;
-
-    /** 
-     * Interpolated worldspace position of this pixel, not including any world position offset or displacement.
-     * Only valid if shader is compiled with NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS, otherwise just contains 0
-     */
-	float3 WorldPosition_NoOffsets;
-
-    /** 
-     * Interpolated worldspace position of this pixel, not including any world position offset or displacement.
-     * Only valid if shader is compiled with NEEDS_WORLD_POSITION_EXCLUDING_SHADER_OFFSETS, otherwise just contains 0
-     */
-	float3 WorldPosition_NoOffsets_CamRelative;
-
-    /** Offset applied to the lighting position for translucency, used to break up aliasing artifacts. */
-	half3 LightingPositionOffset;
-
-	float AOMaterialMask;
-
-    // Index into View.PrimitiveSceneData
-	uint PrimitiveId;
-
-
-};
-
-// @todo compat hack
-FMaterialPixelParameters MakeInitializedMaterialPixelParameters()
-{
-	FMaterialPixelParameters MPP;
-	MPP = (FMaterialPixelParameters) 0;
-	MPP.TangentToWorld = float3x3(1, 0, 0, 0, 1, 0, 0, 0, 1);
-	return MPP;
-}
-
-/** 
- * Parameters needed by vertex shader material inputs.
- * These are independent of vertex factory.
- */
-struct FMaterialVertexParameters
-{
-    // Position in the translated world (VertexFactoryGetWorldPosition).
-    // Previous position in the translated world (VertexFactoryGetPreviousWorldPosition) if
-    //    computing material's output for previous frame (See {BasePassVertex,Velocity}Shader.usf).
-	float3 WorldPosition;
-    // TangentToWorld[2] is WorldVertexNormal
-	half3x3 TangentToWorld;
-
-    // If either USE_INSTANCING or (IS_MESHPARTICLE_FACTORY && FEATURE_LEVEL >= FEATURE_LEVEL_SM4)
-    // is true, PrevFrameLocalToWorld is a per-instance transform
-	float4x4 PrevFrameLocalToWorld;
-
-	float3 PreSkinnedPosition;
-	float3 PreSkinnedNormal;
-
-	half4 VertexColor;
-
-    // Index into View.PrimitiveSceneData
-	uint PrimitiveId;
-
-};
-
-/**
- * Returns the upper 3x3 portion of the LocalToWorld matrix.
- */
-MaterialFloat3x3 GetLocalToWorld3x3(uint PrimitiveId)
-{
-	return LWCToFloat3x3(GetPrimitiveData(PrimitiveId).LocalToWorld);
-}
-
-MaterialFloat3x3 GetLocalToWorld3x3()
-{
-	return LWCToFloat3x3(GetPrimitiveDataFromUniformBuffer().LocalToWorld);
-}
-
-float3 GetTranslatedWorldPosition(FMaterialVertexParameters Parameters)
-{
-	return Parameters.WorldPosition;
-}
-
-float3 GetWorldPosition(FMaterialVertexParameters Parameters)
-{
-	return GetTranslatedWorldPosition(Parameters) - LWCHackToFloat(ResolvedView.PreViewTranslation);
-}
-
-float3 GetWorldPosition(FMaterialPixelParameters Parameters)
-{
-	return Parameters.AbsoluteWorldPosition;
-}
-
-float3 GetTranslatedWorldPosition(FMaterialPixelParameters Parameters)
-{
-	return Parameters.WorldPosition_CamRelative;
-}
-
-float4 GetScreenPosition(FMaterialVertexParameters Parameters)
-{
-	return mul(float4(Parameters.WorldPosition, 1.0f), ResolvedView.TranslatedWorldToClip);
-}
-
-float4 GetScreenPosition(FMaterialPixelParameters Parameters)
-{
-	return Parameters.ScreenPosition;
-}
-
-float2 GetSceneTextureUV(FMaterialVertexParameters Parameters)
-{
-	return ScreenAlignedPosition(GetScreenPosition(Parameters));
-}
-
-float2 GetSceneTextureUV(FMaterialPixelParameters Parameters)
-{
-	return SvPositionToBufferUV(Parameters.SvPosition);
-}
-
-float2 GetViewportUV(FMaterialVertexParameters Parameters)
-{
-    return Parameters.WorldPosition.xy;
-}
-
-float2 GetPixelPosition(FMaterialVertexParameters Parameters)
-{
-	return GetViewportUV(Parameters) * View.ViewSizeAndInvSize.xy;
-}
-
-float2 GetPixelPosition(FMaterialPixelParameters Parameters)
-{
-    return Parameters.SvPosition.xy - float2(PostProcessOutput_ViewportMin);
-}
-
-float2 GetViewportUV(FMaterialPixelParameters Parameters)
-{
-    return GetPixelPosition(Parameters) * PostProcessOutput_ViewportSizeInverse;
-}
-
-half3 GetMaterialNormalRaw(FPixelMaterialInputs PixelMaterialInputs)
-{
-	return PixelMaterialInputs.Normal;
-}
-
-half3 GetMaterialNormal(FMaterialPixelParameters Parameters, FPixelMaterialInputs PixelMaterialInputs)
-{
-	half3 RetNormal;
-	RetNormal = GetMaterialNormalRaw(PixelMaterialInputs);
-	return RetNormal;
-}
-
-// Returns whether a scene texture id is a for a post process input or not.
-bool IsPostProcessInputSceneTexture(const uint SceneTextureId)
-{
-	return (SceneTextureId >= PPI_PostProcessInput0 && SceneTextureId <= PPI_PostProcessInput6);
-}
-
-// Transforms viewport UV to scene texture's UV.
-MaterialFloat2 ViewportUVToSceneTextureUV(MaterialFloat2 ViewportUV, const uint SceneTextureId)
-{
-    if (IsPostProcessInputSceneTexture(SceneTextureId))
-    {
-        switch (SceneTextureId)
-        {
-        case PPI_PostProcessInput0:
-            return ViewportUV * PostProcessInput_0_UVViewportSize + PostProcessInput_0_UVViewportMin;
-        case PPI_PostProcessInput1:
-            return ViewportUV * PostProcessInput_1_UVViewportSize + PostProcessInput_1_UVViewportMin;
-        case PPI_PostProcessInput2:
-            return ViewportUV * PostProcessInput_2_UVViewportSize + PostProcessInput_2_UVViewportMin;
-        case PPI_PostProcessInput3:
-            return ViewportUV * PostProcessInput_3_UVViewportSize + PostProcessInput_3_UVViewportMin;
-        case PPI_PostProcessInput4:
-            return ViewportUV * PostProcessInput_4_UVViewportSize + PostProcessInput_4_UVViewportMin;
-        default:
-            return ViewportUV;
-        }
-    }
-
-	return ViewportUVToBufferUV(ViewportUV);
-}
-
-// Get default scene texture's UV.
-MaterialFloat2 GetDefaultSceneTextureUV(FMaterialVertexParameters Parameters, const uint SceneTextureId)
-{
-	return GetSceneTextureUV(Parameters);
-}
-
-// Get default scene texture's UV.
-MaterialFloat2 GetDefaultSceneTextureUV(FMaterialPixelParameters Parameters, const uint SceneTextureId)
-{
-	return ViewportUVToSceneTextureUV(GetViewportUV(Parameters), SceneTextureId);
-}
-
-/** Return the object's position in world space */
-float3 GetObjectWorldPosition(FMaterialPixelParameters Parameters)
-{
-    return LWCHackToFloat(GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPosition);
-}
-
-
-/** Return the object's position in world space. For instanced meshes, this returns the instance position. */
-float3 GetObjectWorldPosition(FMaterialVertexParameters Parameters)
-{
-    return LWCHackToFloat(GetPrimitiveData(Parameters.PrimitiveId).ObjectWorldPosition);
-}
-
-/** Rotates Position about the given axis by the given angle, in radians, and returns the offset to Position. */
-float3 RotateAboutAxis(float4 NormalizedRotationAxisAndAngle, float3 PositionOnAxis, float3 Position)
-{
-    // Project Position onto the rotation axis and find the closest point on the axis to Position
-	float3 ClosestPointOnAxis = PositionOnAxis + NormalizedRotationAxisAndAngle.xyz * dot(NormalizedRotationAxisAndAngle.xyz, Position - PositionOnAxis);
-    // Construct orthogonal axes in the plane of the rotation
-	float3 UAxis = Position - ClosestPointOnAxis;
-	float3 VAxis = cross(NormalizedRotationAxisAndAngle.xyz, UAxis);
-	float CosAngle;
-	float SinAngle;
-	sincos(NormalizedRotationAxisAndAngle.w, SinAngle, CosAngle);
-    // Rotate using the orthogonal axes
-	float3 R = UAxis * CosAngle + VAxis * SinAngle;
-    // Reconstruct the rotated world space position
-	float3 RotatedPosition = ClosestPointOnAxis + R;
-    // Convert from position to a position offset
-	return RotatedPosition - Position;
-}
-
-
-/** Calculate a reflection vector about the specified world space normal. Optionally normalize this normal **/
-MaterialFloat3 ReflectionAboutCustomWorldNormal(FMaterialPixelParameters Parameters, MaterialFloat3 WorldNormal, bool bNormalizeInputNormal)
-{
-	if (bNormalizeInputNormal)
-	{
-		WorldNormal = normalize(WorldNormal);
-	}
-
-	return -Parameters.CameraVector + WorldNormal * dot(WorldNormal, Parameters.CameraVector) * 2.0;
-}
-
-
-
-#if SHADING_PATH_DEFERRED
-
-#include "/Engine/Private/DeferredShadingCommon.ush"        // GetGBufferData()
-
-
-/** Applies an offset to the scene texture lookup and decodes the HDR linear space color. */
-float4 SceneTextureLookup(float2 UV, int SceneTextureIndex, bool bFiltered)
-{
-    FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV, false);
-    switch(SceneTextureIndex)
-    {
-        // order needs to match to ESceneTextureId
-
-        case PPI_SceneColor:
-            return float4(CalcSceneColor(UV), 0);
-        case PPI_SceneDepth:
-            return ScreenSpaceData.GBuffer.Depth;
-        case PPI_DiffuseColor:
-            return float4(ScreenSpaceData.GBuffer.DiffuseColor, 0);
-        case PPI_SpecularColor:
-            return float4(ScreenSpaceData.GBuffer.SpecularColor, 0);
-        case PPI_SubsurfaceColor:
-            return IsSubsurfaceModel(ScreenSpaceData.GBuffer.ShadingModelID) ? float4( ExtractSubsurfaceColor(ScreenSpaceData.GBuffer), ScreenSpaceData.GBuffer.CustomData.a ) : ScreenSpaceData.GBuffer.CustomData;
-        case PPI_BaseColor:
-            return float4(ScreenSpaceData.GBuffer.BaseColor, 0);
-        case PPI_Specular:
-            return ScreenSpaceData.GBuffer.Specular;
-        case PPI_Metallic:
-            return ScreenSpaceData.GBuffer.Metallic;
-        case PPI_WorldNormal:
-            return float4(ScreenSpaceData.GBuffer.WorldNormal, 0);
-        case PPI_SeparateTranslucency:
-            return float4(1, 1, 1, 1);    // todo
-        case PPI_Opacity:
-            return ScreenSpaceData.GBuffer.CustomData.a;
-        case PPI_Roughness:
-            return ScreenSpaceData.GBuffer.Roughness;
-        case PPI_MaterialAO:
-            return ScreenSpaceData.GBuffer.GBufferAO;
-        case PPI_CustomDepth:
-            return ScreenSpaceData.GBuffer.CustomDepth;
-
-        case PPI_PostProcessInput0:
-            return Texture2DSample(PostProcessInput_0_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_0_SharedSampler, UV);
-        case PPI_PostProcessInput1:
-            return Texture2DSample(PostProcessInput_1_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_1_SharedSampler, UV);
-        case PPI_PostProcessInput2:
-            return Texture2DSample(PostProcessInput_2_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_2_SharedSampler, UV);
-        case PPI_PostProcessInput3:
-            return Texture2DSample(PostProcessInput_3_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_3_SharedSampler, UV);
-        case PPI_PostProcessInput4:
-            return Texture2DSample(PostProcessInput_4_Texture, bFiltered ? PostProcessInput_BilinearSampler : PostProcessInput_4_SharedSampler, UV);
-
-        case PPI_DecalMask:
-            return 0;  // material compiler will return an error
-        case PPI_ShadingModelColor:
-            return float4(GetShadingModelColor(ScreenSpaceData.GBuffer.ShadingModelID), 1);
-        case PPI_ShadingModelID:
-            return float4(ScreenSpaceData.GBuffer.ShadingModelID, 0, 0, 0);
-        case PPI_AmbientOcclusion:
-            return ScreenSpaceData.AmbientOcclusion;
-        case PPI_CustomStencil:
-            return ScreenSpaceData.GBuffer.CustomStencil;
-        case PPI_StoredBaseColor:
-            return float4(ScreenSpaceData.GBuffer.StoredBaseColor, 0);
-        case PPI_StoredSpecular:
-            return float4(ScreenSpaceData.GBuffer.StoredSpecular.rrr, 0);
-
-        case PPI_WorldTangent:
-            return float4(ScreenSpaceData.GBuffer.WorldTangent, 0);
-        case PPI_Anisotropy:
-            return ScreenSpaceData.GBuffer.Anisotropy;
-        default:
-            return float4(0, 0, 0, 0);
-    }
-}
-
-#endif // SHADING_PATH_DEFERRED
-
+#define CCR_SHADER_DISPLAY_BOUNDING_RECT 0
+#define CLIP_PIXELS_OUTSIDE_AABB 1
 
 struct FExternalExpressions
 {
 	float3 Rotate;
 	float3 Translate;
 	float3 Scale;
-	
+
 	float4 ColorSaturation;
 	float4 ColorContrast;
 	float4 ColorGamma;
@@ -509,13 +50,13 @@ struct FExternalExpressions
 	float4 ColorGainShadows;
 	float4 ColorOffsetShadows;
 	float ShadowMax;
-	
+
 	float4 ColorSaturationMidtones;
 	float4 ColorContrastMidtones;
 	float4 ColorGammaMidtones;
 	float4 ColorGainMidtones;
 	float4 ColorOffsetMidtones;
-	
+
 	float4 ColorSaturationHighlights;
 	float4 ColorContrastHighlights;
 	float4 ColorGammaHighlights;
@@ -527,139 +68,33 @@ struct FExternalExpressions
 	float WhiteTemp;
 	float Inner;
 	float Outer;
-	
+
 	float Falloff;
 	float Invert;
 	float Intensity;
-	
+
 	float FakeLight;
 	float ExcludeStencil;
 
 	float4 SceneTexture;
 };
 
-struct FOutputData
+
+MaterialFloat3 ProcessColor(in FExternalExpressions ExternalExpressions)
 {
-	float3 EmissiveColor;
-	float Opacity;
-};
-
-		
-// Uniform material expressions.
-MaterialFloat3 RGBtoAP1(MaterialFloat4 InputColor)
-{
-	const float3x3 sRGB_2_AP1 = mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
-	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
-
-	float3 ColorAP1 = mul(sRGB_2_AP1, InputColor.xyz);
-	float3 ColorRGB = mul(AP1_2_sRGB, InputColor.xyz);
-
-	return ColorAP1;
-}
-
-MaterialFloat3 AP1toRGB(MaterialFloat3 InputColor)
-{
-	const float3x3 sRGB_2_AP1 = mul(XYZ_2_AP1_MAT, mul(D65_2_D60_CAT, sRGB_2_XYZ_MAT));
-	const float3x3 AP1_2_sRGB = mul(XYZ_2_sRGB_MAT, mul(D60_2_D65_CAT, AP1_2_XYZ_MAT));
-
-	float3 ColorAP1 = mul(sRGB_2_AP1, InputColor);
-	float3 ColorRGB = mul(AP1_2_sRGB, InputColor);
-
-	return ColorRGB;
-}
-
-MaterialFloat3 ComposureColorGradePerRange(MaterialFloat3 WorkingColor, MaterialFloat4 ColorSaturation, MaterialFloat4 ColorContrast, MaterialFloat4 ColorGamma, MaterialFloat4 ColorGain, MaterialFloat4 ColorOffset)
-{
-	float Luma = dot(WorkingColor, float3(0.2722287168, 0.6740817658, 0.0536895174));
-	WorkingColor = max(0, lerp(Luma.xxx, WorkingColor, ColorSaturation.xyz * ColorSaturation.w));
-	WorkingColor = pow(WorkingColor * (5.55555555), ColorContrast.xyz * ColorContrast.w) * 0.18;
-	WorkingColor = pow(WorkingColor, 1.0 / (ColorGamma.xyz * ColorGamma.w));
-	WorkingColor = WorkingColor * (ColorGain.xyz * ColorGain.w) + (ColorOffset.xyz + ColorOffset.w);
-	return WorkingColor;
-}
-
-float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
-{
-	// Translate
-	MaterialFloat3 Translated = (GetWorldPosition(Parameters) - ExternalExpressions.Translate.rgb);
-	// Rotate
-	MaterialFloat3 RotatedZ = RotateAboutAxis(MaterialFloat4(MaterialFloat3(0.00000000, 0.00000000, 1.00000000), ExternalExpressions.Rotate.b * -1), MaterialFloat3(0.00000000, 0.00000000, 0.00000000), Translated);
-	MaterialFloat3 RotatedTranslatedZ = (RotatedZ + Translated);
-	MaterialFloat3 RotatedY = RotateAboutAxis(MaterialFloat4(MaterialFloat3(0.00000000, 1.00000000, 0.00000000), ExternalExpressions.Rotate.g), MaterialFloat3(0.00000000, 0.00000000, 0.00000000), RotatedTranslatedZ);
-	MaterialFloat3 RotatedTranslatedYZ = (RotatedY + RotatedTranslatedZ);
-	MaterialFloat3 RotatedX = RotateAboutAxis(MaterialFloat4(MaterialFloat3(1.00000000, 0.00000000, 0.00000000), ExternalExpressions.Rotate.r), MaterialFloat3(0.00000000, 0.00000000, 0.00000000), RotatedTranslatedYZ);
-	MaterialFloat3 RotatedTranslated = (RotatedX + RotatedTranslatedYZ);
-	// Scale
-	MaterialFloat3 RotatedTranslatedScaled = (RotatedTranslated / (ExternalExpressions.Scale));
-	MaterialFloat Shape = 0;
-	
-#if CLIP_PIXELS_OUTSIDE_AABB
-	// Clip pixel if it is outside the bounding box.
-	{
-		MaterialFloat3 ComparisonShape_3D = max(RotatedTranslatedScaled, -RotatedTranslatedScaled);
-		float ComparisonShape = max(max(ComparisonShape_3D.r, ComparisonShape_3D.g), ComparisonShape_3D.b);
-		clip(1. - ComparisonShape*(1. - ExternalExpressions.Invert));
-	}
-#endif
-
-#if SHAPE_TYPE == SHAPE_TYPE_BOX
-	// Cube
-	{
-		MaterialFloat3 boxBoundsMax = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, RotatedTranslatedScaled);
-		MaterialFloat3 boxBoundsMin = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, -RotatedTranslatedScaled);
-		MaterialFloat3 result = max(boxBoundsMax, boxBoundsMin);
-		Shape = max(max(result.r, result.g), result.b);
-	}
-#elif SHAPE_TYPE == SHAPE_TYPE_CYLINDER
-	// cylinder
-	{
-		MaterialFloat Distance = length(RotatedTranslatedScaled.xy);
-		MaterialFloat Local35 = smoothstep(ExternalExpressions.Inner,ExternalExpressions.Outer, Distance);
-		MaterialFloat Local36 = smoothstep(ExternalExpressions.Inner,ExternalExpressions.Outer, RotatedTranslatedScaled.b);
-		MaterialFloat Local39 = smoothstep(ExternalExpressions.Inner,ExternalExpressions.Outer, -RotatedTranslatedScaled.b);
-		Shape = max(max(Local35,Local36),Local39);
-	}
-#elif SHAPE_TYPE == SHAPE_TYPE_CONE
-	// cone
-	{
-		MaterialFloat local33 = length(RotatedTranslatedScaled.xy);
-		MaterialFloat local36 = saturate(-RotatedTranslatedScaled.b);
-		MaterialFloat local39 = smoothstep(ExternalExpressions.Inner * local36, ExternalExpressions.Outer * local36, local33);
-		MaterialFloat local40 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, RotatedTranslatedScaled.b);
-		MaterialFloat local42 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, -RotatedTranslatedScaled.b);
-		Shape = max(max(local39,local40),local42);
-	}
-#elif SHAPE_TYPE == SHAPE_TYPE_SPHERE
-	// Sphere
-	{
-		MaterialFloat Distance = length(RotatedTranslatedScaled);
-		Shape = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, Distance);
-	}
-#endif
-	MaterialFloat ShapeAlpha = (1.00000000 - Shape);
-	
-	// Final check to reduce the performance based on shape.
-	if (ShapeAlpha < 0.00001 && !ExternalExpressions.Invert)
-	{
-#if CCR_SHADER_DISPLAY_BOUNDING_RECT
-		return float4(1,0,0,0.4);
-#else
-		return float4(0,0,0,0);
-#endif
-	}
-	MaterialFloat3 WorkingColor = RGBtoAP1(ExternalExpressions.SceneTexture);
+	MaterialFloat3 WorkingColor = sRGBtoAP1(ExternalExpressions.SceneTexture);
 	MaterialFloat3 BasicColorGrade = ComposureColorGradePerRange(WorkingColor, ExternalExpressions.ColorSaturation, ExternalExpressions.ColorContrast, ExternalExpressions.ColorGamma, ExternalExpressions.ColorGain, ExternalExpressions.ColorOffset);
 	MaterialFloat3 FinalColor = BasicColorGrade;
 #if ADVANCED_CC	
 	{
-		#define HIGHLIGHT_INTERPOLATION_THRESHOLD_WIDTH 1.0
+#define HIGHLIGHT_INTERPOLATION_THRESHOLD_WIDTH 1.0
 		MaterialFloat3 Local3 = ComposureColorGradePerRange(BasicColorGrade, ExternalExpressions.ColorSaturationShadows, ExternalExpressions.ColorContrastShadows, ExternalExpressions.ColorGammaShadows, ExternalExpressions.ColorGainShadows, ExternalExpressions.ColorOffsetShadows);
-		MaterialFloat BasicColorGrade_Mul = dot(BasicColorGrade, MaterialFloat3(0.30000001,0.58999997,0.11000000));
+		MaterialFloat BasicColorGrade_Mul = dot(BasicColorGrade, MaterialFloat3(0.30000001, 0.58999997, 0.11000000));
 		// In the future we might want to add a threshold width to increase or reduce interpolation area between shadows and midtones.
 		MaterialFloat Local5 = smoothstep(0.0 /*ExternalExpressions.ShadowMax - SHADOW_INTERPOLATION_THRESHOLD_WIDTH*/, ExternalExpressions.ShadowMax, BasicColorGrade_Mul);
 		MaterialFloat Local6 = (1.00000000 - Local5);
 		MaterialFloat3 Local7 = (Local3 * Local6);
-		MaterialFloat3 Local8 = ComposureColorGradePerRange(BasicColorGrade,ExternalExpressions.ColorSaturationMidtones, ExternalExpressions.ColorContrastMidtones, ExternalExpressions.ColorGammaMidtones, ExternalExpressions.ColorGainMidtones, ExternalExpressions.ColorOffsetMidtones);
+		MaterialFloat3 Local8 = ComposureColorGradePerRange(BasicColorGrade, ExternalExpressions.ColorSaturationMidtones, ExternalExpressions.ColorContrastMidtones, ExternalExpressions.ColorGammaMidtones, ExternalExpressions.ColorGainMidtones, ExternalExpressions.ColorOffsetMidtones);
 		// Interpolation threshold width specifies the upper bound for the soft interpolated area between midtones and highlights. 
 		// In the future we want to add control that allows user to control this width.
 		MaterialFloat Local9 = smoothstep(ExternalExpressions.HighlightsMin, ExternalExpressions.HighlightsMin + HIGHLIGHT_INTERPOLATION_THRESHOLD_WIDTH, BasicColorGrade_Mul);
@@ -667,20 +102,20 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 		MaterialFloat Local11 = (1.00000000 - Local10);
 		MaterialFloat3 Local12 = (Local8 * Local11);
 		MaterialFloat3 Local13 = (Local7 + Local12);
-		MaterialFloat3 Local14 = ComposureColorGradePerRange(BasicColorGrade,ExternalExpressions.ColorSaturationHighlights, ExternalExpressions.ColorContrastHighlights, ExternalExpressions.ColorGammaHighlights, ExternalExpressions.ColorGainHighlights, ExternalExpressions.ColorOffsetHighlights);
+		MaterialFloat3 Local14 = ComposureColorGradePerRange(BasicColorGrade, ExternalExpressions.ColorSaturationHighlights, ExternalExpressions.ColorContrastHighlights, ExternalExpressions.ColorGammaHighlights, ExternalExpressions.ColorGainHighlights, ExternalExpressions.ColorOffsetHighlights);
 		MaterialFloat3 Local15 = (Local14 * Local9);
 		FinalColor = (Local13 + Local15);
 	}
 #endif
-	FinalColor = AP1toRGB(FinalColor);
-	
+	FinalColor = AP1toSRGB(FinalColor);
+
 	// White temperature calculation.
 	MaterialFloat3 AfterTemperature = FinalColor;
 
 #if TEMPERATURE_TYPE == TEMPERATURE_TYPE_LEGACY
 	MaterialFloat Local4 = smoothstep(0.00000000, 13000.00000000, ExternalExpressions.WhiteTemp);
-	MaterialFloat Local5 = (Local4 * 2.00000000  - 1.00000000);
-	
+	MaterialFloat Local5 = (Local4 * 2.00000000 - 1.00000000);
+
 	// MF Artistic temperature 
 	{
 		MaterialFloat Local7 = (Local5 * 3.00000000);
@@ -705,36 +140,144 @@ float4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExp
 #elif TEMPERATURE_TYPE == TEMPERATURE_TYPE_COLOR_TEMP
 	AfterTemperature = WhiteBalance(ExternalExpressions.WhiteTemp, FinalColor, true /*SwapSourceAndD65White*/);
 #endif
+	return AfterTemperature;
+}
+
+#if SHAPE_TYPE == SHAPE_TYPE_PLANE
+float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
+{
+	// Pixel position in plane space.
+	float3 RotatedTranslatedScaled = RotateTranslateScale(GetWorldPosition(Parameters), ExternalExpressions.Translate.xyz, ExternalExpressions.Rotate, ExternalExpressions.Scale);
+
+	// Camera position in plane space.
+	float3 CameraVectorPlaneSpace = RotateTranslateScale(LWCHackToFloat(ResolvedView.WorldCameraOrigin).xyz, ExternalExpressions.Translate.xyz, ExternalExpressions.Rotate, ExternalExpressions.Scale);
+
+	float3 PositionOnPlane;
+	float DirectionSign;
+
+	float IntersectionSide;
+	{
+		float3 PlaneNormal = float3(0., 0., -1.);
+		float3 CamToPos = RotatedTranslatedScaled - CameraVectorPlaneSpace;
+		float3 DirVector = normalize(CamToPos);
+		DirectionSign = sign(dot(-PlaneNormal, DirVector));
+		PlaneNormal *= DirectionSign;
+		IntersectionSide = dot(-CameraVectorPlaneSpace, PlaneNormal);
+
+		PositionOnPlane = CameraVectorPlaneSpace + IntersectionSide / dot(DirVector, PlaneNormal) * DirVector;
+	}
+
+	float2 Interpolator = smoothstep(ExternalExpressions.Outer, ExternalExpressions.Inner, abs(PositionOnPlane.rg)) * step(-RotatedTranslatedScaled.b * DirectionSign, 0.) * step(IntersectionSide, 0.);
+	float ShapeAlpha = Interpolator.r * step(0., Interpolator.g) * Interpolator.g * step(0., Interpolator.r);
+
+#if CLIP_PIXELS_OUTSIDE_AABB
+	// Clip pixel if it is outside the bounding box.
+	{
+		clip(ShapeAlpha  + ExternalExpressions.Invert - 0.00001);
+	}
+#endif
+
+	return ShapeAlpha;
+}
+
+#else
+
+float GetShapeAlpha(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
+{
+	float3 RotatedTranslatedScaled = RotateTranslateScale(GetWorldPosition(Parameters), ExternalExpressions.Translate.xyz, ExternalExpressions.Rotate, ExternalExpressions.Scale);
+
+	float Shape = 0;
+
+#if CLIP_PIXELS_OUTSIDE_AABB
+	// Clip pixel if it is outside the bounding box.
+	{
+		float3 ComparisonShape_3D = max(RotatedTranslatedScaled, -RotatedTranslatedScaled);
+		float ComparisonShape = max(max(ComparisonShape_3D.r, ComparisonShape_3D.g), ComparisonShape_3D.b);
+		clip(1. - ComparisonShape * (1. - ExternalExpressions.Invert));
+	}
+#endif
+
+#if SHAPE_TYPE == SHAPE_TYPE_BOX
+	// Cube
+	{
+		float3 boxBoundsMax = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, RotatedTranslatedScaled);
+		float3 boxBoundsMin = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, -RotatedTranslatedScaled);
+		float3 result = max(boxBoundsMax, boxBoundsMin);
+		Shape = max(max(result.r, result.g), result.b);
+	}
+#elif SHAPE_TYPE == SHAPE_TYPE_CYLINDER
+	// cylinder
+	{
+		float Distance = length(RotatedTranslatedScaled.xy);
+		float Local35 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, Distance);
+		float Local36 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, RotatedTranslatedScaled.b);
+		float Local39 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, -RotatedTranslatedScaled.b);
+		Shape = max(max(Local35, Local36), Local39);
+	}
+#elif SHAPE_TYPE == SHAPE_TYPE_CONE
+	// cone
+	{
+		float local33 = length(RotatedTranslatedScaled.xy);
+		float local36 = saturate(-RotatedTranslatedScaled.b);
+		float local39 = smoothstep(ExternalExpressions.Inner * local36, ExternalExpressions.Outer * local36, local33);
+		float local40 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, RotatedTranslatedScaled.b);
+		float local42 = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, -RotatedTranslatedScaled.b);
+		Shape = max(max(local39, local40), local42);
+	}
+#elif SHAPE_TYPE == SHAPE_TYPE_SPHERE
+	// Sphere
+	{
+		float Distance = length(RotatedTranslatedScaled);
+		Shape = smoothstep(ExternalExpressions.Inner, ExternalExpressions.Outer, Distance);
+	}
+#endif
+	float ShapeAlpha = (1.00000000 - Shape);
+	return ShapeAlpha;
+}
+#endif
+
+MaterialFloat4 ProcessRegion(in out FMaterialPixelParameters Parameters, in FExternalExpressions ExternalExpressions)
+{
+	float ShapeAlpha = GetShapeAlpha(Parameters, ExternalExpressions);
+
+	// Final check to reduce the performance based on shape.
+	if (ShapeAlpha < 0.00001 && !ExternalExpressions.Invert)
+	{
+#if CCR_SHADER_DISPLAY_BOUNDING_RECT
+		return float4(1, 0, 0, 0.4);
+#else
+		return float4(0, 0, 0, 0);
+#endif
+	}
+
+	float3 AfterTemperature = ProcessColor(ExternalExpressions);
 
 	/* Falloff */
-	MaterialFloat ShapeWithFalloff = PositiveClampedPow(ShapeAlpha, ExternalExpressions.Falloff);
-	MaterialFloat ShapeWithFalloffInverse = (1.00000000 - ShapeWithFalloff);
+	float ShapeWithFalloff = PositiveClampedPow(ShapeAlpha, ExternalExpressions.Falloff);
+	float ShapeWithFalloffInverse = (1.00000000 - ShapeWithFalloff);
 
-	MaterialFloat FinalShape = lerp(ShapeWithFalloff, ShapeWithFalloffInverse, ExternalExpressions.Invert);
+	float FinalShape = lerp(ShapeWithFalloff, ShapeWithFalloffInverse, ExternalExpressions.Invert);
 
-	MaterialFloat FinalAlpha = lerp(0.00000000, ExternalExpressions.Intensity, FinalShape);
-	
-	FinalColor = lerp(ExternalExpressions.SceneTexture.rgb, AfterTemperature, FinalAlpha);
+	float FinalAlpha = lerp(0.00000000, ExternalExpressions.Intensity, FinalShape);
+
+	MaterialFloat3 FinalColor = lerp(ExternalExpressions.SceneTexture.rgb, AfterTemperature, FinalAlpha);
 
 	if (ExternalExpressions.ExcludeStencil > 0)
 	{
-		MaterialFloat4 CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, 25), 25, false);
+		float4 CustomStencil = SceneTextureLookup(GetDefaultSceneTextureUV(Parameters, PPI_CustomStencil), PPI_CustomStencil, false);
 		FinalColor = lerp(FinalColor, ExternalExpressions.SceneTexture.rgb, clamp(CustomStencil.r, 0., 1.));
 	}
 
-	return float4(FinalColor, FinalAlpha);
+	return MaterialFloat4(FinalColor, FinalAlpha);
 }
-
 
 void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out FPixelMaterialInputs PixelMaterialInputs)
 {
-    // Initial calculations (required for Normal)
-
     // The Normal is a special case as it might have its own expressions and also be used to calculate other inputs, so perform the assignment here
 	PixelMaterialInputs.Normal = MaterialFloat3(0.00000000, 0.00000000, 1.00000000);
 
     // Note that here MaterialNormal can be in world space or tangent space
-	float3 MaterialNormal = GetMaterialNormal(Parameters, PixelMaterialInputs);
+	half3 MaterialNormal = GetMaterialNormal(Parameters, PixelMaterialInputs);
 
 	Parameters.WorldNormal = normalize(MaterialNormal);
 
@@ -787,8 +330,8 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 			ExtExpressions.HighlightsMin = ColorCorrectHighlights.HighlightsMin;
 		}
 #endif
-		MaterialFloat4 RegionColor = ProcessRegion(Parameters, ExtExpressions);
 
+		MaterialFloat4 RegionColor = ProcessRegion(Parameters, ExtExpressions);
 		FinalColor = lerp(FinalColor.rgba, RegionColor.rgba, RegionColor.a);
 	}
 		
@@ -796,12 +339,7 @@ void CalcPixelMaterialInputs(in out FMaterialPixelParameters Parameters, in out 
 #if CLIP_PIXELS_OUTSIDE_AABB
 	PixelMaterialInputs.Opacity = FinalColor.a;
 #else
-	#if SAMPLE_OPACITY_FROM_GBUFFER
-		// On the lower scalability settings there is no alpha channel in Scene texture.
-		PixelMaterialInputs.Opacity = 1.0;
-	#else
-		PixelMaterialInputs.Opacity = SceneTexture.a;
-	#endif
+	PixelMaterialInputs.Opacity = 1.0;
 #endif
 
 	PixelMaterialInputs.OpacityMask = 1.00000000;
@@ -824,16 +362,6 @@ struct FPostProcessMaterialVSToPS
 	float4 Position : SV_POSITION;
 };
 
-FMaterialVertexParameters GetPostProcessMaterialVSParameters(float2 UV)
-{
-	// Most params irrelevant so not a lot to fill out here
-	FMaterialVertexParameters Result = (FMaterialVertexParameters) 0;
-	Result.VertexColor = 1.f.xxxx;
-	Result.WorldPosition = float3(UV, 0.f);
-	
-	return Result;
-}
-
 #if (FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)
 void MainVS(
 	in float4 InPosition : ATTRIBUTE0,
@@ -844,39 +372,45 @@ void MainVS(
 	DrawRectangle(InPosition, Output.Position);
 
 }
+void BuildParameters(in FPostProcessMaterialVSToPS Input, inout FMaterialPixelParameters Parameters)
+{
+	Parameters = (FMaterialPixelParameters)0;
+
+	ResolvedView = ResolveView();
+
+	float4 SvPosition = Input.Position;
+	float2 ViewportUV = (SvPosition.xy - PostProcessOutput_ViewportMin.xy) * PostProcessOutput_ViewportSizeInverse.xy;
+
+	SvPosition.z = LookupDeviceZ(ViewportUVToBufferUV(ViewportUV));
+	SvPosition.z = max(SvPosition.z, 1e-18);
+
+	float4 ScreenPosition = SvPositionToScreenPosition(SvPosition);
+	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
+
+	// Remove the pre view translation
+	Parameters.WorldPosition_CamRelative = TranslatedWorldPosition.xyz;
+	Parameters.AbsoluteWorldPosition = TranslatedWorldPosition.xyz - LWCHackToFloat(ResolvedView.PreViewTranslation).xyz;
+
+	Parameters.SvPosition = SvPosition;
+	Parameters.ScreenPosition = ScreenPosition;
+
+	Parameters.CameraVector = normalize(-Parameters.WorldPosition_CamRelative.xyz);
+
+	/* Unused */
+	Parameters.LightVector = 0;
+	Parameters.VertexColor = 1;
+	Parameters.TwoSidedSign = 1.0f;
+}
 
 void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	out float4 OutColor : SV_Target0
 	)
 {
-	ResolvedView = ResolveView();
-	FMaterialPixelParameters Parameters = MakeInitializedMaterialPixelParameters();
+	FMaterialPixelParameters Parameters;
 	FPixelMaterialInputs PixelMaterialInputs;
 
-	// can be optimized
-	float4 SvPosition = Input.Position;
-	float2 ViewportUV = (SvPosition.xy - PostProcessOutput_ViewportMin.xy) * PostProcessOutput_ViewportSizeInverse.xy;
-	
-	SvPosition.z = LookupDeviceZ(ViewportUVToBufferUV(ViewportUV));
-	SvPosition.z = max(SvPosition.z, 1e-18);
-	
-	float4 ScreenPosition = SvPositionToScreenPosition(SvPosition);
-	float3 TranslatedWorldPosition = SvPositionToTranslatedWorld(SvPosition);
-
-	// Remove the pre view translation
-	Parameters.WorldPosition_CamRelative = TranslatedWorldPosition.xyz;
-	Parameters.AbsoluteWorldPosition = LWCToFloat(LWCSubtract(TranslatedWorldPosition, ResolvedView.PreViewTranslation));
-
-	Parameters.SvPosition = SvPosition;
-	Parameters.ScreenPosition = ScreenPosition;
-
-	Parameters.CameraVector = normalize(-Parameters.WorldPosition_CamRelative.xyz);
-	
-	/* Unused */
-	Parameters.LightVector = 0;
-	Parameters.VertexColor = 1;
-	Parameters.TwoSidedSign = 1.0f;
+	BuildParameters(Input, Parameters);
 
     // Now that we have all the pixel-related parameters setup, calculate the Material Input/Attributes and Normal
 	CalcPixelMaterialInputs(Parameters, PixelMaterialInputs);
@@ -886,4 +420,5 @@ void MainPS(
 	OutColor = float4(max(PixelMaterialInputs.EmissiveColor, 0.), Alpha);
 	OutColor.xyz *= View.PreExposure;
 } 
+
 #endif 
