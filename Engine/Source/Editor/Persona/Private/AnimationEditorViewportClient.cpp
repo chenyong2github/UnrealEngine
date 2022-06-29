@@ -1567,13 +1567,11 @@ void FAnimationViewportClient::DrawWatchedPoses(UDebugSkelMeshComponent * MeshCo
 		{
 			if (Blueprint->GetObjectBeingDebugged())
 			{
-				for (const FAnimNodePoseWatch& AnimNodePoseWatch : AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData().AnimNodePoseWatch)
+				const FAnimBlueprintDebugData& DebugData = AnimBlueprintGeneratedClass->GetAnimBlueprintDebugData();
+				DebugData.ForEachActiveVisiblePoseWatch([MeshComponent, PDI](const FPoseWatchDebugData& PoseWatchDebugData)
 				{
-					if (AnimNodePoseWatch.Object.Get() != nullptr && AnimNodePoseWatch.PoseWatch->GetIsVisible() && AnimNodePoseWatch.PoseWatch->GetIsEnabled())
-					{
-						DrawBonesFromCompactPose(*AnimNodePoseWatch.PoseInfo.Get(), MeshComponent, PDI, AnimNodePoseWatch.PoseWatch->GetColor());
-					}
-				}
+					SkeletalDebugRendering::DrawBonesFromPoseWatch(*PoseWatchDebugData.PoseInfo.Get(), MeshComponent, PDI, PoseWatchDebugData.PoseWatch);
+				});
 			}
 		}
 	}
@@ -1650,135 +1648,38 @@ void FAnimationViewportClient::DrawBones(
 	bool bForceDraw,
 	bool bAddHitProxy) const
 {
-	// first determine which bones to draw, and which to filter out
-	TBitArray<> BonesToDraw(false, RefSkeleton.GetNum());
-	const bool bDrawSelected = GetBoneDrawMode() == EBoneDrawMode::Selected;
-	const bool bDrawSelectedAndParents = GetBoneDrawMode() == EBoneDrawMode::SelectedAndParents;
-	const bool bDrawSelectedAndChildren = GetBoneDrawMode() == EBoneDrawMode::SelectedAndChildren;
-	const bool bDrawSelectedAndParentsAndChildren = GetBoneDrawMode() == EBoneDrawMode::SelectedAndParentsAndChildren;
-	
-	// add selected bones
-	if (bDrawSelected || bDrawSelectedAndParents || bDrawSelectedAndChildren || bDrawSelectedAndParentsAndChildren)
+	FSkelDebugDrawConfig DrawConfig;
+	DrawConfig.BoneDrawMode = GetBoneDrawMode();
+	DrawConfig.BoneDrawSize = GetBoneDrawSize();
+	DrawConfig.bAddHitProxy = bAddHitProxy;
+	DrawConfig.bForceDraw = bForceDraw;
+	DrawConfig.DefaultBoneColor = GetMutableDefault<UPersonaOptions>()->DefaultBoneColor;
+	DrawConfig.AffectedBoneColor = GetMutableDefault<UPersonaOptions>()->AffectedBoneColor;
+	DrawConfig.SelectedBoneColor = GetMutableDefault<UPersonaOptions>()->SelectedBoneColor;
+	DrawConfig.ParentOfSelectedBoneColor = GetMutableDefault<UPersonaOptions>()->ParentOfSelectedBoneColor;
+
+	TArray<HHitProxy*> HitProxies;
+	HitProxies.AddUninitialized(RefSkeleton.GetNum());
+
+	if (bAddHitProxy)
 	{
-		for (int32 BoneIndex : InSelectedBones)
+		for (int32 Index = 0; Index < RefSkeleton.GetNum(); ++Index)
 		{
-			if (BoneIndex != INDEX_NONE)
-			{
-				BonesToDraw[BoneIndex] = true;
-			}
+			HitProxies[Index] = new HPersonaBoneHitProxy(Index, RefSkeleton.GetBoneName(Index));
 		}
 	}
 
-	// add children of selected
-	if (bDrawSelectedAndChildren || bDrawSelectedAndParentsAndChildren)
-	{
-		for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
-		{
-			const int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex);
-			if (ParentIndex != INDEX_NONE && BonesToDraw[ParentIndex])
-			{
-				BonesToDraw[BoneIndex] = true;
-			}
-		}
-	}
-
-	// add parents of selected
-	if (bDrawSelectedAndParents || bDrawSelectedAndParentsAndChildren)
-	{
-		for (const int32 BoneIndex : InSelectedBones)
-		{
-			if (BoneIndex != INDEX_NONE)
-			{
-				for (int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = RefSkeleton.GetParentIndex(ParentIndex))
-				{
-					BonesToDraw[ParentIndex] = true;
-				}
-			}
-		}
-	}
-
-	// determine which bones are "affected" (these are ALL children of selected bones)
-	TBitArray<> AffectedBones(false, RefSkeleton.GetNum());
-	for (int32 BoneIndex = 0; BoneIndex < RefSkeleton.GetNum(); ++BoneIndex)
-	{
-		for (int32 ParentIndex = RefSkeleton.GetParentIndex(BoneIndex); ParentIndex != INDEX_NONE; ParentIndex = RefSkeleton.GetParentIndex(ParentIndex))
-		{
-			if (InSelectedBones.Contains(ParentIndex))
-			{
-				AffectedBones[BoneIndex] = true;
-				break;
-			}
-		}
-	}
-	
-	// spin through all required bones and render them
-	const float BoneRadius = GetBoneDrawSize();
-	const UPersonaOptions* PersonaOptions = GetDefault<UPersonaOptions>();
-	for ( int32 Index=0; Index<RequiredBones.Num(); ++Index )
-	{
-		const int32 BoneIndex = RequiredBones[Index];
-
-		// skips bones that should not be drawn
-		const bool bDoDraw = bForceDraw || GetBoneDrawMode() == EBoneDrawMode::All || BonesToDraw[BoneIndex];
-		if (!bDoDraw)
-		{
-			continue;
-		}
-
-		// determine color of bone based on selection / affected state
-		const bool bIsSelected = InSelectedBones.Contains(BoneIndex);
-		const bool bIsAffected = AffectedBones[BoneIndex];
-		FLinearColor DefaultBoneColor = BoneColors.IsEmpty() ? PersonaOptions->DefaultBoneColor : BoneColors[Index];
-		FLinearColor BoneColor = bIsAffected ? PersonaOptions->AffectedBoneColor : DefaultBoneColor;
-		BoneColor = bIsSelected ? PersonaOptions->SelectedBoneColor : BoneColor;
-
-		// draw the little coordinate frame inside the bone ONLY if selected or affected
-		const bool bDrawAxesInsideBone = bIsAffected|| bIsSelected;
-
-		// draw cone to each child
-		// but use a different color if this bone is NOT selected, but the child IS selected
-		TArray<FVector> ChildPositions;
-		TArray<FLinearColor> ChildColors;
-		for (int32 ChildIndex = 0; ChildIndex < RefSkeleton.GetNum(); ++ChildIndex)
-		{
-			const int32 ParentIndex = RefSkeleton.GetParentIndex(ChildIndex);
-			if (ParentIndex == BoneIndex)
-			{
-				ChildPositions.Add(WorldTransforms[ChildIndex].GetLocation());
-				FLinearColor ChildLineColor = BoneColor;
-				if (!bIsSelected && InSelectedBones.Contains(ChildIndex))
-				{
-					ChildLineColor = PersonaOptions->ParentOfSelectedBoneColor;
-				}
-				ChildColors.Add(ChildLineColor);
-			}
-		}
-
-		const FName BoneName = RefSkeleton.GetBoneName(BoneIndex);
-		const FTransform BoneTransform = WorldTransforms[BoneIndex];
-
-		if (bAddHitProxy)
-		{
-			PDI->SetHitProxy(new HPersonaBoneHitProxy(BoneIndex, BoneName));
-		}
-		SkeletalDebugRendering::DrawWireBoneAdvanced(
-			PDI,
-			BoneTransform,
-			ChildPositions,
-			ChildColors,
-			BoneColor,
-			SDPG_Foreground,
-			BoneRadius,
-			bDrawAxesInsideBone);
-		if (RefSkeleton.GetParentIndex(BoneIndex) == INDEX_NONE)
-		{
-			SkeletalDebugRendering::DrawRootCone(PDI, BoneTransform, ComponentOrigin, BoneRadius);
-		}
-		if (bAddHitProxy)
-		{
-			PDI->SetHitProxy(nullptr);	
-		}
-	}
+	SkeletalDebugRendering::DrawBones(
+		PDI,
+		ComponentOrigin,
+		RequiredBones,
+		RefSkeleton,
+		WorldTransforms,
+		InSelectedBones,
+		BoneColors,
+		HitProxies,
+		DrawConfig
+	);
 }
 
 void FAnimationViewportClient::DrawMeshSubsetBones(const UDebugSkelMeshComponent* MeshComponent, const TArray<int32>& BonesOfInterest, FPrimitiveDrawInterface* PDI) const

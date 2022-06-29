@@ -11,6 +11,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Animation/AnimBlueprint.h"
 #include "Modules/ModuleManager.h"
+#include "Engine/PoseWatch.h"
 
 #define LOCTEXT_NAMESPACE "BlendProfileCustomization"
 
@@ -105,6 +106,10 @@ USkeleton* FBlendProfileCustomization::GetSkeletonFromOuter(const UObject* Outer
 	else if (const UEdGraph* OuterEdGraph = Cast<UEdGraph>(Outer))
 	{
 		AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForGraph(OuterEdGraph));
+	}
+	else if (const UPoseWatch* OuterPoseWatch = Cast<UPoseWatch>(Outer))
+	{
+		AnimBlueprint = Cast<UAnimBlueprint>(FBlueprintEditorUtils::FindBlueprintForNode(OuterPoseWatch->Node.Get()));
 	}
 
 	// If outer belongs to an anim blueprint, grab its skeleton.

@@ -143,6 +143,12 @@ struct FAnimBlueprintDebugData_NodeVisit
 	}
 };
 
+struct FPoseWatchDebugData
+{
+	const UPoseWatch* PoseWatch;
+	TSharedPtr<FCompactHeapPose> PoseInfo;
+};
+
 struct FAnimBlueprintDebugData_AttributeRecord
 {
 	FName Attribute;
@@ -313,6 +319,7 @@ public:
 
 	void AddPoseWatch(int32 NodeID, UPoseWatch*);
 	void RemovePoseWatch(int32 NodeID);
+	void ForEachActiveVisiblePoseWatch(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const;
 
 	TArrayView<const FName> GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const;
 #endif

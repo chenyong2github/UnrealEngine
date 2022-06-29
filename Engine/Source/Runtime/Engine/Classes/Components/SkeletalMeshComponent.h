@@ -1564,6 +1564,10 @@ public:
 	 */
 	void DebugDrawClothingTexts(FCanvas* Canvas, const FSceneView* SceneView);
 
+#if WITH_EDITOR
+	void DebugDrawPoseWatches(FPrimitiveDrawInterface* PDI);
+#endif
+
 	/** Changes the value of bNotifyRigidBodyCollision
 	* @param bNewNotifyRigidBodyCollision - The value to assign to bNotifyRigidBodyCollision
 	*/

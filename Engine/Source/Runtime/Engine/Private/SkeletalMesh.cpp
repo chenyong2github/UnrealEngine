@@ -6379,6 +6379,10 @@ void FSkeletalMeshSceneProxy::GetMeshElementsConditionallySelectable(const TArra
 			{
 				DebugDrawSkeleton(ViewIndex, Collector, ViewFamily.EngineShowFlags);
 			}
+
+#if WITH_EDITOR
+			DebugDrawPoseWatchSkeletons(ViewIndex, Collector, ViewFamily.EngineShowFlags);
+#endif
 		}
 	}
 #endif
@@ -6857,6 +6861,22 @@ void FSkeletalMeshSceneProxy::DebugDrawPhysicsAsset(int32 ViewIndex, FMeshElemen
 		}
 	}
 }
+
+#if WITH_EDITOR
+void FSkeletalMeshSceneProxy::DebugDrawPoseWatchSkeletons(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const
+{
+	FPrimitiveDrawInterface* PDI = Collector.GetPDI(ViewIndex);
+
+	if (Owner)
+	{
+		USkeletalMeshComponent* SkeletalMeshComp = Cast<USkeletalMeshComponent>(Owner->GetComponentByClass(USkeletalMeshComponent::StaticClass()));
+		if (SkeletalMeshComp)
+		{
+			SkeletalMeshComp->DebugDrawPoseWatches(PDI);
+		}
+	}
+}
+#endif
 
 void FSkeletalMeshSceneProxy::DebugDrawSkeleton(int32 ViewIndex, FMeshElementCollector& Collector, const FEngineShowFlags& EngineShowFlags) const
 {

@@ -13,6 +13,7 @@
 #include "Animation/DebugSkelMeshComponent.h"
 #include "IPersonaPreviewScene.h"
 #include "Preferences/PersonaOptions.h"
+#include "SkeletalDebugRendering.h"
 
 class FCanvas;
 class UPersonaOptions;
@@ -34,23 +35,6 @@ namespace ELocalAxesMode
 		Selected,
 		All,
 		NumAxesModes
-	};
-};
-
-//////////////////////////////////////////////////////////////////////////
-// EBoneDrawMode
-
-namespace EBoneDrawMode
-{
-	enum Type
-	{
-		None,
-		Selected,
-		SelectedAndParents,
-		SelectedAndChildren,
-		SelectedAndParentsAndChildren,
-		All,
-		NumDrawModes
 	};
 };
 

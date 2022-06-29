@@ -27,6 +27,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "SkeletalMeshCompiler.h"
 #include "Rendering/SkeletalMeshRenderData.h"
+#include "SkeletalDebugRendering.h"
 
 #include "Logging/MessageLog.h"
 #include "Animation/AnimNode_LinkedInputPose.h"
@@ -4642,5 +4643,28 @@ void USkeletalMeshComponent::HandleObjectsReplaced(const TMap<UObject*, UObject*
 	}
 }
 #endif	// #if WITH_EDITOR
+
+
+#if WITH_EDITOR
+void USkeletalMeshComponent::DebugDrawPoseWatches(FPrimitiveDrawInterface* PDI)
+{
+	UAnimInstance* AnimInstance = GetAnimInstance();
+	if (AnimInstance)
+	{
+		if (AnimInstance->IsBeingDebugged())
+		{
+			UAnimBlueprintGeneratedClass* AnimBPGenClass = CastChecked<UAnimBlueprintGeneratedClass>(AnimInstance->GetClass());
+			if (AnimBPGenClass)
+			{
+				const FAnimBlueprintDebugData& DebugData = AnimBPGenClass->GetAnimBlueprintDebugData();
+				DebugData.ForEachActiveVisiblePoseWatch([this, PDI](const FPoseWatchDebugData& PoseWatchDebugData)
+				{
+					SkeletalDebugRendering::DrawBonesFromPoseWatch(*PoseWatchDebugData.PoseInfo.Get(), this, PDI, PoseWatchDebugData.PoseWatch);
+				});
+			}
+		}
+	}
+}
+#endif // #if WITH_EDITOR
 
 #undef LOCTEXT_NAMESPACE

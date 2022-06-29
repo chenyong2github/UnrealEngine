@@ -1642,5 +1642,8 @@ public:
 #if WITH_EDITOR
 	// Helper function to handle reinstancing in editor
 	virtual void HandleAnimInstanceReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);
+
+	/** Returns true if this anim instance is actively being debugged, false otherwise */
+	bool IsBeingDebugged() const;
 #endif
 };

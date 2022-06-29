@@ -260,6 +260,24 @@ void FAnimBlueprintDebugData::RemovePoseWatch(int32 NodeID)
 	}
 }
 
+void FAnimBlueprintDebugData::ForEachActiveVisiblePoseWatch(const TFunctionRef<void(FPoseWatchDebugData&)>& InFunction) const
+{
+	for (const FAnimNodePoseWatch& PoseWatchNode : AnimNodePoseWatch)
+	{
+		if (const UPoseWatch* PoseWatch = PoseWatchNode.PoseWatch.Get())
+		{
+			if (PoseWatch->GetIsEnabled() && PoseWatch->GetIsVisible())
+			{
+				FPoseWatchDebugData DrawData;
+				DrawData.PoseWatch = PoseWatch;
+				DrawData.PoseInfo = PoseWatchNode.PoseInfo;
+
+				InFunction(DrawData);
+			}
+		}
+	}
+}
+
 TArrayView<const FName> FAnimBlueprintDebugData::GetNodeAttributes(TWeakObjectPtr<UAnimGraphNode_Base> InAnimGraphNode) const
 {
 	const TArray<FName>* Attributes = NodeAttributes.Find(InAnimGraphNode);

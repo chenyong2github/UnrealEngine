@@ -23,6 +23,10 @@ UPoseWatch::UPoseWatch(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITOR
 	Label = GetDefaultLabel();
 	SetColor(PoseWatchUtil::ChoosePoseWatchColor());
+	ViewportMask = nullptr;
+	bInvertViewportMask = false;
+	BlendScaleThreshold = 0.f;
+	ViewportOffset = FVector3d::ZeroVector;
 #endif
 }
 

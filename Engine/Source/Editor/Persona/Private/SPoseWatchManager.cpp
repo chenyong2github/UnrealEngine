@@ -47,6 +47,7 @@
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
 #include "Framework/Commands/GenericCommands.h"
+#include "SKismetInspector.h"
 
 #define LOCTEXT_NAMESPACE "SPoseWatchManager"
 
@@ -694,8 +695,22 @@ void SPoseWatchManager::OnManagerTreeSelectionChanged(FPoseWatchManagerTreeItemP
 	if (!bIsReentrant)
 	{
 		TGuardValue<bool> ReentrantGuard(bIsReentrant, true);
-		//Mode->OnItemSelectionChanged(TreeItem, SelectInfo, FPoseWatchManagerItemSelection(*PoseWatchManagerTreeView));
 
+		if (TreeItem.IsValid())
+		{
+			if (const FPoseWatchManagerPoseWatchTreeItem* PoseWatchItem = TreeItem.Get()->CastTo<FPoseWatchManagerPoseWatchTreeItem>())
+			{
+				BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(PoseWatchItem->PoseWatch.Get());
+			}
+			else
+			{
+				BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(nullptr);
+			}
+		}
+		else
+		{
+			BlueprintEditor->GetInspector()->ShowDetailsForSingleObject(nullptr);
+		}
 		OnItemSelectionChanged.Broadcast(TreeItem, SelectInfo);
 	}
 }

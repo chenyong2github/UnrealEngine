@@ -4,8 +4,41 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "BoneIndices.h"
 
+class UPoseWatch;
 class FPrimitiveDrawInterface;
+struct FCompactHeapPose;
+struct FReferenceSkeleton;
+class USkeletalMeshComponent;
+class HHitProxy;
+
+namespace EBoneDrawMode
+{
+	enum Type
+	{
+		None,
+		Selected,
+		SelectedAndParents,
+		SelectedAndChildren,
+		SelectedAndParentsAndChildren,
+		All,
+		NumDrawModes
+	};
+};
+
+struct FSkelDebugDrawConfig
+{
+public:
+	EBoneDrawMode::Type BoneDrawMode;
+	float BoneDrawSize;
+	bool bForceDraw;
+	bool bAddHitProxy;
+	FLinearColor DefaultBoneColor;
+	FLinearColor AffectedBoneColor;
+	FLinearColor SelectedBoneColor;
+	FLinearColor ParentOfSelectedBoneColor;
+};
 
 namespace SkeletalDebugRendering
 {
@@ -77,4 +110,26 @@ ENGINE_API	void DrawRootCone(
 	const FTransform& InBoneTransform,
 	const FVector& ComponentOrigin,
 	const float SphereRadius);
+
+
+ENGINE_API void DrawBonesFromPoseWatch(
+	const FCompactHeapPose& Pose,
+	USkeletalMeshComponent* MeshComponent,
+	FPrimitiveDrawInterface* PDI,
+	const UPoseWatch* PoseWatch);
+
+
+/**
+ * Draw skeleton bones. If BoneColors is empty, the DefaultBoneColor in the draw config will be used.
+ */
+ENGINE_API void DrawBones(
+	FPrimitiveDrawInterface* PDI,
+	const FVector& ComponentOrigin,
+	const TArray<FBoneIndexType>& RequiredBones,
+	const FReferenceSkeleton& RefSkeleton,
+	const TArray<FTransform>& WorldTransforms,
+	const TArray<int32>& InSelectedBones,
+	const TArray<FLinearColor>& BoneColors,
+	const TArray<HHitProxy*>& HitProxies,
+	const FSkelDebugDrawConfig& DrawConfig);
 }

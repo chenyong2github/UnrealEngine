@@ -10,6 +10,7 @@
 
 struct FCompactHeapPose;
 class UAnimBlueprint;
+class UBlendProfile;
 
 struct FAnimNodePoseWatch
 {
@@ -36,7 +37,7 @@ namespace PoseWatchUtil
 	template <typename T>
 	FText FindUniqueNameInFolder(UPoseWatchFolder* InParent, const T* Item, const TArray<TObjectPtr<T>>& Collection);
 
-	/** Returns a color from a palette of predefined colors in round-robin order */
+	/** Returns a new random color */
 	FColor ChoosePoseWatchColor();
 }
 
@@ -227,6 +228,23 @@ private:
 public:
 	UPROPERTY()
 	TWeakObjectPtr<class UEdGraphNode> Node;
+
+	/** Optionally select a Blend Mask to control which bones on the skeleton are rendered. Any non-zero entries are rendered. */
+	UPROPERTY(EditAnywhere, editfixedsize, Category = Default, meta = (UseAsBlendMask = true))
+	TObjectPtr<UBlendProfile> ViewportMask;
+
+	/** Invert which bones are rendered when using a viewport mask */
+	UPROPERTY(EditAnywhere, Category = Default, meta = (EditCondition = "ViewportMask != nullptr"))
+	bool bInvertViewportMask;
+
+	/** The threshold which each bone's blend scale much surpass to be rendered using the viewport mask */
+	UPROPERTY(EditAnywhere, Category = Default, meta = (ClampMin = 0.f, ClampMax = 1.f, EditCondition="ViewportMask != nullptr"))
+	float BlendScaleThreshold;
+
+	/** Offset the rendering of the bones in the viewport. */
+	UPROPERTY(EditAnywhere, Category = Default)
+	FVector3d ViewportOffset;
+
 protected:
 	UPROPERTY()
 	bool bDeleteOnDeselection = false;

@@ -3860,4 +3860,11 @@ bool UAnimInstance::QueryAndMarkTransitionEvent(int32 MachineIndex, int32 Transi
 	return GetProxyOnAnyThread<FAnimInstanceProxy>().QueryAndMarkTransitionEvent(MachineIndex, TransitionIndex, EventName);
 }
 
+#if WITH_EDITOR
+bool UAnimInstance::IsBeingDebugged() const
+{
+	return GetProxyOnAnyThread<FAnimInstanceProxy>().IsBeingDebugged();
+}
+#endif
+
 #undef LOCTEXT_NAMESPACE 
