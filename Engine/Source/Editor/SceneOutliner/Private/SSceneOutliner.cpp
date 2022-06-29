@@ -2355,4 +2355,23 @@ void SSceneOutliner::SaveConfig()
 	UOutlinerConfig::Get()->SaveEditorConfig();
 }
 
+void FSceneOutlinerMenuHelper::AddMenuEntryCreateFolder(FToolMenuSection& InSection, SSceneOutliner& InOutliner)
+{
+	const FSlateIcon NewFolderIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon");
+	InSection.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), LOCTEXT("CreateFolderTooltip", "Create Folder"), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&InOutliner, &SSceneOutliner::CreateFolder)));
+}
+
+void FSceneOutlinerMenuHelper::AddMenuEntryCleanupFolders(FToolMenuSection& InSection, ULevel* InLevel)
+{
+	if (InLevel && InLevel->IsUsingActorFolders())
+	{
+		const FSlateIcon CleanupFoldersIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.CleanupActorFoldersIcon");
+		InSection.AddMenuEntry("CleanupFolders", LOCTEXT("CleanupFolders", "Cleanup Folders"), LOCTEXT("CleanupFoldersTooltip", "Cleanup unreferenced and deleted actor folders"), CleanupFoldersIcon, FExecuteAction::CreateLambda([InLevel]()
+		{
+			const FScopedTransaction Transaction(LOCTEXT("CleanupFolders", "Cleanup Folders"));
+			InLevel->CleanupDeletedAndUnreferencedActorFolders();
+		}));
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

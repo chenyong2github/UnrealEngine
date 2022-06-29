@@ -208,11 +208,19 @@ void FWorldTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 {
 	auto SharedOutliner = StaticCastSharedRef<SSceneOutliner>(Outliner.AsShared());
 	
-	const FSlateIcon WorldSettingsIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.WorldProperties.Tab");
-	const FSlateIcon NewFolderIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon");
 	FToolMenuSection& Section = Menu->AddSection("Section");
-	Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
+
+	// Create Folder menu entry
+	FSceneOutlinerMenuHelper::AddMenuEntryCreateFolder(Section, Outliner);
+
+	// Open world settings menu entry
+	const FSlateIcon WorldSettingsIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.WorldProperties.Tab");
 	Section.AddMenuEntry("OpenWorldSettings", LOCTEXT("OpenWorldSettings", "World Settings"), FText(), WorldSettingsIcon, FExecuteAction::CreateSP(this, &FWorldTreeItem::OpenWorldSettings));
+	
+	// Cleanup Folders menu entry
+	UWorld* WorldPtr = World.Get();
+	ULevel* Level = WorldPtr ? WorldPtr->PersistentLevel : nullptr;
+	FSceneOutlinerMenuHelper::AddMenuEntryCleanupFolders(Section, Level);
 }
 
 TSharedRef<SWidget> FWorldTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)

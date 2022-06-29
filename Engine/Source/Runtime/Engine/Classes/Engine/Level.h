@@ -1226,6 +1226,9 @@ public:
 	/** Updates all actors/folders that refer to folders marked as deleted, reparent to valid folder, deletes folders marked as deleted. */
 	ENGINE_API void CreateOrUpdateActorFolders();
 
+	/** Deletes all actor folders marked as deleted and unreferenced by neither an actor nor another actor folder */
+	ENGINE_API void CleanupDeletedAndUnreferencedActorFolders();
+
 	/** Sets if the level uses actor folders mode or not. Returns true if succeeded. */
 	ENGINE_API bool SetUseActorFolders(bool bEnabled, bool bInteractive = false);
 
@@ -1397,6 +1400,9 @@ private:
 
 	/** Sets the level to use or not the actor folder objects feature. */
 	void SetUseActorFoldersInternal(bool bInEnabled);
+
+	/** Returns unreferenced actor folders that are marked as deleted. */
+	TSet<FGuid> GetDeletedAndUnreferencedActorFolders() const;
 
 	friend struct FLevelActorFoldersHelper;
 	friend class FWorldPartitionLevelHelper;

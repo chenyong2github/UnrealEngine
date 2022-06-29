@@ -474,12 +474,7 @@ void FActorBrowsingMode::RegisterContextMenu()
 				{
 					if (Context->NumSelectedItems == 0)
 					{
-						Section.AddMenuEntry(
-							"CreateFolder",
-							LOCTEXT("CreateFolder", "Create Folder"),
-							FText(),
-							FSlateIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon"),
-							FUIAction(FExecuteAction::CreateSP(SceneOutliner, &SSceneOutliner::CreateFolder)));
+						FSceneOutlinerMenuHelper::AddMenuEntryCreateFolder(Section, *SceneOutliner);
 					}
 					else
 					{

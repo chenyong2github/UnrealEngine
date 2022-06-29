@@ -451,10 +451,9 @@ void FActorTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outlin
 	const ILevelInstanceInterface* LevelInstance = Cast<ILevelInstanceInterface>(ActorPtr);
 	if (LevelInstance && LevelInstance->IsEditing())
 	{
-		auto SharedOutliner = StaticCastSharedRef<SSceneOutliner>(Outliner.AsShared());
-		const FSlateIcon NewFolderIcon(FAppStyle::GetAppStyleSetName(), "SceneOutliner.NewFolderIcon");
 		FToolMenuSection& Section = Menu->AddSection("Section");
-		Section.AddMenuEntry("CreateFolder", LOCTEXT("CreateFolder", "Create Folder"), FText(), NewFolderIcon, FUIAction(FExecuteAction::CreateSP(&Outliner, &SSceneOutliner::CreateFolder)));
+		FSceneOutlinerMenuHelper::AddMenuEntryCreateFolder(Section, Outliner);
+		FSceneOutlinerMenuHelper::AddMenuEntryCleanupFolders(Section, LevelInstance->GetLoadedLevel());
 	}
 }
 

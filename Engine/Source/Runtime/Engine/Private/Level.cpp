@@ -78,6 +78,7 @@ Level.cpp: Level-related functions
 #include "EditorActorFolders.h"
 #include "UObject/MetaData.h"
 #include "UObject/LinkerLoad.h"
+#include "WorldPartition/WorldPartitionHelpers.h"
 #endif
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
@@ -147,8 +148,11 @@ void FLevelActorFoldersHelper::RenameFolder(ULevel* InLevel, const FFolder& InOl
 	}
 };
 
+static bool GAllowCleanupActorFolders = true;
+
 void FLevelActorFoldersHelper::DeleteFolder(ULevel* InLevel, const FFolder& InFolder)
 {
+	TGuardValue<bool> GuardValue(GAllowCleanupActorFolders, false);
 	check(InLevel);
 	// This implementation can be called both if FActorFolders is or isn't initialized.
 	if (FActorFolders::Get().IsInitializedForWorld(*InLevel->GetWorld()))
@@ -2600,14 +2604,21 @@ void ULevel::RemoveActorFolder(UActorFolder* InActorFolder)
 {
 	Modify(false);
 	check(InActorFolder);
+	check(InActorFolder->IsMarkedAsDeleted());
+	check(GAllowCleanupActorFolders);
+
 	TObjectPtr<UActorFolder> FoundActorFolder;
 	if (ensure(ActorFolders.RemoveAndCopyValue(InActorFolder->GetGuid(), FoundActorFolder)))
 	{
-		if (!InActorFolder->IsMarkedAsDeleted())
-		{
-			FActorFolderSet& Folders = FolderLabelToActorFolders.FindChecked(FoundActorFolder->GetLabel());
-			verify(Folders.Remove(FoundActorFolder));
-		}
+		check(FoundActorFolder == InActorFolder);
+		FActorFolderSet* Folders = FolderLabelToActorFolders.Find(FoundActorFolder->GetLabel());
+		check(!Folders || !Folders->GetActorFolders().Contains(InActorFolder))
+
+		GEngine->BroadcastActorFolderRemoved(InActorFolder);
+		
+		InActorFolder->Modify();
+		InActorFolder->MarkAsGarbage();
+		check(InActorFolder->GetPackage()->IsDirty());
 	}
 }
 
@@ -2623,6 +2634,10 @@ void ULevel::OnFolderMarkAsDeleted(UActorFolder* InActorFolder)
 		if (Folders.IsEmpty())
 		{
 			FolderLabelToActorFolders.Remove(InActorFolder->GetLabel());
+		}
+		if (GAllowCleanupActorFolders && GetDeletedAndUnreferencedActorFolders().Contains(InActorFolder->GetGuid()))
+		{
+			RemoveActorFolder(InActorFolder);
 		}
 	}
 }
@@ -3518,8 +3533,6 @@ void ULevel::CreateOrUpdateActorFolders()
 	// Remove actor folders marked as deleted
 	for (UActorFolder* ActorFolderToDelete : ActorFoldersToDelete)
 	{
-		GEngine->BroadcastActorFolderRemoved(ActorFolderToDelete);
-
 		RemoveActorFolder(ActorFolderToDelete);
 	}
 
@@ -3528,6 +3541,68 @@ void ULevel::CreateOrUpdateActorFolders()
 	if (bHadActorFolders || bHasActorFolders)
 	{
 		GEngine->BroadcastActorFoldersUpdated(this);
+	}
+}
+
+TSet<FGuid> ULevel::GetDeletedAndUnreferencedActorFolders() const
+{
+	TSet<FGuid> FoldersToDelete;
+
+	if (!IsUsingActorFolders())
+	{
+		return FoldersToDelete;
+	}
+
+	for (const auto& Pair : ActorFolders)
+	{
+		UActorFolder* ActorFolder = Pair.Value;
+		if (ActorFolder->IsMarkedAsDeleted())
+		{
+			FoldersToDelete.Add(ActorFolder->GetGuid());
+		}
+	}
+
+	for (const auto& Pair : ActorFolders)
+	{
+		UActorFolder* ActorFolder = Pair.Value;
+		UActorFolder* ParentFolder = ActorFolder->GetParent(false);
+		if (ParentFolder)
+		{
+			FoldersToDelete.Remove(ParentFolder->GetGuid());
+		}
+	}
+
+	if (UWorldPartition* WorldPartition = GetWorldPartition())
+	{
+		FWorldPartitionHelpers::ForEachActorDesc(WorldPartition, [&FoldersToDelete](const FWorldPartitionActorDesc* ActorDesc)
+		{
+			AActor* Actor = ActorDesc->GetActor();
+			FoldersToDelete.Remove(Actor ? Actor->GetFolderGuid() : ActorDesc->GetFolderGuid());
+			return true;
+		});
+	}
+
+	// Also loop through all loaded level actors
+	for (AActor* Actor : Actors)
+	{
+		if (IsValid(Actor))
+		{
+			FoldersToDelete.Remove(Actor->GetFolderGuid());
+		}
+	}
+
+	return FoldersToDelete;
+}
+
+void ULevel::CleanupDeletedAndUnreferencedActorFolders()
+{
+	// Remove actor folders marked as deleted
+	for (const FGuid GuidFolderToDelete : GetDeletedAndUnreferencedActorFolders())
+	{
+		if (UActorFolder* ActorFolderToDelete = GetActorFolder(GuidFolderToDelete, false /*bSkipDeleted*/))
+		{
+			RemoveActorFolder(ActorFolderToDelete);
+		}
 	}
 }
 

@@ -34,6 +34,8 @@ class FMenuBuilder;
 class UToolMenu;
 class ISceneOutlinerColumn;
 class SComboButton;
+class ULevel;
+struct FToolMenuSection;
 
 template<typename ItemType> class STreeView;
 
@@ -905,4 +907,10 @@ private:
 	const FSceneOutlinerConfig* GetConstConfig() const;
 
 	void SaveConfig();
+};
+
+struct SCENEOUTLINER_API FSceneOutlinerMenuHelper
+{
+	static void AddMenuEntryCreateFolder(FToolMenuSection& InSection, SSceneOutliner& InOutliner);
+	static void AddMenuEntryCleanupFolders(FToolMenuSection& InSection, ULevel* InLevel);
 };

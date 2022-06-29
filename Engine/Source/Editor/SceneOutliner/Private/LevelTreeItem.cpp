@@ -3,7 +3,9 @@
 #include "LevelTreeItem.h"
 #include "Engine/Level.h"
 #include "LevelUtils.h"
+#include "ToolMenus.h"
 #include "ISceneOutliner.h"
+#include "SSceneOutliner.h"
 #include "SceneOutlinerPublicTypes.h"
 #include "Styling/SlateIconFinder.h"
 #include "Widgets/Images/SImage.h"
@@ -100,6 +102,15 @@ bool FLevelTreeItem::CanInteract() const
 		return false;
 	}
 	return Level.IsValid() ? !FLevelUtils::IsLevelLocked(Level.Get()) : true;
+}
+
+void FLevelTreeItem::GenerateContextMenu(UToolMenu* Menu, SSceneOutliner& Outliner)
+{
+	if (Level.IsValid() && Level->IsUsingActorFolders())
+	{
+		FToolMenuSection& Section = Menu->AddSection("Section");
+		FSceneOutlinerMenuHelper::AddMenuEntryCleanupFolders(Section, Level.Get());
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

@@ -22,7 +22,7 @@ public:
 	// Helper that creates a new UActorFolder
 	static UActorFolder* Create(ULevel* InOuter, const FString& InFolderLabel, UActorFolder* InParent);
 
-	static EPackageFlags GetExternalPackageFlags() { return (PKG_EditorOnly | PKG_ContainsMapData); }
+	static EPackageFlags GetExternalPackageFlags() { return (PKG_EditorOnly | PKG_ContainsMapData | PKG_NewlyCreated); }
 	
 	// Returns actor folder info stored in its package
 	static FActorFolderDesc GetAssetRegistryInfoFromPackage(FName PackageName);
