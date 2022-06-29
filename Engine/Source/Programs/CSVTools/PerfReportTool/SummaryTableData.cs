@@ -7,13 +7,14 @@ using System.Xml.Linq;
 using PerfReportTool;
 using System.IO;
 using System.Text.Json;
+using System.Threading.Tasks;
 
 namespace PerfSummaries
 {
 
-	class SummaryTableDataJsonHelper
+	class SummaryTableDataJsonWriteHelper
 	{
-		public SummaryTableDataJsonHelper(string InJsonFilename, bool bInCsvMetadataOnly, bool bInWriteAllElementData)
+		public SummaryTableDataJsonWriteHelper(string InJsonFilename, bool bInCsvMetadataOnly, bool bInWriteAllElementData)
 		{
 			JsonFilename = InJsonFilename;
 			bCsvMetadataOnly = bInCsvMetadataOnly;
@@ -32,12 +33,20 @@ namespace PerfSummaries
 
 		public void WriteJsonFile()
 		{
+			Task task = WriteJsonFileAsyncPrivate();
+			task.Wait();
+
+		}
+
+		private async Task WriteJsonFileAsyncPrivate() 
+		{
 			Console.WriteLine("Writing summary table row data to json: " + JsonFilename);
 			JsonSerializerOptions options = new JsonSerializerOptions { WriteIndented = true };
-			string jsonString = JsonSerializer.Serialize(Dict, options);
 
-			// Write the file to Json and rename it when we're done
-			File.WriteAllText(JsonFilename, jsonString);
+			// serialize JSON directly to a file
+			FileStream createStream = File.Create(JsonFilename);
+			await JsonSerializer.SerializeAsync(createStream, Dict);
+			createStream.Dispose(); // DisposeAsync doesn't exist in .Net 4.8 so we can't await it
 		}
 
 		Dictionary<string, dynamic> Dict = new Dictionary<string, dynamic>();
@@ -69,8 +78,8 @@ namespace PerfSummaries
 
 		private SummaryTableElement()
 		{
-
 		}
+
 		public SummaryTableElement(Type inType, string inName, double inValue, ColourThresholdList inColorThresholdList, string inToolTip, uint inFlags = 0)
 		{
 			type = inType;
@@ -173,6 +182,49 @@ namespace PerfSummaries
 			return (flags & (uint)flag) != 0;
 		}
 
+		public SummaryTableElement(Type typeIn, string elementName, Dictionary<string, dynamic> jsonDict)
+		{
+			name = elementName;
+			type = typeIn;
+			dynamic jsonValue = jsonDict["value"];
+
+			isNumeric = !(jsonValue is string);
+			if (isNumeric)
+			{
+				numericValue = (double)jsonValue;
+				value = numericValue.ToString();
+			}
+			else
+			{
+				value = jsonValue;
+			}
+			if (jsonDict.TryGetValue("colorThresholdList", out dynamic colorThresholdListDynamic))
+			{
+				Dictionary<string, dynamic> colorThresholdDict = colorThresholdListDynamic;
+				colorThresholdList = new ColourThresholdList(colorThresholdDict);
+			}
+
+			tooltip = "";
+			if ( jsonDict.TryGetValue("tooltip", out dynamic tooltipDynamic ) )
+			{
+				tooltip = tooltipDynamic;
+			}
+
+			if (jsonDict.TryGetValue("flags", out dynamic flagsDynamic))
+			{
+				List<dynamic> flagStrings = flagsDynamic;
+				flags = 0;
+				foreach (string flagStr in flagStrings)
+				{
+					if ( Enum.TryParse<Flags>(flagStr, out Flags flag ) )
+					{
+						flags |= (uint)flag;
+					}
+				}
+			}
+
+		}
+
 		public Dictionary<string, dynamic> ToJsonDict(bool bWriteType)
 		{
 			Dictionary<string, dynamic> Dict = new Dictionary<string, dynamic>();
@@ -180,8 +232,15 @@ namespace PerfSummaries
 			{
 				Dict.Add("type", type.ToString());
 			}
-			Dict.Add("value", DynamicValue);
-
+			if (isNumeric)
+			{
+				// Serialize as Decimal to avoid 0.1 being serialized as 0.1000000000000001 etc
+				Dict.Add("value", new Decimal(numericValue));
+			}
+			else
+			{
+				Dict.Add("value", value);
+			}
 			if (!string.IsNullOrEmpty(tooltip))
 			{
 				Dict.Add("tooltip", tooltip);
@@ -226,6 +285,7 @@ namespace PerfSummaries
 		public bool isNumeric;
 		public uint flags;
 	}
+
 	class SummaryTableRowData
 	{
 		public SummaryTableRowData()
@@ -386,12 +446,34 @@ namespace PerfSummaries
 				Console.WriteLine("Warning: Key " + key + " has already been added. Ignoring...");
 			}
 		}
+		public void Add(SummaryTableElement element)
+		{
+			dict.Add(element.name.ToLower(), element);
+		}
+
 
 		public void AddString(SummaryTableElement.Type type, string name, string value, ColourThresholdList colorThresholdList = null, string tooltip = "")
 		{
 			string key = name.ToLower();
 			SummaryTableElement metadataValue = new SummaryTableElement(type, name, value, colorThresholdList, tooltip);
 			dict.Add(key, metadataValue);
+		}
+
+		public SummaryTableRowData(Dictionary<string, dynamic> jsonDict)
+		{
+			var DataTypes = Enum.GetValues(typeof(SummaryTableElement.Type));
+			foreach (string dataTypeStr in jsonDict.Keys)
+			{
+				if ( Enum.TryParse(dataTypeStr, out SummaryTableElement.Type dataType) )
+				{
+					Dictionary<string, dynamic> DataTypeDict = jsonDict[dataTypeStr];
+					foreach(string elementName in DataTypeDict.Keys)
+					{
+						SummaryTableElement newElement = new SummaryTableElement(dataType, elementName, DataTypeDict[elementName]);
+						Add(newElement);
+					}
+				}
+			}
 		}
 
 		public Dictionary<string, dynamic> ToJsonDict(bool bCsvMetadataOnly, bool bWriteAllElementData)
@@ -421,11 +503,11 @@ namespace PerfSummaries
 				}
 				if (bWriteAllElementData)
 				{
-					DictOut[Element.type.ToString()][key] = Element.ToJsonDict(false);
+					DictOut[Element.type.ToString()][Element.name] = Element.ToJsonDict(false);
 				}
 				else
 				{
-					DictOut[Element.type.ToString()][key] = Element.DynamicValue;
+					DictOut[Element.type.ToString()][Element.name] = Element.DynamicValue;
 				}
 			}
 

@@ -152,7 +152,7 @@ namespace PerfSummaries
 			int bI = (int)(b * 255.0f);
 			return "#" + rI.ToString("x2") + gI.ToString("x2") + bI.ToString("x2");
 		}
-
+		
 		public static Colour White = new Colour(1.0f, 1.0f, 1.0f, 1.0f);
 		public static Colour Black = new Colour(0, 0, 0, 1.0f);
 		public static Colour Orange = new Colour(1.0f, 0.5f, 0.0f, 1.0f);
@@ -187,6 +187,28 @@ namespace PerfSummaries
 			Add(new ThresholdInfo(yellowValue, null));
 			Add(new ThresholdInfo(orangeValue, null));
 			Add(new ThresholdInfo(redValue, null));
+		}
+
+		public ColourThresholdList(Dictionary<string, dynamic> JsonDict)
+		{ 
+			if (JsonDict.ContainsKey("thresholds"))
+			{
+				List<dynamic> thresholdsList = JsonDict["thresholds"];
+				Thresholds = new List<ThresholdInfo>(thresholdsList.Count);
+				foreach(dynamic thresholdValue in thresholdsList)
+				{
+					Add(new ThresholdInfo(thresholdValue, null));
+				}
+				if (JsonDict.ContainsKey("colors"))
+				{
+					List<dynamic> colorsList = JsonDict["colors"];
+					int n = Math.Min(colorsList.Count, thresholdsList.Count);
+					for (int i = 0; i < n; i++)
+					{
+						Thresholds[i].colour = new Colour(colorsList[i]);
+					}
+				}
+			}
 		}
 
 		public Dictionary<string, dynamic> ToJsonDict()
