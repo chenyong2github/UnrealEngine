@@ -174,6 +174,7 @@ namespace Metasound
 				const FName IsPreview = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("IsPreviewSound");
 				const FName SoundUniqueID = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("SoundUniqueID");
 				const FName TransmitterID = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("TransmitterID");
+				const FName AudioMixerNumOutputFrames = AUDIO_PARAMETER_INTERFACE_MEMBER_DEFINE("AudioMixerNumOutputFrames");
 			}
 
 			Audio::FParameterInterfacePtr CreateInterface(const UClass& InUClass)
@@ -224,6 +225,12 @@ namespace Metasound
 								LOCTEXT("SoundUniqueDescription", "ID of unique source instance."),
 								FName(), // TODO: Align environment data types with environment (ex. this is actually set/get as a uint32)
 								Environment::SoundUniqueID
+							},
+							{
+								LOCTEXT("AudioMixerOutputFramesDisplayName", "Audio Mixer Output Frames"),
+								LOCTEXT("AudioMixerOutputFramesDescription", "The number of output frames rendered per buffer in the audio mixer."),
+								FName(), 
+								Environment::AudioMixerOutputFrames
 							}
 						};
 					}

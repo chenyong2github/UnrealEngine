@@ -51,6 +51,7 @@ namespace Audio
 		FDeviceId AudioDeviceID = 0;
 		uint32 InstanceID = 0;
 		int32 SampleRate = 0;
+		int32 AudioMixerNumOutputFrames = 0;
 		FMixerBuffer* Buffer = nullptr;
 		USoundWave* SoundWave = nullptr;
 		ELoopingMode LoopingMode = ELoopingMode::LOOP_Never;

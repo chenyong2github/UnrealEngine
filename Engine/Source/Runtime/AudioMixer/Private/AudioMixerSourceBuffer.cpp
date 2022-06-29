@@ -95,6 +95,7 @@ namespace Audio
 			FSoundGeneratorInitParams InitParams;
 			InitParams.AudioDeviceID = InArgs.AudioDeviceID;
 			InitParams.SampleRate = InArgs.SampleRate;
+			InitParams.AudioMixerNumOutputFrames = InArgs.AudioMixerNumOutputFrames;
 			InitParams.NumChannels = NumChannels;
 			InitParams.NumFramesPerCallback = MONO_PCM_BUFFER_SAMPLES;
 			InitParams.InstanceID = InArgs.InstanceID;

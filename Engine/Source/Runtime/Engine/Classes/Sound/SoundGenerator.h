@@ -17,6 +17,7 @@ struct FSoundGeneratorInitParams
 {
 	Audio::FDeviceId AudioDeviceID;
 	float SampleRate = 0.0f;
+	int32 AudioMixerNumOutputFrames = 0;
 	int32 NumChannels = 0;
 	int32 NumFramesPerCallback = 0;
 	uint64 InstanceID = 0;

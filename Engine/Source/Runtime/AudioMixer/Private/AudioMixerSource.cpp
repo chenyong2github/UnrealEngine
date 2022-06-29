@@ -868,6 +868,7 @@ namespace Audio
 		BufferInitArgs.AudioDeviceID = AudioDevice->DeviceID;
 		BufferInitArgs.InstanceID = InstanceID;
 		BufferInitArgs.SampleRate = AudioDevice->GetSampleRate();
+		BufferInitArgs.AudioMixerNumOutputFrames = MixerDevice->GetNumOutputFrames();
 		BufferInitArgs.Buffer = MixerBuffer;
 		BufferInitArgs.SoundWave = &SoundWave;
 		BufferInitArgs.LoopingMode = InWaveInstance->LoopingMode;

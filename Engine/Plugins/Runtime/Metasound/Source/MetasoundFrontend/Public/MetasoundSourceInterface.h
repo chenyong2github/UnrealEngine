@@ -64,6 +64,7 @@ namespace Metasound
 				METASOUNDFRONTEND_API const extern FName IsPreview;
 				METASOUNDFRONTEND_API const extern FName SoundUniqueID;
 				METASOUNDFRONTEND_API const extern FName TransmitterID;
+				METASOUNDFRONTEND_API const extern FName AudioMixerNumOutputFrames;
 			}
 
 			METASOUNDFRONTEND_API const FMetasoundFrontendVersion& GetVersion();
