@@ -133,7 +133,6 @@
 #include "Elements/Interfaces/TypedElementHierarchyInterface.h"
 #include "Elements/Interfaces/TypedElementObjectInterface.h"
 #include "Misc/MessageDialog.h"
-#include "UObject/FastReferenceCollector.h"
 
 #define LOCTEXT_NAMESPACE "Blueprint"
 
@@ -10447,98 +10446,6 @@ void FBlueprintEditorUtils::RecombineNestedSubPins(UK2Node* Node)
 	}
 }
 
-static FAutoConsoleCommand AuditThreadSafeFunctions(
-	TEXT("bp.AuditThreadSafeFunctions"),
-	TEXT("Audit currently loaded thread safe functions. Writes results to the log."),
-	FConsoleCommandDelegate::CreateLambda([]()
-		{
-			UE_LOG(LogBlueprint, Display, TEXT("--- BEGIN audit all BlueprintThreadSafe functions ---"));
-			UE_LOG(LogBlueprint, Display, TEXT("Name, Path, Type, BPCallType"));
-
-			for (TObjectIterator<UFunction> It; It; ++It)
-			{
-				UFunction* Function = *It;
-				if (FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(Function))
-				{
-					const TCHAR* Native = Function->HasAnyFunctionFlags(FUNC_Native) ? TEXT("Native") : TEXT("Script");
-					const TCHAR* Purity = [Function]()
-					{
-						if (Function->HasAnyFunctionFlags(FUNC_BlueprintCallable))
-						{
-							return Function->HasAllFunctionFlags(FUNC_BlueprintPure | FUNC_BlueprintCallable) ? TEXT("Pure") : TEXT("Callable");
-						}
-
-						return TEXT("NotCallable");
-					}();
-					UE_LOG(LogBlueprint, Display, TEXT("%s, %s, %s, %s"), *Function->GetName(), *Function->GetPathName(), Native, Purity);
-				}
-			}
-
-			UE_LOG(LogBlueprint, Display, TEXT("--- END audit all BlueprintThreadSafe functions ---"));
-		}));
-
-static FAutoConsoleCommand AuditFunctionCallsForBlueprint(
-	TEXT("bp.AuditFunctionCallsForBlueprint"),
-	TEXT("Audit all functions called by a specified blueprint. Single argument supplies the asset to audit. Writes results to the log."),
-	FConsoleCommandWithArgsDelegate::CreateLambda([](const TArray<FString>& InArgs)
-		{
-			if (InArgs.Num() != 1)
-			{
-				return;
-			}
-
-			// Find our Blueprint & load it
-			UBlueprint* Blueprint = LoadObject<UBlueprint>(nullptr, *InArgs[0]);
-			if (Blueprint == nullptr)
-			{
-				UE_LOG(LogBlueprint, Warning, TEXT("--- Could not load Blueprint %s ---"), *InArgs[0]);
-				return;
-			}
-
-			if (Blueprint->GeneratedClass == nullptr)
-			{
-				UE_LOG(LogBlueprint, Warning, TEXT("--- Blueprint %s as a null GeneratedClass ---"), *InArgs[0]);
-				return;
-			}
-
-			UE_LOG(LogBlueprint, Display, TEXT("--- BEGIN audit function calls for Blueprint %s ---"), *InArgs[0]);
-			UE_LOG(LogBlueprint, Display, TEXT("Name, Path, Type, BPCallType"));
-
-			struct FFunctionReferenceProcessor : public FSimpleReferenceProcessorBase
-			{
-				FORCEINLINE void HandleTokenStreamObjectReference(FGCArrayStruct& ObjectsToSerializeStruct, UObject* ReferencingObject, UObject*& Object, const int32 TokenIndex, const EGCTokenType TokenType, bool bAllowReferenceElimination)
-				{
-					if (UFunction* Function = Cast<UFunction>(Object))
-					{
-						const TCHAR* Native = Function->HasAnyFunctionFlags(FUNC_Native) ? TEXT("Native") : TEXT("Script");
-						const TCHAR* Purity = [Function]()
-						{
-							if (Function->HasAnyFunctionFlags(FUNC_BlueprintCallable))
-							{
-								return Function->HasAllFunctionFlags(FUNC_BlueprintPure | FUNC_BlueprintCallable) ? TEXT("Pure") : TEXT("Callable");
-							}
-
-							return TEXT("NotCallable");
-						}();
-						UE_LOG(LogBlueprint, Display, TEXT("%s, %s, %s, %s"), *Function->GetName(), *Function->GetOuterUClass()->GetPathName(), Native, Purity);
-					}
-				}
-			} Processor;
-
-			TFastReferenceCollector<
-				FFunctionReferenceProcessor,
-				TDefaultReferenceCollector<FFunctionReferenceProcessor>,
-				FGCArrayPool,
-				EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
-			> ReferenceCollector(Processor, FGCArrayPool::Get());
-			FGCArrayStruct ArrayStruct;
-			ArrayStruct.ObjectsToSerialize.Add(Blueprint->GeneratedClass);
-			ReferenceCollector.CollectReferences(ArrayStruct);
-
-			UE_LOG(LogBlueprint, Display, TEXT("--- END audit all BlueprintThreadSafe functions ---"));
-		}));
-
-
 bool FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(const UFunction* InFunction)
 {
 	if(InFunction)
@@ -10547,8 +10454,8 @@ bool FBlueprintEditorUtils::HasFunctionBlueprintThreadSafeMetaData(const UFuncti
 		const bool bHasNotThreadSafeMetaData = InFunction->HasMetaData(FBlueprintMetadata::MD_NotThreadSafe);
 		const bool bClassHasThreadSafeMetaData = InFunction->GetOwnerClass() && InFunction->GetOwnerClass()->HasMetaData(FBlueprintMetadata::MD_ThreadSafe);
 
-		// Native functions need to just have the correct class/function metadata
-		const bool bThreadSafeNative = InFunction->HasAnyFunctionFlags(FUNC_Native) && (bHasThreadSafeMetaData || (bClassHasThreadSafeMetaData && !bHasNotThreadSafeMetaData));
+		// Native (or BP event) functions need to just have the correct class/function metadata
+		const bool bThreadSafeNative = InFunction->HasAnyFunctionFlags(FUNC_Native | FUNC_BlueprintEvent) && (bHasThreadSafeMetaData || (bClassHasThreadSafeMetaData && !bHasNotThreadSafeMetaData));
 
 		// Script functions get their flag propagated from their entry point, and dont pay heed to class metadata
 		const bool bThreadSafeScript = !InFunction->HasAnyFunctionFlags(FUNC_Native) && bHasThreadSafeMetaData;

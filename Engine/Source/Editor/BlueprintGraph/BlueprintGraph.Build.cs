@@ -41,7 +41,6 @@ public class BlueprintGraph : ModuleRules
                 "KismetWidgets",
                 "PropertyEditor",
 				"ToolMenus",
-				"AssetTools",
 			}
 		);
 

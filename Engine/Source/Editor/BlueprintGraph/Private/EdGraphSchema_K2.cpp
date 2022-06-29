@@ -325,7 +325,7 @@ public:
 			for (TObjectIterator<UEnum> EnumIt; EnumIt; ++EnumIt)
 			{
 				UEnum* CurrentEnum = *EnumIt;
-				if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(CurrentEnum) && FBlueprintActionDatabase::IsEnumAllowed(CurrentEnum, FBlueprintActionDatabase::EPermissionsContext::Property))
+				if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(CurrentEnum))
 				{
 					LoadedTypesList->Add(FLoadedAssetData(CurrentEnum));
 				}
@@ -342,7 +342,7 @@ public:
 				for (TObjectIterator<UScriptStruct> StructIt; StructIt; ++StructIt)
 				{
 					UScriptStruct* ScriptStruct = *StructIt;
-					if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(ScriptStruct) && FBlueprintActionDatabase::IsStructAllowed(ScriptStruct, FBlueprintActionDatabase::EPermissionsContext::Property))
+					if (UEdGraphSchema_K2::IsAllowableBlueprintVariableType(ScriptStruct))
 					{
 						LoadedTypesList->Add(FLoadedAssetData(ScriptStruct));
 					}
@@ -363,7 +363,7 @@ public:
 					const bool bIsInterface = CurrentClass->IsChildOf(UInterface::StaticClass());
 					const bool bIsBlueprintType = UEdGraphSchema_K2::IsAllowableBlueprintVariableType(CurrentClass);
 					const bool bIsDeprecated = CurrentClass->HasAnyClassFlags(CLASS_Deprecated);
-					if (bIsBlueprintType && !bIsDeprecated && FBlueprintActionDatabase::IsClassAllowed(CurrentClass, FBlueprintActionDatabase::EPermissionsContext::Property))
+					if (bIsBlueprintType && !bIsDeprecated)
 					{
 						if (bIsInterface)
 						{
@@ -389,7 +389,6 @@ public:
 
 		const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 
-		if(FBlueprintActionDatabase::IsClassAllowed(UUserDefinedEnum::StaticClass(), FBlueprintActionDatabase::EPermissionsContext::Property))
 		{
 			TArray<FAssetData> AssetData;
 			AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedEnum::StaticClass()->GetClassPathName(), AssetData);
@@ -398,7 +397,7 @@ public:
 			for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
 			{
 				const FAssetData& Asset = AssetData[AssetIndex];
-				if (Asset.IsValid() && !Asset.IsAssetLoaded() && FBlueprintActionDatabase::IsEnumAllowed(FTopLevelAssetPath(Asset.PackageName, Asset.AssetName), FBlueprintActionDatabase::EPermissionsContext::Property))
+				if (Asset.IsValid() && !Asset.IsAssetLoaded())
 				{
 					UnLoadedTypesList->Add(FUnloadedAssetData(Asset));
 				}
@@ -409,7 +408,6 @@ public:
 
 		if (!bIndexTypesOnly)
 		{
-			if (FBlueprintActionDatabase::IsClassAllowed(UUserDefinedStruct::StaticClass(), FBlueprintActionDatabase::EPermissionsContext::Property))
 			{
 				TArray<FAssetData> AssetData;
 				AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), AssetData);
@@ -418,7 +416,7 @@ public:
 				for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
 				{
 					const FAssetData& Asset = AssetData[AssetIndex];
-					if (Asset.IsValid() && !Asset.IsAssetLoaded() && FBlueprintActionDatabase::IsStructAllowed(FTopLevelAssetPath(Asset.PackageName, Asset.AssetName), FBlueprintActionDatabase::EPermissionsContext::Property))
+					if (Asset.IsValid() && !Asset.IsAssetLoaded())
 					{
 						UnLoadedTypesList->Add(FUnloadedAssetData(Asset));
 					}
@@ -427,7 +425,6 @@ public:
 				TypesDatabase.UnLoadedTypesMap.Add(UEdGraphSchema_K2::PC_Struct, UnLoadedTypesList);
 			}
 
-			if (FBlueprintActionDatabase::IsClassAllowed(UBlueprint::StaticClass(), FBlueprintActionDatabase::EPermissionsContext::Property))
 			{
 				TArray<FAssetData> AssetData;
 				AssetRegistryModule.Get().GetAssetsByClass(UBlueprint::StaticClass()->GetClassPathName(), AssetData);
@@ -442,7 +439,7 @@ public:
 				{
 					const FAssetData& Asset = AssetData[AssetIndex];
 
-					if (Asset.IsValid() && !Asset.IsAssetLoaded() && FBlueprintActionDatabase::IsClassAllowed(FTopLevelAssetPath(Asset.PackageName, Asset.AssetName), FBlueprintActionDatabase::EPermissionsContext::Property))
+					if (Asset.IsValid() && !Asset.IsAssetLoaded())
 					{
 						const FString BlueprintTypeStr = Asset.GetTagValueRef<FString>(FBlueprintTags::BlueprintType);
 						const bool bNormalBP = BlueprintTypeStr == BPNormalTypeAllowed;
@@ -3926,66 +3923,57 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 
 	// Clear the list
 	TypeTree.Empty();
-	
-	auto AddToTypeTree = [&TypeTree](const TSharedRef<FPinTypeTreeInfo>& InPinTypeTreeInfo)
-	{
-		constexpr bool bForceLoadedSubCategoryObject = false;
-		if(FBlueprintActionDatabase::IsPinTypeAllowed(InPinTypeTreeInfo->GetPinType(bForceLoadedSubCategoryObject)))
-		{
-			TypeTree.Add(InPinTypeTreeInfo);
-		}
-	};
-	
+
 	if( bAllowExec )
 	{
-		AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Exec, true), PC_Exec, this, LOCTEXT("ExecType", "Execution pin")) ) );
+		TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Exec, true), PC_Exec, this, LOCTEXT("ExecType", "Execution pin")) ) );
 	}
 
-	AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Boolean, true), PC_Boolean, this, LOCTEXT("BooleanType", "True or false value")) ) );
-	AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Byte, true), PC_Byte, this, LOCTEXT("ByteType", "8 bit number")) ) );
-	AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int, true), PC_Int, this, LOCTEXT("IntegerType", "Integer number")) ) );
-	AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int64, true), PC_Int64, this, LOCTEXT("Integer64Type", "64 bit Integer number")) ) );
+	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Boolean, true), PC_Boolean, this, LOCTEXT("BooleanType", "True or false value")) ) );
+	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Byte, true), PC_Byte, this, LOCTEXT("ByteType", "8 bit number")) ) );
+	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int, true), PC_Int, this, LOCTEXT("IntegerType", "Integer number")) ) );
+	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int64, true), PC_Int64, this, LOCTEXT("Integer64Type", "64 bit Integer number")) ) );
 
 	if (!bIndexTypesOnly)
 	{
-		AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Real, true), PC_Real, this, LOCTEXT("RealType", "Floating point number"))));
-		AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Name, true), PC_Name, this, LOCTEXT("NameType", "A text name"))));
-		AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_String, true), PC_String, this, LOCTEXT("StringType", "A text string"))));
-		AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Text, true), PC_Text, this, LOCTEXT("TextType", "A localizable text string"))));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Real, true), PC_Real, this, LOCTEXT("RealType", "Floating point number"))));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Name, true), PC_Name, this, LOCTEXT("NameType", "A text name"))));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_String, true), PC_String, this, LOCTEXT("StringType", "A text string"))));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Text, true), PC_Text, this, LOCTEXT("TextType", "A localizable text string"))));
 
 		// Add in special first-class struct types
 		if (!bRootTypesOnly)
 		{
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(PC_Struct, TBaseStructure<FVector>::Get(), LOCTEXT("VectorType", "A 3D vector"))));
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(PC_Struct, TBaseStructure<FRotator>::Get(), LOCTEXT("RotatorType", "A 3D rotation"))));
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(PC_Struct, TBaseStructure<FTransform>::Get(), LOCTEXT("TransformType", "A 3D transformation, including translation, rotation and 3D scale."))));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(PC_Struct, TBaseStructure<FVector>::Get(), LOCTEXT("VectorType", "A 3D vector"))));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(PC_Struct, TBaseStructure<FRotator>::Get(), LOCTEXT("RotatorType", "A 3D rotation"))));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(PC_Struct, TBaseStructure<FTransform>::Get(), LOCTEXT("TransformType", "A 3D transformation, including translation, rotation and 3D scale."))));
 		}
 	}
 	// Add wildcard type
 	if (bAllowWildCard)
 	{
-		AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Wildcard, true), PC_Wildcard, this, LOCTEXT("WildcardType", "Wildcard type (unspecified)")) ) );
+		TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Wildcard, true), PC_Wildcard, this, LOCTEXT("WildcardType", "Wildcard type (unspecified)")) ) );
 	}
 
 	// Add the types that have subtrees
 	if (!bIndexTypesOnly)
 	{
-		AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Struct, true), PC_Struct, this, LOCTEXT("StructType", "Struct (value) types"), true, TypesDatabasePtr)));
-		AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Interface, true), PC_Interface, this, LOCTEXT("InterfaceType", "Interface types"), true, TypesDatabasePtr)));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Struct, true), PC_Struct, this, LOCTEXT("StructType", "Struct (value) types"), true, TypesDatabasePtr)));
+		TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Interface, true), PC_Interface, this, LOCTEXT("InterfaceType", "Interface types"), true, TypesDatabasePtr)));
 
 		if (!bRootTypesOnly)
 		{
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(AllObjectTypes, true), AllObjectTypes, this, LOCTEXT("ObjectType", "Object types"), true, TypesDatabasePtr)));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(AllObjectTypes, true), AllObjectTypes, this, LOCTEXT("ObjectType", "Object types"), true, TypesDatabasePtr)));
 		}
 		else
 		{
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Object, true), PC_Object, this, LOCTEXT("ObjectTypeHardReference", "Hard reference to an Object"), true, TypesDatabasePtr)));
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Class, true), PC_Class, this, LOCTEXT("ClassType", "Hard reference to a Class"), true, TypesDatabasePtr)));
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_SoftObject, true), PC_SoftObject, this, LOCTEXT("SoftObjectType", "Soft reference to an Object"), true, TypesDatabasePtr)));
-			AddToTypeTree(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_SoftClass, true), PC_SoftClass, this, LOCTEXT("SoftClassType", "Soft reference to a Class"), true, TypesDatabasePtr)));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Object, true), PC_Object, this, LOCTEXT("ObjectTypeHardReference", "Hard reference to an Object"), true, TypesDatabasePtr)));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_Class, true), PC_Class, this, LOCTEXT("ClassType", "Hard reference to a Class"), true, TypesDatabasePtr)));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_SoftObject, true), PC_SoftObject, this, LOCTEXT("SoftObjectType", "Soft reference to an Object"), true, TypesDatabasePtr)));
+			TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_SoftClass, true), PC_SoftClass, this, LOCTEXT("SoftClassType", "Soft reference to a Class"), true, TypesDatabasePtr)));
 		}
 	}
-	AddToTypeTree( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Enum, true), PC_Enum, this, LOCTEXT("EnumType", "Enumeration types."), true, TypesDatabasePtr) ) );
+	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Enum, true), PC_Enum, this, LOCTEXT("EnumType", "Enumeration types."), true, TypesDatabasePtr) ) );
 
 #if SCHEMA_K2_GETVARIABLETYPETREE_LOG_TIME
 	const double EndTime = FPlatformTime::Seconds();

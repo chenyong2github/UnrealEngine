@@ -30,7 +30,6 @@
 #include "BlueprintEventNodeSpawner.h"
 #include "BlueprintBoundEventNodeSpawner.h"
 #include "BlueprintBoundNodeSpawner.h"
-#include "BlueprintAssetNodeSpawner.h"
 #include "Algo/Transform.h"
 // "impure" node types (utilized in BlueprintActionFilterImpl::IsImpure)
 #include "K2Node_MultiGate.h"
@@ -40,7 +39,6 @@
 #include "BlueprintEditorModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintEditorSettings.h"
-#include "Editor/EditorEngine.h"
 
 /*******************************************************************************
  * Static BlueprintActionFilter Helpers
@@ -157,17 +155,6 @@ namespace BlueprintActionFilterImpl
 	 */
 	static bool IsRestrictedClassMember(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
 	
-	/**
-	 * Rejection test that checks to see if the supplied node-spawner would 
-	 * produce an asset-related action that cannot be accessed according to 
-	 * asset permissions
-	 * 
-	 * @param  Filter			Holds the blueprint context for this test.
-	 * @param  BlueprintAction	The action you wish to query.
-	 * @return True if the action would spawn a variable-set node for a read-only property.
-	 */
-	static bool IsAssetPermissionNotGranted(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction);
-
 	/**
 	 * Rejection test that checks to see if the supplied node-spawner would 
 	 * produce a variable-set node when the property is read-only (in this
@@ -846,42 +833,6 @@ static bool BlueprintActionFilterImpl::IsRestrictedClassMember(FBlueprintActionF
 		}
 	}
 	
-	return bIsFilteredOut;
-}
-
-//------------------------------------------------------------------------------
-static bool BlueprintActionFilterImpl::IsAssetPermissionNotGranted(FBlueprintActionFilter const& Filter, FBlueprintActionInfo& BlueprintAction)
-{
-	bool bIsFilteredOut = false;
-	FBlueprintActionContext const& FilterContext = Filter.Context;
-
-	// This handles actions with loaded assets
-	UObject const* const Owner = BlueprintAction.GetActionOwner();
-	if (Owner && Owner->IsAsset())
-	{
-		if (Filter.AssetReferenceFilter.IsValid())
-		{
-			bool const bIsAccessible = Filter.AssetReferenceFilter->PassesFilter(FAssetData(Owner));
-			if (!bIsAccessible)
-			{
-				bIsFilteredOut = true;
-			}
-		}
-	}
-	// Handle unloaded asset spawners
-	else if(UBlueprintAssetNodeSpawner const* AssetNodeSpawner = Cast<UBlueprintAssetNodeSpawner>(BlueprintAction.NodeSpawner))
-	{
-		const FAssetData& AssetData = AssetNodeSpawner->GetAssetData();
-		if (Filter.AssetReferenceFilter.IsValid() && AssetData.IsValid())
-		{
-			bool const bIsAccessible = Filter.AssetReferenceFilter->PassesFilter(AssetData);
-			if (!bIsAccessible)
-			{
-				bIsFilteredOut = true;
-			}
-		}
-	}
-
 	return bIsFilteredOut;
 }
 
@@ -2110,9 +2061,8 @@ FBlueprintActionFilter::FBlueprintActionFilter(const EFlags InFlags /*= BPFILTER
 	//
 	// this test in-particular spawns a template-node and then calls 
 	// AllocateDefaultPins() which is costly, so it should be very last!
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsNodeTemplateSelfFiltered));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleAnimNotification));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsAssetPermissionNotGranted));
+	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsNodeTemplateSelfFiltered));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsMissingMatchingPinParam));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsMissmatchedPropertyType));
 	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFunctionMissingPinParam));

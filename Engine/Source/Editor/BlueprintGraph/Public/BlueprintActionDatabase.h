@@ -8,12 +8,10 @@
 #include "UObject/ObjectKey.h"
 #include "UObject/GCObject.h"
 #include "TickableEditorObject.h"
-#include "Misc/NamePermissionList.h"
 
 class FBlueprintActionDatabaseRegistrar;
 class UBlueprint;
 class UBlueprintNodeSpawner;
-struct FEdGraphPinType;
 
 /**
  * Serves as a container for all available blueprint actions (no matter the 
@@ -149,51 +147,6 @@ public:
 	FOnDatabaseEntryUpdated& OnEntryUpdated() { return EntryRefreshDelegate; }
 	/** */
 	FOnDatabaseEntryUpdated& OnEntryRemoved() { return EntryRemovedDelegate; }
-
-	/**
-	 * Field visibility is different depending on context, this enum differentiates between the different
-	 * contexts that fields can be present in
-	 */
-	enum class EPermissionsContext
-	{
-		/** A property on a class - from a user perspective a variable in the My Blueprint tab */
-		Property,
-		
-		/** An asset - e.g. an anim blueprint asset player or skeleton notify */
-		Asset,
-		
-		/** A K2 node in a graph - e.g. a function call */
-		Node,
-		
-		/** An exposed pin on a K2 node */
-		Pin
-	};
-	
-	/** Check whether the global filter applies to this class */
-	static bool IsClassAllowed(UClass const* InClass, EPermissionsContext InContext);
-	static bool IsClassAllowed(const FTopLevelAssetPath& InClassPath, EPermissionsContext InContext);
-
-	/** Check whether we have any class filtering applied */
-	static bool HasClassFiltering();
-
-	/** Check whether permissions allow this field */
-	static bool IsFieldAllowed(UField const* InField, EPermissionsContext InContext);
-
-	/** Check whether permissions allow this function */
-	static bool IsFunctionAllowed(UFunction const* InFunction, EPermissionsContext InContext);
-
-	/** Check whether permissions allow this enum */
-	static bool IsEnumAllowed(UEnum const* InEnum, EPermissionsContext InContext);
-	static bool IsEnumAllowed(const FTopLevelAssetPath& InEnumPath, EPermissionsContext InContext);
-
-	/** Check whether permissions allow this struct */
-	static bool IsStructAllowed(UScriptStruct const* InStruct, EPermissionsContext InContext);
-	static bool IsStructAllowed(const FTopLevelAssetPath& InStructPath, EPermissionsContext InContext);
-	
-	/** Check whether permissions allow this ping type */
-	static bool IsPinTypeAllowed(const FEdGraphPinType& InPinType);
-	
-
 
 private:
 	/** Private constructor for singleton purposes. */

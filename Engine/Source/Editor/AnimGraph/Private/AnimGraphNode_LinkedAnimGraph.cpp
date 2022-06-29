@@ -160,12 +160,6 @@ bool UAnimGraphNode_LinkedAnimGraph::IsActionFilteredOut(class FBlueprintActionF
 		{
 			if (UAnimBlueprint* AnimBlueprint = Cast<UAnimBlueprint>(Blueprint))
 			{
-				if (AnimBlueprint->BlueprintType == BPTYPE_Interface)
-				{
-					bIsFilteredOut = true;
-					break;
-				}
-
 				if(!AnimBlueprint->IsCompatibleByAssetString(SkeletonName, bIsTemplateAnimBlueprint, bIsInterfaceBlueprint))
 				{
 					bIsFilteredOut = true;
