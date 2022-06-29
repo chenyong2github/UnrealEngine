@@ -1072,14 +1072,15 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool b
 		{
 			GraphBuilder.AddDispatchHint();
 		}
-		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+
+		if (ShouldPrepareGlobalDistanceField())
 		{
-			FViewInfo& View = Views[ViewIndex];
-
-			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
-
-			if (ShouldPrepareGlobalDistanceField())
+			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
+				FViewInfo& View = Views[ViewIndex];
+
+				RDG_GPU_MASK_SCOPE(GraphBuilder, GNumAlternateFrameRenderingGroups > 1 ? FRHIGPUMask::All() : View.GPUMask);
+
 				float OcclusionMaxDistance = Scene->DefaultMaxDistanceFieldOcclusionDistance;
 
 				// Use the skylight's max distance if there is one
@@ -1088,7 +1089,7 @@ void FSceneRenderer::PrepareDistanceFieldScene(FRDGBuilder& GraphBuilder, bool b
 					OcclusionMaxDistance = Scene->SkyLight->OcclusionMaxDistance;
 				}
 
-				UpdateGlobalDistanceFieldVolume(GraphBuilder, Views[ViewIndex], Scene, OcclusionMaxDistance, IsLumenEnabled(View), Views[ViewIndex].GlobalDistanceFieldInfo);
+				UpdateGlobalDistanceFieldVolume(GraphBuilder, View, Scene, OcclusionMaxDistance, IsLumenEnabled(View), View.GlobalDistanceFieldInfo);
 			}
 		}
 		if (!bSplitDispatch)

@@ -623,6 +623,9 @@ struct FPersistentGlobalDistanceFieldData : public FThreadSafeRefCountedObject
 	FVector	CameraVelocityOffset = FVector(0);
 	bool	bUpdateViewOrigin = true;
 	FVector	LastViewOrigin = FVector(0);
+#if WITH_MGPU
+	FRHIGPUMask LastGPUMask;
+#endif
 
 	TRefCountPtr<FRDGPooledBuffer> PageFreeListAllocatorBuffer;
 	TRefCountPtr<FRDGPooledBuffer> PageFreeListBuffer;

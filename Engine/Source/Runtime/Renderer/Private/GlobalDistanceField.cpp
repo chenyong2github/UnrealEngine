@@ -753,6 +753,16 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			}
 		}
 
+		// Check if GPU mask changed
+		bool bForceFullUpdateMGPU = false;
+#if WITH_MGPU
+		if (GlobalDistanceFieldData.LastGPUMask != RHICmdList.GetGPUMask())
+		{
+			bForceFullUpdateMGPU = true;
+			GlobalDistanceFieldData.LastGPUMask = RHICmdList.GetGPUMask();
+		}
+#endif
+
 		int32 NumClipmapUpdateRequests = 0;
 
 		FViewElementPDI ViewPDI(&View, nullptr, &View.DynamicPrimitiveCollector);
@@ -959,6 +969,7 @@ static void ComputeUpdateRegionsAndUpdateViewState(
 			}
 
 			const bool bForceFullUpdate = bSharedDataReallocated
+				|| bForceFullUpdateMGPU
 				|| !GlobalDistanceFieldData.bInitializedOrigins
 				// Detect when max occlusion distance has changed
 				|| ClipmapViewState.CachedClipmapExtent != ClipmapExtent
