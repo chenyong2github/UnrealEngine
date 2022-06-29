@@ -80,14 +80,16 @@ float FBCSplineFilter<SplineType, bIsRadial>::GetWeight(const FVector2d& Dist) c
 	auto ComputeWeight = [this](float X) -> float
 	{
 		const float AbsX = FMathf::Abs(X);
+		const float AbsX2 = AbsX * AbsX;
+		const float AbsX3 = AbsX * AbsX2;
 		float Weight = 0.0f;
 		if(AbsX < Radius)
 		{
-			Weight = Coeff1[0] * AbsX * AbsX * AbsX + Coeff1[1] * AbsX * AbsX + Coeff1[2];
+			Weight = Coeff1[0] * AbsX3 + Coeff1[1] * AbsX2 + Coeff1[2];
 		}
 		else if(AbsX < Radius * 2.0f)
 		{
-			Weight = Coeff2[0] * AbsX * AbsX * AbsX + Coeff2[1] * AbsX * AbsX + Coeff2[2] * AbsX + Coeff2[3];
+			Weight = Coeff2[0] * AbsX3 + Coeff2[1] * AbsX2 + Coeff2[2] * AbsX + Coeff2[3];
 		}
 		return Weight;
 	};
@@ -98,8 +100,8 @@ float FBCSplineFilter<SplineType, bIsRadial>::GetWeight(const FVector2d& Dist) c
 	}
 	else
 	{
-		const float WeightX = ComputeWeight(Dist.X);
-		const float WeightY = ComputeWeight(Dist.Y);
+		const float WeightX = ComputeWeight((float)Dist.X);
+		const float WeightY = ComputeWeight((float)Dist.Y);
 		return WeightX * WeightY;
 	}
 }

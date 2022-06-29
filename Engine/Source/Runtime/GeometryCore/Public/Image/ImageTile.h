@@ -87,7 +87,7 @@ public:
 	/** @return the source image's coordinates given linear index into this tile. */
 	FVector2i GetSourceCoords(const int64 LinearIdx) const
 	{
-		return FVector2i(Start.X + LinearIdx % Width, Start.Y + LinearIdx / Width);
+		return FVector2i(Start.X + int32(LinearIdx % Width), Start.Y + int32(LinearIdx / Width));
 	}
 
 	/** @return the source image's coordinates given local XY coordinates into this tile. */
