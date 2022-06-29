@@ -959,7 +959,7 @@ TArray<UE::MVVM::FBindingSource> UMVVMEditorSubsystem::GetBindableWidgets(const 
 	TArray<UE::MVVM::FBindingSource> Sources;
 
 	const UWidgetTree* WidgetTree = WidgetBlueprint->WidgetTree;
-	if (WidgetTree != nullptr)
+	if (WidgetTree == nullptr)
 	{
 		return Sources;
 	}
