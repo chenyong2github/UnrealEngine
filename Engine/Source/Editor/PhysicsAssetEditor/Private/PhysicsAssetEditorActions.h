@@ -27,6 +27,8 @@ public:
 	TSharedPtr<FUICommandInfo> Snap;
 	TSharedPtr<FUICommandInfo> CopyBodies;
 	TSharedPtr<FUICommandInfo> PasteBodies;
+	TSharedPtr<FUICommandInfo> CopyShapes;
+	TSharedPtr<FUICommandInfo> PasteShapes;
 	TSharedPtr<FUICommandInfo> CopyProperties;
 	TSharedPtr<FUICommandInfo> PasteProperties;
 	TSharedPtr<FUICommandInfo> RepeatLastSimulation;

@@ -115,6 +115,16 @@ public:
 	virtual void DuplicateSelectedPrims(const FVector* InOffset) = 0;
 
 	/**
+	 *  Copy all the selected primitives to clipboard
+	 */
+	virtual int32 CopySelectedPrims() const = 0;
+
+	/**
+	 *  Paste all the selected primitives from clipboard
+	 */
+	virtual int32 PasteCopiedPrims() = 0;
+
+	/**
 	 *  Translates the selected primitives by the specified amount
 	 *
 	 *  @param  InDrag				The amount to translate

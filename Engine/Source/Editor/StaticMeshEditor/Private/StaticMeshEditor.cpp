@@ -56,6 +56,9 @@
 #include "StaticMeshEditorModeUILayer.h"
 #include "AssetEditorModeManager.h"
 #include "Engine/Selection.h"
+#include "UnrealExporter.h"
+#include "Exporters/Exporter.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 
 #define LOCTEXT_NAMESPACE "StaticMeshEditor"
@@ -92,6 +95,8 @@ namespace StaticMeshEditor
 
 			Section.AddMenuEntry("DeleteCollision", FGenericCommands::Get().Delete, LOCTEXT("DeleteCollision", "Delete Selected Collision"), LOCTEXT("DeleteCollisionToolTip", "Deletes the selected Collision from the mesh."));
 			Section.AddMenuEntry("DuplicateCollision", FGenericCommands::Get().Duplicate, LOCTEXT("DuplicateCollision", "Duplicate Selected Collision"), LOCTEXT("DuplicateCollisionToolTip", "Duplicates the selected Collision."));
+			Section.AddMenuEntry("CopyCollision", FGenericCommands::Get().Copy, LOCTEXT("CopyCollision", "Copy Selected Collision"), LOCTEXT("CopyCollisionToolTip", "Copy the selected Collision to the clipboard."));
+			Section.AddMenuEntry("PasteCollision", FGenericCommands::Get().Paste, LOCTEXT("PasteCollision", "Paste Copied Collision"), LOCTEXT("PasteCollisionToolTip", "Paste coppied Collision from the clipboard."));
 		}
 
 		{
@@ -672,11 +677,20 @@ void FStaticMeshEditor::BindCommands()
 	UICommandList->MapAction( FGenericCommands::Get().Redo,
 		FExecuteAction::CreateSP( this, &FStaticMeshEditor::RedoAction ) );
 
-
 	UICommandList->MapAction(
 		FGenericCommands::Get().Duplicate,
 		FExecuteAction::CreateSP(this, &FStaticMeshEditor::DuplicateSelected),
 		FCanExecuteAction::CreateSP(this, &FStaticMeshEditor::CanDuplicateSelected));
+
+	UICommandList->MapAction(
+		FGenericCommands::Get().Copy,
+		FExecuteAction::CreateSP(this, &FStaticMeshEditor::CopySelected),
+		FCanExecuteAction::CreateSP(this, &FStaticMeshEditor::CanCopySelected));
+
+	UICommandList->MapAction(
+		FGenericCommands::Get().Paste,
+		FExecuteAction::CreateSP(this, &FStaticMeshEditor::PasteCopied),
+		FCanExecuteAction::CreateSP(this, &FStaticMeshEditor::CanPasteCopied));
 
 	UICommandList->MapAction(
 		FGenericCommands::Get().Rename,
@@ -1125,6 +1139,96 @@ void FStaticMeshEditor::DuplicateSelectedPrims(const FVector* InOffset)
 
 		StaticMesh->bCustomizedCollision = true;	//mark the static mesh for collision customization
 	}
+}
+
+int32 FStaticMeshEditor::CopySelectedPrims() const
+{
+	int32 OutNumPrimsCopied = 0;
+	if (CanCopySelected())
+	{
+		// Clear the mark state for saving.
+		UnMarkAllObjects(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
+
+		// Make a temp bodysetup to house all the selected shapes
+		UBodySetup* NewBodySetup = NewObject<UBodySetup>();
+		NewBodySetup->AddToRoot();
+		if (StaticMesh)
+		{
+			if (const UBodySetup* OldBodySetup = StaticMesh->GetBodySetup())
+			{
+				const FKAggregateGeom& AggGeom = OldBodySetup->AggGeom;
+				for (const FPrimData& Prim : SelectedPrims)
+				{
+					if (IsPrimValid(Prim))
+					{
+						if (NewBodySetup->AddCollisionElemFrom(AggGeom, Prim.PrimType, Prim.PrimIndex))
+						{
+							++OutNumPrimsCopied;
+						}
+					}
+				}
+			}
+		}
+
+		// Export the new bodysetup to the clipboard as text
+		if (OutNumPrimsCopied > 0)
+		{
+			FStringOutputDevice Archive;
+			const FExportObjectInnerContext Context;
+			UExporter::ExportToOutputDevice(&Context, NewBodySetup, NULL, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false);
+			FString ExportedText = Archive;
+			FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+		}
+
+		// Allow the temp bodysetup to get deleted by garbage collection
+		NewBodySetup->RemoveFromRoot();
+	}
+
+	return OutNumPrimsCopied;
+}
+
+int32 FStaticMeshEditor::PasteCopiedPrims()
+{
+	int32 OutNumPrimsPasted = 0;
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	if (!TextToImport.IsEmpty())
+	{
+		UPackage* TempPackage = NewObject<UPackage>(nullptr, TEXT("/Engine/Editor/StaticMeshEditor/Transient"), RF_Transient);
+		TempPackage->AddToRoot();
+		{
+			// Turn the text buffer into objects
+			FBodySetupObjectTextFactory Factory;
+			Factory.ProcessBuffer(TempPackage, RF_Transactional, TextToImport);
+			if (Factory.NewBodySetups.Num() > 0)
+			{
+				if (UBodySetup* BodySetup = StaticMesh->GetBodySetup())
+				{
+					GEditor->BeginTransaction(LOCTEXT("FStaticMeshEditor_PasteCopiedPrims", "Paste Collision"));
+					BodySetup->Modify();
+					BodySetup->InvalidatePhysicsData();
+
+					// Copy primitives from each bodysetup that was pasted
+					for (const UBodySetup* NewBodySetup : Factory.NewBodySetups)
+					{
+						BodySetup->AddCollisionFrom(NewBodySetup->AggGeom);
+						OutNumPrimsPasted += NewBodySetup->AggGeom.GetElementCount();
+					}
+
+					RefreshCollisionChange(*StaticMesh);
+					GEditor->EndTransaction();
+					StaticMesh->MarkPackageDirty();
+					GetStaticMeshViewport()->RefreshViewport();
+					StaticMesh->bCustomizedCollision = true;
+				}
+			}
+		}
+
+		// Remove the temp package from the root now that it has served its purpose
+		TempPackage->RemoveFromRoot();
+	}
+
+	return OutNumPrimsPasted;
 }
 
 void FStaticMeshEditor::TranslateSelectedPrims(const FVector& InDrag)
@@ -2250,6 +2354,29 @@ void FStaticMeshEditor::DuplicateSelected()
 bool FStaticMeshEditor::CanDuplicateSelected() const
 {
 	return (GetSelectedSocket() != NULL || HasSelectedPrims());
+}
+
+void FStaticMeshEditor::CopySelected()
+{
+	CopySelectedPrims();
+}
+
+bool FStaticMeshEditor::CanCopySelected() const
+{
+	return HasSelectedPrims();
+}
+
+void FStaticMeshEditor::PasteCopied()
+{
+	PasteCopiedPrims();
+}
+
+bool FStaticMeshEditor::CanPasteCopied() const
+{
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	FBodySetupObjectTextFactory Factory;
+	return Factory.CanCreateObjectsFromText(TextToImport);
 }
 
 bool FStaticMeshEditor::CanRenameSelected() const

@@ -15,6 +15,7 @@
 #include "HAL/ThreadSafeBool.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "BodySetupCore.h"
+#include "Factories.h"
 #include "BodySetup.generated.h"
 
 class ITargetPlatform;
@@ -277,6 +278,7 @@ public:
 	/** Add collision shapes from another body setup to this one */
 	ENGINE_API void AddCollisionFrom(class UBodySetup* FromSetup);
 	ENGINE_API void AddCollisionFrom(const FKAggregateGeom& FromAggGeom);
+	ENGINE_API bool AddCollisionElemFrom(const FKAggregateGeom& FromAggGeom, const EAggCollisionShape::Type ShapeType, const int32 ElemIndex);
 	
 	/** Create Physics meshes (ConvexMeshes, TriMesh & TriMeshNegX) from cooked data */
 	/** Release Physics meshes (ConvexMeshes, TriMesh & TriMeshNegX). Must be called before the BodySetup is destroyed */
@@ -445,4 +447,15 @@ public:
 
 };
 
+
+class FBodySetupObjectTextFactory : public FCustomizableTextObjectFactory
+{
+public:
+	FBodySetupObjectTextFactory() : FCustomizableTextObjectFactory(GWarn) { }
+	ENGINE_API virtual bool CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const override;
+	ENGINE_API virtual void ProcessConstructedObject(UObject* NewObject) override;
+
+public:
+	TArray<UBodySetup*> NewBodySetups;
+};
 

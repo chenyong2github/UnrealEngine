@@ -214,6 +214,10 @@ private:
 	bool CanCopyBodies() const;
 	void OnPasteBodies();
 	bool CanPasteBodies() const;
+	void OnCopyShapes();
+	bool CanCopyShapes() const;
+	void OnPasteShapes();
+	bool CanPasteShapes() const;
 	void OnCopyProperties();
 	bool IsCopyProperties() const;
 	bool CanCopyProperties() const;

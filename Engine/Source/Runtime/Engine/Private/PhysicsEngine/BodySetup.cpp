@@ -181,6 +181,45 @@ void UBodySetup::AddCollisionFrom(const FKAggregateGeom& FromAggGeom)
 	AggGeom.LevelSetElems.Append(FromAggGeom.LevelSetElems);
 }
 
+namespace
+{
+	template <typename TElem>
+	bool AddCollisionElemFrom_Helper(const TArray<TElem>& FromElems, const int32 ElemIndex, TArray<TElem>& ToElems)
+	{
+		if (FromElems.IsValidIndex(ElemIndex))
+		{
+			ToElems.Add(FromElems[ElemIndex]);
+			return true;
+		}
+		return false;
+	}
+}
+
+bool UBodySetup::AddCollisionElemFrom(const FKAggregateGeom& FromAggGeom, const EAggCollisionShape::Type ShapeType, const int32 ElemIndex)
+{
+	switch (ShapeType)
+	{
+	case EAggCollisionShape::Sphere:
+		return AddCollisionElemFrom_Helper(FromAggGeom.SphereElems, ElemIndex, AggGeom.SphereElems);
+	case EAggCollisionShape::Box:
+		return AddCollisionElemFrom_Helper(FromAggGeom.BoxElems, ElemIndex, AggGeom.BoxElems);
+	case EAggCollisionShape::Sphyl:
+		return AddCollisionElemFrom_Helper(FromAggGeom.SphylElems, ElemIndex, AggGeom.SphylElems);
+	case EAggCollisionShape::Convex:
+		if (AddCollisionElemFrom_Helper(FromAggGeom.ConvexElems, ElemIndex, AggGeom.ConvexElems))
+		{
+			AggGeom.ConvexElems.Last().ResetChaosConvexMesh();
+			return true;
+		}
+		return false;
+	case EAggCollisionShape::TaperedCapsule:
+		return AddCollisionElemFrom_Helper(FromAggGeom.TaperedCapsuleElems, ElemIndex, AggGeom.TaperedCapsuleElems);
+	case EAggCollisionShape::LevelSet:
+		return AddCollisionElemFrom_Helper(FromAggGeom.LevelSetElems, ElemIndex, AggGeom.LevelSetElems);
+	}
+	return false;
+}
+
 void UBodySetup::GetCookInfo(FCookBodySetupInfo& OutCookInfo, EPhysXMeshCookFlags InCookFlags) const
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UBodySetup::GetCookInfo);
@@ -2224,6 +2263,20 @@ void FKLevelSetElem::ScaleElem(FVector DeltaSize, float MinSize)
 	FTransform ScaledTransform = GetTransform();
 	ScaledTransform.SetScale3D(ScaledTransform.GetScale3D() + DeltaSize);
 	SetTransform(ScaledTransform);
+}
+
+bool FBodySetupObjectTextFactory::CanCreateClass(UClass* InObjectClass, bool& bOmitSubObjs) const
+{
+	return (InObjectClass->IsChildOf<UBodySetup>());
+}
+
+void FBodySetupObjectTextFactory::ProcessConstructedObject(UObject* NewObject)
+{
+	check(NewObject);
+	if (NewObject->IsA<UBodySetup>())
+	{
+		NewBodySetups.Add(Cast<UBodySetup>(NewObject));
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

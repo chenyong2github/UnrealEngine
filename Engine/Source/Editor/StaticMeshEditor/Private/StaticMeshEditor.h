@@ -131,6 +131,8 @@ public:
 	virtual bool IsSelectedPrim(const FPrimData& InPrimData) const override;
 	virtual void ClearSelectedPrims() override;
 	virtual void DuplicateSelectedPrims(const FVector* InOffset) override;
+	virtual int32 CopySelectedPrims() const override;
+	virtual int32 PasteCopiedPrims() override;
 	virtual void TranslateSelectedPrims(const FVector& InDrag) override;
 	virtual void RotateSelectedPrims(const FRotator& InRot) override;
 	virtual void ScaleSelectedPrims(const FVector& InScale) override;
@@ -442,6 +444,18 @@ private:
 
 	/** Whether we currently have any selected that can be duplicated */
 	bool CanDuplicateSelected() const;
+
+	/** Copy what's currently selected to the clipboard */
+	void CopySelected();
+
+	/** Whether we currently have anything selected that can be copied to the clipboard */
+	bool CanCopySelected() const;
+
+	/** Paste what's current on the clipboard */
+	void PasteCopied();
+
+	/** Whether we can paste what's currently on the clipboard */
+	bool CanPasteCopied() const;
 
 	/** Whether we currently have any selected that can be renamed */
 	bool CanRenameSelected() const;

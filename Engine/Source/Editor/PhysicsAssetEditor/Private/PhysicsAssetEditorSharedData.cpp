@@ -1535,6 +1535,14 @@ public:
 	TArray<UPhysicsConstraintTemplate*> NewConstraintTemplates;
 };
 
+bool FPhysicsAssetEditorSharedData::CanPasteBodiesAndConstraintsFromClipboard() const
+{
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	FSkeletalBodyAndConstraintSetupObjectTextFactory Factory;
+	return Factory.CanCreateObjectsFromText(TextToImport);
+}
+
 void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32& OutNumPastedBodies, int32& OutNumPastedConstraints)
 {
 	OutNumPastedBodies = 0;
@@ -1636,6 +1644,111 @@ void FPhysicsAssetEditorSharedData::PasteBodiesAndConstraintsFromClipboard(int32
 			RefreshPhysicsAssetChange(PhysicsAsset);
 			ClearSelectedBody();	//paste can change the primitives on our selected bodies. There's probably a way to properly update this, but for now just deselect
 			ClearSelectedConstraints();	//paste can change the primitives on our selected bodies. There's probably a way to properly update this, but for now just deselect
+			BroadcastPreviewChanged();
+			BroadcastHierarchyChanged();
+		}
+	}
+}
+
+void FPhysicsAssetEditorSharedData::CopySelectedShapesToClipboard(int32& OutNumCopiedShapes, int32& OutNumBodiesCopiedFrom)
+{
+	OutNumCopiedShapes = 0;
+	OutNumBodiesCopiedFrom = 0;
+	if (PhysicsAsset)
+	{
+		// Clear the mark state for saving.
+		UnMarkAllObjects(EObjectMark(OBJECTMARK_TagExp | OBJECTMARK_TagImp));
+
+		// Make a temp bodysetup to house all the selected shapes
+		USkeletalBodySetup* NewBodySetup = NewObject<USkeletalBodySetup>();
+		NewBodySetup->AddToRoot();
+		{
+			TSet<int32> SelectedBodyIndices;
+			for (const FSelection& SelectedBody : SelectedBodies)
+			{
+				if (const USkeletalBodySetup* OldBodySetup = PhysicsAsset->SkeletalBodySetups[SelectedBody.Index])
+				{
+					if (NewBodySetup->AddCollisionElemFrom(OldBodySetup->AggGeom, SelectedBody.PrimitiveType, SelectedBody.PrimitiveIndex))
+					{
+						SelectedBodyIndices.Add(SelectedBody.Index);
+						++OutNumCopiedShapes;
+					}
+				}
+			}
+			OutNumBodiesCopiedFrom = SelectedBodyIndices.Num();
+		}
+
+		// Export the new bodysetup to the clipboard as text
+		if (OutNumCopiedShapes > 0)
+		{
+			FStringOutputDevice Archive;
+			const FExportObjectInnerContext Context;
+			UExporter::ExportToOutputDevice(&Context, NewBodySetup, NULL, Archive, TEXT("copy"), 0, PPF_ExportsNotFullyQualified | PPF_Copy | PPF_Delimited, false);
+			FString ExportedText = Archive;
+			FPlatformApplicationMisc::ClipboardCopy(*ExportedText);
+		}
+
+		// Allow the temp bodysetup to get deleted by garbage collection
+		NewBodySetup->RemoveFromRoot();
+	}
+}
+
+bool FPhysicsAssetEditorSharedData::CanPasteShapesFromClipboard() const
+{
+	FString TextToImport;
+	FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+	FBodySetupObjectTextFactory Factory;
+	return Factory.CanCreateObjectsFromText(TextToImport);
+}
+
+void FPhysicsAssetEditorSharedData::PasteShapesFromClipboard(int32& OutNumPastedShapes, int32& OutNumBodiesPastedInto)
+{
+	OutNumPastedShapes = 0;
+	OutNumBodiesPastedInto = 0;
+	if (PhysicsAsset)
+	{
+		FString TextToImport;
+		FPlatformApplicationMisc::ClipboardPaste(TextToImport);
+		if (!TextToImport.IsEmpty())
+		{
+			UPackage* TempPackage = NewObject<UPackage>(nullptr, TEXT("/Engine/Editor/PhysicsAssetEditor/Transient"), RF_Transient);
+			TempPackage->AddToRoot();
+			{
+				// Turn the text buffer into objects
+				FBodySetupObjectTextFactory Factory;
+				Factory.ProcessBuffer(TempPackage, RF_Transactional, TextToImport);
+
+				// Paste copied shapes into each of the selected bodies
+				if (Factory.NewBodySetups.Num() > 0 && SelectedBodies.Num() > 0)
+				{
+					const FScopedTransaction Transaction(NSLOCTEXT("PhysicsAssetEditor", "PasteShapesFromClipboard", "Paste Shapes From Clipboard"));
+
+					// We have to track which bodies we've pasted into, because they might appear multiple times
+					// (for separate primitive shapes) in the SelectedBodies list.
+					TSet<int32> PastedBodyIndices;
+					for (const UBodySetup* NewBodySetup : Factory.NewBodySetups)
+					{
+						OutNumPastedShapes += NewBodySetup->AggGeom.GetElementCount();
+						for (const FSelection& SelectedBody : SelectedBodies)
+						{
+							if (!PastedBodyIndices.Contains(SelectedBody.Index))
+							{
+								PastedBodyIndices.Add(SelectedBody.Index);
+								if (USkeletalBodySetup* TargetBodySetup = PhysicsAsset->SkeletalBodySetups[SelectedBody.Index])
+								{
+									TargetBodySetup->Modify();
+									TargetBodySetup->AddCollisionFrom(NewBodySetup->AggGeom);
+									++OutNumBodiesPastedInto;
+								}
+							}
+						}
+					}
+				}
+			}
+
+			// Remove the temp package from the root now that it has served its purpose
+			TempPackage->RemoveFromRoot();
+			RefreshPhysicsAssetChange(PhysicsAsset);
 			BroadcastPreviewChanged();
 			BroadcastHierarchyChanged();
 		}

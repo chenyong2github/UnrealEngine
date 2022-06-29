@@ -773,6 +773,16 @@ void FPhysicsAssetEditor::BindCommands()
 		Commands.PasteBodies,
 		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnPasteBodies),
 		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanPasteBodies));
+		
+	ToolkitCommands->MapAction(
+		Commands.CopyShapes,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnCopyShapes),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanCopyShapes));
+		
+	ToolkitCommands->MapAction(
+		Commands.PasteShapes,
+		FExecuteAction::CreateSP(this, &FPhysicsAssetEditor::OnPasteShapes),
+		FCanExecuteAction::CreateSP(this, &FPhysicsAssetEditor::CanPasteShapes));
 
 	ToolkitCommands->MapAction(
 		Commands.RepeatLastSimulation,
@@ -1456,6 +1466,8 @@ void FPhysicsAssetEditor::BuildMenuWidgetBody(FMenuBuilder& InMenuBuilder)
 
 		InMenuBuilder.AddMenuEntry(Commands.CopyBodies);
 		InMenuBuilder.AddMenuEntry(Commands.PasteBodies);
+		InMenuBuilder.AddMenuEntry(Commands.CopyShapes);
+		InMenuBuilder.AddMenuEntry(Commands.PasteShapes);
 		InMenuBuilder.AddMenuEntry(Commands.CopyProperties);
 		InMenuBuilder.AddMenuEntry(Commands.PasteProperties);
 		InMenuBuilder.AddMenuEntry( Commands.DeleteBody );
@@ -1534,6 +1546,8 @@ void FPhysicsAssetEditor::BuildMenuWidgetConstraint(FMenuBuilder& InMenuBuilder)
 			FNewMenuDelegate::CreateStatic( &FLocal::FillConvertMenu ) );
 		InMenuBuilder.AddMenuEntry(Commands.CopyBodies);
 		InMenuBuilder.AddMenuEntry(Commands.PasteBodies);
+		InMenuBuilder.AddMenuEntry(Commands.CopyShapes);
+		InMenuBuilder.AddMenuEntry(Commands.PasteShapes);
 		InMenuBuilder.AddMenuEntry(Commands.CopyProperties);
 		InMenuBuilder.AddMenuEntry(Commands.PasteProperties);
 		InMenuBuilder.AddMenuEntry(Commands.DeleteConstraint);
@@ -2207,8 +2221,39 @@ void FPhysicsAssetEditor::OnPasteBodies()
 
 bool FPhysicsAssetEditor::CanPasteBodies() const
 {
-	// would be nice to be able to check the clipboard?
-	return true; 
+	return SharedData->CanPasteBodiesAndConstraintsFromClipboard();
+}
+
+void FPhysicsAssetEditor::OnCopyShapes()
+{
+	int32 NumCopiedShapes;
+	int32 NumBodiesCopiedFrom;
+	SharedData->CopySelectedShapesToClipboard(NumCopiedShapes, NumBodiesCopiedFrom);
+	const FText MessageFormat = LOCTEXT("CopiedShapesToClipboard", "{0} shapes copied to clipboard from {1} selected bodies");
+	ShowNotificationMessage(FText::Format(MessageFormat, NumCopiedShapes, NumBodiesCopiedFrom), SNotificationItem::CS_Success);
+}
+
+bool FPhysicsAssetEditor::CanCopyShapes() const
+{
+	if (IsSelectedEditMode())
+	{
+		return (SharedData->SelectedBodies.Num() > 0);
+	}
+	return false;
+}
+
+void FPhysicsAssetEditor::OnPasteShapes()
+{
+	int32 NumPastedShapes;
+	int32 NumBodiesPastedInto;
+	SharedData->PasteShapesFromClipboard(NumPastedShapes, NumBodiesPastedInto);
+	const FText MessageFormat = LOCTEXT("PastedShapesFromClipboard", "{0} shapes pasted from clipboard into {1} selected bodies");
+	ShowNotificationMessage(FText::Format(MessageFormat, NumPastedShapes, NumBodiesPastedInto), SNotificationItem::CS_Success);
+}
+
+bool FPhysicsAssetEditor::CanPasteShapes() const
+{
+	return SharedData->CanPasteShapesFromClipboard();
 }
 
 void FPhysicsAssetEditor::OnCopyProperties()
