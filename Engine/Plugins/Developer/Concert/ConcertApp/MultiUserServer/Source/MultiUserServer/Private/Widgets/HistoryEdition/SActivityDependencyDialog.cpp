@@ -30,6 +30,7 @@ namespace UE::MultiUserServer
 		
 		SCustomDialog::Construct(
 			SCustomDialog::FArguments()
+			.AutoCloseOnButtonPress(false)
 			.Title(InArgs._Title)
 			.Buttons({
 				FButton(InArgs._PerformActionButtonLabel)
