@@ -95,25 +95,24 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 }
 
 ////////////////////////////////////////////////////////////////////
-/// FStoreKitHelper implementation
+/// FStoreKitHelperV2 implementation
 
-@implementation FStoreKitHelper
+@implementation FStoreKitHelperV2
 @synthesize Request;
 @synthesize AvailableProducts;
 
 - (id)init
 {
-	self = [super init];
-
 	[FPaymentTransactionObserver sharedInstance].eventReceivedDelegate = self;
-
+    self.PendingTransactions = [NSMutableSet setWithCapacity:5];
 	return self;
 }
 
 -(void)dealloc
 {
 	[FPaymentTransactionObserver sharedInstance].eventReceivedDelegate = nil;
-
+    [_PendingTransactions release];
+    
 	[Request release];
 	[AvailableProducts release];
 	[super dealloc];
@@ -126,16 +125,6 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 -(void)removedTransaction : (SKPaymentTransaction*)transaction
 {
     UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::removedTransaction"));
-}
-
--(void)purchaseInProgress: (SKPaymentTransaction *)transaction
-{
-    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::purchaseInProgress"));
-}
-
--(void)purchaseDeferred: (SKPaymentTransaction *)transaction
-{
-    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::purchaseDeferred"));
 }
 
 -(void)requestProductData: (NSMutableSet*)productIDs
@@ -158,23 +147,6 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	[Request start];
 }
 
--(void)productsRequest: (SKProductsRequest *)request didReceiveResponse : (SKProductsResponse *)response
-{
-    UE_LOG_ONLINE_STOREV2(Log, TEXT("FStoreKitHelper::didReceiveResponse"));
-	// Direct the response back to the store interface
-	[FIOSAsyncTask CreateTaskWithBlock : ^ bool(void)
-	{
-		IOnlineSubsystem* OnlineSub = IOnlineSubsystem::Get(IOS_SUBSYSTEM);
-		if (ensure(OnlineSub))
-		{
-		}
-		
-		return true;
-	}];
-
-	[request autorelease];
-}
-
 -(void)requestDidFinish:(SKRequest*)request
 {
 	if ([Request isKindOfClass : [SKReceiptRefreshRequest class]])
@@ -188,25 +160,6 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 	Request = [[SKReceiptRefreshRequest alloc] init];
 	Request.delegate = self;
 	[Request start];
-}
-
-@end
-
-////////////////////////////////////////////////////////////////////
-/// FStoreKitHelperV2 implementation
-
-@implementation FStoreKitHelperV2
-
-- (id)init
-{
-	self = [super init];
-	self.PendingTransactions = [NSMutableSet setWithCapacity:5];
-	return self;
-}
--(void)dealloc
-{
-	[_PendingTransactions release];
-	[super dealloc];
 }
 
 -(void)restoreCompletedTransactionsFinished
