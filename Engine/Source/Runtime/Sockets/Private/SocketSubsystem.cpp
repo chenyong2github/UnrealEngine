@@ -488,7 +488,7 @@ TSharedRef<FInternetAddr> ISocketSubsystem::GetLocalBindAddr(FOutputDevice& Out)
 
 bool ISocketSubsystem::GetMultihomeAddress(TSharedRef<FInternetAddr>& Addr)
 {
-	TCHAR Home[256] = TEXT("");
+	TCHAR Home[256] = {};
 	if (FParse::Value(FCommandLine::Get(), TEXT("MULTIHOME="), Home, UE_ARRAY_COUNT(Home)))
 	{
 		TSharedPtr<FInternetAddr> MultiHomeQuery = GetAddressFromString(Home);
