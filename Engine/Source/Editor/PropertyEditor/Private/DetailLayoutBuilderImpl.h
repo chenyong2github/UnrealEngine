@@ -47,7 +47,7 @@ public:
 	virtual bool IsPropertyVisible(TSharedRef<IPropertyHandle> PropertyHandle) const override;
 	virtual bool IsPropertyVisible(const struct FPropertyAndParent& PropertyAndParent) const override;
 	virtual void HideCategory(FName CategoryName) override;
-	virtual const TSharedRef<IPropertyUtilities> GetPropertyUtilities() const override;
+	virtual TSharedRef<IPropertyUtilities> GetPropertyUtilities() const override;
 	virtual UClass* GetBaseClass() const override;
 	virtual const TArray<TWeakObjectPtr<UObject>>& GetSelectedObjects() const override;
 	virtual bool HasClassDefaultObject() const override;

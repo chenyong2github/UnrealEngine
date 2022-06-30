@@ -11,6 +11,7 @@
 
 class IDetailCategoryBuilder;
 class IDetailsView;
+class IPropertyUtilities;
 
 namespace ECategoryPriority
 {
@@ -92,7 +93,7 @@ public:
 	/**
 	 *	@return the utilities various widgets need access to certain features of PropertyDetails
 	 */
-	virtual const TSharedRef< class IPropertyUtilities > GetPropertyUtilities() const = 0; 
+	virtual TSharedRef<IPropertyUtilities> GetPropertyUtilities() const = 0; 
 
 
 	/**

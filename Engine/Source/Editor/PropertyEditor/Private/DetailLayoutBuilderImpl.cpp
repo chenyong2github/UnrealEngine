@@ -852,7 +852,7 @@ void FDetailLayoutBuilderImpl::GetStructsBeingCustomized( TArray< TSharedPtr<FSt
 	}
 }
 
-const TSharedRef< IPropertyUtilities > FDetailLayoutBuilderImpl::GetPropertyUtilities() const
+TSharedRef< IPropertyUtilities > FDetailLayoutBuilderImpl::GetPropertyUtilities() const
 {
 	return PropertyDetailsUtilities.Pin().ToSharedRef();
 }
