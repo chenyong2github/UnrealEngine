@@ -6370,10 +6370,13 @@ bool ParseContainerGenerationArguments(FIoStoreArguments& Arguments, FIoStoreWri
 	WriterSettings.bEnableFileRegions = Arguments.bFileRegions;
 
 	FString PatchReferenceCryptoKeysFilename;
-	FKeyChain PatchKeyChain;
 	if (FParse::Value(FCommandLine::Get(), TEXT("PatchCryptoKeys="), PatchReferenceCryptoKeysFilename))
 	{
 		KeyChainUtilities::LoadKeyChainFromFile(PatchReferenceCryptoKeysFilename, Arguments.PatchKeyChain);
+	}
+	else
+	{
+		Arguments.PatchKeyChain = Arguments.KeyChain;
 	}
 
 	return true;

@@ -756,21 +756,32 @@ public:
 
 		for (const TUniquePtr<FIoStoreReader>& PatchSourceReader : PatchSourceReaders)
 		{
-			PatchSourceReader->EnumerateChunks([this, &PrevEntryLink](const FIoStoreTocChunkInfo& ChunkInfo)
+			TArray<TPair<uint64, FLayoutEntry*>> LayoutEntriesWithOffsets;
+			PatchSourceReader->EnumerateChunks([this, &PrevEntryLink, &LayoutEntriesWithOffsets](const FIoStoreTocChunkInfo& ChunkInfo)
 				{
 					FLayoutEntry* PreviousBuildEntry = new FLayoutEntry();
-					LayoutEntries.Add(PreviousBuildEntry);
-
 					PreviousBuildEntry->Hash = ChunkInfo.Hash;
 					PreviousBuildEntry->PartitionIndex = ChunkInfo.PartitionIndex;
 					PreviousBuildEntry->CompressedSize = ChunkInfo.CompressedSize;
-					PrevEntryLink->Next = PreviousBuildEntry;
-					PreviousBuildEntry->Prev = PrevEntryLink;
-					PrevEntryLink = PreviousBuildEntry;
+					LayoutEntriesWithOffsets.Emplace(ChunkInfo.Offset, PreviousBuildEntry);
 					PreviousBuildLayoutEntryByChunkId.Add(ChunkInfo.Id, PreviousBuildEntry);
 					return true;
 				});
 
+			// Sort entries by offset
+			Algo::Sort(LayoutEntriesWithOffsets, [](const TPair<uint64, FLayoutEntry*>& A, const TPair<uint64, FLayoutEntry*>& B)
+				{
+					return A.Get<0>() < B.Get<0>();
+				});
+
+			for (const TPair<uint64, FLayoutEntry*>& EntryWithOffset : LayoutEntriesWithOffsets)
+			{
+				FLayoutEntry* PreviousBuildEntry = EntryWithOffset.Get<1>();
+				LayoutEntries.Add(PreviousBuildEntry);
+				PrevEntryLink->Next = PreviousBuildEntry;
+				PreviousBuildEntry->Prev = PrevEntryLink;
+				PrevEntryLink = PreviousBuildEntry;
+			}
 			if (!ContainerSettings.bGenerateDiffPatch)
 			{
 				break;
