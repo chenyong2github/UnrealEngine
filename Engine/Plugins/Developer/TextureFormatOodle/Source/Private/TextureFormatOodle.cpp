@@ -211,6 +211,8 @@ OODEFFUNC typedef OO_S32 (OOEXPLINK t_fp_OodleTex_BC_BytesPerBlock)(OodleTex_BC 
 
 OODEFFUNC typedef OO_S32 (OOEXPLINK t_fp_OodleTex_PixelFormat_BytesPerPixel)(OodleTex_PixelFormat pf);
 
+OODEFFUNC typedef OodleTex_Err (OOEXPLINK t_fp_OodleTex_LogVersion)(void);
+
 /**
 * 
 * FOodleTextureVTable provides function calls to a specific version of the Oodle Texture dynamic lib
@@ -262,10 +264,36 @@ struct FOodleTextureVTable
 		if ( DynamicLib == nullptr )
 		{
 			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Oodle Texture %s requested but could not be loaded"), *DynamicLibName);
+
 			Version = FName("invalid"); // so we can't be found
 			return false;
 		}
 	
+		fp_OodleTex_Err_GetName = (t_fp_OodleTex_Err_GetName *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_Err_GetName") );
+		check( fp_OodleTex_Err_GetName != nullptr );
+		
+		fp_OodleTex_Plugins_SetPrintf = (t_fp_OodleTex_Plugins_SetPrintf *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_Plugins_SetPrintf") );
+		check( fp_OodleTex_Plugins_SetPrintf != nullptr );
+		
+		t_fp_OodleTex_LogVersion * fp_OodleTex_LogVersion = (t_fp_OodleTex_LogVersion *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_LogVersion") );
+		check( fp_OodleTex_LogVersion != nullptr );
+		
+		// make Printf go to NULL for LogVersion :
+		(*fp_OodleTex_Plugins_SetPrintf)(nullptr);
+
+		// Get LogVersion so we can get an error code to check the DLL is okay :
+		OodleTex_Err OodleErr = (*fp_OodleTex_LogVersion)();
+		if ( OodleErr != OodleTex_Err_OK )
+		{
+			const char * OodleErrStr = (*fp_OodleTex_Err_GetName)(OodleErr);
+
+			UE_LOG(LogTextureFormatOodle, Warning, TEXT("Oodle Texture %s loaded but failed in LogVersion with error %d=%s"), *DynamicLibName,
+				(int)OodleErr, ANSI_TO_TCHAR(OodleErrStr) );
+
+			Version = FName("invalid"); // so we can't be found
+			return false;
+		}
+
 		fp_OodleTex_EncodeBCN_RDO_Ex = (t_fp_OodleTex_EncodeBCN_RDO_Ex *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_EncodeBCN_RDO_Ex") );
 		check( fp_OodleTex_EncodeBCN_RDO_Ex != nullptr );
 		
@@ -275,14 +303,8 @@ struct FOodleTextureVTable
 		fp_OodleTex_Plugins_SetJobSystemAndCount = (t_fp_OodleTex_Plugins_SetJobSystemAndCount *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_Plugins_SetJobSystemAndCount") );
 		check( fp_OodleTex_Plugins_SetJobSystemAndCount != nullptr );
 				
-		fp_OodleTex_Plugins_SetPrintf = (t_fp_OodleTex_Plugins_SetPrintf *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_Plugins_SetPrintf") );
-		check( fp_OodleTex_Plugins_SetPrintf != nullptr );
-		
 		fp_OodleTex_Plugins_SetAssertion = (t_fp_OodleTex_Plugins_SetAssertion *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_Plugins_SetAssertion") );
 		check( fp_OodleTex_Plugins_SetAssertion != nullptr );
-		
-		fp_OodleTex_Err_GetName = (t_fp_OodleTex_Err_GetName *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_Err_GetName") );
-		check( fp_OodleTex_Err_GetName != nullptr );
 		
 		fp_OodleTex_PixelFormat_GetName = (t_fp_OodleTex_PixelFormat_GetName *) FPlatformProcess::GetDllExport( DynamicLib, TEXT("OodleTex_PixelFormat_GetName") );
 		check( fp_OodleTex_PixelFormat_GetName != nullptr );
@@ -788,7 +810,7 @@ public:
 		return GlobalFormatConfig.ExportToCb(BuildSettings);
 	}
 
-	void Init()
+	bool Init()
 	{
 		TFO_Plugins_Init();
 
@@ -816,8 +838,19 @@ public:
 		}
 
 		// verify the latest and oldest can be found :
-		check( GetOodleTextureVTable(OodleTextureVersionLatest) != nullptr );
-		check( GetOodleTextureVTable(OodleTextureSdkVersionToUseIfNone) != nullptr );
+		if ( GetOodleTextureVTable(OodleTextureVersionLatest) == nullptr ||
+			GetOodleTextureVTable(OodleTextureSdkVersionToUseIfNone) == nullptr )
+		{
+			UE_LOG(LogTextureFormatOodle,Warning,
+				TEXT("Required Oodle Texture versions not available : (%s and %s), will be disabled."),
+				*OodleTextureVersionLatest.ToString(),
+				*OodleTextureSdkVersionToUseIfNone.ToString()
+				);
+
+			return false;
+		}
+
+		return true;
 	}
 	
 	const FOodleTextureVTable * GetOodleTextureVTable(const FName & InVersion) const
@@ -1018,7 +1051,7 @@ public:
 			// use default:
 			CompressOodleTextureVersion = OodleTextureSdkVersionToUseIfNone;
 		}
-		
+
 		const FOodleTextureVTable * VTable = GetOodleTextureVTable(CompressOodleTextureVersion);
 		if (VTable == nullptr)
 		{
@@ -1584,18 +1617,20 @@ static void TFO_Plugins_Install(const FOodleTextureVTable * VTable)
 
 //=========================================================================
 
-static ITextureFormat* Singleton = nullptr;
-
 class FTextureFormatOodleModule : public ITextureFormatModule
 {
 public:
+
+	ITextureFormat* TextureFormat = nullptr;
+
 	FTextureFormatOodleModule() { }
 	virtual ~FTextureFormatOodleModule()
 	{
-		ITextureFormat * p = Singleton;
-		Singleton = nullptr;
-		if ( p )
-			delete p;
+		if ( TextureFormat )
+		{
+			delete TextureFormat;
+			TextureFormat = nullptr;
+		}
 	}
 
 	virtual void StartupModule() override
@@ -1606,15 +1641,26 @@ public:
 
 	virtual ITextureFormat* GetTextureFormat()
 	{
-		// this is called twice
+		// this is called several times during normal init
 		
-		if ( Singleton == nullptr ) // not thread safe
+		auto MakeTextureFormat = [&]()
 		{
+			check( TextureFormat == nullptr );
 			FTextureFormatOodle * ptr = new FTextureFormatOodle();
-			ptr->Init();
-			Singleton = ptr;
+			if ( ptr->Init() )
+			{
+				TextureFormat = ptr;
+			}
+			else
+			{
+				UE_LOG(LogTextureFormatOodle,Warning,TEXT("Oodle Texture Init failed, not installed"));
+				delete ptr;
 		}
-		return Singleton;
+		};
+		
+		UE_CALL_ONCE( MakeTextureFormat );
+
+		return TextureFormat;
 	}
 
 	static inline UE::DerivedData::TBuildFunctionFactory<FOodleTextureBuildFunction> BuildFunctionFactory;

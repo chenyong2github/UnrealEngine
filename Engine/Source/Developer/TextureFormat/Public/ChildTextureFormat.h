@@ -38,9 +38,12 @@ protected:
 			if ( TFModule != nullptr )
 			{
 				ITextureFormat* BaseFormat = TFModule->GetTextureFormat();
+				if ( BaseFormat != nullptr )
+				{
 				BaseFormat->GetSupportedFormats(BaseFormats);
 			}
 		}
+	}
 	}
 	
 	void FinishAddBaseTextureFormatModules() 
