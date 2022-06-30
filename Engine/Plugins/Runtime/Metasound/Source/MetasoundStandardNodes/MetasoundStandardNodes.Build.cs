@@ -26,8 +26,7 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"CoreUObject",
-					"MetasoundGraphCore",
-					"WaveTable"
+					"MetasoundGraphCore"
 				}
 			);
 		}
