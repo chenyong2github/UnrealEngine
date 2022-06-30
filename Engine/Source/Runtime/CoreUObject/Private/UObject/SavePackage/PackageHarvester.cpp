@@ -699,7 +699,7 @@ FString FPackageHarvester::GetUnsaveableReason(UObject* Required)
 		}
 		else
 		{
-			ReasonText =  FString::Printf(TEXT("It %s"), *LexToString(Status));
+			ReasonText =  FString::Printf(TEXT("It %s"), LexToString(Status));
 		}
 	}
 	else if (ConditionallyExcludeObjectForTarget(SaveContext, Required, HarvestContext))
