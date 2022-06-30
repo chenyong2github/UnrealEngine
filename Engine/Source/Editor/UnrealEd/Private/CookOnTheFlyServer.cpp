@@ -5720,6 +5720,7 @@ void FInitializeConfigSettings::LoadLocal(const FString& InOutputDirectoryOverri
 
 void UCookOnTheFlyServer::SetInitializeConfigSettings(UE::Cook::FInitializeConfigSettings&& Settings)
 {
+	OutputDirectoryOverride = MoveTemp(Settings.OutputDirectoryOverride);
 	MaxPrecacheShaderJobs = Settings.MaxPrecacheShaderJobs;
 	MaxConcurrentShaderJobs = Settings.MaxConcurrentShaderJobs;
 	PackagesPerGC = Settings.PackagesPerGC;
