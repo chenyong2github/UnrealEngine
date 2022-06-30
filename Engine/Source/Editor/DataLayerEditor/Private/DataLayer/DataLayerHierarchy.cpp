@@ -148,11 +148,6 @@ UWorld* FDataLayerHierarchy::GetOwningWorld() const
 
 void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItems) const
 {
-	if (!GetOwningWorld()->GetWorldDataLayers())
-	{
-		return;
-	}
-
 	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetOwningWorld());
 
 	auto IsDataLayerShown = [this](const UDataLayerInstance* DataLayerInstance)
@@ -176,11 +171,14 @@ void FDataLayerHierarchy::CreateItems(TArray<FSceneOutlinerTreeItemPtr>& OutItem
 		}, OuterLevel);
 	};
 
+	CreateDataLayerTreeItems(GetOwningWorld()->PersistentLevel);
+
 	// CurrentLevel represents the current level if different than the PersistentLevel
 	ULevel* CurrentLevel = (GetOwningWorld()->GetCurrentLevel() && !GetOwningWorld()->GetCurrentLevel()->IsPersistentLevel()) ? GetOwningWorld()->GetCurrentLevel() : nullptr;
-
-	CreateDataLayerTreeItems(GetOwningWorld()->PersistentLevel);
-	CreateDataLayerTreeItems(CurrentLevel);
+	if (CurrentLevel != nullptr)
+	{
+		CreateDataLayerTreeItems(CurrentLevel);
+	}
 
 	if (bShowDataLayerActors)
 	{

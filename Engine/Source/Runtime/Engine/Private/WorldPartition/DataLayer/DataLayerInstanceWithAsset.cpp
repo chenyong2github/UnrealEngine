@@ -32,7 +32,7 @@ void UDataLayerInstanceWithAsset::OnCreated(const UDataLayerAsset* Asset)
 
 bool UDataLayerInstanceWithAsset::IsReadOnly() const
 {
-	return !GetOuterAWorldDataLayers()->IsMainWorldDataLayers();
+	return GetOuterAWorldDataLayers()->IsSubWorldDataLayers();
 }
 
 bool UDataLayerInstanceWithAsset::IsLocked() const
@@ -45,24 +45,10 @@ bool UDataLayerInstanceWithAsset::IsLocked() const
 }
 
 bool UDataLayerInstanceWithAsset::AddActor(AActor* Actor) const
-{
-	// If actor's level WorldDataLayers doesn't match this DataLayerInstance outer WorldDataLayers, 
-	// Make sure that an instance for this Data Layer asset exists in the outer level AWorldDataLayer and forward the call on it.
-	AWorldDataLayers* OuterWorldDataLayers = Actor->GetLevel()->GetWorldDataLayers();
-	if (GetOuterAWorldDataLayers() != OuterWorldDataLayers)
-	{
-		check(OuterWorldDataLayers);
-		UDataLayerInstanceWithAsset* OuterDataLayerInstanceWithAsset = Cast<UDataLayerInstanceWithAsset>(const_cast<UDataLayerInstance*>(OuterWorldDataLayers->GetDataLayerInstance(DataLayerAsset)));
-		if (!OuterDataLayerInstanceWithAsset)
-		{
-			OuterDataLayerInstanceWithAsset = OuterWorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(DataLayerAsset);
-		}
-		return OuterDataLayerInstanceWithAsset->AddActor(Actor);
-	}
-	else
-	{
-		return Actor->AddDataLayer(DataLayerAsset);
-	}
+{	
+	check(GetWorld()->GetSubsystem<UDataLayerSubsystem>()->GetDataLayerInstance(DataLayerAsset) != nullptr);
+	check(GetTypedOuter<ULevel>() == Actor->GetLevel()); // Make sure the instance is part of the same world as the actor.
+	return Actor->AddDataLayer(DataLayerAsset);
 }
 
 bool UDataLayerInstanceWithAsset::RemoveActor(AActor* Actor) const

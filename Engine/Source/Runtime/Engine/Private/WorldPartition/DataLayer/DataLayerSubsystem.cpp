@@ -11,6 +11,7 @@
 #include "Engine/Engine.h"
 #include "Engine/World.h"
 #include "Engine/Canvas.h"
+#include "EngineUtils.h"
 #include "Algo/Transform.h"
 #if WITH_EDITOR
 #include "Editor.h"
@@ -22,6 +23,11 @@
 #endif
 
 extern int32 GDrawDataLayersLoadTime;
+
+#if WITH_EDITOR
+FOnWorldDataLayersPostRegister UDataLayerSubsystem::OnWorldDataLayerPostRegister;
+FOnWorldDataLayersPreUnregister UDataLayerSubsystem::OnWorldDataLayerPreUnregister;
+#endif
 
 static FAutoConsoleCommandWithOutputDevice GDumpDataLayersCmd(
 	TEXT("wp.DumpDataLayers"),
@@ -72,6 +78,8 @@ void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 		FModuleManager::LoadModuleChecked<IDataLayerEditorModule>("DataLayerEditor");
 	}
 
+	RegisterEarlyLoadedWorldDataLayers();
+
 	UActorDescContainer::OnActorDescContainerInitialized.AddUObject(this, &UDataLayerSubsystem::OnActorDescContainerInitialized);
 #endif
 }
@@ -79,6 +87,8 @@ void UDataLayerSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 void UDataLayerSubsystem::Deinitialize()
 {
 	Super::Deinitialize();
+
+	WorldDataLayerCollection.Empty();
 
 #if WITH_EDITOR
 	UActorDescContainer::OnActorDescContainerInitialized.RemoveAll(this);
@@ -95,35 +105,31 @@ bool UDataLayerSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType)
 
 bool UDataLayerSubsystem::CanResolveDataLayers() const
 {
-	return GetWorld()->GetWorldDataLayers() != nullptr;
+	return !WorldDataLayerCollection.IsEmpty();
 }
 
-bool UDataLayerSubsystem::RemoveDataLayer(const UDataLayerInstance* InDataLayer)
+bool UDataLayerSubsystem::RemoveDataLayer(const UDataLayerInstance* InDataLayerInstance)
 {
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	bool bIsDataLayerRemoved = false;
+	WorldDataLayerCollection.ForEachWorldDataLayers([InDataLayerInstance, &bIsDataLayerRemoved](AWorldDataLayers* WorldDataLayer)
 	{
-		return WorldDataLayers->RemoveDataLayer(InDataLayer);;
-	}
-	else
-	{
-		UE_LOG(LogWorldPartition, Warning, TEXT("Removing a Data Layer without a World Partition"));
-	}
+		bIsDataLayerRemoved = WorldDataLayer->RemoveDataLayer(InDataLayerInstance);
+		return !bIsDataLayerRemoved;
+	});
 
-	return false;
+	return bIsDataLayerRemoved;
 }
 
-bool UDataLayerSubsystem::RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances)
+int32 UDataLayerSubsystem::RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances)
 {
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	int32 DataLayerRemovedCount = 0;
+	WorldDataLayerCollection.ForEachWorldDataLayers([InDataLayerInstances, &DataLayerRemovedCount](AWorldDataLayers* WorldDataLayer)
 	{
-		return WorldDataLayers->RemoveDataLayers(InDataLayerInstances);
-	}
-	else
-	{
-		UE_LOG(LogWorldPartition, Warning, TEXT("Removing Data Layers without a World Partition"));
-	}
+		DataLayerRemovedCount += WorldDataLayer->RemoveDataLayers(InDataLayerInstances);
+		return DataLayerRemovedCount != InDataLayerInstances.Num();
+	});
 
-	return false;
+	return DataLayerRemovedCount;
 }
 
 void UDataLayerSubsystem::UpdateDataLayerEditorPerProjectUserSettings() const
@@ -176,18 +182,58 @@ void UDataLayerSubsystem::GetUserLoadedInEditorStates(TArray<FName>& OutDataLaye
 }
 #endif
 
-const TSet<FName>& UDataLayerSubsystem::GetEffectiveActiveDataLayerNames() const
+TSet<FName> UDataLayerSubsystem::GetEffectiveActiveDataLayerNames() const
 {
-	static TSet<FName> EmptySet;
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-	return WorldDataLayers ? WorldDataLayers->GetEffectiveActiveDataLayerNames() : EmptySet;
+	TSet<FName> EffectiveActiveDataLayerNames;
+	WorldDataLayerCollection.ForEachWorldDataLayers([&EffectiveActiveDataLayerNames](AWorldDataLayers* WorldDataLayers)
+	{
+		EffectiveActiveDataLayerNames.Append(WorldDataLayers->GetEffectiveActiveDataLayerNames());
+	});
+	
+	return EffectiveActiveDataLayerNames;
 }
 
-const TSet<FName>& UDataLayerSubsystem::GetEffectiveLoadedDataLayerNames() const
+TSet<FName> UDataLayerSubsystem::GetEffectiveLoadedDataLayerNames() const
 {
-	static TSet<FName> EmptySet;
-	const AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers();
-	return WorldDataLayers ? WorldDataLayers->GetEffectiveLoadedDataLayerNames() : EmptySet;
+	TSet<FName> EffectiveLoadedDataLayerNames;
+	WorldDataLayerCollection.ForEachWorldDataLayers([&EffectiveLoadedDataLayerNames](AWorldDataLayers* WorldDataLayers)
+	{
+		EffectiveLoadedDataLayerNames.Append(WorldDataLayers->GetEffectiveLoadedDataLayerNames());
+	});
+
+	return EffectiveLoadedDataLayerNames;
+}
+
+void UDataLayerSubsystem::RegisterWorldDataLayer(AWorldDataLayers* WorldDataLayers)
+{
+	if (WorldDataLayerCollection.RegisterWorldDataLayer(WorldDataLayers))
+	{
+#if WITH_EDITOR
+		OnWorldDataLayerPostRegister.Broadcast(WorldDataLayers);
+#endif
+	}
+}
+
+void UDataLayerSubsystem::UnregisterWorldDataLayer(AWorldDataLayers* WorldDataLayers)
+{
+	if (WorldDataLayerCollection.Contains(WorldDataLayers))
+	{
+#if WITH_EDITOR
+		OnWorldDataLayerPreUnregister.Broadcast(WorldDataLayers);
+#endif
+
+		WorldDataLayerCollection.UnregisterWorldDataLayer(WorldDataLayers);
+	}
+}
+
+void UDataLayerSubsystem::ForEachWorldDataLayer(TFunctionRef<bool(AWorldDataLayers*)> Func)
+{
+	WorldDataLayerCollection.ForEachWorldDataLayersBreakable(Func);
+}
+
+void UDataLayerSubsystem::ForEachWorldDataLayer(TFunctionRef<bool(AWorldDataLayers*)> Func) const
+{
+	const_cast<UDataLayerSubsystem*>(this)->ForEachWorldDataLayer(Func);
 }
 
 UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstanceFromAsset(const UDataLayerAsset* InDataLayerAsset) const
@@ -483,40 +529,28 @@ TArray<UDataLayerInstance*> UDataLayerSubsystem::ConvertArgsToDataLayers(UWorld*
 
 void UDataLayerSubsystem::DumpDataLayers(FOutputDevice& OutputDevice) const
 {
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	WorldDataLayerCollection.ForEachWorldDataLayers([&OutputDevice](AWorldDataLayers* WorldDataLayers)
 	{
 		WorldDataLayers->DumpDataLayers(OutputDevice);
-	}
-	else
-	{
-		UE_LOG(LogWorldPartition, Warning, TEXT("Dumping Data Layers without a World Partition"));
-	}
+	});
 }
 
 const UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstanceFromAssetName(const FName& InDataLayerAssetFullName) const
 {
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-	{
-		const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerInstanceFromAssetName(InDataLayerAssetFullName);
-		return const_cast<UDataLayerInstance*>(DataLayerInstance);
-	}
+	const UDataLayerInstance* DataLayerInstance = nullptr;
 
-	return nullptr;
+	WorldDataLayerCollection.ForEachWorldDataLayers([&DataLayerInstance, &InDataLayerAssetFullName](const AWorldDataLayers* WorldDataLayers)
+	{
+		DataLayerInstance = WorldDataLayers->GetDataLayerInstanceFromAssetName(InDataLayerAssetFullName);
+		return DataLayerInstance == nullptr;
+	});
+
+	return const_cast<UDataLayerInstance*>(DataLayerInstance);
 }
 
 void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func, const ULevel* InLevelContext /* = nullptr */)
 {
-	if (!InLevelContext || InLevelContext == GetWorld()->PersistentLevel)
-	{
-		if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
-		{
-			WorldDataLayers->ForEachDataLayer(Func);
-		}
-	}
-	else if (const AWorldDataLayers* CurrentLevelWorldDataLayers = (InLevelContext && !InLevelContext->IsPersistentLevel()) ? InLevelContext->GetWorldDataLayers() : nullptr)
-	{
-		CurrentLevelWorldDataLayers->ForEachDataLayer(Func);
-	}
+	WorldDataLayerCollection.ForEachDataLayerBreakable(Func, InLevelContext);
 }
 
 void UDataLayerSubsystem::ForEachDataLayer(TFunctionRef<bool(UDataLayerInstance*)> Func, const ULevel* InLevelContext /* = nullptr */) const
@@ -602,30 +636,31 @@ void UDataLayerSubsystem::GetDataLayerDebugColors(TMap<FName, FColor>& OutMappin
 void UDataLayerSubsystem::PushActorEditorContext() const
 {
 	++DataLayerActorEditorContextID;
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	WorldDataLayerCollection.ForEachWorldDataLayers([this](AWorldDataLayers* WorldDataLayers)
 	{
 		WorldDataLayers->PushActorEditorContext(DataLayerActorEditorContextID);
-	}
+	});
 }
 
 void UDataLayerSubsystem::PopActorEditorContext() const
 {
 	check(DataLayerActorEditorContextID > 0);
-	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	WorldDataLayerCollection.ForEachWorldDataLayers([this](AWorldDataLayers* WorldDataLayers)
 	{
 		WorldDataLayers->PopActorEditorContext(DataLayerActorEditorContextID);
-	}
+	});
 	--DataLayerActorEditorContextID;
 }
 
 TArray<UDataLayerInstance*> UDataLayerSubsystem::GetActorEditorContextDataLayers() const
 {
-	if(AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
+	TArray<UDataLayerInstance*> DataLayersInstances;
+	WorldDataLayerCollection.ForEachWorldDataLayers([&DataLayersInstances](AWorldDataLayers* WorldDataLayers)
 	{
-		return WorldDataLayers->GetActorEditorContextDataLayers();
-	}
+		DataLayersInstances += WorldDataLayers->GetActorEditorContextDataLayers();
+	});
 
-	return TArray<UDataLayerInstance*>();
+	return DataLayersInstances;
 }
 
 uint32 UDataLayerSubsystem::GetDataLayerEditorContextHash() const
@@ -642,8 +677,9 @@ void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* I
 {
 	check(InActorDescContainer);
 
-	auto GetWorldDataLayersActorDesc = [](const UActorDescContainer* InContainer) -> FWorldDataLayersActorDesc*
+	auto GetWorldDataLayersActorDesc = [](const UActorDescContainer* InContainer) -> TArray<const FWorldDataLayersActorDesc*>
 	{
+		TArray<const FWorldDataLayersActorDesc*> WorldDataLayersActorDecs;
 		if (InContainer)
 		{
 			for (FActorDescList::TIterator<AWorldDataLayers> Iterator(const_cast<UActorDescContainer*>(InContainer)); Iterator; ++Iterator)
@@ -651,23 +687,27 @@ void UDataLayerSubsystem::OnActorDescContainerInitialized(UActorDescContainer* I
 				// IsValid will return false for maps that don't have a valid WorldDataLayers actors
 				if (Iterator->IsValid())
 				{
-					FWorldDataLayersActorDesc* WorldDataLayersActorDesc = *Iterator;
-					return WorldDataLayersActorDesc;
+					WorldDataLayersActorDecs.Add(*Iterator);
 				}
-				// No need to iterate (we assume that there's only 1 AWorldDataLayer for now)
-				return nullptr;
 			}
 		}
-		return nullptr;
+
+		return WorldDataLayersActorDecs;
 	};
 
-	const FWorldDataLayersActorDesc* WorldDataLayersActorDesc = GetWorldDataLayersActorDesc(InActorDescContainer);
+	const TArray<const FWorldDataLayersActorDesc*> WorldDataLayersActorDescs = GetWorldDataLayersActorDesc(InActorDescContainer);
 	for (FActorDescList::TIterator<> Iterator(InActorDescContainer); Iterator; ++Iterator)
 	{
 		FWorldPartitionActorDesc* ActorDesc = *Iterator;
 		check(ActorDesc->GetContainer() == InActorDescContainer);
-		ActorDesc->SetDataLayerInstanceNames(FDataLayerUtils::ResolvedDataLayerInstanceNames(ActorDesc, WorldDataLayersActorDesc));
+		ActorDesc->SetDataLayerInstanceNames(FDataLayerUtils::ResolvedDataLayerInstanceNames(ActorDesc, WorldDataLayersActorDescs));
 	}
+}
+
+void UDataLayerSubsystem::RegisterEarlyLoadedWorldDataLayers()
+{
+	// ULevel::WorldDatalayers is loaded before the subsystem is created and miss their registration.
+	RegisterWorldDataLayer(GetWorld()->GetWorldDataLayers());
 }
 
 #endif
@@ -685,7 +725,7 @@ UDataLayerInstance* UDataLayerSubsystem::GetDataLayerFromLabel(FName InDataLayer
 {
 	if (AWorldDataLayers* WorldDataLayers = GetWorld()->GetWorldDataLayers())
 	{
-		const UDataLayerInstance* DataLayerInstance = GetWorld()->GetWorldDataLayers()->GetDataLayerFromLabel(InDataLayerLabel);
+		const UDataLayerInstance* DataLayerInstance = WorldDataLayers->GetDataLayerFromLabel(InDataLayerLabel);
 		return const_cast<UDataLayerInstance*>(DataLayerInstance);
 	}
 

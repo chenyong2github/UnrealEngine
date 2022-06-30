@@ -558,6 +558,11 @@ FSceneOutlinerDragValidationInfo FDataLayerMode::ValidateDrop(const ISceneOutlin
 						{
 							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveToSameDataLayer", "Can't move Data Layer to same Data Layer"));
 						}
+
+						if (ParentDataLayer->GetOuterAWorldDataLayers() != DataLayerInstance->GetOuterAWorldDataLayers())
+						{
+							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("CantMoveToDifferentOuterWorldDataLayer", "Can't move Data Layer to a different World Data Layer"));
+						}
 					}
 				
 					if (ParentDataLayer->IsLocked())
@@ -945,6 +950,16 @@ TArray<UDataLayerInstance*> FDataLayerMode::GetSelectedDataLayers(SSceneOutliner
 	return MoveTemp(ValidSelectedDataLayers);
 }
 
+TArray<AWorldDataLayers*> FDataLayerMode::GetSelectedWorldDataLayers(SSceneOutliner* InSceneOutliner) const
+{
+	FSceneOutlinerItemSelection ItemSelection(InSceneOutliner->GetSelection());
+	TArray<FWorldDataLayersTreeItem*> SelectedWorldDataLayersItems;
+	ItemSelection.Get<FWorldDataLayersTreeItem>(SelectedWorldDataLayersItems);
+	TArray<AWorldDataLayers*> ValidSelectedDataLayers;
+	Algo::TransformIf(SelectedWorldDataLayersItems, ValidSelectedDataLayers, [](const auto Item) { return Item && Item->GetWorldDataLayers(); }, [](const auto Item) { return Item->GetWorldDataLayers(); });
+	return MoveTemp(ValidSelectedDataLayers);
+}
+
 void FDataLayerMode::CreateDataLayerPicker(UToolMenu* InMenu, FOnDataLayerPicked OnDataLayerPicked, bool bInShowRoot /*= false*/)
 {
 	if (bInShowRoot)
@@ -1016,12 +1031,15 @@ void FDataLayerMode::RegisterContextMenu()
 					Mode->SelectedDataLayersSet.Empty();
 					Mode->SelectedDataLayerActors.Empty();
 
+					TArray<AWorldDataLayers*> SelectedWorldDataLayers = Mode->GetSelectedWorldDataLayers(SceneOutliner);
+
 					FDataLayerCreationParameters CreationParams;
 					CreationParams.DataLayerAsset = const_cast<UDataLayerAsset*>(InDataLayerAsset);
-					CreationParams.ParentDataLayer = InParentDataLayer;
-					CreationParams.WorlDataLayers = InParentDataLayer ? InParentDataLayer->GetOuterAWorldDataLayers() : Mode->GetOwningWorldAWorldDataLayers();
+					CreationParams.WorldDataLayers = InParentDataLayer ? InParentDataLayer->GetOuterAWorldDataLayers() : (SelectedWorldDataLayers.Num() == 1 ? SelectedWorldDataLayers[0] : Mode->GetOwningWorldAWorldDataLayers());
 					if (UDataLayerInstance* NewDataLayerInstance = UDataLayerEditorSubsystem::Get()->CreateDataLayerInstance(CreationParams))
 					{
+						UDataLayerEditorSubsystem::Get()->SetParentDataLayer(NewDataLayerInstance, InParentDataLayer);
+
 						Mode->SelectedDataLayersSet.Add(NewDataLayerInstance);
 						// Select it and open a rename when it gets refreshed
 						SceneOutliner->OnItemAdded(NewDataLayerInstance, SceneOutliner::ENewItemAction::Select | SceneOutliner::ENewItemAction::Rename);
@@ -1117,7 +1135,7 @@ void FDataLayerMode::RegisterContextMenu()
 								const FScopedTransaction Transaction(LOCTEXT("AddSelectedActorsToNewDataLayer", "Add Selected Actors to New Data Layer"));
 								FDataLayerCreationParameters CreationParams;
 								CreationParams.DataLayerAsset = DataLayerAsset;
-								CreationParams.WorlDataLayers = Mode->GetOwningWorldAWorldDataLayers();
+								CreationParams.WorldDataLayers = Mode->GetOwningWorldAWorldDataLayers();
 								if (UDataLayerInstance* NewDataLayerInstance = UDataLayerEditorSubsystem::Get()->CreateDataLayerInstance(CreationParams))
 								{
 									UDataLayerEditorSubsystem::Get()->AddSelectedActorsToDataLayer(NewDataLayerInstance);

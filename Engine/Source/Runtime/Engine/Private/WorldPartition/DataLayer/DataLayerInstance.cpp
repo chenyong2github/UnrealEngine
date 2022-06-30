@@ -269,6 +269,7 @@ void UDataLayerInstance::ForEachChild(TFunctionRef<bool(const UDataLayerInstance
 
 void UDataLayerInstance::AddChild(UDataLayerInstance* InDataLayer)
 {
+	check(InDataLayer->GetOuterAWorldDataLayers() == GetOuterAWorldDataLayers())
 	Modify();
 	checkSlow(!Children.Contains(InDataLayer));
 	Children.Add(InDataLayer);

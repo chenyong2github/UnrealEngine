@@ -88,7 +88,14 @@ FString FWorldDataLayersTreeItem::GetDisplayString() const
 	if (const AWorldDataLayers* WorldDataLayersPtr = WorldDataLayers.Get())
 	{
 		check(WorldDataLayersPtr->GetLevel());
-		return SceneOutliner::GetWorldDescription(WorldDataLayersPtr->GetLevel()->GetTypedOuter<UWorld>()).ToString();
+		FString DisplayString = SceneOutliner::GetWorldDescription(WorldDataLayersPtr->GetLevel()->GetTypedOuter<UWorld>()).ToString();
+
+		if (!WorldDataLayersPtr->GetActorLabel().IsEmpty())
+		{
+			DisplayString += TEXT(" - ") + WorldDataLayersPtr->GetActorLabel();
+		}
+
+		return DisplayString;
 	}
 	return LOCTEXT("UnknownWorldDataLayers", "Unknown").ToString();
 }
@@ -102,7 +109,7 @@ bool FWorldDataLayersTreeItem::IsReadOnly() const
 {
 	const AWorldDataLayers* WorldDataLayersPtr = WorldDataLayers.Get();
 	UWorld* WorldPtr = WorldDataLayersPtr ? WorldDataLayersPtr->GetLevel()->GetTypedOuter<UWorld>() : nullptr;
-	return (WorldDataLayersPtr && !WorldDataLayersPtr->IsMainWorldDataLayers()) || !WorldPtr || (WorldPtr->WorldType != EWorldType::Editor);
+	return (WorldDataLayersPtr && WorldDataLayersPtr->IsSubWorldDataLayers()) || !WorldPtr || (WorldPtr->WorldType != EWorldType::Editor);
 }
 
 TSharedRef<SWidget> FWorldDataLayersTreeItem::GenerateLabelWidget(ISceneOutliner& Outliner, const STableRow<FSceneOutlinerTreeItemPtr>& InRow)

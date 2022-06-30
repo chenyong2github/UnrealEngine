@@ -363,7 +363,7 @@ void AWorldDataLayers::DumpDataLayerRecursively(const UDataLayerInstance* DataLa
 void AWorldDataLayers::DumpDataLayers(FOutputDevice& OutputDevice) const
 {
 	OutputDevice.Logf(TEXT("===================================================="));
-	OutputDevice.Logf(TEXT(" Data Layers for World %s"), *GetWorld()->GetName());
+	OutputDevice.Logf(TEXT(" Data Layers for %s"), *GetName());
 	OutputDevice.Logf(TEXT("===================================================="));
 	OutputDevice.Logf(TEXT(""));
 
@@ -417,12 +417,21 @@ TUniquePtr<class FWorldPartitionActorDesc> AWorldDataLayers::CreateClassActorDes
 
 AWorldDataLayers* AWorldDataLayers::Create(UWorld* World, FName InWorldDataLayerName)
 {
-	check(World);
-	
+	FActorSpawnParameters SpawnParameters;
+	SpawnParameters.Name =  InWorldDataLayerName.IsNone() ? AWorldDataLayers::StaticClass()->GetFName() : InWorldDataLayerName;
+	SpawnParameters.OverrideLevel = World->PersistentLevel;
+	return Create(SpawnParameters);
+}
+
+AWorldDataLayers* AWorldDataLayers::Create(const FActorSpawnParameters& SpawnParameters)
+{
+	check(SpawnParameters.OverrideLevel != nullptr && SpawnParameters.OverrideLevel->IsPersistentLevel());
+	check(SpawnParameters.Name != NAME_None);
+	check(SpawnParameters.NameMode == FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal);
+
 	AWorldDataLayers* WorldDataLayers = nullptr;
-	
-	FName WorldDataLayersName = InWorldDataLayerName.IsNone() ? AWorldDataLayers::StaticClass()->GetFName() : InWorldDataLayerName;
-	if (UObject* ExistingObject = StaticFindObject(nullptr, World->PersistentLevel, *WorldDataLayersName.ToString()))
+
+	if (UObject* ExistingObject = StaticFindObject(nullptr, SpawnParameters.OverrideLevel, *SpawnParameters.Name.ToString()))
 	{
 		WorldDataLayers = CastChecked<AWorldDataLayers>(ExistingObject);
 		if (!IsValidChecked(WorldDataLayers))
@@ -432,29 +441,20 @@ AWorldDataLayers* AWorldDataLayers::Create(UWorld* World, FName InWorldDataLayer
 			WorldDataLayers = nullptr;
 		}
 	}
-	
+
 	if (!WorldDataLayers)
 	{
-		FActorSpawnParameters SpawnParams;
-		SpawnParams.OverrideLevel = World->PersistentLevel;
-		SpawnParams.Name = WorldDataLayersName;
-		SpawnParams.NameMode = FActorSpawnParameters::ESpawnActorNameMode::Required_Fatal;
-		WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParams);
+		UWorld* World = SpawnParameters.OverrideLevel->GetWorld();
+		WorldDataLayers = World->SpawnActor<AWorldDataLayers>(AWorldDataLayers::StaticClass(), SpawnParameters);
 	}
 	else
 	{
-		UE_LOG(LogWorldPartition, Error, TEXT("Failed to create WorldDataLayers Actor. There is already a WorldDataLayer Actor named \"%s\" "), *WorldDataLayersName.ToString())
+		UE_LOG(LogWorldPartition, Error, TEXT("Failed to create WorldDataLayers Actor. There is already a WorldDataLayer Actor named \"%s\" "), *SpawnParameters.Name.ToString())
 	}
-	
+
 	check(WorldDataLayers);
 
 	return WorldDataLayers;
-}
-
-bool AWorldDataLayers::IsMainWorldDataLayers() const
-{
-	check(GetWorld());
-	return GetWorld()->GetWorldDataLayers() == this;
 }
 
 TArray<FName> AWorldDataLayers::GetDataLayerInstanceNames(const TArray<TObjectPtr<const UDataLayerAsset>>& InDataLayersAssets) const
@@ -486,9 +486,9 @@ TArray<const UDataLayerInstance*> AWorldDataLayers::GetDataLayerInstances(const 
 	return OutDataLayers;
 }
 
-bool AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances)
+int32 AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances)
 {
-	bool bIsModified = false;
+	int32 RemovedCount = 0;
 
 	for (UDataLayerInstance* DataLayerInstance : InDataLayerInstances)
 	{
@@ -501,16 +501,16 @@ bool AWorldDataLayers::RemoveDataLayers(const TArray<UDataLayerInstance*>& InDat
 			{
 				DeprecatedDataLayerNameToDataLayerInstance.Remove(DataLayerInstance->GetDataLayerFName());
 			}
-			bIsModified = true;
+			RemovedCount++;
 		}
 	}
 
-	if (bIsModified)
+	if (RemovedCount > 0)
 	{
 		UpdateContainsDeprecatedDataLayers();
 	}
 
-	return bIsModified;
+	return RemovedCount;
 }
 
 bool AWorldDataLayers::RemoveDataLayer(const UDataLayerInstance* InDataLayerInstance)
@@ -736,7 +736,12 @@ void AWorldDataLayers::PostLoad()
 
 	GetLevel()->ConditionalPostLoad();
 
-	GetTypedOuter<UWorld>()->SetWorldDataLayers(this);
+	// Patch WorldDataLayer in UWorld.
+	// Only the "main" world data Layer is named AWorldDataLayers::StaticClass()->GetFName() for a given world.
+	if ((GetTypedOuter<UWorld>()->GetWorldDataLayers() == nullptr) && (GetFName() == GetWorldPartionWorldDataLayersName()))
+	{
+		GetTypedOuter<UWorld>()->SetWorldDataLayers(this);
+	}
 
 #if WITH_EDITOR
 	ConvertDataLayerToInstancces();
@@ -803,6 +808,37 @@ void AWorldDataLayers::PostLoad()
 #endif
 
 	InitializeDataLayerRuntimeStates();
+
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		DataLayerSubsystem->RegisterWorldDataLayer(this);
+	}
+}
+
+void AWorldDataLayers::PreRegisterAllComponents()
+{
+	Super::PreRegisterAllComponents();
+
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		DataLayerSubsystem->RegisterWorldDataLayer(this);
+	}
+}
+
+void AWorldDataLayers::PostUnregisterAllComponents()
+{
+	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
+	{
+		DataLayerSubsystem->UnregisterWorldDataLayer(this);
+	}
+
+	Super::PostUnregisterAllComponents();
+}
+
+bool AWorldDataLayers::IsSubWorldDataLayers() const
+{
+	check(GetWorld());
+	return GetTypedOuter<UWorld>() != GetWorld();
 }
 
 #if WITH_EDITOR

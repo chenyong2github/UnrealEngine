@@ -34,7 +34,7 @@ struct FActorPlacementDataLayers
 };
 
 /**
- * Actor containing all data layers for a world
+ * Actor containing data layers instances within a world.
  */
 UCLASS(hidecategories = (Actor, HLOD, Cooking, Transform, Advanced, Display, Events, Object, Physics, Attachment, Info, Input, Blueprint, Layers, Tags, Replication), notplaceable)
 class ENGINE_API AWorldDataLayers : public AInfo
@@ -45,6 +45,8 @@ class ENGINE_API AWorldDataLayers : public AInfo
 
 public:
 	virtual void PostLoad() override;
+	virtual void PreRegisterAllComponents() override;
+	virtual void PostUnregisterAllComponents() override;
 	virtual void RewindForReplay() override;
 	virtual void BeginPlay() override;
 
@@ -56,6 +58,7 @@ public:
 	virtual TUniquePtr<class FWorldPartitionActorDesc> CreateClassActorDesc() const override;
 
 	static AWorldDataLayers* Create(UWorld* World, FName InWorldDataLayerName = NAME_None);
+	static AWorldDataLayers* Create(const FActorSpawnParameters& SpawnParameters);
 
 	bool IsEmpty() const { return DataLayerInstances.IsEmpty(); }
 	bool HasDeprecatedDataLayers() const { return bHasDeprecatedDataLayers; }
@@ -64,7 +67,7 @@ public:
 	DataLayerInstanceType* CreateDataLayer(CreationsArgs... InCreationArgs);
 
 	bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
-	bool RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
+	int32 RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
 	void SetAllowRuntimeDataLayerEditing(bool bInAllowRuntimeDataLayerEditing);
 	bool GetAllowRuntimeDataLayerEditing() const { return bAllowRuntimeDataLayerEditing; }
 
@@ -83,9 +86,10 @@ public:
 	// Allows overriding of DataLayers with PlayFromHere
 	template<class T>
 	void OverwriteDataLayerRuntimeStates(const TArray<T>* InActiveDataLayers, const TArray<T>* InLoadedDataLayers );
-
-	bool IsMainWorldDataLayers() const;
 #endif
+
+	bool IsSubWorldDataLayers() const;
+	static FName GetWorldPartionWorldDataLayersName() { return FName(TEXT("WorldDataLayers")); } // reserved for ULevel::WorldDataLayers
 	
 	void DumpDataLayers(FOutputDevice& OutputDevice) const;
 	bool ContainsDataLayer(const UDataLayerInstance* InDataLayer) const;

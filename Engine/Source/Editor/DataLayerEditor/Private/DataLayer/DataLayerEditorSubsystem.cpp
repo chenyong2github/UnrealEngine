@@ -33,8 +33,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogDataLayerEditorSubsystem, All, All);
 
 FDataLayerCreationParameters::FDataLayerCreationParameters()
 	:DataLayerAsset(nullptr),
-	ParentDataLayer(nullptr),
-	WorlDataLayers(nullptr)
+	WorldDataLayers(nullptr)
 {
 
 }
@@ -56,6 +55,8 @@ private:
 	void OnObjectPostEditChange(UObject* Object, FPropertyChangedEvent& PropertyChangedEvent);
 	void OnLevelActorsAdded(AActor* InActor) { DataLayerEditorSubsystem->InitializeNewActorDataLayers(InActor); }
 	void OnLevelSelectionChanged(UObject* InObject) { DataLayerEditorSubsystem->OnSelectionChanged(); }
+	void OnWorldDataLayersPostRegister(AWorldDataLayers* WorldDatalayers) { DataLayerEditorSubsystem->OnWorldDataLayersPostRegister(WorldDatalayers); }
+	void OnWorldDataLayersPreUnregister(AWorldDataLayers* WorldDatalayers) { DataLayerEditorSubsystem->OnWorldDataLayersPreUnregister(WorldDatalayers); }
 
 	UDataLayerEditorSubsystem* DataLayerEditorSubsystem;
 	bool bIsInitialized;
@@ -87,6 +88,8 @@ void FDataLayersBroadcast::Deinitialize()
 		}
 		USelection::SelectionChangedEvent.RemoveAll(this);
 		USelection::SelectObjectEvent.RemoveAll(this);
+		UDataLayerSubsystem::OnWorldDataLayerPostRegister.RemoveAll(this);
+		UDataLayerSubsystem::OnWorldDataLayerPreUnregister.RemoveAll(this);
 	}
 }
 
@@ -101,6 +104,8 @@ void FDataLayersBroadcast::Initialize()
 		GEngine->OnLevelActorAdded().AddRaw(this, &FDataLayersBroadcast::OnLevelActorsAdded);
 		USelection::SelectionChangedEvent.AddRaw(this, &FDataLayersBroadcast::OnLevelSelectionChanged);
 		USelection::SelectObjectEvent.AddRaw(this, &FDataLayersBroadcast::OnLevelSelectionChanged);
+		UDataLayerSubsystem::OnWorldDataLayerPostRegister.AddRaw(this, &FDataLayersBroadcast::OnWorldDataLayersPostRegister);
+		UDataLayerSubsystem::OnWorldDataLayerPreUnregister.AddRaw(this, &FDataLayersBroadcast::OnWorldDataLayersPreUnregister);
 	}
 }
 
@@ -291,6 +296,16 @@ void UDataLayerEditorSubsystem::RemoveFromActorEditorContext(UDataLayerInstance*
 	}
 }
 
+void UDataLayerEditorSubsystem::OnWorldDataLayersPostRegister(AWorldDataLayers* WorldDataLayers)
+{
+	EditorRefreshDataLayerBrowser();
+}
+
+void UDataLayerEditorSubsystem::OnWorldDataLayersPreUnregister(AWorldDataLayers* WorldDataLayers)
+{
+	EditorRefreshDataLayerBrowser();
+}
+
 void UDataLayerEditorSubsystem::EditorMapChange()
 {
 	if (UWorld * World = GetWorld())
@@ -409,6 +424,9 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 	{
 		GEditor->GetSelectedActors()->BeginBatchSelectOperation();
 
+		UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld());
+		UE_CLOG(!DataLayerSubsystem, LogDataLayerEditorSubsystem, Error, TEXT("%s - Adding actors to data layers while the world is null."), ANSI_TO_TCHAR(__FUNCTION__));
+
 		for (AActor* Actor : Actors)
 		{
 			if (!IsActorValidForDataLayer(Actor))
@@ -417,9 +435,28 @@ bool UDataLayerEditorSubsystem::AddActorsToDataLayers(const TArray<AActor*>& Act
 			}
 
 			bool bActorWasModified = false;
-			for (const UDataLayerInstance* DataLayer : DataLayers)
+			for (const UDataLayerInstance* DataLayerInstance : DataLayers)
 			{
-				if (Actor->AddDataLayer(DataLayer))
+				if (const UDataLayerInstanceWithAsset* DataLayerInstanceWithAsset = CastChecked<UDataLayerInstanceWithAsset>(DataLayerInstance))
+				{
+					// If actor's level doesn't match this DataLayerInstance outer level, 
+					// Make sure that a DataLayer Instance for this Data Layer Asset exists in the Actor's level.
+					if (Actor->GetLevel() != DataLayerInstance->GetTypedOuter<ULevel>())
+					{
+						if (DataLayerSubsystem != nullptr)
+						{
+							DataLayerInstance = DataLayerSubsystem->GetDataLayerInstance(DataLayerInstanceWithAsset->GetAsset(), Actor->GetLevel());
+
+							bool bDataLayerInstanceExistsInActorLevel = DataLayerInstance != nullptr;
+							if (!bDataLayerInstanceExistsInActorLevel)
+							{
+								DataLayerInstance = CreateDataLayerInstance<UDataLayerInstanceWithAsset>(Actor->GetLevel()->GetWorldDataLayers(), DataLayerInstanceWithAsset->GetAsset());
+							}
+						}
+					}
+				}
+
+				if (Actor->AddDataLayer(DataLayerInstance))
 				{
 					bActorWasModified = true;
 					BroadcastActorDataLayersChanged(Actor);
@@ -753,12 +790,16 @@ bool UDataLayerEditorSubsystem::UpdateAllActorsVisibility(const bool bNotifySele
 
 	bool bSelectionChanged = false;
 	bool bChangesOccurred = false;
-	for (AActor* Actor : FActorRange(GetWorld()))
+
+	if (UWorld* World = GetWorld())
 	{
-		bool bActorModified = false;
-		bool bActorSelectionChanged = false;
-		bChangesOccurred |= UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, /*bActorNotifySelectionChange*/false, /*bActorRedrawViewports*/false);
-		bSelectionChanged |= bActorSelectionChanged;
+		for (AActor* Actor : FActorRange(World))
+		{
+			bool bActorModified = false;
+			bool bActorSelectionChanged = false;
+			bChangesOccurred |= UpdateActorVisibility(Actor, bActorSelectionChanged, bActorModified, /*bActorNotifySelectionChange*/false, /*bActorRedrawViewports*/false);
+			bSelectionChanged |= bActorSelectionChanged;
+		}
 	}
 
 	if (bNotifySelectionChange && bSelectionChanged)
@@ -1056,23 +1097,21 @@ UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(const FDa
 	UDataLayerInstance* NewDataLayer = nullptr;
 
 	UE_CLOG(!GetWorld(), LogDataLayerEditorSubsystem, Error, TEXT("%s - Failed because world in null."), ANSI_TO_TCHAR(__FUNCTION__));
-	if (AWorldDataLayers* WorldDataLayers = Parameters.WorlDataLayers != nullptr ? Parameters.WorlDataLayers.Get() : (GetWorld() ? GetWorld()->GetWorldDataLayers() : nullptr))
+	if (AWorldDataLayers* WorldDataLayers = Parameters.WorldDataLayers != nullptr ? Parameters.WorldDataLayers.Get() : (GetWorld() ? GetWorld()->GetWorldDataLayers() : nullptr))
 	{
-		check(!Parameters.ParentDataLayer || !Parameters.WorlDataLayers || (Parameters.ParentDataLayer->GetOuterAWorldDataLayers() == Parameters.WorlDataLayers));
-	if (!WorldDataLayers->HasDeprecatedDataLayers())
-	{
-			NewDataLayer = WorldDataLayers->CreateDataLayer<UDataLayerInstanceWithAsset>(Parameters.DataLayerAsset);
-	}
-	else
-	{
-		NewDataLayer = WorldDataLayers->CreateDataLayer<UDeprecatedDataLayerInstance>();
+		if (!WorldDataLayers->HasDeprecatedDataLayers())
+		{
+			NewDataLayer = CreateDataLayerInstance<UDataLayerInstanceWithAsset>(WorldDataLayers, Parameters.DataLayerAsset);
+		}
+		else
+		{
+			NewDataLayer = CreateDataLayerInstance<UDeprecatedDataLayerInstance>(WorldDataLayers);
+		}
 	}
 
 	if (NewDataLayer != nullptr)
 	{
 		BroadcastDataLayerChanged(EDataLayerAction::Add, NewDataLayer, NAME_None);
-			SetParentDataLayer(NewDataLayer, Parameters.ParentDataLayer);
-		}
 	}
 	
 	return NewDataLayer;
@@ -1083,7 +1122,7 @@ void UDataLayerEditorSubsystem::DeleteDataLayers(const TArray<UDataLayerInstance
 	UE_CLOG(!GetWorld(), LogDataLayerEditorSubsystem, Error, TEXT("%s - Failed because world in null."), ANSI_TO_TCHAR(__FUNCTION__));
 	if (UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(GetWorld()))
 	{
-		if (DataLayerSubsystem->RemoveDataLayers(DataLayersToDelete))
+		if (DataLayerSubsystem->RemoveDataLayers(DataLayersToDelete) > 0)
 		{
 			for (UDataLayerInstance* DataLayerInstance : DataLayersToDelete)
 			{

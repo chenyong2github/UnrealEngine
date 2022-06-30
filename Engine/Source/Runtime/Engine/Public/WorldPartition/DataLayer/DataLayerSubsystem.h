@@ -6,7 +6,7 @@
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "WorldPartition/DataLayer/DataLayerEditorContext.h"
-#include "WorldPartition/DataLayer/WorldDataLayers.h"
+#include "WorldPartition/DataLayer/WorldDataLayersCollection.h"
 #include "DataLayerSubsystem.generated.h"
 
 /**
@@ -17,6 +17,11 @@ class UActorDescContainer;
 class UCanvas;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnDataLayerRuntimeStateChanged, const UDataLayerInstance*, DataLayer, EDataLayerRuntimeState, State);
+
+#if WITH_EDITOR
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldDataLayersPostRegister, AWorldDataLayers*);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnWorldDataLayersPreUnregister, AWorldDataLayers*);
+#endif
 
 #if WITH_EDITOR
 class ENGINE_API FDataLayersEditorBroadcast
@@ -80,7 +85,7 @@ public:
 	bool CanResolveDataLayers() const;
 
 	bool RemoveDataLayer(const UDataLayerInstance* InDataLayer);
-	bool RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
+	int32 RemoveDataLayers(const TArray<UDataLayerInstance*>& InDataLayerInstances);
 
 	void UpdateDataLayerEditorPerProjectUserSettings() const;
 	void GetUserLoadedInEditorStates(TArray<FName>& OutDataLayersLoadedInEditor, TArray<FName>& OutDataLayersNotLoadedInEditor) const;
@@ -111,8 +116,22 @@ public:
 	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeState(const UDataLayerInstance* InDataLayer) const;
 	EDataLayerRuntimeState GetDataLayerEffectiveRuntimeStateByName(const FName& InDataLayerName) const;
 	bool IsAnyDataLayerInEffectiveRuntimeState(const TArray<FName>& InDataLayerNames, EDataLayerRuntimeState InState) const;
-	const TSet<FName>& GetEffectiveActiveDataLayerNames() const;
-	const TSet<FName>& GetEffectiveLoadedDataLayerNames() const;
+	TSet<FName> GetEffectiveActiveDataLayerNames() const;
+	TSet<FName> GetEffectiveLoadedDataLayerNames() const;
+
+#if WITH_EDITOR
+	/** Called once a AWorldDataLayers has been registered. */
+	static FOnWorldDataLayersPostRegister OnWorldDataLayerPostRegister;
+
+	/** Called before a AWorldDataLayers has been unregistered. */
+	static FOnWorldDataLayersPreUnregister OnWorldDataLayerPreUnregister;
+#endif
+
+	void RegisterWorldDataLayer(AWorldDataLayers* WorldDataLayers);
+	void UnregisterWorldDataLayer(AWorldDataLayers* WorldDataLayers);
+
+	void ForEachWorldDataLayer(TFunctionRef<bool(AWorldDataLayers*)> Func);
+	void ForEachWorldDataLayer(TFunctionRef<bool(AWorldDataLayers*)> Func) const;
 
 	void GetDataLayerDebugColors(TMap<FName, FColor>& OutMapping) const;
 	void DrawDataLayersStatus(UCanvas* Canvas, FVector2D& Offset) const;
@@ -153,11 +172,11 @@ public:
 
 	UE_DEPRECATED(5.0, "GetActiveDataLayerNames will be removed.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "GetActiveDataLayerNames will be removed."))
-	const TSet<FName>& GetActiveDataLayerNames() const { return GetEffectiveActiveDataLayerNames(); }
+	const TSet<FName>& GetActiveDataLayerNames() const { static TSet<FName> EmptySet; return EmptySet; }
 
 	UE_DEPRECATED(5.0, "GetLoadedDataLayerNames will be removed.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers, meta = (DeprecatedFunction, DeprecationMessage = "GetLoadedDataLayerNames will be removed."))
-	const TSet<FName>& GetLoadedDataLayerNames() const { return GetEffectiveLoadedDataLayerNames(); }
+	const TSet<FName>& GetLoadedDataLayerNames() const { static TSet<FName> EmptySet; return EmptySet; }
 
 	UE_DEPRECATED(5.1, "Use GetDataLayerFromAsset() instead.")
 	UFUNCTION(BlueprintCallable, Category = DataLayers)
@@ -199,6 +218,7 @@ public:
 
 private:
 #if WITH_EDITOR
+	void RegisterEarlyLoadedWorldDataLayers();
 	void OnActorDescContainerInitialized(UActorDescContainer* InActorDescContainer);
 
 	mutable int32 DataLayerActorEditorContextID;
@@ -212,48 +232,24 @@ private:
 
 	/** Console command used to set Runtime DataLayer state*/
 	static class FAutoConsoleCommand SetDataLayerRuntimeStateCommand;
+
+	FWorldDataLayersCollection WorldDataLayerCollection;
 };
 
 template<class T>
 UDataLayerInstance* UDataLayerSubsystem::GetDataLayerInstance(const T& InDataLayerIdentifier, const ULevel* InLevelContext /* = nullptr */) const
 {
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	const AWorldDataLayers* WorldDataLayers = InLevelContext ? InLevelContext->GetWorldDataLayers() : GetWorld()->GetWorldDataLayers();
-	const UDataLayerInstance * DataLayerInstance = WorldDataLayers ? WorldDataLayers->GetDataLayerInstance(InDataLayerIdentifier) : nullptr;
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return const_cast<UDataLayerInstance*>(DataLayerInstance);
+	return WorldDataLayerCollection.GetDataLayerInstance(InDataLayerIdentifier, InLevelContext);
 }
 
 template<class T>
 TArray<FName> UDataLayerSubsystem::GetDataLayerInstanceNames(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext /* = nullptr */) const
 {
-	TArray<FName> DataLayerInstanceNames;
-	DataLayerInstanceNames.Reserve(InDataLayerIdentifiers.Num());
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Non-partitioned worlds don't have an AWorldDataLayers.
-	// This function can be called by a partitioned sub-level that contains Data Layers.
-	if (const AWorldDataLayers* WorldDataLayers = InLevelContext ? InLevelContext->GetWorldDataLayers() : GetWorld()->GetWorldDataLayers())
-	{
-		DataLayerInstanceNames = WorldDataLayers->GetDataLayerInstanceNames(InDataLayerIdentifiers);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return DataLayerInstanceNames;
+	return WorldDataLayerCollection.GetDataLayerInstanceNames(InDataLayerIdentifiers, InLevelContext);
 }
 
 template<class T>
 TArray<const UDataLayerInstance*> UDataLayerSubsystem::GetDataLayerInstances(const TArray<T>& InDataLayerIdentifiers, const ULevel* InLevelContext /* = nullptr */) const
 {
-	TArray<const UDataLayerInstance*> DataLayerInstances;
-	DataLayerInstances.Reserve(InDataLayerIdentifiers.Num());
-
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	// Non-partitioned worlds don't have an AWorldDataLayers.
-	// This function can be called by a partitioned sub-level that contains Data Layers.
-	if (const AWorldDataLayers* WorldDataLayers = InLevelContext ? InLevelContext->GetWorldDataLayers() : GetWorld()->GetWorldDataLayers())
-	{
-		DataLayerInstances = WorldDataLayers->GetDataLayerInstances(InDataLayerIdentifiers);
-	}
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	return DataLayerInstances;
+	return WorldDataLayerCollection.GetDataLayerInstances(InDataLayerIdentifiers, InLevelContext);
 }

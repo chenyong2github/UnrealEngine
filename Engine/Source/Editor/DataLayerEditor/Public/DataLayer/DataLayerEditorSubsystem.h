@@ -8,6 +8,7 @@
 #include "WorldPartition/DataLayer/ActorDataLayer.h"
 #include "WorldPartition/DataLayer/DataLayerInstance.h"
 #include "IActorEditorContextClient.h"
+#include "WorldPartition/DataLayer/WorldDataLayers.h"
 #include "DataLayerEditorSubsystem.generated.h"
 
 class AActor;
@@ -30,13 +31,9 @@ struct FDataLayerCreationParameters
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Layer")
 	TObjectPtr<UDataLayerAsset> DataLayerAsset;
 
-	// Optional. Will create the Data Layer at root level is unset.
-	UPROPERTY()
-	TObjectPtr<UDataLayerInstance> ParentDataLayer;
-
 	// Optional. Will default at the level WorldDataLayers if unset.
-	UPROPERTY()
-	TObjectPtr<AWorldDataLayers> WorlDataLayers;
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Data Layer")
+	TObjectPtr<AWorldDataLayers> WorldDataLayers;
 };
 
 UCLASS()
@@ -79,6 +76,12 @@ public:
 	//~ End IActorEditorContextClient interface
 	void AddToActorEditorContext(UDataLayerInstance* InDataLayerInstance);
 	void RemoveFromActorEditorContext(UDataLayerInstance* InDataLayerInstance);
+
+	void OnWorldDataLayersPostRegister(AWorldDataLayers* WorldDataLayers);
+	void OnWorldDataLayersPreUnregister(AWorldDataLayers* WorldDataLayers);
+
+	template<class DataLayerType, typename ...Args>
+	UDataLayerInstance* CreateDataLayerInstance(AWorldDataLayers* WorldDataLayers, Args&&... InArgs);
 
 	/* Broadcasts whenever one or more DataLayers are modified
 	 *
@@ -695,3 +698,21 @@ private:
 
 	friend class FDataLayersBroadcast;
 };
+
+template<class DataLayerType, typename ...Args>
+UDataLayerInstance* UDataLayerEditorSubsystem::CreateDataLayerInstance(AWorldDataLayers* WorldDataLayers, Args&&... InArgs)
+{
+	UDataLayerInstance* NewDataLayer = nullptr;
+
+	if (WorldDataLayers)
+	{
+		NewDataLayer = WorldDataLayers->CreateDataLayer<DataLayerType>(Forward<Args>(InArgs)...);
+	}
+
+	if (NewDataLayer != nullptr)
+	{
+		BroadcastDataLayerChanged(EDataLayerAction::Add, NewDataLayer, NAME_None);
+	}
+
+	return NewDataLayer;
+}
