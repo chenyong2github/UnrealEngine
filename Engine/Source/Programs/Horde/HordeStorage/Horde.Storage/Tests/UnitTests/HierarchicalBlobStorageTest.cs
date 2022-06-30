@@ -21,6 +21,7 @@ using Moq;
 namespace Horde.Storage.UnitTests
 {
     using BlobNotFoundException = Horde.Storage.Implementation.BlobNotFoundException;
+    using IBlobStore = Implementation.IBlobStore;
 
     [TestClass]
     public class HierarchicalBlobStorageTest

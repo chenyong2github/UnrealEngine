@@ -35,6 +35,7 @@ using Newtonsoft.Json.Linq;
 using Serilog;
 using Serilog.Core;
 using ContentHash = Jupiter.Implementation.ContentHash;
+using IBlobStore = Horde.Storage.Implementation.IBlobStore;
 
 namespace Horde.Storage.FunctionalTests.Storage
 {
