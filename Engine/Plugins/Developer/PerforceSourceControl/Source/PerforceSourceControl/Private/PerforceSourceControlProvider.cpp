@@ -573,6 +573,7 @@ void FPerforceSourceControlProvider::Tick()
 
 	if(bStatesUpdated)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(FPerforceSourceControlProvider::Tick::BroadcastStateUpdate);
 		OnSourceControlStateChanged.Broadcast();
 	}
 }
