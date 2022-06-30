@@ -421,7 +421,7 @@ struct FPerInstanceRenderData
 	TSharedPtr<FStaticMeshInstanceData, ESPMode::ThreadSafe> InstanceBuffer_GameThread;
 
 	/** Get data for culling ray tracing instances */
-	const TArray<FVector4f>& GetPerInstanceBounds();
+	const TArray<FVector4f>& GetPerInstanceBounds(FBox CurrentBounds);
 
 	/** Get cached CPU-friendly instance transforms */
 	const TArray<FRenderTransform>& GetPerInstanceTransforms();
@@ -437,7 +437,7 @@ private:
 	TArray<FVector4f> PerInstanceBounds;
 	TArray<FRenderTransform> PerInstanceTransforms;
 	FGraphEventRef UpdateBoundsTask;
-	const FBox InstanceLocalBounds;
+	FBox InstanceLocalBounds;
 	bool bTrackBounds;
 	bool bBoundsTransformsDirty;
 };
