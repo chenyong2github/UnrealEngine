@@ -285,7 +285,7 @@ void SMVVMManageViewModelsWidget::Construct(const FArguments& InArgs)
 						SNew(SBorder)
 						.BorderImage(FStyleDefaults::GetNoBrush())
 						[
-							SAssignNew(ViewModelBindingListWidget, UE::MVVM::SViewModelBindingListWidget)
+							SAssignNew(ViewModelBindingListWidget, UE::MVVM::SViewModelBindingListWidget, nullptr)
 						]
 					]
 				]

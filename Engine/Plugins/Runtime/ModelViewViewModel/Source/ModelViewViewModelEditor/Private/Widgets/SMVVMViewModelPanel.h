@@ -42,13 +42,13 @@ private:
 private:
 	TSharedPtr<SPositiveActionButton> AddMenuButton;
 	TSharedPtr<UE::PropertyViewer::SPropertyViewer> ViewModelTreeView;
-	FFieldIterator_ViewModel ViewModelFieldIterator;
 
 	using FViewModelHandle = TPair<FGuid, UE::PropertyViewer::SPropertyViewer::FHandle>;
 	TArray<FViewModelHandle> ViewModelHandles;
 
 	TWeakPtr<FWidgetBlueprintEditor> WeakBlueprintEditor;
 	TWeakObjectPtr<UMVVMBlueprintView> WeakBlueprintView;
+	TUniquePtr<FFieldIterator_ViewModel> ViewModelFieldIterator;
 	FDelegateHandle ViewModelsUpdatedHandle;
 };
 

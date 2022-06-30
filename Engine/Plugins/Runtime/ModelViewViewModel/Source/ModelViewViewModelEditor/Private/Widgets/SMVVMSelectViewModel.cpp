@@ -3,40 +3,24 @@
 #include "Widgets/SMVVMSelectViewModel.h"
 
 #include "Bindings/MVVMBindingHelper.h"
-#include "Blueprint/UserWidget.h"
+#include "Components/Widget.h"
 #include "Editor.h"
+#include "FieldNotification/IFieldValueChanged.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "Kismet2/KismetEditorUtilities.h"
+#include "Modules/ModuleManager.h"
 #include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorSubsystem.h"
 #include "MVVMViewModelBase.h"
-#include "SMVVMViewModelContextListWidget.h"
-#include "SMVVMViewModelBindingListWidget.h"
 #include "SPrimaryButton.h"
-#include "SSimpleButton.h"
 #include "Styling/MVVMEditorStyle.h"
-#include "Styling/SlateIconFinder.h"
-#include "Textures/SlateIcon.h"
-#include "Types/MVVMFieldVariant.h"
-#include "UMGStyle.h"
-#include "UObject/UObjectIterator.h"
-#include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-#include "Widgets/Input/SComboButton.h"
-#include "Widgets/Input/SEditableTextBox.h"
-#include "Widgets/Input/SSearchBox.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Layout/SUniformGridPanel.h"
-#include "Widgets/SWindow.h"
-#include "Widgets/Views/SListView.h"
-#include "Widgets/Views/STreeView.h"
+#include "Widgets/SMVVMViewModelBindingListWidget.h"
 
-//ClassViewer
 #include "ClassViewerModule.h"
 #include "ClassViewerFilter.h"
 #include "SClassViewer.h"
-#include "Components/Widget.h"
-#include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "SMVVMSelectViewModel"
 
@@ -70,7 +54,7 @@ namespace Private
 	};
 } //namespace
 
-void SMVVMSelectViewModel::Construct(const FArguments& InArgs)
+void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint)
 {
 	OnCancel = InArgs._OnCancel;
 	OnViewModelCommitted = InArgs._OnViewModelCommitted;
@@ -125,7 +109,7 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs)
 					SNew(SBorder)
 					.BorderImage(FStyleDefaults::GetNoBrush())
 					[
-						SAssignNew(ViewModelBindingListWidget, SViewModelBindingListWidget)
+						SAssignNew(ViewModelBindingListWidget, SViewModelBindingListWidget, WidgetBlueprint)
 					]
 				]
 			]

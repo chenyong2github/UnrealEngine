@@ -29,78 +29,6 @@ UMVVMView* UMVVMSubsystem::GetViewFromUserWidget(const UUserWidget* UserWidget) 
 }
 
 
-bool UMVVMSubsystem::IsViewModelValueValidForSourceBinding(const UMVVMViewModelBase* ViewModel, FMVVMBindingName ViewModelPropertyOrFunctionName) const
-{
-	if (ViewModel)
-	{
-		UE::MVVM::FMVVMFieldVariant Binding = UE::MVVM::BindingHelper::FindFieldByName(ViewModel->GetClass(), ViewModelPropertyOrFunctionName);
-		if (Binding.IsFunction())
-		{
-			return UE::MVVM::BindingHelper::IsValidForSourceBinding(Binding.GetFunction());
-		}
-		if (Binding.IsProperty())
-		{
-			return UE::MVVM::BindingHelper::IsValidForSourceBinding(Binding.GetProperty());
-		}
-	}
-	return false;
-}
-
-
-bool UMVVMSubsystem::IsViewModelValueValidForDestinationBinding(const UMVVMViewModelBase* ViewModel, FMVVMBindingName ViewModelPropertyOrFunctionName) const
-{
-	if (ViewModel)
-	{
-		UE::MVVM::FMVVMFieldVariant Binding = UE::MVVM::BindingHelper::FindFieldByName(ViewModel->GetClass(), ViewModelPropertyOrFunctionName);
-		if (Binding.IsFunction())
-		{
-			return UE::MVVM::BindingHelper::IsValidForDestinationBinding(Binding.GetFunction());
-		}
-		if (Binding.IsProperty())
-		{
-			return UE::MVVM::BindingHelper::IsValidForDestinationBinding(Binding.GetProperty());
-		}
-	}
-	return false;
-}
-
-
-bool UMVVMSubsystem::IsViewValueValidForSourceBinding(const UWidget* View, FMVVMBindingName ViewPropertyOrFunctionName) const
-{
-	if (View)
-	{
-		UE::MVVM::FMVVMFieldVariant Binding = UE::MVVM::BindingHelper::FindFieldByName(View->GetClass(), ViewPropertyOrFunctionName);
-		if (Binding.IsFunction())
-		{
-			return UE::MVVM::BindingHelper::IsValidForSourceBinding(Binding.GetFunction());
-		}
-		if (Binding.IsProperty())
-		{
-			return UE::MVVM::BindingHelper::IsValidForSourceBinding(Binding.GetProperty());
-		}
-	}
-	return false;
-}
-
-
-bool UMVVMSubsystem::IsViewValueValidForDestinationBinding(const UWidget* View, FMVVMBindingName ViewPropertyOrFunctionName) const
-{
-	if (View)
-	{
-		UE::MVVM::FMVVMFieldVariant Binding = UE::MVVM::BindingHelper::FindFieldByName(View->GetClass(), ViewPropertyOrFunctionName);
-		if (Binding.IsFunction())
-		{
-			return UE::MVVM::BindingHelper::IsValidForDestinationBinding(Binding.GetFunction());
-		}
-		if (Binding.IsProperty())
-		{
-			return UE::MVVM::BindingHelper::IsValidForDestinationBinding(Binding.GetProperty());
-		}
-	}
-	return false;
-}
-
-
 bool UMVVMSubsystem::DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree, const UWidget* ViewWidget) const
 {
 	// Test if the View's Widget is valid.
@@ -116,12 +44,12 @@ bool UMVVMSubsystem::DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree
 
 namespace UE::MVVM::Private
 {
-	TArray<FMVVMAvailableBinding> GetAvailableBindings(const UClass* Class, const UE::FieldNotification::IClassDescriptor* ClassDescriptor)
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(const UStruct* Class, const UClass* AccessorType, const UE::FieldNotification::IClassDescriptor* ClassDescriptor)
 	{
 		TSet<FName> FieldDescriptors;
 		if (ClassDescriptor)
 		{
-			ClassDescriptor->ForEachField(Class, [&FieldDescriptors](UE::FieldNotification::FFieldId FieldId)
+			ClassDescriptor->ForEachField(CastChecked<UClass>(Class), [&FieldDescriptors](UE::FieldNotification::FFieldId FieldId)
 			{
 				FieldDescriptors.Add(FieldId.GetName());
 				return true;
@@ -131,12 +59,26 @@ namespace UE::MVVM::Private
 		TArray<FMVVMAvailableBinding> Result;
 		Result.Reserve(FieldDescriptors.Num());
 
-		for (TFieldIterator<const UFunction> FunctionIt(Class, EFieldIteratorFlags::IncludeSuper); FunctionIt; ++FunctionIt)
+		const bool bAccessorCanSeeProtectedMember = AccessorType ? AccessorType->IsChildOf(Class) : false;
+
+		if (Cast<UClass>(Class))
 		{
-			const UFunction* Function = *FunctionIt;
-			check(Function);
-			//if (!Function->HasAnyFunctionFlags(FUNC_Private | FUNC_Protected)) // todo fix for property and BlueprintPrivate in IsValidForSourceBindnig
+			for (TFieldIterator<const UFunction> FunctionIt(Class, EFieldIteratorFlags::IncludeSuper); FunctionIt; ++FunctionIt)
 			{
+				const UFunction* Function = *FunctionIt;
+				check(Function);
+
+				// N.B. A function can be private/protected and can still be use when it's a BlueprintGetter/BlueprintSetter.
+				//But we bind to the property not the function.
+				if (Function->HasAnyFunctionFlags(FUNC_Private) && Class != AccessorType)
+				{
+					continue;
+				}
+				if (Function->HasAnyFunctionFlags(FUNC_Protected) && !bAccessorCanSeeProtectedMember)
+				{
+					continue;
+				}
+
 				const bool bIsReadable = BindingHelper::IsValidForSourceBinding(Function);
 				const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Function);
 				const bool bHasNotify = FieldDescriptors.Contains(Function->GetFName()) && bIsReadable;
@@ -150,12 +92,22 @@ namespace UE::MVVM::Private
 #if WITH_EDITOR
 		FName NAME_BlueprintGetter = "BlueprintGetter";
 		FName NAME_BlueprintSetter = "BlueprintSetter";
+		FName NAME_BlueprintPrivate = "BlueprintPrivate";
 #endif
 
-		// Remove BP getters / setters and replace them with their property for bindings
 		for (TFieldIterator<const FProperty> PropertyIt(Class, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
 		{
 			const FProperty* Property = *PropertyIt;
+
+			// N.B. Property can be private/protected in cpp but if they are visible in BP that is all that matter.
+			//Only property defined in BP can be BP visible and really private.
+#if WITH_EDITOR
+			if (Property->GetBoolMetaData(NAME_BlueprintPrivate) && Class != AccessorType)
+			{
+				continue;
+			}
+#endif
+
 			const bool bIsReadable = BindingHelper::IsValidForSourceBinding(Property);
 			const bool bIsWritable = BindingHelper::IsValidForDestinationBinding(Property);
 			const bool bHasNotify = FieldDescriptors.Contains(Property->GetFName()) && bIsReadable;
@@ -197,37 +149,31 @@ namespace UE::MVVM::Private
 		return Result;
 	}
 
-	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> InSubClass)
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> InSubClass, TSubclassOf<UObject> InAccessor)
 	{
 		if (InSubClass.Get() && InSubClass.Get()->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 		{
 			TScriptInterface<INotifyFieldValueChanged> DefaultObject = InSubClass.GetDefaultObject();
 			const UE::FieldNotification::IClassDescriptor& ClassDescriptor = DefaultObject->GetFieldNotificationDescriptor();
-			return GetAvailableBindings(InSubClass.Get(), &ClassDescriptor);
+			return GetAvailableBindings(InSubClass.Get(), InAccessor.Get(), &ClassDescriptor);
 		}
 		else
 		{
-			return GetAvailableBindings(InSubClass.Get(), nullptr);
+			return GetAvailableBindings(InSubClass.Get(), InAccessor.Get(), nullptr);
 		}
 	}
 } //namespace
 
 
-TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetViewModelAvailableBindings(TSubclassOf<UMVVMViewModelBase> ViewModelClass) const
+TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindings(TSubclassOf<UObject> Class, TSubclassOf<UObject> Accessor) const
 {
-	return UE::MVVM::Private::GetAvailableBindings(ViewModelClass);
+	return UE::MVVM::Private::GetAvailableBindings(Class, Accessor);
 }
 
 
-TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetWidgetAvailableBindings(TSubclassOf<UWidget> WidgetClass) const
+TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindingsForStruct(const UScriptStruct* Struct) const
 {
-	return UE::MVVM::Private::GetAvailableBindings(WidgetClass);
-}
-
-
-TArray<FMVVMAvailableBinding> UMVVMSubsystem::GetAvailableBindings(TSubclassOf<UObject> Class) const
-{
-	return UE::MVVM::Private::GetAvailableBindings(Class);
+	return UE::MVVM::Private::GetAvailableBindings(Struct, nullptr, nullptr);
 }
 
 

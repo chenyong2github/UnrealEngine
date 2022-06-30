@@ -4,6 +4,7 @@
 
 #include "Algo/RemoveIf.h"
 #include "Algo/Transform.h"
+#include "Bindings/MVVMBindingHelper.h"
 #include "BlueprintEditor.h"
 #include "Components/Widget.h"
 #include "DetailWidgetRow.h"
@@ -285,34 +286,14 @@ namespace UE::MVVM
 
 		UClass* Class = Source.Class;
 		UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
-		if (bIsWidget)
-		{
-			AvailableBindings = Subsystem->GetWidgetAvailableBindings(Class);
-		}
-		else
-		{
-			AvailableBindings = Subsystem->GetViewModelAvailableBindings(Class);
-		}
+		AvailableBindings = Subsystem->GetAvailableBindings(Class, WidgetBlueprint->GeneratedClass);
 
 		TArray<FMVVMBlueprintPropertyPath> AvailablePaths;
 		Algo::Transform(AvailableBindings, AvailablePaths, 
 			[this, Class, Source](const FMVVMAvailableBinding& Binding)
 			{
-				FName BindingName = Binding.GetBindingName().ToName();
-
-				UE::MVVM::FMVVMConstFieldVariant Variant;
-
-				if (const UFunction* Function = Class->FindFunctionByName(BindingName))
-				{
-					Variant = UE::MVVM::FMVVMConstFieldVariant(Function);
-				}
-				else if (const FProperty* Property = Class->FindPropertyByName(BindingName))
-				{
-					Variant = UE::MVVM::FMVVMConstFieldVariant(Property);
-				}
-
+				UE::MVVM::FMVVMConstFieldVariant Variant = UE::MVVM::BindingHelper::FindFieldByName(Class, Binding.GetBindingName());
 				FMVVMBlueprintPropertyPath Path;
-
 				if (!Variant.IsEmpty())
 				{
 					if (bIsWidget)

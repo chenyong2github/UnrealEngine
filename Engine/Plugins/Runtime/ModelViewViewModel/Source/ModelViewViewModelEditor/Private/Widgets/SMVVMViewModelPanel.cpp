@@ -41,6 +41,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 
 	WeakBlueprintEditor = WidgetBlueprintEditor;
 	WeakBlueprintView = CurrentBlueprintView;
+	ViewModelFieldIterator = MakeUnique<FFieldIterator_ViewModel>(WidgetBlueprint);
 
 	if (CurrentBlueprintView)
 	{
@@ -53,7 +54,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.bShowSearchBox(true)
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
-		.FieldIterator(&ViewModelFieldIterator)
+		.FieldIterator(ViewModelFieldIterator.Get())
 		.SearchBoxPreSlot()
 		[
 			SAssignNew(AddMenuButton, SPositiveActionButton)
@@ -168,11 +169,16 @@ void SMVVMViewModelPanel::HandleViewModelsUpdated()
 
 TSharedRef<SWidget> SMVVMViewModelPanel::MakeAddMenu()
 {
+	const UWidgetBlueprint* WidgetBlueprint = nullptr;
+	if (TSharedPtr<FWidgetBlueprintEditor> EditorPin = WeakBlueprintEditor.Pin())
+	{
+		WidgetBlueprint = EditorPin->GetWidgetBlueprintObj();
+	}
 	return SNew(SBox)
 		.WidthOverride(600)
 		.HeightOverride(500)
 		[
-			SNew(SMVVMSelectViewModel)
+			SNew(SMVVMSelectViewModel, WidgetBlueprint)
 			.OnCancel(this, &SMVVMViewModelPanel::HandleCancelAddMenu)
 			.OnViewModelCommitted(this, &SMVVMViewModelPanel::HandleAddMenuViewModel)
 		];

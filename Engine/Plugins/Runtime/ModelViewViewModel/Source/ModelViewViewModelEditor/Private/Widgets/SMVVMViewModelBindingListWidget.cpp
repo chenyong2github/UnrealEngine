@@ -11,7 +11,7 @@
 #include "MVVMViewModelBase.h"
 #include "Types/MVVMAvailableBinding.h"
 #include "Types/MVVMFieldVariant.h"
-
+#include "WidgetBlueprint.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 
 #define LOCTEXT_NAMESPACE "SViewModelBindingListWidget"
@@ -20,14 +20,19 @@ namespace UE::MVVM
 {
 
 /** */
+FFieldIterator_ViewModel::FFieldIterator_ViewModel(const UWidgetBlueprint* InWidgetBlueprint)
+	: WidgetBlueprint(InWidgetBlueprint)
+{ }
+
+
 TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct) const
 {
 	TArray<FFieldVariant> Result;
-	if (const UClass* Class = Cast<const UClass>(Struct))
+
+	auto AddResult = [&Result, Struct](const TArray<FMVVMAvailableBinding>& AvailableBindingsList)
 	{
-		TArray<FMVVMAvailableBinding> ViewModelAvailableBindingsList = GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindings(const_cast<UClass*>(Class));
-		Result.Reserve(ViewModelAvailableBindingsList.Num());
-		for (const FMVVMAvailableBinding& Value : ViewModelAvailableBindingsList)
+		Result.Reserve(AvailableBindingsList.Num());
+		for (const FMVVMAvailableBinding& Value : AvailableBindingsList)
 		{
 			FMVVMFieldVariant FieldVariant = BindingHelper::FindFieldByName(Struct, Value.GetBindingName());
 			if (FieldVariant.IsFunction())
@@ -38,18 +43,20 @@ TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct)
 			{
 				Result.Add(FFieldVariant(FieldVariant.GetProperty()));
 			}
-		}		
-	}
-	else if (Cast<const UScriptStruct>(Struct))
-	{
-		for (TFieldIterator<FProperty> PropertyIt(Struct, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt)
-		{
-			FProperty* Property = *PropertyIt;
-			if (BindingHelper::IsValidForSourceBinding(Property) || BindingHelper::IsValidForDestinationBinding(Property))
-			{
-				Result.Add(FFieldVariant(Property));
-			}
 		}
+	};
+
+
+	if (const UClass* Class = Cast<const UClass>(Struct))
+	{
+		const UWidgetBlueprint* WidgetBlueprintPtr = WidgetBlueprint.Get();
+		TSubclassOf<UObject> AccessorClass = WidgetBlueprintPtr ? WidgetBlueprintPtr->GeneratedClass : nullptr;
+		AddResult(GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindings(const_cast<UClass*>(Class), AccessorClass));
+
+	}
+	else if (const UScriptStruct* ScriptStruct = Cast<const UScriptStruct>(Struct))
+	{
+		AddResult(GEngine->GetEngineSubsystem<UMVVMSubsystem>()->GetAvailableBindingsForStruct(ScriptStruct));
 	}
 
 	Result.Sort([](const FFieldVariant& A, const FFieldVariant& B)
@@ -89,13 +96,15 @@ TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct)
 
 
 /** */
-void SViewModelBindingListWidget::Construct(const FArguments& InArgs)
+void SViewModelBindingListWidget::Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint)
 {
+	ViewModelFieldIterator = MakeUnique<FFieldIterator_ViewModel>(WidgetBlueprint);
+
 	PropertyViewer = SNew(UE::PropertyViewer::SPropertyViewer)
 		.PropertyVisibility(UE::PropertyViewer::SPropertyViewer::EPropertyVisibility::Hidden)
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
-		.FieldIterator(&ViewModelFieldIterator);
+		.FieldIterator(ViewModelFieldIterator.Get());
 
 	if (InArgs._ViewModel.Class.Get())
 	{

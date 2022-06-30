@@ -415,7 +415,7 @@ private:
 			if (const FMVVMBlueprintViewModelContext* ViewModel = BlueprintViewPtr->FindViewModel(ViewBinding->ViewModelPath.GetViewModelId()))
 			{
 				UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
-				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(ViewModel->GetViewModelClass());
+				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(ViewModel->GetViewModelClass(), WidgetBlueprint->GeneratedClass);
 
 				Algo::Transform(AvailableBindings, AvailablePaths, [ViewModel](const FMVVMAvailableBinding& Binding)
 					{
@@ -502,7 +502,7 @@ private:
 			if (Class != nullptr)
 			{
 				UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
-				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetWidgetAvailableBindings(Class);
+				TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(Class, WidgetBlueprint->GeneratedClass);
 
 				Algo::Transform(AvailableBindings, AvailablePaths, [Class, WidgetName](const FMVVMAvailableBinding& Binding)
 					{

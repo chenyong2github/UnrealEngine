@@ -32,35 +32,21 @@ public:
 	UFUNCTION(BlueprintCallable, Category="MVVM")
 	UMVVMView* GetViewFromUserWidget(const UUserWidget* UserWidget) const;
 
-	UFUNCTION(BlueprintCallable, Category="MVVM")
-	bool IsViewModelValueValidForSourceBinding(const UMVVMViewModelBase* ViewModel, FMVVMBindingName ViewModelPropertyOrFunctionName) const;
-
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	bool IsViewModelValueValidForDestinationBinding(const UMVVMViewModelBase* ViewModel, FMVVMBindingName ViewModelPropertyOrFunctionName) const;
-
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	bool IsViewValueValidForSourceBinding(const UWidget* View, FMVVMBindingName ViewPropertyOrFunctionName) const;
-
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	bool IsViewValueValidForDestinationBinding(const UWidget* View, FMVVMBindingName ViewPropertyOrFunctionName) const;
-
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	bool DoesWidgetTreeContainedWidget(const UWidgetTree* WidgetTree, const UWidget* ViewWidget) const;
-
-	/** Returns the list of all the bindings that are available for the ViewModel. */
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	TArray<FMVVMAvailableBinding> GetViewModelAvailableBindings(TSubclassOf<UMVVMViewModelBase> ViewModelClass) const;
-
-	/** Returns the list of all the bindings that are available for the Widget. */
-	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	TArray<FMVVMAvailableBinding> GetWidgetAvailableBindings(TSubclassOf<UWidget> WidgetClass) const;
 
 	/**
 	 * Returns the list of all the bindings that are available for the Class.
 	 * The class must implement the UNotifyFieldValueChanged interface.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
-	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> Class) const;
+	TArray<FMVVMAvailableBinding> GetAvailableBindings(TSubclassOf<UObject> Class, TSubclassOf<UObject> Accessor) const;
+
+	/**
+	 * Returns the list of all the bindings that are available from the SriptStuct.
+	 * @note When FMVVMAvailableBinding::HasNotify is false, a notification can still be triggered by the owner of the struct. The struct changed but which property of the struct changed is unknown.
+	 */
+	TArray<FMVVMAvailableBinding> GetAvailableBindingsForStruct(const UScriptStruct* Struct) const;
 
 	UFUNCTION(BlueprintCallable, Category = "MVVM")
 	UMVVMViewModelCollectionObject* GetGlobalViewModelCollection() const

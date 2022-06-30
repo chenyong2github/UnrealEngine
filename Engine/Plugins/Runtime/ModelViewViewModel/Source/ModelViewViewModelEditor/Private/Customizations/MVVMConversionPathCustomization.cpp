@@ -474,7 +474,7 @@ namespace UE::MVVM
 		}
 
 		UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
-		TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(SourceClass);
+		TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(SourceClass, WidgetBlueprint->GeneratedClass);
 
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		FEdGraphPinType ArgumentType = GetArgumentPinType(ArgumentName, bSourceToDestination);

@@ -6,6 +6,7 @@
 #include "Widgets/SCompoundWidget.h"
 
 class SClassViewer;
+class UWidgetBlueprint;
 
 namespace UE::MVVM
 {
@@ -22,7 +23,7 @@ public:
 	SLATE_END_ARGS()
 
 public:
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint);
 
 private:
 	void HandleClassPicked(UClass* ClassPicked);

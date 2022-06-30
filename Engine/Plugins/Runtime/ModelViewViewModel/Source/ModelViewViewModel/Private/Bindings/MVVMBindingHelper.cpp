@@ -46,11 +46,7 @@ namespace UE::MVVM::BindingHelper
 		return InProperty != nullptr
 			&& InProperty->ArrayDim == 1
 			&& !InProperty->HasAnyPropertyFlags(CPF_Deprecated | CPF_EditorOnly)
-			&& InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible | CPF_BlueprintAssignable)
-#if WITH_EDITOR
-			&& !InProperty->GetBoolMetaData(Private::NAME_BlueprintPrivate)
-#endif
-			;
+			&& InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible | CPF_BlueprintAssignable);
 	}
 
 
@@ -59,11 +55,7 @@ namespace UE::MVVM::BindingHelper
 		return InProperty != nullptr
 			&& InProperty->ArrayDim == 1
 			&& !InProperty->HasAnyPropertyFlags(CPF_Deprecated | CPF_EditorOnly | CPF_BlueprintReadOnly)
-			&& InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible | CPF_BlueprintAssignable)
-#if WITH_EDITOR
-			&& !InProperty->GetBoolMetaData(Private::NAME_BlueprintPrivate)
-#endif
-			;
+			&& InProperty->HasAnyPropertyFlags(CPF_BlueprintVisible | CPF_BlueprintAssignable);
 	}
 
 
