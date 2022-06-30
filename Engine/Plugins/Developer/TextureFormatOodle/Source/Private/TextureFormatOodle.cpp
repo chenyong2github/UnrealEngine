@@ -823,7 +823,8 @@ public:
 		const TCHAR * OodleTextureVersions[] =
 		{
 			TEXT("2.9.5"),
-			TEXT("2.9.6")
+			TEXT("2.9.6"),
+			TEXT("2.9.7")
 		};
 		const int32 OodleTextureVersionsCount = (int32)( sizeof(OodleTextureVersions)/sizeof(OodleTextureVersions[0]) );
 
@@ -1105,7 +1106,7 @@ public:
 
 		if ( GlobalFormatConfig.GetLocalDebugConfig().LogVerbosity >= 2 || (GlobalFormatConfig.GetLocalDebugConfig().LogVerbosity && bIsLargeMip) )
 		{
-			UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle%s %s encode %i x %i x %i to format %s%s (Oodle %s) lambda=%i effort=%i "),
+			UE_LOG(LogTextureFormatOodle, Display, TEXT("Oodle%s %s encode %i x %i x %i to format %s%s (%s) lambda=%i effort=%i "),
 				*CompressOodleTextureVersion.ToString(),
 				RDOLambda ? TEXT("RDO") : TEXT("non-RDO"), InImage.SizeX, InImage.SizeY, InImage.NumSlices, 
 				*TextureFormatName.ToString(),
