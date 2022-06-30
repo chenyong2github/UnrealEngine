@@ -166,6 +166,35 @@ USceneCaptureComponent::USceneCaptureComponent(const FObjectInitializer& ObjectI
 	ShowFlags.SetSeparateTranslucency(0);
 	ShowFlags.SetHMDDistortion(0);
 	ShowFlags.SetOnScreenDebug(0);
+
+	if (!HasAnyFlags(RF_ClassDefaultObject))
+	{
+		FCoreUObjectDelegates::GetPreGarbageCollectDelegate().AddUObject(this, &USceneCaptureComponent::ReleaseGarbageReferences);
+	}
+}
+
+void USceneCaptureComponent::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	FCoreUObjectDelegates::GetPreGarbageCollectDelegate().RemoveAll(this);
+}
+
+// Because HiddenActors and ShowOnlyActors are serialized they are not easily refactored into weak pointers.
+// Before GC runs, release pointers to any actors that have been explicitly marked garbage.
+void USceneCaptureComponent::ReleaseGarbageReferences()
+{
+	// We only want to remove resolved actors that are explicitly marked as garbage, not unresolved pointers.
+	auto Predicate = [](TObjectPtr<AActor> Ptr)
+	{
+		if (AActor* Actor = Ptr.Get())
+		{
+			return Actor->HasAnyInternalFlags(EInternalObjectFlags::Garbage);
+		}
+		return false;
+	};
+	HiddenActors.RemoveAll(Predicate);
+	ShowOnlyActors.RemoveAll(Predicate);
 }
 
 void USceneCaptureComponent::OnRegister()

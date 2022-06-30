@@ -126,6 +126,8 @@ public:
 	UPROPERTY(EditAnywhere, interp, Category = SceneCapture)
 	FString ProfilingEventName;
 
+	virtual void BeginDestroy() override;
+
 	//~ Begin UActorComponent Interface
 	virtual void OnComponentDestroyed(bool bDestroyingHierarchy) override;
 	virtual void OnRegister() override;
@@ -201,6 +203,8 @@ public:
 protected:
 	/** Update the show flags from our show flags settings (ideally, you'd be able to set this more directly, but currently unable to make FEngineShowFlags a UStruct to use it as a FProperty...) */
 	void UpdateShowFlags();
+
+	void ReleaseGarbageReferences();
 
 	virtual void UpdateSceneCaptureContents(FSceneInterface* Scene) {};
 
