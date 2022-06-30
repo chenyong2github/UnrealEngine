@@ -12,6 +12,8 @@
 
 FActorDesc::FActorDesc()
 	: Bounds(ForceInit)
+	, bIsSpatiallyLoaded(false)
+	, bActorIsEditorOnly(false)
 {}
 
 #if WITH_EDITOR
