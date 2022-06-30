@@ -3474,3 +3474,38 @@ float3 GetWorldBentNormalZero(in FMaterialPixelParameters MaterialParameters)
 	return MaterialParameters.WorldNormal;
 #endif
 }
+
+// Return the Iris & Caustic normal which should be used for eye shading model
+void GetEyeNormals(
+	float IrisMask,
+	float IrisDistance,
+	in float3 InNormal,
+	in float3 InClearCoatNormal,
+	in float3 InCustomTangent,
+	inout float3 OutIrisNormal,
+	inout float3 OutCausticNormal)
+{
+#if IRIS_NORMAL
+  #if NUM_MATERIAL_OUTPUTS_GETTANGENTOUTPUT > 0
+	// Blend in the negative intersection normal to create some concavity
+	// Not great as it ties the concavity to the convexity of the cornea surface
+	// No good justification for that. On the other hand, if we're just looking to
+	// introduce some concavity, this does the job.
+	const float3 PlaneNormal = normalize(InCustomTangent);
+	OutCausticNormal = normalize(lerp(PlaneNormal, -InNormal, IrisMask * IrisDistance));
+  #else
+	const float3 PlaneNormal = InNormal;
+	OutCausticNormal = InNormal;
+  #endif
+
+  #if NUM_MATERIAL_OUTPUTS_CLEARCOATBOTTOMNORMAL > 0
+	OutIrisNormal = normalize(InClearCoatNormal);
+  #else
+	OutIrisNormal = PlaneNormal;
+  #endif
+#else
+  #if NUM_MATERIAL_OUTPUTS_GETTANGENTOUTPUT > 0
+	OutIrisNormal = normalize(InCustomTangent);
+  #endif
+#endif
+}

@@ -3126,7 +3126,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 					MoveConnectionTo(EditorOnly->Tangent, BottomSlabBSDF, 10);					// Tangent
 
 					check(ClearCoatBottomNormalOutput);
-					MoveConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), BottomSlabBSDF, 9);// ClearColorBottomNormal -> BottomSlabBSDF.Normal
+					CopyConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), BottomSlabBSDF, 9);// ClearColorBottomNormal -> BottomSlabBSDF.Normal
 
 					// Now weight the top base material by opacity.
 					UMaterialExpressionStrataSlabBSDF* TopSlabBSDF = NewObject<UMaterialExpressionStrataSlabBSDF>(this);
@@ -3352,6 +3352,10 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 			MoveConnectionTo(*SingleLayerWaterOutput->GetInput(1), ConvertNode, 14); // WaterAbsorptionCoefficients
 			MoveConnectionTo(*SingleLayerWaterOutput->GetInput(2), ConvertNode, 15); // WaterPhaseG
 			MoveConnectionTo(*SingleLayerWaterOutput->GetInput(3), ConvertNode, 16); // ColorScaleBehindWater
+		}
+		if (ClearCoatBottomNormalOutput)
+		{
+			CopyConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), ConvertNode, 17);		 // ClearCoatNormal
 		}
 	}
 

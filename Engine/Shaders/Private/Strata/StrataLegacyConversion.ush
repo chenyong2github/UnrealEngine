@@ -4,6 +4,20 @@
 
 #include "../Common.ush"
 
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Helpers
+
+void GetEyeNormals(
+	float IrisMask,
+	float IrisDistance,
+	in float3 InNormal,
+	in float3 InClearCoatNormal,
+	in float3 InCustomTangent,
+	inout float3 OutIrisNormal,
+	inout float3 OutCausticNormal);
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+
 struct FStrataLegacyParameters
 {
 	FStrataPixelFootprint PixelFootprint;
@@ -529,7 +543,10 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	{
 		const float IrisMask = ClearCoat;
 		const float IrisDistance = ClearCoatRoughness;
-		const float3 IrisNormal = RawClearCoatNormal;
+
+		float3 IrisNormal = RawNormal;
+		float3 CausticNormal = RawNormal;
+		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawClearCoatNormal /*RawCustomTangent*/, IrisNormal, CausticNormal);
 
 		FStrataData EyeMat = PromoteParameterBlendedBSDFToOperator(
 			GetStrataEyeBSDF(
