@@ -2753,9 +2753,9 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 			RayTracingResolution.X = GPreviewLightmapPhysicalTileSize * GPUBatchedTileRequests.BatchedTilesDesc.Num();
 			RayTracingResolution.Y = GPreviewLightmapPhysicalTileSize;
 
-			if (OutputRenderTargets[0] != nullptr || OutputRenderTargets[1] != nullptr)
+			if (OutputRenderTargets[0] != nullptr)
 			{
-				FRDGTextureRef RenderTargetTileAtlas = GraphBuilder.RegisterExternalTexture(OutputRenderTargets[0] != nullptr ? OutputRenderTargets[0] : OutputRenderTargets[1], TEXT("GPULightmassRenderTargetTileAtlas0"));
+				FRDGTextureRef RenderTargetTileAtlas = GraphBuilder.RegisterExternalTexture(OutputRenderTargets[0], TEXT("GPULightmassRenderTargetTileAtlas0"));
 
 				FSelectiveLightmapOutputCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FSelectiveLightmapOutputCS::FOutputLayerDim>(0);
@@ -2777,6 +2777,35 @@ void FLightmapRenderer::Finalize(FRDGBuilder& GraphBuilder)
 				FComputeShaderUtils::AddPass(
 					GraphBuilder,
 					RDG_EVENT_NAME("SelectiveLightmapOutput 0"),
+					Shader,
+					PassParameters,
+					FComputeShaderUtils::GetGroupCount(RayTracingResolution, FComputeShaderUtils::kGolden2DGroupSize));
+			}
+
+			if (OutputRenderTargets[1] != nullptr)
+			{
+				FRDGTextureRef RenderTargetTileAtlas = GraphBuilder.RegisterExternalTexture(OutputRenderTargets[1], TEXT("GPULightmassRenderTargetTileAtlas1"));
+
+				FSelectiveLightmapOutputCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FSelectiveLightmapOutputCS::FOutputLayerDim>(1);
+				PermutationVector.Set<FSelectiveLightmapOutputCS::FDrawProgressBars>(Scene->Settings->bShowProgressBars);
+
+				auto Shader = GlobalShaderMap->GetShader<FSelectiveLightmapOutputCS>(PermutationVector);
+
+				FSelectiveLightmapOutputCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSelectiveLightmapOutputCS::FParameters>();
+				PassParameters->NumBatchedTiles = GPUBatchedTileRequests.BatchedTilesDesc.Num();
+				PassParameters->NumTotalSamples = NumTotalPassesToRender;
+				PassParameters->NumIrradianceCachePasses = Scene->Settings->bUseIrradianceCaching ? Scene->Settings->IrradianceCacheQuality : 0;
+				PassParameters->NumRayGuidingTrialSamples = Scene->Settings->bUseFirstBounceRayGuiding ? Scene->Settings->FirstBounceRayGuidingTrialSamples : 0;
+				PassParameters->BatchedTiles = GPUBatchedTileRequests.BatchedTilesSRV;
+				PassParameters->OutputTileAtlas = GraphBuilder.CreateUAV(RenderTargetTileAtlas);
+				PassParameters->IrradianceAndSampleCount = GraphBuilder.CreateUAV(IrradianceAndSampleCount);
+				PassParameters->SHDirectionality = GraphBuilder.CreateUAV(SHDirectionality);
+				PassParameters->SHCorrectionAndStationarySkyLightBentNormal = GraphBuilder.CreateUAV(SHCorrectionAndStationarySkyLightBentNormal);
+
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("SelectiveLightmapOutput 1"),
 					Shader,
 					PassParameters,
 					FComputeShaderUtils::GetGroupCount(RayTracingResolution, FComputeShaderUtils::kGolden2DGroupSize));
