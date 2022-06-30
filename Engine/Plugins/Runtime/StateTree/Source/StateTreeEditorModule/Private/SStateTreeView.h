@@ -8,7 +8,7 @@
 
 class UStateTreeEditorData;
 class UStateTreeState;
-
+class SScrollBox;
 
 class FActionTreeViewDragDrop : public FDragDropOperation
 {
@@ -75,6 +75,7 @@ private:
 
 	TSharedPtr<STreeView<UStateTreeState*>> TreeView;
 	TSharedPtr<SScrollBar> ExternalScrollbar;
+	TSharedPtr<SScrollBox> ViewBox;
 
 	UStateTreeState* RequestedRenameState;
 	bool bItemsDirty;

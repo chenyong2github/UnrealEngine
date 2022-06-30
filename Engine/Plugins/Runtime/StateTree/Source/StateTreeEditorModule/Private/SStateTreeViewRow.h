@@ -9,6 +9,7 @@
 class UStateTreeEditorData;
 class SStateTreeView;
 class SInlineEditableTextBlock;
+class SScrollBox;
 class FStateTreeViewModel;
 
 class SStateTreeViewRow : public STableRow<UStateTreeState*>
@@ -20,7 +21,7 @@ public:
 	}
 	SLATE_END_ARGS()
 
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, UStateTreeState* InState, TSharedRef<FStateTreeViewModel> InStateTreeViewModel);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, UStateTreeState* InState, const TSharedPtr<SScrollBox>& ViewBox, TSharedRef<FStateTreeViewModel> InStateTreeViewModel);
 	void RequestRename();
 
 private:

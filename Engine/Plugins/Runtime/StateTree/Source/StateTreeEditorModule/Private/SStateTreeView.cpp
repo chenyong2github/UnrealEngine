@@ -137,7 +137,7 @@ void SStateTreeView::Construct(const FArguments& InArgs, TSharedRef<FStateTreeVi
 			.FillWidth(1.0f)
 			.Padding(0.0f)
 			[
-				SNew(SScrollBox)
+				SAssignNew(ViewBox, SScrollBox)
 				.Orientation(Orient_Horizontal)
 				.ExternalScrollbar(HorizontalScrollBar)
 				+SScrollBox::Slot()
@@ -290,7 +290,7 @@ void SStateTreeView::HandleModelSelectionChanged(const TArray<UStateTreeState*>&
 
 TSharedRef<ITableRow> SStateTreeView::HandleGenerateRow(UStateTreeState* InState, const TSharedRef<STableViewBase>& InOwnerTableView)
 {
-	return SNew(SStateTreeViewRow, InOwnerTableView, InState, StateTreeViewModel.ToSharedRef());
+	return SNew(SStateTreeViewRow, InOwnerTableView, InState, ViewBox, StateTreeViewModel.ToSharedRef());
 }
 
 void SStateTreeView::HandleGetChildren(UStateTreeState* InParent, TArray<UStateTreeState*>& OutChildren)
