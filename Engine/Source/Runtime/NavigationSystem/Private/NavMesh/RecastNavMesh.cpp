@@ -1241,6 +1241,16 @@ int32 ARecastNavMesh::GetCompressedTileCacheSize()
 
 bool ARecastNavMesh::IsResizable() const
 {
+	// Ignore bFixedTilePoolSize when in EditorWorldPartitionBuildMode
+	if (const UWorld* World = GetWorld())
+	{
+		const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(World);
+		if (NavSys && NavSys->GetRunMode() == FNavigationSystemRunMode::EditorWorldPartitionBuildMode)
+		{
+			return true;
+		}
+	}
+	
 	return !bFixedTilePoolSize;
 }
 

@@ -933,7 +933,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 			}
 		}
 
-		if (OperationMode == FNavigationSystemRunMode::EditorMode)
+		if (FNavigationSystem::IsEditorRunMode(OperationMode))
 		{
 			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 		}
@@ -994,7 +994,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 			}
 		}
 
-		if (OperationMode == FNavigationSystemRunMode::EditorMode)
+		if (FNavigationSystem::IsEditorRunMode(OperationMode))
 		{
 			// don't lock navigation building in editor
 			RemoveNavigationBuildLock(InitialNavBuildingLockFlags, ELockRemovalRebuildAction::RebuildIfNotInEditor);
@@ -1022,7 +1022,7 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	}
 
 #if	WITH_EDITOR
-	if (Mode == FNavigationSystemRunMode::EditorMode)
+	if (FNavigationSystem::IsEditorRunMode(Mode))
 	{
 		// make sure this static get applied to this instance
 		bNavigationAutoUpdateEnabled = !bNavigationAutoUpdateEnabled; 
@@ -1336,7 +1336,7 @@ void UNavigationSystemV1::AddReferencedObjects(UObject* InThis, FReferenceCollec
 	Collector.AddReferencedObject(CrowdManager, InThis);
 
 	// don't reference NavAreaClasses in editor (unless PIE is active)
-	if (This->OperationMode != FNavigationSystemRunMode::EditorMode)
+	if (!FNavigationSystem::IsEditorRunMode(This->OperationMode))
 	{
 		Collector.AddReferencedObjects(This->NavAreaClasses, InThis);
 	}
@@ -1354,7 +1354,7 @@ void UNavigationSystemV1::SetNavigationAutoUpdateEnabled(bool bNewEnable, UNavig
 		{
 			const bool bCurrentIsEnabled = NavSystem->GetIsAutoUpdateEnabled();
 			NavSystem->DefaultDirtyAreasController.bCanAccumulateDirtyAreas = bCurrentIsEnabled
-				|| (NavSystem->OperationMode != FNavigationSystemRunMode::EditorMode && NavSystem->OperationMode != FNavigationSystemRunMode::InvalidMode);
+				|| (!FNavigationSystem::IsEditorRunMode(NavSystem->OperationMode) && NavSystem->OperationMode != FNavigationSystemRunMode::InvalidMode);
 
 			if (bCurrentIsEnabled)
 			{
@@ -3481,7 +3481,7 @@ void UNavigationSystemV1::Build()
 
 	if (bAutoCreateNavigationData == true
 #if WITH_EDITOR
-		|| OperationMode == FNavigationSystemRunMode::EditorMode
+		|| FNavigationSystem::IsEditorRunMode(OperationMode)
 #endif // WITH_EDITOR
 		)
 	{
@@ -3794,7 +3794,7 @@ void UNavigationSystemV1::RemoveNavigationBuildLock(uint8 Flags, const ELockRemo
 		DefaultDirtyAreasController.OnNavigationBuildUnlocked();
 
 		const bool bRebuild = 
-			(RebuildAction == ELockRemovalRebuildAction::RebuildIfNotInEditor && (OperationMode != FNavigationSystemRunMode::EditorMode)) || 
+			(RebuildAction == ELockRemovalRebuildAction::RebuildIfNotInEditor && !FNavigationSystem::IsEditorRunMode(OperationMode)) || 
 			(RebuildAction == ELockRemovalRebuildAction::Rebuild);
 		
 		if (bRebuild)
@@ -3954,7 +3954,7 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 	}
 
 #if WITH_EDITOR
-	if (OperationMode == FNavigationSystemRunMode::EditorMode)
+	if (FNavigationSystem::IsEditorRunMode(OperationMode))
 	{
 		// see if there are any unregistered yet valid nav data instances
 		// In general we register navdata on its PostLoad, but in some cases
@@ -4769,7 +4769,7 @@ void UNavigationSystemV1::GetOnScreenMessages(TMultiMap<FCoreDelegates::EOnScree
 	const bool bIsNavigationAutoUpdateEnabled = true;
 #endif
 	if (IsNavigationDirty()
-		&& ((OperationMode == FNavigationSystemRunMode::EditorMode && !bIsNavigationAutoUpdateEnabled)
+		&& ((FNavigationSystem::IsEditorRunMode(OperationMode) && !bIsNavigationAutoUpdateEnabled)
 			|| !SupportsNavigationGeneration() || !CanRebuildDirtyNavigation()))
 	{
 		OutMessages.Add(FCoreDelegates::EOnScreenMessageSeverity::Error

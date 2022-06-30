@@ -34,6 +34,7 @@ enum class FNavigationSystemRunMode : uint8
 	SimulationMode,
 	PIEMode,
 	InferFromWorldMode,
+	EditorWorldPartitionBuildMode
 };
 
 namespace ENavigationLockReason
@@ -104,6 +105,8 @@ namespace FNavigationSystem
 	/** Discards all navigation data chunks in all sub-levels */
 	ENGINE_API void DiscardNavigationDataChunks(UWorld& InWorld);
 
+	ENGINE_API bool IsEditorRunMode(const FNavigationSystemRunMode Mode);
+	
 	template<typename TNavSys>
 	FORCEINLINE TNavSys* GetCurrent(UWorld* World)
 	{

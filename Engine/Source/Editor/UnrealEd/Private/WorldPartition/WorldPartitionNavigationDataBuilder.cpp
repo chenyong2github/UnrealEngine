@@ -289,13 +289,13 @@ bool UWorldPartitionNavigationDataBuilder::GenerateNavigationData(UWorldPartitio
 
 	static int32 CallCount = 0;
 	CallCount++;
-	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("%i. GenerateNavigationData for LoadedBounds %s"), CallCount, *LoadedBounds.ToString());
+	UE_LOG(LogWorldPartitionNavigationDataBuilder, Log, TEXT("Iteration %i. GenerateNavigationData for LoadedBounds %s"), CallCount, *LoadedBounds.ToString());
 
 	UWorld* World = WorldPartition->World;
 
 	// Generate navmesh
-	// Make sure navigation is added and initialized in EditorMode
-	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorMode);
+	// Make sure navigation is added and initialized in EditorWorldPartitionBuildMode
+	FNavigationSystem::AddNavigationSystemToWorld(*World, FNavigationSystemRunMode::EditorWorldPartitionBuildMode);
 
 	UNavigationSystemBase* NavSystem = World->GetNavigationSystem();
 	if (NavSystem == nullptr)

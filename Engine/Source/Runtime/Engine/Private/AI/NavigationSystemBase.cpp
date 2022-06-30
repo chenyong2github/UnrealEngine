@@ -67,6 +67,11 @@ namespace FNavigationSystem
 		}
 	}
 
+	bool IsEditorRunMode(const FNavigationSystemRunMode Mode)
+	{
+		return Mode == FNavigationSystemRunMode::EditorMode || Mode == FNavigationSystemRunMode::EditorWorldPartitionBuildMode;
+	}
+
 	void AddNavigationSystemToWorld(UWorld& WorldOwner, const FNavigationSystemRunMode RunMode, UNavigationSystemConfig* NavigationSystemConfig, const bool bInitializeForWorld, const bool bOverridePreviousNavSys)
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FNavigationSystem::AddNavigationSystemToWorld);
@@ -98,7 +103,7 @@ namespace FNavigationSystem
 			{
 				WorldOwner.GetNavigationSystem()->InitializeForWorld(WorldOwner, ResolvedRunMode);
 			}
-			else if (ResolvedRunMode == FNavigationSystemRunMode::EditorMode)
+			else if (IsEditorRunMode(ResolvedRunMode))
 			{
 				DiscardNavigationDataChunks(WorldOwner);
 			}

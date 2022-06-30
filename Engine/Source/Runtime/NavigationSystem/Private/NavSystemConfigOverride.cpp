@@ -124,7 +124,7 @@ void ANavSystemConfigOverride::OverrideNavSystem()
 				: FNavigationSystemRunMode::GameMode)
 			;
 
-		if (RunMode == FNavigationSystemRunMode::EditorMode)
+		if (FNavigationSystem::IsEditorRunMode(RunMode))
 		{
 			FNavigationSystem::AddNavigationSystemToWorld(*World, RunMode, NavigationSystemConfig, /*bInitializeForWorld=*/false, /*bOverridePreviousNavSys=*/true);
 #if WITH_EDITOR
