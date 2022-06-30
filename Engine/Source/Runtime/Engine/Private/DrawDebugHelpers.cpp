@@ -64,9 +64,16 @@ bool CanDrawServerDebugInContext(const FWorldContext& WorldContext)
 
 void FlushPersistentDebugLines( const UWorld* InWorld )
 {
-	if(InWorld && InWorld->PersistentLineBatcher)
+	if (GEngine->GetNetMode(InWorld) != NM_DedicatedServer)
 	{
-		InWorld->PersistentLineBatcher->Flush();
+		if (InWorld && InWorld->PersistentLineBatcher)
+		{
+			InWorld->PersistentLineBatcher->Flush();
+		}
+	}
+	else
+	{
+		UE_DRAW_SERVER_DEBUG_ON_EACH_CLIENT(FlushPersistentDebugLines);
 	}
 }
 
