@@ -280,17 +280,6 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=Play, meta=(AllowAbstract))
 	TArray<TSoftClassPtr<UObject>> BaseClassesToAllowRecompilingDuringPlayInEditor;
 
-	void UnregisterOnUpdateSettings(FDelegateHandle Object)
-	{
-		OnSettingsChange.Remove(Object);
-	}
-	
-
-	void UnregisterOnUpdateSettings(FDelegateHandle Object)
-	{
-		OnSettingsChange.Remove(Object);
-	}
-	
 	/** Get allowed functions permissions list */
 	FPathPermissionList& GetFunctionPermissions() { return FunctionPermissions; }
 
