@@ -142,7 +142,7 @@ public:
 		double MaxDim = MaxElement(Bounds.Max - Bounds.Min + ExpandBounds * 2.0) + 4.0 * MaxOffsetDistance;
 		if (!ensureMsgf(MaxDim / CellSize <= ApproxMaxCellsPerDimension - 4, TEXT("SDF resolution clamped to avoid excessive memory use")))
 		{
-			CellSize = MaxDim / (ApproxMaxCellsPerDimension - 4);
+			CellSize = float (MaxDim / (ApproxMaxCellsPerDimension - 4));
 			if (!ensure(CellSize > 0 && FMath::IsFinite(CellSize)))
 			{
 				return;
@@ -340,10 +340,10 @@ private:
 			double fir = (xr[0] - ox) * invdx, fjr = (xr[1] - oy) * invdx, fkr = (xr[2] - oz) * invdx;
 
 			// recompute J/K integer bounds of triangle w/o exact band
-			int32 j0 = FMath::Clamp(FMath::CeilToInt(FMath::Min3(fjp, fjq, fjr)), 0, NJ - 1);
-			int32 j1 = FMath::Clamp(FMath::FloorToInt(FMath::Max3(fjp, fjq, fjr)), 0, NJ - 1);
-			int32 k0 = FMath::Clamp(FMath::CeilToInt(FMath::Min3(fkp, fkq, fkr)), 0, NK - 1);
-			int32 k1 = FMath::Clamp(FMath::FloorToInt(FMath::Max3(fkp, fkq, fkr)), 0, NK - 1);
+			int32 j0 = FMath::Clamp(FMath::CeilToInt32(FMath::Min3(fjp, fjq, fjr)), 0, NJ - 1);
+			int32 j1 = FMath::Clamp(FMath::FloorToInt32(FMath::Max3(fjp, fjq, fjr)), 0, NJ - 1);
+			int32 k0 = FMath::Clamp(FMath::CeilToInt32(FMath::Min3(fkp, fkq, fkr)), 0, NK - 1);
+			int32 k1 = FMath::Clamp(FMath::FloorToInt32(FMath::Max3(fkp, fkq, fkr)), 0, NK - 1);
 
 			// and do intersection counts
 			for (int K = k0; K <= k1; ++K)
@@ -354,7 +354,7 @@ private:
 					if (PointInTriangle2d(J, K, fjp, fkp, fjq, fkq, fjr, fkr, A, B, C))
 					{
 						double fi = A * fip + B * fiq + C * fir; // intersection I coordinate
-						int i_interval = FMath::CeilToInt(fi); // intersection is in (i_interval-1,i_interval]
+						int i_interval = FMath::CeilToInt32(fi); // intersection is in (i_interval-1,i_interval]
 						if (i_interval < 0)
 						{
 							DenseGrid::AtomicIncDec(IntersectionCount, 0, J, K, neg_x);

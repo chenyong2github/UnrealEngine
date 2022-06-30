@@ -72,7 +72,7 @@ public:
 
 
 	TMeshWindingNumberGrid(const TriangleMeshType* Mesh, TFastWindingTree<TriangleMeshType>* FastWinding, double CellSize)
-		: Mesh(Mesh), FastWinding(FastWinding), CellSize(CellSize), MeshSDF(Mesh, CellSize, FastWinding->GetTree())
+		: Mesh(Mesh), FastWinding(FastWinding), CellSize(CellSize), MeshSDF(Mesh, (float)CellSize, FastWinding->GetTree())
 	{
 	}
 
