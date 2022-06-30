@@ -37,49 +37,57 @@ namespace UE
 
 class FHttpRequestPool;
 
-enum class EHttpContentType : int16
+enum class EHttpMethod : uint8
+{
+	Get,
+	Put,
+	Post,
+	Head,
+	Delete,
+};
+
+enum class EHttpMediaType : int16
 {
 	// Negative integers reserved for future custom string content types
 	UnspecifiedContentType = 0,
-	AnyContentType,
+	Any,
 	Binary,
 	Text,
-	JSON,
+	Json,
+	Yaml,
 	CbObject,
 	CbPackage,
-	YAML,
 	CbPackageOffer,
 	CompressedBinary,
 	FormUrlEncoded,
-	Count
 };
 
-inline FStringView GetHttpMimeType(EHttpContentType Type)
+inline FStringView GetHttpMimeType(EHttpMediaType Type)
 {
 	switch (Type)
 	{
-		case EHttpContentType::UnspecifiedContentType:
+		case EHttpMediaType::UnspecifiedContentType:
 			checkNoEntry();
 			return FStringView();
-		case EHttpContentType::AnyContentType:
+		case EHttpMediaType::Any:
 			return TEXTVIEW("*/*");
-		case EHttpContentType::Binary:
+		case EHttpMediaType::Binary:
 			return TEXTVIEW("application/octet-stream");
-		case EHttpContentType::Text:
+		case EHttpMediaType::Text:
 			return TEXTVIEW("text/plain");
-		case EHttpContentType::JSON:
+		case EHttpMediaType::Json:
 			return TEXTVIEW("application/json");
-		case EHttpContentType::CbObject:
-			return TEXTVIEW("application/x-ue-cb");
-		case EHttpContentType::CbPackage:
-			return TEXTVIEW("application/x-ue-cbpkg");
-		case EHttpContentType::YAML:
+		case EHttpMediaType::Yaml:
 			return TEXTVIEW("text/yaml");
-		case EHttpContentType::CbPackageOffer:
+		case EHttpMediaType::CbObject:
+			return TEXTVIEW("application/x-ue-cb");
+		case EHttpMediaType::CbPackage:
+			return TEXTVIEW("application/x-ue-cbpkg");
+		case EHttpMediaType::CbPackageOffer:
 			return TEXTVIEW("application/x-ue-offer");
-		case EHttpContentType::CompressedBinary:
+		case EHttpMediaType::CompressedBinary:
 			return TEXTVIEW("application/x-ue-comp");
-		case EHttpContentType::FormUrlEncoded:
+		case EHttpMediaType::FormUrlEncoded:
 			return TEXTVIEW("application/x-www-form-urlencoded");
 		default:
 			return TEXTVIEW("unknown");
@@ -152,18 +160,6 @@ public:
 		Retry
 	};
 
-	/**
-	 * Supported request verbs
-	 */
-	enum class ERequestVerb
-	{
-		Get,
-		Put,
-		Post,
-		Delete,
-		Head
-	};
-
 	using FResultCode = int;
 
 	using FOnHttpRequestComplete = TUniqueFunction<ECompletionBehavior(EResult HttpResult, FHttpRequest* Request)>;
@@ -234,12 +230,12 @@ public:
 	EResult PerformBlockingPut(
 		FStringView Uri,
 		const FCompositeBuffer& Buffer,
-		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
 	EResult PerformBlockingPost(FStringView Uri,
 		const FCompositeBuffer& Buffer,
-		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
-		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
+		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
 	void EnqueueAsyncPut(
 		DerivedData::IRequestOwner& Owner,
@@ -247,7 +243,7 @@ public:
 		FStringView Uri,
 		const FCompositeBuffer& Buffer,
 		FOnHttpRequestComplete&& OnComplete,
-		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
 	void EnqueueAsyncPost(
 		DerivedData::IRequestOwner& Owner,
@@ -255,8 +251,8 @@ public:
 		FStringView Uri,
 		const FCompositeBuffer& Buffer,
 		FOnHttpRequestComplete&& OnComplete,
-		EHttpContentType ContentType = EHttpContentType::UnspecifiedContentType,
-		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType ContentType = EHttpMediaType::UnspecifiedContentType,
+		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {});
 
 	/**
@@ -269,14 +265,14 @@ public:
 	EResult PerformBlockingDownload(
 		FStringView Uri,
 		TArray64<uint8>* Buffer,
-		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
 	void EnqueueAsyncDownload(
 		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
 		FOnHttpRequestComplete&& OnComplete,
-		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
 
 	/**
@@ -286,7 +282,7 @@ public:
 	 */
 	EResult PerformBlockingHead(
 		FStringView Uri,
-		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
 	EResult PerformBlockingDelete(
 		FStringView Uri,
@@ -296,7 +292,7 @@ public:
 		FHttpRequestPool* Pool,
 		FStringView Uri,
 		FOnHttpRequestComplete&& OnComplete,
-		EHttpContentType AcceptType = EHttpContentType::UnspecifiedContentType,
+		EHttpMediaType AcceptType = EHttpMediaType::UnspecifiedContentType,
 		TConstArrayView<long> ExpectedErrorCodes = {400});
 	void EnqueueAsyncDelete(
 		DerivedData::IRequestOwner& Owner,
@@ -394,8 +390,8 @@ private:
 	FString EffectiveDomain;
 	const FHttpAccessToken* AuthorizationToken;
 
-	void AddContentTypeHeader(FStringView Header, EHttpContentType Type);
-	Http::Private::FCurlStringList PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength);
+	void AddContentTypeHeader(FStringView Header, EHttpMediaType Type);
+	Http::Private::FCurlStringList PrepareToIssueRequest(FStringView Uri, EHttpMethod Verb, uint64 ContentLength);
 
 	/**
 	 * Performs the request, blocking until finished.
@@ -405,18 +401,18 @@ private:
 	 * @param ExpectedErrorCodes An array of expected return codes outside of the success range that should NOT be logged as an abnormal/exceptional outcome.
 	 * If unset the response body will be stored in the request.
 	 */
-	EResult PerformBlocking(FStringView Uri, ERequestVerb Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes);
+	EResult PerformBlocking(FStringView Uri, EHttpMethod Verb, uint64 ContentLength, TConstArrayView<long> ExpectedErrorCodes);
 
 	void EnqueueAsync(
 		DerivedData::IRequestOwner& Owner,
 		FHttpRequestPool* Pool,
 		FStringView Uri,
-		ERequestVerb Verb,
+		EHttpMethod Verb,
 		uint64 ContentLength,
 		FOnHttpRequestComplete&& OnComplete,
 		TConstArrayView<long> ExpectedErrorCodes);
 
-	void LogResult(FResultCode EResult, FStringView Uri, ERequestVerb Verb, TConstArrayView<long> ExpectedErrorCodes) const;
+	void LogResult(FResultCode EResult, FStringView Uri, EHttpMethod Verb, TConstArrayView<long> ExpectedErrorCodes) const;
 
 	static FString GetAnsiBufferAsString(TConstArrayView64<uint8> Buffer)
 	{

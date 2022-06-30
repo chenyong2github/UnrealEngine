@@ -612,12 +612,12 @@ void FHttpCacheStore::FPutPackageOp::PutRefAsync(
 
 	if (bFinalize)
 	{
-		Request->EnqueueAsyncPost(Owner, Pool, *RefsUri, FCompositeBuffer(), MoveTemp(OnHttpRequestComplete), EHttpContentType::FormUrlEncoded);
+		Request->EnqueueAsyncPost(Owner, Pool, *RefsUri, FCompositeBuffer(), MoveTemp(OnHttpRequestComplete), EHttpMediaType::FormUrlEncoded);
 	}
 	else
 	{
 		Request->AddHeader(TEXTVIEW("X-Jupiter-IoHash"), WriteToString<48>(ObjectHash));
-		Request->EnqueueAsyncPut(Owner, Pool, *RefsUri, Object.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbObject);
+		Request->EnqueueAsyncPut(Owner, Pool, *RefsUri, Object.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject);
 	}
 }
 
@@ -732,7 +732,7 @@ void FHttpCacheStore::FPutPackageOp::OnPackagePutRefComplete(
 			{
 				return PutPackageOp->OnCompressedBlobUploadComplete(HttpResult, Request);
 			},
-			EHttpContentType::CompressedBinary);
+			EHttpMediaType::CompressedBinary);
 	}
 }
 
@@ -904,7 +904,7 @@ void FHttpCacheStore::FGetRecordOp::GetDataBatch(
 
 		TStringBuilder<256> CompressedBlobsUri;
 		CompressedBlobsUri << "api/v1/compressed-blobs/" << CacheStore.StructuredNamespace << "/" << RawHash;
-		Request->EnqueueAsyncDownload(Owner, Pool, *CompressedBlobsUri, MoveTemp(OnHttpRequestComplete), EHttpContentType::AnyContentType, { 404 });
+		Request->EnqueueAsyncDownload(Owner, Pool, *CompressedBlobsUri, MoveTemp(OnHttpRequestComplete), EHttpMediaType::Any, { 404 });
 	}
 }
 
@@ -1138,7 +1138,7 @@ void FHttpCacheStore::FGetRecordOp::DataProbablyExistsBatch(
 		return FHttpRequest::ECompletionBehavior::Done;
 	};
 	FCompositeBuffer DummyBuffer;
-	Request->EnqueueAsyncPost(Owner, Pool, *CompressedBlobsUri, DummyBuffer, MoveTemp(OnHttpRequestComplete), EHttpContentType::FormUrlEncoded);
+	Request->EnqueueAsyncPost(Owner, Pool, *CompressedBlobsUri, DummyBuffer, MoveTemp(OnHttpRequestComplete), EHttpMediaType::FormUrlEncoded);
 }
 
 void FHttpCacheStore::FGetRecordOp::FinishDataStep(bool bSuccess, uint64 InBytesReceived)
@@ -1356,7 +1356,7 @@ bool FHttpCacheStore::AcquireAccessToken()
 			auto OAuthFormDataUTF8 = FTCHARToUTF8(*OAuthFormData);
 			FormData.Append((uint8*)OAuthFormDataUTF8.Get(), OAuthFormDataUTF8.Length());
 
-			Result = Request.PerformBlockingPost(*Uri, FCompositeBuffer(FSharedBuffer::MakeView(FormData.GetData(), FormData.Num())), EHttpContentType::FormUrlEncoded);
+			Result = Request.PerformBlockingPost(*Uri, FCompositeBuffer(FSharedBuffer::MakeView(FormData.GetData(), FormData.Num())), EHttpMediaType::FormUrlEncoded);
 		}
 
 		if (Result == FHttpRequest::EResult::Success && Request.GetResponseCode() == 200)
@@ -1512,7 +1512,7 @@ void FHttpCacheStore::GetCacheRecordOnlyAsync(
 		OnComplete({ Name, Key, UserData, Request->GetBytesReceived(), {}, EStatus::Error });
 		return FHttpRequest::ECompletionBehavior::Done;
 	};
-	Request->EnqueueAsyncDownload(Owner, Pool, *RefsUri, MoveTemp(OnHttpRequestComplete), EHttpContentType::CbObject, { 401, 404 });
+	Request->EnqueueAsyncDownload(Owner, Pool, *RefsUri, MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject, { 401, 404 });
 }
 
 void FHttpCacheStore::PutCacheRecordAsync(
@@ -1751,7 +1751,7 @@ void FHttpCacheStore::GetCacheValueAsync(
 		return FHttpRequest::ECompletionBehavior::Done;
 	};
 
-	Request->EnqueueAsyncDownload(Owner, Pool, *RefsUri, MoveTemp(OnHttpRequestComplete), EHttpContentType::UnspecifiedContentType, { 401, 404 });
+	Request->EnqueueAsyncDownload(Owner, Pool, *RefsUri, MoveTemp(OnHttpRequestComplete), EHttpMediaType::UnspecifiedContentType, { 401, 404 });
 }
 
 void FHttpCacheStore::GetCacheRecordAsync(
@@ -1914,7 +1914,7 @@ void FHttpCacheStore::RefCachedDataProbablyExistsBatchAsync(
 		return FHttpRequest::ECompletionBehavior::Done;
 	};
 
-	Request->EnqueueAsyncPost(Owner, Pool, *RefsUri, FCompositeBuffer(RequestFields.GetOuterBuffer()), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbObject);
+	Request->EnqueueAsyncPost(Owner, Pool, *RefsUri, FCompositeBuffer(RequestFields.GetOuterBuffer()), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject);
 }
 
 void FHttpCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)

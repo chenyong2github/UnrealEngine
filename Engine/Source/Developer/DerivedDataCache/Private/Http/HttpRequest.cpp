@@ -74,7 +74,7 @@ struct FAsyncRequestData final : public DerivedData::FRequestBase
 	FHttpRequestPool* Pool = nullptr;
 	FCurlStringList CurlHeaders;
 	FString Uri;
-	FHttpRequest::ERequestVerb Verb;
+	EHttpMethod Verb;
 	TArray<long, TInlineAllocator<4>> ExpectedErrorCodes;
 	FHttpRequest::FOnHttpRequestComplete OnComplete;
 	FLazyEvent Event {EEventMode::ManualReset};
@@ -378,7 +378,7 @@ void FHttpRequest::PrepareToRetry()
 FHttpRequest::EResult FHttpRequest::PerformBlockingDownload(
 	const FStringView Uri,
 	TArray64<uint8>* const Buffer,
-	const EHttpContentType AcceptType,
+	const EHttpMediaType AcceptType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_HTTPGET, 1L);
@@ -386,7 +386,7 @@ FHttpRequest::EResult FHttpRequest::PerformBlockingDownload(
 
 	AddContentTypeHeader(TEXTVIEW("Accept"), AcceptType);
 
-	return PerformBlocking(Uri, ERequestVerb::Get, 0u, ExpectedErrorCodes);
+	return PerformBlocking(Uri, EHttpMethod::Get, 0u, ExpectedErrorCodes);
 }
 
 void FHttpRequest::EnqueueAsyncDownload(
@@ -394,12 +394,12 @@ void FHttpRequest::EnqueueAsyncDownload(
 	FHttpRequestPool* const Pool,
 	const FStringView Uri,
 	FOnHttpRequestComplete&& OnComplete,
-	const EHttpContentType AcceptType,
+	const EHttpMediaType AcceptType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_HTTPGET, 1L);
 
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Get, 0u, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, EHttpMethod::Get, 0u, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
 void FHttpRequest::AddHeader(const FStringView Header, const FStringView Value)
@@ -504,9 +504,9 @@ void FHttpRequest::CompleteAsync(FResultCode Result)
 	}
 }
 
-void FHttpRequest::AddContentTypeHeader(FStringView Header, EHttpContentType Type)
+void FHttpRequest::AddContentTypeHeader(FStringView Header, EHttpMediaType Type)
 {
-	if (Type != EHttpContentType::UnspecifiedContentType)
+	if (Type != EHttpMediaType::UnspecifiedContentType)
 	{
 		AddHeader(Header, GetHttpMimeType(Type));
 	}
@@ -528,7 +528,7 @@ static const char* GetSessionIdHeader()
 
 static std::atomic<int> GRequestId = 1;
 
-Http::Private::FCurlStringList FHttpRequest::PrepareToIssueRequest(FStringView Uri, ERequestVerb Verb, uint64 ContentLength)
+Http::Private::FCurlStringList FHttpRequest::PrepareToIssueRequest(FStringView Uri, EHttpMethod Verb, uint64 ContentLength)
 {
 	// Strip leading slashes because the separating slash is added below.
 	Uri = FAsciiSet::TrimPrefixWith(Uri, "/");
@@ -576,7 +576,7 @@ Http::Private::FCurlStringList FHttpRequest::PrepareToIssueRequest(FStringView U
 		AddHeader(TCHAR_TO_ANSI(*Header));
 	}
 
-	if ((Verb != ERequestVerb::Get) && (Verb != ERequestVerb::Delete))
+	if ((Verb != EHttpMethod::Get) && (Verb != EHttpMethod::Delete))
 	{
 		AddHeader(*WriteToAnsiString<32>(ANSITEXTVIEW("Content-Length: "), ContentLength));
 	}
@@ -592,7 +592,7 @@ Http::Private::FCurlStringList FHttpRequest::PrepareToIssueRequest(FStringView U
 
 FHttpRequest::EResult FHttpRequest::PerformBlocking(
 	const FStringView Uri,
-	const ERequestVerb Verb,
+	const EHttpMethod Verb,
 	const uint64 ContentLength,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
@@ -613,7 +613,7 @@ void FHttpRequest::EnqueueAsync(
 	DerivedData::IRequestOwner& Owner,
 	FHttpRequestPool* const Pool,
 	const FStringView Uri,
-	const ERequestVerb Verb,
+	const EHttpMethod Verb,
 	const uint64 ContentLength,
 	FOnHttpRequestComplete&& OnComplete,
 	const TConstArrayView<long> ExpectedErrorCodes)
@@ -648,7 +648,7 @@ void FHttpRequest::EnqueueAsync(
 void FHttpRequest::LogResult(
 	const FResultCode Result,
 	const FStringView Uri,
-	const ERequestVerb Verb,
+	const EHttpMethod Verb,
 	const TConstArrayView<long> ExpectedErrorCodes) const
 {
 	if (Result == CURLE_OK)
@@ -659,21 +659,21 @@ void FHttpRequest::LogResult(
 
 		switch (Verb)
 		{
-		case ERequestVerb::Head:
+		case EHttpMethod::Head:
 			VerbStr = TEXT("querying");
 			break;
-		case ERequestVerb::Get:
+		case EHttpMethod::Get:
 			VerbStr = TEXT("fetching");
 			AdditionalInfo << TEXTVIEW("Received: ") << uint64(BytesReceived) << TEXTVIEW(" bytes.");
 			break;
-		case ERequestVerb::Put:
+		case EHttpMethod::Put:
 			VerbStr = TEXT("updating");
 			AdditionalInfo << TEXTVIEW("Sent: ") << uint64(BytesSent) << TEXTVIEW(" bytes.");
 			break;
-		case ERequestVerb::Post:
+		case EHttpMethod::Post:
 			VerbStr = TEXT("posting");
 			break;
-		case ERequestVerb::Delete:
+		case EHttpMethod::Delete:
 			VerbStr = TEXT("deleting");
 			break;
 		default:
@@ -719,7 +719,7 @@ void FHttpRequest::LogResult(
 FHttpRequest::EResult FHttpRequest::PerformBlockingPut(
 	const FStringView Uri,
 	const FCompositeBuffer& Buffer,
-	const EHttpContentType ContentType,
+	const EHttpMediaType ContentType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	uint64 ContentLength = 0u;
@@ -733,14 +733,14 @@ FHttpRequest::EResult FHttpRequest::PerformBlockingPut(
 	ContentLength = Buffer.GetSize();
 	ReadCompositeBuffer = Buffer;
 
-	return PerformBlocking(Uri, ERequestVerb::Put, ContentLength, ExpectedErrorCodes);
+	return PerformBlocking(Uri, EHttpMethod::Put, ContentLength, ExpectedErrorCodes);
 }
 
 FHttpRequest::EResult FHttpRequest::PerformBlockingPost(
 	const FStringView Uri,
 	const FCompositeBuffer& Buffer,
-	const EHttpContentType ContentType,
-	const EHttpContentType AcceptType,
+	const EHttpMediaType ContentType,
+	const EHttpMediaType AcceptType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	uint64 ContentLength = 0;
@@ -755,7 +755,7 @@ FHttpRequest::EResult FHttpRequest::PerformBlockingPost(
 	ContentLength = Buffer.GetSize();
 	ReadCompositeBuffer = Buffer;
 
-	return PerformBlocking(Uri, ERequestVerb::Post, ContentLength, ExpectedErrorCodes);
+	return PerformBlocking(Uri, EHttpMethod::Post, ContentLength, ExpectedErrorCodes);
 }
 
 void FHttpRequest::EnqueueAsyncPut(
@@ -764,7 +764,7 @@ void FHttpRequest::EnqueueAsyncPut(
 	const FStringView Uri,
 	const FCompositeBuffer& Buffer,
 	FOnHttpRequestComplete&& OnComplete,
-	const EHttpContentType ContentType,
+	const EHttpMediaType ContentType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	uint64 ContentLength = 0;
@@ -778,7 +778,7 @@ void FHttpRequest::EnqueueAsyncPut(
 	ReadCompositeBuffer = Buffer;
 	ContentLength = Buffer.GetSize();
 
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Put, ContentLength, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, EHttpMethod::Put, ContentLength, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
 void FHttpRequest::EnqueueAsyncPost(
@@ -787,8 +787,8 @@ void FHttpRequest::EnqueueAsyncPost(
 	const FStringView Uri,
 	const FCompositeBuffer& Buffer,
 	FOnHttpRequestComplete&& OnComplete,
-	const EHttpContentType ContentType,
-	const EHttpContentType AcceptType,
+	const EHttpMediaType ContentType,
+	const EHttpMediaType AcceptType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	uint64 ContentLength = 0;
@@ -803,17 +803,17 @@ void FHttpRequest::EnqueueAsyncPost(
 	ReadCompositeBuffer = Buffer;
 	ContentLength = Buffer.GetSize();
 
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Post, ContentLength, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, EHttpMethod::Post, ContentLength, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
 FHttpRequest::EResult FHttpRequest::PerformBlockingHead(
 	const FStringView Uri,
-	const EHttpContentType AcceptType,
+	const EHttpMediaType AcceptType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_NOBODY, 1L);
 	AddContentTypeHeader(TEXTVIEW("Accept"), AcceptType);
-	return PerformBlocking(Uri, ERequestVerb::Head, 0, ExpectedErrorCodes);
+	return PerformBlocking(Uri, EHttpMethod::Head, 0, ExpectedErrorCodes);
 }
 
 FHttpRequest::EResult FHttpRequest::PerformBlockingDelete(
@@ -821,7 +821,7 @@ FHttpRequest::EResult FHttpRequest::PerformBlockingDelete(
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_CUSTOMREQUEST, "DELETE");
-	return PerformBlocking(Uri, ERequestVerb::Delete, 0, ExpectedErrorCodes);
+	return PerformBlocking(Uri, EHttpMethod::Delete, 0, ExpectedErrorCodes);
 }
 
 void FHttpRequest::EnqueueAsyncHead(
@@ -829,12 +829,12 @@ void FHttpRequest::EnqueueAsyncHead(
 	FHttpRequestPool* const Pool,
 	const FStringView Uri,
 	FOnHttpRequestComplete&& OnComplete,
-	const EHttpContentType AcceptType,
+	const EHttpMediaType AcceptType,
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_NOBODY, 1L);
 	AddContentTypeHeader(TEXTVIEW("Accept"), AcceptType);
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Head, 0, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, EHttpMethod::Head, 0, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
 void FHttpRequest::EnqueueAsyncDelete(
@@ -845,7 +845,7 @@ void FHttpRequest::EnqueueAsyncDelete(
 	const TConstArrayView<long> ExpectedErrorCodes)
 {
 	curl_easy_setopt(static_cast<CURL*>(Curl), CURLOPT_CUSTOMREQUEST, "DELETE");
-	return EnqueueAsync(Owner, Pool, Uri, ERequestVerb::Delete, 0, MoveTemp(OnComplete), ExpectedErrorCodes);
+	return EnqueueAsync(Owner, Pool, Uri, EHttpMethod::Delete, 0, MoveTemp(OnComplete), ExpectedErrorCodes);
 }
 
 } // UE

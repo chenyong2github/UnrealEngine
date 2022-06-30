@@ -963,7 +963,7 @@ FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
 	FCbPackage& OutResponse)
 {
 	return ParseRpcResponse(
-		Request.PerformBlockingPost(Uri, RequestObject.GetBuffer(), EHttpContentType::CbObject, EHttpContentType::CbPackage), Request, OutResponse);
+		Request.PerformBlockingPost(Uri, RequestObject.GetBuffer(), EHttpMediaType::CbObject, EHttpMediaType::CbPackage), Request, OutResponse);
 }
 
 FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
@@ -975,7 +975,7 @@ FHttpRequest::EResult FZenCacheStore::PerformBlockingRpc(FHttpRequest& Request,
 	UE::Zen::Http::SaveCbPackage(RequestPackage, PackageMemory);
 
 	return ParseRpcResponse(
-		Request.PerformBlockingPost(Uri, FCompositeBuffer(FSharedBuffer::MakeView(PackageMemory.GetView())), EHttpContentType::CbPackage, EHttpContentType::CbPackage), Request, OutResponse);
+		Request.PerformBlockingPost(Uri, FCompositeBuffer(FSharedBuffer::MakeView(PackageMemory.GetView())), EHttpMediaType::CbPackage, EHttpMediaType::CbPackage), Request, OutResponse);
 }
 
 void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
@@ -993,7 +993,7 @@ void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
 		OnComplete(ParsedResponseResult, Request, Response);
 		return FHttpRequest::ECompletionBehavior::Done;
 	};
-	Request.EnqueueAsyncPost(Owner, Pool, Uri, RequestObject.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbObject, EHttpContentType::CbPackage);
+	Request.EnqueueAsyncPost(Owner, Pool, Uri, RequestObject.GetBuffer(), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbObject, EHttpMediaType::CbPackage);
 }
 
 void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
@@ -1015,7 +1015,7 @@ void FZenCacheStore::EnqueueAsyncRpc(FHttpRequest& Request,
 	UE::Zen::Http::SaveCbPackage(RequestPackage, PackageMemory);
 	uint64 PackageMemorySize = PackageMemory.TotalSize();
 	FSharedBuffer PackageSharedBuffer = FSharedBuffer::TakeOwnership(PackageMemory.ReleaseOwnership(), PackageMemorySize, FMemory::Free);
-	Request.EnqueueAsyncPost(Owner, Pool, Uri, FCompositeBuffer(PackageSharedBuffer), MoveTemp(OnHttpRequestComplete), EHttpContentType::CbPackage, EHttpContentType::CbPackage);
+	Request.EnqueueAsyncPost(Owner, Pool, Uri, FCompositeBuffer(PackageSharedBuffer), MoveTemp(OnHttpRequestComplete), EHttpMediaType::CbPackage, EHttpMediaType::CbPackage);
 }
 
 void FZenCacheStore::LegacyStats(FDerivedDataCacheStatsNode& OutNode)
