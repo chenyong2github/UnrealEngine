@@ -184,7 +184,7 @@ public:
 #endif
 	static bool IsSupportedAndroidDevice();
 	static void SetForceUnsupported(bool bInOverride);
-	static TMap<FString, FString> GetConfigRulesTMap();
+	static const TMap<FString, FString>& GetConfigRulesTMap();
 	static FString* GetConfigRulesVariable(const FString& Key);
 
 	/* HasVulkanDriverSupport

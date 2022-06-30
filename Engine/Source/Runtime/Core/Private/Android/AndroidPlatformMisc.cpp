@@ -2403,7 +2403,7 @@ FString FAndroidMisc::GetVulkanVersion()
 	return VulkanVersionString;
 }
 
-TMap<FString, FString> FAndroidMisc::GetConfigRulesTMap()
+const TMap<FString, FString>& FAndroidMisc::GetConfigRulesTMap()
 {
 	return ConfigRulesVariables;
 }
