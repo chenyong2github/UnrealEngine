@@ -184,9 +184,6 @@ void FPBDJointCachedSolver::Init(
 	NetLinearImpulse = FVec3(0);
 	NetAngularImpulse = FVec3(0);
 
-	LinearConstraintPadding = FVec3(-1);
-	AngularConstraintPadding = FVec3(-1);
-
 	// Tolerances are positional errors below visible detection. But in PBD the errors
 	// we leave behind get converted to velocity, so we need to ensure that the resultant
 	// movement from that erroneous velocity is less than the desired position tolerance.
@@ -464,8 +461,7 @@ void FPBDJointCachedSolver::InitPositionConstraintDatas(
 	}
 	else if(JointType == EJointMotionType::Limited)
 	{
-		PositionConstraints.ConstraintLimits[ConstraintIndex] =
-			FMath::Max(ConstraintLimit - GetLinearConstraintPadding(ConstraintIndex), (FReal)0.);
+		PositionConstraints.ConstraintLimits[ConstraintIndex] = ConstraintLimit;
 		PositionConstraints.UpdateDatas(ConstraintIndex, LocalAxis, LocalDelta,
 			ConstraintRestitution, true, ConstraintArm0, ConstraintArm1);
 	}
@@ -689,10 +685,6 @@ void FPBDJointCachedSolver::ApplyAxisPositionConstraint(
 		}
 		else if (PositionConstraints.MotionType[ConstraintIndex] != EJointMotionType::Free)
 		{
-			if (PositionConstraints.ConstraintRestitution[ConstraintIndex] > 0.0f)
-			{
-				CalculateLinearConstraintPadding(ConstraintIndex, Dt, PositionConstraints.ConstraintRestitution[ConstraintIndex], DeltaPosition);
-			}
 			SolvePositionConstraintHard(ConstraintIndex, DeltaPosition);
 		}
 	}
@@ -920,8 +912,7 @@ void FPBDJointCachedSolver::InitRotationConstraintDatas(
 
 	RotationConstraints.UpdateDatas(ConstraintIndex, LocalAxis, LocalAngle, ConstraintRestitution, bCheckLimit);
 
-	RotationConstraints.ConstraintLimits[ConstraintIndex] = FMath::Max(
-		JointSettings.AngularLimits[ConstraintIndex] - GetAngularConstraintPadding(ConstraintIndex), (FReal)0.);
+	RotationConstraints.ConstraintLimits[ConstraintIndex] = JointSettings.AngularLimits[ConstraintIndex];
 
 	InitConstraintAxisAngularVelocities[ConstraintIndex] = FVec3::DotProduct(W(1) - W(0), LocalAxis);
 
@@ -934,8 +925,7 @@ void FPBDJointCachedSolver::CorrectAxisAngleConstraint(
 		FVec3& ConstraintAxis,
 		FReal& ConstraintAngle) const
 {
-	const FReal AngleMax = FMath::Max(JointSettings.AngularLimits[ConstraintIndex] -
-		GetAngularConstraintPadding(ConstraintIndex), (FReal)0.);
+	const FReal AngleMax = JointSettings.AngularLimits[ConstraintIndex];
 
 	if (ConstraintAngle > AngleMax)
 	{
@@ -1183,10 +1173,6 @@ void FPBDJointCachedSolver::ApplyRotationConstraint(
 		}
 		else
 		{
-			if (RotationConstraints.ConstraintRestitution[ConstraintIndex] > 0.0f)
-			{
-				CalculateAngularConstraintPadding(ConstraintIndex, RotationConstraints.ConstraintRestitution[ConstraintIndex], DeltaAngle);
-			}
 			SolveRotationConstraintHard(ConstraintIndex, DeltaAngle);
 		}
 	}
@@ -1776,66 +1762,6 @@ void FPBDJointCachedSolver::ApplyRotationDelta(
 	const FVec3& DR)
 {
 	Body(BodyIndex).ApplyRotationDelta(DR);
-}
-
-// Used for non-zero restitution. We pad constraints by an amount such that the velocity
-// calculated after solving constraint positions will as required for the restitution.
-void FPBDJointCachedSolver::CalculateLinearConstraintPadding(
-	const int32 ConstraintIndex,
-	const FReal Dt,
-	const FReal Restitution,
-	FReal& InOutPos)
-{
-	// NOTE: We only calculate the padding after the constraint is first violated, and after
-	// that the padding is fixed for the rest of the iterations in the current step.
-	if ((Restitution > 0.0f) && (InOutPos > 0.0f) && !HasLinearConstraintPadding(ConstraintIndex))
-	{
-		SetLinearConstraintPadding(ConstraintIndex, 0.0f);
-
-		// Calculate the velocity we want to match
-    
-		const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0]+Body(0).DP() + FVec3::CrossProduct(Body(0).DQ(), PositionConstraints.ConstraintArms[PointPositionConstraintIndex][0]), 1.0f);
-		const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1]+Body(1).DP() + FVec3::CrossProduct(Body(1).DQ(), PositionConstraints.ConstraintArms[PointPositionConstraintIndex][1]), 1.0f);
-		const FReal AxisVDt = FVec3::DotProduct(V1Dt - V0Dt, PositionConstraints.ConstraintAxis[ConstraintIndex]);
-
-		// Calculate the padding to apply to the constraint that will result in the
-		// desired outward velocity (assuming the constraint is fully resolved)
-		const FReal Padding = (1.0f + Restitution) * AxisVDt - InOutPos;
-		if (Padding > 0.0f)
-		{
-			SetLinearConstraintPadding(ConstraintIndex, Padding);
-			InOutPos += Padding;
-		}
-	}
-}
-
-// Used for non-zero restitution. We pad constraints by an amount such that the velocity
-// calculated after solving constraint positions will as required for the restitution.
-void FPBDJointCachedSolver::CalculateAngularConstraintPadding(
-	const int32 ConstraintIndex,
-	const FReal Restitution,
-	FReal& InOutAngle)
-{
-	// NOTE: We only calculate the padding after the constraint is first violated, and after
-	// that the padding is fixed for the rest of the iterations in the current step.
-	if ((Restitution > 0.0f) && (InOutAngle > 0.0f) && !HasAngularConstraintPadding(ConstraintIndex))
-	{
-		SetAngularConstraintPadding(ConstraintIndex, 0.0f);
-
-		// Calculate the velocity we want to match
-		const FVec3 W0Dt = FVec3(Body(0).DQ()) + ConnectorWDts[0];
-		const FVec3 W1Dt = FVec3(Body(1).DQ()) + ConnectorWDts[1];
-		const FReal AxisWDt = FVec3::DotProduct(W1Dt - W0Dt, RotationConstraints.ConstraintAxis[(int32)ConstraintIndex]);
-
-		// Calculate the padding to apply to the constraint that will result in the
-		// desired outward velocity (assuming the constraint is fully resolved)
-		const FReal Padding = (1.0f + Restitution) * AxisWDt - InOutAngle;
-		if (Padding > 0.0f)
-		{
-			SetAngularConstraintPadding(ConstraintIndex, Padding);
-			InOutAngle += Padding;
-		}
-	}
 }
 
 void FAxisConstraintDatas::InitDatas(

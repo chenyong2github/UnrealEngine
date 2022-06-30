@@ -531,48 +531,6 @@ struct FAxisConstraintDatas
     		const int32 ConstraintIndex,
     		const FReal Dt);
 		
-		/** Linear / Angular padding */
-		
-		void CalculateLinearConstraintPadding(
-			const int32 ConstraintIndex,
-			const FReal Dt,
-			const FReal Restitution,
-			FReal& InOutPos);
-
-		void CalculateAngularConstraintPadding(
-			const int32 ConstraintIndex,
-			const FReal Restitution,
-			FReal& InOutAngle);
-
-		inline bool HasLinearConstraintPadding(const int32 AxisIndex) const
-		{
-			return LinearConstraintPadding[AxisIndex] >= 0.0f;
-		}
-
-		inline FReal GetLinearConstraintPadding(const int32 AxisIndex) const
-		{
-			return FMath::Max(LinearConstraintPadding[AxisIndex], 0.0f);
-		}
-
-		inline void SetLinearConstraintPadding(const int32 AxisIndex, FReal Padding)
-		{
-			LinearConstraintPadding[AxisIndex] = Padding;
-		}
-		
-		inline bool HasAngularConstraintPadding(const int32 ConstraintIndex) const
-		{
-			return AngularConstraintPadding[ConstraintIndex] >= 0.0f;
-		}
-
-		inline FReal GetAngularConstraintPadding(const int32 ConstraintIndex) const
-		{
-			return FMath::Max(AngularConstraintPadding[ConstraintIndex], 0.0f);
-		}
-
-		inline void SetAngularConstraintPadding(const int32 ConstraintIndex, FReal Padding)
-		{
-			AngularConstraintPadding[ConstraintIndex] = Padding;
-		}
 		
 		// The cached body state on which the joint operates
 		FConstraintSolverBody SolverBodies[MaxConstrainedBodies];
@@ -600,10 +558,6 @@ struct FAxisConstraintDatas
 		// Solver stiffness - increased over iterations for stability
 		// \todo(chaos): remove Stiffness from SolverSettings (because it is not a solver constant)
 		FReal SolverStiffness;
-
-		// Constraint padding which can act something like a velocity constraint (for reslockfreetitution)
-		FVec3 LinearConstraintPadding;
-		FVec3 AngularConstraintPadding;
 
 		// Tolerances below which we stop solving
 		FReal PositionTolerance;					// Distance error below which we consider a constraint or drive solved

@@ -84,32 +84,6 @@ namespace Chaos
 		ConnectorRs[1].EnforceShortestArcWith(ConnectorRs[0]);
 	}
 
-	bool FPBDJointSolver::UpdateIsActive(
-		const FReal Dt,
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings)
-	{
-		// NumActiveConstraints is initialized to -1, so there's no danger of getting invalid LastPs/Qs
-		// We also check SolverStiffness mainly for testing when solver stiffness is 0 (so we don't exit immediately)
-		if ((NumActiveConstraints >= 0) && (SolverStiffness > 0.0f))
-		{
-			bool bIsSolved =
-				FVec3::IsNearlyEqual(P(0), LastPs[0], PositionTolerance)
-				&& FVec3::IsNearlyEqual(P(1), LastPs[1], PositionTolerance)
-				&& FRotation3::IsNearlyEqual(Q(0), LastQs[0], 0.5f * AngleTolerance)
-				&& FRotation3::IsNearlyEqual(Q(1), LastQs[1], 0.5f * AngleTolerance);
-			bIsActive = !bIsSolved;
-		}
-
-		LastPs[0] = P(0);
-		LastPs[1] = P(1);
-		LastQs[0] = Q(0);
-		LastQs[1] = Q(1);
-
-		return bIsActive;
-	}
-
-
 	void FPBDJointSolver::Init(
 		const FReal Dt,
 		const FSolverBodyPtrPair& SolverBodyPair,
@@ -143,9 +117,6 @@ namespace Chaos
 		LinearDriveLambdas = FVec3(0);
 		RotationDriveLambdas = FVec3(0);
 
-		LinearConstraintPadding = FVec3(-1);
-		AngularConstraintPadding = FVec3(-1);
-
 		// Tolerances are positional errors below visible detection. But in PBD the errors
 		// we leave behind get converted to velocity, so we need to ensure that the resultant
 		// movement from that erroneous velocity is less than the desired position tolerance.
@@ -156,9 +127,6 @@ namespace Chaos
 		const FReal ToleranceScale = FMath::Min(1.f, 60.f * 60.f * Dt * Dt);
 		PositionTolerance = ToleranceScale * SolverSettings.PositionTolerance;
 		AngleTolerance = ToleranceScale * SolverSettings.AngleTolerance;
-
-		NumActiveConstraints = -1;
-		bIsActive = true;
 
 		SolverStiffness = 1.0f;
 
@@ -190,8 +158,6 @@ namespace Chaos
 		const FPBDJointSettings& JointSettings)
 	{
 		UpdateDerivedState();
-
-		UpdateIsActive(Dt, SolverSettings, JointSettings);
 	}
 
 	void FPBDJointSolver::UpdateMasses(
@@ -252,7 +218,6 @@ namespace Chaos
 		const FPBDJointSolverSettings& SolverSettings,
 		const FPBDJointSettings& JointSettings)
 	{
-		NumActiveConstraints = 0;
 		SolverStiffness = InSolverStiffness;
 
 		if (SolverSettings.bSolvePositionLast)
@@ -271,8 +236,6 @@ namespace Chaos
 			ApplyPositionDrives(Dt, SolverSettings, JointSettings);
 			ApplyRotationDrives(Dt, SolverSettings, JointSettings);
 		}
-
-		UpdateIsActive(Dt, SolverSettings, JointSettings);
 	}
 
 
@@ -286,7 +249,7 @@ namespace Chaos
 
 		// This is used for the QuasiPbd solver. If the Pbd step applied impulses to
 		// correct position errors, it will have introduced a velocity equal to the 
-		// corection divided by the timestep. We ensure that the velocity constraints
+		// correction divided by the timestep. We ensure that the velocity constraints
 		// (including restitution) are also enforced. This also prevents any position
 		// errors from the previous frame getting converted into energy.
 
@@ -447,8 +410,6 @@ namespace Chaos
 				ApplyVelocityProjection(Dt, SolverSettings, JointSettings, Chaos_Joint_VelProjectionAlpha, DP1, DR1);
 			}
 		}
-	
-		UpdateIsActive(Dt, SolverSettings, JointSettings);
 	}
 
 
@@ -996,9 +957,8 @@ namespace Chaos
 		{
 			FVec3 SwingAxisLocal;
 			FReal DSwingAngle = 0.0f;
-			const FReal LimitPadding = GetAngularConstraintPadding(EJointAngularConstraintIndex::Swing1);
-			const FReal Swing1Limit = FMath::Max(JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] - LimitPadding, 0.0f);
-			const FReal Swing2Limit = FMath::Max(JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] - LimitPadding, 0.0f);
+			const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+			const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 			FPBDJointUtilities::GetEllipticalConeAxisErrorLocal(ConnectorRs[0], ConnectorRs[1], Swing2Limit, Swing1Limit, SwingAxisLocal, DSwingAngle);
 			// SwingAxisLocal has the size of Sine(SwingAngle), thus we need to normalize it
 			SwingAxisLocal.SafeNormalize();
@@ -1285,8 +1245,6 @@ namespace Chaos
 		{
 			LinearHardLambda[LinearHardLambdaIndex] += DLambda;
 		}
-
-		++NumActiveConstraints;
 	}
 
 
@@ -1344,8 +1302,6 @@ namespace Chaos
 			Lambda += DLambda;
 			NetLinearImpulse += DLambda * Axis;
 		}
-
-		++NumActiveConstraints;
 	}
 	
 
@@ -1419,8 +1375,6 @@ namespace Chaos
 		{
 			ApplyRotationConstraintDD(JointStiffness, Axis, Angle, AngularHardLambdaIndex);
 		}
-
-		++NumActiveConstraints;
 	}
 
 
@@ -1564,74 +1518,6 @@ namespace Chaos
 		{
 			ApplyRotationConstraintSoftDD(Dt, JointStiffness, JointDamping, bAccelerationMode, Axis, Angle, AngVelTarget, Lambda);
 		}
-
-		++NumActiveConstraints;
-	}
-
-	// Used for non-zero restitution. We pad constraints by an amount such that the velocity
-	// calculated after solving constraint positions will as required for the restitution.
-	void FPBDJointSolver::CalculateLinearConstraintPadding(
-		const FReal Dt,
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings,
-		const FReal Restitution,
-		const int32 AxisIndex,
-		const FVec3 Axis,
-		FReal& InOutPos)
-	{
-		// NOTE: We only calculate the padding after the constraint is first violated, and after
-		// that the padding is fixed for the rest of the iterations in the current step.
-		if ((Restitution > 0.0f) && (InOutPos > 0.0f) && !HasLinearConstraintPadding(AxisIndex))
-		{
-			SetLinearConstraintPadding(AxisIndex, 0.0f);
-
-			// Calculate the velocity we want to match
-			const FVec3 V0Dt = FVec3::CalculateVelocity(InitConnectorXs[0], ConnectorXs[0], 1.0f);
-			const FVec3 V1Dt = FVec3::CalculateVelocity(InitConnectorXs[1], ConnectorXs[1], 1.0f);
-			const FReal AxisVDt = FVec3::DotProduct(V1Dt - V0Dt, Axis);
-
-			// Calculate the padding to apply to the constraint that will result in the
-			// desired outward velocity (assuming the constraint is fully resolved)
-			const FReal Padding = (1.0f + Restitution) * AxisVDt - InOutPos;
-			if (Padding > 0.0f)
-			{
-				SetLinearConstraintPadding(AxisIndex, Padding);
-				InOutPos += Padding;
-			}
-		}
-	}
-
-	// Used for non-zero restitution. We pad constraints by an amount such that the velocity
-	// calculated after solving constraint positions will as required for the restitution.
-	void FPBDJointSolver::CalculateAngularConstraintPadding(
-		const FReal Dt,
-		const FPBDJointSolverSettings& SolverSettings,
-		const FPBDJointSettings& JointSettings,
-		const FReal Restitution,
-		const EJointAngularConstraintIndex ConstraintIndex,
-		const FVec3 Axis,
-		FReal& InOutAngle)
-	{
-		// NOTE: We only calculate the padding after the constraint is first violated, and after
-		// that the padding is fixed for the rest of the iterations in the current step.
-		if ((Restitution > 0.0f) && (InOutAngle > 0.0f) && !HasAngularConstraintPadding(ConstraintIndex))
-		{
-			SetAngularConstraintPadding(ConstraintIndex, 0.0f);
-
-			// Calculate the velocity we want to match
-			const FVec3 W0Dt = FRotation3::CalculateAngularVelocity(InitConnectorRs[0], ConnectorRs[0], 1.0f);
-			const FVec3 W1Dt = FRotation3::CalculateAngularVelocity(InitConnectorRs[1], ConnectorRs[1], 1.0f);
-			const FReal AxisWDt = FVec3::DotProduct(W1Dt - W0Dt, Axis);
-
-			// Calculate the padding to apply to the constraint that will result in the
-			// desired outward velocity (assuming the constraint is fully resolved)
-			const FReal Padding = (1.0f + Restitution) * AxisWDt - InOutAngle;
-			if (Padding > 0.0f)
-			{
-				SetAngularConstraintPadding(ConstraintIndex, Padding);
-				InOutAngle += Padding;
-			}
-		}
 	}
 
 	//
@@ -1677,9 +1563,8 @@ namespace Chaos
 		FPBDJointUtilities::GetTwistAxisAngle(ConnectorRs[0], ConnectorRs[1], TwistAxis, TwistAngle);
 
 		// Calculate the twist correction to apply to each body
-		const FReal LimitPadding = GetAngularConstraintPadding(EJointAngularConstraintIndex::Twist);
 		FReal DTwistAngle = 0;
-		FReal TwistAngleMax = FMath::Max(JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Twist] - LimitPadding, (FReal)0.);
+		FReal TwistAngleMax = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Twist];
 		if (TwistAngle > TwistAngleMax)
 		{
 			DTwistAngle = TwistAngle - TwistAngleMax;
@@ -1705,11 +1590,6 @@ namespace Chaos
 			}
 			else
 			{
-				if (JointSettings.TwistRestitution > 0.0f)
-				{
-					CalculateAngularConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.TwistRestitution, EJointAngularConstraintIndex::Twist, TwistAxis, DTwistAngle);
-				}
-
 				FReal TwistStiffness = FPBDJointUtilities::GetTwistStiffness(SolverSettings, JointSettings);
 				ApplyRotationConstraint(TwistStiffness, TwistAxis, DTwistAngle, (int32)EJointAngularConstraintIndex::Twist);
 			}
@@ -1725,9 +1605,8 @@ namespace Chaos
 		FVec3 SwingAxisLocal;
 		FReal DSwingAngle = 0.0f;
 
-		const FReal LimitPadding = GetAngularConstraintPadding(EJointAngularConstraintIndex::Swing1);
-		const FReal Swing1Limit = FMath::Max(JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1] - LimitPadding, (FReal)0.);
-		const FReal Swing2Limit = FMath::Max(JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2] - LimitPadding, (FReal)0.);
+		const FReal Swing1Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing1];
+		const FReal Swing2Limit = JointSettings.AngularLimits[(int32)EJointAngularConstraintIndex::Swing2];
 		FPBDJointUtilities::GetEllipticalConeAxisErrorLocal(ConnectorRs[0], ConnectorRs[1], Swing2Limit, Swing1Limit, SwingAxisLocal, DSwingAngle);
 
 		UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    Cone Error %f [Limits %f %f]"), FMath::RadiansToDegrees(DSwingAngle), FMath::RadiansToDegrees(Swing2Limit), FMath::RadiansToDegrees(Swing1Limit));
@@ -1746,11 +1625,6 @@ namespace Chaos
 			}
 			else
 			{
-				if (JointSettings.SwingRestitution > 0.0f)
-				{
-					CalculateAngularConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.SwingRestitution, EJointAngularConstraintIndex::Swing1, SwingAxis, DSwingAngle);
-				}
-
 				FReal SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
 				// For cone constraints, the lambda are all accumulated in Swing2
 				ApplyRotationConstraint(SwingStiffness, SwingAxis, DSwingAngle, (int32)EJointAngularConstraintIndex::Swing2);
@@ -1806,9 +1680,8 @@ namespace Chaos
 		FPBDJointUtilities::GetDualConeSwingAxisAngle(ConnectorRs[0], ConnectorRs[1], SwingConstraintIndex, SwingAxis, SwingAngle);
 
 		// Calculate swing error we need to correct
-		const FReal LimitPadding = GetAngularConstraintPadding(SwingConstraintIndex);
 		FReal DSwingAngle = 0;
-		const FReal SwingAngleMax = FMath::Max(JointSettings.AngularLimits[(int32)SwingConstraintIndex] - LimitPadding, (FReal)0.);
+		const FReal SwingAngleMax = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 		if (SwingAngle > SwingAngleMax)
 		{
 			DSwingAngle = SwingAngle - SwingAngleMax;
@@ -1834,11 +1707,6 @@ namespace Chaos
 			}
 			else
 			{
-				if (JointSettings.SwingRestitution > 0.0f)
-				{
-					CalculateAngularConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.SwingRestitution, SwingConstraintIndex, SwingAxis, DSwingAngle);
-				}
-
 				const FReal SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
 				ApplyRotationConstraint(SwingStiffness, SwingAxis, DSwingAngle, (int32)SwingConstraintIndex);
 			}
@@ -1858,9 +1726,8 @@ namespace Chaos
 		FPBDJointUtilities::GetSwingAxisAngle(ConnectorRs[0], ConnectorRs[1], SolverSettings.SwingTwistAngleTolerance, SwingConstraintIndex, SwingAxis, SwingAngle);
 
 		// Calculate swing error we need to correct
-		const FReal LimitPadding = GetAngularConstraintPadding(SwingConstraintIndex);
 		FReal DSwingAngle = 0;
-		const FReal SwingAngleMax = FMath::Max(JointSettings.AngularLimits[(int32)SwingConstraintIndex] - LimitPadding, (FReal)0.);
+		const FReal SwingAngleMax = JointSettings.AngularLimits[(int32)SwingConstraintIndex];
 		if (SwingAngle > SwingAngleMax)
 		{
 			DSwingAngle = SwingAngle - SwingAngleMax;
@@ -1886,11 +1753,6 @@ namespace Chaos
 			}
 			else
 			{
-				if (JointSettings.SwingRestitution > 0.0f)
-				{
-					CalculateAngularConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.SwingRestitution, SwingConstraintIndex, SwingAxis, DSwingAngle);
-				}
-
 				const FReal SwingStiffness = FPBDJointUtilities::GetSwingStiffness(SolverSettings, JointSettings);
 				ApplyRotationConstraint(SwingStiffness, SwingAxis, DSwingAngle, (int32)SwingConstraintIndex);
 			}
@@ -2028,8 +1890,6 @@ namespace Chaos
 
 				NetLinearImpulse += (KIndex == 0) ? DX : -DX;
 			}
-
-			++NumActiveConstraints;
 		}
 	}
 
@@ -2075,8 +1935,6 @@ namespace Chaos
 
 				NetLinearImpulse += DX;
 			}
-			
-			++NumActiveConstraints;
 		}
 	}
 
@@ -2090,19 +1948,13 @@ namespace Chaos
 		FReal Delta;
 		FPBDJointUtilities::GetSphericalAxisDelta(ConnectorXs[0], ConnectorXs[1], Axis, Delta);
 
-		const FReal LimitPadding = GetLinearConstraintPadding(0);
-		const FReal Limit = FMath::Max(JointSettings.LinearLimit - LimitPadding, (FReal)0.);
+		const FReal Limit = JointSettings.LinearLimit;
 
 		FReal Error = Delta - Limit;
 		if (Error > PositionTolerance)
 		{
 			if (!FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
 			{
-				if (JointSettings.LinearRestitution > 0.0f)
-				{
-					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 0, Axis, Error);
-				}
-
 				const FReal JointStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				const FVec3 Connector0Correction = Axis * Limit;
 				ApplyPositionConstraint(JointStiffness, Axis, Error, Connector0Correction);
@@ -2138,8 +1990,7 @@ namespace Chaos
 			Axis = -Axis;
 		}
 		
-		const FReal AxialLimitPadding = GetLinearConstraintPadding(0);
-		const FReal AxialLimit = (AxialMotion == EJointMotionType::Locked) ? 0.0f : FMath::Max(JointSettings.LinearLimit - AxialLimitPadding, (FReal)0.);
+		const FReal AxialLimit = (AxialMotion == EJointMotionType::Locked) ? 0.0f : JointSettings.LinearLimit;
 		FReal AxialError = AxialDelta - AxialLimit;
 
 		if (AxialError > PositionTolerance)
@@ -2154,20 +2005,15 @@ namespace Chaos
 			}
 			else if (AxialMotion != EJointMotionType::Free)
 			{
-			// Hard Axial constraint
-				if (JointSettings.LinearRestitution > 0.0f)
-				{
-					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 0, Axis, AxialError);
-				}
-
+				// Hard Axial constraint
+	
 				const FReal JointStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				const FVec3 Connector0Correction = ConnectorXs[1] - ConnectorXs[0] - AxialError * Axis;
 				ApplyPositionConstraint(JointStiffness, Axis, AxialError, Connector0Correction, (int32)EJointCylindricalPositionConstraintType::Axial);
 			}
 		}
 
-		const FReal RadialLimitPadding = GetLinearConstraintPadding(1);
-		const FReal RadialLimit = (RadialMotion == EJointMotionType::Locked) ? 0.0f : FMath::Max(JointSettings.LinearLimit - RadialLimitPadding, (FReal)0.);
+		const FReal RadialLimit = (RadialMotion == EJointMotionType::Locked) ? 0.0f : JointSettings.LinearLimit;
 		FReal RadialError = RadialDelta - RadialLimit;
 
 		if (RadialError > PositionTolerance)
@@ -2183,11 +2029,6 @@ namespace Chaos
 			else if (RadialMotion != EJointMotionType::Free)
 			{
 				// Hard Radial constraint
-				if (JointSettings.LinearRestitution > 0.0f)
-				{
-					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 1, RadialAxis, RadialError);
-				}
-
 				const FReal JointStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				const FVec3 Connector0Correction = ConnectorXs[1] - ConnectorXs[0] - RadialError * RadialAxis;
 				ApplyPositionConstraint(JointStiffness, RadialAxis, RadialError, Connector0Correction, (int32)EJointCylindricalPositionConstraintType::Radial);
@@ -2213,8 +2054,7 @@ namespace Chaos
 			Axis = -Axis;
 		}
 
-		const FReal LimitPadding = GetLinearConstraintPadding(0);
-		const FReal Limit = (AxialMotion == EJointMotionType::Locked) ? 0 : FMath::Max(JointSettings.LinearLimit - LimitPadding, (FReal)0.);
+		const FReal Limit = (AxialMotion == EJointMotionType::Locked) ? 0 : JointSettings.LinearLimit;
 		FReal Error = Delta - Limit;
 		if (Error > PositionTolerance)
 		{
@@ -2227,11 +2067,6 @@ namespace Chaos
 			}
 			else
 			{
-				if (JointSettings.LinearRestitution > 0.0f)
-				{
-					CalculateLinearConstraintPadding(Dt, SolverSettings, JointSettings, JointSettings.LinearRestitution, 0, Axis, Error);
-				}
-
 				const FReal JointStiffness = FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
 				const FVec3 Connector0Correction = ConnectorXs[1] - ConnectorXs[0] - Axis * Error;
 				ApplyPositionConstraint(JointStiffness, Axis, Error, Connector0Correction);
@@ -2275,12 +2110,12 @@ namespace Chaos
 		const FVec3 CX = ConnectorXs[1] - ConnectorXs[0];
 		if (CX.Size() > ProjectionPositionTolerance)
 		{
-			FMatrix33 J = Utilities::ComputeJointFactorMatrix(ConnectorXs[1] - P(1), InvI(1), InvM(1));
+			FMatrix33 J = Utilities::ComputeJointFactorMatrix(ConnectorXs[1] - Body1().P(), InvI(1), InvM(1));
 			const FMatrix33 IJ = J.Inverse();
 			const FVec3 DX = Utilities::Multiply(IJ, CX);
 
 			const FVec3 DP1 = -Alpha * InvM(1) * DX;
-			const FVec3 DR1 = -Alpha * Utilities::Multiply(InvI(1), FVec3::CrossProduct(ConnectorXs[1] - P(1), DX));
+			const FVec3 DR1 = -Alpha * Utilities::Multiply(InvI(1), FVec3::CrossProduct(ConnectorXs[1] - Body1().P(), DX));
 			ApplyDelta(1, DP1, DR1);
 
 			NetDP1 += DP1;
@@ -2304,14 +2139,14 @@ namespace Chaos
 		const FReal Error = FMath::Max((FReal)0, Delta - JointSettings.LinearLimit);
 		if (FMath::Abs(Error) > ProjectionPositionTolerance)
 		{
-			const FVec3 AngularAxis1 = FVec3::CrossProduct(ConnectorXs[1] - P(1), Axis);
+			const FVec3 AngularAxis1 = FVec3::CrossProduct(ConnectorXs[1] - Body1().P(), Axis);
 			const FVec3 IA1 = Utilities::Multiply(InvI(1), AngularAxis1);
 			const FReal II1 = FVec3::DotProduct(AngularAxis1, IA1);
 			const FReal IM = InvM(1) + II1;
 			const FVec3 DX = Axis * Error / IM;
 
 			const FVec3 DP1 = -Alpha * InvM(1) * DX;
-			const FVec3 DR1 = -Alpha * Utilities::Multiply(InvI(1), FVec3::CrossProduct(ConnectorXs[1] - P(1), DX));
+			const FVec3 DR1 = -Alpha * Utilities::Multiply(InvI(1), FVec3::CrossProduct(ConnectorXs[1] - Body1().P(), DX));
 			ApplyDelta(1, DP1, DR1);
 
 			NetDP1 += DP1;
@@ -2365,7 +2200,7 @@ namespace Chaos
 			FVec3 DP1 = FVec3(0);
 			if (bPositionLocked)
 			{
-				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - P(1));
+				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - Body1().P());
 			}
 			ApplyDelta(1, DP1, DR1);
 
@@ -2411,7 +2246,7 @@ namespace Chaos
 			FVec3 DP1 = FVec3(0);
 			if (bPositionLocked)
 			{
-				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - P(1));
+				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - Body1().P());
 			}
 			ApplyDelta(1, DP1, DR1);
 
@@ -2454,7 +2289,7 @@ namespace Chaos
 			FVec3 DP1 = FVec3(0);
 			if (bPositionLocked)
 			{
-				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - P(1));
+				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - Body1().P());
 			}
 			ApplyDelta(1, DP1, DR1);
 
@@ -2498,7 +2333,7 @@ namespace Chaos
 			FVec3 DP1 = FVec3(0);
 			if (bPositionLocked)
 			{
-				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - P(1));
+				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - Body1().P());
 			}
 			ApplyDelta(1, DP1, DR1);
 
@@ -2538,7 +2373,7 @@ namespace Chaos
 			FVec3 DP1 = FVec3(0);
 			if (bPositionLocked)
 			{
-				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - P(1));
+				DP1 = -Alpha * FVec3::CrossProduct(DR1, ConnectorXs[1] - Body1().P());
 			}
 			ApplyDelta(1, DP1, DR1);
 
@@ -2566,8 +2401,8 @@ namespace Chaos
 		const FVec3& Connector0Correction,
 		const FReal TargetVel)
 	{
-		const FVec3 Arm0 = ConnectorXs[0] + Connector0Correction - P(0);
-		const FVec3 Arm1 = ConnectorXs[1] - P(1);
+		const FVec3 Arm0 = ConnectorXs[0] + Connector0Correction - Body0().P();
+		const FVec3 Arm1 = ConnectorXs[1] - Body1().P();
 		const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), Arm0);
 		const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), Arm1);
 		const FVec3 CV = CV1 - CV0;
@@ -2598,8 +2433,8 @@ namespace Chaos
 		if (!NetLinearImpulse.IsNearlyZero() && !FPBDJointUtilities::GetSoftLinearLimitEnabled(SolverSettings, JointSettings))
 		{
 			FReal Stiffness = SolverStiffness * FPBDJointUtilities::GetLinearStiffness(SolverSettings, JointSettings);
-			const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), ConnectorXs[0] - P(0));
-			const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), ConnectorXs[1] - P(1));
+			const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), ConnectorXs[0] - Body0().P());
+			const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), ConnectorXs[1] - Body1().P());
 			const FVec3 CV = CV1 - CV0;
 
 			UE_LOG(LogChaosJoint, VeryVerbose, TEXT("    PointVel Delta %f"), CV.Size());
@@ -2608,11 +2443,11 @@ namespace Chaos
 			FMatrix33 M1 = FMatrix33::Zero;
 			if (InvM(0) > UE_SMALL_NUMBER)
 			{
-				M0 = Utilities::ComputeJointFactorMatrix(ConnectorXs[0] - P(0), InvI(0), InvM(0));
+				M0 = Utilities::ComputeJointFactorMatrix(ConnectorXs[0] - Body0().P(), InvI(0), InvM(0));
 			}
 			if (InvM(1) > UE_SMALL_NUMBER)
 			{
-				M1 = Utilities::ComputeJointFactorMatrix(ConnectorXs[1] - P(1), InvI(1), InvM(1));
+				M1 = Utilities::ComputeJointFactorMatrix(ConnectorXs[1] - Body1().P(), InvI(1), InvM(1));
 			}
 			FMatrix33 MI = (M0 + M1).Inverse();
 			const FVec3 Impulse = Stiffness * Utilities::Multiply(MI, CV);
@@ -2620,8 +2455,8 @@ namespace Chaos
 			// Apply constraint correction
 			const FVec3 DV0 = InvM(0) * Impulse;
 			const FVec3 DV1 = -InvM(1) * Impulse;
-			const FVec3 DW0 = Utilities::Multiply(InvI(0), FVec3::CrossProduct(ConnectorXs[0] - P(0), Impulse));
-			const FVec3 DW1 = Utilities::Multiply(InvI(1), FVec3::CrossProduct(ConnectorXs[1] - P(1), -Impulse));
+			const FVec3 DW0 = Utilities::Multiply(InvI(0), FVec3::CrossProduct(ConnectorXs[0] - Body0().P(), Impulse));
+			const FVec3 DW1 = Utilities::Multiply(InvI(1), FVec3::CrossProduct(ConnectorXs[1] - Body1().P(), -Impulse));
 
 			ApplyVelocityDelta(DV0, DW0, DV1, DW1);
 		}
@@ -2840,8 +2675,8 @@ namespace Chaos
 		const FVec3 DConnectorX = ConnectorXs[1] - ConnectorXs[0];
 		const FVec3 Connector0Correction = Delta > JointSettings.LinearLimit ? Axis * JointSettings.LinearLimit : DConnectorX;
 
-		const FVec3 Arm0 = ConnectorXs[0] + Connector0Correction - P(0);
-		const FVec3 Arm1 = ConnectorXs[1] - P(1);
+		const FVec3 Arm0 = ConnectorXs[0] + Connector0Correction - Body0().P();
+		const FVec3 Arm1 = ConnectorXs[1] - Body1().P();
 		const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), Arm0);
 		const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), Arm1);
 		const FVec3 CV = CV1 - CV0;
@@ -2920,8 +2755,8 @@ namespace Chaos
 		const FVec3 DConnectorX = ConnectorXs[1] - ConnectorXs[0];
 		const FVec3 Connector0Correction = DConnectorX - Axis * Error; 
 
-		const FVec3 Arm0 = ConnectorXs[0] + Connector0Correction - P(0);
-		const FVec3 Arm1 = ConnectorXs[1] - P(1);
+		const FVec3 Arm0 = ConnectorXs[0] + Connector0Correction - Body0().P();
+		const FVec3 Arm1 = ConnectorXs[1] - Body1().P();
 		const FVec3 CV0 = V(0) + FVec3::CrossProduct(W(0), Arm0);
 		const FVec3 CV1 = V(1) + FVec3::CrossProduct(W(1), Arm1);
 		const FVec3 CV = CV1 - CV0;

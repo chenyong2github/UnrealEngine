@@ -1423,6 +1423,7 @@ namespace Chaos
 			if ((SolverType == EConstraintSolverType::StandardPbd) || (It == 0))
 			{
 				// @todo(chaos): support reverse parent/child
+				Solver.Body1().UpdateRotationDependentState();
 				Solver.UpdateMasses(FReal(0), FReal(1));
 			}
 
@@ -1430,15 +1431,9 @@ namespace Chaos
 
 			if (SolverType == EConstraintSolverType::StandardPbd)
 			{
-				if (Solver.Body0().IsDynamic())
-				{
-					Solver.Body0().SolverBody().ApplyCorrections();
-					Solver.Body0().UpdateRotationDependentState();
-				}
 				if (Solver.Body1().IsDynamic())
 				{
 					Solver.Body1().SolverBody().ApplyCorrections();
-					Solver.Body1().UpdateRotationDependentState();
 				}
 			}
 		}
