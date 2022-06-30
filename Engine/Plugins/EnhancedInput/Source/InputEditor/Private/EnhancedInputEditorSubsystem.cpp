@@ -4,6 +4,7 @@
 #include "EnhancedPlayerInput.h"
 #include "InputMappingContext.h"
 #include "Components/InputComponent.h"
+#include "EnhancedInputComponent.h"
 #include "Subsystems/UnrealEditorSubsystem.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
@@ -140,6 +141,12 @@ void UEnhancedInputEditorSubsystem::PushInputComponent(UInputComponent* InInputC
 		if (GetDefault<UEnhancedInputEditorSettings>()->bLogAllInput)
 		{
 			UE_LOG(LogEditorInput, Log, TEXT("PUSHING AN INPUT COMPONENT! '%s'"), *InInputComponent->GetName());
+		}
+
+		// Mark this input component for firing delegates in the editor
+		if (UEnhancedInputComponent* EIC = Cast<UEnhancedInputComponent>(InInputComponent))
+		{
+			EIC->SetShouldFireDelegatesInEditor(true);
 		}
 
 		bool bPushed = false;

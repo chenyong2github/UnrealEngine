@@ -15,6 +15,20 @@ UEnhancedInputComponent::UEnhancedInputComponent(const FObjectInitializer& Objec
 	bBlockInput = false;
 }
 
+void UEnhancedInputComponent::SetShouldFireDelegatesInEditor(const bool bInNewValue)
+{
+	bShouldFireDelegatesInEditor = bInNewValue;
+
+	// Propegate this info to any bound delegates
+	if (HasBindings())
+	{
+		for (auto& Binding : GetActionEventBindings())
+		{
+			Binding->SetShouldFireWithEditorScriptGuard(bShouldFireDelegatesInEditor);
+		}
+	}
+}
+
 bool UEnhancedInputComponent::HasBindings( ) const
 {
 	return GetActionEventBindings().Num() > 0 || GetActionValueBindings().Num() > 0 || GetDebugKeyBindings().Num() > 0 || Super::HasBindings();
