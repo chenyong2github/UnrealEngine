@@ -16,8 +16,11 @@ public:
 	FAuthEOS(FOnlineServicesEOS& InOwningSubsystem);
 	virtual ~FAuthEOS() = default;
 
-	// Begin IAuth
+	// Begin IOnlineComponent
 	virtual void Initialize() override;
+	// End IOnlineComponent
+
+	// Begin IAuth
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
 	// End IAuth

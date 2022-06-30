@@ -16,7 +16,7 @@ public:
 
 	FAuthCommon(FOnlineServicesCommon& InServices);
 
-	// TOnlineComponent
+	// IOnlineComponent
 	virtual void RegisterCommands() override;
 
 	// IAuth

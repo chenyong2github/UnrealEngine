@@ -61,8 +61,11 @@ public:
 	FAuthEOSGS(FOnlineServicesEOSGS& InOwningSubsystem);
 	virtual ~FAuthEOSGS() = default;
 
-	// Begin IAuth
+	// Begin IOnlineComponent
 	virtual void Initialize() override;
+	// End IOnlineComponent
+
+	// Begin IAuth
 	virtual TOnlineAsyncOpHandle<FAuthLogin> Login(FAuthLogin::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FAuthLogout> Logout(FAuthLogout::Params&& Params) override;
 	virtual TOnlineResult<FAuthGetAccountByPlatformUserId> GetAccountByPlatformUserId(FAuthGetAccountByPlatformUserId::Params&& Params) override;
