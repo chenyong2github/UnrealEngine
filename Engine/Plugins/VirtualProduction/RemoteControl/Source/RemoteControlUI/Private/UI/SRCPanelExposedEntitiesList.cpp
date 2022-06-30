@@ -174,7 +174,7 @@ void SRCPanelExposedEntitiesList::Construct(const FArguments& InArgs, URemoteCon
 
 	// Group Dock Panel
 	TSharedPtr<SRCMinorPanel> GroupDockPanel = SNew(SRCMinorPanel)
-		.HeaderLabel(LOCTEXT("GroupsLabel", "Group"))
+		.HeaderLabel(LOCTEXT("GroupLabel", "Group"))
 		.EnableFooter(false)
 		[
 			GroupsListView.ToSharedRef()

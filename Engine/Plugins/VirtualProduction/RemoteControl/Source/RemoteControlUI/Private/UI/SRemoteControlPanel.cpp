@@ -1377,11 +1377,12 @@ void SRemoteControlPanel::RegisterPanels()
 
 		{// Properties With Protocols Panel
 			TSharedRef<FRCPanelDrawerArgs> EntityProtocolsPanel = MakeShared<FRCPanelDrawerArgs>(ERCPanels::RCP_Protocols);
+			const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
 
 			EntityProtocolsPanel->bDrawnByDefault = true;
 			EntityProtocolsPanel->bRotateIconBy90 = false;
 			EntityProtocolsPanel->DrawerVisibility = bIsInProtocolsMode ? EVisibility::Visible : EVisibility::Collapsed;
-			EntityProtocolsPanel->Label = LOCTEXT("EntityProtocolsPanelLabel", "Protocols");
+			EntityProtocolsPanel->Label = Commands.ToggleProtocolMappings->GetLabel();
 			EntityProtocolsPanel->ToolTip = LOCTEXT("EntityProtocolsPanelTooltip", "Open entity protocols panel.");
 			EntityProtocolsPanel->Icon = FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer");
 
@@ -1874,12 +1875,14 @@ void SRemoteControlPanel::RegisterAuxiliaryToolBar()
 		{
 			FToolMenuSection& ToolsSection = ToolbarBuilder->AddSection("Tools");
 
+			const FRemoteControlCommands& Commands = FRemoteControlCommands::Get();
+
 			ToolsSection.AddEntry(FToolMenuEntry::InitWidget("Protocols"
 				, SNew(SAutoResizeButton)
 					.UICommand(FRemoteControlCommands::Get().ToggleProtocolMappings)
 					.ForceSmallIcons_Static(SRemoteControlPanel::ShouldForceSmallIcons)
 					.IconOverride(FSlateIcon(FAppStyle::GetAppStyleSetName(), "LevelEditor.Tabs.StatsViewer"))
-				, LOCTEXT("ProtocolsLabel", "Protocols")
+				, Commands.ToggleProtocolMappings->GetLabel()
 			)
 			);
 			
@@ -1888,7 +1891,7 @@ void SRemoteControlPanel::RegisterAuxiliaryToolBar()
 					.UICommand(FRemoteControlCommands::Get().ToggleLogicEditor)
 					.ForceSmallIcons_Static(SRemoteControlPanel::ShouldForceSmallIcons)
 					.IconOverride(FSlateIcon(FAppStyle::GetAppStyleSetName(), TEXT("GraphEditor.StateMachine_24x")))
-				, LOCTEXT("LogicLabel", "Logic")
+				, Commands.ToggleLogicEditor->GetLabel()
 			)
 			);
 		}
