@@ -35,7 +35,7 @@ public:
 	void SetHighlightText(TAttribute<FText> InHighlightText);
 
 private:
-	TSharedPtr<IToolTip> CreateToolTip() const;
+	FText GetToolTipText() const;
 	void Construct(const FArguments& InArgs, const FText& DisplayName, TSharedPtr<SWidget> Icon);
 
 	TSharedPtr<STextBlock> NameBlock;
