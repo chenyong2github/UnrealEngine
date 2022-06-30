@@ -156,6 +156,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 	// Defaults
 	Trans = FVector2D(0, 0);
 	Scale = 0.00133333332;
+	TotalMouseDelta = 0;
 
 	// UI
 	ChildSlot
@@ -400,6 +401,8 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonDown(const FGeometry& MyGeometr
 	const bool bIsLeftMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton);
 	const bool bIsMiddleMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::MiddleMouseButton);
 
+	TotalMouseDelta = 0;
+
 	if (bIsLeftMouseButtonEffecting || bIsRightMouseButtonEffecting)
 	{
 		FReply ReplyState = FReply::Handled();
@@ -426,6 +429,8 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 	const bool bIsRightMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton);
 	const bool bIsLeftMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton);
 	const bool bIsMiddleMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::MiddleMouseButton);
+
+	TotalMouseDelta = 0;
 
 	if (bIsLeftMouseButtonEffecting || bIsRightMouseButtonEffecting)
 	{
@@ -530,10 +535,12 @@ FReply SWorldPartitionEditorGrid2D::OnMouseMove(const FGeometry& MyGeometry, con
 
 	if (HasMouseCapture())
 	{
+		TotalMouseDelta += CursorDelta.Size();
+
 		const bool bIsRightMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::RightMouseButton);
 		const bool bIsLeftMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::LeftMouseButton);
 		const bool bIsMiddleMouseButtonDown = MouseEvent.IsMouseButtonDown(EKeys::MiddleMouseButton);
-		const bool bIsDragTrigger = CursorDelta.Size() > FSlateApplication::Get().GetDragTriggerDistance();
+		const bool bIsDragTrigger = TotalMouseDelta > FSlateApplication::Get().GetDragTriggerDistance();
 
 		if (bIsLeftMouseButtonDown)
 		{

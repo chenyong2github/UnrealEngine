@@ -98,6 +98,7 @@ protected:
 	FVector2D SelectionEnd;
 	FBox SelectBox;
 	FSlateFontInfo SmallLayoutFont;
+	float TotalMouseDelta;
 
 	struct FKeyFuncs : public BaseKeyFuncs<TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, TWeakInterfacePtr<IWorldPartitionActorLoaderInterface>, false>
 	{
