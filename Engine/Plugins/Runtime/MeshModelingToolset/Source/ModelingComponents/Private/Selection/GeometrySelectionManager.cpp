@@ -463,7 +463,7 @@ void UGeometrySelectionManager::ClearSelection()
 			TUniquePtr<FGeometrySelectionDeltaChange> ClearChange = MakeUnique<FGeometrySelectionDeltaChange>();
 			ClearChange->Identifier = Target->SelectionIdentifer;
 			ClearChange->Delta = MoveTemp(ClearDelta);
-			GetTransactionsAPI()->AppendChange(this, MoveTemp(ClearChange), LOCTEXT("ClearSelection", "Selection"));
+			GetTransactionsAPI()->AppendChange(this, MoveTemp(ClearChange), LOCTEXT("ClearSelection", "Clear Selection"));
 		}
 	}
 
