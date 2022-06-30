@@ -11,6 +11,7 @@
 #include "TextBlock.generated.h"
 
 class STextBlock;
+class UMaterialInterface;
 
 /**
  * A simple static text widget.
@@ -205,6 +206,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Appearance")
 	void SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy);
+
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetFontMaterial(UMaterialInterface* InMaterial);
+
+	UFUNCTION(BlueprintCallable, Category="Appearance")
+	void SetFontOutlineMaterial(UMaterialInterface* InMaterial);
 
 	/**  */
 	UFUNCTION(BlueprintCallable, Category="Appearance")

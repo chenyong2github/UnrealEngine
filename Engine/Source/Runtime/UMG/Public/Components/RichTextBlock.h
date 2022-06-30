@@ -14,6 +14,7 @@
 class SRichTextBlock;
 class UDataTable;
 class UMaterialInstanceDynamic;
+class UMaterialInterface;
 class URichTextBlockDecorator;
 
 /** Simple struct for rich text styles */
@@ -110,6 +111,9 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = Appearance)
 	void SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextStyle);
+
+	UFUNCTION(BlueprintCallable, Category = Appearance)
+	void SetDefaultMaterial(UMaterialInterface* InMaterial);
 
 	/** Remove all overrides made to the default text style and return to the style specified in the style set data table */
 	UFUNCTION()

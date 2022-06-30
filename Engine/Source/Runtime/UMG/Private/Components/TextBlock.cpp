@@ -197,6 +197,18 @@ void UTextBlock::SetTextOverflowPolicy(ETextOverflowPolicy InOverflowPolicy)
 	SynchronizeProperties();
 }
 
+void UTextBlock::SetFontMaterial(UMaterialInterface* InMaterial)
+{
+	Font.FontMaterial = InMaterial;
+	SetFont(Font);
+}
+
+void UTextBlock::SetFontOutlineMaterial(UMaterialInterface* InMaterial)
+{
+	Font.OutlineSettings.OutlineMaterial = InMaterial;
+	SetFont(Font);
+}
+
 UMaterialInstanceDynamic* UTextBlock::GetDynamicFontMaterial()
 {
 	if (Font.FontMaterial)

@@ -281,6 +281,13 @@ void URichTextBlock::SetDefaultTextStyle(const FTextBlockStyle& InDefaultTextSty
 	ApplyUpdatedDefaultTextStyle();
 }
 
+void URichTextBlock::SetDefaultMaterial(UMaterialInterface* InMaterial)
+{
+	BeginDefaultStyleOverride();
+	DefaultTextStyleOverride.Font.FontMaterial = InMaterial;
+	ApplyUpdatedDefaultTextStyle();
+}
+
 void URichTextBlock::ClearAllDefaultStyleOverrides()
 {
 	if (bOverrideDefaultStyle)
