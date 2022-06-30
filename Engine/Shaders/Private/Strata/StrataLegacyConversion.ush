@@ -14,7 +14,7 @@ void GetEyeNormals(
 	in float3 InClearCoatNormal,
 	in float3 InCustomTangent,
 	inout float3 OutIrisNormal,
-	inout float3 OutCausticNormal);
+	inout float3 OutIrisPlaneNormal);
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -547,8 +547,8 @@ FStrataData StrataConvertLegacyMaterialStatic(
 		const float IrisDistance = ClearCoatRoughness;
 
 		float3 IrisNormal = RawNormal;
-		float3 CausticNormal = RawNormal;
-		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawCustomTangent, IrisNormal, CausticNormal);
+		float3 IrisPlaneNormal = RawNormal;
+		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawCustomTangent, IrisNormal, IrisPlaneNormal);
 
 		FStrataData EyeMat = PromoteParameterBlendedBSDFToOperator(
 			GetStrataEyeBSDF(
@@ -557,6 +557,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 				IrisMask,	         // IrisMask
 				IrisDistance,        // IrisDistance
 				IrisNormal,	         // IrisNormal
+				IrisPlaneNormal,	 // IrisPlaneNormal
 				SubSurfaceProfileId, // SSS profile
 				Emissive,	         // EmissiveColor
 				SharedLocalBasisIndex),

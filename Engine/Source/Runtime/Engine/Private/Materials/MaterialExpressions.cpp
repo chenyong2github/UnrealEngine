@@ -23335,6 +23335,7 @@ int32 UMaterialExpressionStrataEyeBSDF::Compile(class FMaterialCompiler* Compile
 		CompileWithDefaultFloat1(Compiler, IrisMask,	 0.0f),
 		CompileWithDefaultFloat1(Compiler, IrisDistance, 0.0f),
 		CompileWithDefaultFloat3(Compiler, IrisNormal,   0.0f, 0.0f, 1.0f),
+		CompileWithDefaultFloat3(Compiler, IrisPlaneNormal, 0.0f, 0.0f, 1.0f),
 		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor,0.0f, 0.0f, 0.0f),
 		CorneaNormalCodeChunk,
@@ -23361,9 +23362,10 @@ uint32 UMaterialExpressionStrataEyeBSDF::GetInputType(int32 InputIndex)
 	case 1: return MCT_Float1; // Roughness
 	case 2: return MCT_Float3; // Cornea normal
 	case 3: return MCT_Float3; // IrisNormal
-	case 4: return MCT_Float1; // IrisMask
-	case 5: return MCT_Float1; // IrisDistance
-	case 6: return MCT_Float3; // EmissiveColor
+	case 4: return MCT_Float3; // IrisPlaneNormal
+	case 5: return MCT_Float1; // IrisMask
+	case 6: return MCT_Float1; // IrisDistance
+	case 7: return MCT_Float3; // EmissiveColor
 	}
 
 	check(false);
@@ -23382,6 +23384,7 @@ void UMaterialExpressionStrataEyeBSDF::GatherStrataMaterialInfo(FStrataMaterialI
 	if (Roughness.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_Roughness); }
 	if (CorneaNormal.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_Normal); }
 	if (IrisNormal.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_Tangent); }
+	if (IrisPlaneNormal.IsConnected())	{ StrataMaterialInfo.AddPropertyConnected(MP_Tangent); }
 	if (IrisMask.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_CustomData0); }
 	if (IrisDistance.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_CustomData1); }
 	if (EmissiveColor.IsConnected())	{ StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }

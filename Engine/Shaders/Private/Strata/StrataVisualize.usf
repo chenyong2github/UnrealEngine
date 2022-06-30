@@ -356,6 +356,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			const float3x3 IrisTangentBasis = GetTangentBasis(EYE_IRISNORMAL(BSDF));
 			DrawReferentialTWS(WorldPosition, IrisTangentBasis[0], IrisTangentBasis[1], IrisTangentBasis[2], float3(0, 1, 1));
 
+			// Tangent basis for the iris plane
+			const float3x3 IrisPlaneTangentBasis = GetTangentBasis(EYE_IRISPLANENORMAL(BSDF));
+			DrawReferentialTWS(WorldPosition, IrisPlaneTangentBasis[0], IrisPlaneTangentBasis[1], IrisPlaneTangentBasis[2], float3(1, 0, 1));
+
 			const bool bHasSSS = HasSubsurface(Header);
 			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, StrataAddressing.PixelCoords);
 			const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);

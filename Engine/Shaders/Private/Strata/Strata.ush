@@ -448,6 +448,7 @@ struct FStrataBSDF
 #define EYE_IRISMASK(X)					X.VGPRs[1].y
 #define EYE_SSSPROFILEID(X)				X.VGPRs[1].z
 #define EYE_IRISNORMAL(X)				X.VGPRs[2].xyz
+#define EYE_IRISPLANENORMAL(X)			X.VGPRs[3].xyz
 
 ///////////////////////////////////////////////////////////////////////////////
 // Single Layer Water BSDF members
@@ -1426,7 +1427,7 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 	return StrataData;
 }
 
-FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMask, float IrisDistance, float3 IrisNormal, float SSSProfileId, float3 Emissive, uint SharedLocalBasisIndex)
+FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMask, float IrisDistance, float3 IrisNormal, float3 IrisPlaneNormal, float SSSProfileId, float3 Emissive, uint SharedLocalBasisIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	BSDF_SETTYPE					(StrataData.InlinedBSDF, STRATA_BSDF_TYPE_EYE);
@@ -1437,6 +1438,7 @@ FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMa
 	EYE_IRISDISTANCE				(StrataData.InlinedBSDF) = IrisDistance;
 	EYE_IRISMASK					(StrataData.InlinedBSDF) = IrisMask;
 	EYE_IRISNORMAL					(StrataData.InlinedBSDF) = IrisNormal;
+	EYE_IRISPLANENORMAL				(StrataData.InlinedBSDF) = IrisPlaneNormal;
 	EYE_SSSPROFILEID				(StrataData.InlinedBSDF) = SSSProfileId;
 
 	const bool bHasSSS = SSSProfileId != 0;
@@ -2395,6 +2397,7 @@ void SanitizeStrataEye(inout FStrataBSDF BSDF)
 	EYE_IRISDISTANCE(BSDF) = saturate(EYE_IRISDISTANCE(BSDF));
 	EYE_IRISMASK(BSDF) = saturate(EYE_IRISMASK(BSDF));
 	EYE_IRISNORMAL(BSDF) = normalize(EYE_IRISNORMAL(BSDF));
+	EYE_IRISPLANENORMAL(BSDF) = normalize(EYE_IRISPLANENORMAL(BSDF));
 }
 
 void SanitizeStrataSingleLayerWater(inout FStrataBSDF BSDF)
@@ -3530,12 +3533,13 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	case STRATA_BSDF_TYPE_EYE:
 	{
 		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, EYE_DIFFUSEALBEDO(OutBSDF), EYE_ROUGHNESS(OutBSDF));		
-		float4 Data = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
-		EYE_IRISMASK(OutBSDF) = Data.x;
-		EYE_IRISDISTANCE(OutBSDF) = Data.y;
-		EYE_IRISNORMAL(OutBSDF) = OctahedronToUnitVector(Data.zw * 2.0f - 1.f);
-		// STRATA_TODO - Add SSS profile support
-		// 8 bytes
+		const float4 Data0 = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
+		const float4 Data1 = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
+		EYE_IRISMASK(OutBSDF) = Data0.x;
+		EYE_IRISDISTANCE(OutBSDF) = Data0.y;
+		EYE_IRISNORMAL(OutBSDF) = OctahedronToUnitVector(Data1.xy * 2.0f - 1.f);
+		EYE_IRISPLANENORMAL(OutBSDF) = OctahedronToUnitVector(Data1.zw * 2.0f - 1.f);
+		// 12 bytes
 	}
 	break;
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER:

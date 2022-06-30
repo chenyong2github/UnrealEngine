@@ -776,7 +776,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 			// Not great as it ties the concavity to the convexity of the cornea surface
 			// No good justification for that. On the other hand, if we're just looking to
 			// introduce some concavity, this does the job.
-			const float3 CausticNormal = normalize(lerp(EYE_IRISNORMAL(BSDFContext.BSDF), -BSDFContext.N, EYE_IRISMASK(BSDFContext.BSDF) * EYE_IRISDISTANCE(BSDFContext.BSDF)));
+			const float3 CausticNormal = normalize(lerp(EYE_IRISPLANENORMAL(BSDFContext.BSDF), -BSDFContext.N, EYE_IRISMASK(BSDFContext.BSDF) * EYE_IRISDISTANCE(BSDFContext.BSDF)));
 
 			// Add-hoc legacy shading mode for eye. 
 			const float Power = lerp(12, 1, IrisNoL);

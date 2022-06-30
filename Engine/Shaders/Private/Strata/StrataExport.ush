@@ -553,9 +553,11 @@ void PackStrataOut(
 						case STRATA_BSDF_TYPE_EYE:
 						{
 							const float2 EncodedIrisNormal = UnitVectorToOctahedron(EYE_IRISNORMAL(BSDF));
+							const float2 EncodedIrisPlaneNormal = UnitVectorToOctahedron(EYE_IRISPLANENORMAL(BSDF));
 							STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(EYE_DIFFUSEALBEDO(BSDF), EYE_ROUGHNESS(BSDF))));
-							STRATA_STORE_UINT1(PackRGBA8(float4(EYE_IRISMASK(BSDF), EYE_IRISDISTANCE(BSDF), EncodedIrisNormal * 0.5f + 0.5f)));
-							// 8 bytes
+							STRATA_STORE_UINT1(PackRGBA8(float4(EYE_IRISMASK(BSDF), EYE_IRISDISTANCE(BSDF), 0, 0)));
+							STRATA_STORE_UINT1(PackRGBA8(float4(EncodedIrisNormal * 0.5f + 0.5f, EncodedIrisPlaneNormal * 0.5f + 0.5f)));
+							// 12 bytes
 
 							// Note: we don't store the SSS profile ID into the Eye data, as it is not needed there. The profile is only stored into the SSS data.
 							const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE;

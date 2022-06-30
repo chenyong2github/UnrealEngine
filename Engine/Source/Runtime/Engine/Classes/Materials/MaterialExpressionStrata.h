@@ -587,6 +587,12 @@ class UMaterialExpressionStrataEyeBSDF : public UMaterialExpressionStrataBSDF
 	FExpressionInput IrisNormal;
 
 	/**
+	 * Normal of the iris plane (type = float3, unit = unitless, defaults to +X vector)
+	 */
+	UPROPERTY()
+	FExpressionInput IrisPlaneNormal;
+
+	/**
 	 * Mask defining the iris surface (type = float, unit = unitless, defaults to 0.0)
 	 */
 	UPROPERTY()
