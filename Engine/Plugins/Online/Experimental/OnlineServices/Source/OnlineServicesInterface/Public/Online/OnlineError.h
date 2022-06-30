@@ -75,8 +75,11 @@ public:
 		}
 	}
 
-	FString GetLogString(bool bIncludePrefix = true) const
+	FString GetLogString(bool bIncludePrefix = true, bool bIncludeSuccess = true) const
 	{
+#if !NO_LOGGING
+		FString MyLogString = TEXT("");
+
 		if (Details)
 		{
 			// likely also print out the error code first, with Details->GetLogString only providing additional information like a human readable string
@@ -87,16 +90,37 @@ public:
 			}
 
 			FString LogString = Details->GetLogString(*this);
-			return Details->GetLogString(*this);
+			MyLogString = Details->GetLogString(*this);
 		}
 		else if (ErrorCode == Errors::ErrorCode::Success)
 		{
-			return TEXT("Success");
+			if (bIncludeSuccess)
+			{
+				MyLogString = TEXT("Success");
+			}
 		}
 		else
 		{
-			return FString::Printf(TEXT("Error %x"), ErrorCode); // would use %s here and below if we were to use a string ErrorCodeType
+			MyLogString = FString::Printf(TEXT("%x"), ErrorCode); // would use %s here and below if we were to use a string ErrorCodeType
 		}
+
+		if (GetInner() != nullptr)
+		{
+			FString InnerLogStr = GetInner()->GetLogString(false, false);
+			if (!InnerLogStr.IsEmpty())
+			{
+				return FString::Printf(TEXT("%s (%s)"), *MyLogString, *InnerLogStr);
+			}
+			else
+			{
+				return MyLogString;
+			}
+		}
+
+		return MyLogString;
+#else
+		return TEXT("");
+#endif
 	}
 
 	FString GetErrorId() const
