@@ -1042,6 +1042,7 @@ enum class ERepLayoutFlags : uint8
 	HasObjectOrNetSerializeProperties	= (1 << 3),	//! Will be set for any RepLayout that contains Object or Net Serialize property commands.
 	NoReplicatedProperties				= (1 << 4), //! Will be set if the RepLayout has no lifetime properties, or they are all disabled.
 	FullPushProperties					= (1 << 5), //! All properties in this RepLayout use Push Model.
+	HasInitialOnlyProperties			= (1 << 6), //! There is at least 1 Initial Only Lifetime property on this RepLayout.
 };
 ENUM_CLASS_FLAGS(ERepLayoutFlags);
 

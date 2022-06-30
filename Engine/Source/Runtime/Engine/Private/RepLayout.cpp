@@ -1476,13 +1476,54 @@ static void CompareParentProperties(
 		{
 			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
 			{
-				const bool bIsPropertyDirty = UE_RepLayout_Private::IsPropertyDirty(ParentIndex, bRecentlyCollectedGarbage, SharedParams, StackParams);
+				const bool bRecompareInitialProperties = SharedParams.bIsInitial && SharedParams.Parents[ParentIndex].Condition == COND_InitialOnly;
+
+				const bool bIsPropertyDirty = bRecompareInitialProperties ||
+												UE_RepLayout_Private::IsPropertyDirty(ParentIndex, bRecentlyCollectedGarbage, SharedParams, StackParams);
+				
 				const bool bDidPropertyChange = UE_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
 
 				ensureAlwaysMsgf(!bDidPropertyChange || bIsPropertyDirty, TEXT("Push Model Property changed value, but was not marked dirty! Property=%s"), *SharedParams.Parents[ParentIndex].Property->GetPathName());
 			}	
 		}
 #endif // WITH_PUSH_VALIDATION_SUPPORT
+
+		else if (UNLIKELY(SharedParams.bIsInitial && EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::HasInitialOnlyProperties)))
+		{
+			/*
+				Most replication conditions don't actually effect whether or not we compare properties,
+				because we share comparisons across connections, and typically only want to do one comparison
+				per frame for all connections, when possible.
+				
+				This means that we will end up performing the comparison, ignoring replication conditions,
+				even if we might not have to send the property to any connections on a given frame frame.
+				
+				COND_InitialOnly is special, though. In theory, COND_InitialOnly properties should only ever be
+				compared a single time, the first time an object is ever replicated, so it's a waste to compare
+				them every frame.
+
+				However, in practice, there are a number of cases where an object can be replicated multiple
+				times, and still have its bNetInitial flag set, because of how we handle multiple connections.
+				E.G., it may be the first time an Object is replicating to a Specific Connection, and we would
+				consider that an Initial Replication, even though the object may have replicated previously.
+
+				If the property's value has changed, and the object was replicated again BEFORE a new
+				Net Initial replication occurs, AND the object is a Push Model Property, then we will end up
+				clearing the fact that the property was ever changed, and the new value will never be sent
+				to any connections.
+
+				To get around that, if we detect that this is an Initial Replication, and we have Initial Only
+				properties, we will consider them dirty.
+			*/
+			for (int32 ParentIndex = 0; ParentIndex < SharedParams.Parents.Num(); ++ParentIndex)
+			{
+				if (SharedParams.Parents[ParentIndex].Condition == COND_InitialOnly ||
+					UE_RepLayout_Private::IsPropertyDirty(ParentIndex, bRecentlyCollectedGarbage, SharedParams, StackParams))
+				{
+					UE_RepLayout_Private::CompareParentPropertyHelper(ParentIndex, SharedParams, StackParams);
+				}
+			}
+		}
 
 		// If we have full push model property support, then we only need to check properties that are actually dirty.
 		else if (EnumHasAnyFlags(SharedParams.Flags, ERepLayoutFlags::FullPushProperties) && !bRecentlyCollectedGarbage)
@@ -6130,6 +6171,10 @@ void FRepLayout::InitFromClass(
 			if (LifetimeProps[i].Condition == COND_None)
 			{
 				Parents[ParentIndex].Flags &= ~ERepParentFlags::IsConditional;
+			}
+			else if (LifetimeProps[i].Condition == COND_InitialOnly)
+			{
+				Flags |= ERepLayoutFlags::HasInitialOnlyProperties;
 			}
 
 			if (EnumHasAnyFlags(Parents[ParentIndex].Flags, ERepParentFlags::HasNetSerializeProperties | ERepParentFlags::HasObjectProperties))
