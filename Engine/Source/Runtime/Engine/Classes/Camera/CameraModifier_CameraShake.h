@@ -16,6 +16,9 @@
 class UCameraShakeBase;
 class UCameraShakeSourceComponent;
 
+/**
+ * List of reusable camera shake instances that we store in a recycling pool.
+ */
 USTRUCT()
 struct FPooledCameraShakes
 {
@@ -25,6 +28,9 @@ struct FPooledCameraShakes
 	TArray<TObjectPtr<UCameraShakeBase>> PooledShakes;
 };
 
+/**
+ * Information about an active camera shake.
+ */
 USTRUCT()
 struct FActiveCameraShakeInfo
 {
@@ -36,15 +42,61 @@ struct FActiveCameraShakeInfo
 		, bIsCustomInitialized(false)
 	{}
 
+	/** The camera shake instance currently running */
 	UPROPERTY()
 	TObjectPtr<UCameraShakeBase> ShakeInstance;
 
+	/** An optional source that the shake is running from (otherwise it's global and un-attenuated) */
 	UPROPERTY()
 	TWeakObjectPtr<const UCameraShakeSourceComponent> ShakeSource;
 
+	/** Whether the shake was initialized with some custom callback code */
 	UPROPERTY()
 	bool bIsCustomInitialized;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	/** Index of the debug graph display data for this shake */
+	int32 DebugDataIndex = INDEX_NONE;
+#endif
 };
+
+#if UE_ENABLE_DEBUG_DRAWING
+/**
+ * A data point for the debug graph display.
+ */
+struct FCameraShakeDebugDataPoint
+{
+	/** Time since start of the shake */
+	float AccumulatedTime;
+	/** Location movement of the shake for this frame */
+	FVector DeltaLocation;
+	/** Rotation movement of the shake for this frame */
+	FRotator DeltaRotation;
+};
+#endif
+
+#if UE_ENABLE_DEBUG_DRAWING
+/** 
+ * Information about active or recently ended camera shakes that we want to show in the 
+ * debug graph display. Shakes stay alive a little longer in this struct (compared to the
+ * ActiveShakes list) because after a shake ended we want to keep displaying its debug graph
+ * for a little while instead of having it disappear immediately. We also draw again in
+ * the same graph if the shake comes back soon enough.
+ */
+struct FCameraShakeDebugData
+{
+	/** The class of the shake that is/was running */
+	TSubclassOf<UCameraShakeBase> ShakeClass;
+	/** The name of the shake that is/was running */
+	FString ShakeInstanceName;
+	/** Data points for the debug graph display */
+	TArray<FCameraShakeDebugDataPoint> DataPoints;
+	/** How long ago did the shake end */
+	float TimeInactive = 0.f;
+	/** Is the shake active */
+	bool bIsInactive = false;
+};
+#endif
 
 DECLARE_DELEGATE_OneParam(FOnInitializeCameraShake, UCameraShakeBase*);
 
@@ -171,4 +223,16 @@ protected:
 	/** Scaling factor applied to all camera shakes in when in splitscreen mode. Normally used to reduce shaking, since shakes feel more intense in a smaller viewport. */
 	UPROPERTY(EditAnywhere, Category = CameraModifier_CameraShake)
 	float SplitScreenShakeScale;
+
+#if UE_ENABLE_DEBUG_DRAWING
+	void AddCameraShakeDebugData(FActiveCameraShakeInfo& ShakeInfo);
+	void RemoveCameraShakeDebugData(const FActiveCameraShakeInfo& ShakeInfo);
+	void DisplayDebugGraphs(class UCanvas* Canvas, const FDebugDisplayInfo& DebugDisplay);
+
+	/** List of debug data for camera shakes */
+	TArray<FCameraShakeDebugData> DebugShakes;
+	/** Whether we are currently recording camera shake debug info */
+	bool bRecordDebugData;
+#endif
 };
+
