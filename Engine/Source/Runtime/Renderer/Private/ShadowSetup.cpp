@@ -2117,7 +2117,7 @@ void FProjectedShadowInfo::SetupMeshDrawCommandsForShadowDepth(FSceneRenderer& R
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_SetupMeshDrawCommandsForShadowDepth);
 
-	FShadowDepthPassMeshProcessor* MeshPassProcessor = new(FMemStack::Get()) FShadowDepthPassMeshProcessor(
+	FShadowDepthPassMeshProcessor* MeshPassProcessor = new FShadowDepthPassMeshProcessor(
 		Renderer.Scene,
 		ShadowDepthView,
 		GetShadowDepthType(),
@@ -2902,7 +2902,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 			if (bOpaque && bCreateOpaqueObjectShadow && (bOpaqueShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
 			{
 				// Create a projected shadow for this interaction's shadow.
-				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get()) FProjectedShadowInfo;
+				FProjectedShadowInfo* ProjectedShadowInfo = Allocator.Create<FProjectedShadowInfo>();
 				ProjectedShadowInfo->bPerObjectOpaqueShadow = true;
 				ProjectedShadowInfo->SubjectPrimitiveComponentIndex = PrimitiveSceneInfo->PrimitiveComponentId.PrimIDValue;
 
@@ -2924,7 +2924,6 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 					false))					// no translucent shadow
 				{
 					ProjectedShadowInfo->FadeAlphas = ResolutionFadeAlphas;
-					MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 					if (bOpaqueShadowIsVisibleThisFrame)
 					{
@@ -2949,7 +2948,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 				&& (bTranslucentShadowIsVisibleThisFrame || bShadowIsPotentiallyVisibleNextFrame))
 			{
 				// Create a projected shadow for this interaction's shadow.
-				FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get()) FProjectedShadowInfo;
+				FProjectedShadowInfo* ProjectedShadowInfo = Allocator.Create<FProjectedShadowInfo>();
 
 				const FIntPoint TranslucentShadowTextureResolution = GetTranslucentShadowDepthTextureResolution();
 
@@ -2965,8 +2964,7 @@ void FSceneRenderer::CreatePerObjectProjectedShadow(
 					MaxScreenPercent,
 					true))					// translucent shadow
 				{
-					ProjectedShadowInfo->FadeAlphas = ResolutionFadeAlphas,
-					MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					ProjectedShadowInfo->FadeAlphas = ResolutionFadeAlphas;
 
 					if (bTranslucentShadowIsVisibleThisFrame)
 					{
@@ -3716,9 +3714,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 				if (bNeedsVirtualShadowMap)
 				{
 					// Create the projected shadow info.
-					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get()) FProjectedShadowInfo;
-					// Add to remember-to-call-dtor list
-					MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					FProjectedShadowInfo* ProjectedShadowInfo = Allocator.Create<FProjectedShadowInfo>();
 
 					// Rescale size to fit whole virtual SM but keeping aspect ratio
 					int32 VirtualSizeX = SizeX >= SizeY ? FVirtualShadowMap::VirtualMaxResolutionXY : (FVirtualShadowMap::VirtualMaxResolutionXY * SizeX) / SizeY;
@@ -3781,7 +3777,7 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 					for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
 					{
 						// Create the projected shadow info.
-						FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get()) FProjectedShadowInfo;
+						FProjectedShadowInfo* ProjectedShadowInfo = Allocator.Create<FProjectedShadowInfo>();
 
 						ProjectedShadowInfo->SetupWholeSceneProjection(
 							LightSceneInfo,
@@ -3796,8 +3792,6 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 
 						ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
 						ProjectedShadowInfo->FadeAlphas = FadeAlphas;
-
-						MemStackProjectedShadows.Add(ProjectedShadowInfo);
 
 						// If we have a virtual shadow map, disable nanite rendering into the regular shadow map or else we'd get double-shadowing
 						// and also filter out any VSM-supporting meshes
@@ -4124,7 +4118,7 @@ typedef TArray<FAddSubjectPrimitiveOp> FShadowSubjectPrimitives;
 typedef TArray<FAddSubjectPrimitiveStats> FPerShadowGatherStats;
 
 // Common setup and working data for all GatherShadowPrimitives Tasks
-struct FDynamicShadowsTaskData
+struct FDynamicShadowsTaskData : public FSceneRenderingAllocatorObject<FDynamicShadowsTaskData>
 {
 	// Common data read from all points
 	const FScene* Scene;
@@ -4140,7 +4134,7 @@ struct FDynamicShadowsTaskData
 	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> ViewDependentWholeSceneShadows;
 
 	// Written from task
-	TArray<struct FGatherShadowPrimitivesPacket*> Packets;
+	TArray<struct FGatherShadowPrimitivesPacket*, SceneRenderingAllocator> Packets;
 	FPerShadowGatherStats GatherStats;
 
 	// Used by RenderThread
@@ -4534,14 +4528,7 @@ struct FGatherShadowPrimitivesPrepareTask
 
 	void AddSubTask(FScenePrimitiveOctree::FNodeIndex NodeIndex, int32 StartPrimitiveIndex, int32 NumPrimitives)
 	{
-		if (TaskData.bMultithreaded)
-		{
-			TaskData.Packets.Add(new FGatherShadowPrimitivesPacket(NodeIndex, StartPrimitiveIndex, NumPrimitives));
-		}
-		else
-		{
-			TaskData.Packets.Add(new(FMemStack::Get()) FGatherShadowPrimitivesPacket(NodeIndex, StartPrimitiveIndex, NumPrimitives));
-		}
+		TaskData.Packets.Add(new FGatherShadowPrimitivesPacket(NodeIndex, StartPrimitiveIndex, NumPrimitives));
 	}
 
 	void AnyThreadTask()
@@ -4666,15 +4653,7 @@ void FSceneRenderer::FinishGatherShadowPrimitives(FDynamicShadowsTaskData* TaskD
 		for (FGatherShadowPrimitivesPacket* Packet : TaskData->Packets)
 		{
 			Packet->RenderThreadFinalize(*TaskData);
-			if (TaskData->bMultithreaded)
-			{
-				delete Packet;
-			}
-			else
-			{
-				// Class was allocated on the memstack which does not call destructors
-				Packet->~FGatherShadowPrimitivesPacket();
-			}
+			delete Packet;
 		}
 
 		delete TaskData;
@@ -4789,7 +4768,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 						for (int32 CacheModeIndex = 0; CacheModeIndex < NumShadowMaps; CacheModeIndex++)
 						{
 							// Create the projected shadow info.
-							FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get()) FProjectedShadowInfo;
+							FProjectedShadowInfo* ProjectedShadowInfo = Allocator.Create<FProjectedShadowInfo>();
 							ProjectedShadowInfo->SetupWholeSceneProjection(
 								&LightSceneInfo,
 								&View,
@@ -4804,7 +4783,6 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 							ProjectedShadowInfo->ProjectionIndex = Index;
 							ProjectedShadowInfo->CacheMode = CacheMode[CacheModeIndex];
 
-							MemStackProjectedShadows.Add(ProjectedShadowInfo);
 							VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 							ShadowInfos.Add(ProjectedShadowInfo);
 
@@ -4928,9 +4906,7 @@ void FSceneRenderer::AddViewDependentWholeSceneShadowsForView(
 				if (GEnableNonNaniteVSM != 0)
 				{
 					// Create the projected shadow info to make sure that culling happens.
-					FProjectedShadowInfo* ProjectedShadowInfo = new(FMemStack::Get()) FProjectedShadowInfo;
-					// Add to remember-to-call-dtor list
-					MemStackProjectedShadows.Add(ProjectedShadowInfo);
+					FProjectedShadowInfo* ProjectedShadowInfo = Allocator.Create<FProjectedShadowInfo>();
 					ProjectedShadowInfo->SetupClipmapProjection(&LightSceneInfo, &View, VirtualShadowMapClipmap, CVarVsmUseFarShadowRules.GetValueOnRenderThread() != 0 ? MaxNonFarCascadeDistance : -1.0f);
 					VisibleLightInfo.AllProjectedShadows.Add(ProjectedShadowInfo);
 					ShadowInfosThatNeedCulling.Add(ProjectedShadowInfo);

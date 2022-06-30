@@ -4679,8 +4679,6 @@ void FFXSystem::SimulateGPUParticles(
 	check(IsInRenderingThread());
 	SCOPE_CYCLE_COUNTER(STAT_GPUParticleTickTime);
 
-	FMemMark Mark(FMemStack::Get());
-
 	const float FixDeltaSeconds = CVarGPUParticleFixDeltaSeconds.GetValueOnRenderThread();
 
 	// Grab resources.

@@ -305,7 +305,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCacheDataParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< uint >,					PrevProjectionData)
 END_SHADER_PARAMETER_STRUCT()
 
-static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray<FVirtualShadowMap*, SceneRenderingAllocator> &ShadowMaps, FVirtualShadowMapArrayCacheManager* CacheManager, FCacheDataParameters &CacheDataParameters)
+static void SetCacheDataShaderParameters(FRDGBuilder& GraphBuilder, const TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator>& ShadowMaps, FVirtualShadowMapArrayCacheManager* CacheManager, FCacheDataParameters &CacheDataParameters)
 {
 	TArray<FShadowMapCacheData, SceneRenderingAllocator> ShadowMapCacheData;
 	ShadowMapCacheData.AddDefaulted(ShadowMaps.Num());
@@ -436,10 +436,6 @@ void FVirtualShadowMapArray::Initialize(FRDGBuilder& GraphBuilder, FVirtualShado
 
 FVirtualShadowMapArray::~FVirtualShadowMapArray()
 {
-	for (FVirtualShadowMap *SM : ShadowMaps)
-	{
-		SM->~FVirtualShadowMap();
-	}
 }
 
 EPixelFormat FVirtualShadowMapArray::GetPackedShadowMaskFormat() const

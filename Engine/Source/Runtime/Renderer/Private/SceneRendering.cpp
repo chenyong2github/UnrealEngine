@@ -713,7 +713,6 @@ FRHICommandList* FParallelCommandListSet::AllocCommandList()
 void FParallelCommandListSet::Dispatch(bool bHighPriority)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_FParallelCommandListSet_Dispatch);
-	check(IsInRenderingThread() && FMemStack::Get().GetNumMarks() == 1); // we do not want this popped before the end of the scene and it better be the scene allocator
 	check(CommandLists.Num() == Events.Num());
 	check(CommandLists.Num() == NumAlloc);
 
@@ -789,7 +788,6 @@ FParallelCommandListSet::~FParallelCommandListSet()
 	check(GOutstandingParallelCommandListSet == this);
 	GOutstandingParallelCommandListSet = nullptr;
 
-	check(IsInRenderingThread() && FMemStack::Get().GetNumMarks() == 1); // we do not want this popped before the end of the scene and it better be the scene allocator
 	checkf(CommandLists.Num() == 0, TEXT("Derived class of FParallelCommandListSet did not call Dispatch in virtual destructor"));
 	checkf(NumAlloc == 0, TEXT("Derived class of FParallelCommandListSet did not call Dispatch in virtual destructor"));
 }
@@ -823,7 +821,6 @@ FRHICommandList* FParallelCommandListSet::NewParallelCommandList()
 
 void FParallelCommandListSet::AddParallelCommandList(FRHICommandList* CmdList, FGraphEventRef& CompletionEvent, int32 InNumDrawsIfKnown)
 {
-	check(IsInRenderingThread() && FMemStack::Get().GetNumMarks() == 1); // we do not want this popped before the end of the scene and it better be the scene allocator
 	check(CommandLists.Num() == Events.Num());
 	CommandLists.Add(CmdList);
 	Events.Add(CompletionEvent);
@@ -1046,18 +1043,6 @@ FViewInfo::~FViewInfo()
 
 	//this uses memstack allocation for strongrefs, so we need to manually empty to get the destructor called to not leak the uniformbuffers stored here.
 	TranslucentSelfShadowUniformBufferMap.Empty();
-
-#if RHI_RAYTRACING
-	// Per-task structures are allocated using memstack so we have to call destructors explicitly.
-	for (FRayTracingMeshCommandOneFrameArray* It : VisibleRayTracingMeshCommandsPerTask)
-	{
-		It->~FRayTracingMeshCommandOneFrameArray();
-	}
-	for (FDynamicRayTracingMeshCommandStorage* It : DynamicRayTracingMeshCommandStoragePerTask)
-	{
-		It->~FDynamicRayTracingMeshCommandStorage();
-	}
-#endif // RHI_RAYTRACING
 }
 
 #if RHI_RAYTRACING
@@ -2457,8 +2442,8 @@ FViewFamilyInfo::~FViewFamilyInfo()
 FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyConsumer* HitProxyConsumer)
 :	Scene(CheckPointer(InViewFamily->Scene)->GetRenderScene())
 ,	ViewFamily(*CheckPointer(InViewFamily))
-,	MeshCollector(InViewFamily->GetFeatureLevel())
-,	RayTracingCollector(InViewFamily->GetFeatureLevel())
+,	MeshCollector(InViewFamily->GetFeatureLevel(), Allocator)
+,	RayTracingCollector(InViewFamily->GetFeatureLevel(), Allocator)
 ,	bHasRequestedToggleFreeze(false)
 ,	bUsedPrecomputedVisibility(false)
 ,	bGPUMasksComputed(false)
@@ -2489,7 +2474,7 @@ FSceneRenderer::FSceneRenderer(const FSceneViewFamily* InViewFamily, FHitProxyCo
 #endif
 
 		// Construct a FViewInfo with the FSceneView properties.
-		FViewInfo* ViewInfo = new(Views) FViewInfo(InViewFamily->Views[ViewIndex]);
+		FViewInfo* ViewInfo = &Views.Emplace_GetRef(InViewFamily->Views[ViewIndex]);
 		ViewFamily.Views[ViewIndex] = ViewInfo;
 		ViewInfo->Family = &ViewFamily;
 		bAnyViewIsLocked |= ViewInfo->bIsLocked;
@@ -3231,13 +3216,6 @@ bool FSceneRenderer::DoOcclusionQueries() const
 
 FSceneRenderer::~FSceneRenderer()
 {
-	for (FProjectedShadowInfo* ProjectedShadow : MemStackProjectedShadows)
-	{
-		// FProjectedShadowInfo's in MemStackProjectedShadows were allocated on the rendering thread mem stack, 
-		// Their memory will be freed when the stack is freed with no destructor call, so invoke the destructor explicitly
-		ProjectedShadow->~FProjectedShadowInfo();
-	}
-
 	// Manually release references to TRefCountPtrs that are allocated on the mem stack, which doesn't call dtors
 	SortedShadowsForShadowDepthPass.Release();
 }
@@ -3986,8 +3964,6 @@ void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediat
 		return;
 	}
 
-	FMemMark MemStackMark(FMemStack::Get());
-
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PreRender);
@@ -4044,7 +4020,7 @@ inline ESceneRenderCleanUpMode GetSceneRenderCleanUpMode()
 	return (ESceneRenderCleanUpMode)GSceneRenderCleanUpMode;
 }
 
-static void DeleteSceneRenderers(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers, FMemMark* MemStackMark)
+static void DeleteSceneRenderers(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers)
 {
 	static const IConsoleVariable* AsyncDispatch = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RHICmdAsyncRHIThreadDispatch"));
 
@@ -4059,7 +4035,6 @@ static void DeleteSceneRenderers(FRHICommandListImmediate& RHICmdList, const TAr
 	{
 		delete SceneRenderer;
 	}
-	delete MemStackMark;
 
 	// Can release only after all mesh pass tasks are finished.
 	GPrimitiveIdVertexBufferPool.DiscardAll();
@@ -4126,15 +4101,11 @@ void FSceneRenderer::RenderThreadBegin(FRHICommandListImmediate& RHICmdList, con
 	{
 		SceneRenderer->FXSystem = FXSystem;
 	}
-
-	// Mem stack mark is stored on first scene renderer
-	SceneRenderers[0]->MemStackMark = new FMemMark(FMemStack::Get());
 }
 
 struct FSceneRenderCleanUpState
 {
 	TArray<FSceneRenderer*> Renderers;
-	FMemMark* MemStackMark{};
 	FGraphEventRef Task;
 	ESceneRenderCleanUpMode CompletionMode = ESceneRenderCleanUpMode::Immediate;
 	bool bWaitForTasksComplete = false;
@@ -4154,7 +4125,7 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const
 	{
 		// Mem stack mark is stored on first scene renderer
 		ReleaseSceneRenderers(RHICmdList, SceneRenderers);
-		DeleteSceneRenderers(RHICmdList, SceneRenderers, SceneRenderers[0]->MemStackMark);
+		DeleteSceneRenderers(RHICmdList, SceneRenderers);
 	}
 	else
 	{
@@ -4165,7 +4136,6 @@ void FSceneRenderer::RenderThreadEnd(FRHICommandListImmediate& RHICmdList, const
 
 		// Mem stack mark is stored on first scene renderer
 		GSceneRenderCleanUpState.Renderers = SceneRenderers;
-		GSceneRenderCleanUpState.MemStackMark = SceneRenderers[0]->MemStackMark;
 
 		if (SceneRenderCleanUpMode == ESceneRenderCleanUpMode::DeferredAndAsync)
 		{
@@ -4232,7 +4202,7 @@ void FSceneRenderer::CleanUp(FRHICommandListImmediate& RHICmdList)
 		}
 	}
 
-	DeleteSceneRenderers(RHICmdList, GSceneRenderCleanUpState.Renderers, GSceneRenderCleanUpState.MemStackMark);
+	DeleteSceneRenderers(RHICmdList, GSceneRenderCleanUpState.Renderers);
 	GSceneRenderCleanUpState = {};
 }
 
@@ -4453,7 +4423,6 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 			}
 		}
 		SET_MEMORY_STAT(STAT_ViewStateMemory, ViewStateMemory);
-		SET_MEMORY_STAT(STAT_RenderingMemStackMemory, FMemStack::Get().GetByteCount());
 		SET_MEMORY_STAT(STAT_LightInteractionMemory, FLightPrimitiveInteraction::GetMemoryPoolSize());
 	}
 #endif
@@ -4957,7 +4926,6 @@ void FRendererModule::RequestVirtualTextureTilesForRegion(IAllocatedVirtualTextu
 
 void FRendererModule::LoadPendingVirtualTextureTiles(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
-	FMemMark MemMark(FMemStack::Get());
 	FRDGBuilder GraphBuilder(RHICmdList);
 	FVirtualTextureSystem::Get().LoadPendingTiles(GraphBuilder, FeatureLevel);
 	GraphBuilder.Execute();

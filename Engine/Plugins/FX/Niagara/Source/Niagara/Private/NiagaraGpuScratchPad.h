@@ -133,7 +133,7 @@ public:
 			//Store off current access state so we can place any new buffers in the same state.
 			CurrentAccess = InNewState;
 
- 			TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+ 			TArray<FRHITransitionInfo, SceneRenderingAllocator> Transitions;
  			Transitions.Reserve(Buffers.Num());
  			for (FBuffer& Buffer : Buffers)
  			{
@@ -378,7 +378,7 @@ public:
 		//Store off current access state so we can place any new buffers in the same state.
 		CurrentAccess = InNewState;
 
- 		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+ 		TArray<FRHITransitionInfo, SceneRenderingAllocator> Transitions;
  		Transitions.Reserve(Buffers.Num());
  		for (FBuffer& Buffer : Buffers)
  		{

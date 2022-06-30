@@ -28,7 +28,6 @@ void ProcessOCIOColorSpaceTransform_RenderThread(
 {
 	check(IsInRenderingThread());
 
-	FMemMark Mark(FMemStack::Get());
 	FRDGBuilder GraphBuilder(InRHICmdList);
 
 	FRDGTextureRef InputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(InputSpaceColorTexture->GetTexture2D(), TEXT("OCIOInputTexture")));
@@ -60,14 +59,11 @@ void ProcessOCIOColorSpaceTransform_RenderThread(
 	ViewInitOptions.ViewOrigin = FVector::ZeroVector;
 	ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 	ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
-	FViewInfo* DummyView = new(FMemStack::Get()) FViewInfo(ViewInitOptions);
+	FViewInfo DummyView(ViewInitOptions);
 
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("ProcessOCIOColorSpaceXfrm"), *DummyView, Viewport, Viewport, OCIOPixelShader, Parameters);
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("ProcessOCIOColorSpaceXfrm"), DummyView, Viewport, Viewport, OCIOPixelShader, Parameters);
 
 	GraphBuilder.Execute();
-
-	// Properly clear the reference to ViewUniformBuffer before memstack wipes the memory
-	DummyView->~FViewInfo();
 }
 
 // static

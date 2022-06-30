@@ -1281,7 +1281,6 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 		{
 			const ERHIAccess FinalAccess = ERHIAccess::RTV;
 
-			FMemMark MemMark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FRDGTextureRef OutputTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(RenderTarget->GetRenderTargetTexture(), TEXT("Output")));
 			FRDGTextureRef LeftEyeTexture = GraphBuilder.RegisterExternalTexture(CreateRenderTarget(LeftEye->TextureRHI, TEXT("LeftEye")));

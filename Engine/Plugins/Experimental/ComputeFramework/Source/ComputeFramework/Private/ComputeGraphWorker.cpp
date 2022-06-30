@@ -29,7 +29,6 @@ void FComputeGraphTaskWorker::SubmitWork(FRHICommandListImmediate& RHICmdList, E
 		return;
 	}
 
-	FMemMark MemStackMark(FMemStack::Get());
 	{
 		SCOPED_DRAW_EVENTF(RHICmdList, ComputeFramework_ExecuteBatches, TEXT("ComputeFramework::ExecuteBatches"));
 		SCOPED_GPU_STAT(RHICmdList, ComputeFramework_ExecuteBatches);

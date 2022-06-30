@@ -863,7 +863,6 @@ void FGPUSkinCache::TransitionAllToReadable(FRHICommandList& RHICmdList, const T
 
 	if (BuffersToTransitionToRead.Num() > 0)
 	{
-		FMemMark Mark(FMemStack::Get());
 		TArray<FRHITransitionInfo, SceneRenderingAllocator> UAVs;
 		UAVs.Reserve(BuffersToTransitionToRead.Num());
 		for (TSet<FSkinCacheRWBuffer*>::TConstIterator SetIt(BuffersToTransitionToRead); SetIt; ++SetIt)
@@ -1263,7 +1262,6 @@ void FGPUSkinCache::MakeBufferTransitions(FRHICommandListImmediate& RHICmdList, 
 {
 	if (Buffers.Num() > 0)
 	{
-		FMemMark Mark(FMemStack::Get());
 		TArray<FRHITransitionInfo, SceneRenderingAllocator> UAVs;
 		UAVs.Reserve(Buffers.Num());
 		for (FSkinCacheRWBuffer* Buffer : Buffers)

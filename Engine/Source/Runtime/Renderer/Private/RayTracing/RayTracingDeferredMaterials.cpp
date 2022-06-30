@@ -96,7 +96,7 @@ void FDeferredShadingSceneRenderer::BindRayTracingDeferredMaterialGatherPipeline
 
 	const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
 	FRayTracingLocalShaderBindings* Bindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
-		? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+		? Allocator.Malloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
 		: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
 
 	uint32 BindingIndex = 0;

@@ -89,7 +89,7 @@ protected:
 /**
  * Velocity pass processor for rendering opaques into a separate velocity pass (i.e. separate from the base pass).
  */
-class FOpaqueVelocityMeshProcessor : public FVelocityMeshProcessor
+class FOpaqueVelocityMeshProcessor : public FSceneRenderingAllocatorObject<FOpaqueVelocityMeshProcessor>, public FVelocityMeshProcessor
 {
 public:
 	FOpaqueVelocityMeshProcessor(
@@ -124,7 +124,7 @@ private:
  * Velocity pass processor for rendering translucent object velocity and depth. This pass is rendered AFTER the
  * translucent pass so that depth can safely be written.
  */
-class FTranslucentVelocityMeshProcessor : public FVelocityMeshProcessor
+class FTranslucentVelocityMeshProcessor : public FSceneRenderingAllocatorObject<FTranslucentVelocityMeshProcessor>, public FVelocityMeshProcessor
 {
 public:
 	FTranslucentVelocityMeshProcessor(

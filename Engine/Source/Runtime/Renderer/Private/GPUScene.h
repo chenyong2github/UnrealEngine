@@ -155,7 +155,7 @@ private:
 	friend class FGPUScenePrimitiveCollector;
 
 	FGPUScenePrimitiveCollector::FUploadData* AllocateDynamicPrimitiveData();
-	TArray<FGPUScenePrimitiveCollector::FUploadData*, TInlineAllocator<128> > DymamicPrimitiveUploadData;
+	TArray<FGPUScenePrimitiveCollector::FUploadData*, TInlineAllocator<128, SceneRenderingAllocator> > DymamicPrimitiveUploadData;
 	FGPUScene& GPUScene;
 };
 

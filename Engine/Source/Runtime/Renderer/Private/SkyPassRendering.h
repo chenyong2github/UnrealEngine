@@ -12,7 +12,7 @@
 
 
 
-class FSkyPassMeshProcessor : public FMeshPassProcessor
+class FSkyPassMeshProcessor : public FSceneRenderingAllocatorObject<FSkyPassMeshProcessor>, public FMeshPassProcessor
 {
 public:
 

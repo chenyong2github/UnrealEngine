@@ -470,7 +470,7 @@ FMeshPassProcessor* CreateNaniteMeshProcessor(
 		PassDrawRenderState.SetDepthStencilAccess(FExclusiveDepthStencil::DepthWrite_StencilNop);
 	}
 
-	return new(FMemStack::Get()) FNaniteMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
+	return new FNaniteMeshProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, PassDrawRenderState, InDrawListContext);
 }
 
 class FSubmitNaniteMaterialPassCommandsAnyThreadTask : public FRenderTask

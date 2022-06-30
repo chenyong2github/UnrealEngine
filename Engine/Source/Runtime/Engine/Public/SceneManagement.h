@@ -2349,9 +2349,7 @@ public:
 	template<typename T, typename... ARGS>
 	T& AllocateOneFrameResource(ARGS&&... Args)
 	{
-		T* OneFrameResource = new (FMemStack::Get()) T(Forward<ARGS>(Args)...);
-		OneFrameResources.Add(OneFrameResource);
-		return *OneFrameResource;
+		return *OneFrameResources.Create<T>(Forward<ARGS>(Args)...);
 	}
 
 	FORCEINLINE bool ShouldUseTasks() const
@@ -2361,12 +2359,12 @@ public:
 
 	FORCEINLINE void AddTask(TFunction<void()>&& Task)
 	{
-		ParallelTasks.Add(new (FMemStack::Get()) TFunction<void()>(MoveTemp(Task)));
+		ParallelTasks.Emplace(MoveTemp(Task));
 	}
 
 	FORCEINLINE void AddTask(const TFunction<void()>& Task)
 	{
-		ParallelTasks.Add(new (FMemStack::Get()) TFunction<void()>(Task));
+		ParallelTasks.Emplace(Task);
 	}
 
 	ENGINE_API void ProcessTasks();
@@ -2378,7 +2376,7 @@ public:
 
 protected:
 
-	ENGINE_API FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel);
+	ENGINE_API FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator);
 
 	~FMeshElementCollector()
 	{
@@ -2386,12 +2384,6 @@ protected:
 		for (int32 ProxyIndex = 0; ProxyIndex < TemporaryProxies.Num(); ProxyIndex++)
 		{
 			delete TemporaryProxies[ProxyIndex];
-		}
-
-		// SceneRenderingAllocator does not handle destructors
-		for (int32 ResourceIndex = 0; ResourceIndex < OneFrameResources.Num(); ResourceIndex++)
-		{
-			OneFrameResources[ResourceIndex]->~FOneFrameResource();
 		}
 	}
 
@@ -2455,25 +2447,25 @@ protected:
 	TChunkedArray<FMeshBatch> MeshBatchStorage;
 
 	/** Meshes to render */
-	TArray<TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>*, TInlineAllocator<2> > MeshBatches;
+	TArray<TArray<FMeshBatchAndRelevance, SceneRenderingAllocator>*, TInlineAllocator<2, SceneRenderingAllocator> > MeshBatches;
 
 	/** Number of elements in gathered meshes per view. */
-	TArray<int32, TInlineAllocator<2> > NumMeshBatchElementsPerView;
+	TArray<int32, TInlineAllocator<2, SceneRenderingAllocator> > NumMeshBatchElementsPerView;
 
 	/** PDIs */
-	TArray<FSimpleElementCollector*, TInlineAllocator<2> > SimpleElementCollectors;
+	TArray<FSimpleElementCollector*, TInlineAllocator<2, SceneRenderingAllocator> > SimpleElementCollectors;
 
 	/** Views being collected for */
-	TArray<FSceneView*, TInlineAllocator<2> > Views;
+	TArray<FSceneView*, TInlineAllocator<2, SceneRenderingAllocator>> Views;
 
 	/** Current Mesh Id In Primitive per view */
-	TArray<uint16, TInlineAllocator<2> > MeshIdInPrimitivePerView;
+	TArray<uint16, TInlineAllocator<2, SceneRenderingAllocator>> MeshIdInPrimitivePerView;
 
 	/** Material proxies that will be deleted at the end of the frame. */
 	TArray<FMaterialRenderProxy*, SceneRenderingAllocator> TemporaryProxies;
 
 	/** Resources that will be deleted at the end of the frame. */
-	TArray<FOneFrameResource*, SceneRenderingAllocator> OneFrameResources;
+	FSceneRenderingBulkObjectAllocator& OneFrameResources;
 
 	/** Current primitive being gathered. */
 	const FPrimitiveSceneProxy* PrimitiveSceneProxy;
@@ -2489,10 +2481,10 @@ protected:
 	const bool bUseAsyncTasks;
 
 	/** Tasks to wait for at the end of gathering dynamic mesh elements. */
-	TArray<TFunction<void()>*, SceneRenderingAllocator> ParallelTasks;
+	TArray<TFunction<void()>, SceneRenderingAllocator> ParallelTasks;
 
 	/** Tracks dynamic primitive data for upload to GPU Scene for every view, when enabled. */
-	TArray<FGPUScenePrimitiveCollector*, TInlineAllocator<2> > DynamicPrimitiveCollectorPerView;
+	TArray<FGPUScenePrimitiveCollector*, TInlineAllocator<2, SceneRenderingAllocator>> DynamicPrimitiveCollectorPerView;
 
 	friend class FSceneRenderer;
 	friend class FDeferredShadingSceneRenderer;
@@ -2517,10 +2509,11 @@ public:
 
 	FRayTracingMeshResourceCollector(
 		ERHIFeatureLevel::Type InFeatureLevel,
+		FSceneRenderingBulkObjectAllocator& InBulkAllocator,
 		FGlobalDynamicIndexBuffer* InDynamicIndexBuffer,
 		FGlobalDynamicVertexBuffer* InDynamicVertexBuffer,
 		FGlobalDynamicReadBuffer* InDynamicReadBuffer)
-		: FMeshElementCollector(InFeatureLevel)
+		: FMeshElementCollector(InFeatureLevel, InBulkAllocator)
 	{
 		DynamicIndexBuffer = InDynamicIndexBuffer;
 		DynamicVertexBuffer = InDynamicVertexBuffer;

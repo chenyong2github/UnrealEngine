@@ -588,8 +588,7 @@ void FVulkanCommandBufferManager::SubmitActiveCmdBuffer(TArrayView<VulkanRHI::FS
 	check(!UploadCmdBuffer);
 	check(ActiveCmdBuffer);
 
-	FMemMark Mark(FMemStack::Get());
-	TArray<VkSemaphore, TMemStackAllocator<>> SemaphoreHandles;
+	TArray<VkSemaphore, FConcurrentLinearArrayAllocator> SemaphoreHandles;
 	SemaphoreHandles.Reserve(SignalSemaphores.Num() + 1);
 	for (VulkanRHI::FSemaphore* Semaphore : SignalSemaphores)
 	{

@@ -908,8 +908,6 @@ static int32 PrimitiveCull(const FScene* RESTRICT Scene, FViewInfo& View, bool b
 
 	SCOPE_CYCLE_COUNTER(STAT_PrimitiveCull);
 
-	FMemMark MemStackMark(FMemStack::Get());
-
 	FSceneBitArray VisibleNodes;
 
 	if (bShouldVisibilityCull && Flags.bUseVisibilityOctree)
@@ -2210,7 +2208,7 @@ struct FDrawCommandRelevancePacket
 	}
 };
 
-struct FRelevancePacket
+struct FRelevancePacket : public FSceneRenderingAllocatorObject<FRelevancePacket>
 {
 	const float CurrentWorldTime;
 	const float DeltaWorldTime;
@@ -3003,8 +3001,9 @@ static void ComputeAndMarkRelevanceForViewParallel(
 	FFrozenSceneViewMatricesGuard FrozenMatricesGuard(View);
 	const FMarkRelevantStaticMeshesForViewData ViewData(View);
 
+	FConcurrentLinearBulkObjectAllocator Allocator;
 	int32 NumMesh = View.StaticMeshVisibilityMap.Num();
-	uint8* RESTRICT MarkMasks = (uint8*)FMemStack::Get().Alloc(NumMesh + 31 , 8); // some padding to simplify the high speed transpose
+	uint8* RESTRICT MarkMasks = (uint8*)Allocator.Malloc(NumMesh + 31, 8); // some padding to simplify the high speed transpose
 	FMemory::Memzero(MarkMasks, NumMesh + 31);
 
 	int32 EstimateOfNumPackets = NumMesh / (FRelevancePrimSet<int32>::MaxInputPrims * 4);
@@ -3019,7 +3018,7 @@ static void ComputeAndMarkRelevanceForViewParallel(
 		if (BitIt)
 		{
 
-			FRelevancePacket* Packet = new(FMemStack::Get()) FRelevancePacket(
+			FRelevancePacket* Packet = new FRelevancePacket(
 				RHICmdList,
 				Scene, 
 				View, 
@@ -3043,7 +3042,7 @@ static void ComputeAndMarkRelevanceForViewParallel(
 					}
 					else
 					{
-						Packet = new(FMemStack::Get()) FRelevancePacket(
+						Packet = new FRelevancePacket(
 							RHICmdList,
 							Scene, 
 							View, 
@@ -3090,7 +3089,7 @@ static void ComputeAndMarkRelevanceForViewParallel(
 		for (auto Packet : Packets)
 		{
 			Packet->RenderThreadFinalize();
-			Packet->~FRelevancePacket();
+			delete Packet;
 		}
 
 		Packets.Empty();
@@ -4834,9 +4833,9 @@ void FSceneRenderer::PostVisibilityFrameSetup(FILCUpdatePrimTaskData& OutILCTask
 					
 					FMaterialRenderProxy* ColoredMeshInstance = nullptr;
 					if (SurfaceTexture)
-						ColoredMeshInstance = new(FMemStack::Get()) FColoredTexturedMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color, SurfaceTexture, NAME_LinearColor);
+						ColoredMeshInstance = Allocator.Create<FColoredTexturedMaterialRenderProxy>(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color, SurfaceTexture, NAME_LinearColor);
 					else
-						ColoredMeshInstance = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color);
+						ColoredMeshInstance = Allocator.Create<FColoredMaterialRenderProxy>(GEngine->EmissiveMeshMaterial->GetRenderProxy(), Color, NAME_Color);
 
 					FMatrix LightToWorld = Proxy->GetLightToWorld();
 					LightToWorld.RemoveScaling();

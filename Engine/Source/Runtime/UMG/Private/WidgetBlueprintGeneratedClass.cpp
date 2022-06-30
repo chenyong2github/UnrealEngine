@@ -314,9 +314,8 @@ void UWidgetBlueprintGeneratedClass::SetClassRequiresNativeTick(bool InClassRequ
 
 void UWidgetBlueprintGeneratedClass::InitializeWidget(UUserWidget* UserWidget) const
 {
-	FMemMark Mark(FMemStack::Get());
-	TArray<UWidgetAnimation*, TMemStackAllocator<>> AllAnims;
-	TArray<FDelegateRuntimeBinding, TMemStackAllocator<>> AllBindings;
+	TArray<UWidgetAnimation*, FConcurrentLinearArrayAllocator> AllAnims;
+	TArray<FDelegateRuntimeBinding, FConcurrentLinearArrayAllocator> AllBindings;
 
 	// Iterate all generated classes in the widget's parent class hierarchy and include animations and bindings
 	// found on each one.

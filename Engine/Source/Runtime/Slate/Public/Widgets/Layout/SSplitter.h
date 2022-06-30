@@ -330,7 +330,7 @@ protected:
 	 */
 	static int32 FindResizeableSlotAfterHandle( int32 DraggedHandle, const TPanelChildren<FSlot>& Children );
 
-	static void FindAllResizeableSlotsAfterHandle( int32 DraggedHandle, const TPanelChildren<FSlot>& Children, TArray<int32, TMemStackAllocator<>>& OutSlotIndicies );
+	static void FindAllResizeableSlotsAfterHandle( int32 DraggedHandle, const TPanelChildren<FSlot>& Children, TArray<int32, FConcurrentLinearArrayAllocator>& OutSlotIndicies );
 
 	/**
 	 * Resizes the children based on user input. The template parameter Orientation corresponds to the splitter being horizontal or vertical.

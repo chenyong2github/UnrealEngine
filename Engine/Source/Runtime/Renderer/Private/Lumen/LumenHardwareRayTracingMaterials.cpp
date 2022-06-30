@@ -97,7 +97,7 @@ FRayTracingLocalShaderBindings* FDeferredShadingSceneRenderer::BuildLumenHardwar
 	auto Alloc = [&](uint32 Size, uint32 Align)
 	{
 		return RHICmdList.Bypass() || bInlineOnly
-			? FMemStack::Get().Alloc(Size, Align)
+			? Allocator.Malloc(Size, Align)
 			: RHICmdList.Alloc(Size, Align);
 	};
 

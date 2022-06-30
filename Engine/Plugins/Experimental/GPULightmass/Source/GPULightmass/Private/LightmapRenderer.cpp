@@ -877,8 +877,6 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 
 		SCOPED_DRAW_EVENTF(RHICmdList, GPULightmassUpdateRayTracingScene, TEXT("GPULightmass UpdateRayTracingScene %d Instances"), StaticMeshInstanceRenderStates.Elements.Num());
 
-		FMemMark MemMark(FMemStack::Get());
-
 		TArray<FRayTracingGeometryInstance, SceneRenderingAllocator> RayTracingGeometryInstances;
 		RayTracingGeometryInstances.Append(CachedRayTracingScene->RayTracingGeometryInstancesPerLOD[LODIndex]);
 
@@ -893,8 +891,6 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 				}
 			}
 		}
-
-		FMemMark Mark(FMemStack::Get());
 
 		FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
 		FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
@@ -1256,9 +1252,11 @@ bool FSceneRenderState::SetupRayTracingScene(int32 LODIndex)
 						NumTotalBindings += Chunk->Num;
 					}
 
+					FConcurrentLinearBulkObjectAllocator Allocator;
+
 					const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
 					FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
-						? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+						? Allocator.Malloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
 						: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
 
 					uint32 MergedBindingIndex = 0;
@@ -3557,7 +3555,6 @@ void FLightmapRenderer::BackgroundTick()
 
 	// Render lightmap tiles
 	{
-		FMemMark MemMark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
 		Finalize(GraphBuilder);
 		GraphBuilder.Execute();

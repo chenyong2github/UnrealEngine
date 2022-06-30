@@ -424,7 +424,7 @@ public:
 	TMobileBasePassPS() {}
 };
 
-class FMobileBasePassMeshProcessor : public FMeshPassProcessor
+class FMobileBasePassMeshProcessor : public FSceneRenderingAllocatorObject<FMobileBasePassMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	enum class EFlags

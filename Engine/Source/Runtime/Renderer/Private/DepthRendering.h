@@ -165,7 +165,7 @@ bool GetDepthPassShaders(
 	TShaderRef<FDepthOnlyPS>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline);
 
-class FDepthPassMeshProcessor : public FMeshPassProcessor
+class FDepthPassMeshProcessor : public FSceneRenderingAllocatorObject<FDepthPassMeshProcessor>, public FMeshPassProcessor
 {
 public:
 

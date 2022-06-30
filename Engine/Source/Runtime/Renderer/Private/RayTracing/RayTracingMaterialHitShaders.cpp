@@ -866,6 +866,7 @@ void FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
 
 	auto MergeAndSetBindings =
 		[
+			&Allocator = Allocator,
 			&RHICmdList,
 			RayTracingScene = View.GetRayTracingSceneChecked(),
 			Pipeline = PipelineState
@@ -890,7 +891,7 @@ void FDeferredShadingSceneRenderer::BindRayTracingMaterialPipeline(
 
 		const uint32 MergedBindingsSize = sizeof(FRayTracingLocalShaderBindings) * NumTotalBindings;
 		FRayTracingLocalShaderBindings* MergedBindings = (FRayTracingLocalShaderBindings*)(RHICmdList.Bypass()
-			? FMemStack::Get().Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
+			? Allocator.Malloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings))
 			: RHICmdList.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
 
 		uint32 MergedBindingIndex = 0;

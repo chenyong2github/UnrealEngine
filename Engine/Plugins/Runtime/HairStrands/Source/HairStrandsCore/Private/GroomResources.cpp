@@ -475,7 +475,6 @@ void FHairCommonResource::InitRHI()
 
 	if (bUseRenderGraph)
 	{
-		FMemMark Mark(FMemStack::Get());
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 		FRDGBuilder GraphBuilder(RHICmdList);
 		InternalAllocate(GraphBuilder);

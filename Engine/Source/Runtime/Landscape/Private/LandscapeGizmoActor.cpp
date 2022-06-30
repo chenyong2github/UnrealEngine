@@ -243,7 +243,6 @@ public:
 
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector) const override
 	{
-		//FMemMark Mark(FMemStack::Get());
 #if WITH_EDITOR
 		if(GizmoRenderProxy && HeightmapRenderProxy)
 		{

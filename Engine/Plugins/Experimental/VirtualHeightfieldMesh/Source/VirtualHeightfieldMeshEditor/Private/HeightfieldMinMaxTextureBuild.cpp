@@ -194,7 +194,6 @@ namespace VirtualHeightfieldMesh
 					MaxLevel, MipLevel = 0](FRHICommandListImmediate& RHICmdList)
 				{
 					// Rendering one page at a time, but could batch here?
-					FMemMark Mark(FMemStack::Get());
 					FRDGBuilder GraphBuilder(RHICmdList);
 
 					const FBox2D TileBox(FVector2D(0, 0), FVector2D(TileSize, TileSize));
@@ -241,7 +240,6 @@ namespace VirtualHeightfieldMesh
 
 			ENQUEUE_RENDER_COMMAND(MinMaxTextureTileCommand)([&RenderTileResources, &FinalPixels, NumTilesX, NumTilesY, NumMips](FRHICommandListImmediate& RHICmdList)
 			{
-				FMemMark Mark(FMemStack::Get());
 				FRDGBuilder GraphBuilder(RHICmdList);
 
 				FRDGTextureRef Texture = GraphBuilder.RegisterExternalTexture(RenderTileResources.GetFinalRenderTarget());

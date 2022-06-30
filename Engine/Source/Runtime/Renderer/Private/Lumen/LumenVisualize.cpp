@@ -947,9 +947,9 @@ void DrawPrimitiveBounds(const FLumenPrimitiveGroup& PrimitiveGroup, FLinearColo
 	}
 }
 
-void DrawSurfels(const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const FMatrix& PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType SurfelType, FLinearColor SurfelColor, FViewElementPDI& ViewPDI, float SurfelRadius = 2.0f)
+void DrawSurfels(FSceneRenderingBulkObjectAllocator& Allocator, const TArray<FLumenCardBuildDebugData::FSurfel>& Surfels, const FMatrix& PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType SurfelType, FLinearColor SurfelColor, FViewElementPDI& ViewPDI, float SurfelRadius = 2.0f)
 {
-	FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->LevelColorationUnlitMaterial->GetRenderProxy(), SurfelColor);
+	FColoredMaterialRenderProxy* MaterialRenderProxy = Allocator.Create<FColoredMaterialRenderProxy>(GEngine->LevelColorationUnlitMaterial->GetRenderProxy(), SurfelColor);
 
 	FDynamicMeshBuilder MeshBuilder(ViewPDI.View->GetFeatureLevel());
 
@@ -1053,7 +1053,7 @@ void VisualizeRayTracingGroups(const FViewInfo& View, const FLumenSceneData& Lum
 	}
 }
 
-void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenSceneData, FViewElementPDI& ViewPDI)
+void VisualizeCardPlacement(FSceneRenderingBulkObjectAllocator& Allocator, const FViewInfo& View, const FLumenSceneData& LumenSceneData, FViewElementPDI& ViewPDI)
 {
 	if (GVisualizeLumenCardPlacement == 0)
 	{
@@ -1132,7 +1132,7 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 					{
 						CardColor.A = 0.25f;
 
-						FColoredMaterialRenderProxy* MaterialRenderProxy = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->EmissiveMeshMaterial->GetRenderProxy(), CardColor, NAME_Color);
+						FColoredMaterialRenderProxy* MaterialRenderProxy = Allocator.Create<FColoredMaterialRenderProxy>(GEngine->EmissiveMeshMaterial->GetRenderProxy(), CardColor, NAME_Color);
 
 						FDynamicMeshBuilder MeshBuilder(ViewPDI.View->GetFeatureLevel());
 
@@ -1155,7 +1155,7 @@ void VisualizeCardPlacement(const FViewInfo& View, const FLumenSceneData& LumenS
 	}
 }
 
-void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& LumenSceneData, FViewElementPDI& ViewPDI)
+void VisualizeCardGeneration(FSceneRenderingBulkObjectAllocator& Allocator, const FViewInfo& View, const FLumenSceneData& LumenSceneData, FViewElementPDI& ViewPDI)
 {
 	if (GVisualizeLumenCardGenerationSurfels == 0 
 		&& GVisualizeLumenCardGenerationCluster == 0)
@@ -1190,8 +1190,8 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 
 						if (GVisualizeLumenCardGenerationSurfels)
 						{
-							DrawSurfels(DebugData.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Valid, FLinearColor::Green, ViewPDI);
-							DrawSurfels(DebugData.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Invalid, FLinearColor::Red, ViewPDI);
+							DrawSurfels(Allocator, DebugData.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Valid, FLinearColor::Green, ViewPDI);
+							DrawSurfels(Allocator, DebugData.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Invalid, FLinearColor::Red, ViewPDI);
 
 							for (const FLumenCardBuildDebugData::FRay& Ray : DebugData.SurfelRays)
 							{
@@ -1227,11 +1227,11 @@ void VisualizeCardGeneration(const FViewInfo& View, const FLumenSceneData& Lumen
 									FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
 									CardColor.A = 1.0f;
 
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, CardColor, ViewPDI);
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Used, FLinearColor::Gray, ViewPDI);
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Idle, FLinearColor::Blue, ViewPDI);
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed, FLinearColor::Yellow, ViewPDI, 10.0f);
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed2, FLinearColor::Red, ViewPDI, 8.0f);
+									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, CardColor, ViewPDI);
+									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Used, FLinearColor::Gray, ViewPDI);
+									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Idle, FLinearColor::Blue, ViewPDI);
+									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed, FLinearColor::Yellow, ViewPDI, 10.0f);
+									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed2, FLinearColor::Red, ViewPDI, 8.0f);
 
 									for (const FLumenCardBuildDebugData::FRay& Ray : Cluster.Rays)
 									{
@@ -1265,8 +1265,8 @@ void FDeferredShadingSceneRenderer::LumenScenePDIVisualization()
 		{
 			FViewElementPDI ViewPDI(&Views[0], nullptr, &Views[0].DynamicPrimitiveCollector);
 			VisualizeRayTracingGroups(Views[0], LumenSceneData, ViewPDI);
-			VisualizeCardPlacement(Views[0], LumenSceneData, ViewPDI);
-			VisualizeCardGeneration(Views[0], LumenSceneData, ViewPDI);
+			VisualizeCardPlacement(Allocator, Views[0], LumenSceneData, ViewPDI);
+			VisualizeCardGeneration(Allocator, Views[0], LumenSceneData, ViewPDI);
 		}
 	}
 

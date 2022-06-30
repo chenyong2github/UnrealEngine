@@ -811,8 +811,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 	}
 #endif
 
-	FMemMark MemMark(FMemStack::Get());
-
 	static uint32 LastTimestamp = FPlatformTime::Cycles();
 	{
 		const FRHIGPUMask PresentingGPUMask = FRHIGPUMask::FromIndex(RHICmdList.GetViewportNextPresentGPUIndex(ViewportInfo.ViewportRHI));

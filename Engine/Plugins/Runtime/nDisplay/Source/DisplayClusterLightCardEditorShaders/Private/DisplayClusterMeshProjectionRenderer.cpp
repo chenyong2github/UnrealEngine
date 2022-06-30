@@ -832,10 +832,9 @@ void FDisplayClusterMeshProjectionRenderer::Render(FCanvas* Canvas, FSceneInterf
 	ENQUEUE_RENDER_COMMAND(FDrawProjectedMeshes)(
 		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, bIsHitTesting, HitProxyConsumer, ProjectionType, this](FRHICommandListImmediate& RHICmdList)
 		{
-			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
 
-			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(
+			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 				RenderTarget,
 				Scene,
 				EngineShowFlags)
@@ -998,10 +997,9 @@ void FDisplayClusterMeshProjectionRenderer::RenderNormals(FCanvas* Canvas,
 	ENQUEUE_RENDER_COMMAND(FDrawProjectedMeshes)(
 		[RenderTarget, Scene, ViewInitOptions, EngineShowFlags, ProjectionType, PrimitiveFilter, this](FRHICommandListImmediate& RHICmdList)
 		{
-			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList);
 
-			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(
+			FSceneViewFamilyContext ViewFamily(FSceneViewFamily::ConstructionValues(
 				RenderTarget,
 				Scene,
 				EngineShowFlags)

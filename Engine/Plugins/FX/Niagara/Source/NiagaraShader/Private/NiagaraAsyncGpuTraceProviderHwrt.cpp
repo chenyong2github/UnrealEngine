@@ -203,15 +203,14 @@ static void BindNiagaraRayTracingMeshCommands(
 	const uint32 NumUniformBuffers = 1;
 	const uint32 UniformBufferArraySize = sizeof(FRHIUniformBuffer*) * NumUniformBuffers;
 
+	FConcurrentLinearBulkObjectAllocator Allocator;
 	FRayTracingLocalShaderBindings* Bindings = nullptr;
 	FRHIUniformBuffer** UniformBufferArray = nullptr;
 
 	if (RHICmdList.Bypass())
 	{
-		FMemStack& MemStack = FMemStack::Get();
-
-		Bindings = reinterpret_cast<FRayTracingLocalShaderBindings*>(MemStack.Alloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
-		UniformBufferArray = reinterpret_cast<FRHIUniformBuffer**>(MemStack.Alloc(UniformBufferArraySize, alignof(FRHIUniformBuffer*)));
+		Bindings = reinterpret_cast<FRayTracingLocalShaderBindings*>(Allocator.Malloc(MergedBindingsSize, alignof(FRayTracingLocalShaderBindings)));
+		UniformBufferArray = reinterpret_cast<FRHIUniformBuffer**>(Allocator.Malloc(UniformBufferArraySize, alignof(FRHIUniformBuffer*)));
 	}
 	else
 	{

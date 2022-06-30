@@ -163,7 +163,7 @@ FMeshPassProcessor* CreateSkyPassProcessor(const FScene* Scene, const FSceneView
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess_NoDepthWrite = FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess & ~FExclusiveDepthStencil::DepthWrite);
 	SetupBasePassState(BasePassDepthStencilAccess_NoDepthWrite, false, DrawRenderState);
 
-	return new(FMemStack::Get()) FSkyPassMeshProcessor(Scene, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
+	return new FSkyPassMeshProcessor(Scene, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterSkyPass(&CreateSkyPassProcessor, EShadingPath::Deferred, EMeshPass::SkyPass, EMeshPassFlags::MainView);

@@ -403,8 +403,6 @@ void FRHICommandListExecutor::ExecuteInner_DoExecute(FRHICommandListBase& CmdLis
 	CmdList.bExecuting = true;
 	check(CmdList.Context || CmdList.ComputeContext);
 
-	FMemMark Mark(FMemStack::Get());
-
 #if WITH_ADDITIONAL_CRASH_CONTEXTS && RHI_WANT_BREADCRUMB_EVENTS
 	IRHIComputeContext* LocalContext = CmdList.Context ? CmdList.Context : CmdList.ComputeContext;
 

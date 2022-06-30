@@ -832,7 +832,6 @@ FVolumetricLightmapBrickAtlas::FVolumetricLightmapBrickAtlas()
 template<class VolumetricLightmapBrickDataType>
 void CopyDataIntoAtlas(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, int32 SrcOffset, int32 DestOffset, int32 NumBricks, const VolumetricLightmapBrickDataType& SrcData, FVolumetricLightmapBrickTextureSet DestTextureSet)
 {
-	FMemMark Mark(FMemStack::Get());
 	TArray<FRHITransitionInfo, SceneRenderingAllocator> Infos;
 	Infos.Reserve(3 + UE_ARRAY_COUNT(SrcData.SHCoefficients));
 	Infos.Emplace(DestTextureSet.AmbientVector.UAV,             ERHIAccess::Unknown, ERHIAccess::UAVCompute);

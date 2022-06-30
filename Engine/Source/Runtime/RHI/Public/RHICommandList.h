@@ -2781,8 +2781,7 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	inline void TransitionResources(ERHIAccess TransitionType, FRHITexture* const* InTextures, int32 NumTextures)
 	{
 		// Stack allocate the transition descriptors. These will get memcpy()ed onto the RHI command list if required.
-		FMemMark Mark(FMemStack::Get());
-		TArray<FRHITransitionInfo, TMemStackAllocator<>> Infos;
+		TArray<FRHITransitionInfo, FConcurrentLinearArrayAllocator> Infos;
 		Infos.Reserve(NumTextures);
 
 		for (int32 Index = 0; Index < NumTextures; ++Index)

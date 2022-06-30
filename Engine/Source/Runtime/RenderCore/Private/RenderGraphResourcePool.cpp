@@ -301,13 +301,10 @@ void FRDGTransientResourceAllocator::ReleasePendingDeallocations()
 {
 	if (!PendingDeallocationList.IsEmpty())
 	{
-		FMemStack& MemStack = FMemStack::Get();
-		FMemMark Mark(MemStack);
-
-		TArray<FRHITransitionInfo, TMemStackAllocator<>> Transitions;
+		TArray<FRHITransitionInfo, SceneRenderingAllocator> Transitions;
 		Transitions.Reserve(PendingDeallocationList.Num());
 
-		TArray<FRHITransientAliasingInfo, TMemStackAllocator<>> Aliases;
+		TArray<FRHITransientAliasingInfo, SceneRenderingAllocator> Aliases;
 		Aliases.Reserve(PendingDeallocationList.Num());
 
 		for (FRDGTransientRenderTarget* RenderTarget : PendingDeallocationList)

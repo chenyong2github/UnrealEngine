@@ -518,8 +518,6 @@ void FVolumetricLightmapRenderer::BackgroundTick()
 
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVolumetricLightmapRenderer::BackgroundTick);
 
-	FMemMark Mark(FMemStack::Get());
-
 	if (IsRayTracingEnabled())
 	{
 		if (!Scene->SetupRayTracingScene())

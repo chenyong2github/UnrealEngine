@@ -148,8 +148,6 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 
 	const TArray<TSharedRef<FSlateWindowElementList>>& WindowsToDraw = Context.WindowDrawBuffer->GetWindowElementLists();
 
-	FMemMark MemMark(FMemStack::Get());
-
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	// Enqueue a command to unlock the draw buffer after all windows have been drawn

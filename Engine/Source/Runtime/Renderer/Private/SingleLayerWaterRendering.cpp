@@ -965,7 +965,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 	AddResolveSceneDepthPass(GraphBuilder, Views, SceneTextures.Depth);
 }
 
-class FSingleLayerWaterPassMeshProcessor : public FMeshPassProcessor
+class FSingleLayerWaterPassMeshProcessor : public FSceneRenderingAllocatorObject<FSingleLayerWaterPassMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	FSingleLayerWaterPassMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext);
@@ -1106,7 +1106,7 @@ FMeshPassProcessor* CreateSingleLayerWaterPassProcessor(const FScene* Scene, con
 	FExclusiveDepthStencil::Type BasePassDepthStencilAccess_DepthWrite = FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess | FExclusiveDepthStencil::DepthWrite);
 	SetupBasePassState(BasePassDepthStencilAccess_DepthWrite, false, DrawRenderState);
 
-	return new(FMemStack::Get()) FSingleLayerWaterPassMeshProcessor(Scene, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
+	return new FSingleLayerWaterPassMeshProcessor(Scene, InViewIfDynamicMeshCommand, DrawRenderState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterSingleLayerWaterPass(&CreateSingleLayerWaterPassProcessor, EShadingPath::Deferred, EMeshPass::SingleLayerWaterPass, EMeshPassFlags::MainView);

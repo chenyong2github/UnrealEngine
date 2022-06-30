@@ -17,7 +17,7 @@ class FStaticMeshBatch;
 
 #if WITH_EDITOR
 
-class FHitProxyMeshProcessor : public FMeshPassProcessor
+class FHitProxyMeshProcessor : public FSceneRenderingAllocatorObject<FHitProxyMeshProcessor>, public FMeshPassProcessor
 {
 public:
 
@@ -45,7 +45,7 @@ private:
 };
 
 
-class FEditorSelectionMeshProcessor : public FMeshPassProcessor
+class FEditorSelectionMeshProcessor : public FSceneRenderingAllocatorObject<FEditorSelectionMeshProcessor>, public FMeshPassProcessor
 {
 public:
 
@@ -76,7 +76,7 @@ private:
 	TMap<FName, int32> ActorNameToStencilIndex;
 };
 
-class FEditorLevelInstanceMeshProcessor : public FMeshPassProcessor
+class FEditorLevelInstanceMeshProcessor : public FSceneRenderingAllocatorObject<FEditorLevelInstanceMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	FEditorLevelInstanceMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext);

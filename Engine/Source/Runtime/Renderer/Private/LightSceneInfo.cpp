@@ -94,7 +94,6 @@ void FLightSceneInfo::AddToScene()
 			Scene->DirectionalShadowCastingLightIDs.Add(Id);
 
 			// All primitives may interact with a directional light
-			FMemMark MemStackMark(FMemStack::Get());
 			for (FPrimitiveSceneInfo *PrimitiveSceneInfo : Scene->Primitives)
 			{
 				CreateLightPrimitiveInteraction(LightSceneInfoCompact, PrimitiveSceneInfo);
@@ -104,8 +103,6 @@ void FLightSceneInfo::AddToScene()
 		{
 			// Add the light to the scene's light octree.
 			Scene->LocalShadowCastingLightOctree.AddElement(LightSceneInfoCompact);
-			// Find primitives that the light affects in the primitive octree.
-			FMemMark MemStackMark(FMemStack::Get());
 
 			Scene->PrimitiveOctree.FindElementsWithBoundsTest(GetBoundingBox(), [&LightSceneInfoCompact, this](const FPrimitiveSceneInfoCompact& PrimitiveSceneInfoCompact)
 			{

@@ -542,7 +542,7 @@ public:
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FLumenCardPS<false>, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
 IMPLEMENT_MATERIAL_SHADER_TYPE(template<>, FLumenCardPS<true>, TEXT("/Engine/Private/Lumen/LumenCardPixelShader.usf"), TEXT("Main"), SF_Pixel);
 
-class FLumenCardMeshProcessor : public FMeshPassProcessor
+class FLumenCardMeshProcessor : public FSceneRenderingAllocatorObject<FLumenCardMeshProcessor>, public FMeshPassProcessor
 {
 public:
 
@@ -667,7 +667,7 @@ FMeshPassProcessor* CreateLumenCardCapturePassProcessor(const FScene* Scene, con
 
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-	return new(FMemStack::Get()) FLumenCardMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
+	return new FLumenCardMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterLumenCardCapturePass(&CreateLumenCardCapturePassProcessor, EShadingPath::Deferred, EMeshPass::LumenCardCapture, EMeshPassFlags::CachedMeshCommands);
@@ -799,7 +799,7 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	PassState.SetStencilRef(STENCIL_SANDBOX_MASK);
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-	return new(FMemStack::Get()) FLumenCardNaniteMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
+	return new FLumenCardNaniteMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
 FCardPageRenderData::FCardPageRenderData(

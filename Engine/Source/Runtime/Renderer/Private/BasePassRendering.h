@@ -580,7 +580,7 @@ bool GetBasePassShaders<FUniformLightMapPolicy>(
 	TShaderRef<TBasePassPixelShaderPolicyParamType<FUniformLightMapPolicy>>* PixelShader
 	);
 
-class FBasePassMeshProcessor : public FMeshPassProcessor
+class FBasePassMeshProcessor : public FSceneRenderingAllocatorObject<FBasePassMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	enum class EFlags

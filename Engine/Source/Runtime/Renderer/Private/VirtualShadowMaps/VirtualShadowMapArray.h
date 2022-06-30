@@ -203,8 +203,8 @@ public:
 	FVirtualShadowMap *Allocate()
 	{
 		check(IsEnabled());
-		FVirtualShadowMap *SM = new(FMemStack::Get()) FVirtualShadowMap(ShadowMaps.Num());
-		ShadowMaps.Add(SM);
+		FVirtualShadowMap *SM = new FVirtualShadowMap(ShadowMaps.Num());
+		ShadowMaps.Emplace(SM);
 		return SM;
 	}
 
@@ -284,7 +284,7 @@ public:
 	// We keep a reference to the cache manager that was used to initialize this frame as it owns some of the buffers
 	FVirtualShadowMapArrayCacheManager* CacheManager = nullptr;
 
-	TArray<FVirtualShadowMap*, SceneRenderingAllocator> ShadowMaps;
+	TArray<TUniquePtr<FVirtualShadowMap>, SceneRenderingAllocator> ShadowMaps;
 
 	FVirtualShadowMapUniformParameters UniformParameters;
 

@@ -539,7 +539,7 @@ private:
 	FSlateInvalidationWidgetIndex Internal_BuildWidgetList_Recursive(SWidget& Widget, FSlateInvalidationWidgetIndex ParentIndex, IndexType& LastestIndex, FSlateInvalidationWidgetVisibility ParentVisibility, bool bParentVolatile);
 	void Internal_RebuildWidgetListTree(SWidget& Widget, int32 ChildAtIndex);
 	using FFindChildrenElement = TPair<SWidget*, FSlateInvalidationWidgetIndex>;
-	void Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const;
+	void Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, FConcurrentLinearArrayAllocator>& Widgets) const;
 	void Internal_RemoveRangeFromSameParent(const FIndexRange Range);
 	FCutResult Internal_CutArray(const FSlateInvalidationWidgetIndex WhereToCut);
 

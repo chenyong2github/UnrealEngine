@@ -555,8 +555,6 @@ bool FSlateD3DRenderer::HasLostDevice() const
 
 void FSlateD3DRenderer::DrawWindows(FSlateDrawBuffer& InWindowDrawBuffer)
 {
-	FMemMark MemMark(FMemStack::Get());
-
 	if (HasLostDevice())
 	{
 		return;

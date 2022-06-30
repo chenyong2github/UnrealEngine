@@ -874,7 +874,7 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 				FSlateInvalidationWidgetPreHeap& PreUpdate;
 				FSlateInvalidationWidgetPrepassHeap& PrepassUpdate;
 				FSlateInvalidationWidgetPostHeap& PostUpdate;
-				TArray<FSlateInvalidationWidgetPreHeap::FElement*, TMemStackAllocator<>> WidgetToResort;
+				TArray<FSlateInvalidationWidgetPreHeap::FElement*, FConcurrentLinearArrayAllocator> WidgetToResort;
 
 				virtual void PreChildRemove(const FSlateInvalidationWidgetList::FIndexRange& Range) override
 				{
@@ -928,7 +928,6 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 				}
 			};
 
-			FMemMark Mark(FMemStack::Get());
 			FChildOriderInvalidationCallbackImpl ChildOrderInvalidationCallback{ *FastWidgetPathList, *WidgetsNeedingPreUpdate, *WidgetsNeedingPrepassUpdate, *WidgetsNeedingPostUpdate };
 
 			while(WidgetsNeedingPreUpdate->Num() > 0 && !bNeedsSlowPath)
@@ -961,10 +960,9 @@ void FSlateInvalidationRoot::ProcessPreUpdate()
 					{
 // Uncomment to see to be able to compare the list before and after when debugging
 #if 0
-						FMemMark MarkForTest(FMemStack::Get());
-						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPreUpdate;
-						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPrepassUpdate;
-						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, TMemStackAllocator<>> PreviousPostUpdate;
+						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, FConcurrentLinearArrayAllocator> PreviousPreUpdate;
+						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, FConcurrentLinearArrayAllocator> PreviousPrepassUpdate;
+						TArray<TTuple<FSlateInvalidationWidgetIndex, FSlateInvalidationWidgetSortOrder, TWeakPtr<SWidget>>, FConcurrentLinearArrayAllocator> PreviousPostUpdate;
 						PreviousPreUpdate.Reserve(WidgetsNeedingPreUpdate->Num());
 						PreviousPrepassUpdate.Reserve(WidgetsNeedingPrepassUpdate->Num());
 						PreviousPostUpdate.Reserve(WidgetsNeedingPostUpdate->Num());
@@ -1517,8 +1515,7 @@ void VerifyHittest(SWidget* InvalidationRootWidget, FSlateInvalidationWidgetList
 		FSlateInvalidationWidgetSortOrder SecondarySort;
 	};
 
-	FMemMark Mark(FMemStack::Get());
-	TArray<FHittestWidgetSortData, TMemStackAllocator<>> HittestGridSortDatas;
+	TArray<FHittestWidgetSortData, FConcurrentLinearArrayAllocator> HittestGridSortDatas;
 	HittestGridSortDatas.Reserve(WeakHittestGridSortDatas.Num());
 
 	// Widgets need to be valid in the hittestgrid

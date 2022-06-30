@@ -174,10 +174,12 @@ void BindRayTracingDebugCHSMaterialBindings(FRHICommandList& RHICmdList, const F
 {
 	const int32 NumTotalBindings = View.VisibleRayTracingMeshCommands.Num();
 
+	FSceneRenderingBulkObjectAllocator Allocator;
+
 	auto Alloc = [&](uint32 Size, uint32 Align)
 	{
 		return RHICmdList.Bypass()
-			? FMemStack::Get().Alloc(Size, Align)
+			? Allocator.Malloc(Size, Align)
 			: RHICmdList.Alloc(Size, Align);
 	};
 

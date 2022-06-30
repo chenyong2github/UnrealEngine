@@ -375,7 +375,6 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 
 			// Make a temporary ViewInfo
 			//-TODO: We could gather some more information here perhaps?
-			FMemMark Mark(FMemStack::Get());
 
 			FSceneViewFamily ViewFamily(FSceneViewFamily::ConstructionValues(nullptr, nullptr, FEngineShowFlags(ESFIM_Game))
 				.SetTime(FGameTime())
@@ -388,17 +387,17 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 			ViewInitOptions.ViewRotationMatrix = FMatrix::Identity;
 			ViewInitOptions.ProjectionMatrix = FMatrix::Identity;
 
-			FViewInfo* DummyView = new(FMemStack::Get()) FViewInfo(ViewInitOptions);
+			FViewInfo DummyView(ViewInitOptions);
 
-			DummyView->ViewRect = DummyView->UnscaledViewRect;
-			DummyView->CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
+			DummyView.ViewRect = DummyView.UnscaledViewRect;
+			DummyView.CachedViewUniformShaderParameters = MakeUnique<FViewUniformShaderParameters>();
 
 			FBox UnusedVolumeBounds[TVC_MAX];
-			DummyView->SetupUniformBufferParameters(UnusedVolumeBounds, TVC_MAX, *DummyView->CachedViewUniformShaderParameters);
+			DummyView.SetupUniformBufferParameters(UnusedVolumeBounds, TVC_MAX, *DummyView.CachedViewUniformShaderParameters);
 
-			DummyView->ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*DummyView->CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+			DummyView.ViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*DummyView.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
 
-			TConstArrayView<FViewInfo> DummyViews = MakeArrayView(DummyView, 1);
+			TConstArrayView<FViewInfo> DummyViews = MakeArrayView(&DummyView, 1);
 			const bool bAllowGPUParticleUpdate = true;
 
 			// Notify that we are about to begin rendering the 'scene' this is required because some RHIs will ClearState
@@ -424,9 +423,6 @@ void FNiagaraGpuComputeDispatch::ProcessPendingTicksFlush(FRHICommandListImmedia
 				}
 			);
 			GraphBuilder.Execute();
-
-			// Properly clear the reference to ViewUniformBuffer before memstack wipes the memory
-			DummyView->~FViewInfo();
 
 			// We have completed flushing the commands
 			RHICmdList.EndScene();

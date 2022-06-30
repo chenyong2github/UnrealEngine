@@ -1272,12 +1272,12 @@ void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty(EWaitThread WaitThread)
 
 	if (TaskContext.MeshPassProcessor)
 	{
-		TaskContext.MeshPassProcessor->~FMeshPassProcessor();
+		delete TaskContext.MeshPassProcessor;
 		TaskContext.MeshPassProcessor = nullptr;
 	}
 	if (TaskContext.MobileBasePassCSMMeshPassProcessor)
 	{
-		TaskContext.MobileBasePassCSMMeshPassProcessor->~FMeshPassProcessor();
+		delete TaskContext.MobileBasePassCSMMeshPassProcessor;
 		TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
 	}
 

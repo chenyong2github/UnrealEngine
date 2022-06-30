@@ -596,8 +596,7 @@ bool FSlateInvalidationWidgetList::ProcessChildOrderInvalidation(FSlateInvalidat
 		{
 #if UE_SLATE_WITH_WIDGETLIST_UPDATEONLYWHATISNEEDED
 			// Find all it's previous children
-			FMemMark Mark2(FMemStack::Get());
-			TArray<FFindChildrenElement, TMemStackAllocator<>> PreviousChildrenWidget;
+			TArray<FFindChildrenElement, FConcurrentLinearArrayAllocator> PreviousChildrenWidget;
 			Internal_FindChildren(InvalidationWidget.Index, PreviousChildrenWidget);
 
 			FChildren* InvalidatedChildren = WidgetPtr->GetAllChildren();
@@ -770,7 +769,7 @@ namespace InvalidationList
 }
 
 
-void FSlateInvalidationWidgetList::Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, TMemStackAllocator<>>& Widgets) const
+void FSlateInvalidationWidgetList::Internal_FindChildren(FSlateInvalidationWidgetIndex WidgetIndex, TArray<FFindChildrenElement, FConcurrentLinearArrayAllocator>& Widgets) const
 {
 	Widgets.Reserve(16);
 	const InvalidationWidgetType& InvalidationWidget = (*this)[WidgetIndex];
@@ -1512,8 +1511,7 @@ TArray<TSharedPtr<SWidget>> FSlateInvalidationWidgetList::FindChildren(const SWi
 			return Result;
 		}
 
-		FMemMark Mark(FMemStack::Get());
-		TArray<FFindChildrenElement, TMemStackAllocator<>> PreviousChildrenWidget;
+		TArray<FFindChildrenElement, FConcurrentLinearArrayAllocator> PreviousChildrenWidget;
 		Internal_FindChildren(WidgetIndex, PreviousChildrenWidget);
 
 		Result.Reserve(PreviousChildrenWidget.Num());

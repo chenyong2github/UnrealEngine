@@ -116,7 +116,7 @@ public:
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FLumenTranslucencyRadianceCacheMarkPS, TEXT("/Engine/Private/Lumen/LumenTranslucencyRadianceCacheMarkShaders.usf"), TEXT("MainPS"), SF_Pixel);
 
-class FLumenTranslucencyRadianceCacheMarkMeshProcessor : public FMeshPassProcessor
+class FLumenTranslucencyRadianceCacheMarkMeshProcessor : public FSceneRenderingAllocatorObject<FLumenTranslucencyRadianceCacheMarkMeshProcessor>, public FMeshPassProcessor
 {
 public:
 
@@ -249,7 +249,7 @@ FMeshPassProcessor* CreateLumenTranslucencyRadianceCacheMarkPassProcessor(const 
 
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-	return new(FMemStack::Get()) FLumenTranslucencyRadianceCacheMarkMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
+	return new FLumenTranslucencyRadianceCacheMarkMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterLumenTranslucencyRadianceCacheMarkPass(&CreateLumenTranslucencyRadianceCacheMarkPassProcessor, EShadingPath::Deferred, EMeshPass::LumenTranslucencyRadianceCacheMark, EMeshPassFlags::MainView);

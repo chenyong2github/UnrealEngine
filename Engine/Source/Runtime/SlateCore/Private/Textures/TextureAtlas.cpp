@@ -45,10 +45,8 @@ FSlateTextureAtlas::~FSlateTextureAtlas()
 
 void FSlateTextureAtlas::EmptyAtlasData()
 {
-	FMemMark Mark(FMemStack::Get());
-
 	// Remove all nodes
-	TArray<FAtlasedTextureSlot*, TMemStackAllocator<>> DeleteSlots;
+	TArray<FAtlasedTextureSlot*, FConcurrentLinearArrayAllocator> DeleteSlots;
 
 	for (FAtlasedTextureSlot::TIterator SlotIt(AtlasUsedSlots); SlotIt; SlotIt.Next())
 	{

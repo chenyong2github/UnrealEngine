@@ -995,7 +995,7 @@ FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSc
 		kStencilMaskBit, kStencilMaskBit>::GetRHI());
 	DistortionPassStateNoDepthTest.SetStencilRef(kStencilMaskBit);
 
-	return new(FMemStack::Get()) FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassStateNoDepthTest, InDrawListContext);
+	return new FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassStateNoDepthTest, InDrawListContext);
 }
 
 FMeshPassProcessor* CreateMobileDistortionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
@@ -1016,7 +1016,7 @@ FMeshPassProcessor* CreateMobileDistortionPassProcessor(const FScene* Scene, con
 		DistortionPassState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
 	}
 
-	return new(FMemStack::Get()) FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassState, InDrawListContext);
+	return new FDistortionMeshProcessor(Scene, InViewIfDynamicMeshCommand, DistortionPassState, DistortionPassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterDistortionPass(&CreateDistortionPassProcessor, EShadingPath::Deferred, EMeshPass::Distortion, EMeshPassFlags::MainView);

@@ -208,7 +208,7 @@ inline int32 FViewElementPDI::DrawMesh(const FMeshBatch& Mesh)
 		uint8 DPGIndex = Mesh.DepthPriorityGroup;
 		// Get the correct element list based on dpg index
 		// Translucent view mesh elements in the foreground dpg are not supported yet
-		TIndirectArray<FMeshBatch>& ViewMeshElementList = ( ( DPGIndex == SDPG_Foreground  ) ? ViewInfo->TopViewMeshElements : ViewInfo->ViewMeshElements );
+		TIndirectArray<FMeshBatch, SceneRenderingAllocator>& ViewMeshElementList = ( ( DPGIndex == SDPG_Foreground  ) ? ViewInfo->TopViewMeshElements : ViewInfo->ViewMeshElements );
 
 		FMeshBatch* NewMesh = new FMeshBatch(Mesh);
 		ViewMeshElementList.Add(NewMesh);

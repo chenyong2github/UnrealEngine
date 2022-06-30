@@ -109,7 +109,7 @@ public:
 	TArray<FDeferredPipeline> DeferredPipelines[ENaniteMeshPass::Num];
 };
 
-class FNaniteMeshProcessor : public FMeshPassProcessor
+class FNaniteMeshProcessor : public FSceneRenderingAllocatorObject<FNaniteMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	FNaniteMeshProcessor(

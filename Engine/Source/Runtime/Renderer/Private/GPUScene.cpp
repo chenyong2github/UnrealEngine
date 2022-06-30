@@ -1471,7 +1471,7 @@ void FGPUScene::UploadDynamicPrimitiveShaderDataForViewInternal(FRDGBuilder& Gra
 		const uint32 InstanceIdStart = Collector.UploadData->InstanceSceneDataOffset;
 
 		// Determine if we have any GPU data writers this frame and simultaneously defer any writes that must happen later in the frame
-		TArray<uint32, TMemStackAllocator<>> ImmediateWrites;
+		TArray<uint32, SceneRenderingAllocator> ImmediateWrites;
 		ImmediateWrites.Reserve(Collector.UploadData->GPUWritePrimitives.Num());
 		for (uint32 PrimitiveIndex : Collector.UploadData->GPUWritePrimitives)
 		{

@@ -1202,20 +1202,21 @@ void FVirtualTextureSystem::LoadPendingTiles(FRDGBuilder& GraphBuilder, ERHIFeat
 
 	if (PackedTiles.Num() > 0)
 	{
-		FMemStack& MemStack = FMemStack::Get();
-		FUniquePageList* UniquePageList = new(MemStack) FUniquePageList;
+		FConcurrentLinearBulkObjectAllocator Allocator;
+
+		FUniquePageList* UniquePageList = Allocator.Create<FUniquePageList>();
 		UniquePageList->Initialize();
 		for (uint32 Tile : PackedTiles)
 		{
 			UniquePageList->Add(Tile, 0xffff);
 		}
 
-		FUniqueRequestList* RequestList = new(MemStack) FUniqueRequestList(MemStack);
+		FUniqueRequestList* RequestList = Allocator.Create<FUniqueRequestList>(Allocator);
 		RequestList->Initialize();
-		GatherRequests(RequestList, UniquePageList, Frame, MemStack);
+		GatherRequests(RequestList, UniquePageList, Frame, Allocator);
 		// No need to sort requests, since we're submitting all of them here (no throttling)
 		AllocateResources(GraphBuilder, FeatureLevel);
-		SubmitRequests(GraphBuilder, FeatureLevel, MemStack, RequestList, false);
+		SubmitRequests(GraphBuilder, FeatureLevel, Allocator, RequestList, false);
 	}
 }
 
@@ -1387,14 +1388,13 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		}
 	}
 
-	FMemStack& MemStack = FMemStack::Get();
-	FUniquePageList* MergedUniquePageList = new(MemStack) FUniquePageList;
+	FConcurrentLinearBulkObjectAllocator Allocator;
+
+	FUniquePageList* MergedUniquePageList = Allocator.Create<FUniquePageList>();
 	MergedUniquePageList->Initialize();
 	
 	if (CVarVTEnableFeedback.GetValueOnRenderThread())
 	{
-		FMemMark FeedbackMark(MemStack);
-
 		// Fetch feedback for analysis
 		FVirtualTextureFeedback::FMapResult FeedbackResult;
 
@@ -1423,7 +1423,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 			}
 			else
 			{
-				Params.UniquePageList = new(MemStack) FUniquePageList;
+				Params.UniquePageList = Allocator.Create<FUniquePageList>();
 			}
 			Params.FeedbackBuffer = FeedbackResult.Data + CurrentOffset;
 
@@ -1489,15 +1489,13 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	{
 		if (CVarVTEnablePlayback.GetValueOnRenderThread())
 		{
-			FMemMark FeedbackMark(MemStack);
-
 			// todo: We can split this into concurrent tasks. 
 			FAddRequestedTilesParameters Parameters;
 			Parameters.System = this;
 			Parameters.LevelBias = FMath::FloorToInt(CVarVTPlaybackMipBias.GetValueOnRenderThread() + GetGlobalMipBias() + 0.5f);
 			Parameters.RequestBuffer = PageRequestPlaybackBuffer.GetData();
 			Parameters.NumRequests = PageRequestPlaybackBuffer.Num();
-			Parameters.UniquePageList = new(MemStack) FUniquePageList;
+			Parameters.UniquePageList = Allocator.Create<FUniquePageList>();
 
 			FAddRequestedTilesTask::DoTask(Parameters);
 			MergedUniquePageList->MergePages(Parameters.UniquePageList);
@@ -1506,7 +1504,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 		PageRequestPlaybackBuffer.Reset(0);
 	}
 
-	FUniqueRequestList* MergedRequestList = new(MemStack) FUniqueRequestList(MemStack);
+	FUniqueRequestList* MergedRequestList = Allocator.Create<FUniqueRequestList>(Allocator);
 	MergedRequestList->Initialize();
 
 	// Collect tiles to lock
@@ -1563,20 +1561,20 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	{
 		// Collect explicitly requested tiles
 		// These tiles are generated on the current frame, so they are collected/processed in a separate list
-		FUniquePageList* RequestedPageList = new(MemStack) FUniquePageList;
+		FUniquePageList* RequestedPageList = Allocator.Create<FUniquePageList>();
 		RequestedPageList->Initialize();
 		for (uint32 Tile : PackedTiles)
 		{
 			RequestedPageList->Add(Tile, 0xffff);
 		}
-		GatherRequests(MergedRequestList, RequestedPageList, Frame, MemStack);
+		GatherRequests(MergedRequestList, RequestedPageList, Frame, Allocator);
 	}
 
 	// Pages from feedback buffer were generated several frames ago, so they may no longer be valid for newly allocated VTs
 	static uint32 PendingFrameDelay = 3u;
 	if (Frame >= PendingFrameDelay)
 	{
-		GatherRequests(MergedRequestList, MergedUniquePageList, Frame - PendingFrameDelay, MemStack);
+		GatherRequests(MergedRequestList, MergedUniquePageList, Frame - PendingFrameDelay, Allocator);
 	}
 
 	if (MergedRequestList->GetNumAdaptiveAllocationRequests() > 0)
@@ -1602,7 +1600,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 			}
 		}
 
-		MergedRequestList->SortRequests(Producers, MemStack, MaxRequestUploads);
+		MergedRequestList->SortRequests(Producers, Allocator, MaxRequestUploads);
 	}
 
 	{
@@ -1616,7 +1614,7 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	// Submit the requests to produce pages that are already mapped
 	SubmitPreMappedRequests(GraphBuilder, FeatureLevel);
 	// Submit the merged requests
-	SubmitRequests(GraphBuilder, FeatureLevel, MemStack, MergedRequestList, true);
+	SubmitRequests(GraphBuilder, FeatureLevel, Allocator, MergedRequestList, true);
 
 	Producers.NotifyRequestsCompleted();
 
@@ -1629,10 +1627,8 @@ void FVirtualTextureSystem::Update(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::
 	ReleasePendingSpaces();
 }
 
-void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FMemStack& MemStack)
+void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList, const FUniquePageList* UniquePageList, uint32 FrameRequested, FConcurrentLinearBulkObjectAllocator& Allocator)
 {
-	FMemMark GatherMark(MemStack);
-
 	const uint32 MaxNumGatherTasks = FMath::Clamp((uint32)CVarVTNumGatherTasks.GetValueOnRenderThread(), 1u, MaxNumTasks);
 	const uint32 PageUpdateFlushCount = FMath::Min<uint32>(CVarVTPageUpdateFlushCount.GetValueOnRenderThread(), FPageUpdateBuffer::PageCapacity);
 
@@ -1654,14 +1650,14 @@ void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList
 				Params.FrameRequested = FrameRequested;
 				Params.UniquePageList = UniquePageList;
 				Params.PageUpdateFlushCount = PageUpdateFlushCount;
-				Params.PageUpdateBuffers = new(MemStack) FPageUpdateBuffer[PhysicalSpaces.Num()];
+				Params.PageUpdateBuffers = Allocator.CreateArray<FPageUpdateBuffer>(PhysicalSpaces.Num());
 				if (TaskIndex == 0u)
 				{
 					Params.RequestList = MergedRequestList;
 				}
 				else
 				{
-					Params.RequestList = new(MemStack) FUniqueRequestList(MemStack);
+					Params.RequestList = Allocator.Create<FUniqueRequestList>(Allocator);
 				}
 				Params.PageStartIndex = StartPageIndex;
 				Params.NumPages = NumPagesForTask;
@@ -1704,7 +1700,7 @@ void FVirtualTextureSystem::GatherRequests(FUniqueRequestList* MergedRequestList
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_MergeRequests);
 		for (uint32 TaskIndex = 1u; TaskIndex < NumGatherTasks; ++TaskIndex)
 		{
-			MergedRequestList->MergeRequests(GatherRequestsParameters[TaskIndex].RequestList, MemStack);
+			MergedRequestList->MergeRequests(GatherRequestsParameters[TaskIndex].RequestList, Allocator);
 		}
 	}
 }
@@ -2285,13 +2281,14 @@ void FVirtualTextureSystem::SubmitPreMappedRequests(FRDGBuilder& GraphBuilder, E
 	}
 }
 
-void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FMemStack& MemStack, FUniqueRequestList* RequestList, bool bAsync)
+void FVirtualTextureSystem::SubmitRequests(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FConcurrentLinearBulkObjectAllocator& Allocator, FUniqueRequestList* RequestList, bool bAsync)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FVirtualTextureSystem::SubmitRequests);
 	LLM_SCOPE(ELLMTag::VirtualTextureSystem);
 
 	// Allocate space to hold the physical address we allocate for each page load (1 page per layer per request)
-	uint32* RequestPhysicalAddress = NewOned<uint32>(MemStack, RequestList->GetNumLoadRequests() * VIRTUALTEXTURE_SPACE_MAXLAYERS);
+	uint32* RequestPhysicalAddress = Allocator.MallocAndMemsetArray<uint32>(RequestList->GetNumLoadRequests() * VIRTUALTEXTURE_SPACE_MAXLAYERS, 0xFF);
+
 	{
 		SCOPE_CYCLE_COUNTER(STAT_ProcessRequests_Submit);
 

@@ -2265,7 +2265,7 @@ FShadowDepthType CSMShadowDepthType(true, false);
 
 FMeshPassProcessor* CreateCSMShadowDepthPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
-	return new(FMemStack::Get()) FShadowDepthPassMeshProcessor(
+	return new FShadowDepthPassMeshProcessor(
 		Scene,
 		InViewIfDynamicMeshCommand,
 		CSMShadowDepthType,
@@ -2280,7 +2280,7 @@ FMeshPassProcessor* CreateVSMShadowDepthPassProcessor(const FScene* Scene, const
 	// Only create the mesh pass processor if VSMs are not enabled as this prevents wasting time caching the SM draw commands
 	if (UseNonNaniteVirtualShadowMaps(Scene->GetShaderPlatform(), Scene->GetFeatureLevel()))
 	{
-		return new(FMemStack::Get()) FShadowDepthPassMeshProcessor(
+		return new FShadowDepthPassMeshProcessor(
 			Scene,
 			InViewIfDynamicMeshCommand,
 			CSMShadowDepthType,

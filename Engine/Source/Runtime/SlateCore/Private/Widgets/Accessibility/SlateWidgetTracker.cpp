@@ -50,8 +50,7 @@ void FSlateWidgetTracker::RemoveTrackedWidget(const SWidget* WidgetToStopTrackin
 {
 	if (IsEnabled() && WidgetToStopTracking != nullptr)
 	{
-		FMemMark Mark(FMemStack::Get());
-		TArray<FName, TMemStackAllocator<>> AllTags;
+		TArray<FName, FConcurrentLinearArrayAllocator> AllTags;
 		TrackedWidgets.GenerateKeyArray(AllTags);
 		for (const FName& Tag : AllTags)
 		{

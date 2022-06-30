@@ -1015,7 +1015,6 @@ public:
 		}
 		
 		{
-			FMemMark Mark(FMemStack::Get());
 			// Use a compute shader to do the color space conversion
 			FRDGBuilder GraphBuilder(RHICmdList);
 			FComputeShaderYCbCrToRGB::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeShaderYCbCrToRGB::FParameters>();

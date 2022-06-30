@@ -999,7 +999,7 @@ public:
 			uint64 HitsAcrossFrames;
 			FRayTracingPipelineState* Pipeline;
 		};
-		TArray<FEntry, TMemStackAllocator<>> Entries;
+		TArray<FEntry, FConcurrentLinearArrayAllocator> Entries;
 		Entries.Reserve(Cache.Num());
 
 		const uint64 CurrentFrame = GFrameCounter;

@@ -9,7 +9,7 @@
 
 class FScene;
 
-class FAnisotropyMeshProcessor : public FMeshPassProcessor
+class FAnisotropyMeshProcessor : public FSceneRenderingAllocatorObject<FAnisotropyMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	FAnisotropyMeshProcessor(

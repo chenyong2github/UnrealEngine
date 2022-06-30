@@ -128,7 +128,9 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 	// Draw solid spheres
 	struct FMaterialCache
 	{
-		FMaterialCache() : bUseFakeLight(false) {}
+		FMaterialCache()
+			: bUseFakeLight(false)
+		{}
 
 		FMaterialRenderProxy* operator[](FLinearColor Color)
 		{
@@ -143,7 +145,7 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 				if (bUseFakeLight && SolidMeshMaterial.IsValid())
 				{
 					
-					MeshColor = new(FMemStack::Get())  FColoredMaterialRenderProxy(
+					MeshColor = &Collector->AllocateOneFrameResource<FColoredMaterialRenderProxy>(
 						SolidMeshMaterial->GetRenderProxy(),
 						Color,
 						"GizmoColor"
@@ -151,7 +153,7 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 				}
 				else
 				{
-					MeshColor = new(FMemStack::Get()) FColoredMaterialRenderProxy(GEngine->DebugMeshMaterial->GetRenderProxy(), Color);
+					MeshColor = &Collector->AllocateOneFrameResource<FColoredMaterialRenderProxy>(GEngine->DebugMeshMaterial->GetRenderProxy(), Color);
 				}
 
 				MeshColorInstances.Add(HashKey, MeshColor);
@@ -160,15 +162,22 @@ void FDebugRenderSceneProxy::GetDynamicMeshElements(const TArray<const FSceneVie
 			return MeshColor;
 		}
 
-		void UseFakeLight(bool UseLight, class UMaterial* InMaterial) { bUseFakeLight = UseLight; SolidMeshMaterial = InMaterial; }
+		void Init(FMeshElementCollector& InCollector, bool UseLight = false, class UMaterial* InMaterial = nullptr)
+		{
+			Collector = &InCollector;
+			bUseFakeLight = UseLight;
+			SolidMeshMaterial = InMaterial;
+		}
 
+		FMeshElementCollector* Collector = nullptr;
 		TMap<uint32, FMaterialRenderProxy*> MeshColorInstances;
 		TWeakObjectPtr<class UMaterial> SolidMeshMaterial;
 		bool bUseFakeLight;
 	};
 
 	FMaterialCache MaterialCache[2];
-	MaterialCache[1].UseFakeLight(true, SolidMeshMaterial.Get());
+	MaterialCache[0].Init(Collector);
+	MaterialCache[1].Init(Collector, true, SolidMeshMaterial.Get());
 
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{

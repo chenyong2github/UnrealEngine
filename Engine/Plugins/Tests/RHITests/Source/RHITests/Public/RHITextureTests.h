@@ -511,9 +511,9 @@ public:
 		uint8* UpdateData;
 		uint8* ZeroData;
 
-		FMemMark MemMark(FMemStack::Get());
-		UpdateData = new(FMemStack::Get()) uint8[SrcDataSize];
-		ZeroData = new(FMemStack::Get()) uint8[SrcDataSize];
+		FConcurrentLinearBulkObjectAllocator Allocator;
+		UpdateData = Allocator.MallocArray<uint8>(SrcDataSize);
+		ZeroData = Allocator.MallocArray<uint8>(SrcDataSize);
 		SourceType::FillSourceData(SrcDataWidth, SrcDataHeight, UpdateData);
 		FMemory::Memset(ZeroData, 0, SrcDataSize);
 

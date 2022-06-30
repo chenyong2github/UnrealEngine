@@ -279,7 +279,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FPrimitiveSceneInfo_CacheMeshDrawCommands);
 
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CacheMeshDrawCommands);
-	FMemMark Mark(FMemStack::Get());
 
 	static constexpr int BATCH_SIZE = 64;
 	const int NumBatches = (SceneInfos.Num() + BATCH_SIZE - 1) / BATCH_SIZE;
@@ -288,15 +287,13 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	{
 		SCOPED_NAMED_EVENT(FPrimitiveSceneInfo_CacheMeshDrawCommand, FColor::Green);
 
-		FMemMark Mark(FMemStack::Get());
-
 		struct FMeshInfoAndIndex
 		{
 			int32 InfoIndex;
 			int32 MeshIndex;
 		};
 
-		TArray<FMeshInfoAndIndex, TMemStackAllocator<>> MeshBatches;
+		TArray<FMeshInfoAndIndex, SceneRenderingAllocator> MeshBatches;
 		MeshBatches.Reserve(3 * BATCH_SIZE);
 
 		int LocalNum = FMath::Min((Index * BATCH_SIZE) + BATCH_SIZE, SceneInfos.Num());
@@ -361,7 +358,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 						}
 					}
 
-					PassMeshProcessor->~FMeshPassProcessor();
+					delete PassMeshProcessor;
 				}
 			}
 		}
@@ -414,7 +411,7 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 	bool bAnyLooseParameterBuffers = false;
 	if (GMeshDrawCommandsCacheMultithreaded && FApp::ShouldUseThreadingForPerformance())
 	{
-		TArray<FCachedPassMeshDrawListContextDeferred, TMemStackAllocator<>> DrawListContexts;
+		TArray<FCachedPassMeshDrawListContextDeferred, SceneRenderingAllocator> DrawListContexts;
 		DrawListContexts.Reserve(NumBatches);
 		for(int32 ContextIndex = 0; ContextIndex < NumBatches; ++ContextIndex)
 		{
@@ -531,7 +528,6 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(FPrimitiveSceneInfo_CacheNaniteDrawCommands);
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_CacheNaniteDrawCommands);
 
-	FMemMark Mark(FMemStack::Get());
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
@@ -546,7 +542,6 @@ void FPrimitiveSceneInfo::CacheNaniteDrawCommands(FRHICommandListImmediate& RHIC
 				SceneInfos.Num(),
 				[&RHICmdList, Scene, &SceneInfos](FNaniteDrawListContext& Context, int32 Index)
 				{
-					FMemMark Mark(FMemStack::Get());
 					FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 					BuildNaniteDrawCommands(RHICmdList, Scene, SceneInfos[Index], Context);
 				}
@@ -624,7 +619,7 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 			{
 				FMeshPassProcessor* NaniteMeshProcessor = CreateNaniteMeshProcessor(Scene, nullptr, &DrawListContext);
 				PassBody(ENaniteMeshPass::BasePass, NaniteMeshProcessor);
-				NaniteMeshProcessor->~FMeshPassProcessor();
+				delete NaniteMeshProcessor;
 			}
 
 			// ENaniteMeshPass::LumenCardCapture
@@ -632,7 +627,7 @@ void BuildNaniteDrawCommands(FRHICommandListImmediate& RHICmdList, FScene* Scene
 			{
 				FMeshPassProcessor* NaniteMeshProcessor = CreateLumenCardNaniteMeshProcessor(Scene, nullptr, &DrawListContext);
 				PassBody(ENaniteMeshPass::LumenCardCapture, NaniteMeshProcessor);
-				NaniteMeshProcessor->~FMeshPassProcessor();
+				delete NaniteMeshProcessor;
 			}
 
 			static_assert(ENaniteMeshPass::Num == 2, "Change BuildNaniteDrawCommands() to account for more Nanite mesh passes");
@@ -897,7 +892,6 @@ void FPrimitiveSceneInfo::CacheRayTracingPrimitives(FScene* Scene, const TArrayV
 				[Scene](int32 ContextIndex, int32 NumContexts) { return Scene; },
 				[Scene, &SceneInfos](FCacheRayTracingPrimitivesContext<FTempRayTracingMeshCommandStorage>& Context, int32 Index)
 				{
-					FMemMark Mark(FMemStack::Get());
 					FOptionalTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
 
 					FPrimitiveSceneInfo* SceneInfo = SceneInfos[Index];

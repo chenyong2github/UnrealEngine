@@ -165,7 +165,7 @@ private:
 };
 
 
-class FLightmapDensityMeshProcessor : public FMeshPassProcessor
+class FLightmapDensityMeshProcessor : public FSceneRenderingAllocatorObject<FLightmapDensityMeshProcessor>, public FMeshPassProcessor
 {
 public:
 

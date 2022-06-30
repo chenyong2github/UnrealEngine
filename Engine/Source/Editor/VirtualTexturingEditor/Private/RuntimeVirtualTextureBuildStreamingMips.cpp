@@ -236,7 +236,6 @@ namespace RuntimeVirtualTexture
 					}
 
 					{
-						FMemMark MemMark(FMemStack::Get());
 						FRDGBuilder GraphBuilder(RHICmdList);
 
 						RuntimeVirtualTexture::FRenderPageBatchDesc Desc;

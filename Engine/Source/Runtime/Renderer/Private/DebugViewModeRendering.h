@@ -216,7 +216,7 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, QuadBufferUAV);
 };
 
-class FDebugViewModeMeshProcessor : public FMeshPassProcessor
+class FDebugViewModeMeshProcessor : public FSceneRenderingAllocatorObject<FDebugViewModeMeshProcessor>, public FMeshPassProcessor
 {
 public:
 	FDebugViewModeMeshProcessor(const FScene* InScene, ERHIFeatureLevel::Type InFeatureLevel, const FSceneView* InViewIfDynamicMeshCommand, bool bTranslucentBasePass, FMeshPassDrawListContext* InDrawListContext);

@@ -53,7 +53,6 @@ namespace OverlayRendering
 		ENQUEUE_RENDER_COMMAND(OverlayRendering_CrosshairOverlay)(
 			[DestinationTextureResource, CrosshairParams](FRHICommandListImmediate& RHICmdList)
 			{
-				FMemMark Mark(FMemStack::Get());
 				FRDGBuilder GraphBuilder(RHICmdList);
 
 				FCrosshairOverlayPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCrosshairOverlayPS::FParameters>();

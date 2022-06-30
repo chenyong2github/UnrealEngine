@@ -1431,7 +1431,6 @@ void FVirtualTexture2DResource::InitializeEditorResources(IVirtualTexture* InVir
 		}
 
 		{
-			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICommandList);
 			for (IVirtualTextureFinalizer* Finalizer : Finalizers)
 			{

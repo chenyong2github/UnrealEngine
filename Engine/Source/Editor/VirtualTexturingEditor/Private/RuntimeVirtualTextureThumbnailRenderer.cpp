@@ -77,7 +77,6 @@ void URuntimeVirtualTextureThumbnailRenderer::Draw(UObject* Object, int32 X, int
 	{
 		FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
-		FMemMark MemMark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
 
 		RuntimeVirtualTexture::FRenderPageBatchDesc Desc;

@@ -294,7 +294,6 @@ namespace
 		FMatrix ProjectionMatrix,
 		FRHIGPUTextureReadback* Readback)
 	{
-		FMemMark Mark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList);
 
 		// Create the view

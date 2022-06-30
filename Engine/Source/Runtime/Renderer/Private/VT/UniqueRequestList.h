@@ -63,19 +63,17 @@ inline bool operator!=(const FDirectMappingRequest& Lhs, const FDirectMappingReq
 class FUniqueRequestList
 {
 public:
-	// Make separate allocations to avoid any single MemStack allocation larger than FPageAllocator::PageSize (65536)
-	// MemStack also allocates extra bytes to ensure proper alignment, so actual size we can allocate is typically 8 bytes less than this
-	explicit FUniqueRequestList(FMemStack& MemStack)
+	explicit FUniqueRequestList(FConcurrentLinearBulkObjectAllocator& Allocator)
 		: LoadRequestHash(NoInit)
 		, MappingRequestHash(NoInit)
 		, DirectMappingRequestHash(NoInit)
-		, LoadRequests(new(MemStack) FVirtualTextureLocalTile[LoadRequestCapacity])
-		, MappingRequests(new(MemStack) FMappingRequest[MappingRequestCapacity])
-		, DirectMappingRequests(new(MemStack) FDirectMappingRequest[DirectMappingRequestCapacity])
-		, ContinuousUpdateRequests(new(MemStack) FVirtualTextureLocalTile[LoadRequestCapacity])
-		, AdaptiveAllocationsRequests(new(MemStack) uint32[LoadRequestCapacity])
-		, LoadRequestCount(new(MemStack) uint16[LoadRequestCapacity])
-		, LoadRequestGroupMask(new(MemStack) uint8[LoadRequestCapacity])
+		, LoadRequests(Allocator.CreateArray<FVirtualTextureLocalTile>(LoadRequestCapacity))
+		, MappingRequests(Allocator.CreateArray<FMappingRequest>(MappingRequestCapacity))
+		, DirectMappingRequests(Allocator.CreateArray<FDirectMappingRequest>(DirectMappingRequestCapacity))
+		, ContinuousUpdateRequests(Allocator.CreateArray<FVirtualTextureLocalTile>(LoadRequestCapacity))
+		, AdaptiveAllocationsRequests(Allocator.MallocArray<uint32>(LoadRequestCapacity))
+		, LoadRequestCount(Allocator.MallocArray<uint16>(LoadRequestCapacity))
+		, LoadRequestGroupMask(Allocator.MallocArray<uint8>(LoadRequestCapacity))
 		, NumLoadRequests(0u)
 		, NumLockRequests(0u)
 		, NumMappingRequests(0u)
@@ -120,9 +118,9 @@ public:
 
 	void AddAdaptiveAllocationRequest(uint32 Request);
 
-	void MergeRequests(const FUniqueRequestList* RESTRICT Other, FMemStack& MemStack);
+	void MergeRequests(const FUniqueRequestList* RESTRICT Other, FConcurrentLinearBulkObjectAllocator& Allocator);
 
-	void SortRequests(FVirtualTextureProducerCollection& Producers, FMemStack& MemStack, uint32 MaxNumRequests);
+	void SortRequests(FVirtualTextureProducerCollection& Producers, FConcurrentLinearBulkObjectAllocator& Allocator, uint32 MaxNumRequests);
 
 private:
 	static const uint32 LoadRequestCapacity = 4u * 1024;
@@ -293,11 +291,10 @@ void FUniqueRequestList::AddAdaptiveAllocationRequest(uint32 Request)
 	}
 }
 
-inline void FUniqueRequestList::MergeRequests(const FUniqueRequestList* RESTRICT Other, FMemStack& MemStack)
+inline void FUniqueRequestList::MergeRequests(const FUniqueRequestList* RESTRICT Other, FConcurrentLinearBulkObjectAllocator& Allocator)
 {
-	FMemMark Mark(MemStack);
+	uint16* LoadRequestIndexRemap = Allocator.MallocArray<uint16>(Other->NumLoadRequests);
 
-	uint16* LoadRequestIndexRemap = new(MemStack) uint16[Other->NumLoadRequests];
 	for (uint32 Index = 0u; Index < Other->NumLoadRequests; ++Index)
 	{
 		if (Other->IsLocked(Index))
@@ -337,7 +334,7 @@ inline void FUniqueRequestList::MergeRequests(const FUniqueRequestList* RESTRICT
 	}
 }
 
-inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& Producers, FMemStack& MemStack, uint32 MaxNumRequests)
+inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& Producers, FConcurrentLinearBulkObjectAllocator& Allocator, uint32 MaxNumRequests)
 {
 	struct FPriorityAndIndex
 	{
@@ -348,11 +345,9 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 		inline bool operator<(const FPriorityAndIndex& Rhs) const{ return Priroity > Rhs.Priroity; }
 	};
 
-	FMemMark Mark(MemStack);
-
 	// Compute priority of each load request
 	uint32 CheckNumLockRequests = 0u;
-	FPriorityAndIndex* SortedKeys = new(MemStack) FPriorityAndIndex[NumLoadRequests];
+	FPriorityAndIndex* SortedKeys = Allocator.CreateArray<FPriorityAndIndex>(NumLoadRequests);
 	for (uint32 i = 0u; i < NumLoadRequests; ++i)
 	{
 		const uint32 Count = LoadRequestCount[i];
@@ -380,9 +375,9 @@ inline void FUniqueRequestList::SortRequests(FVirtualTextureProducerCollection& 
 	const uint32 NewNumLoadRequests = FMath::Min(NumLoadRequests, FMath::Max(NumLockRequests, MaxNumRequests));
 
 	// Re-index load request list, using sorted indices
-	FVirtualTextureLocalTile* SortedLoadRequests = new(MemStack) FVirtualTextureLocalTile[NewNumLoadRequests];
-	uint8* SortedGroupMask = new(MemStack) uint8[NewNumLoadRequests];
-	uint16* LoadIndexToSortedLoadIndex = new(MemStack) uint16[NumLoadRequests];
+	FVirtualTextureLocalTile* SortedLoadRequests = Allocator.CreateArray<FVirtualTextureLocalTile>(NewNumLoadRequests);
+	uint8* SortedGroupMask = Allocator.MallocArray<uint8>(NewNumLoadRequests);
+	uint16* LoadIndexToSortedLoadIndex = Allocator.MallocArray<uint16>(NumLoadRequests);
 	FMemory::Memset(LoadIndexToSortedLoadIndex, 0xff, NumLoadRequests * sizeof(uint16));
 	for (uint32 i = 0u; i < NewNumLoadRequests; ++i)
 	{

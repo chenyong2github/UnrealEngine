@@ -127,8 +127,6 @@ bool FSlateOpenGLRenderer::Initialize()
  */
 void FSlateOpenGLRenderer::DrawWindows( FSlateDrawBuffer& InWindowDrawBuffer )
 {
-	FMemMark MemMark(FMemStack::Get());
-
 	const TSharedRef<FSlateFontCache> FontCache = SlateFontServices->GetFontCache();
 
 	// Draw each window.  For performance.  All elements are batched before anything is rendered

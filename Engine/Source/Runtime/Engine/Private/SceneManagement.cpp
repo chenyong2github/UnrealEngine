@@ -228,7 +228,8 @@ static TAutoConsoleVariable<int32> CVarUseParallelGetDynamicMeshElementsTasks(
 	0,
 	TEXT("If > 0, and if FApp::ShouldUseThreadingForPerformance(), then parts of GetDynamicMeshElements will be done in parallel."));
 
-FMeshElementCollector::FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel) :
+FMeshElementCollector::FMeshElementCollector(ERHIFeatureLevel::Type InFeatureLevel, FSceneRenderingBulkObjectAllocator& InBulkAllocator) :
+	OneFrameResources(InBulkAllocator),
 	PrimitiveSceneProxy(NULL),
 	DynamicIndexBuffer(nullptr),
 	DynamicVertexBuffer(nullptr),
@@ -247,15 +248,13 @@ void FMeshElementCollector::ProcessTasks()
 	if (ParallelTasks.Num())
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_FMeshElementCollector_ProcessTasks);
-		TArray<TFunction<void()>*, SceneRenderingAllocator>& LocalParallelTasks(ParallelTasks);
+		TArray<TFunction<void()>, SceneRenderingAllocator>& LocalParallelTasks(ParallelTasks);
 		ParallelFor(ParallelTasks.Num(), 
 			[&LocalParallelTasks](int32 Index)
 			{
-				TFunction<void()>* Func = LocalParallelTasks[Index];
-				(*Func)();
-				Func->~TFunction<void()>();
-			}
-			);
+				LocalParallelTasks[Index]();
+				LocalParallelTasks[Index] = {};
+			});
 		ParallelTasks.Empty();
 	}
 }

@@ -1221,8 +1221,6 @@ public:
 
 			if (Proxy->GetLightingChannelMask() != 0)
 			{
-				FMemMark MemStackMark(FMemStack::Get());
-
 				const FBoxSphereBounds& Bounds = Proxy->GetBounds();
 				const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimInfo);
 
@@ -5377,7 +5375,6 @@ void FScene::CreateLightPrimitiveInteractionsForPrimitive(FPrimitiveSceneInfo* P
 	FPrimitiveSceneProxy* Proxy = PrimitiveInfo->Proxy;
 	if (Proxy->GetLightingChannelMask() != 0)
 	{
-		FMemMark MemStackMark(FMemStack::Get());
 		const FBoxSphereBounds& Bounds = Proxy->GetBounds();
 		const FPrimitiveSceneInfoCompact PrimitiveSceneInfoCompact(PrimitiveInfo);
 

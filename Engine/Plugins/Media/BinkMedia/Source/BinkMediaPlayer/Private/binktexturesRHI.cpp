@@ -341,8 +341,6 @@ static void Draw_textures(BINKTEXTURES* ptextures, BINKSHADERS* pshaders, void* 
 	int hasAPlane = bp_src->APlane.Allocate;
 	int hasHPlane = bp_src->HPlane.Allocate;
 
-	FMemMark Mark(FMemStack::Get());
-
 	FRHICommandListImmediate& RHICmdList = GetImmediateCommandList_ForRenderCommand();
 	FRDGBuilder BinkGraphBuilder(RHICmdList);
 

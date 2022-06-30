@@ -1223,7 +1223,7 @@ public:
 	bool bHasCustomDepthPrimitives;
 
     /** Get all stencil values written into the custom depth pass */
-	TSet<uint32> CustomDepthStencilValues;
+	TSet<uint32, DefaultKeyFuncs<uint32>, SceneRenderingSetAllocator> CustomDepthStencilValues;
 
 	/** Mesh batches with for mesh decal rendering. */
 	TArray<FMeshDecalBatch, SceneRenderingAllocator> MeshDecalBatches;
@@ -1247,13 +1247,13 @@ public:
 	FBatchedElements TopBatchedViewElements;
 
 	/** The view's mesh elements. */
-	TIndirectArray<FMeshBatch> ViewMeshElements;
+	TIndirectArray<FMeshBatch, SceneRenderingAllocator> ViewMeshElements;
 
 	/** The view's mesh elements for the foreground (editor gizmos and primitives )*/
-	TIndirectArray<FMeshBatch> TopViewMeshElements;
+	TIndirectArray<FMeshBatch, SceneRenderingAllocator> TopViewMeshElements;
 
 	/** The dynamic resources used by the view elements. */
-	TArray<FDynamicPrimitiveResource*> DynamicResources;
+	TArray<FDynamicPrimitiveResource*, SceneRenderingAllocator> DynamicResources;
 
 	/** Gathered in initviews from all the primitives with dynamic view relevance, used in each mesh pass. */
 	TArray<FMeshBatchAndRelevance,SceneRenderingAllocator> DynamicMeshElements;
@@ -1492,10 +1492,10 @@ public:
 	FBufferRHIRef									LumenHardwareRayTracingHitDataBuffer;
 	FShaderResourceViewRHIRef						LumenHardwareRayTracingHitDataBufferSRV;
 
-	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingMaterialBindings; // One per binding task
+	TArray<FRayTracingLocalShaderBindingWriter*, SceneRenderingAllocator>	RayTracingMaterialBindings; // One per binding task
 	FGraphEventRef									RayTracingMaterialBindingsTask;
 
-	TArray<FRayTracingLocalShaderBindingWriter*>	RayTracingCallableBindings; // One per binding task
+	TArray<FRayTracingLocalShaderBindingWriter*, SceneRenderingAllocator>	RayTracingCallableBindings; // One per binding task
 	FGraphEventRef									RayTracingCallableBindingsTask;
 
 	// Common resources used for lighting in ray tracing effects
@@ -1912,6 +1912,8 @@ private:
 class FSceneRenderer
 {
 public:
+	/** Linear bulk allocator with a lifetime tied to the scene renderer. */
+	FSceneRenderingBulkObjectAllocator Allocator;
 
 	/** The scene being rendered. */
 	FScene* Scene;
@@ -2367,15 +2369,6 @@ private:
 
 	/** Distance field shadows to project. Used to avoid iterating through the scene lights array. */
 	TArray<FProjectedShadowInfo*, TInlineAllocator<2, SceneRenderingAllocator>> ProjectedDistanceFieldShadows;
-
-	/**
-	 * Projected shadows allocated on the scene rendering mem stack.
-	 * Note: this exists purely such that the destructor can be called as the memory is allocated from a pool.
-	 * Note #2: Much more elegant if the pool itself managed this!
-	 */
-	TArray<FProjectedShadowInfo*, SceneRenderingAllocator> MemStackProjectedShadows;
-
-	FMemMark* MemStackMark = nullptr;
 
 	friend class FRendererModule;
 };

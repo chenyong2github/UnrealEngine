@@ -842,6 +842,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 	View.RayTracingMeshResourceCollector = MakeUnique<FRayTracingMeshResourceCollector>(
 		Scene->GetFeatureLevel(),
+		Allocator,
 		&DynamicIndexBufferForInitViews,
 		&DynamicVertexBufferForInitViews,
 		&DynamicReadBufferForInitViews);
@@ -917,14 +918,14 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 		uint32 NumPendingMeshBatches = 0;
 		const uint32 RayTracingParallelMeshBatchSize = GRayTracingParallelMeshBatchSize;
 
-		auto KickRayTracingMeshBatchTask = [&View, &MeshBatchTaskHead, &MeshBatchTaskPage, &NumPendingMeshBatches, Scene = this->Scene]()
+		auto KickRayTracingMeshBatchTask = [&Allocator = Allocator, &View, &MeshBatchTaskHead, &MeshBatchTaskPage, &NumPendingMeshBatches, Scene = this->Scene]()
 		{
 			if (MeshBatchTaskHead)
 			{
-				FDynamicRayTracingMeshCommandStorage* TaskDynamicCommandStorage = new(FMemStack::Get()) FDynamicRayTracingMeshCommandStorage;
+				FDynamicRayTracingMeshCommandStorage* TaskDynamicCommandStorage = Allocator.Create<FDynamicRayTracingMeshCommandStorage>();
 				View.DynamicRayTracingMeshCommandStoragePerTask.Add(TaskDynamicCommandStorage);
 
-				FRayTracingMeshCommandOneFrameArray* TaskVisibleCommands = new(FMemStack::Get()) FRayTracingMeshCommandOneFrameArray;
+				FRayTracingMeshCommandOneFrameArray* TaskVisibleCommands = Allocator.Create<FRayTracingMeshCommandOneFrameArray>();
 				TaskVisibleCommands->Reserve(NumPendingMeshBatches);
 				View.VisibleRayTracingMeshCommandsPerTask.Add(TaskVisibleCommands);
 
@@ -953,7 +954,6 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 							}
 						}
 						FRayTracingMeshBatchTaskPage* NextPage = Page->Next;
-						Page->~FRayTracingMeshBatchTaskPage();
 						Page = NextPage;
 					}
 					check(ExpectedMaxVisibieCommands <= TaskVisibleCommands->Max());
@@ -1084,7 +1084,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstancesForView(FRDGBu
 
 						if (MeshBatchTaskPage == nullptr || MeshBatchTaskPage->NumWorkItems == MaxWorkItemsPerPage)
 						{
-							FRayTracingMeshBatchTaskPage* NextPage = new(FMemStack::Get()) FRayTracingMeshBatchTaskPage;
+							FRayTracingMeshBatchTaskPage* NextPage = Allocator.Create<FRayTracingMeshBatchTaskPage>();
 							if (MeshBatchTaskHead == nullptr)
 							{
 								MeshBatchTaskHead = NextPage;
@@ -1851,8 +1851,6 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 
 		if (!bIsPathTracing)
 		{
-			FMemMark Mark(FMemStack::Get());
-
 			FRayTracingLocalShaderBindings* LumenHardwareRayTracingMaterialBindings = nullptr;
 
 			// When Lumen passes are running in inline-only mode we need to build bindings for HitGroupData here instead of when building the pipeline.

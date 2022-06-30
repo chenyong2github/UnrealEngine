@@ -70,11 +70,11 @@ class FSimpleLightArray
 {
 public:
 	/** Data per simple dynamic light instance, independent of view */
-	TArray<FSimpleLightEntry, TMemStackAllocator<>> InstanceData;
+	TArray<FSimpleLightEntry, SceneRenderingAllocator> InstanceData;
 	/** Per-view data for each light */
-	TArray<FSimpleLightPerViewEntry, TMemStackAllocator<>> PerViewData;
+	TArray<FSimpleLightPerViewEntry, SceneRenderingAllocator> PerViewData;
 	/** Indices into the per-view data for each light. */
-	TArray<FSimpleLightInstacePerViewIndexData, TMemStackAllocator<>> InstancePerViewDataIndices;
+	TArray<FSimpleLightInstacePerViewIndexData, SceneRenderingAllocator> InstancePerViewDataIndices;
 
 public:
 

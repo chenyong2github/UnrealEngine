@@ -61,7 +61,7 @@ private:
 
 extern void SetupDistortionParams(FVector4f& DistortionParams, const FViewInfo& View);
 
-class FDistortionMeshProcessor : public FMeshPassProcessor
+class FDistortionMeshProcessor : public FSceneRenderingAllocatorObject<FDistortionMeshProcessor>, public FMeshPassProcessor
 {
 public:
 

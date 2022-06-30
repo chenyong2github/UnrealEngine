@@ -118,7 +118,7 @@ enum class EShadowMeshSelection : uint8
 ENUM_CLASS_FLAGS(EShadowMeshSelection)
 
 
-class FShadowDepthPassMeshProcessor : public FMeshPassProcessor
+class FShadowDepthPassMeshProcessor : public FSceneRenderingAllocatorObject<FShadowDepthPassMeshProcessor>, public FMeshPassProcessor
 {
 public:
 

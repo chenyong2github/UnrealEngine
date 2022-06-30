@@ -2378,7 +2378,6 @@ void FRDGBuilder::DispatchParallelExecute(IRHICommandContext* RHICmdContext)
 		{
 			SCOPED_NAMED_EVENT(ParallelExecute, FColor::Emerald);
 			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-			FMemMark MemMark(FMemStack::Get());
 
 			for (FRDGPass* Pass : ParallelPasses)
 			{

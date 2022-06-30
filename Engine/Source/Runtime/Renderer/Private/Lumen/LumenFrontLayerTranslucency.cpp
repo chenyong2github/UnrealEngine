@@ -141,7 +141,7 @@ public:
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FLumenFrontLayerTranslucencyGBufferPS, TEXT("/Engine/Private/Lumen/LumenFrontLayerTranslucency.usf"), TEXT("MainPS"), SF_Pixel);
 
-class FLumenFrontLayerTranslucencyGBufferMeshProcessor : public FMeshPassProcessor
+class FLumenFrontLayerTranslucencyGBufferMeshProcessor : public FSceneRenderingAllocatorObject<FLumenFrontLayerTranslucencyGBufferMeshProcessor>, public FMeshPassProcessor
 {
 public:
 
@@ -273,7 +273,7 @@ FMeshPassProcessor* CreateLumenFrontLayerTranslucencyGBufferPassProcessor(const 
 
 	PassState.SetBlendState(TStaticBlendState<>::GetRHI());
 
-	return new(FMemStack::Get()) FLumenFrontLayerTranslucencyGBufferMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
+	return new FLumenFrontLayerTranslucencyGBufferMeshProcessor(Scene, InViewIfDynamicMeshCommand, PassState, InDrawListContext);
 }
 
 FRegisterPassProcessorCreateFunction RegisterLumenFrontLayerTranslucencyGBufferPass(&CreateLumenFrontLayerTranslucencyGBufferPassProcessor, EShadingPath::Deferred, EMeshPass::LumenFrontLayerTranslucencyGBuffer, EMeshPassFlags::MainView);

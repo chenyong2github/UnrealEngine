@@ -489,7 +489,6 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 
 				CacheRenderTarget(OutputTarget, TEXT("MipGeneration"), MipGenerationCache);
 
-				FMemMark MemMark(FMemStack::Get());
 				FRDGBuilder GraphBuilder(FRHICommandListExecutor::GetImmediateCommandList());
 				FRDGTextureRef MipOutputTexture = GraphBuilder.RegisterExternalTexture(MipGenerationCache);
 				FGenerateMips::Execute(GraphBuilder, MipOutputTexture, FGenerateMipsParams{ SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp }, GenerateMipsPass);

@@ -4562,7 +4562,6 @@ int32 ALandscape::PerformLayersHeightmapsLocalMerge(const FUpdateLayersContentCo
 	
 	ENQUEUE_RENDER_COMMAND(PerformLayersHeightmapsLocalMerge)([RenderThreadData](FRHICommandListImmediate& RHICmdList)
 	{
-		FMemMark Mark(FMemStack::Get());
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PerformLayersHeightmapsLocalMerge"));
 
 		if (RenderThreadData.NeedsMerge())
@@ -6515,7 +6514,6 @@ int32 ALandscape::PerformLayersWeightmapsLocalMerge(FUpdateLayersContentContext&
 	{
 		ENQUEUE_RENDER_COMMAND(PerformLayersWeightmapsLocalMerge)([RenderThreadData](FRHICommandListImmediate& RHICmdList)
 		{
-			FMemMark Mark(FMemStack::Get());
 			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PerformLayersWeightmapsLocalMerge"));
 
 			// Prepare the GPU resources we will use during the local merge : 

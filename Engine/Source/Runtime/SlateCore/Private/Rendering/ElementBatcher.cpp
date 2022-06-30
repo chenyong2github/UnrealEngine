@@ -155,7 +155,7 @@ void FSlateBatchData::MergeRenderBatches()
 
 	if(RenderBatches.Num())
 	{
-		TArray<TPair<int32, int32>, TInlineAllocator<100, TMemStackAllocator<>>> BatchIndices;
+		TArray<TPair<int32, int32>, TInlineAllocator<100, FConcurrentLinearArrayAllocator>> BatchIndices;
 
 		{
 			SCOPED_NAMED_EVENT_TEXT("Slate::SortRenderBatches", FColor::Magenta);

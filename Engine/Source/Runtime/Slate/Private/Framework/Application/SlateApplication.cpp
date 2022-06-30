@@ -1207,8 +1207,7 @@ static void PrepassWindowAndChildren( TSharedRef<SWindow> WindowToPrepass )
 		}
 
 		// Note: Iterate over copy since num children can change during resize above.
-		FMemMark Mark(FMemStack::Get());
-		TArray<TSharedRef<SWindow>, TMemStackAllocator<>> ChildWindows(WindowToPrepass->GetChildWindows());
+		TArray<TSharedRef<SWindow>, FConcurrentLinearArrayAllocator> ChildWindows(WindowToPrepass->GetChildWindows());
 		for (const TSharedRef<SWindow>& ChildWindow : ChildWindows)
 		{
 			PrepassWindowAndChildren(ChildWindow);

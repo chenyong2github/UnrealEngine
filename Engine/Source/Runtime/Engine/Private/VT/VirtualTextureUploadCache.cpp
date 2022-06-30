@@ -378,8 +378,7 @@ void FVirtualTextureUploadCache::Finalize(FRDGBuilder& GraphBuilder)
 	}
 
 	// Transition all updates textures back to SRV
-	FMemMark Mark(FMemStack::Get());
-	TArray<FRHITransitionInfo, TMemStackAllocator<>> SRVTransitions;
+	TArray<FRHITransitionInfo, SceneRenderingAllocator> SRVTransitions;
 	SRVTransitions.Reserve(UpdatedTextures.Num());
 	for (int32 Index = 0; Index < UpdatedTextures.Num(); ++Index)
 	{

@@ -9,6 +9,7 @@
 #include "ProfilingDebugging/MemoryTrace.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTypeTraits.h"
+#include "Containers/LockFreeFixedSizeAllocator.h"
 
 #ifdef USE_MALLOC_BINNED3
 #if USE_MALLOC_BINNED3
@@ -42,7 +43,7 @@ struct FOsAllocator
 	FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
 	{
 		//LLM_SCOPED_PAUSE_TRACKING(ELLMAllocType::System);
-		void* Pointer = FPlatformMemory::BinnedAllocFromOS(Size);
+		void* Pointer = FMemory::Malloc(Size);
 		MemoryTrace_Alloc(uint64(Pointer), Size, Alignment);
 		MemoryTrace_MarkAllocAsHeap(uint64(Pointer), EMemoryTraceRootHeap::SystemMemory);
 		return Pointer;
@@ -51,7 +52,7 @@ struct FOsAllocator
 	FORCEINLINE static void Free(void* Pointer, SIZE_T Size)
 	{
 		MemoryTrace_Free(uint64(Pointer));
-		return FPlatformMemory::BinnedFreeToOS(Pointer, Size);
+		FMemory::Free(Pointer);
 	}
 };
 
@@ -137,6 +138,43 @@ public:
 	}
 };
 
+template <uint32 BlockSize, typename Allocator = FOsAllocator>
+class TBlockAllocationLockFreeCache
+{
+private:
+	static TLockFreeFixedSizeAllocator<BlockSize, PLATFORM_CACHE_LINE_SIZE> BlockAllocator;
+
+public:
+	static constexpr bool SupportsAlignment = Allocator::SupportsAlignment;
+
+	FORCEINLINE static void* Malloc(SIZE_T Size, uint32 Alignment)
+	{
+		if (Size == BlockSize)
+		{
+			return BlockAllocator.Allocate();
+		}
+		else
+		{
+			return Allocator::Malloc(Size, Alignment);
+		}
+	}
+
+	FORCEINLINE static void Free(void* Pointer, SIZE_T Size)
+	{
+		if (Size == BlockSize)
+		{
+			BlockAllocator.Free(Pointer);
+		}
+		else
+		{
+			Allocator::Free(Pointer, Size);
+		}
+	}
+};
+
+template <uint32 BlockSize, typename Allocator>
+TLockFreeFixedSizeAllocator<BlockSize, PLATFORM_CACHE_LINE_SIZE> TBlockAllocationLockFreeCache<BlockSize, Allocator>::BlockAllocator;
+
 struct FDefaultBlockAllocationTag 
 {
 	static constexpr uint32 BlockSize = 64 * 1024;		// Blocksize used to allocate from
@@ -145,7 +183,7 @@ struct FDefaultBlockAllocationTag
 	static constexpr bool InlineBlockAllocation = false;  // Inline or Noinline the BlockAllocation which can have an impact on Performance
 	static constexpr const char* TagName = "DefaultLinear";
 
-	using Allocator = FOsAllocator;
+	using Allocator = TBlockAllocationLockFreeCache<BlockSize, FOsAllocator>;
 };
 
 // This concurrent fast linear Allocator can be used for temporary allocations that are usually produced and consumed on different threads and within the lifetime of a frame.
@@ -265,6 +303,12 @@ public:
 	static FORCEINLINE_DEBUGGABLE void* Malloc(SIZE_T Size)
 	{
 		return Malloc(Size, Alignment);
+	}
+
+	template<typename T>
+	static FORCEINLINE_DEBUGGABLE void* Malloc()
+	{
+		return Malloc(sizeof(T), alignof(T));
 	}
 
 	static FORCEINLINE_DEBUGGABLE void* Malloc(SIZE_T Size, uint32 Alignment)
@@ -475,6 +519,12 @@ public:
 	{
 		static_assert(TIsDerivedFrom<ObjectType, TConcurrentLinearObject<ObjectType, BlockAllocationTag>>::Value, "TConcurrentLinearObject must be base of it's ObjectType (see CRTP)");
 		return TConcurrentLinearAllocator<BlockAllocationTag>::template Malloc<alignof(ObjectType)>(Size);
+	}
+
+	FORCEINLINE_DEBUGGABLE static void* operator new(size_t Size, void* Object)
+	{
+		static_assert(TIsDerivedFrom<ObjectType, TConcurrentLinearObject<ObjectType, BlockAllocationTag>>::Value, "TConcurrentLinearObject must be base of it's ObjectType (see CRTP)");
+		return Object;
 	}
 
 	FORCEINLINE_DEBUGGABLE static void* operator new[](size_t Size)
@@ -693,6 +743,41 @@ public:
 		{
 		}
 		return Alloc;
+	}
+
+	inline void* MallocAndMemset(SIZE_T Size, uint32 Alignment, uint8 MemsetChar)
+	{
+		void* Ptr = Malloc(Size, Alignment);
+		FMemory::Memset(Ptr, MemsetChar, Size);
+		return Ptr;
+	}
+
+	template <typename T>
+	inline T* Malloc()
+	{
+		return reinterpret_cast<T*>(Malloc(sizeof(T), alignof(T)));
+	}
+
+	template <typename T>
+	inline T* MallocAndMemset(uint8 MemsetChar)
+	{
+		void* Ptr = Malloc(sizeof(T), alignof(T));
+		FMemory::Memset(Ptr, MemsetChar, sizeof(T));
+		return reinterpret_cast<T*>(Ptr);
+	}
+
+	template <typename T>
+	inline T* MallocArray(SIZE_T Num)
+	{
+		return reinterpret_cast<T*>(Malloc(sizeof(T) * Num, alignof(T)));
+	}
+
+	template <typename T>
+	inline T* MallocAndMemsetArray(SIZE_T Num, uint8 MemsetChar)
+	{
+		void* Ptr = Malloc(sizeof(T) * Num, alignof(T));
+		FMemory::Memset(Ptr, MemsetChar, sizeof(T) * Num);
+		return reinterpret_cast<T*>(Ptr);
 	}
 
 	template<typename T, typename... TArgs>

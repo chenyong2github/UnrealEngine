@@ -448,8 +448,6 @@ void FOcclusionQueryBatcher::Flush(FRHICommandList& RHICmdList)
 {
 	if(BatchOcclusionQueries.Num())
 	{
-		FMemMark MemStackMark(FMemStack::Get());
-
 		// Create the indices for MaxBatchedPrimitives boxes.
 		FRHIBuffer* IndexBufferRHI = GOcclusionQueryIndexBuffer.IndexBufferRHI;
 
