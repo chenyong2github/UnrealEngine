@@ -35,96 +35,6 @@ static FLinearColor LinearColorBlend(FLinearColor LinearColorA, FLinearColor Lin
 	return LinearColorA + (LinearColorB - LinearColorA) * BlendParam;
 }
 
-void FPoseSearchDebuggerPoseVectorChannel::Reset()
-{
-	Positions.Reset();
-	LinearVelocities.Reset();
-	FacingDirections.Reset();
-}
-
-void FPoseSearchDebuggerPoseVector::Reset()
-{
-	Pose.Reset();
-	TrajectoryTimeBased.Reset();
-	TrajectoryDistanceBased.Reset();
-}
-
-void FPoseSearchDebuggerPoseVector::ExtractFeatures(const UE::PoseSearch::FFeatureVectorReader& Reader)
-{
-	using namespace UE::PoseSearch;
-
-	Reset();
-
-	FPoseSearchDebuggerPoseVectorChannel* Channels[] = 
-	{
-		&Pose,
-		&TrajectoryTimeBased,
-		&TrajectoryDistanceBased
-	};
-
-	for (const FPoseSearchFeatureDesc& Feature: Reader.GetLayout()->Features)
-	{
-		if (Feature.ChannelIdx >= UE_ARRAY_COUNT(Channels))
-		{
-			continue;
-		}
-
-		switch (Feature.Type)
-		{
-		case EPoseSearchFeatureType::Position:
-		{
-			FVector Vector;
-			if (Reader.GetVector(Feature, &Vector))
-			{
-				Channels[Feature.ChannelIdx]->Positions.Add(Vector);
-			}
-			break;
-		}
-		case EPoseSearchFeatureType::LinearVelocity:
-		{
-			FVector Vector;
-			if (Reader.GetVector(Feature, &Vector))
-			{
-				Channels[Feature.ChannelIdx]->LinearVelocities.Add(Vector);
-			}
-			break;
-
-		}
-		case EPoseSearchFeatureType::ForwardVector:
-		{
-			FVector Vector;
-			if (Reader.GetVector(Feature, &Vector))
-			{
-				Channels[Feature.ChannelIdx]->FacingDirections.Add(Vector);
-			}
-			break;
-		}
-
-		case EPoseSearchFeatureType::Phase:
-		{
-			FVector2D Phase;
-			if (Reader.GetPhase(Feature, &Phase))
-			{
-				Channels[Feature.ChannelIdx]->Phases.Add(Phase);
-			}
-			break;
-		}
-		}
-	}
-
-	for (FPoseSearchDebuggerPoseVectorChannel* Channel : Channels)
-	{
-		Channel->bShowPositions = !Channel->Positions.IsEmpty();
-		Channel->bShowLinearVelocities = !Channel->LinearVelocities.IsEmpty();
-		Channel->bShowFacingDirections = !Channel->FacingDirections.IsEmpty();
-		Channel->bShowPhases = !Channel->Phases.IsEmpty();
-	}
-
-	bShowPose = !Pose.IsEmpty();
-	bShowTrajectoryTimeBased = !TrajectoryTimeBased.IsEmpty();
-	bShowTrajectoryDistanceBased = !TrajectoryDistanceBased.IsEmpty();
-}
-
 void UPoseSearchMeshComponent::Initialize(const FTransform& InComponentToWorld)
 {
 	SetComponentToWorld(InComponentToWorld);
@@ -1557,18 +1467,12 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 	Reflection->AnimLinearVelocity = State.AnimLinearVelocity;
 	Reflection->AnimAngularVelocity = State.AnimAngularVelocity;
 
-	FFeatureVectorReader Reader;
-	Reader.Init(&Schema->Layout);
-
 	// Query pose
-	Reader.SetValues(State.QueryVector);
-	Reflection->QueryPoseVector.ExtractFeatures(Reader);
+	Reflection->QueryPoseVector = State.QueryVector;
 
 	// Active pose
-	TArray<float> Pose(Database.GetSearchIndex()->GetPoseValues(State.DbPoseIdx));
-	Database.GetSearchIndex()->InverseNormalize(Pose);
-	Reader.SetValues(Pose);
-	Reflection->ActivePoseVector.ExtractFeatures(Reader);
+	Reflection->ActivePoseVector = Database.GetSearchIndex()->GetPoseValues(State.DbPoseIdx);
+	Database.GetSearchIndex()->InverseNormalize(Reflection->ActivePoseVector);
 
 	auto DebuggerView = ParentDebuggerViewPtr.Pin();
 	if (DebuggerView.IsValid()) 
@@ -1577,27 +1481,19 @@ void SDebuggerDetailsView::UpdateReflection(const FTraceMotionMatchingStateMessa
 		if (!SelectedRows.IsEmpty())
 		{
 			const TSharedRef<FDebuggerDatabaseRowData>& Selected = SelectedRows[0];
-			Pose = Database.GetSearchIndex()->GetPoseValues(Selected->PoseIdx);
-			Database.GetSearchIndex()->InverseNormalize(Pose);
-			Reader.SetValues(Pose);
-			Reflection->SelectedPoseVector.ExtractFeatures(Reader);
+			Reflection->SelectedPoseVector = Database.GetSearchIndex()->GetPoseValues(Selected->PoseIdx);
+			Database.GetSearchIndex()->InverseNormalize(Reflection->SelectedPoseVector);
 
-			Pose = Selected->PoseCostDetails.CostVector;
-			//Database.SearchIndex.InverseNormalize(Pose);
-			Reader.SetValues(Pose);
-			Reflection->CostVector.ExtractFeatures(Reader);
+			Reflection->CostVector = Selected->PoseCostDetails.CostVector;
+			//Database.SearchIndex.InverseNormalize(Reflection->CostVector);
 
-			const TSharedRef<FDebuggerDatabaseRowData>& ActiveRow = 
-				DebuggerView->GetPoseIdxDatabaseRow(State.DbPoseIdx);
+			const TSharedRef<FDebuggerDatabaseRowData>& ActiveRow = DebuggerView->GetPoseIdxDatabaseRow(State.DbPoseIdx);
 
-			TArray<float> ActiveCostDifference(Pose);
-			for (int i = 0; i < ActiveCostDifference.Num(); ++i)
+			Reflection->CostVectorDifference = Reflection->CostVector;
+			for (int i = 0; i < Reflection->CostVectorDifference.Num(); ++i)
 			{
-				ActiveCostDifference[i] -= ActiveRow->PoseCostDetails.CostVector[i];
+				Reflection->CostVectorDifference[i] -= ActiveRow->PoseCostDetails.CostVector[i];
 			}
-
-			Reader.SetValues(ActiveCostDifference);
-			Reflection->CostVectorDifference.ExtractFeatures(Reader);
 		}
 	}
 }

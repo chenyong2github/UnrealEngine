@@ -299,44 +299,6 @@ bool FPoseSearchFeatureVectorLayout::IsValid(int32 ChannelCount) const
 	return true;
 }
 
-bool FPoseSearchFeatureVectorLayout::EnumerateBy(int32 ChannelIdx, EPoseSearchFeatureType Type, int32& InOutFeatureIdx) const
-{
-	auto IsChannelMatch = [](int32 ChannelIdx, const FPoseSearchFeatureDesc& Feature) -> bool
-	{
-		bool bChannelMatch = true;
-		if (ChannelIdx >= 0)
-		{
-			bChannelMatch = Feature.ChannelIdx == ChannelIdx;
-		}
-		return bChannelMatch;
-	};
-
-	auto IsTypeMatch = [](EPoseSearchFeatureType Type, const FPoseSearchFeatureDesc& Feature) -> bool
-	{
-		bool bTypeMatch = true;
-		if (Type != EPoseSearchFeatureType::Invalid)
-		{
-			bTypeMatch = Feature.Type == Type;
-		}
-		return bTypeMatch;
-	};
-
-	for (int32 Size = Features.Num(); ++InOutFeatureIdx < Size; )
-	{
-		const FPoseSearchFeatureDesc& Feature = Features[InOutFeatureIdx]; 
-
-		bool bChannelMatch = IsChannelMatch(ChannelIdx, Feature);
-		bool bTypeMatch = IsTypeMatch(Type, Feature);
-
-		if (bChannelMatch && bTypeMatch)
-		{
-			return true;
-		}
-	}
-
-	return false;
-}
-
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchSchema
 
@@ -354,10 +316,9 @@ int32 FSchemaInitializer::AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDe
 	check(Features.Num() + 1 <= UPoseSearchSchema::MaxFeatures);
 	check(!Features.Contains(FeatureDesc));
 	check(FeatureDesc.Cardinality > 0);
-	const int32 FeatureDescIndex = Features.Add(FeatureDesc);
-	Features[FeatureDescIndex].ValueOffset = CurrentChannelDataOffset;
+	check(FeatureDesc.ValueOffset == CurrentChannelDataOffset);
 	CurrentChannelDataOffset += FeatureDesc.Cardinality;
-	return FeatureDescIndex;
+	return Features.Add(FeatureDesc);
 }
 
 } // namespace UE::PoseSearch
@@ -2195,144 +2156,75 @@ void FPoseSearchFeatureVectorBuilder::ResetFeatures()
 	FeaturesAdded.Init(false, Schema->Layout.Features.Num());
 }
 
-void FPoseSearchFeatureVectorBuilder::SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform)
+void FPoseSearchFeatureVectorBuilder::SetPhase(const FPoseSearchFeatureDesc& Feature, const FVector2D& Phase)
 {
-	SetPosition(Feature, Transform.GetTranslation());
-	SetRotation(Feature, Transform.GetRotation());
-}
+	check(Feature.Type == EPoseSearchFeatureType::Phase);
+	check(Feature.Cardinality == 2);
 
-void FPoseSearchFeatureVectorBuilder::SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	SetLinearVelocity(Feature, Transform, PrevTransform, DeltaTime);
-	SetAngularVelocity(Feature, Transform, PrevTransform, DeltaTime);
-}
-
-void FPoseSearchFeatureVectorBuilder::SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	SetLinearVelocity(Feature, NextTransform, Transform, PrevTransform, DeltaTime);
-	SetAngularVelocity(Feature, NextTransform, Transform, PrevTransform, DeltaTime);
-}
-
-void FPoseSearchFeatureVectorBuilder::SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Position)
-{
-	Feature.Type = EPoseSearchFeatureType::Position;
-	SetVector(Feature, Position);
-}
-
-void FPoseSearchFeatureVectorBuilder::SetPhase(FPoseSearchFeatureDesc Feature, const FVector2D& Phase)
-{
-	Feature.Type = EPoseSearchFeatureType::Phase;
-	
-	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
-	if (ElementIndex >= 0)
+	const int32 FeatureIndex = Schema->Layout.Features.Find(Feature);
+	check(FeatureIndex >= 0);
+	if (FeatureIndex >= 0)
 	{
-		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+		const FPoseSearchFeatureDesc& FoundFeature = Schema->Layout.Features[FeatureIndex];
+		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
 
-		Values[FoundElement.ValueOffset + 0] = Phase.X;
-		Values[FoundElement.ValueOffset + 1] = Phase.Y;
+		Values[FoundFeature.ValueOffset + 0] = Phase.X;
+		Values[FoundFeature.ValueOffset + 1] = Phase.Y;
 
-		if (!FeaturesAdded[ElementIndex])
+		if (!FeaturesAdded[FeatureIndex])
 		{
-			FeaturesAdded[ElementIndex] = true;
+			FeaturesAdded[FeatureIndex] = true;
 			++NumFeaturesAdded;
 		}
 	}
 }
 
-void FPoseSearchFeatureVectorBuilder::SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation)
+void FPoseSearchFeatureVectorBuilder::SetRotation(const FPoseSearchFeatureDesc& Feature, const FQuat& Rotation)
 {
-	Feature.Type = EPoseSearchFeatureType::Rotation;
-	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
-	if (ElementIndex >= 0)
+	check(Feature.Type == EPoseSearchFeatureType::Rotation);
+	check(Feature.Cardinality == 6);
+	const int32 FeatureIndex = Schema->Layout.Features.Find(Feature);
+	check(FeatureIndex >= 0);
+	if (FeatureIndex >= 0)
 	{
 		FVector X = Rotation.GetAxisX();
 		FVector Y = Rotation.GetAxisY();
 
-		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex];
+		const FPoseSearchFeatureDesc& FoundFeature = Schema->Layout.Features[FeatureIndex];
+		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
 
-		Values[FoundElement.ValueOffset + 0] = X.X;
-		Values[FoundElement.ValueOffset + 1] = X.Y;
-		Values[FoundElement.ValueOffset + 2] = X.Z;
-		Values[FoundElement.ValueOffset + 3] = Y.X;
-		Values[FoundElement.ValueOffset + 4] = Y.Y;
-		Values[FoundElement.ValueOffset + 5] = Y.Z;
+		Values[FoundFeature.ValueOffset + 0] = X.X;
+		Values[FoundFeature.ValueOffset + 1] = X.Y;
+		Values[FoundFeature.ValueOffset + 2] = X.Z;
+		Values[FoundFeature.ValueOffset + 3] = Y.X;
+		Values[FoundFeature.ValueOffset + 4] = Y.Y;
+		Values[FoundFeature.ValueOffset + 5] = Y.Z;
 
-		if (!FeaturesAdded[ElementIndex])
+		if (!FeaturesAdded[FeatureIndex])
 		{
-			FeaturesAdded[ElementIndex] = true;
+			FeaturesAdded[FeatureIndex] = true;
 			++NumFeaturesAdded;
 		}
 	}
-
-	Feature.Type = EPoseSearchFeatureType::ForwardVector;
-	SetVector(Feature, Rotation.GetAxisY());
 }
 
-void FPoseSearchFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
+void FPoseSearchFeatureVectorBuilder::SetVector(const FPoseSearchFeatureDesc& Feature, const FVector& Vector)
 {
-	Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-	FVector LinearVelocity = (Transform.GetTranslation() - PrevTransform.GetTranslation()) / DeltaTime;
-	SetVector(Feature, LinearVelocity);
-}
-
-void FPoseSearchFeatureVectorBuilder::SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-	FVector LinearVelocityNext = (NextTransform.GetTranslation() - Transform.GetTranslation()) / DeltaTime;
-	FVector LinearVelocityPrev = (Transform.GetTranslation() - PrevTransform.GetTranslation()) / DeltaTime;
-	SetVector(Feature, (LinearVelocityNext + LinearVelocityPrev) / 2.0f);
-}
-
-static inline FVector QuaternionAngularVelocity(const FQuat& Rotation, const FQuat& PrevRotation, float DeltaTime)
-{
-	FQuat Q0 = PrevRotation;
-	FQuat Q1 = Rotation;
-	Q1.EnforceShortestArcWith(Q0);
-
-	// Given angular velocity vector w, quaternion differentiation can be represented as
-	//   dq/dt = (w * q)/2
-	// Solve for w
-	//   w = 2 * dq/dt * q^-1
-	// And let dq/dt be expressed as the finite difference
-	//   dq/dt = (q(t+h) - q(t)) / h
-	FQuat DQDt = (Q1 - Q0) / DeltaTime;
-	FQuat QInv = Q0.Inverse();
-	FQuat W = (DQDt * QInv) * 2.0f;
-
-	FVector AngularVelocity(W.X, W.Y, W.Z);
-
-	return AngularVelocity;
-}
-
-void FPoseSearchFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	Feature.Type = EPoseSearchFeatureType::AngularVelocity;
-	FVector AngularVelocity = QuaternionAngularVelocity(Transform.GetRotation(), PrevTransform.GetRotation(), DeltaTime);
-	SetVector(Feature, AngularVelocity);
-}
-
-void FPoseSearchFeatureVectorBuilder::SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime)
-{
-	Feature.Type = EPoseSearchFeatureType::AngularVelocity;
-	FVector AngularVelocityNext = QuaternionAngularVelocity(NextTransform.GetRotation(), Transform.GetRotation(), DeltaTime);
-	FVector AngularVelocityPrev = QuaternionAngularVelocity(Transform.GetRotation(), PrevTransform.GetRotation(), DeltaTime);
-	SetVector(Feature, (AngularVelocityNext + AngularVelocityPrev) / 2.0f);
-}
-
-void FPoseSearchFeatureVectorBuilder::SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector)
-{
-	int32 ElementIndex = Schema->Layout.Features.Find(Feature);
-	if (ElementIndex >= 0)
+	check(Feature.Cardinality == 3);
+	const int32 FeatureIndex = Schema->Layout.Features.Find(Feature);
+	check(FeatureIndex >= 0);
+	if (FeatureIndex >= 0)
 	{
-		const FPoseSearchFeatureDesc& FoundElement = Schema->Layout.Features[ElementIndex]; 
+		const FPoseSearchFeatureDesc& FoundFeature = Schema->Layout.Features[FeatureIndex]; 
+		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
 
-		Values[FoundElement.ValueOffset + 0] = Vector[0];
-		Values[FoundElement.ValueOffset + 1] = Vector[1];
-		Values[FoundElement.ValueOffset + 2] = Vector[2];
+		Values[FoundFeature.ValueOffset + 0] = Vector[0];
+		Values[FoundFeature.ValueOffset + 1] = Vector[1];
+		Values[FoundFeature.ValueOffset + 2] = Vector[2];
 
-		if (!FeaturesAdded[ElementIndex])
+		if (!FeaturesAdded[FeatureIndex])
 		{
-			FeaturesAdded[ElementIndex] = true;
+			FeaturesAdded[FeatureIndex] = true;
 			++NumFeaturesAdded;
 		}
 	}
@@ -2426,7 +2318,7 @@ void FPoseHistory::Init(const FPoseHistory& History)
 	TimeHorizon = History.TimeHorizon;
 }
 
-bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform)
+bool FPoseHistory::TrySampleLocalPose(float SecondsAgo, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform) const
 {
 	int32 NextIdx = LowerBound(Knots.begin(), Knots.end(), SecondsAgo, TGreater<>());
 	if (NextIdx <= 0 || NextIdx >= Knots.Num())
@@ -2610,41 +2502,25 @@ bool FFeatureVectorReader::IsValid() const
 	return Layout && (Layout->NumFloats == Values.Num());
 }
 
-bool FFeatureVectorReader::GetTransform(FPoseSearchFeatureDesc Element, FTransform* OutTransform) const
+bool FFeatureVectorReader::GetRotation(const FPoseSearchFeatureDesc& Feature, FQuat* OutRotation) const
 {
-	FVector Position;
-	bool bResult = GetPosition(Element, &Position);
-
-	FQuat Rotation;
-	bResult |= GetRotation(Element, &Rotation);
-
-	OutTransform->SetComponents(Rotation, Position, FVector::OneVector);
-	return bResult;
-}
-
-bool FFeatureVectorReader::GetPosition(FPoseSearchFeatureDesc Element, FVector* OutPosition) const
-{
-	Element.Type = EPoseSearchFeatureType::Position;
-	return GetVector(Element, OutPosition);
-}
-
-bool FFeatureVectorReader::GetRotation(FPoseSearchFeatureDesc Element, FQuat* OutRotation) const
-{
-	Element.Type = EPoseSearchFeatureType::Rotation;
-	int32 ElementIndex = IsValid() ? Layout->Features.Find(Element) : -1;
-	if (ElementIndex >= 0)
+	check(Feature.Type == EPoseSearchFeatureType::Rotation);
+	const int32 FeatureIndex = IsValid() ? Layout->Features.Find(Feature) : -1;
+	check(FeatureIndex >= 0);
+	if (FeatureIndex >= 0)
 	{
-		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
+		const FPoseSearchFeatureDesc& FoundFeature = Layout->Features[FeatureIndex];
+		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
 
 		FVector X;
 		FVector Y;
 
-		X.X = Values[FoundElement.ValueOffset + 0];
-		X.Y = Values[FoundElement.ValueOffset + 1];
-		X.Z = Values[FoundElement.ValueOffset + 2];
-		Y.X = Values[FoundElement.ValueOffset + 3];
-		Y.Y = Values[FoundElement.ValueOffset + 4];
-		Y.Z = Values[FoundElement.ValueOffset + 5];
+		X.X = Values[FoundFeature.ValueOffset + 0];
+		X.Y = Values[FoundFeature.ValueOffset + 1];
+		X.Z = Values[FoundFeature.ValueOffset + 2];
+		Y.X = Values[FoundFeature.ValueOffset + 3];
+		Y.Y = Values[FoundFeature.ValueOffset + 4];
+		Y.Z = Values[FoundFeature.ValueOffset + 5];
 
 		FVector Z = FVector::CrossProduct(X, Y);
 
@@ -2661,34 +2537,19 @@ bool FFeatureVectorReader::GetRotation(FPoseSearchFeatureDesc Element, FQuat* Ou
 	return false;
 }
 
-bool FFeatureVectorReader::GetForwardVector(FPoseSearchFeatureDesc Element, FVector* OutForwardVector) const
+bool FFeatureVectorReader::GetPhase(const FPoseSearchFeatureDesc& Feature, FVector2D* OutPhase) const
 {
-	Element.Type = EPoseSearchFeatureType::ForwardVector;
-	return GetVector(Element, OutForwardVector);
-}
-
-bool FFeatureVectorReader::GetLinearVelocity(FPoseSearchFeatureDesc Element, FVector* OutLinearVelocity) const
-{
-	Element.Type = EPoseSearchFeatureType::LinearVelocity;
-	return GetVector(Element, OutLinearVelocity);
-}
-
-bool FFeatureVectorReader::GetAngularVelocity(FPoseSearchFeatureDesc Element, FVector* OutAngularVelocity) const
-{
-	Element.Type = EPoseSearchFeatureType::AngularVelocity;
-	return GetVector(Element, OutAngularVelocity);
-}
-
-bool FFeatureVectorReader::GetPhase(FPoseSearchFeatureDesc Element, FVector2D* OutPhase) const
-{
-	Element.Type = EPoseSearchFeatureType::Phase;
-	int32 ElementIndex = IsValid() ? Layout->Features.Find(Element) : -1;
-	if (ElementIndex >= 0)
+	check(Feature.Cardinality == 2);
+	check(Feature.Type == EPoseSearchFeatureType::Phase);
+	const int32 FeatureIndex = IsValid() ? Layout->Features.Find(Feature) : -1;
+	check(FeatureIndex >= 0);
+	if (FeatureIndex >= 0)
 	{
-		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
+		const FPoseSearchFeatureDesc& FoundFeature = Layout->Features[FeatureIndex];
+		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
 
-		OutPhase->X = Values[FoundElement.ValueOffset + 0];
-		OutPhase->Y = Values[FoundElement.ValueOffset + 1];
+		OutPhase->X = Values[FoundFeature.ValueOffset + 0];
+		OutPhase->Y = Values[FoundFeature.ValueOffset + 1];
 		return true;
 	}
 
@@ -2696,17 +2557,20 @@ bool FFeatureVectorReader::GetPhase(FPoseSearchFeatureDesc Element, FVector2D* O
 	return false;
 }
 
-bool FFeatureVectorReader::GetVector(FPoseSearchFeatureDesc Element, FVector* OutVector) const
+bool FFeatureVectorReader::GetVector(const FPoseSearchFeatureDesc& Feature, FVector* OutVector) const
 {
-	int32 ElementIndex = IsValid() ? Layout->Features.Find(Element) : -1;
-	if (ElementIndex >= 0)
+	check(Feature.Cardinality == 3);
+	const int32 FeatureIndex = IsValid() ? Layout->Features.Find(Feature) : -1;
+	check(FeatureIndex >= 0);
+	if (FeatureIndex >= 0)
 	{
-		const FPoseSearchFeatureDesc& FoundElement = Layout->Features[ElementIndex];
+		const FPoseSearchFeatureDesc& FoundFeature = Layout->Features[FeatureIndex];
+		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
 
 		FVector V;
-		V.X = Values[FoundElement.ValueOffset + 0];
-		V.Y = Values[FoundElement.ValueOffset + 1];
-		V.Z = Values[FoundElement.ValueOffset + 2];
+		V.X = Values[FoundFeature.ValueOffset + 0];
+		V.Y = Values[FoundFeature.ValueOffset + 1];
+		V.Z = Values[FoundFeature.ValueOffset + 2];
 		*OutVector = V;
 		return true;
 	}

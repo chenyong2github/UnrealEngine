@@ -70,74 +70,6 @@ public:
 	FTransform LastRootMotionDelta = FTransform::Identity;
 };
 
-
-/**
- * Used by the reflection UObject to encompass a set of feature vectors
- */
-USTRUCT()
-struct FPoseSearchDebuggerPoseVectorChannel
-{
-	GENERATED_BODY()
-
-	// @TODO: Should be ideally enumerated based on all possible schema features
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
-	bool bShowPositions = false;
-	
-	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
-	bool bShowLinearVelocities = false;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
-	bool bShowFacingDirections = false;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Channel")
-	bool bShowPhases = false;
-
-    UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowPositions", EditConditionHides))
-	TArray<FVector> Positions;
-
-    UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowLinearVelocities", EditConditionHides))
-	TArray<FVector> LinearVelocities;
-	
-    UPROPERTY(VisibleAnywhere, EditFixedSize, Category="Channel", meta=(EditCondition="bShowFacingDirections", EditConditionHides))
-	TArray<FVector> FacingDirections;
-
-	UPROPERTY(VisibleAnywhere, EditFixedSize, Category = "Channel", meta = (EditCondition = "bShowPhases", EditConditionHides))
-	TArray<FVector2D> Phases;
-
-	void Reset();
-	bool IsEmpty() const { return Positions.IsEmpty() && LinearVelocities.IsEmpty() && FacingDirections.IsEmpty(); }
-};
-
-USTRUCT()
-struct FPoseSearchDebuggerPoseVector
-{
-	GENERATED_BODY()
-
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Pose Vector")
-	bool bShowPose = false;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Pose Vector")
-	bool bShowTrajectoryTimeBased = false;
-
-	UPROPERTY(VisibleDefaultsOnly, Category = "Pose Vector")
-	bool bShowTrajectoryDistanceBased = false;
-
-	UPROPERTY(VisibleAnywhere, Category="Pose Vector", meta=(EditCondition="bShowPose", EditConditionHides))
-	FPoseSearchDebuggerPoseVectorChannel Pose;
-
-	UPROPERTY(VisibleAnywhere, Category="Pose Vector", meta=(EditCondition="bShowTrajectoryTimeBased", EditConditionHides, DisplayName="Trajectory (Time)"))
-	FPoseSearchDebuggerPoseVectorChannel TrajectoryTimeBased;
-
-	UPROPERTY(VisibleAnywhere, Category="Pose Vector", meta=(EditCondition="bShowTrajectoryDistanceBased", EditConditionHides, DisplayName="Trajectory (Distance)"))
-	FPoseSearchDebuggerPoseVectorChannel TrajectoryDistanceBased;
-
-	void Reset();
-	void ExtractFeatures(const UE::PoseSearch::FFeatureVectorReader& Reader);
-	bool IsEmpty() const { return Pose.IsEmpty() && TrajectoryTimeBased.IsEmpty() && TrajectoryDistanceBased.IsEmpty(); }
-};
-
 /**
  * Used by the reflection UObject to encompass draw options for the query and database selections
  */
@@ -214,21 +146,21 @@ public:
 	bool bDrawSelectedSkeleton = true;
 
     UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	FPoseSearchDebuggerPoseVector QueryPoseVector;
+	TArray<float> QueryPoseVector;
     	
     UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	FPoseSearchDebuggerPoseVector ActivePoseVector;
+	TArray<float> ActivePoseVector;
 
 	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	FPoseSearchDebuggerPoseVector SelectedPoseVector;
+	TArray<float> SelectedPoseVector;
 
 	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	FPoseSearchDebuggerPoseVector CostVector;
+	TArray<float> CostVector;
 
 	// Cost comparison of selected and active poses. A negative value indicates the cost in the selected pose is lower;
 	// a positive value indicates the cost in the selected pose is higher.
 	UPROPERTY(VisibleAnywhere, Category="Pose Vectors")
-	FPoseSearchDebuggerPoseVector CostVectorDifference;
+	TArray<float> CostVectorDifference;
 };
 
 

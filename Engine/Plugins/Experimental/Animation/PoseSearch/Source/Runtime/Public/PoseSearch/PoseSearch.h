@@ -245,7 +245,7 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 
 	bool IsValid() const { return Type != EPoseSearchFeatureType::Invalid; }
 
-	static FPoseSearchFeatureDesc Construct(int8 ChannelIdx, int8 ChannelFeatureId, int8 SubsampleIdx, EPoseSearchFeatureType Type, int16 Cardinality)
+	static FPoseSearchFeatureDesc Construct(int8 ChannelIdx, int8 ChannelFeatureId, int8 SubsampleIdx, EPoseSearchFeatureType Type, int16 Cardinality, int16 ValueOffset)
 	{
 		FPoseSearchFeatureDesc PoseSearchFeatureDesc;
 		PoseSearchFeatureDesc.ChannelIdx = ChannelIdx;
@@ -253,7 +253,7 @@ struct POSESEARCH_API FPoseSearchFeatureDesc
 		PoseSearchFeatureDesc.SubsampleIdx = SubsampleIdx;
 		PoseSearchFeatureDesc.Type = Type;
 		PoseSearchFeatureDesc.Cardinality = Cardinality;
-		//PoseSearchFeatureDesc.ValueOffset
+		PoseSearchFeatureDesc.ValueOffset = ValueOffset;
 		return PoseSearchFeatureDesc;
 	}
 };
@@ -276,10 +276,7 @@ struct POSESEARCH_API FPoseSearchFeatureVectorLayout
 	int32 NumFloats = 0;
 
 	bool IsValid(int32 ChannelCount) const;
-
-	bool EnumerateBy(int32 ChannelIdx, EPoseSearchFeatureType Type, int32& InOutFeatureIdx) const;
 };
-
 
 
 //////////////////////////////////////////////////////////////////////////
@@ -946,17 +943,9 @@ public:
 	TArrayView<const float> GetValues() const { return Values; }
 	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
 
-	void SetTransform(FPoseSearchFeatureDesc Feature, const FTransform& Transform);
-	void SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetTransformVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetPosition(FPoseSearchFeatureDesc Feature, const FVector& Translation);
-	void SetRotation(FPoseSearchFeatureDesc Feature, const FQuat& Rotation);
-	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetLinearVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetAngularVelocity(FPoseSearchFeatureDesc Feature, const FTransform& NextTransform, const FTransform& Transform, const FTransform& PrevTransform, float DeltaTime);
-	void SetVector(FPoseSearchFeatureDesc Feature, const FVector& Vector);
-	void SetPhase(FPoseSearchFeatureDesc Feature, const FVector2D& Phase);
+	void SetRotation(const FPoseSearchFeatureDesc& Feature, const FQuat& Rotation);
+	void SetVector(const FPoseSearchFeatureDesc& Feature, const FVector& Vector);
+	void SetPhase(const FPoseSearchFeatureDesc& Feature, const FVector2D& Phase);
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 
@@ -1336,14 +1325,9 @@ public:
 	void SetValues(TArrayView<const float> Values);
 	bool IsValid() const;
 
-	bool GetTransform(FPoseSearchFeatureDesc Feature, FTransform* OutTransform) const;
-	bool GetPosition(FPoseSearchFeatureDesc Feature, FVector* OutPosition) const;
-	bool GetRotation(FPoseSearchFeatureDesc Feature, FQuat* OutRotation) const;
-	bool GetForwardVector(FPoseSearchFeatureDesc Feature, FVector* OutForwardVector) const;
-	bool GetLinearVelocity(FPoseSearchFeatureDesc Feature, FVector* OutLinearVelocity) const;
-	bool GetAngularVelocity(FPoseSearchFeatureDesc Feature, FVector* OutAngularVelocity) const;
-	bool GetVector(FPoseSearchFeatureDesc Feature, FVector* OutVector) const;
-	bool GetPhase(FPoseSearchFeatureDesc Element, FVector2D* OutPhase) const;
+	bool GetRotation(const FPoseSearchFeatureDesc& Feature, FQuat* OutRotation) const;
+	bool GetVector(const FPoseSearchFeatureDesc& Feature, FVector* OutVector) const;
+	bool GetPhase(const FPoseSearchFeatureDesc& Feature, FVector2D* OutPhase) const;
 
 	const FPoseSearchFeatureVectorLayout* GetLayout() const { return Layout; }
 
@@ -1388,7 +1372,7 @@ public:
 	FPoseSearchFeatureVectorBuilder& GetQueryBuilder() { return QueryBuilder; }
 
 private:
-	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform);
+	bool TrySampleLocalPose(float Time, const TArray<FBoneIndexType>& RequiredBones, TArray<FTransform>& LocalPose, FTransform& RootTransform) const;
 
 	struct FPose
 	{

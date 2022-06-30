@@ -28,7 +28,7 @@ constexpr bool UseCharacterSpaceVelocities = true;
 //////////////////////////////////////////////////////////////////////////
 // Drawing helpers
 
-static FLinearColor GetColorForFeature(FPoseSearchFeatureDesc Feature, const FPoseSearchFeatureVectorLayout* Layout)
+static FLinearColor GetColorForFeature(const FPoseSearchFeatureDesc& Feature, const FPoseSearchFeatureVectorLayout* Layout)
 {
 	const float FeatureIdx = Layout->Features.IndexOfByKey(Feature);
 	const float FeatureCountIdx = Layout->Features.Num() - 1;
@@ -260,6 +260,92 @@ static void CalculatePhasesFromLocalMinMax(const TArray<LocalMinMax>& MinMax, TA
 	}
 }
 
+struct BoneTransformsCache
+{
+	BoneTransformsCache(const IAssetIndexer& InIndexer)
+		: Indexer(InIndexer)
+	{
+	}
+
+	FTransform Get(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped)
+	{
+		// @todo: use an hashmap if we end up having too many entries
+		Entry* Entry = Entries.FindByPredicate([SampleTime, OriginTime](const BoneTransformsCache::Entry& Entry)
+		{
+			return Entry.SampleTime == SampleTime && Entry.OriginTime == OriginTime;
+		});
+
+		const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
+		const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
+
+		if (!Entry)
+		{
+			Entry = &Entries[Entries.AddDefaulted()];
+
+			Entry->SampleTime = SampleTime;
+			Entry->OriginTime = OriginTime;
+
+			Entry->Pose.SetBoneContainer(&SamplingContext->BoneContainer);
+			Entry->UnusedCurve.InitFrom(SamplingContext->BoneContainer);
+
+			IAssetIndexer::FSampleInfo Origin = Indexer.GetSampleInfo(OriginTime);
+			IAssetIndexer::FSampleInfo Sample = Indexer.GetSampleInfoRelative(SampleTime, Origin);
+
+			float CurrentTime = Sample.ClipTime;
+			float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
+
+			FDeltaTimeRecord DeltaTimeRecord;
+			DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
+			FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Sample.Clip->IsLoopable());
+
+			Sample.Clip->ExtractPose(ExtractionCtx, Entry->AnimPoseData);
+
+			if (IndexingContext.bMirrored)
+			{
+				FAnimationRuntime::MirrorPose(
+					Entry->AnimPoseData.GetPose(),
+					IndexingContext.Schema->MirrorDataTable->MirrorAxis,
+					SamplingContext->CompactPoseMirrorBones,
+					SamplingContext->ComponentSpaceRefRotations
+				);
+				// Note curves and attributes are not used during the indexing process and therefore don't need to be mirrored
+			}
+
+			Entry->ComponentSpacePose.InitPose(Entry->Pose);
+			Entry->RootTransform = Sample.RootTransform;
+			Entry->Clamped = Sample.bClamped;
+		}
+
+		const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[SchemaBoneIdx];
+		FCompactPoseBoneIndex CompactBoneIndex = SamplingContext->BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
+
+		const FTransform BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * Indexer.MirrorTransform(Entry->RootTransform);
+		Clamped = Entry->Clamped;
+
+		return BoneTransform;
+	}
+
+	const UE::PoseSearch::IAssetIndexer& Indexer;
+
+	struct Entry
+	{
+		float SampleTime;
+		float OriginTime;
+		bool Clamped;
+
+		// @todo: minimize the Entry memory footprint
+		FTransform RootTransform;
+		FCompactPose Pose;
+		FCSPose<FCompactPose> ComponentSpacePose;
+		FBlendedCurve UnusedCurve;
+		UE::Anim::FStackAttributeContainer UnusedAtrribute;
+		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
+	};
+
+	TArray<Entry> Entries;
+};
+
+
 } // namespace UE::PoseSearch
 
 //////////////////////////////////////////////////////////////////////////
@@ -271,8 +357,6 @@ class USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIs
 	const UPoseSearchSchema* Schema = Cast<UPoseSearchSchema>(GetOuter());
 	return Schema ? Schema->Skeleton : nullptr;
 }
-
-
 
 //////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Pose
@@ -287,36 +371,40 @@ void UPoseSearchFeatureChannel_Pose::InitializeSchema(UE::PoseSearch::FSchemaIni
 {
 	Super::InitializeSchema(Initializer);
 
-	const int32 NumBones = SampledBones.Num();
-	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
+	int32 DataOffset = ChannelDataOffset;
+	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
 	{
 		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 		if (SampledBone.bUsePosition)
 		{
 			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 			{
-				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality));
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset));
+				DataOffset += PositionCardinality;
 			}
 		}
 		if (SampledBone.bUseRotation)
 		{
 			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 			{
-				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Rotation, RotationCardinality));
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Rotation, RotationCardinality, DataOffset));
+				DataOffset += RotationCardinality;
 			}
 		}
 		if (SampledBone.bUseVelocity)
 		{
 			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 			{
-				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality));
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset));
+				DataOffset += LinearVelocityCardinality;
 			}
 		}
 		if (SampledBone.bUsePhase)
 		{
 			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 			{
-				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Phase, PhaseCardinality));
+				Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Phase, PhaseCardinality, DataOffset));
+				DataOffset += PhaseCardinality;
 			}
 		}
 	}
@@ -378,19 +466,17 @@ void UPoseSearchFeatureChannel_Pose::FillWeights(TArray<float>& Weights) const
 }
 
 // @todo: do we really need to use double(s) in all this math?
-void UPoseSearchFeatureChannel_Pose::CalculatePhases(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput, TArray<TArray<FVector2D>>& OutPhases) const
+void UPoseSearchFeatureChannel_Pose::CalculatePhases(UE::PoseSearch::BoneTransformsCache& BoneTransformsCache, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput, TArray<TArray<FVector2D>>& OutPhases) const
 {
 	// @todo: expose them via UI
 	static float BoneSamplingCentralDifferencesTime = 0.2f; // seconds
 	static float SmoothingWindowTime = 0.3f; // seconds
 
 	using namespace UE::PoseSearch;
-	using FSampleInfo = IAssetIndexer::FSampleInfo;
 
-	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
+	const FAssetIndexingContext& IndexingContext = BoneTransformsCache.Indexer.GetIndexingContext();
 
 	const float SampleTimeStart = FMath::Min(IndexingContext.BeginSampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
-	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 	const float FiniteDelta = IndexingContext.Schema->SamplingInterval;
 
 	const int32 NumSamples = IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx;
@@ -402,48 +488,15 @@ void UPoseSearchFeatureChannel_Pose::CalculatePhases(const UE::PoseSearch::IAsse
 		BonePositions[ChannelBoneIdx].AddDefaulted(NumSamples);
 	}
 
-	FDeltaTimeRecord DeltaTimeRecord;
-	FCompactPose Pose;
-	FCSPose<FCompactPose> ComponentSpacePose;
-	FBlendedCurve UnusedCurve;
-	UE::Anim::FStackAttributeContainer UnusedAtrribute;
-	Pose.SetBoneContainer(&SamplingContext->BoneContainer);
-
 	// collecting all the bone transforms
-	FSampleInfo Origin = Indexer.GetSampleInfo(SampleTimeStart);
+	IAssetIndexer::FSampleInfo Origin = BoneTransformsCache.Indexer.GetSampleInfo(SampleTimeStart);
 	for (int32 SampleIdx = 0; SampleIdx != NumSamples; ++SampleIdx)
 	{
 		const float SampleTime = SampleTimeStart + SampleIdx * FiniteDelta;
-		const float PreviousTime = SampleTime - FiniteDelta; // @todo: clamp to zero?
-
-		FSampleInfo Sample = Indexer.GetSampleInfoRelative(SampleTime, Origin);
-
-		DeltaTimeRecord.Set(PreviousTime, SampleTime - PreviousTime);
-		FAnimExtractContext ExtractionCtx(static_cast<double>(SampleTime), true, DeltaTimeRecord, Sample.Clip->IsLoopable());
-		
-		UnusedCurve.InitFrom(SamplingContext->BoneContainer);
-		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
-		Sample.Clip->ExtractPose(ExtractionCtx, AnimPoseData);
-
-		if (IndexingContext.bMirrored)
-		{
-			FAnimationRuntime::MirrorPose(
-				AnimPoseData.GetPose(),
-				IndexingContext.Schema->MirrorDataTable->MirrorAxis,
-				SamplingContext->CompactPoseMirrorBones,
-				SamplingContext->ComponentSpaceRefRotations
-			);
-			// Note curves and attributes are not used during the indexing process and therefore don't need to be mirrored
-		}
-
-		ComponentSpacePose.InitPose(Pose);
 		for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
 		{
-			const FPoseSearchPoseFeatureInfo& PoseFeatureInfo = FeatureParams[ChannelBoneIdx];
-			const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[PoseFeatureInfo.SchemaBoneIdx];
-			const FCompactPoseBoneIndex CompactBoneIndex = SamplingContext->BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
-			const FTransform BoneTransform = ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * Indexer.MirrorTransform(Sample.RootTransform);
-			BonePositions[ChannelBoneIdx][SampleIdx] = BoneTransform.GetTranslation();
+			bool Unused;
+			BonePositions[ChannelBoneIdx][SampleIdx] = BoneTransformsCache.Get(SampleTime, SampleTimeStart, FeatureParams[ChannelBoneIdx].SchemaBoneIdx, Unused).GetTranslation();
 		}
 	}
 
@@ -476,22 +529,24 @@ void UPoseSearchFeatureChannel_Pose::IndexAsset(const UE::PoseSearch::IAssetInde
 {
 	using namespace UE::PoseSearch;
 	 
+	UE::PoseSearch::BoneTransformsCache BoneTransformsCache(Indexer);
+
 	// Phases is an array of array with cardinality SampledBones.Num() times NumSamples (IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx)
 	// of 2 dimensional vectors (FVector2D) representing phases in an Eucledean space with phase angle sin/cos as direction and certainty of the signal as magnitude,
 	// where certainty is a function of the amplitude of the signal used as input
 	TArray<TArray<FVector2D>> Phases;
-	CalculatePhases(Indexer, IndexingOutput, Phases);
+	CalculatePhases(BoneTransformsCache, IndexingOutput, Phases);
 
 	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{
 		int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
 		FPoseSearchFeatureVectorBuilder& FeatureVector = IndexingOutput.PoseVectors[VectorIdx];
-		AddPoseFeatures(Indexer, SampleIdx, FeatureVector, Phases);
+		AddPoseFeatures(BoneTransformsCache, SampleIdx, FeatureVector, Phases);
 	}
 }
 
-void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(const  UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector, const TArray<TArray<FVector2D>>& Phases) const
+void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransformsCache& BoneTransformsCache, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector, const TArray<TArray<FVector2D>>& Phases) const
 {
 	// This function samples the instantaneous pose at time t as well as the pose's velocity and acceleration at time t.
 	// Symmetric finite differences are used to approximate derivatives:
@@ -499,8 +554,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(const  UE::PoseSearch::IAss
 	//	Second symmetric derivative: f''(t) ~ (f(t+h) - 2f(t) + f(t-h)) / h^2
 	// Where h is a constant time delta
 	// So this means three pose extractions are taken at time t-h, t, and t+h
-	constexpr int32 NumFiniteDiffTerms = 3;
-
+	
 	using namespace UE::PoseSearch;
 	using FSampleInfo = IAssetIndexer::FSampleInfo;
 
@@ -509,129 +563,97 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(const  UE::PoseSearch::IAss
 		return;
 	}
 
-	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
+	const FAssetIndexingContext& IndexingContext = BoneTransformsCache.Indexer.GetIndexingContext();
 	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 
-	FCompactPose Poses[NumFiniteDiffTerms];
-	FCSPose<FCompactPose> ComponentSpacePoses[NumFiniteDiffTerms];
-	FBlendedCurve UnusedCurves[NumFiniteDiffTerms];
-	UE::Anim::FStackAttributeContainer UnusedAtrributes[NumFiniteDiffTerms];
+	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
 
-	for (FCompactPose& Pose : Poses)
+	int32 DataOffset = ChannelDataOffset;
+	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
 	{
-		Pose.SetBoneContainer(&SamplingContext->BoneContainer);
-	}
-
-	for (FBlendedCurve& Curve : UnusedCurves)
-	{
-		Curve.InitFrom(SamplingContext->BoneContainer);
-	}
-
-	FAnimationPoseData AnimPoseData[NumFiniteDiffTerms] =
-	{
-		{Poses[0], UnusedCurves[0], UnusedAtrributes[0]},
-		{Poses[1], UnusedCurves[1], UnusedAtrributes[1]},
-		{Poses[2], UnusedCurves[2], UnusedAtrributes[2]},
-	};
-
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
-
-	float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
-	FSampleInfo Origin = Indexer.GetSampleInfo(SampleTime);
-
-	for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
-	{
-		Feature.SubsampleIdx = SubsampleIdx;
-
-		float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
-
-		// For each pose subsample term, get the corresponding clip, accumulated root motion,
-		// and wrap the time parameter based on the clip's length.
-		FSampleInfo Samples[NumFiniteDiffTerms];
-
-		if (UseCharacterSpaceVelocities)
-		{
-			// character space velocity
-			Samples[0] = Indexer.GetSampleInfoRelative(SubsampleTime - SamplingContext->FiniteDelta, Indexer.GetSampleInfo(SubsampleTime - SamplingContext->FiniteDelta));
-			Samples[1] = Indexer.GetSampleInfoRelative(SubsampleTime, Indexer.GetSampleInfo(SubsampleTime));
-			Samples[2] = Indexer.GetSampleInfoRelative(SubsampleTime + SamplingContext->FiniteDelta, Indexer.GetSampleInfo(SubsampleTime + SamplingContext->FiniteDelta));
-		}
-		else
-		{
-			// animation space velocity
-			Samples[0] = Indexer.GetSampleInfoRelative(SubsampleTime - SamplingContext->FiniteDelta, Origin);
-			Samples[1] = Indexer.GetSampleInfoRelative(SubsampleTime, Origin);
-			Samples[2] = Indexer.GetSampleInfoRelative(SubsampleTime + SamplingContext->FiniteDelta, Origin);
-		}
-		
-		// Get pose samples
-		for (int32 Term = 0; Term != NumFiniteDiffTerms; ++Term)
-		{
-			float CurrentTime = Samples[Term].ClipTime;
-			float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
-
-			FDeltaTimeRecord DeltaTimeRecord;
-			DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-			FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Samples[Term].Clip->IsLoopable());
-
-			Samples[Term].Clip->ExtractPose(ExtractionCtx, AnimPoseData[Term]);
-
-			if (IndexingContext.bMirrored)
-			{
-				FAnimationRuntime::MirrorPose(
-					AnimPoseData[Term].GetPose(),
-					IndexingContext.Schema->MirrorDataTable->MirrorAxis,
-					SamplingContext->CompactPoseMirrorBones,
-					SamplingContext->ComponentSpaceRefRotations
-				);
-				// Note curves and attributes are not used during the indexing process and therefore don't need to be mirrored
-			}
-
-			ComponentSpacePoses[Term].InitPose(Poses[Term]);
-		}
+		const FPoseSearchPoseFeatureInfo& PoseFeatureInfo = FeatureParams[ChannelBoneIdx];
+		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 
 		// Get each bone's component transform, velocity, and acceleration and add accumulated root motion at this time offset
 		// Think of this process as freezing the character in place (at SampleTime) and then tracing the paths of their joints
 		// as they move through space from past to present to future (at times indicated by PoseSampleTimes).
-		for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
+
+		if (SampledBone.bUsePosition)
 		{
-			const FPoseSearchPoseFeatureInfo& PoseFeatureInfo = FeatureParams[ChannelBoneIdx];
-			const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[PoseFeatureInfo.SchemaBoneIdx];
-
-			Feature.ChannelFeatureId = ChannelBoneIdx;
-
-			FCompactPoseBoneIndex CompactBoneIndex = SamplingContext->BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
-
-			FTransform BoneTransforms[NumFiniteDiffTerms];
-			for (int32 Term = 0; Term != NumFiniteDiffTerms; ++Term)
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 			{
-				BoneTransforms[Term] = ComponentSpacePoses[Term].GetComponentSpaceTransform(CompactBoneIndex);
-				BoneTransforms[Term] = BoneTransforms[Term] * Indexer.MirrorTransform(Samples[Term].RootTransform);
-			}
+				const float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
 
-			// Add properties to the feature vector for the pose at SampleIdx
-			FeatureVector.SetTransform(Feature, BoneTransforms[1]);
+				bool ClampedPresent;
+				const FTransform BoneTransformsPresent = BoneTransformsCache.Get(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPresent);
 
-			// We can get a better finite difference if we ignore samples that have
-			// been clamped at either side of the clip. However, if the central sample 
-			// itself is clamped, or there are no samples that are clamped, we can just 
-			// use the central difference as normal.
-			if (Samples[0].bClamped && !Samples[1].bClamped && !Samples[2].bClamped)
-			{
-				FeatureVector.SetTransformVelocity(Feature, BoneTransforms[2], BoneTransforms[1], SamplingContext->FiniteDelta);
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset);
+				DataOffset += PositionCardinality;
+				FeatureVector.SetVector(Feature, BoneTransformsPresent.GetTranslation());
 			}
-			else if (Samples[2].bClamped && !Samples[1].bClamped && !Samples[0].bClamped)
-			{
-				FeatureVector.SetTransformVelocity(Feature, BoneTransforms[1], BoneTransforms[0], SamplingContext->FiniteDelta);
-			}
-			else
-			{
-				FeatureVector.SetTransformVelocity(Feature, BoneTransforms[2], BoneTransforms[1], BoneTransforms[0], SamplingContext->FiniteDelta);
-			}
+		}
 
-			// @todo: support for SubsampleIdx
-			FeatureVector.SetPhase(Feature, Phases[ChannelBoneIdx][SampleIdx]);
+		if (SampledBone.bUseRotation)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
+
+				bool ClampedPresent;
+				const FTransform BoneTransformsPresent = BoneTransformsCache.Get(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPresent);
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Rotation, RotationCardinality, DataOffset);
+				DataOffset += RotationCardinality;
+
+				FeatureVector.SetRotation(Feature, BoneTransformsPresent.GetRotation());
+			}
+		}
+
+		if (SampledBone.bUseVelocity)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
+
+				bool ClampedPast, ClampedPresent, ClampedFuture;
+				const FTransform BoneTransformsPast = BoneTransformsCache.Get(SubsampleTime - SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SubsampleTime - SamplingContext->FiniteDelta : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPast);
+				const FTransform BoneTransformsPresent = BoneTransformsCache.Get(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPresent);
+				const FTransform BoneTransformsFuture = BoneTransformsCache.Get(SubsampleTime + SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SubsampleTime + SamplingContext->FiniteDelta : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedFuture);
+
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset);
+				DataOffset += LinearVelocityCardinality;
+
+				// We can get a better finite difference if we ignore samples that have
+				// been clamped at either side of the clip. However, if the central sample 
+				// itself is clamped, or there are no samples that are clamped, we can just 
+				// use the central difference as normal.
+				FVector LinearVelocity;
+				if (ClampedPast && !ClampedPresent && !ClampedFuture)
+				{
+					LinearVelocity = (BoneTransformsFuture.GetTranslation() - BoneTransformsPresent.GetTranslation()) / SamplingContext->FiniteDelta;
+				}
+				else if (ClampedFuture && !ClampedPresent && !ClampedPast)
+				{
+					LinearVelocity = (BoneTransformsPresent.GetTranslation() - BoneTransformsPast.GetTranslation()) / SamplingContext->FiniteDelta;
+				}
+				else
+				{
+					LinearVelocity = (BoneTransformsFuture.GetTranslation() - BoneTransformsPast.GetTranslation()) / (SamplingContext->FiniteDelta * 2.0f);
+				}
+
+				FeatureVector.SetVector(Feature, LinearVelocity);
+			}
+		}
+
+		if (SampledBone.bUsePhase)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Phase, PhaseCardinality, DataOffset);
+				DataOffset += PhaseCardinality;
+
+				// @todo: support for SubsampleIdx
+				FeatureVector.SetPhase(Feature, Phases[ChannelBoneIdx][SampleIdx]);
+			}
 		}
 	}
 }
@@ -677,13 +699,17 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(
 		return false;
 	}
 
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
+	struct CachedTransforms
+	{
+		FTransform Current;
+		FTransform Previous;
+		bool Valid = false;
+	};
+	TArray<CachedTransforms> CachedTransforms;
+	CachedTransforms.AddUninitialized(SampleTimes.Num() * SampledBones.Num());
 
 	for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
 	{
-		Feature.SubsampleIdx = SubsampleIdx;
-
 		// Stop when we've reached future samples
 		float SampleTime = SampleTimes[SubsampleIdx];
 		if (SampleTime > 0.0f)
@@ -697,34 +723,90 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(
 			return false;
 		}
 
-		TArrayView<const FTransform> ComponentPose = SearchContext.History->GetComponentPoseSample();
-		TArrayView<const FTransform> ComponentPrevPose = SearchContext.History->GetPrevComponentPoseSample();
-		FTransform RootTransform = SearchContext.History->GetRootTransformSample();
-		FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
+		const TArrayView<const FTransform> ComponentPose = SearchContext.History->GetComponentPoseSample();
+		const TArrayView<const FTransform> ComponentPrevPose = SearchContext.History->GetPrevComponentPoseSample();
+		const FTransform RootTransform = SearchContext.History->GetRootTransformSample();
+		const FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
 		for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
 		{
-			Feature.ChannelFeatureId = SampledBoneIdx;
+			const int32 SchemaBoneIdx = FeatureParams[SampledBoneIdx].SchemaBoneIdx;
+			const int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx];
+			const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
+			CachedTransforms[CachedTransformsIndex].Current = ComponentPose[SkeletonBoneIndex];
 
-			int32 SchemaBoneIdx = FeatureParams[SampledBoneIdx].SchemaBoneIdx;
-
-			int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx];
-
-			const FTransform& Transform = ComponentPose[SkeletonBoneIndex];
-
-			FTransform PrevTransform;
 			if (UE::PoseSearch::UseCharacterSpaceVelocities)
 			{
 				// character space velocity
-				PrevTransform = ComponentPrevPose[SkeletonBoneIndex];
+				CachedTransforms[CachedTransformsIndex].Previous = ComponentPrevPose[SkeletonBoneIndex];
 			}
 			else
 			{
 				// animation space velocity
-				PrevTransform = ComponentPrevPose[SkeletonBoneIndex] * (RootTransformPrev * RootTransform.Inverse());
+				CachedTransforms[CachedTransformsIndex].Previous = ComponentPrevPose[SkeletonBoneIndex] * (RootTransformPrev * RootTransform.Inverse());
 			}
-			
-			InOutQuery.SetTransform(Feature, Transform);
-			InOutQuery.SetTransformVelocity(Feature, Transform, PrevTransform, SearchContext.History->GetSampleTimeInterval());
+		}
+	}
+
+	int32 DataOffset = ChannelDataOffset;
+	for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
+	{
+		const FPoseSearchBone& SampledBone = SampledBones[SampledBoneIdx];
+		if (SampledBone.bUsePosition)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), SampledBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset);
+				DataOffset += PositionCardinality;
+				if (CachedTransforms[CachedTransformsIndex].Valid)
+				{
+					InOutQuery.SetVector(Feature, CachedTransforms[CachedTransformsIndex].Current.GetTranslation());
+				}
+			}
+		}
+
+		if (SampledBone.bUseRotation)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), SampledBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Rotation, RotationCardinality, DataOffset);
+				DataOffset += RotationCardinality;
+
+				if (CachedTransforms[CachedTransformsIndex].Valid)
+				{
+					InOutQuery.SetRotation(Feature, CachedTransforms[CachedTransformsIndex].Current.GetRotation());
+				}
+			}
+		}
+
+		if (SampledBone.bUseVelocity)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), SampledBoneIdx, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset);
+				DataOffset += LinearVelocityCardinality;
+
+				if (CachedTransforms[CachedTransformsIndex].Valid)
+				{
+					const FVector LinearVelocity = (CachedTransforms[CachedTransformsIndex].Current.GetTranslation() - CachedTransforms[CachedTransformsIndex].Previous.GetTranslation()) / SearchContext.History->GetSampleTimeInterval();
+					InOutQuery.SetVector(Feature, LinearVelocity);
+				}
+			}
+		}
+
+		if (SampledBone.bUsePhase)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != SampleTimes.Num(); ++SubsampleIdx)
+			{
+				const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), SampledBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Phase, PhaseCardinality, DataOffset);
+				DataOffset += PhaseCardinality;
+
+				// @todo: Support phase in BuildQuery
+				//InOutQuery.SetPhase(Feature, ???);
+			}
 		}
 	}
 
@@ -742,9 +824,6 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 	const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
 	const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
 
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
-
 	const int32 NumSubsamples = SampleTimes.Num();
 	const int32 NumBones = SampledBones.Num();
 
@@ -753,52 +832,81 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 		return;
 	}
 
-	for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
+	int32 DataOffset = ChannelDataOffset;
+	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
 	{
-		Feature.SubsampleIdx = SubsampleIdx;
+		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 
-		for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != NumBones; ++ChannelBoneIdx)
+		TArray<FVector> BonePos;
+		BonePos.AddUninitialized(NumSubsamples);
+		if (SampledBone.bUsePosition)
 		{
-			Feature.ChannelFeatureId = ChannelBoneIdx;
-
-			FVector BonePos;
-			bool bHaveBonePos = Reader.GetPosition(Feature, &BonePos);
-			if (bHaveBonePos)
+			for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 			{
-				Feature.Type = EPoseSearchFeatureType::Position;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset);
+				DataOffset += PositionCardinality;
+
+				const bool Found = Reader.GetVector(Feature, &BonePos[SubsampleIdx]);
+				check(Found);
 
 				FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
 				FColor Color = LinearColor.ToFColor(true);
 
-				BonePos = DrawParams.RootTransform.TransformPosition(BonePos);
+				BonePos[SubsampleIdx] = DrawParams.RootTransform.TransformPosition(BonePos[SubsampleIdx]);
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 				{
-					DrawDebugPoint(DrawParams.World, BonePos, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
+					DrawDebugPoint(DrawParams.World, BonePos[SubsampleIdx], DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 				}
 				else
 				{
-					DrawDebugSphere(DrawParams.World, BonePos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
+					DrawDebugSphere(DrawParams.World, BonePos[SubsampleIdx], DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
 				}
 
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawBoneNames))
 				{
 					int32 SchemaBoneIdx = this->FeatureParams[ChannelBoneIdx].SchemaBoneIdx;
 					DrawDebugString(
-						DrawParams.World, BonePos + FVector(0.0, 0.0, 10.0),
+						DrawParams.World, BonePos[SubsampleIdx] + FVector(0.0, 0.0, 10.0),
 						Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString(),
 						nullptr, Color, LifeTime, false, 1.0f);
 				}
 			}
-			else if (DrawParams.Mesh != nullptr)
+		}
+		else
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 			{
-				BonePos = DrawParams.Mesh->GetSocketTransform(SampledBones[ChannelBoneIdx].Reference.BoneName).GetLocation();
-				bHaveBonePos = true;
-			}
+				DataOffset += PositionCardinality;
 
-			FVector BoneVel;
-			if (bHaveBonePos && Reader.GetLinearVelocity(Feature, &BoneVel))
+				// @todo: initialize with the character position instead of FVector::Zero?
+				BonePos[SubsampleIdx] = DrawParams.Mesh != nullptr ? DrawParams.Mesh->GetSocketTransform(SampledBones[ChannelBoneIdx].Reference.BoneName).GetLocation() : FVector::Zero();
+			}
+		}
+
+		if (SampledBone.bUseRotation)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 			{
-				Feature.Type = EPoseSearchFeatureType::LinearVelocity;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Rotation, RotationCardinality, DataOffset);
+				DataOffset += RotationCardinality;
+
+				FQuat BoneRot;
+				const bool Found = Reader.GetRotation(Feature, &BoneRot);
+				check(Found);
+				// @todo: debug draw rotation
+			}
+		}
+
+		if (SampledBone.bUseVelocity)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
+			{
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset);
+				DataOffset += LinearVelocityCardinality;
+
+				FVector BoneVel;
+				const bool Found = Reader.GetVector(Feature, &BoneVel);
+				check(Found);
 
 				FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
 				FColor Color = LinearColor.ToFColor(true);
@@ -819,8 +927,8 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 
 					DrawDebugDirectionalArrow(
 						DrawParams.World,
-						BonePos + BoneVelDirection * DrawDebugSphereSize,
-						BonePos + BoneVel,
+						BonePos[SubsampleIdx] + BoneVelDirection * DrawDebugSphereSize,
+						BonePos[SubsampleIdx] + BoneVel,
 						DrawDebugArrowSize,
 						Color,
 						bPersistent,
@@ -829,11 +937,18 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 						AdjustedThickness);
 				}
 			}
+		}
 
-			FVector2D Phase;
-			if (bHaveBonePos && Reader.GetPhase(Feature, &Phase))
+		if (SampledBone.bUsePhase)
+		{
+			for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 			{
-				Feature.Type = EPoseSearchFeatureType::Phase;
+				const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), ChannelBoneIdx, SubsampleIdx, EPoseSearchFeatureType::Phase, PhaseCardinality, DataOffset);
+				DataOffset += PhaseCardinality;
+
+				FVector2D Phase;
+				const bool Found = Reader.GetPhase(Feature, &Phase);
+				check(Found);
 
 				FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
 				FColor Color = LinearColor.ToFColor(true);
@@ -845,11 +960,11 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 				const FVector TransformZAxisVector = DrawParams.RootTransform.TransformVector(FVector::ZAxisVector);
 
 				const FVector PhaseVector = (TransformZAxisVector * Phase.X + TransformYAxisVector * Phase.Y) * ScaleFactor;
-				DrawDebugLine(DrawParams.World, BonePos, BonePos + PhaseVector, Color, bPersistent, LifeTime, DepthPriority, 0.f);
+				DrawDebugLine(DrawParams.World, BonePos[SubsampleIdx], BonePos[SubsampleIdx] + PhaseVector, Color, bPersistent, LifeTime, DepthPriority, 0.f);
 
 				static int32 Segments = 64;
 				FMatrix CircleTransform;
-				CircleTransform.SetAxes(&TransformXAxisVector, &TransformYAxisVector, &TransformZAxisVector, &BonePos);
+				CircleTransform.SetAxes(&TransformXAxisVector, &TransformYAxisVector, &TransformZAxisVector, &BonePos[SubsampleIdx]);
 				DrawDebugCircle(DrawParams.World, CircleTransform, PhaseVector.Length(), Segments, Color, bPersistent, LifeTime, DepthPriority, 0.f, false);
 			}
 		}
@@ -869,11 +984,13 @@ void UPoseSearchFeatureChannel_Trajectory::InitializeSchema( UE::PoseSearch::FSc
 {
 	Super::InitializeSchema(Initializer);
 
+	int32 DataOffset = ChannelDataOffset;
 	if (bUsePositions)
 	{
 		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
 		{
-			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality));
+			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset));
+			DataOffset += PositionCardinality;
 		}
 	}
 
@@ -881,7 +998,8 @@ void UPoseSearchFeatureChannel_Trajectory::InitializeSchema( UE::PoseSearch::FSc
 	{
 		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
 		{
-			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality));
+			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset));
+			DataOffset += LinearVelocityCardinality;
 		}
 	}
 
@@ -889,7 +1007,8 @@ void UPoseSearchFeatureChannel_Trajectory::InitializeSchema( UE::PoseSearch::FSc
 	{
 		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
 		{
-			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::ForwardVector, ForwardVectorCardinality));
+			Initializer.AddFeatureDesc(FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::ForwardVector, ForwardVectorCardinality, DataOffset));
+			DataOffset += ForwardVectorCardinality;
 		}
 	}
 
@@ -908,35 +1027,32 @@ void UPoseSearchFeatureChannel_Trajectory::FillWeights(TArray<float>& Weights) c
 
 void UPoseSearchFeatureChannel_Trajectory::IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
 {
-	using namespace UE::PoseSearch;
-
-	auto IndexFeatures = [&Indexer, &IndexingOutput](auto FeatureIndexingFunc)
+	const UE::PoseSearch::FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
+	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{
-		const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-		for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
-		{
-			int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
-			FPoseSearchFeatureVectorBuilder& FeatureVector = IndexingOutput.PoseVectors[VectorIdx];
-			FeatureIndexingFunc(Indexer, SampleIdx, FeatureVector);
-		}
-	};
-
-	switch (Domain)
-	{
-		case EPoseSearchFeatureDomain::Time:
-			IndexFeatures([this](auto&&... Args){ return IndexTimeFeatures(Args...); });
-			break;
-
-		case EPoseSearchFeatureDomain::Distance:
-			IndexFeatures([this](auto&&... Args){ return IndexDistanceFeatures(Args...); });
-			break;
-
-		default:
-			checkNoEntry();
+		const int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
+		IndexAssetPrivate(Indexer, SampleIdx, IndexingOutput.PoseVectors[VectorIdx]);
 	}
 }
 
-void UPoseSearchFeatureChannel_Trajectory::IndexTimeFeatures(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx,  FPoseSearchFeatureVectorBuilder& FeatureVector) const
+float UPoseSearchFeatureChannel_Trajectory::GetSampleTime(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SubsampleIdx, float SampleTime, float RootDistance) const
+{
+	switch (Domain)
+	{
+	case EPoseSearchFeatureDomain::Time:
+		return SampleTime + SampleOffsets[SubsampleIdx];
+
+	case EPoseSearchFeatureDomain::Distance:
+		return Indexer.GetSampleTimeFromDistance(RootDistance + SampleOffsets[SubsampleIdx]);
+
+	default:
+		checkNoEntry();
+	}
+	
+	return 0.0f;
+}
+
+void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx,  FPoseSearchFeatureVectorBuilder& FeatureVector) const
 {
 	// This function samples the instantaneous trajectory at time t as well as the trajectory's velocity and acceleration at time t.
 	// Symmetric finite differences are used to approximate derivatives:
@@ -949,116 +1065,72 @@ void UPoseSearchFeatureChannel_Trajectory::IndexTimeFeatures(const UE::PoseSearc
 	using FSampleInfo = IAssetIndexer::FSampleInfo;
 
 	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-
-
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
-	Feature.ChannelFeatureId = 0; // Unused
-
 	float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
 	FSampleInfo Origin = Indexer.GetSampleInfo(SampleTime);
 
-	for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
+	int32 DataOffset = ChannelDataOffset;
+	if (bUsePositions)
 	{
-		Feature.SubsampleIdx = SubsampleIdx;
-
-		float SubsampleTime = SampleTime + SampleOffsets[SubsampleIdx];
-
-		// For each pose subsample term, get the corresponding clip, accumulated root motion,
-		// and wrap the time parameter based on the clip's length.
-		FSampleInfo Samples[3];
-		Samples[0] = Indexer.GetSampleInfoRelative(SubsampleTime - IndexingContext.SamplingContext->FiniteDelta, Origin);
-		Samples[1] = Indexer.GetSampleInfoRelative(SubsampleTime, Origin);
-		Samples[2] = Indexer.GetSampleInfoRelative(SubsampleTime + IndexingContext.SamplingContext->FiniteDelta, Origin);
-
-		// Mirror transforms if requested
-		FTransform MirroredRoots[3];
-		MirroredRoots[0] = Indexer.MirrorTransform(Samples[0].RootTransform);
-		MirroredRoots[1] = Indexer.MirrorTransform(Samples[1].RootTransform);
-		MirroredRoots[2] = Indexer.MirrorTransform(Samples[2].RootTransform);
-
-		// Add properties to the feature vector for the pose at SampleIdx
-		FeatureVector.SetTransform(Feature, MirroredRoots[1]);
-
-		// We can get a better finite difference if we ignore samples that have
-		// been clamped at either side of the clip. However, if the central sample 
-		// itself is clamped, or there are no samples that are clamped, we can just 
-		// use the central difference as normal.
-		if (Samples[0].bClamped && !Samples[1].bClamped && !Samples[2].bClamped)
+		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
 		{
-			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], IndexingContext.SamplingContext->FiniteDelta);
-		}
-		else if (Samples[2].bClamped && !Samples[1].bClamped && !Samples[0].bClamped)
-		{
-			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[1], MirroredRoots[0], IndexingContext.SamplingContext->FiniteDelta);
-		}
-		else
-		{
-			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], MirroredRoots[0], IndexingContext.SamplingContext->FiniteDelta);
+			const float SubsampleTime = GetSampleTime(Indexer, SubsampleIdx, SampleTime, Origin.RootDistance);
+			const FSampleInfo SamplePresent = Indexer.GetSampleInfoRelative(SubsampleTime, Origin);
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset);
+			DataOffset += PositionCardinality;
+			FeatureVector.SetVector(Feature, Indexer.MirrorTransform(SamplePresent.RootTransform).GetTranslation());
 		}
 	}
-}
 
-void UPoseSearchFeatureChannel_Trajectory::IndexDistanceFeatures(const  UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector) const
-{
-	// This function is very similar to AddTrajectoryTimeFeatures, but samples are taken in the distance domain
-	// instead of time domain.
-
-	using namespace UE::PoseSearch;
-	using FSampleInfo = IAssetIndexer::FSampleInfo;
-
-	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-
-
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
-	Feature.ChannelFeatureId = 0; // Unused
-
-	float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
-	FSampleInfo Origin = Indexer.GetSampleInfo(SampleTime);
-
-	FQuat RootReferenceRot = IndexingContext.SamplingContext->BoneContainer.GetRefPoseTransform(FCompactPoseBoneIndex(0)).GetRotation();
-	for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
+	if (bUseLinearVelocities)
 	{
-		Feature.SubsampleIdx = SubsampleIdx;
-
-		// For distance based sampling of the trajectory, we first have to look up the time value
-		// we're sampling given the desired travel distance of the root for this distance offset.
-		// Once we know the time, we can then carry on just like time-based sampling.
-		const float SubsampleDistance = Origin.RootDistance + SampleOffsets[SubsampleIdx];
-		float SubsampleTime = Indexer.GetSampleTimeFromDistance(SubsampleDistance);
-
-		// For each pose subsample term, get the corresponding clip, accumulated root motion,
-		// and wrap the time parameter based on the clip's length.
-		FSampleInfo Samples[3];
-		Samples[0] = Indexer.GetSampleInfoRelative(SubsampleTime - IndexingContext.SamplingContext->FiniteDelta, Origin);
-		Samples[1] = Indexer.GetSampleInfoRelative(SubsampleTime, Origin);
-		Samples[2] = Indexer.GetSampleInfoRelative(SubsampleTime + IndexingContext.SamplingContext->FiniteDelta, Origin);
-
-		// Mirror transforms if requested
-		FTransform MirroredRoots[3];
-		MirroredRoots[0] = Indexer.MirrorTransform(Samples[0].RootTransform);
-		MirroredRoots[1] = Indexer.MirrorTransform(Samples[1].RootTransform);
-		MirroredRoots[2] = Indexer.MirrorTransform(Samples[2].RootTransform);
-
-		// Add properties to the feature vector for the pose at SampleIdx
-		FeatureVector.SetTransform(Feature, MirroredRoots[1]);
-
-		// We can get a better finite difference if we ignore samples that have
-		// been clamped at either side of the clip. However, if the central sample 
-		// itself is clamped, or there are no samples that are clamped, we can just 
-		// use the central difference as normal.
-		if (Samples[0].bClamped && !Samples[1].bClamped && !Samples[2].bClamped)
+		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
 		{
-			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], IndexingContext.SamplingContext->FiniteDelta);
+			const float SubsampleTime = GetSampleTime(Indexer, SubsampleIdx, SampleTime, Origin.RootDistance);
+
+			// For each pose subsample term, get the corresponding clip, accumulated root motion,
+			// and wrap the time parameter based on the clip's length.
+			const FSampleInfo SamplePast = Indexer.GetSampleInfoRelative(SubsampleTime - IndexingContext.SamplingContext->FiniteDelta, Origin);
+			const FSampleInfo SamplePresent = Indexer.GetSampleInfoRelative(SubsampleTime, Origin);
+			const FSampleInfo SampleFuture = Indexer.GetSampleInfoRelative(SubsampleTime + IndexingContext.SamplingContext->FiniteDelta, Origin);
+
+			// Mirror transforms if requested
+			const FTransform MirroredRootPast = Indexer.MirrorTransform(SamplePast.RootTransform);
+			const FTransform MirroredRootPresent = Indexer.MirrorTransform(SamplePresent.RootTransform);
+			const FTransform MirroredRootFuture = Indexer.MirrorTransform(SampleFuture.RootTransform);
+
+			// We can get a better finite difference if we ignore samples that have
+			// been clamped at either side of the clip. However, if the central sample 
+			// itself is clamped, or there are no samples that are clamped, we can just 
+			// use the central difference as normal.
+			FVector LinearVelocity;
+			if (SamplePast.bClamped && !SamplePresent.bClamped && !SampleFuture.bClamped)
+			{
+				LinearVelocity = (MirroredRootFuture.GetTranslation() - MirroredRootPresent.GetTranslation()) / IndexingContext.SamplingContext->FiniteDelta;
+			}
+			else if (SampleFuture.bClamped && !SamplePresent.bClamped && !SamplePast.bClamped)
+			{
+				LinearVelocity = (MirroredRootPresent.GetTranslation() - MirroredRootPast.GetTranslation()) / IndexingContext.SamplingContext->FiniteDelta;
+			}
+			else
+			{
+				LinearVelocity = (MirroredRootFuture.GetTranslation() - MirroredRootPast.GetTranslation()) / (IndexingContext.SamplingContext->FiniteDelta * 2.0f);
+			}
+
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset);
+			DataOffset += LinearVelocityCardinality;
+			FeatureVector.SetVector(Feature, LinearVelocity);
 		}
-		else if (Samples[2].bClamped && !Samples[1].bClamped && !Samples[0].bClamped)
+	}
+
+	if (bUseFacingDirections)
+	{
+		for (int32 SubsampleIdx = 0; SubsampleIdx != SampleOffsets.Num(); ++SubsampleIdx)
 		{
-			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[1], MirroredRoots[0], IndexingContext.SamplingContext->FiniteDelta);
-		}
-		else
-		{
-			FeatureVector.SetTransformVelocity(Feature, MirroredRoots[2], MirroredRoots[1], MirroredRoots[0], IndexingContext.SamplingContext->FiniteDelta);
+			const float SubsampleTime = GetSampleTime(Indexer, SubsampleIdx, SampleTime, Origin.RootDistance);
+			const FSampleInfo SamplePresent = Indexer.GetSampleInfoRelative(SubsampleTime, Origin);
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::ForwardVector, ForwardVectorCardinality, DataOffset);
+			DataOffset += ForwardVectorCardinality;
+			FeatureVector.SetVector(Feature, Indexer.MirrorTransform(SamplePresent.RootTransform).GetRotation().GetAxisY());
 		}
 	}
 }
@@ -1112,24 +1184,43 @@ bool UPoseSearchFeatureChannel_Trajectory::BuildQuery(
 			return false;
 	}
 
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
-
+	// @todo: optimize dynamic allocation
+	TArray<FTrajectorySample> Samples;
+	Samples.Reserve(SampleOffsets.Num());
 	for (int32 Idx = 0, NextIterStartIdx = 0, Num = SampleOffsets.Num(); Idx < Num; ++Idx)
 	{
-		const float SampleOffset = SampleOffsets[Idx];
-		const FTrajectorySample Sample = FTrajectorySampleRange::IterSampleTrajectory(
-			SearchContext.Trajectory->Samples,
-			SampleDomain, 
-			SampleOffset, 
-			NextIterStartIdx);
+		Samples.Add(FTrajectorySampleRange::IterSampleTrajectory(SearchContext.Trajectory->Samples, SampleDomain, SampleOffsets[Idx], NextIterStartIdx));
+	}
 
-		Feature.SubsampleIdx = Idx;
+	int32 DataOffset = ChannelDataOffset;
+	if (bUsePositions)
+	{
+		for (int32 Idx = 0, Num = SampleOffsets.Num(); Idx < Num; ++Idx)
+		{
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, Idx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset);
+			DataOffset += PositionCardinality;
+			InOutQuery.SetVector(Feature, Samples[Idx].Transform.GetTranslation());
+		}
+	}
 
-		Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-		InOutQuery.SetVector(Feature, Sample.LinearVelocity);
+	if (bUseLinearVelocities)
+	{
+		for (int32 Idx = 0, Num = SampleOffsets.Num(); Idx < Num; ++Idx)
+		{
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, Idx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset);
+			DataOffset += LinearVelocityCardinality;
+			InOutQuery.SetVector(Feature, Samples[Idx].LinearVelocity);
+		}
+	}
 
-		InOutQuery.SetTransform(Feature, Sample.Transform);
+	if (bUseFacingDirections)
+	{ 
+		for (int32 Idx = 0, Num = SampleOffsets.Num(); Idx < Num; ++Idx)
+		{
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, Idx, EPoseSearchFeatureType::ForwardVector, ForwardVectorCardinality, DataOffset);
+			DataOffset += ForwardVectorCardinality;
+			InOutQuery.SetVector(Feature, Samples[Idx].Transform.GetRotation().GetAxisY());
+		}
 	}
 
 	return true;
@@ -1142,9 +1233,6 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 	const float LifeTime = DrawParams.DefaultLifeTime;
 	const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
 	const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
-
-	FPoseSearchFeatureDesc Feature;
-	Feature.ChannelIdx = GetChannelIndex();
 
 	const int32 NumSubsamples = SampleOffsets.Num();
 	if (NumSubsamples == 0)
@@ -1163,112 +1251,127 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 		return OriginalColor * (1.0f - DrawDebugGradientStrength * (SampleIdx / (float)Denominator));
 	};
 
+	TArray<FVector> TrajectoryPos;
+	TrajectoryPos.AddUninitialized(NumSubsamples);
+	int32 DataOffset = ChannelDataOffset;
 	for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 	{
-		Feature.SubsampleIdx = SubsampleIdx;
-
-		FVector TrajectoryPos;
-		if (Reader.GetPosition(Feature, &TrajectoryPos))
+		const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, DataOffset);
+		DataOffset += PositionCardinality;
+		if (bUsePositions && Reader.GetVector(Feature, &TrajectoryPos[SubsampleIdx]))
 		{
-			Feature.Type = EPoseSearchFeatureType::Position;
-
 			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
 			FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
 			FColor Color = GradientColor.ToFColor(true);
 
-			TrajectoryPos = DrawParams.RootTransform.TransformPosition(TrajectoryPos);
+			TrajectoryPos[SubsampleIdx] = DrawParams.RootTransform.TransformPosition(TrajectoryPos[SubsampleIdx]);
 			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
 			{
-				DrawDebugPoint(DrawParams.World, TrajectoryPos, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
+				DrawDebugPoint(DrawParams.World, TrajectoryPos[SubsampleIdx], DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
 			}
 			else
 			{
-				DrawDebugSphere(DrawParams.World, TrajectoryPos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
+				DrawDebugSphere(DrawParams.World, TrajectoryPos[SubsampleIdx], DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
 			}
 		}
 		else
 		{
-			TrajectoryPos = DrawParams.RootTransform.GetTranslation();
+			TrajectoryPos[SubsampleIdx] = DrawParams.RootTransform.GetTranslation();
 		}
+	}
 
-		FVector TrajectoryVel;
-		if (Reader.GetLinearVelocity(Feature, &TrajectoryVel))
+	if (bUseLinearVelocities)
+	{
+		for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 		{
-			Feature.Type = EPoseSearchFeatureType::LinearVelocity;
-
-			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
-			FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
-			FColor Color = GradientColor.ToFColor(true);
-
-			TrajectoryVel *= DrawDebugVelocityScale;
-			TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
-			FVector TrajectoryVelDirection = TrajectoryVel.GetSafeNormal();
-
-
-			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::LinearVelocity, LinearVelocityCardinality, DataOffset);
+			DataOffset += LinearVelocityCardinality;
+			FVector TrajectoryVel;
+			if (Reader.GetVector(Feature, &TrajectoryVel))
 			{
-				DrawDebugPoint(DrawParams.World, TrajectoryVel, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
-			}
-			else
-			{
-				const float AdjustedThickness =
-					EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
-					0.0f : DrawDebugLineThickness;
+				const FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
+				const FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
+				const FColor Color = GradientColor.ToFColor(true);
 
-				DrawDebugDirectionalArrow(
-					DrawParams.World,
-					TrajectoryPos + TrajectoryVelDirection * DrawDebugSphereSize,
-					TrajectoryPos + TrajectoryVel,
-					DrawDebugArrowSize,
-					Color,
-					bPersistent,
-					LifeTime,
-					DepthPriority,
-					AdjustedThickness
-				);
-			}
-		}
+				TrajectoryVel *= DrawDebugVelocityScale;
+				TrajectoryVel = DrawParams.RootTransform.TransformVector(TrajectoryVel);
+				const FVector TrajectoryVelDirection = TrajectoryVel.GetSafeNormal();
 
-		FVector TrajectoryForward;
-		if (Reader.GetForwardVector(Feature, &TrajectoryForward))
-		{
-			Feature.Type = EPoseSearchFeatureType::ForwardVector;
+				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+				{
+					DrawDebugPoint(DrawParams.World, TrajectoryVel, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
+				}
+				else
+				{
+					const float AdjustedThickness =
+						EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
+						0.0f : DrawDebugLineThickness;
 
-			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
-			FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
-			FColor Color = GradientColor.ToFColor(true);
-
-			TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
-
-			if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
-			{
-				DrawDebugPoint(DrawParams.World, TrajectoryForward, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
-			}
-			else
-			{
-				const float AdjustedThickness =
-					EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
-					0.0f : DrawDebugLineThickness;
-
-				DrawDebugDirectionalArrow(
-					DrawParams.World,
-					TrajectoryPos + TrajectoryForward * DrawDebugSphereSize,
-					TrajectoryPos + TrajectoryForward * DrawDebugSphereSize * 2.0f,
-					DrawDebugArrowSize,
-					Color,
-					bPersistent,
-					LifeTime,
-					DepthPriority,
-					AdjustedThickness
-				);
+					DrawDebugDirectionalArrow(
+						DrawParams.World,
+						TrajectoryPos[SubsampleIdx] + TrajectoryVelDirection * DrawDebugSphereSize,
+						TrajectoryPos[SubsampleIdx] + TrajectoryVel,
+						DrawDebugArrowSize,
+						Color,
+						bPersistent,
+						LifeTime,
+						DepthPriority,
+						AdjustedThickness
+					);
+				}
 			}
 		}
+	}
 
-		if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSampleLabels))
+	if (bUseFacingDirections)
+	{
+		for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
 		{
-			FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
-			FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
-			FColor Color = GradientColor.ToFColor(true);
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::ForwardVector, ForwardVectorCardinality, DataOffset);
+			DataOffset += ForwardVectorCardinality;
+			FVector TrajectoryForward;
+			if (Reader.GetVector(Feature, &TrajectoryForward))
+			{
+				const FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
+				const FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
+				const FColor Color = GradientColor.ToFColor(true);
+
+				TrajectoryForward = DrawParams.RootTransform.TransformVector(TrajectoryForward);
+
+				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSearchIndex))
+				{
+					DrawDebugPoint(DrawParams.World, TrajectoryForward, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
+				}
+				else
+				{
+					const float AdjustedThickness =
+						EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast) ?
+						0.0f : DrawDebugLineThickness;
+
+					DrawDebugDirectionalArrow(
+						DrawParams.World,
+						TrajectoryPos[SubsampleIdx] + TrajectoryForward * DrawDebugSphereSize,
+						TrajectoryPos[SubsampleIdx] + TrajectoryForward * DrawDebugSphereSize * 2.0f,
+						DrawDebugArrowSize,
+						Color,
+						bPersistent,
+						LifeTime,
+						DepthPriority,
+						AdjustedThickness
+					);
+				}
+			}
+		}
+	}
+
+	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawSampleLabels))
+	{
+		for (int32 SubsampleIdx = 0; SubsampleIdx != NumSubsamples; ++SubsampleIdx)
+		{
+			const FPoseSearchFeatureDesc Feature = FPoseSearchFeatureDesc::Construct(GetChannelIndex(), 0, SubsampleIdx, EPoseSearchFeatureType::Position, PositionCardinality, -1);
+			const FLinearColor LinearColor = DrawParams.Color ? *DrawParams.Color : GetColorForFeature(Feature, Reader.GetLayout());
+			const FLinearColor GradientColor = GetGradientColor(LinearColor, SubsampleIdx, NumSubsamples, DrawParams.Flags);
+			const FColor Color = GradientColor.ToFColor(true);
 
 			FString SampleLabel;
 			if (DrawParams.LabelPrefix.IsEmpty())
@@ -1281,7 +1384,7 @@ void UPoseSearchFeatureChannel_Trajectory::DebugDraw(const UE::PoseSearch::FDebu
 			}
 			DrawDebugString(
 				DrawParams.World,
-				TrajectoryPos + DrawDebugSampleLabelOffset,
+				TrajectoryPos[SubsampleIdx] + DrawDebugSampleLabelOffset,
 				SampleLabel,
 				nullptr,
 				Color,
