@@ -122,6 +122,9 @@ public:
 	 */
 	FDetailNodeList& GetFilteredRootTreeNodes() { return FilteredRootTreeNodes; }
 
+	/**
+	 * @return All root tree nodes, regardless of visibility.
+	 */
 	FDetailNodeList& GetAllRootTreeNodes() { return AllRootTreeNodes; }
 
 	/**
