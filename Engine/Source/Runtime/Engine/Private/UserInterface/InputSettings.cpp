@@ -83,6 +83,7 @@ void UInputSettings::PostInitProperties()
 		switch(PRIMARYLANGID(LOWORD(GetKeyboardLayout(0))))
 		{
 		case LANG_FRENCH:
+		case LANG_HUNGARIAN:
 			DefaultConsoleKey = FInputKeyManager::Get().GetKeyFromCodes(VK_OEM_7, 0);
 			break;
 
