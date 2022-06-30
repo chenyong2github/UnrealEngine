@@ -230,27 +230,21 @@ public:
 		}
 	}
 
-	virtual void GetAllTargetedShaderFormats( TArray<FName>& OutFormats ) const override 
+	void GetAllTargetedShaderFormatsInternal(TArrayView<TCHAR const*> RelevantSettings, TArray<FName>& OutFormats) const
 	{
-		// Get the Target RHIs for this platform, we do not always want all those that are supported. (reload in case user changed in the editor)
 		TArray<FString> TargetedShaderFormats;
 
-		auto AddWindowsShaderFormats = [&TargetedShaderFormats](const TCHAR* InName)
+		for (const TCHAR* Name : RelevantSettings)
 		{
 			TArray<FString> NewTargetedShaderFormats;
-			GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), InName, NewTargetedShaderFormats, GEngineIni);
+			GConfig->GetArray(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), Name, NewTargetedShaderFormats, GEngineIni);
 
 			for (const FString& NewShaderFormat : NewTargetedShaderFormats)
 			{
 				TargetedShaderFormats.AddUnique(NewShaderFormat);
 			}
-		};
-
-		AddWindowsShaderFormats(TEXT("TargetedRHIs"));
-		AddWindowsShaderFormats(TEXT("D3D12TargetedShaderFormats"));
-		AddWindowsShaderFormats(TEXT("D3D11TargetedShaderFormats"));
-		AddWindowsShaderFormats(TEXT("VulkanTargetedShaderFormats"));
-
+		}
+		
 		// Gather the list of Target RHIs and filter out any that may be invalid.
 		TArray<FName> PossibleShaderFormats;
 		GetAllPossibleShaderFormats(PossibleShaderFormats);
@@ -267,6 +261,36 @@ public:
 		for(const FString& ShaderFormat : TargetedShaderFormats)
 		{
 			OutFormats.AddUnique(FName(*ShaderFormat));
+		}
+	}
+
+	virtual void GetAllTargetedShaderFormats( TArray<FName>& OutFormats ) const override 
+	{
+		// Get the Target RHIs for this platform, we do not always want all those that are supported. (reload in case user changed in the editor)
+
+		TCHAR const* RelevantSettings[] = 
+		{
+			TEXT("TargetedRHIs"),
+			TEXT("D3D12TargetedShaderFormats"),
+			TEXT("D3D11TargetedShaderFormats"),
+			TEXT("VulkanTargetedShaderFormats")
+		};
+
+		GetAllTargetedShaderFormatsInternal(RelevantSettings, OutFormats);
+	}
+
+	virtual void GetRayTracingShaderFormats( TArray<FName>& OutFormats ) const override 
+	{
+		if (UsesRayTracing())
+		{
+			// Only D3D12 and Vulkan can possibly support ray tracing
+			TCHAR const* RelevantSettings[] = 
+			{
+				TEXT("D3D12TargetedShaderFormats"),
+				TEXT("VulkanTargetedShaderFormats")
+			};
+
+			GetAllTargetedShaderFormatsInternal(RelevantSettings, OutFormats);
 		}
 	}
 

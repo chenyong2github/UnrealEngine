@@ -1379,10 +1379,6 @@ RENDERCORE_API void RenderUtilsInit()
 	}
 
 	static IConsoleVariable* RayTracingCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
-	if (RayTracingCVar && RayTracingCVar->GetInt())
-	{
-		GRayTracingPlaformMask = ~0ull;
-	}
 
 	static IConsoleVariable* MobileAmbientOcclusionCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Mobile.AmbientOcclusion"));
 	if (MobileAmbientOcclusionCVar && MobileAmbientOcclusionCVar->GetInt())
@@ -1396,10 +1392,10 @@ RENDERCORE_API void RenderUtilsInit()
 	{
 		for (ITargetPlatform* TargetPlatform : TargetPlatformManager->GetTargetPlatforms())
 		{
-			TArray<FName> PlaformShaderFormats;
-			TargetPlatform->GetAllPossibleShaderFormats(PlaformShaderFormats);
+			TArray<FName> PlaformPossibleShaderFormats;
+			TargetPlatform->GetAllPossibleShaderFormats(PlaformPossibleShaderFormats);
 
-			for (FName Format : PlaformShaderFormats)
+			for (FName Format : PlaformPossibleShaderFormats)
 			{
 				EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Format);
 				uint32 ShaderPlatformIndex = static_cast<uint32>(ShaderPlatform);
@@ -1451,15 +1447,6 @@ RENDERCORE_API void RenderUtilsInit()
 					GDistanceFieldsPlatformMask &= ~Mask;
 				}
 
-				if (TargetPlatform->UsesRayTracing())
-				{
-					GRayTracingPlaformMask |= Mask;
-				}
-				else
-				{
-					GRayTracingPlaformMask &= ~Mask;
-				}
-
 				if (TargetPlatform->ForcesSimpleSkyDiffuse())
 				{
 					GSimpleSkyDiffusePlatformMask |= Mask;
@@ -1487,14 +1474,37 @@ RENDERCORE_API void RenderUtilsInit()
 					GMobileAmbientOcclusionPlatformMask &= ~Mask;
 				}
 			}
+
+
+			if (TargetPlatform->UsesRayTracing())
+			{
+				TArray<FName> PlaformRayTracingShaderFormats;
+				TargetPlatform->GetRayTracingShaderFormats(PlaformRayTracingShaderFormats);
+
+				for (FName Format : PlaformRayTracingShaderFormats)
+				{
+					EShaderPlatform ShaderPlatform = ShaderFormatNameToShaderPlatform(Format);
+					uint32 ShaderPlatformIndex = static_cast<uint32>(ShaderPlatform);
+
+					uint64 Mask = 1ull << ShaderPlatformIndex;
+
+					GRayTracingPlaformMask |= Mask;
+				}
+			}
 		}
 	}
-#else
+
+#else // WITH_EDITOR
 
 	if (IsMobilePlatform(GMaxRHIShaderPlatform))
 	{
 		GDBufferPlatformMask = 0;
 		GBasePassVelocityPlatformMask = 0;
+	}
+
+	if (RayTracingCVar && RayTracingCVar->GetInt() && GRHISupportsRayTracing)
+	{
+		GRayTracingPlaformMask = ~0ull;
 	}
 
 	// Load runtime values from and *.ini file used by a current platform

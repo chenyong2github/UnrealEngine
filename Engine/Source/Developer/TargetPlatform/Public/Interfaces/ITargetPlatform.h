@@ -531,6 +531,13 @@ public:
 	*/
 	virtual void GetAllTargetedShaderFormats(TArray<FName>& OutFormats) const = 0;
 
+	/**
+	* Gets the shader formats that support ray tracing for this target platform.
+	* 
+	* @param OutFormats Will contain the shader formats.
+	*/
+	virtual void GetRayTracingShaderFormats(TArray<FName>& OutFormats) const = 0;
+
 #if WITH_ENGINE
 	/**
 	 * Gets the format to use for a particular body setup.

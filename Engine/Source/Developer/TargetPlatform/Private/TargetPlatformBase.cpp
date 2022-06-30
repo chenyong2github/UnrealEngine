@@ -95,6 +95,14 @@ bool FTargetPlatformBase::UsesASTCHDR() const
 	return GASTCHDRProfile != 0;
 }
 
+void FTargetPlatformBase::GetRayTracingShaderFormats(TArray<FName>& OutFormats) const
+{
+	if (UsesRayTracing())
+	{
+		GetAllTargetedShaderFormats(OutFormats);
+	}
+}
+
 static bool IsPluginEnabledForTarget(const IPlugin& Plugin, const FProjectDescriptor* Project, const FString& Platform, EBuildConfiguration Configuration, EBuildTargetType TargetType)
 {
 	if (!Plugin.GetDescriptor().SupportsTargetPlatform(Platform))
