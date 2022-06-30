@@ -1,4 +1,5 @@
 ﻿// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "StringsAnalyzer.h"
 #include "../Common/Utils.h"
 #include "TraceServices/Model/Definitions.h"
@@ -6,8 +7,9 @@
 
 namespace TraceServices
 {
-	
-/////////////////////////////////////////////////////////////////////////////////////////
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FStringsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	Context.InterfaceBuilder.RouteEvent(RouteId_StaticString, "Strings", "StaticString");
@@ -16,7 +18,8 @@ void FStringsAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Context.InterfaceBuilder.RouteEvent(RouteId_FNameNoSync, "Strings", "FNameNoSync");
 }
 
-/////////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	switch (RouteId)
@@ -29,6 +32,7 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 		{
 			const FEventData& EventData = Context.EventData;
 			IDefinitionProvider* DefinitionProvider = GetDefinitionProvider(Session);
+			check(DefinitionProvider != nullptr);
 
 			FWideStringView DisplayWide;
 			FAnsiStringView DisplayAnsi;
@@ -69,4 +73,6 @@ bool FStringsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventConte
 	return true;
 }
 
-}
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+} // namespace TraceServices

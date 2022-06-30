@@ -255,7 +255,7 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(uint32 TraceI
 	Session->AddAnalyzer(new FStringsAnalyzer(*Session));
 
 	TSharedPtr<FDefinitionProvider> DefProvider = MakeShared<FDefinitionProvider>(&Session.Get());
-	Session->AddProvider(FDefinitionProvider::ProviderName, DefProvider);
+	Session->AddProvider(FDefinitionProvider::ProviderName, DefProvider, DefProvider);
 
 	ModuleService.OnAnalysisBegin(*Session);
 

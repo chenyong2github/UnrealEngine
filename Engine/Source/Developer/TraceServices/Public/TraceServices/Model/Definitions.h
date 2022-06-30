@@ -17,21 +17,20 @@ namespace TraceServices
  *
  * Example usage:
  * This code creates a definition, initializes the instance, resolves a reference and finally registers it.
- * \code 
+ * \code
  *		FMyDefinitionClass* Instance = DefinitionProvider->Create<FMyDefinitionClass>();
  *		Instance->SomeValue = EventData.GetValue<uint32>("SomeValue");
  *		const FEventRef Reference = EventData.GetReferenceValue("SomeString");
  *		Instance->SomeString = DefinitionProvider->Get<FStringDefinition>(Reference)->Display;
  *		...
- *		
+ *
  *		const UE::Trace::FEventRef Id(EventData.GetDefinitionId(), EventData.GetTypeInfo().GetId());
  *		DefinitionProvider->Register<FMyDefinitionClass>(Instance, Id);
  * \endcode
  */
-class IDefinitionProvider : public IProvider
+class IDefinitionProvider : public IEditableProvider
 {
 public:
-	
 	struct TRACESERVICES_API FEditScopeLock
 	{
 		FEditScopeLock(const IDefinitionProvider& InMetadataProvider)
@@ -64,6 +63,12 @@ public:
 		const IDefinitionProvider& MetadataProvider;
 	};
 
+public:
+	virtual ~IDefinitionProvider() = default;
+
+	//////////////////////////////////////////////////
+	// Edit operations
+
 	/**
 	 * Allocates memory for the definition. The memory is guaranteed to be valid during the lifetime of the
 	 * analysis session.
@@ -89,6 +94,9 @@ public:
 		Stringifiers.FindOrAdd(Id.RefTypeId, &T::ToString);
 		AddEntry(Id.GetHash(), Instance);
 	}
+
+	//////////////////////////////////////////////////
+	// Read operations
 
 	/**
 	 * Attempts to retrieve a previously registered instance of a definition using a reference.
@@ -124,6 +132,7 @@ protected:
 	virtual void AddEntry(uint64 Hash, const void* Ptr) = 0;
 	virtual const void* FindEntry(uint64 Hash) const = 0;
 
+protected:
 	using StringifierFn = TFunction<FString (const void*)>;
 	TMap<uint32, StringifierFn> Stringifiers;
 };
@@ -132,5 +141,3 @@ TRACESERVICES_API IDefinitionProvider* GetDefinitionProvider(IAnalysisSession& S
 TRACESERVICES_API const IDefinitionProvider* ReadDefinitionProvider(const IAnalysisSession& Session);
 
 } // namespace TraceServices
-
-
