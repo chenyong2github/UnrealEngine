@@ -741,7 +741,7 @@ void FIOSPlatformFile::SetTimeStamp(const TCHAR* Filename, const FDateTime DateT
 	// change the modification time only
 	struct utimbuf Times;
 	Times.actime = FileInfo.st_atime;
-	Times.modtime = (DateTime - IOSEpoch).GetTotalSeconds();
+	Times.modtime = (time_t)(DateTime - IOSEpoch).GetTotalSeconds();
 	utime(TCHAR_TO_UTF8(*IOSFilename), &Times);
 }
 

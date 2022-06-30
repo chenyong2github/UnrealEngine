@@ -253,7 +253,7 @@ void GetBytesForFont(const NSString* InFontName, OUT TArray<uint8>& OutBytes)
 		}
 		SearchRange <<= 4;
 
-		uint16 RangeShift = (TableCount << 4) - SearchRange;
+		uint16 RangeShift = (uint16)((TableCount << 4) - SearchRange);
 
 		// Write font header (also called sfnt header, offset subtable)
 		FFontHeader* OffsetTable = (FFontHeader*)DataPtr;
@@ -302,13 +302,13 @@ TArray<uint8> FApplePlatformMisc::GetSystemFontBytes()
 {
 #if PLATFORM_MAC
 	// Gather some details about the system font
-	uint32 SystemFontSize = [NSFont systemFontSize];
+	uint32 SystemFontSize = (uint32)[NSFont systemFontSize];
 	NSString* SystemFontName = [NSFont systemFontOfSize:SystemFontSize].fontName;
 #elif PLATFORM_TVOS
 	NSString* SystemFontName = [UIFont preferredFontForTextStyle:UIFontTextStyleBody].fontName;
 #else
 	// Gather some details about the system font
-	uint32 SystemFontSize = [UIFont systemFontSize];
+	uint32 SystemFontSize = (uint32)[UIFont systemFontSize];
 	NSString* SystemFontName = [UIFont systemFontOfSize:SystemFontSize].fontName;
 #endif
 

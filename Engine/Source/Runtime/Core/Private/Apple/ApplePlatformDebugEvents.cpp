@@ -209,7 +209,7 @@ uint16 FApplePlatformDebugEvents::GetEventCode(FString String)
 			}
 			else
 			{
-				Code = Names.Num() + 1;
+				Code = (uint16)Names.Num() + 1;
 				check(Code < 16384);
 				Names.Add(Hash, Code);
 				UE_LOG(LogInstruments, Display, TEXT("New Event Code: %u : %s"), (uint32)Code, *String);

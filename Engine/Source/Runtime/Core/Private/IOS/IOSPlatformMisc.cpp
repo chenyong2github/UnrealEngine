@@ -236,7 +236,7 @@ int FIOSPlatformMisc::GetBatteryLevel()
 float FIOSPlatformMisc::GetBrightness()
 {
 #if !PLATFORM_TVOS
-	return [UIScreen mainScreen].brightness;
+	return (float)[UIScreen mainScreen].brightness;
 #else
 	return 1.0f;
 #endif // !PLATFORM_TVOS
