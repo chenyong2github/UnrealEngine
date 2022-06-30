@@ -56,6 +56,13 @@ public:
 		}
 	}
 
+	void StartupModule() final
+	{
+		// Required to guarantee that SSL shuts down after DDC. Without this, waiting for active
+		// cache requests on shutdown can crash when accessing SSL.
+		FModuleManager::Get().LoadModuleChecked(TEXT("SSL"));
+	}
+
 	void ShutdownModule() final
 	{
 		delete GDerivedDataBuild;
