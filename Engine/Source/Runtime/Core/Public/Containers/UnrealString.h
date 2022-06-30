@@ -22,10 +22,11 @@
 #include "Templates/Invoke.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/IsArrayOrRefOfType.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Templates/TypeHash.h"
 #include "Templates/IsFloatingPoint.h"
 #include "Traits/IsCharType.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 #include "Traits/IsCharEncodingSimplyConvertibleTo.h"
 
 struct FStringFormatArg;
@@ -1237,10 +1238,10 @@ public:
 	template <typename FmtType, typename... Types>
 	UE_NODISCARD static FString Printf(const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
 
-		return PrintfImpl(Fmt, Args...);
+		return PrintfImpl((const TCHAR*)Fmt, Args...);
 	}
 
 	/**
@@ -1250,10 +1251,10 @@ public:
 	template <typename FmtType, typename... Types>
 	FString& Appendf(const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Appendf");
 
-		AppendfImpl(*this, Fmt, Args...);
+		AppendfImpl(*this, (const TCHAR*)Fmt, Args...);
 		return *this;
 	}
 

@@ -4,6 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Trace/Config.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 
 #if !defined(LOGTRACE_ENABLED)
 #if UE_TRACE_ENABLED && !UE_BUILD_SHIPPING
@@ -62,12 +64,13 @@ private:
 	}
 #else
 #define TRACE_LOG_MESSAGE(Category, Verbosity, Format, ...) \
+	static_assert(TIsArrayOrRefOfTypeByPredicate<decltype(Format), TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array."); \
 	if (UE_TRACE_CHANNELEXPR_IS_ENABLED(LogChannel)) \
 	{ \
 		static bool PREPROCESSOR_JOIN(__LogPoint, __LINE__); \
 		if (!PREPROCESSOR_JOIN(__LogPoint, __LINE__)) \
 		{ \
-			FLogTrace::OutputLogMessageSpec(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), &Category, ELogVerbosity::Verbosity, __FILE__, __LINE__, Format); \
+			FLogTrace::OutputLogMessageSpec(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), &Category, ELogVerbosity::Verbosity, __FILE__, __LINE__, (const TCHAR*)Format); \
 			PREPROCESSOR_JOIN(__LogPoint, __LINE__) = true; \
 		} \
 		FLogTrace::OutputLogMessage(&PREPROCESSOR_JOIN(__LogPoint, __LINE__), ##__VA_ARGS__); \

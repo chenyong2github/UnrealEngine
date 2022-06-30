@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineTypes.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 
 class FCanvasItem;
 class UCanvas;
@@ -61,55 +63,55 @@ public:
 	template <typename FmtType, typename... Types>
 	void Printf(const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FGameplayDebuggerCanvasContext::Printf");
 
-		PrintfImpl(FColor::White, 1.0f, Fmt, Args...);
+		PrintfImpl(FColor::White, 1.0f, (const TCHAR*)Fmt, Args...);
 	}
 	
 	template <typename FmtType, typename... Types>
 	void Printf(const FColor& Color, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FGameplayDebuggerCanvasContext::Printf");
 
-		PrintfImpl(Color, 1.0f, Fmt, Args...);
+		PrintfImpl(Color, 1.0f, (const TCHAR*)Fmt, Args...);
 	}
 	
 	template <typename FmtType, typename... Types>
 	void Printf(const FColor& Color, const float Alpha, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FGameplayDebuggerCanvasContext::Printf");
 
-		PrintfImpl(Color, Alpha, Fmt, Args...);
+		PrintfImpl(Color, Alpha, (const TCHAR*)Fmt, Args...);
 	}
 	
 	template <typename FmtType, typename... Types>
 	void PrintfAt(float PosX, float PosY, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FGameplayDebuggerCanvasContext::PrintfAt");
 
-		PrintfAtImpl(PosX, PosY, FColor::White, 1.0f, Fmt, Args...);
+		PrintfAtImpl(PosX, PosY, FColor::White, 1.0f, (const TCHAR*)Fmt, Args...);
 	}
 	
 	template <typename FmtType, typename... Types>
 	void PrintfAt(float PosX, float PosY, const FColor& Color, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FGameplayDebuggerCanvasContext::PrintfAt");
 
-		PrintfAtImpl(PosX, PosY, Color, 1.0f, Fmt, Args...);
+		PrintfAtImpl(PosX, PosY, Color, 1.0f, (const TCHAR*)Fmt, Args...);
 	}
 	
 	template <typename FmtType, typename... Types>
 	void PrintfAt(float PosX, float PosY, const FColor& Color, const float Alpha, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FGameplayDebuggerCanvasContext::PrintfAt");
 
-		PrintfAtImpl(PosX, PosY, Color, Alpha, Fmt, Args...);
+		PrintfAtImpl(PosX, PosY, Color, Alpha, (const TCHAR*)Fmt, Args...);
 	}
 
 private:

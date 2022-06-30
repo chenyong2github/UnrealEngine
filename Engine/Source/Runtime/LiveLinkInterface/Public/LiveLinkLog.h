@@ -5,6 +5,8 @@
 #include "CoreMinimal.h"
 #include "LiveLinkTypes.h"
 #include "Logging/TokenizedMessage.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 
 #define ENABLE_LIVELINK_LOGGING (1 && !NO_LOGGING && !(UE_BUILD_SHIPPING || UE_BUILD_TEST))
 
@@ -16,7 +18,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static void Error(const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		Log_Internal(EMessageSeverity::Error, NAME_None, FLiveLinkSubjectKey(), Format, Args...);
 	}
 
@@ -27,7 +29,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static void ErrorOnce(FName MessageID, const FLiveLinkSubjectKey& SubjectKey, const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		Log_Internal(EMessageSeverity::Error, MessageID, SubjectKey, Format, Args...);
 	}
 	
@@ -35,7 +37,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static void Warning(const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		Log_Internal(EMessageSeverity::Warning, NAME_None, FLiveLinkSubjectKey(), Format, Args...);
 	}
 
@@ -46,7 +48,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static void WarningOnce(FName MessageID, const FLiveLinkSubjectKey& SubjectKey, const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		Log_Internal(EMessageSeverity::Warning, MessageID, SubjectKey, Format, Args...);
 	}
 	
@@ -54,7 +56,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static void Info(const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		Log_Internal(EMessageSeverity::Info, NAME_None, FLiveLinkSubjectKey(), Format, Args...);
 	}
 
@@ -65,7 +67,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static void InfoOnce(FName MessageID, const FLiveLinkSubjectKey& SubjectKey, const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		Log_Internal(EMessageSeverity::Info, MessageID, SubjectKey, Format, Args...);
 	}
 
@@ -76,7 +78,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static TSharedPtr<FTokenizedMessage> TokenizedMessage(EMessageSeverity::Type Severity, const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		return CreateTokenizedMessage_Internal(Severity, NAME_None, FLiveLinkSubjectKey(), Format, Args...);
 	}
 
@@ -88,7 +90,7 @@ public:
 	template<typename FormatType, typename... ArgsType>
 	static TSharedPtr<FTokenizedMessage> TokenizedMessageOnce(EMessageSeverity::Type Severity, FName MessageID, const FLiveLinkSubjectKey& SubjectKey, const FormatType& Format, ArgsType... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FormatType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FormatType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		return CreateTokenizedMessage_Internal(Severity, MessageID, SubjectKey, Format, Args...);
 	}
 

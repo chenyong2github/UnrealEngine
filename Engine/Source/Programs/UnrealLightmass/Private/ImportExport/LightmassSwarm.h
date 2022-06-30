@@ -13,7 +13,8 @@
 #include "Editor/SwarmInterface/Public/SwarmInterface.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/IsArrayOrRefOfType.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 #include "ImportExport.h"
 
 namespace Lightmass
@@ -234,10 +235,10 @@ public:
 	template <typename FmtType, typename... Types>
 	void SendTextMessage(const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FString::Printf");
 
-		SendTextMessageImpl(Fmt, Args...);
+		SendTextMessageImpl((const TCHAR*)Fmt, Args...);
 	}
 
 private:

@@ -10,7 +10,8 @@
 #include "ShaderParameterMetadata.h"
 #include "RenderGraphAllocator.h"
 #include "Algo/Reverse.h"
-
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 
 class FRDGTexture;
 class FRDGTextureSRV;
@@ -1294,13 +1295,13 @@ struct TShaderParameterStructTypeInfo<StructType[InNumElements]>
 		struct zzNextMemberId##MemberName { enum { HasDeclaredResource = zzMemberId##MemberName::HasDeclaredResource || !TypeInfo::bIsStoredInConstantBuffer }; }; \
 		static zzFuncPtr zzAppendMemberGetPrev(zzNextMemberId##MemberName, TArray<FShaderParametersMetadata::FMember>* Members) \
 		{ \
-			static_assert(TypeInfo::bIsStoredInConstantBuffer || TIsArrayOrRefOfType<decltype(OptionalShaderType), TCHAR>::Value, "No shader type for " #MemberName "."); \
+			static_assert(TypeInfo::bIsStoredInConstantBuffer || TIsArrayOrRefOfTypeByPredicate<decltype(OptionalShaderType), TIsCharEncodingCompatibleWithTCHAR>::Value, "No shader type for " #MemberName "."); \
 			static_assert(\
 				(STRUCT_OFFSET(zzTThisStruct, MemberName) & (TypeInfo::Alignment - 1)) == 0, \
 				"Misaligned uniform buffer struct member " #MemberName "."); \
 			Members->Add(FShaderParametersMetadata::FMember( \
 				TEXT(#MemberName), \
-				OptionalShaderType, \
+				(const TCHAR*)OptionalShaderType, \
 				__LINE__, \
 				STRUCT_OFFSET(zzTThisStruct,MemberName), \
 				EUniformBufferBaseType(BaseType), \

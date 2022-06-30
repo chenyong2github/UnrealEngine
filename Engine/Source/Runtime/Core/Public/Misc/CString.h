@@ -9,7 +9,8 @@
 #include "HAL/PlatformString.h"
 #include "Templates/IsValidVariadicFunctionArg.h"
 #include "Templates/AndOrNot.h"
-#include "Templates/IsArrayOrRefOfType.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 
 #define MAX_SPRINTF 1024
 
@@ -369,18 +370,21 @@ private:
 	static int32 VARARGS SprintfImpl(CharType* Dest, const CharType* Fmt, ...);
 	static int32 VARARGS SnprintfImpl(CharType* Dest, int32 DestSize, const CharType* Fmt, ...);
 
+	template <typename SrcEncoding>
+	using TIsCharEncodingCompatibleWithCharType = TIsCharEncodingCompatibleWith<SrcEncoding, CharType>;
+
 public:
-	/** 
+	/**
 	* Standard string formatted print. 
 	* @warning: make sure code using FCString::Sprintf allocates enough (>= MAX_SPRINTF) memory for the destination buffer
 	*/
 	template <typename FmtType, typename... Types>
 	static int32 Sprintf(CharType* Dest, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, CharType>::Value, "Formatting string must be a literal string of the same character type as template.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithCharType>::Value, "Formatting string must be a literal string of a char type compatible with the TCString type.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to TCString::Sprintf");
 
-		return SprintfImpl(Dest, Fmt, Args...);
+		return SprintfImpl(Dest, (const CharType*)Fmt, Args...);
 	}
 
 	/** 
@@ -389,10 +393,10 @@ public:
 	template <typename FmtType, typename... Types>
 	static int32 Snprintf(CharType* Dest, int32 DestSize, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, CharType>::Value, "Formatting string must be a literal string of the same character type as template.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithCharType>::Value, "Formatting string must be a literal string of a char type compatible with the TCString type.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to TCString::Snprintf");
 
-		return SnprintfImpl(Dest, DestSize, Fmt, Args...);
+		return SnprintfImpl(Dest, DestSize, (const CharType*)Fmt, Args...);
 	}
 
 	/**

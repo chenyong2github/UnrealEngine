@@ -67,3 +67,6 @@ struct TIsCharEncodingCompatibleWith
 
 template <typename SrcEncoding, typename DestEncoding>
 constexpr inline bool TIsCharEncodingCompatibleWith_V = TIsCharEncodingCompatibleWith<SrcEncoding, DestEncoding>::Value;
+
+template <typename SrcEncoding>
+using TIsCharEncodingCompatibleWithTCHAR = TIsCharEncodingCompatibleWith<SrcEncoding, TCHAR>;

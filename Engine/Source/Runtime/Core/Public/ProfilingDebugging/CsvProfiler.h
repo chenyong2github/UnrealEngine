@@ -17,6 +17,8 @@
 #include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "ProfilingDebugging/CsvProfilerTrace.h"
+#include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Traits/IsCharEncodingCompatibleWith.h"
 
 #include <atomic>
 
@@ -232,9 +234,9 @@ public:
 	template <typename FmtType, typename... Types>
 	FORCEINLINE static void RecordEventf(int32 CategoryIndex, const FmtType& Fmt, Types... Args)
 	{
-		static_assert(TIsArrayOrRefOfType<FmtType, TCHAR>::Value, "Formatting string must be a TCHAR array.");
+		static_assert(TIsArrayOrRefOfTypeByPredicate<FmtType, TIsCharEncodingCompatibleWithTCHAR>::Value, "Formatting string must be a TCHAR array.");
 		static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FCsvProfiler::RecordEventf");
-		RecordEventfInternal(CategoryIndex, Fmt, Args...);
+		RecordEventfInternal(CategoryIndex, (const TCHAR*)Fmt, Args...);
 	}
 
 	CORE_API static void BeginSetWaitStat(const char * StatName);
