@@ -8,10 +8,9 @@
 #include "AudioMixerDevice.h"
 #include "AudioMixerSourceOutputBuffer.h"
 #include "AudioMixerSubmix.h"
-#include "Containers/Queue.h"
+#include "Containers/MpscQueue.h"
 #include "DSP/BufferVectorOperations.h"
 #include "DSP/EnvelopeFollower.h"
-#include "DSP/Filter.h"
 #include "DSP/InterpolatedOnePole.h"
 #include "DSP/ParamInterpolator.h"
 #include "IAudioExtensionPlugin.h"
@@ -19,6 +18,7 @@
 #include "Sound/SoundModulationDestination.h"
 #include "Sound/QuartzQuantizationUtilities.h"
 #include "Stats/Stats.h"
+
 
 // Tracks the time it takes to up the source manager (computes source buffers, source effects, sample rate conversion)
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Source Manager Update"), STAT_AudioMixerSourceManagerUpdate, STATGROUP_AudioMixer, AUDIOMIXER_API);
@@ -263,7 +263,12 @@ namespace Audio
 		void PumpCommandQueue();
 		void UpdatePendingReleaseData(bool bForceWait = false);
 		void FlushCommandQueue(bool bPumpCommandQueue = false);
+
+		// Pushes a TFUnction command into an MPSC queue from an arbitrary thread to the audio render thread
+		void AudioMixerThreadMPSCCommand(TFunction<void()> InCommand);
+		
 	private:
+		
 		void ReleaseSource(const int32 SourceId);
 		void BuildSourceEffectChain(const int32 SourceId, FSoundEffectSourceInitData& InitData, const TArray<FSourceEffectChainEntry>& SourceEffectChain, TArray<TSoundEffectSourcePtr>& OutSourceEffects);
 		void ResetSourceEffectChain(const int32 SourceId);
@@ -281,6 +286,7 @@ namespace Audio
 
 		void AudioMixerThreadCommand(TFunction<void()> InFunction);
 
+		
 		static const int32 NUM_BYTES_PER_SAMPLE = 2;
 
 		// Private class which perform source buffer processing in a worker task
@@ -332,7 +338,7 @@ namespace Audio
 		{
 			TArray<TFunction<void()>> SourceCommandQueue;
 		};
-
+		
 		FCommands CommandBuffers[2];
 		FThreadSafeCounter RenderThreadCommandBufferIndex;
 
@@ -341,6 +347,9 @@ namespace Audio
 
 		TArray<int32> DebugSoloSources;
 
+		// Command queue to communicate commands to teh source manager from arbitrary threads
+		TMpscQueue<TFunction<void()>> MpscCommandQueue;
+		
 		struct FSourceInfo
 		{
 			FSourceInfo() {}

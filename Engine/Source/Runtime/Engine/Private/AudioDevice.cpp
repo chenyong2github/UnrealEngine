@@ -4392,6 +4392,8 @@ void FAudioDevice::Update(bool bGameTicking)
 
 	if (IsInGameThread())
 	{
+		UpdateGameThread();
+
 		// Make sure our referenced sound waves is up-to-date
 		UpdateReferencedSoundWaves();
 	}

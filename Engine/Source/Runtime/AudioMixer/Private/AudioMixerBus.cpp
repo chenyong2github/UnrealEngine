@@ -19,7 +19,7 @@ namespace Audio
 		SetNumOutputChannels(NumChannels);
 
 		// Make a patch bus input to push mixed audio sent to audio bus from source manager
-		AudioBusInput = PatchMixerSplitter.AddNewInput(4096, 1.0f);
+		AudioBusInput = PatchMixerSplitter.AddNewInput(2*InNumChannels*NumFrames, 1.0f);
 	}
 
 	void FMixerAudioBus::SetNumOutputChannels(int32 InNumOutputChannels)

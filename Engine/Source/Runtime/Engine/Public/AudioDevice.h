@@ -964,6 +964,29 @@ public:
 		return nullptr;
 	}
 
+	virtual void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic)
+	{
+	}
+
+	virtual void StopAudioBus(uint32 InAudioBusId)
+	{
+	}
+
+	virtual bool IsAudioBusActive(uint32 InAudioBusId) const
+	{
+		return false;
+	}
+
+	virtual Audio::FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f)
+	{
+		return nullptr;
+	}
+
+	virtual Audio::FPatchOutputStrongPtr AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain = 1.0f)
+	{
+		return nullptr;
+	}
+	
 	virtual void InitSoundEffectPresets() {}
 
 	/**

@@ -1138,10 +1138,21 @@ namespace Audio
 	void FMixerSourceManager::AddPatchOutputForAudioBus(uint32 InAudioBusId, const FPatchOutputStrongPtr& InPatchOutputStrongPtr)
 	{
 		AUDIO_MIXER_CHECK_AUDIO_PLAT_THREAD(MixerDevice);
-		TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
-		if (AudioBusPtr.IsValid())
+		if (MixerDevice->IsAudioRenderingThread())
 		{
-			AudioBusPtr->AddNewPatchOutput(InPatchOutputStrongPtr);
+			TSharedPtr<FMixerAudioBus> AudioBusPtr = AudioBuses.FindRef(InAudioBusId);
+			if (AudioBusPtr.IsValid())
+			{
+				AudioBusPtr->AddNewPatchOutput(InPatchOutputStrongPtr);
+			}
+		}
+		else
+		{
+			// Queue up the command via MPSC command queue
+			AudioMixerThreadMPSCCommand([this, InAudioBusId, InPatchOutputStrongPtr]()
+			{
+				AddPatchOutputForAudioBus(InAudioBusId, InPatchOutputStrongPtr);
+			});
 		}
 	}
 
@@ -2911,6 +2922,10 @@ namespace Audio
 		}
 	}
 
+	void FMixerSourceManager::AudioMixerThreadMPSCCommand(TFunction<void()> InCommand)
+	{
+		MpscCommandQueue.Enqueue(MoveTemp(InCommand));
+	}
 
 	void FMixerSourceManager::AudioMixerThreadCommand(TFunction<void()> InFunction)
 	{
@@ -2953,6 +2968,16 @@ namespace Audio
 			{
 				return;
 			}
+		}
+
+		// Pump the MPSC command queue
+		TOptional Opt{ MpscCommandQueue.Dequeue() };
+		while (Opt.IsSet())
+		{
+			TFunction<void()> Command = MoveTemp(Opt.GetValue());
+			Command();
+				
+			Opt = MpscCommandQueue.Dequeue();
 		}
 
 		int32 CurrentRenderThreadIndex = RenderThreadCommandBufferIndex.GetValue();

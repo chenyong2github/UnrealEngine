@@ -290,12 +290,12 @@ namespace Audio
 		static bool IsEndpointSubmix(const USoundSubmixBase* InSubmix);
 
 		// Audio bus API
-		void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic);
-		void StopAudioBus(uint32 InAudioBusId);
-		bool IsAudioBusActive(uint32 InAudioBusId) const;
+		virtual void StartAudioBus(uint32 InAudioBusId, int32 InNumChannels, bool bInIsAutomatic) override;
+		virtual void StopAudioBus(uint32 InAudioBusId) override;
+		virtual bool IsAudioBusActive(uint32 InAudioBusId) const override;
 
-		FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f);
-		FPatchOutputStrongPtr AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain = 1.0f);
+		virtual FPatchOutputStrongPtr AddPatchForAudioBus(uint32 InAudioBusId, float InPatchGain = 1.0f) override;
+		virtual FPatchOutputStrongPtr AddPatchForAudioBus_GameThread(uint32 InAudioBusId, float InPatchGain = 1.0f) override;
 
 		// Clock Manager for quantized event handling on Audio Render Thread
 		FQuartzClockManager QuantizedEventClockManager;
@@ -303,6 +303,8 @@ namespace Audio
 		// Pushes the command to a audio render thread command queue to be executed on render thread
 		void AudioRenderThreadCommand(TFunction<void()> Command);
 
+		// Pushes the command to a MPSC queue to be executed on the game thread
+		void GameThreadMPSCCommand(TFunction<void()> InCommand);
 
 	protected:
 
@@ -336,15 +338,14 @@ namespace Audio
 
 		void UnloadSoundSubmix(const USoundSubmixBase& SoundSubmix);
 
-	private:
-
 		bool IsMasterSubmixType(const USoundSubmixBase* InSubmix) const;
 		FMixerSubmixPtr GetMasterSubmixInstance(uint32 InSubmixId);
 		FMixerSubmixPtr GetMasterSubmixInstance(const USoundSubmixBase* InSubmix);
 		
 		// Pumps the audio render thread command queue
 		void PumpCommandQueue();
-
+		void PumpGameThreadCommandQueue();
+		
 		TArray<USoundSubmix*> MasterSubmixes;
 		TArray<FMixerSubmixPtr> MasterSubmixInstances;
 
@@ -429,6 +430,9 @@ namespace Audio
 		/** Command queue to send commands to audio render thread from game thread or audio thread. */
 		TQueue<TFunction<void()>> CommandQueue;
 
+		/** MPSC command queue to send commands to the game thread */
+		TMpscQueue<TFunction<void()>> GameThreadCommandQueue;
+		
 		/** Whether or not we generate output audio to test multi-platform mixer. */
 		bool bDebugOutputEnabled;
 
