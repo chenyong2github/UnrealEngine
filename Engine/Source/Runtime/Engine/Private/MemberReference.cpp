@@ -276,12 +276,16 @@ UClass* FMemberReference::GetClassToUse(UClass* InClass, bool bUseUpToDateClass)
 	}
 }
 
+#endif
+
 template <typename TFieldType>
 TFieldType* FindRemappedFieldImpl(FName FieldClassOutermostName, FName FieldClassName, UClass* InitialScope, FName InitialName, bool bInitialScopeMustBeOwnerOfField)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FMemberReference::FindRemappedField"), STAT_LinkerLoad_FindRemappedField, STATGROUP_LoadTimeVerbose);
 
+#if WITH_EDITOR
 	FMemberReference::InitFieldRedirectMap();
+#endif
 
 	// In the case of a bifurcation of a variable (e.g. moved from a parent into certain children), verify that we don't also define the variable in the current scope first
 	if (FindUFieldOrFProperty<TFieldType>(InitialScope, InitialName))
@@ -367,5 +371,3 @@ FField* FMemberReference::FindRemappedField(FFieldClass* FieldClass, UClass* Ini
 {
 	return FindRemappedFieldImpl<FField>(GLongCoreUObjectPackageName, FieldClass->GetFName(), InitialScope, InitialName, bInitialScopeMustBeOwnerOfField);
 }
-
-#endif
