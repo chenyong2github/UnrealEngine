@@ -674,11 +674,19 @@ void UWaterBodyComponent::OnRegister()
 	CreateOrUpdateWaterInfoMID();
 
 #if WITH_EDITOR
-	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */true);
-	GetWaterSpline()->OnSplineDataChanged().AddUObject(this, &UWaterBodyComponent::OnSplineDataChanged);
+	RegisterOnChangeWaterSplineData(/*bRegister = */true); 
 
 	CreateWaterSpriteComponent();
 #endif // WITH_EDITOR
+}
+
+void UWaterBodyComponent::OnUnregister()
+{
+#if WITH_EDITOR
+	RegisterOnChangeWaterSplineData(/*bRegister = */false);
+#endif // WITH_EDITOR
+
+	Super::OnUnregister();
 }
 
 TArray<AWaterBodyIsland*> UWaterBodyComponent::GetIslands() const
@@ -1031,20 +1039,34 @@ void UWaterBodyComponent::OnWaterSplineMetadataChanged(UWaterSplineMetadata* InW
 	OnWaterBodyChanged(bShapeOrPositionChanged);
 }
 
-void UWaterBodyComponent::RegisterOnChangeWaterSplineMetadata(UWaterSplineMetadata* InWaterSplineMetadata, bool bRegister)
+PRAGMA_DISABLE_OPTIMIZATION
+void UWaterBodyComponent::RegisterOnChangeWaterSplineData(bool bRegister)
 {
-	if (InWaterSplineMetadata != nullptr)
+	if (UWaterSplineComponent* WaterSpline = GetWaterSpline())
 	{
 		if (bRegister)
 		{
-			InWaterSplineMetadata->OnChangeData.AddUObject(this, &UWaterBodyComponent::OnWaterSplineMetadataChanged);
+			WaterSpline->OnSplineDataChanged().AddUObject(this, &UWaterBodyComponent::OnSplineDataChanged);
 		}
 		else
 		{
-			InWaterSplineMetadata->OnChangeData.RemoveAll(this);
+			WaterSpline->OnSplineDataChanged().RemoveAll(this);
+		}
+	}
+
+	if (WaterSplineMetadata != nullptr)
+	{
+		if (bRegister)
+		{
+			WaterSplineMetadata->OnChangeData.AddUObject(this, &UWaterBodyComponent::OnWaterSplineMetadataChanged);
+		}
+		else
+		{
+			WaterSplineMetadata->OnChangeData.RemoveAll(this);
 		}
 	}
 }
+PRAGMA_ENABLE_OPTIMIZATION
 
 #endif // WITH_EDITOR
 
@@ -1195,6 +1217,7 @@ void UWaterBodyComponent::UpdateSplineComponent()
 
 void UWaterBodyComponent::OnWaterBodyChanged(bool bShapeOrPositionChanged, bool bWeightmapSettingsChanged)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE("UWaterBodyComponent::OnWaterBodyChanged")
 	// It's possible to get called without a water spline after the Redo of a water body deletion (i.e. the water body actor gets deleted again, hence its SplineComp is restored to nullptr)
 	//  This is a very-edgy case that needs to be checked everywhere that UpdateAll might hook into so it's simpler to just skip it all. The actor is in limbo by then anyway (it only survives because
 	//  of the editor transaction) :
@@ -1269,7 +1292,7 @@ void UWaterBodyComponent::DeprecateData()
 void UWaterBodyComponent::OnComponentDestroyed(bool bDestroyingHierarchy)
 {
 #if WITH_EDITOR
-	RegisterOnChangeWaterSplineMetadata(WaterSplineMetadata, /*bRegister = */false);
+	RegisterOnChangeWaterSplineData(/*bRegister = */false);
 	RegisterOnUpdateWavesData(GetWaterWaves(), /*bRegister = */false);
 #endif // WITH_EDITOR
 
