@@ -258,6 +258,28 @@ namespace Horde.Build.Agents
 
 			return newDynamicPools;
 		}
+		
+		private static List<StringId<IPool>> GetRequestedPoolsFromProperties(IReadOnlyList<string> properties)
+		{
+			List<StringId<IPool>> poolIds = new();
+			foreach (string property in properties)
+			{
+				const string Key = KnownPropertyNames.RequestedPools + "=";
+				if (property.StartsWith(Key, StringComparison.InvariantCulture))
+				{
+					poolIds.AddRange(property[Key.Length..].Split(",").Select(x => new StringId<IPool>(x)));
+				}
+			}
+
+			return poolIds;
+		}
+		
+		private static List<StringId<IPool>> CombineCurrentAndRequestedPools(IReadOnlyList<StringId<IPool>> pools, IReadOnlyList<string> properties)
+		{
+			HashSet<StringId<IPool>> uniquePools = new(pools);
+			uniquePools.UnionWith(GetRequestedPoolsFromProperties(properties));
+			return new List<PoolId>(uniquePools);
+		}
 
 		/// <summary>
 		/// Callback for an agents 
@@ -311,11 +333,12 @@ namespace Horde.Build.Agents
 					ISession newSession = await _sessions.AddAsync(SessionId.GenerateNewId(), agent.Id, _clock.UtcNow, properties, resources, version);
 					DateTime sessionExpiresAt = utcNow + SessionExpiryTime;
 
-					// Get the new dynamic pools for the agent
+					// Get the new pools for the agent
 					List<PoolId> dynamicPools = await GetDynamicPoolsAsync(agent);
+					List<PoolId> pools = CombineCurrentAndRequestedPools(agent.ExplicitPools, properties);
 
 					// Reset the agent to use the new session
-					newAgent = await Agents.TryStartSessionAsync(agent, newSession.Id, sessionExpiresAt, status, properties, resources, dynamicPools, version);
+					newAgent = await Agents.TryStartSessionAsync(agent, newSession.Id, sessionExpiresAt, status, properties, resources, pools, dynamicPools, version);
 					if(newAgent != null)
 					{
 						agent = newAgent;
