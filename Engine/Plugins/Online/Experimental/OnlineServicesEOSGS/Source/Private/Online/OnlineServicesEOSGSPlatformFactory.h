@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 
 using IEOSPlatformHandlePtr = TSharedPtr<class IEOSPlatformHandle>;
+class FLazySingleton;
 
 namespace UE::Online
 {
