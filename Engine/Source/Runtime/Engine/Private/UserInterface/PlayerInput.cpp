@@ -116,7 +116,9 @@ void UPlayerInput::FlushPressedKeys()
 			for (int32 KeyIndex = 0; KeyIndex < PressedKeys.Num(); KeyIndex++)
 			{
 				FKey& Key = PressedKeys[KeyIndex];
-				InputKey(FInputKeyParams(Key, IE_Released, 0.0));
+				FInputKeyParams Params(Key, IE_Released, 0.0);
+				Params.NumSamples = 1;
+				InputKey(Params);
 			}
 		}
 	}
