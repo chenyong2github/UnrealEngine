@@ -89,7 +89,7 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 					continue;
 				}
 
-				bool bNeedProximity = AutoClusterSettings->bEnforceConnectivity || AutoClusterSettings->bMergeIsolatedChildren;
+				bool bNeedProximity = AutoClusterSettings->bEnforceConnectivity || AutoClusterSettings->bAvoidIsolated;
 				if (bNeedProximity)
 				{
 					FGeometryCollectionProximityUtility ProximityUtility(GeometryCollection);
@@ -101,15 +101,16 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 					VoronoiPartition.SplitDisconnectedPartitions(GeometryCollection);
 				}
 
-				if (AutoClusterSettings->bMergeIsolatedChildren)
+				if (AutoClusterSettings->bAvoidIsolated)
 				{
+					// attempt to remove isolated via merging (may not succeed, as it only merges if there is a cluster in proximity)
 					VoronoiPartition.MergeSingleElementPartitions(GeometryCollection);
 				}
 
 				int32 NonEmptyPartitionCount = VoronoiPartition.GetNonEmptyPartitionCount();
 				bool bHasEmptyClusters = NonEmptyPartitionCount > 0;
 
-				if (AutoClusterSettings->bDoNotCreateSingleSiteClusters && NonEmptyPartitionCount == 1)
+				if (AutoClusterSettings->bAvoidIsolated && NonEmptyPartitionCount == 1)
 				{
 					continue;
 				}
@@ -117,12 +118,14 @@ void UFractureToolAutoCluster::Execute(TWeakPtr<FFractureEditorModeToolkit> InTo
 				int32 PartitionCount = VoronoiPartition.GetPartitionCount();
 				int32 NewClusterIndexStart = GeometryCollection->AddElements(PartitionCount, FGeometryCollection::TransformGroup);
 
-
-
 				for (int32 Index = 0; Index < PartitionCount; ++Index)
 				{
-						
 					TArray<int32> NewCluster = VoronoiPartition.GetPartition(Index);
+					if (AutoClusterSettings->bAvoidIsolated && NewCluster.Num() == 1)
+					{
+						bHasEmptyClusters = true;
+						NewCluster.Reset();
+					}
 
 					int32 NewClusterIndex = NewClusterIndexStart + Index;
 					GeometryCollection->Parent[NewClusterIndex] = ClusterIndex;

@@ -63,13 +63,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = AutoCluster, meta = (DisplayName = "Enforce Cluster Connectivity"))
 	bool bEnforceConnectivity=true;
 
-	/** If true, tries to prevent the creation of clusters with only a single child, by merging such clusters into a neighbor cluster if possible */
+	/** If true, prevent the creation of clusters with only a single child. Either by merging into a neighboring cluster, or not creating the cluster. */
 	UPROPERTY(EditAnywhere, Category = AutoCluster)
-	bool bMergeIsolatedChildren = true;
-
-	/** If true, will not create a new cluster if all children would fall in that same cluster -- for example, if there is only one Voronoi site */
-	UPROPERTY(EditAnywhere, Category = AutoCluster)
-	bool bDoNotCreateSingleSiteClusters = true;
+	bool bAvoidIsolated = true;
 };
 
 
