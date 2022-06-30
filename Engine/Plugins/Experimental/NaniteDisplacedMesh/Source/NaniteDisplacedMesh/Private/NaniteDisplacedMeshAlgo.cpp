@@ -89,7 +89,7 @@ public:
 			check(BytesPerPixel == sizeof(uint16) * 4);
 			Displacement = float( *(uint16*)PixelPtr ) / 65535.0f;
 		}
-		else if( SourceFormat == TSF_RGBA16F )
+		else if( SourceFormat == TSF_RGBA16F || SourceFormat == TSF_R16F )
 		{
 			FFloat16 HalfValue = *(FFloat16*)PixelPtr;
 			Displacement = HalfValue;
@@ -98,7 +98,11 @@ public:
 		{
 			Displacement = float( PixelPtr[0] ) / 255.0f;
 		}
-		else if( SourceFormat == TSF_RGBA32F )
+		else if (SourceFormat == TSF_G16)
+		{
+			Displacement = float( *(uint16*)PixelPtr ) / 65535.0f;
+		}
+		else if( SourceFormat == TSF_RGBA32F || SourceFormat == TSF_R32F )
 		{
 			Displacement = *(float*)PixelPtr;
 		}
