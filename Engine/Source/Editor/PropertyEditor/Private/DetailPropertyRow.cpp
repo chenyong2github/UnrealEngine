@@ -27,13 +27,13 @@ FDetailPropertyRow::FDetailPropertyRow(TSharedPtr<FPropertyNode> InPropertyNode,
 	, bForceAutoExpansion( false )
 	, bCachedCustomTypeInterface(false)
 {
-	PropertyHandle = InParentCategory->GetParentLayoutImpl().GetPropertyHandle(PropertyNode);
+	PropertyHandle = InParentCategory->GetParentLayoutImpl()->GetPropertyHandle(PropertyNode);
 
 	if (PropertyNode.IsValid())
 	{
 		TSharedRef<FPropertyNode> PropertyNodeRef = PropertyNode.ToSharedRef();
 
-		const TSharedRef<IPropertyUtilities> Utilities = InParentCategory->GetParentLayoutImpl().GetPropertyUtilities();
+		const TSharedRef<IPropertyUtilities> Utilities = InParentCategory->GetParentLayoutImpl()->GetPropertyUtilities();
 
 		if (PropertyNode->AsCategoryNode() == nullptr)
 		{
@@ -320,8 +320,8 @@ void FDetailPropertyRow::OnGenerateChildren( FDetailNodeList& OutChildren )
 	{
 		// This is a sub-category.  Populate from SubCategory builder
 		TSharedRef<FDetailCategoryImpl> ParentCategoryRef = ParentCategory.Pin().ToSharedRef();
-		FDetailLayoutBuilderImpl& LayoutBuilder = ParentCategoryRef->GetParentLayoutImpl();
-		TSharedPtr<FDetailCategoryImpl> MyCategory = LayoutBuilder.GetSubCategoryImpl(PropertyNode->AsCategoryNode()->GetCategoryName());
+		TSharedPtr<FDetailLayoutBuilderImpl> LayoutBuilder = ParentCategoryRef->GetParentLayoutImpl();
+		TSharedPtr<FDetailCategoryImpl> MyCategory = LayoutBuilder->GetSubCategoryImpl(PropertyNode->AsCategoryNode()->GetCategoryName());
 		if(MyCategory.IsValid())
 		{
 			MyCategory->GenerateLayout();
@@ -498,7 +498,7 @@ TSharedPtr<IPropertyTypeCustomization> FDetailPropertyRow::GetPropertyCustomizat
 	if (!PropertyEditorHelpers::IsStaticArray(*InPropertyNode))
 	{
 		FProperty* Property = InPropertyNode->GetProperty();
-		TSharedPtr<IPropertyHandle> PropHandle = InParentCategory->GetParentLayoutImpl().GetPropertyHandle(InPropertyNode);
+		TSharedPtr<IPropertyHandle> PropHandle = InParentCategory->GetParentLayoutImpl()->GetPropertyHandle(InPropertyNode);
 
 		static FName NAME_PropertyEditor("PropertyEditor");
 		FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(NAME_PropertyEditor);
@@ -537,7 +537,7 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(TSharedPtr<FStruct
 
 	RootPropertyNode->InitNode(InitParams);
 
-	ParentCategory->GetParentLayoutImpl().AddExternalRootPropertyNode(RootPropertyNode);
+	ParentCategory->GetParentLayoutImpl()->AddExternalRootPropertyNode(RootPropertyNode);
 
 	if (PropertyName != NAME_None)
 	{
@@ -609,7 +609,7 @@ void FDetailPropertyRow::MakeExternalPropertyRowCustomization(const TArray<UObje
 
 	RootPropertyNode->InitNode(InitParams);
 
-	ParentCategory->GetParentLayoutImpl().AddExternalRootPropertyNode(RootPropertyNode);
+	ParentCategory->GetParentLayoutImpl()->AddExternalRootPropertyNode(RootPropertyNode);
 
 	if (PropertyName != NAME_None)
 	{
@@ -783,10 +783,8 @@ void FDetailPropertyRow::MakeNameOrKeyWidget( FDetailWidgetRow& Row, const TShar
 		}
 		else
 		{
-			const TSharedRef<IPropertyUtilities> PropertyUtilities = ParentCategory.Pin()->GetParentLayoutImpl().GetPropertyUtilities();
-
 			NameWidget =
-				SNew(SPropertyValueWidget, PropertyKeyEditor, PropertyUtilities)
+				SNew(SPropertyValueWidget, PropertyKeyEditor, ParentCategory.Pin()->GetParentLayoutImpl()->GetPropertyUtilities())
 				.IsEnabled(IsEnabledAttrib)
 				.ShowPropertyButtons(false);
 		}

@@ -173,6 +173,7 @@ public:
 	virtual IDetailPropertyRow* AddExternalStructure(TSharedPtr<FStructOnScope> StructData, EPropertyLocation::Type Location = EPropertyLocation::Default) override;
 	virtual IDetailPropertyRow* AddExternalStructureProperty(TSharedPtr<FStructOnScope> StructData, FName PropertyName, EPropertyLocation::Type Location = EPropertyLocation::Default, const FAddPropertyParams& Params = FAddPropertyParams()) override;
 	virtual TArray<TSharedPtr<IPropertyHandle>> AddAllExternalStructureProperties(TSharedRef<FStructOnScope> StructData, EPropertyLocation::Type Location = EPropertyLocation::Default, TArray<IDetailPropertyRow*>* OutPropertiesRow = nullptr) override;
+	virtual bool IsParentLayoutValid() const override { return DetailLayoutBuilder.IsValid(); }
 	virtual IDetailLayoutBuilder& GetParentLayout() const override { return *DetailLayoutBuilder.Pin(); }
 	virtual FDetailWidgetRow& AddCustomRow(const FText& FilterString, bool bForAdvanced = false) override;
 	virtual void AddCustomBuilder(TSharedRef<IDetailCustomNodeBuilder> InCustomBuilder, bool bForAdvanced = false) override;
@@ -212,11 +213,6 @@ public:
 	FCustomPropertyTypeLayoutMap GetCustomPropertyTypeLayoutMap() const;
 
 	/**
-	 * @return true if the parent layout is valid or has been destroyed by a refresh.
-	 */
-	bool IsParentLayoutValid() const { return DetailLayoutBuilder.IsValid(); }
-
-	/**
 	 * @return The name of the category
 	 */
 	FName GetCategoryName() const { return CategoryName; }
@@ -224,7 +220,7 @@ public:
 	/**
 	 * @return The parent detail layout builder for this category
 	 */
-	FDetailLayoutBuilderImpl& GetParentLayoutImpl() const { return *DetailLayoutBuilder.Pin(); }
+	TSharedPtr<FDetailLayoutBuilderImpl> GetParentLayoutImpl() const { return DetailLayoutBuilder.Pin(); }
 
 	/**
 	 * Generates the children for this category

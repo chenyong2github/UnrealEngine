@@ -89,9 +89,13 @@ EDetailNodeType FDetailItemNode::GetNodeType() const
 TSharedPtr<IPropertyHandle> FDetailItemNode::CreatePropertyHandle() const
 {
 	TSharedPtr<FDetailCategoryImpl> ParentCategoryPtr = ParentCategory.Pin();
-	if (Customization.HasPropertyNode() && ParentCategoryPtr && ParentCategoryPtr->IsParentLayoutValid())
+	if (Customization.HasPropertyNode() && ParentCategoryPtr.IsValid())
 	{
-		return ParentCategoryPtr->GetParentLayoutImpl().GetPropertyHandle(Customization.GetPropertyNode());
+		TSharedPtr<FDetailLayoutBuilderImpl> ParentLayout = ParentCategoryPtr->GetParentLayoutImpl();
+		if (ParentLayout.IsValid())
+		{
+			return ParentLayout->GetPropertyHandle(Customization.GetPropertyNode());
+		}
 	}
 	else if (Customization.HasCustomWidget())
 	{
@@ -387,7 +391,13 @@ void FDetailItemNode::GenerateChildren( bool bUpdateFilteredNodes )
 	Children.Empty();
 
 	TSharedPtr<FDetailCategoryImpl> ParentCategoryPinned = ParentCategory.Pin();
-	if (ParentCategoryPinned.IsValid() == false || !ParentCategoryPinned->IsParentLayoutValid())
+	if (!ParentCategoryPinned.IsValid())
+	{
+		return;
+	}
+
+	TSharedPtr<FDetailLayoutBuilderImpl> ParentLayout = ParentCategoryPinned->GetParentLayoutImpl();
+	if (!ParentLayout.IsValid())
 	{
 		return;
 	}
@@ -398,7 +408,7 @@ void FDetailItemNode::GenerateChildren( bool bUpdateFilteredNodes )
 		TSharedPtr<FComplexPropertyNode> OldChildExternalRootPropertyNode = OldChild->GetExternalRootPropertyNode();
 		if (OldChildExternalRootPropertyNode.IsValid())
 		{
-			ParentCategoryPinned->GetParentLayoutImpl().RemoveExternalRootPropertyNode(OldChildExternalRootPropertyNode.ToSharedRef());
+			ParentLayout->RemoveExternalRootPropertyNode(OldChildExternalRootPropertyNode.ToSharedRef());
 		}
 	}
 
@@ -720,11 +730,16 @@ EVisibility FDetailItemNode::ComputeItemVisibility() const
 		if (NewVisibility != EVisibility::Collapsed)
 		{
 			TSharedPtr<FDetailCategoryImpl> ParentCategoryPtr = GetParentCategory();
-			if (ParentCategoryPtr.IsValid() && ParentCategoryPtr->IsParentLayoutValid())
+			if (ParentCategoryPtr.IsValid())
 			{
-				if (!ParentCategoryPtr->GetParentLayout().IsPropertyVisible(CreatePropertyHandle().ToSharedRef()))
+				TSharedPtr<FDetailLayoutBuilderImpl> ParentLayout = ParentCategoryPtr->GetParentLayoutImpl();
+				if (ParentLayout.IsValid())
 				{
-					NewVisibility = EVisibility::Collapsed;
+					TSharedPtr<IPropertyHandle> PropertyHandle = ParentLayout->GetPropertyHandle(Customization.GetPropertyNode());
+					if (!ParentLayout->IsPropertyVisible(PropertyHandle.ToSharedRef()))
+					{
+						NewVisibility = EVisibility::Collapsed;
+					}
 				}
 			}
 		}
@@ -751,29 +766,17 @@ EVisibility FDetailItemNode::ComputeItemVisibility() const
 		}
 	}
 
-	// check the details view's IsCustomRowVisible delegate if this isn't a property row
-	if (NewVisibility != EVisibility::Collapsed && 
-		GetDetailsView() != nullptr && 
-		!Customization.HasPropertyNode())
+	const IDetailsViewPrivate* DetailsView = GetDetailsView();
+	if (DetailsView != nullptr)
 	{
-		const FName CategoryName = GetParentCategory()->GetCategoryName();
-		FName RowName;
-		if (Customization.HasCustomWidget())
+		// check the details view's IsCustomRowVisible delegate if this isn't a property row
+		// properties are handled by the IsPropertyVisible delegate
+		if (NewVisibility != EVisibility::Collapsed && !Customization.HasPropertyNode())
 		{
-			RowName = Customization.WidgetDecl->GetRowName();
-		}
-		else if (Customization.HasCustomBuilder())
-		{
-			RowName = Customization.CustomBuilderRow->GetCustomBuilderName();
-		}
-		else if (Customization.HasGroup())
-		{
-			RowName = Customization.DetailGroup->GetGroupName();
-		}
-
-		if (!GetDetailsView()->IsCustomRowVisible(RowName, CategoryName))
-		{
-			NewVisibility = EVisibility::Collapsed;
+			if (!DetailsView->IsCustomRowVisible(Customization.GetName(), GetParentCategory()->GetCategoryName()))
+			{
+				NewVisibility = EVisibility::Collapsed;
+			}
 		}
 	}
 
