@@ -177,6 +177,8 @@
 #include "BlendSpaceGraph.h"
 #include "AnimationBlendSpaceSampleGraph.h"
 #include "SSubobjectEditor.h"
+#include "BlueprintActionDatabase.h"
+#include "Editor/EditorEngine.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintEditor, Log, All);
 

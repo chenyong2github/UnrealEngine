@@ -15,6 +15,7 @@ class UBlueprint;
 class UBlueprintNodeSpawner;
 class UEdGraph;
 class UEdGraphPin;
+class IAssetReferenceFilter;
 class IBlueprintEditor;
 
 /*******************************************************************************
@@ -260,6 +261,9 @@ public:
 
 	/** Cached reference to the BluprintGraphModule, which has extra rejection tests: */
 	class FBlueprintGraphModule* BluprintGraphModule;
+
+	/** Filter for asset references */
+	TSharedPtr<IAssetReferenceFilter> AssetReferenceFilter;
 
 	/**
 	 * Users can extend the filter and add their own rejection tests with this

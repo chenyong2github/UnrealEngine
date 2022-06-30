@@ -11,6 +11,7 @@
 #include "BlueprintActionDatabase.h"
 
 class UBlueprintNodeSpawner;
+class IAssetTools;
 
 /**
  * From the BlueprintActionDatabase, passed around to all UK2Nodes, giving each 
@@ -151,4 +152,7 @@ private:
 
 	/** A reference to FBlueprintActionDatabase's action priming queue */
 	FPrimingQueue& ActionPrimingQueue;
+
+	/** Cached ptr to asset tools to avoid LoadModule calls per-AddBlueprintAction call */
+	IAssetTools* AssetTools;
 };

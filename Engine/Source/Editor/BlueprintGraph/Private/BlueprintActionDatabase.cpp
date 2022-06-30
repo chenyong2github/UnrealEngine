@@ -67,6 +67,7 @@
 #include "EdGraph/EdGraphNode_Documentation.h"
 
 #include "BlueprintTypePromotion.h"
+#include "PropertyEditorPermissionList.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintActionDatabase"
 
@@ -555,7 +556,13 @@ static bool BlueprintActionDatabaseImpl::IsPropertyBlueprintVisible(FProperty co
 	bool const bIsDelegate = Property->IsA(FMulticastDelegateProperty::StaticClass());
 	bool const bIsAssignableOrCallable = Property->HasAnyPropertyFlags(CPF_BlueprintAssignable | CPF_BlueprintCallable);
 
-	return !Property->HasAnyPropertyFlags(CPF_Parm) && (bIsAccessible || (bIsDelegate && bIsAssignableOrCallable));
+	bool bVisible = !Property->HasAnyPropertyFlags(CPF_Parm) && (bIsAccessible || (bIsDelegate && bIsAssignableOrCallable));
+	if (bVisible)
+	{
+		bVisible = FPropertyEditorPermissionList::Get().DoesPropertyPassFilter(Property->GetOwnerStruct(), Property->GetFName());
+	}
+
+	return bVisible;
 }
 
 //------------------------------------------------------------------------------
@@ -634,6 +641,12 @@ static void BlueprintActionDatabaseImpl::AddClassFunctionActions(UClass const* c
 		{
 			// inherited functions will be captured when the parent class is ran
 			// through this function (no need to duplicate)
+			continue;
+		}
+
+		// Apply general filtering for functions
+		if(!FBlueprintActionDatabase::IsFunctionAllowed(Function, FBlueprintActionDatabase::EPermissionsContext::Node))
+		{
 			continue;
 		}
 
@@ -774,7 +787,7 @@ static void BlueprintActionDatabaseImpl::AddClassCastActions(UClass* Class, FAct
 	check(Class);
 
 	UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
-	bool bIsCastPermitted  = UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Class);
+	bool bIsCastPermitted  = UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Class) && FBlueprintActionDatabase::IsClassAllowed(Class, FBlueprintActionDatabase::EPermissionsContext::Node);
 
 	if (bIsCastPermitted)
 	{
@@ -1355,11 +1368,15 @@ void FBlueprintActionDatabase::RefreshAll()
 		UClass* const Class = (*ClassIt);
 		RefreshClassActions(Class);
 	}
-	// this handles creating entries for skeletons that were loaded before the database was alive:
-	for( TObjectIterator<USkeleton> SkeletonIt; SkeletonIt; ++SkeletonIt )
+
+	if(IsClassAllowed(USkeleton::StaticClass(), EPermissionsContext::Asset))
 	{
-		FActionList& ClassActionList = ActionRegistry.FindOrAdd(*SkeletonIt);
-		BlueprintActionDatabaseImpl::AddSkeletonActions(**SkeletonIt, ClassActionList);
+		// this handles creating entries for skeletons that were loaded before the database was alive:
+		for( TObjectIterator<USkeleton> SkeletonIt; SkeletonIt; ++SkeletonIt )
+		{
+			FActionList& ClassActionList = ActionRegistry.FindOrAdd(*SkeletonIt);
+			BlueprintActionDatabaseImpl::AddSkeletonActions(**SkeletonIt, ClassActionList);
+		}
 	}
 
 	FComponentTypeRegistry::Get().SubscribeToComponentList(ComponentTypes).RemoveAll(this);
@@ -1393,6 +1410,12 @@ void FBlueprintActionDatabase::RefreshWorlds()
 //------------------------------------------------------------------------------
 void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 {
+	// Early out if the class is filtered
+	if (!IsClassAllowed(Class, EPermissionsContext::Asset))
+	{
+		return;
+	}
+
 	using namespace BlueprintActionDatabaseImpl;
 	check(Class != nullptr);
 
@@ -1427,10 +1450,12 @@ void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 	// own actions (presumably ones that would spawn that node)...
 	else if (Class->IsChildOf<UEdGraphNode>())
 	{
-		FActionList& ClassActionList = ActionRegistry.FindOrAdd(Class);
-		if (!bIsInitializing)
 		{
-			ClassActionList.Empty();
+			FActionList& ClassActionList = ActionRegistry.FindOrAdd(Class);
+			if (!bIsInitializing)
+			{
+				ClassActionList.Empty();
+			}
 		}
 
 		FBlueprintActionDatabaseRegistrar Registrar(ActionRegistry, UnloadedActionRegistry, ActionPrimingQueue, Class);
@@ -1447,6 +1472,16 @@ void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 		// normally when sifting through fields on all known classes)		
 		GetNodeSpecificActions(Class, Registrar);
 		// don't worry, the registrar marks new actions for priming
+
+		// Filter out actions by node class
+		if(HasClassFiltering())
+		{
+			FActionList& ClassActionList = ActionRegistry.FindOrAdd(Class);
+			ClassActionList.RemoveAllSwap([this](UBlueprintNodeSpawner* InAction)
+			{
+				return !IsClassAllowed(InAction->NodeClass.Get(), EPermissionsContext::Node);
+			});
+		}
 	}
 	else if (Class->IsChildOf<UBlueprint>())
 	{
@@ -1473,6 +1508,15 @@ void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 		if (ClassActionList.Num() > 0)
 		{
 			ActionPrimingQueue.Add(Class, 0);
+
+			if (HasClassFiltering())
+			{
+				// Filter out actions by node class
+				ClassActionList.RemoveAllSwap([this](UBlueprintNodeSpawner* InAction)
+				{
+					return !IsClassAllowed(InAction->NodeClass.Get(), EPermissionsContext::Node);
+				});
+			}
 		}
 		else
 		{
@@ -1510,6 +1554,11 @@ void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 	AssetActionList.Empty();
 
 	if (!IsObjectValidForDatabase(AssetObject))
+	{
+		return;
+	}
+
+	if (!IsClassAllowed(AssetObject->GetClass(), EPermissionsContext::Asset))
 	{
 		return;
 	}
@@ -1613,6 +1662,15 @@ void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 	{
 		EntryRefreshDelegate.Broadcast(AssetObject);
 	}
+
+	if (HasClassFiltering())
+	{
+		// Filter out actions by node class
+		AssetActionList.RemoveAllSwap([this](UBlueprintNodeSpawner* InAction)
+		{
+			return !IsClassAllowed(InAction->NodeClass.Get(), EPermissionsContext::Node);
+		});
+	}
 }
 
 //------------------------------------------------------------------------------
@@ -1623,10 +1681,24 @@ void FBlueprintActionDatabase::RefreshComponentActions()
 	ClassActionList.Empty(ComponentTypes->Num());
 	for (const FComponentTypeEntry& ComponentType : *ComponentTypes)
 	{
+		if (!IsClassAllowed(ComponentType.ComponentClass, EPermissionsContext::Node))
+		{
+			continue;
+		}
+
 		if (UBlueprintComponentNodeSpawner* NodeSpawner = UBlueprintComponentNodeSpawner::Create(ComponentType))
 		{
 			ClassActionList.Add(NodeSpawner);
 		}
+	}
+
+	if (HasClassFiltering())
+	{
+		// Filter out actions by node class
+		ClassActionList.RemoveAllSwap([this](UBlueprintNodeSpawner* InAction)
+		{
+			return !IsClassAllowed(InAction->NodeClass.Get(), EPermissionsContext::Node);
+		});
 	}
 }
 
@@ -1660,16 +1732,16 @@ bool FBlueprintActionDatabase::ClearAssetActions(const FObjectKey& AssetObjectKe
 
 	if (UObject* AssetObject = AssetObjectKey.ResolveObjectPtr())
 	{
-	if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
-	{
-		BlueprintAsset->OnChanged().RemoveAll(this);
-		BlueprintAsset->OnCompiled().RemoveAll(this);
-	}
+		if (UBlueprint* BlueprintAsset = Cast<UBlueprint>(AssetObject))
+		{
+			BlueprintAsset->OnChanged().RemoveAll(this);
+			BlueprintAsset->OnCompiled().RemoveAll(this);
+		}
 
-	if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
-	{
-		EntryRemovedDelegate.Broadcast(AssetObject);
-	}
+		if (bHasEntry && (ActionList->Num() > 0) && !BlueprintActionDatabaseImpl::bIsInitializing)
+		{
+			EntryRemovedDelegate.Broadcast(AssetObject);
+		}
 	}
 	
 	return bHasEntry;
@@ -1747,6 +1819,286 @@ void FBlueprintActionDatabase::OnBlueprintChanged(UBlueprint* InBlueprint)
 	{
 		BlueprintActionDatabaseImpl::OnBlueprintChanged(InBlueprint);
 	}
+}
+
+bool FBlueprintActionDatabase::IsClassAllowed(UClass const* InClass, EPermissionsContext InContext)
+{
+	if (InClass == nullptr)
+	{
+		return false;
+	}
+
+	UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	
+	switch(InContext)
+	{
+	case EPermissionsContext::Property:
+	case EPermissionsContext::Node:
+	case EPermissionsContext::Asset:
+		if(BlueprintEditorSettings->HasClassFiltering())
+		{
+			return BlueprintEditorSettings->IsClassAllowed(InClass);
+		}
+		break;
+	case EPermissionsContext::Pin:
+		if(BlueprintEditorSettings->HasClassOnPinFiltering())
+		{
+			return BlueprintEditorSettings->IsClassAllowedOnPin(InClass);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsClassAllowed(const FTopLevelAssetPath& InClassPath, EPermissionsContext InContext)
+{
+	if(!InClassPath.IsValid())
+	{
+		return false;
+	}
+
+	UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	
+	switch(InContext)
+	{
+	case EPermissionsContext::Property:
+	case EPermissionsContext::Node:
+	case EPermissionsContext::Asset:
+		if (BlueprintEditorSettings->HasClassPathFiltering())
+		{
+			return BlueprintEditorSettings->IsClassPathAllowed(InClassPath);
+		}
+		break;
+	case EPermissionsContext::Pin:
+		if(BlueprintEditorSettings->HasClassPathOnPinFiltering())
+		{
+			return BlueprintEditorSettings->IsClassPathAllowedOnPin(InClassPath);
+		}
+		break;
+	default:
+		break;
+	}
+
+	return true;
+}
+
+bool FBlueprintActionDatabase::HasClassFiltering()
+{
+	UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	return	BlueprintEditorSettings->HasClassFiltering() || 
+			BlueprintEditorSettings->HasClassOnPinFiltering() || 
+			BlueprintEditorSettings->HasClassPathFiltering() ||
+			BlueprintEditorSettings->HasClassPathOnPinFiltering();
+}
+
+bool FBlueprintActionDatabase::IsFieldAllowed(UField const* InField, EPermissionsContext InContext)
+{
+	if (UFunction const* Function = Cast<UFunction>(InField))
+	{
+		return IsFunctionAllowed(Function, InContext);
+	}
+	else if (UEnum const* Enum = Cast<UEnum>(InField))
+	{
+		return IsEnumAllowed(Enum, InContext);
+	}
+	else if (UScriptStruct const* ScriptStruct = Cast<UScriptStruct>(InField))
+	{
+		return IsStructAllowed(ScriptStruct, InContext);
+	}
+	else if (UClass const* Class = Cast<UClass>(InField))
+	{
+		return IsClassAllowed(Class, InContext);
+	}
+
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsFunctionAllowed(UFunction const* InFunction, EPermissionsContext InContext)
+{
+	UBlueprintEditorSettings* BlueprintEditorSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	const FPathPermissionList& FunctionPermissions = BlueprintEditorSettings->GetFunctionPermissions();
+	const FPathPermissionList& EnumPermissions = BlueprintEditorSettings->GetEnumPermissions();
+	const FPathPermissionList& StructPermissions = BlueprintEditorSettings->GetStructPermissions();
+	const FNamePermissionList& PinCategoryPermissions = BlueprintEditorSettings->GetPinCategoryPermissions();
+
+	// Apply general filtering for functions
+	if (FunctionPermissions.HasFiltering())
+	{
+		TStringBuilder<256> ResultBuilder;
+		InFunction->GetPathName(nullptr, ResultBuilder);
+		if (!FunctionPermissions.PassesFilter(ResultBuilder.ToView()))
+		{
+			return false;
+		}
+	}
+
+	if (UClass* Class = InFunction->GetOuterUClass())
+	{
+		if (!IsClassAllowed(Class, EPermissionsContext::Asset))
+		{
+			UE_LOG(LogBlueprint, Warning, TEXT("Function %s was filtered because its class (%s) was filtered"), *InFunction->GetPathName(), *Class->GetName());
+			return false;
+		}
+	}
+
+	// If we have filtering for other fields we need to check function parameters that might reference them
+	if (EnumPermissions.HasFiltering() || StructPermissions.HasFiltering() || PinCategoryPermissions.HasFiltering())
+	{
+		for (TFieldIterator<FProperty> PropertyIt(InFunction); PropertyIt; ++PropertyIt)
+		{
+			FProperty* Property = *PropertyIt;
+			if (FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+			{
+				if (StructProperty->Struct)
+				{
+					if (!IsStructAllowed(StructProperty->Struct, EPermissionsContext::Pin))
+					{
+						UE_LOG(LogBlueprint, Warning, TEXT("Function %s was filtered because one of its parameters (struct %s) was filtered"), *InFunction->GetPathName(), *Property->GetName(), *StructProperty->Struct->GetPathName());
+						return false;
+					}
+				}
+			}
+			else if (FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+			{
+				if (UEnum* Enum = EnumProperty->GetEnum())
+				{
+					if (!IsEnumAllowed(Enum, EPermissionsContext::Pin))
+					{
+						UE_LOG(LogBlueprint, Warning, TEXT("Function %s was filtered because one of its parameters %s (enum %s) was filtered"), *InFunction->GetPathName(), *Property->GetName(), *Enum->GetPathName());
+						return false;
+					}
+				}
+			}
+			else
+			{
+				FEdGraphPinType PinType;
+				if(GetDefault<UEdGraphSchema_K2>()->ConvertPropertyToPinType(Property, PinType))
+				{
+					if(!IsPinTypeAllowed(PinType))
+					{
+						UE_LOG(LogBlueprint, Warning, TEXT("Function %s was filtered because one of its parameters %s (%s) was filtered"), *InFunction->GetPathName(), *Property->GetName(), *Property->GetCPPType());
+						return false;
+					}
+				}
+				else
+				{
+					UE_LOG(LogBlueprint, Warning, TEXT("Function %s was filtered because one of its parameters %s (%s) was not able to be converted to a pin"), *InFunction->GetPathName(), *Property->GetName(), *Property->GetCPPType());
+					return false;
+				}
+			}
+		}
+	}
+
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsEnumAllowed(UEnum const* InEnum, EPermissionsContext InContext)
+{
+	const FPathPermissionList& EnumPermissions = GetMutableDefault<UBlueprintEditorSettings>()->GetEnumPermissions();
+	if(EnumPermissions.HasFiltering())
+	{
+		TStringBuilder<256> ResultBuilder;
+		InEnum->GetPathName(nullptr, ResultBuilder);
+		return EnumPermissions.PassesFilter(ResultBuilder.ToView());
+	}
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsEnumAllowed(const FTopLevelAssetPath& InEnumPath, EPermissionsContext InContext)
+{
+	const FPathPermissionList& EnumPermissions = GetMutableDefault<UBlueprintEditorSettings>()->GetEnumPermissions();
+	if(EnumPermissions.HasFiltering())
+	{
+		return EnumPermissions.PassesFilter(InEnumPath.ToString());
+	}
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsStructAllowed(UScriptStruct const* InStruct, EPermissionsContext InContext)
+{
+	const FPathPermissionList& StructPermissions = GetMutableDefault<UBlueprintEditorSettings>()->GetStructPermissions();
+	if(StructPermissions.HasFiltering())
+	{
+		TStringBuilder<256> ResultBuilder;
+		InStruct->GetPathName(nullptr, ResultBuilder);
+		return StructPermissions.PassesFilter(ResultBuilder.ToView());
+	}
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsStructAllowed(const FTopLevelAssetPath& InStructPath, EPermissionsContext InContext)
+{
+	const FPathPermissionList& StructPermissions = GetMutableDefault<UBlueprintEditorSettings>()->GetStructPermissions();
+	if(StructPermissions.HasFiltering())
+	{
+		return StructPermissions.PassesFilter(InStructPath.ToString());
+	}
+	return true;
+}
+
+bool FBlueprintActionDatabase::IsPinTypeAllowed(const FEdGraphPinType& InPinType, const FTopLevelAssetPath& InUnloadedAssetPath)
+{
+	// First check if the pin's category is allowed
+	const FNamePermissionList& PinCategoryPermissions = GetMutableDefault<UBlueprintEditorSettings>()->GetPinCategoryPermissions();
+	if(PinCategoryPermissions.HasFiltering())
+	{
+		if(!PinCategoryPermissions.PassesFilter(InPinType.PinCategory))
+		{
+			return false;
+		}
+
+		if(InPinType.PinCategory == UEdGraphSchema_K2::PC_Struct)
+		{
+			if (InUnloadedAssetPath.IsValid())
+			{
+				return IsStructAllowed(InUnloadedAssetPath, EPermissionsContext::Pin);
+			}
+			else if(const UScriptStruct* ScriptStruct = Cast<UScriptStruct>(InPinType.PinSubCategoryObject))
+			{
+				return IsStructAllowed(ScriptStruct, EPermissionsContext::Pin);
+			}
+		}
+		else if(InPinType.PinCategory == UEdGraphSchema_K2::PC_Enum || InPinType.PinCategory == UEdGraphSchema_K2::PC_Byte)
+		{
+			if (InUnloadedAssetPath.IsValid())
+			{
+				return IsEnumAllowed(InUnloadedAssetPath, EPermissionsContext::Pin);
+			}
+			else if(const UEnum* Enum = Cast<UEnum>(InPinType.PinSubCategoryObject))
+			{
+				return IsEnumAllowed(Enum, EPermissionsContext::Pin);
+			}
+		}
+		else if(InPinType.PinCategory == UEdGraphSchema_K2::AllObjectTypes ||
+				InPinType.PinCategory == UEdGraphSchema_K2::PC_Class ||
+				InPinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+				InPinType.PinCategory == UEdGraphSchema_K2::PC_Interface ||
+				InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass ||
+				InPinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject)
+		{
+			if (InUnloadedAssetPath.IsValid())
+			{
+				return IsClassAllowed(InUnloadedAssetPath, EPermissionsContext::Pin);
+			}
+			else if(const UClass* Class = Cast<UClass>(InPinType.PinSubCategoryObject))
+			{
+				return IsClassAllowed(Class, EPermissionsContext::Pin);
+			}
+		}
+		else if(InPinType.PinCategory == UEdGraphSchema_K2::PC_Delegate ||
+				InPinType.PinCategory == UEdGraphSchema_K2::PC_MCDelegate)
+		{
+			if(const UFunction* PinSignature = FMemberReference::ResolveSimpleMemberReference<UFunction>(InPinType.PinSubCategoryMemberReference))
+			{
+				return IsFunctionAllowed(PinSignature, EPermissionsContext::Pin);
+			}
+		}
+	}
+
+	return true;
 }
 
 #undef LOCTEXT_NAMESPACE
