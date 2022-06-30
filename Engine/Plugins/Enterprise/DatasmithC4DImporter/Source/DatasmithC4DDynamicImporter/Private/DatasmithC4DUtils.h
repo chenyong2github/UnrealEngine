@@ -65,6 +65,11 @@ DATASMITH_C4D_PUSH_WARNINGS
 #undef IsMinimized
 #endif
 
+// "Describe" macro is colliding with any function with the same name
+#if defined(Describe)
+#undef Describe
+#endif
+
 DATASMITH_C4D_POP_WARNINGS
 /**
  * Retrieves the value of a DA_LONG parameter of a melange object as a cineware::Int32,

@@ -21,6 +21,12 @@ DECLARE_LOG_CATEGORY_EXTERN(LogDatasmithC4DImport, Log, All)
 
 DATASMITH_C4D_PUSH_WARNINGS
 #include "cineware.h"
+
+// "Describe" macro is colliding with any function with the same name
+#if defined(Describe)
+#undef Describe
+#endif
+
 DATASMITH_C4D_POP_WARNINGS
 
 class FDatasmithSceneExporter;
