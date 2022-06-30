@@ -3664,10 +3664,15 @@ void UEditorEngine::StoreWindowSizeAndPositionForInstanceIndex(const int32 InVie
 	}
 	else
 	{
-		FPlayInEditorSessionInfo::FWindowSizeAndPos& NewInfo = PlayInEditorSessionInfo->CachedWindowInfo.Add_GetRef(FPlayInEditorSessionInfo::FWindowSizeAndPos());
-		NewInfo.Size = InSize;
-		NewInfo.Position = InPosition;
-		check(PlayInEditorSessionInfo->CachedWindowInfo.Num() == InViewportIndex + 1);
+		// It is possible for PIE to play in viewports which are not independent and for which we do not want to cache window size/position information.  For example "Selected Viewport" will use a docked editor viewport for PIE.
+		// Appending as many as we need to get to our proper index.  These cache entries may be overwritten later, or they may be left with what must be at least a plausible size/pos.
+		while (PlayInEditorSessionInfo->CachedWindowInfo.Num() < InViewportIndex + 1)
+		{
+			FPlayInEditorSessionInfo::FWindowSizeAndPos& NewInfo = PlayInEditorSessionInfo->CachedWindowInfo.Add_GetRef(FPlayInEditorSessionInfo::FWindowSizeAndPos());
+			NewInfo.Size = InSize;
+			NewInfo.Position = InPosition;
+		}
+		check(PlayInEditorSessionInfo->CachedWindowInfo.Num() == InViewportIndex + 1); 
 	}
 }
 
