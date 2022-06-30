@@ -533,7 +533,6 @@ class COREUOBJECT_API FBulkData
 
 		void Free(FBulkData* Owner);
 
-		void* AllocateData(FBulkData* Owner, SIZE_T SizeInBytes); 
 		void* ReallocateData(FBulkData* Owner, SIZE_T SizeInBytes);
 
 		void SetData(FBulkData* Owner, void* Buffer);
@@ -1074,9 +1073,6 @@ private:
 	
 	/** Sets whether inline bulk data is allowed to be unloaded or not */
 	void ConditionalSetInlineAlwaysAllowDiscard(bool bPackageUsesIoStore);
-
-	/** Free allocatged data */
-	inline void* AllocateData(SIZE_T SizeInBytes) { return DataAllocation.AllocateData(this, SizeInBytes); }
 
 	/** Reallocate bulk data */
 	inline void* ReallocateData(SIZE_T SizeInBytes) { return DataAllocation.ReallocateData(this, SizeInBytes); }

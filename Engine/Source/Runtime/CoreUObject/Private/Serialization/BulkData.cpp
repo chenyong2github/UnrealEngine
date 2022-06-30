@@ -360,15 +360,6 @@ void FBulkData::FAllocatedPtr::Free(FBulkData* Owner)
 	}
 }
 
-void* FBulkData::FAllocatedPtr::AllocateData(FBulkData* Owner, SIZE_T SizeInBytes)
-{
-	checkf(Allocation.RawData == nullptr, TEXT("Trying to allocate a BulkData object without freeing it first!"));
-
-	Allocation.RawData = FMemory::Malloc(SizeInBytes, DEFAULT_ALIGNMENT);
-
-	return Allocation.RawData;
-}
-
 void* FBulkData::FAllocatedPtr::ReallocateData(FBulkData* Owner, SIZE_T SizeInBytes)
 {
 	checkf(!Owner->IsDataMemoryMapped(),  TEXT("Trying to reallocate a memory mapped BulkData object without freeing it first!"));
@@ -616,7 +607,7 @@ FBulkData& FBulkData::operator=( const FBulkData& Other )
 	{
 		if (const void* Src = Other.GetDataBufferReadOnly())
 		{
-			void* Dst = AllocateData(GetBulkDataSize());
+			void* Dst = ReallocateData(GetBulkDataSize());
 			FMemory::Memcpy(Dst, Src, GetBulkDataSize());
 		}
 	}
@@ -1417,7 +1408,7 @@ void FBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAttemptFileMapping
 				checkf(bAttemptFileMapping == false || bIsUsingIoDispatcher == false, TEXT("Trying to memory map inline bulk data '%s' which is not supported when loading from I/O store"), *Owner->GetPackage()->GetFName().ToString());
 
 				const int64 BulkDataSize = GetBulkDataSize();
-				void* DataBuffer = AllocateData(BulkDataSize);
+				void* DataBuffer = ReallocateData(BulkDataSize);
 				SerializeBulkData(Ar, DataBuffer, BulkDataSize, BulkMeta.GetFlags());
 
 				ConditionalSetInlineAlwaysAllowDiscard(bIsUsingIoDispatcher);
