@@ -177,7 +177,6 @@ namespace FOodleDataCompression
 struct FShaderCompilerInput
 {
 	FShaderTarget Target;
-	FName ShaderPlatformName;
 	FName ShaderFormat;
 	FName CompressionFormat;
 	FString SourceFilePrefix;
@@ -528,7 +527,7 @@ extern RENDERCORE_API bool CheckVirtualShaderFilePath(FStringView VirtualPath, T
  * @param OutFileContents - If true is returned, will contain the contents of the shader file. Can be null.
  * @return True if the file was successfully loaded.
  */
-extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors, const FName* ShaderPlatformName = nullptr);
+extern RENDERCORE_API bool LoadShaderSourceFile(const TCHAR* VirtualFilePath, EShaderPlatform ShaderPlatform, FString* OutFileContents, TArray<FShaderCompilerError>* OutCompileErrors);
 
 enum class EShaderCompilerWorkerType : uint8
 {

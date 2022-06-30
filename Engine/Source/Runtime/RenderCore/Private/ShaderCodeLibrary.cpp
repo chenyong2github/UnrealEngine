@@ -766,11 +766,8 @@ public:
 
 		if (!Library)
 		{
-			const FName PlatformName = FDataDrivenShaderPlatformInfo::GetName(InShaderPlatform);
-			const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(InShaderPlatform);
-			FString ShaderFormatAndPlatform = ShaderFormatName.ToString() + TEXT("-") + PlatformName.ToString();
-
-			const FString DestFilePath = GetCodeArchiveFilename(ShaderCodeDir, InLibraryName, FName(ShaderFormatAndPlatform));
+			const FName PlatformName = LegacyShaderPlatformToShaderFormat(InShaderPlatform);
+			const FString DestFilePath = GetCodeArchiveFilename(ShaderCodeDir, InLibraryName, PlatformName);
 			TUniquePtr<FArchive> Ar(IFileManager::Get().CreateFileReader(*DestFilePath));
 			if (Ar)
 			{
@@ -1122,13 +1119,7 @@ struct FEditorShaderCodeArchive
 		, Format(nullptr)
 		, bNeedsDeterministicOrder(bInNeedsDeterministicOrder)
 	{
-		TArray<FString> Components;
-		FString Name = FormatName.ToString();
-		Name.ParseIntoArray(Components, TEXT("-"));
-
-		FName ShaderFormatName(Components[0]);
-		Format = GetTargetPlatformManagerRef().FindShaderFormat(ShaderFormatName);
-
+		Format = GetTargetPlatformManagerRef().FindShaderFormat(InFormat);
 		check(Format);
 
 		SerializedShaders.ShaderHashTable.Clear(0x10000);
@@ -2340,12 +2331,10 @@ public:
 
 			EShaderPlatform Platform = ShaderFormatToLegacyShaderPlatform(Format);
 			FName PossiblyAdjustedFormat = LegacyShaderPlatformToShaderFormat(Platform);	// Vulkan and GL switch between name variants depending on CVars 
-
-			FString FormatAndPlatformName = PossiblyAdjustedFormat.ToString() + TEXT("-") + FDataDrivenShaderPlatformInfo::GetName(Platform).ToString();
 			FEditorShaderCodeArchive* CodeArchive = EditorShaderCodeArchive[Platform];
 			if (!CodeArchive)
 			{
-				CodeArchive = new FEditorShaderCodeArchive(FName(FormatAndPlatformName), Descriptor.bNeedsDeterministicOrder);
+				CodeArchive = new FEditorShaderCodeArchive(PossiblyAdjustedFormat, Descriptor.bNeedsDeterministicOrder);
 				EditorShaderCodeArchive[Platform] = CodeArchive;
 				EditorArchivePipelines[Platform] = !bNativeFormat;
 			}
@@ -2990,13 +2979,10 @@ bool FShaderLibraryCooker::CreatePatchLibrary(TArray<FString> const& OldMetaData
 		if (Name.RemoveFromStart(TEXT("ShaderArchive-")))
 		{
 			TArray<FString> Components;
-			if (Name.ParseIntoArray(Components, TEXT("-")) == 3)
+			if (Name.ParseIntoArray(Components, TEXT("-")) == 2)
 			{
 				FName Format(*Components[1]);
-				FName Platform(*Components[2]);
-				FString FormatAndPlatform = Format.ToString() + TEXT("-") + Platform.ToString();
-
-				TSet<FString>& Libraries = FormatLibraryMap.FindOrAdd(FName(FormatAndPlatform));
+				TSet<FString>& Libraries = FormatLibraryMap.FindOrAdd(Format);
 				Libraries.Add(Components[0]);
 			}
 		}
