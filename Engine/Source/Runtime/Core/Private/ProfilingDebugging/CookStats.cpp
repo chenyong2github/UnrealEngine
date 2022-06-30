@@ -57,7 +57,7 @@ void TracePackageAssetClass(uint64 InId, const FStringView InName)
 
 bool ShouldTracePackageInfo()
 {
-	return CookChannel.IsEnabled();
+	return UE_TRACE_CHANNELEXPR_IS_ENABLED(CookChannel);
 }
 
 #endif
