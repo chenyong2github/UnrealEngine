@@ -28,6 +28,7 @@
 #include "DisplayClusterRootActor.h" 
 
 #include "Misc/DisplayClusterLog.h"
+#include "LegacyScreenPercentageDriver.h"
 
 #include "Engine/Console.h"
 
@@ -179,13 +180,14 @@ void FDisplayClusterViewportManager::ResetScene()
 
 void FDisplayClusterViewportManager::SetViewportBufferRatio(FDisplayClusterViewport& DstViewport, float InBufferRatio)
 {
-	if (DstViewport.RenderSettings.BufferRatio > InBufferRatio)
+	const float BufferRatio = FLegacyScreenPercentageDriver::GetCVarResolutionFraction() * InBufferRatio;
+	if (DstViewport.RenderSettings.BufferRatio > BufferRatio)
 	{
 		// Reset scene RTT when buffer ratio changed down
 		ResetSceneRenderTargetSize();
 	}
 
-	DstViewport.RenderSettings.BufferRatio = InBufferRatio;
+	DstViewport.RenderSettings.BufferRatio = BufferRatio;
 }
 
 void FDisplayClusterViewportManager::HandleViewportRTTChanges(const TArray<FDisplayClusterViewport_Context>& PrevContexts, const TArray<FDisplayClusterViewport_Context>& Contexts)

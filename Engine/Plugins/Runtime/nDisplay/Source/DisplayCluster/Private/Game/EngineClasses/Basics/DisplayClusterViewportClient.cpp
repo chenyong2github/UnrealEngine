@@ -745,7 +745,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 					if (ViewFamily.EngineShowFlags.ScreenPercentage)
 					{
 						// Get global view fraction set by r.ScreenPercentage.
-						GlobalResolutionFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction() * CustomBufferRatio;
+						GlobalResolutionFraction = CustomBufferRatio;
 
 						// We need to split the screen percentage if below 0.5 because TAA upscaling only works well up to 2x.
 						if (GlobalResolutionFraction < 0.5f)

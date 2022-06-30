@@ -559,7 +559,18 @@ bool FDisplayClusterViewport::UpdateFrameContexts(const uint32 InStereoViewIndex
 		Context.RenderTargetRect = RenderTargetRect;
 		Context.ContextSize = ContextSize;
 
-		Context.CustomBufferRatio = CustomBufferRatio;
+		// r.ScreenPercentage
+		switch (RenderSettings.CaptureMode)
+		{
+		case EDisplayClusterViewportCaptureMode::Chromakey:
+		case EDisplayClusterViewportCaptureMode::Lightcard:
+			// we should not change the size of the Chromakey\Lighcards due to the way copy\resolve works for RT's
+			// if the viewfamily resolves to RenderTarget it will remove alpha channel
+			// if the viewfamily copying to RenderTarget, the texture would not match the size of RTT (when ScreenPercentage applied)
+			break;
+		default:
+			Context.CustomBufferRatio = CustomBufferRatio;
+		}
 
 		Context.bDisableRender = bDisableRender;
 
