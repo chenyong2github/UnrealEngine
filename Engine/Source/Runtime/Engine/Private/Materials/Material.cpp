@@ -4617,7 +4617,7 @@ void UMaterial::RebuildShadingModelField()
 			ShadingModels.AddShadingModel(ShadingModel);
 
 			// Subsurface profil
-			if (StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
+			if ((StrataMaterialInfo.HasOnlyShadingModel(SSM_Eye) || StrataMaterialInfo.HasOnlyShadingModel(SSM_SubsurfaceLit)) && StrataMaterialInfo.CountSubsurfaceProfiles() > 0)
 			{
 				if (StrataMaterialInfo.CountSubsurfaceProfiles() > 1)
 				{

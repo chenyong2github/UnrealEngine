@@ -598,6 +598,10 @@ class UMaterialExpressionStrataEyeBSDF : public UMaterialExpressionStrataBSDF
 	UPROPERTY()
 	FExpressionInput EmissiveColor;
 
+	/** SubsurfaceProfile, for Subsurface Scattering diffusion. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Material, meta = (DisplayName = "Subsurface Profile"))
+	TObjectPtr<class USubsurfaceProfile> SubsurfaceProfile;
+
 	//~ Begin UMaterialExpression Interface
 #if WITH_EDITOR
 	virtual int32 Compile(class FMaterialCompiler* Compiler, int32 OutputIndex) override;

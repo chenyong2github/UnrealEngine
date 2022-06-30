@@ -446,6 +446,7 @@ struct FStrataBSDF
 #define EYE_ROUGHNESS(X)				X.VGPRs[0].w
 #define EYE_IRISDISTANCE(X)				X.VGPRs[1].x
 #define EYE_IRISMASK(X)					X.VGPRs[1].y
+#define EYE_SSSPROFILEID(X)				X.VGPRs[1].z
 #define EYE_IRISNORMAL(X)				X.VGPRs[2].xyz
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1425,7 +1426,7 @@ FStrataData GetStrataHairBSDF(float3 BaseColor, float Scatter, float Specular, f
 	return StrataData;
 }
 
-FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMask, float IrisDistance, float3 IrisNormal, float3 Emissive, uint SharedLocalBasisIndex)
+FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMask, float IrisDistance, float3 IrisNormal, float SSSProfileId, float3 Emissive, uint SharedLocalBasisIndex)
 {
 	FStrataData StrataData = GetInitialisedStrataData();
 	BSDF_SETTYPE					(StrataData.InlinedBSDF, STRATA_BSDF_TYPE_EYE);
@@ -1436,6 +1437,10 @@ FStrataData GetStrataEyeBSDF(float3 DiffuseAlbedo, float Roughness, float IrisMa
 	EYE_IRISDISTANCE				(StrataData.InlinedBSDF) = IrisDistance;
 	EYE_IRISMASK					(StrataData.InlinedBSDF) = IrisMask;
 	EYE_IRISNORMAL					(StrataData.InlinedBSDF) = IrisNormal;
+	EYE_SSSPROFILEID				(StrataData.InlinedBSDF) = SSSProfileId;
+
+	const bool bHasSSS = SSSProfileId != 0;
+	BSDF_SETSSSTYPE(StrataData.InlinedBSDF, bHasSSS ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_INVALID);
 
 #if STRATA_INLINE_SHADING
 	StrataData.InlinedBSDF.Coverage = 1.0f;

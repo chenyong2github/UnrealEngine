@@ -247,6 +247,8 @@ void PackStrataOut(
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						TopLayerData.Roughness += BSDF.TopLayerDataWeight * FullyRough;
 
+						const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
+						SetHasSubsurface(StrataPixelHeader, bHasSSS);
 						SetMaterialMode(StrataPixelHeader, HEADER_MATERIALMODE_EYE);
 						break;
 					}
@@ -554,6 +556,15 @@ void PackStrataOut(
 							STRATA_STORE_UINT1(PackColorLinearToGamma2AlphaLinear(float4(EYE_DIFFUSEALBEDO(BSDF), EYE_ROUGHNESS(BSDF))));
 							STRATA_STORE_UINT1(PackRGBA8(float4(EYE_IRISMASK(BSDF), EYE_IRISDISTANCE(BSDF), EncodedIrisNormal * 0.5f + 0.5f)));
 							// 8 bytes
+
+							// Note: we don't store the SSS profile ID into the Eye data, as it is not needed there. The profile is only stored into the SSS data.
+							const bool bHasSSS = BSDF_GETSSSTYPE(BSDF) == SSS_TYPE_DIFFUSION_PROFILE;
+							if (bHasSSS)
+							{
+								StrataSubSurfaceHeaderSetSSSType(SSSData.Header, SSS_TYPE_DIFFUSION_PROFILE);
+								StrataSubSurfaceHeaderSetProfile(SSSData.Header, 1.0f, StrataSubsurfaceProfileIdTo8bits(EYE_SSSPROFILEID(BSDF)));
+								StrataSubsurfaceExtrasSetBaseColor(SSSData.Extras, EYE_DIFFUSEALBEDO(BSDF));
+							}
 						}
 						break;
 						case STRATA_BSDF_TYPE_SINGLELAYERWATER:

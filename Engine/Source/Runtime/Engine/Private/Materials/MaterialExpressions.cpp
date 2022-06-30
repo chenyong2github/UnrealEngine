@@ -23307,12 +23307,19 @@ int32 UMaterialExpressionStrataEyeBSDF::Compile(class FMaterialCompiler* Compile
 	int32 CorneaNormalCodeChunk = CompileWithDefaultTangentWS(Compiler, CorneaNormal);
 	const FStrataRegisteredSharedLocalBasis NewRegisteredSharedLocalBasis = StrataCompilationInfoCreateSharedLocalBasis(Compiler, CorneaNormalCodeChunk);
 
+	int32 SSSProfileCodeChunk = INDEX_NONE;
+	if (SubsurfaceProfile != nullptr)
+	{
+		SSSProfileCodeChunk = Compiler->ForceCast(Compiler->ScalarParameter(GetSubsurfaceProfileParameterName(), 1.0f), MCT_Float1);
+	}
+
 	int32 OutputCodeChunk = Compiler->StrataEyeBSDF(
 		CompileWithDefaultFloat3(Compiler, DiffuseColor, 0.0f, 0.0f, 0.0f),
 		CompileWithDefaultFloat1(Compiler, Roughness,	 0.5f),
 		CompileWithDefaultFloat1(Compiler, IrisMask,	 0.0f),
 		CompileWithDefaultFloat1(Compiler, IrisDistance, 0.0f),
 		CompileWithDefaultFloat3(Compiler, IrisNormal,   0.0f, 0.0f, 1.0f),
+		SSSProfileCodeChunk != INDEX_NONE ? SSSProfileCodeChunk : Compiler->Constant(0.0f),
 		CompileWithDefaultFloat3(Compiler, EmissiveColor,0.0f, 0.0f, 0.0f),
 		CorneaNormalCodeChunk,
 		Compiler->GetStrataSharedLocalBasisIndexMacro(NewRegisteredSharedLocalBasis));
@@ -23362,7 +23369,10 @@ void UMaterialExpressionStrataEyeBSDF::GatherStrataMaterialInfo(FStrataMaterialI
 	if (IrisMask.IsConnected())			{ StrataMaterialInfo.AddPropertyConnected(MP_CustomData0); }
 	if (IrisDistance.IsConnected())		{ StrataMaterialInfo.AddPropertyConnected(MP_CustomData1); }
 	if (EmissiveColor.IsConnected())	{ StrataMaterialInfo.AddPropertyConnected(MP_EmissiveColor); }
-
+	if (SubsurfaceProfile)
+	{
+		StrataMaterialInfo.AddSubsurfaceProfile(SubsurfaceProfile);
+	}
 	StrataMaterialInfo.AddShadingModel(SSM_Eye);
 }
 

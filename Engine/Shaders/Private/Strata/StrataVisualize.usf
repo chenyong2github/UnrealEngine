@@ -296,9 +296,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 		{
 			Print(Context, TEXT("Hair"), FontBSDFType);
 			Newline(Context, RectMax);
-			Print(Context, TEXT(" NormalID Aniso IsTopLayer LuminanceWeight"), FontBSDF);
+			Print(Context, TEXT(" NormalID Aniso IsTopLayer LuminanceWeight"), FontBSDFStateName);
 			Newline(Context, RectMax);
 
+			Print(Context, TEXT(" "), FontSilver);
 			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF);
 			PrintBool(Context, BSDF_GETHASANISOTROPY(BSDF), FontBSDF);
 			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF), FontBSDF);
@@ -327,9 +328,10 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 		{
 			Print(Context, TEXT("Eye"), FontBSDFType);
 			Newline(Context, RectMax);
-			Print(Context, TEXT(" NormalID IsTopLayer LuminanceWeight"), FontBSDF);
+			Print(Context, TEXT(" NormalID IsTopLayer LuminanceWeight"), FontBSDFStateName);
 			Newline(Context, RectMax);
 
+			Print(Context, TEXT(" "), FontSilver);
 			Print(Context, BSDF_GETSHAREDLOCALBASISID(BSDF), FontBSDF);
 			PrintBool(Context, BSDF_GETISTOPLAYER(BSDF), FontBSDF);
 			if (BSDF_GETHASGREYWEIGHT_V(BSDF))
@@ -353,6 +355,16 @@ void PrintBSDF(inout FShaderPrintContext Context, inout FStrataAddressing Strata
 			// Tangent basis for the iris
 			const float3x3 IrisTangentBasis = GetTangentBasis(EYE_IRISNORMAL(BSDF));
 			DrawReferentialTWS(WorldPosition, IrisTangentBasis[0], IrisTangentBasis[1], IrisTangentBasis[2], float3(0, 1, 1));
+
+			const bool bHasSSS = HasSubsurface(Header);
+			const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, StrataAddressing.PixelCoords);
+			const bool bIsValid = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
+			const bool bIsProfile = StrataSubSurfaceHeaderGetIsProfile(SSSHeader);
+			if (bHasSSS && bIsValid && bIsProfile)
+			{
+				const uint SubsurfaceProfileInt = StrataSubSurfaceHeaderGetProfileId(SSSHeader);
+				Print(Context, TEXT(" SSS ID.           "), FontBSDFPropName);	Print(Context, SubsurfaceProfileInt, FontBSDFPropValu);			Newline(Context, RectMax);
+			}
 		}
 		break;
 

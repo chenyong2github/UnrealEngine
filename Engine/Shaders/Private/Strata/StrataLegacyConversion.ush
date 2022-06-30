@@ -550,12 +550,13 @@ FStrataData StrataConvertLegacyMaterialStatic(
 
 		FStrataData EyeMat = PromoteParameterBlendedBSDFToOperator(
 			GetStrataEyeBSDF(
-				BaseColor,	   // DiffuseAlbedo
-				Roughness,	   // Roughness
-				IrisMask,	   // IrisMask
-				IrisDistance,  // IrisDistance
-				IrisNormal,	   // IrisNormal
-				Emissive,	   // EmissiveColor
+				BaseColor,	         // DiffuseAlbedo
+				Roughness,	         // Roughness
+				IrisMask,	         // IrisMask
+				IrisDistance,        // IrisDistance
+				IrisNormal,	         // IrisNormal
+				SubSurfaceProfileId, // SSS profile
+				Emissive,	         // EmissiveColor
 				SharedLocalBasisIndex),
 			StrataTree,
 			0		/*OperatorIndex*/,
