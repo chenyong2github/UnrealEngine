@@ -956,6 +956,8 @@ protected:
 
 template <typename OpType>
 using TOnlineAsyncOpRef = TSharedRef<TOnlineAsyncOp<OpType>>;
+template <typename OpType>
+using TOnlineAsyncOpPtr = TSharedPtr<TOnlineAsyncOp<OpType>>;
 
 namespace Private {
 
