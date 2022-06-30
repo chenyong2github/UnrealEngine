@@ -3198,7 +3198,7 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 					check(EditorOnly->ShadingModelFromMaterialExpression.IsConnected());
 
 					// Reconnect the shading model expression
-					MoveConnectionTo(EditorOnly->ShadingModelFromMaterialExpression, ConvertNode, 18);
+					MoveConnectionTo(EditorOnly->ShadingModelFromMaterialExpression, ConvertNode, 19);
 
 					// Store strata shading model of the converted material. 
 					GatherCustomNodes();
@@ -3355,7 +3355,11 @@ void UMaterial::ConvertMaterialToStrataMaterial()
 		}
 		if (ClearCoatBottomNormalOutput)
 		{
-			CopyConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), ConvertNode, 17);		 // ClearCoatNormal
+			CopyConnectionTo(*ClearCoatBottomNormalOutput->GetInput(0), ConvertNode, 17); // ClearCoatNormal
+		}
+		if (TangentOutput)
+		{
+			CopyConnectionTo(*TangentOutput->GetInput(0), ConvertNode, 18);	// TangentOutput
 		}
 	}
 

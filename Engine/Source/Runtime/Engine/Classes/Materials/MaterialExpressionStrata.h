@@ -153,6 +153,12 @@ class UMaterialExpressionStrataLegacyConversion : public UMaterialExpressionStra
 	FExpressionInput ClearCoatNormal;
 
 	/**
+	 * Take the tangent output node as input. The tangent is considered tangent or world space according to the space properties on the main material node. (type = float3, unit = unitless, defaults to vertex tangent)
+	 */
+	UPROPERTY()
+	FExpressionInput CustomTangent;
+
+	/**
 	 * Shading models
 	 */
 	UPROPERTY()

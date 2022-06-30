@@ -144,6 +144,7 @@ FStrataData StrataConvertLegacyMaterialDynamic(
 	float3 RawNormal,
 	float3 RawTangent,
 	float3 RawClearCoatNormal,
+	float3 RawCustomTangent,
 	uint SharedLocalBasisIndex,
 	uint ClearCoatBottomNormal_SharedLocalBasisIndex,
 	inout uint SharedLocalBasisTypes,
@@ -477,6 +478,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 	float3 RawNormal,
 	float3 RawTangent,
 	float3 RawClearCoatNormal,
+	float3 RawCustomTangent,
 	uint SharedLocalBasisIndex,
 	uint ClearCoatBottomNormal_SharedLocalBasisIndex,
 	inout uint SharedLocalBasisTypes,
@@ -546,7 +548,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 
 		float3 IrisNormal = RawNormal;
 		float3 CausticNormal = RawNormal;
-		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawClearCoatNormal /*RawCustomTangent*/, IrisNormal, CausticNormal);
+		GetEyeNormals(IrisMask, IrisDistance, RawNormal, RawClearCoatNormal, RawCustomTangent, IrisNormal, CausticNormal);
 
 		FStrataData EyeMat = PromoteParameterBlendedBSDFToOperator(
 			GetStrataEyeBSDF(
@@ -610,6 +612,7 @@ FStrataData StrataConvertLegacyMaterialStatic(
 			RawNormal,
 			RawTangent,
 			RawClearCoatNormal,
+			RawCustomTangent,
 			SharedLocalBasisIndex,
 			ClearCoatBottomNormal_SharedLocalBasisIndex,
 			SharedLocalBasisTypes,

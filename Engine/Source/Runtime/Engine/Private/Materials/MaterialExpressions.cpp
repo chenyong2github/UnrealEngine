@@ -21654,6 +21654,18 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		ClearCoat_BasisIndexMacro = BasisIndexMacro;
 	}
 
+	// Custom tangent. No need to register it as a local basis, as it is only used for eye shading internal conversion
+	int32 CustomTangent_TangentCodeChunk = INDEX_NONE;
+	const bool bHasCustomTangent = CustomTangent.IsConnected();
+	if (bHasCustomTangent)
+	{
+		CustomTangent_TangentCodeChunk = CompileWithDefaultNormalWS(Compiler, CustomTangent);
+	}
+	else
+	{
+		CustomTangent_TangentCodeChunk = NormalCodeChunk;
+	}
+
 	int32 SSSProfileCodeChunk = INDEX_NONE;
 	const bool bHasSSS = HasSSS();
 	if (bHasSSS)
@@ -21694,7 +21706,8 @@ int32 UMaterialExpressionStrataLegacyConversion::Compile(class FMaterialCompiler
 		BasisIndexMacro,
 		ClearCoat_NormalCodeChunk,
 		ClearCoat_TangentCodeChunk,
-		ClearCoat_BasisIndexMacro);
+		ClearCoat_BasisIndexMacro,
+		CustomTangent_TangentCodeChunk);
 
 	// Now update the local shared basis
 
@@ -21763,6 +21776,7 @@ const TArray<FExpressionInput*> UMaterialExpressionStrataLegacyConversion::GetIn
 	Result.Add(&WaterPhaseG);
 	Result.Add(&ColorScaleBehindWater);
 	Result.Add(&ClearCoatNormal);
+	Result.Add(&CustomTangent);
 	Result.Add(&ShadingModel);
 	return Result;
 }
@@ -21806,7 +21820,8 @@ uint32 UMaterialExpressionStrataLegacyConversion::GetInputType(int32 InputIndex)
 	else if (InputIndex == 15) return MCT_Float1; // WaterPhaseG
 	else if (InputIndex == 16) return MCT_Float3; // ColorScaleBehindWater
 	else if (InputIndex == 17) return MCT_Float3; // ClearCoatNormal
-	else if (InputIndex == 18) return MCT_Float1; // ShadingModel
+	else if (InputIndex == 18) return MCT_Float3; // CustomTangent
+	else if (InputIndex == 19) return MCT_Float1; // ShadingModel
 
 	check(false);
 	return MCT_Float1;
@@ -21832,7 +21847,8 @@ FName UMaterialExpressionStrataLegacyConversion::GetInputName(int32 InputIndex) 
 	else if (InputIndex == 15)	return TEXT("Water Phase G");
 	else if (InputIndex == 16)	return TEXT("Color Scale BehindWater");
 	else if (InputIndex == 17)	return TEXT("Clear Coat Normal");
-	else if (InputIndex == 18)	return TEXT("Shading Model");
+	else if (InputIndex == 18)	return TEXT("Custom Tangent");
+	else if (InputIndex == 19)	return TEXT("Shading Model");
 	return TEXT("Unknown");
 }
 
