@@ -750,7 +750,7 @@ FStrataEvaluateResult StrataEvaluateBSDFCommon(FStrataBSDFContext BSDFContext, F
 		{
 			float3 DiffuseColor	= EYE_DIFFUSEALBEDO(BSDFContext.BSDF);
 			float3 F0			= EYE_F0(BSDFContext.BSDF);
-			float3 F90			= 1.0f;
+			float3 F90			= EYE_F90(BSDFContext.BSDF);
 			const float SafeRoughness	= MakeRoughnessSafe(EYE_ROUGHNESS(BSDFContext.BSDF));
 
 			if (Settings.bForceFullyRough)
@@ -1111,7 +1111,7 @@ FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDF
 			// TODO manage iris normal for the diffuse term
 			const float3 DiffuseColor	= EYE_DIFFUSEALBEDO(BSDFContext.BSDF);
 			const float3 F0 			= EYE_F0(BSDFContext.BSDF);
-			const float3 F90			= 1.0f;
+			const float3 F90			= EYE_F90(BSDFContext.BSDF);
 			const float SafeRoughness   = MakeRoughnessSafe(EYE_ROUGHNESS(BSDFContext.BSDF));
 
 			// Pick diffuse/specular lobe
@@ -1444,7 +1444,7 @@ FStrataEnvLightResult StrataEvaluateForEnvLight(FStrataBSDFContext BSDFContext, 
 		{
 			float3 DiffuseColor		= EYE_DIFFUSEALBEDO(BSDFContext.BSDF);
 			float3 F0 				= EYE_F0(BSDFContext.BSDF);
-			float3 F90 				= 1.0f;
+			float3 F90 				= EYE_F90(BSDFContext.BSDF);
 
 			if (Settings.bForceFullyRough)
 			{

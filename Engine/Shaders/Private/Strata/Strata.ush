@@ -442,7 +442,8 @@ struct FStrataBSDF
 ///////////////////////////////////////////////////////////////////////////////
 // Eye BSDF members
 #define EYE_DIFFUSEALBEDO(X)			X.VGPRs[0].xyz
-#define EYE_F0(X)						0.04f
+#define EYE_F0(X)						X.VGPRs[2].w
+#define EYE_F90(X)						X.VGPRs[3].w
 #define EYE_ROUGHNESS(X)				X.VGPRs[0].w
 #define EYE_IRISDISTANCE(X)				X.VGPRs[1].x
 #define EYE_IRISMASK(X)					X.VGPRs[1].y
@@ -2586,7 +2587,7 @@ float3 StrataGetBSDFSpecularF90(in FStrataBSDF BSDF)
 	{
 	case STRATA_BSDF_TYPE_SLAB: 			return SLAB_F90(BSDF);
 	case STRATA_BSDF_TYPE_HAIR: 			return 1.0f;
-	case STRATA_BSDF_TYPE_EYE: 				return 1.0f;
+	case STRATA_BSDF_TYPE_EYE: 				return EYE_F90(BSDF);
 	case STRATA_BSDF_TYPE_SINGLELAYERWATER: return 1.0f;
 	}
 	return 0.f;
@@ -3539,6 +3540,19 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		EYE_IRISDISTANCE(OutBSDF) = Data0.y;
 		EYE_IRISNORMAL(OutBSDF) = OctahedronToUnitVector(Data1.xy * 2.0f - 1.f);
 		EYE_IRISPLANENORMAL(OutBSDF) = OctahedronToUnitVector(Data1.zw * 2.0f - 1.f);
+		EYE_F0(OutBSDF)  = 0.04f;
+		EYE_F90(OutBSDF) = 1.0f;
+
+		if (BSDF_GETSSSTYPE(OutBSDF) == SSS_TYPE_DIFFUSION_PROFILE)
+		{
+			const bool bChecker = CheckerFromPixelPos(StrataAddressing.PixelCoords);
+			float3 DiffuseAlbedo = EYE_DIFFUSEALBEDO(OutBSDF);
+			float SpecularFactor = 1.0f;
+			AdjustBaseColorAndSpecularColorForSubsurfaceProfileLighting(DiffuseAlbedo, SpecularFactor, bChecker);
+			EYE_DIFFUSEALBEDO(OutBSDF) = DiffuseAlbedo;
+			EYE_F0(OutBSDF)  *= SpecularFactor;
+			EYE_F90(OutBSDF) *= SpecularFactor;
+		}
 		// 12 bytes
 	}
 	break;
