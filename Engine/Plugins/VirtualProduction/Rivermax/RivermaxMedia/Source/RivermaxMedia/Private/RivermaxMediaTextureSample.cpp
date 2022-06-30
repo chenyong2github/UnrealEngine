@@ -33,12 +33,16 @@ bool FRivermaxMediaTextureSample::ConfigureSample(uint32 InWidth, uint32 InHeigh
 	switch (InSampleFormat)
 	{
 		case ERivermaxMediaSourePixelFormat::RGB_10bit:
+			// Falls through
+		case ERivermaxMediaSourePixelFormat::YUV422_10bit:
 		{
 			VideoSampleFormat = EMediaTextureSampleFormat::CharBGR10A2;
 			break;
 		}
 		case ERivermaxMediaSourePixelFormat::YUV422_8bit:
+			// Falls through
 		case ERivermaxMediaSourePixelFormat::RGB_8bit:
+			// Falls through
 		default:
 		{
 			VideoSampleFormat = EMediaTextureSampleFormat::CharBGRA;

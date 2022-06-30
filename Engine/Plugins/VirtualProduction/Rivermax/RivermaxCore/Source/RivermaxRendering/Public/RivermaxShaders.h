@@ -14,6 +14,48 @@
 namespace UE::RivermaxShaders
 {
 	/**
+	 * Compute shader to convert packed 8 bits RGB to RGBA 8bits
+	 */
+	class RIVERMAXRENDERING_API FYUV10Bit422ToRGBACS : public FGlobalShader
+	{
+	public:
+
+		//Structure definition to match StructuredBuffer in RivermaxShaders.usf
+		struct FYUV10Bit422LEBuffer
+		{
+			uint32 DWord0;
+			uint32 DWord1;
+			uint32 DWord2;
+			uint32 DWord3;
+			uint32 DWord4;
+		};
+
+		DECLARE_GLOBAL_SHADER(FYUV10Bit422ToRGBACS);
+		SHADER_USE_PARAMETER_STRUCT(FYUV10Bit422ToRGBACS, FGlobalShader);
+
+		class FSRGBToLinear : SHADER_PERMUTATION_BOOL("DO_SRGB_TO_LINEAR");
+		using FPermutationDomain = TShaderPermutationDomain<FSRGBToLinear>;
+
+		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FYUV10Bit422LEBuffer>, InputYCbCrBuffer)
+			SHADER_PARAMETER(FMatrix44f, ColorTransform)	
+			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
+		END_SHADER_PARAMETER_STRUCT()
+
+	public:
+
+		// Called by the engine to determine which permutations to compile for this shader
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+		{
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+
+		/** Allocates and setup shader parameter in the incoming graph builder */
+		FYUV10Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow);
+	};
+
+	/**
 	 * Compute shader to convert RGB to packed YUV422 10 bits little endian
 	 *
 	 * This shader expects a single texture in PF_A2B10G10R10 format.

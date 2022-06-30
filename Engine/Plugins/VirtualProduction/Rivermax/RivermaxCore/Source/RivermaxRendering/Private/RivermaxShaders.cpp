@@ -8,6 +8,23 @@
 
 namespace UE::RivermaxShaders
 {
+	/* FYUV10Bit422ToRGBACS shader
+	 *****************************************************************************/
+
+	IMPLEMENT_GLOBAL_SHADER(FYUV10Bit422ToRGBACS, "/Plugin/RivermaxCore/Private/RivermaxShaders.usf", "YUV10Bit422ToRGBACS", SF_Compute);
+
+	FYUV10Bit422ToRGBACS::FParameters* FYUV10Bit422ToRGBACS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow)
+	{
+		FYUV10Bit422ToRGBACS::FParameters* Parameters = GraphBuilder.AllocParameters<FYUV10Bit422ToRGBACS::FParameters>();
+
+		Parameters->InputYCbCrBuffer = GraphBuilder.CreateSRV(YUVBuffer);
+		Parameters->ColorTransform = (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
+		Parameters->HorizontalElementCount = BufferElementsPerRow;
+		Parameters->OutTexture = GraphBuilder.CreateUAV(OutputTexture, ERDGUnorderedAccessViewFlags::None);
+
+		return Parameters;
+	}
+
 	/* FRGBToYUV10Bit422LittleEndianCS shader
 	 *****************************************************************************/
 

@@ -37,6 +37,37 @@ bool FRivermaxMediaTextureSampleConverter::Convert(FTexture2DRHIRef& InDestinati
 	{
 		break;
 	}
+	case ERivermaxMediaSourePixelFormat::YUV422_10bit:
+	{
+		constexpr uint32 PixelPerGroup = 2;
+		constexpr uint32 BytesPerGroup = 5;
+		const uint32 HorizontalByteCount = (InDestinationTexture->GetDesc().Extent.X / PixelPerGroup) * BytesPerGroup;
+		const int32 BytesPerElement = sizeof(FYUV10Bit422ToRGBACS::FYUV10Bit422LEBuffer);
+		const int32 ElementsPerRow = HorizontalByteCount / BytesPerElement;
+		const int32 ElementCount = ElementsPerRow * InDestinationTexture->GetDesc().Extent.Y;
+
+		FYUV10Bit422ToRGBACS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FYUV10Bit422ToRGBACS::FSRGBToLinear>(bDoSRGBToLinear);
+
+		FRDGBufferRef InputYUVBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("RivermaxInputBuffer"), BytesPerElement, ElementCount, SamplePtr->GetBuffer(), BytesPerElement * ElementCount);
+		constexpr int32 PixelsPerInput = 8;
+		const FIntPoint ProcessedOutputDimension = { InDestinationTexture->GetDesc().Extent.X / PixelsPerInput,InDestinationTexture->GetDesc().Extent.Y };
+		GroupCount = FComputeShaderUtils::GetGroupCount(ProcessedOutputDimension, FComputeShaderUtils::kGolden2DGroupSize);
+		FGlobalShaderMap* GlobalShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+		TShaderMapRef<FYUV10Bit422ToRGBACS> ComputeShader(GlobalShaderMap, PermutationVector);
+		FMatrix YUVToRGBMatrix = SamplePtr->GetYUVToRGBMatrix();
+		FVector YUVOffset(MediaShaders::YUVOffset10bits);
+		FYUV10Bit422ToRGBACS::FParameters* Parameters = ComputeShader->AllocateAndSetParameters(GraphBuilder, InputYUVBuffer, OutputResource, YUVToRGBMatrix, YUVOffset, ElementsPerRow);
+
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder
+			, RDG_EVENT_NAME("YUV10Bit422ToRGBA")
+			, ComputeShader
+			, Parameters
+			, GroupCount);
+		break;
+	}
 	case ERivermaxMediaSourePixelFormat::RGB_8bit:
 	{
 		constexpr uint32 PixelPerGroup = 1;

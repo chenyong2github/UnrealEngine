@@ -15,9 +15,10 @@ UENUM()
 enum class ERivermaxMediaSourePixelFormat : uint8
 {
 	YUV422_8bit UMETA(DisplayName = "8bit YUV422"),
+	YUV422_10bit UMETA(DisplayName = "10bit YUV422"),
 	RGB_8bit UMETA(DisplayName = "8bit RGB"),
 	RGB_10bit UMETA(DisplayName = "10bit RGB"),
-	//Todo Add support for 10bit YUV and float16 rgb
+	//Todo Add support for float16 rgb
 };
 
 /**

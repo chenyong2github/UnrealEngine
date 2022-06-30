@@ -291,6 +291,12 @@ namespace UE::RivermaxMedia
 			StreamOptions.Stride = StreamOptions.Resolution.X / 2 * 4; // 4 bytes for a group of 2 pixels
 			break;
 		}
+		case ERivermaxMediaSourePixelFormat::YUV422_10bit:
+		{
+			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_10BIT_YCBCR;
+			StreamOptions.Stride = StreamOptions.Resolution.X / 2 * 5; // 5 bytes for a group of 2 pixels (40bits / 8 = 5)
+			break;
+		}
 		case ERivermaxMediaSourePixelFormat::RGB_8bit:
 		{
 			StreamOptions.PixelFormat = ERivermaxOutputPixelFormat::RMAX_8BIT_RGB;
