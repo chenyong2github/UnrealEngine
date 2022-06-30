@@ -11,10 +11,12 @@ thread_local int32 GThreadCurrentReadCookProviderLockCount;
 thread_local int32 GThreadCurrentWriteCookProviderLockCount;
 
 const TCHAR* GUnknownPackage = TEXT("Unknown Package");
+const TCHAR* GUnknownClass = TEXT("Unknown Class");
 
 FPackageData::FPackageData(uint64 InId)
 	: Id(InId)
 	, Name(GUnknownPackage)
+	, AssetClass(GUnknownClass)
 {}
 
 void FCookProfilerProvider::BeginEdit() const

@@ -28,6 +28,7 @@ void FCookAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 
 	Builder.RouteEvent(RouteId_Package, "CookTrace", "Package");
 	Builder.RouteEvent(RouteId_PackageStat, "CookTrace", "PackageStat");
+	Builder.RouteEvent(RouteId_PackageAssetClass, "CookTrace", "PackageAssetClass");
 }
 
 bool FCookAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
@@ -87,6 +88,17 @@ bool FCookAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext&
 			}
 			}
 		}
+		break;
+	}
+	case RouteId_PackageAssetClass:
+	{
+		uint64 Id = EventData.GetValue<uint64>("Id");
+		FString ClassName;
+		EventData.GetString("ClassName", ClassName);
+
+		TraceServices::FProviderEditScopeLock ProviderEditScope(CookProfilerProvider);
+		FPackageData* Package = CookProfilerProvider.EditPackage(Id);
+		Package->AssetClass = Session.StoreString(ClassName);
 		break;
 	}
 	}

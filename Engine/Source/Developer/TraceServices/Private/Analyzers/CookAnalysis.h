@@ -23,6 +23,7 @@ private:
 	{
 		RouteId_Package,
 		RouteId_PackageStat,
+		RouteId_PackageAssetClass,
 	};
 
 	IAnalysisSession& Session;

@@ -19,6 +19,7 @@
 #include "UObject/UObjectHash.h"
 #include "Misc/PackageName.h"
 #include "Blueprint/BlueprintSupport.h"
+#include "Misc/PathViews.h"
 #include "Misc/PreloadableFile.h"
 #include "Misc/SecureHash.h"
 #include "Misc/StringBuilder.h"
@@ -72,6 +73,43 @@ DECLARE_FLOAT_ACCUMULATOR_STAT(TEXT("Fixup editor-only flags time"), STAT_Editor
 
 FName FLinkerLoad::NAME_LoadErrors("LoadErrors");
 
+/**
+* Helper function to determine and trace the most important asset class.
+*/
+void TrackPackageAssetClass(UPackage* Package, FLinkerLoad& LinkerLoad, const TArray<FObjectExport>& Exports)
+{
+#if ENABLE_COOK_STATS
+	if (!ShouldTracePackageInfo() || Exports.Num() == 0 || !Package)
+	{
+		return;
+	}
+
+	FName PackageName = Package->GetFName();
+	WriteToString<256> PackageNameStr(PackageName);
+	FStringView PackageLeafName = FPathViews::GetCleanFilename(PackageNameStr.ToView());
+	const FObjectExport* MostImportant = nullptr;
+	for (const FObjectExport& Export : Exports)
+	{
+		if (Export.bIsAsset && Export.ClassIndex.IsImport())
+		{
+			WriteToString<256> ObjectName(Export.ObjectName);
+			if (ObjectName.ToView() == PackageLeafName)
+			{
+				MostImportant = &Export;
+				break;
+			}
+			if (!MostImportant)
+			{
+				MostImportant = &Export;
+			}
+		}
+	}
+	if (MostImportant)
+	{
+		TracePackageAssetClass(PackageName.ToUnstableInt(), LinkerLoad.Imp(MostImportant->ClassIndex).ObjectName.ToString());
+	}
+#endif
+}
 
 /*----------------------------------------------------------------------------
 Helpers
@@ -1956,7 +1994,15 @@ FLinkerLoad::ELinkerStatus FLinkerLoad::SerializeExportMap()
 	}
 
 	// Return whether we finished this step and it's safe to start with the next.
-	return ((ExportMapIndex == Summary.ExportCount) && !IsTimeLimitExceeded( TEXT("serializing export map") )) ? LINKER_Loaded : LINKER_TimedOut;
+	if ((ExportMapIndex == Summary.ExportCount) && !IsTimeLimitExceeded(TEXT("serializing export map")))
+	{
+		TrackPackageAssetClass(LinkerRoot, *this, ExportMap);
+		return LINKER_Loaded;
+	}
+	else
+	{
+		return LINKER_TimedOut;
+	}
 }
 
 #if WITH_TEXT_ARCHIVE_SUPPORT

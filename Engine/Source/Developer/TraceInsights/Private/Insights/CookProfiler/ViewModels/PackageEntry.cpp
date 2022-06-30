@@ -14,6 +14,7 @@ FPackageEntry::FPackageEntry(const TraceServices::FPackageData& PackageData)
 	, SaveTime(PackageData.SaveTime)
 	, BeginCacheForCookedPlatformData(PackageData.BeginCacheForCookedPlatformData)
 	, IsCachedCookedPlatformDataLoaded(PackageData.IsCachedCookedPlatformDataLoaded)
+	, AssetClass(PackageData.AssetClass)
 {
 }
 

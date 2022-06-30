@@ -23,7 +23,8 @@ struct FPackageTableColumns
 	static const FName LoadTimeColumnId;
 	static const FName SaveTimeColumnId;
 	static const FName BeginCacheForCookedPlatformDataTimeColumnId;
-	static const FName GetIsCachedCookedPlatformDataLoaded;
+	static const FName GetIsCachedCookedPlatformDataLoadedColumnId;
+	static const FName PackageAssetClassColumnId;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

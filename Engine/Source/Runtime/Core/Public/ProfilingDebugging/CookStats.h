@@ -433,8 +433,10 @@ struct FDerivedDataUsageStats
 
 CORE_API UE_TRACE_CHANNEL_EXTERN(CookChannel);
 
-CORE_API void TracePackage(uint64 InId, FString InName);
+CORE_API void TracePackage(uint64 InId, const FStringView InName);
 CORE_API void TracePackageStat(uint64 InId, uint64 Duration, EPackageEventStatType StatType);
+CORE_API void TracePackageAssetClass(uint64 InId, const FStringView InName);
+CORE_API bool ShouldTracePackageInfo();
 
 struct FScopedCookStat
 {
@@ -485,5 +487,7 @@ private:
 
 #define TracePackage(...)
 #define TracePackageStat(...)
+#define TracePackageAssetClass(...)
+#define ShouldTracePackageInfo(...) false
 
 #endif

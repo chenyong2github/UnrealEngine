@@ -23,7 +23,8 @@ const FName FPackageTableColumns::NameColumnId(TEXT("Name"));
 const FName FPackageTableColumns::LoadTimeColumnId(TEXT("LoadTime"));
 const FName FPackageTableColumns::SaveTimeColumnId(TEXT("SaveTime"));
 const FName FPackageTableColumns::BeginCacheForCookedPlatformDataTimeColumnId(TEXT("BeginCacheForCookedPlatformDataTimeColumnId"));
-const FName FPackageTableColumns::GetIsCachedCookedPlatformDataLoaded(TEXT("GetIsCachedCookedPlatformDataLoaded"));
+const FName FPackageTableColumns::GetIsCachedCookedPlatformDataLoadedColumnId(TEXT("GetIsCachedCookedPlatformDataLoaded"));
+const FName FPackageTableColumns::PackageAssetClassColumnId(TEXT("AssetClass"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 typedef FTableCellValue(*PackageFieldGetter)(const FTableColumn&, const FPackageEntry&);
@@ -61,11 +62,12 @@ public:
 struct DefaultPackageFieldGetterFuncts
 {
 	static FTableCellValue GetId(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((int64)Package.GetId());	}
-	static FTableCellValue GetName(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((int64)Package.GetName());	}
+	static FTableCellValue GetName(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((const TCHAR*)Package.GetName());	}
 	static FTableCellValue GetLoadTime(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((double)Package.GetLoadTime());	}
 	static FTableCellValue GetSaveTime(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((double)Package.GetSaveTime());	}
 	static FTableCellValue GetBeginCacheForCookedPlatformData(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((double)Package.GetBeginCacheForCookedPlatformData());	}
 	static FTableCellValue GetIsCachedCookedPlatformDataLoaded(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((double)Package.GetIsCachedCookedPlatformDataLoaded());	}
+	static FTableCellValue GetAssetClass(const FTableColumn& Column, const FPackageEntry& Package) { return FTableCellValue((const TCHAR*)Package.GetAssetClass());	}
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -236,7 +238,7 @@ void FPackageTable::AddDefaultColumns()
 	//////////////////////////////////////////////////
 	// BeginCacheForCookedPlatformData Time Column
 	{
-		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FPackageTableColumns::GetIsCachedCookedPlatformDataLoaded);
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FPackageTableColumns::GetIsCachedCookedPlatformDataLoadedColumnId);
 		FTableColumn& Column = *ColumnRef;
 
 		Column.SetIndex(ColumnIndex++);
@@ -259,6 +261,36 @@ void FPackageTable::AddDefaultColumns()
 		Column.SetValueFormatter(Formatter);
 
 		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+		Column.SetValueSorter(Sorter);
+
+		AddColumn(ColumnRef);
+	}
+	//////////////////////////////////////////////////
+	// Asset Class Column
+	{
+		TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FPackageTableColumns::PackageAssetClassColumnId);
+		FTableColumn& Column = *ColumnRef;
+
+		Column.SetIndex(ColumnIndex++);
+
+		Column.SetShortName(LOCTEXT("AssetClassColumnName", "Asset Class"));
+		Column.SetTitleName(LOCTEXT("AssetClassTitle", "Asset Class"));
+		Column.SetDescription(LOCTEXT("AssetClassColumnDesc", "The class of the most significant asset in the package."));
+
+		Column.SetFlags(ETableColumnFlags::ShouldBeVisible | ETableColumnFlags::CanBeHidden | ETableColumnFlags::CanBeFiltered);
+
+		Column.SetHorizontalAlignment(HAlign_Left);
+		Column.SetInitialWidth(100.0f);
+
+		Column.SetDataType(ETableCellDataType::CString);
+
+		TSharedRef<ITableCellValueGetter> Getter = MakeShared<FPackageColumnValueGetter<DefaultPackageFieldGetterFuncts::GetAssetClass>>();
+		Column.SetValueGetter(Getter);
+
+		TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FCStringValueFormatterAsText>();
+		Column.SetValueFormatter(Formatter);
+
+		TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByCStringValue>(ColumnRef);
 		Column.SetValueSorter(Sorter);
 
 		AddColumn(ColumnRef);

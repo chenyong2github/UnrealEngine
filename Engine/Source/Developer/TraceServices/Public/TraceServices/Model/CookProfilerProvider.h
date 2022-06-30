@@ -18,6 +18,7 @@ struct FPackageData
 	double SaveTime = 0;
 	double BeginCacheForCookedPlatformData = 0; // BeginCacheForCookedPlatformData is the name of the function from the cooker.
 	double IsCachedCookedPlatformDataLoaded = 0; // IsCachedCookedPlatformDataLoaded is the name of the function from the cooker.
+	const TCHAR* AssetClass;
 };
 
 class ICookProfilerProvider

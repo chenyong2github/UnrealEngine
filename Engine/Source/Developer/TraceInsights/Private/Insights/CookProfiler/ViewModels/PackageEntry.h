@@ -25,6 +25,7 @@ public:
 	const double GetSaveTime() const { return SaveTime; }
 	const double GetBeginCacheForCookedPlatformData() const { return BeginCacheForCookedPlatformData; }
 	const double GetIsCachedCookedPlatformDataLoaded() const { return IsCachedCookedPlatformDataLoaded; }
+	const TCHAR* GetAssetClass() const { return AssetClass; }
 
 private:
 	uint64 Id;
@@ -33,6 +34,7 @@ private:
 	double SaveTime;
 	double BeginCacheForCookedPlatformData;
 	double IsCachedCookedPlatformDataLoaded;
+	const TCHAR* AssetClass;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
