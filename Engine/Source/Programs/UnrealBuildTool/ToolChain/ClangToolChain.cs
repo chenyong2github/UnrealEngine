@@ -119,6 +119,8 @@ namespace UnrealBuildTool
 
 		protected ClangToolChainOptions Options;
 
+		protected bool bPreprocessDepends = false;
+
 		public ClangToolChain(ClangToolChainOptions InOptions, ILogger InLogger)
 			: base(InLogger)
 		{
@@ -249,12 +251,6 @@ namespace UnrealBuildTool
 		protected virtual void GetCompileArguments_C(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			Arguments.Add("-x c");
-
-			// Only force include PCH for c++ files
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-			}
 		}
 
 		protected virtual void GetCompileArguments_MM(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -263,12 +259,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-fobjc-abi-version=2");
 			Arguments.Add("-fobjc-legacy-dispatch");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
-
-			// Only force include PCH for c++ files
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-			}
 		}
 
 		protected virtual void GetCompileArguments_M(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -277,12 +267,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-fobjc-abi-version=2");
 			Arguments.Add("-fobjc-legacy-dispatch");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
-
-			// Only force include PCH for c++ files
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-			}
 		}
 
 		protected virtual void GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -352,6 +336,31 @@ namespace UnrealBuildTool
 			}
 
 			Arguments.AddRange(CompileEnvironment.ForceIncludeFiles.Select(ForceIncludeFile => GetForceIncludeFileArgument(ForceIncludeFile)));
+		}
+
+		protected virtual string GetSourceFileArgument(FileItem SourceFile)
+		{
+			return $"\"{NormalizeCommandLinePath(SourceFile)}\"";
+		}
+
+		protected virtual string GetOutputFileArgument(FileItem ForceIncludeFile)
+		{
+			return $"-o \"{NormalizeCommandLinePath(ForceIncludeFile)}\"";
+		}
+
+		protected virtual string GetDepencenciesListFileArgument(FileItem DependencyListFile)
+		{
+			return $"-MD -MF\"{NormalizeCommandLinePath(DependencyListFile)}\"";
+		}
+
+		protected virtual string GetPreprocessDepencenciesListFileArgument(FileItem DependencyListFile)
+		{
+			return $"-M -MF\"{NormalizeCommandLinePath(DependencyListFile)}\"";
+		}
+
+		protected virtual string GetResponseFileArgument(FileItem ResponseFile)
+		{
+			return $"@\"{NormalizeCommandLinePath(ResponseFile)}\"";
 		}
 
 		/// <summary>
@@ -576,6 +585,116 @@ namespace UnrealBuildTool
 
 			// Add sanitizer flags to the argument list
 			GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
+		}
+
+		/// <summary>
+		/// Compile arguments for specific files in a module. Also updates Action and CPPOutput results.
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="SourceFile"></param>
+		/// <param name="OutputDir"></param>
+		/// <param name="Arguments"></param>
+		/// <param name="CompileAction"></param>
+		/// <param name="CompileResult"></param>
+		protected virtual void GetCompileArguments_FileType(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, List<string> Arguments, Action CompileAction, CPPOutput CompileResult)
+		{
+			// Add the C++ source file and its included files to the prerequisite item list.
+			CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
+			CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
+			CompileAction.PrerequisiteItems.Add(SourceFile);
+
+			string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
+			bool IsCPlusPlus = false;
+
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
+			{
+				GetCompileArguments_PCH(CompileEnvironment, Arguments);
+			}
+			else if (Extension == ".C")
+			{
+				// Compile the file as C code.
+				GetCompileArguments_C(CompileEnvironment, Arguments);
+			}
+			else if (Extension == ".MM")
+			{
+				// Compile the file as Objective-C++ code.
+				GetCompileArguments_MM(CompileEnvironment, Arguments);
+			}
+			else if (Extension == ".M")
+			{
+				// Compile the file as Objective-C code.
+				GetCompileArguments_M(CompileEnvironment, Arguments);
+			}
+			else
+			{
+				// Compile the file as C++ code.
+				GetCompileArguments_CPP(CompileEnvironment, Arguments);
+				IsCPlusPlus = true;
+			}
+
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
+			{
+				// Only force include PCH for c++ files
+				if (!IsCPlusPlus)
+				{
+					Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
+				}
+				else
+				{
+					CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
+				}
+			}
+
+			FileItem OutputFile;
+			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
+			{
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".gch"));
+				CompileResult.PrecompiledHeaderFile = OutputFile;
+			}
+			else if (CompileEnvironment.bPreprocessOnly)
+			{
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".cpp.i"));
+				CompileResult.ObjectFiles.Add(OutputFile);
+
+				// Clang does EITHER pre-process or object file.
+				Arguments.Add("-E"); // Only run the preprocessor
+				Arguments.Add("-fuse-line-directives"); // Use #line in preprocessed output
+
+				// this is parsed by external tools wishing to open this file directly.
+				Logger.LogInformation("PreProcessPath: {File}", OutputFile.AbsolutePath);
+			}
+			else
+			{
+				string ObjectFileExtension = (CompileEnvironment.AdditionalArguments != null && CompileEnvironment.AdditionalArguments.Contains("-emit-llvm")) ? ".bc" : ".o";
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, $"{Path.GetFileName(SourceFile.AbsolutePath)}{ObjectFileExtension}"));
+				CompileResult.ObjectFiles.Add(OutputFile);
+			}
+
+			// Add the output file to the produced item list.
+			CompileAction.ProducedItems.Add(OutputFile);
+
+			// Add the source file path to the command-line.
+			Arguments.Add(GetSourceFileArgument(SourceFile));
+
+			// Generate the timing info
+			if (CompileEnvironment.bPrintTimingInfo)
+			{
+				FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
+				Arguments.Add("-ftime-trace");
+				CompileAction.ProducedItems.Add(TraceFile);
+			}
+
+			// Generate the included header dependency list
+			if (!bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+			{
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
+				Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.ProducedItems.Add(DependencyListFile);
+			}
+
+			// Add the parameters needed to compile the output file to the command-line.
+			Arguments.Add(GetOutputFileArgument(OutputFile));
 		}
 	}
 }

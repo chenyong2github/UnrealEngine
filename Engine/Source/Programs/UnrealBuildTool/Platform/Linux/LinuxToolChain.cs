@@ -24,8 +24,6 @@ namespace UnrealBuildTool
 		/** Pass --gdb-index option to linker to generate .gdb_index section. */
 		protected bool bGdbIndexSection = true;
 
-		protected bool bPreprocessDepends = false;
-
 		/** Allows you to override the maximum binary size allowed to be passed to objcopy.exe when cross building on Windows. */
 		/** Max value is 2GB, due to bat file limitation */
 		protected UInt64 MaxBinarySizeOverrideForObjcopy = 0;
@@ -916,87 +914,14 @@ namespace UnrealBuildTool
 			foreach (FileItem SourceFile in InputFiles)
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
-				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.ForceIncludeFiles);
-				CompileAction.PrerequisiteItems.AddRange(CompileEnvironment.AdditionalPrerequisites);
 
 				List<string> FileArguments = new();
-				string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
 
 				// Add C or C++ specific compiler arguments.
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
-				{
-					GetCompileArguments_PCH(CompileEnvironment, FileArguments);
-				}
-				else if (Extension == ".C")
-				{
-					// Compile the file as C code.
-					GetCompileArguments_C(CompileEnvironment, FileArguments);
-				}
-				else if (Extension == ".MM")
-				{
-					// Compile the file as Objective-C++ code.
-					GetCompileArguments_MM(CompileEnvironment, FileArguments);
-					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
-				}
-				else if (Extension == ".M")
-				{
-					// Compile the file as Objective-C code.
-					GetCompileArguments_M(CompileEnvironment, FileArguments);
-				}
-				else
-				{
-					// Compile the file as C++ code.
-					GetCompileArguments_CPP(CompileEnvironment, FileArguments);
-				}
+				GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
 
-				// Add the C++ source file and its included files to the prerequisite item list.
-				CompileAction.PrerequisiteItems.Add(SourceFile);
-
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
-				{
-					// Add the precompiled header file to the produced item list.
-					FileItem PrecompiledHeaderFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".gch"));
-
-					CompileAction.ProducedItems.Add(PrecompiledHeaderFile);
-					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
-
-					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(PrecompiledHeaderFile)));
-				}
-				else
-				{
-					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-					{
-						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
-					}
-
-					// Add the object file to the produced item list.
-					FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".o"));
-					CompileAction.ProducedItems.Add(ObjectFile);
-					Result.ObjectFiles.Add(ObjectFile);
-
-					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(ObjectFile)));
-				}
-
-				// Add the source file path to the command-line.
-				FileArguments.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(SourceFile)));
-
-				// Generate the timing info
-				if (CompileEnvironment.bPrintTimingInfo)
-				{
-					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
-					FileArguments.Add("-ftime-trace");
-					CompileAction.ProducedItems.Add(TraceFile);
-				}
-
-				// Generate the included header dependency list
-				if (!bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
-				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					FileArguments.Add(string.Format("-MD -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.ProducedItems.Add(DependencyListFile);
-				}
+				// Gets the target file so we can get the correct output path.
+				FileItem TargetFile = CompileAction.ProducedItems.First();
 
 				CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 				CompileAction.CommandPath = ClangPath!;
@@ -1004,16 +929,11 @@ namespace UnrealBuildTool
 				List<string> ResponseFileContents = new();
 				ResponseFileContents.AddRange(GlobalArguments);
 				ResponseFileContents.AddRange(FileArguments);
-				ResponseFileContents.Add(CompileEnvironment.AdditionalArguments);
-				// all response lines should have / instead of \, but we cannot just bulk-replace it here since some \ are used to escape quotes, e.g. Definitions.Add("FOO=TEXT(\"Bar\")");
 
-
-				Debug.Assert(CompileAction.ProducedItems.Count > 0);
-
-				FileReference CompilerResponseFileName = CompileAction.ProducedItems[0].Location + ".rsp";
+				FileReference CompilerResponseFileName = TargetFile.Location + ".rsp";
 				FileItem CompilerResponseFileItem = Graph.CreateIntermediateTextFile(CompilerResponseFileName, ResponseFileContents);
 
-				CompileAction.CommandArguments = string.Format(" @\"{0}\"", NormalizeCommandLinePath(CompilerResponseFileName));
+				CompileAction.CommandArguments = GetResponseFileArgument(CompilerResponseFileItem);
 				CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
 				CompileAction.CommandDescription = "Compile";
 				CompileAction.CommandVersion = ClangVersionString!;
@@ -1044,12 +964,12 @@ namespace UnrealBuildTool
 					PreprocessGlobalArguments.Remove("-c");
 
 					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					PreprocessFileArguments.Add(string.Format("-M -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
+					PreprocessFileArguments.Add(GetPreprocessDepencenciesListFileArgument(DependencyListFile));
 					PrepassAction.DependencyListFile = DependencyListFile;
 					PrepassAction.ProducedItems.Add(DependencyListFile);
 
 					PreprocessFileArguments.Remove("-ftime-trace");
-					PreprocessFileArguments.Remove(string.Format(" -o \"{0}\"", NormalizeCommandLinePath(CompileAction.ProducedItems.First())));
+					PreprocessFileArguments.Remove(GetOutputFileArgument(CompileAction.ProducedItems.First()));
 
 					PrepassAction.DeleteItems.AddRange(PrepassAction.ProducedItems);
 
@@ -1067,7 +987,7 @@ namespace UnrealBuildTool
 					FileItem PreprocessResponseFileItem = Graph.CreateIntermediateTextFile(PreprocessResponseFileName, PreprocessResponseFileContents);
 					PrepassAction.PrerequisiteItems.Add(PreprocessResponseFileItem);
 
-					PrepassAction.CommandArguments = string.Format("@\"{0}\"", PreprocessResponseFileItem);
+					PrepassAction.CommandArguments = GetResponseFileArgument(PreprocessResponseFileItem);
 					CompileAction.DependencyListFile = DependencyListFile;
 					CompileAction.PrerequisiteItems.Add(DependencyListFile);
 				}

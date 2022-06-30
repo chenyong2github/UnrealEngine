@@ -225,12 +225,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-x objective-c++");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 			Arguments.Add("-stdlib=libc++");
-
-			// Only force include PCH for c++ files
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-			}
 		}
 
 		protected override void GetCompileArguments_M(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -238,12 +232,6 @@ namespace UnrealBuildTool
 			Arguments.Add("-x objective-c");
 			GetCppStandardCompileArgument(CompileEnvironment, Arguments);
 			Arguments.Add("-stdlib=libc++");
-
-			// Only force include PCH for c++ files
-			if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-			{
-				Arguments.Remove(GetForceIncludeFileArgument(CompileEnvironment.PrecompiledHeaderIncludeFilename!));
-			}
 		}
 
 		protected override void GetCompileArguments_PCH(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
@@ -346,6 +334,8 @@ namespace UnrealBuildTool
 			GetClangVersion();
 
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
+
+			Arguments.Add(GetRTTIFlag(CompileEnvironment));
 
 			Arguments.Add("-fmessage-length=0");
 			Arguments.Add("-fpascal-strings");

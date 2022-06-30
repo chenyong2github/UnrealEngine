@@ -269,8 +269,6 @@ namespace UnrealBuildTool
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
 
-			Arguments.Add(GetRTTIFlag(CompileEnvironment));
-
 			if (IsBitcodeCompilingEnabled(CompileEnvironment.Configuration))
 			{
 				Arguments.Add("-fembed-bitcode");
@@ -279,7 +277,7 @@ namespace UnrealBuildTool
 			// What architecture(s) to build for
 			Arguments.Add(GetArchitectureArgument(CompileEnvironment.Configuration, CompileEnvironment.Architecture));
 
-			Arguments.Add(string.Format(" -isysroot \"{0}\"", Settings.Value.GetSDKPath(CompileEnvironment.Architecture)));
+			Arguments.Add($"-isysroot \"{Settings.Value.GetSDKPath(CompileEnvironment.Architecture)}\"");
 
 			Arguments.Add("-m" + GetXcodeMinVersionParam() + "=" + ProjectSettings.RuntimeVersion);
 
@@ -295,8 +293,21 @@ namespace UnrealBuildTool
 					{
 						FrameworkDir = Path.GetDirectoryName(FrameworkDir)!;
 					}
-					Arguments.Add(String.Format(" -F\"{0}\"", FrameworkDir));
+					Arguments.Add($"-F\"{FrameworkDir}\"");
 				}
+			}
+		}
+
+		/// <inheritdoc/>
+		protected override void GetCompileArguments_FileType(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, List<string> Arguments, Action CompileAction, CPPOutput CompileResult)
+		{
+			base.GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, Arguments, CompileAction, CompileResult);
+
+			string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
+
+			if (!Extension.Equals(".C"))
+			{
+				Arguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
 			}
 		}
 
@@ -495,125 +506,20 @@ namespace UnrealBuildTool
 			foreach (FileItem SourceFile in InputFiles)
 			{
 				Action CompileAction = Graph.CreateAction(ActionType.Compile);
-				List<string> FilePCHArguments = new();
+
 				List<string> FileArguments = new();
-				string Extension = Path.GetExtension(SourceFile.AbsolutePath).ToUpperInvariant();
 
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
-				{
-					// Compile the file as a C++ PCH.
-					GetCompileArguments_PCH(CompileEnvironment, FileArguments);
-					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
-					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
-				}
-				else if (Extension == ".C")
-				{
-					// Compile the file as C code.
-					GetCompileArguments_C(CompileEnvironment, FileArguments);
-				}
-				else if (Extension == ".MM")
-				{
-					// Compile the file as Objective-C++ code.
-					GetCompileArguments_MM(CompileEnvironment, FileArguments);
-					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
-					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
-				}
-				else if (Extension == ".M")
-				{
-					// Compile the file as Objective-C code.
-					GetCompileArguments_M(CompileEnvironment, FileArguments);
-					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
-				}
-				else
-				{
-					// Compile the file as C++ code.
-					GetCompileArguments_CPP(CompileEnvironment, FileArguments);
-					FileArguments.Add(GetRTTIFlag(CompileEnvironment));
-					FileArguments.Add(GetObjCExceptionsFlag(CompileEnvironment));
-				}
-
-				// Add the C++ source file and its included files to the prerequisite item list.
-				CompileAction.PrerequisiteItems.Add(SourceFile);
-
-				// Add the precompiled header
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-				{
-					CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
-				}
-
-				// Upload the force included files
-				foreach (FileItem ForceIncludeFile in CompileEnvironment.ForceIncludeFiles)
-				{
-					CompileAction.PrerequisiteItems.Add(ForceIncludeFile);
-				}
-
-				string? OutputFilePath = null;
-				if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Create)
-				{
-					// Add the precompiled header file to the produced item list.
-					FileItem PrecompiledHeaderFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".gch"));
-
-					CompileAction.ProducedItems.Add(PrecompiledHeaderFile);
-					Result.PrecompiledHeaderFile = PrecompiledHeaderFile;
-
-					// Add the parameters needed to compile the precompiled header file to the command-line.
-					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(PrecompiledHeaderFile)));
-				}
-				else
-				{
-					if (CompileEnvironment.PrecompiledHeaderAction == PrecompiledHeaderAction.Include)
-					{
-						CompileAction.PrerequisiteItems.Add(CompileEnvironment.PrecompiledHeaderFile!);
-					}
-
-					string ObjectFileExtension;
-					if (CompileEnvironment.AdditionalArguments != null && CompileEnvironment.AdditionalArguments.Contains("-emit-llvm"))
-					{
-						ObjectFileExtension = ".bc";
-					}
-					else
-					{
-						ObjectFileExtension = ".o";
-					}
-
-					// Add the object file to the produced item list.
-					FileItem ObjectFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ObjectFileExtension));
-
-					CompileAction.ProducedItems.Add(ObjectFile);
-					Result.ObjectFiles.Add(ObjectFile);
-					FileArguments.Add(string.Format("-o \"{0}\"", NormalizeCommandLinePath(ObjectFile)));
-					OutputFilePath = ObjectFile.AbsolutePath;
-				}
-
-				// Add the source file path to the command-line.
-				FileArguments.Add(string.Format("\"{0}\"", NormalizeCommandLinePath(SourceFile)));
-
-				// Generate the timing info
-				if (CompileEnvironment.bPrintTimingInfo)
-				{
-					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
-					FileArguments.Add("-ftime-trace");
-					CompileAction.ProducedItems.Add(TraceFile);
-				}
-
-				// Generate the included header dependency list
-				if (CompileEnvironment.bGenerateDependenciesFile)
-				{
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					FileArguments.Add(string.Format("-MD -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.ProducedItems.Add(DependencyListFile);
-				}
+				// Add C or C++ specific compiler arguments.
+				GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
 
 				string CompilerPath = Settings.Value.ToolchainDir + IOSCompiler;
 
 				// Gets the target file so we can get the correct output path.
-				FileItem TargetFile = CompileAction.ProducedItems[0];
+				FileItem TargetFile = CompileAction.ProducedItems.First();
 
 				// Creates the path to the response file using the name of the output file and creates its contents.
 				FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
 				List<string> ResponseFileContents = new();
-				ResponseFileContents.AddRange(FilePCHArguments);
 				ResponseFileContents.AddRange(GlobalArguments);
 				ResponseFileContents.AddRange(FileArguments);
 				if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
@@ -639,9 +545,10 @@ namespace UnrealBuildTool
 
 				// Analyze and then compile using the shell to perform the indirection
 				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-				if (StaticAnalysisMode != null && StaticAnalysisMode != "" && OutputFilePath != null)
+				if (StaticAnalysisMode != null && StaticAnalysisMode != "")
 				{
-					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + OutputFilePath.Replace(".o", ".html") + "; " + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + "\"";
+					FileReference ReportFile = new FileReference(SourceFile.AbsolutePath + ".html");
+					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + ReportFile + "; " + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + "\"";
 					CompilerPath = "/bin/sh";
 				}
 
