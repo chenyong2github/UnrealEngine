@@ -8,6 +8,9 @@ using System.Text;
 
 namespace EpicGames.Core
 {
+	/// <summary>
+	/// Interface for serializing to a memory buffer
+	/// </summary>
 	public interface IMemoryWriter
 	{
 		/// <summary>
@@ -46,7 +49,6 @@ namespace EpicGames.Core
 		/// <summary>
 		/// Checks that we've used the exact buffer length
 		/// </summary>
-		/// <param name="expectedOffset">Expected offset within the output buffer</param>
 		public void CheckEmpty()
 		{
 			if (_memory.Length > 0)
