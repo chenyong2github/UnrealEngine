@@ -14,7 +14,7 @@ namespace UnrealBuildTool
 		protected override void GetValidSoftwareVersionRange(out string MinVersion, out string? MaxVersion)
 		{
 			// what is our min IOS version?
-			MinVersion = "12.0";
+			MinVersion = "14.0";
 			MaxVersion = null;
 		}
 	}
