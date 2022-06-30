@@ -15,9 +15,9 @@
 namespace TraceServices
 {
 
-FStatsAnalyzer::FStatsAnalyzer(IAnalysisSession& InSession, ICounterProvider& InCounterProvider)
+FStatsAnalyzer::FStatsAnalyzer(IAnalysisSession& InSession, IEditableCounterProvider& InEditableCounterProvider)
 	: Session(InSession)
-	, CounterProvider(InCounterProvider)
+	, EditableCounterProvider(InEditableCounterProvider)
 {
 }
 
@@ -48,11 +48,11 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 		case RouteId_Spec:
 		{
 			uint32 StatId = EventData.GetValue<uint32>("Id");
-			IEditableCounter* Counter = CountersMap.FindRef(StatId);
-			if (!Counter)
+			IEditableCounter* EditableCounter = EditableCountersMap.FindRef(StatId);
+			if (!EditableCounter)
 			{
-				Counter = CounterProvider.CreateCounter();
-				CountersMap.Add(StatId, Counter);
+				EditableCounter = EditableCounterProvider.CreateEditableCounter();
+				EditableCountersMap.Add(StatId, EditableCounter);
 			}
 
 			FString Name;
@@ -74,23 +74,45 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				UE_LOG(LogTraceServices, Warning, TEXT("Invalid counter name for Stats counter %u."), StatId);
 				Name = FString::Printf(TEXT("<noname stats counter %u>"), StatId);
 			}
-			Counter->SetName(Session.StoreString(*Name));
+			EditableCounter->SetName(Session.StoreString(*Name));
 
 			if (!Group.IsEmpty())
 			{
-				Counter->SetGroup(Session.StoreString(*Group));
+				EditableCounter->SetGroup(Session.StoreString(*Group));
 			}
-			Counter->SetDescription(Session.StoreString(*Description));
+			EditableCounter->SetDescription(Session.StoreString(*Description));
 
-			Counter->SetIsFloatingPoint(EventData.GetValue<bool>("IsFloatingPoint"));
-			Counter->SetIsResetEveryFrame(EventData.GetValue<bool>("ShouldClearEveryFrame"));
+			bool bIsFloatingPoint = EventData.GetValue<bool>("IsFloatingPoint");
+			EditableCounter->SetIsFloatingPoint(bIsFloatingPoint);
+			
+			bool bIsResetEveryFrame = EventData.GetValue<bool>("ShouldClearEveryFrame");
+			EditableCounter->SetIsResetEveryFrame(bIsResetEveryFrame);
+			if (bIsResetEveryFrame)
+			{
+				if (bIsFloatingPoint)
+				{
+					IEditableCounter* ResetEveryFrameEditableCounter = FloatResetEveryFrameCountersMap.FindRef(StatId);
+					if (!ResetEveryFrameEditableCounter)
+					{
+						FloatResetEveryFrameCountersMap.Add(StatId, EditableCounter);
+					}
+				}
+				else
+				{
+					IEditableCounter* ResetEveryFrameEditableCounter = Int64ResetEveryFrameCountersMap.FindRef(StatId);
+					if (!ResetEveryFrameEditableCounter)
+					{
+						Int64ResetEveryFrameCountersMap.Add(StatId, EditableCounter);
+					}
+				}
+			}
 
 			ECounterDisplayHint DisplayHint = CounterDisplayHint_None;
 			if (EventData.GetValue<bool>("IsMemory"))
 			{
 				DisplayHint = CounterDisplayHint_Memory;
 			}
-			Counter->SetDisplayHint(DisplayHint);
+			EditableCounter->SetDisplayHint(DisplayHint);
 			break;
 		}
 
@@ -116,13 +138,13 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 
 				uint64 DecodedIdAndOp = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
 				uint32 StatId = DecodedIdAndOp >> 3;
-				IEditableCounter* Counter = CountersMap.FindRef(StatId);
-				if (!Counter)
+				IEditableCounter* EditableCounter = EditableCountersMap.FindRef(StatId);
+				if (!EditableCounter)
 				{
-					Counter = CounterProvider.CreateCounter();
+					EditableCounter = EditableCounterProvider.CreateEditableCounter();
 					FString Name = FString::Printf(TEXT("<unknown stats counter %u>"), StatId);
-					Counter->SetName(Session.StoreString(*Name));
-					CountersMap.Add(StatId, Counter);
+					EditableCounter->SetName(Session.StoreString(*Name));
+					EditableCountersMap.Add(StatId, EditableCounter);
 				}
 
 				uint8 Op = DecodedIdAndOp & 0x7;
@@ -135,27 +157,27 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 				{
 				case Increment:
 				{
-					Counter->AddValue(Time, int64(1));
+					EditableCounter->AddValue(Time, int64(1));
 					STATS_ANALYZER_DEBUG_LOG(StatId, TEXT("%f INC() %u"), Time, ThreadId);
 					break;
 				}
 				case Decrement:
 				{
-					Counter->AddValue(Time, int64(-1));
+					EditableCounter->AddValue(Time, int64(-1));
 					STATS_ANALYZER_DEBUG_LOG(StatId, TEXT("%f DEC() %u"), Time, ThreadId);
 					break;
 				}
 				case AddInteger:
 				{
 					int64 Amount = FTraceAnalyzerUtils::DecodeZigZag(BufferPtr);
-					Counter->AddValue(Time, Amount);
+					EditableCounter->AddValue(Time, Amount);
 					STATS_ANALYZER_DEBUG_LOG(StatId, TEXT("%f ADD(%lli) %u"), Time, Amount, ThreadId);
 					break;
 				}
 				case SetInteger:
 				{
 					int64 Value = FTraceAnalyzerUtils::DecodeZigZag(BufferPtr);
-					Counter->SetValue(Time, Value);
+					EditableCounter->SetValue(Time, Value);
 					STATS_ANALYZER_DEBUG_LOG(StatId, TEXT("%f SET(%lli) %u"), Time, Value, ThreadId);
 					break;
 				}
@@ -164,7 +186,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 					double Amount;
 					memcpy(&Amount, BufferPtr, sizeof(double));
 					BufferPtr += sizeof(double);
-					Counter->AddValue(Time, Amount);
+					EditableCounter->AddValue(Time, Amount);
 					STATS_ANALYZER_DEBUG_LOG(StatId, TEXT("%f ADD(%f) %u"), Time, Amount, ThreadId);
 					break;
 				}
@@ -173,7 +195,7 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 					double Value;
 					memcpy(&Value, BufferPtr, sizeof(double));
 					BufferPtr += sizeof(double);
-					Counter->SetValue(Time, Value);
+					EditableCounter->SetValue(Time, Value);
 					STATS_ANALYZER_DEBUG_LOG(StatId, TEXT("%f SET(%f) %u"), Time, Value, ThreadId);
 					break;
 				}
@@ -192,20 +214,15 @@ bool FStatsAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext
 			{
 				uint64 Cycle = EventData.GetValue<uint64>("Cycle");
 				double Time = Context.EventTime.AsSeconds(Cycle);
-				for (auto& KV : CountersMap)
+				for (auto& KV : FloatResetEveryFrameCountersMap)
 				{
-					if (KV.Value->IsResetEveryFrame())
-					{
-						STATS_ANALYZER_DEBUG_LOG(KV.Key, TEXT("%f RESET"), Time);
-						if (KV.Value->IsFloatingPoint())
-						{
-							KV.Value->SetValue(Time, 0.0);
-						}
-						else
-						{
-							KV.Value->SetValue(Time, (int64)0);
-						}
-					}
+					STATS_ANALYZER_DEBUG_LOG(KV.Key, TEXT("%f RESET"), Time);
+					KV.Value->SetValue(Time, 0.0);
+				}
+				for (auto& KV : Int64ResetEveryFrameCountersMap)
+				{
+					STATS_ANALYZER_DEBUG_LOG(KV.Key, TEXT("%f RESET"), Time);
+					KV.Value->SetValue(Time, 0ll);
 				}
 			}
 			break;
@@ -236,23 +253,15 @@ void FStatsAnalyzer::CreateFrameCounters()
 
 	FAnalysisSessionEditScope _(Session);
 
-	TMap<uint32, IEditableCounter*> ResetEveryFrameCountersMap;
-
-	for (auto& KV : CountersMap)
+	auto CreateFrameCounter = [this](IEditableCounter* EditableCounter, const ICounter*& Counter, IEditableCounter*& FrameCounter)
 	{
-		uint32 StatId = KV.Key;
-		IEditableCounter* Counter = KV.Value;
-
-		if (Counter->IsResetEveryFrame())
+		Counter = EditableCounterProvider.GetCounter(EditableCounter);
+		if (!Counter)
 		{
-			ResetEveryFrameCountersMap.Add(StatId, Counter);
+			return;
 		}
-	}
 
-	for (auto& KV : ResetEveryFrameCountersMap)
-	{
-		IEditableCounter* Counter = KV.Value;
-		IEditableCounter* FrameCounter = CounterProvider.CreateCounter();
+		FrameCounter = EditableCounterProvider.CreateEditableCounter();
 
 		FString FrameCounterName = FString(Counter->GetName()) + TEXT(" (1/frame)");
 		FrameCounter->SetName(Session.StoreString(*FrameCounterName));
@@ -268,49 +277,66 @@ void FStatsAnalyzer::CreateFrameCounters()
 		FrameCounter->SetIsFloatingPoint(Counter->IsFloatingPoint());
 		FrameCounter->SetIsResetEveryFrame(false);
 		FrameCounter->SetDisplayHint(Counter->GetDisplayHint());
+	};
 
-		constexpr double InfiniteTime = std::numeric_limits<double>::infinity();
+	constexpr double InfiniteTime = std::numeric_limits<double>::infinity();
 
-		if (Counter->IsFloatingPoint())
+	for (auto& KV : FloatResetEveryFrameCountersMap)
+	{
+		const ICounter* Counter = nullptr;
+		IEditableCounter* FrameCounter = nullptr;
+		CreateFrameCounter(KV.Value, Counter, FrameCounter);
+		if (!FrameCounter)
 		{
-			bool bFirst = true;
-			double FrameTime = 0.0;
-			double FrameValue = 0.0;
-			Counter->EnumerateFloatValues(-InfiniteTime, InfiniteTime, false, [FrameCounter, &bFirst, &FrameTime, &FrameValue](double Time, double Value)
-				{
-					if (bFirst && Value != 0.0)
-					{
-						bFirst = false;
-						FrameCounter->SetValue(Time, 0.0);
-					}
-					if (Value == 0.0 && FrameValue != 0.0)
-					{
-						FrameCounter->SetValue(FrameTime, FrameValue);
-					}
-					FrameTime = Time;
-					FrameValue = Value;
-				});
+			continue;
 		}
-		else
+
+		bool bFirst = true;
+		double FrameTime = 0.0;
+		double FrameValue = 0.0;
+		Counter->EnumerateFloatValues(-InfiniteTime, InfiniteTime, false, [FrameCounter, &bFirst, &FrameTime, &FrameValue](double Time, double Value)
+			{
+				if (bFirst && Value != 0.0)
+				{
+					bFirst = false;
+					FrameCounter->SetValue(Time, 0.0);
+				}
+				if (Value == 0.0 && FrameValue != 0.0)
+				{
+					FrameCounter->SetValue(FrameTime, FrameValue);
+				}
+				FrameTime = Time;
+				FrameValue = Value;
+			});
+	}
+
+	for (auto& KV : Int64ResetEveryFrameCountersMap)
+	{
+		const ICounter* Counter = nullptr;
+		IEditableCounter* FrameCounter = nullptr;
+		CreateFrameCounter(KV.Value, Counter, FrameCounter);
+		if (!FrameCounter)
 		{
-			bool bFirst = true;
-			double FrameTime = 0.0;
-			int64 FrameValue = 0;
-			Counter->EnumerateValues(-InfiniteTime, InfiniteTime, false, [FrameCounter, &bFirst, &FrameTime, &FrameValue](double Time, int64 Value)
-				{
-					if (bFirst && Value != 0)
-					{
-						bFirst = false;
-						FrameCounter->SetValue(Time, (int64)0);
-					}
-					if (Value == 0 && FrameValue != 0)
-					{
-						FrameCounter->SetValue(FrameTime, FrameValue);
-					}
-					FrameTime = Time;
-					FrameValue = Value;
-				});
+			continue;
 		}
+
+		bool bFirst = true;
+		double FrameTime = 0.0;
+		int64 FrameValue = 0;
+		Counter->EnumerateValues(-InfiniteTime, InfiniteTime, false, [FrameCounter, &bFirst, &FrameTime, &FrameValue](double Time, int64 Value)
+			{
+				if (bFirst && Value != 0)
+				{
+					bFirst = false;
+					FrameCounter->SetValue(Time, (int64)0);
+				}
+				if (Value == 0 && FrameValue != 0)
+				{
+					FrameCounter->SetValue(FrameTime, FrameValue);
+				}
+				FrameTime = Time;
+				FrameValue = Value;
+			});
 	}
 }
 

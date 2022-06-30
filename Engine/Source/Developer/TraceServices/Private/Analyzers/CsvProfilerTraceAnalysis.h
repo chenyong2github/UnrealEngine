@@ -13,14 +13,14 @@ namespace TraceServices
 class IAnalysisSession;
 class IFrameProvider;
 class IThreadProvider;
-class ICounterProvider;
+class IEditableCounterProvider;
 class IEditableCounter;
 
 class FCsvProfilerAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
-	FCsvProfilerAnalyzer(IAnalysisSession& Session, FCsvProfilerProvider& CsvProfilerProvider, ICounterProvider& CounterProvider, const IFrameProvider& FrameProvider, const IThreadProvider& ThreadProvider);
+	FCsvProfilerAnalyzer(IAnalysisSession& Session, FCsvProfilerProvider& CsvProfilerProvider, IEditableCounterProvider& EditableCounterProvider, const IFrameProvider& FrameProvider, const IThreadProvider& ThreadProvider);
 	~FCsvProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -130,7 +130,7 @@ private:
 	
 	IAnalysisSession& Session;
 	FCsvProfilerProvider& CsvProfilerProvider;
-	ICounterProvider& CounterProvider;
+	IEditableCounterProvider& EditableCounterProvider;
 	const IFrameProvider& FrameProvider;
 	const IThreadProvider& ThreadProvider;
 

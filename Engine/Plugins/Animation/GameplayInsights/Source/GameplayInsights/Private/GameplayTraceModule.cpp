@@ -16,9 +16,9 @@ void FGameplayTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleIn
 
 void FGameplayTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
-	FGameplayProvider* GameplayProvider = new FGameplayProvider(InSession);
+	TSharedPtr<FGameplayProvider> GameplayProvider = MakeShared<FGameplayProvider>(InSession);
 	InSession.AddProvider(FGameplayProvider::ProviderName, GameplayProvider);
-	FAnimationProvider* AnimationProvider = new FAnimationProvider(InSession, *GameplayProvider);
+	TSharedPtr<FAnimationProvider> AnimationProvider = MakeShared<FAnimationProvider>(InSession, *GameplayProvider);
 	InSession.AddProvider(FAnimationProvider::ProviderName, AnimationProvider);
 
 	InSession.AddAnalyzer(new FAnimationAnalyzer(InSession, *AnimationProvider));

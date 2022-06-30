@@ -219,4 +219,9 @@ const IThreadProvider& ReadThreadProvider(const IAnalysisSession& Session)
 	return *Session.ReadProvider<IThreadProvider>(FThreadProvider::ProviderName);
 }
 
+IEditableThreadProvider& EditThreadProvider(IAnalysisSession& Session)
+{
+	return *Session.EditProvider<IEditableThreadProvider>(FThreadProvider::ProviderName);
+}
+
 } // namespace TraceServices

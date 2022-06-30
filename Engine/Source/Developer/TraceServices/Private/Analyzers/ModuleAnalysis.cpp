@@ -64,10 +64,11 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 				if (Context.EventData.GetString("SymbolFormat", SymbolFormat))
 				{
 					check(Provider == nullptr); // Should only get one init message
-					Provider = CreateModuleProvider(Session, SymbolFormat);
-					if (Provider)
+					TSharedPtr<IModuleAnalysisProvider> ModuleProvider = CreateModuleProvider(Session, SymbolFormat);
+					if (ModuleProvider)
 					{
-						Session.AddProvider(GetModuleProviderName(), Provider);
+						Session.AddProvider(GetModuleProviderName(), ModuleProvider);
+						Provider = ModuleProvider.Get();
 					}
 				}
 			}

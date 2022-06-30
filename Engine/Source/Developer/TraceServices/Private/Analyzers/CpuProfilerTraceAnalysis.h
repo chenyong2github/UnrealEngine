@@ -5,19 +5,21 @@
 #include "Trace/Analyzer.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "Model/TimingProfilerPrivate.h"
+#include "TraceServices/Model/TimingProfiler.h"
+#include "Model/MonotonicTimeline.h"
 
 namespace TraceServices
 {
 
 class IAnalysisSession;
-class FThreadProvider;
+class IEditableTimingProfilerProvider;
+class IEditableThreadProvider;
 
 class FCpuProfilerAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
-	FCpuProfilerAnalyzer(IAnalysisSession& Session, FTimingProfilerProvider& TimingProfilerProvider, FThreadProvider& InThreadProvider);
+	FCpuProfilerAnalyzer(IAnalysisSession& Session, IEditableTimingProfilerProvider& InEditableTimingProfilerProvider, IEditableThreadProvider& InEditableThreadProvider);
 	~FCpuProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd(/*const FOnAnalysisEndContext& Context*/) override;
@@ -41,7 +43,7 @@ private:
 		uint32 ThreadId = 0;
 		TArray<FEventScopeState> ScopeStack;
 		TArray<FPendingEvent> PendingEvents;
-		FTimingProfilerProvider::TimelineInternal* Timeline = nullptr;
+		IEditableTimeline<FTimingProfilerEvent>* Timeline = nullptr;
 		uint64 LastCycle = 0;
 	};
 
@@ -69,8 +71,8 @@ private:
 	};
 
 	IAnalysisSession& Session;
-	FTimingProfilerProvider& TimingProfilerProvider;
-	FThreadProvider& ThreadProvider;
+	IEditableTimingProfilerProvider& EditableTimingProfilerProvider;
+	IEditableThreadProvider& EditableThreadProvider;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
 	TMap<uint32, uint32> SpecIdToTimerIdMap;
 	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;

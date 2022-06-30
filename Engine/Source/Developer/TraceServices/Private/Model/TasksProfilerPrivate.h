@@ -91,7 +91,7 @@ namespace TraceServices
 		// a bool that is set when the counters are created
 		bool bCountersCreated = false;
 
-		ICounterProvider& CounterProvider;
+		IEditableCounterProvider& EditableCounterProvider;
 		IEditableCounter* TaskLatencyCounter;
 		IEditableCounter* WaitingForPrerequisitesTasksCounter;
 		IEditableCounter* ScheduledTasksCounter;

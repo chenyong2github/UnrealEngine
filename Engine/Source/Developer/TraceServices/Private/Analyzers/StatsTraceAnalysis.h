@@ -9,14 +9,16 @@ namespace TraceServices
 {
 
 class IAnalysisSession;
-class IEditableCounter;
+class ICounter;
 class ICounterProvider;
+class IEditableCounter;
+class IEditableCounterProvider;
 
 class FStatsAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
-	FStatsAnalyzer(IAnalysisSession& Session, ICounterProvider& CounterProvider);
+	FStatsAnalyzer(IAnalysisSession& Session, IEditableCounterProvider& InEditableCounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
@@ -41,8 +43,10 @@ private:
 	TSharedRef<FThreadState> GetThreadState(uint32 ThreadId);
 
 	IAnalysisSession& Session;
-	ICounterProvider& CounterProvider;
-	TMap<uint32, IEditableCounter*> CountersMap;
+	IEditableCounterProvider& EditableCounterProvider;
+	TMap<uint32, IEditableCounter*> EditableCountersMap;
+	TMap<uint32, IEditableCounter*> Int64ResetEveryFrameCountersMap;
+	TMap<uint32, IEditableCounter*> FloatResetEveryFrameCountersMap;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStatesMap;
 };
 

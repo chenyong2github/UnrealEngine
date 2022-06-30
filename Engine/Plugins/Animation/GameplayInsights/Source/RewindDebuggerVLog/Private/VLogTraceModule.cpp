@@ -14,7 +14,7 @@ void FVLogTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo)
 
 void FVLogTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
-	FVisualLoggerProvider* VisualLoggerProvider = new FVisualLoggerProvider(InSession);
+	TSharedPtr<FVisualLoggerProvider> VisualLoggerProvider = MakeShared<FVisualLoggerProvider>(InSession);
 	InSession.AddProvider(FVisualLoggerProvider::ProviderName, VisualLoggerProvider);
 
 	InSession.AddAnalyzer(new FVisualLoggerAnalyzer(InSession, *VisualLoggerProvider));

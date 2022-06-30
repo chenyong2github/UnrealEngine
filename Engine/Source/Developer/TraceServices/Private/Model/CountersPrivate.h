@@ -190,7 +190,8 @@ private:
 };
 
 class FCounter
-	: public IEditableCounter
+	: public ICounter
+	, public IEditableCounter
 {
 public:
 	FCounter(ILinearAllocator& Allocator, const TArray64<double>& FrameStartTimes);
@@ -228,6 +229,7 @@ private:
 
 class FCounterProvider
 	: public ICounterProvider
+	, public IEditableCounterProvider
 {
 public:
 	static const FName ProviderName;
@@ -237,7 +239,10 @@ public:
 	virtual uint64 GetCounterCount() const override { return Counters.Num(); }
 	virtual void EnumerateCounters(TFunctionRef<void(uint32, const ICounter&)> Callback) const override;
 	virtual bool ReadCounter(uint32 CounterId, TFunctionRef<void(const ICounter&)> Callback) const override;
-	virtual IEditableCounter* CreateCounter() override;
+
+	// implement IEditableCounterProvider
+	virtual const ICounter* GetCounter(IEditableCounter* EditableCounter) override;
+	virtual IEditableCounter* CreateEditableCounter() override;
 	virtual void AddCounter(const ICounter* Counter) override;
 
 private:

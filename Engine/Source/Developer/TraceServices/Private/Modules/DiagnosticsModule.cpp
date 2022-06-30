@@ -17,10 +17,10 @@ void FDiagnosticsModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FDiagnosticsModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FDiagnosticsProvider* DiagnosticsProvider = new FDiagnosticsProvider(Session);
+	TSharedPtr<FDiagnosticsProvider> DiagnosticsProvider = MakeShared<FDiagnosticsProvider>(Session);
 	Session.AddProvider(GetDiagnosticsProviderName(), DiagnosticsProvider);
 
-	Session.AddAnalyzer(new FDiagnosticsAnalyzer(Session, DiagnosticsProvider));
+	Session.AddAnalyzer(new FDiagnosticsAnalyzer(Session, DiagnosticsProvider.Get()));
 }
 
 void FDiagnosticsModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)

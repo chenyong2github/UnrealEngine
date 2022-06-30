@@ -13,7 +13,7 @@ namespace TraceServices
 {
 	FTasksProvider::FTasksProvider(IAnalysisSession& InSession)
 		: Session(InSession)
-		, CounterProvider(EditCounterProvider(Session))
+		, EditableCounterProvider(EditCounterProvider(Session))
 	{
 #if 0
 		////////////////////////////////
@@ -61,32 +61,32 @@ namespace TraceServices
 		check(bCountersCreated == false);
 		FAnalysisSessionEditScope _(Session);
 
-		WaitingForPrerequisitesTasksCounter = CounterProvider.CreateCounter();
+		WaitingForPrerequisitesTasksCounter = EditableCounterProvider.CreateEditableCounter();
 		WaitingForPrerequisitesTasksCounter->SetName(TEXT("Tasks::WaitingForPrerequisitesTasks"));
 		WaitingForPrerequisitesTasksCounter->SetDescription(TEXT("Tasks: the number of tasks waiting for prerequisites (blocked by dependency)"));
 		WaitingForPrerequisitesTasksCounter->SetIsFloatingPoint(false);
 
-		TaskLatencyCounter = CounterProvider.CreateCounter();
+		TaskLatencyCounter = EditableCounterProvider.CreateEditableCounter();
 		TaskLatencyCounter->SetName(TEXT("Tasks::TaskLatency"));
 		TaskLatencyCounter->SetDescription(TEXT("Tasks: tasks latency - the time from scheduling to execution start"));
 		TaskLatencyCounter->SetIsFloatingPoint(true);
 
-		ScheduledTasksCounter = CounterProvider.CreateCounter();
+		ScheduledTasksCounter = EditableCounterProvider.CreateEditableCounter();
 		ScheduledTasksCounter->SetName(TEXT("Tasks::ScheduledTasks"));
 		ScheduledTasksCounter->SetDescription(TEXT("Tasks: number of scheduled tasks excluding named threads (the size of the queue)"));
 		ScheduledTasksCounter->SetIsFloatingPoint(false);
 
-		NamedThreadsScheduledTasksCounter = CounterProvider.CreateCounter();
+		NamedThreadsScheduledTasksCounter = EditableCounterProvider.CreateEditableCounter();
 		NamedThreadsScheduledTasksCounter->SetName(TEXT("Tasks::NamedThreadsScheduledTasks"));
 		NamedThreadsScheduledTasksCounter->SetDescription(TEXT("Tasks: number of scheduled tasks for named threads"));
 		NamedThreadsScheduledTasksCounter->SetIsFloatingPoint(false);
 
-		RunningTasksCounter = CounterProvider.CreateCounter();
+		RunningTasksCounter = EditableCounterProvider.CreateEditableCounter();
 		RunningTasksCounter->SetName(TEXT("Tasks::RunningTasks"));
 		RunningTasksCounter->SetDescription(TEXT("Tasks: level of parallelism - the number of tasks being executed"));
 		RunningTasksCounter->SetIsFloatingPoint(false);
 
-		ExecutionTimeCounter = CounterProvider.CreateCounter();
+		ExecutionTimeCounter = EditableCounterProvider.CreateEditableCounter();
 		ExecutionTimeCounter->SetName(TEXT("Tasks::ExecutionTime"));
 		ExecutionTimeCounter->SetDescription(TEXT("Tasks: execution time"));
 		ExecutionTimeCounter->SetIsFloatingPoint(true);

@@ -26,6 +26,7 @@ struct FBookmarkInternal
 
 class FBookmarkProvider
 	: public IBookmarkProvider
+	, public IEditableBookmarkProvider
 {
 public:
 	static const FName ProviderName;
@@ -35,18 +36,22 @@ public:
 
 	FBookmarkSpec& GetSpec(uint64 BookmarkPoint);
 	virtual uint64 GetBookmarkCount() const override { return Bookmarks.Num(); }
-	void AppendBookmark(double Time, uint64 BookmarkPoint, const uint8* FormatArgs);
 	virtual void EnumerateBookmarks(double IntervalStart, double IntervalEnd, TFunctionRef<void(const FBookmark&)> Callback) const override;
 
+	// implement IEditableBookmarkProvider
+	virtual void UpdateBookmarkSpec(uint64 BookmarkPoint, const TCHAR* FormatString, const TCHAR* File, int32 Line) override;
+	virtual void AppendBookmark(uint64 BookmarkPoint, double Time, const uint8* FormatArgs) override;
+	virtual void AppendBookmark(uint64 BookmarkPoint, double Time, const TCHAR* Text) override;
+
 private:
+	IAnalysisSession& Session;
+	TMap<uint64, TSharedPtr<FBookmarkSpec>> SpecMap;
+	TArray<TSharedRef<FBookmarkInternal>> Bookmarks;
+
 	enum
 	{
 		FormatBufferSize = 65536
 	};
-
-	IAnalysisSession& Session;
-	TMap<uint64, TSharedPtr<FBookmarkSpec>> SpecMap;
-	TArray<TSharedRef<FBookmarkInternal>> Bookmarks;
 	TCHAR FormatBuffer[FormatBufferSize];
 	TCHAR TempBuffer[FormatBufferSize];
 };

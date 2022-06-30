@@ -92,9 +92,9 @@ void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateFloatValues(double
 	}
 }
 
-FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession, ICounterProvider& InCounterProvider)
+FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession, IEditableCounterProvider& InEditableCounterProvider)
 	: Session(InSession)
-	, CounterProvider(InCounterProvider)
+	, EditableCounterProvider(InEditableCounterProvider)
 	, ClassInfos(Session.GetLinearAllocator(), 16384)
 	, Requests(Session.GetLinearAllocator(), 16384)
 	, Packages(Session.GetLinearAllocator(), 16384)
@@ -568,20 +568,20 @@ void FLoadTimeProfilerProvider::CreateCounters()
 	{
 		for (int32 CounterType = 0; CounterType < FLoaderFrameCounter::LoaderFrameCounterType_Count; ++CounterType)
 		{
-			CounterProvider.AddCounter(new FLoaderFrameCounter(FLoaderFrameCounter::ELoaderFrameCounterType(CounterType), Frames));
+			EditableCounterProvider.AddCounter(new FLoaderFrameCounter(FLoaderFrameCounter::ELoaderFrameCounterType(CounterType), Frames));
 		}
 
-		ActiveIoDispatcherBatchesCounter = CounterProvider.CreateCounter();
+		ActiveIoDispatcherBatchesCounter = EditableCounterProvider.CreateEditableCounter();
 		ActiveIoDispatcherBatchesCounter->SetName(TEXT("AssetLoading/IoDispatcher/ActiveBatches"));
 
-		TotalIoDispatcherBytesReadCounter = CounterProvider.CreateCounter();
+		TotalIoDispatcherBytesReadCounter = EditableCounterProvider.CreateEditableCounter();
 		TotalIoDispatcherBytesReadCounter->SetName(TEXT("AssetLoading/IoDispatcher/TotalBytesRead"));
 		TotalIoDispatcherBytesReadCounter->SetDisplayHint(CounterDisplayHint_Memory);
 
-		LoadingPackagesCounter = CounterProvider.CreateCounter();
+		LoadingPackagesCounter = EditableCounterProvider.CreateEditableCounter();
 		LoadingPackagesCounter->SetName(TEXT("AssetLoading/AsyncLoading/ActiveLoadingPackages"));
 
-		TotalLoaderBytesLoadedCounter = CounterProvider.CreateCounter();
+		TotalLoaderBytesLoadedCounter = EditableCounterProvider.CreateEditableCounter();
 		TotalLoaderBytesLoadedCounter->SetName(TEXT("AssetLoading/AsyncLoading/TotalBytesLoaded"));
 		TotalLoaderBytesLoadedCounter->SetDisplayHint(CounterDisplayHint_Memory);
 

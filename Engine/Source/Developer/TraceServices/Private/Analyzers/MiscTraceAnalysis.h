@@ -12,7 +12,6 @@ namespace TraceServices
 
 class IAnalysisSession;
 class FThreadProvider;
-class FBookmarkProvider;
 class FLogProvider;
 class FFrameProvider;
 class FChannelProvider;
@@ -24,7 +23,6 @@ class FMiscTraceAnalyzer
 public:
 	FMiscTraceAnalyzer(IAnalysisSession& Session,
 					   FThreadProvider& ThreadProvider,
-					   FBookmarkProvider& BookmarkProvider,
 					   FLogProvider& LogProvider,
 					   FFrameProvider& FrameProvider, 
 					   FChannelProvider& ChannelProvider,
@@ -66,13 +64,13 @@ private:
 
 	IAnalysisSession& Session;
 	FThreadProvider& ThreadProvider;
-	FBookmarkProvider& BookmarkProvider;
 	FLogProvider& LogProvider;
 	FFrameProvider& FrameProvider;
 	FChannelProvider& ChannelProvider;
 	FScreenshotProvider& ScreenshotProvider;
 	TMap<uint32, TSharedRef<FThreadState>> ThreadStateMap;
 	uint64 LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
+	uint64 ScreenshotLogCategoryId = uint64(-1);
 };
 
 

@@ -19,7 +19,7 @@ void FSlateTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo)
 
 void FSlateTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
-	FSlateProvider* SlateProvider = new FSlateProvider(InSession);
+	TSharedPtr<FSlateProvider> SlateProvider = MakeShared<FSlateProvider>(InSession);
 	InSession.AddProvider(FSlateProvider::ProviderName, SlateProvider);
 
 	InSession.AddAnalyzer(new FSlateAnalyzer(InSession, *SlateProvider));

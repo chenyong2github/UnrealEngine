@@ -17,22 +17,23 @@ namespace TraceServices
 
 FMiscTraceAnalyzer::FMiscTraceAnalyzer(IAnalysisSession& InSession,
 									   FThreadProvider& InThreadProvider,
-									   FBookmarkProvider& InBookmarkProvider,
 									   FLogProvider& InLogProvider,
 									   FFrameProvider& InFrameProvider,
 									   FChannelProvider& InChannelProvider,
 									   FScreenshotProvider& InScreenshotProvider)
 	: Session(InSession)
 	, ThreadProvider(InThreadProvider)
-	, BookmarkProvider(InBookmarkProvider)
 	, LogProvider(InLogProvider)
 	, FrameProvider(InFrameProvider)
 	, ChannelProvider(InChannelProvider)
 	, ScreenshotProvider(InScreenshotProvider)
 {
-	FLogCategoryInfo& BookmarkLogCategory = LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
-	BookmarkLogCategory.Name = TEXT("LogBookmark");
-	BookmarkLogCategory.DefaultVerbosity = ELogVerbosity::All;
+	// Todo: update this to use provider locking instead of session locking
+	// FProviderEditScopeLock LogProviderLock (LogProvider);
+	FAnalysisSessionEditScope _(Session);
+	ScreenshotLogCategoryId = LogProvider.RegisterCategory();
+	FLogCategoryInfo& ScreenshotLogCategory = LogProvider.GetCategory(ScreenshotLogCategoryId);
+	ScreenshotLogCategory.Name = TEXT("Screenshot");
 }
 
 void FMiscTraceAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
@@ -86,48 +87,6 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 	const auto& EventData = Context.EventData;
 	switch (RouteId)
 	{
-	case RouteId_BookmarkSpec:
-	{
-		uint64 BookmarkPoint = EventData.GetValue<uint64>("BookmarkPoint");
-		FBookmarkSpec& Spec = BookmarkProvider.GetSpec(BookmarkPoint);
-		Spec.Line = EventData.GetValue<int32>("Line");
-
-		FString FileName;
-		if (EventData.GetString("FileName", FileName))
-		{
-			Spec.File = Session.StoreString(*FileName);
-
-			FString FormatString;
-			EventData.GetString("FormatString", FormatString);
-			Spec.FormatString = Session.StoreString(*FormatString);
-		}
-		else
-		{
-			const ANSICHAR* File = reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment());
-			Spec.File = Session.StoreString(ANSI_TO_TCHAR(File));
-			Spec.FormatString = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment() + strlen(File) + 1));
-		}
-
-		FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(BookmarkPoint);
-		LogMessageSpec.Category = &LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Bookmark);
-		LogMessageSpec.Line = Spec.Line;
-		LogMessageSpec.File = Spec.File;
-		LogMessageSpec.FormatString = Spec.FormatString;
-		LogMessageSpec.Verbosity = ELogVerbosity::Log;
-		break;
-	}
-
-	case RouteId_Bookmark:
-	{
-		uint64 BookmarkPoint = EventData.GetValue<uint64>("BookmarkPoint");
-		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-		double Timestamp = Context.EventTime.AsSeconds(Cycle);
-		TArrayView<const uint8> FormatArgsView = FTraceAnalyzerUtils::LegacyAttachmentArray("FormatArgs", Context);
-		BookmarkProvider.AppendBookmark(Timestamp, BookmarkPoint, FormatArgsView.GetData());
-		LogProvider.AppendMessage(BookmarkPoint, Timestamp, FormatArgsView.GetData());
-		break;
-	}
-
 	case RouteId_BeginFrame:
 	{
 		uint64 Cycle = EventData.GetValue<uint64>("Cycle");
@@ -201,8 +160,7 @@ bool FMiscTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventCon
 		Screenshot->Data.Reserve(Screenshot->Size);
 
 		FLogMessageSpec& LogMessageSpec = LogProvider.GetMessageSpec(Cycle);
-		LogMessageSpec.Category = &LogProvider.GetCategory(FLogProvider::ReservedLogCategory_Screenshot);
-		LogMessageSpec.Category->Name = TEXT("Screenshot");
+		LogMessageSpec.Category = &LogProvider.GetCategory(ScreenshotLogCategoryId);
 		LogMessageSpec.Line = Id;
 		LogMessageSpec.File = nullptr;
 		LogMessageSpec.FormatString = nullptr;

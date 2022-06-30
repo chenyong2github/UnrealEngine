@@ -21,7 +21,7 @@ class FLoadTimeProfilerProvider
 public:
 	typedef TMonotonicTimeline<FLoadTimeProfilerCpuEvent> CpuTimelineInternal;
 
-	explicit FLoadTimeProfilerProvider(IAnalysisSession& Session, ICounterProvider& CounterProvider);
+	explicit FLoadTimeProfilerProvider(IAnalysisSession& Session, IEditableCounterProvider& EditableCounterProvider);
 	virtual ~FLoadTimeProfilerProvider() {}
 
 	virtual uint64 GetTimelineCount() const override { return CpuTimelines.Num(); }
@@ -100,7 +100,7 @@ private:
 	};
 
 	IAnalysisSession& Session;
-	ICounterProvider& CounterProvider;
+	IEditableCounterProvider& EditableCounterProvider;
 	TPagedArray<FClassInfo> ClassInfos;
 	TPagedArray<FLoadRequest> Requests;
 	TPagedArray<FPackageInfo> Packages;

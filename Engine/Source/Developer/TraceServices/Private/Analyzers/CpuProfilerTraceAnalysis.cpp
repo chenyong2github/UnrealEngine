@@ -20,10 +20,10 @@ namespace TraceServices
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(IAnalysisSession& InSession, FTimingProfilerProvider& InTimingProfilerProvider, FThreadProvider& InThreadProvider)
+FCpuProfilerAnalyzer::FCpuProfilerAnalyzer(IAnalysisSession& InSession, IEditableTimingProfilerProvider& InEditableTimingProfilerProvider, IEditableThreadProvider& InEditableThreadProvider)
 	: Session(InSession)
-	, TimingProfilerProvider(InTimingProfilerProvider)
-	, ThreadProvider(InThreadProvider)
+	, EditableTimingProfilerProvider(InEditableTimingProfilerProvider)
+	, EditableThreadProvider(InEditableThreadProvider)
 {
 }
 
@@ -422,7 +422,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBufferV2(const FEventTime& EventTime, FThrea
 						CborWriter.WriteValue("C", 1); // continuation?
 						CborWriter.WriteValue(false);
 					}
-					uint32 MetadataTimerId = TimingProfilerProvider.AddMetadata(CoroutineTimerId, MoveTemp(CborData));
+					uint32 MetadataTimerId = EditableTimingProfilerProvider.AddMetadata(CoroutineTimerId, MoveTemp(CborData));
 
 					FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
 					ScopeState.StartCycle = ActualCycle;
@@ -483,7 +483,7 @@ uint64 FCpuProfilerAnalyzer::ProcessBufferV2(const FEventTime& EventTime, FThrea
 					if (ThreadState.ScopeStack.Num() > 0)
 					{
 						uint32 MetadataTimerId = ThreadState.ScopeStack.Top().EventTypeId;
-						TArrayView<const uint8> Metadata = TimingProfilerProvider.GetMetadata(MetadataTimerId);
+						TArrayView<const uint8> Metadata = EditableTimingProfilerProvider.GetMetadata(MetadataTimerId);
 						// Change the last byte in metadata to "true".
 						const_cast<uint8*>(Metadata.GetData())[Metadata.Num() - 1] = (uint8)(ECborCode::Prim | ECborCode::True);
 					}
@@ -658,7 +658,7 @@ void FCpuProfilerAnalyzer::OnCpuScopeEnter(const FOnEventContext& Context)
 
 	TArray<uint8> CborData;
 	Context.EventData.SerializeToCbor(CborData);
-	TimerId = TimingProfilerProvider.AddMetadata(TimerId, MoveTemp(CborData));
+	TimerId = EditableTimingProfilerProvider.AddMetadata(TimerId, MoveTemp(CborData));
 
 	uint64 Cycle = Context.EventTime.AsCycle64();
 	ThreadState.PendingEvents.Add({Cycle, TimerId});
@@ -699,7 +699,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, const
 		{
 			// Yes, SpecId was already mapped to a timer (ex. as an <unknown> timer).
 			// Update name for mapped timer.
-			TimingProfilerProvider.SetTimerNameAndLocation(*FindTimerId, Name, File, Line);
+			EditableTimingProfilerProvider.SetTimerNameAndLocation(*FindTimerId, Name, File, Line);
 			// In this case, we do not remap the SpecId to the previously defined timer with same name.
 			// This is becasue the two timers are already used in timelines.
 			// So we will continue to use separate timers, even if those have same name.
@@ -721,7 +721,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, const
 		{
 			// Yes, SpecId was already mapped to a timer (ex. as an <unknown> timer).
 			// Update name for mapped timer.
-			TimingProfilerProvider.SetTimerNameAndLocation(*FindTimerId, Name, File, Line);
+			EditableTimingProfilerProvider.SetTimerNameAndLocation(*FindTimerId, Name, File, Line);
 			if (bMergeByName)
 			{
 				// Map the name to the timer.
@@ -732,7 +732,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, const
 		else
 		{
 			// Define a new Cpu timer.
-			uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(Name, File, Line);
+			uint32 NewTimerId = EditableTimingProfilerProvider.AddCpuTimer(Name, File, Line);
 			// Map the SpecId to the timer.
 			SpecIdToTimerIdMap.Add(SpecId, NewTimerId);
 			if (bMergeByName)
@@ -750,7 +750,7 @@ uint32 FCpuProfilerAnalyzer::DefineTimer(uint32 SpecId, const TCHAR* Name, const
 uint32 FCpuProfilerAnalyzer::DefineNewTimerChecked(uint32 SpecId, const TCHAR* TimerName, const TCHAR* File, uint32 Line)
 {
 	TimerName = Session.StoreString(TimerName);
-	uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(TimerName, File, Line);
+	uint32 NewTimerId = EditableTimingProfilerProvider.AddCpuTimer(TimerName, File, Line);
 	SpecIdToTimerIdMap.Add(SpecId, NewTimerId);
 	return NewTimerId;
 }
@@ -781,12 +781,12 @@ FCpuProfilerAnalyzer::FThreadState& FCpuProfilerAnalyzer::GetThreadState(uint32 
 	{
 		ThreadState = new FThreadState();
 		ThreadState->ThreadId = ThreadId;
-		ThreadState->Timeline = &TimingProfilerProvider.EditCpuThreadTimeline(ThreadId);
+		ThreadState->Timeline = &EditableTimingProfilerProvider.GetCpuThreadEditableTimeline(ThreadId);
 		ThreadStatesMap.Add(ThreadId, ThreadState);
 
 		// Just in case the rest of Insight's reporting/analysis doesn't know about
 		// this thread, we'll explicitly add it. For fault tolerance.
-		ThreadProvider.AddThread(ThreadId, nullptr, TPri_Normal);
+		EditableThreadProvider.AddThread(ThreadId, nullptr, TPri_Normal);
 	}
 	return *ThreadState;
 }

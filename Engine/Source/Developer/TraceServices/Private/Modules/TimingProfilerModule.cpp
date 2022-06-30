@@ -23,12 +23,13 @@ void FTimingProfilerModule::OnAnalysisBegin(IAnalysisSession& InSession)
 {
 	FAnalysisSession& Session = static_cast<FAnalysisSession&>(InSession);
 	
-	auto* ThreadProvider = Session.EditProvider<FThreadProvider>(FThreadProvider::ProviderName);
-	check(ThreadProvider != nullptr);
+	IEditableThreadProvider* EditableThreadProvider = Session.EditProvider<IEditableThreadProvider>(FThreadProvider::ProviderName);
+	check(EditableThreadProvider != nullptr);
 
-	FTimingProfilerProvider* TimingProfilerProvider = new FTimingProfilerProvider(Session);
-	Session.AddProvider(TimingProfilerProviderName, TimingProfilerProvider);
-	Session.AddAnalyzer(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider, *ThreadProvider));
+	// see comment in FAnalysisService::StartAnalysis for details
+	TSharedPtr<FTimingProfilerProvider> TimingProfilerProvider = MakeShared<FTimingProfilerProvider>(Session);
+	Session.AddProvider(TimingProfilerProviderName, TSharedPtr<ITimingProfilerProvider>(TimingProfilerProvider), TSharedPtr<IEditableTimingProfilerProvider>(TimingProfilerProvider));
+	Session.AddAnalyzer(new FCpuProfilerAnalyzer(Session, *TimingProfilerProvider, *EditableThreadProvider));
 	Session.AddAnalyzer(new FGpuProfilerAnalyzer(Session, *TimingProfilerProvider));
 }
 
@@ -41,6 +42,11 @@ void FTimingProfilerModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
 const ITimingProfilerProvider* ReadTimingProfilerProvider(const IAnalysisSession& Session)
 {
 	return Session.ReadProvider<ITimingProfilerProvider>(TimingProfilerProviderName);
+}
+
+IEditableTimingProfilerProvider* EditTimingProfilerProvider(IAnalysisSession& Session)
+{
+	return Session.EditProvider<IEditableTimingProfilerProvider>(TimingProfilerProviderName);
 }
 
 } // namespace TraceServices

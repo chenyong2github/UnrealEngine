@@ -467,19 +467,20 @@ void FResolvedSymbolFilter::Update(FResolvedSymbol& InSymbol) const
 }
 
 /////////////////////////////////////////////////////////////////////
-IModuleAnalysisProvider* CreateModuleProvider(IAnalysisSession& InSession, const FAnsiStringView& InSymbolFormat)
+TSharedPtr<IModuleAnalysisProvider> CreateModuleProvider(IAnalysisSession& InSession, const FAnsiStringView& InSymbolFormat)
 {
-	IModuleAnalysisProvider* Provider(nullptr);
+	TSharedPtr<IModuleAnalysisProvider> Provider;
+
 #if PLATFORM_WINDOWS && USE_SYMSLIB
 	if (!Provider && (InSymbolFormat.Equals("pdb") || InSymbolFormat.Equals("dwarf")))
 	{
-		Provider = new TModuleProvider<FSymslibResolver>(InSession);
+		Provider = MakeShared<TModuleProvider<FSymslibResolver>>(InSession);
 	}
 #endif // PLATFORM_WINDOWS && USE_SYMSLIB
 #if PLATFORM_WINDOWS && USE_DBGHELP
 	if (!Provider && InSymbolFormat.Equals("pdb"))
 	{
-		Provider = new TModuleProvider<FDbgHelpResolver>(InSession);
+		Provider = MakeShared<TModuleProvider<FDbgHelpResolver>>(InSession);
 	}
 #endif // PLATFORM_WINDOWS && USE_DBGHELP
 	return Provider;

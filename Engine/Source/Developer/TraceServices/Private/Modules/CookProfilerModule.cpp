@@ -19,7 +19,7 @@ void FCookProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FCookProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FCookProfilerProvider* CookProfilerProvider = new FCookProfilerProvider(Session);
+	TSharedPtr<FCookProfilerProvider> CookProfilerProvider = MakeShared<FCookProfilerProvider>(Session);
 	Session.AddProvider(CookProfilerProviderName, CookProfilerProvider);
 	Session.AddAnalyzer(new FCookAnalyzer(Session, *CookProfilerProvider));
 }

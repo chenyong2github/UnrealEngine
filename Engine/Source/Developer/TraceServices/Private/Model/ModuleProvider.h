@@ -19,6 +19,6 @@ public:
 };
 
 /** Create a module provider with the given symbol format. */
-IModuleAnalysisProvider* CreateModuleProvider(IAnalysisSession& Session, const FAnsiStringView& SymbolFormat);
+TSharedPtr<IModuleAnalysisProvider> CreateModuleProvider(IAnalysisSession& Session, const FAnsiStringView& SymbolFormat);
 
 } // namespace TraceServices

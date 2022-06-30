@@ -13,6 +13,7 @@ namespace TraceServices
 
 class FThreadProvider
 	: public IThreadProvider
+	, public IEditableThreadProvider
 {
 public:
 	static const FName ProviderName;
@@ -21,7 +22,7 @@ public:
 	virtual ~FThreadProvider();
 
 	void AddGameThread(uint32 Id);
-	void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority);
+	virtual void AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority) override;
 	void SetThreadPriority(uint32 Id, EThreadPriority Priority);
 	void SetThreadGroup(uint32 Id, const TCHAR* GroupName);
 	virtual uint64 GetModCount() const override { return ModCount; }

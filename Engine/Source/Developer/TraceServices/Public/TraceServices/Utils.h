@@ -39,4 +39,7 @@ inline TArrayView<const uint8> LegacyAttachmentArray(
 }
 
 } // namespace FTraceAnalyzerUtils
+
+TRACESERVICES_API void StringFormat(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const TCHAR* FormatString, const uint8* FormatArgs);
+
 } // namespace TraceServices

@@ -1,9 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TraceServices/Model/Bookmarks.h"
+#include "Common/FormatArgs.h"
 #include "Model/BookmarksPrivate.h"
 #include "AnalysisServicePrivate.h"
-#include "Common/FormatArgs.h"
 
 namespace TraceServices
 {
@@ -19,28 +19,46 @@ FBookmarkProvider::FBookmarkProvider(IAnalysisSession& InSession)
 FBookmarkSpec& FBookmarkProvider::GetSpec(uint64 BookmarkPoint)
 {
 	Session.WriteAccessCheck();
-	if (SpecMap.Contains(BookmarkPoint))
+	TSharedPtr<FBookmarkSpec>* Found = SpecMap.Find(BookmarkPoint);
+	if (Found)
 	{
-		return *SpecMap[BookmarkPoint].Get();
+		return *Found->Get();
 	}
-	else
-	{
-		TSharedPtr<FBookmarkSpec> Spec = MakeShared<FBookmarkSpec>();
-		Spec->File = TEXT("<unknown>");
-		Spec->FormatString = TEXT("<unknown>");
-		SpecMap.Add(BookmarkPoint, Spec);
-		return *Spec.Get();
-	}
+
+	TSharedPtr<FBookmarkSpec> Spec = MakeShared<FBookmarkSpec>();
+	Spec->File = TEXT("<unknown>");
+	Spec->FormatString = TEXT("<unknown>");
+	SpecMap.Add(BookmarkPoint, Spec);
+	return *Spec.Get();
 }
 
-void FBookmarkProvider::AppendBookmark(double Time, uint64 BookmarkPoint, const uint8* FormatArgs)
+void FBookmarkProvider::UpdateBookmarkSpec(uint64 BookmarkPoint, const TCHAR* FormatString, const TCHAR* File, int32 Line)
 {
 	Session.WriteAccessCheck();
-	FBookmarkSpec& Spec = GetSpec(BookmarkPoint);
+	FBookmarkSpec& BookmarkSpec = GetSpec(BookmarkPoint);
+	BookmarkSpec.FormatString = FormatString;
+	BookmarkSpec.File = File;
+	BookmarkSpec.Line = Line;
+}
+
+void FBookmarkProvider::AppendBookmark(uint64 BookmarkPoint, double Time, const uint8* FormatArgs)
+{
+	Session.WriteAccessCheck();
+	FBookmarkSpec Spec = GetSpec(BookmarkPoint);
+	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, Spec.FormatString, FormatArgs);
 	TSharedRef<FBookmarkInternal> Bookmark = MakeShared<FBookmarkInternal>();
 	Bookmark->Time = Time;
-	FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, Spec.FormatString, FormatArgs);
 	Bookmark->Text = Session.StoreString(FormatBuffer);
+	Bookmarks.Add(Bookmark);
+	Session.UpdateDurationSeconds(Time);
+}
+
+void FBookmarkProvider::AppendBookmark(uint64 BookmarkPoint, double Time, const TCHAR* Text)
+{
+	Session.WriteAccessCheck();
+	TSharedRef<FBookmarkInternal> Bookmark = MakeShared<FBookmarkInternal>();
+	Bookmark->Time = Time;
+	Bookmark->Text = Text;
 	Bookmarks.Add(Bookmark);
 	Session.UpdateDurationSeconds(Time);
 }
@@ -83,6 +101,11 @@ void FBookmarkProvider::EnumerateBookmarks(double IntervalStart, double Interval
 const IBookmarkProvider& ReadBookmarkProvider(const IAnalysisSession& Session)
 {
 	return *Session.ReadProvider<IBookmarkProvider>(FBookmarkProvider::ProviderName);
+}
+
+IEditableBookmarkProvider& EditBookmarkProvider(IAnalysisSession& Session)
+{
+	return *Session.EditProvider<IEditableBookmarkProvider>(FBookmarkProvider::ProviderName);
 }
 
 } // namespace TraceServices

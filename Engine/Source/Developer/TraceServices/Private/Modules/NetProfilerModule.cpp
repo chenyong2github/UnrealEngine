@@ -18,7 +18,7 @@ void FNetProfilerModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 
 void FNetProfilerModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	FNetProfilerProvider* NetProfilerProvider = new FNetProfilerProvider(Session);
+	TSharedPtr<FNetProfilerProvider> NetProfilerProvider = MakeShared<FNetProfilerProvider>(Session);
 	Session.AddProvider(GetNetProfilerProviderName(), NetProfilerProvider);
 
 	Session.AddAnalyzer(new FNetTraceAnalyzer(Session, *NetProfilerProvider));

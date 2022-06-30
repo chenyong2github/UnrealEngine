@@ -12,10 +12,10 @@
 namespace TraceServices
 {
 
-FCsvProfilerAnalyzer::FCsvProfilerAnalyzer(IAnalysisSession& InSession, FCsvProfilerProvider& InCsvProfilerProvider, ICounterProvider& InCounterProvider, const IFrameProvider& InFrameProvider, const IThreadProvider& InThreadProvider)
+FCsvProfilerAnalyzer::FCsvProfilerAnalyzer(IAnalysisSession& InSession, FCsvProfilerProvider& InCsvProfilerProvider, IEditableCounterProvider& InEditableCounterProvider, const IFrameProvider& InFrameProvider, const IThreadProvider& InThreadProvider)
 	: Session(InSession)
 	, CsvProfilerProvider(InCsvProfilerProvider)
-	, CounterProvider(InCounterProvider)
+	, EditableCounterProvider(InEditableCounterProvider)
 	, FrameProvider(InFrameProvider)
 	, ThreadProvider(InThreadProvider)
 {
@@ -286,7 +286,7 @@ FCsvProfilerAnalyzer::FStatSeriesInstance& FCsvProfilerAnalyzer::GetStatSeries(u
 	const TCHAR* StatSeriesName = GetStatSeriesName(Definition, Type, ThreadState, false);
 	Instance->ProviderHandle = CsvProfilerProvider.AddSeries(StatSeriesName, Type);
 	Instance->ProviderCountHandle = CsvProfilerProvider.AddSeries(GetStatSeriesName(Definition, Type, ThreadState, true), CsvStatSeriesType_CustomStatInt);
-	Instance->Counter = CounterProvider.CreateCounter();
+	Instance->Counter = EditableCounterProvider.CreateEditableCounter();
 	Instance->Counter->SetName(StatSeriesName);
 	Instance->Counter->SetIsFloatingPoint(Type != CsvStatSeriesType_CustomStatInt);
 	Instance->Type = Type;

@@ -17,7 +17,7 @@ void FTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModuleInfo)
 void FTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
 	// Add our provider and analyzer, starting our systems
-	FTraceProvider* PoseSearchProvider = new FTraceProvider(InSession);
+	TSharedPtr<FTraceProvider> PoseSearchProvider = MakeShared<FTraceProvider>(InSession);
 	InSession.AddProvider(FTraceProvider::ProviderName, PoseSearchProvider);
 	InSession.AddAnalyzer(new FTraceAnalyzer(InSession, *PoseSearchProvider));
 }

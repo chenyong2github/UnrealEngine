@@ -42,6 +42,12 @@ FLogProvider::FLogProvider(IAnalysisSession& InSession)
 		AddColumn(&FLogMessageInternal::Message, TEXT("Message"));
 }
 
+uint64 FLogProvider::RegisterCategory()
+{
+	static uint64 IdGenerator = 0;
+	return IdGenerator++;
+}
+
 FLogCategoryInfo& FLogProvider::GetCategory(uint64 CategoryPointer)
 {
 	Session.WriteAccessCheck();
@@ -74,6 +80,46 @@ FLogMessageSpec& FLogProvider::GetMessageSpec(uint64 LogPoint)
 	}
 }
 
+void FLogProvider::UpdateMessageCategory(uint64 LogPoint, uint64 InCategoryPointer)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec& LogMessageSpec = GetMessageSpec(LogPoint);
+	LogMessageSpec.Category = &GetCategory(InCategoryPointer);
+}
+
+void FLogProvider::UpdateMessageFormatString(uint64 LogPoint, const TCHAR* InFormatString)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec& LogMessageSpec = GetMessageSpec(LogPoint);
+	LogMessageSpec.FormatString = InFormatString;
+}
+
+void FLogProvider::UpdateMessageFile(uint64 LogPoint, const TCHAR* InFile, int32 InLine)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec& LogMessageSpec = GetMessageSpec(LogPoint);
+	LogMessageSpec.File = InFile;
+	LogMessageSpec.Line = InLine;
+}
+
+void FLogProvider::UpdateMessageVebosity(uint64 LogPoint, ELogVerbosity::Type InVerbosity)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec& LogMessageSpec = GetMessageSpec(LogPoint);
+	LogMessageSpec.Verbosity = InVerbosity;
+}
+
+void FLogProvider::UpdateMessageSpec(uint64 LogPoint, uint64 InCategoryPointer, const TCHAR* InFormatString, const TCHAR* InFile, int32 InLine, ELogVerbosity::Type InVerbosity)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec& LogMessageSpec = GetMessageSpec(LogPoint);
+	LogMessageSpec.Category = &GetCategory(InCategoryPointer);
+	LogMessageSpec.FormatString = InFormatString;
+	LogMessageSpec.File = InFile;
+	LogMessageSpec.Line = InLine;
+	LogMessageSpec.Verbosity = InVerbosity;
+}
+
 void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs)
 {
 	Session.WriteAccessCheck();
@@ -85,6 +131,20 @@ void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const uint8* Form
 		InternalMessage.Spec = *FindSpec;
 		FFormatArgsHelper::Format(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, InternalMessage.Spec->FormatString, FormatArgs);
 		InternalMessage.Message = Session.StoreString(FormatBuffer);
+		Session.UpdateDurationSeconds(Time);
+	}
+}
+
+void FLogProvider::AppendMessage(uint64 LogPoint, double Time, const TCHAR* Text)
+{
+	Session.WriteAccessCheck();
+	FLogMessageSpec** FindSpec = SpecMap.Find(LogPoint);
+	if (FindSpec && (*FindSpec)->Verbosity != ELogVerbosity::SetColor)
+	{
+		FLogMessageInternal& InternalMessage = Messages.PushBack();
+		InternalMessage.Time = Time;
+		InternalMessage.Spec = *FindSpec;
+		InternalMessage.Message = Text;
 		Session.UpdateDurationSeconds(Time);
 	}
 }
@@ -186,6 +246,11 @@ void FLogProvider::EnumerateCategories(TFunctionRef<void(const FLogCategoryInfo&
 const ILogProvider& ReadLogProvider(const IAnalysisSession& Session)
 {
 	return *Session.ReadProvider<ILogProvider>(FLogProvider::ProviderName);
+}
+
+IEditableLogProvider& EditLogProvider(IAnalysisSession& Session)
+{
+	return *Session.EditProvider<IEditableLogProvider>(FLogProvider::ProviderName);
 }
 
 void FormatString(TCHAR* OutputString, uint32 OutputStringCount, const TCHAR* FormatString, const uint8* FormatArgs)

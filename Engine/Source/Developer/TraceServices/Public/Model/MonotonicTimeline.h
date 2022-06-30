@@ -29,9 +29,35 @@ struct FMonotonicTimelineDefaultSettings
 	}
 };
 
+/*
+* An interface that can consume timed serial events (a timeline).
+*/
+template<typename InEventType>
+class IEditableTimeline
+{
+public:
+	virtual ~IEditableTimeline() = default;
+
+	/*
+	* Begin a new timed event.
+	* 
+	* @param StartTime	The starting timestamp of the event in seconds.
+	* @param Event		The event information.
+	*/
+	virtual void AppendBeginEvent(double StartTime, const InEventType& Event) = 0;
+
+	/*
+	* End a new timed event. This ends the event started by the prior call to AppendBeginEvent.
+	* 
+	* @param EndTime	The ending timestamp of the event in seconds.
+	*/
+	virtual void AppendEndEvent(double EndTime) = 0;
+};
+
 template<typename InEventType, typename SettingsType = FMonotonicTimelineDefaultSettings>
 class TMonotonicTimeline
 	: public ITimeline<InEventType>
+	, public IEditableTimeline<InEventType>
 {
 	friend class FEnumerateAsyncTask<InEventType, SettingsType>;
 
@@ -55,7 +81,7 @@ public:
 
 	virtual ~TMonotonicTimeline() = default;
 
-	void AppendBeginEvent(double StartTime, const EventType& Event)
+	virtual void AppendBeginEvent(double StartTime, const EventType& Event) override
 	{
 		int32 CurrentDepth = DetailLevels[0].InsertionState.CurrentDepth;
 		if (CurrentDepth >= SettingsType::MaxDepth)
@@ -121,7 +147,7 @@ public:
 		++ModCount;
 	}
 
-	void AppendEndEvent(double EndTime)
+	virtual void AppendEndEvent(double EndTime) override
 	{
 		if (ExtraDepthEvents > 0)
 		{

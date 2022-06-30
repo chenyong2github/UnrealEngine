@@ -13,41 +13,23 @@
 #include "Misc/Crc.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
+#include "ProfilingDebugging/CountersTrace.h"
 #include "String/ParseTokens.h"
 #include "Trace/Analysis.h"
-#include "Trace/Analyzer.h"
 #include "Trace/DataStream.h"
-#include "TraceServices/Model/Log.h"
+#include "TraceServices/AnalyzerFactories.h"
 #include "TraceServices/Utils.h"
-#include "ProfilingDebugging/CountersTrace.h"
-
-/*
- * The following could be in TraceServices. This way if the format of CPU scope
- * events change this interface acts as a compatibility contract for external
- * tools. In the future it may be in a separate library so that Trace and
- * Insights' instrumentation are more broadly available.
- */
-
-static uint64 Decode7bit(const uint8*& Cursor)
-{
-	uint64 Value = 0;
-	uint64 ByteIndex = 0;
-	bool bHasMoreBytes;
-	do
-	{
-		uint8 ByteValue = *Cursor++;
-		bHasMoreBytes = ByteValue & 0x80;
-		Value |= uint64(ByteValue & 0x7f) << (ByteIndex * 7);
-		++ByteIndex;
-	} 	while (bHasMoreBytes);
-	return Value;
-}
+#include "TraceServices/Model/AnalysisSession.h"
+#include "TraceServices/Model/Bookmarks.h"
+#include "TraceServices/Model/Counters.h"
+#include "TraceServices/Model/Threads.h"
+#include "TraceServices/Model/TimingProfiler.h"
 
 /**
  * Base class to extend for CPU scope analysis. Derived class instances are meant to be registered as
- * delegates to the FCpuScopeStreamProcessor to handle scope events and perform meaningful analysis.
+ * delegates to the FSummarizeCpuProfilerProvider to handle scope events and perform meaningful analysis.
  */
-class FCpuScopeAnalyzer
+class FSummarizeCpuScopeAnalyzer
 {
 public:
 	enum class EScopeEventType : uint32
@@ -73,13 +55,13 @@ public:
 	};
 
 public:
-	virtual ~FCpuScopeAnalyzer() = default;
+	virtual ~FSummarizeCpuScopeAnalyzer() = default;
 
 	/** Invoked when a CPU scope is discovered. This function is always invoked first when a CPU scope is encountered for the first time.*/
 	virtual void OnCpuScopeDiscovered(uint32 ScopeId) {}
 
 	/** Invoked when CPU scope specification is encountered in the trace stream. */
-	virtual void OnCpuScopeName(uint32 ScopeId, const FString& ScopeName) {};
+	virtual void OnCpuScopeName(uint32 ScopeId, const FStringView& ScopeName) {};
 
 	/** Invoked when a scope is entered. The scope name might not be known yet. */
 	virtual void OnCpuScopeEnter(const FScopeEvent& ScopeEnter, const FString* ScopeName) {};
@@ -87,8 +69,8 @@ public:
 	/** Invoked when a scope is exited. The scope name might not be known yet. */
 	virtual void OnCpuScopeExit(const FScope& Scope, const FString* ScopeName) {};
 
-	/** Invoked when a root event on the specified thread along with all child events down to the leaves are know. */
-	virtual void OnCpuScopeTree(uint32 ThreadId, const TArray<FCpuScopeAnalyzer::FScopeEvent>& ScopeEvents, const TFunction<const FString*(uint32)>& ScopeLookupNameFn) {};
+	/** Invoked when a root event on the specified thread along with all child events down to the leaves are known. */
+	virtual void OnCpuScopeTree(uint32 ThreadId, const TArray<FSummarizeCpuScopeAnalyzer::FScopeEvent>& ScopeEvents, const TFunction<const FString*(uint32)>& ScopeLookupNameFn) {};
 
 	/** Invoked when the trace stream has been fully consumed/processed. */
 	virtual void OnCpuScopeAnalysisEnd() {};
@@ -103,14 +85,17 @@ public:
  * is to decode the stream only once and let several registered analyzers reuse the small state built up by this processor. This
  * matters when processing very large traces with possibly billions of scope events.
  */
-class FCpuScopeStreamProcessor
-	: public UE::Trace::IAnalyzer
+class FSummarizeCpuProfilerProvider
+	: public TraceServices::IEditableThreadProvider
+	, public TraceServices::IEditableTimingProfilerProvider
 {
 public:
-	FCpuScopeStreamProcessor();
+	FSummarizeCpuProfilerProvider();
 
 	/** Register an analyzer with this processor. The processor decodes the trace stream and invokes the registered analyzers when a CPU scope event occurs.*/
-	void AddCpuScopeAnalyzer(TSharedPtr<FCpuScopeAnalyzer> Analyzer);
+	void AddCpuScopeAnalyzer(TSharedPtr<FSummarizeCpuScopeAnalyzer> Analyzer);
+
+	void AnalysisComplete();
 
 private:
 	struct FScopeEnter
@@ -123,7 +108,7 @@ private:
 	struct FScopeTreeInfo
 	{
 		// Records the current root scope and its children to run analysis that needs to know the parent/child relationship.
-		TArray<FCpuScopeAnalyzer::FScopeEvent> ScopeEvents;
+		TArray<FSummarizeCpuScopeAnalyzer::FScopeEvent> ScopeEvents;
 
 		// Indicates if one of the scope in the current hierarchy is nameless. (Its names specs hasn't been received yet).
 		bool bHasNamelessScopes = false;
@@ -137,7 +122,25 @@ private:
 
 	// For each thread we track what the stack of scopes are, for matching end-to-start
 	struct FThread
+		: public TraceServices::IEditableTimeline<TraceServices::FTimingProfilerEvent>
 	{
+		FThread(uint32 InThreadId, FSummarizeCpuProfilerProvider* InProvider)
+			: ThreadId(InThreadId)
+			, Provider(InProvider)
+		{
+
+		}
+
+		virtual void AppendBeginEvent(double StartTime, const TraceServices::FTimingProfilerEvent& Event) override;
+		virtual void AppendEndEvent(double EndTime) override;
+
+		// The ThreadId of this thread
+		uint32 ThreadId;
+
+		// The provider to forward calls to
+		FSummarizeCpuProfilerProvider* Provider;
+
+		// The current stack state
 		TArray<FScopeEnter> ScopeStack;
 
 		// The events recorded for the current root scope and its children to run analysis that needs to know the parent/child relationship, for example to compute time including childreen and time
@@ -150,532 +153,245 @@ private:
 	};
 
 private:
-	// UE::Trace::IAnalyzer interface.
-	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual void OnAnalysisEnd() override;
-	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
+	// TraceServices::IEditableThreadProvider
+	virtual void					AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority) override;
 
-	// Internal implementation.
-	void OnEventSpec(const FOnEventContext& Context);
-	void OnBatch(const FOnEventContext& Context);
-	void OnBatchV2(const FOnEventContext& Context);
-	void OnCpuScopeSpec(uint32 ScopeId, const FString* ScopeName);
-	void OnCpuScopeEnter(uint32 ScopeId, uint32 ThreadId, double Timestamp);
-	void OnCpuScopeExit(uint32 ThreadId, double Timestamp);
+	// TraceServices::IEditableTimingProfilerProvider
+	virtual uint32					AddCpuTimer(FStringView Name, const TCHAR* File, uint32 Line) override;
+	virtual void					SetTimerNameAndLocation(uint32 TimerId, FStringView Name, const TCHAR* File, uint32 Line) override;
+	virtual uint32					AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata) override;
+	virtual TArrayView<const uint8> GetMetadata(uint32 TimerId) const override;
+	virtual TraceServices::IEditableTimeline<TraceServices::FTimingProfilerEvent>& GetCpuThreadEditableTimeline(uint32 ThreadId) override;
+
+	// Callbacks from FThread to forward calls to Analyzers
+	virtual void AppendBeginEvent(const FSummarizeCpuScopeAnalyzer::FScopeEvent& ScopeEvent);
+	virtual void AppendEndEvent(const FSummarizeCpuScopeAnalyzer::FScope& ScopeEvent, const FString* ScopeName);
+
+	// Processing the ScopeTree once it's complete
 	void OnCpuScopeTree(uint32 ThreadId, const FScopeTreeInfo& ScopeTreeInfo);
-	const FString* LookupScopeName(uint32 ScopeId) { return ScopeId < static_cast<uint32>(ScopeNames.Num()) && ScopeNames[ScopeId] ? &ScopeNames[ScopeId].GetValue() : nullptr; }
+
+	// Resolve a ScopeId to string
+	const FString* LookupScopeName(uint32 ScopeId);
 
 private:
-	// The state at any moment of the threads, indexes are doled out on the process-side
-	TArray<FThread> Threads;
+	// The state at any moment of the threads
+	TMap<uint32, TUniquePtr<FThread>> Threads;
 
 	// The scope names, the array index correspond to the scope Id. If the optional is not set, the scope hasn't been encountered yet.
 	TArray<TOptional<FString>> ScopeNames;
 
 	// List of analyzers to invoke when a scope event is decoded.
-	TArray<TSharedPtr<FCpuScopeAnalyzer>> ScopeAnalyzers;
+	TArray<TSharedPtr<FSummarizeCpuScopeAnalyzer>> ScopeAnalyzers;
 
 	// Scope name lookup function, cached for efficiency.
 	TFunction<const FString*(uint32 ScopeId)> LookupScopeNameFn;
+
+	struct FMetadata
+	{
+		TArray<uint8> Payload;
+		uint32 TimerId;
+	};
+
+	TArray<FMetadata> Metadatas;
 };
 
-enum
-{
-	// CpuProfilerTrace.cpp
-	RouteId_CpuProfiler_EventSpec,
-	RouteId_CpuProfiler_EventBatch,
-	RouteId_CpuProfiler_EndCapture,
-	RouteId_CpuProfiler_EventBatchV2,
-	RouteId_CpuProfiler_EndCaptureV2
-};
-
-FCpuScopeStreamProcessor::FCpuScopeStreamProcessor()
+FSummarizeCpuProfilerProvider::FSummarizeCpuProfilerProvider()
  : LookupScopeNameFn([this](uint32 ScopeId) { return LookupScopeName(ScopeId); })
 {
 }
 
-void FCpuScopeStreamProcessor::AddCpuScopeAnalyzer(TSharedPtr<FCpuScopeAnalyzer> Analyzer)
+void FSummarizeCpuProfilerProvider::AddCpuScopeAnalyzer(TSharedPtr<FSummarizeCpuScopeAnalyzer> Analyzer)
 {
 	ScopeAnalyzers.Add(MoveTemp(Analyzer));
 }
 
-void FCpuScopeStreamProcessor::OnAnalysisBegin(const FOnAnalysisContext& Context)
-{
-	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EventSpec, "CpuProfiler", "EventSpec");
-	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EventBatch, "CpuProfiler", "EventBatch");
-	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EndCapture, "CpuProfiler", "EndCapture");
-	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EventBatchV2, "CpuProfiler", "EventBatchV2");
-	Context.InterfaceBuilder.RouteEvent(RouteId_CpuProfiler_EndCaptureV2, "CpuProfiler", "EndCaptureV2");
-}
-
-void FCpuScopeStreamProcessor::OnAnalysisEnd()
+void FSummarizeCpuProfilerProvider::AnalysisComplete()
 {
 	// Analyze scope trees that contained 'nameless' context when they were captured. Unless the trace was truncated,
 	// all scope names should be known now.
-	uint32 ThreadId = 0;
-	for (FThread& Thread : Threads)
+	for (const auto& Thread : Threads)
 	{
-		for (FScopeTreeInfo& DelayedScopeTree : Threads[ThreadId].DelayedScopeTreeInfo)
+		for (FScopeTreeInfo& DelayedScopeTree : Thread.Value->DelayedScopeTreeInfo)
 		{
 			// Run summary analysis for this delayed hierarchy.
-			OnCpuScopeTree(ThreadId, DelayedScopeTree);
+			OnCpuScopeTree(Thread.Key, DelayedScopeTree);
 		}
-
-		++ThreadId;
 	}
 
-	for (TSharedPtr<FCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
+	for (TSharedPtr<FSummarizeCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
 	{
 		Analyzer->OnCpuScopeAnalysisEnd();
 	}
 }
 
-bool FCpuScopeStreamProcessor::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
+void FSummarizeCpuProfilerProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Priority)
 {
-	switch (RouteId)
+	TUniquePtr<FThread>* Found = Threads.Find(Id);
+	if (!Found)
 	{
-	case RouteId_CpuProfiler_EventSpec:
-		OnEventSpec(Context);
-		break;
-
-	case RouteId_CpuProfiler_EventBatch:
-	case RouteId_CpuProfiler_EndCapture:
-		OnBatch(Context);
-		break;
-	case RouteId_CpuProfiler_EventBatchV2:
-	case RouteId_CpuProfiler_EndCaptureV2:
-		OnBatchV2(Context);
-		break;
-	};
-
-	return true;
-}
-
-void FCpuScopeStreamProcessor::OnEventSpec(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	FString Name;
-	uint32 Id = EventData.GetValue<uint32>("Id");
-	EventData.GetString("Name", Name);
-	OnCpuScopeSpec(Id - 1, &Name);
-}
-
-void FCpuScopeStreamProcessor::OnBatch(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	const FEventTime& EventTime = Context.EventTime;
-
-	uint32 ThreadId = Context.ThreadInfo.GetId();
-
-	TArrayView<const uint8> DataView = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
-	const uint8* Cursor = DataView.GetData();
-	const uint8* End = Cursor + DataView.Num();
-	uint64 LastCycle = 0;
-	while (Cursor < End)
-	{
-		uint64 Value = Decode7bit(Cursor);
-		uint64 Cycle = LastCycle + (Value >> 1);
-		LastCycle = Cycle;
-
-		double TimeStamp = EventTime.AsSeconds(Cycle);
-		if (Value & 1)
-		{
-			uint64 ScopeId = Decode7bit(Cursor);
-			OnCpuScopeEnter(static_cast<uint32>(ScopeId - 1), ThreadId, TimeStamp);
-		}
-		else
-		{
-			OnCpuScopeExit(ThreadId, TimeStamp);
-		}
+		Threads.Add(Id, MakeUnique<FThread>(Id, this));
 	}
 }
 
-void FCpuScopeStreamProcessor::OnBatchV2(const FOnEventContext& Context)
+uint32 FSummarizeCpuProfilerProvider::AddCpuTimer(FStringView Name, const TCHAR* File, uint32 Line)
 {
-	const FEventData& EventData = Context.EventData;
-	const FEventTime& EventTime = Context.EventTime;
+	TOptional<FString> ScopeName;
 
-	uint32 ThreadId = Context.ThreadInfo.GetId();
-
-	TArrayView<const uint8> DataView = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentArray("Data", Context);
-	const uint8* Cursor = DataView.GetData();
-	const uint8* End = Cursor + DataView.Num();
-	uint64 LastCycle = 0;
-	while (Cursor < End)
+	if (!Name.IsEmpty())
 	{
-		uint64 Value = Decode7bit(Cursor);
-		uint64 Cycle = LastCycle + (Value >> 2);
-		LastCycle = Cycle;
-		double TimeStamp = EventTime.AsSeconds(Cycle);
-
-		if (Value & 2ull)
-		{		
-			if (Value & 1ull)			
-			{
-				uint64 CoroutineId = Decode7bit(Cursor);
-				uint32 TimerScopeDepth = Decode7bit(Cursor);
-				OnCpuScopeEnter(FCpuScopeAnalyzer::CoroutineSpecId, ThreadId, TimeStamp);
-				for (uint32 i = 0; i < TimerScopeDepth; ++i)
-				{
-					OnCpuScopeEnter(FCpuScopeAnalyzer::CoroutineUnknownSpecId, ThreadId, TimeStamp);
-				}
-			}
-			else
-			{			
-				uint32 TimerScopeDepth = Decode7bit(Cursor);
-				for (uint32 i = 0; i < TimerScopeDepth; ++i)
-				{
-					OnCpuScopeExit(ThreadId, TimeStamp);
-				}
-				OnCpuScopeExit(ThreadId, TimeStamp);
-			}
-		}
-		else
-		{
-			if (Value & 1)
-			{
-				uint64 ScopeId = Decode7bit(Cursor);
-				OnCpuScopeEnter(static_cast<uint32>(ScopeId - 1), ThreadId, TimeStamp);
-			}
-			else
-			{
-				OnCpuScopeExit(ThreadId, TimeStamp);
-			}
-		}
+		ScopeName.Emplace(FString(Name));
 	}
-}
-
-void FCpuScopeStreamProcessor::OnCpuScopeSpec(uint32 ScopeId, const FString* ScopeName)
-{
-	if (ScopeId >= uint32(ScopeNames.Num()))
-	{
-		uint32 Num = (ScopeId + 128) & ~127;
-		ScopeNames.SetNum(Num);
-	}
-
-	// If the optional is not set, the scope hasn't been encountered yet (Set to a blank names means encountered, but names hasn't be encountered yet)
-	bool bDiscovered = !ScopeNames[ScopeId].IsSet();
-
-	// Store the discovery state (setting the optional) and the actual name if known.
-	ScopeNames[ScopeId].Emplace(ScopeName ? *ScopeName : FString());
+	
+	uint32 TimerId = ScopeNames.Add(ScopeName);
 
 	// Notify the analyzers.
-	for (TSharedPtr<FCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
+	for (TSharedPtr<FSummarizeCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
 	{
-		if (bDiscovered)
+		Analyzer->OnCpuScopeDiscovered(TimerId);
+
+		if (!Name.IsEmpty())
 		{
-			Analyzer->OnCpuScopeDiscovered(ScopeId);
-		}
-		if (ScopeName)
-		{
-			Analyzer->OnCpuScopeName(ScopeId, *ScopeName);
+			Analyzer->OnCpuScopeName(TimerId, Name);
 		}
 	}
+
+	return TimerId;
 }
 
-void FCpuScopeStreamProcessor::OnCpuScopeEnter(uint32 ScopeId, uint32 ThreadId, double Timestamp)
+void FSummarizeCpuProfilerProvider::SetTimerNameAndLocation(uint32 TimerId, FStringView Name, const TCHAR* File, uint32 Line)
 {
-	if (ThreadId >= uint32(Threads.Num()))
-	{
-		Threads.SetNum(ThreadId + 1);
-	}
+	check(TimerId < uint32(ScopeNames.Num()));
+	check(!Name.IsEmpty());
 
-	FCpuScopeAnalyzer::FScopeEvent ScopeEvent{FCpuScopeAnalyzer::EScopeEventType::Enter, ScopeId, ThreadId, Timestamp};
-	Threads[ThreadId].ScopeStack.Add(FScopeEnter{ScopeId, Timestamp});
-	Threads[ThreadId].ScopeTreeInfo.ScopeEvents.Add(ScopeEvent);
-
-	// Scope specs/events can be received out of order depending on engine thread scheduling.
-	if (ScopeId >= static_cast<uint32>(ScopeNames.Num()) || !ScopeNames[ScopeId].IsSet())
-	{
-		// This is a newly discovered scope. Create an entry for it and notify the discovery.
-		OnCpuScopeSpec(ScopeId, nullptr);
-	}
+	ScopeNames[TimerId].Emplace(FString(Name));
 
 	// Notify the registered scope analyzers.
-	for (TSharedPtr<FCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
+	for (TSharedPtr<FSummarizeCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
 	{
-		Analyzer->OnCpuScopeEnter(ScopeEvent, LookupScopeName(ScopeId));
+		Analyzer->OnCpuScopeName(TimerId, Name);
 	}
 }
 
-void FCpuScopeStreamProcessor::OnCpuScopeExit(uint32 ThreadId, double Timestamp)
+uint32 FSummarizeCpuProfilerProvider::AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata)
 {
-	if (ThreadId >= uint32(Threads.Num()) || Threads[ThreadId].ScopeStack.Num() <= 0)
+	uint32 MetadataId = Metadatas.Num();
+	Metadatas.Add({ MoveTemp(Metadata), MasterTimerId });
+	return ~MetadataId;
+}
+
+TArrayView<const uint8> FSummarizeCpuProfilerProvider::GetMetadata(uint32 TimerId) const
+{
+	if (int32(TimerId) >= 0)
+	{
+		return TArrayView<const uint8>();
+	}
+
+	TimerId = ~TimerId;
+	if (TimerId >= uint32(Metadatas.Num()))
+	{
+		return TArrayView<const uint8>();
+	}
+
+	const FMetadata& Metadata = Metadatas[TimerId];
+	return Metadata.Payload;
+}
+
+TraceServices::IEditableTimeline<TraceServices::FTimingProfilerEvent>& FSummarizeCpuProfilerProvider::GetCpuThreadEditableTimeline(uint32 ThreadId)
+{
+	TUniquePtr<FThread>* Found = Threads.Find(ThreadId);
+	if (Found)
+	{
+		return *(Found->Get());
+	}
+
+	return *Threads.Add(ThreadId, MakeUnique<FThread>(ThreadId, this));
+}
+
+void FSummarizeCpuProfilerProvider::FThread::AppendBeginEvent(double StartTime, const TraceServices::FTimingProfilerEvent& Event)
+{
+	FScopeEnter ScopeEnter{ Event.TimerIndex, StartTime };
+	ScopeStack.Add(ScopeEnter);
+
+	FSummarizeCpuScopeAnalyzer::FScopeEvent ScopeEvent{ FSummarizeCpuScopeAnalyzer::EScopeEventType::Enter, Event.TimerIndex, ThreadId, StartTime };
+	ScopeTreeInfo.ScopeEvents.Add(ScopeEvent);
+
+	Provider->AppendBeginEvent(ScopeEvent);
+}
+
+void FSummarizeCpuProfilerProvider::FThread::AppendEndEvent(double EndTime)
+{
+	if (ScopeStack.IsEmpty())
 	{
 		return;
 	}
 
-	FScopeEnter ScopeEnter = Threads[ThreadId].ScopeStack.Pop();
-	
-	Threads[ThreadId].ScopeTreeInfo.ScopeEvents.Add(FCpuScopeAnalyzer::FScopeEvent{FCpuScopeAnalyzer::EScopeEventType::Exit, ScopeEnter.ScopeId, ThreadId, Timestamp});
-	Threads[ThreadId].ScopeTreeInfo.bHasNamelessScopes |= ScopeNames[ScopeEnter.ScopeId].GetValue().IsEmpty();
+	FScopeEnter ScopeEnter = ScopeStack.Pop();
 
-	// Notify the registered scope analyzers.
-	FCpuScopeAnalyzer::FScope Scope{ScopeEnter.ScopeId, ThreadId, ScopeEnter.Timestamp, Timestamp};
-	for (TSharedPtr<FCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
-	{
-		Analyzer->OnCpuScopeExit(Scope, LookupScopeName(ScopeEnter.ScopeId));
-	}
+	FSummarizeCpuScopeAnalyzer::FScopeEvent ScopeEvent{ FSummarizeCpuScopeAnalyzer::EScopeEventType::Exit, ScopeEnter.ScopeId, ThreadId, EndTime };
+	ScopeTreeInfo.ScopeEvents.Add(ScopeEvent);
 
-	// The root scope on this thread just poped out.
-	if (Threads[ThreadId].ScopeStack.IsEmpty())
+	// Check if at this point if the scope has a name
+	const FString* ScopeName = Provider->LookupScopeName(ScopeEnter.ScopeId);
+	ScopeTreeInfo.bHasNamelessScopes |= ScopeName == nullptr || ScopeName->IsEmpty();
+
+	FSummarizeCpuScopeAnalyzer::FScope Scope{ ScopeEnter.ScopeId, ThreadId, ScopeEnter.Timestamp, EndTime };
+	Provider->AppendEndEvent(Scope, ScopeName);
+
+	// The root scope on this thread just popped out.
+	if (ScopeStack.IsEmpty())
 	{
-		if (Threads[ThreadId].ScopeTreeInfo.bHasNamelessScopes)
+		if (ScopeTreeInfo.bHasNamelessScopes)
 		{
 			// Delay the analysis until all the scope names are known.
-			Threads[ThreadId].DelayedScopeTreeInfo.Add(MoveTemp(Threads[ThreadId].ScopeTreeInfo));
+			DelayedScopeTreeInfo.Add(MoveTemp(ScopeTreeInfo));
 		}
 		else
 		{
 			// Run analysis for this scope tree.
-			OnCpuScopeTree(ThreadId, Threads[ThreadId].ScopeTreeInfo);
+			Provider->OnCpuScopeTree(ThreadId, ScopeTreeInfo);
 		}
 
-		Threads[ThreadId].ScopeTreeInfo.Reset();
+		ScopeTreeInfo.Reset();
 	}
 }
 
-void FCpuScopeStreamProcessor::OnCpuScopeTree(uint32 ThreadId, const FScopeTreeInfo& ScopeTreeInfo)
+void FSummarizeCpuProfilerProvider::AppendBeginEvent(const FSummarizeCpuScopeAnalyzer::FScopeEvent& ScopeEvent)
 {
-	for (TSharedPtr<FCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
+	// Notify the registered scope analyzers.
+	for (TSharedPtr<FSummarizeCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
+	{
+		Analyzer->OnCpuScopeEnter(ScopeEvent, LookupScopeName(ScopeEvent.ScopeId));
+	}
+}
+
+void FSummarizeCpuProfilerProvider::AppendEndEvent(const FSummarizeCpuScopeAnalyzer::FScope& Scope, const FString* ScopeName)
+{
+	// Notify the registered scope analyzers.
+	for (TSharedPtr<FSummarizeCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
+	{
+		Analyzer->OnCpuScopeExit(Scope, ScopeName);
+	}
+}
+
+void FSummarizeCpuProfilerProvider::OnCpuScopeTree(uint32 ThreadId, const FScopeTreeInfo& ScopeTreeInfo)
+{
+	// Notify the registered scope analyzers.
+	for (TSharedPtr<FSummarizeCpuScopeAnalyzer>& Analyzer : ScopeAnalyzers)
 	{
 		Analyzer->OnCpuScopeTree(ThreadId, ScopeTreeInfo.ScopeEvents, LookupScopeNameFn);
 	}
 }
 
-/**
- * Base class to extend for counters analysis.
- */
-class FCountersAnalyzer
-	: public UE::Trace::IAnalyzer
+const FString* FSummarizeCpuProfilerProvider::LookupScopeName(uint32 ScopeId)
 {
-public:
-	struct FCounterName
+	if (ScopeId < static_cast<uint32>(ScopeNames.Num()) && ScopeNames[ScopeId])
 	{
-		const TCHAR*		Name;
-		ETraceCounterType	Type;
-		uint16				Id;
-	};
-
-	struct FCounterIntValue
-	{
-		uint16				Id;
-		double				Timestamp;
-		int64				Value;
-	};
-
-	struct FCounterFloatValue
-	{
-		uint16				Id;
-		double				Timestamp;
-		double				Value;
-	};
-
-	virtual void		OnCounterName(const FCounterName& CounterName) = 0;
-	virtual void		OnCounterIntValue(const FCounterIntValue& NewValue) = 0;
-	virtual void		OnCounterFloatValue(const FCounterFloatValue& NewValue) = 0;
-
-private:
-	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool		OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
-	void				OnCountersSpec(const FOnEventContext& Context);
-	void				OnCountersSetValueInt(const FOnEventContext& Context);
-	void				OnCountersSetValueFloat(const FOnEventContext& Context);
-};
-
-enum
-{
-	// CountersTrace.cpp
-	RouteId_Counters_Spec,
-	RouteId_Counters_SetValueInt,
-	RouteId_Counters_SetValueFloat,
-};
-
-void FCountersAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
-{
-	Context.InterfaceBuilder.RouteEvent(RouteId_Counters_Spec, "Counters", "Spec");
-	Context.InterfaceBuilder.RouteEvent(RouteId_Counters_SetValueInt, "Counters", "SetValueInt");
-	Context.InterfaceBuilder.RouteEvent(RouteId_Counters_SetValueFloat, "Counters", "SetValueFloat");
-}
-
-bool FCountersAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
-{
-	switch (RouteId)
-	{
-	case RouteId_Counters_Spec:
-		OnCountersSpec(Context);
-		break;
-
-	case RouteId_Counters_SetValueInt:
-		OnCountersSetValueInt(Context);
-		break;
-
-	case RouteId_Counters_SetValueFloat:
-		OnCountersSetValueFloat(Context);
-		break;
+		return &ScopeNames[ScopeId].GetValue();
 	}
-
-	return true;
+	
+	return nullptr;
 }
 
-void FCountersAnalyzer::OnCountersSpec(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	FString Name;
-	uint16 Id = EventData.GetValue<uint16>("Id");
-	ETraceCounterType Type = static_cast<ETraceCounterType>(EventData.GetValue<uint8>("Type"));
-	EventData.GetString("Name", Name);
-	OnCounterName({ *Name, Type, uint16(Id - 1) });
-}
-
-void FCountersAnalyzer::OnCountersSetValueInt(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	uint16 CounterId = EventData.GetValue<uint16>("CounterId");
-	int64 Value = EventData.GetValue<int64>("Value");
-	uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-	double Timestamp = Context.EventTime.AsSeconds(Cycle);
-	OnCounterIntValue({ uint16(CounterId - 1), Timestamp, Value });
-}
-
-void FCountersAnalyzer::OnCountersSetValueFloat(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	uint16 CounterId = EventData.GetValue<uint16>("CounterId");
-	double Value = EventData.GetValue<double>("Value");
-	uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-	double Timestamp = Context.EventTime.AsSeconds(Cycle);
-	OnCounterFloatValue({ uint16(CounterId - 1), Timestamp, Value });
-}
-
-/**
- * Base class to extend for bookmarks analysis.
- */
-class FBookmarksAnalyzer
-	: public UE::Trace::IAnalyzer
-{
-public:
-	struct FBookmarkSpecEvent
-	{
-		uint64			Id;
-		const TCHAR*	FileName;
-		int32			Line;
-		const TCHAR*	FormatString;
-	};
-
-	struct FBookmarkEvent
-	{
-		uint64					Id;
-		double					Timestamp;
-		TArrayView<const uint8>	FormatArgs;
-	};
-
-	virtual void		OnBookmarkSpecEvent(const FBookmarkSpecEvent& BookmarkSpecEvent) = 0;
-	virtual void		OnBookmarkEvent(const FBookmarkEvent& BookmarkEvent) = 0;
-
-private:
-	virtual void		OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool		OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
-	void				OnBookmarksSpec(const FOnEventContext& Context);
-	void				OnBookmarksBookmark(const FOnEventContext& Context);
-};
-
-enum
-{
-	// MiscTrace.cpp
-	RouteId_Bookmarks_BookmarkSpec,
-	RouteId_Bookmarks_Bookmark,
-};
-
-void FBookmarksAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
-{
-	Context.InterfaceBuilder.RouteEvent(RouteId_Bookmarks_BookmarkSpec, "Misc", "BookmarkSpec");
-	Context.InterfaceBuilder.RouteEvent(RouteId_Bookmarks_Bookmark, "Misc", "Bookmark");
-}
-
-bool FBookmarksAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
-{
-	switch (RouteId)
-	{
-	case RouteId_Bookmarks_BookmarkSpec:
-		OnBookmarksSpec(Context);
-		break;
-
-	case RouteId_Bookmarks_Bookmark:
-		OnBookmarksBookmark(Context);
-		break;
-	}
-
-	return true;
-}
-
-void FBookmarksAnalyzer::OnBookmarksSpec(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	uint64 Id = EventData.GetValue<uint64>("BookmarkPoint");
-	int32 Line = EventData.GetValue<int32>("Line");
-	FString FileName;
-	EventData.GetString("FileName", FileName);
-	FString FormatString;
-	EventData.GetString("FormatString", FormatString);
-	OnBookmarkSpecEvent({ Id, *FileName, Line, *FormatString });
-}
-
-void FBookmarksAnalyzer::OnBookmarksBookmark(const FOnEventContext& Context)
-{
-	const FEventData& EventData = Context.EventData;
-	uint64 Id = EventData.GetValue<uint64>("BookmarkPoint");
-	uint64 Cycle = EventData.GetValue<uint64>("Cycle");
-	double Timestamp = Context.EventTime.AsSeconds(Cycle);
-	TArrayView<const uint8> FormatArgsView = TraceServices::FTraceAnalyzerUtils::LegacyAttachmentArray("FormatArgs", Context);
-	OnBookmarkEvent({ Id, Timestamp, FormatArgsView });
-}
-
-/*
- * This too could be housed elsewhere, along with an API to make it easier to
- * run analysis on trace files. The current model is influenced a little too much
- * on the store model that Insights' browser mode hosts.
- */
-
-class FFileDataStream : public UE::Trace::IInDataStream
-{
-public:
-	FFileDataStream()
-		: Handle(nullptr)
-	{
-	}
-
-	~FFileDataStream()
-	{
-		delete Handle;
-	}
-
-	bool Open(const TCHAR* Path)
-	{
-		Handle = FPlatformFileManager::Get().GetPlatformFile().OpenRead(Path);
-		if (Handle == nullptr)
-		{
-			return false;
-		}
-		Remaining = Handle->Size();
-		return true;
-	}
-
-	virtual int32 Read(void* Data, uint32 Size) override
-	{
-		if (Remaining <= 0 || Handle == nullptr)
-		{
-			return 0;
-		}
-
-		Size = (Size < Remaining) ? Size : Remaining;
-		Remaining -= Size;
-		return Handle->Read((uint8*)Data, Size) ? Size : 0;
-	}
-
-	IFileHandle* Handle;
-	uint64 Remaining;
-};
 
 /*
 * 
@@ -795,6 +511,16 @@ public:
 		VarianceAccumulator = NewVarianceAccumulator;
 	}
 
+	/**
+	* Reset state back to initialized.
+	*/
+	void Reset()
+	{
+		Count = 0;
+		Mean = 0.0;
+		VarianceAccumulator = 0.0;
+	}
+
 private:
 	uint64 Count;
 	double Mean;
@@ -802,7 +528,7 @@ private:
 };
 
 //
-// FSummarizeCpuAnalyzer - Helpers & Analyzers for Cpu channel events
+// Helpers for Cpu channel events
 //
 
 struct FSummarizeScope
@@ -980,15 +706,15 @@ static uint32 GetTypeHash(const FSummarizeScope& Scope)
  * This analyzer aggregates CPU scopes having the same name together, counting the number of occurrences, total duration,
  * average occurrence duration, for each scope name.
  */
-class FSummarizeCpuAnalyzer
-	: public FCpuScopeAnalyzer
+class FSummarizeCpuScopeDurationAnalyzer
+	: public FSummarizeCpuScopeAnalyzer
 {
 public:
-	FSummarizeCpuAnalyzer(TFunction<void(const TArray<FSummarizeScope>&)> InPublishFn);
+	FSummarizeCpuScopeDurationAnalyzer(TFunction<void(const TArray<FSummarizeScope>&)> InPublishFn);
 
 protected:
 	virtual void OnCpuScopeDiscovered(uint32 ScopeId) override;
-	virtual void OnCpuScopeName(uint32 ScopeId, const FString& ScopeName) override;
+	virtual void OnCpuScopeName(uint32 ScopeId, const FStringView& ScopeName) override;
 	virtual void OnCpuScopeExit(const FScope& Scope, const FString* ScopeName) override;
 	virtual void OnCpuScopeAnalysisEnd() override;
 
@@ -999,16 +725,16 @@ private:
 	TFunction<void(const TArray<FSummarizeScope>&)> PublishFn;
 };
 
-FSummarizeCpuAnalyzer::FSummarizeCpuAnalyzer(TFunction<void(const TArray<FSummarizeScope>&)> InPublishFn)
+FSummarizeCpuScopeDurationAnalyzer::FSummarizeCpuScopeDurationAnalyzer(TFunction<void(const TArray<FSummarizeScope>&)> InPublishFn)
 	: PublishFn(MoveTemp(InPublishFn))
 {
-	OnCpuScopeDiscovered(FCpuScopeAnalyzer::CoroutineSpecId);
-	OnCpuScopeDiscovered(FCpuScopeAnalyzer::CoroutineUnknownSpecId);
-	OnCpuScopeName(FCpuScopeAnalyzer::CoroutineSpecId, TEXT("Coroutine"));
-	OnCpuScopeName(FCpuScopeAnalyzer::CoroutineUnknownSpecId, TEXT("<unknown>"));
+	OnCpuScopeDiscovered(FSummarizeCpuScopeAnalyzer::CoroutineSpecId);
+	OnCpuScopeDiscovered(FSummarizeCpuScopeAnalyzer::CoroutineUnknownSpecId);
+	OnCpuScopeName(FSummarizeCpuScopeAnalyzer::CoroutineSpecId, TEXT("Coroutine"));
+	OnCpuScopeName(FSummarizeCpuScopeAnalyzer::CoroutineUnknownSpecId, TEXT("<unknown>"));
 }
 
-void FSummarizeCpuAnalyzer::OnCpuScopeDiscovered(uint32 ScopeId)
+void FSummarizeCpuScopeDurationAnalyzer::OnCpuScopeDiscovered(uint32 ScopeId)
 {
 	if (!Scopes.Find(ScopeId))
 	{
@@ -1016,17 +742,22 @@ void FSummarizeCpuAnalyzer::OnCpuScopeDiscovered(uint32 ScopeId)
 	}
 }
 
-void FSummarizeCpuAnalyzer::OnCpuScopeName(uint32 ScopeId, const FString& ScopeName)
+void FSummarizeCpuScopeDurationAnalyzer::OnCpuScopeName(uint32 ScopeId, const FStringView& ScopeName)
 {
 	Scopes[ScopeId].Name = ScopeName;
 }
 
-void FSummarizeCpuAnalyzer::OnCpuScopeExit(const FScope& Scope, const FString* ScopeName)
+void FSummarizeCpuScopeDurationAnalyzer::OnCpuScopeExit(const FScope& Scope, const FString* ScopeName)
 {
-	Scopes[Scope.ScopeId].AddDuration(Scope.EnterTimestamp, Scope.ExitTimestamp);
+	// This can miss if we are given a metadata timer's index, which is negative signed
+	FSummarizeScope* Found = Scopes.Find(Scope.ScopeId);
+	if (Found)
+	{
+		Found->AddDuration(Scope.EnterTimestamp, Scope.ExitTimestamp);
+	}
 }
 
-void FSummarizeCpuAnalyzer::OnCpuScopeAnalysisEnd()
+void FSummarizeCpuScopeDurationAnalyzer::OnCpuScopeAnalysisEnd()
 {
 	TArray<FSummarizeScope> LocalScopes;
 	// Eliminates scopes that don't have a name. (On scope discovery, the array is expended to creates blank scopes that may never be filled).
@@ -1072,7 +803,7 @@ void FSummarizeCpuAnalyzer::OnCpuScopeAnalysisEnd()
  */
 
 class FSummarizeCpuScopeHierarchyAnalyzer
-	: public FCpuScopeAnalyzer
+	: public FSummarizeCpuScopeAnalyzer
 {
 public:
 	/**
@@ -1094,7 +825,7 @@ public:
 	 * @param ScopeEvents The scopes events containing one root event along with its hierarchy.
 	 * @param InScopeNameLookup Callback function to lookup scope names from scope ID.
 	 */
-	virtual void OnCpuScopeTree(uint32 ThreadId, const TArray<FCpuScopeAnalyzer::FScopeEvent>& ScopeEvents, const TFunction<const FString*(uint32 /*ScopeId*/)>& InScopeNameLookup) override;
+	virtual void OnCpuScopeTree(uint32 ThreadId, const TArray<FSummarizeCpuScopeAnalyzer::FScopeEvent>& ScopeEvents, const TFunction<const FString*(uint32 /*ScopeId*/)>& InScopeNameLookup) override;
 
 	/**
 	 * Invoked to notify that the trace session ended and that the analyzer can publish the statistics gathered.
@@ -1114,7 +845,7 @@ private:
 	// from the 'exclusive' time (itself - duration of immediate children).
 	TMap<FString, FSummarizeScope> ExactNameMatchScopesSummaries;
 
-	// Invoked at the end of the analysis to publich scope summaries.
+	// Invoked at the end of the analysis to publish scope summaries.
 	TFunction<void(const FSummarizeScope&, TArray<FSummarizeScope>&&)> PublishFn;
 };
 
@@ -1125,7 +856,7 @@ FSummarizeCpuScopeHierarchyAnalyzer::FSummarizeCpuScopeHierarchyAnalyzer(const F
 	MatchedScopesSummary.Name = InAnalyzerName;
 }
 
-void FSummarizeCpuScopeHierarchyAnalyzer::OnCpuScopeTree(uint32 ThreadId, const TArray<FCpuScopeAnalyzer::FScopeEvent>& ScopeEvents, const TFunction<const FString*(uint32 /*ScopeId*/)>& InScopeNameLookup)
+void FSummarizeCpuScopeHierarchyAnalyzer::OnCpuScopeTree(uint32 ThreadId, const TArray<FSummarizeCpuScopeAnalyzer::FScopeEvent>& ScopeEvents, const TFunction<const FString*(uint32 /*ScopeId*/)>& InScopeNameLookup)
 {
 	// Scope matching the pattern.
 	struct FMatchScopeEnter
@@ -1139,7 +870,7 @@ void FSummarizeCpuScopeHierarchyAnalyzer::OnCpuScopeTree(uint32 ThreadId, const 
 	TArray<FMatchScopeEnter> ScopeStack;
 
 	// Replay and filter this scope hierarchy to only keep the ones matching the condition/regex. (See class documentation for a visual example)
-	for (const FCpuScopeAnalyzer::FScopeEvent& ScopeEvent : ScopeEvents)
+	for (const FSummarizeCpuScopeAnalyzer::FScopeEvent& ScopeEvent : ScopeEvents)
 	{
 		const FString* ScopeName = InScopeNameLookup(ScopeEvent.ScopeId);
 		if (!ScopeName || !MatchesFn(*ScopeName))
@@ -1147,7 +878,7 @@ void FSummarizeCpuScopeHierarchyAnalyzer::OnCpuScopeTree(uint32 ThreadId, const 
 			continue;
 		}
 
-		if (ScopeEvent.ScopeEventType == FCpuScopeAnalyzer::EScopeEventType::Enter)
+		if (ScopeEvent.ScopeEventType == FSummarizeCpuScopeAnalyzer::EScopeEventType::Enter)
 		{
 			ScopeStack.Emplace(ScopeEvent.ScopeId, ScopeEvent.Timestamp);
 		}
@@ -1200,9 +931,10 @@ void FSummarizeCpuScopeHierarchyAnalyzer::OnCpuScopeAnalysisEnd()
 //
 
 struct FSummarizeCounter
+	: public TraceServices::IEditableCounter
 {
 	FString Name;
-	ETraceCounterType Type;
+	ETraceCounterType Type = TraceCounterType_Int;
 
 	union FValue
 	{
@@ -1221,29 +953,98 @@ struct FSummarizeCounter
 	double FirstSeconds = 0.0;
 	double LastSeconds = 0.0;
 
-	FSummarizeCounter(FString InName, ETraceCounterType InType)
+	FSummarizeCounter()
+	{
+		SetIsFloatingPoint(false);
+	}
+
+	virtual void SetName(const TCHAR* InName) override
 	{
 		Name = InName;
-		Type = InType;
-		switch (Type)
-		{
-			case TraceCounterType_Int:
-				First.Int = 0;
-				Last.Int = 0;
-				Minimum.Int = TNumericLimits<int64>::Max();
-				Maximum.Int = TNumericLimits<int64>::Min();
-				break;
+	}
 
-			case TraceCounterType_Float:
-				First.Float = 0.0;
-				Last.Float = 0.0;
-				Minimum.Float = TNumericLimits<double>::Max();
-				Maximum.Float = TNumericLimits<double>::Min();
-				break;
+	virtual void SetGroup(const TCHAR* Group) override
+	{}
+
+	virtual void SetDescription(const TCHAR* Description) override
+	{}
+
+	virtual void SetIsFloatingPoint(bool bIsFloatingPoint) override
+	{
+		ETraceCounterType Previous = Type;
+
+		if (bIsFloatingPoint)
+		{
+			Type = TraceCounterType_Float;
+			First.Float = 0.0;
+			Last.Float = 0.0;
+			Minimum.Float = TNumericLimits<double>::Max();
+			Maximum.Float = TNumericLimits<double>::Min();
+		}
+		else
+		{
+			Type = TraceCounterType_Int;
+			First.Int = 0;
+			Last.Int = 0;
+			Minimum.Int = TNumericLimits<int64>::Max();
+			Maximum.Int = TNumericLimits<int64>::Min();
+		}
+
+		if (Previous != Type)
+		{
+			Variance.Reset();
+			FirstSeconds = 0.0;
+			LastSeconds = 0.0;
 		}
 	}
 
-	void SetValue(int64 InValue, double InTimestamp)
+	virtual void SetIsResetEveryFrame(bool bInIsResetEveryFrame) override
+	{}
+
+	virtual void SetDisplayHint(TraceServices::ECounterDisplayHint DisplayHint) override
+	{}
+
+	virtual void AddValue(double Time, int64 Value) override
+	{
+		int64 Current;
+		if (Get(Current))
+		{
+			Set(Current + Value, Time);
+		}
+	}
+
+	virtual void AddValue(double Time, double Value) override
+	{
+		double Current;
+		if (Get(Current))
+		{
+			Set(Current + Value, Time);
+		}
+	}
+
+	virtual void SetValue(double Time, int64 Value) override
+	{
+		Set(Value, Time);
+	}
+
+	virtual void SetValue(double Time, double Value) override
+	{
+		Set(Value, Time);
+	}
+
+	bool Get(int64& Value)
+	{
+		ensure(Type == TraceCounterType_Int);
+		if (Type == TraceCounterType_Int)
+		{
+			Value = Last.Int;
+			return true;
+		}
+
+		return false;
+	}
+
+	void Set(int64 InValue, double InTimestamp)
 	{
 		ensure(Type == TraceCounterType_Int);
 		if (Type == TraceCounterType_Int)
@@ -1264,7 +1065,19 @@ struct FSummarizeCounter
 		}
 	}
 
-	void SetValue(double InValue, double InTimestamp)
+	bool Get(double& Value)
+	{
+		ensure(Type == TraceCounterType_Float);
+		if (Type == TraceCounterType_Float)
+		{
+			Value = Last.Float;
+			return true;
+		}
+
+		return false;
+	}
+
+	void Set(double InValue, double InTimestamp)
 	{
 		ensure(Type == TraceCounterType_Float);
 		if (Type == TraceCounterType_Float)
@@ -1385,44 +1198,32 @@ struct FSummarizeCounter
 	}
 };
 
-class FSummarizeCountersAnalyzer
-	: public FCountersAnalyzer
+class FSummarizeCountersProvider
+	: public TraceServices::IEditableCounterProvider
 {
 public:
-	virtual void OnCounterName(const FCounterName& CounterName) override;
-	virtual void OnCounterIntValue(const FCounterIntValue& NewValue) override;
-	virtual void OnCounterFloatValue(const FCounterFloatValue& NewValue) override;
+	const TraceServices::ICounter* GetCounter(TraceServices::IEditableCounter* EditableCounter)
+	{
+		// we don't want derived counters to be created by the analyzer
+		return nullptr;
+	}
 
-	TMap<uint16, FSummarizeCounter> Counters;
+	virtual TraceServices::IEditableCounter* CreateEditableCounter()
+	{
+		Counters.Add(MakeUnique<FSummarizeCounter>());
+		return Counters.Last().Get();
+	}
+
+	virtual void AddCounter(const TraceServices::ICounter* Counter)
+	{
+		// we don't use custom counter objects
+	}
+
+	TArray<TUniquePtr<FSummarizeCounter>> Counters;
 };
 
-void FSummarizeCountersAnalyzer::OnCounterName(const FCounterName& CounterName)
-{
-	Counters.Add(CounterName.Id, FSummarizeCounter(CounterName.Name, CounterName.Type));
-}
-
-void FSummarizeCountersAnalyzer::OnCounterIntValue(const FCounterIntValue& NewValue)
-{
-	FSummarizeCounter* FoundCounter = Counters.Find(NewValue.Id);
-	ensure(FoundCounter);
-	if (FoundCounter)
-	{
-		FoundCounter->SetValue(NewValue.Value, NewValue.Timestamp);
-	}
-}
-
-void FSummarizeCountersAnalyzer::OnCounterFloatValue(const FCounterFloatValue& NewValue)
-{
-	FSummarizeCounter* FoundCounter = Counters.Find(NewValue.Id);
-	ensure(FoundCounter);
-	if (FoundCounter)
-	{
-		FoundCounter->SetValue(NewValue.Value, NewValue.Timestamp);
-	}
-}
-
 //
-// FSummarizeBookmarksAnalyzer - Tally Bookmarks from bookmark events
+// FSummarizeBookmarksProvider - Tally Bookmarks from bookmark events
 //
 
 struct FSummarizeBookmark
@@ -1479,23 +1280,24 @@ static uint32 GetTypeHash(const FSummarizeBookmark& Bookmark)
 	return FCrc::StrCrc32(*Bookmark.Name);
 }
 
-class FSummarizeBookmarksAnalyzer
-	: public FBookmarksAnalyzer
+class FSummarizeBookmarksProvider
+	: public TraceServices::IEditableBookmarkProvider
 {
-	virtual void OnBookmarkSpecEvent(const FBookmarkSpecEvent& BookmarkSpecEvent) override;
-	virtual void OnBookmarkEvent(const FBookmarkEvent& BookmarkEvent) override;
+	virtual void UpdateBookmarkSpec(uint64 BookmarkPoint, const TCHAR* FormatString, const TCHAR* File, int32 Line) override;
+	virtual void AppendBookmark(uint64 BookmarkPoint, double Time, const uint8* FormatString) override;
+	virtual void AppendBookmark(uint64 BookmarkPoint, double Time, const TCHAR* Text) override;
 
+	struct FBookmarkSpec
+	{
+		const TCHAR* File = nullptr;
+		const TCHAR* FormatString = nullptr;
+		int32 Line = 0;
+	};
+
+	FBookmarkSpec& GetSpec(uint64 BookmarkPoint);
 	FSummarizeBookmark* FindStartBookmarkForEndBookmark(const FString& Name);
 
 public:
-	struct FBookmarkSpec
-	{
-		uint64	Id;
-		FString	FileName;
-		int32	Line;
-		FString	FormatString;
-	};
-
 	// Keyed by a unique memory address
 	TMap<uint64, FBookmarkSpec> BookmarkSpecs;
 
@@ -1504,54 +1306,74 @@ public:
 
 	// Bookmarks named formed to scopes, see FindStartBookmarkForEndBookmark
 	TMap<FString, FSummarizeScope> Scopes;
+
+private:
+	enum
+	{
+		FormatBufferSize = 65536
+	};
+	TCHAR FormatBuffer[FormatBufferSize];
+	TCHAR TempBuffer[FormatBufferSize];
 };
 
-void FSummarizeBookmarksAnalyzer::OnBookmarkSpecEvent(const FBookmarkSpecEvent& BookmarkSpecEvent)
+FSummarizeBookmarksProvider::FBookmarkSpec& FSummarizeBookmarksProvider::GetSpec(uint64 BookmarkPoint)
 {
-	BookmarkSpecs.Add(BookmarkSpecEvent.Id, {
-		BookmarkSpecEvent.Id,
-		BookmarkSpecEvent.FileName,
-		BookmarkSpecEvent.Line,
-		BookmarkSpecEvent.FormatString
-		});
+	FBookmarkSpec* Found = BookmarkSpecs.Find(BookmarkPoint);
+	if (Found)
+	{
+		return *Found;
+	}
+
+	FBookmarkSpec& Spec = BookmarkSpecs.Add(BookmarkPoint, FBookmarkSpec());
+	Spec.File = TEXT("<unknown>");
+	Spec.FormatString = TEXT("<unknown>");
+	return Spec;
 }
 
-void FSummarizeBookmarksAnalyzer::OnBookmarkEvent(const FBookmarkEvent& BookmarkEvent)
+void FSummarizeBookmarksProvider::UpdateBookmarkSpec(uint64 BookmarkPoint, const TCHAR* FormatString, const TCHAR* File, int32 Line)
 {
-	FBookmarkSpec* Spec = BookmarkSpecs.Find(BookmarkEvent.Id);
-	if (Spec)
+	FBookmarkSpec& BookmarkSpec = GetSpec(BookmarkPoint);
+	BookmarkSpec.FormatString = FormatString;
+	BookmarkSpec.File = File;
+	BookmarkSpec.Line = Line;
+}
+
+void FSummarizeBookmarksProvider::AppendBookmark(uint64 BookmarkPoint, double Time, const uint8* FormatArgs)
+{
+	FBookmarkSpec& BookmarkSpec = GetSpec(BookmarkPoint);
+	TraceServices::StringFormat(FormatBuffer, FormatBufferSize - 1, TempBuffer, FormatBufferSize - 1, BookmarkSpec.FormatString, FormatArgs);
+	FSummarizeBookmarksProvider::AppendBookmark(BookmarkPoint, Time, FormatBuffer);
+}
+
+void FSummarizeBookmarksProvider::AppendBookmark(uint64 BookmarkPoint, double Time, const TCHAR* Text)
+{
+	FString Name(Text);
+
+	FSummarizeBookmark* FoundBookmark = Bookmarks.Find(Name);
+	if (!FoundBookmark)
 	{
-		TCHAR FormattedString[65535];
-		TraceServices::FormatString(FormattedString, sizeof(FormattedString) / sizeof(FormattedString[0]), *Spec->FormatString, BookmarkEvent.FormatArgs.GetData());
+		FoundBookmark = &Bookmarks.Add(Name, FSummarizeBookmark());
+		FoundBookmark->Name = Name;
+	}
 
-		FString Name (FormattedString);
+	FoundBookmark->AddTimestamp(Time);
 
-		FSummarizeBookmark* FoundBookmark = Bookmarks.Find(Name);
-		if (!FoundBookmark)
+	FSummarizeBookmark* StartBookmark = FindStartBookmarkForEndBookmark(Name);
+	if (StartBookmark)
+	{
+		FString ScopeName = FString(TEXT("Generated Scope for ")) + StartBookmark->Name;
+		FSummarizeScope* FoundScope = Scopes.Find(ScopeName);
+		if (!FoundScope)
 		{
-			FoundBookmark = &Bookmarks.Add(Name, FSummarizeBookmark());
-			FoundBookmark->Name = Name;
+			FoundScope = &Scopes.Add(ScopeName, FSummarizeScope());
+			FoundScope->Name = ScopeName;
 		}
 
-		FoundBookmark->AddTimestamp(BookmarkEvent.Timestamp);
-
-		FSummarizeBookmark* StartBookmark = FindStartBookmarkForEndBookmark(Name);
-		if (StartBookmark)
-		{
-			FString ScopeName = FString(TEXT("Generated Scope for ")) + StartBookmark->Name;
-			FSummarizeScope* FoundScope = Scopes.Find(ScopeName);
-			if (!FoundScope)
-			{
-				FoundScope = &Scopes.Add(ScopeName, FSummarizeScope());
-				FoundScope->Name = ScopeName;
-			}
-
-			FoundScope->AddDuration(StartBookmark->LastSeconds, BookmarkEvent.Timestamp);
-		}
+		FoundScope->AddDuration(StartBookmark->LastSeconds, Time);
 	}
 }
 
-FSummarizeBookmark* FSummarizeBookmarksAnalyzer::FindStartBookmarkForEndBookmark(const FString& Name)
+FSummarizeBookmark* FSummarizeBookmarksProvider::FindStartBookmarkForEndBookmark(const FString& Name)
 {
 	int32 Index = Name.Find(TEXT("Complete"));
 	if (Index != -1)
@@ -2051,8 +1873,8 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		return 1;
 	}
 
-	FFileDataStream DataStream;
-	if (!DataStream.Open(*TraceFileName))
+	UE::Trace::FFileDataStream* DataStream = new UE::Trace::FFileDataStream();
+	if (!DataStream->Open(*TraceFileName))
 	{
 		UE_LOG(LogSummarizeTrace, Error, TEXT("Unable to open trace file '%s' for read"), *TraceFileName);
 		return 1;
@@ -2065,7 +1887,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	TArray<FSummarizeScope> CollectedScopeSummaries;
 
 	// Analyze CPU scope timer individually.
-	TSharedPtr<FSummarizeCpuAnalyzer> IndividualScopeAnalyzer = MakeShared<FSummarizeCpuAnalyzer>(
+	TSharedPtr<FSummarizeCpuScopeDurationAnalyzer> IndividualScopeAnalyzer = MakeShared<FSummarizeCpuScopeDurationAnalyzer>(
 		[&CollectedScopeSummaries](const TArray<FSummarizeScope>& ScopeSummaries)
 		{
 			// Collect all individual scopes summary from this analyzer.
@@ -2096,21 +1918,29 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 			CollectedScopeSummaries.Append(ModuleStats.GetData(), 10);
 		});
 
-	FCpuScopeStreamProcessor CpuScopeStreamProcessor;
-	CpuScopeStreamProcessor.AddCpuScopeAnalyzer(IndividualScopeAnalyzer);
-	CpuScopeStreamProcessor.AddCpuScopeAnalyzer(HierarchicalScopeAnalyzer);
-	AnalysisContext.AddAnalyzer(CpuScopeStreamProcessor);
+	TSharedPtr<TraceServices::IAnalysisSession> Session = TraceServices::CreateAnalysisSession(0, nullptr, TUniquePtr<UE::Trace::IInDataStream>(DataStream));
 
-	FSummarizeCountersAnalyzer CountersAnalyzer;
-	AnalysisContext.AddAnalyzer(CountersAnalyzer);
-	FSummarizeBookmarksAnalyzer BookmarksAnalyzer;
-	AnalysisContext.AddAnalyzer(BookmarksAnalyzer);
+	FSummarizeBookmarksProvider BookmarksProvider;
+	TSharedPtr<UE::Trace::IAnalyzer> BookmarksAnalyzer = TraceServices::CreateBookmarksAnalyzer(*Session, BookmarksProvider);
+	AnalysisContext.AddAnalyzer(*BookmarksAnalyzer);
+
+	FSummarizeCountersProvider CountersProvider;
+	TSharedPtr<UE::Trace::IAnalyzer> CountersAnalyzer = TraceServices::CreateCountersAnalyzer(*Session, CountersProvider);
+	AnalysisContext.AddAnalyzer(*CountersAnalyzer);
+
+	FSummarizeCpuProfilerProvider CpuProfilerProvider;
+	CpuProfilerProvider.AddCpuScopeAnalyzer(IndividualScopeAnalyzer);
+	CpuProfilerProvider.AddCpuScopeAnalyzer(HierarchicalScopeAnalyzer);
+	TSharedPtr<UE::Trace::IAnalyzer> CpuProfilerAnalyzer = TraceServices::CreateCpuProfilerAnalyzer(*Session, CpuProfilerProvider, CpuProfilerProvider);
+	AnalysisContext.AddAnalyzer(*CpuProfilerAnalyzer);
 
 	// kick processing on a thread
-	UE::Trace::FAnalysisProcessor AnalysisProcessor = AnalysisContext.Process(DataStream);
+	UE::Trace::FAnalysisProcessor AnalysisProcessor = AnalysisContext.Process(*DataStream);
 
 	// sync on completion
 	AnalysisProcessor.Wait();
+
+	CpuProfilerProvider.AnalysisComplete();
 
 	TSet<FSummarizeScope> DeduplicatedScopes;
 	auto IngestScope = [](TSet<FSummarizeScope>& DeduplicatedScopes, const FSummarizeScope& Scope)
@@ -2139,7 +1969,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	{
 		IngestScope(DeduplicatedScopes, Scope);
 	}
-	for (const TMap<FString, FSummarizeScope>::ElementType& ScopeItem : BookmarksAnalyzer.Scopes)
+	for (const TMap<FString, FSummarizeScope>::ElementType& ScopeItem : BookmarksProvider.Scopes)
 	{
 		IngestScope(DeduplicatedScopes, ScopeItem.Value);
 	}
@@ -2211,20 +2041,20 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	{
 		// no newline, see row printfs
 		WriteUTF8(CsvHandle, FString::Printf(TEXT("Name,Count,CountPerSecond,First,FirstSeconds,Last,LastSeconds,Minimum,Maximum,Mean,Deviation,")));
-		for (const TMap<uint16, FSummarizeCounter>::ElementType& Counter : CountersAnalyzer.Counters)
+		for (const TUniquePtr<FSummarizeCounter>& Counter : CountersProvider.Counters)
 		{
-			if (!IsCsvSafeString(Counter.Value.Name))
+			if (!IsCsvSafeString(Counter->Name))
 			{
 				continue;
 			}
 
 			// note newline is at the front of every data line to prevent final extraneous newline, per customary for csv
 			WriteUTF8(CsvHandle, FString::Printf(TEXT("\n%s,%llu,%f,%s,%f,%s,%f,%s,%s,%f,%f,"),
-				*Counter.Value.Name, Counter.Value.GetCount(), Counter.Value.GetCountPerSecond(),
-				*Counter.Value.GetValue(TEXT("First")), Counter.Value.FirstSeconds,
-				*Counter.Value.GetValue(TEXT("Last")), Counter.Value.LastSeconds,
-				*Counter.Value.GetValue(TEXT("Minimum")), *Counter.Value.GetValue(TEXT("Maximum")),
-				Counter.Value.GetMean(), Counter.Value.GetDeviation()));
+				*Counter->Name, Counter->GetCount(), Counter->GetCountPerSecond(),
+				*Counter->GetValue(TEXT("First")), Counter->FirstSeconds,
+				*Counter->GetValue(TEXT("Last")), Counter->LastSeconds,
+				*Counter->GetValue(TEXT("Minimum")), *Counter->GetValue(TEXT("Maximum")),
+				Counter->GetMean(), Counter->GetDeviation()));
 		}
 		CsvHandle->Flush();
 		delete CsvHandle;
@@ -2244,7 +2074,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 	{
 		// no newline, see row printfs
 		WriteUTF8(CsvHandle, FString::Printf(TEXT("Name,Count,FirstSeconds,LastSeconds,")));
-		for (const TMap<FString, FSummarizeBookmark>::ElementType& Bookmark : BookmarksAnalyzer.Bookmarks)
+		for (const TMap<FString, FSummarizeBookmark>::ElementType& Bookmark : BookmarksProvider.Bookmarks)
 		{
 			if (!IsCsvSafeString(Bookmark.Value.Name))
 			{
@@ -2324,31 +2154,31 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		}
 
 		// resolve counters to telemetry
-		for (const TMap<uint16, FSummarizeCounter>::ElementType& Counter : CountersAnalyzer.Counters)
+		for (const TUniquePtr<FSummarizeCounter>& Counter : CountersProvider.Counters)
 		{
-			if (!IsCsvSafeString(Counter.Value.Name))
+			if (!IsCsvSafeString(Counter->Name))
 			{
 				continue;
 			}
 
 			if (bAllTelemetry)
 			{
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("Count"), Counter.Value.GetValue(TEXT("Count")), TEXT("Count")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("First"), Counter.Value.GetValue(TEXT("First")), TEXT("Count")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("FirstSeconds"), Counter.Value.GetValue(TEXT("FirstSeconds")), TEXT("Seconds")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("Last"), Counter.Value.GetValue(TEXT("Last")), TEXT("Count")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("LastSeconds"), Counter.Value.GetValue(TEXT("LastSeconds")), TEXT("Seconds")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("Minimum"), Counter.Value.GetValue(TEXT("Minimum")), TEXT("Count")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("Maximum"), Counter.Value.GetValue(TEXT("Maximum")), TEXT("Count")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("Mean"), Counter.Value.GetValue(TEXT("Mean")), TEXT("Count")));
-				TelemetryData.Add(TelemetryDefinition(TestName, Counter.Value.Name, TEXT("Deviation"), Counter.Value.GetValue(TEXT("Deviation")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("Count"), Counter->GetValue(TEXT("Count")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("First"), Counter->GetValue(TEXT("First")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("FirstSeconds"), Counter->GetValue(TEXT("FirstSeconds")), TEXT("Seconds")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("Last"), Counter->GetValue(TEXT("Last")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("LastSeconds"), Counter->GetValue(TEXT("LastSeconds")), TEXT("Seconds")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("Minimum"), Counter->GetValue(TEXT("Minimum")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("Maximum"), Counter->GetValue(TEXT("Maximum")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("Mean"), Counter->GetValue(TEXT("Mean")), TEXT("Count")));
+				TelemetryData.Add(TelemetryDefinition(TestName, Counter->Name, TEXT("Deviation"), Counter->GetValue(TEXT("Deviation")), TEXT("Count")));
 			}
 			else
 			{
-				NameToDefinitionMap.MultiFind(Counter.Value.Name, Statistics, true);
+				NameToDefinitionMap.MultiFind(Counter->Name, Statistics, true);
 				for (const StatisticDefinition& Statistic : Statistics)
 				{
-					TelemetryData.Add(TelemetryDefinition(TestName, Statistic.TelemetryContext, Statistic.TelemetryDataPoint, Statistic.TelemetryUnit, Counter.Value.GetValue(Statistic.Statistic)));
+					TelemetryData.Add(TelemetryDefinition(TestName, Statistic.TelemetryContext, Statistic.TelemetryDataPoint, Statistic.TelemetryUnit, Counter->GetValue(Statistic.Statistic)));
 					ResolvedStatistics.Add(Statistic.Name);
 				}
 				Statistics.Reset();			
@@ -2356,7 +2186,7 @@ int32 USummarizeTraceCommandlet::Main(const FString& CmdLineParams)
 		}
 
 		// resolve bookmarks to telemetry
-		for (const TMap<FString, FSummarizeBookmark>::ElementType& Bookmark : BookmarksAnalyzer.Bookmarks)
+		for (const TMap<FString, FSummarizeBookmark>::ElementType& Bookmark : BookmarksProvider.Bookmarks)
 		{
 			if (!IsCsvSafeString(Bookmark.Value.Name))
 			{

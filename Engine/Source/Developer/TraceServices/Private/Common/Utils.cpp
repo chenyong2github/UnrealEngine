@@ -1,6 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Utils.h"
+#include "TraceServices/Utils.h"
+#include "Common/FormatArgs.h"
 #include "TraceServices/Containers/Tables.h"
 #include "Templates/SharedPointer.h"
 #include "HAL/FileManager.h"
@@ -70,6 +72,11 @@ void Table2Csv(const IUntypedTable& Table, const TCHAR* Filename)
 		OutputFile->Serialize((void*)AnsiLine.Get(), AnsiLine.Length());
 	}
 	OutputFile->Close();
+}
+
+void StringFormat(TCHAR* Out, uint64 MaxOut, TCHAR* Temp, uint64 MaxTemp, const TCHAR* FormatString, const uint8* FormatArgs)
+{
+	FFormatArgsHelper::Format(Out, MaxOut, Temp, MaxTemp, FormatString, FormatArgs);
 }
 
 } // namespace TraceServices

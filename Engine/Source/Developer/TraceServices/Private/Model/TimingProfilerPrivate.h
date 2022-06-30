@@ -16,17 +16,15 @@ class FStringStore;
 class FTimingProfilerProvider
 	: public ITimingProfilerProvider
 	, public ITimingProfilerTimerReader
+	, public IEditableTimingProfilerProvider
 {
 public:
-	typedef TMonotonicTimeline<FTimingProfilerEvent> TimelineInternal;
+	typedef TMonotonicTimeline<FTimingProfilerEvent> 	TimelineInternal;
 
 	explicit FTimingProfilerProvider(IAnalysisSession& InSession);
 	virtual ~FTimingProfilerProvider();
-	uint32 AddCpuTimer(FStringView Name, const TCHAR* File = nullptr, uint32 Line = 0);
 	uint32 AddGpuTimer(FStringView Name, const TCHAR* File = nullptr, uint32 Line = 0);
 	void SetTimerName(uint32 TimerId, FStringView Name);
-	void SetTimerNameAndLocation(uint32 TimerId, FStringView Name, const TCHAR* File, uint32 Line);
-	uint32 AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata);
 	TimelineInternal& EditCpuThreadTimeline(uint32 ThreadId);
 	TimelineInternal& EditGpuTimeline();
 	TimelineInternal& EditGpu2Timeline();
@@ -41,7 +39,13 @@ public:
 	virtual ITimingProfilerButterfly* CreateButterfly(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const override;
 	virtual const FTimingProfilerTimer* GetTimer(uint32 TimerId) const override;
 	virtual uint32 GetTimerCount() const override;
+
+	// implementing IEditableTimingProfilerProvider
+	virtual uint32 AddCpuTimer(FStringView Name, const TCHAR* File = nullptr, uint32 Line = 0) override;
+	virtual void SetTimerNameAndLocation(uint32 TimerId, FStringView Name, const TCHAR* File, uint32 Line) override;
+	virtual uint32 AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata) override;
 	virtual TArrayView<const uint8> GetMetadata(uint32 TimerId) const override;
+	virtual IEditableTimeline<FTimingProfilerEvent>& GetCpuThreadEditableTimeline(uint32 ThreadId) override;
 
 private:
 	FTimingProfilerTimer& AddTimerInternal(FStringView Name, const TCHAR* File, uint32 Line, bool IsGpuEvent);

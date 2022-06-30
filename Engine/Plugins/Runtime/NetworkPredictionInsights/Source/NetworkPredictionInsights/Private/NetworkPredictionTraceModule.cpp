@@ -14,7 +14,7 @@ void FNetworkPredictionTraceModule::GetModuleInfo(TraceServices::FModuleInfo& Ou
 
 void FNetworkPredictionTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
-	FNetworkPredictionProvider* NetworkPredictionProvider = new FNetworkPredictionProvider(InSession);
+	TSharedPtr<FNetworkPredictionProvider> NetworkPredictionProvider = MakeShared<FNetworkPredictionProvider>(InSession);
 	InSession.AddProvider(FNetworkPredictionProvider::ProviderName, NetworkPredictionProvider);
 	
 	InSession.AddAnalyzer(new FNetworkPredictionAnalyzer(InSession, *NetworkPredictionProvider));

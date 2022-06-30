@@ -133,6 +133,11 @@ uint32 FTimingProfilerProvider::AddMetadata(uint32 MasterTimerId, TArray<uint8>&
 	return ~MetadataId;
 }
 
+IEditableTimeline<FTimingProfilerEvent>& FTimingProfilerProvider::GetCpuThreadEditableTimeline(uint32 ThreadId)
+{
+	return EditCpuThreadTimeline(ThreadId);
+}
+
 FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThreadTimeline(uint32 ThreadId)
 {
 	Session.WriteAccessCheck();

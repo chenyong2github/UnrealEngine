@@ -19,7 +19,7 @@ namespace TraceServices
 
 	void FTasksModule::OnAnalysisBegin(IAnalysisSession& Session)
 	{
-		FTasksProvider* TasksProvider = new FTasksProvider(Session);
+		TSharedPtr<FTasksProvider> TasksProvider = MakeShared<FTasksProvider>(Session);
 		Session.AddProvider(TasksProviderName, TasksProvider);
 		Session.AddAnalyzer(new FTasksAnalyzer(Session, *TasksProvider));
 	}

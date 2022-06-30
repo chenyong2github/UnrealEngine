@@ -25,25 +25,25 @@ void FMemoryModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
 	// LLM Tag Stats
-	FMemoryProvider* MemoryProvider = new FMemoryProvider(Session);
+	TSharedPtr<FMemoryProvider> MemoryProvider = MakeShared<FMemoryProvider>(Session);
 	Session.AddProvider(GetMemoryProviderName(), MemoryProvider);
-	Session.AddAnalyzer(new FMemoryAnalyzer(Session, MemoryProvider));
+	Session.AddAnalyzer(new FMemoryAnalyzer(Session, MemoryProvider.Get()));
 
 	// Module
 	Session.AddAnalyzer(new FModuleAnalyzer(Session));
 
 	// Callstack
-	FCallstacksProvider* CallstacksProvider = new FCallstacksProvider(Session);
+	TSharedPtr<FCallstacksProvider> CallstacksProvider = MakeShared<FCallstacksProvider>(Session);
 	Session.AddProvider(GetCallstacksProviderName(), CallstacksProvider);
-	Session.AddAnalyzer(new FCallstacksAnalyzer(Session, CallstacksProvider));
+	Session.AddAnalyzer(new FCallstacksAnalyzer(Session, CallstacksProvider.Get()));
 
 	// Metadata
-	FMetadataProvider* MetadataProvider = new FMetadataProvider(Session);
+	TSharedPtr<FMetadataProvider> MetadataProvider = MakeShared<FMetadataProvider>(Session);
 	Session.AddProvider(GetMetadataProviderName(), MetadataProvider);
-	Session.AddAnalyzer(new FMetadataAnalysis(Session, MetadataProvider));
+	Session.AddAnalyzer(new FMetadataAnalysis(Session, MetadataProvider.Get()));
 	
 	// Allocations
-	FAllocationsProvider* AllocationsProvider = new FAllocationsProvider(Session, *MetadataProvider);
+	TSharedPtr<FAllocationsProvider> AllocationsProvider = MakeShared<FAllocationsProvider>(Session, *MetadataProvider);
 	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider);
 	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider, *MetadataProvider));
 

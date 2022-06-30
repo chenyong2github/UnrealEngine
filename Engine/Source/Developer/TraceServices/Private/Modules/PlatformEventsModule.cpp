@@ -21,8 +21,8 @@ void FPlatformEventsModule::OnAnalysisBegin(IAnalysisSession& InSession)
 {
 	FAnalysisSession& Session = static_cast<FAnalysisSession&>(InSession);
 
-	FContextSwitchesProvider* ContextSwitchesProvider = new FContextSwitchesProvider(Session);
-	FStackSamplesProvider* StackSamplesProvider = new FStackSamplesProvider(Session);
+	TSharedPtr<FContextSwitchesProvider> ContextSwitchesProvider = MakeShared<FContextSwitchesProvider>(Session);
+	TSharedPtr<FStackSamplesProvider> StackSamplesProvider = MakeShared<FStackSamplesProvider>(Session);
 	
 	Session.AddProvider(FContextSwitchesProvider::ProviderName, ContextSwitchesProvider);
 	Session.AddProvider(FStackSamplesProvider::ProviderName, StackSamplesProvider);

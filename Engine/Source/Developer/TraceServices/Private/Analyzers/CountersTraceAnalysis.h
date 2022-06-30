@@ -10,13 +10,13 @@ namespace TraceServices
 
 class IAnalysisSession;
 class IEditableCounter;
-class ICounterProvider;
+class IEditableCounterProvider;
 
 class FCountersAnalyzer
 	: public UE::Trace::IAnalyzer
 {
 public:
-	FCountersAnalyzer(IAnalysisSession& Session, ICounterProvider& CounterProvider);
+	FCountersAnalyzer(IAnalysisSession& Session, IEditableCounterProvider& EditableCounterProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
@@ -29,8 +29,8 @@ private:
 	};
 
 	IAnalysisSession& Session;
-	ICounterProvider& CounterProvider;
-	TMap<uint16, IEditableCounter*> CountersMap;
+	IEditableCounterProvider& EditableCounterProvider;
+	TMap<uint16, IEditableCounter*> EditableCountersMap;
 };
 
 } // namespace TraceServices

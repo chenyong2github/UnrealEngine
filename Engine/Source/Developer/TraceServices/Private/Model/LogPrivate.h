@@ -31,23 +31,27 @@ struct FLogMessageInternal
 };
 
 class FLogProvider :
-	public ILogProvider
+	public ILogProvider,
+	public IEditableLogProvider
 {
 public:
-	enum
-	{
-		ReservedLogCategory_Bookmark = 0,
-		ReservedLogCategory_Screenshot = 1
-	};
-
 	static const FName ProviderName;
 
 	explicit FLogProvider(IAnalysisSession& Session);
 	virtual ~FLogProvider() {}
 
-	FLogCategoryInfo& GetCategory(uint64 CategoryPointer);
+	// implement IEditableLogProvider
+	virtual uint64 RegisterCategory() override;
+	virtual FLogCategoryInfo& GetCategory(uint64 CategoryPointer) override;
+	virtual void UpdateMessageCategory(uint64 LogPoint, uint64 InCategoryPointer) override;
+	virtual void UpdateMessageFormatString(uint64 LogPoint, const TCHAR* InFormatString) override;
+	virtual void UpdateMessageFile(uint64 LogPoint, const TCHAR* InFile, int32 InLine) override;
+	virtual void UpdateMessageVebosity(uint64 LogPoint, ELogVerbosity::Type InVerbosity) override;
+	virtual void UpdateMessageSpec(uint64 LogPoint, uint64 InCategoryPointer, const TCHAR* InFormatString, const TCHAR* InFile, int32 InLine, ELogVerbosity::Type InVerbosity) override;
+	virtual void AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs) override;
+	virtual void AppendMessage(uint64 LogPoint, double Time, const TCHAR* Text) override;
+
 	FLogMessageSpec& GetMessageSpec(uint64 LogPoint);
-	void AppendMessage(uint64 LogPoint, double Time, const uint8* FormatArgs);
 	void AppendMessage(uint64 LogPoint, double Time, const FString& Message);
 
 	virtual uint64 GetMessageCount() const override;

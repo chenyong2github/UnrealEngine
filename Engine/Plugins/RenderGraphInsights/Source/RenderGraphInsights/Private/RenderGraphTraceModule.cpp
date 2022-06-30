@@ -19,7 +19,7 @@ void FRenderGraphTraceModule::GetModuleInfo(TraceServices::FModuleInfo& OutModul
 
 void FRenderGraphTraceModule::OnAnalysisBegin(TraceServices::IAnalysisSession& InSession)
 {
-	FRenderGraphProvider* RenderGraphProvider = new FRenderGraphProvider(InSession);
+	TSharedPtr<FRenderGraphProvider> RenderGraphProvider = MakeShared<FRenderGraphProvider>(InSession);
 	InSession.AddProvider(FRenderGraphProvider::ProviderName, RenderGraphProvider);
 
 	InSession.AddAnalyzer(new FRenderGraphAnalyzer(InSession, *RenderGraphProvider));

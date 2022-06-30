@@ -19,8 +19,8 @@ void FCountersModule::GetModuleInfo(FModuleInfo& OutModuleInfo)
 	
 void FCountersModule::OnAnalysisBegin(IAnalysisSession& Session)
 {
-	ICounterProvider& CounterProvider = EditCounterProvider(Session);
-	Session.AddAnalyzer(new FCountersAnalyzer(Session, CounterProvider));
+	IEditableCounterProvider& EditableCounterProvider = EditCounterProvider(Session);
+	Session.AddAnalyzer(new FCountersAnalyzer(Session, EditableCounterProvider));
 }
 
 void FCountersModule::GetLoggers(TArray<const TCHAR *>& OutLoggers)
