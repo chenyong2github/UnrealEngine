@@ -266,7 +266,8 @@ void USynthComponent::CreateAudioComponent()
 	if (!AudioComponent)
 	{
 		// Create the audio component which will be used to play the procedural sound wave
-		AudioComponent = NewObject<UAudioComponent>(this);
+		AudioComponent = NewObject<UAudioComponent>(this, NAME_None, RF_Transactional | RF_Transient | RF_TextExportTransient);
+		AudioComponent->CreationMethod = CreationMethod;
 
 		AudioComponent->OnAudioSingleEnvelopeValueNative.AddUObject(this, &USynthComponent::OnAudioComponentEnvelopeValue);
 
