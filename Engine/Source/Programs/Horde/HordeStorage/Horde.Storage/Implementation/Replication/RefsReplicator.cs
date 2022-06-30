@@ -408,12 +408,6 @@ namespace Horde.Storage.Implementation
 
             await GetRefEvents(ns, lastBucket, lastEvent, replicationToken).ParallelForEachAsync(async (ReplicationLogEvent @event) =>
             {
-                // if we have done all the replication events we should do in a single run we abort
-                if (countOfReplicationsDone > _replicatorSettings.MaxReplicationsPerRun)
-                {
-                    cancellationTokenSource.Cancel();
-                    return;
-                }
                 using IScope scope = Tracer.Instance.StartActive("replicator.replicate_op_incremental");
                 scope.Span.ResourceName = $"{ns}.{@event.Bucket}.{@event.Key}";
                 scope.Span.SetTag("time-bucket", @event.Timestamp.ToString(CultureInfo.InvariantCulture));
