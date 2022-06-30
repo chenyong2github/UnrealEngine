@@ -5,6 +5,7 @@
 #include "DynamicMesh/DynamicMesh3.h"
 #include "MeshQueries.h"
 #include "FitCapsule3.h"
+#include "Math/UnrealMathUtility.h"
 
 using namespace UE::Geometry;
 
@@ -109,7 +110,7 @@ bool UE::Geometry::IsBoxMesh(const FDynamicMesh3& Mesh, FOrientedBox3d& BoxOut, 
 	// that are not ~0 or ~90 degrees, if so this is not a box. This will immediately reject 
 	// most non-box meshes without having to do expensive normal clustering first
 	int32 NumEdges = Mesh.EdgeCount();
-	int32 Step = FMathd::Max(Mesh.EdgeCount() / 10, 2);
+	int32 Step = FMath::Max(Mesh.EdgeCount() / 10, 2);
 	for (int32 k = 0; k < NumEdges; k += Step)
 	{
 		if (Mesh.IsEdge(k))
@@ -170,7 +171,7 @@ bool UE::Geometry::IsBoxMesh(const FDynamicMesh3& Mesh, FOrientedBox3d& BoxOut, 
 		// accumulate unique axis if we haven't seen this one and we haven't found 3 already
 		if (UniqueCount < 3)
 		{
-			int32 UniqueIdx = (ParallelPair == -1) ? k : FMathd::Min(k, ParallelPair);
+			int32 UniqueIdx = (ParallelPair == -1) ? k : FMath::Min(k, ParallelPair);
 			UniqueAxes[UniqueCount++] = UniqueIdx;
 		}
 	}

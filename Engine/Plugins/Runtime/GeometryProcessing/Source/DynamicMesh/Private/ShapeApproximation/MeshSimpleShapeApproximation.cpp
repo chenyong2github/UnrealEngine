@@ -325,8 +325,8 @@ void FMeshSimpleShapeApproximation::Generate_ConvexHullDecompositions(FSimpleSha
 		const FDynamicMesh3& SourceMesh = *SourceMeshes[idx];
 		// TODO: if (bSimplifyHulls), also consider simplifying the input?
 		FConvexDecomposition3 Decomposition(SourceMesh);
-
-		Decomposition.Compute(ConvexDecompositionMaxPieces, ConvexDecompositionMaxPieces * ConvexDecompositionSearchFactor, ConvexDecompositionErrorTolerance, ConvexDecompositionMinPartThickness);
+		const int32 NumAdditionalSplits = FMath::FloorToInt32(ConvexDecompositionMaxPieces * ConvexDecompositionSearchFactor);
+		Decomposition.Compute(ConvexDecompositionMaxPieces, NumAdditionalSplits, ConvexDecompositionErrorTolerance, ConvexDecompositionMinPartThickness);
 
 		for (int32 HullIdx = 0; HullIdx < Decomposition.NumHulls(); HullIdx++)
 		{
@@ -431,9 +431,9 @@ void FMeshSimpleShapeApproximation::Generate_LevelSets(FSimpleShapeSet3d& ShapeS
 		SDF.Mesh = SourceMeshes[MeshIndex];
 		SDF.Spatial = &Spatial;
 		SDF.ComputeMode = TSweepingMeshSDF<FDynamicMesh3>::EComputeModes::NarrowBand_SpatialFloodFill;
-		SDF.CellSize = CellSize;
+		SDF.CellSize = (float)CellSize;
 		SDF.NarrowBandMaxDistance = 2.0 * CellSize;
-		SDF.ExactBandWidth = FMath::CeilToInt(SDF.NarrowBandMaxDistance / CellSize);
+		SDF.ExactBandWidth = FMath::CeilToInt32(SDF.NarrowBandMaxDistance / CellSize);
 		SDF.ExpandBounds = 2.0 * CellSize * FVector3d::One();
 
 		if (SDF.Compute(Bounds))

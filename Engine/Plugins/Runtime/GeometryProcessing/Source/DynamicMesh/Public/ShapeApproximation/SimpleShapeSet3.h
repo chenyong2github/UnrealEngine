@@ -138,7 +138,8 @@ struct DYNAMICMESH_API FLevelSetShape3d
 
 	FOrientedBox3d GetGridBox() const
 	{
-		const FVector3d BoxExtents = FVector3d(0.5 * CellSize * Grid.GetDimensions());
+		const UE::Geometry::FVector3i& Dims = Grid.GetDimensions();
+		const FVector3d BoxExtents = (0.5 * CellSize) * FVector3d(Dims[0], Dims[1], Dims[2]);
 		const FFrame3d BoxFrame(GridTransform.GetTranslation(), GridTransform.GetRotation());
 		return FOrientedBox3d(BoxFrame, BoxExtents);
 	}
