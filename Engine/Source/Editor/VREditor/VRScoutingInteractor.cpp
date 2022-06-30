@@ -6,6 +6,8 @@
 #include "ViewportWorldInteraction.h"
 #include "VREditorMode.h"
 #include "VREditorActions.h"
+#include "GameFramework/InputSettings.h"
+#include "Engine/InputDelegateBinding.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -22,12 +24,15 @@ UVRScoutingInteractor::UVRScoutingInteractor() :
 
 float UVRScoutingInteractor::GetSlideDelta_Implementation() const
 {
-		return 0.0f;
+	return 0.0f;
 }
 
-void UVRScoutingInteractor::SetupComponent_Implementation( AActor* OwningActor )
+void UVRScoutingInteractor::SetupComponent_Implementation(AActor* OwningActor)
 {
 	Super::SetupComponent_Implementation(OwningActor);
+
+	CreateEditorInput();
+
 
 	// Flying Mesh
 	FlyingIndicatorComponent = NewObject<UStaticMeshComponent>(OwningActor);
@@ -41,6 +46,7 @@ void UVRScoutingInteractor::SetupComponent_Implementation( AActor* OwningActor )
 	FlyingIndicatorComponent->SetCollisionResponseToAllChannels(ECollisionResponse::ECR_Ignore);
 	FlyingIndicatorComponent->SetVisibility(false);
 	FlyingIndicatorComponent->SetCastShadow(false);
+
 }
 
 void UVRScoutingInteractor::Shutdown_Implementation()
@@ -48,6 +54,7 @@ void UVRScoutingInteractor::Shutdown_Implementation()
 	Super::Shutdown_Implementation();
 
 	FlyingIndicatorComponent = nullptr;
+	RemoveEditorInput();
 }
 
 void UVRScoutingInteractor::SetGizmoMode(EGizmoHandleTypes InGizmoMode)
@@ -80,6 +87,36 @@ TArray<AActor*> UVRScoutingInteractor::GetSelectedActors()
 	}
 #endif
 	return TArray<AActor*>();
+}
+
+void UVRScoutingInteractor::CreateEditorInput()
+{
+	EditorOnlyInputComponent = NewObject<UInputComponent>(this, UInputSettings::GetDefaultInputComponentClass(), TEXT("VScoutInputComponent0"), RF_Transient);
+	UInputDelegateBinding::BindInputDelegates(GetClass(), EditorOnlyInputComponent, this);
+}
+
+void UVRScoutingInteractor::RemoveEditorInput()
+{
+	ensure(!bReceivesEditorInput);
+
+	if (EditorOnlyInputComponent)
+	{
+		EditorOnlyInputComponent->DestroyComponent();
+	}
+	EditorOnlyInputComponent = nullptr;
+}
+
+void UVRScoutingInteractor::SetReceivesEditorInput(bool bInValue)
+{
+	bReceivesEditorInput = bInValue;
+	if (bReceivesEditorInput)
+	{
+		CreateEditorInput();
+	}
+	else
+	{
+		RemoveEditorInput();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE
