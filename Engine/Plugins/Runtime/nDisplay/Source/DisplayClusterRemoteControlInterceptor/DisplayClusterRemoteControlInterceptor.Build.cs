@@ -8,6 +8,8 @@ public class DisplayClusterRemoteControlInterceptor : ModuleRules
 {
 	public DisplayClusterRemoteControlInterceptor(ReadOnlyTargetRules ROTargetRules) : base(ROTargetRules)
 	{
+		ShortName = "RCInterceptor";
+
 		PrivateDependencyModuleNames.AddRange(
 			new string[] {
 				"Core",
