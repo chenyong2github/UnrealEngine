@@ -30,6 +30,36 @@ namespace EpicGames.Core
 		readonly List<ReadOnlyMemory<T>> _segments = new List<ReadOnlyMemory<T>>();
 
 		/// <summary>
+		/// Current length of the sequence
+		/// </summary>
+		public long Length { get; private set; }
+
+		/// <summary>
+		/// Create a sequence from a list of segments
+		/// </summary>
+		/// <param name="segments"></param>
+		/// <returns>Sequence for the list of segments</returns>
+		public static ReadOnlySequence<T> Create(IReadOnlyList<ReadOnlyMemory<T>> segments)
+		{
+			if (segments.Count == 0)
+			{
+				return ReadOnlySequence<T>.Empty;
+			}
+
+			Segment first = new Segment(0, segments[0]);
+			Segment last = first;
+
+			for (int idx = 1; idx < segments.Count; idx++)
+			{
+				Segment next = new Segment(last.RunningIndex + last.Memory.Length, segments[idx]);
+				last.SetNext(next);
+				last = next;
+			}
+
+			return new ReadOnlySequence<T>(first, 0, last, last.Memory.Length);
+		}
+
+		/// <summary>
 		/// Append a block of memory to the end of the sequence
 		/// </summary>
 		/// <param name="memory">Memory to append</param>
@@ -38,6 +68,7 @@ namespace EpicGames.Core
 			if (memory.Length > 0)
 			{
 				_segments.Add(memory);
+				Length += memory.Length;
 			}
 		}
 
@@ -57,24 +88,29 @@ namespace EpicGames.Core
 		/// Construct a sequence from the added blocks
 		/// </summary>
 		/// <returns>Sequence for the added memory blocks</returns>
-		public ReadOnlySequence<T> Construct()
+		public ReadOnlySequence<T> Construct() => Create(_segments);
+	}
+
+	/// <summary>
+	/// Extension methods for <see cref="ReadOnlySequence{T}"/>
+	/// </summary>
+	public static class ReadOnlySequenceExtensions
+	{
+		/// <summary>
+		/// Gets the data from a sequence as a contiguous block of memory
+		/// </summary>
+		/// <param name="sequence">Sequence to return</param>
+		/// <returns>Data for the blob</returns>
+		public static ReadOnlyMemory<T> AsSingleSegment<T>(this ReadOnlySequence<T> sequence)
 		{
-			if (_segments.Count == 0)
+			if (sequence.IsSingleSegment)
 			{
-				return ReadOnlySequence<T>.Empty;
+				return sequence.First;
 			}
-
-			Segment first = new Segment(0, _segments[0]);
-			Segment last = first;
-
-			for (int idx = 1; idx < _segments.Count; idx++)
+			else
 			{
-				Segment next = new Segment(last.RunningIndex + last.Memory.Length, _segments[idx]);
-				last.SetNext(next);
-				last = next;
+				return sequence.ToArray();
 			}
-
-			return new ReadOnlySequence<T>(first, 0, last, last.Memory.Length);
 		}
 	}
 }
