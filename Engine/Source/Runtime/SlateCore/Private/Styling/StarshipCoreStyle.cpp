@@ -2066,9 +2066,11 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		FComboButtonStyle SlimToolBarComboButton = FComboButtonStyle(Style->GetWidgetStyle<FComboButtonStyle>("SimpleComboButton"))
 			.SetDownArrowPadding(FMargin(1.f, 0.f, 2.f, 0.f));
 
+		FSlateBrush* SlimToolbarBackground = new FSlateColorBrush(FStyleColors::Panel);
+		
 		FToolBarStyle SlimToolbarStyle =
 			FToolBarStyle()
-			.SetBackground(FSlateColorBrush(FStyleColors::Panel))
+			.SetBackground(*SlimToolbarBackground)
 			.SetBackgroundPadding(FMargin(4.f, 6.f, 0.f, 6.f))
 			.SetExpandBrush(IMAGE_BRUSH("Icons/toolbar_expand_16x", Icon16x16))
 			.SetComboButtonPadding(FMargin(0.0f, 0.0f))
@@ -2132,6 +2134,9 @@ void FStarshipCoreStyle::SetupMultiboxStyles(TSharedRef<FStyle>& Style)
 		SlimToolbarStyle.SetShowLabels(false);
 		
 		Style->Set("AssetEditorToolbar", SlimToolbarStyle);
+
+		// Used by empty toolbars and misc widgets to have the same background color
+		Style->Set("AssetEditorToolbar.Background", SlimToolbarBackground);
 
 		// Callout Toolbar - Used to "call out" the toolbar button with text
 		{

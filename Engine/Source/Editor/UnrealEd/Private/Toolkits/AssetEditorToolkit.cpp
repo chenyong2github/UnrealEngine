@@ -1118,7 +1118,13 @@ void FAssetEditorToolkit::GenerateToolbar()
 		]
 		+SHorizontalBox::Slot()
 		[
-			ToolBarWidget
+			SNew(SBorder)
+			.VAlign(VAlign_Center)
+			.BorderImage(FAppStyle::Get().GetBrush("AssetEditorToolbar.Background"))
+			.Padding(FMargin(0.0f))
+			[
+				ToolBarWidget
+			]
 		]
 		+SHorizontalBox::Slot()
 		.HAlign(HAlign_Right)
@@ -1126,7 +1132,7 @@ void FAssetEditorToolkit::GenerateToolbar()
 		[
 			SNew(SBorder)
 			.VAlign(VAlign_Center)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.BorderImage(FAppStyle::Get().GetBrush("AssetEditorToolbar.Background"))
 			.Padding(FMargin(0.0f))
 			[
 				MiscWidgets
