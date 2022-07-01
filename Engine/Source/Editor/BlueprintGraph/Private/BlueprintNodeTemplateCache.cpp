@@ -255,6 +255,8 @@ FBlueprintNodeTemplateCache::FBlueprintNodeTemplateCache()
 //------------------------------------------------------------------------------
 UEdGraphNode* FBlueprintNodeTemplateCache::GetNodeTemplate(UBlueprintNodeSpawner const* NodeSpawner, UEdGraph* TargetGraph)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintNodeTemplateCache::GetNodeTemplate);
+
 	using namespace BlueprintNodeTemplateCacheImpl;
 
 	bool bIsOverMemCap = false;

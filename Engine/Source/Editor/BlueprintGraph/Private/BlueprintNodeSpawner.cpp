@@ -100,6 +100,8 @@ void UBlueprintNodeSpawner::Prime()
 //------------------------------------------------------------------------------
 FBlueprintActionUiSpec const& UBlueprintNodeSpawner::PrimeDefaultUiSpec(UEdGraph* TargetGraph) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBlueprintNodeSpawner::PrimeDefaultUiSpec);
+
 	bool bTemplateNodeFetched = false;
 	UEdGraphNode* NodeTemplate = nullptr;
 	// @TODO: boo! const cast... all to make this callable from GetUiSpec()
@@ -254,6 +256,8 @@ FBlueprintNodeSignature UBlueprintNodeSpawner::GetSpawnerSignature() const
 //------------------------------------------------------------------------------
 FBlueprintActionUiSpec UBlueprintNodeSpawner::GetUiSpec(FBlueprintActionContext const& Context, FBindingSet const& Bindings) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBlueprintNodeSpawner::GetUiSpec);
+
 	FBlueprintActionUiSpec MenuSignature = PrimeDefaultUiSpec();
 	DynamicUiSignatureGetter.ExecuteIfBound(Context, Bindings, &MenuSignature);
 	return MenuSignature;
@@ -274,6 +278,8 @@ UEdGraphNode* UBlueprintNodeSpawner::GetCachedTemplateNode() const
 //------------------------------------------------------------------------------
 UEdGraphNode* UBlueprintNodeSpawner::GetTemplateNode(UEdGraph* TargetGraph, FBindingSet const& Bindings) const
 {       
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBlueprintNodeSpawner::GetTemplateNode);
+	
 	UEdGraphNode* TemplateNode = BlueprintNodeSpawnerImpl::GetSharedTemplateCache()->GetNodeTemplate(this, TargetGraph);
 
 	if (TemplateNode && Bindings.Num() > 0) 
@@ -297,6 +303,8 @@ void UBlueprintNodeSpawner::ClearCachedTemplateNode() const
 
 bool UBlueprintNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFilter const& Filter) const
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(UBlueprintNodeSpawner::IsTemplateNodeFilteredOut);
+
 	bool bIsFilteredOut = false;
 	if(UK2Node* NodeTemplate = Cast<UK2Node>(GetTemplateNode()))
 	{

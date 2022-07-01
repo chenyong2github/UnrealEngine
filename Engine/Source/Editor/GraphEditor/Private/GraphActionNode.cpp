@@ -211,6 +211,8 @@ TSharedPtr<FGraphActionNode> FGraphActionNode::AddSection(int32 InGrouping, int3
 //------------------------------------------------------------------------------
 void FGraphActionNode::SortChildren(bool bAlphabetically/* = true*/, bool bRecursive/* = true*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SGraphActionMenu::GenerateFilteredItems_SortNodes);
+
 	if (bRecursive)
 	{
 		for (TSharedPtr<FGraphActionNode>& ChildNode : Children)

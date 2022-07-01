@@ -1927,6 +1927,8 @@ void FBlueprintEditor::CommonInitialization(const TArray<UBlueprint*>& InitBluep
 
 void FBlueprintEditor::LoadLibrariesFromAssetRegistry()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintEditor::LoadLibrariesFromAssetRegistry);
+
 	if (EnableAutomaticLibraryAssetLoading == 0)
 	{
 		return;

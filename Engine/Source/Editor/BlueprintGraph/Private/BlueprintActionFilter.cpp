@@ -2105,59 +2105,62 @@ FBlueprintActionFilter::FBlueprintActionFilter(const EFlags InFlags /*= BPFILTER
 	//       here are ran last)
 	//
 
+#define ADD_REJECTION_TEST(TestFunc, ...) \
+	AddRejectionTest(FRejectionTestDelegate::CreateStatic(TestFunc, ##__VA_ARGS__), TEXT(#TestFunc))
+
 	// add first the most expensive tests (they will be ran last, and therefore
 	// should be operating on a smaller subset of node-spawners)
 	//
 	// this test in-particular spawns a template-node and then calls 
 	// AllocateDefaultPins() which is costly, so it should be very last!
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsNodeTemplateSelfFiltered));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleAnimNotification));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsAssetPermissionNotGranted));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsMissingMatchingPinParam));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsMissmatchedPropertyType));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFunctionMissingPinParam));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleLatentNode));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleImpureNode));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsPropertyAccessorNode));
+	ADD_REJECTION_TEST(IsNodeTemplateSelfFiltered);
+	ADD_REJECTION_TEST(IsIncompatibleAnimNotification);
+	ADD_REJECTION_TEST(IsAssetPermissionNotGranted);
+	ADD_REJECTION_TEST(IsMissingMatchingPinParam);
+	ADD_REJECTION_TEST(IsMissmatchedPropertyType);
+	ADD_REJECTION_TEST(IsFunctionMissingPinParam);
+	ADD_REJECTION_TEST(IsIncompatibleLatentNode);
+	ADD_REJECTION_TEST(IsIncompatibleImpureNode);
+	ADD_REJECTION_TEST(IsPropertyAccessorNode);
 	if (HasAnyFlags(BPFILTER_RejectIncompatibleThreadSafety))
 	{
-		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsThreadSafetyIncompatible));
+		ADD_REJECTION_TEST(IsThreadSafetyIncompatible);
 	}
 	
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsActionHiddenByConfig));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFieldCategoryHidden));
+	ADD_REJECTION_TEST(IsActionHiddenByConfig);
+	ADD_REJECTION_TEST(IsFieldCategoryHidden);
 	if (HasAnyFlags(BPFILTER_RejectGlobalFields | BPFILTER_RejectNonImportedFields))
 	{
-		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsRejectedGlobalField));
+		ADD_REJECTION_TEST(IsRejectedGlobalField);
 	}
 	
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFieldInaccessible));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsNotSubClassCast));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsEventUnimplementable));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsPermissionNotGranted));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsRestrictedClassMember));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleWithGraphType));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsSchemaIncompatible));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsExtraneousInterfaceCall));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsIncompatibleMacroInstance));
+	ADD_REJECTION_TEST(IsFieldInaccessible);
+	ADD_REJECTION_TEST(IsNotSubClassCast);
+	ADD_REJECTION_TEST(IsEventUnimplementable);
+	ADD_REJECTION_TEST(IsPermissionNotGranted);
+	ADD_REJECTION_TEST(IsRestrictedClassMember);
+	ADD_REJECTION_TEST(IsIncompatibleWithGraphType);
+	ADD_REJECTION_TEST(IsSchemaIncompatible);
+	ADD_REJECTION_TEST(IsExtraneousInterfaceCall);
+	ADD_REJECTION_TEST(IsIncompatibleMacroInstance);
 
 	if (!HasAnyFlags(BPFILTER_PermitDeprecated))
 	{
-		AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsDeprecated));
+		ADD_REJECTION_TEST(IsDeprecated);
 	}
 
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsFilteredNodeType));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsNonTargetMember));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsUnBoundBindingSpawner));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsOutOfScopeLocalVariable));
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsLevelScriptActionValid));
+	ADD_REJECTION_TEST(IsFilteredNodeType);
+	ADD_REJECTION_TEST(IsNonTargetMember);
+	ADD_REJECTION_TEST(IsUnBoundBindingSpawner);
+	ADD_REJECTION_TEST(IsOutOfScopeLocalVariable);
+	ADD_REJECTION_TEST(IsLevelScriptActionValid);
 
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsHiddenInNonEditorBlueprint));	
+	ADD_REJECTION_TEST(IsHiddenInNonEditorBlueprint);
 
 
 	// added as the first rejection test, so that we don't operate on stale 
 	// (TRASH/REINST) class fields
-	AddRejectionTest(FRejectionTestDelegate::CreateStatic(IsStaleFieldAction));
+	ADD_REJECTION_TEST(IsStaleFieldAction);
 }
 
 //------------------------------------------------------------------------------
@@ -2183,17 +2186,31 @@ void FBlueprintActionFilter::Add(TArray<FTargetClassFilterData>& ToArray, UClass
 }
 
 //------------------------------------------------------------------------------
-void FBlueprintActionFilter::AddRejectionTest(FRejectionTestDelegate IsFilteredDelegate)
+void FBlueprintActionFilter::AddRejectionTest(FRejectionTestDelegate RejectionTestDelegate, const TCHAR* RejectionTestName)
 {
-	if (IsFilteredDelegate.IsBound())
+	if (RejectionTestDelegate.IsBound())
 	{
-		FilterTests.Add(IsFilteredDelegate);
+		FilterTests.Add(RejectionTestDelegate);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		FFilterTestProfileRecord FilterTestProfileRecord;
+		
+		FilterTestProfileRecord.TestName = RejectionTestName ? FString(RejectionTestName) : RejectionTestDelegate.TryGetBoundFunctionName().ToString();
+		if (FilterTestProfileRecord.TestName.IsEmpty())
+		{
+			FilterTestProfileRecord.TestName = FString::Printf(TEXT("[FuncPtr:0x%016x]"), RejectionTestDelegate.GetBoundProgramCounterForTimerManager());
+		}
+
+		FilterTestProfiles.Add(FilterTests.Num() - 1, MoveTemp(FilterTestProfileRecord));
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 	}
 }
 
 //------------------------------------------------------------------------------
 bool FBlueprintActionFilter::IsFiltered(FBlueprintActionInfo& BlueprintAction)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionFilter::IsFiltered);
+
 	bool bIsFiltered = IsFilteredByThis(BlueprintAction);
 	if (!bIsFiltered)
 	{
@@ -2245,6 +2262,10 @@ bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAct
 // 		bDebugBreak = true;
 // 	}
 
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	static TMap<FString, uint32> FilterTestToCpuSpecIds;
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 	bool bIsFiltered = false;
 	// iterate backwards so that custom user test are ran first (and the slow
 	// internal tests are ran last).
@@ -2253,20 +2274,68 @@ bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAct
 		FRejectionTestDelegate const& RejectionTestDelegate = FilterTests[TestIndex];
 		check(RejectionTestDelegate.IsBound());
 
-		if (RejectionTestDelegate.Execute(FilterRef, BlueprintAction))
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		FFilterTestProfileRecord& FilterTestProfileRecord = FilterTestProfiles.FindOrAdd(TestIndex);
+		uint32& CpuSpecId = FilterTestToCpuSpecIds.FindOrAdd(FilterTestProfileRecord.TestName);
+		FCpuProfilerTrace::FEventScope ProfilerEvent(CpuSpecId, *FString::Printf(TEXT("IsFiltered_%s"), *FilterTestProfileRecord.TestName), true, __FILE__, __LINE__);
+
+		const double StartTime = FPlatformTime::Seconds();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+		bIsFiltered = RejectionTestDelegate.Execute(FilterRef, BlueprintAction);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		FilterTestProfileRecord.NumIterations += 1;
+		FilterTestProfileRecord.TotalTimeMs += (FPlatformTime::Seconds() - StartTime) * 1000.0f;
+		if (bIsFiltered)
 		{
-			bIsFiltered = true;
+			FilterTestProfileRecord.NumFilteredOut += 1;
+		}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+		if (bIsFiltered)
+		{
 			break;
 		}
 	}
 
 	if (!bIsFiltered)
 	{
-		for (auto& ExtraRejectionTest : BluprintGraphModule->GetExtendedActionMenuFilters())
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+		int32 ExtraTestProfileRecordIndex = FilterTests.Num();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+		for (const FBlueprintGraphModule::FActionMenuRejectionTest& ExtraRejectionTest : BluprintGraphModule->GetExtendedActionMenuFilters())
 		{
-			if (ExtraRejectionTest.Execute(FilterRef, BlueprintAction))
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+			FFilterTestProfileRecord& ExtraTestProfileRecord = FilterTestProfiles.FindOrAdd(ExtraTestProfileRecordIndex++);
+			if (ExtraTestProfileRecord.TestName.IsEmpty())
 			{
-				bIsFiltered = true;
+				ExtraTestProfileRecord.TestName = ExtraRejectionTest.TryGetBoundFunctionName().ToString();
+				if (ExtraTestProfileRecord.TestName.IsEmpty())
+				{
+					ExtraTestProfileRecord.TestName = FString::Printf(TEXT("[FuncPtr:0x%016x]"), ExtraRejectionTest.GetBoundProgramCounterForTimerManager());
+				}
+			}
+			uint32& CpuSpecId = FilterTestToCpuSpecIds.FindOrAdd(ExtraTestProfileRecord.TestName);
+			FCpuProfilerTrace::FEventScope ProfilerEvent(CpuSpecId, *FString::Printf(TEXT("Extended_IsFiltered_%s"), *ExtraTestProfileRecord.TestName), true, __FILE__, __LINE__);
+
+			const double StartTime = FPlatformTime::Seconds();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+			bIsFiltered = ExtraRejectionTest.Execute(FilterRef, BlueprintAction);
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+			ExtraTestProfileRecord.NumIterations += 1;
+			ExtraTestProfileRecord.TotalTimeMs += (FPlatformTime::Seconds() - StartTime) * 1000.0f;
+			if (bIsFiltered)
+			{
+				ExtraTestProfileRecord.NumFilteredOut += 1;
+			}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
+			if (bIsFiltered)
+			{
 				break;
 			}
 		}
@@ -2274,3 +2343,21 @@ bool FBlueprintActionFilter::IsFilteredByThis(FBlueprintActionInfo& BlueprintAct
 
 	return bIsFiltered;
 }
+
+//------------------------------------------------------------------------------
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+TArray<FString> FBlueprintActionFilter::GetFilterTestProfile()
+{
+	TArray<FString> Result;
+
+	int32 TestIdx = 0;
+	for (int32 TestIndex = FilterTests.Num() - 1; TestIndex >= 0; --TestIndex)
+	{
+		Result.Add(FString::Printf(TEXT("[%02d]: %s | %d tested | %d failed | %.02f ms | %.02f us (per test)"), FilterTests.Num() - TestIndex, *FilterTestProfiles[TestIndex].TestName, FilterTestProfiles[TestIndex].NumIterations, FilterTestProfiles[TestIndex].NumFilteredOut, FilterTestProfiles[TestIndex].TotalTimeMs, FilterTestProfiles[TestIndex].TotalTimeMs / FilterTestProfiles[TestIndex].NumIterations * 1000.0f));
+	}
+
+	FilterTestProfiles.Reset();
+
+	return Result;
+}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING

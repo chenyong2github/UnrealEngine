@@ -1252,6 +1252,8 @@ void SGraphPanel::RemoveAllNodes()
 
 TSharedPtr<SWidget> SGraphPanel::SummonContextMenu(const FVector2D& WhereToSummon, const FVector2D& WhereToAddNode, UEdGraphNode* ForNode, UEdGraphPin* ForPin, const TArray<UEdGraphPin*>& DragFromPins)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SGraphPanel::SummonContextMenu);
+
 	if (OnGetContextMenuFor.IsBound())
 	{
 		FGraphContextMenuArguments SpawnInfo;

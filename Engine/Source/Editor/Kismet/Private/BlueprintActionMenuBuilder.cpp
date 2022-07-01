@@ -19,6 +19,14 @@
 #define LOCTEXT_NAMESPACE "BlueprintActionMenuBuilder"
 DEFINE_LOG_CATEGORY_STATIC(LogBlueprintActionMenuItemFactory, Log, All);
 
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+static TAutoConsoleVariable<bool> CVarBPEnableActionMenuFilterTestStatsLogging(
+	TEXT("BP.EnableActionMenuFilterTestStatsLogging"),
+	false,
+	TEXT("If enabled, filter test stats will be logged for each menu section each time a Blueprint action menu is built for display.")
+);
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+
 /*******************************************************************************
  * FBlueprintActionMenuItemFactory
  ******************************************************************************/
@@ -106,6 +114,8 @@ FBlueprintActionMenuItemFactory::FBlueprintActionMenuItemFactory(FBlueprintActio
 //------------------------------------------------------------------------------
 TSharedPtr<FBlueprintActionMenuItem> FBlueprintActionMenuItemFactory::MakeActionMenuItem(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuItemFactory::MakeActionMenuItem);
+
 	FBlueprintActionUiSpec UiSignature = GetActionUiSignature(EditorContext, ActionInfo);
 
 	UBlueprintNodeSpawner const* Action = ActionInfo.NodeSpawner;
@@ -232,6 +242,8 @@ UEdGraph* FBlueprintActionMenuItemFactory::GetTargetGraph(TWeakPtr<FBlueprintEdi
 //------------------------------------------------------------------------------
 FBlueprintActionUiSpec FBlueprintActionMenuItemFactory::GetActionUiSignature(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo const& ActionInfo)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuItemFactory::GetActionUiSignature);
+
 	UBlueprintNodeSpawner const* Action = ActionInfo.NodeSpawner;
 
 	UEdGraph* TargetGraph = GetTargetGraph(EditorContext);
@@ -406,7 +418,9 @@ void FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::AddBoundMenuItems(
 
 //------------------------------------------------------------------------------
 FBlueprintActionMenuBuilderImpl::MenuItemList FBlueprintActionMenuBuilderImpl::FMenuSectionDefinition::MakeMenuItems(TWeakPtr<FBlueprintEditor> EditorContext, FBlueprintActionInfo& DatabaseAction)
-{	
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FMenuSectionDefinition::MakeMenuItems);
+
 	TSharedPtr<FEdGraphSchemaAction> UnBoundMenuEntry;
 	bool bPassedFilter = !Filter.IsFiltered(DatabaseAction);
 
@@ -551,6 +565,22 @@ void FBlueprintActionMenuBuilder::RebuildActionList()
 			ActionDatabase.DeferredRemoveEntry(ObjKey);
 		}
 	}
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	if (CVarBPEnableActionMenuFilterTestStatsLogging.GetValueOnGameThread())
+	{
+		// Dump detailed stats information about each filter test that was involved with building each menu section.
+		for (const TSharedRef<FMenuSectionDefinition>& MenuSection : MenuSections)
+		{
+			UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("=== %s: FILTER TEST PROFILE ==="), *MenuSection->GetSectionHeading().ToString());
+
+			for (const FString& ProfileEntry : MenuSection->Filter.GetFilterTestProfile())
+			{
+				UE_LOG(LogBlueprintActionMenuItemFactory, Log, TEXT("%s"), *ProfileEntry);
+			}
+		}
+	}
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 }
 
 #undef LOCTEXT_NAMESPACE

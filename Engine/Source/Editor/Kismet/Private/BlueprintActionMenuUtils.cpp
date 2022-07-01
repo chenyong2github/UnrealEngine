@@ -415,6 +415,8 @@ static void BlueprintActionMenuUtilsImpl::AddFavoritesSection(FBlueprintActionFi
 //------------------------------------------------------------------------------
 void FBlueprintActionMenuUtils::MakePaletteMenu(FBlueprintActionContext const& Context, UClass* FilterClass, FBlueprintActionMenuBuilder& MenuOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuUtils::MakePaletteMenu);
+
 	MenuOut.Empty();
 	
 	FBlueprintActionFilter::EFlags FilterFlags = FBlueprintActionFilter::BPFILTER_NoFlags;
@@ -445,6 +447,8 @@ void FBlueprintActionMenuUtils::MakePaletteMenu(FBlueprintActionContext const& C
 //------------------------------------------------------------------------------
 void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& Context, bool bIsContextSensitive, uint32 ClassTargetMask, FBlueprintActionMenuBuilder& MenuOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuUtils::MakeContextMenu);
+
 	using namespace BlueprintActionMenuUtilsImpl;
 
 	//--------------------------------------
@@ -734,6 +738,8 @@ void FBlueprintActionMenuUtils::MakeContextMenu(FBlueprintActionContext const& C
 //------------------------------------------------------------------------------
 void FBlueprintActionMenuUtils::MakeFavoritesMenu(FBlueprintActionContext const& Context, FBlueprintActionMenuBuilder& MenuOut)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionMenuUtils::MakeFavoritesMenu);
+
 	MenuOut.Empty();
 
 	FBlueprintActionFilter MenuFilter;

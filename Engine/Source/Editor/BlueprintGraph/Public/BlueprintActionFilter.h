@@ -11,6 +11,8 @@
 #include "BlueprintNodeBinder.h"
 #include "BlueprintGraphModule.h"
 
+#define ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING (!(UE_BUILD_SHIPPING || UE_BUILD_TEST) && 1)
+
 class UBlueprint;
 class UBlueprintNodeSpawner;
 class UEdGraph;
@@ -271,8 +273,9 @@ public:
 	 * because it is more optimal to whittle down the list of actions early.
 	 * 
 	 * @param  RejectionTestDelegate	The rejection test you wish to add to this filter.
+	 * @param  RejectionTestName		(Optional) Test name (used for profiling/debugging).
 	 */
-	void AddRejectionTest(FRejectionTestDelegate RejectionTestDelegate);
+	void AddRejectionTest(FRejectionTestDelegate RejectionTestDelegate, const TCHAR* RejectionTestName = nullptr);
 
 	/**
 	 * Query to check and see if the specified action gets filtered out by this 
@@ -307,6 +310,10 @@ public:
 	 * @return This.
 	 */
 	FBlueprintActionFilter const& operator&=(FBlueprintActionFilter const& Rhs);
+	
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	TArray<FString> GetFilterTestProfile();
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 
 	/**
 	 * @return TRUE if any of the given configuration flags are set on this filter.
@@ -345,6 +352,18 @@ private:
 
 	/** Alternative filters to be logically or'd in with the IsFilteredByThis() result. */
 	TArray<FBlueprintActionFilter> OrFilters;
+
+#if ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
+	struct FFilterTestProfileRecord
+	{
+		FString TestName;
+		float TotalTimeMs = 0.0f;
+		int32 NumIterations = 0;
+		int32 NumFilteredOut = 0;
+	};
+
+	mutable TMap<int32, FFilterTestProfileRecord> FilterTestProfiles;
+#endif	// ENABLE_BLUEPRINT_ACTION_FILTER_PROFILING
 };
 
 ENUM_CLASS_FLAGS(FBlueprintActionFilter::EFlags);

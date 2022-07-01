@@ -365,12 +365,19 @@ void SGraphActionMenu::Construct( const FArguments& InArgs, bool bIsReadOnly/* =
 
 void SGraphActionMenu::RefreshAllActions(bool bPreserveExpansion, bool bHandleOnSelectionEvent/*=true*/)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SGraphActionMenu::RefreshAllActions);
+
 	// Save Selection (of only the first selected thing)
 	TArray< TSharedPtr<FGraphActionNode> > SelectedNodes = TreeView->GetSelectedItems();
 	TSharedPtr<FGraphActionNode> SelectedAction = SelectedNodes.Num() > 0 ? SelectedNodes[0] : nullptr;
 
-	AllActions.Empty();
-	OnCollectAllActions.ExecuteIfBound(AllActions);
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SGraphActionMenu::CollectAllActions);
+
+		AllActions.Empty();
+		OnCollectAllActions.ExecuteIfBound(AllActions);
+	}
+
 	GenerateFilteredItems(bPreserveExpansion);
 
 	// Re-apply selection #0 if possible
@@ -660,6 +667,8 @@ void RestoreExpansionState(TSharedPtr< STreeView<ItemType> > InTree, const TArra
 
 void SGraphActionMenu::GenerateFilteredItems(bool bPreserveExpansion)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(SGraphActionMenu::GenerateFilteredItems);
+
 	// First, save off current expansion state
 	TSet< TSharedPtr<FGraphActionNode> > OldExpansionState;
 	if(bPreserveExpansion)

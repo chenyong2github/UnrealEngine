@@ -1338,6 +1338,8 @@ void FBlueprintActionDatabase::DeferredRemoveEntry(FObjectKey const& InKey)
 //------------------------------------------------------------------------------
 void FBlueprintActionDatabase::RefreshAll()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionDatabase::RefreshAll);
+
 	TGuardValue<bool> ScopedInitialization(BlueprintActionDatabaseImpl::bIsInitializing, true);
 	BlueprintActionDatabaseImpl::bRefreshAllRequested = false;
 
@@ -1410,6 +1412,8 @@ void FBlueprintActionDatabase::RefreshWorlds()
 //------------------------------------------------------------------------------
 void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionDatabase::RefreshClassActions);
+
 	// Early out if the class is filtered
 	if (!IsClassAllowed(Class, EPermissionsContext::Asset))
 	{
@@ -1534,6 +1538,8 @@ void FBlueprintActionDatabase::RefreshClassActions(UClass* const Class)
 //------------------------------------------------------------------------------
 void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionDatabase::RefreshAssetActions);
+
 	using namespace BlueprintActionDatabaseImpl;
 
 	// this method is very expensive and is only for blueprint editor functionality
@@ -1676,6 +1682,8 @@ void FBlueprintActionDatabase::RefreshAssetActions(UObject* const AssetObject)
 //------------------------------------------------------------------------------
 void FBlueprintActionDatabase::RefreshComponentActions()
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionDatabase::RefreshComponentActions);
+
 	check(ComponentTypes);
 	FActionList& ClassActionList = ActionRegistry.FindOrAdd(UBlueprintComponentNodeSpawner::StaticClass());
 	ClassActionList.Empty(ComponentTypes->Num());
@@ -1797,6 +1805,8 @@ FBlueprintActionDatabase::FActionRegistry const& FBlueprintActionDatabase::GetAl
 //------------------------------------------------------------------------------
 void FBlueprintActionDatabase::RegisterAllNodeActions(FBlueprintActionDatabaseRegistrar& Registrar)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(FBlueprintActionDatabase::RegisterAllNodeActions);
+
 	// nodes may have actions they wish to add for this asset
 	TArray<UClass*> NodeClassList;
 	GetDerivedClasses(UK2Node::StaticClass(), NodeClassList);
