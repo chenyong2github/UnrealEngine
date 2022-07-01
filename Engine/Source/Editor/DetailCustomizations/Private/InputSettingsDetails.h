@@ -7,6 +7,7 @@
 #include "PropertyHandle.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "IDetailCustomization.h"
+#include "Layout/Visibility.h"
 
 class FDetailWidgetRow;
 class IDetailChildrenBuilder;
@@ -125,4 +126,12 @@ public:
 
 	/** ILayoutDetails interface */
 	virtual void CustomizeDetails( class IDetailLayoutBuilder& DetailBuilder ) override;
+
+private:
+
+	/**
+	 * If true, then we should display some warning text about the Axis/Action mappings being legacy
+	 * in favor of Enhanced Input
+	 */
+	EVisibility GetLegacyWarningVisibility() const; 
 };

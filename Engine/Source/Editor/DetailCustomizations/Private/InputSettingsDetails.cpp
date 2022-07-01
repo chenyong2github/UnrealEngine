@@ -618,16 +618,55 @@ void FInputSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 
 	IDetailCategoryBuilder& MappingsDetailCategoryBuilder = DetailBuilder.EditCategory(BindingsCategory);
 
+	// If the new Enhanced Input module is loaded, then add a warning telling people to use
+	// that instead of these legacy Action/Axis bindings
+	static const FName ForegroundColorStyle("Colors.Foreground");
+	static const FName WarningColorStyle("Colors.AccentYellow");
+	static const FSlateBrush* WarningBrush = FAppStyle::Get().GetBrush("Icons.AlertCircle");
+	
 	MappingsDetailCategoryBuilder.AddCustomRow(LOCTEXT("Mappings_Title", "Action Axis Mappings"))
 	[
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
-		.FillWidth(1)
+		.FillWidth(1.0f)
 		[
-			SNew(STextBlock)
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-			.AutoWrapText(true)
-			.Text(LOCTEXT("Mappings_Description", "Action and Axis Mappings provide a mechanism to conveniently map keys and axes to input behaviors by inserting a layer of indirection between the input behavior and the keys that invoke it. Action Mappings are for key presses and releases, while Axis Mappings allow for inputs that have a continuous range."))
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			.HAlign(HAlign_Center)
+			.Padding(0.0f, 10.0f)
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.Padding(10.0f, 10.0f)
+				[
+					SNew(SImage)
+					.Image(WarningBrush)
+					.Visibility(this, &FInputSettingsDetails::GetLegacyWarningVisibility)
+					.ColorAndOpacity(FAppStyle::Get().GetSlateColor(ForegroundColorStyle))		
+				]
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Bottom)
+				[
+					SNew(STextBlock)
+					.Font(IDetailLayoutBuilder::GetDetailFont())
+					.AutoWrapText(true)					
+					.Visibility(this, &FInputSettingsDetails::GetLegacyWarningVisibility)
+					.Text(LOCTEXT("Mappings_DeprecationWarning", "Axis and Action mappings are now deprecated, please use Enhanced Input Actions and Input Mapping Contexts instead."))
+					.ColorAndOpacity(FAppStyle::Get().GetSlateColor(WarningColorStyle))
+				]	
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()			
+			.HAlign(HAlign_Left)
+			[
+				SNew(STextBlock)
+				.Font(IDetailLayoutBuilder::GetDetailFont())
+				.AutoWrapText(true)
+				.Text(LOCTEXT("Mappings_Description", "Action and Axis Mappings provide a mechanism to conveniently map keys and axes to input behaviors by inserting a layer of indirection between the input behavior and the keys that invoke it. Action Mappings are for key presses and releases, while Axis Mappings allow for inputs that have a continuous range."))
+			]		
 		]
 		+SHorizontalBox::Slot()
 		.AutoWidth()
@@ -649,6 +688,11 @@ void FInputSettingsDetails::CustomizeDetails(class IDetailLayoutBuilder& DetailB
 
 	const TSharedRef<FAxisMappingsNodeBuilder> AxisMappingsBuilder = MakeShareable( new FAxisMappingsNodeBuilder( &DetailBuilder, AxisMappingsPropertyHandle ) );
 	MappingsDetailCategoryBuilder.AddCustomBuilder(AxisMappingsBuilder);
+}
+
+EVisibility FInputSettingsDetails::GetLegacyWarningVisibility() const
+{
+	return FModuleManager::Get().IsModuleLoaded("EnhancedInput") ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 #undef LOCTEXT_NAMESPACE
