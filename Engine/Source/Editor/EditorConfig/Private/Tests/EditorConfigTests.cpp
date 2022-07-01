@@ -33,6 +33,83 @@ bool FEditorConfigTestKey::operator!=(const FEditorConfigTestKey& Other) const
 	return !(*this == Other);
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorConfigTests_Save_EnumStruct, "EditorConfig.Save.EnumStruct", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEditorConfigTests_Save_EnumStruct::RunTest(const FString& Parameters)
+{
+	FEditorConfigTestEnumStruct Actual;
+	Actual.Before = -1;
+	Actual.Enum = EEditorConfigTestEnum::One;
+	Actual.After = -1;
+
+	FEditorConfig Config;
+	Config.SetRootStruct(Actual, FEditorConfig::EPropertyFilter::All);
+
+	FString ActualString;
+	if (!Config.SaveToString(ActualString))
+	{
+		AddError("Failed to save to string.");
+		return false;
+	}
+
+	const FString Expected =
+R"_JSON({ 
+	"$type": "EditorConfigTestEnumStruct",
+	"Before": -1,
+	"Enum": "One",
+	"After": 0
+})_JSON";
+
+	if (!FEditorConfigTestHelpers::AreJsonStringsEquivalent(ActualString, Expected))
+	{
+		AddError(FString::Printf(TEXT("Contents does not match. Expected:\n%s\n\nActual:\n%s"), *Expected, *ActualString));
+		return false;
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorConfigTests_Load_EnumStruct, "EditorConfig.Load.EnumStruct", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
+
+bool FEditorConfigTests_Load_EnumStruct::RunTest(const FString& Parameters)
+{
+	// there was a bug where enums were reading past the underlying property and returning the wrong value as a result
+	// this test is meant to catch that
+
+	const FString Contents =
+R"_JSON({ 
+	"$type": "EditorConfigTestEnumStruct",
+	"Before": -1,
+	"Enum": "One",
+	"After": -1
+})_JSON";
+
+	FEditorConfig Config;
+	if (!Config.LoadFromString(Contents))
+	{
+		AddError("Failed to load from string.");
+		return false;
+	}
+
+	FEditorConfigTestEnumStruct Struct;
+	if (!Config.TryGetRootStruct(Struct, FEditorConfig::EPropertyFilter::All))
+	{
+		AddError("Failed to load into struct.");
+		return false;
+	}
+
+	FEditorConfigTestEnumStruct Comparison;
+	Comparison.Before = -1;
+	Comparison.Enum = EEditorConfigTestEnum::One;
+	Comparison.After = -1;
+
+	bool bResult = true;
+	bResult &= TestEqual(TEXT("SimpleStruct"), Struct.Before, Comparison.Before);
+	bResult &= TestEqual(TEXT("SimpleStruct"), Struct.Enum, Comparison.Enum);
+	bResult &= TestEqual(TEXT("SimpleStruct"), Struct.After, Comparison.After);
+	return bResult;
+}
+
 IMPLEMENT_SIMPLE_AUTOMATION_TEST(FEditorConfigTests_Load_SimpleStruct_Empty, "EditorConfig.Load.SimpleStruct.Empty", EAutomationTestFlags::EditorContext | EAutomationTestFlags::EngineFilter)
 
 bool FEditorConfigTests_Load_SimpleStruct_Empty::RunTest(const FString& Parameters)
@@ -598,7 +675,13 @@ R"_JSON({
 	"Int": 42,
 	"String": "foo",
 	"Float": 21.0,
-	"Array": [ "foo", "bar" ]
+	"Array": 
+	{
+		"+": [
+			"foo",
+			"bar"
+		]
+	}
 })_JSON";
 
 	if (!FEditorConfigTestHelpers::AreJsonStringsEquivalent(Result, Expected))
@@ -624,7 +707,7 @@ bool FEditorConfigTests_Save_Object_Full::RunTest(const FString& Parameters)
 	Object->Struct.Bool = false;
 	Object->Struct.String = TEXT("foo");
 	Object->Struct.Int = 42;
-	Object->Struct.Float = 42.f;
+	Object->Struct.Float = 21;
 
 
 	FEditorConfig Config;
@@ -640,7 +723,7 @@ bool FEditorConfigTests_Save_Object_Full::RunTest(const FString& Parameters)
 	const FString Expected =
 R"_JSON({
 	"$type": "EditorConfigTestObject",
-	"Object": "/Game/TestPackages/Misc_Assets/StaticMesh/Cube.Cube",
+	"Object": "/Script/Engine.StaticMesh'/Game/TestPackages/Misc_Assets/StaticMesh/Cube.Cube'",
 	"Struct": 
 	{
 		"$type": "EditorConfigTestSimpleStruct",

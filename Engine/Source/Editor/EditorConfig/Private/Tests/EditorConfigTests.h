@@ -7,6 +7,29 @@
 
 #include "EditorConfigTests.generated.h"
 
+UENUM()
+enum class EEditorConfigTestEnum : uint8
+{
+	Zero,
+	One,
+	Two
+};
+
+USTRUCT()
+struct FEditorConfigTestEnumStruct
+{
+	GENERATED_BODY()
+
+	UPROPERTY()
+	int32 Before = 0;
+
+	UPROPERTY()
+	EEditorConfigTestEnum Enum = EEditorConfigTestEnum::Zero;
+
+	UPROPERTY()
+	int32 After = 0;
+};
+
 USTRUCT()
 struct FEditorConfigTestSimpleStruct
 {

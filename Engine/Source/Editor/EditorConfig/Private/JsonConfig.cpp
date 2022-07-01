@@ -193,7 +193,7 @@ namespace UE
 
 	bool FJsonConfig::LoadFromString(FStringView Content)
 	{
-		TSharedRef<FJsonStringReader> JsonReader = FJsonStringReader::Create(Content.GetData());
+		TSharedRef<FJsonStringReader> JsonReader = FJsonStringReader::Create(FString(Content));
 		if (!FJsonSerializer::Deserialize(JsonReader.Get(), OverrideObject))
 		{
 			UE_LOG(LogEditorConfig, Error, TEXT("Failed to deserialize JSON string"));
@@ -925,7 +925,7 @@ namespace UE
 				(*AddArray) = AddedValues;
 			}
 		}
-		else
+		else if (AddedValues.Num() > 0)
 		{
 			(*CurrentObject)->SetArrayField(TEXT("+"), AddedValues);
 		}
@@ -939,7 +939,7 @@ namespace UE
 				(*RemoveArray) = RemovedValues;
 			}
 		}
-		else
+		else if (RemovedValues.Num() > 0)
 		{
 			(*CurrentObject)->SetArrayField(TEXT("-"), RemovedValues);
 		}
@@ -1337,6 +1337,28 @@ namespace UE
 		return true;
 	}
 
+	static bool ShouldAlwaysKeep(const FJsonPath& Path)
+	{
+		static const TCHAR* AlwaysKeep[] =
+		{
+			TEXT("$type")
+		};
+
+		if (Path.Length() > 0)
+		{
+			const FJsonPath::FPart& LastPart = Path[Path.Length() - 1];
+			for (const TCHAR* Key : AlwaysKeep)
+			{
+				if (LastPart.Name == Key)
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
 	bool FJsonConfig::SetJsonValue(const FJsonPath& Path, const TSharedPtr<FJsonValue>& NewValue)
 	{
 		TSharedPtr<FJsonValue> PreviousValue;
@@ -1353,14 +1375,17 @@ namespace UE
 		// this was a valid change in the merged object 
 		// we need to either add or remove it from this object, depending on if it differs from our parent
 		bool bShouldRemove = false;
-		if (ParentConfig.IsValid())
+		if (!ShouldAlwaysKeep(Path))
 		{
-			if (ParentConfig->TryGetJsonValue(Path, ParentValue))
+			if (ParentConfig.IsValid())
 			{
-				if (FJsonValue::CompareEqual(*ParentValue.Get(), *NewValue.Get()))
+				if (ParentConfig->TryGetJsonValue(Path, ParentValue))
 				{
-					// same as inherited, remove it from this
-					bShouldRemove = true;
+					if (FJsonValue::CompareEqual(*ParentValue.Get(), *NewValue.Get()))
+					{
+						// same as inherited, remove it from this
+						bShouldRemove = true;
+					}
 				}
 			}
 		}

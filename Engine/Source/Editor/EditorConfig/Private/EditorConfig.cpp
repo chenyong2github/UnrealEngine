@@ -286,19 +286,15 @@ void FEditorConfig::ReadValue(const TSharedPtr<FJsonValue>& JsonValue, const FPr
 	}
 	else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
-		int64* Value = (int64*) DataPtr;
-
 		UEnum* Enum = EnumProperty->GetEnum();
-		if (Enum != nullptr)
+		FString ValueString;
+		if (JsonValue->TryGetString(ValueString))
 		{
-			FString ValueString;
-			if (JsonValue->TryGetString(ValueString))
+			int64 Index = Enum->GetIndexByNameString(ValueString);
+			if (Index != INDEX_NONE)
 			{
-				int64 Index = Enum->GetIndexByNameString(ValueString);
-				if (Index != INDEX_NONE)
-				{
-					*Value = Enum->GetValueByIndex(Index);
-				}
+				int64 Value = Enum->GetValueByIndex(Index);
+				EnumProperty->GetUnderlyingProperty()->SetIntPropertyValue(DataPtr, Value);
 			}
 		}
 		return;
@@ -653,11 +649,9 @@ TSharedPtr<FJsonValue> FEditorConfig::WriteValue(const FProperty* Property, cons
 	}
 	else if (const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
 	{
-		int64* Value = (int64*) DataPtr;
-
 		UEnum* Enum = EnumProperty->GetEnum();
-		FName ValueName = Enum->GetNameByValue(*Value);
-		ResultValue = MakeShared<FJsonValueString>(ValueName.ToString());
+		int64 Value = EnumProperty->GetUnderlyingProperty()->GetSignedIntPropertyValue(DataPtr);
+		FName ValueName = Enum->GetNameByValue(Value);
 	}
 	else if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
