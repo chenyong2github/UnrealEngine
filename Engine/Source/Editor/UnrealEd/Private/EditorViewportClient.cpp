@@ -5858,33 +5858,6 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 				FScreenshotRequest::OnScreenshotCaptured().Broadcast(BitmapSize.X, BitmapSize.Y, MoveTemp(BitmapForCompare));
 			}
 
-			TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
-			ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, TArray64<FColor>(MoveTemp(Bitmap)));
-
-			// Set full alpha on the bitmap
-			if (!bWriteAlpha)
-			{
-				ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
-			}
-
-			HighResScreenshotConfig.PopulateImageTaskParams(*ImageTask);
-			ImageTask->Filename = FScreenshotRequest::GetFilename();
-
-			// Filename can be PNG but EImageFormat can be EXR
-
-			// PopulateImageTaskParams sets Format, ignores extension on file name
-			// ignore EXR from PopulateImageTaskParams, we are always 8-bit here
-			//if ( ImageTask->Format != EImageFormat::EXR )
-			{
-				// if not high dynamic range, get format from filename :
-				IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
-				EImageFormat ImageFormat = ImageWrapperModule.GetImageFormatFromExtension(*ImageTask->Filename);
-				if ( ImageFormat != EImageFormat::Invalid )
-				{
-					ImageTask->Format = ImageFormat;
-				}
-			}
-
 			bool bSuppressWritingToFile = false;
 			if (SHOULD_TRACE_SCREENSHOT())
 			{
@@ -5894,6 +5867,33 @@ bool FEditorViewportClient::ProcessScreenShots(FViewport* InViewport)
 
 			if (!bSuppressWritingToFile)
 			{
+				TUniquePtr<FImageWriteTask> ImageTask = MakeUnique<FImageWriteTask>();
+				ImageTask->PixelData = MakeUnique<TImagePixelData<FColor>>(BitmapSize, TArray64<FColor>(MoveTemp(Bitmap)));
+
+				// Set full alpha on the bitmap
+				if (!bWriteAlpha)
+				{
+					ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+				}
+
+				HighResScreenshotConfig.PopulateImageTaskParams(*ImageTask);
+				ImageTask->Filename = FScreenshotRequest::GetFilename();
+
+				// Filename can be PNG but EImageFormat can be EXR
+
+				// PopulateImageTaskParams sets Format, ignores extension on file name
+				// ignore EXR from PopulateImageTaskParams, we are always 8-bit here
+				//if ( ImageTask->Format != EImageFormat::EXR )
+				{
+					// if not high dynamic range, get format from filename :
+					IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>(FName("ImageWrapper"));
+					EImageFormat ImageFormat = ImageWrapperModule.GetImageFormatFromExtension(*ImageTask->Filename);
+					if (ImageFormat != EImageFormat::Invalid)
+					{
+						ImageTask->Format = ImageFormat;
+					}
+				}
+
 				// Save the bitmap to disk
 				TFuture<bool> CompletionFuture = HighResScreenshotConfig.ImageWriteQueue->Enqueue(MoveTemp(ImageTask));
 				if (CompletionFuture.IsValid())
