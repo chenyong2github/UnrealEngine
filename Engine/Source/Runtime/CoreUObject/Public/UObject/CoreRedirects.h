@@ -163,7 +163,7 @@ struct COREUOBJECT_API FCoreRedirectObjectName
 	}
 
 	/** Returns true if all names have valid characters */
-	bool HasValidCharacters() const;
+	bool HasValidCharacters(ECoreRedirectFlags Type) const;
 
 	/** Expand OldName/NewName as needed */
 	static bool ExpandNames(const FString& FullString, FName& OutName, FName& OutOuter, FName &OutPackage);
