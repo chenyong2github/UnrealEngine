@@ -25,10 +25,11 @@ public:
 #if WITH_EDITORONLY_DATA
 	/** A (optional) reference texture from which the volume texture was built */
 	UPROPERTY(EditAnywhere, Category=Source2D, meta=(DisplayName="Source Texture"))
-	TObjectPtr<UTexture2D> Source2DTexture;
-	/** The lighting Guid of the source 2D texture, used to trigger rebuild when the source changes. */
+	TObjectPtr<UTexture2D> Source2DTexture;	
+
 	UPROPERTY()
-	FGuid SourceLightingGuid;
+	FGuid SourceLightingGuid_DEPRECATED;
+
 	UPROPERTY(EditAnywhere, Category=Source2D, meta=(DisplayName="Tile Size X"))
 	/** The reference texture tile size X */
 	int32 Source2DTileSizeX;

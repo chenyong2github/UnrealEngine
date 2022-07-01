@@ -364,7 +364,6 @@ uint32 UTextureCubeArray::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
 }
 
 #if WITH_EDITOR
-
 ENGINE_API bool UTextureCubeArray::CheckArrayTexturesCompatibility()
 {
 	if (SourceTextures.Num() == 0)
@@ -430,7 +429,8 @@ ENGINE_API bool UTextureCubeArray::UpdateSourceFromSourceTextures(bool bCreating
 	{
 		return false;
 	}
-
+	
+	Modify();
 
 	const FTextureSource& InitialSource = SourceTextures[0]->Source;
 	// Format and format size.
@@ -499,12 +499,14 @@ ENGINE_API bool UTextureCubeArray::UpdateSourceFromSourceTextures(bool bCreating
 	SetLightingGuid();
 	ValidateSettingsAfterImportOrEdit();
 	UpdateResource();
-
+	
 	return true;
 }
 
 ENGINE_API void UTextureCubeArray::InvadiateTextureSource()
 {
+	Modify();
+
 	if (PlatformData)
 	{
 		delete PlatformData;
@@ -514,6 +516,7 @@ ENGINE_API void UTextureCubeArray::InvadiateTextureSource()
 	Source = FTextureSource();
 	Source.SetOwner(this);
 	UpdateResource();
+	
 }
 #endif
 
@@ -543,9 +546,9 @@ void UTextureCubeArray::Serialize(FArchive& Ar)
 void UTextureCubeArray::PostLoad()
 {
 #if WITH_EDITOR
-	FinishCachePlatformData();
-
+	FinishCachePlatformData();	
 #endif // #if WITH_EDITOR
+
 	Super::PostLoad();
 };
 

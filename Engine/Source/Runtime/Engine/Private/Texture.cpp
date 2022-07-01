@@ -692,12 +692,14 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		for (TObjectIterator<UTexture> It; It; ++It) // walk all textures in the world
 		{
 			UTexture* Tex = *It;
-
+			
+			// @@!! should this just be done in reimport, not for every property change?
 			if(Tex != this && Tex->CompositeTexture == this && Tex->CompositeTextureMode != CTM_Disabled)
 			{
 				TexturesThatUseThisTexture.Add(Tex);
 			}
 		}
+		// there is a potential infinite loop here if two textures depend on each other (or in a ring)
 		for (int32 i = 0; i < TexturesThatUseThisTexture.Num(); ++i)
 		{
 			TexturesThatUseThisTexture[i]->PostEditChange();
@@ -713,6 +715,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		}
 	}
 }
+
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
@@ -2619,23 +2622,28 @@ FGuid FTextureSource::GetId() const
 	{
 		return Id;
 	}
-
+	
 	UE::DerivedData::FBuildVersionBuilder IdBuilder;
 	IdBuilder << BaseBlockX;
 	IdBuilder << BaseBlockY;
 	IdBuilder << SizeX;
-	IdBuilder << SizeY;
+	IdBuilder << SizeY;	
 	IdBuilder << NumSlices;
 	IdBuilder << NumMips;
-	IdBuilder << NumLayers;
+	IdBuilder << NumLayers;	
 	IdBuilder << bLongLatCubemap;
 	IdBuilder << CompressionFormat;
-	IdBuilder << bGuidIsHash;
+	IdBuilder << bGuidIsHash; // always true here
 	IdBuilder << static_cast<uint8>(Format.GetValue());
+	
+	// @@!! this looks wrong
+	// .Num() is number of items, not number of bytes
 	IdBuilder.Serialize(const_cast<void*>(static_cast<const void*>(LayerFormat.GetData())), LayerFormat.Num());
 	IdBuilder.Serialize(const_cast<void*>(static_cast<const void*>(Blocks.GetData())), Blocks.Num());
 	IdBuilder.Serialize(const_cast<void*>(static_cast<const void*>(BlockDataOffsets.GetData())), BlockDataOffsets.Num());
+	
 	IdBuilder << const_cast<FGuid&>(Id);
+
 	return IdBuilder.Build();
 }
 
@@ -3523,5 +3531,5 @@ bool FTextureSource::EnsureBlocksAreSorted()
 
 	return true;
 }
-
 #endif //WITH_EDITOR
+

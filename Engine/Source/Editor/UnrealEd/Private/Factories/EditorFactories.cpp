@@ -4398,9 +4398,9 @@ UObject* UTextureFactory::FactoryCreateBinary
 	// Invalidate any materials using the newly imported texture. (occurs if you import over an existing texture)
 	Texture->PostEditChange();
 
-	// Invalidate any volume texture that was built on this texture.
 	if (Texture2D)
 	{
+		// Invalidate any volume texture that was built on this texture.
 		for (TObjectIterator<UVolumeTexture> It; It; ++It)
 		{
 			UVolumeTexture* VolumeTexture = *It;
@@ -4410,11 +4410,8 @@ UObject* UTextureFactory::FactoryCreateBinary
 				VolumeTexture->UpdateResource();
 			}
 		}
-	}
 
-	// Invalidate any Texture2DArrays that use the updated texture.
-	if (Texture2D) 
-	{
+		// Invalidate any Texture2DArrays that use the updated texture.
 		for (TObjectIterator<UTexture2DArray> It; It; ++It) 
 		{
 			UTexture2DArray* TextureArray = *It;
@@ -4426,6 +4423,28 @@ UObject* UTextureFactory::FactoryCreateBinary
 					{
 						// Update the entire texture array.
 						TextureArray->UpdateSourceFromSourceTextures(false);
+						// UpdateSourceFromSourceTextures calls UpdateResource
+						break;
+					}
+				}
+			}
+		}
+	}
+
+	{
+		// Invalidate any TextureCubeArrays that use the updated texture.
+		for (TObjectIterator<UTextureCubeArray> It; It; ++It) 
+		{
+			UTextureCubeArray* TextureArray = *It;
+			if (TextureArray) 
+			{
+				for (int32 SourceIndex = 0; SourceIndex < TextureArray->SourceTextures.Num(); ++SourceIndex) 
+				{
+					if (TextureArray->SourceTextures[SourceIndex] == Texture) 
+					{
+						// Update the entire texture array.
+						TextureArray->UpdateSourceFromSourceTextures(false);
+						// UpdateSourceFromSourceTextures calls UpdateResource
 						break;
 					}
 				}

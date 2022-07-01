@@ -140,7 +140,6 @@ uint32 UTexture2DArray::CalcTextureMemorySizeEnum(ETextureMipCount Enum) const
 }
 
 #if WITH_EDITOR
-
 ENGINE_API bool UTexture2DArray::CheckArrayTexturesCompatibility()
 {
 	bool bError = false;
@@ -199,6 +198,8 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 
 	if (SourceTextures.Num() > 0)
 	{
+		Modify();
+
 		FTextureSource& InitialSource = SourceTextures[0]->Source;
 		// Format and format size.
 		ETextureSourceFormat Format = InitialSource.GetFormat();
@@ -254,7 +255,7 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 
 		ValidateSettingsAfterImportOrEdit();
 		SetLightingGuid();
-		UpdateResource();
+		UpdateResource();		
 	}
 
 	return true;
@@ -262,6 +263,8 @@ ENGINE_API bool UTexture2DArray::UpdateSourceFromSourceTextures(bool bCreatingNe
 
 ENGINE_API void UTexture2DArray::InvadiateTextureSource()
 {
+	Modify();
+
 	if (PlatformData) 
 	{
 		delete PlatformData;
@@ -270,7 +273,7 @@ ENGINE_API void UTexture2DArray::InvadiateTextureSource()
 
 	Source = FTextureSource();
 	Source.SetOwner(this);
-
+	
 	UpdateResource();
 }
 #endif
@@ -302,8 +305,8 @@ void UTexture2DArray::PostLoad()
 {
 #if WITH_EDITOR
 	FinishCachePlatformData();
-
 #endif // #if WITH_EDITOR
+
 	Super::PostLoad();
 };
 
@@ -377,7 +380,7 @@ ENGINE_API void UTexture2DArray::PostEditChangeProperty(FPropertyChangedEvent & 
 			}
 		}
 	}
-
+	
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTexture2DArray, AddressX)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UTexture2DArray, AddressY)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UTexture2DArray, AddressZ))

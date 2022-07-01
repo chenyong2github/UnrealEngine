@@ -40,6 +40,9 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 	bool bSourceValid = false;
 
 #if WITH_EDITOR
+
+	Modify(true);
+
 	if (Source2DTexture && Source2DTileSizeX > 0 && Source2DTileSizeY > 0)
 	{
 		FTextureSource& InitialSource = Source2DTexture->Source;
@@ -77,7 +80,6 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 					}
 
 					Source.Init(Source2DTileSizeX, Source2DTileSizeY, TileSizeZ, 1, InitialSource.GetFormat(), NewData);
-					SourceLightingGuid = Source2DTexture->GetLightingGuid();
 					bSourceValid = true;
 
 					FMemory::Free(NewData);
@@ -94,7 +96,7 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 	{
 		Source = FTextureSource();
 		Source.SetOwner(this);
-		SourceLightingGuid.Invalidate();
+		// Source2DTexture = nullptr; // ??
 
 		if (PlatformData)
 		{
@@ -118,6 +120,8 @@ ENGINE_API bool UVolumeTexture::UpdateSourceFromFunction(TFunction<void(int32, i
 		UE_LOG(LogTexture, Warning, TEXT("%s UpdateSourceFromFunction size in x,y, and z must be greater than zero"), *GetFullName());
 		return false;
 	}
+	
+	Modify(true);
 
 	// First clear up the existing source with the requested TextureSourceFormat
 	Source.Init(0, 0, 0, 1, Format, nullptr);
@@ -194,11 +198,6 @@ void UVolumeTexture::PostLoad()
 {
 #if WITH_EDITOR
 	FinishCachePlatformData();
-
-	if (Source2DTexture && SourceLightingGuid != Source2DTexture->GetLightingGuid())
-	{
-		UpdateSourceFromSourceTexture();
-	}
 #endif // #if WITH_EDITOR
 
 	Super::PostLoad();
@@ -369,8 +368,9 @@ void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 			UpdateSourceFromSourceTexture();
 		}
 	}
-	
+		
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+
 }
 
 
@@ -438,3 +438,4 @@ bool UVolumeTexture::StreamIn(int32 NewMipCount, bool bHighPrio)
 	}
 	return false;
 }
+
