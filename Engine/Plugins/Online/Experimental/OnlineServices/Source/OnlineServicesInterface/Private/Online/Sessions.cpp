@@ -98,6 +98,7 @@ const TCHAR* LexToString(ESessionState Value)
 	switch (Value)
 	{
 	case ESessionState::Creating:	return TEXT("Creating");
+	case ESessionState::Joining:	return TEXT("Joining");
 	case ESessionState::Valid:		return TEXT("Valid");
 	case ESessionState::Leaving:	return TEXT("Leaving");
 	case ESessionState::Destroying:	return TEXT("Destroying");
@@ -115,6 +116,10 @@ void LexFromString(ESessionState& Value, const TCHAR* InStr)
 	else if (FCString::Stricmp(InStr, TEXT("Creating")) == 0)
 	{
 		Value = ESessionState::Creating;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Joining")) == 0)
+	{
+		Value = ESessionState::Joining;
 	}
 	else if (FCString::Stricmp(InStr, TEXT("Valid")) == 0)
 	{

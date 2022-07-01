@@ -91,6 +91,7 @@ enum class ESessionState : uint8
 {
 	Invalid,
 	Creating,
+	Joining,
 	Valid,
 	Leaving,
 	Destroying
@@ -213,7 +214,7 @@ struct ONLINESERVICESINTERFACE_API FSession
 	FOnlineSessionIdHandle SessionId;
 
 	/** The current state of the session */
-	ESessionState CurrentState;
+	ESessionState CurrentState = ESessionState::Invalid;
 
 	/** Set of session properties */
 	FSessionSettings SessionSettings;

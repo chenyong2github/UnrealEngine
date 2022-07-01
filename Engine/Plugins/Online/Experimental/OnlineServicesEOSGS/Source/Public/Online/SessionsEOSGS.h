@@ -50,15 +50,48 @@ private:
 
 static FName EOS_SESSIONS_BUCKET_ID = TEXT("EOS_SESSIONS_BUCKET_ID");
 
+struct FSessionSearchHandleEOSGS : FNoncopyable
+{
+	EOS_HSessionSearch SearchHandle;
+
+	FSessionSearchHandleEOSGS(EOS_HSessionSearch InSearchHandle)
+		: SearchHandle(InSearchHandle)
+	{
+	}
+
+	virtual ~FSessionSearchHandleEOSGS()
+	{
+		EOS_SessionSearch_Release(SearchHandle);
+	}
+};
+
+struct FSessionDetailsHandleEOSGS : FNoncopyable
+{
+	EOS_HSessionDetails SessionDetailsHandle;
+
+	FSessionDetailsHandleEOSGS(EOS_HSessionDetails InSessionDetailsHandle)
+		: SessionDetailsHandle(InSessionDetailsHandle)
+	{
+	}
+
+	virtual ~FSessionDetailsHandleEOSGS()
+	{
+		EOS_SessionDetails_Release(SessionDetailsHandle);
+	}
+};
+
 class FSessionEOSGS : public FSession
 {
 public:
 	FSessionEOSGS();
 	FSessionEOSGS(const FSession& InSession);
+	FSessionEOSGS(const EOS_HSessionDetails& SessionDetailsHandle);
+
+	static const FSessionEOSGS& Cast(const FSession& InSession);
 
 public:
-	/** The IP address for the session owner */
-	TSharedPtr<FInternetAddr> OwnerInternetAddr;
+	/** Session details handle */
+	TSharedPtr<FSessionDetailsHandleEOSGS> SessionDetailsHandle;
 };
 
 struct FUpdateSessionImpl
@@ -94,6 +127,8 @@ public:
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FFindSessions> FindSessions(FFindSessions::Params&& Params) override;
+	virtual TOnlineAsyncOpHandle<FJoinSession> JoinSession(FJoinSession::Params&& Params) override;
 
 protected:
 	void SetPermissionLevel(EOS_HSessionModification& SessionModHandle, const ESessionJoinPolicy& JoinPolicy);
@@ -110,6 +145,8 @@ protected:
 	void WriteUpdateSessionModificationHandle(EOS_HSessionModification& SessionModificationHandle, FSessionSettings& SessionSettings, const FSessionSettingsUpdate& NewSettings);
 	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
 
+	void WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params);
+
 protected:
 	FOnlineServicesEOSGS& Services;
 
@@ -117,6 +154,10 @@ protected:
 
 	TMap<FName, TSharedRef<FSessionEOSGS>> SessionsByName;
 	TMap<FOnlineSessionIdHandle, TSharedRef<FSessionEOSGS>> SessionsById;
+
+	TSharedPtr<FSessionSearchHandleEOSGS> CurrentSessionSearchHandleEOSGS;
+	TSharedPtr<FFindSessions::Result> CurrentSessionSearch;
+	TSharedPtr<TOnlineAsyncOp<FFindSessions>> CurrentSessionSearchAsyncOpHandle;
 };
 
 /* UE::Online */ }
