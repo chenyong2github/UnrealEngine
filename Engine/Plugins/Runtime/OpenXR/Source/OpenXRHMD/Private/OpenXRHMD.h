@@ -75,6 +75,7 @@ public:
 		TArray<XrSpaceLocation> DeviceLocations;
 		TSharedPtr<FTrackingSpace> TrackingSpace;
 		float WorldToMetersScale = 100.0f;
+		float PixelDensity = 1.0f;
 
 		TArray<XrViewConfigurationView> ViewConfigs;
 		TArray<class IOpenXRExtensionPlugin*> PluginViews;
@@ -246,6 +247,8 @@ public:
 	virtual bool GetHMDMonitorInfo(MonitorInfo&) override;
 	virtual void GetFieldOfView(float& OutHFOVInDegrees, float& OutVFOVInDegrees) const override;
 	virtual bool IsChromaAbCorrectionEnabled() const override;
+	//virtual float GetPixelDenity() const override;
+	virtual void SetPixelDensity(const float NewDensity) override;
 	virtual FIntPoint GetIdealRenderTargetSize() const override;
 	virtual bool GetHMDDistortionEnabled(EShadingPath ShadingPath) const override { return false; }
 	virtual FIntRect GetFullFlatEyeRect_RenderThread(FTexture2DRHIRef EyeTexture) const override;
@@ -354,6 +357,7 @@ private:
 	bool					bProjectionLayerAlphaEnabled;
 	bool					bIsStandaloneStereoOnlyDevice;
 	float					WorldToMetersScale = 100.0f;
+	float					RuntimePixelDensityMax = FHeadMountedDisplayBase::PixelDensityMax;
 
 	XrSessionState			CurrentSessionState;
 	FRWLock					SessionHandleMutex;

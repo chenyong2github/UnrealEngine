@@ -1115,6 +1115,14 @@ FOpenXRHMD::FOpenXRHMD(const FAutoRegister& AutoRegister, XrInstance InInstance,
 	// Enumerate the views we will be simulating with.
 	EnumerateViews(PipelinedFrameStateGame);
 
+	for (const XrViewConfigurationView& Config : PipelinedFrameStateGame.ViewConfigs)
+	{
+		const float WidthDensityMax = float(Config.maxImageRectWidth) / Config.recommendedImageRectWidth;
+		const float HeightDensitymax = float(Config.maxImageRectHeight) / Config.recommendedImageRectHeight;
+		const float PerViewPixelDensityMax = FMath::Min(WidthDensityMax, HeightDensitymax);
+		RuntimePixelDensityMax = FMath::Min(RuntimePixelDensityMax, PerViewPixelDensityMax);
+	}
+
 	// Enumerate environment blend modes and select the best one.
 	{
 		uint32 BlendModeCount;
@@ -2575,6 +2583,12 @@ bool FOpenXRHMD::HDRGetMetaDataForStereo(EDisplayOutputFormat& OutDisplayOutputF
 	}
 
 	return RenderBridge->HDRGetMetaDataForStereo(OutDisplayOutputFormat, OutDisplayColorGamut, OutbHDRSupported);
+}
+
+void FOpenXRHMD::SetPixelDensity(const float NewDensity)
+{
+	check(IsInGameThread());
+	PipelinedFrameStateGame.PixelDensity = FMath::Min(NewDensity, RuntimePixelDensityMax);
 }
 
 FIntPoint FOpenXRHMD::GetIdealRenderTargetSize() const
