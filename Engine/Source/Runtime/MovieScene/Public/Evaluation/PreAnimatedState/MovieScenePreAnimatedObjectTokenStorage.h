@@ -21,35 +21,18 @@ namespace MovieScene
 {
 
 
-struct FPreAnimatedObjectTokenTraits
+struct FPreAnimatedObjectTokenTraits : FBoundObjectPreAnimatedStateTraits
 {
-	struct FAnimatedKey
-	{
-		FObjectKey BoundObject;
-		FMovieSceneAnimTypeID AnimTypeID;
-
-		friend uint32 GetTypeHash(const FAnimatedKey& In)
-		{
-			return HashCombine(GetTypeHash(In.BoundObject), GetTypeHash(In.AnimTypeID));
-		}
-		friend bool operator==(const FAnimatedKey& A, const FAnimatedKey& B)
-		{
-			return A.BoundObject == B.BoundObject && A.AnimTypeID == B.AnimTypeID;
-		}
-	};
-
-	using KeyType     = FAnimatedKey;
+	using KeyType     = TTuple<FObjectKey, FMovieSceneAnimTypeID>;
 	using StorageType = IMovieScenePreAnimatedTokenPtr;
 
-	static void RestorePreAnimatedValue(const FAnimatedKey& InKey, IMovieScenePreAnimatedTokenPtr& Token, const FRestoreStateParams& Params)
+	static void RestorePreAnimatedValue(const KeyType& InKey, IMovieScenePreAnimatedTokenPtr& Token, const FRestoreStateParams& Params)
 	{
-		if (UObject* Object = InKey.BoundObject.ResolveObjectPtr())
+		if (UObject* Object = InKey.Get<0>().ResolveObjectPtr())
 		{
 			Token->RestoreState(*Object, Params);
 		}
 	}
-
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager;
 };
 
 
@@ -58,14 +41,6 @@ struct MOVIESCENE_API FAnimTypePreAnimatedStateObjectStorage : TPreAnimatedState
 	static TAutoRegisterPreAnimatedStorageID<FAnimTypePreAnimatedStateObjectStorage> StorageID;
 
 	FPreAnimatedStateEntry MakeEntry(UObject* Object, FMovieSceneAnimTypeID AnimTypeID);
-
-	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* InParentExtension) override;
-	void OnObjectReplaced(FPreAnimatedStorageIndex StorageIndex, const FObjectKey& OldObject, const FObjectKey& NewObject) override;
-
-
-private:
-
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager;
 };
 
 

@@ -289,6 +289,8 @@ private:
 	void FreeGroupInternal(FPreAnimatedStorageGroupHandle Handle);
 	bool ShouldCaptureAnyState() const;
 
+	void AddReferencedObjects(UMovieSceneEntitySystemLinker*, FReferenceCollector& ReferenceCollector);
+
 public:
 
 	/** The number of requests that have been made to capture global state - only one should exist per playing sequence */

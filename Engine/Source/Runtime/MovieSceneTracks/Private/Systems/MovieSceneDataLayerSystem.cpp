@@ -42,7 +42,7 @@ enum class EDataLayerUpdateFlags : uint8
 ENUM_CLASS_FLAGS(EDataLayerUpdateFlags)
 
 /** Traits class governing how pre-animated state is (re)stored for data layers */
-struct FPreAnimatedDataLayerStorageTraits
+struct FPreAnimatedDataLayerStorageTraits : FBoundObjectPreAnimatedStateTraits
 {
 	using KeyType = TObjectKey<UDataLayerInstance>;
 	using StorageType = EDataLayerRuntimeState;

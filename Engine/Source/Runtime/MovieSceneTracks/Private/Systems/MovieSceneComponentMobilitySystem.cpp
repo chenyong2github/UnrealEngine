@@ -83,7 +83,7 @@ static void GetFlattenedHierarchy(USceneComponent* SceneComponent, TArray<UScene
 
 FPreAnimatedStateEntry FPreAnimatedComponentMobilityStorage::MakeEntry(USceneComponent* InSceneComponent)
 {
-	FPreAnimatedStorageGroupHandle GroupHandle  = ObjectGroupManager->MakeGroupForKey(InSceneComponent);
+	FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.ObjectGroupManager->MakeGroupForKey(InSceneComponent);
 	FPreAnimatedStorageIndex       StorageIndex = GetOrCreateStorageIndex(InSceneComponent);
 
 	return FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
@@ -138,7 +138,7 @@ bool UMovieSceneComponentMobilitySystem::IsRelevantImpl(UMovieSceneEntitySystemL
 
 void UMovieSceneComponentMobilitySystem::OnLink()
 {
-	Linker->Events.TagGarbage.AddUObject(this, &UMovieSceneComponentMobilitySystem::TagGarbage);
+	MobilityTracker.Initialize(this);
 }
 
 void UMovieSceneComponentMobilitySystem::OnUnlink()
@@ -161,16 +161,6 @@ void UMovieSceneComponentMobilitySystem::OnRun(FSystemTaskPrerequisites& InPrere
 	// Update the mobility tracker, caching preanimated mobilities and assigning everything as moveable that needs it
 	MobilityTracker.Update(Linker, FBuiltInComponentTypes::Get()->BoundObject, Filter);
 	MobilityTracker.ProcessInvalidatedOutputs(Linker, FMobilityCacheHandler(this));
-}
-
-void UMovieSceneComponentMobilitySystem::TagGarbage(UMovieSceneEntitySystemLinker*)
-{
-	MobilityTracker.CleanupGarbage();
-}
-
-void UMovieSceneComponentMobilitySystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	CastChecked<UMovieSceneComponentMobilitySystem>(InThis)->MobilityTracker.AddReferencedObjects(Collector);
 }
 
 void UMovieSceneComponentMobilitySystem::SavePreAnimatedState(const FPreAnimationParameters& InParameters)

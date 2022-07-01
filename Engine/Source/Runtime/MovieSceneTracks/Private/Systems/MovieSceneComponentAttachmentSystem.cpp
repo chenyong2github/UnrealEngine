@@ -102,7 +102,7 @@ struct FAttachmentHandler
 	}
 };
 
-struct FComponentAttachmentPreAnimatedTraits
+struct FComponentAttachmentPreAnimatedTraits : FBoundObjectPreAnimatedStateTraits
 {
 	using KeyType     = FObjectKey;
 	using StorageType = FPreAnimAttachment;
@@ -127,8 +127,6 @@ struct FPreAnimatedComponentAttachmentStorage
 	: TPreAnimatedStateStorage_ObjectTraits<FComponentAttachmentPreAnimatedTraits>
 {
 	static TAutoRegisterPreAnimatedStorageID<FPreAnimatedComponentAttachmentStorage> StorageID;
-
-	FPreAnimatedStorageID GetStorageType() const override { return StorageID; }
 };
 
 TAutoRegisterPreAnimatedStorageID<FPreAnimatedComponentAttachmentStorage> FPreAnimatedComponentAttachmentStorage::StorageID;
@@ -192,17 +190,7 @@ void UMovieSceneComponentAttachmentSystem::OnLink()
 	Linker->SystemGraph.AddReference(this, AttachmentInvalidator);
 	Linker->SystemGraph.AddPrerequisite(AttachmentInvalidator, this);
 
-	Linker->Events.TagGarbage.AddUObject(this, &UMovieSceneComponentAttachmentSystem::TagGarbage);
-}
-
-void UMovieSceneComponentAttachmentSystem::TagGarbage(UMovieSceneEntitySystemLinker*)
-{
-	AttachmentTracker.CleanupGarbage();
-}
-
-void UMovieSceneComponentAttachmentSystem::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
-{
-	CastChecked<UMovieSceneComponentAttachmentSystem>(InThis)->AttachmentTracker.AddReferencedObjects(Collector);
+	AttachmentTracker.Initialize(this);
 }
 
 void UMovieSceneComponentAttachmentSystem::OnUnlink()

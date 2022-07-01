@@ -117,7 +117,7 @@ private:
 
 	static constexpr uint16 INVALID_BLEND_CHANNEL = uint16(-1);
 
-	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FInterrogationKey, FPropertyInfo> PropertyTracker;
+	UE::MovieScene::TOverlappingEntityTracker<FPropertyInfo, UE::MovieScene::FInterrogationKey> PropertyTracker;
 	UE::MovieScene::FComponentMask CleanFastPathMask;
 	UE::MovieScene::FBuiltInComponentTypes* BuiltInComponents;
 	UE::MovieScene::FPropertyRecomposerImpl RecomposerImpl;

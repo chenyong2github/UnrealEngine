@@ -221,9 +221,9 @@ void FMovieScenePreAnimatedState::RestorePreAnimatedState(UObject& Object, TFunc
 	{
 		TFunctionRef<bool(FMovieSceneAnimTypeID)>* Filter;
 
-		virtual bool CanRestore(const FPreAnimatedObjectTokenTraits::FAnimatedKey& InKey) const override
+		virtual bool CanRestore(const FPreAnimatedObjectTokenTraits::KeyType& InKey) const override
 		{
-			return (*Filter)(InKey.AnimTypeID);
+			return (*Filter)(InKey.Get<1>());
 		}
 	} RestoreMask;
 	RestoreMask.Filter = &InFilter;

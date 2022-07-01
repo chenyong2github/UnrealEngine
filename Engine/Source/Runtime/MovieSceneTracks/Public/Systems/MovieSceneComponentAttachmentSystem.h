@@ -58,8 +58,6 @@ public:
 
 	void AddPendingDetach(USceneComponent* SceneComponent, const UE::MovieScene::FPreAnimAttachment& Attachment);
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-
 private:
 
 	virtual void OnLink() override final;
@@ -70,9 +68,7 @@ private:
 	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 	virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 
-	void TagGarbage(UMovieSceneEntitySystemLinker*);
-
-	UE::MovieScene::TOverlappingEntityTracker_BoundObject<UE::MovieScene::FPreAnimAttachment> AttachmentTracker;
+	UE::MovieScene::TOverlappingEntityTracker<UE::MovieScene::FPreAnimAttachment, UObject*> AttachmentTracker;
 
 	TArray<TTuple<USceneComponent*, UE::MovieScene::FPreAnimAttachment>> PendingAttachmentsToRestore;
 };

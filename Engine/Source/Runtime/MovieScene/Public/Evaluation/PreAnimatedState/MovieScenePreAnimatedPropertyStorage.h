@@ -15,7 +15,6 @@
 #include "Evaluation/PreAnimatedState/MovieSceneRestoreStateParams.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStorageID.inl"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedStateStorage.h"
-#include "Evaluation/PreAnimatedState/MovieScenePreAnimatedObjectGroupManager.h"
 #include "Evaluation/PreAnimatedState/MovieScenePreAnimatedEntityCaptureSource.h"
 
 
@@ -25,15 +24,115 @@ namespace MovieScene
 {
 
 
+/**
+ * Pre-animated property value, including cached meta-data
+ */
+template<typename StorageType, typename ...MetaDataTypes>
+struct TPreAnimatedPropertyValue
+{
+	TPreAnimatedPropertyValue()
+	{}
+
+	TPreAnimatedPropertyValue(typename TCallTraits<MetaDataTypes>::ParamType... InMetaData)
+		: MetaData(InMetaData...)
+	{}
+
+	StorageType Data;
+	TVariant<const FCustomPropertyAccessor*, uint16, TSharedPtr<FTrackInstancePropertyBindings>> Binding;
+	TTuple<MetaDataTypes...> MetaData;
+};
+
+
+/**
+ * Pre-animated property value, specialized for no meta-data
+ */
+template<typename StorageType>
+struct TPreAnimatedPropertyValue<StorageType>
+{
+	StorageType Data;
+	TVariant<const FCustomPropertyAccessor*, uint16, TSharedPtr<FTrackInstancePropertyBindings>> Binding;
+};
+
+
+/**
+ * Pre-Animated traits class that wraps a user-provided property trait that defines property accessors 
+ */
+template<typename PropertyTraits, typename MetaDataIndices, typename ...MetaDataTypes>
+struct TPreAnimatedPropertyTraits;
+
+template<typename PropertyTraits, int... MetaDataIndices, typename ...MetaDataTypes>
+struct TPreAnimatedPropertyTraits<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>, MetaDataTypes...> : FBoundObjectPreAnimatedStateTraits
+{
+	using KeyType = TTuple<FObjectKey, FName>;
+	using StorageType = TPreAnimatedPropertyValue<typename PropertyTraits::StorageType, MetaDataTypes...>;
+
+	static void RestorePreAnimatedValue(const KeyType& InKey, StorageType& CachedValue, const FRestoreStateParams& Params)
+	{
+		UObject* Object = InKey.Get<0>().ResolveObjectPtr();
+		if (!Object)
+		{
+			return;
+		}
+
+		if (const uint16* FastOffset = CachedValue.Binding.template TryGet<uint16>())
+		{
+			PropertyTraits::SetObjectPropertyValue(Object, CachedValue.MetaData.template Get<MetaDataIndices>()..., *FastOffset, CachedValue.Data);
+		}
+		else  if (const TSharedPtr<FTrackInstancePropertyBindings>* Bindings = CachedValue.Binding.template TryGet<TSharedPtr<FTrackInstancePropertyBindings>>())
+		{
+			PropertyTraits::SetObjectPropertyValue(Object, CachedValue.MetaData.template Get<MetaDataIndices>()..., Bindings->Get(), CachedValue.Data);
+		}
+		else if (const FCustomPropertyAccessor* CustomAccessor = CachedValue.Binding.template Get<const FCustomPropertyAccessor*>())
+		{
+			PropertyTraits::SetObjectPropertyValue(Object, CachedValue.MetaData.template Get<MetaDataIndices>()..., *CustomAccessor, CachedValue.Data);
+		}
+	}
+};
+
+
+
+/**
+ * Pre-Animated traits class that wraps a user-provided property trait that defines property accessors with no meta-data
+ */
+template<typename PropertyTraits>
+struct TPreAnimatedPropertyTraits<PropertyTraits, TPropertyMetaData<>, TIntegerSequence<int>> : FBoundObjectPreAnimatedStateTraits
+{
+	using KeyType = TTuple<FObjectKey, FName>;
+	using StorageType = TPreAnimatedPropertyValue<typename PropertyTraits::StorageType>;
+
+	static void RestorePreAnimatedValue(const KeyType& InKey, StorageType& CachedValue, const FRestoreStateParams& Params)
+	{
+		UObject* Object = InKey.Get<0>().ResolveObjectPtr();
+		if (!Object)
+		{
+			return;
+		}
+
+		if (const uint16* FastOffset = CachedValue.Binding.template TryGet<uint16>())
+		{
+			PropertyTraits::SetObjectPropertyValue(Object, *FastOffset, CachedValue.Data);
+		}
+		else  if (const TSharedPtr<FTrackInstancePropertyBindings>* Bindings = CachedValue.Binding.template TryGet<TSharedPtr<FTrackInstancePropertyBindings>>())
+		{
+			PropertyTraits::SetObjectPropertyValue(Object, Bindings->Get(), CachedValue.Data);
+		}
+		else if (const FCustomPropertyAccessor* CustomAccessor = CachedValue.Binding.template Get<const FCustomPropertyAccessor*>())
+		{
+			PropertyTraits::SetObjectPropertyValue(Object, *CustomAccessor, CachedValue.Data);
+		}
+	}
+};
+
+
 template<typename PropertyTraits, typename MetaDataTypes, typename MetaDataIndices>
 struct TPreAnimatedPropertyStorageImpl;
 
 template<typename PropertyTraits, typename ...MetaDataTypes, int ...MetaDataIndices>
 struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDataTypes...>, TIntegerSequence<int, MetaDataIndices...>>
-	: IPreAnimatedStorage
+	: TPreAnimatedStateStorage<TPreAnimatedPropertyTraits<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>, MetaDataTypes...>>
 	, IPreAnimatedObjectPropertyStorage
 {
-	using StorageType       = typename PropertyTraits::StorageType;
+	using StorageType = typename TPreAnimatedPropertyTraits<PropertyTraits, TIntegerSequence<int, MetaDataIndices...>, MetaDataTypes...>::StorageType;
 
 	TPreAnimatedPropertyStorageImpl(const FPropertyDefinition& InPropertyDefinition)
 		: MetaDataComponents(InPropertyDefinition.MetaDataTypes)
@@ -44,38 +143,6 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 		{
 			CustomAccessors = InPropertyDefinition.CustomPropertyRegistration->GetAccessors();
 		}
-	}
-
-	FPreAnimatedStorageID GetStorageType() const override
-	{
-		return StorageID;
-	}
-
-	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* InParentExtension) override
-	{
-		this->Storage.Initialize(InStorageID, InParentExtension);
-
-		ObjectGroupManager = InParentExtension->GetOrCreateGroupManager<FPreAnimatedObjectGroupManager>();
-		ParentExtension = InParentExtension;
-		StorageID = InStorageID;
-	}
-
-	void OnObjectReplaced(FPreAnimatedStorageIndex StorageIndex, const FObjectKey& OldObject, const FObjectKey& NewObject) override
-	{
-		FAnimatedPropertyKey ExistingKey = this->Storage.GetKey(StorageIndex);
-		ExistingKey.BoundObject = NewObject;
-
-		this->Storage.ReplaceKey(StorageIndex, ExistingKey);
-	}
-
-	EPreAnimatedStorageRequirement RestorePreAnimatedStateStorage(FPreAnimatedStorageIndex StorageIndex, EPreAnimatedStorageRequirement SourceRequirement, EPreAnimatedStorageRequirement TargetRequirement, const FRestoreStateParams& Params) override
-	{
-		return this->Storage.RestorePreAnimatedStateStorage(StorageIndex, SourceRequirement, TargetRequirement, Params);
-	}
-
-	EPreAnimatedStorageRequirement DiscardPreAnimatedStateStorage(FPreAnimatedStorageIndex StorageIndex, EPreAnimatedStorageRequirement SourceRequirement) override
-	{
-		return this->Storage.DiscardPreAnimatedStateStorage(StorageIndex, SourceRequirement);
 	}
 
 	IPreAnimatedObjectPropertyStorage* AsPropertyStorage() override
@@ -93,18 +160,18 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 			return;
 		}
 
-		FPreAnimatedEntityCaptureSource* EntityMetaData = ParentExtension->GetOrCreateEntityMetaData();
+		FPreAnimatedEntityCaptureSource* EntityMetaData = this->ParentExtension->GetOrCreateEntityMetaData();
 		for (int32 Index = 0; Index < Num; ++Index)
 		{
 			UObject* BoundObject  = BoundObjects[Index];
 			FName    PropertyPath = PropertyBindings[Index].PropertyPath;
 
-			FAnimatedPropertyKey Key{ BoundObject, PropertyPath };
+			TTuple<FObjectKey, FName> Key{ BoundObject, PropertyPath };
 
-			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(BoundObject);
-			FPreAnimatedStorageIndex       StorageIndex = this->Storage.GetOrCreateStorageIndex(Key);
+			FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
+			FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
 
-			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
+			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
 			EntityMetaData->BeginTrackingEntity(Entry, EntityIDs[Index], InstanceHandles[Index], bWantsRestore);
 		}
 	}
@@ -127,12 +194,12 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 			UObject* BoundObject  = BoundObjects[Index];
 			FName    PropertyPath = PropertyBindings[Index].PropertyPath;
 
-			FAnimatedPropertyKey Key{ BoundObject, PropertyPath };
+			TTuple<FObjectKey, FName> Key{ BoundObject, PropertyPath };
 
-			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(Key.BoundObject);
-			FPreAnimatedStorageIndex       StorageIndex = this->Storage.GetOrCreateStorageIndex(Key);
+			FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
+			FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
 
-			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ StorageID, StorageIndex } };
+			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
 
 			if (this->ParentExtension->IsCapturingGlobalState())
 			{
@@ -144,10 +211,9 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 			}
 
 			EPreAnimatedStorageRequirement StorageRequirement = this->ParentExtension->GetStorageRequirement(Entry);
-			if (!Storage.IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
+			if (!this->IsStorageRequirementSatisfied(StorageIndex, StorageRequirement))
 			{
-				FPreAnimatedProperty NewValue;
-				NewValue.MetaData = MakeTuple(MetaData.template Get<MetaDataIndices>()[Index]...);
+				StorageType NewValue(MetaData.template Get<MetaDataIndices>()[Index]...);
 
 				if (Fast)
 				{
@@ -169,75 +235,20 @@ struct TPreAnimatedPropertyStorageImpl<PropertyTraits, TPropertyMetaData<MetaDat
 					PropertyTraits::GetObjectPropertyValue(BoundObjects[Index], MetaData.template Get<MetaDataIndices>()[Index]..., Bindings.Get(), NewValue.Data);
 				}
 
-				Storage.AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
+				this->AssignPreAnimatedValue(StorageIndex, StorageRequirement, MoveTemp(NewValue));
 			}
 
 			if (Params.bForcePersist)
 			{
-				this->Storage.ForciblyPersistStorage(StorageIndex);
+				this->ForciblyPersistStorage(StorageIndex);
 			}
 		}
 	}
 
 protected:
 
-	struct FAnimatedPropertyKey
-	{
-		FObjectKey BoundObject;
-		FName PropertyPath;
-
-		friend uint32 GetTypeHash(const FAnimatedPropertyKey& In)
-		{
-			return HashCombine(GetTypeHash(In.BoundObject), GetTypeHash(In.PropertyPath));
-		}
-		friend bool operator==(const FAnimatedPropertyKey& A, const FAnimatedPropertyKey& B)
-		{
-			return A.BoundObject == B.BoundObject && A.PropertyPath == B.PropertyPath;
-		}
-	};
-
-	struct FPreAnimatedProperty
-	{
-		StorageType Data;
-		TVariant<const FCustomPropertyAccessor*, uint16, TSharedPtr<FTrackInstancePropertyBindings>> Binding;
-		TTuple<MetaDataTypes...> MetaData;
-	};
-
-	struct FPropertyStorageTraits
-	{
-		using KeyType = FAnimatedPropertyKey;
-		using StorageType = FPreAnimatedProperty;
-
-		void RestorePreAnimatedValue(const FAnimatedPropertyKey& InKey, FPreAnimatedProperty& CachedValue, const FRestoreStateParams& Params)
-		{
-			UObject* Object = InKey.BoundObject.ResolveObjectPtr();
-			if (!Object)
-			{
-				return;
-			}
-
-			if (const uint16* FastOffset = CachedValue.Binding.template TryGet<uint16>())
-			{
-				PropertyTraits::SetObjectPropertyValue(Object, CachedValue.MetaData.template Get<MetaDataIndices>()..., *FastOffset, CachedValue.Data);
-			}
-			else  if (const TSharedPtr<FTrackInstancePropertyBindings>* Bindings = CachedValue.Binding.template TryGet<TSharedPtr<FTrackInstancePropertyBindings>>())
-			{
-				PropertyTraits::SetObjectPropertyValue(Object, CachedValue.MetaData.template Get<MetaDataIndices>()..., Bindings->Get(), CachedValue.Data);
-			}
-			else if (const FCustomPropertyAccessor* CustomAccessor = CachedValue.Binding.template Get<const FCustomPropertyAccessor*>())
-			{
-				PropertyTraits::SetObjectPropertyValue(Object, CachedValue.MetaData.template Get<MetaDataIndices>()..., *CustomAccessor, CachedValue.Data);
-			}
-		}
-	};
-
 	TArrayView<const FComponentTypeID> MetaDataComponents;
 	FCustomAccessorView CustomAccessors;
-	TPreAnimatedStateStorage<FPropertyStorageTraits> Storage;
-	FPreAnimatedStorageID StorageID;
-	FPreAnimatedStateExtension* ParentExtension;
-
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager;
 };
 
 

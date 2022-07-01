@@ -18,7 +18,7 @@ namespace UE
 namespace MovieScene
 {
 
-struct FPreAnimatedMasterTokenTraits
+struct FPreAnimatedMasterTokenTraits : FDefaultPreAnimatedStateTraits
 {
 	using KeyType     = FMovieSceneAnimTypeID;
 	using StorageType = IMovieScenePreAnimatedGlobalTokenPtr;

@@ -23,8 +23,6 @@ public:
 
 	UMovieSceneComponentMobilitySystem(const FObjectInitializer& ObjInit);
 
-	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
-
 private:
 
 	virtual bool IsRelevantImpl(UMovieSceneEntitySystemLinker* InLinker) const override;
@@ -36,11 +34,9 @@ private:
 	virtual void SavePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 	virtual void RestorePreAnimatedState(const FPreAnimationParameters& InParameters) override;
 
-	void TagGarbage(UMovieSceneEntitySystemLinker*);
-
 private:
 
-	UE::MovieScene::TOverlappingEntityTracker_BoundObject<EComponentMobility::Type> MobilityTracker;
+	UE::MovieScene::TOverlappingEntityTracker<EComponentMobility::Type, UObject*> MobilityTracker;
 
 	UE::MovieScene::FEntityComponentFilter Filter;
 
@@ -53,7 +49,7 @@ namespace UE
 namespace MovieScene
 {
 
-struct FPreAnimatedMobilityTraits
+struct FPreAnimatedMobilityTraits : FBoundObjectPreAnimatedStateTraits
 {
 	using KeyType     = FObjectKey;
 	using StorageType = EComponentMobility::Type;

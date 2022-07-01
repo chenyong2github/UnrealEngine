@@ -18,7 +18,7 @@ namespace UE
 namespace MovieScene
 {
 
-struct FPreAnimatedCVarTraits
+struct FPreAnimatedCVarTraits : FDefaultPreAnimatedStateTraits
 {
 	using KeyType     = FString;
 	using StorageType = FString;

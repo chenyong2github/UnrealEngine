@@ -258,7 +258,7 @@ TComponentTypeID<T> FComponentRegistry::NewComponentType(const TCHAR* const Debu
 	NewTypeInfo.bIsPreserved               = EnumHasAnyFlags(Flags, EComponentTypeFlags::Preserved);
 	NewTypeInfo.bIsCopiedToOutput          = EnumHasAnyFlags(Flags, EComponentTypeFlags::CopyToOutput);
 	NewTypeInfo.bIsMigratedToOutput        = EnumHasAnyFlags(Flags, EComponentTypeFlags::MigrateToOutput);
-	NewTypeInfo.bHasReferencedObjects      = !TIsSame< FNotImplemented*, decltype( AddReferencedObjectForComponent((FReferenceCollector*)0, (T*)0) ) >::Value;
+	NewTypeInfo.bHasReferencedObjects      = THasAddReferencedObjectForComponent<T>::Value;
 
 #if UE_MOVIESCENE_ENTITY_DEBUG
 	NewTypeInfo.DebugInfo                = MakeUnique<FComponentTypeDebugInfo>();

@@ -28,6 +28,7 @@ FPreAnimatedStateExtension::FPreAnimatedStateExtension()
 void FPreAnimatedStateExtension::Initialize(UMovieSceneEntitySystemLinker* InLinker)
 {
 	Linker = InLinker;
+	InLinker->Events.AddReferencedObjects.AddRaw(this, &FPreAnimatedStateExtension::AddReferencedObjects);
 }
 
 FPreAnimatedStateExtension::~FPreAnimatedStateExtension()
@@ -602,6 +603,14 @@ void FPreAnimatedStateExtension::SavePreAnimatedStateDirectly(FMovieSceneAnimTyp
 
 			MasterStorage->AssignPreAnimatedValue(StorageIndex, Requirement, MoveTemp(Token));
 		}
+	}
+}
+
+void FPreAnimatedStateExtension::AddReferencedObjects(UMovieSceneEntitySystemLinker*, FReferenceCollector& ReferenceCollector)
+{
+	for (TPair<FPreAnimatedStorageID, TSharedPtr<IPreAnimatedStorage>>& Pair : StorageImplementations)
+	{
+		Pair.Value->AddReferencedObjects(ReferenceCollector);
 	}
 }
 

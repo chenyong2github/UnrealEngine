@@ -44,20 +44,6 @@ public:
 		return this;
 	}
 
-	void Initialize(FPreAnimatedStorageID InStorageID, FPreAnimatedStateExtension* InParentExtension) override
-	{
-		TPreAnimatedStateStorage<ObjectTraits>::Initialize(InStorageID, InParentExtension);
-
-		ObjectGroupManager = InParentExtension->GetOrCreateGroupManager<FPreAnimatedObjectGroupManager>();
-	}
-
-	void OnObjectReplaced(FPreAnimatedStorageIndex StorageIndex, const FObjectKey& OldObject, const FObjectKey& NewObject) override
-	{
-		KeyType ExistingKey = this->GetKey(StorageIndex);
-		ExistingKey = NewObject;
-		this->ReplaceKey(StorageIndex, ExistingKey);
-	}
-
 	void BeginTrackingEntities(const FPreAnimatedTrackerParams& Params, TRead<FMovieSceneEntityID> EntityIDs, TRead<FRootInstanceHandle> InstanceHandles, TRead<UObject*> BoundObjects) override
 	{
 		const int32 Num = Params.Num;
@@ -74,7 +60,7 @@ public:
 			UObject* BoundObject = BoundObjects[Index];
 			FObjectKey Key{ BoundObject };
 
-			FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(Key);
+			FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
 			FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
 
 			FPreAnimatedStateEntry Entry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
@@ -95,7 +81,7 @@ public:
 		FObjectKey Key{ BoundObject };
 
 		FPreAnimatedStorageIndex       StorageIndex = this->GetOrCreateStorageIndex(Key);
-		FPreAnimatedStorageGroupHandle GroupHandle  = this->ObjectGroupManager->MakeGroupForKey(Key);
+		FPreAnimatedStorageGroupHandle GroupHandle  = this->Traits.MakeGroup(BoundObject);
 		FPreAnimatedStateEntry         Entry        = FPreAnimatedStateEntry{ GroupHandle, FPreAnimatedStateCachedValueHandle{ this->StorageID, StorageIndex } };
 
 		if (this->ParentExtension->IsCapturingGlobalState())
@@ -128,10 +114,6 @@ public:
 			this->ForciblyPersistStorage(StorageIndex);
 		}
 	}
-
-protected:
-
-	TSharedPtr<FPreAnimatedObjectGroupManager> ObjectGroupManager;
 };
 
 

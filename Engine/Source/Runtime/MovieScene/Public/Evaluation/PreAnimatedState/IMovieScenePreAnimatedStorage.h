@@ -12,6 +12,7 @@
 struct FObjectKey;
 struct FMovieSceneEvaluationKey;
 
+class FReferenceCollector;
 class FTrackInstancePropertyBindings;
 class UMovieSceneEntitySystemLinker;
 
@@ -41,6 +42,8 @@ struct IPreAnimatedStorage : TSharedFromThis<IPreAnimatedStorage>
 
 	virtual IPreAnimatedObjectPropertyStorage* AsPropertyStorage() { return nullptr; }
 	virtual IPreAnimatedObjectEntityStorage*   AsObjectStorage()   { return nullptr; }
+
+	virtual void AddReferencedObjects(FReferenceCollector& ReferenceCollector) {}
 };
 
 
