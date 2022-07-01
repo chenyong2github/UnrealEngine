@@ -2,6 +2,8 @@
 
 #include "SRemoteControlPanel.h"
 
+#include "IRemoteControlUIModule.h"
+#include "RemoteControlUIModule.h"
 #include "Action/SRCActionPanel.h"
 #include "ActorEditorUtils.h"
 #include "Behaviour/SRCBehaviourPanel.h"
@@ -751,6 +753,12 @@ SRemoteControlPanel::~SRemoteControlPanel()
 	// Remove protocol bindings
 	IRemoteControlProtocolWidgetsModule& ProtocolWidgetsModule = FModuleManager::LoadModuleChecked<IRemoteControlProtocolWidgetsModule>("RemoteControlProtocolWidgets");
 	ProtocolWidgetsModule.ResetProtocolBindingList();	
+
+	// Unregister with UI module
+	if (FModuleManager::Get().IsModuleLoaded("RemoteControlUIModule"))
+	{
+		FRemoteControlUIModule::Get().UnregisterRemoteControlPanel(this);
+	}	
 }
 
 void SRemoteControlPanel::Shutdown()
@@ -1039,7 +1047,8 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeButton()
 					{
 						FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 						FSceneOutlinerInitializationOptions InitOptions;
-						UWorld* PresetWorld = URemoteControlPreset::GetPresetWorld(Preset.Get());
+						constexpr bool bAllowPIE = false;
+						UWorld* PresetWorld = URemoteControlPreset::GetWorld(Preset.Get(), bAllowPIE);
 
 						SubMenuBuilder.AddWidget(
 							SceneOutlinerModule.CreateActorPicker(
@@ -1129,7 +1138,9 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
 	TSharedRef<SWidget> Widget = FModuleManager::LoadModuleChecked<FClassViewerModule>("ClassViewer").CreateClassViewer(Options, FOnClassPicked::CreateLambda(
 		[this](UClass* ChosenClass)
 		{
-			if (UWorld* World = URemoteControlPreset::GetPresetWorld(Preset.Get()))
+			constexpr bool bAllowPIE = false;
+
+			if (UWorld* World = URemoteControlPreset::GetWorld(Preset.Get(), bAllowPIE))
 			{
 				for (TActorIterator<AActor> It(World, ChosenClass, EActorIteratorFlags::SkipPendingKill); It; ++It)
 				{
@@ -1158,8 +1169,9 @@ TSharedRef<SWidget> SRemoteControlPanel::CreateExposeByClassWidget()
 void SRemoteControlPanel::CacheLevelClasses()
 {
 	CachedClassesInLevel.Empty();
+	constexpr bool bAllowPIE = false;
 
-	if (UWorld* World = URemoteControlPreset::GetPresetWorld(Preset.Get()))
+	if (UWorld* World = URemoteControlPreset::GetWorld(Preset.Get(), bAllowPIE))
 	{
 		for (TActorIterator<AActor> It(World, AActor::StaticClass(), EActorIteratorFlags::SkipPendingKill); It; ++It)
 		{

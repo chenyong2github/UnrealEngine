@@ -983,16 +983,15 @@ void URemoteControlPreset::PostLoadProperties()
 	}
 }
 
-UWorld* URemoteControlPreset::GetPresetWorld(const URemoteControlPreset* Preset, bool bAllowPIE /*= false*/)
+UWorld* URemoteControlPreset::GetWorld(const URemoteControlPreset* Preset, bool bAllowPIE)
 {
-	if (Preset)
+	if (Preset && Preset->IsEmbeddedPreset())
 	{
-		if (UObject* Outer = Preset->GetOuter())
+		UWorld* EmbeddedPresetWorld = Preset->GetEmbeddedWorld();
+
+		if (EmbeddedPresetWorld)
 		{
-			if (UWorld* OuterWorld = Outer->GetWorld())
-			{
-				return OuterWorld;
-			}
+			return EmbeddedPresetWorld;
 		}
 	}
 
@@ -1029,9 +1028,22 @@ UWorld* URemoteControlPreset::GetPresetWorld(const URemoteControlPreset* Preset,
 	return nullptr;
 }
 
-UWorld* URemoteControlPreset::GetPresetWorld(bool bAllowPIE /*= false*/) const
+UWorld* URemoteControlPreset::GetWorld(bool bAllowPIE) const
 {
-	return URemoteControlPreset::GetPresetWorld(this, bAllowPIE);
+	return URemoteControlPreset::GetWorld(this, bAllowPIE);
+}
+
+UWorld* URemoteControlPreset::GetEmbeddedWorld() const
+{
+	if (UObject* Outer = GetOuter())
+	{
+		if (UWorld* OuterWorld = Outer->GetWorld())
+		{
+			return OuterWorld;
+		}
+	}
+
+	return nullptr;
 }
 
 bool URemoteControlPreset::IsEmbeddedPreset() const

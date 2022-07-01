@@ -143,7 +143,8 @@ TSharedRef<SWidget> SRCPanelExposedActor::CreateEmbeddedPresetActorPicker()
 {
 	FSceneOutlinerModule& SceneOutlinerModule = FModuleManager::LoadModuleChecked<FSceneOutlinerModule>("SceneOutliner");
 	FSceneOutlinerInitializationOptions InitOptions;
-	UWorld* PresetWorld = URemoteControlPreset::GetPresetWorld(Preset.Get());
+	constexpr bool bAllowPIE = false;
+	UWorld* PresetWorld = URemoteControlPreset::GetWorld(Preset.Get(), bAllowPIE);
 
 	TSharedRef<SWidget> ActorPicker =
 		SceneOutlinerModule.CreateActorPicker(

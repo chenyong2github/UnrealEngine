@@ -58,5 +58,5 @@ private:
 	/** Keep a weak reference to the RCPanel for access to toolkit host. */
 	TWeakPtr<SRemoteControlPanel> RemoteControlPanel;
 	/** Checks the remote control panel to get a reference to the preset world. */
-	UWorld* GetPresetWorld(bool bIgnorePIE = false) const;
+	UWorld* GetWorld(bool bIgnorePIE = false) const;
 };

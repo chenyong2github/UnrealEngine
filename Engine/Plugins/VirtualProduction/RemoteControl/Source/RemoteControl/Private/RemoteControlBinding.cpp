@@ -375,7 +375,8 @@ UWorld* URemoteControlLevelDependantBinding::GetCurrentWorld() const
 	URemoteControlPreset* Preset = Cast<URemoteControlPreset>(GetOuter());
 
 	// Since this is used to retrieve the binding in the map, we never use the PIE world in editor.
-	return URemoteControlPreset::GetPresetWorld(Preset, false);
+	constexpr bool bAllowPIE = false;
+	return URemoteControlPreset::GetWorld(Preset, bAllowPIE);
 }
 
 void URemoteControlLevelDependantBinding::SetBoundObject(const TSoftObjectPtr<ULevel>& Level, const TSoftObjectPtr<UObject>& BoundObject)

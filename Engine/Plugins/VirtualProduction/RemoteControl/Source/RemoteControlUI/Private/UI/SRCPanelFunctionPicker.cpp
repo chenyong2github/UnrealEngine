@@ -283,7 +283,8 @@ void SRCPanelFunctionPicker::Refresh()
 	if (Class->IsChildOf(AActor::StaticClass()) && GEditor)
 	{
 		TArray<AActor*> ActorList;
-		UGameplayStatics::GetAllActorsOfClass(GetPresetWorld(), Class, ActorList);
+		constexpr bool bIgnorePIE = false;
+		UGameplayStatics::GetAllActorsOfClass(GetWorld(bIgnorePIE), Class, ActorList);
 
 		for (AActor* Actor : ActorList)
 		{
@@ -304,16 +305,16 @@ void SRCPanelFunctionPicker::Refresh()
 	}
 }
 
-UWorld* SRCPanelFunctionPicker::GetPresetWorld(bool bIgnorePIE) const
+UWorld* SRCPanelFunctionPicker::GetWorld(bool bIgnorePIE) const
 {
 	TSharedPtr<SRemoteControlPanel> RCP = RemoteControlPanel.Pin();
 
 	if (RCP.IsValid())
 	{
-		return URemoteControlPreset::GetPresetWorld(RCP->GetPreset(), !bIgnorePIE);
+		return URemoteControlPreset::GetWorld(RCP->GetPreset(), !bIgnorePIE);
 	}
 
-	return URemoteControlPreset::GetPresetWorld(nullptr, !bIgnorePIE);
+	return URemoteControlPreset::GetWorld(nullptr, !bIgnorePIE);
 }
 
 #undef LOCTEXT_NAMESPACE /* RemoteControlPanel */

@@ -52,7 +52,8 @@ TMap<FString, AActor*> URCWebInterfaceBlueprintLibrary::FindMatchingActorsToRebi
 				}
 				else if (UClass* SupportedBindingClass = RemoteControlProperty->GetSupportedBindingClass())
 				{
-					UWorld* World = RCPreset->GetPresetWorld(false);
+					constexpr bool bAllowPIE = false;
+					UWorld* World = RCPreset->GetWorld(bAllowPIE);
 					if (SupportedBindingClass->IsChildOf(AActor::StaticClass()))
 					{
 						TArray<AActor*> MatchingActors;

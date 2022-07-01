@@ -235,7 +235,8 @@ void FRemoteControlPresetRebindingManager::Rebind_Legacy(URemoteControlPreset* P
 	// Fetch any relevant object from the level based on if their class is relevant for the set of entities we have to rebind.
 	TArray<UClass*> EntitiesOwnerClasses;
 	EntitiesGroupedBySupportedOwnerClass.GenerateKeyArray(EntitiesOwnerClasses);
-	Context.ObjectsGroupedByRelevantClass = RCPresetRebindingManager::GetLevelObjectsGroupedByClass(EntitiesOwnerClasses, Preset->GetPresetWorld(false));
+	constexpr bool bAllowPIE = false;
+	Context.ObjectsGroupedByRelevantClass = RCPresetRebindingManager::GetLevelObjectsGroupedByClass(EntitiesOwnerClasses, Preset->GetWorld(bAllowPIE));
 
 	for (TPair<UClass*, TArray<TSharedPtr<FRemoteControlEntity>>>& Entry : EntitiesGroupedBySupportedOwnerClass)
 	{
@@ -432,7 +433,8 @@ void FRemoteControlPresetRebindingManager::Rebind_NewAlgo(URemoteControlPreset* 
 		{
 			const bool bRebindingComponent = !InvalidBinding->BindingContext.ComponentName.IsNone();
 			TArray<AActor*> ObjectsWithSupportedClass;
-			if (!RCPresetRebindingManager::GetActorsOfClass(Preset->GetPresetWorld(false), OwnerClass, ObjectsWithSupportedClass))
+			constexpr bool bAllowPIE = false;
+			if (!RCPresetRebindingManager::GetActorsOfClass(Preset->GetWorld(bAllowPIE), OwnerClass, ObjectsWithSupportedClass))
 			{
 				continue;
 			}

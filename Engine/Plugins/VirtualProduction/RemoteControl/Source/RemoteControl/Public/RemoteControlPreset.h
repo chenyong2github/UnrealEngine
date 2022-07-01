@@ -304,6 +304,8 @@ class REMOTECONTROL_API URemoteControlPreset : public UObject
 {
 public:
 	GENERATED_BODY()
+
+	using UObject::GetWorld;
 	
 	/** Callback for post remote control preset load, called by URemoteControlPreset::PostLoad function */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPostLoadRemoteControlPreset, URemoteControlPreset* /* InPreset */);
@@ -843,8 +845,9 @@ private:
 
 public:
 
-	static UWorld* GetPresetWorld(const URemoteControlPreset* Preset = nullptr, bool bAllowPIE = false);
-	UWorld* GetPresetWorld(bool bAllowPIE = false) const;
+	static UWorld* GetWorld(const URemoteControlPreset* Preset = nullptr, bool bAllowPIE = false);
+	UWorld* GetWorld(bool bAllowPIE = false) const;
+	UWorld* GetEmbeddedWorld() const;
 	
 	/** Returns true if the preset is hosted within another asset. */
 	bool IsEmbeddedPreset() const;

@@ -35,9 +35,9 @@ void FRemoteControlPresetEditorToolkit::InitRemoteControlPresetEditor(const EToo
 	// tab ID will already be registered within EditorTabManager
 	TSharedPtr<FTabManager> HostTabManager;
 
-	if (ToolkitHost.IsValid())
+	if (InitToolkitHost.IsValid())
 	{
-		HostTabManager = ToolkitHost.Pin()->GetTabManager();
+		HostTabManager = InitToolkitHost->GetTabManager();
 	}
 	else
 	{
