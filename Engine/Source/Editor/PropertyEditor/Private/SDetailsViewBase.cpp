@@ -1143,9 +1143,25 @@ static void SetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, const TSe
 		InPropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, false);
 	}
 
-	for (int32 NodeIndex = 0; NodeIndex < InPropertyNode->GetNumChildNodes(); ++NodeIndex)
+	bool bAnyPrefix = false;
+	for (const FString& Item : InExpandedItems)
 	{
-		SetExpandedItems(InPropertyNode->GetChildNode(NodeIndex), InExpandedItems, bCollapseRest);
+		// check if this path is a prefix to some other path
+		// if it's not, we can early out and skip checking every child node, which is a win for very large child arrays
+		if (Item.Len() > Path.Len() && Item.StartsWith(Path) &&
+			(Item[Path.Len()] == '[' || Item[Path.Len()] == '.'))
+		{
+			bAnyPrefix = true;
+			break;
+		}
+	}
+
+	if (bAnyPrefix)
+	{
+		for (int32 NodeIndex = 0; NodeIndex < InPropertyNode->GetNumChildNodes(); ++NodeIndex)
+		{
+			SetExpandedItems(InPropertyNode->GetChildNode(NodeIndex), InExpandedItems, bCollapseRest);
+		}
 	}
 }
 
