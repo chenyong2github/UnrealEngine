@@ -119,7 +119,7 @@ namespace AutomationTool
 			BgBool EmbedSrcSrvInfo = new BgBoolOption("EmbedSrcSrvInfo", "Whether to add Source indexing to Windows game apps so they can be added to a symbol server", false);
 
 			BgList<BgString> DefaultGameConfigurations = BgList<BgString>.Create(nameof(UnrealTargetConfiguration.DebugGame), nameof(UnrealTargetConfiguration.Development), nameof(UnrealTargetConfiguration.Shipping));
-			BgList<BgString> GameConfigurationStrings = new BgListOptionSpec("GameConfigurations", description: "Which game configurations to include for packaged applications", style: BgListOptionStyle.CheckList, values: DefaultGameConfigurations);
+			BgList<BgString> GameConfigurationStrings = new BgListOption("GameConfigurations", description: "Which game configurations to include for packaged applications", style: BgListOptionStyle.CheckList, values: DefaultGameConfigurations);
 			BgList<BgEnum<UnrealTargetConfiguration>> GameConfigurations = GameConfigurationStrings.Select(x => BgEnum<UnrealTargetConfiguration>.Parse(x));
 
 			BgBoolOption WithFullDebugInfo = new BgBoolOption("WithFullDebugInfo", "Generate full debug info for binary editor and packaged application builds", false);
@@ -140,18 +140,15 @@ namespace AutomationTool
 			BgAgent EditorWin64 = new BgAgent("Editor Win64", "Win64_Licensee");
 
 			BgNode VersionFilesNode = EditorWin64
-				.AddNode(x => UpdateVersionFilesAsync(x))
-				.Construct();
+				.AddNode(x => UpdateVersionFilesAsync(x));
 
 			BgNode<BgFileSet> WinUhtNode = EditorWin64
 				.AddNode(x => CompileUnrealHeaderToolAsync(x, UnrealTargetPlatform.Win64))
-				.Requires(VersionFilesNode)
-				.Construct();
+				.Requires(VersionFilesNode);
 
 			BgNode<BgFileSet> WinEditorNode = EditorWin64
 				.AddNode(x => CompileUnrealEditorWin64Async(x, CrashReporterCompileArgs, EmbedSrcSrvInfo, CompileDatasmithPlugins, WithFullDebugInfo, SignExecutables))
-				.Requires(WinUhtNode)
-				.Construct();
+				.Requires(WinUhtNode);
 
 			Aggregates.Add(new BgAggregate("Win64 Editor", WinEditorNode, label: "Editors/Win64"));
 
@@ -164,8 +161,7 @@ namespace AutomationTool
 
 			BgNode<BgFileSet> WinGame = TargetWin64
 				.AddNode(x => CompileUnrealGameWin64(x, GameConfigurations, EmbedSrcSrvInfo, WithFullDebugInfo, SignExecutables))
-				.Requires(WinUhtNode)
-				.Construct();
+				.Requires(WinUhtNode);
 
 			Aggregates.Add(new BgAggregate("TargetPlatforms_Win64", WinGame));
 
@@ -176,8 +172,7 @@ namespace AutomationTool
 			BgAgent BuildRules = new BgAgent("BuildRules", "Win64_Licensee");
 
 			BgNode RulesAssemblies = BuildRules
-				.AddNode(x => CompileRulesAssemblies(x))
-				.Construct();
+				.AddNode(x => CompileRulesAssemblies(x));
 
 			//// Win Tools ////
 
@@ -185,13 +180,11 @@ namespace AutomationTool
 
 			BgNode<BgFileSet> WinTools = ToolsGroupWin64
 				.AddNode(x => BuildToolsWin64Async(x, CrashReporterCompileArgs))
-				.Requires(WinUhtNode)
-				.Construct();
+				.Requires(WinUhtNode);
 
 			BgNode<BgFileSet> CsTools = ToolsGroupWin64
 				.AddNode(x => BuildToolsCSAsync(x, SignExecutables))
-				.Requires(VersionFilesNode)
-				.Construct();
+				.Requires(VersionFilesNode);
 
 
 			/////// DDC //////////////////////////////////////////////////////////
@@ -203,8 +196,7 @@ namespace AutomationTool
 
 			BgNode DdcNode = DDCGroupWin64
 				.AddNode(x => BuildDDCWin64Async(x, DDCPlatformsWin64, BgList<BgFileSet>.Create(WinUhtNode.Output, WinEditorNode.Output, WinTools.Output)))
-				.Requires(WinEditorNode, WinTools)
-				.Construct();
+				.Requires(WinEditorNode, WinTools);
 
 
 			/////// STAGING ///////
@@ -229,8 +221,7 @@ namespace AutomationTool
 
 			BgNode WinInstalledNode = WinStageAgent
 				.AddNode(x => MakeInstalledBuildWin64Async(x, WinInstalledFiles, WinFinalizeArgs, WinOutputDir))
-				.Requires(WinInstalledFiles)
-				.Construct();
+				.Requires(WinInstalledFiles);
 
 			Aggregates.Add(new BgAggregate("HostPlatforms_Win64", WinInstalledNode, label: "Builds/Win64"));
 

@@ -7,6 +7,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -81,43 +82,43 @@ namespace EpicGames.BuildGraph
 		}
 
 		readonly byte[] _data;
-		readonly BgMethod[] _methods;
+		readonly BgThunkDef[] _thunks;
+		readonly string[] _names;
 		readonly IReadOnlyDictionary<string, string> _options;
 		readonly BgBytecodeVersion _version;
 		readonly int[] _fragments;
+		readonly List<BgOptionDef> _optionDefs = new List<BgOptionDef>();
+
+		/// <summary>
+		/// The option definitions that were parsed during execution
+		/// </summary>
+		public IReadOnlyList<BgOptionDef> OptionDefs => _optionDefs;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="data"></param>
-		/// <param name="lambdas">Handlers for each node type</param>
+		/// <param name="thunks">Thunks to native code</param>
 		/// <param name="options">Options for evaluating the graph</param>
-		public BgInterpreter(byte[] data, BgMethod[] lambdas, IReadOnlyDictionary<string, string> options)
+		public BgInterpreter(byte[] data, BgThunkDef[] thunks, IReadOnlyDictionary<string, string> options)
 		{
 			_data = data;
-			_methods = lambdas;
+			_thunks = thunks;
 			_options = options;
 
-			int offset = 0;
+			MemoryReader reader = new MemoryReader(data);
 
-			_version = (BgBytecodeVersion)VarInt.ReadUnsigned(data[offset..], out int bytesRead);
-			offset += bytesRead;
+			_version = (BgBytecodeVersion)reader.ReadUnsignedVarInt();
+			_names = reader.ReadVariableLengthArray(() => reader.ReadString());
+			int[] fragmentLengths = reader.ReadVariableLengthArray(() => (int)reader.ReadUnsignedVarInt());
 
-			int fragmentCount = (int)VarInt.ReadUnsigned(data[offset..], out bytesRead);
-			offset += bytesRead;
+			int offset = data.Length - reader.Memory.Length;
 
-			int[] lengths = new int[fragmentCount];
-			for (int idx = 0; idx < fragmentCount; idx++)
-			{
-				lengths[idx] = (int)VarInt.ReadUnsigned(data[offset..], out bytesRead);
-				offset += bytesRead;
-			}
-
-			_fragments = new int[fragmentCount];
-			for (int idx = 0; idx < fragmentCount; idx++)
+			_fragments = new int[fragmentLengths.Length];
+			for (int idx = 0; idx < _fragments.Length; idx++)
 			{
 				_fragments[idx] = offset;
-				offset += lengths[idx];
+				offset += fragmentLengths[idx];
 			}
 		}
 
@@ -171,13 +172,13 @@ namespace EpicGames.BuildGraph
 					}
 				case BgOpcode.BoolOption:
 					{
-						string name = (string)Evaluate(frame);
-						string label = (string)Evaluate(frame);
-						string description = (string)Evaluate(frame);
-						bool defaultValue = (bool)Evaluate(frame);
+						BgObjectDef obj = (BgObjectDef)Evaluate(frame);
 
-						bool value = defaultValue;
-						if (_options.TryGetValue(name, out string? str))
+						BgBoolOptionDef option = obj.Deserialize<BgBoolOptionDef>();
+						_optionDefs.Add(option);
+
+						bool value = option.DefaultValue;
+						if (_options.TryGetValue(option.Name, out string? str))
 						{
 							value = Boolean.Parse(str);
 						}
@@ -236,15 +237,13 @@ namespace EpicGames.BuildGraph
 					return -(int)Evaluate(frame);
 				case BgOpcode.IntOption:
 					{
-						string name = (string)Evaluate(frame);
-						string label = (string)Evaluate(frame);
-						string description = (string)Evaluate(frame);
-						int defaultValue = (int)Evaluate(frame);
-						int minValue = (int)Evaluate(frame);
-						int maxValue = (int)Evaluate(frame);
+						BgObjectDef obj = (BgObjectDef)Evaluate(frame);
 
-						int value = defaultValue;
-						if (_options.TryGetValue(name, out string? str))
+						BgIntOptionDef option = obj.Deserialize<BgIntOptionDef>();
+						_optionDefs.Add(option);
+
+						int value = option.DefaultValue;
+						if (_options.TryGetValue(option.Name, out string? str))
 						{
 							value = Int32.Parse(str);
 						}
@@ -314,20 +313,15 @@ namespace EpicGames.BuildGraph
 					}
 				case BgOpcode.StrOption:
 					{
-						string name = (string)Evaluate(frame);
-						string label = (string)Evaluate(frame);
-						string description = (string)Evaluate(frame);
-						int style = (int)ReadUnsignedInteger(frame);
-						string defaultValue = (string)Evaluate(frame);
-						string pattern = (string)Evaluate(frame);
-						string patternFailed = (string)Evaluate(frame);
-						List<string> values = EvaluateList<string>(frame);
-						List<string> valueDescriptions = EvaluateList<string>(frame);
+						BgObjectDef obj = (BgObjectDef)Evaluate(frame);
 
-						string value = defaultValue;
-						if (_options.TryGetValue(name, out string? option))
+						BgStringOptionDef option = obj.Deserialize<BgStringOptionDef>();
+						_optionDefs.Add(option);
+
+						string value = option.DefaultValue;
+						if (_options.TryGetValue(option.Name, out string? result))
 						{
-							value = option;
+							value = result;
 						}
 
 						return value;
@@ -452,65 +446,45 @@ namespace EpicGames.BuildGraph
 					}
 				case BgOpcode.ListOption:
 					{
-						string name = (string)Evaluate(frame);
-						string label = (string)Evaluate(frame);
-						string description = (string)Evaluate(frame);
-						BgListOptionStyle style = (BgListOptionStyle)ReadUnsignedInteger(frame);
-						string defaultValue = (string)Evaluate(frame);
-						string pattern = (string)Evaluate(frame);
-						string patternFailed = (string)Evaluate(frame);
-						List<string> values = EvaluateList<string>(frame);
-						List<string> valueDescriptions = EvaluateList<string>(frame);
+						BgObjectDef obj = (BgObjectDef)Evaluate(frame);
 
-						string value = defaultValue;
-						if (_options.TryGetValue(name, out string? option))
+						BgListOptionDef option = obj.Deserialize<BgListOptionDef>();
+						_optionDefs.Add(option);
+
+						string? value = option.DefaultValue ?? String.Empty;
+						if (_options.TryGetValue(option.Name, out string? result))
 						{
-							value = option;
+							value = result;
 						}
 
-						return value.Split('+', ';').Select(x => (object)x).ToList();
-					}
-
-				#endregion
-				#region Fileset opcodes
-
-				case BgOpcode.FileSetFromNode:
-					{
-						BgExpressionNodeDef node = (BgExpressionNodeDef)Evaluate(frame);
-						return node.InputDependencies.SelectMany(x => x.Outputs).Concat(node.Outputs).ToArray();
-					}
-				case BgOpcode.FileSetFromNodeOutput:
-					{
-						BgExpressionNodeDef node = (BgExpressionNodeDef)Evaluate(frame);
-						int outputIndex = (int)ReadUnsignedInteger(frame);
-						return new[] { node.Outputs[outputIndex] };
+						return value!.Split(new[] { '+', ';' }, StringSplitOptions.RemoveEmptyEntries).Select(x => (object)x).ToList();
 					}
 
 				#endregion
 				#region Object opcodes
 
 				case BgOpcode.ObjEmpty:
-					return ImmutableDictionary<string, object>.Empty.WithComparers(StringComparer.Ordinal);
+					return new BgObjectDef();
 				case BgOpcode.ObjGet:
 					{
-						ImmutableDictionary<string, object> obj = (ImmutableDictionary<string, object>)Evaluate(frame);
-						string name = ReadString(frame);
+						BgObjectDef obj = (BgObjectDef)Evaluate(frame);
+						string name = ReadName(frame);
 						object defaultValue = Evaluate(frame);
 
-						object value;
-						if (!obj.TryGetValue(name, out value))
+						object? value;
+						if (!obj.Properties.TryGetValue(name, out value))
 						{
 							value = defaultValue;
 						}
 
-						return value;
+						return value!;
 					}
 				case BgOpcode.ObjSet:
 					{
-						ImmutableDictionary<string, object> obj = (ImmutableDictionary<string, object>)Evaluate(frame);
-						string name = ReadString(frame);
+						BgObjectDef obj = (BgObjectDef)Evaluate(frame);
+						string name = ReadName(frame);
 						object value = Evaluate(frame);
-						return obj.SetItem(name, value);
+						return obj.Set(name, value);
 					}
 
 				#endregion
@@ -561,114 +535,30 @@ namespace EpicGames.BuildGraph
 					}
 				case BgOpcode.Null:
 					return null!;
-
-				#endregion
-				#region Graph opcodes
-
-				case BgOpcode.Node:
+				case BgOpcode.Thunk:
 					{
-						string name = (string)Evaluate(frame);
-						BgAgentDef agent = (BgAgentDef)Evaluate(frame);
-						BgMethod method = _methods[(int)ReadUnsignedInteger(frame)];
+						BgThunkDef method = _thunks[(int)ReadUnsignedInteger(frame)];
 
-						int argumentCount = (int)ReadUnsignedInteger(frame);
-						object[] arguments = new object[argumentCount];
+						int count = (int)ReadUnsignedInteger(frame);
+						object?[] arguments = new object?[count];
 
-						for (int idx = 0; idx < argumentCount; idx++)
+						ParameterInfo[] parameters = method.Method.GetParameters();
+						for (int idx = 0; idx < count; idx++)
 						{
-							arguments[idx] = Evaluate(frame);
-						}
-
-						List<BgNodeOutput> inputs = ReadNodeOutputList(frame);
-						List<BgNodeOutput> fences = ReadNodeOutputList(frame);
-						int taggedOutputCount = (int)ReadUnsignedInteger(frame);
-						bool runEarly = (bool)Evaluate(frame);
-						List<BgLabelDef> labels = ((IEnumerable<object>)Evaluate(frame)).Select(x => (BgLabelDef)x).ToList();
-
-						HashSet<BgNodeDef> inputDependencies = new HashSet<BgNodeDef>();
-						foreach (BgNodeOutput input in inputs)
-						{
-							inputDependencies.Add(input.ProducingNode);
-							inputDependencies.UnionWith(input.ProducingNode.InputDependencies);
-						}
-
-						BgNodeDef[] orderDependencies = fences.Select(x => x.ProducingNode).Distinct().ToArray();
-
-						string[] outputNames = Enumerable.Range(0, taggedOutputCount).Select(x => BgNode.GetDefaultTagName(name, x)).ToArray();
-
-						BgExpressionNodeDef node = new BgExpressionNodeDef(agent, name, method, arguments, inputs, outputNames, inputDependencies.ToArray(), orderDependencies.ToArray(), Array.Empty<FileReference>(), labels);
-						return node;
-					}
-				case BgOpcode.Agent:
-					{
-						string name = (string)Evaluate(frame);
-						string[] types = ((IEnumerable<object>)Evaluate(frame)).Select(x => (string)x).ToArray();
-						return new BgAgentDef(name, types);
-					}
-				case BgOpcode.Aggregate:
-					{
-						string name = (string)Evaluate(frame);
-						List<BgNodeOutput> requires = ReadNodeOutputList(frame);
-						BgLabelDef? label = (BgLabelDef?)Evaluate(frame);
-
-						return new BgBytecodeAggregateDef(name, requires.Select(x => x.ProducingNode), label);
-					}
-				case BgOpcode.Label:
-					{
-						string? dashboardName = NullForEmptyString((string)Evaluate(frame));
-						string? dashboardCategory = NullForEmptyString((string)Evaluate(frame));
-						string? ugsBadge = NullForEmptyString((string)Evaluate(frame));
-						string? ugsProject = NullForEmptyString((string)Evaluate(frame));
-						string change = (string)Evaluate(frame);
-
-						BgLabelChange labelChange = BgLabelChange.Current;
-						if (change.Length > 0)
-						{
-							labelChange = Enum.Parse<BgLabelChange>(change);
-						}
-
-						return new BgLabelDef(dashboardName, dashboardCategory, ugsBadge, ugsProject, labelChange);
-					}
-				case BgOpcode.Graph:
-					{
-						List<BgExpressionNodeDef> nodes = EvaluateList<BgExpressionNodeDef>(frame);
-						List<BgBytecodeAggregateDef> aggregates = EvaluateList<BgBytecodeAggregateDef>(frame);
-
-						BgGraphDef graph = new BgGraphDef();
-						foreach (BgBytecodeAggregateDef aggregate in aggregates)
-						{
-							graph.NameToAggregate[aggregate.Name] = aggregate;
-							nodes.AddRange(aggregate.RequiredNodes.Select(x => (BgExpressionNodeDef)x));
-						}
-
-						HashSet<BgNodeDef> uniqueNodes = new HashSet<BgNodeDef>();
-						HashSet<BgAgentDef> uniqueAgents = new HashSet<BgAgentDef>();
-						foreach (BgExpressionNodeDef node in nodes)
-						{
-							RegisterNode(graph, node, uniqueNodes, uniqueAgents);
-						}
-
-						HashSet<BgLabelDef> labels = new HashSet<BgLabelDef>();
-						foreach (BgExpressionNodeDef node in nodes)
-						{
-							foreach (BgLabelDef label in node.Labels)
+							object value = Evaluate(frame);
+							if (typeof(BgExpr).IsAssignableFrom(parameters[idx].ParameterType))
 							{
-								labels.Add(label);
-								label.RequiredNodes.Add(node);
+								arguments[idx] = BgType.Constant(parameters[idx].ParameterType, value);
+							}
+							else
+							{
+								arguments[idx] = method.Arguments[idx];
 							}
 						}
-						foreach (BgBytecodeAggregateDef aggregate in aggregates)
-						{
-							if (aggregate.Label != null)
-							{
-								aggregate.Label.RequiredNodes.UnionWith(aggregate.RequiredNodes);
-								labels.Add(aggregate.Label);
-							}
-						}
-						graph.Labels.AddRange(labels);
 
-						return graph;
+						return new BgThunkDef(method.Method, arguments);
 					}
+
 				#endregion
 
 				default:
@@ -676,44 +566,9 @@ namespace EpicGames.BuildGraph
 			}
 		}
 
-		void RegisterNode(BgGraphDef graph, BgExpressionNodeDef node, HashSet<BgNodeDef> uniqueNodes, HashSet<BgAgentDef> uniqueAgents)
-		{
-			if (uniqueNodes.Add(node))
-			{
-				foreach (BgExpressionNodeDef inputNode in node.InputDependencies)
-				{
-					RegisterNode(graph, inputNode, uniqueNodes, uniqueAgents);
-				}
-
-				BgAgentDef agent = node.Agent;
-				if (uniqueAgents.Add(agent))
-				{
-					graph.Agents.Add(agent);
-					graph.NameToAgent.Add(agent.Name, agent);
-				}
-
-				agent.Nodes.Add(node);
-				graph.NameToNode.Add(node.Name, node);
-			}
-		}
-
-		static string? NullForEmptyString(string str) => (str.Length == 0) ? null : str;
-
 		List<T> EvaluateList<T>(Frame frame)
 		{
 			return ((IEnumerable<object>)Evaluate(frame)).Select(x => (T)x).ToList();
-		}
-
-		List<BgNodeOutput> ReadNodeOutputList(Frame frame)
-		{
-			IEnumerable<object> list = (IEnumerable<object>)Evaluate(frame);
-
-			List<BgNodeOutput> outputs = new List<BgNodeOutput>();
-			foreach (object item in list)
-			{
-				outputs.AddRange((BgNodeOutput[])item);
-			}
-			return outputs;
 		}
 
 		IEnumerable<object> LazyEvaluateItem(Frame frame, int fragment)
@@ -766,6 +621,15 @@ namespace EpicGames.BuildGraph
 		{
 			BgOpcode opcode = (BgOpcode)_data[frame.Offset++];
 			return opcode;
+		}
+
+		/// <summary>
+		/// Reads a name from the input stream
+		/// </summary>
+		string ReadName(Frame frame)
+		{
+			int index = (int)ReadUnsignedInteger(frame);
+			return _names[index];
 		}
 
 		/// <summary>
@@ -859,9 +723,6 @@ namespace EpicGames.BuildGraph
 					break;
 				case BgOpcode.BoolOption:
 					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
 					break;
 
 				#endregion
@@ -884,11 +745,6 @@ namespace EpicGames.BuildGraph
 					Disassemble(frame, logger);
 					break;
 				case BgOpcode.IntOption:
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
 					Disassemble(frame, logger);
 					break;
 
@@ -933,15 +789,6 @@ namespace EpicGames.BuildGraph
 					Disassemble(frame, logger);
 					break;
 				case BgOpcode.StrOption:
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Trace(frame, "style", ReadUnsignedInteger, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
 					Disassemble(frame, logger);
 					break;
 
@@ -990,28 +837,10 @@ namespace EpicGames.BuildGraph
 					break;
 				case BgOpcode.ListOption:
 					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Trace(frame, "style", ReadUnsignedInteger, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
 					break;
 
 				#endregion
-				#region Fileset opcodes
 
-				case BgOpcode.FileSetFromNode:
-					Disassemble(frame, logger);
-					break;
-				case BgOpcode.FileSetFromNodeOutput:
-					Disassemble(frame, logger);
-					TraceFragment(frame, logger);
-					break;
-
-				#endregion
 				#region Object opcodes
 
 				case BgOpcode.ObjEmpty:
@@ -1019,11 +848,12 @@ namespace EpicGames.BuildGraph
 				case BgOpcode.ObjGet:
 				case BgOpcode.ObjSet:
 					Disassemble(frame, logger);
-					Trace(frame, "name", ReadString, logger);
+					Trace(frame, ReadName, x => $"name: {x}", logger);
 					Disassemble(frame, logger);
 					break;
 
 				#endregion
+
 				#region Function opcodes
 
 				case BgOpcode.Call:
@@ -1059,48 +889,19 @@ namespace EpicGames.BuildGraph
 					break;
 				case BgOpcode.Null:
 					break;
-
-				#endregion
-				#region Graph opcodes
-
-				case BgOpcode.Node:
+				case BgOpcode.Thunk:
 					{
-						Disassemble(frame, logger);
-						Disassemble(frame, logger);
-						Trace(frame, "handler", ReadUnsignedInteger, logger);
+						Trace(frame, "method", ReadUnsignedInteger, logger);
 
-						int argCount = (int)Trace(frame, "args", ReadUnsignedInteger, logger);
-						for (int idx = 0; idx < argCount; idx++)
+						int count = (int)Trace(frame, "args", ReadUnsignedInteger, logger);
+						for (int idx = 0; idx < count; idx++)
 						{
 							Disassemble(frame, logger);
 						}
 
-						Disassemble(frame, logger);
-						Disassemble(frame, logger);
-						Disassemble(frame, logger);
-						Disassemble(frame, logger);
 						break;
 					}
-				case BgOpcode.Agent:
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					break;
-				case BgOpcode.Aggregate:
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					break;
-				case BgOpcode.Label:
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					break;
-				case BgOpcode.Graph:
-					Disassemble(frame, logger);
-					Disassemble(frame, logger);
-					break;
+
 				#endregion
 
 				default:

@@ -49,6 +49,59 @@ namespace EpicGames.BuildGraph
 	}
 
 	/// <summary>
+	/// Describes a dependency on a node output
+	/// </summary>
+	[BgObject(typeof(BgNodeOutputExprDefSerializer))]
+	public class BgNodeOutputExprDef
+	{
+		/// <summary>
+		/// The producing node
+		/// </summary>
+		public BgNodeExpressionDef ProducingNode { get; }
+
+		/// <summary>
+		/// The output index. -1 means all inputs and outputs for the node.
+		/// </summary>
+		public int OutputIndex { get; }
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="producingNode"></param>
+		/// <param name="outputIndex"></param>
+		public BgNodeOutputExprDef(BgNodeExpressionDef producingNode, int outputIndex)
+		{
+			ProducingNode = producingNode;
+			OutputIndex = outputIndex;
+		}
+
+		/// <summary>
+		/// Flattens this expression to a list of outputs
+		/// </summary>
+		/// <returns></returns>
+		public IEnumerable<BgNodeOutput> Flatten()
+		{
+			if (OutputIndex == -1)
+			{
+				return ProducingNode.InputDependencies.SelectMany(x => x.Outputs).Concat(ProducingNode.Outputs).ToArray();
+			}
+			else
+			{
+				return new[] { ProducingNode.Outputs[OutputIndex] };
+			}
+		}
+	}
+
+	class BgNodeOutputExprDefSerializer : BgObjectSerializer<BgNodeOutputExprDef>
+	{
+		/// <inheritdoc/>
+		public override BgNodeOutputExprDef Deserialize(BgObjectDef<BgNodeOutputExprDef> obj)
+		{
+			return new BgNodeOutputExprDef(obj.Get(x => x.ProducingNode, null!), obj.Get(x => x.OutputIndex, -1));
+		}
+	}
+
+	/// <summary>
 	/// Defines a node, a container for tasks and the smallest unit of execution that can be run as part of a build graph.
 	/// </summary>
 	public class BgNodeDef
@@ -59,9 +112,14 @@ namespace EpicGames.BuildGraph
 		public string Name { get; }
 
 		/// <summary>
+		/// Thunk to execute this node.
+		/// </summary>
+		public BgThunkDef? Thunk { get; }
+
+		/// <summary>
 		/// Array of inputs which this node requires to run
 		/// </summary>
-		public IReadOnlyList<BgNodeOutput> Inputs { get; }
+		public List<BgNodeOutput> Inputs { get; } = new List<BgNodeOutput>();
 
 		/// <summary>
 		/// Array of outputs produced by this node
@@ -71,17 +129,17 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Nodes which this node has input dependencies on
 		/// </summary>
-		public IReadOnlyList<BgNodeDef> InputDependencies { get; set; }
+		public List<BgNodeDef> InputDependencies { get; } = new List<BgNodeDef>();
 
 		/// <summary>
 		/// Nodes which this node needs to run after
 		/// </summary>
-		public IReadOnlyList<BgNodeDef> OrderDependencies { get; set; }
+		public List<BgNodeDef> OrderDependencies { get; } = new List<BgNodeDef>();
 
 		/// <summary>
 		/// Tokens which must be acquired for this node to run
 		/// </summary>
-		public IReadOnlyList<FileReference> RequiredTokens { get; }
+		public List<FileReference> RequiredTokens { get; } = new List<FileReference>();
 
 		/// <summary>
 		/// List of email addresses to notify if this node fails.
@@ -116,6 +174,20 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		public BgNodeDef(string name, BgThunkDef? thunk, IReadOnlyList<string> outputNames)
+		{
+			Name = name;
+			Thunk = thunk;
+
+			List<BgNodeOutput> allOutputs = new List<BgNodeOutput>();
+			allOutputs.Add(new BgNodeOutput(this, "#" + Name));
+			allOutputs.AddRange(outputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
+			Outputs = allOutputs.ToArray();
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="name">The name of this node</param>
 		/// <param name="inputs">Inputs that this node depends on</param>
 		/// <param name="outputNames">Names of the outputs that this node produces</param>
@@ -123,18 +195,13 @@ namespace EpicGames.BuildGraph
 		/// <param name="orderDependencies">Nodes which this node needs to run after. Should include all input dependencies.</param>
 		/// <param name="requiredTokens">Optional tokens which must be required for this node to run</param>
 		public BgNodeDef(string name, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens)
+			: this(name, null, outputNames)
 		{
 			Name = name;
-			Inputs = inputs;
-
-			List<BgNodeOutput> allOutputs = new List<BgNodeOutput>();
-			allOutputs.Add(new BgNodeOutput(this, "#" + Name));
-			allOutputs.AddRange(outputNames.Where(x => String.Compare(x, Name, StringComparison.InvariantCultureIgnoreCase) != 0).Select(x => new BgNodeOutput(this, x)));
-			Outputs = allOutputs.ToArray();
-
-			InputDependencies = inputDependencies;
-			OrderDependencies = orderDependencies;
-			RequiredTokens = requiredTokens;
+			Inputs.AddRange(inputs);
+			InputDependencies.AddRange(inputDependencies);
+			OrderDependencies.AddRange(orderDependencies);
+			RequiredTokens.AddRange(requiredTokens);
 		}
 
 		/// <summary>
@@ -183,7 +250,8 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Node constructed from a bytecode expression
 	/// </summary>
-	public class BgExpressionNodeDef : BgNodeDef
+	[BgObject(typeof(BgNodeExpressionDefSerializer))]
+	public class BgNodeExpressionDef : BgNodeDef
 	{
 		/// <summary>
 		/// Agent declaring this node
@@ -191,30 +259,57 @@ namespace EpicGames.BuildGraph
 		public BgAgentDef Agent { get; }
 
 		/// <summary>
-		/// Offset in the bytecode of this node. Used to lookup method calling information.
-		/// </summary>
-		public BgMethod Method { get; }
-
-		/// <summary>
-		/// Expression arguments to the method
-		/// </summary>
-		public IReadOnlyList<object> Arguments { get; }
-
-		/// <summary>
 		/// Labels to add this node to
 		/// </summary>
-		public IReadOnlyList<BgLabelDef> Labels { get; }
+		public List<BgLabelDef> Labels { get; } = new List<BgLabelDef>();
+
+		/// <summary>
+		/// Input expressions
+		/// </summary>
+		public List<BgNodeOutputExprDef> InputExprs { get; } = new List<BgNodeOutputExprDef>();
+
+		/// <summary>
+		/// Number of outputs from this node
+		/// </summary>
+		public int OutputCount { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgExpressionNodeDef(BgAgentDef agent, string name, BgMethod method, IReadOnlyList<object> arguments, IReadOnlyList<BgNodeOutput> inputs, IReadOnlyList<string> outputNames, IReadOnlyList<BgNodeDef> inputDependencies, IReadOnlyList<BgNodeDef> orderDependencies, IReadOnlyList<FileReference> requiredTokens, IReadOnlyList<BgLabelDef> labels)
-			: base(name, inputs, outputNames, inputDependencies, orderDependencies, requiredTokens)
+		public BgNodeExpressionDef(BgAgentDef agent, string name, BgThunkDef thunk, int outputCount)
+			: base(name, thunk, GetOutputNames(name, outputCount))
 		{
 			Agent = agent;
-			Method = method;
-			Arguments = arguments;
-			Labels = labels;
+			OutputCount = outputCount;
+		}
+
+		static string[] GetOutputNames(string name, int numOutputs)
+		{
+			return Enumerable.Range(0, numOutputs).Select(x => BgNode.GetDefaultTagName(name, x)).ToArray();
+		}
+	}
+
+	class BgNodeExpressionDefSerializer : BgObjectSerializer<BgNodeExpressionDef>
+	{
+		/// <inheritdoc/>
+		public override BgNodeExpressionDef Deserialize(BgObjectDef<BgNodeExpressionDef> obj)
+		{
+			BgNodeExpressionDef node = new BgNodeExpressionDef(obj.Get(x => x.Agent, null!), obj.Get(x => x.Name, ""), obj.Get(x => x.Thunk!, null!), obj.Get(x => x.OutputCount, 0));
+			obj.CopyTo(node);
+
+			node.Inputs.AddRange(node.InputExprs.SelectMany(x => x.Flatten()));
+
+			HashSet<BgNodeDef> inputDependencies = new HashSet<BgNodeDef>();
+			foreach (BgNodeOutput input in node.Inputs)
+			{
+				inputDependencies.Add(input.ProducingNode);
+				inputDependencies.UnionWith(input.ProducingNode.InputDependencies);
+			}
+
+			inputDependencies.ExceptWith(node.InputDependencies);
+			node.InputDependencies.AddRange(inputDependencies);
+
+			return node;
 		}
 	}
 }

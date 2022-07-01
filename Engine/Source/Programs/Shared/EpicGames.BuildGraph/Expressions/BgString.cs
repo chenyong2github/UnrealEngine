@@ -341,7 +341,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Style for this option
 		/// </summary>
-		public BgStringOptionStyle Style { get; }
+		public BgEnum<BgStringOptionStyle>? Style { get; }
 
 		/// <summary>
 		/// Regex for validating values for the option
@@ -366,7 +366,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgStringOption(string name, BgString? label = null, BgString? description = null, BgString? defaultValue = null, BgStringOptionStyle style = BgStringOptionStyle.Text, BgString? pattern = null, BgString? patternFailed = null, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null)
+		public BgStringOption(string name, BgString? description = null, BgString? defaultValue = null, BgEnum<BgStringOptionStyle>? style = null, BgString? pattern = null, BgString? patternFailed = null, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null, BgString? label = null)
 			: base(BgExprFlags.None)
 		{
 			Name = name;
@@ -384,15 +384,46 @@ namespace EpicGames.BuildGraph.Expressions
 		public override void Write(BgBytecodeWriter writer)
 		{
 			writer.WriteOpcode(BgOpcode.StrOption);
-			writer.WriteExpr(Name);
-			writer.WriteExpr(Label ?? BgString.Empty);
-			writer.WriteExpr(Description ?? BgString.Empty);
-			writer.WriteUnsignedInteger((int)Style);
-			writer.WriteExpr(DefaultValue ?? BgString.Empty);
-			writer.WriteExpr(Pattern ?? BgString.Empty);
-			writer.WriteExpr(PatternFailed ?? BgString.Empty);
-			writer.WriteExpr(Values ?? BgList<BgString>.Empty);
-			writer.WriteExpr(ValueDescriptions ?? BgList<BgString>.Empty);
+			writer.WriteExpr(CreateOptionsObject());
+		}
+
+		BgObject<BgStringOptionDef> CreateOptionsObject()
+		{
+			BgObject<BgStringOptionDef> option = BgObject<BgStringOptionDef>.Empty;
+			option = option.Set(x => x.Name, Name);
+			if (!(Label is null))
+			{
+				option = option.Set(x => x.Label, Label);
+			}
+			if (!(Description is null))
+			{
+				option = option.Set(x => x.Description, Description);
+			}
+			if (!(DefaultValue is null))
+			{
+				option = option.Set(x => x.DefaultValue, DefaultValue);
+			}
+			if (!(Style is null))
+			{
+				option = option.Set(x => x.Style, Style);
+			}
+			if (!(Pattern is null))
+			{
+				option = option.Set(x => x.Pattern, Pattern);
+			}
+			if (!(PatternFailed is null))
+			{
+				option = option.Set(x => x.PatternFailed, PatternFailed);
+			}
+			if (!(Values is null))
+			{
+				option = option.Set(x => x.Values, Values);
+			}
+			if (!(ValueDescriptions is null))
+			{
+				option = option.Set(x => x.ValueDescriptions, ValueDescriptions);
+			}
+			return option;
 		}
 	}
 }

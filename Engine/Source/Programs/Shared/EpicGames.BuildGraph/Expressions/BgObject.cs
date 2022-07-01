@@ -14,13 +14,8 @@ namespace EpicGames.BuildGraph.Expressions
 	/// </summary>
 	/// <typeparam name="T">The native type which mirrors this object</typeparam>
 	[BgType(typeof(BgObjectType<>))]
-	public abstract class BgObject<T> : BgExpr where T : new()
+	public abstract class BgObject<T> : BgExpr
 	{
-		/// <summary>
-		/// Default instance of the type, for determining default values
-		/// </summary>
-		internal static T DefaultInstance { get; } = new T();
-
 		/// <summary>
 		/// Constant representation of an empty object
 		/// </summary>
@@ -53,7 +48,8 @@ namespace EpicGames.BuildGraph.Expressions
 		{
 			MemberExpression member = ((MemberExpression)property.Body);
 			PropertyInfo propertyInfo = (PropertyInfo)member.Member;
-			return Set(propertyInfo.Name, value);
+			string name = propertyInfo.GetCustomAttribute<BgPropertyAttribute>()?.Name ?? propertyInfo.Name;
+			return Set(name, value);
 		}
 
 		/// <summary>
@@ -68,13 +64,14 @@ namespace EpicGames.BuildGraph.Expressions
 		/// Gets the value of a field in the object
 		/// </summary>
 		/// <param name="property">Expression indicating the property to retrieve</param>
+		/// <param name="defaultValue">Default value for the property</param>
 		/// <returns>Value of the field</returns>
-		public TExpr Get<TExpr, TNative>(Expression<Func<T, TNative>> property) where TExpr : BgExpr
+		public TExpr Get<TExpr, TNative>(Expression<Func<T, TNative>> property, TExpr defaultValue) where TExpr : BgExpr
 		{
 			MemberExpression member = ((MemberExpression)property.Body);
 			PropertyInfo propertyInfo = (PropertyInfo)member.Member;
-			TExpr defaultValue = BgType.Constant<TExpr>(propertyInfo.GetValue(DefaultInstance)!);
-			return Get(propertyInfo.Name, defaultValue);
+			string name = propertyInfo.GetCustomAttribute<BgPropertyAttribute>()?.Name ?? propertyInfo.Name;
+			return Get(name, defaultValue);
 		}
 
 		/// <inheritdoc/>
@@ -95,7 +92,7 @@ namespace EpicGames.BuildGraph.Expressions
 
 	#region Expression classes
 
-	class BgObjectEmptyExpr<T> : BgObject<T> where T : new()
+	class BgObjectEmptyExpr<T> : BgObject<T>
 	{
 		public BgObjectEmptyExpr()
 			: base(BgExprFlags.NotInterned)
@@ -108,7 +105,7 @@ namespace EpicGames.BuildGraph.Expressions
 		}
 	}
 
-	class BgObjectConstantExpr<T> : BgObject<T> where T : new()
+	class BgObjectConstantExpr<T> : BgObject<T>
 	{
 		public ImmutableDictionary<string, object> Fields { get; }
 
@@ -124,7 +121,7 @@ namespace EpicGames.BuildGraph.Expressions
 		}
 	}
 
-	class BgObjectSetExpr<T> : BgObject<T> where T : new()
+	class BgObjectSetExpr<T> : BgObject<T>
 	{
 		public BgObject<T> Object { get; }
 		public string Name { get; }
@@ -142,12 +139,12 @@ namespace EpicGames.BuildGraph.Expressions
 		{
 			writer.WriteOpcode(BgOpcode.ObjSet);
 			writer.WriteExpr(Object);
-			writer.WriteString(Name);
+			writer.WriteName(Name);
 			writer.WriteExpr(Value);
 		}
 	}
 
-	class BgObjectGetExpr<T> : BgObject<T> where T : new()
+	class BgObjectGetExpr<T> : BgObject<T>
 	{
 		public BgObject<T> Object { get; }
 		public string Name { get; }
@@ -165,12 +162,12 @@ namespace EpicGames.BuildGraph.Expressions
 		{
 			writer.WriteOpcode(BgOpcode.ObjGet);
 			writer.WriteExpr(Object);
-			writer.WriteString(Name);
+			writer.WriteName(Name);
 			writer.WriteExpr(DefaultValue);
 		}
 	}
 
-	class BgObjectWrappedExpr<T> : BgObject<T> where T : new()
+	class BgObjectWrappedExpr<T> : BgObject<T>
 	{
 		BgExpr Expr { get; }
 

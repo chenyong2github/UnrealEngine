@@ -95,6 +95,9 @@ namespace EpicGames.BuildGraph
 			public override void WriteOpcode(BgOpcode opcode) { }
 
 			/// <inheritdoc/>
+			public override void WriteName(string str) { }
+
+			/// <inheritdoc/>
 			public override void WriteString(string str) { }
 
 			/// <inheritdoc/>
@@ -104,20 +107,28 @@ namespace EpicGames.BuildGraph
 			public override void WriteUnsignedInteger(ulong value) { }
 
 			/// <inheritdoc/>
-			public override void WriteMethod(BgMethod handler) { }
+			public override void WriteThunk(BgThunkDef handler) { }
 		}
 
 		class ForwardWriter : BgBytecodeWriter
 		{
 			readonly ByteArrayBuilder _builder;
 			readonly Dictionary<BgExpr, int> _exprToFragmentIdx;
-			readonly List<BgMethod> _methods;
+			readonly List<string> _names;
+			readonly List<BgThunkDef> _thunks;
+			readonly Dictionary<string, int> _nameToIndex = new Dictionary<string, int>();
 
-			public ForwardWriter(ByteArrayBuilder builder, Dictionary<BgExpr, int> exprToFragmentIdx, List<BgMethod> handlers)
+			public ForwardWriter(ByteArrayBuilder builder, Dictionary<BgExpr, int> exprToFragmentIdx, List<string> names, List<BgThunkDef> thunks)
 			{
 				_builder = builder;
 				_exprToFragmentIdx = exprToFragmentIdx;
-				_methods = handlers;
+				_names = names;
+				_thunks = thunks;
+
+				for (int idx = 0; idx < _names.Count; idx++)
+				{
+					_nameToIndex[_names[idx]] = idx;
+				}
 			}
 
 			/// <inheritdoc/>
@@ -148,6 +159,19 @@ namespace EpicGames.BuildGraph
 			}
 
 			/// <inheritdoc/>
+			public override void WriteName(string name)
+			{
+				int index;
+				if (!_nameToIndex.TryGetValue(name, out index))
+				{
+					index = _names.Count;
+					_names.Add(name);
+					_nameToIndex.Add(name, index);
+				}
+				WriteUnsignedInteger((ulong)index);
+			}
+
+			/// <inheritdoc/>
 			public override void WriteString(string str)
 			{
 				int textLength = Encoding.UTF8.GetByteCount(str);
@@ -165,10 +189,10 @@ namespace EpicGames.BuildGraph
 			public override void WriteUnsignedInteger(ulong value) => _builder.WriteUnsignedVarInt(value);
 
 			/// <inheritdoc/>
-			public override void WriteMethod(BgMethod method)
+			public override void WriteThunk(BgThunkDef thunk)
 			{
-				_builder.WriteUnsignedVarInt(_methods.Count);
-				_methods.Add(method);
+				_builder.WriteUnsignedVarInt(_thunks.Count);
+				_thunks.Add(thunk);
 			}
 		}
 
@@ -177,7 +201,7 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		/// <param name="expr">Expression to compile</param>
 		/// <returns>Compiled bytecode for the expression, suitable for passing to <see cref="BgInterpreter"/></returns>
-		public static (byte[], BgMethod[]) Compile(BgExpr expr)
+		public static (byte[], BgThunkDef[]) Compile(BgExpr expr)
 		{
 			List<BgExpr> fragments = new List<BgExpr>();
 			Dictionary<BgExpr, int> exprToFragmentIndex = new Dictionary<BgExpr, int>(ReferenceEqualityComparer.Instance);
@@ -190,9 +214,10 @@ namespace EpicGames.BuildGraph
 			ByteArrayBuilder code = new ByteArrayBuilder();
 			List<int> fragmentLengths = new List<int>(fragments.Count);
 
-			List<BgMethod> methods = new List<BgMethod>();
+			List<BgThunkDef> thunks = new List<BgThunkDef>();
+			List<string> names = new List<string>();
 
-			ForwardWriter writer = new ForwardWriter(code, exprToFragmentIndex, methods);
+			ForwardWriter writer = new ForwardWriter(code, exprToFragmentIndex, names, thunks);
 			for (int idx = 0; idx < fragments.Count; idx++)
 			{
 				int fragmentOffset = code.Length;
@@ -203,18 +228,15 @@ namespace EpicGames.BuildGraph
 			// Create the header
 			ByteArrayBuilder header = new ByteArrayBuilder();
 			header.WriteUnsignedVarInt((int)BgBytecodeVersion.Current);
-			header.WriteUnsignedVarInt(fragments.Count);
-			for (int idx = 0; idx < fragments.Count; idx++)
-			{
-				header.WriteUnsignedVarInt(fragmentLengths[idx]);
-			}
+			header.WriteVariableLengthArray(names, x => header.WriteString(x));
+			header.WriteVariableLengthArray(fragmentLengths, x => header.WriteUnsignedVarInt(x));
 
 			// Append them together
 			byte[] output = new byte[header.Length + code.Length];
 			header.CopyTo(output);
 			code.CopyTo(output.AsSpan(header.Length));
 
-			return (output, methods.ToArray());
+			return (output, thunks.ToArray());
 		}
 	}
 }

@@ -724,9 +724,9 @@ namespace AutomationTool
 					else
 					{
 						// Create a new option object to store the settings
-						string description = ReadAttribute(element, "Description");
-						string defaultValue = ReadAttribute(element, "DefaultValue");
-						BgOption option = new BgOption(name, description, defaultValue);
+						BgStringOptionDef option = new BgStringOptionDef(name);
+						option.Description = ReadAttribute(element, "Description");
+						option.DefaultValue = ReadAttribute(element, "DefaultValue");
 						_graph.Options.Add(option);
 
 						// Get the value of this property
@@ -953,9 +953,9 @@ namespace AutomationTool
 				BgAgentDef? agent;
 				if (_graph.NameToAgent.TryGetValue(name, out agent))
 				{
-					if (types.Length > 0 && agent.PossibleTypes.Length > 0)
+					if (types.Length > 0 && agent.PossibleTypes.Count > 0)
 					{
-						if (types.Length != agent.PossibleTypes.Length || !types.SequenceEqual(agent.PossibleTypes, StringComparer.InvariantCultureIgnoreCase))
+						if (types.Length != agent.PossibleTypes.Count || !types.SequenceEqual(agent.PossibleTypes, StringComparer.InvariantCultureIgnoreCase))
 						{
 							LogError(element, "Agent types ({0}) were different than previous agent definition with types ({1}). Must either be empty or match exactly.", String.Join(",", types), String.Join(",", agent.PossibleTypes));
 						}
@@ -967,7 +967,8 @@ namespace AutomationTool
 					{
 						LogError(element, "Missing type for agent '{0}'", name);
 					}
-					agent = new BgAgentDef(name, types);
+					agent = new BgAgentDef(name);
+					agent.PossibleTypes.AddRange(types);
 					_graph.NameToAgent.Add(name, agent);
 					_graph.Agents.Add(agent);
 				}

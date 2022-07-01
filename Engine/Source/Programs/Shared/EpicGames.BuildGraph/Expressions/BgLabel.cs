@@ -33,12 +33,12 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Which change to show the badge for
 		/// </summary>
-		public BgString? Change { get; }
+		public BgEnum<BgLabelChange>? Change { get; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgLabel(BgString? name = null, BgString? category = null, BgString? ugsBadge = null, BgString? ugsProject = null, BgString? change = null)
+		public BgLabel(BgString? name = null, BgString? category = null, BgString? ugsBadge = null, BgString? ugsProject = null, BgEnum<BgLabelChange>? change = null)
 			: base(BgExprFlags.ForceFragment)
 		{
 			DashboardName = name;
@@ -51,12 +51,28 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <inheritdoc/>
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.Label);
-			writer.WriteExpr(DashboardName ?? BgString.Empty);
-			writer.WriteExpr(DashboardCategory ?? BgString.Empty);
-			writer.WriteExpr(UgsBadge ?? BgString.Empty);
-			writer.WriteExpr(UgsProject ?? BgString.Empty);
-			writer.WriteExpr(Change ?? BgString.Empty);
+			BgObject<BgLabelDef> obj = BgObject<BgLabelDef>.Empty;
+			if (!(DashboardName is null))
+			{
+				obj = obj.Set(x => x.DashboardName, DashboardName);
+			}
+			if (!(DashboardCategory is null))
+			{
+				obj = obj.Set(x => x.DashboardCategory, DashboardCategory);
+			}
+			if (!(UgsBadge is null))
+			{
+				obj = obj.Set(x => x.UgsBadge, UgsBadge);
+			}
+			if (!(UgsProject is null))
+			{
+				obj = obj.Set(x => x.UgsProject, UgsProject);
+			}
+			if (!(Change is null))
+			{
+				obj = obj.Set(x => x.Change, Change);
+			}
+			writer.WriteExpr(obj);
 		}
 
 		/// <inheritdoc/>

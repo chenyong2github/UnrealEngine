@@ -32,6 +32,12 @@ namespace EpicGames.BuildGraph
 		public abstract void WriteString(string str);
 
 		/// <summary>
+		/// Writes a reference to an interned string to the output
+		/// </summary>
+		/// <param name="name">Name to write</param>
+		public abstract void WriteName(string name);
+
+		/// <summary>
 		/// Writes a signed integer value to the output
 		/// </summary>
 		/// <param name="value"></param>
@@ -62,9 +68,9 @@ namespace EpicGames.BuildGraph
 		public abstract void WriteExprAsFragment(BgExpr expr);
 
 		/// <summary>
-		/// Writes the method to be called for a particular node
+		/// Writes a thunk to native code.
 		/// </summary>
-		/// <param name="method">Method to be called</param>
-		public abstract void WriteMethod(BgMethod method);
+		/// <param name="thunk">Method to be called</param>
+		public abstract void WriteThunk(BgThunkDef thunk);
 	}
 }

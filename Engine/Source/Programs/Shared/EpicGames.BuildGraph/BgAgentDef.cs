@@ -11,6 +11,7 @@ namespace EpicGames.BuildGraph
 	/// Stores a list of nodes which can be executed on a single agent
 	/// </summary>
 	[DebuggerDisplay("{Name}")]
+	[BgObject(typeof(BgAgentDefSerializer))]
 	public class BgAgentDef
 	{
 		/// <summary>
@@ -22,7 +23,7 @@ namespace EpicGames.BuildGraph
 		/// Array of valid agent types that these nodes may run on. When running in the build system, this determines the class of machine that should
 		/// be selected to run these nodes. The first defined agent type for this branch will be used.
 		/// </summary>
-		public string[] PossibleTypes { get; }
+		public List<string> PossibleTypes { get; } = new List<string>();
 
 		/// <summary>
 		/// List of nodes in this agent group.
@@ -37,12 +38,21 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		/// <param name="inName">Name of this agent group</param>
-		/// <param name="inPossibleTypes">Array of valid agent types. See comment for AgentTypes member.</param>
-		public BgAgentDef(string inName, string[] inPossibleTypes)
+		/// <param name="name">Name of this agent group</param>
+		public BgAgentDef(string name)
 		{
-			Name = inName;
-			PossibleTypes = inPossibleTypes;
+			Name = name;
+		}
+	}
+
+	class BgAgentDefSerializer : BgObjectSerializer<BgAgentDef>
+	{
+		/// <inheritdoc/>
+		public override BgAgentDef Deserialize(BgObjectDef<BgAgentDef> obj)
+		{
+			BgAgentDef agent = new BgAgentDef(obj.Get(x => x.Name, ""));
+			obj.CopyTo(agent);
+			return agent;
 		}
 	}
 }

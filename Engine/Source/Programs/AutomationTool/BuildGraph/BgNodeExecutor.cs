@@ -65,9 +65,9 @@ namespace AutomationTool
 			public override bool IsBuildMachine => CommandUtils.IsBuildMachine;
 		}
 
-		readonly BgExpressionNodeDef Node;
+		readonly BgNodeDef Node;
 
-		public BgBytecodeNodeExecutor(BgExpressionNodeDef node)
+		public BgBytecodeNodeExecutor(BgNodeDef node)
 		{
 			Node = node;
 		}
@@ -85,7 +85,8 @@ namespace AutomationTool
 		/// <returns></returns>
 		public override async Task<bool> ExecuteAsync(JobContext Job, Dictionary<string, HashSet<FileReference>> TagNameToFileSet)
 		{
-			MethodInfo method = Node.Method.Method;
+			BgThunkDef thunk = Node.Thunk!;
+			MethodInfo method = thunk.Method;
 
 			HashSet<FileReference> BuildProducts = TagNameToFileSet[Node.DefaultOutput.TagName];
 
@@ -101,13 +102,9 @@ namespace AutomationTool
 				{
 					arguments[Idx] = Context;
 				}
-				else if (typeof(BgExpr).IsAssignableFrom(ParameterType))
-				{
-					arguments[Idx] = BgType.Constant(ParameterType, Node.Arguments[Idx]);
-				}
 				else
 				{
-					arguments[Idx] = Node.Method.Arguments[Idx];
+					arguments[Idx] = thunk.Arguments[Idx];
 				}
 			}
 

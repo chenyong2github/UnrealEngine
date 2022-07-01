@@ -280,12 +280,34 @@ namespace EpicGames.BuildGraph.Expressions
 		public override void Write(BgBytecodeWriter writer)
 		{
 			writer.WriteOpcode(BgOpcode.IntOption);
-			writer.WriteExpr(Name);
-			writer.WriteExpr(Label ?? BgString.Empty);
-			writer.WriteExpr(Description ?? BgString.Empty);
-			writer.WriteExpr(DefaultValue ?? (BgInt)0);
-			writer.WriteExpr(MinValue ?? (BgInt)(-1));
-			writer.WriteExpr(MaxValue ?? (BgInt)(-1));
+			writer.WriteExpr(CreateOptionsObject());
+		}
+
+		BgObject<BgIntOptionDef> CreateOptionsObject()
+		{
+			BgObject<BgIntOptionDef> option = BgObject<BgIntOptionDef>.Empty;
+			option = option.Set(x => x.Name, Name);
+			if (!(Label is null))
+			{
+				option = option.Set(x => x.Label, Label);
+			}
+			if (!(Description is null))
+			{
+				option = option.Set(x => x.Description, Description);
+			}
+			if (!(DefaultValue is null))
+			{
+				option = option.Set(x => x.DefaultValue, DefaultValue);
+			}
+			if (!(MinValue is null))
+			{
+				option = option.Set(x => x.MinValue, MinValue);
+			}
+			if (!(MaxValue is null))
+			{
+				option = option.Set(x => x.MaxValue, MaxValue);
+			}
+			return option;
 		}
 	}
 }

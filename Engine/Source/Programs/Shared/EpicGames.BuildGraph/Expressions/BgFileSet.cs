@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using EpicGames.Core;
 
 namespace EpicGames.BuildGraph.Expressions
@@ -45,7 +46,12 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgFileSetType : BgType<BgFileSet>
 	{
 		/// <inheritdoc/>
-		public override BgFileSet Constant(object value) => new BgFileSetInputExpr((BgNodeOutput[])value);
+		public override BgFileSet Constant(object value)
+		{
+			BgObjectDef obj = (BgObjectDef)value;
+			BgNodeOutput[] outputs = obj.Deserialize<BgNodeOutputExprDef>().Flatten().ToArray();
+			return new BgFileSetInputExpr(outputs);
+		}
 
 		/// <inheritdoc/>
 		public override BgFileSet Wrap(BgExpr expr) => new BgFileSetWrappedExpr(expr);
@@ -108,8 +114,9 @@ namespace EpicGames.BuildGraph.Expressions
 
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.FileSetFromNode);
-			writer.WriteExpr(Node);
+			BgObject<BgNodeOutputExprDef> obj = BgObject<BgNodeOutputExprDef>.Empty;
+			obj = obj.Set(x => x.ProducingNode, Node);
+			writer.WriteExpr(obj);
 		}
 	}
 
@@ -127,9 +134,10 @@ namespace EpicGames.BuildGraph.Expressions
 
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.FileSetFromNodeOutput);
-			writer.WriteExpr(Node);
-			writer.WriteUnsignedInteger(OutputIndex);
+			BgObject<BgNodeOutputExprDef> obj = BgObject<BgNodeOutputExprDef>.Empty;
+			obj = obj.Set(x => x.ProducingNode, Node);
+			obj = obj.Set(x => x.OutputIndex, (BgInt)OutputIndex);
+			writer.WriteExpr(obj);
 		}
 	}
 

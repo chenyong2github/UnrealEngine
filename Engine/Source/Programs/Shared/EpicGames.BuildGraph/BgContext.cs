@@ -87,14 +87,14 @@ namespace EpicGames.BuildGraph
 		/// <typeparam name="TEnum">The enum type</typeparam>
 		/// <param name="expr">Enum expression</param>
 		/// <returns>The enum value</returns>
-		public List<TEnum> Get<TEnum>(BgList<BgEnum<TEnum>> expr) where TEnum : struct => ((BgListConstantExpr<BgEnum<TEnum>>)expr).Value.Select(x => (TEnum)x).ToList();
+		public List<TEnum> Get<TEnum>(BgList<BgEnum<TEnum>> expr) where TEnum : struct => ((BgListConstantExpr<BgEnum<TEnum>>)expr).Value.Select(x => ((BgEnumConstantExpr<TEnum>)x).Value).ToList();
 
 		/// <summary>
 		/// Resolve a list of strings
 		/// </summary>
 		/// <param name="expr">List expression</param>
 		/// <returns></returns>
-		public List<string> Get(BgList<BgString> expr) => (((BgListConstantExpr<BgString>)expr).Value).ConvertAll(x => (string)x);
+		public List<string> Get(BgList<BgString> expr) => (((BgListConstantExpr<BgString>)expr).Value).ConvertAll(x => ((BgStringConstantExpr)x).Value);
 
 		/// <summary>
 		/// Resolve a file set

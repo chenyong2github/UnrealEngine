@@ -4,10 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Xml;
 using EpicGames.Core;
 using Microsoft.Extensions.Logging;
+
+[assembly: InternalsVisibleTo("EpicGames.BuildGraph.Tests")]
 
 namespace EpicGames.BuildGraph
 {
@@ -40,7 +43,7 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// List of options, in the order they were specified
 		/// </summary>
-		public List<BgOption> Options { get; } = new List<BgOption>();
+		public List<BgOptionDef> Options { get; } = new List<BgOptionDef>();
 
 		/// <summary>
 		/// List of agents containing nodes to execute
@@ -261,7 +264,7 @@ namespace EpicGames.BuildGraph
 			// Remove all the order dependencies which are no longer part of the graph. Since we don't need to build them, we don't need to wait for them
 			foreach (BgNodeDef node in retainNodes)
 			{
-				node.OrderDependencies = node.OrderDependencies.Where(x => retainNodes.Contains(x)).ToArray();
+				node.OrderDependencies.RemoveAll(x => !retainNodes.Contains(x));
 			}
 
 			// Create a new list of aggregates for everything that's left
@@ -562,14 +565,29 @@ namespace EpicGames.BuildGraph
 			{
 				// Get the list of messages
 				List<KeyValuePair<string, string>> parameters = new List<KeyValuePair<string, string>>();
-				foreach (BgOption option in Options)
+				foreach (BgOptionDef option in Options)
 				{
 					string name = String.Format("-set:{0}=...", option.Name);
 
 					StringBuilder description = new StringBuilder(option.Description);
-					if (!String.IsNullOrEmpty(option.DefaultValue))
+
+					string? defaultValue = null;
+					if (option is BgBoolOptionDef boolOption)
 					{
-						description.AppendFormat(" (Default: {0})", option.DefaultValue);
+						defaultValue = boolOption.DefaultValue.ToString();
+					}
+					else if (option is BgIntOptionDef intOption)
+					{
+						defaultValue = intOption.DefaultValue.ToString();
+					}
+					else if (option is BgStringOptionDef stringOption)
+					{
+						defaultValue = stringOption.DefaultValue;
+					}
+
+					if (!String.IsNullOrEmpty(defaultValue))
+					{
+						description.AppendFormat(" (Default: {0})", defaultValue);
 					}
 
 					parameters.Add(new KeyValuePair<string, string>(name, description.ToString()));
@@ -640,6 +658,87 @@ namespace EpicGames.BuildGraph
 					logger.LogInformation("    {0}", aggregateName);
 				}
 				logger.LogInformation("");
+			}
+		}
+	}
+
+
+	/// <summary>
+	/// Definition of a graph from bytecode. Can be converted to regular graph definition.
+	/// </summary>
+	public class BgGraphExpressionDef
+	{
+		/// <summary>
+		/// Nodes for the graph
+		/// </summary>
+		public List<BgNodeExpressionDef> Nodes { get; } = new List<BgNodeExpressionDef>();
+
+		/// <summary>
+		/// Aggregates for the graph
+		/// </summary>
+		public List<BgAggregateExpressionDef> Aggregates { get; } = new List<BgAggregateExpressionDef>();
+
+		/// <summary>
+		/// Creates a graph definition from this template
+		/// </summary>
+		/// <returns></returns>
+		public BgGraphDef ToGraphDef()
+		{
+			List<BgNodeExpressionDef> nodes = new List<BgNodeExpressionDef>(Nodes);
+
+			BgGraphDef graph = new BgGraphDef();
+			foreach (BgAggregateExpressionDef aggregate in Aggregates)
+			{
+				graph.NameToAggregate[aggregate.Name] = aggregate.ToAggregateDef();
+				nodes.AddRange(aggregate.RequiredNodes.Select(x => (BgNodeExpressionDef)x));
+			}
+
+			HashSet<BgNodeDef> uniqueNodes = new HashSet<BgNodeDef>();
+			HashSet<BgAgentDef> uniqueAgents = new HashSet<BgAgentDef>();
+			foreach (BgNodeExpressionDef node in nodes)
+			{
+				RegisterNode(graph, node, uniqueNodes, uniqueAgents);
+			}
+
+			HashSet<BgLabelDef> labels = new HashSet<BgLabelDef>();
+			foreach (BgNodeExpressionDef node in nodes)
+			{
+				foreach (BgLabelDef label in node.Labels)
+				{
+					labels.Add(label);
+					label.RequiredNodes.Add(node);
+				}
+			}
+			foreach (BgAggregateExpressionDef aggregate in Aggregates)
+			{
+				if (aggregate.Label != null)
+				{
+					aggregate.Label.RequiredNodes.UnionWith(aggregate.RequiredNodes);
+					labels.Add(aggregate.Label);
+				}
+			}
+			graph.Labels.AddRange(labels);
+			return graph;
+		}
+
+		static void RegisterNode(BgGraphDef graph, BgNodeExpressionDef node, HashSet<BgNodeDef> uniqueNodes, HashSet<BgAgentDef> uniqueAgents)
+		{
+			if (uniqueNodes.Add(node))
+			{
+				foreach (BgNodeExpressionDef inputNode in node.InputDependencies)
+				{
+					RegisterNode(graph, inputNode, uniqueNodes, uniqueAgents);
+				}
+
+				BgAgentDef agent = node.Agent;
+				if (uniqueAgents.Add(agent))
+				{
+					graph.Agents.Add(agent);
+					graph.NameToAgent.Add(agent.Name, agent);
+				}
+
+				agent.Nodes.Add(node);
+				graph.NameToNode.Add(node.Name, node);
 			}
 		}
 	}

@@ -383,11 +383,11 @@ namespace AutomationTool
 				BgGraphBuilder Builder = (BgGraphBuilder)Activator.CreateInstance(BuilderType);
 				BgGraph GraphSpec = Builder.CreateGraph(new BgEnvironment(P4Enabled ? P4Env : null));
 
-				(byte[] Data, BgMethod[] Methods) = BgCompiler.Compile(GraphSpec);
+				(byte[] Data, BgThunkDef[] Methods) = BgCompiler.Compile(GraphSpec);
 
 				BgInterpreter Interpreter = new BgInterpreter(Data, Methods, Arguments);
 				Interpreter.Disassemble(Logger);
-				Graph = (BgGraphDef)Interpreter.Evaluate();
+				Graph = ((BgObjectDef)Interpreter.Evaluate()).Deserialize<BgGraphExpressionDef>().ToGraphDef();
 			}
 			else
 			{
@@ -709,7 +709,7 @@ namespace AutomationTool
 				NodeToExecutor[Node] = executor;
 				return executor.Bind(NameToTask, TagNameToNodeOutput, Logger);
 			}
-			else if (Node is BgExpressionNodeDef BytecodeNode)
+			else if (Node is BgNodeExpressionDef BytecodeNode)
 			{
 				BgBytecodeNodeExecutor executor = new BgBytecodeNodeExecutor(BytecodeNode);
 				NodeToExecutor[Node] = executor;

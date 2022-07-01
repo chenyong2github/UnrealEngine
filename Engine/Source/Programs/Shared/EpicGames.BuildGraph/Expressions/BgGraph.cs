@@ -66,9 +66,10 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <inheritdoc/>
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.Graph);
-			writer.WriteExpr(Nodes);
-			writer.WriteExpr(Aggregates);
+			BgObject<BgGraphExpressionDef> obj = BgObject<BgGraphExpressionDef>.Empty;
+			obj = obj.Set(x => x.Nodes, Nodes);
+			obj = obj.Set(x => x.Aggregates, Aggregates);
+			writer.WriteExpr(obj);
 		}
 
 		/// <inheritdoc/>

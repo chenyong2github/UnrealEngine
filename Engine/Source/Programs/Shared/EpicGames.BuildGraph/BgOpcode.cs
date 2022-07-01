@@ -260,23 +260,9 @@ namespace EpicGames.BuildGraph
 		ListLazy = 0x4c,
 
 		/// <summary>
-		/// An option providing a list of strings (see <see cref="BgListOptionSpec"/>
+		/// An option providing a list of strings (see <see cref="BgListOption"/>
 		/// </summary>
 		ListOption = 0x4d,
-
-		#endregion
-
-		#region Fileset opcodes
-
-		/// <summary>
-		/// Fileset constructed from all the inputs and outputs of a node
-		/// </summary>
-		FileSetFromNode = 0x50,
-
-		/// <summary>
-		/// Fileset for an individual numbered output from a node
-		/// </summary>
-		FileSetFromNodeOutput = 0x51,
 
 		#endregion
 
@@ -335,34 +321,10 @@ namespace EpicGames.BuildGraph
 		/// </summary>
 		Null = 0xe2,
 
-		#endregion
-
-		#region Graph structures
-
 		/// <summary>
-		/// Defines a node (see <see cref="BgNode"/>)
+		/// A native method invocation, represented as an index into the method table
 		/// </summary>
-		Node = 0xf0,
-
-		/// <summary>
-		/// Defines an agent to execute work on (see <see cref="BgAgent"/>)
-		/// </summary>
-		Agent = 0xf1,
-		
-		/// <summary>
-		/// Defines a label (see <see cref="BgLabel"/>)
-		/// </summary>
-		Label = 0xf2,
-
-		/// <summary>
-		/// Defines an aggregate (see <see cref="BgAggregate"/>)
-		/// </summary>
-		Aggregate = 0xf3,
-
-		/// <summary>
-		/// Defines a graph (see <see cref="BgGraph"/>)
-		/// </summary>
-		Graph = 0xf4,
+		Thunk = 0xe3,
 
 		#endregion
 	}

@@ -17,12 +17,12 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Names of this enum
 		/// </summary>
-		public static BgList<BgString> Names { get; } = BgList<BgString>.Create(Enum.GetNames(typeof(TEnum)).Select(x => (BgString)x));
+		public static BgList<BgString> Names { get; } = BgList.Create(Enum.GetNames(typeof(TEnum)).Select(x => (BgString)x));
 
 		/// <summary>
 		/// Values of this enum
 		/// </summary>
-		public static BgList<BgInt> Values { get; } = BgList<BgInt>.Create(((TEnum[])Enum.GetValues(typeof(TEnum))).Select(x => (BgInt)(int)(object)x));
+		public static BgList<BgInt> Values { get; } = BgList.Create(((TEnum[])Enum.GetValues(typeof(TEnum))).Select(x => (BgInt)(int)(object)x));
 
 		/// <summary>
 		/// Constructor

@@ -29,7 +29,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// Constructor
 		/// </summary>
 		public BgAgent(BgString name, BgString type)
-			: this(name, BgList<BgString>.Create(type))
+			: this(name, BgList.Create(type))
 		{
 		}
 
@@ -46,9 +46,10 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <inheritdoc/>
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.Agent);
-			writer.WriteExpr(Name);
-			writer.WriteExpr(Types);
+			BgObject<BgAgentDef> obj = BgObject<BgAgentDef>.Empty;
+			obj = obj.Set(x => x.Name, Name);
+			obj = obj.Set(x => x.PossibleTypes, Types);
+			writer.WriteExpr(obj);
 		}
 
 		/// <inheritdoc/>

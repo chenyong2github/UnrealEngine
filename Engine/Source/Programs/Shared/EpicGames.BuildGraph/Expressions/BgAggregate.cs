@@ -17,7 +17,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Outputs required for the aggregate
 		/// </summary>
-		public BgList<BgFileSet> Requires { get; }
+		public BgList<BgNode> Requires { get; }
 
 		/// <summary>
 		/// Label to apply to this aggregate
@@ -27,23 +27,23 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregate(BgString name, params BgFileSet[] requires)
-			: this(name, BgList<BgFileSet>.Create(requires))
+		public BgAggregate(BgString name, params BgNode[] requires)
+			: this(name, BgList.Create(requires))
 		{
 		}
 
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregate(BgString name, params BgList<BgFileSet>[] requires)
-			: this(name, BgList<BgFileSet>.Concat(requires))
+		public BgAggregate(BgString name, params BgList<BgNode>[] requires)
+			: this(name, BgList.Concat(requires))
 		{
 		}
 
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregate(BgString name, BgList<BgFileSet> requires, string label)
+		public BgAggregate(BgString name, BgList<BgNode> requires, string label)
 			: this(name, requires, new BgLabel(label))
 		{
 		}
@@ -51,7 +51,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Constructor.
 		/// </summary>
-		public BgAggregate(BgString name, BgList<BgFileSet> requires, BgLabel? label = null)
+		public BgAggregate(BgString name, BgList<BgNode> requires, BgLabel? label = null)
 			: base(BgExprFlags.None)
 		{
 			Name = name;
@@ -62,10 +62,10 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <inheritdoc/>
 		public override void Write(BgBytecodeWriter writer)
 		{
-			writer.WriteOpcode(BgOpcode.Aggregate);
-			writer.WriteExpr(Name);
-			writer.WriteExpr(Requires);
-			writer.WriteExpr(Label ?? BgExpr.Null);
+			BgObject<BgAggregateDef> obj = BgObject<BgAggregateDef>.Empty;
+			obj = obj.Set(x => x.Name, Name);
+			obj = obj.Set(x => x.RequiredNodes, Requires);
+			writer.WriteExpr(obj);
 		}
 
 		/// <inheritdoc/>

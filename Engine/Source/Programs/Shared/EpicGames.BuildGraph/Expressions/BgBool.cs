@@ -214,10 +214,26 @@ namespace EpicGames.BuildGraph.Expressions
 		public override void Write(BgBytecodeWriter writer)
 		{
 			writer.WriteOpcode(BgOpcode.BoolOption);
-			writer.WriteExpr(Name);
-			writer.WriteExpr(Label ?? BgString.Empty);
-			writer.WriteExpr(Description ?? BgString.Empty);
-			writer.WriteExpr(DefaultValue ?? BgBool.False);
+			writer.WriteExpr(CreateOptionsObject());
+		}
+
+		BgObject<BgBoolOptionDef> CreateOptionsObject()
+		{
+			BgObject<BgBoolOptionDef> option = BgObject<BgBoolOptionDef>.Empty;
+			option = option.Set(x => x.Name, Name);
+			if (!(Label is null))
+			{
+				option = option.Set(x => x.Label, Label);
+			}
+			if (!(Description is null))
+			{
+				option = option.Set(x => x.Description, Description);
+			}
+			if (!(DefaultValue is null))
+			{
+				option = option.Set(x => x.DefaultValue, DefaultValue);
+			}
+			return option;
 		}
 	}
 }

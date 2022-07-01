@@ -41,21 +41,48 @@ namespace EpicGames.BuildGraph
 	/// <summary>
 	/// Aggregate that was created from bytecode
 	/// </summary>
-	public class BgBytecodeAggregateDef : BgAggregateDef
+	[BgObject(typeof(BgAggregateExpressionDefSerializer))]
+	public class BgAggregateExpressionDef
 	{
+		/// <inheritdoc cref="BgAggregateDef.Name"/>
+		public string Name { get; set; }
+
+		/// <inheritdoc cref="BgAggregateDef.RequiredNodes"/>
+		public List<BgNodeExpressionDef> RequiredNodes { get; } = new List<BgNodeExpressionDef>();
+
 		/// <summary>
 		/// Labels to add this aggregate to
 		/// </summary>
-		public BgLabelDef? Label { get; }
+		public BgLabelDef? Label { get; set; }
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgBytecodeAggregateDef(string name, IEnumerable<BgNodeDef> nodes, BgLabelDef? label)
-			: base(name)
+		public BgAggregateExpressionDef(string name)
 		{
-			RequiredNodes.UnionWith(nodes);
-			Label = label;
+			Name = name;
+		}
+
+		/// <summary>
+		/// Construct a BgAggregateDef
+		/// </summary>
+		/// <returns></returns>
+		public BgAggregateDef ToAggregateDef()
+		{
+			BgAggregateDef aggregate = new BgAggregateDef(Name);
+			aggregate.RequiredNodes.UnionWith(RequiredNodes);
+			return aggregate;
+		}
+	}
+
+	class BgAggregateExpressionDefSerializer : BgObjectSerializer<BgAggregateExpressionDef>
+	{
+		/// <inheritdoc/>
+		public override BgAggregateExpressionDef Deserialize(BgObjectDef<BgAggregateExpressionDef> obj)
+		{
+			BgAggregateExpressionDef aggregate = new BgAggregateExpressionDef(obj.Get(x => x.Name, ""));
+			obj.CopyTo(aggregate);
+			return aggregate;
 		}
 	}
 }

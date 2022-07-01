@@ -7,6 +7,62 @@ using System.Linq;
 namespace EpicGames.BuildGraph.Expressions
 {
 	/// <summary>
+	/// Utility methods for lists
+	/// </summary>
+	public static class BgList
+	{
+		/// <summary>
+		/// Gets an empty list of the given type
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public static BgList<T> Empty<T>() where T : BgExpr => BgList<T>.Empty;
+
+		/// <summary>
+		/// Crates a list from an array of values
+		/// </summary>
+		/// <param name="items">Sequence to construct from</param>
+		/// <returns></returns>
+		public static BgList<BgString> Create(IEnumerable<string> items) => BgList<BgString>.Create(items.Select(x => (BgString)x));
+
+		/// <summary>
+		/// Crates a list from an array of values
+		/// </summary>
+		/// <param name="items">Sequence to construct from</param>
+		/// <returns></returns>
+		public static BgList<BgString> Create(params string[] items) => BgList<BgString>.Create(items.Select(x => (BgString)x));
+
+		/// <summary>
+		/// Crates a list from an array of values
+		/// </summary>
+		/// <param name="items">Sequence to construct from</param>
+		/// <returns></returns>
+		public static BgList<T> Create<T>(IEnumerable<T> items) where T : BgExpr => BgList<T>.Create(items);
+
+		/// <summary>
+		/// Crates a list from an array of values
+		/// </summary>
+		/// <param name="items">Sequence to construct from</param>
+		/// <returns></returns>
+		public static BgList<T> Create<T>(params T[] items) where T : BgExpr => BgList<T>.Create(items);
+
+		/// <summary>
+		/// Concatenates two lists together
+		/// </summary>
+		/// <param name="lhs"></param>
+		/// <param name="rhs"></param>
+		/// <returns></returns>
+		public static BgList<T> Concat<T>(BgList<T> lhs, BgList<T> rhs) where T : BgExpr => BgList<T>.Concat(lhs, rhs);
+
+		/// <summary>
+		/// Concatenates two lists together
+		/// </summary>
+		/// <param name="others"></param>
+		/// <returns></returns>
+		public static BgList<T> Concat<T>(params BgList<T>[] others) where T : BgExpr => BgList<T>.Concat(others);
+	}
+
+	/// <summary>
 	/// Abstract base class for expressions returning an immutable list of values
 	/// </summary>
 	[BgType(typeof(BgListType<>))]
@@ -171,7 +227,19 @@ namespace EpicGames.BuildGraph.Expressions
 	class BgListType<T> : BgType<BgList<T>> where T : BgExpr
 	{
 		/// <inheritdoc/>
-		public override BgList<T> Constant(object value) => new BgListConstantExpr<T>((List<object>)value);
+		public override BgList<T> Constant(object value)
+		{
+			IEnumerable<object> elements = (IEnumerable<object>)value;
+
+			List<T> items = new List<T>();
+			foreach (object element in elements)
+			{
+				items.Add(BgType.Constant<T>(element));
+			}
+
+			return new BgListConstantExpr<T>(items);
+		}
+//		=> new BgListConstantExpr<T>(((IEnumerable<object>)value).Select(x => BgType.Constant<T>(x)).ToList());
 
 		/// <inheritdoc/>
 		public override BgList<T> Wrap(BgExpr expr) => new BgListWrappedExpr<T>(expr);
@@ -194,12 +262,12 @@ namespace EpicGames.BuildGraph.Expressions
 
 	class BgListConstantExpr<T> : BgList<T> where T : BgExpr
 	{
-		public List<object> Value { get; }
+		public IReadOnlyList<T> Value { get; }
 
-		public BgListConstantExpr(List<object> value)
+		public BgListConstantExpr(IEnumerable<T> value)
 			: base(BgExprFlags.NotInterned)
 		{
-			Value = value;
+			Value = value.ToArray();
 		}
 
 		public override void Write(BgBytecodeWriter writer)
@@ -446,25 +514,9 @@ namespace EpicGames.BuildGraph.Expressions
 	#endregion
 
 	/// <summary>
-	/// Style for a list option
-	/// </summary>
-	public enum BgListOptionStyle
-	{
-		/// <summary>
-		/// List of checkboxes
-		/// </summary>
-		CheckList = 0,
-
-		/// <summary>
-		/// Tag picker
-		/// </summary>
-		TagPicker = 1,
-	}
-
-	/// <summary>
 	/// A list option expression
 	/// </summary>
-	public class BgListOptionSpec : BgList<BgString>
+	public class BgListOption : BgList<BgString>
 	{
 		/// <summary>
 		/// Name of the option
@@ -484,22 +536,12 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Style for this list box
 		/// </summary>
-		public BgListOptionStyle Style { get; }
+		public BgEnum<BgListOptionStyle> Style { get; }
 
 		/// <summary>
 		/// Default value for the option
 		/// </summary>
 		public BgString? DefaultValue { get; set; }
-
-		/// <summary>
-		/// Regex for validating values for the option
-		/// </summary>
-		public BgString? Pattern { get; set; }
-
-		/// <summary>
-		/// Message to display if validation fails
-		/// </summary>
-		public BgString? PatternFailed { get; set; }
 
 		/// <summary>
 		/// List of values to choose from
@@ -514,7 +556,7 @@ namespace EpicGames.BuildGraph.Expressions
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public BgListOptionSpec(string name, BgString? label = null, BgString? description = null, BgString? defaultValue = null, BgListOptionStyle style = BgListOptionStyle.CheckList, BgString? pattern = null, BgString? patternFailed = null, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null)
+		public BgListOption(string name, BgString? description = null, BgString? defaultValue = null, BgListOptionStyle style = BgListOptionStyle.CheckList, BgList<BgString>? values = null, BgList<BgString>? valueDescriptions = null, BgString? label = null)
 			: base(BgExprFlags.None)
 		{
 			Name = name;
@@ -522,8 +564,6 @@ namespace EpicGames.BuildGraph.Expressions
 			Description = description;
 			DefaultValue = defaultValue;
 			Style = style;
-			Pattern = pattern;
-			PatternFailed = patternFailed;
 			Values = values;
 			ValueDescriptions = valueDescriptions;
 		}
@@ -532,15 +572,38 @@ namespace EpicGames.BuildGraph.Expressions
 		public override void Write(BgBytecodeWriter writer)
 		{
 			writer.WriteOpcode(BgOpcode.ListOption);
-			writer.WriteExpr(Name);
-			writer.WriteExpr(Label ?? BgString.Empty);
-			writer.WriteExpr(Description ?? BgString.Empty);
-			writer.WriteUnsignedInteger((int)Style);
-			writer.WriteExpr(DefaultValue ?? BgString.Empty);
-			writer.WriteExpr(Pattern ?? BgString.Empty);
-			writer.WriteExpr(PatternFailed ?? BgString.Empty);
-			writer.WriteExpr(Values ?? BgList<BgString>.Empty);
-			writer.WriteExpr(ValueDescriptions ?? BgList<BgString>.Empty);
+			writer.WriteExpr(CreateOptionsObject());
+		}
+
+		BgObject<BgListOptionDef> CreateOptionsObject()
+		{
+			BgObject<BgListOptionDef> option = BgObject<BgListOptionDef>.Empty;
+			option = option.Set(x => x.Name, Name);
+			if (!(Label is null))
+			{
+				option = option.Set(x => x.Label, Label);
+			}
+			if (!(Description is null))
+			{
+				option = option.Set(x => x.Description, Description);
+			}
+			if (!(DefaultValue is null))
+			{
+				option = option.Set(x => x.DefaultValue, DefaultValue);
+			}
+			if (!(Style is null))
+			{
+				option = option.Set(x => x.Style, Style);
+			}
+			if (!(Values is null))
+			{
+				option = option.Set(x => x.Values, Values);
+			}
+			if (!(ValueDescriptions is null))
+			{
+				option = option.Set(x => x.ValueDescriptions, ValueDescriptions);
+			}
+			return option;
 		}
 	}
 }

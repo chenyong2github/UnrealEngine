@@ -30,27 +30,27 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Name of this badge
 		/// </summary>
-		public string? DashboardName { get; }
+		public string? DashboardName { get; set; }
 
 		/// <summary>
 		/// Category for this label
 		/// </summary>
-		public string? DashboardCategory { get; }
+		public string? DashboardCategory { get; set; }
 
 		/// <summary>
 		/// Name of the badge in UGS
 		/// </summary>
-		public string? UgsBadge { get; }
+		public string? UgsBadge { get; set; }
 
 		/// <summary>
 		/// Path to the project folder in UGS
 		/// </summary>
-		public string? UgsProject { get; }
+		public string? UgsProject { get; set; }
 
 		/// <summary>
 		/// Which change to show the badge for
 		/// </summary>
-		public BgLabelChange Change { get; }
+		public BgLabelChange Change { get; set; }
 
 		/// <summary>
 		/// Set of nodes that must be run for this label to be shown.
@@ -65,12 +65,19 @@ namespace EpicGames.BuildGraph
 		/// <summary>
 		/// Constructor
 		/// </summary>
+		public BgLabelDef()
+		{
+		}
+
+		/// <summary>
+		/// Constructor
+		/// </summary>
 		/// <param name="inDashboardName">Name of this label</param>
 		/// <param name="inDashboardCategory">Type of this label</param>
 		/// <param name="inUgsBadge">The UGS badge name</param>
 		/// <param name="inUgsProject">Project to display this badge for</param>
 		/// <param name="inChange">The change to show this badge on in UGS</param>
-		public BgLabelDef(string? inDashboardName, string? inDashboardCategory, string? inUgsBadge, string? inUgsProject, BgLabelChange inChange)
+		public BgLabelDef(string? inDashboardName = null, string? inDashboardCategory = null, string? inUgsBadge = null, string? inUgsProject = null, BgLabelChange inChange = BgLabelChange.Current)
 		{
 			DashboardName = inDashboardName;
 			DashboardCategory = inDashboardCategory;
