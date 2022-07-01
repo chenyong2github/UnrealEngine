@@ -486,7 +486,6 @@ static void AddHairVisibilityGBufferWritePass(
 		Parameters);
 }
 
-bool IsHairVisibilityComputeRasterTemporalLayeringEnabled();
 
 static void InternalRenderHairComposition(
 	FRDGBuilder& GraphBuilder,

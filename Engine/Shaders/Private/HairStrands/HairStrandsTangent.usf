@@ -4,6 +4,7 @@
 #include "../MonteCarlo.ush"
 #include "HairStrandsClusterCommon.ush"
 
+uint VertexStart;
 uint VertexCount;
 uint DispatchCountX;
 
@@ -34,8 +35,8 @@ float4 PackNormal(float3 V, uint A)
 [numthreads(GROUP_SIZE, 1, 1)]
 void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 {
-	const int MaxVertexCount = int(VertexCount);
-	int IndexCurr = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	const int MaxVertexCount = VertexStart + int(VertexCount);
+	int IndexCurr = VertexStart + GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 	int IndexPrev = clamp(IndexCurr-1, 0, MaxVertexCount-1);
 	int IndexNext = clamp(IndexCurr+1, 0, MaxVertexCount-1);
 	bool bValid = IndexCurr < MaxVertexCount;

@@ -1265,9 +1265,6 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVoxelRasterComputeCS, "/Engine/Private/HairStrands/HairStrandsVoxelRasterCompute.usf", "MainCS", SF_Compute);
 
-uint32 GetHairVisibilityComputeRasterVertexStart(uint32 TemporalIndex, uint32 InVertexCount);
-uint32 GetHairVisibilityComputeRasterVertexCount(float ScreenSize, uint32 InVertexCount);
-float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemporalWeight);
 bool IsHairStrandContinuousDecimationReorderingEnabled();
 
 static void AddVirtualVoxelizationComputeRasterPass(
@@ -1315,9 +1312,9 @@ static void AddVirtualVoxelizationComputeRasterPass(
 					continue;
 				}
 
-				const uint32 VertexStart = GetHairVisibilityComputeRasterVertexStart(HairGroupPublicData->TemporalIndex, VFInput.Strands.VertexCount);
-				const uint32 VertexCount = GetHairVisibilityComputeRasterVertexCount(HairGroupPublicData->MaxScreenSize, VFInput.Strands.VertexCount);
-				const float SampleWeight = GetHairVisibilityComputeRasterSampleWeight(HairGroupPublicData->MaxScreenSize, true);
+				const uint32 VertexStart = HairGroupPublicData->GetActiveStrandsVertexStart(VFInput.Strands.VertexCount);
+				const uint32 VertexCount = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, HairGroupPublicData->MaxScreenSize);
+				const float SampleWeight = HairGroupPublicData->GetActiveStrandsSampleWeight(false, HairGroupPublicData->MaxScreenSize);
 
 				FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
 				LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);

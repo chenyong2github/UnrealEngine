@@ -455,6 +455,7 @@ bool IsHairStrandsVisibleInShadows(const FViewInfo& View, const FHairStrandsInst
 
 bool IsHairStrandContinuousDecimationReorderingEnabled()
 {
+	//NB this is a readonly cvar - and causes changes in platform data and runtime allocations 
 	return CVarHairStrandsContinuousDecimationReordering.GetValueOnAnyThread() > 0;
 }
 
@@ -536,6 +537,21 @@ float GetHairVisibilityComputeRasterSampleWeight(float ScreenSize, bool bUseTemp
 	}
 
 	return SampleWeight;
+}
+
+uint32 FHairGroupPublicData::GetActiveStrandsVertexStart(uint32 InVertexCount) const
+{
+	return GetHairVisibilityComputeRasterVertexStart(TemporalIndex, InVertexCount);
+}
+
+uint32 FHairGroupPublicData::GetActiveStrandsVertexCount(uint32 InVertexCount, float ScreenSize) const
+{
+	return GetHairVisibilityComputeRasterVertexCount(FMath::Min(MaxScreenSize, ScreenSize), InVertexCount);
+}
+
+float FHairGroupPublicData::GetActiveStrandsSampleWeight(bool bUseTemporalWeight, float ScreenSize) const
+{
+	return GetHairVisibilityComputeRasterSampleWeight(FMath::Min(MaxScreenSize, ScreenSize), bUseTemporalWeight);
 }
 
 void FHairGroupPublicData::UpdateTemporalIndex()

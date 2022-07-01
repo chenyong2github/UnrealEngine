@@ -653,9 +653,9 @@ void AddHairStrandUpdateMeshTrianglesPass(
 	else if (Type == HairStrandsTriangleType::DeformedPose)
 	{
 		FHairStrandsDeformedRootResource::FLOD& DeformedLODData = DeformedResources->LODs[LODIndex];
-		OutputBuffers[0] = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
-		OutputBuffers[1] = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
-		OutputBuffers[2] = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[0] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[1] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
+		OutputBuffers[2] = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV, UAVFlags);
 		DeformedLODData.Status = FHairStrandsDeformedRootResource::FLOD::EStatus::Completed;
 	}
 	else
@@ -946,9 +946,9 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	Parameters->MaxRootCount = RootCount;
 	Parameters->MaxSampleCount = RestLODData.SampleCount;
 
-	FRDGImportedBuffer OutDeformedRootTrianglePosition0 = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateUAV);
-	FRDGImportedBuffer OutDeformedRootTrianglePosition1 = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition1Buffer, ERDGImportedBufferFlags::CreateUAV);
-	FRDGImportedBuffer OutDeformedRootTrianglePosition2 = Register(GraphBuilder, DeformedLODData.DeformedRootTrianglePosition2Buffer, ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer OutDeformedRootTrianglePosition0 = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer OutDeformedRootTrianglePosition1 = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV);
+	FRDGImportedBuffer OutDeformedRootTrianglePosition2 = Register(GraphBuilder, DeformedLODData.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV);
 
 	Parameters->RestRootTrianglePosition0 = RegisterAsSRV(GraphBuilder, RestLODData.RestRootTrianglePosition0Buffer);
 	Parameters->RestRootTrianglePosition1 = RegisterAsSRV(GraphBuilder, RestLODData.RestRootTrianglePosition1Buffer);
@@ -958,7 +958,7 @@ void AddHairStrandInterpolateMeshTrianglesPass(
 	Parameters->OutDeformedRootTrianglePosition1 = OutDeformedRootTrianglePosition1.UAV;
 	Parameters->OutDeformedRootTrianglePosition2 = OutDeformedRootTrianglePosition2.UAV;
 
-	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer);
+	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.GetMeshSampleWeightsBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
 	Parameters->RestSamplePositionsBuffer	= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
 
 	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RootCount, 128);
@@ -1041,7 +1041,7 @@ void InternalAddHairRBFInterpolationPass(
 	Parameters->OutDeformedPositionBuffer	= DeformedPositionBuffer_Curr.UAV;
 
 	Parameters->RestSamplePositionsBuffer	= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
-	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer);
+	Parameters->MeshSampleWeightsBuffer		= RegisterAsSRV(GraphBuilder, DeformedLODData.GetMeshSampleWeightsBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
 
 	const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(VertexCount, 128);
 	check(DispatchGroupCount.X < 65536);
@@ -1211,7 +1211,7 @@ void AddHairStrandInitMeshSamplesPass(
 			FHairStrandsDeformedRootResource::FLOD& DeformedLODData = DeformedResources->LODs[LODIndex];
 			check(DeformedLODData.LODIndex == LODIndex);
 
-			OutBuffer = Register(GraphBuilder, DeformedLODData.DeformedSamplePositionsBuffer, ERDGImportedBufferFlags::CreateUAV);
+			OutBuffer = Register(GraphBuilder, DeformedLODData.GetDeformedSamplePositionsBuffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV);
 		}
 		else
 		{
@@ -1452,13 +1452,13 @@ void AddHairStrandUpdateMeshSamplesPass(
 	{
 		FHairUpdateMeshSamplesCS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairUpdateMeshSamplesCS::FParameters>();
 
-		FRDGImportedBuffer OutWeightsBuffer = Register(GraphBuilder, DeformedLODData.MeshSampleWeightsBuffer, ERDGImportedBufferFlags::CreateUAV);
+		FRDGImportedBuffer OutWeightsBuffer = Register(GraphBuilder, DeformedLODData.GetMeshSampleWeightsBuffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateUAV);
 
 		Parameters->MaxSampleCount					= RestLODData.SampleCount;
 		Parameters->SampleIndicesBuffer				= RegisterAsSRV(GraphBuilder, RestLODData.MeshSampleIndicesBuffer);
 		Parameters->InterpolationWeightsBuffer		= RegisterAsSRV(GraphBuilder, RestLODData.MeshInterpolationWeightsBuffer);
 		Parameters->SampleRestPositionsBuffer		= RegisterAsSRV(GraphBuilder, RestLODData.RestSamplePositionsBuffer);
-		Parameters->SampleDeformedPositionsBuffer	= RegisterAsSRV(GraphBuilder, DeformedLODData.DeformedSamplePositionsBuffer);
+		Parameters->SampleDeformedPositionsBuffer	= RegisterAsSRV(GraphBuilder, DeformedLODData.GetDeformedSamplePositionsBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
 		Parameters->OutSampleDeformationsBuffer		= OutWeightsBuffer.UAV;
 
 		const FIntVector DispatchGroupCount = FComputeShaderUtils::GetGroupCount(RestLODData.SampleCount+4, 128);
@@ -1835,7 +1835,7 @@ void AddHairStrandUpdatePositionOffsetPass(
 	FRDGImportedBuffer RootTrianglePositionBuffer;
 	if (DeformedRootResources)
 	{
-		RootTrianglePositionBuffer = Register(GraphBuilder, DeformedRootResources->LODs[LODIndex].DeformedRootTrianglePosition0Buffer, ERDGImportedBufferFlags::CreateSRV);
+		RootTrianglePositionBuffer = Register(GraphBuilder, DeformedRootResources->LODs[LODIndex].GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current), ERDGImportedBufferFlags::CreateSRV);
 	}
 
 	const bool bUseGPUOffset = DeformedRootResources != nullptr && GHairStrandsUseGPUPositionOffset > 0;

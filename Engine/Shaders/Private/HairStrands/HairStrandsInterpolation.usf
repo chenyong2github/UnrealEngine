@@ -41,6 +41,7 @@ float UnpackHairControlPointCoordU(uint InPackedDataW)
 
 #if SHADER_HAIRINTERPOLATION
 
+uint VertexStart;
 uint VertexCount;
 uint DispatchCountX;
 uint HairDebugMode;
@@ -207,7 +208,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float3 SimHairPositionOffset = OutSimHairPositionOffsetBuffer[0].xyz;
 	const float3 OutRenHairPositionOffset = OutRenHairPositionOffsetBuffer[0].xyz;
 
-	uint VertexIndex = GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
+	uint VertexIndex = VertexStart + GetHairStrandsVertexFetchIndex(DispatchThreadId, GROUP_SIZE, DispatchCountX);
 #if PERMUTATION_CULLING
 	if (HairStrandsVF_bIsCullingEnable)
 	{
@@ -221,7 +222,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	}
 #endif
 
-	if (VertexIndex < VertexCount)
+	if (VertexIndex < (VertexStart + VertexCount))
 	{
 		uint3  GuideVertexIndices = 0;
 		float3 GuideVertexLerps = 0;
@@ -549,6 +550,10 @@ uint TotalClusterCount;
 float3 CPUBoundMin;
 float3 CPUBoundMax;
 
+uint VertexStart;
+uint VertexCount;
+float RcpSampleWeight;
+
 float4x4 LocalToTranslatedWorldMatrix;
 
 Buffer<uint4> RenderDeformedPositionBuffer;
@@ -594,8 +599,8 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 	}
 	const uint ClusterId   = ClusterIdBuffer[ClusterFetchIndex];
 	const uint IndexOffset = ClusterIndexOffsetBuffer[ClusterFetchIndex];
-	const uint IndexCount  = ClusterIndexCountBuffer[ClusterFetchIndex];
-
+	const uint IndexCount = max(min(ClusterIndexCountBuffer[ClusterFetchIndex], GROUP_SIZE),ClusterIndexCountBuffer[ClusterFetchIndex] * RcpSampleWeight);
+	
 	const uint VertexCountAfterCulling = HairStrandsVF_CullingIndirectBuffer[3];
 
 	int3 ClusterAABBMin = 9999999.0f;
@@ -611,16 +616,19 @@ void ClusterAABBEvaluationCS(uint3 DispatchThreadId : SV_DispatchThreadID, uint3
 		{
 			const float3 OutHairPositionOffset = RenderDeformedOffsetBuffer[0].xyz;
 			const uint VertexIndex = ClusterVertexIdBuffer[IndexOffset + ThreadReadOffset];
-			const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1, 1);
-
-			if (all(IsFinite(CP.Position)))
+			if ((VertexIndex >= VertexStart) && (VertexIndex < (VertexStart + VertexCount)))
 			{
-				const int3 WorldSpaceCentimeters = int3(mul(float4(CP.Position, 1.0f), LocalToTranslatedWorldMatrix).xyz);
-				const int3 WorldSpaceCentimetersMin = WorldSpaceCentimeters - 1;
-				const int3 WorldSpaceCentimetersMax = WorldSpaceCentimeters + 1;
+				const FHairControlPoint CP = UnpackHairControlPoint(RenderDeformedPositionBuffer[VertexIndex], OutHairPositionOffset, 1, 1, 1);
 
-				ClusterAABBMin = min(ClusterAABBMin, WorldSpaceCentimetersMin);
-				ClusterAABBMax = max(ClusterAABBMax, WorldSpaceCentimetersMax);
+				if (all(IsFinite(CP.Position)))
+				{
+					const int3 WorldSpaceCentimeters = int3(mul(float4(CP.Position, 1.0f), LocalToTranslatedWorldMatrix).xyz);
+					const int3 WorldSpaceCentimetersMin = WorldSpaceCentimeters - 1;
+					const int3 WorldSpaceCentimetersMax = WorldSpaceCentimeters + 1;
+
+					ClusterAABBMin = min(ClusterAABBMin, WorldSpaceCentimetersMin);
+					ClusterAABBMax = max(ClusterAABBMax, WorldSpaceCentimetersMax);
+				}
 			}
 		}
 	}

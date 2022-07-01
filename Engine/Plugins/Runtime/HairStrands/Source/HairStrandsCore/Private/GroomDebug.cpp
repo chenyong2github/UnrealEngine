@@ -410,10 +410,16 @@ static void AddDebugProjectionHairPass(
 	if (!RestLODDatas.RestRootTrianglePosition0Buffer.Buffer ||
 		!RestLODDatas.RestRootTrianglePosition1Buffer.Buffer ||
 		!RestLODDatas.RestRootTrianglePosition2Buffer.Buffer ||
-		!DeformedLODDatas.DeformedRootTrianglePosition0Buffer.Buffer ||
-		!DeformedLODDatas.DeformedRootTrianglePosition1Buffer.Buffer ||
-		!DeformedLODDatas.DeformedRootTrianglePosition2Buffer.Buffer)
+		!DeformedLODDatas.DeformedRootTrianglePosition0Buffer[0].Buffer ||
+		!DeformedLODDatas.DeformedRootTrianglePosition1Buffer[0].Buffer ||
+		!DeformedLODDatas.DeformedRootTrianglePosition2Buffer[0].Buffer	)
 		return;
+
+	// Double buffering is disabled by default unless the read-only cvar r.HairStrands.ContinuousDecimationReordering is set
+	if (IsHairStrandContinuousDecimationReorderingEnabled() && (!DeformedLODDatas.DeformedRootTrianglePosition0Buffer[1].Buffer || !DeformedLODDatas.DeformedRootTrianglePosition1Buffer[1].Buffer || !DeformedLODDatas.DeformedRootTrianglePosition2Buffer[1].Buffer))
+	{
+		return;
+	}
 
 	const FIntPoint Resolution(Viewport.Width(), Viewport.Height());
 
@@ -432,12 +438,12 @@ static void AddDebugProjectionHairPass(
 	Parameters->RestPosition1Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition1Buffer);
 	Parameters->RestPosition2Buffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestRootTrianglePosition2Buffer);
 
-	Parameters->DeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition0Buffer);
-	Parameters->DeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition1Buffer);
-	Parameters->DeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedRootTrianglePosition2Buffer);
+	Parameters->DeformedPosition0Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedRootTrianglePosition0Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
+	Parameters->DeformedPosition1Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedRootTrianglePosition1Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
+	Parameters->DeformedPosition2Buffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedRootTrianglePosition2Buffer(FHairStrandsDeformedRootResource::FLOD::Current));
 
 	Parameters->RestSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, RestLODDatas.RestSamplePositionsBuffer);
-	Parameters->DeformedSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.DeformedSamplePositionsBuffer);
+	Parameters->DeformedSamplePositionsBuffer = RegisterAsSRV(GraphBuilder, DeformedLODDatas.GetDeformedSamplePositionsBuffer(FHairStrandsDeformedRootResource::FLOD::Current));
 
 	Parameters->ViewUniformBuffer = ViewUniformBuffer;
 	Parameters->RenderTargets[0] = FRenderTargetBinding(ColorTarget, ERenderTargetLoadAction::ELoad, 0);
