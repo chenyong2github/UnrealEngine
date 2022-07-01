@@ -61,9 +61,15 @@ FRecordingMessageHandler::FRecordingMessageHandler(const TSharedPtr<FGenericAppl
 	BIND_PLAYBACK_HANDLER(TEXT("OnEndGesture"), PlayOnEndGesture);
 	BIND_PLAYBACK_HANDLER(TEXT("OnTouchForceChanged"), PlayOnTouchForceChanged);
 
+	/** Deprecated controller handlers that take in the old int32 ControllerId */
 	BIND_PLAYBACK_HANDLER(TEXT("OnControllerAnalog"), PlayOnControllerAnalog);
 	BIND_PLAYBACK_HANDLER(TEXT("OnControllerButtonPressed"), PlayOnControllerButtonPressed);
 	BIND_PLAYBACK_HANDLER(TEXT("OnControllerButtonReleased"), PlayOnControllerButtonReleased);
+
+	/** New controller handlers that take in FPlatformUserId and FInputDeviceId */
+	BIND_PLAYBACK_HANDLER(TEXT("OnControllerAnalogWithPlatformUser"), PlayOnControllerAnalogWithPlatformUser);
+	BIND_PLAYBACK_HANDLER(TEXT("OnControllerButtonWithPlatformUser"), PlayOnControllerButtonPressedWithPlatformUser);
+	BIND_PLAYBACK_HANDLER(TEXT("OnControllerButtonReleasedWithPlatformUser"), PlayOnControllerButtonReleasedWithPlatformUser);
 }
 
 #undef BIND_PLAYBACK_HANDLER
@@ -639,6 +645,7 @@ void FRecordingMessageHandler::PlayOnMotionDetected(FArchive& Ar)
 		Msg.Param5);
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FRecordingMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue)
 {
 	if (IsRecording())
@@ -683,7 +690,6 @@ void FRecordingMessageHandler::PlayOnControllerButtonPressed(FArchive& Ar)
 	OnControllerButtonPressed(FName(*Msg.Param1), Msg.Param2, Msg.Param3);
 }
 
-
 bool FRecordingMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
 {
 	if (IsRecording())
@@ -704,6 +710,73 @@ void FRecordingMessageHandler::PlayOnControllerButtonReleased(FArchive& Ar)
 {
 	ThreeParamMsg<FString, int32, bool > Msg(Ar);
 	OnControllerButtonReleased(FName(*Msg.Param1), Msg.Param2, Msg.Param3);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FRecordingMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, float AnalogValue)
+{
+	if (IsRecording())
+	{
+		FourParamMsg<FString, int32, int32, float> Msg(KeyName.ToString(), PlatformUserId.GetInternalId(), InputDeviceId.GetId(), AnalogValue);
+		RecordMessage(TEXT("OnControllerAnalogWithPlatformUser"), Msg.AsData());
+	}
+
+	if (bConsumeInput)
+	{
+		return true;
+	}
+	
+	return FProxyMessageHandler::OnControllerAnalog(KeyName, PlatformUserId, InputDeviceId, AnalogValue);
+}
+
+void FRecordingMessageHandler::PlayOnControllerAnalogWithPlatformUser(FArchive& Ar)
+{
+	FourParamMsg<FString, int32, int32, float> Msg(Ar);
+	OnControllerAnalog(FName(*Msg.Param1), FPlatformUserId::CreateFromInternalId(Msg.Param2), FInputDeviceId::CreateFromInternalId(Msg.Param3), Msg.Param4);
+}
+
+bool FRecordingMessageHandler::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	if (IsRecording())
+	{
+		FourParamMsg<FString, int32, int32, bool> Msg(KeyName.ToString(), PlatformUserId.GetInternalId(), InputDeviceId.GetId(), IsRepeat);
+		RecordMessage(TEXT("OnControllerButtonPressedWithPlatformUser"), Msg.AsData());
+	}
+
+	if (bConsumeInput)
+	{
+		return true;
+	}
+
+	return FProxyMessageHandler::OnControllerButtonPressed(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
+}
+
+void FRecordingMessageHandler::PlayOnControllerButtonPressedWithPlatformUser(FArchive& Ar)
+{
+	FourParamMsg<FString, int32, int32, bool> Msg(Ar);
+	OnControllerButtonPressed(FName(*Msg.Param1), FPlatformUserId::CreateFromInternalId(Msg.Param2), FInputDeviceId::CreateFromInternalId(Msg.Param3), Msg.Param4);
+}
+
+bool FRecordingMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	if (IsRecording())
+	{
+		FourParamMsg<FString, int32, int32, bool> Msg(KeyName.ToString(), PlatformUserId.GetInternalId(), InputDeviceId.GetId(), IsRepeat);
+		RecordMessage(TEXT("OnControllerButtonReleasedWithPlatformUser"), Msg.AsData());
+	}
+
+	if (bConsumeInput)
+	{
+		return true;
+	}
+
+	return FProxyMessageHandler::OnControllerButtonReleased(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
+}
+
+void FRecordingMessageHandler::PlayOnControllerButtonReleasedWithPlatformUser(FArchive& Ar)
+{
+	FourParamMsg<FString, int32, int32, bool> Msg(Ar);
+	OnControllerButtonReleased(FName(*Msg.Param1), FPlatformUserId::CreateFromInternalId(Msg.Param2), FInputDeviceId::CreateFromInternalId(Msg.Param3), Msg.Param4);
 }
 
 FWidgetPath FRecordingMessageHandler::FindRoutingMessageWidget(const FVector2D& Location) const

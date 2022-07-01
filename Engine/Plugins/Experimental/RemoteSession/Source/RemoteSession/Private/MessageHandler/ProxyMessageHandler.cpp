@@ -173,6 +173,7 @@ bool FProxyMessageHandler::OnCursorSet()
 	return false;
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FProxyMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue)
 {
 	if (TargetHandler.IsValid())
@@ -202,6 +203,38 @@ bool FProxyMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type Key
 
 	return false;
 }
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FProxyMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, float AnalogValue)
+{
+	if (TargetHandler.IsValid())
+	{
+		return TargetHandler->OnControllerAnalog(KeyName, PlatformUserId, InputDeviceId, AnalogValue);
+	}
+
+	return false;
+}
+
+bool FProxyMessageHandler::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	if (TargetHandler.IsValid())
+	{
+		return TargetHandler->OnControllerButtonPressed(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
+	}
+
+	return false;
+}
+
+bool FProxyMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	if (TargetHandler.IsValid())
+	{
+		return TargetHandler->OnControllerButtonReleased(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
+	}
+
+	return false;
+}
+
 
 void FProxyMessageHandler::OnBeginGesture()
 {
