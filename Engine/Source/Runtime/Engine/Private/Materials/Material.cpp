@@ -2048,6 +2048,16 @@ UPhysicalMaterial* UMaterial::GetPhysicalMaterialFromMap(int32 Index) const
 	return nullptr;
 }
 
+TArrayView<const TObjectPtr<UPhysicalMaterial>> UMaterial::GetRenderTracePhysicalMaterialOutputs() const
+{
+	return MakeArrayView(RenderTracePhysicalMaterialOutputs);
+}
+
+void UMaterial::SetRenderTracePhysicalMaterialOutputs(TArrayView<TObjectPtr<class UPhysicalMaterial>> PhysicalMaterials)
+{
+	RenderTracePhysicalMaterialOutputs = PhysicalMaterials;
+}
+
 /** Helper functions for text output of properties... */
 #ifndef CASE_ENUM_TO_TEXT
 #define CASE_ENUM_TO_TEXT(txt) case txt: return TEXT(#txt);

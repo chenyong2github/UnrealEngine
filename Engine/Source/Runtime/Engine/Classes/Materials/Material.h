@@ -416,6 +416,10 @@ class UMaterial : public UMaterialInterface
 	/** Physical material mask map to use for this graphics material. Used for sounds, effects etc.*/
 	UPROPERTY(EditAnywhere, Category = PhysicalMaterialMask)
 	TObjectPtr<class UPhysicalMaterial> PhysicalMaterialMap[EPhysicalMaterialMaskColor::MAX];
+	
+
+	UPROPERTY()
+	TArray<TObjectPtr<class UPhysicalMaterial>> RenderTracePhysicalMaterialOutputs;
 
 	/** 
 	 * The domain that the material's attributes will be evaluated in. 
@@ -1770,6 +1774,16 @@ public:
 	static bool FixFeatureLevelNodesForSM6(TArray<UMaterialExpression*> const& InExpressions);
 
 #endif //WITH_EDITORONLY_DATA
+	/**
+	 * Return the array of physical materials associated with the RenderTrace material outputs.
+	 * @return The physical material array.
+	 */
+	ENGINE_API TArrayView<const TObjectPtr<UPhysicalMaterial>> GetRenderTracePhysicalMaterialOutputs() const;
+
+	/**
+	 * Set the array of physical materials associated with the RenderTrace material outputs.
+	 */
+	ENGINE_API void SetRenderTracePhysicalMaterialOutputs(TArrayView<TObjectPtr<UPhysicalMaterial>> PhysicalMaterials);
 
 private:
 #if WITH_EDITOR

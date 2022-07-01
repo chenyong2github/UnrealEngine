@@ -1898,6 +1898,11 @@ bool FMaterialResource::CastsRayTracedShadows() const
 	return Material->bCastRayTracedShadows;
 }
 
+bool FMaterialResource::HasRenderTracePhysicalMaterialOutputs() const
+{
+	return Material->GetRenderTracePhysicalMaterialOutputs().Num() > 0;
+}
+
 UMaterialInterface* FMaterialResource::GetMaterialInterface() const 
 { 
 	return MaterialInstance ? (UMaterialInterface*)MaterialInstance : (UMaterialInterface*)Material;
@@ -5632,6 +5637,7 @@ FMaterialShaderParameters::FMaterialShaderParameters(const FMaterial* InMaterial
 	bIsStencilTestEnabled = InMaterial->IsStencilTestEnabled();
 	bIsTranslucencySurface = InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_Surface || InMaterial->GetTranslucencyLightingMode() == ETranslucencyLightingMode::TLM_SurfacePerPixelLighting;
 	bShouldDisableDepthTest = InMaterial->ShouldDisableDepthTest();
+	bHasRenderTracePhysicalMaterialOutput = InMaterial->HasRenderTracePhysicalMaterialOutputs();
 }
 
 #undef LOCTEXT_NAMESPACE

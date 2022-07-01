@@ -1915,6 +1915,7 @@ public:
 	virtual bool HasVertexInterpolator() const { return false; }
 	virtual bool HasRuntimeVirtualTextureOutput() const { return false; }
 	virtual bool CastsRayTracedShadows() const { return true; }
+	virtual bool HasRenderTracePhysicalMaterialOutputs() const { return false; }
 	virtual EMaterialShadingRate GetShadingRate() const { return MSR_1x1; }
 	/**
 	 * Should shaders compiled for this material be saved to disk?
@@ -2885,7 +2886,8 @@ public:
 	ENGINE_API virtual bool HasVertexInterpolator() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
 	ENGINE_API virtual bool CastsRayTracedShadows() const override;
-	ENGINE_API  virtual UMaterialInterface* GetMaterialInterface() const override;
+	ENGINE_API virtual bool HasRenderTracePhysicalMaterialOutputs() const override;
+	ENGINE_API virtual UMaterialInterface* GetMaterialInterface() const override;
 	/**
 	 * Should shaders compiled for this material be saved to disk?
 	 */
@@ -3471,6 +3473,7 @@ struct FMaterialShaderParameters
 			uint64 bIsStencilTestEnabled : 1;
 			uint64 bIsTranslucencySurface : 1;
 			uint64 bShouldDisableDepthTest : 1;
+			uint64 bHasRenderTracePhysicalMaterialOutput : 1;
 		};
 	};
 
