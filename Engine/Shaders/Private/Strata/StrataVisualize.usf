@@ -488,15 +488,20 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 
 		const uint FootPrint_PostBSDFs = StrataAddressing.ReadBytes;
 
-		const uint HeaderSize = FootPrint_PostHeader - FootPrint_Start;
-		const uint BSDFsSize  = FootPrint_PostBSDFs - FootPrint_PostHeader;
-		const uint TotalSize  = FootPrint_PostBSDFs - FootPrint_Start;
+		const FStrataSubsurfaceHeader SSSHeader = StrataLoadSubsurfaceHeader(Strata.SSSTexture, StrataAddressing.PixelCoords);
+		const bool bHasSSSData = StrataSubSurfaceHeaderGetIsValid(SSSHeader);
 
 		const uint TopLayerDataBytes = 4;	// bytes 
+		const uint SSSDataBytes = 8;	    // bytes 
+
+		const uint HeaderSize =  FootPrint_PostHeader - FootPrint_Start;
+		const uint BSDFsSize  =  FootPrint_PostBSDFs - FootPrint_PostHeader;
+		const uint TotalSize  = (FootPrint_PostBSDFs - FootPrint_Start) + (bHasSSSData ? SSSDataBytes : 0);
+
 		RectMin = Context.Pos;
 		RectMax = Context.StartPos;
 		Print(Context, TEXT("Memory"), FontEmerald); Newline(Context, RectMax);
-		if (bIsSingleMaterial)
+		if (bIsSingleMaterial || IsEye(Header))
 		{
 			Print(Context, TEXT(" Header       "), FontSilver); Print(Context, HeaderSize - TopLayerDataBytes,				FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 			Print(Context, TEXT(" TopNormalTex "), FontSilver); Print(Context, TopLayerDataBytes,							FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
@@ -512,6 +517,12 @@ void PrintPixel(uint2 InCoord, float3 InWorldPosition, float3 V)
 			Print(Context, TEXT(" Header+Norm  "), FontSilver); Print(Context, HeaderSize,									FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 			Print(Context, TEXT(" BSDFs        "), FontSilver); Print(Context, BSDFsSize,									FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
 		}
+
+		if (bHasSSSData)
+		{
+			Print(Context, TEXT(" SSS Data     "), FontSilver); Print(Context, SSSDataBytes, FontSilver, 3, 0); Print(Context, TEXT("bytes"), FontSilver); Newline(Context, RectMax);
+		}
+
 		Print(Context, TEXT(" Total        "), FontOrange); Print(Context, TotalSize,  FontOrange, 3, 0); Print(Context, TEXT("bytes"), FontOrange); Newline(Context, RectMax);
 		PrintBackgroundRect(Context, RectMin, RectMax);
 	}
