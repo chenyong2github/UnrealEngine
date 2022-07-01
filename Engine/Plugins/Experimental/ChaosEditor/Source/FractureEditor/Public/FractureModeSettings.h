@@ -32,25 +32,25 @@ public:
 
 public:
 
-	/** Default fraction of convex hulls for a transform that we can remove before using the hulls of the children */
-	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (DisplayName = "Can Remove Fraction", ClampMin = ".01", ClampMax = "1"))
-	double ConvexFractionAllowRemove = .5;
-
 	/** Default fraction of geometry volume by which a cluster's convex hull volume can exceed the actual geometry volume before instead using the hulls of the children.  0 means the convex volume cannot exceed the geometry volume; 1 means the convex volume is allowed to be 100% larger (2x) the geometry volume. */
-	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (ClampMin = "0"))
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (ClampMin = "0", DisplayName = "Allow Larger Hull Fraction"))
 	float ConvexCanExceedFraction = .5;
 
 	/** Default simplification threshold for convex hulls of new geometry collections */
-	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (ClampMin = "0"))
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (ClampMin = "0", DisplayName = "Simplification Distance Threshold"))
 	float ConvexSimplificationDistanceThreshold = 10;
 
 	/** Default overlap removal setting for convex hulls of new geometry collections */
-	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults")
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults|Overlap Removal", meta = (DisplayName = "Remove Overlaps"))
 	EConvexOverlapRemoval ConvexRemoveOverlaps = EConvexOverlapRemoval::All;
 
 	/** Default overlap removal shrink percent (in range 0-100) for convex hulls of new geometry collections. Overlap removal will be computed assuming convex shapes will be scaled down by this percentage. */
-	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults", meta = (UIMin = "0", ClampMax = "99.9"))
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults|Overlap Removal", meta = (UIMin = "0", ClampMax = "99.9", DisplayName = "Overlap Removal Shrink Percent"))
 	float ConvexOverlapRemovalShrinkPercent = 0;
+
+	/** Default fraction of convex hulls for a transform that we can remove before using the hulls of the children */
+	UPROPERTY(config, EditAnywhere, Category = "Fracture Mode|Convex Generation Defaults|Overlap Removal", meta = (DisplayName = "Max Removal Fraction", ClampMin = ".01", ClampMax = "1"))
+	double ConvexFractionAllowRemove = .5;
 
 	// Apply Convex Generation Defaults to a GeometryCollection
 	void ApplyDefaultConvexSettings(FGeometryCollection& GeometryCollection) const;

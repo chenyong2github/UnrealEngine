@@ -35,27 +35,28 @@ void UFractureConvexSettings::ClearCustomConvex()
 	ConvexTool->ClearCustomConvex();
 }
 
-void UFractureConvexSettings::SaveAsDefaults()
+void UFractureConvexActions::SaveAsDefaults()
 {
+	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
 	UFractureModeSettings* ModeSettings = GetMutableDefault<UFractureModeSettings>();
 	ModeSettings->Modify();
-	ModeSettings->ConvexFractionAllowRemove = FractionAllowRemove;
-	ModeSettings->ConvexCanExceedFraction = CanExceedFraction;
-	ModeSettings->ConvexSimplificationDistanceThreshold = SimplificationDistanceThreshold;
-	ModeSettings->ConvexRemoveOverlaps = RemoveOverlaps;
-	ModeSettings->ConvexOverlapRemovalShrinkPercent = OverlapRemovalShrinkPercent;
+	ModeSettings->ConvexFractionAllowRemove = ConvexTool->ConvexSettings->FractionAllowRemove;
+	ModeSettings->ConvexCanExceedFraction = ConvexTool->ConvexSettings->CanExceedFraction;
+	ModeSettings->ConvexSimplificationDistanceThreshold = ConvexTool->ConvexSettings->SimplificationDistanceThreshold;
+	ModeSettings->ConvexRemoveOverlaps = ConvexTool->ConvexSettings->RemoveOverlaps;
+	ModeSettings->ConvexOverlapRemovalShrinkPercent = ConvexTool->ConvexSettings->OverlapRemovalShrinkPercent;
 }
 
-void UFractureConvexSettings::SetFromDefaults()
+void UFractureConvexActions::SetFromDefaults()
 {
-	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
-	FractionAllowRemove = ModeSettings->ConvexFractionAllowRemove;
-	CanExceedFraction = ModeSettings->ConvexCanExceedFraction;
-	SimplificationDistanceThreshold = ModeSettings->ConvexSimplificationDistanceThreshold;
-	RemoveOverlaps = ModeSettings->ConvexRemoveOverlaps;
-	OverlapRemovalShrinkPercent = ModeSettings->ConvexOverlapRemovalShrinkPercent;
-
 	UFractureToolConvex* ConvexTool = Cast<UFractureToolConvex>(OwnerTool.Get());
+	const UFractureModeSettings* ModeSettings = GetDefault<UFractureModeSettings>();
+	ConvexTool->ConvexSettings->FractionAllowRemove = ModeSettings->ConvexFractionAllowRemove;
+	ConvexTool->ConvexSettings->CanExceedFraction = ModeSettings->ConvexCanExceedFraction;
+	ConvexTool->ConvexSettings->SimplificationDistanceThreshold = ModeSettings->ConvexSimplificationDistanceThreshold;
+	ConvexTool->ConvexSettings->RemoveOverlaps = ModeSettings->ConvexRemoveOverlaps;
+	ConvexTool->ConvexSettings->OverlapRemovalShrinkPercent = ModeSettings->ConvexOverlapRemovalShrinkPercent;
+
 	ConvexTool->NotifyOfPropertyChangeByTool(this);
 }
 
@@ -179,6 +180,8 @@ UFractureToolConvex::UFractureToolConvex(const FObjectInitializer& ObjInit)
 {
 	ConvexSettings = NewObject<UFractureConvexSettings>(GetTransientPackage(), UFractureConvexSettings::StaticClass());
 	ConvexSettings->OwnerTool = this;
+	ConvexActions = NewObject<UFractureConvexActions>(GetTransientPackage(), UFractureConvexActions::StaticClass());
+	ConvexActions->OwnerTool = this;
 }
 
 bool UFractureToolConvex::CanExecute() const
@@ -216,6 +219,7 @@ TArray<UObject*> UFractureToolConvex::GetSettingsObjects() const
 {
 	TArray<UObject*> Settings;
 	Settings.Add(ConvexSettings);
+	Settings.Add(ConvexActions);
 	return Settings;
 }
 
