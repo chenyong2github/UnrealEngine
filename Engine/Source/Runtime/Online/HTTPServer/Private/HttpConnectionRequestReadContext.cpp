@@ -324,7 +324,7 @@ FString FHttpConnectionRequestReadContext::UrlDecode(const FString &EncodedStrin
 	FTCHARToUTF8 Converter(*EncodedString);
 	const UTF8CHAR* UTF8Data = (UTF8CHAR*)Converter.Get();
 
-	TArray<UTF8CHAR> Data;
+	TArray<ANSICHAR> Data;
 	Data.Reserve(EncodedString.Len());
 
 	for (int32 CharIdx = 0; CharIdx < Converter.Length();)
@@ -343,10 +343,10 @@ FString FHttpConnectionRequestReadContext::UrlDecode(const FString &EncodedStrin
 					Value += FParse::HexDigit(UTF8Data[CharIdx + 5]);
 					CharIdx += 6;
 
-					UTF8CHAR Buffer[8] = { };
-					UTF8CHAR* BufferPtr = Buffer;
+					ANSICHAR Buffer[8] = { 0 };
+					ANSICHAR* BufferPtr = Buffer;
 					const int32 Len = UE_ARRAY_COUNT(Buffer);
-					const int32 WrittenChars = FPlatformString::Convert(BufferPtr, Len, (UTF32CHAR*)&Value, 1) - BufferPtr;
+					const int32 WrittenChars = FTCHARToUTF8_Convert::Utf8FromCodepoint(Value, BufferPtr, Len);
 
 					Data.Append(Buffer, WrittenChars);
 				}
@@ -363,7 +363,7 @@ FString FHttpConnectionRequestReadContext::UrlDecode(const FString &EncodedStrin
 				Value = FParse::HexDigit(UTF8Data[CharIdx + 1]) << 4;
 				Value += FParse::HexDigit(UTF8Data[CharIdx + 2]);
 				CharIdx += 3;
-				Data.Add((UTF8CHAR)(Value));
+				Data.Add((ANSICHAR)(Value));
 			}
 			else
 			{
@@ -380,6 +380,6 @@ FString FHttpConnectionRequestReadContext::UrlDecode(const FString &EncodedStrin
 		}
 	}
 
-	Data.Add(UTF8TEXT('\0'));
+	Data.Add('\0');
 	return FString(UTF8_TO_TCHAR(Data.GetData()));
 }
