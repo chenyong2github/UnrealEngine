@@ -61,6 +61,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="enableAutoscaling">Whether to enable autoscaling for this pool</param>
 		/// <param name="minAgents">Minimum number of agents in the pool</param>
 		/// <param name="numReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
@@ -74,6 +75,7 @@ namespace Horde.Build.Agents.Pools
 			bool? enableAutoscaling = null,
 			int? minAgents = null,
 			int? numReserveAgents = null,
+			TimeSpan? conformInterval = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
 			PoolSizeStrategy? sizeStrategy = null,
@@ -88,6 +90,7 @@ namespace Horde.Build.Agents.Pools
 				enableAutoscaling,
 				minAgents,
 				numReserveAgents,
+				conformInterval,
 				scaleOutCooldown,
 				scaleInCooldown,
 				sizeStrategy,
@@ -116,6 +119,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="newMinAgents">Minimum number of agents in the pool</param>
 		/// <param name="newNumReserveAgents">Minimum number of idle agents to maintain</param>
 		/// <param name="newProperties">Properties on the pool to update. Any properties with a value of null will be removed.</param>
+		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategy">New pool sizing strategy for the pool</param>
@@ -131,6 +135,7 @@ namespace Horde.Build.Agents.Pools
 			int? newMinAgents = null,
 			int? newNumReserveAgents = null,
 			Dictionary<string, string?>? newProperties = null,
+			TimeSpan? conformInterval = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
 			PoolSizeStrategy? sizeStrategy = null,
@@ -148,6 +153,7 @@ namespace Horde.Build.Agents.Pools
 					newMinAgents,
 					newNumReserveAgents,
 					newProperties: newProperties,
+					conformInterval: conformInterval,
 					scaleOutCooldown: scaleOutCooldown,
 					scaleInCooldown: scaleInCooldown,
 					sizeStrategy: sizeStrategy,
@@ -180,6 +186,41 @@ namespace Horde.Build.Agents.Pools
 		public Task<IPool?> GetPoolAsync(PoolId poolId)
 		{
 			return _pools.GetAsync(poolId);
+		}
+
+		/// <summary>
+		/// Gets a cached pool definition
+		/// </summary>
+		/// <param name="poolId"></param>
+		/// <param name="validAtTime"></param>
+		/// <returns></returns>
+		public async Task<IPool?> GetCachedPoolAsync(PoolId poolId, DateTime validAtTime)
+		{
+			Dictionary<PoolId, IPool> poolMapping = await GetPoolLookupAsync(validAtTime);
+			poolMapping.TryGetValue(poolId, out IPool? pool);
+			return pool;
+		}
+
+		/// <summary>
+		/// Gets a cached pool definition
+		/// </summary>
+		/// <param name="agent"></param>
+		/// <param name="validAtTime"></param>
+		/// <returns></returns>
+		public async Task<List<IPool>> GetCachedPoolsAsync(IAgent agent, DateTime validAtTime)
+		{
+			Dictionary<PoolId, IPool> poolMapping = await GetPoolLookupAsync(validAtTime);
+
+			List<IPool> pools = new List<IPool>();
+			foreach(PoolId poolId in agent.GetPools())
+			{
+				if(poolMapping.TryGetValue(poolId, out IPool? pool))
+				{
+					pools.Add(pool);
+				}
+			}
+
+			return pools;
 		}
 
 		/// <summary>

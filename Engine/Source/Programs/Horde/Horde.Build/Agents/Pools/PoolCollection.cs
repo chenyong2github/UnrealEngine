@@ -37,6 +37,7 @@ namespace Horde.Build.Agents.Pools
 			public bool EnableAutoscaling { get; set; } = true;
 			public int? MinAgents { get; set; }
 			public int? NumReserveAgents { get; set; }
+			public TimeSpan? ConformInterval { get; set; }
 			public DateTime? LastScaleUpTime { get; set; }
 			public DateTime? LastScaleDownTime { get; set; }
 			public TimeSpan? ScaleOutCooldown { get; set; }
@@ -66,6 +67,7 @@ namespace Horde.Build.Agents.Pools
 				EnableAutoscaling = other.EnableAutoscaling;
 				MinAgents = other.MinAgents;
 				NumReserveAgents = other.NumReserveAgents;
+				ConformInterval = other.ConformInterval;
 				LastScaleUpTime = other.LastScaleUpTime;
 				LastScaleDownTime = other.LastScaleDownTime;
 				ScaleOutCooldown = other.ScaleOutCooldown;
@@ -103,6 +105,7 @@ namespace Horde.Build.Agents.Pools
 			bool? enableAutoscaling,
 			int? minAgents,
 			int? numReserveAgents,
+			TimeSpan? conformInterval,
 			TimeSpan? scaleOutCooldown,
 			TimeSpan? scaleInCooldown,
 			PoolSizeStrategy? sizeStrategy,
@@ -125,6 +128,7 @@ namespace Horde.Build.Agents.Pools
 				pool.Properties = new Dictionary<string, string>(properties);
 			}
 
+			pool.ConformInterval = conformInterval;
 			pool.ScaleOutCooldown = scaleOutCooldown;
 			pool.ScaleInCooldown = scaleInCooldown;
 			pool.SizeStrategy = sizeStrategy;
@@ -214,6 +218,7 @@ namespace Horde.Build.Agents.Pools
 			List<AgentWorkspace>? newWorkspaces,
 			bool? newUseAutoSdk,
 			Dictionary<string, string?>? newProperties,
+			TimeSpan? conformInterval,
 			DateTime? lastScaleUpTime,
 			DateTime? lastScaleDownTime,
 			TimeSpan? scaleOutCooldown,
@@ -283,6 +288,17 @@ namespace Horde.Build.Agents.Pools
 			if (newProperties != null)
 			{
 				transaction.UpdateDictionary(x => x.Properties, newProperties);
+			}
+			if (conformInterval != null)
+			{
+				if (conformInterval.Value < TimeSpan.Zero)
+				{
+					transaction.Unset(x => x.ConformInterval!);
+				}
+				else
+				{
+					transaction.Set(x => x.ConformInterval, conformInterval);
+				}
 			}
 			if (lastScaleUpTime != null)
 			{

@@ -95,6 +95,11 @@ namespace Horde.Build.Agents.Pools
 		/// Whether to enable autoscaling for this pool
 		/// </summary>
 		public bool? EnableAutoscaling { get; set; }
+
+		/// <summary>
+		/// Interval between conforms in hours. Set to zero to disable.
+		/// </summary>
+		public int? ConformInterval { get; set; }
 		
 		/// <summary>
 		/// Cooldown time between scale-out events in seconds
@@ -176,6 +181,11 @@ namespace Horde.Build.Agents.Pools
 		/// Whether to enable autoscaling for this pool
 		/// </summary>
 		public bool? EnableAutoscaling { get; set; }
+
+		/// <summary>
+		/// Interval between conforms in hours. Set to -1 to reset to the default, or 0 to disable.
+		/// </summary>
+		public int? ConformInterval { get; set; }
 		
 		/// <summary>
 		/// Cooldown time between scale-out events in seconds
@@ -271,6 +281,11 @@ namespace Horde.Build.Agents.Pools
 		public bool EnableAutoscaling { get; set; }
 		
 		/// <summary>
+		/// Frequency to run conforms, in hours.
+		/// </summary>
+		public int? ConformInterval { get; set; }
+
+		/// <summary>
 		/// Cooldown time between scale-out events in seconds
 		/// </summary>
 		public int? ScaleOutCooldown { get; set; }
@@ -325,6 +340,7 @@ namespace Horde.Build.Agents.Pools
 			Name = pool.Name;
 			Condition = pool.Condition;
 			EnableAutoscaling = pool.EnableAutoscaling;
+			ConformInterval = pool.ConformInterval == null ? null : (int)pool.ConformInterval.Value.TotalHours;
 			ScaleOutCooldown = pool.ScaleOutCooldown == null ? null : (int)pool.ScaleOutCooldown.Value.TotalSeconds;
 			ScaleInCooldown = pool.ScaleInCooldown == null ? null : (int)pool.ScaleInCooldown.Value.TotalSeconds;
 			SizeStrategy = pool.SizeStrategy;

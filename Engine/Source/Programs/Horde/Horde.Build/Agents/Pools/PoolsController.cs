@@ -58,12 +58,13 @@ namespace Horde.Build.Agents.Pools
 
 			LeaseUtilizationSettings? luSettings = create.LeaseUtilizationSettings?.Convert();
 			JobQueueSettings? jqSettings = create.JobQueueSettings?.Convert();
-			
+
+			TimeSpan? conformInterval = create.ConformInterval == null ? null : TimeSpan.FromHours(create.ConformInterval.Value);
 			TimeSpan? scaleOutCooldown = create.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleOutCooldown.Value);
 			TimeSpan? scaleInCooldown = create.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(create.ScaleInCooldown.Value);
 
 			IPool newPool = await _poolService.CreatePoolAsync(
-				create.Name, create.Condition, create.EnableAutoscaling, create.MinAgents, create.NumReserveAgents,
+				create.Name, create.Condition, create.EnableAutoscaling, create.MinAgents, create.NumReserveAgents, conformInterval,
 				scaleOutCooldown, scaleInCooldown, create.SizeStrategy, luSettings, jqSettings, create.Properties);
 			return new CreatePoolResponse(newPool.Id.ToString());
 		}
@@ -142,12 +143,13 @@ namespace Horde.Build.Agents.Pools
 			{
 				return NotFound(poolIdValue);
 			}
-			
+
+			TimeSpan? conformInterval = update.ConformInterval == null ? null : TimeSpan.FromHours(update.ConformInterval.Value);
 			TimeSpan? scaleOutCooldown = update.ScaleOutCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleOutCooldown.Value);
 			TimeSpan? scaleInCooldown = update.ScaleInCooldown == null ? null : TimeSpan.FromSeconds(update.ScaleInCooldown.Value);
 
 			await _poolService.UpdatePoolAsync(pool, update.Name, update.Condition, update.EnableAutoscaling,
-				update.MinAgents, update.NumReserveAgents, update.Properties, scaleOutCooldown, scaleInCooldown, update.SizeStrategy,
+				update.MinAgents, update.NumReserveAgents, update.Properties, conformInterval, scaleOutCooldown, scaleInCooldown, update.SizeStrategy,
 				update.LeaseUtilizationSettings?.Convert(), update.JobQueueSettings?.Convert(), update.UseDefaultStrategy);
 			return new OkResult();
 		}

@@ -330,8 +330,27 @@ namespace Horde.Build.Tasks
 					return !IsConformCoolDownPeriod(agent, utcNow);
 				}
 
+				// Get the current pools for the agent
+				List<IPool> pools = await _poolService.GetCachedPoolsAsync(agent, DateTime.UtcNow - TimeSpan.FromMinutes(2.0));
+
+				TimeSpan? conformInterval = null;
+				foreach(IPool pool in pools)
+				{
+					TimeSpan interval = pool.ConformInterval ?? TimeSpan.FromDays(1.0);
+					if (interval > TimeSpan.Zero && (conformInterval == null || interval < conformInterval.Value))
+					{
+						conformInterval = interval;
+					}
+				}
+
+				// If there is no conform interval, early out
+				if(conformInterval == null)
+				{
+					return false;
+				}
+
 				// Always run a conform every 24h
-				if (utcNow > agent.LastConformTime + TimeSpan.FromDays(1.0))
+				if (utcNow > agent.LastConformTime + conformInterval.Value)
 				{
 					return true;
 				}

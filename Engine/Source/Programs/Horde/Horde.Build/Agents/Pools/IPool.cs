@@ -61,6 +61,11 @@ namespace Horde.Build.Agents.Pools
 		public int? NumReserveAgents { get; }
 
 		/// <summary>
+		/// Interval between conforms. If zero, the pool will not conform on a schedule.
+		/// </summary>
+		public TimeSpan? ConformInterval { get; }
+
+		/// <summary>
 		/// Last time the pool was (auto) scaled up
 		/// </summary>
 		public DateTime? LastScaleUpTime { get; }

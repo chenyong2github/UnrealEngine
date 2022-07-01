@@ -25,6 +25,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="enableAutoscaling">Whether to enable autoscaling for this pool</param>
 		/// <param name="minAgents">Minimum number of agents in the pool</param>
 		/// <param name="numReserveAgents">Minimum number of idle agents to maintain</param>
+		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
 		/// <param name="scaleInCooldown">Cooldown time between scale-in events</param>
 		/// <param name="sizeStrategy">Pool sizing strategy</param>
@@ -39,6 +40,7 @@ namespace Horde.Build.Agents.Pools
 			bool? enableAutoscaling = null,
 			int? minAgents = null,
 			int? numReserveAgents = null,
+			TimeSpan? conformInterval = null,
 			TimeSpan? scaleOutCooldown = null,
 			TimeSpan? scaleInCooldown = null,
 			PoolSizeStrategy? sizeStrategy = null,
@@ -84,6 +86,7 @@ namespace Horde.Build.Agents.Pools
 		/// <param name="newWorkspaces">New workspaces for the pool</param>
 		/// <param name="newUseAutoSdk">New setting for whether to use autosdk</param>
 		/// <param name="newProperties">New properties for the pool</param>
+		/// <param name="conformInterval">Interval between conforms. Set to zero to disable.</param>
 		/// <param name="lastScaleUpTime">New time for last (auto) scale up</param>
 		/// <param name="lastScaleDownTime">New time for last (auto) scale down</param>
 		/// <param name="scaleOutCooldown">Cooldown time between scale-out events</param>
@@ -103,6 +106,7 @@ namespace Horde.Build.Agents.Pools
 			List<AgentWorkspace>? newWorkspaces = null,
 			bool? newUseAutoSdk = null,
 			Dictionary<string, string?>? newProperties = null,
+			TimeSpan? conformInterval = null,
 			DateTime? lastScaleUpTime = null,
 			DateTime? lastScaleDownTime = null,
 			TimeSpan? scaleOutCooldown = null,
