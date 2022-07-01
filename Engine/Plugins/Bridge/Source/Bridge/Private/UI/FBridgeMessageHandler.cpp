@@ -201,6 +201,7 @@ bool FBridgeMessageHandler::OnCursorSet()
 	return TargetHandler->OnCursorSet();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FBridgeMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue)
 {
 	return TargetHandler->OnControllerAnalog(KeyName, ControllerId, AnalogValue);
@@ -214,6 +215,22 @@ bool FBridgeMessageHandler::OnControllerButtonPressed(FGamepadKeyNames::Type Key
 bool FBridgeMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
 {
 	return TargetHandler->OnControllerButtonReleased(KeyName, ControllerId, IsRepeat);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FBridgeMessageHandler::OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, float AnalogValue)
+{
+	return TargetHandler->OnControllerAnalog(KeyName, PlatformUserId, InputDeviceId, AnalogValue);
+}
+
+bool FBridgeMessageHandler::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	return TargetHandler->OnControllerButtonPressed(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
+}
+
+bool FBridgeMessageHandler::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	return TargetHandler->OnControllerButtonReleased(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
 }
 
 void FBridgeMessageHandler::OnBeginGesture()
