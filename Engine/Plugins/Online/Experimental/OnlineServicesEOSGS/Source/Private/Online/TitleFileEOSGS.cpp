@@ -36,20 +36,22 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 {
 	TOnlineAsyncOpRef<FTitleFileEnumerateFiles> Op = GetOp<FTitleFileEnumerateFiles>(MoveTemp(InParams));
 
-	Op->Then([this](TOnlineAsyncOp<FTitleFileEnumerateFiles>& InAsyncOp)
+	Op->Then([this](TOnlineAsyncOp<FTitleFileEnumerateFiles>& InAsyncOp, TPromise<const EOS_TitleStorage_QueryFileListCallbackInfo*>&& Promise)
 	{
 		const FTitleFileEnumerateFiles::Params& Params = InAsyncOp.GetParams();
 
 		if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
-			return MakeFulfilledPromise<const EOS_TitleStorage_QueryFileListCallbackInfo*>().GetFuture();
+			Promise.EmplaceValue();
+			return;
 		}
 
 		if (Config.SearchTag.IsEmpty())
 		{
 			InAsyncOp.SetError(Errors::NotConfigured());
-			return MakeFulfilledPromise<const EOS_TitleStorage_QueryFileListCallbackInfo *>().GetFuture();
+			Promise.EmplaceValue();
+			return;
 		}
 
 		const FTCHARToUTF8 Utf8SearchTag(*Config.SearchTag);
@@ -62,12 +64,12 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 		Options.ListOfTagsCount = 1;
 		Options.ListOfTags = &SearchTagPtr;
 
-		return EOS_Async<EOS_TitleStorage_QueryFileListCallbackInfo>(EOS_TitleStorage_QueryFileList, TitleStorageHandle, Options);
+		EOS_Async(EOS_TitleStorage_QueryFileList, TitleStorageHandle, Options, MoveTemp(Promise));
 	})
 	.Then([this](TOnlineAsyncOp<FTitleFileEnumerateFiles>& InAsyncOp, const EOS_TitleStorage_QueryFileListCallbackInfo* Data)
 	{
-		const FTitleFileEnumerateFiles::Params& Params = InAsyncOp.GetParams();
-
+		const FTitleFileEnumerateFiles::Params& Params = InAsyncOp.GetParams(); 
+		
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
@@ -147,14 +149,15 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 		return Op->GetHandle();
 	}
 
-	Op->Then([this](TOnlineAsyncOp<FTitleFileReadFile>& InAsyncOp)
+	Op->Then([this](TOnlineAsyncOp<FTitleFileReadFile>& InAsyncOp, TPromise<const EOS_TitleStorage_ReadFileCallbackInfo*>&& Promise)
 	{
 		const FTitleFileReadFile::Params& Params = InAsyncOp.GetParams();
 
 		if (!Services.Get<FAuthEOSGS>()->IsLoggedIn(Params.LocalUserId))
 		{
 			InAsyncOp.SetError(Errors::InvalidUser());
-			return MakeFulfilledPromise<const EOS_TitleStorage_ReadFileCallbackInfo*>().GetFuture();
+			Promise.EmplaceValue();
+			return;
 		}
 
 		FTitleFileContentsRef FileContentsRef = MakeShared<FTitleFileContents>();
@@ -177,7 +180,7 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 
 		const FTCHARToUTF8 Utf8Filename(Params.Filename);
 
-		EOS_TitleStorage_ReadFileOptions  Options = {};
+		EOS_TitleStorage_ReadFileOptions Options = {};
 		Options.ApiVersion = EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST;
 		static_assert(EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST == 1, "EOS_TitleStorage_ReadFileOptions updated, check new fields");
 		Options.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
@@ -186,11 +189,8 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 		Options.ReadFileDataCallback = ReadFileDataCallback->GetCallbackPtr();
 		Options.FileTransferProgressCallback = &FTitleFileEOSGS::OnFileTransferProgressStatic;
 
-		TPromise<const EOS_TitleStorage_ReadFileCallbackInfo*> Promise;
-		TFuture<const EOS_TitleStorage_ReadFileCallbackInfo*> Future = Promise.GetFuture();
-		const EOS_HTitleStorageFileTransferRequest RequestHandle = EOS_Async<EOS_TitleStorage_ReadFileCallbackInfo>(EOS_TitleStorage_ReadFile, TitleStorageHandle, Options, MoveTemp(Promise));
+		const EOS_HTitleStorageFileTransferRequest RequestHandle = EOS_Async(EOS_TitleStorage_ReadFile, TitleStorageHandle, Options, MoveTemp(Promise));
 		InAsyncOp.Data.Set<EOS_HTitleStorageFileTransferRequest>(RequestHandleKey, RequestHandle);
-		return Future;
 	})
 	.Then([this](TOnlineAsyncOp<FTitleFileReadFile>& InAsyncOp, const EOS_TitleStorage_ReadFileCallbackInfo* Data)
 	{

@@ -406,7 +406,7 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	FOnlineAccountIdHandle LocalUserId,
 	const FClientLobbyDataChanges& Changes) const
 {
-	EOS_HLobbyModification LobbyModificationHandle = {};
+	EOS_HLobbyModification LobbyModificationHandle = nullptr;
 
 	ON_SCOPE_EXIT
 	{
@@ -482,12 +482,11 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyDataUpdateFromLocalChanges(
 	UpdateLobbyOptions.ApiVersion = EOS_LOBBY_UPDATELOBBY_API_LATEST;
 	UpdateLobbyOptions.LobbyModificationHandle = LobbyModificationHandle;
 
-	EOS_Async<EOS_Lobby_UpdateLobbyCallbackInfo>(EOS_Lobby_UpdateLobby, Prerequisites->LobbyInterfaceHandle, UpdateLobbyOptions)
-	.Then([Promise = MoveTemp(Promise)](TFuture<const EOS_Lobby_UpdateLobbyCallbackInfo*> Future) mutable
+	EOS_Async(EOS_Lobby_UpdateLobby, Prerequisites->LobbyInterfaceHandle, UpdateLobbyOptions,
+	[Promise = MoveTemp(Promise)](const EOS_Lobby_UpdateLobbyCallbackInfo* CallbackInfo) mutable
 	{
-		Promise.EmplaceValue(Future.Get()->ResultCode);
+		Promise.EmplaceValue(CallbackInfo->ResultCode);
 	});
-
 	return Future;
 }
 
@@ -556,10 +555,10 @@ TFuture<EOS_EResult> FLobbyDetailsEOS::ApplyLobbyMemberDataUpdateFromLocalChange
 	TPromise<EOS_EResult> Promise;
 	TFuture<EOS_EResult> Future = Promise.GetFuture();
 
-	EOS_Async<EOS_Lobby_UpdateLobbyCallbackInfo>(EOS_Lobby_UpdateLobby, Prerequisites->LobbyInterfaceHandle, UpdateLobbyOptions)
-	.Then([Promise = MoveTemp(Promise)](TFuture<const EOS_Lobby_UpdateLobbyCallbackInfo*> Future) mutable
+	EOS_Async(EOS_Lobby_UpdateLobby, Prerequisites->LobbyInterfaceHandle, UpdateLobbyOptions,
+	[Promise = MoveTemp(Promise)](const EOS_Lobby_UpdateLobbyCallbackInfo* CallbackInfo) mutable
 	{
-		Promise.EmplaceValue(Future.Get()->ResultCode);
+		Promise.EmplaceValue(CallbackInfo->ResultCode);
 	});
 
 	return Future;
@@ -946,14 +945,14 @@ TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbySearchEOS>>> FLobbySearchEO
 	FindOptions.ApiVersion = EOS_LOBBYSEARCH_FIND_API_LATEST;
 	FindOptions.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
 
-	EOS_Async<EOS_LobbySearch_FindCallbackInfo>(EOS_LobbySearch_Find, SearchHandle->Get(), FindOptions)
-	.Then([Promise = MoveTemp(Promise), Prerequisites, LobbyRegistry, LocalUserId = Params.LocalUserId, SearchHandle]
-	(TFuture<const EOS_LobbySearch_FindCallbackInfo*>&& Future) mutable
+	EOS_Async(EOS_LobbySearch_Find, SearchHandle->Get(), FindOptions,
+	[Promise = MoveTemp(Promise), Prerequisites, LobbyRegistry, LocalUserId = Params.LocalUserId, SearchHandle]
+	(const EOS_LobbySearch_FindCallbackInfo* CallbackInfo) mutable
 	{
-		if (Future.Get()->ResultCode != EOS_EResult::EOS_Success)
+		if (CallbackInfo->ResultCode != EOS_EResult::EOS_Success)
 		{
 			// todo: errors
-			Promise.EmplaceValue(FromEOSError(Future.Get()->ResultCode));
+			Promise.EmplaceValue(FromEOSError(CallbackInfo->ResultCode));
 			return;
 		}
 

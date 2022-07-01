@@ -68,14 +68,14 @@ TOnlineAsyncOpHandle<FQueryAchievementDefinitions> FAchievementsEOSGS::QueryAchi
 
 	if (!AchievementDefinitions.IsSet())
 	{
-		Op->Then([this](TOnlineAsyncOp<FQueryAchievementDefinitions>& InAsyncOp)
+		Op->Then([this](TOnlineAsyncOp<FQueryAchievementDefinitions>& InAsyncOp, TPromise<const EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo*>&& Promise)
 		{
 			EOS_Achievements_QueryDefinitionsOptions Options = {};
 			Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST;
 			static_assert(EOS_ACHIEVEMENTS_QUERYDEFINITIONS_API_LATEST == 3, "EOS_Achievements_QueryDefinitionsOptions updated, check new fields");
 			Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
 
-			return EOS_Async<EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo>(EOS_Achievements_QueryDefinitions, AchievementsHandle, Options);
+			EOS_Async(EOS_Achievements_QueryDefinitions, AchievementsHandle, Options, MoveTemp(Promise));
 		})
 		.Then([this](TOnlineAsyncOp<FQueryAchievementDefinitions>& InAsyncOp, const EOS_Achievements_OnQueryDefinitionsCompleteCallbackInfo* Data)
 		{
@@ -216,7 +216,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 
 	if (!AchievementStates.Contains(Op->GetParams().LocalUserId))
 	{
-		Op->Then([this](TOnlineAsyncOp<FQueryAchievementStates>& InAsyncOp)
+		Op->Then([this](TOnlineAsyncOp<FQueryAchievementStates>& InAsyncOp, TPromise<const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo*>&& Promise)
 		{
 			EOS_Achievements_QueryPlayerAchievementsOptions Options = {};
 			Options.ApiVersion = EOS_ACHIEVEMENTS_QUERYPLAYERACHIEVEMENTS_API_LATEST;
@@ -224,7 +224,7 @@ TOnlineAsyncOpHandle<FQueryAchievementStates> FAchievementsEOSGS::QueryAchieveme
 			Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
 			Options.TargetUserId = Options.LocalUserId;
 
-			return EOS_Async<EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo>(EOS_Achievements_QueryPlayerAchievements, AchievementsHandle, Options);
+			EOS_Async(EOS_Achievements_QueryPlayerAchievements, AchievementsHandle, Options, MoveTemp(Promise));
 		})
 		.Then([this](TOnlineAsyncOp<FQueryAchievementStates>& InAsyncOp, const EOS_Achievements_OnQueryPlayerAchievementsCompleteCallbackInfo* Data)
 		{
@@ -352,7 +352,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 		}
 	}
 
-	Op->Then([this](TOnlineAsyncOp<FUnlockAchievements>& InAsyncOp)
+	Op->Then([this](TOnlineAsyncOp<FUnlockAchievements>& InAsyncOp, TPromise<const EOS_Achievements_OnUnlockAchievementsCompleteCallbackInfo*>&& Promise)
 	{
 		const TArray<FString>& InAchievementIds = InAsyncOp.GetParams().AchievementIds;
 
@@ -373,7 +373,7 @@ TOnlineAsyncOpHandle<FUnlockAchievements> FAchievementsEOSGS::UnlockAchievements
 		Options.AchievementIds = AchievementIdPtrs.GetData();
 		Options.AchievementsCount = AchievementIdPtrs.Num();
 
-		return EOS_Async<EOS_Achievements_OnUnlockAchievementsCompleteCallbackInfo>(EOS_Achievements_UnlockAchievements, AchievementsHandle, Options);
+		EOS_Async(EOS_Achievements_UnlockAchievements, AchievementsHandle, Options, MoveTemp(Promise));
 	})
 	.Then([this](TOnlineAsyncOp<FUnlockAchievements>& InAsyncOp, const EOS_Achievements_OnUnlockAchievementsCompleteCallbackInfo* Data)
 	{

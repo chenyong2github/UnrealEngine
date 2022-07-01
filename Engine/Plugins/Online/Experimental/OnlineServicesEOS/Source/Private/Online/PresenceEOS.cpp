@@ -121,7 +121,7 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 			return Op->GetHandle();
 		}
 
-		Op->Then([this](TOnlineAsyncOp<FQueryPresence>& InAsyncOp) mutable
+		Op->Then([this](TOnlineAsyncOp<FQueryPresence>& InAsyncOp, TPromise<const EOS_Presence_QueryPresenceCallbackInfo*>&& Promise)
 			{
 				const FQueryPresence::Params& Params = InAsyncOp.GetParams();
 				EOS_Presence_QueryPresenceOptions QueryPresenceOptions = { };
@@ -129,7 +129,7 @@ TOnlineAsyncOpHandle<FQueryPresence> FPresenceEOS::QueryPresence(FQueryPresence:
 				QueryPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
 				QueryPresenceOptions.TargetUserId = GetEpicAccountIdChecked(Params.TargetUserId);
 
-				return EOS_Async<EOS_Presence_QueryPresenceCallbackInfo>(EOS_Presence_QueryPresence, PresenceHandle, QueryPresenceOptions);
+				EOS_Async(EOS_Presence_QueryPresence, PresenceHandle, QueryPresenceOptions, MoveTemp(Promise));
 			})
 			.Then([this](TOnlineAsyncOp<FQueryPresence>& InAsyncOp, const EOS_Presence_QueryPresenceCallbackInfo* Data) mutable
 			{
@@ -177,7 +177,7 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 		return Op->GetHandle();
 	}
 
-	Op->Then([this](TOnlineAsyncOp<FUpdatePresence>& InAsyncOp) mutable
+	Op->Then([this](TOnlineAsyncOp<FUpdatePresence>& InAsyncOp, TPromise<const EOS_Presence_SetPresenceCallbackInfo*>&& Promise) mutable
 	{
 		const FUpdatePresence::Params& Params = InAsyncOp.GetParams();
 		EOS_HPresenceModification ChangeHandle = nullptr;
@@ -198,7 +198,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 			{
 				UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_SetStatus failed with result %s"), *LexToString(SetStatusResult));
 				InAsyncOp.SetError(Errors::FromEOSResult(SetStatusResult));
-				return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+				Promise.EmplaceValue();
+				return;
 			}
 
 			// Raw rich text
@@ -214,7 +215,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 			{
 				UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_SetRawRichText failed with result %s"), *LexToString(SetRawRichTextResult));
 				InAsyncOp.SetError(Errors::FromEOSResult(SetRawRichTextResult));
-				return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+				Promise.EmplaceValue();
+				return;
 			}
 
 			// EOS needs to be specific on which fields are removed and which aren't, so grab the last presence and check which are deletions
@@ -255,7 +257,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 				{
 					UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_DeleteDataOptions failed with result %s"), *LexToString(DeleteDataResult));
 					InAsyncOp.SetError(Errors::FromEOSResult(DeleteDataResult));
-					return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+					Promise.EmplaceValue();
+					return;
 				}
 			}
 
@@ -267,7 +270,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 					// TODO: Move this check higher.  Needs to take into account number of present fields (not just ones updated) and removed fields.
 					UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: Too many presence keys.  %u/%u"), Params.Presence->Properties.Num(), EOS_PRESENCE_DATA_MAX_KEYS);
 					InAsyncOp.SetError(Errors::InvalidParams());
-					return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+					Promise.EmplaceValue();
+					return;
 				}
 				TArray<FTCHARToUTF8, TInlineAllocator<EOS_PRESENCE_DATA_MAX_KEYS * 2>> Utf8Strings;
 				TArray<EOS_Presence_DataRecord, TInlineAllocator<EOS_PRESENCE_DATA_MAX_KEYS>> Records;
@@ -293,7 +297,8 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 				{
 					UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_SetData failed with result %s"), *LexToString(SetDataResult));
 					InAsyncOp.SetError(Errors::FromEOSResult(SetDataResult));
-					return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+					Promise.EmplaceValue();
+					return;
 				}
 			}
 
@@ -301,15 +306,16 @@ TOnlineAsyncOpHandle<FUpdatePresence> FPresenceEOS::UpdatePresence(FUpdatePresen
 			SetPresenceOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
 			SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
 			SetPresenceOptions.PresenceModificationHandle = ChangeHandle;
-			TFuture<const EOS_Presence_SetPresenceCallbackInfo*> EOSAsyncFuture = EOS_Async<EOS_Presence_SetPresenceCallbackInfo>(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions);
+
+			EOS_Async(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions, MoveTemp(Promise));
 			EOS_PresenceModification_Release(ChangeHandle);
-			return EOSAsyncFuture;
+			return;
 		}
 		else
 		{
 			InAsyncOp.SetError(Errors::FromEOSResult(CreatePresenceModificationResult));
-			return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
 		}
+		Promise.EmplaceValue();
 	})
 	.Then([this](TOnlineAsyncOp<FUpdatePresence>& InAsyncOp, const EOS_Presence_SetPresenceCallbackInfo* Data) mutable
 	{
@@ -354,7 +360,7 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 		}
 
 		// Don't cache anything from Params as they could be modified by another merge in the meanwhile.
-		Op->Then([this](TOnlineAsyncOp<FPartialUpdatePresence>& InAsyncOp) mutable
+		Op->Then([this](TOnlineAsyncOp<FPartialUpdatePresence>& InAsyncOp, TPromise<const EOS_Presence_SetPresenceCallbackInfo*>&& Promise) mutable
 			{
 				const FPartialUpdatePresence::Params& Params = InAsyncOp.GetParams();
 				EOS_HPresenceModification ChangeHandle = nullptr;
@@ -377,7 +383,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						{
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_SetStatus failed with result %s"), *LexToString(SetStatusResult));
 							InAsyncOp.SetError(Errors::FromEOSResult(SetStatusResult));
-							return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+							Promise.EmplaceValue();
+							return;
 						}
 						else
 						{
@@ -400,7 +407,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						{
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_SetRawRichText failed with result %s"), *LexToString(SetRawRichTextResult));
 							InAsyncOp.SetError(Errors::FromEOSResult(SetRawRichTextResult));
-							return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+							Promise.EmplaceValue();
+							return;
 						}
 						else
 						{
@@ -434,7 +442,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						{
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_DeleteDataOptions failed with result %s"), *LexToString(DeleteDataResult));
 							InAsyncOp.SetError(Errors::FromEOSResult(DeleteDataResult));
-							return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+							Promise.EmplaceValue();
+							return;
 						}
 					}
 
@@ -446,7 +455,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 							// TODO: Move this check higher.  Needs to take into account number of present fields (not just ones updated) and removed fields.
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: Too many presence keys.  %u/%u"), Params.Mutations.UpdatedProperties.Num(), EOS_PRESENCE_DATA_MAX_KEYS);
 							InAsyncOp.SetError(Errors::InvalidParams());
-							return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+							Promise.EmplaceValue();
+							return;
 						}
 						TArray<FTCHARToUTF8, TInlineAllocator<EOS_PRESENCE_DATA_MAX_KEYS * 2>> Utf8Strings;
 						TArray<EOS_Presence_DataRecord, TInlineAllocator<EOS_PRESENCE_DATA_MAX_KEYS>> Records;
@@ -472,7 +482,8 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 						{
 							UE_LOG(LogTemp, Warning, TEXT("UpdatePresence: EOS_PresenceModification_SetData failed with result %s"), *LexToString(SetDataResult));
 							InAsyncOp.SetError(Errors::FromEOSResult(SetDataResult));
-							return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
+							Promise.EmplaceValue();
+							return;
 						}
 					}
 
@@ -480,15 +491,15 @@ TOnlineAsyncOpHandle<FPartialUpdatePresence> FPresenceEOS::PartialUpdatePresence
 					SetPresenceOptions.ApiVersion = EOS_PRESENCE_SETPRESENCE_API_LATEST;
 					SetPresenceOptions.LocalUserId = GetEpicAccountIdChecked(Params.LocalUserId);
 					SetPresenceOptions.PresenceModificationHandle = ChangeHandle;
-					TFuture<const EOS_Presence_SetPresenceCallbackInfo*> EOSAsyncFuture = EOS_Async<EOS_Presence_SetPresenceCallbackInfo>(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions);
+					EOS_Async(EOS_Presence_SetPresence, PresenceHandle, SetPresenceOptions, MoveTemp(Promise));
 					EOS_PresenceModification_Release(ChangeHandle);
-					return EOSAsyncFuture;
+					return;
 				}
 				else
 				{
 					InAsyncOp.SetError(Errors::FromEOSResult(CreatePresenceModificationResult));
-					return MakeFulfilledPromise<const EOS_Presence_SetPresenceCallbackInfo*>(nullptr).GetFuture();
 				}
+				Promise.EmplaceValue();
 			})
 			.Then([this](TOnlineAsyncOp<FPartialUpdatePresence>& InAsyncOp, const EOS_Presence_SetPresenceCallbackInfo* Data) mutable
 			{

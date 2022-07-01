@@ -56,7 +56,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 
 	for (const FUserStats& UpdateUserStats : Op->GetParams().UpdateUsersStats)
 	{
-		Op->Then([this, &UpdateUserStats](TOnlineAsyncOp<FUpdateStats>& InAsyncOp)
+		Op->Then([this, &UpdateUserStats](TOnlineAsyncOp<FUpdateStats>& InAsyncOp, TPromise<const EOS_Stats_IngestStatCompleteCallbackInfo*>&& Promise)
 		{
 			TArray<EOS_Stats_IngestData> EOSData;
 			TArray<FStatNameRawBufferEOS> EOSStatNames;
@@ -87,7 +87,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 			Options.Stats = EOSData.GetData();
 			Options.StatsCount = EOSData.Num();
 
-			return EOS_Async<EOS_Stats_IngestStatCompleteCallbackInfo>(EOS_Stats_IngestStat, StatsHandle, Options);
+			EOS_Async(EOS_Stats_IngestStat, StatsHandle, Options, MoveTemp(Promise));
 		})
 		.Then([this](TOnlineAsyncOp<FUpdateStats>& InAsyncOp, const EOS_Stats_IngestStatCompleteCallbackInfo* Data)
 		{
@@ -113,7 +113,7 @@ TOnlineAsyncOpHandle<FUpdateStats> FStatsEOSGS::UpdateStats(FUpdateStats::Params
 namespace Private
 {
 
-TFuture<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*> QueryStatsEOS(EOS_HStats StatsHandle, const FOnlineAccountIdHandle& LocalUserId, const FOnlineAccountIdHandle& TargetUserId, const TArray<FString>& StatNames)
+void QueryStatsEOS(EOS_HStats StatsHandle, const FOnlineAccountIdHandle& LocalUserId, const FOnlineAccountIdHandle& TargetUserId, const TArray<FString>& StatNames, TPromise<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*>&& Promise)
 {
 	EOS_Stats_QueryStatsOptions Options;
 	Options.ApiVersion = EOS_STATS_QUERYSTATS_API_LATEST;
@@ -136,7 +136,7 @@ TFuture<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*> QueryStatsEOS(EOS_HSt
 	Options.LocalUserId = GetProductUserIdChecked(LocalUserId);
 	Options.TargetUserId = GetProductUserIdChecked(TargetUserId);
 
-	return EOS_Async<EOS_Stats_OnQueryStatsCompleteCallbackInfo>(EOS_Stats_QueryStats, StatsHandle, Options);
+	EOS_Async(EOS_Stats_QueryStats, StatsHandle, Options, MoveTemp(Promise));
 }
 
 void ReadStatsFromEOSResult(EOS_HStats StatsHandle, const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data, const TArray<FString>& StatNames, TMap<FString, FStatValue>& OutStats)
@@ -179,9 +179,9 @@ TOnlineAsyncOpHandle<FQueryStats> FStatsEOSGS::QueryStats(FQueryStats::Params&& 
 		return Op->GetHandle();
 	}
 
-	Op->Then([this](TOnlineAsyncOp<FQueryStats>& InAsyncOp)
+	Op->Then([this](TOnlineAsyncOp<FQueryStats>& InAsyncOp, TPromise<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*>&& Promise)
 	{
-		return Private::QueryStatsEOS(StatsHandle, InAsyncOp.GetParams().LocalUserId, InAsyncOp.GetParams().TargetUserId, InAsyncOp.GetParams().StatNames);
+		Private::QueryStatsEOS(StatsHandle, InAsyncOp.GetParams().LocalUserId, InAsyncOp.GetParams().TargetUserId, InAsyncOp.GetParams().StatNames, MoveTemp(Promise));
 	})
 	.Then([this](TOnlineAsyncOp<FQueryStats>& InAsyncOp, const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data)
 	{
@@ -220,9 +220,9 @@ TOnlineAsyncOpHandle<FBatchQueryStats> FStatsEOSGS::BatchQueryStats(FBatchQueryS
 
 	for (const FOnlineAccountIdHandle& TargetUserId : Op->GetParams().TargetUserIds)
 	{
-		Op->Then([this, &TargetUserId](TOnlineAsyncOp<FBatchQueryStats>& InAsyncOp)
+		Op->Then([this, &TargetUserId](TOnlineAsyncOp<FBatchQueryStats>& InAsyncOp, TPromise<const EOS_Stats_OnQueryStatsCompleteCallbackInfo*>&& Promise)
 		{
-			return Private::QueryStatsEOS(StatsHandle, InAsyncOp.GetParams().LocalUserId, TargetUserId, InAsyncOp.GetParams().StatNames);
+			Private::QueryStatsEOS(StatsHandle, InAsyncOp.GetParams().LocalUserId, TargetUserId, InAsyncOp.GetParams().StatNames, MoveTemp(Promise));
 		})
 		.Then([this](TOnlineAsyncOp<FBatchQueryStats>& InAsyncOp, const EOS_Stats_OnQueryStatsCompleteCallbackInfo* Data)
 		{

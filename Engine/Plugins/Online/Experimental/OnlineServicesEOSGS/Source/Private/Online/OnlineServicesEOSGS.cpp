@@ -10,6 +10,7 @@
 #include "Online/OnlineIdEOSGS.h"
 #include "Online/OnlineServicesEOSGSTypes.h"
 #include "Online/OnlineServicesEOSGSPlatformFactory.h"
+#include "IEOSSDKManager.h"
 
 #if WITH_ENGINE
 #include "InternetAddrEOS.h"

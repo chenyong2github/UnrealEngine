@@ -741,10 +741,9 @@ TFuture<TDefaultErrorResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionIm
 	TPromise<TDefaultErrorResult<FUpdateSessionImpl>> Promise;
 	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> Future = Promise.GetFuture();
 
-	EOS_Async<EOS_Sessions_UpdateSessionCallbackInfo>(EOS_Sessions_UpdateSession, SessionsHandle, UpdateSessionOptions)
-		.Then([this, Promise = MoveTemp(Promise)](TFuture<const EOS_Sessions_UpdateSessionCallbackInfo*>&& Future) mutable
+	EOS_Async(EOS_Sessions_UpdateSession, SessionsHandle, UpdateSessionOptions,
+	[this, Promise = MoveTemp(Promise)](const EOS_Sessions_UpdateSessionCallbackInfo* Result) mutable
 	{
-		const EOS_Sessions_UpdateSessionCallbackInfo* Result = Future.Get();
 		if (Result->ResultCode != EOS_EResult::EOS_Success && Result->ResultCode != EOS_EResult::EOS_Sessions_OutOfSync)
 		{
 			Promise.EmplaceValue(FromEOSError(Result->ResultCode));
@@ -770,7 +769,7 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 {
 	TOnlineAsyncOpRef<FLeaveSession> Op = GetOp<FLeaveSession>(MoveTemp(Params));
 
-	Op->Then([this](TOnlineAsyncOp<FLeaveSession>& Op)
+	Op->Then([this](TOnlineAsyncOp<FLeaveSession>& Op, TPromise<const EOS_Sessions_DestroySessionCallbackInfo*>&& Promise)
 	{
 		const FLeaveSession::Params& OpParams = Op.GetParams();
 
@@ -785,14 +784,14 @@ TOnlineAsyncOpHandle<FLeaveSession> FSessionsEOSGS::LeaveSession(FLeaveSession::
 			FTCHARToUTF8 SessionNameUtf8(OpParams.SessionName.ToString());
 			DestroySessionOptions.SessionName = SessionNameUtf8.Get();
 
-			return EOS_Async<EOS_Sessions_DestroySessionCallbackInfo>(EOS_Sessions_DestroySession, SessionsHandle, DestroySessionOptions);
+			EOS_Async(EOS_Sessions_DestroySession, SessionsHandle, DestroySessionOptions, MoveTemp(Promise));
+			return;
 		}
 		else
 		{
 			Op.SetError(Errors::NotFound());
-
-			return MakeFulfilledPromise<const EOS_Sessions_DestroySessionCallbackInfo*>().GetFuture();
 		}
+		Promise.EmplaceValue();
 	})
 	.Then([this](TOnlineAsyncOp<FLeaveSession>& Op, const EOS_Sessions_DestroySessionCallbackInfo* Result)
 	{
@@ -911,7 +910,7 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 	}
 
 	// We start the find operation
-	Op->Then([this](TOnlineAsyncOp<FFindSessions>& Op)
+	Op->Then([this](TOnlineAsyncOp<FFindSessions>& Op, TPromise<const EOS_SessionSearch_FindCallbackInfo*>&& Promise)
 	{
 		if (!CurrentSessionSearch.IsValid())
 		{
@@ -933,7 +932,8 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 
 				Op.SetError(FromEOSError(ResultCode));
 
-				return MakeFulfilledPromise<const EOS_SessionSearch_FindCallbackInfo*>().GetFuture();
+				Promise.EmplaceValue();
+				return;
 			}
 
 			CurrentSessionSearchHandleEOSGS = MakeShareable(new FSessionSearchHandleEOSGS(SearchHandle));
@@ -946,14 +946,14 @@ TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::
 			static_assert(EOS_SESSIONSEARCH_FIND_API_LATEST == 2, "EOS_SessionSearch_FindOptions updated, check new fields");
 			FindOptions.LocalUserId = GetProductUserIdChecked(OpParams.LocalUserId);
 
-			return EOS_Async<EOS_SessionSearch_FindCallbackInfo>(EOS_SessionSearch_Find, CurrentSessionSearchHandleEOSGS->SearchHandle, FindOptions);
+			EOS_Async(EOS_SessionSearch_Find, CurrentSessionSearchHandleEOSGS->SearchHandle, FindOptions, MoveTemp(Promise));
+			return;
 		}
 		else
 		{
 			Op.SetError(Errors::AlreadyPending());
-
-			return MakeFulfilledPromise<const EOS_SessionSearch_FindCallbackInfo*>().GetFuture();
 		}
+		Promise.EmplaceValue();
 	})
 	.Then([this](TOnlineAsyncOp<FFindSessions>& Op, const EOS_SessionSearch_FindCallbackInfo*&& FindCallbackInfoResult)
 	{
@@ -1033,7 +1033,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 	// TODO: Routine JoinSession checks
 
 	// We start the join operation
-	Op->Then([this](TOnlineAsyncOp<FJoinSession>& Op)
+	Op->Then([this](TOnlineAsyncOp<FJoinSession>& Op, TPromise<const EOS_Sessions_JoinSessionCallbackInfo*>&& Promise)
 	{
 		const FJoinSession::Params& OpParams = Op.GetParams();
 
@@ -1063,7 +1063,7 @@ TOnlineAsyncOpHandle<FJoinSession> FSessionsEOSGS::JoinSession(FJoinSession::Par
 		const FSessionEOSGS& SessionEOSGS = FSessionEOSGS::Cast(*OpParams.Session);
 		JoinSessionOptions.SessionHandle = SessionEOSGS.SessionDetailsHandle->SessionDetailsHandle;
 
-		return EOS_Async<EOS_Sessions_JoinSessionCallbackInfo>(EOS_Sessions_JoinSession, SessionsHandle, JoinSessionOptions);
+		EOS_Async(EOS_Sessions_JoinSession, SessionsHandle, JoinSessionOptions, MoveTemp(Promise));
 	})
 	.Then([this](TOnlineAsyncOp<FJoinSession>& Op, const EOS_Sessions_JoinSessionCallbackInfo*&& Result)
 	{
