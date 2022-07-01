@@ -101,7 +101,7 @@ public:
 			return false;
 		}
 
-		if (IsVisiblePropertyDelegate.IsBound() && Property.IsValid())
+		if (IsVisiblePropertyDelegate.IsBound())
 		{
 			return IsVisiblePropertyDelegate.Execute(Property);
 		}

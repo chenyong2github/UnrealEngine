@@ -294,6 +294,12 @@ void SDetailSingleItemRow::UpdateResetToDefault()
 	bCachedResetToDefaultVisible = false;
 
 	TSharedPtr<IPropertyHandle> PropertyHandle = GetPropertyHandle();
+	if (WidgetRow.CustomResetToDefault.IsSet())
+	{
+		bCachedResetToDefaultVisible = WidgetRow.CustomResetToDefault.GetValue().IsResetToDefaultVisible(PropertyHandle);
+		return;
+	}
+
 	if (PropertyHandle.IsValid())
 	{
 		if (PropertyHandle->HasMetaData("NoResetToDefault") || PropertyHandle->GetInstanceMetaData("NoResetToDefault"))
@@ -301,14 +307,7 @@ void SDetailSingleItemRow::UpdateResetToDefault()
 			bCachedResetToDefaultVisible = false;
 			return;
 		}
-	}
 
-	if (WidgetRow.CustomResetToDefault.IsSet())
-	{
-		bCachedResetToDefaultVisible = WidgetRow.CustomResetToDefault.GetValue().IsResetToDefaultVisible(PropertyHandle);
-	}
-	else if (PropertyHandle.IsValid())
-	{
 		bCachedResetToDefaultVisible = PropertyHandle->CanResetToDefault();
 	}
 }
@@ -393,7 +392,7 @@ void SDetailSingleItemRow::Construct( const FArguments& InArgs, FDetailLayoutCus
 			TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::CreateLambda(
 				[PropertyEnabledAttribute, RowIsEnabledAttribute, RowEditConditionAttribute]()
 				{
-					return PropertyEnabledAttribute.Get() && RowIsEnabledAttribute.Get(true) && RowEditConditionAttribute.Get(true);
+					return PropertyEnabledAttribute.Get(true) && RowIsEnabledAttribute.Get(true) && RowEditConditionAttribute.Get(true);
 				});
 
 			TAttribute<bool> RowIsValueEnabledAttribute = WidgetRow.IsValueEnabledAttr;
