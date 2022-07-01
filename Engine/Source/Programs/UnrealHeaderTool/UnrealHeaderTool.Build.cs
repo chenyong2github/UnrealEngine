@@ -31,6 +31,6 @@ public class UnrealHeaderTool : ModuleRules
 		
 		bEnableExceptions = true;
 
-		UnsafeTypeCastWarningLevel = WarningLevel.Warning;
+		//UnsafeTypeCastWarningLevel = WarningLevel.Warning;
 	}
 }
