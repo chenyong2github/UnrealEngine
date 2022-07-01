@@ -38,6 +38,7 @@ namespace UnrealBuildTool.Rules
 					"OpenXRInput",
 					"Slate",
 					"SlateCore",
+					"ApplicationCore"
 				}
 				);
 
