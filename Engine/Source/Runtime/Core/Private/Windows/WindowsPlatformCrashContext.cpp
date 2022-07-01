@@ -30,6 +30,7 @@
 #include "BuildSettings.h"
 #include "CoreGlobals.h"
 #include <atomic>
+#include <signal.h>
 
 #include "Windows/WindowsHWrapper.h"
 #include "Windows/AllowWindowsPlatformTypes.h"
@@ -55,6 +56,10 @@
 
 #ifndef DISABLE_CRC_SUBMIT_AND_RESTART_BUTTON
 #define DISABLE_CRC_SUBMIT_AND_RESTART_BUTTON 0
+#endif
+
+#ifndef HANDLE_ABORT_SIGNALS
+#define HANDLE_ABORT_SIGNALS 1
 #endif
 
 #define CR_CLIENT_MAX_PATH_LEN 265
@@ -969,6 +974,25 @@ void CreateExceptionInfoString(EXCEPTION_RECORD* ExceptionRecord, TCHAR* OutErro
 #undef HANDLE_CASE
 }
 
+#if HANDLE_ABORT_SIGNALS
+static void AbortHandler(int Signal)
+{
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED && !NOINITCRASHREPORTER
+	__try
+	{
+		// Force an exception to invoke the crash reporter
+		FAssertInfo Info(TEXT("Abort signal received"), PLATFORM_RETURN_ADDRESS());
+		ULONG_PTR Arguments[] = { (ULONG_PTR)&Info };
+		::RaiseException(EnsureExceptionCode, 0, UE_ARRAY_COUNT(Arguments), Arguments);
+	}
+	__except(ReportCrash(GetExceptionInformation()))
+	{
+		GIsCriticalError = true;
+		FPlatformMisc::RequestExit(true);
+	}
+#endif
+}
+#endif
 
 
 
@@ -1129,6 +1153,11 @@ public:
 		// Register an exception handler for exceptions that aren't handled by any vectored exception handlers or structured exception handlers (__try/__except),
 		// especially to capture crash in non-engine-wrapped threads (like native threads) that are usually not guarded with structured exception handling.
 		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::RegisterUnhandledExceptionHandler);
+
+#if HANDLE_ABORT_SIGNALS
+		// Register a signal handler for abort and terminate occurrences so that abnormal or third party shutdowns can be reported.
+		FCoreDelegates::GetPreMainInitDelegate().AddRaw(this, &FCrashReportingThread::RegisterAbortSignalHandler);
+#endif
 	}
 
 	FORCENOINLINE ~FCrashReportingThread()
@@ -1166,6 +1195,22 @@ public:
 		::SetUnhandledExceptionFilter(EngineUnhandledExceptionFilter);
 #endif
 	}
+
+#if HANDLE_ABORT_SIGNALS
+	void RegisterAbortSignalHandler()
+	{
+#if !NOINITCRASHREPORTER
+		if (::signal(SIGABRT, AbortHandler) != SIG_ERR)
+		{
+			UE_LOG(LogWindows, Log, TEXT("Custom abort handler registered for crash reporting."));
+		}
+		else
+		{
+			UE_LOG(LogWindows, Error, TEXT("Unable to register custom abort handler for crash reporting."));
+		}
+#endif
+	}
+#endif
 
 	DWORD GetReporterThreadId() const
 	{

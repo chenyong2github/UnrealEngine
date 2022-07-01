@@ -10011,6 +10011,68 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 		UE_LOG(LogEngine, Fatal, TEXT("%s"), TEXT("Crashing the gamethread at your request"));
 		return true;
 	}
+	else if (FParse::Command(&Cmd, TEXT("TERMINATE")))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Warning, TEXT("%s"), TEXT("Terminating from the gamethread at your request"));
+		terminate();
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("ABORT")))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Warning, TEXT("%s"), TEXT("Aborting from the gamethread at your request"));
+		abort();
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("THROWINNOTHROW")))
+	{
+		struct FThrowCrash
+		{
+			static void ThrowInNoThrow() noexcept(true)
+			{
+				ThrowException();
+			}
+
+		private:
+			
+			static void ThrowException()
+			{
+				throw 1;
+			}
+		};
+		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Warning, TEXT("%s"), TEXT("Throwing in a nothrow function on the gamethread at your request"));
+		FThrowCrash::ThrowInNoThrow();
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("EXIT")))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Warning, TEXT("%s"), TEXT("Exiting from the gamethread at your request with 'exit()'"));
+		exit(1);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("QUICKEXIT")))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Warning, TEXT("%s"), TEXT("Exiting from the gamethread at your request with 'quick_exit()'"));
+		quick_exit(1);
+		return true;
+	}
+	else if (FParse::Command(&Cmd, TEXT("_EXIT")))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		UE_LOG(LogEngine, Warning, TEXT("%s"), TEXT("Exiting from the gamethread at your request with '_Exit()'"));
+		_Exit(1);
+		return true;
+	}
 	else if (FParse::Command(&Cmd, TEXT("CHECK")))
 	{
 		UE_LOG(LogEngine, Warning, TEXT("Printed warning to log."));
