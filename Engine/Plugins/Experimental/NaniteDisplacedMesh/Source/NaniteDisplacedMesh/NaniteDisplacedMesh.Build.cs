@@ -38,13 +38,12 @@ namespace UnrealBuildTool.Rules
 						"DerivedDataCache",
 						"MeshDescription",
 						"StaticMeshDescription",
-						"MeshReductionInterface",
 						"RawMesh",
 						"MeshUtilities",
 						"MeshUtilitiesCommon",
 						"MeshBuilderCommon",
 						"MeshBuilder",
-						"Renderer",
+						"NaniteUtilities",
 					}
 				);
 

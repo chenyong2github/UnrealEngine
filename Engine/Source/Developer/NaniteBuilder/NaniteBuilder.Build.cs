@@ -14,9 +14,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"RenderCore",
-					"MeshDescription",
-					"MeshDescriptionOperations",
-					"GraphColor",
+					"NaniteUtilities",
 					"QuadricMeshReduction",
 				}
 			);

@@ -64,7 +64,7 @@ struct FNaniteDisplacedMeshParams
 	TObjectPtr<class UStaticMesh> BaseMesh;
 
 	UPROPERTY(EditAnywhere, Category = Mesh)
-	float DiceRate;
+	float RelativeError;
 
 	UPROPERTY(EditAnywhere, Category = Texture)
 	TArray<FNaniteDisplacedMeshDisplacementMap> DisplacementMaps;
@@ -72,12 +72,12 @@ struct FNaniteDisplacedMeshParams
 	/** Default settings. */
 	FNaniteDisplacedMeshParams()
 		: BaseMesh(nullptr)
-		, DiceRate(1.0f)
+		, RelativeError(0.03f)
 	{}
 
 	FNaniteDisplacedMeshParams(const FNaniteDisplacedMeshParams& Other)
 		: BaseMesh(Other.BaseMesh)
-		, DiceRate(Other.DiceRate)
+		, RelativeError(Other.RelativeError)
 		, DisplacementMaps(Other.DisplacementMaps)
 	{}
 
@@ -85,7 +85,7 @@ struct FNaniteDisplacedMeshParams
 	bool operator==(const FNaniteDisplacedMeshParams& Other) const
 	{
 		if( BaseMesh != Other.BaseMesh ||
-			DiceRate != Other.DiceRate ||
+			RelativeError != Other.RelativeError ||
 			DisplacementMaps.Num() != Other.DisplacementMaps.Num() )
 		{
 			return false;

@@ -6,7 +6,6 @@
 #include "StaticMeshResources.h"
 #include "Rendering/NaniteResources.h"
 #include "Hash/CityHash.h"
-#include "Math/UnrealMath.h"
 #include "GraphPartitioner.h"
 #include "Cluster.h"
 #include "ClusterDAG.h"
@@ -569,6 +568,8 @@ static bool BuildNaniteData(
 
 		Resources.NumInputVertices	= FMath::Min( NumVerts, Resources.NumInputVertices );
 		Resources.NumInputTriangles	= NumTris;
+
+		UE_LOG( LogStaticMesh, Log, TEXT("Trimmed to %u tris"), NumTris );
 	}
 
 	uint32 ReduceTime = FPlatformTime::Cycles();

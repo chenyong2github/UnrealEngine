@@ -289,6 +289,7 @@ bool FNaniteBuildAsyncCacheTask::BuildData(const UE::DerivedData::FSharedString&
 	// will always want Nanite unless the platform, runtime, or "Disallow Nanite" on SMC prevents it.
 	FMeshNaniteSettings NaniteSettings;
 	NaniteSettings.bEnabled = true;
+	NaniteSettings.TrimRelativeError = DisplacedMesh->Parameters.RelativeError;
 
 	const int32 NumSourceModels = BaseMesh->GetNumSourceModels();
 
@@ -646,7 +647,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 
 	FMemoryHasherBlake3 Writer;
 
-	FGuid DisplacedMeshVersionGuid(0x650C04E5, 0xAC414B3B, 0xBD4687E3, 0x31A61E4D);
+	FGuid DisplacedMeshVersionGuid(0x9D52AD14, 0x38AE4012, 0xB020AB31, 0xE7DCF4F6);
 	Writer << DisplacedMeshVersionGuid;
 
 	FGuid NaniteVersionGuid = FDevSystemGuids::GetSystemGuid(FDevSystemGuids::Get().NANITE_DERIVEDDATA_VER);
@@ -661,7 +662,7 @@ FIoHash UNaniteDisplacedMesh::CreateDerivedDataKeyHash(const ITargetPlatform* Ta
 		Writer << StaticMeshKey;
 	}
 
-	Writer << Parameters.DiceRate;
+	Writer << Parameters.RelativeError;
 
 	for( auto& DisplacementMap : Parameters.DisplacementMaps )
 	{

@@ -5,417 +5,133 @@
 #if WITH_EDITOR
 
 #include "NaniteDisplacedMesh.h"
-#include "TessellationTable.h"
+#include "DisplacementMap.h"
+#include "Affine.h"
+#include "LerpVert.h"
+#include "AdaptiveTessellator.h"
 #include "Math/Bounds.h"
 
-class FDisplacementMap
+static FVector3f UserGetDisplacement(
+	const FVector3f& Barycentrics,
+	const FLerpVert& Vert0,
+	const FLerpVert& Vert1,
+	const FLerpVert& Vert2,
+	TArrayView< Nanite::FDisplacementMap > DisplacementMaps )
 {
-public:
-	TArray64< uint8 >		SourceData;
-	ETextureSourceFormat	SourceFormat;
+	int32 DisplacementIndex = FMath::FloorToInt( Vert0.UVs[1].X );
+	if( !DisplacementMaps.IsValidIndex( DisplacementIndex ) )
+		return FVector3f( 0.0f, 0.0f, 0.0f );
 
-	int32	BytesPerPixel;
-	int32	SizeX;
-	int32	SizeY;
+	FVector2f UV;
+	UV  = Vert0.UVs[0] * Barycentrics.X;
+	UV += Vert1.UVs[0] * Barycentrics.Y;
+	UV += Vert2.UVs[0] * Barycentrics.Z;
 
-	float	Magnitude;
-	float	Center;
+	FVector3f Normal;
+	Normal  = Vert0.TangentX * Barycentrics.X;
+	Normal += Vert1.TangentX * Barycentrics.Y;
+	Normal += Vert2.TangentX * Barycentrics.Z;
+	Normal.Normalize();
 
-public:
-	FDisplacementMap()
-		: SourceFormat( TSF_G8 )
-		, BytesPerPixel(1)
-		, SizeX(1)
-		, SizeY(1)
-		, Magnitude( 0.0f )
-		, Center( 0.0f )
-	{
-		SourceData.Add(0);
-	}
+	float Displacement = DisplacementMaps[ DisplacementIndex ].Sample( UV );
 
-	FDisplacementMap( FTextureSource& TextureSource, float InMagnitude, float InCenter )
-		: Magnitude( InMagnitude )
-		, Center( InCenter )
-	{
-		TextureSource.GetMipData( SourceData, 0 );
-
-		SourceFormat  = TextureSource.GetFormat();
-		BytesPerPixel = TextureSource.GetBytesPerPixel();
-		
-		SizeX = TextureSource.GetSizeX();
-		SizeY = TextureSource.GetSizeY();
-	}
-
-	float Sample( FVector2f UV ) const
-	{
-		// Half texel
-		UV.X = UV.X * SizeX - 0.5f;
-		UV.Y = UV.Y * SizeY - 0.5f;
-
-		int32 x0 = FMath::FloorToInt32( UV.X );
-		int32 y0 = FMath::FloorToInt32( UV.Y );
-		int32 x1 = x0 + 1;
-		int32 y1 = y0 + 1;
-
-		float wx1 = UV.X - x0;
-		float wy1 = UV.Y - y0;
-		float wx0 = 1.0f - wx1;
-		float wy0 = 1.0f - wy1;
-
-		return
-			Sample( x0, y0 ) * wx0 * wy0 +
-			Sample( x1, y0 ) * wx1 * wy0 +
-			Sample( x0, y1 ) * wx0 * wy1 +
-			Sample( x1, y1 ) * wx1 * wy1;
-	}
-
-	float Sample( int32 x, int32 y ) const
-	{
-		// UV wrap
-		x = x % SizeX;
-		y = y % SizeY;
-		x += x < 0 ? SizeX : 0;
-		y += y < 0 ? SizeY : 0;
-
-		const uint8* PixelPtr = &SourceData[ int64( x + (int64)y * SizeX ) * BytesPerPixel ];
-
-		float Displacement = 0.0f;
-		if( SourceFormat == TSF_BGRA8 )
-		{
-			Displacement = float( PixelPtr[2] ) / 255.0f;
-		}
-		else if( SourceFormat == TSF_RGBA16 )
-		{
-			check(BytesPerPixel == sizeof(uint16) * 4);
-			Displacement = float( *(uint16*)PixelPtr ) / 65535.0f;
-		}
-		else if( SourceFormat == TSF_RGBA16F || SourceFormat == TSF_R16F )
-		{
-			FFloat16 HalfValue = *(FFloat16*)PixelPtr;
-			Displacement = HalfValue;
-		}
-		else if( SourceFormat == TSF_G8 )
-		{
-			Displacement = float( PixelPtr[0] ) / 255.0f;
-		}
-		else if (SourceFormat == TSF_G16)
-		{
-			Displacement = float( *(uint16*)PixelPtr ) / 65535.0f;
-		}
-		else if( SourceFormat == TSF_RGBA32F || SourceFormat == TSF_R32F )
-		{
-			Displacement = *(float*)PixelPtr;
-		}
-
-		Displacement -= Center;
-		Displacement *= Magnitude;
-
-		return Displacement;
-	}
-};
-
-// TODO This could be user provided
-void DisplacementShader( FStaticMeshBuildVertex& Vertex, TArrayView< FDisplacementMap > DisplacementMaps )
-{
-	//float SideUVOffsetLength = 1.0f - FMath::Min( DisplaceLength, 1.0f );
-	//float SideMask = FMath::Floor( DisplaceLength );
-
-	int32 DisplacementIndex = FMath::FloorToInt( Vertex.UVs[1].X );
-	float Displacement = 0.0f;
-	if( DisplacementMaps.IsValidIndex(DisplacementIndex) )
-		Displacement = DisplacementMaps[ DisplacementIndex ].Sample( Vertex.UVs[0] );
-
-	Vertex.TangentZ.Normalize();
-
-	Vertex.Position += Vertex.TangentX * Displacement;
-	Vertex.TangentX.Normalize();
+	return Normal * Displacement;
 }
 
-FORCEINLINE uint32 HashPosition( const FVector3f& Position )
+static FVector2f UserGetErrorBounds(
+	const FVector3f Barycentrics[3],
+	const FLerpVert& Vert0,
+	const FLerpVert& Vert1,
+	const FLerpVert& Vert2,
+	const FVector3f& Displacement0,
+	const FVector3f& Displacement1,
+	const FVector3f& Displacement2,
+	TArrayView< Nanite::FDisplacementMap > DisplacementMaps )
 {
-	union { float f; uint32 i; } x;
-	union { float f; uint32 i; } y;
-	union { float f; uint32 i; } z;
+	// Assume index is constant across triangle
+	int32 DisplacementIndex = FMath::FloorToInt( Vert0.UVs[1].X );
+	if( !DisplacementMaps.IsValidIndex( DisplacementIndex ) )
+		return FVector2f( 0.0f, 0.0f );
 
-	x.f = Position.X;
-	y.f = Position.Y;
-	z.f = Position.Z;
+#if 1
+	float MinBarycentric0 = FMath::Min3( Barycentrics[0].X, Barycentrics[1].X, Barycentrics[2].X );
+	float MaxBarycentric0 = FMath::Max3( Barycentrics[0].X, Barycentrics[1].X, Barycentrics[2].X );
 
-	return Murmur32( {
-		Position.X == 0.0f ? 0u : x.i,
-		Position.Y == 0.0f ? 0u : y.i,
-		Position.Z == 0.0f ? 0u : z.i
-	} );
-}
+	float MinBarycentric1 = FMath::Min3( Barycentrics[0].Y, Barycentrics[1].Y, Barycentrics[2].Y );
+	float MaxBarycentric1 = FMath::Max3( Barycentrics[0].Y, Barycentrics[1].Y, Barycentrics[2].Y );
 
-struct FLerpVert
-{
-	FVector3f Position;
+	TAffine< float, 2 > Barycentric0( MinBarycentric0, MaxBarycentric0, 0 );
+	TAffine< float, 2 > Barycentric1( MinBarycentric1, MaxBarycentric1, 1 );
+	TAffine< float, 2 > Barycentric2 = TAffine< float, 2 >( 1.0f ) - Barycentric0 - Barycentric1;
 
-	FVector3f TangentX;
-	FVector3f TangentY;
-	FVector3f TangentZ;
+	TAffine< FVector3f, 2 > LerpedDisplacement;
+	LerpedDisplacement  = TAffine< FVector3f, 2 >( Displacement0 ) * Barycentric0;
+	LerpedDisplacement += TAffine< FVector3f, 2 >( Displacement1 ) * Barycentric1;
+	LerpedDisplacement += TAffine< FVector3f, 2 >( Displacement2 ) * Barycentric2;
 
-	FVector2f UVs[MAX_STATIC_TEXCOORDS];
-	FLinearColor Color;
+	TAffine< FVector3f, 2 > Normal;
+	Normal  = TAffine< FVector3f, 2 >( Vert0.TangentX ) * Barycentric0;
+	Normal += TAffine< FVector3f, 2 >( Vert1.TangentX ) * Barycentric1;
+	Normal += TAffine< FVector3f, 2 >( Vert2.TangentX ) * Barycentric2;
+	Normal = Normalize( Normal );
 
-	FLerpVert() {}
-	FLerpVert( FStaticMeshBuildVertex In )
-		: Position( In.Position )
-		, TangentX( In.TangentX )
-		, TangentY( In.TangentY )
-		, TangentZ( In.TangentZ )
+	FVector2f MinUV = {  MAX_flt,  MAX_flt };
+	FVector2f MaxUV = { -MAX_flt, -MAX_flt };
+	for( int k = 0; k < 3; k++ )
 	{
-		for( uint32 i = 0; i < MAX_STATIC_TEXCOORDS; i++ )
-			UVs[i] = In.UVs[i];
+		FVector2f UV;
+		UV  = Vert0.UVs[0] * Barycentrics[k].X;
+		UV += Vert1.UVs[0] * Barycentrics[k].Y;
+		UV += Vert2.UVs[0] * Barycentrics[k].Z;
 
-		Color = In.Color.ReinterpretAsLinear();
+		MinUV = FVector2f::Min( MinUV, UV );
+		MaxUV = FVector2f::Max( MaxUV, UV );
 	}
 
-	operator FStaticMeshBuildVertex() const
-	{
-		FStaticMeshBuildVertex Vert;
-		Vert.Position = Position;
-		Vert.TangentX = TangentX;
-		Vert.TangentY = TangentY;
-		Vert.TangentZ = TangentZ;
-		Vert.Color    = Color.ToFColor( false );
-		
-		for( uint32 i = 0; i < MAX_STATIC_TEXCOORDS; i++ )
-			Vert.UVs[i] = UVs[i];
-
-		return Vert;
-	}
-
-	FLerpVert& operator+=( const FLerpVert& Other )
-	{
-		Position += Other.Position;
-		TangentX += Other.TangentX;
-		TangentY += Other.TangentY;
-		TangentZ += Other.TangentZ;
-		Color    += Other.Color;
-
-		for( uint32 i = 0; i < MAX_STATIC_TEXCOORDS; i++ )
-			UVs[i] += Other.UVs[i];
-
-		return *this;
-	}
-
-	FLerpVert operator*( const float a ) const
-	{
-		FLerpVert Vert;
-		Vert.Position = Position * a;
-		Vert.TangentX = TangentX * a;
-		Vert.TangentY = TangentY * a;
-		Vert.TangentZ = TangentZ * a;
-		Vert.Color    = Color * a;
-		
-		for( uint32 i = 0; i < MAX_STATIC_TEXCOORDS; i++ )
-			Vert.UVs[i] = UVs[i] * a;
-
-		return Vert;
-	}
-};
-
-static void Tessellate(
-	TArray< FStaticMeshBuildVertex >&	Verts,
-	TArray< uint32 >&					Indexes,
-	TArray< int32 >&					MaterialIndexes,
-	float DiceRate )
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(Tessellate);
-
-	uint32 NumTris = Indexes.Num() / 3;
-
-	Nanite::FTessellationTable& TessellationTable = Nanite::GetTessellationTable();
+	FVector2f DisplacementBounds = DisplacementMaps[ DisplacementIndex ].Sample( MinUV, MaxUV );
 	
-	TArray< uint32, TInlineAllocator<256> > NewVertIndexes;
+	TAffine< float, 2 > Displacement( DisplacementBounds.X, DisplacementBounds.Y );
+	TAffine< float, 2 > Error = ( Normal * Displacement - LerpedDisplacement ).SizeSquared();
 
-	TMultiMap< uint32, int32 > HashTable;
-	HashTable.Reserve( Verts.Num() * 2 );
-	for( int i = 0; i < Verts.Num(); i++ )
-	{
-		HashTable.Add( HashPosition( Verts[i].Position ), i );
-	}
-
-	constexpr uint32 VertSize = sizeof( FStaticMeshBuildVertex ) / sizeof( float );
+	return FVector2f( Error.GetMin(), Error.GetMax() );
+#else
+	float ScalarDisplacement0 = Displacement0.Length();
+	float ScalarDisplacement1 = Displacement1.Length();
+	float ScalarDisplacement2 = Displacement2.Length();	
+	float LerpedDisplacement[3];
 	
-	/*
-	===========
-		v0
-		/\
-	e2 /  \ e0
-	  /____\
-	v2  e1  v1
-	===========
-	*/
-	for( uint32 TriIndex = 0; TriIndex < NumTris; )
+	FVector2f MinUV = {  MAX_flt,  MAX_flt };
+	FVector2f MaxUV = { -MAX_flt, -MAX_flt };
+	for( int k = 0; k < 3; k++ )
 	{
-		float TessFactors[3];
-		for( int i = 0; i < 3; i++ )
-		{
-			const uint32 i0 = i;
-			const uint32 i1 = (1 << i0) & 3;
+		LerpedDisplacement[k]  = ScalarDisplacement0 * Barycentrics[k].X;
+		LerpedDisplacement[k] += ScalarDisplacement1 * Barycentrics[k].Y;
+		LerpedDisplacement[k] += ScalarDisplacement2 * Barycentrics[k].Z;
 
-			FVector3f p0 = Verts[ Indexes[ TriIndex * 3 + i0 ] ].Position;
-			FVector3f p1 = Verts[ Indexes[ TriIndex * 3 + i1 ] ].Position;
+		FVector2f UV;
+		UV  = Vert0.UVs[0] * Barycentrics[k].X;
+		UV += Vert1.UVs[0] * Barycentrics[k].Y;
+		UV += Vert2.UVs[0] * Barycentrics[k].Z;
 
-			float EdgeLength = ( p0 - p1 ).Size();
-
-			TessFactors[i] = FMath::Clamp( EdgeLength / DiceRate, 1, 0xffff );
-		}
-
-		uint32 EdgeIndex = FMath::Max3Index(
-			TessFactors[0],
-			TessFactors[1],
-			TessFactors[2] );
-
-		uint16 TessFactor = FMath::RoundToInt( TessFactors[ EdgeIndex ] );
-
-		if( TessFactor > Nanite::FTessellationTable::MaxTessFactor )
-		{
-			// Split
-			const uint32 e0 = EdgeIndex;
-			const uint32 e1 = (1 << e0) & 3;
-			const uint32 e2 = (1 << e1) & 3;
-
-			const uint32 i0 = Indexes[ TriIndex * 3 + e0 ];
-			const uint32 i1 = Indexes[ TriIndex * 3 + e1 ];
-			const uint32 i2 = Indexes[ TriIndex * 3 + e2 ];
-
-			// Deterministic weights
-			uint32 Hash0 = HashPosition( Verts[ i0 ].Position );
-			uint32 Hash1 = HashPosition( Verts[ i1 ].Position );
-
-			// Diagsplit rules
-			uint16 HalfSplit = TessFactor >> 1;
-			uint16 TessFactor0 = Hash0 < Hash1 ? HalfSplit : TessFactor - HalfSplit;
-			uint16 TessFactor1 = Hash0 < Hash1 ? TessFactor - HalfSplit : HalfSplit;
-
-			float Weight0 = (float)TessFactor0 / TessFactor;
-			float Weight1 = (float)TessFactor1 / TessFactor;
-
-			FLerpVert NewVert;
-			NewVert  = FLerpVert( Verts[ i0 ] ) * Weight0;
-			NewVert += FLerpVert( Verts[ i1 ] ) * Weight1;
-
-			uint32 Hash = HashPosition( NewVert.Position );
-			uint32 NewIndex = ~0u;
-			for( auto Iter = HashTable.CreateKeyIterator( Hash ); Iter; ++Iter )
-			{
-				if( 0 == FMemory::Memcmp( &Verts[ Iter.Value() ], &NewVert, VertSize * sizeof( float ) ) )
-				{
-					NewIndex = Iter.Value();
-					break;
-				}
-			}
-			if( NewIndex == ~0u )
-			{
-				NewIndex = Verts.Add( NewVert );
-				HashTable.Add( Hash, NewIndex );
-			}
-
-			// Replace v0
-			Indexes.Append( { NewIndex, i1, i2 } );
-
-			int32 MaterialIndex = MaterialIndexes[ TriIndex ];
-			MaterialIndexes.Add( MaterialIndex );
-			NumTris++;
-
-			// Replace v1
-			Indexes[ TriIndex * 3 + e1 ] = NewIndex;
-			continue;
-		}
-
-		uint32 e0 = FMath::Clamp< uint32 >( FMath::CeilToInt( TessFactors[0] ), 1, Nanite::FTessellationTable::MaxTessFactor ) - 1;
-		uint32 e1 = FMath::Clamp< uint32 >( FMath::CeilToInt( TessFactors[1] ), 1, Nanite::FTessellationTable::MaxTessFactor ) - 1;
-		uint32 e2 = FMath::Clamp< uint32 >( FMath::CeilToInt( TessFactors[2] ), 1, Nanite::FTessellationTable::MaxTessFactor ) - 1;
-		
-		uint32 i0 = Indexes[ TriIndex * 3 + 0 ];
-		uint32 i1 = Indexes[ TriIndex * 3 + 1 ];
-		uint32 i2 = Indexes[ TriIndex * 3 + 2 ];
-
-		if( e0 + e1 + e2 == 0 )
-		{
-			TriIndex++;
-			continue;
-		}
-
-		// Sorting can flip winding which we need to undo later.
-		uint32 bFlipWinding = 0;
-		if( e0 < e1 ) { Swap( e0, e1 );	Swap( i0, i2 ); bFlipWinding ^= 1; }
-		if( e0 < e2 ) { Swap( e0, e2 );	Swap( i1, i2 ); bFlipWinding ^= 1; }
-		if( e1 < e2 ) { Swap( e1, e2 );	Swap( i0, i1 ); bFlipWinding ^= 1; }
-
-		uint32 Pattern = e0 + e1 * 16 + e2 * 256;
-
-		FUintVector2 Offsets0 = TessellationTable.OffsetTable[ Pattern + 0 ];
-		FUintVector2 Offsets1 = TessellationTable.OffsetTable[ Pattern + 1 ];
-
-		NewVertIndexes.Reset();
-		for( uint32 i = Offsets0.X; i < Offsets1.X; i++ )
-		{
-			uint32 Vert = TessellationTable.Verts[i];
-
-			FVector3f Barycentrics;
-			Barycentrics.X = Vert & 0xffff;
-			Barycentrics.Y = Vert >> 16;
-			Barycentrics.Z = Nanite::FTessellationTable::BarycentricMax - Barycentrics.X - Barycentrics.Y;
-			Barycentrics  /= Nanite::FTessellationTable::BarycentricMax;
-
-			FLerpVert NewVert;
-			NewVert  = FLerpVert( Verts[ i0 ] ) * Barycentrics.X;
-			NewVert += FLerpVert( Verts[ i1 ] ) * Barycentrics.Y;
-			NewVert += FLerpVert( Verts[ i2 ] ) * Barycentrics.Z;
-
-			uint32 Hash = HashPosition( NewVert.Position );
-			uint32 NewIndex = ~0u;
-			for( auto Iter = HashTable.CreateKeyIterator( Hash ); Iter; ++Iter )
-			{
-				if( 0 == FMemory::Memcmp( &Verts[ Iter.Value() ], &NewVert, VertSize * sizeof( float ) ) )
-				{
-					NewIndex = Iter.Value();
-					break;
-				}
-			}
-			if( NewIndex == ~0u )
-			{
-				NewIndex = Verts.Add( NewVert );
-				HashTable.Add( Hash, NewIndex );
-			}
-			NewVertIndexes.Add( NewIndex );
-		}
-
-		for( uint32 i = Offsets0.Y; i < Offsets1.Y; i++ )
-		{
-			uint32 Triangle = TessellationTable.Indexes[i];
-
-			uint32 VertIndexes[3];
-			VertIndexes[0] = ( Triangle >>  0 ) & 1023;
-			VertIndexes[1] = ( Triangle >> 10 ) & 1023;
-			VertIndexes[2] = ( Triangle >> 20 ) & 1023;
-
-			if( bFlipWinding )
-				Swap( VertIndexes[1], VertIndexes[2] );
-
-			Indexes.Append( {
-				NewVertIndexes[ VertIndexes[0] ],
-				NewVertIndexes[ VertIndexes[1] ],
-				NewVertIndexes[ VertIndexes[2] ] } );
-
-			int32 MaterialIndex = MaterialIndexes[ TriIndex ];
-			MaterialIndexes.Add( MaterialIndex );
-			NumTris++;
-		}
-
-		// Remove pre-diced triangle
-		Indexes.RemoveAtSwap( TriIndex * 3 + 2, 1, false );
-		Indexes.RemoveAtSwap( TriIndex * 3 + 1, 1, false );
-		Indexes.RemoveAtSwap( TriIndex * 3 + 0, 1, false );
-		MaterialIndexes.RemoveAtSwap( TriIndex, 1, false );
-		NumTris--;
-		TriIndex++;
+		MinUV = FVector2f::Min( MinUV, UV );
+		MaxUV = FVector2f::Max( MaxUV, UV );
 	}
+	
+	FVector2f LerpedBounds;
+	LerpedBounds.X = FMath::Min3( LerpedDisplacement[0], LerpedDisplacement[1], LerpedDisplacement[2] );
+	LerpedBounds.Y = FMath::Max3( LerpedDisplacement[0], LerpedDisplacement[1], LerpedDisplacement[2] );
+
+	FVector2f DisplacementBounds = DisplacementMaps[ DisplacementIndex ].Sample( MinUV, MaxUV );
+
+	FVector2f Delta( DisplacementBounds.X - LerpedBounds.Y, DisplacementBounds.Y - LerpedBounds.X );
+	FVector2f DeltaSqr = Delta * Delta;
+
+	FVector2f ErrorBounds;
+	ErrorBounds.X = DeltaSqr.GetMin();
+	ErrorBounds.Y = DeltaSqr.GetMax();
+	if( Delta.X * Delta.Y < 0.0f )
+		ErrorBounds.X = 0.0f;
+#endif
 }
 
 bool DisplaceNaniteMesh(
@@ -427,6 +143,8 @@ bool DisplaceNaniteMesh(
 )
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(DisplaceNaniteMesh);
+
+	uint32 Time0 = FPlatformTime::Cycles();
 
 	// TODO: Make the mesh prepare and displacement logic extensible, and not hardcoded within this plugin
 
@@ -479,22 +197,81 @@ bool DisplaceNaniteMesh(
 	});
 	// END - MESH PREPARE
 
-	Tessellate( Verts, Indexes, MaterialIndexes, Parameters.DiceRate );
+	FBounds3f Bounds;
+	for( auto& Vert : Verts )
+		Bounds += Vert.Position;
 
-	TArray< FDisplacementMap > DisplacementMaps;
+	float SurfaceArea = 0.0f;
+	for( int32 TriIndex = 0; TriIndex < MaterialIndexes.Num(); TriIndex++ )
+	{
+		auto& Vert0 = Verts[ Indexes[ TriIndex * 3 + 0 ] ];
+		auto& Vert1 = Verts[ Indexes[ TriIndex * 3 + 1 ] ];
+		auto& Vert2 = Verts[ Indexes[ TriIndex * 3 + 2 ] ];
+
+		FVector3f Edge01 = Vert1.Position - Vert0.Position;
+		FVector3f Edge12 = Vert2.Position - Vert1.Position;
+		FVector3f Edge20 = Vert0.Position - Vert2.Position;
+
+		SurfaceArea += 0.5f * ( Edge01 ^ Edge20 ).Size();
+	}
+
+	float TargetError = Parameters.RelativeError * 0.01f * FMath::Sqrt( FMath::Min( 2.0f * SurfaceArea, Bounds.GetSurfaceArea() ) );
+
+	// Overtessellate by 50% and simplify down
+	TargetError *= 1.5f;
+
+	TArray< Nanite::FDisplacementMap > DisplacementMaps;
 	for( auto& DisplacementMap : Parameters.DisplacementMaps )
 	{
 		if( IsValid( DisplacementMap.Texture ) )
-			DisplacementMaps.Add( FDisplacementMap( DisplacementMap.Texture->Source, DisplacementMap.Magnitude, DisplacementMap.Center ) );
+			DisplacementMaps.Add( Nanite::FDisplacementMap( DisplacementMap.Texture->Source, DisplacementMap.Magnitude, DisplacementMap.Center ) );
 		else
 			DisplacementMaps.AddDefaulted();
 	}
 
-	ParallelFor( TEXT("Nanite.Displace.PF"), Verts.Num(), 1024,
-		[&]( int32 VertIndex )
+	TArray< FLerpVert >	LerpVerts;
+	LerpVerts.AddUninitialized( Verts.Num() );
+	for( int i = 0; i < Verts.Num(); i++ )
+		LerpVerts[i] = Verts[i];
+
+	Nanite::FAdaptiveTessellator Tessellator( LerpVerts, Indexes, MaterialIndexes, TargetError, TargetError, true,
+		[&](const FVector3f& Barycentrics,
+			const FLerpVert& Vert0,
+			const FLerpVert& Vert1,
+			const FLerpVert& Vert2 )
 		{
-			DisplacementShader( Verts[ VertIndex ], DisplacementMaps );
+			return UserGetDisplacement(
+				Barycentrics,
+				Vert0,
+				Vert1,
+				Vert2,
+				DisplacementMaps );
+		},
+		[&](const FVector3f Barycentrics[3],
+			const FLerpVert& Vert0,
+			const FLerpVert& Vert1,
+			const FLerpVert& Vert2,
+			const FVector3f& Displacement0,
+			const FVector3f& Displacement1,
+			const FVector3f& Displacement2 )
+		{
+			return UserGetErrorBounds(
+				Barycentrics,
+				Vert0,
+				Vert1,
+				Vert2,
+				Displacement0,
+				Displacement1,
+				Displacement2,
+				DisplacementMaps );
 		} );
+
+	Verts.SetNumUninitialized( LerpVerts.Num() );
+	for( int i = 0; i < Verts.Num(); i++ )
+		Verts[i] = LerpVerts[i];
+
+	uint32 Time1 = FPlatformTime::Cycles();
+	UE_LOG( LogStaticMesh, Log, TEXT("Adaptive tessellate [%.2fs], tris: %i"), FPlatformTime::ToMilliseconds( Time1 - Time0 ) / 1000.0f, Indexes.Num() / 3 );
 
 	return true;
 }

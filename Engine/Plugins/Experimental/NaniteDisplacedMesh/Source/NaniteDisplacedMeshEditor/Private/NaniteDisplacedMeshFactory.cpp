@@ -56,7 +56,7 @@ UNaniteDisplacedMesh* LinkDisplacedMeshAsset(UNaniteDisplacedMesh* ExistingDispl
 		bApplyDisplacement = bApplyDisplacement || (DisplacementMap.Magnitude > 0.0f && IsValid(DisplacementMap.Texture));
 	}
 
-	if (!IsValid(InParameters.BaseMesh) || !bApplyDisplacement || InParameters.DiceRate <= 0.0f)
+	if (!IsValid(InParameters.BaseMesh) || !bApplyDisplacement || InParameters.RelativeError <= 0.0f)
 	{
 		return nullptr;
 	}
@@ -208,7 +208,7 @@ FGuid GetAggregatedId(const FNaniteDisplacedMeshParams& DisplacedMeshParams)
 
 	IdBuilder << NANITE_DISPLACED_MESH_ID_VERSION;
 
-	IdBuilder << DisplacedMeshParams.DiceRate;
+	IdBuilder << DisplacedMeshParams.RelativeError;
 
 	if (IsValid(DisplacedMeshParams.BaseMesh))
 	{
