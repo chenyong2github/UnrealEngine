@@ -14,8 +14,13 @@ namespace UE::ConcertSyncCore
 		TMap<FName, FActivityID> AddedPackages;
 		TMap<FName, FActivityID> SavedPackages;
 		TMap<FName, FActivityID> RemovedPackages;
-		TMap<FName, FActivityID> RenamedPackages;
+		/** Value: The last activity that renamed a package to the key. */
+		TMap<FName, FActivityID> RenamedToPackages;
+		/** Value: The last activity that renamed a package from the key to something else. */
+		TMap<FName, FActivityID> RenamedFromPackages;
 		TMap<FName, FActivityID> ModifiedPackages;
+		/** The first activity that modified the given package after a revision of the package has been created. */
+		TMap<FName, TArray<FActivityID>> TransactionsAffectingPackageSinceLastPackageActivity;
 
 		enum class ESubobjectState
 		{
@@ -56,10 +61,14 @@ namespace UE::ConcertSyncCore
 		void DiscoverRenamedPackageDependencies(const FActivityNodeID NodeID, const FConcertSyncActivity& Activity, const FConcertSyncPackageEventMetaData& EventData);
 		void DiscoverDeletedPackageDependencies(const FActivityNodeID NodeID, const FConcertSyncActivity& Activity, const FConcertSyncPackageEventMetaData& EventData);
 
+		void DiscoverPackageEditedDependencies(const FActivityNodeID DependingNodeID, FName ModifiedPackage);
+
 		/** Util function for declarative style dependency statement in C++ */
 		enum class EPackageAddDependencyCondition
 		{
+			/** The activity will be added unconditionally */
 			Always,
+			/** From the array of activities, only the one with the highest activity ID will be added. */
 			OnlyLatestActivity
 		};
 		using FPackageActivityItem = TTuple<const FActivityID* /* ActivityID */, EActivityDependencyReason /* Reason */, EDependencyStrength /* DependencyStrength*/, EPackageAddDependencyCondition /* AddCondition */>;
@@ -151,7 +160,16 @@ namespace UE::ConcertSyncCore
 		for (const FName ModifiedPackage : EventData.Transaction.ModifiedPackages)
 		{
 			const FActivityID* LastModifyingActivity = PackageTracker.ModifiedPackages.Find(ModifiedPackage);
-			if (LastModifyingActivity)
+			const FActivityID* LastAddedActivity = PackageTracker.AddedPackages.Find(ModifiedPackage);
+			const FActivityID* LastRenamingActivity = PackageTracker.RenamedToPackages.Find(ModifiedPackage);
+
+			// We might depend on an activity that modified the same package but only if it is still the same package, i.e.
+			// 1. The package was not added again between the previous transaction and the current (would imply delete or rename inbetween)
+			// 2. The package was not renamed between the previous transaction and the current
+			const bool bCanConsiderLastModifyingActivity = LastModifyingActivity
+				&& (!LastAddedActivity || *LastAddedActivity < *LastModifyingActivity)
+				&& (!LastRenamingActivity || *LastRenamingActivity < *LastModifyingActivity);
+			if (bCanConsiderLastModifyingActivity)
 			{
 				// If there is already a hard dependency to a previous activity, then we do not "possibly" depend on it: we definitely depend on it (already).
 				if (!CreatedDependencies.Contains(*LastModifyingActivity))
@@ -160,14 +178,14 @@ namespace UE::ConcertSyncCore
 				}
 			}
 			// If nobody modified the package, we depend on the activity that added the package...
-			else if (const FActivityID* LastAddedActivity = PackageTracker.AddedPackages.Find(ModifiedPackage))
+			else if (LastAddedActivity)
 			{
 				AddDependency(*LastAddedActivity, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency);
 			}
 			// ... or "created" it by renaming it
-			else if (const FActivityID* LastSavedActivity = PackageTracker.RenamedPackages.Find(ModifiedPackage))
+			else if (LastRenamingActivity)
 			{
-				AddDependency(*LastSavedActivity, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency);
+				AddDependency(*LastRenamingActivity, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency);
 			}
 
 			/* We should consider indirect dependencies, too. Related ticket: UE-148392.
@@ -218,7 +236,7 @@ namespace UE::ConcertSyncCore
 	{
 		const FName& Package = EventData.PackageInfo.PackageName;
 		const FActivityID* LastPackageRemoval = PackageTracker.RemovedPackages.Find(Package);
-		const FActivityID* LastPackageRename = PackageTracker.RenamedPackages.Find(Package);
+		const FActivityID* LastPackageRename = PackageTracker.RenamedToPackages.Find(Package);
 		
 		AddDependencies(
 			NodeID,
@@ -232,47 +250,101 @@ namespace UE::ConcertSyncCore
 	{
 		const FName& Package = EventData.PackageInfo.PackageName;
 		const FActivityID* LastPackageAddition = PackageTracker.AddedPackages.Find(Package);
-		const FActivityID* LastPackageRename = PackageTracker.RenamedPackages.Find(Package);
+		const FActivityID* LastPackageRename = PackageTracker.RenamedToPackages.Find(Package);
 
 		const FTrackedPackageActivityArray Dependencies {
 			{ LastPackageAddition, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity },
 			{ LastPackageRename, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity }
 		};
-		
 		AddDependencies(NodeID, Dependencies);
+
+		// Saving a package depends on the data that modified before it was saved
+		DiscoverPackageEditedDependencies(NodeID, Package);
 	}
 
 	void FActivityDependencyGraphBuildAlgorithm::DiscoverRenamedPackageDependencies(const FActivityNodeID NodeID, const FConcertSyncActivity& Activity, const FConcertSyncPackageEventMetaData& EventData)
 	{
 		const FName& NewPackageName = EventData.PackageInfo.NewPackageName;
 		const FName& OldPackageName = EventData.PackageInfo.PackageName;
-		
-		const FActivityID* NewNameAdded = PackageTracker.AddedPackages.Find(NewPackageName);
-		const FActivityID* NewPackageRenamed = PackageTracker.RenamedPackages.Find(NewPackageName);
+
+		// 1. Rename depends on whatever created the new package
+		const FActivityID* NewPackageAdded = PackageTracker.AddedPackages.Find(NewPackageName);
+		const FActivityID* NewPackageRenamed = PackageTracker.RenamedToPackages.Find(NewPackageName);
+		const FActivityID* LastActivityRenamingNewPackageName = PackageTracker.RenamedFromPackages.Find(NewPackageName);
 		const FActivityID* SavedNewPackage = PackageTracker.SavedPackages.Find(NewPackageName);
-		FTrackedPackageActivityArray NewPackageDependencies {
-			{ NewNameAdded, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity },
-			{ NewPackageRenamed, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity },
-		};
+		const FActivityID* DeleteNewPackage = PackageTracker.RemovedPackages.Find(NewPackageName);
+
+		// An add package activity A is only a valid dependency if there was no delete between A and Activity.ActivityId. Similar for the other cases.
+		const bool bIsNewPackageActivityValid = NewPackageAdded
+			&& (!DeleteNewPackage || *DeleteNewPackage < *NewPackageAdded)
+			&& (!LastActivityRenamingNewPackageName || *LastActivityRenamingNewPackageName < *NewPackageAdded);
+		const bool bIsNewPackageRenamedValid = NewPackageRenamed
+			&& (!NewPackageAdded || *NewPackageAdded < *NewPackageRenamed)
+			&& (!LastActivityRenamingNewPackageName || *LastActivityRenamingNewPackageName < *NewPackageRenamed);
+		
+		FTrackedPackageActivityArray NewPackageDependencies;
 		// When renaming, Concert does not generate a EConcertPackageUpdateType::Added type.
 		// Instead the renamed to package is added via an EConcertPackageUpdateType::Saved activity which occurs just before
 		// the corresponding EConcertPackageUpdateType::Rename activity.
-		if (!NewNameAdded && !NewPackageRenamed)
+		if (!bIsNewPackageActivityValid && !bIsNewPackageRenamedValid)
 		{
-			NewPackageDependencies.Add({ SavedNewPackage, EActivityDependencyReason::PackageCreation, EDependencyStrength::PossibleDependency, EPackageAddDependencyCondition::Always });
+			// Maybe this could be a hard dependency...
+			NewPackageDependencies = {{ SavedNewPackage, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::Always }};
+			
+			// Saving a package depends on the data that modified before it was saved
+			// SavedNewPackage was already processed but since the algorithm only looks backwards we didn't know the save operation was needed by a rename.
+			// Now we know and must retrospectively update that nodes dependencies.
+			if (SavedNewPackage)
+			{
+				const TOptional<FActivityNodeID> SaveNodeId = Graph.FindNodeByActivity(*SavedNewPackage);
+				checkf(SaveNodeId.IsSet(), TEXT("SaveNodeId (%lld) preceeds the rename (%lld) so we should already have created a node for it in the graph!"), *SavedNewPackage, Activity.ActivityId);
+				DiscoverPackageEditedDependencies(*SaveNodeId, OldPackageName);
+			}
 		}
-		
-		const FActivityID* OldPackageAdded = PackageTracker.AddedPackages.Find(OldPackageName);
-		const FActivityID* OldPackageRenamed = PackageTracker.RenamedPackages.Find(OldPackageName);
-		const FActivityID* SavedOldPackage = PackageTracker.SavedPackages.Find(OldPackageName);
-		FTrackedPackageActivityArray OldPackageDependencies {
-			{ OldPackageAdded, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity },
-			{ OldPackageRenamed, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity },
-		};
-		// See above
-		if (!OldPackageAdded && !OldPackageRenamed)
+		else
 		{
-			OldPackageDependencies.Add({ SavedOldPackage, EActivityDependencyReason::PackageCreation, EDependencyStrength::PossibleDependency, EPackageAddDependencyCondition::Always });
+			if (bIsNewPackageActivityValid)
+			{
+				NewPackageDependencies.Add({ NewPackageAdded, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity });
+			}
+			if (bIsNewPackageRenamedValid)
+			{
+				NewPackageDependencies.Add({ NewPackageRenamed, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity });
+			}
+		}
+
+		// 2. Rename depends on whatever created the old package
+		const FActivityID* OldPackageAdded = PackageTracker.AddedPackages.Find(OldPackageName);
+		const FActivityID* OldPackageRenamed = PackageTracker.RenamedToPackages.Find(OldPackageName);
+		const FActivityID* LastActivityRenamingOldPackageName = PackageTracker.RenamedFromPackages.Find(OldPackageName);
+		const FActivityID* SavedOldPackage = PackageTracker.SavedPackages.Find(OldPackageName);
+		const FActivityID* DeleteOldPackage = PackageTracker.RemovedPackages.Find(OldPackageName);
+
+		// See similar cases from above
+		const bool bIsOldPackageActivityValid = OldPackageAdded
+			&& (!DeleteOldPackage || *DeleteOldPackage < *OldPackageAdded)
+			&& (!LastActivityRenamingOldPackageName || *LastActivityRenamingOldPackageName < *OldPackageAdded);
+		const bool bIsOldPackageRenamedValid = OldPackageRenamed
+			&& (!OldPackageAdded || *OldPackageAdded < *OldPackageRenamed)
+			&& (!LastActivityRenamingOldPackageName || *LastActivityRenamingOldPackageName < *OldPackageRenamed);
+		
+		FTrackedPackageActivityArray OldPackageDependencies;
+		// See above
+		if (!bIsOldPackageActivityValid && !bIsOldPackageRenamedValid)
+		{
+			// Maybe this could be a hard dependency...
+			OldPackageDependencies = {{ SavedOldPackage, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::Always }};
+		}
+		else
+		{
+			if (bIsOldPackageActivityValid)
+			{
+				OldPackageDependencies.Add({ OldPackageAdded, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity });
+			}
+			if (bIsOldPackageRenamedValid)
+			{
+				OldPackageDependencies.Add({ OldPackageRenamed, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity });
+			}
 		}
 		
 		AddDependencies(NodeID, NewPackageDependencies);
@@ -283,7 +355,7 @@ namespace UE::ConcertSyncCore
 	{
 		const FName& Package = EventData.PackageInfo.PackageName;
 		const FActivityID* LastPackageAddition = PackageTracker.AddedPackages.Find(Package);
-		const FActivityID* LastPackageRename = PackageTracker.RenamedPackages.Find(Package);
+		const FActivityID* LastPackageRename = PackageTracker.RenamedToPackages.Find(Package);
 		
 		AddDependencies(
 			NodeID,
@@ -291,6 +363,19 @@ namespace UE::ConcertSyncCore
 				{ LastPackageAddition, EActivityDependencyReason::PackageCreation, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity},
 				{ LastPackageRename, EActivityDependencyReason::PackageRename, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::OnlyLatestActivity }
 			});
+	}
+	
+	void FActivityDependencyGraphBuildAlgorithm::DiscoverPackageEditedDependencies(const FActivityNodeID DependingNodeID, FName ModifiedPackage)
+	{
+		TArray<FActivityID> TransactionsAffectingPackage;
+		PackageTracker.TransactionsAffectingPackageSinceLastPackageActivity.RemoveAndCopyValue(ModifiedPackage, TransactionsAffectingPackage);
+		for (const FActivityID& TransactionActivityID : TransactionsAffectingPackage)
+		{
+			AddDependencies(
+				DependingNodeID, 
+				{{ &TransactionActivityID, EActivityDependencyReason::PackageEdited, EDependencyStrength::HardDependency, EPackageAddDependencyCondition::Always }}
+			);
+		}
 	}
 	
 	void FActivityDependencyGraphBuildAlgorithm::AddDependencies(const FActivityNodeID NodeID, const FTrackedPackageActivityArray& Dependencies)
@@ -343,6 +428,10 @@ namespace UE::ConcertSyncCore
 		for (FName ModifiedPackage : EventData.Transaction.ModifiedPackages)
 		{
 			PackageTracker.ModifiedPackages.Add(ModifiedPackage, Activity.ActivityId);
+			
+			PackageTracker.TransactionsAffectingPackageSinceLastPackageActivity
+				.FindOrAdd(ModifiedPackage)
+				.Add(Activity.ActivityId);
 		}
 		
 		for (const FConcertExportedObject& ExportedObject : EventData.Transaction.ExportedObjects)
@@ -370,14 +459,17 @@ namespace UE::ConcertSyncCore
 			
 		case EConcertPackageUpdateType::Saved:
 			PackageTracker.SavedPackages.Add(PackageName, ActivityID);
+			PackageTracker.TransactionsAffectingPackageSinceLastPackageActivity.Remove(PackageName);
 			break;
 			
 		case EConcertPackageUpdateType::Renamed:
-			PackageTracker.RenamedPackages.Add(EventData.PackageInfo.NewPackageName, ActivityID);
+			PackageTracker.RenamedToPackages.Add(EventData.PackageInfo.NewPackageName, ActivityID);
+			PackageTracker.RenamedFromPackages.Add(EventData.PackageInfo.PackageName, ActivityID);
 			break;
 			
 		case EConcertPackageUpdateType::Deleted:
 			PackageTracker.RemovedPackages.Add(PackageName, ActivityID);
+			PackageTracker.TransactionsAffectingPackageSinceLastPackageActivity.Remove(PackageName);
 			break;
 			
 		case EConcertPackageUpdateType::Dummy:
@@ -388,7 +480,7 @@ namespace UE::ConcertSyncCore
 			checkNoEntry();
 		}
 	}
-
+	
 	FSoftObjectPath FActivityDependencyGraphBuildAlgorithm::MakePathFromExportedObject(const FConcertExportedObject& ExportedObject) const
 	{
 		return FSoftObjectPath(FString::Printf(TEXT("%s.%s"), *ExportedObject.ObjectId.ObjectOuterPathName.ToString(), *ExportedObject.ObjectId.ObjectName.ToString()));

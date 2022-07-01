@@ -35,21 +35,24 @@ namespace UE::ConcertSyncTests::AnalysisTests
 		// I highly recommend visualising the above graph to understand the test better
 		// Unmute an edit operation that took place after an actor rename
 		{
-			const FHistoryAnalysisResult UnmuteEditAfterRename = AnalyseActivityDependencies_BottomUp({ Activities[_4_EditActor] }, DependencyGraph);
+			const FHistoryAnalysisResult UnmuteEditAfterRename = AnalyseActivityDependencies_BottomUp({ Activities[_5_EditActor] }, DependencyGraph);
 			TestEqual(TEXT("UnmuteEditAfterRename.HardDependencies.Num() == 2"), UnmuteEditAfterRename.HardDependencies.Num(), 2);
 			TestEqual(TEXT("UnmuteEditAfterRename.PossibleDependencies.Num() == 1"), UnmuteEditAfterRename.PossibleDependencies.Num(), 1);
-			TestTrue(TEXT("Editing actor depends on creating actor"), UnmuteEditAfterRename.HardDependencies.Contains(Activities[_2_AddActor]));
+			TestTrue(TEXT("Editing actor depends on creating actor"), UnmuteEditAfterRename.HardDependencies.Contains(Activities[_3_AddActor]));
 			TestTrue(TEXT("Creating actor depends on creating map"), UnmuteEditAfterRename.HardDependencies.Contains(Activities[_1_NewPackageFoo]));
-			TestTrue(TEXT("Editting possibly depends on renaming"), UnmuteEditAfterRename.PossibleDependencies.Contains(Activities[_3_RenameActor]));
+			TestTrue(TEXT("Editting possibly depends on renaming"), UnmuteEditAfterRename.PossibleDependencies.Contains(Activities[_4_RenameActor]));
 		}
 
 		// Unmute package rename
 		{
-			const FHistoryAnalysisResult UnmutePackageRename = AnalyseActivityDependencies_BottomUp({ Activities[_5_RenameFooToBar] }, DependencyGraph);
-			TestEqual(TEXT("UnmuteEditAfterRename.HardDependencies.Num() == 1"), UnmutePackageRename.HardDependencies.Num(), 1);
-			TestEqual(TEXT("UnmuteEditAfterRename.PossibleDependencies.Num() == 1"), UnmutePackageRename.PossibleDependencies.Num(), 1);
-			TestTrue(TEXT("Renaming package depends on having create the package"), UnmutePackageRename.HardDependencies.Contains(Activities[_1_NewPackageFoo]));
-			TestTrue(TEXT("Renaming package possibly depends on saving package"), UnmutePackageRename.PossibleDependencies.Contains(Activities[_5_SavePackageBar]));
+			const FHistoryAnalysisResult UnmutePackageRename = AnalyseActivityDependencies_BottomUp({ Activities[_7_RenameFooToBar] }, DependencyGraph);
+			TestEqual(TEXT("UnmutePackageRename.HardDependencies.Num() == 5"), UnmutePackageRename.HardDependencies.Num(), 5);
+			TestEqual(TEXT("UnmutePackageRename.PossibleDependencies.Num() == 0"), UnmutePackageRename.PossibleDependencies.Num(), 0);
+			TestTrue(TEXT("_7_RenameFooToBar > _1_NewPackageFoo"), UnmutePackageRename.HardDependencies.Contains(Activities[_1_NewPackageFoo]));
+			TestTrue(TEXT("_7_RenameFooToBar > _3_AddActor"), UnmutePackageRename.HardDependencies.Contains(Activities[_3_AddActor]));
+			TestTrue(TEXT("_7_RenameFooToBar > _4_RenameActor"), UnmutePackageRename.HardDependencies.Contains(Activities[_4_RenameActor]));
+			TestTrue(TEXT("_7_RenameFooToBar > _5_EditActor"), UnmutePackageRename.HardDependencies.Contains(Activities[_5_EditActor]));
+			TestTrue(TEXT("_7_RenameFooToBar > _6_SavePackageBar"), UnmutePackageRename.HardDependencies.Contains(Activities[_6_SavePackageBar]));
 		}
 		
 		return true;

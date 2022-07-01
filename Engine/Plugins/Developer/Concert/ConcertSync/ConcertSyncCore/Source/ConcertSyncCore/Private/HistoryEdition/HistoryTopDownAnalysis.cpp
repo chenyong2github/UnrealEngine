@@ -137,10 +137,10 @@ namespace UE::ConcertSyncCore
 		const FActivityDependencyEdge* PackageCreationDependency = Algo::FindByPredicate(PossibleRenameActivityNode.GetDependencies(),
 			[](const FActivityDependencyEdge& Dependency)
 			{
-				const bool bIsAssociatedCreationActivity = Dependency.GetDependencyReason() == EActivityDependencyReason::PackageCreation && Dependency.GetDependencyStrength() == EDependencyStrength::PossibleDependency;
+				const bool bIsAssociatedCreationActivity = Dependency.GetDependencyReason() == EActivityDependencyReason::PackageCreation && Dependency.GetDependencyStrength() == EDependencyStrength::HardDependency;
 				return bIsAssociatedCreationActivity;
 			});
-		if (ensureMsgf(PackageCreationDependency, TEXT("Rename activities should have a possible dependency to the activity that creatd the renamed-to package"))
+		if (ensureMsgf(PackageCreationDependency, TEXT("Rename activities should have a hard dependency to the activity that creatd the renamed-to package"))
 			&& !DoubleEnqueuingProtection.Contains(PackageCreationDependency->GetDependedOnNodeID()))
 		{
 			DoubleEnqueuingProtection.Add(PackageCreationDependency->GetDependedOnNodeID());

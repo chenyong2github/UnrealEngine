@@ -20,16 +20,16 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 	{
 		return {
 			_1_NewPackageFoo,
-			_1_SavePackageFoo,
-			_2_AddActor,
-			_3_RenameActor,
-			_4_EditActor,
-			_5_SavePackageBar,
-			_5_RenameFooToBar,
-			_6_EditActor,
-			_7_DeleteBar,
-			_8_NewPackageFoo,
-			_8_SavePackageFoo
+			_2_SavePackageFoo,
+			_3_AddActor,
+			_4_RenameActor,
+			_5_EditActor,
+			_6_SavePackageBar,
+			_7_RenameFooToBar,
+			_8_EditActor,
+			_9_DeleteBar,
+			_10_NewPackageFoo,
+			_11_SavePackageFoo
 		};
 	}
 
@@ -38,16 +38,16 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 		switch (Activity)
 		{
 		case _1_NewPackageFoo: return TEXT("\"1 New package Foo\"");
-		case _1_SavePackageFoo: return TEXT("\"1 Saved package Foo\"");
-		case _2_AddActor: return TEXT("\"2 Create actor\"");
-		case _3_RenameActor: return TEXT("\"3 Edit actor\"");
-		case _4_EditActor: return TEXT("\"4 Edit actor\"");
-		case _5_SavePackageBar: return TEXT("\"5 Save package\"");
-		case _5_RenameFooToBar: return TEXT("\"5 Rename Foo to Bar\"");
-		case _6_EditActor: return TEXT("\"6 Edit actor\"");
-		case _7_DeleteBar: return TEXT("\"7 Delete package Bar\"");
-		case _8_NewPackageFoo: return TEXT("\"8 Create package Bar\"");
-		case _8_SavePackageFoo: return TEXT("\"8 Save package Bar\"");
+		case _2_SavePackageFoo: return TEXT("\"1 Saved package Foo\"");
+		case _3_AddActor: return TEXT("\"2 Create actor\"");
+		case _4_RenameActor: return TEXT("\"3 Edit actor\"");
+		case _5_EditActor: return TEXT("\"4 Edit actor\"");
+		case _6_SavePackageBar: return TEXT("\"5 Save package\"");
+		case _7_RenameFooToBar: return TEXT("\"5 Rename Foo to Bar\"");
+		case _8_EditActor: return TEXT("\"6 Edit actor\"");
+		case _9_DeleteBar: return TEXT("\"7 Delete package Bar\"");
+		case _10_NewPackageFoo: return TEXT("\"8 Create package Bar\"");
+		case _11_SavePackageFoo: return TEXT("\"8 Save package Bar\"");
 				
 		case ActivityCount:
 		default:
@@ -91,7 +91,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			FConcertSyncActivity SavePackage = MakeActivity<FConcertSyncActivity>(EndpointID);
 			PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Saved;
 			SessionDatabase.GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
-			bAllSucceeded &= SessionDatabase.AddPackageActivity(SavePackage, PackageInfo, PackageDataStream, ActivityIDs[_1_SavePackageFoo], PackageEventIDs[_1_SavePackageFoo]);
+			bAllSucceeded &= SessionDatabase.AddPackageActivity(SavePackage, PackageInfo, PackageDataStream, ActivityIDs[_2_SavePackageFoo], PackageEventIDs[_2_SavePackageFoo]);
 		}
 
 		// 2 Add actor A
@@ -105,7 +105,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			CreateActor.EventData.Transaction.ExportedObjects = { NewActorData.StaticMeshComponent, NewActorData.Actor };
 			CreateActor.EventData.Transaction.ModifiedPackages = { FooLevel };
 			SessionDatabase.GetTransactionMaxEventId(CreateActor.EventId);
-			bAllSucceeded &= SessionDatabase.AddTransactionActivity(CreateActor, ActivityIDs[_2_AddActor], PackageEventIDs[_2_AddActor]);
+			bAllSucceeded &= SessionDatabase.AddTransactionActivity(CreateActor, ActivityIDs[_3_AddActor], PackageEventIDs[_3_AddActor]);
 		}
 
 		// 3 Rename actor A
@@ -119,7 +119,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			EditActor.EventData.Transaction.ExportedObjects = { NewActorData.Actor };
 			EditActor.EventData.Transaction.ModifiedPackages = { FooLevel };
 			SessionDatabase.GetTransactionMaxEventId(EditActor.EventId);
-			bAllSucceeded &= SessionDatabase.AddTransactionActivity(EditActor, ActivityIDs[_3_RenameActor], PackageEventIDs[_3_RenameActor]);
+			bAllSucceeded &= SessionDatabase.AddTransactionActivity(EditActor, ActivityIDs[_4_RenameActor], PackageEventIDs[_4_RenameActor]);
 		}
 
 		// 4 Edit actor A
@@ -132,7 +132,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			EditActor.EventData.Transaction.ExportedObjects = { NewActorData.StaticMeshComponent };
 			EditActor.EventData.Transaction.ModifiedPackages = { FooLevel };
 			SessionDatabase.GetTransactionMaxEventId(EditActor.EventId);
-			bAllSucceeded &= SessionDatabase.AddTransactionActivity(EditActor, ActivityIDs[_4_EditActor], PackageEventIDs[_4_EditActor]);
+			bAllSucceeded &= SessionDatabase.AddTransactionActivity(EditActor, ActivityIDs[_5_EditActor], PackageEventIDs[_5_EditActor]);
 		}
 
 		// 5 Rename map to Bar
@@ -143,12 +143,12 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			PackageInfo.PackageName = BarLevel;
 			PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Saved;
 			SessionDatabase.GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
-			bAllSucceeded &= SessionDatabase.AddPackageActivity(SaveBarPackage, PackageInfo, PackageDataStream, ActivityIDs[_5_SavePackageBar], PackageEventIDs[_5_SavePackageBar]);
+			bAllSucceeded &= SessionDatabase.AddPackageActivity(SaveBarPackage, PackageInfo, PackageDataStream, ActivityIDs[_6_SavePackageBar], PackageEventIDs[_6_SavePackageBar]);
 
 			PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Renamed;
 			PackageInfo.PackageName = FooLevel;
 			PackageInfo.NewPackageName = BarLevel;
-			bAllSucceeded &= SessionDatabase.AddPackageActivity(SaveBarPackage, PackageInfo, PackageDataStream, ActivityIDs[_5_RenameFooToBar], PackageEventIDs[_5_RenameFooToBar]);
+			bAllSucceeded &= SessionDatabase.AddPackageActivity(SaveBarPackage, PackageInfo, PackageDataStream, ActivityIDs[_7_RenameFooToBar], PackageEventIDs[_7_RenameFooToBar]);
 		}
 
 		// 6 Edit actor A
@@ -161,7 +161,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			EditActor.EventData.Transaction.ExportedObjects = { NewActorData.StaticMeshComponent };
 			EditActor.EventData.Transaction.ModifiedPackages = { BarLevel };
 			SessionDatabase.GetTransactionMaxEventId(EditActor.EventId);
-			bAllSucceeded &= SessionDatabase.AddTransactionActivity(EditActor, ActivityIDs[_6_EditActor], PackageEventIDs[_6_EditActor]);
+			bAllSucceeded &= SessionDatabase.AddTransactionActivity(EditActor, ActivityIDs[_8_EditActor], PackageEventIDs[_8_EditActor]);
 		}
 
 		// 7 Delete map Bar
@@ -172,7 +172,7 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			PackageInfo.PackageName = BarLevel;
 			PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Deleted;
 			SessionDatabase.GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
-			bAllSucceeded &= SessionDatabase.AddPackageActivity(SaveBarPackage, PackageInfo, PackageDataStream, ActivityIDs[_7_DeleteBar], PackageEventIDs[_7_DeleteBar]);
+			bAllSucceeded &= SessionDatabase.AddPackageActivity(SaveBarPackage, PackageInfo, PackageDataStream, ActivityIDs[_9_DeleteBar], PackageEventIDs[_9_DeleteBar]);
 		}
 		
 		// 8 Create map Bar
@@ -183,12 +183,12 @@ namespace UE::ConcertSyncTests::RenameEditAndDeleteMapsFlowTest
 			PackageInfo.PackageName = TEXT("/Game/Bar");
 			PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Added;
 			SessionDatabase.GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
-			bAllSucceeded &= SessionDatabase.AddPackageActivity(NewPackage, PackageInfo, PackageDataStream, ActivityIDs[_8_NewPackageFoo], PackageEventIDs[_8_NewPackageFoo]);
+			bAllSucceeded &= SessionDatabase.AddPackageActivity(NewPackage, PackageInfo, PackageDataStream, ActivityIDs[_10_NewPackageFoo], PackageEventIDs[_10_NewPackageFoo]);
 
 			FConcertSyncActivity SavePackage = MakeActivity<FConcertSyncActivity>(EndpointID);
 			PackageInfo.PackageUpdateType = EConcertPackageUpdateType::Saved;
 			SessionDatabase.GetTransactionMaxEventId(PackageInfo.TransactionEventIdAtSave);
-			bAllSucceeded &= SessionDatabase.AddPackageActivity(SavePackage, PackageInfo, PackageDataStream, ActivityIDs[_8_SavePackageFoo], PackageEventIDs[_8_SavePackageFoo]);
+			bAllSucceeded &= SessionDatabase.AddPackageActivity(SavePackage, PackageInfo, PackageDataStream, ActivityIDs[_11_SavePackageFoo], PackageEventIDs[_11_SavePackageFoo]);
 		}
 
 		if (!bAllSucceeded)

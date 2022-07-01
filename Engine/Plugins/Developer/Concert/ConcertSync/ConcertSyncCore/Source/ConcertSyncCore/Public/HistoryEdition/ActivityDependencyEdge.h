@@ -41,6 +41,14 @@ namespace UE::ConcertSyncCore
 		PackageRename,
 
 		/**
+		 * The depended-on activity edits the package that is required by this activity.
+		 *
+		 * Example: 1: Move actor 2: Save level
+		 * 2 depends on 1 (because the save operation would save different data if 1 was not performed).
+		 */
+		PackageEdited,
+
+		/**
 		 * The depended-on activity changes the state of a package that is depended on by a package this activity modifies.
 		 * 
 		 * Example: 1: Edit actor to reference data asset 2: Edit data asset 3: Edit actor, triggering the construction script.
@@ -62,7 +70,10 @@ namespace UE::ConcertSyncCore
 		 * Example: 1: Remove actor > 2. Create actor with same name
 		 * 2 cannot take place without 1.
 		 */
-		SubobjectRemoval
+		SubobjectRemoval,
+
+		// ADD BEFORE THIS ENTRY
+		Count
 	};
 	
 	FString LexToString(EActivityDependencyReason Reason);
@@ -76,7 +87,7 @@ namespace UE::ConcertSyncCore
 		HardDependency,
 		
 		/**
-		 * An activity A has a possible dependency to activity B when A may exist with B but we cannot rule out
+		 * An activity A has a possible dependency to activity B when A could possibly exist without B but we cannot rule out
 		 * that B does not affect A.
 		 * Example: You modify an actor twice each time triggering the construction script
 		 */
