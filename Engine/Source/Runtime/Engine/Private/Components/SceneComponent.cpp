@@ -750,62 +750,6 @@ void USceneComponent::OnUnregister()
 	Super::OnUnregister();
 }
 
-void USceneComponent::EndPlay(EEndPlayReason::Type Reason)
-{
-	Super::EndPlay(Reason);
-
-	// Detach all parent/child relationships with other actors to allow GC to clean us and our owner up.
-	// End play reasons other than destruction will be handled in UninitializeComponent and detach cross-level references.
-	if (Reason == EEndPlayReason::Destroyed)
-	{
-		if (AttachParent && AttachParent->GetOwner() != GetOwner())
-		{
-			DetachFromComponent(FDetachmentTransformRules::KeepRelativeTransform); // No need to fix up to world transform because we're being destroyed.
-		}
-
-		TInlineComponentArray<USceneComponent*> ChildrenToDetach;
-		for (int32 i = 0; i < AttachChildren.Num(); ++i)
-		{
-			if (USceneComponent* AttachChild = AttachChildren[i].Get(); AttachChild && AttachChild->GetOwner() != GetOwner())
-			{
-				ChildrenToDetach.Add(AttachChild);
-			}
-		}
-
-		for (USceneComponent* Child : ChildrenToDetach)
-		{
-			Child->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-		}
-	}
-}
-
-void USceneComponent::UninitializeComponent()
-{
-	Super::UninitializeComponent();
-
-	// Detach components which are in different streaming levels so that this level can be properly garbage collected.
-	// Note that we explicitly want to check the outer hierarchy and not the owning package because we want references that participate in GC.
-	UObject* Outermost = GetOutermostObject();
-	if (AttachParent && AttachParent->GetOutermostObject() != Outermost)
-	{
-		DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-	}
-
-	TInlineComponentArray<USceneComponent*> ChildrenToDetach;
-	for (int32 i = 0; i < AttachChildren.Num(); ++i)
-	{
-		if (USceneComponent* AttachChild = AttachChildren[i].Get(); AttachChild && AttachChild->GetOutermostObject() != Outermost)
-		{
-			ChildrenToDetach.Add(AttachChild);
-		}
-	}
-
-	for (USceneComponent* Child : ChildrenToDetach)
-	{
-		Child->DetachFromComponent(FDetachmentTransformRules::KeepWorldTransform);
-	}
-}
-
 void USceneComponent::PropagateTransformUpdate(bool bTransformChanged, EUpdateTransformFlags UpdateTransformFlags, ETeleportType Teleport)
 {
 	//QUICK_SCOPE_CYCLE_COUNTER(STAT_USceneComponent_PropagateTransformUpdate);

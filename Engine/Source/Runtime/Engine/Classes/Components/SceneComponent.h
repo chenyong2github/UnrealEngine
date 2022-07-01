@@ -905,8 +905,6 @@ public:
 	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
 	virtual void OnRegister() override;
 	virtual void OnUnregister() override;
-	virtual void EndPlay(EEndPlayReason::Type Reason) override;
-	virtual void UninitializeComponent() override;
 	virtual bool ShouldCreateRenderState() const override { return true; }
 	virtual void UpdateComponentToWorld(EUpdateTransformFlags UpdateTransformFlags = EUpdateTransformFlags::None, ETeleportType Teleport = ETeleportType::None) override final
 	{
