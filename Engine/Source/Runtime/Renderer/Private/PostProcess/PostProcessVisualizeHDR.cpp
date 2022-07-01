@@ -205,6 +205,14 @@ FScreenPassTexture AddVisualizeHDRPass(FRDGBuilder& GraphBuilder, const FViewInf
 			Canvas.DrawShadowedString(X, Y += YStep, TEXT("Exposure Compensation (Curve):"), GetStatsFont(), FLinearColor(1, 1, 1));
 			Canvas.DrawShadowedString(X + ColumnWidth, Y, *Line, GetStatsFont(), FLinearColor(1, 1, 1));
 
+			const float IlluminanceMeterTextX = Output.ViewRect.Min.X + Output.ViewRect.Size().X * 0.5f - 180.0f;
+			const float IlluminanceMeterTextY = Output.ViewRect.Min.Y + Output.ViewRect.Size().Y * 0.5f - 130.0f;
+			Canvas.DrawShadowedString(IlluminanceMeterTextX, IlluminanceMeterTextY, TEXT("Illuminance meter measuring the back hemisphere of the camera"), GetStatsFont(), FLinearColor(1, 1, 1));
+
+			const float LuminanceMeterTextX = Output.ViewRect.Min.X + Output.ViewRect.Size().X * 0.5f - 50.0f;
+			const float LuminanceMeterTextY = Output.ViewRect.Min.Y + Output.ViewRect.Size().Y * 0.5f - 30.0f;
+			Canvas.DrawShadowedString(LuminanceMeterTextX, LuminanceMeterTextY, TEXT("Luminance meter"), GetStatsFont(), FLinearColor(1, 1, 1));
+
 			AutoExposureBias += CurveExposureBias;
 		}
 

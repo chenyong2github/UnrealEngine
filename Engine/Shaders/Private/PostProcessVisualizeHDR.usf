@@ -291,6 +291,68 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 		}
 	}
 
+	// Illuminance meter for the hemisphere in front of the camera
+	{
+		OutColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
+
+		// IlluminanceMeter variables must match the one in DebugProbes.usf
+		const float  IlluminanceMeterSize = 20;
+		const float  IlluminanceMeterHalfSize = IlluminanceMeterSize / 2;
+		const float2 IlluminanceMeterCenter = View.ViewSizeAndInvSize.xy * 0.5f - uint2(0, 100);
+
+		const float2 IlluminanceMeterCenterUV = (0*Input_UVViewportMin + IlluminanceMeterCenter) * Input_ExtentInverse;
+
+		const float PixelDx = PixelPos.x - IlluminanceMeterCenter.x;
+		const float PixelDy = PixelPos.y - IlluminanceMeterCenter.y;
+		const float AbsPixelDx = abs(PixelDx);
+		const float AbsPixelDy = abs(PixelDy);
+		if (PixelDx > - 20 && PixelDx < 110 && PixelDy < 20 && PixelDy > -20)
+		{
+			float3 LuminanceAvg = 0.0f;
+			float SampleCount = 0.0f;
+			LOOP
+			for (float OffsetX = (-IlluminanceMeterHalfSize + 2); OffsetX < (IlluminanceMeterHalfSize-2); OffsetX++)
+			{
+				for (float OffsetY = (-IlluminanceMeterHalfSize + 2); OffsetY < (IlluminanceMeterHalfSize-2); OffsetY++)
+				{
+					float2 UV = IlluminanceMeterCenterUV + float2(OffsetX, OffsetY) * Input_ExtentInverse;
+					LuminanceAvg += Texture2DSampleLevel(HDRSceneColorTexture, HDRSceneColorSampler, UV, 0).rgb;
+					SampleCount++;
+				}
+			}
+			LuminanceAvg = LuminanceAvg / SampleCount;
+			LuminanceAvg *= View.OneOverPreExposure;
+
+			OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV); // Influenced area default scene color
+			if (AbsPixelDx < IlluminanceMeterHalfSize && AbsPixelDy < IlluminanceMeterHalfSize)
+			{
+				if (AbsPixelDx == IlluminanceMeterHalfSize - 1 || AbsPixelDy == IlluminanceMeterHalfSize - 1)
+				{
+					OutColor = float4(1.0, 1.0, 1.0, 1.0); // White border
+				}
+			}
+
+			float MaxLuminance = max(LuminanceAvg.r, max(LuminanceAvg.g, LuminanceAvg.b));
+			float MaxIlluminance = MaxLuminance * PI;
+
+			int2 TopLeft = IlluminanceMeterCenter + int2(11, 11);
+			// Illuminance
+			if (MaxIlluminance < 1000.0f)
+			{
+				PrintFloat(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
+			}
+			else
+			{
+				PrintFloatNoFractionLarge(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, MaxIlluminance);
+			}
+			TopLeft.x += 60;
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _L_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _U_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _X_);
+			return;
+		}
+	}
+
 	if (EyeAdaptation_VisualizeDebugType == 0)
 	{
 		OutColor = Texture2DSample(SceneColorTexture, SceneColorSampler, UV);

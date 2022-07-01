@@ -8,6 +8,8 @@
 #include "SceneTextureParameters.h"
 #include "Strata/Strata.h"
 
+#define DEBUG_PROBE_ENABLED (!UE_BUILD_SHIPPING)
+
 //
 //	Deferred probes are only stamped in deferred mode.
 //
@@ -40,7 +42,8 @@ class FStampDeferredDebugProbePS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FStampDeferredDebugProbePS, FGlobalShader);
 
 	class FRenderPass : SHADER_PERMUTATION_RANGE_INT("PERMUTATION_PASS", 0, 3);
-	using FPermutationDomain = TShaderPermutationDomain<FRenderPass>;
+	class FVisualizeHDR : SHADER_PERMUTATION_BOOL("PERMUTATION_VISUALIZEHDR");
+	using FPermutationDomain = TShaderPermutationDomain<FRenderPass, FVisualizeHDR>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
@@ -72,13 +75,27 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FStampDeferredDebugProbePS, "/Engine/Private/DebugProbes.usf", "MainPS", SF_Pixel);
 
+#if DEBUG_PROBE_ENABLED
+
+static bool AnyViewRequireVisualizeHDR(TArrayView<const FViewInfo> Views)
+{
+	for (const FViewInfo& View : Views)
+	{
+		if (View.Family->EngineShowFlags.VisualizeHDR)
+		{
+			return true;
+		}
+	}
+	return false;
+}
  
 template<bool bEnableDepthWrite, ECompareFunction CompareFunction>
 static void CommonStampDeferredDebugProbeDrawCall(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	FStampDeferredDebugProbePS::FParameters* PassParameters,
-	int32 RenderPass)
+	int32 RenderPass,
+	bool bVisualizeHDR)
 {
 	PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
 	PassParameters->MaterialTextureArrayUAV = View.StrataViewData.SceneData->MaterialTextureArrayUAVWithoutRTs;
@@ -88,6 +105,7 @@ static void CommonStampDeferredDebugProbeDrawCall(
 		
 	FStampDeferredDebugProbePS::FPermutationDomain PermutationVector;
 	PermutationVector.Set<FStampDeferredDebugProbePS::FRenderPass>(RenderPass);
+	PermutationVector.Set<FStampDeferredDebugProbePS::FVisualizeHDR>(bVisualizeHDR);
 	TShaderMapRef<FStampDeferredDebugProbePS> PixelShader(View.ShaderMap, PermutationVector);
 
 	FPixelShaderUtils::AddFullscreenPass<FStampDeferredDebugProbePS>(
@@ -98,18 +116,22 @@ static void CommonStampDeferredDebugProbeDrawCall(
 		TStaticDepthStencilState<bEnableDepthWrite, CompareFunction>::GetRHI());
 }
 
+#endif // DEBUG_PROBE_ENABLED
+
 void StampDeferredDebugProbeDepthPS(
 	FRDGBuilder& GraphBuilder,
 	TArrayView<const FViewInfo> Views,
 	const FRDGTextureRef SceneDepthTexture)
 {
+#if DEBUG_PROBE_ENABLED
 	RDG_EVENT_SCOPE(GraphBuilder, "StampDeferredDebugProbeDepth");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, StampDeferredDebugProbe);
 
+	const bool bVisualizeHDR = AnyViewRequireVisualizeHDR(Views);
 	const bool bVisualizeLightingOnProbes = CVarVisualizeLightingOnProbes.GetValueOnRenderThread() > 0;
 	for (const FViewInfo& View : Views)
 	{
-		if (!(bVisualizeLightingOnProbes || View.Family->EngineShowFlags.VisualizeLightingOnProbes) || View.bIsReflectionCapture)
+		if (!(bVisualizeLightingOnProbes || View.Family->EngineShowFlags.VisualizeLightingOnProbes || bVisualizeHDR) || View.bIsReflectionCapture)
 		{
 			continue;
 		}
@@ -117,8 +139,9 @@ void StampDeferredDebugProbeDepthPS(
 		FStampDeferredDebugProbePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FStampDeferredDebugProbePS::FParameters>();
 		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthWrite_StencilWrite);
 
-		CommonStampDeferredDebugProbeDrawCall<true, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_DEPTHPREPASS);
+		CommonStampDeferredDebugProbeDrawCall<true, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_DEPTHPREPASS, bVisualizeHDR);
 	}
+#endif // DEBUG_PROBE_ENABLED
 }
 
 void StampDeferredDebugProbeMaterialPS(
@@ -127,13 +150,15 @@ void StampDeferredDebugProbeMaterialPS(
 	const FRenderTargetBindingSlots& BasePassRenderTargets,
 	const FMinimalSceneTextures& SceneTextures)
 {
+#if DEBUG_PROBE_ENABLED
 	RDG_EVENT_SCOPE(GraphBuilder, "StampDeferredDebugProbeMaterial");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, StampDeferredDebugProbe);
 
+	const bool bVisualizeHDR = AnyViewRequireVisualizeHDR(Views);
 	const bool bVisualizeLightingOnProbes = CVarVisualizeLightingOnProbes.GetValueOnRenderThread() > 0;
 	for (const FViewInfo& View : Views)
 	{
-		if (!(bVisualizeLightingOnProbes || View.Family->EngineShowFlags.VisualizeLightingOnProbes) || View.bIsReflectionCapture)
+		if (!(bVisualizeLightingOnProbes || View.Family->EngineShowFlags.VisualizeLightingOnProbes || bVisualizeHDR) || View.bIsReflectionCapture)
 		{
 			continue;
 		}
@@ -146,14 +171,14 @@ void StampDeferredDebugProbeMaterialPS(
 			PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding();
 			PassParameters->SceneTextures = CreateSceneTextureShaderParameters(GraphBuilder, View.GetSceneTexturesChecked(), View.GetFeatureLevel(), ESceneTextureSetupMode::SceneDepth);
 
-			CommonStampDeferredDebugProbeDrawCall<false, CF_Always>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
+			CommonStampDeferredDebugProbeDrawCall<false, CF_Always>(GraphBuilder, View, PassParameters, RENDER_BASEPASS, bVisualizeHDR);
 		}
 		else
 		{
-			CommonStampDeferredDebugProbeDrawCall<false, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_BASEPASS);
+			CommonStampDeferredDebugProbeDrawCall<false, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_BASEPASS, bVisualizeHDR);
 		}
-
 	}
+#endif // DEBUG_PROBE_ENABLED
 }
 
 void StampDeferredDebugProbeVelocityPS(
@@ -161,13 +186,15 @@ void StampDeferredDebugProbeVelocityPS(
 	TArrayView<const FViewInfo> Views,
 	const FRenderTargetBindingSlots& BasePassRenderTargets)
 {
+#if DEBUG_PROBE_ENABLED
 	RDG_EVENT_SCOPE(GraphBuilder, "StampDeferredDebugProbeVelocity");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, StampDeferredDebugProbe);
 
+	const bool bVisualizeHDR = AnyViewRequireVisualizeHDR(Views);
 	const bool bVisualizeLightingOnProbes = CVarVisualizeLightingOnProbes.GetValueOnRenderThread() > 0;
 	for (const FViewInfo& View : Views)
 	{
-		if (!(bVisualizeLightingOnProbes || View.Family->EngineShowFlags.VisualizeLightingOnProbes) || View.bIsReflectionCapture)
+		if (!(bVisualizeLightingOnProbes || View.Family->EngineShowFlags.VisualizeLightingOnProbes || bVisualizeHDR) || View.bIsReflectionCapture)
 		{
 			continue;
 		}
@@ -176,7 +203,8 @@ void StampDeferredDebugProbeVelocityPS(
 		PassParameters->RenderTargets = BasePassRenderTargets;
 
 		const bool bRenderVelocity = true;
-		CommonStampDeferredDebugProbeDrawCall<false, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_VELOCITYPASS);
+		CommonStampDeferredDebugProbeDrawCall<false, CF_DepthNearOrEqual>(GraphBuilder, View, PassParameters, RENDER_VELOCITYPASS, bVisualizeHDR);
 	}
+#endif // DEBUG_PROBE_ENABLED
 }
 
