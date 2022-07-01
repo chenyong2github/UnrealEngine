@@ -283,8 +283,8 @@ class FPropertyNode : public TSharedFromThis<FPropertyNode>
 {
 public:
 
-	FPropertyNode(void);
-	virtual ~FPropertyNode(void);
+	FPropertyNode();
+	virtual ~FPropertyNode();
 
 	/**
 	 * Init Tree Node internally (used only derived classes to pass through variables that are common to all nodes
@@ -1054,8 +1054,6 @@ protected:
 	 * The node that is the parent of this node or nullptr for the root
 	 */
 	TWeakPtr<FPropertyNode> ParentNodeWeakPtr;
-	//@todo consolidate with ParentNodeWeakPtr, ParentNode is legacy
-	FPropertyNode* ParentNode;
 
 	/**	The property node, if any, that serves as the key value for this node */
 	TSharedPtr<FPropertyNode> PropertyKeyNode;

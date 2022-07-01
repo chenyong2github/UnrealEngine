@@ -761,7 +761,7 @@ TSharedPtr<FPropertyNode> FObjectPropertyNode::GenerateSingleChild( FName ChildP
 		return ChildNodes[0];
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 bool FObjectPropertyNode::IsSparseDataStruct(const UScriptStruct* Struct) const
@@ -784,7 +784,8 @@ bool FObjectPropertyNode::IsSparseDataStruct(const UScriptStruct* Struct) const
 bool FObjectPropertyNode::GetQualifiedName(FString& PathPlusIndex, bool bWithArrayIndex, const FPropertyNode* StopParent, bool bIgnoreCategories ) const
 {
 	bool bAddedAnything = false;
-	if (ParentNode && ParentNode != StopParent)
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode && StopParent != ParentNode.Get())
 	{
 		bAddedAnything = ParentNode->GetQualifiedName(PathPlusIndex, bWithArrayIndex, StopParent, bIgnoreCategories);
 	}

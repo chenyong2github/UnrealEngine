@@ -117,7 +117,8 @@ bool FCategoryPropertyNode::GetQualifiedName( FString& PathPlusIndex, const bool
 {
 	bool bAddedAnything = false;
 
-	if (ParentNode && StopParent != ParentNode)
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode && StopParent != ParentNode.Get())
 	{
 		bAddedAnything = ParentNode->GetQualifiedName(PathPlusIndex, bWithArrayIndex, StopParent, bIgnoreCategories );
 	}

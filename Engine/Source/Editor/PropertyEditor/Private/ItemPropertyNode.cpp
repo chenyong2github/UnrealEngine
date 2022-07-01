@@ -11,13 +11,12 @@
 
 #define LOCTEXT_NAMESPACE "ItemPropertyNode"
 
-FItemPropertyNode::FItemPropertyNode(void)
-	: FPropertyNode()
+FItemPropertyNode::FItemPropertyNode()
 {
 	bCanDisplayFavorite = false;
 }
 
-FItemPropertyNode::~FItemPropertyNode(void)
+FItemPropertyNode::~FItemPropertyNode()
 {
 
 }
@@ -25,7 +24,8 @@ FItemPropertyNode::~FItemPropertyNode(void)
 uint8* FItemPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseData) const
 {
 	const FProperty* MyProperty = GetProperty();
-	if( MyProperty && ParentNodeWeakPtr.IsValid())
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (MyProperty && ParentNode)
 	{
 		const FArrayProperty* OuterArrayProp = MyProperty->GetOwner<FArrayProperty>();
 		const FSetProperty* OuterSetProp = MyProperty->GetOwner<FSetProperty>();
@@ -168,7 +168,7 @@ void FItemPropertyNode::InitChildNodes()
 	{
 		void* Array = NULL;
 		FReadAddressList Addresses;
-		if ( GetReadAddress(!!HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), Addresses ) )
+		if ( GetReadAddress(HasNodeFlags(EPropertyNodeFlags::SingleSelectOnly), Addresses ) )
 		{
 			Array = Addresses.GetAddress(0);
 		}
@@ -473,6 +473,8 @@ FText FItemPropertyNode::GetDisplayName() const
 				{
 					FString PropertyDisplayName;
 					bool bIsBoolProperty = CastField<const FBoolProperty>(PropertyPtr) != NULL;
+
+					const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
 					const FStructProperty* ParentStructProperty = CastField<const FStructProperty>(ParentNode->GetProperty());
 					if( ParentStructProperty && ParentStructProperty->Struct->GetFName() == NAME_Rotator )
 					{
@@ -521,6 +523,7 @@ FText FItemPropertyNode::GetDisplayName() const
 			}
 			
 			// Sets and maps do not have a display index.
+			const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
 			FProperty* ParentProperty = ParentNode->GetProperty();
 
 			// Also handle UArray's having the ArraySizeEnum entry...
@@ -591,7 +594,7 @@ FText FItemPropertyNode::GetDisplayName() const
 				}
 			}
 			// Maps should have display names that reflect the key and value types
-			else if (PropertyPtr != nullptr && CastField<FMapProperty>(ParentNode->GetProperty()) != nullptr)
+			else if (PropertyPtr != nullptr && CastField<FMapProperty>(ParentProperty) != nullptr)
 			{
 				FText FormatText = GetPropertyKeyNode().IsValid()
 					? LOCTEXT("MapValueDisplayFormat", "Value ({0})")

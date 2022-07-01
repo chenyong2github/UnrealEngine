@@ -64,9 +64,8 @@ static FObjectPropertyNode* NotifyFindObjectItemParent(FPropertyNode* InNode)
 	return Result;
 }
 
-FPropertyNode::FPropertyNode(void)
-	: ParentNode(NULL)
-	, Property(NULL)
+FPropertyNode::FPropertyNode()
+	: Property(nullptr)
 	, ArrayOffset(0)
 	, ArrayIndex(-1)
 	, MaxChildDepthAllowed(FPropertyNodeConstants::NoDepthRestrictions)
@@ -81,7 +80,7 @@ FPropertyNode::FPropertyNode(void)
 {
 }
 
-FPropertyNode::~FPropertyNode(void)
+FPropertyNode::~FPropertyNode()
 {
 	DestroyTree();
 }
@@ -93,9 +92,8 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 
 	//tree hierarchy
 	check(InitParams.ParentNode.Get() != this);
-	ParentNode = InitParams.ParentNode.Get();
 	ParentNodeWeakPtr = InitParams.ParentNode;
-
+	
 	//Property Data
 	Property = InitParams.Property;
 	ArrayOffset = InitParams.ArrayOffset;
@@ -103,7 +101,8 @@ void FPropertyNode::InitNode(const FPropertyNodeInitParams& InitParams)
 
 	bool bIsSparse = InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::True;
 
-	if (ParentNode && InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::Inherit)
+	TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode.IsValid() && InitParams.IsSparseProperty == FPropertyNodeInitParams::EIsSparseDataProperty::Inherit)
 	{
 		//default to parents max child depth
 		MaxChildDepthAllowed = ParentNode->MaxChildDepthAllowed;
@@ -279,13 +278,6 @@ void FPropertyNode::RebuildChildren()
 		{
 			InitChildNodes();
 		}
-	}
-
-	//see if they support some kind of edit condition
-	if (Property.IsValid() && Property->GetBoolMetaData(TEXT("FullyExpand")))
-	{
-		bool bExpand = true;
-		bool bRecurse = true;
 	}
 
 	// Children have been rebuilt, clear any pending rebuild requests
@@ -944,7 +936,7 @@ bool FPropertyNode::IsEditConst() const
 			TSharedRef<FEditPropertyChain> PropertyChain = BuildPropertyChain(Property.Get());
 			
 			// travel up the chain to see if this property's owner struct is EditConst - if it is, so is this property
-			FPropertyNode* CurParent = ParentNode;
+			TSharedPtr<FPropertyNode> CurParent = ParentNodeWeakPtr.Pin();
 			while (CurParent != nullptr)
 			{
 				FStructProperty* StructProperty = CastField<FStructProperty>(CurParent->GetProperty());
@@ -993,7 +985,7 @@ bool FPropertyNode::IsEditConst() const
 					break;
 				}
 				
-				CurParent = CurParent->ParentNode;
+				CurParent = CurParent->ParentNodeWeakPtr.Pin();
 			}
 
 			if (!bIsEditConst)
@@ -1161,7 +1153,8 @@ bool FPropertyNode::IsOnlyVisibleWhenEditConditionMet() const
 bool FPropertyNode::GetQualifiedName( FString& PathPlusIndex, const bool bWithArrayIndex, const FPropertyNode* StopParent, bool bIgnoreCategories ) const
 {
 	bool bAddedAnything = false;
-	if (ParentNodeWeakPtr.IsValid() && StopParent != ParentNode)
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode && StopParent != ParentNode.Get())
 	{
 		bAddedAnything = ParentNode->GetQualifiedName(PathPlusIndex, bWithArrayIndex, StopParent, bIgnoreCategories);
 	}
@@ -1195,7 +1188,8 @@ bool FPropertyNode::GetReadAddressUncached( const FPropertyNode& InPropertyNode,
 									bool bObjectForceCompare,
 									bool bArrayPropertiesCanDifferInSize ) const
 {
-	if (ParentNodeWeakPtr.IsValid())
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode.IsValid())
 	{
 		return ParentNode->GetReadAddressUncached( InPropertyNode, InRequiresSingleSelection, OutAddresses, bComparePropertyContents, bObjectForceCompare, bArrayPropertiesCanDifferInSize );
 	}
@@ -1205,7 +1199,8 @@ bool FPropertyNode::GetReadAddressUncached( const FPropertyNode& InPropertyNode,
 
 bool FPropertyNode::GetReadAddressUncached( const FPropertyNode& InPropertyNode, FReadAddressListData& OutAddresses ) const
 {
-	if (ParentNodeWeakPtr.IsValid())
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode.IsValid())
 	{
 		return ParentNode->GetReadAddressUncached( InPropertyNode, OutAddresses );
 	}
@@ -1325,8 +1320,9 @@ uint8* FPropertyNode::GetValueBaseAddress(uint8* StartAddress, bool bIsSparseDat
 	}
 	else
 	{
-		if (ParentNodeWeakPtr.IsValid())
-	{
+		const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+		if (ParentNode.IsValid())
+		{
 			Result = ParentNode->GetValueAddress(StartAddress, bIsSparseData);
 		}
 	}
@@ -2321,6 +2317,7 @@ void FPropertyNode::FilterNodes( const TArray<FString>& InFilterStrings, const b
 
 		// For containers, check if base class metadata in parent includes 'TitleProperty', add corresponding value to filter names if so.
 		static const FName TitlePropertyFName = FName(TEXT("TitleProperty"));
+		const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
 		if (ParentNode && ParentNode->GetProperty())
 		{
 			const FString& TitleProperty = ParentNode->GetProperty()->GetMetaData(TitlePropertyFName);
@@ -2956,7 +2953,18 @@ const TMap<FName, FString>* FPropertyNode::GetInstanceMetaDataMap() const
 
 bool FPropertyNode::ParentOrSelfHasMetaData(const FName& MetaDataKey) const
 {
-	return (Property.IsValid() && Property->HasMetaData(MetaDataKey)) || (ParentNode && ParentNode->ParentOrSelfHasMetaData(MetaDataKey));
+	if (Property.IsValid() && Property->HasMetaData(MetaDataKey))
+	{
+		return true;
+	}
+	
+	const TSharedPtr<FPropertyNode> ParentNode = ParentNodeWeakPtr.Pin();
+	if (ParentNode.IsValid() && ParentNode->ParentOrSelfHasMetaData(MetaDataKey))
+	{
+		return true;
+	}
+
+	return false;
 }
 
 void FPropertyNode::InvalidateCachedState()
@@ -3385,11 +3393,11 @@ void FPropertyNode::PropagatePropertyChange( UObject* ModifiedObject, const TCHA
 			if (DestSimplePropAddr != nullptr)
 			{
 				FProperty* ComplexProperty = Prop;
-				FPropertyNode* ComplexPropertyNode = this;
+				TSharedPtr<FPropertyNode> ComplexPropertyNode = AsShared();
 				if (ParentArrayProp || ParentMapProp || ParentSetProp)
 				{
 					ComplexProperty = ParentProp;
-					ComplexPropertyNode = ParentNode;
+					ComplexPropertyNode = ParentNodeWeakPtr.Pin();
 				}
 				
 				uint8* DestComplexPropAddr = ComplexPropertyNode->GetValueBaseAddressFromObject(ActualObjToChange);

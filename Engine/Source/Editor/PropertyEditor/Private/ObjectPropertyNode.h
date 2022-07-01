@@ -140,7 +140,7 @@ public:
 	 */
 	const TSet<FName>& GetHiddenCategories() const { return HiddenCategories; }
 
-	bool IsRootNode() const { return ParentNode == nullptr; }
+	bool IsRootNode() const { return ParentNodeWeakPtr.Pin() == nullptr; }
 
 	/**
 	 * @return True if Struct is one of the sparse data structures used by this object
