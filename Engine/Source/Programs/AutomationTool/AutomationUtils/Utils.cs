@@ -256,6 +256,46 @@ namespace AutomationTool
 			}
 		}
 
+
+		/// <summary>
+		/// Renames/moves a directory and all its contents
+		/// </summary>
+		/// <param name="Oldname"></param>
+		/// <param name="NewName"></param>
+		/// <param name="bQuiet"></param>
+		/// <returns>True if the directory was moved, false otehrwise</returns>
+		public static bool SafeRenameDirectory(string OldName, string NewName, bool bQuiet = false)
+		{
+			if (!bQuiet)
+			{
+				Log.TraceLog("SafeRenameDirectory {0} {1}", OldName, NewName);
+			}
+			const int MaxAttempts = 10;
+			int Attempts = 0;
+
+			bool Result = true;
+			do
+			{
+				Result = true;
+				try
+				{
+					Directory.Move(OldName, NewName);
+				}
+				catch (Exception Ex)
+				{
+					if (Directory.Exists(OldName) == true || Directory.Exists(NewName) == false)
+					{
+						Log.TraceWarning("Failed to rename {0} to {1}", OldName, NewName);
+						Log.TraceWarning(LogUtils.FormatException(Ex));
+						Result = false;
+					}
+				}
+			}
+			while (Result == false && ++Attempts < MaxAttempts);
+
+			return Result;
+		}
+
 		/// <summary>
 		/// Renames/moves a file.
 		/// </summary>

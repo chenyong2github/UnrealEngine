@@ -657,11 +657,11 @@ namespace AutomationTool
 		/// </summary>
 		/// <param name="OldName">Old name</param>
 		/// <param name="NewName">new name</param>
-		public static void RenameDirectory(string OldName, string NewName)
+		public static void RenameDirectory(string OldName, string NewName, bool bQuiet = false)
 		{
 			var OldNormalized = ConvertSeparators(PathSeparator.Default, OldName);
 			var NewNormalized = ConvertSeparators(PathSeparator.Default, NewName);
-			Directory.Move(OldNormalized, NewNormalized);
+			InternalUtils.SafeRenameDirectory(OldNormalized, NewNormalized, bQuiet);
 		}
 
 		/// <summary>
