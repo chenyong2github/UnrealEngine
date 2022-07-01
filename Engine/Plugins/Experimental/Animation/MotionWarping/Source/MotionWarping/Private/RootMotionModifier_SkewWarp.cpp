@@ -138,7 +138,7 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 		ExtraRootMotion = UMotionWarpingUtilities::ExtractRootMotionFromAnimation(Animation.Get(), EndTime, CurrentPosition);
 	}
 
-	if (bWarpTranslation && !RootMotionDelta.GetTranslation().IsNearlyZero())
+	if (bWarpTranslation)
 	{
 		const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
 		const FQuat CurrentRotation = CharacterOwner->GetActorQuat();
@@ -153,11 +153,31 @@ FTransform URootMotionModifier_SkewWarp::ProcessRootMotion(const FTransform& InR
 			TargetLocation.Z = CurrentLocation.Z;
 		}
 
-		const FTransform MeshTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset()) * CharacterOwner->GetActorTransform();
-		TargetLocation = MeshTransform.InverseTransformPositionNoScale(TargetLocation);
+		// if there is translation in the animation, warp it
+		if (!TotalTranslation.IsNearlyZero())
+		{
+			if (!DeltaTranslation.IsNearlyZero())
+			{
+				const FTransform MeshTransform = FTransform(CharacterOwner->GetBaseRotationOffset(), CharacterOwner->GetBaseTranslationOffset()) * CharacterOwner->GetActorTransform();
+				TargetLocation = MeshTransform.InverseTransformPositionNoScale(TargetLocation);
 
-		const FVector WarpedTranslation = WarpTranslation(FTransform::Identity, DeltaTranslation, TotalTranslation, TargetLocation) + ExtraRootMotion.GetLocation();
-		FinalRootMotion.SetTranslation(WarpedTranslation);
+				const FVector WarpedTranslation = WarpTranslation(FTransform::Identity, DeltaTranslation, TotalTranslation, TargetLocation) + ExtraRootMotion.GetLocation();
+				FinalRootMotion.SetTranslation(WarpedTranslation);
+			}
+		}
+		// if there is no translation in the animation, add it
+		else
+		{
+			float Alpha = FMath::Clamp((CurrentPosition - ActualStartTime) / (EndTime - ActualStartTime), 0.f, 1.f);
+			Alpha = FAlphaBlend::AlphaToBlendOption(Alpha, AddTranslationEasingFunc, AddTranslationEasingCurve);
+
+			const FVector NextLocation = FMath::Lerp<FVector, float>(StartTransform.GetLocation(), TargetLocation, Alpha);
+			FVector FinalDeltaTranslation = (NextLocation - CurrentLocation);
+			FinalDeltaTranslation = (CurrentRotation.Inverse() * (TargetLocation - CurrentLocation).ToOrientationQuat()).GetForwardVector() * FinalDeltaTranslation.Size();
+			FinalDeltaTranslation = CharacterOwner->GetBaseRotationOffset().UnrotateVector(FinalDeltaTranslation);
+
+			FinalRootMotion.SetTranslation(FinalDeltaTranslation + ExtraRootMotion.GetLocation());
+		}
 	}
 
 	if(bWarpRotation)

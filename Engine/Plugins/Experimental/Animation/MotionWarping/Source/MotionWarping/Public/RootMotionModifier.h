@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Animation/AnimSequence.h"
+#include "AlphaBlend.h"
 #include "RootMotionModifier.generated.h"
 
 class UMotionWarpingComponent;
@@ -252,6 +253,14 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpTranslation"))
 	bool bIgnoreZAxis = true;
 
+	/** Easing function used when adding translation. Only relevant when there is no translation in the animation */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config", meta = (EditCondition = "bWarpTranslation"))
+	EAlphaBlendOption AddTranslationEasingFunc = EAlphaBlendOption::Linear;
+
+	/** Custom curve used to add translation when there is none to warp. Only relevant when AddTranslationEasingFunc is set to Custom */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Blend", meta = (EditCondition = "AddTranslationEasingFunc==EAlphaBlendOption::Custom", EditConditionHides))
+	TObjectPtr<class UCurveFloat> AddTranslationEasingCurve = nullptr;
+
 	/** Whether to warp the rotation component of the root motion */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Config")
 	bool bWarpRotation = true;
@@ -274,7 +283,7 @@ public:
 	//~ End FRootMotionModifier Interface
 
 	/** Event called during update if the target transform changes while the warping is active */
-	virtual void OnTargetTransformChanged() {}
+	virtual void OnTargetTransformChanged();
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	void PrintLog(const FString& Name, const FTransform& OriginalRootMotion, const FTransform& WarpedRootMotion) const;

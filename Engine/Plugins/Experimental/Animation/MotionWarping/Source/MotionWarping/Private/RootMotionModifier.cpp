@@ -169,7 +169,9 @@ void URootMotionModifier::OnStateChanged(ERootMotionModifierState LastState)
 			ActualStartTime = PreviousPosition;
 
 			const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
-			StartTransform = FTransform(CharacterOwner->GetActorQuat(), (CharacterOwner->GetActorLocation() - FVector(0.f, 0.f, CapsuleHalfHeight)));
+			const FQuat CurrentRotation = CharacterOwner->GetActorQuat();
+			const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - CurrentRotation.GetUpVector() * CapsuleHalfHeight);
+			StartTransform = FTransform(CurrentRotation, CurrentLocation);
 
 			OnActivateDelegate.ExecuteIfBound(OwnerComp, this);
 		}
@@ -241,6 +243,19 @@ void URootMotionModifier_Warp::Update(const FMotionWarpingUpdateContext& Context
 
 			OnTargetTransformChanged();
 		}
+	}
+}
+
+void URootMotionModifier_Warp::OnTargetTransformChanged()
+{
+	if (const ACharacter* CharacterOwner = GetCharacterOwner())
+	{
+		ActualStartTime = PreviousPosition;
+
+		const float CapsuleHalfHeight = CharacterOwner->GetCapsuleComponent()->GetScaledCapsuleHalfHeight();
+		const FQuat CurrentRotation = CharacterOwner->GetActorQuat();
+		const FVector CurrentLocation = (CharacterOwner->GetActorLocation() - CurrentRotation.GetUpVector() * CapsuleHalfHeight);
+		StartTransform = FTransform(CurrentRotation, CurrentLocation);
 	}
 }
 
