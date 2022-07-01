@@ -3,6 +3,8 @@
 #include "RenderTraceModule.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IPluginManager.h"
+#include "Misc/Paths.h"
+#include "ShaderCore.h"
 
 class FRenderTraceModule : public IModuleInterface
 {

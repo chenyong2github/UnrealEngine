@@ -5,6 +5,7 @@
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "MaterialCompiler.h"
+#include "Materials/Material.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
 #define LOCTEXT_NAMESPACE "RenderTrace"
