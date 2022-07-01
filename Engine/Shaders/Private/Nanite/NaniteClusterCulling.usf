@@ -100,15 +100,13 @@ float2 GetProjectedEdgeScales(FNaniteView NaniteView, FInstanceSceneData Instanc
 		// Ortho
 		return float2( 1, 1 );
 	}
-	float3 ViewForward = DynamicData.ViewForwardScaledLocal;
-	float3 ViewToCluster = Bounds.xyz * InstanceData.NonUniformScale.xyz - DynamicData.ViewPosScaledLocal;
+	float3 Center = mul( float4( Bounds.xyz, 1.0f ), DynamicData.LocalToTranslatedWorld ).xyz;
 	float Radius = Bounds.w * InstanceData.NonUniformScale.w;
 
 	float ZNear = NaniteView.NearPlane;
-	float DistToClusterSq = dot( ViewToCluster, ViewToCluster );
-	float DistToCluster = sqrt( DistToClusterSq );
+	float DistToClusterSq = length2( Center );	// camera origin in (0,0,0)
 	
-	float Z = dot( ViewForward, ViewToCluster );
+	float Z = dot(NaniteView.ViewForward.xyz, Center);
 	float XSq = DistToClusterSq - Z * Z;
 	float X = sqrt( max(0.0f, XSq) );
 	float DistToTSq = DistToClusterSq - Radius * Radius;
@@ -219,6 +217,7 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	// Near depth clipping should only be disabled with orthographic projections
 	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 	const bool bViewHZB  = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
+	const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
 
 #if DEBUG_FLAGS
 	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
@@ -241,24 +240,34 @@ void ClusterCull(FVisibleCluster VisibleCluster, uint InstanceId)
 	// Rect of overlapped virtual pages, is inclusive (as in zw is max, not max + 1)
 	uint4 RectPages = uint4(1U,1U,0U,0U);
 #endif // VIRTUAL_TEXTURE_TARGET
-	BRANCH
-	if( bVisible )
 	{
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 		BRANCH
-		if ((VisibleCluster.Flags & NANITE_CULLING_FLAG_TEST_LOD) != 0)
-#endif
+		if (bUseViewRangeDistanceCull)
 		{
-			bVisible = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster) || (Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF);
-		}
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
-		else
-		{
-			bUseHWRaster = (VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW) != 0;
-		}
-#endif
-	}
+			const float3 BoundsCenterTranslatedWorld = mul(float4(Cluster.BoxBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
+			const float BoundsRadius = length(Cluster.BoxBoundsExtent * InstanceData.NonUniformScale.xyz);
 
+			bVisible = length2(BoundsCenterTranslatedWorld) <= Square(NaniteView.RangeBasedCullingDistance + BoundsRadius);
+		}
+
+		BRANCH
+		if( bVisible )
+		{
+	#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+			BRANCH
+			if ((VisibleCluster.Flags & NANITE_CULLING_FLAG_TEST_LOD) != 0)
+	#endif
+			{
+				bVisible = SmallEnoughToDraw(NaniteView, InstanceData, DynamicData, Cluster.LODBounds, Cluster.LODError, Cluster.EdgeLength, bUseHWRaster) || (Cluster.Flags & NANITE_CLUSTER_FLAG_LEAF);
+			}
+	#if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
+			else
+			{
+				bUseHWRaster = (VisibleCluster.Flags & NANITE_CULLING_FLAG_USE_HW) != 0;
+			}
+	#endif
+		}
+	}
 	FFrustumCullData Cull;
 	FScreenRect Rect;
 	BRANCH
@@ -501,6 +510,7 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 	// Depth clipping should only be disabled with orthographic projections
 	const bool bNearClip = (NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u;
 	const bool bViewHZB  = (NaniteView.Flags & NANITE_VIEW_FLAG_HZBTEST) != 0u;
+	const bool bUseViewRangeDistanceCull = (NaniteView.Flags & NANITE_VIEW_FLAG_DISTANCE_CULL) != 0u;
 
 #if DEBUG_FLAGS
 	const bool bSkipBoxCullFrustum = (DebugFlags & NANITE_DEBUG_FLAG_DISABLE_CULL_FRUSTUM_BOX) != 0u;
@@ -522,8 +532,10 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 #endif
 	bool bLoaded = HierarchyNodeSlice.bLoaded;
 
-	if(LocalNodeIndex >= BatchSize)
+	if (LocalNodeIndex >= BatchSize)
+	{
 		bVisible = false;
+	}
 
 	bool bWasOccluded = false;
 	bool bUseHWRaster = false;
@@ -533,6 +545,15 @@ void ProcessNodeBatch(uint BatchSize, uint GroupIndex)
 	if (bVisible)
 	{
 		float4 LODBounds	= HierarchyNodeSlice.LODBounds;
+
+		BRANCH
+		if (bUseViewRangeDistanceCull)
+		{
+			const float3 BoundsCenterTranslatedWorld = mul(float4(HierarchyNodeSlice.BoxBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
+			const float BoundsRadius = length(HierarchyNodeSlice.BoxBoundsExtent * InstanceData.NonUniformScale.xyz);
+
+			bVisible = length2(BoundsCenterTranslatedWorld) <= Square(NaniteView.RangeBasedCullingDistance + BoundsRadius);
+		}
 
 #if CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 		if (bVisible && (CandidateNode.Flags & NANITE_CULLING_FLAG_TEST_LOD))

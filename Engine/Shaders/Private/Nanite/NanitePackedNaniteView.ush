@@ -27,7 +27,7 @@ struct FPackedNaniteView
 	float4		ViewForwardAndNearPlane;
 
 	float3		ViewTilePosition;
-	float		Padding0;
+	float		RangeBasedCullingDistance;
 
 	float3		MatrixTilePosition;
 	float		Padding1;

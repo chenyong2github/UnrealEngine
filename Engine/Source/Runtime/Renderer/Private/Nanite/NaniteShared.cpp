@@ -99,7 +99,7 @@ FPackedView CreatePackedView( const FPackedViewParams& Params )
 	PackedView.WorldCameraOrigin			= FVector4f(FVector3f(Params.ViewMatrices.GetViewOrigin() - ViewTileOffset), 0.0f);
 	PackedView.ViewForwardAndNearPlane		= FVector4f((FVector3f)Params.ViewMatrices.GetOverriddenTranslatedViewMatrix().GetColumn(2), Params.ViewMatrices.ComputeNearPlane());
 	PackedView.ViewTilePosition				= AbsoluteViewOrigin.GetTile();
-	PackedView.Padding0						= 0u;
+	PackedView.RangeBasedCullingDistance	= Params.RangeBasedCullingDistance;
 	PackedView.MatrixTilePosition			= RelativeMatrices.TilePosition;
 	PackedView.Padding1						= 0u;
 

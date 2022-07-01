@@ -231,6 +231,13 @@ void GeneratePageFlagsFromPixels(
 
 			// Relative to PrimaryView
 			const float3 LightTranslatedWorldPosition = LightData.LightPositionAndInvRadius.xyz;
+			float LengthSquared = length2(LightTranslatedWorldPosition - TranslatedWorldPosition);
+
+			if (LengthSquared > Square(1.0f / LightData.LightPositionAndInvRadius.w))
+			{
+				continue;
+			}
+
 			float3 ToLight = normalize(LightTranslatedWorldPosition - TranslatedWorldPosition);
 
 			// TODO: Can optimize these tests by fusing them together

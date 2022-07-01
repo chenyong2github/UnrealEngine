@@ -99,9 +99,11 @@ struct FVirtualShadowMapProjectionShaderData
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 
 	int32 ClipmapLevelCount = 0;
+	uint32 Flags = 0U;
+	float LightRadius;
 
 	// Seems the FMatrix forces 16-byte alignment
-	float Padding[3];
+	float Padding[1];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 

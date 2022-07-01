@@ -145,6 +145,17 @@ void VirtualSmInvalidateInstancePagesCS(
 				// NOTE: This is the *shadow view*'s translated world, not primary view
 				float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceSceneData.LocalToWorld, ProjectionData.PreViewTranslation);
 				
+				// distance cull invalidations for local lights
+				if (!bDirectionalLight)
+				{
+					float InstanceRadius = length(InstanceSceneData.LocalBoundsExtent * InstanceSceneData.NonUniformScale.xyz);
+					float3 TranslatedWorldCenter = mul(float4(InstanceSceneData.LocalBoundsCenter, 1.0f), LocalToTranslatedWorld).xyz;
+					if (length2(TranslatedWorldCenter) > Square(ProjectionData.LightRadius + InstanceRadius))
+					{
+						continue;
+					}
+				}
+
 				// Go back to clip space
 				float4x4 UVToClip;
 				UVToClip[0] = float4(2, 0, 0, 0);

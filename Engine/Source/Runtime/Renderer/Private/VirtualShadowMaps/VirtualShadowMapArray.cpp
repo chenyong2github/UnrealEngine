@@ -1120,6 +1120,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					check(ShadowViewRect.Max.Y == FVirtualShadowMap::VirtualMaxResolutionXY);
 				}
 
+				uint32 Flags = 0U;
+
 				int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
 				for( int32 i = 0; i < NumMaps; i++ )
 				{
@@ -1138,6 +1140,8 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					Data.LightType								= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
 					Data.LightSourceRadius						= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetSourceRadius();
 					Data.ResolutionLodBias						= ResolutionLodBiasLocal;
+					Data.LightRadius							= ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetRadius();
+					Data.Flags									= Flags;
 				}
 
 				if (bDebugOutputEnabled)
@@ -1743,9 +1747,9 @@ void FVirtualShadowMapArray::CreateMipViews( TArray<Nanite::FPackedView, SceneRe
 				 (MipView.ViewSizeAndInvSize.X + 2.0f * MipView.ViewRect.X) * RcpExtXY - 1.0f,
 				-(MipView.ViewSizeAndInvSize.Y + 2.0f * MipView.ViewRect.Y) * RcpExtXY + 1.0f);
 
-			uint32 StreamingPriorityCategory = 0;
-			uint32 ViewFlags = NANITE_VIEW_FLAG_HZBTEST | NANITE_VIEW_FLAG_NEAR_CLIP;
-			MipView.StreamingPriorityCategory_AndFlags = (ViewFlags << NANITE_NUM_STREAMING_PRIORITY_CATEGORY_BITS) | StreamingPriorityCategory;
+
+			// Set streaming priority category to zero for some reason
+			MipView.StreamingPriorityCategory_AndFlags &= ~uint32(NANITE_STREAMING_PRIORITY_CATEGORY_MASK);
 		}
 	}
 
@@ -2760,7 +2764,8 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 	BaseParams.PrevTargetLayerIndex = INDEX_NONE;
 	BaseParams.TargetMipLevel = 0;
 	BaseParams.TargetMipCount = FVirtualShadowMap::MaxMipLevels;
-	BaseParams.Flags = bClampToNearPlane ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP;
+	// local lights enable distance cull by default
+	BaseParams.Flags = NANITE_VIEW_FLAG_DISTANCE_CULL | (bClampToNearPlane ? 0u : NANITE_VIEW_FLAG_NEAR_CLIP);
 
 	int32 NumMaps = ProjectedShadowInfo->bOnePassPointLightShadow ? 6 : 1;
 	for (int32 Index = 0; Index < NumMaps; ++Index)
@@ -2770,6 +2775,7 @@ uint32 FVirtualShadowMapArray::AddRenderViews(const FProjectedShadowInfo* Projec
 		Nanite::FPackedViewParams Params = BaseParams;
 		Params.TargetLayerIndex = VirtualShadowMap->ID;
 		Params.ViewMatrices = ProjectedShadowInfo->GetShadowDepthRenderingViewMatrices(Index, true);
+		Params.RangeBasedCullingDistance = ProjectedShadowInfo->GetLightSceneInfo().Proxy->GetRadius();
 
 		int32 HZBKey = ProjectedShadowInfo->GetLightSceneInfo().Id + (Index << 24);
 

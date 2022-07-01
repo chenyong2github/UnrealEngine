@@ -3,6 +3,7 @@
 #pragma once
 
 #include "../LargeWorldCoordinates.ush"
+#include "/Engine/Shared/VirtualShadowMapDefinitions.h"
 
 // Rougly the same structure as in VirtualShadowMapArray.h, with some logic around LWC values
 struct FVirtualShadowMapProjectionShaderData
@@ -13,8 +14,10 @@ struct FVirtualShadowMapProjectionShaderData
 	float4x4 TranslatedWorldToShadowUVNormalMatrix;
 
 	FLWCVector3 PreViewTranslation;
+	// TODO: Store Light ID and move this to GPU-Scene
 	uint LightType;		// Matches ELightComponentType via defines in SSDDefinitions.ush
 	float LightSourceRadius;
+	float LightRadius;
 
 	FLWCVector3 ClipmapWorldOrigin;
 	float ResolutionLodBias;
@@ -25,8 +28,12 @@ struct FVirtualShadowMapProjectionShaderData
 
 	int ClipmapLevelCount;
 
+	uint Flags;
 	// Derived data for convenience when passing the structure around
 	int VirtualShadowMapId;
+
+	// Low detail == single page only
+	bool bCurrentDistantLight;
 };
 
 FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteAddressBuffer ProjectionData, int VirtualShadowMapId)
@@ -72,9 +79,13 @@ FVirtualShadowMapProjectionShaderData DecodeVirtualShadowMapProjectionData(ByteA
 	Result.ClipmapLevel						= asint  (ProjectionData.Load (Base + (16*19 + 4*3)));
 
 	Result.ClipmapLevelCount 				= asint  (ProjectionData.Load (Base + (16*20 + 4*0)));
-		
+	Result.Flags 							= asuint(ProjectionData.Load (Base + (16*20 + 4*1)));
+	Result.LightRadius 						= asfloat(ProjectionData.Load (Base + (16*20 + 4*2)));
+
 	Result.PreViewTranslation				= MakeLWCVector3(PreViewTranslationTile, PreViewTranslationOffset);
 	Result.ClipmapWorldOrigin				= LWCNegate(MakeLWCVector3(PreViewTranslationTile, NegativeClipmapWorldOriginOffset));
+
+	Result.bCurrentDistantLight = (Result.Flags & VSM_PROJ_FLAG_CURRENT_DISTANT_LIGHT) != 0U;
 
 	return Result;
 }

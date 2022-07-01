@@ -111,8 +111,6 @@ struct FInstanceDynamicData
 {
 	float4x4	LocalToTranslatedWorld;
 	float4x4	PrevLocalToTranslatedWorld;
-	float3		ViewPosScaledLocal;
-	float3		ViewForwardScaledLocal;
 	bool		bHasMoved;
 };
 
@@ -151,6 +149,7 @@ struct FNaniteView
 	int			TargetMipLevel;
 	int			TargetNumMipLevels;
 	int			TargetPrevLayerIndex;
+	float		RangeBasedCullingDistance;
 	int4		HZBTestViewRect;
 };
 
@@ -292,19 +291,12 @@ FInstanceSceneData GetInstanceSceneData( inout FVisibleCluster VisibleCluster, b
 
 FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInstanceSceneData InstanceData )
 {
-	FLWCInverseMatrix WorldToLocal = InstanceData.WorldToLocal;
-
 	float4x4 LocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.LocalToWorld, NaniteView.PreViewTranslation);
 	float4x4 PrevLocalToTranslatedWorld = LWCMultiplyTranslation(InstanceData.PrevLocalToWorld, NaniteView.PrevPreViewTranslation);
 
 	FInstanceDynamicData DynamicData;
 	DynamicData.LocalToTranslatedWorld = LocalToTranslatedWorld;
-
 	DynamicData.PrevLocalToTranslatedWorld = PrevLocalToTranslatedWorld;
-	
-	DynamicData.ViewPosScaledLocal = LWCMultiply( NaniteView.WorldCameraOrigin, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
-	DynamicData.ViewForwardScaledLocal = LWCMultiplyVector( NaniteView.ViewForward.xyz, WorldToLocal ) * InstanceData.NonUniformScale.xyz;
-
 	DynamicData.bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	return DynamicData;
@@ -647,6 +639,7 @@ FNaniteView UnpackNaniteView(FPackedNaniteView PackedView)
 	NaniteView.TargetMipLevel				= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.y;
 	NaniteView.TargetNumMipLevels			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.z;
 	NaniteView.TargetPrevLayerIndex			= PackedView.TargetLayerIdX_AndMipLevelY_AndNumMipLevelsZ.w;
+	NaniteView.RangeBasedCullingDistance	= PackedView.RangeBasedCullingDistance;
 
 	NaniteView.HZBTestViewRect				= PackedView.HZBTestViewRect;
 
@@ -693,6 +686,7 @@ FNaniteView GetNaniteView( uint ViewIndex )
 	NaniteView.TargetMipLevel = 0;
 	NaniteView.TargetNumMipLevels = 0;
 	NaniteView.TargetPrevLayerIndex	= 0;
+	NaniteView.RangeBasedCullingDistance = 0.0f;
 
 	NaniteView.HZBTestViewRect				= NaniteView.ViewRect;
 

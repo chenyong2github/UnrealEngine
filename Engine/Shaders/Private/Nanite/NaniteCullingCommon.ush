@@ -60,17 +60,24 @@ void TestCurrentHZB(FFrustumCullData Cull, FScreenRect Rect, FNaniteView NaniteV
 	}
 }
 
-void CameraDistanceCull(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bSkipCamDistanceCull, inout bool bVisible)
+void CameraDistanceCull(FPrimitiveSceneData PrimitiveData, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, bool bSkipCamPerPrimDistanceCull,
+	bool bUseViewRangeDistanceCull, float RangeBasedCullingDistance, inout bool bVisible)
 {
 	BRANCH
-	if (bVisible && !bSkipCamDistanceCull)
+	if (bVisible)
 	{
+		float3 TranslatedWorldCenter = mul(float4(InstanceData.LocalBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
+		float CameraDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
+
 		BRANCH
-		if ((PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL) != 0)
+		if (!bSkipCamPerPrimDistanceCull && (PrimitiveData.Flags & PRIMITIVE_SCENE_DATA_FLAG_CAMERA_DISTANCE_CULL) != 0)
 		{
-			float3 TranslatedWorldCenter = mul(float4(InstanceData.LocalBoundsCenter, 1.0f), DynamicData.LocalToTranslatedWorld).xyz;
-			float CameraDistSq = dot(TranslatedWorldCenter, TranslatedWorldCenter);
 			bVisible = CameraDistSq >= PrimitiveData.CameraDistanceCullMinMaxSquared.x && CameraDistSq <= PrimitiveData.CameraDistanceCullMinMaxSquared.y;
+		}
+		BRANCH
+		if (bVisible && bUseViewRangeDistanceCull)
+		{
+			bVisible = CameraDistSq <= Square(RangeBasedCullingDistance);
 		}
 	}
 }

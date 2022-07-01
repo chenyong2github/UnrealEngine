@@ -50,7 +50,7 @@ struct FPackedView
 	FVector4f	ViewForwardAndNearPlane;
 
 	FVector3f	ViewTilePosition;
-	uint32		Padding0;
+	float		RangeBasedCullingDistance;
 
 	FVector3f	MatrixTilePosition;
 	uint32		Padding1;
@@ -92,6 +92,8 @@ struct FPackedViewParams
 	int32 PrevTargetLayerIndex = INDEX_NONE;
 	int32 TargetMipLevel = 0;
 	int32 TargetMipCount = 1;
+
+	float RangeBasedCullingDistance = 0.0f; // not used unless the flag NANITE_VIEW_FLAG_DISTANCE_CULL is set
 
 	FIntRect HZBTestViewRect = {0, 0, 0, 0};
 };

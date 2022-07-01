@@ -15,3 +15,6 @@ VirtualShadowMapDefinitions.h: used in virtual shadow map shaders and C++ code t
 #define VIRTUAL_SHADOW_MAP_VISUALIZE_SMRT_RAY_COUNT				(1 << 4)
 #define VIRTUAL_SHADOW_MAP_VISUALIZE_CLIPMAP_VIRTUAL_SPACE		(1 << 5)
 #define VIRTUAL_SHADOW_MAP_VISUALIZE_GENERAL_DEBUG				(1 << 6)
+
+
+#define VSM_PROJ_FLAG_CURRENT_DISTANT_LIGHT (1U << 0)

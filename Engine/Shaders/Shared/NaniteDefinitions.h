@@ -88,6 +88,7 @@
 
 #define NANITE_VIEW_FLAG_HZBTEST							0x1
 #define NANITE_VIEW_FLAG_NEAR_CLIP							0x2
+#define NANITE_VIEW_FLAG_DISTANCE_CULL						0x4
 
 #define NANITE_MAX_STATE_BUCKET_ID							((1 << 14) - 1)
 
