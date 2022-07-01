@@ -74,18 +74,6 @@ namespace UE { namespace PoseSearch {
 	constexpr EParallelForFlags ParallelForFlags = EParallelForFlags::None;
 #endif // UE_POSE_SEARCH_FORCE_SINGLE_THREAD
 
-using RowMajorVector = Eigen::Matrix<float, 1, Eigen::Dynamic, Eigen::RowMajor>;
-using RowMajorVectorMap = Eigen::Map<RowMajorVector, Eigen::RowMajor>;
-using RowMajorVectorMapConst = Eigen::Map<const RowMajorVector, Eigen::RowMajor>;
-
-using RowMajorMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
-using RowMajorMatrixMap = Eigen::Map<RowMajorMatrix, Eigen::RowMajor>;
-using RowMajorMatrixMapConst = Eigen::Map<const RowMajorMatrix, Eigen::RowMajor>;
-
-using ColMajorMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
-using ColMajorMatrixMap = Eigen::Map<ColMajorMatrix, Eigen::ColMajor>;
-using ColMajorMatrixMapConst = Eigen::Map<const ColMajorMatrix, Eigen::ColMajor>;
-
 static bool IsSamplingRangeValid(FFloatInterval Range)
 {
 	return Range.IsValid() && (Range.Min >= 0.0f);
@@ -263,40 +251,15 @@ void UPoseSearchFeatureChannel::InitializeSchema(UE::PoseSearch::FSchemaInitiali
 	ChannelDataOffset = Initializer.GetCurrentChannelDataOffset();
 }
 
-//////////////////////////////////////////////////////////////////////////
-// FPoseSearchFeatureDesc
-
-bool FPoseSearchFeatureDesc::operator==(const FPoseSearchFeatureDesc& Other) const
+// base implementation calculating a single mean deviation value (replicated ChannelCardinality times into MeanDeviations starting at DataOffset index) from all the features data associated to this channel
+void UPoseSearchFeatureChannel::ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const
 {
-	return
-		(ChannelIdx == Other.ChannelIdx) &&
-		(ChannelFeatureId == Other.ChannelFeatureId) &&
-		(SubsampleIdx == Other.SubsampleIdx) &&
-		// ignored or else Schema->Layout.Features.Find(Feature); called by FPoseSearchFeatureVectorBuilder will fail since FPoseSearchFeatureDesc doesn't get created fully :(
-		//(Cardinality == Other.Cardinality) &&
-		(Type == Other.Type);
-}
+	using namespace UE::PoseSearch;
 
+	int32 DataOffset = ChannelDataOffset;
+	FFeatureVectorHelper::ComputeMeanDeviations(CenteredPoseMatrix, MeanDeviations, DataOffset, ChannelCardinality);
 
-//////////////////////////////////////////////////////////////////////////
-// FPoseSearchFeatureVectorLayout
-
-bool FPoseSearchFeatureVectorLayout::IsValid(int32 ChannelCount) const
-{
-	if (NumFloats == 0)
-	{
-		return false;
-	}
-
-	for (const FPoseSearchFeatureDesc& Feature : Features)
-	{
-		if (Feature.ChannelIdx >= ChannelCount)
-		{
-			return false;
-		}
-	}
-
-	return true;
+	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -308,17 +271,6 @@ int32 FSchemaInitializer::AddBoneReference(const FBoneReference& BoneReference)
 {
 	check(BoneReferences.Num() + 1 <= UPoseSearchSchema::MaxBoneReferences);
 	return BoneReferences.AddUnique(BoneReference);
-}
-
-int32 FSchemaInitializer::AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDesc)
-{
-	check(FeatureDesc.ChannelIdx == CurrentChannelIdx);
-	check(Features.Num() + 1 <= UPoseSearchSchema::MaxFeatures);
-	check(!Features.Contains(FeatureDesc));
-	check(FeatureDesc.Cardinality > 0);
-	check(FeatureDesc.ValueOffset == CurrentChannelDataOffset);
-	CurrentChannelDataOffset += FeatureDesc.Cardinality;
-	return Features.Add(FeatureDesc);
 }
 
 } // namespace UE::PoseSearch
@@ -343,9 +295,7 @@ void UPoseSearchSchema::Finalize()
 		Channel->InitializeSchema(Initializer);
 	}
 
-	// @todo: replace FPoseSearchFeatureVectorLayout with channels after itemizing UPoseSearchFeatureChannel_Pose into position, velocity, orientation / heading, phase etc 
-	Layout.Features = MoveTemp(Initializer.Features);
-	Layout.NumFloats = Initializer.GetCurrentChannelDataOffset();
+	SchemaCardinality = Initializer.GetCurrentChannelDataOffset();
 
 	BoneReferences = MoveTemp(Initializer.BoneReferences);
 
@@ -373,6 +323,11 @@ void UPoseSearchSchema::PostLoad()
 
 	// Migrate deprecated schema properties into channels
 #if WITH_EDITORONLY_DATA
+	if (SchemaCardinality == 0)
+	{
+		bNeedFinalize = true;
+	}
+
 	if (!TrajectorySampleTimes_DEPRECATED.IsEmpty())
 	{
 		bNeedFinalize = true;
@@ -418,18 +373,6 @@ void UPoseSearchSchema::PostLoad()
 
 	if (!bNeedFinalize)
 	{
-		for (const FPoseSearchFeatureDesc& Feature : Layout.Features)
-		{
-			if (Feature.Cardinality == 0)
-			{
-				bNeedFinalize = true;
-				break;
-			}
-		}
-	}
-
-	if (!bNeedFinalize)
-	{
 		for (const UPoseSearchFeatureChannel* Channel : Channels)
 		{
 			if (Channel->ChannelDataOffset == -1 || Channel->ChannelCardinality == -1)
@@ -468,7 +411,7 @@ bool UPoseSearchSchema::IsValid() const
 
 	bValid &= (BoneReferences.Num() == BoneIndices.Num());
 
-	bValid &= Layout.IsValid(Channels.Num());
+	bValid &= SchemaCardinality > 0;
 	
 	return bValid;
 }
@@ -645,7 +588,7 @@ float FPoseSearchIndex::GetAssetTime(int32 PoseIdx, const FPoseSearchIndexAsset*
 bool FPoseSearchIndex::IsValid() const
 {
 	const bool bSchemaValid = Schema && Schema->IsValid();
-	const bool bSearchIndexValid = bSchemaValid && (NumPoses * Schema->Layout.NumFloats == Values.Num());
+	const bool bSearchIndexValid = bSchemaValid && (NumPoses * Schema->SchemaCardinality == Values.Num());
 
 	return bSearchIndexValid;
 }
@@ -659,8 +602,8 @@ bool FPoseSearchIndex::IsEmpty() const
 TArrayView<const float> FPoseSearchIndex::GetPoseValues(int32 PoseIdx) const
 {
 	check(PoseIdx < NumPoses);
-	int32 ValueOffset = PoseIdx * Schema->Layout.NumFloats;
-	return MakeArrayView(&Values[ValueOffset], Schema->Layout.NumFloats);
+	int32 ValueOffset = PoseIdx * Schema->SchemaCardinality;
+	return MakeArrayView(&Values[ValueOffset], Schema->SchemaCardinality);
 }
 
 void FPoseSearchIndex::Reset()
@@ -775,7 +718,7 @@ UE::PoseSearch::FSearchResult UPoseSearchSequenceMetaData::Search(FPoseSearchCon
 	Result.ComposedQuery.Normalize(SearchIndex);
 	TArrayView<const float> NormalizedQueryValues = Result.ComposedQuery.GetNormalizedValues();
 
-	if (!ensure(NormalizedQueryValues.Num() == SearchIndex.Schema->Layout.NumFloats))
+	if (!ensure(NormalizedQueryValues.Num() == SearchIndex.Schema->SchemaCardinality))
 	{
 		return Result;
 	}
@@ -976,7 +919,7 @@ const FString UPoseSearchDatabase::GetSourceAssetName(const FPoseSearchIndexAsse
 
 int32 UPoseSearchDatabase::GetNumberOfPrincipalComponents() const
 {
-	return FMath::Min<int32>(NumberOfPrincipalComponents, Schema->Layout.NumFloats);
+	return FMath::Min<int32>(NumberOfPrincipalComponents, Schema->SchemaCardinality);
 }
 
 bool UPoseSearchDatabase::IsValidForIndexing() const
@@ -1817,7 +1760,7 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::SearchPCAKDTree(FPoseSearchCo
 
 	FSearchResult Result;
 
-	const int32 NumDimensions = Schema->Layout.NumFloats;
+	const int32 NumDimensions = Schema->SchemaCardinality;
 	const FPoseSearchIndex* SearchIndex = GetSearchIndex();
 	check(SearchIndex);
 
@@ -2051,8 +1994,6 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabaseSet::Search(FPoseSearchContext&
 	FSearchResult Result;
 	FPoseSearchCost ContinuityCost;
 
-	TArray<const FPoseSearchDatabaseSetEntry*, TInlineAllocator<8>> FallBackEntries;
-
 	auto ProcessActiveEntry = 
 		[&SearchContext, &Result, &ContinuityCost](const FPoseSearchDatabaseSetEntry& Entry) 
 		-> EPoseSearchPostSearchStatus
@@ -2142,92 +2083,14 @@ void FPoseSearchFeatureVectorBuilder::Reset()
 	Schema = nullptr;
 	Values.Reset(0);
 	ValuesNormalized.Reset(0);
-	NumFeaturesAdded = 0;
-	FeaturesAdded.Reset();
 }
 
 void FPoseSearchFeatureVectorBuilder::ResetFeatures()
 {
 	Values.Reset(0);
-	Values.SetNumZeroed(Schema->Layout.NumFloats);
+	Values.SetNumZeroed(Schema->SchemaCardinality);
 	ValuesNormalized.Reset(0);
-	ValuesNormalized.SetNumZeroed(Schema->Layout.NumFloats);
-	NumFeaturesAdded = 0;
-	FeaturesAdded.Init(false, Schema->Layout.Features.Num());
-}
-
-void FPoseSearchFeatureVectorBuilder::SetPhase(const FPoseSearchFeatureDesc& Feature, const FVector2D& Phase)
-{
-	check(Feature.Type == EPoseSearchFeatureType::Phase);
-	check(Feature.Cardinality == 2);
-
-	const int32 FeatureIndex = Schema->Layout.Features.Find(Feature);
-	check(FeatureIndex >= 0);
-	if (FeatureIndex >= 0)
-	{
-		const FPoseSearchFeatureDesc& FoundFeature = Schema->Layout.Features[FeatureIndex];
-		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
-
-		Values[FoundFeature.ValueOffset + 0] = Phase.X;
-		Values[FoundFeature.ValueOffset + 1] = Phase.Y;
-
-		if (!FeaturesAdded[FeatureIndex])
-		{
-			FeaturesAdded[FeatureIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
-}
-
-void FPoseSearchFeatureVectorBuilder::SetRotation(const FPoseSearchFeatureDesc& Feature, const FQuat& Rotation)
-{
-	check(Feature.Type == EPoseSearchFeatureType::Rotation);
-	check(Feature.Cardinality == 6);
-	const int32 FeatureIndex = Schema->Layout.Features.Find(Feature);
-	check(FeatureIndex >= 0);
-	if (FeatureIndex >= 0)
-	{
-		FVector X = Rotation.GetAxisX();
-		FVector Y = Rotation.GetAxisY();
-
-		const FPoseSearchFeatureDesc& FoundFeature = Schema->Layout.Features[FeatureIndex];
-		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
-
-		Values[FoundFeature.ValueOffset + 0] = X.X;
-		Values[FoundFeature.ValueOffset + 1] = X.Y;
-		Values[FoundFeature.ValueOffset + 2] = X.Z;
-		Values[FoundFeature.ValueOffset + 3] = Y.X;
-		Values[FoundFeature.ValueOffset + 4] = Y.Y;
-		Values[FoundFeature.ValueOffset + 5] = Y.Z;
-
-		if (!FeaturesAdded[FeatureIndex])
-		{
-			FeaturesAdded[FeatureIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
-}
-
-void FPoseSearchFeatureVectorBuilder::SetVector(const FPoseSearchFeatureDesc& Feature, const FVector& Vector)
-{
-	check(Feature.Cardinality == 3);
-	const int32 FeatureIndex = Schema->Layout.Features.Find(Feature);
-	check(FeatureIndex >= 0);
-	if (FeatureIndex >= 0)
-	{
-		const FPoseSearchFeatureDesc& FoundFeature = Schema->Layout.Features[FeatureIndex]; 
-		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
-
-		Values[FoundFeature.ValueOffset + 0] = Vector[0];
-		Values[FoundFeature.ValueOffset + 1] = Vector[1];
-		Values[FoundFeature.ValueOffset + 2] = Vector[2];
-
-		if (!FeaturesAdded[FeatureIndex])
-		{
-			FeaturesAdded[FeatureIndex] = true;
-			++NumFeaturesAdded;
-		}
-	}
+	ValuesNormalized.SetNumZeroed(Schema->SchemaCardinality);
 }
 
 void FPoseSearchFeatureVectorBuilder::CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx)
@@ -2239,14 +2102,11 @@ void FPoseSearchFeatureVectorBuilder::CopyFromSearchIndex(const FPoseSearchIndex
 	ValuesNormalized = FeatureVector;
 	Values = FeatureVector;
 	SearchIndex.InverseNormalize(Values);
-
-	NumFeaturesAdded = Schema->Layout.Features.Num();
-	FeaturesAdded.SetRange(0, FeaturesAdded.Num(), true);
 }
 
 bool FPoseSearchFeatureVectorBuilder::IsInitialized() const
 {
-	return (Schema != nullptr) && (Values.Num() == Schema->Layout.NumFloats);
+	return (Schema != nullptr) && (Values.Num() == Schema->SchemaCardinality);
 }
 
 bool FPoseSearchFeatureVectorBuilder::IsInitializedForSchema(const UPoseSearchSchema* InSchema) const
@@ -2254,19 +2114,9 @@ bool FPoseSearchFeatureVectorBuilder::IsInitializedForSchema(const UPoseSearchSc
 	return (Schema == InSchema) && IsInitialized();
 }
 
-bool FPoseSearchFeatureVectorBuilder::IsComplete() const
-{
-	return NumFeaturesAdded == Schema->Layout.Features.Num();
-}
-
 bool FPoseSearchFeatureVectorBuilder::IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const
 {
 	return IsInitialized() && (Schema == OtherBuilder.Schema);
-}
-
-const TBitArray<>& FPoseSearchFeatureVectorBuilder::GetFeaturesAdded() const
-{
-	return FeaturesAdded;
 }
 
 void FPoseSearchFeatureVectorBuilder::Normalize(const FPoseSearchIndex& ForSearchIndex)
@@ -2480,109 +2330,84 @@ float FPoseHistory::GetSampleTimeInterval() const
 	return TimeHorizon / (Knots.Max() - 1);
 }
 
-
 //////////////////////////////////////////////////////////////////////////
-// FPoseSearchFeatureVectorReader
-
-void FFeatureVectorReader::Init(const FPoseSearchFeatureVectorLayout* InLayout)
+// FFeatureVectorHelper
+void FFeatureVectorHelper::EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat)
 {
-	check(InLayout);
-	Layout = InLayout;
+	const FVector X = Quat.GetAxisX();
+	const FVector Y = Quat.GetAxisY();
+
+	Values[DataOffset + 0] = X.X;
+	Values[DataOffset + 1] = X.Y;
+	Values[DataOffset + 2] = X.Z;
+	Values[DataOffset + 3] = Y.X;
+	Values[DataOffset + 4] = Y.Y;
+	Values[DataOffset + 5] = Y.Z;
+
+	DataOffset += EncodeQuatCardinality;
 }
 
-void FFeatureVectorReader::SetValues(TArrayView<const float> InValues)
+FQuat FFeatureVectorHelper::DecodeQuat(TArrayView<const float> Values, int32& DataOffset)
 {
-	check(Layout);
-	check(Layout->NumFloats == InValues.Num());
-	Values = InValues;
+	const FVector X(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
+	const FVector Y(Values[DataOffset + 3], Values[DataOffset + 4], Values[DataOffset + 5]);
+	const FVector Z = FVector::CrossProduct(X, Y);
+
+	FMatrix M(FMatrix::Identity);
+	M.SetColumn(0, X);
+	M.SetColumn(1, Y);
+	M.SetColumn(2, Z);
+
+	DataOffset += EncodeQuatCardinality;
+	return FQuat(M);
 }
 
-bool FFeatureVectorReader::IsValid() const
+void FFeatureVectorHelper::EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector)
 {
-	return Layout && (Layout->NumFloats == Values.Num());
+	Values[DataOffset + 0] = Vector.X;
+	Values[DataOffset + 1] = Vector.Y;
+	Values[DataOffset + 2] = Vector.Z;
+	DataOffset += EncodeVectorCardinality;
 }
 
-bool FFeatureVectorReader::GetRotation(const FPoseSearchFeatureDesc& Feature, FQuat* OutRotation) const
+FVector FFeatureVectorHelper::DecodeVector(TArrayView<const float> Values, int32& DataOffset)
 {
-	check(Feature.Type == EPoseSearchFeatureType::Rotation);
-	const int32 FeatureIndex = IsValid() ? Layout->Features.Find(Feature) : -1;
-	check(FeatureIndex >= 0);
-	if (FeatureIndex >= 0)
-	{
-		const FPoseSearchFeatureDesc& FoundFeature = Layout->Features[FeatureIndex];
-		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
-
-		FVector X;
-		FVector Y;
-
-		X.X = Values[FoundFeature.ValueOffset + 0];
-		X.Y = Values[FoundFeature.ValueOffset + 1];
-		X.Z = Values[FoundFeature.ValueOffset + 2];
-		Y.X = Values[FoundFeature.ValueOffset + 3];
-		Y.Y = Values[FoundFeature.ValueOffset + 4];
-		Y.Z = Values[FoundFeature.ValueOffset + 5];
-
-		FVector Z = FVector::CrossProduct(X, Y);
-
-		FMatrix M(FMatrix::Identity);
-		M.SetColumn(0, X);
-		M.SetColumn(1, Y);
-		M.SetColumn(2, Z);
-
-		*OutRotation = FQuat(M);
-		return true;
-	}
-
-	*OutRotation = FQuat::Identity;
-	return false;
+	const FVector Vector(Values[DataOffset + 0], Values[DataOffset + 1], Values[DataOffset + 2]);
+	DataOffset += EncodeVectorCardinality;
+	return Vector;
 }
 
-bool FFeatureVectorReader::GetPhase(const FPoseSearchFeatureDesc& Feature, FVector2D* OutPhase) const
+void FFeatureVectorHelper::EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D)
 {
-	check(Feature.Cardinality == 2);
-	check(Feature.Type == EPoseSearchFeatureType::Phase);
-	const int32 FeatureIndex = IsValid() ? Layout->Features.Find(Feature) : -1;
-	check(FeatureIndex >= 0);
-	if (FeatureIndex >= 0)
-	{
-		const FPoseSearchFeatureDesc& FoundFeature = Layout->Features[FeatureIndex];
-		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
-
-		OutPhase->X = Values[FoundFeature.ValueOffset + 0];
-		OutPhase->Y = Values[FoundFeature.ValueOffset + 1];
-		return true;
-	}
-
-	*OutPhase = FVector2D::ZeroVector;
-	return false;
+	Values[DataOffset + 0] = Vector2D.X;
+	Values[DataOffset + 1] = Vector2D.Y;
+	DataOffset += EncodeVector2DCardinality;
 }
 
-bool FFeatureVectorReader::GetVector(const FPoseSearchFeatureDesc& Feature, FVector* OutVector) const
+FVector2D FFeatureVectorHelper::DecodeVector2D(TArrayView<const float> Values, int32& DataOffset)
 {
-	check(Feature.Cardinality == 3);
-	const int32 FeatureIndex = IsValid() ? Layout->Features.Find(Feature) : -1;
-	check(FeatureIndex >= 0);
-	if (FeatureIndex >= 0)
-	{
-		const FPoseSearchFeatureDesc& FoundFeature = Layout->Features[FeatureIndex];
-		check(Feature.ValueOffset < 0 || Feature.ValueOffset == FoundFeature.ValueOffset);
-
-		FVector V;
-		V.X = Values[FoundFeature.ValueOffset + 0];
-		V.Y = Values[FoundFeature.ValueOffset + 1];
-		V.Z = Values[FoundFeature.ValueOffset + 2];
-		*OutVector = V;
-		return true;
-	}
-
-	*OutVector = FVector::ZeroVector;
-	return false;
+	const FVector2D Vector2D(Values[DataOffset + 0], Values[DataOffset + 1]);
+	DataOffset += EncodeVector2DCardinality;
+	return Vector2D;
 }
 
+void FFeatureVectorHelper::ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality)
+{
+	const int32 NumPoses = MeanDeviations.size();
+
+	// Construct a submatrix for the feature and find the average distance to the feature's centroid.
+	// Since we've already mean centered the data, the average distance to the centroid is simply the average norm.
+	const double FeatureMeanDeviation = CenteredPoseMatrix.block(DataOffset, 0, Cardinality, NumPoses).colwise().norm().mean();
+
+	// Fill the feature's corresponding scaling axes with the average distance
+	// Avoid scaling by zero by leaving near-zero deviations as 1.0
+	MeanDeviations.segment(DataOffset, Cardinality).setConstant(FeatureMeanDeviation > KINDA_SMALL_NUMBER ? FeatureMeanDeviation : 1.f);
+
+	DataOffset += Cardinality;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // FDebugDrawParams
-
 bool FDebugDrawParams::CanDraw() const
 {
 	if (!World)
@@ -2597,6 +2422,31 @@ bool FDebugDrawParams::CanDraw() const
 	}
 
 	return SearchIndex->IsValid() && !SearchIndex->IsEmpty();
+}
+
+FLinearColor FDebugDrawParams::GetColor(const UPoseSearchFeatureChannel* channel) const
+{
+	if (Color)
+	{
+		return *Color;
+	}
+
+	const UPoseSearchSchema* Schema = GetSchema();
+	if (!Schema || Schema->SchemaCardinality <= 0)
+	{
+		return FLinearColor::Red;
+	}
+
+	const float TotalData = Schema->SchemaCardinality;
+	const float ChannelData = channel->GetChannelDataOffset();
+	const float HalfData = TotalData * 0.5f;
+
+	const float Hue = ChannelData < HalfData
+		? FMath::GetMappedRangeValueUnclamped({ 0.f, HalfData }, FVector2f(60.f, 0.f), ChannelData)
+		: FMath::GetMappedRangeValueUnclamped({ HalfData, TotalData }, FVector2f(280.f, 220.f), ChannelData);
+
+	const FLinearColor ColorHSV(Hue, 1.f, 1.f);
+	return ColorHSV.HSVToLinearRGB();
 }
 
 const FPoseSearchIndex* FDebugDrawParams::GetSearchIndex() const
@@ -3608,7 +3458,6 @@ public:
 		int32 NumIndexedPoses = 0;
 		TArray<float> FeatureVectorTable;
 		TArray<FPoseSearchPoseMetadata> PoseMetadata;
-		TSet<int32> InvalidChannels;
 		TBitArray<> AllFeaturesNotAdded;
 	} Output;
 
@@ -3640,7 +3489,6 @@ void FAssetIndexer::Reset()
 
 	Output.FeatureVectorTable.Reset(0);
 	Output.PoseMetadata.Reset(0);
-	Output.InvalidChannels.Reset();
 	Output.AllFeaturesNotAdded.Reset();
 }
 
@@ -3659,7 +3507,7 @@ void FAssetIndexer::Init(const FAssetIndexingContext& InIndexingContext)
 		FMath::Max(0, FMath::CeilToInt(IndexingContext.RequestedSamplingRange.Max * IndexingContext.Schema->SampleRate));
 	Output.NumIndexedPoses = Output.LastIndexedSample - Output.FirstIndexedSample + 1;
 	
-	Output.FeatureVectorTable.SetNumZeroed(IndexingContext.Schema->Layout.NumFloats * Output.NumIndexedPoses);
+	Output.FeatureVectorTable.SetNumZeroed(IndexingContext.Schema->SchemaCardinality * Output.NumIndexedPoses);
 
 	Output.PoseMetadata.SetNum(Output.NumIndexedPoses);
 
@@ -3691,40 +3539,16 @@ bool FAssetIndexer::Process()
 		Channel->IndexAsset(*this, AssetIndexingOutput);
 	}
 
-	// Verify all channels provided a complete feature vector for all poses
-	TBitArray<> PoseFeaturesNotAdded;
-	for (int32 VectorIdx = 0; VectorIdx != NumSamplesInRange; ++VectorIdx)
-	{
-		if (!FeatureVectorBuilders[VectorIdx].IsComplete())
-		{
-			PoseFeaturesNotAdded = FeatureVectorBuilders[VectorIdx].GetFeaturesAdded();
-			PoseFeaturesNotAdded.BitwiseNOT();
-			TBitArray<>::BitwiseOR(Output.AllFeaturesNotAdded, PoseFeaturesNotAdded, EBitwiseOperatorFlags::MaxSize);
-
-			for (TConstSetBitIterator<> FeatureIter(PoseFeaturesNotAdded); FeatureIter; ++FeatureIter)
-			{
-				int32 FeatureIdx = FeatureIter.GetIndex();
-				const FPoseSearchFeatureDesc& FeatureDesc = IndexingContext.Schema->Layout.Features[FeatureIdx];
-				Output.InvalidChannels.Add(FeatureDesc.ChannelIdx);
-			}
-		}
-	}
-
-	Output.InvalidChannels.Sort(TLess<>());
-
 	// Merge spans of feature vectors into contiguous buffer
 	for (int32 VectorIdx = 0; VectorIdx != NumSamplesInRange; ++VectorIdx)
 	{
-		if (FeatureVectorBuilders[VectorIdx].IsComplete())
-		{
-			const int32 SampleIdx = VectorIdx + IndexingContext.BeginSampleIdx;
-			const int32 PoseIdx = SampleIdx - Output.FirstIndexedSample;
-			const int32 FirstValueIdx = PoseIdx * IndexingContext.Schema->Layout.NumFloats;
-			TArrayView<float> WriteValues = MakeArrayView(&Output.FeatureVectorTable[FirstValueIdx], IndexingContext.Schema->Layout.NumFloats);
-			TArrayView<const float> ReadValues = FeatureVectorBuilders[VectorIdx].GetValues();
-			check(WriteValues.Num() == ReadValues.Num());
-			FMemory::Memcpy(WriteValues.GetData(), ReadValues.GetData(), WriteValues.Num() * WriteValues.GetTypeSize());
-		}
+		const int32 SampleIdx = VectorIdx + IndexingContext.BeginSampleIdx;
+		const int32 PoseIdx = SampleIdx - Output.FirstIndexedSample;
+		const int32 FirstValueIdx = PoseIdx * IndexingContext.Schema->SchemaCardinality;
+		TArrayView<float> WriteValues = MakeArrayView(&Output.FeatureVectorTable[FirstValueIdx], IndexingContext.Schema->SchemaCardinality);
+		TArrayView<const float> ReadValues = FeatureVectorBuilders[VectorIdx].GetValues();
+		check(WriteValues.Num() == ReadValues.Num());
+		FMemory::Memcpy(WriteValues.GetData(), ReadValues.GetData(), WriteValues.Num() * WriteValues.GetTypeSize());
 	}
 
 	// Generate pose metadata
@@ -3735,7 +3559,7 @@ bool FAssetIndexer::Process()
 		Output.PoseMetadata[PoseIdx] = Metadata;
 	}
 
-	return Output.InvalidChannels.IsEmpty();
+	return true;
 }
 
 const float FAssetIndexer::GetSampleTimeFromDistance(float SampleDistance) const
@@ -4018,44 +3842,29 @@ void FAssetIndexer::AddMetadata(int32 SampleIdx)
 //////////////////////////////////////////////////////////////////////////
 // PoseSearch API
 
-static void DrawFeatureVector(const FDebugDrawParams& DrawParams, const FFeatureVectorReader& Reader)
-{
-	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
-
-	for (int32 ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
-	{
-		if (DrawParams.ChannelMask & (1 << ChannelIdx))
-		{
-			Schema->Channels[ChannelIdx]->DebugDraw(DrawParams, Reader);
-		}
-	}
-}
-
 static void DrawFeatureVector(const FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector)
 {
 	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
 	check(Schema)
 
-	if (PoseVector.Num() != Schema->Layout.NumFloats)
+	if (PoseVector.Num() != Schema->SchemaCardinality)
 	{
 		return;
 	}
 
-	FFeatureVectorReader Reader;
-	Reader.Init(&Schema->Layout);
-	Reader.SetValues(PoseVector);
-	DrawFeatureVector(DrawParams, Reader);
+	for (int32 ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+	{
+		if (DrawParams.ChannelMask & (1 << ChannelIdx))
+		{
+			Schema->Channels[ChannelIdx]->DebugDraw(DrawParams, PoseVector);
+		}
+	}
 }
 
 static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 {
-	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
 	const FPoseSearchIndex* SearchIndex = DrawParams.GetSearchIndex();
-	check(Schema);
 	check(SearchIndex);
-
-	FFeatureVectorReader Reader;
-	Reader.Init(&Schema->Layout);
 
 	const int32 LastPoseIdx = SearchIndex->NumPoses;
 
@@ -4064,8 +3873,7 @@ static void DrawSearchIndex(const FDebugDrawParams& DrawParams)
 	{
 		PoseVector = SearchIndex->GetPoseValues(PoseIdx);
 		SearchIndex->InverseNormalize(PoseVector);
-		Reader.SetValues(PoseVector);
-		DrawFeatureVector(DrawParams, Reader);
+		DrawFeatureVector(DrawParams, PoseVector);
 	}
 }
 
@@ -4124,10 +3932,8 @@ static void PreprocessSearchIndexNone(FPoseSearchIndex* SearchIndex)
 	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
 	Info.Reset();
 
-	const FPoseSearchFeatureVectorLayout& Layout = SearchIndex->Schema->Layout;
-
 	const int32 NumPoses = SearchIndex->NumPoses;
-	const int32 NumDimensions = Layout.NumFloats;
+	const int32 NumDimensions = SearchIndex->Schema->SchemaCardinality;
 
 	Info.NumDimensions = NumDimensions;
 	Info.TransformationMatrix.SetNumZeroed(NumDimensions * NumPoses);
@@ -4155,7 +3961,7 @@ static void PreprocessSearchIndexNone(FPoseSearchIndex* SearchIndex)
 	SampleMeanMap = VectorXf::Zero(NumDimensions);
 }
 
-static inline Eigen::VectorXd ComputeFeatureMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, const FPoseSearchFeatureVectorLayout& Layout)
+static inline Eigen::VectorXd ComputeChannelsMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, const UPoseSearchSchema* Schema)
 {
 	using namespace Eigen;
 
@@ -4164,18 +3970,11 @@ static inline Eigen::VectorXd ComputeFeatureMeanDeviations(const Eigen::MatrixXd
 
 	VectorXd MeanDeviations(NumDimensions);
 	MeanDeviations.setConstant(1.0);
-	for (const FPoseSearchFeatureDesc& Feature : Layout.Features)
-	{
-		// Construct a submatrix for the feature and find the average distance to the feature's centroid.
-		// Since we've already mean centered the data, the average distance to the centroid is simply the average norm.
-		double FeatureMeanDeviation = CenteredPoseMatrix.block(Feature.ValueOffset, 0, Feature.Cardinality, NumPoses).colwise().norm().mean();
 
-		// Fill the feature's corresponding scaling axes with the average distance
-		// Avoid scaling by zero by leaving near-zero deviations as 1.0
-		if (FeatureMeanDeviation > KINDA_SMALL_NUMBER)
-		{
-			MeanDeviations.segment(Feature.ValueOffset, Feature.Cardinality).setConstant(FeatureMeanDeviation);
-		}
+	for (int ChannelIdx = 0; ChannelIdx != Schema->Channels.Num(); ++ChannelIdx)
+	{
+		const UPoseSearchFeatureChannel* Channel = Schema->Channels[ChannelIdx].Get();
+		Channel->ComputeMeanDeviations(CenteredPoseMatrix, MeanDeviations);
 	}
 
 	return MeanDeviations;
@@ -4233,10 +4032,8 @@ static void PreprocessSearchIndexNormalize(FPoseSearchIndex* SearchIndex)
 	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
 	Info.Reset();
 
-	const FPoseSearchFeatureVectorLayout& Layout = SearchIndex->Schema->Layout;
-
 	const int32 NumPoses = SearchIndex->NumPoses;
-	const int32 NumDimensions = Layout.NumFloats;
+	const int32 NumDimensions = SearchIndex->Schema->SchemaCardinality;
 
 	// Map input buffer
 	auto PoseMatrixSourceMap = Map<Matrix<float, Dynamic, Dynamic, RowMajor>>(
@@ -4259,7 +4056,7 @@ static void PreprocessSearchIndexNormalize(FPoseSearchIndex* SearchIndex)
 	PoseMatrix = PoseMatrix.colwise() - SampleMean;
 
 	// Compute per-feature average distances
-	VectorXd MeanDeviations = ComputeFeatureMeanDeviations(PoseMatrix, Layout);
+	VectorXd MeanDeviations = ComputeChannelsMeanDeviations(PoseMatrix, SearchIndex->Schema);
 
 	// Construct a scaling matrix that uniformly scales each feature by its average distance from the mean
 	MatrixXd ScalingMatrix = MeanDeviations.cwiseInverse().asDiagonal();
@@ -4391,10 +4188,8 @@ static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
 	FPoseSearchIndexPreprocessInfo& Info = SearchIndex->PreprocessInfo;
 	Info.Reset();
 
-	const FPoseSearchFeatureVectorLayout& Layout = SearchIndex->Schema->Layout;
-
 	const int32 NumPoses = SearchIndex->NumPoses;
-	const int32 NumDimensions = Layout.NumFloats;
+	const int32 NumDimensions = SearchIndex->Schema->SchemaCardinality;
 
 	// Map input buffer
 	auto PoseMatrixSourceMap = Map<Matrix<float, Dynamic, Dynamic, RowMajor>>(
@@ -4417,7 +4212,7 @@ static void PreprocessSearchIndexSphere(FPoseSearchIndex* SearchIndex)
 	PoseMatrix = PoseMatrix.colwise() - SampleMean;
 
 	// Compute per-feature average distances
-	VectorXd MeanDeviations = ComputeFeatureMeanDeviations(PoseMatrix, Layout);
+	VectorXd MeanDeviations = ComputeChannelsMeanDeviations(PoseMatrix, SearchIndex->Schema);
 
 	// Rescale data by transforming it with the scaling matrix
 	// Now each feature has an average Euclidean length = 1.
@@ -4539,7 +4334,7 @@ static void PreprocessSearchIndex(FPoseSearchIndex* SearchIndex)
 
 static void PreprocessGroupSearchIndexWeights(FGroupSearchIndex& GroupSearchIndex, const UPoseSearchDatabase* Database)
 {
-	const int32 NumDimensions = Database->Schema->Layout.NumFloats;
+	const int32 NumDimensions = Database->Schema->SchemaCardinality;
 	GroupSearchIndex.Weights.Init(1.f, NumDimensions);
 
 	for (int ChannelIdx = 0; ChannelIdx != Database->Schema->Channels.Num(); ++ChannelIdx)
@@ -4561,7 +4356,7 @@ static void PreprocessGroupSearchIndexWeights(FGroupSearchIndex& GroupSearchInde
 static void PreprocessGroupSearchIndexPCAData(FGroupSearchIndex& GroupSearchIndex, const UPoseSearchDatabase* Database, const float* GroupValues, float* GroupPCAValues)
 {
 	// binding SearchIndex.Values and SearchIndex.PCAValues Eigen row major matrix maps
-	const int32 NumDimensions = Database->Schema->Layout.NumFloats;
+	const int32 NumDimensions = Database->Schema->SchemaCardinality;
 	const int32 NumGroupPoses = GroupSearchIndex.EndPoseIndex - GroupSearchIndex.StartPoseIndex;
 
 	const RowMajorVectorMapConst MapWeights(GroupSearchIndex.Weights.GetData(), 1, NumDimensions);
@@ -4676,7 +4471,7 @@ static void PreprocessGroupSearchIndexKDTree(FGroupSearchIndex& GroupSearchIndex
 		}
 
 		// testing the KDTree is returning the proper searches for all the original points transformed in pca space
-		const int32 NumDimensions = Database->Schema->Layout.NumFloats;
+		const int32 NumDimensions = Database->Schema->SchemaCardinality;
 		for (size_t PointIndex = 0; PointIndex < NumGroupPoses; ++PointIndex)
 		{
 			constexpr size_t NumResults = 10;
@@ -4714,7 +4509,7 @@ static void PreprocessGroupSearchIndex(FPoseSearchIndex& SearchIndex, const UPos
 	const uint32 NumberOfPrincipalComponents = Database->GetNumberOfPrincipalComponents();
 	if (NumberOfPrincipalComponents > 0)
 	{
-		const int32 NumDimensions = Database->Schema->Layout.NumFloats;
+		const int32 NumDimensions = Database->Schema->SchemaCardinality;
 
 		// preallocating the PCAValues for all the groups
 		SearchIndex.PCAValues.Reset();
@@ -4971,39 +4766,13 @@ void FDatabaseIndexingContext::PrepareIndexers()
 
 bool FDatabaseIndexingContext::IndexAssets()
 {
-	bool bSuccess = true;
-
-	// Index sequence data
+	// Index asset data
 	ParallelFor(
 		Indexers.Num(),
-		[this](int32 SequenceIdx) { Indexers[SequenceIdx].Process(); },
+		[this](int32 AssetIdx) { Indexers[AssetIdx].Process(); },
 		ParallelForFlags
 	);
-
-	// Validate indexing process
-	TSet<int32> AllInvalidChannels;
-	TBitArray<> AllInvalidFeatures;
-	for (FAssetIndexer& Indexer : Indexers)
-	{
-		AllInvalidChannels.Union(Indexer.Output.InvalidChannels);
-		TBitArray<>::BitwiseOR(AllInvalidFeatures, Indexer.Output.AllFeaturesNotAdded, EBitwiseOperatorFlags::MaxSize);
-	}
-
-	if (!AllInvalidChannels.IsEmpty())
-	{
-		bSuccess = false;
-	}
-
-	for (int32 InvalidChannelIdx : AllInvalidChannels)
-	{
-		const TObjectPtr<UPoseSearchFeatureChannel> ChannelPtr = Database->Schema->Channels[InvalidChannelIdx];
-		if (ChannelPtr)
-		{
-			UE_LOG(LogPoseSearch, Error, TEXT("Feature channel '%f' failed to index all features from all assets"), *ChannelPtr->GetName());
-		}
-	}
-
-	return bSuccess;
+	return true;
 }
 
 void FDatabaseIndexingContext::JoinIndex()
@@ -5048,7 +4817,7 @@ void FDatabaseIndexingContext::JoinIndex()
 		SearchIndex->Groups.Last().EndPoseIndex = TotalPoses;
 	}
 	
-	check(TotalFloats == TotalPoses * Database->Schema->Layout.NumFloats);
+	check(TotalFloats == TotalPoses * Database->Schema->SchemaCardinality);
 	
 	// Join animation data into a single search index
 	SearchIndex->Values.Reset(TotalFloats);

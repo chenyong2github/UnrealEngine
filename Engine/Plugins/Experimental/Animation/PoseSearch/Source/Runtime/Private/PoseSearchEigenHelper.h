@@ -48,15 +48,33 @@ PRAGMA_DEFAULT_VISIBILITY_END
 #include <sstream>
 #endif
 
-namespace UE { namespace PoseSearch {
+namespace UE { namespace PoseSearch
+{
+	using RowMajorVector = Eigen::Matrix<float, 1, Eigen::Dynamic, Eigen::RowMajor>;
+	using RowMajorVectorMap = Eigen::Map<RowMajorVector, Eigen::RowMajor>;
+	using RowMajorVectorMapConst = Eigen::Map<const RowMajorVector, Eigen::RowMajor>;
+
+	using RowMajorMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>;
+	using RowMajorMatrixMap = Eigen::Map<RowMajorMatrix, Eigen::RowMajor>;
+	using RowMajorMatrixMapConst = Eigen::Map<const RowMajorMatrix, Eigen::RowMajor>;
+
+	using ColMajorMatrix = Eigen::Matrix<float, Eigen::Dynamic, Eigen::Dynamic, Eigen::ColMajor>;
+	using ColMajorMatrixMap = Eigen::Map<ColMajorMatrix, Eigen::ColMajor>;
+	using ColMajorMatrixMapConst = Eigen::Map<const ColMajorMatrix, Eigen::ColMajor>;
+
+	struct ColMajorVectord : public Eigen::VectorXd
+	{
+		ColMajorVectord(int32 Size) : Eigen::VectorXd(Size) {}
+	};
+	struct ColMajorMatrixd : public Eigen::MatrixXd {};
 
 #if UE_POSE_SEARCH_EIGEN_DEBUG
-template<typename EigenDenseBaseDerivedType>
-FString EigenMatrixToString(const Eigen::DenseBase<EigenDenseBaseDerivedType>& Matrix){
-	std::stringstream StringStream;
-    StringStream << Matrix;
-	return StringStream.str().c_str();
-}
+	template<typename EigenDenseBaseDerivedType>
+	FString EigenMatrixToString(const Eigen::DenseBase<EigenDenseBaseDerivedType>& Matrix){
+		std::stringstream StringStream;
+		StringStream << Matrix;
+		return StringStream.str().c_str();
+	}
 #endif
 
 }}

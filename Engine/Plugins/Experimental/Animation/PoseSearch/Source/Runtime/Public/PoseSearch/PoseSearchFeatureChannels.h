@@ -49,21 +49,17 @@ public:
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer) override;
 	virtual void FillWeights(TArray<float>& Weights) const override;
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const override;
+	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const override;
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const override;
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const override;
 	virtual bool BuildQuery(
 		FPoseSearchContext& SearchContext,
 		FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, const UE::PoseSearch::FFeatureVectorReader& Reader) const override;
+	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const override;
 
 protected:
 	void AddPoseFeatures(UE::PoseSearch::BoneTransformsCache& BoneTransformsCache, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector, const TArray<TArray<FVector2D>>& Phases) const;
 	void CalculatePhases(UE::PoseSearch::BoneTransformsCache& BoneTransformsCache, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput, TArray<TArray<FVector2D>>& OutPhases) const;
-
-	enum { PositionCardinality = 3 };
-	enum { RotationCardinality = 6 };
-	enum { LinearVelocityCardinality = 3 };
-	enum { PhaseCardinality = 2 };
 };
 
 
@@ -105,18 +101,15 @@ public:
 	virtual void InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer) override;
 	virtual void FillWeights(TArray<float>& Weights) const override;
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const override;
+	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const override;
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const override;
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const override;
 	virtual bool BuildQuery(
 		FPoseSearchContext& SearchContext,
 		FPoseSearchFeatureVectorBuilder& InOutQuery) const override;
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, const UE::PoseSearch::FFeatureVectorReader& Reader) const override;
+	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const override;
 
 protected:
 	virtual void IndexAssetPrivate(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector) const;
 	float GetSampleTime(const UE::PoseSearch::IAssetIndexer& Indexer, int32 SubsampleIdx, float SampleTime, float RootDistance) const;
-
-	enum { PositionCardinality = 3 };
-	enum { LinearVelocityCardinality = 3 };
-	enum { ForwardVectorCardinality = 3 };
 };

@@ -36,7 +36,6 @@ namespace UE::PoseSearch
 	namespace DebuggerDatabaseColumns { struct IColumn; }
 	struct FDebugDrawParams;
 	struct FTraceMotionMatchingStateMessage;
-	class FFeatureVectorReader;
 	class FDebuggerDatabaseRowData;
 } // namespace UE::PoseSearch
 

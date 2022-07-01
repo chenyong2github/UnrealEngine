@@ -43,31 +43,22 @@ namespace UE::PoseSearch {
 class FPoseHistory;
 struct FPoseSearchDatabaseAsyncCacheTask;
 struct FDebugDrawParams;
-class FFeatureVectorReader;
 struct FSchemaInitializer;
 struct FQueryBuildingContext;
 
 } // namespace UE::PoseSearch
 
-
+namespace Eigen {
+	template<typename _Scalar, int _Rows, int _Cols, int _Options, int _MaxRows, int _MaxCols>
+	class Matrix;
+	using MatrixXd = Matrix<double, -1, -1, 0, -1, -1>;
+	using VectorXd = Matrix<double, -1, 1, 0, -1, 1>;
+}
 
 //////////////////////////////////////////////////////////////////////////
 // Constants
 
-UENUM()
-enum class EPoseSearchFeatureType : int8
-{
-	Position,	
-	Rotation,
-	LinearVelocity,
-	AngularVelocity,
-	ForwardVector,
-	Phase,
-
-	Num UMETA(Hidden),
-	Invalid = Num UMETA(Hidden)
-};
-
+// @todo: move this enum in PoseSearchFeatureChannel.h since only used by UPoseSearchFeatureChannel_Trajectory
 UENUM()
 enum class EPoseSearchFeatureDomain : int32
 {
@@ -205,79 +196,6 @@ struct POSESEARCH_API FPoseSearchBone
 	UPROPERTY(EditAnywhere, Category = Config)
 	float Weight = 1.f;
 };
-
-
-
-//////////////////////////////////////////////////////////////////////////
-// Feature descriptions and vector layout
-
-/** Describes each feature of a vector, including data type, sampling options, and buffer offset. */
-USTRUCT()
-struct POSESEARCH_API FPoseSearchFeatureDesc
-{
-	GENERATED_BODY()
-
-	// Index into UPoseSearchSchema::Channels
-	UPROPERTY()
-	int8 ChannelIdx = -1;
-
-	// Optional feature identifier within a channel
-	UPROPERTY()
-	int8 ChannelFeatureId = 0;
-
-	// Index into channel's sample offsets, if any
-	UPROPERTY()
-	int8 SubsampleIdx = 0;
-
-	// Value type of the feature
-	UPROPERTY()
-	EPoseSearchFeatureType Type = EPoseSearchFeatureType::Invalid;
-
-	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator== or else Schema->Layout.Features.Find(Feature); called by FPoseSearchFeatureVectorBuilder will fail
-	UPROPERTY()
-	int16 Cardinality = 0;
-
-	// Set via FSchemaInitializer::AddFeatureDesc() and ignored by operator==
-	UPROPERTY()
-	int16 ValueOffset = 0;
-
-	bool operator==(const FPoseSearchFeatureDesc& Other) const;
-
-	bool IsValid() const { return Type != EPoseSearchFeatureType::Invalid; }
-
-	static FPoseSearchFeatureDesc Construct(int8 ChannelIdx, int8 ChannelFeatureId, int8 SubsampleIdx, EPoseSearchFeatureType Type, int16 Cardinality, int16 ValueOffset)
-	{
-		FPoseSearchFeatureDesc PoseSearchFeatureDesc;
-		PoseSearchFeatureDesc.ChannelIdx = ChannelIdx;
-		PoseSearchFeatureDesc.ChannelFeatureId = ChannelFeatureId;
-		PoseSearchFeatureDesc.SubsampleIdx = SubsampleIdx;
-		PoseSearchFeatureDesc.Type = Type;
-		PoseSearchFeatureDesc.Cardinality = Cardinality;
-		PoseSearchFeatureDesc.ValueOffset = ValueOffset;
-		return PoseSearchFeatureDesc;
-	}
-};
-
-
-/**
-* Explicit description of a pose feature vector.
-* Determined by options set in a UPoseSearchSchema and owned by the schema.
-* See UPoseSearchSchema::GenerateLayout().
-*/
-USTRUCT()
-struct POSESEARCH_API FPoseSearchFeatureVectorLayout
-{
-	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<FPoseSearchFeatureDesc> Features;
-
-	UPROPERTY()
-	int32 NumFloats = 0;
-
-	bool IsValid(int32 ChannelCount) const;
-};
-
 
 //////////////////////////////////////////////////////////////////////////
 // Asset sampling and indexing
@@ -420,6 +338,8 @@ public:
 	// Called at database build time to populate pose vectors with this channel's data
 	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
+	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const;
+
 	// Return this channel's range of sampling offsets in the requested sampling domain.
 	// Returns empty range if the channel has no horizon in the requested domain.
 	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GetHorizonRange, return FFloatRange::Empty(); );
@@ -434,7 +354,7 @@ public:
 		PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
 
 	// Draw this channel's data for the given pose vector
-	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, const UE::PoseSearch::FFeatureVectorReader& Reader) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
+	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
 
 private:
 	// IBoneReferenceSkeletonProvider interface
@@ -449,11 +369,9 @@ private:
 	int32 ChannelIdx = -1;
 
 protected:
-	// WIP: mimicking the FPoseSearchFeatureDesc to be able to deprecate it in favor of UPoseSearchFeatureChannel later on 
 	UPROPERTY()
 	int32 ChannelDataOffset = -1;
 
-	// WIP: mimicking the FPoseSearchFeatureDesc to be able to deprecate it in favor of UPoseSearchFeatureChannel later on 
 	UPROPERTY()
 	int32 ChannelCardinality = -1;
 };
@@ -473,9 +391,8 @@ public:
 	// Gets the index into the schema's channel array for the channel currently being initialized
 	int32 GetCurrentChannelIdx() const { return CurrentChannelIdx; }
 
-	int32 GetCurrentCardinalityFrom(int32 ChannelDataOffset) const { check(CurrentChannelDataOffset >= ChannelDataOffset);  return CurrentChannelDataOffset - ChannelDataOffset; }
 	int32 GetCurrentChannelDataOffset() const { return CurrentChannelDataOffset; }
-	int32 AddFeatureDesc(const FPoseSearchFeatureDesc& FeatureDesc);
+	void SetCurrentChannelDataOffset(int32 DataOffset) { CurrentChannelDataOffset = DataOffset; }
 
 private:
 	friend class ::UPoseSearchSchema;
@@ -484,7 +401,6 @@ private:
 	int32 CurrentChannelDataOffset = 0;
 	
 	TArray<FBoneReference> BoneReferences;
-	TArray<FPoseSearchFeatureDesc> Features;
 };
 
 } // namespace UE::PoseSearch
@@ -552,7 +468,7 @@ public:
 	float SamplingInterval = 1.0f / DefaultSampleRate;
 
 	UPROPERTY()
-	FPoseSearchFeatureVectorLayout Layout;
+	int32 SchemaCardinality = 0;
 
 	UPROPERTY()
 	TArray<FBoneReference> BoneReferences;
@@ -940,21 +856,15 @@ public:
 
 	const UPoseSearchSchema* GetSchema() const { return Schema.Get(); }
 
+	TArray<float>& EditValues() { return Values; }
 	TArrayView<const float> GetValues() const { return Values; }
 	TArrayView<const float> GetNormalizedValues() const { return ValuesNormalized; }
-
-	void SetRotation(const FPoseSearchFeatureDesc& Feature, const FQuat& Rotation);
-	void SetVector(const FPoseSearchFeatureDesc& Feature, const FVector& Vector);
-	void SetPhase(const FPoseSearchFeatureDesc& Feature, const FVector2D& Phase);
 
 	void CopyFromSearchIndex(const FPoseSearchIndex& SearchIndex, int32 PoseIdx);
 
 	bool IsInitialized() const;
 	bool IsInitializedForSchema(const UPoseSearchSchema* Schema) const;
-	bool IsComplete() const;
 	bool IsCompatible(const FPoseSearchFeatureVectorBuilder& OtherBuilder) const;
-
-	const TBitArray<>& GetFeaturesAdded() const;
 
 	void Normalize(const FPoseSearchIndex& ForSearchIndex);
 
@@ -964,8 +874,6 @@ private:
 
 	TArray<float> Values;
 	TArray<float> ValuesNormalized;
-	TBitArray<> FeaturesAdded;
-	int32 NumFeaturesAdded = 0;
 };
 
 
@@ -1042,6 +950,7 @@ struct POSESEARCH_API FDebugDrawParams
 	TWeakObjectPtr<const USkinnedMeshComponent> Mesh = nullptr;
 
 	bool CanDraw() const;
+	FLinearColor GetColor(const UPoseSearchFeatureChannel* channel) const;
 	const FPoseSearchIndex* GetSearchIndex() const;
 	const UPoseSearchSchema* GetSchema() const;
 };
@@ -1317,23 +1226,24 @@ public: // UObject
 
 namespace UE::PoseSearch {
 
-/** Helper object for extracting features from a float buffer according to the feature vector layout. */
-class POSESEARCH_API FFeatureVectorReader
+/** Helper class for extracting and encoding features into a float buffer */
+class POSESEARCH_API FFeatureVectorHelper
 {
 public:
-	void Init(const FPoseSearchFeatureVectorLayout* Layout);
-	void SetValues(TArrayView<const float> Values);
-	bool IsValid() const;
+	enum { EncodeQuatCardinality = 6 };
+	static void EncodeQuat(TArrayView<float> Values, int32& DataOffset, const FQuat& Quat);
+	static FQuat DecodeQuat(TArrayView<const float> Values, int32& DataOffset);
 
-	bool GetRotation(const FPoseSearchFeatureDesc& Feature, FQuat* OutRotation) const;
-	bool GetVector(const FPoseSearchFeatureDesc& Feature, FVector* OutVector) const;
-	bool GetPhase(const FPoseSearchFeatureDesc& Feature, FVector2D* OutPhase) const;
+	enum { EncodeVectorCardinality = 3 };
+	static void EncodeVector(TArrayView<float> Values, int32& DataOffset, const FVector& Vector);
+	static FVector DecodeVector(TArrayView<const float> Values, int32& DataOffset);
 
-	const FPoseSearchFeatureVectorLayout* GetLayout() const { return Layout; }
+	enum { EncodeVector2DCardinality = 2 };
+	static void EncodeVector2D(TArrayView<float> Values, int32& DataOffset, const FVector2D& Vector2D);
+	static FVector2D DecodeVector2D(TArrayView<const float> Values, int32& DataOffset);
 
-private:
-	const FPoseSearchFeatureVectorLayout* Layout = nullptr;
-	TArrayView<const float> Values;
+	// populates MeanDeviations[DataOffset] ... MeanDeviations[DataOffset + Cardinality] with a single value the mean deviation calcualted from a cenetered matrix
+	static void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations, int32& DataOffset, int32 Cardinality);
 };
 
 /**
