@@ -111,6 +111,7 @@ private:
 
 	IRHITransientResourceAllocator* Allocator = nullptr;
 
+	FCriticalSection CS;
 	TArray<FRDGTransientRenderTarget*> FreeList;
 	TArray<FRDGTransientRenderTarget*> PendingDeallocationList;
 	TArray<FRDGTransientRenderTarget*> DeallocatedList;
