@@ -1894,17 +1894,9 @@ bool FOpenXRHMD::AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, 
 {
 	check(IsInRenderingThread());
 
-	// FIXME: UE constantly calls this function even when there is no reason to reallocate the depth texture
+	// FIXME: UE constantly calls this function even when there is no reason to reallocate the depth texture (see NeedReAllocateDepthTexture)
 	FReadScopeLock Lock(SessionHandleMutex);
 	if (!Session || !bDepthExtensionSupported)
-	{
-		return false;
-	}
-
-	// Ensure the texture size matches the eye layer. We may get other depth allocations unrelated to the main scene render.
-	// FIXME: This introduces a magic number that will break this logic. A developer can select a scene capture target that
-	// happens to be the same size as the ideal render target and break everything for reasons that will be a mystery to them.
-	if (FIntPoint(SizeX, SizeY) != GetIdealRenderTargetSize())
 	{
 		return false;
 	}

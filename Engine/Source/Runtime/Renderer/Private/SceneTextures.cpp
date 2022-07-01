@@ -265,13 +265,16 @@ static IStereoRenderTargetManager* FindStereoRenderTargetManager()
 	return GEngine->StereoRenderingDevice->GetRenderTargetManager();
 }
 
-static TRefCountPtr<FRHITexture2D> FindStereoDepthTexture(FIntPoint TextureExtent, uint32 NumSamples)
+static TRefCountPtr<FRHITexture2D> FindStereoDepthTexture(uint32 bSupportsXRDepth, FIntPoint TextureExtent, uint32 NumSamples)
 {
-	if (IStereoRenderTargetManager* StereoRenderTargetManager = FindStereoRenderTargetManager())
+	if (bSupportsXRDepth == 1)
 	{
-		TRefCountPtr<FRHITexture2D> DepthTex, SRTex;
-		StereoRenderTargetManager->AllocateDepthTexture(0, TextureExtent.X, TextureExtent.Y, PF_DepthStencil, 1, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, DepthTex, SRTex, NumSamples);
-		return MoveTemp(SRTex);
+		if (IStereoRenderTargetManager* StereoRenderTargetManager = FindStereoRenderTargetManager())
+		{
+			TRefCountPtr<FRHITexture2D> DepthTex, SRTex;
+			StereoRenderTargetManager->AllocateDepthTexture(0, TextureExtent.X, TextureExtent.Y, PF_DepthStencil, 1, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource | TexCreate_InputAttachmentRead, DepthTex, SRTex, NumSamples);
+			return MoveTemp(SRTex);
+		}
 	}
 	return nullptr;
 }
@@ -541,6 +544,14 @@ void InitializeSceneTexturesConfig(FSceneTexturesConfig& Config, const FSceneVie
 	Config.bRequireMultiView = ViewFamily.bRequireMultiView;
 	Config.bIsUsingGBuffers = IsUsingGBuffers(Config.ShaderPlatform);
 
+	{
+		const bool bNeedsStereoAlloc = ViewFamily.Views.ContainsByPredicate([](const FSceneView* View)
+			{
+				return (IStereoRendering::IsStereoEyeView(*View) && (FindStereoRenderTargetManager() != nullptr));
+			});
+		Config.bSupportsXRTargetManagerDepthAlloc = bNeedsStereoAlloc ? 1 : 0;
+	}
+
 	switch (Config.ShadingPath)
 	{
 	case EShadingPath::Deferred:
@@ -616,7 +627,7 @@ void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FVie
 
 	// If not using MSAA, we need to make sure to grab the stereo depth texture if appropriate.
 	FTexture2DRHIRef StereoDepthRHI;
-	if (Config.NumSamples == 1 && (StereoDepthRHI = FindStereoDepthTexture(Config.Extent, Config.NumSamples)) != nullptr)
+	if (Config.NumSamples == 1 && (StereoDepthRHI = FindStereoDepthTexture(Config.bSupportsXRTargetManagerDepthAlloc, Config.Extent, Config.NumSamples)) != nullptr)
 	{
 		SceneTextures.Depth = RegisterExternalTexture(GraphBuilder, StereoDepthRHI, TEXT("SceneDepthZ"));
 		SceneTextures.Stencil = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateWithPixelFormat(SceneTextures.Depth.Target, PF_X24_G8));
@@ -646,7 +657,7 @@ void FMinimalSceneTextures::InitializeViewFamily(FRDGBuilder& GraphBuilder, FVie
 		{
 			Desc.NumSamples = 1;
 
-			if ((StereoDepthRHI = FindStereoDepthTexture(Config.Extent, Desc.NumSamples)) != nullptr)
+			if ((StereoDepthRHI = FindStereoDepthTexture(Config.bSupportsXRTargetManagerDepthAlloc, Config.Extent, Desc.NumSamples)) != nullptr)
 			{
 				SceneTextures.Depth.Resolve = RegisterExternalTexture(GraphBuilder, StereoDepthRHI, TEXT("SceneDepthZ"));
 			}

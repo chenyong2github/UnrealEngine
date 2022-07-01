@@ -106,6 +106,7 @@ struct ENGINE_API FSceneTexturesConfig
 		, bKeepDepthContent{ 1 }
 		, bPreciseDepthAux{}
 		, bSamplesCustomDepthAndStencil{}
+		, bSupportsXRTargetManagerDepthAlloc{}
 	{}
 
 	FORCEINLINE bool IsValid() const
@@ -166,6 +167,9 @@ struct ENGINE_API FSceneTexturesConfig
 
 	// (Mobile) True if both CustomDepth and CustomStencil are sampled in a shader
 	uint32 bSamplesCustomDepthAndStencil : 1;
+
+	// (XR) True if we can request an XR depth swapchain
+	uint32 bSupportsXRTargetManagerDepthAlloc : 1;
 
 private:
 	static FSceneTexturesConfig GlobalInstance;
