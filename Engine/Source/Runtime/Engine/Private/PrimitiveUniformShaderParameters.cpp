@@ -269,7 +269,7 @@ void FPrimitiveSceneShaderData::Setup(const FPrimitiveUniformShaderParameters& P
 	Data[29].X = PrimitiveUniformShaderParameters.WireframeColor.X;
 	Data[29].Y = PrimitiveUniformShaderParameters.WireframeColor.Y;
 	Data[29].Z = PrimitiveUniformShaderParameters.WireframeColor.Z;
-	Data[29].W = FMath::AsFloat(PrimitiveUniformShaderParameters.NaniteImposterIndexAndFilterFlags);
+	Data[29].W = FMath::AsFloat(PrimitiveUniformShaderParameters.PackedNaniteFlags);
 
 	Data[30].X = PrimitiveUniformShaderParameters.LevelColor.X;
 	Data[30].Y = PrimitiveUniformShaderParameters.LevelColor.Y;

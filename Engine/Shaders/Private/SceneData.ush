@@ -4,7 +4,6 @@
 
 #include "LargeWorldCoordinates.ush"
 #include "OctahedralCommon.ush"
-#include "/Engine/Shared/NaniteDefinitions.h"
 
 #ifndef USE_GLOBAL_GPU_SCENE_DATA
 	#define USE_GLOBAL_GPU_SCENE_DATA 0
@@ -145,8 +144,7 @@ struct FPrimitiveSceneData
 	float3		InstanceLocalBoundsExtent;
 	float3		WireframeColor; // TODO: Should refactor out all editor data into a separate buffer
 	float3		LevelColor; // TODO: Should refactor out all editor data into a separate buffer
-	uint		NaniteImposterIndex;
-	uint		NaniteFilterFlags;
+	uint		PackedNaniteFlags;
 	float2 		CameraDistanceCullMinMaxSquared;
 	float4		CustomPrimitiveData[NUM_CUSTOM_PRIMITIVE_DATA]; // TODO: Move to associated array to shrink primitive data and pack cachelines more effectively
 };
@@ -189,8 +187,7 @@ FPrimitiveSceneData GetPrimitiveDataFromUniformBuffer()
 	PrimitiveData.InstanceLocalBoundsExtent			= Primitive.InstanceLocalBoundsExtent;
 	PrimitiveData.WireframeColor					= Primitive.WireframeColor;
 	PrimitiveData.LevelColor						= Primitive.LevelColor;
-	PrimitiveData.NaniteImposterIndex				= Primitive.NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK;
-	PrimitiveData.NaniteFilterFlags					= Primitive.NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
+	PrimitiveData.PackedNaniteFlags					= Primitive.PackedNaniteFlags;
 	PrimitiveData.CameraDistanceCullMinMaxSquared	= Primitive.CameraDistanceCullMinMaxSquared;
 	PrimitiveData.PersistentPrimitiveIndex			= Primitive.PersistentPrimitiveIndex;
 	UNROLL
@@ -301,19 +298,13 @@ FPrimitiveSceneData GetPrimitiveData(uint PrimitiveId)
 	PrimitiveData.InstanceLocalBoundsExtent		= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).xyz;
 	PrimitiveData.InstancePayloadDataStride		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 28).w);
 	PrimitiveData.WireframeColor				= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).xyz;
+	PrimitiveData.PackedNaniteFlags				= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
 	PrimitiveData.LevelColor					= LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).xyz;
 	PrimitiveData.PersistentPrimitiveIndex		= asint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 30).w);
 	PrimitiveData.CameraDistanceCullMinMaxSquared = LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 31).xy;
-	// NOTE: Please make sure GetPrimitiveDataFromUniformBuffer() gets updated as well when adding new members here
+	// 31.zw are unused
 
-	uint NaniteImposterIndexAndFilterFlags		= asuint(LoadPrimitivePrimitiveSceneDataElement(PrimitiveIndex, 29).w);
-	PrimitiveData.NaniteFilterFlags				= NaniteImposterIndexAndFilterFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS;
-	PrimitiveData.NaniteImposterIndex			= NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK;
-	
-	if (PrimitiveData.NaniteImposterIndex == NANITE_IMPOSTER_INDEX_MASK)
-	{
-		PrimitiveData.NaniteImposterIndex = INVALID_NANITE_IMPOSTER_INDEX;
-	}
+	// NOTE: Please make sure GetPrimitiveDataFromUniformBuffer() gets updated as well when adding new members here
 
 	// TODO: Move to associated array (and editor data) to shrink primitive data and better pack cachelines
 	UNROLL

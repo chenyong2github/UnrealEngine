@@ -52,7 +52,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(FVector3f,		InstanceLocalBoundsExtent)
 	SHADER_PARAMETER(uint32,		InstancePayloadDataStride)
 	SHADER_PARAMETER(FVector3f,		WireframeColor)											// Only needed for editor/development
-	SHADER_PARAMETER(uint32,		NaniteImposterIndexAndFilterFlags)
+	SHADER_PARAMETER(uint32,		PackedNaniteFlags)
 	SHADER_PARAMETER(FVector3f,		LevelColor)												// Only needed for editor/development
 	SHADER_PARAMETER(int32,			PersistentPrimitiveIndex)
 	SHADER_PARAMETER(FVector2f,		CameraDistanceCullMinMaxSquared)
@@ -135,7 +135,7 @@ public:
 		// Nanite
 		Parameters.NaniteResourceID						= INDEX_NONE;
 		Parameters.NaniteHierarchyOffset				= INDEX_NONE;
-		Parameters.NaniteImposterIndexAndFilterFlags	= NANITE_IMPOSTER_INDEX_MASK;
+		Parameters.PackedNaniteFlags					= NANITE_IMPOSTER_INDEX_MASK;
 
 		// Instance data
 		Parameters.InstanceSceneDataOffset			= INDEX_NONE;
@@ -292,7 +292,7 @@ public:
 		bHasNaniteImposter = ImposterIndex != INDEX_NONE;
 
 		check(!bHasNaniteImposter || ImposterIndex < NANITE_IMPOSTER_INDEX_MASK);
-		Parameters.NaniteImposterIndexAndFilterFlags = (Parameters.NaniteImposterIndexAndFilterFlags & NANITE_FILTER_FLAGS_MASK) | (ImposterIndex & NANITE_IMPOSTER_INDEX_MASK);
+		Parameters.PackedNaniteFlags = (Parameters.PackedNaniteFlags & NANITE_FILTER_FLAGS_MASK) | (ImposterIndex & NANITE_IMPOSTER_INDEX_MASK);
 
 		return *this;
 	}
@@ -300,7 +300,7 @@ public:
 	inline FPrimitiveUniformShaderParametersBuilder& NaniteFilterFlags(uint32 FilterFlags)
 	{
 		check(FilterFlags < (1u << NANITE_FILTER_FLAGS_NUM_BITS));
-		Parameters.NaniteImposterIndexAndFilterFlags = (FilterFlags << NANITE_IMPOSTER_INDEX_NUM_BITS) | (Parameters.NaniteImposterIndexAndFilterFlags & NANITE_IMPOSTER_INDEX_MASK);
+		Parameters.PackedNaniteFlags = (FilterFlags << NANITE_IMPOSTER_INDEX_NUM_BITS) | (Parameters.PackedNaniteFlags & NANITE_IMPOSTER_INDEX_MASK);
 
 		return *this;
 	}

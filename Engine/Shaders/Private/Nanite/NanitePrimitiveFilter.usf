@@ -43,6 +43,11 @@ bool BinarySearchLoop(Buffer<uint> SearchBuffer, uint BufferCount, uint Key)
 	return SearchBuffer[Index] == Key;
 }
 
+uint GetNaniteFilterFlags(const FPrimitiveSceneData PrimitiveData)
+{
+	return (PrimitiveData.PackedNaniteFlags >> NANITE_IMPOSTER_INDEX_NUM_BITS);
+}
+
 [numthreads(64, 1, 1)]
 void PrimitiveFilter
 (
@@ -59,7 +64,8 @@ void PrimitiveFilter
 		const uint PrimitiveComponentId = PrimitiveData.PrimitiveComponentId;
 
 		// Allow arbitrary flag matching on the primitive (used for the ViewFamily's EngineShowFlags)
-		bool bHidden = ((PrimitiveData.NaniteFilterFlags & ~HiddenFilterFlags) != PrimitiveData.NaniteFilterFlags);
+		const uint NaniteFilterFlags = GetNaniteFilterFlags(PrimitiveData);
+		bool bHidden = ((NaniteFilterFlags & ~HiddenFilterFlags) != NaniteFilterFlags);
 
 	#if HAS_HIDDEN_PRIMITIVES_LIST
 		// If any primitives are explicitly hidden, remove them now.

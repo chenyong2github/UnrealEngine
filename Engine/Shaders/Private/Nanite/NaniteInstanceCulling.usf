@@ -353,7 +353,9 @@ void InstanceCull(
 
 				if( all( Rect.Pixels.zw - Rect.Pixels.xy <= ImposterMaxPixels ) )
 				{
-					DrawImposter( NaniteView, InstanceData, InstanceId, PrimitiveData.NaniteImposterIndex, Rect );
+					uint ImposterIndex = PrimitiveData.PackedNaniteFlags & NANITE_IMPOSTER_INDEX_MASK;
+					ImposterIndex = CondMask(ImposterIndex == NANITE_IMPOSTER_INDEX_MASK, INVALID_NANITE_IMPOSTER_INDEX, ImposterIndex);
+					DrawImposter( NaniteView, InstanceData, InstanceId, ImposterIndex, Rect );
 					bIsVisible = false;
 				}
 			}
