@@ -97,7 +97,7 @@ struct TOnScopeExit
 
 
 ////////////////////////////////////////////////////////////////////////////////
-static void GetUnrealTraceHome(std::filesystem::path& Out, bool Make=false)
+static void GetUnrealTraceHome(FPath& Out, bool Make=false)
 {
 #if TS_USING(TS_PLATFORM_WINDOWS)
 	wchar_t Buffer[MAX_PATH];
@@ -160,13 +160,13 @@ FLogging* FLogging::Instance = nullptr;
 FLogging::FLogging()
 {
 	// Find where the logs should be written to. Make sure it exists.
-	std::filesystem::path LogDir;
+	FPath LogDir;
 	GetUnrealTraceHome(LogDir, true);
 
 	// Fetch all existing logs.
 	struct FExistingLog
 	{
-		std::filesystem::path	Path;
+		FPath	Path;
 		uint32					Index;
 
 		int32 operator < (const FExistingLog& Rhs) const
@@ -206,7 +206,7 @@ FLogging::FLogging()
 		++LogIndex;
 		char LogName[128];
 		snprintf(LogName, TS_ARRAY_COUNT(LogName), "Server_%d.log", LogIndex);
-		std::filesystem::path LogPath = LogDir / LogName;
+		FPath LogPath = LogDir / LogName;
 
 #if TS_USING(TS_PLATFORM_WINDOWS)
 		File = _wfopen(LogPath.c_str(), L"wbxN");
@@ -291,7 +291,7 @@ struct FLoggingScope
 ////////////////////////////////////////////////////////////////////////////////
 struct FStoreOptions
 {
-	fs::path	Dir;
+	FPath		Dir;
 	int			Port			= 1989;
 	int			RecorderPort	= 1981;
 };
@@ -717,7 +717,7 @@ static int MainFork(int ArgC, char** ArgV)
 	TS_LOG("Binary located at '%ls'", BinPath);
 
 	// Calculate where to store the binaries.
-	std::filesystem::path DestPath;
+	FPath DestPath;
 	GetUnrealTraceHome(DestPath);
 	{
 		wchar_t Buffer[64];
@@ -747,7 +747,7 @@ static int MainFork(int ArgC, char** ArgV)
 		DWORD OurPid = GetCurrentProcessId();
 		wchar_t Buffer[16];
 		_snwprintf(Buffer, TS_ARRAY_COUNT(Buffer), L"_%08x", OurPid);
-		std::filesystem::path TempPath = DestPath;
+		FPath TempPath = DestPath;
 		TempPath += Buffer;
 		if (!std::filesystem::copy_file(BinPath, TempPath))
 		{
@@ -845,7 +845,7 @@ static int MainDaemon(int ArgC, char** ArgV)
 	if (GetLastError() != ERROR_INSUFFICIENT_BUFFER && BinPathLen > 0)
 	{
 		std::error_code ErrorCode;
-		std::filesystem::path BinDir(BinPath);
+		FPath BinDir(BinPath);
 		BinDir = BinDir.parent_path();
 		std::filesystem::current_path(BinDir, ErrorCode);
 		const char* Result = ErrorCode ? "Failed" : "Succeeded";
@@ -894,7 +894,7 @@ static int MainDaemon(int ArgC, char** ArgV)
 
 		if (Options.Dir.empty())
 		{
-			std::filesystem::path StoreDir;
+			FPath StoreDir;
 			GetUnrealTraceHome(StoreDir);
 			StoreDir /= "Store";
 			Options.Dir = StoreDir;
@@ -926,7 +926,7 @@ static int MainDaemon(int ArgC, char** ArgV)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
+int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 {
 	// Get command line arguments and convert to UTF8
 	const wchar_t* CommandLine = GetCommandLineW();
@@ -967,7 +967,7 @@ int WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 static int MainDaemon(int, char**, pid_t);
 
 ////////////////////////////////////////////////////////////////////////////////
-static std::filesystem::path GetLockFilePath()
+static FPath GetLockFilePath()
 {
 	return "/tmp/UnrealTraceServer.pid";
 }
@@ -1016,7 +1016,7 @@ static int MainKillImpl(int ArgC, char** ArgV, pid_t DaemonPid)
 static int MainKill(int ArgC, char** ArgV)
 {
 	// Open the pid file to detect an existing instance
-	std::filesystem::path DotPidPath = GetLockFilePath();
+	FPath DotPidPath = GetLockFilePath();
 	TS_LOG("Checking for a '%s' lock file", DotPidPath.c_str());
 	int DotPidFd = open(DotPidPath.c_str(), O_RDONLY);
 	if (DotPidFd < 0)
@@ -1050,7 +1050,7 @@ static int MainKill(int ArgC, char** ArgV)
 static int MainFork(int ArgC, char** ArgV)
 {
 	// Open the pid file to detect an existing instance
-	std::filesystem::path DotPidPath = GetLockFilePath();
+	FPath DotPidPath = GetLockFilePath();
 	TS_LOG("Checking for a '%s' lock file", DotPidPath.c_str());
 	for (int DotPidFd = open(DotPidPath.c_str(), O_RDONLY); DotPidFd >= 0; )
 	{
@@ -1174,7 +1174,7 @@ static int MainFork(int ArgC, char** ArgV)
 static int MainDaemon(int ArgC, char** ArgV, pid_t ParentPid)
 {
 	// We expect that there is no lock file on disk if we've got this far.
-	std::filesystem::path DotPidPath = GetLockFilePath();
+	FPath DotPidPath = GetLockFilePath();
 	TS_LOG("Opening the lock file '%s'", DotPidPath.c_str());
 	int DotPidFd = open(DotPidPath.c_str(), O_CREAT|O_WRONLY, 0666);
 	if (DotPidFd < 0)
@@ -1202,7 +1202,7 @@ static int MainDaemon(int ArgC, char** ArgV, pid_t ParentPid)
 
 		if (Options.Dir.empty())
 		{
-			std::filesystem::path StoreDir;
+			FPath StoreDir;
 			GetUnrealTraceHome(StoreDir);
 			StoreDir /= "Store";
 			Options.Dir = StoreDir;
@@ -1312,7 +1312,7 @@ int main(int ArgC, char** ArgV)
 		puts(  "data for analysis. TCP ports 1981 and 1989 are used, where the former receives");
 		puts(  "trace data, and the latter is used by tools to query the server's store.");
 
-		std::filesystem::path HomeDir;
+		FPath HomeDir;
 		GetUnrealTraceHome(HomeDir);
 		HomeDir.make_preferred();
 		std::string HomeDirU8 = HomeDir.string();

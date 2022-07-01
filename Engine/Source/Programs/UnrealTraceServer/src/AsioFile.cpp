@@ -98,11 +98,10 @@ bool FAsioFile::ReadSome(void* Dest, uint32 DestSize, FAsioIoSink* Sink, uint32 
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioWriteable* FAsioFile::WriteFile(asio::io_context& IoContext, const char* Path)
+FAsioWriteable* FAsioFile::WriteFile(asio::io_context& IoContext, const FPath& Path)
 {
 #if TS_USING(TS_PLATFORM_WINDOWS)
-	FWinApiStr PathW(Path);
-	HANDLE Handle = CreateFileW(PathW, GENERIC_WRITE, FILE_SHARE_READ, nullptr,
+	HANDLE Handle = CreateFileW(Path.c_str(), GENERIC_WRITE, FILE_SHARE_READ, nullptr,
 		CREATE_ALWAYS, FILE_FLAG_OVERLAPPED|FILE_ATTRIBUTE_NORMAL, nullptr);
 	if (Handle == INVALID_HANDLE_VALUE)
 	{
@@ -110,7 +109,7 @@ FAsioWriteable* FAsioFile::WriteFile(asio::io_context& IoContext, const char* Pa
 	}
 	return new FAsioFile(IoContext, uintptr_t(Handle));
 #else
-	int File = open(Path, O_WRONLY|O_CREAT, 0666);
+	int File = open(Path.c_str(), O_WRONLY|O_CREAT, 0666);
 	if (!File)
 	{
 		return nullptr;
@@ -120,11 +119,10 @@ FAsioWriteable* FAsioFile::WriteFile(asio::io_context& IoContext, const char* Pa
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAsioReadable* FAsioFile::ReadFile(asio::io_context& IoContext, const char* Path)
+FAsioReadable* FAsioFile::ReadFile(asio::io_context& IoContext, const FPath& Path)
 {
 #if TS_USING(TS_PLATFORM_WINDOWS)
-	FWinApiStr PathW(Path);
-	HANDLE Handle = CreateFileW(PathW, GENERIC_READ, FILE_SHARE_READ|FILE_SHARE_WRITE,
+	HANDLE Handle = CreateFileW(Path.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE,
 		nullptr, OPEN_EXISTING, FILE_FLAG_OVERLAPPED, nullptr);
 	if (Handle == INVALID_HANDLE_VALUE)
 	{
@@ -132,7 +130,7 @@ FAsioReadable* FAsioFile::ReadFile(asio::io_context& IoContext, const char* Path
 	}
 	return new FAsioFile(IoContext, uintptr_t(Handle));
 #else
-	int File = open(Path, O_RDONLY, 0444);
+	int File = open(Path.c_str(), O_RDONLY, 0444);
 	if (!File)
 	{
 		return nullptr;

@@ -177,19 +177,13 @@ void FStoreCborPeer::OnTraceInfo()
 		return SendError(EStatusCode::BadRequest);
 	}
 
-	char OutName[256];
-	const FStringView& Name = Trace->GetName();
-	uint32 NameLength = std::min(uint32(sizeof(OutName)), uint32(Name.Len()));
-	for (uint32 i = 0; i < NameLength; ++i)
-	{
-		OutName[i] = char(Name[i]);
-	}
+	auto Utf8String = Trace->GetPath().filename().u8string();
 
 	TPayloadBuilder<> Builder(EStatusCode::Success);
 	Builder.AddInteger("id", Trace->GetId());
 	Builder.AddInteger("size", Trace->GetSize());
 	Builder.AddInteger("timestamp", Trace->GetTimestamp());
-	Builder.AddString("name", OutName, NameLength);
+	Builder.AddString("name", (const char*)Utf8String.c_str(), (int32)Utf8String.size());
 	SendResponse(Builder.Done());
 }
 

@@ -5,6 +5,7 @@
 #include "Asio.h"
 
 #include "AsioIoable.h"
+#include "Foundation.h"
 #if !TS_USING(TS_PLATFORM_WINDOWS)
 #include "asio/posix/stream_descriptor.hpp"
 #endif
@@ -16,8 +17,8 @@ class FAsioFile
 {
 public:
 										FAsioFile(asio::io_context& IoContext, uintptr_t OsHandle);
-	static FAsioWriteable*				WriteFile(asio::io_context& IoContext, const char* Path);
-	static FAsioReadable*				ReadFile(asio::io_context& IoContext, const char* Path);
+	static FAsioWriteable*				WriteFile(asio::io_context& IoContext, const FPath& Path);
+	static FAsioReadable*				ReadFile(asio::io_context& IoContext, const FPath& Path);
 	virtual bool						IsOpen() const override;
 	virtual void						Close() override;
 	virtual bool						Write(const void* Src, uint32 Size, FAsioIoSink* Sink, uint32 Id) override;

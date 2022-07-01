@@ -80,7 +80,7 @@ public:
 	HandlerType Handler;
 private:
 	bool bIsRunning = false;
-	std::filesystem::path StoreDir;
+	FPath StoreDir;
 };
 
 void MacCallback(ConstFSEventStreamRef StreamRef,
@@ -144,29 +144,15 @@ void FStore::FDirWatcher::async_wait(HandlerType InHandler)
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FStore::FTrace::FTrace(const char* InPath)
+FStore::FTrace::FTrace(const FPath& InPath)
 : Path(InPath)
 {
-	// Extract the trace's name
-	const char* Dot = std::strrchr(*Path, '.');
-	if (Dot == nullptr)
-	{
-		Dot = *Path;
-	}
+	Name = InPath.filename().string();
+	Id = QuickStoreHash(*Name);
 
-	for (const char* c = Dot; c > *Path; --c)
-	{
-		if (c[-1] == '\\' || c[-1] == '/')
-		{
-			Name = FStringView(c, int32(Dot - c));
-			break;
-		}
-	}
-
-	Id = QuickStoreHash(Name);
-
+	std::error_code Ec;
 	// Calculate that trace's timestamp. Bias in seconds then convert to 0.1us.
-	std::filesystem::file_time_type LastWriteTime = std::filesystem::last_write_time(InPath);
+	std::filesystem::file_time_type LastWriteTime = std::filesystem::last_write_time(Path, Ec);
 	auto LastWriteDuration = LastWriteTime.time_since_epoch();
 	Timestamp = std::chrono::duration_cast<std::chrono::seconds>(LastWriteDuration).count();
 	Timestamp += FsToUnrealEpochBiasSeconds;
@@ -174,9 +160,9 @@ FStore::FTrace::FTrace(const char* InPath)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const FStringView& FStore::FTrace::GetName() const
+const FPath& FStore::FTrace::GetPath() const
 {
-	return Name;
+	return Path;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -188,7 +174,8 @@ uint32 FStore::FTrace::GetId() const
 ////////////////////////////////////////////////////////////////////////////////
 uint64 FStore::FTrace::GetSize() const
 {
-	return std::filesystem::file_size(*Path);
+	std::error_code Ec;
+	return std::filesystem::file_size(Path, Ec);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -200,7 +187,7 @@ uint64 FStore::FTrace::GetTimestamp() const
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FStore::FMount::FMount(const fs::path& InDir)
+FStore::FMount::FMount(const FPath& InDir)
 : Id(QuickStoreHash(InDir.c_str()))
 {
 	std::error_code ErrorCode;
@@ -252,7 +239,7 @@ FStore::FTrace* FStore::FMount::GetTrace(uint32 Id) const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FStore::FTrace* FStore::FMount::AddTrace(const char* Path)
+FStore::FTrace* FStore::FMount::AddTrace(const FPath& Path)
 {
 	FTrace NewTrace(Path);
 
@@ -278,13 +265,14 @@ uint32 FStore::FMount::Refresh()
 			continue;
 		}
 
-		std::filesystem::path Extension = DirItem.path().extension();
+		FPath Extension = DirItem.path().extension();
 		if (Extension != ".utrace")
 		{
 			continue;
 		}
 
-		FTrace* Trace = AddTrace(DirItem.path().string().c_str());
+		FTrace* Trace = AddTrace(DirItem.path());
+
 		if (Trace != nullptr)
 		{
 			ChangeSerial += Trace->GetId();
@@ -296,10 +284,10 @@ uint32 FStore::FMount::Refresh()
 
 
 ////////////////////////////////////////////////////////////////////////////////
-FStore::FStore(asio::io_context& InIoContext, const fs::path& InStoreDir)
+FStore::FStore(asio::io_context& InIoContext, const FPath& InStoreDir)
 : IoContext(InIoContext)
 {
-	fs::path StoreDir = InStoreDir / "001";
+	FPath StoreDir = InStoreDir / "001";
 	AddMount(StoreDir);
 
 	Refresh();
@@ -349,7 +337,7 @@ void FStore::Close()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FStore::AddMount(const fs::path& Dir)
+bool FStore::AddMount(const FPath& Dir)
 {
 	FMount* Mount = new FMount(Dir);
 	Mounts.Add(Mount);
@@ -502,31 +490,6 @@ FStore::FTrace* FStore::GetTrace(uint32 Id, FMount** OutMount) const
 ////////////////////////////////////////////////////////////////////////////////
 FStore::FNewTrace FStore::CreateTrace()
 {
-	FString TracePath;
-#if 0
-	bool bOk = false;
-	for (int i = 0; i < 256; ++i)
-	{
-		uint32 TraceId = ++LastTraceId;
-
-		TracePath = StoreDir;
-		TracePath.Appendf("/%05d", TraceId);
-
-		if (!std::filesystem::is_directory(*TracePath) && std::filesystem::create_directories(*TracePath))
-		{
-			bOk = true;
-			break;
-		}
-	}
-
-	if (!bOk)
-	{
-		return {};
-	}
-
-	TracePath += "/data.utrace";
-#else
-
 	// N.B. Not thread safe!?
 	char Prefix[24];
 	std::time_t Now = std::time(nullptr);
@@ -535,27 +498,24 @@ FStore::FNewTrace FStore::CreateTrace()
 
 	FMount* DefaultMount = Mounts[0];
 
-	TracePath = DefaultMount->GetDir();
-	TracePath += "/";
-	TracePath += Prefix;
+	FPath TracePath(*DefaultMount->GetDir());
+	TracePath /= Prefix;
 	TracePath += ".utrace";
-	for (uint32 Index = 0; std::filesystem::is_regular_file(*TracePath); ++Index)
+	
+	for (uint32 Index = 0; std::filesystem::is_regular_file(TracePath); ++Index)
 	{
-		char Suffix[64];
-		std::snprintf(Suffix, TS_ARRAY_COUNT(Suffix), "/%s_%02d.utrace", Prefix, Index);
-
-		TracePath = DefaultMount->GetDir();
-		TracePath += *Suffix;
+		char FilenameIndexed[27];
+		std::sprintf(FilenameIndexed, "%s_%02d.utrace", Prefix, Index);
+		TracePath.replace_filename(FPath(FilenameIndexed));
 	}
-#endif // 0
 
-	FAsioWriteable* File = FAsioFile::WriteFile(IoContext, *TracePath);
+	FAsioWriteable* File = FAsioFile::WriteFile(IoContext, TracePath);
 	if (File == nullptr)
 	{
 		return {};
 	}
 
-	FTrace* Trace = DefaultMount->AddTrace(*TracePath);
+	FTrace* Trace = DefaultMount->AddTrace(TracePath);
 	if (Trace == nullptr)
 	{
 		delete File;
@@ -581,17 +541,7 @@ FAsioReadable* FStore::OpenTrace(uint32 Id)
 		return nullptr;
 	}
 
-	FString TracePath;
-	TracePath = Mount->GetDir();
-#if 0
-	TracePath.Appendf("/%05d/data.utrace", Id);
-#else
-	TracePath += "/";
-	TracePath += Trace->GetName();
-	TracePath += ".utrace";
-#endif // 0
-
-	return FAsioFile::ReadFile(IoContext, *TracePath);
+	return FAsioFile::ReadFile(IoContext, Trace->GetPath());
 }
 
 ////////////////////////////////////////////////////////////////////////////////

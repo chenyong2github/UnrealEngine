@@ -48,7 +48,7 @@ FStringView	FCborContext::AsString() const
 		return FStringView();
 	}
 
-    return FStringView((const char*)(NextCursor - Param), Param);
+    return FStringView((const char*)(NextCursor - Param), std::size_t(Param));
 }
 
 ////////////////////////////////////////////////////////////////////////////////

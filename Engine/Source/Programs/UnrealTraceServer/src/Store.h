@@ -23,16 +23,16 @@ public:
 	class FTrace
 	{
 	public:
-							FTrace(const char* InPath);
-		const FStringView&	GetName() const;
+							FTrace(const FPath& InPath);
+		const FPath&		GetPath() const;
 		uint32				GetId() const;
 		uint64				GetSize() const;
 		uint64				GetTimestamp() const;
 
 	private:
 		friend				FStore;
-		FString				Path;
-		FStringView			Name;
+		FPath				Path;
+		FString				Name;
 		uint64				Timestamp;
 		uint32				Id = 0;
 	};
@@ -46,27 +46,26 @@ public:
 	class FMount
 	{
 	public:
-						FMount(const fs::path& InDir);
+						FMount(const FPath& InDir);
 		uint32			GetId() const;
 		FString			GetDir() const;
 		uint32			GetTraceCount() const;
 		const FTrace*	GetTraceInfo(uint32 Index) const;
-		bool			HasTrace(uint32 Id) const;
 
 	private:
 		friend			FStore;
 		FTrace*			GetTrace(uint32 Id) const;
-		FTrace*			AddTrace(const char* Path);
+		FTrace*			AddTrace(const FPath& Path);
 		uint32			Refresh();
-		fs::path		Dir;
+		FPath			Dir;
 		TArray<FTrace*>	Traces;
 		uint32			Id;
 	};
 
-						FStore(asio::io_context& IoContext, const fs::path& InStoreDir);
+						FStore(asio::io_context& IoContext, const FPath& InStoreDir);
 						~FStore();
 	void				Close();
-	bool				AddMount(const fs::path& Dir);
+	bool				AddMount(const FPath& Dir);
 	bool				RemoveMount(uint32 Id);
 	const FMount*		GetMount(uint32 Id) const;
 	uint32				GetMountCount() const;
