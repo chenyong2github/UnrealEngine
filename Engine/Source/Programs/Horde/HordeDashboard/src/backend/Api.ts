@@ -501,6 +501,9 @@ export type UpdatePoolRequest = {
 
 	/** Whether to enable autoscaling for this pool */
 	enableAutoscaling?: boolean;
+
+	/// Frequency to run conforms, in hours, set 0 to disable
+	conformInterval?: number;
 		
 	/** Pool sizing strategy */
 	sizeStrategy?: PoolSizeStrategy;
@@ -787,6 +790,9 @@ export type GetPoolResponse = {
 	/// Whether to enable autoscaling for this pool
 	enableAutoscaling: boolean;
 
+	/// Frequency to run conforms, in hours, set 0 to disable
+	conformInterval?: number;
+		
 	/// Cooldown time between scale-out events in seconds
 	scaleOutCooldown?: number;
 
