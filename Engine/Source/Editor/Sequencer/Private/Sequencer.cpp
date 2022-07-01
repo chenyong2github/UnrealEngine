@@ -2118,6 +2118,8 @@ bool FSequencer::CanAddTransformKeysForSelectedObjects() const
 
 void FSequencer::OnAddTransformKeysForSelectedObjects(EMovieSceneTransformChannel Channel)
 {
+	FScopedTransaction SetKeyTransaction(NSLOCTEXT("Sequencer", "SetTransformKey_Transaction", "Set Transform Key"));
+
 	TArray<TSharedPtr<ISequencerTrackEditor>> PossibleTrackEditors;
 	bool AtLeastOneHasPriority = false;
 	for (int32 i = 0; i < TrackEditors.Num(); ++i)
