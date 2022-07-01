@@ -525,7 +525,7 @@ void FMeshMapBaker::Bake()
 				return; // ParallelFor
 			}
 
-			const int NumGutter = GutterTexelsPerTile[TileIdx].Num();
+			const int64 NumGutter = GutterTexelsPerTile[TileIdx].Num();
 			for (int64 GutterIdx = 0; GutterIdx < NumGutter; ++GutterIdx)
 			{
 				int64 GutterPixelTo;

@@ -97,7 +97,7 @@ void FMeshCurvatureMapEvaluator::EvaluateColor(const int DataIdx, float*& In, FV
 	const FMeshCurvatureMapEvaluator* Eval = static_cast<FMeshCurvatureMapEvaluator*>(EvalData);
 	const float Curvature = In[0];
 	const float Sign = FMathf::Sign(Curvature);
-	const float T = Eval->ClampRange.GetT(FMathf::Abs(Curvature));
+	const float T = (float)Eval->ClampRange.GetT(FMathf::Abs(Curvature));
 	FVector3f CurvatureColor = (Sign < 0) ?
 		Lerp(Eval->ZeroColor, Eval->NegativeColor, T) : Lerp(Eval->ZeroColor, Eval->PositiveColor, T);
 	Out = FVector4f(CurvatureColor[0], CurvatureColor[1], CurvatureColor[2], 1.0f);

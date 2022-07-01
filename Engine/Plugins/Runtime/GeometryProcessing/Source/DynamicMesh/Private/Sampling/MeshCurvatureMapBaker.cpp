@@ -50,7 +50,7 @@ void FMeshCurvatureMapBaker::Bake()
 	if (BlurRadius > 0.01)
 	{
 		TDiscreteKernel2f BlurKernel2d;
-		TGaussian2f::MakeKernelFromRadius(BlurRadius, BlurKernel2d);
+		TGaussian2f::MakeKernelFromRadius((float)BlurRadius, BlurKernel2d);
 		TArray<FVector3f> AOBlurBuffer;
 		Occupancy.ParallelProcessingPass<FVector3f>(
 			[&](int64 Index) { return FVector3f::Zero(); },

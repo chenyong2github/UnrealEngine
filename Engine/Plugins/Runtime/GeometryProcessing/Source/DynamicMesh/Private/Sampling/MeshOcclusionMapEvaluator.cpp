@@ -157,7 +157,7 @@ void FMeshOcclusionMapEvaluator::EvaluateSample(float*& Out, const FCorresponden
 
 	if constexpr (WANT_AMBIENT_OCCLUSION(ComputeType))
 	{
-		WriteToBuffer(Out, FMathd::Clamp(1.0f - (float)Occlusion, 0.0f, 1.0f));
+		WriteToBuffer(Out, FMathf::Clamp(1.0f - (float)Occlusion, 0.0f, 1.0f));
 	}
 
 	if constexpr (WANT_BENT_NORMAL(ComputeType))
@@ -223,7 +223,7 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 	if (!DetailTriNormal.Normalize())
 	{
 		// degenerate triangle normal
-		return FOcclusionTuple(0.0, DefaultNormal);
+		return FOcclusionTuple(0.0f, (FVector3f)DefaultNormal);
 	}
 
 	FVector3d BaseTangentX, BaseTangentY;
@@ -305,7 +305,7 @@ FMeshOcclusionMapEvaluator::FOcclusionTuple FMeshOcclusionMapEvaluator::SampleFu
 	{
 		AccumNormal = (AccumNormal.Length() > 0.0) ? Normalized(AccumNormal) : DefaultNormal;
 	}
-	return FOcclusionTuple(AccumOcclusion, AccumNormal);
+	return FOcclusionTuple( (float)AccumOcclusion, (FVector3f)AccumNormal);
 }
 
 #undef WANT_AMBIENT_OCCLUSION
