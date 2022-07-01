@@ -35,10 +35,6 @@ public:
 	UPROPERTY(EditAnywhere, Category="Playback", meta=(DisplayName="Tick Interval", Units=s))
 	float TickIntervalSeconds = 0.f;
 
-	/** Defines an approximate budget for evaluation of this sequence (and any other sequences with the same tick interval) */
-	UPROPERTY(EditAnywhere, Category="Playback", meta=(DisplayName="Evaluation Budget", ForceUnits=us))
-	float EvaluationBudgetMicroseconds = 0.f;
-
 	/** When true, the sequence will continue to tick and progress even when the world is paused */
 	UPROPERTY(EditAnywhere, Category="Playback")
 	bool bTickWhenPaused = false;
@@ -66,7 +62,6 @@ public:
 	friend bool operator==(const FMovieSceneSequenceTickInterval& A, const FMovieSceneSequenceTickInterval& B)
 	{
 		return A.TickIntervalSeconds == B.TickIntervalSeconds
-			&& A.EvaluationBudgetMicroseconds == B.EvaluationBudgetMicroseconds
 			&& A.bTickWhenPaused == B.bTickWhenPaused
 			&& A.bAllowRounding == B.bAllowRounding;
 	}

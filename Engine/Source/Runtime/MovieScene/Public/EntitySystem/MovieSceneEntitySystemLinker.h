@@ -283,7 +283,6 @@ public:
 
 private:
 
-	void HandlePreGarbageCollection();
 	void HandlePostGarbageCollection();
 
 	void TagInvalidBoundObjects();

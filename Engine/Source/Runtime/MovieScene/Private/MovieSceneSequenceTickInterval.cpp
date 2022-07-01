@@ -44,10 +44,10 @@ int32 FMovieSceneSequenceTickInterval::RoundTickIntervalMs() const
 	// TickInterval is in seconds, so we multiply by 1000/<rounding> to round it as ms in integer space
 	if (bAllowRounding)
 	{
-		return FMath::CeilToInt(TickIntervalSeconds * (1000.f/GMovieSceneTickIntervalResolutionMs)) * GMovieSceneTickIntervalResolutionMs;
+		return FMath::RoundToInt(TickIntervalSeconds * (1000.f/GMovieSceneTickIntervalResolutionMs)) * GMovieSceneTickIntervalResolutionMs;
 	}
 
-	return FMath::CeilToInt(TickIntervalSeconds * 1000.f);
+	return FMath::RoundToInt(TickIntervalSeconds * 1000.f);
 }
 
 FMovieSceneSequenceTickInterval FMovieSceneSequenceTickInterval::GetInheritedInterval(UObject* ContextObject)

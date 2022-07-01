@@ -5,15 +5,9 @@
 #include "EntitySystem/MovieSceneEntitySystemLinker.h"
 #include "ProfilingDebugging/CountersTrace.h"
 
-#include "Logging/MessageLog.h"
-#include "Logging/TokenizedMessage.h"
-#include "Misc/UObjectToken.h"
 #include "Algo/IndexOf.h"
 
-#define LOCTEXT_NAMESPACE "MovieSceneSequenceTickManager"
-
 DECLARE_CYCLE_STAT(TEXT("Sequence Tick Manager"), MovieSceneEval_SequenceTickManager, STATGROUP_MovieSceneEval);
-DECLARE_CYCLE_STAT(TEXT("Tick Clients"), MovieSceneEval_TickClients, STATGROUP_MovieSceneEval);
 
 namespace UE::MovieScene
 {
@@ -133,7 +127,6 @@ void UMovieSceneSequenceTickManager::RegisterTickClient(const FMovieSceneSequenc
 		}
 	}
 
-	const float DesiredBudgetMs = ResolvedTickInterval.EvaluationBudgetMicroseconds / 1000.f;
 	if (!LinkerGroups.IsValidIndex(LinkerIndex))
 	{
 		LinkerIndex = LinkerGroups.Emplace();
@@ -153,50 +146,11 @@ void UMovieSceneSequenceTickManager::RegisterTickClient(const FMovieSceneSequenc
 		NewGroup.Linker = Linker;
 		NewGroup.Runner.AttachToLinker(Linker);
 		NewGroup.RoundedTickIntervalMs = DesiredTickIntervalMs;
-		NewGroup.FrameBudgetMs = DesiredBudgetMs;
 		NewGroup.NumClients = 1;
 	}
 	else
 	{
-		FLinkerGroup& ExistingGroup = LinkerGroups[LinkerIndex];
-		++ExistingGroup.NumClients;
-
-		// If we're attempting to play sequences at the same tick interval with different budgets,
-		// we have to reconcile those. We emit a warning for mismatches of budgeted vs. not-budgeted
-		// as it will actually change behavior (non-budgeted will always eval in one frame, budgeted
-		// will sometimes eval over multiple frames).
-		if (ExistingGroup.FrameBudgetMs != DesiredBudgetMs)
-		{
-			if (ExistingGroup.FrameBudgetMs == 0.f)
-			{
-				ExistingGroup.FrameBudgetMs = DesiredBudgetMs;
-
-#if !UE_BUILD_SHIPPING && !UE_BUILD_TEST
-				TSharedRef<FTokenizedMessage> Message = FMessageLog("PIE")
-				.Warning(LOCTEXT("BudgetMismatch", "Attempting to play multiple sequences with the same tick interval but different budgets. Lowest budget will be used, but may result in undesired multi-frame effects."))
-				->AddToken(FTextToken::Create(LOCTEXT("ClientList", "Initiating tick client ")))
-				->AddToken(FUObjectToken::Create(InterfaceObject))
-				->AddToken(FTextToken::Create(FText::Format(LOCTEXT("ExistingClients", " with budget of {0}μs into group with an interval of {1}ms and budget of {2}μs. Existing clients: "),
-					FMath::RoundToInt(DesiredBudgetMs/1000.f), ExistingGroup.RoundedTickIntervalMs, FMath::RoundToInt(ExistingGroup.FrameBudgetMs/1000.f))));
-				for (const FTickableClientData& Client : TickableClients)
-				{
-					if (Client.LinkerIndex == LinkerIndex)
-					{
-						UObject* Object = Client.WeakObject.Get();
-						while (Object && !(Object->IsA<AActor>() || Object->IsA<USceneComponent>()))
-						{
-							Object = Object->GetOuter();
-						}
-						Message->AddToken(FUObjectToken::Create(Object));
-					}
-				}
-#endif
-			}
-			else if (DesiredBudgetMs != 0.f)
-			{
-				ExistingGroup.FrameBudgetMs = FMath::Min(ExistingGroup.FrameBudgetMs, DesiredBudgetMs);
-			}
-		}
+		++LinkerGroups[LinkerIndex].NumClients;
 	}
 
 	checkSlow(LinkerIndex >= 0 && LinkerIndex < uint16(-1));
@@ -303,8 +257,6 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	// Sparse array where an allocated entry maps to the FLinkerGroup within LinkerGroups
 	TSparseArray<FUpdatedDeltaTimes, InlineSparseAllocator> UpdatedDeltaTimes;
 
-	TBitArray<> OutstandingLinkers;
-
 	// -----------------------------------------------------------------------------
 	// Step 1: Check the tick intervals of all our linker groups, and mark any whose
 	//         interval has passed for update
@@ -317,15 +269,6 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 
 			float UnpausedDeltaTime = DeltaSeconds;
 			float DeltaTime = DeltaSeconds;
-
-			// If we're currently evaluating this linker group,
-			// skip ticking it until we're completely finished
-			if (Group.Runner.IsCurrentlyEvaluating())
-			{
-				OutstandingLinkers.PadToNum(Index + 1, false);
-				OutstandingLinkers[Index] = true;
-				continue;
-			}
 
 			if (Group.LastUnpausedTimeSeconds >= 0.f)
 			{
@@ -350,7 +293,7 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	}
 
 	// Skip any work if there are no updates scheduled
-	if (UpdatedDeltaTimes.Num() == 0 && OutstandingLinkers.Num() == 0)
+	if (UpdatedDeltaTimes.Num() == 0)
 	{
 		return;
 	}
@@ -360,46 +303,28 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 		// Guard against any mutation while the entries are being ticked - anything added this tick cycle will have to wait until next tick
 		TGuardValue<TArray<FPendingOperation>*> Guard(PendingActorOperations, &CurrentPendingActorOperations);
 
-		// Step 2: Tick unbudgeted clients for any with updated delta times
+		// Step 2: Tick clients for any that need ticking
 		// 
-		if (UpdatedDeltaTimes.Num() != 0)
+		for (const FTickableClientData& Client : TickableClients)
 		{
-			SCOPE_CYCLE_COUNTER(MovieSceneEval_TickClients);
-			for (const FTickableClientData& Client : TickableClients)
+			const bool bCanTick = (Client.bTickWhenPaused || !bIsPaused) && Client.WeakObject.Get() != nullptr;
+			if (bCanTick && UpdatedDeltaTimes.IsValidIndex(Client.LinkerIndex))
 			{
-				const bool bCanTick = (Client.bTickWhenPaused || !bIsPaused) && Client.WeakObject.Get() != nullptr;
-				if (bCanTick && UpdatedDeltaTimes.IsValidIndex(Client.LinkerIndex))
-				{
-					const FUpdatedDeltaTimes Delta = UpdatedDeltaTimes[Client.LinkerIndex];
-					const float DeltaTime = Client.bTickWhenPaused ? Delta.UnpausedDeltaTime : Delta.DeltaTime;
+				const FUpdatedDeltaTimes Delta = UpdatedDeltaTimes[Client.LinkerIndex];
+				const float DeltaTime = Client.bTickWhenPaused ? Delta.UnpausedDeltaTime : Delta.DeltaTime;
 
-					FMovieSceneEntitySystemRunner* Runner = &LinkerGroups[Client.LinkerIndex].Runner;
-					Client.Interface->TickFromSequenceTickManager(DeltaTime, Runner);
-				}
+				FMovieSceneEntitySystemRunner* Runner = &LinkerGroups[Client.LinkerIndex].Runner;
+				Client.Interface->TickFromSequenceTickManager(DeltaTime, Runner);
 			}
 		}
 
-		// Step 3: Flush any budgeted evaluations that are still pending
-		// 
-		for (TConstSetBitIterator<> LinkerIndex(OutstandingLinkers); LinkerIndex; ++LinkerIndex)
-		{
-			FLinkerGroup& Group = LinkerGroups[LinkerIndex.GetIndex()];
-
-			check(!UpdatedDeltaTimes.IsValidIndex(LinkerIndex.GetIndex()));
-
-			Group.Runner.Flush(Group.FrameBudgetMs);
-		}
-
-		// Step 4: Update and flush linkers as needed
+		// Step 3: Update and flush linkers as needed
 		//
 		for (int32 Index = 0; Index < UpdatedDeltaTimes.GetMaxIndex(); ++Index)
 		{
 			if (UpdatedDeltaTimes.IsAllocated(Index))
 			{
-				FLinkerGroup& Group = LinkerGroups[Index];
-				// Hitting this check would indicate that the loop above that processes OutstandingLinkers either failed, or some other partial flush happened between then and now.
-				ensureMsgf(!Group.Runner.IsCurrentlyEvaluating(), TEXT("Linker is part-way thorugh a flush when a new flush is being instigated. This is undefined behavior."));
-				Group.Runner.Flush(Group.FrameBudgetMs);
+				LinkerGroups[Index].Runner.Flush();
 			}
 		}
 	}
@@ -546,4 +471,3 @@ void FMovieSceneLatentActionManager::RunLatentActions(TFunctionRef<void()> Flush
 	}
 }
 
-#undef LOCTEXT_NAMESPACE
