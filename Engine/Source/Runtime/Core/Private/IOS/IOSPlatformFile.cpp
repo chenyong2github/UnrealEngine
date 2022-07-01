@@ -1035,7 +1035,7 @@ bool FIOSPlatformFile::IterateDirectoryCommon(const TCHAR* Directory, const TFun
 	{
 		Result = true;
 		struct dirent *Entry;
-		while ((Entry = readdir(Handle)) != NULL)
+		while (Result && (Entry = readdir(Handle)) != NULL)
 		{
 			if (FCStringAnsi::Strcmp(Entry->d_name, ".") && FCStringAnsi::Strcmp(Entry->d_name, ".."))
 			{

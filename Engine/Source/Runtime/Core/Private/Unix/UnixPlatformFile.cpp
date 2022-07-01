@@ -1266,7 +1266,7 @@ bool FUnixPlatformFile::IterateDirectoryCommon(const TCHAR* Directory, const TFu
 	{
 		Result = true;
 		struct dirent* Entry;
-		while ((Entry = readdir(Handle)) != NULL)
+		while (Result && (Entry = readdir(Handle)) != NULL)
 		{
 			if (FCString::Strcmp(UTF8_TO_TCHAR(Entry->d_name), TEXT(".")) && FCString::Strcmp(UTF8_TO_TCHAR(Entry->d_name), TEXT("..")))
 			{

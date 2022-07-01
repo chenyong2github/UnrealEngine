@@ -767,7 +767,7 @@ bool FApplePlatformFile::IterateDirectoryCommon(const TCHAR* Directory, const TF
 	{
 		Result = true;
 		struct dirent *Entry;
-		while ((Entry = readdir(Handle)) != NULL)
+		while (Result && (Entry = readdir(Handle)) != NULL)
 		{
 			if (FCStringAnsi::Strcmp(Entry->d_name, ".") && FCStringAnsi::Strcmp(Entry->d_name, "..") && FCStringAnsi::Strcmp(Entry->d_name, ".DS_Store"))
 			{
