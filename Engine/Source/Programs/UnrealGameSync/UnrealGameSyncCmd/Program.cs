@@ -17,6 +17,8 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.OIDC;
+using Microsoft.Extensions.Configuration;
 using UnrealGameSync;
 
 namespace UnrealGameSyncCmd
@@ -102,6 +104,10 @@ namespace UnrealGameSyncCmd
 			new CommandInfo("status", typeof(StatusCommand),
 				"ugs status [-update]",
 				"Shows the status of the currently synced branch."
+			),
+			new CommandInfo("login", typeof(LoginCommand),
+				"ugs login",
+				"Starts a interactive login flow against the configured Identity Provider"
 			),
 			new CommandInfo("version", typeof(VersionCommand),
 				"ugs version",
@@ -1101,6 +1107,33 @@ namespace UnrealGameSyncCmd
 				{
 					logger.LogWarning("Last sync to {Stream} CL {Change} failed: {Result}", streamOrBranchName, state.LastSyncChangeNumber, state.LastSyncResultMessage);
 				}
+			}
+		}
+
+		class LoginCommand : Command
+		{
+			public override async Task ExecuteAsync(CommandContext context)
+			{
+				ILogger logger = context.Logger;
+
+				// Get the positional argument indicating the file to look for
+				if (!context.Arguments.TryGetPositionalArgument(out string? providerIdentifier))
+				{
+					throw new UserErrorException("Missing provider identifier to login to.");
+				}
+				context.Arguments.CheckAllArgumentsUsed();
+
+				UserWorkspaceSettings settings = ReadRequiredUserWorkspaceSettings();
+				
+				// Find the valid config file paths
+				DirectoryInfo engineDir = DirectoryReference.Combine(settings.RootDir, "Engine").ToDirectoryInfo();
+				DirectoryInfo gameDir = new DirectoryInfo(settings.ProjectPath);
+				using ITokenStore tokenStore = TokenStoreFactory.CreateTokenStore();
+				IConfiguration providerConfiguration = ProviderConfigurationFactory.ReadConfiguration(engineDir, gameDir);
+				OidcTokenManager oidcTokenManager = OidcTokenManager.CreateTokenManager(providerConfiguration, tokenStore, new List<string>() {providerIdentifier});
+				OidcTokenInfo result = await oidcTokenManager.Login(providerIdentifier);
+
+				logger.LogInformation("Logged in to provider {ProviderIdentifier}", providerIdentifier);
 			}
 		}
 
