@@ -15,10 +15,10 @@ struct FViewportInteractorData
 	// Positional data
 	//
 
-	/** Your hand in the virtual world in world space, usually driven by VR motion controllers */
+	/** Your hand (laser origin) in the virtual world in world space, usually driven by VR motion controllers */
 	FTransform Transform;
 
-	/** Your hand transform, in the local tracking space */
+	/** Your hand transform, in the local tracking space (unaffected by world scaling) */
 	FTransform RoomSpaceTransform;
 
 	/** Hand transform in world space from the previous frame */

@@ -256,7 +256,7 @@ public:
 
 	/** Replace the default VR controller mesh with a custom one. */
 	UFUNCTION(BlueprintCallable, Category = "VREditorInteractor")
-	void ReplaceHandMeshComponent(UStaticMesh* NewMesh);
+	void ReplaceHandMeshComponent(UStaticMesh* NewMesh, FVector MeshScale = FVector(1.f, 1.f, 1.f));
 
 protected:
 
@@ -270,6 +270,10 @@ protected:
 	/** Motion controller component which handles late-frame transform updates of all parented sub-components */
 	UPROPERTY()
 	TObjectPtr<class UMotionControllerComponent> MotionControllerComponent;
+
+	/** Separate motion controller component set to the "aim" pose motion source, used for the laser pointer. */
+	UPROPERTY()
+	TObjectPtr<class UMotionControllerComponent> LaserMotionControllerComponent;
 
 	//
 	// Graphics

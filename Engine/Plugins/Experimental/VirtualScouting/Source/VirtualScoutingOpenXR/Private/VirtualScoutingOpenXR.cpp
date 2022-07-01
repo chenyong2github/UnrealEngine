@@ -231,6 +231,7 @@ void FVirtualScoutingOpenXRExtension::PostSyncActions(XrSession InSession)
 	TryFulfillDeviceTypePromise();
 }
 
+
 void FVirtualScoutingOpenXRExtension::TryFulfillDeviceTypePromise()
 {
 	if (!DeviceTypeFuture.IsReady())
@@ -247,10 +248,9 @@ void FVirtualScoutingOpenXRExtension::TryFulfillDeviceTypePromise()
 
 TOptional<FName> FVirtualScoutingOpenXRExtension::TryGetHmdDeviceType()
 {
-	UVREditorMode* VrMode = IVREditorModule::Get().GetVRMode();
-	if (!ensure(VrMode) || !ensure(Session != XR_NULL_HANDLE) || !ensure(ActionSet != XR_NULL_HANDLE))
+	if (Instance == XR_NULL_HANDLE || Session == XR_NULL_HANDLE)
 	{
-		return TOptional<FName>();
+		return FName();
 	}
 
 	XrPath LeftHand = XR_NULL_PATH, RightHand = XR_NULL_PATH;
@@ -270,6 +270,7 @@ TOptional<FName> FVirtualScoutingOpenXRExtension::TryGetHmdDeviceType()
 
 	if (InteractionProfile == XR_NULL_PATH)
 	{
+		// Returning an unset optional indicates we don't know _yet_, and the caller can poll again.
 		return TOptional<FName>();
 	}
 
