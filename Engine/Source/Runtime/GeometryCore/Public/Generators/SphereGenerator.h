@@ -73,8 +73,8 @@ private:
 	void GenerateUVVertices()
 	{
 		// generate the UV's
-		const float DUVphi = 1.0 / float(NumPhi - 1);
-		const float DUVtheta = -1.0 / float(NumTheta);
+		const float DUVphi = 1.f / float(NumPhi - 1);
+		const float DUVtheta = -1.f / float(NumTheta);
 
 		int32 UVIdx = 0;
 		int32 p,t;
