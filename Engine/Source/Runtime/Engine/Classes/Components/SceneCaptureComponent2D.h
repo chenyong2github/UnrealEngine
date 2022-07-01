@@ -110,14 +110,6 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SceneCapture)
 	uint32 bConsiderUnrenderedOpaquePixelAsFullyTranslucent : 1;
 
-	/** 
-	 * Scene captures render an extra flip pass for LDR color on GLES so that the final output is oriented correctly.
-	 * This check disabled the extra flip pass, improving performance, but causes the capture to be flipped vertically.
-	 * (Does not affect scene captures on other non-GLES renderers or with non-LDR output)
-	 */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = SceneCapture, meta = (DisplayName = "Disable Flip Copy GLES"))
-	bool bDisableFlipCopyGLES;
-
 	/** Array of scene view extensions specifically to apply to this scene capture */
 	TArray< TWeakPtr<ISceneViewExtension, ESPMode::ThreadSafe> > SceneViewExtensions;
 

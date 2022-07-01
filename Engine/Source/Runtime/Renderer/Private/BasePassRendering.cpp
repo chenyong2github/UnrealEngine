@@ -979,8 +979,6 @@ static void RenderEditorPrimitivesForDPG(
 
 		if (!View.Family->EngineShowFlags.CompositeEditorPrimitives)
 		{
-			const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(View.GetShaderPlatform());
-
 			DrawDynamicMeshPass(View, RHICmdList,
 				[&View, &DrawRenderState](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
@@ -1024,7 +1022,7 @@ static void RenderEditorPrimitivesForDPG(
 			});
 
 			// Draw the view's batched simple elements(lines, sprites, etc).
-			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, View.GetFeatureLevel(), bNeedToSwitchVerticalAxis, View, false);
+			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, View.GetFeatureLevel(), View, false);
 		}
 	});
 }

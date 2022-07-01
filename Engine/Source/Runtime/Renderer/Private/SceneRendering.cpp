@@ -3415,8 +3415,6 @@ void FSceneRenderer::RenderFinish(FRDGBuilder& GraphBuilder, FRDGTextureRef View
 						// so it can get the screen size
 						FScreenMessageWriter Writer(Canvas, 130);
 
-						// Make sure draws to the canvas are not rendered upside down.
-						Canvas.SetAllowSwitchVerticalAxis(true);
 						if (bViewParentOrFrozen)
 						{
 							const FText StateText =

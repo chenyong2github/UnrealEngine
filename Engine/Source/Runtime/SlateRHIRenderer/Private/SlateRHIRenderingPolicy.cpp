@@ -268,7 +268,6 @@ static bool UpdateScissorRect(
 	FTexture2DRHIRef& DepthStencilTarget,
 	const FSlateClippingState*& LastClippingState,
 	const FVector2f ViewTranslation2D, 
-	bool bSwitchVerticalAxis,
 	FGraphicsPipelineStateInitializer& InGraphicsPSOInit,
 	FSlateStencilClipVertexBuffer& StencilVertexBuffer,
 	const FMatrix& ViewProjection, 
@@ -314,16 +313,7 @@ static bool UpdateScissorRect(
 				const FVector2f TopLeft     = FMath::Min(FMath::Max(ScissorRect.TopLeft     + ViewTranslation2D, FVector2f(0.0f, 0.0f)), ViewSize);
 				const FVector2f BottomRight = FMath::Min(FMath::Max(ScissorRect.BottomRight + ViewTranslation2D, FVector2f(0.0f, 0.0f)), ViewSize);
 				
-				if (bSwitchVerticalAxis)
-				{
-					const int32 MinY = (ViewSize.Y - BottomRight.Y);
-					const int32 MaxY = (ViewSize.Y - TopLeft.Y);
-					RHICmdList.SetScissorRect(true, TopLeft.X, MinY, BottomRight.X, MaxY);
-				}
-				else
-				{
-					RHICmdList.SetScissorRect(true, TopLeft.X, TopLeft.Y, BottomRight.X, BottomRight.Y);
-				}
+				RHICmdList.SetScissorRect(true, TopLeft.X, TopLeft.Y, BottomRight.X, BottomRight.Y);
 
 				// Disable depth/stencil testing by default
 				InGraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
@@ -379,17 +369,7 @@ static bool UpdateScissorRect(
 					ScissorRect.Right = FMath::Clamp(ScissorRect.Right, ScissorRect.Left, static_cast<float>(BackBufferSize.X));
 					ScissorRect.Bottom = FMath::Clamp(ScissorRect.Bottom, ScissorRect.Top, static_cast<float>(BackBufferSize.Y));
 
-					if (bSwitchVerticalAxis)
-					{
-						const FIntPoint ViewSize = BackBuffer.GetSizeXY();
-						const int32 MinY = (ViewSize.Y - ScissorRect.Bottom);
-						const int32 MaxY = (ViewSize.Y - ScissorRect.Top);
-						RHICmdList.SetScissorRect(true, ScissorRect.Left, MinY, ScissorRect.Right, MaxY);
-					}
-					else
-					{
-						RHICmdList.SetScissorRect(true, ScissorRect.Left, ScissorRect.Top, ScissorRect.Right, ScissorRect.Bottom);
-					}
+					RHICmdList.SetScissorRect(true, ScissorRect.Left, ScissorRect.Top, ScissorRect.Right, ScissorRect.Bottom);
 				}
 
 				// Don't bother setting the render targets unless we actually need to clear them.
@@ -453,7 +433,6 @@ static bool UpdateScissorRect(
 					SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, MaskingID + 1);
 
 					VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-					VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 
 					// Draw the first stencil using SO_Replace, so that we stomp any pixel with a MaskingID + 1.
 					{
@@ -491,7 +470,6 @@ static bool UpdateScissorRect(
 						SetGraphicsPipelineState(RHICmdList, WriteMaskPSOInit, 0);
 
 						VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-						VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 					}
 				}
 
@@ -664,7 +642,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 #endif
 
 	const bool bAbsoluteIndices = CVarSlateAbsoluteIndices.GetValueOnRenderThread() != 0;
-	const bool bSwitchVerticalAxis = Params.bAllowSwitchVerticalAxis && RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]);
 
 	// This variable tracks the last clipping state, so that if multiple batches have the same clipping state, we don't have to do any work.
 	const FSlateClippingState* LastClippingState;
@@ -771,7 +748,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				DepthStencilTarget,
 				LastClippingState,
 				ViewTranslation2D,
-				bSwitchVerticalAxis,
 				GraphicsPSOInit,
 				StencilVertexBuffer,
 				ViewProjection,
@@ -992,7 +968,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 				{
 					GlobalVertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-					GlobalVertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 
 					if (bIsVirtualTexture && (TextureResource != nullptr))
 					{
@@ -1131,7 +1106,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 
 							{
 								VertexShader->SetViewProjection(RHICmdList, FMatrix44f(ViewProjection));
-								VertexShader->SetVerticalAxisMultiplier(RHICmdList, bSwitchVerticalAxis ? -1.0f : 1.0f);
 								VertexShader->SetMaterialShaderParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial);
 
 								PixelShader->SetParameters(RHICmdList, ActiveSceneView, MaterialRenderProxy, EffectiveMaterial, ShaderParams);
@@ -1205,7 +1179,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						DepthStencilTarget,
 						LastClippingState,
 						ViewTranslation2D,
-						bSwitchVerticalAxis,
 						InGraphicsPSOInit,
 						StencilVertexBuffer,
 						FMatrix(Params.ViewProjectionMatrix),

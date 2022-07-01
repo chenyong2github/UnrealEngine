@@ -29,8 +29,8 @@ public:
 	FSimpleElementVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 	FSimpleElementVS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix, bool bSwitchVerticalAxis = false);
-	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices, bool bSwitchVerticalAxis = false);
+	void SetParameters(FRHICommandList& RHICmdList, const FMatrix& WorldToClipMatrix);
+	void SetParameters(FRHICommandList& RHICmdList, const FRelativeViewMatrices& Matrices);
 
 	//virtual bool Serialize(FArchive& Ar) override;
 
@@ -39,7 +39,6 @@ public:
 private:
 	LAYOUT_FIELD(FShaderParameter, RelativeTransform);
 	LAYOUT_FIELD(FShaderParameter, TransformTilePosition);
-	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxis);
 };
 
 /**

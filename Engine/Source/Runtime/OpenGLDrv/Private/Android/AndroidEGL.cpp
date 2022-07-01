@@ -15,6 +15,7 @@
 #include "Misc/ScopeLock.h"
 #include "UObject/GarbageCollection.h"
 #include "Android/AndroidPlatformFramePacer.h"
+#include <dlfcn.h>
 
 
 AndroidEGL* AndroidEGL::Singleton = NULL;
@@ -26,6 +27,9 @@ DEFINE_LOG_CATEGORY(LogEGL);
 #define EGL_CONTEXT_OPENGL_NO_ERROR_KHR   0x31B3
 #endif // EGL_KHR_create_context_no_error
 #endif // USE_ANDROID_EGL_NO_ERROR_CONTEXT
+
+typedef int32(*PFN_ANativeWindow_setBuffersTransform)(struct ANativeWindow* window, int32 transform);
+static PFN_ANativeWindow_setBuffersTransform ANativeWindow_setBuffersTransform_API = nullptr;
 
 
 const  int EGLMinRedBits		= 5;
@@ -150,6 +154,13 @@ AndroidEGL::AndroidEGL()
 ,	ContextAttributes(nullptr)
 {
 	PImplData = new AndroidESPImpl();
+
+	void* const LibNativeWindow = dlopen("libnativewindow.so", RTLD_NOW | RTLD_LOCAL);
+	if (LibNativeWindow != nullptr)
+	{
+		ANativeWindow_setBuffersTransform_API = reinterpret_cast<PFN_ANativeWindow_setBuffersTransform>(dlsym(LibNativeWindow, "ANativeWindow_setBuffersTransform"));
+	}
+	UE_LOG(LogAndroid, Log, TEXT("ANativeWindow_setBuffersTransform is %s on this device"), ANativeWindow_setBuffersTransform_API == nullptr ? TEXT("not supported") : TEXT("supported"));
 }
 
 void AndroidEGL::ResetDisplay()
@@ -624,19 +635,6 @@ void AndroidEGL::DestroyBackBuffer()
 
 void AndroidEGL::InitBackBuffer()
 {
-	//add check to see if any context was made current. 
-	GLint OnScreenWidth, OnScreenHeight;
-	if (FPlatformMisc::SupportsBackbufferSampling())
-	{
-		glGenFramebuffers(1, &PImplData->ResolveFrameBuffer);
-	}
-	else
-	{
-		PImplData->ResolveFrameBuffer = 0;
-	}
-	OnScreenWidth = PImplData->eglWidth;
-	OnScreenHeight = PImplData->eglHeight;
-
 	PImplData->RenderingContext.ViewportFramebuffer = GetResolveFrameBuffer();
 	PImplData->SharedContext.ViewportFramebuffer = GetResolveFrameBuffer();
 	PImplData->SingleThreadedContext.ViewportFramebuffer = GetResolveFrameBuffer();
@@ -915,6 +913,20 @@ void AndroidEGL::AcquireCurrentRenderingContext()
 		PImplData->SharedContext.DummyFrameBuffer = PImplData->DummyFrameBuffer;
 		PImplData->SingleThreadedContext.DummyFrameBuffer = PImplData->DummyFrameBuffer;
 	}
+
+	if (FAndroidMisc::SupportsBackbufferSampling())
+	{
+		// Needs to be generated on rendering context
+		if (!PImplData->ResolveFrameBuffer)
+		{
+			glGenFramebuffers(1, &PImplData->ResolveFrameBuffer);
+		}
+	}
+	else
+	{
+		PImplData->ResolveFrameBuffer = 0;
+	}
+
 }
 
 void AndroidEGL::SetCurrentRenderingContext()
@@ -1122,6 +1134,39 @@ void AndroidEGL::LogConfigInfo(EGLConfig  EGLConfigInfo)
 	eglGetConfigAttrib(PImplData->eglDisplay,EGLConfigInfo, EGL_TRANSPARENT_BLUE_VALUE, &ResultValue);  FPlatformMisc::LowLevelOutputDebugStringf( TEXT("EGLConfigInfo :EGL_TRANSPARENT_BLUE_VALUE :	%u" ), ResultValue );
 }
 
+void AndroidEGL::UpdateBuffersTransform()
+{
+	if (ANativeWindow_setBuffersTransform_API != nullptr)
+	{
+		int32 BufferTransform = ANATIVEWINDOW_TRANSFORM_IDENTITY;
+
+		EDeviceScreenOrientation ScreenOrientation = FPlatformMisc::GetDeviceOrientation();
+		switch (ScreenOrientation)
+		{
+		case EDeviceScreenOrientation::Portrait:
+			BufferTransform = ANATIVEWINDOW_TRANSFORM_MIRROR_VERTICAL;
+			break;
+
+		case EDeviceScreenOrientation::PortraitUpsideDown:
+			BufferTransform = ANATIVEWINDOW_TRANSFORM_MIRROR_HORIZONTAL;
+			break;
+
+		case EDeviceScreenOrientation::LandscapeLeft:
+			BufferTransform = ANATIVEWINDOW_TRANSFORM_ROTATE_90 | ANATIVEWINDOW_TRANSFORM_MIRROR_VERTICAL;
+			break;
+
+		case EDeviceScreenOrientation::LandscapeRight:
+			BufferTransform = ANATIVEWINDOW_TRANSFORM_ROTATE_90 | ANATIVEWINDOW_TRANSFORM_MIRROR_HORIZONTAL;
+			break;
+
+		default:
+			ensureMsgf(false, TEXT("BufferTransform %d should be handled with no exception, otherwise wrong orientation could be displayed on device"), BufferTransform);
+			break;
+		}
+
+		ANativeWindow_setBuffersTransform_API(GetNativeWindow(), BufferTransform);
+	}
+}
 
 ///
 extern FCriticalSection GAndroidWindowLock;

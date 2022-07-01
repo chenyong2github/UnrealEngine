@@ -540,9 +540,6 @@ public:
 		ViewInitOptions.BackgroundColor = FLinearColor::Black;
 		ViewInitOptions.OverlayColor = FLinearColor::White;
 
-		bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && !Canvas->GetAllowSwitchVerticalAxis();
-		check(bNeedsToSwitchVerticalAxis == false);
-
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
 		RenderMaterial(RenderContext, DrawRenderState, *View, *Data);
@@ -576,8 +573,6 @@ public:
 
 		FSceneView* View = new FSceneView(ViewInitOptions);
 
-		bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && !Canvas->GetAllowSwitchVerticalAxis();
-		check(bNeedsToSwitchVerticalAxis == false);
 		struct FDrawMaterialParameters
 		{
 			FSceneView* View;

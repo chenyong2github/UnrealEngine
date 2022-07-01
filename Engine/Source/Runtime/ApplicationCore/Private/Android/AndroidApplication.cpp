@@ -99,46 +99,17 @@ void FAndroidApplication::PollGameDeviceState( const float TimeDelta )
 
 void FAndroidApplication::HandleDeviceOrientation()
 {
-#if USE_ANDROID_JNI
-    JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
-    if (JEnv)
-    {
-        static jmethodID getOrientationMethod = 0;
-        const auto PreviousDeviceOrientation = DeviceOrientation;
-        
-        if (getOrientationMethod == 0)
-        {
-            jclass MainClass = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/GameActivity");
-            if (MainClass != nullptr)
-            {
-                getOrientationMethod = JEnv->GetMethodID(MainClass, "AndroidThunkJava_GetDeviceOrientation", "()I");
-                JEnv->DeleteGlobalRef(MainClass);
-            }
-        }
-        
-        if (getOrientationMethod != 0)
-        {
-            const int Orientation = JEnv->CallIntMethod(AndroidJavaEnv::GetGameActivityThis(), getOrientationMethod);
-            switch (Orientation)
-            {
-                case 0: DeviceOrientation = EDeviceScreenOrientation::Portrait;             break;
-                case 1: DeviceOrientation = EDeviceScreenOrientation::LandscapeLeft;        break;
-                case 2: DeviceOrientation = EDeviceScreenOrientation::PortraitUpsideDown;   break;
-                case 3: DeviceOrientation = EDeviceScreenOrientation::LandscapeRight;       break;
-            }
-        }
-        
-        FAndroidMisc::SaveDeviceOrientation(DeviceOrientation);
-        
-        if (PreviousDeviceOrientation != DeviceOrientation)
-        {
-            FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)DeviceOrientation);
-               
-            //we also want to fire off the safe frame event
-            FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
-        }
-    }
-#endif
+	FAndroidMisc::UpdateDeviceOrientation();
+	const auto PreviousDeviceOrientation = DeviceOrientation;
+	DeviceOrientation = FAndroidMisc::GetDeviceOrientation();
+
+	if (PreviousDeviceOrientation != DeviceOrientation)
+	{
+		FCoreDelegates::ApplicationReceivedScreenOrientationChangedNotificationDelegate.Broadcast((int32)DeviceOrientation);
+
+		//we also want to fire off the safe frame event
+		FCoreDelegates::OnSafeFrameChangedEvent.Broadcast();
+	}
 }
 
 FPlatformRect FAndroidApplication::GetWorkArea( const FPlatformRect& CurrentWindow ) const

@@ -29,20 +29,12 @@ public:
 
 	void SetMaterialShaderParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FMaterialRenderProxy* MaterialRenderProxy, const FMaterial* Material);
 
-	/**
-	 * Sets the vertical axis multiplier to use depending on graphics api
-	 */
-	void SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier);
-
 	/** Serializes the shader data */
 	//virtual bool Serialize( FArchive& Ar ) override;
 private:
 	
 		/** ViewProjection parameter used by the shader */
 		LAYOUT_FIELD(FShaderParameter, ViewProjection)
-		/** Parameter used to determine if we need to swtich the vertical axis for opengl */
-		LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxisMultiplier)
-	
 };
 
 class FSlateMaterialShaderPS : public FMaterialShader

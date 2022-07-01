@@ -398,7 +398,6 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsVariableRateShading : 1;
 	uint32 NumberOfComputeThreads : 10;
 	uint32 bWaterUsesSimpleForwardShading : 1;
-	uint32 bNeedsToSwitchVerticalAxisOnMobileOpenGL : 1;
 	uint32 bSupportsHairStrandGeometry : 1;
 	uint32 bSupportsDOFHybridScattering : 1;
 	uint32 bNeedsExtraMobileFrames : 1;
@@ -877,12 +876,6 @@ public:
 	{
 		check(IsValid(Platform));
 		return Infos[Platform].bWaterUsesSimpleForwardShading;
-	}
-
-	static FORCEINLINE_DEBUGGABLE const bool GetNeedsToSwitchVerticalAxisOnMobileOpenGL(const FStaticShaderPlatform Platform)
-	{
-		check(IsValid(Platform));
-		return Infos[Platform].bNeedsToSwitchVerticalAxisOnMobileOpenGL;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsHairStrandGeometry(const FStaticShaderPlatform Platform)
@@ -2203,22 +2196,6 @@ inline EShaderPlatform GetSimulatedPlatform(FStaticShaderPlatform Platform)
 inline bool IsFeatureLevelSupported(const FStaticShaderPlatform InShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel)
 {
 	return InFeatureLevel <= GetMaxSupportedFeatureLevel(InShaderPlatform);
-}
-
-inline bool RHINeedsToSwitchVerticalAxis(const FStaticShaderPlatform Platform)
-{
-#if WITH_EDITOR
-	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ForceRHISwitchVerticalAxis"));
-	if (CVar->GetValueOnAnyThread())
-	{
-		// only allow this for mobile preview.
-		return IsMobilePlatform(Platform);
-	}
-#endif
-
-	// ES3.1 need to flip when rendering to an RT that will be post processed
-	return IsOpenGLPlatform(Platform) && IsMobilePlatform(Platform) && !IsPCPlatform(Platform) && !IsMetalMobilePlatform(Platform) && !IsVulkanPlatform(Platform)
-			&& FDataDrivenShaderPlatformInfo::GetNeedsToSwitchVerticalAxisOnMobileOpenGL(Platform);
 }
 
 inline bool RHISupportsSeparateMSAAAndResolveTextures(const FStaticShaderPlatform Platform)

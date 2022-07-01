@@ -531,11 +531,6 @@ public:
 	*/
 	EShaderPlatform GetShaderPlatform() const { return GShaderPlatformForFeatureLevel[FeatureLevel]; }
 
-	// Get/Set if this Canvas allows its batched elements to switch vertical axis (e.g., rendering to back buffer should never flip)
-	bool GetAllowSwitchVerticalAxis() const { return bAllowsToSwitchVerticalAxis; }
-
-	void SetAllowSwitchVerticalAxis(bool bInAllowsToSwitchVerticalAxis) { bAllowsToSwitchVerticalAxis = bInAllowsToSwitchVerticalAxis; }
-
 public:
 	float AlphaModulate;
 
@@ -633,8 +628,6 @@ private:
 	FGameTime Time;
 	/** true, if Canvas should be scaled to whole render target */
 	bool bScaledToRenderTarget;
-	// True if canvas allows switching vertical axis; false will ignore any flip
-	bool bAllowsToSwitchVerticalAxis;
 	/** Feature level that we are currently rendering with */
 	ERHIFeatureLevel::Type FeatureLevel;
 
@@ -1079,7 +1072,6 @@ private:
 			FMeshPassProcessorRenderState& DrawRenderState,
 			const FSceneView& View,
 			bool bIsHitTesting,
-			bool bNeedsToSwitchVerticalAxis,
 			bool bUse128bitRT = false);
 
 		const FMaterialRenderProxy* const MaterialRenderProxy;
@@ -1096,7 +1088,7 @@ private:
 
 	private:
 		FMeshBatch* AllocTileMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId);
-		void InitTileMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
+		void InitTileMesh(const FSceneView& View);
 		void ReleaseTileMesh();
 
 		FRawIndexBuffer16or32 IndexBuffer;
@@ -1256,8 +1248,7 @@ private:
 			FCanvasRenderContext& RenderContext,
 			FMeshPassProcessorRenderState& DrawRenderState,
 			const FSceneView& View,
-			bool bIsHitTesting,
-			bool bNeedsToSwitchVerticalAxis);
+			bool bIsHitTesting);
 
 		const FMaterialRenderProxy* const MaterialRenderProxy;
 		const FCanvas::FTransformEntry Transform;
@@ -1267,7 +1258,7 @@ private:
 
 	private:
 		FMeshBatch* AllocTriangleMeshBatch(FCanvasRenderContext& InRenderContext, FHitProxyId InHitProxyId);
-		void InitTriangleMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis);
+		void InitTriangleMesh(const FSceneView& View);
 		void ReleaseTriangleMesh();
 
 		FRawIndexBuffer16or32 IndexBuffer;

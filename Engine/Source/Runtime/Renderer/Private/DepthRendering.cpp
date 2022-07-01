@@ -405,8 +405,6 @@ static void RenderPrePassEditorPrimitives(
 
 		if (!View.Family->EngineShowFlags.CompositeEditorPrimitives)
 		{
-			const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(View.GetShaderPlatform());
-
 			DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
 				FDepthPassMeshProcessor PassMeshProcessor(
@@ -429,7 +427,7 @@ static void RenderPrePassEditorPrimitives(
 			});
 
 			// Draw the view's batched simple elements(lines, sprites, etc).
-			View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, View.FeatureLevel, bNeedToSwitchVerticalAxis, View, false);
+			View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, View.FeatureLevel, View, false);
 
 			DrawDynamicMeshPass(View, RHICmdList, [&](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
@@ -453,7 +451,7 @@ static void RenderPrePassEditorPrimitives(
 			});
 
 			// Draw the view's batched simple elements(lines, sprites, etc).
-			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, View.FeatureLevel, bNeedToSwitchVerticalAxis, View, false);
+			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, View.FeatureLevel, View, false);
 		}
 	});
 }

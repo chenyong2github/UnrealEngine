@@ -2431,8 +2431,6 @@ void FGenericDataDrivenShaderPlatformInfo::SetDefaultValues()
 {
 	MaxFeatureLevel = ERHIFeatureLevel::Num;
 	bSupportsMSAA = true;
-
-	bNeedsToSwitchVerticalAxisOnMobileOpenGL = true;
 	bSupportsDOFHybridScattering = true;
 	bSupportsHZBOcclusion = true;
 	bSupportsWaterIndirectDraw = true;
@@ -2529,7 +2527,6 @@ void FGenericDataDrivenShaderPlatformInfo::ParseDataDrivenShaderInfo(const FConf
 	GET_SECTION_INT_HELPER(NumberOfComputeThreads);
 
 	GET_SECTION_BOOL_HELPER(bWaterUsesSimpleForwardShading);
-	GET_SECTION_BOOL_HELPER(bNeedsToSwitchVerticalAxisOnMobileOpenGL);
 	GET_SECTION_BOOL_HELPER(bSupportsHairStrandGeometry);
 	GET_SECTION_BOOL_HELPER(bSupportsDOFHybridScattering);
 	GET_SECTION_BOOL_HELPER(bNeedsExtraMobileFrames);

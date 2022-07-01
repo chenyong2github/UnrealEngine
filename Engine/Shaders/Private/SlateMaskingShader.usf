@@ -11,8 +11,6 @@ float4x4 ViewProjection;
 // MaskRect[1].zw = BottomRight
 float4 MaskRectPacked[2];
 
-float SwitchVerticalAxisMultiplier;
-
 struct VertexToPixelInterpolants
 {
     float4 Position : SV_POSITION;
@@ -27,11 +25,6 @@ VertexToPixelInterpolants MainVS(in uint InPosition : ATTRIBUTE0)
     float4 WorldPosition = float4(MaskRect[InPosition], 0, 1);
 
 	VOut.Position = mul(WorldPosition, ViewProjection);
-
-#if (ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
-	// @todo-mobile: Fix this in the projection matrix
-	VOut.Position.y *= SwitchVerticalAxisMultiplier;
-#endif //(ES3_1_PROFILE && COMPILER_GLSL_ES3_1)
 
 	return VOut;
 }

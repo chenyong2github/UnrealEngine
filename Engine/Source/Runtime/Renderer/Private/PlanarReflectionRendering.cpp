@@ -240,12 +240,6 @@ void PrefilterPlanarReflection(
 			FIntPoint UV = View.ViewRect.Min;
 			FIntPoint UVSize = View.ViewRect.Size();
 
-			if (RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[View.FeatureLevel]) && !IsMobileHDR())
-			{
-				UV.Y = UV.Y + UVSize.Y;
-				UVSize.Y = -UVSize.Y;
-			}
-
 			FDeferredLightVS::FParameters ParametersVS = FDeferredLightVS::GetParameters(View, 
 				0, 0,
 				View.ViewRect.Width(), View.ViewRect.Height(),

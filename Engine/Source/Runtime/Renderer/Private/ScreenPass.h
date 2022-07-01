@@ -387,9 +387,6 @@ enum class EScreenPassDrawFlags : uint8
 {
 	None,
 
-	// Flips the Y axis of the rendered quad. Used by mobile rendering.
-	FlipYAxis = 0x1,
-
 	// Allows the screen pass to use a HMD hidden area mask if one is available. Used for VR.
 	AllowHMDHiddenAreaMask = 0x2
 };
@@ -426,18 +423,6 @@ void DrawScreenPass(
 	FIntPoint LocalOutputPos(FIntPoint::ZeroValue);
 	FIntPoint LocalOutputSize(OutputSize);
 	EDrawRectangleFlags DrawRectangleFlags = EDRF_UseTriangleOptimization;
-
-	const bool bFlipYAxis = (Flags & EScreenPassDrawFlags::FlipYAxis) == EScreenPassDrawFlags::FlipYAxis;
-
-	if (bFlipYAxis)
-	{
-		// Draw the quad flipped. Requires that the cull mode be disabled.
-		LocalOutputPos.Y = OutputSize.Y;
-		LocalOutputSize.Y = -OutputSize.Y;
-
-		// Triangle optimization currently doesn't work when flipped.
-		DrawRectangleFlags = EDRF_Default;
-	}
 
 	const bool bUseHMDHiddenAreaMask = (Flags & EScreenPassDrawFlags::AllowHMDHiddenAreaMask) == EScreenPassDrawFlags::AllowHMDHiddenAreaMask
 		? View.bHMDHiddenAreaMaskActive

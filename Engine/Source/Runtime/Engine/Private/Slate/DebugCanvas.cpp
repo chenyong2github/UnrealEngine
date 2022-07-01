@@ -287,9 +287,6 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 		RHICmdList.Transition(FRHITransitionInfo(RT, ERHIAccess::Unknown, ERHIAccess::RTV));
 		RenderTarget->SetRenderTargetTexture(RT);
 
-		bool bNeedToFlipVertical = RenderThreadCanvas->GetAllowSwitchVerticalAxis();
-		// Flip when rendering to the back buffer
-		RenderThreadCanvas->SetAllowSwitchVerticalAxis(true);
 		if (RenderThreadCanvas->IsScaledToRenderTarget() && RT) 
 		{
 			RenderThreadCanvas->SetRenderTargetRect( FIntRect(0, 0, (RT)->GetSizeX(), (RT)->GetSizeY()) );
@@ -300,7 +297,6 @@ void FDebugCanvasDrawer::DrawRenderThread(FRHICommandListImmediate& RHICmdList, 
 		}
 
 		RenderThreadCanvas->Flush_RenderThread(RHICmdList, true);
-		RenderThreadCanvas->SetAllowSwitchVerticalAxis(bNeedToFlipVertical);
 		RenderTarget->ClearRenderTargetTexture();
 	}
 }

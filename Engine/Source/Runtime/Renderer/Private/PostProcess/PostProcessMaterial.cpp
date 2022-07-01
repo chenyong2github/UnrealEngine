@@ -343,24 +343,6 @@ TGlobalResource<FPostProcessMaterialVertexDeclaration> GPostProcessMaterialVerte
 
 } //! namespace
 
-static void AddCopyAndFlipTexturePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, FRDGTextureRef SrcTexture, FRDGTextureRef DestTexture)
-{
-	// Other RHIs can't flip and copy at the same time, so we'll use a pixel shader to perform the copy, together with the FlipYAxis
-	// flag on the screen pass. This path is only taken when using the mobile preview feature in the editor with
-	// r.Mobile.ForceRHISwitchVerticalAxis set to 1, so we don't care about it being sub-optimal.
-	FIntPoint Size = SrcTexture->Desc.Extent;
-	const FScreenPassTextureViewport InputViewport(SrcTexture->Desc.Extent, FIntRect(FIntPoint::ZeroValue, Size));
-	const FScreenPassTextureViewport OutputViewport(DestTexture->Desc.Extent, FIntRect(FIntPoint::ZeroValue, Size));
-	TShaderMapRef<FCopyRectPS> PixelShader(View.ShaderMap);
-
-	FCopyRectPS::FParameters* Parameters = GraphBuilder.AllocParameters<FCopyRectPS::FParameters>();
-	Parameters->InputTexture = SrcTexture;
-	Parameters->InputSampler = TStaticSamplerState<>::GetRHI();
-	Parameters->RenderTargets[0] = FRenderTargetBinding(DestTexture, ERenderTargetLoadAction::ENoAction);
-
-	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("DrawTexture"), View, OutputViewport, InputViewport, PixelShader, Parameters, EScreenPassDrawFlags::FlipYAxis);
-}
-
 void AddMobileMSAADecodeAndDrawTexturePass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -434,15 +416,10 @@ FScreenPassTexture AddPostProcessMaterialPass(
 	// is actually the backbuffer, but it's not worth doing all the plumbing and increasing the RHI surface area just for this hack.
 	const bool bBackbufferWithDepthStencil = (DepthStencilTexture != nullptr && !GRHISupportsBackBufferWithCustomDepthStencil && Inputs.OverrideOutput.IsValid());
 
-	// The other case when we must render to an intermediate target is when we have to flip the image vertically because we're the last postprocess pass on mobile OpenGL.
-	// We can't simply output a flipped image, because the parts of the input image which show through the stencil mask or are blended in must also be flipped. In that case,
-	// we render normally to the intermediate target and flip the image when we copy to the output target.
-	const bool bCompositeWithInputAndFlipY = bCompositeWithInput && Inputs.bFlipYAxis;
-
 	// We need to decode the target color for blending material, force it rendering to an intermediate render target and decode the color.
 	const bool bCompositeWithInputAndDecode = Inputs.bMetalMSAAHDRDecode && bCompositeWithInput;
 
-	const bool bForceIntermediateTarget = bBackbufferWithDepthStencil || bCompositeWithInputAndFlipY || bCompositeWithInputAndDecode;
+	const bool bForceIntermediateTarget = bBackbufferWithDepthStencil || bCompositeWithInputAndDecode;
 
 	FScreenPassRenderTarget Output = Inputs.OverrideOutput;
 
@@ -544,7 +521,6 @@ FScreenPassTexture AddPostProcessMaterialPass(
 		PostProcessMaterialParameters->PostProcessInput[InputIndex] = GetScreenPassTextureInput(Input, PointClampSampler);
 	}
 
-	PostProcessMaterialParameters->bFlipYAxis = Inputs.bFlipYAxis && !bForceIntermediateTarget;
 	PostProcessMaterialParameters->Strata = Strata::BindStrataGlobalUniformParameters(View);
 
 	// SceneDepthWithoutWater
@@ -581,11 +557,6 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	EScreenPassDrawFlags ScreenPassFlags = EScreenPassDrawFlags::AllowHMDHiddenAreaMask;
 
-	if (PostProcessMaterialParameters->bFlipYAxis)
-	{
-		ScreenPassFlags |= EScreenPassDrawFlags::FlipYAxis;
-	}
-
 	// check if we can skip that draw call in case if all pixels will fail the stencil test of the material
 	bool bSkipPostProcess = false;
 
@@ -615,46 +586,29 @@ FScreenPassTexture AddPostProcessMaterialPass(
 
 	if (!bSkipPostProcess)
 	{
-	AddDrawScreenPass(
-		GraphBuilder,
-		RDG_EVENT_NAME("PostProcessMaterial"),
-		View,
-		OutputViewport,
-		SceneColorViewport,
-		// Uses default depth stencil on mobile since the stencil test is done in pixel shader.
-		FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState, MaterialStencilRef),
-		PostProcessMaterialParameters,
-		ScreenPassFlags,
-		[&View, VertexShader, PixelShader, MaterialRenderProxy, Material, PostProcessMaterialParameters](FRHICommandList& RHICmdList)
-	{
-		FPostProcessMaterialVS::SetParameters(RHICmdList, VertexShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
-		FPostProcessMaterialPS::SetParameters(RHICmdList, PixelShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
-	});
+		AddDrawScreenPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("PostProcessMaterial"),
+			View,
+			OutputViewport,
+			SceneColorViewport,
+			// Uses default depth stencil on mobile since the stencil test is done in pixel shader.
+			FScreenPassPipelineState(VertexShader, PixelShader, BlendState, DepthStencilState, MaterialStencilRef),
+			PostProcessMaterialParameters,
+			ScreenPassFlags,
+			[&View, VertexShader, PixelShader, MaterialRenderProxy, Material, PostProcessMaterialParameters](FRHICommandList& RHICmdList)
+		{
+			FPostProcessMaterialVS::SetParameters(RHICmdList, VertexShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
+			FPostProcessMaterialPS::SetParameters(RHICmdList, PixelShader, View, MaterialRenderProxy, *Material, *PostProcessMaterialParameters);
+		});
 
-	if (bForceIntermediateTarget && !bCompositeWithInputAndDecode)
-	{
-		if (!Inputs.bFlipYAxis)
+		if (bForceIntermediateTarget && !bCompositeWithInputAndDecode)
 		{
 			// We shouldn't get here unless we had an override target.
 			check(Inputs.OverrideOutput.IsValid());
 			AddDrawTexturePass(GraphBuilder, View, Output.Texture, Inputs.OverrideOutput.Texture);
 			Output = Inputs.OverrideOutput;
 		}
-		else
-		{
-			FScreenPassRenderTarget TempTarget = Output;
-			if (Inputs.OverrideOutput.IsValid())
-			{
-				Output = Inputs.OverrideOutput;
-			}
-			else
-			{
-				Output = FScreenPassRenderTarget(SceneColor, ERenderTargetLoadAction::ENoAction);
-			}
-
-			AddCopyAndFlipTexturePass(GraphBuilder, View, TempTarget.Texture, Output.Texture);
-		}
-	}
 	}
 	else
 	{
@@ -767,7 +721,6 @@ FScreenPassTexture AddPostProcessMaterialChain(
 		if (MaterialInterface != Materials.Last())
 		{
 			Inputs.OverrideOutput = FScreenPassRenderTarget();
-			Inputs.bFlipYAxis = false;
 		}
 
 		Outputs = AddPostProcessMaterialPass(GraphBuilder, View, Inputs, MaterialInterface);

@@ -195,9 +195,6 @@ void FSimpleElementCollector::RegisterDynamicResource(FDynamicPrimitiveResource*
 
 void FSimpleElementCollector::DrawBatchedElements(FRHICommandList& RHICmdList, const FMeshPassProcessorRenderState& DrawRenderState, const FSceneView& InView, EBlendModeFilter::Type Filter, ESceneDepthPriorityGroup DepthPriorityGroup) const
 {
-	// Mobile HDR does not execute post process, so does not need to render flipped
-	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(InView.GetShaderPlatform()) && !bIsMobileHDR;
-
 	const FBatchedElements& Elements = DepthPriorityGroup == SDPG_World ? BatchedElements : TopBatchedElements;
 
 	// Draw the batched elements.
@@ -205,7 +202,6 @@ void FSimpleElementCollector::DrawBatchedElements(FRHICommandList& RHICmdList, c
 		RHICmdList,
 		DrawRenderState,
 		InView.GetFeatureLevel(),
-		bNeedToSwitchVerticalAxis,
 		InView,
 		InView.Family->EngineShowFlags.HitProxies,
 		1.0f,

@@ -183,7 +183,6 @@ void FSlate3DRenderer::DrawWindowToTarget_RenderThread(FRHICommandListImmediate&
 
 			FSlateRenderingParams DrawOptions(ProjectionMatrix, FGameTime::CreateDilated(Context.RealTimeSeconds, Context.DeltaRealTimeSeconds, Context.WorldTimeSeconds, Context.DeltaTimeSeconds));
 			// The scene renderer will handle it in this case
-			DrawOptions.bAllowSwitchVerticalAxis = false;
 			DrawOptions.ViewOffset = UE::Slate::CastToVector2f(DrawOffset);
 
 			FTexture2DRHIRef ColorTarget = Context.RenderTarget->GetRenderTargetTexture();

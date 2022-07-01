@@ -279,8 +279,6 @@ void MainPS_VideoOverlay(
 
 #else // FEATURE_LEVEL > FEATURE_LEVEL_ES3_1
 
-uint bFlipYAxis;
-
 //
 // Mobile version
 //
@@ -329,10 +327,6 @@ void MainPS(
 
 	// can be optimized
 	float4 SvPosition = Input.Position;
-	if (bFlipYAxis)
-	{
-		SvPosition.y = PostProcessOutput_ViewportSize.y - SvPosition.y;
-	}
 	float2 ViewportUV = (SvPosition - PostProcessOutput_ViewportMin) * PostProcessOutput_ViewportSizeInverse;
 	float2 BufferUV = ViewportUVToBufferUV(ViewportUV);
 	

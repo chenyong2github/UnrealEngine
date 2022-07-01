@@ -29,7 +29,6 @@ struct FSlateRenderingParams
 	FMatrix44f ViewProjectionMatrix;
 	FVector2f ViewOffset;
 	FGameTime Time;
-	bool bAllowSwitchVerticalAxis;
 	bool bWireFrame;
 	bool bIsHDR;
 
@@ -37,7 +36,6 @@ struct FSlateRenderingParams
 		: ViewProjectionMatrix(InViewProjectionMatrix)
 		, ViewOffset(0.f, 0.f)
 		, Time(InTime)
-		, bAllowSwitchVerticalAxis(true)
 		, bWireFrame(false)
 		, bIsHDR(false)
 	{

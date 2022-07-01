@@ -591,6 +591,40 @@ void FAndroidMisc::PlatformTearDown()
 	RemoveBinding(FCoreDelegates::ApplicationHasEnteredForegroundDelegate, AndroidOnForegroundBinding);
 }
 
+void FAndroidMisc::UpdateDeviceOrientation()
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAndroidMisc_UpdateDeviceOrientation);
+#if USE_ANDROID_JNI
+	JNIEnv* JEnv = AndroidJavaEnv::GetJavaEnv();
+	if (JEnv)
+	{
+		static jmethodID getOrientationMethod = 0;
+
+		if (getOrientationMethod == 0)
+		{
+			jclass MainClass = AndroidJavaEnv::FindJavaClassGlobalRef("com/epicgames/unreal/GameActivity");
+			if (MainClass != nullptr)
+			{
+				getOrientationMethod = JEnv->GetMethodID(MainClass, "AndroidThunkJava_GetDeviceOrientation", "()I");
+				JEnv->DeleteGlobalRef(MainClass);
+			}
+		}
+
+		if (getOrientationMethod != 0)
+		{
+			const int Orientation = JEnv->CallIntMethod(AndroidJavaEnv::GetGameActivityThis(), getOrientationMethod);
+			switch (Orientation)
+			{
+			case 0: DeviceOrientation = EDeviceScreenOrientation::Portrait;             break;
+			case 1: DeviceOrientation = EDeviceScreenOrientation::LandscapeLeft;        break;
+			case 2: DeviceOrientation = EDeviceScreenOrientation::PortraitUpsideDown;   break;
+			case 3: DeviceOrientation = EDeviceScreenOrientation::LandscapeRight;       break;
+			}
+		}
+	}
+#endif
+}
+
 void FAndroidMisc::PlatformHandleSplashScreen(bool ShowSplashScreen)
 {
 #if USE_ANDROID_JNI
@@ -598,6 +632,8 @@ void FAndroidMisc::PlatformHandleSplashScreen(bool ShowSplashScreen)
 	{
 		AndroidThunkCpp_DismissSplashScreen();
 	}
+	// Update the device orientation in case the game thread is blocked
+	FAndroidMisc::UpdateDeviceOrientation();
 #endif
 }
 

@@ -125,8 +125,4 @@ void Main(
 #if PACK_INTERPOLANTS
 	VertexFactoryPackInterpolants(Output.FactoryInterpolants, PackedInterps);
 #endif // PACK_INTERPOLANTS
-
-#if !OUTPUT_MOBILE_HDR && COMPILER_GLSL_ES3_1
-	Output.Position.y *= -1;
-#endif
 }

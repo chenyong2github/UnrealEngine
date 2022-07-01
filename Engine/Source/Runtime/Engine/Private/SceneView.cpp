@@ -814,17 +814,6 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
 	bool bUsingMobileRenderer = FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile;
 
-	bool bPlatformRequiresReverseCulling = IsOpenGLPlatform(ShaderPlatform);
-	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling || FDataDrivenShaderPlatformInfo::GetRequiresReverseCullingOnMobile(ShaderPlatform);
-	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling && bUsingMobileRenderer;
-	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling && !IsPCPlatform(ShaderPlatform);
-	bPlatformRequiresReverseCulling = bPlatformRequiresReverseCulling && !IsVulkanMobilePlatform(ShaderPlatform);
-
-	static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-	check(MobileHDRCvar);
-	const bool bSkipPostprocessing = MobileHDRCvar->GetValueOnAnyThread() == 0;
-	bReverseCulling = (bPlatformRequiresReverseCulling && bSkipPostprocessing) ? !bReverseCulling : bReverseCulling;
-
 	// Setup transformation constants to be used by the graphics hardware to transform device normalized depth samples
 	// into world oriented z.
 	InvDeviceZToWorldZTransform = CreateInvDeviceZToWorldZTransform(ProjectionMatrixUnadjustedForRHI);

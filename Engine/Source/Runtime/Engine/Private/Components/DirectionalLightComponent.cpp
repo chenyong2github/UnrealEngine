@@ -93,9 +93,6 @@ static TAutoConsoleVariable<float> CVarRTDFDistanceScale(
 // Computes a shadow culling volume (convex hull) based on a set of 8 vertices and a light direction
 void ComputeShadowCullingVolume(bool bReverseCulling, const FVector* CascadeFrustumVerts, const FVector& LightDirection, FConvexVolume& ConvexVolumeOut, FPlane& NearPlaneOut, FPlane& FarPlaneOut) 
 {
-	// For mobile platforms that switch vertical axis and MobileHDR == false the sense of bReverseCulling is inverted.
-	bReverseCulling = XOR(bReverseCulling, (RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[GMaxRHIFeatureLevel]) && !IsMobileHDR()));
-
 	// Pairs of plane indices from SubFrustumPlanes whose intersections
 	// form the edges of the frustum.
 	static const int32 AdjacentPlanePairs[12][2] =

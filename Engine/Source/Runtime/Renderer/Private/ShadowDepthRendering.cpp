@@ -2188,15 +2188,10 @@ bool FShadowDepthPassMeshProcessor::TryAddMeshBatch(const FMeshBatch& RESTRICT M
 		const ERasterizerCullMode MeshCullMode = ComputeMeshCullMode(MeshBatch, Material, OverrideSettings);
 
 		const bool bTwoSided = Material.IsTwoSided() || PrimitiveSceneProxy->CastsShadowAsTwoSided();
-		// Invert culling order when mobile HDR == false.
-		auto ShaderPlatform = GShaderPlatformForFeatureLevel[FeatureLevel];
-		static auto* MobileHDRCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MobileHDR"));
-		check(MobileHDRCvar);
-		const bool bPlatformReversesCulling = (RHINeedsToSwitchVerticalAxis(ShaderPlatform) && MobileHDRCvar->GetValueOnAnyThread() == 0);
 
 		const bool bRenderSceneTwoSided = bTwoSided;
 		const bool bShadowReversesCulling = MeshPassTargetType == EMeshPass::VSMShadowDepth ? false : ShadowDepthType.bOnePassPointLightShadow;
-		const bool bReverseCullMode = XOR(bPlatformReversesCulling, bShadowReversesCulling);
+		const bool bReverseCullMode = bShadowReversesCulling;
 
 		FinalCullMode = bRenderSceneTwoSided ? CM_None : bReverseCullMode ? InverseCullMode(MeshCullMode) : MeshCullMode;
 	}

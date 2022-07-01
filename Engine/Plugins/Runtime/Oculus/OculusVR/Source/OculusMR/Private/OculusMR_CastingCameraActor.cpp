@@ -939,7 +939,6 @@ void AOculusMR_CastingCameraActor::SetupMRCScreen()
 #endif
 		UpdateRenderTargetSize();
 
-		GetCaptureComponent2D()->bDisableFlipCopyGLES = true;
 		// LDR for gamma correction and post process
 		GetCaptureComponent2D()->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 
@@ -952,7 +951,6 @@ void AOculusMR_CastingCameraActor::SetupMRCScreen()
 		{
 			ForegroundCaptureActor = GetWorld()->SpawnActor<ASceneCapture2D>();
 
-			ForegroundCaptureActor->GetCaptureComponent2D()->bDisableFlipCopyGLES = true;
 			// LDR for gamma correction and post process
 			ForegroundCaptureActor->GetCaptureComponent2D()->CaptureSource = ESceneCaptureSource::SCS_FinalColorLDR;
 #if PLATFORM_ANDROID

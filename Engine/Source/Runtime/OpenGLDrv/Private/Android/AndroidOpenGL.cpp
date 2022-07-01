@@ -225,7 +225,8 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 	
 	FPlatformOpenGLContext* const Context = Viewport.GetGLContext();
 
-	if (FPlatformMisc::SupportsBackbufferSampling())
+	if (bPresent && FPlatformMisc::SupportsBackbufferSampling())
+
 	{
 		if (Device->TargetDirty)
 		{
@@ -263,6 +264,7 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device, const FOpenGLViewport
 	}
 	if (bPresent)
 	{
+		AndroidEGL::GetInstance()->UpdateBuffersTransform();
 		FAndroidPlatformRHIFramePacer::SwapBuffers(bLockToVsync);
 	}
 	static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("a.UseFrameTimeStampsForPacing"));

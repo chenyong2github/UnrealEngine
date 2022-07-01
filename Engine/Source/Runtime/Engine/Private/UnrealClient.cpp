@@ -1651,8 +1651,6 @@ void FViewport::Draw( bool bShouldPresent /*= true */)
 				FCanvas Canvas(this, nullptr, ViewportWorld, ViewportWorld ? ViewportWorld->FeatureLevel.GetValue() : GMaxRHIFeatureLevel, FCanvas::CDM_DeferDrawing, ViewportClient->ShouldDPIScaleSceneCanvas() ? ViewportClient->GetDPIScale() : 1.0f);
 				Canvas.SetRenderTargetRect(FIntRect(0, 0, SizeX, SizeY));
 				{
-					// Make sure the Canvas is not rendered upside down
-					Canvas.SetAllowSwitchVerticalAxis(true);
 					ViewportClient->Draw(this, &Canvas);
 				}
 				Canvas.Flush_GameThread();

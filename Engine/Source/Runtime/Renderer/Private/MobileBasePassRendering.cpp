@@ -348,8 +348,6 @@ void FMobileSceneRenderer::RenderMobileEditorPrimitives(FRHICommandList& RHICmdL
 
 	if (!View.Family->EngineShowFlags.CompositeEditorPrimitives)
 	{
-		const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]) && !IsMobileHDR();
-
 		DrawDynamicMeshPass(View, RHICmdList,
 			[&View, &DrawRenderState](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 			{
@@ -371,7 +369,7 @@ void FMobileSceneRenderer::RenderMobileEditorPrimitives(FRHICommandList& RHICmdL
 			});
 
 		// Draw the view's batched simple elements(lines, sprites, etc).
-		View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, false);
+		View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, View, false);
 
 		DrawDynamicMeshPass(View, RHICmdList,
 			[&View, &DrawRenderState](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
@@ -394,6 +392,6 @@ void FMobileSceneRenderer::RenderMobileEditorPrimitives(FRHICommandList& RHICmdL
 		});
 
 		// Draw the view's batched simple elements(lines, sprites, etc).
-		View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, false);
+		View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, View, false);
 	}
 }

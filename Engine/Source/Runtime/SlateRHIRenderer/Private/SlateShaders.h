@@ -89,11 +89,6 @@ public:
 	 */
 	void SetShaderParameters(FRHICommandList& RHICmdList, const FVector4f& ShaderParams );
 
-	/**
-	 * Sets the vertical axis multiplier to use depending on graphics api
-	 */
-	void SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier);
-
 	/** Serializes the shader data */
 	//virtual bool Serialize( FArchive& Ar ) override;
 
@@ -102,8 +97,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, ViewProjection)
 	/** Shader parmeters used by the shader */
 	LAYOUT_FIELD(FShaderParameter, VertexShaderParams)
-	/** Parameter used to determine if we need to swtich the vertical axis for opengl */
-	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxisMultiplier)
 };
 
 /** 
@@ -495,11 +488,6 @@ public:
 	void SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection);
 
 	/**
-	 * Sets the vertical axis multiplier to use depending on graphics api
-	 */
-	void SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier);
-
-	/**
 	 * Sets the mask rect positions
 	 */
 	void SetMaskRect(FRHICommandList& RHICmdList, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight);
@@ -511,8 +499,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, MaskRect)
 	/** ViewProjection parameter used by the shader */
 	LAYOUT_FIELD(FShaderParameter, ViewProjection)
-	/** Parameter used to determine if we need to swtich the vertical axis for opengl */
-	LAYOUT_FIELD(FShaderParameter, SwitchVerticalAxisMultiplier)
 };
 
 class FSlateMaskingPS : public FGlobalShader

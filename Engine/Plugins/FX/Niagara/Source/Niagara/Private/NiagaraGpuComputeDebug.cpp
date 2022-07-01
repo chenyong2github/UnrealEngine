@@ -274,7 +274,6 @@ void FNiagaraGpuComputeDebug::DrawDebug(FRDGBuilder& GraphBuilder, const FViewIn
 		AddDrawCanvasPass(GraphBuilder, {}, View, Output,
 			[Location, SourceName=VisualizeEntry.SourceName.ToString(), SystemName, Font](FCanvas& Canvas)
 			{
-				Canvas.SetAllowSwitchVerticalAxis(true);
 				Canvas.DrawShadowedString(Location.X, Location.Y, *FString::Printf(TEXT("DataInterface: %s, System: %s"), *SourceName, *SystemName), Font, FLinearColor(1, 1, 1));
 			}
 		);

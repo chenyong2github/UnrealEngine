@@ -75,7 +75,7 @@ uint32 FCanvasTriangleRendererItem::FRenderData::GetNumIndices() const
 	return Triangles.Num() * 3;
 }
 
-void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis)
+void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView& View)
 {
 	const uint32 NumIndices = GetNumIndices();
 	const uint32 NumVertices = GetNumIndices();
@@ -101,18 +101,9 @@ void FCanvasTriangleRendererItem::FRenderData::InitTriangleMesh(const FSceneView
 		const FCanvasUVTri& Tri = Triangles[i].Tri;
 
 		// create verts. Notice the order is (1, 0, 2)
-		if (bNeedsToSwitchVerticalAxis)
-		{
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 0) = FVector3f(Tri.V1_Pos.X, View.UnscaledViewRect.Height() - Tri.V1_Pos.Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 1) = FVector3f(Tri.V0_Pos.X, View.UnscaledViewRect.Height() - Tri.V0_Pos.Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 2) = FVector3f(Tri.V2_Pos.X, View.UnscaledViewRect.Height() - Tri.V2_Pos.Y, 0.0f);
-		}
-		else
-		{
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 0) = FVector3f(Tri.V1_Pos.X, Tri.V1_Pos.Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 1) = FVector3f(Tri.V0_Pos.X, Tri.V0_Pos.Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 2) = FVector3f(Tri.V2_Pos.X, Tri.V2_Pos.Y, 0.0f);
-		}
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 0) = FVector3f(Tri.V1_Pos.X, Tri.V1_Pos.Y, 0.0f);
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 1) = FVector3f(Tri.V0_Pos.X, Tri.V0_Pos.Y, 0.0f);
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(StartIndex + 2) = FVector3f(Tri.V2_Pos.X, Tri.V2_Pos.Y, 0.0f);
 
 		StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(StartIndex + 0, FVector3f(1.0f, 0.0f, 0.0f), FVector3f(0.0f, 1.0f, 0.0f), FVector3f(0.0f, 0.0f, 1.0f));
 		StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexTangents(StartIndex + 1, FVector3f(1.0f, 0.0f, 0.0f), FVector3f(0.0f, 1.0f, 0.0f), FVector3f(0.0f, 0.0f, 1.0f));
@@ -147,8 +138,7 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 	FCanvasRenderContext& RenderContext,
 	FMeshPassProcessorRenderState& DrawRenderState,
 	const FSceneView& View,
-	bool bIsHitTesting,
-	bool bNeedsToSwitchVerticalAxis)
+	bool bIsHitTesting)
 {
 	check(IsInRenderingThread());
 
@@ -164,7 +154,7 @@ void FCanvasTriangleRendererItem::FRenderData::RenderTriangles(
 
 	IRendererModule& RendererModule = GetRendererModule();
 
-	InitTriangleMesh(View, bNeedsToSwitchVerticalAxis);
+	InitTriangleMesh(View);
 
 
 	// We know we have at least 1 triangle so prep up a new batch right away : 
@@ -232,9 +222,7 @@ bool FCanvasTriangleRendererItem::Render_RenderThread(FCanvasRenderContext& Rend
 
 	const FSceneView& View = *RenderContext.Alloc<const FSceneView>(ViewInitOptions);
 
-	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
-
-	Data->RenderTriangles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
+	Data->RenderTriangles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting());
 
 	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 	{
@@ -278,19 +266,18 @@ bool FCanvasTriangleRendererItem::Render_GameThread(const FCanvas* Canvas, FCanv
 
 	const FSceneView* View = new FSceneView(ViewInitOptions);
 
-	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
 	const bool bIsHitTesting = Canvas->IsHitTesting();
 	const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
 
 	RenderScope.EnqueueRenderCommand(
-		[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis](FCanvasRenderContext& RenderContext) mutable
+		[LocalData = Data, View, bIsHitTesting](FCanvasRenderContext& RenderContext) mutable
 	{
 		FMeshPassProcessorRenderState DrawRenderState;
 
 		// disable depth test & writes
 		DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-		LocalData->RenderTriangles(RenderContext, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis);
+		LocalData->RenderTriangles(RenderContext, DrawRenderState, *View, bIsHitTesting);
 
 		RenderContext.DeferredRelease(MoveTemp(LocalData));
 		RenderContext.DeferredDelete(View->Family);

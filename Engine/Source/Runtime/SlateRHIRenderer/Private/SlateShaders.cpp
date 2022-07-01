@@ -141,7 +141,6 @@ FSlateElementVS::FSlateElementVS( const ShaderMetaType::CompiledShaderInitialize
 {
 	ViewProjection.Bind(Initializer.ParameterMap, TEXT("ViewProjection"));
 	VertexShaderParams.Bind( Initializer.ParameterMap, TEXT("VertexShaderParams"));
-	SwitchVerticalAxisMultiplier.Bind( Initializer.ParameterMap, TEXT("SwitchVerticalAxisMultiplier"));
 }
 
 void FSlateElementVS::SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection )
@@ -154,11 +153,6 @@ void FSlateElementVS::SetShaderParameters(FRHICommandList& RHICmdList, const FVe
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), VertexShaderParams, ShaderParams );
 }
 
-void FSlateElementVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier )
-{
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), SwitchVerticalAxisMultiplier, InMultiplier );
-}
-
 /** Serializes the shader data */
 /*bool FSlateElementVS::Serialize( FArchive& Ar )
 {
@@ -166,7 +160,6 @@ void FSlateElementVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, flo
 
 	Ar << ViewProjection;
 	Ar << VertexShaderParams;
-	Ar << SwitchVerticalAxisMultiplier;
 
 	return bShaderHasOutdatedParameters;
 }*/
@@ -181,17 +174,11 @@ FSlateMaskingVS::FSlateMaskingVS(const ShaderMetaType::CompiledShaderInitializer
 {
 	ViewProjection.Bind(Initializer.ParameterMap, TEXT("ViewProjection"));
 	MaskRect.Bind(Initializer.ParameterMap, TEXT("MaskRectPacked"));
-	SwitchVerticalAxisMultiplier.Bind(Initializer.ParameterMap, TEXT("SwitchVerticalAxisMultiplier"));
 }
 
 void FSlateMaskingVS::SetViewProjection(FRHICommandList& RHICmdList, const FMatrix44f& InViewProjection)
 {
 	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), ViewProjection, InViewProjection);
-}
-
-void FSlateMaskingVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier )
-{
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), SwitchVerticalAxisMultiplier, InMultiplier );
 }
 
 void FSlateMaskingVS::SetMaskRect(FRHICommandList& RHICmdList, const FVector2f TopLeft, const FVector2f TopRight, const FVector2f BotLeft, const FVector2f BotRight)
@@ -208,7 +195,6 @@ void FSlateMaskingVS::SetMaskRect(FRHICommandList& RHICmdList, const FVector2f T
 
 	Ar << ViewProjection;
 	Ar << MaskRect;
-	Ar << SwitchVerticalAxisMultiplier;
 
 	return bShaderHasOutdatedParameters;
 }*/

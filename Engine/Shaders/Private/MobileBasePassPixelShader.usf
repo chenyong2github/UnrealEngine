@@ -275,11 +275,6 @@ void Main(
 	VertexFactoryUnpackInterpolants(Interpolants, PackedInterpolants);
 #endif
 
-#if COMPILER_GLSL_ES3_1 && !OUTPUT_MOBILE_HDR && !MOBILE_EMULATION
-	// LDR Mobile needs screen vertical flipped
-	SvPosition.y = ResolvedView.BufferSizeAndInvSize.y - SvPosition.y - 1;
-#endif
-
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(Interpolants, SvPosition);
 	FPixelMaterialInputs PixelMaterialInputs;
 	{

@@ -268,7 +268,6 @@ static void DoRenderHitProxies(
 	auto& ViewFamily = SceneRenderer->ViewFamily;
 	auto& Views = SceneRenderer->Views;
 	const auto FeatureLevel = SceneRenderer->FeatureLevel;
-	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[FeatureLevel]);
 	const FIntPoint HitProxyTextureExtent = HitProxyTexture->Desc.Extent;
 
 	{
@@ -339,7 +338,7 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("HitProxies::Render"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[SceneRenderer, &View, LocalScene, FeatureLevel, bNeedToSwitchVerticalAxis, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, &View, LocalScene, FeatureLevel, PassParameters](FRHICommandListImmediate& RHICmdList)
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 
@@ -427,7 +426,7 @@ static void DoRenderHitProxies(
 
 
 			// Draw the view's batched simple elements(lines, sprites, etc).
-			View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+			View.BatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, View, true);
 
 			// Some elements should never be occluded (e.g. gizmos).
 			// So we render those twice, first to overwrite potentially nearer objects,
@@ -453,7 +452,7 @@ static void DoRenderHitProxies(
 				}
 			});
 
-			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, View, true);
 
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI());
 
@@ -476,7 +475,7 @@ static void DoRenderHitProxies(
 				}
 			});
 
-			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, bNeedToSwitchVerticalAxis, View, true);
+			View.TopBatchedViewElements.Draw(RHICmdList, DrawRenderState, FeatureLevel, View, true);
 		});
 	}
 
@@ -496,7 +495,7 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("HitProxies::CopyOutput"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&Views, HitProxyTextureExtent, HitProxyTexture, ViewFamilyTexture, FeatureLevel, bNeedToSwitchVerticalAxis](FRHICommandListImmediate& RHICmdList)
+			[&Views, HitProxyTextureExtent, HitProxyTexture, ViewFamilyTexture, FeatureLevel](FRHICommandListImmediate& RHICmdList)
 		{
 			// Set up a FTexture that is used to draw the hit proxy buffer to the view family's render target.
 			FTexture HitProxyRenderTargetTexture;
@@ -550,7 +549,6 @@ static void DoRenderHitProxies(
 				RHICmdList,
 				DrawRenderState,
 				FeatureLevel,
-				bNeedToSwitchVerticalAxis,
 				SceneView,
 				false,
 				1.0f

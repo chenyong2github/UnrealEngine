@@ -299,7 +299,6 @@ FCanvas::FCanvas(FRenderTarget* InRenderTarget,FHitProxyConsumer* InHitProxyCons
 ,	AllowedModes(0xFFFFFFFF)
 ,	bRenderTargetDirty(false)
 ,	Time(InTime)
-,	bAllowsToSwitchVerticalAxis(false)
 ,	FeatureLevel(InFeatureLevel)
 ,	bUseInternalTexture(false)
 ,	DrawMode(CDM_DeferDrawing)
@@ -312,7 +311,6 @@ void FCanvas::Construct()
 {
 	bStereoRendering = false;
 	bScaledToRenderTarget = false;
-	bAllowsToSwitchVerticalAxis = false;
 
 	const FIntPoint RenderTargetSizeXY = RenderTarget ? RenderTarget->GetSizeXY() : FIntPoint(1, 1);
 
@@ -441,14 +439,11 @@ bool FCanvasBatchedElementRenderItem::Render_RenderThread(FCanvasRenderContext& 
 				Gamma = 1.0f;
 			}
 
-			bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
-
 			// draw batched items
 			LocalData->BatchedElements.Draw(
 				RHICmdList,
 				DrawRenderState,
 				Canvas->GetFeatureLevel(),
-				bNeedsToSwitchVerticalAxis,
 				FBatchedElements::CreateProxySceneView(LocalData->Transform.GetMatrix(), FIntRect(0, 0, CanvasRenderTarget->GetSizeXY().X, CanvasRenderTarget->GetSizeXY().Y)),
 				Canvas->IsHitTesting(),
 				Gamma
@@ -482,14 +477,11 @@ bool FCanvasBatchedElementRenderItem::Render_GameThread(const FCanvas* Canvas, F
 			Gamma = 1.0f;
 		}
 
-		bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
-
 		// Render the batched elements.
 		struct FBatchedDrawParameters
 		{
 			FRenderData* RenderData;
 			uint32 bHitTesting : 1;
-			uint32 bNeedsToSwitchVerticalAxis : 1;
 			uint32 ViewportSizeX;
 			uint32 ViewportSizeY;
 			float DisplayGamma;
@@ -502,7 +494,6 @@ bool FCanvasBatchedElementRenderItem::Render_GameThread(const FCanvas* Canvas, F
 		{
 			Data,
 			(uint32)(Canvas->IsHitTesting() ? 1 : 0),
-			(uint32)(bNeedsToSwitchVerticalAxis ? 1 : 0),
 			(uint32)CanvasRenderTarget->GetSizeXY().X,
 			(uint32)CanvasRenderTarget->GetSizeXY().Y,
 			Gamma,
@@ -527,7 +518,6 @@ bool FCanvasBatchedElementRenderItem::Render_GameThread(const FCanvas* Canvas, F
 				RHICmdList,
 				DrawRenderState,
 				DrawParameters.FeatureLevel,
-				DrawParameters.bNeedsToSwitchVerticalAxis,
 				SceneView,
 				DrawParameters.bHitTesting,
 				DrawParameters.DisplayGamma);

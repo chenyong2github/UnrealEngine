@@ -2923,14 +2923,6 @@ static TAutoConsoleVariable<int32> CVarSetVSyncEditorEnabled(
 	TEXT("0: VSync is disabled in editor.(default)\n"
 		 "1: VSync is enabled in editor."),
 	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<int32> CVarMobileForceRHISwitchVerticalAxis(
-	TEXT("r.Mobile.ForceRHISwitchVerticalAxis"),
-	0,
-	TEXT("Enable RHISwitchVerticalAxis when previewing mobile renderer. (Useful to test GLES y-axis flip codepaths)\n"
-		 "0: RHISwitchVerticalAxis disabled (default).\n"
-		 "1: RHISwitchVerticalAxis enabled.\n"),
-	ECVF_Scalability | ECVF_RenderThreadSafe);
 #endif
 
 static TAutoConsoleVariable<int32> CVarFinishCurrentFrame(

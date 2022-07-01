@@ -86,7 +86,7 @@ uint32 FCanvasTileRendererItem::FRenderData::GetNumIndices() const
 	return Tiles.Num() * CanvasTileIndexCount;
 }
 
-void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View, bool bNeedsToSwitchVerticalAxis)
+void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View)
 {
 	static_assert(CanvasTileVertexCount == 4, "Invalid tile tri-list size.");
 	static_assert(CanvasTileIndexCount == 6, "Invalid tile tri-list size.");
@@ -124,30 +124,15 @@ void FCanvasTileRendererItem::FRenderData::InitTileMesh(const FSceneView& View, 
 		const float SizeU = Tile.SizeU;
 		const float SizeV = Tile.SizeV;
 
-		if (bNeedsToSwitchVerticalAxis)
-		{
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 0) = FVector3f(X + SizeX, View.UnscaledViewRect.Height() - (Y + SizeY), 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 1) = FVector3f(X, View.UnscaledViewRect.Height() - (Y + SizeY), 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 2) = FVector3f(X + SizeX, View.UnscaledViewRect.Height() - Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 3) = FVector3f(X, View.UnscaledViewRect.Height() - Y, 0.0f);
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 0) = FVector3f(X + SizeX, Y, 0.0f);
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 1) = FVector3f(X, Y, 0.0f);
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 2) = FVector3f(X + SizeX, Y + SizeY, 0.0f);
+		StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 3) = FVector3f(X, Y + SizeY, 0.0f);
 
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 0, 0, FVector2f(U + SizeU, V + SizeV));
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 1, 0, FVector2f(U, V + SizeV));
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 2, 0, FVector2f(U + SizeU, V));
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 3, 0, FVector2f(U, V));
-		}
-		else
-		{
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 0) = FVector3f(X + SizeX, Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 1) = FVector3f(X, Y, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 2) = FVector3f(X + SizeX, Y + SizeY, 0.0f);
-			StaticMeshVertexBuffers.PositionVertexBuffer.VertexPosition(FirstVertex + 3) = FVector3f(X, Y + SizeY, 0.0f);
-
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 0, 0, FVector2f(U + SizeU, V));
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 1, 0, FVector2f(U, V));
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 2, 0, FVector2f(U + SizeU, V + SizeV));
-			StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 3, 0, FVector2f(U, V + SizeV));
-		}
+		StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 0, 0, FVector2f(U + SizeU, V));
+		StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 1, 0, FVector2f(U, V));
+		StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 2, 0, FVector2f(U + SizeU, V + SizeV));
+		StaticMeshVertexBuffers.StaticMeshVertexBuffer.SetVertexUV(FirstVertex + 3, 0, FVector2f(U, V + SizeV));
 
 		for (int j = 0; j < CanvasTileVertexCount; j++)
 		{
@@ -177,7 +162,6 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 	FMeshPassProcessorRenderState& DrawRenderState,
 	const FSceneView& View,
 	bool bIsHitTesting,
-	bool bNeedsToSwitchVerticalAxis,
 	bool bUse128bitRT)
 {
 	check(IsInRenderingThread());
@@ -194,7 +178,7 @@ void FCanvasTileRendererItem::FRenderData::RenderTiles(
 
 	IRendererModule& RendererModule = GetRendererModule();
 
-	InitTileMesh(View, bNeedsToSwitchVerticalAxis);
+	InitTileMesh(View);
 
 	// We know we have at least 1 tile so prep up a new batch right away : 
 	FMeshBatch* CurrentMeshBatch = AllocTileMeshBatch(RenderContext, Tiles[0].HitProxyId);
@@ -261,9 +245,7 @@ bool FCanvasTileRendererItem::Render_RenderThread(FCanvasRenderContext& RenderCo
 
 	const FSceneView& View = *RenderContext.Alloc<const FSceneView>(ViewInitOptions);
 
-	const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis(); 
-
-	Data->RenderTiles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting(), bNeedsToSwitchVerticalAxis);
+	Data->RenderTiles(RenderContext, DrawRenderState, View, Canvas->IsHitTesting());
 
 	if (Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender)
 	{
@@ -308,7 +290,6 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRe
 
 		const FSceneView* View = new FSceneView(ViewInitOptions);
 
-		const bool bNeedsToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(Canvas->GetShaderPlatform()) && Canvas->GetAllowSwitchVerticalAxis();
 		const bool bIsHitTesting = Canvas->IsHitTesting();
 		const bool bDeleteOnRender = Canvas->GetAllowedModes() & FCanvas::Allow_DeleteOnRender;
 
@@ -321,7 +302,7 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRe
 		}
 
 		RenderScope.EnqueueRenderCommand(
-			[LocalData = Data, View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT]
+			[LocalData = Data, View, bIsHitTesting, bRequiresExplicit128bitRT]
 			(FCanvasRenderContext& RenderContext) mutable
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
@@ -329,7 +310,7 @@ bool FCanvasTileRendererItem::Render_GameThread(const FCanvas* Canvas, FCanvasRe
 			// disable depth test & writes
 			DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());
 
-			LocalData->RenderTiles(RenderContext, DrawRenderState, *View, bIsHitTesting, bNeedsToSwitchVerticalAxis, bRequiresExplicit128bitRT);
+			LocalData->RenderTiles(RenderContext, DrawRenderState, *View, bIsHitTesting, bRequiresExplicit128bitRT);
 
 			RenderContext.DeferredRelease(MoveTemp(LocalData));
 			RenderContext.DeferredDelete(View->Family);

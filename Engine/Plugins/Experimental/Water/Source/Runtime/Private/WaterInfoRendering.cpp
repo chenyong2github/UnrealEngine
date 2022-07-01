@@ -439,15 +439,13 @@ static void UpdateWaterInfoRendering_RenderThread(
 		if (DepthRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
 		{
 			const FMinimalSceneTextures& SceneTextures = View.GetSceneTextures();
-			const bool bNeedsFlippedRenderTarget = false;
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
 				SceneTextures,
 				DepthTexture,
 				DepthRenderer->ViewFamily,
-				DepthRenderer->Views,
-				bNeedsFlippedRenderTarget);
+				DepthRenderer->Views);
 		}
 		else
 		{
@@ -500,15 +498,13 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 		// This CopySceneCaptureComponentToTarget is required on all platforms as it extracts a higher pixel depth texture than the scene render target so we can't just copy out of it
 		{
-			const bool bNeedsFlippedRenderTarget = false;
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
 				SceneTextures,
 				ColorTexture,
 				ColorRenderer->ViewFamily,
-				ColorRenderer->Views,
-				bNeedsFlippedRenderTarget);
+				ColorRenderer->Views);
 		}
 
 		// We currently can't have multiple scene renderers run within the same RDGBuilder. Therefore, we must
@@ -556,15 +552,13 @@ static void UpdateWaterInfoRendering_RenderThread(
 
 		if (DilationRenderer->Scene->GetShadingPath() == EShadingPath::Mobile)
 		{
-			const bool bNeedsFlippedRenderTarget = false;
 			RDG_EVENT_SCOPE(GraphBuilder, "CaptureSceneColor");
 			CopySceneCaptureComponentToTarget(
 				GraphBuilder,
 				SceneTextures,
 				DilationTexture,
 				DilationRenderer->ViewFamily,
-				DilationRenderer->Views,
-				bNeedsFlippedRenderTarget);
+				DilationRenderer->Views);
 		}
 		else
 		{

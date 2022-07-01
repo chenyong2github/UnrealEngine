@@ -46,7 +46,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FPostProcessMaterialParameters, )
 	SHADER_PARAMETER_SAMPLER(SamplerState, PostProcessInput_BilinearSampler)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, EyeAdaptationBuffer)
-	SHADER_PARAMETER(uint32, bFlipYAxis)
 	SHADER_PARAMETER(uint32, bMetalMSAAHDRDecode)
 	SHADER_PARAMETER(uint32, bSceneDepthWithoutWaterTextureAvailable)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthWithoutSingleLayerWaterTexture)
@@ -112,9 +111,6 @@ struct FPostProcessMaterialInputs
 
 	/** Depth and color textures of the scene without single layer water. May be nullptr if not available. */
 	const FSceneWithoutWaterTextures* SceneWithoutWaterTextures = nullptr;
-
-	/** Performs a vertical axis flip if the RHI allows it. */
-	bool bFlipYAxis = false;
 
 	/** Allows (but doesn't guarantee) an optimization where, if possible, the scene color input is reused as
 	 *  the output. This can elide a copy in certain circumstances; for example, when the scene color input isn't

@@ -175,8 +175,7 @@ void CopySceneCaptureComponentToTarget(
 	const FMinimalSceneTextures& SceneTextures,
 	FRDGTextureRef ViewFamilyTexture,
 	const FSceneViewFamily& ViewFamily,
-	const TArray<FViewInfo>& Views,
-	bool bNeedsFlippedRenderTarget)
+	const TArray<FViewInfo>& Views)
 {
 	ESceneCaptureSource SceneCaptureSource = ViewFamily.SceneCaptureSource;
 
@@ -232,7 +231,7 @@ void CopySceneCaptureComponentToTarget(
 				RDG_EVENT_NAME("View(%d)", ViewIndex),
 				PassParameters,
 				ERDGPassFlags::Raster,
-				[PassParameters, GraphicsPSOInit, VertexShader, PixelShader, &View, bNeedsFlippedRenderTarget] (FRHICommandList& RHICmdList)
+				[PassParameters, GraphicsPSOInit, VertexShader, PixelShader, &View] (FRHICommandList& RHICmdList)
 			{
 				FGraphicsPipelineStateInitializer LocalGraphicsPSOInit = GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(LocalGraphicsPSOInit);
@@ -241,32 +240,16 @@ void CopySceneCaptureComponentToTarget(
 				
 				CopyCaptureToTargetSetViewportFn(RHICmdList);
 
-				if (bNeedsFlippedRenderTarget)
-				{
-					DrawRectangle(
-						RHICmdList,
-						View.ViewRect.Min.X, View.ViewRect.Min.Y,
-						View.ViewRect.Width(), View.ViewRect.Height(),
-						View.ViewRect.Min.X, View.ViewRect.Height() - View.ViewRect.Min.Y,
-						View.ViewRect.Width(), -View.ViewRect.Height(),
-						View.UnconstrainedViewRect.Size(),
-						View.GetSceneTexturesConfig().Extent,
-						VertexShader,
-						EDRF_UseTriangleOptimization);
-				}
-				else
-				{
-					DrawRectangle(
-						RHICmdList,
-						View.ViewRect.Min.X, View.ViewRect.Min.Y,
-						View.ViewRect.Width(), View.ViewRect.Height(),
-						View.ViewRect.Min.X, View.ViewRect.Min.Y,
-						View.ViewRect.Width(), View.ViewRect.Height(),
-						View.UnconstrainedViewRect.Size(),
-						View.GetSceneTexturesConfig().Extent,
-						VertexShader,
-						EDRF_UseTriangleOptimization);
-				}
+				DrawRectangle(
+					RHICmdList,
+					View.ViewRect.Min.X, View.ViewRect.Min.Y,
+					View.ViewRect.Width(), View.ViewRect.Height(),
+					View.ViewRect.Min.X, View.ViewRect.Min.Y,
+					View.ViewRect.Width(), View.ViewRect.Height(),
+					View.UnconstrainedViewRect.Size(),
+					View.GetSceneTexturesConfig().Extent,
+					VertexShader,
+					EDRF_UseTriangleOptimization);
 			});
 		}
 	}
@@ -370,8 +353,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 	const FString& EventName,
 	const FRHICopyTextureInfo& CopyInfo,
 	bool bGenerateMips,
-	const FGenerateMipsParams& GenerateMipsParams,
-	bool bDisableFlipCopyGLES)
+	const FGenerateMipsParams& GenerateMipsParams)
 {
 	// We need to execute the pre-render view extensions before we do any view dependent work.
 	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
@@ -380,8 +362,6 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 	// update any resources that needed a deferred update
 	FDeferredUpdateResource::UpdateResources(RHICmdList);
-	bool bUseSceneTextures = SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorLDR &&
-		SceneRenderer->ViewFamily.SceneCaptureSource != SCS_FinalColorHDR;
 
 	{
 #if WANTS_DRAW_MESH_EVENTS
@@ -394,77 +374,32 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 
 		FViewInfo& View = SceneRenderer->Views[0];
 
-		const bool bIsMobileHDR = IsMobileHDR();
-		const bool bRHINeedsFlip = RHINeedsToSwitchVerticalAxis(GMaxRHIShaderPlatform) && !bDisableFlipCopyGLES;
-		// note that GLES code will flip the image when:
-		//	bIsMobileHDR && SceneCaptureSource == SCS_FinalColorLDR (flip performed during post processing)
-		//	!bIsMobileHDR (rendering is flipped by vertex shader)
-		// they need flipping again so it is correct for texture addressing.
-		const bool bNeedsFlippedCopy = (!bIsMobileHDR || !bUseSceneTextures) && bRHINeedsFlip;
-		const bool bNeedsFlippedFinalColor = bNeedsFlippedCopy && !bUseSceneTextures;
-
 		// Intermediate render target that will need to be flipped (needed on !IsMobileHDR())
 		FRDGTextureRef FlippedOutputTexture{};
 
 		const FRenderTarget* Target = SceneRenderer->ViewFamily.RenderTarget;
-		if (bNeedsFlippedFinalColor)
-		{
-			// We need to use an intermediate render target since the result will be flipped
-			auto& RenderTargetRHI = Target->GetRenderTargetTexture();
-			FRDGTextureDesc Desc(FRDGTextureDesc::Create2D(
-				Target->GetSizeXY(),
-				RenderTargetRHI.GetReference()->GetFormat(),
-				RenderTargetRHI.GetReference()->GetClearBinding(),
-				TexCreate_RenderTargetable));
-			FlippedOutputTexture = GraphBuilder.CreateTexture(Desc, TEXT("SceneCaptureFlipped"));
-		}
 
 		// We don't support screen percentage in scene capture.
 		FIntRect ViewRect = View.UnscaledViewRect;
 		FIntRect UnconstrainedViewRect = View.UnconstrainedViewRect;
 
-		if (bNeedsFlippedFinalColor)
-		{
-			AddClearRenderTargetPass(GraphBuilder, FlippedOutputTexture, FLinearColor::Black, ViewRect);
-		}
-
 		const FIntRect CopyDestRect = CopyInfo.GetDestRect();
 
 		if (!CopyDestRect.IsEmpty())
 		{
-			CopyCaptureToTargetSetViewportFn = [CopyDestRect, bNeedsFlippedFinalColor, ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
+			CopyCaptureToTargetSetViewportFn = [CopyDestRect, ViewRect, FlippedOutputTexture](FRHICommandList& RHICmdList)
 			{
 				RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
 
-				if (bNeedsFlippedFinalColor)
-				{
-					FIntRect DestRect = CopyDestRect;
-					int32 TileYID = DestRect.Min.Y / ViewRect.Height();
-					int32 TileYCount = (FlippedOutputTexture->Desc.GetSize().Y / ViewRect.Height()) - 1;
-					DestRect.Min.Y = (TileYCount - TileYID) * ViewRect.Height();
-					DestRect.Max.Y = DestRect.Min.Y + ViewRect.Height();
-					RHICmdList.SetViewport
-					(
-						float(DestRect.Min.X),
-						float(DestRect.Min.Y),
-						0.0f,
-						float(DestRect.Max.X),
-						float(DestRect.Max.Y),
-						1.0f
-					);
-				}
-				else
-				{
-					RHICmdList.SetViewport
-					(
-						float(CopyDestRect.Min.X),
-						float(CopyDestRect.Min.Y),
-						0.0f,
-						float(CopyDestRect.Max.X),
-						float(CopyDestRect.Max.Y),
-						1.0f
-					);
-				}
+				RHICmdList.SetViewport
+				(
+					float(CopyDestRect.Min.X),
+					float(CopyDestRect.Min.Y),
+					0.0f,
+					float(CopyDestRect.Max.X),
+					float(CopyDestRect.Max.Y),
+					1.0f
+				);
 			};
 		}
 		else
@@ -475,37 +410,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 		// Render the scene normally
 		{
 			RDG_RHI_EVENT_SCOPE(GraphBuilder, RenderScene);
-
-			if (bNeedsFlippedFinalColor)
-			{
-				// Helper class to allow setting render target
-				struct FRenderTargetOverride : public FRenderTarget
-				{
-					FRenderTargetOverride(const FRenderTarget* TargetIn, FRHITexture2D* OverrideTexture)
-					{
-						RenderTargetTextureRHI = OverrideTexture;
-						OriginalTarget = TargetIn;
-					}
-
-					virtual FIntPoint GetSizeXY() const override { return FIntPoint(RenderTargetTextureRHI->GetSizeX(), RenderTargetTextureRHI->GetSizeY()); }
-					virtual float GetDisplayGamma() const override { return OriginalTarget->GetDisplayGamma(); }
-
-					FTexture2DRHIRef GetTextureParamRef() { return RenderTargetTextureRHI; }
-					const FRenderTarget* OriginalTarget;
-				};
-
-				// Hijack the render target
-				FRHITexture2D* FlippedOutputTextureRHI = GraphBuilder.ConvertToExternalTexture(FlippedOutputTexture)->GetRHI()->GetTexture2D();
-				SceneRenderer->ViewFamily.RenderTarget = GraphBuilder.AllocObject<FRenderTargetOverride>(Target, FlippedOutputTextureRHI); //-V506
-			}
-
 			SceneRenderer->Render(GraphBuilder);
-
-			if (bNeedsFlippedFinalColor)
-			{
-				// And restore it
-				SceneRenderer->ViewFamily.RenderTarget = Target;
-			}
 		}
 
 		FRDGTextureRef OutputTexture = RegisterExternalTexture(GraphBuilder, Target->GetRenderTargetTexture(), TEXT("OutputTexture"));
@@ -520,8 +425,7 @@ void UpdateSceneCaptureContentMobile_RenderThread(
 				SceneTextures,
 				OutputTexture,
 				SceneRenderer->ViewFamily,
-				SceneRenderer->Views,
-				bNeedsFlippedFinalColor);
+				SceneRenderer->Views);
 		}
 
 		if (bGenerateMips)
@@ -599,7 +503,6 @@ static void UpdateSceneCaptureContent_RenderThread(
 	const FRHICopyTextureInfo& CopyInfo,
 	bool bGenerateMips,
 	const FGenerateMipsParams& GenerateMipsParams,
-	const bool bDisableFlipCopyLDRGLES,
 	bool bClearRenderTarget,
 	bool bOrthographicCamera)
 {
@@ -617,8 +520,7 @@ static void UpdateSceneCaptureContent_RenderThread(
 				EventName,
 				CopyInfo,
 				bGenerateMips,
-				GenerateMipsParams,
-				bDisableFlipCopyLDRGLES);
+				GenerateMipsParams);
 			break;
 		}
 		case EShadingPath::Deferred:
@@ -1079,7 +981,6 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 			TextureRenderTarget->MipsAddressU == TA_Wrap ? AM_Wrap : (TextureRenderTarget->MipsAddressU == TA_Mirror ? AM_Mirror : AM_Clamp),
 			TextureRenderTarget->MipsAddressV == TA_Wrap ? AM_Wrap : (TextureRenderTarget->MipsAddressV == TA_Mirror ? AM_Mirror : AM_Clamp)};
 
-		const bool bDisableFlipCopyGLES = CaptureComponent->bDisableFlipCopyGLES;
 		const bool bOrthographicCamera = CaptureComponent->ProjectionType == ECameraProjectionMode::Orthographic;
 
 
@@ -1102,7 +1003,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 		bool bIsCompositing = (CaptureComponent->CompositeMode != SCCM_Overwrite) && (CaptureComponent->CaptureSource == SCS_SceneColorHDR);
 
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)(
-			[SceneRenderer, TextureRenderTargetResource, TexturePtrNotDeferenced, EventName, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, GameViewportRT, bEnableOrthographicTiling, bIsCompositing, bOrthographicCamera, NumXTiles, NumYTiles, TileID](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, TextureRenderTargetResource, TexturePtrNotDeferenced, EventName, bGenerateMips, GenerateMipsParams, GameViewportRT, bEnableOrthographicTiling, bIsCompositing, bOrthographicCamera, NumXTiles, NumYTiles, TileID](FRHICommandListImmediate& RHICmdList)
 			{
 				if (GameViewportRT != nullptr)
 				{
@@ -1133,7 +1034,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponent2D* CaptureCompone
 				// Don't clear the render target when compositing, or in a tiling mode that fills in the render target in multiple passes.
 				bool bClearRenderTarget = !bIsCompositing && !bEnableOrthographicTiling;
 
-				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, CopyInfo, bGenerateMips, GenerateMipsParams, bDisableFlipCopyGLES, bClearRenderTarget, bOrthographicCamera);
+				UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTargetResource, TextureRenderTargetResource, EventName, CopyInfo, bGenerateMips, GenerateMipsParams, bClearRenderTarget, bOrthographicCamera);
 			}
 		);
 	}
@@ -1262,7 +1163,7 @@ void FScene::UpdateSceneCaptureContents(USceneCaptureComponentCube* CaptureCompo
 					{
 						FRHICopyTextureInfo CopyInfo;
 						CopyInfo.DestSliceIndex = TargetFace;
-						UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, CopyInfo, false, FGenerateMipsParams(), false, true, false);
+						UpdateSceneCaptureContent_RenderThread(RHICmdList, SceneRenderer, TextureRenderTarget, TextureRenderTarget, EventName, CopyInfo, false, FGenerateMipsParams(), true, false);
 					}
 				);
 			}

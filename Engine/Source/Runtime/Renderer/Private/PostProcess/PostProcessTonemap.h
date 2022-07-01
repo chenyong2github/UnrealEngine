@@ -57,9 +57,6 @@ struct FTonemapInputs
 	// [Optional, ES31] Eye adaptation buffer used to compute exposure. 
 	FRDGBufferRef EyeAdaptationBuffer = nullptr;
 
-	// [Raster Only, Mobile] Flips the image vertically on output.
-	bool bFlipYAxis = false;
-
 	// [Raster Only] Controls whether the alpha channel of the scene texture should be written to the output texture.
 	bool bWriteAlphaChannel = false;
 

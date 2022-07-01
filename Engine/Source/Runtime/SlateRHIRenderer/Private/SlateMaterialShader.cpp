@@ -11,7 +11,6 @@ FSlateMaterialShaderVS::FSlateMaterialShaderVS(const FMaterialShaderType::Compil
 	: FMaterialShader(Initializer)
 {
 	ViewProjection.Bind(Initializer.ParameterMap, TEXT("ViewProjection"));
-	SwitchVerticalAxisMultiplier.Bind( Initializer.ParameterMap, TEXT("SwitchVerticalAxisMultiplier"));
 }
 
 
@@ -41,11 +40,6 @@ void FSlateMaterialShaderVS::SetMaterialShaderParameters(FRHICommandList& RHICmd
 	FRHIVertexShader* ShaderRHI = RHICmdList.GetBoundVertexShader();
 	SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
 	FMaterialShader::SetParameters<FRHIVertexShader>(RHICmdList, ShaderRHI, MaterialRenderProxy, *Material, View);
-}
-
-void FSlateMaterialShaderVS::SetVerticalAxisMultiplier(FRHICommandList& RHICmdList, float InMultiplier )
-{
-	SetShaderValue(RHICmdList, RHICmdList.GetBoundVertexShader(), SwitchVerticalAxisMultiplier, InMultiplier );
 }
 
 bool FSlateMaterialShaderPS::ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)

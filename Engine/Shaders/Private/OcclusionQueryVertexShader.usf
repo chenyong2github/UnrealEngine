@@ -37,8 +37,4 @@ void Main(
 
 	float3 TransformedPosition = InPosition.xyz * StencilingGeometryPosAndScale.w + StencilingGeometryPosAndScale.xyz;
 	OutPosition = mul(float4(TransformedPosition, 1), View.TranslatedWorldToClip);
-
-#if !OUTPUT_MOBILE_HDR && COMPILER_GLSL_ES3_1
-	OutPosition.y *= -1;
-#endif
 }
