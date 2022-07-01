@@ -99,4 +99,6 @@ void FUsdStageImportContext::Reset()
 	bStageWasOriginallyOpenInCache = false;
 	OriginalMetersPerUnit = 0.01f;
 	OriginalUpAxis = EUsdUpAxis::ZAxis;
+
+	bNeedsGarbageCollection = false;
 }

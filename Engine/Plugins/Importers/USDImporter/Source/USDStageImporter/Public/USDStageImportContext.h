@@ -91,6 +91,9 @@ struct USDSTAGEIMPORTER_API FUsdStageImportContext
 	float OriginalMetersPerUnit;
 	EUsdUpAxis OriginalUpAxis;
 
+	/** If we need to run GC after the import is complete */
+	bool bNeedsGarbageCollection;
+
 public:
 	FUsdStageImportContext();
 
