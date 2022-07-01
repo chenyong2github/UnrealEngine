@@ -154,14 +154,19 @@ FShadowPhysicalPage ShadowGetPhysicalPage(uint PageOffset)
 	return ShadowDecodePageTable(VirtualShadowMap.PageTable[PageOffset]);
 }
 
-bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
+bool VirtualToPhysicalTexel_PageTableLevelOffset(uint PageTableLevelOffset, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
 {
 	uint VPageX = VirtualTexelAddress.x >> VSM_LOG2_PAGE_SIZE;
 	uint VPageY = VirtualTexelAddress.y >> VSM_LOG2_PAGE_SIZE;
 
-	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(CalcPageOffset(ShadowMapID, Level, uint2(VPageX, VPageY)));
+	FShadowPhysicalPage PhysicalPageEntry = ShadowGetPhysicalPage(PageTableLevelOffset + CalcPageOffsetInLevel(Level, uint2(VPageX, VPageY)));
 	PhysicalTexelAddress = PhysicalPageEntry.PhysicalAddress * VSM_PAGE_SIZE + (VirtualTexelAddress & VSM_PAGE_SIZE_MASK);
 	return (PhysicalPageEntry.bThisLODValid);
+}
+
+bool VirtualToPhysicalTexel(uint ShadowMapID, uint Level, uint2 VirtualTexelAddress, inout uint2 PhysicalTexelAddress)
+{
+	return VirtualToPhysicalTexel_PageTableLevelOffset(CalcPageTableLevelOffset(ShadowMapID, Level), Level, VirtualTexelAddress, PhysicalTexelAddress);
 }
 
 struct FShadowPageTranslationResult

@@ -100,14 +100,6 @@ FAutoConsoleVariableRef CVarNaniteMinPixelsPerEdgeHW(
 	TEXT("")
 );
 
-// TODO: WIP
-int32 GNaniteMSInterp = 0;
-static FAutoConsoleVariableRef CVarNaniteMSInterp(
-	TEXT("r.Nanite.MSInterp"),
-	GNaniteMSInterp,
-	TEXT("")
-);
-
 int32 GNaniteAllowProgrammableRaster = 1;
 static FAutoConsoleVariableRef CVarNaniteAllowProgrammableRaster(
 	TEXT("r.Nanite.AllowProgrammableRaster"),
@@ -992,13 +984,12 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 {
 	DECLARE_SHADER_TYPE(FHWRasterizeMS, Material);
 
-	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FVirtualTextureTargetDim : SHADER_PERMUTATION_BOOL("VIRTUAL_TEXTURE_TARGET");
 	class FVertexProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_VERTEX_PROGRAMMABLE");
 	class FPixelProgrammableDim : SHADER_PERMUTATION_BOOL("NANITE_PIXEL_PROGRAMMABLE");
-	using FPermutationDomain = TShaderPermutationDomain<FInterpOptDim, FDepthOnlyDim, FMultiViewDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
+	using FPermutationDomain = TShaderPermutationDomain<FDepthOnlyDim, FMultiViewDim, FVirtualTextureTargetDim, FVertexProgrammableDim, FPixelProgrammableDim>;
 
 	using FParameters = FRasterizePassParameters;
 
@@ -1029,12 +1020,6 @@ class FHWRasterizeMS : public FNaniteMaterialShader
 		// Only some platforms support native 64-bit atomics.
 		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
 		{
-			return false;
-		}
-
-		if (PermutationVector.Get<FInterpOptDim>())
-		{
-			// TODO: WIP optimization, always disable to save permutation count for now
 			return false;
 		}
 
@@ -1084,7 +1069,6 @@ class FHWRasterizePS : public FNaniteMaterialShader
 public:
 	DECLARE_SHADER_TYPE(FHWRasterizePS, Material);
 
-	class FInterpOptDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER_INTERP");
 	class FDepthOnlyDim : SHADER_PERMUTATION_BOOL("DEPTH_ONLY");
 	class FMultiViewDim : SHADER_PERMUTATION_BOOL("NANITE_MULTI_VIEW");
 	class FMeshShaderDim : SHADER_PERMUTATION_BOOL("NANITE_MESH_SHADER");
@@ -1096,7 +1080,6 @@ public:
 
 	using FPermutationDomain = TShaderPermutationDomain
 	<
-		FInterpOptDim,
 		FDepthOnlyDim,
 		FMultiViewDim,
 		FMeshShaderDim,
@@ -1130,12 +1113,6 @@ public:
 		// Only some platforms support native 64-bit atomics.
 		if (!FDataDrivenShaderPlatformInfo::GetSupportsUInt64ImageAtomics(Parameters.Platform))
 		{
-			return false;
-		}
-
-		if (PermutationVector.Get<FInterpOptDim>())
-		{
-			// WIP optimization, always disable to save permutation count for now
 			return false;
 		}
 
@@ -2222,7 +2199,6 @@ FBinningData AddPass_Rasterize(
 		GNaniteAutoShaderCulling != 0;
 
 	FHWRasterizePS::FPermutationDomain PermutationVectorPS;
-	PermutationVectorPS.Set<FHWRasterizePS::FInterpOptDim>(GNaniteMSInterp != 0 && bUseMeshShader && !bMultiView);
 	PermutationVectorPS.Set<FHWRasterizePS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorPS.Set<FHWRasterizePS::FMultiViewDim>(bMultiView);
 	PermutationVectorPS.Set<FHWRasterizePS::FMeshShaderDim>(bUseMeshShader);
@@ -2238,7 +2214,6 @@ FBinningData AddPass_Rasterize(
 	PermutationVectorVS.Set<FHWRasterizeVS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);
 	
 	FHWRasterizeMS::FPermutationDomain PermutationVectorMS;
-	PermutationVectorMS.Set<FHWRasterizeMS::FInterpOptDim>(GNaniteMSInterp != 0);
 	PermutationVectorMS.Set<FHWRasterizeMS::FDepthOnlyDim>(RasterContext.RasterMode == EOutputBufferMode::DepthOnly);
 	PermutationVectorMS.Set<FHWRasterizeMS::FMultiViewDim>(bMultiView);
 	PermutationVectorMS.Set<FHWRasterizeMS::FVirtualTextureTargetDim>(VirtualShadowMapArray != nullptr);

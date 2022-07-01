@@ -12,6 +12,9 @@
 #include "/Engine/Generated/Material.ush"
 #include "NaniteVertexFactory.ush"
 
+#if PIXELSHADER
+ALLOW_NO_PS_EXPORT
+#endif
 
 #ifndef NANITE_MESH_SHADER
 #define NANITE_MESH_SHADER 0
@@ -1359,8 +1362,8 @@ void MicropolyRasterize(
 
 struct VSOut
 {
-	float2 ClipZW								: TEXCOORD0; // Only used when not near clipping
-	nointerpolation uint2 PixelValuePageInfo	: TEXCOORD1;
+	float4 PointClipPixel						: TEXCOORD0;
+	nointerpolation uint3 PixelValue_ViewId_Mip_ArrayIndex_LevelOffset : TEXCOORD1;
 #if NANITE_MULTI_VIEW
 	nointerpolation int4 ViewRect				: TEXCOORD2;
 #endif
@@ -1380,12 +1383,24 @@ struct VSOut
 	float2 BarycentricsUV						: TEXCOORD4;
 #endif
 
-#if NANITE_MESH_SHADER_INTERP
-	float4 InterpPosition						: TEXCOORD5;
+#if !PIXELSHADER
+	float4 Position								: SV_Position;	 // Reading SV_Position in the pixel shader limits launch rate on some hardware. Interpolate manually instead.
 #endif
-	float4 Position								: SV_Position;
 };
 
+#if NANITE_MESH_SHADER
+struct PrimitiveAttributes
+{
+	// Use uint4 to prevent compiler from erroneously packing per-vertex and per-prim attributes together
+	// .x = Cluster Index
+	// .y = Triangle Index
+	// .z = View Width
+	// .w = View Height
+	nointerpolation uint4 PackedData : TEXCOORD7;
+};
+#endif
+
+#if !PIXELSHADER
 VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData, FVisibleCluster VisibleCluster, FCluster Cluster, uint VertIndex, uint PixelValue)
 {
 	VSOut Out;
@@ -1416,37 +1431,43 @@ VSOut CommonRasterizerVS(FNaniteView NaniteView, FInstanceSceneData InstanceData
 	// Offset 0,0 to be at vPage for a 0, VSM_PAGE_SIZE * VSM_RASTER_WINDOW_PAGES viewport.
 	PointClip.xy += PointClip.w * ( float2(-2, 2) / VSM_RASTER_WINDOW_PAGES ) * VisibleCluster.vPage;
 
-	Out.ViewRect.xy = VisibleCluster.vPage * VSM_PAGE_SIZE;
+	Out.ViewRect.xy = 0;	// Unused by pixel shader
 	Out.ViewRect.zw = VisibleCluster.vPageEnd * VSM_PAGE_SIZE + VSM_PAGE_SIZE;
 #elif NANITE_MULTI_VIEW
 	PointClip.xy = NaniteView.ClipSpaceScaleOffset.xy * PointClip.xy + NaniteView.ClipSpaceScaleOffset.zw * PointClip.w;
 	Out.ViewRect = NaniteView.ViewRect;
 #endif
+
+	// Calculate PointClipPixel coordinates that bring us directly to absolute pixel positions after w divide
+	float4 PointClipPixel = float4(PointClip.xy * float2(0.5f, -0.5f) + 0.5f * PointClip.w, PointClip.zw);
+#if VIRTUAL_TEXTURE_TARGET
+	PointClipPixel.xy *= (VSM_RASTER_WINDOW_PAGES * VSM_PAGE_SIZE);
+	PointClipPixel.xy += VisibleCluster.vPage * (VSM_PAGE_SIZE * PointClipPixel.w);
+#else
+	PointClipPixel.xy *= NaniteView.ViewSizeAndInvSize.xy;
+	PointClipPixel.xy += NaniteView.ViewRect.xy * PointClipPixel.w;
+#endif
+	Out.PointClipPixel = PointClipPixel;
 	
-	Out.PixelValuePageInfo.x = PixelValue;
+	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset = uint3(PixelValue, 0u, 0u);
 
 #if VIRTUAL_TEXTURE_TARGET
-	FPageInfo PageInfo;
-	PageInfo.ViewId = VisibleCluster.ViewId;
-	PageInfo.bStaticPage = ShouldCacheInstanceAsStatic( InstanceData );
-	Out.PixelValuePageInfo.y = PackPageInfo( PageInfo );
-#else
-	Out.PixelValuePageInfo.y = 0u;
+	const bool bStaticPage = ShouldCacheInstanceAsStatic(InstanceData);
+	const uint ArrayIndex = bStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
+	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y = VisibleCluster.ViewId | (NaniteView.TargetMipLevel << 16) | (ArrayIndex << 24);
+	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.z = CalcPageTableLevelOffset(NaniteView.TargetLayerIndex, NaniteView.TargetMipLevel);
+#elif NANITE_MULTI_VIEW
+	Out.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y = VisibleCluster.ViewId;
 #endif
 	Out.Position = PointClip;
 
 	const bool bNearClip = ((NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u);
 	if (!bNearClip)
 	{
-		Out.ClipZW = PointClip.zw;
 
 		// Shader workaround to avoid HW depth clipping. Should be replaced with rasterizer state ideally.
 		Out.Position.z = 0.5f * Out.Position.w;
 	}
-
-#if NANITE_MESH_SHADER_INTERP == 1
-	Out.InterpPosition = Out.Position;
-#endif
 
 #if BARYCENTRIC_MODE_INTRINSICS
 	Out.VertexID = VertIndex;
@@ -1766,16 +1787,6 @@ PrimitiveOutput HWRasterizeVS(PrimitiveInput Input)
 
 #elif NANITE_MESH_SHADER
 
-struct PrimitiveAttributes
-{
-	// Use uint4 to prevent compiler from erroneously packing per-vertex and per-prim attributes together
-	// .x = Cluster Index
-	// .y = Triangle Index
-	// .z = View Width
-	// .w = View Height
-	nointerpolation uint4 PackedData : TEXCOORD7;
-};
-
 #if MESHSHADER
 
 MESH_SHADER_TRIANGLE_ATTRIBUTES(NANITE_MESH_SHADER_TG_SIZE)
@@ -1909,7 +1920,6 @@ VSOut HWRasterizeVS(
 
 	VSOut Out;
 	Out.Position = float4(0,0,0,1);
-	Out.ClipZW = float2(0,0);
 
 	FVisibleCluster VisibleCluster = GetVisibleCluster( VisibleIndex, VIRTUAL_TEXTURE_TARGET );
 	FInstanceSceneData InstanceData = GetInstanceSceneData( VisibleCluster.InstanceId, false );
@@ -1947,24 +1957,19 @@ VSOut HWRasterizeVS(
 }
 
 #endif // NANITE_PRIM_SHADER
+#endif // !PIXELSHADER
 
-
+#if PIXELSHADER
 void HWRasterizePS(VSOut In
 #if NANITE_MESH_SHADER	
 	, PrimitiveAttributes Primitive
 #endif
 )
 {
-#if NANITE_MESH_SHADER_INTERP == 1
-	float3 InterpPos = In.InterpPosition.xyz / In.InterpPosition.www;
-	InterpPos.xy = (InterpPos.xy * float2(0.5f, -0.5f)) + 0.5f;
-	InterpPos.xy *= float2(asfloat(Primitive.PackedData.z), asfloat(Primitive.PackedData.w)); // ViewSize
-	uint2 PixelPos = (uint2)InterpPos.xy;
-#else
-	uint2 PixelPos = (uint2)In.Position.xy;
-#endif
+	float4 SvPosition = float4(In.PointClipPixel.xyz / In.PointClipPixel.w, In.PointClipPixel.w);
+	uint2 PixelPos = (uint2)SvPosition.xy;
 
-	uint PixelValue = In.PixelValuePageInfo.x;
+	uint PixelValue = In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.x;
 
 #if VERTEX_TO_TRIANGLE_MASKS
 #if NANITE_VERT_REUSE_BATCH
@@ -1998,25 +2003,26 @@ void HWRasterizePS(VSOut In
 #endif
 
 #if VIRTUAL_TEXTURE_TARGET
-	PixelPos += In.ViewRect.xy;
-	In.Position.xy += In.ViewRect.xy;
 	if (all(PixelPos < In.ViewRect.zw))
 #elif NANITE_MULTI_VIEW
 	// In multi-view mode every view has its own scissor, so we have to scissor manually.
 	if (all(PixelPos >= In.ViewRect.xy && PixelPos < In.ViewRect.zw))
 #endif
 	{
-	#if VIRTUAL_TEXTURE_TARGET
-		FPageInfo PageInfo = UnpackPageInfo(In.PixelValuePageInfo.y);
-		const FNaniteView NaniteView = GetNaniteView(PageInfo.ViewId);
-		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(NaniteView, PageInfo.bStaticPage);
+		const uint ViewId		= BitFieldExtractU32(In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y, 16, 0);
+#if VIRTUAL_TEXTURE_TARGET
+		const uint MipLevel		= BitFieldExtractU32(In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y, 8, 16);
+		const uint ArrayIndex	= BitFieldExtractU32(In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.y, 8, 24);
+		const uint LevelOffset	= In.PixelValue_ViewId_Mip_ArrayIndex_LevelOffset.z;
+
+		const FNaniteView NaniteView = GetNaniteView(ViewId);
+		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation(LevelOffset, MipLevel, ArrayIndex);
 	#else
-		const FNaniteView NaniteView = GetNaniteView(0);
+		const FNaniteView NaniteView = GetNaniteView(ViewId);
 		WritePixelPageTranslation PageTranslation = InitializeWritePixelPageTranslation();
 	#endif
 
-		const bool bNearClip = ((NaniteView.Flags & NANITE_VIEW_FLAG_NEAR_CLIP) != 0u);
-		float DeviceZ = CondMask(bNearClip, In.Position.z, In.ClipZW.x / In.ClipZW.y);
+		float DeviceZ = SvPosition.z;
 
 		float MaterialMask = 1.0f; // TODO: PROG_RASTER
 		float MaterialDepthOffset = 0.0f; // TODO: PROG_RASTER
@@ -2083,9 +2089,9 @@ void HWRasterizePS(VSOut In
 		Barycentrics.UVW_dy = ddy(Barycentrics.UVW);
 	#endif
 		
-		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, TriangleIndices, bCalcTriangleIndices, Interpolants, In.Position /*SvPosition*/);
+		FMaterialPixelParameters MaterialParameters = FetchNaniteMaterialPixelParameters(NaniteView, PackedPixel, VIRTUAL_TEXTURE_TARGET, Barycentrics, false, TriangleIndices, bCalcTriangleIndices, Interpolants, SvPosition);
 		FPixelMaterialInputs PixelMaterialInputs;
-		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, In.Position /*SvPosition*/, true /*bIsFrontFace*/);
+		CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true /*bIsFrontFace*/);
 
 		// TODO: PROG_RASTER - MaterialDepthOffset
 
@@ -2103,3 +2109,4 @@ void HWRasterizePS(VSOut In
 		}
 	}
 }
+#endif

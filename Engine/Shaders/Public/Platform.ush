@@ -648,6 +648,10 @@ void ShaderYield()
 #define MAX_OCCUPANCY
 #endif
 
+#ifndef ALLOW_NO_PS_EXPORT
+#define ALLOW_NO_PS_EXPORT
+#endif
+
 // ---------------------------------------------------- Interpolator attribute fallbacks
 
 #ifndef COMPRESSED_16_FLOAT

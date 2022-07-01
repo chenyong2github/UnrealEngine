@@ -63,27 +63,29 @@ void WritePixel(
 // Optional per-pixel page translation parameters
 struct WritePixelPageTranslation
 {
-	// TODO: We could optimize this slightly be precomputing the base layer/level offset
-	int TargetLayerIndex;
-	int TargetMipLevel;
+	int PageTableLevelOffset;
+	int MipLevel;
 	uint ArrayIndex;
+	bool bTranslate;
 };
 
 WritePixelPageTranslation InitializeWritePixelPageTranslation()
 {
 	WritePixelPageTranslation Result;
-	Result.TargetLayerIndex = INDEX_NONE;
-	Result.TargetMipLevel = 0;
+	Result.PageTableLevelOffset = INDEX_NONE;
+	Result.MipLevel = 0;
 	Result.ArrayIndex = 0;
+	Result.bTranslate = false;
 	return Result;
 }
 
-WritePixelPageTranslation InitializeWritePixelPageTranslation( FNaniteView NaniteView, bool bStaticPage )
+WritePixelPageTranslation InitializeWritePixelPageTranslation(uint PageTableLevelOffset, uint MipLevel, uint ArrayIndex)
 {
 	WritePixelPageTranslation Result;
-	Result.TargetLayerIndex = NaniteView.TargetLayerIndex;
-	Result.TargetMipLevel = NaniteView.TargetMipLevel;
-	Result.ArrayIndex = bStaticPage ? GetVirtualShadowMapStaticArrayIndex() : 0;
+	Result.PageTableLevelOffset = PageTableLevelOffset;
+	Result.MipLevel = MipLevel;
+	Result.ArrayIndex = ArrayIndex;
+	Result.bTranslate = true;
 	return Result;
 }
 
@@ -95,9 +97,9 @@ bool VirtualToPhysicalTexel(uint2 VirtualPixelPos, WritePixelPageTranslation Pag
 	PhysicalPixelPos = uint3(VirtualPixelPos, PageTranslation.ArrayIndex);
 
 #if VIRTUAL_TEXTURE_TARGET
-	if( PageTranslation.TargetLayerIndex != INDEX_NONE )
+	if( PageTranslation.bTranslate )
 	{
-		if( !VirtualToPhysicalTexel(PageTranslation.TargetLayerIndex, PageTranslation.TargetMipLevel, VirtualPixelPos, PhysicalPixelPos.xy) )
+		if( !VirtualToPhysicalTexel_PageTableLevelOffset(PageTranslation.PageTableLevelOffset, PageTranslation.MipLevel, VirtualPixelPos, PhysicalPixelPos.xy) )
 		{
 			// mapped to non-commited space.
 			return false;
