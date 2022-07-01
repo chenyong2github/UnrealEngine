@@ -701,14 +701,150 @@ TSharedRef<SWidget> SContentBrowser::CreateLockButton(const FContentBrowserConfi
 	return SNullWidget::NullWidget;
 }
 
-TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig* Config)
+void SContentBrowser::OnFilterBarLayoutChanging(EFilterBarLayout NewLayout)
 {
-	// Item height is specified explicitly here, rather than relying on the padding being exactly right,
-	// so that the search box doesn't subtly shift up/down when the filters are wrapped to a new row in the SWrapBox.
-	const float SearchFilterItemHeight = 32.0f;
-
 	const float SearchBoxDesiredWidth = 500.0f;
 
+	if(NewLayout == EFilterBarLayout::Horizontal)
+	{
+		TSharedPtr<SHorizontalBox> SearchBoxSlot =
+			SNew(SHorizontalBox)
+
+			+ SHorizontalBox::Slot()
+			.AutoWidth()
+			.VAlign(VAlign_Top)
+			.Padding(6, 4, 0, 0)
+			[
+				FilterComboButton.ToSharedRef()
+			]
+
+			+ SHorizontalBox::Slot()
+			.FillWidth(1.0)
+			.VAlign(VAlign_Top)
+			.Padding(0, 4, 0, 0)
+			[
+				SNew(SBox)
+				 .VAlign(VAlign_Center)
+				 .WidthOverride(SearchBoxDesiredWidth)
+				 [
+					 SearchBoxPtr.ToSharedRef()	
+				 ]
+			];
+			
+		/** We add the Combo Button and the Search Box to the FilterList itself, so that the filters wrap with them
+		 *	properly in the Horizontal Layout
+		 */
+		FilterListPtr->AddWidgetToCurrentLayout(SearchBoxSlot.ToSharedRef());
+
+		AssetViewBorder->SetContent(
+
+			SNew(SVerticalBox)
+
+			+ SVerticalBox::Slot()
+			.Padding(0.0f)
+			.AutoHeight()
+			[
+				FilterListPtr.ToSharedRef()
+			]
+
+			+ SVerticalBox::Slot()
+			.FillHeight( 1.0f )
+			.Padding( 0, 0 )
+			[
+				AssetViewPtr.ToSharedRef()
+			]
+
+		);
+		
+	}
+	else
+	{
+		AssetViewBorder->SetContent(
+
+			SNew(SSplitter)
+			.PhysicalSplitterHandleSize(2.0f)
+
+			/* Filters in an SScrollBox */
+			+ SSplitter::Slot()
+			.Value(0.12f)
+			[
+				SNew(SVerticalBox)
+				// Don't take up space when there are no filters
+				.Visibility_Lambda([this]
+				{
+					return FilterListPtr->HasAnyFilters() ? EVisibility::Visible : EVisibility::Collapsed;
+				})
+
+				// Header
+				+ SVerticalBox::Slot()
+				.Padding(0.0f, 2.0f)
+				.AutoHeight()
+				[
+					
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("Brushes.Header"))
+					.Padding(FMargin(8.0f, 6.0f))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("FilterListVerticalHeader", "Filters"))
+						.TextStyle(FAppStyle::Get(), "ButtonText")
+						.Font(FAppStyle::Get().GetFontStyle("NormalFontBold"))
+					]
+				]
+
+				// Filter List
+				+ SVerticalBox::Slot()
+				.Padding(0.0f)
+				.FillHeight(1.0f)
+				[
+					FilterListPtr.ToSharedRef()
+				]
+				
+			]
+		
+			+ SSplitter::Slot()
+			.Value(0.88f)
+			[
+				SNew(SVerticalBox)
+
+				+ SVerticalBox::Slot()
+				.Padding(6, 4, 0, 0)
+				.AutoHeight()
+				[
+					SNew(SHorizontalBox)
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						FilterComboButton.ToSharedRef()
+					]
+
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
+					[
+						SNew(SBox)
+						 .VAlign(VAlign_Center)
+						 .WidthOverride(SearchBoxDesiredWidth)
+						 [
+							 SearchBoxPtr.ToSharedRef()	
+						 ]
+					]
+				]
+
+				+ SVerticalBox::Slot()
+				.FillHeight( 1.0f )
+				.Padding( 0, 0 )
+				[
+					AssetViewPtr.ToSharedRef()
+				]
+			]
+		);
+	}
+}
+
+TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig* Config)
+{
 	// Create the Filter Bar Widget
 	FilterListPtr = SNew(SFilterList)
 					.OnFilterChanged(this, &SContentBrowser::OnFilterChanged)
@@ -716,6 +852,9 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 					.Visibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed)
 					.FrontendFilters(FrontendFilters)
 					.FilterBarIdentifier(InstanceName)
+					.FilterBarLayout(EFilterBarLayout::Vertical)
+					.CanChangeOrientation(true)
+					.OnFilterBarLayoutChanging(this, &SContentBrowser::OnFilterBarLayoutChanging)
 					.UseSharedSettings(true)
 					.CreateTextFilter(SFilterList::FCreateTextFilter::CreateLambda([this]
 					{
@@ -729,44 +868,12 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserFilters")));
 	
 	// Create the Filter Combo Button
-	TSharedPtr<SWidget> FilterComboButton = SFilterList::MakeAddFilterButton(FilterListPtr.ToSharedRef());
-	
+	FilterComboButton = SFilterList::MakeAddFilterButton(FilterListPtr.ToSharedRef());
 	TSharedPtr<ISlateMetaData> FilterComboButtonMetaData = MakeShared<FTagMetaData>(TEXT("ContentBrowserFiltersCombo"));
 	FilterComboButton->AddMetadata(FilterComboButtonMetaData.ToSharedRef());
 	FilterComboButton->SetVisibility((Config != nullptr ? Config->bCanShowFilters : true) ? EVisibility::Visible : EVisibility::Collapsed);
 
-	return
-		SNew(SVerticalBox)
-		+ SVerticalBox::Slot()
-		.Padding(0.0f)
-		.AutoHeight()
-		[
-			SNew(SBorder)
-			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
-			.Padding(FMargin(2.0f, 2.0f, 2.0f, 0.0f))
-			[
-				SNew(SWrapBox)
-				.UseAllottedSize(true)
-				.InnerSlotPadding(FVector2D(4.0f, 0.0f))
-				+ SWrapBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.FillEmptySpace(true)
-				[
-					// Search field / Save Search button / Filter dropdown
-					SNew(SBox)
-					.MinDesiredHeight(SearchFilterItemHeight)
-					.VAlign(VAlign_Center)
-					.WidthOverride(SearchBoxDesiredWidth)
-					[
-						SNew(SHorizontalBox)
-						// Search
-						+ SHorizontalBox::Slot()
-						.VAlign(VAlign_Center)
-						.Padding(5, 0, 0, 0)
-						.FillWidth(1.0)
-						[
-							SAssignNew(SearchBoxPtr, SAssetSearchBox)
+	SearchBoxPtr = SNew(SAssetSearchBox)
 							.HintText(this, &SContentBrowser::GetSearchAssetsHintText)
 							.ShowSearchHistory(true)
 							.OnTextChanged(this, &SContentBrowser::OnSearchBoxChanged)
@@ -777,41 +884,16 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 							.OnAssetSearchBoxSuggestionChosen(this, &SContentBrowser::OnAssetSearchSuggestionChosen)
 							.DelayChangeNotificationsWhileTyping(true)
 							.Visibility((Config != nullptr ? Config->bCanShowAssetSearch : true) ? EVisibility::Visible : EVisibility::Collapsed)
-							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserSearchAssets")))
-						]
-						
-						// Filter dropdown
-						+ SHorizontalBox::Slot()
-						.AutoWidth()
-						.HAlign(HAlign_Left)
-						.Padding(5, 0, 0, 0)
-						[
-							FilterComboButton.ToSharedRef()
-						]
-					]
-				]
-				+ SWrapBox::Slot()
-				.HAlign(HAlign_Left)
-				.VAlign(VAlign_Center)
-				.FillEmptySpace(true)
-				[
-					// Filter list
-					SNew(SBox)
-					.MinDesiredHeight_Lambda([this, SearchFilterItemHeight]() { return FilterListPtr->HasAnyFilters() ? SearchFilterItemHeight : 0; })
-					.VAlign(VAlign_Center)
-					[
-						FilterListPtr.ToSharedRef()
-					]
-				]
-			]
-		]
-		// Assets
-		+ SVerticalBox::Slot()
-		.FillHeight( 1.0f )
-		.Padding( 0, 0 )
-		[
-			AssetViewPtr.ToSharedRef()
-		];
+							.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("ContentBrowserSearchAssets")));
+
+	/* Create the Border that the Asset View will live in, the actual layout is populated in OnFilterBarLayoutChanging, 
+	 * which is called initially called through SAssetFilterBar::LoadSettings through SContentBrowser::LoadSettings()
+	 */
+	AssetViewBorder = SNew(SBorder)
+			.BorderImage(FAppStyle::Get().GetBrush("Brushes.Panel"))
+			.Padding(FMargin(2.0f, 2.0f, 2.0f, 0.0f));
+
+	return AssetViewBorder.ToSharedRef();
 }
 
 TSharedRef<SWidget> SContentBrowser::CreateFavoritesView(const FContentBrowserConfig* Config)

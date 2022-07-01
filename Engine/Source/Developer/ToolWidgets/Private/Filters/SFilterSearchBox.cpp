@@ -73,6 +73,7 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 
 				+SHorizontalBox::Slot()
 				.HAlign(HAlign_Right)
+				.VAlign(VAlign_Center)
 				.Padding(0, 0, 4, 0)
 				[
 					// Chevron to open the search history dropdown

@@ -29,6 +29,7 @@ class SFilterList : public SAssetFilterBar<FAssetFilterType>
 public:
 
 	DECLARE_DELEGATE_RetVal( TSharedPtr<SWidget>, FOnGetContextMenu );
+	DECLARE_DELEGATE_OneParam(FOnFilterBarLayoutChanging, EFilterBarLayout /* NewLayout */)
 	/**
 	 * An event delegate that is executed when a custom text filter has been created/modified/deleted in any FilterList
 	 * that is using shared settings.
@@ -37,8 +38,10 @@ public:
 	
 	using FOnFilterChanged = typename SAssetFilterBar<FAssetFilterType>::FOnFilterChanged;
 
-	SLATE_BEGIN_ARGS( SFilterList ):
-	_UseSharedSettings(false)
+	SLATE_BEGIN_ARGS( SFilterList )
+	: _UseSharedSettings(false)
+	, _FilterBarLayout(EFilterBarLayout::Horizontal)
+	, _CanChangeOrientation(false)
 	{
 		
 	}
@@ -70,6 +73,15 @@ public:
 		 *	Currently used to sync all content browser custom text filters.
 		 */
 		SLATE_ARGUMENT(bool, UseSharedSettings)
+
+		/** Called when the filter bar layout is changing, before the filters are added to the layout */
+		SLATE_EVENT(FOnFilterBarLayoutChanging, OnFilterBarLayoutChanging)
+
+		/** The layout that determines how the filters are laid out */
+		SLATE_ARGUMENT(EFilterBarLayout, FilterBarLayout)
+			
+		/** If true, allow dynamically changing the orientation and saving in the config */
+		SLATE_ARGUMENT(bool, CanChangeOrientation)
 
 	SLATE_END_ARGS()
 
@@ -105,8 +117,13 @@ public:
 	/** Updates bIncludeClassName, bIncludeAssetPath and bIncludeCollectionNames for all custom text filters */
 	void UpdateCustomTextFilterIncludes(const bool InIncludeClassName, const bool InIncludeAssetPath, const bool InIncludeCollectionNames);
 
+	/** Add a custom widget to the filter bar alongside the filters */
+	void AddWidgetToCurrentLayout(TSharedRef<SWidget> InWidget);
+
 	virtual void SaveSettings()override;
 	virtual void LoadSettings() override;
+
+	virtual void SetFilterLayout(EFilterBarLayout InFilterBarLayout) override;
 
 protected:
 	
@@ -136,6 +153,9 @@ private:
 	/** Find the custom text filter corresponding to the specified state, and restore it's state to what is specified */
 	void RestoreCustomTextFilterState(const FCustomTextFilterState& InFilterState);
 	
+	/** Function to populate the options to change the filter layout */
+	void PopulateFilterDisplayMenu(UToolMenu* Menu);
+	
 private:
 
 	/** List of classes that our filters must match */
@@ -146,6 +166,9 @@ private:
 
 	/** Delegate for when filters have changed */
 	FOnFilterChanged OnFilterChanged;
+
+	/** Delegate for when the layout is changed */
+	FOnFilterBarLayoutChanging OnFilterBarLayoutChanging;
 
 	/** A reference to AllFrontEndFilters so we can access the filters as FFrontEndFilter instead of FFilterBase<FAssetFilterType> */
 	TArray< TSharedRef<FFrontendFilter> > AllFrontendFilters_Internal;

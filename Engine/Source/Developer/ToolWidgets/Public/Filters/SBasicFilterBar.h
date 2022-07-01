@@ -12,12 +12,15 @@
 #include "Textures/SlateIcon.h"
 #include "Widgets/Layout/SBorder.h"
 #include "ToolMenus.h"
-#include "Widgets/Images/SImage.h"
+#include "Widgets/Images/SLayeredImage.h"
 #include "Widgets/SBoxPanel.h"
 #include "Misc/FilterCollection.h"
 #include "UObject/Object.h"
 #include "Core/Public/Misc/TextFilter.h"
 #include "Widgets/SWindow.h"
+#include "Widgets/Layout/SWrapBox.h"
+#include "Widgets/Layout/SScrollBox.h"
+#include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Filters/SCustomTextFilterDialog.h"
 #include "SSimpleButton.h"
 #include "Styling/StyleColors.h"
@@ -39,6 +42,14 @@ class TOOLWIDGETS_API UFilterBarContext : public UObject
 
 public:
 	FOnPopulateAddFilterMenu PopulateFilterMenu;
+};
+
+/** Describes if the filters are laid out horizontally (ScrollBox) or vertically (WrapBox) */
+UENUM()
+enum class EFilterBarLayout : uint8
+{
+	Horizontal,
+	Vertical
 };
 
 /** Forward declaration for a helper struct used to activate external filters */
@@ -70,7 +81,10 @@ public:
 	/** Delegate to create a TTextFilter used to compare FilterType with text queries */
     DECLARE_DELEGATE_RetVal( TSharedPtr<ICustomTextFilter<FilterType>>, FCreateTextFilter);
 	
- 	SLATE_BEGIN_ARGS( SBasicFilterBar<FilterType> ){}
+ 	SLATE_BEGIN_ARGS( SBasicFilterBar<FilterType> )
+ 		: _FilterBarLayout(EFilterBarLayout::Horizontal)
+		, _CanChangeOrientation(false)
+	{}
 
  		/** Delegate for when filters have changed */
  		SLATE_EVENT( FOnFilterChanged, OnFilterChanged )
@@ -92,6 +106,12 @@ public:
 		 *	NOTE: Will bind a delegate to SFilterSearchBox::OnSaveSearchClicked
 		 */
         SLATE_ARGUMENT(TSharedPtr<SFilterSearchBox>, FilterSearchBox)
+
+		/** The layout that determines how the filters are laid out */
+		SLATE_ARGUMENT(EFilterBarLayout, FilterBarLayout)
+	
+		/** If true, allow dynamically changing the orientation and saving in the config */
+		SLATE_ARGUMENT(bool, CanChangeOrientation)
 	
  	SLATE_END_ARGS()
 
@@ -100,6 +120,36 @@ public:
 		OnFilterChanged = InArgs._OnFilterChanged;
  		OnExtendAddFilterMenu = InArgs._OnExtendAddFilterMenu;
  		CreateTextFilter = InArgs._CreateTextFilter;
+ 		FilterBarLayout = InArgs._FilterBarLayout;
+ 		bCanChangeOrientation = InArgs._CanChangeOrientation;
+
+ 		// We use a widgetswitcher to allow dynamically swapping between the layouts
+ 		ChildSlot
+		[
+			SAssignNew(FilterBox, SWidgetSwitcher)
+			+ SWidgetSwitcher::Slot()
+			[
+				SAssignNew(HorizontalFilterBox, SWrapBox)
+				.UseAllottedSize(true)
+			]
+			+ SWidgetSwitcher::Slot()
+			[
+				SAssignNew(VerticalFilterBox, SScrollBox)
+				.Visibility_Lambda([this]()
+				{
+					return HasAnyFilters() ? EVisibility::Visible : EVisibility::Collapsed;
+				})
+			]
+		];
+ 		
+ 		if(FilterBarLayout == EFilterBarLayout::Horizontal)
+ 		{
+ 			FilterBox->SetActiveWidget(HorizontalFilterBox.ToSharedRef());
+ 		}
+ 		else
+ 		{
+ 			FilterBox->SetActiveWidget(VerticalFilterBox.ToSharedRef());
+ 		}
 
  		AttachFilterSearchBox(InArgs._FilterSearchBox);
 
@@ -136,9 +186,52 @@ public:
  		SetFrontendFilterActive(InFilter, false);
  	}
 
+	EFilterBarLayout GetFilterLayout()
+ 	{
+ 		return FilterBarLayout;
+ 	}
+	
+	virtual void SetFilterLayout(EFilterBarLayout InFilterBarLayout)
+ 	{
+ 		if(!bCanChangeOrientation)
+ 		{
+ 			return;
+ 		}
+ 		
+ 		FilterBarLayout = InFilterBarLayout;
+ 		
+ 		if(FilterBarLayout == EFilterBarLayout::Horizontal)
+ 		{
+			VerticalFilterBox->ClearChildren();
+ 			
+ 			FilterBox->SetActiveWidget(HorizontalFilterBox.ToSharedRef());
+ 		}
+        else
+        {
+        	HorizontalFilterBox->ClearChildren();
+        	
+        	FilterBox->SetActiveWidget(VerticalFilterBox.ToSharedRef());
+        }
+
+ 		// Add all the filters to the new layout
+ 		for(TSharedRef<SFilter> Filter: Filters)
+ 		{
+ 			AddWidgetToLayout(Filter);
+ 		}
+
+ 		this->Invalidate(EInvalidateWidgetReason::Layout);
+ 	}
+
 	/** Makes the button that summons the Add Filter dropdown on click */
 	static TSharedRef<SWidget> MakeAddFilterButton(TSharedRef<SBasicFilterBar<FilterType>> InFilterBar)
  	{
+ 		TSharedPtr<SLayeredImage> FilterImage = SNew(SLayeredImage)
+		 .Image(FAppStyle::Get().GetBrush("Icons.Filter"))
+		 .ColorAndOpacity(FSlateColor::UseForeground());
+
+ 		// Badge the filter icon if there are filters active
+ 		FilterImage->AddLayer(TAttribute<const FSlateBrush*>(InFilterBar, &SBasicFilterBar<FilterType>::GetFilterBadgeIcon));
+ 		
  		return SNew(SComboButton)
 				.ComboButtonStyle(&FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("SimpleComboButtonWithIcon"))
 				.ForegroundColor(FSlateColor::UseStyle())
@@ -147,9 +240,7 @@ public:
 				.ContentPadding(FMargin(1, 0))
 				.ButtonContent()
 				[
-					SNew(SImage)
-					.Image(FAppStyle::Get().GetBrush("Icons.Filter"))
-					.ColorAndOpacity(FSlateColor::UseForeground())
+					FilterImage.ToSharedRef()
 				];
  	}
 
@@ -672,15 +763,12 @@ public:
  				{
  					SetFrontendFilterActive(FrontendFilter.ToSharedRef(), false); // Deactivate.
  				}
+
+ 				RemoveWidgetFromLayout(FilterToRemove);
  			}
-		
- 			ChildSlot
-			 [
-				 SNullWidget::NullWidget
-			 ];
 
  			Filters.Empty();
-
+ 			
  			// Notify that a filter has changed
  			OnFilterChanged.ExecuteIfBound();
  		}
@@ -732,6 +820,20 @@ public:
  	}
 
 protected:
+
+	/** Overlay for filter icon, badge if there are any active filters */
+	const FSlateBrush* GetFilterBadgeIcon() const
+	{
+		for (const TSharedRef<SFilter>& Filter : Filters)
+		{
+			if(Filter->IsEnabled())
+			{
+				return FAppStyle::Get().GetBrush("Icons.BadgeModified");
+			}
+		}
+
+		return nullptr;
+	}
 	
 	/** Remove all filters except the specified one */
 	virtual void RemoveAllButThis(const TSharedRef<SFilter>& FilterToKeep)
@@ -756,32 +858,38 @@ protected:
 		OnFilterChanged.ExecuteIfBound();
 	}
 
-	/** Helper that creates a toolbar with all the given SFilter's as toolbar items. Filters that don't fit appear in the overflow menu as toggles. */
-	static TSharedRef<SWidget> MakeFilterToolBarWidget(const TArray<TSharedRef<SFilter>>& Filters)
+	/** Add a widget to the current filter layout */
+	void AddWidgetToLayout(const TSharedRef<SWidget> WidgetToAdd)
 	{
-		FSlimHorizontalToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
-		ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
-		ToolbarBuilder.SetStyle(&FAppStyle::Get(), "ContentBrowser.FilterToolBar");
-
-		for (const TSharedRef<SFilter>& Filter : Filters)
+		if(FilterBarLayout == EFilterBarLayout::Horizontal)
 		{
-			ToolbarBuilder.AddWidget(Filter, NAME_None, true, EHorizontalAlignment::HAlign_Fill, FNewMenuDelegate::CreateLambda([Filter](FMenuBuilder& MenuBuilder)
-			{
-				FUIAction Action;
-				Action.GetActionCheckState = FGetActionCheckState::CreateLambda([Filter]()
-				{
-					return Filter->IsEnabled() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-				});
-				Action.ExecuteAction = FExecuteAction::CreateLambda([Filter]()
-				{
-					Filter->SetEnabled(!Filter->IsEnabled());
-				});
-
-				MenuBuilder.AddMenuEntry(Filter->GetFilterDisplayName(), FText::GetEmpty(), FSlateIcon(), Action, NAME_None, EUserInterfaceActionType::ToggleButton);
-			}));
+			HorizontalFilterBox->AddSlot()
+			.Padding(3, 3)
+			[
+				WidgetToAdd
+			];
 		}
+		else
+		{
+			VerticalFilterBox->AddSlot()
+			.Padding(4, 2)
+			[
+				WidgetToAdd
+			];
+		}
+	}
 
-		return ToolbarBuilder.MakeWidget();
+	/** Remove a widget from the current filter layout */
+	void RemoveWidgetFromLayout(const TSharedRef<SWidget> WidgetToRemove)
+	{
+		if(FilterBarLayout == EFilterBarLayout::Horizontal)
+		{
+			HorizontalFilterBox->RemoveSlot(WidgetToRemove);
+		}
+		else
+		{
+			VerticalFilterBox->RemoveSlot(WidgetToRemove);
+		}
 	}
 	
  	/** Sets the active state of a frontend filter. */
@@ -828,10 +936,7 @@ protected:
 	{
 		Filters.Add(FilterToAdd);
 	
-		ChildSlot
-		[
-			MakeFilterToolBarWidget(Filters)
-		];
+		AddWidgetToLayout(FilterToAdd);
 	}
 
 	/** Handler for when the enable only this button was clicked on a single filter */
@@ -888,10 +993,7 @@ protected:
 			OnFilterChanged.ExecuteIfBound();
 		}
 
-		ChildSlot
-		[
-			MakeFilterToolBarWidget(Filters)
-		];
+		RemoveWidgetFromLayout(FilterToRemove);
 	}
 
 	/** Remove a filter from the filter bar */
@@ -1081,8 +1183,9 @@ protected:
  	}
  	
  	/** Handler for when a checkbox next to a custom text filter is clicked */
-	void CustomTextFilterClicked(ECheckBoxState CheckBoxState, TSharedRef<FFilterBase<FilterType>> FrontendFilter)
+	void CustomTextFilterClicked(ECheckBoxState CheckBoxState, TSharedRef<ICustomTextFilter<FilterType>> Filter)
     {
+		TSharedRef<FFilterBase<FilterType>> FrontendFilter = Filter->GetFilter().ToSharedRef();
     	if (CheckBoxState == ECheckBoxState::Unchecked)
     	{
     		RemoveFilter(FrontendFilter);
@@ -1285,7 +1388,7 @@ protected:
 			[
 				SNew(SCheckBox)
 				.Style(FAppStyle::Get(), "Menu.CheckBox")
-				.OnCheckStateChanged(FOnCheckStateChanged::CreateSP(this, &SBasicFilterBar<FilterType>::CustomTextFilterClicked, FrontendFilter))
+				.OnCheckStateChanged(FOnCheckStateChanged::CreateSP(this, &SBasicFilterBar<FilterType>::CustomTextFilterClicked, Filter))
 				.IsChecked(bIsFilterChecked)
 			];
 
@@ -1297,9 +1400,9 @@ protected:
 				.ButtonStyle(FAppStyle::Get(), "SimpleButton")
 				.ForegroundColor(FStyleColors::White)
 				.Text(FrontendFilter->GetDisplayName())
-				.OnClicked_Lambda([this, &FrontendFilter]()
+				.OnClicked_Lambda([this, &Filter]()
 				{
-					this->FrontendFilterClicked(FrontendFilter);
+					this->FrontendFilterClicked(Filter->GetFilter().ToSharedRef());
 					FSlateApplication::Get().DismissAllMenus();
 					return FReply::Handled();
 				})
@@ -1410,7 +1513,7 @@ private:
 
 		return UToolMenus::Get()->GenerateWidget(FilterMenuName, ToolMenuContext);
 	}
-
+	
 	/** Function to populate the add filter menu */
 	void PopulateAddFilterMenu(UToolMenu* Menu)
 	{
@@ -1420,6 +1523,19 @@ private:
 	}
 	
 protected:
+
+	/** The horizontal wrap box which contains all the filters (used in the horizontal layout) */
+	TSharedPtr<SWrapBox> HorizontalFilterBox;
+	
+	/** The vertical scroll box which contains all the filters (used in the vertical layout) */
+	TSharedPtr<SScrollBox> VerticalFilterBox;
+	
+	/** The widget switcher containing the horizontal and vertical filter widgets */
+	TSharedPtr<SWidgetSwitcher> FilterBox;
+
+	/** The current Filter Layout being used */
+	EFilterBarLayout FilterBarLayout;
+	
  	/** All SFilters in the list */
  	TArray< TSharedRef<SFilter> > Filters;
 
@@ -1446,6 +1562,9 @@ protected:
 
 	/** The window containing the custom text filter dialog */
 	TWeakPtr<SWindow> CustomTextFilterWindow;
+
+	/** Whether the orientation can be changed after initailization */
+	bool bCanChangeOrientation;
 	
 	friend struct FFrontendFilterExternalActivationHelper<FilterType>;
 };

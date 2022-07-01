@@ -5,6 +5,7 @@
 #include "Containers/Map.h"
 #include "EditorConfigBase.h"
 #include "Filters/SCustomTextFilterDialog.h"
+#include "Filters/SBasicFilterBar.h"
 
 #include "FilterBarConfig.generated.h"
 
@@ -26,7 +27,6 @@ public:
 	/* The data inside the custom text filter */
 	UPROPERTY()
 	FCustomTextFilterData FilterData;
-	
 };
 
 USTRUCT()
@@ -48,6 +48,12 @@ public:
 	UPROPERTY()
 	TArray<FCustomTextFilterState> CustomTextFilters;
 
+	UPROPERTY()
+	bool bIsLayoutSaved = false;
+
+	UPROPERTY()
+	EFilterBarLayout FilterBarLayout = EFilterBarLayout::Horizontal;
+	
 	void Empty()
 	{
 		CustomFilters.Empty();

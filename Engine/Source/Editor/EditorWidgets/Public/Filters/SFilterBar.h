@@ -47,6 +47,8 @@ public:
 	SLATE_BEGIN_ARGS( SFilterBar<FilterType> )
 		: _FilterBarIdentifier(NAME_None)
 		, _UseDefaultAssetFilters(true)
+	    , _FilterBarLayout(EFilterBarLayout::Horizontal)
+		, _CanChangeOrientation(false)
 		{
 		
 		}
@@ -85,6 +87,12 @@ public:
 		 *	NOTE: Will bind a delegate to SFilterSearchBox::OnClickedAddSearchHistoryButton
 		 */
 		SLATE_ARGUMENT(TSharedPtr<SFilterSearchBox>, FilterSearchBox)
+
+		/** The layout that determines how the filters are laid out */
+		SLATE_ARGUMENT(EFilterBarLayout, FilterBarLayout)
+			
+		/** If true, allow dynamically changing the orientation and saving in the config */
+		SLATE_ARGUMENT(bool, CanChangeOrientation)
 	
 	SLATE_END_ARGS()
 
@@ -100,6 +108,8 @@ public:
 		Args._CreateTextFilter = InArgs._CreateTextFilter;
 		Args._FilterSearchBox = InArgs._FilterSearchBox;
 		Args._FilterBarIdentifier = InArgs._FilterBarIdentifier;
+		Args._FilterBarLayout = InArgs._FilterBarLayout;
+        Args._CanChangeOrientation = InArgs._CanChangeOrientation;
 		
 		SAssetFilterBar<FilterType>::Construct(Args);
 		

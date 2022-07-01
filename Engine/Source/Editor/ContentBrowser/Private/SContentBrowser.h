@@ -34,6 +34,7 @@ class UFactory;
 class UToolMenu;
 class SSearchToggleButton;
 class UContentBrowserToolbarMenuContext;
+enum class EFilterBarLayout : uint8;
 
 struct FToolMenuContext;
 
@@ -556,6 +557,9 @@ private:
 	SSplitter::ESizeRule GetPathAreaSizeRule() const;
 	SSplitter::ESizeRule GetCollectionsAreaSizeRule() const;
 
+	/** Called when the layout of the SFilterList is changing */
+	void OnFilterBarLayoutChanging(EFilterBarLayout NewLayout);
+
 private:
 
 	/** The tab that contains this browser */
@@ -599,6 +603,12 @@ private:
 
 	/** The filter list */
 	TSharedPtr<SFilterList> FilterListPtr;
+
+	/** The Combo Button used to summon the filter dropdown */
+	TSharedPtr<SWidget> FilterComboButton;
+
+	/** The border that holds the content in AssetView */
+	TSharedPtr<SBorder> AssetViewBorder;
 
 	/** The path picker */
 	TSharedPtr<SComboButton> PathPickerButton;

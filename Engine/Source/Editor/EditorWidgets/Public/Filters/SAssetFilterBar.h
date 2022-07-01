@@ -108,6 +108,8 @@ public:
 	
 	SLATE_BEGIN_ARGS( SAssetFilterBar<FilterType> )
 		: _UseDefaultAssetFilters(true)
+		, _FilterBarLayout(EFilterBarLayout::Horizontal)
+		, _CanChangeOrientation(false)
 		{
 		
 		}
@@ -140,6 +142,12 @@ public:
 	
 		/** Whether the filter bar should provide the default asset filters */
 		SLATE_ARGUMENT(bool, UseDefaultAssetFilters)
+		
+		/** The layout that determines how the filters are laid out */
+		SLATE_ARGUMENT(EFilterBarLayout, FilterBarLayout)
+		
+		/** If true, allow dynamically changing the orientation and saving in the config */
+		SLATE_ARGUMENT(bool, CanChangeOrientation)
 	
 	SLATE_END_ARGS()
 
@@ -157,6 +165,8 @@ public:
 		Args._OnExtendAddFilterMenu = InArgs._OnExtendAddFilterMenu;
 		Args._CreateTextFilter = InArgs._CreateTextFilter;
 		Args._FilterSearchBox = InArgs._FilterSearchBox;
+		Args._FilterBarLayout = InArgs._FilterBarLayout;
+		Args._CanChangeOrientation = InArgs._CanChangeOrientation;
 		
 		SBasicFilterBar<FilterType>::Construct(Args);
 
@@ -189,6 +199,13 @@ public:
 		SaveCustomTextFilters(FilterBarConfig);
 		SaveFilters(FilterBarConfig);
 
+		// Only save the orientation if we allow dynamic modification and saving
+		FilterBarConfig->bIsLayoutSaved = this->bCanChangeOrientation;
+		if(this->bCanChangeOrientation)
+		{
+			FilterBarConfig->FilterBarLayout = this->FilterBarLayout;
+		}
+
 		SaveConfig();
 	}
 
@@ -211,9 +228,15 @@ public:
 		LoadFilters(FilterBarConfig);
 		LoadCustomTextFilters(FilterBarConfig);
 
+		/* Only load the setting if we saved it, aka if SaveSettings() was ever called and bCanChangeOrientation is true */
+		if(FilterBarConfig->bIsLayoutSaved)
+		{
+			this->SetFilterLayout(FilterBarConfig->FilterBarLayout);
+		}
+
 		this->OnFilterChanged.ExecuteIfBound();
 	}
-	
+
 protected:
 
 	/** Save all the custom class filters (created by the user) into the specified config */

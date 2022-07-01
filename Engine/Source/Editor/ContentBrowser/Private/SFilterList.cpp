@@ -46,6 +46,7 @@ void SFilterList::Construct( const FArguments& InArgs )
 {
 	bUseSharedSettings = InArgs._UseSharedSettings;
 	OnGetContextMenu = InArgs._OnGetContextMenu;
+	OnFilterBarLayoutChanging = InArgs._OnFilterBarLayoutChanging;
 	this->OnFilterChanged = InArgs._OnFilterChanged;
 	this->ActiveFilters = InArgs._FrontendFilters;
 	InitialClassFilters = InArgs._InitialClassFilters;
@@ -118,6 +119,8 @@ void SFilterList::Construct( const FArguments& InArgs )
 	Args._OnFilterChanged = this->OnFilterChanged;
 	Args._CreateTextFilter = InArgs._CreateTextFilter;
 	Args._FilterBarIdentifier = InArgs._FilterBarIdentifier;
+	Args._FilterBarLayout = InArgs._FilterBarLayout;
+	Args._CanChangeOrientation = InArgs._CanChangeOrientation;
 
 	SAssetFilterBar<FAssetFilterType>::Construct(Args);
 
@@ -303,6 +306,47 @@ bool IsFilteredByPicker(const TArray<UClass*>& FilterClassList, UClass* TestClas
 	return true;
 }
 
+void SFilterList::PopulateFilterDisplayMenu(UToolMenu* Menu)
+{
+	FToolMenuSection& Section = Menu->AddSection("FilterListFilterDisplay", LOCTEXT("FilterDisplay", "Filter Display"));
+
+	Section.AddMenuEntry(
+		"VerticalLayout",
+		LOCTEXT("FilterListVerticalLayout", "Vertical"),
+		LOCTEXT("FilterListVerticalLayoutToolTip", "Swap to a vertical layout for the filter bar"),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateLambda([this]()
+			{
+				if(this->FilterBarLayout != EFilterBarLayout::Vertical)
+				{
+					this->SetFilterLayout(EFilterBarLayout::Vertical);
+				}
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return FilterBarLayout == EFilterBarLayout::Vertical; })),
+		EUserInterfaceActionType::RadioButton
+	);
+
+	Section.AddMenuEntry(
+		"HorizontalLayout",
+		LOCTEXT("FilterListHorizontalLayout", "Horizontal"),
+		LOCTEXT("FilterListHorizontalLayoutToolTip", "Swap to a Horizontal layout for the filter bar"),
+		FSlateIcon(),
+		FUIAction(
+		FExecuteAction::CreateLambda([this]()
+			{
+				if(this->FilterBarLayout != EFilterBarLayout::Horizontal)
+				{
+					this->SetFilterLayout(EFilterBarLayout::Horizontal);
+				}
+			}),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateLambda([this]() { return FilterBarLayout == EFilterBarLayout::Horizontal; })),
+		EUserInterfaceActionType::RadioButton
+	);
+}
+
 void SFilterList::PopulateAddFilterMenu_Internal(UToolMenu* Menu)
 {
 	EAssetTypeCategories::Type MenuExpansion = EAssetTypeCategories::Basic;
@@ -315,6 +359,8 @@ void SFilterList::PopulateAddFilterMenu_Internal(UToolMenu* Menu)
 	{
 		return !IsFilteredByPicker(this->InitialClassFilters, TestClass);
 	}));
+	
+	PopulateFilterDisplayMenu(Menu);
 
 	Menu->AddSection("ContentBrowserFilterMiscAsset", LOCTEXT("MiscAssetsMenuHeading", "Misc Options") );
 }
@@ -579,9 +625,14 @@ void SFilterList::SaveSettings()
 			
 			InstanceSettings->CustomTextFilters.Add(InstanceFilterState);
 		}
-		
 	}
 
+	// Only save the orientation if we allow dynamic modification and saving
+	InstanceSettings->bIsLayoutSaved = this->bCanChangeOrientation;
+	if(this->bCanChangeOrientation)
+	{
+		InstanceSettings->FilterBarLayout = this->FilterBarLayout;
+	}
 
 	SaveConfig();
 }
@@ -616,6 +667,14 @@ void SFilterList::LoadSettings()
 	{
 		RestoreCustomTextFilterState(FilterState);
 	}
+
+	if(InstanceSettings->bIsLayoutSaved)
+	{
+		FilterBarLayout = InstanceSettings->FilterBarLayout;
+	}
+
+	// We want to call this even if the Layout isn't saved, to make sure OnFilterBarLayoutChanging is fired
+	SetFilterLayout(FilterBarLayout);
 	
 	this->OnFilterChanged.ExecuteIfBound();
 }
@@ -639,6 +698,53 @@ void SFilterList::LoadCustomTextFilters(const FFilterBarSettings* FilterBarConfi
 		// Add this to our list of custom text filters
 		CustomTextFilters.Add(NewTextFilter);
 	}
+}
+
+void SFilterList::AddWidgetToCurrentLayout(TSharedRef<SWidget> InWidget)
+{
+	if(FilterBarLayout == EFilterBarLayout::Horizontal)
+	{
+		HorizontalFilterBox->AddSlot()
+		[
+			InWidget
+		];
+	}
+	else
+	{
+		VerticalFilterBox->AddSlot()
+		[
+			InWidget
+		];
+	}
+}
+
+void SFilterList::SetFilterLayout(EFilterBarLayout InFilterBarLayout)
+{
+	FilterBarLayout = InFilterBarLayout;
+ 		
+	if(FilterBarLayout == EFilterBarLayout::Horizontal)
+	{
+		VerticalFilterBox->ClearChildren();
+ 			
+		FilterBox->SetActiveWidget(HorizontalFilterBox.ToSharedRef());
+	}
+	else
+	{
+		HorizontalFilterBox->ClearChildren();
+        	
+		FilterBox->SetActiveWidget(VerticalFilterBox.ToSharedRef());
+	}
+
+	OnFilterBarLayoutChanging.ExecuteIfBound(FilterBarLayout);
+
+	for(TSharedRef<SFilter> Filter: Filters)
+	{
+		AddWidgetToLayout(Filter);
+	}
+ 		
+	this->Invalidate(EInvalidateWidgetReason::Layout);
+
+ 		
 }
 
 /////////////////////////////////////////
@@ -694,6 +800,5 @@ TSharedPtr<FFilterBase<FAssetFilterType>> FFrontendFilter_CustomText::GetFilter(
 {
 	return AsShared();
 }
-
 
 #undef LOCTEXT_NAMESPACE
