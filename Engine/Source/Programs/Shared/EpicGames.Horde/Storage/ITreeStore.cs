@@ -47,7 +47,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Base interface for a tree store
 	/// </summary>
-	public interface ITreeStore
+	public interface ITreeStore : IDisposable
 	{
 		/// <summary>
 		/// Tests whether a tree exists with the given name
