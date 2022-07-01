@@ -2449,6 +2449,25 @@ FString* FAndroidMisc::GetConfigRulesVariable(const FString& Key)
 	return ConfigRulesVariables.Find(Key);
 }
 
+bool FAndroidMisc::AllowThreadHeartBeat()
+{
+	static uint32 AllowThreadHeartBeatOnce = -1;
+	if (AllowThreadHeartBeatOnce == -1)
+	{
+		const FString* AllowThreadHeartBeatConfigVar = GetConfigRulesVariable(TEXT("EnableThreadHeartBeat"));
+		if (AllowThreadHeartBeatConfigVar)
+		{
+			AllowThreadHeartBeatOnce = (uint32)AllowThreadHeartBeatConfigVar->Equals("true", ESearchCase::IgnoreCase);
+		}
+		else
+		{
+			AllowThreadHeartBeatOnce = 0;
+		}
+	}
+
+	return AllowThreadHeartBeatOnce == 1;
+}
+
 JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeSetConfigRulesVariables(JNIEnv* jenv, jobject thiz, jobjectArray KeyValuePairs)
 {
 	int32 Count = jenv->GetArrayLength(KeyValuePairs);

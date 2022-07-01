@@ -57,10 +57,7 @@ struct CORE_API FAndroidMisc : public FGenericPlatformMisc
 
 public:
 
-	static bool AllowThreadHeartBeat()
-	{
-		return true;
-	}
+	static bool AllowThreadHeartBeat();
 
 	struct FCPUStatTime{
 		uint64_t			TotalTime;
