@@ -981,7 +981,6 @@ namespace UnrealBuildTool
 					List<string> PreprocessResponseFileContents = new();
 					PreprocessResponseFileContents.AddRange(PreprocessGlobalArguments);
 					PreprocessResponseFileContents.AddRange(PreprocessFileArguments);
-					PreprocessResponseFileContents.Add(CompileEnvironment.AdditionalArguments);
 
 					// Adds the response file to the compiler input.
 					FileItem PreprocessResponseFileItem = Graph.CreateIntermediateTextFile(PreprocessResponseFileName, PreprocessResponseFileContents);

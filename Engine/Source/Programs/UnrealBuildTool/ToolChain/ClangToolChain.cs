@@ -585,6 +585,19 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Additional compile arguments.
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompileArguments_AdditionalArgs(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+			{
+				Arguments.Add(CompileEnvironment.AdditionalArguments);
+			}
+		}
+
+		/// <summary>
 		/// Common compile arguments for all files in a module.
 		/// Override and call base.GetCompileArguments_Global() in derived classes.
 		/// </summary>
@@ -615,8 +628,11 @@ namespace UnrealBuildTool
 			// Add debugging flags to the argument list.
 			GetCompileArguments_Debugging(CompileEnvironment, Arguments);
 
-			// Add sanitizer flags to the argument list
+			// Add sanitizer flags to the argument list.
 			GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
+
+			// Add additional arguments to the argument list.
+			GetCompileArguments_AdditionalArgs(CompileEnvironment, Arguments);
 		}
 
 		/// <summary>

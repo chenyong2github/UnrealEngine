@@ -183,6 +183,32 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
+		protected override void GetCompileArguments_AdditionalArgs(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
+			{
+				string EscapedAdditionalArgs = string.Empty;
+				foreach (string AdditionalArg in CompileEnvironment.AdditionalArguments.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
+				{
+					Match DefinitionMatch = Regex.Match(AdditionalArg, "-D\"?(?<Name>.*)=(?<Value>.*)\"?");
+					if (DefinitionMatch.Success)
+					{
+						EscapedAdditionalArgs += string.Format(" -D{0}=\"{1}\"", DefinitionMatch.Groups["Name"].Value, DefinitionMatch.Groups["Value"].Value);
+					}
+					else
+					{
+						EscapedAdditionalArgs += " " + AdditionalArg;
+					}
+				}
+
+				if (!string.IsNullOrWhiteSpace(EscapedAdditionalArgs))
+				{
+					Arguments.Add(EscapedAdditionalArgs);
+				}
+			}
+		}
+
+		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			base.GetCompileArguments_Global(CompileEnvironment, Arguments);
@@ -300,23 +326,6 @@ namespace UnrealBuildTool
 				// Add C or C++ specific compiler arguments.
 				GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
 
-				string EscapedAdditionalArgs = "";
-				if(!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
-				{
-					foreach(string AdditionalArg in CompileEnvironment.AdditionalArguments.Split(new char[] { ' ' }, StringSplitOptions.RemoveEmptyEntries))
-					{
-						Match DefinitionMatch = Regex.Match(AdditionalArg, "-D\"?(?<Name>.*)=(?<Value>.*)\"?");
-						if (DefinitionMatch.Success)
-						{
-							EscapedAdditionalArgs += string.Format(" -D{0}=\"{1}\"", DefinitionMatch.Groups["Name"].Value, DefinitionMatch.Groups["Value"].Value);
-						}
-						else
-						{
-							EscapedAdditionalArgs += " " + AdditionalArg;
-						}
-					}
-				}
-
 				// Gets the target file so we can get the correct output path.
 				FileItem TargetFile = CompileAction.ProducedItems.First();
 
@@ -325,7 +334,6 @@ namespace UnrealBuildTool
 				List<string> ResponseFileContents = new();
 				ResponseFileContents.AddRange(GlobalArguments);
 				ResponseFileContents.AddRange(FileArguments);
-				ResponseFileContents.Add(EscapedAdditionalArgs);
 
 				// Adds the response file to the compiler input.
 				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
@@ -391,7 +399,6 @@ namespace UnrealBuildTool
 					List<string> PreprocessResponseFileContents = new();
 					PreprocessResponseFileContents.AddRange(PreprocessGlobalArguments);
 					PreprocessResponseFileContents.AddRange(PreprocessFileArguments);
-					PreprocessResponseFileContents.Add(EscapedAdditionalArgs);
 
 					// Adds the response file to the compiler input.
 					FileItem PreprocessResponseFileItem = Graph.CreateIntermediateTextFile(PreprocessResponseFileName, PreprocessResponseFileContents);

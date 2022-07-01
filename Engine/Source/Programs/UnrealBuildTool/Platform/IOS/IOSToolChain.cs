@@ -522,21 +522,7 @@ namespace UnrealBuildTool
 				List<string> ResponseFileContents = new();
 				ResponseFileContents.AddRange(GlobalArguments);
 				ResponseFileContents.AddRange(FileArguments);
-				if (!string.IsNullOrWhiteSpace(CompileEnvironment.AdditionalArguments))
-				{
-					ResponseFileContents.Add(CompileEnvironment.AdditionalArguments);
-				}
 				ResponseFileContents = ResponseFileContents.Select(x => Utils.ExpandVariables(x)).ToList();
-				/*				string SourceText = System.IO.File.ReadAllText(SourceFile.AbsolutePath);
-								if (CompileEnvironment.bOptimizeForSize && (SourceFile.AbsolutePath.Contains("ElementBatcher.cpp") || SourceText.Contains("ElementBatcher.cpp") || SourceFile.AbsolutePath.Contains("AnimationRuntime.cpp") || SourceText.Contains("AnimationRuntime.cpp")
-									|| SourceFile.AbsolutePath.Contains("AnimEncoding.cpp") || SourceText.Contains("AnimEncoding.cpp") || SourceFile.AbsolutePath.Contains("TextRenderComponent.cpp") || SourceText.Contains("TextRenderComponent.cpp")
-									|| SourceFile.AbsolutePath.Contains("SWidget.cpp") || SourceText.Contains("SWidget.cpp") || SourceFile.AbsolutePath.Contains("SCanvas.cpp") || SourceText.Contains("SCanvas.cpp") || SourceFile.AbsolutePath.Contains("ShaderCore.cpp") || SourceText.Contains("ShaderCore.cpp")
-									|| SourceFile.AbsolutePath.Contains("ParticleSystemRender.cpp") || SourceText.Contains("ParticleSystemRender.cpp")))
-								{
-									Logger.LogInformation("Forcing {SourceFileAbsolutePath} to --O3!", SourceFile.AbsolutePath);
-
-									AllArgs = AllArgs.Replace("-Oz", "-O3");
-								}*/
 
 				// Adds the response file to the compiler input.
 				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
