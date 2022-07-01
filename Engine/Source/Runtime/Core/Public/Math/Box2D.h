@@ -88,14 +88,26 @@ public:
 	}
 
 	/**
-	* Compares two boxes for inequality.
-	*
-	* @param Other The other box to compare with.
-	* @return true if the boxes are not equal, false otherwise.
-	*/
-	bool operator!=(const TBox2<T>& Other) const
+	 * Compares two boxes for inequality.
+	 *
+	 * @param Other The other box to compare with.
+	 * @return true if the boxes are not equal, false otherwise.
+	 */
+	bool operator!=( const TBox2<T>& Other ) const
 	{
 		return !(*this == Other);
+	}
+
+	/**
+	 * Checks for equality with error-tolerant comparison.
+	 *
+	 * @param Other The box to compare.
+	 * @param Tolerance Error tolerance.
+	 * @return true if the boxes are equal within specified tolerance, otherwise false.
+	 */
+	bool Equals( const TBox2<T>& Other, T Tolerance = UE_KINDA_SMALL_NUMBER ) const
+	{
+		return Min.Equals(Other.Min, Tolerance) && Max.Equals(Other.Max, Tolerance);
 	}
 
 	/**
