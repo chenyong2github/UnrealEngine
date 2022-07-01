@@ -8429,6 +8429,8 @@ void UWorld::ChangeFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel, bool bSho
 
 			SlowTask.EnterProgressFrame(10.0f);
 			FGlobalComponentReregisterContext RecreateComponents;
+			// Finish any deferred / async render cleanup work.
+			GetRendererModule().PerFrameCleanupIfSkipRenderer();
 			FlushRenderingCommands();
 
 			FeatureLevel = InFeatureLevel;

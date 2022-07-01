@@ -4037,6 +4037,7 @@ static void DeleteSceneRenderers(FRHICommandListImmediate& RHICmdList, const TAr
 	// Can release only after all mesh pass tasks are finished.
 	GPrimitiveIdVertexBufferPool.DiscardAll();
 	FGraphicsMinimalPipelineStateId::ResetLocalPipelineIdTableSize();
+	FRenderResource::CoalesceResourceList();
 }
 
 static void ReleaseSceneRenderers(FRHICommandListImmediate& RHICmdList, const TArray<FSceneRenderer*>& SceneRenderers)

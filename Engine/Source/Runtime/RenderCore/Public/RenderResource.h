@@ -27,54 +27,22 @@ extern RENDERCORE_API bool GFreeStructuresOnRHIBufferCreation;
 class RENDERCORE_API FRenderResource
 {
 public:
-	template<typename FunctionType>
-	static void ForAllResources(const FunctionType& Function)
-	{
-		const TArray<FRenderResource*>& ResourceList = GetResourceList();
-		ResourceListIterationActive.Increment();
-		for (int32 Index = 0; Index < ResourceList.Num(); ++Index)
-		{
-			FRenderResource* Resource = ResourceList[Index];
-			if (Resource)
-			{
-				checkSlow(Resource->ListIndex == Index);
-				Function(Resource);
-			}
-		}
-		ResourceListIterationActive.Decrement();
-	}
+	////////////////////////////////////////////////////////////////////////////////////
+	// The following methods may not be called while asynchronously initializing / releasing render resources.
 
-	template<typename FunctionType>
-	static void ForAllResourcesReverse(const FunctionType& Function)
-	{
-		const TArray<FRenderResource*>& ResourceList = GetResourceList();
-		ResourceListIterationActive.Increment();
-		for (int32 Index = ResourceList.Num() - 1; Index >= 0; --Index)
-		{
-			FRenderResource* Resource = ResourceList[Index];
-			if (Resource)
-			{
-				checkSlow(Resource->ListIndex == Index);
-				Function(Resource);
-			}
-		}
-		ResourceListIterationActive.Decrement();
-	}
+	/** Release all render resources that are currently initialized. */
+	static void ReleaseRHIForAllResources();
 
-	static void InitRHIForAllResources()
-	{
-		ForAllResources([](FRenderResource* Resource) { Resource->InitRHI(); });
-		// Dynamic resources can have dependencies on static resources (with uniform buffers) and must initialized last!
-		ForAllResources([](FRenderResource* Resource) { Resource->InitDynamicRHI(); });
-	}
+	/** Initialize all resources initialized before the RHI was initialized. */
+	static void InitPreRHIResources();
 
-	static void ReleaseRHIForAllResources()
-	{
-		ForAllResourcesReverse([](FRenderResource* Resource) { check(Resource->IsInitialized()); Resource->ReleaseRHI(); });
-		ForAllResourcesReverse([](FRenderResource* Resource) { Resource->ReleaseDynamicRHI(); });
-	}
+	/** Call periodically to coalesce the render resource list. */
+	static void CoalesceResourceList();
 
+	/** Reinitializes render resources at a new feature level. */
 	static void ChangeFeatureLevel(ERHIFeatureLevel::Type NewFeatureLevel);
+
+	////////////////////////////////////////////////////////////////////////////////////
 
 	/** Default constructor. */
 	FRenderResource()
@@ -145,15 +113,9 @@ public:
 	// Accessors.
 	FORCEINLINE bool IsInitialized() const { return ListIndex != INDEX_NONE; }
 
-	/** Initialize all resources initialized before the RHI was initialized */
-	static void InitPreRHIResources();
+	int32 GetListIndex() const { return ListIndex; }
 
 private:
-	/** @return The global initialized resource list. */
-	static TArray<FRenderResource*>& GetResourceList();
-
-	static FThreadSafeCounter ResourceListIterationActive;
-
 	int32 ListIndex;
 
 protected:
