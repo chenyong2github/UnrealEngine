@@ -48,6 +48,10 @@
 		{
 			"Name": "Dataflow",
 			"Enabled": true
+		},
+		{
+			"Name": "PlanarCut",
+			"Enabled": true
 		}
 	]
 }

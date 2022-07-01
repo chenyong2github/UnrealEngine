@@ -19,6 +19,9 @@ namespace UnrealBuildTool.Rules
 					"DataflowCore",
 					"DataflowEngine",
 					"GeometryCollectionEngine",
+					"GeometryCore",
+					"Voronoi",
+					"PlanarCut",
 					"Engine"
 				}
 			);
