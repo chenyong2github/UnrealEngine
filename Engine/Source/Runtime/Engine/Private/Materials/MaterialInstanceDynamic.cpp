@@ -49,6 +49,10 @@ void UMaterialInstanceDynamic::UpdateCachedDataDynamic()
 	{
 		Resource->GameThread_UpdateCachedData(*CachedData);
 	}
+
+#if WITH_EDITOR
+	FObjectCacheEventSink::NotifyReferencedTextureChanged_Concurrent(this);
+#endif // WITH_EDITOR
 }
 
 #if WITH_EDITOR

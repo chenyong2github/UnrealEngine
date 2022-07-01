@@ -716,7 +716,7 @@ struct FObjectCacheEventSinkPrivate
 	static std::atomic<bool> bShouldQueueSinkEvents;
 
 	using TEventAllocator = TLockFreeClassAllocator<FNotifyEvent, PLATFORM_CACHE_LINE_SIZE>;
-	using TEventList = TLockFreePointerListUnordered<FNotifyEvent, PLATFORM_CACHE_LINE_SIZE>;
+	using TEventList = TLockFreePointerListFIFO<FNotifyEvent, PLATFORM_CACHE_LINE_SIZE>;
 	static TEventAllocator& GetAllocator();
 	static TEventList& GetNotifyEvents();
 	static void AddNotifyEvent(FObjectCacheEventSinkPrivate::ECacheEventType EventType, UMaterialInterface* MaterialInterface, const UPrimitiveComponent* PrimitiveComponent, UStaticMeshComponent* StaticMeshComponent, const TArray<UMaterialInterface*>* UsedMaterials);
