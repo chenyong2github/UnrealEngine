@@ -77,7 +77,7 @@ const FRigVMTemplate* URigVMSelectNode::GetTemplate() const
 					ValueTypeIndex = InTypeIndex;
 					ResultTypeIndex = FRigVMRegistry::Get().GetBaseTypeFromArrayTypeIndex(InTypeIndex);
 				}
-				else if(InArgumentName == ValueFName)
+				else if(InArgumentName == ResultFName)
 				{
 					ValueTypeIndex = FRigVMRegistry::Get().GetArrayTypeFromBaseTypeIndex(InTypeIndex);;
 					ResultTypeIndex = InTypeIndex;
