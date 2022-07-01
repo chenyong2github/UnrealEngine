@@ -118,6 +118,20 @@ public:
 	}
 
 	/**
+	 * Creates an attribute by binding an arbitrary function that will be called to generate this attribute's value on demand.
+	 * After binding, the attribute will no longer have a value that can be accessed directly, and instead the bound
+	 * function will always be called to generate the value.
+	 *
+	 * @param  InFuncPtr Member function to bind.  The function's structure (return value, arguments, etc) must match IBoundAttributeDelegate's definition.
+	 */
+	template <typename FuncPtrType, typename... VarTypes >
+	UE_NODISCARD static TAttribute CreateStatic(FuncPtrType&& InFuncPtr, VarTypes... Vars)
+	{
+		const bool bExplicitConstructor = true;
+		return TAttribute(FGetter::CreateStatic(InFuncPtr, MoveTemp(Vars)...), bExplicitConstructor);
+	}
+
+	/**
 	 * Helper function for creating TAttributes from a function pointer, accessed through a raw pointer
 	 */
 	template<typename SourceType, typename SourceTypeOrBase, typename... PayloadTypes>
