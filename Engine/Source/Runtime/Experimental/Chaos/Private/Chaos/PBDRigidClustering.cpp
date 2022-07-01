@@ -943,6 +943,33 @@ namespace Chaos
 		return Child; 
 	}
 
+	FPBDRigidParticleHandle* FRigidClustering::FindClosestChild(const FPBDRigidClusteredParticleHandle* ClusteredParticle, const FVec3& WorldLocation) const
+	{
+		if (const TArray<FPBDRigidParticleHandle*>* ChildrenHandles = GetChildrenMap().Find(ClusteredParticle))
+		{
+			return FindClosestParticle(*ChildrenHandles, WorldLocation); 
+		}
+		return nullptr;
+	}
+
+	FPBDRigidParticleHandle* FRigidClustering::FindClosestParticle(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation) const
+	{
+		FPBDRigidParticleHandle* ClosestChildHandle = nullptr;
+		
+		// @todo(chaos) we should offer a more precise way to query than the distance from center of mass
+		FReal ClosestSquaredDist = TNumericLimits<FReal>::Max();
+		for (FPBDRigidParticleHandle* ChildHandle: Particles)
+        {
+        	const FReal SquaredDist = (ChildHandle->X() - WorldLocation).SizeSquared();
+        	if (SquaredDist < ClosestSquaredDist)
+        	{
+        		ClosestSquaredDist = SquaredDist;
+        		ClosestChildHandle = ChildHandle;
+        	}
+        }
+        return ClosestChildHandle;
+	}
+
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::GenerateConnectionGraph"), STAT_GenerateConnectionGraph, STATGROUP_Chaos);
 	void 
 	FRigidClustering::GenerateConnectionGraph(
@@ -1057,18 +1084,9 @@ namespace Chaos
 				{
 					if (GraphPropagationBasedCollisionImpulseProcessing)
 					{
-						// first find the closest child
-						FPBDRigidParticleHandle* ClosestChild = nullptr;
-						FReal ClosestDistanceSquared = TNumericLimits<FReal>::Max();
-						for (FPBDRigidParticleHandle* Child:ParentToChildren)
-						{
-							const FReal DistanceSquared = (Child->X() - ContactWorldLocation).SizeSquared();
-							if (DistanceSquared < ClosestDistanceSquared)
-							{
-								ClosestDistanceSquared = DistanceSquared;
-								ClosestChild = Child;
-							}
-						}
+						// propagation based breaking model start from the closest particle and propagate through the connection graph
+						// propagation logic is dealt when evaluating the strain
+						FPBDRigidParticleHandle* ClosestChild = FindClosestParticle(ParentToChildren, ContactWorldLocation);
 						if (ClosestChild)
 						{
 							if (TPBDRigidClusteredParticleHandle<FReal, 3>* ClusteredChild = ClosestChild->CastToClustered())
@@ -1223,6 +1241,24 @@ namespace Chaos
 		}
 		return ParentParticle;
 
+	}
+
+	bool FRigidClustering::BreakCluster(const FPBDRigidClusteredParticleHandle* ClusteredParticle)
+	{
+		// max strain will allow to unconditionally release the children when strain is evaluated
+		const FReal MaxStrain = TNumericLimits<FReal>::Max();
+		if (TArray<FPBDRigidParticleHandle*>* ChildrenHandles = GetChildrenMap().Find(ClusteredParticle))
+		{
+			for (FPBDRigidParticleHandle* ChildHandle: *ChildrenHandles)
+			{
+				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
+				{
+					ClusteredChildHandle->SetExternalStrain(MaxStrain);
+				}
+			}
+			return true;
+		}
+		return false;
 	}
 
 	static void ConnectClusteredNodes(FPBDRigidClusteredParticleHandle* ClusteredChild1, FPBDRigidClusteredParticleHandle* ClusteredChild2)

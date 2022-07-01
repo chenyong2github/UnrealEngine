@@ -81,12 +81,6 @@ FAutoConsoleVariableRef CVarGeometryCollectionAlwaysGenerateConnectionGraph(
 	bGeometryCollectionAlwaysGenerateConnectionGraph,
 	TEXT("When enabled, always  generate the cluster's connection graph instead of using the rest collection stored one - Note: this should only be used for troubleshooting.[def: false]"));
 
-bool bGeometryCollectionCrumbleUsingStrain = true;
-FAutoConsoleVariableRef CVarGeometryCollectionCrumbleUsingStrain(
-	TEXT("p.GeometryCollection.CrumbleUsingStrain"),
-	bGeometryCollectionCrumbleUsingStrain,
-	TEXT("When enabled, cluster crumbling is using strain instead of directly calling the clustering methods.[def: true]"));
-
 DEFINE_LOG_CATEGORY_STATIC(UGCC_LOG, Error, All);
 
 static const FSharedSimulationSizeSpecificData& GetSizeSpecificData(const TArray<FSharedSimulationSizeSpecificData>& SizeSpecificData, const FGeometryCollection& RestCollection, const int32 TransformIndex, const FBox& BoundingBox);
@@ -751,6 +745,28 @@ void FGeometryCollectionPhysicsProxy::CreateNonClusteredParticles(Chaos::FPBDRig
 			RigidsSolver->GetEvolution()->CreateParticle(Handle);
 		}
 	}
+}
+
+Chaos::FPBDRigidClusteredParticleHandle* FGeometryCollectionPhysicsProxy::FindClusteredParticleHandleByItemIndex(FGeometryCollectionItemIndex ItemIndex) const
+{
+	Chaos::FPBDRigidClusteredParticleHandle* ResultHandle = nullptr;;
+	if (ItemIndex.IsInternalCluster())
+	{
+		const int32 InternalClusterUniqueIdx = ItemIndex.GetInternalClusterIndex();
+		if (Chaos::FPBDRigidClusteredParticleHandle* const* InternalClusterHandle = UniqueIdxToInternalClusterHandle.Find(InternalClusterUniqueIdx))
+		{
+			ResultHandle = *InternalClusterHandle;
+		}
+	}
+	else
+	{
+		const int32 TransformIndex = ItemIndex.GetTransformIndex();
+		if (SolverParticleHandles.IsValidIndex(TransformIndex))
+		{
+			ResultHandle = SolverParticleHandles[TransformIndex];
+		}
+	}
+	return ResultHandle;
 }
 
 void FGeometryCollectionPhysicsProxy::SetSleepingState(const Chaos::FPBDRigidsSolver& RigidsSolver)
@@ -1518,135 +1534,47 @@ void FGeometryCollectionPhysicsProxy::DisableParticles_External(TArray<int32>&& 
 			});
 	}
 }
-static void ApplyStrainToAllClusterChildren(Chaos::FRigidClustering& Clustering, Chaos::FPBDRigidClusteredParticleHandle* ClusteredParent, Chaos::FReal StrainValue)
-{
-	if (TArray<Chaos::FPBDRigidParticleHandle*>* Children = Clustering.GetChildrenMap().Find(ClusteredParent))
-	{
-		for (Chaos::FPBDRigidParticleHandle* ChildHandle: *Children)
-		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
-			{
-				ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue));
-			}
-		}
-	}
-}
 
-
-void FGeometryCollectionPhysicsProxy::BreakInternalClusterParents_External(TArray<int32>&& TransformGroupIndices)
+void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices)
 {
 	check(IsInGameThread());
 
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
-		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, IndicesToBreakParent = MoveTemp(TransformGroupIndices)]()
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, IndicesToBreakParent = MoveTemp(ItemIndices)]()
 		{
-			// could use a set but the normal usage will always have a very small amount of unique parents and the array is more cache friendly
-			TArray<Chaos::FPBDRigidClusteredParticleHandle*> ParentToBreak;
-			for (int32 TransformIdx : IndicesToBreakParent)
+			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
+			for (const FGeometryCollectionItemIndex& ItemIndex : IndicesToBreakParent)
 			{
-				if (Chaos::FPBDRigidClusteredParticleHandle* ChildHandle = SolverParticleHandles[TransformIdx])
+				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
 				{
-					if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParent =  ChildHandle->Parent())
-					{
-						if (ClusteredParent->InternalCluster())
-						{
-							ParentToBreak.AddUnique(ClusteredParent);
-						}
-					}
+					Clustering.BreakCluster(ClusteredHandle);
 				}
-				for (Chaos::FPBDRigidClusteredParticleHandle* ClusteredParent: ParentToBreak)
+			}
+		});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float StrainValue)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, StrainValue, RBDSolver, WorldLocation, ItemIndex]()
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			{
+				const bool bIsCluster = (ClusteredHandle->ClusterIds().NumChildren > 0);
+				if (bIsCluster)
 				{
 					Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
-					if (!ClusteredParent->Disabled() && Clustering.GetChildrenMap().Contains(ClusteredParent))
+					Chaos::FPBDRigidParticleHandle* ClosestChildHandle = Clustering.FindClosestChild(ClusteredHandle, WorldLocation);
+					if (ClosestChildHandle)
 					{
-						if (bGeometryCollectionCrumbleUsingStrain)
+						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ClosestChildHandle->CastToClustered())
 						{
-							ApplyStrainToAllClusterChildren(Clustering, ClusteredParent, TNumericLimits<Chaos::FReal>::Max());
-						}
-						else
-						{
-							Clustering.ReleaseClusterParticles(ClusteredParent, true /* bForceRelease */);
-						}
-					}
-				}
-			}
-		});
-	}
-}
-
-void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<int32>&& TransformGroupIndices)
-{
-	check(IsInGameThread());
-
-	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
-	{
-		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, IndicesToBreakParent = MoveTemp(TransformGroupIndices)]()
-		{
-			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
-			for (int32 TransformIdx : IndicesToBreakParent)
-			{
-				if (Chaos::FPBDRigidClusteredParticleHandle* ClusterHandle = SolverParticleHandles[TransformIdx])
-				{
-					if (!ClusterHandle->Disabled() && Clustering.GetChildrenMap().Contains(ClusterHandle))
-					{
-						if (bGeometryCollectionCrumbleUsingStrain)
-						{
-							ApplyStrainToAllClusterChildren(Clustering, ClusterHandle, TNumericLimits<Chaos::FReal>::Max());
-						}
-						else
-						{
-							Clustering.ReleaseClusterParticles(ClusterHandle, true /* bForceRelease */);
-						}
-					}
-				}
-			}
-		});
-	}
-}
-
-void FGeometryCollectionPhysicsProxy::ApplyStrain_External(int32 TransformGroupIndex, const FVector& Location, float StrainValue)
-{
-	check(IsInGameThread());
-
-	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
-	{
-		RBDSolver->EnqueueCommandImmediate([this, StrainValue, RBDSolver, Location, TransformGroupIndex]()
-		{
-			// @todo(chaos) move most of the logic into a method in clustering 
-			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusterHandle = SolverParticleHandles[TransformGroupIndex])
-			{
-				const bool bIsCluster = (ClusterHandle->ClusterIds().NumChildren > 0);
-				const bool bHasInternalClusterParent = ClusterHandle->Parent()? ClusterHandle->Parent()->InternalCluster(): false;
-				if (bHasInternalClusterParent || (!bIsCluster && !ClusterHandle->Disabled()))
-				{
-					ClusterHandle->SetExternalStrain(FMath::Max(ClusterHandle->GetExternalStrain(), StrainValue));
-				}
-				else
-				{
-					if (bIsCluster)
-					{
-						if (const TArray<Chaos::FPBDRigidParticleHandle*>* ChildrenHandles = Clustering.GetChildrenMap().Find(ClusterHandle))
-						{
-							FVector::FReal ClosestSquaredDist = TNumericLimits<FVector::FReal>::Max();
-							Chaos::FPBDRigidParticleHandle* ClosestChildHandle = nullptr; 
-							for (Chaos::FPBDRigidParticleHandle* ChildHandle: *ChildrenHandles)
-							{
-								const FVector::FReal SquaredDist = (ChildHandle->X() - Location).SizeSquared();
-								if (SquaredDist < ClosestSquaredDist)
-								{
-									ClosestSquaredDist = SquaredDist;
-									ClosestChildHandle = ChildHandle;
-								}
-							}
-							if (ClosestChildHandle)
-							{
-								if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ClosestChildHandle->CastToClustered())
-								{
-									ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue));
-								}
-							}
+							ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue));
 						}
 					}
 				}
@@ -1991,6 +1919,8 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_External(Chaos::FDirt
 		TargetResults.Parent[TransformGroupIndex] = GameThreadCollection.Parent[TransformGroupIndex];
 		TargetResults.Transforms[TransformGroupIndex] = GameThreadCollection.Transform[TransformGroupIndex];
 
+		TargetResults.InternalClusterUniqueIdx[TransformGroupIndex] = INDEX_NONE;
+		
 #if WITH_EDITORONLY_DATA
 		TargetResults.DamageInfo[TransformGroupIndex].Damage = 0.0f;
 		TargetResults.DamageInfo[TransformGroupIndex].DamageThreshold = 0.0f;
@@ -2050,15 +1980,18 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 	const bool IsActorScaled = !ActorToWorld.GetScale3D().Equals(FVector::OneVector);
 	const FTransform ActorScaleTransform(FQuat::Identity,  FVector::ZeroVector, ActorToWorld.GetScale3D());
 
+	UniqueIdxToInternalClusterHandle.Reset();
+	
 	const int32 NumTransformGroupElements = TargetResults.Transforms.Num(); 
 	if(NumTransformGroupElements > 0)
 	{ 
 		SCOPE_CYCLE_COUNTER(STAT_CalcParticleToWorld);
-		
+
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransformGroupElements; ++TransformGroupIndex)
 		{
 			TargetResults.Transforms[TransformGroupIndex] = PhysicsThreadCollection.Transform[TransformGroupIndex];
 			TargetResults.Parent[TransformGroupIndex] = PhysicsThreadCollection.Parent[TransformGroupIndex];
+			TargetResults.InternalClusterUniqueIdx[TransformGroupIndex] = INDEX_NONE;
 
 			TargetResults.States[TransformGroupIndex].DisabledState = true;
 			TargetResults.States[TransformGroupIndex].HasInternalClusterParent = false;
@@ -2161,6 +2094,13 @@ void FGeometryCollectionPhysicsProxy::BufferPhysicsResults_Internal(Chaos::FPBDR
 
 						if(ClusterParent->InternalCluster())
 						{
+							const int32 InternalClusterParentUniqueIdx = ClusterParent->UniqueIdx().Idx;
+							if (!UniqueIdxToInternalClusterHandle.Contains(InternalClusterParentUniqueIdx))
+							{
+								UniqueIdxToInternalClusterHandle.Add(InternalClusterParentUniqueIdx, ClusterParent);
+							}
+							TargetResults.InternalClusterUniqueIdx[TransformGroupIndex] = ClusterParent->UniqueIdx().Idx;
+							
 							const FTransform ParticleToWorld = Handle->ChildToParent() * FRigidTransform3(ClusterParent->X(), ClusterParent->R());    // aka ClusterChildToWorld
 							TargetResults.ParticleXs[TransformGroupIndex] = ParticleToWorld.GetTranslation();
 							TargetResults.ParticleRs[TransformGroupIndex] = ParticleToWorld.GetRotation();
@@ -2415,6 +2355,17 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 						(*AngularVelocities)[TransformGroupIndex] = FVector3f(TargetResults.ParticleWs[TransformGroupIndex]);
 					}
 				}
+			}
+		}
+
+		// internal cluster index map update
+		GTParticlesToInternalClusterUniqueIdx.Reset();
+		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
+		{
+			const int32 InternalClusterUniqueIdx = TargetResults.InternalClusterUniqueIdx[TransformGroupIndex]; 
+			if (InternalClusterUniqueIdx > INDEX_NONE)
+			{
+				GTParticlesToInternalClusterUniqueIdx.Add(GTParticles[TransformGroupIndex].Get(), InternalClusterUniqueIdx);	
 			}
 		}
 

@@ -29,6 +29,88 @@ namespace Chaos
 	class FPBDRigidsEvolutionBase;
 }
 
+/**
+ * index abstraction for HitResults
+ * this allows regular bones and internal clusters to be represented by a unique int32 index that can be passed to HitResults
+ * and in return understood by the geometry collection physics proxy 
+ */ 
+struct FGeometryCollectionItemIndex
+{
+public:
+	static FGeometryCollectionItemIndex CreateInternalClusterItemIndex(int32 ClusterUniqueIdx)
+	{
+		return FGeometryCollectionItemIndex(ClusterUniqueIdx, true);
+	}
+
+	static FGeometryCollectionItemIndex CreateTransformItemIndex(int32 TransformIndex)
+	{
+		return FGeometryCollectionItemIndex(TransformIndex, false);
+	}
+
+	static FGeometryCollectionItemIndex CreateFromExistingItemIndex(int32 ItemIndex)
+	{
+		FGeometryCollectionItemIndex Result(INDEX_NONE, false);
+		Result.ItemIndex = ItemIndex;
+		return Result;
+	}
+	
+	static FGeometryCollectionItemIndex CreateInvalidItemIndex()
+	{
+		return FGeometryCollectionItemIndex(INDEX_NONE, false);
+	}
+	
+public:
+	FGeometryCollectionItemIndex(const FGeometryCollectionItemIndex& Other)
+		: ItemIndex(Other.ItemIndex)
+	{}
+	
+	bool IsInternalCluster() const
+	{
+		return ItemIndex < INDEX_NONE;
+	}
+
+	int32 GetInternalClusterIndex() const
+	{
+		check(IsInternalCluster());
+		return (ItemIndex - InternalClusterBaseIndex);
+	}
+
+	int32 GetTransformIndex() const
+	{
+		check(!IsInternalCluster());
+		return ItemIndex;
+	}
+	
+	bool IsValid() const
+	{
+		return ItemIndex != INDEX_NONE;
+	}
+
+	int32 GetItemIndex() const
+	{
+		return ItemIndex;
+	}
+
+	bool operator==(const FGeometryCollectionItemIndex& Other) const
+	{
+		return ItemIndex == Other.ItemIndex;
+	}
+	
+private:
+	static const int32 InternalClusterBaseIndex = TNumericLimits<int32>::Lowest();   
+
+	FGeometryCollectionItemIndex(int32 Index, bool bInternalCluster)
+		: ItemIndex(INDEX_NONE)
+	{
+		if (Index > INDEX_NONE)
+		{
+			ItemIndex = Index + (bInternalCluster? InternalClusterBaseIndex: 0); 	
+		}
+	}
+	
+	int32 ItemIndex;
+};
+
 class FStubGeometryCollectionData : public Chaos::FParticleData 
 {
 public:
@@ -236,22 +318,41 @@ public:
 		return INDEX_NONE;
 	}
 
-	int32 GetTransformGroupIndexFromGTParticle(const Chaos::FGeometryParticle* GTPParticle) const
+	FGeometryCollectionItemIndex GetInternalClusterParentItemIndex_External(int32 ChildTransformIndex) const
 	{
+		// first find the GTParticle matching the Transform index
+		if (ChildTransformIndex >= 0 && ChildTransformIndex < GTParticles.Num())
+		{
+			const TUniquePtr<Chaos::FGeometryParticle>& ChildGTParticle = GTParticles[ChildTransformIndex];
+			if (const int32* InternalClusterUniqueIdx = GTParticlesToInternalClusterUniqueIdx.Find(ChildGTParticle.Get()))
+			{
+				return FGeometryCollectionItemIndex::CreateInternalClusterItemIndex(*InternalClusterUniqueIdx);
+			}
+		}
+		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
+	}
+	
+	FGeometryCollectionItemIndex GetItemIndexFromGTParticle_External(const Chaos::FGeometryParticle* GTPParticle) const
+	{
+		// internal cluster have  no representation on the GT, so we use the child GT particle to find the matching internal cluster unique index 
+		if (const int32* InternalClusterUniqueIdx = GTParticlesToInternalClusterUniqueIdx.Find(GTPParticle))
+		{
+			return FGeometryCollectionItemIndex::CreateInternalClusterItemIndex(*InternalClusterUniqueIdx);
+		}
+		// regular particle that has a matchig transform index 
 		if (const int32* TransformGroupIndex = GTParticlesToTransformGroupIndex.Find(GTPParticle))
 		{
-			return *TransformGroupIndex;
+			return FGeometryCollectionItemIndex::CreateTransformItemIndex(*TransformGroupIndex);
 		}
-		return INDEX_NONE;
+		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
 	}
 
 	bool GetIsObjectDynamic() const { return IsObjectDynamic; }
 
 	void DisableParticles_External(TArray<int32>&& TransformGroupIndices);
 
-	void BreakInternalClusterParents_External(TArray<int32>&& TransformGroupIndices);
-	void BreakClusters_External(TArray<int32>&& TransformGroupIndices);
-	void ApplyStrain_External(int32 TransformGroupIndex, const FVector& Location, float StrainValue);
+	void BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices);
+	void ApplyStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float StrainValue);
 
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
@@ -303,6 +404,8 @@ protected:
 
 	void CreateNonClusteredParticles(Chaos::FPBDRigidsSolver* RigidsSolver,	const FGeometryCollection& RestCollection, const FGeometryDynamicCollection& DynamicCollection);
 
+	Chaos::FPBDRigidClusteredParticleHandle* FindClusteredParticleHandleByItemIndex(FGeometryCollectionItemIndex ItemIndex) const;
+	
 private:
 
 	FSimulationParameters Parameters;
@@ -320,7 +423,7 @@ private:
 	TArray<FClusterHandle*> SolverClusterHandles; // make a TArray of the base clase with type
 	TArray<FClusterHandle*> SolverParticleHandles;// make a TArray of base class and join with above
 	TMap<FParticleHandle*, int32> HandleToTransformGroupIndex;
-
+	TMap<int32, FClusterHandle*> UniqueIdxToInternalClusterHandle;
 
 	//
 	// Buffer Results State Information
@@ -333,6 +436,9 @@ private:
 
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 	TMap<Chaos::FGeometryParticle*, int32> GTParticlesToTransformGroupIndex;
+	TMap<Chaos::FGeometryParticle*, int32> GTParticlesToInternalClusterUniqueIdx;
+
+	TMap<int32, TUniquePtr<Chaos::FGeometryParticle>> GTInternalClustersByUniqueIdx;
 
 	// These are read on both threads and should not be changed
 	const FCollisionFilterData SimFilter;

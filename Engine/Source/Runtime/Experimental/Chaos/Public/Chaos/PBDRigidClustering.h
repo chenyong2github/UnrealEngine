@@ -146,6 +146,15 @@ public:
 		FPBDRigidClusteredParticleHandle* ClusteredParticle,
 		const FClusterDestoryParameters& Parameters = FClusterDestoryParameters());
 
+	/*
+	*  BreakCluster
+	*    Breaks a cluster (internal or not) by applying max external strain to all its children 
+	* 
+	*    @param ClusteredParticle handle of the cluster to break
+	*    @return true if the cluster was successfully found and act upon 
+	*/
+	bool BreakCluster(const FPBDRigidClusteredParticleHandle* ClusteredParticle);
+	
 	//
 	// Operational 
 	//
@@ -251,6 +260,26 @@ public:
 	*/
 	const TArrayCollectionArray<TArray<TConnectivityEdge<FReal>>>& GetConnectivityEdges() const { return MParticles.ConnectivityEdgesArray(); }
 
+	/*
+	*  FindClosestChild
+	*    Find the closest child of an active cluster from a world position
+	*    current implementation will pick the closest based on the distance from the center
+	*    future implementation may expose option for more precise queries
+	*    @param ClusteredParticle active cluster handle to query the children from
+	*    @param WorldLocation world space location to find the closest child from   
+	*/
+	FPBDRigidParticleHandle* FindClosestChild(const FPBDRigidClusteredParticleHandle* ClusteredParticle, const FVec3& WorldLocation) const;
+
+	/*
+	*  FindClosest
+	*    Find the closest particle from an array of  particle
+	*    current implementation will pick the closest based on the distance from the center
+	*    future implementation may expose option for more precise queries
+	*    @param Particles array of clustered particles to select from  
+	*    @param WorldLocation world space location to find the closest particle from   
+	*/
+	FPBDRigidParticleHandle* FindClosestParticle(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation) const;
+	
 	/**
 	* GenerateConnectionGraph
 	*   Creates a connection graph for the given index using the creation parameters. This will not

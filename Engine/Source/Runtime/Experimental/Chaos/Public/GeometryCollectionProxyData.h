@@ -161,6 +161,7 @@ public:
 		
 		Transforms.SetNumUninitialized(NumTransforms);
 		Parent.SetNumUninitialized(NumTransforms);
+		InternalClusterUniqueIdx.SetNumUninitialized(NumTransforms);
 #if WITH_EDITORONLY_DATA
 		DamageInfo.SetNumUninitialized(NumTransforms);
 #endif		
@@ -185,6 +186,7 @@ public:
 
 	TArray<FTransform> Transforms;
 	TArray<int32> Parent;
+	TArray<int32> InternalClusterUniqueIdx;
 
 #if WITH_EDITORONLY_DATA
 	struct FDamageInfo

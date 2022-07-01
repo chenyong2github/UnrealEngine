@@ -3593,7 +3593,7 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 		const TManagedArray<int32>& Parents = DynamicCollection->Parent;
 		
 		TArray<int32> ToDisable;
-		TArray<int32> ToBreakParent;
+		TArray<FGeometryCollectionItemIndex> ToCrumbleParent;
 		for (int32 TransformIdx = 0; TransformIdx < SleepTimer.Num(); ++TransformIdx)
 		{
 			// update the sleeping timer accordingly
@@ -3629,7 +3629,11 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 					// if parent is internal and dynamic we need to break it before decaying 
 					if (InternalClusterParentType[TransformIdx] == (uint8)Chaos::EInternalClusterType::Dynamic)
 					{
-						ToBreakParent.AddUnique(TransformIdx);
+						FGeometryCollectionItemIndex InternalClusterItemindex = PhysicsProxy->GetInternalClusterParentItemIndex_External(TransformIdx);
+						if (InternalClusterItemindex.IsValid())
+						{
+							ToCrumbleParent.AddUnique(InternalClusterItemindex);
+						}
 					}
 
 					DynamicCollection->MakeDirty();
@@ -3645,9 +3649,9 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 			}
 		}
 
-		if (ToBreakParent.Num())
+		if (ToCrumbleParent.Num())
 		{
-			PhysicsProxy->BreakInternalClusterParents_External(MoveTemp(ToBreakParent));
+			PhysicsProxy->BreakClusters_External(MoveTemp(ToCrumbleParent));
 		}
 		if (ToDisable.Num())
 		{
@@ -3676,7 +3680,7 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
 		
 		TArray<int32> ToDisable;
-		TArray<int32> ToCrumble;
+		TArray<FGeometryCollectionItemIndex> ToCrumble;
 		for (int32 TransformIdx = 0; TransformIdx < BreakTimer.Num(); ++TransformIdx)
 		{
 			const bool bIsBroken = DynamicCollection->Active[TransformIdx];
@@ -3703,7 +3707,7 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 					const bool bUseClusterCrumbling = (BreakRemovalDuration[TransformIdx] < 0);
 					if (bUseClusterCrumbling)
 					{
-						ToCrumble.AddUnique(TransformIdx);
+						ToCrumble.AddUnique(FGeometryCollectionItemIndex::CreateTransformItemIndex(TransformIdx));
 						Decay[TransformIdx] = 0;
 					}
 					else
@@ -3730,42 +3734,20 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 	}
 }
 
-void UGeometryCollectionComponent::ApplyExternalStrain(int32 Index, const FVector& Location, float Strain)
+void UGeometryCollectionComponent::ApplyExternalStrain(int32 ItemIndex, const FVector& Location, float Strain)
 {
-	if (DynamicCollection && PhysicsProxy)
+	if (PhysicsProxy)
 	{
-		const int32 NumTransform = DynamicCollection->NumElements(FGeometryCollection::TransformGroup);
-		if (Index >= 0 && Index < NumTransform)
-		{
-			PhysicsProxy->ApplyStrain_External(Index, Location, Strain);
-		}
+		PhysicsProxy->ApplyStrain_External(FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex), Location, Strain);
 	}
 }
 
-bool UGeometryCollectionComponent::CrumbleCluster(int32 Index)
+void UGeometryCollectionComponent::CrumbleCluster(int32 ItemIndex)
 {
-	bool Result = false;
-	if (DynamicCollection && PhysicsProxy)
+	if (PhysicsProxy)
 	{
-		const int32 NumTransform = DynamicCollection->NumElements(FGeometryCollection::TransformGroup);
-		if (Index >= 0 && Index < NumTransform)
-		{
-			const TManagedArray<uint8>& InternalClusterParentType = DynamicCollection->GetAttribute<uint8>("InternalClusterParentTypeArray", FGeometryCollection::TransformGroup);
-			const bool bHasInternalClusterParent = (InternalClusterParentType[Index] != (uint8)Chaos::EInternalClusterType::None);
-			const bool bIsCluster = (DynamicCollection->Children[Index].Num() > 0);
-			if (bIsCluster)
-			{
-				PhysicsProxy->BreakClusters_External({Index});
-				Result = true;
-			}
-			else if (bHasInternalClusterParent)
-			{
-				PhysicsProxy->BreakInternalClusterParents_External({Index});
-				Result = true;
-			}
-		}
+		PhysicsProxy->BreakClusters_External({FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex)});
 	}
-	return Result;
 }
 
 bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const
