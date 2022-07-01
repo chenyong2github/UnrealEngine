@@ -7369,7 +7369,9 @@ UWorld* FSeamlessTravelHandler::Tick()
 					UE_LOG(LogNet, Verbose, TEXT("NotifyLoadedWorld Begin"));
 #endif
 					It->PlayerController->NotifyLoadedWorld(LoadedWorldName, bSwitchedToDefaultMap);
-					It->PlayerController->ServerNotifyLoadedWorld(LoadedWorldName);
+
+					const FName SendLoadedWorldName = It->PlayerController->NetworkRemapPath(LoadedWorldName, false);
+					It->PlayerController->ServerNotifyLoadedWorld(SendLoadedWorldName);
 #if !UE_BUILD_SHIPPING
 					UE_LOG(LogNet, Verbose, TEXT("NotifyLoadedWorld End"));
 #endif

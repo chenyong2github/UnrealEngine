@@ -1291,12 +1291,6 @@ void UNetConnection::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 		}
 	}
 
-	// ClientVisibleActorOuters acceleration map
-	for (auto& MapIt : This->ClientVisibleActorOuters)
-	{
-		Collector.AddReferencedObject(MapIt.Key, This);
-	}
-
 	Super::AddReferencedObjects(This, Collector);
 }
 
@@ -1346,7 +1340,7 @@ FNetLevelVisibilityTransactionId UNetConnection::UpdateLevelStreamStatusChangedT
 	if (bShouldBeVisible == false)
 	{
 		ClientVisibleLevelNames.Remove(PackageName);
-		UpdateAllCachedLevelVisibility();
+		UpdateCachedLevelVisibility(PackageName);
 	}
 
 	return TransactionId;
@@ -1361,47 +1355,46 @@ bool UNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const
 	// Each client connection has a different visibility state (what levels are currently loaded for them).
 	// Actor's outer is what we need
 
-	// Note: we are calling GetOuter() here instead of GetLevel() to avoid an unreal Cast<>: we justt need the memory address for the lookup.
-	UObject* ActorOuter = TestActor->GetOuter();
-	if (const bool* bIsVisible = ClientVisibleActorOuters.Find(ActorOuter))
+	const FName PackageName = TestActor->GetOutermost()->GetFName();
+
+	if (const bool* bIsVisible = ClientVisibleActorOuters.Find(PackageName))
 	{
 		return *bIsVisible;
 	}
 
 	// The actor's outer was not in the acceleration map so we perform the "legacy" function and 
 	// cache the result so that we don't do this every time:
-	return UpdateCachedLevelVisibility(Cast<ULevel>(ActorOuter));
+	return UpdateCachedLevelVisibility(PackageName);
 }
 
-bool UNetConnection::UpdateCachedLevelVisibility(ULevel* Level) const
+bool UNetConnection::UpdateCachedLevelVisibility(const FName& PackageName) const
 {
-	bool IsVisibile = false;
-	if (Level == nullptr)
+	bool bVisible = false;
+	
+	if (PackageName.IsNone())
 	{
-		IsVisibile = true;
+		bVisible = true;
 	}
-	else if (Level->IsPersistentLevel() && Driver->GetWorldPackage()->GetFName() == ClientWorldPackageName)
+	else if ((PackageName == ClientWorldPackageName) && (Driver->GetWorldPackage()->GetFName() == ClientWorldPackageName))
 	{
-		IsVisibile = true;
+		bVisible = true;
 	}
 	else
 	{
-		IsVisibile = ClientVisibleLevelNames.Contains(Level->GetOutermost()->GetFName());
+		bVisible = ClientVisibleLevelNames.Contains(PackageName);
 	}
 
-	ClientVisibleActorOuters.FindOrAdd(Level) = IsVisibile;
-	return IsVisibile;
+	ClientVisibleActorOuters.FindOrAdd(PackageName) = bVisible;
+
+	return bVisible;
 }
 
 void UNetConnection::UpdateAllCachedLevelVisibility() const
 {
 	// Update our acceleration map
-	for (auto& MapIt : ClientVisibleActorOuters)
+	for (const TPair<FName, bool>& VisPair : ClientVisibleActorOuters)
 	{
-		if (ULevel* Level = Cast<ULevel>(MapIt.Key))
-		{
-			UpdateCachedLevelVisibility(Level);
-		}
+		UpdateCachedLevelVisibility(VisPair.Key);
 	}
 }
 
@@ -1452,6 +1445,8 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 		{
 			ClientVisibleLevelNames.Add(LevelVisibility.PackageName);
 			UE_LOG(LogPlayerController, Verbose, TEXT("ServerUpdateLevelVisibility() Added '%s'"), *LevelVisibility.PackageName.ToString());
+
+			UpdateCachedLevelVisibility(LevelVisibility.PackageName);
 
 			QUICK_USE_CYCLE_STAT(NetUpdateLevelVisibility_UpdateDormantActors, STATGROUP_Net);
 
@@ -1535,9 +1530,9 @@ void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityL
 				Channel->Close(EChannelCloseReason::LevelUnloaded);
 			}
 		}
-	}
 
-	UpdateAllCachedLevelVisibility();
+		UpdateCachedLevelVisibility(LevelVisibility.PackageName);
+	}
 }
 
 void UNetConnection::SetClientWorldPackageName(FName NewClientWorldPackageName)

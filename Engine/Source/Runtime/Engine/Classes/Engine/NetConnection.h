@@ -1488,7 +1488,7 @@ private:
 	FName PlayerOnlinePlatformName;
 
 	/** This is an acceleration set that is derived from ClientWorldPackageName and ClientVisibleLevelNames. We use this to quickly test an AActor*'s visibility while replicating. */
-	mutable TMap<UObject*, bool> ClientVisibleActorOuters;
+	mutable TMap<FName, bool> ClientVisibleActorOuters;
 
 	/** This is used to capture visibility updates while the server is in transition and deffer the update until the server has completed the transition */
 	TMap<FName, FUpdateLevelVisibilityLevelInfo> PendingUpdateLevelVisibility;
@@ -1502,7 +1502,7 @@ private:
 	void UpdateLevelVisibilityInternal(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
 
 	/** Called internally to update cached acceleration map */
-	bool UpdateCachedLevelVisibility(ULevel* Level) const;
+	bool UpdateCachedLevelVisibility(const FName& PackageName) const;
 
 	/** Updates entire cached LevelVisibility map */
 	void UpdateAllCachedLevelVisibility() const;

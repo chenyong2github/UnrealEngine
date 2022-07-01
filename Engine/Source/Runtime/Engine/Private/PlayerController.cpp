@@ -573,6 +573,8 @@ bool APlayerController::ServerNotifyLoadedWorld_Validate(FName WorldPackageName)
 
 void APlayerController::ServerNotifyLoadedWorld_Implementation(FName WorldPackageName)
 {
+	WorldPackageName = NetworkRemapPath(WorldPackageName, true);
+
 	UE_LOG(LogPlayerController, Verbose, TEXT("APlayerController::ServerNotifyLoadedWorld_Implementation: Client loaded %s"), *WorldPackageName.ToString());
 
 	UWorld* CurWorld = GetWorld();
