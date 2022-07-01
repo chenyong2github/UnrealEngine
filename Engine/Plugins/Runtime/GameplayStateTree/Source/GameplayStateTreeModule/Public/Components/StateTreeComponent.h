@@ -50,7 +50,7 @@ protected:
 
 	bool SetContextRequirements();
 	
-	UPROPERTY(EditDefaultsOnly, Category = AI, meta=(RequiredAssetDataTags="Schema=StateTreeComponentSchema"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AI, meta=(RequiredAssetDataTags="Schema=StateTreeComponentSchema"))
 	UStateTree* StateTree;
 
 	UPROPERTY(Transient)

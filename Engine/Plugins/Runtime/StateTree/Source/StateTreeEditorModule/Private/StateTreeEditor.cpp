@@ -755,7 +755,7 @@ void FStateTreeEditor::Compile()
 		return;
 	}
 
-	// Note: If the compilation process changes, also update UStateTreeCompileAllCommandlet.
+	// Note: If the compilation process changes, also update UStateTreeCompileAllCommandlet and UStateTreeFactory::FactoryCreateNew.
 	
 	UpdateAsset();
 	

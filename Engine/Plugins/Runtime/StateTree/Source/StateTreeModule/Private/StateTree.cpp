@@ -115,9 +115,10 @@ bool UStateTree::Link()
 	// This data will be used to allocate runtime instance on all StateTree users.
 	ResetLinked();
 
-	// Do not try to link empty trees.
+	// Do not try to link empty trees any further.
 	if (States.Num() == 0 || Nodes.Num() == 0)
 	{
+		bIsLinked = true;
 		return true;
 	}
 

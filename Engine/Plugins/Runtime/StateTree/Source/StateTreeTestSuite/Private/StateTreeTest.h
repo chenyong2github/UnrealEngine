@@ -5,7 +5,7 @@
 #include "StateTreeSchema.h"
 #include "StateTreeTest.generated.h"
 
-UCLASS()
+UCLASS(HideDropdown)
 class UStateTreeTestSchema : public UStateTreeSchema
 {
 	GENERATED_BODY()

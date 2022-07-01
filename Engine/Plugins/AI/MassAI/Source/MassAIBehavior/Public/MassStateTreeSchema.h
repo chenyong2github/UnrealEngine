@@ -6,9 +6,9 @@
 #include "MassStateTreeSchema.generated.h"
 
 /**
- * StateTree Schema for Mass behaviors.
+ * StateTree for Mass behaviors.
  */
-UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Mass Behavior"))
+UCLASS(BlueprintType, EditInlineNew, CollapseCategories, meta = (DisplayName = "Mass Behavior", CommonSchema))
 class MASSAIBEHAVIOR_API UMassStateTreeSchema : public UStateTreeSchema
 {
 	GENERATED_BODY()

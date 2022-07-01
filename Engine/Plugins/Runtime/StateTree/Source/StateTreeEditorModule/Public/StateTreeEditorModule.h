@@ -11,6 +11,8 @@ class IStateTreeEditor;
 class FAssetTypeActions_Base;
 struct FStateTreeNodeClassCache;
 
+STATETREEEDITORMODULE_API DECLARE_LOG_CATEGORY_EXTERN(LogStateTreeEditor, Warning, All);
+
 /**
 * The public interface to this module
 */
@@ -27,7 +29,7 @@ public:
 	virtual TSharedPtr<FExtensibilityManager> GetMenuExtensibilityManager() override { return MenuExtensibilityManager; }
 	virtual TSharedPtr<FExtensibilityManager> GetToolBarExtensibilityManager() override { return ToolBarExtensibilityManager; }
 
-	TSharedPtr<FStateTreeNodeClassCache> GetNodeClassCache() const { return NodeClassCache; }
+	TSharedPtr<FStateTreeNodeClassCache> GetNodeClassCache();
 	
 protected:
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;

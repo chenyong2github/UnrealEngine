@@ -28,6 +28,8 @@
 
 #define LOCTEXT_NAMESPACE "StateTreeEditor"
 
+DEFINE_LOG_CATEGORY(LogStateTreeEditor);
+
 IMPLEMENT_MODULE(FStateTreeEditorModule, StateTreeEditorModule)
 
 void FStateTreeEditorModule::StartupModule()
@@ -100,6 +102,13 @@ void FStateTreeEditorModule::ShutdownModule()
 
 TSharedRef<IStateTreeEditor> FStateTreeEditorModule::CreateStateTreeEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStateTree* StateTree)
 {
+	TSharedRef<FStateTreeEditor> NewEditor(new FStateTreeEditor());
+	NewEditor->InitEditor(Mode, InitToolkitHost, StateTree);
+	return NewEditor;
+}
+
+TSharedPtr<FStateTreeNodeClassCache> FStateTreeEditorModule::GetNodeClassCache()
+{
 	if (!NodeClassCache.IsValid())
 	{
 		NodeClassCache = MakeShareable(new FStateTreeNodeClassCache());
@@ -109,11 +118,11 @@ TSharedRef<IStateTreeEditor> FStateTreeEditorModule::CreateStateTreeEditor(const
 		NodeClassCache->AddRootClass(UStateTreeEvaluatorBlueprintBase::StaticClass());
 		NodeClassCache->AddRootClass(UStateTreeTaskBlueprintBase::StaticClass());
 		NodeClassCache->AddRootClass(UStateTreeConditionBlueprintBase::StaticClass());
+		NodeClassCache->AddRootClass(UStateTreeSchema::StaticClass());
 	}
-	
-	TSharedRef<FStateTreeEditor> NewEditor(new FStateTreeEditor());
-	NewEditor->InitEditor(Mode, InitToolkitHost, StateTree);
-	return NewEditor;
+
+	return NodeClassCache;
 }
+
 
 #undef LOCTEXT_NAMESPACE
