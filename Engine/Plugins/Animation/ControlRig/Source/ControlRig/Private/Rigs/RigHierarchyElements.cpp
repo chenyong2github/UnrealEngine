@@ -7,10 +7,16 @@
 #include "ControlRigObjectVersion.h"
 #include "ControlRigGizmoLibrary.h"
 #include "AnimationCoreLibrary.h"
+#include "Algo/Transform.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 // FRigBaseElement
 ////////////////////////////////////////////////////////////////////////////////
+
+FRigBaseElement::~FRigBaseElement()
+{
+	RemoveAllMetadata();
+}
 
 UScriptStruct* FRigBaseElement::GetElementStruct() const
 {
@@ -71,6 +77,21 @@ void FRigBaseElement::Save(FArchive& Ar, URigHierarchy* Hierarchy, ESerializatio
 	if(SerializationPhase == ESerializationPhase::StaticData)
 	{
 		Ar << Key;
+
+		static const UEnum* MetadataTypeEnum = StaticEnum<ERigMetadataType>();
+
+		int32 MetadataNum = Metadata.Num();
+		Ar << MetadataNum;
+
+		for(FRigBaseMetadata* Md : Metadata)
+		{
+			FName MetadataName = Md->GetName();
+			FName MetadataTypeName = MetadataTypeEnum->GetNameByValue((int64)Md->GetType());
+
+			Ar << MetadataName;
+			Ar << MetadataTypeName;
+			Md->Serialize(Ar, false);
+		}
 	}
 }
 
@@ -86,7 +107,140 @@ void FRigBaseElement::Load(FArchive& Ar, URigHierarchy* Hierarchy, ESerializatio
 		Key = LoadedKey;
 
 		NameString = Key.Name.ToString();
+
+		RemoveAllMetadata();
+		
+		if (Ar.CustomVer(FControlRigObjectVersion::GUID) >= FControlRigObjectVersion::HierarchyElementMetadata)
+		{
+			static const UEnum* MetadataTypeEnum = StaticEnum<ERigMetadataType>();
+
+			int32 MetadataNum = 0;
+			Ar << MetadataNum;
+
+			for(int32 MetadataIndex = 0; MetadataIndex < MetadataNum; MetadataIndex++)
+			{
+				FName MetadataName(NAME_None);
+				FName MetadataTypeName(NAME_None);
+				Ar << MetadataName;
+				Ar << MetadataTypeName;
+				
+				const ERigMetadataType MetadataType = (ERigMetadataType)MetadataTypeEnum->GetValueByName(MetadataTypeName);
+				FRigBaseMetadata* Md = FRigBaseMetadata::MakeMetadata(this, MetadataName, MetadataType);
+				Md->Serialize(Ar, true);
+				Metadata.Add(Md);
+			}
+
+			for(int32 MetadataIndex = 0; MetadataIndex < Metadata.Num(); MetadataIndex++)
+			{
+				MetadataNameToIndex.Add(Metadata[MetadataIndex]->GetName(), MetadataIndex);
+			}
+		}
 	}
+}
+
+bool FRigBaseElement::RemoveMetadata(const FName& InName)
+{
+	if(const int32* MetadataIndexPtr = MetadataNameToIndex.Find(InName))
+	{
+		const int32 MetadataIndex = *MetadataIndexPtr;
+		{
+			FRigBaseMetadata* Md = Metadata[MetadataIndex];
+			if(const UScriptStruct* Struct = Md->GetMetadataStruct())
+			{
+				Struct->DestroyStruct(Md, 1);
+			}
+			FMemory::Free(Md);
+		}
+		MetadataNameToIndex.Remove(InName);
+		Metadata.RemoveAt(MetadataIndex);
+		for(TPair<FName, int32>& Pair : MetadataNameToIndex)
+		{
+			if(Pair.Value > MetadataIndex)
+			{
+				Pair.Value--;
+			}
+		}
+		return true;
+	}
+	return false;
+}
+
+bool FRigBaseElement::RemoveAllMetadata()
+{
+	if(!Metadata.IsEmpty())
+	{
+		for(FRigBaseMetadata* Md : Metadata)
+		{
+			if(const UScriptStruct* Struct = Md->GetMetadataStruct())
+			{
+				Struct->DestroyStruct(Md, 1);
+			}
+			FMemory::Free(Md);
+		}
+		Metadata.Reset();
+		MetadataNameToIndex.Reset();
+		return true;
+	}
+	return false;
+}
+
+void FRigBaseElement::CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy)
+{
+	// remember all previous names
+	TArray<FName> RemainingNames;
+	Algo::Transform(Metadata, RemainingNames, [](const FRigBaseMetadata* Md) -> FName
+	{
+		return Md->GetName();
+	});
+
+	// copy over all metadata. this also takes care of potential type changes
+	for(const FRigBaseMetadata* InOtherMd : InOther->Metadata)
+	{
+		FRigBaseMetadata* Md = SetupValidMetadata(InOtherMd->Name, InOtherMd->Type);
+		check(Md);
+		Md->SetValueData(InOtherMd->GetValueData(), InOtherMd->GetValueSize());
+		RemainingNames.Remove(InOtherMd->Name);
+	}
+
+	// remove all remaining metadata
+	for(const FName& NameToRemove : RemainingNames)
+	{
+		RemoveMetadata(NameToRemove);
+	}
+
+	// rebuild the name map
+	MetadataNameToIndex.Reset();
+	for(int32 MetadataIndex = 0; MetadataIndex < Metadata.Num(); MetadataIndex++)
+	{
+		MetadataNameToIndex.Add(Metadata[MetadataIndex]->GetName(), MetadataIndex);
+	}
+}
+
+FRigBaseMetadata* FRigBaseElement::SetupValidMetadata(const FName& InName, ERigMetadataType InType)
+{
+	if(const int32* MetadataIndex = MetadataNameToIndex.Find(InName))
+	{
+		FRigBaseMetadata* Md = Metadata[*MetadataIndex];
+		if(Md->GetType() == InType)
+		{
+			return Md;
+		}
+
+		if(const UScriptStruct* Struct = Md->GetMetadataStruct())
+		{
+			Struct->DestroyStruct(Md, 1);
+		}
+		FMemory::Free(Md);
+
+		Md = FRigBaseMetadata::MakeMetadata(this, InName, InType);
+		Metadata[*MetadataIndex] = Md;
+		return Md;
+	}
+
+	FRigBaseMetadata* Md = FRigBaseMetadata::MakeMetadata(this, InName, InType);
+	const int32 MetadataIndex = Metadata.Add(Md);
+	MetadataNameToIndex.Add(InName, MetadataIndex);
+	return Md;
 }
 
 ////////////////////////////////////////////////////////////////////////////////

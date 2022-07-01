@@ -837,6 +837,477 @@ public:
 	}
 
 	/**
+	 * Returns the name of metadata for a given element
+	 * @param InItem The element key to return the metadata keys for
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	TArray<FName> GetMetadataNames(FRigElementKey InItem);
+
+	/**
+	 * Returns the type of metadata given its name the item it is stored under
+	 * @param InItem The element key to return the metadata type for
+	 * @param InMetadataName The name of the metadata to return the type for
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	ERigMetadataType GetMetadataType(FRigElementKey InItem, FName InMetadataName);
+
+	/**
+	 * Removes the metadata under a given element 
+	 * @param InItem The element key to search under
+	 * @param InMetadataName The name of the metadata to remove
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool RemoveMetadata(FRigElementKey InItem, FName InMetadataName);
+
+	/**
+     * Removes all of the metadata under a given item 
+	 * @param InItem The element key to search under
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	bool RemoveAllMetadata(FRigElementKey InItem);
+
+	/**
+	 * Queries and returns the value of bool metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE bool GetBoolMetadata(FRigElementKey InItem, FName InMetadataName, bool DefaultValue) const
+	{
+		return GetMetadata<bool>(InItem, ERigMetadataType::Bool, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of bool array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<bool> GetBoolArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<bool>(InItem, ERigMetadataType::BoolArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a bool value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetBoolMetadata(FRigElementKey InItem, FName InMetadataName, bool InValue)
+	{
+		return SetMetadata<bool>(InItem, ERigMetadataType::Bool, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a bool array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetBoolArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<bool> InValue)
+	{
+		return SetArrayMetadata<bool>(InItem, ERigMetadataType::BoolArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of float metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE float GetFloatMetadata(FRigElementKey InItem, FName InMetadataName, float DefaultValue) const
+	{
+		return GetMetadata<float>(InItem, ERigMetadataType::Float, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of float array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<float> GetFloatArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<float>(InItem, ERigMetadataType::FloatArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a float value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetFloatMetadata(FRigElementKey InItem, FName InMetadataName, float InValue)
+	{
+		return SetMetadata<float>(InItem, ERigMetadataType::Float, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a float array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetFloatArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<float> InValue)
+	{
+		return SetArrayMetadata<float>(InItem, ERigMetadataType::FloatArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of int32 metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE int32 GetInt32Metadata(FRigElementKey InItem, FName InMetadataName, int32 DefaultValue) const
+	{
+		return GetMetadata<int32>(InItem, ERigMetadataType::Int32, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of int32 array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<int32> GetInt32ArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<int32>(InItem, ERigMetadataType::Int32Array, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a int32 value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetInt32Metadata(FRigElementKey InItem, FName InMetadataName, int32 InValue)
+	{
+		return SetMetadata<int32>(InItem, ERigMetadataType::Int32, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a int32 array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetInt32ArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<int32> InValue)
+	{
+		return SetArrayMetadata<int32>(InItem, ERigMetadataType::Int32Array, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of FName metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE FName GetNameMetadata(FRigElementKey InItem, FName InMetadataName, FName DefaultValue) const
+	{
+		return GetMetadata<FName>(InItem, ERigMetadataType::Name, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of FName array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FName> GetNameArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<FName>(InItem, ERigMetadataType::NameArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a FName value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetNameMetadata(FRigElementKey InItem, FName InMetadataName, FName InValue)
+	{
+		return SetMetadata<FName>(InItem, ERigMetadataType::Name, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a FName array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetNameArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FName> InValue)
+	{
+		return SetArrayMetadata<FName>(InItem, ERigMetadataType::FloatArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of FVector metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE FVector GetVectorMetadata(FRigElementKey InItem, FName InMetadataName, FVector DefaultValue) const
+	{
+		return GetMetadata<FVector>(InItem, ERigMetadataType::Vector, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of FVector array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FVector> GetVectorArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<FVector>(InItem, ERigMetadataType::VectorArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a FVector value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetVectorMetadata(FRigElementKey InItem, FName InMetadataName, FVector InValue)
+	{
+		return SetMetadata<FVector>(InItem, ERigMetadataType::Vector, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a FVector array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetVectorArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FVector> InValue)
+	{
+		return SetArrayMetadata<FVector>(InItem, ERigMetadataType::VectorArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of FRotator metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE FRotator GetRotatorMetadata(FRigElementKey InItem, FName InMetadataName, FRotator DefaultValue) const
+	{
+		return GetMetadata<FRotator>(InItem, ERigMetadataType::Rotator, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of FRotator array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FRotator> GetRotatorArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<FRotator>(InItem, ERigMetadataType::RotatorArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a FRotator value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetRotatorMetadata(FRigElementKey InItem, FName InMetadataName, FRotator InValue)
+	{
+		return SetMetadata<FRotator>(InItem, ERigMetadataType::Rotator, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a FRotator array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetRotatorArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FRotator> InValue)
+	{
+		return SetArrayMetadata<FRotator>(InItem, ERigMetadataType::RotatorArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of FQuat metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE FQuat GetQuatMetadata(FRigElementKey InItem, FName InMetadataName, FQuat DefaultValue) const
+	{
+		return GetMetadata<FQuat>(InItem, ERigMetadataType::Quat, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of FQuat array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FQuat> GetQuatArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<FQuat>(InItem, ERigMetadataType::QuatArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a FQuat value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetQuatMetadata(FRigElementKey InItem, FName InMetadataName, FQuat InValue)
+	{
+		return SetMetadata<FQuat>(InItem, ERigMetadataType::Quat, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a FQuat array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetQuatArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FQuat> InValue)
+	{
+		return SetArrayMetadata<FQuat>(InItem, ERigMetadataType::VectorArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of FTransform metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE FTransform GetTransformMetadata(FRigElementKey InItem, FName InMetadataName, FTransform DefaultValue) const
+	{
+		return GetMetadata<FTransform>(InItem, ERigMetadataType::Transform, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of FTransform array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FTransform> GetTransformArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<FTransform>(InItem, ERigMetadataType::TransformArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a FTransform value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetTransformMetadata(FRigElementKey InItem, FName InMetadataName, FTransform InValue)
+	{
+		return SetMetadata<FTransform>(InItem, ERigMetadataType::Transform, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a FTransform array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetTransformArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FTransform> InValue)
+	{
+		return SetArrayMetadata<FTransform>(InItem, ERigMetadataType::VectorArray, InMetadataName, InValue);
+	}
+
+	/**
+	 * Queries and returns the value of FRigElementKey metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 * @param DefaultValue The default value to fall back on
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE FRigElementKey GetRigElementKeyMetadata(FRigElementKey InItem, FName InMetadataName, FRigElementKey DefaultValue) const
+	{
+		return GetMetadata<FRigElementKey>(InItem, ERigMetadataType::RigElementKey, InMetadataName, DefaultValue);
+	}
+
+	/**
+	 * Queries and returns the value of FRigElementKey array metadata
+	 * @param InItem The element key to return the metadata for
+	 * @param InMetadataName The name of the metadata to query
+	 */
+	UFUNCTION(BlueprintPure, Category = URigHierarchy)
+	FORCEINLINE TArray<FRigElementKey> GetRigElementKeyArrayMetadata(FRigElementKey InItem, FName InMetadataName) const
+	{
+		return GetArrayMetadata<FRigElementKey>(InItem, ERigMetadataType::RigElementKeyArray, InMetadataName);
+	}
+
+	/**
+	 * Sets the metadata to a FRigElementKey value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetRigElementKeyMetadata(FRigElementKey InItem, FName InMetadataName, FRigElementKey InValue)
+	{
+		return SetMetadata<FRigElementKey>(InItem, ERigMetadataType::RigElementKey, InMetadataName, InValue);
+	}
+
+	/**
+	 * Sets the metadata to a FRigElementKey array value
+	 * @param InItem The element key to set the metadata for
+	 * @param InMetadataName The name of the metadata to set
+	 * @param InValue The value to set
+	 * @return Returns true if setting the metadata was successful
+	 */
+	UFUNCTION(BlueprintCallable, Category = URigHierarchy)
+	FORCEINLINE bool SetRigElementKeyArrayMetadata(FRigElementKey InItem, FName InMetadataName, TArray<FRigElementKey> InValue)
+	{
+		return SetArrayMetadata<FRigElementKey>(InItem, ERigMetadataType::VectorArray, InMetadataName, InValue);
+	}
+
+	/**
 	 * Returns the selected elements
 	 * @InTypeFilter The types to retrieve the selection for
 	 * @return An array of the currently selected elements
@@ -2887,6 +3358,7 @@ private:
 		{
 			new(&Elements[Index]) ElementType();
 		}
+		Elements[0].OwnedInstances = Num;
 		return Elements;
 	}
 
@@ -3285,7 +3757,67 @@ private:
 #if WITH_EDITOR
 	static TArray<FString> ControlSettingsToPythonCommands(const FRigControlSettings& Settings, const FString& NameSettings);
 #endif
-	
+
+	template<typename T>
+	FORCEINLINE const T& GetMetadata(const FRigElementKey& InItem, ERigMetadataType InType, const FName& InMetadataName, const T& DefaultValue) const
+	{
+		return GetMetadata<T>(Find(InItem), InType, InMetadataName, DefaultValue);
+	}
+
+	template<typename T>
+	FORCEINLINE const T& GetMetadata(const FRigBaseElement* InElement, ERigMetadataType InType, const FName& InMetadataName, const T& DefaultValue) const
+	{
+		if(InElement)
+		{
+			if(FRigBaseMetadata* Metadata = InElement->GetMetadata(InMetadataName, InType))
+			{
+				return *(const T*)Metadata->GetValueData();
+			}
+		}
+		return DefaultValue;
+	}
+
+	template<typename T>
+	FORCEINLINE const TArray<T>& GetArrayMetadata(const FRigElementKey& InItem, ERigMetadataType InType, const FName& InMetadataName) const
+	{
+		return GetArrayMetadata<T>(Find(InItem), InType, InMetadataName);
+	}
+
+	template<typename T>
+	FORCEINLINE const TArray<T>& GetArrayMetadata(const FRigBaseElement* InElement, ERigMetadataType InType, const FName& InMetadataName) const
+	{
+		static const TArray<T> EmptyArray;
+		return GetMetadata<TArray<T>>(InElement, InType, InMetadataName, EmptyArray);
+	}
+
+	template<typename T>
+	FORCEINLINE bool SetMetadata(const FRigElementKey& InItem, ERigMetadataType InType, const FName& InMetadataName, const T& InValue)
+	{
+		return SetMetadata<T>(Find(InItem), InType, InMetadataName, InValue);
+	}
+
+	template<typename T>
+	FORCEINLINE bool SetMetadata(FRigBaseElement* InElement, ERigMetadataType InType, const FName& InMetadataName, const T& InValue)
+	{
+		if(InElement)
+		{
+			return InElement->SetMetaData(InMetadataName, InType, &InValue, sizeof(T));
+		}
+		return false;
+	}
+
+	template<typename T>
+	FORCEINLINE bool SetArrayMetadata(const FRigElementKey& InItem, ERigMetadataType InType, const FName& InMetadataName, const TArray<T>& InValue)
+	{
+		return SetMetadata<TArray<T>>(Find(InItem), InType, InMetadataName, InValue);
+	}
+
+	template<typename T>
+	FORCEINLINE bool SetArrayMetadata(FRigBaseElement* InElement, ERigMetadataType InType, const FName& InMetadataName, const TArray<T>& InValue)
+	{
+		return SetMetadata<TArray<T>>(InElement, InType, InMetadataName, InValue);
+	}
+
 protected:
 	
 	bool bEnableCacheValidityCheck;

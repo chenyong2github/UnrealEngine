@@ -40,6 +40,35 @@ enum class ERigBoneType : uint8
 	User
 };
 
+/* 
+ * The type of meta data stored on an element
+ */
+UENUM(BlueprintType)
+enum class ERigMetadataType : uint8
+{
+	Bool,
+	BoolArray,
+	Float,
+	FloatArray,
+	Int32,
+	Int32Array,
+	Name,
+	NameArray,
+	Vector,
+	VectorArray,
+	Rotator,
+	RotatorArray,
+	Quat,
+	QuatArray,
+	Transform,
+	TransformArray,
+	RigElementKey,
+	RigElementKeyArray,
+
+	/** MAX - invalid */
+	Invalid UMETA(Hidden),
+};
+
 UENUM()
 enum class ERigHierarchyNotification : uint8
 {

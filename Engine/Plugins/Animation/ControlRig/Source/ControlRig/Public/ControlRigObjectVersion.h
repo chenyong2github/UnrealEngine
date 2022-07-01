@@ -69,6 +69,9 @@ struct CONTROLRIG_API FControlRigObjectVersion
 		// Added preferred euler angles to controls
 		PreferredEulerAnglesForControls,
 
+		// Added rig hierarchy element metadata
+		HierarchyElementMetadata,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

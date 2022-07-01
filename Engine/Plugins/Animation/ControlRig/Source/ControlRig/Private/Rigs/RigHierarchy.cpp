@@ -790,6 +790,52 @@ bool URigHierarchy::IsProcedural(const FRigBaseElement* InElement) const
 	return InElement->IsProcedural();
 }
 
+TArray<FName> URigHierarchy::GetMetadataNames(FRigElementKey InItem)
+{
+	TArray<FName> Names;
+	if(const FRigBaseElement* Element = Find(InItem))
+	{
+		for(int32 Index = 0; Index < Element->NumMetadata(); Index++)
+		{
+			Names.Add(Element->GetMetadata(Index)->GetName());
+		}
+	}
+	return Names;
+}
+
+ERigMetadataType URigHierarchy::GetMetadataType(FRigElementKey InItem, FName InMetadataName)
+{
+	if(const FRigBaseElement* Element = Find(InItem))
+	{
+		for(int32 Index = 0; Index < Element->NumMetadata(); Index++)
+		{
+			if(const FRigBaseMetadata* Metadata = Element->GetMetadata(InMetadataName))
+			{
+				return Metadata->GetType();
+			}
+		}
+	}
+	return ERigMetadataType::Invalid;
+}
+
+bool URigHierarchy::RemoveMetadata(FRigElementKey InItem, FName InMetadataName)
+{
+	if(FRigBaseElement* Element = Find(InItem))
+	{
+		return Element->RemoveMetadata(InMetadataName);
+	}
+	return false;
+}
+
+bool URigHierarchy::RemoveAllMetadata(FRigElementKey InItem)
+{
+	if(FRigBaseElement* Element = Find(InItem))
+	{
+		return Element->RemoveAllMetadata();
+	}
+	return false;
+}
+
 TArray<const FRigBaseElement*> URigHierarchy::GetSelectedElements(ERigElementType InTypeFilter) const
 {
 	LLM_SCOPE_BYNAME(TEXT("Animation/ControlRig"));

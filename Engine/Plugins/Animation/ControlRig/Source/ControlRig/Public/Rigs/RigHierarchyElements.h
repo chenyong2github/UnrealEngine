@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
+#include "RigHierarchyMetadata.h"
 #include "RigHierarchyElements.generated.h"
 
 struct FRigUnitContext;
@@ -515,7 +516,7 @@ public:
 	, OwnedInstances(0)
 	{}
 
-	virtual ~FRigBaseElement(){}
+	virtual ~FRigBaseElement();
 
 	enum ESerializationPhase
 	{
@@ -543,6 +544,9 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Transient, Category = RigElement, meta = (AllowPrivateAccess = "true"))
 	int32 CreatedAtInstructionIndex;
 
+	TArray<FRigBaseMetadata*> Metadata;
+	TMap<FName,int32> MetadataNameToIndex;
+
 	FORCEINLINE static bool IsClassOf(const FRigBaseElement* InElement)
 	{
 		return true;
@@ -565,6 +569,39 @@ public:
 	FORCEINLINE bool IsSelected() const { return bSelected; }
 	FORCEINLINE int32 GetCreatedAtInstructionIndex() const { return CreatedAtInstructionIndex; }
 	FORCEINLINE bool IsProcedural() const { return CreatedAtInstructionIndex != INDEX_NONE; }
+
+	FORCEINLINE int32 NumMetadata() const { return Metadata.Num(); }
+	FORCEINLINE FRigBaseMetadata* GetMetadata(int32 InIndex) const { return Metadata[InIndex]; }
+	FORCEINLINE FRigBaseMetadata* GetMetadata(const FName& InName) const
+	{
+		if(const int32* MetadataIndex = MetadataNameToIndex.Find(InName))
+		{
+			return GetMetadata(*MetadataIndex);
+		}
+		return nullptr;
+	}
+	FORCEINLINE FRigBaseMetadata* GetMetadata(const FName& InName, ERigMetadataType InType) const
+	{
+		if(const int32* MetadataIndex = MetadataNameToIndex.Find(InName))
+		{
+			FRigBaseMetadata* Md = GetMetadata(*MetadataIndex);
+			if(Md->GetType() == InType)
+			{
+				return Md;
+			}
+		}
+		return nullptr;
+	}
+	FORCEINLINE bool SetMetaData(const FName& InName, ERigMetadataType InType, const void* InData, int32 InSize)
+	{
+		if(FRigBaseMetadata* Md = SetupValidMetadata(InName, InType))
+		{
+			return Md->SetValueData(InData, InSize);
+		}
+		return false;
+	}
+	bool RemoveMetadata(const FName& InName);
+	bool RemoveAllMetadata();
 
 	template<typename T>
 	FORCEINLINE bool IsA() const { return T::IsClassOf(this); }
@@ -621,7 +658,10 @@ public:
 protected:
 
 	// helper function to be called as part of URigHierarchy::CopyHierarchy
-	virtual void  CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy) {}
+	virtual void CopyFrom(URigHierarchy* InHierarchy, FRigBaseElement* InOther, URigHierarchy* InOtherHierarchy);
+	
+	// sets up the metadata and ensures the right type
+	FRigBaseMetadata* SetupValidMetadata(const FName& InName, ERigMetadataType InType);
 
 	mutable uint16 TopologyVersion;
 	mutable FRigBaseElementChildrenArray CachedChildren;
@@ -631,6 +671,7 @@ protected:
 
 	friend class URigHierarchy;
 	friend class URigHierarchyController;
+	friend struct FRigUnit_SetMetadataBase;
 };
 
 USTRUCT(BlueprintType)
