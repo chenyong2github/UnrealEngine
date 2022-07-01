@@ -355,12 +355,15 @@ void PackStrataOut(
 		// 3 types of encodings
 		// * A. Layout0: Simple encoding	(use top layer normal)
 		// * B. Layout1: Single encoding	(use top layer normal)
-		// * C. Layout2: Complex encoding	(use basis)
+		// * C. Eye    : Custom encoding	(use top layer normal)
+		// * D. Hair   : Custom encoding	(use top layer normal)
+		// * E. Layout2: Complex encoding	(use basis)
 		const bool bHasFastEncoding = IsSimpleMaterial(StrataPixelHeader);
 		const bool bHasSingleEncoding = IsSingleMaterial(StrataPixelHeader);
+		const bool bCustomEncoding = IsHair(StrataPixelHeader) || IsEye(StrataPixelHeader);
 
 		// (Layout2)
-		if (!bHasFastEncoding && !bHasSingleEncoding)
+		if (!bHasFastEncoding && !bHasSingleEncoding && !bCustomEncoding)
 		{
 			// 1. the header (Regular/Complex encoding)
 			const uint PackedHeader = PackStrataHeader(BSDFVisibleCount, StrataPixelHeader);
@@ -440,35 +443,44 @@ void PackStrataOut(
 					else if (bHasSingleEncoding && BSDFIdx == OneBSDFMaterial_Index)
 					{
 						// Data0 (Header_State|Header_AO|Header_BSDFTypes|BSDF_State)
-						{
-							uint Out = 0;
-							HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
-							Out = Out & HEADER_SINGLEENCODING_MASK;
-							Out = Out | ((BSDF.State & BSDF_SINGLEENCODING_MASK) << HEADER_SINGLEENCODING_BIT_COUNT);
-							STRATA_STORE_UINT1(Out);
+						uint Out = 0;
+						HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
+						Out = Out & HEADER_SINGLEENCODING_MASK;
+						Out = Out | ((BSDF.State & BSDF_SINGLEENCODING_MASK) << HEADER_SINGLEENCODING_BIT_COUNT);
+						STRATA_STORE_UINT1(Out);
 
 						#if (HEADER_SIMPLEENCODING_BIT_COUNT) > 32
 						#error Strata fast path header is > 32bits
 						#endif
-						}
 					}
-					// C. Layout Eye
-					else if (BSDF_GETTYPE(BSDF) == STRATA_BSDF_TYPE_EYE)
+					// C. Layout X (Eye)
+					else if (IsEye(StrataPixelHeader))
 					{
 						// Data0 (Header_State|Header_AO|Data)
-						{
-							uint Out = 0;
-							HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
-							Out = Out & HEADER_EYEENCODING_MASK;
-							Out = Out | (PackRGBA8(float4(EYE_IRISMASK(BSDF), EYE_IRISDISTANCE(BSDF), 0, 0)) << 16u);
-							STRATA_STORE_UINT1(Out);
+						uint Out = 0;
+						HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
+						Out = Out & HEADER_EYEENCODING_MASK;
+						Out = Out | PackRGBA8(float4(0, 0, EYE_IRISMASK(BSDF), EYE_IRISDISTANCE(BSDF)));
+						STRATA_STORE_UINT1(Out);
 
 						#if (HEADER_EYEENCODING_BIT_COUNT) > 32
 						#error Strata eye path header is > 32bits
 						#endif
-						}
 					}
-					// C. Layout2 - Weight for Regular/Complex path
+					// D. Layout X (Hair)
+					else if (IsHair(StrataPixelHeader))
+					{
+						// Data0 (Header_State|Header_AO|Data)
+						uint Out = 0;
+						HEADER_SETCOMMONSTATES(Out, StrataPixelHeader.State);
+						Out = Out & HEADER_HAIRENCODING_MASK;
+						STRATA_STORE_UINT1(Out);
+
+						#if (HEADER_EYEENCODING_BIT_COUNT) > 32
+						#error Strata hair path header is > 32bits
+						#endif
+					}
+					// E. Layout2 - Weight for Regular/Complex path
 					else if (GreyScaleThroughputV > 0)
 					{
 						BSDF_SETWEIGHT10F(BSDF, Pack10F(BSDF.LuminanceWeightV.x));

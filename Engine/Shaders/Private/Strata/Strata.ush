@@ -190,6 +190,15 @@ struct FStrataBSDF
 //                             | 24              8
 //                          32 | IrisNormal    | IrisPlaneNormal
 //                             | 16              16
+// * LAYOUT X -------------------------------------------------------------------------------------------------------------------------------------------------------------------------          
+//   (Hair)   HEADER        29 | State | A0 | Free | Free
+//                             | 8       8    8           8
+//            BASIS(0)       0 | (Use top layer normal)
+//            STATE(0)       0 | 
+//            BSDF(0)       32 | BaseColor | Roughness
+//                             | 24              8
+//                          32 | Scatter | Specular | Backlit | ComplexTransmittance
+//                             | 8         8          8         8
 //            -------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -242,6 +251,9 @@ struct FStrataBSDF
 // Layout Eye
 #define HEADER_EYEENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
 #define HEADER_EYEENCODING_MASK						((1u<<HEADER_EYEENCODING_BIT_COUNT)-1u)
+// Layout Hair
+#define HEADER_HAIRENCODING_BIT_COUNT				(HEADER_BIT_COUNT_STATE + HEADER_BIT_COUNT_IRRADIANCE_AO)
+#define HEADER_HAIRENCODING_MASK					((1u<<HEADER_HAIRENCODING_BIT_COUNT)-1u)
 
 // Sanity check
 #if (HEADER_BIT_OFFSET_SHAREDLOCALBASES_TYPE + HEADER_BIT_COUNT_SHAREDLOCALBASES_TYPE) > 32
@@ -1820,7 +1832,7 @@ float3x3 StrataGetBSDFSharedBasis_InlineShading(in FStrataPixelHeader StrataPixe
 float3x3 StrataGetBSDFSharedBasis_DeferredShading(in FStrataPixelHeader StrataPixelHeader, in FStrataBSDF BSDF, in FStrataAddressing StrataAddressing)
 {
 #if STRATA_DEFERRED_SHADING
-	if (IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader) || IsEye(StrataPixelHeader))
+	if (IsSimpleMaterial(StrataPixelHeader) || IsSingleMaterial(StrataPixelHeader) || IsEye(StrataPixelHeader) || IsHair(StrataPixelHeader))
 	{		
 		return GetTangentBasis(StrataUnpackTopLayerData(StrataPixelHeader.PackedTopLayerData).WorldNormal);
 	}
@@ -3309,13 +3321,9 @@ FStrataPixelHeader UnpackStrataHeaderIn(FStrataMaterialContainer StrataBuffer, i
 	Out.State		= HEADER_GETCOMMONSTATES(PackedHeader);	// Unpack state and AO data at the same time 
 	Out.BSDFCount   = HEADER_GETBSDFCOUNT(PackedHeader);
 
-	const bool bIsSimpleMaterial = IsSimpleMaterial(Out);
-	const bool bIsSingleMaterial = IsSingleMaterial(Out);
-	const bool bIsEye            = IsEye(Out);
-
 	// Use simple or single layout for decoding data
 	BRANCH
-	if (bIsSimpleMaterial || bIsSingleMaterial || bIsEye)
+	if (IsSimpleMaterial(Out) || IsSingleMaterial(Out) || IsEye(Out) || IsHair(Out))
 	{
 		// Within a tile classified as simple or single, some pixel might be invalid (e.g., sky pixels). 
 		// This ensures that invalid pixels are not processed, and keep these tiles as single/simple instead of complex
@@ -3464,6 +3472,19 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 		BSDF_SETISTOPLAYER(OutBSDF, 1);
 		BSDF_SETSSSTYPE(OutBSDF, HasSubsurface(StrataHeader) ? SSS_TYPE_DIFFUSION_PROFILE : SSS_TYPE_INVALID);
 	}
+	else if (IsHair(StrataHeader))
+	{
+		uint Data = 0;
+	#if STRATA_DEFERRED_SHADING
+		Data = StrataHeader.SharedLocalBasesTypes_PackedHeader;
+	#endif
+		OutBSDF.State = Data & HEADER_HAIRENCODING_MASK;
+		OutBSDF.LuminanceWeightV = 1.0f;
+		BSDF_SETTYPE(OutBSDF, STRATA_BSDF_TYPE_HAIR);
+		BSDF_SETSHAREDLOCALBASISID(OutBSDF, 0);
+		BSDF_SETHASANISOTROPY(OutBSDF, 0);
+		BSDF_SETISTOPLAYER(OutBSDF, 1);
+	}
 	else
 	{
 		OutBSDF.State = StrataLoadUint1(StrataBuffer, StrataAddressing);
@@ -3564,12 +3585,12 @@ FStrataBSDF UnpackStrataBSDFIn(FStrataMaterialContainer StrataBuffer, inout FStr
 	break;
 	case STRATA_BSDF_TYPE_EYE:
 	{
-		float2 Data0 = 0;
+		float4 Data0 = 0;
 	#if STRATA_DEFERRED_SHADING
-		Data0 = UnpackRGBA8(StrataHeader.SharedLocalBasesTypes_PackedHeader).zw;
+		Data0 = UnpackRGBA8(StrataHeader.SharedLocalBasesTypes_PackedHeader);
 	#endif
-		EYE_IRISMASK(OutBSDF) = Data0.x;
-		EYE_IRISDISTANCE(OutBSDF) = Data0.y;
+		EYE_IRISMASK(OutBSDF) = Data0.z;
+		EYE_IRISDISTANCE(OutBSDF) = Data0.w;
 
 		StrataLoad_ColorGamma2ToLinearAlphaLinear(StrataBuffer, StrataAddressing, EYE_DIFFUSEALBEDO(OutBSDF), EYE_ROUGHNESS(OutBSDF));
 		const float4 Data1 = UnpackRGBA8(StrataLoadUint1(StrataBuffer, StrataAddressing));
