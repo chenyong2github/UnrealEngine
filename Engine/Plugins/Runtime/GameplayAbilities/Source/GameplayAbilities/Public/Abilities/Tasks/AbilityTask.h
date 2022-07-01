@@ -102,7 +102,7 @@ class GAMEPLAYABILITIES_API UAbilityTask : public UGameplayTask
 	UGameplayAbility* Ability;
 
 	UPROPERTY()
-	UAbilitySystemComponent* AbilitySystemComponent;
+	TWeakObjectPtr<UAbilitySystemComponent> AbilitySystemComponent;
 
 	/** Returns true if the ability is a locally predicted ability running on a client. Usually this means we need to tell the server something. */
 	bool IsPredictingClient() const;

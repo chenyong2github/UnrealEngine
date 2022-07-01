@@ -81,7 +81,7 @@ UAbilitySystemComponent* UAbilityTask_WaitGameplayEffectBlockedImmunity::GetASC(
 	{
 		return ExternalOwner;
 	}
-	return AbilitySystemComponent;
+	return AbilitySystemComponent.Get();
 }
 
 void UAbilityTask_WaitGameplayEffectBlockedImmunity::RegisterDelegate()

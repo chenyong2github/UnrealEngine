@@ -76,7 +76,7 @@ UAbilitySystemComponent* UAbilityTask_WaitGameplayEvent::GetTargetASC()
 		return OptionalExternalTarget;
 	}
 
-	return AbilitySystemComponent;
+	return AbilitySystemComponent.Get();
 }
 
 void UAbilityTask_WaitGameplayEvent::OnDestroy(bool AbilityEnding)

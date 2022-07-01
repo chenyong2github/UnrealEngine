@@ -111,7 +111,7 @@ void UAbilityTask_WaitAttributeChange::OnAttributeChange(const FOnAttributeChang
 
 UAbilitySystemComponent* UAbilityTask_WaitAttributeChange::GetFocusedASC()
 {
-	return ExternalOwner ? ExternalOwner : AbilitySystemComponent;
+	return ExternalOwner ? ExternalOwner : AbilitySystemComponent.Get();
 }
 
 void UAbilityTask_WaitAttributeChange::OnDestroy(bool AbilityEnded)

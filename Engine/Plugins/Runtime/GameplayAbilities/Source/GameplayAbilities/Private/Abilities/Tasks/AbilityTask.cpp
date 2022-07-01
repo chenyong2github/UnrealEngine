@@ -181,7 +181,7 @@ bool UAbilityTask::CallOrAddReplicatedDelegate(EAbilityGenericReplicatedEvent::T
 
 void UAbilityTask::SetWaitingOnRemotePlayerData()
 {
-	if (IsValid(Ability) && AbilitySystemComponent)
+	if (IsValid(Ability) && AbilitySystemComponent.IsValid())
 	{
 		WaitStateBitMask |= (uint8)EAbilityTaskWaitState::WaitingOnUser;
 		Ability->NotifyAbilityTaskWaitingOnPlayerData(this);
@@ -200,7 +200,7 @@ bool UAbilityTask::IsWaitingOnRemotePlayerdata() const
 
 void UAbilityTask::SetWaitingOnAvatar()
 {
-	if (IsValid(Ability) && AbilitySystemComponent)
+	if (IsValid(Ability) && AbilitySystemComponent.IsValid())
 	{
 		WaitStateBitMask |= (uint8)EAbilityTaskWaitState::WaitingOnAvatar;
 		Ability->NotifyAbilityTaskWaitingOnAvatar(this);

@@ -97,5 +97,5 @@ UAbilitySystemComponent* UAbilityTask_WaitGameplayEffectApplied::GetASC()
 	{
 		return ExternalOwner;
 	}
-	return AbilitySystemComponent;
+	return AbilitySystemComponent.Get();
 }
