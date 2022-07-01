@@ -30,7 +30,7 @@
 #if NANITE_VERT_REUSE_BATCH
 // HWRasterizePS doesn't seem to work well in wave32 mode
 #if !PIXELSHADER
-	#pragma argument(wavemode=wave32)
+	COMPILER_FORCE_WAVE32_MODE
 #endif
 	#define SWRASTER_NUM_THREADS 32
 #elif NANITE_PIXEL_PROGRAMMABLE

@@ -24,6 +24,11 @@
 #include "/Engine/Private/HairStrands/HairStrandsAttributeCommon.ush"
 #include "/Engine/Private/DeferredShadingCommon.ush"
 
+// Reduce latency of Nanite material base pass pixel shaders caused by register pressure due to the calculation of WPO
+#if USES_WORLD_POSITION_OFFSET && PIXELSHADER && IS_NANITE_SHADING_PASS && IS_BASE_PASS
+	COMPILER_FORCE_WAVE32_MODE
+#endif
+
 // Update this GUID to force all material shaders to recompile
 // Merge conflicts on this line should be resolved by generating a new GUID
 // GUID = 5F290441-5611-4232-B26D-613F5E421262_A
