@@ -400,42 +400,42 @@ public:
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Transform)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Transform(const FTransform& Actual, const FTransform& Expected, const FString& What, float Tolerance = 1.e-4, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Transform(const FTransform& Actual, const FTransform& Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that two floats are equal within tolerance between two floats.
 	 * @param What	A name to use in the message if the assert fails (What: expected {Actual} to be Equal To {Expected} within Tolerance for context '')
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Float)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Float(const float Actual, const float Expected, const FString& What, const float Tolerance = 1.e-4, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Float(float Actual, float Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that two double are equal within tolerance between two doubles.
 	 * @param What	A name to use in the message if the assert fails (What: expected {Actual} to be Equal To {Expected} within Tolerance for context '')
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Double)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	bool AssertEqual_Double(const double Actual, const double Expected, const FString& What, const double Tolerance = 1.e-4, const UObject* ContextObject = nullptr);
+	bool AssertEqual_Double(double Actual, double Expected, const FString& What, double Tolerance = 1.e-4, const UObject* ContextObject = nullptr);
 
 	/**
 	* Assert that two bools are equal
 	* @param What	A name to use in the message if the assert fails (What: expected {Actual} to be Equal To {Expected} for context '')
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Bool)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Bool(const bool Actual, const bool Expected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Bool(bool Actual, bool Expected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	* Assert that two ints are equal
 	* @param What	A name to use in the message if the assert fails (What: expected {Actual} to be Equal To {Expected} for context '')
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Integer)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Int(const int Actual, const int Expected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Int(int Actual, int Expected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	* Assert that two FNames are equal
 	* @param What	A name to use in the message if the assert fails (What: expected {Actual} to be Equal To {Expected} for context '')
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (FName)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Name(const FName Actual, const FName Expected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Name(FName Actual, FName Expected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	* Assert that two Objects are equal
@@ -456,42 +456,126 @@ public:
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Rotator)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Rotator(const FRotator Actual, const FRotator Expected, const FString& What, const float Tolerance = 1.e-4, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Rotator(FRotator Actual, FRotator Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that the component angles of two rotators are all not equal within a small tolerance.
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Rotator)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertNotEqual_Rotator(const FRotator Actual, const FRotator NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertNotEqual_Rotator(FRotator Actual, FRotator NotExpected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that two vectors are (memberwise) equal within a small tolerance.
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Vector)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_Vector(const FVector Actual, const FVector Expected, const FString& What, const float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_Vector(FVector Actual, FVector Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that two vectors are (memberwise) not equal within a small tolerance.
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Vector)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertNotEqual_Vector(const FVector Actual, const FVector NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertNotEqual_Vector(FVector Actual, FVector NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two two-component vectors are (memberwise) equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Vector2D)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertEqual_Vector2D(FVector2D Actual, FVector2D Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two two-component vectors are (memberwise) not equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Vector2D)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertNotEqual_Vector2D(FVector2D Actual, FVector2D NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two two-component boxes are (memberwise) equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Box2D)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertEqual_Box2D(FBox2D Actual, FBox2D Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two two-component boxes are (memberwise) not equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Box2D)", meta = (HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertNotEqual_Box2D(FBox2D Actual, FBox2D NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two four-component vectors are (memberwise) equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Vector4)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertEqual_Vector4(FVector4 Actual, FVector4 Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two four-component vectors are (memberwise) not equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Vector4)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertNotEqual_Vector4(FVector4 Actual, FVector4 NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two planes are (memberwise) equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Plane)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertEqual_Plane(FPlane Actual, FPlane Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two planes are (memberwise) not equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Plane)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertNotEqual_Plane(FPlane Actual, FPlane NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two quats are (memberwise) equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Quat)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertEqual_Quat(FQuat Actual, FQuat Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two quats are (memberwise) not equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Quat)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertNotEqual_Quat(FQuat Actual, FQuat NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two 4x4 matrices are (memberwise) equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (Matrix)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertEqual_Matrix(FMatrix Actual, FMatrix Expected, const FString& What, float Tolerance = 1.e-4f, const UObject* ContextObject = nullptr);
+
+	/**
+	 * Assert that two 4x4 matrices are (memberwise) not equal within a small tolerance.
+	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (Matrix)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
+	virtual bool AssertNotEqual_Matrix(FMatrix Actual, FMatrix NotExpected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that two Strings are equal.
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Equal (String)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertEqual_String(const FString Actual, const FString Expected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertEqual_String(FString Actual, FString Expected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	 * Assert that two Strings are not equal.
 	 * @param What	A name to use in the message if the assert fails ("Expected 'What' not to be {Expected} but it was {Actual} for context ''")
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Asserts", DisplayName = "Assert Not Equal (String)", meta = ( HidePin = "ContextObject", DefaultToSelf = "ContextObject"))
-	virtual bool AssertNotEqual_String(const FString Actual, const FString NotExpected, const FString& What, const UObject* ContextObject = nullptr);
+	virtual bool AssertNotEqual_String(FString Actual, FString NotExpected, const FString& What, const UObject* ContextObject = nullptr);
 
 	/**
 	* Assert that two TraceQueryResults are equal.
