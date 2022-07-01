@@ -136,10 +136,16 @@ void DepthExport(uint3 PixelPos : SV_DispatchThreadID)
 					const FLWCVector3 WorldPos  = SvPositionToWorld(float4(PixelPos.xy, asfloat(DepthInt), 1.0f));
 					const float3 LocalPos = LWCMultiply(WorldPos, InstanceData.WorldToLocal);
 
+					// TODO: PROG_RASTER - this is incorrect for WPO. Will likely need to be output by the base pass
 					const float3 WorldPosPrev = mul(float4(LocalPos, 1), InstanceDynamicData.PrevLocalToTranslatedWorld).xyz;
 					const float4 ScreenPosPrev = mul(float4(WorldPosPrev.xyz, 1), NaniteView.PrevTranslatedWorldToClip);
-		
+
 					Velocity[PixelPos.xy] = EncodeVelocityToTexture(Calculate3DVelocity(ScreenPos, ScreenPosPrev));
+				}
+				else
+				{
+					// Write out zero (clear color) in case there is moving non-nanite scene data behind it
+					Velocity[PixelPos.xy] = (float4)0;
 				}
 			#endif
 
