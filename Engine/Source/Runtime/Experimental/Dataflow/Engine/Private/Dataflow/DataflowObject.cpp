@@ -54,8 +54,8 @@ void UDataflow::PostLoad()
 
 	for (UEdGraphNode* EdNode : Nodes)
 	{
-		UDataflowEdNode* DataflowEdNode = Cast<UDataflowEdNode>(EdNode);
-		if(ensure(DataflowEdNode))
+		// Not all nodes are UDataflowEdNode (There is now UDataflowEdNodeComment)
+		if (UDataflowEdNode* DataflowEdNode = Cast<UDataflowEdNode>(EdNode))
 		{
 			DataflowEdNode->SetDataflowGraph(Dataflow);
 		}

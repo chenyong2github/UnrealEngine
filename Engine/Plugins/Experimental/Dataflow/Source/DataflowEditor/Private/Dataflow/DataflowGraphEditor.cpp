@@ -7,6 +7,9 @@
 #include "Dataflow/DataflowSNodeFactories.h"
 #include "BoneDragDropOp.h"
 #include "IStructureDetailsView.h"
+#include "Dataflow/DataflowCommentNode.h"
+
+#include "Dataflow/DataflowSchema.h"
 
 DEFINE_LOG_CATEGORY_STATIC(SDataflowGraphEditorLog, Log, All);
 
@@ -31,11 +34,57 @@ void SDataflowGraphEditor::Construct(const FArguments& InArgs, UObject* InAssetO
 	{
 		GraphEditorCommands = MakeShareable(new FUICommandList);
 		{
-			GraphEditorCommands->MapAction(FGenericCommands::Get().Delete,
+			GraphEditorCommands->MapAction(
+				FGenericCommands::Get().Delete,
 				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::DeleteNode)
 			);
-			GraphEditorCommands->MapAction(FDataflowEditorCommands::Get().EvaluateNode,
+			GraphEditorCommands->MapAction(
+				FDataflowEditorCommands::Get().EvaluateNode,
 				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::EvaluateNode)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().CreateComment,
+				FExecuteAction::CreateRaw(this, &SDataflowGraphEditor::CreateComment)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().AlignNodesTop,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::AlignTop)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().AlignNodesMiddle,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::AlignMiddle)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().AlignNodesBottom,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::AlignBottom)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().AlignNodesLeft,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::AlignLeft)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().AlignNodesCenter,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::AlignCenter)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().AlignNodesRight,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::AlignRight)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().StraightenConnections,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::StraightenConnections)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().DistributeNodesHorizontally,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::DistributeHorizontally)
+			);
+			GraphEditorCommands->MapAction(
+				FGraphEditorCommands::Get().DistributeNodesVertically,
+				FExecuteAction::CreateSP(this, &SDataflowGraphEditor::DistributeVertically)
+			);
+			GraphEditorCommands->MapAction(
+				FDataflowEditorCommands::Get().ToggleEnabledState,
+				FExecuteAction::CreateRaw(this, &SDataflowGraphEditor::ToggleEnabledState)
 			);
 		}
 	}
@@ -143,5 +192,64 @@ void SDataflowGraphEditor::OnDragLeave(const FDragDropEvent& DragDropEvent)
 	UE_LOG(SDataflowGraphEditorLog, All, TEXT("SDataflowGraphEditor::OnDragLeave"));
 }
 */
+
+void SDataflowGraphEditor::CreateComment()
+{
+	UDataflow* Graph = DataflowAsset.Get();
+	const TSharedPtr<SGraphEditor>& InGraphEditor = SharedThis(GetGraphEditor());
+
+	TSharedPtr<FAssetSchemaAction_Dataflow_CreateCommentNode_DataflowEdNode> CommentAction = FAssetSchemaAction_Dataflow_CreateCommentNode_DataflowEdNode::CreateAction(Graph, InGraphEditor);
+	CommentAction->PerformAction(Graph, nullptr, GetGraphEditor()->GetPasteLocation(), false);
+}
+
+void SDataflowGraphEditor::AlignTop()
+{
+	GetGraphEditor()->OnAlignTop();
+}
+
+void SDataflowGraphEditor::AlignMiddle()
+{
+	GetGraphEditor()->OnAlignMiddle();
+}
+
+void SDataflowGraphEditor::AlignBottom()
+{
+	GetGraphEditor()->OnAlignBottom();
+}
+
+void SDataflowGraphEditor::AlignLeft()
+{
+	GetGraphEditor()->OnAlignLeft();
+}
+
+void SDataflowGraphEditor::AlignCenter()
+{
+	GetGraphEditor()->OnAlignCenter();
+}
+
+void SDataflowGraphEditor::AlignRight()
+{
+	GetGraphEditor()->OnAlignRight();
+}
+
+void SDataflowGraphEditor::StraightenConnections()
+{
+	GetGraphEditor()->OnStraightenConnections();
+}
+
+void SDataflowGraphEditor::DistributeHorizontally()
+{
+	GetGraphEditor()->OnDistributeNodesH();
+}
+
+void SDataflowGraphEditor::DistributeVertically()
+{
+	GetGraphEditor()->OnDistributeNodesV();
+}
+
+void SDataflowGraphEditor::ToggleEnabledState()
+{
+	FDataflowEditorCommands::ToggleEnabledState(DataflowAsset.Get());
+}
 
 #undef LOCTEXT_NAMESPACE

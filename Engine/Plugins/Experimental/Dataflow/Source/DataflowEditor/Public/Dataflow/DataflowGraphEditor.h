@@ -68,8 +68,40 @@ public:
 	/** */
 	void OnSelectedNodesChanged(const TSet<UObject*>& NewSelection);
 
+	/** */
+	void CreateComment();
 
+	/** */
+	void AlignTop();
 
+	/** */
+	void AlignMiddle();
+
+	/** */
+	void AlignBottom();
+
+	/** */
+	void AlignLeft();
+
+	/** */
+	void AlignCenter();
+
+	/** */
+	void AlignRight();
+
+	/** */
+	void StraightenConnections();
+
+	/** */
+	void DistributeHorizontally();
+
+	/** */
+	void DistributeVertically();
+
+	/** */
+	void ToggleEnabledState();
+
+	SGraphEditor* GetGraphEditor() { return (SGraphEditor*)this; }
 
 private:
 	FDataflowEditorCommands::FOnDragDropEventCallback OnDragDropEventCallback;

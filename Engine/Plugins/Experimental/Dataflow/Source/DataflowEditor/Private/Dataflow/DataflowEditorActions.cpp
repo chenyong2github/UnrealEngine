@@ -5,13 +5,15 @@
 #include "Dataflow/DataflowNodeFactory.h"
 #include "Dataflow/DataflowObject.h"
 #include "IStructureDetailsView.h"
-
+#include "EdGraphNode_Comment.h"
 
 #define LOCTEXT_NAMESPACE "DataflowEditorCommands"
 
 void FDataflowEditorCommandsImpl::RegisterCommands()
 {
 	UI_COMMAND(EvaluateNode, "Evaluate", "Trigger an evaluation of the selected node.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CreateComment, "CreateComment", "Create a Comment node.", EUserInterfaceActionType::None, FInputChord());
+	UI_COMMAND(ToggleEnabledState, "ToggleEnabledState", "Toggle node between Enabled/Disabled state.", EUserInterfaceActionType::Button, FInputChord());
 
 	if (Dataflow::FNodeFactory* Factory = Dataflow::FNodeFactory::GetInstance())
 	{
@@ -95,6 +97,10 @@ void FDataflowEditorCommands::DeleteNodes(UDataflow* Graph, const FGraphPanelSel
 				}
 			}
 		}
+		else if (UEdGraphNode_Comment* CommentNode = dynamic_cast<UEdGraphNode_Comment*>(Ode))
+		{
+			Graph->RemoveNode(CommentNode);
+		}
 	}
 }
 
@@ -125,6 +131,10 @@ void FDataflowEditorCommands::OnSelectedNodesChanged(TSharedPtr<IStructureDetail
 			}
 		}
 	}
+}
+
+void FDataflowEditorCommands::ToggleEnabledState(UDataflow* Graph)
+{
 }
 
 #undef LOCTEXT_NAMESPACE

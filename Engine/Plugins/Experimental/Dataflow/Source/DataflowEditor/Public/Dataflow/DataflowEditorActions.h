@@ -34,6 +34,9 @@ public:
 	DATAFLOWEDITOR_API virtual void RegisterCommands() override;
 
 	TSharedPtr< FUICommandInfo > EvaluateNode;
+	TSharedPtr< FUICommandInfo > CreateComment;
+	TSharedPtr< FUICommandInfo > ToggleEnabledState;
+
 	TMap< FName, TSharedPtr<FUICommandInfo> > CreateNodesMap;
 };
 
@@ -62,5 +65,10 @@ public:
 	*  OnSelectedNodesChanged
 	*/
 	static void OnSelectedNodesChanged(TSharedPtr<IStructureDetailsView> PropertiesEditor, UObject* Asset, UDataflow* Graph, const TSet<UObject*>& NewSelection);
+
+	/*
+	*  ToggleEnabledState
+	*/
+	static void ToggleEnabledState(UDataflow* Graph);
 
 };
