@@ -5,12 +5,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System;
 using System.IO;
-using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.Linq;
-using System.Reflection;
 using EpicGames.OIDC;
 
 namespace OidcToken
@@ -31,21 +28,33 @@ namespace OidcToken
 				Console.WriteLine(" --ResultToConsole [true/false] - If true the resulting json file is output to stdout (and logs are not created)");
 				Console.WriteLine(" --Unattended [true/false] - If true we assume no user is present and thus can not rely on their input");
 				Console.WriteLine(" --Zen [true/false] - If true the resulting refresh token is posted to Zens token endpoints");
+				Console.WriteLine(" --Project <path> - Project can be used to tell oidc token which game its working in to allow us to read game specific settings");
+
 				return;
 			}
-
-			string ueRoot = LocateRoot();
-			string optionalConfigPath = Path.Combine(ueRoot, "Engine", "Restricted", "NotForLicensees", "Build", "OidcToken", "appsettings.json");
 
 			ConfigurationBuilder configBuilder = new();
 			configBuilder.SetBasePath(AppContext.BaseDirectory)
 				.AddJsonFile("appsettings.json", false, false)
-				.AddJsonFile(
-					optionalConfigPath,
-					true)
 				.AddCommandLine(args);
 
 			IConfiguration config = configBuilder.Build();
+
+			TokenServiceOptions options = new();
+			config.Bind(options);
+
+			// guess where the engine directory is based on the assumption that we are running out of Engine\Binaries\DotNET\OidcToken\<platform>
+			DirectoryInfo engineDir = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "../../../../../Engine"));
+			if (!engineDir.Exists)
+			{
+				// try to see if engine dir can be found from the current code path Engine\Source\Programs\OidcToken\bin\<Configuration>\<.net-version>
+				engineDir = new DirectoryInfo(Path.Combine(AppContext.BaseDirectory, "../../../../../../../Engine"));
+
+				if (!engineDir.Exists)
+				{
+					throw new Exception($"Unable to guess engine directory so unable to continue running. Starting directory was: {AppContext.BaseDirectory}");
+				}
+			}
 
 			await Host.CreateDefaultBuilder(args)
 				.ConfigureAppConfiguration(builder =>
@@ -56,9 +65,6 @@ namespace OidcToken
 				{
 					loggingBuilder.ClearProviders();
 
-					TokenServiceOptions options = new();
-					IConfigurationRoot configRoot = configBuilder.Build();
-					configRoot.Bind(options);
 					if (!options.ResultToConsole)
 					{
 						loggingBuilder.AddConsole();
@@ -69,8 +75,7 @@ namespace OidcToken
 				{
 					IConfiguration configuration = content.Configuration;
 					services.AddOptions<TokenServiceOptions>().Bind(configuration).ValidateDataAnnotations();
-					services.AddOptions<OidcTokenOptions>().Bind(configuration.GetSection("OidcToken"))
-						.ValidateDataAnnotations();
+					services.AddOptions<OidcTokenOptions>().Bind(ProviderConfigurationFactory.ReadConfiguration(engineDir, !string.IsNullOrEmpty(options.Project) ? new DirectoryInfo(options.Project) : null)).ValidateDataAnnotations();
 
 					services.AddSingleton<OidcTokenManager>();
 					services.AddTransient<ITokenStore>(TokenStoreFactory.CreateTokenStore);
@@ -78,37 +83,6 @@ namespace OidcToken
 					services.AddHostedService<TokenService>();
 				})
 				.RunConsoleAsync();
-		}
-
-		static string LocateRoot()
-		{
-			string? exeLocation = Assembly.GetEntryAssembly()?.Location;
-
-			if (string.IsNullOrEmpty(exeLocation))
-			{
-				exeLocation = Environment.CurrentDirectory;
-			}
-
-			FileInfo exeInfo = new(exeLocation);
-			DirectoryInfo? di = exeInfo.Directory;
-			DirectoryInfo? root = null;
-			while (di != null)
-			{
-				if (di.EnumerateFiles("GenerateProjectFiles.bat").Any())
-				{
-					root = di;
-					break;
-				}
-
-				di = di.Parent!;
-			}
-
-			if (root == null)
-			{
-				throw new Exception($"Unable to find unreal root under: {exeInfo.Directory!.FullName}");
-			}
-			
-			return root.FullName;
 		}
 	}
 }

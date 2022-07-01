@@ -258,8 +258,50 @@ namespace UnrealGameSync
 			// Clear out the cache folder
 			Utility.ClearPrintCache(_cacheFolder);
 
+			OpenProjectInfo firstProject = startupTasks.FirstOrDefault().Item2.Result;
+			
 			_tokenStore = TokenStoreFactory.CreateTokenStore();
-			_oidcTokenManager = CreateTokenManagerFromConfigFile(_settings, _tokenStore, startupTasks.Where(x => x.Item2.Succeeded).Select(x => x.Item2.Result).ToList());
+			List<(DirectoryInfo, DirectoryInfo?)> configurationLocations = new List<(DirectoryInfo, DirectoryInfo?)>();
+			List<string> allowedProviders = new List<string>();
+			foreach ((UserSelectedProjectSettings, ModalTask<OpenProjectInfo>) StartupTask in startupTasks)
+			{
+				try
+				{
+
+					ConfigFile ConfigFile = StartupTask.Item2.Result.LatestProjectConfigFile;
+					if (ConfigFile == null)
+					{
+						continue;
+					}
+
+					ConfigSection ProviderSection = ConfigFile.FindSection("OIDCProvider");
+					if (ProviderSection == null)
+					{
+						continue;
+					}
+
+					string[] oidcAllowedProviders = ProviderSection.GetValues("OidcProviderAllowList", Array.Empty<string>());
+					if (oidcAllowedProviders.Length == 0)
+					{
+						continue;
+					}
+
+					allowedProviders.AddRange(oidcAllowedProviders);
+					
+					ProjectInfo projectInfo = StartupTask.Item2.Result.ProjectInfo;
+					configurationLocations.Add((projectInfo.EngineDir.ToDirectoryInfo(), projectInfo.ProjectDir?.ToDirectoryInfo()));
+				}
+				catch (Exception)
+				{
+					// ignore any projects that failed to load
+				}
+			}
+
+			_oidcTokenManager = OidcTokenManager.CreateTokenManager(
+				ProviderConfigurationFactory.MergeConfiguration(configurationLocations), 
+				_tokenStore,
+				allowedProviders
+			);
 			// Verify that none of the projects we are opening needs a OIDC login, if they do prompt for the login
 			if (_oidcTokenManager?.HasUnfinishedLogin() ?? false)
 			{
@@ -291,71 +333,6 @@ namespace UnrealGameSync
 				}
 			}
 			_mainWindowInstance.FormClosed += MainWindowInstance_FormClosed;
-		}
-
-		static OidcTokenManager? CreateTokenManagerFromConfigFile(UserSettings settings, ITokenStore tokenStore, List<OpenProjectInfo> configFiles)
-		{
-			// join the provider configuration from all projects
-			Dictionary<string, ProviderInfo> Providers = new Dictionary<string, ProviderInfo>();
-			foreach (OpenProjectInfo DetectProjectSettingsTask in configFiles)
-			{
-				if (DetectProjectSettingsTask == null)
-				{
-					continue;
-				}
-
-				ConfigFile ConfigFile = DetectProjectSettingsTask.LatestProjectConfigFile;
-				if (ConfigFile == null)
-				{
-					continue;
-				}
-
-				ConfigSection ProviderSection = ConfigFile.FindSection("OIDCProvider");
-				if (ProviderSection == null)
-				{
-					continue;
-				}
-
-				string[] ProviderValues = ProviderSection.GetValues("Provider", Array.Empty<string>());
-				foreach (ConfigObject Provider in ProviderValues.Select(s => new ConfigObject(s)).ToList())
-				{
-					string? Identifier = Provider.GetValue("Identifier");
-					string? ServerUri = Provider.GetValue("ServerUri");
-					string? ClientId = Provider.GetValue("ClientId");
-					string? DisplayName = Provider.GetValue("DisplayName");
-					string? RedirectUri = Provider.GetValue("RedirectUri");
-					string? Scopes = Provider.GetValue("Scopes");
-
-					if (string.IsNullOrEmpty(Identifier))
-						continue;
-
-					if (string.IsNullOrEmpty(ClientId))
-						continue;
-
-					if (string.IsNullOrEmpty(RedirectUri))
-						continue;
-
-					if (string.IsNullOrEmpty(ServerUri))
-						continue;
-
-					ProviderInfo info = new ProviderInfo
-					{
-						ClientId = ClientId,
-						DisplayName = DisplayName ?? Identifier,
-						RedirectUri = new Uri(RedirectUri),
-						ServerUri = new Uri(ServerUri),
-					};
-					if (Scopes != null)
-						info.Scopes = Scopes;
-
-					// we might get a provider with the same identifier from another project, in which case we only keep the first one
-					Providers.TryAdd(Identifier, info);
-				}
-			}
-
-			if (Providers.Count == 0)
-				return null;
-			return new OidcTokenManager(Providers, tokenStore);
 		}
 
 		private void MainWindowInstance_FormClosed(object sender, FormClosedEventArgs e)
