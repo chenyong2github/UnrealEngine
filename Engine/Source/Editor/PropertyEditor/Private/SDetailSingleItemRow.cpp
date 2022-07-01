@@ -167,8 +167,8 @@ FReply SDetailSingleItemRow::OnArrayAcceptDrop(const FDragDropEvent& DragDropEve
 
 	ParentHandle->MoveElementTo(OriginalIndex, NewIndex);
 
-	FPropertyChangedEvent MoveEvent(SwappingHandle->GetParentHandle()->GetProperty(), EPropertyChangeType::Unspecified);
-	SwappingHandle->GetParentHandle()->NotifyPostChange(EPropertyChangeType::Unspecified);
+	FPropertyChangedEvent MoveEvent(SwappingHandle->GetParentHandle()->GetProperty(), EPropertyChangeType::ArrayMove);
+	SwappingHandle->GetParentHandle()->NotifyPostChange(EPropertyChangeType::ArrayMove);
 	if (DetailsView->GetPropertyUtilities().IsValid())
 	{
 		DetailsView->GetPropertyUtilities()->NotifyFinishedChangingProperties(MoveEvent);

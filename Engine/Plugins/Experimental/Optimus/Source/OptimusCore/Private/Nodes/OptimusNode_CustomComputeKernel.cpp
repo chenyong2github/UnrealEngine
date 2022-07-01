@@ -294,7 +294,7 @@ void UOptimusNode_CustomComputeKernel::PostEditChangeProperty(
 	{
 		ClearBindingPins(BasePropertyName);
 	}
-	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::Unspecified)
+	else if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ArrayMove)
 	{
 		RefreshBindingPins(BasePropertyName);
 	}

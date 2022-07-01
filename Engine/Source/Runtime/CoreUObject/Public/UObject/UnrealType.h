@@ -6296,21 +6296,23 @@ namespace EPropertyChangeType
 	typedef uint32 Type;
 
 	//default value.  Add new enums to add new functionality.
-	const Type Unspecified = 1 << 0;
+	const Type Unspecified		= 1 << 0;
 	//Array Add
-	const Type ArrayAdd = 1 << 1;
+	const Type ArrayAdd			= 1 << 1;
 	//Array Remove
-	const Type ArrayRemove = 1 << 2;
+	const Type ArrayRemove		= 1 << 2;
 	//Array Clear
-	const Type ArrayClear = 1 << 3;
+	const Type ArrayClear		= 1 << 3;
 	//Value Set
-	const Type ValueSet = 1 << 4;
+	const Type ValueSet			= 1 << 4;
 	//Duplicate
-	const Type Duplicate = 1 << 5;
+	const Type Duplicate		= 1 << 5;
 	//Interactive, e.g. dragging a slider. Will be followed by a ValueSet when finished.
-	const Type Interactive = 1 << 6;
+	const Type Interactive		= 1 << 6;
 	//Redirected.  Used when property references are updated due to content hot-reloading, or an asset being replaced during asset deletion (aka, asset consolidation).
-	const Type Redirected = 1 << 7;
+	const Type Redirected		= 1 << 7;
+	// Array Item Moved Within the Array
+	const Type ArrayMove		= 1 << 8;
 };
 
 /**

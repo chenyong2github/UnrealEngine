@@ -69,10 +69,8 @@ void UOptimusNode_AnimAttributeDataInterface::PostEditChangeChainProperty(FPrope
 		}
 
 	}
-	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd ||
-			PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate ||
-			PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove ||
-			PropertyChangedEvent.ChangeType == EPropertyChangeType::Unspecified)
+	else if (PropertyChangedEvent.ChangeType & (EPropertyChangeType::ArrayAdd | EPropertyChangeType::Duplicate |
+												EPropertyChangeType::ArrayRemove | EPropertyChangeType::ArrayMove))
 	{
 		RefreshPins();
 	}

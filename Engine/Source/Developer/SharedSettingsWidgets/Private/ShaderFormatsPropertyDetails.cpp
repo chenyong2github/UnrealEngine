@@ -120,7 +120,7 @@ void FShaderFormatsPropertyDetails::OnTargetedRHIChanged(ECheckBoxState InNewVal
 			}
 		}
 
-		ShaderFormatsPropertyHandle->NotifyPostChange(EPropertyChangeType::Unspecified);
+		ShaderFormatsPropertyHandle->NotifyPostChange(EPropertyChangeType::ArrayMove);
 	}
 }
 
