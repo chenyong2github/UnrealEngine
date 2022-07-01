@@ -2285,10 +2285,7 @@ namespace AutomationTool
 						continue;
 					}
 					FileReference OutputFile = FileReference.Combine(BaseDirectory, Entry.FullName);
-					if(!DirectoryReference.Exists(OutputFile.Directory))
-					{
-						DirectoryReference.CreateDirectory(OutputFile.Directory);
-					}
+					DirectoryReference.CreateDirectory(OutputFile.Directory);
 					Entry.ExtractToFile_CrossPlatform(OutputFile.FullName, true);
 					OutputFiles.Add(OutputFile);
 				}

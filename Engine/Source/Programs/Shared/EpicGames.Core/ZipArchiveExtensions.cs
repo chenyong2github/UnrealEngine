@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.IO;
 using System.IO.Compression;
 using System.Reflection;
 using System.Runtime.InteropServices;
@@ -55,7 +56,15 @@ namespace EpicGames.Core
 		/// <param name="overwrite"></param>
 		public static void ExtractToFile_CrossPlatform(this ZipArchiveEntry entry, string targetFileName, bool overwrite)
 		{
-			ZipFileExtensions.ExtractToFile(entry, targetFileName, overwrite);
+			// This seems to be consistently at least 35% faster than ZipFileExtensions.ExtractToFile(Entry, TargetFileName, Overwrite) when the
+			// archive contains many small files.
+			using (FileStream OutputStream = new FileStream(targetFileName, overwrite ? FileMode.Create : FileMode.CreateNew, FileAccess.Write))
+			{
+				using (Stream InStream = entry.Open())
+				{
+					InStream.CopyTo(OutputStream);
+				}
+			}
 
 			if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
 			{
