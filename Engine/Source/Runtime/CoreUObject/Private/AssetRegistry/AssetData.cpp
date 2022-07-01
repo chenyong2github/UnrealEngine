@@ -208,19 +208,17 @@ void FAssetData::SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::
 	Ar << ObjectPath;
 	Ar << PackagePath;
 
-	// Serialize the asset class. Legacy path is editor only for DiffAssetRegistriesCommandlet
-#if WITH_EDITORONLY_DATA
-	if (Version < FAssetRegistryVersion::ClassPaths)
+	// Serialize the asset class.
+	if (Version >= FAssetRegistryVersion::ClassPaths)
+	{
+		Ar << AssetClassPath;
+	}
+	else
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		Ar << AssetClass;
 		AssetClassPath = FAssetData::TryConvertShortClassNameToPathName(AssetClass, ELogVerbosity::NoLogging);
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
-	else
-#endif 
-	{
-		Ar << AssetClassPath;
 	}
 
 	// These are derived from ObjectPath, we manually serialize them because they get pooled
