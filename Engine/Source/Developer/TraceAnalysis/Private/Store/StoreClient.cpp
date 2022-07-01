@@ -379,7 +379,7 @@ namespace UE {
 namespace Trace {
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnsiStringView FStoreClient::FStatus::GetStoreDir() const
+FUtf8StringView FStoreClient::FStatus::GetStoreDir() const
 {
 	const auto* Response = (const FResponse*)this;
 	return Response->GetString("store_dir", "");
@@ -425,7 +425,7 @@ uint64 FStoreClient::FTraceInfo::GetTimestamp() const
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FAnsiStringView FStoreClient::FTraceInfo::GetName() const
+FUtf8StringView FStoreClient::FTraceInfo::GetName() const
 {
 	const auto* Response = (const FResponse*)this;
 	return Response->GetString("name", "nameless");

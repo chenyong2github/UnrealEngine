@@ -164,8 +164,8 @@ void FStoreBrowser::UpdateTraces()
 							Trace.TraceId = TraceId;
 							Trace.TraceIndex = TraceIndex;
 
-							const FAnsiStringView AnsiTraceName = TraceInfo->GetName();
-							Trace.Name = FString(AnsiTraceName.Len(), AnsiTraceName.GetData());
+							const FUtf8StringView Utf8NameView = TraceInfo->GetName();
+							Trace.Name = FString(Utf8NameView);
 
 							Trace.Timestamp = FStoreBrowserTraceInfo::ConvertTimestamp(TraceInfo->GetTimestamp());
 							Trace.Size = TraceInfo->GetSize();

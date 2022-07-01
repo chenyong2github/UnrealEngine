@@ -218,8 +218,8 @@ void FAsioStoreCborPeer::OnTraceRead()
 ////////////////////////////////////////////////////////////////////////////////
 void FAsioStoreCborPeer::OnPayload()
 {
-	FAnsiStringView Request = Response.GetString("$request", "");
-	FAnsiStringView Path = Response.GetString("$path", "");
+	FUtf8StringView Request = Response.GetString("$request", "");
+	FUtf8StringView Path = Response.GetString("$path", "");
 	if (!Request.Len() || !Path.Len())
 	{
 		SendError(EStatusCode::BadRequest);

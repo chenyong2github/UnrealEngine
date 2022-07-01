@@ -18,14 +18,14 @@ class TRACEANALYSIS_API FStoreClient
 public:
 	struct TRACEANALYSIS_API FStatus
 	{
-		FAnsiStringView	GetStoreDir() const;
+		FUtf8StringView	GetStoreDir() const;
 		uint32			GetRecorderPort() const;
 		uint32			GetChangeSerial() const;
 	};
 
 	struct TRACEANALYSIS_API FTraceInfo
 	{
-		FAnsiStringView	GetName() const;
+		FUtf8StringView	GetName() const;
 		uint32			GetId() const;
 		uint64			GetSize() const;
 		uint64			GetTimestamp() const;

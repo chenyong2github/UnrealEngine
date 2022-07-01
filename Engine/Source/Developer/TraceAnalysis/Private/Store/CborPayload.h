@@ -137,7 +137,7 @@ public:
 	EStatusCode		GetStatusCode() const;
 	int64			GetInteger(const char* Key, int64 Default) const;
 	template <int N>
-	FAnsiStringView	GetString(const char* Key, const char (&Default)[N]) const;
+	FUtf8StringView	GetString(const char* Key, const char (&Default)[N]) const;
 	const uint8*	GetData() const;
 	uint32			GetSize() const;
 	uint8*			Reserve(uint32 Size);
@@ -228,9 +228,9 @@ inline int64 FResponse::GetInteger(const char* Key, int64 Default) const
 
 ////////////////////////////////////////////////////////////////////////////////
 template <int N>
-inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Default)[N]) const
+inline FUtf8StringView FResponse::GetString(const char* Key, const char (&Default)[N]) const
 {
-	FAnsiStringView DefaultView(Default, N - 1);
+	FUtf8StringView DefaultView(Default, N - 1);
 	return GetValue(
 		Key,
 		DefaultView,
@@ -240,7 +240,7 @@ inline FAnsiStringView FResponse::GetString(const char* Key, const char (&Defaul
 			{
 				int32 Length = Context.AsLength();
 				const char* Data = (const char*)(Buffer.GetData() + Offset - Length);
-				return FAnsiStringView(Data, Length);
+				return FUtf8StringView(Data, Length);
 			}
 
 			return DefaultView;

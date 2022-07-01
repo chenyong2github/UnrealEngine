@@ -877,7 +877,7 @@ void FInsightsManager::LoadTrace(uint32 InTraceId, bool InAutoQuit)
 	const UE::Trace::FStoreClient::FTraceInfo* TraceInfo = StoreClient->GetTraceInfoById(InTraceId);
 	if (TraceInfo != nullptr)
 	{
-		FAnsiStringView Name = TraceInfo->GetName();
+		FUtf8StringView Name = TraceInfo->GetName();
 		TraceName = FPaths::Combine(TraceName, FString(Name.Len(), Name.GetData()));
 		TraceName = FPaths::SetExtension(TraceName, ".utrace");
 	}
