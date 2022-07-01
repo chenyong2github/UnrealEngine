@@ -40,7 +40,7 @@ namespace Horde.Storage.Implementation
         protected override IAsyncEnumerable<TransactionEvent> GetCallistoOp(long stateReplicatorOffset, Guid? stateReplicatingGeneration, string currentSite,
             OpsEnumerationState enumerationState, CancellationToken replicationToken)
         {
-            CallistoReader remoteCallistoReader = new CallistoReader(Client, ReplicatorSettings.NamespaceToReplicate);
+            CallistoReader remoteCallistoReader = new CallistoReader(Client, Namespace);
 
             return remoteCallistoReader.GetOps(stateReplicatorOffset, stateReplicatingGeneration, currentSite, enumerationState: enumerationState, cancellationToken: replicationToken, maxOffsetsAttempted: ReplicatorSettings.MaxOffsetsAttempted);
         }
@@ -48,7 +48,7 @@ namespace Horde.Storage.Implementation
         protected override async Task ReplicateOp(IRestClient remoteClient, TransactionEvent op, CancellationToken replicationToken)
         {
             using IScope scope = Tracer.Instance.StartActive("replicator.replicate_blobs");
-            NamespaceId ns = ReplicatorSettings.NamespaceToReplicate;
+            NamespaceId ns = Namespace;
 
             // now we replicate the blobs
             switch (op)
@@ -71,7 +71,7 @@ namespace Horde.Storage.Implementation
             using IScope scope = Tracer.Instance.StartActive("replicator.replicate_inline");
             //scope.Span.ResourceName = op.transactionId;
 
-            NamespaceId ns = ReplicatorSettings.NamespaceToReplicate;
+            NamespaceId ns = Namespace;
 
             // Put a copy of the event in the local callisto store
             // Make sure this is put before the io put request as we want to pin the reference before uploading the content to avoid the gc removing it right away
@@ -100,6 +100,7 @@ namespace Horde.Storage.Implementation
         private readonly HttpClient _httpClient;
 
         protected string Name { get; set; }
+        public NamespaceId Namespace { get; set; }
         protected ReplicatorSettings ReplicatorSettings { get; init; }
 
         public ReplicatorState State { get; private set; }
@@ -117,6 +118,7 @@ namespace Horde.Storage.Implementation
         protected Replicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IOptionsMonitor<JupiterSettings> jupiterSettings, IBlobService blobService, IRestClient remoteClient, IServiceCredentials serviceCredentials, IHttpClientFactory httpClientFactory)
         {
             Name = replicatorSettings.ReplicatorName;
+            Namespace = new NamespaceId(replicatorSettings.NamespaceToReplicate);
             _blobService = blobService;
             _currentSite = jupiterSettings.CurrentValue.CurrentSite;
             ReplicatorSettings = replicatorSettings;
@@ -134,7 +136,7 @@ namespace Horde.Storage.Implementation
                 State = new ReplicatorState {ReplicatorOffset = null, ReplicatingGeneration = null};
             }
 
-            Info = new ReplicatorInfo(ReplicatorSettings.ReplicatorName, ReplicatorSettings.NamespaceToReplicate, State);
+            Info = new ReplicatorInfo(ReplicatorSettings.ReplicatorName, Namespace, State);
             Client = remoteClient;
 
             _serviceCredentials = serviceCredentials;

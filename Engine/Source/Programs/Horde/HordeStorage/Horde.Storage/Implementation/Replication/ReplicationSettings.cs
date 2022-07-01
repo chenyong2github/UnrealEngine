@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using EpicGames.Horde.Storage;
 using Horde.Storage.Implementation;
 
 namespace Horde.Storage
@@ -52,7 +51,7 @@ namespace Horde.Storage
         /// The namespace which this replicator is replicating, will be used both on the source and destination side 
         /// </summary>
         [Required]
-        public NamespaceId NamespaceToReplicate { get; set; }
+        public string NamespaceToReplicate { get; set; } = "";
 
         /// <summary>
         /// Name of this replicator instance, should be unique within the cluster

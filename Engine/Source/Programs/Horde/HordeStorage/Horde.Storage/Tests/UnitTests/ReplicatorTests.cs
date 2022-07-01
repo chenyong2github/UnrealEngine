@@ -48,7 +48,7 @@ namespace Horde.Storage.UnitTests
         {
             ReplicatorSettings replicatorSettings = new ReplicatorSettings
             {
-                NamespaceToReplicate = NamespaceV1, ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
+                NamespaceToReplicate = NamespaceV1.ToString(), ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
             };
 
             byte[] contents = Encoding.ASCII.GetBytes("test string");
@@ -108,7 +108,7 @@ namespace Horde.Storage.UnitTests
             bool ran = await replicator.TriggerNewReplications();
             Assert.IsTrue(ran);
 
-            NamespaceId ns = replicatorSettings.NamespaceToReplicate;
+            NamespaceId ns = new NamespaceId(replicatorSettings.NamespaceToReplicate);
 
             // we should have checked the local io once for if we had the blob
             blobStoreMock.Verify(blobStore => blobStore.Exists(ns, blobToReplication), Times.Once);
@@ -130,7 +130,7 @@ namespace Horde.Storage.UnitTests
         {
             ReplicatorSettings replicatorSettings = new ReplicatorSettings
             {
-                NamespaceToReplicate = NamespaceV1, ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
+                NamespaceToReplicate = NamespaceV1.ToString(), ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
             };
 
             Mock<IRestClient> remoteClientMock = new Mock<IRestClient> { DefaultValue = DefaultValue.Empty };
@@ -183,7 +183,7 @@ namespace Horde.Storage.UnitTests
         {
             ReplicatorSettings replicatorSettings = new ReplicatorSettings
             {
-                NamespaceToReplicate = NamespaceV1, ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
+                NamespaceToReplicate = NamespaceV1.ToString(), ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
             };
 
             byte[] contents = Encoding.ASCII.GetBytes("test string");
@@ -245,7 +245,7 @@ namespace Horde.Storage.UnitTests
             bool ran = await replicator.TriggerNewReplications();
             Assert.IsTrue(ran);
 
-            NamespaceId ns = replicatorSettings.NamespaceToReplicate;
+            NamespaceId ns = new NamespaceId(replicatorSettings.NamespaceToReplicate);
 
             // we should have checked the local io once for if we had the blob
             blobStoreMock.Verify(blobStore => blobStore.Exists(ns, blobToReplication), Times.Once);
@@ -268,10 +268,10 @@ namespace Horde.Storage.UnitTests
         {
             ReplicatorSettings replicatorSettings = new ReplicatorSettings
             {
-                NamespaceToReplicate = NamespaceV1, ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
+                NamespaceToReplicate = NamespaceV1.ToString(), ReplicatorName = ReplicatorNameV1, Version = ReplicatorVersion.V1, ConnectionString = "http://localhost"
             };
 
-            NamespaceId ns = replicatorSettings.NamespaceToReplicate;
+            NamespaceId ns = new NamespaceId(replicatorSettings.NamespaceToReplicate);
 
             Mock<IBlobService> blobStoreMock = new Mock<IBlobService>();
             IServiceCredentials serviceCredentials = Mock.Of<IServiceCredentials>();

@@ -40,6 +40,7 @@ namespace Horde.Storage.Implementation
         private readonly IReplicationLog _replicationLog;
         private readonly IServiceCredentials _serviceCredentials;
         private readonly HttpClient _httpClient;
+        private readonly NamespaceId _namespace;
         private RefsState _refsState;
         private bool _replicationRunning;
         private bool _disposed = false;
@@ -47,6 +48,7 @@ namespace Horde.Storage.Implementation
         public RefsReplicator(ReplicatorSettings replicatorSettings, IOptionsMonitor<ReplicationSettings> replicationSettings, IBlobService blobService, IHttpClientFactory httpClientFactory, IReplicationLog replicationLog, IServiceCredentials serviceCredentials)
         {
             _name = replicatorSettings.ReplicatorName;
+            _namespace = new NamespaceId(replicatorSettings.NamespaceToReplicate);
             _replicatorSettings = replicatorSettings;
             _blobService = blobService;
             _replicationLog = replicationLog;
@@ -59,7 +61,7 @@ namespace Horde.Storage.Implementation
             DirectoryInfo stateRoot = new DirectoryInfo(replicationSettings.CurrentValue.StateRoot);
             _stateFile = new FileInfo(Path.Combine(stateRoot.FullName, stateFileName));
 
-            ReplicatorState? replicatorState = _replicationLog.GetReplicatorState(_replicatorSettings.NamespaceToReplicate, _name).Result;
+            ReplicatorState? replicatorState = _replicationLog.GetReplicatorState(_namespace, _name).Result;
             if (replicatorState == null)
             {
                 if (_stateFile.Exists)
@@ -80,7 +82,7 @@ namespace Horde.Storage.Implementation
                 };
             }
 
-            Info = new ReplicatorInfo(replicatorSettings.ReplicatorName, replicatorSettings.NamespaceToReplicate, _refsState);
+            Info = new ReplicatorInfo(replicatorSettings.ReplicatorName, _namespace, _refsState);
         }
 
         public void Dispose()
@@ -140,11 +142,12 @@ namespace Horde.Storage.Implementation
         {
             if (_replicationRunning)
             {
+                _logger.Debug("Skipping replication of replicator: {Name} as it was already running.", _name);
                 return false;
             }
 
             // read the state again to allow it to be modified by the admin controller / other instances of horde-storage connected to the same filesystem
-            ReplicatorState? replicatorState = await _replicationLog.GetReplicatorState(_replicatorSettings.NamespaceToReplicate, _name);
+            ReplicatorState? replicatorState = await _replicationLog.GetReplicatorState(_namespace, _name);
             if (replicatorState == null)
             {
                 _stateFile.Refresh();
@@ -166,23 +169,27 @@ namespace Horde.Storage.Implementation
                 };
             }
 
+            _logger.Debug("Read Replication state for replicator: {Name}. {LastBucket} {LastEvent}.", _name, _refsState.LastBucket, _refsState.LastEvent);
+
             LogReplicationHeartbeat(0);
 
             bool hasRun;
+            int countOfReplicationsDone = 0;
 
             try
             {
                 //using IScope scope = Tracer.Instance.StartActive("replicator.run");
                 //scope.Span.ResourceName =_name;
 
+                _logger.Debug("Replicator: {Name} is starting a run.", _name);
+
                 _replicationTokenSource.TryReset();
                 _replicationRunning = true;
                 _replicationFinishedEvent.Reset();
                 CancellationToken replicationToken = _replicationTokenSource.Token;
 
-                NamespaceId ns = _replicatorSettings.NamespaceToReplicate;
+                NamespaceId ns = _namespace;
 
-                int countOfReplicationsDone = 0;
                 Info.CountOfRunningReplications = 0;
 
                 string? lastBucket = null;
@@ -284,6 +291,8 @@ namespace Horde.Storage.Implementation
                 _replicationRunning = false;
                 _replicationFinishedEvent.Set();
             }
+
+            _logger.Debug("Replicator: {Name} finished its replication run. Replications completed: {ReplicationsDone} .", _name, countOfReplicationsDone);
 
             return hasRun;
         }

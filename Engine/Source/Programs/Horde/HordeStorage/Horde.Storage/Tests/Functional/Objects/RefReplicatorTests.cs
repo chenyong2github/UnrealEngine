@@ -103,7 +103,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             {
                 ConnectionString = "http://localhost",
                 MaxParallelReplications = 16,
-                NamespaceToReplicate = TestNamespace,
+                NamespaceToReplicate = TestNamespace.ToString(),
                 ReplicatorName = "test-replicator",
                 Version = ReplicatorVersion.Refs
             };
@@ -160,7 +160,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             {
                 ConnectionString = "http://localhost",
                 MaxParallelReplications = 16,
-                NamespaceToReplicate = TestNamespace,
+                NamespaceToReplicate = TestNamespace.ToString(),
                 ReplicatorName = "test-replicator",
                 Version = ReplicatorVersion.Refs
             };
@@ -235,7 +235,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             {
                 ConnectionString = "http://localhost",
                 MaxParallelReplications = 16,
-                NamespaceToReplicate = TestNamespace,
+                NamespaceToReplicate = TestNamespace.ToString(),
                 ReplicatorName = "test-replicator",
                 Version = ReplicatorVersion.Refs
             };
@@ -322,7 +322,7 @@ namespace Horde.Storage.FunctionalTests.Replication
             {
                 ConnectionString = "http://localhost",
                 MaxParallelReplications = 16,
-                NamespaceToReplicate = TestNamespace,
+                NamespaceToReplicate = TestNamespace.ToString(),
                 ReplicatorName = "test-replicator",
                 Version = ReplicatorVersion.Refs
             };

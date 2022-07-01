@@ -120,12 +120,14 @@ namespace Horde.Storage.Implementation
                     }
                     else
                     {
+                        _logger.Debug("Replication of replicator: {Name} is still running", replicator.Info.ReplicatorName);
                         // if the replication is still running let it continue to run
                         continue;
                     }
                 }
 
                 // start a new run of the replication
+                _logger.Debug("Triggering new replication of replicator: {Name}", replicator.Info.ReplicatorName);
                 Task<bool> newReplication = replicator.TriggerNewReplications();
                 _currentReplications[replicator.Info.ReplicatorName] = newReplication;
             }
