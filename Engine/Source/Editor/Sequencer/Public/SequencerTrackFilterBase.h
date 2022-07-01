@@ -66,6 +66,7 @@ private:
 template<typename TrackType>
 class FSequencerTrackFilter_ClassType : public FSequencerTrackFilter
 {
+public:
 	// IFilter implementation
 	virtual bool PassesFilter(FTrackFilterType InItem) const override
 	{
@@ -81,6 +82,7 @@ class FSequencerTrackFilter_ClassType : public FSequencerTrackFilter
 template<typename ComponentType>
 class FSequencerTrackFilter_ComponentType : public FSequencerTrackFilter
 {
+public:
 	// IFilter implementation
 	virtual bool PassesFilter(FTrackFilterType InItem) const override
 	{
