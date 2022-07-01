@@ -17,15 +17,17 @@ class FOnlineServicesEOSGS;
 struct FTitleFileEOSGSConfig
 {
 	FString SearchTag;
+	int32 ReadChunkLengthBytes = 4096;
 };
 
 namespace Meta {
 
 BEGIN_ONLINE_STRUCT_META(FTitleFileEOSGSConfig)
-	ONLINE_STRUCT_FIELD(FTitleFileEOSGSConfig, SearchTag)
+	ONLINE_STRUCT_FIELD(FTitleFileEOSGSConfig, SearchTag),
+	ONLINE_STRUCT_FIELD(FTitleFileEOSGSConfig, ReadChunkLengthBytes)
 END_ONLINE_STRUCT_META()
 
-/* Meta*/ }
+/* Meta */ }
 
 class ONLINESERVICESEOSGS_API FTitleFileEOSGS : public FTitleFileCommon
 {
@@ -47,11 +49,11 @@ public:
 protected:
 	EOS_HTitleStorage TitleStorageHandle = nullptr;
 
+	FTitleFileEOSGSConfig Config;
+
 	TOptional<TArray<FString>> EnumeratedFiles;
 
 	static void EOS_CALL OnFileTransferProgressStatic(const EOS_TitleStorage_FileTransferProgressCallbackInfo* Data);
-
-	FTitleFileEOSGSConfig Config;
 };
 
 /* UE::Online */ }

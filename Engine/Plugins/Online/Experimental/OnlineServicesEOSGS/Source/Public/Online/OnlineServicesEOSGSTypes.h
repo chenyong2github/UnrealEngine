@@ -63,10 +63,10 @@ TFuture<const TEOSResult*> EOS_Async(TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSPar
 }
 
 template<typename TEOSResult, typename TEOSHandle, typename TEOSParameters, typename TEOSFn>
-void EOS_Async(TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters, TPromise<const TEOSResult*>&& Promise)
+decltype(auto) EOS_Async(TEOSFn EOSFn, TEOSHandle EOSHandle, TEOSParameters Parameters, TPromise<const TEOSResult*>&& Promise)
 {
 	TEOSCallback<TEOSResult>* Callback = new TEOSCallback<TEOSResult>(MoveTemp(Promise));
-	EOSFn(EOSHandle, &Parameters, Callback, *Callback);
+	return EOSFn(EOSHandle, &Parameters, Callback, *Callback);
 }
 
 class EOSEventRegistration

@@ -58,7 +58,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 		EOS_TitleStorage_QueryFileListOptions Options = {};
 		Options.ApiVersion = EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST;
 		static_assert(EOS_TITLESTORAGE_QUERYFILELISTOPTIONS_API_LATEST == 1, "EOS_TitleStorage_QueryFileListOptions updated, check new fields");
-		Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+		Options.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
 		Options.ListOfTagsCount = 1;
 		Options.ListOfTags = &SearchTagPtr;
 
@@ -66,6 +66,8 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 	})
 	.Then([this](TOnlineAsyncOp<FTitleFileEnumerateFiles>& InAsyncOp, const EOS_TitleStorage_QueryFileListCallbackInfo* Data)
 	{
+		const FTitleFileEnumerateFiles::Params& Params = InAsyncOp.GetParams();
+
 		if (Data->ResultCode != EOS_EResult::EOS_Success)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_QueryFileList failed with result=[%s]"), *LexToString(Data->ResultCode));
@@ -73,7 +75,7 @@ TOnlineAsyncOpHandle<FTitleFileEnumerateFiles> FTitleFileEOSGS::EnumerateFiles(F
 			return;
 		}
 
-		EOS_ProductUserId LocalUserPuid = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+		const EOS_ProductUserId LocalUserPuid = GetProductUserIdChecked(Params.LocalUserId);
 
 		EOS_TitleStorage_GetFileMetadataCountOptions GetCountOptions;
 		GetCountOptions.ApiVersion = EOS_TITLESTORAGE_GETFILEMETADATACOUNTOPTIONS_API_LATEST;
@@ -134,6 +136,7 @@ TOnlineResult<FTitleFileGetEnumeratedFiles> FTitleFileEOSGS::GetEnumeratedFiles(
 TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileReadFile::Params&& InParams)
 {
 	static const TCHAR* FileContentsKey = TEXT("FileContents");
+	static const TCHAR* RequestHandleKey = TEXT("RequestHandle");
 
 	TOnlineAsyncOpRef<FTitleFileReadFile> Op = GetOp<FTitleFileReadFile>(MoveTemp(InParams));
 	const FTitleFileReadFile::Params& Params = Op->GetParams();
@@ -177,32 +180,41 @@ TOnlineAsyncOpHandle<FTitleFileReadFile> FTitleFileEOSGS::ReadFile(FTitleFileRea
 		EOS_TitleStorage_ReadFileOptions  Options = {};
 		Options.ApiVersion = EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST;
 		static_assert(EOS_TITLESTORAGE_READFILEOPTIONS_API_LATEST == 1, "EOS_TitleStorage_ReadFileOptions updated, check new fields");
-		Options.LocalUserId = GetProductUserIdChecked(InAsyncOp.GetParams().LocalUserId);
+		Options.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
 		Options.Filename = Utf8Filename.Get();
-		Options.ReadChunkLengthBytes = 1024 * 1024;
+		Options.ReadChunkLengthBytes = Config.ReadChunkLengthBytes;
 		Options.ReadFileDataCallback = ReadFileDataCallback->GetCallbackPtr();
 		Options.FileTransferProgressCallback = &FTitleFileEOSGS::OnFileTransferProgressStatic;
 
-		return EOS_Async<EOS_TitleStorage_ReadFileCallbackInfo>(EOS_TitleStorage_ReadFile, TitleStorageHandle, Options);
+		TPromise<const EOS_TitleStorage_ReadFileCallbackInfo*> Promise;
+		TFuture<const EOS_TitleStorage_ReadFileCallbackInfo*> Future = Promise.GetFuture();
+		const EOS_HTitleStorageFileTransferRequest RequestHandle = EOS_Async<EOS_TitleStorage_ReadFileCallbackInfo>(EOS_TitleStorage_ReadFile, TitleStorageHandle, Options, MoveTemp(Promise));
+		InAsyncOp.Data.Set<EOS_HTitleStorageFileTransferRequest>(RequestHandleKey, RequestHandle);
+		return Future;
 	})
 	.Then([this](TOnlineAsyncOp<FTitleFileReadFile>& InAsyncOp, const EOS_TitleStorage_ReadFileCallbackInfo* Data)
 	{
-		if (Data->ResultCode != EOS_EResult::EOS_Success)
+		if (Data->ResultCode == EOS_EResult::EOS_Success)
 		{
-			UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
-			InAsyncOp.SetError(FromEOSError(Data->ResultCode));
-			return;
-		}
-
-		const FTitleFileContentsRef* FileContents = InAsyncOp.Data.Get<FTitleFileContentsRef>(FileContentsKey);
-		if (ensure(FileContents))
-		{
-			InAsyncOp.SetResult({ *FileContents });
+			const FTitleFileContentsRef* FileContents = InAsyncOp.Data.Get<FTitleFileContentsRef>(FileContentsKey);
+			if (ensure(FileContents))
+			{
+				InAsyncOp.SetResult({ *FileContents });
+			}
+			else
+			{
+				InAsyncOp.SetError(Errors::Unknown());
+			}
 		}
 		else
 		{
-			InAsyncOp.SetError(Errors::Unknown());
-			return;
+			UE_LOG(LogTemp, Warning, TEXT("EOS_TitleStorage_ReadFile failed with result=[%s]"), *LexToString(Data->ResultCode));
+			InAsyncOp.SetError(FromEOSError(Data->ResultCode));
+		}
+
+		if (const EOS_HTitleStorageFileTransferRequest* RequestHandle = InAsyncOp.Data.Get<EOS_HTitleStorageFileTransferRequest>(RequestHandleKey))
+		{
+			EOS_TitleStorageFileTransferRequest_Release(*RequestHandle);
 		}
 	})
 	.Enqueue(GetSerialQueue());
