@@ -4,7 +4,6 @@
 #include "ILocalizationServiceProvider.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "ILocalizationServiceModule.h"
 
 #define LOCTEXT_NAMESPACE "LocalizationServiceHelpers"
@@ -23,8 +22,8 @@ namespace LocalizationServiceHelpers
 			static FString LocalizationServiceSettingsIni;
 			if (LocalizationServiceSettingsIni.Len() == 0)
 			{
-				FConfigContext Context = FConfigContext::ReadIntoGConfig();
-				Context.Load(TEXT("LocalizationServiceSettings"), LocalizationServiceSettingsIni);
+				const FString LocalizationServiceSettingsDir = FPaths::GeneratedConfigDir();
+				FConfigCacheIni::LoadGlobalIniFile(LocalizationServiceSettingsIni, TEXT("LocalizationServiceSettings"), NULL, false, false, true, true, *LocalizationServiceSettingsDir);
 			}
 			return LocalizationServiceSettingsIni;
 		}
@@ -35,9 +34,8 @@ namespace LocalizationServiceHelpers
 		static FString LocalizationServiceGlobalSettingsIni;
 		if (LocalizationServiceGlobalSettingsIni.Len() == 0)
 		{
-			FConfigContext Context = FConfigContext::ReadIntoGConfig();
-			Context.GeneratedConfigDir = FPaths::EngineSavedDir() + TEXT("Config/");
-			Context.Load(TEXT("LocalizationServiceSettings"), LocalizationServiceGlobalSettingsIni);
+			const FString LocalizationServiceSettingsDir = FPaths::EngineSavedDir() + TEXT("Config/");
+			FConfigCacheIni::LoadGlobalIniFile(LocalizationServiceGlobalSettingsIni, TEXT("LocalizationServiceSettings"), NULL, false, false, true, true, *LocalizationServiceSettingsDir);
 		}
 		return LocalizationServiceGlobalSettingsIni;
 	}

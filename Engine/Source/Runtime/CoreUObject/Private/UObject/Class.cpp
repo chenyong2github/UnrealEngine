@@ -6,7 +6,6 @@
 #include "Misc/ScopeLock.h"
 #include "Serialization/MemoryWriter.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "Misc/OutputDeviceHelper.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/OutputDeviceConsole.h"
@@ -5989,7 +5988,7 @@ const FString UClass::GetConfigName() const
 	{
 		// generate the class ini name, and make sure it's up to date
 		FString ConfigGameName;
-		FConfigContext::ReadIntoGConfig().Load(*ClassConfigName.ToString(), ConfigGameName);
+		FConfigCacheIni::LoadGlobalIniFile(ConfigGameName, *ClassConfigName.ToString());
 		return ConfigGameName;
 	}
 }

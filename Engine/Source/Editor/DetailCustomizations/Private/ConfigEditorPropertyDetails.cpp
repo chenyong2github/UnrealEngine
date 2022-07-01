@@ -2,7 +2,6 @@
 
 #include "ConfigEditorPropertyDetails.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "Modules/ModuleManager.h"
 #include "UObject/UnrealType.h"
 #include "PropertyEditorModule.h"
@@ -103,7 +102,8 @@ void FConfigPropertyHelperDetails::OnPropertyValueChanged(UObject* Object, FProp
 			NewFile.UpdateSinglePropertyInSection(*ConfigIniName, *PropertyName, *SectionName);
 
 			// reload the file, so that it refresh the cache internally.
-			FConfigContext::ForceReloadIntoGConfig().Load(*OriginalProperty->GetOwnerClass()->ClassConfigName.ToString());
+			FString FinalIniFileName;
+			GConfig->LoadGlobalIniFile(FinalIniFileName, *OriginalProperty->GetOwnerClass()->ClassConfigName.ToString(), NULL, true);
 
 			// Update the CDO, as this change might have had an impact on it's value.
 			OriginalProperty->GetOwnerClass()->GetDefaultObject()->ReloadConfig();

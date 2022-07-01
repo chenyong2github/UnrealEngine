@@ -3,7 +3,6 @@
 #include "SettingsSection.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "UObject/Class.h"
 
 
@@ -181,7 +180,7 @@ bool FSettingsSection::ResetDefaults()
 		GConfig->EmptySection(*SettingsObject->GetClass()->GetPathName(), ConfigName);
 		GConfig->Flush(false);
 
-		FConfigContext::ForceReloadIntoGConfig().Load(*FPaths::GetBaseFilename(ConfigName));
+		FConfigCacheIni::LoadGlobalIniFile(ConfigName, *FPaths::GetBaseFilename(ConfigName), nullptr, true);
 
 		SettingsObject->ReloadConfig(nullptr, nullptr, UE::LCPF_PropagateToInstances|UE::LCPF_PropagateToChildDefaultObjects);
 

@@ -11,7 +11,6 @@
 #include "Framework/Docking/TabManager.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "WorkspaceMenuStructureModule.h"
 #include "WorkspaceMenuStructure.h"
 #include "Features/IModularFeatures.h"
@@ -61,7 +60,7 @@ void FSourceFilteringEditorModule::StartupModule()
 	FSourceFilteringCommands::Register();
 
 	// Populate static ini path
-	FConfigContext::ReadIntoGConfig().Load(TEXT("TraceSourceFilters"), SourceFiltersIni);
+	FConfigCacheIni::LoadGlobalIniFile(SourceFiltersIni, TEXT("TraceSourceFilters"));
 	
 	IUnrealInsightsModule& UnrealInsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");	
 	FOnRegisterMajorTabExtensions& TimingProfilerLayoutExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);

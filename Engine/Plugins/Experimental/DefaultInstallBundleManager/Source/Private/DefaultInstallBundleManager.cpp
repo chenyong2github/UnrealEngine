@@ -14,7 +14,6 @@
 
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "Misc/DateTime.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
@@ -166,7 +165,7 @@ void FDefaultInstallBundleManager::SetMustWaitForPSOCache(FBundleInfo& BundleInf
 void LoadKeychainFromInI(FKeyChain& OutCryptoSettings)
 {
 	FConfigFile ConfigFile;
-	FConfigContext::ReadIntoLocalFile(ConfigFile, TEXT("Windows")).Load(TEXT("Crypto"));
+	FConfigCacheIni::LoadExternalIniFile(ConfigFile, TEXT("Crypto"), *FPaths::EngineConfigDir(), *FPaths::Combine(FPaths::ProjectDir(), TEXT("Config/")), true, TEXT("Windows"));
 	if (ConfigFile.Num())
 	{
 		static const TCHAR* SectionName = TEXT("/Script/CryptoKeys.CryptoKeysSettings");
@@ -199,7 +198,7 @@ FDefaultInstallBundleManager::FDefaultInstallBundleManager(const TCHAR* InConfig
 {
 	// Init Config Settings
 	const TCHAR* DefaultConfigBaseName = TEXT("InstallBundleManager");
-	FConfigContext::ReadIntoGConfig().Load(InConfigBaseName ? InConfigBaseName : DefaultConfigBaseName, GInstallBundleManagerIni);
+	FConfigCacheIni::LoadGlobalIniFile(GInstallBundleManagerIni, InConfigBaseName ? InConfigBaseName : DefaultConfigBaseName);
 
 	TickHandle = FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateRaw(this, &FDefaultInstallBundleManager::Tick));
 

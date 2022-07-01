@@ -2,7 +2,6 @@
 
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "Misc/ConfigUtilities.h"
 #include "HAL/IConsoleManager.h"
 #include "Modules/ModuleManager.h"
@@ -508,9 +507,7 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 		ActiveProfileName = DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName();
 		//Ensure we've loaded the device profiles for the active platform.
 		//This can be needed when overriding the device profile.
-		FConfigContext Context = FConfigContext::ReadIntoGConfig();
-		Context.bForceReload = bForceReload;
-		Context.Load(TEXT("DeviceProfiles"), GDeviceProfilesIni);
+		FConfigCacheIni::LoadGlobalIniFile(GDeviceProfilesIni, TEXT("DeviceProfiles"), NULL, bForceReload);
 	}
 	else
 	{

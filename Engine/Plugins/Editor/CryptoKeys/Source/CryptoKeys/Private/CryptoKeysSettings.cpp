@@ -3,7 +3,6 @@
 #include "CryptoKeysHelpers.h"
 #include "Settings/ProjectPackagingSettings.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "Misc/Base64.h"
 
 UCryptoKeysSettings::UCryptoKeysSettings()
@@ -17,20 +16,20 @@ UCryptoKeysSettings::UCryptoKeysSettings()
 
 		if (GConfig->IsReadyForUse())
 		{
-			FConfigFile EncryptionConfig;
-			FConfigContext::ReadIntoLocalFile(EncryptionConfig).Load(TEXT("Encryption"));
+			FString EncryptionIni;
+			FConfigCacheIni::LoadGlobalIniFile(EncryptionIni, TEXT("Encryption"));
 
 			FString OldEncryptionKey;
-			if (EncryptionConfig.GetString(TEXT("Core.Encryption"), TEXT("aes.key"), OldEncryptionKey))
+			if (GConfig->GetString(TEXT("Core.Encryption"), TEXT("aes.key"), OldEncryptionKey, EncryptionIni))
 			{
 				EncryptionKey = FBase64::Encode(OldEncryptionKey);
 			}
 
 			FString OldSigningModulus, OldSigningPublicExponent, OldSigningPrivateExponent;
 
-			bEnablePakSigning = EncryptionConfig.GetString(TEXT("Core.Encryption"), TEXT("rsa.privateexp"), OldSigningPrivateExponent)
-				&& EncryptionConfig.GetString(TEXT("Core.Encryption"), TEXT("rsa.publicexp"), OldSigningPublicExponent)
-				&& EncryptionConfig.GetString(TEXT("Core.Encryption"), TEXT("rsa.modulus"), OldSigningModulus);
+			bEnablePakSigning = GConfig->GetString(TEXT("Core.Encryption"), TEXT("rsa.privateexp"), OldSigningPrivateExponent, EncryptionIni)
+				&& GConfig->GetString(TEXT("Core.Encryption"), TEXT("rsa.publicexp"), OldSigningPublicExponent, EncryptionIni)
+				&& GConfig->GetString(TEXT("Core.Encryption"), TEXT("rsa.modulus"), OldSigningModulus, EncryptionIni);
 
 			if (bEnablePakSigning)
 			{

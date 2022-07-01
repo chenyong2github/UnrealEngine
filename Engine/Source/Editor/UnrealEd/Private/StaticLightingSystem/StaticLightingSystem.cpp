@@ -10,7 +10,6 @@
 #include "Misc/Paths.h"
 #include "Misc/Guid.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "HAL/IConsoleManager.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/App.h"
@@ -635,8 +634,7 @@ bool FStaticLightingSystem::BeginLightmassProcess()
 			UE_LOG(LogStaticLightingSystem, Warning, TEXT("WorldSettings.bForceNoPrecomputedLighting is true, Skipping Lighting Build!"));
 		}
 		
-		FConfigContext::ForceReloadIntoGConfig().Load(TEXT("Lightmass"), GLightmassIni);
-
+		FConfigCacheIni::LoadGlobalIniFile(GLightmassIni, TEXT("Lightmass"), NULL, true);
 		verify(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bUseBilinearFilterLightmaps"), GUseBilinearLightmaps, GLightmassIni));
 		verify(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bAllowCropping"), GAllowLightmapCropping, GLightmassIni));
 		verify(GConfig->GetBool(TEXT("DevOptions.StaticLighting"), TEXT("bRebuildDirtyGeometryForLighting"), bRebuildDirtyGeometryForLighting, GLightmassIni));

@@ -13,7 +13,6 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/MemoryReader.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/App.h"
 #include "Modules/ModuleManager.h"
@@ -449,7 +448,8 @@ UObject* UPackFactory::FactoryCreateBinary
 
 						NewFile.UpdateSections(*EngineIniFilename, *RedirectsSection);
 
-						FConfigContext::ForceReloadIntoGConfig().Load(*RedirectsSection);
+						FString FinalIniFileName;
+						GConfig->LoadGlobalIniFile(FinalIniFileName, *RedirectsSection, NULL, true);
 
 						FLinkerLoad::AddGameNameRedirect(*LongOldGameName, *LongNewGameName);
 						FLinkerLoad::AddGameNameRedirect(*ConfigParameters.GameName, *LongNewGameName);

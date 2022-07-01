@@ -17,7 +17,6 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ConfigCacheIni.h"
-#include "Misc/ConfigContext.h"
 #include "HAL/PlatformFileManager.h"
 #include "Async/ParallelFor.h"
 #include "Async/AsyncWork.h"
@@ -4986,12 +4985,9 @@ bool MakeBinaryConfig(const TCHAR* CmdLine)
 		return false;
 	}
 
-	FString ProjectDir = FPaths::GetPath(ProjectFile);
-
 	FConfigCacheIni Config(EConfigCacheType::Temporary);
-	FConfigContext Context = FConfigContext::ReadIntoConfigSystem(&Config, TEXT(""));
-	Context.ProjectConfigDir = FPaths::Combine(ProjectDir, TEXT("Config"));
-	Config.InitializeKnownConfigFiles(Context);
+	FString ProjectDir = FPaths::GetPath(ProjectFile);
+	Config.InitializeKnownConfigFiles(*PlatformName, false, *ProjectDir);
 
 	// removing for now, because this causes issues with some plugins not getting ini files merged in
 	// IPluginManager::Get().IntegratePluginsIntoConfig(Config, *GEngineIni, *PlatformName, *StagedPluginsFile);
