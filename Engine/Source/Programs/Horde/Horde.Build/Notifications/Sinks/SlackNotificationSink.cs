@@ -1557,7 +1557,7 @@ namespace Horde.Build.Notifications.Sinks
 			}
 
 			string prefix = GetPrefixForSeverity(issue.Severity);
-			StringBuilder body = new StringBuilder($"\u2022 {prefix}*Issue <{issueUrl}|{issue.Id}>");
+			StringBuilder body = new StringBuilder($"{prefix}*Issue <{issueUrl}|{issue.Id}>");
 
 			if (triageChannel != null)
 			{
