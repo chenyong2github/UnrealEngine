@@ -33,7 +33,7 @@ public:
 	FPrimitiveIdVertexBufferPool();
 	~FPrimitiveIdVertexBufferPool();
 
-	FPrimitiveIdVertexBufferPoolEntry Allocate(int32 BufferSize);
+	FPrimitiveIdVertexBufferPoolEntry Allocate(FRHICommandList& RHICmdList, int32 BufferSize);
 	void ReturnToFreeList(FPrimitiveIdVertexBufferPoolEntry Entry);
 	RENDERER_API void DiscardAll();
 
@@ -213,7 +213,6 @@ public:
 	const FGraphEventRef& GetTaskEvent() const { return TaskEventRef; }
 
 private:
-	FPrimitiveIdVertexBufferPoolEntry PrimitiveIdVertexBufferPoolEntry;
 	FMeshDrawCommandPassSetupTaskContext TaskContext;
 	FGraphEventRef TaskEventRef;
 	FString PassNameForStats;
@@ -230,6 +229,7 @@ private:
 
 RENDERER_API extern void SortAndMergeDynamicPassMeshDrawCommands(
 	const FSceneView& SceneView,
+	FRHICommandList& RHICmdList,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FRHIBuffer*& OutPrimitiveIdVertexBuffer,

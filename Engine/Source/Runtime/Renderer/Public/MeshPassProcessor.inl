@@ -6,6 +6,8 @@ MeshPassProcessor.inl:
 
 #pragma once
 
+#include "RenderGraphBuilder.h"
+
 static EVRSShadingRate GetShadingRateFromMaterial(EMaterialShadingRate MaterialShadingRate)
 {
 	if (GRHISupportsPipelineVariableRateShading && GRHIVariableRateShadingEnabled)
@@ -183,4 +185,46 @@ void DrawDynamicMeshPass(const FSceneView& View, FRHICommandList& RHICmdList, co
 	// We assume all dynamic passes are in stereo if it is enabled in the view, so we apply ISR to them
 	const uint32 InstanceFactor = (!bForceStereoInstancingOff && View.IsInstancedStereoPass()) ? 2 : 1;
 	DrawDynamicMeshPassPrivate(View, RHICmdList, VisibleMeshDrawCommands, DynamicMeshDrawCommandStorage, GraphicsMinimalPipelineStateSet, NeedsShaderInitialisation, InstanceFactor);
+}
+
+template <typename ParameterStructType, typename LambdaType>
+void AddDrawDynamicMeshPass(
+	FRDGBuilder& GraphBuilder,
+	FRDGEventName&& EventName,
+	const ParameterStructType* PassParameters,
+	const FSceneView& View,
+	FIntRect ViewRect,
+	const LambdaType& BuildPassProcessorLambda,
+	bool bForceStereoInstancingOff = false)
+{
+	// We assume all dynamic passes are in stereo if it is enabled in the view, so we apply ISR to them
+	const uint32 InstanceFactor = (!bForceStereoInstancingOff && View.IsInstancedStereoPass()) ? 2 : 1;
+
+	struct FContext
+	{
+		FDynamicMeshDrawCommandStorage DynamicMeshDrawCommandStorage;
+		FMeshCommandOneFrameArray VisibleMeshDrawCommands;
+		FGraphicsMinimalPipelineStateSet GraphicsMinimalPipelineStateSet;
+		bool NeedsShaderInitialisation;
+	};
+
+	FContext& Context = *GraphBuilder.AllocObject<FContext>();
+
+	GraphBuilder.AddSetupTask([&Context, BuildPassProcessorLambda]
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SetupDynamicMeshPass);
+		FDynamicPassMeshDrawListContext DynamicMeshPassContext(Context.DynamicMeshDrawCommandStorage, Context.VisibleMeshDrawCommands, Context.GraphicsMinimalPipelineStateSet, Context.NeedsShaderInitialisation);
+		BuildPassProcessorLambda(&DynamicMeshPassContext);
+	});
+
+	GraphBuilder.AddPass(
+		MoveTemp(EventName),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&Context, &View, ViewRect, InstanceFactor](FRHICommandList& RHICmdList)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(SetupDynamicMeshPass);
+		RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
+		DrawDynamicMeshPassPrivate(View, RHICmdList, Context.VisibleMeshDrawCommands, Context.DynamicMeshDrawCommandStorage, Context.GraphicsMinimalPipelineStateSet, Context.NeedsShaderInitialisation, InstanceFactor);
+	});
 }

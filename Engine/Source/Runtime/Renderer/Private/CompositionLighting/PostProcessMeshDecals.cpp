@@ -323,36 +323,33 @@ void DrawDecalMeshCommands(
 	auto* PassParameters = GraphBuilder.AllocParameters<FDeferredDecalPassParameters>();
 	GetDeferredDecalPassParameters(GraphBuilder, View, DecalPassTextures, RenderTargetMode, *PassParameters);
 
-	GraphBuilder.AddPass(
+	AddDrawDynamicMeshPass(
+		GraphBuilder,
 		RDG_EVENT_NAME("MeshDecals"),
 		PassParameters,
-		ERDGPassFlags::Raster,
-		[&View, DecalRenderStage, RenderTargetMode](FRHICommandListImmediate& RHICmdList)
+		View,
+		View.ViewRect,
+		[&View, DecalRenderStage, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 	{
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+		TRACE_CPUPROFILER_EVENT_SCOPE(MeshDecalCommands);
 
-		const FScene& Scene = *View.Family->Scene->GetRenderScene();
+		FMeshDecalMeshProcessor PassMeshProcessor(
+			View.Family->Scene->GetRenderScene(),
+			&View,
+			DecalRenderStage,
+			RenderTargetMode,
+			DynamicMeshPassContext);
 
-		DrawDynamicMeshPass(View, RHICmdList,
-			[&View, DecalRenderStage, RenderTargetMode](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+		for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
 		{
-			FMeshDecalMeshProcessor PassMeshProcessor(
-				View.Family->Scene->GetRenderScene(),
-				&View,
-				DecalRenderStage,
-				RenderTargetMode,
-				DynamicMeshPassContext);
+			const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
+			const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
+			const uint64 DefaultBatchElementMask = ~0ull;
 
-			for (int32 MeshBatchIndex = 0; MeshBatchIndex < View.MeshDecalBatches.Num(); ++MeshBatchIndex)
-			{
-				const FMeshBatch* Mesh = View.MeshDecalBatches[MeshBatchIndex].Mesh;
-				const FPrimitiveSceneProxy* PrimitiveSceneProxy = View.MeshDecalBatches[MeshBatchIndex].Proxy;
-				const uint64 DefaultBatchElementMask = ~0ull;
+			PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
+		}
 
-				PassMeshProcessor.AddMeshBatch(*Mesh, DefaultBatchElementMask, PrimitiveSceneProxy);
-			}
-		}, true);
-	});
+	}, true);
 }
 
 void RenderMeshDecals(

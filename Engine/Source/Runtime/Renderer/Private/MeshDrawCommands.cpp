@@ -45,10 +45,8 @@ FPrimitiveIdVertexBufferPool::~FPrimitiveIdVertexBufferPool()
 	check(!Entries.Num());
 }
 
-FPrimitiveIdVertexBufferPoolEntry FPrimitiveIdVertexBufferPool::Allocate(int32 BufferSize)
+FPrimitiveIdVertexBufferPoolEntry FPrimitiveIdVertexBufferPool::Allocate(FRHICommandList& RHICmdList, int32 BufferSize)
 {
-	check(IsInRenderingThread());
-
 	FScopeLock Lock(&AllocationCS);
 
 	BufferSize = Align(BufferSize, 1024);
@@ -88,7 +86,7 @@ FPrimitiveIdVertexBufferPoolEntry FPrimitiveIdVertexBufferPool::Allocate(int32 B
 		NewEntry.LastDiscardId = DiscardId;
 		NewEntry.BufferSize = BufferSize;
 		FRHIResourceCreateInfo CreateInfo(TEXT("FPrimitiveIdVertexBufferPool"));
-		NewEntry.BufferRHI = RHICreateVertexBuffer(NewEntry.BufferSize, BUF_Volatile, CreateInfo);
+		NewEntry.BufferRHI = RHICmdList.CreateBuffer(NewEntry.BufferSize, BUF_VertexBuffer | BUF_Volatile, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 
 		return NewEntry;
 	}
@@ -1007,6 +1005,7 @@ private:
  */
 void SortAndMergeDynamicPassMeshDrawCommands(
 	const FSceneView& SceneView,
+	FRHICommandList& RHICmdList,
 	FMeshCommandOneFrameArray& VisibleMeshDrawCommands,
 	FDynamicMeshDrawCommandStorage& MeshDrawCommandStorage,
 	FRHIBuffer*& OutPrimitiveIdVertexBuffer,
@@ -1051,9 +1050,9 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 			const uint32 PrimitiveIdBufferStride = FInstanceCullingContext::GetInstanceIdBufferStride(FeatureLevel);
 			const int32 MaxNumPrimitives = InstanceFactor * NumDrawCommands;
 			const int32 PrimitiveIdBufferDataSize = MaxNumPrimitives * PrimitiveIdBufferStride;
-			FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(PrimitiveIdBufferDataSize);
+			FPrimitiveIdVertexBufferPoolEntry Entry = GPrimitiveIdVertexBufferPool.Allocate(RHICmdList, PrimitiveIdBufferDataSize);
 			OutPrimitiveIdVertexBuffer = Entry.BufferRHI;
-			void* PrimitiveIdBufferData = RHILockBuffer(OutPrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
+			void* PrimitiveIdBufferData = RHICmdList.LockBuffer(OutPrimitiveIdVertexBuffer, 0, PrimitiveIdBufferDataSize, RLM_WriteOnly);
 
 			if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 			{
@@ -1113,7 +1112,7 @@ void SortAndMergeDynamicPassMeshDrawCommands(
 					WritePrimitiveDataFn);
 			}
 
-			RHIUnlockBuffer(OutPrimitiveIdVertexBuffer);
+			RHICmdList.UnlockBuffer(OutPrimitiveIdVertexBuffer);
 			GPrimitiveIdVertexBufferPool.ReturnToFreeList(Entry);
 		}
 	}
@@ -1208,7 +1207,6 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 #if DO_GUARD_SLOW
 		FMemory::Memzero(TaskContext.PrimitiveIdBufferData, TaskContext.PrimitiveIdBufferDataSize);
 #endif // DO_GUARD_SLOW
-		PrimitiveIdVertexBufferPoolEntry = GPrimitiveIdVertexBufferPool.Allocate(TaskContext.PrimitiveIdBufferDataSize);
 		TaskContext.MeshDrawCommands.Reserve(MaxNumDraws);
 		TaskContext.TempVisibleMeshDrawCommands.Reserve(MaxNumDraws);
 
@@ -1279,11 +1277,6 @@ void FParallelMeshDrawCommandPass::WaitForTasksAndEmpty(EWaitThread WaitThread)
 	{
 		delete TaskContext.MobileBasePassCSMMeshPassProcessor;
 		TaskContext.MobileBasePassCSMMeshPassProcessor = nullptr;
-	}
-
-	if (MaxNumDraws > 0)
-	{
-		GPrimitiveIdVertexBufferPool.ReturnToFreeList(PrimitiveIdVertexBufferPoolEntry);
 	}
 
 	FMemory::Free(TaskContext.PrimitiveIdBufferData);

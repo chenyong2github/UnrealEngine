@@ -338,7 +338,7 @@ static void DoRenderHitProxies(
 			RDG_EVENT_NAME("HitProxies::Render"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[SceneRenderer, &View, LocalScene, FeatureLevel, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[SceneRenderer, &View, LocalScene, FeatureLevel, PassParameters](FRHICommandList& RHICmdList)
 		{
 			FMeshPassProcessorRenderState DrawRenderState;
 

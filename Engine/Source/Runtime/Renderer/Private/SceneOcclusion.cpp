@@ -1205,7 +1205,7 @@ static FViewOcclusionQueriesPerView AllocateOcclusionTests(const FScene* Scene, 
 }
 
 static void BeginOcclusionTests(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	TArrayView<FViewInfo> Views,
 	ERHIFeatureLevel::Type FeatureLevel,
 	const FViewOcclusionQueriesPerView& QueriesPerView,
@@ -1270,8 +1270,8 @@ static void BeginOcclusionTests(
 		{
 			uint32 BaseVertexOffset = 0;
 			FRHIResourceCreateInfo CreateInfo(TEXT("ViewOcclusionTests"));
-			FBufferRHIRef VertexBufferRHI = RHICreateVertexBuffer(sizeof(FVector3f) * NumVertices, BUF_Volatile, CreateInfo);
-			void* VoidPtr = RHILockBuffer(VertexBufferRHI, 0, sizeof(FVector3f) * NumVertices, RLM_WriteOnly);
+			FBufferRHIRef VertexBufferRHI = RHICmdList.CreateBuffer(sizeof(FVector3f) * NumVertices, BUF_Volatile | BUF_VertexBuffer, 0, ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+			void* VoidPtr = RHICmdList.LockBuffer(VertexBufferRHI, 0, sizeof(FVector3f) * NumVertices, RLM_WriteOnly);
 
 			{
 				FVector3f* Vertices = reinterpret_cast<FVector3f*>(VoidPtr);
@@ -1294,7 +1294,7 @@ static void BeginOcclusionTests(
 				}
 			}
 
-			RHIUnlockBuffer(VertexBufferRHI);
+			RHICmdList.UnlockBuffer(VertexBufferRHI);
 
 			{
 				SCOPED_DRAW_EVENT(RHICmdList, ShadowFrustumQueries);
@@ -1413,7 +1413,7 @@ void FDeferredShadingSceneRenderer::RenderOcclusion(
 				RDG_EVENT_NAME("BeginOcclusionTests"),
 				PassParameters,
 				ERDGPassFlags::Raster | ERDGPassFlags::NeverCull,
-				[this, LocalQueriesPerView = MoveTemp(QueriesPerView), DownsampleFactor](FRHICommandListImmediate& RHICmdList)
+				[this, LocalQueriesPerView = MoveTemp(QueriesPerView), DownsampleFactor](FRHICommandList& RHICmdList)
 			{
 				BeginOcclusionTests(RHICmdList, Views, FeatureLevel, LocalQueriesPerView, DownsampleFactor);
 			});

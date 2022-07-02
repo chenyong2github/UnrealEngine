@@ -1024,7 +1024,7 @@ static FViewShaderParameters GetSeparateTranslucencyViewParameters(const FViewIn
 }
 
 static void RenderViewTranslucencyInner(
-	FRHICommandListImmediate& RHICmdList,
+	FRHICommandList& RHICmdList,
 	const FSceneRenderer& SceneRenderer,
 	const FViewInfo& View,
 	const FScreenPassTextureViewport Viewport,
@@ -1201,7 +1201,7 @@ static void RenderTranslucencyViewInner(
 				int32(View.ViewRect.Height() * ViewportScale)),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[&SceneRenderer, &View, ViewportScale, Viewport, TranslucencyPass, PassParameters](FRHICommandListImmediate& RHICmdList)
+			[&SceneRenderer, &View, ViewportScale, Viewport, TranslucencyPass, PassParameters](FRHICommandList& RHICmdList)
 		{
 			RenderViewTranslucencyInner(RHICmdList, SceneRenderer, View, Viewport, ViewportScale, TranslucencyPass, nullptr, PassParameters->InstanceCullingDrawParams);
 		});

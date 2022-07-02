@@ -971,7 +971,7 @@ static void RenderEditorPrimitivesForDPG(
 		RDG_EVENT_NAME("%s", *UEnum::GetValueAsString(DepthPriorityGroup)),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, DrawRenderState, DepthPriorityGroup](FRHICommandListImmediate& RHICmdList)
+		[&View, DrawRenderState, DepthPriorityGroup](FRHICommandList& RHICmdList)
 	{
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 

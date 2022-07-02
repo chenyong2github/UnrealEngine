@@ -394,7 +394,7 @@ static void RenderPrePassEditorPrimitives(
 		RDG_EVENT_NAME("EditorPrimitives"),
 		PassParameters,
 		ERDGPassFlags::Raster,
-		[&View, DrawRenderState, DepthDrawingMode](FRHICommandListImmediate& RHICmdList)
+		[&View, DrawRenderState, DepthDrawingMode](FRHICommandList& RHICmdList)
 	{
 		const bool bRespectUseAsOccluderFlag = true;
 
