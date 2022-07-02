@@ -885,7 +885,7 @@ namespace Horde.Build.Notifications.Sinks
 					else
 					{
 						string fixFailedEventId = $"issue_{issue.Id}_fixfailed_{issue.FixChange}";
-						string fixFailedMessage = $"Issue not fixed by {FormatChange(issue.FixChange.Value)}; see {FormatJobStep(fixFailedSpan.LastFailure, fixFailedSpan.NodeName)} in {fixFailedSpan.StreamName}.";
+						string fixFailedMessage = $"Issue not fixed by {FormatChange(issue.FixChange.Value)}; see {FormatJobStep(fixFailedSpan.LastFailure, fixFailedSpan.NodeName)} at CL {fixFailedSpan.LastFailure.Change} in {fixFailedSpan.StreamName}.";
 						if (issue.OwnerId.HasValue)
 						{
 							string mention = await FormatMentionAsync(issue.OwnerId.Value, workflow.AllowMentions);
