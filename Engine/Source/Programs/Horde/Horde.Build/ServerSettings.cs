@@ -405,6 +405,16 @@ namespace Horde.Build
 		public string? SlackUsers { get; set; }
 
 		/// <summary>
+		/// Prefix to use when reporting errors
+		/// </summary>
+		public string? SlackErrorPrefix { get; set; } = ":horde-error: ";
+
+		/// <summary>
+		/// Prefix to use when reporting warnings
+		/// </summary>
+		public string? SlackWarningPrefix { get; set; } = ":horde-warning: ";
+
+		/// <summary>
 		/// Channel to send stream notification update failures to
 		/// </summary>
 		public string? UpdateStreamsNotificationChannel { get; set; }
