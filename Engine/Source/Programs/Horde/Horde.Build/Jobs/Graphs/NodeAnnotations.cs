@@ -45,6 +45,11 @@ namespace Horde.Build.Jobs.Graphs
 		/// Key to use for grouping issues together, preventing them being merged with other groups
 		/// </summary>
 		string? IssueGroup { get; }
+
+		/// <summary>
+		/// Whether failures in this node should be flagged as build blockers
+		/// </summary>
+		bool? BuildBlocker { get; }
 	}
 
 	/// <summary>
@@ -74,6 +79,9 @@ namespace Horde.Build.Jobs.Graphs
 
 		/// <inheritdoc cref="IReadOnlyNodeAnnotations.IssueGroup"/>
 		public const string IssueGroupKeyName = "IssueGroup";
+
+		/// <inheritdoc cref="IReadOnlyNodeAnnotations.BuildBlocker"/>
+		public const string BuildBlockerKeyName = "BuildBlocker";
 
 		/// <summary>
 		/// Constructor
@@ -139,6 +147,13 @@ namespace Horde.Build.Jobs.Graphs
 		{
 			get => GetStringValue(IssueGroupKeyName);
 			set => SetStringValue(IssueGroupKeyName, value);
+		}
+
+		/// <inheritdoc/>
+		public bool? BuildBlocker
+		{
+			get => GetBoolValue(BuildBlockerKeyName);
+			set => SetBoolValue(BuildBlockerKeyName, value);
 		}
 
 		private bool? GetBoolValue(string key)
