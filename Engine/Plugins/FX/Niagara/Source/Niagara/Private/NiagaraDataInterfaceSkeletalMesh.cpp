@@ -1516,8 +1516,7 @@ USkeletalMesh* UNiagaraDataInterfaceSkeletalMesh::GetSkeletalMesh(FNiagaraSystem
 		// Fall back on any valid component on the actor
 		while (Actor)
 		{
-			USceneComponent* ActorRootComponent = Actor->GetRootComponent();
-			if (ensure(ActorRootComponent))
+			if (USceneComponent* ActorRootComponent = Actor->GetRootComponent())
 			{
 				TArray<USceneComponent*> ActorComponents;
 				ActorRootComponent->GetChildrenComponents(true /*bIncludeAllDescendants*/, ActorComponents);
