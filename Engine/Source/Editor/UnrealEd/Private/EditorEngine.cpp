@@ -7066,13 +7066,21 @@ void UEditorEngine::VerifyLoadMapWorldCleanup(FWorldContext* ForContext)
 			for (int32 idx=0; idx < WorldList.Num(); ++idx)
 			{
 				FWorldContext& WorldContext = WorldList[idx];
-				if (World == WorldContext.SeamlessTravelHandler.GetLoadedWorld())
+
+				if (const UWorld* TravelWorld = WorldContext.SeamlessTravelHandler.GetLoadedWorld())
 				{
-					// World valid, but not loaded yet
-					ValidWorld = true;
-					break;
+					TArray<UWorld*> TravelWorlds;
+					EditorLevelUtils::GetWorlds((UWorld*)TravelWorld, TravelWorlds, true, false);
+
+					if (TravelWorlds.Contains(World))
+					{
+						// World valid, but not loaded yet
+						ValidWorld = true;
+						break;
+					}
 				}
-				else if (WorldContext.World())
+				
+				if (WorldContext.World())
 				{
 					TArray<UWorld*> OtherWorlds;
 					EditorLevelUtils::GetWorlds(WorldContext.World(), OtherWorlds, true, false);

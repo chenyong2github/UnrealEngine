@@ -6904,12 +6904,17 @@ void FSeamlessTravelHandler::StartLoadingDestination()
 		if (GIsEditor)
 		{
 			FWorldContext &WorldContext = GEngine->GetWorldContextFromHandleChecked(WorldContextHandle);
+
+			PIEInstanceID = WorldContext.PIEInstance;
+			URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
+
 			if (WorldContext.WorldType == EWorldType::PIE)
 			{
 				PackageFlags |= PKG_PlayInEditor;
+
+				// Prepare soft object paths for fixup
+				FSoftObjectPath::AddPIEPackageName(FName(*URLMapPackageName));
 			}
-			PIEInstanceID = WorldContext.PIEInstance;
-			URLMapPackageName = UWorld::ConvertToPIEPackageName(URLMapPackageName, PIEInstanceID);
 		}
 #endif
 

@@ -41,6 +41,17 @@ FGameModeEvents::FGameModePostLoginEvent FGameModeEvents::GameModePostLoginEvent
 FGameModeEvents::FGameModeLogoutEvent FGameModeEvents::GameModeLogoutEvent;
 FGameModeEvents::FGameModeMatchStateSetEvent FGameModeEvents::GameModeMatchStateSetEvent;
 
+namespace UE::GameModeBase::Private
+{
+	static bool bAllowPIESeamlessTravel = false;
+	static FAutoConsoleVariableRef CVarAllowPIESeamlessTravel(
+		TEXT("net.AllowPIESeamlessTravel"),
+		bAllowPIESeamlessTravel,
+		TEXT("When true, allow seamless travels in single process PIE.")
+	);
+}
+
+
 AGameModeBase::AGameModeBase(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer.DoNotCreateDefaultSubobject(TEXT("Sprite")))
 {
@@ -405,8 +416,11 @@ bool AGameModeBase::CanServerTravel(const FString& FURL, bool bAbsolute)
 	// There are a few issues with seamless travel using single process PIE, so we're disabling that for now while working on a fix
 	if (World->WorldType == EWorldType::PIE && bUseSeamlessTravel && !FParse::Param(FCommandLine::Get(), TEXT("MultiprocessOSS")))
 	{
-		UE_LOG(LogGameMode, Warning, TEXT("CanServerTravel: Seamless travel currently NOT supported in single process PIE."));
-		return false;
+		if (!UE::GameModeBase::Private::bAllowPIESeamlessTravel)
+		{
+			UE_LOG(LogGameMode, Warning, TEXT("CanServerTravel: Seamless travel currently NOT supported in single process PIE."));
+			return false;
+		}
 	}
 
 	if (FURL.Contains(TEXT("%")))

@@ -1718,7 +1718,9 @@ ENetMode UNetDriver::GetNetMode() const
 #if WITH_EDITOR
 	if (World && World->WorldType == EWorldType::PIE && IsServer())
 	{
-		if ( GEngine->GetWorldContextFromWorldChecked(World).RunAsDedicated )
+		//@todo: world context won't be valid during seamless travel CopyWorldData
+		FWorldContext* WorldContext = GEngine->GetWorldContextFromWorld(World);
+		if (WorldContext && WorldContext->RunAsDedicated)
 		{
 			return NM_DedicatedServer;
 		}
