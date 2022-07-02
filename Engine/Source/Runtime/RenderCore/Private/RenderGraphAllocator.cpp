@@ -11,11 +11,7 @@ FRDGAllocator& FRDGAllocator::Get()
 
 FRDGAllocator::~FRDGAllocator()
 {
-#if RDG_USE_MALLOC
-	check(Context.RawAllocs.IsEmpty() && ContextForTasks.RawAllocs.IsEmpty());
-#else
-	check(Context.MemStack.IsEmpty() && ContextForTasks.MemStack.IsEmpty());
-#endif
+	ReleaseAll();
 }
 
 void FRDGAllocator::FContext::ReleaseAll()

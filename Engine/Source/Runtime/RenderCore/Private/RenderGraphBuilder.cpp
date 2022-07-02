@@ -566,12 +566,30 @@ FRDGBuilder::~FRDGBuilder()
 {
 	SCOPED_NAMED_EVENT(FRDGBuilder_Clear, FColor::Emerald);
 
-	Passes.Clear();
-	Buffers.Clear();
-	UniformBuffers.Clear();
-	Blackboard.Clear();
-	ActivePooledTextures.Empty();
-	ActivePooledBuffers.Empty();
+	if (bParallelExecuteEnabled)
+	{
+		FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Passes = MoveTemp(Passes), Blackboard = MoveTemp(Blackboard), Buffers = MoveTemp(Buffers), UniformBuffers = MoveTemp(UniformBuffers), ActivePooledTextures = MoveTemp(ActivePooledTextures), ActivePooledBuffers = MoveTemp(ActivePooledBuffers), Allocator = MoveTemp(Allocator)](ENamedThreads::Type, const FGraphEventRef&) mutable
+		{
+			SCOPED_NAMED_EVENT(FRDGBuilder_Clear, FColor::Emerald);
+			Passes.Clear();
+			Buffers.Clear();
+			UniformBuffers.Clear();
+			Blackboard.Clear();
+			ActivePooledTextures.Empty();
+			ActivePooledBuffers.Empty();
+
+		}, TStatId(), nullptr, ENamedThreads::AnyThread);
+	}
+	else
+	{
+		Passes.Clear();
+		Buffers.Clear();
+		UniformBuffers.Clear();
+		Blackboard.Clear();
+		ActivePooledTextures.Empty();
+		ActivePooledBuffers.Empty();
+	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
@@ -2097,6 +2115,7 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 		}
 
 		check(!EnumHasAnyFlags(PassPipeline, ERHIPipeline::AsyncCompute));
+		check(ParallelSetupEvents.IsEmpty());
 
 		SubmitBufferUploads(nullptr);
 		CompilePassOps(Pass);
@@ -2104,8 +2123,6 @@ void FRDGBuilder::SetupPassInternal(FRDGPass* Pass, FRDGPassHandle PassHandle, E
 		CreateUniformBuffers(nullptr);
 		CollectPassBarriers(Pass, PassHandle);
 		CreatePassBarriers([] {});
-		FTaskGraphInterface::Get().WaitUntilTasksComplete(ParallelSetupEvents);
-		ParallelSetupEvents.Reset();
 		ExecutePass(Pass, RHICmdList);
 	}
 

@@ -362,6 +362,25 @@ inline void FRDGBuilder::AddDispatchHint()
 	}
 }
 
+template <typename TaskLambda>
+void FRDGBuilder::AddSetupTask(TaskLambda&& Task)
+{
+	if (bParallelExecuteEnabled)
+	{
+		ParallelSetupEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[Task = MoveTemp(Task)](ENamedThreads::Type, const FGraphEventRef&)
+		{
+			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
+			Task();
+
+		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
+	}
+	else
+	{
+		Task();
+	}
+}
+
 inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const
 {
 	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateGetPooledTexture(Texture));

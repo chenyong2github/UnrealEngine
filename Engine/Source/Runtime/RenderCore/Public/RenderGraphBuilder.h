@@ -184,18 +184,9 @@ public:
 	/** A hint to the builder to flush work to the RHI thread after the last queued pass on the execution timeline. */
 	void AddDispatchHint();
 
-
+	/** Launches a task that is synced prior to graph execution. If parallel execution is not enabled, the lambda is run immediately. */
 	template <typename TaskLambda>
-	void AddSetupTask(TaskLambda&& Task)
-	{
-		ParallelSetupEvents.Emplace(FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Task = MoveTemp(Task)](ENamedThreads::Type, const FGraphEventRef&)
-		{
-			FTaskTagScope Scope(ETaskTag::EParallelRenderingThread);
-			Task();
-
-		}, TStatId(), nullptr, ENamedThreads::AnyHiPriThreadHiPriTask));
-	}
+	void AddSetupTask(TaskLambda&& Task);
 
 	/** Tells the builder to delete unused RHI resources. The behavior of this method depends on whether RDG immediate mode is enabled:
 	 *   Deferred:  RHI resource flushes are performed prior to execution.

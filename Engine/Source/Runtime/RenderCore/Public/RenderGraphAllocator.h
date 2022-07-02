@@ -11,6 +11,7 @@
 class RENDERCORE_API FRDGAllocator final
 {
 public:
+	static FRDGAllocator& Get();
 	~FRDGAllocator();
 
 	/** Allocates raw memory. */
@@ -68,8 +69,10 @@ public:
 	}
 
 private:
-	static FRDGAllocator& Get();
 	FRDGAllocator() = default;
+	FRDGAllocator(FRDGAllocator&&) = default;
+	FRDGAllocator& operator = (FRDGAllocator&&) = default;
+
 	void ReleaseAll();
 
 	struct FTrackedAlloc
@@ -112,6 +115,7 @@ private:
 	template <uint32>
 	friend class TRDGArrayAllocator;
 	friend class FRDGAllocatorScope;
+	friend class FRDGBuilder;
 };
 
 /** Base class for RDG builder which scopes the allocations and releases them in the destructor. */
