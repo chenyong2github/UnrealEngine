@@ -32,6 +32,7 @@ namespace Horde.Build.Issues
 	public class IssueReport
 	{
 		public string Channel { get; }
+		public WorkflowId WorkflowId { get; }
 		public DateTimeOffset Time { get; }
 		public IStream Stream { get; }
 		public WorkflowStats WorkflowStats { get; }
@@ -40,9 +41,10 @@ namespace Horde.Build.Issues
 		public List<IIssueSpan> IssueSpans { get; } = new List<IIssueSpan>();
 		public bool GroupByTemplate { get; }
 
-		public IssueReport(string channel, DateTimeOffset time, IStream stream, WorkflowStats workflowStats, string? triageChannel, bool groupByTemplate)
+		public IssueReport(string channel, WorkflowId workflowId, DateTimeOffset time, IStream stream, WorkflowStats workflowStats, string? triageChannel, bool groupByTemplate)
 		{
 			Channel = channel;
+			WorkflowId = workflowId;
 			Time = time;
 			Stream = stream;
 			WorkflowStats = workflowStats;
@@ -155,7 +157,7 @@ namespace Horde.Build.Issues
 							workflowStats = new WorkflowStats();
 						}
 
-						IssueReport report = new IssueReport(workflow.ReportChannel, currentTime, stream, workflowStats, workflow.TriageChannel, workflow.GroupIssuesByTemplate);
+						IssueReport report = new IssueReport(workflow.ReportChannel, workflow.Id, currentTime, stream, workflowStats, workflow.TriageChannel, workflow.GroupIssuesByTemplate);
 						foreach (IIssueSpan span in spans)
 						{
 							if (span.LastSuccess != null && span.LastFailure.Annotations.WorkflowId == workflow.Id)
