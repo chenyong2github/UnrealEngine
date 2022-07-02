@@ -1129,6 +1129,10 @@ void FLowLevelMemTracker::ProcessCommandLine(const TCHAR* CmdLine)
 	// automatically enable LLM if only csv or trace output is active
 	if (bLocalCsvWriterEnabled || bLocalTraceWriterEnabled)
 	{
+		if (bLocalTraceWriterEnabled)
+		{
+			UE_LOG(LogInit, Log, TEXT("LLM enabled due to UE_TRACE MemTagChannel being enabled"));
+		}
 		bShouldDisable = false;
 	}
 	
