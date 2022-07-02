@@ -584,6 +584,11 @@ public:
 		return UE::Shader::FValue::FromMemoryImage(GetShaderValueType(Type), DefaultValues.GetData() + Offset);
 	}
 
+	const uint8* GetDefaultParameterData(uint32 Offset) const
+	{
+		return DefaultValues.GetData() + Offset;
+	}
+
 	inline const FMaterialNumericParameterInfo& GetNumericParameter(uint32 Index) const { return UniformNumericParameters[Index]; }
 	inline const FMaterialTextureParameterInfo& GetTextureParameter(EMaterialTextureParameterType Type, int32 Index) const { return UniformTextureParameters[(uint32)Type][Index]; }
 

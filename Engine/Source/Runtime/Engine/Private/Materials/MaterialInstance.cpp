@@ -316,28 +316,47 @@ void FMaterialInstanceResource::GameThread_UpdateCachedData(const FMaterialInsta
 		});
 }
 
-template <typename TInstanceType>
-static bool SortMaterialInstanceParametersPredicate(const FMaterialInstanceResource::TNamedParameter<TInstanceType>& Left, const FMaterialInstanceResource::TNamedParameter<TInstanceType>& Right)
+// Matches GetTypeHash for FMemoryImageMaterialParameterInfo
+static uint32 GetTypeHashLegacy(const FHashedMaterialParameterInfoPacked& Value)
 {
-	return GetTypeHash(Left.Info) < GetTypeHash(Right.Info);
+	return HashCombine(HashCombine(GetTypeHash(Value.Name), (int32)Value.Index), (uint32)Value.Association);
+}
+
+template <typename TInstanceType>
+static bool SortMaterialInstanceParametersPredicate(
+	const typename THashedMaterialParameterMap<TInstanceType>::TNamedParameter& Left,
+	const typename THashedMaterialParameterMap<TInstanceType>::TNamedParameter& Right)
+{
+	// To keep the array sort the same as it has been historically, sort by the legacy type hash, not THashedMaterialParameterMap::TypeHash.
+	// This only matters for duplicate items, where earlier duplicates take precedence over later ones.  Duplicates are exceedingly rare, and
+	// possibly due to bugs, but we want to err on the side of preserving existing behavior.
+	return GetTypeHashLegacy(Left.Info) < GetTypeHashLegacy(Right.Info);
 }
 
 void FMaterialInstanceResource::InitMIParameters(FMaterialInstanceParameterSet& ParameterSet)
 {
 	InvalidateUniformExpressionCache(false);
 
-	// Sort the parameters so that a binary lookup and be used.
+	// Sort the parameters.  Originally this was done so a binary lookup could be used.  We now have a hash table, but we're trying to preserve
+	// the sort order logic to maintain consistent behavior where duplicate items occur.
 	ParameterSet.ScalarParameters.Sort(SortMaterialInstanceParametersPredicate<float>);
 	ParameterSet.VectorParameters.Sort(SortMaterialInstanceParametersPredicate<FLinearColor>);
 	ParameterSet.DoubleVectorParameters.Sort(SortMaterialInstanceParametersPredicate<FVector4d>);
 	ParameterSet.TextureParameters.Sort(SortMaterialInstanceParametersPredicate<const UTexture*>);
 	ParameterSet.RuntimeVirtualTextureParameters.Sort(SortMaterialInstanceParametersPredicate<const URuntimeVirtualTexture*>);
 
-	Swap(ScalarParameterArray, ParameterSet.ScalarParameters);
-	Swap(VectorParameterArray, ParameterSet.VectorParameters);
-	Swap(DoubleVectorParameterArray, ParameterSet.DoubleVectorParameters);
-	Swap(TextureParameterArray, ParameterSet.TextureParameters);
-	Swap(RuntimeVirtualTextureParameterArray, ParameterSet.RuntimeVirtualTextureParameters);
+	Swap(ScalarParameterArray.Array, ParameterSet.ScalarParameters);
+	Swap(VectorParameterArray.Array, ParameterSet.VectorParameters);
+	Swap(DoubleVectorParameterArray.Array, ParameterSet.DoubleVectorParameters);
+	Swap(TextureParameterArray.Array, ParameterSet.TextureParameters);
+	Swap(RuntimeVirtualTextureParameterArray.Array, ParameterSet.RuntimeVirtualTextureParameters);
+
+	// Build hash tables.
+	ScalarParameterArray.HashAddAllItems();
+	VectorParameterArray.HashAddAllItems();
+	DoubleVectorParameterArray.HashAddAllItems();
+	TextureParameterArray.HashAddAllItems();
+	RuntimeVirtualTextureParameterArray.HashAddAllItems();
 }
 
 /**
@@ -3761,11 +3780,18 @@ void UMaterialInstance::GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSiz
 	if (Resource)
 	{
 		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(sizeof(FMaterialInstanceResource));
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(ScalarParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<float>));
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(VectorParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<FLinearColor>));
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(TextureParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<const UTexture*>));
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RuntimeVirtualTextureParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<const URuntimeVirtualTexture*>));
-		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FontParameterValues.Num() * sizeof(FMaterialInstanceResource::TNamedParameter<const UTexture*>));
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(ScalarParameterValues.Num() * sizeof(THashedMaterialParameterMap<float>::TNamedParameter));
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(VectorParameterValues.Num() * sizeof(THashedMaterialParameterMap<FLinearColor>::TNamedParameter));
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(TextureParameterValues.Num() * sizeof(THashedMaterialParameterMap<const UTexture*>::TNamedParameter));
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(RuntimeVirtualTextureParameterValues.Num() * sizeof(THashedMaterialParameterMap<const URuntimeVirtualTexture*>::TNamedParameter));
+		CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FontParameterValues.Num() * sizeof(THashedMaterialParameterMap<const UTexture*>::TNamedParameter));
+
+		// Record space for hash tables as well..
+		if (ScalarParameterValues.Num()) CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FDefaultSetAllocator::GetNumberOfHashBuckets(ScalarParameterValues.Num()) * sizeof(uint16));
+		if (VectorParameterValues.Num()) CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FDefaultSetAllocator::GetNumberOfHashBuckets(VectorParameterValues.Num()) * sizeof(uint16));
+		if (TextureParameterValues.Num()) CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FDefaultSetAllocator::GetNumberOfHashBuckets(TextureParameterValues.Num()) * sizeof(uint16));
+		if (RuntimeVirtualTextureParameterValues.Num()) CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FDefaultSetAllocator::GetNumberOfHashBuckets(RuntimeVirtualTextureParameterValues.Num()) * sizeof(uint16));
+		if (FontParameterValues.Num()) CumulativeResourceSize.AddDedicatedSystemMemoryBytes(FDefaultSetAllocator::GetNumberOfHashBuckets(FontParameterValues.Num()) * sizeof(uint16));
 	}
 }
 

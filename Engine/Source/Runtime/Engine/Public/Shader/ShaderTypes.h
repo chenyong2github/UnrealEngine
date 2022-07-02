@@ -141,15 +141,14 @@ static constexpr int32 NumValueTypes = (int32)EValueType::Num;
 
 struct FValueTypeDescription
 {
-	FValueTypeDescription() : Name(nullptr), ComponentType(EValueComponentType::Void), NumComponents(0) {}
-	FValueTypeDescription(const TCHAR* InName, EValueComponentType InComponentType, int8 InNumComponents) : Name(InName), ComponentType(InComponentType), NumComponents(InNumComponents) {}
-
 	const TCHAR* Name;
+	EValueType ValueType;					// Useful for validation
 	EValueComponentType ComponentType;
 	int8 NumComponents;
+	int8 ComponentSizeInBytes;
 };
 
-ENGINE_API FValueTypeDescription GetValueTypeDescription(EValueType Type);
+ENGINE_API const FValueTypeDescription& GetValueTypeDescription(EValueType Type);
 ENGINE_API EValueType FindValueType(FName Name);
 inline bool IsLWCType(EValueType Type) { return IsLWCType(GetValueTypeDescription(Type).ComponentType); }
 inline bool IsGenericType(EValueType Type) { return Type == EValueType::Any || IsGenericType(GetValueTypeDescription(Type).ComponentType); }
@@ -573,6 +572,39 @@ ENGINE_API FValue Cross(const FValue& Lhs, const FValue& Rhs);
 ENGINE_API FValue Append(const FValue& Lhs, const FValue& Rhs);
 
 ENGINE_API FValue Cast(const FValue& Value, EValueType Type);
+
+// In place versions of certain functions.  Only works on numeric types.  Overwrites input components in place,
+// possibly changing their type (returns the new type).
+ENGINE_API EValueType NegInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType AbsInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType SaturateInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType FloorInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType CeilInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType RoundInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType TruncInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType SignInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType FracInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType FractionalInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType SqrtInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType RcpInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType Log2InPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType Log10InPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType SinInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType CosInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType TanInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType AsinInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType AcosInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+ENGINE_API EValueType AtanInPlace(EValueType Type, TArrayView<FValueComponent> Component);
+
+ENGINE_API EValueType AddInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType SubInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType MulInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType DivInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType MinInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType MaxInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType FmodInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType Atan2InPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
+ENGINE_API EValueType AppendInPlace(EValueType LhsType, EValueType RhsType, TArrayView<FValueComponent> Component, int32& OutComponentsConsumed);
 
 } // namespace UE::Shader
 

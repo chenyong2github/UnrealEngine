@@ -53,10 +53,52 @@ public:
 	void PushValue(const FPreshaderValue& InValue);
 	void PushValue(const FPreshaderType& InType, TArrayView<const FValueComponent> InComponents);
 	TArrayView<FValueComponent> PushEmptyValue(const FPreshaderType& InType);
+	FValueComponent* PushEmptyValue(EValueType InType, int32 NumComponents);
 
 	/** Returned values are invalidated when anything is pushed onto the stack */
 	FPreshaderValue PopValue();
 	FPreshaderValue PeekValue(int32 Offset = 0);
+
+	/** Utility functions used for in-place swizzle operation */
+	inline const FPreshaderType& PeekType()
+	{
+		return Values.Last();
+	}
+	inline FValueComponent* PeekComponents(int32 NumComponents)
+	{
+		return &Components[Components.Num() - NumComponents];
+	}
+
+	/** Pops the final result from the stack, with reduced overhead relative to PopValue -- must be zero or one items left! */
+	void PopResult(FPreshaderValue& OutValue);
+
+	/** Override top value type (after an in place unary operation) */
+	inline void OverrideTopType(EValueType ValueType)
+	{
+		check(!Values.Last().IsStruct());
+		Values.Last().ValueType = ValueType;
+	}
+
+	/** Merge top two values (after an in place binary operation) */
+	inline void MergeTopTwoValues(EValueType ValueType, int32 ComponentsConsumed)
+	{
+		Values.RemoveAt(Values.Num() - 1, 1, false);
+		Components.RemoveAt(Components.Num() - ComponentsConsumed, ComponentsConsumed, false);
+		Values.Last().ValueType = ValueType;
+	}
+
+	// Adjust component count, by adding or removing components by the specified amount
+	inline void AdjustComponentCount(int32 NumComponentChange)
+	{
+		if (NumComponentChange > 0)
+		{
+			Components.AddUninitialized(NumComponentChange);
+		}
+		else if (NumComponentChange < 0)
+		{
+			Components.RemoveAt(Components.Num() + NumComponentChange, -NumComponentChange, false);
+		}
+	}
 
 	void Reset()
 	{
@@ -65,8 +107,8 @@ public:
 	}
 
 private:
-	TArray<FPreshaderType, TInlineAllocator<8>> Values;
-	TArray<FValueComponent, TInlineAllocator<64>> Components;
+	TArray<FPreshaderType, TNonRelocatableInlineAllocator<8>> Values;
+	TArray<FValueComponent, TNonRelocatableInlineAllocator<64>> Components;
 };
 
 } // namespace Shader

@@ -37,7 +37,7 @@ EValueComponentType FPreshaderType::GetComponentType(int32 Index) const
 	}
 	else
 	{
-		const FValueTypeDescription TypeDesc = GetValueTypeDescription(ValueType);
+		const FValueTypeDescription& TypeDesc = GetValueTypeDescription(ValueType);
 		return (Index >= 0 && Index < TypeDesc.NumComponents) ? TypeDesc.ComponentType : EValueComponentType::Void;
 	}
 }
@@ -71,6 +71,14 @@ TArrayView<FValueComponent> FPreshaderStack::PushEmptyValue(const FPreshaderType
 	return MakeArrayView(Components.GetData() + ComponentIndex, NumComponents);
 }
 
+FValueComponent* FPreshaderStack::PushEmptyValue(EValueType InType, int32 NumComponents)
+{
+	Values.Add(InType);
+	checkSlow(NumComponents == Values.Last().GetNumComponents());
+	const int32 ComponentIndex = Components.AddZeroed(NumComponents);
+	return Components.GetData() + ComponentIndex;
+}
+
 FPreshaderValue FPreshaderStack::PopValue()
 {
 	FPreshaderValue Value;
@@ -85,13 +93,36 @@ FPreshaderValue FPreshaderStack::PopValue()
 	return Value;
 }
 
+void FPreshaderStack::PopResult(FPreshaderValue& OutValue)
+{
+	if (Values.Num() > 0)
+	{
+		check(Values.Num() == 1);
+		check(Values[0].GetNumComponents() == Components.Num());
+
+		OutValue.Type = Values[0];
+		OutValue.Component = Components;
+
+		// Call Reset instead of Empty, so it doesn't change the memory allocation
+		Values.Reset();
+		Components.Reset();
+	}
+}
+
 FPreshaderValue FPreshaderStack::PeekValue(int32 Offset)
 {
 	FPreshaderValue Value;
 	Value.Type = Values.Last(Offset);
 
+	int32 OffsetComponents = 0;
+	for (int32 OffsetIndex = 0; OffsetIndex < Offset; OffsetIndex++)
+	{
+		OffsetComponents += Values.Last(OffsetIndex).GetNumComponents();
+	}
+
 	const int32 NumComponents = Value.Type.GetNumComponents();
-	const int32 ComponentIndex = Components.Num() - NumComponents;
+	const int32 ComponentIndex = Components.Num() - NumComponents - OffsetComponents;
+	check(ComponentIndex >= 0);
 	Value.Component = MakeArrayView(Components.GetData() + ComponentIndex, NumComponents);
 	return Value;
 }
@@ -295,11 +326,24 @@ static void EvaluateConstant(FPreshaderStack& Stack, FPreshaderDataContext& REST
 {
 	const FPreshaderType Type = ReadPreshaderValue<FPreshaderType>(Data);
 	TArrayView<FValueComponent> Component = Stack.PushEmptyValue(Type);
-	for (int32 Index = 0; Index < Component.Num(); ++Index)
+	if (!Type.IsStruct())
 	{
-		const EValueComponentType ComponentType = Type.GetComponentType(Index);
-		const int32 ComponmentSizeInBytes = GetComponentTypeSizeInBytes(ComponentType);
-		ReadPreshaderData(Data, ComponmentSizeInBytes, &Component[Index].Packed);
+		// Common case:  not a struct
+		const FValueTypeDescription& TypeDesc = GetValueTypeDescription(Type.ValueType);
+		const int32 ComponmentSizeInBytes = TypeDesc.ComponentSizeInBytes;
+		for (int32 Index = 0; Index < Component.Num(); ++Index)
+		{
+			ReadPreshaderData(Data, ComponmentSizeInBytes, &Component[Index].Packed);
+		}
+	}
+	else
+	{
+		for (int32 Index = 0; Index < Component.Num(); ++Index)
+		{
+			const EValueComponentType ComponentType = Type.GetComponentType(Index);
+			const int32 ComponmentSizeInBytes = GetComponentTypeSizeInBytes(ComponentType);
+			ReadPreshaderData(Data, ComponmentSizeInBytes, &Component[Index].Packed);
+		}
 	}
 }
 
@@ -412,7 +456,133 @@ static void EvaluateParameter(FPreshaderStack& Stack, const FUniformExpressionSe
 	// Default value
 	if (!bFoundParameter)
 	{
-		Stack.PushValue(UniformExpressionSet->GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset));
+		// Fast path for numeric parameters (common case).  Writes data in place to FPreshaderStack, and has a single
+		// lookup table to fetch type and component information.
+		if (Parameter.ParameterType <= EMaterialParameterType::DoubleVector)
+		{
+			// Validate that it's OK to do the comparison above, and that our table is correct
+			static_assert((int32)EMaterialParameterType::Scalar == 0);
+			static_assert((int32)EMaterialParameterType::Vector == 1);
+			static_assert((int32)EMaterialParameterType::DoubleVector == 2);
+			static_assert(sizeof(FValueComponent) == sizeof(double));
+
+			// Lookup includes type, number of components, and size to copy per component.
+			static const int8 GParameterCopyLookup[3][3] =
+			{
+				{ (int8)EValueType::Float1, 1, sizeof(float) },		// EMaterialParameterType::Scalar
+				{ (int8)EValueType::Float4, 4, sizeof(float) },		// EMaterialParameterType::Vector
+				{ (int8)EValueType::Double4, 4, sizeof(double) },	// EMaterialParameterType::DoubleVector
+			};
+			const int8* ParameterLookup = GParameterCopyLookup[(int32)Parameter.ParameterType];
+			int32 NumComponents = ParameterLookup[1];
+			int32 ComponentSizeInBytes = ParameterLookup[2];
+
+			FValueComponent* Components = Stack.PushEmptyValue((EValueType)ParameterLookup[0], NumComponents);
+			const uint8* ParameterData = UniformExpressionSet->GetDefaultParameterData(Parameter.DefaultValueOffset);
+
+			// Would be nice to be able to do hard coded copies instead of memcpy per component, but it's possible
+			// the source data may not be aligned.
+			for (int32 ComponentIndex = 0; ComponentIndex < NumComponents; ComponentIndex++)
+			{
+				FMemory::Memcpy(&Components[ComponentIndex].Packed, ParameterData, ComponentSizeInBytes);
+				ParameterData += ComponentSizeInBytes;
+			}
+		}
+		else
+		{
+			Stack.PushValue(UniformExpressionSet->GetDefaultParameterValue(Parameter.ParameterType, Parameter.DefaultValueOffset));
+		}
+	}
+}
+
+// Utility function to normalize a vector in place, for use with EvaluateUnaryOpInPlace
+EValueType NormalizeInPlace(EValueType Type, TArrayView<FValueComponent> Component)
+{
+	const FValueTypeDescription& TypeDesc = GetValueTypeDescription(Type);
+	if (TypeDesc.ComponentType == EValueComponentType::Double)
+	{
+		// Compute magnitude squared (via dot product)
+		double MagnitudeSquared = 0.0;
+		for (int32 ComponentIndex = 0; ComponentIndex < TypeDesc.NumComponents; ComponentIndex++)
+		{
+			double Value = Component[ComponentIndex].Double;
+			MagnitudeSquared += Value * Value;
+		}
+
+		// Make the magnitude safe to invert.  Similar to logic in GetSafeDivisor, which clamps a value
+		// to UE_DELTA, but in this case we are using the delta squared to produce the same result we
+		// would get if we did a square root before dividing.
+		MagnitudeSquared = FMath::Max(MagnitudeSquared, UE_DOUBLE_DELTA * UE_DOUBLE_DELTA);
+
+		double InverseMagnitude = FMath::InvSqrt(MagnitudeSquared);
+
+		// And apply that back to the components
+		for (int32 ComponentIndex = 0; ComponentIndex < TypeDesc.NumComponents; ComponentIndex++)
+		{
+			Component[ComponentIndex].Double *= InverseMagnitude;
+		}
+
+		// Type didn't change, started as Double, still Double
+		return Type;
+	}
+	else
+	{
+		// Convert the type to float, if it's not already.
+		if (TypeDesc.ComponentType != EValueComponentType::Float)
+		{
+			if (TypeDesc.ComponentType == EValueComponentType::Int)
+			{
+				for (int32 ComponentIndex = 0; ComponentIndex < TypeDesc.NumComponents; ComponentIndex++)
+				{
+					Component[ComponentIndex].Float = (float)Component[ComponentIndex].Int;
+				}
+
+				// Translate type.  Note that int doesn't support matrices, so we know it should be [Int1..Int4].
+				check(Type >= EValueType::Int1 && Type <= EValueType::Int4);
+				Type = (EValueType)((int32)Type - (int32)EValueType::Int1 + (int32)EValueType::Float1);
+			}
+			else if (TypeDesc.ComponentType == EValueComponentType::Bool)
+			{
+				for (int32 ComponentIndex = 0; ComponentIndex < TypeDesc.NumComponents; ComponentIndex++)
+				{
+					Component[ComponentIndex].Float = (float)Component[ComponentIndex].Bool;
+				}
+
+				// Translate type.  Note that bool doesn't support matrices, so we know it should be [Bool1..Bool4].
+				check(Type >= EValueType::Bool1 && Type <= EValueType::Bool4);
+				Type = (EValueType)((int32)Type - (int32)EValueType::Bool1 + (int32)EValueType::Float1);
+			}
+			else
+			{
+				// Anything else, we'll just bail and not modify the input.  It's probably a bug for the bytecode to
+				// generate a normalize operation on a non numeric type.
+				return Type;
+			}
+		}
+
+		// Compute magnitude squared (via dot product)
+		float MagnitudeSquared = 0.0;
+		for (int32 ComponentIndex = 0; ComponentIndex < TypeDesc.NumComponents; ComponentIndex++)
+		{
+			float Value = Component[ComponentIndex].Float;
+			MagnitudeSquared += Value * Value;
+		}
+
+		// Make the magnitude safe to invert.  Similar to logic in GetSafeDivisor, which clamps a value
+		// to UE_DELTA, but in this case we are using the delta squared to produce the same result we
+		// would get if we did a square root before dividing.
+		MagnitudeSquared = FMath::Max(MagnitudeSquared, UE_DELTA * UE_DELTA);
+
+		float InverseMagnitude = FMath::InvSqrt(MagnitudeSquared);
+
+		// And apply that back to the components
+		for (int32 ComponentIndex = 0; ComponentIndex < TypeDesc.NumComponents; ComponentIndex++)
+		{
+			Component[ComponentIndex].Float *= InverseMagnitude;
+		}
+
+		// We updated the type to a Float variation above, if it wasn't already Float, so return that
+		return Type;
 	}
 }
 
@@ -424,11 +594,45 @@ static inline void EvaluateUnaryOp(FPreshaderStack& Stack, const Operation& Op)
 }
 
 template<typename Operation>
+static inline void EvaluateUnaryOpInPlace(FPreshaderStack& Stack, const Operation& Op)
+{
+	// The original EvaluateUnaryOp pops a value from the top of the stack, applies an operation to it, then pushes a new value back
+	// on the stack.  This involves moving a lot of memory around, as well as costly bookkeeping.  What we do here instead is keep
+	// the top value on the stack, and modify it in place.  We use different variations of shader operations which can be applied
+	// to a loose EValueType and array of FValueComponent, as opposed to requiring those two things to be copied into an FValue first.
+	// It's possible for any given operation to modify the type, so we override the type of the top item based on the return value.
+	FPreshaderValue Top = Stack.PeekValue();
+	if (!Top.Type.IsStruct())
+	{
+		Stack.OverrideTopType(Op(Top.Type.ValueType, Top.Component));
+	}
+}
+
+template<typename Operation>
 static inline void EvaluateBinaryOp(FPreshaderStack& Stack, const Operation& Op)
 {
 	const FValue Value1 = Stack.PopValue().AsShaderValue();
 	const FValue Value0 = Stack.PopValue().AsShaderValue();
 	Stack.PushValue(Op(Value0, Value1));
+}
+
+template<typename Operation, typename OperationFallback>
+static inline void EvaluateBinaryOpInPlace(FPreshaderStack& Stack, const Operation& Op, const OperationFallback& FallbackOp)
+{
+	// Lhs is one below top of stack, Rhs is top
+	FPreshaderValue Lhs = Stack.PeekValue(1);
+	FPreshaderValue Rhs = Stack.PeekValue(0);
+	if (Lhs.Type.IsStruct() || Rhs.Type.IsStruct())
+	{
+		// Throw up our hands if one of the inputs is a struct, and run the old logic.  Probably a bug for a struct to be passed to a BinaryOp.
+		EvaluateBinaryOp(Stack, FallbackOp);
+	}
+	else
+	{
+		int32 ComponentsConsumed;
+		EValueType ResultType = Op(Lhs.Type.ValueType, Rhs.Type.ValueType, TArrayView<FValueComponent>(Lhs.Component.GetData(), Lhs.Component.Num() + Rhs.Component.Num()), ComponentsConsumed);
+		Stack.MergeTopTwoValues(ResultType, ComponentsConsumed);
+	}
 }
 
 template<typename Operation>
@@ -440,6 +644,7 @@ static inline void EvaluateTernaryOp(FPreshaderStack& Stack, const Operation& Op
 	Stack.PushValue(Op(Value0, Value1, Value2));
 }
 
+// Runs the swizzle in place on the top item on the stack
 static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
 {
 	const uint8 NumElements = ReadPreshaderValue<uint8>(Data);
@@ -448,27 +653,63 @@ static void EvaluateComponentSwizzle(FPreshaderStack& Stack, FPreshaderDataConte
 	const uint8 IndexB = ReadPreshaderValue<uint8>(Data);
 	const uint8 IndexA = ReadPreshaderValue<uint8>(Data);
 
-	FValue Value = Stack.PopValue().AsShaderValue();
-	FValue Result(MakeValueType(Value.Type, NumElements));
+	// Get original type and adjust the count and type to the new type.  Adjusting the count doesn't destroy
+	// the elements, so we can still access them, but saves time over having to re-fetch the component pointer
+	// in case the component array gets resized between the read and write.
+	const FPreshaderType& OriginalType = Stack.PeekType();
+	check(OriginalType.IsStruct() == false);
+
+	int32 OriginalNumComponents = GetValueTypeDescription(OriginalType.ValueType).NumComponents;
+
+	Stack.AdjustComponentCount(NumElements - OriginalNumComponents);
+	Stack.OverrideTopType(UE::Shader::MakeValueType(OriginalType.ValueType, NumElements));
+
+	// We've already adjusted the component count for the stack top to the new count, so that's the offset we
+	// need to use to get the Component pointer.
+	FValueComponent* Components = Stack.PeekComponents(NumElements);
+
 	switch (NumElements)
 	{
 	case 4:
-		Result.Component[3] = Value.GetComponent(IndexA);
-		// Fallthrough...
+		{
+			uint64 PackedR = IndexR < OriginalNumComponents ? Components[IndexR].Packed : 0;
+			uint64 PackedG = IndexG < OriginalNumComponents ? Components[IndexG].Packed : 0;
+			uint64 PackedB = IndexB < OriginalNumComponents ? Components[IndexB].Packed : 0;
+			uint64 PackedA = IndexA < OriginalNumComponents ? Components[IndexA].Packed : 0;
+			Components[0].Packed = PackedR;
+			Components[1].Packed = PackedG;
+			Components[2].Packed = PackedB;
+			Components[3].Packed = PackedA;
+		}
+		break;
 	case 3:
-		Result.Component[2] = Value.GetComponent(IndexB);
-		// Fallthrough...
+		{
+			uint64 PackedR = IndexR < OriginalNumComponents ? Components[IndexR].Packed : 0;
+			uint64 PackedG = IndexG < OriginalNumComponents ? Components[IndexG].Packed : 0;
+			uint64 PackedB = IndexB < OriginalNumComponents ? Components[IndexB].Packed : 0;
+			Components[0].Packed = PackedR;
+			Components[1].Packed = PackedG;
+			Components[2].Packed = PackedB;
+		}
+		break;
 	case 2:
-		Result.Component[1] = Value.GetComponent(IndexG);
-		// Fallthrough...
+		{
+			uint64 PackedR = IndexR < OriginalNumComponents ? Components[IndexR].Packed : 0;
+			uint64 PackedG = IndexG < OriginalNumComponents ? Components[IndexG].Packed : 0;
+			Components[0].Packed = PackedR;
+			Components[1].Packed = PackedG;
+		}
+		break;
 	case 1:
-		Result.Component[0] = Value.GetComponent(IndexR);
+		{
+			uint64 PackedR = IndexR < OriginalNumComponents ? Components[IndexR].Packed : 0;
+			Components[0].Packed = PackedR;
+		}
 		break;
 	default:
 		UE_LOG(LogMaterial, Fatal, TEXT("Invalid number of swizzle elements: %d"), NumElements);
 		break;
 	}
-	Stack.PushValue(Result);
 }
 
 static const UTexture* GetTextureParameter(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
@@ -602,45 +843,45 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 			break;
 		case EPreshaderOpcode::PushValue: EvaluatePushValue(Stack, Data); break;
 		case EPreshaderOpcode::Assign: EvaluateAssign(Stack); break;
-		case EPreshaderOpcode::Add: EvaluateBinaryOp(Stack, Add); break;
-		case EPreshaderOpcode::Sub: EvaluateBinaryOp(Stack, Sub); break;
-		case EPreshaderOpcode::Mul: EvaluateBinaryOp(Stack, Mul); break;
-		case EPreshaderOpcode::Div: EvaluateBinaryOp(Stack, Div); break;
+		case EPreshaderOpcode::Add: EvaluateBinaryOpInPlace(Stack, AddInPlace, Add); break;
+		case EPreshaderOpcode::Sub: EvaluateBinaryOpInPlace(Stack, SubInPlace, Sub); break;
+		case EPreshaderOpcode::Mul: EvaluateBinaryOpInPlace(Stack, MulInPlace, Mul); break;
+		case EPreshaderOpcode::Div: EvaluateBinaryOpInPlace(Stack, DivInPlace, Div); break;
 		case EPreshaderOpcode::Less: EvaluateBinaryOp(Stack, Less); break;
 		case EPreshaderOpcode::Greater: EvaluateBinaryOp(Stack, Greater); break;
 		case EPreshaderOpcode::LessEqual: EvaluateBinaryOp(Stack, LessEqual); break;
 		case EPreshaderOpcode::GreaterEqual: EvaluateBinaryOp(Stack, GreaterEqual); break;
-		case EPreshaderOpcode::Fmod: EvaluateBinaryOp(Stack, Fmod); break;
-		case EPreshaderOpcode::Min: EvaluateBinaryOp(Stack, Min); break;
-		case EPreshaderOpcode::Max: EvaluateBinaryOp(Stack, Max); break;
+		case EPreshaderOpcode::Fmod: EvaluateBinaryOpInPlace(Stack, FmodInPlace, Fmod); break;
+		case EPreshaderOpcode::Min: EvaluateBinaryOpInPlace(Stack, MinInPlace, Min); break;
+		case EPreshaderOpcode::Max: EvaluateBinaryOpInPlace(Stack, MaxInPlace, Max); break;
 		case EPreshaderOpcode::Clamp: EvaluateTernaryOp(Stack, Clamp); break;
 		case EPreshaderOpcode::Dot: EvaluateBinaryOp(Stack, Dot); break;
 		case EPreshaderOpcode::Cross: EvaluateBinaryOp(Stack, Cross); break;
-		case EPreshaderOpcode::Neg: EvaluateUnaryOp(Stack, Neg); break;
-		case EPreshaderOpcode::Sqrt: EvaluateUnaryOp(Stack, Sqrt); break;
-		case EPreshaderOpcode::Rcp: EvaluateUnaryOp(Stack, Rcp); break;
+		case EPreshaderOpcode::Neg: EvaluateUnaryOpInPlace(Stack, NegInPlace); break;
+		case EPreshaderOpcode::Sqrt: EvaluateUnaryOpInPlace(Stack, SqrtInPlace); break;
+		case EPreshaderOpcode::Rcp: EvaluateUnaryOpInPlace(Stack, RcpInPlace); break;
 		case EPreshaderOpcode::Length: EvaluateUnaryOp(Stack, [](const FValue& Value) { return Sqrt(Dot(Value, Value)); }); break;
-		case EPreshaderOpcode::Normalize: EvaluateUnaryOp(Stack, [](const FValue& Value) { return Div(Value, Sqrt(Dot(Value, Value))); }); break;
-		case EPreshaderOpcode::Sin: EvaluateUnaryOp(Stack, Sin); break;
-		case EPreshaderOpcode::Cos: EvaluateUnaryOp(Stack, Cos); break;
-		case EPreshaderOpcode::Tan: EvaluateUnaryOp(Stack, Tan); break;
-		case EPreshaderOpcode::Asin: EvaluateUnaryOp(Stack, Asin); break;;
-		case EPreshaderOpcode::Acos: EvaluateUnaryOp(Stack, Acos); break;
-		case EPreshaderOpcode::Atan: EvaluateUnaryOp(Stack, Atan); break;
-		case EPreshaderOpcode::Atan2: EvaluateBinaryOp(Stack, Atan2); break;
-		case EPreshaderOpcode::Abs: EvaluateUnaryOp(Stack, Abs); break;
-		case EPreshaderOpcode::Saturate: EvaluateUnaryOp(Stack, Saturate); break;
-		case EPreshaderOpcode::Floor: EvaluateUnaryOp(Stack, Floor); break;
-		case EPreshaderOpcode::Ceil: EvaluateUnaryOp(Stack, Ceil); break;
-		case EPreshaderOpcode::Round: EvaluateUnaryOp(Stack, Round); break;
-		case EPreshaderOpcode::Trunc: EvaluateUnaryOp(Stack, Trunc); break;
-		case EPreshaderOpcode::Sign: EvaluateUnaryOp(Stack, Sign); break;
-		case EPreshaderOpcode::Frac: EvaluateUnaryOp(Stack, Frac); break;
-		case EPreshaderOpcode::Fractional: EvaluateUnaryOp(Stack, Fractional); break;
-		case EPreshaderOpcode::Log2: EvaluateUnaryOp(Stack, Log2); break;
-		case EPreshaderOpcode::Log10: EvaluateUnaryOp(Stack, Log10); break;
+		case EPreshaderOpcode::Normalize: EvaluateUnaryOpInPlace(Stack, NormalizeInPlace); break;
+		case EPreshaderOpcode::Sin: EvaluateUnaryOpInPlace(Stack, SinInPlace); break;
+		case EPreshaderOpcode::Cos: EvaluateUnaryOpInPlace(Stack, CosInPlace); break;
+		case EPreshaderOpcode::Tan: EvaluateUnaryOpInPlace(Stack, TanInPlace); break;
+		case EPreshaderOpcode::Asin: EvaluateUnaryOpInPlace(Stack, AsinInPlace); break;;
+		case EPreshaderOpcode::Acos: EvaluateUnaryOpInPlace(Stack, AcosInPlace); break;
+		case EPreshaderOpcode::Atan: EvaluateUnaryOpInPlace(Stack, AtanInPlace); break;
+		case EPreshaderOpcode::Atan2: EvaluateBinaryOpInPlace(Stack, Atan2InPlace, Atan2); break;
+		case EPreshaderOpcode::Abs: EvaluateUnaryOpInPlace(Stack, AbsInPlace); break;
+		case EPreshaderOpcode::Saturate: EvaluateUnaryOpInPlace(Stack, SaturateInPlace); break;
+		case EPreshaderOpcode::Floor: EvaluateUnaryOpInPlace(Stack, FloorInPlace); break;
+		case EPreshaderOpcode::Ceil: EvaluateUnaryOpInPlace(Stack, CeilInPlace); break;
+		case EPreshaderOpcode::Round: EvaluateUnaryOpInPlace(Stack, RoundInPlace); break;
+		case EPreshaderOpcode::Trunc: EvaluateUnaryOpInPlace(Stack, TruncInPlace); break;
+		case EPreshaderOpcode::Sign: EvaluateUnaryOpInPlace(Stack, SignInPlace); break;
+		case EPreshaderOpcode::Frac: EvaluateUnaryOpInPlace(Stack, FracInPlace); break;
+		case EPreshaderOpcode::Fractional: EvaluateUnaryOpInPlace(Stack, FractionalInPlace); break;
+		case EPreshaderOpcode::Log2: EvaluateUnaryOpInPlace(Stack, Log2InPlace); break;
+		case EPreshaderOpcode::Log10: EvaluateUnaryOpInPlace(Stack, Log10InPlace); break;
 		case EPreshaderOpcode::ComponentSwizzle: EvaluateComponentSwizzle(Stack, Data); break;
-		case EPreshaderOpcode::AppendVector: EvaluateBinaryOp(Stack, Append); break;
+		case EPreshaderOpcode::AppendVector: EvaluateBinaryOpInPlace(Stack, AppendInPlace, Append); break;
 		case EPreshaderOpcode::TextureSize: EvaluateTextureSize(Context, Stack, Data); break;
 		case EPreshaderOpcode::TexelSize: EvaluateTexelSize(Context, Stack, Data); break;
 		case EPreshaderOpcode::ExternalTextureCoordinateScaleRotation: EvaluateExternalTextureCoordinateScaleRotation(Context, Stack, Data); break;
@@ -656,11 +897,7 @@ FPreshaderValue EvaluatePreshader(const FUniformExpressionSet* UniformExpression
 	check(Data.Ptr == DataEnd);
 
 	FPreshaderValue Result;
-	if (Stack.Num() > 0)
-	{
-		Result = Stack.PopValue();
-	}
-	Stack.CheckEmpty();
+	Stack.PopResult(Result);
 	return Result;
 }
 
