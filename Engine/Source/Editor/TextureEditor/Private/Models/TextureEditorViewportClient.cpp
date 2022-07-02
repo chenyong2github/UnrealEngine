@@ -126,13 +126,13 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				FaceIndex == 3 ? FMatrix44f(FVector3f::LeftVector, FVector3f::ForwardVector, FVector3f::UpVector, IdentityW) :
 				FaceIndex == 4 ? FMatrix44f(FVector3f::UpVector, FVector3f::ForwardVector, FVector3f::RightVector, IdentityW) :
 				FMatrix44f(FVector3f::DownVector, FVector3f::BackwardVector, FVector3f::RightVector, IdentityW);
-			const bool bShowLongLatUnwrap = Settings.CubemapViewMode == TextureEditorCubemapViewMode_2DView && FaceIndex < 0;
+			const bool bShowLongLatUnwrap = TextureEditorPinned->GetCubemapViewMode() == TextureEditorCubemapViewMode_2DView && FaceIndex < 0;
 			BatchedElementParameters = new FMipLevelBatchedElementParameters(MipLevel, SliceIndex, TextureCubeArray != nullptr, ViewMatrix, bShowLongLatUnwrap, false);
 		}
 		else if (VolumeTexture)
 		{
 			BatchedElementParameters = new FBatchedElementVolumeTexturePreviewParameters(
-				Settings.VolumeViewMode == TextureEditorVolumeViewMode_DepthSlices, 
+				TextureEditorPinned->GetVolumeViewMode() == TextureEditorVolumeViewMode_DepthSlices,
 				FMath::Max<int32>(VolumeTexture->GetSizeZ(), 1), 
 				MipLevel, 
 				(float)TextureEditorPinned->GetVolumeOpacity(),
@@ -142,7 +142,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		else if (RTTextureVolume)
 		{
 			BatchedElementParameters = new FBatchedElementVolumeTexturePreviewParameters(
-				Settings.VolumeViewMode == TextureEditorVolumeViewMode_DepthSlices,
+				TextureEditorPinned->GetVolumeViewMode() == TextureEditorVolumeViewMode_DepthSlices,
 				FMath::Max<int32>(RTTextureVolume->SizeZ >> RTTextureVolume->GetCachedLODBias(), 1),
 				MipLevel,
 				(float)TextureEditorPinned->GetVolumeOpacity(),
@@ -367,7 +367,7 @@ bool FTextureEditorViewportClient::IsTextureUsingCubemapOrientation() const
 	TSharedPtr<ITextureEditorToolkit> TextureEditorPinned = TextureEditorPtr.Pin();
 	UTexture* Texture = TextureEditorPinned->GetTexture();
 	return Texture && (Texture->IsA(UTextureCube::StaticClass()) || Texture->IsA(UTextureRenderTargetCube::StaticClass()) || Texture->IsA(UTextureCubeArray::StaticClass())) &&
-		TextureEditorPinned->GetFace() < 0 && GetDefault<UTextureEditorSettings>()->CubemapViewMode == TextureEditorCubemapViewMode_3DView;
+		TextureEditorPinned->GetFace() < 0 && TextureEditorPinned->GetCubemapViewMode() == TextureEditorCubemapViewMode_3DView;
 }
 
 bool FTextureEditorViewportClient::ShouldUseMousePanning(FViewport* Viewport) const

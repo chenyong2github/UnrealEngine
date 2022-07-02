@@ -254,9 +254,12 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 
 	SavedCompressionSetting = false;
 
-	// Start at whatever the last used zoom mode was
+	// Start at whatever the last used zoom mode, volume view mode and cubemap view mode were
 	const UTextureEditorSettings& Settings = *GetDefault<UTextureEditorSettings>();
 	ZoomMode = Settings.ZoomMode;
+	VolumeViewMode = Settings.VolumeViewMode;
+	CubemapViewMode = Settings.CubemapViewMode;
+
 	Zoom = 1.0f;
 
 	// Register our commands. This will only register them if not previously registered
@@ -341,7 +344,7 @@ void FTextureEditorToolkit::CalculateTextureDimensions(int32& OutWidth, int32& O
 		const int32 MaxWidth = FMath::Max(TextureViewport->GetViewport()->GetSizeXY().X - 2 * BorderSize, 0);
 		const int32 MaxHeight = FMath::Max(TextureViewport->GetViewport()->GetSizeXY().Y - 2 * BorderSize, 0);
 
-		if (IsVolumeTexture() && GetMutableDefault<UTextureEditorSettings>()->VolumeViewMode == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
+		if (IsVolumeTexture() && GetVolumeViewMode() == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
 		{
 			OutWidth = OutHeight = FMath::Min(MaxWidth, MaxHeight);
 		}
@@ -727,11 +730,9 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	SizeOptions.UseGrouping = false;
 	SizeOptions.MaximumFractionalDigits = 0;
 
-	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
-
 	// Cubes are previewed as longlat unwrapped 2D textures in 2D view mode when face index is not specified.
 	// These have 2x the width of a cube face.
-	if (IsCubeTexture() && Settings.CubemapViewMode == TextureEditorCubemapViewMode_2DView && GetFace() < 0)
+	if (IsCubeTexture() && GetCubemapViewMode() == TextureEditorCubemapViewMode_2DView && GetFace() < 0)
 	{
 		PreviewEffectiveTextureWidth *= 2;
 	}
@@ -751,7 +752,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 		CurrentText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}x{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options ), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), FText::AsNumber(PreviewEffectiveTextureDepth, &Options)));
 		MaxInGameText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_MaxInGame_3x_v1", "Max In-Game: {0}x{1}x{2}"), FText::AsNumber(MaxInGameWidth, &Options), FText::AsNumber(MaxInGameHeight, &Options), FText::AsNumber(MaxInGameDepth, &Options)));
 
-		if (Settings.VolumeViewMode == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
+		if (GetVolumeViewMode() == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
 		{
 			PreviewEffectiveTextureWidth = PreviewEffectiveTextureHeight = FMath::Max(PreviewEffectiveTextureWidth, PreviewEffectiveTextureHeight);
 		}
@@ -903,6 +904,23 @@ void FTextureEditorToolkit::SetVolumeOrientation(const FRotator& InOrientation)
 	VolumeOrientation = InOrientation;
 }
 
+ETextureEditorVolumeViewMode FTextureEditorToolkit::GetVolumeViewMode() const
+{
+	// Each texture editor keeps a local volume view mode so that it can be changed without affecting other open editors
+	return VolumeViewMode;
+}
+
+void FTextureEditorToolkit::SetVolumeViewMode(const ETextureEditorVolumeViewMode InVolumeViewMode)
+{
+	// Update our own volume view mode
+	VolumeViewMode = InVolumeViewMode;
+
+	// And also save it so it's used for new texture editors
+	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
+	Settings.VolumeViewMode = VolumeViewMode;
+	Settings.PostEditChange();
+}
+
 const FRotator& FTextureEditorToolkit::GetCubemapOrientation() const
 {
 	return CubemapOrientation;
@@ -911,6 +929,23 @@ const FRotator& FTextureEditorToolkit::GetCubemapOrientation() const
 void FTextureEditorToolkit::SetCubemapOrientation(const FRotator& InOrientation)
 {
 	CubemapOrientation = InOrientation;
+}
+
+ETextureEditorCubemapViewMode FTextureEditorToolkit::GetCubemapViewMode() const
+{
+	// Each texture editor keeps a local cubemap view mode so that it can be changed without affecting other open editors
+	return CubemapViewMode;
+}
+
+void FTextureEditorToolkit::SetCubemapViewMode(const ETextureEditorCubemapViewMode InCubemapViewMode)
+{
+	// Update our own cubemap view mode
+	CubemapViewMode = InCubemapViewMode;
+
+	// And also save it so it's used for new texture editors
+	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
+	Settings.CubemapViewMode = CubemapViewMode;
+	Settings.PostEditChange();
 }
 
 /* IToolkit interface
@@ -1027,34 +1062,6 @@ void FTextureEditorToolkit::BindCommands( )
 		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleCheckeredBackgroundActionExecute, TextureEditorBackground_SolidColor),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleCheckeredBackgroundActionIsChecked, TextureEditorBackground_SolidColor));
-
-	// Begin - Volume Texture Specifics
-	ToolkitCommands->MapAction(
-		Commands.DepthSlices,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleVolumeViewModeActionExecute, TextureEditorVolumeViewMode_DepthSlices),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleVolumeViewModeActionIsChecked, TextureEditorVolumeViewMode_DepthSlices));
-
-	ToolkitCommands->MapAction(
-		Commands.TraceIntoVolume,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleVolumeViewModeActionExecute, TextureEditorVolumeViewMode_VolumeTrace),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleVolumeViewModeActionIsChecked, TextureEditorVolumeViewMode_VolumeTrace));
-	// End - Volume Texture Specifics
-
-	// Begin - Cubemap Texture Specifics
-	ToolkitCommands->MapAction(
-		Commands.Cubemap2DView,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionExecute, TextureEditorCubemapViewMode_2DView),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionIsChecked, TextureEditorCubemapViewMode_2DView));
-
-	ToolkitCommands->MapAction(
-		Commands.Cubemap3DView,
-		FExecuteAction::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionExecute, TextureEditorCubemapViewMode_3DView),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FTextureEditorToolkit::HandleCubemapViewModeActionIsChecked, TextureEditorCubemapViewMode_3DView));
-	// End - Cubemap Texture Specifics
 
 	ToolkitCommands->MapAction(
 		Commands.TextureBorder,
@@ -1703,6 +1710,7 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 	TSharedRef<SWidget> ExposureControl = MakeExposureContolWidget();
 	TSharedPtr<SWidget> OptionalOpacityControl = IsVolumeTexture() ? TSharedPtr<SWidget>(MakeOpacityControlWidget()) : nullptr;
 	TSharedRef<SWidget> ZoomControl = MakeZoomControlWidget();
+	TSharedRef<SWidget> View3DControl = MakeView3DControlWidget();
 
 	UCurveLinearColorAtlas* Atlas = Cast<UCurveLinearColorAtlas>(GetTexture());
 	if (!Atlas)
@@ -1763,11 +1771,21 @@ void FTextureEditorToolkit::FillToolbar(FToolBarBuilder& ToolbarBuilder)
 			ToolbarBuilder.EndSection();
 		}
 
+		if (IsCubeTexture() || IsVolumeTexture())
+		{
+			ToolbarBuilder.BeginSection("View3D");
+			{
+				ToolbarBuilder.AddWidget(View3DControl);
+			}
+			ToolbarBuilder.EndSection();
+		}
+
 		ToolbarBuilder.BeginSection("Zoom");
 		{
 			ToolbarBuilder.AddWidget(ZoomControl);
 		}
 		ToolbarBuilder.EndSection();
+
 		ToolbarBuilder.BeginSection("Settings");
 		ToolbarBuilder.BeginStyleOverride("CalloutToolbar");
 		{
@@ -1952,7 +1970,7 @@ TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateMipMapLevelMenu()
 TSharedRef<SWidget> FTextureEditorToolkit::OnGenerateSettingsMenu()
 {
 	FMenuBuilder MenuBuilder(true, ToolkitCommands);
-	FTextureEditorViewOptionsMenu::MakeMenu(MenuBuilder, IsVolumeTexture(), IsCubeTexture());
+	FTextureEditorViewOptionsMenu::MakeMenu(MenuBuilder);
 
 	return MenuBuilder.MakeWidget();
 }
@@ -2266,6 +2284,32 @@ void FTextureEditorToolkit::HandleFaceEntryBoxChanged(int32 NewFace)
 {
 	SpecifiedFace = FMath::Clamp<int32>(NewFace, 0, 5);
 	PopulateQuickInfo();
+}
+
+ECheckBoxState FTextureEditorToolkit::HandleView3DCheckBoxIsChecked() const
+{
+	if (IsVolumeTexture())
+	{
+		return GetVolumeViewMode() == TextureEditorVolumeViewMode_VolumeTrace ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	else
+	{
+		check(IsCubeTexture());
+		return GetCubemapViewMode() == TextureEditorCubemapViewMode_3DView ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+}
+
+void FTextureEditorToolkit::HandleView3DCheckBoxCheckedStateChanged(ECheckBoxState InNewState)
+{
+	if (IsVolumeTexture())
+	{
+		SetVolumeViewMode(InNewState == ECheckBoxState::Checked ? TextureEditorVolumeViewMode_VolumeTrace : TextureEditorVolumeViewMode_DepthSlices);
+	}
+	else
+	{
+		check(IsCubeTexture());
+		SetCubemapViewMode(InNewState == ECheckBoxState::Checked ? TextureEditorCubemapViewMode_3DView : TextureEditorCubemapViewMode_2DView);
+	}	
 }
 
 bool FTextureEditorToolkit::HandleReimportActionCanExecute( ) const
@@ -2998,6 +3042,37 @@ TSharedRef<SWidget> FTextureEditorToolkit::MakeZoomControlWidget()
 		];
 
 	return ZoomControl;
+}
+
+TSharedRef<SWidget> FTextureEditorToolkit::MakeView3DControlWidget()
+{
+	// currently both volume textures and cubemaps have only 2 view modes, one of which can be described as "3D View"
+	// ("Trace Into Volume" for volume textures and "3D View" for cubemaps),
+	// therefore view mode for both volume textures and cubemaps can be controlled using the same "3D View" checkbox widget.
+	TSharedRef<SWidget> View3DControl = SNew(SBox)
+		.WidthOverride(80.0f)
+		[
+			SNew(SHorizontalBox)
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 4.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("TextureEditor", "3D View", "3D View"))
+			]
+			+ SHorizontalBox::Slot()
+			.Padding(4.0f, 0.0f, 2.0f, 0.0f)
+			.VAlign(VAlign_Center)
+			.AutoWidth()
+			[
+				SNew(SCheckBox)
+				.IsChecked(this, &FTextureEditorToolkit::HandleView3DCheckBoxIsChecked)
+				.OnCheckStateChanged(this, &FTextureEditorToolkit::HandleView3DCheckBoxCheckedStateChanged)
+			]
+		];
+
+	return View3DControl;
 }
 
 void FTextureEditorToolkit::OnEstimateCompressionChanged(ECheckBoxState NewState)

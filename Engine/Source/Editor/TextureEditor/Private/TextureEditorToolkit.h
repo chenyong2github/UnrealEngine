@@ -85,8 +85,12 @@ public:
 	virtual void SetVolumeOpacity( float VolumeOpacity ) override;
 	virtual const FRotator& GetVolumeOrientation( ) const override;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) override;
+	virtual ETextureEditorVolumeViewMode GetVolumeViewMode() const override;
+	virtual void SetVolumeViewMode(const ETextureEditorVolumeViewMode VolumeViewMode) override;
 	virtual const FRotator& GetCubemapOrientation() const override;
 	virtual void SetCubemapOrientation(const FRotator& InOrientation) override;
+	virtual ETextureEditorCubemapViewMode GetCubemapViewMode() const override;
+	virtual void SetCubemapViewMode(const ETextureEditorCubemapViewMode CubemapViewMode) override;
 	virtual int32 GetExposureBias() const override
 	{
 		return ExposureBias;
@@ -283,6 +287,12 @@ private:
 	// Callback for changing the value of the face index entry box.
 	void HandleFaceEntryBoxChanged(int32 Face);
 
+	// Callback for getting the checked state of the 3D View check box.
+	ECheckBoxState HandleView3DCheckBoxIsChecked() const;
+
+	// Callback for changing the checked state of the 3D View check box.
+	void HandleView3DCheckBoxCheckedStateChanged(ECheckBoxState InNewState);
+
 	// Callback for determining whether the Reimport action can execute.
 	bool HandleReimportActionCanExecute( ) const;
 
@@ -368,6 +378,7 @@ private:
 	TSharedRef<SWidget> MakeExposureContolWidget();
 	TSharedRef<SWidget> MakeOpacityControlWidget();
 	TSharedRef<SWidget> MakeZoomControlWidget();
+	TSharedRef<SWidget> MakeView3DControlWidget();
 private:
 
 	/** The Texture asset being inspected */
@@ -473,8 +484,14 @@ private:
 	// For volume texture, the orientation when tracing.
 	FRotator VolumeOrientation;
 
+	/** This toolkit's current volume view mode **/
+	ETextureEditorVolumeViewMode VolumeViewMode;
+
 	// For cubemap texture, the orientation when previewing the texture as a 3d rendered cube.
 	FRotator CubemapOrientation;
+
+	/** This toolkit's current cubemap view mode **/
+	ETextureEditorCubemapViewMode CubemapViewMode;
 
 	bool bIsVolumeTexture;
 
