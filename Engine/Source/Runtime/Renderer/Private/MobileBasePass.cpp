@@ -227,7 +227,8 @@ ELightMapPolicyType MobileBasePass::SelectMeshLightmapPolicy(
 
 		if (!ReadOnlyCVARCache.bAllowStaticLighting || (ReadOnlyCVARCache.bMobileEnableNoPrecomputedLightingCSMShader && Scene && Scene->GetForceNoPrecomputedLighting()))
 		{
-			if (!IsTranslucentBlendMode(BlendMode))
+			if (!IsTranslucentBlendMode(BlendMode) &&
+				!ShadingModels.HasShadingModel(MSM_SingleLayerWater))
 			{
 				// Whether to use a single CSM permutation with a branch in the shader
 				bPrimReceivesCSM |= MobileUseCSMShaderBranch();
