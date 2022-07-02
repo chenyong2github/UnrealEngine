@@ -3785,7 +3785,7 @@ TSharedRef<FNiagaraEmitterMergeAdapter> FNiagaraScriptMergeManager::GetEmitterMe
 	FCachedMergeAdapter* CachedMergeAdapter = FindOrAddMergeAdapterCacheForEmitter(Emitter);
 
 	if (CachedMergeAdapter->EmitterMergeAdapter.IsValid() == false ||
-		CachedMergeAdapter->EmitterMergeAdapter->GetEditableEmitter().Emitter != nullptr)
+		CachedMergeAdapter->EmitterMergeAdapter->GetEditableEmitter().Emitter == nullptr)
 	{
 		CachedMergeAdapter->EmitterMergeAdapter = MakeShared<FNiagaraEmitterMergeAdapter>(Emitter);
 	}
