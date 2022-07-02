@@ -1164,19 +1164,33 @@ void FOpenGLDynamicRHI::RHIEndRenderPass()
 		EndOcclusionQueryBatch();
 	}
 
-	// Drop depth and stencil to avoid export
+	// Discard transient color targets
+	uint32 ColorMask = 0u;
+	for (int32 ColorIndex = 0; ColorIndex < MaxSimultaneousRenderTargets; ++ColorIndex)
+	{
+		const FRHIRenderPassInfo::FColorEntry& Entry = RenderPassInfo.ColorRenderTargets[ColorIndex];
+		if (!Entry.RenderTarget)
+		{
+			break;
+		}
+
+		if (GetStoreAction(Entry.Action) == ERenderTargetStoreAction::ENoAction)
+		{
+			ColorMask |= (1u << ColorIndex);
+		}
+	}
+
+	// Discard transient DepthStencil
+	bool bDiscardDepthStencil = false;
 	if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget)
 	{
 		ERenderTargetActions DepthActions = GetDepthActions(RenderPassInfo.DepthStencilRenderTarget.Action);
-		ERenderTargetActions StencilActions = GetStencilActions(RenderPassInfo.DepthStencilRenderTarget.Action);
-		const bool bIsUsingStencil = RenderPassInfo.DepthStencilRenderTarget.ExclusiveDepthStencil.IsUsingStencil();
+		bDiscardDepthStencil = GetStoreAction(DepthActions) == ERenderTargetStoreAction::ENoAction;
+	}
 
-		bool bDiscardDepth = GetStoreAction(DepthActions) == ERenderTargetStoreAction::ENoAction;
-		bool bDiscardStencil = bIsUsingStencil && GetStoreAction(StencilActions) == ERenderTargetStoreAction::ENoAction;
-		if (bDiscardDepth || bDiscardStencil)
-		{
-			RHIDiscardRenderTargets(bDiscardDepth, bDiscardStencil, 0);
-		}
+	if (bDiscardDepthStencil || ColorMask != 0)
+	{
+		RHIDiscardRenderTargets(bDiscardDepthStencil, bDiscardDepthStencil, ColorMask);
 	}
 
 	FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
@@ -1196,7 +1210,8 @@ void FOpenGLDynamicRHI::RHINextSubpass()
 {
 	IRHICommandContext::RHINextSubpass();
 	
-	if (RenderPassInfo.SubpassHint == ESubpassHint::DepthReadSubpass)
+	if (RenderPassInfo.SubpassHint == ESubpassHint::DepthReadSubpass ||
+		RenderPassInfo.SubpassHint == ESubpassHint::DeferredShadingSubpass)
 	{
 		FOpenGL::FrameBufferFetchBarrier();
 	}
