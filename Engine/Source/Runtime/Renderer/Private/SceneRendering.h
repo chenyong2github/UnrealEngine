@@ -2038,9 +2038,6 @@ public:
 	*/
 	static void RENDERER_API ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer);
 
-	/** the last thing we do with scene renderers, lots of cleanup related to the threading. **/
-	static void WaitForTasksAndClearSnapshots(const TArray<FSceneRenderer*>& SceneRenderers, FParallelMeshDrawCommandPass::EWaitThread WaitThread);
-
 	/** Called to release any deallocations that were deferred until the next render. */
 	static void CleanUp(FRHICommandListImmediate& RHICmdList);
 
