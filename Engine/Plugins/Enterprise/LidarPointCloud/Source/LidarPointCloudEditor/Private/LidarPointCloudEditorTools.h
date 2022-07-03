@@ -14,7 +14,7 @@ class URectangleMarqueeMechanic;
 class UClickDragInputBehavior;
 
 UCLASS()
-class ULidarEditorTool_Base : public UInteractiveTool
+class ULidarEditorToolBase : public UInteractiveTool
 {
 public:
 	GENERATED_BODY()
@@ -27,18 +27,18 @@ public:
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_Base : public UInteractiveToolWithToolTargetsBuilder
+class ULidarEditorToolBuilderBase : public UInteractiveToolWithToolTargetsBuilder
 {
 	GENERATED_BODY()
 
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override { return true; }
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Base>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolBase>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarEditorTool_ClickDragBase :
-	public ULidarEditorTool_Base,
+class ULidarEditorToolClickDragBase :
+	public ULidarEditorToolBase,
 	public IClickDragBehaviorTarget,
 	public IHoverBehaviorTarget,
 	public IInteractiveToolNestedAcceptCancelAPI
@@ -84,13 +84,13 @@ protected:
 // -------------------------------------------------------
 
 UCLASS()
-class ULidarEditorToolBuilder_Select : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderSelect : public ULidarEditorToolBuilderBase
 {
 	GENERATED_BODY()
 };
 
 UCLASS()
-class ULidarToolActions_Align : public UInteractiveToolPropertySet
+class ULidarToolActionsAlign : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -106,23 +106,23 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_Align : public ULidarEditorTool_Base
+class ULidarEditorToolAlign : public ULidarEditorToolBase
 {
 public:
 	GENERATED_BODY()
-	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_Align>(this); }
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActionsAlign>(this); }
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_Align : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderAlign : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Align>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolAlign>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarToolActions_Merge : public UInteractiveToolPropertySet
+class ULidarToolActionsMerge : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -138,23 +138,23 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_Merge : public ULidarEditorTool_Base
+class ULidarEditorToolMerge : public ULidarEditorToolBase
 {
 public:
 	GENERATED_BODY()
-	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_Merge>(this); }
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActionsMerge>(this); }
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_Merge : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderMerge : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Merge>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolMerge>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarToolActions_Collision : public UInteractiveToolPropertySet
+class ULidarToolActionsCollision : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -170,23 +170,23 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_Collision : public ULidarEditorTool_Base
+class ULidarEditorToolCollision : public ULidarEditorToolBase
 {
 public:
 	GENERATED_BODY()
-	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_Collision>(this); }
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActionsCollision>(this); }
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_Collision : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderCollision : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Collision>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolCollision>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarToolActions_Meshing : public UInteractiveToolPropertySet
+class ULidarToolActionsMeshing : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -207,23 +207,23 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_Meshing : public ULidarEditorTool_Base
+class ULidarEditorToolMeshing : public ULidarEditorToolBase
 {
 public:
 	GENERATED_BODY()
-	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_Meshing>(this); }
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActionsMeshing>(this); }
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_Meshing : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderMeshing : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Meshing>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolMeshing>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarToolActions_Normals : public UInteractiveToolPropertySet
+class ULidarToolActionsNormals : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -245,23 +245,23 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_Normals : public ULidarEditorTool_Base
+class ULidarEditorToolNormals : public ULidarEditorToolBase
 {
 public:
 	GENERATED_BODY()
-	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_Normals>(this); }
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActionsNormals>(this); }
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_Normals : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderNormals : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Normals>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolNormals>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarToolActions_Selection : public UInteractiveToolPropertySet
+class ULidarToolActionsSelection : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -309,7 +309,7 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_SelectionBase : public ULidarEditorTool_ClickDragBase
+class ULidarEditorToolSelectionBase : public ULidarEditorToolClickDragBase
 {
 public:
 	GENERATED_BODY()
@@ -336,7 +336,7 @@ protected:
 };
 
 UCLASS()
-class ULidarEditorTool_BoxSelection : public ULidarEditorTool_SelectionBase
+class ULidarEditorToolBoxSelection : public ULidarEditorToolSelectionBase
 {
 public:
 	GENERATED_BODY()
@@ -347,15 +347,15 @@ public:
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_BoxSelection : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderBoxSelection : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_BoxSelection>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolBoxSelection>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarEditorTool_PolygonalSelection : public ULidarEditorTool_SelectionBase
+class ULidarEditorToolPolygonalSelection : public ULidarEditorToolSelectionBase
 {
 public:
 	GENERATED_BODY()
@@ -368,15 +368,15 @@ private:
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_PolygonalSelection : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderPolygonalSelection : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_PolygonalSelection>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolPolygonalSelection>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarEditorTool_LassoSelection : public ULidarEditorTool_SelectionBase
+class ULidarEditorToolLassoSelection : public ULidarEditorToolSelectionBase
 {
 public:
 	GENERATED_BODY()
@@ -386,15 +386,15 @@ public:
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_LassoSelection : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderLassoSelection : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_LassoSelection>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolLassoSelection>(SceneState.ToolManager); }
 };
 
 UCLASS()
-class ULidarToolActions_PaintSelection : public ULidarToolActions_Selection
+class ULidarToolActionsPaintSelection : public ULidarToolActionsSelection
 {
 	GENERATED_BODY()
 
@@ -404,7 +404,7 @@ public:
 };
 
 UCLASS()
-class ULidarEditorTool_PaintSelection : public ULidarEditorTool_SelectionBase
+class ULidarEditorToolPaintSelection : public ULidarEditorToolSelectionBase
 {
 public:
 	GENERATED_BODY()
@@ -414,7 +414,7 @@ public:
 	virtual void PostCurrentMousePosChanged() override;
 	virtual void OnClickPress(const FInputDeviceRay& PressPos) override;
 	virtual void OnClickDrag(const FInputDeviceRay& DragPos) override;
-	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_PaintSelection>(this); }
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActionsPaintSelection>(this); }
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
 
 private:
@@ -428,9 +428,9 @@ private:
 };
 
 UCLASS()
-class ULidarEditorToolBuilder_PaintSelection : public ULidarEditorToolBuilder_Base
+class ULidarEditorToolBuilderPaintSelection : public ULidarEditorToolBuilderBase
 {
 public:
 	GENERATED_BODY()
-	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_PaintSelection>(SceneState.ToolManager); }
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorToolPaintSelection>(SceneState.ToolManager); }
 };

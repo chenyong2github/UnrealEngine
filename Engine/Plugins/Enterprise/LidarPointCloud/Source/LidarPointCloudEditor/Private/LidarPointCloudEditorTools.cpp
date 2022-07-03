@@ -22,7 +22,7 @@ namespace {
 	constexpr float PaintMaxDeviation = 0.15f;
 }
 
-void ULidarEditorTool_Base::Setup()
+void ULidarEditorToolBase::Setup()
 {
 	Super::Setup();
 
@@ -34,12 +34,12 @@ void ULidarEditorTool_Base::Setup()
 	}
 }
 
-FText ULidarEditorTool_Base::GetToolMessage() const
+FText ULidarEditorToolBase::GetToolMessage() const
 {
 	return FText();
 }
 
-void ULidarEditorTool_ClickDragBase::Setup()
+void ULidarEditorToolClickDragBase::Setup()
 {
 	Super::Setup();
 
@@ -56,14 +56,14 @@ void ULidarEditorTool_ClickDragBase::Setup()
 	AddInputBehavior(ClickDragBehavior, this);
 }
 
-void ULidarEditorTool_ClickDragBase::Render(IToolsContextRenderAPI* RenderAPI)
+void ULidarEditorToolClickDragBase::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	Super::Render(RenderAPI);
 	
 	GetToolManager()->GetContextQueriesAPI()->GetCurrentViewState(CameraState);
 }
 
-void ULidarEditorTool_ClickDragBase::OnUpdateModifierState(int ModifierID, bool bIsOn)
+void ULidarEditorToolClickDragBase::OnUpdateModifierState(int ModifierID, bool bIsOn)
 {
 	switch (ModifierID)
 	{
@@ -78,105 +78,105 @@ void ULidarEditorTool_ClickDragBase::OnUpdateModifierState(int ModifierID, bool 
 	}
 }
 
-void ULidarToolActions_Align::AlignAroundWorldOrigin()
+void ULidarToolActionsAlign::AlignAroundWorldOrigin()
 {
 	FLidarPointCloudEditorHelper::AlignSelectionAroundWorldOrigin();
 }
 
-void ULidarToolActions_Align::AlignAroundOriginalCoordinates()
+void ULidarToolActionsAlign::AlignAroundOriginalCoordinates()
 {
 	FLidarPointCloudEditorHelper::SetOriginalCoordinateForSelection();
 }
 
-void ULidarToolActions_Align::ResetAlignment()
+void ULidarToolActionsAlign::ResetAlignment()
 {
 	FLidarPointCloudEditorHelper::CenterSelection();
 }
 
-void ULidarToolActions_Merge::MergeActors()
+void ULidarToolActionsMerge::MergeActors()
 {
 	FLidarPointCloudEditorHelper::MergeSelectionByComponent(bReplaceSourceActorsAfterMerging);
 }
 
-void ULidarToolActions_Merge::MergeData()
+void ULidarToolActionsMerge::MergeData()
 {
 	FLidarPointCloudEditorHelper::MergeSelectionByData(bReplaceSourceActorsAfterMerging);
 }
 
-void ULidarToolActions_Collision::BuildCollision()
+void ULidarToolActionsCollision::BuildCollision()
  {
  	FLidarPointCloudEditorHelper::SetCollisionErrorForSelection(OverrideMaxCollisionError);
  	FLidarPointCloudEditorHelper::BuildCollisionForSelection();
  }
 
-void ULidarToolActions_Collision::RemoveCollision()
+void ULidarToolActionsCollision::RemoveCollision()
  {
  	FLidarPointCloudEditorHelper::RemoveCollisionForSelection();
  }
 
-void ULidarToolActions_Meshing::BuildStaticMesh()
+void ULidarToolActionsMeshing::BuildStaticMesh()
 {
 	FLidarPointCloudEditorHelper::MeshSelected(false, MaxMeshingError, bMergeMeshes, !bMergeMeshes && bRetainTransform);
 }
 
-void ULidarToolActions_Normals::CalculateNormals()
+void ULidarToolActionsNormals::CalculateNormals()
 {
 	FLidarPointCloudEditorHelper::SetNormalsQualityForSelection(Quality, NoiseTolerance);
 	FLidarPointCloudEditorHelper::CalculateNormalsForSelection();
 }
 
-void ULidarToolActions_Selection::HideSelected()
+void ULidarToolActionsSelection::HideSelected()
 {
 	FLidarPointCloudEditorHelper::HideSelected();
 }
 
-void ULidarToolActions_Selection::ResetVisibility()
+void ULidarToolActionsSelection::ResetVisibility()
 {
 	FLidarPointCloudEditorHelper::ResetVisibility();
 }
 
-void ULidarToolActions_Selection::DeleteHidden()
+void ULidarToolActionsSelection::DeleteHidden()
 {
 	FLidarPointCloudEditorHelper::DeleteHidden();
 }
 
-void ULidarToolActions_Selection::Extract()
+void ULidarToolActionsSelection::Extract()
 {
 	FLidarPointCloudEditorHelper::Extract();
 }
 
-void ULidarToolActions_Selection::ExtractAsCopy()
+void ULidarToolActionsSelection::ExtractAsCopy()
 {
 	FLidarPointCloudEditorHelper::ExtractAsCopy();
 }
 
-void ULidarToolActions_Selection::CalculateNormals()
+void ULidarToolActionsSelection::CalculateNormals()
 {
 	FLidarPointCloudEditorHelper::CalculateNormals();
 	ClearSelection();
 }
 
-void ULidarToolActions_Selection::DeleteSelected()
+void ULidarToolActionsSelection::DeleteSelected()
 {
 	FLidarPointCloudEditorHelper::DeleteSelected();
 }
 
-void ULidarToolActions_Selection::InvertSelection()
+void ULidarToolActionsSelection::InvertSelection()
 {
 	FLidarPointCloudEditorHelper::InvertSelection();
 }
 
-void ULidarToolActions_Selection::ClearSelection()
+void ULidarToolActionsSelection::ClearSelection()
 {
 	FLidarPointCloudEditorHelper::ClearSelection();
 }
 
-void ULidarToolActions_Selection::BuildStaticMesh()
+void ULidarToolActionsSelection::BuildStaticMesh()
 {
 	FLidarPointCloudEditorHelper::MeshSelected(true, MaxMeshingError, bMergeMeshes, !bMergeMeshes && bRetainTransform);
 }
 
-void ULidarEditorTool_SelectionBase::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
+void ULidarEditorToolSelectionBase::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
 {
 	if(Clicks.Num() == 0)
 	{
@@ -197,63 +197,63 @@ void ULidarEditorTool_SelectionBase::DrawHUD(FCanvas* Canvas, IToolsContextRende
 	Canvas->DrawItem(LineItem);
 }
 
-TArray<FConvexVolume> ULidarEditorTool_SelectionBase::GetSelectionConvexVolumes()
+TArray<FConvexVolume> ULidarEditorToolSelectionBase::GetSelectionConvexVolumes()
 {
 	return FLidarPointCloudEditorHelper::BuildConvexVolumesFromPoints(Clicks);
 }
 
-TObjectPtr<UInteractiveToolPropertySet> ULidarEditorTool_SelectionBase::CreateToolActions()
+TObjectPtr<UInteractiveToolPropertySet> ULidarEditorToolSelectionBase::CreateToolActions()
 {
-	return NewObject<ULidarToolActions_Selection>(this);
+	return NewObject<ULidarToolActionsSelection>(this);
 }
 
-bool ULidarEditorTool_SelectionBase::OnUpdateHover(const FInputDeviceRay& DevicePos)
+bool ULidarEditorToolSelectionBase::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	CurrentMousePos = DevicePos.ScreenPosition;
 	PostCurrentMousePosChanged();
 	return true;
 }
 
-void ULidarEditorTool_SelectionBase::OnClickPress(const FInputDeviceRay& PressPos)
+void ULidarEditorToolSelectionBase::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	bSelecting = true;
 }
 
-void ULidarEditorTool_SelectionBase::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void ULidarEditorToolSelectionBase::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 	bSelecting = false;
 }
 
-void ULidarEditorTool_SelectionBase::OnClickDrag(const FInputDeviceRay& DragPos)
+void ULidarEditorToolSelectionBase::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	CurrentMousePos = DragPos.ScreenPosition;
 	PostCurrentMousePosChanged();
 }
 
-void ULidarEditorTool_SelectionBase::OnTerminateDragSequence()
+void ULidarEditorToolSelectionBase::OnTerminateDragSequence()
 {
 	Clicks.Empty();
 	bSelecting = false;
 }
 
-bool ULidarEditorTool_SelectionBase::ExecuteNestedCancelCommand()
+bool ULidarEditorToolSelectionBase::ExecuteNestedCancelCommand()
 {
 	OnTerminateDragSequence();
 	return true;
 }
 
-FText ULidarEditorTool_SelectionBase::GetToolMessage() const
+FText ULidarEditorToolSelectionBase::GetToolMessage() const
 {
 	const FText ToolMessage = LOCTEXT("ULidarEditorToolToolMessage", "Use Left-click to start the selection. Hold Shift to add selection, hold Ctrl to subtract selection.");
 	return ToolMessage;
 }
 
-FLinearColor ULidarEditorTool_SelectionBase::GetHUDColor()
+FLinearColor ULidarEditorToolSelectionBase::GetHUDColor()
 {
 	return FLinearColor::White;
 }
 
-void ULidarEditorTool_SelectionBase::FinalizeSelection()
+void ULidarEditorToolSelectionBase::FinalizeSelection()
 {
 	const ELidarPointCloudSelectionMode SelectionMode = GetSelectionMode();
 
@@ -270,7 +270,7 @@ void ULidarEditorTool_SelectionBase::FinalizeSelection()
 	}
 }
 
-ELidarPointCloudSelectionMode ULidarEditorTool_SelectionBase::GetSelectionMode() const
+ELidarPointCloudSelectionMode ULidarEditorToolSelectionBase::GetSelectionMode() const
 {
 	ELidarPointCloudSelectionMode SelectionMode = ELidarPointCloudSelectionMode::None;
 	if(bCtrlToggle)
@@ -284,12 +284,12 @@ ELidarPointCloudSelectionMode ULidarEditorTool_SelectionBase::GetSelectionMode()
 	return SelectionMode;
 }
 
-TArray<FConvexVolume> ULidarEditorTool_BoxSelection::GetSelectionConvexVolumes()
+TArray<FConvexVolume> ULidarEditorToolBoxSelection::GetSelectionConvexVolumes()
 {
 	return { FLidarPointCloudEditorHelper::BuildConvexVolumeFromCoordinates(Clicks[0], Clicks[2]) };
 }
 
-void ULidarEditorTool_BoxSelection::OnClickPress(const FInputDeviceRay& PressPos)
+void ULidarEditorToolBoxSelection::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	Clicks.Append({
 		PressPos.ScreenPosition,
@@ -299,7 +299,7 @@ void ULidarEditorTool_BoxSelection::OnClickPress(const FInputDeviceRay& PressPos
 	});
 }
 
-void ULidarEditorTool_BoxSelection::OnClickDrag(const FInputDeviceRay& DragPos)
+void ULidarEditorToolBoxSelection::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	if(Clicks.Num() == 0)
 	{
@@ -311,7 +311,7 @@ void ULidarEditorTool_BoxSelection::OnClickDrag(const FInputDeviceRay& DragPos)
 	Clicks[3].X = DragPos.ScreenPosition.X;
 }
 
-void ULidarEditorTool_BoxSelection::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void ULidarEditorToolBoxSelection::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 	if(Clicks.Num() == 4)
 	{
@@ -328,7 +328,7 @@ void ULidarEditorTool_BoxSelection::OnClickRelease(const FInputDeviceRay& Releas
 	Clicks.Empty();
 }
 
-void ULidarEditorTool_PolygonalSelection::OnClickPress(const FInputDeviceRay& PressPos)
+void ULidarEditorToolPolygonalSelection::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	if(IsWithinSnap())
 	{
@@ -341,12 +341,12 @@ void ULidarEditorTool_PolygonalSelection::OnClickPress(const FInputDeviceRay& Pr
 	}
 }
 
-FLinearColor ULidarEditorTool_PolygonalSelection::GetHUDColor()
+FLinearColor ULidarEditorToolPolygonalSelection::GetHUDColor()
 {
 	return IsWithinSnap() ? FLinearColor::Green : Super::GetHUDColor();
 }
 
-void ULidarEditorTool_PolygonalSelection::PostCurrentMousePosChanged()
+void ULidarEditorToolPolygonalSelection::PostCurrentMousePosChanged()
 {
 	if(IsWithinSnap())
 	{
@@ -354,17 +354,17 @@ void ULidarEditorTool_PolygonalSelection::PostCurrentMousePosChanged()
 	}
 }
 
-bool ULidarEditorTool_PolygonalSelection::IsWithinSnap()
+bool ULidarEditorToolPolygonalSelection::IsWithinSnap()
 {
 	return Clicks.Num() > 1 && (CurrentMousePos - Clicks[0]).SquaredLength() <= PolySnapDistanceSq;
 }
 
-void ULidarEditorTool_LassoSelection::OnClickPress(const FInputDeviceRay& PressPos)
+void ULidarEditorToolLassoSelection::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	Clicks.Add(PressPos.ScreenPosition);
 }
 
-void ULidarEditorTool_LassoSelection::OnClickDrag(const FInputDeviceRay& DragPos)
+void ULidarEditorToolLassoSelection::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	Super::OnClickDrag(DragPos);
 	
@@ -374,7 +374,7 @@ void ULidarEditorTool_LassoSelection::OnClickDrag(const FInputDeviceRay& DragPos
 	}
 }
 
-void ULidarEditorTool_LassoSelection::OnClickRelease(const FInputDeviceRay& ReleasePos)
+void ULidarEditorToolLassoSelection::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
 	if(Clicks.Num() > 1)
 	{
@@ -384,13 +384,13 @@ void ULidarEditorTool_LassoSelection::OnClickRelease(const FInputDeviceRay& Rele
 	Clicks.Empty();
 }
 
-void ULidarEditorTool_PaintSelection::Setup()
+void ULidarEditorToolPaintSelection::Setup()
 {
 	Super::Setup();
-	BrushRadius = GetDefault<ULidarToolActions_PaintSelection>()->BrushRadius;
+	BrushRadius = GetDefault<ULidarToolActionsPaintSelection>()->BrushRadius;
 }
 
-void ULidarEditorTool_PaintSelection::Render(IToolsContextRenderAPI* RenderAPI)
+void ULidarEditorToolPaintSelection::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	Super::Render(RenderAPI);
 	
@@ -400,7 +400,7 @@ void ULidarEditorTool_PaintSelection::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
-void ULidarEditorTool_PaintSelection::PostCurrentMousePosChanged()
+void ULidarEditorToolPaintSelection::PostCurrentMousePosChanged()
 {
 	const FLidarPointCloudRay Ray = FLidarPointCloudEditorHelper::MakeRayFromScreenPosition(CurrentMousePos);
 
@@ -429,7 +429,7 @@ void ULidarEditorTool_PaintSelection::PostCurrentMousePosChanged()
 	LastHitDistance = NewDistance;
 }
 
-void ULidarEditorTool_PaintSelection::OnClickPress(const FInputDeviceRay& PressPos)
+void ULidarEditorToolPaintSelection::OnClickPress(const FInputDeviceRay& PressPos)
 {
 	Super::OnClickPress(PressPos);
 
@@ -441,15 +441,15 @@ void ULidarEditorTool_PaintSelection::OnClickPress(const FInputDeviceRay& PressP
 	Paint();
 }
 
-void ULidarEditorTool_PaintSelection::OnClickDrag(const FInputDeviceRay& DragPos)
+void ULidarEditorToolPaintSelection::OnClickDrag(const FInputDeviceRay& DragPos)
 {
 	Super::OnClickDrag(DragPos);
 	Paint();
 }
 
-void ULidarEditorTool_PaintSelection::OnPropertyModified(UObject* PropertySet, FProperty* Property)
+void ULidarEditorToolPaintSelection::OnPropertyModified(UObject* PropertySet, FProperty* Property)
 {
-	if(const ULidarToolActions_PaintSelection* Actions = Cast<ULidarToolActions_PaintSelection>(PropertySet))
+	if(const ULidarToolActionsPaintSelection* Actions = Cast<ULidarToolActionsPaintSelection>(PropertySet))
 	{
 		if(Property && Property->GetName().Equals("BrushRadius"))
 		{
@@ -458,7 +458,7 @@ void ULidarEditorTool_PaintSelection::OnPropertyModified(UObject* PropertySet, F
 	}
 }
 
-void ULidarEditorTool_PaintSelection::Paint()
+void ULidarEditorToolPaintSelection::Paint()
 {
 	if(bHasHit)
 	{

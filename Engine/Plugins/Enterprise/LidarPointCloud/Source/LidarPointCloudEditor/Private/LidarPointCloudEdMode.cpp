@@ -38,7 +38,7 @@ void ULidarEditorMode::Enter()
 
 	const FLidarPointCloudEditorCommands& Commands = FLidarPointCloudEditorCommands::Get();
 
-#define REGISTER_TOOL(Tool) RegisterTool(Commands.Toolkit##Tool, TEXT("Lidar"#Tool"Tool"), NewObject<ULidarEditorToolBuilder_##Tool>())
+#define REGISTER_TOOL(Tool) RegisterTool(Commands.Toolkit##Tool, TEXT("Lidar"#Tool"Tool"), NewObject<ULidarEditorToolBuilder##Tool>())
 	REGISTER_TOOL(Select);
 	REGISTER_TOOL(Align);
 	REGISTER_TOOL(Merge);
@@ -123,7 +123,7 @@ void ULidarEditorMode::BindCommands()
 
 void ULidarEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	if(ULidarEditorTool_Base* LidarTool = Cast<ULidarEditorTool_Base>(Tool))
+	if(ULidarEditorToolBase* LidarTool = Cast<ULidarEditorToolBase>(Tool))
 	{
 		GetToolManager()->DisplayMessage(LidarTool->GetToolMessage(), EToolMessageLevel::UserNotification);
 	}
@@ -131,7 +131,7 @@ void ULidarEditorMode::OnToolStarted(UInteractiveToolManager* Manager, UInteract
 
 void ULidarEditorMode::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
-	if(Tool && Tool->IsA(ULidarEditorTool_SelectionBase::StaticClass()))
+	if(Tool && Tool->IsA(ULidarEditorToolSelectionBase::StaticClass()))
 	{
 		FLidarPointCloudEditorHelper::ClearSelection();
 	}
