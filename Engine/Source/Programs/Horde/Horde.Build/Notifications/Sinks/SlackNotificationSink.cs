@@ -1364,24 +1364,22 @@ namespace Horde.Build.Notifications.Sinks
 				List<BlockBase> blocks = new List<BlockBase>();
 				blocks.Add(new HeaderBlock(AddEnvironmentAnnotation($"{report.Stream.Name}: {report.Time:d}")));
 
+				if (report.Issues.Count == 0)
+				{
+					blocks.Add(new SectionBlock(":tick: No issues open."));
+				}
+				else
+				{
+					TimeSpan averageAge = TimeSpan.FromHours(report.Issues.Select(x => (report.Time - x.CreatedAt).TotalHours).Average());
+					blocks.Add(new SectionBlock($"*{report.Issues.Count} unique issues* currently open (average age {FormatReadableTimeSpan(averageAge)})."));
+				}
+
 				PostMessageResponse? response = await SendMessageAsync(report.Channel, blocks: blocks.ToArray(), withEnvironment: false);
 				if (response != null && response.Ts != null)
 				{
 					string reportEventId = GetReportEventId(report.Stream.Id, report.WorkflowId);
 					string json = JsonSerializer.Serialize(state, _jsonSerializerOptions);
 					await AddOrUpdateMessageStateAsync(report.Channel, reportEventId, null, json, response.Ts);
-
-					string summary;
-					if (report.Issues.Count == 0)
-					{
-						summary = ":tick: No issues open.";
-					}
-					else
-					{
-						TimeSpan averageAge = TimeSpan.FromHours(report.Issues.Select(x => (report.Time - x.CreatedAt).TotalHours).Average());
-						summary = $"*{report.Issues.Count} unique issues* currently open (average age {FormatReadableTimeSpan(averageAge)}).";
-					}
-					await SendMessageAsync(report.Channel, text: summary, withEnvironment: false);
 
 					for (int idx = 0; idx < state.Blocks.Count; idx++)
 					{
