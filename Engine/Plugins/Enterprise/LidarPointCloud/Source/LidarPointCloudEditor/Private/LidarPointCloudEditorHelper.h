@@ -33,6 +33,8 @@ public:
 	static void BuildCollisionForSelection();
 	static void SetCollisionErrorForSelection(float Error);
 	static void RemoveCollisionForSelection();
+
+	static void MeshSelected(bool bMeshByPoints, float CellSize, bool bMergeMeshes, bool bRetainTransform);
 	
 	static void CalculateNormalsForSelection();
 	static void SetNormalsQualityForSelection(int32 Quality, float NoiseTolerance);

@@ -22,6 +22,11 @@ class UBodySetup;
 class FLidarPointCloudCollisionRendering;
 class FLidarPointCloudNotification;
 
+namespace LidarPointCloudMeshing
+{
+	struct FMeshBuffers;
+};
+
 /**
  * Used for ULidarPointCloud::CreateFromXXXX calls
  */
@@ -417,9 +422,11 @@ public:
 	void DeleteSelected();
 	void InvertSelection();
 	int64 NumSelectedPoints();
+	bool HasSelectedPoints();
 	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform);
 	void CalculateNormalsForSelection();
 	void ClearSelection();
+	void BuildStaticMeshBuffersForSelection(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform);
 #endif
 	
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
@@ -450,6 +457,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Lidar Point Cloud")
 	void RemoveCollision();
 
+	/** Constructs and returns the MeshBuffers struct from the data */
+	void BuildStaticMeshBuffers(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform);
+	
 	/** Returns true, if the cloud is fully and persistently loaded. */
 	UFUNCTION(BlueprintPure, Category = "Lidar Point Cloud")
 	bool IsFullyLoaded() const { return Octree.IsFullyLoaded(); }

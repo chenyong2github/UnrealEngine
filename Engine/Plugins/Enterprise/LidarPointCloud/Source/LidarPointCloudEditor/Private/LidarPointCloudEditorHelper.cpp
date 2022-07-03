@@ -8,11 +8,12 @@
 #include "LidarPointCloud.h"
 #include "LidarPointCloudActor.h"
 #include "LidarPointCloudComponent.h"
+#include "MeshDescription.h"
 #include "Selection.h"
-
 #include "AssetRegistry/AssetRegistryModule.h"
-
+#include "Engine/StaticMeshActor.h"
 #include "Misc/ScopedSlowTask.h"
+#include "PhysicsEngine/BodySetup.h"
 
 #define LOCTEXT_NAMESPACE "LidarPointCloudEditorHelper"
 
@@ -26,7 +27,7 @@ namespace
 		FSaveAssetDialogConfig SaveAssetDialogConfig;
 		SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SelectDestination", "Select Destination");
 		SaveAssetDialogConfig.DefaultPath = "/Game";
-		SaveAssetDialogConfig.AssetClassNames.Emplace("/Script/LidarPointCloudRuntime.LidarPointCloud");
+		SaveAssetDialogConfig.AssetClassNames.Add(ULidarPointCloud::StaticClass()->GetClassPathName());
 		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
 
 		FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
@@ -107,6 +108,22 @@ namespace
 		return Actors;
 	}
 
+	int32 GetNumLidarActors()
+	{
+		int32 NumActors = 0;
+		
+		for (TObjectIterator<ALidarPointCloudActor> It; It; ++It)
+		{
+			const ALidarPointCloudActor* LidarActor = Cast<ALidarPointCloudActor>(*It);
+			if(IsValid(LidarActor))
+			{
+				++NumActors;
+			}
+		}
+
+		return NumActors;
+	}
+
 	UWorld* GetFirstWorld()
 	{
 		for (TObjectIterator<ALidarPointCloudActor> It; It; ++It)
@@ -138,14 +155,140 @@ namespace
 		return PointClouds;
 	}
 
-	ALidarPointCloudActor* SpawnActor()
+	template<typename T>
+	T* SpawnActor()
 	{
-		ALidarPointCloudActor* NewActor = nullptr;
+		T* NewActor = nullptr;
 		if(UWorld* World = GetFirstWorld())
 		{
-			NewActor = Cast<ALidarPointCloudActor>(World->SpawnActor(ALidarPointCloudActor::StaticClass()));
+			NewActor = Cast<T>(World->SpawnActor(T::StaticClass()));
 		}
 		return NewActor;
+	}
+	
+	UStaticMesh* CreateStaticMesh()
+	{
+		UStaticMesh* StaticMesh = nullptr;
+		
+		// Initialize SaveAssetDialog config
+		FSaveAssetDialogConfig SaveAssetDialogConfig;
+		SaveAssetDialogConfig.DialogTitleOverride = LOCTEXT("SelectDestination", "Select Destination");
+		SaveAssetDialogConfig.DefaultPath = "/Game";
+		SaveAssetDialogConfig.AssetClassNames.Add(UStaticMesh::StaticClass()->GetClassPathName());
+		SaveAssetDialogConfig.ExistingAssetPolicy = ESaveAssetDialogExistingAssetPolicy::AllowButWarn;
+		
+		const FString SaveObjectPath = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get().CreateModalSaveAssetDialog(SaveAssetDialogConfig);
+		if (!SaveObjectPath.IsEmpty())
+		{
+			// Attempt to load existing asset first
+			StaticMesh = FindObject<UStaticMesh>(nullptr, *SaveObjectPath);
+
+			// Proceed to creating a new asset, if needed
+			if (!StaticMesh)
+			{
+				const FString PackageName = FPackageName::ObjectPathToPackageName(SaveObjectPath);
+				const FString ObjectName = FPackageName::ObjectPathToObjectName(SaveObjectPath);
+
+				StaticMesh = NewObject<UStaticMesh>(CreatePackage(*PackageName), UStaticMesh::StaticClass(), FName(*ObjectName), EObjectFlags::RF_Public | EObjectFlags::RF_Standalone);
+
+				FAssetRegistryModule::AssetCreated(StaticMesh);
+			}
+		}
+
+		return StaticMesh;
+	}
+
+	void AssignMeshBuffersToMesh(LidarPointCloudMeshing::FMeshBuffers* MeshBuffers, UStaticMesh* StaticMesh)
+	{
+		if(StaticMesh && MeshBuffers)
+		{
+			constexpr bool bCPUAccess = true;
+
+			bool bNewMesh = true;
+			if (StaticMesh->GetRenderData())
+			{
+				bNewMesh = false;
+				StaticMesh->ReleaseResources();
+				StaticMesh->ReleaseResourcesFence.Wait();
+			}
+			
+			StaticMesh->SetRenderData(MakeUnique<FStaticMeshRenderData>());
+			FStaticMeshRenderData* RenderData = StaticMesh->GetRenderData();
+			RenderData->AllocateLODResources(1);
+			FStaticMeshLODResources& LODResources = RenderData->LODResources[0];
+
+			TArray<FStaticMeshBuildVertex> StaticMeshBuildVertices;
+			StaticMeshBuildVertices.SetNum(MeshBuffers->Vertices.Num());
+			FStaticMeshBuildVertex* StaticMeshBuildVertexPtr = StaticMeshBuildVertices.GetData();
+
+			for(const LidarPointCloudMeshing::FVertexData& Vertex : MeshBuffers->Vertices)
+			{
+				StaticMeshBuildVertexPtr->Position = Vertex.Position;
+				StaticMeshBuildVertexPtr->Color = Vertex.Color;
+				StaticMeshBuildVertexPtr->TangentZ = Vertex.Normal;
+				StaticMeshBuildVertexPtr++;
+			}
+
+			LODResources.bBuffersInlined = true;
+			LODResources.IndexBuffer.TrySetAllowCPUAccess(bCPUAccess);
+			LODResources.VertexBuffers.PositionVertexBuffer.Init(StaticMeshBuildVertices);
+			LODResources.VertexBuffers.StaticMeshVertexBuffer.Init(StaticMeshBuildVertices, 1, bCPUAccess);
+			LODResources.bHasColorVertexData = true;
+			LODResources.VertexBuffers.ColorVertexBuffer.Init(StaticMeshBuildVertices);
+			LODResources.bHasReversedIndices = false;
+			LODResources.bHasReversedDepthOnlyIndices = false;
+			
+			FStaticMeshSection& Section = LODResources.Sections.AddDefaulted_GetRef();
+			Section.FirstIndex = 0;
+			Section.NumTriangles = MeshBuffers->Indices.Num() / 3;
+			Section.MinVertexIndex = 0;
+			Section.MaxVertexIndex = MeshBuffers->Vertices.Num() - 1;			
+			Section.MaterialIndex = 0;
+			Section.bEnableCollision = true;
+			Section.bCastShadow = true;			
+			LODResources.IndexBuffer.SetIndices(MeshBuffers->Indices, EIndexBufferStride::Force32Bit);
+				
+			LODResources.bHasDepthOnlyIndices = true;
+			LODResources.DepthOnlyIndexBuffer.SetIndices(MeshBuffers->Indices, EIndexBufferStride::Force32Bit);
+			LODResources.DepthOnlyNumTriangles = MeshBuffers->Indices.Num() / 3;
+
+			StaticMesh->InitResources();
+
+			// Set up RenderData bounds and LOD data
+			RenderData->Bounds = MeshBuffers->Bounds;
+			StaticMesh->CalculateExtendedBounds();
+				
+			RenderData->ScreenSize[0].Default = 1.0f;
+
+			// Set up physics-related data
+			StaticMesh->CreateBodySetup();
+			check(StaticMesh->GetBodySetup());
+			StaticMesh->GetBodySetup()->InvalidatePhysicsData();
+
+			if (!bNewMesh)
+			{
+				for (FThreadSafeObjectIterator Iter(UStaticMeshComponent::StaticClass()); Iter; ++Iter)
+				{
+					UStaticMeshComponent* StaticMeshComponent = Cast<UStaticMeshComponent>(*Iter);
+					if (StaticMeshComponent->GetStaticMesh() == StaticMesh)
+					{
+						// it needs to recreate IF it already has been created
+						if (StaticMeshComponent->IsPhysicsStateCreated())
+						{
+							StaticMeshComponent->RecreatePhysicsState();
+						}
+					}
+				}
+			}
+			
+			static UMaterialInterface* Material = Cast<UMaterialInterface>(FSoftObjectPath(TEXT("/LidarPointCloud/Materials/M_MeshedCloud.M_MeshedCloud")).TryLoad());
+			StaticMesh->AddMaterial(Material);
+
+			StaticMesh->SetLightingGuid(FGuid::NewGuid()) ;
+			StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
+			StaticMesh->PostEditChange();
+			StaticMesh->MarkPackageDirty();
+		}
 	}
 	
 	FSceneView* GetEditorView(FEditorViewportClient* ViewportClient)
@@ -190,12 +333,15 @@ namespace
 		Origins.Last(1) = Origins[0] + ViewDirection * 99999999.0f;
 
 		// Calculate plane normals
-		const bool bFlipNormals = FVector::DotProduct(Normals[0], (MeanCenter - Origins[0])) > 0;
 		for (int32 i = 0; i < Points.Num(); ++i)
 		{
 			Normals[i] = ((Origins[(i + 1) % Points.Num()] - Origins[i]).GetSafeNormal() ^ Directions[i]).GetSafeNormal();
-			
-			if (bFlipNormals)
+		}
+
+		// Flip normals?
+		if(FVector::DotProduct(Normals[0], (MeanCenter - Origins[0])) > 0)
+		{
+			for (int32 i = 0; i < Points.Num(); ++i)
 			{
 				Normals[i] = -Normals[i];
 			}
@@ -346,6 +492,102 @@ void FLidarPointCloudEditorHelper::RemoveCollisionForSelection()
 	});
 }
 
+void FLidarPointCloudEditorHelper::MeshSelected(bool bMeshByPoints, float CellSize, bool bMergeMeshes, bool bRetainTransform)
+{
+	const int32 NumSteps = (bMeshByPoints ? GetNumLidarActors() : GEditor->GetSelectedActorCount()) + bMergeMeshes;
+	
+	FScopedSlowTask ProgressDialog(NumSteps, LOCTEXT("Meshing", "Meshing Point Clouds..."));
+	ProgressDialog.MakeDialog();
+	
+	if(bMergeMeshes)
+	{
+		if(UStaticMesh* StaticMesh = CreateStaticMesh())
+		{
+			FScopeBenchmarkTimer Timer("MakeMesh");
+			LidarPointCloudMeshing::FMeshBuffers MeshBuffers;
+
+			TFunction<void(ALidarPointCloudActor*)> MergeFunc = [CellSize, &ProgressDialog, MeshBuffersPtr = &MeshBuffers, bMeshByPoints](ALidarPointCloudActor* Actor)
+			{
+				if(ULidarPointCloud* PointCloud = Actor->GetPointCloud())
+				{
+					if(bMeshByPoints)
+					{
+						PointCloud->BuildStaticMeshBuffersForSelection(CellSize, MeshBuffersPtr, Actor->GetActorTransform());
+					}
+					else
+					{
+						PointCloud->BuildStaticMeshBuffers(CellSize, MeshBuffersPtr, Actor->GetActorTransform());
+					}
+				}
+					
+				ProgressDialog.EnterProgressFrame(1.0f);
+			};
+
+			if(bMeshByPoints)
+			{
+				ProcessAll(MoveTemp(MergeFunc));
+			}
+			else
+			{
+				ProcessSelection(MoveTemp(MergeFunc));
+			}
+		
+			AssignMeshBuffersToMesh(&MeshBuffers, StaticMesh);
+			ProgressDialog.EnterProgressFrame(1.0f);
+					
+			if(AStaticMeshActor* MeshActor = SpawnActor<AStaticMeshActor>())
+			{
+				MeshActor->GetStaticMeshComponent()->SetStaticMesh(StaticMesh);
+			}
+		}
+	}
+	else
+	{
+		TFunction<void(ALidarPointCloudActor*)> MergeFunc = [CellSize, &ProgressDialog, bRetainTransform, bMeshByPoints](ALidarPointCloudActor* Actor)
+		{
+			if(ULidarPointCloud* PointCloud = Actor->GetPointCloud())
+			{
+				if(UStaticMesh* StaticMesh = CreateStaticMesh())
+				{
+					LidarPointCloudMeshing::FMeshBuffers MeshBuffers;
+					
+					if(bMeshByPoints)
+					{
+						PointCloud->BuildStaticMeshBuffersForSelection(CellSize, &MeshBuffers, bRetainTransform ? FTransform::Identity : Actor->GetActorTransform());
+					}
+					else
+					{
+						PointCloud->BuildStaticMeshBuffers(CellSize, &MeshBuffers, bRetainTransform ? FTransform::Identity : Actor->GetActorTransform());
+					}
+					
+					AssignMeshBuffersToMesh(&MeshBuffers, StaticMesh);
+					
+					if(AStaticMeshActor* MeshActor = SpawnActor<AStaticMeshActor>())
+					{
+						if(bRetainTransform)
+						{
+							MeshActor->SetActorTransform(Actor->GetActorTransform());
+						}
+					 	
+						MeshActor->GetStaticMeshComponent()->SetStaticMesh(StaticMesh);
+					}
+				}
+			}
+				
+			ProgressDialog.EnterProgressFrame(1.0f);
+		};
+		
+		if(bMeshByPoints)
+		{
+			ProcessAll(MoveTemp(MergeFunc));
+		}
+		else
+		{
+			ProcessSelection(MoveTemp(MergeFunc));
+		}
+	}
+}
+
 void FLidarPointCloudEditorHelper::CalculateNormalsForSelection()
 {
 	ProcessSelection([](ALidarPointCloudActor* Actor)
@@ -394,7 +636,7 @@ void FLidarPointCloudEditorHelper::DeleteHidden()
 void FLidarPointCloudEditorHelper::Extract()
 {
 	ULidarPointCloud* NewPointCloud = Extract_Internal();
-	if(ALidarPointCloudActor* Actor = SpawnActor())
+	if(ALidarPointCloudActor* Actor = SpawnActor<ALidarPointCloudActor>())
 	{
 		NewPointCloud->RestoreOriginalCoordinates();
 		Actor->SetPointCloud(NewPointCloud);
@@ -406,7 +648,7 @@ void FLidarPointCloudEditorHelper::Extract()
 void FLidarPointCloudEditorHelper::ExtractAsCopy()
 {
 	ULidarPointCloud* NewPointCloud = Extract_Internal();
-	if(ALidarPointCloudActor* Actor = SpawnActor())
+	if(ALidarPointCloudActor* Actor = SpawnActor<ALidarPointCloudActor>())
 	{
 		NewPointCloud->RestoreOriginalCoordinates();
 		Actor->SetPointCloud(NewPointCloud);

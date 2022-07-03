@@ -186,6 +186,43 @@ public:
 };
 
 UCLASS()
+class ULidarToolActions_Meshing : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Max error around the meshed areas. Leave at 0 for max quality */
+	UPROPERTY(EditAnywhere, Category = Options, meta = (UIMin = "0", UIMax = "2000", ClampMin = "0"))
+	float MaxMeshingError = 0;
+	
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bMergeMeshes = true;
+
+	/** If not merging meshes, this will retain the transform of the original cloud */
+	UPROPERTY(EditAnywhere, Category = Options, meta=(EditCondition="!bMergeMeshes"))
+	bool bRetainTransform = true;
+	
+	UFUNCTION(CallInEditor, Category = Actions)
+	void BuildStaticMesh();
+};
+
+UCLASS()
+class ULidarEditorTool_Meshing : public ULidarEditorTool_Base
+{
+public:
+	GENERATED_BODY()
+	virtual TObjectPtr<UInteractiveToolPropertySet> CreateToolActions() override { return NewObject<ULidarToolActions_Meshing>(this); }
+};
+
+UCLASS()
+class ULidarEditorToolBuilder_Meshing : public ULidarEditorToolBuilder_Base
+{
+public:
+	GENERATED_BODY()
+	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override { return NewObject<ULidarEditorTool_Meshing>(SceneState.ToolManager); }
+};
+
+UCLASS()
 class ULidarToolActions_Normals : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
@@ -255,6 +292,20 @@ public:
 
 	UFUNCTION(CallInEditor, Category = Normals)
 	void CalculateNormals();
+
+	UFUNCTION(CallInEditor, Category = Meshing)
+	void BuildStaticMesh();
+	
+	/** Max error around the meshed areas. Leave at 0 for max quality */
+	UPROPERTY(EditAnywhere, Category = Meshing, meta = (UIMin = "0", UIMax = "2000", ClampMin = "0"))
+	float MaxMeshingError = 0;
+
+	UPROPERTY(EditAnywhere, Category = Meshing)
+	bool bMergeMeshes = true;
+
+	/** If not merging meshes, this will retain the transform of the original cloud */
+	UPROPERTY(EditAnywhere, Category = Meshing, meta=(EditCondition="!bMergeMeshes"))
+	bool bRetainTransform = true;
 };
 
 UCLASS()

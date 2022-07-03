@@ -44,6 +44,7 @@ void ULidarEditorMode::Enter()
 	REGISTER_TOOL(Merge);
 	REGISTER_TOOL(Collision);
 	REGISTER_TOOL(Normals);
+	REGISTER_TOOL(Meshing);
 	REGISTER_TOOL(BoxSelection);
 	REGISTER_TOOL(PolygonalSelection);
 	REGISTER_TOOL(LassoSelection);

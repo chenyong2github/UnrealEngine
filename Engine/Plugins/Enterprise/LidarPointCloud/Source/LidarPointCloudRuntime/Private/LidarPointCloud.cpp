@@ -591,6 +591,11 @@ int64 ULidarPointCloud::NumSelectedPoints()
 	return Octree.NumSelectedPoints();
 }
 
+bool ULidarPointCloud::HasSelectedPoints()
+{
+	return Octree.HasSelectedPoints();
+}
+
 void ULidarPointCloud::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, FTransform Transform)
 {
 	Transform.AddToTranslation(LocationOffset);
@@ -605,6 +610,11 @@ void ULidarPointCloud::CalculateNormalsForSelection()
 void ULidarPointCloud::ClearSelection()
 {
 	Octree.ClearSelection();
+}
+
+void ULidarPointCloud::BuildStaticMeshBuffersForSelection(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform)
+{
+	Octree.BuildStaticMeshBuffersForSelection(CellSize, OutMeshBuffers, Transform);
 }
 #endif
 
@@ -714,6 +724,11 @@ void ULidarPointCloud::RemoveCollision()
 	OnPointCloudUpdateCollisionEvent.Broadcast();
 
 	bCollisionBuildInProgress = false;
+}
+
+void ULidarPointCloud::BuildStaticMeshBuffers(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform)
+{
+	Octree.BuildStaticMeshBuffers(CellSize, OutMeshBuffers, Transform);
 }
 
 void ULidarPointCloud::SetLocationOffset(FVector Offset)

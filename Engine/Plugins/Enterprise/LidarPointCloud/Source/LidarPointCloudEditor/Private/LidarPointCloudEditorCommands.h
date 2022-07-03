@@ -62,6 +62,7 @@ public:
 	TSharedPtr<FUICommandInfo> ToolkitMerge;
 	TSharedPtr<FUICommandInfo> ToolkitCollision;
 	TSharedPtr<FUICommandInfo> ToolkitNormals;
+	TSharedPtr<FUICommandInfo> ToolkitMeshing;
 	TSharedPtr<FUICommandInfo> ToolkitBoxSelection;
 	TSharedPtr<FUICommandInfo> ToolkitPolygonalSelection;
 	TSharedPtr<FUICommandInfo> ToolkitLassoSelection;

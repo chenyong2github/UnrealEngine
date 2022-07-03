@@ -49,6 +49,8 @@ void FLidarPointCloudEditorCommands::RegisterCommands()
 	ManageCommands.Add(ToolkitCollision);
 	UI_COMMAND(ToolkitNormals, "Normals", "Calculates normals", EUserInterfaceActionType::ToggleButton, FInputChord());
 	ManageCommands.Add(ToolkitNormals);
+	UI_COMMAND(ToolkitMeshing, "Meshing", "Build Static Meshes", EUserInterfaceActionType::ToggleButton, FInputChord());
+	ManageCommands.Add(ToolkitMeshing);
 	
 	TArray<TSharedPtr<FUICommandInfo, ESPMode::ThreadSafe>>& EditCommands = Commands.FindOrAdd(LidarEditorPalletes::Edit);
 	EditCommands.Add(ToolkitSelect);

@@ -4,7 +4,6 @@
 #include "LidarPointCloudOctreeMacros.h"
 #include "LidarPointCloud.h"
 #include "Meshing/LidarPointCloudMeshing.h"
-#include "Collision/LidarPointCloudCollision.h"
 #include "Misc/ScopeTryLock.h"
 #include "Containers/Queue.h"
 #include "Async/Async.h"
@@ -1003,7 +1002,7 @@ float FLidarPointCloudOctree::GetEstimatedPointSpacing() const
 
 void FLidarPointCloudOctree::BuildCollision(const float& Accuracy, const bool& bVisibleOnly)
 {
-	LidarPointCloudCollision::BuildCollisionMesh(this, Accuracy, bVisibleOnly, &CollisionMesh);
+	LidarPointCloudMeshing::BuildCollisionMesh(this, Accuracy, &CollisionMesh);
 }
 
 void FLidarPointCloudOctree::RemoveCollision()
@@ -1012,6 +1011,16 @@ void FLidarPointCloudOctree::RemoveCollision()
 
 	CollisionMesh.~FTriMeshCollisionData();
 	new (&CollisionMesh) FTriMeshCollisionData();
+}
+
+void FLidarPointCloudOctree::BuildStaticMeshBuffers(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform)
+{
+	if(CellSize == 0)
+	{
+		CellSize = GetEstimatedPointSpacing() * 1.1f;
+	}
+	
+	LidarPointCloudMeshing::BuildStaticMeshBuffers(this, CellSize, false, OutMeshBuffers, Transform);
 }
 
 void FLidarPointCloudOctree::GetPoints(TArray<FLidarPointCloudPoint*>& SelectedPoints, int64 StartIndex /*= 0*/, int64 Count /*= -1*/)
@@ -1879,6 +1888,12 @@ int64 FLidarPointCloudOctree::NumSelectedPoints()
 	return Count;
 }
 
+bool FLidarPointCloudOctree::HasSelectedPoints()
+{
+	ITERATE_SELECTED({ return true; }, {});
+	return false;
+}
+
 void FLidarPointCloudOctree::GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform)
 {
 	const FTransform3f Transform3F = (FTransform3f)Transform;
@@ -1887,6 +1902,19 @@ void FLidarPointCloudOctree::GetSelectedPointsAsCopies(TArray64<FLidarPointCloud
 	{
 		SelectedPoints.Add(Point->Transform(Transform3F));
 	},{});
+}
+
+void FLidarPointCloudOctree::GetSelectedPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box) const
+{
+	constexpr bool bVisibleOnly = false;
+	
+	SelectedPoints.Reset(); 
+	PROCESS_IN_BOX({
+		if(Point->bSelected)
+		{
+			SelectedPoints.Add(Point);
+		}
+	});
 }
 
 void FLidarPointCloudOctree::CalculateNormalsForSelection(FThreadSafeBool* bCancelled, int32 Quality, float Tolerance)
@@ -1918,6 +1946,16 @@ void FLidarPointCloudOctree::ClearSelection()
 			CurrentNode->ReleaseData();
 		}
 	});
+}
+
+void FLidarPointCloudOctree::BuildStaticMeshBuffersForSelection(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform)
+{
+	if(CellSize == 0)
+	{
+		CellSize = GetEstimatedPointSpacing() * 1.1f;
+	}
+	
+	LidarPointCloudMeshing::BuildStaticMeshBuffers(this, CellSize, true, OutMeshBuffers, Transform);
 }
 #endif // WITH_EDITOR
 

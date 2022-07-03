@@ -33,7 +33,8 @@ namespace UnrealBuildTool.Rules
                 "AdvancedPreviewScene",
                 "EditorInteractiveToolsFramework",
                 "InteractiveToolsFramework",
-                "StatusBar"
+                "StatusBar",
+                "MeshDescription",
                 }
             );
         }

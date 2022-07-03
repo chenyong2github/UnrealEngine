@@ -17,9 +17,13 @@ class ULidarPointCloud;
 class FLidarPointCloudOctree;
 struct FLidarPointCloudTraversalOctree;
 struct FLidarPointCloudTraversalOctreeNode;
-
 class FLidarPointCloudRenderBuffer;
 class FLidarPointCloudVertexFactory;
+
+namespace LidarPointCloudMeshing
+{
+	struct FMeshBuffers;
+};
 
 /**
  * WARNING: Exercise caution when modifying the contents of the Octree, as it may be in use by the Rendering Thread via FPointCloudSceneProxy
@@ -354,6 +358,9 @@ public:
 	/** Returns pointer to the collision data */
 	const FTriMeshCollisionData* GetCollisionData() const { return &CollisionMesh; }
 
+	/** Constructs and returns the MeshBuffers struct from the data */
+	void BuildStaticMeshBuffers(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform);
+
 	/** Populates the given array with points from the tree */
 	void GetPoints(TArray<FLidarPointCloudPoint*>& SelectedPoints, int64 StartIndex = 0, int64 Count = -1);
 	void GetPoints(TArray64<FLidarPointCloudPoint*>& SelectedPoints, int64 StartIndex = 0, int64 Count = -1);
@@ -477,9 +484,12 @@ public:
 	void DeleteSelected();
 	void InvertSelection();
 	int64 NumSelectedPoints();
+	bool HasSelectedPoints();
 	void GetSelectedPointsAsCopies(TArray64<FLidarPointCloudPoint>& SelectedPoints, const FTransform& Transform);
+	void GetSelectedPointsInBox(TArray64<const FLidarPointCloudPoint*>& SelectedPoints, const FBox& Box) const;
 	void CalculateNormalsForSelection(FThreadSafeBool* bCancelled, int32 Quality, float Tolerance);
 	void ClearSelection();
+	void BuildStaticMeshBuffersForSelection(float CellSize, LidarPointCloudMeshing::FMeshBuffers* OutMeshBuffers, const FTransform& Transform);
 #endif
 
 	/** Initializes the Octree properties. */

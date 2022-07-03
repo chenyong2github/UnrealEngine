@@ -114,6 +114,11 @@ void ULidarToolActions_Collision::RemoveCollision()
  	FLidarPointCloudEditorHelper::RemoveCollisionForSelection();
  }
 
+void ULidarToolActions_Meshing::BuildStaticMesh()
+{
+	FLidarPointCloudEditorHelper::MeshSelected(false, MaxMeshingError, bMergeMeshes, !bMergeMeshes && bRetainTransform);
+}
+
 void ULidarToolActions_Normals::CalculateNormals()
 {
 	FLidarPointCloudEditorHelper::SetNormalsQualityForSelection(Quality, NoiseTolerance);
@@ -164,6 +169,11 @@ void ULidarToolActions_Selection::InvertSelection()
 void ULidarToolActions_Selection::ClearSelection()
 {
 	FLidarPointCloudEditorHelper::ClearSelection();
+}
+
+void ULidarToolActions_Selection::BuildStaticMesh()
+{
+	FLidarPointCloudEditorHelper::MeshSelected(true, MaxMeshingError, bMergeMeshes, !bMergeMeshes && bRetainTransform);
 }
 
 void ULidarEditorTool_SelectionBase::DrawHUD(FCanvas* Canvas, IToolsContextRenderAPI* RenderAPI)
