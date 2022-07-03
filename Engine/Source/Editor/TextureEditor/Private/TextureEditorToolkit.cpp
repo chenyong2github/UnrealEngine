@@ -121,8 +121,6 @@ void FTextureEditorToolkit::PostTextureRecode()
 FTextureEditorToolkit::FTextureEditorToolkit()
 	: Texture(nullptr)
 	, VolumeOpacity(1.f)
-	, VolumeOrientation(90, 0, -90)
-	, CubemapOrientation(0, 0, 0)
 {
 }
 
@@ -260,6 +258,7 @@ void FTextureEditorToolkit::InitTextureEditor( const EToolkitMode::Type Mode, co
 	VolumeViewMode = Settings.VolumeViewMode;
 	CubemapViewMode = Settings.CubemapViewMode;
 
+	ResetOrientation();
 	Zoom = 1.0f;
 
 	// Register our commands. This will only register them if not previously registered
@@ -894,16 +893,6 @@ void FTextureEditorToolkit::SetVolumeOpacity(float InVolumeOpacity)
 	VolumeOpacity = FMath::Clamp(InVolumeOpacity, 0.f, 1.f);
 }
 
-const FRotator& FTextureEditorToolkit::GetVolumeOrientation() const
-{
-	return VolumeOrientation;
-}
-
-void FTextureEditorToolkit::SetVolumeOrientation(const FRotator& InOrientation)
-{
-	VolumeOrientation = InOrientation;
-}
-
 ETextureEditorVolumeViewMode FTextureEditorToolkit::GetVolumeViewMode() const
 {
 	// Each texture editor keeps a local volume view mode so that it can be changed without affecting other open editors
@@ -921,16 +910,6 @@ void FTextureEditorToolkit::SetVolumeViewMode(const ETextureEditorVolumeViewMode
 	Settings.PostEditChange();
 }
 
-const FRotator& FTextureEditorToolkit::GetCubemapOrientation() const
-{
-	return CubemapOrientation;
-}
-
-void FTextureEditorToolkit::SetCubemapOrientation(const FRotator& InOrientation)
-{
-	CubemapOrientation = InOrientation;
-}
-
 ETextureEditorCubemapViewMode FTextureEditorToolkit::GetCubemapViewMode() const
 {
 	// Each texture editor keeps a local cubemap view mode so that it can be changed without affecting other open editors
@@ -946,6 +925,27 @@ void FTextureEditorToolkit::SetCubemapViewMode(const ETextureEditorCubemapViewMo
 	UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
 	Settings.CubemapViewMode = CubemapViewMode;
 	Settings.PostEditChange();
+}
+
+bool FTextureEditorToolkit::IsUsingOrientation() const
+{
+	return (IsVolumeTexture() && GetVolumeViewMode() == TextureEditorVolumeViewMode_VolumeTrace) ||
+		(IsCubeTexture() && GetCubemapViewMode() == TextureEditorCubemapViewMode_3DView && GetFace() < 0);
+}
+
+const FRotator& FTextureEditorToolkit::GetOrientation() const
+{
+	return Orientation;
+}
+
+void FTextureEditorToolkit::SetOrientation(const FRotator& InOrientation)
+{
+	Orientation = InOrientation;
+}
+
+void FTextureEditorToolkit::ResetOrientation()
+{
+	SetOrientation(IsVolumeTexture() ? FRotator(90, 0, -90) : FRotator(0, 0, 0));
 }
 
 /* IToolkit interface

@@ -119,7 +119,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 			// otherwise generate a view matrix which displays the selected face using DDS orientation and face order
 			// (positive x, negative x, positive y, negative y, positive z, negative z)
 			const FMatrix44f& ViewMatrix =
-				FaceIndex < 0 ? FMatrix44f(FRotationMatrix::Make(TextureEditorPinned->GetCubemapOrientation())) :
+				FaceIndex < 0 ? FMatrix44f(FRotationMatrix::Make(TextureEditorPinned->GetOrientation())) :
 				FaceIndex == 0 ? FMatrix44f(FVector3f::ForwardVector, FVector3f::DownVector, FVector3f::RightVector, IdentityW) :
 				FaceIndex == 1 ? FMatrix44f(FVector3f::BackwardVector, FVector3f::UpVector, FVector3f::RightVector, IdentityW) :
 				FaceIndex == 2 ? FMatrix44f(FVector3f::RightVector, FVector3f::ForwardVector, FVector3f::DownVector, IdentityW) :
@@ -137,7 +137,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				MipLevel, 
 				(float)TextureEditorPinned->GetVolumeOpacity(),
 				true, 
-				TextureEditorPinned->GetVolumeOrientation());
+				TextureEditorPinned->GetOrientation());
 		}
 		else if (RTTextureVolume)
 		{
@@ -147,7 +147,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 				MipLevel,
 				(float)TextureEditorPinned->GetVolumeOpacity(),
 				true,
-				TextureEditorPinned->GetVolumeOrientation());
+				TextureEditorPinned->GetOrientation());
 		}
 		else if (Texture2D)
 		{
@@ -287,59 +287,38 @@ bool FTextureEditorViewportClient::InputKey(const FInputKeyEventArgs& InEventArg
 
 			return true;
 		}
-		else if (InEventArgs.Key == EKeys::RightMouseButton)
+		else if (InEventArgs.Key == EKeys::MiddleMouseButton && TextureEditorPtr.Pin()->IsUsingOrientation())
 		{
-			TextureEditorPtr.Pin()->SetVolumeOrientation(FRotator(90, 0, -90));
+			TextureEditorPtr.Pin()->ResetOrientation();
 		}
 	}
 	return false;
-}
-
-bool IsTextureUsingVolumeOrientation(UTexture* Texture)
-{
-	return Texture && (Cast<UVolumeTexture>(Texture) || Cast<UTextureRenderTargetVolume>(Texture));
 }
 
 bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, FInputDeviceId DeviceId, FKey Key, float Delta, float DeltaTime, int32 NumSamples, bool bGamepad)
 {
 	if (Key == EKeys::MouseX || Key == EKeys::MouseY)
 	{
-		UTexture* Texture = TextureEditorPtr.Pin()->GetTexture();
-		if (IsTextureUsingVolumeOrientation(Texture))
+		TSharedPtr<ITextureEditorToolkit> TextureEditorPinned = TextureEditorPtr.Pin();
+		if (TextureEditorPinned->IsUsingOrientation() && Viewport->KeyState(EKeys::LeftMouseButton))
 		{
-			FRotator DeltaRotator(ForceInitToZero);
 			const float RotationSpeed = .2f;
-			if (Key == EKeys::MouseY)
+			FRotator DeltaOrientation = FRotator(Key == EKeys::MouseY ? Delta * RotationSpeed : 0, Key == EKeys::MouseX ? Delta * RotationSpeed : 0, 0);
+			if (TextureEditorPinned->IsVolumeTexture())
 			{
-				DeltaRotator.Pitch = Delta * RotationSpeed;
+				TextureEditorPinned->SetOrientation((FRotationMatrix::Make(DeltaOrientation) * FRotationMatrix::Make(TextureEditorPinned->GetOrientation())).Rotator());
 			}
 			else
 			{
-				DeltaRotator.Yaw = Delta * RotationSpeed;
+				TextureEditorPinned->SetOrientation(TextureEditorPinned->GetOrientation() + DeltaOrientation);
 			}
-
-			TextureEditorPtr.Pin()->SetVolumeOrientation((FRotationMatrix::Make(DeltaRotator) * FRotationMatrix::Make(TextureEditorPtr.Pin()->GetVolumeOrientation())).Rotator());
-		}
-		else if (IsTextureUsingCubemapOrientation() && Viewport->KeyState(EKeys::LeftMouseButton))
-		{
-			FRotator Orienation = TextureEditorPtr.Pin()->GetCubemapOrientation();
-			const float RotationSpeed = .2f;
-			if (Key == EKeys::MouseY)
-			{
-				Orienation.Pitch += Delta * RotationSpeed;
-			}
-			else
-			{
-				Orienation.Yaw += Delta * RotationSpeed;
-			}
-			TextureEditorPtr.Pin()->SetCubemapOrientation(Orienation);
 		}
 		else if (ShouldUseMousePanning(Viewport))
 		{
 			TSharedPtr<STextureEditorViewport> EditorViewport = TextureEditorViewportPtr.Pin();
 
 			int32 Width, Height, Depth, ArraySize;
-			TextureEditorPtr.Pin()->CalculateTextureDimensions(Width, Height, Depth, ArraySize, true);
+			TextureEditorPinned->CalculateTextureDimensions(Width, Height, Depth, ArraySize, true);
 
 			if (Key == EKeys::MouseY)
 			{
@@ -362,17 +341,9 @@ bool FTextureEditorViewportClient::InputAxis(FViewport* Viewport, FInputDeviceId
 	return false;
 }
 
-bool FTextureEditorViewportClient::IsTextureUsingCubemapOrientation() const
-{
-	TSharedPtr<ITextureEditorToolkit> TextureEditorPinned = TextureEditorPtr.Pin();
-	UTexture* Texture = TextureEditorPinned->GetTexture();
-	return Texture && (Texture->IsA(UTextureCube::StaticClass()) || Texture->IsA(UTextureRenderTargetCube::StaticClass()) || Texture->IsA(UTextureCubeArray::StaticClass())) &&
-		TextureEditorPinned->GetFace() < 0 && TextureEditorPinned->GetCubemapViewMode() == TextureEditorCubemapViewMode_3DView;
-}
-
 bool FTextureEditorViewportClient::ShouldUseMousePanning(FViewport* Viewport) const
 {
-	if (!IsTextureUsingVolumeOrientation(TextureEditorPtr.Pin()->GetTexture()) && Viewport->KeyState(EKeys::RightMouseButton))
+	if (Viewport->KeyState(EKeys::RightMouseButton))
 	{
 		TSharedPtr<STextureEditorViewport> EditorViewport = TextureEditorViewportPtr.Pin();
 		return EditorViewport.IsValid() && EditorViewport->GetVerticalScrollBar().IsValid() && EditorViewport->GetHorizontalScrollBar().IsValid();

@@ -59,9 +59,6 @@ private:
 	/** TRUE if right clicking and dragging for panning a texture 2D */
 	bool ShouldUseMousePanning(FViewport* Viewport) const;
 
-	/** Returns true if the texture is using cubemap orientation */
-	bool IsTextureUsingCubemapOrientation() const;
-
 private:
 	/** Pointer back to the Texture editor tool that owns us */
 	TWeakPtr<ITextureEditorToolkit> TextureEditorPtr;

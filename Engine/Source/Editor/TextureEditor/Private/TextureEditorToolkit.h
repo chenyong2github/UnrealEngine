@@ -83,14 +83,14 @@ public:
 	virtual void ZoomOut( ) override;
 	virtual float GetVolumeOpacity( ) const override;
 	virtual void SetVolumeOpacity( float VolumeOpacity ) override;
-	virtual const FRotator& GetVolumeOrientation( ) const override;
-	virtual void SetVolumeOrientation( const FRotator& InOrientation ) override;
 	virtual ETextureEditorVolumeViewMode GetVolumeViewMode() const override;
 	virtual void SetVolumeViewMode(const ETextureEditorVolumeViewMode VolumeViewMode) override;
-	virtual const FRotator& GetCubemapOrientation() const override;
-	virtual void SetCubemapOrientation(const FRotator& InOrientation) override;
 	virtual ETextureEditorCubemapViewMode GetCubemapViewMode() const override;
 	virtual void SetCubemapViewMode(const ETextureEditorCubemapViewMode CubemapViewMode) override;
+	virtual bool IsUsingOrientation() const override;
+	virtual const FRotator& GetOrientation() const override;
+	virtual void SetOrientation(const FRotator& InOrientation) override;
+	virtual void ResetOrientation() override;
 	virtual int32 GetExposureBias() const override
 	{
 		return ExposureBias;
@@ -481,17 +481,14 @@ private:
 	// For volume texture, defines an opacity to see through the volume when tracing.
 	float VolumeOpacity;
 
-	// For volume texture, the orientation when tracing.
-	FRotator VolumeOrientation;
-
 	/** This toolkit's current volume view mode **/
 	ETextureEditorVolumeViewMode VolumeViewMode;
 
-	// For cubemap texture, the orientation when previewing the texture as a 3d rendered cube.
-	FRotator CubemapOrientation;
-
 	/** This toolkit's current cubemap view mode **/
 	ETextureEditorCubemapViewMode CubemapViewMode;
+
+	// Orientation of the texture in 3d when using "3D View" mode
+	FRotator Orientation;
 
 	bool bIsVolumeTexture;
 
