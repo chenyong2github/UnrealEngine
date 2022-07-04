@@ -199,7 +199,7 @@ void PackStrataOut(
 
 						TopLayerTotalWeight += BSDF.TopLayerDataWeight;
 						float TopLayerRoughnessContribution = BSDF.TopLayerDataWeight * SLAB_ROUGHNESS(BSDF);
-						float TopLayerBaseColorContribution = BSDF.TopLayerDataWeight * StrataGetBSDFBaseColor(BSDF);
+						float3 TopLayerBaseColorContribution = BSDF.TopLayerDataWeight * StrataGetBSDFBaseColor(BSDF);
 						if (BSDF_GETHASHAZINESS(BSDF))
 						{
 							FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
