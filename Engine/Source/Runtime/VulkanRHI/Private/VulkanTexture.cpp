@@ -439,7 +439,7 @@ void FVulkanTexture::GenerateImageCreateInfo(
 		break;
 	}
 
-	FVulkanPlatform::SetImageAFBCWorkaround(ImageCreateInfo);
+	FVulkanPlatform::SetImageMemoryRequirementWorkaround(ImageCreateInfo);
 		
 	const VkFormatFeatureFlags FormatFlags = ImageCreateInfo.tiling == VK_IMAGE_TILING_LINEAR ? 
 		InDevice.GetFormatProperties()[ImageCreateInfo.format].linearTilingFeatures : 

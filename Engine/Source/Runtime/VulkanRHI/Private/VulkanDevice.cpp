@@ -1127,7 +1127,7 @@ void FVulkanDevice::InitGPU(int32 DeviceIndex)
 		DefaultTexture = new FVulkanTexture(*this, Desc, nullptr);
 	}
 
-	FVulkanPlatform::SetupAFBCWorkaround(*this);
+	FVulkanPlatform::SetupImageMemoryRequirementWorkaround(*this);
 }
 
 void FVulkanDevice::PrepareForDestroy()
