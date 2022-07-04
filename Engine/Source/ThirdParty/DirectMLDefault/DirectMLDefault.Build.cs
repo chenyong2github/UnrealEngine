@@ -18,16 +18,13 @@ public class DirectMLDefault : ModuleRules
 			// PublicAdditionalLibraries
 			string PlatformDir = Target.Platform.ToString();
 			string LibDirPath = Path.Combine(ModuleDirectory, "lib", PlatformDir);
-			string[] LibFileNames = new string[] {
-				"DirectML",
-			};
-			foreach(string LibFileName in LibFileNames)
-			{
-				PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
-			}
+			string LibFileName = "DirectML";
+
+			PublicAdditionalLibraries.Add(Path.Combine(LibDirPath, LibFileName + ".lib"));
+
 			// PublicDelayLoadDLLs
-			string DLLReleaseFileName = LibFileNames[0] + ".dll";
-			string DLLDebugFileName = LibFileNames[0] + ".Debug.dll";
+			string DLLReleaseFileName = LibFileName + ".dll";
+			string DLLDebugFileName = LibFileName + ".Debug.dll";
 
 			bool ReleaseMode = true;
 			string DLLFileName;
@@ -47,9 +44,16 @@ public class DirectMLDefault : ModuleRules
 			string DLLFullPath = Path.Combine(BinaryThirdPartyDirPath, DLLFileName);
 			RuntimeDependencies.Add(DLLFullPath);
 
+			//Console.WriteLine("Module:" + ModuleDirectory);
+			//Console.WriteLine("Full:" + Path.Combine(LibDirPath, "DirectML.lib"));
+			//Console.WriteLine("DLL:" + DLLFullPath);
+			//Console.WriteLine("Platform:" + PlatformDir);
+
 			// PublicDefinitions
+			PublicDefinitions.Add("DML_TARGET_VERSION=0x5000");
 			PublicDefinitions.Add("DIRECTML_USE_DLLS");
 			PublicDefinitions.Add("WITH_DIRECTML");
+			PublicDefinitions.Add("DIRECTML_BIN_PATH=" + BinaryThirdPartyDirPath.Replace('\\', '/'));
 			PublicDefinitions.Add("DIRECTML_PLATFORM_PATH=bin/" + PlatformDir);
 			PublicDefinitions.Add("DIRECTML_DLL_NAME=" + DLLFileName);
 		}
