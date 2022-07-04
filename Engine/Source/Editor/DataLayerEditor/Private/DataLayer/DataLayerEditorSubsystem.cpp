@@ -142,6 +142,8 @@ void FDataLayersBroadcast::OnObjectPostEditChange(UObject* Object, FPropertyChan
 
 UDataLayerEditorSubsystem::UDataLayerEditorSubsystem()
 : bRebuildSelectedDataLayersFromEditorSelection(false)
+, bAsyncBroadcastDataLayerChanged(false)
+, bAsyncUpdateAllActorsVisibility(false)
 {}
 
 UDataLayerEditorSubsystem* UDataLayerEditorSubsystem::Get()
@@ -196,6 +198,37 @@ void UDataLayerEditorSubsystem::BeginDestroy()
 	}
 
 	Super::BeginDestroy();
+}
+
+
+UWorld* UDataLayerEditorSubsystem::GetTickableGameObjectWorld() const
+{
+	return GetWorld();
+}
+
+ETickableTickType UDataLayerEditorSubsystem::GetTickableTickType() const
+{
+	return IsTemplate() ? ETickableTickType::Never : ETickableTickType::Conditional;
+}
+
+bool UDataLayerEditorSubsystem::IsAllowedToTick() const
+{
+	return GetWorld() && (bAsyncBroadcastDataLayerChanged || bAsyncUpdateAllActorsVisibility);
+}
+
+void UDataLayerEditorSubsystem::Tick(float DeltaTime)
+{
+	if (bAsyncBroadcastDataLayerChanged)
+	{
+		BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
+		bAsyncBroadcastDataLayerChanged = false;
+	}
+
+	if (bAsyncUpdateAllActorsVisibility)
+	{
+		UpdateAllActorsVisibility(false, false);
+		bAsyncUpdateAllActorsVisibility = false;
+	}
 }
 
 void UDataLayerEditorSubsystem::OnExecuteActorEditorContextAction(UWorld* InWorld, const EActorEditorContextAction& InType, AActor* InActor)
@@ -320,8 +353,8 @@ void UDataLayerEditorSubsystem::EditorMapChange()
 
 void UDataLayerEditorSubsystem::EditorRefreshDataLayerBrowser()
 {
-	BroadcastDataLayerChanged(EDataLayerAction::Reset, NULL, NAME_None);
-	UpdateAllActorsVisibility(false, false);
+	bAsyncBroadcastDataLayerChanged = true;
+	bAsyncUpdateAllActorsVisibility = true;
 }
 
 void UDataLayerEditorSubsystem::PostUndoRedo()

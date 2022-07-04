@@ -37,7 +37,7 @@ struct FDataLayerCreationParameters
 };
 
 UCLASS()
-class DATALAYEREDITOR_API UDataLayerEditorSubsystem final : public UEditorSubsystem, public IActorEditorContextClient
+class DATALAYEREDITOR_API UDataLayerEditorSubsystem final : public UEditorSubsystem, public IActorEditorContextClient, public FTickableGameObject
 {
 	GENERATED_BODY()
 
@@ -62,6 +62,15 @@ public:
 	 *	Destructor
 	 */
 	virtual ~UDataLayerEditorSubsystem() {}
+
+	//~ Begin FTickableGameObject interface
+	virtual UWorld* GetTickableGameObjectWorld() const override;
+	virtual bool IsTickableInEditor() const { return true; }
+	virtual ETickableTickType GetTickableTickType() const override;
+	virtual bool IsAllowedToTick() const override;
+	virtual void Tick(float DeltaTime) override;
+	TStatId GetStatId() const override { RETURN_QUICK_DECLARE_CYCLE_STAT(UDataLayerEditorSubsystem, STATGROUP_Tickables); }
+	//~ End FTickableGameObject interface
 
 	// UObject overrides.
 	virtual void BeginDestroy() override;
@@ -678,6 +687,12 @@ private:
 
 	/** Internal flag to know if SelectedDataLayersFromEditorSelection needs to be rebuilt. */
 	mutable bool bRebuildSelectedDataLayersFromEditorSelection;
+
+	/** When true, next Tick will call BroadcastDataLayerChanged */
+	bool bAsyncBroadcastDataLayerChanged;
+
+	/** When true, next Tick will call UpdateAllActorsVisibility */
+	bool bAsyncUpdateAllActorsVisibility;
 
 	/** Fires whenever one or more DataLayer changes */
 	FOnDataLayerChanged DataLayerChanged;
