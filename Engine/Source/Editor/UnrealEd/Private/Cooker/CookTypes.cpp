@@ -6,6 +6,7 @@
 #include "HAL/PlatformTime.h"
 #include "Math/NumericLimits.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Parse.h"
 
 namespace UE::Cook
 {
@@ -153,6 +154,12 @@ void FBuildDefinitions::Wait()
 void FBuildDefinitions::Cancel()
 {
 	PendingBuilds.Empty();
+}
+
+bool IsCookIgnoreTimeouts()
+{
+	static bool bIsIgnoreCookTimeouts = FParse::Param(FCommandLine::Get(), TEXT("CookIgnoreTimeouts"));
+	return bIsIgnoreCookTimeouts;
 }
 
 }

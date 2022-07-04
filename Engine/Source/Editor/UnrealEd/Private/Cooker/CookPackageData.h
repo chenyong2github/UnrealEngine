@@ -43,7 +43,7 @@ struct FPendingCookedPlatformDataCancelManager;
 extern const TCHAR* GeneratedPackageSubPath;
 
 /** Flags specifying the behavior of FPackageData::SendToState */
-enum class ESendFlags
+enum class ESendFlags : uint8
 {
 	/**
 	 * PackageData will not be removed from queue for its old state and will not be added to queue for its new state.
@@ -464,6 +464,10 @@ public:
 	/** Set whether COTFS is keeping this package referenced referenced during GC. */
 	void SetKeepReferencedDuringGC(bool Value) { bKeepReferencedDuringGC = Value != 0; }
 
+	/** For MultiProcessCooks, Get the id of the worker this Package is assigned to. Returns Invalid if not assigned to a worker. */
+	FWorkerId GetWorkerAssignment() const { return WorkerAssignment; }
+	/** Set the id of the worker this Package is assigned to. */
+	void SetWorkerAssignment(FWorkerId InWorkerAssignment) { WorkerAssignment = InWorkerAssignment; }
 
 private:
 	friend struct UE::Cook::FPackageDatas;
@@ -516,6 +520,8 @@ private:
 	void OnExitIdle();
 	void OnEnterRequest();
 	void OnExitRequest();
+	void OnEnterAssignedToWorker();
+	void OnExitAssignedToWorker();
 	void OnEnterLoadPrepare();
 	void OnExitLoadPrepare();
 	void OnEnterLoadReady();
@@ -562,6 +568,7 @@ private:
 	FOpenPackageResult PreloadableFileOpenResult;
 	FInstigator Instigator;
 
+	FWorkerId WorkerAssignment = FWorkerId::Invalid();
 	uint32 State : int32(EPackageState::BitCount);
 	uint32 bIsUrgent : 1;
 	uint32 bIsVisited : 1;
@@ -981,6 +988,10 @@ public:
 	 * PackageData that need to be cooked.
 	 */
 	FRequestQueue& GetRequestQueue();
+
+	/** Return the Set that holds unordered all PackageDatas that are in the AssignedToWorker state. */
+	TFastPointerSet<FPackageData*>& GetAssignedToWorkerSet() { return AssignedToWorkerSet; }
+
 	/**
 	 * Return the LoadPrepareQueue used by the CookOnTheFlyServer. The LoadPrepareQueue is the dependency-ordered
 	 * list of FPackageData that need to be preloaded before they can be loaded.
@@ -1177,6 +1188,7 @@ private:
 	TMap<FName, FPackageData*> FileNameToPackageData;
 	TArray<FPendingCookedPlatformData> PendingCookedPlatformDatas;
 	FRequestQueue RequestQueue;
+	TFastPointerSet<FPackageData*> AssignedToWorkerSet;
 	FLoadPrepareQueue LoadPrepareQueue;
 	FPackageDataQueue LoadReadyQueue;
 	FPackageDataQueue SaveQueue;

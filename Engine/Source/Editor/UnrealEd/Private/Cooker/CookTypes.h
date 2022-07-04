@@ -11,6 +11,7 @@
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/Platform.h"
 #include "Logging/TokenizedMessage.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/PackageWriter.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
@@ -113,6 +114,22 @@ namespace UE::Cook
 	};
 	const TCHAR* LexToString(UE::Cook::EReleaseSaveReason Reason);
 
+	enum class ESuppressCookReason : uint8
+	{
+		InvalidSuppressCookReason,
+		AlreadyCooked,
+		NeverCook,
+		DoesNotExistInWorkspaceDomain,
+		ScriptPackage,
+		NotInCurrentPlugin,
+		Redirected,
+		OrphanedGenerated,
+		LoadError,
+		SaveError,
+		OnlyEditorOnly,
+		CookCanceled,
+	};
+
 	/** The type of callback for External Requests that needs to be executed within the Scheduler's lock. */
 	typedef TUniqueFunction<void()> FSchedulerCallback;
 
@@ -120,7 +137,8 @@ namespace UE::Cook
 	enum class EPackageState
 	{
 		Idle = 0,	  /* The Package is not being operated on by the cooker, and is not in any queues.  This is the state both for packages that have never been requested and for packages that have finished cooking. */
-		Request,	  /* The Package is in the RequestQueue; it is known to the cooker but has not had any operations performed on it. */
+		Request,	  /* The Package is in the RequestQueue; it is requested for cooking but has not had any operations performed on it. */
+		AssignedToWorker, /* The Package is in the AssignedToWorkerSet; it has been sent a remote CookWorker for cooking and has not had any operations performed on it locally. */
 		LoadPrepare,  /* The Package is in the LoadPrepareQueue. Preloading is in progress. */
 		LoadReady,	  /* The package is in the LoadReadyQueue. Preloading is complete and it will be loaded when its turn comes up. */
 		Save,		  /* The Package is in the SaveQueue; it has been fully loaded and some target data may have been calculated. */
@@ -268,6 +286,40 @@ namespace UE::Cook
 		TArray<FName> NeverCookPackageList;
 		TFastPointerMap<const ITargetPlatform*, TSet<FName>> PlatformSpecificNeverCookPackages;
 	};
+
+	/**
+	 *  Identifier for a CookWorker process launched from a Director process, or for the local process.
+	 *  A director can have multiple CookWorkers.
+	 */
+	struct FWorkerId
+	{
+	public:
+		FWorkerId() { Id = InvalidId; }
+		constexpr static FWorkerId Invalid() { return FWorkerId(InvalidId); }
+		constexpr static FWorkerId Local() { return FWorkerId(LocalId); }
+		static FWorkerId FromRemoteIndex(uint8 Index) { check(Index < InvalidId-1U);  return FWorkerId(Index + 1U); }
+		static FWorkerId FromLocalOrRemoteIndex(uint8 Index) { check(Index < InvalidId);  return FWorkerId(Index); }
+
+		bool IsValid() const { return Id != InvalidId; }
+		bool IsInvalid() const { return Id == InvalidId; }
+		bool IsLocal() const { return Id == LocalId; }
+		bool IsRemote() const { return Id != InvalidId && Id != LocalId; }
+		uint8 GetRemoteIndex() const { check(IsRemote()); return Id - 1U; }
+		uint8 GetLocalOrRemoteIndex() const { check(IsValid()); return Id; }
+		bool operator<(const FWorkerId& Other) const { return Id < Other.Id; }
+
+	private:
+		constexpr explicit FWorkerId(uint8 InId) : Id(InId) {}
+
+	private:
+		uint8 Id;
+
+		constexpr static uint8 InvalidId = 255;
+		constexpr static uint8 LocalId = 0;
+	};
+
+	/** Report whether commandline/config has disabled use of timeouts throughout the cooker, useful for debugging. */
+	bool IsCookIgnoreTimeouts();
 }
 
 inline void RouteBeginCacheForCookedPlatformData(UObject* Obj, const ITargetPlatform* TargetPlatform)
@@ -394,3 +446,4 @@ LLM_DECLARE_TAG(Cooker);
 
 constexpr uint32 ExpectedMaxNumPlatforms = 32;
 #define REMAPPED_PLUGINS TEXT("RemappedPlugins")
+extern float GCookProgressWarnBusyTime;

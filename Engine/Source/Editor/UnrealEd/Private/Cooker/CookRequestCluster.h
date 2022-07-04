@@ -67,7 +67,7 @@ public:
 	 * If called before Process sets bOutComplete=true, all packages are put in OutRequestToLoad and are unsorted.
 	 */
 	void ClearAndDetachOwnedPackageDatas(TArray<FPackageData*>& OutRequestsToLoad,
-		TArray<FPackageData*>& OutRequestsToDemote);
+		TArray<TPair<FPackageData*, ESuppressCookReason>>& OutRequestsToDemote);
 
 	/**
 	 * Create clusters(s) for all the given name or packagedata requests and append them to OutClusters.
@@ -130,6 +130,8 @@ private:
 		bool bCookable;
 		/** True if dependencies should be explored, based on other properties of the VertexData. */
 		bool bExploreDependencies;
+		/** The reason it is not cookable if !bCookable, or ESuppressCookReason::InvalidSuppressCookReason if bCookable. */
+		ESuppressCookReason SuppressCookReason;
 	};
 
 	/**
@@ -295,19 +297,21 @@ private:
 	void StartAsync(const FCookerTimer& CookerTimer, bool& bOutComplete);
 	bool TryTakeOwnership(FPackageData& PackageData, bool bUrgent, FCompletionCallback&& CompletionCallback,
 		const FInstigator& InInstigator);
-	bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData);
+	bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData, ESuppressCookReason& OutReason);
 	static bool IsRequestCookable(FName PackageName, FPackageData*& InOutPackageData,
 		FPackageDatas& InPackageDatas, FPackageTracker& InPackageTracker,
-		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences, TConstArrayView<const ITargetPlatform*> RequestPlatforms);
+		FStringView InDLCPath, bool bInErrorOnEngineContentUse, bool bInAllowUncookedAssetReferences,
+		TConstArrayView<const ITargetPlatform*> RequestPlatforms, ESuppressCookReason& OutReason);
 
 	TArray<FFileNameRequest> InRequests;
 	TArray<FPackageData*> Requests;
-	TArray<FPackageData*> RequestsToDemote;
+	TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
 	TArray<const ITargetPlatform*> Platforms;
 	TArray<ICookedPackageWriter*> PackageWriters;
 	FPackageDataSet OwnedPackageDatas;
 	FString DLCPath;
 	TUniquePtr<FGraphSearch> GraphSearch; // Needs to be dynamic-allocated because of large alignment
+	UCookOnTheFlyServer& COTFS;
 	FPackageDatas& PackageDatas;
 	IAssetRegistry& AssetRegistry;
 	FPackageTracker& PackageTracker;

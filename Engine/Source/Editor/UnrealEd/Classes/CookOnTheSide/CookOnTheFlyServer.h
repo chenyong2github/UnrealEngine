@@ -127,6 +127,7 @@ namespace UE::Cook
 	class FBuildDefinitions;
 	class FCookDirector;
 	class FRequestCluster;
+	class FRequestQueue;
 	class FSaveCookedPackageContext;
 	class FWorkerRequestsLocal;
 	class FWorkerRequestsRemote;
@@ -135,6 +136,8 @@ namespace UE::Cook
 	class IWorkerRequests;
 	enum class EPollStatus : uint8;
 	enum class EReleaseSaveReason : uint8;
+	enum class ESuppressCookReason : uint8;
+	enum class ESendFlags : uint8;
 	struct FBeginCookConfigSettings;
 	struct FConstructPackageData;
 	struct FCookByTheBookOptions;
@@ -419,12 +422,21 @@ private:
 	};
 	/** Inspect all tasks the scheduler could do and return which one it should do. */
 	ECookAction DecideNextCookAction(UE::Cook::FTickStackData& StackData);
+	/** Is the local CookOnTheFlyServer a CookDirector and it has finished all locally processed Requests? */
+	bool IsMultiprocessLocalWorkerIdle() const;
 	/** Execute any existing external callbacks and push any existing external cook requests into new RequestClusters. */
 	void PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer);
 	/** Send the PackageData back to request state to create a request cluster, if it has not yet been explored. */
 	bool TryCreateRequestCluster(UE::Cook::FPackageData& PackageData);
 	/** Inspect the next package in the RequestQueue and push it on to its next state. Report the number of PackageDatas that were pushed to load. */
 	void PumpRequests(UE::Cook::FTickStackData& StackData, int32& OutNumPushed);
+	/** Assign the requests found in PumpRequests; either pushing them to ReadyRequests if SingleProcess Cook or to CookWorkers if MultiProcess. */
+	void AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, UE::Cook::FRequestQueue& RequestQueue);
+	/**
+	 * Multiprocess cook: Notify the CookDirector that a package it assigned to a worker was demoted
+	 * due to e.g. cancelled cook and should be removed from the CookWorker.
+	 */
+	void NotifyRemovedFromWorker(UE::Cook::FPackageData& PackageData);
 
 	/** Load all packages in the LoadQueue until it's time to break. Report the number of loads that were pushed to save. */
 	void PumpLoads(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
@@ -435,7 +447,7 @@ private:
 	/** Load the given PackageData that was in the load queue and send it on to its next state. Report the number of PackageDatas that were pushed to save (0 or 1) */
 	void LoadPackageInQueue(UE::Cook::FPackageData& PackageData, uint32& ResultFlags, int32& OutNumPushed);
 	/** Mark that the given PackageData failed to load and return it to idle. */
-	void RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* Reason);
+	void RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* ReasonText, UE::Cook::ESuppressCookReason Reason);
 
 	/** Try to save all packages in the SaveQueue until it's time to break. Report the number of requests that were completed (either skipped or successfully saved or failed to save) */
 	void PumpSaves(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy);
@@ -456,6 +468,11 @@ private:
 	 */
 	void QueueDiscoveredPackageData(UE::Cook::FPackageData& PackageData, UE::Cook::FInstigator&& Instigator,
 		bool bLoadReady = false);
+
+	/** Function called whenever an inprogress package is cancelled and returned to idle. Notifies the CookDirector when on a CookWorker. */
+	void DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags, UE::Cook::ESuppressCookReason Reason);
+	/** Function called whenever an inprogress package completes its save and returns to idle. Notifies the CookDirector when on a CookWorker. */
+	void PromoteToSaveComplete(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags);
 
 	/** Check whether the package filter has change, and if so call QueueDiscoveredPackage again on each existing package. */
 	void UpdatePackageFilter();
@@ -1318,6 +1335,7 @@ private:
 	FCriticalSection PollablesLock;
 	TRefCountPtr<FPollable> RecompileRequestsPollable;
 	TRefCountPtr<FPollable> QueuedCancelPollable;
+	TRefCountPtr<FPollable> DirectorPollable;
 	double PollNextTimeSeconds = 0.;
 	double PollNextTimeIdleSeconds = 0.;
 	double IdleStatusStartTime = 0.0;
@@ -1327,6 +1345,7 @@ private:
 	EIdleStatus IdleStatus = EIdleStatus::Done;
 
 	friend UE::Cook::FBeginCookConfigSettings;
+	friend UE::Cook::FCookDirector;
 	friend UE::Cook::FGeneratorPackage;
 	friend UE::Cook::FPackageData;
 	friend UE::Cook::FPendingCookedPlatformData;

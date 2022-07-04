@@ -3,18 +3,16 @@
 #pragma once
 
 #include "CookRequests.h"
+#include "CookWorkerClient.h"
 #include "Containers/StringView.h"
 #include "IWorkerRequests.h"
+
+namespace UE::Cook { struct FDirectorConnectionInfo; }
 
 namespace UE::Cook
 {
 
 /** An IWorkerRequests for CookWorkers in MultiProcess cooks: functions are implemented as interprocess messages to/from the CookDirector. */
-struct FDirectorConnectionInfo
-{
-	FString HostURI;
-};
-
 class FWorkerRequestsRemote : public IWorkerRequests
 {
 public:
@@ -41,6 +39,8 @@ public:
 	virtual void AddPublicInterfaceRequest(FFilePlatformRequest&& Request, bool bForceFrontOfQueue) override;
 
 	virtual void ReportAccessedIniSettings(UCookOnTheFlyServer& COTFS, const FConfigFile& Config) override;
+	virtual void ReportDemoteToIdle(UE::Cook::FPackageData& PackageData, ESuppressCookReason Reason) override;
+	virtual void ReportPromoteToSaveComplete(UE::Cook::FPackageData& PackageData) override;
 	virtual void GetInitializeConfigSettings(UCookOnTheFlyServer& COTFS, const FString& OutputOverrideDirectory, UE::Cook::FInitializeConfigSettings& Settings) override;
 	virtual void GetBeginCookConfigSettings(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext, UE::Cook::FBeginCookConfigSettings& Settings) override;
 	virtual void GetBeginCookIterativeFlags(UCookOnTheFlyServer& COTFS, FBeginCookContext& BeginContext) override;
@@ -54,6 +54,7 @@ private:
 
 private:
 	FExternalRequests ExternalRequests;
+	FCookWorkerClient CookWorkerClient;
 };
 
 }

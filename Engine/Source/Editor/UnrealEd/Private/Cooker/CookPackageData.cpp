@@ -200,35 +200,28 @@ void FPackageData::SetIsUrgent(bool Value)
 void FPackageData::UpdateRequestData(const TConstArrayView<const ITargetPlatform*> InRequestedPlatforms,
 	bool bInIsUrgent, FCompletionCallback&& InCompletionCallback, FInstigator&& InInstigator, bool bAllowUpdateUrgency)
 {
-	if (IsInProgress())
+	check(IsInProgress());
+	AddCompletionCallback(MoveTemp(InCompletionCallback));
+
+	bool bUrgencyChanged = false;
+	if (bInIsUrgent && !GetIsUrgent())
 	{
-		AddCompletionCallback(MoveTemp(InCompletionCallback));
-
-		bool bUrgencyChanged = false;
-		if (bInIsUrgent && !GetIsUrgent())
-		{
-			bUrgencyChanged = true;
-			SetIsUrgent(true);
-		}
-
-		if (!HasAllRequestedPlatforms(InRequestedPlatforms))
-		{
-			// Send back to the Request state (canceling any current operations) and then add the new platforms
-			if (GetState() != EPackageState::Request)
-			{
-				SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
-			}
-			SetPlatformsRequested(InRequestedPlatforms, true);
-		}
-		else if (bUrgencyChanged && bAllowUpdateUrgency)
-		{
-			SendToState(GetState(), ESendFlags::QueueAddAndRemove);
-		}
+		bUrgencyChanged = true;
+		SetIsUrgent(true);
 	}
-	else if (InRequestedPlatforms.Num() > 0)
+
+	if (!HasAllRequestedPlatforms(InRequestedPlatforms))
 	{
-		SetRequestData(InRequestedPlatforms, bInIsUrgent, MoveTemp(InCompletionCallback), MoveTemp(InInstigator));
-		SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+		// Send back to the Request state (canceling any current operations) and then add the new platforms
+		if (GetState() != EPackageState::Request)
+		{
+			SendToState(EPackageState::Request, ESendFlags::QueueAddAndRemove);
+		}
+		SetPlatformsRequested(InRequestedPlatforms, true);
+	}
+	else if (bUrgencyChanged && bAllowUpdateUrgency)
+	{
+		SendToState(GetState(), ESendFlags::QueueAddAndRemove);
 	}
 }
 
@@ -471,6 +464,9 @@ struct FStateProperties
 		case EPackageState::Request:
 			Properties = EPackageStateProperty::InProgress;
 			break;
+		case EPackageState::AssignedToWorker:
+			Properties = EPackageStateProperty::InProgress;
+			break;
 		case EPackageState::LoadPrepare:
 			Properties = EPackageStateProperty::InProgress | EPackageStateProperty::Loading;
 			break;
@@ -503,6 +499,13 @@ void FPackageData::SendToState(EPackageState NextState, ESendFlags SendFlags)
 			ensure(PackageDatas.GetRequestQueue().Remove(this) == 1);
 		}
 		OnExitRequest();
+		break;
+	case EPackageState::AssignedToWorker:
+		if (!!(SendFlags & ESendFlags::QueueRemove))
+		{
+			ensure(PackageDatas.GetAssignedToWorkerSet().Remove(this) == 1);
+		}
+		OnExitAssignedToWorker();
 		break;
 	case EPackageState::LoadPrepare:
 		if (!!(SendFlags & ESendFlags::QueueRemove))
@@ -598,6 +601,13 @@ void FPackageData::SendToState(EPackageState NextState, ESendFlags SendFlags)
 			PackageDatas.GetRequestQueue().AddRequest(this);
 		}
 		break;
+	case EPackageState::AssignedToWorker:
+		OnEnterAssignedToWorker();
+		if (((SendFlags & ESendFlags::QueueAdd) != ESendFlags::QueueNone))
+		{
+			PackageDatas.GetAssignedToWorkerSet().Add(this);
+		}
+		break;
 	case EPackageState::LoadPrepare:
 		OnEnterLoadPrepare();
 		if ((SendFlags & ESendFlags::QueueAdd) != ESendFlags::QueueNone)
@@ -657,6 +667,9 @@ void FPackageData::CheckInContainer() const
 	case EPackageState::Request:
 		check(PackageDatas.GetRequestQueue().Contains(this));
 		break;
+	case EPackageState::AssignedToWorker:
+		check(PackageDatas.GetAssignedToWorkerSet().Contains(this));
+		break;
 	case EPackageState::LoadPrepare:
 		check(PackageDatas.GetLoadPrepareQueue().Contains(this));
 		break;
@@ -705,6 +718,18 @@ void FPackageData::OnEnterRequest()
 
 void FPackageData::OnExitRequest()
 {
+}
+
+void FPackageData::OnEnterAssignedToWorker()
+{
+}
+
+void FPackageData::OnExitAssignedToWorker()
+{
+	if (GetWorkerAssignment().IsValid())
+	{
+		PackageDatas.GetCookOnTheFlyServer().NotifyRemovedFromWorker(*this);
+	}
 }
 
 void FPackageData::OnEnterLoadPrepare()

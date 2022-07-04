@@ -2072,6 +2072,11 @@ void UCookOnTheFlyServer::InitializePollables()
 		Pollables.Emplace(new FPollable(TEXT("RequestManager"), 0.5f, 0.5f, [this](FTickStackData&) { TickRequestManager(); }));
 
 	}
+	if (CookDirector)
+	{
+		DirectorPollable = new FPollable(TEXT("CookDirector"), 1.0f, 1.0f, [this](FTickStackData& StackData) { CookDirector->TickFromSchedulerThread(); });
+		Pollables.Add(FPollableQueueKey(DirectorPollable));
+	}
 	Pollables.Heapify();
 
 	PollNextTimeSeconds = 0.;
@@ -2141,6 +2146,11 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 		{
 			SetIdleStatus(StackData, EIdleStatus::Active);
 			return ECookAction::Request;
+		}
+
+		if (Monitor.GetNumUrgent(UE::Cook::EPackageState::AssignedToWorker) > 0)
+		{
+			// Fall through and do non-urgent while we wait for the Worker to finish
 		}
 		else
 		{
@@ -2223,6 +2233,20 @@ UCookOnTheFlyServer::ECookAction UCookOnTheFlyServer::DecideNextCookAction(UE::C
 
 	SetIdleStatus(StackData, EIdleStatus::Done);
 	return ECookAction::Done;
+}
+
+bool UCookOnTheFlyServer::IsMultiprocessLocalWorkerIdle() const
+{
+	if (!CookDirector.IsValid())
+	{
+		return false;
+	}
+	UE::Cook::FPackageDataMonitor& Monitor = PackageDatas->GetMonitor();
+	return !WorkerRequests->HasExternalRequests() &&
+		PackageDatas->GetRequestQueue().IsEmpty() &&
+		PackageDatas->GetLoadPrepareQueue().IsEmpty() &&
+		PackageDatas->GetLoadReadyQueue().IsEmpty() &&
+		PackageDatas->GetSaveQueue().IsEmpty();
 }
 
 void UCookOnTheFlyServer::PumpExternalRequests(const UE::Cook::FCookerTimer& CookerTimer)
@@ -2310,15 +2334,12 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 		if (bComplete)
 		{
 			TArray<FPackageData*> RequestsToLoad;
-			TArray<FPackageData*> RequestsToDemote;
+			TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
 			RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote);
-			for (FPackageData* PackageData : RequestsToLoad)
+			AssignRequests(RequestsToLoad, RequestQueue);
+			for (TPair<FPackageData*, ESuppressCookReason>& Pair : RequestsToDemote)
 			{
-				RequestQueue.AddReadyRequest(PackageData);
-			}
-			for (FPackageData* PackageData : RequestsToDemote)
-			{
-				PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+				DemoteToIdle(*Pair.Key, ESendFlags::QueueAdd, Pair.Value);
 			}
 			RequestClusters.PopFront();
 			OnRequestClusterCompleted(RequestCluster);
@@ -2344,13 +2365,75 @@ void UCookOnTheFlyServer::PumpRequests(UE::Cook::FTickStackData& StackData, int3
 #if DEBUG_COOKONTHEFLY
 			UE_LOG(LogCook, Display, TEXT("Package for platform already cooked %s, discarding request"), *PackageData.GetFileName().ToString());
 #endif
-			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::AlreadyCooked);
 			continue;
 		}
 		PackageData->SendToState(EPackageState::LoadPrepare, ESendFlags::QueueAdd);
 		++NumInBatch;
 	}
 	OutNumPushed += NumInBatch;
+}
+
+void UCookOnTheFlyServer::AssignRequests(TArrayView<UE::Cook::FPackageData*> Requests, UE::Cook::FRequestQueue& RequestQueue)
+{
+	using namespace UE::Cook;
+
+	if (CookDirector)
+	{
+		int32 NumRequests = Requests.Num();
+		if (NumRequests == 0)
+		{
+			return;
+		}
+		TArray<FWorkerId> Assignments;
+		CookDirector->AssignRequests(Requests, Assignments);
+		check(Assignments.Num() == NumRequests);
+		for (int32 Index = 0; Index < NumRequests; ++Index)
+		{
+			FPackageData* PackageData = Requests[Index];
+			FWorkerId Assignment = Assignments[Index];
+			if (Assignment.IsLocal())
+			{
+				RequestQueue.AddReadyRequest(PackageData);
+			}
+			else
+			{
+				PackageData->SendToState(EPackageState::AssignedToWorker, ESendFlags::QueueAdd);
+				PackageData->SetWorkerAssignment(Assignment);
+			}
+		}
+	}
+	else
+	{
+		for (FPackageData* PackageData : Requests)
+		{
+			RequestQueue.AddReadyRequest(PackageData);
+		}
+	}
+}
+
+void UCookOnTheFlyServer::NotifyRemovedFromWorker(UE::Cook::FPackageData& PackageData)
+{
+	check(CookDirector);
+	CookDirector->RemoveFromWorker(PackageData);
+}
+
+void UCookOnTheFlyServer::DemoteToIdle(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags, UE::Cook::ESuppressCookReason Reason)
+{
+	if (PackageData.IsInProgress())
+	{
+		WorkerRequests->ReportDemoteToIdle(PackageData, Reason);
+	}
+	PackageData.SendToState(UE::Cook::EPackageState::Idle, SendFlags);
+}
+
+void UCookOnTheFlyServer::PromoteToSaveComplete(UE::Cook::FPackageData& PackageData, UE::Cook::ESendFlags SendFlags)
+{
+	if (PackageData.IsInProgress())
+	{
+		WorkerRequests->ReportPromoteToSaveComplete(PackageData);
+	}
+	PackageData.SendToState(UE::Cook::EPackageState::Idle, SendFlags);
 }
 
 void UCookOnTheFlyServer::PumpLoads(UE::Cook::FTickStackData& StackData, uint32 DesiredQueueLength, int32& OutNumPushed, bool& bOutBusy)
@@ -2473,7 +2556,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 		{
 			ResultFlags |= COSR_ErrorLoadingPackage;
 			UE_LOG(LogCook, Verbose, TEXT("Not cooking package %s"), *PackageFileName.ToString());
-			RejectPackageToLoad(PackageData, TEXT("failed to load"));
+			RejectPackageToLoad(PackageData, TEXT("failed to load"), ESuppressCookReason::LoadError);
 			return;
 		}
 		check(LoadedPackage != nullptr && LoadedPackage->IsFullyLoaded());
@@ -2492,7 +2575,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 			QueueDiscoveredPackageData(OtherPackageData, FInstigator(PackageData.GetInstigator()));
 
 			PackageData.SetPlatformsCooked(PlatformManager->GetSessionPlatforms(), true);
-			RejectPackageToLoad(PackageData, TEXT("is redirected to another filename"));
+			RejectPackageToLoad(PackageData, TEXT("is redirected to another filename"), ESuppressCookReason::Redirected);
 			return;
 		}
 	}
@@ -2502,14 +2585,14 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 		if (!Generator)
 		{
 			UE_LOG(LogCook, Error, TEXT("Package %s is an out-of-date generated package with a no-longer-available generator. It can not be loaded."), *PackageFileName.ToString());
-			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
+			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"), ESuppressCookReason::OrphanedGenerated);
 			return;
 		}
 		FCookGenerationInfo* Info = Generator->FindInfo(PackageData);
 		if (!Info)
 		{
 			UE_LOG(LogCook, Error, TEXT("Package %s is a generated package but its generator no longer has a record of it. It can not be loaded."), *PackageFileName.ToString());
-			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"));
+			RejectPackageToLoad(PackageData, TEXT("is an orphaned generated package"), ESuppressCookReason::OrphanedGenerated);
 			return;
 		}
 
@@ -2532,7 +2615,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 				ResultFlags |= COSR_ErrorLoadingPackage;
 				UE_LOG(LogCook, Error, TEXT("Package %s is a generated package and we could not load its generator package %s. It can not be loaded."),
 					*PackageFileName.ToString(), *OwnerPackageData.GetFileName().ToString());
-				RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"));
+				RejectPackageToLoad(PackageData, TEXT("is a generated package which could not load its generator"), ESuppressCookReason::LoadError);
 				return;
 			}
 			Generator->GetCookPackageSplitterInstance()->OnOwnerReloaded(OwnerPackage, SplitterDataObject);
@@ -2542,7 +2625,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 		LoadedPackage = TryCreateGeneratedPackage(*Generator, *Info);
 		if (!LoadedPackage)
 		{
-			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not be populated"));
+			RejectPackageToLoad(PackageData, TEXT("is a generated package which could not be populated"), ESuppressCookReason::LoadError);
 			return;
 		}
 	}
@@ -2551,7 +2634,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	{
 		// Already cooked. This can happen if we needed to load a package that was previously cooked and garbage collected because it is a loaddependency of a new request.
 		// Send the package back to idle, nothing further to do with it.
-		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		DemoteToIdle(PackageData, ESendFlags::QueueAdd, ESuppressCookReason::AlreadyCooked);
 		return;
 	}
 
@@ -2561,7 +2644,7 @@ void UCookOnTheFlyServer::LoadPackageInQueue(UE::Cook::FPackageData& PackageData
 	++OutNumPushed;
 }
 
-void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* Reason)
+void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageData, const TCHAR* ReasonText, UE::Cook::ESuppressCookReason Reason)
 {
 	// make sure this package doesn't exist
 	for (const TPair<const ITargetPlatform*, UE::Cook::FPackageData::FPlatformData>& Pair : PackageData.GetPlatformDatas())
@@ -2578,11 +2661,11 @@ void UCookOnTheFlyServer::RejectPackageToLoad(UE::Cook::FPackageData& PackageDat
 			// if we find the file this means it was cooked on a previous cook, however source package can't be found now. 
 			// this could be because the source package was deleted or renamed, and we are using iterative cooking
 			// perhaps in this case we should delete it?
-			UE_LOG(LogCook, Warning, TEXT("Found cooked file '%s' which shouldn't exist as it %s."), *SandboxFilename, Reason);
+			UE_LOG(LogCook, Warning, TEXT("Found cooked file '%s' which shouldn't exist as it %s."), *SandboxFilename, ReasonText);
 			IFileManager::Get().Delete(*SandboxFilename);
 		}
 	}
-	PackageData.SendToState(UE::Cook::EPackageState::Idle, UE::Cook::ESendFlags::QueueAdd);
+	DemoteToIdle(PackageData, UE::Cook::ESendFlags::QueueAdd, Reason);
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -3897,7 +3980,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		if (Package->IsLoadedByEditorPropertiesOnly() && PackageTracker->UncookedEditorOnlyPackages.Contains(Package->GetFName()))
 		{
 			// We already attempted to cook this package and it's still not referenced by any non editor-only properties.
-			PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			DemoteToIdle(PackageData, ESendFlags::QueueAdd, ESuppressCookReason::OnlyEditorOnly);
 			++OutNumPushed;
 			continue;
 		}
@@ -3909,7 +3992,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		if (PackageTracker->NeverCookPackageList.Contains(PackageData.GetFileName()))
 		{
 			// refuse to save this package, it's clearly one of the undesirables
-			PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			DemoteToIdle(PackageData, ESendFlags::QueueAdd, ESuppressCookReason::NeverCook);
 			++OutNumPushed;
 			continue;
 		}
@@ -3921,7 +4004,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 			// We've already saved all possible platforms for this package; this should not be possible.
 			// All places that add a package to the save queue check for existence of incomplete platforms before adding
 			UE_LOG(LogCook, Warning, TEXT("Package '%s' in SaveQueue has no more platforms left to cook; this should not be possible!"), *PackageData.GetFileName().ToString());
-			PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			DemoteToIdle(PackageData, ESendFlags::QueueAdd, ESuppressCookReason::AlreadyCooked);
 			++OutNumPushed;
 			continue;
 		}
@@ -3985,7 +4068,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 				check(PackageData.HasPrepareSaveFailed()); // Should have been set by PrepareSave; we rely on this for cleanup
 				ReleaseCookedPlatformData(PackageData, EReleaseSaveReason::AbortSave);
 				PackageData.SetPlatformsCooked(PlatformsForPackage, false /* bSucceeded */);
-				PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+				DemoteToIdle(PackageData, ESendFlags::QueueAdd, ESuppressCookReason::SaveError);
 				++OutNumPushed;
 				continue;
 			}
@@ -4086,7 +4169,7 @@ void UCookOnTheFlyServer::PumpSaves(UE::Cook::FTickStackData& StackData, uint32 
 		}
 
 		ReleaseCookedPlatformData(PackageData, !Context.bHasRetryErrorCode ? EReleaseSaveReason::Completed : EReleaseSaveReason::DoneForNow);
-		PackageData.SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		PromoteToSaveComplete(PackageData, ESendFlags::QueueAdd);
 		++OutNumPushed;
 	}
 }
@@ -5547,9 +5630,9 @@ void UCookOnTheFlyServer::Initialize( ECookMode::Type DesiredCookMode, ECookInit
 	if (IsCookByTheBookMode() && !IsCookingInEditor())
 	{
 		bool bCookMultiProcess = false;;
-		GConfig->GetBool(TEXT("CookSettings"), TEXT("CookMultiProcess"), bCookMultiProcess, GEditorIni);
-		bCookMultiProcess |= FParse::Param(FCommandLine::Get(), TEXT("-CookMultiProcess"));
-		bCookMultiProcess &= FParse::Param(FCommandLine::Get(), TEXT("-CookSingleProcess"));
+		GConfig->GetBool(TEXT("CookSettings"), TEXT("CookMultiProcessEnabled"), bCookMultiProcess, GEditorIni);
+		bCookMultiProcess |= FParse::Param(FCommandLine::Get(), TEXT("CookMultiProcess"));
+		bCookMultiProcess &= !FParse::Param(FCommandLine::Get(), TEXT("CookSingleProcess"));
 		if (bCookMultiProcess)
 		{
 			CookDirector = MakeUnique<UE::Cook::FCookDirector>(*this);
@@ -5775,15 +5858,14 @@ bool UCookOnTheFlyServer::TryInitializeCookWorker()
 {
 	using namespace UE::Cook;
 
-	FString CookDirectorHost;
-	if (!FParse::Value(FCommandLine::Get(), TEXT("-CookDirectorHost="), CookDirectorHost))
+	FDirectorConnectionInfo ConnectInfo;
+	if (!ConnectInfo.TryParseCommandLine())
 	{
-		UE_LOG(LogCook, Error, TEXT("CookWorker startup failed: no CookDirector specified on commandline."))
 		return false;
 	}
 	TUniquePtr<FWorkerRequestsRemote> RemoteTasks = MakeUnique<FWorkerRequestsRemote>(*this);
 	ECookInitializationFlags LocalCookFlags;
-	if (!RemoteTasks->TryConnect(FDirectorConnectionInfo{ CookDirectorHost }, LocalCookFlags))
+	if (!RemoteTasks->TryConnect(MoveTemp(ConnectInfo), LocalCookFlags))
 	{
 		return false;
 	}
@@ -8022,6 +8104,7 @@ void UCookOnTheFlyServer::CookByTheBookFinished()
 	check(IsCookByTheBookMode());
 	check(IsInSession());
 	check(PackageDatas->GetRequestQueue().IsEmpty());
+	check(PackageDatas->GetAssignedToWorkerSet().IsEmpty());
 	check(PackageDatas->GetLoadPrepareQueue().IsEmpty());
 	check(PackageDatas->GetLoadReadyQueue().IsEmpty());
 	check(PackageDatas->GetSaveQueue().IsEmpty());
@@ -8424,45 +8507,50 @@ void UCookOnTheFlyServer::CancelAllQueues()
 	FPackageDataQueue& SaveQueue = PackageDatas->GetSaveQueue();
 	while (!SaveQueue.IsEmpty())
 	{
-		SaveQueue.PopFrontValue()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		DemoteToIdle(*SaveQueue.PopFrontValue(), ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 	}
 	FPackageDataQueue& LoadReadyQueue = PackageDatas->GetLoadReadyQueue();
 	while (!LoadReadyQueue.IsEmpty())
 	{
-		LoadReadyQueue.PopFrontValue()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		DemoteToIdle(*LoadReadyQueue.PopFrontValue(), ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 	}
 	FLoadPrepareQueue& LoadPrepareQueue = PackageDatas->GetLoadPrepareQueue();
 	while (!LoadPrepareQueue.IsEmpty())
 	{
-		LoadPrepareQueue.PopFront()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		DemoteToIdle(*LoadPrepareQueue.PopFront(), ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 	}
+	for (FPackageData* PackageData : PackageDatas->GetAssignedToWorkerSet())
+	{
+		DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
+	}
+	PackageDatas->GetAssignedToWorkerSet().Empty();
 	FRequestQueue& RequestQueue = PackageDatas->GetRequestQueue();
 	FPackageDataSet& UnclusteredRequests = RequestQueue.GetUnclusteredRequests();
 	for (FPackageData* PackageData : UnclusteredRequests)
 	{
-		PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 	}
 	UnclusteredRequests.Empty();
 	TRingBuffer<FRequestCluster>& RequestClusters = RequestQueue.GetRequestClusters();
 	for (FRequestCluster& RequestCluster : RequestClusters)
 	{
 		TArray<FPackageData*> RequestsToLoad;
-		TArray<FPackageData*> RequestsToDemote;
+		TArray<TPair<FPackageData*, ESuppressCookReason>> RequestsToDemote;
 		RequestCluster.ClearAndDetachOwnedPackageDatas(RequestsToLoad, RequestsToDemote);
 		for (FPackageData* PackageData : RequestsToLoad)
 		{
-			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			DemoteToIdle(*PackageData, ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 		}
-		for (FPackageData* PackageData : RequestsToDemote)
+		for (TPair<FPackageData*, ESuppressCookReason>& Pair : RequestsToDemote)
 		{
-			PackageData->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+			DemoteToIdle(*Pair.Key, ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 		}
 	}
 	RequestClusters.Empty();
 
 	while (!RequestQueue.IsReadyRequestsEmpty())
 	{
-		RequestQueue.PopReadyRequest()->SendToState(EPackageState::Idle, ESendFlags::QueueAdd);
+		DemoteToIdle(*RequestQueue.PopReadyRequest(), ESendFlags::QueueAdd, ESuppressCookReason::CookCanceled);
 	}
 
 	SetLoadBusy(false);

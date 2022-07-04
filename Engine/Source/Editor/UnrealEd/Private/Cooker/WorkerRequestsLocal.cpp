@@ -98,6 +98,14 @@ void FWorkerRequestsLocal::ReportAccessedIniSettings(UCookOnTheFlyServer& COTFS,
 	COTFS.ProcessAccessedIniSettings(&Config, COTFS.AccessedIniStrings);
 }
 
+void FWorkerRequestsLocal::ReportDemoteToIdle(UE::Cook::FPackageData& PackageData, ESuppressCookReason Reason)
+{
+}
+
+void FWorkerRequestsLocal::ReportPromoteToSaveComplete(UE::Cook::FPackageData& PackageData)
+{
+}
+
 void FWorkerRequestsLocal::GetInitializeConfigSettings(UCookOnTheFlyServer& COTFS,
 	const FString& OutputDirectoryOverride, UE::Cook::FInitializeConfigSettings& Settings)
 {

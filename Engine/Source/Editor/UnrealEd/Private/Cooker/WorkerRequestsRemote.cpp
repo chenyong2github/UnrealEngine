@@ -16,7 +16,7 @@ FWorkerRequestsRemote::FWorkerRequestsRemote(UCookOnTheFlyServer& InCOTFS)
 
 bool FWorkerRequestsRemote::TryConnect(FDirectorConnectionInfo&& ConnectInfo, ECookInitializationFlags& OutCookFlags)
 {
-	return false;
+	return CookWorkerClient.TryConnect(MoveTemp(ConnectInfo));
 }
 
 bool FWorkerRequestsRemote::TryGetInitializeSettings(ECookMode::Type& OutCookMode, ECookInitializationFlags& OutCookFlags,
@@ -107,6 +107,16 @@ void FWorkerRequestsRemote::ReportAccessedIniSettings(UCookOnTheFlyServer& COTFS
 {
 	FIniSettingContainer AccessedIniStrings;
 	COTFS.ProcessAccessedIniSettings(&Config, COTFS.AccessedIniStrings);
+	// MPCOOKTODO: Not yet implemented
+}
+
+void FWorkerRequestsRemote::ReportDemoteToIdle(UE::Cook::FPackageData& PackageData, ESuppressCookReason Reason)
+{
+	// MPCOOKTODO: Not yet implemented
+}
+
+void FWorkerRequestsRemote::ReportPromoteToSaveComplete(UE::Cook::FPackageData& PackageData)
+{
 	// MPCOOKTODO: Not yet implemented
 }
 

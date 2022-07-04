@@ -901,6 +901,7 @@ bool UCookCommandlet::CookAsCookWorker()
 
 	if (!CookOnTheFlyServer->TryInitializeCookWorker())
 	{
+		UE_LOG(LogCook, Display, TEXT("CookWorker initialization failed, aborting CookCommandlet."));
 		return false;
 	}
 
