@@ -2582,7 +2582,7 @@ void SRigHierarchy::HandleUnparent()
 		TGuardValue<bool> GuardRigHierarchyChanges(bIsChangingRigHierarchy, true);
 		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
 
-		URigHierarchy* Hierarchy = GetHierarchy();
+		URigHierarchy* Hierarchy = GetDefaultHierarchy();
 		check(Hierarchy);
 
 		URigHierarchyController* Controller = Hierarchy->GetController(true);
