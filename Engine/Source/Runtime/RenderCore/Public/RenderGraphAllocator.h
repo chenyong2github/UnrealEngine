@@ -115,26 +115,28 @@ private:
 	template <uint32>
 	friend class TRDGArrayAllocator;
 	friend class FRDGAllocatorScope;
-	friend class FRDGBuilder;
 };
 
 /** Base class for RDG builder which scopes the allocations and releases them in the destructor. */
-class FRDGAllocatorScope
+class RENDERCORE_API FRDGAllocatorScope
 {
-protected:
-	FRDGAllocator& Allocator;
-
-private:
+public:
 	FRDGAllocatorScope()
 		: Allocator(FRDGAllocator::Get())
 	{}
 
-	~FRDGAllocatorScope()
+	~FRDGAllocatorScope();
+
+protected:
+	FRDGAllocator& Allocator;
+
+	void BeginAsyncDelete(TUniqueFunction<void()>&& InAsyncDeleteFunction)
 	{
-		Allocator.ReleaseAll();
+		AsyncDeleteFunction = MoveTemp(InAsyncDeleteFunction);
 	}
 
-	friend class FRDGBuilder;
+private:
+	TUniqueFunction<void()> AsyncDeleteFunction;
 };
 
 /** A container allocator that allocates from a global RDG allocator instance. */

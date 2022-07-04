@@ -564,31 +564,20 @@ FRDGBuilder::FRDGBuilder(FRHICommandListImmediate& InRHICmdList, FRDGEventName I
 
 FRDGBuilder::~FRDGBuilder()
 {
-	SCOPED_NAMED_EVENT(FRDGBuilder_Clear, FColor::Emerald);
-
 	if (bParallelExecuteEnabled)
 	{
-		FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Passes = MoveTemp(Passes), Blackboard = MoveTemp(Blackboard), Buffers = MoveTemp(Buffers), UniformBuffers = MoveTemp(UniformBuffers), ActivePooledTextures = MoveTemp(ActivePooledTextures), ActivePooledBuffers = MoveTemp(ActivePooledBuffers), Allocator = MoveTemp(Allocator)](ENamedThreads::Type, const FGraphEventRef&) mutable
-		{
-			SCOPED_NAMED_EVENT(FRDGBuilder_Clear, FColor::Emerald);
-			Passes.Clear();
-			Buffers.Clear();
-			UniformBuffers.Clear();
-			Blackboard.Clear();
-			ActivePooledTextures.Empty();
-			ActivePooledBuffers.Empty();
-
-		}, TStatId(), nullptr, ENamedThreads::AnyThread);
-	}
-	else
-	{
-		Passes.Clear();
-		Buffers.Clear();
-		UniformBuffers.Clear();
-		Blackboard.Clear();
-		ActivePooledTextures.Empty();
-		ActivePooledBuffers.Empty();
+		// Move expensive operations into the async deleter, which will be called in the base class destructor.
+		BeginAsyncDelete([
+			Passes					= MoveTemp(Passes),
+			Textures				= MoveTemp(Textures),
+			Buffers					= MoveTemp(Buffers),
+			Views					= MoveTemp(Views),
+			UniformBuffers			= MoveTemp(UniformBuffers),
+			Blackboard				= MoveTemp(Blackboard),
+			ActivePooledTextures	= MoveTemp(ActivePooledTextures),
+			ActivePooledBuffers		= MoveTemp(ActivePooledBuffers),
+			UploadedBuffers			= MoveTemp(UploadedBuffers)
+		] () mutable {});
 	}
 }
 
