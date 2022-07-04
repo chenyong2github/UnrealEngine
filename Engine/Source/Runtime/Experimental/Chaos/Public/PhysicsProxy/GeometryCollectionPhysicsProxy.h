@@ -331,6 +331,15 @@ public:
 		}
 		return FGeometryCollectionItemIndex::CreateInvalidItemIndex();
 	}
+
+	const TArray<int32>* FindInternalClusterChildrenTransformIndices_External(FGeometryCollectionItemIndex ItemIndex) const
+	{
+		if (ensure(ItemIndex.IsInternalCluster()))
+		{
+			return InternalClusterUniqueIdxToChildrenTransformIndices.Find(ItemIndex.GetInternalClusterIndex());
+		}
+		return nullptr;
+	}
 	
 	FGeometryCollectionItemIndex GetItemIndexFromGTParticle_External(const Chaos::FGeometryParticle* GTPParticle) const
 	{
@@ -353,6 +362,10 @@ public:
 
 	void BreakClusters_External(TArray<FGeometryCollectionItemIndex>&& ItemIndices);
 	void ApplyStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float StrainValue);
+	void ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
+	void ApplyBreakingAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
+	void ApplyLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity);
+	void ApplyAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity);
 
 	FProxyInterpolationData& GetInterpolationData() { return InterpolationData; }
 	const FProxyInterpolationData& GetInterpolationData() const { return InterpolationData; }
@@ -437,6 +450,7 @@ private:
 	TManagedArray<TUniquePtr<Chaos::FGeometryParticle>> GTParticles;
 	TMap<Chaos::FGeometryParticle*, int32> GTParticlesToTransformGroupIndex;
 	TMap<Chaos::FGeometryParticle*, int32> GTParticlesToInternalClusterUniqueIdx;
+	TMap<int32, TArray<int32>> InternalClusterUniqueIdxToChildrenTransformIndices;
 
 	TMap<int32, TUniquePtr<Chaos::FGeometryParticle>> GTInternalClustersByUniqueIdx;
 

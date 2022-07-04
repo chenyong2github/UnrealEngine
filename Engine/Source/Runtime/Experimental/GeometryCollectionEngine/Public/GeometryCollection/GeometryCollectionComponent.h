@@ -485,11 +485,53 @@ public:
 
 	/**
 	 * Crumbe a cluster into all its pieces
-	 * if the piece is not a cluster but is part of an internal/partial cluster, then the owning cluster will crumble   
 	 * @param ItemIndex item index ( from HitResult) of the cluster to crumble
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
 	void CrumbleCluster(int32 ItemIndex);
+
+	/**
+	 * Apply linear velocity on breaking pieces for a specific cluster
+	 * If ItemIndex does not represent a cluster this will do nothing  
+	 * @param ItemIndex item index ( from HitResult) of the cluster owning the breaking pieces to apply velocity on
+	 * @param LinearVelocity linear velocity to apply
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void ApplyBreakingLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity);
+
+	/**
+	 * Apply linear velocity on breaking pieces for a specific cluster
+	 * If ItemIndex does not represent a cluster this will do nothing  
+	 * @param ItemIndex item index ( from HitResult) of the cluster owning the breaking pieces to apply velocity on
+	 * @param AngularVelocity linear velocity to apply
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void ApplyBreakingAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity);
+	
+	/**
+	 * Apply linear velocity on specific piece 
+	 * @param ItemIndex item index ( from HitResult) of the piece to apply velocity on
+	* @param LinearVelocity linear velocity to apply
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void ApplyLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity);
+
+	/**
+	 * Apply angular velocity on specific piece 
+	 * @param ItemIndex item index ( from HitResult) of the piece to apply velocity on
+	* @param AngularVelocity linear velocity to apply
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void ApplyAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity);
+
+	/**
+	 * Get the initial level of a specific piece
+	 * Initial level means the level as it is in the unbroken state 
+	 * @param ItemIndex item index ( from HitResult) of the cluster to get level from
+	 * @param Level of the piece ( 0 for root level and positive for the rest ) 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	int32 GetInitialLevel(int32 ItemIndex);
 	
 	/** RestCollection */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")

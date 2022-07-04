@@ -1583,6 +1583,101 @@ void FGeometryCollectionPhysicsProxy::ApplyStrain_External(FGeometryCollectionIt
 	}
 }
 
+template <typename TLambda>
+static void ApplyToBreakingChildren_Internal(Chaos::FRigidClustering& Clustering, Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle, TLambda Action)
+{
+	const bool bIsCluster = (ClusteredHandle->ClusterIds().NumChildren > 0);
+	if (bIsCluster && !ClusteredHandle->Disabled())
+	{
+		Chaos::FRigidClustering::FClusterMap& ChildrenMap = Clustering.GetChildrenMap();
+		if (const TArray<Chaos::FPBDRigidParticleHandle*>* ChildrenHandles = ChildrenMap.Find(ClusteredHandle))
+		{
+			for (Chaos::FPBDRigidParticleHandle* ChildHandle: *ChildrenHandles)
+			{
+				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
+				{
+					if (ClusteredChildHandle->GetExternalStrain() > ClusteredChildHandle->Strain())
+					{
+						Action(ClusteredChildHandle);
+					}
+				}
+			}
+		}
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, ItemIndex, LinearVelocity]()
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			{
+				ApplyToBreakingChildren_Internal(RBDSolver->GetEvolution()->GetRigidClustering(), ClusteredHandle,
+					[LinearVelocity](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle)
+					{
+						ClusteredChildHandle->V() += LinearVelocity;
+					});
+			}
+		});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyBreakingAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, ItemIndex, AngularVelocity]()
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			{
+				ApplyToBreakingChildren_Internal(RBDSolver->GetEvolution()->GetRigidClustering(), ClusteredHandle,
+					[AngularVelocity](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle)
+					{
+						ClusteredChildHandle->W() += AngularVelocity;
+					});
+			}
+		});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyLinearVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& LinearVelocity)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, ItemIndex, LinearVelocity]()
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			{
+				ClusteredHandle->V() += LinearVelocity;
+			}
+		});
+	}
+}
+
+void FGeometryCollectionPhysicsProxy::ApplyAngularVelocity_External(FGeometryCollectionItemIndex ItemIndex, const FVector& AngularVelocity)
+{
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, ItemIndex, AngularVelocity]()
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			{
+				ClusteredHandle->W() += AngularVelocity;
+			}
+		});
+	}
+}
+
 int32 FGeometryCollectionPhysicsProxy::CalculateHierarchyLevel(const FGeometryDynamicCollection& DynamicCollection, int32 TransformIndex)
 {
 	int32 Level = 0;
@@ -2360,12 +2455,14 @@ bool FGeometryCollectionPhysicsProxy::PullFromPhysicsState(const Chaos::FDirtyGe
 
 		// internal cluster index map update
 		GTParticlesToInternalClusterUniqueIdx.Reset();
+		InternalClusterUniqueIdxToChildrenTransformIndices.Reset();
 		for (int32 TransformGroupIndex = 0; TransformGroupIndex < NumTransforms; ++TransformGroupIndex)
 		{
 			const int32 InternalClusterUniqueIdx = TargetResults.InternalClusterUniqueIdx[TransformGroupIndex]; 
 			if (InternalClusterUniqueIdx > INDEX_NONE)
 			{
-				GTParticlesToInternalClusterUniqueIdx.Add(GTParticles[TransformGroupIndex].Get(), InternalClusterUniqueIdx);	
+				GTParticlesToInternalClusterUniqueIdx.Add(GTParticles[TransformGroupIndex].Get(), InternalClusterUniqueIdx);
+				InternalClusterUniqueIdxToChildrenTransformIndices.FindOrAdd(InternalClusterUniqueIdx).Add(TransformGroupIndex); 
 			}
 		}
 

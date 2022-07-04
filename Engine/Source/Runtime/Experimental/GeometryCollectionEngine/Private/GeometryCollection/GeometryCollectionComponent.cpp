@@ -3750,6 +3750,83 @@ void UGeometryCollectionComponent::CrumbleCluster(int32 ItemIndex)
 	}
 }
 
+void UGeometryCollectionComponent::ApplyBreakingLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex), LinearVelocity);
+	}
+
+}
+
+void UGeometryCollectionComponent::ApplyBreakingAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->ApplyBreakingLinearVelocity_External(FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex), AngularVelocity);
+	}
+}
+
+void UGeometryCollectionComponent::ApplyLinearVelocity(int32 ItemIndex, const FVector& LinearVelocity)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->ApplyLinearVelocity_External(FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex), LinearVelocity);
+	}
+}
+
+void UGeometryCollectionComponent::ApplyAngularVelocity(int32 ItemIndex, const FVector& AngularVelocity)
+{
+	if (PhysicsProxy)
+	{
+		PhysicsProxy->ApplyAngularVelocity_External(FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex), AngularVelocity);
+	}
+}
+
+int32 UGeometryCollectionComponent::GetInitialLevel(int32 ItemIndex)
+{
+	using FGeometryCollectionPtr = const TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe>; 
+
+	int32 Level = INDEX_NONE;
+	if (RestCollection && RestCollection->GetGeometryCollection())
+	{
+		const TManagedArray<int32>& Parent = RestCollection->GetGeometryCollection()->Parent;
+		int32 TransformIndex = INDEX_NONE;
+
+		FGeometryCollectionItemIndex GCItemIndex = FGeometryCollectionItemIndex::CreateFromExistingItemIndex(ItemIndex);
+
+		if (GCItemIndex.IsInternalCluster())
+		{
+			if (const TArray<int32>* Children = PhysicsProxy->FindInternalClusterChildrenTransformIndices_External(GCItemIndex))
+			{
+				if (!Children->IsEmpty())
+				{
+					// find the original cluster index from first children
+					TransformIndex = Parent[(*Children)[0]];
+				}
+			}
+		}
+		else
+		{
+			TransformIndex = GCItemIndex.GetTransformIndex();
+		}
+
+		// @todo(chaos) : use "Level" attribute when it will be properly serialized
+		// for now climb back the hierarchy
+		if (TransformIndex > INDEX_NONE)
+		{
+			Level = 0;
+			int32 ParentTransformIndex =  Parent[TransformIndex];
+			while (ParentTransformIndex != INDEX_NONE)
+			{
+				++Level;
+				ParentTransformIndex =  Parent[ParentTransformIndex];
+			}
+		}
+	}
+	return Level;
+}
+
 bool UGeometryCollectionComponent::CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const
 {
 	// Approximates the inscribed sphere. Returns false if no such sphere exists, if for instance the index is to an embedded geometry. 
