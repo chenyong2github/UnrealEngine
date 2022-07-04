@@ -1901,11 +1901,12 @@ bool FUnrealEdMisc::GetURL( const TCHAR* InKey, FString& OutURL, const bool bChe
 	return bFound;
 }
 
-void FUnrealEdMisc::ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture)
+void FUnrealEdMisc::ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture, const FString& PageId)
 {
 	static FString Version = FString::FromInt(FEngineVersion::Current().GetMajor()) + TEXT(".") + FString::FromInt(FEngineVersion::Current().GetMinor());
 	Url.ReplaceInline(TEXT("{VERSION}"), *Version);
 	Url.ReplaceInline(TEXT("{I18N}"), *(Culture->GetName()));
+	Url.ReplaceInline(TEXT("{PAGEID}"), *PageId);
 }
 
 FString FUnrealEdMisc::GetExecutableForCommandlets() const

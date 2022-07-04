@@ -18,7 +18,8 @@ struct FUDNPageMetadata
 		, Title()
 		, Crumbs()
 		, Description()
-		, ExcerptNames() 
+		, ExcerptNames()
+		, BaseUrl()
 	{}
 
 	FString Availability;
@@ -26,6 +27,7 @@ struct FUDNPageMetadata
 	FText Crumbs;
 	FText Description;
 	TSet< FString > ExcerptNames;
+	FString BaseUrl;
 };
 
 /** Represents a single UDN Markdown token */
@@ -50,6 +52,7 @@ namespace EUDNToken
 		MetadataTitle,
 		MetadataCrumbs,
 		MetadataDescription,
+		MetadataBaseUrl,
 		Percentage,
 		Asterisk
 	};
@@ -90,6 +93,7 @@ public:
 		MetadataTitle,
 		MetadataCrumbs,
 		MetadataDescription,
+		MetadataBaseUrl,
 		Variable,
 		VariableOpen,
 		VariableClose,

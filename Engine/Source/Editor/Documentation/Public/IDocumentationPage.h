@@ -21,14 +21,27 @@ struct FExcerpt
 		, LineNumber( InLineNumber )
 	{}
 
-	/** Excerpt name */
+	FExcerpt(const FString& InName, const TSharedPtr< SWidget >& InContent, const TMap< FString, FString >& InVariables, int32 InLineNumber, const FString& InSourcePath)
+		: Name(InName)
+		, Content(InContent)
+		, Variables(InVariables)
+		, LineNumber(InLineNumber)
+		, SourcePath(InSourcePath)
+	{}
+
+	/** The name of the excerpt, as specified in the [EXCERPT:NAME] line at the top of the excerpt. */
 	FString Name;
-	/** Slate content for excerpt */
+	/** The Slate content generated for the excerpt. */
 	TSharedPtr<SWidget> Content;
+	/** The content of the [VAR] sections read from the excerpt. The keys are the names from the [VAR:NAME] lines
+		that start the variables, and the value for each key is the text inside the [VAR:NAME].....[/VAR] block. */
 	TMap< FString, FString > Variables;
+	/** The line number that this excerpt begins within its source file. */
 	int32 LineNumber;
-	/** Rich text version of the excerpt */
+	/** A rich text version of the excerpt content. */
 	FString RichText;
+	/** The path to the file that this excerpt was read from. */
+	FString SourcePath;
 };
 
 class IDocumentationPage

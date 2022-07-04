@@ -56,6 +56,27 @@ FString FEditorClassUtils::GetDocumentationLinkFromExcerpt(const FString& DocLin
 	return DocumentationLink;
 }
 
+FString FEditorClassUtils::GetDocumentationLinkBaseUrlFromExcerpt(const FString& DocLink, const FString DocExcerpt)
+{
+	FString DocumentationLinkBaseUrl;
+	TSharedRef<IDocumentation> Documentation = IDocumentation::Get();
+	if (Documentation->PageExists(DocLink))
+	{
+		TSharedRef<IDocumentationPage> ClassDocs = Documentation->GetPage(DocLink, NULL);
+
+		FExcerpt Excerpt;
+		if (ClassDocs->GetExcerpt(DocExcerpt, Excerpt))
+		{
+			FString* DocumentationLinkBaseUrlValue = Excerpt.Variables.Find(TEXT("BaseUrl"));
+			if (DocumentationLinkBaseUrlValue)
+			{
+				DocumentationLinkBaseUrl = *DocumentationLinkBaseUrlValue;
+			}
+		}
+	}
+
+	return DocumentationLinkBaseUrl;
+}
 
 FString FEditorClassUtils::GetDocumentationLink(const UClass* Class, const FString& OverrideExcerpt)
 {
@@ -65,15 +86,24 @@ FString FEditorClassUtils::GetDocumentationLink(const UClass* Class, const FStri
 	return GetDocumentationLinkFromExcerpt(ClassDocsPage, ExcerptSection);
 }
 
+FString FEditorClassUtils::GetDocumentationLinkBaseUrl(const UClass* Class, const FString& OverrideExcerpt)
+{
+	const FString ClassDocsPage = GetDocumentationPage(Class);
+	const FString ExcerptSection = (OverrideExcerpt.IsEmpty() ? GetDocumentationExcerpt(Class) : OverrideExcerpt);
+
+	return GetDocumentationLinkBaseUrlFromExcerpt(ClassDocsPage, ExcerptSection);
+}
+
 
 TSharedRef<SWidget> FEditorClassUtils::GetDocumentationLinkWidget(const UClass* Class)
 {
 	TSharedRef<SWidget> DocLinkWidget = SNullWidget::NullWidget;
 	const FString DocumentationLink = GetDocumentationLink(Class);
+	const FString DocumentationLinkBaseUrl = GetDocumentationLinkBaseUrl(Class);
 
 	if (!DocumentationLink.IsEmpty())
 	{
-		DocLinkWidget = IDocumentation::Get()->CreateAnchor(DocumentationLink);
+		DocLinkWidget = IDocumentation::Get()->CreateAnchor(DocumentationLink, FString(), FString(), DocumentationLinkBaseUrl);
 	}
 
 	return DocLinkWidget;
@@ -85,7 +115,11 @@ TSharedRef<SWidget> FEditorClassUtils::GetDynamicDocumentationLinkWidget(const T
 	{
 		return GetDocumentationLink(ClassAttribute.Get(nullptr));
 	};
-	return IDocumentation::Get()->CreateAnchor(TAttribute<FString>::CreateLambda(GetLink));
+	auto GetBaseUrl = [ClassAttribute]()
+	{
+		return GetDocumentationLinkBaseUrl(ClassAttribute.Get(nullptr));
+	};
+	return IDocumentation::Get()->CreateAnchor(TAttribute<FString>::CreateLambda(GetLink), FString(), FString(), TAttribute<FString>::CreateLambda(GetBaseUrl));
 }
 
 TSharedRef<SWidget> FEditorClassUtils::GetSourceLink(const UClass* Class, const FSourceLinkParams& Params)

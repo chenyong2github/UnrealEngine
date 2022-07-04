@@ -12,12 +12,16 @@
 #include "UDNParser.h"
 #include "DocumentationPage.h"
 #include "DocumentationLink.h"
+#include "DocumentationSettings.h"
 #include "SDocumentationToolTip.h"
 #include "Interfaces/IAnalyticsProvider.h"
 #include "Interfaces/IMainFrameModule.h"
 #include "EngineAnalytics.h"
+#include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "DocumentationActor"
+
+DEFINE_LOG_CATEGORY(LogDocumentation);
 
 TSharedRef< IDocumentation > FDocumentation::Create() 
 {
@@ -28,6 +32,24 @@ FDocumentation::FDocumentation()
 {
 	IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
 	MainFrameModule.OnMainFrameSDKNotInstalled().AddRaw(this, &FDocumentation::HandleSDKNotInstalled);
+
+	if (const UDocumentationSettings* DocSettings = GetDefault<UDocumentationSettings>())
+	{
+		for (const FDocumentationBaseUrl& BaseUrl : DocSettings->DocumentationBaseUrls)
+		{
+			if (!RegisterBaseUrl(BaseUrl.Id, BaseUrl.Url))
+			{
+				UE_LOG(LogDocumentation, Warning, TEXT("Could not register documentation base URL: %s"), *BaseUrl.Id);
+			}
+		}
+	}
+
+	AddSourcePath(FPaths::Combine(FPaths::ProjectDir(), TEXT("Documentation"), TEXT("Source")));
+	for (TSharedRef<IPlugin> Plugin : IPluginManager::Get().GetEnabledPlugins())
+	{
+		AddSourcePath(FPaths::Combine(Plugin->GetBaseDir(), TEXT("Documentation"), TEXT("Source")));
+	}
+	AddSourcePath(FPaths::Combine(FPaths::EngineDir(), TEXT("Documentation"), TEXT("Source")));
 }
 
 FDocumentation::~FDocumentation() 
@@ -35,14 +57,14 @@ FDocumentation::~FDocumentation()
 
 }
 
-bool FDocumentation::OpenHome(FDocumentationSourceInfo Source) const
+bool FDocumentation::OpenHome(FDocumentationSourceInfo Source, const FString& BaseUrlId) const
 {
-	return Open( TEXT("%ROOT%"), Source );
+	return Open(TEXT("%ROOT%"), Source, BaseUrlId);
 }
 
-bool FDocumentation::OpenHome(const FCultureRef& Culture, FDocumentationSourceInfo Source) const
+bool FDocumentation::OpenHome(const FCultureRef& Culture, FDocumentationSourceInfo Source, const FString& BaseUrlId) const
 {
-	return Open(TEXT("%ROOT%"), Culture, Source);
+	return Open(TEXT("%ROOT%"), Culture, Source, BaseUrlId);
 }
 
 bool FDocumentation::OpenAPIHome(FDocumentationSourceInfo Source) const
@@ -60,7 +82,7 @@ bool FDocumentation::OpenAPIHome(FDocumentationSourceInfo Source) const
 	return false;
 }
 
-bool FDocumentation::Open(const FString& Link, FDocumentationSourceInfo Source) const
+bool FDocumentation::Open(const FString& Link, FDocumentationSourceInfo Source, const FString& BaseUrlId) const
 {
 	FString DocumentationUrl;
 
@@ -99,7 +121,7 @@ bool FDocumentation::Open(const FString& Link, FDocumentationSourceInfo Source) 
 	{
 		// When opening a doc website we always request the most ideal culture for our documentation.
 		// The DNS will redirect us if necessary.
-		DocumentationUrl = FDocumentationLink::ToUrl(Link, Source);
+		DocumentationUrl = FDocumentationLink::ToUrl(Link, Source, BaseUrlId);
 	}
 
 	if (!DocumentationUrl.IsEmpty())
@@ -115,7 +137,7 @@ bool FDocumentation::Open(const FString& Link, FDocumentationSourceInfo Source) 
 	return !DocumentationUrl.IsEmpty();
 }
 
-bool FDocumentation::Open(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo Source) const
+bool FDocumentation::Open(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo Source, const FString& BaseUrlId) const
 {
 	FString DocumentationUrl;
 
@@ -130,7 +152,7 @@ bool FDocumentation::Open(const FString& Link, const FCultureRef& Culture, FDocu
 
 	if (DocumentationUrl.IsEmpty())
 	{
-		DocumentationUrl = FDocumentationLink::ToUrl(Link, Culture, Source);
+		DocumentationUrl = FDocumentationLink::ToUrl(Link, Culture, Source, BaseUrlId);
 	}
 
 	if (!DocumentationUrl.IsEmpty())
@@ -146,12 +168,13 @@ bool FDocumentation::Open(const FString& Link, const FCultureRef& Culture, FDocu
 	return !DocumentationUrl.IsEmpty();
 }
 
-TSharedRef< SWidget > FDocumentation::CreateAnchor( const TAttribute<FString>& Link, const FString& PreviewLink, const FString& PreviewExcerptName ) const
+TSharedRef< SWidget > FDocumentation::CreateAnchor( const TAttribute<FString>& Link, const FString& PreviewLink, const FString& PreviewExcerptName, const TAttribute<FString>& BaseUrlId) const
 {
 	return SNew( SDocumentationAnchor )
 		.Link(Link)
 		.PreviewLink(PreviewLink)
-		.PreviewExcerptName(PreviewExcerptName);
+		.PreviewExcerptName(PreviewExcerptName)
+		.BaseUrlId(BaseUrlId);
 }
 
 TSharedRef< IDocumentationPage > FDocumentation::GetPage( const FString& Link, const TSharedPtr< FParserConfiguration >& Config, const FDocumentationStyle& Style )
@@ -185,8 +208,15 @@ bool FDocumentation::PageExists(const FString& Link) const
 		return true;
 	}
 
-	const FString SourcePath = FDocumentationLink::ToSourcePath(Link);
-	return FPaths::FileExists(SourcePath);
+	for (const FString& SourcePath : SourcePaths)
+	{
+		FString LinkPath = FDocumentationLink::ToSourcePath(Link, SourcePath);
+		if (FPaths::FileExists(LinkPath))
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 bool FDocumentation::PageExists(const FString& Link, const FCultureRef& Culture) const
@@ -197,8 +227,20 @@ bool FDocumentation::PageExists(const FString& Link, const FCultureRef& Culture)
 		return true;
 	}
 
-	const FString SourcePath = FDocumentationLink::ToSourcePath(Link, Culture);
-	return FPaths::FileExists(SourcePath);
+	for (const FString& SourcePath : SourcePaths)
+	{
+		FString LinkPath = FDocumentationLink::ToSourcePath(Link, Culture, SourcePath);
+		if (FPaths::FileExists(LinkPath))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+const TArray <FString>& FDocumentation::GetSourcePaths() const
+{
+	return SourcePaths;
 }
 
 TSharedRef< class SToolTip > FDocumentation::CreateToolTip(const TAttribute<FText>& Text, const TSharedPtr<SWidget>& OverrideContent, const FString& Link, const FString& ExcerptName) const
@@ -278,5 +320,46 @@ void FDocumentation::HandleSDKNotInstalled(const FString& PlatformName, const FS
 	IDocumentation::Get()->Open(InDocumentationPage);
 }
 
+bool FDocumentation::RegisterBaseUrl(const FString& Id, const FString& Url)
+{
+	if (!Id.IsEmpty() && !Url.IsEmpty())
+	{
+		if (!RegisteredBaseUrls.Contains(Id))
+		{
+			RegisteredBaseUrls.Add(Id, Url);
+			return true;
+		}
+		UE_LOG(LogDocumentation, Warning, TEXT("Could not register documentation base URL with ID: %s. This ID is already in use."), *Id);
+		return false;
+	}
+	return false;
+}
+
+FString FDocumentation::GetBaseUrl(const FString& Id) const
+{
+	if (!Id.IsEmpty())
+	{
+		const FString* BaseUrl = RegisteredBaseUrls.Find(Id);
+		if (BaseUrl != NULL && !BaseUrl->IsEmpty())
+		{
+			return *BaseUrl;
+		}
+		UE_LOG(LogDocumentation, Warning, TEXT("Could not resolve base URL with ID: %s. It may not have been registered."), *Id);
+	}
+
+	FString DefaultUrl;
+	FUnrealEdMisc::Get().GetURL(TEXT("DocumentationURL"), DefaultUrl, true);
+	return DefaultUrl;
+}
+
+bool FDocumentation::AddSourcePath(const FString& Path)
+{
+	if (!Path.IsEmpty() && FPaths::DirectoryExists(Path))
+	{
+		SourcePaths.Add(Path);
+		return true;
+	}
+	return false;
+}
 
 #undef LOCTEXT_NAMESPACE

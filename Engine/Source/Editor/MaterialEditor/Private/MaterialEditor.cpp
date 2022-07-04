@@ -4725,28 +4725,57 @@ FString FMaterialEditor::GetDocLinkForSelectedNode()
 {
 	FString DocumentationLink;
 
-	TArray<UObject*> SelectedNodes = GetSelectedNodes().Array();
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	if (SelectedNodes.Num() == 1)
 	{
-		UMaterialGraphNode* SelectedGraphNode = Cast<UMaterialGraphNode>(SelectedNodes[0]);
-		if (SelectedGraphNode != NULL)
+		for (UObject* ObjectInSelection : SelectedNodes)
 		{
-			FString DocLink = SelectedGraphNode->GetDocumentationLink();
-			FString DocExcerpt = SelectedGraphNode->GetDocumentationExcerptName();
+			if (ObjectInSelection != NULL)
+			{
+				UMaterialGraphNode* SelectedGraphNode = Cast<UMaterialGraphNode>(ObjectInSelection);
+				FString DocLink = SelectedGraphNode->GetDocumentationLink();
+				FString DocExcerpt = SelectedGraphNode->GetDocumentationExcerptName();
 
-			DocumentationLink = FEditorClassUtils::GetDocumentationLinkFromExcerpt(DocLink, DocExcerpt);
+				DocumentationLink = FEditorClassUtils::GetDocumentationLinkFromExcerpt(DocLink, DocExcerpt);
+			}
+			break;
 		}
 	}
 
 	return DocumentationLink;
 }
 
+FString FMaterialEditor::GetDocLinkBaseUrlForSelectedNode()
+{
+	FString DocumentationLinkBaseUrl;
+
+	FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
+	if (SelectedNodes.Num() == 1)
+	{
+		for (UObject* ObjectInSelection : SelectedNodes)
+		{
+			if (ObjectInSelection != NULL)
+			{
+				UMaterialGraphNode* SelectedGraphNode = Cast<UMaterialGraphNode>(ObjectInSelection);
+				FString DocLink = SelectedGraphNode->GetDocumentationLink();
+				FString DocExcerpt = SelectedGraphNode->GetDocumentationExcerptName();
+
+				DocumentationLinkBaseUrl = FEditorClassUtils::GetDocumentationLinkBaseUrlFromExcerpt(DocLink, DocExcerpt);
+			}
+			break;
+		}
+	}
+
+	return DocumentationLinkBaseUrl;
+}
+
 void FMaterialEditor::OnGoToDocumentation()
 {
 	FString DocumentationLink = GetDocLinkForSelectedNode();
+	FString DocumentationLinkBaseUrl = GetDocLinkBaseUrlForSelectedNode();
 	if (!DocumentationLink.IsEmpty())
 	{
-		IDocumentation::Get()->Open(DocumentationLink, FDocumentationSourceInfo(TEXT("rightclick_matnode")));
+		IDocumentation::Get()->Open(DocumentationLink, FDocumentationSourceInfo(TEXT("rightclick_matnode")), DocumentationLinkBaseUrl);
 	}
 }
 

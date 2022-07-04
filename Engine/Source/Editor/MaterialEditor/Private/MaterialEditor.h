@@ -793,6 +793,9 @@ private:
 	/** Util to try and get doc link for the currently selected node */
 	FString GetDocLinkForSelectedNode();
 
+	/** Util to try and get the base URL for the doc link for the currently selected node */
+	FString GetDocLinkBaseUrlForSelectedNode();
+
 	/** Callback from the Asset Registry when an asset is renamed. */
 	void RenameAssetFromRegistry(const FAssetData& InAddedAssetData, const FString& InNewName);
 

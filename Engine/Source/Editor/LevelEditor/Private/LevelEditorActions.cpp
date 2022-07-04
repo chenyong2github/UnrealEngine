@@ -190,9 +190,7 @@ void FLevelEditorActionCallbacks::BrowseViewportControls()
 	FString URL;
 	if (FUnrealEdMisc::Get().GetURL(TEXT("ViewportControlsURL"), URL))
 	{
-		// documentation URLS are now stored with placeholders for internationalization and version
-		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(URL, FInternationalization::Get().GetCurrentCulture());
-		FPlatformProcess::LaunchURL(*URL, NULL, NULL);
+		IDocumentation::Get()->Open(URL, FDocumentationSourceInfo(TEXT("help_menu")));
 	}
 }
 
@@ -1231,7 +1229,8 @@ void FLevelEditorActionCallbacks::GoToDocsForActor_Clicked()
 		FString DocumentationLink = FEditorClassUtils::GetDocumentationLink(SelectedActorInfo.SelectionClass);
 		if (!DocumentationLink.IsEmpty())
 		{
-			IDocumentation::Get()->Open( DocumentationLink, FDocumentationSourceInfo(TEXT("rightclick_viewdoc")) );
+			FString DocumentationLinkBaseUrl = FEditorClassUtils::GetDocumentationLinkBaseUrl(SelectedActorInfo.SelectionClass);
+			IDocumentation::Get()->Open( DocumentationLink, FDocumentationSourceInfo(TEXT("rightclick_viewdoc")), DocumentationLinkBaseUrl);
 		}
 	}
 }

@@ -7807,12 +7807,31 @@ FString FBlueprintEditor::GetDocLinkForSelectedNode()
 	return DocumentationLink;
 }
 
+FString FBlueprintEditor::GetDocLinkBaseUrlForSelectedNode()
+{
+	FString DocumentationLinkBaseUrl;
+
+	if (const UEdGraphNode* SelectedGraphNode = GetSingleSelectedNode())
+	{
+		const FString DocLink = SelectedGraphNode->GetDocumentationLink();
+		const FString DocExcerpt = SelectedGraphNode->GetDocumentationExcerptName();
+
+		if (!DocLink.IsEmpty() && !DocExcerpt.IsEmpty())
+		{
+			DocumentationLinkBaseUrl = FEditorClassUtils::GetDocumentationLinkBaseUrlFromExcerpt(DocLink, DocExcerpt);
+		}
+	}
+
+	return DocumentationLinkBaseUrl;
+}
+
 void FBlueprintEditor::OnGoToDocumentation()
 {
 	const FString DocumentationLink = GetDocLinkForSelectedNode();
+	const FString DocumentationLinkBaseUrl = GetDocLinkBaseUrlForSelectedNode();
 	if (!DocumentationLink.IsEmpty())
 	{
-		IDocumentation::Get()->Open(DocumentationLink, FDocumentationSourceInfo(TEXT("rightclick_bpnode")));
+		IDocumentation::Get()->Open(DocumentationLink, FDocumentationSourceInfo(TEXT("rightclick_bpnode")), DocumentationLinkBaseUrl);
 	}
 }
 

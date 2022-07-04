@@ -17,6 +17,8 @@ public:
 
 		/** The string for the link to follow when clicked  */
 		SLATE_ATTRIBUTE( FString, Link )
+		/** The base URL for the Link, if any is needed  */
+		SLATE_ATTRIBUTE(FString, BaseUrlId)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -28,6 +30,7 @@ private:
 private:
 
 	TAttribute<FString> Link;
+	TAttribute<FString> BaseUrlId;
 	TSharedPtr<class SButton> Button;
 	TSharedPtr<class SImage> ButtonImage;
 };

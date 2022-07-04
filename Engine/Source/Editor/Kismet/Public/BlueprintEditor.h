@@ -1285,6 +1285,9 @@ private:
 	/** Util to try and get doc link for the currently selected node */
 	FString GetDocLinkForSelectedNode();
 
+	/** Util to try and get the base URL for the doc link for the currently selected node */
+	FString GetDocLinkBaseUrlForSelectedNode();
+
 	/** Set the enabled state for currently-selected nodes */
 	void OnSetEnabledStateForSelectedNodes(ENodeEnabledState NewState);
 

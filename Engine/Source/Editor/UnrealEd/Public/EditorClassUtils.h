@@ -60,6 +60,19 @@ namespace FEditorClassUtils
 	UNREALED_API FString GetDocumentationLinkFromExcerpt(const FString& DocLink, const FString DocExcerpt);
 
 	/**
+	 * Returns the ID of the base documentation URL set for this class in its documentation excerpt.
+	 *
+	 * @param	Class		Class we want to build a link for
+	 * @return				The ID of the base URL
+	 */
+	UNREALED_API FString GetDocumentationLinkBaseUrl(const UClass* Class, const FString& OverrideExcerpt = FString());
+
+	/**
+	 * Returns the ID of the base documentation URL set in the specified excerpt.
+	 */
+	UNREALED_API FString GetDocumentationLinkBaseUrlFromExcerpt(const FString& DocLink, const FString DocExcerpt);
+
+	/**
 	 * Creates a link widget to the documentation for a given class
 	 *
 	 * @param	Class		Class we want to build a link for

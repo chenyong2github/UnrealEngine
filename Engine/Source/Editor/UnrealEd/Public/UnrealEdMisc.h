@@ -212,7 +212,7 @@ public:
 	 */
 	bool GetURL( const TCHAR* InKey, FString& OutURL, const bool bCheckRocket = false ) const;
 
-	void ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture);
+	void ReplaceDocumentationURLWildcards(FString& Url, const FCultureRef& Culture, const FString& PageId = FString());
 
 	/** Returns the editor executable to use to execute commandlets */
 	FString GetExecutableForCommandlets() const;

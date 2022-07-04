@@ -12,17 +12,9 @@ class FDocumentationLink
 {
 public: 
 
-	static FString GetUrlRoot()
+	static FString GetUrlRoot(const FString& BaseUrlId = FString())
 	{
-		FString Url;
-		FUnrealEdMisc::Get().GetURL( TEXT("DocumentationURL"), Url, true );
-
-		if ( !Url.EndsWith( TEXT( "/" ) ) )
-		{
-			Url += TEXT( "/" );
-		}
-
-		return Url;
+		return IDocumentation::Get()->GetBaseUrl(BaseUrlId);
 	}
 
 	static FString GetHomeUrl()
@@ -39,25 +31,36 @@ public:
 		return Url;
 	}
 
-	static FString ToUrl(const FString& Link, FDocumentationSourceInfo const& Source)
+	static FString ToUrl(const FString& Link, FDocumentationSourceInfo const& Source, const FString& BaseUrlId = FString())
 	{
-		return ToUrl(Link, FInternationalization::Get().GetCurrentCulture(), Source);
+		return ToUrl(Link, FInternationalization::Get().GetCurrentCulture(), Source, BaseUrlId);
 	}
 
-	static FString ToUrl(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo const& Source)
+	static FString ToUrl(const FString& Link, const FCultureRef& Culture, FDocumentationSourceInfo const& Source, const FString& BaseUrlId = FString())
 	{
-		FString Path;
-		FString Anchor;
+		// Get the base URL for this doc request, if any.
+		// It may have any or all of the following pieces in it.
+		FString UrlRoot = GetUrlRoot(BaseUrlId);
+		FString RootPath;
 		FString QueryString;
-		SplitLink(Link, Path, QueryString, Anchor);
-		const FString PartialPath = FString::Printf(TEXT("%s/index.html"), *Path);
-		const FString TrimedPartialPath = PartialPath.TrimChar('/');
+		FString Anchor;
+		SplitLink(UrlRoot, RootPath, QueryString, Anchor);
 
+		// Break up the incoming documentation link into pieces.
+		// Depending on where it comes from, the link may be just a page ID, or it may have any or all
+		// of the following pieces in it. If there's a query string, SplitLink will merge it with the existing query
+		// string found in the base URL (if any). If there's an anchor, SplitLink will use it /instead/ of the
+		// one in the BaseUrl (if any).
+		FString LinkPath;
+		SplitLink(Link, LinkPath, QueryString, Anchor);
+		const FString TrimmedPartialPath = LinkPath.TrimChar('/');
+
+		// Add query parameters for the source, if needed.
 		AddSourceInfoToQueryString(QueryString, Source);
-		FString URLRoot = GetUrlRoot();
-		FInternationalization& I18N = FInternationalization::Get();
-		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(URLRoot, I18N.GetCurrentCulture());
-		return URLRoot + TrimedPartialPath + QueryString + Anchor;
+
+		FString AssembledUrl = RootPath + QueryString + Anchor;
+		FUnrealEdMisc::Get().ReplaceDocumentationURLWildcards(AssembledUrl, Culture, TrimmedPartialPath);
+		return AssembledUrl;
 	}
 
 	static FString ToFilePath( const FString& Link )
@@ -129,18 +132,18 @@ public:
 		return FString::Printf(TEXT("file:///%s%s%s"), *ToFilePath(Link, Culture), *QueryString, *Anchor);
 	}
 
-	static FString ToSourcePath(const FString& Link)
+	static FString ToSourcePath(const FString& Link, const FString& BasePath = FString())
 	{
 		FInternationalization& I18N = FInternationalization::Get();
 
-		FString SourcePath = ToSourcePath(Link, I18N.GetCurrentCulture());
+		FString SourcePath = ToSourcePath(Link, I18N.GetCurrentCulture(), BasePath);
 
 		if (!FPaths::FileExists(SourcePath))
 		{
 			const FCulturePtr FallbackCulture = I18N.GetCulture(TEXT("en"));
 			if (FallbackCulture.IsValid())
 			{
-				const FString FallbackSourcePath = ToSourcePath(Link, FallbackCulture.ToSharedRef());
+				const FString FallbackSourcePath = ToSourcePath(Link, FallbackCulture.ToSharedRef(), BasePath);
 				if (FPaths::FileExists(FallbackSourcePath))
 				{
 					SourcePath = FallbackSourcePath;
@@ -151,28 +154,33 @@ public:
 		return SourcePath;
 	}
 
-	static FString ToSourcePath(const FString& Link, const FCultureRef& Culture)
+	static FString ToSourcePath(const FString& Link, const FCultureRef& Culture, const FString& BasePath = FString())
 	{
 		FString Path;
 		FString Anchor;
 		FString QueryString;
 		SplitLink(Link, Path, QueryString, Anchor);
 
-		const FString FullDirectoryPath = FPaths::EngineDir() + TEXT( "Documentation/Source" ) + Path + "/";
+		FString DocSourcePath = BasePath;
+		if (DocSourcePath.IsEmpty() && !IDocumentation::Get()->GetSourcePaths().IsEmpty())
+		{
+			DocSourcePath = IDocumentation::Get()->GetSourcePaths().Last();
+		}
+		const FString FullDirectoryPath = FPaths::Combine(DocSourcePath, Path);
 
-		const FString WildCard = FString::Printf(TEXT("%s*.%s.udn"), *FullDirectoryPath, *(Culture->GetUnrealLegacyThreeLetterISOLanguageName()));
+		const FString WildCard = FString::Printf(TEXT("%s/*.%s.udn"), *FullDirectoryPath, *(Culture->GetUnrealLegacyThreeLetterISOLanguageName()));
 
 		TArray<FString> Filenames;
 		IFileManager::Get().FindFiles(Filenames, *WildCard, true, false);
 
 		if (Filenames.Num() > 0)
 		{
-			return FullDirectoryPath + Filenames[0];
+			return FPaths::Combine(FullDirectoryPath, Filenames[0]);
 		}
 
 		// Since the source file doesn't exist already make up a valid name for a new one
 		FString Category = FPaths::GetBaseFilename(Link);
-		return FString::Printf(TEXT("%s%s.%s.udn"), *FullDirectoryPath, *Category, *(Culture->GetUnrealLegacyThreeLetterISOLanguageName()));
+		return FString::Printf(TEXT("%s/%s.%s.udn"), *FullDirectoryPath, *Category, *(Culture->GetUnrealLegacyThreeLetterISOLanguageName()));
 	}
 
 private:
@@ -191,6 +199,13 @@ private:
 		}
 	}
 	
+	// Splits the Link parameter into three parts:
+	// - The path, which is everything up to the first ? or # character (or to the end of the link).
+	// - The query string, which is everything from the first ? to the first # (or to the end of the link).
+	// - The anchor, which is everything from the first # to the end of the link.
+	// If the query parameter contains anything already, whatever is found in the link will
+	// be appended to the existing value.
+	//
 	static void SplitLink( const FString& Link, /*OUT*/ FString& Path, /*OUT*/ FString& QueryString, /*OUT*/ FString& Anchor )
 	{
 		FString CleanedLink = Link;
@@ -199,12 +214,11 @@ private:
 		if ( CleanedLink == TEXT("%ROOT%") )
 		{
 			Path.Empty();
-			Anchor.Empty();
-			QueryString.Empty();
 		}
 		else
 		{
 			FString PathAndQueryString;
+			FString InAnchor = FString(Anchor).TrimChar('#');
 			if ( !CleanedLink.Split( TEXT("#"), &PathAndQueryString, &Anchor ) )
 			{
 				PathAndQueryString = CleanedLink;
@@ -213,6 +227,10 @@ private:
 			{
 				// ensure leading #
 				Anchor = FString( TEXT("#") ) + Anchor;
+			}
+			else if (!InAnchor.IsEmpty())
+			{
+				Anchor = FString(TEXT("#")) + InAnchor;
 			}
 
 			if ( Anchor.EndsWith( TEXT("/"), ESearchCase::CaseSensitive ) )
@@ -225,12 +243,8 @@ private:
 				PathAndQueryString.LeftInline(PathAndQueryString.Len() - 1, false);
 			}
 
-			if ( !PathAndQueryString.IsEmpty() && !PathAndQueryString.StartsWith( TEXT("/"), ESearchCase::CaseSensitive ) )
-			{
-				PathAndQueryString = FString(TEXT("/")) + PathAndQueryString;
-			}
-
 			// split path and query string
+			FString InQuery = FString(QueryString).TrimChar('?');
 			if (!PathAndQueryString.Split(TEXT("?"), &Path, &QueryString))
 			{
 				Path = PathAndQueryString;
@@ -238,7 +252,7 @@ private:
 			else if (!QueryString.IsEmpty())
 			{
 				// ensure leading ?
-				QueryString = FString(TEXT("?")) + QueryString;
+				QueryString = FString(TEXT("?")) + InQuery + QueryString;
 			}
 		}
 	}

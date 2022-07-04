@@ -16,7 +16,7 @@
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "Developer/MessageLog/Public/MessageLogModule.h"
 #include "Logging/MessageLog.h"
-#include "Editor/Documentation/Private/DocumentationLink.h"
+#include "DocumentationLink.h"
 #include "ISourceCodeAccessor.h"
 #include "ISourceCodeAccessModule.h"
 #include "IContentBrowserSingleton.h"
@@ -101,6 +101,7 @@ void FUDNParser::Initialize()
 	TokenLibrary.Add(FTokenPair(TEXT("Title:"), EUDNToken::MetadataTitle));
 	TokenLibrary.Add(FTokenPair(TEXT("Crumbs:"), EUDNToken::MetadataCrumbs));
 	TokenLibrary.Add(FTokenPair(TEXT("Description:"), EUDNToken::MetadataDescription));
+	TokenLibrary.Add(FTokenPair(TEXT("BaseUrl:"), EUDNToken::MetadataBaseUrl));
 	TokenLibrary.Add(FTokenPair(TEXT("%"), EUDNToken::Percentage));
 	TokenLibrary.Add(FTokenPair(TEXT("*"), EUDNToken::Asterisk));
 
@@ -211,6 +212,10 @@ void FUDNParser::Initialize()
 	LineLibrary.Add(FTokenConfiguration(TokenArray, FUDNLine::MetadataDescription, true));
 
 	TokenArray.Empty();
+	TokenArray.Add(EUDNToken::MetadataBaseUrl);
+	LineLibrary.Add(FTokenConfiguration(TokenArray, FUDNLine::MetadataBaseUrl, true));
+
+	TokenArray.Empty();
 	TokenArray.Add(EUDNToken::OpenBracket);
 	TokenArray.Add(EUDNToken::Variable);
 	TokenArray.Add(EUDNToken::Colon);
@@ -250,16 +255,14 @@ FUDNParser::~FUDNParser()
 bool FUDNParser::LoadLink( const FString& Link, TArray<FString>& ContentLines )
 {
 	FMessageLog UDNParserLog(UDNParseErrorLog);
-
-	const FString SourcePath = FDocumentationLink::ToSourcePath( Link );
 	
-	if (!FPaths::FileExists(SourcePath))
+	if (!FPaths::FileExists(Link))
 	{
 		return false;
 	}
 
 	TArray<uint8> Buffer;
-	bool bLoadSuccess = FFileHelper::LoadFileToArray(Buffer, *SourcePath);
+	bool bLoadSuccess = FFileHelper::LoadFileToArray(Buffer, *Link);
 	if ( bLoadSuccess )
 	{
 		FString Result;
@@ -306,7 +309,7 @@ bool FUDNParser::LoadLink( const FString& Link, TArray<FString>& ContentLines )
 	}
 	else
 	{
-		UDNParserLog.Error(FText::Format(LOCTEXT("LoadingError", "Loading document '{0}' failed."), FText::FromString(SourcePath)));
+		UDNParserLog.Error(FText::Format(LOCTEXT("LoadingError", "Loading document '{0}' failed."), FText::FromString(Link)));
 	}
 
 	if ( !bLoadSuccess && GetDefault<UEditorPerProjectUserSettings>()->bDisplayDocumentationLink )
@@ -321,41 +324,49 @@ bool FUDNParser::Parse(const FString& Link, TArray<FExcerpt>& OutExcerpts, FUDNP
 {
 	FMessageLog UDNParserLog(UDNParseErrorLog);
 
-	TArray<FString> ContentLines;
-	if ( LoadLink( Link, ContentLines ) )
+	// Call LoadLink for all content folders, and amalgamate the excerpts from all matching UDN files into a single list.
+	const TArray<FString> SourcePaths = IDocumentation::Get()->GetSourcePaths();
+	for (const FString& SourcePath : SourcePaths)
 	{
-		TArray<FExcerpt> TempExcerpts;
-		const FString SourcePath = FDocumentationLink::ToSourcePath( Link );
-		bool bParseSuccess = ParseSymbols( Link, ContentLines, FPaths::GetPath( SourcePath ), TempExcerpts, OutMetadata );
+		FString DocFilePath = FDocumentationLink::ToSourcePath(Link, SourcePath);
+		TArray<FString> ContentLines;
+		if (LoadLink(DocFilePath, ContentLines))
+		{
+			TArray<FExcerpt> TempExcerpts;
+			bool bParseSuccess = ParseSymbols(DocFilePath, ContentLines, FPaths::GetPath(DocFilePath), TempExcerpts, OutMetadata);
 
-		if (bParseSuccess)
-		{
-			OutExcerpts = TempExcerpts;
-			return true;
-		}
-		else
-		{
-			if ( GetDefault<UEditorPerProjectUserSettings>()->bDisplayDocumentationLink )
+			if (bParseSuccess)
 			{
-				UDNParserLog.Open();
+				OutExcerpts.Append(TempExcerpts);
 			}
+			else
+			{
+				if (GetDefault<UEditorPerProjectUserSettings>()->bDisplayDocumentationLink)
+				{
+					UDNParserLog.Open();
+				}
 
-			UDNParserLog.Error(FText::Format(LOCTEXT("GeneralParsingError", "Parsing document '{0}' failed."), FText::FromString(SourcePath)));
+				UDNParserLog.Error(FText::Format(LOCTEXT("GeneralParsingError", "Parsing document '{0}' failed."), FText::FromString(DocFilePath)));
+			}
 		}
 	}
-
-	return false;
+	return true;
 }
 
 bool FUDNParser::GetExcerptContent( const FString& Link, FExcerpt& Excerpt )
 {
 	FMessageLog UDNParserLog(UDNParseErrorLog);
 
+	FString SourcePath = FDocumentationLink::ToSourcePath(Link);
+	if (!Excerpt.SourcePath.IsEmpty())
+	{
+		SourcePath = Excerpt.SourcePath;
+	}
 	TArray<FString> ContentLines;
 
-	if ( LoadLink( Link, ContentLines ) )
+	if ( LoadLink(SourcePath, ContentLines ) )
 	{
-		Excerpt.Content = GenerateExcerptContent( Link, Excerpt, ContentLines, Excerpt.LineNumber );
+		Excerpt.Content = GenerateExcerptContent(SourcePath, Excerpt, ContentLines, Excerpt.LineNumber );
 		return true;
 	}
 	else
@@ -365,7 +376,7 @@ bool FUDNParser::GetExcerptContent( const FString& Link, FExcerpt& Excerpt )
 			UDNParserLog.Open();
 		}
 
-		UDNParserLog.Error(FText::Format(LOCTEXT("GeneralExcerptError", "Generating a Widget for document '{0}' Excerpt '{1}' failed."), FText::FromString( FDocumentationLink::ToSourcePath( Link ) ), FText::FromString(Excerpt.Name) ));
+		UDNParserLog.Error(FText::Format(LOCTEXT("GeneralExcerptError", "Generating a Widget for document '{0}' Excerpt '{1}' failed."), FText::FromString(SourcePath), FText::FromString(Excerpt.Name) ));
 	}
 
 	return false;
@@ -750,8 +761,7 @@ TSharedRef< SWidget > FUDNParser::GenerateExcerptContent( const FString& InLink,
 {
 	FMessageLog UDNParserLog(UDNParseErrorLog);
 
-	const FString SourcePath = FDocumentationLink::ToSourcePath( InLink );
-	const FString FullPath = FPaths::GetPath( SourcePath );
+	const FString FullPath = FPaths::GetPath(InLink);
 
 	FSlateFontInfo Header1Font = FCoreStyle::GetDefaultFontStyle("Regular", 18);
 	FSlateFontInfo Header2Font = FCoreStyle::GetDefaultFontStyle("Regular", 14);
@@ -1087,7 +1097,11 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 			
 			if (ExcerptStack.Num() == 0)
 			{
-				OutExcerpts.Add(FExcerpt(ExcerptName, NULL, Variables, ExcerptStartingLineNumber));
+				if (!OutMetadata.BaseUrl.IsEmpty() && !Variables.Contains("BaseUrl"))
+				{
+					Variables.Add("BaseUrl", OutMetadata.BaseUrl);
+				}
+				OutExcerpts.Add(FExcerpt(ExcerptName, NULL, Variables, ExcerptStartingLineNumber, Link));
 				OutMetadata.ExcerptNames.Add( ExcerptName );
 				Variables.Empty();
 				ExcerptStartingLineNumber = 0;
@@ -1123,7 +1137,7 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 				break;
 			}
 
-			Variables.Add( VariableName, VariableValue );
+			Variables.Add( VariableName, VariableValue.TrimStartAndEnd());
 
 			VariableName.Empty();
 			VariableValue.Empty();
@@ -1149,7 +1163,7 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 				break;
 			}
 
-			Variables.Add( VariableName, VariableValue );
+			Variables.Add( VariableName, VariableValue.TrimStartAndEnd());
 
 			VariableName.Empty();
 			VariableValue.Empty();
@@ -1163,6 +1177,7 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 			case FUDNLine::MetadataTitle: OutMetadata.Title = FText::FromString(Line.AdditionalContent[0]); break;
 			case FUDNLine::MetadataCrumbs: OutMetadata.Crumbs = FText::FromString(Line.AdditionalContent[0]); break;
 			case FUDNLine::MetadataDescription: OutMetadata.Description = FText::FromString(Line.AdditionalContent[0]); break;
+			case FUDNLine::MetadataBaseUrl: OutMetadata.BaseUrl = Line.AdditionalContent[0]; break;
 			}
 		}
 		else
@@ -1179,10 +1194,24 @@ bool FUDNParser::ParseSymbols(const FString& Link, const TArray<FString>& Conten
 				{
 					if ( !VariableName.IsEmpty() )
 					{
+						if (!VariableValue.IsEmpty())
+						{
+							VariableValue += '\n';
+						}
 						VariableValue += Line.AdditionalContent[0];
 					}
 				}
 				break;
+			case FUDNLine::Whitespace:
+				{
+					if (!VariableName.IsEmpty())
+					{
+						if (!VariableValue.IsEmpty())
+						{
+							VariableValue += '\n';
+						}
+					}
+				}
 			}
 		}
 	}

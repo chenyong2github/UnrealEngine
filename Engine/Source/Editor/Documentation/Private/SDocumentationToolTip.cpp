@@ -37,12 +37,6 @@ void SDocumentationToolTip::Construct( const FArguments& InArgs )
 	bAddDocumentation = InArgs._AddDocumentation;
 	DocumentationMargin = InArgs._DocumentationMargin;
 
-	if ( !DocumentationLink.IsEmpty() )
-	{
-		// All in-editor udn documents must live under the Shared/ folder
-		ensure( InArgs._DocumentationLink.StartsWith( TEXT("Shared/") ) );
-	}
-
 	ExcerptName = InArgs._ExcerptName;
 	IsShowingFullTip = false;
 
@@ -66,6 +60,30 @@ void SDocumentationToolTip::Construct( const FArguments& InArgs )
 
 void SDocumentationToolTip::ConstructSimpleTipContent()
 {
+	// If there a UDN file that matches the DocumentationLink path, and that page has an excerpt whose name
+	// matches ExcerptName, and that excerpt has a variable named ToolTipOverride, use the content of that
+	// variable instead of the default TextContent.
+	if (!DocumentationLink.IsEmpty() && !ExcerptName.IsEmpty())
+	{
+		TSharedRef<IDocumentation> Documentation = IDocumentation::Get();
+		if (Documentation->PageExists(DocumentationLink))
+		{
+			DocumentationPage = Documentation->GetPage(DocumentationLink, NULL);
+
+			FExcerpt Excerpt;
+			if (DocumentationPage->HasExcerpt(ExcerptName))
+			{
+				if (DocumentationPage->GetExcerpt(ExcerptName, Excerpt))
+				{
+					if (FString* TooltipValue = Excerpt.Variables.Find(TEXT("ToolTipOverride")))
+					{
+						TextContent = FText::FromString(*TooltipValue);
+					}
+				}
+			}
+		}
+	}
+
 	TSharedPtr< SVerticalBox > VerticalBox;
 	if ( !OverrideContent.IsValid() )
 	{
@@ -295,19 +313,14 @@ void SDocumentationToolTip::ConstructFullTipContent()
 				];
 
 			FString* FullDocumentationLink = Excerpts[ ExcerptIndex ].Variables.Find( TEXT("ToolTipFullLink") );
+			FString* ExcerptBaseUrl = Excerpts[ExcerptIndex].Variables.Find(TEXT("BaseUrl"));
 			if ( FullDocumentationLink != NULL && !FullDocumentationLink->IsEmpty() )
 			{
-				struct Local
+				FString BaseUrl = FString();
+				if (ExcerptBaseUrl != NULL)
 				{
-					static void OpenLink( FString Link )
-					{
-						if (!IDocumentation::Get()->Open(Link, FDocumentationSourceInfo(TEXT("rich_tooltips"))))
-						{
-							FNotificationInfo Info( NSLOCTEXT("SToolTip", "FailedToOpenLink", "Failed to Open Link") );
-							FSlateNotificationManager::Get().AddNotification(Info);
-						}
-					}
-				};
+					BaseUrl = *ExcerptBaseUrl;
+				}
 
 				Box->AddSlot()
 				.HAlign( HAlign_Center )
@@ -317,21 +330,18 @@ void SDocumentationToolTip::ConstructFullTipContent()
 						.Text( NSLOCTEXT( "SToolTip", "GoToFullDocsLinkMessage", "see full documentation" ) )
 						.TextStyle( &HyperlinkTextStyleInfo )
 						.UnderlineStyle( &HyperlinkButtonStyleInfo )
-						.OnNavigate_Static( &Local::OpenLink, *FullDocumentationLink )
+						.OnNavigate_Static([](FString Link, FString BaseUrl) {
+								if (!IDocumentation::Get()->Open(Link, FDocumentationSourceInfo(TEXT("rich_tooltips")), BaseUrl))
+								{
+									FNotificationInfo Info(NSLOCTEXT("SToolTip", "FailedToOpenLink", "Failed to Open Link"));
+									FSlateNotificationManager::Get().AddNotification(Info);
+								}
+							}, *FullDocumentationLink, BaseUrl)
 				];
 			}
 
 			if ( GetDefault<UEditorPerProjectUserSettings>()->bDisplayDocumentationLink && FSlateApplication::Get().SupportsSourceAccess() )
 			{
-				struct Local
-				{
-					static void EditSource( FString Link, int32 LineNumber )
-					{
-						ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
-						SourceCodeAccessModule.GetAccessor().OpenFileAtLine(Link, LineNumber);
-					}
-				};
-
 				Box->AddSlot()
 				.AutoHeight()
 				.HAlign( HAlign_Center )
@@ -340,7 +350,11 @@ void SDocumentationToolTip::ConstructFullTipContent()
 						.Text( NSLOCTEXT( "SToolTip", "EditDocumentationMessage_Edit", "edit" ) )
 						.TextStyle( &HyperlinkTextStyleInfo )
 						.UnderlineStyle( &HyperlinkButtonStyleInfo )
-						.OnNavigate_Static(&Local::EditSource, FPaths::ConvertRelativePathToFull(FDocumentationLink::ToSourcePath(DocumentationLink, FInternationalization::Get().GetCurrentCulture())), Excerpts[ExcerptIndex].LineNumber)
+						// todo: needs to update to point to the "real" source file used for the excerpt
+						.OnNavigate_Static([](FString Link, int32 LineNumber) {
+								ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
+								SourceCodeAccessModule.GetAccessor().OpenFileAtLine(Link, LineNumber);
+							}, FPaths::ConvertRelativePathToFull(FDocumentationLink::ToSourcePath(DocumentationLink, FInternationalization::Get().GetCurrentCulture())), Excerpts[ExcerptIndex].LineNumber)
 				];
 			}
 		}
