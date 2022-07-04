@@ -94,11 +94,9 @@ namespace DatasmithSketchUp
 
 		void Update();
 
+		TMap<FEntityIDType, TSharedPtr<FComponentDefinition>> ComponentDefinitionMap;
 	private:
 		FExportContext& Context;
-
-		TMap<FEntityIDType, TSharedPtr<FComponentDefinition>> ComponentDefinitionMap;
-
 	};
 
 	class FTextureCollection
@@ -168,44 +166,93 @@ namespace DatasmithSketchUp
 		FExportContext& Context;
 	};
 
-	class FMaterialCollection
+	class FRegularMaterials
 	{
 	public:
-		FMaterialCollection(FExportContext & InContext) : Context(InContext) {}
-
-		// Initialize the dictionary of material definitions.
-		void PopulateFromModel(
-			SUModelRef InSModelRef // model containing SketchUp material definitions
-		);
-		void Update();
-
-		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
-		TSharedPtr<FMaterial> CreateMaterial(FMaterialIDType MaterialID);
-		void InvalidateMaterial(SUMaterialRef SMaterialDefinitionRef);
-		bool InvalidateMaterial(FMaterialIDType MateriadId);
-		bool RemoveMaterial(FEntityIDType EntityId);
-
-		bool InvalidateDefaultMaterial();
-
+		FRegularMaterials(FExportContext& InContext): Context(InContext)
+		{
+		}
 
 		TSharedPtr<FMaterial> FindOrCreateMaterial(FMaterialIDType MaterialID);
 
-		// Tell that this materials is assigned on the node
-		FMaterialOccurrence* RegisterInstance(FMaterialIDType MaterialID, FNodeOccurence* NodeOccurrence);
+		bool InvalidateMaterial(FMaterialIDType MateriadId);
+		bool RemoveMaterial(FMaterialIDType EntityId);
 
 		// Tell that this materials is assigned directly to a face on the geometry
 		FMaterialOccurrence* RegisterGeometry(FMaterialIDType MaterialID, DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry);
+		// Tell that this materials is assigned on the node
+		FMaterialOccurrence* RegisterInstance(FMaterialIDType MaterialID, FNodeOccurence* NodeOccurrence);
 
-		void UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometry * EntitiesGeometry);
 
-		const TCHAR* GetDefaultMaterialName();
+		void UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry);
+
+		bool InvalidateDefaultMaterial();
+
+		void RemoveUnused();
+		void UpdateDefaultMaterial();
+		void Apply(FMaterial* Material);
 
 	private:
 		FExportContext& Context;
 
-		TMap<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> MaterialDefinitionMap;
+		TMap<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> MaterialForMaterialId;
+		TMap<DatasmithSketchUp::FMaterial*, FMaterialIDType> MaterialIdForMaterial;
+		// TMap<FMaterialIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> MaterialDefinitionMap;
 
+		// todo: include default material into whole update cycle(textures, unused)
 		FMaterialOccurrence DefaultMaterial;
+	};
+
+
+	class FLayerMaterials
+	{
+	public:
+		FLayerMaterials(FExportContext& InContext): Context(InContext)
+		{
+		}
+
+		TSharedPtr<FMaterial> FindOrCreateMaterialForLayer(FLayerIDType LayerID);
+
+		FMaterialOccurrence* RegisterGeometryForLayer(FLayerIDType LayerID, FEntitiesGeometry* EntitiesGeometry);
+		void RemoveUnused();
+		void Apply(FMaterial* Material);
+		void UpdateLayer(SULayerRef LayerRef);
+		FMaterialOccurrence* RegisterInstance(FLayerIDType LayerID, FNodeOccurence* Node);
+		bool CheckForModifications();
+
+	private:
+		FExportContext& Context;
+
+		TMap<FLayerIDType, TSharedPtr<DatasmithSketchUp::FMaterial>> MaterialForLayerId;
+		TMap<FLayerIDType, FMD5Hash> MaterialHashForLayerId;
+		TMap<DatasmithSketchUp::FMaterial*, FLayerIDType> LayerIdForMaterial;
+	};
+
+	class FMaterialCollection
+	{
+	public:
+		FMaterialCollection(FExportContext & InContext) : Context(InContext), LayerMaterials(InContext), RegularMaterials(InContext)
+		{
+		}
+
+		void Update();
+
+		TSharedPtr<FMaterial> CreateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		void InvalidateMaterial(SUMaterialRef SMaterialDefinitionRef);
+		bool RemoveMaterial(FMaterial* Material);
+
+		void UnregisterGeometry(DatasmithSketchUp::FEntitiesGeometry* EntitiesGeometry);
+
+		void SetMeshActorOverrideMaterial(FNodeOccurence& Node, DatasmithSketchUp::FEntitiesGeometry& EntitiesGeometry, const TSharedPtr<IDatasmithMeshActorElement>& MeshActor);
+
+	private:
+		FExportContext& Context;
+	public:
+		FLayerMaterials LayerMaterials;
+		FRegularMaterials RegularMaterials;
+	private:
+		TSet<DatasmithSketchUp::FMaterial*> Materials;
+
 	};
 
 	// Tracks information related to SketchUp "Tags"/"Layers"
@@ -217,6 +264,9 @@ namespace DatasmithSketchUp
 		void PopulateFromModel(SUModelRef InSModelRef);
 		void UpdateLayer(SULayerRef LayerRef);
 		bool IsLayerVisible(SULayerRef LayerRef);
+		SULayerRef GetLayer(FLayerIDType LayerID);
+
+		FLayerIDType GetLayerId(SULayerRef LayerRef);
 
 		TMap<FLayerIDType, bool> LayerVisibility;
 	private:
@@ -233,10 +283,14 @@ namespace DatasmithSketchUp
 		const TCHAR* GetAssetsOutputPath() const;
 
 		void Populate(); // Create Datasmith scene from the Model
-		void Update(); // Update Datasmith scene to reflect iterative changes done to the Model 
+		bool Update(bool bModifiedHint); // Update Datasmith scene to reflect iterative changes done to the Model 
 
 		FDefinition* GetDefinition(SUEntityRef Entity);
 		FDefinition* GetDefinition(FEntityIDType DefinitionEntityId);
+
+		bool InvalidateColorByLayer();
+
+		bool PreUpdateColorByLayer();
 
 		SUModelRef ModelRef = SU_INVALID;
 
@@ -254,6 +308,9 @@ namespace DatasmithSketchUp
 		FSceneCollection Scenes;
 		FTextureCollection Textures;
 		FLayerCollection Layers;
+
+		bool bColorByLayer = false;
+		bool bColorByLayerInvaliated = true;
 
 		TArray<TFuture<bool>> MeshExportTasks;
 	};

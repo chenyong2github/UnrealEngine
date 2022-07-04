@@ -312,9 +312,9 @@ public:
 		return true;
 	}
 
-	void Update()
+	bool Update(bool bModifiedHint)
 	{
-		Context.Update();
+		return Context.Update(bModifiedHint);
 	}
 
 	void SendUpdate()
@@ -373,10 +373,9 @@ public:
 		}
 
 		// Try Material
-		if (Context.Materials.RemoveMaterial(EntityId))
-		{
-			return true;
-		}
+		// Doesn't seem like material removal event ever comes through properly
+		// MaterialsObserver::onMaterialRemove simply has deleted material entity(meaning there's not way to retrieve correct reference/id for it) 
+		ensure(!Context.Materials.RegularMaterials.RemoveMaterial(EntityId));
 
 		return false;
 	}
@@ -402,7 +401,7 @@ public:
 			}
 		}
 
-		if (Context.Materials.InvalidateMaterial(EntityId))
+		if (Context.Materials.RegularMaterials.InvalidateMaterial(EntityId))
 		{
 			return true;
 		}
@@ -491,7 +490,6 @@ public:
 		}
 		case SURefType_Material:
 		{
-			Context.Materials.CreateMaterial(SUMaterialFromEntity(Entity));
 			break;
 		}
 		default:
@@ -514,13 +512,19 @@ public:
 		Context.ComponentInstances.LayerModified(LayerId);
 		Context.EntitiesObjects.LayerModified(LayerId);
 		Context.Layers.UpdateLayer(SULayerFromEntity(Entity));
+		Context.Materials.LayerMaterials.UpdateLayer(SULayerFromEntity(Entity));
 
 		return true;
 	}
 
 	bool OnStyleModified()
 	{
-		return Context.Materials.InvalidateDefaultMaterial();
+		return Context.Materials.RegularMaterials.InvalidateDefaultMaterial();
+	}
+
+	bool OnColorByLayerModified()
+	{
+		return Context.InvalidateColorByLayer();
 	}
 };
 
@@ -619,15 +623,16 @@ VALUE DatasmithSketchUpDirectLinkExporter_send_update(VALUE self)
 	return Qtrue;
 }
 
-VALUE DatasmithSketchUpDirectLinkExporter_update(VALUE self)
+VALUE DatasmithSketchUpDirectLinkExporter_update(VALUE self, VALUE modified_hint)
 {
 	// Converting args
 	FDatasmithSketchUpDirectLinkExporter* ptr;
 	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, ptr);
+
+	bool bModifiedHint = RTEST(modified_hint);
 	// Done converting args
 
-	ptr->Update();
-	return Qtrue;
+	return ptr->Update(bModifiedHint) ? Qtrue : Qfalse;
 }
 
 VALUE DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene(VALUE self)
@@ -813,6 +818,18 @@ VALUE DatasmithSketchUpDirectLinkExporter_on_style_changed(VALUE self)
 	return Qtrue;
 }
 
+VALUE DatasmithSketchUpDirectLinkExporter_on_color_by_layer_changed(VALUE self)
+{
+	// Converting args
+	FDatasmithSketchUpDirectLinkExporter* Ptr;
+	Data_Get_Struct(self, FDatasmithSketchUpDirectLinkExporter, Ptr);
+	// Done converting args
+
+	Ptr->OnColorByLayerModified();
+
+	return Qtrue;
+}
+
 VALUE on_load(VALUE self, VALUE enable_ui, VALUE engine_path) {
 	// Converting args
 	Check_Type(engine_path, T_STRING);
@@ -899,8 +916,9 @@ extern "C" DLLEXPORT void Init_DatasmithSketchUp()
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_entity_removed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_entity_removed), 2);
 
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_style_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_style_changed), 0);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "on_color_by_layer_changed", ToRuby(DatasmithSketchUpDirectLinkExporter_on_color_by_layer_changed), 0);
 
-	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 0);
+	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "update", ToRuby(DatasmithSketchUpDirectLinkExporter_update), 1);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "send_update", ToRuby(DatasmithSketchUpDirectLinkExporter_send_update), 0);
 	rb_define_method(DatasmithSketchUpDirectLinkExporterCRubyClass, "export_current_datasmith_scene", ToRuby(DatasmithSketchUpDirectLinkExporter_export_current_datasmith_scene), 0);
 

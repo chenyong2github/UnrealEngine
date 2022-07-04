@@ -65,12 +65,10 @@ namespace DatasmithSketchUp
 	public:
 
 		// Convert the combined mesh into a Datasmith mesh.
-		void ConvertMeshToDatasmith(SUTransformation Transform, FDatasmithMesh& OutDMesh) const;
+		void ConvertMeshToDatasmith(FExportContext& Context, SUTransformation Transform, FDatasmithMesh& OutDMesh) const;
 
 		// Tessellate a SketchUp face into a triangle mesh merged into the combined mesh.
-		void AddFace(
-			SUFaceRef InSFaceRef // valid source SketchUp face to tessellate and combine
-		);
+		void AddFace(FExportContext& Context, SUFaceRef InSFaceRef, FLayerIDType LayerId);
 
 		int32 GetOrCreateSlotForMaterial(FMaterialIDType MaterialID)
 		{
@@ -83,6 +81,21 @@ namespace DatasmithSketchUp
 				int32 SlotId = MaterialIDForSlotId.Num();
 				MaterialIDForSlotId.Add(MaterialID);// Assign material to slot
 				SlotIdForMaterialId.Add(MaterialID, SlotId); // store back reference from material to slot
+				return SlotId;
+			}
+		}
+
+		int32 GetOrCreateSlotForLayer(FLayerIDType LayerID)
+		{
+			if (int32* SlotIdPtr = SlotIdForLayerId.Find(LayerID))
+			{
+				return *SlotIdPtr;
+			}
+			else
+			{
+				int32 SlotId = LayerIDForSlotId.Num();
+				LayerIDForSlotId.Add(LayerID);// Assign material to slot
+				SlotIdForLayerId.Add(LayerID, SlotId); // store back reference from material to slot
 				return SlotId;
 			}
 		}
@@ -107,6 +120,10 @@ namespace DatasmithSketchUp
 
 		TArray<FEntityIDType> MaterialIDForSlotId;
 		TMap<FEntityIDType, int32> SlotIdForMaterialId;
+
+		TArray<FLayerIDType> LayerIDForSlotId;
+		TMap<FLayerIDType, int32> SlotIdForLayerId;
+
 		bool bHasFacesWithDefaultMaterial = false;;
 
 	};
@@ -117,7 +134,7 @@ namespace DatasmithSketchUp
 		return (MeshVertexPoints.Num() > 0 && MeshTriangleIndices.Num() > 0);
 	}
 
-	void FDatasmithSketchUpMesh::AddFace(SUFaceRef InSFaceRef)
+	void FDatasmithSketchUpMesh::AddFace(FExportContext& Context, SUFaceRef InSFaceRef, FLayerIDType LayerId)
 	{
 		// Retrieve the SketchUp face front material.
 		SUMaterialRef FrontMaterialRef = SU_INVALID;
@@ -263,24 +280,31 @@ namespace DatasmithSketchUp
 
 		int32 SlotId = 0; // Default material slot
 
-		// Get the SketckUp material ID.
-		if (bUseFrontMaterial)
+		if (Context.bColorByLayer)
 		{
-			if (SUIsValid(FrontMaterialRef))
+			// Get the front material ID of the SketckUp front material.
+			SlotId = GetOrCreateSlotForLayer(LayerId);
+		}
+		else
+		{
+			// Get the SketckUp material ID.
+			if (bUseFrontMaterial)
 			{
-				// Get the front material ID of the SketckUp front material.
-				SlotId = GetOrCreateSlotForMaterial(DatasmithSketchUpUtils::GetMaterialID(FrontMaterialRef));
+				if (SUIsValid(FrontMaterialRef))
+				{
+					// Get the front material ID of the SketckUp front material.
+					SlotId = GetOrCreateSlotForMaterial(DatasmithSketchUpUtils::GetMaterialID(FrontMaterialRef));
+				}
+			}
+			else // bUseBackMaterial
+			{
+				if (SUIsValid(BackMaterialRef))
+				{
+					// Get the back material ID of the SketckUp back material.
+					SlotId = GetOrCreateSlotForMaterial(DatasmithSketchUpUtils::GetMaterialID(BackMaterialRef));
+				}
 			}
 		}
-		else // bUseBackMaterial
-		{
-			if (SUIsValid(BackMaterialRef))
-			{
-				// Get the back material ID of the SketckUp back material.
-				SlotId = GetOrCreateSlotForMaterial(DatasmithSketchUpUtils::GetMaterialID(BackMaterialRef));
-			}
-		}
-
 
 		if (SlotId == 0)
 		{
@@ -289,14 +313,15 @@ namespace DatasmithSketchUp
 			bHasFacesWithDefaultMaterial = true;
 		}
 
-		MeshTriangleSlotIds.Reserve(MeshTriangleSlotIds.Num());
+		MeshTriangleSlotIds.Reserve(MeshTriangleSlotIds.Num() + TriangleCount);
+		
 		for(int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 		{
 			MeshTriangleSlotIds.Add(SlotId);
 		}
 	}
 
-	void FDatasmithSketchUpMesh::ConvertMeshToDatasmith(SUTransformation Transform, FDatasmithMesh& OutDMesh) const
+	void FDatasmithSketchUpMesh::ConvertMeshToDatasmith(FExportContext& Context, SUTransformation Transform, FDatasmithMesh& OutDMesh) const
 	{
 		// Get the number of mesh vertices (must be > 0).
 		int32 VertexCount = MeshVertexPoints.Num();
@@ -408,7 +433,8 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			if (MeshCount < EntitiesGeometry->Meshes.Num())
 			{
 				Mesh = EntitiesGeometry->Meshes[MeshCount];
-				Mesh->SlotIdForMaterialID.Reset();
+				Mesh->SlotIdForMaterialId.Reset();
+				Mesh->SlotIdForLayerId.Reset();
 			}
 			else
 			{
@@ -425,19 +451,35 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 			Mesh->bIsUsingInheritedMaterial = ExtractedMeshPtr->bHasFacesWithDefaultMaterial;
 
 			// Add the non-inherited materials used by the combined mesh triangles.
-			for (int32 SlotId = 0;SlotId < ExtractedMeshPtr->MaterialIDForSlotId.Num(); ++SlotId)
+			if (Context.bColorByLayer)
 			{
-				if (SlotId == 0 && !ExtractedMeshPtr->bHasFacesWithDefaultMaterial)
+				for (int32 SlotId = 0;SlotId < ExtractedMeshPtr->LayerIDForSlotId.Num(); ++SlotId)
 				{
-					continue; // Skip adding Default material slot if it's not used
-				}
+					FLayerIDType LayerID = ExtractedMeshPtr->LayerIDForSlotId[SlotId];
+					Mesh->SlotIdForLayerId.FindOrAdd(LayerID, SlotId);
 
-				FMaterialIDType MeshMaterialID = ExtractedMeshPtr->MaterialIDForSlotId[SlotId];
-				Mesh->SlotIdForMaterialID.FindOrAdd(MeshMaterialID, SlotId);
-				// Default or (somehow)missing materials are also assigned to mesh(as a default material)
-				if (FMaterialOccurrence* Material = Context.Materials.RegisterGeometry(MeshMaterialID, EntitiesGeometry.Get()))
+					if (FMaterialOccurrence* Material = Context.Materials.LayerMaterials.RegisterGeometryForLayer(LayerID, EntitiesGeometry.Get()))
+					{
+						Mesh->DatasmithMesh->SetMaterial(Material->GetName(), SlotId);
+					}
+				}
+			}
+			else
+			{
+				for (int32 SlotId = 0;SlotId < ExtractedMeshPtr->MaterialIDForSlotId.Num(); ++SlotId)
 				{
-					Mesh->DatasmithMesh->SetMaterial(Material->GetName(), SlotId);
+					if (SlotId == 0 && !ExtractedMeshPtr->bHasFacesWithDefaultMaterial)
+					{
+						continue; // Skip adding Default material slot if it's not used
+					}
+
+					FMaterialIDType MeshMaterialID = ExtractedMeshPtr->MaterialIDForSlotId[SlotId];
+					Mesh->SlotIdForMaterialId.FindOrAdd(MeshMaterialID, SlotId);
+					// Default or (somehow)missing materials are also assigned to mesh(as a default material)
+					if (FMaterialOccurrence* Material = Context.Materials.RegularMaterials.RegisterGeometry(MeshMaterialID, EntitiesGeometry.Get()))
+					{
+						Mesh->DatasmithMesh->SetMaterial(Material->GetName(), SlotId);
+					}
 				}
 			}
 			
@@ -449,7 +491,7 @@ void FEntities::UpdateGeometry(FExportContext& Context)
 				{
 					FDatasmithMeshExporter DatasmithMeshExporter;
 					FDatasmithMesh DatasmithMesh;
-					ExtractedMeshPtr->ConvertMeshToDatasmith(Transform, DatasmithMesh);
+					ExtractedMeshPtr->ConvertMeshToDatasmith(Context, Transform, DatasmithMesh);
 
 					FGCScopeGuard GCGuard; // Prevent GC from running while UDatasmithMesh is created in ExportToUObject. 
 					return DatasmithMeshExporter.ExportToUObject(Mesh->DatasmithMesh, Context.GetAssetsOutputPath(), DatasmithMesh, nullptr, FDatasmithExportOptions::LightmapUV);
@@ -580,14 +622,15 @@ void ScanSketchUpEntitiesFaces(FExportContext& Context, SUEntitiesRef EntitiesRe
 			// this geometry needs to be rebuilt
 			SULayerRef LayerRef = SU_INVALID;
 			SUDrawingElementGetLayer(SUFaceToDrawingElement(SScannedFaceRef), &LayerRef);
-			Geometry.Layers.Add(DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(LayerRef)));
+			FLayerIDType LayerId = DatasmithSketchUpUtils::GetEntityID(SULayerToEntity(LayerRef));
+			Geometry.Layers.Add(LayerId);
 
 			bool bFaceHidden = false;
 			SUDrawingElementGetHidden(SUFaceToDrawingElement(SScannedFaceRef), &bFaceHidden);
 
 			if (!bFaceHidden && Context.Layers.IsLayerVisible(LayerRef))
 			{
-				ExtractedMesh.AddFace(SScannedFaceRef);
+				ExtractedMesh.AddFace(Context, SScannedFaceRef, LayerId);
 			}
 
 			// Get the number of SketchUp face edges.

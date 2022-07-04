@@ -11,6 +11,7 @@
 // Datasmith SDK.
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
+#include "Misc/SecureHash.h"
 #include "Templates/SharedPointer.h"
 
 
@@ -25,6 +26,7 @@ namespace DatasmithSketchUp
 	class FMaterial;
 	class FTexture;
 
+	// Holds datasmith material and records connections to its 'users' - meshes and nodes
 	class FMaterialOccurrence : FNoncopyable
 	{
 	public:
@@ -64,7 +66,8 @@ namespace DatasmithSketchUp
 		void RegisterInstance(FNodeOccurence* NodeOccurrence); // Tie material to an instance it's used on
 		void UnregisterInstance(FExportContext& Context, FNodeOccurence* NodeOccurrence);
 
-		void Apply(FMaterialIDType MaterialId); // Apply material to meshes/instances
+		void ApplyRegularMaterial(FMaterialIDType MaterialId); // Apply material to meshes/instances
+		void ApplyLayerMaterial(FLayerIDType LayerId); // Apply material to meshes/instances
 
 		TSet<FEntitiesGeometry*> MeshesMaterialDirectlyAppliedTo;
 		TSet<FNodeOccurence*> NodesMaterialInheritedBy;
@@ -103,6 +106,10 @@ namespace DatasmithSketchUp
 
 
 		void Invalidate();
+		bool IsInvalidated()
+		{
+			return bInvalidated;
+		}
 		void UpdateTexturesUsage(FExportContext& Context);
 		void Update(FExportContext& Context); // create datasmith elements for material occurrences
 		void Remove(FExportContext& Context);
@@ -117,6 +124,16 @@ namespace DatasmithSketchUp
 			return Texture;
 		}
 
+		FMD5Hash ComputeHash(FExportContext& Context);
+
+		// Material can be directly applied to a face in SketchUp
+		FMaterialOccurrence MaterialDirectlyAppliedToMeshes;
+		// In case face has Default material assigned it inherits material set to it's parent(in general - first non-Default material in ancestors chain)
+		FMaterialOccurrence MaterialInheritedByNodes;
+
+		// Whether UVs of geometry have texture scaling baked, when applying this material
+		// Scaling is baked for regular materials, applied directly to faces so regular materials assigned to static meshes need to take this into account.
+		bool bGeometryHasScalingBakedIntoUvs = true;
 	private:
 
 		SUMaterialRef MaterialRef;
@@ -124,11 +141,6 @@ namespace DatasmithSketchUp
 		int32 EntityId;
 
 		FTexture* Texture = nullptr;
-
-		// Material can be directly applied to a face in SketchUp
-		FMaterialOccurrence MaterialDirectlyAppliedToMeshes;
-		// In case face has Default material assigned it inherits material set to it's parent(in general - first non-Default material in ancestors chain)
-		FMaterialOccurrence MaterialInheritedByNodes;
 
 		uint8 bInvalidated : 1;
 

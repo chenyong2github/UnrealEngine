@@ -291,6 +291,17 @@ namespace DatasmithSketchUp
 		TSet<FMaterial*> MaterialsUsed;
 		bool bDefaultMaterialUsed = false;
 
+		bool IsDefaultLayerMaterialUsed()
+		{
+			return bDefaultMaterialUsed;
+		}
+
+		void SetDefaultLayerMaterialUsed()
+		{
+			bDefaultMaterialUsed = true;
+		}
+
+
 		// todo: update reusing datasmith elements? 
 		// todo: merge ALL faces that are present in Entities into single mesh? do we really need separate mesh for every isolated set of faces?
 		// todo: occurrences using these entities must ne referenced

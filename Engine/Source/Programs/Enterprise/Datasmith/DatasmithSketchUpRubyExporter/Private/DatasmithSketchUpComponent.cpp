@@ -726,7 +726,6 @@ void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 		Node.InheritedMaterialID = Node.ParentNode->InheritedMaterialID;
 	}
 
-
 	FString MeshActorLabel = Node.GetActorLabel();
 	// Update Datasmith Mesh Actors
 	for (int32 MeshIndex = 0; MeshIndex < Node.MeshActors.Num(); ++MeshIndex)
@@ -739,13 +738,7 @@ void FEntity::UpdateOccurrence(FExportContext& Context, FNodeOccurence& Node)
 		// todo: set inherited material only on mesh actors that have faces with default material, right now setting on every mesh, hot harmful but excessive
 		if (EntitiesGeometry.IsMeshUsingInheritedMaterial(MeshIndex))
 		{
-			if (FMaterialOccurrence* Material = Context.Materials.RegisterInstance(Node.InheritedMaterialID, &Node))
-			{
-				// SketchUp has 'material override' only for single('Default') material. 
-				// So we reset overrides on the actor to remove this single override(if it was set) and re-add new override
-				MeshActor->ResetMaterialOverrides(); // Clear previous override if was set
-				MeshActor->AddMaterialOverride(Material->GetName(), EntitiesGeometry.GetInheritedMaterialOverrideSlotId());
-			}
+			Context.Materials.SetMeshActorOverrideMaterial(Node, EntitiesGeometry, MeshActor);
 		}
 	}
 }
@@ -816,6 +809,8 @@ void FComponentInstance::UpdateOccurrence(FExportContext& Context, FNodeOccurenc
 	{
 		return;
 	}
+
+	Node.EffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(GetComponentInstanceRef(), Node.ParentNode->EffectiveLayerRef);
 
 	if (FDefinition* EntityDefinition = GetDefinition())
 	{
@@ -996,8 +991,6 @@ void FComponentInstance::FillOccurrenceActorMetadata(FNodeOccurence& Node)
 
 void FComponentInstance::UpdateOccurrenceVisibility(FExportContext& Context, FNodeOccurence& Node)
 {
-	Node.EffectiveLayerRef = DatasmithSketchUpUtils::GetEffectiveLayer(GetComponentInstanceRef(), Node.ParentNode->EffectiveLayerRef);
-
 	// Parent node, component instance and layer - all should be visible to have node visible
 	Node.SetVisibility(Node.ParentNode->bVisible && !bHidden && bLayerVisible);
 
