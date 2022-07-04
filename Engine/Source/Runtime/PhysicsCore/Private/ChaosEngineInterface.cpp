@@ -1750,9 +1750,8 @@ void FChaosEngineInterface::ReleaseActor(FPhysicsActorHandle& Handle,FChaosScene
 {
 	if(!Handle)
 	{
-		UE_LOG(LogChaos,Warning,TEXT("Attempting to release an actor with a null handle"));
-		CHAOS_ENSURE(false);
-
+		UE_LOG(LogChaos, Verbose, TEXT("Attempting to release an actor with a null handle"));
+		
 		return;
 	}
 
