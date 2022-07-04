@@ -80,14 +80,16 @@ namespace Horde.Storage.Implementation
             int countOfDeletedRecords = 0;
             DateTime cutoffTime = DateTime.Now.AddSeconds(-1 * _settings.CurrentValue.LastAccessCutoff.TotalSeconds);
             int consideredCount = 0;
-            await foreach ((BucketId bucket, IoHashKey name, DateTime lastAccessTime) in _referencesStore.GetRecords(ns).WithCancellation(cancellationToken))
+            await Parallel.ForEachAsync(_referencesStore.GetRecords(ns), new ParallelOptions {MaxDegreeOfParallelism = _settings.CurrentValue.OrphanRefMaxParallelOperations, CancellationToken = cancellationToken}, async (tuple, token) =>
             {
+                (BucketId bucket, IoHashKey name, DateTime lastAccessTime) = tuple;
+
                 _logger.Debug("Considering object in {Namespace} {Bucket} {Name} for deletion, was last updated {LastAccessTime}", ns, bucket, name, lastAccessTime);
                 Interlocked.Increment(ref consideredCount);
 
                 if (lastAccessTime > cutoffTime)
                 {
-                    continue;
+                    return;
                 }
 
                 _logger.Information("Attempting to delete object {Namespace} {Bucket} {Name} as it was last updated {LastAccessTime} which is older then {CutoffTime}", ns, bucket, name, lastAccessTime, cutoffTime);
@@ -118,7 +120,7 @@ namespace Horde.Storage.Implementation
                 {
                     _logger.Warning("Failed to delete record {Bucket} {Name} in {Namespace}", bucket, name, ns);            
                 }
-            }
+            });
 
             _logger.Information("Finished cleaning {Namespace}. Refs considered: {ConsideredCount} Refs Deleted: {DeletedCount}", ns, consideredCount, countOfDeletedRecords);
 

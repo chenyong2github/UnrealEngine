@@ -256,7 +256,8 @@ namespace Horde.Storage
 
         public TimeSpan BlobCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
         public TimeSpan RefCleanupPollFrequency { get; set; } = TimeSpan.FromMinutes(60);
-
+        public int OrphanGCMaxParallelOperations { get; set; } = 8;
+        public int OrphanRefMaxParallelOperations { get; set; } = 8;
     }
 
     public class UpstreamRelaySettings

@@ -14,12 +14,14 @@ using Horde.Storage.Implementation.Blob;
 using Jupiter;
 using Jupiter.Common;
 using Jupiter.Implementation;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Horde.Storage.Implementation
 {
     public class OrphanBlobCleanupRefs : IBlobCleanup
     {
+        private readonly IOptionsMonitor<GCSettings> _gcSettings;
         private readonly IBlobService _blobService;
         private readonly IObjectService _objectService;
         private readonly IBlobIndex _blobIndex;
@@ -28,8 +30,9 @@ namespace Horde.Storage.Implementation
         private readonly ILogger _logger = Log.ForContext<OrphanBlobCleanupRefs>();
 
         // ReSharper disable once UnusedMember.Global
-        public OrphanBlobCleanupRefs(IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver)
+        public OrphanBlobCleanupRefs(IOptionsMonitor<GCSettings> gcSettings, IBlobService blobService, IObjectService objectService, IBlobIndex blobIndex, ILeaderElection leaderElection, INamespacePolicyResolver namespacePolicyResolver)
         {
+            _gcSettings = gcSettings;
             _blobService = blobService;
             _objectService = objectService;
             _blobIndex = blobIndex;
@@ -56,104 +59,134 @@ namespace Horde.Storage.Implementation
             }
 
             List<NamespaceId> namespaces = await ListNamespaces().Where(NamespaceShouldBeCleaned).ToListAsync();
-            
+            List<NamespaceId> namespacesThatHaveBeenChecked = new List<NamespaceId>();
             // enumerate all namespaces, and check if the old blob is valid in any of them to allow for a blob store to just store them in a single pile if it wants to
             ulong countOfBlobsRemoved = 0;
+            _logger.Information("Started orphan blob");
             foreach (NamespaceId @namespace in namespaces)
             {
+                // if we have already checked this namespace there is no need to repeat it
+                if (namespacesThatHaveBeenChecked.Contains(@namespace))
+                {
+                    continue;
+                }
                 if (cancellationToken.IsCancellationRequested)
                 {
                     break;
                 }
 
+                DateTime startTime = DateTime.Now;
                 NamespacePolicy policy = _namespacePolicyResolver.GetPoliciesForNs(@namespace);
                 List<NamespaceId> namespacesThatSharePool = namespaces.Where(ns => _namespacePolicyResolver.GetPoliciesForNs(ns).StoragePool == policy.StoragePool).ToList();
 
+                _logger.Information("Running Orphan GC For StoragePool: {StoragePool}", policy.StoragePool);
+                namespacesThatHaveBeenChecked.AddRange(namespacesThatSharePool);
                 // only consider blobs that have been around for 60 minutes
                 // this due to cases were blobs are uploaded first
                 DateTime cutoff = DateTime.Now.AddMinutes(-60);
-                await foreach ((BlobIdentifier blob, DateTime lastModified) in _blobService.ListObjects(@namespace).WithCancellation(cancellationToken))
+                await _blobService.ListObjects(@namespace).ParallelForEachAsync(async (tuple) =>
                 {
+                    (BlobIdentifier blob, DateTime lastModified) = tuple;
+
                     if (lastModified > cutoff)
                     {
-                        continue;
+                        return;
                     }
 
                     if (cancellationToken.IsCancellationRequested)
                     {
-                        break;
+                        return;
                     }
 
-                    using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob");
-                    removeBlobScope.Span.ResourceName = $"{@namespace}.{blob}";
+                    bool removed = await GCBlob(policy.StoragePool, namespacesThatSharePool, blob, lastModified, cancellationToken);
 
-                    bool found = false;
-
-                    // check all other namespaces that share the same storage pool for presence of the blob
-                    await Parallel.ForEachAsync(namespacesThatSharePool, cancellationToken, async (blobNamespace, token) =>
+                    if (removed)
                     {
-                        if (token.IsCancellationRequested)
-                        {
-                            return;
-                        }
-
-                        BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
-
-                        if (blobIndex == null)
-                        {
-                            return;
-                        }
-
-                        await Parallel.ForEachAsync(blobIndex.References, cancellationToken, async (tuple, token) =>
-                        {
-                            (BucketId bucket, IoHashKey key) = tuple;
-                            if (token.IsCancellationRequested)
-                            {
-                                return;
-                            }
-
-                            try
-                            {
-                                (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace,
-                                    bucket, key, new string[] { "name" });
-                                found = true;
-                            }
-                            catch (ObjectNotFoundException)
-                            {
-                                // this is not a valid reference so we should delete
-                            }
-                            catch (MissingBlobsException)
-                            {
-                                // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
-                                found = true;
-                            }
-                        });
-                    });
-
-                    if (cancellationToken.IsCancellationRequested)
-                    {
-                        break;
+                        Interlocked.Increment(ref countOfBlobsRemoved);
                     }
+                }, cancellationToken: cancellationToken, maxDegreeOfParallelism: _gcSettings.CurrentValue.OrphanGCMaxParallelOperations);
 
-                    removeBlobScope.Span.SetTag("removed", (!found).ToString());
-
-                    if (!found)
-                    {
-                        await Parallel.ForEachAsync(namespacesThatSharePool, cancellationToken, async (ns, _) =>
-                        {
-                            await RemoveBlob(ns, blob);
-                        });
-                        ++countOfBlobsRemoved;
-                    }
-                }
+                TimeSpan storagePoolGcDuration = DateTime.Now - startTime;
+                _logger.Information("Finished running Orphan GC For StoragePool: {StoragePool}. Took {Duration}", policy.StoragePool, storagePoolGcDuration);
             }
 
+            _logger.Information("Finished running Orphan GC");
             return countOfBlobsRemoved;
         }
 
-        private async Task RemoveBlob(NamespaceId ns, BlobIdentifier blob)
+        private async Task<bool> GCBlob(string storagePool, List<NamespaceId> namespacesThatSharePool, BlobIdentifier blob, DateTime lastModifiedTime, CancellationToken cancellationToken)
         {
-            _logger.Information("Attempting to GC Orphan blob {Blob} from {Namespace}", blob, ns);
+            using IScope removeBlobScope = Tracer.Instance.StartActive("gc.blob");
+            removeBlobScope.Span.ResourceName = $"{storagePool}.{blob}";
+
+            bool found = false;
+
+            // check all namespaces that share the same storage pool for presence of the blob
+            await Parallel.ForEachAsync(namespacesThatSharePool, cancellationToken, async (blobNamespace, token) =>
+            {
+                if (token.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                BlobInfo? blobIndex = await _blobIndex.GetBlobInfo(blobNamespace, blob);
+
+                if (blobIndex == null)
+                {
+                    return;
+                }
+
+                await Parallel.ForEachAsync(blobIndex.References, cancellationToken, async (tuple, token) =>
+                {
+                    (BucketId bucket, IoHashKey key) = tuple;
+                    if (token.IsCancellationRequested)
+                    {
+                        return;
+                    }
+
+                    try
+                    {
+                        (ObjectRecord, BlobContents?) _ = await _objectService.Get(blobNamespace,
+                            bucket, key, new string[] { "name" });
+                        found = true;
+                    }
+                    catch (ObjectNotFoundException)
+                    {
+                        // this is not a valid reference so we should delete
+                    }
+                    catch (MissingBlobsException)
+                    {
+                        // we do not care if there are missing blobs, as long as the record is valid we keep this blob around
+                        found = true;
+                    }
+                });
+            });
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return false;
+            }
+
+            removeBlobScope.Span.SetTag("removed", (!found).ToString());
+
+            // something is still referencing this blob, we should not delete it
+            if (found)
+            {
+                return false;
+            }
+
+            // if the blob was not found to have a reference in any of the namespace that share a storage pool then the blob is not used anymore and should be deleted from all the namespaces
+            await Parallel.ForEachAsync(namespacesThatSharePool, cancellationToken, async (ns, _) =>
+            {
+                await RemoveBlob(ns, blob, lastModifiedTime);
+            });
+            return true;
+
+        }
+
+        private async Task RemoveBlob(NamespaceId ns, BlobIdentifier blob, DateTime lastModifiedTime)
+        {
+            _logger.Information("Attempting to GC Orphan blob {Blob} from {Namespace} which was last modified at {LastModifiedTime}", blob, ns, lastModifiedTime);
             try
             {
                 await _blobService.DeleteObject(ns, blob);
