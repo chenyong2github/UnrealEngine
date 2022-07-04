@@ -602,7 +602,7 @@ void ARecastNavMesh::CheckToDiscardSubLevelNavData(const UNavigationSystemBase& 
 	{
 		// Get rid of instances saved within levels that are streamed-in
 		if ((GEngine->IsSettingUpPlayWorld() == false) // this is a @HACK
-			&& (OwningWorld->GetOutermost() != GetOutermost())
+			&& (OwningWorld->PersistentLevel != GetLevel())
 			// If we are cooking, then let them all pass.
 			// They will be handled at load-time when running.
 			&& (IsRunningCommandlet() == false))

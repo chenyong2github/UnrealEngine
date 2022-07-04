@@ -3733,7 +3733,14 @@ ANavigationData* UNavigationSystemV1::CreateNavigationDataInstanceInLevel(const 
 #if WITH_EDITOR
 			if (World->WorldType == EWorldType::Editor)
 			{
-				const bool bMarkDirty = false;
+				FString ActorLabel = StrName;
+				if (Instance->IsPackageExternal())
+				{
+					// When using external package, don't rely on actor's name to generate a label as it contains a unique actor identifier which obfuscates the label
+					ActorLabel = FString::Printf(TEXT("%s-%s"), *(Instance->GetClass()->GetFName().GetPlainNameString()), *(NavConfig.Name.ToString()));
+				}
+				
+				constexpr bool bMarkDirty = false;
 				Instance->SetActorLabel(StrName, bMarkDirty);
 			}
 #endif // WITH_EDITOR

@@ -419,6 +419,12 @@ bool FEditorBuildUtils::EditorBuild( UWorld* InWorld, FName Id, const bool bAllo
 			const FScopedBusyCursor BusyCursor;
 
 			TriggerNavigationBuilder(InWorld, Id);
+
+			// No need to dirty the world package if it uses external actors
+			if (InWorld->PersistentLevel->IsUsingExternalActors())
+			{
+				bDirtyPersistentLevel = false;
+			}
 		}
 	}
 	else if (CustomBuildTypes.Contains(Id))

@@ -556,7 +556,6 @@ public:
 #if WITH_EDITOR
 	virtual void RerunConstructionScripts() override;
 	virtual void PostEditUndo() override;
-	virtual bool SupportsExternalPackaging() const override { return false; }
 	bool IsBuildingOnLoad() const { return bIsBuildingOnLoad; }
 	void SetIsBuildingOnLoad(bool bValue) { bIsBuildingOnLoad = bValue; }
 #endif // WITH_EDITOR
