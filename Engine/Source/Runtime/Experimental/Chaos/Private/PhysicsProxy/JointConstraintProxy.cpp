@@ -105,10 +105,14 @@ void FJointConstraintPhysicsProxy::InitializeOnPhysicsThread(FPBDRigidsSolver* I
 
 void FJointConstraintPhysicsProxy::DestroyOnPhysicsThread(FPBDRigidsSolver* InSolver)
 {
-	if (Constraint_PT && Constraint_PT->IsValid())
+	if (Constraint_PT)
 	{
 		// @todo(chaos): clean up constraint management
-		InSolver->GetEvolution()->RemoveConstraintFromConstraintGraph(Constraint_PT);
+		if(Constraint_PT->IsInConstraintGraph())
+		{
+			InSolver->GetEvolution()->RemoveConstraintFromConstraintGraph(Constraint_PT);
+		}
+
 		auto& JointConstraints = InSolver->GetJointConstraints();
 		JointConstraints.RemoveConstraint(Constraint_PT->GetConstraintIndex());
 	}
