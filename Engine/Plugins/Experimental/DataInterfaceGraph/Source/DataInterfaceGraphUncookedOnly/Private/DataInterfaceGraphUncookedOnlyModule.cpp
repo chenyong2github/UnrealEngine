@@ -2,4 +2,4 @@
 
 #include "Modules/ModuleManager.h"
 
-IMPLEMENT_MODULE(FDefaultModuleImpl, DataInterfaceUncookedOnly);
+IMPLEMENT_MODULE(FDefaultModuleImpl, DataInterfaceGraphUncookedOnly);
