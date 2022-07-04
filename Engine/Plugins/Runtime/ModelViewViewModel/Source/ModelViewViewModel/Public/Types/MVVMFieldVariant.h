@@ -28,6 +28,18 @@ namespace UE::MVVM
 	public:
 		TMVVMFieldVariant() = default;
 
+		explicit TMVVMFieldVariant(FFieldVariant InVariant)
+		{
+			if (PropertyType* Property = InVariant.Get<PropertyType>())
+			{
+				Binding = VariantType(TInPlaceType<PropertyType*>(), Property);
+			}
+			else if (FunctionType* Function = InVariant.Get<FunctionType>())
+			{
+				Binding = VariantType(TInPlaceType<FunctionType*>(), Function);
+			}
+		}
+
 		explicit TMVVMFieldVariant(PropertyType* InValue)
 		{
 			Binding = VariantType(TInPlaceType<PropertyType*>(), InValue);
