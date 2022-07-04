@@ -25,7 +25,6 @@ FTrajectorySample UCharacterMovementTrajectoryComponent::CalcWorldSpacePresentTr
 		if (MovementComponent->MovementMode == EMovementMode::MOVE_Walking)
 		{
 			FTransform ComponentWorldTransform = Pawn->GetActorTransform();
-			FVector MovementComponentPosition = MovementComponent->GetLastUpdateLocation();
 
 			ReturnValue.Transform = ComponentWorldTransform;
 			ReturnValue.LinearVelocity = MovementComponent->Velocity;

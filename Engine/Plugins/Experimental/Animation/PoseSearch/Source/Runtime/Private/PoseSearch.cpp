@@ -395,6 +395,15 @@ void UPoseSearchSchema::PostLoad()
 	}
 }
 
+#if WITH_EDITOR
+void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	SchemaCardinality = -1;
+
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+#endif
+
 bool UPoseSearchSchema::IsValid() const
 {
 	bool bValid = Skeleton != nullptr;
@@ -1706,6 +1715,18 @@ UE::PoseSearch::FSearchResult UPoseSearchDatabase::Search(FPoseSearchContext& Se
 
 	if (!ensure(SearchIndex->IsValid() && !SearchIndex->IsEmpty()))
 	{
+		if (!Schema)
+		{
+			UE_LOG(LogAnimation, Error, TEXT("UPoseSearchDatabase %s failed to index. Reason: no Schema!"), *GetName());
+		}
+		else if(!Schema->IsValid())
+		{
+			UE_LOG(LogAnimation, Error, TEXT("UPoseSearchDatabase %s failed to index. Reason: Schema %s is invalid"), *GetName(), *Schema->GetName());
+		}
+		else
+		{
+			UE_LOG(LogAnimation, Error, TEXT("UPoseSearchDatabase %s failed to index. Reason: is there any unsaved modified asset?"), *GetName());
+		}
 		return Result;
 	}
 

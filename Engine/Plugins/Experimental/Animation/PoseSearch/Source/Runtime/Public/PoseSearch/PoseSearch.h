@@ -494,6 +494,10 @@ public: // UObject
 public: // IBoneReferenceSkeletonProvider
 	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override { bInvalidSkeletonIsError = false; return Skeleton; }
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+
 private:
 	void Finalize();
 	void ResolveBoneReferences();
