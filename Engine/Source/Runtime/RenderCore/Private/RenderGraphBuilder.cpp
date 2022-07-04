@@ -1730,7 +1730,7 @@ void FRDGBuilder::Execute()
 	{
 		SCOPED_NAMED_EVENT_TEXT("FRDGBuilder::ExecutePasses", FColor::Magenta);
 		SCOPE_CYCLE_COUNTER(STAT_RDG_ExecuteTime);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderOther);
+		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RDG_Execute);
 
 		// Wait on all async compilation tasks before executing any passes.
 		if (!AsyncCompileEvents.IsEmpty())
