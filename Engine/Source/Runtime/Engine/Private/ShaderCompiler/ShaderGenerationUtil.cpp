@@ -1530,7 +1530,7 @@ static FCriticalSection GCriticalSection;
 
 static FString GetAutoGenDirectory(EShaderPlatform TargetPlatform)
 {
-	FString PlatformName = LegacyShaderPlatformToShaderFormat(TargetPlatform).GetPlainNameString();
+	FString PlatformName = FDataDrivenShaderPlatformInfo::GetName(TargetPlatform).ToString();
 	FString AutogenHeaderDirectory = FPaths::ProjectIntermediateDir() / TEXT("ShaderAutogen") / PlatformName;
 	return AutogenHeaderDirectory;
 }
@@ -1967,7 +1967,6 @@ FGBufferInfo FShaderCompileUtilities::FetchGBufferInfoAndWriteAutogen(EShaderPla
 
 	FGBufferInfo BufferInfo = FetchFullGBufferInfo(Params);
 
-	FString PlatformName = LegacyShaderPlatformToShaderFormat(TargetPlatform).GetPlainNameString();
 	FString AutoGenDirectory = GetAutoGenDirectory(TargetPlatform);
 	FString AutogenHeaderFilename = AutoGenDirectory / TEXT("AutogenShaderHeaders.ush");
 	FString AutogenHeaderFilenameTemp = AutoGenDirectory / TEXT("AutogenShaderHeaders_temp.ush");

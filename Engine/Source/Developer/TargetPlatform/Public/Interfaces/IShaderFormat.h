@@ -78,7 +78,7 @@ public:
      * @returns true if the archive was created
      */
     virtual bool CreateShaderArchive( FString const& LibraryName,
-		FName Format,
+		FName ShaderFormatAndShaderPlatformName,
 		const FString& WorkingDirectory,
 		const FString& OutputDir,
 		const FString& DebugOutputDir,

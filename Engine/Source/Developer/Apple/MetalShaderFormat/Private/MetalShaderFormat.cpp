@@ -28,7 +28,7 @@ DEFINE_LOG_CATEGORY(LogMetalShaderCompiler)
 #define CHECK_METAL_COMPILER_TOOLCHAIN_SETUP 0
 
 extern bool StripShader_Metal(TArray<uint8>& Code, class FString const& DebugPath, bool const bNative);
-extern uint64 AppendShader_Metal(class FName const& Format, class FString const& ArchivePath, const FSHAHash& Hash, TArray<uint8>& Code);
+extern uint64 AppendShader_Metal(class FString const& ArchivePath, const FSHAHash& Hash, TArray<uint8>& Code);
 extern bool FinalizeLibrary_Metal(class FName const& Format, class FString const& ArchivePath, class FString const& LibraryPath, TSet<uint64> const& Shaders, class FString const& DebugOutputDir);
 
 class FMetalShaderFormat : public IShaderFormat
@@ -85,7 +85,7 @@ public:
 		return CanCompileBinaryShaders();
 	}
     virtual bool CreateShaderArchive(FString const& LibraryName,
-		FName Format,
+		FName ShaderFormatAndShaderPlatformName,
 		const FString& WorkingDirectory,
 		const FString& OutputDir,
 		const FString& DebugOutputDir,
@@ -95,9 +95,16 @@ public:
     {
 		const int32 NumShadersPerLibrary = 10000;
 		check(LibraryName.Len() > 0);
-		check(Format == NAME_SF_METAL || Format == NAME_SF_METAL_MRT || Format == NAME_SF_METAL_TVOS || Format == NAME_SF_METAL_MRT_TVOS || Format == NAME_SF_METAL_SM5 || Format == NAME_SF_METAL_MACES3_1 || Format == NAME_SF_METAL_MRT_MAC);
 
-		const FString ArchivePath = (WorkingDirectory / Format.GetPlainNameString());
+		TArray<FString> Components;
+		FString ShaderPlatform = ShaderFormatAndShaderPlatformName.ToString();
+		ShaderPlatform.ParseIntoArray(Components, TEXT("-"));
+		check(Components.Num() == 2);
+		FName ShaderFormatName(Components[0]);
+
+		check(ShaderFormatName == NAME_SF_METAL || ShaderFormatName == NAME_SF_METAL_MRT || ShaderFormatName == NAME_SF_METAL_TVOS || ShaderFormatName == NAME_SF_METAL_MRT_TVOS || ShaderFormatName == NAME_SF_METAL_SM5 || ShaderFormatName == NAME_SF_METAL_MACES3_1 || ShaderFormatName == NAME_SF_METAL_MRT_MAC);
+
+		const FString ArchivePath = (WorkingDirectory / ShaderFormatAndShaderPlatformName.GetPlainNameString());
 		IFileManager::Get().DeleteDirectory(*ArchivePath, false, true);
 		IFileManager::Get().MakeDirectory(*ArchivePath);
 
@@ -114,7 +121,7 @@ public:
 			SerializedShaders.DecompressShader(ShaderIndex, ShaderCode, TempShaderCode);
 			StripShader_Metal(TempShaderCode, DebugOutputDir, true);
 
-			uint64 ShaderId = AppendShader_Metal(Format, ArchivePath, SerializedShaders.ShaderHashes[ShaderIndex], TempShaderCode);
+			uint64 ShaderId = AppendShader_Metal(ArchivePath, SerializedShaders.ShaderHashes[ShaderIndex], TempShaderCode);
 			uint32 LibraryIndex = ShaderIndex / NumShadersPerLibrary;
 
 			if (ShaderId)
@@ -136,7 +143,7 @@ public:
 		SerializedShaders.Finalize();
 
 		bool bOK = false;
-		FString LibraryPlatformName = FString::Printf(TEXT("%s_%s"), *LibraryName, *Format.GetPlainNameString());
+		FString LibraryPlatformName = FString::Printf(TEXT("%s_%s"), *LibraryName, *ShaderFormatAndShaderPlatformName.GetPlainNameString());
 		LibraryPlatformName.ToLowerInline();
 		volatile int32 CompiledLibraries = 0;
 		TArray<FGraphEventRef> Tasks;
@@ -152,9 +159,9 @@ public:
 			}
 
 			// Enqueue the library compilation as a task so we can go wide
-			FGraphEventRef CompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([Format, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir, &CompiledLibraries]()
+			FGraphEventRef CompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([ShaderFormatName, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir, &CompiledLibraries]()
 			{
-				if (FinalizeLibrary_Metal(Format, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir))
+				if (FinalizeLibrary_Metal(ShaderFormatName, ArchivePath, LibraryPath, PartialShaders, DebugOutputDir))
 				{
 					FPlatformAtomics::InterlockedIncrement(&CompiledLibraries);
 				}
@@ -164,7 +171,7 @@ public:
 		}
 
 #if WITH_ENGINE
-		FGraphEventRef DebugDataCompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([Format, OutputDir, LibraryPlatformName, DebugOutputDir]()
+		FGraphEventRef DebugDataCompletionFence = FFunctionGraphTask::CreateAndDispatchWhenReady([ShaderFormatAndShaderPlatformName, OutputDir, LibraryPlatformName, DebugOutputDir]()
 		{
 			//TODO add a check in here - this will only work if we have shader archiving with debug info set.
 
@@ -189,7 +196,7 @@ public:
 				IFileManager::Get().FindFilesRecursive(FilesToArchive, *DebugOutputDir, TEXT("*.metal"), true, false, false);
 
 				//Write the local file names into the target file
-				const FString DebugDir = DebugOutputDir / *Format.GetPlainNameString();
+				const FString DebugDir = DebugOutputDir / *ShaderFormatAndShaderPlatformName.GetPlainNameString();
 
 				for (FString FileName : FilesToArchive)
 				{
@@ -225,7 +232,7 @@ public:
 			if (BinaryShaderAr != NULL)
 			{
 				FMetalShaderLibraryHeader Header;
-				Header.Format = Format.GetPlainNameString();
+				Header.Format = ShaderFormatName.GetPlainNameString();
 				Header.NumLibraries = SubLibraries.Num();
 				Header.NumShadersPerLibrary = NumShadersPerLibrary;
 

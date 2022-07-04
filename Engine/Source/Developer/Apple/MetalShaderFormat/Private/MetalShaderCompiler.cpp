@@ -1236,13 +1236,11 @@ bool StripShader_Metal(TArray<uint8>& Code, class FString const& DebugPath, bool
 	return bSuccess;
 }
 
-uint64 AppendShader_Metal(FName const& Format, FString const& WorkingDir, const FSHAHash& Hash, TArray<uint8>& InShaderCode)
+uint64 AppendShader_Metal(FString const& WorkingDir, const FSHAHash& Hash, TArray<uint8>& InShaderCode)
 {
 	uint64 Id = 0;
 	
 	const bool bCompilerAvailable = FMetalCompilerToolchain::Get()->IsCompilerAvailable();
-	
-	EShaderPlatform Platform = FMetalCompilerToolchain::MetalShaderFormatToLegacyShaderPlatform(Format);
 	
 	if (bCompilerAvailable)
 	{

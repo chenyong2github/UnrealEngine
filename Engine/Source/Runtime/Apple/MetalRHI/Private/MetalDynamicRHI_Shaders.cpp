@@ -55,8 +55,12 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 	@autoreleasepool {
 		FRHIShaderLibraryRef Result = nullptr;
 
-		FName PlatformName = LegacyShaderPlatformToShaderFormat(Platform);
-		FString LibName = FString::Printf(TEXT("%s_%s"), *Name, *PlatformName.GetPlainNameString());
+
+		const FName PlatformName = FDataDrivenShaderPlatformInfo::GetName(Platform);
+		const FName ShaderFormatName = LegacyShaderPlatformToShaderFormat(Platform);
+		FString ShaderFormatAndPlatform = ShaderFormatName.ToString() + TEXT("-") + PlatformName.ToString();
+
+		FString LibName = FString::Printf(TEXT("%s_%s"), *Name, *ShaderFormatAndPlatform);
 		LibName.ToLowerInline();
 
 		FString BinaryShaderFile = FilePath / LibName + METAL_MAP_EXTENSION;
@@ -93,7 +97,7 @@ FRHIShaderLibraryRef FMetalDynamicRHI::RHICreateShaderLibrary(EShaderPlatform Pl
 			delete BinaryShaderAr;
 
 			// Would be good to check the language version of the library with the archive format here.
-			if (Header.Format == PlatformName.GetPlainNameString())
+			if (Header.Format == ShaderFormatName.GetPlainNameString())
 			{
 				check(((SerializedShaders.GetNumShaders() + Header.NumShadersPerLibrary - 1) / Header.NumShadersPerLibrary) == Header.NumLibraries);
 
