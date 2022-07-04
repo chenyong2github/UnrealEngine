@@ -9,6 +9,8 @@
 #include "GeometryCollectionNodes.generated.h"
 
 
+class FGeometryCollection;
+
 USTRUCT()
 struct FGetCollectionAssetDataflowNode : public FDataflowNode
 {
@@ -961,6 +963,10 @@ public:
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;
+
+private:
+	// todo(chaos) this is a copy of a function in FractureEditorModeToolkit, we should move this to a common place  
+	static bool GetValidGeoCenter(FGeometryCollection* Collection, const TManagedArray<int32>& TransformToGeometryIndex, const TArray<FTransform>& Transforms, const TManagedArray<TSet<int32>>& Children, const TManagedArray<FBox>& BoundingBox, int32 TransformIndex, FVector& OutGeoCenter);
 
 };
 
