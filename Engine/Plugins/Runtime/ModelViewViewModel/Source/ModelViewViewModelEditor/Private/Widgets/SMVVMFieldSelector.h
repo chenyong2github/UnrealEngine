@@ -10,8 +10,9 @@
 #include "Types/MVVMFieldVariant.h"
 #include "UObject/UnrealType.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
-#include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
+#include "Widgets/SCompoundWidget.h"
+#include "Widgets/SMVVMFieldEntry.h"
 
 namespace UE::MVVM
 {
@@ -20,32 +21,6 @@ namespace UE::MVVM
 
 class SMVVMFieldIcon;
 class STextBlock; 
-
-using FIsFieldValidResult = TValueOrError<bool, FString>;
-DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, FMVVMBlueprintPropertyPath);
-
-class SMVVMFieldEntry : public SCompoundWidget
-{
-public:
-
-	SLATE_BEGIN_ARGS(SMVVMFieldEntry) :
-		_TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )
-		{}
-		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, Field)
-		SLATE_EVENT(FIsFieldValid, OnValidateField)
-	SLATE_END_ARGS()
-
-	void Construct(const FArguments& InArgs);
-	void Refresh(); 
-	void SetField(const FMVVMBlueprintPropertyPath& InField);
-
-private:
-	FMVVMBlueprintPropertyPath Field;
-	FIsFieldValid OnValidateField;
-	TSharedPtr<SMVVMFieldIcon> Icon;
-	TSharedPtr<STextBlock> Label;
-};
 
 class SMVVMFieldSelector : public SCompoundWidget
 {
@@ -69,7 +44,7 @@ public:
 		  * Would the given field be a valid entry for this combo box? 
 		  * The error string returned will be used as a tooltip.
 		  */
-		SLATE_EVENT(FIsFieldValid, OnValidateField)
+		SLATE_EVENT(UE::MVVM::FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -97,7 +72,7 @@ private:
 	TSharedPtr<SComboBox<FMVVMBlueprintPropertyPath>> FieldComboBox;
 
 	FSelectionChanged OnSelectionChangedDelegate;
-	FIsFieldValid OnValidateFieldDelegate;
+	UE::MVVM::FIsFieldValid OnValidateFieldDelegate;
 
 	TArray<FMVVMBlueprintPropertyPath> CachedAvailableFields;
 }; 
