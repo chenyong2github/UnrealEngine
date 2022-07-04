@@ -231,7 +231,7 @@ public:
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(FOutputDevicesReadScopeLock);
 		// A write lock has set the LSB. Cancel this read lock and wait for the write.
-		State.OutputDevicesLockState.fetch_sub(2, std::memory_order_relaxed);
+		State.OutputDevicesLockState.fetch_sub(2, std::memory_order_release);
 		// This read lock will wait until the write lock exits.
 		FReadScopeLock ScopeLock(State.OutputDevicesLock);
 		// Acquire on this read lock because the write may have mutated state that we read.
@@ -241,7 +241,7 @@ public:
 
 	FORCEINLINE ~FOutputDevicesReadScopeLock()
 	{
-		State.OutputDevicesLockState.fetch_sub(2, std::memory_order_relaxed);
+		State.OutputDevicesLockState.fetch_sub(2, std::memory_order_release);
 	}
 
 private:
