@@ -29,6 +29,9 @@ struct FSlateRenderingParams
 	FMatrix44f ViewProjectionMatrix;
 	FVector2f ViewOffset;
 	FGameTime Time;
+	TRefCountPtr<IPooledRenderTarget> UITarget;
+	TRefCountPtr<IPooledRenderTarget> UITargetMask;
+	EDisplayColorGamut HDRDisplayColorGamut;
 	bool bWireFrame;
 	bool bIsHDR;
 
@@ -36,6 +39,7 @@ struct FSlateRenderingParams
 		: ViewProjectionMatrix(InViewProjectionMatrix)
 		, ViewOffset(0.f, 0.f)
 		, Time(InTime)
+		, HDRDisplayColorGamut(EDisplayColorGamut::sRGB_D65)
 		, bWireFrame(false)
 		, bIsHDR(false)
 	{

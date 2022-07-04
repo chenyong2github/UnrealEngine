@@ -1163,6 +1163,9 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				RectParams.DestRect = FSlateRect(QuadPositionData.X, QuadPositionData.Y, QuadPositionData.Z, QuadPositionData.W);
 				RectParams.SourceTextureSize = PostProcessTexture->GetSizeXY();
 				RectParams.CornerRadius = ShaderParams.PixelParams3;
+				RectParams.UITarget = Params.UITarget;
+				RectParams.UITargetMask = Params.UITargetMask;
+				RectParams.HDRDisplayColorGamut = Params.HDRDisplayColorGamut;
 
 				RectParams.RestoreStateFunc = [&](FRHICommandListImmediate&InRHICmdList, FGraphicsPipelineStateInitializer& InGraphicsPSOInit) {
 					return UpdateScissorRect(
@@ -1171,7 +1174,7 @@ void FSlateRHIRenderingPolicy::DrawElements(
 						ScissorClips,
 						StencilClips,
 #endif
-						StencilRef,
+						RectParams.StencilRef,
 						MaskingID,
 						BackBuffer,
 						RenderBatch,

@@ -663,7 +663,7 @@ public:
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILevel, CVarUILevel.GetValueOnRenderThread());
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), OutputDevice, CVarOutputDevice->GetValueOnRenderThread());
 		
-		if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
+		if (UITextureWriteMaskRHI != nullptr)
 		{
 			SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UIWriteMaskTexture, UITextureWriteMaskRHI);
 		}
@@ -696,6 +696,53 @@ private:
 	LAYOUT_FIELD(FShaderParameter, UILevel);
 	LAYOUT_FIELD(FShaderParameter, OutputDevice);
 };
+
+
+// Pixel shader to convert UI from PQ 2020 to Linear (and 2020 space)
+class FHDRBackBufferConvertPS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FHDRBackBufferConvertPS, Global);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	FHDRBackBufferConvertPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		SceneTexture.Bind(Initializer.ParameterMap, TEXT("SceneTexture"));
+		SceneSampler.Bind(Initializer.ParameterMap, TEXT("SceneSampler"));
+	}
+	FHDRBackBufferConvertPS() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* SceneTextureRHI)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), SceneTexture, SceneSampler, TStaticSamplerState<SF_Point>::GetRHI(), SceneTextureRHI);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return TEXT("HDRBackBufferConvertPS");
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, SceneTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, SceneSampler);
+};
+
+IMPLEMENT_SHADER_TYPE(, FHDRBackBufferConvertPS, FHDRBackBufferConvertPS::GetSourceFilename(), FHDRBackBufferConvertPS::GetFunctionName(), SF_Pixel);
 
 #define SHADER_VARIATION(A) typedef FCompositePS<A> FCompositePS##A; \
 	IMPLEMENT_SHADER_TYPE2(FCompositePS##A, SF_Pixel);
@@ -755,6 +802,12 @@ void RenderSlateBatch(FTexture2DRHIRef SlateRenderTarget, bool bClear, bool bIsH
 				FSlateRenderingParams RenderParams(ViewMatrix * ViewportInfo.ProjectionMatrix, DrawCommandParams.Time);
 				RenderParams.bWireFrame = !!SlateWireFrame;
 				RenderParams.bIsHDR = bIsHDR;
+				RenderParams.HDRDisplayColorGamut = ViewportInfo.HDRDisplayColorGamut;
+				if (ViewportInfo.bSceneHDREnabled && !bIsHDR)
+				{
+					RenderParams.UITarget = ViewportInfo.UITargetRT;
+					RenderParams.UITargetMask = ViewportInfo.UITargetRTMask;
+				}
 				RenderingPolicy->SetUseGammaCorrection(!bIsHDR);
 
 				FTexture2DRHIRef EmptyTarget;
@@ -851,14 +904,6 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			SCOPE_CYCLE_COUNTER(STAT_SlateRenderingRTTime);
 			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Slate);
 
-			FSlateBatchData& BatchData = WindowElementList.GetBatchData();
-
-			// Update the vertex and index buffer	
-			RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchData);
-
-			// This must happen after rendering buffers are created
-			ViewportInfo.ConditionallyUpdateDepthBuffer(BatchData.IsStencilClippingRequired(), ViewportInfo.DesiredWidth, ViewportInfo.DesiredHeight);
-
 			// should have been created by the game thread
 			check(IsValidRef(ViewportInfo.ViewportRHI));
 
@@ -869,27 +914,56 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			const uint32 ViewportWidth = (ViewportRT) ? ViewportRT->GetSizeX() : ViewportInfo.Width;
 			const uint32 ViewportHeight = (ViewportRT) ? ViewportRT->GetSizeY() : ViewportInfo.Height;
 
+			EPixelFormat HDRSourceRTExpectedFormat = BackBuffer->GetFormat();
+			if (bCompositeUI)
+			{
+				// Some effects like slate posprocess blur get quite expensive if we have to do PQ->linear for every texture sample. Instead, work with a format where values are stored linearly
+				// Do not test BackBuffer->GetFormat() == PF_A2B10G10R10 because some platforms do not return this PF with ST2084
+				if (ViewportInfo.HDRDisplayOutputFormat == EDisplayOutputFormat::HDR_ACES_1000nit_ST2084 || ViewportInfo.HDRDisplayOutputFormat == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084)
+				{
+					// Prefer small float format to improve performance for slate's background blur. Banding might appear when choosing this format, but UITargetRTMask allows to discard pixels that have
+                    // not been touched by the UI
+					if (GPixelFormats[PF_FloatR11G11B10].Supported)
+					{
+						HDRSourceRTExpectedFormat = PF_FloatR11G11B10;
+					}
+					else
+					{
+						HDRSourceRTExpectedFormat = PF_FloatRGBA;
+					}
+				}
+			}
+
 			// Check to see that targets are up-to-date
 			if (bCompositeUI && (!ViewportInfo.UITargetRT || ViewportInfo.UITargetRT->GetRHI()->GetSizeX() != ViewportWidth || ViewportInfo.UITargetRT->GetRHI()->GetSizeY() != ViewportHeight
-				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRHI()->GetFormat() != BackBuffer->GetFormat()))
+				|| !ViewportInfo.HDRSourceRT || ViewportInfo.HDRSourceRT->GetRHI()->GetFormat() != HDRSourceRTExpectedFormat))
 			{
 				// Composition buffers
 				{
-				ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
-				FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
-					GetSlateRecommendedColorFormat(),
-					FClearValueBinding::Transparent,
-					BaseFlags,
-					TexCreate_ShaderResource | TexCreate_RenderTargetable,
-					false,
-					1,
-					true,
-					true));
+					ETextureCreateFlags BaseFlags = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? TexCreate_NoFastClearFinalize | TexCreate_DisableDCC : TexCreate_None;
+					FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(FIntPoint(ViewportWidth, ViewportHeight),
+						GetSlateRecommendedColorFormat(),
+						FClearValueBinding::Transparent,
+						BaseFlags,
+						TexCreate_ShaderResource | TexCreate_RenderTargetable,
+						false,
+						1,
+						true,
+						true));
 
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRT, TEXT("UITargetRT"));
+					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRT, TEXT("UITargetRT"));
 
-				Desc.Format = BackBuffer->GetFormat();
-				GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.HDRSourceRT, TEXT("HDRSourceRT"));
+					Desc.Format = HDRSourceRTExpectedFormat;
+					GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.HDRSourceRT, TEXT("HDRSourceRT"));
+
+                    // Because we may use small float format for storing scene color data, keep a mask to discard pixels that were untouched by the UI. Note: relying only on the UI Rendertarget's alpha does 
+                    // not work because of FSlatePostProcessor::BlurRect. It composes UI to scene / blur it / remove the UI that was there before the blur. After that, UI pixels are merged with the scene pixels
+                    // This RT will keep track of where the blur happened, and will be used with UITargetRT's alpha channel
+					if (!RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
+					{
+						Desc.Format = PF_R8_UINT;
+						GRenderTargetPool.FindFreeElement(RHICmdList, Desc, ViewportInfo.UITargetRTMask, TEXT("UITargetRTMask"));
+					}
 				}
 
 				// LUT
@@ -927,13 +1001,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 					RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear back buffer"));
 					RHICmdList.EndRenderPass();
 				}
-				else
 #endif
-				{
-				// Grab HDR backbuffer
-					TransitionAndCopyTexture(RHICmdList, FinalBuffer, ViewportInfo.HDRSourceRT->GetRHI(), {});
-				}
-
 				// UI backbuffer is temp target
 				BackBuffer = ViewportInfo.UITargetRT->GetRHI();
 			}
@@ -967,20 +1035,96 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 			RHICmdList.BeginDrawingViewport(ViewportInfo.ViewportRHI, FTextureRHIRef());
 			RHICmdList.SetViewport(0.f, 0.f, 0.f, (float)ViewportWidth, (float)ViewportHeight, 0.0f);
 
-			bool bHdrTarget = ViewportInfo.bSceneHDREnabled && !bCompositeUI;
-			RenderSlateBatch(BackBuffer, bClear, bHdrTarget, ViewportInfo, ViewMatrix, BatchData, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
-
 			if (bCompositeUI)
-					{
+			{
 				FSlateBatchData& BatchDataHDR = WindowElementList.GetBatchDataHDR();
 				bool bHasBatches = BatchDataHDR.GetRenderBatches().Num() > 0;
-						if (bHasBatches)
-						{
+				if (bHasBatches)
+				{
 					RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchDataHDR);
-					FTexture2DRHIRef UITargetHDRRTRHI(ViewportInfo.HDRSourceRT->GetRHI());
+					FTexture2DRHIRef UITargetHDRRTRHI(FinalBuffer);
 					RenderSlateBatch(UITargetHDRRTRHI, /*bClear*/ false, /*bIsHDR*/ true, ViewportInfo, ViewMatrix, BatchDataHDR, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
-			}
+			    }
 
+				// Grab HDR backbuffer
+				if (ViewportInfo.HDRSourceRT->GetDesc().Format == FinalBuffer->GetDesc().Format)
+				{
+					TransitionAndCopyTexture(RHICmdList, FinalBuffer, ViewportInfo.HDRSourceRT->GetRHI(), {});
+				}
+				else
+				{
+					// Do not test FinalBuffer->GetDesc().Format == PF_A2B10G10R10 because some platforms do not return this PF even with ST2084
+					//ensure(FinalBuffer->GetDesc().Format == PF_A2B10G10R10);
+					ensure(ViewportInfo.HDRDisplayOutputFormat == EDisplayOutputFormat::HDR_ACES_1000nit_ST2084 || ViewportInfo.HDRDisplayOutputFormat == EDisplayOutputFormat::HDR_ACES_2000nit_ST2084);
+					ensure(ViewportInfo.HDRSourceRT->GetDesc().Format == PF_FloatR11G11B10 || ViewportInfo.HDRSourceRT->GetDesc().Format == PF_FloatRGBA);
+
+					// Convert Scene Color in PQ to Linear so that Slate can perform post processing on it without any conversion
+					{
+						auto ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+						RHICmdList.Transition({ FRHITransitionInfo(ViewportInfo.HDRSourceRT->GetRHI(), ERHIAccess::Unknown, ERHIAccess::RTV),
+							                    FRHITransitionInfo(FinalBuffer, ERHIAccess::Unknown, ERHIAccess::SRVGraphics)
+							                  });
+						FRHIRenderPassInfo RPInfo(ViewportInfo.HDRSourceRT->GetRHI(), ERenderTargetActions::Load_Store);
+						RHICmdList.BeginRenderPass(RPInfo, TEXT("ConvertBackBuffer"));
+						{
+							FGraphicsPipelineStateInitializer GraphicsPSOInit;
+							RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+							GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+							GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+							GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+							TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
+							TShaderMapRef<FHDRBackBufferConvertPS> PixelShader(ShaderMap);
+
+							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+							GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+							SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+							PixelShader->SetParameters(RHICmdList, FinalBuffer);
+
+							static const FName RendererModuleName("Renderer");
+							IRendererModule& RendererModule = FModuleManager::GetModuleChecked<IRendererModule>(RendererModuleName);
+							RendererModule.DrawRectangle(
+								RHICmdList,
+								0.f, 0.f,
+								(float)ViewportWidth, (float)ViewportHeight,
+								0.f, 0.f,
+								(float)ViewportWidth, (float)ViewportHeight,
+								FIntPoint(ViewportWidth, ViewportHeight),
+								FIntPoint(ViewportWidth, ViewportHeight),
+								VertexShader,
+								EDRF_UseTriangleOptimization);
+						}
+						RHICmdList.EndRenderPass();
+					}
+				}
+
+				if (!RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) && ViewportInfo.UITargetRTMask.IsValid())
+				{
+					FRHIRenderPassInfo RPInfo(ViewportInfo.UITargetRTMask->GetRHI(), ERenderTargetActions::Clear_Store);
+					RHICmdList.BeginRenderPass(RPInfo, TEXT("Clear_UITargetRTMask"));
+					RHICmdList.EndRenderPass();
+				}
+
+		    	PostProcessBuffer = ViewportInfo.HDRSourceRT->GetRHI();
+            }
+
+			FSlateBatchData& BatchData = WindowElementList.GetBatchData();
+
+			// Update the vertex and index buffer	
+		    RenderingPolicy->BuildRenderingBuffers(RHICmdList, BatchData);
+
+			// This must happen after rendering buffers are created
+			ViewportInfo.ConditionallyUpdateDepthBuffer(BatchData.IsStencilClippingRequired(), ViewportInfo.DesiredWidth, ViewportInfo.DesiredHeight);
+
+		    bool bHdrTarget = ViewportInfo.bSceneHDREnabled && !bCompositeUI;
+		    RenderSlateBatch(BackBuffer, bClear, bHdrTarget, ViewportInfo, ViewMatrix, BatchData, RHICmdList, ViewportWidth, ViewportHeight, DrawCommandParams, RenderingPolicy, PostProcessBuffer);
+
+			if (bCompositeUI)
+			{
 				SCOPED_DRAW_EVENT(RHICmdList, SlateUI_Composition);
 
 				static const FName RendererModuleName("Renderer");
@@ -1055,7 +1199,7 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 						TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
 
-						FRHITexture* UITargetRTMaskTexture = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? ViewportInfo.UITargetRTMask->GetRHI() : nullptr;
+						FRHITexture* UITargetRTMaskTexture = ViewportInfo.UITargetRTMask.IsValid() ? ViewportInfo.UITargetRTMask->GetRHI() : nullptr;
 						if (HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_1000nit_ScRGB || HDROutputDevice == (int32)EDisplayOutputFormat::HDR_ACES_2000nit_ScRGB)
 						{
 							// ScRGB encoding

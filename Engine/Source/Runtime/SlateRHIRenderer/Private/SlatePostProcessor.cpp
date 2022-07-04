@@ -9,6 +9,8 @@
 #include "StaticBoundShaderState.h"
 #include "PipelineStateCache.h"
 #include "CommonRenderResources.h"
+#include "HDRHelper.h"
+#include "RendererUtils.h"
 
 DECLARE_CYCLE_STAT(TEXT("Slate PostProcessing RT"), STAT_SlatePostProcessingRTTime, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("Slate ColorDeficiency RT"), STAT_SlateColorDeficiencyRTTime, STATGROUP_Slate);
@@ -24,6 +26,151 @@ FSlatePostProcessor::~FSlatePostProcessor()
 {
 	// Note this is deleted automatically because it implements FDeferredCleanupInterface.
 	IntermediateTargets->CleanUp();
+}
+
+
+// Pixel shader to composite UI over HDR buffer
+class FBlitUIToHDRPS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FBlitUIToHDRPS, Global);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5) && (RHISupportsGeometryShaders(Parameters.Platform) || RHISupportsVertexShaderLayer(Parameters.Platform));
+	}
+
+	FBlitUIToHDRPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		UITexture.Bind(Initializer.ParameterMap, TEXT("UITexture"));
+		UIWriteMaskTexture.Bind(Initializer.ParameterMap, TEXT("UIWriteMaskTexture"));
+		UISampler.Bind(Initializer.ParameterMap, TEXT("UISampler"));
+		UILevel.Bind(Initializer.ParameterMap, TEXT("UILevel"));
+		SrgbToOutputMatrix.Bind(Initializer.ParameterMap, TEXT("SrgbToOutputMatrix"));
+	}
+	FBlitUIToHDRPS() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHITexture* UITextureRHI, FRHITexture* UITextureWriteMaskRHI, const FMatrix44f& InSrgbToOutputMatrix)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UITexture, UISampler, TStaticSamplerState<SF_Point>::GetRHI(), UITextureRHI);
+		static auto CVarHDRUILevel = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HDR.UI.Level"));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UILevel, CVarHDRUILevel ? CVarHDRUILevel->GetFloat() : 1.0f);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), SrgbToOutputMatrix, InSrgbToOutputMatrix);
+		if (UITextureWriteMaskRHI != nullptr)
+		{
+			SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), UIWriteMaskTexture, UITextureWriteMaskRHI);
+		}
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("BLIT_UI_TO_HDR"), 1);
+	}
+
+	static const TCHAR* GetSourceFilename()
+	{
+		return TEXT("/Engine/Private/CompositeUIPixelShader.usf");
+	}
+
+	static const TCHAR* GetFunctionName()
+	{
+		return TEXT("BlitUIToHDRPS");
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, UITexture);
+	LAYOUT_FIELD(FShaderResourceParameter, UISampler);
+	LAYOUT_FIELD(FShaderResourceParameter, UIWriteMaskTexture);
+	LAYOUT_FIELD(FShaderParameter, SrgbToOutputMatrix);
+	LAYOUT_FIELD(FShaderParameter, UILevel);
+};
+
+IMPLEMENT_SHADER_TYPE(, FBlitUIToHDRPS, FBlitUIToHDRPS::GetSourceFilename(), FBlitUIToHDRPS::GetFunctionName(), SF_Pixel);
+
+static void BlitUIToHDRScene(FRHICommandListImmediate& RHICmdList, IRendererModule& RendererModule, const FPostProcessRectParams& RectParams)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, SlatePostProcessBlitUIToHDR);
+
+	FRHITexture* SourceTexture = RectParams.UITarget->GetRHI();
+
+	RHICmdList.Transition(FRHITransitionInfo(SourceTexture, ERHIAccess::Unknown, ERHIAccess::SRVMask));
+	TRefCountPtr<IPooledRenderTarget> UITargetRTMask;
+	if (RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
+	{
+		const auto FeatureLevel = GMaxRHIFeatureLevel;
+		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+
+		IPooledRenderTarget* RenderTargets[] = { RectParams.UITarget.GetReference() };
+		FRenderTargetWriteMask::Decode(RHICmdList, ShaderMap, RenderTargets, UITargetRTMask, TexCreate_None, TEXT("UIRTWriteMask"));
+	}
+
+	// Source is the viewport.  This is the width and height of the viewport backbuffer
+	const int32 SrcTextureWidth = RectParams.SourceTextureSize.X;
+	const int32 SrcTextureHeight = RectParams.SourceTextureSize.Y;
+
+	// Rect of the viewport
+	const FSlateRect& SourceRect = RectParams.SourceRect;
+
+	// Rect of the final destination post process effect (not downsample rect).  This is the area we sample from
+	const FSlateRect& DestRect = RectParams.DestRect;
+
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(GMaxRHIFeatureLevel);
+	TShaderMapRef<FScreenVS> VertexShader(ShaderMap);
+
+	FTexture2DRHIRef DestTexture = RectParams.SourceTexture;
+
+	TShaderMapRef<FBlitUIToHDRPS> PixelShader(ShaderMap);
+
+	RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
+
+	const FVector2f InvSrcTextureSize(1.f / SrcTextureWidth, 1.f / SrcTextureHeight);
+
+	// Add some guard band to ensure blur will reach these pixels. It will overwrite pixels below, but these are going to be composited at the end anyway
+	const FVector2f UVStart = FVector2f(DestRect.Left - 10.0f, DestRect.Top - 10.0f) * InvSrcTextureSize;
+	const FVector2f UVEnd = FVector2f(DestRect.Right + 10.0f, DestRect.Bottom + 10.0f) * InvSrcTextureSize;
+	const FVector2f SizeUV = UVEnd - UVStart;
+
+	RHICmdList.SetViewport(0, 0, 0, SrcTextureWidth, SrcTextureHeight, 0.0f);
+	RHICmdList.SetScissorRect(false, 0, 0, 0, 0);
+
+	FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
+	RHICmdList.BeginRenderPass(RPInfo, TEXT("BlitUIToHDR"));
+	{
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+		GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_One, BF_InverseSourceAlpha>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+		FRHITexture* UITargetRTMaskTexture = RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform) ? UITargetRTMask->GetRHI() : nullptr;
+
+		FMatrix44f Srgb_2_XYZ = GamutToXYZMatrix(EDisplayColorGamut::sRGB_D65);
+		FMatrix44f XYZ_2_Output = XYZToGamutMatrix(RectParams.HDRDisplayColorGamut);
+		// note: we use mul(m,v) instead of mul(v,m) in the shaders for color conversions which is why matrix multiplication is reversed compared to what we usually do
+		FMatrix44f CombinedMatrix = XYZ_2_Output * Srgb_2_XYZ;
+
+		PixelShader->SetParameters(RHICmdList, SourceTexture, UITargetRTMaskTexture, CombinedMatrix);
+
+		RendererModule.DrawRectangle(
+			RHICmdList,
+			UVStart.X * SrcTextureWidth, UVStart.Y * SrcTextureHeight,
+			SizeUV.X * SrcTextureWidth, SizeUV.Y * SrcTextureHeight,
+			UVStart.X, UVStart.Y,
+			SizeUV.X, SizeUV.Y,
+			FIntPoint(SrcTextureWidth, SrcTextureHeight),
+			FIntPoint(1, 1),
+			VertexShader,
+			EDRF_Default);
+	}
+	RHICmdList.EndRenderPass();
 }
 
 void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRendererModule& RendererModule, const FBlurRectParams& Params, const FPostProcessRectParams& RectParams)
@@ -51,7 +198,13 @@ void FSlatePostProcessor::BlurRect(FRHICommandListImmediate& RHICmdList, IRender
 
 	const FIntPoint DownsampleSize = RequiredSize;
 
-	IntermediateTargets->Update(RequiredSize);
+	IntermediateTargets->Update(RequiredSize, RectParams.SourceTexture);
+
+	if (RectParams.UITarget.IsValid() && RectParams.UITarget->GetRHI() != RectParams.SourceTexture.GetReference())
+	{
+		// in HDR mode, we are going to blur SourceTexture, but still need to take into account the UI already rendered. Blit UI into HDR target
+		BlitUIToHDRScene(RHICmdList, RendererModule, RectParams);
+	}
 
 	if(bDownsample)
 	{
@@ -207,7 +360,7 @@ void FSlatePostProcessor::ColorDeficiency(FRHICommandListImmediate& RHICmdList, 
 	FIntPoint DestRectSize = RectParams.DestRect.GetSize().IntPoint();
 	FIntPoint RequiredSize = DestRectSize;
 
-	IntermediateTargets->Update(RequiredSize);
+	IntermediateTargets->Update(RequiredSize, RectParams.SourceTexture);
 
 #if 1
 	FSamplerStateRHIRef PointClamp = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
@@ -406,6 +559,25 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 	RHICmdList.Transition(FRHITransitionInfo(DestTexture, ERHIAccess::Unknown, ERHIAccess::RTV));
 
 	FRHIRenderPassInfo RPInfo(DestTexture, ERenderTargetActions::Load_Store);
+
+	bool bHasMRT = false;
+
+	FRHITexture* UITargetTexture = Params.UITarget.IsValid() ? Params.UITarget->GetRHI() : nullptr;
+
+	if (UITargetTexture != nullptr && DestTexture != UITargetTexture)
+	{
+		RPInfo.ColorRenderTargets[1].RenderTarget = UITargetTexture;
+		RPInfo.ColorRenderTargets[1].ArraySlice = -1;
+		RPInfo.ColorRenderTargets[1].Action = ERenderTargetActions::Load_Store;
+		if (!RHISupportsRenderTargetWriteMask(GMaxRHIShaderPlatform))
+		{
+			RPInfo.ColorRenderTargets[2].RenderTarget = Params.UITargetMask->GetRHI();
+			RPInfo.ColorRenderTargets[2].ArraySlice = -1;
+			RPInfo.ColorRenderTargets[2].Action = ERenderTargetActions::Load_Store;
+		}
+		bHasMRT = true;
+	}
+
 	RHICmdList.BeginRenderPass(RPInfo, TEXT("UpsampleRect"));
 	{
 		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
@@ -417,7 +589,15 @@ void FSlatePostProcessor::UpsampleRect(FRHICommandListImmediate& RHICmdList, IRe
 			Params.RestoreStateFunc(RHICmdList, GraphicsPSOInit);
 		}
 
-		TShaderMapRef<FSlatePostProcessUpsamplePS> PixelShader(ShaderMap);
+		TShaderRef<FSlateElementPS> PixelShader;
+		if (bHasMRT)
+		{
+			PixelShader = TShaderMapRef<FSlatePostProcessUpsamplePS<true> >(ShaderMap);
+		}
+		else
+		{
+			PixelShader = TShaderMapRef<FSlatePostProcessUpsamplePS<false> >(ShaderMap);
+		}
 
 		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
 		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();

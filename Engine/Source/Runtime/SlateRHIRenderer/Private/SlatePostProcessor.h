@@ -8,6 +8,7 @@
 
 class FSlatePostProcessResource;
 class IRendererModule;
+struct IPooledRenderTarget;
 
 struct FPostProcessRectParams
 {
@@ -17,7 +18,10 @@ struct FPostProcessRectParams
 	FVector4f CornerRadius;
 	FIntPoint SourceTextureSize;
 	TFunction<void(FRHICommandListImmediate&, FGraphicsPipelineStateInitializer&)> RestoreStateFunc;
+	TRefCountPtr<IPooledRenderTarget> UITarget; // not using FTextureRHIRef because we want to be able to use FRenderTargetWriteMask::Decode
+	TRefCountPtr<IPooledRenderTarget> UITargetMask; // not using FTextureRHIRef because we want to be able to use FRenderTargetWriteMask::Decode
 	uint32 StencilRef{};
+	EDisplayColorGamut HDRDisplayColorGamut;
 };
 
 struct FBlurRectParams

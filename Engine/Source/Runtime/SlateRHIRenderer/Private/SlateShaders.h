@@ -394,7 +394,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, UVBounds);
 };
 
-
+template<bool bOutputToUITarget>
 class FSlatePostProcessUpsamplePS : public FSlateElementPS
 {
 	DECLARE_SHADER_TYPE(FSlatePostProcessUpsamplePS, Global);
@@ -413,6 +413,16 @@ public:
 	FSlatePostProcessUpsamplePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FSlateElementPS(Initializer)
 	{
+	}
+
+	/**
+	 * Modifies the compilation of this shader
+	 */
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		// Set defines based on what this shader will be used for
+		OutEnvironment.SetDefine(TEXT("OUTPUT_TO_UI_TARGET"), (uint32)(bOutputToUITarget ? 1 : 0));
+		FSlateElementPS::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 	}
 
 private:

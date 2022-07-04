@@ -6,7 +6,8 @@
 DECLARE_MEMORY_STAT(TEXT("PostProcess RenderTargets"), STAT_SLATEPPRenderTargetMem, STATGROUP_SlateMemory);
 
 FSlatePostProcessResource::FSlatePostProcessResource(int32 InRenderTargetCount)
-	: RenderTargetSize(FIntPoint::ZeroValue)
+	: PixelFormat(PF_Unknown)
+	, RenderTargetSize(FIntPoint::ZeroValue)
 	, RenderTargetCount(InRenderTargetCount)
 {
 }
@@ -16,9 +17,9 @@ FSlatePostProcessResource::~FSlatePostProcessResource()
 
 }
 
-void FSlatePostProcessResource::Update(const FIntPoint& NewSize)
+void FSlatePostProcessResource::Update(const FIntPoint& NewSize, const FTextureRHIRef& SourceTexture)
 {
-	if(NewSize.X > RenderTargetSize.X || NewSize.Y > RenderTargetSize.Y || RenderTargetSize == FIntPoint::ZeroValue || RenderTargets.Num() == 0 )
+	if(NewSize.X > RenderTargetSize.X || NewSize.Y > RenderTargetSize.Y || RenderTargetSize == FIntPoint::ZeroValue || RenderTargets.Num() == 0 || PixelFormat != SourceTexture->GetDesc().Format)
 	{
 		if(!IsInitialized())
 		{
@@ -26,18 +27,18 @@ void FSlatePostProcessResource::Update(const FIntPoint& NewSize)
 		}
 
 		FIntPoint NewMaxSize(FMath::Max(NewSize.X, RenderTargetSize.X), FMath::Max(NewSize.Y, RenderTargetSize.Y));
-		ResizeTargets(NewMaxSize);
+		ResizeTargets(NewMaxSize, SourceTexture);
 	}
 }
 
-void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize)
+void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize, const FTextureRHIRef& SourceTexture)
 {
 	check(IsInRenderingThread());
 
 	RenderTargets.Empty();
 
 	RenderTargetSize = NewSize;
-	PixelFormat = PF_B8G8R8A8;
+	PixelFormat = SourceTexture->GetDesc().Format;
 	if (RenderTargetSize.X > 0 && RenderTargetSize.Y > 0)
 	{
 		for (int32 TexIndex = 0; TexIndex < RenderTargetCount; ++TexIndex)
@@ -49,7 +50,7 @@ void FSlatePostProcessResource::ResizeTargets(const FIntPoint& NewSize)
 				.SetFlags(ETextureCreateFlags::RenderTargetable | ETextureCreateFlags::ShaderResource)
 				.SetInitialState(ERHIAccess::SRVMask);
 
-			FTexture2DRHIRef RenderTargetTextureRHI = RHICreateTexture(Desc);
+			FTextureRHIRef RenderTargetTextureRHI = RHICreateTexture(Desc);
 
 			RenderTargets.Add(RenderTargetTextureRHI);
 		}

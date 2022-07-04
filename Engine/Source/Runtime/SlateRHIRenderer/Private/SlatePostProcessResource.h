@@ -22,7 +22,7 @@ public:
 	}
 
 	/** Performs per frame updates to this resource */
-	void Update(const FIntPoint& NewSize);
+	void Update(const FIntPoint& NewSize, const FTextureRHIRef& SourceTexture);
 
 	void CleanUp();
 
@@ -38,7 +38,7 @@ public:
 
 private:
 	/** Resizes targets to the new size */
-	void ResizeTargets(const FIntPoint& NewSize);
+	void ResizeTargets(const FIntPoint& NewSize, const FTextureRHIRef& SourceTexture);
 
 private:
 	TArray<FTexture2DRHIRef, TInlineAllocator<2>> RenderTargets;

@@ -12,6 +12,8 @@ RENDERCORE_API EDisplayOutputFormat HDRGetDefaultDisplayOutputFormat();
 RENDERCORE_API EDisplayColorGamut HDRGetDefaultDisplayColorGamut();
 RENDERCORE_API void HDRAddCustomMetaData(void* OSWindow, EDisplayOutputFormat DisplayOutputFormat, EDisplayColorGamut DisplayColorGamut, bool bHDREnabled);
 RENDERCORE_API void HDRRemoveCustomMetaData(void* OSWindow);
+RENDERCORE_API FMatrix44f GamutToXYZMatrix(EDisplayColorGamut ColorGamut);
+RENDERCORE_API FMatrix44f XYZToGamutMatrix(EDisplayColorGamut ColorGamut);
 
 
 struct FDisplayInformation

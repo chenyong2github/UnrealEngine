@@ -114,13 +114,30 @@ float2 Map(float2 value, float2 min1, float2 max1, float2 min2, float2 max2)
 {
   return min2 + (value - min1) * (max2 - min2) / (max1 - min1);
 }
-
-float4 UpsampleMain(FScreenVertexOutput Input) : SV_Target0
+ 
+void UpsampleMain(FScreenVertexOutput Input
+	, out float4 Color0 : SV_Target0
+#if OUTPUT_TO_UI_TARGET
+	, out float4 Color1 : SV_Target1
+#if !PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+	, out uint Color2 : SV_Target2
+#endif
+#endif
+)
 {
 	const float2 LocalSize = ShaderParams.xy;
 	const float2 UV = Input.UV;
 	const float Thickness = 0;
 	const float4 CornerRadii = ShaderParams2;
 	const float4 FillColor = Texture2DSample(ElementTexture, ElementTextureSampler, Input.UV);
-	return GetRoundedBoxElementColorInternal(LocalSize, Map(UV, float2(0,0), ShaderParams.zw, float2(0,0),float2(1,1)), Thickness, CornerRadii, FillColor, FillColor);
+	Color0 = GetRoundedBoxElementColorInternal(LocalSize, Map(UV, float2(0,0), ShaderParams.zw, float2(0,0),float2(1,1)), Thickness, CornerRadii, FillColor, FillColor);
+#if OUTPUT_TO_UI_TARGET
+	// still needed in case compositing needs PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+	Color1 = float4(0, 0, 0, 0);
+
+#if !PLATFORM_SUPPORTS_RENDERTARGET_WRITE_MASK
+	Color2 = 255;
+#endif
+
+#endif
 }

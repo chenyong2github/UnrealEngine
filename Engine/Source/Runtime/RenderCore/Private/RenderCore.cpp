@@ -553,3 +553,72 @@ RENDERCORE_API void HDRConfigureCVars(bool bIsHDREnabled, uint32 DisplayNits, bo
 	CVarDisplayOutputDevice->Set((int32)OutputDevice, ECVF_SetByDeviceProfile);
 	CVarDisplayColorGamut->Set((int32)ColorGamut, ECVF_SetByDeviceProfile);
 }
+
+RENDERCORE_API FMatrix44f GamutToXYZMatrix(EDisplayColorGamut ColorGamut)
+{
+	static const FMatrix44f sRGB_2_XYZ_MAT(
+		FVector3f(0.4124564, 0.3575761, 0.1804375),
+		FVector3f(0.2126729, 0.7151522, 0.0721750),
+		FVector3f(0.0193339, 0.1191920, 0.9503041),
+		FVector3f(0, 0, 0)
+	);
+
+	static const FMatrix44f Rec2020_2_XYZ_MAT(
+		FVector3f(0.6369736, 0.1446172, 0.1688585),
+		FVector3f(0.2627066, 0.6779996, 0.0592938),
+		FVector3f(0.0000000, 0.0280728, 1.0608437),
+		FVector3f(0, 0, 0)
+	);
+
+	static const FMatrix44f P3D65_2_XYZ_MAT(
+		FVector3f(0.4865906, 0.2656683, 0.1981905),
+		FVector3f(0.2289838, 0.6917402, 0.0792762),
+		FVector3f(0.0000000, 0.0451135, 1.0438031),
+		FVector3f(0, 0, 0)
+	);
+	switch (ColorGamut)
+	{
+	case EDisplayColorGamut::sRGB_D65: return sRGB_2_XYZ_MAT;
+	case EDisplayColorGamut::Rec2020_D65: return Rec2020_2_XYZ_MAT;
+	case EDisplayColorGamut::DCIP3_D65: return P3D65_2_XYZ_MAT;
+	default:
+		checkNoEntry();
+		return FMatrix44f::Identity;
+	}
+
+}
+
+RENDERCORE_API FMatrix44f XYZToGamutMatrix(EDisplayColorGamut ColorGamut)
+{
+	static const FMatrix44f XYZ_2_sRGB_MAT(
+		FVector3f(3.2409699419, -1.5373831776, -0.4986107603),
+		FVector3f(-0.9692436363, 1.8759675015, 0.0415550574),
+		FVector3f(0.0556300797, -0.2039769589, 1.0569715142),
+		FVector3f(0, 0, 0)
+	);
+
+	static const FMatrix44f XYZ_2_Rec2020_MAT(
+		FVector3f(1.7166084, -0.3556621, -0.2533601),
+		FVector3f(-0.6666829, 1.6164776, 0.0157685),
+		FVector3f(0.0176422, -0.0427763, 0.94222867),
+		FVector3f(0, 0, 0)
+	);
+
+	static const FMatrix44f XYZ_2_P3D65_MAT(
+		FVector3f(2.4933963, -0.9313459, -0.4026945),
+		FVector3f(-0.8294868, 1.7626597, 0.0236246),
+		FVector3f(0.0358507, -0.0761827, 0.9570140),
+		FVector3f(0, 0, 0)
+	);
+
+	switch (ColorGamut)
+	{
+	case EDisplayColorGamut::sRGB_D65: return XYZ_2_sRGB_MAT;
+	case EDisplayColorGamut::Rec2020_D65: return XYZ_2_Rec2020_MAT;
+	case EDisplayColorGamut::DCIP3_D65: return XYZ_2_P3D65_MAT;
+	default:
+		checkNoEntry();
+		return FMatrix44f::Identity;
+	}
+
+}
