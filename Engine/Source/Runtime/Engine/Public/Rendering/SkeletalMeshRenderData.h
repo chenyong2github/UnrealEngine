@@ -8,6 +8,7 @@
 
 struct FMeshUVChannelInfo;
 class USkeletalMesh;
+class USkinnedAsset;
 struct FSkeletalMaterial;
 class UMorphTarget;
 struct FResourceSizeEx;
@@ -36,7 +37,7 @@ public:
 	/** Runtime LOD bias modifier for this skeletal mesh */
 	uint8 LODBiasModifier;
 
-	/** Whether ray tracing acceleration structures should be created for this mesh. Derived from owner USkeletalMesh. */
+	/** Whether ray tracing acceleration structures should be created for this mesh. Derived from owner USkinnedAsset. */
 	bool bSupportRayTracing;
 
 #if WITH_EDITORONLY_DATA
@@ -54,14 +55,14 @@ public:
 	ENGINE_API ~FSkeletalMeshRenderData();
 
 #if WITH_EDITOR
-	void Cache(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner, class FSkeletalMeshCompilationContext* ContextPtr);
-	FString GetDerivedDataKey(const ITargetPlatform* TargetPlatform, USkeletalMesh* Owner);
+	ENGINE_API void Cache(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner, class FSkeletalMeshCompilationContext* ContextPtr);
+	FString GetDerivedDataKey(const ITargetPlatform* TargetPlatform, USkinnedAsset* Owner);
 
-	void SyncUVChannelData(const TArray<FSkeletalMaterial>& ObjectData);
+	ENGINE_API void SyncUVChannelData(const TArray<FSkeletalMaterial>& ObjectData);
 #endif
 
 	/** Serialize to/from the specified archive.. */
-	void Serialize(FArchive& Ar, USkeletalMesh* Owner);
+	void Serialize(FArchive& Ar, USkinnedAsset* Owner);
 
 	/** Initializes rendering resources. */
 	ENGINE_API void InitResources(bool bNeedsVertexColors, TArray<UMorphTarget*>& InMorphTargets, USkinnedAsset* Owner);

@@ -9,6 +9,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/StreamableRenderAsset.h"
+#include "Interfaces/Interface_AsyncCompilation.h"
 #include "ReferenceSkeleton.h"
 #include "PerPlatformProperties.h"
 #include "SkinnedAsset.generated.h"
@@ -21,7 +22,7 @@ struct FSkeletalMaterial;
 struct FSkeletalMeshLODInfo;
 
 UCLASS(hidecategories = Object, config = Engine, editinlinenew, abstract)
-class ENGINE_API USkinnedAsset : public UStreamableRenderAsset
+class ENGINE_API USkinnedAsset : public UStreamableRenderAsset, public IInterface_AsyncCompilation
 {
 	GENERATED_BODY()
 
@@ -97,6 +98,12 @@ public:
 	virtual int32 GetDefaultMinLod() const
 	PURE_VIRTUAL(USkinnedAsset::GetDefaultMinLod, return 0;);
 
+	virtual const FPerPlatformInt& GetMinLod() const
+	PURE_VIRTUAL(USkinnedAsset::GetMinLod, static const FPerPlatformInt Dummy;  return Dummy;);
+
+	/** Check the QualitLevel property is enabled for MinLod. */
+	virtual bool IsMinLodQualityLevelEnable() const { return false; }
+
 	virtual UPhysicsAsset* GetPhysicsAsset() const
 	PURE_VIRTUAL(USkinnedAsset::GetPhysicsAsset, return nullptr;);
 
@@ -161,6 +168,10 @@ public:
 
 	virtual void SetSkinWeightProfilesData(int32 LODIndex, struct FSkinWeightProfilesData& SkinWeightProfilesData) {}
 
+	/** Computes flags for building vertex buffers. */
+	virtual uint32 GetVertexBufferFlags() const
+	{ return GetHasVertexColors() ? ESkeletalMeshVertexFlags::HasVertexColors : ESkeletalMeshVertexFlags::None; }
+
 	/**
 	* UObject Interface
 	* This will return detail info about this specific object. (e.g. AudioComponent will return the name of the cue,
@@ -172,6 +183,20 @@ public:
 	{ return GetPathName(nullptr); }
 
 #if WITH_EDITOR
+	/** IInterface_AsyncCompilation begin*/
+	virtual bool IsCompiling() const override { return false; }
+	/** IInterface_AsyncCompilation end*/
+
+	virtual FString BuildDerivedDataKey(const ITargetPlatform* TargetPlatform)
+	PURE_VIRTUAL(USkinnedAsset::BuildDerivedDataKey, return TEXT(""););
+
+	/* Return true if this asset was never build since its creation. */
+	virtual bool IsInitialBuildDone() const
+	PURE_VIRTUAL(USkinnedAsset::IsInitialBuildDone, return false;);
+
+	/* Build a LOD model before creating its render data. */
+	virtual void BuildLODModel(const ITargetPlatform* TargetPlatform, int32 LODIndex) {}
+
 	/** Get whether this mesh should use LOD streaming for the given platform. */
 	virtual bool GetEnableLODStreaming(const ITargetPlatform* TargetPlatform) const
 	PURE_VIRTUAL(USkinnedAsset::GetEnableLODStreaming, return false;);
@@ -182,6 +207,14 @@ public:
 
 	virtual int32 GetMaxNumOptionalLODs(const ITargetPlatform* TargetPlatform) const
 	PURE_VIRTUAL(USkinnedAsset::GetMaxNumOptionalLODs, return 0;);
-#endif
+#endif // WITH_EDITOR
+
+#if WITH_EDITORONLY_DATA
+	virtual bool GetUseLegacyMeshDerivedDataKey() const	{ return false; }
+
+	/** Get the source mesh data. */
+	virtual class FSkeletalMeshModel* GetImportedModel() const
+	PURE_VIRTUAL(USkinnedAsset::GetImportedModel, return nullptr;);
+#endif // WITH_EDITORONLY_DATA
 };
 

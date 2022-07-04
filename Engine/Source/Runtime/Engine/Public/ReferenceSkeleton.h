@@ -408,6 +408,6 @@ public:
 
 	// very slow search function for all children
 	int32 GetDirectChildBones(int32 ParentBoneIndex, TArray<int32> & Children) const;
-	friend FArchive & operator<<(FArchive & Ar, FReferenceSkeleton & F);
+	ENGINE_API friend FArchive & operator<<(FArchive & Ar, FReferenceSkeleton & F);
 	friend FReferenceSkeletonModifier;
 };

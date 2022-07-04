@@ -14,7 +14,7 @@ FSkeletalMeshModel::FSkeletalMeshModel()
 {
 }
 
-void FSkeletalMeshModel::Serialize(FArchive& Ar, USkeletalMesh* Owner)
+void FSkeletalMeshModel::Serialize(FArchive& Ar, USkinnedAsset* Owner)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FSkeletalMeshModel::Serialize"), STAT_SkeletalMeshModel_Serialize, STATGROUP_LoadTime);
 	bool bIsEditorDataStripped = false;
@@ -113,7 +113,7 @@ void FSkeletalMeshModel::GenerateNewGUID()
 }
 
 
-void FSkeletalMeshModel::GenerateGUIDFromHash(USkeletalMesh* Owner)
+void FSkeletalMeshModel::GenerateGUIDFromHash(USkinnedAsset* Owner)
 {
 	// Build the hash from the path name + the contents of the bulk data.
 	FSHA1 Sha;

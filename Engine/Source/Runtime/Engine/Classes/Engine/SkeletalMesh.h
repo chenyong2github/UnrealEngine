@@ -763,7 +763,7 @@ namespace NSSkeletalMeshSourceFileLabels
  * @see https://docs.unrealengine.com/latest/INT/Engine/Content/Types/SkeletalMeshes/
  */
 UCLASS(hidecategories=Object, BlueprintType)
-class ENGINE_API USkeletalMesh : public USkinnedAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface, public IInterface_AsyncCompilation
+class ENGINE_API USkeletalMesh : public USkinnedAsset, public IInterface_CollisionDataProvider, public IInterface_AssetUserData, public INodeMappingProviderInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -902,7 +902,7 @@ public:
 	int32 GetNumImportedVertices() const;
 
 	/** Get the imported data for this skeletal mesh. */
-	FORCEINLINE FSkeletalMeshModel* GetImportedModel() const 
+	virtual FSkeletalMeshModel* GetImportedModel() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::ImportedModel);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1092,8 +1092,8 @@ public:
 		return false;
 	}
 
-	/* Return true if this skeletalmesh was never build since its creation. */
-	bool IsInitialBuildDone() const;
+	/* Return true if this skeletalmesh was never build since its creation. USkinnedAsset interface. */
+	virtual bool IsInitialBuildDone() const override;
 
 	/* Return true if the reduction settings are setup to reduce a LOD*/
 	bool IsReductionActive(int32 LODIndex) const;
@@ -1230,8 +1230,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	/** Check the QualitLevel property is enabled for MinLod. */
-	bool IsMinLodQualityLevelEnable() const;
+	/** Check the QualitLevel property is enabled for MinLod. USkinnedAsset interface. */
+	virtual bool IsMinLodQualityLevelEnable() const override;
 
 	/** USkinnedAsset interface */
 	virtual int32 GetPlatformMinLODIdx(const ITargetPlatform* TargetPlatform) const override;
@@ -1256,7 +1256,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	const FPerPlatformInt& GetMinLod() const
+	/** USkinnedAsset interface. */
+	virtual const FPerPlatformInt& GetMinLod() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::MinLod, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -1475,6 +1476,9 @@ public:
 
 	/** Get the maximum number of optional LODs. Do not use MaxNumOptionalLODs directly. Call this method instead. USkinnedAsset Interface. */
 	virtual int32 GetMaxNumOptionalLODs(const class ITargetPlatform* TargetPlatform) const override;
+
+	/* Build a LOD model before creating its render data. USkinnedAsset Interface. */
+	virtual void BuildLODModel(const ITargetPlatform* TargetPlatform, int32 LODIndex) override;
 #endif
 
 	UFUNCTION(BlueprintSetter)
@@ -2672,11 +2676,6 @@ public:
 	 */
 	virtual const FMeshUVChannelInfo* GetUVChannelData(int32 MaterialIndex) const override;
 
-	/**
-	 * Computes flags for building vertex buffers.
-	 */
-	uint32 GetVertexBufferFlags() const;
-
 	//~ Begin UObject Interface.
 #if WITH_EDITOR
 private:
@@ -2992,6 +2991,9 @@ public:
 	*/
 	void InvalidateDeriveDataCacheGUID();
 
+	/** Generate the derived data key for the given platform. USkinnedAsset interface. */
+	virtual FString BuildDerivedDataKey(const ITargetPlatform* TargetPlatform) override;
+
 	/** Generate the derived data key used to fetch derived data */
 	FString GetDerivedDataKey();
 #endif 
@@ -3272,7 +3274,8 @@ public:
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	bool GetUseLegacyMeshDerivedDataKey() const
+	// USkinnedAsset interface
+	virtual bool GetUseLegacyMeshDerivedDataKey() const override
 	{
 		WaitUntilAsyncPropertyReleased(ESkeletalMeshAsyncProperties::UseLegacyMeshDerivedDataKey, EAsyncPropertyLockType::ReadOnly);
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
