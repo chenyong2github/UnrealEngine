@@ -124,3 +124,5 @@ namespace UE::WebAPI::Swagger
 	template <>
 	bool FWebAPISwaggerSchemaConverter::PatchModel(const TSharedPtr<OpenAPI::V2::FParameter>& InSrcSchema, const FWebAPITypeNameVariant& InModelTypeName, const TObjectPtr<UWebAPIModel>& OutModel);
 }
+
+#include "WebAPISwaggerConverter.inl"

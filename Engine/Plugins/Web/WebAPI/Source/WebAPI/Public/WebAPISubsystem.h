@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Tickable.h"
 #include "WebAPIHttpMessageHandlers.h"
 #include "Subsystems/EngineSubsystem.h"
 
@@ -42,12 +43,15 @@ struct FWebAPIPooledOperation
 UCLASS()
 class WEBAPI_API UWebAPISubsystem
 	: public UEngineSubsystem
+	, public FTickableGameObject 
 	, public FWebAPIHttpRequestHandlerInterface
 	, public FWebAPIHttpResponseHandlerInterface
 {
 	GENERATED_BODY()
 
 public:
+	UWebAPISubsystem();
+	
 	/** Get or create pooled operation for the given OperationType. */
 	TObjectPtr<UWebAPIOperationObject> MakeOperation(const UWebAPIDeveloperSettings* InSettings, const TSubclassOf<UWebAPIOperationObject>& InClass);
 
@@ -63,21 +67,38 @@ public:
 	void ReleaseOperation(const TObjectPtr<OperationType>& InOperation);
 
 	/** Convenience function to create a simple Http request. */
-	TFuture<TTuple<TSharedPtr<IHttpResponse, ESPMode::ThreadSafe>, bool>> MakeHttpRequest(const FString& InVerb, TUniqueFunction<void(const TSharedRef<class IHttpRequest, ESPMode::ThreadSafe>)> OnRequestCreated) const;
+	TFuture<TTuple<TSharedPtr<IHttpResponse, ESPMode::ThreadSafe>, bool>> MakeHttpRequest(const FString& InVerb, TUniqueFunction<void(const TSharedRef<class IHttpRequest, ESPMode::ThreadSafe>)> OnRequestCreated);
 
+	/** Retry any failed and buffered requests for the given host. */
+	void RetryRequestsForHost(const FString& InHost);
+	
 	//~Begin UEngineSubsystem interface
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
 	virtual void Deinitialize() override;
 	//~End UEngineSubsystem interface
 	
+	// FTickableGameObject implementation Begin
+	virtual UWorld* GetTickableGameObjectWorld() const override { return GetWorld(); }
+	virtual ETickableTickType GetTickableTickType() const override;
+	virtual bool IsAllowedToTick() const override final;
+	virtual void Tick(float DeltaTime) override;
+	virtual TStatId GetStatId() const override;
+	// FTickableGameObject implementation End
+
 private:
 	friend class UWebAPIOperationObject;
-
+ 
 	UPROPERTY()
 	bool bUsePooling = false;
 	
 	UPROPERTY(Transient)
 	TMap<FName, FWebAPIPooledOperation> OperationPool;
+
+	/** Requests to process. */
+	TArray<TSharedRef<IHttpRequest>> RequestBuffer;
+
+	/** Requests retained per host for retry when response code indicates an auth error. */
+	TMap<FString, TArray<TSharedRef<IHttpRequest>>> HostRequestBuffer;
 
 	/** Return true if the request was handled, subsequent handlers won't be called. */
 	virtual bool HandleHttpRequest(TSharedPtr<IHttpRequest> InRequest, UWebAPIDeveloperSettings* InSettings) override;

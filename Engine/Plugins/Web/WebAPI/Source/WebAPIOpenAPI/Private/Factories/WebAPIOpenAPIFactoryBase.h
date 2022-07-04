@@ -9,7 +9,7 @@
 
 /** Common base factory between Swagger and OpenAPI factories. */
 UCLASS(Abstract)
-class WEBAPIOPENAPI_API UWebAPIOpenAPIFactoryBase
+class UWebAPIOpenAPIFactoryBase
 	: public UWebAPIDefinitionFactory
 {
 	GENERATED_BODY()

@@ -24,7 +24,7 @@ public:
 public:
 	FWebAPILiquidJSProcess();
 	
-	virtual ~FWebAPILiquidJSProcess();
+	virtual ~FWebAPILiquidJSProcess() override = default;
 
 	/** Starts the webapp external process, first launch will take some time as it needs to compile the webapp */
 	bool TryStart();
@@ -56,4 +56,7 @@ private:
 
 	/** The current status of the web app. */
 	std::atomic<EStatus> Status;
+
+	/** Can by used override Settings for retry. */
+	std::atomic<bool> bForceBuildWebApp;
 };

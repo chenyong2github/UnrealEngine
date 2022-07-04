@@ -17,6 +17,11 @@ class WEBAPI_API UWebAPIUtilities : public UBlueprintFunctionLibrary
 	GENERATED_BODY()
 
 public:
-	UFUNCTION(BlueprintCallable, BlueprintPure, Category="WebAPI", meta=(ScriptMethod))
+	/** Return the message from the provided response. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="WebAPI")
 	static const FText& GetResponseMessage(const FWebAPIMessageResponse& MessageResponse);
+
+	/** Return the host (only) from the provided Url. */
+	UFUNCTION(BlueprintCallable, BlueprintPure, Category="WebAPI")
+	static FString GetHostFromUrl(const FString& InUrl);
 };

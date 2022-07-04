@@ -80,7 +80,6 @@ protected:
 
 	TArray<TSharedPtr<FWebAPIAuthenticationSchemeHandler>> AuthenticationHandlers;
 
-	// @todo: temporary solution to request auth tokens, etc. replace with something purpose built! Move to subsystem?
 	/** Called for all responses, providing the opportunity for custom interception. */
 	virtual bool HandleHttpResponse(EHttpResponseCodes::Type InResponseCode, TSharedPtr<class IHttpResponse, ESPMode::ThreadSafe> InResponse, bool bInWasSuccessful, UWebAPIDeveloperSettings* InSettings) override;
 };

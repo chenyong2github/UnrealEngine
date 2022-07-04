@@ -311,7 +311,6 @@ EReimportResult::Type UWebAPIDefinitionFactory::Reimport(UObject* InObj)
 
 FString UWebAPIDefinitionFactory::ReadFileContents(const FString& InFileName) const
 {
-	// @todo: handle URLs
 	FString FileContents;
 	if (!FFileHelper::LoadFileToString(FileContents, *InFileName))
 	{

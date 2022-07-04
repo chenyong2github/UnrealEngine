@@ -6,8 +6,15 @@
 #include "HttpModule.h"
 #include "WebAPIDeveloperSettings.h"
 #include "WebAPIOperationObject.h"
+#include "WebAPIUtilities.h"
 #include "Engine/Engine.h"
 #include "Security/WebAPIAuthentication.h"
+
+TAutoConsoleVariable<int32> CVarMaxDeniedHttpRetryCount(
+	TEXT("HTTP.MaxDeniedRetryCount"),
+	128,
+	TEXT("Maximum number of http retries for denied requests."),
+	ECVF_Default);
 
 TObjectPtr<UWebAPIOperationObject> FWebAPIPooledOperation::Pop()
 {
@@ -50,6 +57,10 @@ bool FWebAPIPooledOperation::Push(const TObjectPtr<UWebAPIOperationObject>& InIt
 	return ItemsRemoved > 0;
 }
 
+UWebAPISubsystem::UWebAPISubsystem()
+{
+}
+
 TObjectPtr<UWebAPIOperationObject> UWebAPISubsystem::MakeOperation(const UWebAPIDeveloperSettings* InSettings, const TSubclassOf<UWebAPIOperationObject>& InClass)
 {
 	check(InClass);
@@ -79,17 +90,15 @@ void UWebAPISubsystem::ReleaseOperation(const TSubclassOf<UWebAPIOperationObject
 	NamedOperationPool.Push(InOperation);
 }
 
-TFuture<TTuple<TSharedPtr<IHttpResponse, ESPMode::ThreadSafe>, bool>> UWebAPISubsystem::MakeHttpRequest(const FString& InVerb, TUniqueFunction<void(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>)> OnRequestCreated) const
+TFuture<TTuple<TSharedPtr<IHttpResponse, ESPMode::ThreadSafe>, bool>> UWebAPISubsystem::MakeHttpRequest(const FString& InVerb, TUniqueFunction<void(const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>)> OnRequestCreated)
 {
 	check(!InVerb.IsEmpty());
-	
-	// @todo: buffer requests here and retry after auth
 
 	const TSharedPtr<TPromise<TTuple<FHttpResponsePtr, bool>>, ESPMode::ThreadSafe> Promise = MakeShared<TPromise<TTuple<FHttpResponsePtr, bool>>, ESPMode::ThreadSafe>();
 
 	FHttpModule& HttpModule = FHttpModule::Get();
 
-	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe> HttpRequest = HttpModule.CreateRequest();
+	const TSharedRef<IHttpRequest, ESPMode::ThreadSafe>& HttpRequest = RequestBuffer.Emplace_GetRef(HttpModule.CreateRequest());
 	HttpRequest->SetVerb(InVerb);
 
 	HttpRequest->OnProcessRequestComplete().BindLambda(
@@ -101,9 +110,17 @@ TFuture<TTuple<TSharedPtr<IHttpResponse, ESPMode::ThreadSafe>, bool>> UWebAPISub
 	// Allows the caller to inject their own Request properties
 	OnRequestCreated(HttpRequest);
 
-	HttpRequest->ProcessRequest();
-
 	return Promise->GetFuture();
+}
+
+void UWebAPISubsystem::RetryRequestsForHost(const FString& InHost)
+{
+	// Move any requests found for this host to the main queue.
+	if(const TArray<TSharedRef<IHttpRequest>>* Requests = HostRequestBuffer.Find(InHost))
+	{
+		RequestBuffer.Append(*Requests);
+		HostRequestBuffer.Remove(InHost);		
+	}
 }
 
 void UWebAPISubsystem::Initialize(FSubsystemCollectionBase& Collection)
@@ -118,6 +135,62 @@ void UWebAPISubsystem::Deinitialize()
 	FGameDelegates::Get().GetEndPlayMapDelegate().RemoveAll(this);
 	
 	Super::Deinitialize();
+}
+
+ETickableTickType UWebAPISubsystem::GetTickableTickType() const
+{
+	return FTickableGameObject::GetTickableTickType();
+}
+
+bool UWebAPISubsystem::IsAllowedToTick() const
+{
+	return FTickableGameObject::IsAllowedToTick();
+}
+
+void UWebAPISubsystem::Tick(float DeltaTime)
+{
+	for(TSharedRef<IHttpRequest>& Request : RequestBuffer)
+	{
+		const EHttpRequestStatus::Type RequestStatus = Request->GetStatus();
+		if(RequestStatus == EHttpRequestStatus::NotStarted)
+		{
+			Request->ProcessRequest();
+		}
+		else if(RequestStatus == EHttpRequestStatus::Failed_ConnectionError)
+		{			
+			Request->ProcessRequest();
+		}
+		else if(RequestStatus == EHttpRequestStatus::Failed)
+		{
+			// If there's a response that was denied, keep for retry after auth
+			if(Request->GetResponse().IsValid())
+			{
+				if(Request->GetResponse()->GetResponseCode() == EHttpResponseCodes::Denied)
+				{
+					FString Host = UWebAPIUtilities::GetHostFromUrl(Request->GetURL());
+
+					TArray<TSharedRef<IHttpRequest>>& HostRequests = HostRequestBuffer.FindOrAdd(Host);
+					// Prevent filling this buffer due to never being authorized, etc. - discards requests if buffer full
+					if(HostRequests.Num() <= CVarMaxDeniedHttpRetryCount->GetInt())
+					{
+						HostRequests.Add(Request);
+						HostRequestBuffer.Add(Host);
+					}
+
+					RequestBuffer.Remove(Request);
+
+					continue;
+				}
+			}
+			
+			RequestBuffer.Remove(Request);			
+		}
+	}
+}
+
+TStatId UWebAPISubsystem::GetStatId() const
+{
+	RETURN_QUICK_DECLARE_CYCLE_STAT(UWebAPISubsystem, STATGROUP_Tickables);
 }
 
 bool UWebAPISubsystem::HandleHttpRequest(TSharedPtr<IHttpRequest> InRequest, UWebAPIDeveloperSettings* InSettings)

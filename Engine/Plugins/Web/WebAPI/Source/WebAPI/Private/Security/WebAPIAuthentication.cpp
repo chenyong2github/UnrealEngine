@@ -5,6 +5,7 @@
 #include "WebAPIDeveloperSettings.h"
 #include "WebAPILog.h"
 #include "WebAPISubsystem.h"
+#include "WebAPIUtilities.h"
 #include "Engine/Engine.h"
 #include "Interfaces/IHttpRequest.h"
 #include "Serialization/JsonSerializer.h"
@@ -55,31 +56,30 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 
 	GEngine->GetEngineSubsystem<UWebAPISubsystem>()->MakeHttpRequest(TEXT("POST"), [&, AuthSettings](const TSharedPtr<IHttpRequest>& InRequest)
 	{
-		//Microsoft login rest URL
 		FStringFormatNamedArguments UrlArgs;
-		UrlArgs.Add(TEXT("TenantId"), AuthSettings->TenantId);
+		for(const TPair<FString, FString>& KVP : AuthSettings->AdditionalRequestQueryParameters)
+		{
+			UrlArgs.Add(KVP.Key, KVP.Value);
+		}
+		
 		const FString Url = FString::Format(*AuthSettings->AuthenticationServer, UrlArgs);
 
-		// @todo: move!
+
 		FString StringPayload = "grant_type=client_credentials";
 		StringPayload.Append("&client_id=" + AuthSettings->ClientId);
 		StringPayload.Append("&client_secret=" + AuthSettings->ClientSecret);
-		StringPayload.Append("&resource=https://digitaltwins.azure.net");
+
+		for(const TPair<FString, FString>& KVP : AuthSettings->AdditionalRequestQueryParameters)
+		{
+			StringPayload.Append(FString::Printf(TEXT("&%s=%s"), *KVP.Key, *KVP.Value));
+		}
 
 		InRequest->SetURL(Url);
 		InRequest->SetContentAsString(StringPayload);
 
 		TMap<FString, FString> Headers;
-		// FInternetAddr
-		FString SchemeName;
-		FParse::SchemeNameFromURI(*Url, SchemeName);
-		FString Host = Url.Replace(*(SchemeName + TEXT("://")), TEXT(""));
-		
-		int32 DelimiterIdx = -1;
-		if(Host.FindChar(TEXT('/'), DelimiterIdx))
-		{
-			Host = Host.Left(DelimiterIdx);
-		}
+
+		const FString Host = UWebAPIUtilities::GetHostFromUrl(*Url);
 
 		Headers.Add("Host", Host);
 		Headers.Add("Content-Type", "application/x-www-form-urlencoded");
@@ -131,7 +131,7 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 				}
 			}
 			else
-				{
+			{
 				UE_LOG(LogWebAPI, Error, TEXT("Authentication failed: Response not valid"));
 				Message = "Response code not valid:" + Message;
 			}
@@ -142,15 +142,13 @@ bool FWebAPIOAuthSchemeHandler::HandleHttpResponse(EHttpResponseCodes::Type InRe
 			Message = "Response is null";
 		}
 
-		// @todo: request retry
-		//Redo all the requests that arrived while fetching new token
-		/*
-		if (bUpdatingToken && bSuccess)
+		if(bSuccess)
 		{
-			UpdatingToken = false;
-			RedoRequests();
+			const FString Host = UWebAPIUtilities::GetHostFromUrl(InResponse.Key->GetURL());
+
+			// Auth succeeded, retry any buffered, previous denied requests
+			GEngine->GetEngineSubsystem<UWebAPISubsystem>()->RetryRequestsForHost(Host);
 		}
-		*/
 
 		return bSuccess;
 	});

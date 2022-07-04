@@ -37,10 +37,6 @@ class WEBAPI_API UWebAPIOAuthSettings : public UWebAPIAuthenticationSettings
 
 public:
 	UWebAPIOAuthSettings();
-	
-	/**  */
-	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
-	FString TenantId; // API key? @todo: this is specific to Azure services! move!
 
 	/** Public client identifier. */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
@@ -65,6 +61,14 @@ public:
 	/** Authentication endpoint. */
 	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
 	FString AuthenticationServer;
+
+	/** Additional query parameters to add to auth request. Each key should be present in the Url. */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
+	TMap<FString, FString> AdditionalRequestQueryParameters;
+
+	/** Additional content key/value pairs to add to auth request. */
+	UPROPERTY(Config, EditAnywhere, BlueprintReadWrite, Category = "Security")
+	TMap<FString, FString> AdditionalRequestBodyParameters;
 
 	/** Returns true if this contains sufficient information to request authentication. */
 	bool IsValid() const;

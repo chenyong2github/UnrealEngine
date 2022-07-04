@@ -2,8 +2,6 @@
 
 #pragma once
 
-#include "WebAPISwaggerConverter.h"
-
 #include "IWebAPIEditorModule.h"
 #include "V2/WebAPISwaggerProvider.h"
 

@@ -3,6 +3,7 @@
 #include "Misc/AutomationTest.h"
 
 #if WITH_EDITOR
+
 #include "WebAPIEditorSettings.h"
 #include "Dom/WebAPIParameter.h"
 #include "Misc/AutomationTest.h"
@@ -10,7 +11,6 @@
 #include "Misc/Paths.h"
 #include "Serialization/JsonSerializer.h"
 #include "V3/WebAPIOpenAPIConverter.h"
-#include "V3/WebAPIOpenAPIFactory.h"
 #include "V3/WebAPIOpenAPISchema.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -22,7 +22,7 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 	TSharedPtr<UE::WebAPI::OpenAPI::V3::FOpenAPIObject> InputDefinition;
 	TStrongObjectPtr<UWebAPIDefinition> OutputDefinition;
 	//TSharedPtr<UE::WebAPI::OpenAPI::FWebAPIOpenAPISchemaConverter> Converter;
-	TStrongObjectPtr<UWebAPIDefinitionFactory> Factory;
+	//TStrongObjectPtr<UWebAPIDefinitionFactory> Factory;
 
 	template <class SchemaObjectType>
 	void LoadFromJson(const TSharedPtr<SchemaObjectType>& InSchemaObject, const TSharedPtr<FJsonObject>& InJsonObject)
@@ -38,7 +38,7 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 	}
 
 	template <class SchemaObjectType>
-	void LoadFromJson(const TArray<TSharedPtr<SchemaObjectType>>& InSchemaObject, const TSharedPtr<FJsonValueArray>& InJsonValue)
+	void LoadFromJson(TArray<TSharedPtr<SchemaObjectType>>& InSchemaObject, const TSharedPtr<FJsonValueArray>& InJsonValue)
 	{
 		const TArray<TSharedPtr<FJsonValue>>* JsonArray = nullptr;
 		if(InJsonValue->TryGetArray(JsonArray))
@@ -46,8 +46,9 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 			for(const TSharedPtr<FJsonValue>& JsonItem : *JsonArray)
 			{
 				TSharedPtr<SchemaObjectType> SchemaObject = MakeShared<SchemaObjectType>();
-				SchemaObject->FromJson(JsonItem->AsObject().ToSharedRef());				
-			}			
+				SchemaObject->FromJson(JsonItem->AsObject().ToSharedRef());
+				InSchemaObject.Add(SchemaObject);
+			}
 		}
 	}
 
@@ -86,7 +87,7 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 
 		OutputDefinition = TStrongObjectPtr(NewObject<UWebAPIDefinition>());
 
-		Factory = TStrongObjectPtr(NewObject<UWebAPIOpenAPIFactory>());
+		//Factory = TStrongObjectPtr(NewObject<UWebAPIOpenAPIFactory>());
 
 		return MakeShared<UE::WebAPI::OpenAPI::FWebAPIOpenAPISchemaConverter>(
 			InputDefinition,
@@ -115,7 +116,7 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 		
 		OutputDefinition = TStrongObjectPtr(NewObject<UWebAPIDefinition>());
 
-		Factory = TStrongObjectPtr(NewObject<UWebAPIOpenAPIFactory>());
+		//Factory = TStrongObjectPtr(NewObject<UWebAPIOpenAPIFactory>());
 
 		return MakeShared<UE::WebAPI::OpenAPI::FWebAPIOpenAPISchemaConverter>(
 			InputDefinition,
@@ -126,7 +127,8 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 
 	FString GetSampleFile(const FString& InName) const
 	{
-		FString FilePath = FPaths::Combine(FPaths::ProjectPluginsDir(),
+		FString FilePath = FPaths::Combine(FPaths::EnginePluginsDir(),
+			TEXT("Web"),
 			TEXT("WebAPI"), TEXT("Source"), TEXT("WebAPIOpenAPI"),
 			TEXT("Private"), TEXT("Tests"), TEXT("Samples"), TEXT("V3"), InName + TEXT(".json"));
 		ensure(FPaths::FileExists(FilePath));
@@ -155,7 +157,7 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 	
 		TArray<TSharedPtr<FJsonValue>> JsonValueArray;
 		FJsonSerializer::Deserialize(TJsonReaderFactory<TCHAR>::Create(FileContents), JsonValueArray);
-		return MakeShared<FJsonValueArray>(JsonValueArray);
+		return  MakeShared<FJsonValueArray>(JsonValueArray);
 	}
 
 	template <class InputModelType, class OutputModelType>
@@ -276,12 +278,11 @@ BEGIN_DEFINE_SPEC(FWebAPIOpenAPI3Spec,
 
 END_DEFINE_SPEC(FWebAPIOpenAPI3Spec)
 
-// @todo: remove when done: -ExecCmds="Automation RunTests Plugin.WebAPI.OpenAPI3" -testexit="Automation Test Queue Empty" -unattended  -nopause
 void FWebAPIOpenAPI3Spec::Define()
 {
 	BeforeEach([this]
 	{
-		Factory.Reset();
+		//Factory.Reset();
 		InputDefinition.Reset();
 		OutputDefinition.Reset();
 	});
@@ -345,38 +346,6 @@ void FWebAPIOpenAPI3Spec::Define()
 						TestFoundProperty("Name property found", TagModel, TEXT("Name"), TEXT("String"));
 					}
 				}
-
-				// Test Parameters
-				{
-					TArray<TObjectPtr<UWebAPIParameter>> ConvertedParameters;
-					for(const TObjectPtr<UWebAPIModelBase>& Model : AllConvertedModels)
-					{
-						if(Model->IsA(UWebAPIParameter::StaticClass()))
-						{
-							ConvertedParameters.Add(Cast<UWebAPIParameter>(Model));
-						}
-					}
-					
-					TestEqual("Converted 2 parameters", ConvertedParameters.Num(), 2);
-
-					const TObjectPtr<UWebAPIParameter> SkipParamParameter = FindNamedModel<UWebAPIParameter>(ConvertedParameters, TEXT("SkipParam"));
-					if(TestNotNull("SkipParam parameter found", SkipParamParameter))
-					{
-						TestEqual("Parameter name is skip", SkipParamParameter->Name.ToString(true), TEXT("skip"));
-						TestEqual("Parameter stored in query", SkipParamParameter->Storage, EWebAPIParameterStorage::Query);
-						TestTrue("Parameter is required", SkipParamParameter->bIsRequired);
-						TestEqual("Parameter is 32 bit integer", SkipParamParameter->Property->Type.ToString(true), TEXT("int32"));
-					}
-
-					const TObjectPtr<UWebAPIParameter> LimitParamParameter = FindNamedModel<UWebAPIParameter>(ConvertedParameters, TEXT("LimitParam"));
-					if(TestNotNull("LimitParam parameter found", LimitParamParameter))
-					{
-						TestEqual("Parameter name is limit", LimitParamParameter->Name.ToString(true), TEXT("limit"));
-						TestEqual("Parameter stored in query", LimitParamParameter->Storage, EWebAPIParameterStorage::Query);
-						TestTrue("Parameter is required", LimitParamParameter->bIsRequired);
-						TestEqual("Parameter is 32 bit integer", LimitParamParameter->Property->Type.ToString(true), TEXT("int32"));
-					}
-				}
 			}
 		});
 	});
@@ -429,7 +398,6 @@ void FWebAPIOpenAPI3Spec::Define()
 
 	Describe("ServersObject", [this]
 	{
-		// @todo: support server variables?
 		It("Converts with Variables", [this]
 		{
 			const FString FilePath = GetSampleFile("ServerObjectExample_Variables");
@@ -443,7 +411,7 @@ void FWebAPIOpenAPI3Spec::Define()
 			const bool bWasConverted = Converter->Convert();
 			if(TestTrue("ServersObject converted to WebAPI", bWasConverted))
 			{
-				const FString ExpectedUrl = TEXT("https://{username}.gigantic-server.com:{port}/{basePath}");
+				const FString ExpectedUrl = TEXT("{username}.gigantic-server.com:{port}");
 				TestEqual(FString::Printf(TEXT("Host is \"%s\""), *ExpectedUrl), OutputDefinition->GetWebAPISchema()->Host, ExpectedUrl);
 			}
 		});

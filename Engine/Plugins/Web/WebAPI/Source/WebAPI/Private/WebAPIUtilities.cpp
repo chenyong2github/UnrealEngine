@@ -6,3 +6,18 @@ const FText& UWebAPIUtilities::GetResponseMessage(const FWebAPIMessageResponse& 
 {
 	return MessageResponse.GetMessage();
 }
+
+FString UWebAPIUtilities::GetHostFromUrl(const FString& InUrl)
+{
+	FString SchemeName;
+	FParse::SchemeNameFromURI(*InUrl, SchemeName);
+	FString Host = InUrl.Replace(*(SchemeName + TEXT("://")), TEXT(""));
+		
+	int32 DelimiterIdx = -1;
+	if(Host.FindChar(TEXT('/'), DelimiterIdx))
+	{
+		Host = Host.Left(DelimiterIdx);
+	}
+
+	return Host;
+}

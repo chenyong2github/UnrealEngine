@@ -9,30 +9,36 @@ public class WebAPIBlueprintGraph : ModuleRules
 		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
 
 		PrivateDependencyModuleNames.AddRange(
-			new string[]
-			{
+			new string[] {
 				"ApplicationCore",
 				"AssetRegistry",
-				"AssetTools",
-				"BlueprintGraph",
 				"Core",
 				"CoreUObject",
-				"EditorStyle",
 				"Engine",
-				"GraphEditor",
 				"InputCore",
 				"Json",
-				"Kismet",
-				"KismetCompiler",
-				"KismetWidgets",
-				"Projects",
-				"PropertyEditor",
 				"Slate",
 				"SlateCore",
-				"ToolMenus",
-				"UnrealEd",
 				"WebAPI",
 			}
 		);
+		
+		if (Target.bBuildEditor == true)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"AssetTools",
+					"BlueprintGraph",
+					"EditorStyle",
+					"GraphEditor",
+					"Kismet",
+					"KismetCompiler",
+					"KismetWidgets",
+					"Projects",
+					"PropertyEditor",
+					"ToolMenus",
+					"UnrealEd"
+				});
+		}
 	}
 }

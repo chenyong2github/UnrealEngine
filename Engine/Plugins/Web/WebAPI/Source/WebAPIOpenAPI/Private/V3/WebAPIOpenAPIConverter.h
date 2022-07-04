@@ -53,8 +53,6 @@ namespace UE::WebAPI::OpenAPI
 		template <typename ObjectType>
 		TSharedPtr<ObjectType> ResolveReference(const UE::Json::TJsonReference<ObjectType>& InJsonReference, bool bInCheck = true);
 
-		//FWebAPINameVariant ResolveModelName(const TObjectPtr<UWebAPIProperty>& InProperty, const TOptional<bool>& bInIsArray, const FWebAPITypeNameVariant& InPossibleName = {});
-
 		FWebAPINameVariant ResolvePropertyName(const TObjectPtr<UWebAPIProperty>& InProperty, const FWebAPITypeNameVariant& InPotentialName, const TOptional<bool>& bInIsArray = {});
 
 		template <typename SchemaType>
@@ -76,10 +74,7 @@ namespace UE::WebAPI::OpenAPI
 		/** Creates a new Property from the supplied source object. */
 		template <typename SchemaType>
 		TObjectPtr<UWebAPIProperty> ConvertProperty(const TSharedPtr<SchemaType>& InSrcSchema, const TObjectPtr<UWebAPIModel>& InModel, const FWebAPINameVariant& InPropertyName = {}, const FString& InDefinitionName = {});
-/*
-		template <>
-		bool ConvertProperty(const FWebAPITypeNameVariant& InModelName,	const FWebAPINameVariant& InPropertyName, const TSharedPtr<OpenAPI::V2::FParameter>& InSchema, const FString& InDefinitionName, const TObjectPtr<UWebAPIProperty>& OutProperty);
-*/
+
 		/** Modifies an existing Model using the supplied source object. */
 		template <typename SchemaType>
 		bool ConvertModel(const TSharedPtr<SchemaType>& InSrcSchema, const FWebAPITypeNameVariant& InModelTypeName, const TObjectPtr<UWebAPIModel>& OutModel);

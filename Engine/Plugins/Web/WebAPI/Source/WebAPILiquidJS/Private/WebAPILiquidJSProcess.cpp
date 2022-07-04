@@ -1,26 +1,24 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+﻿// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "WebAPILiquidJSProcess.h"
 
+#include "INetworkingWebSocket.h"
 #include "IWebAPILiquidJSModule.h"
-#include "Interfaces/IPluginManager.h"
-#include "GenericPlatform/GenericPlatformFile.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
-#include "HAL/PlatformFileManager.h"
-#include "Modules/ModuleManager.h"
+#include "IWebSocketNetworkingModule.h"
 #include "SocketSubsystem.h"
 #include "WebAPILiquidJSLog.h"
 #include "WebAPILiquidJSSettings.h"
-#include "INetworkingWebSocket.h"
+#include "Async/Async.h"
+#include "GenericPlatform/GenericPlatformFile.h"
+#include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/PlatformFileManager.h"
+#include "Interfaces/IPluginManager.h"
 
 #define LOCTEXT_NAMESPACE "WebAPILiquidJS"
 
 FWebAPILiquidJSProcess::FWebAPILiquidJSProcess()
 	: Status(EStatus::Stopped)
-{
-}
-
-FWebAPILiquidJSProcess::~FWebAPILiquidJSProcess()
+	, bForceBuildWebApp(false)
 {
 }
 
@@ -37,7 +35,7 @@ bool FWebAPILiquidJSProcess::TryStart()
 
 	if (!PlatformFile.DirectoryExists(*Root))
 	{
-		UE_LOG(LogWebAPILiquidJS, Warning, TEXT("WebApp folder doesn't exist (%s)"), *Root);
+		UE_LOG(LogWebAPILiquidJS, Warning, TEXT("WebAPIGeneratorApp folder doesn't exist (%s)"), *Root);
 		return false;
 	}
 
@@ -91,14 +89,6 @@ void FWebAPILiquidJSProcess::SetExternalLoggerEnabled(bool bEnableExternalLog) c
 		bool bIsValidIp = false;
 		Address->SetIp(TEXT("127.0.0.1"), bIsValidIp);
 		Address->SetPort(Settings->Port + 2);
-		//WebSocketLoggerConnection = FModuleManager::LoadModuleChecked<IWebSocketNetworkingModule>(TEXT("WebSocketNetworking")).CreateConnection(*Address);
-	}
-
-	IWebAPILiquidJSModuleInterface* WebAPILiquidJSModule = FModuleManager::GetModulePtr<IWebAPILiquidJSModuleInterface>("WebAPILiquidJS");
-	if (WebAPILiquidJSModule)
-	{
-		// @todo
-		//WebAPILiquidJSModule->SetExternalRemoteWebSocketLoggerConnection(WebSocketLoggerConnection);
 	}
 }
 
@@ -134,7 +124,7 @@ uint32 FWebAPILiquidJSProcess::Run()
 									Settings->WebSocketServerPort,
 									Settings->HttpServerPort);
 
-	if (Settings->bForceWebAppBuildAtStartup)
+	if (Settings->bForceWebAppBuildAtStartup || bForceBuildWebApp)
 	{
 		Args.Append(TEXT("--build "));
 	}
@@ -260,7 +250,7 @@ uint32 FWebAPILiquidJSProcess::Run()
 	{
 		TaskNotification->SetComplete(
 			ErrorTitle,
-			LOCTEXT("WebAPILiquidJS_Exited", "WebApp exited"),
+			LOCTEXT("WebAPILiquidJS_LaunchFailed", "WebApp exited"),
 			false
 		);
 	}
@@ -269,10 +259,32 @@ uint32 FWebAPILiquidJSProcess::Run()
 		UE_LOG(LogWebAPILiquidJS, Log, TEXT("WebApp exited"));
 	}
 
+	EStatus PreStopStatus = Status;
 	Status = EStatus::Stopped;
 
 	FPlatformProcess::ClosePipe(ReadPipe, WritePipe);
 	Process.Reset();
+
+	// If haven't already, try again with --build flag
+	if(PreStopStatus == EStatus::Error && !bForceBuildWebApp && !Settings->bForceWebAppBuildAtStartup)
+	{
+		bForceBuildWebApp = true;
+
+		Async(EAsyncExecution::TaskGraphMainThread, [this]()
+		{
+			FAsyncTaskNotificationConfig NotificationConfig;
+			NotificationConfig.TitleText = LOCTEXT("WebAPILiquidJS_Launch", "Launching WebAPILiquidJS");
+	#if !NO_LOGGING
+			NotificationConfig.LogCategory = &LogWebAPILiquidJS;
+	#endif
+			NotificationConfig.bIsHeadless = false;
+			
+			TaskNotification.Release();
+			TaskNotification = MakeUnique<FAsyncTaskNotification>(NotificationConfig);
+		}).Wait();
+
+		return Run();
+	}
 
 	return 0;
 }

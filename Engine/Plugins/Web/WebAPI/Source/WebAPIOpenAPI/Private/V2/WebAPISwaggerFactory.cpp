@@ -12,9 +12,9 @@
 
 struct FWebAPIOperationResponseKeyFuncs : public TDefaultMapKeyFuncs<uint32, TObjectPtr<UWebAPIOperationResponse>, false>
 {
-	static FORCEINLINE uint32 GetSetKey(TObjectPtr<UWebAPIOperationResponse> const& Element) { return Element->Code; }
-	static FORCEINLINE uint32 GetKeyHash(uint32 const& Key) { return Key; }
-	static FORCEINLINE bool Matches(uint32 const& A, uint32 const& B) { return (A == B); }
+	static FORCEINLINE uint32 GetSetKey(const TObjectPtr<UWebAPIOperationResponse>& Element) { return Element->Code; }
+	static FORCEINLINE uint32 GetKeyHash(const uint32& Key) { return Key; }
+	static FORCEINLINE bool Matches(const uint32& A, const uint32& B) { return (A == B); }
 };
 
 UWebAPISwaggerFactory::UWebAPISwaggerFactory()
@@ -47,15 +47,12 @@ TFuture<bool> UWebAPISwaggerFactory::ImportWebAPI(UWebAPIDefinition* InDefinitio
 	ImportData->FileContents = InFileContents;
 
 	// Parse spec
-	// @todo: move call to ConvertToWebAPISchema outside of Factory implementation (to provide Pre and Post extensibility)
 	return Provider->ConvertToWebAPISchema(InDefinition)
 	.Next([](EWebAPIConversionResult bInConversionResult)
 	{
-		// @todo: UI notification
-		//InDefinition->SetWebAPISchema(InWebAPISchema);
-
 		return bInConversionResult == EWebAPIConversionResult::Succeeded;
 	});
 }
 
 #undef LOCTEXT_NAMESPACE
+

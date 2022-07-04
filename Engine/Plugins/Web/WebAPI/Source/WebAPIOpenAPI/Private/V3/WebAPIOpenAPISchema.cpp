@@ -93,7 +93,6 @@ namespace UE::WebAPI::OpenAPI::V3
 		return bSetAField;
 	}
 
-	// @todo: parse header object
 	bool FHeaderObject::FromJson(const TSharedRef<FJsonObject>& InJson)
 	{
 		const bool bSetAField = Super::FromJson(InJson);
