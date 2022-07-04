@@ -1,0 +1,128 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "Containers/Array.h"
+#include "Containers/ArrayView.h"
+#include "Memory/SharedBuffer.h"
+#include "Misc/Guid.h"
+#include "Serialization/CompactBinary.h"
+
+class FSocket;
+
+namespace UE::CompactBinaryTCP
+{
+
+class FCompactBinaryTCPImpl;
+struct FReceiveBuffer;
+struct FSendBuffer;
+
+enum EConnectionStatus
+{
+	/** Connection is still okay or operation succeeded. */
+	Okay,
+	/** Connection failed and no further use of the Socket is possible. */
+	Terminated,
+	/** The Socket is still active but the data received was invalid and recovery is not possible. */
+	FormatError,
+	/** The operation failed and the Socket is no longer usable. */
+	Failed,
+	/** The Socket is busy and the operation needs to be retried later */
+	Incomplete,
+};
+const TCHAR* DescribeStatus(EConnectionStatus Status);
+
+/**
+ * The base class of messages that can be sent through CompactBinaryTCP. Messages are identified to
+ * the remote connection by the Guid identifier from GetMessageType.
+ */
+class IMessage
+{
+public:
+	virtual ~IMessage() {}
+	/** Marshall the message to a CompactBinaryObject. */
+	virtual void Write(FCbWriter& Writer) const = 0;
+	/** Unmarshall the message from a CompactBinaryObject. */
+	virtual bool TryRead(FCbObjectView Object) = 0;
+	/** Return the Guid that identifies the message to the remote connection. */
+	virtual FGuid GetMessageType() const = 0;
+};
+
+/** IMessages are marshalled into a Guid and a CompactBinaryObject for serialization through the socket. */
+struct FMarshalledMessage
+{
+	FGuid MessageType;
+	FCbObject Object;
+};
+
+/**
+ * Attempt to read messages from the socket. Returns all messages currently available and returns. Partially
+ * transferred messages are stored in Buffer and can be completed by further calls to TryReadPacket.
+ * 
+ * @param MaxPacketSize If non-zero, all messages are assumed to be <= and a FormatError is given if they are larger.
+ * 
+ * @return EConnectionStatus::Okay on success and EConnectionStatus::Terminated or EConnection::FormatError on error.
+ * If EConnectionStatus::Okay is returned, Messages may be empty (no message yet received) or populated.
+ */
+EConnectionStatus TryReadPacket(FSocket* Socket, FReceiveBuffer& Buffer,
+	TArray<FMarshalledMessage>& Messages, uint64 MaxPacketSize=0);
+
+/**
+ * Attempt to write messages to the socket. If the socket is busy the new messages are stored in Buffer and will be
+ * sent on a future call to TryWritePacket.
+ * 
+ * @param MaxPacketSize When combining multiple messages into a single packet, messages will stopped being added and
+ * will be pushed into the next packet if the packet size is > this amount. If 0, will use the maximum size allowed
+ * by the socket, which is >= 2^30. If a single message has larger size than MaxPacketSize, EConnectionStatus::Failed
+ * is return and the socket will no longer be usable.
+ * 
+ * @return EConnectionStatus::Okay on success and all messages have been sent. EConnectionStatus::Incomplete if some
+ * messages could not yet be sent. EConnectionStatus::Failed if connection failed and socket is no longer usable.
+ */
+EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
+	TArray<FMarshalledMessage>&& AppendMessages, uint64 MaxPacketSize = 0);
+EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
+	FMarshalledMessage&& AppendMessage, uint64 MaxPacketSize = 0);
+EConnectionStatus TryWritePacket(FSocket* Socket, FSendBuffer& Buffer,
+	const IMessage& AppendMessage, uint64 MaxPacketSize = 0);
+
+/** Attempt to finish sending packets that were previously queued by TryWritePacket */
+EConnectionStatus TryFlushBuffer(FSocket* Socket, FSendBuffer& Buffer, uint64 MaxPacketSize = 0);
+
+/**
+ * Holds the state of the CompactBinaryTCP communication read from a Socket. Expects the socket to be a
+ * series of packets of messages and keeps track of the next packet when a packet is as yet only partially received.
+ */
+struct FReceiveBuffer
+{
+public:
+	void Reset();
+
+private:
+	FUniqueBuffer Payload;
+	uint64 BytesRead = 0;
+	bool bParsedHeader = false;
+
+	friend class UE::CompactBinaryTCP::FCompactBinaryTCPImpl;
+};
+
+/**
+ * Holds the state of the CompactBinaryTCP communication written to a Socket. Allows the socket to be a
+ * series of packets of messages and keeps track of a partially sent packet and of pending messages.
+ */
+struct FSendBuffer
+{
+public:
+	void Reset();
+
+private:
+	TArray<FMarshalledMessage> PendingMessages;
+	FUniqueBuffer Payload;
+	uint64 BytesWritten = 0;
+	bool bCreatedPayload = false;
+	bool bSentHeader = false;
+
+	friend class UE::CompactBinaryTCP::FCompactBinaryTCPImpl;
+};
+
+}
