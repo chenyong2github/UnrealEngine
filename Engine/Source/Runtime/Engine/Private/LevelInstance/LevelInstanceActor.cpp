@@ -11,6 +11,7 @@
 #include "Net/UnrealNetwork.h"
 
 #if WITH_EDITOR
+#include "UObject/ObjectSaveContext.h"
 #include "WorldPartition/WorldPartitionActorDesc.h"
 #include "WorldPartition/LevelInstance/LevelInstanceActorDesc.h"
 #include "LevelInstance/LevelInstanceEditorPivotActor.h"
@@ -68,7 +69,11 @@ void ALevelInstance::OnRep_LevelInstanceSpawnGuid()
 void ALevelInstance::PostRegisterAllComponents()
 {
 	Super::PostRegisterAllComponents();
-	
+
+#if WITH_EDITOR
+	ResetUnsupportedWorldAsset();
+#endif
+
 	if (GetLocalRole() == ENetRole::ROLE_Authority && GetWorld()->IsGameWorld())
 	{
 #if !WITH_EDITOR
@@ -146,21 +151,6 @@ ALevelInstance::FOnLevelInstanceActorPostLoad ALevelInstance::OnLevelInstanceAct
 void ALevelInstance::PostLoad()
 {
 	Super::PostLoad();
-
-#if WITH_EDITOR
-	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
-	{
-		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s, make sure to flag world partition's 'Can be Used by Level Instance'."), *WorldAsset.GetLongPackageName());
-		WorldAsset.Reset();
-	}
-#endif
-		
-#if WITH_EDITORONLY_DATA
-	if (IsRunningCookCommandlet() && IsLoadingEnabled())
-	{
-		CookedWorldAsset = WorldAsset;
-	}
-#endif
 
 	OnLevelInstanceActorPostLoad.Broadcast(this);
 }
@@ -285,6 +275,32 @@ void ALevelInstance::PushLevelInstanceEditingStateToProxies(bool bInEditingState
 	Super::PushLevelInstanceEditingStateToProxies(bInEditingState);
 
 	LevelInstanceActorImpl.PushLevelInstanceEditingStateToProxies(bInEditingState);
+}
+
+void ALevelInstance::PreSave(FObjectPreSaveContext ObjectSaveContext)
+{
+	Super::PreSave(ObjectSaveContext);
+
+	if (IsRunningCookCommandlet())
+	{
+		ResetUnsupportedWorldAsset();
+
+#if WITH_EDITORONLY_DATA
+		if (IsLoadingEnabled())
+		{
+			CookedWorldAsset = WorldAsset;
+		}
+#endif
+	}
+}
+
+void ALevelInstance::ResetUnsupportedWorldAsset()
+{
+	if (!ULevelInstanceSubsystem::CanUsePackage(*WorldAsset.GetLongPackageName()))
+	{
+		UE_LOG(LogLevelInstance, Warning, TEXT("LevelInstance doesn't support partitioned world %s, make sure to flag world partition's 'Can be Used by Level Instance'."), *WorldAsset.GetLongPackageName());
+		WorldAsset.Reset();
+	}
 }
 
 #endif

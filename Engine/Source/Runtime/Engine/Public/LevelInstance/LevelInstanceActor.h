@@ -80,6 +80,7 @@ public:
 	virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
 	virtual void PostEditImport() override;
+	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 
 	// AActor overrides
 	virtual void CheckForErrors() override;
@@ -96,6 +97,9 @@ public:
 
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnLevelInstanceActorPostLoad, ALevelInstance*);
 	static FOnLevelInstanceActorPostLoad OnLevelInstanceActorPostLoad;
+
+private:
+	void ResetUnsupportedWorldAsset();
 #endif
 };
 
