@@ -51,9 +51,10 @@ public:
 	};
 
 public:
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FGetFieldWidget, FHandle, const FFieldVariant);
-	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FOnContextMenuOpening, FHandle, const FFieldVariant);
-	DECLARE_DELEGATE_ThreeParams(FOnSelectionChanged, FHandle, const FFieldVariant, ESelectInfo::Type);
+	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FGetFieldWidget, FHandle, TArrayView<const FFieldVariant>);
+	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<SWidget>, FOnContextMenuOpening, FHandle, TArrayView<const FFieldVariant>);
+	DECLARE_DELEGATE_ThreeParams(FOnSelectionChanged, FHandle, TArrayView<const FFieldVariant>, ESelectInfo::Type);
+	DECLARE_DELEGATE_TwoParams(FOnDoubleClicked, FHandle, TArrayView<const FFieldVariant>);
 
 	SLATE_BEGIN_ARGS(SPropertyViewer)
 	{}
@@ -85,6 +86,8 @@ public:
 		SLATE_EVENT(FOnContextMenuOpening, OnContextMenuOpening)
 		/** Delegate to invoke when selection changes. */
 		SLATE_EVENT(FOnSelectionChanged, OnSelectionChanged)
+		/** Delegate to invoke when an item is double-clicked. */
+		SLATE_EVENT(FOnDoubleClicked, OnDoubleClicked);
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);

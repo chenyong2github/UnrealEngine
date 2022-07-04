@@ -148,6 +148,7 @@ public:
 	}
 
 	FPropertyPath GetPropertyPath() const;
+	TArray<FFieldVariant> GetFieldPath() const;
 
 	TSharedPtr<FContainer> GetOwnerContainer() const;
 
@@ -195,6 +196,7 @@ private:
 	SPropertyViewer::FGetFieldWidget OnGetPostSlot;
 	SPropertyViewer::FOnContextMenuOpening OnContextMenuOpening;
 	SPropertyViewer::FOnSelectionChanged OnSelectionChanged;
+	SPropertyViewer::FOnDoubleClicked OnDoubleClicked;
 	SPropertyViewer::EPropertyVisibility PropertyVisibility;
 	bool bSanitizeName = false;
 	bool bShowFieldIcon = false;
@@ -233,6 +235,7 @@ private:
 
 	TSharedPtr<SWidget> HandleContextMenuOpening();
 	void HandleSelectionChanged(TSharedPtr<FTreeNode> Item, ESelectInfo::Type SelectionType);
+	void HandleDoubleClick(TSharedPtr<FTreeNode> Item);
 
 #if WITH_EDITOR
 	void HandleBlueprintCompiled();

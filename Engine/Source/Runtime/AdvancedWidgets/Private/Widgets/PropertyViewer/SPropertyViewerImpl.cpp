@@ -174,6 +174,22 @@ FPropertyPath FTreeNode::GetPropertyPath() const
 	return FPropertyPath();
 }
 
+TArray<FFieldVariant> FTreeNode::GetFieldPath() const
+{
+	TArray<FFieldVariant> Fields;
+
+	const FTreeNode* CurrentNode = this;
+	while (CurrentNode)
+	{ 
+		if (FFieldVariant Field = CurrentNode->GetField())
+		{
+			Fields.Insert(Field, 0);
+		}
+		
+		CurrentNode = CurrentNode->ParentNode.Pin().Get();
+	}
+	return Fields;
+}
 
 TSharedPtr<FContainer> FTreeNode::GetOwnerContainer() const
 {
@@ -380,6 +396,7 @@ FPropertyViewerImpl::FPropertyViewerImpl(const SPropertyViewer::FArguments& InAr
 	OnGetPreSlot = InArgs._OnGetPreSlot;
 	OnGetPostSlot = InArgs._OnGetPostSlot;
 	OnSelectionChanged = InArgs._OnSelectionChanged;
+	OnDoubleClicked = InArgs._OnDoubleClicked;
 	PropertyVisibility = InArgs._PropertyVisibility;
 	bSanitizeName = InArgs._bSanitizeName;
 	bShowFieldIcon = InArgs._bShowFieldIcon;
@@ -683,6 +700,7 @@ TSharedRef<SWidget> FPropertyViewerImpl::CreateTree(bool bHasPreWidget, bool bSh
 			.OnGenerateRow(this, &FPropertyViewerImpl::HandleGenerateRow)
 			.OnSelectionChanged(this, &FPropertyViewerImpl::HandleSelectionChanged)
 			.OnContextMenuOpening(this, &FPropertyViewerImpl::HandleContextMenuOpening)
+			.OnMouseButtonDoubleClick(this, &FPropertyViewerImpl::HandleDoubleClick)
 			.HeaderRow(HeaderRowWidget);
 		FilterHandler->SetTreeView(TreeWidget.Get());
 	}
@@ -696,6 +714,7 @@ TSharedRef<SWidget> FPropertyViewerImpl::CreateTree(bool bHasPreWidget, bool bSh
 			.OnGenerateRow(this, &FPropertyViewerImpl::HandleGenerateRow)
 			.OnSelectionChanged(this, &FPropertyViewerImpl::HandleSelectionChanged)
 			.OnContextMenuOpening(this, &FPropertyViewerImpl::HandleContextMenuOpening)
+			.OnMouseButtonDoubleClick(this, &FPropertyViewerImpl::HandleDoubleClick)
 			.HeaderRow(HeaderRowWidget);
 	}
 
@@ -872,14 +891,9 @@ TSharedRef<ITableRow> FPropertyViewerImpl::HandleGenerateRow(TSharedPtr<FTreeNod
 				{
 					SPropertyViewer::FGetFieldWidget& OnGetWidget = (ColumnName == ColumnName_FieldPreWidget) ? PropertyViewOwnerPin->OnGetPreSlot : PropertyViewOwnerPin->OnGetPostSlot;
 					TSharedPtr<SWidget> PreWidget;
-					if (TSharedPtr<FContainer> ContainerPin = ItemPin->GetContainer())
-					{
-						PreWidget = OnGetWidget.Execute(ContainerPin->GetIdentifier(), FFieldVariant(ContainerPin->GetStruct()));
-					}
-					else if (FFieldVariant FieldVariant = ItemPin->GetField())
-					{
-						PreWidget = OnGetWidget.Execute(SPropertyViewer::FHandle(), FieldVariant);
-					}
+
+					TSharedPtr<FContainer> OwnerContainer = ItemPin->GetOwnerContainer();
+					PreWidget = OnGetWidget.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), ItemPin->GetFieldPath());
 
 					if (PreWidget)
 					{
@@ -936,14 +950,8 @@ TSharedPtr<SWidget> FPropertyViewerImpl::HandleContextMenuOpening()
 		TArray<TSharedPtr<FTreeNode>> Items = TreeWidget->GetSelectedItems();
 		if (Items.Num() == 1 && Items[0].IsValid())
 		{
-			if (TSharedPtr<FContainer> ContainerPin = Items[0]->GetContainer())
-			{
-				return OnContextMenuOpening.Execute(ContainerPin->GetIdentifier(), FFieldVariant(ContainerPin->GetStruct()));
-			}
-			else if (FFieldVariant FieldVariant = Items[0]->GetField())
-			{
-				return OnContextMenuOpening.Execute(SPropertyViewer::FHandle(), FieldVariant);
-			}
+			TSharedPtr<FContainer> OwnerContainer = Items[0]->GetOwnerContainer();
+			return OnContextMenuOpening.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), Items[0]->GetFieldPath());
 		}
 	}
 	return TSharedPtr<SWidget>();
@@ -954,13 +962,30 @@ void FPropertyViewerImpl::HandleSelectionChanged(TSharedPtr<FTreeNode> Item, ESe
 {
 	if (OnSelectionChanged.IsBound())
 	{
-		if (TSharedPtr<FContainer> ContainerPin = Item->GetContainer())
+		if (Item.IsValid())
 		{
-			OnSelectionChanged.Execute(ContainerPin->GetIdentifier(), FFieldVariant(ContainerPin->GetStruct()), SelectionType);
+			TSharedPtr<FContainer> OwnerContainer = Item->GetOwnerContainer();
+			OnSelectionChanged.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), Item->GetFieldPath(), SelectionType);
 		}
-		else if (FFieldVariant FieldVariant = Item->GetField())
+		else
 		{
-			OnSelectionChanged.Execute(SPropertyViewer::FHandle(), FieldVariant, SelectionType);
+			OnSelectionChanged.Execute(SPropertyViewer::FHandle(), TArray<FFieldVariant>(), SelectionType);
+		}
+	}
+}
+
+void FPropertyViewerImpl::HandleDoubleClick(TSharedPtr<FTreeNode> Item)
+{
+	if (OnDoubleClicked.IsBound())
+	{
+		if (Item.IsValid())
+		{
+			TSharedPtr<FContainer> OwnerContainer = Item->GetOwnerContainer();
+			OnDoubleClicked.Execute(OwnerContainer.IsValid() ? OwnerContainer->GetIdentifier() : SPropertyViewer::FHandle(), Item->GetFieldPath());
+		}
+		else
+		{
+			OnDoubleClicked.Execute(SPropertyViewer::FHandle(), TArray<FFieldVariant>());
 		}
 	}
 }
