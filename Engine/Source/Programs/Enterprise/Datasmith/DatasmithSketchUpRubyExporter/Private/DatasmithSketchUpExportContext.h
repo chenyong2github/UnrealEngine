@@ -273,6 +273,14 @@ namespace DatasmithSketchUp
 		FExportContext& Context;
 	};
 
+	struct FOptions
+	{
+		// Enabling this reverts to legacy behavior when each set of disconnected faces results in a separate static mesh.
+		// Disconnected means faces not connected through common edges. E.g. face A and B share an edge, face C shares edge with A then ABC are 'connected' one mesh(A connects with B through C).
+		bool bSeparateDisconnectedMeshes = false;
+	};
+
+
 	// Holds all the data needed during export and incremental updates
 	class FExportContext
 	{
@@ -291,6 +299,8 @@ namespace DatasmithSketchUp
 		bool InvalidateColorByLayer();
 
 		bool PreUpdateColorByLayer();
+
+		FOptions Options;
 
 		SUModelRef ModelRef = SU_INVALID;
 
