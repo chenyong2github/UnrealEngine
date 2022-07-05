@@ -206,7 +206,7 @@ namespace UE::PixelStreaming
                                 }
                                 MenuBuilder.EndSection();
 
-                                MenuBuilder.BeginSection("Advanced", LOCTEXT("PixelStreamingSettings", "Advanced"));
+                                MenuBuilder.BeginSection("Advanced", LOCTEXT("PixelStreamingAdvancedSettings", "Advanced"));
                                 {
                                     MenuBuilder.AddSubMenu(
                                         LOCTEXT("PixelStreamingCodecSettings", "Select Codec"),
