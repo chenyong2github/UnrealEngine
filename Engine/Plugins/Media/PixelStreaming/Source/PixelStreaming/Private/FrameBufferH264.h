@@ -3,23 +3,23 @@
 #pragma once
 
 #include "IPixelStreamingFrameBuffer.h"
+#include "PixelStreamingAdaptedOutputFrameH264.h"
+#include "IPixelStreamingAdaptedFrameSource.h"
 #include "RHI.h"
 
 namespace UE::PixelStreaming
 {
-	class FAdaptedVideoFrameLayerH264;
-	
 	/*
 	 * The base of the H264 frame buffer. Shouldn't be used directly.
 	 */
 	class FFrameBufferH264Base : public IPixelStreamingFrameBuffer
 	{
 	public:
-		FFrameBufferH264Base(TSharedPtr<IPixelStreamingFrameSource> InFrameSource);
+		FFrameBufferH264Base(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource);
 		virtual ~FFrameBufferH264Base() = default;
 
 	protected:
-		TSharedPtr<IPixelStreamingFrameSource> FrameSource;
+		TSharedPtr<IPixelStreamingAdaptedFrameSource> FrameSource;
 	};
 
 	/*
@@ -29,7 +29,7 @@ namespace UE::PixelStreaming
 	class FFrameBufferH264Simulcast : public FFrameBufferH264Base
 	{
 	public:
-		FFrameBufferH264Simulcast(TSharedPtr<IPixelStreamingFrameSource> InFrameSource);
+		FFrameBufferH264Simulcast(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource);
 		virtual ~FFrameBufferH264Simulcast() = default;
 
 		virtual EPixelStreamingFrameBufferType GetFrameBufferType() const override { return EPixelStreamingFrameBufferType::Simulcast; }
@@ -37,7 +37,7 @@ namespace UE::PixelStreaming
 		virtual int width() const override;
 		virtual int height() const override;
 
-		TSharedPtr<IPixelStreamingFrameSource> GetFrameSource() const { return FrameSource; }
+		TSharedPtr<IPixelStreamingAdaptedFrameSource> GetFrameSource() const { return FrameSource; }
 		int GetNumLayers() const;
 	};
 
@@ -48,7 +48,7 @@ namespace UE::PixelStreaming
 	class FFrameBufferH264 : public FFrameBufferH264Base
 	{
 	public:
-		FFrameBufferH264(TSharedPtr<IPixelStreamingFrameSource> InFrameSource, int InLayerIndex = 0);
+		FFrameBufferH264(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource, int InLayerIndex = 0);
 		virtual ~FFrameBufferH264() = default;
 
 		virtual EPixelStreamingFrameBufferType GetFrameBufferType() const override { return EPixelStreamingFrameBufferType::Layer; }
@@ -56,7 +56,7 @@ namespace UE::PixelStreaming
 		virtual int width() const override;
 		virtual int height() const override;
 
-		FAdaptedVideoFrameLayerH264* GetAdaptedLayer() const;
+		FPixelStreamingAdaptedOutputFrameH264* GetAdaptedLayer() const;
 
 	private:
 		int LayerIndex;
@@ -65,6 +65,6 @@ namespace UE::PixelStreaming
 		// probably not a big deal but i would like to make sure that the buffer always refers to the same frame.
 		// this way allows the user to call GetAdaptedLayer() repeatedly and will always get the same frame.
 		void EnsureCachedAdaptedLayer() const;
-		mutable TSharedPtr<FAdaptedVideoFrameLayerH264> CachedAdaptedLayer;
+		mutable TSharedPtr<FPixelStreamingAdaptedOutputFrameH264> CachedAdaptedLayer;
 	};
 } // namespace UE::PixelStreaming

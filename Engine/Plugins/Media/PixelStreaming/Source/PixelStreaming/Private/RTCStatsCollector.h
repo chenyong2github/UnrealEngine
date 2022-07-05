@@ -75,15 +75,9 @@ namespace UE::PixelStreaming
 
 		mutable int32 RefCount;
 
-		const FString RidStr = FString(TEXT("rid"));
-		const FString TrackStatsStr = FString(TEXT("track"));
-		const FString StreamStatsStr = FString(TEXT("outbound-rtp"));
-		const FString SourceStatsStr = FString(TEXT("media-source"));
-
 		uint64 LastCalculationCycles;
 
-		FStatsSink TrackStatsSink;
-		FStatsSink SourceStatsSink;
+		TMap<FString, FStatsSink> StatSinks;
 
 		bool bIsEnabled;
 

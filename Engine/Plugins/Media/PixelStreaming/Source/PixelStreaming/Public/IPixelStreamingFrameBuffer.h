@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "api/video/video_frame_buffer.h"
-#include "CoreMinimal.h"
+#include "PixelStreamingWebRTCIncludes.h"
 
 enum EPixelStreamingFrameBufferType
 {
@@ -11,8 +10,6 @@ enum EPixelStreamingFrameBufferType
 	Simulcast,
 	Layer
 };
-
-class IPixelStreamingFrameSource;
 
 /*
  * The base framebuffer that extends the WebRTC type.

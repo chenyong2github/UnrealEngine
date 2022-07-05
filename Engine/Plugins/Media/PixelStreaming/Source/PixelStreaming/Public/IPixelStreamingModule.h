@@ -9,18 +9,13 @@
 #include "Templates/RefCounting.h"
 #include "PixelStreamingPlayerId.h"
 #include "IPixelStreamingAudioSink.h"
-#include "IPixelStreamingInputDevice.h"
-#include "api/media_stream_interface.h"
-#include "api/scoped_refptr.h"
-#include "api/video_codecs/video_encoder_factory.h"
-#include "api/video/video_frame.h"
-#include "api/video/video_sink_interface.h"
-#include "IInputDevice.h"
+#include "IPixelStreamingInputChannel.h"
+#include "PixelStreamingWebRTCIncludes.h"
+#include "IPixelStreamingStreamer.h"
 #include "IInputDeviceModule.h"
+#include "PixelStreamingCodec.h"
 
 class UPixelStreamingInput;
-class IPixelStreamingStreamer;
-class IPixelStreamingClient;
 
 /**
  * The public interface of the Pixel Streaming module.
@@ -48,6 +43,18 @@ public:
 	{
 		return FModuleManager::Get().IsModuleLoaded("PixelStreaming");
 	}
+
+	/**
+	 * Sets the encoder codec for the whole Pixel Streaming module. Should be called before any streaming starts.
+	 * @param Codec A valid EPixelStreamingCodec value.
+	 */
+	virtual void SetCodec(EPixelStreamingCodec Codec) = 0;
+
+	/**
+	 * Gets the currently selected encoder codec for all of Pixel Streaming.
+	 * @return A valid EPixelStreamingCodec value.
+	 */
+	virtual EPixelStreamingCodec GetCodec() const = 0;
 
 	/*
 	 * Event fired when internal streamer is initialized and the methods on this module are ready for use.
@@ -102,6 +109,12 @@ public:
 	virtual TSharedPtr<IPixelStreamingStreamer> DeleteStreamer(const FString& StreamerId) = 0;
 
 	/*
+	 * Sets the target FPS for Externally Consumed video Tracks
+	 * @param InFPS new FPS for the ExternalVideoSource to output at. 
+	 */
+	virtual void SetExternalVideoSourceFPS(uint32 InFPS) = 0;
+
+	/*
 	 * Allows the creation of Video Tracks that are fed the backbuffer
 	 */
 	virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateExternalVideoSource() = 0;
@@ -133,7 +146,7 @@ public:
 	 * Create a webrtc::VideoEncoderFactory pointer.
 	 * @return A WebRTC video encoder factory with its encoders populated by Pixel Streaming.
 	 */
-	virtual webrtc::VideoEncoderFactory* CreateVideoEncoderFactory() = 0;
+	virtual TUniquePtr<webrtc::VideoEncoderFactory> CreateVideoEncoderFactory() = 0;
 
 	/**
 	 * Get the Default Streamer ID
@@ -150,7 +163,7 @@ public:
 
 	/**
 	 * Register a lambda that returns a IInputDevice
-	 * @param InCreateInputeDevice - A lambda that will return input device
+	 * @param InCreateInputeChannel - A lambda that will return input Channel
 	*/
-	virtual void RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice) = 0;
+	virtual void RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel) = 0;
 };

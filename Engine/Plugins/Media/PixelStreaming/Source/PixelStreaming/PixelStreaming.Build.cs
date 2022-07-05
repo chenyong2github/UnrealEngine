@@ -10,11 +10,12 @@ namespace UnrealBuildTool.Rules
 {
 	public class PixelStreaming : ModuleRules
 	{
-		const string PixelStreamingProgramsDirectory = "../../Engine/Plugins/Media/PixelStreaming/Resources";
+		string PixelStreamingProgramsOutputDirectory = "$(EngineDir)/../WebServers";
+		const string PixelStreamingProgramsDirectory = "../../Engine/Plugins/Media/PixelStreaming/Resources/WebServers";
 
 		private void AddFolder(string Folder)
 		{
-			string DirectoryToAdd = new DirectoryInfo(PixelStreamingProgramsDirectory + "/ps-infra/" + Folder).FullName;
+			string DirectoryToAdd = new DirectoryInfo(Path.Combine(PixelStreamingProgramsDirectory, Folder)).FullName;
 
 			if (!Directory.Exists(DirectoryToAdd))
 			{
@@ -48,17 +49,14 @@ namespace UnrealBuildTool.Rules
 				// If we are not skipping, we want to add this to our packaged output
 				if(!bSkip)
 				{
-					RuntimeDependencies.Add(DependencySource, StagedFileType.NonUFS);
+					string RelativeSourcePath = Path.GetRelativePath(PixelStreamingProgramsDirectory, DependencySource);
+					RuntimeDependencies.Add(Path.Combine(PixelStreamingProgramsOutputDirectory, RelativeSourcePath), DependencySource, StagedFileType.SystemNonUFS);
 				}
 			}
 		}
 
 		public PixelStreaming(ReadOnlyTargetRules Target) : base(Target)
 		{
-			// use private PCH to include lots of WebRTC headers
-			PCHUsage = PCHUsageMode.UseExplicitOrSharedPCHs;
-			PrivatePCHHeaderFile = "Private/PCH.h";
-
 			var EngineDir = Path.GetFullPath(Target.RelativeEnginePath);
 
 			// This is so for game projects using our public headers don't have to include extra modules they might not know about.
@@ -101,7 +99,7 @@ namespace UnrealBuildTool.Rules
 				"MediaUtils",
 				"DeveloperSettings",
 				"AVEncoder",
-				"PixelStreamingShaders"
+				"PixelStreamingShaders",
 			});
 
 			PrivateDependencyModuleNames.Add("VulkanRHI");
@@ -122,8 +120,8 @@ namespace UnrealBuildTool.Rules
 				AddFolder("Matchmaker");
 				AddFolder("SFU");
 
-				RuntimeDependencies.Add("$(PluginDir)/Resources/get_ps_servers.bat", StagedFileType.NonUFS);
-				RuntimeDependencies.Add("$(PluginDir)/Resources/get_ps_servers.sh", StagedFileType.NonUFS);
+				RuntimeDependencies.Add("$(EngineDir)/../get_ps_servers.bat", "$(PluginDir)/Resources/get_ps_servers.bat", StagedFileType.SystemNonUFS);
+				RuntimeDependencies.Add("$(EngineDir)/../get_ps_servers.sh", "$(PluginDir)/Resources/get_ps_servers.sh", StagedFileType.SystemNonUFS);
 			}
 		}
 	}

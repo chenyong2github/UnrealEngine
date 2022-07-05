@@ -2,7 +2,8 @@
 
 #include "Misc/AutomationTest.h"
 #include "Tests/AutomationCommon.h"
-#include "PixelStreamingSourceFrame.h"
+#include "RHI.h"
+#include "PixelStreamingInputFrameRHI.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -24,7 +25,7 @@ namespace UE::PixelStreaming
 
 		FPlatformProcess::Sleep(0.1f);
 
-		FPixelStreamingSourceFrame Frame(TestTexture);
+		FPixelStreamingInputFrameRHI Frame(TestTexture);
 
 		FPlatformProcess::Sleep(0.1f);
 

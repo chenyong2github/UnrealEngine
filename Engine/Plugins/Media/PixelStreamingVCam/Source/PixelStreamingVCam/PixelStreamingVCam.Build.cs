@@ -26,7 +26,9 @@ namespace UnrealBuildTool.Rules
 				"CoreUObject",
 				"Engine",
 				"UMG",
-				"RHI"
+				"RHI",
+				"CinematicCamera",
+				"LiveLinkInterface"
 			});
 
 			// Can't package non-editor targets (e.g. games) with UnrealEd, so this dependency should only be added in editor.

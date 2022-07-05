@@ -49,6 +49,8 @@ THIRD_PARTY_INCLUDES_START
 #include "rtc_base/string_utils.h"
 #if WEBRTC_VERSION == 84
 #include "rtc_base/signal_thread.h"
+#elif WEBRTC_VERSION == 96
+#include "rtc_base/internal/default_socket_server.h"
 #endif 
 #include "rtc_base/physical_socket_server.h"
 #include "rtc_base/experiments/rate_control_settings.h"

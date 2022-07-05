@@ -27,21 +27,6 @@ public:
 	FOnInput OnInputEvent;
 
 	/**
-	 * Run a built-in command. The commands are defined by a JSON descriptor.
-	 * The currently supported commands are:
-	 *
-	 * 1. A command to run any console command:
-	 *    "{ ConsoleCommand: <string> }"
-	 *
-	 * 2. A command to change the resolution to the given width and height.
-	 *    "{ Resolution: { Width: <value>, Height: <value> } }"
-	 *
-	 * @param Descriptor - The command JSON descriptor.
-	 * @return True if the command was successfully executed.
-	 */
-	static bool OnCommand(const FString& Descriptor);
-
-	/**
 	 * Send a response back to the source of the UI interactions.
 	 * @param Descriptor - A generic descriptor string.
 	 */
@@ -61,7 +46,6 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "PixelStreaming Input")
 	void GetJsonStringValue(FString Descriptor, FString FieldName, FString& StringValue, bool& Success);
-	static void ExtractJsonFromDescriptor(FString Descriptor, FString FieldName, FString& StringValue, bool& Success);
 
 	/**
 	 * Helper function to add a string field to a JSON descriptor. This produces
@@ -74,7 +58,6 @@ public:
 	 */
 	UFUNCTION(BlueprintPure, Category = "PixelStreaming Input")
 	void AddJsonStringValue(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success);
-	static void ExtendJsonWithField(const FString& Descriptor, FString FieldName, FString StringValue, FString& NewDescriptor, bool& Success);
 
 private:
 	// For convenience we keep a reference to the Pixel Streaming plugin.

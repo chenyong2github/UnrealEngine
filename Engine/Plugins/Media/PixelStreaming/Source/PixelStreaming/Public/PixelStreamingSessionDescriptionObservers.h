@@ -2,8 +2,7 @@
 
 #pragma once
 
-#include "WebRTCIncludes.h"
-
+#include "PixelStreamingWebRTCIncludes.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/Function.h"
 #include "Containers/UnrealString.h"
@@ -19,17 +18,17 @@
 class PIXELSTREAMING_API FPixelStreamingSetSessionDescriptionObserver : public webrtc::SetSessionDescriptionObserver
 {
 public:
-	using FSuccessCallback = TUniqueFunction<void()>;
-	using FFailureCallback = TUniqueFunction<void(const FString&)>;
+	using FSuccessCallback = TFunction<void()>;
+	using FFailureCallback = TFunction<void(const FString&)>;
 
-	static FPixelStreamingSetSessionDescriptionObserver* Create(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
+	static FPixelStreamingSetSessionDescriptionObserver* Create(const FSuccessCallback& successCallback, const FFailureCallback& failureCallback)
 	{
-		return new rtc::RefCountedObject<FPixelStreamingSetSessionDescriptionObserver>(MoveTemp(successCallback), MoveTemp(failureCallback));
+		return new rtc::RefCountedObject<FPixelStreamingSetSessionDescriptionObserver>(successCallback, failureCallback);
 	}
 
-	FPixelStreamingSetSessionDescriptionObserver(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
-		: SuccessCallback(MoveTemp(successCallback))
-		, FailureCallback(MoveTemp(failureCallback))
+	FPixelStreamingSetSessionDescriptionObserver(const FSuccessCallback& successCallback, const FFailureCallback& failureCallback)
+		: SuccessCallback(successCallback)
+		, FailureCallback(failureCallback)
 	{
 	}
 
@@ -54,17 +53,17 @@ private:
 class PIXELSTREAMING_API FPixelStreamingCreateSessionDescriptionObserver : public webrtc::CreateSessionDescriptionObserver
 {
 public:
-	using FSuccessCallback = TUniqueFunction<void(webrtc::SessionDescriptionInterface*)>;
-	using FFailureCallback = TUniqueFunction<void(const FString&)>;
+	using FSuccessCallback = TFunction<void(webrtc::SessionDescriptionInterface*)>;
+	using FFailureCallback = TFunction<void(const FString&)>;
 
-	static FPixelStreamingCreateSessionDescriptionObserver* Create(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
+	static FPixelStreamingCreateSessionDescriptionObserver* Create(const FSuccessCallback& successCallback, const FFailureCallback& failureCallback)
 	{
-		return new rtc::RefCountedObject<FPixelStreamingCreateSessionDescriptionObserver>(MoveTemp(successCallback), MoveTemp(failureCallback));
+		return new rtc::RefCountedObject<FPixelStreamingCreateSessionDescriptionObserver>(successCallback, failureCallback);
 	}
 
-	FPixelStreamingCreateSessionDescriptionObserver(FSuccessCallback&& successCallback, FFailureCallback&& failureCallback)
-		: SuccessCallback(MoveTemp(successCallback))
-		, FailureCallback(MoveTemp(failureCallback))
+	FPixelStreamingCreateSessionDescriptionObserver(const FSuccessCallback& successCallback, const FFailureCallback& failureCallback)
+		: SuccessCallback(successCallback)
+		, FailureCallback(failureCallback)
 	{
 	}
 

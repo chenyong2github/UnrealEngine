@@ -2,42 +2,97 @@
 
 #include "PixelStreamingPeerComponent.h"
 #include "PixelStreamingPlayerPrivate.h"
+#include "Async/Async.h"
+#include "Utils.h"
 
 UPixelStreamingPeerComponent::UPixelStreamingPeerComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }
 
-void UPixelStreamingPeerComponent::Initialize(UPixelStreamingSignallingComponent* InSignallingComponent)
+void UPixelStreamingPeerComponent::SetConfig(const FPixelStreamingRTCConfigWrapper& Config)
 {
-	SignallingComponent = InSignallingComponent;
-
-	PeerConnection = FPixelStreamingPeerConnection::Create(SignallingComponent->GetConfig());
-	check(PeerConnection);
-	PeerConnection->SetVideoSink(VideoSink);
-	PeerConnection->SetIceCandidateCallback([&SignallingComponent = SignallingComponent](const webrtc::IceCandidateInterface* Candidate) {
-		SignallingComponent->GetConnection()->SendIceCandidate(*Candidate);
-	});
-}
-
-void UPixelStreamingPeerComponent::ReceiveOffer(const FString& Sdp)
-{
+	PeerConnection = FPixelStreamingPeerConnection::Create(Config.Config);
 	if (PeerConnection)
 	{
-		PeerConnection->SetSuccessCallback([&SignallingComponent = SignallingComponent](const webrtc::SessionDescriptionInterface* Sdp) {
-			SignallingComponent->GetConnection()->SendAnswer(*Sdp);
+		PeerConnection->SetVideoSink(VideoSink);
+		PeerConnection->OnEmitIceCandidate.AddLambda([this](const webrtc::IceCandidateInterface* Candidate) {
+			FPixelStreamingIceCandidateWrapper CandidateWrapper(*Candidate);
+			UE::PixelStreaming::DoOnGameThread([this, CandidateWrapper]() {
+				OnIceCandidate.Broadcast(CandidateWrapper);
+			});
 		});
-		PeerConnection->SetFailureCallback([](const FString& ErrorMsg) {
-			UE_LOG(LogPixelStreamingPlayer, Log, TEXT("SetRemoteDescription Failed: %s"), *ErrorMsg);
+		PeerConnection->OnIceStateChanged.AddLambda([this](webrtc::PeerConnectionInterface::IceConnectionState NewState) {
+			UE::PixelStreaming::DoOnGameThread([this, NewState]() {
+				OnIceConnectionChange(NewState);
+			});
 		});
-		PeerConnection->SetRemoteDescription(Sdp);
+	}
+	else
+	{
+		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("SetConfig Failed."));
 	}
 }
 
-void UPixelStreamingPeerComponent::ReceiveIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
+FPixelStreamingSessionDescriptionWrapper UPixelStreamingPeerComponent::CreateAnswer(const FString& Sdp)
 {
-	if (PeerConnection) 
+	if (PeerConnection)
 	{
-		PeerConnection->AddRemoteIceCandidate(SdpMid, SdpMLineIndex, Sdp);
+		FPixelStreamingSessionDescriptionWrapper Wrapper;
+		FEvent* TaskEvent = FPlatformProcess::GetSynchEventFromPool();
+		const auto OnGeneralFailure = [&TaskEvent](const FString& ErrorMsg) {
+			UE_LOG(LogPixelStreamingPlayer, Error, TEXT("CreateAnswer Failed: %s"), *ErrorMsg);
+			TaskEvent->Trigger();
+		};
+		AsyncTask(ENamedThreads::AnyNormalThreadNormalTask, [this, &TaskEvent, &Sdp, &Wrapper, &OnGeneralFailure]() {
+			PeerConnection->ReceiveOffer(
+				Sdp,
+				[this, &TaskEvent, &Wrapper, &OnGeneralFailure]() {
+					// success
+					PeerConnection->CreateAnswer(
+						FPixelStreamingPeerConnection::EReceiveMediaOption::All,
+						[&TaskEvent, &Wrapper](const webrtc::SessionDescriptionInterface* Sdp) {
+							// success
+							Wrapper.SDP = Sdp;
+							TaskEvent->Trigger();
+						},
+						OnGeneralFailure);
+				},
+				OnGeneralFailure);
+		});
+		TaskEvent->Wait(500);
+		FPlatformProcess::ReturnSynchEventToPool(TaskEvent);
+
+		if (Wrapper.SDP == nullptr)
+		{
+			UE_LOG(LogPixelStreamingPlayer, Error, TEXT("CreateAnswer Failed: Timeout"));
+		}
+
+		return Wrapper;
+	}
+	else
+	{
+		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("Failed to create answer. Call SetConfig first."));
+		return {};
+	}
+}
+
+void UPixelStreamingPeerComponent::ReceiveIceCandidate(const FPixelStreamingIceCandidateWrapper& Candidate)
+{
+	if (PeerConnection)
+	{
+		PeerConnection->AddRemoteIceCandidate(Candidate.Mid, Candidate.MLineIndex, Candidate.SDP);
+	}
+}
+
+void UPixelStreamingPeerComponent::OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState NewState)
+{
+	if (NewState == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionConnected)
+	{
+		OnIceConnection.Broadcast(0);
+	}
+	else if (NewState == webrtc::PeerConnectionInterface::IceConnectionState::kIceConnectionDisconnected)
+	{
+		OnIceDisconnection.Broadcast();
 	}
 }

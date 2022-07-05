@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FrameBufferInitialize.h"
-#include "IPixelStreamingFrameSource.h"
+#include "IPixelStreamingAdaptedFrameSource.h"
 
 namespace UE::PixelStreaming
 {
-	FFrameBufferInitialize::FFrameBufferInitialize(TSharedPtr<IPixelStreamingFrameSource> InFrameSource)
+	FFrameBufferInitialize::FFrameBufferInitialize(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource)
 		: FrameSource(InFrameSource)
 	{
 	}

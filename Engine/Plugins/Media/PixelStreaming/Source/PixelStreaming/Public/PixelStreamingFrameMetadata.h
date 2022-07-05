@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+
 struct PIXELSTREAMING_API FPixelStreamingFrameMetadata
 {
 	// Identifier for the pipeline this frame took

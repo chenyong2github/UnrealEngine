@@ -6,35 +6,42 @@
 #include "HAL/RunnableThread.h"
 #include "Misc/SingleThreadRunnable.h"
 #include "Templates/SharedPointer.h"
-#include "VideoSourceBase.h"
-
-class FPixelStreamingVideoInput;
+#include "VideoSource.h"
+#include "IPixelStreamingVideoInput.h"
 
 namespace UE::PixelStreaming
 {
-	class FVideoSourceGroup
+	class FVideoSourceGroup : public TSharedFromThis<FVideoSourceGroup>
 	{
 	public:
-		FVideoSourceGroup() = default;
-		~FVideoSourceGroup() = default;
+		static TSharedPtr<FVideoSourceGroup> Create();
+		~FVideoSourceGroup();
 
-		void SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput);
-		TSharedPtr<FPixelStreamingVideoInput> GetVideoInput() { return VideoInput; }
+		void SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> InVideoInput);
+		TSharedPtr<IPixelStreamingVideoInput> GetVideoInput() { return VideoInput; }
 		void SetFPS(int32 InFramesPerSecond);
+		int32 GetFPS();
 
-		rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateVideoSource(const TFunction<bool()>& InIsQualityControllerFunc);
-		rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateSFUVideoSource();
+		void SetCoupleFramerate(bool Couple);
+
+		rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateVideoSource(bool InAllowSimulcast, const TFunction<bool()>& InShouldGenerateFramesCheck);
 		void RemoveVideoSource(const webrtc::VideoTrackSourceInterface* ToRemove);
+		void RemoveAllVideoSources();
 
 		void Start();
 		void Stop();
 		void Tick();
-		bool IsThreadRunning() const { return bRunning; }	
+		bool IsThreadRunning() const { return bRunning; }
 
 	private:
+		FVideoSourceGroup();
+
 		void StartThread();
 		void StopThread();
 		void CheckStartStopThread();
+
+		void InputFrame(const IPixelStreamingInputFrame& SourceFrame);
+		void ResolutionChanged(int32 NewWidth, int32 NewHeight);
 
 		class FFrameThread : public FRunnable, public FSingleThreadRunnable
 		{
@@ -67,11 +74,15 @@ namespace UE::PixelStreaming
 
 		bool bRunning = false;
 		bool bThreadRunning = false;
+		bool bCoupleFramerate = false;
 		int32 FramesPerSecond = 30;
-		TSharedPtr<FPixelStreamingVideoInput> VideoInput;
+		TSharedPtr<IPixelStreamingVideoInput> VideoInput;
 		TUniquePtr<FFrameThread> FrameRunnable;
 		FRunnableThread* FrameThread = nullptr; // constant FPS tick thread
-		TArray<rtc::scoped_refptr<FVideoSourceBase>> VideoSources;
+		TArray<rtc::scoped_refptr<FVideoSource>> VideoSources;
+
+		FDelegateHandle FrameDelegateHandle;
+		FDelegateHandle ResizeDelegateHandle;
 
 		mutable FCriticalSection CriticalSection;
 	};

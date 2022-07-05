@@ -256,10 +256,17 @@ namespace UE::PixelStreaming::Settings
 		TEXT("Various modes of input control supported by Pixel Streaming, currently: \"Any\"  or \"Host\". Default: Any"),
 		ECVF_Default);
 
+	TAutoConsoleVariable<bool> CVarPixelStreamingSuppressICECandidateErrors(
+		TEXT("PixelStreaming.SuppressICECandidateErrors"),
+		false,
+		TEXT("Silences ice candidate errors from the peer connection. This is used for testing and silencing a specific error that is expected but the number of errors is non-deterministic."),
+		ECVF_Default);
+
 	TArray<FKey> FilteredKeys;
 	TArray<FName> ActiveTextureSourceTypes;
 	bool bDecoupleFrameRate = true;
 	FString DefaultStreamerID = TEXT("DefaultStreamer");
+	FString DefaultSignallingURL = TEXT("ws://127.0.0.1:8888");
 
 	void OnActiveTextureSourcesChanged(IConsoleVariable* Var)
 	{
@@ -319,6 +326,14 @@ namespace UE::PixelStreaming::Settings
 			{
 				CVarAMFKeyframeInterval->Set(Var->GetInt(), ECVF_SetByCommandline);
 			}
+		});
+	}
+
+	void OnWebRTCFpsChanged(IConsoleVariable* Var)
+	{
+		IPixelStreamingModule::Get().ForEachStreamer([Var](TSharedPtr<IPixelStreamingStreamer> Streamer)
+		{
+			Streamer->SetStreamFPS(Var->GetInt());
 		});
 	}
 	// Ends Pixel Streaming Plugin CVars
@@ -448,27 +463,44 @@ namespace UE::PixelStreaming::Settings
 		}
 	}
 
+	void SetCodec(EPixelStreamingCodec Codec)
+	{
+		switch (Codec)
+		{
+			default:
+			case EPixelStreamingCodec::H264:
+				CVarPixelStreamingEncoderCodec.AsVariable()->Set(TEXT("H264"));
+				break;
+			case EPixelStreamingCodec::VP8:
+				CVarPixelStreamingEncoderCodec.AsVariable()->Set(TEXT("VP8"));
+				break;
+			case EPixelStreamingCodec::VP9:
+				CVarPixelStreamingEncoderCodec.AsVariable()->Set(TEXT("VP9"));
+				break;
+		}
+	}
+
 	/*
 	 * Selected Codec.
 	 */
-	ECodec GetSelectedCodec()
+	EPixelStreamingCodec GetSelectedCodec()
 	{
 		const FString CodecStr = CVarPixelStreamingEncoderCodec.GetValueOnAnyThread();
 		if (CodecStr == TEXT("H264"))
 		{
-			return ECodec::H264;
+			return EPixelStreamingCodec::H264;
 		}
 		else if (CodecStr == TEXT("VP8"))
 		{
-			return ECodec::VP8;
+			return EPixelStreamingCodec::VP8;
 		}
 		else if (CodecStr == TEXT("VP9"))
 		{
-			return ECodec::VP9;
+			return EPixelStreamingCodec::VP9;
 		}
 		else
 		{
-			return ECodec::H264;
+			return EPixelStreamingCodec::H264;
 		}
 	}
 
@@ -479,8 +511,8 @@ namespace UE::PixelStreaming::Settings
 
 	bool IsCodecVPX()
 	{
-		ECodec SelectedCodec = GetSelectedCodec();
-		return SelectedCodec == ECodec::VP8 || SelectedCodec == ECodec::VP9;
+		EPixelStreamingCodec SelectedCodec = GetSelectedCodec();
+		return SelectedCodec == EPixelStreamingCodec::VP8 || SelectedCodec == EPixelStreamingCodec::VP9;
 	}
 
 	EInputControllerMode GetInputControllerMode()
@@ -501,6 +533,11 @@ namespace UE::PixelStreaming::Settings
 	FString GetDefaultStreamerID()
 	{
 		return DefaultStreamerID;
+	}
+
+	FString GetDefaultSignallingURL()
+	{
+		return DefaultSignallingURL;
 	}
 
 	/*
@@ -550,12 +587,13 @@ namespace UE::PixelStreaming::Settings
 
 		FString StringOptions;
 		bDecoupleFrameRate = !FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingDisableDecoupleFrameRate"), StringOptions, false);
-		
+
 		FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingID="), DefaultStreamerID, false);
 
 		CVarPixelStreamingOnScreenStats.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnHudStatsToggled));
 		CVarPixelStreamingKeyFilter.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnFilteredKeysChanged));
 		CVarPixelStreamingVideoTracks.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnActiveTextureSourcesChanged));
+		CVarPixelStreamingWebRTCFps.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnWebRTCFpsChanged));
 		OnActiveTextureSourcesChanged(CVarPixelStreamingVideoTracks.AsVariable());
 
 		CVarPixelStreamingEncoderKeyframeInterval.AsVariable()->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OnKeyframeIntervalChanged));

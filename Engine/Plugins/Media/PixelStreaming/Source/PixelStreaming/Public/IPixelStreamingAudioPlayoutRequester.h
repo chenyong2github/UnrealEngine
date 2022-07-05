@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "WebRTCIncludes.h"
+#include "PixelStreamingWebRTCIncludes.h"
 
 class IPixelStreamingAudioPlayoutRequester
 {

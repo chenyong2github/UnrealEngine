@@ -11,6 +11,7 @@
 #include "PixelStreamingDelegates.h"
 #include "PixelStreamingProtocolDefs.h"
 #include "Utils.h"
+#include "ToStringExtensions.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
@@ -37,17 +38,6 @@ FPixelStreamingSignallingConnection::FPixelStreamingSignallingConnection(const F
 FPixelStreamingSignallingConnection::~FPixelStreamingSignallingConnection()
 {
 	Disconnect();
-}
-
-// This function returns the instance ID to the signalling server. This is useful for identifying individual instances in scalable cloud deployments
-void FPixelStreamingSignallingConnection::OnIdRequested()
-{
-	FJsonObjectPtr Json = MakeShared<FJsonObject>();
-	Json->SetStringField(TEXT("type"), TEXT("endpointId"));
-	Json->SetStringField(TEXT("id"), StreamerId);
-	FString Msg = UE::PixelStreaming::ToString(Json, false);
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: endpointId\n%s"), *Msg);
-	SendMessage(Msg);
 }
 
 void FPixelStreamingSignallingConnection::Connect(const FString& Url)
@@ -130,56 +120,67 @@ void FPixelStreamingSignallingConnection::SendAnswer(FPixelStreamingPlayerId Pla
 	SendMessage(UE::PixelStreaming::ToString(AnswerJson, false));
 }
 
-void FPixelStreamingSignallingConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId)
+void FPixelStreamingSignallingConnection::SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate)
 {
-	bool bSendAsInteger = UE::PixelStreaming::Settings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
-	if (bSendAsInteger)
-	{
-		int32 PlayerIdAsInt = PlayerIdToInt(PlayerId);
-		JsonObject->SetNumberField(TEXT("playerId"), PlayerIdAsInt);
-	}
-	else
-	{
-		JsonObject->SetStringField(TEXT("playerId"), PlayerId);
-	}
+	FJsonObjectPtr IceCandidateJson = MakeShared<FJsonObject>();
+
+	IceCandidateJson->SetStringField(TEXT("type"), TEXT("iceCandidate"));
+	SetPlayerIdJson(IceCandidateJson, PlayerId);
+
+	FJsonObjectPtr CandidateJson = MakeShared<FJsonObject>();
+	CandidateJson->SetStringField(TEXT("sdpMid"), IceCandidate.sdp_mid().c_str());
+	CandidateJson->SetNumberField(TEXT("sdpMLineIndex"), static_cast<double>(IceCandidate.sdp_mline_index()));
+
+	std::string CandidateAnsi;
+	verifyf(IceCandidate.ToString(&CandidateAnsi), TEXT("Failed to serialize IceCandidate"));
+	FString CandidateStr = UE::PixelStreaming::ToString(CandidateAnsi);
+	CandidateJson->SetStringField(TEXT("candidate"), CandidateStr);
+
+	IceCandidateJson->SetObjectField(TEXT("candidate"), CandidateJson);
+
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *UE::PixelStreaming::ToString(IceCandidateJson));
+
+	SendMessage(UE::PixelStreaming::ToString(IceCandidateJson, false));
 }
 
-bool FPixelStreamingSignallingConnection::GetPlayerIdJson(const FJsonObjectPtr& Json, FPixelStreamingPlayerId& OutPlayerId, const FString& FieldId)
+void FPixelStreamingSignallingConnection::SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason)
 {
-	bool bSendAsInteger = UE::PixelStreaming::Settings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
-	if (bSendAsInteger)
-	{
-		uint32 PlayerIdInt;
-		if (Json->TryGetNumberField(FieldId, PlayerIdInt))
-		{
-			OutPlayerId = ToPlayerId(PlayerIdInt);
-			return true;
-		}
-	}
-	else if (Json->TryGetStringField(FieldId, OutPlayerId))
-	{
-		return true;
-	}
-	return false;
+	FJsonObjectPtr Json = MakeShared<FJsonObject>();
+
+	Json->SetStringField(TEXT("type"), TEXT("disconnectPlayer"));
+	SetPlayerIdJson(Json, PlayerId);
+	Json->SetStringField(TEXT("reason"), Reason);
+
+	FString Msg = UE::PixelStreaming::ToString(Json, false);
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *Msg);
+
+	SendMessage(Msg);
 }
 
-void FPixelStreamingSignallingConnection::StartKeepAliveTimer()
+void FPixelStreamingSignallingConnection::SendOffer(const webrtc::SessionDescriptionInterface& SDP)
 {
-	// GWorld dereferencing needs to happen on the game thread
-	// we dont need to wait since its just setting the timer
-	UE::PixelStreaming::DoOnGameThread([this]() {
-		GWorld->GetTimerManager().SetTimer(TimerHandle_KeepAlive, std::bind(&FPixelStreamingSignallingConnection::KeepAlive, this), KEEP_ALIVE_INTERVAL, true);
-	});
+	FJsonObjectPtr OfferJson = MakeShared<FJsonObject>();
+	OfferJson->SetStringField(TEXT("type"), TEXT("offer"));
+
+	FString SdpStr = UE::PixelStreaming::ToString(SDP);
+	OfferJson->SetStringField(TEXT("sdp"), UE::PixelStreaming::ToString(SDP));
+
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: offer\n%s"), *SdpStr);
+
+	SendMessage(UE::PixelStreaming::ToString(OfferJson, false));
 }
 
-void FPixelStreamingSignallingConnection::StopKeepAliveTimer()
+void FPixelStreamingSignallingConnection::SendAnswer(const webrtc::SessionDescriptionInterface& SDP)
 {
-	// GWorld dereferencing needs to happen on the game thread
-	// we need to wait because if we're destructing this object we dont
-	// want to call the callback mid/post destruction
-	UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, [&TimerHandle_KeepAlive = TimerHandle_KeepAlive]() {
-		GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
-	});
+	FJsonObjectPtr AnswerJson = MakeShared<FJsonObject>();
+	AnswerJson->SetStringField(TEXT("type"), TEXT("answer"));
+
+	FString SdpStr = UE::PixelStreaming::ToString(SDP);
+	AnswerJson->SetStringField(TEXT("sdp"), UE::PixelStreaming::ToString(SDP));
+
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: answer\n%s"), *SdpStr);
+
+	SendMessage(UE::PixelStreaming::ToString(AnswerJson, false));
 }
 
 void FPixelStreamingSignallingConnection::SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate)
@@ -204,63 +205,13 @@ void FPixelStreamingSignallingConnection::SendIceCandidate(const webrtc::IceCand
 	SendMessage(UE::PixelStreaming::ToString(IceCandidateJson, false));
 }
 
-void FPixelStreamingSignallingConnection::SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate)
-{
-	FJsonObjectPtr IceCandidateJson = MakeShared<FJsonObject>();
-
-	IceCandidateJson->SetStringField(TEXT("type"), TEXT("iceCandidate"));
-	SetPlayerIdJson(IceCandidateJson, PlayerId);
-
-	FJsonObjectPtr CandidateJson = MakeShared<FJsonObject>();
-	CandidateJson->SetStringField(TEXT("sdpMid"), IceCandidate.sdp_mid().c_str());
-	CandidateJson->SetNumberField(TEXT("sdpMLineIndex"), static_cast<double>(IceCandidate.sdp_mline_index()));
-
-	std::string CandidateAnsi;
-	verifyf(IceCandidate.ToString(&CandidateAnsi), TEXT("Failed to serialize IceCandidate"));
-	FString CandidateStr = UE::PixelStreaming::ToString(CandidateAnsi);
-	CandidateJson->SetStringField(TEXT("candidate"), CandidateStr);
-
-	IceCandidateJson->SetObjectField(TEXT("candidate"), CandidateJson);
-
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *UE::PixelStreaming::ToString(IceCandidateJson));
-
-	SendMessage(UE::PixelStreaming::ToString(IceCandidateJson, false));
-}
-
 void FPixelStreamingSignallingConnection::KeepAlive()
 {
 	FJsonObjectPtr Json = MakeShared<FJsonObject>();
-	double unixTime = FDateTime::UtcNow().ToUnixTimestamp();
+	const double UnixTime = FDateTime::UtcNow().ToUnixTimestamp();
 	Json->SetStringField(TEXT("type"), TEXT("ping"));
-	Json->SetNumberField(TEXT("time"), unixTime);
+	Json->SetNumberField(TEXT("time"), UnixTime);
 	SendMessage(UE::PixelStreaming::ToString(Json, false));
-}
-
-void FPixelStreamingSignallingConnection::SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason)
-{
-	FJsonObjectPtr Json = MakeShared<FJsonObject>();
-
-	Json->SetStringField(TEXT("type"), TEXT("disconnectPlayer"));
-	SetPlayerIdJson(Json, PlayerId);
-	Json->SetStringField(TEXT("reason"), Reason);
-
-	FString Msg = UE::PixelStreaming::ToString(Json, false);
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: iceCandidate\n%s"), *Msg);
-
-	SendMessage(Msg);
-}
-
-void FPixelStreamingSignallingConnection::SendAnswer(const webrtc::SessionDescriptionInterface& SDP)
-{
-	FJsonObjectPtr AnswerJson = MakeShared<FJsonObject>();
-	AnswerJson->SetStringField(TEXT("type"), TEXT("answer"));
-
-	FString SdpStr = UE::PixelStreaming::ToString(SDP);
-	AnswerJson->SetStringField(TEXT("sdp"), UE::PixelStreaming::ToString(SDP));
-
-	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: answer\n%s"), *SdpStr);
-
-	SendMessage(UE::PixelStreaming::ToString(AnswerJson, false));
 }
 
 void FPixelStreamingSignallingConnection::OnConnected()
@@ -340,6 +291,17 @@ void FPixelStreamingSignallingConnection::OnMessage(const FString& Msg)
 void FPixelStreamingSignallingConnection::RegisterHandler(const FString& messageType, const TFunction<void(FJsonObjectPtr)>& handler)
 {
 	MessageHandlers.Add(messageType, handler);
+}
+
+// This function returns the instance ID to the signalling server. This is useful for identifying individual instances in scalable cloud deployments
+void FPixelStreamingSignallingConnection::OnIdRequested()
+{
+	FJsonObjectPtr Json = MakeShared<FJsonObject>();
+	Json->SetStringField(TEXT("type"), TEXT("endpointId"));
+	Json->SetStringField(TEXT("id"), StreamerId);
+	FString Msg = UE::PixelStreaming::ToString(Json, false);
+	UE_LOG(LogPixelStreamingSS, Verbose, TEXT("-> SS: endpointId\n%s"), *Msg);
+	SendMessage(Msg);
 }
 
 void FPixelStreamingSignallingConnection::OnConfig(const FJsonObjectPtr& Json)
@@ -495,19 +457,17 @@ void FPixelStreamingSignallingConnection::OnPlayerConnected(const FJsonObjectPtr
 
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Got player connected, player id=%s"), *PlayerId);
 
-	int Flags = 0;
+	FPixelStreamingPlayerConfig PlayerConfig;
 
 	// Default to always making datachannel, unless explicitly set to false.
 	bool bMakeDataChannel = true;
-	Json->TryGetBoolField(TEXT("datachannel"), bMakeDataChannel);
+	Json->TryGetBoolField(TEXT("datachannel"), PlayerConfig.SupportsDataChannel);
 
 	// Default peer is not an SFU, unless explictly set as SFU
 	bool bIsSFU = false;
-	Json->TryGetBoolField(TEXT("sfu"), bIsSFU);
+	Json->TryGetBoolField(TEXT("sfu"), PlayerConfig.IsSFU);
 
-	Flags |= bMakeDataChannel ? UE::PixelStreaming::Protocol::EPlayerFlags::PSPFlag_SupportsDataChannel : 0;
-	Flags |= bIsSFU ? UE::PixelStreaming::Protocol::EPlayerFlags::PSPFlag_IsSFU : 0;
-	Observer.OnSignallingPlayerConnected(PlayerId, Flags);
+	Observer.OnSignallingPlayerConnected(PlayerId, PlayerConfig);
 }
 
 void FPixelStreamingSignallingConnection::OnPlayerDisconnected(const FJsonObjectPtr& Json)
@@ -572,10 +532,62 @@ void FPixelStreamingSignallingConnection::OnPeerDataChannels(const FJsonObjectPt
 	Observer.OnSignallingPeerDataChannels(SendStreamId, RecvStreamId);
 }
 
-void FPixelStreamingSignallingConnection::PlayerError(FPixelStreamingPlayerId PlayerId, const FString& Msg)
+void FPixelStreamingSignallingConnection::SetPlayerIdJson(FJsonObjectPtr& JsonObject, FPixelStreamingPlayerId PlayerId)
 {
-	UE_LOG(LogPixelStreamingSS, Error, TEXT("player %s: %s"), *PlayerId, *Msg);
-	SendDisconnectPlayer(PlayerId, Msg);
+	bool bSendAsInteger = UE::PixelStreaming::Settings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
+	if (bSendAsInteger)
+	{
+		int32 PlayerIdAsInt = PlayerIdToInt(PlayerId);
+		JsonObject->SetNumberField(TEXT("playerId"), PlayerIdAsInt);
+	}
+	else
+	{
+		JsonObject->SetStringField(TEXT("playerId"), PlayerId);
+	}
+}
+
+bool FPixelStreamingSignallingConnection::GetPlayerIdJson(const FJsonObjectPtr& Json, FPixelStreamingPlayerId& OutPlayerId, const FString& FieldId)
+{
+	bool bSendAsInteger = UE::PixelStreaming::Settings::CVarSendPlayerIdAsInteger.GetValueOnAnyThread();
+	if (bSendAsInteger)
+	{
+		uint32 PlayerIdInt;
+		if (Json->TryGetNumberField(FieldId, PlayerIdInt))
+		{
+			OutPlayerId = ToPlayerId(PlayerIdInt);
+			return true;
+		}
+	}
+	else if (Json->TryGetStringField(FieldId, OutPlayerId))
+	{
+		return true;
+	}
+	return false;
+}
+
+void FPixelStreamingSignallingConnection::StartKeepAliveTimer()
+{
+	// GWorld dereferencing needs to happen on the game thread
+	// we dont need to wait since its just setting the timer
+	UE::PixelStreaming::DoOnGameThread([this]() {
+		if (GWorld)
+		{
+			GWorld->GetTimerManager().SetTimer(TimerHandle_KeepAlive, std::bind(&FPixelStreamingSignallingConnection::KeepAlive, this), KEEP_ALIVE_INTERVAL, true);
+		}
+	});
+}
+
+void FPixelStreamingSignallingConnection::StopKeepAliveTimer()
+{
+	// GWorld dereferencing needs to happen on the game thread
+	// we need to wait because if we're destructing this object we dont
+	// want to call the callback mid/post destruction
+	UE::PixelStreaming::DoOnGameThreadAndWait(MAX_uint32, [this]() {
+		if (GWorld)
+		{
+			GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
+		}
+	});
 }
 
 void FPixelStreamingSignallingConnection::SendMessage(const FString& Msg)
@@ -584,6 +596,12 @@ void FPixelStreamingSignallingConnection::SendMessage(const FString& Msg)
 	{
 		WebSocket->Send(Msg);
 	}
+}
+
+void FPixelStreamingSignallingConnection::PlayerError(FPixelStreamingPlayerId PlayerId, const FString& Msg)
+{
+	UE_LOG(LogPixelStreamingSS, Error, TEXT("player %s: %s"), *PlayerId, *Msg);
+	SendDisconnectPlayer(PlayerId, Msg);
 }
 
 void FPixelStreamingSignallingConnection::FatalError(const FString& Msg)

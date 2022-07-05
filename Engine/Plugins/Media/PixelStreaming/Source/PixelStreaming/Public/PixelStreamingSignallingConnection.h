@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "WebRTCIncludes.h"
+#include "PixelStreamingWebRTCIncludes.h"
 #include "Dom/JsonObject.h"
 #include "Engine/EngineTypes.h"
 #include "PixelStreamingPlayerId.h"
@@ -10,6 +10,9 @@
 
 class IWebSocket;
 
+/**
+ * A specialized signalling server connection object for Pixel Streaming signalling servers.
+ */
 class PIXELSTREAMING_API FPixelStreamingSignallingConnection final
 {
 public:
@@ -18,19 +21,68 @@ public:
 	FPixelStreamingSignallingConnection(const FWebSocketFactory& InWebSocketFactory, IPixelStreamingSignallingConnectionObserver& Observer, FString InStreamerId = "");
 	~FPixelStreamingSignallingConnection();
 
-	void Connect(const FString& Url);
+	/**
+	 * Connect to a specified signalling server at ths given URL
+	 * @param URL The url of the destination signalling server.
+	 */
+	void Connect(const FString& URL);
+
+	/**
+	 * Disconnects from the signalling server. Safe to call even when not connected.
+	 */
 	void Disconnect();
+
+	/**
+	 * Checks if the connection is established.
+	 * @returns True when the signalling server is connected.
+	 */
 	bool IsConnected() const;
 
-	// Streamer interface
+	/**
+	 * [Streamer only] Sends an offer to the specified player.
+	 * @param PlayerId The Id of the destination player.
+	 * @param SDP The offer session description for the player.
+	 */
 	void SendOffer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
+
+	/**
+	 * [Streamer only] Sends an answer to the specified player.
+	 * @param PlayerId The Id of the destination player.
+	 * @param SDP The answer session description for the player.
+	 */
 	void SendAnswer(FPixelStreamingPlayerId PlayerId, const webrtc::SessionDescriptionInterface& SDP);
-	void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate);
+
+	/**
+	 * [Streamer only] Sends ice candidate information to the specified player.
+	 * @param PlayerId The Id of the destination player.
+	 * @param IceCandidate The ice candidate information to send.
+	 */
 	void SendIceCandidate(FPixelStreamingPlayerId PlayerId, const webrtc::IceCandidateInterface& IceCandidate);
+
+	/**
+	 * [Streamer only] Send a disconnect message to the specified player.
+	 * @param PlayerId The Id of the destination player.
+	 * @param Reason An optional reason for the disconnection.
+	 */
 	void SendDisconnectPlayer(FPixelStreamingPlayerId PlayerId, const FString& Reason);
 
-	// Player interface
+	/**
+	 * [Player only] Sends an offer to the streamer.
+	 * @param SDP The local description offer.
+	 */
+	void SendOffer(const webrtc::SessionDescriptionInterface& SDP);
+
+	/**
+	 * [Player only] Sends an answer back to the streamer after receiving an offer.
+	 * @param SDP The local description answer.
+	 */
 	void SendAnswer(const webrtc::SessionDescriptionInterface& SDP);
+
+	/**
+	 * [Player only] Sends ICE candidate information to the streamer.
+	 * @param IceCandidate The ICE candidate information.
+	 */
+	void SendIceCandidate(const webrtc::IceCandidateInterface& IceCandidate);
 
 private:
 	void KeepAlive();

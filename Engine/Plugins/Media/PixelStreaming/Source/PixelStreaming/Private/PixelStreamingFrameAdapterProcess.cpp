@@ -1,17 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingFrameAdapterProcess.h"
-#include "Stats.h"
-#include "PixelStreamingFrameAdapter.h"
-#include "PixelStreamingSourceFrame.h"
+#include "FrameAdapter.h"
 #include "Stats.h"
 
-TSharedPtr<IPixelStreamingAdaptedVideoFrameLayer> FPixelStreamingFrameAdapterProcess::ReadOutput()
+TSharedPtr<IPixelStreamingAdaptedOutputFrame> FPixelStreamingFrameAdapterProcess::ReadOutput()
 {
 	return Buffer.SwapAndRead();
 }
 
-void FPixelStreamingFrameAdapterProcess::Process(const FPixelStreamingSourceFrame& SourceFrame)
+void FPixelStreamingFrameAdapterProcess::Process(const IPixelStreamingInputFrame& InputFrame)
 {
 	if (IsBusy())
 	{
@@ -20,19 +18,23 @@ void FPixelStreamingFrameAdapterProcess::Process(const FPixelStreamingSourceFram
 
 	bBusy = true;
 
-	const int32 SourceWidth = SourceFrame.GetWidth();
-	const int32 SourceHeight = SourceFrame.GetHeight();
+	const int32 InputWidth = InputFrame.GetWidth();
+	const int32 InputHeight = InputFrame.GetHeight();
+
 	if (!IsInitialized())
 	{
-		Initialize(SourceWidth, SourceHeight);
-	}
-	else if (ResolutionChanged(SourceWidth, SourceHeight))
-	{
-		OnSourceResolutionChanged(ExpectedSourceWidth, ExpectedSourceHeight, SourceWidth, SourceHeight);
-		Initialize(SourceWidth, SourceHeight);
+		Initialize(InputWidth, InputHeight);
 	}
 
-	BeginProcess(SourceFrame);
+	checkf(InputWidth == ExpectedInputWidth && InputHeight == ExpectedInputHeight, TEXT("Adapter input resolution changes are not supported"));
+
+	TSharedPtr<IPixelStreamingAdaptedOutputFrame> OutputBuffer = Buffer.GetWriteBuffer();
+	OutputBuffer->Metadata = InputFrame.Metadata.Copy();
+	OutputBuffer->Metadata.ProcessName = GetProcessName();
+	OutputBuffer->Metadata.AdaptCallTime = FPlatformTime::Cycles64();
+	bWasFinalized = false;
+
+	BeginProcess(InputFrame, OutputBuffer);
 }
 
 int32 FPixelStreamingFrameAdapterProcess::GetOutputLayerWidth()
@@ -47,33 +49,44 @@ int32 FPixelStreamingFrameAdapterProcess::GetOutputLayerHeight()
 	return Buffer.Read()->GetHeight();
 }
 
-void FPixelStreamingFrameAdapterProcess::Initialize(int32 SourceWidth, int32 SourceHeight)
+void FPixelStreamingFrameAdapterProcess::Initialize(int32 InputWidth, int32 InputHeight)
 {
-	Buffer.Write(CreateOutputBuffer(SourceWidth, SourceHeight));
+	ExpectedInputWidth = InputWidth;
+	ExpectedInputHeight = InputHeight;
+	Buffer.Write(CreateOutputBuffer(InputWidth, InputHeight));
 	Buffer.SwapWriteBuffers();
-	Buffer.Write(CreateOutputBuffer(SourceWidth, SourceHeight));
+	Buffer.Write(CreateOutputBuffer(InputWidth, InputHeight));
 	Buffer.SwapReadBuffers();
 	Buffer.SwapWriteBuffers();
-	Buffer.Write(CreateOutputBuffer(SourceWidth, SourceHeight));
-	ExpectedSourceWidth = SourceWidth;
-	ExpectedSourceHeight = SourceHeight;
+	Buffer.Write(CreateOutputBuffer(InputWidth, InputHeight));
 	bHasOutput = false;
 	bInitialized = true;
 }
 
-TSharedPtr<IPixelStreamingAdaptedVideoFrameLayer> FPixelStreamingFrameAdapterProcess::GetWriteBuffer()
+void FPixelStreamingFrameAdapterProcess::MarkAdaptProcessStarted()
 {
-	return Buffer.GetWriteBuffer();
+	Buffer.GetWriteBuffer()->Metadata.AdaptProcessStartTime = FPlatformTime::Cycles64();
+}
+
+void FPixelStreamingFrameAdapterProcess::MarkAdaptProcessFinalizing()
+{
+	Buffer.GetWriteBuffer()->Metadata.AdaptProcessFinalizeTime = FPlatformTime::Cycles64();
+	bWasFinalized = true;
 }
 
 void FPixelStreamingFrameAdapterProcess::EndProcess()
 {
+	checkf(bBusy, TEXT("Adapt process EndProcess called but we're not busy. Maybe double called?"));
+
+	if (!bWasFinalized)
+	{
+		MarkAdaptProcessFinalizing();
+	}
+	
+	Buffer.GetWriteBuffer()->Metadata.AdaptProcessEndTime = FPlatformTime::Cycles64();
 	Buffer.SwapWriteBuffers();
 	bBusy = false;
 	bHasOutput = true;
-}
 
-bool FPixelStreamingFrameAdapterProcess::ResolutionChanged(int32 SourceWidth, int32 SourceHeight) const
-{
-	return ExpectedSourceWidth != SourceWidth || ExpectedSourceHeight != SourceHeight;
+	OnComplete.Broadcast();
 }

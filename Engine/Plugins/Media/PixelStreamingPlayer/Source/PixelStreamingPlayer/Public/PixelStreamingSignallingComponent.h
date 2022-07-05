@@ -5,15 +5,16 @@
 #include "PixelStreamingSignallingConnection.h"
 #include "StreamMediaSource.h"
 #include "Components/ActorComponent.h"
+#include "PixelStreamingWebRTCWrappers.h"
 #include "PixelStreamingSignallingComponent.generated.h"
 
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(FPixelStreamingSignallingComponentConnected, UPixelStreamingSignallingComponent, OnConnected);
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentConnectionError, UPixelStreamingSignallingComponent, OnConnectionError, const FString&, ErrorMsg);
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FPixelStreamingSignallingComponentDisconnected, UPixelStreamingSignallingComponent, OnDisconnected, int32, StatusCode, const FString&, Reason, bool, bWasClean);
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(FPixelStreamingSignallingComponentConfig, UPixelStreamingSignallingComponent, OnConfig);
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentOffer, UPixelStreamingSignallingComponent, OnOffer, const FString&, Sdp);
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentAnswer, UPixelStreamingSignallingComponent, OnAnswer, const FString&, Sdp);
-DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_ThreeParams(FPixelStreamingSignallingComponentIceCandidate, UPixelStreamingSignallingComponent, OnIceCandidate, const FString&, SdpMid, int, SdpMLineIndex, const FString&, Sdp);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentConfig, UPixelStreamingSignallingComponent, OnConfig, FPixelStreamingRTCConfigWrapper, Config);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentOffer, UPixelStreamingSignallingComponent, OnOffer, const FString&, Offer);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentAnswer, UPixelStreamingSignallingComponent, OnAnswer, const FString&, Answer);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingSignallingComponentIceCandidate, UPixelStreamingSignallingComponent, OnIceCandidate, FPixelStreamingIceCandidateWrapper, Candidate);
 DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_TwoParams(FPixelStreamingSignallingComponentDataChannels, UPixelStreamingSignallingComponent, OnDataChannels, int32, SendStreamId, int32, RecvStreamId);
 
 /**
@@ -38,6 +39,20 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
 	void Disconnect();
+
+	/**
+	 * Send an answer created from a Peer Connection to the signalling server.
+	 * @param Answer The answer object created from calling CreateAnswer on a Peer Connection.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
+	void SendAnswer(const FPixelStreamingSessionDescriptionWrapper& Answer);
+
+	/**
+	 * Send an Ice Candidate to the signalling server that is generated from a Peer Connection.
+	 * @param Candidate The Ice Candidate object generated from a Peer Connection.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
+	void SendIceCandidate(const FPixelStreamingIceCandidateWrapper& CandidateWrapper);
 
 	/**
 	 * Fired when the signalling connection is successfully established.
@@ -81,18 +96,6 @@ public:
 	UPROPERTY(EditDefaultsOnly, Category = "Properties", META = (DisplayName = "Stream Media Source", AllowPrivateAccess = true))
 	UStreamMediaSource* MediaSource = nullptr;
 
-	/**
-	 * Gets the current webrtc RTC configuration which is supplied by the signalling server.
-	 * @return The current webrtc RTC configuration from the signalling server.
-	 */
-	const webrtc::PeerConnectionInterface::RTCConfiguration& GetConfig() const { return RTCConfig; }
-
-	/**
-	 * Gets the current signalling connection object.
-	 * @return The raw connection object/
-	 */
-	FPixelStreamingSignallingConnection* GetConnection() const { return SignallingConnection.Get(); }
-
 protected:
 	//
 	// ISignallingServerConnectionObserver implementation.
@@ -108,5 +111,4 @@ protected:
 
 private:
 	TUniquePtr<FPixelStreamingSignallingConnection> SignallingConnection;
-	webrtc::PeerConnectionInterface::RTCConfiguration RTCConfig;
 };

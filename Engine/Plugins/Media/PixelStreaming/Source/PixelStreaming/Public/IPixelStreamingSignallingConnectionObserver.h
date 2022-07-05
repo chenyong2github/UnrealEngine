@@ -3,7 +3,8 @@
 #pragma once
 
 #include "PixelStreamingPlayerId.h"
-#include "WebRTCIncludes.h"
+#include "PixelStreamingWebRTCIncludes.h"
+#include "PixelStreamingPlayerConfig.h"
 
 // callback interface for `FPixelStreamingSignallingConnection`
 class IPixelStreamingSignallingConnectionObserver
@@ -18,7 +19,7 @@ public:
 	// Streamer-only
 	virtual void OnSignallingSessionDescription(FPixelStreamingPlayerId PlayerId, webrtc::SdpType Type, const FString& Sdp) { unimplemented(); }
 	virtual void OnSignallingRemoteIceCandidate(FPixelStreamingPlayerId PlayerId, const FString& SdpMid, int SdpMLineIndex, const FString& Sdp) { unimplemented(); }
-	virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, int Flags) { unimplemented(); }
+	virtual void OnSignallingPlayerConnected(FPixelStreamingPlayerId PlayerId, const FPixelStreamingPlayerConfig& PlayerConfig) { unimplemented(); }
 	virtual void OnSignallingPlayerDisconnected(FPixelStreamingPlayerId PlayerId) { unimplemented(); }
 	virtual void OnSignallingSFUPeerDataChannels(FPixelStreamingPlayerId SFUId, FPixelStreamingPlayerId PlayerId, int32 SendStreamId, int32 RecvStreamId) { unimplemented(); }
 	

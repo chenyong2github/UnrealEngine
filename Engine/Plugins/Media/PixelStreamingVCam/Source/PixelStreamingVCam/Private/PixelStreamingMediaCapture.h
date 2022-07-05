@@ -3,7 +3,7 @@
 #pragma once
 
 #include "MediaCapture.h"
-#include "PixelStreamingVideoInput.h"
+#include "IPixelStreamingVideoInput.h"
 #include "PixelStreamingMediaCapture.generated.h"
 
 UCLASS(BlueprintType)
@@ -24,13 +24,13 @@ public:
 	virtual void StopCaptureImpl(bool bAllowPendingFrameToBeProcess) override {}
 	//~ End UMediaCapture interface
 
-	TSharedPtr<FPixelStreamingVideoInput> GetVideoInput() const { return VideoInput; }
+	TSharedPtr<IPixelStreamingVideoInput> GetVideoInput() const { return VideoInput; }
 	TSharedPtr<FSceneViewport> GetViewport() const { return Viewport.Pin(); }
 
 private:
 	void SetupVideoInput();
 
 private:
-	TSharedPtr<FPixelStreamingVideoInput> VideoInput;
+	TSharedPtr<IPixelStreamingVideoInput> VideoInput;
 	TWeakPtr<FSceneViewport> Viewport;
 };

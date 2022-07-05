@@ -4,6 +4,8 @@
 
 #include "IPixelStreamingFrameBuffer.h"
 
+class IPixelStreamingAdaptedFrameSource;
+
 namespace UE::PixelStreaming
 {
 	/*
@@ -12,7 +14,7 @@ namespace UE::PixelStreaming
 	class FFrameBufferInitialize : public IPixelStreamingFrameBuffer
 	{
 	public:
-		FFrameBufferInitialize(TSharedPtr<IPixelStreamingFrameSource> InFrameSource);
+		FFrameBufferInitialize(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource);
 		virtual ~FFrameBufferInitialize() = default;
 
 		virtual EPixelStreamingFrameBufferType GetFrameBufferType() const { return EPixelStreamingFrameBufferType::Initialize; }
@@ -21,6 +23,6 @@ namespace UE::PixelStreaming
 		virtual int height() const override;
 
 	private:
-		TSharedPtr<IPixelStreamingFrameSource> FrameSource;
+		TSharedPtr<IPixelStreamingAdaptedFrameSource> FrameSource;
 	};
 } // namespace UE::PixelStreaming

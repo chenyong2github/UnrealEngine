@@ -28,6 +28,13 @@
             "LoadingPhase": "PostConfigInit",
             "PlatformAllowList": [ "Win64", "Linux" ],
             "TargetDenyList": [ "Server" ]
+		},
+		{
+            "Name": "PixelStreamingEditor",
+            "Type": "Editor",
+            "LoadingPhase": "PreDefault",
+            "PlatformAllowList": [ "Win64", "Linux" ],
+            "TargetDenyList": [ "Server" ]
 		}
 	],
 	"Plugins": [

@@ -11,7 +11,7 @@ namespace UE::PixelStreaming
 	{
 		std::vector<webrtc::SdpVideoFormat> video_formats;
 		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp8CodecName));
-		// video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
+		video_formats.push_back(webrtc::SdpVideoFormat(cricket::kVp9CodecName));
 #if WEBRTC_VERSION == 84
 		video_formats.push_back(CreateH264Format(webrtc::H264::kProfileConstrainedBaseline, webrtc::H264::kLevel3_1));
 #elif WEBRTC_VERSION == 96
@@ -24,12 +24,11 @@ namespace UE::PixelStreaming
 	{
 		if (absl::EqualsIgnoreCase(format.name, cricket::kVp8CodecName))
 		{
-			return std::make_unique<VideoDecoderVPX>();
-			// return webrtc::VP8Decoder::Create();
+			return std::make_unique<VideoDecoderVPX>(8);
 		}
 		else if (absl::EqualsIgnoreCase(format.name, cricket::kVp9CodecName))
 		{
-			return webrtc::VP9Decoder::Create();
+			return std::make_unique<VideoDecoderVPX>(9);
 		}
 		return std::make_unique<FVideoDecoderStub>();
 	}

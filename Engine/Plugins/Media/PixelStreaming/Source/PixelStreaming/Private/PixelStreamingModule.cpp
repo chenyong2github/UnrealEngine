@@ -2,13 +2,12 @@
 
 #include "PixelStreamingModule.h"
 #include "Streamer.h"
-#include "InputDevice.h"
+#include "PixelStreamingInputChannel.h"
 #include "PixelStreamingInputComponent.h"
 #include "PixelStreamingDelegates.h"
 #include "PixelStreamingSignallingConnection.h"
 #include "Settings.h"
 #include "PixelStreamingPrivate.h"
-#include "PlayerSession.h"
 #include "AudioSink.h"
 #include "CoreMinimal.h"
 #include "Modules/ModuleManager.h"
@@ -19,17 +18,17 @@
 #include "UtilsRender.h"
 
 #if PLATFORM_WINDOWS
-#include "Windows/WindowsHWrapper.h"
+	#include "Windows/WindowsHWrapper.h"
 #elif PLATFORM_LINUX
-#include "CudaModule.h"
+	#include "CudaModule.h"
 #endif
 
 #if PLATFORM_WINDOWS
-#include "Windows/AllowWindowsPlatformTypes.h"
+	#include "Windows/AllowWindowsPlatformTypes.h"
 THIRD_PARTY_INCLUDES_START
-#include <VersionHelpers.h>
+	#include <VersionHelpers.h>
 THIRD_PARTY_INCLUDES_END
-#include "Windows/HideWindowsPlatformTypes.h"
+	#include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
 #include "RenderingThread.h"
@@ -46,17 +45,18 @@ THIRD_PARTY_INCLUDES_END
 #include "Async/Async.h"
 #include "Engine/Engine.h"
 #include "VideoEncoderFactory.h"
-#include "VideoEncoderFactorySimple.h"
+#include "VideoEncoderFactoryLayered.h"
 #include "WebRTCLogging.h"
 #include "WebSocketsModule.h"
 
 #if !UE_BUILD_SHIPPING
-#include "DrawDebugHelpers.h"
+	#include "DrawDebugHelpers.h"
 #endif
 
-#include "VideoInputBackBuffer.h"
+#include "PixelStreamingVideoInputBackBuffer.h"
 #include "VideoSourceGroup.h"
 #include "PixelStreamingPeerConnection.h"
+#include "Engine/GameEngine.h"
 
 DEFINE_LOG_CATEGORY(LogPixelStreaming);
 
@@ -64,8 +64,8 @@ IPixelStreamingModule* UE::PixelStreaming::FPixelStreamingModule::PixelStreaming
 
 namespace UE::PixelStreaming
 {
-	/** 
-	 * IModuleInterface implementation 
+	/**
+	 * IModuleInterface implementation
 	 */
 	void FPixelStreamingModule::StartupModule()
 	{
@@ -85,18 +85,42 @@ namespace UE::PixelStreaming
 
 		const ERHIInterfaceType RHIType = GDynamicRHI ? RHIGetInterfaceType() : ERHIInterfaceType::Hidden;
 
-		StreamerInputDevices = MakeShared<FStreamerInputDevices>(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
+		StreamerInputChannels = MakeShared<FStreamerInputChannels>(FSlateApplication::Get().GetPlatformApplication()->GetMessageHandler());
 		IModularFeatures::Get().RegisterModularFeature(GetModularFeatureName(), this);
 
 		// only D3D11/D3D12/Vulkan is supported
 		if (RHIType == ERHIInterfaceType::D3D11 || RHIType == ERHIInterfaceType::D3D12 || RHIType == ERHIInterfaceType::Vulkan)
 		{
 			// By calling InitDefaultStreamer post engine init we can use pixel streaming in standalone editor mode
-			FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]()
-			{
+			FCoreDelegates::OnFEngineLoopInitComplete.AddLambda([this]() {
+				// Check to see if we can use the Pixel Streaming plugin on this platform.
+				// If not then we avoid setting up our delegates to prevent access to the plugin.
+				if (!IsPlatformCompatible())
+				{
+					return;
+				}
+
+				if (!ensure(GEngine != nullptr))
+				{
+					return;
+				}
+
+				FApp::SetUnfocusedVolumeMultiplier(1.0f);
+
+				// Allow Pixel Streaming to broadcast to various delegates bound in the application-specific blueprint.
+				UPixelStreamingDelegates::CreateInstance();
+
+				// Ensure we have ImageWrapper loaded, used in Freezeframes
+				verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
+
 				InitDefaultStreamer();
 				bModuleReady = true;
 				ReadyEvent.Broadcast(*this);
+				// We don't want to start immediately streaming in editor
+				if (!GIsEditor)
+				{
+					StartStreaming();
+				}
 			});
 		}
 		else
@@ -110,8 +134,8 @@ namespace UE::PixelStreaming
 		FModuleManager::LoadModuleChecked<FWebSocketsModule>("WebSockets");
 
 		// ExternalVideoSourceGroup is used so that we can have a video source without a streamer
-		ExternalVideoSourceGroup = MakeUnique<FVideoSourceGroup>();
-		ExternalVideoSourceGroup->SetVideoInput(MakeShared<FVideoInputBackBuffer>());
+		ExternalVideoSourceGroup = FVideoSourceGroup::Create();
+		ExternalVideoSourceGroup->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
 		ExternalVideoSourceGroup->Start();
 
 		bStartupCompleted = true;
@@ -123,6 +147,8 @@ namespace UE::PixelStreaming
 		{
 			return;
 		}
+
+		IModularFeatures::Get().UnregisterModularFeature(GetModularFeatureName(), this);
 
 		// We explicitly call release on streamer so WebRTC gets shutdown before our module is deleted
 		Streamers.Empty();
@@ -136,13 +162,12 @@ namespace UE::PixelStreaming
 
 		bStartupCompleted = false;
 	}
-	/** 
-	 * End IModuleInterface implementation 
+
+	/**
+	 * End IModuleInterface implementation
 	 */
 
-
-
-	/** 
+	/**
 	 * IPixelStreamingModule implementation
 	 */
 	IPixelStreamingModule* FPixelStreamingModule::GetModule()
@@ -157,6 +182,16 @@ namespace UE::PixelStreaming
 			PixelStreamingModule = Module;
 		}
 		return PixelStreamingModule;
+	}
+
+	void FPixelStreamingModule::SetCodec(EPixelStreamingCodec Codec)
+	{
+		Settings::SetCodec(Codec);
+	}
+
+	EPixelStreamingCodec FPixelStreamingModule::GetCodec() const
+	{
+		return Settings::GetSelectedCodec();
 	}
 
 	IPixelStreamingModule::FReadyEvent& FPixelStreamingModule::OnReady()
@@ -180,6 +215,14 @@ namespace UE::PixelStreaming
 			if (Streamer.IsValid())
 			{
 				Streamer->SetStreamFPS(Settings::CVarPixelStreamingWebRTCFps.GetValueOnAnyThread());
+				// default to the scene viewport if we have a game engine. if we are
+				// running editor we require the user to set the viewport via FStreamer as above
+				if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
+				{
+					FSceneViewport* TargetViewport = GameEngine->SceneViewport.Get();
+					Streamer->SetTargetViewport(TargetViewport);
+					Streamer->SetTargetWindow(TargetViewport->FindWindow());
+				}
 				Streamer->StartStreaming();
 				bSuccess &= true;
 				continue;
@@ -206,18 +249,18 @@ namespace UE::PixelStreaming
 	TSharedPtr<IPixelStreamingStreamer> FPixelStreamingModule::CreateStreamer(const FString& StreamerId)
 	{
 		TSharedPtr<IPixelStreamingStreamer> ExistingStreamer = GetStreamer(StreamerId);
-		if(ExistingStreamer)
+		if (ExistingStreamer)
 		{
 			return ExistingStreamer;
 		}
 
-		TSharedPtr<FStreamer> NewStreamer = MakeShared<FStreamer>(StreamerId);
+		TSharedPtr<FStreamer> NewStreamer = FStreamer::Create(StreamerId);
 		{
 			FScopeLock Lock(&StreamersCS);
 			Streamers.Add(StreamerId, NewStreamer);
 		}
+		NewStreamer->SetInputChannel(StreamerInputChannels->CreateInputChannel());
 
-		NewStreamer->SetInputDevice(StreamerInputDevices->CreateInputDevice());
 		return NewStreamer;
 	}
 
@@ -251,9 +294,14 @@ namespace UE::PixelStreaming
 		return ToBeDeleted;
 	}
 
+	void FPixelStreamingModule::SetExternalVideoSourceFPS(uint32 InFPS)
+	{
+		ExternalVideoSourceGroup->SetFPS(InFPS);
+	}
+
 	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FPixelStreamingModule::CreateExternalVideoSource()
 	{
-		return ExternalVideoSourceGroup->CreateVideoSource([]() { return true; });
+		return ExternalVideoSourceGroup->CreateVideoSource(false, []() { return true; });
 	}
 
 	void FPixelStreamingModule::ReleaseExternalVideoSource(const webrtc::VideoTrackSourceInterface* InVideoSource)
@@ -276,16 +324,16 @@ namespace UE::PixelStreaming
 		return InputComponents;
 	}
 
-	webrtc::VideoEncoderFactory* FPixelStreamingModule::CreateVideoEncoderFactory()
+	TUniquePtr<webrtc::VideoEncoderFactory> FPixelStreamingModule::CreateVideoEncoderFactory()
 	{
-		return new FVideoEncoderFactorySimple();
+		return MakeUnique<FVideoEncoderFactoryLayered>();
 	}
 
 	FString FPixelStreamingModule::GetDefaultStreamerID()
 	{
 		return Settings::GetDefaultStreamerID();
 	}
-	
+
 	void FPixelStreamingModule::ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func)
 	{
 		TSet<FString> KeySet;
@@ -293,75 +341,52 @@ namespace UE::PixelStreaming
 			FScopeLock Lock(&StreamersCS);
 			Streamers.GetKeys(KeySet);
 		}
-		for(auto&& StreamerId : KeySet)
+		for (auto&& StreamerId : KeySet)
 		{
-			if(TSharedPtr<IPixelStreamingStreamer> Streamer = GetStreamer(StreamerId))
+			if (TSharedPtr<IPixelStreamingStreamer> Streamer = GetStreamer(StreamerId))
 			{
 				Func(Streamer);
 			}
 		}
 	}
-	/** 
+
+	/**
 	 * End IPixelStreamingModule implementation
 	 */
 
 	void FPixelStreamingModule::InitDefaultStreamer()
 	{
-		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming endpoint ID: %s"), *Settings::GetDefaultStreamerID());
-
-		// Check to see if we can use the Pixel Streaming plugin on this platform.
-		// If not then we avoid setting up our delegates to prevent access to the
-		// plugin. Note that Pixel Streaming is not currently performed in the
-		// Editor.
-		if (!IsPlatformCompatible())
-		{
-			return;
-		}
-
-		if (!ensure(GEngine != nullptr))
-		{
-			return;
-		}
-
-		FApp::SetUnfocusedVolumeMultiplier(1.0f);
-		// Allow Pixel Streaming to broadcast to various delegates bound in the application-specific blueprint.
-		UPixelStreamingDelegates::CreateInstance();
-		verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
+		UE_LOG(LogPixelStreaming, Log, TEXT("PixelStreaming streamer ID: %s"), *Settings::GetDefaultStreamerID());
 
 		FString SignallingServerURL;
-		if (!FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), SignallingServerURL))
+		if (!Settings::GetSignallingServerUrl(SignallingServerURL))
 		{
 			// didnt get the startup URL for pixel streaming. Check deprecated options...
 			FString SignallingServerIP;
 			uint16 SignallingServerPort;
-			if (FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingIP="), SignallingServerIP)
-				&& FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingPort="), SignallingServerPort))
+			if (Settings::GetSignallingServerIP(SignallingServerIP) && Settings::GetSignallingServerPort(SignallingServerPort))
 			{
 				// got both old parameters. Warn about deprecation and build the proper url.
 				UE_LOG(LogPixelStreaming, Warning, TEXT("PixelStreamingIP and PixelStreamingPort are deprecated flags. Use PixelStreamingURL instead. eg. -PixelStreamingURL=ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
 				SignallingServerURL = FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort);
 			}
+			else
+			{
+				SignallingServerURL = Settings::GetDefaultSignallingURL();
+				UE_LOG(LogPixelStreaming, Warning, TEXT("-PixelStreamingURL was not specified on the command line, using the default connection url: %s"), *SignallingServerURL);
+			}
 		}
 
 		TSharedPtr<IPixelStreamingStreamer> Streamer = CreateStreamer(Settings::GetDefaultStreamerID());
-		Streamer->SetVideoInput(MakeShared<FVideoInputBackBuffer>());
+		// The PixelStreamingEditorModule handles setting video input in the editor
+		if (!GIsEditor)
+		{
+			Streamer->SetVideoInput(FPixelStreamingVideoInputBackBuffer::Create());
+		}
 
 		if (!SignallingServerURL.IsEmpty())
 		{
-			// have a startup url. dont start in editor though.
-			if (GIsEditor)
-			{
-				FText TitleText = FText::FromString(TEXT("Pixel Streaming Plugin"));
-				FString ErrorString = TEXT("Pixel Streaming Plugin is not supported in editor, but it was explicitly enabled by command-line arguments. Please remove `PixelStreamingURL` or `PixelStreamingIP` and `PixelStreamingPort` args from editor command line.");
-				FText ErrorText = FText::FromString(ErrorString);
-				FMessageDialog::Open(EAppMsgType::Ok, ErrorText, &TitleText);
-				UE_LOG(LogPixelStreaming, Error, TEXT("%s"), *ErrorString);
-			}
-			else
-			{
-				Streamer->SetSignallingServerURL(SignallingServerURL);
-				Streamer->StartStreaming();
-			}
+			Streamer->SetSignallingServerURL(SignallingServerURL);
 		}
 	}
 
@@ -393,19 +418,20 @@ namespace UE::PixelStreaming
 		return bCompatible;
 	}
 
-	TSharedPtr<IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
-	{
-		return StreamerInputDevices;
-	}
-
-	void FPixelStreamingModule::RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice)
-	{
-		checkf(StreamerInputDevices, TEXT("StreamerInputDevices does not exist yet"));
-		StreamerInputDevices->OverrideInputDevice(InCreateInputDevice);
-	}
 	/**
 	 * End own methods
 	 */
+
+	TSharedPtr<IInputDevice> FPixelStreamingModule::CreateInputDevice(const TSharedRef<FGenericApplicationMessageHandler>& InMessageHandler)
+	{
+		return StreamerInputChannels;
+	}
+
+	void FPixelStreamingModule::RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel)
+	{
+		checkf(StreamerInputChannels, TEXT("StreamerInputChannels does not exist yet"));
+		StreamerInputChannels->OverrideInputChannel(InCreateInputChannel);
+	}
 } // namespace UE::PixelStreaming
 
 IMPLEMENT_MODULE(UE::PixelStreaming::FPixelStreamingModule, PixelStreaming)

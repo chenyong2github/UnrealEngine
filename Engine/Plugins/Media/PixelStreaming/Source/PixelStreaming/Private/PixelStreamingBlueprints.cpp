@@ -20,7 +20,8 @@ void UPixelStreamingBlueprints::SendFileAsByteArray(TArray<uint8> ByteArray, FSt
 	{
 		return;
 	}
-	Streamer->SendFileData(ByteArray, MimeType, FileExtension);
+	const TArray64<uint8> LargeByteArray(ByteArray);
+	Streamer->SendFileData(LargeByteArray, MimeType, FileExtension);
 }
 
 void UPixelStreamingBlueprints::StreamerSendFileAsByteArray(FString StreamerId, TArray<uint8> ByteArray, FString MimeType, FString FileExtension)
@@ -35,7 +36,8 @@ void UPixelStreamingBlueprints::StreamerSendFileAsByteArray(FString StreamerId, 
 	{
 		return;
 	}
-	Streamer->SendFileData(ByteArray, MimeType, FileExtension);
+	const TArray64<uint8> LargeByteArray(ByteArray);
+	Streamer->SendFileData(LargeByteArray, MimeType, FileExtension);
 }
 
 void UPixelStreamingBlueprints::SendFile(FString FilePath, FString MimeType, FString FileExtension)
@@ -51,7 +53,7 @@ void UPixelStreamingBlueprints::SendFile(FString FilePath, FString MimeType, FSt
 		return;
 	}
 	
-	TArray<uint8> ByteData;
+	TArray64<uint8> ByteData;
 	bool bSuccess = FFileHelper::LoadFileToArray(ByteData, *FilePath);
 	if(bSuccess)
 	{
@@ -76,7 +78,7 @@ void UPixelStreamingBlueprints::StreamerSendFile(FString StreamerId, FString Fil
 		return;
 	}
 	
-	TArray<uint8> ByteData;
+	TArray64<uint8> ByteData;
 	bool bSuccess = FFileHelper::LoadFileToArray(ByteData, *FilePath);
 	if(bSuccess)
 	{
@@ -86,6 +88,21 @@ void UPixelStreamingBlueprints::StreamerSendFile(FString StreamerId, FString Fil
 	{
 		UE_LOG(LogPixelStreaming, Error, TEXT("FileHelper failed to load file data"));
 	}	
+}
+
+void UPixelStreamingBlueprints::ForceKeyFrame()
+{
+	IPixelStreamingModule* Module = UE::PixelStreaming::FPixelStreamingModule::GetModule();
+	if(!Module)
+	{
+		return;
+	}
+	TSharedPtr<IPixelStreamingStreamer> Streamer = Module->GetStreamer(Module->GetDefaultStreamerID());
+	if(!Streamer)
+	{
+		return;
+	}
+	Streamer->ForceKeyFrame();
 }
 
 void UPixelStreamingBlueprints::FreezeFrame(UTexture2D* Texture)

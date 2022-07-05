@@ -5,7 +5,12 @@
 #include "PixelStreamingPeerConnection.h"
 #include "PixelStreamingSignallingComponent.h"
 #include "PixelStreamingMediaTexture.h"
+#include "PixelStreamingWebRTCWrappers.h"
 #include "PixelStreamingPeerComponent.generated.h"
+
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingOnIceCandidate, UPixelStreamingPeerComponent, OnIceCandidate, FPixelStreamingIceCandidateWrapper, Candidate);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE_OneParam(FPixelStreamingOnIceConnection, UPixelStreamingPeerComponent, OnIceConnection, int, Number);
+DECLARE_DYNAMIC_MULTICAST_SPARSE_DELEGATE(FPixelStreamingOnIceDisconnection, UPixelStreamingPeerComponent, OnIceDisconnection);
 
 /**
  * A blueprint representation of a Pixel Streaming Peer Connection. Should communicate with a Pixel Streaming Signalling Connection
@@ -18,27 +23,44 @@ class PIXELSTREAMINGPLAYER_API UPixelStreamingPeerComponent : public UActorCompo
 
 public:
 	/**
-	 * Begins the peer connection.
-	 * @param InSignallingComponent A signalling component provided for the peer connection to communicate with. This should be be same signalling connection used to negotiate this peer connection.
+	 * Sets the RTC Configuration for this Peer Connection.
+	 * @param Config The RTC configuration for this Peer Connection. Obtained from the signalling server On Config event.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
-	void Initialize(UPixelStreamingSignallingComponent* InSignallingComponent);
+	void SetConfig(const FPixelStreamingRTCConfigWrapper& Config);
 
 	/**
-	 * Send an offer to the peer connection. This is used to negotiate a media connection.
-	 * @param Sdp The Session Description provided from signalling.
+	 * Creates an answer to the given offer objet that was provided.
+	 * @param Offer The offer SDP string to create an answer for. Should be obtained from the signalling server On Offer event.
+	 * @return The answer object generated. Send this to the signalling server to complete negotiation.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
-	void ReceiveOffer(const FString& Sdp);
+	FPixelStreamingSessionDescriptionWrapper CreateAnswer(const FString& Offer);
 
 	/**
 	 * Notify the peer connection of an ICE candidate sent by the singalling connection.
-	 * @param SdpMid Provided by the singalling connection.
-	 * @param SdpMLineIndex Provided by the signalling connection.
-	 * @param Sdp Provided by the signalling connection.
+	 * @param Candidate Provided by the singalling connection.
 	 */
 	UFUNCTION(BlueprintCallable, Category = "PixelStreaming")
-	void ReceiveIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp);
+	void ReceiveIceCandidate(const FPixelStreamingIceCandidateWrapper& Candidate);
+
+	/**
+	 * Once negotiation is completed the Peer Connection can generate Ice Candidate objects. These need to be sent to a signalling server to allow proper connection.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Components|Activation")
+	FPixelStreamingOnIceCandidate OnIceCandidate;
+
+	/**
+	 * Once a connection has been connected and streaming should be available.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Components|Activation")
+	FPixelStreamingOnIceConnection OnIceConnection;
+
+	/**
+	 * When an ice connection is lost.
+	 */
+	UPROPERTY(BlueprintAssignable, Category = "Components|Activation")
+	FPixelStreamingOnIceDisconnection OnIceDisconnection;
 
 	/**
 	 * A sink for the video data received once this connection has finished negotiating.
@@ -48,5 +70,6 @@ public:
 
 private:
 	TUniquePtr<FPixelStreamingPeerConnection> PeerConnection;
-	UPixelStreamingSignallingComponent* SignallingComponent = nullptr;
+
+	void OnIceConnectionChange(webrtc::PeerConnectionInterface::IceConnectionState);
 };

@@ -13,7 +13,6 @@
 /*
  * An `ISoundGenerator` implementation to pump some audio from WebRTC into this synth component
  */
-
 class PIXELSTREAMING_API FWebRTCSoundGenerator : public ISoundGenerator
 {
 public:

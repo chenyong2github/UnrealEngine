@@ -68,13 +68,12 @@ namespace UE::PixelStreaming
 		};
 
 		return ensureMsgf(
-					0 <= Val && Val < webrtc::PeerConnectionInterface::kIceConnectionMax,
-					TEXT("Invalid `webrtc::PeerConnectionInterface::IceConnectionState` value: %d"),
-					static_cast<uint32>(Val)
-				)
-				? IceConnectionStatsStr[Val]
-				: TEXT("Unknown");
-		}
+				   0 <= Val && Val < webrtc::PeerConnectionInterface::kIceConnectionMax,
+				   TEXT("Invalid `webrtc::PeerConnectionInterface::IceConnectionState` value: %d"),
+				   static_cast<uint32>(Val))
+			? IceConnectionStatsStr[Val]
+			: TEXT("Unknown");
+	}
 
 	inline FString ToString(const webrtc::SessionDescriptionInterface& Sdp)
 	{
@@ -99,12 +98,11 @@ namespace UE::PixelStreaming
 		};
 
 		return ensureMsgf(
-					0 <= Val && Val <= webrtc::PeerConnectionInterface::kIceGatheringComplete,
-						TEXT("Invalid `webrtc::PeerConnectionInterface::IceGatheringState` value: %d"),
-						static_cast<uint32>(Val)
-				)
-				? IceGatheringStatsStr[Val]
-				: TEXT("Unknown");
+				   0 <= Val && Val <= webrtc::PeerConnectionInterface::kIceGatheringComplete,
+				   TEXT("Invalid `webrtc::PeerConnectionInterface::IceGatheringState` value: %d"),
+				   static_cast<uint32>(Val))
+			? IceGatheringStatsStr[Val]
+			: TEXT("Unknown");
 	}
 
 	inline const TCHAR* ToString(webrtc::VideoFrameType FrameType)
@@ -118,10 +116,9 @@ namespace UE::PixelStreaming
 		};
 		int FrameTypeInt = (int)FrameType;
 		return ensureMsgf(
-					0 <= FrameTypeInt && FrameTypeInt <= (int)webrtc::VideoFrameType::kVideoFrameDelta,
-					TEXT("Invalid `webrtc::FrameType`: %d"), static_cast<uint32>(FrameType)
-				)
-				? FrameTypesStr[FrameTypeInt]
-				: TEXT("Unknown");
+				   0 <= FrameTypeInt && FrameTypeInt <= (int)webrtc::VideoFrameType::kVideoFrameDelta,
+				   TEXT("Invalid `webrtc::FrameType`: %d"), static_cast<uint32>(FrameType))
+			? FrameTypesStr[FrameTypeInt]
+			: TEXT("Unknown");
 	}
 } // namespace UE::PixelStreaming

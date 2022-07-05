@@ -4,12 +4,12 @@
 #include "Async/Async.h"
 #include "CanvasTypes.h"
 #include "PixelStreamingDelegates.h"
-#include "PlayerSessions.h"
 #include "Settings.h"
 #include "IPixelStreamingStatsConsumer.h"
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
 #include "PixelStreamingFrameMetadata.h"
+#include "PixelStreamingPeerConnection.h"
 
 namespace UE::PixelStreaming
 {
@@ -24,120 +24,66 @@ namespace UE::PixelStreaming
 		return Instance;
 	}
 
-	void FStats::AddSessions(FPlayerSessions* InSessions)
+	void FStats::AddWebRTCStatsSource(IStatsSource* InStatsSource)
 	{
-		SessionsList.Add(InSessions);
+		FScopeLock Lock(&WebRTCStatsSourceListCS);
+		WebRTCStatsSourceList.Add(InStatsSource);
 	}
 
-	void FStats::RemoveSessions(FPlayerSessions* InSessions)
+	void FStats::RemoveWebRTCStatsSource(IStatsSource* InStatsSource)
 	{
-		SessionsList.Remove(InSessions);
+		FScopeLock Lock(&WebRTCStatsSourceListCS);
+		WebRTCStatsSourceList.Remove(InStatsSource);
 	}
 
 	FStats::FStats()
 	{
 		checkf(Instance == nullptr, TEXT("There should only ever been one PixelStreaming stats object."));
-		UConsole::RegisterConsoleAutoCompleteEntries.AddRaw(this, &FStats::UpdateConsoleAutoComplete_GameThread);
-	}
-
-	void FStats::QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, TFunction<void(bool, double)> QueryCallback) const
-	{
-		if (IsInGameThread())
-		{
-			double OutValue = 0.0;
-			bool bHadStat = QueryPeerStat_GameThread(PlayerId, StatToQuery, OutValue);
-			QueryCallback(bHadStat, OutValue);
-		}
-		else
-		{
-			AsyncTask(ENamedThreads::GameThread, [this, PlayerId, StatToQuery, QueryCallback]() {
-				double OutValue = 0.0;
-				bool bHadStat = QueryPeerStat_GameThread(PlayerId, StatToQuery, OutValue);
-				QueryCallback(bHadStat, OutValue);
-			});
-		}
-	}
-
-	void FStats::RemovePeersStats(FPixelStreamingPlayerId PlayerId)
-	{
-		if (IsInGameThread())
-		{
-			RemovePeerStat_GameThread(PlayerId);
-		}
-		else
-		{
-			AsyncTask(ENamedThreads::GameThread, [this, PlayerId]() { RemovePeerStat_GameThread(PlayerId); });
-		}
+		UConsole::RegisterConsoleAutoCompleteEntries.AddRaw(this, &FStats::UpdateConsoleAutoComplete);
 	}
 
 	void FStats::StorePeerStat(FPixelStreamingPlayerId PlayerId, FStatData Stat)
 	{
-		if (IsInGameThread())
+		bool Updated = false;
 		{
-			// todo: return bool
-			bool bUpdated = StorePeerStat_GameThread(PlayerId, Stat);
-			if (bUpdated)
+			FScopeLock Lock(&PeerStatsCS);
+
+			if (!PeerStats.Contains(PlayerId))
 			{
-				FireStatChanged_GameThread(PlayerId, Stat.StatName, Stat.StatValue);
+				PeerStats.Add(PlayerId, FPeerStats(PlayerId));
+				Updated = true;
+			}
+			else
+			{
+				Updated = PeerStats[PlayerId].StoreStat(Stat);
 			}
 		}
-		else
+
+		if (Updated)
 		{
-			AsyncTask(ENamedThreads::GameThread, [this, PlayerId, Stat]() {
-				bool bUpdated = StorePeerStat_GameThread(PlayerId, Stat);
-				if (bUpdated)
-				{
-					FireStatChanged_GameThread(PlayerId, Stat.StatName, Stat.StatValue);
-				}
-			});
+			FireStatChanged(PlayerId, Stat.StatName, Stat.StatValue);
 		}
 	}
 
-	void FStats::StoreApplicationStat(FStatData Stat)
+	bool FStats::QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutValue) const
 	{
-		if (IsInGameThread())
+		FScopeLock Lock(&PeerStatsCS);
+
+		if (const FPeerStats* SinglePeerStats = PeerStats.Find(PlayerId))
 		{
-			bool bUpdated = StoreApplicationStat_GameThread(Stat);
-			if (bUpdated)
+			if (const FRenderableStat* StoredStat = SinglePeerStats->StoredStats.Find(StatToQuery))
 			{
-				FireStatChanged_GameThread(FPixelStreamingPlayerId(TEXT("Application")), Stat.StatName, Stat.StatValue);
+				OutValue = StoredStat->Stat.StatValue;
+				return true;
 			}
 		}
-		else
-		{
-			AsyncTask(ENamedThreads::GameThread, [this, Stat]() {
-				bool bUpdated = StoreApplicationStat_GameThread(Stat);
-				if (bUpdated)
-				{
-					FireStatChanged_GameThread(FPixelStreamingPlayerId(TEXT("Application")), Stat.StatName, Stat.StatValue);
-				}
-			});
-		}
+
+		return false;
 	}
 
-	void FStats::FireStatChanged_GameThread(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue)
+	void FStats::RemovePeerStats(FPixelStreamingPlayerId PlayerId)
 	{
-		checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
-
-		if (IsEngineExitRequested())
-		{
-			return;
-		}
-
-		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
-		{
-			Delegates->OnStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
-		}
-	}
-
-	void FStats::RemovePeerStat_GameThread(FPixelStreamingPlayerId PlayerId)
-	{
-		checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
-
-		if (IsEngineExitRequested())
-		{
-			return;
-		}
+		FScopeLock Lock(&PeerStatsCS);
 
 		PeerStats.Remove(PlayerId);
 
@@ -161,43 +107,6 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	bool FStats::QueryPeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutValue) const
-	{
-		verifyf(IsInGameThread(), TEXT("This method must be called from the game thread"));
-
-		const FPeerStats* SinglePeerStats = PeerStats.Find(PlayerId);
-		if (!SinglePeerStats)
-		{
-			return false;
-		}
-
-		const FRenderableStat* StoredStat = SinglePeerStats->StoredStats.Find(StatToQuery);
-		if (!StoredStat)
-		{
-			return false;
-		}
-
-		OutValue = StoredStat->Stat.StatValue;
-		return true;
-	}
-
-	bool FStats::StorePeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FStatData Stat)
-	{
-		checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
-
-		if (IsEngineExitRequested())
-		{
-			return false;
-		}
-
-		if (!PeerStats.Contains(PlayerId))
-		{
-			PeerStats.Add(PlayerId, FPeerStats(PlayerId));
-			return true;
-		}
-		return PeerStats[PlayerId].StoreStat_GameThread(Stat);
-	}
-
 	double CalcMA(double PrevAvg, int NumSamples, double Value)
 	{
 		const double Result = NumSamples * PrevAvg + Value;
@@ -211,95 +120,77 @@ namespace UE::PixelStreaming
 		return Result;
 	}
 
-	bool FStats::StoreApplicationStat_GameThread(FStatData Stat)
+	void FStats::StoreApplicationStat(FStatData Stat)
 	{
-		checkf(IsInGameThread(), TEXT("This method must be called from the game thread"));
-
-		if (IsEngineExitRequested())
-		{
-			return false;
-		}
-
 		bool bUpdated = false;
 
-		if (ApplicationStats.Contains(Stat.StatName))
 		{
-			FRenderableStat* RenderableStat = ApplicationStats.Find(Stat.StatName);
+			FScopeLock Lock(&ApplicationStatsCS);
 
-			if (Stat.bSmooth && RenderableStat->Stat.StatValue != 0)
+			if (ApplicationStats.Contains(Stat.StatName))
 			{
-				const int MaxSamples = 60;
-				RenderableStat->Stat.NumSamples = FGenericPlatformMath::Min(MaxSamples, RenderableStat->Stat.NumSamples + 1);
-				if (RenderableStat->Stat.NumSamples < MaxSamples)
+				FRenderableStat* RenderableStat = ApplicationStats.Find(Stat.StatName);
+
+				if (Stat.bSmooth && RenderableStat->Stat.StatValue != 0)
 				{
-					RenderableStat->Stat.LastEMA = CalcMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, Stat.StatValue);
+					const int MaxSamples = 60;
+					RenderableStat->Stat.NumSamples = FGenericPlatformMath::Min(MaxSamples, RenderableStat->Stat.NumSamples + 1);
+					if (RenderableStat->Stat.NumSamples < MaxSamples)
+					{
+						RenderableStat->Stat.LastEMA = CalcMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, Stat.StatValue);
+					}
+					else
+					{
+						RenderableStat->Stat.LastEMA = CalcEMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, Stat.StatValue);
+					}
+					RenderableStat->Stat.StatValue = RenderableStat->Stat.LastEMA;
+					bUpdated = true;
 				}
 				else
 				{
-					RenderableStat->Stat.LastEMA = CalcEMA(RenderableStat->Stat.LastEMA, RenderableStat->Stat.NumSamples - 1, Stat.StatValue);
+					bUpdated = RenderableStat->Stat.StatValue != Stat.StatValue;
+					RenderableStat->Stat.StatValue = Stat.StatValue;
 				}
-				RenderableStat->Stat.StatValue = RenderableStat->Stat.LastEMA;
-				bUpdated = true;
+
+				if (bUpdated)
+				{
+					FText TextToDisplay = FText::FromString(FString::Printf(TEXT("%s: %.*f"), *Stat.StatName.ToString(), Stat.NDecimalPlacesToPrint, RenderableStat->Stat.StatValue));
+					RenderableStat->CanvasItem.Text = TextToDisplay;
+				}
 			}
 			else
 			{
-				bUpdated = RenderableStat->Stat.StatValue != Stat.StatValue;
-				RenderableStat->Stat.StatValue = Stat.StatValue;
-			}
+				FText TextToDisplay = FText::FromString(FString::Printf(TEXT("%s: %.*f"), *Stat.StatName.ToString(), Stat.NDecimalPlacesToPrint, Stat.StatValue));
 
-			if (bUpdated)
-			{
-				FText TextToDisplay = FText::FromString(FString::Printf(TEXT("%s: %.*f"), *Stat.StatName.ToString(), Stat.NDecimalPlacesToPrint, RenderableStat->Stat.StatValue));
-				RenderableStat->CanvasItem.Text = TextToDisplay;
+				FRenderableStat RenderableStat{
+					Stat,
+					FCanvasTextItem(FVector2D(0, 0), TextToDisplay, FSlateFontInfo(FSlateFontInfo(UEngine::GetSmallFont(), 12)), FLinearColor(0, 1, 0))
+				};
+
+				RenderableStat.CanvasItem.EnableShadow(FLinearColor::Black);
+
+				ApplicationStats.Add(RenderableStat.Stat.StatName, RenderableStat);
+				bUpdated = true;
 			}
 		}
-		else
+
+		if (bUpdated)
 		{
-			FText TextToDisplay = FText::FromString(FString::Printf(TEXT("%s: %.*f"), *Stat.StatName.ToString(), Stat.NDecimalPlacesToPrint, Stat.StatValue));
-
-			FRenderableStat RenderableStat{
-				Stat,
-				FCanvasTextItem(FVector2D(0, 0), TextToDisplay, FSlateFontInfo(FSlateFontInfo(UEngine::GetSmallFont(), 12)), FLinearColor(0, 1, 0))
-			};
-
-			RenderableStat.CanvasItem.EnableShadow(FLinearColor::Black);
-
-			ApplicationStats.Add(RenderableStat.Stat.StatName, RenderableStat);
-			bUpdated = true;
+			FireStatChanged(FPixelStreamingPlayerId(TEXT("Application")), Stat.StatName, Stat.StatValue);
 		}
-		return bUpdated;
 	}
 
-	void FStats::AddOnPeerStatChangedCallback_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback)
+	void FStats::FireStatChanged(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue)
 	{
-		checkf(IsInGameThread(), TEXT("This method was not called from the game thread."));
-
-		if (IsEngineExitRequested())
+		if (UPixelStreamingDelegates* Delegates = UPixelStreamingDelegates::GetPixelStreamingDelegates())
 		{
-			return;
+			Delegates->OnStatChangedNative.Broadcast(PlayerId, StatName, StatValue);
 		}
-
-		FPeerStats* SinglePeerStats = PeerStats.Find(PlayerId);
-		if (!SinglePeerStats)
-		{
-			PeerStats.Add(PlayerId, FPeerStats(PlayerId));
-			SinglePeerStats = PeerStats.Find(PlayerId);
-		}
-
-		TArray<TWeakPtr<IPixelStreamingStatsConsumer>>* Callbacks = SinglePeerStats->SingleStatConsumers.Find(StatToListenOn);
-
-		if (!Callbacks)
-		{
-			SinglePeerStats->SingleStatConsumers.Add(StatToListenOn, TArray<TWeakPtr<IPixelStreamingStatsConsumer>>());
-			Callbacks = SinglePeerStats->SingleStatConsumers.Find(StatToListenOn);
-		}
-
-		Callbacks->Add(Callback);
 	}
 
-	void FStats::UpdateConsoleAutoComplete_GameThread(TArray<FAutoCompleteCommand>& AutoCompleteList)
+	void FStats::UpdateConsoleAutoComplete(TArray<FAutoCompleteCommand>& AutoCompleteList)
 	{
-		checkf(IsInGameThread(), TEXT("This method was not called from the game thread."));
+		// This *might* need to be on the game thread? I haven't seen issues not explicitly putting it on the game thread though.
 
 		const UConsoleSettings* ConsoleSettings = GetDefault<UConsoleSettings>();
 
@@ -326,13 +217,17 @@ namespace UE::PixelStreaming
 
 			// --------- Draw stats for this Pixel Streaming instance ----------
 
-			for (auto& ApplicationStatEntry : ApplicationStats)
 			{
-				FRenderableStat& StatToDraw = ApplicationStatEntry.Value;
-				StatToDraw.CanvasItem.Position.X = X;
-				StatToDraw.CanvasItem.Position.Y = Y;
-				Canvas->DrawItem(StatToDraw.CanvasItem);
-				Y += StatToDraw.CanvasItem.DrawnSize.Y;
+				FScopeLock Lock(&ApplicationStatsCS);
+
+				for (auto& ApplicationStatEntry : ApplicationStats)
+				{
+					FRenderableStat& StatToDraw = ApplicationStatEntry.Value;
+					StatToDraw.CanvasItem.Position.X = X;
+					StatToDraw.CanvasItem.Position.Y = Y;
+					Canvas->DrawItem(StatToDraw.CanvasItem);
+					Y += StatToDraw.CanvasItem.DrawnSize.Y;
+				}
 			}
 
 			// --------- Draw stats for each peer ----------
@@ -341,33 +236,37 @@ namespace UE::PixelStreaming
 			X += 435;
 
 			// TMap<FPixelStreamingPlayerId, FPeerStats> PeerStats;
-			for (auto& EachPeerEntry : PeerStats)
 			{
-				FPeerStats& SinglePeerStats = EachPeerEntry.Value;
-				if (SinglePeerStats.StoredStats.Num() == 0)
+				FScopeLock Lock(&PeerStatsCS);
+
+				for (auto& EachPeerEntry : PeerStats)
 				{
-					continue;
+					FPeerStats& SinglePeerStats = EachPeerEntry.Value;
+					if (SinglePeerStats.StoredStats.Num() == 0)
+					{
+						continue;
+					}
+
+					// Reset Y for each peer as each peer gets it own column
+					Y = YStart;
+
+					SinglePeerStats.PlayerIdCanvasItem.Position.X = X;
+					SinglePeerStats.PlayerIdCanvasItem.Position.Y = Y;
+					Canvas->DrawItem(SinglePeerStats.PlayerIdCanvasItem);
+					Y += SinglePeerStats.PlayerIdCanvasItem.DrawnSize.Y;
+
+					for (auto& NameStatKeyVal : SinglePeerStats.StoredStats)
+					{
+						FRenderableStat& Stat = NameStatKeyVal.Value;
+						Stat.CanvasItem.Position.X = X;
+						Stat.CanvasItem.Position.Y = Y;
+						Canvas->DrawItem(Stat.CanvasItem);
+						Y += Stat.CanvasItem.DrawnSize.Y;
+					}
+
+					// Each peer's stats gets its own column
+					X += 250;
 				}
-
-				// Reset Y for each peer as each peer gets it own column
-				Y = YStart;
-
-				SinglePeerStats.PlayerIdCanvasItem.Position.X = X;
-				SinglePeerStats.PlayerIdCanvasItem.Position.Y = Y;
-				Canvas->DrawItem(SinglePeerStats.PlayerIdCanvasItem);
-				Y += SinglePeerStats.PlayerIdCanvasItem.DrawnSize.Y;
-
-				for (auto& NameStatKeyVal : SinglePeerStats.StoredStats)
-				{
-					FRenderableStat& Stat = NameStatKeyVal.Value;
-					Stat.CanvasItem.Position.X = X;
-					Stat.CanvasItem.Position.Y = Y;
-					Canvas->DrawItem(Stat.CanvasItem);
-					Y += Stat.CanvasItem.DrawnSize.Y;
-				}
-
-				// Each peer's stats gets its own column
-				X += 250;
 			}
 		}
 		return Y;
@@ -435,18 +334,6 @@ namespace UE::PixelStreaming
 		}
 	}
 
-	void FStats::AddOnPeerStatChangedCallback(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback)
-	{
-		if (IsInGameThread())
-		{
-			AddOnPeerStatChangedCallback_GameThread(PlayerId, StatToListenOn, Callback);
-		}
-		else
-		{
-			AsyncTask(ENamedThreads::GameThread, [this, PlayerId, StatToListenOn, Callback]() { AddOnPeerStatChangedCallback_GameThread(PlayerId, StatToListenOn, Callback); });
-		}
-	}
-
 	void FStats::Tick(float DeltaTime)
 	{
 		// Note (Luke): If we want more metrics from WebRTC there is also the histogram counts.
@@ -455,12 +342,16 @@ namespace UE::PixelStreaming
 		// webrtc::metrics::Histogram* Hist1 = webrtc::metrics::HistogramFactoryGetCounts("WebRTC.Video.NacksSent", 0, 100000, 100);
 		// Will require calling webrtc::metrics::Enable();
 
-		for (auto& Sessions : SessionsList)
-		{
-			Sessions->ForEachSession([](TSharedPtr<IPlayerSession> Session) {
-				Session->PollWebRTCStats();
-			});
-		}
+		// we dispatch this to the signalling thread because the poll call gets executed on the signalling thread
+		// but the signalling thread might be waiting on this mutex lock because its deleting a peer and removing
+		// the stats source. That can result in a deadlock. Ideally this should probably be handled better.
+		FPixelStreamingPeerConnection::PostSignalingTask([this]() {
+			FScopeLock Lock(&WebRTCStatsSourceListCS);
+			for (auto& Source : WebRTCStatsSourceList)
+			{
+				Source->PollWebRTCStats();
+			}
+		});
 
 		PollPixelStreamingSettings();
 
@@ -514,27 +405,8 @@ namespace UE::PixelStreaming
 	// Stats specific to a particular peer, as opposed to the entire app.
 	//
 
-	void FPeerStats::StoreStat(FStatData StatToStore)
+	bool FPeerStats::StoreStat(FStatData StatToStore)
 	{
-		if (IsInGameThread())
-		{
-			StoreStat_GameThread(StatToStore);
-		}
-		else
-		{
-			AsyncTask(ENamedThreads::GameThread, [this, StatToStore]() { StoreStat_GameThread(StatToStore); });
-		}
-	}
-
-	bool FPeerStats::StoreStat_GameThread(FStatData StatToStore)
-	{
-		checkf(IsInGameThread(), TEXT("This method was not called from the game thread."));
-
-		if (IsEngineExitRequested())
-		{
-			return false;
-		}
-
 		bool bUpdated = false;
 
 		if (!StoredStats.Contains(StatToStore.StatName))
@@ -593,27 +465,6 @@ namespace UE::PixelStreaming
 				FText TextToDisplay = FText::FromString(FString::Printf(TEXT("%s: %.*f"), *StatToStore.StatName.ToString(), StatToStore.NDecimalPlacesToPrint, RenderableStat->Stat.StatValue));
 				RenderableStat->CanvasItem.Text = TextToDisplay;
 			}
-
-			// Fire any callbacks to anyone listening for changing in this stat
-			if (!SingleStatConsumers.Contains(StatToStore.StatName))
-			{
-				return bUpdated;
-			}
-
-			TArray<TWeakPtr<IPixelStreamingStatsConsumer>>* StatConsumersArr = SingleStatConsumers.Find(StatToStore.StatName);
-			if (!StatConsumersArr)
-			{
-				return bUpdated;
-			}
-
-			for (TWeakPtr<IPixelStreamingStatsConsumer> Consumer : *StatConsumersArr)
-			{
-				if (Consumer.Pin())
-				{
-					Consumer.Pin()->ConsumeStat(AssociatedPlayer, StatToStore.StatName, RenderableStat->Stat.StatValue);
-				}
-			}
-
 			return bUpdated;
 		}
 	}

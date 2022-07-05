@@ -47,12 +47,12 @@ else
     RefType=heads
 fi
 
-# Look for a ps-infra directory next to this script
-if [ -d ps-infra ]
+# Look for a WebServers directory next to this script
+if [ -d WebServers ]
 then
-  echo "ps-infra directory found...skipping install."
+  echo "WebServers directory found...skipping install."
 else
-  echo "ps-infra directory not found...beginning ps-infra download."
+  echo "WebServers directory not found...beginning ps-infra download."
 
   if [ ! -z "$GitHubAccessToken" ]
   then
@@ -67,7 +67,7 @@ else
   tar -xmf ps-infra.tar.gz || $(echo "bad archive, contents:" && head --lines=20 ps-infra.tar.gz && exit 0)
 
   # Rename the extracted, versioned, directory
-  mv EpicGames-PixelStreamingInfrastructure-* "ps-infra"
+  mv EpicGames-PixelStreamingInfrastructure-* "WebServers"
 
   # Delete the downloaded tar
   rm ps-infra.tar.gz

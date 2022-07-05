@@ -4,6 +4,7 @@
 #include "PixelStreamingPrivate.h"
 #include "PixelStreamingStatNames.h"
 #include "Settings.h"
+#include "ToStringExtensions.h"
 
 namespace UE::PixelStreaming
 {
@@ -44,6 +45,7 @@ namespace UE::PixelStreaming
 		, LastCalculationCycles(FPlatformTime::Cycles64())
 		, bIsEnabled(!Settings::CVarPixelStreamingWebRTCDisableStats.GetValueOnAnyThread())
 	{
+		FStatsSink TrackStatsSink;
 		TrackStatsSink.Add(PixelStreamingStatNames::JitterBufferDelay, 2);
 		TrackStatsSink.Add(PixelStreamingStatNames::FramesReceived, 0);
 		TrackStatsSink.Add(PixelStreamingStatNames::FramesDecoded, 0);
@@ -58,8 +60,11 @@ namespace UE::PixelStreaming
 		TrackStatsSink.Add(PixelStreamingStatNames::PauseCount, 0);
 		TrackStatsSink.Add(PixelStreamingStatNames::TotalFreezesDuration, 2);
 		TrackStatsSink.Add(PixelStreamingStatNames::TotalPausesDuration, 2);
+		StatSinks.Add("track", TrackStatsSink);
 
+		FStatsSink SourceStatsSink;
 		SourceStatsSink.Add(PixelStreamingStatNames::SourceFps, 0);
+		StatSinks.Add("media-source", SourceStatsSink);
 	}
 
 	void FRTCStatsCollector::AddRef() const
@@ -79,33 +84,22 @@ namespace UE::PixelStreaming
 
 	void FRTCStatsCollector::ExtractValueAndSet(const webrtc::RTCStatsMemberInterface* ExtractFrom, FStatData* SetValueHere)
 	{
-		FString StatValueStr = FString(ExtractFrom->ValueToString().c_str());
+		FString StatValueStr = ToString(ExtractFrom->ValueToString());
 		double StatValueDouble = FCString::Atod(*StatValueStr);
 		SetValueHere->StatValue = StatValueDouble;
 	}
 
 	void FRTCStatsCollector::OnStatsDelivered(const rtc::scoped_refptr<const webrtc::RTCStatsReport>& Report)
 	{
-		if (!bIsEnabled)
-		{
-			return;
-		}
-
 		FStats* PSStats = FStats::Get();
 
-		if (!PSStats)
+		if (!bIsEnabled || !PSStats || !Report)
 		{
 			return;
 		}
 
-		if (!Report)
+		for (auto&& Stats : *Report)
 		{
-			return;
-		}
-
-		for (webrtc::RTCStatsReport::ConstIterator Iter = Report->begin(); Iter != Report->end(); ++Iter)
-		{
-			const webrtc::RTCStats& Stats = *Iter;
 			FString StatsType = FString(Stats.type());
 			std::vector<const webrtc::RTCStatsMemberInterface*> StatMembers = Stats.Members();
 
@@ -120,23 +114,15 @@ namespace UE::PixelStreaming
 			FStatsSink* StatsSink = nullptr;
 			FString Rid;
 
-			if (StatsType == TrackStatsStr)
-			{
-				StatsSink = &TrackStatsSink;
-			}
-			else if (StatsType == SourceStatsStr)
-			{
-				StatsSink = &SourceStatsSink;
-			}
-			else if (StatsType == StreamStatsStr)
+			if (StatsType == "outbound-rtp")
 			{
 				// Extract the `rid`
 				for (const webrtc::RTCStatsMemberInterface* StatMember : StatMembers)
 				{
 					FString StatName = FString(StatMember->name());
-					if (StatName == RidStr)
+					if (StatName == "rid")
 					{
-						Rid = FString(StatMember->ValueToString().c_str());
+						Rid = ToString(StatMember->ValueToString());
 						if (!StreamStatsSinks.Contains(Rid))
 						{
 							StreamStatsSinks.Add(Rid, FStreamStatsSink(Rid));
@@ -148,12 +134,12 @@ namespace UE::PixelStreaming
 			}
 			else
 			{
-				continue;
+				StatsSink = StatSinks.Find(StatsType);
 			}
 
 			if (!StatsSink)
 			{
-				return;
+				continue;
 			}
 
 			bool bSimulcastStat = Rid.Contains(TEXT("Simulcast"), ESearchCase::IgnoreCase, ESearchDir::FromStart);
@@ -175,12 +161,12 @@ namespace UE::PixelStreaming
 				FStatData* StatToEmit = StatsSink->Get(StatName);
 				if (StatToEmit)
 				{
-					bool bStatAlreadyNonZero = StatToEmit->StatValue > 0.0 || StatToEmit->StatValue < 0.0;
-
+					const bool bZeroInitially = StatToEmit->StatValue == 0.0;
 					ExtractValueAndSet(StatMember, StatToEmit);
+					const bool bZeroStill = StatToEmit->StatValue == 0.0;
 
 					// Don't bother emitting a zero value
-					if (bStatAlreadyNonZero || StatToEmit->StatValue > 0.0 || StatToEmit->StatValue < 0.0)
+					if (!bZeroInitially && !bZeroStill)
 					{
 						PSStats->StorePeerStat(Id, *StatToEmit);
 					}

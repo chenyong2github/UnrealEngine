@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "VideoEncoder.h"
 #include "WebRTCIncludes.h"
+#include "PixelStreamingCodec.h"
 
 namespace UE::PixelStreaming::Settings
 {
@@ -53,6 +54,7 @@ namespace UE::PixelStreaming::Settings
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingDisableLatencyTester;
 	extern TAutoConsoleVariable<bool> CVarPixelStreamingVPXUseCompute;
 	extern TAutoConsoleVariable<FString> CVarPixelStreamingInputController;
+	extern TAutoConsoleVariable<bool> CVarPixelStreamingSuppressICECandidateErrors;
 
 	extern TArray<FKey> FilteredKeys;
 	// Ends Pixel Streaming Plugin CVars
@@ -60,13 +62,6 @@ namespace UE::PixelStreaming::Settings
 	// Begin TextureSource CVars
 	extern TAutoConsoleVariable<float> CVarPixelStreamingFrameScale;
 	// End TextureSource CVars
-
-	enum ECodec
-	{
-		H264,
-		VP8,
-		VP9
-	};
 
 	/* Pixel Streaming can limit who can send input (keyboard, mouse, etc). */
 	enum EInputControllerMode
@@ -80,7 +75,8 @@ namespace UE::PixelStreaming::Settings
 	// Begin utility functions etc.
 	bool DecoupleFrameRate();
 	bool IsCodecVPX();
-	ECodec GetSelectedCodec();
+	void SetCodec(EPixelStreamingCodec Codec);
+	EPixelStreamingCodec GetSelectedCodec();
 	AVEncoder::FVideoEncoder::RateControlMode GetRateControlCVar();
 	AVEncoder::FVideoEncoder::MultipassMode GetMultipassCVar();
 	webrtc::DegradationPreference GetDegradationPreference();
@@ -89,7 +85,7 @@ namespace UE::PixelStreaming::Settings
 	void SetActiveTextureSourceTypes(TArray<FName> InActiveTextureSourceTypes);
 	EInputControllerMode GetInputControllerMode();
 	FString GetDefaultStreamerID();
-
+	FString GetDefaultSignallingURL();
 	// End utility functions etc.
 
 	struct FSimulcastParameters
@@ -110,6 +106,11 @@ namespace UE::PixelStreaming::Settings
 	inline bool IsPixelStreamingHideCursor()
 	{
 		return FParse::Param(FCommandLine::Get(), TEXT("PixelStreamingHideCursor"));
+	}
+
+	inline bool GetSignallingServerUrl(FString& OutSignallingServerURL)
+	{
+		return FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingURL="), OutSignallingServerURL);
 	}
 
 	inline bool GetSignallingServerIP(FString& OutSignallingServerIP)

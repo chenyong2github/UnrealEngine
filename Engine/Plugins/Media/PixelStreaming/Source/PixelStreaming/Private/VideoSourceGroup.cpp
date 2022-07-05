@@ -1,15 +1,42 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "VideoSourceGroup.h"
-#include "VideoSourceP2P.h"
-#include "VideoSourceSFU.h"
+#include "VideoSource.h"
 #include "Settings.h"
+#include "PixelStreamingPrivate.h"
 
 namespace UE::PixelStreaming
 {
-	void FVideoSourceGroup::SetVideoInput(TSharedPtr<FPixelStreamingVideoInput> InVideoInput)
+	TSharedPtr<FVideoSourceGroup> FVideoSourceGroup::Create()
 	{
+		return TSharedPtr<FVideoSourceGroup>(new FVideoSourceGroup());
+	}
+
+	FVideoSourceGroup::FVideoSourceGroup()
+		: bCoupleFramerate(!Settings::DecoupleFrameRate())
+	{
+	}
+
+	FVideoSourceGroup::~FVideoSourceGroup()
+	{
+		Stop();
+	}
+
+	void FVideoSourceGroup::SetVideoInput(TSharedPtr<IPixelStreamingVideoInput> InVideoInput)
+	{
+		if (VideoInput)
+		{
+			VideoInput->OnFrameReady.Remove(FrameDelegateHandle);
+			VideoInput->OnResolutionChanged.Remove(ResizeDelegateHandle);
+		}
+
 		VideoInput = InVideoInput;
+
+		if (VideoInput)
+		{
+			FrameDelegateHandle = VideoInput->OnFrameReady.AddSP(AsShared(), &FVideoSourceGroup::InputFrame);
+			ResizeDelegateHandle = VideoInput->OnResolutionChanged.AddSP(AsShared(), &FVideoSourceGroup::ResolutionChanged);
+		}
 	}
 
 	void FVideoSourceGroup::SetFPS(int32 InFramesPerSecond)
@@ -17,20 +44,25 @@ namespace UE::PixelStreaming
 		FramesPerSecond = InFramesPerSecond;
 	}
 
-	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FVideoSourceGroup::CreateVideoSource(const TFunction<bool()>& InIsQualityControllerFunc)
+	int32 FVideoSourceGroup::GetFPS()
 	{
-		rtc::scoped_refptr<FVideoSourceBase> NewVideoSource = new FVideoSourceP2P(VideoInput, InIsQualityControllerFunc);
-		{
-			FScopeLock Lock(&CriticalSection);
-			VideoSources.Add(NewVideoSource);
-		}
-		CheckStartStopThread();
-		return NewVideoSource;
+		return FramesPerSecond;
 	}
 
-	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FVideoSourceGroup::CreateSFUVideoSource()
+	void FVideoSourceGroup::SetCoupleFramerate(bool Couple)
 	{
-		rtc::scoped_refptr<FVideoSourceBase> NewVideoSource = new FVideoSourceSFU(VideoInput);
+		FScopeLock Lock(&CriticalSection);
+		bCoupleFramerate = Couple;
+		for (auto& VideoSource : VideoSources)
+		{
+			VideoSource->SetCoupleFramerate(bCoupleFramerate);
+		}
+	}
+
+	rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> FVideoSourceGroup::CreateVideoSource(bool InAllowSimulcast, const TFunction<bool()>& InShouldGenerateFramesCheck)
+	{
+		rtc::scoped_refptr<FVideoSource> NewVideoSource = new FVideoSource(VideoInput, InAllowSimulcast, InShouldGenerateFramesCheck);
+		NewVideoSource->SetCoupleFramerate(bCoupleFramerate);
 		{
 			FScopeLock Lock(&CriticalSection);
 			VideoSources.Add(NewVideoSource);
@@ -43,9 +75,18 @@ namespace UE::PixelStreaming
 	{
 		{
 			FScopeLock Lock(&CriticalSection);
-			VideoSources.RemoveAll([ToRemove](const rtc::scoped_refptr<FVideoSourceBase>& Target) {
+			VideoSources.RemoveAll([ToRemove](const rtc::scoped_refptr<FVideoSource>& Target) {
 				return Target.get() == ToRemove;
 			});
+		}
+		CheckStartStopThread();
+	}
+
+	void FVideoSourceGroup::RemoveAllVideoSources()
+	{
+		{
+			FScopeLock Lock(&CriticalSection);
+			VideoSources.Empty();
 		}
 		CheckStartStopThread();
 	}
@@ -77,16 +118,16 @@ namespace UE::PixelStreaming
 		// for each player session, push a frame
 		for (auto& VideoSource : VideoSources)
 		{
-			if (VideoSource && VideoSource->IsReady())
+			if (VideoSource)
 			{
-				VideoSource->PushFrame();
+				VideoSource->MaybePushFrame();
 			}
 		}
 	}
 
 	void FVideoSourceGroup::StartThread()
 	{
-		if (Settings::DecoupleFrameRate() && !bThreadRunning)
+		if (!bCoupleFramerate && !bThreadRunning)
 		{
 			FrameRunnable = MakeUnique<FFrameThread>(this);
 			FrameThread = FRunnableThread::Create(FrameRunnable.Get(), TEXT("FVideoSourceGroup Thread"));
@@ -116,6 +157,30 @@ namespace UE::PixelStreaming
 			else if (!bThreadRunning && NumSources > 0)
 			{
 				StartThread();
+			}
+		}
+	}
+
+	void FVideoSourceGroup::InputFrame(const IPixelStreamingInputFrame& SourceFrame)
+	{
+		FScopeLock Lock(&CriticalSection);
+		for (auto& VideoSource : VideoSources)
+		{
+			if (VideoSource)
+			{
+				VideoSource->InputFrame(SourceFrame);
+			}
+		}
+	}
+
+	void FVideoSourceGroup::ResolutionChanged(int32 NewWidth, int32 NewHeight)
+	{
+		FScopeLock Lock(&CriticalSection);
+		for (auto& VideoSource : VideoSources)
+		{
+			if (VideoSource)
+			{
+				VideoSource->ResolutionChanged(NewWidth, NewHeight);
 			}
 		}
 	}

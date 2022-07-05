@@ -2,20 +2,27 @@
 
 #pragma once
 
-#include "Delegates/DelegateCombinations.h"
-#include "CoreMinimal.h"
+#include "IPixelStreamingVideoInput.h"
+#include "Delegates/IDelegateInstance.h"
+#include "UnrealClient.h"
 
-class FPixelStreamingSourceFrame;
-
-/*
- * Feeds FStreamer with frame data.
- * Broadcast the OnFrame delegate when a new frame is ready to be streamed.
- */
-class PIXELSTREAMING_API FPixelStreamingVideoInput
+namespace UE::PixelStreaming
 {
-public:
-	virtual ~FPixelStreamingVideoInput() = default;
+	class PIXELSTREAMING_API FPixelStreamingVideoInput : public IPixelStreamingVideoInput
+	{
+	public:
+		FPixelStreamingVideoInput() = default;
+		
+		static TSharedPtr<FPixelStreamingVideoInput> Create();
+		virtual ~FPixelStreamingVideoInput();
 
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnFrame, const FPixelStreamingSourceFrame&);
-	FOnFrame OnFrame;
-};
+		void OnFrame(const IPixelStreamingInputFrame&) override;
+
+	protected:
+		virtual TSharedPtr<FPixelStreamingFrameAdapterProcess> CreateAdaptProcess(EPixelStreamingFrameBufferFormat FinalFormat, float FinalScale) override;
+
+	private:
+		int32 LastFrameWidth = -1;
+		int32 LastFrameHeight = -1;
+	};
+}

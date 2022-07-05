@@ -1,17 +1,18 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "PixelStreamingMediaCapture.h"
-#include "PixelStreamingSourceFrame.h"
+#include "PixelStreamingInputFrameRHI.h"
+#include "PixelStreamingVideoInput.h"
 #include "Slate/SceneViewport.h"
 
 void UPixelStreamingMediaCapture::OnRHIResourceCaptured_RenderingThread(
-		const FCaptureBaseData& InBaseData,
-		TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
-		FTextureRHIRef InTexture)
+	const FCaptureBaseData& InBaseData,
+	TSharedPtr<FMediaCaptureUserData, ESPMode::ThreadSafe> InUserData,
+	FTextureRHIRef InTexture)
 {
 	if (VideoInput)
 	{
-		VideoInput->OnFrame.Broadcast(FPixelStreamingSourceFrame(InTexture));
+		VideoInput->OnFrame(FPixelStreamingInputFrameRHI(InTexture));
 	}
 }
 
@@ -35,6 +36,6 @@ void UPixelStreamingMediaCapture::SetupVideoInput()
 {
 	if (!VideoInput)
 	{
-		VideoInput = MakeShared<FPixelStreamingVideoInput>();
+		VideoInput = UE::PixelStreaming::FPixelStreamingVideoInput::Create();
 	}
 }

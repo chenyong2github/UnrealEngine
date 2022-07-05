@@ -7,6 +7,12 @@
 #include "Containers/UnrealString.h"
 #include "Async/Async.h"
 #include "Modules/ModuleManager.h"
+#include "Math/Vector4.h"
+#include "Math/Matrix.h"
+#include "Math/TransformNonVectorized.h"
+#include "Serialization/MemoryReader.h"
+#include "VCamPixelStreamingSubsystem.h"
+#include "VCamPixelStreamingLiveLink.h"
 
 DEFINE_LOG_CATEGORY(LogVCamOutputProvider);
 namespace VCamPixelStreamingSession
@@ -36,6 +42,11 @@ void UVCamPixelStreamingSession::Deinitialize()
 
 void UVCamPixelStreamingSession::Activate()
 {
+	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+	{
+		PixelStreamingSubsystem->RegisterActiveOutputProvider(this);
+	}
+
 	// If we don't have a UMG assigned, we still need to create an empty 'dummy' UMG in order to properly route the input back from the RemoteSession device
 	if (UMGClass == nullptr)
 	{
@@ -97,6 +108,73 @@ void UVCamPixelStreamingSession::Activate()
 			UE_LOG(LogVCamOutputProvider, Log, TEXT("PixelStreaming set with viewport"));
 		}
 	}
+
+	if(MediaOutput->GetStreamer())
+	{
+		MediaOutput->GetStreamer()->OnInputReceived.AddLambda([this](FPixelStreamingPlayerId PlayerId, uint8 Type, TArray<uint8> Data)
+		{
+			if(Type != static_cast<uint8>(UE::PixelStreaming::Protocol::EToStreamerMsg::ARKitTransform) || !EnableARKitTracking)
+			{
+				return;
+			}
+			
+			FMemoryReader Buffer(Data);
+			uint8 MessageType;
+			Buffer << MessageType;
+			
+			TArray<FPlane> Columns;
+			for(int32 Idx = 0; Idx < 4; Idx++)
+			{
+				float x;
+				float y;
+				float z;
+				float w;
+
+				Buffer << x;
+				Buffer << y;
+				Buffer << z;
+				Buffer << w;
+
+				FVector4 Column(x, y, z, w);
+				Columns.Add(FPlane(Column));
+			}
+
+			FMatrix RawYUpFMatrix(Columns[0], Columns[1], Columns[2], Columns[3]);
+			/**
+			 * Convert's an ARKit 'Y up' 'right handed' coordinate system transform to Unreal's 'Z up' 
+			 * 'left handed' coordinate system.
+			 * Taken from 'Engine\Plugins\Runtime\AR\AppleAR\AppleARKit\Source\AppleARKit\Public\AppleARKitConversion.h ToFTransform'
+			 *
+			 * Ignores scale.
+			 */
+			// Extract & convert translation
+			FVector Translation = FVector( -RawYUpFMatrix.M[3][2], RawYUpFMatrix.M[3][0], RawYUpFMatrix.M[3][1] ) * 100.0f;
+			// Extract & convert rotation 
+			FQuat RawRotation( RawYUpFMatrix );
+			FQuat Rotation( -RawRotation.Z, RawRotation.X, RawRotation.Y, -RawRotation.W );
+			FRotator ModifiedRotation(Rotation);
+			ModifiedRotation.Roll -= 90.0f;
+
+			TSharedPtr<FPixelStreamingLiveLinkSource> LiveLinkSource = UVCamPixelStreamingSubsystem::Get()->LiveLinkSource;
+			if(LiveLinkSource)
+			{
+				FTransform Transform(ModifiedRotation, Translation, FVector(RawYUpFMatrix.GetScaleVector(1.0f)));
+				LiveLinkSource->PushTransformForSubject(GetFName(), Transform);
+			}
+
+			/**
+			 * Code to control the level editor viewport
+			 */
+			// for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+			// {
+			// 	if (LevelVC && LevelVC->IsPerspective())
+			// 	{
+			// 		LevelVC->SetViewLocation(Translation);
+			// 		LevelVC->SetViewRotation(ModifiedRotation);
+			// 	}
+			// }
+		});
+	}
 	Super::Activate();
 }
 
@@ -110,6 +188,11 @@ void UVCamPixelStreamingSession::StopSignallingServer()
 
 void UVCamPixelStreamingSession::Deactivate()
 {
+	if (UVCamPixelStreamingSubsystem* PixelStreamingSubsystem = UVCamPixelStreamingSubsystem::Get())
+	{
+		PixelStreamingSubsystem->UnregisterActiveOutputProvider(this);
+	}
+
 	if (MediaCapture)
 	{
 

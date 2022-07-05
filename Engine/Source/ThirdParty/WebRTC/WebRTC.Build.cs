@@ -19,8 +19,8 @@ public class WebRTC : ModuleRules
 	{
 		get
 		{
-			return false
-				// || Target.Platform == UnrealTargetPlatform.Win64 // uncomment to enable WebRtc 96 
+			return false 
+				//    || Target.Platform == UnrealTargetPlatform.Win64 // uncomment to enable WebRtc 96 
 				   ;
 		}
 	}
@@ -37,6 +37,9 @@ public class WebRTC : ModuleRules
 		}
 		else
 		{
+			// The debug webrtc binares are not portable, so we only ship with the release binaries
+			// If you wanted, you would need to compile the webrtc binaries in debug and place the Lib and Include folder in the relevant location
+			// ConfigPath = "Debug";
 			ConfigPath = "Release";
 		}
 

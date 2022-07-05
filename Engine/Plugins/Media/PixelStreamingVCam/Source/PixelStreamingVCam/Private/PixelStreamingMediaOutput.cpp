@@ -3,6 +3,10 @@
 #include "PixelStreamingMediaOutput.h"
 #include "PixelStreamingMediaCapture.h"
 #include "IPixelStreamingModule.h"
+#include "PixelStreamingPlayerId.h"
+#include "IPixelStreamingStreamer.h"
+#include "CineCameraComponent.h"
+#include "PixelStreamingProtocolDefs.h"
 
 void UPixelStreamingMediaOutput::BeginDestroy()
 {
@@ -50,7 +54,8 @@ void UPixelStreamingMediaOutput::StartStreaming()
 	if (Streamer)
 	{
 		Streamer->SetVideoInput(Capture->GetVideoInput());
-		Streamer->SetTargetViewport(Capture->GetViewport());
+		Streamer->SetTargetViewport(Capture->GetViewport().Get());
+		Streamer->SetTargetWindow(Capture->GetViewport()->FindWindow());
 		Streamer->SetSignallingServerURL(SignallingServerURL);
 		Streamer->StartStreaming();
 	}

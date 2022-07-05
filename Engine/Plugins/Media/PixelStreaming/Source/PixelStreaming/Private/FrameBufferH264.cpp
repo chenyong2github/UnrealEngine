@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FrameBufferH264.h"
-#include "FrameAdapterH264.h"
+#include "FrameAdapter.h"
 
 namespace UE::PixelStreaming
 {
-	FFrameBufferH264Base::FFrameBufferH264Base(TSharedPtr<IPixelStreamingFrameSource> InFrameSource)
+	FFrameBufferH264Base::FFrameBufferH264Base(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource)
 		: FrameSource(InFrameSource)
 	{
 	}
 
-	FFrameBufferH264Simulcast::FFrameBufferH264Simulcast(TSharedPtr<IPixelStreamingFrameSource> InFrameSource)
+	FFrameBufferH264Simulcast::FFrameBufferH264Simulcast(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource)
 		: FFrameBufferH264Base(InFrameSource)
 	{
 	}
@@ -30,7 +30,7 @@ namespace UE::PixelStreaming
 		return FrameSource->GetNumLayers();
 	}
 
-	FFrameBufferH264::FFrameBufferH264(TSharedPtr<IPixelStreamingFrameSource> InFrameSource, int InLayerIndex)
+	FFrameBufferH264::FFrameBufferH264(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource, int InLayerIndex)
 		: FFrameBufferH264Base(InFrameSource)
 		, LayerIndex(InLayerIndex)
 	{
@@ -46,7 +46,7 @@ namespace UE::PixelStreaming
 		return FrameSource->GetHeight(LayerIndex);
 	}
 
-	FAdaptedVideoFrameLayerH264* FFrameBufferH264::GetAdaptedLayer() const
+	FPixelStreamingAdaptedOutputFrameH264* FFrameBufferH264::GetAdaptedLayer() const
 	{
 		EnsureCachedAdaptedLayer();
 		return CachedAdaptedLayer.Get();
@@ -56,8 +56,8 @@ namespace UE::PixelStreaming
 	{
 		if (CachedAdaptedLayer == nullptr)
 		{
-			FPixelStreamingFrameAdapter* FrameAdapter = StaticCast<FPixelStreamingFrameAdapter*>(FrameSource.Get());
-			CachedAdaptedLayer = StaticCastSharedPtr<FAdaptedVideoFrameLayerH264>(FrameAdapter->ReadOutput(LayerIndex));
+			FFrameAdapter* FrameAdapter = StaticCast<FFrameAdapter*>(FrameSource.Get());
+			CachedAdaptedLayer = StaticCastSharedPtr<FPixelStreamingAdaptedOutputFrameH264>(FrameAdapter->ReadOutput(LayerIndex));
 			CachedAdaptedLayer->Metadata.Layer = LayerIndex;
 		}
 	}

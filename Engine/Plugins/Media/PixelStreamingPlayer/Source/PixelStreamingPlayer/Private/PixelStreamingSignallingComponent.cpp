@@ -2,6 +2,8 @@
 
 #include "PixelStreamingSignallingComponent.h"
 #include "WebSocketsModule.h"
+#include "PixelStreamingPeerComponent.h"
+#include "PixelStreamingPlayerPrivate.h"
 
 UPixelStreamingSignallingComponent::UPixelStreamingSignallingComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -27,6 +29,23 @@ void UPixelStreamingSignallingComponent::Disconnect()
 	SignallingConnection->Disconnect();
 }
 
+void UPixelStreamingSignallingComponent::SendAnswer(const FPixelStreamingSessionDescriptionWrapper& Answer)
+{
+	if (Answer.SDP == nullptr)
+	{
+		UE_LOG(LogPixelStreamingPlayer, Error, TEXT("Send Answer failed: Answer was null"));
+	}
+	else
+	{
+		SignallingConnection->SendAnswer(*Answer.SDP);
+	}
+}
+
+void UPixelStreamingSignallingComponent::SendIceCandidate(const FPixelStreamingIceCandidateWrapper& CandidateWrapper)
+{
+	SignallingConnection->SendIceCandidate(*CandidateWrapper.ToWebRTC());
+}
+
 void UPixelStreamingSignallingComponent::OnSignallingConnected()
 {
 	OnConnected.Broadcast();
@@ -44,8 +63,9 @@ void UPixelStreamingSignallingComponent::OnSignallingError(const FString& ErrorM
 
 void UPixelStreamingSignallingComponent::OnSignallingConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
 {
-	RTCConfig = Config;
-	OnConfig.Broadcast();
+	FPixelStreamingRTCConfigWrapper Wrapper;
+	Wrapper.Config = Config;
+	OnConfig.Broadcast(Wrapper);
 }
 
 void UPixelStreamingSignallingComponent::OnSignallingSessionDescription(webrtc::SdpType Type, const FString& Sdp)
@@ -62,7 +82,8 @@ void UPixelStreamingSignallingComponent::OnSignallingSessionDescription(webrtc::
 
 void UPixelStreamingSignallingComponent::OnSignallingRemoteIceCandidate(const FString& SdpMid, int SdpMLineIndex, const FString& Sdp)
 {
-	OnIceCandidate.Broadcast(SdpMid, SdpMLineIndex, Sdp);
+	FPixelStreamingIceCandidateWrapper CandidateWrapper(SdpMid, SdpMLineIndex, Sdp);
+	OnIceCandidate.Broadcast(CandidateWrapper);
 }
 
 void UPixelStreamingSignallingComponent::OnSignallingPeerDataChannels(int32 SendStreamId, int32 RecvStreamId)

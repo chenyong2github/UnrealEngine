@@ -10,7 +10,7 @@ namespace UE::PixelStreaming
 {
 	// This is a PixelStreaming sink AND a WebRTC sink.
 	// It collects audio coming in from a WebRTC audio source and passes into into UE's audio system.
-	class FAudioSink : public webrtc::AudioTrackSinkInterface, public IPixelStreamingAudioSink
+	class FAudioSink : public IPixelStreamingAudioSink
 	{
 	public:
 		FAudioSink()

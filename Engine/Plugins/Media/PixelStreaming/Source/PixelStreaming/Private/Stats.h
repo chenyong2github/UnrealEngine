@@ -14,8 +14,13 @@ struct FPixelStreamingFrameMetadata;
 
 namespace UE::PixelStreaming
 {
-	// ----------------- FStatData -----------------
-	class FPlayerSessions;
+	// An interface that allows us to collect webrtc stats from anything that implements it
+	class IStatsSource
+	{
+	public:
+		virtual ~IStatsSource() = default;
+		virtual void PollWebRTCStats() const = 0;
+	};
 
 	struct FStatData
 	{
@@ -52,15 +57,11 @@ namespace UE::PixelStreaming
 		return GetTypeHash(Obj.StatName);
 	}
 
-	// ----------------- FRenderableStat -----------------
-
 	struct FRenderableStat
 	{
 		FStatData Stat;
 		FCanvasTextItem CanvasItem;
 	};
-
-	// ----------------- FPeerStats -----------------
 
 	// Pixel Streaming stats that are associated with a specific peer.
 	class FPeerStats
@@ -74,8 +75,7 @@ namespace UE::PixelStreaming
 			PlayerIdCanvasItem.EnableShadow(FLinearColor::Black);
 		};
 
-		void StoreStat(FStatData StatToStore);
-		bool StoreStat_GameThread(FStatData StatToStore);
+		bool StoreStat(FStatData StatToStore);
 
 	private:
 		int DisplayId = 0;
@@ -87,8 +87,6 @@ namespace UE::PixelStreaming
 		FCanvasTextItem PlayerIdCanvasItem;
 	};
 
-	// ----------------- FStats -----------------
-
 	// Stats about Pixel Streaming that can displayed either in the in-application HUD, in the log, or simply reported to some subscriber.
 	class FStats : FTickableGameObject
 	{
@@ -97,17 +95,15 @@ namespace UE::PixelStreaming
 		static constexpr double SmoothingFactor = 10.0 / 100.0;
 		static FStats* Get();
 
-		void AddSessions(FPlayerSessions* InSessions);
-		void RemoveSessions(FPlayerSessions* InSessions);
+		void AddWebRTCStatsSource(IStatsSource* InSource);
+		void RemoveWebRTCStatsSource(IStatsSource* InSource);
 
 		FStats(const FStats&) = delete;
-		void QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, TFunction<void(bool, double)> QueryCallback) const;
-		bool QueryPeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutStatValue) const;
-		void RemovePeersStats(FPixelStreamingPlayerId PlayerId);
+		bool QueryPeerStat(FPixelStreamingPlayerId PlayerId, FName StatToQuery, double& OutValue) const;
+		void RemovePeerStats(FPixelStreamingPlayerId PlayerId);
 		void StorePeerStat(FPixelStreamingPlayerId PlayerId, FStatData Stat);
 		void StoreApplicationStat(FStatData PeerStat);
 		void Tick(float DeltaTime);
-		void AddOnPeerStatChangedCallback(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback);
 
 		bool OnToggleStats(UWorld* World, FCommonViewportClient* ViewportClient, const TCHAR* Stream);
 		int32 OnRenderStats(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation);
@@ -128,21 +124,22 @@ namespace UE::PixelStreaming
 		FStats();
 		void RegisterEngineHooks();
 		void PollPixelStreamingSettings();
-		void RemovePeerStat_GameThread(FPixelStreamingPlayerId PlayerId);
-		bool StorePeerStat_GameThread(FPixelStreamingPlayerId PlayerId, FStatData Stat);
-		bool StoreApplicationStat_GameThread(FStatData Stat);
-		void AddOnPeerStatChangedCallback_GameThread(FPixelStreamingPlayerId PlayerId, FName StatToListenOn, TWeakPtr<IPixelStreamingStatsConsumer> Callback);
-		void FireStatChanged_GameThread(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue);
-		void UpdateConsoleAutoComplete_GameThread(TArray<FAutoCompleteCommand>& AutoCompleteList);
+		void RemovePeerStat(FPixelStreamingPlayerId PlayerId);
+		void FireStatChanged(FPixelStreamingPlayerId PlayerId, FName StatName, float StatValue);
+		void UpdateConsoleAutoComplete(TArray<FAutoCompleteCommand>& AutoCompleteList);
 
 	private:
 		static FStats* Instance;
 
-		TArray<FPlayerSessions*> SessionsList;
+		FCriticalSection WebRTCStatsSourceListCS;
+		TArray<IStatsSource*> WebRTCStatsSourceList;
 
 		bool bRegisterEngineStats = false;
 
+		mutable FCriticalSection PeerStatsCS;
 		TMap<FPixelStreamingPlayerId, FPeerStats> PeerStats;
+
+		mutable FCriticalSection ApplicationStatsCS;
 		TMap<FName, FRenderableStat> ApplicationStats;
 
 		int64 LastTimeSettingsPolledCycles = 0;

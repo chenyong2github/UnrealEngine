@@ -59,6 +59,12 @@ public:
 	static void StreamerSendFile(FString StreamerId, FString Filepath, FString MimeType, FString FileExtension);
 
 	/**
+	 * Force a key frame to be sent.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Pixel Streaming")
+	static void ForceKeyFrame();
+
+	/**
     * The functions allow Pixel Streaming to be frozen and unfrozen from
     * Blueprint. When frozen, a freeze frame (a still image) will be used by the
     * browser instead of the video stream.

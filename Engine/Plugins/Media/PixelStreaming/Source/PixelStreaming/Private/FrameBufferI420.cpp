@@ -1,16 +1,16 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "FrameBufferI420.h"
-#include "FrameAdapterI420.h"
+#include "FrameAdapter.h"
 
 namespace UE::PixelStreaming
 {
-	FFrameBufferI420Base::FFrameBufferI420Base(TSharedPtr<IPixelStreamingFrameSource> InFrameSource)
+	FFrameBufferI420Base::FFrameBufferI420Base(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource)
 		: FrameSource(InFrameSource)
 	{
 	}
 
-	FFrameBufferI420Simulcast::FFrameBufferI420Simulcast(TSharedPtr<IPixelStreamingFrameSource> InFrameSource)
+	FFrameBufferI420Simulcast::FFrameBufferI420Simulcast(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource)
 		: FFrameBufferI420Base(InFrameSource)
 	{
 	}
@@ -30,7 +30,7 @@ namespace UE::PixelStreaming
 		return FrameSource->GetNumLayers();
 	}
 
-	FFrameBufferI420::FFrameBufferI420(TSharedPtr<IPixelStreamingFrameSource> InFrameSource, int InLayerIndex)
+	FFrameBufferI420::FFrameBufferI420(TSharedPtr<IPixelStreamingAdaptedFrameSource> InFrameSource, int InLayerIndex)
 		: FFrameBufferI420Base(InFrameSource)
 		, LayerIndex(InLayerIndex)
 	{
@@ -56,7 +56,7 @@ namespace UE::PixelStreaming
 		return GetAdaptedLayer()->GetI420Buffer().get();
 	}
 
-	FAdaptedVideoFrameLayerI420* FFrameBufferI420::GetAdaptedLayer() const
+	FPixelStreamingAdaptedOutputFrameI420* FFrameBufferI420::GetAdaptedLayer() const
 	{
 		EnsureCachedAdaptedLayer();
 		return CachedAdaptedLayer.Get();
@@ -66,8 +66,8 @@ namespace UE::PixelStreaming
 	{
 		if (CachedAdaptedLayer == nullptr)
 		{
-			FPixelStreamingFrameAdapter* FrameAdapter = StaticCast<FPixelStreamingFrameAdapter*>(FrameSource.Get());
-			CachedAdaptedLayer = StaticCastSharedPtr<FAdaptedVideoFrameLayerI420>(FrameAdapter->ReadOutput(LayerIndex));
+			FFrameAdapter* FrameAdapter = StaticCast<FFrameAdapter*>(FrameSource.Get());
+			CachedAdaptedLayer = StaticCastSharedPtr<FPixelStreamingAdaptedOutputFrameI420>(FrameAdapter->ReadOutput(LayerIndex));
 			CachedAdaptedLayer->Metadata.Layer = LayerIndex;
 		}
 	}

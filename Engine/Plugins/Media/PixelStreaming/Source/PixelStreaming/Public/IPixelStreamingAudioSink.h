@@ -2,12 +2,12 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "PixelStreamingWebRTCIncludes.h"
 
 class IPixelStreamingAudioConsumer;
 
 // Interface for a sink that collects audio coming in from the browser and passes into into UE's audio system.
-class PIXELSTREAMING_API IPixelStreamingAudioSink
+class PIXELSTREAMING_API IPixelStreamingAudioSink : public webrtc::AudioTrackSinkInterface
 {
 public:
 	IPixelStreamingAudioSink() {}

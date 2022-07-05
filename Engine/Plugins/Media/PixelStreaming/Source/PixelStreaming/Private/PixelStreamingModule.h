@@ -5,8 +5,8 @@
 #include "IPixelStreamingModule.h"
 #include "RHI.h"
 #include "Tickable.h"
-#include "InputDevice.h"
-#include "StreamerInputDevices.h"
+#include "PixelStreamingInputChannel.h"
+#include "StreamerInputChannels.h"
 
 class UPixelStreamingInput;
 class SWindow;
@@ -26,6 +26,8 @@ namespace UE::PixelStreaming
 		static IPixelStreamingModule* GetModule();
 
 		/** IPixelStreamingModule implementation */
+		virtual void SetCodec(EPixelStreamingCodec Codec) override;
+		virtual EPixelStreamingCodec GetCodec() const override;
 		virtual FReadyEvent& OnReady() override;
 		virtual bool IsReady() override;
 		virtual bool StartStreaming() override;
@@ -40,13 +42,14 @@ namespace UE::PixelStreaming
 		virtual void RemoveInputComponent(UPixelStreamingInput* InInputComponent) override;
 		virtual const TArray<UPixelStreamingInput*> GetInputComponents() override;
 		// Don't delete, is used externally to PS
+		virtual void SetExternalVideoSourceFPS(uint32 InFPS) override;
 		virtual rtc::scoped_refptr<webrtc::VideoTrackSourceInterface> CreateExternalVideoSource() override;
 		virtual void ReleaseExternalVideoSource(const webrtc::VideoTrackSourceInterface* InVideoSource) override;
-		virtual webrtc::VideoEncoderFactory* CreateVideoEncoderFactory() override;
+		virtual TUniquePtr<webrtc::VideoEncoderFactory> CreateVideoEncoderFactory() override;
 		virtual void ForEachStreamer(const TFunction<void(TSharedPtr<IPixelStreamingStreamer>)>& Func) override;
 		/** End IPixelStreamingModule implementation */
 
-		virtual void RegisterCreateInputDevice(IPixelStreamingInputDevice::FCreateInputDeviceFunc& InCreateInputDevice) override;
+		virtual void RegisterCreateInputChannel(IPixelStreamingInputChannel::FCreateInputChannelFunc& InCreateInputChannel) override;
 
 	private:
 		/** IModuleInterface implementation */
@@ -68,11 +71,10 @@ namespace UE::PixelStreaming
 		FReadyEvent ReadyEvent;
 
 		TArray<UPixelStreamingInput*> InputComponents;
-		TUniquePtr<FVideoSourceGroup> ExternalVideoSourceGroup;
-
+		TSharedPtr<FVideoSourceGroup> ExternalVideoSourceGroup;
 		mutable FCriticalSection StreamersCS;
 		TMap<FString, TSharedPtr<IPixelStreamingStreamer>> Streamers;
 
-		TSharedPtr<FStreamerInputDevices> StreamerInputDevices;
+		TSharedPtr<FStreamerInputChannels> StreamerInputChannels;
 	};
 } // namespace UE::PixelStreaming

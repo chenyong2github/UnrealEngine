@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "WebRTCIncludes.h"
+#include "PixelStreamingWebRTCIncludes.h"
 #include "IPixelStreamingAudioSubmixCapturer.h"
 #include "HAL/ThreadSafeBool.h"
 #include "IPixelStreamingAudioSubmixCapturer.h"

@@ -6,13 +6,6 @@
 
 namespace UE::PixelStreaming::Protocol
 {
-	enum EPlayerFlags
-	{
-		PSPFlag_None = 0x00,
-		PSPFlag_SupportsDataChannel = 0x01,
-		PSPFlag_IsSFU = 0x02,
-	};
-
 	enum class EToStreamerMsg : uint8
 	{
 		/**********************************************************************/
@@ -63,6 +56,9 @@ namespace UE::PixelStreaming::Protocol
 		GamepadButtonPressed = 90,
 		GamepadButtonReleased = 91,
 		GamepadAnalog = 92,
+
+		// ARKit Transform Input Messages. Range = 100..109
+		ARKitTransform = 100,
 
 		/**********************************************************************/
 

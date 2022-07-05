@@ -41,6 +41,10 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	int32 FromComposureOutputProviderIndex = INDEX_NONE;
 
+	// Check this if you wish to control the corresponding CineCamera with transform data received from the LiveLink app
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
+	bool EnableARKitTracking = true;
+
 	// Check this if you are not separately running a signalling server for this session
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Output")
 	bool StartSignallingServer = true;
