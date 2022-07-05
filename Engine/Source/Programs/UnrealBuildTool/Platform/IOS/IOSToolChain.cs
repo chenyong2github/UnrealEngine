@@ -501,62 +501,36 @@ namespace UnrealBuildTool
 
 			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
 
+			FileReference CompilerPath = new FileReference(Settings.Value.ToolchainDir + IOSCompiler);
+			string CompilerVersion = GetFullClangVersion();
+
+			List<FileItem> FrameworkTokenFiles = new List<FileItem>();
+			foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
+			{
+				if (Framework.ZipFile != null)
+				{
+					FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph, Logger);
+					FrameworkTokenFiles.Add(ExtractedTokenFile);
+				}
+			}
+
 			CPPOutput Result = new CPPOutput();
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = Graph.CreateAction(ActionType.Compile);
-
-				List<string> FileArguments = new();
-
-				// Add C or C++ specific compiler arguments.
-				GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
-
-				string CompilerPath = Settings.Value.ToolchainDir + IOSCompiler;
-
-				// Gets the target file so we can get the correct output path.
-				FileItem TargetFile = CompileAction.ProducedItems.First();
-
-				// Creates the path to the response file using the name of the output file and creates its contents.
-				FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
-				List<string> ResponseFileContents = new();
-				ResponseFileContents.AddRange(GlobalArguments);
-				ResponseFileContents.AddRange(FileArguments);
-				ResponseFileContents = ResponseFileContents.Select(x => Utils.ExpandVariables(x)).ToList();
-
-				// Adds the response file to the compiler input.
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
-				CompileAction.CommandArguments += string.Format("@\"{0}\"", NormalizeCommandLinePath(ResponseFileItem));
-				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
+				Action CompileAction = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, CompilerPath, CompilerVersion, Result);
 
 				// Analyze and then compile using the shell to perform the indirection
 				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
 				if (StaticAnalysisMode != null && StaticAnalysisMode != "")
 				{
 					FileReference ReportFile = new FileReference(SourceFile.AbsolutePath + ".html");
-					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + ReportFile + "; " + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + "\"";
-					CompilerPath = "/bin/sh";
+					string Arguments = CompileAction.CommandArguments;
+					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + Arguments + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + ReportFile + "; " + CompilerPath + " " + Arguments + "\"";
+					CompileAction.CommandPath = new FileReference("/bin/sh");
 				}
 
-				// RPC utility parameters are in terms of the Mac side
-				CompileAction.WorkingDirectory = GetMacDevSrcRoot();
-				CompileAction.CommandPath = new FileReference(CompilerPath);
-				CompileAction.CommandDescription = "Compile";
-				CompileAction.StatusDescription = string.Format("{0}", Path.GetFileName(SourceFile.AbsolutePath));
-				CompileAction.bIsGCCCompiler = true;
-				// We're already distributing the command by execution on Mac.
-				CompileAction.bCanExecuteRemotely = CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create;
-				CompileAction.bShouldOutputStatusDescription = true;
-				CompileAction.CommandVersion = GetFullClangVersion();
-
-				foreach (UEBuildFramework Framework in CompileEnvironment.AdditionalFrameworks)
-				{
-					if (Framework.ZipFile != null)
-					{
-						FileItem ExtractedTokenFile = ExtractFramework(Framework, Graph, Logger);
-						CompileAction.PrerequisiteItems.Add(ExtractedTokenFile);
-					}
-				}
+				CompileAction.PrerequisiteItems.AddRange(FrameworkTokenFiles);
 			}
 			return Result;
 		}

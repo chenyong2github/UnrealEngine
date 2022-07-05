@@ -315,101 +315,24 @@ namespace UnrealBuildTool
 
 			GetCompileArguments_Global(CompileEnvironment, GlobalArguments);
 
+			FileReference CompilerPath = new FileReference(Settings.ToolchainDir + MacCompiler);
+			string CompilerVersion = GetFullClangVersion();
+
 			CPPOutput Result = new CPPOutput();
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = Graph.CreateAction(ActionType.Compile);
+				Action CompileAction = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, CompilerPath, CompilerVersion, Result);
 
-				List<string> FileArguments = new();
-
-				// Add C or C++ specific compiler arguments.
-				GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
-
-				// Gets the target file so we can get the correct output path.
-				FileItem TargetFile = CompileAction.ProducedItems.First();
-
-				// Creates the path to the response file using the name of the output file and creates its contents.
-				FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
-				List<string> ResponseFileContents = new();
-				ResponseFileContents.AddRange(GlobalArguments);
-				ResponseFileContents.AddRange(FileArguments);
-
-				// Adds the response file to the compiler input.
-				FileItem ResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
-				CompileAction.CommandArguments += string.Format("@\"{0}\"", NormalizeCommandLinePath(ResponseFileItem));
-				CompileAction.PrerequisiteItems.Add(ResponseFileItem);
-
-				string CompilerPath = Settings.ToolchainDir + MacCompiler;
-				
 				// Analyze and then compile using the shell to perform the indirection
 				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
 				if (StaticAnalysisMode != null && StaticAnalysisMode != "")
 				{
 					FileReference ReportFile = new FileReference(SourceFile.AbsolutePath + ".html");
-					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + ReportFile + "; " + CompilerPath + " " + string.Format("@\"{0}\"", ResponseFileName) + "\"";
-					CompilerPath = "/bin/sh";
+					string Arguments = CompileAction.CommandArguments;
+					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + Arguments + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + ReportFile + "; " + CompilerPath + " " + Arguments + "\"";
+					CompileAction.CommandPath = new FileReference("/bin/sh");
 				}
-
-				// RPC utility parameters are in terms of the Mac side
-				CompileAction.WorkingDirectory = GetMacDevSrcRoot();
-				CompileAction.CommandPath = new FileReference(CompilerPath);
-
-				// For compilation we delete everything we produce
-				CompileAction.DeleteItems.AddRange(CompileAction.ProducedItems);
-				CompileAction.CommandDescription = "Compile";
-				CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
-				CompileAction.bIsGCCCompiler = true;
-				// We're already distributing the command by execution on Mac.
-				CompileAction.bCanExecuteRemotely = CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create;
-				CompileAction.bShouldOutputStatusDescription = true;
-				CompileAction.CommandVersion = GetFullClangVersion();
-
-				if (bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
-				{
-					Action PrepassAction = Graph.CreateAction(ActionType.Compile);
-					PrepassAction.PrerequisiteItems.AddRange(CompileAction.PrerequisiteItems);
-					PrepassAction.CommandDescription = "Preprocess Depends";
-					PrepassAction.StatusDescription = CompileAction.StatusDescription;
-					PrepassAction.bIsGCCCompiler = true;
-					PrepassAction.bCanExecuteRemotely = false;
-					PrepassAction.bShouldOutputStatusDescription = true;
-					PrepassAction.CommandVersion = CompileAction.CommandVersion;
-					PrepassAction.WorkingDirectory = CompileAction.WorkingDirectory;
-
-					List<string> PreprocessGlobalArguments = new(GlobalArguments);
-					List<string> PreprocessFileArguments = new(FileArguments);
-					PreprocessGlobalArguments.Remove("-c");
-
-					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-					PreprocessFileArguments.Add(string.Format("-M -MF\"{0}\"", NormalizeCommandLinePath(DependencyListFile)));
-					PrepassAction.DependencyListFile = DependencyListFile;
-					PrepassAction.ProducedItems.Add(DependencyListFile);
-
-					PreprocessFileArguments.Remove("-ftime-trace");
-					PreprocessFileArguments.Remove(string.Format(" -o \"{0}\"", NormalizeCommandLinePath(CompileAction.ProducedItems.First())));
-
-					PrepassAction.DeleteItems.AddRange(PrepassAction.ProducedItems);
-
-					// Gets the target file so we can get the correct output path.
-					FileItem PreprocessTargetFile = PrepassAction.ProducedItems[0];
-
-					// Creates the path to the response file using the name of the output file and creates its contents.
-					FileReference PreprocessResponseFileName = new FileReference(PreprocessTargetFile.AbsolutePath + ".response");
-					List<string> PreprocessResponseFileContents = new();
-					PreprocessResponseFileContents.AddRange(PreprocessGlobalArguments);
-					PreprocessResponseFileContents.AddRange(PreprocessFileArguments);
-
-					// Adds the response file to the compiler input.
-					FileItem PreprocessResponseFileItem = Graph.CreateIntermediateTextFile(PreprocessResponseFileName, PreprocessResponseFileContents);
-					PrepassAction.PrerequisiteItems.Add(PreprocessResponseFileItem);
-
-					PrepassAction.CommandPath = new FileReference(CompilerPath);
-					PrepassAction.CommandArguments = string.Format("@\"{0}\"", PreprocessResponseFileItem);
-					CompileAction.DependencyListFile = DependencyListFile;
-					CompileAction.PrerequisiteItems.Add(DependencyListFile);
-				}
-
 			}
 			return Result;
 		}

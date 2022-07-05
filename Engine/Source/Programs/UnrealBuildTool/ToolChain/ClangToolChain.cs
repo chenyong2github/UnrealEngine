@@ -121,6 +121,18 @@ namespace UnrealBuildTool
 
 		protected bool bPreprocessDepends = false;
 
+		// Dummy define to work around clang compilation related to the windows maximum path length limitation
+		protected static string ClangDummyDefine; 
+		protected const int ClangCmdLineMaxSize = 32 * 1024;
+		protected const int ClangCmdlineDangerZone = 30 * 1024;
+
+		static ClangToolChain()
+		{
+			const string DummyStart = "-D \"DUMMY_DEFINE";
+			const string DummyEnd = "\"";
+			ClangDummyDefine = DummyStart + String.Format("_").PadRight(ClangCmdLineMaxSize - ClangCmdlineDangerZone - DummyStart.Length - DummyEnd.Length, 'X') + DummyEnd;
+		}
+
 		public ClangToolChain(ClangToolChainOptions InOptions, ILogger InLogger)
 			: base(InLogger)
 		{
@@ -598,6 +610,16 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Compile arguments for running clang-analyze. Currently unsupported.
+		/// </summary>
+		/// <param name="CompileEnvironment"></param>
+		/// <param name="Arguments"></param>
+		protected virtual void GetCompileArguments_Analyze(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
+		{
+			Arguments.Add("--analyze");
+		}
+
+		/// <summary>
 		/// Common compile arguments for all files in a module.
 		/// Override and call base.GetCompileArguments_Global() in derived classes.
 		/// </summary>
@@ -743,6 +765,118 @@ namespace UnrealBuildTool
 
 			// Add the parameters needed to compile the output file to the command-line.
 			Arguments.Add(GetOutputFileArgument(OutputFile));
+		}
+
+		protected virtual Action CompileCPPFile(CppCompileEnvironment CompileEnvironment, FileItem SourceFile, DirectoryReference OutputDir, string ModuleName, IActionGraphBuilder Graph, IReadOnlyCollection<string> GlobalArguments, FileReference CommandPath, string CommandVersion, CPPOutput Result)
+		{
+			Action CompileAction = Graph.CreateAction(ActionType.Compile);
+
+			List<string> FileArguments = new();
+
+			// Add C or C++ specific compiler arguments.
+			GetCompileArguments_FileType(CompileEnvironment, SourceFile, OutputDir, FileArguments, CompileAction, Result);
+
+			// Gets the target file so we can get the correct output path.
+			FileItem TargetFile = CompileAction.ProducedItems.First();
+
+			// Creates the path to the response file using the name of the output file and creates its contents.
+			FileReference ResponseFileName = new FileReference(TargetFile.AbsolutePath + ".response");
+			List<string> ResponseFileContents = new();
+			ResponseFileContents.AddRange(GlobalArguments);
+			ResponseFileContents.AddRange(FileArguments);
+			ResponseFileContents = ResponseFileContents.Select(x => Utils.ExpandVariables(x)).ToList();
+
+			if (RuntimePlatform.IsWindows)
+			{
+				// Enables Clang Cmd Line Work Around
+				// Clang reads the response file and computes the total cmd line length.
+				// Depending on the length it will then use either cmd line or response file mode.
+				// Clang currently underestimates the total size of the cmd line, which can trigger the following clang error in cmd line mode:
+				// >>>> xxx-clang.exe': The filename or extension is too long.  (0xCE)
+				// Clang processes and modifies the response file contents and this makes the final cmd line size hard for us to predict.
+				// To be conservative we add a dummy define to inflate the response file size and force clang to use the response file mode when we are close to the limit.
+				int CmdLineLength = CommandPath.ToString().Length + string.Join(' ', ResponseFileContents).Length;
+				bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
+				if (bIsInDangerZone)
+				{
+					ResponseFileContents.Add(ClangDummyDefine);
+				}
+			}
+
+			// Adds the response file to the compiler input.
+			FileItem CompilerResponseFileItem = Graph.CreateIntermediateTextFile(ResponseFileName, ResponseFileContents);
+			CompileAction.CommandArguments = GetResponseFileArgument(CompilerResponseFileItem);
+			CompileAction.PrerequisiteItems.Add(CompilerResponseFileItem);
+
+			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
+			CompileAction.CommandPath = CommandPath;
+			CompileAction.CommandVersion = CommandVersion;
+			CompileAction.CommandDescription = "Compile";
+			CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
+			CompileAction.bIsGCCCompiler = true;
+
+			// Don't farm out creation of pre-compiled headers as it is the critical path task.
+			CompileAction.bCanExecuteRemotely =
+				CompileEnvironment.PrecompiledHeaderAction != PrecompiledHeaderAction.Create ||
+				CompileEnvironment.bAllowRemotelyCompiledPCHs;
+
+			if (bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+			{
+				Action PrepassAction = Graph.CreateAction(ActionType.Compile);
+				PrepassAction.PrerequisiteItems.AddRange(CompileAction.PrerequisiteItems);
+				PrepassAction.PrerequisiteItems.Remove(CompilerResponseFileItem);
+				PrepassAction.CommandDescription = "Preprocess Depends";
+				PrepassAction.StatusDescription = CompileAction.StatusDescription;
+				PrepassAction.bIsGCCCompiler = true;
+				PrepassAction.bCanExecuteRemotely = false;
+				PrepassAction.bShouldOutputStatusDescription = true;
+				PrepassAction.CommandPath = CompileAction.CommandPath;
+				PrepassAction.CommandVersion = CompileAction.CommandVersion;
+				PrepassAction.WorkingDirectory = CompileAction.WorkingDirectory;
+
+				List<string> PreprocessGlobalArguments = new(GlobalArguments);
+				List<string> PreprocessFileArguments = new(FileArguments);
+				PreprocessGlobalArguments.Remove("-c");
+
+				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
+				PreprocessFileArguments.Add(GetPreprocessDepencenciesListFileArgument(DependencyListFile));
+				PrepassAction.DependencyListFile = DependencyListFile;
+				PrepassAction.ProducedItems.Add(DependencyListFile);
+
+				PreprocessFileArguments.Remove("-ftime-trace");
+				PreprocessFileArguments.Remove(GetOutputFileArgument(CompileAction.ProducedItems.First()));
+
+				PrepassAction.DeleteItems.AddRange(PrepassAction.ProducedItems);
+
+				// Gets the target file so we can get the correct output path.
+				FileItem PreprocessTargetFile = PrepassAction.ProducedItems[0];
+
+				// Creates the path to the response file using the name of the output file and creates its contents.
+				FileReference PreprocessResponseFileName = new FileReference(PreprocessTargetFile.AbsolutePath + ".response");
+				List<string> PreprocessResponseFileContents = new();
+				PreprocessResponseFileContents.AddRange(PreprocessGlobalArguments);
+				PreprocessResponseFileContents.AddRange(PreprocessFileArguments);
+
+				if (RuntimePlatform.IsWindows)
+				{
+					int CmdLineLength = CommandPath.ToString().Length + string.Join(' ', ResponseFileContents).Length;
+					bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
+					if (bIsInDangerZone)
+					{
+						ResponseFileContents.Add(ClangDummyDefine);
+					}
+				}
+
+				// Adds the response file to the compiler input.
+				FileItem PreprocessResponseFileItem = Graph.CreateIntermediateTextFile(PreprocessResponseFileName, PreprocessResponseFileContents);
+				PrepassAction.PrerequisiteItems.Add(PreprocessResponseFileItem);
+
+				PrepassAction.CommandArguments = GetResponseFileArgument(PreprocessResponseFileItem);
+				CompileAction.DependencyListFile = DependencyListFile;
+				CompileAction.PrerequisiteItems.Add(DependencyListFile);
+			}
+
+			return CompileAction;
 		}
 	}
 }
