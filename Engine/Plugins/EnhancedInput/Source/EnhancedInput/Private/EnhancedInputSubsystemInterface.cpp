@@ -417,6 +417,16 @@ int32 IEnhancedInputSubsystemInterface::RemovePlayerMappedKey(const FName Mappin
 	return NumMappingsApplied;
 }
 
+void IEnhancedInputSubsystemInterface::RemoveAllPlayerMappedKeys(const FModifyContextOptions& Options)
+{
+	if (UEnhancedPlayerInput* const PlayerInput = GetPlayerInput())
+	{
+		PlayerMappedSettings.Empty();
+	}
+
+	RequestRebuildControlMappings(Options);
+}
+
 void IEnhancedInputSubsystemInterface::AddPlayerMappableConfig(const UPlayerMappableInputConfig* Config, const FModifyContextOptions& Options)
 {
 	if(Config)
