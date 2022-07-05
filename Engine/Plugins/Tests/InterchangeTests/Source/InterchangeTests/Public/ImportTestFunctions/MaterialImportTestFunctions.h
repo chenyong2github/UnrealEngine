@@ -21,5 +21,9 @@ public:
 
 	/** Check whether the expected number of materials are imported */
 	UFUNCTION(Exec)
-	static FInterchangeTestFunctionResult CheckImportedMaterialCount(const TArray<UMaterialInterface*>& Materials, int32 ExpectedNumberOfImportedMaterials);
+	static FInterchangeTestFunctionResult CheckImportedMaterialCount(const TArray<UMaterialInterface*>& MaterialInterfaces, int32 ExpectedNumberOfImportedMaterials);
+
+	/** Check whether the expected number of material instances are imported */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckImportedMaterialInstanceCount(const TArray<UMaterialInterface*>& MaterialInterfaces, int32 ExpectedNumberOfImportedMaterialInstances);
 };
