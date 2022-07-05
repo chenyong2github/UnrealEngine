@@ -6256,9 +6256,12 @@ void UStaticMesh::BuildFromMeshDescription(const FMeshDescription& MeshDescripti
 			if (Color != FLinearColor::White)
 			{
 				bHasVertexColors = true;
+				StaticMeshVertex.Color = Color.ToFColor(true);
 			}
-
-			StaticMeshVertex.Color = Color.ToFColor(true);
+			else
+			{
+				StaticMeshVertex.Color = FColor::White;
+			}
 		}
 	}
 
