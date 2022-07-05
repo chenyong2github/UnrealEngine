@@ -15,9 +15,12 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Text/STextBlock.h"
 
-#define LOCTEXT_NAMESPACE "SMVVMPropertyPath"
+#define LOCTEXT_NAMESPACE "SPropertyPath"
 
-void SMVVMPropertyPath::Construct(const FArguments& InArgs)
+namespace UE::MVVM
+{
+
+void SPropertyPath::Construct(const FArguments& InArgs)
 {
 	WidgetBlueprint = InArgs._WidgetBlueprint;
 	check(InArgs._WidgetBlueprint != nullptr);
@@ -33,14 +36,14 @@ void SMVVMPropertyPath::Construct(const FArguments& InArgs)
 		[
 			SNew(STextBlock)
 			.TextStyle(FMVVMEditorStyle::Get(), "PropertyPath.ContextText")
-			.Text(this, &SMVVMPropertyPath::GetSourceDisplayName)
+			.Text(this, &SPropertyPath::GetSourceDisplayName)
 		]
 		+ SHorizontalBox::Slot()
 		.Padding(FMargin(5, 0, 0, 0))
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SNew(SMVVMFieldIcon)
+			SNew(SFieldIcon)
 			.Field(GetLastField())
 		]
 		+ SHorizontalBox::Slot()
@@ -50,12 +53,12 @@ void SMVVMPropertyPath::Construct(const FArguments& InArgs)
 		[
 			SNew(STextBlock)
 			.TextStyle(FMVVMEditorStyle::Get(), "PropertyPath.ContextText")
-			.Text(this, &SMVVMPropertyPath::GetFieldDisplayName)
+			.Text(this, &SPropertyPath::GetFieldDisplayName)
 		]
 	];
 }
 
-FText SMVVMPropertyPath::GetSourceDisplayName() const
+FText SPropertyPath::GetSourceDisplayName() const
 {
 	if (PropertyPath->IsFromWidget())
 	{
@@ -74,14 +77,16 @@ FText SMVVMPropertyPath::GetSourceDisplayName() const
 	return FText::GetEmpty();
 }
 
-FText SMVVMPropertyPath::GetFieldDisplayName() const
+FText SPropertyPath::GetFieldDisplayName() const
 {
 	return FText::FromString(PropertyPath->GetBasePropertyPath());
 }
 
-UE::MVVM::FMVVMConstFieldVariant SMVVMPropertyPath::GetLastField() const
+FMVVMConstFieldVariant SPropertyPath::GetLastField() const
 {
 	return PropertyPath->GetFields().Last();
 }
+
+} // namespace UE::MVVM
 
 #undef LOCTEXT_NAMESPACE

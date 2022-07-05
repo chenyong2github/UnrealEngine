@@ -23,7 +23,7 @@ class UWidgetBlueprint;
 namespace UE::MVVM
 {
 	struct FMVVMFieldVariant;
-	class SViewModelBindingListWidget;
+	class SSourceBindingList;
 
 	namespace Private
 	{
@@ -108,7 +108,7 @@ private:
 
 	TWeakPtr<SWindow> WeakParentWindow;
 
-	TSharedPtr<UE::MVVM::SViewModelBindingListWidget> ViewModelBindingListWidget;
+	TSharedPtr<UE::MVVM::SSourceBindingList> BindingListWidget;
 
 	bool bSearchStringIsEmpty = true;
 	UUserWidget* OuterWidget = nullptr;

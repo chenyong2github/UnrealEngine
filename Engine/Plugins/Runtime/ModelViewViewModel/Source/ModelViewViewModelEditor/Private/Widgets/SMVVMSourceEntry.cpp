@@ -9,7 +9,13 @@
 
 #define LOCTEXT_NAMESPACE "SMVVMSource"
 
-static const FSlateBrush* GetSourceIcon(const UE::MVVM::FBindingSource& Source)
+namespace UE::MVVM
+{
+	
+namespace Private
+{
+
+const FSlateBrush* GetSourceIcon(const FBindingSource& Source)
 {
 	if (!Source.IsValid())
 	{
@@ -19,7 +25,7 @@ static const FSlateBrush* GetSourceIcon(const UE::MVVM::FBindingSource& Source)
 	return FSlateIconFinder::FindIconBrushForClass(Source.Class);
 }
 
-static FLinearColor GetSourceColor(const UE::MVVM::FBindingSource& Source)
+FLinearColor GetSourceColor(const FBindingSource& Source)
 {
 	if (!Source.IsValid())
 	{
@@ -34,7 +40,7 @@ static FLinearColor GetSourceColor(const UE::MVVM::FBindingSource& Source)
 	return Color;
 }
 
-static FText GetSourceDisplayName(const UE::MVVM::FBindingSource& Source)
+FText GetSourceDisplayName(const FBindingSource& Source)
 {
 	if (!Source.IsValid())
 	{
@@ -44,7 +50,9 @@ static FText GetSourceDisplayName(const UE::MVVM::FBindingSource& Source)
 	return !Source.DisplayName.IsEmpty() ? Source.DisplayName : FText::FromString(Source.Name.ToString());
 }
 
-void SMVVMSourceEntry::Construct(const FArguments& InArgs)
+} // namespace Private
+
+void SSourceEntry::Construct(const FArguments& InArgs)
 {
 	ChildSlot
 	[
@@ -69,11 +77,13 @@ void SMVVMSourceEntry::Construct(const FArguments& InArgs)
 	RefreshSource(InArgs._Source);
 }
 
-void SMVVMSourceEntry::RefreshSource(const UE::MVVM::FBindingSource& Source)
+void SSourceEntry::RefreshSource(const FBindingSource& Source)
 {
-	Image->SetImage(GetSourceIcon(Source));
-	Image->SetColorAndOpacity(GetSourceColor(Source));
-	Label->SetText(GetSourceDisplayName(Source));
+	Image->SetImage(Private::GetSourceIcon(Source));
+	Image->SetColorAndOpacity(Private::GetSourceColor(Source));
+	Label->SetText(Private::GetSourceDisplayName(Source));
 }
+
+} // namespace UE::MVVM
 
 #undef LOCTEXT_NAMESPACE

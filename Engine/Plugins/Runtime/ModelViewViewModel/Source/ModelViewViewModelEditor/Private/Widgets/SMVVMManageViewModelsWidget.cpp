@@ -285,7 +285,7 @@ void SMVVMManageViewModelsWidget::Construct(const FArguments& InArgs)
 						SNew(SBorder)
 						.BorderImage(FStyleDefaults::GetNoBrush())
 						[
-							SAssignNew(ViewModelBindingListWidget, UE::MVVM::SViewModelBindingListWidget, nullptr)
+							SAssignNew(BindingListWidget, UE::MVVM::SSourceBindingList, InArgs._WidgetBlueprint)
 						]
 					]
 				]
@@ -769,7 +769,7 @@ void SMVVMManageViewModelsWidget::HandleTreeViewSelectionChanged(TSharedPtr<FMVV
 	{
 		InClass = GetClassFromNode(Item.ToSharedRef());
 	}
-	ViewModelBindingListWidget->SetViewModel(InClass, FName(), FGuid());
+	BindingListWidget->AddSource(InClass, FName(), FGuid());
 }
 
 void SMVVMManageViewModelsWidget::HandleTreeViewExpansionChanged(TSharedPtr<FMVVMViewModelTreeNode> Item, bool bExpanded)

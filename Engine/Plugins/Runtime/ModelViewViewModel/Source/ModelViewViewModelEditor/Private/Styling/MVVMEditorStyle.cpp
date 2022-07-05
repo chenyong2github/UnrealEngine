@@ -65,6 +65,12 @@ FMVVMEditorStyle::FMVVMEditorStyle()
 	Set("ConversionFunction.DestToSource", new IMAGE_BRUSH_SVG("Slate/ConversionFunction_DestToSource", Icon16x16));
 	Set("ConversionFunction.SourceToDest", new IMAGE_BRUSH_SVG("Slate/ConversionFunction_SourceToDest", Icon16x16));
 
+	Set("FieldSelector.ComboButton", 
+		FComboButtonStyle(FAppStyle::Get().GetWidgetStyle<FComboButtonStyle>("ComboButton"))
+		.SetDownArrowImage(*FCoreStyle::Get().GetBrush("Icons.Edit")));
+
+	Set("FieldSelector.MenuBorderBrush", new FSlateRoundedBoxBrush(FStyleColors::Dropdown, 0.0f, FStyleColors::DropdownOutline, 1.0f));
+
 	FSlateStyleRegistry::RegisterSlateStyle(*this);
 }
 

@@ -2,10 +2,13 @@
 
 #include "SMVVMViewModelBindingListWidget.h"
 
+#include "Algo/Transform.h"
 #include "Bindings/MVVMBindingHelper.h"
+#include "Components/Widget.h"
 #include "Editor.h"
 #include "Engine/Engine.h"
 #include "FieldNotification/IFieldValueChanged.h"
+#include "MVVMBlueprintViewModelContext.h"
 #include "MVVMEditorSubsystem.h"
 #include "MVVMSubsystem.h"
 #include "MVVMViewModelBase.h"
@@ -14,26 +17,43 @@
 #include "WidgetBlueprint.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 
-#define LOCTEXT_NAMESPACE "SViewModelBindingListWidget"
+#define LOCTEXT_NAMESPACE "SSourceBindingList"
+
+using UE::PropertyViewer::SPropertyViewer;
 
 namespace UE::MVVM
 {
 
-/** */
-FFieldIterator_ViewModel::FFieldIterator_ViewModel(const UWidgetBlueprint* InWidgetBlueprint)
+	FFieldIterator_Bindable::FFieldIterator_Bindable(const UWidgetBlueprint* InWidgetBlueprint, EFieldVisibility InVisibilityFlags)
 	: WidgetBlueprint(InWidgetBlueprint)
+	, FieldVisibilityFlags(InVisibilityFlags)
 { }
 
 
-TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct) const
+TArray<FFieldVariant> FFieldIterator_Bindable::GetFields(const UStruct* Struct) const
 {
 	TArray<FFieldVariant> Result;
 
-	auto AddResult = [&Result, Struct](const TArray<FMVVMAvailableBinding>& AvailableBindingsList)
+	auto AddResult = [Flags = FieldVisibilityFlags, &Result, Struct](const TArray<FMVVMAvailableBinding>& AvailableBindingsList)
 	{
 		Result.Reserve(AvailableBindingsList.Num());
 		for (const FMVVMAvailableBinding& Value : AvailableBindingsList)
 		{
+			if (EnumHasAllFlags(Flags, EFieldVisibility::Readable) && !Value.IsReadable())
+			{
+				continue;
+			} 
+
+			if (EnumHasAllFlags(Flags, EFieldVisibility::Writable) && !Value.IsWritable())
+			{
+				continue;
+			}
+			
+			if (EnumHasAllFlags(Flags, EFieldVisibility::Notify) && !Value.HasNotify())
+			{
+				continue;
+			}
+
 			FMVVMFieldVariant FieldVariant = BindingHelper::FindFieldByName(Struct, Value.GetBindingName());
 			if (FieldVariant.IsFunction())
 			{
@@ -45,7 +65,6 @@ TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct)
 			}
 		}
 	};
-
 
 	if (const UClass* Class = Cast<const UClass>(Struct))
 	{
@@ -79,7 +98,7 @@ TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct)
 			{
 				return false;
 			}
-			else if(A.IsUObject())
+			else if (A.IsUObject())
 			{
 				return true;
 			}
@@ -90,26 +109,24 @@ TArray<FFieldVariant> FFieldIterator_ViewModel::GetFields(const UStruct* Struct)
 			return A.GetFName().LexicalLess(B.GetFName());
 		});
 
-
 	return Result;
 }
 
-
 /** */
-void SViewModelBindingListWidget::Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint)
+void SSourceBindingList::Construct(const FArguments& InArgs, const UWidgetBlueprint* WidgetBlueprint)
 {
-	ViewModelFieldIterator = MakeUnique<FFieldIterator_ViewModel>(WidgetBlueprint);
+	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, InArgs._FieldVisibilityFlags);
 
-	PropertyViewer = SNew(UE::PropertyViewer::SPropertyViewer)
-		.PropertyVisibility(UE::PropertyViewer::SPropertyViewer::EPropertyVisibility::Hidden)
+	OnDoubleClicked = InArgs._OnDoubleClicked;
+
+	PropertyViewer = SNew(SPropertyViewer)
+		.PropertyVisibility(SPropertyViewer::EPropertyVisibility::Hidden)
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
-		.FieldIterator(ViewModelFieldIterator.Get());
-
-	if (InArgs._ViewModel.Class.Get())
-	{
-		SetViewModels(MakeArrayView(&InArgs._ViewModel, 1));
-	}
+		.FieldIterator(FieldIterator.Get())
+		.bShowSearchBox(false)
+		.OnSelectionChanged(this, &SSourceBindingList::HandleSelectionChanged)
+		.OnDoubleClicked(this, &SSourceBindingList::HandleDoubleClicked);
 
 	ChildSlot
 	[
@@ -117,40 +134,133 @@ void SViewModelBindingListWidget::Construct(const FArguments& InArgs, const UWid
 	];
 }
 
-
-void SViewModelBindingListWidget::SetViewModel(UClass* Class, FName Name, FGuid Guid)
+void SSourceBindingList::Clear()
 {
-	FViewModel ViewModel;
-	ViewModel.Class = Class;
-	ViewModel.ViewModelId = Guid;
-	ViewModel.Name = Name;
-	SetViewModels(MakeArrayView(&ViewModel, 1));
-}
-
-
-void SViewModelBindingListWidget::SetViewModels(TArrayView<const FViewModel> InViewModels)
-{
-	ViewModels = InViewModels;
 	if (PropertyViewer)
 	{
 		PropertyViewer->RemoveAll();
-		for (const FViewModel& ViewModel : ViewModels)
+	}
+}
+
+void SSourceBindingList::AddSource(UClass* Class, FName Name, FGuid Guid)
+{
+	FBindingSource Source;
+	Source.Class = Class;
+	Source.Name = Name;
+	Source.ViewModelId = Guid;
+
+	AddSources(MakeArrayView(&Source, 1));
+}
+
+void SSourceBindingList::AddWidgets(TArrayView<const UWidget*> InWidgets)
+{
+	TArray<FBindingSource, TInlineAllocator<16>> NewSources;
+	NewSources.Reserve(InWidgets.Num());
+
+	for (const UWidget* Widget : InWidgets)
+	{
+		FBindingSource& Source = NewSources.AddDefaulted_GetRef();
+		Source.Class = Widget->GetClass();
+		Source.Name = Widget->GetFName();
+		Source.DisplayName = Widget->GetLabelText();
+	}
+
+	AddSources(NewSources);
+}
+
+void SSourceBindingList::AddViewModels(TArrayView<const FMVVMBlueprintViewModelContext> InViewModels)
+{
+	TArray<FBindingSource, TInlineAllocator<16>> NewSources;
+	NewSources.Reserve(InViewModels.Num());
+
+	for (const FMVVMBlueprintViewModelContext& ViewModelContext : InViewModels)
+	{
+		FBindingSource& Source = NewSources.AddDefaulted_GetRef();
+		Source.Class = ViewModelContext.GetViewModelClass();
+		Source.ViewModelId = ViewModelContext.GetViewModelId();
+	}
+
+	AddSources(NewSources);
+}
+
+void SSourceBindingList::AddSources(TArrayView<const FBindingSource> InSources)
+{
+	Algo::Transform(InSources, Sources, [](const FBindingSource& Source)
 		{
-			if (ViewModel.Class && ViewModel.Class->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
+			return TPair<FBindingSource, SPropertyViewer::FHandle>(Source, SPropertyViewer::FHandle());
+		});
+
+	if (PropertyViewer)
+	{
+		for (TPair<FBindingSource, SPropertyViewer::FHandle>& Source : Sources)
+		{
+			const UClass* Class = Source.Key.Class;
+			if (Class && Class->ImplementsInterface(UNotifyFieldValueChanged::StaticClass()))
 			{
-				PropertyViewer->AddContainer(ViewModel.Class.Get());
+				Source.Value = PropertyViewer->AddContainer(Class);
 			}
 		}
 	}
 }
 
+FMVVMBlueprintPropertyPath SSourceBindingList::CreateBlueprintPropertyPath(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath) const
+{
+	const TPair<FBindingSource, SPropertyViewer::FHandle>* Source = Sources.FindByPredicate(
+		[Handle](const TPair<FBindingSource, SPropertyViewer::FHandle>& Source)
+		{
+			return Source.Value == Handle;
+		});
+		
+	FMVVMBlueprintPropertyPath PropertyPath;
+	if (Source != nullptr)
+	{
+		if (Source->Key.ViewModelId.IsValid())
+		{
+			PropertyPath.SetViewModelId(Source->Key.ViewModelId);
+		}
+		else
+		{
+			PropertyPath.SetWidgetName(Source->Key.Name);
+		}
 
-void SViewModelBindingListWidget::SetRawFilterText(const FText& InFilterText)
+		PropertyPath.ResetBasePropertyPath();
+	}
+
+	// TODO (sebastiann): FMVVMBlueprintPropertyPath doesn't support long paths yet
+	FFieldVariant LastField = FieldPath.Num() > 0 ? FieldPath.Last() : FFieldVariant();
+	if (LastField.IsValid())
+	{
+		PropertyPath.SetBasePropertyPath(FMVVMConstFieldVariant(LastField));
+	}
+
+	return PropertyPath;
+}
+
+void SSourceBindingList::HandleSelectionChanged(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath, ESelectInfo::Type SelectionType)
+{
+	SelectedPath = CreateBlueprintPropertyPath(Handle, FieldPath);
+}
+
+void SSourceBindingList::HandleDoubleClicked(SPropertyViewer::FHandle Handle, TArrayView<const FFieldVariant> FieldPath)
+{
+	if (OnDoubleClicked.IsBound())
+	{
+		FMVVMBlueprintPropertyPath ClickedPath = CreateBlueprintPropertyPath(Handle, FieldPath);
+		OnDoubleClicked.Execute(ClickedPath);
+	}
+}
+
+void SSourceBindingList::SetRawFilterText(const FText& InFilterText)
 {
 	if (PropertyViewer)
 	{
 		PropertyViewer->SetRawFilterText(InFilterText);
 	}
+}
+
+FMVVMBlueprintPropertyPath SSourceBindingList::GetSelectedProperty() const
+{
+	return SelectedPath;
 }
 
 } // namespace UE::MVVM

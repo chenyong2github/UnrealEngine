@@ -10,7 +10,7 @@ class UWidgetBlueprint;
 
 namespace UE::MVVM
 {
-class SViewModelBindingListWidget;
+class SSourceBindingList;
 
 class SMVVMSelectViewModel : public SCompoundWidget
 {
@@ -33,7 +33,7 @@ private:
 
 private:
 	TSharedPtr<SClassViewer> ClassViewer;
-	TSharedPtr<SViewModelBindingListWidget> ViewModelBindingListWidget;
+	TSharedPtr<SSourceBindingList> BindingListWidget;
 	TWeakObjectPtr<const UClass> SelectedClass;
 
 	FSimpleDelegate OnCancel;

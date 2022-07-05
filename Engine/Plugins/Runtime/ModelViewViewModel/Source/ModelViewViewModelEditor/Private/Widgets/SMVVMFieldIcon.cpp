@@ -9,9 +9,12 @@
 #include "Styling/StyleColors.h"
 #include "Widgets/Images/SLayeredImage.h"
 
-#define LOCTEXT_NAMESPACE "SMVVMFieldIcon"
+#define LOCTEXT_NAMESPACE "SFieldIcon"
 
-void SMVVMFieldIcon::Construct(const FArguments& Args)
+namespace UE::MVVM
+{
+
+void SFieldIcon::Construct(const FArguments& Args)
 {
 	ChildSlot
 	[
@@ -21,7 +24,7 @@ void SMVVMFieldIcon::Construct(const FArguments& Args)
 	RefreshBinding(Args._Field);
 }
 
-void SMVVMFieldIcon::RefreshBinding(const UE::MVVM::FMVVMConstFieldVariant& Field)
+void SFieldIcon::RefreshBinding(const FMVVMConstFieldVariant& Field)
 {
 	LayeredImage->SetImage(nullptr);
 	LayeredImage->RemoveAllLayers();
@@ -40,14 +43,14 @@ void SMVVMFieldIcon::RefreshBinding(const UE::MVVM::FMVVMConstFieldVariant& Fiel
 	else if (Field.IsFunction())
 	{
 		const UFunction* Function = Field.GetFunction();
-		const FProperty* ReturnProperty = UE::MVVM::BindingHelper::GetReturnProperty(Function);
+		const FProperty* ReturnProperty = BindingHelper::GetReturnProperty(Function);
 		if (ReturnProperty != nullptr)
 		{
 			IconProperty = ReturnProperty;
 		}
 		else
 		{
-			IconProperty = UE::MVVM::BindingHelper::GetFirstArgumentProperty(Function);
+			IconProperty = BindingHelper::GetFirstArgumentProperty(Function);
 		}
 	}
 
@@ -62,5 +65,7 @@ void SMVVMFieldIcon::RefreshBinding(const UE::MVVM::FMVVMConstFieldVariant& Fiel
 		LayeredImage->AddLayer(SecondaryBrush, SecondaryColor);
 	}
 }
+
+} // namespace UE::MVVM
 
 #undef LOCTEXT_NAMESPACE

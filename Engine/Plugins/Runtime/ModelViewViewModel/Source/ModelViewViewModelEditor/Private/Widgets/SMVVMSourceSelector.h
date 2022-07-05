@@ -8,20 +8,23 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Input/SComboBox.h"
 
-class SMVVMSourceEntry;
+namespace UE::MVVM
+{
 
-class SMVVMSourceSelector : public SCompoundWidget
+class SSourceEntry;
+
+class SSourceSelector : public SCompoundWidget
 {
 public:
-	DECLARE_DELEGATE_OneParam(FSelectionChanged, UE::MVVM::FBindingSource);
+	DECLARE_DELEGATE_OneParam(FSelectionChanged, FBindingSource);
 
-	SLATE_BEGIN_ARGS(SMVVMSourceSelector) :
+	SLATE_BEGIN_ARGS(SSourceSelector) :
 		_TextStyle( &FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>( "NormalText" ) )
 		{
 		}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
-		SLATE_ATTRIBUTE(UE::MVVM::FBindingSource, SelectedSource)
-		SLATE_ATTRIBUTE(TArray<UE::MVVM::FBindingSource>, AvailableSources)
+		SLATE_ATTRIBUTE(FBindingSource, SelectedSource)
+		SLATE_ATTRIBUTE(TArray<FBindingSource>, AvailableSources)
 		SLATE_EVENT(FSelectionChanged, OnSelectionChanged)
 	SLATE_END_ARGS()
 
@@ -29,19 +32,20 @@ public:
 	void Refresh();
 
 private:
-	void OnComboBoxSelectionChanged(UE::MVVM::FBindingSource Selected, ESelectInfo::Type SelectionType);
+	void OnComboBoxSelectionChanged(FBindingSource Selected, ESelectInfo::Type SelectionType);
 
 	EVisibility GetClearVisibility() const;
 	FReply OnClearSource();
 
 private:
 	FSelectionChanged OnSelectionChanged;
-	TAttribute<TArray<UE::MVVM::FBindingSource>> AvailableSourcesAttribute;
-	TAttribute< UE::MVVM::FBindingSource> SelectedSourceAttribute;
-	TSharedPtr<SComboBox<UE::MVVM::FBindingSource>> SourceComboBox;
-	TArray<UE::MVVM::FBindingSource> AvailableSources;
-	UE::MVVM::FBindingSource SelectedSource;
-	TSharedPtr<SMVVMSourceEntry> SelectedSourceWidget;
+	TAttribute<TArray<FBindingSource>> AvailableSourcesAttribute;
+	TAttribute<FBindingSource> SelectedSourceAttribute;
+	TSharedPtr<SComboBox<FBindingSource>> SourceComboBox;
+	TArray<FBindingSource> AvailableSources;
+	FBindingSource SelectedSource;
+	TSharedPtr<SSourceEntry> SelectedSourceWidget;
 	const FTextBlockStyle* TextStyle = nullptr;
 };
 
+} // namespace UE::MVVM

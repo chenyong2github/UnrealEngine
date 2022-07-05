@@ -7,16 +7,21 @@
 
 class SLayeredImage;
 
-class SMVVMFieldIcon : public SCompoundWidget
+namespace UE::MVVM
+{
+
+class SFieldIcon : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SMVVMFieldIcon) {}
-		SLATE_ARGUMENT(UE::MVVM::FMVVMConstFieldVariant, Field)
+	SLATE_BEGIN_ARGS(SFieldIcon) {}
+		SLATE_ARGUMENT(FMVVMConstFieldVariant, Field)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& Args);
-	void RefreshBinding(const UE::MVVM::FMVVMConstFieldVariant& Field);
+	void RefreshBinding(const FMVVMConstFieldVariant& Field);
 
 private:
 	TSharedPtr<SLayeredImage> LayeredImage;
 };
+
+} // namespace UE::MVVM

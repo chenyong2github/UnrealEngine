@@ -7,54 +7,50 @@
 #include "PropertyHandle.h"
 #include "Types/MVVMFieldVariant.h"
 
-class SMVVMSourceSelector;
-class SMVVMFieldSelector;
-
 namespace UE::MVVM
 {
-	struct FBindingSource;
+ 
+struct FBindingSource;
+class SFieldSelector;
 
-	class FPropertyPathCustomization : public IPropertyTypeCustomization
+class FPropertyPathCustomization : public IPropertyTypeCustomization
+{
+public:
+	FPropertyPathCustomization(UWidgetBlueprint* WidgetBlueprint);
+	~FPropertyPathCustomization();
+
+	virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
+	virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
+
+	static TSharedRef<IPropertyTypeCustomization> MakeInstance(UWidgetBlueprint* InWidgetBlueprint)
 	{
-	public:
-		FPropertyPathCustomization(UWidgetBlueprint* WidgetBlueprint);
-		~FPropertyPathCustomization();
+		check(InWidgetBlueprint != nullptr);
 
-		virtual void CustomizeHeader(TSharedRef<IPropertyHandle> InPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils) override;
-		virtual void CustomizeChildren(TSharedRef<IPropertyHandle> InPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& CustomizationUtils) override {}
+		return MakeShared<FPropertyPathCustomization>(InWidgetBlueprint);
+	}
 
-		static TSharedRef<IPropertyTypeCustomization> MakeInstance(UWidgetBlueprint* InWidgetBlueprint)
-		{
-			check(InWidgetBlueprint != nullptr);
+private:
+	void OnPropertySelectionChanged(FMVVMBlueprintPropertyPath Selected);
 
-			return MakeShared<FPropertyPathCustomization>(InWidgetBlueprint);
-		}
+	void OnOtherPropertyChanged();
 
-	private:
-		void OnSourceSelectionChanged(FBindingSource Selected);
-		void OnPropertySelectionChanged(FMVVMBlueprintPropertyPath Selected);
+	EMVVMBindingMode GetCurrentBindingMode() const;
+	FBindingSource OnGetSelectedSource() const;
 
-		void OnOtherPropertyChanged();
+	FMVVMBlueprintPropertyPath OnGetSelectedField() const;
 
-		EMVVMBindingMode GetCurrentBindingMode() const;
-		TArray<UE::MVVM::FBindingSource> OnGetSources() const;
-		UE::MVVM::FBindingSource OnGetSelectedSource() const;
+	void HandleBlueprintChanged(UBlueprint* Blueprint);
 
-		TArray<FMVVMBlueprintPropertyPath> OnGetFields() const;
-		FMVVMBlueprintPropertyPath OnGetSelectedField() const;
+private:
+	TSharedPtr<IPropertyHandle> PropertyHandle;
+	UWidgetBlueprint* WidgetBlueprint = nullptr;
 
-		void HandleBlueprintChanged(UBlueprint* Blueprint);
+	TSharedPtr<SFieldSelector> FieldSelector;
 
-	private:
-		TSharedPtr<IPropertyHandle> PropertyHandle;
-		UWidgetBlueprint* WidgetBlueprint = nullptr;
+	bool bIsWidget = false;
+	bool bPropertySelectionChanging = false;
 
-		TSharedPtr<SMVVMSourceSelector> SourceSelector;
-		TSharedPtr<SMVVMFieldSelector> FieldSelector;
+	FDelegateHandle OnBlueprintChangedHandle;
+};
 
-		bool bIsWidget = false;
-		bool bPropertySelectionChanging = false;
-
-		FDelegateHandle OnBlueprintChangedHandle;
-	};
-}
+} // namespace UE::MVVM

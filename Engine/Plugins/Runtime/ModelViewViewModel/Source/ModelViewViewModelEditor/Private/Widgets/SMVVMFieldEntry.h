@@ -11,24 +11,25 @@
 #include "Widgets/SCompoundWidget.h"
 #include "Widgets/Text/STextBlock.h"
 
-class SMVVMFieldIcon;
 class STextBlock;
 
 namespace UE::MVVM
 {
-	using FIsFieldValidResult = TValueOrError<bool, FString>;
-	DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, FMVVMBlueprintPropertyPath);
-}
 
-class SMVVMFieldEntry : public SCompoundWidget
+class SFieldIcon;
+
+using FIsFieldValidResult = TValueOrError<bool, FString>;
+DECLARE_DELEGATE_RetVal_OneParam(FIsFieldValidResult, FIsFieldValid, FMVVMBlueprintPropertyPath);
+
+class SFieldEntry : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SMVVMFieldEntry) :
+	SLATE_BEGIN_ARGS(SFieldEntry) :
 		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 	{}
 		SLATE_STYLE_ARGUMENT(FTextBlockStyle, TextStyle)
 		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath, Field)
-		SLATE_EVENT(UE::MVVM::FIsFieldValid, OnValidateField)
+		SLATE_EVENT(FIsFieldValid, OnValidateField)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
@@ -37,7 +38,9 @@ public:
 
 private:
 	FMVVMBlueprintPropertyPath Field;
-	UE::MVVM::FIsFieldValid OnValidateField;
-	TSharedPtr<SMVVMFieldIcon> Icon;
+	FIsFieldValid OnValidateField;
+	TSharedPtr<SFieldIcon> Icon;
 	TSharedPtr<STextBlock> Label;
 };
+
+} // namespace UE::MVVM

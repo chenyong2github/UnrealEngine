@@ -1,111 +1,141 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Widgets/SMVVMFieldSelector.h"
-
-#include "Algo/Transform.h"
-#include "Engine/Engine.h"
-#include "Widgets/SMVVMFieldIcon.h"
-#include "MVVMSubsystem.h"
-#include "Widgets/Input/SComboBox.h"
+ 
+#include "Editor.h"
+#include "MVVMEditorSubsystem.h"
+#include "SNegativeActionButton.h"
+#include "SPositiveActionButton.h"
+#include "SPrimaryButton.h"
 #include "SSimpleButton.h"
+#include "Styling/MVVMEditorStyle.h"
+#include "Widgets/SMVVMFieldEntry.h"
+#include "Widgets/SMVVMSourceEntry.h"
+#include "Widgets/Images/SImage.h"
+#include "Widgets/Input/SComboButton.h"
+#include "Widgets/Input/SSearchBox.h"
 
 #define LOCTEXT_NAMESPACE "MVVMFieldSelector"
 
-using namespace UE::MVVM;
+namespace UE::MVVM
+{
 
-void SMVVMFieldSelector::Construct(const FArguments& InArgs)
+namespace Private
+{
+
+FBindingSource GetSourceFromPath(const UWidgetBlueprint* WidgetBlueprint, const FMVVMBlueprintPropertyPath& Path)
+{
+	if (Path.IsFromViewModel())
+	{
+		return FBindingSource::CreateForViewModel(WidgetBlueprint, Path.GetViewModelId());
+	}
+	else if (Path.IsFromWidget())
+	{
+		return FBindingSource::CreateForWidget(WidgetBlueprint, Path.GetWidgetName());
+	}
+	return FBindingSource();
+}
+
+} // namespace Private
+
+void SFieldSelector::Construct(const FArguments& InArgs, const UWidgetBlueprint* InWidgetBlueprint, bool bInViewModelProperty)
 {
 	OnValidateFieldDelegate = InArgs._OnValidateField;
 	OnSelectionChangedDelegate = InArgs._OnSelectionChanged;
+	check(OnSelectionChangedDelegate.IsBound());
+	WidgetBlueprint = InWidgetBlueprint;
+	check(WidgetBlueprint);
+
 	SelectedField = InArgs._SelectedField;
 	check(SelectedField.IsSet());
 
-	SelectedSource = InArgs._SelectedSource;
-	check(SelectedSource.IsSet());
-
-	AvailableFields = InArgs._AvailableFields;
-	check(AvailableFields.IsSet());
-
-	CachedAvailableFields = AvailableFields.Get(TArray<FMVVMBlueprintPropertyPath>());
-
 	BindingMode = InArgs._BindingMode;
-	bIsSource = InArgs._IsSource;
-	TextStyle = InArgs._TextStyle;
+	check(BindingMode.IsSet());
 
-	Refresh();
+	bViewModelProperty = bInViewModelProperty;
+
+	TextStyle = InArgs._TextStyle;
 
 	ChildSlot
 	[
-		SNew(SHorizontalBox)
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Fill)
+		SNew(SBox)
+		.HAlign(HAlign_Left)
 		.VAlign(VAlign_Center)
 		[
-			SNew(SOverlay)
-			+ SOverlay::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Center)
+			SAssignNew(ComboButton, SComboButton)
+			.ComboButtonStyle(FMVVMEditorStyle::Get(), "FieldSelector.ComboButton")
+			.OnGetMenuContent(this, &SFieldSelector::OnGetMenuContent)
+			.ContentPadding(FMargin(4, 2))
+			.ButtonContent()
 			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("NoSourceSelected", "No source selected"))
-				.TextStyle(FAppStyle::Get(), "HintText")
-				.Visibility_Lambda([this]()
-				{
-					return SelectedSource.Get(UE::MVVM::FBindingSource()).IsValid() ? EVisibility::Collapsed : EVisibility::Visible;
-				})
-			]
-			+ SOverlay::Slot()
-			[
-				SAssignNew(FieldComboBox, SComboBox<FMVVMBlueprintPropertyPath>)
-				.Visibility_Lambda([this]()
-				{
-					return SelectedSource.Get(UE::MVVM::FBindingSource()).IsValid() ? EVisibility::Visible : EVisibility::Hidden;
-				})
-				.OptionsSource(&CachedAvailableFields)
-				.InitiallySelectedItem(SelectedField.Get(FMVVMBlueprintPropertyPath()))
-				.OnGenerateWidget(this, &SMVVMFieldSelector::OnGenerateFieldWidget)
-				.OnSelectionChanged(this, &SMVVMFieldSelector::OnComboBoxSelectionChanged)
+				SNew(SOverlay)
+				+ SOverlay::Slot()
 				[
-					SAssignNew(SelectedEntryWidget, SMVVMFieldEntry)
-					.TextStyle(TextStyle)
-					.Field(SelectedField.Get(FMVVMBlueprintPropertyPath()))
-					.OnValidateField(this, &SMVVMFieldSelector::ValidateField)
+					SNew(SHorizontalBox)
+					.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible; })
+					+ SHorizontalBox::Slot()
+					.Padding(8, 0, 0, 0)
+					.AutoWidth()
+					[
+						SAssignNew(SelectedSourceWidget, SSourceEntry)
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(8, 0)
+					.AutoWidth()
+					[
+						SNew(SImage)
+						.Image(FAppStyle::Get().GetBrush("Icons.ChevronRight"))
+					]
+					+ SHorizontalBox::Slot()
+					.Padding(0, 0, 8, 0)
+					.AutoWidth()
+					[
+						SAssignNew(SelectedEntryWidget, SFieldEntry)
+						.TextStyle(TextStyle)
+						.OnValidateField(this, &SFieldSelector::ValidateField)
+					]
+				]
+				+ SOverlay::Slot()
+				[
+					SNew(SBox)
+					.Padding(FMargin(8, 0, 8, 0))
+					[
+						SNew(STextBlock)
+						.Visibility_Lambda([this]() { return CachedSelectedField.IsEmpty() ? EVisibility::Visible : EVisibility::Collapsed; })
+						.TextStyle(FAppStyle::Get(), "HintText")
+						.Text(LOCTEXT("None", "No field selected"))
+					]
 				]
 			]
 		]
-		+ SHorizontalBox::Slot()
-		.HAlign(HAlign_Right)
-		.VAlign(VAlign_Center)
-		.AutoWidth()
-		[
-			SNew(SSimpleButton)
-			.Icon(FAppStyle::Get().GetBrush("Icons.X"))
-			.ToolTipText(LOCTEXT("ClearField", "Clear field selection."))
-			.Visibility(this, &SMVVMFieldSelector::GetClearVisibility)
-			.OnClicked(this, &SMVVMFieldSelector::OnClearBinding)
-		]
 	];
+
+	Refresh();
 }
 
-void SMVVMFieldSelector::OnComboBoxSelectionChanged(FMVVMBlueprintPropertyPath Selected, ESelectInfo::Type SelectionType)
+void SFieldSelector::OnFieldSelected(FMVVMBlueprintPropertyPath Selected)
 {
-	SelectedEntryWidget->SetField(Selected);
-
 	OnSelectionChangedDelegate.ExecuteIfBound(Selected);
+	
+	Refresh();
 }
 
-void SMVVMFieldSelector::Refresh()
+void SFieldSelector::Refresh()
 {
-	CachedAvailableFields = AvailableFields.Get(TArray<FMVVMBlueprintPropertyPath>());
+	CachedSelectedField = SelectedField.Get();
 
-	if (FieldComboBox.IsValid())
+	if (SelectedEntryWidget.IsValid())
 	{
-		FieldComboBox->RefreshOptions();
-		FieldComboBox->SetSelectedItem(SelectedField.Get(FMVVMBlueprintPropertyPath()));
+		SelectedEntryWidget->SetField(CachedSelectedField);
+	}
+
+	if (SelectedSourceWidget.IsValid())
+	{
+		SelectedSourceWidget->RefreshSource(Private::GetSourceFromPath(WidgetBlueprint, CachedSelectedField));
 	}
 }
 
-TValueOrError<bool, FString> SMVVMFieldSelector::ValidateField(FMVVMBlueprintPropertyPath Field) const
+TValueOrError<bool, FString> SFieldSelector::ValidateField(FMVVMBlueprintPropertyPath Field) const
 {
 	if (OnValidateFieldDelegate.IsBound())
 	{
@@ -115,38 +145,193 @@ TValueOrError<bool, FString> SMVVMFieldSelector::ValidateField(FMVVMBlueprintPro
 	return MakeValue(true);
 }
 
-TSharedRef<SWidget> SMVVMFieldSelector::OnGenerateFieldWidget(FMVVMBlueprintPropertyPath Path) const
+TSharedRef<SWidget> SFieldSelector::OnGenerateFieldWidget(FMVVMBlueprintPropertyPath Path) const
 {
-	return SNew(SMVVMFieldEntry)
+	return SNew(SFieldEntry)
 		.TextStyle(TextStyle)
 		.Field(Path)
-		.OnValidateField(this, &SMVVMFieldSelector::ValidateField);
+		.OnValidateField(this, &SFieldSelector::ValidateField);
 }
 
-EVisibility SMVVMFieldSelector::GetClearVisibility() const
+bool SFieldSelector::IsSelectEnabled() const
 {
-	FMVVMBlueprintPropertyPath SelectedPath = SelectedField.Get(FMVVMBlueprintPropertyPath());
-	if (!SelectedPath.IsEmpty())
+	if (BindingList.IsValid())
 	{
-		return EVisibility::Visible;
+		FMVVMBlueprintPropertyPath Path = BindingList->GetSelectedProperty();
+		return (Path.IsFromViewModel() || Path.IsFromWidget()) && !Path.GetBasePropertyPath().IsEmpty();
 	}
-
-	return EVisibility::Collapsed;
+	return false;
 }
 
-FReply SMVVMFieldSelector::OnClearBinding()
+FReply SFieldSelector::OnSelectProperty()
 {
-	if (FieldComboBox.IsValid())
+	if (BindingList.IsValid())
 	{
-		FieldComboBox->ClearSelection();
+		FMVVMBlueprintPropertyPath Path = BindingList->GetSelectedProperty();
+		SetSelection(Path);
 	}
+	return FReply::Handled();
+}
 
-	if (SelectedEntryWidget.IsValid())
+bool SFieldSelector::IsClearEnabled() const
+{
+	return !CachedSelectedField.IsEmpty();
+}
+
+FReply SFieldSelector::OnClearBinding()
+{
+	SetSelection(FMVVMBlueprintPropertyPath());
+	return FReply::Handled();
+}
+
+void SFieldSelector::HandleSearchChanged(const FText& InFilterText)
+{
+	BindingList->SetRawFilterText(InFilterText);
+}
+
+FReply SFieldSelector::OnCancel()
+{
+	if (ComboButton.IsValid())
 	{
-		SelectedEntryWidget->Refresh();
+		ComboButton->SetIsOpen(false);
 	}
 
 	return FReply::Handled();
 }
+
+void SFieldSelector::SetSelection(const FMVVMBlueprintPropertyPath& SelectedPath)
+{
+	if (ComboButton.IsValid())
+	{
+		ComboButton->SetIsOpen(false);
+	}
+
+	OnSelectionChangedDelegate.Execute(SelectedPath);
+	Refresh();
+}
+
+TSharedRef<SWidget> SFieldSelector::OnGetMenuContent()
+{
+	TSharedRef<SWidget> MenuWidget = 
+		SNew(SBorder)
+		.BorderImage(FMVVMEditorStyle::Get().GetBrush("FieldSelector.MenuBorderBrush"))
+		.Padding(FMargin(8, 1, 8, 3))
+		[
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			.Padding(4)
+			.AutoHeight()
+			[
+				SAssignNew(SearchBox, SSearchBox)
+				.HintText(LOCTEXT("SearchViewmodel", "Search"))
+				.OnTextChanged(this, &SFieldSelector::HandleSearchChanged)
+			]
+			+ SVerticalBox::Slot()
+			.FillHeight(1.0f)
+			[
+				SNew(SBorder)
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Dropdown"))
+				.Padding(0)
+				[
+					SAssignNew(BindingList, SSourceBindingList, WidgetBlueprint)
+					.OnDoubleClicked(this, &SFieldSelector::SetSelection)
+					.FieldVisibilityFlags(GetFieldVisibilityFlags())
+				]
+			]
+			+ SVerticalBox::Slot()
+			.Padding(4, 4, 4, 0)
+			.AutoHeight()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &SFieldSelector::OnCancel)
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Cancel", "Cancel"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(4, 0, 0, 0)
+				[
+					SNew(SButton)
+					.OnClicked(this, &SFieldSelector::OnClearBinding)
+					.HAlign(HAlign_Center)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Clear", "Clear"))
+					]
+				]
+				+ SHorizontalBox::Slot()
+				.Padding(4, 0, 0, 0)
+				[
+					SNew(SPrimaryButton)
+					.OnClicked(this, &SFieldSelector::OnSelectProperty)
+					.Text(LOCTEXT("Select", "Select"))
+				]
+			]
+		];
+
+	UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
+	if (bViewModelProperty)
+	{
+		if (UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
+		{
+			BindingList->AddViewModels(View->GetViewModels());
+		}
+	}
+	else
+	{
+		TArray<FBindingSource> BindableWidgets = EditorSubsystem->GetBindableWidgets(WidgetBlueprint);
+		BindingList->AddSources(BindableWidgets);
+	}
+
+	return MenuWidget;
+}
+
+EFieldVisibility SFieldSelector::GetFieldVisibilityFlags() const
+{
+	EFieldVisibility Flags = EFieldVisibility::None;
+
+	EMVVMBindingMode Mode = BindingMode.Get();
+	if (bViewModelProperty)
+	{
+		if (IsForwardBinding(Mode))
+		{
+			Flags |= EFieldVisibility::Readable;
+
+			if (!IsOneTimeBinding(Mode))
+			{
+				Flags |= EFieldVisibility::Notify;
+			}
+		}
+		if (IsBackwardBinding(Mode))
+		{
+			Flags |= EFieldVisibility::Writable;
+		}
+	}
+	else
+	{
+		if (IsForwardBinding(Mode))
+		{
+			Flags |= EFieldVisibility::Writable;
+		}
+		if (IsBackwardBinding(Mode))
+		{
+			Flags |= EFieldVisibility::Readable;
+
+			if (!IsOneTimeBinding(Mode))
+			{
+				Flags |= EFieldVisibility::Notify;
+			}
+		}
+	}
+
+	return Flags;
+}
+
+} // namespace UE::MVVM
 
 #undef LOCTEXT_NAMESPACE

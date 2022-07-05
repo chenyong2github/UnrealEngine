@@ -109,7 +109,7 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 					SNew(SBorder)
 					.BorderImage(FStyleDefaults::GetNoBrush())
 					[
-						SAssignNew(ViewModelBindingListWidget, SViewModelBindingListWidget, WidgetBlueprint)
+						SAssignNew(BindingListWidget, SSourceBindingList, WidgetBlueprint)
 					]
 				]
 			]
@@ -128,7 +128,7 @@ void SMVVMSelectViewModel::Construct(const FArguments& InArgs, const UWidgetBlue
 void SMVVMSelectViewModel::HandleClassPicked(UClass* ClassPicked)
 {
 	SelectedClass = ClassPicked;
-	ViewModelBindingListWidget->SetViewModel(ClassPicked, FName(), FGuid());
+	BindingListWidget->AddSource(ClassPicked, FName(), FGuid());
 }
 
 

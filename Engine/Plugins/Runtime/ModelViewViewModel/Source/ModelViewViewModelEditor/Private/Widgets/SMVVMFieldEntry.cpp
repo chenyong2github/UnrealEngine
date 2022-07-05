@@ -6,25 +6,28 @@
 
 #define LOCTEXT_NAMESPACE "MVVMFieldEntry"
 
-using namespace UE::MVVM;
-
-namespace UE::MVVM::Private
+namespace UE::MVVM
 {
-	FText GetFieldDisplayName(const FMVVMConstFieldVariant& Field)
+
+namespace Private
+{
+
+FText GetFieldDisplayName(const FMVVMConstFieldVariant& Field)
+{
+	if (Field.IsProperty())
 	{
-		if (Field.IsProperty())
-		{
-			return Field.GetProperty()->GetDisplayNameText();
-		}
-		else if (Field.IsFunction())
-		{
-			return Field.GetFunction()->GetDisplayNameText();
-		}
-		return LOCTEXT("None", "<None>");
+		return Field.GetProperty()->GetDisplayNameText();
 	}
+	else if (Field.IsFunction())
+	{
+		return Field.GetFunction()->GetDisplayNameText();
+	}
+	return LOCTEXT("None", "<None>");
 }
 
-void SMVVMFieldEntry::Construct(const FArguments& InArgs)
+} // namespace Private
+
+void SFieldEntry::Construct(const FArguments& InArgs)
 {
 	Field = InArgs._Field;
 	OnValidateField = InArgs._OnValidateField;
@@ -37,7 +40,7 @@ void SMVVMFieldEntry::Construct(const FArguments& InArgs)
 		.VAlign(VAlign_Center)
 		.AutoWidth()
 		[
-			SAssignNew(Icon, SMVVMFieldIcon)
+			SAssignNew(Icon, SFieldIcon)
 		]
 		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Fill)
@@ -52,7 +55,7 @@ void SMVVMFieldEntry::Construct(const FArguments& InArgs)
 	Refresh();
 }
 
-void SMVVMFieldEntry::Refresh()
+void SFieldEntry::Refresh()
 {
 	FText ToolTipText = FText::GetEmpty();
 	bool bEnabled = true;
@@ -93,11 +96,13 @@ void SMVVMFieldEntry::Refresh()
 	Label->SetText(Private::GetFieldDisplayName(Variant));
 }
 
-void SMVVMFieldEntry::SetField(const FMVVMBlueprintPropertyPath& InField)
+void SFieldEntry::SetField(const FMVVMBlueprintPropertyPath& InField)
 {
 	Field = InField;
 
 	Refresh();
 }
+
+} // namespace UE::MVVM
 
 #undef LOCTEXT_NAMESPACE

@@ -16,7 +16,7 @@
 #include "Styling/MVVMEditorStyle.h"
 #include "Styling/SlateIconFinder.h"
 #include "Types/MVVMFieldVariant.h"
-#include "Widgets/SMVVMFieldSelector.h"
+#include "Widgets/SMVVMFieldEntry.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
 #include "Widgets/Images/SImage.h"
@@ -29,7 +29,7 @@
 
 namespace UE::MVVM::Private
 {
-	static bool IsPropertyTypeChildOf(const FProperty* Property, const UClass* ParentClass)
+	bool IsPropertyTypeChildOf(const FProperty* Property, const UClass* ParentClass)
 	{
 		if (const FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 		{
@@ -42,7 +42,7 @@ namespace UE::MVVM::Private
 		return false;
 	}
 
-	static bool HasBindableViewModelFieldRecursive(UStruct* InStruct, const UClass* InParentClass, TSet<UStruct*>& VisitedSet, uint32 RecursionDepth)
+	bool HasBindableViewModelFieldRecursive(UStruct* InStruct, const UClass* InParentClass, TSet<UStruct*>& VisitedSet, uint32 RecursionDepth)
 	{
 		if (RecursionDepth > 10)
 		{
@@ -388,7 +388,7 @@ namespace UE::MVVM::Private
 				FMVVMBlueprintPropertyPath Path;
 				Path.SetBasePropertyPath(Field);
 
-				return SNew(SMVVMFieldEntry)
+				return SNew(SFieldEntry)
 					.Field(Path);
 			};
 

@@ -13,10 +13,13 @@
 class SImage;
 class STextBlock;
 
-class SMVVMSourceEntry : public SCompoundWidget
+namespace UE::MVVM
+{
+
+class SSourceEntry : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SMVVMSourceEntry) :
+	SLATE_BEGIN_ARGS(SSourceEntry) :
 		_TextStyle(&FCoreStyle::Get().GetWidgetStyle<FTextBlockStyle>("NormalText"))
 		{
 		}
@@ -31,3 +34,5 @@ private:
 	TSharedPtr<STextBlock> Label;
 	TSharedPtr<SImage> Image;
 };
+
+} // namespace UE::MVVM

@@ -33,7 +33,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SMVVMConversionPath.h"
 #include "Widgets/SMVVMFieldSelector.h"
-#include "Widgets/SMVVMSourceSelector.h"
 #include "Widgets/Text/STextBlock.h"
 
 #define LOCTEXT_NAMESPACE "MVVMConversionPath"
@@ -238,7 +237,7 @@ namespace UE::MVVM
 
 			ValueWidget->SetVisibility(TAttribute<EVisibility>::CreateSP(this, &FConversionPathCustomization::GetArgumentWidgetVisibility, ArgumentName, bSourceToDestination, true));
 
-			TSharedPtr<SMVVMFieldSelector> FieldSelector;
+			TSharedPtr<UE::MVVM::SFieldSelector> FieldSelector;
 
 			ChildBuilder.AddCustomRow(Pin->GetDisplayName())
 			.NameContent()
@@ -263,24 +262,11 @@ namespace UE::MVVM
 					]
 					+ SOverlay::Slot()
 					[
-						SNew(SHorizontalBox)
+						SAssignNew(FieldSelector, UE::MVVM::SFieldSelector, WidgetBlueprint, bSourceToDestination)
 						.Visibility(this, &FConversionPathCustomization::GetArgumentWidgetVisibility, ArgumentName, bSourceToDestination, false)
-						+ SHorizontalBox::Slot()
-						[
-							SNew(SMVVMSourceSelector)
-							.SelectedSource(this, &FConversionPathCustomization::OnGetSelectedSource, ArgumentName, bSourceToDestination)
-							.AvailableSources(this, &FConversionPathCustomization::OnGetAvailableSources, bSourceToDestination)
-							.OnSelectionChanged(this, &FConversionPathCustomization::OnSetSource, ArgumentName, bSourceToDestination)
-						]
-						+ SHorizontalBox::Slot()
-						[
-							SAssignNew(FieldSelector, SMVVMFieldSelector)
-							.IsSource(bSourceToDestination)
-							.SelectedSource(this, &FConversionPathCustomization::OnGetSelectedSource, ArgumentName, bSourceToDestination)
-							.AvailableFields(this, &FConversionPathCustomization::OnGetAvailableFields, ArgumentName, bSourceToDestination)
-							.SelectedField(this, &FConversionPathCustomization::OnGetSelectedField, ArgumentName, bSourceToDestination)
-							.OnSelectionChanged(this, &FConversionPathCustomization::OnSetProperty, ArgumentName, bSourceToDestination)
-						]
+						.SelectedField(this, &FConversionPathCustomization::OnGetSelectedField, ArgumentName, bSourceToDestination)
+						.BindingMode(this, &FConversionPathCustomization::GetBindingMode)
+						.OnSelectionChanged(this, &FConversionPathCustomization::OnSetProperty, ArgumentName, bSourceToDestination)
 					]
 				]
 				+ SHorizontalBox::Slot()
@@ -311,86 +297,6 @@ namespace UE::MVVM
 			];
 
 			ArgumentFieldSelectors.Add(FieldSelector);
-		}
-	}
-
-	TArray<FBindingSource> FConversionPathCustomization::OnGetAvailableSources(bool bSourceToDestination) const
-	{
-		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-		if (bSourceToDestination)
-		{
-			return Subsystem->GetAllViewModels(WidgetBlueprint);
-		}
-		else
-		{
-			return Subsystem->GetBindableWidgets(WidgetBlueprint);
-		}
-	}
-
-	FBindingSource FConversionPathCustomization::OnGetSelectedSource(FName ArgumentName, bool bSourceToDestination) const
-	{
-		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-
-		TArray<void*> RawBindings;
-		ParentHandle->AccessRawData(RawBindings);
-
-		FMVVMBlueprintPropertyPath Path;
-		bool bFirst = true;
-
-		for (void* RawBinding : RawBindings)
-		{
-			FMVVMBlueprintViewBinding* Binding = reinterpret_cast<FMVVMBlueprintViewBinding*>(RawBinding);
-			FMVVMBlueprintPropertyPath ThisPath = Subsystem->GetPathForConversionFunctionArgument(WidgetBlueprint, *Binding, ArgumentName, bSourceToDestination);
-
-			if (bFirst)
-			{
-				Path = ThisPath;
-				bFirst = false;
-			}
-			else if (Path != ThisPath)
-			{
-				Path = FMVVMBlueprintPropertyPath();
-			}
-		}
-		
-		if (Path.IsFromViewModel())
-		{
-			return FBindingSource::CreateForViewModel(WidgetBlueprint, Path.GetViewModelId());
-		}
-		else if (Path.IsFromWidget())
-		{
-			return FBindingSource::CreateForWidget(WidgetBlueprint, Path.GetWidgetName());
-		}
-
-		return FBindingSource();
-	}
-
-	void FConversionPathCustomization::OnSetSource(FBindingSource Source, FName ArgumentName, bool bSourceToDestination)
-	{
-		FMVVMBlueprintPropertyPath Path;
-		if (Source.ViewModelId.IsValid())
-		{
-			Path.SetViewModelId(Source.ViewModelId);
-		}
-		else
-		{
-			Path.SetWidgetName(Source.Name);
-		}
-
-		UMVVMEditorSubsystem* Subsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-
-		TArray<void*> RawBindings;
-		ParentHandle->AccessRawData(RawBindings);
-
-		for (void* RawBinding : RawBindings)
-		{
-			FMVVMBlueprintViewBinding* Binding = reinterpret_cast<FMVVMBlueprintViewBinding*>(RawBinding);
-			Subsystem->SetPathForConversionFunctionArgument(WidgetBlueprint, *Binding, ArgumentName, Path, bSourceToDestination);
-		}
-
-		for (const TSharedPtr<SMVVMFieldSelector>& FieldSelector : ArgumentFieldSelectors)
-		{
-			FieldSelector->Refresh();
 		}
 	}
 
@@ -435,108 +341,6 @@ namespace UE::MVVM
 		}
 
 		return Path;
-	}
-
-	TArray<FMVVMBlueprintPropertyPath> FConversionPathCustomization::OnGetAvailableFields(FName ArgumentName, bool bSourceToDestination) const
-	{
-		TArray<FMVVMBlueprintPropertyPath> AvailablePaths;
-
-		FBindingSource Source = OnGetSelectedSource(ArgumentName, bSourceToDestination);
-		UClass* SourceClass = nullptr;
-		if (!Source.Name.IsNone())
-		{
-			// widget
-			if (Source.Name.IsEqual(WidgetBlueprint->GetFName()))
-			{
-				SourceClass = WidgetBlueprint->GeneratedClass;
-			}
-			else if (const UWidget* Widget = WidgetBlueprint->WidgetTree->FindWidget(Source.Name))
-			{
-				SourceClass = Widget->GetClass();
-			}
-		}
-		else if (Source.ViewModelId.IsValid())
-		{
-			// viewmodel
-			UMVVMEditorSubsystem* EditorSubsystem = GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>();
-			if (UMVVMBlueprintView* View = EditorSubsystem->GetView(WidgetBlueprint))
-			{
-				if (const FMVVMBlueprintViewModelContext* ViewModel = View->FindViewModel(Source.ViewModelId))
-				{
-					SourceClass = ViewModel->GetViewModelClass();
-				}
-			}
-		}
-
-		if (SourceClass == nullptr)
-		{
-			return AvailablePaths;
-		}
-
-		UMVVMSubsystem* Subsystem = GEngine->GetEngineSubsystem<UMVVMSubsystem>();
-		TArray<FMVVMAvailableBinding> AvailableBindings = Subsystem->GetAvailableBindings(SourceClass, WidgetBlueprint->GeneratedClass);
-
-		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
-		FEdGraphPinType ArgumentType = GetArgumentPinType(ArgumentName, bSourceToDestination);
-
-		Algo::TransformIf(AvailableBindings, AvailablePaths, 
-			// filter handler
-			[ArgumentType, Schema, SourceClass](const FMVVMAvailableBinding& Binding) -> bool
-			{
-				FName BindingName = Binding.GetBindingName().ToName();
-				
-				if (const FProperty* Property = SourceClass->FindPropertyByName(BindingName))
-				{
-					return true;
-				}
-
-				if (const UFunction* Function = SourceClass->FindFunctionByName(BindingName))
-				{
-					const FProperty* ReturnProperty = UE::MVVM::BindingHelper::GetReturnProperty(Function);
-					if (ReturnProperty != nullptr)
-					{
-						FEdGraphPinType ReturnType;
-						if (Schema->ConvertPropertyToPinType(ReturnProperty, ReturnType))
-						{
-							if (Schema->ArePinTypesCompatible(ReturnType, ArgumentType, SourceClass))
-							{
-								return true;
-							}
-						}
-					}
-				}
-
-				return false;
-			},
-			[SourceClass, Source](const FMVVMAvailableBinding& Binding) -> FMVVMBlueprintPropertyPath
-			{
-				FName BindingName = Binding.GetBindingName().ToName();
-
-				UE::MVVM::FMVVMConstFieldVariant Variant;
-				if (const UFunction* Function = SourceClass->FindFunctionByName(BindingName))
-				{
-					Variant = UE::MVVM::FMVVMConstFieldVariant(Function);
-				}
-				else if (const FProperty* Property = SourceClass->FindPropertyByName(BindingName))
-				{
-					Variant = UE::MVVM::FMVVMConstFieldVariant(Property);
-				}
-
-				FMVVMBlueprintPropertyPath Path;
-				if (!Source.Name.IsNone())
-				{
-					Path.SetWidgetName(Source.Name);
-				}
-				else
-				{
-					Path.SetViewModelId(Source.ViewModelId);
-				}
-				Path.SetBasePropertyPath(Variant);
-
-				return Path;
-			});
-
-		return AvailablePaths;
 	}
 
 	ECheckBoxState FConversionPathCustomization::OnGetIsArgumentBound(FName ArgumentName, bool bSourceToDestination) const
@@ -637,6 +441,17 @@ namespace UE::MVVM
 		UK2Node_CallFunction* CallFunctionNode = FunctionNodes[0];
 		UEdGraphPin* Pin = CallFunctionNode->FindPin(ArgumentName);
 		return Pin != nullptr ? Pin->PinType : FEdGraphPinType();
+	}
+
+	EMVVMBindingMode FConversionPathCustomization::GetBindingMode() const
+	{
+		uint8 EnumValue = 0;
+		if (BindingModeHandle->GetValue(EnumValue) == FPropertyAccess::Success)
+		{
+			return static_cast<EMVVMBindingMode>(EnumValue);
+		}
+
+		return EMVVMBindingMode::OneWayToDestination;
 	}
 }
 

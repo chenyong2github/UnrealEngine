@@ -24,7 +24,6 @@
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/PropertyViewer/SPropertyViewer.h"
 #include "Widgets/SMVVMSelectViewModel.h"
-#include "Widgets/SMVVMViewModelBindingListWidget.h"
 
 #include "SPositiveActionButton.h"
 
@@ -41,7 +40,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 
 	WeakBlueprintEditor = WidgetBlueprintEditor;
 	WeakBlueprintView = CurrentBlueprintView;
-	ViewModelFieldIterator = MakeUnique<FFieldIterator_ViewModel>(WidgetBlueprint);
+	FieldIterator = MakeUnique<FFieldIterator_Bindable>(WidgetBlueprint, EFieldVisibility::All);
 
 	if (CurrentBlueprintView)
 	{
@@ -54,7 +53,7 @@ void SMVVMViewModelPanel::Construct(const FArguments& InArgs, TSharedPtr<FWidget
 		.bShowSearchBox(true)
 		.bShowFieldIcon(true)
 		.bSanitizeName(true)
-		.FieldIterator(ViewModelFieldIterator.Get())
+		.FieldIterator(FieldIterator.Get())
 		.SearchBoxPreSlot()
 		[
 			SAssignNew(AddMenuButton, SPositiveActionButton)
@@ -103,7 +102,6 @@ void SMVVMViewModelPanel::FillViewModel()
 	if (ViewModelTreeView)
 	{
 		ViewModelTreeView->RemoveAll();
-		ViewModelHandles.Reset();
 
 		if (UMVVMBlueprintView* View = WeakBlueprintView.Get())
 		{
@@ -112,19 +110,12 @@ void SMVVMViewModelPanel::FillViewModel()
 				if (ViewModelContext.GetViewModelClass())
 				{
 					UObject* ViewModelInstance = ViewModelContext.GetViewModelClass()->GetDefaultObject();
-
-					FViewModelHandle ViewModelHandle;
-					ViewModelHandle.Key = ViewModelContext.GetViewModelId();
-					ViewModelHandle.Value = ViewModelTreeView->AddInstance(ViewModelInstance, ViewModelContext.GetDisplayName());
-					ViewModelHandles.Add(ViewModelHandle);
+					ViewModelTreeView->AddInstance(ViewModelInstance, ViewModelContext.GetDisplayName());
 				}
 				else
 				{
-					FViewModelHandle ViewModelHandle;
-					ViewModelHandle.Key = ViewModelContext.GetViewModelId();
 					// Find a way to show context that are not valid anymore
 					//ViewModelHandle.Value = ViewModelTreeView->AddInstance(ViewModelInstance, ViewModelContext.GetDisplayName());
-					ViewModelHandles.Add(ViewModelHandle);
 				}
 			}
 		}
@@ -193,7 +184,6 @@ void SMVVMViewModelPanel::HandleCancelAddMenu()
 	}
 }
 
-
 void SMVVMViewModelPanel::HandleAddMenuViewModel(const UClass* SelectedClass)
 {
 	if (AddMenuButton)
@@ -223,49 +213,6 @@ bool SMVVMViewModelPanel::HandleCanEditViewmodelList() const
 	}
 	return false;
 }
-
-
-//bool SMVVMViewModelPanel::HandleViewModelRenamed(const SViewModelBindingListWidget::FViewModel& ViewModel, const FText& RenameTo, bool bCommit, FText& OutErrorMessage)
-//{
-//	if (RenameTo.IsEmptyOrWhitespace())
-//	{
-//		OutErrorMessage = LOCTEXT("EmptyViewmodelName", "Empty viewmodel name");
-//		return false;
-//	}
-//
-//	const FString& NewNameString = RenameTo.ToString();
-//	if (NewNameString.Len() >= NAME_SIZE)
-//	{
-//		OutErrorMessage = LOCTEXT("ViewmodelNameTooLong", "Viewmodel name is too long");
-//		return false;
-//	}
-//
-//	FString GeneratedName = SlugStringForValidName(NewNameString);
-//	if (GeneratedName.IsEmpty())
-//	{
-//		OutErrorMessage = LOCTEXT("EmptyViewmodelName", "Empty viewmodel name");
-//		return false;
-//	}
-//
-//	const FName GeneratedFName(*GeneratedName);
-//	check(GeneratedFName.IsValidXName(INVALID_OBJECTNAME_CHARACTERS));
-//
-//	if (TSharedPtr<FWidgetBlueprintEditor> WidgetBlueprintEditor = WeakBlueprintEditor.Pin())
-//	{
-//		if (UWidgetBlueprint* WidgetBP = WidgetBlueprintEditor->GetWidgetBlueprintObj())
-//		{
-//			if (bCommit)
-//			{
-//				return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->RenameViewModel(WidgetBP, ViewModel.Name, *NewNameString, OutErrorMessage);
-//			}
-//			else
-//			{
-//				return GEditor->GetEditorSubsystem<UMVVMEditorSubsystem>()->VerifyViewModelRename(WidgetBP, ViewModel.Name, *NewNameString, OutErrorMessage);
-//			}
-//		}
-//	}
-//	return false;
-//}
 
 } // namespace
 

@@ -7,10 +7,13 @@
 #include "Widgets/SMVVMFieldIcon.h"
 #include "Types/MVVMFieldVariant.h"
 
-class SMVVMPropertyPath : public SCompoundWidget
+namespace UE::MVVM
+{
+
+class SPropertyPath : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SMVVMPropertyPath)
+	SLATE_BEGIN_ARGS(SPropertyPath)
 	{}
 		SLATE_ARGUMENT(FMVVMBlueprintPropertyPath*, PropertyPath)
 		SLATE_ARGUMENT(const UWidgetBlueprint*, WidgetBlueprint)
@@ -21,9 +24,11 @@ public:
 private:
 	FText GetSourceDisplayName() const;
 	FText GetFieldDisplayName() const;
-	UE::MVVM::FMVVMConstFieldVariant GetLastField() const;
+	FMVVMConstFieldVariant GetLastField() const;
 
 private:
 	FMVVMBlueprintPropertyPath* PropertyPath = nullptr;
 	TWeakObjectPtr<const UWidgetBlueprint> WidgetBlueprint = nullptr;
 };
+
+} // namespace UE::MVVM

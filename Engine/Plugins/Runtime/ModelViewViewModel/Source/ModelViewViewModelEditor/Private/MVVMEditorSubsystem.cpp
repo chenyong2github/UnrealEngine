@@ -444,20 +444,6 @@ void UMVVMEditorSubsystem::SetDestinationToSourceConversionFunction(UWidgetBluep
 	}
 }
 
-void UMVVMEditorSubsystem::SetWidgetForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, const FName WidgetName)
-{
-	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetBindingSource", "Set Binding Source"));
-
-		UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
-
-		Binding.WidgetPath.SetWidgetName(WidgetName);
-
-		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
-	}
-}
-
 void UMVVMEditorSubsystem::SetWidgetPropertyForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FMVVMBlueprintPropertyPath Field)
 {
 	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
@@ -469,20 +455,6 @@ void UMVVMEditorSubsystem::SetWidgetPropertyForBinding(UWidgetBlueprint* WidgetB
 		Binding.WidgetPath = Field;
 
 		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, WidgetPath));
-	}
-}
-
-void UMVVMEditorSubsystem::SetViewModelForBinding(UWidgetBlueprint* WidgetBlueprint, FMVVMBlueprintViewBinding& Binding, FMVVMBlueprintViewModelContext ViewModel)
-{
-	if (UMVVMBlueprintView* View = GetView(WidgetBlueprint))
-	{
-		FScopedTransaction Transaction(LOCTEXT("SetBindingSource", "Set Binding Source"));
-
-		UE::MVVM::Private::OnBindingPreEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
-
-		Binding.ViewModelPath.SetViewModelId(ViewModel.GetViewModelId());
-
-		UE::MVVM::Private::OnBindingPostEditChange(View, GET_MEMBER_NAME_CHECKED(FMVVMBlueprintViewBinding, ViewModelPath));
 	}
 }
 
