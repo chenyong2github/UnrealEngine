@@ -236,9 +236,9 @@ public:
 	}
 
 	template <typename QueryGeomType>
-	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, int32& FaceIndex) const
 	{
-		return MObject->GJKContactPoint(A, AToBTM, Thickness, Location, Normal, Penetration);
+		return MObject->GJKContactPoint(A, AToBTM, Thickness, Location, Normal, Penetration, FaceIndex);
 	}
 
 	virtual uint16 GetMaterialIndex(uint32 HintIndex) const
@@ -709,7 +709,7 @@ public:
 	}
 
 	template <typename QueryGeomType>
-	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration) const
+	bool GJKContactPoint(const QueryGeomType& A, const FRigidTransform3& AToBTM, const FReal Thickness, FVec3& Location, FVec3& Normal, FReal& Penetration, int32& FaceIndex) const
 	{
 		TRigidTransform<T, d> AToBTMNoScale(AToBTM.GetLocation() * MInvScale, AToBTM.GetRotation());
 
@@ -719,7 +719,7 @@ public:
 		const FReal UnscaledThickness = Thickness;
 
 		auto ScaledA = MakeScaledHelper(A, MInvScale);
-		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, UnscaledThickness, Location, Normal, Penetration, MScale);
+		return MObject->GJKContactPoint(ScaledA, AToBTMNoScale, UnscaledThickness, Location, Normal, Penetration, FaceIndex, MScale);
 	}
 
 	/** This is a low level function and assumes the internal object has a OverlapGeom function. Should not be called directly. See GeometryQueries.h : OverlapQuery */

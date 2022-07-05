@@ -194,37 +194,41 @@ namespace Chaos
 
 		FReal ContactPhi = FLT_MAX;
 		FVec3 Location, Normal;
+		int32 ContactFaceIndex = INDEX_NONE;
 		if (const TImplicitObjectScaled<GeometryA>* ScaledConvexImplicit = A.template GetObject<const TImplicitObjectScaled<GeometryA> >())
 		{
-			if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
+			if (B.GJKContactPoint(*ScaledConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi, ContactFaceIndex))
 			{
 				Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 				Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 				Contact.ShapeContactNormal = Normal;
 				Contact.Phi = ContactPhi;
+				Contact.FaceIndex = ContactFaceIndex;
 			}
 		}
 		else if (const TImplicitObjectInstanced<GeometryA>* InstancedConvexImplicit = A.template GetObject<const TImplicitObjectInstanced<GeometryA> >())
 		{
 			if (const GeometryA* InstancedInnerObject = static_cast<const GeometryA*>(InstancedConvexImplicit->GetInstancedObject()))
 			{
-				if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi))
+				if (B.GJKContactPoint(*InstancedInnerObject, AToBTM, CullDistance, Location, Normal, ContactPhi, ContactFaceIndex))
 				{
 					Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 					Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 					Contact.ShapeContactNormal = Normal;
 					Contact.Phi = ContactPhi;
+					Contact.FaceIndex = ContactFaceIndex;
 				}
 			}
 		}
 		else if (const GeometryA* ConvexImplicit = A.template GetObject<const GeometryA>())
 		{
-			if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi))
+			if (B.GJKContactPoint(*ConvexImplicit, AToBTM, CullDistance, Location, Normal, ContactPhi, ContactFaceIndex))
 			{
 				Contact.ShapeContactPoints[0] = AToBTM.InverseTransformPosition(Location);
 				Contact.ShapeContactPoints[1] = Location - ContactPhi * Normal;
 				Contact.ShapeContactNormal = Normal;
 				Contact.Phi = ContactPhi;
+				Contact.FaceIndex = ContactFaceIndex;
 			}
 		}
 
