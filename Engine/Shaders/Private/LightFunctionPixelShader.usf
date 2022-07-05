@@ -12,8 +12,8 @@
 // used like this: mul(float4(SvPosition.xyz, 1), SvPositionToLight);
 float4x4 SvPositionToLight;
 
-/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z. */
-float3 LightFunctionParameters2;
+/** Fade distance in x, disabled brightness in y, output for preview shadows mask in z, hair strands in w */
+float4 LightFunctionParameters2;
 
 void Main(
 	// in float4 ScreenPosition : TEXCOORD0, // Not used and not output in VS
@@ -27,6 +27,13 @@ void Main(
 
 	// make SvPosition appear to be rasterized with the depth from the depth buffer
 	SvPosition.z = LookupDeviceZ(ScreenUV);
+#if HAIR_STRANDS_SUPPORTED
+	BRANCH
+	if (LightFunctionParameters2.w > 0)
+	{
+		SvPosition.z = Texture2DSampleLevel(HairStrands.HairOnlyDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, ScreenUV, 0).r;
+	}
+#endif
 
 	float3 LightVector;
 	{
