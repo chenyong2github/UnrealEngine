@@ -386,7 +386,10 @@ SControlRigSnapper::~SControlRigSnapper()
 
 void SControlRigSnapper::OnActivateSequenceChanged(FMovieSceneSequenceIDRef ID)
 {
-	ClearActors();
+	if(!GIsTransacting)
+	{ 
+		ClearActors();
+	}
 }
 
 
