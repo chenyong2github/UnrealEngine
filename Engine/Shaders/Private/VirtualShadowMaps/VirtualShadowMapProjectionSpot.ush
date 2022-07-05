@@ -385,6 +385,12 @@ FVirtualShadowMapSampleResult TraceLocalLight(
 		const float3 NormalPlaneTangent = mul(ConeTangentToWorldMatrix, WorldNormal);
 		const float2 DepthSlopeTangent = -NormalPlaneTangent.xy / NormalPlaneTangent.z;
 
+		// If source angle = 0, we don't need multiple samples on the same ray
+		if (ConeSin == 0.0f)
+		{
+			SamplesPerRay = 0;
+		}
+
 		uint i = 0;
 		uint RayMissCount = 0;
 		for( ; i < MaxRayCount; i++ )

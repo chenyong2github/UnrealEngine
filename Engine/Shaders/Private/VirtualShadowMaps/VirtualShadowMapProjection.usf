@@ -206,6 +206,7 @@ float4 ComputeRandom4(uint2 PixelPosition)
 int4 ProjectionRect;
 float ScreenRayLength;
 float NormalBias;
+int SubsurfaceShadowMode;			// Temp for testing and A/B comparison
 int SMRTRayCount;					// 0 = off
 int SMRTSamplesPerRay;
 float SMRTRayLengthScale;			// Directional lights
@@ -496,6 +497,12 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 		{
 			Output = 0.8f*Result.GeneralDebug + 0.2f*Result.ShadowFactor.xxx;
 		}
+		/* TODO: Enable this and add to menu
+		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_OCCLUDER_DISTANCE )
+		{
+			Output = (Result.OccluderDistance / 1000.0f).xxx;
+		}
+		*/
 		/*
 		else if ( VisualizeModeId == VIRTUAL_SHADOW_MAP_VISUALIZE_CACHED_PAGE_AGE && bValidPageAddress )
 		{
@@ -519,6 +526,21 @@ void OutputVisualize( uint2 PixelPos, FVirtualShadowMapSampleResult Result )
 	}
 }
 
+// TODO: Refactor/move this to transmission common
+float GetShadowFactorSubsurface(float ShadowFactor, float OccluderDistance, float SubsurfaceOpacity)
+{
+	if ( ShadowFactor < 1.0f )
+	{
+		float Density = SubsurfaceDensityFromOpacity( SubsurfaceOpacity );
+		float Occlusion = 1.0f - saturate( exp( -Density * OccluderDistance ) );
+		float NewShadowFactor = 1.0f - Occlusion * ( 1.0f - ShadowFactor );
+
+		// NOTE: This square is arbitrary, but we have to be consistent with the PCF path
+		// TODO: This might be the time to remove this...
+		return SubsurfaceShadowMode > 1 ? Square( NewShadowFactor ) : NewShadowFactor;
+	}
+	return ShadowFactor;
+}
 
 [numthreads(8, 8, 1)]
 void VirtualShadowMapProjection(
@@ -617,17 +639,25 @@ void VirtualShadowMapProjection(
 			TranslatedWorldPosition,
 			Noise);
 		
-		float SSSTransmission = Result.ShadowFactor;
+		float TransmissionShadow = Result.ShadowFactor;
 		const float SubsurfaceOpacity = bIsHairInput ? 1.0f : GetSubsurfaceOpacityFromGbuffer( PixelPos );
 		if ( SubsurfaceOpacity < 1.0f )
 		{
-			SSSTransmission = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
-				VirtualShadowMapId,
-				TranslatedWorldPosition,
-				SubsurfaceOpacity);
+			if (SubsurfaceShadowMode > 0)
+			{
+				TransmissionShadow = GetShadowFactorSubsurface(Result.ShadowFactor, Result.OccluderDistance, SubsurfaceOpacity);
+				Result.ShadowFactor = TransmissionShadow;
+			}
+			else
+			{
+				TransmissionShadow = ComputeSimpleSubsurfaceTransmissionFromVirtualShadowMap(
+					VirtualShadowMapId,
+					TranslatedWorldPosition,
+					SubsurfaceOpacity);
+			}
 		}
 
-		OutShadowFactor[ PixelPos ] = float2( Result.ShadowFactor, SSSTransmission );
+		OutShadowFactor[ PixelPos ] = float2( Result.ShadowFactor, TransmissionShadow );
 
 		if (VisualizeVirtualShadowMapId == VirtualShadowMapId)
 		{

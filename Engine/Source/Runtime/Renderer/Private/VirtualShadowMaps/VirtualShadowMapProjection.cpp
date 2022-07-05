@@ -151,6 +151,14 @@ static TAutoConsoleVariable<int32> CVarForcePerLightShadowMaskClear(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<int32> CVarSubsurfaceShadowMode(
+	TEXT( "r.Shadow.Virtual.SubsurfaceShadowMode" ),
+	0,
+	TEXT( "" ),
+	ECVF_RenderThreadSafe
+);
+
+
 #if MAX_TEST_PERMUTATION > 0
 static TAutoConsoleVariable<int32> CVarTestPermutation(
 	TEXT( "r.Shadow.Virtual.ProjectionTestPermutation" ),
@@ -267,8 +275,9 @@ class FVirtualShadowMapProjectionCS : public FGlobalShader
 		SHADER_PARAMETER(FIntVector4, ProjectionRect)
 		SHADER_PARAMETER(float, ScreenRayLength)
 		SHADER_PARAMETER(float, NormalBias)
-		SHADER_PARAMETER(uint32, SMRTRayCount)
-		SHADER_PARAMETER(uint32, SMRTSamplesPerRay)
+		SHADER_PARAMETER(int32, SubsurfaceShadowMode)
+		SHADER_PARAMETER(int32, SMRTRayCount)
+		SHADER_PARAMETER(int32, SMRTSamplesPerRay)
 		SHADER_PARAMETER(float, SMRTRayLengthScale)
 		SHADER_PARAMETER(float, SMRTCotMaxRayAngleFromLight)
 		SHADER_PARAMETER(float, SMRTTexelDitherScale)
@@ -353,6 +362,7 @@ static void RenderVirtualShadowMapProjectionCommon(
 	PassParameters->ProjectionRect = FIntVector4(ProjectionRect.Min.X, ProjectionRect.Min.Y, ProjectionRect.Max.X, ProjectionRect.Max.Y);
 	PassParameters->ScreenRayLength = CVarScreenRayLength.GetValueOnRenderThread();
 	PassParameters->NormalBias = GetNormalBiasForShader();
+	PassParameters->SubsurfaceShadowMode = CVarSubsurfaceShadowMode.GetValueOnRenderThread();
 	PassParameters->InputType = uint32(InputType);
 	PassParameters->bCullBackfacingPixels = VirtualShadowMapArray.ShouldCullBackfacingPixels() ? 1 : 0;
 	PassParameters->bSMRTUseAdaptiveRayCount = CVarSMRTAdaptiveRayCount.GetValueOnRenderThread() != 0 ? 1 : 0;

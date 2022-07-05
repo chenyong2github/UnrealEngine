@@ -38,7 +38,6 @@ FSMRTResult SMRTRayCast(
 	// This doesn't get used in the first iteration of the loop and so will always
 	// be valid by the time that it does.
 	float PrevReferenceDepth = -1;
-	float PrevSampleTime = -1;
 
 	bool bValidHit =  false;
 #if SMRT_TEMPLATE_STATIC_SAMPLES_PER_RAY >= 0
@@ -67,8 +66,10 @@ FSMRTResult SMRTRayCast(
 				DepthHistoryTime = SampleTime;
 				if (SampleDepth > ReferenceDepth)
 				{
-					bValidHit = true;
-					break;
+					FSMRTResult Result;
+					Result.bValidHit = true;
+					Result.HitDepth = SampleDepth;
+					return Result;
 				}
 			}
 			else
@@ -97,7 +98,7 @@ FSMRTResult SMRTRayCast(
 				{
 					if (SampleDepth != DepthHistory)
 					{
-						// NOTE: DCE will remove all this if SMRT_EXTRAPOLATE_WITH_SLOPE is false
+						// NOTE: DCE will remove this if SMRT_EXTRAPOLATE_WITH_SLOPE is false
 						const float SlopeClamp = Sample.ExtrapolateSlope;
 						DepthSlope = (SampleDepth - DepthHistory) / DeltaHistoryTime;
 						DepthSlope = clamp(DepthSlope, -SlopeClamp, SlopeClamp);
@@ -112,17 +113,19 @@ FSMRTResult SMRTRayCast(
 				bool bHit = abs(DepthDiff + HalfCompareTolerance) < HalfCompareTolerance;
 				if (bHit)
 				{
-					bValidHit = true;
-					break;
+					FSMRTResult Result;
+					Result.bValidHit = true;
+					Result.HitDepth = DepthForComparison;
+					return Result;
 				}
 			}
 
-			PrevSampleTime = SampleTime;
 			PrevReferenceDepth = ReferenceDepth;
 		}
 	}
 
 	FSMRTResult Result;
-	Result.bValidHit = bValidHit;
+	Result.bValidHit = false;
+	Result.HitDepth = -1.0f;
 	return Result;
 }

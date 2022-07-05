@@ -229,6 +229,8 @@ FVirtualShadowMapSampleResult TraceDirectional(
 
 		uint RayMissCount = 0;
 		uint i = 0;
+		float OccluderDistanceSum = 0.0f;
+		float MaxOccluderDistance = -1.0f;
 		for ( ; i < MaxRayCount; i++)
 		{
 			// One sample for ray, one for texel dither
@@ -258,7 +260,20 @@ FVirtualShadowMapSampleResult TraceDirectional(
 			Result.PhysicalTexelAddress =  RayState.PhysicalTexelAddress;
 			//Result.GeneralDebug = GreenToRedTurbo((RayState.SampledClipmapId - RayState.ClipmapId) / 2.0f);
 			
-			RayMissCount += SMRTResult.bValidHit ? 0 : 1;
+			if (SMRTResult.bValidHit)
+			{
+				float OccluderDistance = ComputeOccluderDistanceOrtho(
+					GetVirtualShadowMapProjectionData(RayState.ClipmapId).ShadowViewToClipMatrix,
+					SMRTResult.HitDepth,
+					RayState.RayStartUVZ.z);
+
+				OccluderDistanceSum += OccluderDistance;
+				MaxOccluderDistance = max(MaxOccluderDistance, OccluderDistance);
+			}
+			else
+			{
+				++RayMissCount;
+			}
 
 			if (bUseAdaptiveRayCount)
 			{
@@ -286,8 +301,15 @@ FVirtualShadowMapSampleResult TraceDirectional(
 		}
 		uint RayCount = min(i + 1, MaxRayCount);		// break vs regular for loop exit
 
+		/* TODO: Experiment with max vs avg distance in various cases
+		float OccluderDistance = (View.GeneralPurposeTweak == 0)
+			? MaxOccluderDistance
+			: (OccluderDistanceSum / float(max(1, RayCount - RayMissCount)));
+		*/
+		float OccluderDistance = (OccluderDistanceSum / float(max(1, RayCount - RayMissCount)));
+
 		Result.ShadowFactor = SMRTComputeRayMissFactor(RayMissCount, RayCount, MaxRayCount, Noise);
-		Result.OccluderDistance = -1.0f;	// TODO?
+		Result.OccluderDistance = OccluderDistance;
 		Result.RayCount = RayCount;
 	}
 

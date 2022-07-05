@@ -29,6 +29,7 @@ FSMRTSample InitSMRTSample()
 struct FSMRTResult
 {
 	bool bValidHit;
+	float HitDepth;	// Valid if bValidHit is true
 };
 
 float SMRTComputeRayMissFactor(uint RayMissCount, uint RayCount, uint MaxRayCount, half Noise)
