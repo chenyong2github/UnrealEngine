@@ -176,6 +176,16 @@ public:
 		return MoveTemp(SharedThis).ToSharedRef();
 	}
 
+	TWeakPtr<ComponentType> AsWeak()
+	{
+		return WeakThis;
+	}
+
+	TWeakPtr<ComponentType const> AsWeak() const
+	{
+		return WeakThis;
+	}
+
 protected:
 	template <class OtherType>
 	static TSharedRef<OtherType> SharedThis(OtherType* ThisPtr)
