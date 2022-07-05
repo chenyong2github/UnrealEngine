@@ -5,6 +5,7 @@
 #include "PCGModule.h"
 
 #include "Misc/ScopeRWLock.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 void UPCGMetadata::Serialize(FArchive& Ar)
 {
@@ -334,6 +335,51 @@ void UPCGMetadata::CreateTransformAttribute(FName AttributeName, FTransform Defa
 void UPCGMetadata::CreateStringAttribute(FName AttributeName, FString DefaultValue, bool bAllowsInterpolation, bool bOverrideParent)
 {
 	CreateAttribute<FString>(AttributeName, DefaultValue, bAllowsInterpolation, bOverrideParent);
+}
+
+bool UPCGMetadata::SetAttributeFromProperty(FName AttributeName, PCGMetadataEntryKey& EntryKey, const UObject* Object, const FProperty* InProperty, bool bCreate)
+{
+	if (!InProperty || !Object)
+	{
+		return false;
+	}
+
+	// Check if an attribute already exists or not if we ask to create a new one
+	if (!bCreate && !HasAttribute(AttributeName))
+	{
+		return false;
+	}
+
+	auto CreateAttributeAndSet = [&AttributeName, this, bCreate, &EntryKey](auto&& PropertyValue) -> bool
+	{
+		using PropertyType = std::remove_const_t<std::remove_reference_t<decltype(PropertyValue)>>;
+
+		FPCGMetadataAttributeBase* BaseAttribute = GetMutableAttribute(AttributeName);
+
+		if (!BaseAttribute && bCreate)
+		{
+			// Interpolation is disabled and no parent override.
+			BaseAttribute = CreateAttribute<PropertyType>(AttributeName, PropertyValue, false, false);
+		}
+
+		if (!BaseAttribute)
+		{
+			return false;
+		}
+
+		// Check that the property match the attribute type!
+		if (PCG::Private::MetadataTypes<PropertyType>::Id != BaseAttribute->GetTypeId())
+		{
+			return false;
+		}
+
+		FPCGMetadataAttribute<PropertyType>* Attribute = static_cast<FPCGMetadataAttribute<PropertyType>*>(BaseAttribute);
+		Attribute->SetValue(EntryKey, PropertyValue);
+
+		return true;
+	};
+
+	return PCGSettingsHelpers::GetPropertyValueWithCallback(Object, InProperty, CreateAttributeAndSet);
 }
 
 void UPCGMetadata::CopyExistingAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent)

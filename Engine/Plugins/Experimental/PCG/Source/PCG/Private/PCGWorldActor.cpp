@@ -85,14 +85,14 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 	
 	bool bAllSafeToDelete = true;
 
-	auto AddPartitionComponentAndCheckIfSafeToDelete = [&AllPartitionedComponents, &bAllSafeToDelete](AActor* Actor)
+	auto AddPartitionComponentAndCheckIfSafeToDelete = [&AllPartitionedComponents, &bAllSafeToDelete](AActor* Actor) -> bool
 	{
 		TObjectPtr<APCGPartitionActor> PartitionActor = CastChecked<APCGPartitionActor>(Actor);
 
 		if (!PartitionActor->IsSafeForDeletion())
 		{
 			bAllSafeToDelete = false;
-			return;
+			return true;
 		}
 
 		for (UPCGComponent* PCGComponent : PartitionActor->GetAllOriginalPCGComponents())
@@ -102,6 +102,8 @@ void APCGWorldActor::OnPartitionGridSizeChanged()
 				AllPartitionedComponents.Add(PCGComponent);
 			}
 		}
+
+		return true;
 	};
 
 	UPCGActorHelpers::ForEachActorInLevel<APCGPartitionActor>(Level, AddPartitionComponentAndCheckIfSafeToDelete);

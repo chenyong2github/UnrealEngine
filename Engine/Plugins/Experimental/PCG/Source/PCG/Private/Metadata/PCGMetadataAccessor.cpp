@@ -169,6 +169,22 @@ void UPCGMetadataAccessorHelpers::SetStringAttributeByMetadataKey(int64& Key, UP
 	SetAttribute(Key, Metadata, AttributeName, Value);
 }
 
+bool UPCGMetadataAccessorHelpers::SetAttributeFromPropertyByMetadataKey(int64& Key, UPCGMetadata* Metadata, FName AttributeName, const UObject* Object, FName PropertyName)
+{
+	if (!Object)
+	{
+		return false;
+	}
+
+	const FProperty* Property = FindFProperty<FProperty>(Object->GetClass(), PropertyName);
+	if (!Property)
+	{
+		return false;
+	}
+
+	return Metadata->SetAttributeFromProperty(AttributeName, Key, Object, Property, /*bCreate=*/ true);
+}
+
 /** Point-based implementations */
 void UPCGMetadataAccessorHelpers::CopyPoint(const FPCGPoint& InPoint, FPCGPoint& OutPoint, bool bCopyMetadata, const UPCGMetadata* InMetadata, UPCGMetadata* OutMetadata)
 {

@@ -20,6 +20,7 @@ enum class EPCGMetadataTypes : uint8
 	String,
 	Boolean,
 	Rotator,
+	Name,
 	Unknown = 255
 };
 
@@ -46,6 +47,7 @@ namespace PCG
 		PCGMetadataGenerateDataTypes(FString, String);
 		PCGMetadataGenerateDataTypes(bool, Boolean);
 		PCGMetadataGenerateDataTypes(FRotator, Rotator);
+		PCGMetadataGenerateDataTypes(FName, Name);
 
 #undef PCGMetadataGenerateDataTypes
 
@@ -379,6 +381,21 @@ namespace PCG
 			enum { CanInterpolate = false };
 
 			static bool Equal(const FString& A, const FString& B)
+			{
+				return A == B;
+			}
+		};
+
+		template<>
+		struct MetadataTraits<FName>
+		{
+			enum { CompressData = true };
+			enum { CanMinMax = false };
+			enum { CanSubAdd = false };
+			enum { CanMulDiv = false };
+			enum { CanInterpolate = false };
+
+			static bool Equal(const FName& A, const FName& B)
 			{
 				return A == B;
 			}

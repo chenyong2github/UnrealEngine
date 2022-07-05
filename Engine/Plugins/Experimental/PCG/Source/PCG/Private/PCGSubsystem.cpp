@@ -602,7 +602,7 @@ void UPCGSubsystem::DeletePartitionActors()
 		return;
 	}
 
-	auto GatherAndDestroyLoadedActors = [&PackagesToCleanup, &PackagesToDeleteFromSCC, World, &ActorsNotSafeToBeDeleted](AActor* Actor)
+	auto GatherAndDestroyLoadedActors = [&PackagesToCleanup, &PackagesToDeleteFromSCC, World, &ActorsNotSafeToBeDeleted](AActor* Actor) -> bool
 	{
 		// Make sure that this actor was not flagged to not be deleted, or not safe for deletion
 		TObjectPtr<APCGPartitionActor> PartitionActor = CastChecked<APCGPartitionActor>(Actor);
@@ -615,7 +615,10 @@ void UPCGSubsystem::DeletePartitionActors()
 			// Also reset the last generated bounds to indicate to the component to re-create its PartitionActors when it generates.
 			for (TObjectPtr<UPCGComponent> PCGComponent : PartitionActor->GetAllOriginalPCGComponents())
 			{
-				PCGComponent->ResetLastGeneratedBounds();
+				if (PCGComponent)
+				{
+					PCGComponent->ResetLastGeneratedBounds();
+				}
 			}
 
 			if (UPackage* ExternalPackage = PartitionActor->GetExternalPackage())
@@ -625,6 +628,8 @@ void UPCGSubsystem::DeletePartitionActors()
 
 			World->DestroyActor(PartitionActor);
 		}
+
+		return true;
 	};
 
 	auto GatherAndDestroyActors = [&PackagesToCleanup, &PackagesToDeleteFromSCC, World, &ActorsNotSafeToBeDeleted, &GatherAndDestroyLoadedActors](const FWorldPartitionActorDesc* ActorDesc) {

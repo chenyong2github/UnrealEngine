@@ -47,12 +47,32 @@ public:
 	static void GetActorClassDefaultComponents(const TSubclassOf<AActor>& ActorClass, TArray<UActorComponent*>& OutComponents, const TSubclassOf<UActorComponent>& InComponentClass = TSubclassOf<UActorComponent>());
 
 	template <typename T, typename = typename std::enable_if_t<std::is_base_of_v<AActor, T>>>
-	static void ForEachActorInLevel(ULevel* Level, TFunctionRef<void(AActor*)> Callback)
+	inline static void ForEachActorInLevel(ULevel* Level, TFunctionRef<bool(AActor*)> Callback)
 	{
 		return ForEachActorInLevel(Level, T::StaticClass(), Callback);
 	}
 
-	static void ForEachActorInLevel(ULevel* Level, TSubclassOf<AActor> ActorClass, TFunctionRef<void(AActor*)> Callback);
+	/**
+	* Iterate over all actors in the level, from the given class, and pass them to a callback
+	* @param Level The level
+	* @param ActorClass class of AActor to pass to the callback
+	* @param Callback Function to call with the found actor. Needs to return a bool, to indicate if it needs to continue (true = yes)
+	*/
+	static void ForEachActorInLevel(ULevel* Level, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(AActor*)> Callback);
+
+	template <typename T, typename = typename std::enable_if_t<std::is_base_of_v<AActor, T>>>
+	inline static void ForEachActorInWorld(UWorld* World, TFunctionRef<bool(AActor*)> Callback)
+	{
+		return ForEachActorInWorld(World, T::StaticClass(), Callback);
+	}
+
+	/**
+	* Iterate over all actors in the world, from the given class, and pass them to a callback
+	* @param World The world
+	* @param ActorClass class of AActor to pass to the callback
+	* @param Callback Function to call with the found actor. Needs to return a bool, to indicate if it needs to continue (true = yes)
+	*/
+	static void ForEachActorInWorld(UWorld* World, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(AActor*)> Callback);
 
 	/**
 	* Spawn a new actor of type T and attach it to the parent (if not null)
@@ -62,7 +82,7 @@ public:
 	* @param Parent Optional parent to attach to.
 	*/
 	template <typename T = AActor, typename = typename std::enable_if_t<std::is_base_of_v<AActor, T>>>
-	static AActor* SpawnDefaultActor(UWorld* World, FName BaseName, const FTransform& Transform, AActor* Parent = nullptr)
+	inline static AActor* SpawnDefaultActor(UWorld* World, FName BaseName, const FTransform& Transform, AActor* Parent = nullptr)
 	{
 		return SpawnDefaultActor(World, T::StaticClass(), BaseName, Transform, Parent);
 	}

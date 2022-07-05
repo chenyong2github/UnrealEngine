@@ -1,11 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Elements/PCGSpawnActor.h"
-#include "Data/PCGPointData.h"
-#include "Helpers/PCGActorHelpers.h"
+
 #include "PCGComponent.h"
 #include "PCGHelpers.h"
 #include "PCGManagedResource.h"
+
+#include "Data/PCGPointData.h"
+#include "Helpers/PCGActorHelpers.h"
+#include "Helpers/PCGSettingsHelpers.h"
 
 #include "Components/InstancedStaticMeshComponent.h"
 #include "GameFramework/Actor.h"
@@ -72,10 +75,29 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 	const UPCGSpawnActorSettings* Settings = Context->GetInputSettings<UPCGSpawnActorSettings>();
 	check(Settings);
 
-	// Early out
-	if(!Settings->TemplateActorClass || Settings->TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
+	// TODO: Temporary override to verify that soft path can also be overridden
+	// Should probably be handled somewhere else (helpers?).
+	TSubclassOf<AActor> TemplateActorClass = Settings->TemplateActorClass;
+
+	if (UPCGParamData* PCGParams = Context->InputData.GetParams())
 	{
-		PCGE_LOG(Error, "Invalid template actor class (%s)", Settings->TemplateActorClass ? *Settings->TemplateActorClass->GetFName().ToString() : TEXT("None"));
+		FString TemplateActorClassPath = TemplateActorClass ? TemplateActorClass->GetPathName() : "";
+		FString OverriddenTemplateActorClassPath = PCGSettingsHelpers::GetValue(GET_MEMBER_NAME_CHECKED(UPCGSpawnActorSettings, TemplateActorClass), TemplateActorClassPath, PCGParams);
+
+		if (OverriddenTemplateActorClassPath != TemplateActorClassPath)
+		{
+			UClass* OverriddenTemplateActorClass = FSoftClassPath(OverriddenTemplateActorClassPath).ResolveClass();
+			if (OverriddenTemplateActorClass && OverriddenTemplateActorClass->IsChildOf<AActor>())
+			{
+				TemplateActorClass = OverriddenTemplateActorClass;
+			}
+		}
+	}
+
+	// Early out
+	if(!TemplateActorClass || TemplateActorClass->HasAnyClassFlags(CLASS_Abstract))
+	{
+		PCGE_LOG(Error, "Invalid template actor class (%s)", TemplateActorClass ? *TemplateActorClass->GetFName().ToString() : TEXT("None"));
 		return true;
 	}
 
@@ -104,7 +126,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 		}
 
 		const bool bHasAuthority = !Context->SourceComponent || (Context->SourceComponent->GetOwner() && Context->SourceComponent->GetOwner()->HasAuthority());
-		const bool bSpawnedActorsRequireAuthority = Settings->TemplateActorClass->GetDefaultObject<AActor>()->GetIsReplicated();
+		const bool bSpawnedActorsRequireAuthority = TemplateActorClass->GetDefaultObject<AActor>()->GetIsReplicated();
 
 		// First, create target instance transforms
 		const UPCGPointData* PointData = SpatialData->ToPointData(Context);
@@ -132,7 +154,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 			if (Settings->Option == EPCGSpawnActorOption::CollapseActors)
 			{
 				TArray<UActorComponent*> Components;
-				UPCGActorHelpers::GetActorClassDefaultComponents(Settings->TemplateActorClass, Components, UStaticMeshComponent::StaticClass());
+				UPCGActorHelpers::GetActorClassDefaultComponents(TemplateActorClass, Components, UStaticMeshComponent::StaticClass());
 				UStaticMeshComponent* FirstSMC = nullptr;
 				UStaticMesh* Mesh = nullptr;
 
@@ -182,7 +204,7 @@ bool FPCGSpawnActorElement::ExecuteInternal(FPCGContext* Context) const
 
 					for (const FPCGPoint& Point : Points)
 					{
-						AActor* GeneratedActor = TargetActor->GetWorld()->SpawnActor(Settings->TemplateActorClass, &Point.Transform, SpawnParams);
+						AActor* GeneratedActor = TargetActor->GetWorld()->SpawnActor(TemplateActorClass, &Point.Transform, SpawnParams);
 						GeneratedActor->Tags.Add(PCGHelpers::DefaultPCGActorTag);
 						GeneratedActor->AttachToActor(TargetActor, FAttachmentTransformRules::KeepWorldTransform);
 

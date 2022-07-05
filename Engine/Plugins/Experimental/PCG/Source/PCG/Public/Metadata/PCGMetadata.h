@@ -86,6 +86,16 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	void CreateStringAttribute(FName AttributeName, FString DefaultValue, bool bAllowsInterpolation, bool bOverrideParent = true);
 
+	/** Set an attribute given a property and its value.
+	* @param AttributeName: Target attribute to set the property's value to
+	* @param EntryKey: Metadata entry key to set the value to
+	* @param Object: Object to get the property value from
+	* @param Property: The property to set from
+	* @param bCreate: If true and the attribute doesn't exists, it will create an attribute based on the property type
+	* @returns true if the attribute creation (if required) and the value set succeeded
+	*/
+	bool SetAttributeFromProperty(FName AttributeName, PCGMetadataEntryKey& EntryKey, const UObject* Object, const FProperty* Property, bool bCreate);
+
 	/** Get attributes */
 	FPCGMetadataAttributeBase* GetMutableAttribute(FName AttributeName);
 	const FPCGMetadataAttributeBase* GetConstAttribute(FName AttributeName) const;

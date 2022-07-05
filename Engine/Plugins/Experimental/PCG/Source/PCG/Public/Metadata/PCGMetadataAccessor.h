@@ -67,6 +67,9 @@ public:
 	static void SetStringAttributeByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const FString& Value);
 
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
+	static bool SetAttributeFromPropertyByMetadataKey(UPARAM(ref) int64& Key, UPCGMetadata* Metadata, FName AttributeName, const UObject* Object, FName PropertyName);
+
+	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata")
 	static bool HasAttributeSetByMetadataKey(int64 Key, const UPCGMetadata* Metadata, FName AttributeName);
 
 	/** Point functions */

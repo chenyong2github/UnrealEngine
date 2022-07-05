@@ -6,6 +6,7 @@
 
 #include "PCGComponent.h"
 #include "PCGManagedResource.h"
+#include "EngineUtils.h"
 #include "Components/InstancedStaticMeshComponent.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
 #include "Engine/InheritableComponentHandler.h"
@@ -292,7 +293,7 @@ void UPCGActorHelpers::GetActorClassDefaultComponents(const TSubclassOf<AActor>&
 	OutComponents = MoveTemp(ResultComponents);
 }
 
-void UPCGActorHelpers::ForEachActorInLevel(ULevel* Level, TSubclassOf<AActor> ActorClass, TFunctionRef<void(AActor*)> Callback)
+void UPCGActorHelpers::ForEachActorInLevel(ULevel* Level, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(AActor*)> Callback)
 {
 	if (!Level)
 	{
@@ -303,7 +304,29 @@ void UPCGActorHelpers::ForEachActorInLevel(ULevel* Level, TSubclassOf<AActor> Ac
 	{
 		if (Actor && Actor->IsA(ActorClass))
 		{
-			Callback(Actor);
+			if (!Callback(Actor))
+			{
+				break;
+			}
+		}
+	}
+}
+
+void UPCGActorHelpers::ForEachActorInWorld(UWorld* World, TSubclassOf<AActor> ActorClass, TFunctionRef<bool(AActor*)> Callback)
+{
+	if (!World)
+	{
+		return;
+	}
+
+	for (TActorIterator<AActor> It(World, ActorClass); It; ++It)
+	{
+		if (AActor* Actor = *It)
+		{
+			if (!Callback(Actor))
+			{
+				break;
+			}
 		}
 	}
 }
