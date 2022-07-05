@@ -266,7 +266,7 @@ DfsEnumerate(const FPath& Root)
 }
 
 FPath
-NormalizeFilenameUtf8(std::string& InFilename)
+NormalizeFilenameUtf8(const std::string& InFilename)
 {
 	std::string_view Filename	   = InFilename;
 	std::string_view FileUrlPrefix = "file://";
@@ -276,7 +276,9 @@ NormalizeFilenameUtf8(std::string& InFilename)
 	}
 
 	FPath FilenameAsPath = ConvertUtf8ToWide(Filename);
-	return FilenameAsPath.lexically_normal();
+	FPath NormalPath = FilenameAsPath.lexically_normal();
+	FPath AbsoluteNormalPath = std::filesystem::absolute(NormalPath);
+	return AbsoluteNormalPath;
 }
 
 const FBuffer&

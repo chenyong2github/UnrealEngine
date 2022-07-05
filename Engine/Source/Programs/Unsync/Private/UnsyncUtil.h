@@ -276,7 +276,7 @@ CountLeadingZeros64(uint64 X)
 	return ((63 - XLog2) & Mask) | (64 & ~Mask);
 }
 
-FPath NormalizeFilenameUtf8(std::string& InFilename);
+FPath NormalizeFilenameUtf8(const std::string& InFilename);
 
 const FBuffer& GetSystemRootCerts();
 
