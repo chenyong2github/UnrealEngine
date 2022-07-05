@@ -94,7 +94,10 @@ void FViewModelExtensionCollection::Destroy()
 	if (TSharedPtr<FViewModel> Model = WeakModel.Pin())
 	{
 		TSharedPtr<FSharedViewModelData> SharedData = Model->GetSharedData();
-		SharedData->UnsubscribeFromHierarchyChanged(Model, OnHierarchyUpdatedHandle);
+		if (SharedData)
+		{
+			SharedData->UnsubscribeFromHierarchyChanged(Model, OnHierarchyUpdatedHandle);
+		}
 	}
 
 	OnHierarchyUpdatedHandle = FDelegateHandle();
