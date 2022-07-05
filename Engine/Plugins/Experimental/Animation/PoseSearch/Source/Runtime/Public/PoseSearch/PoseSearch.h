@@ -219,7 +219,6 @@ struct POSESEARCH_API FAssetSamplingContext
 	// Only initialized and used when a mirroring table is specified
 	TCustomBoneIndexArray<FQuat, FCompactPoseBoneIndex> ComponentSpaceRefRotations;
 
-
 	void Init(const UPoseSearchSchema* Schema);
 	FTransform MirrorTransform(const FTransform& Transform) const;
 };
@@ -310,6 +309,7 @@ public:
 	virtual FSampleInfo GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const = 0;
 	virtual const float GetSampleTimeFromDistance(float Distance) const = 0;
 	virtual FTransform MirrorTransform(const FTransform& Transform) const = 0;
+	virtual FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) = 0;
 };
 
 } // namespace UE::PoseSearch
@@ -324,9 +324,7 @@ class POSESEARCH_API UPoseSearchFeatureChannel : public UObject, public IBoneRef
 	GENERATED_BODY()
 
 public:
-
 	int32 GetChannelIndex() const { checkSlow(ChannelIdx >= 0); return ChannelIdx; }
-
 	int32 GetChannelCardinality() const { checkSlow(ChannelCardinality >= 0); return ChannelCardinality; }
 	int32 GetChannelDataOffset() const { checkSlow(ChannelDataOffset >= 0); return ChannelDataOffset; }
 
@@ -336,22 +334,15 @@ public:
 	virtual void FillWeights(TArray<float>& Weights) const PURE_VIRTUAL(UPoseSearchFeatureChannel::FillWeights, );
 
 	// Called at database build time to populate pose vectors with this channel's data
-	virtual void IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
+	virtual void IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const PURE_VIRTUAL(UPoseSearchFeatureChannel::IndexAsset, );
 
 	virtual void ComputeMeanDeviations(const Eigen::MatrixXd& CenteredPoseMatrix, Eigen::VectorXd& MeanDeviations) const;
-
-	// Return this channel's range of sampling offsets in the requested sampling domain.
-	// Returns empty range if the channel has no horizon in the requested domain.
-	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GetHorizonRange, return FFloatRange::Empty(); );
 
 	// Hash channel properties to produce a key for database derived data
 	virtual void GenerateDDCKey(FBlake3& InOutKeyHasher) const PURE_VIRTUAL(UPoseSearchFeatureChannel::GenerateDDCKey, );
 
 	// Called at runtime to add this channel's data to the query pose vector
-	virtual bool BuildQuery(
-		FPoseSearchContext& SearchContext,
-		FPoseSearchFeatureVectorBuilder& InOutQuery) const
-		PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
+	virtual bool BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const PURE_VIRTUAL(UPoseSearchFeatureChannel::BuildQuery, return false;);
 
 	// Draw this channel's data for the given pose vector
 	virtual void DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const PURE_VIRTUAL(UPoseSearchFeatureChannel::DebugDraw, );
@@ -360,8 +351,6 @@ private:
 	// IBoneReferenceSkeletonProvider interface
 	// Note this function is exclusively for FBoneReference details customization
 	class USkeleton* GetSkeleton(bool& bInvalidSkeletonIsError, const IPropertyHandle* PropertyHandle) override;
-
-private:
 
 	friend class ::UPoseSearchSchema;
 
@@ -399,7 +388,6 @@ private:
 
 	int32 CurrentChannelIdx = 0;
 	int32 CurrentChannelDataOffset = 0;
-	
 	TArray<FBoneReference> BoneReferences;
 };
 
@@ -483,10 +471,6 @@ public:
 
 	int32 GetNumBones () const { return BoneIndices.Num(); }
 
-	// Returns global range of sampling offsets among all channels in requested sampling domain.
-	// Returns empty range if the channel has no horizon in the requested domain.
-	virtual FFloatRange GetHorizonRange(EPoseSearchFeatureDomain Domain) const;
-
 public: // UObject
 	virtual void PreSave(FObjectPreSaveContext ObjectSaveContext) override;
 	virtual void PostLoad() override;
@@ -496,6 +480,7 @@ public: // IBoneReferenceSkeletonProvider
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+	void GenerateDDCKey(FBlake3& InOutKeyHasher) const;
 #endif
 
 private:
@@ -1099,6 +1084,15 @@ public:
 	const FGameplayTagContainer* GetSourceAssetGroupTags(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	const FString GetSourceAssetName(const FPoseSearchIndexAsset* SearchIndexAsset) const;
 	int32 GetNumberOfPrincipalComponents() const;
+	
+#if WITH_EDITOR
+	void GenerateDDCKey(FBlake3& InOutKeyHasher) const;
+private:
+	static void AddDbSequenceToWriter(const FPoseSearchDatabaseSequence& DbSequence, FBlake3& InOutWriter);
+	static void AddRawSequenceToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter);
+	static void AddPoseSearchNotifiesToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter);
+	static void AddDbBlendSpaceToWriter(const FPoseSearchDatabaseBlendSpace& DbBlendSpace, FBlake3& InOutWriter);
+#endif // WITH_EDITOR
 
 public: // UObject
 	virtual void PostLoad() override;

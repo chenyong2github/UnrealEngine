@@ -55,94 +55,9 @@ T GetValueAtIndex(int32 Sample, const TArray<T>& Values)
 	return (Values[Num - 1] - Values[Num - 2]) * (Sample - (Num - 1)) + Values[Num - 1];
 }
 
-struct BoneTransformsCache
+static void CollectBonePositions(TArray<FVector>& BonePositions, IAssetIndexer& Indexer, int8 SchemaBoneIdx)
 {
-	BoneTransformsCache(const IAssetIndexer& InIndexer)
-		: Indexer(InIndexer)
-	{
-	}
-
-	FTransform Get(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped)
-	{
-		// @todo: use an hashmap if we end up having too many entries
-		Entry* Entry = Entries.FindByPredicate([SampleTime, OriginTime](const BoneTransformsCache::Entry& Entry)
-			{
-				return Entry.SampleTime == SampleTime && Entry.OriginTime == OriginTime;
-			});
-
-		const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
-		const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
-
-		if (!Entry)
-		{
-			Entry = &Entries[Entries.AddDefaulted()];
-
-			Entry->SampleTime = SampleTime;
-			Entry->OriginTime = OriginTime;
-
-			Entry->Pose.SetBoneContainer(&SamplingContext->BoneContainer);
-			Entry->UnusedCurve.InitFrom(SamplingContext->BoneContainer);
-
-			IAssetIndexer::FSampleInfo Origin = Indexer.GetSampleInfo(OriginTime);
-			IAssetIndexer::FSampleInfo Sample = Indexer.GetSampleInfoRelative(SampleTime, Origin);
-
-			float CurrentTime = Sample.ClipTime;
-			float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
-
-			FDeltaTimeRecord DeltaTimeRecord;
-			DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
-			FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Sample.Clip->IsLoopable());
-
-			Sample.Clip->ExtractPose(ExtractionCtx, Entry->AnimPoseData);
-
-			if (IndexingContext.bMirrored)
-			{
-				FAnimationRuntime::MirrorPose(
-					Entry->AnimPoseData.GetPose(),
-					IndexingContext.Schema->MirrorDataTable->MirrorAxis,
-					SamplingContext->CompactPoseMirrorBones,
-					SamplingContext->ComponentSpaceRefRotations
-				);
-				// Note curves and attributes are not used during the indexing process and therefore don't need to be mirrored
-			}
-
-			Entry->ComponentSpacePose.InitPose(Entry->Pose);
-			Entry->RootTransform = Sample.RootTransform;
-			Entry->Clamped = Sample.bClamped;
-		}
-
-		const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[SchemaBoneIdx];
-		FCompactPoseBoneIndex CompactBoneIndex = SamplingContext->BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
-
-		const FTransform BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * Indexer.MirrorTransform(Entry->RootTransform);
-		Clamped = Entry->Clamped;
-
-		return BoneTransform;
-	}
-
-	const UE::PoseSearch::IAssetIndexer& Indexer;
-
-	struct Entry
-	{
-		float SampleTime;
-		float OriginTime;
-		bool Clamped;
-
-		// @todo: minimize the Entry memory footprint
-		FTransform RootTransform;
-		FCompactPose Pose;
-		FCSPose<FCompactPose> ComponentSpacePose;
-		FBlendedCurve UnusedCurve;
-		UE::Anim::FStackAttributeContainer UnusedAtrribute;
-		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
-	};
-
-	TArray<Entry> Entries;
-};
-
-static void CollectBonePositions(TArray<FVector>& BonePositions, BoneTransformsCache& BoneTransformsCache, int8 SchemaBoneIdx)
-{
-	const FAssetIndexingContext& IndexingContext = BoneTransformsCache.Indexer.GetIndexingContext();
+	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
 	const float FiniteDelta = IndexingContext.Schema->SamplingInterval;
 	const float SampleTimeStart = FMath::Min(IndexingContext.BeginSampleIdx * FiniteDelta, IndexingContext.MainSampler->GetPlayLength());
 	const int32 NumSamples = IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx;
@@ -154,7 +69,7 @@ static void CollectBonePositions(TArray<FVector>& BonePositions, BoneTransformsC
 	{
 		const float SampleTime = SampleTimeStart + SampleIdx * FiniteDelta;
 		bool Unused;
-		BonePositions[SampleIdx] = BoneTransformsCache.Get(SampleTime, SampleTimeStart, SchemaBoneIdx, Unused).GetTranslation();
+		BonePositions[SampleIdx] = Indexer.GetTransformAndCacheResults(SampleTime, SampleTimeStart, SchemaBoneIdx, Unused).GetTranslation();
 	}
 }
 
@@ -357,6 +272,119 @@ class USkeleton* UPoseSearchFeatureChannel::GetSkeleton(bool& bInvalidSkeletonIs
 }
 
 //////////////////////////////////////////////////////////////////////////
+// UPoseSearchFeatureChannel_Position
+
+void UPoseSearchFeatureChannel_Position::InitializeSchema(UE::PoseSearch::FSchemaInitializer& Initializer)
+{
+	Super::InitializeSchema(Initializer);
+	ChannelCardinality = UE::PoseSearch::FFeatureVectorHelper::EncodeVectorCardinality;
+	Initializer.SetCurrentChannelDataOffset(ChannelDataOffset + ChannelCardinality);
+	SchemaBoneIdx = Initializer.AddBoneReference(Bone);
+}
+
+void UPoseSearchFeatureChannel_Position::FillWeights(TArray<float>& Weights) const
+{
+	using namespace UE::PoseSearch;
+
+	for (int32 i = 0; i != FFeatureVectorHelper::EncodeVectorCardinality; ++i)
+	{
+		Weights[ChannelDataOffset + i] = Weight;
+	}
+}
+
+void UPoseSearchFeatureChannel_Position::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
+{
+	using namespace UE::PoseSearch;
+
+	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
+	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
+
+	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
+	{
+		int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
+		FPoseSearchFeatureVectorBuilder& FeatureVector = IndexingOutput.PoseVectors[VectorIdx];
+
+		const float OriginSampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
+		const float SubsampleTime = OriginSampleTime + SampleTimeOffset;
+
+		bool ClampedPresent;
+		const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : OriginSampleTime, SchemaBoneIdx, ClampedPresent);
+		int32 DataOffset = ChannelDataOffset;
+		FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, BoneTransformsPresent.GetTranslation());
+	}
+}
+
+void UPoseSearchFeatureChannel_Position::GenerateDDCKey(FBlake3& InOutKeyHasher) const
+{
+	InOutKeyHasher.Update(&Bone, sizeof(Bone));
+	InOutKeyHasher.Update(&Weight, sizeof(Weight));
+	InOutKeyHasher.Update(&SampleTimeOffset, sizeof(SampleTimeOffset));
+}
+
+bool UPoseSearchFeatureChannel_Position::BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
+{
+	using namespace UE::PoseSearch;
+
+	const bool bSkip = SearchContext.CurrentResult.IsValid() && SearchContext.CurrentResult.Database->Schema == InOutQuery.GetSchema();
+
+	if (bSkip)
+	{
+		// todo: instead of skipping because the pose should have been copied already (that's currently happening in
+		// UPoseSearchSchema::BuildIndex()), consider making the copy here, but only copy the right values, not the
+		// whole query
+		return true;
+	}
+
+	// @todo: add a layer of caching to TrySamplePose to improve performance
+	if (!SearchContext.History || !SearchContext.History->TrySamplePose(-SampleTimeOffset, InOutQuery.GetSchema()->Skeleton->GetReferenceSkeleton(), InOutQuery.GetSchema()->BoneIndicesWithParents))
+	{
+		return false;
+	}
+
+	const TArrayView<const FTransform> ComponentPose = SearchContext.History->GetComponentPoseSample();
+	const FTransform RootTransform = SearchContext.History->GetRootTransformSample();
+	const FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
+	const int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx];
+	
+	int32 DataOffset = ChannelDataOffset;
+	FFeatureVectorHelper::EncodeVector(InOutQuery.EditValues(), DataOffset, ComponentPose[SkeletonBoneIndex].GetTranslation());
+	
+	return true;
+}
+
+void UPoseSearchFeatureChannel_Position::DebugDraw(const UE::PoseSearch::FDebugDrawParams& DrawParams, TArrayView<const float> PoseVector) const
+{
+	using namespace UE::PoseSearch;
+
+	const UPoseSearchSchema* Schema = DrawParams.GetSchema();
+	check(Schema && Schema->IsValid());
+
+	const float LifeTime = DrawParams.DefaultLifeTime;
+	const uint8 DepthPriority = ESceneDepthPriorityGroup::SDPG_Foreground + 2;
+	const bool bPersistent = EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::Persistent);
+
+	int32 DataOffset = ChannelDataOffset;
+	const FVector BonePos = DrawParams.RootTransform.TransformPosition(FFeatureVectorHelper::DecodeVector(PoseVector, DataOffset));
+
+	const FLinearColor LinearColor = DrawParams.GetColor(this);
+	const FColor Color = LinearColor.ToFColor(true);
+
+	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawFast | EDebugDrawFlags::DrawSearchIndex))
+	{
+		DrawDebugPoint(DrawParams.World, BonePos, DrawParams.PointSize, Color, bPersistent, DrawParams.DefaultLifeTime, DepthPriority);
+	}
+	else
+	{
+		DrawDebugSphere(DrawParams.World, BonePos, DrawDebugSphereSize, DrawDebugSphereSegments, Color, bPersistent, LifeTime, DepthPriority);
+	}
+
+	if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawBoneNames))
+	{
+		DrawDebugString(DrawParams.World, BonePos + FVector(0.0, 0.0, 10.0), Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString(), nullptr, Color, LifeTime, false, 1.0f);
+	}
+}
+
+//////////////////////////////////////////////////////////////////////////
 // UPoseSearchFeatureChannel_Pose
 
 void UPoseSearchFeatureChannel_Pose::PreSave(FObjectPreSaveContext ObjectSaveContext)
@@ -409,12 +437,10 @@ void UPoseSearchFeatureChannel_Pose::InitializeSchema(UE::PoseSearch::FSchemaIni
 
 	Initializer.SetCurrentChannelDataOffset(DataOffset);
 
-	FeatureParams.Reset();
+	SchemaBoneIdx.Reset();
 	for (const FPoseSearchBone& Bone : SampledBones)
 	{
-		FPoseSearchPoseFeatureInfo FeatureInfo;
-		FeatureInfo.SchemaBoneIdx = Initializer.AddBoneReference(Bone.Reference);
-		FeatureParams.Add(FeatureInfo);
+		SchemaBoneIdx.Add(Initializer.AddBoneReference(Bone.Reference));
 	}
 }
 
@@ -478,7 +504,7 @@ void UPoseSearchFeatureChannel_Pose::FillWeights(TArray<float>& Weights) const
 }
 
 // @todo: do we really need to use double(s) in all this math?
-void UPoseSearchFeatureChannel_Pose::CalculatePhases(UE::PoseSearch::BoneTransformsCache& BoneTransformsCache, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput, TArray<TArray<FVector2D>>& OutPhases) const
+void UPoseSearchFeatureChannel_Pose::CalculatePhases(UE::PoseSearch::IAssetIndexer& Indexer, UE::PoseSearch::FAssetIndexingOutput& IndexingOutput, TArray<TArray<FVector2D>>& OutPhases) const
 {
 	// @todo: expose them via UI
 	static float BoneSamplingCentralDifferencesTime = 0.2f; // seconds
@@ -489,7 +515,7 @@ void UPoseSearchFeatureChannel_Pose::CalculatePhases(UE::PoseSearch::BoneTransfo
 	OutPhases.Reset();
 	OutPhases.AddDefaulted(SampledBones.Num());
 	
-	const float FiniteDelta = BoneTransformsCache.Indexer.GetIndexingContext().Schema->SamplingInterval;
+	const float FiniteDelta = Indexer.GetIndexingContext().Schema->SamplingInterval;
 
 	TArray<float> Signal;
 	TArray<float> SmoothedSignal;
@@ -500,7 +526,7 @@ void UPoseSearchFeatureChannel_Pose::CalculatePhases(UE::PoseSearch::BoneTransfo
 		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 		if (SampledBone.bUsePhase)
 		{
-			CollectBonePositions(BonePositions, BoneTransformsCache, FeatureParams[ChannelBoneIdx].SchemaBoneIdx);
+			CollectBonePositions(BonePositions, Indexer, SchemaBoneIdx[ChannelBoneIdx]);
 
 			// @todo: have different way of calculating signals, for example: height of the bone transform, acceleration, etc?
 			const int32 BoneSamplingCentralDifferencesOffset = FMath::Max(FMath::CeilToInt(BoneSamplingCentralDifferencesTime / FiniteDelta), 1);
@@ -519,24 +545,22 @@ void UPoseSearchFeatureChannel_Pose::CalculatePhases(UE::PoseSearch::BoneTransfo
 	}
 }
 
-void UPoseSearchFeatureChannel_Pose::IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
+void UPoseSearchFeatureChannel_Pose::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
 {
 	using namespace UE::PoseSearch;
 	 
-	UE::PoseSearch::BoneTransformsCache BoneTransformsCache(Indexer);
-
 	// Phases is an array of array with cardinality SampledBones.Num() times NumSamples (IndexingContext.EndSampleIdx - IndexingContext.BeginSampleIdx)
 	// of 2 dimensional vectors (FVector2D) representing phases in an Eucledean space with phase angle sin/cos as direction and certainty of the signal as magnitude,
 	// where certainty is a function of the amplitude of the signal used as input
 	TArray<TArray<FVector2D>> Phases;
-	CalculatePhases(BoneTransformsCache, IndexingOutput, Phases);
+	CalculatePhases(Indexer, IndexingOutput, Phases);
 
 	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
 	{
 		int32 VectorIdx = SampleIdx - IndexingContext.BeginSampleIdx;
 		FPoseSearchFeatureVectorBuilder& FeatureVector = IndexingOutput.PoseVectors[VectorIdx];
-		AddPoseFeatures(BoneTransformsCache, SampleIdx, FeatureVector, Phases);
+		AddPoseFeatures(Indexer, SampleIdx, FeatureVector, Phases);
 	}
 }
 
@@ -580,7 +604,7 @@ void UPoseSearchFeatureChannel_Pose::ComputeMeanDeviations(const Eigen::MatrixXd
 	check(DataOffset == ChannelDataOffset + ChannelCardinality);
 }
 
-void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransformsCache& BoneTransformsCache, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector, const TArray<TArray<FVector2D>>& Phases) const
+void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::IAssetIndexer& Indexer, int32 SampleIdx, FPoseSearchFeatureVectorBuilder& FeatureVector, const TArray<TArray<FVector2D>>& Phases) const
 {
 	// This function samples the instantaneous pose at time t as well as the pose's velocity and acceleration at time t.
 	// Symmetric finite differences are used to approximate derivatives:
@@ -597,7 +621,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransfo
 		return;
 	}
 
-	const FAssetIndexingContext& IndexingContext = BoneTransformsCache.Indexer.GetIndexingContext();
+	const FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
 	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
 
 	const float SampleTime = FMath::Min(SampleIdx * IndexingContext.Schema->SamplingInterval, IndexingContext.MainSampler->GetPlayLength());
@@ -605,7 +629,6 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransfo
 	int32 DataOffset = ChannelDataOffset;
 	for (int32 ChannelBoneIdx = 0; ChannelBoneIdx != SampledBones.Num(); ++ChannelBoneIdx)
 	{
-		const FPoseSearchPoseFeatureInfo& PoseFeatureInfo = FeatureParams[ChannelBoneIdx];
 		const FPoseSearchBone& SampledBone = SampledBones[ChannelBoneIdx];
 
 		// Get each bone's component transform, velocity, and acceleration and add accumulated root motion at this time offset
@@ -619,7 +642,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransfo
 				const float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
 
 				bool ClampedPresent;
-				const FTransform BoneTransformsPresent = BoneTransformsCache.Get(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPresent);
+				const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPresent);
 				FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, BoneTransformsPresent.GetTranslation());
 			}
 		}
@@ -631,7 +654,7 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransfo
 				const float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
 
 				bool ClampedPresent;
-				const FTransform BoneTransformsPresent = BoneTransformsCache.Get(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPresent);
+				const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPresent);
 				FFeatureVectorHelper::EncodeQuat(FeatureVector.EditValues(), DataOffset, BoneTransformsPresent.GetRotation());
 			}
 		}
@@ -643,9 +666,9 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransfo
 				const float SubsampleTime = SampleTime + SampleTimes[SubsampleIdx];
 
 				bool ClampedPast, ClampedPresent, ClampedFuture;
-				const FTransform BoneTransformsPast = BoneTransformsCache.Get(SubsampleTime - SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SubsampleTime - SamplingContext->FiniteDelta : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPast);
-				const FTransform BoneTransformsPresent = BoneTransformsCache.Get(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedPresent);
-				const FTransform BoneTransformsFuture = BoneTransformsCache.Get(SubsampleTime + SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SubsampleTime + SamplingContext->FiniteDelta : SampleTime, PoseFeatureInfo.SchemaBoneIdx, ClampedFuture);
+				const FTransform BoneTransformsPast = Indexer.GetTransformAndCacheResults(SubsampleTime - SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SubsampleTime - SamplingContext->FiniteDelta : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPast);
+				const FTransform BoneTransformsPresent = Indexer.GetTransformAndCacheResults(SubsampleTime, UseCharacterSpaceVelocities ? SubsampleTime : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedPresent);
+				const FTransform BoneTransformsFuture = Indexer.GetTransformAndCacheResults(SubsampleTime + SamplingContext->FiniteDelta, UseCharacterSpaceVelocities ? SubsampleTime + SamplingContext->FiniteDelta : SampleTime, SchemaBoneIdx[ChannelBoneIdx], ClampedFuture);
 
 				// We can get a better finite difference if we ignore samples that have
 				// been clamped at either side of the clip. However, if the central sample 
@@ -680,29 +703,13 @@ void UPoseSearchFeatureChannel_Pose::AddPoseFeatures(UE::PoseSearch::BoneTransfo
 	}
 }
 
-FFloatRange UPoseSearchFeatureChannel_Pose::GetHorizonRange(EPoseSearchFeatureDomain Domain) const
-{
-	FFloatRange Extent = FFloatRange::Empty();
-	if (Domain == EPoseSearchFeatureDomain::Time)
-	{
-		if (SampleTimes.Num())
-		{
-			Extent = FFloatRange::Inclusive(SampleTimes[0], SampleTimes.Last());
-		}
-	}
-
-	return Extent;
-}
-
 void UPoseSearchFeatureChannel_Pose::GenerateDDCKey(FBlake3& InOutKeyHasher) const
 {
 	InOutKeyHasher.Update(MakeMemoryView(SampledBones));
 	InOutKeyHasher.Update(MakeMemoryView(SampleTimes));
 }
 
-bool UPoseSearchFeatureChannel_Pose::BuildQuery(
-	FPoseSearchContext& SearchContext,
-	FPoseSearchFeatureVectorBuilder& InOutQuery) const
+bool UPoseSearchFeatureChannel_Pose::BuildQuery(FPoseSearchContext& SearchContext, FPoseSearchFeatureVectorBuilder& InOutQuery) const
 {
 	using namespace UE::PoseSearch;
 
@@ -753,8 +760,7 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(
 		const FTransform RootTransformPrev = SearchContext.History->GetPrevRootTransformSample();
 		for (int32 SampledBoneIdx = 0; SampledBoneIdx != SampledBones.Num(); ++SampledBoneIdx)
 		{
-			const int32 SchemaBoneIdx = FeatureParams[SampledBoneIdx].SchemaBoneIdx;
-			const int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx];
+			const int32 SkeletonBoneIndex = InOutQuery.GetSchema()->BoneIndices[SchemaBoneIdx[SampledBoneIdx]];
 			const int32 CachedTransformsIndex = SubsampleIdx * SampledBones.Num() + SampledBoneIdx;
 			CachedTransforms[CachedTransformsIndex].Current = ComponentPose[SkeletonBoneIndex];
 
@@ -768,6 +774,8 @@ bool UPoseSearchFeatureChannel_Pose::BuildQuery(
 				// animation space velocity
 				CachedTransforms[CachedTransformsIndex].Previous = ComponentPrevPose[SkeletonBoneIndex] * (RootTransformPrev * RootTransform.Inverse());
 			}
+
+			CachedTransforms[CachedTransformsIndex].Valid = true;
 		}
 	}
 
@@ -890,10 +898,9 @@ void UPoseSearchFeatureChannel_Pose::DebugDraw(const UE::PoseSearch::FDebugDrawP
 
 				if (EnumHasAnyFlags(DrawParams.Flags, EDebugDrawFlags::DrawBoneNames))
 				{
-					int32 SchemaBoneIdx = this->FeatureParams[ChannelBoneIdx].SchemaBoneIdx;
 					DrawDebugString(
 						DrawParams.World, BonePos[SubsampleIdx] + FVector(0.0, 0.0, 10.0),
-						Schema->BoneReferences[SchemaBoneIdx].BoneName.ToString(),
+						Schema->BoneReferences[SchemaBoneIdx[ChannelBoneIdx]].BoneName.ToString(),
 						nullptr, Color, LifeTime, false, 1.0f);
 				}
 			}
@@ -1037,7 +1044,7 @@ void UPoseSearchFeatureChannel_Trajectory::FillWeights(TArray<float>& Weights) c
 	}
 }
 
-void UPoseSearchFeatureChannel_Trajectory::IndexAsset(const UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
+void UPoseSearchFeatureChannel_Trajectory::IndexAsset(UE::PoseSearch::IAssetIndexer& Indexer,  UE::PoseSearch::FAssetIndexingOutput& IndexingOutput) const
 {
 	const UE::PoseSearch::FAssetIndexingContext& IndexingContext = Indexer.GetIndexingContext();
 	for (int32 SampleIdx = IndexingContext.BeginSampleIdx; SampleIdx != IndexingContext.EndSampleIdx; ++SampleIdx)
@@ -1171,19 +1178,6 @@ void UPoseSearchFeatureChannel_Trajectory::IndexAssetPrivate(const UE::PoseSearc
 			FFeatureVectorHelper::EncodeVector(FeatureVector.EditValues(), DataOffset, Indexer.MirrorTransform(SamplePresent.RootTransform).GetRotation().GetAxisY());
 		}
 	}
-}
-
-FFloatRange UPoseSearchFeatureChannel_Trajectory::GetHorizonRange(EPoseSearchFeatureDomain InDomain) const
-{
-	FFloatRange Extent = FFloatRange::Empty();
-	if (InDomain == Domain)
-	{
-		if (SampleOffsets.Num())
-		{
-			Extent = FFloatRange::Inclusive(SampleOffsets[0], SampleOffsets.Last());
-		}
-	}
-	return Extent;
 }
 
 void UPoseSearchFeatureChannel_Trajectory::GenerateDDCKey(FBlake3& InOutKeyHasher) const

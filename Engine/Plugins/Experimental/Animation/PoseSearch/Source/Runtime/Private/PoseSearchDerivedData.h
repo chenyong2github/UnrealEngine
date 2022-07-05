@@ -93,11 +93,6 @@ namespace UE::PoseSearch
 
 	public:
 		static FIoHash CreateKey(const UPoseSearchDatabase& Database);
-		static void AddPoseSearchSchemaToWriter(const UPoseSearchSchema* Schema, FBlake3& InOutWriter);
-		static void AddDbSequenceToWriter(const FPoseSearchDatabaseSequence& DbSequence, FBlake3& InOutWriter);
-		static void AddRawSequenceToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter);
-		static void AddPoseSearchNotifiesToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter);
-		static void AddDbBlendSpaceToWriter(const FPoseSearchDatabaseBlendSpace& DbBlendSpace, FBlake3& InOutWriter);
 	};
 #endif // WITH_EDITOR
 

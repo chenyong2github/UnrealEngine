@@ -373,12 +373,21 @@ void UPoseSearchSchema::PostLoad()
 
 	if (!bNeedFinalize)
 	{
-		for (const UPoseSearchFeatureChannel* Channel : Channels)
+		for (UPoseSearchFeatureChannel* Channel : Channels)
 		{
 			if (Channel->ChannelDataOffset == -1 || Channel->ChannelCardinality == -1)
 			{
 				bNeedFinalize = true;
 				break;
+			}
+
+			if (UPoseSearchFeatureChannel_Pose* ChannelPose = Cast<UPoseSearchFeatureChannel_Pose>(Channel))
+			{
+				if (ChannelPose->SchemaBoneIdx.Num() == 0)
+				{
+					bNeedFinalize = true;
+					break;
+				}
 			}
 		}
 	}
@@ -402,6 +411,26 @@ void UPoseSearchSchema::PostEditChangeProperty(FPropertyChangedEvent& PropertyCh
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
+
+void UPoseSearchSchema::GenerateDDCKey(FBlake3& InOutKeyHasher) const
+{
+	for (const TObjectPtr<UPoseSearchFeatureChannel>& Channel : Channels)
+	{
+		if (Channel)
+		{
+			const FBlake3Hash& ChannelClassHash = Channel->GetClass()->GetSchemaHash(false);
+			InOutKeyHasher.Update(MakeMemoryView(ChannelClassHash.GetBytes()));
+			Channel->GenerateDDCKey(InOutKeyHasher);
+		}
+	}
+
+	InOutKeyHasher.Update(&DataPreprocessor, sizeof(DataPreprocessor));
+	InOutKeyHasher.Update(&EffectiveDataPreprocessor, sizeof(EffectiveDataPreprocessor));
+	InOutKeyHasher.Update(&SamplingInterval, sizeof(SamplingInterval));
+	InOutKeyHasher.Update(MakeMemoryView(BoneIndicesWithParents));
+
+	// @todo: add schema version if POSESEARCHDB_DERIVEDDATA_VER is not enought
+}
 #endif
 
 bool UPoseSearchSchema::IsValid() const
@@ -423,21 +452,6 @@ bool UPoseSearchSchema::IsValid() const
 	bValid &= SchemaCardinality > 0;
 	
 	return bValid;
-}
-
-FFloatRange UPoseSearchSchema::GetHorizonRange(EPoseSearchFeatureDomain Domain) const
-{
-	FFloatRange GlobalRange = FFloatRange::Empty();
-	for (const auto & Channel : Channels)
-	{
-		if (Channel)
-		{
-			FFloatRange ChannelRange = Channel->GetHorizonRange(Domain);
-			GlobalRange = FFloatRange::Hull(GlobalRange, ChannelRange);
-		}
-	}
-
-	return GlobalRange;
 }
 
 void UPoseSearchSchema::ResolveBoneReferences()
@@ -931,6 +945,130 @@ int32 UPoseSearchDatabase::GetNumberOfPrincipalComponents() const
 	return FMath::Min<int32>(NumberOfPrincipalComponents, Schema->SchemaCardinality);
 }
 
+#if WITH_EDITOR
+void UPoseSearchDatabase::AddDbSequenceToWriter(const FPoseSearchDatabaseSequence& DbSequence, FBlake3& InOutWriter)
+{
+	// Main Sequence
+	AddRawSequenceToWriter(DbSequence.Sequence, InOutWriter);
+	InOutWriter.Update(&DbSequence.SamplingRange, sizeof(DbSequence.SamplingRange));
+	if (DbSequence.Sequence)
+	{
+		InOutWriter.Update(&DbSequence.Sequence->bLoop, sizeof(DbSequence.Sequence->bLoop));
+	}
+	InOutWriter.Update(&DbSequence.MirrorOption, sizeof(DbSequence.MirrorOption));
+
+	// Lead in sequence
+	AddRawSequenceToWriter(DbSequence.LeadInSequence, InOutWriter);
+	if (DbSequence.LeadInSequence)
+	{
+		InOutWriter.Update(&DbSequence.LeadInSequence->bLoop, sizeof(DbSequence.LeadInSequence->bLoop));
+	}
+
+	// Follow up sequence
+	AddRawSequenceToWriter(DbSequence.FollowUpSequence, InOutWriter);
+	if (DbSequence.FollowUpSequence)
+	{
+		InOutWriter.Update(&DbSequence.FollowUpSequence->bLoop, sizeof(DbSequence.FollowUpSequence->bLoop));
+	}
+
+	// Tags
+	InOutWriter.Update(&DbSequence.GroupTags, sizeof(DbSequence.GroupTags));
+
+	// Notifies
+	AddPoseSearchNotifiesToWriter(DbSequence.Sequence, InOutWriter);
+}
+
+void UPoseSearchDatabase::AddRawSequenceToWriter(const UAnimSequence* Sequence,	FBlake3& InOutWriter)
+{
+	if (Sequence)
+	{
+		InOutWriter.Update(MakeMemoryView(Sequence->GetName()));
+		InOutWriter.Update(MakeMemoryView(Sequence->GetRawDataGuid().ToString()));
+	}
+}
+
+void UPoseSearchDatabase::AddDbBlendSpaceToWriter(const FPoseSearchDatabaseBlendSpace& DbBlendSpace, FBlake3& InOutWriter)
+{
+	if (IsValid(DbBlendSpace.BlendSpace))
+	{
+		const TArray<FBlendSample>& BlendSpaceSamples = DbBlendSpace.BlendSpace->GetBlendSamples();
+		for (const FBlendSample& Sample : BlendSpaceSamples)
+		{
+			AddRawSequenceToWriter(Sample.Animation, InOutWriter);
+			InOutWriter.Update(&Sample.SampleValue, sizeof(Sample.SampleValue));
+			InOutWriter.Update(&Sample.RateScale, sizeof(Sample.RateScale));
+		}
+
+		InOutWriter.Update(&DbBlendSpace.BlendSpace->bLoop, sizeof(DbBlendSpace.BlendSpace->bLoop));
+		InOutWriter.Update(&DbBlendSpace.MirrorOption, sizeof(DbBlendSpace.MirrorOption));
+		InOutWriter.Update(&DbBlendSpace.bUseGridForSampling, sizeof(DbBlendSpace.bUseGridForSampling));
+		InOutWriter.Update(&DbBlendSpace.NumberOfHorizontalSamples, sizeof(DbBlendSpace.NumberOfHorizontalSamples));
+		InOutWriter.Update(&DbBlendSpace.NumberOfVerticalSamples, sizeof(DbBlendSpace.NumberOfVerticalSamples));
+		InOutWriter.Update(&DbBlendSpace.GroupTags, sizeof(DbBlendSpace.GroupTags));
+	}
+}
+
+void UPoseSearchDatabase::AddPoseSearchNotifiesToWriter(const UAnimSequence* Sequence, FBlake3& InOutWriter)
+{
+	if (!Sequence)
+	{
+		return;
+	}
+
+	FAnimNotifyContext NotifyContext;
+	Sequence->GetAnimNotifies(0.0f, Sequence->GetPlayLength(), NotifyContext);
+
+	for (const FAnimNotifyEventReference& EventReference : NotifyContext.ActiveNotifies)
+	{
+		const FAnimNotifyEvent* NotifyEvent = EventReference.GetNotify();
+		if (!NotifyEvent || !NotifyEvent->NotifyStateClass)
+		{
+			continue;
+		}
+
+		if (NotifyEvent->NotifyStateClass->IsA<UAnimNotifyState_PoseSearchBase>())
+		{
+			const float StartTime = NotifyEvent->GetTriggerTime();
+			const float EndTime = NotifyEvent->GetEndTriggerTime();
+			InOutWriter.Update(&StartTime, sizeof(float));
+			InOutWriter.Update(&EndTime, sizeof(float));
+
+			if (const auto ModifyCostNotifyState =
+				Cast<const UAnimNotifyState_PoseSearchModifyCost>(NotifyEvent->NotifyStateClass))
+			{
+				InOutWriter.Update(&ModifyCostNotifyState->CostAddend, sizeof(float));
+			}
+		}
+	}
+}
+
+void UPoseSearchDatabase::GenerateDDCKey(FBlake3& InOutKeyHasher) const
+{
+	if (IsValid(Schema))
+	{
+		Schema->GenerateDDCKey(InOutKeyHasher);
+	}
+
+	for (int32 i = 0; i < Sequences.Num(); ++i)
+	{
+		AddDbSequenceToWriter(Sequences[i], InOutKeyHasher);
+	}
+
+	for (int32 i = 0; i < BlendSpaces.Num(); ++i)
+	{
+		AddDbBlendSpaceToWriter(BlendSpaces[i], InOutKeyHasher);
+	}
+
+	InOutKeyHasher.Update(&NumberOfPrincipalComponents, sizeof(NumberOfPrincipalComponents));
+	InOutKeyHasher.Update(&KDTreeMaxLeafSize, sizeof(KDTreeMaxLeafSize));
+	InOutKeyHasher.Update(&KDTreeQueryNumNeighbors, sizeof(KDTreeQueryNumNeighbors));
+	InOutKeyHasher.Update(&PoseSearchMode, sizeof(PoseSearchMode));
+
+	// @todo: add database version if POSESEARCHDB_DERIVEDDATA_VER is not enought
+}
+
+#endif // WITH_EDITOR
+
 bool UPoseSearchDatabase::IsValidForIndexing() const
 {
 	bool bValid = Schema && Schema->IsValid() && !Sequences.IsEmpty();
@@ -1277,7 +1415,7 @@ bool UPoseSearchDatabase::TryInitSearchIndexAssets(FPoseSearchIndex& OutSearchIn
 		}
 	}
 
-	// @todo: change the above for loops fill OutSearchIndex.Assets already in ascnding group order
+	// @todo: change the above for loops fill OutSearchIndex.Assets already in ascending group order
 	// sorting by ascending SourceGroupIdx
 	OutSearchIndex.Assets.Sort([](const FPoseSearchIndexAsset& InOne, const FPoseSearchIndexAsset& InTwo)
 	{
@@ -3493,6 +3631,7 @@ public: // IAssetIndexer
 	FSampleInfo GetSampleInfoRelative(float SampleTime, const FSampleInfo& Origin) const override;
 	const float GetSampleTimeFromDistance(float Distance) const override;
 	FTransform MirrorTransform(const FTransform& Transform) const override;
+	FTransform GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped) override;
 
 private:
 	FAssetIndexingContext IndexingContext;
@@ -3500,6 +3639,23 @@ private:
 	FPoseSearchPoseMetadata Metadata;
 	
 	void AddMetadata(int32 SampleIdx);
+
+	struct CachedEntry
+	{
+		float SampleTime;
+		float OriginTime;
+		bool Clamped;
+
+		// @todo: minimize the Entry memory footprint
+		FTransform RootTransform;
+		FCompactPose Pose;
+		FCSPose<FCompactPose> ComponentSpacePose;
+		FBlendedCurve UnusedCurve;
+		UE::Anim::FStackAttributeContainer UnusedAtrribute;
+		FAnimationPoseData AnimPoseData = { Pose, UnusedCurve, UnusedAtrribute };
+	};
+
+	TArray<CachedEntry> CachedEntries;
 };
 
 void FAssetIndexer::Reset()
@@ -3560,6 +3716,8 @@ bool FAssetIndexer::Process()
 		Channel->IndexAsset(*this, AssetIndexingOutput);
 	}
 
+	// @todo: this step can be avoided now since Schema.SchemaCardinality is known and the data can be preallocated before Channel->IndexAsset
+	
 	// Merge spans of feature vectors into contiguous buffer
 	for (int32 VectorIdx = 0; VectorIdx != NumSamplesInRange; ++VectorIdx)
 	{
@@ -3858,6 +4016,63 @@ void FAssetIndexer::AddMetadata(int32 SampleIdx)
 			Metadata.CostAddend = ModifyCostNotify->CostAddend;
 		}
 	}
+}
+
+FTransform FAssetIndexer::GetTransformAndCacheResults(float SampleTime, float OriginTime, int8 SchemaBoneIdx, bool& Clamped)
+{
+	// @todo: use an hashmap if we end up having too many entries
+	CachedEntry* Entry = CachedEntries.FindByPredicate([SampleTime, OriginTime](const FAssetIndexer::CachedEntry& Entry)
+	{
+		return Entry.SampleTime == SampleTime && Entry.OriginTime == OriginTime;
+	});
+
+	const FAssetSamplingContext* SamplingContext = IndexingContext.SamplingContext;
+
+	if (!Entry)
+	{
+		Entry = &CachedEntries[CachedEntries.AddDefaulted()];
+
+		Entry->SampleTime = SampleTime;
+		Entry->OriginTime = OriginTime;
+
+		Entry->Pose.SetBoneContainer(&SamplingContext->BoneContainer);
+		Entry->UnusedCurve.InitFrom(SamplingContext->BoneContainer);
+
+		IAssetIndexer::FSampleInfo Origin = GetSampleInfo(OriginTime);
+		IAssetIndexer::FSampleInfo Sample = GetSampleInfoRelative(SampleTime, Origin);
+
+		float CurrentTime = Sample.ClipTime;
+		float PreviousTime = CurrentTime - SamplingContext->FiniteDelta;
+
+		FDeltaTimeRecord DeltaTimeRecord;
+		DeltaTimeRecord.Set(PreviousTime, CurrentTime - PreviousTime);
+		FAnimExtractContext ExtractionCtx(CurrentTime, true, DeltaTimeRecord, Sample.Clip->IsLoopable());
+
+		Sample.Clip->ExtractPose(ExtractionCtx, Entry->AnimPoseData);
+
+		if (IndexingContext.bMirrored)
+		{
+			FAnimationRuntime::MirrorPose(
+				Entry->AnimPoseData.GetPose(),
+				IndexingContext.Schema->MirrorDataTable->MirrorAxis,
+				SamplingContext->CompactPoseMirrorBones,
+				SamplingContext->ComponentSpaceRefRotations
+			);
+			// Note curves and attributes are not used during the indexing process and therefore don't need to be mirrored
+		}
+
+		Entry->ComponentSpacePose.InitPose(Entry->Pose);
+		Entry->RootTransform = Sample.RootTransform;
+		Entry->Clamped = Sample.bClamped;
+	}
+
+	const FBoneReference& BoneReference = IndexingContext.Schema->BoneReferences[SchemaBoneIdx];
+	FCompactPoseBoneIndex CompactBoneIndex = SamplingContext->BoneContainer.MakeCompactPoseIndex(FMeshPoseBoneIndex(BoneReference.BoneIndex));
+
+	const FTransform BoneTransform = Entry->ComponentSpacePose.GetComponentSpaceTransform(CompactBoneIndex) * MirrorTransform(Entry->RootTransform);
+	Clamped = Entry->Clamped;
+
+	return BoneTransform;
 }
 
 //////////////////////////////////////////////////////////////////////////

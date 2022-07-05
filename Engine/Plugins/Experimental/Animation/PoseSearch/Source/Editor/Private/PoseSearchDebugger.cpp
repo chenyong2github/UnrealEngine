@@ -2516,6 +2516,10 @@ void FDebuggerViewModel::UpdateFromTimeline()
 
 void FDebuggerViewModel::UpdateAsset()
 {
+	// @todo: expose those parameters
+	static float MAX_DISTANCE_RANGE = 200.f;
+	static float MAX_TIME_RANGE = 2.f;
+
 	const UPoseSearchDatabase* Database = GetPoseSearchDatabase();
 	if (!Database || !IsPlayingSelections())
 	{
@@ -2556,11 +2560,8 @@ void FDebuggerViewModel::UpdateAsset()
 	{
 		const float DT = static_cast<float>(FApp::GetDeltaTime()) * AssetPlayRate;
 		const float PlayLength = AnimAsset->GetPlayLength();
-
-		const FFloatRange DistanceRange = Database->Schema->GetHorizonRange(EPoseSearchFeatureDomain::Distance);
-		const bool bExceededDistanceHorizon = !DistanceRange.IsEmpty() && (Component->LastRootMotionDelta.GetTranslation().Size() > DistanceRange.GetUpperBoundValue());
-		const FFloatRange TimeRange = Database->Schema->GetHorizonRange(EPoseSearchFeatureDomain::Time);
-		const bool bExceededTimeHorizon = !TimeRange.IsEmpty() && ((AssetSkeleton.Time - AssetData.StartTime) > TimeRange.GetUpperBoundValue());
+		const bool bExceededDistanceHorizon = Component->LastRootMotionDelta.GetTranslation().Size() > MAX_DISTANCE_RANGE;
+		const bool bExceededTimeHorizon = (AssetSkeleton.Time - AssetData.StartTime) > MAX_TIME_RANGE;
 		const bool bExceededHorizon = bExceededDistanceHorizon && bExceededTimeHorizon;
 		if (bAssetLooping)
 		{
