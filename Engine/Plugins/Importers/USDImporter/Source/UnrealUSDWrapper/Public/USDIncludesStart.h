@@ -63,10 +63,4 @@ THIRD_PARTY_INCLUDES_START
 
 #include "pxr/pxr.h"
 
-// In USD 21.11, the UsdLuxLight schema was removed and replaced with the
-// single-apply API schema UsdLuxLightAPI.
-#if defined(PXR_VERSION) && PXR_VERSION >= 2111
-#define HAS_USDLUX_LIGHTAPI
-#endif
-
 #endif // #if USE_USD_SDK

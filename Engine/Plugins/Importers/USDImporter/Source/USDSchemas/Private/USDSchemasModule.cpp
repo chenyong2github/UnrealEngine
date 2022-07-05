@@ -35,13 +35,8 @@ public:
 		UsdGeomPointInstancerTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomPointInstancerTranslator >( TEXT("UsdGeomPointInstancer") );
 		UsdGeomXformableTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomXformableTranslator >( TEXT("UsdGeomXformable") );
 		UsdShadeMaterialTranslatorHandle = GetTranslatorRegistry().Register< FUsdShadeMaterialTranslator >( TEXT("UsdShadeMaterial") );
-
-#if defined(HAS_USDLUX_LIGHTAPI)
 		UsdLuxBoundableLightBaseTranslatorHandle = GetTranslatorRegistry().Register< FUsdLuxLightTranslator >( TEXT("UsdLuxBoundableLightBase") );
 		UsdLuxNonboundableLightBaseTranslatorHandle = GetTranslatorRegistry().Register< FUsdLuxLightTranslator >( TEXT("UsdLuxNonboundableLightBase") );
-#else
-		UsdLuxLightTranslatorHandle = GetTranslatorRegistry().Register< FUsdLuxLightTranslator >( TEXT("UsdLuxLight") );
-#endif
 
 #if WITH_EDITOR
 		// Creating skeletal meshes technically works in Standalone mode, but by checking for this we artificially block it
@@ -80,14 +75,8 @@ public:
 #endif // WITH_EDITOR
 		GetTranslatorRegistry().Unregister( UsdGeomXformableTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdShadeMaterialTranslatorHandle );
-
-#if defined(HAS_USDLUX_LIGHTAPI)
 		GetTranslatorRegistry().Unregister( UsdLuxBoundableLightBaseTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdLuxNonboundableLightBaseTranslatorHandle );
-#else
-		GetTranslatorRegistry().Unregister( UsdLuxLightTranslatorHandle );
-#endif
-
 #endif // #if USE_USD_SDK
 	}
 
@@ -112,13 +101,8 @@ protected:
 	FRegisteredSchemaTranslatorHandle UsdGeomXformableTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdShadeMaterialTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdGroomTranslatorHandle;
-
-#if defined(HAS_USDLUX_LIGHTAPI)
 	FRegisteredSchemaTranslatorHandle UsdLuxBoundableLightBaseTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdLuxNonboundableLightBaseTranslatorHandle;
-#else
-	FRegisteredSchemaTranslatorHandle UsdLuxLightTranslatorHandle;
-#endif
 
 	// Custom schemas
 	FRegisteredSchemaTranslatorHandle MdlUsdShadeMaterialTranslatorHandle;

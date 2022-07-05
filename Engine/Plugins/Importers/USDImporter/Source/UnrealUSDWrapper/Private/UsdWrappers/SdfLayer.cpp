@@ -272,42 +272,6 @@ namespace UE
 	}
 
 	template<typename PtrType>
-	TSet<FString> FSdfLayerBase<PtrType>::GetExternalReferences() const
-	{
-		TSet<FString> Result;
-#if USE_USD_SDK
-		if ( const PtrType& Ptr = Impl->GetInner() )
-		{
-			FScopedUsdAllocs UsdAllocs;
-			std::set<std::string> ExternalReferences = Ptr->GetExternalReferences();
-
-			Result.Reserve( ExternalReferences.size() );
-
-			for ( const std::string& Reference : ExternalReferences )
-			{
-				Result.Add( ANSI_TO_TCHAR( Reference.c_str() ) );
-			}
-		}
-#endif // #if USE_USD_SDK
-		return Result;
-	}
-
-	template<typename PtrType>
-	bool FSdfLayerBase<PtrType>::UpdateExternalReference( const TCHAR* OldReferencePath, const TCHAR* NewReferencePath )
-	{
-#if USE_USD_SDK
-		if ( const PtrType& Ptr = Impl->GetInner() )
-		{
-			FScopedUsdAllocs UsdAllocs;
-			return Ptr->UpdateExternalReference( TCHAR_TO_ANSI( OldReferencePath ), TCHAR_TO_ANSI( NewReferencePath ) );
-		}
-#endif // #if USE_USD_SDK
-
-		return false;
-	}
-
-#if defined(PXR_VERSION) && PXR_VERSION >= 2111
-	template<typename PtrType>
 	TSet<FString> FSdfLayerBase<PtrType>::GetCompositionAssetDependencies() const
 	{
 		TSet<FString> Results;
@@ -343,7 +307,6 @@ namespace UE
 #endif // #if USE_USD_SDK
 		return false;
 	}
-#endif // #if defined(PXR_VERSION) && PXR_VERSION >= 2111
 
 	template<typename PtrType>
 	FString FSdfLayerBase<PtrType>::GetRealPath() const

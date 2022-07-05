@@ -141,11 +141,7 @@ namespace UE
 				// Don't normalize an empty path as the result will be "."
 				if ( AssetIdentifier.size() > 0 )
 				{
-#if AR_VERSION >= 2
 					AssetIdentifier = Resolver.CreateIdentifier( AssetIdentifier );
-#else
-					AssetIdentifier = Resolver.ComputeNormalizedPath( AssetIdentifier );
-#endif // #if AR_VERSION >= 2
 				}
 
 				FString ResolvedAssetPath = UsdToUnreal::ConvertString( AssetIdentifier );
@@ -187,11 +183,7 @@ namespace UE
 			{
 				pxr::ArResolver& Resolver = pxr::ArGetResolver();
 				std::shared_ptr<pxr::ArAsset> Asset = Resolver.OpenAsset(
-#if AR_VERSION >= 2
 					pxr::ArResolvedPath( UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() ) );
-#else
-					UnrealToUsd::ConvertString( *ResolvedTexturePath ).Get() );
-#endif // #if AR_VERSION >= 2
 
 				TUsdStore<std::shared_ptr<const char>> Buffer;
 
@@ -2207,11 +2199,7 @@ FString UsdUtils::GetResolvedTexturePath( const pxr::UsdAttribute& TextureAssetP
 	// Don't normalize an empty path as the result will be "."
 	if ( AssetIdentifier.size() > 0 )
 	{
-#if AR_VERSION >= 2
 		AssetIdentifier = Resolver.CreateIdentifier( AssetIdentifier );
-#else
-		AssetIdentifier = Resolver.ComputeNormalizedPath( AssetIdentifier );
-#endif // #if AR_VERSION >= 2
 	}
 
 	FString ResolvedTexturePath = UsdToUnreal::ConvertString( AssetIdentifier );

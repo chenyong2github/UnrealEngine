@@ -29,11 +29,7 @@
 	#include "pxr/usd/usdLux/diskLight.h"
 	#include "pxr/usd/usdLux/distantLight.h"
 	#include "pxr/usd/usdLux/domeLight.h"
-#if defined(HAS_USDLUX_LIGHTAPI)
 	#include "pxr/usd/usdLux/lightAPI.h"
-#else
-	#include "pxr/usd/usdLux/light.h"
-#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 	#include "pxr/usd/usdLux/rectLight.h"
 	#include "pxr/usd/usdLux/shapingAPI.h"
 	#include "pxr/usd/usdLux/sphereLight.h"
@@ -88,17 +84,10 @@ namespace LightConversionImpl
 	}
 }
 
-#if defined(HAS_USDLUX_LIGHTAPI)
 bool UsdToUnreal::ConvertLight( const pxr::UsdLuxLightAPI& LightAPI, ULightComponentBase& LightComponentBase, double TimeCode )
 {
 	return UsdToUnreal::ConvertLight( LightAPI.GetPrim(), LightComponentBase, TimeCode );
 }
-#else
-bool UsdToUnreal::ConvertLight( const pxr::UsdLuxLight& Light, ULightComponentBase& LightComponentBase, double TimeCode )
-{
-	return UsdToUnreal::ConvertLight( Light.GetPrim(), LightComponentBase, TimeCode );
-}
-#endif // #if defined(HAS_USDLUX_LIGHTAPI)
 
 bool UsdToUnreal::ConvertDistantLight( const pxr::UsdLuxDistantLight& DistantLight, UDirectionalLightComponent& LightComponent, double TimeCode )
 {
@@ -134,12 +123,7 @@ bool UsdToUnreal::ConvertLight( const pxr::UsdPrim& Prim, ULightComponentBase& L
 {
 	FScopedUsdAllocs Allocs;
 
-#if defined(HAS_USDLUX_LIGHTAPI)
 	const pxr::UsdLuxLightAPI LightAPI( Prim );
-#else
-	const pxr::UsdLuxLight LightAPI( Prim );
-#endif // #if defined(HAS_USDLUX_LIGHTAPI)
-
 	if ( !LightAPI )
 	{
 		return false;
@@ -420,12 +404,7 @@ bool UnrealToUsd::ConvertLightComponent( const ULightComponentBase& LightCompone
 		return false;
 	}
 
-#if defined(HAS_USDLUX_LIGHTAPI)
 	pxr::UsdLuxLightAPI LightAPI( Prim );
-#else
-	pxr::UsdLuxLight LightAPI( Prim );
-#endif // #if defined(HAS_USDLUX_LIGHTAPI)
-
 	if ( !LightAPI )
 	{
 		return false;
@@ -500,12 +479,7 @@ bool UnrealToUsd::ConvertRectLightComponent( const URectLightComponent& LightCom
 		return false;
 	}
 
-#if defined(HAS_USDLUX_LIGHTAPI)
 	pxr::UsdLuxLightAPI LightAPI( Prim );
-#else
-	pxr::UsdLuxLight LightAPI( Prim );
-#endif // #if defined(HAS_USDLUX_LIGHTAPI)
-
 	if ( !LightAPI )
 	{
 		return false;
