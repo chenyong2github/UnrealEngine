@@ -12,6 +12,7 @@
 #include "Interfaces/Interface_AsyncCompilation.h"
 #include "ReferenceSkeleton.h"
 #include "PerPlatformProperties.h"
+#include "SkeletalMeshTypes.h"
 #include "SkinnedAsset.generated.h"
 
 class USkeleton;
