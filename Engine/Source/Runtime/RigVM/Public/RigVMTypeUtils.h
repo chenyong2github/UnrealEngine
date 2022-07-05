@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMCore/RigVMTypeIndex.h"
 #include "RigVMCore/RigVMUnknownType.h"
 #include "UObject/Interface.h"
 
@@ -48,23 +49,23 @@ namespace RigVMTypeUtils
 	class RIGVM_API TypeIndex
 	{
 	public:
-		static inline int32 Execute = INDEX_NONE;	
-		static inline int32 Bool = INDEX_NONE;	
-		static inline int32 Float = INDEX_NONE;	
-		static inline int32 Double = INDEX_NONE;	
-		static inline int32 Int32 = INDEX_NONE;	
-		static inline int32 UInt8 = INDEX_NONE;	
-		static inline int32 FName = INDEX_NONE;	
-		static inline int32 FString = INDEX_NONE;
-		static inline int32 WildCard = INDEX_NONE;	
-		static inline int32 BoolArray = INDEX_NONE;	
-		static inline int32 FloatArray = INDEX_NONE;	
-		static inline int32 DoubleArray = INDEX_NONE;	
-		static inline int32 Int32Array = INDEX_NONE;	
-		static inline int32 UInt8Array = INDEX_NONE;	
-		static inline int32 FNameArray = INDEX_NONE;	
-		static inline int32 FStringArray = INDEX_NONE;	
-		static inline int32 WildCardArray = INDEX_NONE;	
+		static inline TRigVMTypeIndex Execute = INDEX_NONE;	
+		static inline TRigVMTypeIndex Bool = INDEX_NONE;	
+		static inline TRigVMTypeIndex Float = INDEX_NONE;	
+		static inline TRigVMTypeIndex Double = INDEX_NONE;	
+		static inline TRigVMTypeIndex Int32 = INDEX_NONE;	
+		static inline TRigVMTypeIndex UInt8 = INDEX_NONE;	
+		static inline TRigVMTypeIndex FName = INDEX_NONE;	
+		static inline TRigVMTypeIndex FString = INDEX_NONE;
+		static inline TRigVMTypeIndex WildCard = INDEX_NONE;	
+		static inline TRigVMTypeIndex BoolArray = INDEX_NONE;	
+		static inline TRigVMTypeIndex FloatArray = INDEX_NONE;	
+		static inline TRigVMTypeIndex DoubleArray = INDEX_NONE;	
+		static inline TRigVMTypeIndex Int32Array = INDEX_NONE;	
+		static inline TRigVMTypeIndex UInt8Array = INDEX_NONE;	
+		static inline TRigVMTypeIndex FNameArray = INDEX_NONE;	
+		static inline TRigVMTypeIndex FStringArray = INDEX_NONE;	
+		static inline TRigVMTypeIndex WildCardArray = INDEX_NONE;	
 	};
 
 	// Returns true if the type specified is an array

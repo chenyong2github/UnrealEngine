@@ -243,7 +243,7 @@ public:
 	FRigVMTemplateArgumentType GetTemplateArgumentType() const;
 
 	// Returns the argument type index this pin would represent within a template
-	int32 GetTypeIndex() const;
+	TRigVMTypeIndex GetTypeIndex() const;
 
 	// Returns true if the C++ data type is FString or FName
 	UFUNCTION(BlueprintCallable, Category = RigVMPin)
@@ -513,7 +513,7 @@ private:
 	FString BoundVariablePath_DEPRECATED;
 
 	mutable FString LastKnownCPPType;
-	mutable int32 LastKnownTypeIndex;
+	mutable TRigVMTypeIndex LastKnownTypeIndex;
 
 	static const FString OrphanPinPrefix;
 

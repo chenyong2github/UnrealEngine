@@ -78,6 +78,7 @@ URigVM::URigVM()
 #endif
     , FunctionNamesPtr(&FunctionNamesStorage)
     , FunctionsPtr(&FunctionsStorage)
+    , FactoriesPtr(&FactoriesStorage)
 #if WITH_EDITOR
 	, FirstEntryEventInQueue(NAME_None)
 #endif
@@ -241,6 +242,7 @@ void URigVM::PostLoad()
 	{
 		Instructions.Reset();
 		FunctionsStorage.Reset();
+		FactoriesStorage.Reset();
 		ParametersNameMap.Reset();
 
 		for (int32 Index = 0; Index < Parameters.Num(); Index++)
@@ -542,6 +544,7 @@ void URigVM::Reset(bool IsIgnoringArchetypeRef)
 	{
 		FunctionNamesStorage.Reset();
 		FunctionsStorage.Reset();
+		FactoriesStorage.Reset();
 		ExternalPropertyPathDescriptions.Reset();
 		ExternalPropertyPaths.Reset();
 		ByteCodeStorage.Reset();
@@ -555,6 +558,7 @@ void URigVM::Reset(bool IsIgnoringArchetypeRef)
 	{
 		FunctionNamesPtr = &FunctionNamesStorage;
 		FunctionsPtr = &FunctionsStorage;
+		FactoriesPtr = &FactoriesStorage;
 		ByteCodePtr = &ByteCodeStorage;
 	}
 
@@ -568,6 +572,7 @@ void URigVM::Empty()
 {
 	FunctionNamesStorage.Empty();
 	FunctionsStorage.Empty();
+	FactoriesStorage.Empty();
 	ExternalPropertyPathDescriptions.Empty();
 	ExternalPropertyPaths.Empty();
 	ByteCodeStorage.Empty();
@@ -652,6 +657,16 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 		FunctionsPtr = InVM->FunctionsPtr;
 	}
 	
+	if(InVM->FactoriesPtr == &InVM->FactoriesStorage && !bReferenceByteCode)
+	{
+		FactoriesStorage = InVM->FactoriesStorage;
+		FactoriesPtr = &FactoriesStorage;
+	}
+	else
+	{
+		FactoriesPtr = InVM->FactoriesPtr;
+	}
+
 	if(InVM->ByteCodePtr == &InVM->ByteCodeStorage && !bReferenceByteCode)
 	{
 		ByteCodeStorage = InVM->ByteCodeStorage;
@@ -677,20 +692,27 @@ void URigVM::CopyFrom(URigVM* InVM, bool bDeferCopy, bool bReferenceLiteralMemor
 int32 URigVM::AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName)
 {
 	check(InRigVMStruct);
-	FString FunctionKey = FString::Printf(TEXT("F%s::%s"), *InRigVMStruct->GetName(), *InMethodName.ToString());
-	int32 FunctionIndex = GetFunctionNames().Find(*FunctionKey);
+	const FString FunctionKey = FString::Printf(TEXT("F%s::%s"), *InRigVMStruct->GetName(), *InMethodName.ToString());
+	return AddRigVMFunction(FunctionKey);
+}
+
+int32 URigVM::AddRigVMFunction(const FString& InFunctionName)
+{
+	const FName FunctionName = *InFunctionName;
+	const int32 FunctionIndex = GetFunctionNames().Find(FunctionName);
 	if (FunctionIndex != INDEX_NONE)
 	{
 		return FunctionIndex;
 	}
 
-	const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*FunctionKey);
+	const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*InFunctionName);
 	if (Function == nullptr)
 	{
 		return INDEX_NONE;
 	}
 
-	GetFunctionNames().Add(*FunctionKey);
+	GetFunctionNames().Add(FunctionName);
+	GetFactories().Add(Function->Factory);
 	return GetFunctions().Add(Function->FunctionPtr);
 }
 
@@ -958,13 +980,17 @@ void URigVM::ResolveFunctionsIfRequired()
 	{
 		GetFunctions().Reset();
 		GetFunctions().SetNumZeroed(GetFunctionNames().Num());
+		GetFactories().Reset();
+		GetFactories().SetNumZeroed(GetFunctionNames().Num());
 
 		for (int32 FunctionIndex = 0; FunctionIndex < GetFunctionNames().Num(); FunctionIndex++)
 		{
 			GetFunctions()[FunctionIndex] = nullptr;
+			GetFactories()[FunctionIndex] = nullptr;
 			if(const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(*GetFunctionNames()[FunctionIndex].ToString()))
 			{
 				GetFunctions()[FunctionIndex] = Function->FunctionPtr;
+				GetFactories()[FunctionIndex] = Function->Factory;
 			}
 			ensureMsgf(GetFunctions()[FunctionIndex], TEXT("Function %s is not valid"), *GetFunctionNames()[FunctionIndex].ToString());
 		}
@@ -1468,6 +1494,7 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 	
 	FRigVMByteCode& ByteCode = GetByteCode();
 	TArray<FRigVMFunctionPtr>& Functions = GetFunctions();
+	TArray<const FRigVMDispatchFactory*>& Factories = GetFactories();
 
 #if WITH_EDITOR
 	TArray<FName>& FunctionNames = GetFunctionNames();
@@ -1557,6 +1584,7 @@ bool URigVM::Initialize(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void
 #if WITH_EDITOR
 				Context.PublicData.FunctionName = FunctionNames[Op.FunctionIndex];
 #endif
+				Context.Factory = Factories[Op.FunctionIndex];
 
 				// find out the largest slice count
 				int32 MaxSliceCount = 1;
@@ -1667,6 +1695,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 	
 	FRigVMByteCode& ByteCode = GetByteCode();
 	TArray<FRigVMFunctionPtr>& Functions = GetFunctions();
+	TArray<const FRigVMDispatchFactory*>& Factories = GetFactories();
 
 #if WITH_EDITOR
 	TArray<FName>& FunctionNames = GetFunctionNames();
@@ -1861,6 +1890,7 @@ bool URigVM::Execute(TArrayView<URigVMMemoryStorage*> Memory, TArrayView<void*> 
 #if WITH_EDITOR
 				Context.PublicData.FunctionName = FunctionNames[Op.FunctionIndex];
 #endif
+				Context.Factory = Factories[Op.FunctionIndex];
 				(*Functions[Op.FunctionIndex])(Context, Handles);
 
 #if WITH_EDITOR

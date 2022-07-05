@@ -13,6 +13,7 @@ typedef TArrayView<void*> FRigVMUserDataArray;
 typedef void (*FRigVMFunctionPtr)(FRigVMExtendedExecuteContext& RigVMExecuteContext, FRigVMMemoryHandleArray RigVMMemoryHandles);
 
 struct FRigVMTemplate;
+struct FRigVMDispatchFactory;
 
 /**
  * The Pin Direction is used to differentiate different kinds of 
@@ -36,6 +37,8 @@ struct RIGVM_API FRigVMFunctionArgument
 {
 	const TCHAR* Name;
 	const TCHAR* Type;
+	TSharedPtr<FString> NameString;
+	TSharedPtr<FString> TypeString;
 
 	FRigVMFunctionArgument()
 		: Name(nullptr)
@@ -48,6 +51,16 @@ struct RIGVM_API FRigVMFunctionArgument
 		, Type(InType)
 	{
 	}
+
+	FRigVMFunctionArgument(const FString& InName, const FString& InType)
+		: Name(nullptr)
+		, Type(nullptr)
+	{
+		NameString = MakeShareable(new FString(InName));
+		TypeString = MakeShareable(new FString(InType));
+		Name = NameString->operator*();
+		Type = TypeString->operator*();
+	}
 };
 
 /**
@@ -56,8 +69,9 @@ struct RIGVM_API FRigVMFunctionArgument
  */
 struct RIGVM_API FRigVMFunction
 {
-	const TCHAR* Name;
+	FString Name;
 	UScriptStruct* Struct;
+	FRigVMDispatchFactory* Factory;
 	FRigVMFunctionPtr FunctionPtr;
 	int32 Index;
 	int32 TemplateIndex;
@@ -65,8 +79,9 @@ struct RIGVM_API FRigVMFunction
 	mutable TArray<int32> ArgumentTypeIndices;
 
 	FRigVMFunction()
-		: Name(nullptr)
+		: Name()
 		, Struct(nullptr)
+		, Factory(nullptr)
 		, FunctionPtr(nullptr)
 		, Index(INDEX_NONE)
 		, TemplateIndex(INDEX_NONE)
@@ -78,6 +93,7 @@ struct RIGVM_API FRigVMFunction
 	FRigVMFunction(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, int32 InIndex = INDEX_NONE, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>())
 		: Name(InName)
 		, Struct(InStruct)
+		, Factory(nullptr)
 		, FunctionPtr(InFunctionPtr)
 		, Index(InIndex)
 		, TemplateIndex(INDEX_NONE)
@@ -85,7 +101,18 @@ struct RIGVM_API FRigVMFunction
 	{
 	}
 
-	FORCEINLINE bool IsValid() const { return Name != nullptr && FunctionPtr != nullptr; }
+	FRigVMFunction(const FString& InName, FRigVMFunctionPtr InFunctionPtr, FRigVMDispatchFactory* InFactory, int32 InIndex = INDEX_NONE, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>())
+	: Name(InName)
+	, Struct(nullptr)
+	, Factory(InFactory)
+	, FunctionPtr(InFunctionPtr)
+	, Index(InIndex)
+	, TemplateIndex(INDEX_NONE)
+	, Arguments(InArguments)
+	{
+	}
+
+	FORCEINLINE bool IsValid() const { return !Name.IsEmpty() && FunctionPtr != nullptr; }
 	FString GetName() const;
 	FName GetMethodName() const;
 	FString GetModuleName() const;

@@ -616,7 +616,7 @@ FRigVMTemplateArgumentType URigVMPin::GetTemplateArgumentType() const
 	return FRigVMRegistry::Get().GetType(GetTypeIndex());
 }
 
-int32 URigVMPin::GetTypeIndex() const
+TRigVMTypeIndex URigVMPin::GetTypeIndex() const
 {
 	if(LastKnownCPPType != GetCPPType())
 	{

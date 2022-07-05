@@ -49,13 +49,13 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(FProperty* InProperty)
 	}
 	Type.CPPType = *RigVMTypeUtils::PostProcessCPPType(Type.CPPType.ToString(), Type.CPPTypeObject);
 
-	const int32 TypeIndex = FRigVMRegistry::Get().FindOrAddType(Type); 
+	const TRigVMTypeIndex TypeIndex = FRigVMRegistry::Get().FindOrAddType(Type); 
 
 	TypeIndices.Add(TypeIndex);
 	TypeToPermutations.Add(TypeIndex, {0});
 }
 
-FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, int32 InTypeIndex)
+FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, TRigVMTypeIndex InTypeIndex)
 : Index(INDEX_NONE)
 , Name(InName)
 , Direction(InDirection)
@@ -64,7 +64,7 @@ FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDir
 	UpdateTypeToPermutations();
 }
 
-FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<int32>& InTypeIndices)
+FRigVMTemplateArgument::FRigVMTemplateArgument(const FName& InName, ERigVMPinDirection InDirection, const TArray<TRigVMTypeIndex>& InTypeIndices)
 : Index(INDEX_NONE)
 , Name(InName)
 , Direction(InDirection)
@@ -104,7 +104,7 @@ void FRigVMTemplateArgument::UpdateTypeToPermutations()
 	}
 }
 
-bool FRigVMTemplateArgument::SupportsTypeIndex(int32 InTypeIndex, int32* OutTypeIndex) const
+bool FRigVMTemplateArgument::SupportsTypeIndex(TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex) const
 {
 	if (const TArray<int32>* Permutations = TypeToPermutations.Find(InTypeIndex))
 	{
@@ -116,8 +116,8 @@ bool FRigVMTemplateArgument::SupportsTypeIndex(int32 InTypeIndex, int32* OutType
 	}
 
 	// Try to find compatible type
-	const TArray<int32>& CompatibleTypes = FRigVMRegistry::Get().GetCompatibleTypes(InTypeIndex);
-	for (const int32& CompatibleTypeIndex : CompatibleTypes)
+	const TArray<TRigVMTypeIndex>& CompatibleTypes = FRigVMRegistry::Get().GetCompatibleTypes(InTypeIndex);
+	for (const TRigVMTypeIndex& CompatibleTypeIndex : CompatibleTypes)
 	{
 		if (const TArray<int32>* Permutations = TypeToPermutations.Find(CompatibleTypeIndex))
 		{
@@ -143,10 +143,10 @@ bool FRigVMTemplateArgument::IsSingleton(const TArray<int32>& InPermutationIndic
 		return false;
 	}
 
-	const int32 TypeIndexToCheck = TypeIndices[InPermutationIndices[0]];
+	const TRigVMTypeIndex TRigVMTypeIndex = TypeIndices[InPermutationIndices[0]];
 	for (int32 PermutationIndex = 1; PermutationIndex < InPermutationIndices.Num(); PermutationIndex++)
 	{
-		if (TypeIndices[InPermutationIndices[PermutationIndex]] != TypeIndexToCheck)
+		if (TypeIndices[InPermutationIndices[PermutationIndex]] != TRigVMTypeIndex)
 		{
 			return false;
 		}
@@ -194,17 +194,17 @@ FRigVMTemplateArgument::EArrayType FRigVMTemplateArgument::GetArrayType() const
 	return EArrayType_Invalid;
 }
 
-const TArray<int32>& FRigVMTemplateArgument::GetTypeIndices() const
+const TArray<TRigVMTypeIndex>& FRigVMTemplateArgument::GetTypeIndices() const
 {
 	return TypeIndices;
 }
 
-TArray<int32> FRigVMTemplateArgument::GetSupportedTypeIndices(const TArray<int32>& InPermutationIndices) const
+TArray<TRigVMTypeIndex> FRigVMTemplateArgument::GetSupportedTypeIndices(const TArray<int32>& InPermutationIndices) const
 {
-	TArray<int32> SupportedTypes;
+	TArray<TRigVMTypeIndex> SupportedTypes;
 	if(InPermutationIndices.IsEmpty())
 	{
-		for (const int32& TypeIndex : TypeIndices)
+		for (const TRigVMTypeIndex& TypeIndex : TypeIndices)
 		{
 			SupportedTypes.AddUnique(TypeIndex);
 		}
@@ -226,7 +226,7 @@ TArray<FString> FRigVMTemplateArgument::GetSupportedTypeStrings(const TArray<int
 	TArray<FString> SupportedTypes;
 	if(InPermutationIndices.IsEmpty())
 	{
-		for (const int32& TypeIndex : TypeIndices)
+		for (const TRigVMTypeIndex& TypeIndex : TypeIndices)
 		{
 			const FString TypeString = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
 			SupportedTypes.AddUnique(TypeString);
@@ -236,7 +236,7 @@ TArray<FString> FRigVMTemplateArgument::GetSupportedTypeStrings(const TArray<int
 	{
 		for(const int32 PermutationIndex : InPermutationIndices)
 		{
-			const int32 TypeIndex = TypeIndices[PermutationIndex];
+			const TRigVMTypeIndex TypeIndex = TypeIndices[PermutationIndex];
 			const FString TypeString = FRigVMRegistry::Get().GetType(TypeIndex).CPPType.ToString();
 			SupportedTypes.AddUnique(TypeString);
 		}
@@ -271,7 +271,7 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 			FRigVMTemplateArgument Argument(*It);
 			Argument.Index = Arguments.Num();
 
-			if(IsValidArgumentForTemplate(Argument))
+			if(IsValidArgumentForTemplate(Argument) && Argument.GetDirection() != ERigVMPinDirection::Hidden)
 			{
 				Arguments.Add(Argument);
 			}
@@ -284,7 +284,10 @@ FRigVMTemplate::FRigVMTemplate(UScriptStruct* InStruct, const FString& InTemplat
 	{
 		if(const FRigVMTemplateArgument* Argument = FindArgument(It->GetFName()))
 		{
-			ArgumentNotations.Add(GetArgumentNotation(*Argument));
+			if(Argument->GetDirection() != ERigVMPinDirection::Hidden)
+			{
+				ArgumentNotations.Add(GetArgumentNotation(*Argument));
+			}
 		}
 	}
 
@@ -309,7 +312,10 @@ FRigVMTemplate::FRigVMTemplate(const FName& InTemplateName, const TArray<FRigVMT
 		if(IsValidArgumentForTemplate(Argument))
 		{
 			Arguments.Add(Argument);
-			ArgumentNotations.Add(GetArgumentNotation(Argument));
+			if(Argument.GetDirection() != ERigVMPinDirection::Hidden)
+			{
+				ArgumentNotations.Add(GetArgumentNotation(Argument));
+			}
 		}
 	}
 
@@ -321,12 +327,40 @@ FRigVMTemplate::FRigVMTemplate(const FName& InTemplateName, const TArray<FRigVMT
 	}
 }
 
+FLinearColor FRigVMTemplate::GetColorFromMetadata(FString InMetadata)
+{
+	FLinearColor Color = FLinearColor::Black;
+
+	FString Metadata = InMetadata;
+	Metadata.TrimStartAndEndInline();
+	static const FString SplitString(TEXT(" "));
+	FString Red, Green, Blue, GreenAndBlue;
+	if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
+	{
+		Red.TrimEndInline();
+		GreenAndBlue.TrimStartInline();
+		if (GreenAndBlue.Split(SplitString, &Green, &Blue))
+		{
+			Green.TrimEndInline();
+			Blue.TrimStartInline();
+
+			const float RedValue = FCString::Atof(*Red);
+			const float GreenValue = FCString::Atof(*Green);
+			const float BlueValue = FCString::Atof(*Blue);
+			Color = FLinearColor(RedValue, GreenValue, BlueValue);
+		}
+	}
+
+	return Color;
+}
+
 bool FRigVMTemplate::IsValidArgumentForTemplate(const FRigVMTemplateArgument& InArgument)
 {
 	static const TArray<ERigVMPinDirection> ValidDirections = {
 		ERigVMPinDirection::Input,
 		ERigVMPinDirection::Output,
 		ERigVMPinDirection::IO,
+		ERigVMPinDirection::Hidden,
 		ERigVMPinDirection::Visible
 	};
 
@@ -400,6 +434,39 @@ TArray<UStruct*> FRigVMTemplate::GetSuperStructs(UStruct* InStruct, bool bInclud
 	return SuperStructs;
 }
 
+FRigVMTemplate::FTypeMap FRigVMTemplate::GetArgumentTypesFromString(const FString& InTypeString) const
+{
+	FTypeMap Types;
+	if(!InTypeString.IsEmpty())
+	{
+		const FRigVMRegistry& Registry = FRigVMRegistry::Get();
+
+		FString Left, Right = InTypeString;
+		while(!Right.IsEmpty())
+		{
+			if(!Right.Split(TEXT(","), &Left, &Right))
+			{
+				Left = Right;
+				Right.Reset();
+			}
+
+			FString ArgumentName, TypeName;
+			if(Left.Split(TEXT(":"), &ArgumentName, &TypeName))
+			{
+				if(const FRigVMTemplateArgument* Argument = FindArgument(*ArgumentName))
+				{
+					const TRigVMTypeIndex TypeIndex = Registry.GetTypeIndexFromCPPType(TypeName);
+					if(TypeIndex != INDEX_NONE)
+					{
+						Types.Add(Argument->GetName(), TypeIndex);
+					}
+				}
+			}
+		}
+	}
+	return Types;
+}
+
 bool FRigVMTemplate::IsValid() const
 {
 	return !Notation.IsNone();
@@ -428,37 +495,15 @@ FName FRigVMTemplate::GetName() const
 
 FLinearColor FRigVMTemplate::GetColor(const TArray<int32>& InPermutationIndices) const
 {
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		return Factory->GetNodeColor();
+	}
+
 	bool bFirstColorFound = false;
 	FLinearColor ResolvedColor = FLinearColor::White;
 
-	auto GetColorFromMetadata = [] (FString InMetadata) -> FLinearColor
-	{
-		FLinearColor Color = FLinearColor::Black;
-
-		FString Metadata = InMetadata;
-		Metadata.TrimStartAndEndInline();
-		FString SplitString(TEXT(" "));
-		FString Red, Green, Blue, GreenAndBlue;
-		if (Metadata.Split(SplitString, &Red, &GreenAndBlue))
-		{
-			Red.TrimEndInline();
-			GreenAndBlue.TrimStartInline();
-			if (GreenAndBlue.Split(SplitString, &Green, &Blue))
-			{
-				Green.TrimEndInline();
-				Blue.TrimStartInline();
-
-				float RedValue = FCString::Atof(*Red);
-				float GreenValue = FCString::Atof(*Green);
-				float BlueValue = FCString::Atof(*Blue);
-				Color = FLinearColor(RedValue, GreenValue, BlueValue);
-			}
-		}
-
-		return Color;
-	};
-
-	auto VisitPermutation = [&bFirstColorFound, &ResolvedColor, GetColorFromMetadata, this](int32 InPermutationIndex) -> bool
+	auto VisitPermutation = [&bFirstColorFound, &ResolvedColor, this](int32 InPermutationIndex) -> bool
 	{
 		static const FName NodeColorName = TEXT("NodeColor");
 		FString NodeColorMetadata;
@@ -516,6 +561,16 @@ FLinearColor FRigVMTemplate::GetColor(const TArray<int32>& InPermutationIndices)
 
 FText FRigVMTemplate::GetTooltipText(const TArray<int32>& InPermutationIndices) const
 {
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		FTypeMap Types;
+		if(InPermutationIndices.Num() == 1)
+		{
+			Types = GetTypesForPermutation(InPermutationIndices[0]);
+		}
+		return Factory->GetNodeTooltip(Types);
+	}
+
 	FText ResolvedTooltipText;
 
 	auto VisitPermutation = [&ResolvedTooltipText, this](int32 InPermutationIndex) -> bool
@@ -575,6 +630,11 @@ FText FRigVMTemplate::GetTooltipText(const TArray<int32>& InPermutationIndices) 
 
 FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, const TArray<int32>& InPermutationIndices) const
 {
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		return Factory->GetDisplayNameForArgument(InArgumentName);
+	}
+
 	if(const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
 	{
 		FText ResolvedDisplayName;
@@ -635,6 +695,11 @@ FText FRigVMTemplate::GetDisplayNameForArgument(const FName& InArgumentName, con
 
 FString FRigVMTemplate::GetArgumentMetaData(const FName& InArgumentName, const FName& InMetaDataKey, const TArray<int32>& InPermutationIndices) const
 {
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		return Factory->GetArgumentMetaData(InArgumentName, InMetaDataKey);
+	}
+
 	if(const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
 	{
 		FString ResolvedMetaData;
@@ -733,9 +798,9 @@ bool FRigVMTemplate::Merge(const FRigVMTemplate& InOther)
 		{
 			// find the previously defined permutation.
 			UE_LOG(LogRigVM, Display, TEXT("RigVMFunction '%s' cannot be merged into the '%s' template. It collides with '%s'."),
-				InOther.GetPermutation(0)->Name,
+				*InOther.GetPermutation(0)->Name,
 				*GetNotation().ToString(),
-				GetPermutation(PermutationIndex)->Name);
+				*GetPermutation(PermutationIndex)->Name);
 			return false;
 		}
 	}
@@ -753,7 +818,7 @@ bool FRigVMTemplate::Merge(const FRigVMTemplate& InOther)
 
 		// Add Other argument information into the TypeToPermutations map
 		{
-			const int32 OtherTypeIndex = InOther.Arguments[ArgumentIndex].TypeIndices[0];
+			const TRigVMTypeIndex OtherTypeIndex = InOther.Arguments[ArgumentIndex].TypeIndices[0];
 			const int32 NewPermutationIndex = NewArgs[ArgumentIndex].TypeIndices.Num();
 			if (TArray<int32>* ArgTypePermutations = NewArgs[ArgumentIndex].TypeToPermutations.Find(OtherTypeIndex))
 			{
@@ -781,7 +846,7 @@ const FRigVMTemplateArgument* FRigVMTemplate::FindArgument(const FName& InArgume
 	});
 }
 
-bool FRigVMTemplate::ArgumentSupportsTypeIndex(const FName& InArgumentName, int32 InTypeIndex, int32* OutTypeIndex) const
+bool FRigVMTemplate::ArgumentSupportsTypeIndex(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex) const
 {
 	if (const FRigVMTemplateArgument* Argument = FindArgument(InArgumentName))
 	{
@@ -801,6 +866,57 @@ const FRigVMFunction* FRigVMTemplate::GetPermutation(int32 InIndex) const
 	return nullptr;
 }
 
+const FRigVMFunction* FRigVMTemplate::GetOrCreatePermutation(int32 InIndex)
+{
+	if(const FRigVMFunction* Function = GetPermutation(InIndex))
+	{
+		return Function;
+	}
+	
+	if(Permutations[InIndex] == INDEX_NONE && UsesDispatch())
+	{
+		FRigVMRegistry& Registry = FRigVMRegistry::Get();
+		
+		FTypeMap Types;
+		for(const FRigVMTemplateArgument& Argument : Arguments)
+		{
+			Types.Add(Argument.GetName(), Argument.TypeIndices[InIndex]);
+		}
+		
+		if(const FRigVMFunctionPtr DispatchFunction = Delegates.RequestDispatchFunctionDelegate.Execute(this, Types))
+		{
+			FRigVMDispatchFactory* Factory = Delegates.GetDispatchFactoryDelegate.Execute();
+			check(Factory);
+
+			TArray<FRigVMFunctionArgument> FunctionArguments;
+			for(const FRigVMTemplateArgument& Argument : Arguments)
+			{
+				const FRigVMTemplateArgumentType& Type = Registry.GetType(Argument.TypeIndices[InIndex]);
+				FunctionArguments.Add(FRigVMFunctionArgument(Argument.Name.ToString(), Type.CPPType.ToString()));
+			}
+			
+			static constexpr TCHAR Format[] = TEXT("%s::%s");
+			const FString PermutationName = Factory->GetPermutationName(Types);
+			const int32 FunctionIndex = Permutations[InIndex] = Registry.Functions.Num();
+			
+			Registry.Functions.AddElement(
+				FRigVMFunction(
+					PermutationName,
+					DispatchFunction,
+					Factory,
+					FunctionIndex,
+					FunctionArguments
+				)
+			);
+			Registry.FunctionNameToIndex.Add(*PermutationName, FunctionIndex);
+
+			return &Registry.Functions[FunctionIndex];
+		}
+	}
+	
+	return nullptr;
+}
+
 bool FRigVMTemplate::ContainsPermutation(const FRigVMFunction* InPermutation) const
 {
 	return FindPermutation(InPermutation) != INDEX_NONE;
@@ -810,6 +926,17 @@ int32 FRigVMTemplate::FindPermutation(const FRigVMFunction* InPermutation) const
 {
 	check(InPermutation);
 	return Permutations.Find(InPermutation->Index);
+}
+
+int32 FRigVMTemplate::FindPermutation(const FTypeMap& InTypes) const
+{
+	FTypeMap Types = InTypes;
+	int32 PermutationIndex = INDEX_NONE;
+	if(FullyResolve(Types, PermutationIndex))
+	{
+		return PermutationIndex;
+	}
+	return INDEX_NONE;
 }
 
 bool FRigVMTemplate::FullyResolve(FRigVMTemplate::FTypeMap& InOutTypes, int32& OutPermutationIndex) const
@@ -847,7 +974,7 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 			InOutTypes.Add(Argument.Name, Argument.TypeIndices[0]);
 			continue;
 		}
-		else if (const int32* InputType = InputTypes.Find(Argument.Name))
+		else if (const TRigVMTypeIndex* InputType = InputTypes.Find(Argument.Name))
 		{
 			int32 MatchedType = *InputType;
 			bool bFoundMatch = false;
@@ -906,7 +1033,7 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 		{
 			InOutTypes.Add(Argument.Name, RigVMTypeUtils::TypeIndex::WildCard);
 
-			if(const int32* InputType = InputTypes.Find(Argument.Name))
+			if(const TRigVMTypeIndex* InputType = InputTypes.Find(Argument.Name))
 			{
 				if(Registry.IsArrayType(*InputType))
 				{
@@ -946,7 +1073,7 @@ bool FRigVMTemplate::Resolve(FTypeMap& InOutTypes, TArray<int32>& OutPermutation
 	return !OutPermutationIndices.IsEmpty();
 }
 
-bool FRigVMTemplate::ResolveArgument(const FName& InArgumentName, const int32 InTypeIndex,
+bool FRigVMTemplate::ResolveArgument(const FName& InArgumentName, const TRigVMTypeIndex InTypeIndex,
 	FTypeMap& InOutTypes) const
 {
 	const FRigVMRegistry& Registry = FRigVMRegistry::Get();
@@ -976,7 +1103,7 @@ bool FRigVMTemplate::ResolveArgument(const FName& InArgumentName, const int32 In
 	if(Resolve(ResolvedTypes, PermutationIndices, true))
 	{
 		// let's see if the input argument resolved into the expected type
-		const int32 ResolvedInputType = ResolvedTypes.FindChecked(InArgumentName);
+		const TRigVMTypeIndex ResolvedInputType = ResolvedTypes.FindChecked(InArgumentName);
 		if(!Registry.CanMatchTypes(ResolvedInputType, InTypeIndex, true))
 		{
 			return false;
@@ -1034,10 +1161,34 @@ bool FRigVMTemplate::ResolveArgument(const FName& InArgumentName, const int32 In
 	return false;
 }
 
+FRigVMTemplateTypeMap FRigVMTemplate::GetTypesForPermutation(const int32 InPermutationIndex) const
+{
+	FTypeMap TypeMap;
+	for (int32 ArgIndex = 0; ArgIndex < NumArguments(); ++ArgIndex)
+	{
+		const FRigVMTemplateArgument* Argument = GetArgument(ArgIndex);
+		if (Argument->GetTypeIndices().Num() > InPermutationIndex)
+		{
+			TypeMap.Add(Argument->GetName(), Argument->GetTypeIndices()[InPermutationIndex]);
+		}
+		else
+		{
+			TypeMap.Reset();
+			return TypeMap;
+		}
+	}
+	return TypeMap;
+}
+
 #if WITH_EDITOR
 
 FString FRigVMTemplate::GetCategory() const
 {
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		return Factory->GetCategory();
+	}
+	
 	FString Category;
 	GetPermutation(0)->Struct->GetStringMetaDataHierarchical(FRigVMStruct::CategoryMetaName, &Category);
 
@@ -1072,6 +1223,11 @@ FString FRigVMTemplate::GetCategory() const
 
 FString FRigVMTemplate::GetKeywords() const
 {
+	if(const FRigVMDispatchFactory* Factory = GetDispatchFactory())
+	{
+		return Factory->GetKeywords();
+	}
+
 	TArray<FString> KeywordsMetadata;
 	KeywordsMetadata.Add(GetName().ToString());
 
@@ -1095,7 +1251,7 @@ FString FRigVMTemplate::GetKeywords() const
 
 #endif
 
-bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, int32 InTypeIndex)
+bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, TRigVMTypeIndex InTypeIndex)
 {
 	if(OnNewArgumentType().IsBound())
 	{
@@ -1104,7 +1260,7 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, int32 InTyp
 		{
 			for(FRigVMTemplateArgument& Argument : Arguments)
 			{
-				const int32* TypeIndex = Types.Find(Argument.Name);
+				const TRigVMTypeIndex* TypeIndex = Types.Find(Argument.Name);
 				if(TypeIndex == nullptr)
 				{
 					return false;
@@ -1116,7 +1272,7 @@ bool FRigVMTemplate::AddTypeForArgument(const FName& InArgumentName, int32 InTyp
 			}
 			for(FRigVMTemplateArgument& Argument : Arguments)
 			{
-				const int32 TypeIndex = Types.FindChecked(Argument.Name);
+				const TRigVMTypeIndex TypeIndex = Types.FindChecked(Argument.Name);
 				Argument.TypeIndices.Add(TypeIndex);
 				Argument.TypeToPermutations.FindOrAdd(TypeIndex).Add(Permutations.Num());
 			}

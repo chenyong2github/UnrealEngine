@@ -86,6 +86,462 @@ public:
 		return FRigVMPropertyPath::Empty;
 	}
 
+	// Returns the resolved property the data is pointing to
+	FORCEINLINE const FProperty* GetResolvedProperty(bool bIsHiddenArgument = false) const
+	{
+		if(bIsHiddenArgument)
+		{
+			check(PropertyPath == nullptr);
+			return GetArrayElementPropertyChecked(Property);
+		}
+		else if(PropertyPath)
+		{
+			return PropertyPath->GetTailProperty();
+		}
+		return Property;
+	}
+
+	// Returns true if this memory handle maps to a given type of property
+	template<typename PropertyType>
+	FORCEINLINE bool IsPropertyType(bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty(bIsHiddenArgument);
+		return ResolvedProperty->IsA<PropertyType>();
+	}
+
+	// Returns true if this memory handle maps to a given array type of property
+	template<typename PropertyType>
+	FORCEINLINE bool IsPropertyArrayType(bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty(bIsHiddenArgument);
+		if(const FProperty* ElementProperty = GetArrayElementProperty(ResolvedProperty))
+		{
+			return ElementProperty->IsA<PropertyType>();
+		}
+		return false;
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TIsTArray<T>::Value>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsTypeArray<T::ElementType>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBool<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsBool(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBool<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsBoolArray(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsFloat<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsFloat(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsFloat<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsFloatArray(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsDouble<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsDouble(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsDouble<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsDoubleArray(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsInt32<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsInt32(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsInt32<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsInt32Array(bIsHiddenArgument);
+	}
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsName<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsName(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsName<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsNameArray(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsString<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsString(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsString<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsStringArray(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsStruct<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsStructArray<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsStruct<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsStructArray<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsEnum<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsEnumArray<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
+	{
+		return IsObject<T>(bIsHiddenArgument);
+	}
+
+	// returns true if the handle is of the given type
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsTypeArray(bool bIsHiddenArgument = false) const
+	{
+		return IsObjectArray<T>(bIsHiddenArgument);
+	}
+	
+	// Returns true if this memory handle maps to a bool property
+	FORCEINLINE bool IsBool(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyType<FBoolProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a bool array property
+	FORCEINLINE bool IsBoolArray(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyArrayType<FBoolProperty>(bIsHiddenArgument);
+	}
+	
+	// Returns true if this memory handle maps to a float property
+	FORCEINLINE bool IsFloat(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyType<FFloatProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a float array property
+	FORCEINLINE bool IsFloatArray(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyArrayType<FFloatProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a double property
+	FORCEINLINE bool IsDouble(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyType<FDoubleProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a double array property
+	FORCEINLINE bool IsDoubleArray(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyArrayType<FDoubleProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a int32 property
+	FORCEINLINE bool IsInt32(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyType<FIntProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a int32 array property
+	FORCEINLINE bool IsInt32Array(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyArrayType<FIntProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an FName property
+    FORCEINLINE bool IsName(bool bIsHiddenArgument = false) const
+    {
+    	return IsPropertyType<FNameProperty>(bIsHiddenArgument);
+    }
+
+	// Returns true if this memory handle maps to an FName array property
+    FORCEINLINE bool IsNameArray(bool bIsHiddenArgument = false) const
+    {
+    	return IsPropertyArrayType<FNameProperty>(bIsHiddenArgument);
+    }
+
+	// Returns true if this memory handle maps to an FString property
+	FORCEINLINE bool IsString(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyType<FStrProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an FString array property
+	FORCEINLINE bool IsStringArray(bool bIsHiddenArgument = false) const
+	{
+		return IsPropertyArrayType<FStrProperty>(bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an enum property
+	FORCEINLINE bool IsEnum(const UEnum* InEnum, bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty();
+		return IsEnum(ResolvedProperty, InEnum, bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an enum array property
+	FORCEINLINE bool IsEnumArray(const UEnum* InEnum, bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty();
+		if(bIsHiddenArgument)
+		{
+			ResolvedProperty = GetArrayElementPropertyChecked(ResolvedProperty);
+		}
+		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ResolvedProperty))
+		{
+			return IsEnum(ArrayProperty->Inner, InEnum, false);
+		}
+		return false;
+	}
+
+	// Returns true if this memory handle maps to an enum property
+	template<typename T>
+	FORCEINLINE bool IsEnum(bool bIsHiddenArgument = false) const
+	{
+		return IsEnum(StaticEnum<T>(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an enum array property
+	template<typename T>
+	FORCEINLINE bool IsEnumArray(bool bIsHiddenArgument = false) const
+	{
+		return IsEnumArray(StaticEnum<T>(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a struct property
+	FORCEINLINE bool IsStruct(const UScriptStruct* InStruct, bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty();
+		return IsStruct(ResolvedProperty, InStruct, bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a struct array property
+	FORCEINLINE bool IsStructArray(const UScriptStruct* InStruct, bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty();
+		if(bIsHiddenArgument)
+		{
+			ResolvedProperty = GetArrayElementPropertyChecked(ResolvedProperty);
+		}
+		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ResolvedProperty))
+		{
+			return IsStruct(ArrayProperty->Inner, InStruct, false);
+		}
+		return false;
+	}
+
+	// Returns true if this memory handle maps to a struct property
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsStruct(bool bIsHiddenArgument = false) const
+	{
+		return IsStruct(TBaseStructure<T>::Get(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a struct property
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsStruct(bool bIsHiddenArgument = false) const
+	{
+		return IsStruct(T::StaticStruct(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a struct array property
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE bool IsStructArray(bool bIsHiddenArgument = false) const
+	{
+		return IsStructArray(TBaseStructure<T>::Get(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to a struct array property
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsStructArray(bool bIsHiddenArgument = false) const
+	{
+		return IsStructArray(T::StaticStruct(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an object property
+	FORCEINLINE bool IsObject(const UClass* InClass, bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty();
+		return IsObject(ResolvedProperty, InClass, bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an objct array property
+	FORCEINLINE bool IsObjectArray(const UClass* InClass, bool bIsHiddenArgument = false) const
+	{
+		const FProperty* ResolvedProperty = GetResolvedProperty();
+		if(bIsHiddenArgument)
+		{
+			ResolvedProperty = GetArrayElementPropertyChecked(ResolvedProperty);
+		}
+		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(ResolvedProperty))
+		{
+			return IsObject(ArrayProperty->Inner, InClass, false);
+		}
+		return false;
+	}
+
+	// Returns true if this memory handle maps to an object property
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsObject(bool bIsHiddenArgument = false) const
+	{
+		return IsObject(T::StaticClass(), bIsHiddenArgument);
+	}
+
+	// Returns true if this memory handle maps to an objct array property
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE bool IsObjectArray(bool bIsHiddenArgument = false) const
+	{
+		return IsObjectArray(T::StaticClass(), bIsHiddenArgument);
+	}
+
 private:
 
 	FORCEINLINE_DEBUGGABLE uint8* GetData_Internal(bool bFollowPropertyPath, int32 InSliceIndex) const
@@ -116,6 +572,79 @@ private:
 			return PropertyPath->GetData<uint8>(Ptr, Property);
 		}
 		return Ptr;
+	}
+
+	FORCEINLINE static const FProperty* GetArrayElementProperty(const FProperty* InProperty)
+	{
+		if(const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(InProperty))
+		{
+			return ArrayProperty->Inner;
+		}
+		return nullptr;
+	}
+
+	FORCEINLINE static const FProperty* GetArrayElementPropertyChecked(const FProperty* InProperty)
+	{
+		const FArrayProperty* ArrayProperty = CastFieldChecked<FArrayProperty>(InProperty);
+		return ArrayProperty->Inner;
+	}
+
+	FORCEINLINE static bool IsEnum(const FProperty* InProperty, const UEnum* InEnum, bool bUseArrayElement)
+	{
+		const FProperty* Property = InProperty;
+		if(bUseArrayElement)
+		{
+			Property = GetArrayElementPropertyChecked(Property);
+		}
+		if(const FEnumProperty* EnumProperty = CastField<FEnumProperty>(Property))
+		{
+			if(EnumProperty->GetEnum() == InEnum)
+			{
+				return true;
+			}
+		}
+		if(const FByteProperty* EnumProperty = CastField<FByteProperty>(Property))
+		{
+			if(EnumProperty->Enum == InEnum)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	FORCEINLINE static bool IsStruct(const FProperty* InProperty, const UScriptStruct* InScriptStruct, bool bUseArrayElement)
+	{
+		const FProperty* Property = InProperty;
+		if(bUseArrayElement)
+		{
+			Property = GetArrayElementPropertyChecked(Property);
+		}
+		if(const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+		{
+			if(StructProperty->Struct == InScriptStruct)
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
+	FORCEINLINE static bool IsObject(const FProperty* InProperty, const UClass* InClass, bool bUseArrayElement)
+	{
+		const FProperty* Property = InProperty;
+		if(bUseArrayElement)
+		{
+			Property = GetArrayElementPropertyChecked(Property);
+		}
+		if(const FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+		{
+			if(ObjectProperty->PropertyClass == InClass)
+			{
+				return true;
+			}
+		}
+		return false;
 	}
 
 	// The pointer of the memory of the head property

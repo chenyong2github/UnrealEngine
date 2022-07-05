@@ -30,13 +30,7 @@ public:
 	virtual FName GetEventName() const override;
 	virtual bool CanOnlyExistOnce() const override;
 	virtual bool IsLoopNode() const override;
-	virtual bool CanBeUpgraded() const override { return GetUpgradeInfo().IsValid(); }
 	virtual TArray<FRigVMUserWorkflow> GetSupportedWorkflows(ERigVMUserWorkflowType InType, const UObject* InSubject) const override;
-	virtual bool IsAggregate() const override;
-	virtual URigVMPin* GetFirstAggregatePin() const override;
-	virtual URigVMPin* GetSecondAggregatePin() const override;
-	virtual URigVMPin* GetOppositeAggregatePin() const override;
-	virtual bool IsInputAggregate() const override;
 	virtual TArray<URigVMPin*> GetAggregateInputs() const override;
 	virtual TArray<URigVMPin*> GetAggregateOutputs() const override;
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const override;
@@ -77,7 +71,7 @@ public:
 		return InstanceRef;
 	}
 
-	FRigVMStructUpgradeInfo GetUpgradeInfo() const;
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const override;
 
 protected:
 

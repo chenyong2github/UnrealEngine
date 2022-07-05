@@ -131,6 +131,7 @@
 #include "RigVMModel/Nodes/RigVMAggregateNode.h"
 #include "RigVMUserWorkflowRegistry.h"
 #include "Units/ControlRigNodeWorkflow.h"
+#include "Units/RigDispatchFactory.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditorModule"
 
@@ -997,10 +998,19 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		return;
 	}
 
+	FRigVMRegistry& Registry = FRigVMRegistry::Get();
+	Registry.Refresh();
+
 #if UE_RIGVM_ENABLE_TEMPLATE_NODES
 	
-	for (const FRigVMTemplate& Template : FRigVMRegistry::Get().GetTemplates())
+	for (const FRigVMTemplate& Template : Registry.GetTemplates())
 	{
+		// factories are registered below
+		if(Template.UsesDispatch())
+		{
+			continue;
+		}
+
 		// ignore templates that have only one permutation
 		if (Template.NumPermutations() <= 1)
 		{
@@ -1022,10 +1032,38 @@ void FControlRigEditorModule::GetTypeActions(UControlRigBlueprint* CRB, FBluepri
 		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
 	};
 
+	for (const FRigVMDispatchFactory* Factory : Registry.GetFactories())
+	{
+		// allow empty opaque arguments or the control rig notation
+		const TArray<TPair<FName,FString>>& OpaqueArguments = Factory->GetOpaqueArguments();
+		if(!OpaqueArguments.IsEmpty())
+		{
+			static const FRigDispatchFactory ControlRigFactory;
+			if(ControlRigFactory.GetOpaqueArguments() != OpaqueArguments)
+			{
+				continue;
+			}
+		}
+
+		const FRigVMTemplate* Template = Factory->GetTemplate();
+		if(Template == nullptr)
+		{
+			continue;
+		}
+
+		FText NodeCategory = FText::FromString(Factory->GetCategory());
+		FText MenuDesc = FText::FromString(Factory->GetNodeTitle(FRigVMTemplateTypeMap()));
+		FText ToolTip = Factory->GetNodeTooltip(FRigVMTemplateTypeMap());
+
+		UBlueprintNodeSpawner* NodeSpawner = UControlRigTemplateNodeSpawner::CreateFromNotation(Template->GetNotation(), MenuDesc, NodeCategory, ToolTip);
+		check(NodeSpawner != nullptr);
+		ActionRegistrar.AddBlueprintAction(ActionKey, NodeSpawner);
+	};
+
 #endif
 
 	// Add all rig units
-	for(const FRigVMFunction& Function : FRigVMRegistry::Get().GetFunctions())
+	for(const FRigVMFunction& Function : Registry.GetFunctions())
 	{
 		UScriptStruct* Struct = Function.Struct;
 		if (Struct == nullptr || !Struct->IsChildOf(FRigUnit::StaticStruct()))

@@ -88,7 +88,6 @@ public:
 	TMap<const FRigVMExprAST*, bool> ExprComplete;
 	TArray<const FRigVMExprAST*> ExprToSkip;
 	TMap<FString, int32> ProcessedLinks;
-	TArray<TSharedPtr<FStructOnScope>> DefaultStructs;
 	TMap<int32, FRigVMOperand> IntegerLiterals;
 	FRigVMOperand ComparisonOperand;
 
@@ -199,7 +198,7 @@ private:
 	FRigVMOperand FindOrAddRegister(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData, bool bIsDebugValue = false);
 	const FRigVMCompilerWorkData::FRigVMASTProxyArray& FindProxiesWithSharedOperand(const FRigVMVarExprAST* InVarExpr, FRigVMCompilerWorkData& WorkData);
 
-	bool ValidateNode(URigVMNode* InNode);
+	bool ValidateNode(URigVMNode* InNode, bool bCheck = true);
 	
 	void ReportInfo(const FString& InMessage);
 	void ReportWarning(const FString& InMessage);

@@ -4,6 +4,7 @@
 
 #include "RigVMPin.h"
 #include "RigVMCore/RigVM.h"
+#include "RigVMCore/RigVMStruct.h"
 #include "RigVMCore/RigVMUserWorkflow.h"
 #include "RigVMNode.generated.h"
 
@@ -211,7 +212,7 @@ public:
 
 	// returns true if the node can be upgraded
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual bool CanBeUpgraded() const { return false; }
+	virtual bool CanBeUpgraded() const { return GetUpgradeInfo().IsValid(); }
 
 	// returns all supported workflows of the node
 	UFUNCTION(BlueprintCallable, Category = RigVMNode)
@@ -230,19 +231,19 @@ public:
 	void SetExecutionIsHaltedAtThisNode(const bool bValue) { bHaltedAtThisNode = bValue; }
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual bool IsAggregate() const { return false; }
+	virtual bool IsAggregate() const;
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual URigVMPin* GetFirstAggregatePin() const { return nullptr; }
+	virtual URigVMPin* GetFirstAggregatePin() const;
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual URigVMPin* GetSecondAggregatePin() const { return nullptr; }
+	virtual URigVMPin* GetSecondAggregatePin() const;
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual URigVMPin* GetOppositeAggregatePin() const { return nullptr; }
+	virtual URigVMPin* GetOppositeAggregatePin() const;
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
-	virtual bool IsInputAggregate() const { return false; }
+	virtual bool IsInputAggregate() const;
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual TArray<URigVMPin*> GetAggregateInputs() const { return {}; }
@@ -252,6 +253,8 @@ public:
 
 	UFUNCTION(BlueprintPure, Category = RigVMNode)
 	virtual FName GetNextAggregateName(const FName& InLastAggregatePinName) const { return NAME_None; }
+
+	virtual FRigVMStructUpgradeInfo GetUpgradeInfo() const { return FRigVMStructUpgradeInfo(); }
 
 private:
 

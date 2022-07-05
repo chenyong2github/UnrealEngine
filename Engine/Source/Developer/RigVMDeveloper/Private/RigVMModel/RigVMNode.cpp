@@ -549,6 +549,89 @@ TArray<FRigVMUserWorkflow> URigVMNode::GetSupportedWorkflows(ERigVMUserWorkflowT
 	return URigVMUserWorkflowRegistry::Get()->GetWorkflows(InType, Struct, InSubject);
 }
 
+bool URigVMNode::IsAggregate() const
+{
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	const TArray<URigVMPin*> AggregateInputs = GetAggregateInputs();
+	const TArray<URigVMPin*> AggregateOutputs = GetAggregateOutputs();
+
+	if ((AggregateInputs.Num() == 2 && AggregateOutputs.Num() == 1) ||
+		(AggregateInputs.Num() == 1 && AggregateOutputs.Num() == 2))
+	{
+		TArray<URigVMPin*> AggregateAll = AggregateInputs;
+		AggregateAll.Append(AggregateOutputs);
+		for (int32 i = 1; i < 3; ++i)
+		{
+			if (AggregateAll[0]->GetCPPType() != AggregateAll[i]->GetCPPType() ||
+				AggregateAll[0]->GetCPPTypeObject() != AggregateAll[i]->GetCPPTypeObject())
+			{
+				return false;
+			}
+		}
+		
+		return true;
+	}
+#endif
+	
+	return false;
+}
+
+URigVMPin* URigVMNode::GetFirstAggregatePin() const
+{
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	const TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	const TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	if (Inputs.Num() == 2 && Outputs.Num() == 1)
+	{
+		return Inputs[0];
+	}
+	if (Inputs.Num() == 1 && Outputs.Num() == 2)
+	{
+		return Outputs[0];
+	}
+#endif
+	return nullptr;
+}
+
+URigVMPin* URigVMNode::GetSecondAggregatePin() const
+{
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	const TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	const TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	if (Inputs.Num() == 2 && Outputs.Num() == 1)
+	{
+		return Inputs[1];
+	}
+	if (Inputs.Num() == 1 && Outputs.Num() == 2)
+	{
+		return Outputs[1];
+	}
+#endif
+	return nullptr;
+}
+
+URigVMPin* URigVMNode::GetOppositeAggregatePin() const
+{
+#if UE_RIGVM_AGGREGATE_NODES_ENABLED
+	const TArray<URigVMPin*> Inputs = GetAggregateInputs();
+	const TArray<URigVMPin*> Outputs = GetAggregateOutputs();
+	if (Inputs.Num() == 2 && Outputs.Num() == 1)
+	{
+		return Outputs[0];
+	}
+	if (Inputs.Num() == 1 && Outputs.Num() == 2)
+	{
+		return Inputs[0];
+	}
+#endif
+	return nullptr;
+}
+
+bool URigVMNode::IsInputAggregate() const
+{
+	return GetAggregateInputs().Num() == 2;
+}
+
 #if WITH_EDITOR
 
 const URigVMNode::FProfilingCache* URigVMNode::UpdateProfilingCacheIfNeeded(URigVM* InVM, const FRigVMASTProxy& InProxy) const

@@ -10,20 +10,39 @@ USTRUCT()
 struct RIGVMDEVELOPER_API FRigVMTemplatePreferredType
 {
 	GENERATED_BODY()
+
+public:
 	
 	FRigVMTemplatePreferredType()
 		: Argument(NAME_None)
 		, TypeIndex(INDEX_NONE)
 	{}
 	
-	FRigVMTemplatePreferredType(const FName& InArgument, int32 InTypeIndex)
+	FRigVMTemplatePreferredType(const FName& InArgument, TRigVMTypeIndex InTypeIndex)
 		: Argument(InArgument)
 		, TypeIndex(InTypeIndex)
-	{}
+	{
+#if UE_RIGVM_DEBUG_TYPEINDEX
+		UpdateStringFromIndex();
+#endif
+	}
+
+	FORCEINLINE const FName& GetArgument() const { return Argument; }
+	FORCEINLINE TRigVMTypeIndex GetTypeIndex() const
+	{
+#if UE_RIGVM_DEBUG_TYPEINDEX
+		const FRigVMTemplateArgumentType& Type = FRigVMRegistry::Get().GetType(TypeIndex);
+		return FRigVMRegistry::Get().GetTypeIndex(Type);
+#else
+		return TypeIndex;
+#endif
+	}
 	
 	void UpdateStringFromIndex();
 	void UpdateIndexFromString();
 
+protected:
+	
 	UPROPERTY()
 	FName Argument;
 
@@ -32,6 +51,8 @@ struct RIGVMDEVELOPER_API FRigVMTemplatePreferredType
 
 	UPROPERTY()
 	FString TypeString;
+
+	friend class URigVMTemplateNode;
 };
 
 /**
@@ -72,10 +93,10 @@ public:
 	virtual bool IsSingleton() const;
 
 	// returns true if a pin supports a given type
-	bool SupportsType(const URigVMPin* InPin, int32 InTypeIndex, int32* OutTypeIndex = nullptr);
+	bool SupportsType(const URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex = nullptr);
 
 	// returns true if a pin supports a given type after filtering
-	bool FilteredSupportsType(const URigVMPin* InPin, int32 InTypeIndex, int32* OutTypeIndex = nullptr, bool bAllowFloatingPointCasts = true);
+	bool FilteredSupportsType(const URigVMPin* InPin, TRigVMTypeIndex InTypeIndex, TRigVMTypeIndex* OutTypeIndex = nullptr, bool bAllowFloatingPointCasts = true);
 
 	// returns the resolved functions for the template
 	TArray<const FRigVMFunction*> GetResolvedPermutations() const;
@@ -104,14 +125,14 @@ public:
 	const TArray<int32>& GetFilteredPermutationsIndices() const;
 
 	// returns the filtered types of this pin
-	TArray<int32> GetFilteredTypesForPin(URigVMPin* InPin) const;
+	TArray<TRigVMTypeIndex> GetFilteredTypesForPin(URigVMPin* InPin) const;
 
 	// returns true if updating pin filters with InTypes would result in different filters 
-	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<int32>& InTypeIndices);
+	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
 	bool PinNeedsFilteredTypesUpdate(URigVMPin* InPin, URigVMPin* LinkedPin);
 
 	// updates the filtered permutations given a link or the types for a pin
-	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<int32>& InTypeIndices);
+	bool UpdateFilteredPermutations(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
 	bool UpdateFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
 
 	// initializes the filtered permutations to all possible permutations
@@ -131,10 +152,11 @@ protected:
 	virtual void InvalidateCache() override;
 	
 	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, URigVMPin* LinkedPin);
-	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<int32>& InTypeIndices);
+	TArray<int32> GetNewFilteredPermutations(URigVMPin* InPin, const TArray<TRigVMTypeIndex>& InTypeIndices);
 
 	TArray<int32> FindPermutationsForTypes(const TArray<FRigVMTemplatePreferredType>& ArgumentTypes, bool bAllowCasting = false) const;
-	TArray<FRigVMTemplatePreferredType> GetArgumentTypesForPermutation(const int32 InPermutationIndex) const;
+	TArray<FRigVMTemplatePreferredType> GetPreferredTypesForPermutation(const int32 InPermutationIndex) const;
+	FRigVMTemplateTypeMap GetTypesForPermutation(const int32 InPermutationIndex) const;
 
 	UPROPERTY()
 	FName TemplateNotation;
@@ -151,7 +173,7 @@ protected:
 	TArray<FRigVMTemplatePreferredType> PreferredPermutationPairs;
 
 	TArray<int32> FilteredPermutations;
-	TMap<TPair<FName,int32>, TPair<bool, int32>> SupportedTypesCache;
+	TMap<TPair<FName,TRigVMTypeIndex>, TPair<bool, TRigVMTypeIndex>> SupportedTypesCache;
 
 	mutable const FRigVMTemplate* CachedTemplate;
 	mutable const FRigVMFunction* CachedFunction;

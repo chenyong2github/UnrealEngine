@@ -11,6 +11,7 @@
 
 struct FRigVMExtendedExecuteContext;
 struct FRigVMExecuteContext;
+struct FRigVMDispatchFactory;
 class URigVM;
 
 USTRUCT()
@@ -297,7 +298,8 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 
 	FORCEINLINE FRigVMExtendedExecuteContext()
 		: VM(nullptr)
-		, LastExecutionMicroSeconds() 
+		, LastExecutionMicroSeconds()
+		, Factory(nullptr)
 	{
 		Reset();
 	}
@@ -309,6 +311,7 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 		Slices.Reset();
 		Slices.Add(FRigVMSlice());
 		SliceOffsets.Reset();
+		Factory = nullptr;
 	}
 
 	FORCEINLINE void CopyFrom(const FRigVMExtendedExecuteContext& Other)
@@ -402,4 +405,5 @@ struct RIGVM_API FRigVMExtendedExecuteContext
 	TArray<FRigVMSlice> Slices;
 	TArray<uint16> SliceOffsets;
 	double LastExecutionMicroSeconds;
+	const FRigVMDispatchFactory* Factory;
 };

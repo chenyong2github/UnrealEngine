@@ -2,6 +2,7 @@
 
 #include "RigVMCompiler/RigVMCompiler.h"
 #include "RigVMModel/RigVMController.h"
+#include "RigVMModel/Nodes/RigVMDispatchNode.h"
 #include "RigVMCore/RigVMExecuteContext.h"
 #include "RigVMCore/RigVMNativized.h"
 #include "RigVMDeveloperModule.h"
@@ -722,9 +723,7 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 	if (WorkData.bSetupMemory)
 	{
 		TSharedPtr<FStructOnScope> DefaultStruct = UnitNode->ConstructStructInstance();
-		WorkData.DefaultStructs.Add(DefaultStruct);
 		TraverseChildren(InExpr, WorkData);
-		WorkData.DefaultStructs.Pop();
 	}
 	else
 	{
@@ -768,32 +767,52 @@ void URigVMCompiler::TraverseEntry(const FRigVMEntryExprAST* InExpr, FRigVMCompi
 
 int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, FRigVMCompilerWorkData& WorkData)
 {
-	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(InExpr->GetNode());
-	if(!ValidateNode(UnitNode))
+	URigVMNode* Node = InExpr->GetNode();
+	URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(Node);
+	URigVMDispatchNode* DispatchNode = Cast<URigVMDispatchNode>(Node);
+	if(!ValidateNode(UnitNode, false) && !ValidateNode(DispatchNode, false))
 	{
 		return INDEX_NONE;
 	}
 
-	if(UnitNode->GetScriptStruct() == nullptr)
+	if(UnitNode)
 	{
-		return INDEX_NONE;
+		if(UnitNode->GetScriptStruct() == nullptr)
+		{
+			return INDEX_NONE;
+		}
+	}
+
+	if(DispatchNode)
+	{
+		if(DispatchNode->GetFactory() == nullptr)
+		{
+			return INDEX_NONE;
+		}
 	}
 
 	int32 InstructionIndex = INDEX_NONE;
 
 	if (WorkData.bSetupMemory)
 	{
-		TSharedPtr<FStructOnScope> DefaultStruct = UnitNode->ConstructStructInstance();
-		WorkData.DefaultStructs.Add(DefaultStruct);
 		TraverseChildren(InExpr, WorkData);
-		WorkData.DefaultStructs.Pop();
 	}
 	else
 	{
 		TArray<FRigVMOperand> Operands;
 
 		// iterate over the child expressions in the order of the arguments on the function
-		const FRigVMFunction* Function = FRigVMRegistry::Get().FindFunction(UnitNode->GetScriptStruct(), *UnitNode->GetMethodName().ToString());
+		const FRigVMFunction* Function = nullptr;
+
+		if(UnitNode)
+		{
+			Function = FRigVMRegistry::Get().FindFunction(UnitNode->GetScriptStruct(), *UnitNode->GetMethodName().ToString());
+		}
+		else if(DispatchNode)
+		{
+			Function = DispatchNode->GetResolvedFunction();
+		}
+			
 		check(Function);
 		
 		for(const FRigVMFunctionArgument& Argument : Function->GetArguments())
@@ -822,14 +841,15 @@ int32 URigVMCompiler::TraverseCallExtern(const FRigVMCallExternExprAST* InExpr, 
 		TraverseChildren(InExpr, WorkData);
 
 		// setup the instruction
-		int32 FunctionIndex = WorkData.VM->AddRigVMFunction(UnitNode->GetScriptStruct(), UnitNode->GetMethodName());
+		const int32 FunctionIndex = WorkData.VM->AddRigVMFunction(Function->GetName());
+		check(FunctionIndex != INDEX_NONE);
 		WorkData.VM->GetByteCode().AddExecuteOp(FunctionIndex, Operands);
 		InstructionIndex = WorkData.VM->GetByteCode().GetNumInstructions() - 1;
 
 #if WITH_EDITORONLY_DATA
 		TArray<FRigVMOperand> InputsOperands, OutputOperands;
 
-		for(const URigVMPin* InputPin : UnitNode->GetPins())
+		for(const URigVMPin* InputPin : Node->GetPins())
 		{
 			if(InputPin->IsExecuteContext())
 			{
@@ -2591,13 +2611,26 @@ FRigVMOperand URigVMCompiler::FindOrAddRegister(const FRigVMVarExprAST* InVarExp
 			CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 			JoinedDefaultValue = URigVMPin::GetDefaultValueForArray({ JoinedDefaultValue });
 		}
-		else if(Pin->GetDirection() == ERigVMPinDirection::Hidden && Pin->GetNode()->IsA<URigVMUnitNode>())
+		else if(Pin->GetDirection() == ERigVMPinDirection::Hidden)
 		{
-			UScriptStruct* UnitStruct = Cast<URigVMUnitNode>(Pin->GetNode())->GetScriptStruct();
-			const FProperty* Property = UnitStruct->FindPropertyByName(Pin->GetFName());
-			check(Property);
+			bool bValidHiddenPin = false;
+			if(Pin->GetNode()->IsA<URigVMUnitNode>())
+			{
+				UScriptStruct* UnitStruct = Cast<URigVMUnitNode>(Pin->GetNode())->GetScriptStruct();
+				const FProperty* Property = UnitStruct->FindPropertyByName(Pin->GetFName());
+				check(Property);
 
-			if (!Property->HasMetaData(FRigVMStruct::SingletonMetaName))
+				if (!Property->HasMetaData(FRigVMStruct::SingletonMetaName))
+				{
+					bValidHiddenPin = true;
+				}
+			}
+			else if(Pin->GetNode()->IsA<URigVMDispatchNode>())
+			{
+				bValidHiddenPin = true;
+			}
+
+			if(bValidHiddenPin)
 			{
 				CPPType = RigVMTypeUtils::ArrayTypeFromBaseType(CPPType);
 				JoinedDefaultValue = URigVMPin::GetDefaultValueForArray({ JoinedDefaultValue });
@@ -2734,18 +2767,23 @@ const FRigVMCompilerWorkData::FRigVMASTProxyArray& URigVMCompiler::FindProxiesWi
 	return WorkData.CachedProxiesWithSharedOperand.Add(InProxy, PinProxies);
 }
 
-bool URigVMCompiler::ValidateNode(URigVMNode* InNode)
+bool URigVMCompiler::ValidateNode(URigVMNode* InNode, bool bCheck)
 {
-	check(InNode);
-
-	if(InNode->HasWildCardPin())
+	if(bCheck)
 	{
-		static const FString UnknownTypeMessage = TEXT("Node @@ has unresolved pins of wildcard type.");
-		Settings.Report(EMessageSeverity::Error, InNode, UnknownTypeMessage);
-		return false;
+		check(InNode)
 	}
-
-	return true;
+	if(InNode)
+	{
+		if(InNode->HasWildCardPin())
+		{
+			static const FString UnknownTypeMessage = TEXT("Node @@ has unresolved pins of wildcard type.");
+			Settings.Report(EMessageSeverity::Error, InNode, UnknownTypeMessage);
+			return false;
+		}
+		return true;
+	}
+	return false;
 }
 
 void URigVMCompiler::ReportInfo(const FString& InMessage)

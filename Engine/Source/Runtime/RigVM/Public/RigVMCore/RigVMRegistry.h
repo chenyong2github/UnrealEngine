@@ -3,14 +3,11 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "RigVMTypeIndex.h"
 #include "RigVMMemory.h"
 #include "RigVMFunction.h"
 #include "RigVMTemplate.h"
-
-struct RIGVM_API FRigVMTemplateDelegates
-{
-	FRigVMTemplate_NewArgumentTypeDelegate NewArgumentTypeDelegate;
-};
+#include "RigVMDispatchFactory.h"
 
 /**
  * The FRigVMRegistry is used to manage all known function pointers
@@ -22,6 +19,8 @@ struct RIGVM_API FRigVMRegistry
 {
 public:
 
+	~FRigVMRegistry();
+	
 	// Returns the singleton registry
 	static FRigVMRegistry& Get();
 
@@ -29,6 +28,9 @@ public:
 	// The name will be the name of the struct and virtual method,
 	// for example "FMyStruct::MyVirtualMethod"
 	void Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>());
+
+	// Registers a dispatch factory given its struct.
+	void RegisterFactory(UScriptStruct* InFactoryStruct);
 
 	// Initializes the registry by storing the defaults
 	void InitializeIfNeeded();
@@ -39,19 +41,79 @@ public:
 
 	// Adds a type if it doesn't exist yet and returns its index.
 	// This function is not thead-safe
-	int32 FindOrAddType(const FRigVMTemplateArgumentType& InType);
+	TRigVMTypeIndex FindOrAddType(const FRigVMTemplateArgumentType& InType);
 
 	// Returns the type index given a type
-	int32 GetTypeIndex(const FRigVMTemplateArgumentType& InType) const;
+	TRigVMTypeIndex GetTypeIndex(const FRigVMTemplateArgumentType& InType) const;
 
 	// Returns the type index given a cpp type and a type object
-	FORCEINLINE int32 GetTypeIndex(const FName& InCPPType, UObject* InCPPTypeObject) const
+	FORCEINLINE TRigVMTypeIndex GetTypeIndex(const FName& InCPPType, UObject* InCPPTypeObject) const
 	{
 		return GetTypeIndex(FRigVMTemplateArgumentType(InCPPType, InCPPTypeObject));
 	}
 
+	// Returns the type index given an enum
+	template <
+		typename T,
+		typename TEnableIf<TIsEnum<T>::Value>::Type* = nullptr
+	>
+	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	{
+		FRigVMTemplateArgumentType Type(StaticEnum<T>());
+		if(bAsArray)
+		{
+			Type.ConvertToArray();
+		}
+		return GetTypeIndex(Type);
+	}
+
+	// Returns the type index given a struct
+	template <
+		typename T,
+		typename TEnableIf<TRigVMIsBaseStructure<T>::Value, T>::Type* = nullptr
+	>
+	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	{
+		FRigVMTemplateArgumentType Type(TBaseStructure<T>::Get());
+		if(bAsArray)
+		{
+			Type.ConvertToArray();
+		}
+		return GetTypeIndex(Type);
+	}
+
+	// Returns the type index given a struct
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUStruct, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	{
+		FRigVMTemplateArgumentType Type(T::StaticStruct());
+		if(bAsArray)
+		{
+			Type.ConvertToArray();
+		}
+		return GetTypeIndex(Type);
+	}
+
+	// Returns the type index given an object
+	template <
+		typename T,
+		typename TEnableIf<TModels<CRigVMUClass, T>::Value>::Type * = nullptr
+	>
+	FORCEINLINE TRigVMTypeIndex GetTypeIndex(bool bAsArray = false) const
+	{
+		FRigVMTemplateArgumentType Type(T::StaticClass());
+		if(bAsArray)
+		{
+			Type.ConvertToArray();
+		}
+		return GetTypeIndex(Type);
+	}
+
 	// Returns the type given its index
-	const FRigVMTemplateArgumentType& GetType(int32 InTypeIndex) const;
+	const FRigVMTemplateArgumentType& GetType(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns the number of types
 	FORCEINLINE int32 NumTypes() const { return Types.Num(); }
@@ -60,34 +122,34 @@ public:
 	const FRigVMTemplateArgumentType& FindTypeFromCPPType(const FString& InCPPType) const;
 
 	// Returns the type index given only its cpp type
-	int32 GetTypeIndexFromCPPType(const FString& InCPPType) const;
+	TRigVMTypeIndex GetTypeIndexFromCPPType(const FString& InCPPType) const;
 
 	// Returns true if the type is an array
-	bool IsArrayType(int32 InTypeIndex) const;
+	bool IsArrayType(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns true if the type is an execute type
-	bool IsExecuteType(int32 InTypeIndex) const;
+	bool IsExecuteType(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns the dimensions of the array 
-	int32 GetArrayDimensionsForType(int32 InTypeIndex) const;
+	int32 GetArrayDimensionsForType(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns true if the type is a wildcard type
-	bool IsWildCardType(int32 InTypeIndex) const;
+	bool IsWildCardType(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns true if the types can be matched.
-	bool CanMatchTypes(int32 InTypeIndexA, int32 InTypeIndexB, bool bAllowFloatingPointCasts) const;
+	bool CanMatchTypes(TRigVMTypeIndex InTypeIndexA, TRigVMTypeIndex InTypeIndexB, bool bAllowFloatingPointCasts) const;
 
 	// Returns the list of compatible types for a given type
-	const TArray<int32>& GetCompatibleTypes(int32 InTypeIndex) const;
+	const TArray<TRigVMTypeIndex>& GetCompatibleTypes(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns all compatible types given a category
-	const TArray<int32>& GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory InCategory);
+	const TArray<TRigVMTypeIndex>& GetTypesForCategory(FRigVMTemplateArgument::ETypeCategory InCategory);
 
 	// Returns the type index of the array matching the given element type index
-	int32 GetArrayTypeFromBaseTypeIndex(int32 InTypeIndex) const;
+	TRigVMTypeIndex GetArrayTypeFromBaseTypeIndex(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns the type index of the element matching the given array type index
-	int32 GetBaseTypeFromArrayTypeIndex(int32 InTypeIndex) const;
+	TRigVMTypeIndex GetBaseTypeFromArrayTypeIndex(TRigVMTypeIndex InTypeIndex) const;
 
 	// Returns the function given its name (or nullptr)
 	const FRigVMFunction* FindFunction(const TCHAR* InName) const;
@@ -109,6 +171,12 @@ public:
 		const FName& InName,
 		const TArray<FRigVMTemplateArgument>& InArguments,
 		const FRigVMTemplateDelegates& InDelegates);
+
+	// Returns a dispatch factory given its name (or nullptr)
+	FRigVMDispatchFactory* FindDispatchFactory(const FName& InFactoryName) const;
+
+	// Returns all dispatch factories
+	const TArray<FRigVMDispatchFactory*>& GetFactories() const;
 
 	static const TArray<UScriptStruct*>& GetMathTypes();
 
@@ -134,8 +202,8 @@ private:
 		{}
 		
 		FRigVMTemplateArgumentType Type;
-		int32 BaseTypeIndex;
-		int32 ArrayTypeIndex;
+		TRigVMTypeIndex BaseTypeIndex;
+		TRigVMTypeIndex ArrayTypeIndex;
 		bool bIsArray;
 		bool bIsExecute;
 	};
@@ -155,12 +223,11 @@ private:
 	static bool IsAllowedType(const UStruct* InStruct);
 	static bool IsAllowedType(const UClass* InClass);
 
-	void RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, int32 InTypeIndex);
+	void RegisterTypeInCategory(FRigVMTemplateArgument::ETypeCategory InCategory, TRigVMTypeIndex InTypeIndex);
 
 	// memory for all (known) types
-	// We use TChunkedArray because we need the memory locations to be stable, since we only ever add and never remove.
 	TArray<FTypeInfo> Types;
-	TMap<FRigVMTemplateArgumentType, int32> TypeToIndex;
+	TMap<FRigVMTemplateArgumentType, TRigVMTypeIndex> TypeToIndex;
 
 	// memory for all functions
 	// We use TChunkedArray because we need the memory locations to be stable, since we only ever add and never remove.
@@ -169,6 +236,9 @@ private:
 	// memory for all templates
 	TChunkedArray<FRigVMTemplate> Templates;
 
+	// memory for all dispatch factories
+	TArray<FRigVMDispatchFactory*> Factories;
+
 	// name lookup for functions
 	TMap<FName, int32> FunctionNameToIndex;
 
@@ -176,11 +246,12 @@ private:
 	TMap<FName, int32> TemplateNotationToIndex;
 
 	// Maps storing the default types per type category
-	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<int32>> TypesPerCategory;
+	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<TRigVMTypeIndex>> TypesPerCategory;
 
 	// Lookup per type category to know which argument to keep in sync
 	TMap<FRigVMTemplateArgument::ETypeCategory, TArray<TPair<int32,int32>>> ArgumentsPerCategory;
 
 	static FRigVMRegistry s_RigVMRegistry;
 	friend struct FRigVMStruct;
+	friend struct FRigVMTemplate;
 };

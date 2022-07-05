@@ -24,6 +24,34 @@ struct CRigVMUClass
 };
 
 template <typename T>
+struct TRigVMIsBool
+{
+	enum { Value = false };
+};
+template <> struct TRigVMIsBool<bool> { enum { Value = true }; };
+
+template <typename T>
+struct TRigVMIsFloat
+{
+	enum { Value = false };
+};
+template <> struct TRigVMIsFloat<float> { enum { Value = true }; };
+
+template <typename T>
+struct TRigVMIsDouble
+{
+	enum { Value = false };
+};
+template <> struct TRigVMIsDouble<double> { enum { Value = true }; };
+
+template <typename T>
+struct TRigVMIsInt32
+{
+	enum { Value = false };
+};
+template <> struct TRigVMIsInt32<int32> { enum { Value = true }; };
+
+template <typename T>
 struct TRigVMIsName
 {
 	enum { Value = false };

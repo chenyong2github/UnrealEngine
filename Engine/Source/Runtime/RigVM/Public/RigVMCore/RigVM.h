@@ -194,6 +194,7 @@ public:
 	// Execute instructions can then refer to the function by index.
 	UFUNCTION()
 	virtual int32 AddRigVMFunction(UScriptStruct* InRigVMStruct, const FName& InMethodName);
+	virtual int32 AddRigVMFunction(const FString& InFunctionName);
 
 	// Returns the name of a function given its index
 	UFUNCTION()
@@ -678,6 +679,11 @@ private:
 	TArray<FRigVMFunctionPtr>* FunctionsPtr;
 	FORCEINLINE TArray<FRigVMFunctionPtr>& GetFunctions() { return *FunctionsPtr; }
 	FORCEINLINE const TArray<FRigVMFunctionPtr>& GetFunctions() const { return *FunctionsPtr; }
+
+	TArray<const FRigVMDispatchFactory*> FactoriesStorage;
+	TArray<const FRigVMDispatchFactory*>* FactoriesPtr;
+	FORCEINLINE TArray<const FRigVMDispatchFactory*>& GetFactories() { return *FactoriesPtr; }
+	FORCEINLINE const TArray<const FRigVMDispatchFactory*>& GetFactories() const { return *FactoriesPtr; }
 
 	UPROPERTY()
 	TArray<FRigVMParameter> Parameters;
