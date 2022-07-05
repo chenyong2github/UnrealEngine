@@ -93,7 +93,7 @@ static inline EOS_EExternalCredentialType ToEOS_EExternalCredentialType(FName OS
 {
 	if (OSSName == STEAM_SUBSYSTEM)
 	{
-		return EOS_EExternalCredentialType::EOS_ECT_STEAM_APP_TICKET;
+		return EOS_EExternalCredentialType::EOS_ECT_STEAM_SESSION_TICKET;
 	}
 	else if (OSSName == PS4_SUBSYSTEM || USE_PSN_ID_TOKEN)
 	{
