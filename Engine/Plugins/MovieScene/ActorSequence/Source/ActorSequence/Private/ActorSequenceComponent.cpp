@@ -16,6 +16,30 @@ UActorSequenceComponent::UActorSequenceComponent(const FObjectInitializer& Objec
 	}
 }
 
+void UActorSequenceComponent::PlaySequence()
+{
+	if (SequencePlayer != nullptr)
+	{
+		SequencePlayer->Play();
+	}
+}
+
+void UActorSequenceComponent::PauseSequence()
+{
+	if (SequencePlayer != nullptr)
+	{
+		SequencePlayer->Pause();
+	}
+}
+
+void UActorSequenceComponent::StopSequence()
+{
+	if (SequencePlayer != nullptr)
+	{
+		SequencePlayer->Stop();
+	}
+}
+
 void UActorSequenceComponent::PostInitProperties()
 {
 	Super::PostInitProperties();

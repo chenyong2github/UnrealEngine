@@ -32,6 +32,18 @@ public:
 	{
 		return SequencePlayer;
 	}
+
+	/** Calls the Play function on the SequencePlayer if its valid. */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
+	void PlaySequence();
+
+	/** Calls the Pause function on the SequencePlayer if its valid. */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
+	void PauseSequence();
+
+	/** Calls the Stop function on the SequencePlayer if its valid. */
+	UFUNCTION(BlueprintCallable, Category = "Sequencer|Player")
+	void StopSequence();
 	
 	// UActorComponent interface
 	virtual void PostInitProperties() override;
