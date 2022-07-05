@@ -1445,6 +1445,27 @@ void UBlueprint::BeginDestroy()
 #endif // WITH_EDITOR
 
 #if WITH_EDITORONLY_DATA
+bool UBlueprint::ShouldCookPropertyGuids() const
+{
+	switch (ShouldCookPropertyGuidsValue)
+	{
+	case EShouldCookBlueprintPropertyGuids::No:
+		return false;
+
+	case EShouldCookBlueprintPropertyGuids::Yes:
+		return true;
+
+	case EShouldCookBlueprintPropertyGuids::Inherit:
+		if (const UBlueprint* ParentBlueprint = UBlueprint::GetBlueprintFromClass(ParentClass))
+		{
+			return ParentBlueprint->ShouldCookPropertyGuids();
+		}
+		break;
+	}
+
+	return false;
+}
+
 UBlueprint* UBlueprint::GetBlueprintFromClass(const UClass* InClass)
 {
 	UBlueprint* BP = NULL;

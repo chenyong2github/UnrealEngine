@@ -28,6 +28,7 @@
 #include "GenericPlatform/GenericPlatformCrashContext.h"
 
 #if WITH_EDITOR
+#include "CookerSettings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "BlueprintCompilationManager.h"
@@ -1702,6 +1703,49 @@ UClass* UBlueprintGeneratedClass::RegenerateClass(UClass* ClassToRegenerate, UOb
 
 	return this;
 }
+
+void UBlueprintGeneratedClass::BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	Super::BeginCacheForCookedPlatformData(TargetPlatform);
+
+	auto ShouldCookBlueprintPropertyGuids = [this]() -> bool
+	{
+		switch (GetDefault<UCookerSettings>()->BlueprintPropertyGuidsCookingMethod)
+		{
+		case EBlueprintPropertyGuidsCookingMethod::EnabledBlueprintsOnly:
+			if (const UBlueprint* BP = Cast<UBlueprint>(ClassGeneratedBy))
+			{
+				return BP->ShouldCookPropertyGuids();
+			}
+			break;
+
+		case EBlueprintPropertyGuidsCookingMethod::AllBlueprints:
+			return true;
+
+		case EBlueprintPropertyGuidsCookingMethod::Disabled:
+		default:
+			break;
+		}
+
+		return false;
+	};
+
+	if (ShouldCookBlueprintPropertyGuids())
+	{
+		CookedPropertyGuids = PropertyGuids;
+	}
+	else
+	{
+		CookedPropertyGuids.Reset();
+	}
+}
+
+void UBlueprintGeneratedClass::ClearAllCachedCookedPlatformData()
+{
+	Super::ClearAllCachedCookedPlatformData();
+
+	CookedPropertyGuids.Reset();
+}
 #endif
 
 bool UBlueprintGeneratedClass::IsAsset() const
@@ -2078,58 +2122,97 @@ void FBlueprintCookedComponentInstancingData::BuildCachedPropertyDataFromTemplat
 
 bool UBlueprintGeneratedClass::ArePropertyGuidsAvailable() const
 {
+	auto ArePropertyGuidsAvailableImpl = [this](const TMap<FName, FGuid>& PropertyGuidsToUse) -> bool
+	{
+		// Property guid's are generated during compilation.
+		if (PropertyGuidsToUse.Num() > 0)
+		{
+			return true;
+		}
+		
+		if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+		{
+			// Our parent may have guids for inherited variables
+			return Super->ArePropertyGuidsAvailable();
+		}
+		
+		return false;
+	};
+
+	if (bCooked)
+	{
+		return ArePropertyGuidsAvailableImpl(CookedPropertyGuids);
+	}
+
 #if WITH_EDITORONLY_DATA
-	// Property guid's are generated during compilation.
-	if (PropertyGuids.Num() > 0)
-	{
-		return true;
-	}
-	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
-	{
-		// Our parent may have guids for inherited variables
-		return Super->ArePropertyGuidsAvailable();
-	}
-#endif // WITH_EDITORONLY_DATA
+	return ArePropertyGuidsAvailableImpl(PropertyGuids);
+#else	// WITH_EDITORONLY_DATA
 	return false;
+#endif	// WITH_EDITORONLY_DATA
 }
 
 FName UBlueprintGeneratedClass::FindPropertyNameFromGuid(const FGuid& PropertyGuid) const
 {
-	FName RedirectedName = NAME_None;
-#if WITH_EDITORONLY_DATA
-	// Check parent first as it may have renamed a property since this class was last saved
-	if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+	auto FindPropertyNameFromGuidImpl = [this, &PropertyGuid](const TMap<FName, FGuid>& PropertyGuidsToUse) -> FName
 	{
-		RedirectedName = Super->FindPropertyNameFromGuid(PropertyGuid);
-		if (!RedirectedName.IsNone())
+		// Check parent first as it may have renamed a property since this class was last saved
+		if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
 		{
-			return RedirectedName;
+			FName RedirectedName = Super->FindPropertyNameFromGuid(PropertyGuid);
+			if (!RedirectedName.IsNone())
+			{
+				return RedirectedName;
+			}
 		}
+
+		if (const FName* Result = PropertyGuidsToUse.FindKey(PropertyGuid))
+		{
+			return *Result;
+		}
+
+		return NAME_None;
+	};
+
+	if (bCooked)
+	{
+		return FindPropertyNameFromGuidImpl(CookedPropertyGuids);
 	}
 
-	if (const FName* Result = PropertyGuids.FindKey(PropertyGuid))
-	{
-		RedirectedName = *Result;
-	}
-#endif // WITH_EDITORONLY_DATA
-	return RedirectedName;
+#if WITH_EDITORONLY_DATA
+	return FindPropertyNameFromGuidImpl(PropertyGuids);
+#else	// WITH_EDITORONLY_DATA
+	return NAME_None;
+#endif	// WITH_EDITORONLY_DATA
 }
 
 FGuid UBlueprintGeneratedClass::FindPropertyGuidFromName(const FName InName) const
 {
-	FGuid PropertyGuid;
+	auto FindPropertyGuidFromNameImpl = [this, &InName](const TMap<FName, FGuid>& PropertyGuidsToUse) -> FGuid
+	{
+		if (const FGuid* Result = PropertyGuidsToUse.Find(InName))
+		{
+			return *Result;
+		}
+		
+		if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
+		{
+			// Fall back to parent if this is an inherited variable
+			return Super->FindPropertyGuidFromName(InName);
+		}
+
+		return FGuid();
+	};
+
+	if (bCooked)
+	{
+		return FindPropertyGuidFromNameImpl(CookedPropertyGuids);
+	}
+
 #if WITH_EDITORONLY_DATA
-	if (const FGuid* Result = PropertyGuids.Find(InName))
-	{
-		PropertyGuid = *Result;
-	}
-	else if (UBlueprintGeneratedClass* Super = Cast<UBlueprintGeneratedClass>(GetSuperStruct()))
-	{
-		// Fall back to parent if this is an inherited variable
-		PropertyGuid = Super->FindPropertyGuidFromName(InName);
-	}
-#endif // WITH_EDITORONLY_DATA
-	return PropertyGuid;
+	return FindPropertyGuidFromNameImpl(PropertyGuids);
+#else	// WITH_EDITORONLY_DATA
+	return FGuid();
+#endif	// WITH_EDITORONLY_DATA
 }
 
 #if WITH_EDITORONLY_DATA

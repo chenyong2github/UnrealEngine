@@ -422,6 +422,17 @@ enum class UE_DEPRECATED(5.0, "Blueprint Nativization has been removed as a supp
 	ExplicitlyEnabled
 };
 
+UENUM()
+enum class EShouldCookBlueprintPropertyGuids
+{
+	/** Don't cook the property GUIDs for this Blueprint */
+	No,
+	/** Cook the property GUIDs for this Blueprint (see UCookerSettings::BlueprintPropertyGuidsCookingMethod) */
+	Yes,
+	/** Inherit whether to cook the property GUIDs for this Blueprint from the parent Blueprint (behaves like 'No' if there is no parent Blueprint) */
+	Inherit,
+};
+
 #if WITH_EDITOR
 /** Control flags for current object/world accessor methods */
 enum class EGetObjectOrWorldBeingDebuggedFlags
@@ -527,6 +538,15 @@ class ENGINE_API UBlueprint : public UBlueprintCore
 	 */
 	UPROPERTY()
 	mutable uint8 bDuplicatingReadOnly:1;
+
+	/**
+	 * Whether to include the property GUIDs for the generated class in a cooked build.
+	 * @note This option may slightly increase memory usage in a cooked build, but can avoid needing to add CoreRedirect data for Blueprint classes stored within SaveGame archives.
+	 */
+	UPROPERTY(EditAnywhere, Category=ClassOptions, AdvancedDisplay, meta=(DisplayName="Should Cook Property Guids?"))
+	EShouldCookBlueprintPropertyGuids ShouldCookPropertyGuidsValue = EShouldCookBlueprintPropertyGuids::Inherit;
+
+	bool ShouldCookPropertyGuids() const;
 
 public:
 	/** When exclusive nativization is enabled, then this asset will be nativized. All super classes must be also nativized. */

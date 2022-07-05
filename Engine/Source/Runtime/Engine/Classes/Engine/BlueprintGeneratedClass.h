@@ -710,6 +710,10 @@ public:
 	TArray<TObjectPtr<UFunction>> CalledFunctions;
 #endif //WITH_EDITORONLY_DATA
 
+	/** Property guid map (if any), for use only when this BP is cooked */
+	UPROPERTY()
+	TMap<FName, FGuid> CookedPropertyGuids;
+
 	// Mapping of changed properties & data to apply when instancing components in a cooked build (one entry per named AddComponent node template for fast lookup at runtime).
 	// Note: This is not currently utilized by the editor; it is a runtime optimization for cooked builds only. It assumes that the component class structure does not change.
 	UPROPERTY()
@@ -749,9 +753,10 @@ public:
 	virtual bool CanBeClusterRoot() const override;
 #if WITH_EDITOR
 	virtual UClass* RegenerateClass(UClass* ClassToRegenerate, UObject* PreviousCDO) override;
+	virtual void BeginCacheForCookedPlatformData(const ITargetPlatform* TargetPlatform) override;
+	virtual void ClearAllCachedCookedPlatformData() override;
 #endif	//WITH_EDITOR
 	virtual bool IsAsset() const override;
-
 	// End UObject interface
 
 	// UClass interface

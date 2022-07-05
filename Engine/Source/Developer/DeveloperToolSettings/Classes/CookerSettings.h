@@ -58,6 +58,19 @@ enum class EBlueprintComponentDataCookingMethod
 };
 
 UENUM()
+enum class EBlueprintPropertyGuidsCookingMethod
+{
+	/** Do not include the property GUIDs in a cooked build. No additional memory will be used. */
+	Disabled,
+
+	/** Include the property GUIDs in a cooked build for all Blueprint types. This option will require the most additional memory. */
+	AllBlueprints,
+
+	/** Include the property GUIDs in a cooked build only for Blueprint types that have explicitly enabled this feature in their class settings. */
+	EnabledBlueprintsOnly,
+};
+
+UENUM()
 enum class ETextureFormatASTCCompressor
 {
 	/** ThirdParty/Intel/ISPCTexComp */
@@ -131,6 +144,13 @@ public:
 	/** Generate optimized component data to speed up Blueprint construction at runtime. This option can increase the overall Blueprint memory usage in a cooked build. Requires Event-Driven Loading (EDL), which is enabled by default. */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Cooker, AdvancedDisplay, meta = (DisplayName = "Generate optimized Blueprint component data"))
 	EBlueprintComponentDataCookingMethod BlueprintComponentDataCookingMethod;
+
+	/**
+	 * Should we include the property GUIDs for a Blueprint class in a cooked build, so that SaveGame archives can redirect property names via the GUIDs?
+	 * @note This option can increase the overall Blueprint memory usage in a cooked build, but can avoid needing to add CoreRedirect data for Blueprint classes stored within SaveGame archives.
+	 */
+	UPROPERTY(GlobalConfig, EditAnywhere, Category = Cooker, AdvancedDisplay, meta = (DisplayName = "Cook Blueprint property GUIDs?"))
+	EBlueprintPropertyGuidsCookingMethod BlueprintPropertyGuidsCookingMethod = EBlueprintPropertyGuidsCookingMethod::EnabledBlueprintsOnly;
 
 	/** List of class names to exclude when cooking for dedicated server */
 	UPROPERTY(GlobalConfig, EditAnywhere, Category = Cooker, AdvancedDisplay, meta = (DisplayName = "Classes excluded when cooking for dedicated server"))
