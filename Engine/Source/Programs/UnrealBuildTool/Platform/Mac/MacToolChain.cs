@@ -322,17 +322,7 @@ namespace UnrealBuildTool
 			// Create a compile action for each source file.
 			foreach (FileItem SourceFile in InputFiles)
 			{
-				Action CompileAction = CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, CompilerPath, CompilerVersion, Result);
-
-				// Analyze and then compile using the shell to perform the indirection
-				string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-				if (StaticAnalysisMode != null && StaticAnalysisMode != "")
-				{
-					FileReference ReportFile = new FileReference(SourceFile.AbsolutePath + ".html");
-					string Arguments = CompileAction.CommandArguments;
-					CompileAction.CommandArguments = "-c \"" + CompilerPath + " " + Arguments + " --analyze -Wno-unused-command-line-argument -Xclang -analyzer-output=html -Xclang -analyzer-config -Xclang path-diagnostics-alternate=true -Xclang -analyzer-config -Xclang report-in-main-source-file=true -Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores -o " + ReportFile + "; " + CompilerPath + " " + Arguments + "\"";
-					CompileAction.CommandPath = new FileReference("/bin/sh");
-				}
+				CompileCPPFile(CompileEnvironment, SourceFile, OutputDir, ModuleName, Graph, GlobalArguments, CompilerPath, CompilerVersion, Result);
 			}
 			return Result;
 		}

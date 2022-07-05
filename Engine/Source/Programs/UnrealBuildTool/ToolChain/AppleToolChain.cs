@@ -328,30 +328,6 @@ namespace UnrealBuildTool
 		}
 
 		/// <inheritdoc/>
-		protected override void GetCompileArguments_Analyze(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
-		{
-			// TODO: Replace logic in MacToolChain.CompileCPPFiles and IOSToolChain.CompileCPPFiles
-			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-			if (string.IsNullOrEmpty(StaticAnalysisMode))
-			{
-				return;
-			}
-			
-			base.GetCompileArguments_Analyze(CompileEnvironment, Arguments);
-
-			Arguments.Add("-Xclang -analyzer-output=html");
-			Arguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
-			Arguments.Add("-Xclang -analyzer-config -Xclang report-in-main-source-file=true");
-			Arguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
-			Arguments.Add("-Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores");
-
-			if (string.Equals(StaticAnalysisMode, "shallow"))
-			{
-				Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
-			}
-		}
-
-		/// <inheritdoc/>
 		protected override void GetCompileArguments_Global(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
 			// Ensure Clang version is set for base.GetCompileArguments_Global()
@@ -363,11 +339,6 @@ namespace UnrealBuildTool
 
 			Arguments.Add("-fmessage-length=0");
 			Arguments.Add("-fpascal-strings");
-
-			if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE")))
-			{
-				GetCompileArguments_Analyze(CompileEnvironment, Arguments);
-			}
 		}
 
 		protected string GetDsymutilPath(ILogger Logger, out string ExtraOptions, bool bIsForLTOBuild=false)
