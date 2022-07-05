@@ -289,7 +289,7 @@ protected:
 	void CleanupReservationBeacon();
 	APartyBeaconClient* CreateReservationBeaconClient();
 
-	APartyBeaconClient* GetReservationBeaconClient() const { return ReservationBeaconClient; }
+	APartyBeaconClient* GetReservationBeaconClient() const { return ReservationBeaconClient.Get(); }
 
 	/**
 	* Create a spectator beacon and connect to the server to get approval for new spectators
@@ -420,7 +420,7 @@ private:
 	
 	/** Reservation beacon client instance while getting approval for new party members*/
 	UPROPERTY()
-	APartyBeaconClient* ReservationBeaconClient = nullptr;
+	TWeakObjectPtr<APartyBeaconClient> ReservationBeaconClient = nullptr;
 	
 	/**
 	* Last known spectator beacon client net driver name
