@@ -22,8 +22,8 @@ class NIAGARA_API UNiagaraDataInterface2DArrayTexture : public UNiagaraDataInter
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Texture")
-	TObjectPtr<UTexture2DArray> Texture;
+	UPROPERTY(EditAnywhere, Category = "Texture", meta = (AllowedClasses = "/Script/Engine.Texture2DArray,/Script/Engine.TextureRenderTarget2DArray"))
+	TObjectPtr<UTexture> Texture;
 
 	UPROPERTY(EditAnywhere, Category = "Texture", meta = (ToolTip = "When valid the user parameter is used as the texture rather than the one on the data interface"))
 	FNiagaraUserParameterBinding TextureUserParameter;
@@ -59,7 +59,7 @@ public:
 	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
 	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
-	void SetTexture(UTexture2DArray* InTexture);
+	void SetTexture(UTexture* InTexture);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;

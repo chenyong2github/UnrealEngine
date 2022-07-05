@@ -21,6 +21,9 @@
 #include "Engine/VolumeTexture.h"
 #include "Engine/Texture2DArray.h"
 #include "Engine/TextureCube.h"
+#include "Engine/TextureRenderTarget2DArray.h"
+#include "Engine/TextureRenderTargetVolume.h"
+#include "Engine/TextureRenderTargetCube.h"
 #include "NiagaraGpuComputeDispatchInterface.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraFunctionLibrary"
@@ -508,7 +511,7 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 
 		TextureDI->SetTexture(Texture);
 	}
-	else if (UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture))
+	else if (Texture->IsA<UTexture2DArray>() || Texture->IsA<UTextureRenderTarget2DArray>())
 	{
 		const FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterface2DArrayTexture::StaticClass()), *OverrideName);
 		const int32 Index = OverrideParameters.IndexOf(Variable);
@@ -525,9 +528,9 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 			return;
 		}
 
-		TextureDI->SetTexture(Texture2DArray);
+		TextureDI->SetTexture(Texture);
 	}
-	else if (UVolumeTexture* TextureVolume = Cast<UVolumeTexture>(Texture))
+	else if (Texture->IsA<UVolumeTexture>() || Texture->IsA<UTextureRenderTargetVolume>())
 	{
 		const FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceVolumeTexture::StaticClass()), *OverrideName);
 		const int32 Index = OverrideParameters.IndexOf(Variable);
@@ -544,9 +547,9 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 			return;
 		}
 
-		TextureDI->SetTexture(TextureVolume);
+		TextureDI->SetTexture(Texture);
 	}
-	else if (UTextureCube* TextureCube = Cast<UTextureCube>(Texture))
+	else if (Texture->IsA<UTextureCube>() || Texture->IsA<UTextureRenderTargetCube>())
 	{
 		const FNiagaraVariable Variable(FNiagaraTypeDefinition(UNiagaraDataInterfaceCubeTexture::StaticClass()), *OverrideName);
 		const int32 Index = OverrideParameters.IndexOf(Variable);
@@ -563,7 +566,7 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 			return;
 		}
 
-		TextureDI->SetTexture(TextureCube);
+		TextureDI->SetTexture(Texture);
 	}
 	else
 	{

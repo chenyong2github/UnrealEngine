@@ -330,7 +330,7 @@ void UNiagaraDataInterfaceVolumeTexture::SetShaderParameters(const FNiagaraDataI
 	}
 }
 
-void UNiagaraDataInterfaceVolumeTexture::SetTexture(UVolumeTexture* InTexture)
+void UNiagaraDataInterfaceVolumeTexture::SetTexture(UTexture* InTexture)
 {
 	if (InTexture)
 	{

@@ -310,7 +310,7 @@ void UNiagaraDataInterfaceCubeTexture::SetShaderParameters(const FNiagaraDataInt
 	}
 }
 
-void UNiagaraDataInterfaceCubeTexture::SetTexture(UTextureCube* InTexture)
+void UNiagaraDataInterfaceCubeTexture::SetTexture(UTexture* InTexture)
 {
 	if (InTexture)
 	{

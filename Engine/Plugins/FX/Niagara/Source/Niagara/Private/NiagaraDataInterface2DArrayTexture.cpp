@@ -290,7 +290,7 @@ void UNiagaraDataInterface2DArrayTexture::SetShaderParameters(const FNiagaraData
 	}
 }
 
-void UNiagaraDataInterface2DArrayTexture::SetTexture(UTexture2DArray* InTexture)
+void UNiagaraDataInterface2DArrayTexture::SetTexture(UTexture* InTexture)
 {
 	if (InTexture)
 	{

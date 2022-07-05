@@ -22,8 +22,8 @@ class NIAGARA_API UNiagaraDataInterfaceVolumeTexture : public UNiagaraDataInterf
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
-	UPROPERTY(EditAnywhere, Category = "Texture")
-	TObjectPtr<UVolumeTexture> Texture;
+	UPROPERTY(EditAnywhere, Category = "Texture", meta=(AllowedClasses = "/Script/Engine.VolumeTexture,/Script/Engine.TextureRenderTargetVolume"))
+	TObjectPtr<UTexture> Texture;
 
 	UPROPERTY(EditAnywhere, Category = "Texture", meta = (ToolTip = "When valid the user parameter is used as the texture rather than the one on the data interface"))
 	FNiagaraUserParameterBinding TextureUserParameter;
@@ -60,7 +60,7 @@ public:
 	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
 	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
-	void SetTexture(UVolumeTexture* InTexture);
+	void SetTexture(UTexture* InTexture);
 
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
