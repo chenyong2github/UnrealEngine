@@ -12,8 +12,6 @@ import Kronos
 import GameController
 
 class StartViewController : BaseViewController {
-    
-    static var DefaultPort = UInt16(2049)
 
     @IBOutlet weak var headerView : HeaderView!
     @IBOutlet weak var versionLabel : UILabel!
@@ -29,12 +27,10 @@ class StartViewController : BaseViewController {
     @IBOutlet weak var connectingView : UIVisualEffectView!
 
     private var tapGesture : UITapGestureRecognizer!
-    private var oscConnection : OSCTCPConnection?
     
-    public var multicastWatchdogSocket  : GCDAsyncUdpSocket?
-    
-    private var liveLink : LiveLinkProvider?
-    private var liveLinkTimer : Timer?
+    private var streamingConnection : StreamingConnection?
+    private var _liveLinkTimer : Timer?
+
     
     @objc dynamic let appSettings = AppSettings.shared
     private var observers = [NSKeyValueObservation]()
@@ -108,10 +104,24 @@ class StartViewController : BaseViewController {
         
         // any change to the subject name will remove & re-add the camera subject.
         observers.append(observe(\.appSettings.liveLinkSubjectName, options: [.old,.new], changeHandler: { object, change in
-            self.liveLink?.removeCameraSubject(change.oldValue!)
-            self.liveLink?.addCameraSubject(self.appSettings.liveLinkSubjectName)
+            if let sc = self.streamingConnection {
+                sc.subjectName = self.appSettings.liveLinkSubjectName
+            }
         }))
-        
+
+        // initial & value changes for the connection type instantiates a new StreamingConnection object
+        observers.append(observe(\.appSettings.connectionType, options: [.initial, .old,.new], changeHandler: { object, change in
+            
+            self.streamingConnection = nil
+
+            let connectionType = self.appSettings.connectionType
+            if let connectionClass = Bundle.main.classNamed("VCAM.\(connectionType)StreamingConnection") as? StreamingConnection.Type {
+                self.streamingConnection = connectionClass.init(subjectName: self.appSettings.liveLinkSubjectName)
+                self.streamingConnection?.delegate = self
+            }
+
+        }))
+
         NotificationCenter.default.addObserver(self, selector: #selector(gameControllerDidConnectNotification), name: .GCControllerDidConnect, object: nil)
         NotificationCenter.default.addObserver(self, selector: #selector(gameControllerDidDisconnectNotification), name: .GCControllerDidDisconnect, object: nil)
         
@@ -121,52 +131,19 @@ class StartViewController : BaseViewController {
                 gc.playerIndex = .index1
             }
         }
-        
-        LiveLink.initialize(self)
-        restartLiveLink()
     }
-     
-    func restartLiveLink() {
+    
 
-        // stop the provider & restart livelink here
-        if self.liveLink != nil {
-            Log.info("Restarting Messaging Engine.")
-            LiveLink.restart()
-            self.liveLink = nil
-        }
-
-        Log.info("Initializing LiveLink Provider.")
-
-        self.liveLink = LiveLink.createProvider("Live Link VCAM")
-        self.liveLink?.addCameraSubject(AppSettings.shared.liveLinkSubjectName)
-
-        if let videoViewController = self.presentedViewController as? VideoViewController {
-            if !self.ipAddressIsDemoMode {
-                videoViewController.liveLink = self.liveLink
-            }
-        }
-
-        multicastWatchdogSocket?.close()
-        Log.info("Starting multicast watchdog.")
-        multicastWatchdogSocket = GCDAsyncUdpSocket(delegate: self, delegateQueue: DispatchQueue.main)
-        do {
-            try multicastWatchdogSocket?.enableReusePort(true)
-            try multicastWatchdogSocket?.bind(toPort: 6665)
-            try multicastWatchdogSocket?.joinMulticastGroup("230.0.0.1")
-            try multicastWatchdogSocket?.beginReceiving()
-        } catch {
-            Log.info("Error creating watchdog : \(error.localizedDescription)")
-        }
-    }
     
     override func viewWillAppear(_ animated : Bool) {
         
         self.connectingView.isHidden = true
         self.headerView.start()
+
+        self.streamingConnection?.delegate = self
         
-        liveLinkTimer?.invalidate()
-        liveLinkTimer = Timer.scheduledTimer(withTimeInterval: 1.0/10.0, repeats: true, block: { timer in
-            self.liveLink?.updateSubject(AppSettings.shared.liveLinkSubjectName, withTransform: simd_float4x4(), atTime: Timecode.create().toTimeInterval())
+        _liveLinkTimer = Timer.scheduledTimer(withTimeInterval: 1.0/10.0, repeats: true, block: { timer in
+            self.streamingConnection?.sendTransform(simd_float4x4(), atTime: Timecode.create().toTimeInterval())
         })
     }
     
@@ -189,16 +166,13 @@ class StartViewController : BaseViewController {
             if let vc = segue.destination as? VideoViewController {
                 
                 // stop the timer locally which is sending LL identity xform
-                liveLinkTimer?.invalidate()
-                liveLinkTimer = nil
+                _liveLinkTimer?.invalidate()
+                _liveLinkTimer = nil
 
-                self.oscConnection?.delegate = vc
-                vc.oscConnection = self.oscConnection
+                self.streamingConnection?.delegate = vc
+                vc.streamingConnection = self.streamingConnection
                 
-                vc.liveLink = self.liveLink
                 vc.gameController = self.gameController
-
-                self.oscConnection = nil
             }
         }
     }
@@ -250,6 +224,7 @@ class StartViewController : BaseViewController {
 
         } else {
 
+            // show the connection view
             self.connectingView.isHidden = false
             self.connectingView.alpha = 0.0
             UIView.animate(withDuration: 0.2) {
@@ -257,15 +232,12 @@ class StartViewController : BaseViewController {
             }
             
             showConnectingAlertView(mode: .connecting) {
-                self.oscConnection = nil
                 self.hideConnectingView() { }
             }
 
-            let (host,port) = NetUtility.hostAndPortFromAddress(self.ipAddress.text!)
-            
             do {
-                self.oscConnection = nil
-                self.oscConnection = try OSCTCPConnection(host:host, port:port ?? StartViewController.DefaultPort, delegate: self)
+                self.streamingConnection?.destination = self.ipAddress.text!
+                try self.streamingConnection?.connect()
                 
             } catch {
                 
@@ -332,17 +304,3 @@ extension StartViewController : UITextFieldDelegate {
     }
 }
 
-extension StartViewController : GCDAsyncUdpSocketDelegate {
-
-    func udpSocketDidClose(_ sock: GCDAsyncUdpSocket, withError error: Error?) {
-        Log.error("Multicast watchdog closed : restarting LiveLink.")
-        restartLiveLink()
-    }
-}
-
-extension StartViewController : LiveLinkLogDelegate {
-
-    func logMessage(_ message: String!) {
-        Log.info(message)
-    }
-}

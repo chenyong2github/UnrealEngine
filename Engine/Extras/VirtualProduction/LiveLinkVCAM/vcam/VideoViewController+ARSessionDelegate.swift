@@ -36,4 +36,11 @@ extension VideoViewController : ARSessionDelegate {
             
         }
     }
+    
+    func session(_ session: ARSession, didUpdate frame: ARFrame) {
+        self.streamingConnection?.sendTransform(frame.camera.transform, atTime: Timecode.create().toTimeInterval())
+        
+        // update controller
+        self.sendControllerUpdate()
+    }
 }

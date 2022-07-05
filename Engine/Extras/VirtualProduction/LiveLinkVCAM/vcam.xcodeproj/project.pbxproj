@@ -12,6 +12,29 @@
 		8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B4542D927A7CFB6001703EE /* GameController.framework */; };
 		8B58775E27BE4B1E00D78749 /* LiveLinkProvider.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; };
 		8B58775F27BE4B1E00D78749 /* LiveLinkProvider.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */; platformFilter = ios; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		8B72D377286B33A300F5970C /* Starscream in Frameworks */ = {isa = PBXBuildFile; productRef = 8B72D376286B33A300F5970C /* Starscream */; };
+		8B72D37A286B354400F5970C /* WebRTC in Frameworks */ = {isa = PBXBuildFile; productRef = 8B72D379286B354400F5970C /* WebRTC */; };
+		8B72D38D286B356D00F5970C /* TouchControls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D37D286B356D00F5970C /* TouchControls.swift */; };
+		8B72D38E286B356D00F5970C /* RTCStates.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D37E286B356D00F5970C /* RTCStates.swift */; };
+		8B72D38F286B356D00F5970C /* PixelStreamingToClientMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D37F286B356D00F5970C /* PixelStreamingToClientMessage.swift */; };
+		8B72D390286B356D00F5970C /* IntToBytes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D380286B356D00F5970C /* IntToBytes.swift */; };
+		8B72D391286B356D00F5970C /* SessionDescription.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D381286B356D00F5970C /* SessionDescription.swift */; };
+		8B72D392286B356D00F5970C /* PeerConnectionConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D382286B356D00F5970C /* PeerConnectionConfig.swift */; };
+		8B72D393286B356D00F5970C /* IceCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D383286B356D00F5970C /* IceCandidate.swift */; };
+		8B72D394286B356D00F5970C /* PixelStreamingToStreamerMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D384286B356D00F5970C /* PixelStreamingToStreamerMessage.swift */; };
+		8B72D395286B356D00F5970C /* Message.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D386286B356D00F5970C /* Message.swift */; };
+		8B72D396286B356D00F5970C /* WebSocketProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D388286B356D00F5970C /* WebSocketProvider.swift */; };
+		8B72D397286B356D00F5970C /* NativeWebSocketProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D389286B356D00F5970C /* NativeWebSocketProvider.swift */; };
+		8B72D398286B356D00F5970C /* StarscreamProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D38A286B356D00F5970C /* StarscreamProvider.swift */; };
+		8B72D399286B356D00F5970C /* WebRTCClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D38B286B356D00F5970C /* WebRTCClient.swift */; };
+		8B72D39A286B356D00F5970C /* SignalingClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D38C286B356D00F5970C /* SignalingClient.swift */; };
+		8B72D39C286B3E3000F5970C /* StreamingConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D39B286B3E3000F5970C /* StreamingConnection.swift */; };
+		8B72D39E286B3E6D00F5970C /* WebRTCStreamingConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D39D286B3E6D00F5970C /* WebRTCStreamingConnection.swift */; };
+		8B72D3A0286B3E7E00F5970C /* RemoteSessionStreamingConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D39F286B3E7E00F5970C /* RemoteSessionStreamingConnection.swift */; };
+		8B72D3A2286B441100F5970C /* VideoViewController+StreamingConnectionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D3A1286B441100F5970C /* VideoViewController+StreamingConnectionDelegate.swift */; };
+		8B72D3A6286C4B9900F5970C /* StartViewController+StreamingConnectionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D3A5286C4B9900F5970C /* StartViewController+StreamingConnectionDelegate.swift */; };
+		8B72D3A8286C7BAB00F5970C /* WebRTCView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D3A7286C7BAB00F5970C /* WebRTCView.swift */; };
+		8B72D3AA286D9CD700F5970C /* RemoteSessionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B72D3A9286D9CD700F5970C /* RemoteSessionView.swift */; };
 		8B751C67257A407C00755F39 /* ToolView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B751C66257A407C00755F39 /* ToolView.swift */; };
 		8B751C74257A4C2C00755F39 /* Toast.xib in Resources */ = {isa = PBXBuildFile; fileRef = 8B751C73257A4C2C00755F39 /* Toast.xib */; };
 		8B751C76257A4F5F00755F39 /* ToastView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B751C75257A4F5F00755F39 /* ToastView.swift */; };
@@ -22,18 +45,14 @@
 		8B7D848E24DEA02800D01C13 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 8B7D848D24DEA02800D01C13 /* Assets.xcassets */; };
 		8B7D849124DEA02800D01C13 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 8B7D848F24DEA02800D01C13 /* LaunchScreen.storyboard */; };
 		8B7D849E24DEA04C00D01C13 /* Log.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B7D849A24DEA04C00D01C13 /* Log.swift */; };
-		8B7D84D024DEA5A700D01C13 /* VideoViewController+OSCTCPConnectionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B7D84CF24DEA5A700D01C13 /* VideoViewController+OSCTCPConnectionDelegate.swift */; };
 		8B83F35225A46E000060B452 /* NetworkExtension.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 8B83F35125A46E000060B452 /* NetworkExtension.framework */; };
 		8B88193226678A7C0061F926 /* BaseViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B88193126678A7C0061F926 /* BaseViewController.swift */; };
 		8B881935266A48090061F926 /* Easing in Frameworks */ = {isa = PBXBuildFile; productRef = 8B881934266A48090061F926 /* Easing */; };
-		8B932C4F24DEE6BD0089EB8F /* VideoDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C4E24DEE6BD0089EB8F /* VideoDecoder.swift */; };
 		8B932C5424DEE8E00089EB8F /* JPEGVideoDecoder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C5324DEE8E00089EB8F /* JPEGVideoDecoder.swift */; };
-		8B932C5624E03F180089EB8F /* PassthroughShaders.metal in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C5524E03F180089EB8F /* PassthroughShaders.metal */; };
 		8B932C6924E284EC0089EB8F /* OSCUtility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C6524E284EC0089EB8F /* OSCUtility.swift */; };
 		8B932C6A24E284EC0089EB8F /* OSCAddressPattern.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C6624E284EC0089EB8F /* OSCAddressPattern.swift */; };
 		8B932C6B24E284EC0089EB8F /* OSCPacket.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C6724E284EC0089EB8F /* OSCPacket.swift */; };
 		8B932C6C24E284EC0089EB8F /* OSCTCPConnection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C6824E284EC0089EB8F /* OSCTCPConnection.swift */; };
-		8B932C7024E2D9610089EB8F /* VideoViewController+ARSCNViewDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C6F24E2D9610089EB8F /* VideoViewController+ARSCNViewDelegate.swift */; };
 		8B932C7224E3E7180089EB8F /* VideoViewController+ARSessionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B932C7124E3E7180089EB8F /* VideoViewController+ARSessionDelegate.swift */; };
 		8B9C22EB255AB85A00C371BB /* StartViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8B9C22EA255AB85A00C371BB /* StartViewController.swift */; };
 		8BA84E2625763C11007EAA7B /* LogViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BA84E2525763C11007EAA7B /* LogViewController.swift */; };
@@ -57,7 +76,6 @@
 		8BD09CA42629AB1100A4C301 /* ResetViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD09CA22629AB1100A4C301 /* ResetViewController.swift */; };
 		8BD09CA52629AB1100A4C301 /* AboutViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD09CA32629AB1100A4C301 /* AboutViewController.swift */; };
 		8BD09CA9262B0CBA00A4C301 /* HeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD09CA8262B0CBA00A4C301 /* HeaderView.swift */; };
-		8BD53B0D258E276B00E1121E /* StartViewController+OSCTCPConnectionDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD53B0C258E276B00E1121E /* StartViewController+OSCTCPConnectionDelegate.swift */; };
 		8BD53B14258E28ED00E1121E /* NetUtility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD53B13258E28ED00E1121E /* NetUtility.swift */; };
 		8BD53B17258E2F2B00E1121E /* eula.html in Resources */ = {isa = PBXBuildFile; fileRef = 8BD53B15258E2F2A00E1121E /* eula.html */; };
 		8BD53B18258E2F2B00E1121E /* EULAViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8BD53B16258E2F2B00E1121E /* EULAViewController.swift */; };
@@ -89,6 +107,27 @@
 		8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARCoachingOverlayViewDelegate.swift"; sourceTree = "<group>"; };
 		8B4542D927A7CFB6001703EE /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
 		8B58775C27BE4B1600D78749 /* LiveLinkProvider.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = LiveLinkProvider.framework; sourceTree = "<group>"; };
+		8B72D37D286B356D00F5970C /* TouchControls.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = TouchControls.swift; sourceTree = "<group>"; };
+		8B72D37E286B356D00F5970C /* RTCStates.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = RTCStates.swift; sourceTree = "<group>"; };
+		8B72D37F286B356D00F5970C /* PixelStreamingToClientMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PixelStreamingToClientMessage.swift; sourceTree = "<group>"; };
+		8B72D380286B356D00F5970C /* IntToBytes.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IntToBytes.swift; sourceTree = "<group>"; };
+		8B72D381286B356D00F5970C /* SessionDescription.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SessionDescription.swift; sourceTree = "<group>"; };
+		8B72D382286B356D00F5970C /* PeerConnectionConfig.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PeerConnectionConfig.swift; sourceTree = "<group>"; };
+		8B72D383286B356D00F5970C /* IceCandidate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = IceCandidate.swift; sourceTree = "<group>"; };
+		8B72D384286B356D00F5970C /* PixelStreamingToStreamerMessage.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = PixelStreamingToStreamerMessage.swift; sourceTree = "<group>"; };
+		8B72D386286B356D00F5970C /* Message.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Message.swift; sourceTree = "<group>"; };
+		8B72D388286B356D00F5970C /* WebSocketProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebSocketProvider.swift; sourceTree = "<group>"; };
+		8B72D389286B356D00F5970C /* NativeWebSocketProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NativeWebSocketProvider.swift; sourceTree = "<group>"; };
+		8B72D38A286B356D00F5970C /* StarscreamProvider.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = StarscreamProvider.swift; sourceTree = "<group>"; };
+		8B72D38B286B356D00F5970C /* WebRTCClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebRTCClient.swift; sourceTree = "<group>"; };
+		8B72D38C286B356D00F5970C /* SignalingClient.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = SignalingClient.swift; sourceTree = "<group>"; };
+		8B72D39B286B3E3000F5970C /* StreamingConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StreamingConnection.swift; sourceTree = "<group>"; };
+		8B72D39D286B3E6D00F5970C /* WebRTCStreamingConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebRTCStreamingConnection.swift; sourceTree = "<group>"; };
+		8B72D39F286B3E7E00F5970C /* RemoteSessionStreamingConnection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionStreamingConnection.swift; sourceTree = "<group>"; };
+		8B72D3A1286B441100F5970C /* VideoViewController+StreamingConnectionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+StreamingConnectionDelegate.swift"; sourceTree = "<group>"; };
+		8B72D3A5286C4B9900F5970C /* StartViewController+StreamingConnectionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StartViewController+StreamingConnectionDelegate.swift"; sourceTree = "<group>"; };
+		8B72D3A7286C7BAB00F5970C /* WebRTCView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = WebRTCView.swift; sourceTree = "<group>"; };
+		8B72D3A9286D9CD700F5970C /* RemoteSessionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RemoteSessionView.swift; sourceTree = "<group>"; };
 		8B751C66257A407C00755F39 /* ToolView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToolView.swift; sourceTree = "<group>"; };
 		8B751C73257A4C2C00755F39 /* Toast.xib */ = {isa = PBXFileReference; lastKnownFileType = file.xib; path = Toast.xib; sourceTree = "<group>"; };
 		8B751C75257A4F5F00755F39 /* ToastView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ToastView.swift; sourceTree = "<group>"; };
@@ -101,20 +140,15 @@
 		8B7D849024DEA02800D01C13 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		8B7D849224DEA02800D01C13 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		8B7D849A24DEA04C00D01C13 /* Log.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = Log.swift; sourceTree = "<group>"; };
-		8B7D84CF24DEA5A700D01C13 /* VideoViewController+OSCTCPConnectionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+OSCTCPConnectionDelegate.swift"; sourceTree = "<group>"; };
 		8B83F35025A46E000060B452 /* VCAM.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = VCAM.entitlements; sourceTree = "<group>"; };
 		8B83F35125A46E000060B452 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
 		8B88193126678A7C0061F926 /* BaseViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BaseViewController.swift; sourceTree = "<group>"; };
-		8B932C4E24DEE6BD0089EB8F /* VideoDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VideoDecoder.swift; sourceTree = "<group>"; };
 		8B932C5324DEE8E00089EB8F /* JPEGVideoDecoder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JPEGVideoDecoder.swift; sourceTree = "<group>"; };
-		8B932C5524E03F180089EB8F /* PassthroughShaders.metal */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.metal; path = PassthroughShaders.metal; sourceTree = "<group>"; };
-		8B932C5724E03F640089EB8F /* PassthroughShaderTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = PassthroughShaderTypes.h; sourceTree = "<group>"; };
 		8B932C5F24E1780D0089EB8F /* VCAM-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "VCAM-Bridging-Header.h"; sourceTree = "<group>"; };
 		8B932C6524E284EC0089EB8F /* OSCUtility.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OSCUtility.swift; sourceTree = "<group>"; };
 		8B932C6624E284EC0089EB8F /* OSCAddressPattern.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OSCAddressPattern.swift; sourceTree = "<group>"; };
 		8B932C6724E284EC0089EB8F /* OSCPacket.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OSCPacket.swift; sourceTree = "<group>"; };
 		8B932C6824E284EC0089EB8F /* OSCTCPConnection.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = OSCTCPConnection.swift; sourceTree = "<group>"; };
-		8B932C6F24E2D9610089EB8F /* VideoViewController+ARSCNViewDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARSCNViewDelegate.swift"; sourceTree = "<group>"; };
 		8B932C7124E3E7180089EB8F /* VideoViewController+ARSessionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "VideoViewController+ARSessionDelegate.swift"; sourceTree = "<group>"; };
 		8B9C22EA255AB85A00C371BB /* StartViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StartViewController.swift; sourceTree = "<group>"; };
 		8BA84E2525763C11007EAA7B /* LogViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = LogViewController.swift; sourceTree = "<group>"; };
@@ -146,7 +180,6 @@
 		8BD09CA22629AB1100A4C301 /* ResetViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = ResetViewController.swift; sourceTree = "<group>"; };
 		8BD09CA32629AB1100A4C301 /* AboutViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AboutViewController.swift; sourceTree = "<group>"; };
 		8BD09CA8262B0CBA00A4C301 /* HeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeaderView.swift; sourceTree = "<group>"; };
-		8BD53B0C258E276B00E1121E /* StartViewController+OSCTCPConnectionDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "StartViewController+OSCTCPConnectionDelegate.swift"; sourceTree = "<group>"; };
 		8BD53B13258E28ED00E1121E /* NetUtility.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = NetUtility.swift; sourceTree = "<group>"; };
 		8BD53B15258E2F2A00E1121E /* eula.html */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.html; path = eula.html; sourceTree = "<group>"; };
 		8BD53B16258E2F2B00E1121E /* EULAViewController.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = EULAViewController.swift; sourceTree = "<group>"; };
@@ -169,15 +202,62 @@
 				8B83F35225A46E000060B452 /* NetworkExtension.framework in Frameworks */,
 				8BCA6C9128129A550034C7F7 /* Tentacle.xcframework in Frameworks */,
 				8B881935266A48090061F926 /* Easing in Frameworks */,
+				8B72D37A286B354400F5970C /* WebRTC in Frameworks */,
 				8BB93C472608A28900293541 /* CocoaAsyncSocket in Frameworks */,
 				8B4542DA27A7CFB7001703EE /* GameController.framework in Frameworks */,
 				8B58775E27BE4B1E00D78749 /* LiveLinkProvider.framework in Frameworks */,
+				8B72D377286B33A300F5970C /* Starscream in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		8B72D37B286B356D00F5970C /* WebRTC */ = {
+			isa = PBXGroup;
+			children = (
+				8B72D37C286B356D00F5970C /* Extensions */,
+				8B72D385286B356D00F5970C /* Services */,
+			);
+			path = WebRTC;
+			sourceTree = "<group>";
+		};
+		8B72D37C286B356D00F5970C /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				8B72D37D286B356D00F5970C /* TouchControls.swift */,
+				8B72D37E286B356D00F5970C /* RTCStates.swift */,
+				8B72D37F286B356D00F5970C /* PixelStreamingToClientMessage.swift */,
+				8B72D380286B356D00F5970C /* IntToBytes.swift */,
+				8B72D381286B356D00F5970C /* SessionDescription.swift */,
+				8B72D382286B356D00F5970C /* PeerConnectionConfig.swift */,
+				8B72D383286B356D00F5970C /* IceCandidate.swift */,
+				8B72D384286B356D00F5970C /* PixelStreamingToStreamerMessage.swift */,
+			);
+			path = Extensions;
+			sourceTree = "<group>";
+		};
+		8B72D385286B356D00F5970C /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				8B72D386286B356D00F5970C /* Message.swift */,
+				8B72D387286B356D00F5970C /* WebSocketProvider */,
+				8B72D38B286B356D00F5970C /* WebRTCClient.swift */,
+				8B72D38C286B356D00F5970C /* SignalingClient.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		8B72D387286B356D00F5970C /* WebSocketProvider */ = {
+			isa = PBXGroup;
+			children = (
+				8B72D388286B356D00F5970C /* WebSocketProvider.swift */,
+				8B72D389286B356D00F5970C /* NativeWebSocketProvider.swift */,
+				8B72D38A286B356D00F5970C /* StarscreamProvider.swift */,
+			);
+			path = WebSocketProvider;
+			sourceTree = "<group>";
+		};
 		8B7D847824DEA02500D01C13 = {
 			isa = PBXGroup;
 			children = (
@@ -212,6 +292,7 @@
 				8B01BF2A26CA7DD1001872D2 /* LaunchScreen_iPad.storyboard */,
 				8B751C73257A4C2C00755F39 /* Toast.xib */,
 				8B7D848D24DEA02800D01C13 /* Assets.xcassets */,
+				8B72D37B286B356D00F5970C /* WebRTC */,
 				8B932C6424E284EC0089EB8F /* OSC */,
 				8B7D849A24DEA04C00D01C13 /* Log.swift */,
 				8B7D848424DEA02600D01C13 /* AppDelegate.swift */,
@@ -223,7 +304,7 @@
 				8BD09CA8262B0CBA00A4C301 /* HeaderView.swift */,
 				8B88193126678A7C0061F926 /* BaseViewController.swift */,
 				8B9C22EA255AB85A00C371BB /* StartViewController.swift */,
-				8BD53B0C258E276B00E1121E /* StartViewController+OSCTCPConnectionDelegate.swift */,
+				8B72D3A5286C4B9900F5970C /* StartViewController+StreamingConnectionDelegate.swift */,
 				8BD09C9C2629AA4E00A4C301 /* SettingsViewController.swift */,
 				8BD09CA02629AB0700A4C301 /* SingleValueViewController.swift */,
 				8BC2656E279186C400C23415 /* MultipleChoiceViewController.swift */,
@@ -231,20 +312,21 @@
 				8BD09C9A2629AA2200A4C301 /* TentacleDetailViewController.swift */,
 				8BD09CA32629AB1100A4C301 /* AboutViewController.swift */,
 				8BD09CA22629AB1100A4C301 /* ResetViewController.swift */,
+				8B72D39B286B3E3000F5970C /* StreamingConnection.swift */,
+				8B72D39D286B3E6D00F5970C /* WebRTCStreamingConnection.swift */,
+				8B72D3A7286C7BAB00F5970C /* WebRTCView.swift */,
+				8B72D39F286B3E7E00F5970C /* RemoteSessionStreamingConnection.swift */,
+				8B72D3A9286D9CD700F5970C /* RemoteSessionView.swift */,
 				8B7D848824DEA02600D01C13 /* VideoViewController.swift */,
 				8B932C7124E3E7180089EB8F /* VideoViewController+ARSessionDelegate.swift */,
-				8B932C6F24E2D9610089EB8F /* VideoViewController+ARSCNViewDelegate.swift */,
-				8B7D84CF24DEA5A700D01C13 /* VideoViewController+OSCTCPConnectionDelegate.swift */,
+				8B72D3A1286B441100F5970C /* VideoViewController+StreamingConnectionDelegate.swift */,
 				8B05A925275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift */,
 				8B751C66257A407C00755F39 /* ToolView.swift */,
 				8B751C75257A4F5F00755F39 /* ToastView.swift */,
 				8BA84E2525763C11007EAA7B /* LogViewController.swift */,
 				8BA84E2725763D99007EAA7B /* FileUtility.swift */,
 				8BD09C962625E4C200A4C301 /* Extensions.swift */,
-				8B932C4E24DEE6BD0089EB8F /* VideoDecoder.swift */,
 				8B932C5324DEE8E00089EB8F /* JPEGVideoDecoder.swift */,
-				8B932C5724E03F640089EB8F /* PassthroughShaderTypes.h */,
-				8B932C5524E03F180089EB8F /* PassthroughShaders.metal */,
 				8BD53B1C258E312500E1121E /* ObjCUtility.h */,
 				8BD53B1B258E312500E1121E /* ObjCUtility.m */,
 				8B932C5F24E1780D0089EB8F /* VCAM-Bridging-Header.h */,
@@ -298,6 +380,8 @@
 				8BB93C492608A2DE00293541 /* SwiftEntryKit */,
 				8BD09C922625E1EC00A4C301 /* Kronos */,
 				8B881934266A48090061F926 /* Easing */,
+				8B72D376286B33A300F5970C /* Starscream */,
+				8B72D379286B354400F5970C /* WebRTC */,
 			);
 			productName = vcam;
 			productReference = 8B7D848124DEA02600D01C13 /* VCAM.app */;
@@ -335,6 +419,8 @@
 				8BB93C482608A2DE00293541 /* XCRemoteSwiftPackageReference "SwiftEntryKit" */,
 				8BD09C912625E1EB00A4C301 /* XCRemoteSwiftPackageReference "Kronos" */,
 				8B881933266A48090061F926 /* XCRemoteSwiftPackageReference "Easing" */,
+				8B72D375286B33A300F5970C /* XCRemoteSwiftPackageReference "Starscream" */,
+				8B72D378286B354400F5970C /* XCRemoteSwiftPackageReference "WebRTC" */,
 			);
 			productRefGroup = 8B7D848224DEA02600D01C13 /* Products */;
 			projectDirPath = "";
@@ -371,45 +457,61 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				8B932C5624E03F180089EB8F /* PassthroughShaders.metal in Sources */,
 				8BD09C902625E10100A4C301 /* Timecode.swift in Sources */,
 				8B751C76257A4F5F00755F39 /* ToastView.swift in Sources */,
 				8B9C22EB255AB85A00C371BB /* StartViewController.swift in Sources */,
+				8B72D3A2286B441100F5970C /* VideoViewController+StreamingConnectionDelegate.swift in Sources */,
 				8B751C67257A407C00755F39 /* ToolView.swift in Sources */,
+				8B72D393286B356D00F5970C /* IceCandidate.swift in Sources */,
 				8BD09CA9262B0CBA00A4C301 /* HeaderView.swift in Sources */,
 				8BD09C952625E34400A4C301 /* Localized.swift in Sources */,
-				8B932C7024E2D9610089EB8F /* VideoViewController+ARSCNViewDelegate.swift in Sources */,
+				8B72D39A286B356D00F5970C /* SignalingClient.swift in Sources */,
 				8BD09C9E2629AA4E00A4C301 /* SettingsViewController.swift in Sources */,
+				8B72D390286B356D00F5970C /* IntToBytes.swift in Sources */,
+				8B72D3A8286C7BAB00F5970C /* WebRTCView.swift in Sources */,
 				8BD09C972625E4C200A4C301 /* Extensions.swift in Sources */,
 				8B932C6A24E284EC0089EB8F /* OSCAddressPattern.swift in Sources */,
+				8B72D397286B356D00F5970C /* NativeWebSocketProvider.swift in Sources */,
 				8BF78510257A2EB000E7BAF8 /* ConnectButton.swift in Sources */,
 				8B932C5424DEE8E00089EB8F /* JPEGVideoDecoder.swift in Sources */,
 				8BD09C992629AA1900A4C301 /* Tentacle.swift in Sources */,
 				8B932C6B24E284EC0089EB8F /* OSCPacket.swift in Sources */,
+				8B72D3A0286B3E7E00F5970C /* RemoteSessionStreamingConnection.swift in Sources */,
 				8BD53B18258E2F2B00E1121E /* EULAViewController.swift in Sources */,
 				8BD53B1D258E312500E1121E /* ObjCUtility.m in Sources */,
+				8B72D38E286B356D00F5970C /* RTCStates.swift in Sources */,
 				8BA84E2825763D99007EAA7B /* FileUtility.swift in Sources */,
-				8BD53B0D258E276B00E1121E /* StartViewController+OSCTCPConnectionDelegate.swift in Sources */,
 				8B932C7224E3E7180089EB8F /* VideoViewController+ARSessionDelegate.swift in Sources */,
 				8BD09CA42629AB1100A4C301 /* ResetViewController.swift in Sources */,
 				8BD09C9B2629AA2200A4C301 /* TentacleDetailViewController.swift in Sources */,
 				8B7D848924DEA02600D01C13 /* VideoViewController.swift in Sources */,
+				8B72D39C286B3E3000F5970C /* StreamingConnection.swift in Sources */,
+				8B72D398286B356D00F5970C /* StarscreamProvider.swift in Sources */,
 				8B88193226678A7C0061F926 /* BaseViewController.swift in Sources */,
+				8B72D394286B356D00F5970C /* PixelStreamingToStreamerMessage.swift in Sources */,
 				8B7D848524DEA02600D01C13 /* AppDelegate.swift in Sources */,
+				8B72D39E286B3E6D00F5970C /* WebRTCStreamingConnection.swift in Sources */,
 				8BA84E2625763C11007EAA7B /* LogViewController.swift in Sources */,
 				8B05A926275E4EC10080AB2A /* VideoViewController+ARCoachingOverlayViewDelegate.swift in Sources */,
+				8B72D396286B356D00F5970C /* WebSocketProvider.swift in Sources */,
 				8BD09CA12629AB0700A4C301 /* SingleValueViewController.swift in Sources */,
 				8B932C6924E284EC0089EB8F /* OSCUtility.swift in Sources */,
 				8B932C6C24E284EC0089EB8F /* OSCTCPConnection.swift in Sources */,
+				8B72D3AA286D9CD700F5970C /* RemoteSessionView.swift in Sources */,
 				8BD09C9F2629AA4E00A4C301 /* TimecodeViewController.swift in Sources */,
 				8B7D849E24DEA04C00D01C13 /* Log.swift in Sources */,
 				8BD09CA52629AB1100A4C301 /* AboutViewController.swift in Sources */,
+				8B72D3A6286C4B9900F5970C /* StartViewController+StreamingConnectionDelegate.swift in Sources */,
+				8B72D391286B356D00F5970C /* SessionDescription.swift in Sources */,
 				8BD53B14258E28ED00E1121E /* NetUtility.swift in Sources */,
 				8B7D848724DEA02600D01C13 /* SceneDelegate.swift in Sources */,
-				8B932C4F24DEE6BD0089EB8F /* VideoDecoder.swift in Sources */,
 				8BD53B1A258E30A800E1121E /* AppSettings.swift in Sources */,
-				8B7D84D024DEA5A700D01C13 /* VideoViewController+OSCTCPConnectionDelegate.swift in Sources */,
+				8B72D38D286B356D00F5970C /* TouchControls.swift in Sources */,
 				8BC2656F279186C400C23415 /* MultipleChoiceViewController.swift in Sources */,
+				8B72D395286B356D00F5970C /* Message.swift in Sources */,
+				8B72D38F286B356D00F5970C /* PixelStreamingToClientMessage.swift in Sources */,
+				8B72D392286B356D00F5970C /* PeerConnectionConfig.swift in Sources */,
+				8B72D399286B356D00F5970C /* WebRTCClient.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -615,7 +717,7 @@
 				INFOPLIST_FILE = vcam/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.3.0;
 				OTHER_CFLAGS = (
 					"-DUE_BUILD_SHIPPING=1",
 					"-DIS_MONOLITHIC=1",
@@ -656,7 +758,7 @@
 				INFOPLIST_FILE = vcam/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 14.0;
 				LD_RUNPATH_SEARCH_PATHS = "@executable_path/Frameworks";
-				MARKETING_VERSION = 1.2.0;
+				MARKETING_VERSION = 1.3.0;
 				OTHER_CFLAGS = (
 					"-DUE_BUILD_SHIPPING=1",
 					"-DIS_MONOLITHIC=1",
@@ -703,6 +805,22 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		8B72D375286B33A300F5970C /* XCRemoteSwiftPackageReference "Starscream" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/daltoniam/Starscream.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.1.1;
+			};
+		};
+		8B72D378286B354400F5970C /* XCRemoteSwiftPackageReference "WebRTC" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/stasel/WebRTC";
+			requirement = {
+				kind = exactVersion;
+				version = 91.0.0;
+			};
+		};
 		8B881933266A48090061F926 /* XCRemoteSwiftPackageReference "Easing" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/manuelCarlos/Easing";
@@ -738,6 +856,16 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		8B72D376286B33A300F5970C /* Starscream */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B72D375286B33A300F5970C /* XCRemoteSwiftPackageReference "Starscream" */;
+			productName = Starscream;
+		};
+		8B72D379286B354400F5970C /* WebRTC */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 8B72D378286B354400F5970C /* XCRemoteSwiftPackageReference "WebRTC" */;
+			productName = WebRTC;
+		};
 		8B881934266A48090061F926 /* Easing */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 8B881933266A48090061F926 /* XCRemoteSwiftPackageReference "Easing" */;

@@ -3,7 +3,7 @@
 //  vcam
 //
 //  Created by Brian Smith on 12/6/21.
-//  Copyright © 2021 Brian Smith. All rights reserved.
+//  Copyright Epic Games, Inc. All Rights Reserved.
 //
 
 import Foundation

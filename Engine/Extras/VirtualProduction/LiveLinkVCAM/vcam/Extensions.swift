@@ -131,3 +131,15 @@ extension simd_quatf {
     }
     
 }
+
+extension Float {
+     func toBytes() -> [UInt8] {
+         withUnsafeBytes(of: self, Array.init)
+     }
+ }
+
+ extension Double {
+     func toBytes() -> [UInt8] {
+         withUnsafeBytes(of: self, Array.init)
+     }
+ }

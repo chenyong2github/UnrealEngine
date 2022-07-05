@@ -4,7 +4,6 @@
 #ifndef VCAM_Bridging_Header_h
 #define VCAM_Bridging_Header_h
 
-#import "PassthroughShaderTypes.h"
 #import "ObjCUtility.h"
 #import <LiveLinkProvider/LiveLink.h>
 

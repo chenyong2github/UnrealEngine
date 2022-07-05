@@ -55,7 +55,7 @@ class CMBlockBufferHelper {
     }
 }
 
-class JPEGVideoDecoder : VideoDecoder {
+class JPEGVideoDecoder {
 
     var width : Int32 = 0
     var height : Int32 = 0
@@ -121,7 +121,8 @@ class JPEGVideoDecoder : VideoDecoder {
                 if status == 0 {
                     
                     let attrs = [kCVPixelBufferMetalCompatibilityKey : true,
-                                 kCVPixelBufferPixelFormatTypeKey : kCVPixelFormatType_32ARGB
+                                 kCVPixelBufferPixelFormatTypeKey : kCVPixelFormatType_32ARGB,
+                                 kCVPixelBufferIOSurfaceCoreAnimationCompatibilityKey : true
                         ] as [CFString : Any]
 
                     status = VTDecompressionSessionCreate(allocator: nil, formatDescription: self.formatDescription!, decoderSpecification: nil, imageBufferAttributes: attrs as CFDictionary, outputCallback : nil, decompressionSessionOut: &self.decompressor)

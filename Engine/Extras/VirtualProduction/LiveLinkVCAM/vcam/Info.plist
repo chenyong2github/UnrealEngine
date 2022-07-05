@@ -41,6 +41,8 @@
 	<string>© 2021 Epic Games, Inc. All rights reserved.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>VCAM transmits &amp; receives data from Unreal Engine.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>We don't use the microphone.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -77,12 +79,10 @@
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
 	</array>
 	<key>UISupportedInterfaceOrientations~ipad</key>
 	<array>
 		<string>UIInterfaceOrientationLandscapeRight</string>
-		<string>UIInterfaceOrientationLandscapeLeft</string>
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
