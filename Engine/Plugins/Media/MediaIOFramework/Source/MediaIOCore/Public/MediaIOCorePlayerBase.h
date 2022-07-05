@@ -18,6 +18,16 @@
 
 #include "Misc/FrameRate.h"
 
+static TAutoConsoleVariable<int32> CVarFlipInterlaceFields(
+	TEXT("MediaIO.FlipInputInterlaceFields"), 0,
+	TEXT("Whether to flip input interlace fields. (Experimental)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarExperimentalFieldFlipFix(
+	TEXT("MediaIO.PreventFieldFlipping"), 1,
+	TEXT("Whether to attempt fixing field flipping on input. (Experimental)"),
+	ECVF_RenderThreadSafe);
+
 class FMediaIOCoreSamples;
 class IMediaEventSink;
 

@@ -517,6 +517,7 @@ void UAjaMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBaseData& I
 		AJA::AJAOutputFrameBufferData FrameBuffer;
 		FrameBuffer.Timecode = Timecode;
 		FrameBuffer.FrameIdentifier = InBaseData.SourceFrameNumber;
+		FrameBuffer.bEvenFrame = GFrameCounterRenderThread % 2 == 0;
 
 		bool bSetVideoResult = false;
 		{

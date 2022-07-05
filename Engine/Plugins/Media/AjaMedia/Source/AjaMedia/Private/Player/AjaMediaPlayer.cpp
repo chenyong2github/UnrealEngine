@@ -114,7 +114,6 @@ bool FAjaMediaPlayer::Open(const FString& Url, const IMediaOptions* Options)
 	{
 		TimecodeFormat = UE::MediaIO::FromAutoDetectableTimecodeFormat(Timecode);
 	}
-	
 	if (bAutoDetectTimecode || bAutoDetectVideoFormat)
 	{
 		DeviceProvider->AutoDetectConfiguration(FAjaDeviceProvider::FOnConfigurationAutoDetected::CreateRaw(this, &FAjaMediaPlayer::OnAutoDetected, Url, Options, bAutoDetectVideoFormat, bAutoDetectTimecode));
@@ -415,10 +414,10 @@ bool FAjaMediaPlayer::OnRequestInputBuffer(const AJA::AJARequestInputBufferData&
 	return true;
 }
 
-
 bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInputFrame, const AJA::AJAAncillaryFrameData& InAncillaryFrame, const AJA::AJAAudioFrameData& InAudioFrame, const AJA::AJAVideoFrameData& InVideoFrame)
 {
 	SCOPE_CYCLE_COUNTER(STAT_AJA_MediaPlayer_ProcessFrame);
+
 
 	if ((AjaThreadNewState != EMediaState::Playing) && (AjaThreadNewState != EMediaState::Paused))
 	{
@@ -602,13 +601,19 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 			else
 			{
 				bool bEven = true;
+
+				if (CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
+				{
+					bEven = GFrameCounterRenderThread % 2 != CVarFlipInterlaceFields.GetValueOnAnyThread();
+				}
+
 				if (TextureSample->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bEven, bIsSRGBInput))
 				{
 					Samples->AddVideo(TextureSample);
 				}
 
 				auto TextureSampleOdd = TextureSamplePool->AcquireShared();
-				bEven = false;
+				bEven = !bEven;
 				if (TextureSampleOdd->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTimeF2, VideoFrameRate, DecodedTimecodeF2, bEven, bIsSRGBInput))
 				{
 					Samples->AddVideo(TextureSampleOdd);
@@ -624,7 +629,6 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 
 	return true;
 }
-
 
 bool FAjaMediaPlayer::OnOutputFrameCopied(const AJA::AJAOutputFrameData& InFrameData)
 {
@@ -810,7 +814,6 @@ bool FAjaMediaPlayer::Open_Internal(const FString& Url, const IMediaOptions* Opt
 void FAjaMediaPlayer::OnAutoDetected(TArray<FAjaDeviceProvider::FMediaIOConfigurationWithTimecodeFormat> Configurations, FString Url, const IMediaOptions* Options, bool bAutoDetectVideoFormat, bool bAutoDetectTimecodeFormat)
 {
 	bool bConfigurationFound = false;
-
 	const int64 PortIndex = Options->GetMediaOption(AjaMediaOption::PortIndex, (int64)0);
 	const int64 DeviceIndex = Options->GetMediaOption(AjaMediaOption::DeviceIndex, (int64)0);
 	AJA::AJAInputOutputChannelOptions AjaOptions(TEXT("MediaPlayer"), PortIndex);

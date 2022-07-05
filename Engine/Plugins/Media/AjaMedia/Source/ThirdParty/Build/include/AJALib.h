@@ -459,6 +459,7 @@ namespace AJA
 
 		FTimecode Timecode;
 		uint32_t FrameIdentifier;
+		bool bEvenFrame;
 	};
 
 	/* AJAOutputChannel definition

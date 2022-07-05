@@ -355,8 +355,16 @@ namespace BlackmagicMediaPlayerHelpers
 					}
 					else
 					{
+						bool bEven = true;
+
+						if (CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
+						{
+							bEven = GFrameCounterRenderThread % 2 != CVarFlipInterlaceFields.GetValueOnAnyThread();
+						}
+
 						auto TextureSampleEven = MediaPlayer->TextureSamplePool->AcquireShared();
-						if (TextureSampleEven->InitializeWithEvenOddLine(true
+
+						if (TextureSampleEven->InitializeWithEvenOddLine(bEven
 							, InFrameInfo.VideoBuffer
 							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
 							, InFrameInfo.VideoPitch
@@ -372,7 +380,7 @@ namespace BlackmagicMediaPlayerHelpers
 						}
 
 						auto TextureSampleOdd = MediaPlayer->TextureSamplePool->AcquireShared();
-						if (TextureSampleOdd->InitializeWithEvenOddLine(false
+						if (TextureSampleOdd->InitializeWithEvenOddLine(!bEven
 							, InFrameInfo.VideoBuffer
 							, InFrameInfo.VideoPitch * InFrameInfo.VideoHeight
 							, InFrameInfo.VideoPitch
