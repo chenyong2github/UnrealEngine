@@ -45,6 +45,17 @@ bool USkeletalMeshThumbnailRenderer::AllowsRealtimeThumbnails(UObject* Object) c
 	return SkeletalMesh && SkeletalMesh->GetResourceForRendering();
 }
 
+bool USkeletalMeshThumbnailRenderer::CanVisualizeAsset(UObject* Object)
+{
+	if (!Super::CanVisualizeAsset(Object))
+	{
+		return false;
+	}
+	USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(Object);
+	const bool bValidRenderData = SkeletalMesh && SkeletalMesh->GetResourceForRendering();
+	return bValidRenderData;
+}
+
 void USkeletalMeshThumbnailRenderer::BeginDestroy()
 {
 	ThumbnailSceneCache.Clear();
