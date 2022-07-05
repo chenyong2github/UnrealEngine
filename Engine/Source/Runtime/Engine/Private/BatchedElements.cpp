@@ -1149,7 +1149,7 @@ bool FBatchedElements::Draw(FRHICommandList& RHICmdList, const FMeshPassProcesso
 					// Set the appropriate pixel shader for the mesh.
 					PrepareShaders(RHICmdList, GraphicsPSOInit, StencilRef, FeatureLevel, MeshElement.BlendMode, RelativeMatrices, MeshElement.BatchedElementParameters, MeshElement.Texture, bHitTesting, Gamma, &MeshElement.GlowInfo, &View);
 
-					FBufferRHIRef IndexBufferRHI = RHICmdList.CreateBuffer(sizeof(uint16) * MeshElement.Indices.Num(), BUF_VertexBuffer | BUF_Volatile, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
+					FBufferRHIRef IndexBufferRHI = RHICmdList.CreateBuffer(sizeof(uint16) * MeshElement.Indices.Num(), BUF_IndexBuffer | BUF_Volatile, sizeof(uint16), ERHIAccess::VertexOrIndexBuffer, CreateInfo);
 					void* VoidPtr2 = RHICmdList.LockBuffer(IndexBufferRHI, 0, sizeof(uint16) * MeshElement.Indices.Num(), RLM_WriteOnly);
 					FPlatformMemory::Memcpy(VoidPtr2, MeshElement.Indices.GetData(), sizeof(uint16) * MeshElement.Indices.Num());
 					RHICmdList.UnlockBuffer(IndexBufferRHI);
