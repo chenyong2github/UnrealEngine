@@ -10,6 +10,9 @@
 
 #if TRANSLUCENCY_PERVERTEX_FORWARD_SHADING
 #include "ReflectionEnvironmentShared.ush"
+
+// Enables applying a cloud shadow factor to lighting calculations in ForwardLightingCommon.ush.
+#define ENABLE_FORWARD_CLOUD_SHADOW SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
 #include "ForwardLightingCommon.ush"
 #endif
 
@@ -17,7 +20,7 @@
 #include "SkyAtmosphereCommon.ush"
 #endif
 
-#if (NEEDS_BASEPASS_VERTEX_FOGGING && MATERIAL_ENABLE_TRANSLUCENCY_CLOUD_FOGGING) || SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+#if (NEEDS_BASEPASS_VERTEX_FOGGING && MATERIAL_ENABLE_TRANSLUCENCY_CLOUD_FOGGING) || SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT || NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 #include "VolumetricCloudCommon.ush"
 #endif
 
@@ -139,7 +142,7 @@ void Main(
 
 #endif // NEEDS_BASEPASS_VERTEX_FOGGING
 
-#if TRANSLUCENCY_ANY_PERVERTEX_LIGHTING || SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+#if TRANSLUCENCY_ANY_PERVERTEX_LIGHTING || SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT || NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 	float3 WorldPositionForVertexLightingTranslated = VertexFactoryGetPositionForVertexLighting(Input, VFIntermediates, WorldPosition.xyz);
 	float3 WorldPositionForVertexLighting = WorldPositionForVertexLightingTranslated - LWCHackToFloat(ResolvedView.PreViewTranslation);
 #endif
@@ -194,21 +197,29 @@ void Main(
 
 #elif NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+#define ForwardDirLightCloudShadowParams SingleLayerWater.ForwardDirLightCloudShadow
+#elif IS_MATERIAL_TRANSLUCENT_AND_LIT
+#define ForwardDirLightCloudShadowParams TranslucentBasePass.ForwardDirLightCloudShadow
+#endif
+
 	Output.BasePassInterpolants.VertexCloudShadow = 1.0f;
-	if (TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapStrength > 0.0f)
+	if (ForwardDirLightCloudShadowParams.CloudShadowmapStrength > 0.0f)
 	{
 		float OutOpticalDepth = 0.0f;
 		Output.BasePassInterpolants.VertexCloudShadow = lerp(
 			1.0f,
 			GetCloudVolumetricShadow(
 				WorldPositionForVertexLightingTranslated,
-				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapTranslatedWorldToLightClipMatrix,
-				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapFarDepthKm,
-				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapTexture,
-				TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapSampler,
+				ForwardDirLightCloudShadowParams.CloudShadowmapTranslatedWorldToLightClipMatrix,
+				ForwardDirLightCloudShadowParams.CloudShadowmapFarDepthKm,
+				ForwardDirLightCloudShadowParams.CloudShadowmapTexture,
+				ForwardDirLightCloudShadowParams.CloudShadowmapSampler,
 				OutOpticalDepth),
-			TranslucentBasePass.ForwardDirLightCloudShadow.CloudShadowmapStrength);
+			ForwardDirLightCloudShadowParams.CloudShadowmapStrength);
 	}
+
+#undef ForwardDirLightCloudShadowParams
 
 #endif
 

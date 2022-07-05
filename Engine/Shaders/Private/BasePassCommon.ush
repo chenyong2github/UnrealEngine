@@ -56,8 +56,13 @@
 #define TRANSLUCENCY_PERVERTEX_LIGHTING_VOLUME (!FORWARD_SHADING && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL))
 #define TRANSLUCENCY_PERVERTEX_FORWARD_SHADING (FORWARD_SHADING && (TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_DIRECTIONAL || TRANSLUCENCY_LIGHTING_VOLUMETRIC_PERVERTEX_NONDIRECTIONAL))
 
-// We consider that the cloud shadow is always enabled but the interpolator is only used when render lit translucent with forward shading. We only support per vertex cloud shadow as of today.
+// We consider that the cloud shadow is always enabled but the interpolator is only used when render water or lit translucent with forward shading. We only support per vertex cloud shadow as of today.
+#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
+// Checking for !SINGLE_LAYER_WATER_SIMPLE_FORWARD disables cloud shadows on low end platforms.
+#define NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR (SUPPORT_CLOUD_SHADOW_ON_SINGLE_LAYER_WATER && !SINGLE_LAYER_WATER_SIMPLE_FORWARD)
+#else
 #define NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR (SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT && IS_MATERIAL_TRANSLUCENT_AND_LIT && !TRANSLUCENCY_PERVERTEX_FORWARD_SHADING && !TRANSLUCENCY_PERVERTEX_LIGHTING_VOLUME)
+#endif
 
 struct FSharedBasePassInterpolants
 {

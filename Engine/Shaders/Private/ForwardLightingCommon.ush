@@ -31,8 +31,8 @@
 #include "VirtualShadowMaps/VirtualShadowMapProjectionCommon.ush"
 #endif
 
-#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
-#include "VolumetricCloudCommon.ush" 
+#ifndef ENABLE_FORWARD_CLOUD_SHADOW
+#define ENABLE_FORWARD_CLOUD_SHADOW 0
 #endif
 
 float PrevSceneColorPreExposureInv;
@@ -208,7 +208,7 @@ FDeferredLightingSplit GetForwardDirectLightingSplit(
 		FLATTEN
 		if ((DirectionalLightData.DirectionalLightShadowMapChannelMask >> 8) & LightingChannelMask)
 		{
-		#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+		#if ENABLE_FORWARD_CLOUD_SHADOW
 			// This cannot go into LightAttenuation due to some distance based attenuation math being applied.
 			NewLighting.DiffuseLighting *= InDirectionalLightCloudShadow;
 			NewLighting.SpecularLighting *= InDirectionalLightCloudShadow;
@@ -333,7 +333,7 @@ float3 GetForwardDirectLightingForVertexLighting(uint GridIndex, float3 Translat
 		bool bUnused = false;
 		ShadowFactor *= ComputeDirectionalLightDynamicShadowing(TranslatedWorldPosition, SceneDepth, bUnused);
 
-	#if SUPPORT_CLOUD_SHADOW_ON_FORWARD_LIT_TRANSLUCENT
+	#if ENABLE_FORWARD_CLOUD_SHADOW
 		ShadowFactor *= InDirectionalLightCloudShadow;
 	#endif
 

@@ -70,6 +70,13 @@ static TAutoConsoleVariable<int32> CVarWaterSingleLayerShadersSupportDistanceFie
 	TEXT("Whether or not the single layer water material shaders are compiled with support for distance field shadow, i.e. output main directional light luminance in a separate render target. This is preconditioned on using deferred shading and having distance field support enabled in the project."),
 	ECVF_ReadOnly | ECVF_RenderThreadSafe);
 
+// The project setting for the cloud shadow to affect SingleLayerWater (enable/disable runtime and shader code).  This is not implemented on mobile as VolumetricClouds are not available on these platforms.
+static TAutoConsoleVariable<int32> CVarSupportCloudShadowOnSingleLayerWater(
+	TEXT("r.Water.SingleLayerWater.SupportCloudShadow"),
+	0,
+	TEXT("Enables cloud shadows on SingleLayerWater materials."),
+	ECVF_ReadOnly | ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarWaterSingleLayerDistanceFieldShadow(
 	TEXT("r.Water.SingleLayer.DistanceFieldShadow"), 1,
 	TEXT("When using deferred, distance field shadow tracing is supported on single layer water. This cvar can be used to toggle it on/off at runtime."),
@@ -850,6 +857,7 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FSingleLayerWaterPassUniformParameters,)
 	SHADER_PARAMETER(FVector4f, DistortionParams)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterTextureSize)
 	SHADER_PARAMETER(FVector2f, SceneWithoutSingleLayerWaterInvTextureSize)
+	SHADER_PARAMETER_STRUCT(FLightCloudTransmittanceParameters, ForwardDirLightCloudShadow)
 END_UNIFORM_BUFFER_STRUCT()
 
 // At the moment we reuse the DeferredDecals static uniform buffer slot because it is currently unused in this pass.
@@ -923,6 +931,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterInner(
 			SetupDistortionParams(SLWUniformParameters.DistortionParams, View);
 			SLWUniformParameters.SceneWithoutSingleLayerWaterTextureSize = FVector2f(DepthTextureSize.X, DepthTextureSize.Y);
 			SLWUniformParameters.SceneWithoutSingleLayerWaterInvTextureSize = FVector2f(1.0f / DepthTextureSize.X, 1.0f / DepthTextureSize.Y);
+
+			const FLightSceneProxy *SelectedForwardDirectionalLightProxy = View.ForwardLightingResources.SelectedForwardDirectionalLightProxy;
+			SetupLightCloudTransmittanceParameters(GraphBuilder, Scene, View, SelectedForwardDirectionalLightProxy ? SelectedForwardDirectionalLightProxy->GetLightSceneInfo() : nullptr, SLWUniformParameters.ForwardDirLightCloudShadow);
 		}
 
 		FSingleLayerWaterPassParameters* PassParameters = GraphBuilder.AllocParameters<FSingleLayerWaterPassParameters>();

@@ -150,6 +150,8 @@
 #include "ThinTranslucentCommon.ush"
 
 #if TRANSLUCENCY_LIGHTING_SURFACE_LIGHTINGVOLUME || TRANSLUCENCY_LIGHTING_SURFACE_FORWARDSHADING || FORWARD_SHADING || MATERIAL_SHADINGMODEL_SINGLELAYERWATER || STRATA_TRANSLUCENT_FORWARD || STRATA_FORWARD_SHADING
+// Enables applying a cloud shadow factor to lighting calculations in ForwardLightingCommon.ush.
+#define ENABLE_FORWARD_CLOUD_SHADOW NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 #include "ForwardLightingCommon.ush"
 #endif
 
@@ -1226,6 +1228,7 @@ void FPixelShaderInOut_MainPS(
 		float IndirectOcclusion = 1.0f;
 		float2 NearestResolvedDepthScreenUV = 0;
 		float DirectionalLightShadow = 1.0f;
+		float DirectionalLightCloudShadow = 1.0f;
 
 		#if FORWARD_SHADING && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED)
 			float2 NDC = MaterialParameters.ScreenPosition.xy / MaterialParameters.ScreenPosition.w;
@@ -1258,7 +1261,6 @@ void FPixelShaderInOut_MainPS(
 			#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 				GridIndex = ComputeLightGridCellIndex((uint2)((MaterialParameters.SvPosition.xy - ResolvedView.ViewRectMin.xy) * View.LightProbeSizeRatioAndInvSizeRatio.zw), MaterialParameters.SvPosition.w, EyeIndex);
 
-				float DirectionalLightCloudShadow = 1.0f;
 				#if NEEDS_BASEPASS_CLOUD_SHADOW_INTERPOLATOR
 					DirectionalLightCloudShadow = BasePassInterpolants.VertexCloudShadow;
 				#endif
@@ -1338,6 +1340,7 @@ void FPixelShaderInOut_MainPS(
 #else // !STRATA_ENABLED
 
 	float DirectionalLightShadow = 1.0f; 
+	float DirectionalLightCloudShadow = 1.0f;
 	float IndirectOcclusion = 1.0f;
 					
 #endif // !STRATA_ENABLED
@@ -1476,7 +1479,7 @@ void FPixelShaderInOut_MainPS(
 		const float4 NullDistortionParams = 1.0f;
 		WaterVolumeLightingOutput WaterLighting = EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			DirectionalLightShadow,
+			DirectionalLightShadow * DirectionalLightCloudShadow,
 			SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler, // Scene depth texture
 			SingleLayerWater.SceneWithoutSingleLayerWaterTextureSize,
 			SingleLayerWater.SceneWithoutSingleLayerWaterInvTextureSize,
@@ -1492,7 +1495,7 @@ void FPixelShaderInOut_MainPS(
 #else
 		Color += EvaluateWaterVolumeLighting(
 			MaterialParameters, PixelMaterialInputs, ResolvedView,
-			DirectionalLightShadow,
+			DirectionalLightShadow * DirectionalLightCloudShadow,
 			SingleLayerWater.SceneColorWithoutSingleLayerWaterTexture, SingleLayerWaterSceneColorSampler,
 			SingleLayerWater.SceneDepthWithoutSingleLayerWaterTexture, SingleLayerWaterSceneDepthSampler,
 			SingleLayerWater.SceneWithoutSingleLayerWaterMinMaxUV.xy,

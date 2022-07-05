@@ -905,6 +905,15 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 		uint32 bSupportCloudShadowOnForwardLitTranslucent : 1;
 
 	/**
+	"Enable cloud shadow on SingleLayerWater surface. This is evaluated per vertex to reduce GPU cost. The cloud system requires extra samplers/textures to be bound to vertex shaders."
+	*/
+	UPROPERTY(config, EditAnywhere, Category = ShaderPermutationReduction, meta = (
+		ConsoleVariable = "r.Water.SingleLayerWater.SupportCloudShadow", DisplayName = "Support Cloud Shadow On SingleLayerWater",
+		ToolTip = "Enable cloud shadow on SingleLayerWater. This is evaluated per vertex to reduce GPU cost and requires extra samplers/textures to be bound to vertex shaders. This is not implemented on mobile as VolumetricClouds are not available on these platforms.",
+		ConfigRestartRequired = true))
+		uint32 bSupportCloudShadowOnSingleLayerWater : 1;
+
+	/**
 	"Enable Strata materials (Beta)."
 	*/
 	UPROPERTY(config, EditAnywhere, Category = Strata, meta = (

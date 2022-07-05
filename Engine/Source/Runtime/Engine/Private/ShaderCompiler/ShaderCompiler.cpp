@@ -5944,6 +5944,12 @@ void GlobalBeginCompileShader(
 	}
 
 	{
+		static IConsoleVariable *CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Water.SingleLayerWater.SupportCloudShadow"));
+		const bool bSupportCloudShadowOnSingleLayerWater = CVar && CVar->GetInt() > 0;
+		Input.Environment.SetDefine(TEXT("SUPPORT_CLOUD_SHADOW_ON_SINGLE_LAYER_WATER"), bSupportCloudShadowOnSingleLayerWater ? 1 : 0);
+	}
+
+	{
 		static IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Strata"));
 		const bool bStrata = CVar && CVar->GetInt() != 0;
 		Input.Environment.SetDefine(TEXT("STRATA_ENABLED"), bStrata ? 1 : 0);
