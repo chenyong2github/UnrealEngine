@@ -20,6 +20,18 @@ TSharedRef<IDetailCustomization> FPCGComponentDetails::MakeInstance()
 	return MakeShareable(new FPCGComponentDetails());
 }
 
+void FPCGComponentDetails::GatherPCGComponentsFromSelection(const TArray<TWeakObjectPtr<UObject>>& InObjectSelected)
+{
+	for (const TWeakObjectPtr<UObject>& Object : InObjectSelected)
+	{
+		UPCGComponent* Component = Cast<UPCGComponent>(Object.Get());
+		if (ensure(Component))
+		{
+			SelectedComponents.Add(Component);
+		}
+	}
+}
+
 void FPCGComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
 	const FName PCGCategoryName("PCG");
@@ -28,24 +40,20 @@ void FPCGComponentDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 	TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
 	DetailBuilder.GetObjectsBeingCustomized(ObjectsBeingCustomized);
 
-	for (TWeakObjectPtr<UObject>& Object : ObjectsBeingCustomized)
+	GatherPCGComponentsFromSelection(ObjectsBeingCustomized);
+
+	if (AddDefaultProperties())
 	{
-		UPCGComponent* Component = Cast<UPCGComponent>(Object.Get());
-		if (ensure(Component))
+		TArray<TSharedRef<IPropertyHandle>> AllProperties;
+		bool bSimpleProperties = true;
+		bool bAdvancedProperties = false;
+		// Add all properties in the category in order
+		PCGCategory.GetDefaultProperties(AllProperties, bSimpleProperties, bAdvancedProperties);
+
+		for (auto& Property : AllProperties)
 		{
-			SelectedComponents.Add(Component);
+			PCGCategory.AddProperty(Property);
 		}
-	}
-
-	TArray<TSharedRef<IPropertyHandle>> AllProperties;
-	bool bSimpleProperties = true;
-	bool bAdvancedProperties = false;
-	// Add all properties in the category in order
-	PCGCategory.GetDefaultProperties(AllProperties, bSimpleProperties, bAdvancedProperties);
-
-	for (auto& Property : AllProperties)
-	{
-		PCGCategory.AddProperty(Property);
 	}
 
 	FDetailWidgetRow& NewRow = PCGCategory.AddCustomRow(FText::GetEmpty());

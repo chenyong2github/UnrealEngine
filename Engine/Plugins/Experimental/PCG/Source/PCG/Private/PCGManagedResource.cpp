@@ -172,6 +172,9 @@ bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor)
 	bool bDetached = false;
 	bool bAttached = false;
 
+	// Need to change owner first to avoid that the PCG Component will react to this component changes.
+	GeneratedComponent->Rename(nullptr, NewActor);
+
 	// Check if it is a scene component, and if so, use its method to attach/detach to root component
 	if (TObjectPtr<USceneComponent> GeneratedSceneComponent = Cast<USceneComponent>(GeneratedComponent.Get()))
 	{
@@ -190,8 +193,6 @@ bool UPCGManagedComponent::MoveResourceToNewActor(AActor* NewActor)
 
 		NewActor->AddInstanceComponent(GeneratedComponent.Get());
 	}
-
-	GeneratedComponent->Rename(nullptr, NewActor);
 
 	GeneratedComponent.Reset();
 

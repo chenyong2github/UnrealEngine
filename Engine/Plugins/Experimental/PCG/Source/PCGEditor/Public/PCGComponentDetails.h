@@ -18,11 +18,16 @@ public:
 	virtual void PendingDelete() override;
 	/** ~End IDetailCustomization interface */
 
+protected:
+	virtual void GatherPCGComponentsFromSelection(const TArray<TWeakObjectPtr<UObject>>& InObjectSelected);
+	virtual bool AddDefaultProperties() const { return true; }
+
 private:
 	FReply OnGenerateClicked();
 	FReply OnCleanupClicked();
 	FReply OnClearPCGLinkClicked();
 	void OnGraphChanged(UPCGComponent* InComponent);
 
+protected:
 	TArray<TWeakObjectPtr<UPCGComponent>> SelectedComponents;
 };

@@ -10,6 +10,7 @@
 #include "PCGEditorSettings.h"
 #include "PCGGraphDetails.h"
 #include "PCGSubsystem.h"
+#include "PCGVolumeDetails.h"
 #include "PCGVolumeFactory.h"
 
 #include "EdGraphUtilities.h"
@@ -70,6 +71,7 @@ void FPCGEditorModule::RegisterDetailsCustomizations()
 	FPropertyEditorModule& PropertyEditor = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyEditor.RegisterCustomClassLayout("PCGComponent", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGComponentDetails::MakeInstance));
 	PropertyEditor.RegisterCustomClassLayout("PCGGraph", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGGraphDetails::MakeInstance));
+	PropertyEditor.RegisterCustomClassLayout("PCGVolume", FOnGetDetailCustomizationInstance::CreateStatic(&FPCGVolumeDetails::MakeInstance));
 }
 
 void FPCGEditorModule::UnregisterDetailsCustomizations()
@@ -79,6 +81,7 @@ void FPCGEditorModule::UnregisterDetailsCustomizations()
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
 		PropertyModule.UnregisterCustomClassLayout("PCGComponent");
 		PropertyModule.UnregisterCustomClassLayout("PCGGraph");
+		PropertyModule.UnregisterCustomClassLayout("PCGVolume");
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
 }
