@@ -18,4 +18,8 @@ public:
 
 	// UImportTestFunctionsBase interface
 	virtual UClass* GetAssociatedAssetType() const override;
+
+	/** Check whether the expected number of textures are imported */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckImportedTextureCount(const TArray<UTexture*>& Textures, int32 ExpectedNumberOfImportedTextures);
 };

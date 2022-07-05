@@ -8,3 +8,14 @@ UClass* UTextureImportTestFunctions::GetAssociatedAssetType() const
 {
 	return UTexture::StaticClass();
 }
+
+FInterchangeTestFunctionResult UTextureImportTestFunctions::CheckImportedTextureCount(const TArray<UTexture*>& Textures, int32 ExpectedNumberOfImportedTextures)
+{
+	FInterchangeTestFunctionResult Result;
+	if (Textures.Num() != ExpectedNumberOfImportedTextures)
+	{
+		Result.AddError(FString::Printf(TEXT("Expected %d textures, imported %d."), ExpectedNumberOfImportedTextures, Textures.Num()));
+	}
+
+	return Result;
+}
