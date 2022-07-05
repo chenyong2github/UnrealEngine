@@ -350,6 +350,9 @@ void FCurveEditor::BindCommands()
 	CommandList->MapAction(FGenericCommands::Get().Paste, FExecuteAction::CreateSP(this, &FCurveEditor::PasteKeys, TSet<FCurveModelID>()));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFit, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::All));
+	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFitHorizontal, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::X));
+	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFitVertical, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFit, EAxisList::Y));
+	CommandList->MapAction(FCurveEditorCommands::Get().ZoomToFitAll, FExecuteAction::CreateSP(this, &FCurveEditor::ZoomToFitAll, EAxisList::All));
 
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodes, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, false));
 	CommandList->MapAction(FCurveEditorCommands::Get().ToggleExpandCollapseNodesAndDescendants, FExecuteAction::CreateSP(this, &FCurveEditor::ToggleExpandCollapseNodes, true));
@@ -488,13 +491,18 @@ void FCurveEditor::ZoomToFit(EAxisList::Type Axes)
 	}
 	else
 	{
-		TMap<FCurveModelID, FKeyHandleSet> AllCurves;
-		for (FCurveModelID ID : GetEditedCurves())
-		{
-			AllCurves.Add(ID);
-		}
-		ZoomToFitInternal(Axes, AllCurves);
+		ZoomToFitAll(Axes);
 	}
+}
+
+void FCurveEditor::ZoomToFitAll(EAxisList::Type Axes)
+{
+	TMap<FCurveModelID, FKeyHandleSet> AllCurves;
+	for (FCurveModelID ID : GetEditedCurves())
+	{
+		AllCurves.Add(ID);
+	}
+	ZoomToFitInternal(Axes, AllCurves);
 }
 
 void FCurveEditor::ZoomToFitCurves(TArrayView<const FCurveModelID> CurveModelIDs, EAxisList::Type Axes)

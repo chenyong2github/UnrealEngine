@@ -118,11 +118,17 @@ public:
 
 public:
 	/**
-	 * Zoom the curve editor to fit all the currently visible curves
+	 * Zoom the curve editor to fit all the selected curves (or all curves if none selected)
 	 *
 	 * @param Axes         (Optional) Axes to lock the zoom to
 	 */
 	void ZoomToFit(EAxisList::Type Axes = EAxisList::All);
+	/**
+	 * Zoom the curve editor to fit all the currently visible curves
+	 *
+	 * @param Axes         (Optional) Axes to lock the zoom to
+	 */
+	void ZoomToFitAll(EAxisList::Type Axes = EAxisList::All);
 	/**
 	 * Zoom the curve editor to fit the requested curves.
 	 *
