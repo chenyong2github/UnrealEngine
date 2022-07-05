@@ -844,6 +844,10 @@ public:
 	void GetBasePropertyOverridesHash(FSHAHash& OutHash)const;
 	ENGINE_API virtual bool HasOverridenBaseProperties()const;
 
+#if WITH_EDITOR
+	ENGINE_API FString GetBasePropertyOverrideString() const;
+#endif
+
 	// For all materials instances, UMaterialInstance::CacheResourceShadersForRendering
 	ENGINE_API static void AllMaterialsCacheResourceShadersForRendering(bool bUpdateProgressDialog = false, bool bCacheAllRemainingShaders = true);
 

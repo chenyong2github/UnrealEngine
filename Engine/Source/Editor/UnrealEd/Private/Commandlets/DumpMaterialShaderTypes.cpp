@@ -201,11 +201,48 @@ public:
 		}
 	}
 
+	void PrintUniqueMaterialInstances()
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(PrintUniqueMaterialInstances);
+
+		// Sort by number of mat instances.
+		struct TArraySizeSort
+		{
+			bool operator()(const TArray<FString>& A, const TArray<FString>& B) const
+			{
+				return A.Num() > B.Num();
+			}
+		};
+		UniqueMaterialInstances.ValueSort(TArraySizeSort());
+
+		// Write out header.
+		const char MatInstHeader[] = "\nUnique Material Instances\n";
+		DebugWriter->Serialize(const_cast<char*>(MatInstHeader), sizeof(MatInstHeader) - 1);
+
+		// Print each item.
+		for (TPair<FSHAHash, TArray<FString>> UniqueMaterialInstance : UniqueMaterialInstances)
+		{
+			FString DuplicateLine = FString::Printf(TEXT("Duplicates: %d\n"), UniqueMaterialInstance.Value.Num());
+			DebugWriter->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*DuplicateLine).Get()), DuplicateLine.Len());
+
+			for (const FString& InstanceName : UniqueMaterialInstance.Value)
+			{
+				FString OuputLine = FString::Printf(TEXT("\t%s\n"), *InstanceName);
+				DebugWriter->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OuputLine).Get()), OuputLine.Len());
+			}
+		}
+	}
+
 	void Log(const FString& OutString)
 	{
-		//UE_LOG(LogDumpMaterialShaderTypesCommandlet, Log, TEXT("%s"), *OutString);
 		FString OuputLine = OutString + TEXT("\n");
 		DebugWriter->Serialize(const_cast<ANSICHAR*>(StringCast<ANSICHAR>(*OuputLine).Get()), OuputLine.Len());
+	}
+
+	void AddMaterialInstance(const FString& MaterialInstanceName, const FSHAHash& StaticParameterHash)
+	{
+		TArray<FString>& InstanceList = UniqueMaterialInstances.FindOrAdd(StaticParameterHash);
+		InstanceList.Add(MaterialInstanceName);
 	}
 
 private:
@@ -222,6 +259,9 @@ private:
 
 	/** Map of global shader type display names to their counts. */
 	TMap<FString, int32>	GlobalShaderTypeHistogram;
+
+	/** Unique material instances. */
+	TMap<FSHAHash, TArray<FString>> UniqueMaterialInstances;
 
 	/** Store a copy of the the filename. */
 	FString FileName;
@@ -369,26 +409,57 @@ int ProcessMaterialInstances(const ITargetPlatform* TargetPlatform, const EShade
 			const int TotalShadersForMaterial = GetTotalShaders(OutShaderInfo);
 			TotalShaders += TotalShadersForMaterial;
 
-			FString StaticParameterString(TEXT(""));
-
-			if (MaterialInstance->bHasStaticPermutationResource)
+			// Find the root parent that is a material.
+			UMaterialInterface* Top = MaterialInstance->Parent;
+			while (Top)
 			{
-				const FStaticParameterSet& ParameterSet = MaterialInstance->GetStaticParameters();
-				for (int32 StaticSwitchIndex = 0; StaticSwitchIndex < ParameterSet.EditorOnly.StaticSwitchParameters.Num(); ++StaticSwitchIndex)
+				if (UMaterial* Material = Cast<UMaterial>(Top))
 				{
-					const FStaticSwitchParameter& StaticSwitchParameter = ParameterSet.EditorOnly.StaticSwitchParameters[StaticSwitchIndex];
-					StaticParameterString += FString::Printf(
-						TEXT(", StaticSwitch'%s'=%s"),
-						*StaticSwitchParameter.ParameterInfo.ToString(),
-						StaticSwitchParameter.Value ? TEXT("True") : TEXT("False")
-					);
+					break;
+				}
+				else if (UMaterialInstance* MatInst = Cast<UMaterialInstance>(Top))
+				{
+					Top = MatInst->Parent;
+				}
+				else
+				{
+					Top = nullptr;
 				}
 			}
 
 			Output.Log(TEXT(""));
-			Output.Log(FString::Printf(TEXT("Material Instance: %s - %d shaders"), *AssetData.ObjectPath.ToString(), TotalShadersForMaterial));
-			Output.Log(FString::Printf(TEXT("Static Parameter %s"), *StaticParameterString));
-			Output.Log(FString::Printf(TEXT("Parent: %s"), MaterialInstance->Parent ? *MaterialInstance->Parent->GetName() : TEXT("NO PARENT")));
+			Output.Log(FString::Printf(TEXT("Material Instance: %s - %d shaders"), *AssetData.AssetName.ToString(), TotalShadersForMaterial));
+			Output.Log(FString::Printf(TEXT("Parent: %s"), Top ? *Top->GetFullName() : TEXT("NO PARENT")));
+			Output.Log(FString::Printf(TEXT("Static Parameters: %d"), MaterialInstance->bHasStaticPermutationResource ? MaterialInstance->GetStaticParameters().EditorOnly.StaticSwitchParameters.Num() : 0));
+
+			FSHAHash OutHash;
+
+			if (MaterialInstance->bHasStaticPermutationResource)
+			{
+				FSHA1 Hasher;
+				const FStaticParameterSet& ParameterSet = MaterialInstance->GetStaticParameters();
+				for (int32 StaticSwitchIndex = 0; StaticSwitchIndex < ParameterSet.EditorOnly.StaticSwitchParameters.Num(); ++StaticSwitchIndex)
+				{
+					const FStaticSwitchParameter& StaticSwitchParameter = ParameterSet.EditorOnly.StaticSwitchParameters[StaticSwitchIndex];
+
+					StaticSwitchParameter.UpdateHash(Hasher);
+
+					Output.Log(FString::Printf(TEXT("\t%s : %s"), *StaticSwitchParameter.ParameterInfo.ToString(), StaticSwitchParameter.Value ? TEXT("True") : TEXT("False")));
+				}
+
+				Hasher.Final();
+				Hasher.GetHash(&OutHash.Hash[0]);
+
+				Output.AddMaterialInstance(AssetData.AssetName.ToString(), OutHash);
+				Output.Log(FString::Printf(TEXT("Static Parameter Hash: %s"), *OutHash.ToString()));
+			}
+
+			Output.Log(FString::Printf(TEXT("Base Property Overrides: %s"), MaterialInstance->HasOverridenBaseProperties() ? TEXT("True") : TEXT("False")));
+
+			if (MaterialInstance->HasOverridenBaseProperties())
+			{
+				Output.Log(FString::Printf(TEXT("\t%s"), *MaterialInstance->GetBasePropertyOverrideString()));
+			}
 
 			PrintDebugShaderInfo(Output, OutShaderInfo);
 
