@@ -13,13 +13,14 @@ namespace UE::RivermaxShaders
 
 	IMPLEMENT_GLOBAL_SHADER(FYUV10Bit422ToRGBACS, "/Plugin/RivermaxCore/Private/RivermaxShaders.usf", "YUV10Bit422ToRGBACS", SF_Compute);
 
-	FYUV10Bit422ToRGBACS::FParameters* FYUV10Bit422ToRGBACS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow)
+	FYUV10Bit422ToRGBACS::FParameters* FYUV10Bit422ToRGBACS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow, int32 BufferLineCount)
 	{
 		FYUV10Bit422ToRGBACS::FParameters* Parameters = GraphBuilder.AllocParameters<FYUV10Bit422ToRGBACS::FParameters>();
 
 		Parameters->InputYCbCrBuffer = GraphBuilder.CreateSRV(YUVBuffer);
 		Parameters->ColorTransform = (FMatrix44f)MediaShaders::CombineColorTransformAndOffset(ColorTransform, YUVOffset);
 		Parameters->HorizontalElementCount = BufferElementsPerRow;
+		Parameters->VerticalElementCount = BufferLineCount;
 		Parameters->OutTexture = GraphBuilder.CreateUAV(OutputTexture, ERDGUnorderedAccessViewFlags::None);
 
 		return Parameters;
@@ -49,6 +50,7 @@ namespace UE::RivermaxShaders
 
 		// Output size will be based on RGB to YUV encoding ( divide by 2 ) and pixels encoded per element ( 4 pixels )
 		Parameters->HorizontalElementCount = OutputSize.X;
+		Parameters->VerticalElementCount = OutputSize.Y;
 
 		// Each thread will read many RGB pixels to convert to YUV
 		Parameters->InputTexturePixelsPerThread = InputTextureSizeX / OutputSize.X;
@@ -63,12 +65,13 @@ namespace UE::RivermaxShaders
 
 	IMPLEMENT_GLOBAL_SHADER(FRGB8BitToRGBA8CS, "/Plugin/RivermaxCore/Private/RivermaxShaders.usf", "RGB8BitToRGBA8CS", SF_Compute);
 
-	FRGB8BitToRGBA8CS::FParameters* FRGB8BitToRGBA8CS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow)
+	FRGB8BitToRGBA8CS::FParameters* FRGB8BitToRGBA8CS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount)
 	{
 		FRGB8BitToRGBA8CS::FParameters* Parameters = GraphBuilder.AllocParameters<FRGB8BitToRGBA8CS::FParameters>();
 
 		Parameters->InputRGB8Buffer = GraphBuilder.CreateSRV(RGBBuffer);
 		Parameters->HorizontalElementCount = BufferElementsPerRow;
+		Parameters->VerticalElementCount = BufferLineCount;
 		Parameters->OutTexture = GraphBuilder.CreateUAV(OutputTexture, ERDGUnorderedAccessViewFlags::None);
 
 		return Parameters;
@@ -95,6 +98,7 @@ namespace UE::RivermaxShaders
 		Parameters->InputPixelOffsetY = SourceViewRect.Min.Y;
 
 		Parameters->HorizontalElementCount = OutputSize.X;
+		Parameters->VerticalElementCount = OutputSize.Y;
 
 		// Each thread will read many RGBA pixels to pack into RGB buffer
 		Parameters->InputTexturePixelsPerThread = InputTextureSizeX / OutputSize.X;
@@ -110,12 +114,13 @@ namespace UE::RivermaxShaders
 	IMPLEMENT_GLOBAL_SHADER(FRGB10BitToRGBA10CS, "/Plugin/RivermaxCore/Private/RivermaxShaders.usf", "RGB10BitToRGBACS", SF_Compute);
 
 
-	FRGB10BitToRGBA10CS::FParameters* FRGB10BitToRGBA10CS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow)
+	FRGB10BitToRGBA10CS::FParameters* FRGB10BitToRGBA10CS::AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount)
 	{
 		FRGB10BitToRGBA10CS::FParameters* Parameters = GraphBuilder.AllocParameters<FRGB10BitToRGBA10CS::FParameters>();
 
 		Parameters->InputBuffer = GraphBuilder.CreateSRV(RGBBuffer);
 		Parameters->HorizontalElementCount = BufferElementsPerRow;
+		Parameters->VerticalElementCount = BufferLineCount;
 		Parameters->OutTexture = GraphBuilder.CreateUAV(OutputTexture, ERDGUnorderedAccessViewFlags::None);
 
 		return Parameters;
@@ -143,6 +148,7 @@ namespace UE::RivermaxShaders
 		Parameters->InputPixelOffsetY = SourceViewRect.Min.Y;
 
 		Parameters->HorizontalElementCount = OutputSize.X;
+		Parameters->VerticalElementCount = OutputSize.Y;
 
 		// Each thread will read many RGBA pixels to pack into RGB buffer
 		Parameters->InputTexturePixelsPerThread = InputTextureSizeX / OutputSize.X;
@@ -174,6 +180,7 @@ namespace UE::RivermaxShaders
 		Parameters->InputPixelOffsetY = SourceViewRect.Min.Y;
 
 		Parameters->HorizontalElementCount = OutputSize.X;
+		Parameters->VerticalElementCount = OutputSize.Y;
 
 		// Each thread will read many RGBA pixels to pack into RGB buffer
 		Parameters->InputTexturePixelsPerThread = InputTextureSizeX / OutputSize.X;

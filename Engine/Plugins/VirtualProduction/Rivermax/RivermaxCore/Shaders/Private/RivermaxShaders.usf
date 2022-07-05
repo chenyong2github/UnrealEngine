@@ -17,6 +17,7 @@ float OnePixelDeltaY;
 float InputPixelOffsetX;
 float InputPixelOffsetY;
 uint HorizontalElementCount;
+uint VerticalElementCount;
 uint InputTexturePixelsPerThread;
 RWTexture2D<float4> OutTexture;
 
@@ -60,6 +61,12 @@ RWStructuredBuffer<FRGB16fBuffer> OutRGB16fBuffer;
 [numthreads(8,8,1)]
 void RGBToYUV10Bit422(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
 
 	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
@@ -99,6 +106,12 @@ void RGBToYUV10Bit422(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV
 [numthreads(8,8,1)]
 void RGBToRGB8BitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
 
 	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
@@ -121,6 +134,12 @@ void RGBToRGB8BitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_G
 [numthreads(8,8,1)]
 void RGBToRGB10BitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	uint Index = ThreadId.y * HorizontalElementCount + ThreadId.x;
 
 	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
@@ -177,6 +196,12 @@ void RGBToRGB10BitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_
 [numthreads(8,8,1)]
 void RGBToRGB16fBitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	float X = (ThreadId.x * InputTexturePixelsPerThread) + InputPixelOffsetX;
 	float Y = (ThreadId.y + InputPixelOffsetY) * OnePixelDeltaY;
 
@@ -198,6 +223,12 @@ void RGBToRGB16fBitCS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV
 [numthreads(8,8,1)]
 void RGB8BitToRGBA8CS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	// Pixels we treat in shader is pretty much hardcoded to 16 so no parameter has been used
 	const uint OutputTexturePixelsPerThread = 4;
 
@@ -250,6 +281,12 @@ void RGB8BitToRGBA8CS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV
 [numthreads(8,8,1)]
 void RGB10BitToRGBACS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	// Pixels we treat in shader is pretty much hardcoded to 16 so no parameter has been used
 	const uint OutputTexturePixelsPerThread = 16;
 
@@ -387,6 +424,12 @@ void RGB10BitToRGBACS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV
 [numthreads(8,8,1)]
 void YUV10Bit422ToRGBACS(uint3 ThreadId : SV_DispatchThreadID, uint GroupIndex : SV_GroupIndex)
 {
+	// Make sure it's a valid thread
+	if(ThreadId.x >= HorizontalElementCount || ThreadId.y >= VerticalElementCount)
+	{
+		return;
+	}
+
 	// Pixels we treat in shader is pretty much hardcoded to 8 so no parameter has been used
 	const uint OutputTexturePixelsPerThread = 8;
 

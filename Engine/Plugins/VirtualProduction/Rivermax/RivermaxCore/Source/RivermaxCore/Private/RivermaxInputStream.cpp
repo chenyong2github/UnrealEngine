@@ -151,7 +151,12 @@ namespace UE::RivermaxCore::Private
 					BufferAttributes.attr_flags = BufferAttributeFlags;
 
 					FMemory::Memset(&BufferConfiguration.DataMemory, 0, sizeof(BufferConfiguration.DataMemory));
-					BufferConfiguration.DataMemory.max_size = BufferConfiguration.DataMemory.min_size = BufferConfiguration.PayloadExpectedSize;
+
+					// Todo : Unreal doesn't send Payloads greater than 1280 but other devices could.
+					// While consuming input chunks, we memcpy based on SRD data but SRD data could be greater than 
+					// max_size so our loop should be updated to support that case.
+					BufferConfiguration.DataMemory.min_size = 1500; 
+					BufferConfiguration.DataMemory.max_size = 1500;
 					BufferAttributes.data = &BufferConfiguration.DataMemory;
 
 					FMemory::Memset(&BufferConfiguration.HeaderMemory, 0, sizeof(BufferConfiguration.HeaderMemory));
@@ -346,7 +351,7 @@ namespace UE::RivermaxCore::Private
 							++StreamStats.TotalPacketLossCount;
 							++StreamStats.FramePacketLossCount;
 							
-							UE_LOG(LogRivermax, Warning, TEXT("Lost %uld packets"), LostPackets);
+							UE_LOG(LogRivermax, Warning, TEXT("Lost %llu packets"), LostPackets);
 						}
 
 						StreamData.LastSequenceNumber = Parameter.SequencerNumber;
@@ -361,7 +366,6 @@ namespace UE::RivermaxCore::Private
 
 						if (bCanProcessChunk)
 						{
-							TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxInputStream::ProcessingChunk)
 							const FRivermaxRTPSampleRowData* HeaderStart = reinterpret_cast<FRivermaxRTPSampleRowData*>(GetRTPHeaderPointer(HeaderPtr));
 
 							uint16 SizeToCopy = ByteSwap((uint16)HeaderStart->SRDLength1);
@@ -390,6 +394,7 @@ namespace UE::RivermaxCore::Private
 							{
 								if (StreamData.ReceivedSize == StreamData.ExpectedSize)
 								{
+									TRACE_BOOKMARK(TEXT("RMAX RX %llu"), Parameter.Timestamp);
 									TRACE_CPUPROFILER_EVENT_SCOPE(FRivermaxInputStream::ProcessingReceivedFrame)
 
 									++StreamStats.FramesReceived;

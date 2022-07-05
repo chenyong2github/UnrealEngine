@@ -40,6 +40,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FYUV10Bit422LEBuffer>, InputYCbCrBuffer)
 			SHADER_PARAMETER(FMatrix44f, ColorTransform)	
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -52,7 +53,7 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FYUV10Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow);
+		FYUV10Bit422ToRGBACS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef YUVBuffer, FRDGTextureRef OutputTexture, const FMatrix& ColorTransform, const FVector& YUVOffset, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
@@ -83,6 +84,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(float, InputPixelOffsetX)
 			SHADER_PARAMETER(float, InputPixelOffsetY)
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FYUV10Bit422LEBuffer>, OutYCbCrBuffer)
 		END_SHADER_PARAMETER_STRUCT()
@@ -124,6 +126,7 @@ namespace UE::RivermaxShaders
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRGB8BitBuffer>, InputRGB8Buffer)
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -136,7 +139,7 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGB8BitToRGBA8CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow);
+		FRGB8BitToRGBA8CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
@@ -167,6 +170,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(float, InputPixelOffsetX)
 			SHADER_PARAMETER(float, InputPixelOffsetY)
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRGB8BitBuffer>, OutRGB8Buffer)
 		END_SHADER_PARAMETER_STRUCT()
@@ -210,6 +214,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(float, InputPixelOffsetX)
 			SHADER_PARAMETER(float, InputPixelOffsetY)
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRGB10BitBuffer>, OutRGB10Buffer)
 			END_SHADER_PARAMETER_STRUCT()
@@ -250,6 +255,7 @@ namespace UE::RivermaxShaders
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FRGB10BitBuffer>, InputBuffer)
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, OutTexture)
 		END_SHADER_PARAMETER_STRUCT()
 
@@ -262,7 +268,7 @@ namespace UE::RivermaxShaders
 		}
 
 		/** Allocates and setup shader parameter in the incoming graph builder */
-		FRGB10BitToRGBA10CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow);
+		FRGB10BitToRGBA10CS::FParameters* AllocateAndSetParameters(FRDGBuilder& GraphBuilder, FRDGBufferRef RGBBuffer, FRDGTextureRef OutputTexture, int32 BufferElementsPerRow, int32 BufferLineCount);
 	};
 
 	/**
@@ -292,6 +298,7 @@ namespace UE::RivermaxShaders
 			SHADER_PARAMETER(float, InputPixelOffsetX)
 			SHADER_PARAMETER(float, InputPixelOffsetY)
 			SHADER_PARAMETER(uint32, HorizontalElementCount)
+			SHADER_PARAMETER(uint32, VerticalElementCount)
 			SHADER_PARAMETER(uint32, InputTexturePixelsPerThread)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRGB16fBuffer>, OutRGB16fBuffer)
 		END_SHADER_PARAMETER_STRUCT()
