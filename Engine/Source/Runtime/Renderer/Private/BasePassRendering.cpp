@@ -907,6 +907,7 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	if (ViewFamily.ViewExtensions.Num() > 0)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPostRenderBasePass);
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, ViewExtensions);
 		RDG_EVENT_SCOPE(GraphBuilder, "BasePass_ViewExtensions");
 		auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
 		PassParameters->RenderTargets = BasePassRenderTargets;

@@ -858,7 +858,7 @@ void FDeferredShadingSceneRenderer::RenderForwardShadowProjections(
 
 	if (bScreenShadowMaskNeeded)
 	{
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderForwardShadingShadowProjections);
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderForwardShadingShadowProjections);
 
 		FRDGTextureMSAA ForwardScreenSpaceShadowMask;
 		FRDGTextureMSAA ForwardScreenSpaceShadowMaskSubPixel;

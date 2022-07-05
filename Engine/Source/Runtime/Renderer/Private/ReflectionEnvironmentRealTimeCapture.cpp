@@ -310,6 +310,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	RDG_EVENT_SCOPE(GraphBuilder, "CaptureConvolveSkyEnvMap");
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CaptureConvolveSkyEnvMap);
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, SkyAtmosphere);
 
 	const uint32 CubeWidth = SkyLight->CaptureCubeMapResolution;
 	const uint32 CubeMipCount = FMath::CeilLogTwo(CubeWidth) + 1;

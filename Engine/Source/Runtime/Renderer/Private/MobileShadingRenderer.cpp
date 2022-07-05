@@ -394,7 +394,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	SCOPED_DRAW_EVENT(RHICmdList, InitViews);
 
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Scene);
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, InitViews_Scene);
 
 	check(Scene);
 
@@ -612,6 +612,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	}
 
 	{
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, UpdateGPUScene);
 		FRDGExternalAccessQueue ExternalAccessQueue;
 
 		Scene->GPUScene.Update(GraphBuilder, *Scene, ExternalAccessQueue);
@@ -831,6 +832,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	const bool bEnableClusteredShading = bEnableClusteredLocalLights || bEnableClusteredReflections;
 	if (bEnableClusteredShading)
 	{
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, SortLights);
 		// Shadows are applied in clustered shading on mobile forward and separately on mobile deferred.
 		bool bShadowedLightsInClustered = bRequiresShadowProjections && !bDeferredShading;
 		GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered);
@@ -893,7 +895,7 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 		if (bRequiresShadowProjections)
 		{
-			CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderMobileShadowProjections);
+			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderMobileShadowProjections);
 			RDG_GPU_STAT_SCOPE(GraphBuilder, ShadowProjection);
 			RenderMobileShadowProjections(GraphBuilder, SceneTextures.Depth.Resolve);
 		}

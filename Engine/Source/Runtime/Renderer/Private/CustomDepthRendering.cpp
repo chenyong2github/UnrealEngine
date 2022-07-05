@@ -124,7 +124,7 @@ bool FSceneRenderer::RenderCustomDepthPass(FRDGBuilder& GraphBuilder, FCustomDep
 		return false;
 	}
 
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(RenderCustomDepthPass);
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, RenderCustomDepthPass);
 	RDG_GPU_STAT_SCOPE(GraphBuilder, CustomDepth);
 
 	bool bCustomDepthRendered = false;

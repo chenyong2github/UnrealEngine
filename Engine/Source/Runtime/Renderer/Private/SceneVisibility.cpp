@@ -4894,7 +4894,7 @@ void FDeferredShadingSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, const F
 {
 	SCOPED_NAMED_EVENT(FDeferredShadingSceneRenderer_InitViews, FColor::Emerald);
 	SCOPE_CYCLE_COUNTER(STAT_InitViewsTime);
-	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(InitViews_Scene);
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, InitViews_Scene);
 
 	PreVisibilityFrameSetup(GraphBuilder, SceneTexturesConfig);
 
