@@ -141,6 +141,9 @@ namespace Horde.Storage
         public int LastAccessRollupFrequencySeconds { get; set; } = 900; // 15 minutes
         public bool EnableLastAccessTracking { get; set; } = true;
         public bool EnableOnDemandReplication { get; set; } = false;
+
+        // disable the legacy api
+        public bool DisableLegacyApi { get; set; } = false;
     }
 
     public class MongoSettings

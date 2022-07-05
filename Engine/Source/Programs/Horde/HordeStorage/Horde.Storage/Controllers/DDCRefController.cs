@@ -18,6 +18,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Extensions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Serilog;
 
@@ -51,16 +52,18 @@ namespace Horde.Storage.Controllers
         private readonly IRefsStore _refsStore;
         private readonly IDiagnosticContext _diagnosticContext;
 		private readonly RequestHelper _requestHelper;
+        private readonly IOptionsMonitor<HordeStorageSettings> _settings;
 
         private readonly ILogger _logger = Log.ForContext<DDCRefController>();
         private readonly IDDCRefService _ddcRefService;
 
-        public DDCRefController(IDDCRefService ddcRefService, IRefsStore refsStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper)
+        public DDCRefController(IDDCRefService ddcRefService, IRefsStore refsStore, IDiagnosticContext diagnosticContext, RequestHelper requestHelper, IOptionsMonitor<HordeStorageSettings> settings)
         {
             _refsStore = refsStore;
             _ddcRefService = ddcRefService;
             _diagnosticContext = diagnosticContext;
             _requestHelper = requestHelper;
+            _settings = settings;
         }
 
         /// <summary>
@@ -113,6 +116,11 @@ namespace Horde.Storage.Controllers
             if (result != null)
             {
                 return result;
+            }
+
+            if (_settings.CurrentValue.DisableLegacyApi)
+            {
+                return NotFound("This api has been removed, you will need to update your code.");
             }
 
             try
@@ -202,6 +210,11 @@ namespace Horde.Storage.Controllers
                 return result;
             }
 
+            if (_settings.CurrentValue.DisableLegacyApi)
+            {
+                return NotFound("This api has been removed, you will need to update your code.");
+            }
+
             try
             {
                 RefRecord record = await _ddcRefService.Exists(ns, bucket, key);
@@ -248,6 +261,11 @@ namespace Horde.Storage.Controllers
                 return result;
             }
 
+            if (_settings.CurrentValue.DisableLegacyApi)
+            {
+                return NotFound("This api has been removed, you will need to update your code.");
+            }
+
             try
             {
                 _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
@@ -283,6 +301,12 @@ namespace Horde.Storage.Controllers
             if (result != null)
             {
                 return result;
+            }
+
+            
+            if (_settings.CurrentValue.DisableLegacyApi)
+            {
+                return NotFound("This api has been removed, you will need to update your code.");
             }
 
             byte[] blob;
@@ -485,6 +509,11 @@ namespace Horde.Storage.Controllers
             if (batch.Operations == null)
             {
                 throw new InvalidOperationException("No operations specified, this is a required field");
+            }
+
+            if (_settings.CurrentValue.DisableLegacyApi)
+            {
+                return NotFound("This api has been removed, you will need to update your code.");
             }
 
             Task<object?>[] tasks = new Task<object?>[batch.Operations.Length];
