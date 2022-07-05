@@ -20,7 +20,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogAutomationTest, Warning, All);
 
 CORE_API const TMap<FString, EAutomationTestFlags::Type>& EAutomationTestFlags::GetTestFlagsMap()
 {
-	LLM_SCOPE_BYNAME(TEXT("AutomationTest"));
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
 	/** String to EAutomationTestFlags map */
 	static const TMap<FString, Type> FlagsMap = {
 		{ TEXT("EditorContext"), Type::EditorContext},
@@ -219,6 +219,7 @@ bool FAutomationTestFramework::RegisterAutomationTest( const FString& InTestName
 	const bool bAlreadyRegistered = AutomationTestClassNameToInstanceMap.Contains( InTestNameToRegister );
 	if ( !bAlreadyRegistered )
 	{
+		LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
 		AutomationTestClassNameToInstanceMap.Add( InTestNameToRegister, InTestToRegister );
 	}
 	return !bAlreadyRegistered;
@@ -563,6 +564,7 @@ void FAutomationTestFramework::LoadTestModules( )
 
 void FAutomationTestFramework::GetValidTestNames( TArray<FAutomationTestInfo>& TestInfo ) const
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
 	TestInfo.Empty();
 
 	// Determine required application type (Editor, Game, or Commandlet)
@@ -970,6 +972,8 @@ int32 FAutomationTestExecutionInfo::RemoveAllEvents(TFunctionRef<bool(FAutomatio
 
 void FAutomationTestExecutionInfo::AddEvent(const FAutomationEvent& Event, int StackOffset, bool bCaptureStack)
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
+
 	switch (Event.Type)
 	{
 	case EAutomationEventType::Warning:

@@ -46,6 +46,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogAutomationController, Log, All)
 
 void FAutomatedTestPassResults::AddTestResult(const IAutomationReportPtr& TestReport)
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	const FString& FullTestPath = TestReport->GetFullTestPath();
 	if (!TestsMapIndex.Contains(FullTestPath))
 	{
@@ -69,6 +70,7 @@ FAutomatedTestResult& FAutomatedTestPassResults::GetTestResult(const IAutomation
 
 void FAutomatedTestPassResults::ReBuildTestsMapIndex()
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	TestsMapIndex.Empty();
 	uint32 Index = 0;
 	for (const FAutomatedTestResult& TestResult : Tests)
@@ -654,6 +656,7 @@ bool FAutomationControllerManager::GenerateTestPassHtmlIndex()
 
 bool FAutomationControllerManager::LoadJsonTestPassSummary(FString& ReportFilePath, TArray<IAutomationReportPtr> TestReports)
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	FString Json;
 	if (!FFileHelper::LoadFileToString(Json, *ReportFilePath))
 	{
@@ -1085,11 +1088,7 @@ void FAutomationControllerManager::UpdateTests()
 					//verify this device thought it was busy
 					TSharedPtr <IAutomationReport> Report = DeviceClusterManager.GetTest(ClusterIndex, DeviceIndex);
 					check(Report.IsValid());
-					// A dummy array used to report the result
 
-					TArray<FString> EmptyStringArray;
-					TArray<FString> ErrorStringArray;
-					ErrorStringArray.Add(FString(TEXT("Failed")));
 					bHasErrors = true;
 
 					FAutomationTestResults TestResults;
@@ -1362,6 +1361,7 @@ void FAutomationControllerManager::HandleRequestTestsReplyCompleteMessage(const 
 {
 	UE_LOG(LogAutomationController, Log, TEXT("Received RequestTestsReplyCompleteMessage from %s"), *Context->GetSender().ToString());
 
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Controller"));
 	TArray<FAutomationTestInfo> TestInfo;
 	TestInfo.Reset(Message.Tests.Num());
 	for (const FAutomationWorkerSingleTestReply& SingleTestReply : Message.Tests)

@@ -177,42 +177,6 @@ void FAutomationWorkerModule::ReportNetworkCommandComplete()
 	}
 }
 
-
-/**
- *	Takes a large transport array and splits it into pieces of a desired size and returns the portion of this which is requested
- *
- * @param FullTransportArray The whole series of data
- * @param CurrentChunkIndex The The chunk we are requesting
- * @param NumToSend The maximum number of bytes we should be splitting into.
- * @return The section of the transport array which matches our index requested
- */
-TArray< uint8 > GetTransportSection( const TArray< uint8 >& FullTransportArray, const int32 NumToSend, const int32 RequestedChunkIndex )
-{
-	TArray< uint8 > TransportArray = FullTransportArray;
-
-	if( NumToSend > 0 )
-	{
-		int32 NumToRemoveFromStart = RequestedChunkIndex * NumToSend;
-		if( NumToRemoveFromStart > 0 )
-		{
-			TransportArray.RemoveAt( 0, NumToRemoveFromStart );
-		}
-
-		int32 NumToRemoveFromEnd = FullTransportArray.Num() - NumToRemoveFromStart - NumToSend;
-		if( NumToRemoveFromEnd > 0 )
-		{
-			TransportArray.RemoveAt( TransportArray.Num()-NumToRemoveFromEnd, NumToRemoveFromEnd );
-		}
-	}
-	else
-	{
-		TransportArray.Empty();
-	}
-
-	return TransportArray;
-}
-
-
 void FAutomationWorkerModule::ReportTestComplete()
 {
 	if (GIsAutomationTesting)
@@ -275,6 +239,7 @@ void FAutomationWorkerModule::ReportTestComplete()
 
 void FAutomationWorkerModule::SendTests( const FMessageAddress& ControllerAddress )
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Worker"));
 	FAutomationWorkerRequestTestsReplyComplete* Reply = FMessageEndpoint::MakeMessage<FAutomationWorkerRequestTestsReplyComplete>();
 	for( int32 TestIndex = 0; TestIndex < TestInfo.Num(); TestIndex++ )
 	{
@@ -450,6 +415,7 @@ void FAutomationWorkerModule::HandleScreenShotCapturedWithName(const TArray<FCol
 void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TArray<FColor>& RawImageData, const TArray<uint8>& CapturedFrameTrace, const FAutomationScreenshotData& Data)
 {
 #if WITH_AUTOMATION_TESTS
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/ImageCompare"));
 	int32 NewHeight = Data.Height;
 	int32 NewWidth = Data.Width;
 
@@ -524,6 +490,7 @@ void FAutomationWorkerModule::HandleScreenShotAndTraceCapturedWithName(const TAr
 void FAutomationWorkerModule::HandleRunTestsMessage( const FAutomationWorkerRunTests& Message, const TSharedRef<IMessageContext, ESPMode::ThreadSafe>& Context )
 {
 	UE_LOG(LogAutomationWorker, Log, TEXT("Received RunTests %s from %s"), *Message.BeautifiedTestName, *Context->GetSender().ToString());
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Worker"));
 
 	if (TestRequesterAddress.IsValid() && !TestName.IsEmpty())
 	{

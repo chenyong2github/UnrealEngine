@@ -114,6 +114,7 @@ int32 FAutomationReport::GetTotalNumFilteredChildren() const
 
 void FAutomationReport::GetEnabledTestNames(TArray<FString>& OutEnabledTestNames, FString CurrentPath) const
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	//if this is a leaf and this test is enabled
 	if ((ChildReports.Num() == 0) && IsEnabled())
 	{
@@ -138,6 +139,7 @@ void FAutomationReport::GetEnabledTestNames(TArray<FString>& OutEnabledTestNames
 
 void FAutomationReport::GetFilteredTestNames(TArray<FString>& OutFilteredTestNames, FString CurrentPath) const
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	// start from FilteredChildReports
 	if (CurrentPath.IsEmpty())
 	{
@@ -240,6 +242,7 @@ void FAutomationReport::SetSupport(const int32 ClusterIndex)
 	SupportFlags |= (1<<ClusterIndex);
 
 	//ensure there is enough room in the array for status per platform
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	for (int32 i = 0; i <= ClusterIndex; ++i)
 	{
 		//Make sure we have enough results for a single pass
@@ -292,6 +295,7 @@ const bool FAutomationReport::IsSmokeTest( )
 
 bool FAutomationReport::SetFilter( TSharedPtr< AutomationFilterCollection > InFilter, const bool ParentPassedFilter )
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	//assume that this node and all its children fail to pass the filter test
 	bool bSelfOrChildPassedFilter = false;
 
@@ -351,6 +355,7 @@ TArray<TSharedPtr<IAutomationReport> >& FAutomationReport::GetChildReports()
 
 void FAutomationReport::ClustersUpdated(const int32 NumClusters)
 {
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	TestInfo.ResetNumDevicesRunningTest();
 
 	//Fixup Support flags
@@ -431,6 +436,7 @@ void FAutomationReport::SetResults( const int32 ClusterIndex, const int32 PassIn
 		TestInfo.InformOfNewDeviceRunningTest();
 	}
 
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	const TArray<FAutomationArtifact> ExistingArtifacts = Results[ClusterIndex][PassIndex].Artifacts;
 	Results[ClusterIndex][PassIndex] = InResults;
 	Results[ClusterIndex][PassIndex].Artifacts.Append(ExistingArtifacts);
@@ -452,6 +458,7 @@ void FAutomationReport::AddArtifact(const int32 ClusterIndex, const int32 PassIn
 	check(( ClusterIndex >= 0 ) && ( ClusterIndex < Results.Num() ));
 	check(( PassIndex >= 0 ) && ( PassIndex < Results[ClusterIndex].Num() ));
 
+	LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 	Results[ClusterIndex][PassIndex].Artifacts.Add(Artifact);
 }
 
@@ -603,6 +610,7 @@ TSharedPtr<IAutomationReport> FAutomationReport::EnsureReportExists(FAutomationT
 	//if there isn't already a test like this
 	if (!MatchTest.IsValid())
 	{
+		LLM_SCOPE_BYNAME(TEXT("AutomationTest/Report"));
 		if ( NameRemainder.Len() == 0 )
 		{
 			// Create a new leaf node

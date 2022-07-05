@@ -16,6 +16,7 @@
 #include "HAL/PlatformTime.h"
 #include "HAL/ThreadSafeBool.h" 
 #include "HAL/PlatformStackWalk.h"
+#include "HAL/LowLevelMemTracker.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
 #include "Containers/Queue.h"
 #include "Misc/CString.h"
@@ -1202,8 +1203,9 @@ public:
 	 */
 	FAutomationTestBase( const FString& InName, const bool bInComplexTask )
 		: bComplexTask( bInComplexTask )
-		, TestName( InName )
 	{
+		LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
+		TestName = InName;
 		// Register the newly created automation test into the automation testing framework
 		FAutomationTestFramework::Get().RegisterAutomationTest( InName, this );
 	}
@@ -2436,6 +2438,7 @@ public:
 
 	void Describe(const FString& InDescription, TFunction<void()> DoWork)
 	{
+		LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
 		const TSharedRef<FSpecDefinitionScope> ParentScope = DefinitionScopeStack.Last();
 		const TSharedRef<FSpecDefinitionScope> NewScope = MakeShareable(new FSpecDefinitionScope());
 		NewScope->Description = InDescription;
@@ -2810,6 +2813,7 @@ private:
 
 	void PushDescription(const FString& InDescription)
 	{
+		LLM_SCOPE_BYNAME(TEXT("AutomationTest/Framework"));
 		Description.Add(InDescription);
 	}
 
