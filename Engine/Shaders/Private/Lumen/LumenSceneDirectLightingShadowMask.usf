@@ -160,8 +160,7 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 		float3 L = LightData.Direction;
 		float3 ToLight = L;
-
-		float CombinedAttenuation = saturate(dot(WorldNormal, L));
+		float CombinedAttenuation = 1.0f;
 
 #if LIGHT_TYPE != LIGHT_TYPE_DIRECTIONAL
 		float LightMask = 1;
@@ -186,6 +185,8 @@ void LumenSceneDirectLightingSampleShadowMapCS(
 
 		CombinedAttenuation *= Attenuation * LightMask;
 #endif
+
+		CombinedAttenuation *= saturate(dot(WorldNormal, L));
 
 		if (CombinedAttenuation > 0)
 		{
