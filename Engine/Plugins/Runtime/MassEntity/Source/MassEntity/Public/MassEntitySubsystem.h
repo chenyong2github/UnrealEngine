@@ -23,6 +23,7 @@ struct FMassArchetypeData;
 struct FMassCommandBuffer;
 struct FMassArchetypeEntityCollection;
 class FOutputDevice;
+struct FMassDebugger;
 enum class EMassFragmentAccess : uint8;
 
 //@TODO: Comment this
@@ -31,7 +32,9 @@ class MASSENTITY_API UMassEntitySubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
-	friend struct FMassEntityQuery;
+	friend FMassEntityQuery;
+	friend FMassDebugger;
+
 private:
 	// Index 0 is reserved so we can treat that index as an invalid entity handle
 	constexpr static int32 NumReservedEntities = 1;

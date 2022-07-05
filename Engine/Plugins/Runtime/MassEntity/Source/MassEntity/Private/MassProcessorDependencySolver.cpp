@@ -30,6 +30,23 @@ namespace UE::Mass::Private
 //----------------------------------------------------------------------//
 //  FMassExecutionRequirements
 //----------------------------------------------------------------------//
+void FMassExecutionRequirements::Append(const FMassExecutionRequirements& Other)
+{
+	for (int i = 0; i < EMassAccessOperation::MAX; ++i)
+	{
+		Fragments[i] += Other.Fragments[i];
+		ChunkFragments[i] += Other.ChunkFragments[i];
+		SharedFragments[i] += Other.SharedFragments[i];
+		RequiredSubsystems[i] += Other.RequiredSubsystems[i];
+	}
+	RequiredAllTags += Other.RequiredAllTags;
+	RequiredAnyTags += Other.RequiredAnyTags;
+	RequiredNoneTags += Other.RequiredNoneTags;
+
+	// signal that it requires recalculation;
+	ResourcesUsedCount = INDEX_NONE;
+}
+
 void FMassExecutionRequirements::CountResourcesUsed()
 {
 	ResourcesUsedCount = 0;
@@ -134,7 +151,7 @@ void FProcessorDependencySolver::FResourceUsage::SubmitNode(const int32 NodeInde
 	HandleElementType<FMassSharedFragmentBitSet>(SharedFragmentsAccess, InOutNode.Requirements.SharedFragments, InOutNode, NodeIndex);
 	HandleElementType<FMassExternalSubystemBitSet>(RequiredSubsystemsAccess, InOutNode.Requirements.RequiredSubsystems, InOutNode, NodeIndex);
 
-	Requirements += InOutNode.Requirements;
+	Requirements.Append(InOutNode.Requirements);
 }
 
 //----------------------------------------------------------------------//

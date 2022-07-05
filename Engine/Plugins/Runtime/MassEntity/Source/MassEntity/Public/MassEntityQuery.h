@@ -20,6 +20,7 @@ struct FMassArchetypeHandle;
 struct FMassExecutionRequirements;
 struct FMassRequirementAccessDetector;
 
+UENUM()
 enum class EMassFragmentAccess : uint8
 {
 	// no binding required
@@ -34,6 +35,7 @@ enum class EMassFragmentAccess : uint8
 	MAX
 };
 
+UENUM()
 enum class EMassFragmentPresence : uint8
 {
 	// All of the required fragments must be present
@@ -100,6 +102,8 @@ USTRUCT()
 struct MASSENTITY_API FMassEntityQuery
 {
 	GENERATED_BODY()
+
+	friend struct FMassDebugger;
 
 public:
 	FMassEntityQuery();

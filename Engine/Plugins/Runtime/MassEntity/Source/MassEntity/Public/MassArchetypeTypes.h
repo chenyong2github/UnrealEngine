@@ -16,6 +16,7 @@ struct FMassArchetypeChunkIterator;
 struct FMassEntityQuery;
 struct FMassArchetypeEntityCollection;
 struct FMassEntityView;
+struct FMassDebugger;
 
 typedef TFunction< void(FMassExecutionContext& /*ExecutionContext*/) > FMassExecuteFunction;
 typedef TFunction< bool(const FMassExecutionContext& /*ExecutionContext*/) > FMassChunkConditionFunction;
@@ -45,6 +46,7 @@ private:
 	friend FMassArchetypeEntityCollection;
 	friend FMassEntityQuery;
 	friend FMassEntityView;
+	friend FMassDebugger;
 };
 
 

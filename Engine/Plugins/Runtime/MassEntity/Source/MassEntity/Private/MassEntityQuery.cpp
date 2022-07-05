@@ -358,6 +358,10 @@ void FMassEntityQuery::ExportRequirements(FMassExecutionRequirements& OutRequire
 	ExportRequirements<FMassChunkFragmentBitSet>(ChunkRequirements, OutRequirements.ChunkFragments);
 	ExportRequirements<FMassSharedFragmentBitSet>(ConstSharedRequirements, OutRequirements.SharedFragments);
 	ExportRequirements<FMassSharedFragmentBitSet>(SharedRequirements, OutRequirements.SharedFragments);
+
+	OutRequirements.RequiredAllTags = RequiredAllTags;
+	OutRequirements.RequiredAnyTags = RequiredAnyTags;
+	OutRequirements.RequiredNoneTags = RequiredNoneTags;
 }
 
 FString FMassEntityQuery::DebugGetDescription() const

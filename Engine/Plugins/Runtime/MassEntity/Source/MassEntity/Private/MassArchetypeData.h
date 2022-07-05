@@ -169,6 +169,7 @@ private:
 
 	friend FMassEntityQuery;
 	friend FMassArchetypeEntityCollection;
+	friend FMassDebugger;
 
 public:
 	TConstArrayView<FMassArchetypeFragmentConfig> GetFragmentConfigs() const { return FragmentConfigs; }

@@ -25,7 +25,7 @@ namespace EMassAccessOperation
 };
 
 template<typename T>
-struct MASSENTITY_API TMassExecutionAccess
+struct TMassExecutionAccess
 {
 	T Read;
 	T Write;
@@ -41,28 +41,24 @@ struct MASSENTITY_API TMassExecutionAccess
 		check(OpIndex <= EMassAccessOperation::MAX);
 		return OpIndex == EMassAccessOperation::Read ? Read : Write;
 	}
+
+	TConstArrayView<T> AsArrayView() const { return MakeArrayView(&Read, 2); }
+
+	bool IsEmpty() const { return Read.IsEmpty() && Write.IsEmpty(); }
 };
 
 struct MASSENTITY_API FMassExecutionRequirements
 {
-	FMassExecutionRequirements& operator+=(const FMassExecutionRequirements& Other)
-	{
-		for (int i = 0; i < EMassAccessOperation::MAX; ++i)
-		{
-			Fragments[i] += Other.Fragments[i];
-			ChunkFragments[i] += Other.ChunkFragments[i];
-			SharedFragments[i] += Other.SharedFragments[i];
-			RequiredSubsystems[i] += Other.RequiredSubsystems[i];
-		}
-		return *this;
-	}
-
+	void Append(const FMassExecutionRequirements& Other);
 	void CountResourcesUsed();
 
 	TMassExecutionAccess<FMassFragmentBitSet> Fragments;
 	TMassExecutionAccess<FMassChunkFragmentBitSet> ChunkFragments;
 	TMassExecutionAccess<FMassSharedFragmentBitSet> SharedFragments;
 	TMassExecutionAccess<FMassExternalSubystemBitSet> RequiredSubsystems;
+	FMassTagBitSet RequiredAllTags;
+	FMassTagBitSet RequiredAnyTags;
+	FMassTagBitSet RequiredNoneTags;
 	int32 ResourcesUsedCount = INDEX_NONE;
 };
 

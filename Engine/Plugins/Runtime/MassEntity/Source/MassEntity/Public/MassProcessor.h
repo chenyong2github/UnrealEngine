@@ -12,6 +12,8 @@
 
 
 struct FMassProcessingPhaseConfig;
+class UMassCompositeProcessor;
+struct FMassDebugger;
 
 enum class EProcessorCompletionStatus : uint8
 {
@@ -130,7 +132,8 @@ protected:
 	bool bCanShowUpInSettings = true;
 #endif // WITH_EDITORONLY_DATA
 
-	friend class UMassCompositeProcessor;
+	friend UMassCompositeProcessor;
+	friend FMassDebugger;
 
 private:
 	/** Stores processor's queries registered via RegisterQuery. 
@@ -145,6 +148,8 @@ class MASSENTITY_API UMassCompositeProcessor : public UMassProcessor
 {
 	GENERATED_BODY()
 
+	friend FMassDebugger;
+public:
 	struct FDependencyNode
 	{
 		FName Name;

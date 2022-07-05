@@ -190,6 +190,11 @@ struct FMassArchetypeCompositionDescriptor
 		return CalculateHash(Fragments, Tags, ChunkFragments, SharedFragments);
 	}
 
+	int32 CountStoredTypes() const
+	{
+		return Fragments.CountStoredTypes() + Tags.CountStoredTypes() + ChunkFragments.CountStoredTypes() + SharedFragments.CountStoredTypes();
+	}
+
 	void DebugOutputDescription(FOutputDevice& Ar) const
 	{
 #if WITH_MASSENTITY_DEBUG
