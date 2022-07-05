@@ -53,6 +53,8 @@ class ULightMapVirtualTexture2D;
 class FGPUScenePrimitiveCollector;
 class FVirtualShadowMapArrayCacheManager;
 
+namespace UE { namespace Color { class FColorSpace; } }
+
 DECLARE_LOG_CATEGORY_EXTERN(LogBufferVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogNaniteVisualization, Log, All);
 DECLARE_LOG_CATEGORY_EXTERN(LogLumenVisualization, Log, All);
@@ -304,6 +306,30 @@ public:
 private:
 	FSceneView& SceneView;
 };
+
+
+/**
+ * Global working color space shader parameters (color space conversion matrices).
+ */
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FWorkingColorSpaceShaderParameters, ENGINE_API)
+	SHADER_PARAMETER(FMatrix44f, ToXYZ)
+	SHADER_PARAMETER(FMatrix44f, FromXYZ)
+	SHADER_PARAMETER(FMatrix44f, ToAP1)
+	SHADER_PARAMETER(FMatrix44f, FromAP1)
+	SHADER_PARAMETER(FMatrix44f, ToAP0)
+	SHADER_PARAMETER(uint32, bIsSRGB)
+END_SHADER_PARAMETER_STRUCT()
+
+class FDefaultWorkingColorSpaceUniformBuffer : public TUniformBuffer<FWorkingColorSpaceShaderParameters>
+{
+	typedef TUniformBuffer<FWorkingColorSpaceShaderParameters> Super;
+public:
+
+	void Update(const UE::Color::FColorSpace& InColorSpace);
+};
+
+ENGINE_API extern TGlobalResource<FDefaultWorkingColorSpaceUniformBuffer> GDefaultWorkingColorSpaceUniformBuffer;
+
 
 /**
  * The types of interactions between a light and a primitive.

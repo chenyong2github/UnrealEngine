@@ -16,6 +16,7 @@
 #include "Engine/ShadowMapTexture2D.h"
 #include "VT/LightmapVirtualTexture.h"
 #include "UnrealEngine.h"
+#include "ColorSpace.h"
 
 static TAutoConsoleVariable<float> CVarLODTemporalLag(
 	TEXT("lod.TemporalLag"),
@@ -55,6 +56,32 @@ void FTemporalLODState::UpdateTemporalLODTransition(const FViewInfo& View, float
 	}
 }
 
+
+IMPLEMENT_STATIC_UNIFORM_BUFFER_SLOT(WorkingColorSpace);
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FWorkingColorSpaceShaderParameters, "WorkingColorSpace", WorkingColorSpace);
+
+void FDefaultWorkingColorSpaceUniformBuffer::Update(const UE::Color::FColorSpace& InColorSpace)
+{
+	using namespace UE::Color;
+
+	const FVector2d& White = InColorSpace.GetWhiteChromaticity();
+	const FVector2d ACES_D60 = GetWhitePoint(EWhitePoint::ACES_D60);
+
+	FWorkingColorSpaceShaderParameters Parameters;
+	Parameters.ToXYZ = Transpose<float>(InColorSpace.GetRgbToXYZ());
+	Parameters.FromXYZ = Transpose<float>(InColorSpace.GetXYZToRgb());
+
+	Parameters.ToAP1 = Transpose<float>(FColorSpaceTransform(InColorSpace, FColorSpace(EColorSpace::ACESAP1), EChromaticAdaptationMethod::Bradford));
+	Parameters.FromAP1 = Parameters.ToAP1.Inverse();
+	
+	Parameters.ToAP0 = Transpose<float>(FColorSpaceTransform(InColorSpace, FColorSpace(EColorSpace::ACESAP0), EChromaticAdaptationMethod::Bradford));
+
+	Parameters.bIsSRGB = InColorSpace.IsSRGB();
+
+	SetContents(Parameters);
+}
+
+TGlobalResource<FDefaultWorkingColorSpaceUniformBuffer> GDefaultWorkingColorSpaceUniformBuffer;
 
 
 FSimpleElementCollector::FSimpleElementCollector() :

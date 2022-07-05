@@ -5,6 +5,7 @@
 #include "RHI.h"
 #include "GPUSkinVertexFactory.h"
 #include "ColorSpace.h"
+#include "SceneManagement.h"
 
 #if WITH_EDITOR
 #include "Editor/EditorEngine.h"
@@ -410,6 +411,15 @@ void URendererSettings::UpdateWorkingColorSpaceAndChromaticities()
 	{
 		FColorSpace::GetWorking().GetChromaticities(RedChromaticityCoordinate, GreenChromaticityCoordinate, BlueChromaticityCoordinate, WhiteChromaticityCoordinate);
 	}
+	
+	FColorSpace UpdatedColorSpace = FColorSpace::GetWorking();
+
+	ENQUEUE_RENDER_COMMAND(WorkingColorSpaceCommand)(
+		[UpdatedColorSpace](FRHICommandList&)
+		{
+			// Set or update the global uniform buffer for Working Color Space conversions.
+			GDefaultWorkingColorSpaceUniformBuffer.Update(UpdatedColorSpace);
+		});
 }
 
 

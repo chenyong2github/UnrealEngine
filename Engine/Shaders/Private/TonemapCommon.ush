@@ -238,17 +238,22 @@ half3 FilmToneMapInverse( half3 ToneColor )
 
 //
 // ACES sRGB D65 Output Transform - Forward and Inverse
-//  Input is scene-referred linear values in the sRGB gamut
+//  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the sRGB gamut
 //
+float3 ACESOutputTransformsRGBD65( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0 )
+{
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 );
+	float3 oces = RRT( aces );
+	float3 OutputReferredLinearsRGBColor =  ODT_sRGB_D65( oces );
+	return OutputReferredLinearsRGBColor;
+}
+
 float3 ACESOutputTransformsRGBD65( float3 SceneReferredLinearsRGBColor )
 {
 	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
 
-	float3 aces = mul( sRGB_2_AP0, SceneReferredLinearsRGBColor * 1.5 );
-	float3 oces = RRT( aces );
-	float3 OutputReferredLinearsRGBColor =  ODT_sRGB_D65( oces );
-	return OutputReferredLinearsRGBColor;
+	return ACESOutputTransformsRGBD65( SceneReferredLinearsRGBColor, sRGB_2_AP0 );
 }
 
 float3 InverseACESOutputTransformsRGBD65( float3 OutputReferredLinearsRGBColor )
@@ -264,32 +269,42 @@ float3 InverseACESOutputTransformsRGBD65( float3 OutputReferredLinearsRGBColor )
 
 //
 // ACES D65 1000 nit Output Transform - Forward
-//  Input is scene-referred linear values in the sRGB gamut
+//  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the AP1 gamut
 //
-float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor )
+float3 ACESOutputTransforms1000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0 ) 
 {
-	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
-
-	float3 aces = mul( sRGB_2_AP0, SceneReferredLinearsRGBColor * 1.5 );
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 );
 	float3 oces = RRT( aces );
 	float3 OutputReferredLinearAP1Color = ODT_1000nits( oces );
 	return OutputReferredLinearAP1Color;
 }
 
+float3 ACESOutputTransforms1000( float3 SceneReferredLinearsRGBColor )
+{
+	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
+
+	return ACESOutputTransforms1000( SceneReferredLinearsRGBColor, sRGB_2_AP0 );
+}
+
 //
 // ACES D65 2000 nit Output Transform - Forward
-//  Input is scene-referred linear values in the sRGB gamut
+//  Input is scene-referred linear values in the working space gamut
 //  Output is output-referred linear values in the AP1 gamut
 //
+float3 ACESOutputTransforms2000( float3 SceneReferredLinearColor, const float3x3 WCS_2_AP0 ) 
+{
+	float3 aces = mul( WCS_2_AP0, SceneReferredLinearColor * 1.5 );
+	float3 oces = RRT( aces );
+	float3 OutputReferredLinearAP1Color = ODT_2000nits( oces );
+	return OutputReferredLinearAP1Color;
+}
+
 float3 ACESOutputTransforms2000( float3 SceneReferredLinearsRGBColor )
 {
 	const float3x3 sRGB_2_AP0 = mul( XYZ_2_AP0_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
 
-	float3 aces = mul( sRGB_2_AP0, SceneReferredLinearsRGBColor * 1.5 );
-	float3 oces = RRT( aces );
-	float3 OutputReferredLinearAP1Color = ODT_2000nits( oces );
-	return OutputReferredLinearAP1Color;
+	return ACESOutputTransforms2000( SceneReferredLinearsRGBColor, sRGB_2_AP0 );
 }
 
 static const float3x3 GamutMappingIdentityMatrix = { 1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0 };

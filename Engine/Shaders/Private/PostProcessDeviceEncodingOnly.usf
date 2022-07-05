@@ -58,13 +58,6 @@ float4 DeviceEncodingOnlyCommonPS(
 
 	half4 SceneColor = SampleSceneColor(SceneUV);
 
-	// AP1 to Working space matrices
-	const float3x3 sRGB_2_AP1 = mul( XYZ_2_AP1_MAT, mul( D65_2_D60_CAT, sRGB_2_XYZ_MAT ) );
-	const float3x3 AP1_2_sRGB = mul( XYZ_2_sRGB_MAT, mul( D60_2_D65_CAT, AP1_2_XYZ_MAT ) );
-
-	const float3x3 AP0_2_AP1 = mul( XYZ_2_AP1_MAT, AP0_2_XYZ_MAT );
-	const float3x3 AP1_2_AP0 = mul( XYZ_2_AP0_MAT, AP1_2_XYZ_MAT );
-
 	const float3x3 AP1_2_Output  = OuputGamutMappingMatrix( OutputGamut );
 
 	// Apply "gamma" curve adjustment.
@@ -83,7 +76,7 @@ float4 DeviceEncodingOnlyCommonPS(
 
 		// FIXME: Workaround for UE-29935, pushing all colors with a 0 component to black output
 		// Default parameters seem to cancel out (sRGB->XYZ->AP1->XYZ->sRGB), so should be okay for a temp fix
-		float3 OutputGamutColor = FilmColor;
+		float3 OutputGamutColor = WorkingColorSpace.bIsSRGB ? FilmColor : mul( AP1_2_Output, mul( (float3x3)WorkingColorSpace.ToAP1, FilmColor ) );
 
 		// Apply conversion to sRGB (this must be an exact sRGB conversion else darks are bad).
 		OutDeviceColor = LinearToSrgb( OutputGamutColor );
@@ -93,7 +86,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_Rec709)
 	{
 		// Convert from sRGB to specified output gamut
-		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
+		float3 OutputGamutColor = mul( AP1_2_Output, mul( (float3x3)WorkingColorSpace.ToAP1, FilmColor ) );
 
 		// Didn't profile yet if the branching version would be faster (different linear segment).
 		OutDeviceColor = LinearTo709Branchless( OutputGamutColor );
@@ -103,7 +96,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitST2084 )
 	{		
 		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( FilmColor );
+		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
 
 		// Convert from AP1 to specified output gamut
 		ODTColor = mul( AP1_2_Output, ODTColor );
@@ -116,7 +109,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitST2084 )
 	{		
 		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( FilmColor );
+		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
 
 		// Convert from AP1 to specified output gamut
 		ODTColor = mul( AP1_2_Output, ODTColor );
@@ -129,7 +122,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if(GetOutputDevice() == TONEMAPPER_OUTPUT_ACES1000nitScRGB)
 	{
 		// 1000 nit ODT
-		float3 ODTColor = ACESOutputTransforms1000( FilmColor );
+		float3 ODTColor = ACESOutputTransforms1000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
 
 		// Apply conversion to ScRGB
 		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES1000nitScRGB );
@@ -139,7 +132,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else if(GetOutputDevice() == TONEMAPPER_OUTPUT_ACES2000nitScRGB)
 	{
 		// 2000 nit ODT
-		float3 ODTColor = ACESOutputTransforms2000( FilmColor );
+		float3 ODTColor = ACESOutputTransforms2000( FilmColor, (float3x3)WorkingColorSpace.ToAP0 );
 
 		// Apply conversion to ScRGB
 		OutDeviceColor = ST2084ToScRGB( LinearToST2084( ODTColor ), TONEMAPPER_OUTPUT_ACES2000nitScRGB );
@@ -147,7 +140,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	
 	else if( GetOutputDevice() == TONEMAPPER_OUTPUT_LinearEXR)
 	{
-		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
+		float3 OutputGamutColor = mul( AP1_2_Output, mul( (float3x3)WorkingColorSpace.ToAP1, FilmColor ) );
 		OutDeviceColor = LinearToST2084( OutputGamutColor );
 	}
 	// Linear HDR, including all color correction, but no tone curve
@@ -158,7 +151,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	// "Linear" including all color correction and the tone curve, but no device gamma
 	else if (GetOutputDevice() == TONEMAPPER_OUTPUT_WithToneCurve)
 	{
-		float3 OutputGamutColor = mul(AP1_2_Output, mul(sRGB_2_AP1, SceneColor.rgb)); 
+		float3 OutputGamutColor = mul( AP1_2_Output, mul( (float3x3)WorkingColorSpace.ToAP1, SceneColor.rgb ) ); 
 
 		OutDeviceColor = OutputGamutColor;
 	}
@@ -168,7 +161,7 @@ float4 DeviceEncodingOnlyCommonPS(
 	else
 	{
 		// Convert from sRGB to specified output gamut
-		float3 OutputGamutColor = mul( AP1_2_Output, mul( sRGB_2_AP1, FilmColor ) );
+		float3 OutputGamutColor = mul( AP1_2_Output, mul( (float3x3)WorkingColorSpace.ToAP1, FilmColor ) );
 
 		// This is different than the prior "gamma" curve adjustment (but reusing the variable).
 		// For displays set to a gamma colorspace.
