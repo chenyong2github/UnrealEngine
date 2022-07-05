@@ -4,6 +4,7 @@
 
 #include "NiagaraDataInterface.h"
 #include "NiagaraDataInterfaceRW.h"
+#include "NiagaraRenderGraphUtils.h"
 #include "NiagaraCommon.h"
 #include "VectorVM.h"
 #include "NiagaraDataInterfaceVelocityGrid.generated.h"
@@ -25,7 +26,7 @@ struct FNDIVelocityGridBuffer : public FRenderResource
 	virtual FString GetFriendlyName() const override { return TEXT("FNDIVelocityGridBuffer"); }
 
 	/** Grid data texture */
-	FRWBuffer GridDataBuffer;
+	FNiagaraPooledRWBuffer GridDataBuffer;
 
 	/** Grid size that will be used for the collision*/
 	FIntVector GridSize;
@@ -71,39 +72,6 @@ struct FNDIVelocityGridData
 	FNDIVelocityGridBuffer* DestinationGridBuffer;
 };
 
-/** Data Interface paramaters name */
-struct FNDIVelocityGridParametersName
-{
-	FNDIVelocityGridParametersName(const FString& Suffix);
-
-	FString GridCurrentBufferName;
-	FString GridDestinationBufferName;
-
-	FString GridSizeName;
-	FString WorldTransformName;
-	FString WorldInverseName;
-};
-
-struct FNDIVelocityGridParametersCS : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNDIVelocityGridParametersCS, NonVirtual);
-
-	void Bind(const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap);
-
-	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
-
-	void Unset(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const;
-
-private:
-
-	LAYOUT_FIELD(FShaderResourceParameter, GridCurrentBuffer);
-	LAYOUT_FIELD(FShaderResourceParameter, GridDestinationBuffer);
-
-	LAYOUT_FIELD(FShaderParameter, GridSize);
-	LAYOUT_FIELD(FShaderParameter, WorldTransform);
-	LAYOUT_FIELD(FShaderParameter, WorldInverse);
-};
-
 /** Data Interface for the strand base */
 UCLASS(EditInlineNew, Category = "Grid", meta = (DisplayName = "Velocity Grid"))
 class HAIRSTRANDSCORE_API UNiagaraDataInterfaceVelocityGrid : public UNiagaraDataInterfaceRWBase
@@ -111,9 +79,6 @@ class HAIRSTRANDSCORE_API UNiagaraDataInterfaceVelocityGrid : public UNiagaraDat
 	GENERATED_UCLASS_BODY()
 
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	/** Grid size along the X axis. */
 	UPROPERTY(EditAnywhere, Category = "Spawn")
 	FIntVector GridSize;
@@ -141,6 +106,10 @@ public:
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override;
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
+
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override;
 
 	/** Build the velocity field */
@@ -158,21 +127,6 @@ public:
 	/** Set the grid dimension */
 	void SetGridDimension(FVectorVMExternalFunctionContext& Context);
 
-	/** Name of the grid current buffer */
-	static const FString GridCurrentBufferName;
-
-	/** Name of the grid X velocity buffer */
-	static const FString GridDestinationBufferName;
-
-	/** Name of the grid size */
-	static const FString GridSizeName;
-
-	/** Name of the world transform  */
-	static const FString WorldTransformName;
-
-	/** Name of the World transform inverse */
-	static const FString WorldInverseName;
-
 protected:
 	/** Copy one niagara DI to this */
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
@@ -188,13 +142,16 @@ struct FNDIVelocityGridProxy : public FNiagaraDataInterfaceProxyRW
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override;
 
 	/** Launch all pre stage functions */
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PreStage(const FNDIGpuComputePreStageContext& Context) override;
 
 	/** Launch all post stage functions */
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PostStage(const FNDIGpuComputePostStageContext& Context) override;
+
+	/** Called at the end of each simulate tick. */
+	virtual void PostSimulate(const FNDIGpuComputePostSimulateContext& Context) override;
 
 	/** Reset the buffers  */
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual void ResetData(const FNDIGpuComputeResetContext& Context) override;
 
 	// Get the element count for this instance
 	virtual FIntVector GetElementCount(FNiagaraSystemInstanceID SystemInstanceID) const override;

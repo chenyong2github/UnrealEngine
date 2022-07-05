@@ -5,7 +5,7 @@
 
 //////////////////////////////////////////////////////////////////////////
 // Helper for wrapping a persistent RW buffer
-struct FNiagaraPooledRWBuffer
+struct NIAGARA_API FNiagaraPooledRWBuffer
 {
 	void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, EPixelFormat PixelFormat, const FRDGBufferDesc& BufferDesc);
 	void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, EPixelFormat PixelFormat, const uint32 BytesPerElemenet, const uint32 NumElements, EBufferUsageFlags UsageFlags = EBufferUsageFlags::None);
@@ -36,7 +36,7 @@ private:
 
 //////////////////////////////////////////////////////////////////////////
 // Helper for wrapping a persistent RW texture
-struct FNiagaraPooledRWTexture
+struct NIAGARA_API FNiagaraPooledRWTexture
 {
 	void Initialize(FRDGBuilder& GraphBuilder, const TCHAR* ResourceName, const FRDGTextureDesc& TextureDesc);
 	void Release();

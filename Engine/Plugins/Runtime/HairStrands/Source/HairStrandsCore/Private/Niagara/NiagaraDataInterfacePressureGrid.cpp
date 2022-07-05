@@ -21,19 +21,22 @@ DEFINE_LOG_CATEGORY_STATIC(LogPressureGrid, Log, All);
 
 //------------------------------------------------------------------------------------------------------------
 
-static const FName BuildDistanceFieldName(TEXT("BuildDistanceField"));
-static const FName BuildDensityFieldName(TEXT("BuildDensityField"));
-static const FName SolveGridPressureName(TEXT("SolveGridPressure"));
-static const FName ScaleCellFieldsName(TEXT("ScaleCellFields"));
-static const FName SetSolidBoundaryName(TEXT("SetSolidBoundary"));
-static const FName ComputeBoundaryWeightsName(TEXT("ComputeBoundaryWeights"));
-static const FName GetNodePositionName(TEXT("GetNodePosition"));
-static const FName GetDensityFieldName(TEXT("GetDensityField"));
-static const FName UpdateDeformationGradientName(TEXT("UpdateDeformationGradient"));
+namespace NDIPressureGridLocal
+{
+	static const TCHAR* CommonShaderFile = TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush");
+	static const TCHAR* TemplateShaderFile = TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGridTemplate.ush");
 
-//------------------------------------------------------------------------------------------------------------
+	static const FName BuildDistanceFieldName(TEXT("BuildDistanceField"));
+	static const FName BuildDensityFieldName(TEXT("BuildDensityField"));
+	static const FName SolveGridPressureName(TEXT("SolveGridPressure"));
+	static const FName ScaleCellFieldsName(TEXT("ScaleCellFields"));
+	static const FName SetSolidBoundaryName(TEXT("SetSolidBoundary"));
+	static const FName ComputeBoundaryWeightsName(TEXT("ComputeBoundaryWeights"));
+	static const FName GetNodePositionName(TEXT("GetNodePosition"));
+	static const FName GetDensityFieldName(TEXT("GetDensityField"));
+	static const FName UpdateDeformationGradientName(TEXT("UpdateDeformationGradient"));
 
-IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfacePressureGrid, FNDIVelocityGridParametersCS);
+} //namespace NDIPressureGridLocal
 
 //------------------------------------------------------------------------------------------------------------
 
@@ -46,6 +49,8 @@ UNiagaraDataInterfacePressureGrid::UNiagaraDataInterfacePressureGrid(FObjectInit
 
 void UNiagaraDataInterfacePressureGrid::GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions)
 {
+	using namespace NDIPressureGridLocal;
+
 	Super::GetFunctions(OutFunctions);
 	{
 		FNiagaraFunctionSignature Sig;
@@ -201,6 +206,8 @@ DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfacePressureGrid, UpdateDeformati
 
 void UNiagaraDataInterfacePressureGrid::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
+	using namespace NDIPressureGridLocal;
+
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
 
 	if (BindingInfo.Name == BuildDistanceFieldName)
@@ -297,129 +304,33 @@ void UNiagaraDataInterfacePressureGrid::UpdateDeformationGradient(FVectorVMExter
 #if WITH_EDITORONLY_DATA
 bool UNiagaraDataInterfacePressureGrid::GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL)
 {
+	using namespace NDIPressureGridLocal;
+
 	if (Super::GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL))
 	{
 		return true;
 	}
-	else
+
+	static const TSet<FName> ValidGpuFunctions =
 	{
-		TMap<FString, FStringFormatArg> ArgsSample = {
-			{TEXT("InstanceFunctionName"), FunctionInfo.InstanceName},
-			{TEXT("PressureGridContextName"), TEXT("DIVelocityGrid_MAKE_CONTEXT(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")")},
-		};
+		BuildDistanceFieldName,
+		BuildDensityFieldName,
+		UpdateDeformationGradientName,
+		SolveGridPressureName,
+		GetNodePositionName,
+		GetDensityFieldName,
+		SetSolidBoundaryName,
+		ComputeBoundaryWeightsName,
+		ScaleCellFieldsName,
+	};
 
-		if (FunctionInfo.DefinitionName == BuildDistanceFieldName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in float3 GridOrigin, in float GridLength, 
-					in float3 ParticlePosition, out bool OutFunctionStatus )
-					{
-						{PressureGridContextName} DIVelocityGrid_BuildDistanceField(DIContext,DIContext_GridDestinationBuffer,GridOrigin,GridLength,ParticlePosition,OutFunctionStatus);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == BuildDensityFieldName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in float3 GridOrigin, in float GridLength, 
-					in float3 ParticlePosition, in float ParticleMass, in float ParticleDensity, out bool OutFunctionStatus )
-					{
-						{PressureGridContextName} DIVelocityGrid_BuildDensityField(DIContext,DIContext_GridDestinationBuffer,GridOrigin,GridLength,ParticlePosition,ParticleMass,ParticleDensity,OutFunctionStatus);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == UpdateDeformationGradientName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in float DeltaTime, in float4x4 VelocityGradient, 
-				in float4x4 DeformationGradient, out float4x4 OutDeformationGradient, out float OutGradientDeterminant)
-					{
-						{PressureGridContextName} DIVelocityGrid_UpdateDeformationGradient(DIContext,DeltaTime,VelocityGradient,DeformationGradient,OutDeformationGradient,OutGradientDeterminant);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == SolveGridPressureName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in int GridCell, in int InitStage, out bool OutProjectStatus)
-					{
-						{PressureGridContextName} DIVelocityGrid_SolveGridPressure(DIContext,DIContext_GridDestinationBuffer,GridCell,InitStage,OutProjectStatus);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == GetNodePositionName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in int GridCell, in float3 GridOrigin, in float GridLength, out float3 OutGridPosition)
-					{
-						{PressureGridContextName} DIVelocityGrid_GetNodePosition(DIContext,GridCell,GridOrigin,GridLength,OutGridPosition);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == GetDensityFieldName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in float3 GridOrigin, in float GridLength, in float3 ParticlePosition, out float OutParticleDensity)
-					{
-						{PressureGridContextName} DIVelocityGrid_GetDensityField(DIContext,GridOrigin,GridLength,ParticlePosition,OutParticleDensity);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == SetSolidBoundaryName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in int GridCell, in float SolidDistance, in float3 SolidVelocity, out bool OutBoundaryStatus)
-					{
-						{PressureGridContextName} DIVelocityGrid_SetSolidBoundary(DIContext,DIContext_GridDestinationBuffer,GridCell,SolidDistance,SolidVelocity,OutBoundaryStatus);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == ComputeBoundaryWeightsName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in int GridCell, out bool OutWeightsStatus)
-					{
-						{PressureGridContextName} DIVelocityGrid_ComputeBoundaryWeights(DIContext,DIContext_GridDestinationBuffer,GridCell,OutWeightsStatus);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-		else if (FunctionInfo.DefinitionName == ScaleCellFieldsName)
-		{
-			static const TCHAR* FormatSample = TEXT(R"(
-					void {InstanceFunctionName} (in int GridCell, in float GridLength, in float DeltaTime, out bool OutTransferStatus)
-					{
-						{PressureGridContextName} DIVelocityGrid_ScaleCellFields(DIContext,DIContext_GridDestinationBuffer,GridCell,GridLength,DeltaTime,OutTransferStatus);
-					}
-					)");
-			OutHLSL += FString::Format(FormatSample, ArgsSample);
-			return true;
-		}
-	}
-
-	OutHLSL += TEXT("\n");
-	return false;
+	return ValidGpuFunctions.Contains(FunctionInfo.DefinitionName);
 }
 
 void UNiagaraDataInterfacePressureGrid::GetCommonHLSL(FString& OutHLSL)
 {
 	Super::GetCommonHLSL(OutHLSL);
-	OutHLSL += TEXT("#include \"/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush\"\n");
+	OutHLSL.Appendf(TEXT("#include \"%s\"\n"), NDIPressureGridLocal::CommonShaderFile);
 }
 
 bool UNiagaraDataInterfacePressureGrid::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
@@ -427,14 +338,24 @@ bool UNiagaraDataInterfacePressureGrid::AppendCompileHash(FNiagaraCompileHashVis
 	if (!Super::AppendCompileHash(InVisitor))
 		return false;
 
-	FSHAHash Hash = GetShaderFileHash((TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraDataInterfacePressureGrid.ush")), EShaderPlatform::SP_PCD3D_SM5);
-	InVisitor->UpdateString(TEXT("NiagaraDataInterfacePressureGridHLSLSource"), Hash.ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfacePressureGridHLSLSource"), GetShaderFileHash(NDIPressureGridLocal::CommonShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+	InVisitor->UpdateString(TEXT("NiagaraDataInterfacePressureGridTemplateHLSLSource"), GetShaderFileHash(NDIPressureGridLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5).ToString());
+
 	return true;
 }
 
 void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
-	OutHLSL += TEXT("DIVelocityGrid_DECLARE_CONSTANTS(") + ParamInfo.DataInterfaceHLSLSymbol + TEXT(")\n");
+	Super::GetParameterDefinitionHLSL(ParamInfo, OutHLSL);
+
+	TMap<FString, FStringFormatArg> TemplateArgs =
+	{
+		{TEXT("ParameterName"),	ParamInfo.DataInterfaceHLSLSymbol},
+	};
+
+	FString TemplateFile;
+	LoadShaderSourceFile(NDIPressureGridLocal::TemplateShaderFile, EShaderPlatform::SP_PCD3D_SM5, &TemplateFile, nullptr);
+	OutHLSL += FString::Format(*TemplateFile, TemplateArgs);
 }
 #endif
 
@@ -444,9 +365,9 @@ void UNiagaraDataInterfacePressureGrid::GetParameterDefinitionHLSL(const FNiagar
 
 class FClearPressureGridCS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FClearPressureGridCS, Global)
+	DECLARE_GLOBAL_SHADER(FClearPressureGridCS)
+	SHADER_USE_PARAMETER_STRUCT(FClearPressureGridCS, FGlobalShader);
 
-public:
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return RHISupportsComputeShaders(Parameters.Platform);
@@ -458,90 +379,62 @@ public:
 		OutEnvironment.SetDefine(TEXT("THREAD_COUNT"), NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE);
 	}
 
-	FClearPressureGridCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		GridDestinationBuffer.Bind(Initializer.ParameterMap, TEXT("GridDestinationBuffer"));
-		GridSize.Bind(Initializer.ParameterMap, TEXT("GridSize"));
-		CopyPressure.Bind(Initializer.ParameterMap, TEXT("CopyPressure"));
-		GridCurrentBuffer.Bind(Initializer.ParameterMap, TEXT("GridCurrentBuffer"));
-	}
-
-	FClearPressureGridCS()
-	{}
-
-	void SetParameters(FRHICommandList& RHICmdList, FRHIShaderResourceView* InGridCurrentBuffer,
-		FRHIUnorderedAccessView* InGridDestinationBuffer,
-		const FIntVector& InGridSize, const int32 InCopyPressure)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, InGridDestinationBuffer);
-		SetShaderValue(RHICmdList, ShaderRHI, GridSize, InGridSize);
-		SetShaderValue(RHICmdList, ShaderRHI, CopyPressure, InCopyPressure);
-		SetSRVParameter(RHICmdList, ShaderRHI, GridCurrentBuffer, InGridCurrentBuffer);
-	}
-
-	void UnsetParameters(FRHICommandList& RHICmdList)
-	{
-		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
-
-		SetUAVParameter(RHICmdList, ShaderRHI, GridDestinationBuffer, nullptr);
-	}
-
-	LAYOUT_FIELD(FShaderResourceParameter, GridDestinationBuffer);
-	LAYOUT_FIELD(FShaderParameter, GridSize);
-	LAYOUT_FIELD(FShaderParameter, CopyPressure);
-	LAYOUT_FIELD(FShaderResourceParameter, GridCurrentBuffer);
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FIntVector,					GridSize)
+		SHADER_PARAMETER(int,							CopyPressure)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>,	GridCurrentBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<int>,	GridDestinationBuffer)
+	END_SHADER_PARAMETER_STRUCT()
 };
 
 IMPLEMENT_SHADER_TYPE(, FClearPressureGridCS, TEXT("/Plugin/Runtime/HairStrands/Private/NiagaraClearPressureGrid.usf"), TEXT("MainCS"), SF_Compute);
 
-
 //------------------------------------------------------------------------------------------------------------
 
-inline void ClearBuffer(FRHICommandList& RHICmdList, ERHIFeatureLevel::Type FeatureLevel, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
+inline void ClearBuffer(FRDGBuilder& GraphBuilder, ERHIFeatureLevel::Type FeatureLevel, FNDIVelocityGridBuffer* CurrentGridBuffer, FNDIVelocityGridBuffer* DestinationGridBuffer, const FIntVector& GridSize, const bool CopyPressure)
 {
-	FRHIUnorderedAccessView* DestinationGridBufferUAV = DestinationGridBuffer->GridDataBuffer.UAV;
-	FRHIShaderResourceView* CurrentGridBufferSRV = CurrentGridBuffer->GridDataBuffer.SRV;
-	FRHIUnorderedAccessView* CurrentGridBufferUAV = CurrentGridBuffer->GridDataBuffer.UAV;
-
-	if (DestinationGridBufferUAV != nullptr && CurrentGridBufferSRV != nullptr && CurrentGridBufferUAV != nullptr)
+	if (CurrentGridBuffer->GridDataBuffer.IsValid() == false || DestinationGridBuffer->GridDataBuffer.IsValid() == false)
 	{
-		TShaderMapRef<FClearPressureGridCS> ComputeShader(GetGlobalShaderMap(FeatureLevel));
-		SetComputePipelineState(RHICmdList, ComputeShader.GetComputeShader());
-
-		FRHITransitionInfo Transitions[] = {
-			FRHITransitionInfo(CurrentGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute),
-			FRHITransitionInfo(DestinationGridBufferUAV, ERHIAccess::Unknown, ERHIAccess::UAVCompute)
-		};
-		RHICmdList.Transition(MakeArrayView(Transitions, UE_ARRAY_COUNT(Transitions)));
-
-		const uint32 GroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE;
-		const FIntVector ExtendedSize = GridSize + FIntVector(1, 1, 1);
-		
-		const uint32 DispatchCountX = FMath::DivideAndRoundUp((uint32)(ExtendedSize.X), GroupSize);
-		const uint32 DispatchCountY = FMath::DivideAndRoundUp((uint32)(ExtendedSize.Y), GroupSize);
-		const uint32 DispatchCountZ = FMath::DivideAndRoundUp((uint32)(ExtendedSize.Z), GroupSize);
-
-		ComputeShader->SetParameters(RHICmdList, CurrentGridBufferSRV, DestinationGridBufferUAV, ExtendedSize, CopyPressure);
-		DispatchComputeShader(RHICmdList, ComputeShader.GetShader(), DispatchCountX, DispatchCountY, DispatchCountZ);
-		ComputeShader->UnsetParameters(RHICmdList);
+		return;
 	}
+
+	const FIntVector ExtendedSize = GridSize + FIntVector(1, 1, 1);
+	const uint32 ThreadGroupSize = NIAGARA_HAIR_STRANDS_THREAD_COUNT_PRESSURE;
+	const FIntVector ThreadGroupCount(
+		FMath::DivideAndRoundUp((uint32)ExtendedSize.X, ThreadGroupSize),
+		FMath::DivideAndRoundUp((uint32)ExtendedSize.Y, ThreadGroupSize),
+		FMath::DivideAndRoundUp((uint32)ExtendedSize.Z, ThreadGroupSize)
+	);
+
+	TShaderMapRef<FClearPressureGridCS> ComputeShader(GetGlobalShaderMap(GMaxRHIFeatureLevel));
+
+	FClearPressureGridCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearPressureGridCS::FParameters>();
+	PassParameters->GridSize = ExtendedSize;
+	PassParameters->CopyPressure = CopyPressure;
+	PassParameters->GridCurrentBuffer = CurrentGridBuffer->GridDataBuffer.GetOrCreateSRV(GraphBuilder);
+	PassParameters->GridDestinationBuffer = DestinationGridBuffer->GridDataBuffer.GetOrCreateUAV(GraphBuilder);
+
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("VelocityGrid::ClearTexture"),
+		ERDGPassFlags::Compute,
+		ComputeShader,
+		PassParameters,
+		ThreadGroupCount
+	);
 }
 
 //------------------------------------------------------------------------------------------------------------
 
-void FNDIPressureGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
+void FNDIPressureGridProxy::PreStage(const FNDIGpuComputePreStageContext& Context)
 {
-	FNDIVelocityGridData* ProxyData =
-		FNDIVelocityGridProxy::SystemInstancesToProxyData.Find(Context.SystemInstanceID);
+	FNDIVelocityGridData* ProxyData = FNDIVelocityGridProxy::SystemInstancesToProxyData.Find(Context.GetSystemInstanceID());
 
 	if (ProxyData != nullptr)
 	{
-		if (Context.SimStageData->bFirstStage)
+		if (Context.GetSimStageData().bFirstStage)
 		{
-			ClearBuffer(RHICmdList, Context.ComputeDispatchInterface->GetFeatureLevel(), ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
+			ClearBuffer(Context.GetGraphBuilder(), Context.GetComputeDispatchInterface().GetFeatureLevel(), ProxyData->CurrentGridBuffer, ProxyData->DestinationGridBuffer, ProxyData->GridSize, true);
 		}
 	}
 }
