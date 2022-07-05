@@ -26,8 +26,8 @@ TArray<FName> FDataLayerUtils::ResolvedDataLayerInstanceNames(const FWorldPartit
 	{
 		World = InActorDesc->GetContainer() ? InActorDesc->GetContainer()->GetWorld() : nullptr;
 	}
+
 	const UDataLayerSubsystem* DataLayerSubsystem = UWorld::GetSubsystem<UDataLayerSubsystem>(World);
-	check(DataLayerSubsystem != nullptr);
 
 	// DataLayers not using DataLayer Assets represent DataLayerInstanceNames
 	if (!InActorDesc->IsUsingDataLayerAsset())
