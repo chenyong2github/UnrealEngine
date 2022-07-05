@@ -38,6 +38,9 @@ class AIMODULE_API UEnvQueryGenerator_BlueprintBase : public UEnvQueryGenerator
 	UFUNCTION(BlueprintImplementableEvent, Category = Generator)
 	void DoItemGeneration(const TArray<FVector>& ContextLocations) const;
 
+	UFUNCTION(BlueprintImplementableEvent, Category = Generator)
+	void DoItemGenerationFromActors(const TArray<AActor*>& ContextActors) const;
+
 	virtual void GenerateItems(FEnvQueryInstance& QueryInstance) const override;
 
 	virtual FText GetDescriptionTitle() const override;
@@ -53,6 +56,15 @@ class AIMODULE_API UEnvQueryGenerator_BlueprintBase : public UEnvQueryGenerator
 	UObject* GetQuerier() const;
 
 private:
+	enum class ECallMode
+	{
+		Invalid,
+		FromVectors,
+		FromActors
+	};
+
 	/** this is valid and set only within GenerateItems call */
 	mutable FEnvQueryInstance* CachedQueryInstance;
+
+	ECallMode CallMode = ECallMode::Invalid;
 };
