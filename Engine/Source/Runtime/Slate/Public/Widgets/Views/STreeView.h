@@ -710,7 +710,7 @@ public:
 		int32 CurrentItemIndex = StartIndex;
 
 		auto GetNonVisibleParents = [this, &InItemsSource, StartIndex](TArray<ItemType>& OutParents, int32 ItemIndex) {
-			if (DenseItemInfos.IsValidIndex(ItemIndex))
+			if (!DenseItemInfos.IsValidIndex(ItemIndex))
 			{
 				return;
 			}
