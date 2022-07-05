@@ -240,6 +240,15 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	Ar << PackageFlags;
 }
 
+void FAssetData::SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&))
+{
+	SerializeForCacheInternal(Ar, FAssetRegistryVersion::LatestVersion, SerializeTagsAndBundles);
+}
+void FAssetData::SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&))
+{
+	SerializeForCacheInternal(Ar, Version, SerializeTagsAndBundles);
+}
+
 FTopLevelAssetPath FAssetData::TryConvertShortClassNameToPathName(FName InClassName, ELogVerbosity::Type FailureMessageVerbosity /*= ELogVerbosity::Warning*/)
 {
 	FTopLevelAssetPath ClassPath;

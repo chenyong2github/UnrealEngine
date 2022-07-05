@@ -524,14 +524,31 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	 * To version this data change FAssetRegistryVersion
 	 */
 	template<class Archive>
-	FORCEINLINE void SerializeForCache(Archive&& Ar, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion)
+	FORCEINLINE void SerializeForCache(Archive&& Ar)
 	{
-		SerializeForCacheInternal(Ar, Version, [](FArchive& Ar, FAssetData& Ad) {
+		SerializeForCacheWithTagsAndBundles(Ar, [](FArchive& Ar, FAssetData& Ad) {
+			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
+			});
+	}
+	/**
+	 * Serialize as part of the registry cache using legacy paths (versioned)
+	 */
+	template<class Archive>
+	FORCEINLINE void SerializeForCacheOldVersion(Archive&& Ar, FAssetRegistryVersion::Type Version = FAssetRegistryVersion::LatestVersion)
+	{
+		SerializeForCacheOldVersionWithTagsAndBundles(Ar, Version, [](FArchive& Ar, FAssetData& Ad) {
 			static_cast<Archive&>(Ar).SerializeTagsAndBundles(Ad);
 			});
 	}
 private:
-	COREUOBJECT_API void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&));
+	/**
+	 * The actual implementation of SerializeForCache.
+	 * Note that this function is force-inlined but defined in AssetData.cpp which is fine as functions will get inlined
+	 * as long as they're defined before they are used for the first time by other functions (SerializeForCacheWithTagsAndBundles in this case)
+	 */
+	FORCEINLINE void SerializeForCacheInternal(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive& , FAssetData&));
+	COREUOBJECT_API void SerializeForCacheWithTagsAndBundles(FArchive& Ar, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&));
+	COREUOBJECT_API void SerializeForCacheOldVersionWithTagsAndBundles(FArchive& Ar, FAssetRegistryVersion::Type Version, void (*SerializeTagsAndBundles)(FArchive&, FAssetData&));
 
 	static bool DetectIsUAssetByNames(FStringView PackageName, FStringView ObjectPathName)
 	{

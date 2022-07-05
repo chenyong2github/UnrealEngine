@@ -1048,7 +1048,7 @@ bool FAssetRegistryState::Save(FArchive& OriginalAr, const FAssetRegistrySeriali
 	for (const TPair<FName, FAssetData*>& Pair : SortedAssetsByObjectPath)
 	{
 		// Hardcoding FAssetRegistryVersion::LatestVersion here so that branches can get optimized out in the forceinlined SerializeForCache
-		Pair.Value->SerializeForCache(Ar, FAssetRegistryVersion::LatestVersion);
+		Pair.Value->SerializeForCache(Ar);
 	}
 
 	// Serialize Dependencies
@@ -1221,9 +1221,21 @@ void FAssetRegistryState::Load(Archive&& Ar, FAssetRegistryVersion::Type Version
 	TArrayView<FAssetData> PreallocatedAssetDataBuffer(new FAssetData[LocalNumAssets], LocalNumAssets);
 	PreallocatedAssetDataBuffers.Add(PreallocatedAssetDataBuffer.GetData());
 
-	for (FAssetData& NewAssetData : PreallocatedAssetDataBuffer)
+	// Optimizing serialization of latest asset data format by moving version checking out of SerializeForCache function and falling back to versioned
+	// serialization should we attempt to load an older version of AR (usually commandlets)
+	if (Version == FAssetRegistryVersion::LatestVersion)
 	{
-		NewAssetData.SerializeForCache(Ar, Version);
+		for (FAssetData& NewAssetData : PreallocatedAssetDataBuffer)
+		{
+			NewAssetData.SerializeForCache(Ar);
+		}
+	}
+	else
+	{
+		for (FAssetData& NewAssetData : PreallocatedAssetDataBuffer)
+		{
+			NewAssetData.SerializeForCacheOldVersion(Ar, Version);
+		}
 	}
 
 	SetAssetDatas(PreallocatedAssetDataBuffer, Options);
