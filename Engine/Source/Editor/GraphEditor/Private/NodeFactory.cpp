@@ -332,11 +332,11 @@ TSharedPtr<SGraphPin> FNodeFactory::CreateK2PinWidget(UEdGraphPin* InPin)
 		}
 		else if ((InPin->PinType.PinSubCategoryObject == VectorStruct) || (InPin->PinType.PinSubCategoryObject == Vector3fStruct) || (InPin->PinType.PinSubCategoryObject == RotatorStruct))
 		{
-			return SNew(SGraphPinVector, InPin);
+			return SNew(SGraphPinVector<double>, InPin);
 		}
 		else if (InPin->PinType.PinSubCategoryObject == Vector2DStruct)
 		{
-			return SNew(SGraphPinVector2D, InPin);
+			return SNew(SGraphPinVector2D<double>, InPin);
 		}
 		else if (InPin->PinType.PinSubCategoryObject == FKey::StaticStruct())
 		{
