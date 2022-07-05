@@ -286,6 +286,7 @@ public:
 			// Only D3D12 and Vulkan can possibly support ray tracing
 			TCHAR const* RelevantSettings[] = 
 			{
+				TEXT("TargetedRHIs"),
 				TEXT("D3D12TargetedShaderFormats"),
 				TEXT("VulkanTargetedShaderFormats")
 			};
