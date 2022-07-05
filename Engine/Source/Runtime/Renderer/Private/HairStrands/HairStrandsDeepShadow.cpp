@@ -12,6 +12,9 @@
 static int32 GDeepShadowResolution = 2048;
 static FAutoConsoleVariableRef CVarDeepShadowResolution(TEXT("r.HairStrands.DeepShadow.Resolution"), GDeepShadowResolution, TEXT("Shadow resolution for Deep Opacity Map rendering. (default = 2048)"));
 
+static int32 GDeepShadowMinResolution = 64;
+static FAutoConsoleVariableRef CVarDeepShadowMinResolution(TEXT("r.HairStrands.DeepShadow.MinResolution"), GDeepShadowMinResolution, TEXT("Minimum shadow resolution for shadow atlas tiles for Deep Opacity Map rendering. (default = 64)"));
+
 static int32 GDeepShadowGPUDriven = 1;
 static FAutoConsoleVariableRef CVarDeepShadowGPUDriven(TEXT("r.HairStrands.DeepShadow.GPUDriven"), GDeepShadowGPUDriven, TEXT("Enable deep shadow to be driven by GPU bounding box, rather CPU ones. This allows more robust behavior"));
 
@@ -192,9 +195,13 @@ class FDeepShadowCreateViewInfoCS : public FGlobalShader
 		SHADER_PARAMETER(float, AABBScale)
 		SHADER_PARAMETER(float, MaxHafFovInRad)
 
+		SHADER_PARAMETER(FUintVector2, AtlasResolution)
+		SHADER_PARAMETER(FVector2f, AtlasTexelSize)
+		SHADER_PARAMETER(uint32, MinAtlasTileResolution)
+		SHADER_PARAMETER(uint32, MinAtlasTileResolutionLog2)
+
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeepShadowViewInfo>, OutShadowViewInfoBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4x4>, OutShadowTranslatedWorldToLightTransformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 	END_SHADER_PARAMETER_STRUCT()
@@ -276,7 +283,13 @@ void RenderHairStrandsDeepShadows(
 		const uint32 AtlasSlotX = FGenericPlatformMath::CeilToInt(FMath::Sqrt(static_cast<float>(DOMSlotCount)));
 		const FIntPoint AtlasSlotDimension(AtlasSlotX, AtlasSlotX == DOMSlotCount ? 1 : AtlasSlotX);
 		const FIntPoint AtlasSlotResolution(GDeepShadowResolution, GDeepShadowResolution);
-		const FIntPoint AtlasResolution(AtlasSlotResolution.X * AtlasSlotDimension.X, AtlasSlotResolution.Y * AtlasSlotDimension.Y);
+		FIntPoint AtlasResolution(AtlasSlotResolution.X * AtlasSlotDimension.X, AtlasSlotResolution.Y * AtlasSlotDimension.Y);
+
+		const bool bDeepShadowGPUDriven = GDeepShadowGPUDriven > 0;
+		if (bDeepShadowGPUDriven)
+		{
+			AtlasResolution = FIntPoint(GDeepShadowResolution, GDeepShadowResolution);
+		}
 
 		
 		DeepShadowResources.TotalAtlasSlotCount = 0;
@@ -325,9 +338,9 @@ void RenderHairStrandsDeepShadows(
 				DomData.LayerDistribution = LightProxy->GetDeepShadowLayerDistribution();
 				DomData.bIsLightDirectional = bIsDirectional;
 				DomData.LightId = LightInfo->Id;
-				DomData.ShadowResolution = AtlasSlotResolution;
+				DomData.ShadowResolution = bDeepShadowGPUDriven ? AtlasResolution.X : AtlasSlotResolution;
 				DomData.Bounds = MacroGroupBounds;
-				DomData.AtlasRect = FIntRect(AtlasRectOffset, AtlasRectOffset + AtlasSlotResolution);
+				DomData.AtlasRect = bDeepShadowGPUDriven ? FIntRect(0, 0, AtlasResolution.X, AtlasResolution.Y) : FIntRect(AtlasRectOffset, AtlasRectOffset + AtlasSlotResolution);
 				DomData.MacroGroupId = MacroGroup.MacroGroupId;
 				DomData.CPU_MinStrandRadiusAtDepth1 = MinStrandRadiusAtDepth1;
 				DomData.AtlasSlotIndex = TotalAtlasSlotIndex;
@@ -341,11 +354,10 @@ void RenderHairStrandsDeepShadows(
 		DeepShadowResources.TotalAtlasSlotCount = TotalAtlasSlotIndex;
 		DeepShadowResources.AtlasSlotResolution = AtlasSlotResolution;
 
-		FRDGBufferRef DeepShadowViewInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(20 * sizeof(float), FMath::Max(1u, TotalAtlasSlotIndex)), TEXT("Hair.DeepShadowViewInfo"));
-		FRDGBufferRef DeepShadowTranslatedWorldToLightBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(16 * sizeof(float), FMath::Max(1u, TotalAtlasSlotIndex)), TEXT("Hair.DeepShadowTranslatedWorldToLightTransform"));
+		FRDGBufferRef DeepShadowViewInfoBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc((16 + 16 + 4 + 3 + 1) * sizeof(float), FMath::Max(1u, TotalAtlasSlotIndex)), TEXT("Hair.DeepShadowViewInfo"));
 		FRDGBufferSRVRef DeepShadowViewInfoBufferSRV = GraphBuilder.CreateSRV(DeepShadowViewInfoBuffer);
 
-		DeepShadowResources.bIsGPUDriven = GDeepShadowGPUDriven > 0;
+		DeepShadowResources.bIsGPUDriven = bDeepShadowGPUDriven;
 		{
 			check(TotalAtlasSlotIndex < FHairStrandsDeepShadowResources::MaxAtlasSlotCount);
 
@@ -369,11 +381,14 @@ void RenderHairStrandsDeepShadows(
 			Parameters->MacroGroupCount = MacroGroupDatas.Num();
 			Parameters->MacroGroupAABBBuffer = GraphBuilder.CreateSRV(MacroGroupResources.MacroGroupAABBsBuffer, PF_R32_SINT);
 			Parameters->OutShadowViewInfoBuffer = GraphBuilder.CreateUAV(DeepShadowViewInfoBuffer);
-			Parameters->OutShadowTranslatedWorldToLightTransformBuffer = GraphBuilder.CreateUAV(DeepShadowTranslatedWorldToLightBuffer);
 
 			Parameters->MaxHafFovInRad = 0.5f * FMath::DegreesToRadians(GetDeepShadowMaxFovAngle());
 			Parameters->AABBScale = GetDeepShadowAABBScale();
 			Parameters->RasterizationScale = GetDeepShadowRasterizationScale();
+			Parameters->AtlasResolution = FUintVector2(AtlasResolution.X, AtlasResolution.Y);
+			Parameters->AtlasTexelSize = FVector2f(1.0f / AtlasResolution.X, 1.0f / AtlasResolution.Y);
+			Parameters->MinAtlasTileResolutionLog2 = FMath::FloorLog2(FMath::Clamp(GDeepShadowMinResolution, 16u, GDeepShadowResolution)); // A shadow map resolution of less than 16x16 is highly unlikely to ever be needed.
+			Parameters->MinAtlasTileResolution = 1u << Parameters->MinAtlasTileResolutionLog2;
 			Parameters->ViewUniformBuffer = View.ViewUniformBuffer;
 
 			// Currently support only 32 instance group at max
@@ -509,6 +524,6 @@ void RenderHairStrandsDeepShadows(
 		}
 		DeepShadowResources.DepthAtlasTexture = FrontDepthAtlasTexture;
 		DeepShadowResources.LayersAtlasTexture = DeepShadowLayersAtlasTexture;
-		DeepShadowResources.DeepShadowTranslatedWorldToLightTransforms = DeepShadowTranslatedWorldToLightBuffer;
+		DeepShadowResources.DeepShadowViewInfoBuffer = DeepShadowViewInfoBuffer;
 	}
 }

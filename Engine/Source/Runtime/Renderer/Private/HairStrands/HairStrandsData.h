@@ -255,7 +255,7 @@ struct FHairStrandsDeepShadowResources
 
 	FRDGTextureRef DepthAtlasTexture = nullptr;
 	FRDGTextureRef LayersAtlasTexture = nullptr;
-	FRDGBufferRef DeepShadowTranslatedWorldToLightTransforms = nullptr;
+	FRDGBufferRef DeepShadowViewInfoBuffer = nullptr;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////

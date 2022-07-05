@@ -26,6 +26,7 @@ struct FTransmittanceSettings
 	int2	 DeepShadowResolution;
 	int2	 DeepShadowOffset;
 	float4x4 TranslatedWorldToLightTransform;
+	float4 AtlasScaleBias;
 	float3   LightDirection; // Direction from world position to the light
 	float3   TranslatedLightPosition;
 	bool	 bIsDirectional;
@@ -71,7 +72,7 @@ float3 GetTranslatedWorldPosition(float2 UV, float SceneDepth)
 
 #if SHADER_TRANSMITTANCE_DEEPSHADOW
 
-StructuredBuffer<FDeepShadowTransform> DeepShadow_TranslatedWorldToLightTransformBuffer;
+StructuredBuffer<FDeepShadowViewInfo> DeepShadow_ViewInfoBuffer;
 uint				DeepShadow_bIsGPUDriven;
 
 uint2				DeepShadow_Resolution;
@@ -104,7 +105,7 @@ FHairTransmittanceMask ComputeTransmittance(
 	FHairTransmittanceMask Out = InitHairTransmittanceMask();
 	{
 		// LightSpacePosition is 'TranslatedWorldPosition' in LightSpace (TexelCoord.XY / NDC Depth.Z)
-		const float3 LightSpacePosition = ToLightPosition(TranslatedWorldPosition, Settings.TranslatedWorldToLightTransform) * float3(Settings.DeepShadowResolution, 1) + float3(Settings.DeepShadowOffset, 0);
+		const float3 LightSpacePosition = ToLightPosition(TranslatedWorldPosition, Settings.TranslatedWorldToLightTransform) * float3(Settings.AtlasScaleBias.xy, 1) + float3(Settings.AtlasScaleBias.zw, 0);
 
 		float DepthBias = 0;
 		if (Settings.DeepShadowDepthBiasScale > 0)
@@ -185,13 +186,17 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		const uint MacroGroupIndex = clamp(Sample.MacroGroupId, 0, MAX_HAIR_MACROGROUP_COUNT - 1);
 		const int3 SlotOffset_SlotIndex = DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[MacroGroupIndex].xyz;
 		float4x4 TranslatedWorldToLightTransform = 0;
+		float4 AtlasScaleBias = float4(1.0f, 1.0f, 0.0f, 0.0f);
 		if (DeepShadow_bIsGPUDriven > 0)
 		{
-			TranslatedWorldToLightTransform = DeepShadow_TranslatedWorldToLightTransformBuffer[SlotOffset_SlotIndex.z].TranslatedWorldToClip;
+			FDeepShadowViewInfo ShadowViewInfo = DeepShadow_ViewInfoBuffer[SlotOffset_SlotIndex.z];
+			TranslatedWorldToLightTransform = ShadowViewInfo.TranslatedWorldToClip;
+			AtlasScaleBias = ShadowViewInfo.AtlasScaleBias * float4(DeepShadow_Resolution, DeepShadow_Resolution);
 		}	
 		else
 		{
 			TranslatedWorldToLightTransform = DeepShadow_CPUTranslatedWorldToLightTransforms[MacroGroupIndex];
+			AtlasScaleBias = float4(DeepShadow_Resolution, SlotOffset_SlotIndex.xy);
 		}
 		
 		const float SceneDepth = ConvertFromDeviceZ(Sample.Depth);
@@ -201,6 +206,7 @@ void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 		Settings.DeepShadowOffset = SlotOffset_SlotIndex.xy;
 		Settings.DeepShadowResolution = DeepShadow_Resolution;
 		Settings.TranslatedWorldToLightTransform = TranslatedWorldToLightTransform;
+		Settings.AtlasScaleBias = AtlasScaleBias;
 		Settings.bIsDirectional = IsLightDirectional(TranslatedLightPosition_LightDirection);
 		Settings.LightDirection = GetTranslatedLightDirection(TranslatedLightPosition_LightDirection, TranslatedWorldPosition);
 		Settings.TranslatedLightPosition = GetTranslatedLightPosition(TranslatedLightPosition_LightDirection, TranslatedWorldPosition);

@@ -53,7 +53,7 @@ void Main(
 	{
 		const uint AtlasSlotIndex = DeepRasterPass.AtlasSlotIndex;
 		FDeepShadowViewInfo DeepShadowViewInfo = DeepRasterPass.DeepShadowViewInfoBuffer[AtlasSlotIndex];
-		TranslatedWorldToClipMatrix = DeepShadowViewInfo.TranslatedWorldToClip;
+		TranslatedWorldToClipMatrix = DeepShadowViewInfo.TranslatedWorldToClipScaledBiased;
 		HairViewInfo.ViewForward	= DeepShadowViewInfo.ViewForward;
 		HairViewInfo.RadiusAtDepth1 = DeepShadowViewInfo.MinRadiusAtDepth1;
 	}

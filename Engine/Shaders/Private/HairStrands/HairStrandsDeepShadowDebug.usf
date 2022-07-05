@@ -135,7 +135,7 @@ uint AllocatedSlotCount;
 uint MacroGroupCount;
 
 Buffer<int>	MacroGroupAABBBuffer;
-StructuredBuffer<FDeepShadowTransform> ShadowTranslatedWorldToLightTransformBuffer;
+StructuredBuffer<FDeepShadowViewInfo> ShadowViewInfoBuffer;
 
 [numthreads(1, 1, 1)]
 void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
@@ -154,7 +154,7 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 	const float4 FrustumColor = float4(0.5f, 1, 0, 1);
 	for (uint SlotIt = 0; SlotIt < AllocatedSlotCount; ++SlotIt)
 	{
-		const float4x4 TranslatedWorldToClip = ShadowTranslatedWorldToLightTransformBuffer[SlotIt].TranslatedWorldToClip;
+		const float4x4 TranslatedWorldToClip = ShadowViewInfoBuffer[SlotIt].TranslatedWorldToClip;
 		const float4x4 ClipToTranslatedWorld = Inverse(TranslatedWorldToClip);
 
 		float4 P01 = float4(-1, -1, 0, 1);

@@ -35,7 +35,7 @@ float3 GetTranslatedWorldPosition(float2 UV, float SceneDepth)
 
 #if SHADER_SHADOWMASK_DEEPSHADOW
 
-StructuredBuffer<FDeepShadowTransform> DeepShadow_TranslatedWorldToLightTransformBuffer;
+StructuredBuffer<FDeepShadowViewInfo> DeepShadow_ViewInfoBuffer;
 uint				DeepShadow_bIsGPUDriven;
 
 float4x4			DeepShadow_CPUTranslatedWorldToLightTransform;
@@ -57,16 +57,19 @@ SamplerState 		ShadowSampler;
 // XY: UV of the shadow space
 //  Z: Normalized depth value in light clip space
 //  W: Positive if the position is valid, negative otherwise
-float4 ToLightPosition(float3 InTranslatedWorldPosition)
+float4 ToLightPosition(float3 InTranslatedWorldPosition, out float4 AtlasScaleBias)
 {
 	float4x4 TranslatedWorldToLightTransform = 0;
 	if (DeepShadow_bIsGPUDriven > 0)
 	{
-		TranslatedWorldToLightTransform = DeepShadow_TranslatedWorldToLightTransformBuffer[DeepShadow_SlotIndex].TranslatedWorldToClip;
+		FDeepShadowViewInfo ShadowViewInfo = DeepShadow_ViewInfoBuffer[DeepShadow_SlotIndex];
+		TranslatedWorldToLightTransform = ShadowViewInfo.TranslatedWorldToClip;
+		AtlasScaleBias = ShadowViewInfo.AtlasScaleBias;
 	}
 	else
 	{
 		TranslatedWorldToLightTransform = DeepShadow_CPUTranslatedWorldToLightTransform;
+		AtlasScaleBias = float4(1.0f, 1.0f, 0.0f, 0.0f);
 	}
 
 	float4 LightPos = mul(float4(InTranslatedWorldPosition,1), TranslatedWorldToLightTransform);
@@ -338,7 +341,8 @@ void MainPS(
 	const bool bIsHairPixel = HairStrands.HairCoverageTexture.Load(uint3(PixelCoord, 0)) >= 1;
 
 	const float3 TranslatedWorldPosition = GetTranslatedWorldPosition(UV, SceneDepth);
-	const float4 LightSpacePosition		 = ToLightPosition(TranslatedWorldPosition);
+	float4 AtlasScaleBias;
+	float4 LightSpacePosition		 = ToLightPosition(TranslatedWorldPosition, AtlasScaleBias);
 
 	// PCF or simple point sampler
 	float Visibility = 1;
@@ -348,6 +352,8 @@ void MainPS(
 		(LightSpacePosition.y >= 0 && LightSpacePosition.y <= 1);
 	if (!bIsHairPixel && bIsValid)
 	{
+		LightSpacePosition.xy = LightSpacePosition.xy * AtlasScaleBias.xy + AtlasScaleBias.zw;
+
 		uint2 ShadowAtlasResolution;
 		DeepShadow_FrontDepthTexture.GetDimensions(ShadowAtlasResolution.x, ShadowAtlasResolution.y);
 
