@@ -59,4 +59,4 @@ it can provide similar benefits to others.
 ### Further Reading
 
 * [Horde Build](Horde.Build/README.md)
-* [Horde Storage](Horde.Storage/README.md)
+* [Horde Storage](HordeStorage/README.md)
