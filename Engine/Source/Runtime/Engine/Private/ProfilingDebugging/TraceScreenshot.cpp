@@ -37,6 +37,12 @@ bool FTraceScreenshot::bSuppressWritingToFile = false;
 
 void FTraceScreenshot::RequestScreenshot(FString Name)
 {
+	if (!SHOULD_TRACE_SCREENSHOT())
+	{
+		UE_LOG(LogCore, Error, TEXT("Could not trace screenshot because the screenshot trace channel is off. Turn it on using \"Trace.Enable Screenshot\"."));
+		return;
+	}
+
 	bSuppressWritingToFile = true;
 
 	if (Name.IsEmpty())
