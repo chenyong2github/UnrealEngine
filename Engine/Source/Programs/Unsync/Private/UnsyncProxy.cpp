@@ -5,11 +5,14 @@
 #include "UnsyncFile.h"
 #include "UnsyncJupiter.h"
 
+#include <json11.hpp>
+#include <fmt/format.h>
+
 namespace unsync {
 
 struct FUnsyncProtocolImpl : FRemoteProtocolBase
 {
-	FUnsyncProtocolImpl(const FRemoteDesc& InRemoteDesc, const FBlockRequestMap* InRequestMap, const FTlsClientSettings* TlsSettings);
+	FUnsyncProtocolImpl(const FRemoteDesc& InRemoteDesc, const FRemoteProtocolFeatures& InFeatures, const FBlockRequestMap* InRequestMap, const FTlsClientSettings* TlsSettings);
 	virtual ~FUnsyncProtocolImpl() override;
 	virtual bool			 IsValid() const override;
 	virtual FDownloadResult	 Download(const TArrayView<FNeedBlock> NeedBlocks, const FBlockDownloadCallback& CompletionCallback) override;
@@ -24,9 +27,23 @@ struct FUnsyncProtocolImpl : FRemoteProtocolBase
 
 	bool						 bIsConnetedToHost = false;
 	std::unique_ptr<FSocketBase> SocketHandle;
+
+	const FRemoteProtocolFeatures Features;
+
+	struct FHelloResponse
+	{
+		std::string Name;
+		std::string VersionNumber;
+		std::string VersionGit;
+		std::string SessionId;
+		std::vector<std::string> FeatureNames;
+		FRemoteProtocolFeatures Features;
+	};
+	static TResult<FHelloResponse> QueryHello(const FRemoteDesc& RemoteDesc);
+	static void SendTelemetryEvent(const FRemoteDesc& RemoteDesc, const FTelemetryEventSyncComplete& Event);
 };
 
-FProxy::FProxy(const FRemoteDesc& RemoteDesc, const FBlockRequestMap* InRequestMap)
+FProxy::FProxy(const FRemoteDesc& RemoteDesc, const FRemoteProtocolFeatures& InFeatures, const FBlockRequestMap* InRequestMap)
 {
 	UNSYNC_ASSERT(InRequestMap);
 
@@ -46,7 +63,7 @@ FProxy::FProxy(const FRemoteDesc& RemoteDesc, const FBlockRequestMap* InRequestM
 	}
 	else if (RemoteDesc.Protocol == EProtocolFlavor::Unsync)
 	{
-		ProtocolImpl = std::unique_ptr<FRemoteProtocolBase>(new FUnsyncProtocolImpl(RemoteDesc, InRequestMap, &TlsSettings));
+		ProtocolImpl = std::unique_ptr<FRemoteProtocolBase>(new FUnsyncProtocolImpl(RemoteDesc, InFeatures, InRequestMap, &TlsSettings));
 	}
 	else
 	{
@@ -54,10 +71,12 @@ FProxy::FProxy(const FRemoteDesc& RemoteDesc, const FBlockRequestMap* InRequestM
 	}
 }
 
-FUnsyncProtocolImpl::FUnsyncProtocolImpl(const FRemoteDesc&		   RemoteDesc,
-										 const FBlockRequestMap*   InRequestMap,
-										 const FTlsClientSettings* TlsSettings)
+FUnsyncProtocolImpl::FUnsyncProtocolImpl(const FRemoteDesc&				RemoteDesc,
+										 const FRemoteProtocolFeatures& InFeatures,
+										 const FBlockRequestMap*		InRequestMap,
+										 const FTlsClientSettings*		TlsSettings)
 : FRemoteProtocolBase(RemoteDesc, InRequestMap)
+, Features(InFeatures)
 {
 #if UNSYNC_USE_TLS
 	if (RemoteDesc.bTlsEnable && TlsSettings)
@@ -331,6 +350,115 @@ FUnsyncProtocolImpl::GetSocketSecurity() const
 	}
 }
 
+TResult<FUnsyncProtocolImpl::FHelloResponse> FUnsyncProtocolImpl::QueryHello(const FRemoteDesc& RemoteDesc)
+{
+	const char* Url = "/api/v1/hello";
+	FHttpResponse Response = HttpRequest(RemoteDesc, EHttpMethod::GET, Url);
+	if (!Response.Success())
+	{
+		UNSYNC_ERROR(L"Failed to establish connection to UNSYNC server. Error code: %d.", Response.Code);
+		return HttpError(Response.Code);
+	}
+
+	FHelloResponse Result;
+
+	using namespace json11;
+	std::string JsonString = std::string(Response.AsStringView());
+
+	std::string JsonErrorString;
+	Json		JsonObject = Json::parse(JsonString, JsonErrorString);
+
+	if (!JsonErrorString.empty())
+	{
+		return AppError(std::string("JSON parse error while connecting to UNSYNC server: ") + JsonErrorString);
+	}
+
+	if (auto& Field = JsonObject["service"]; Field.is_string())
+	{
+		const std::string& FieldVal = Field.string_value();
+		if (FieldVal != "unsync")
+		{
+			return AppError(fmt::format("Expected service name 'unsync', but found '{}'.", FieldVal.c_str()));
+		}
+	}
+
+	if (auto& Field = JsonObject["name"]; Field.is_string())
+	{
+		Result.Name = Field.string_value();
+	}
+
+	if (auto& Field = JsonObject["version"]; Field.is_string())
+	{
+		Result.VersionNumber = Field.string_value();
+	}
+
+	if (auto& Field = JsonObject["git"]; Field.is_string())
+	{
+		Result.VersionGit = Field.string_value();
+	}
+
+	if (auto& Field = JsonObject["session"]; Field.is_string())
+	{
+		Result.SessionId = Field.string_value();
+	}
+
+	if (auto& Field = JsonObject["features"]; Field.is_array())
+	{
+		Result.FeatureNames.reserve(Field.array_items().size());
+		for (auto& Elem : Field.array_items())
+		{
+			if (Elem.is_string())
+			{
+				Result.FeatureNames.push_back(Elem.string_value());
+
+				if (Elem.string_value() == "telemetry")
+				{
+					Result.Features.bTelemetry = true;
+				}
+
+				if (Elem.string_value() == "mirrors")
+				{
+					Result.Features.bMirrors = true;
+				}
+			}
+		}
+	}
+
+	return ResultOk(std::move(Result));
+}
+
+void
+FUnsyncProtocolImpl::SendTelemetryEvent(const FRemoteDesc& RemoteDesc, const FTelemetryEventSyncComplete& Event)
+{
+	using namespace json11;
+	json11::Json::object Obj;
+
+	if (!Event.Session.empty())
+	{
+		Obj["session"] = Event.Session;
+	}
+
+	Obj["type"]		 = "sync_complete";
+	Obj["source"]	 = Event.Source;
+	Obj["total_mb"]	 = SizeMb(Event.TotalBytes);  // use size in megabytes due lack of JSON 64 bit int support and better human readability
+	Obj["source_mb"] = SizeMb(Event.SourceBytes);
+	Obj["base_mb"]	 = SizeMb(Event.BaseBytes);
+	Obj["files_skipped"] = int(Event.SkippedFiles);
+	Obj["files_full"]	 = int(Event.FullCopyFiles);
+	Obj["files_partial"] = int(Event.PartialCopyFiles);
+	Obj["elapsed"]		 = Event.Elapsed;
+	Obj["success"]		 = Event.bSuccess;
+
+	std::string EventJson = Json(Obj).dump();
+
+	FBufferView EventJsonView;
+	EventJsonView.Data = (const uint8*)EventJson.c_str();
+	EventJsonView.Size = (uint64)EventJson.length();
+
+	const char* Url = "/api/v1/telemetry";
+	HttpRequest(RemoteDesc, EHttpMethod::POST, Url, EHttpContentType::Application_Json, EventJsonView);
+}
+
 FUnsyncProtocolImpl::~FUnsyncProtocolImpl()
 {
 	if (IsValid())
@@ -456,6 +584,31 @@ FProxyPool::FProxyPool(const FRemoteDesc& InRemoteDesc)
 , RemoteDesc(InRemoteDesc)
 , bValid(InRemoteDesc.IsValid())
 {
+	if (bValid && RemoteDesc.Protocol == EProtocolFlavor::Unsync)
+	{
+		UNSYNC_VERBOSE(L"Connecting to %hs server '%hs:%d' ...",
+			ToString(RemoteDesc.Protocol),
+			RemoteDesc.HostAddress.c_str(),
+			RemoteDesc.HostPort);
+
+		TResult<FUnsyncProtocolImpl::FHelloResponse> Response = FUnsyncProtocolImpl::QueryHello(RemoteDesc);
+
+		if (Response.IsError())
+		{
+			LogError(Response.GetError());
+		}
+
+		const FUnsyncProtocolImpl::FHelloResponse& Data = Response.GetData();
+		UNSYNC_VERBOSE(L"Connection established. Server name: %hs, version: %hs, git: %hs.", 
+			Data.Name.empty() ? "unknown" : Data.Name.c_str(),
+			Data.VersionNumber.empty() ? "unknown" : Data.VersionNumber.c_str(),
+			Data.VersionGit.empty() ? "unknown" : Data.VersionGit.c_str());
+
+		Features = Data.Features;
+		SessionId = Data.SessionId;
+
+		bValid = Response.IsOk();
+	}
 }
 
 std::unique_ptr<FProxy>
@@ -476,7 +629,7 @@ FProxyPool::Alloc()
 
 	if (!Result || !Result->IsValid())
 	{
-		Result = std::make_unique<FProxy>(RemoteDesc, &RequestMap);
+		Result = std::make_unique<FProxy>(RemoteDesc, Features, &RequestMap);
 	}
 
 	return Result;
@@ -509,6 +662,15 @@ FProxyPool::BuildFileBlockRequests(const FPath& OriginalFilePath, const FPath& R
 {
 	std::lock_guard<std::mutex> LockGuard(Mutex);
 	RequestMap.AddFileBlocks(OriginalFilePath, ResolvedFilePath, FileManifest);
+}
+
+void
+FProxyPool::SendTelemetryEvent(const FTelemetryEventSyncComplete& Event)
+{
+	if (RemoteDesc.Protocol == EProtocolFlavor::Unsync && Features.bTelemetry)
+	{
+		FUnsyncProtocolImpl::SendTelemetryEvent(RemoteDesc, Event);
+	}
 }
 
 void

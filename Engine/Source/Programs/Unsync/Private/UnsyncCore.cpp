@@ -3051,6 +3051,8 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		UNSYNC_VERBOSE(L"Quick file difference is allowed (use --full-diff option to override)");
 	}
 
+	uint64 TotalSourceSize = 0;
+
 	for (const auto& SourceManifestIt : SourceDirectoryManifest.Files)
 	{
 		const std::wstring& SourceFilename = SourceManifestIt.first;
@@ -3063,6 +3065,8 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 		}
 
 		const FFileManifest& SourceFileManifest = SourceManifestIt.second;
+
+		TotalSourceSize += SourceFileManifest.Size;
 
 		auto TargetManifestIt = TargetDirectoryManifest.Files.find(SourceFilename);
 		if (TargetManifestIt != TargetDirectoryManifest.Files.end())
@@ -3328,7 +3332,7 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 			// TODO: bail out if remote connection is required for the download,
 			// such as when downloading data purely from Jupiter.
 
-			UNSYNC_VERBOSE(L"Attempting to sync without remote server connection");
+			UNSYNC_WARNING(L"Attempting to sync without remote server connection");
 		}
 	}
 
@@ -3558,6 +3562,24 @@ SyncDirectory(const FSyncDirectoryOptions& SyncOptions)
 
 	double ElapsedSeconds = DurationSec(TimeBegin, TimePointNow());
 	UNSYNC_VERBOSE2(L"Sync time: %.2f seconds", ElapsedSeconds);
+
+	if (ProxyPool.IsValid() && ProxyPool.GetFeatures().bTelemetry)
+	{
+		FTelemetryEventSyncComplete Event;
+
+		Event.Session		   = ProxyPool.GetSessionId();
+		Event.Source		   = ConvertWideToUtf8(SourcePath.wstring());
+		Event.TotalBytes	   = TotalSourceSize;
+		Event.SourceBytes	   = StatSourceBytes;
+		Event.BaseBytes		   = StatBaseBytes;
+		Event.SkippedFiles	   = StatSkipped;
+		Event.FullCopyFiles	   = StatFullCopy;
+		Event.PartialCopyFiles = StatPartialCopy;
+		Event.Elapsed		   = ElapsedSeconds;
+		Event.bSuccess		   = bSyncSucceeded;
+
+		ProxyPool.SendTelemetryEvent(Event);
+	}
 
 	return bSyncSucceeded;
 }

@@ -20,18 +20,6 @@ struct FMirrorInfo
 };
 using FMirrorInfoResult = TResult<std::vector<FMirrorInfo>>;
 
-static FHttpResponse
-HttpRequest(const FRemoteDesc& RemoteDesc, EHttpMethod Method, std::string_view RequestUrl)
-{
-	FTlsClientSettings TlsSettings = RemoteDesc.GetTlsClientSettings();
-	FHttpConnection	   Connection(RemoteDesc.HostAddress, RemoteDesc.HostPort, &TlsSettings);
-	FHttpRequest	   Request;
-	Request.CustomHeaders  = RemoteDesc.HttpHeaders;
-	Request.Url			   = RequestUrl;
-	FHttpResponse Response = HttpRequest(Connection, Request);
-	return Response;
-}
-
 // Runs a basic HTTP request against the remote server and returns the time it took to get the response, -1 if connection could not be
 // established.
 static double

@@ -73,6 +73,26 @@ private:
 	std::unordered_map<FHash128, FMacroBlockRequest> MacroBlockRequests;
 };
 
+struct FRemoteProtocolFeatures
+{
+	bool bTelemetry = false;
+	bool bMirrors = false;
+};
+
+struct FTelemetryEventSyncComplete
+{
+	std::string Session;
+	std::string Source;
+	uint64 TotalBytes = 0;
+	uint64 SourceBytes = 0;
+	uint64 BaseBytes = 0;
+	uint32 SkippedFiles = 0;
+	uint32 FullCopyFiles = 0;
+	uint32 PartialCopyFiles = 0;
+	double Elapsed = 0;
+	bool bSuccess = false;
+};
+
 struct FRemoteProtocolBase
 {
 	FRemoteProtocolBase(const FRemoteDesc& InRemoteDesc, const FBlockRequestMap* InRequestMap)
@@ -100,7 +120,7 @@ struct FRemoteProtocolBase
 class FProxy
 {
 public:
-	FProxy(const FRemoteDesc& InRemoteDesc, const FBlockRequestMap* InRequestMap);
+	FProxy(const FRemoteDesc& InRemoteDesc, const FRemoteProtocolFeatures& InFeatures, const FBlockRequestMap* InRequestMap);
 	~FProxy();
 
 	bool Contains(const FDirectoryManifest& Manifest);
@@ -131,9 +151,17 @@ public:
 	void InitRequestMap(EStrongHashAlgorithmID InStrongHasher);
 	void BuildFileBlockRequests(const FPath& OriginalFilePath, const FPath& ResolvedFilePath, const FFileManifest& FileManifest);
 
+	const FRemoteProtocolFeatures& GetFeatures() const { return Features; }
+	const std::string& GetSessionId() const { return SessionId; }
+
+	void SendTelemetryEvent(const FTelemetryEventSyncComplete& Event);
+
 private:
 	std::vector<std::unique_ptr<FProxy>> Pool;
 	bool								 bValid = true;
+
+	FRemoteProtocolFeatures Features;
+	std::string SessionId;
 
 	FBlockRequestMap RequestMap;
 

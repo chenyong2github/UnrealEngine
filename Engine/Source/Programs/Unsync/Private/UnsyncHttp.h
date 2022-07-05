@@ -13,6 +13,8 @@
 
 namespace unsync {
 
+struct FRemoteDesc;
+
 enum class EHttpContentType
 {
 	Unknown,
@@ -124,6 +126,12 @@ HttpRequest(FHttpConnection& Connection, EHttpMethod Method, std::string_view Ur
 	Request.CustomHeaders = CustomHeaders;
 	return HttpRequest(Connection, Request);
 }
+
+FHttpResponse
+HttpRequest(const FRemoteDesc& RemoteDesc, EHttpMethod Method, std::string_view RequestUrl);
+
+FHttpResponse
+HttpRequest(const FRemoteDesc& RemoteDesc, EHttpMethod Method, std::string_view RequestUrl, EHttpContentType PayloadContentType, FBufferView Payload);
 
 // Pipelined HTTP request API
 

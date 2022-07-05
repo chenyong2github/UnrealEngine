@@ -89,7 +89,7 @@ set(src
 
 # Add third party code
 
-set(blake3dir ${CMAKE_CURRENT_SOURCE_DIR}/../../ThirdParty/BLAKE3/0.3.7/c)
+set(blake3dir ${CMAKE_CURRENT_SOURCE_DIR}/../../ThirdParty/BLAKE3/1.3.1/c)
 
 set(thirdparty
 	${blake3dir}/blake3_dispatch.c

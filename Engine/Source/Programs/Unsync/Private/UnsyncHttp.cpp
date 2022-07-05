@@ -3,6 +3,7 @@
 #include "UnsyncHttp.h"
 #include "UnsyncCore.h"
 #include "UnsyncUtil.h"
+#include "UnsyncRemote.h"
 
 #include <http_parser.h>
 #include <string.h>
@@ -229,6 +230,35 @@ HttpRequest(FHttpConnection& Connection, const FHttpRequest& Request)
 	return Result;
 }
 
+FHttpResponse
+HttpRequest(const FRemoteDesc& RemoteDesc,
+			EHttpMethod		   Method,
+			std::string_view   RequestUrl,
+			EHttpContentType   PayloadContentType,
+			FBufferView		   Payload)
+{
+	FTlsClientSettings TlsSettings = RemoteDesc.GetTlsClientSettings();
+	FHttpConnection	   Connection(RemoteDesc.HostAddress, RemoteDesc.HostPort, &TlsSettings);
+
+	FHttpRequest Request;
+
+	Request.Method			   = Method;
+	Request.CustomHeaders	   = RemoteDesc.HttpHeaders;
+	Request.Url				   = RequestUrl;
+	Request.PayloadContentType = PayloadContentType;
+	Request.Payload			   = Payload;
+
+	FHttpResponse Response = HttpRequest(Connection, Request);
+
+	return Response;
+}
+
+FHttpResponse
+HttpRequest(const FRemoteDesc& RemoteDesc, EHttpMethod Method, std::string_view RequestUrl)
+{
+	return HttpRequest(RemoteDesc, Method, RequestUrl, EHttpContentType::Unknown, {});
+}
+
 bool
 HttpRequestBegin(FHttpConnection& Connection, const FHttpRequest& Request)
 {
@@ -296,6 +326,9 @@ HttpRequestBegin(FHttpConnection& Connection, const FHttpRequest& Request)
 				break;
 			case EHttpContentType::Application_UECB:
 				HttpHeader += "Content-type: application/x-ue-cb\r\n";
+				break;
+			case EHttpContentType::Application_Json:
+				HttpHeader += "Content-type: application/json\r\n";
 				break;
 
 			default:
