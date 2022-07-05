@@ -894,6 +894,28 @@ void AddTriangleElement(FTriangleElement In, uint Index)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
+// Filled Triangle
+void AddFilledTriangleTWS(float3 Pos0, float3 Pos1, float3 Pos2, float4 Color)
+{
+	uint Offset = 0;
+	if (AllocateTriangleElement(1, Offset))
+	{
+		FTriangleElement Element;
+		Element.bIsScreenSpace = false;
+		Element.Color = Color;
+
+		Element.Pos0 = Pos0;
+		Element.Pos1 = Pos1;
+		Element.Pos2 = Pos2;
+		AddTriangleElement(Element, Offset + 0);
+	}
+}
+
+void AddFilledTriangleWS (float3 Pos0, float3 Pos1, float3 Pos2, float4 Color)							{ AddFilledTriangleTWS(Pos0 + ShaderPrintData.TranslatedWorldOffset, Pos1 + ShaderPrintData.TranslatedWorldOffset, Pos2 + ShaderPrintData.TranslatedWorldOffset, Color); }
+void AddFilledTriangleTWS(FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, float4 Color) { if (Ctx.bIsActive) { AddFilledTriangleTWS(Pos0, Pos1, Pos2, Color); } }
+void AddFilledTriangleWS (FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, float4 Color) { if (Ctx.bIsActive) { AddFilledTriangleTWS(Pos0 + ShaderPrintData.TranslatedWorldOffset, Pos1 + ShaderPrintData.TranslatedWorldOffset, Pos2 + ShaderPrintData.TranslatedWorldOffset, Color); } }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
 // Filled Quad
 
 void AddFilledQuadTWS(float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)

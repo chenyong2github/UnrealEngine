@@ -483,6 +483,7 @@ namespace ShaderPrint
 			SHADER_PARAMETER(FVector2f, OriginalViewRectMin)
 			SHADER_PARAMETER(FVector2f, OriginalViewSize)
 			SHADER_PARAMETER(FVector2f, OriginalBufferInvSize)
+			SHADER_PARAMETER(uint32, bCheckerboardEnabled)
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, DepthSampler)
 			RENDER_TARGET_BINDING_SLOTS()
@@ -869,16 +870,21 @@ namespace ShaderPrint
 		TShaderMapRef<FShaderDrawDebugVS> VertexShader(GlobalShaderMap, PermutationVector);
 		TShaderMapRef<FShaderDrawDebugPS> PixelShader(GlobalShaderMap);
 
+		// Create a transient depth texture which allows to depth test filled primitive between themselves. These primitives are not culled against the scene depth texture, but only 'checkerboarded'.
+		FRDGTextureRef TransientDepthTexture = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(OutputTexture->Desc.Extent, PF_DepthStencil, FClearValueBinding::DepthFar, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource), TEXT("ShaderPrint.DepthTexture"));
+
 		FShaderDrawVSPSParameters* PassParameters = GraphBuilder.AllocParameters<FShaderDrawVSPSParameters >();
 		PassParameters->VS.TranslatedWorldOffsetConversion = FVector3f(TranslatedWorldOffsetConversion);
 		PassParameters->VS.TranslatedWorldToClip = FMatrix44f(TranslatedWorldToClip);
 		PassParameters->PS.RenderTargets[0] = FRenderTargetBinding(OutputTexture, ERenderTargetLoadAction::ELoad);
+		PassParameters->PS.RenderTargets.DepthStencil = FDepthStencilBinding(TransientDepthTexture, ERenderTargetLoadAction::EClear, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
 		PassParameters->PS.OutputInvResolution = FVector2f(1.f / UnscaledViewRect.Width(), 1.f / UnscaledViewRect.Height());
 		PassParameters->PS.OriginalViewRectMin = FVector2f(ViewRect.Min);
 		PassParameters->PS.OriginalViewSize = FVector2f(ViewRect.Width(), ViewRect.Height());
 		PassParameters->PS.OriginalBufferInvSize = FVector2f(1.f / DepthTexture->Desc.Extent.X, 1.f / DepthTexture->Desc.Extent.Y);
 		PassParameters->PS.DepthTexture = DepthTexture;
 		PassParameters->PS.DepthSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		PassParameters->PS.bCheckerboardEnabled = bLines ? 1u : 0u;
 		PassParameters->VS.ShaderDrawDebugPrimitive = GraphBuilder.CreateSRV(ShaderPrintPrimitiveBuffer);
 		PassParameters->VS.IndirectBuffer = IndirectBuffer;
 		PassParameters->VS.Common = ShaderPrintData.UniformBuffer;
@@ -900,7 +906,7 @@ namespace ShaderPrint
 
 				FGraphicsPipelineStateInitializer GraphicsPSOInit;
 				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNearOrEqual>::GetRHI();
 				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_InverseSourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI(); // Premultiplied-alpha composition
 				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None, true>::GetRHI();
 				GraphicsPSOInit.PrimitiveType = bLines ? PT_LineList : PT_TriangleList;

@@ -6,6 +6,7 @@
 #include "ShaderPrint.ush"
 
 float3 TranslatedWorldOffsetConversion;
+uint bCheckerboardEnabled;
 
 // The shader used to render the debug element on view
 StructuredBuffer<uint> ShaderDrawDebugPrimitive;
@@ -102,7 +103,7 @@ void ShaderDrawDebugPS(
 
 	const float ColorScale = bIsHidden ? 0.4f : 1;
 	const float CheckerboardScale = ((PixelCoord.x%2) ^ (PixelCoord.y%2)) > 0 ? 1 : 0.0;
-	const float OcclusionScale = bIsHidden ? CheckerboardScale : 1;
+	const float OcclusionScale = (bCheckerboardEnabled && bIsHidden) ? CheckerboardScale : 1;
 	OutSceneColor = OcclusionScale * ColorAlpha * float4(ColorAlpha.aaa * ColorScale, 1.0); // Pre multiplied alpha with color scale
 }
 #endif
