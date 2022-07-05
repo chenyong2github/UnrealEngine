@@ -117,7 +117,7 @@ struct CONTROLRIG_API FConstraintAndActiveChannel
 	{};
 
 	UPROPERTY()
-	TWeakObjectPtr<UTickableConstraint> Constraint;
+	TSoftObjectPtr<UTickableConstraint> Constraint;
 
 	UPROPERTY()
 	FMovieSceneConstraintChannel ActiveChannel;
@@ -417,6 +417,7 @@ public:
 
 	/** todo */
 	FDelegateHandle OnConstraintRemovedHandle;
+	void RegisterConstraintsHandles();
 	bool HasConstraintChannel(const FName& InConstraintName) const;
 	FConstraintAndActiveChannel* GetConstraintChannel(const FName& InConstraintName);
 	void AddConstraintChannel(UTickableConstraint* InConstraint, bool bReconstructChannel);

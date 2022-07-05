@@ -4,6 +4,7 @@
 
 #include "Templates/SharedPointer.h"
 
+class UControlRig;
 class ISequencer;
 class UMovieScene3DTransformSection;
 class UTransformableHandle;
@@ -24,14 +25,26 @@ struct FConstraintChannelHelper
 public:
 	/** @todo documentation. */
 	static void AddConstraintKey(UTickableTransformConstraint* InConstraint);
+	
+	/** Adds an active key if needed and does the compensation when switching. */
 	static void SmartConstraintKey(UTickableTransformConstraint* InConstraint);
 
-	/** @todo documentation. */
+	/** Adds a transform key on InHandle at InTime. */
 	static void AddChildTransformKey(
 		const UTransformableHandle* InHandle,
 		const FFrameNumber& InTime,
 		const TSharedPtr<ISequencer>& InSequencer);
 
+	/** Compensate transform on handles when a constraint switches state. */
+	static void Compensate(
+		UTickableTransformConstraint* InConstraint,
+		const bool bAllTimes = false);
+	static void CompensateIfNeeded(
+		const UControlRig* ControlRig,
+		const TSharedPtr<ISequencer>& InSequencer,
+		const UMovieSceneControlRigParameterSection* Section,
+		const TOptional<FFrameNumber>& OptionalTime);
+	
 private:
 
 	/** BEGIN CONTROL RIG SECTION */
@@ -74,17 +87,6 @@ private:
 	static TArrayView<FMovieSceneFloatChannel*> GetTransformFloatChannels(
 		const UTransformableHandle* InHandle,
 		const TSharedPtr<ISequencer>& InSequencer);
-};
 
-/** Key drawing overrides */
-// void DrawKeys(
-// 	FMovieSceneConstraintChannel* Channel,
-// 	TArrayView<const FKeyHandle> InKeyHandles,
-// 	const UMovieSceneSection* InOwner,
-// 	TArrayView<FKeyDrawParams> OutKeyDrawParams);
-//
-// void DrawExtra(
-// 	FMovieSceneConstraintChannel* Channel,
-// 	const UMovieSceneSection* Owner,
-// 	const FGeometry& AllottedGeometry,
-// 	FSequencerSectionPainter& Painter);
+	static bool bDoNotCompensate;
+};

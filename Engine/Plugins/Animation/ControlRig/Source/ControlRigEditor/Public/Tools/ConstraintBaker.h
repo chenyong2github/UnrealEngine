@@ -16,16 +16,25 @@ public:
 	/** @todo documentation. (subject to changes to handle start / stop as parameters) */
 	static void DoIt(UTickableTransformConstraint* InConstraint);
 
-	/** @todo documentation. */
+	/** Stores InHandle local (or global) transforms at InFrames. */
 	static void GetHandleTransforms(
 		UWorld* InWorld,
 		const TSharedPtr<ISequencer>& InSequencer,
 		const UTransformableHandle* InHandle,
 		const TArray<FFrameNumber>& InFrames,
 		const bool bLocal,
-		TArray<FTransform>& OutTransforms); 
-
+		TArray<FTransform>& OutTransforms);
+	
+	/** Returns the channels to key based on the constraint's type. */
 	static EMovieSceneTransformChannel GetChannelsToKey(const UTickableTransformConstraint* InConstraint);
+
+	/** Add InTransforms keys at InFrames into the InHandle transform animation channels. */
+	static void AddTransformKeys(
+		const TSharedPtr<ISequencer>& InSequencer,
+		UTransformableHandle* InHandle,
+		const TArray<FFrameNumber>& InFrames,
+		const TArray<FTransform>& InTransforms,
+		const EMovieSceneTransformChannel& InChannels);
 	
 private:
 
@@ -37,13 +46,5 @@ private:
 		const TArray<FFrameNumber>& InFrames,
 		const bool bLocal,
 		TArray<FTransform>& OutTransforms);
-
-	/** Bake the resulting transforms into the child's transform animation channels. */
-	static void BakeChild(
-		const TSharedPtr<ISequencer>& InSequencer,
-		UTransformableHandle* InHandle,
-		const TArray<FFrameNumber>& InFrames,
-		const TArray<FTransform>& InTransforms,
-		const EMovieSceneTransformChannel& InChannels);
 };
 

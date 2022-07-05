@@ -19,6 +19,9 @@ class CONSTRAINTS_API UTransformableHandle : public UObject
 	GENERATED_BODY()
 	
 public:
+
+	DECLARE_EVENT_TwoParams(UTransformableHandle, FHandleModifiedEvent, UTransformableHandle*, bool);
+	
 	virtual ~UTransformableHandle();
 
 	virtual void PostLoad() override;
@@ -30,7 +33,7 @@ public:
 	virtual void SetGlobalTransform(const FTransform& InGlobal) const PURE_VIRTUAL(SetGlobalTransform, );
 	/** Sets the local transform of the underlying transformable object in it's parent space. */
 	virtual void SetLocalTransform(const FTransform& InLocal) const PURE_VIRTUAL(SetLocalTransform, );
-	/** Gets the transform of the underlying transformable object. */
+	/** Gets the global transform of the underlying transformable object. */
 	virtual FTransform GetGlobalTransform() const PURE_VIRTUAL(GetGlobalTransform, return FTransform::Identity;);
 	/** Gets the local transform of the underlying transformable object in it's parent space. */
 	virtual FTransform GetLocalTransform() const PURE_VIRTUAL(GetLocalTransform, return FTransform::Identity;);
@@ -46,17 +49,20 @@ public:
 	**/
 	virtual FTickFunction* GetTickFunction() const PURE_VIRTUAL(GetTickFunction, return nullptr;);
 
-	/**
-	 * Generates a hash value of the underlying transformable object.
-	**/
+	/** Generates a hash value of the underlying transformable object. */
 	virtual uint32 GetHash() const PURE_VIRTUAL(GetHash, return 0;);
 
 	/** @todo document */
 	virtual TWeakObjectPtr<UObject> GetTarget() const PURE_VIRTUAL(GetTarget, return nullptr;);
 
+	FHandleModifiedEvent& HandleModified();
+
 #if WITH_EDITOR
 	virtual FName GetName() const PURE_VIRTUAL(GetName, return NAME_None;);
 #endif
+
+protected:
+	FHandleModifiedEvent OnHandleModified;
 };
 
 /**
@@ -72,35 +78,42 @@ public:
 	
 	virtual ~UTransformableComponentHandle();
 	
-	/** @todo document */
+	/** Sanity check to ensure that Component. */
 	virtual bool IsValid() const override;
 	
-	/** @todo document */
+	/** Sets the global transform of Component. */
 	virtual void SetGlobalTransform(const FTransform& InGlobal) const override;
-	/** Sets the local transform of the underlying transformable object in it's parent space. */
+	/** Sets the local transform of Component in it's attachment. */
 	virtual void SetLocalTransform(const FTransform& InLocal) const override;
-	/** @todo document */
+	/** Gets the global transform of Component. */
 	virtual FTransform GetGlobalTransform() const override;
-	/** @todo document */
+	/** Gets the local transform of Component in it's attachment. */
 	virtual FTransform GetLocalTransform() const override;
 
-	/** @todo document */
+	/** Returns the target object containing the tick function (e.i. Component). */
 	virtual UObject* GetPrerequisiteObject() const override;
-	/** @todo document */
+	/** Returns Component's tick function. */
 	virtual FTickFunction* GetTickFunction() const override;
 
-	/** @todo document */
+	/** Generates a hash value of Component. */
 	virtual uint32 GetHash() const override;
 
 	/** @todo document */
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
 
 #if WITH_EDITOR
-	/** @todo document */
 	virtual FName GetName() const override;
 #endif
 	
-	/** @todo document */
+	/** The Component that this handle is pointing at. */
 	UPROPERTY(BlueprintReadOnly, Category = "Object")
 	TWeakObjectPtr<USceneComponent> Component;
+
+	/** Registers/Unregisters useful delegates to track changes in the Component's transform. */
+	void UnregisterDelegates() const;
+	void RegisterDelegates();
+	
+	/** @todo document */
+	void OnActorMoving(AActor* InActor);
+	void OnPostPropertyChanged(UObject* InObject, FPropertyChangedEvent& InPropertyChangedEvent);
 };

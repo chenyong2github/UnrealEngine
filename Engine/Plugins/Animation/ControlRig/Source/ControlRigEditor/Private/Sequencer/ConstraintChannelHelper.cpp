@@ -12,11 +12,14 @@
 #include "MovieSceneToolHelpers.h"
 
 #include "TransformConstraint.h"
+#include "Algo/Copy.h"
 #include "Algo/Unique.h"
 #include "Channels/MovieSceneConstraintChannel.h"
 
 #include "Tools/BakingHelper.h"
 #include "Tools/ConstraintBaker.h"
+
+bool FConstraintChannelHelper::bDoNotCompensate = false;
 
 namespace
 {
@@ -105,9 +108,7 @@ void FConstraintChannelHelper::AddChildTransformKey(
 	{
 		const FTransform LocalTransform = ControlHandle->GetLocalTransform();
 		
-		static constexpr bool bNotify = true;
-		static constexpr bool bUndo = false;
-		static constexpr bool bFixEuler = true;
+		static constexpr bool bNotify = true, bUndo = false, bFixEuler = true;
 	
 		FRigControlModifiedContext KeyframeContext;
 		KeyframeContext.SetKey = EControlRigSetKey::Always;
@@ -272,84 +273,232 @@ TArrayView<FMovieSceneFloatChannel*> FConstraintChannelHelper::GetTransformFloat
 
 namespace
 {
-	
-void GetComponentGlobalTransforms(
-	const UTransformableControlHandle* InControlHandle,
-	const TSharedPtr<ISequencer>& InSequencer,
-	TArray<FFrameNumber> InFrames,
-	TArray<FTransform>& OutTransforms)
-{
-	const USkeletalMeshComponent* SkeletalMeshComponent = InControlHandle->GetSkeletalMesh();
-	AActor* Actor = SkeletalMeshComponent ? SkeletalMeshComponent->GetTypedOuter< AActor >() : nullptr;
-	if (Actor)
-	{
-		FActorForWorldTransforms ControlRigActorSelection;
-		ControlRigActorSelection.Actor = Actor;
-		MovieSceneToolHelpers::GetActorWorldTransforms(InSequencer.Get(), ControlRigActorSelection, InFrames, OutTransforms);		
-	}
-	else
-	{
-		OutTransforms.SetNum(InFrames.Num());
-		for (FTransform& Transform : OutTransforms)
-		{
-			Transform = FTransform::Identity;
-		}
-	}
-}
 
-struct FTransformEvaluator
+struct FCompensationEvaluator
 {
 public:
-	TArray<FTransform> ChildTransforms;
-	TArray<FTransform> ParentGlobalTransforms;
-	TArray<FTransform> ComponentGlobalTransforms;
-
-	FTransformEvaluator(UTickableTransformConstraint* InConstraint)
-		: Constraint(InConstraint)
-	{}
+	TArray<FTransform> ChildLocals;
+	TArray<FTransform> ChildGlobals;
+	TArray<FTransform> SpaceGlobals;
 	
-	void ComputeFrames(const TSharedPtr<ISequencer>& InSequencer, const TArray<FFrameNumber>& InFrames)
+	FCompensationEvaluator(UTickableTransformConstraint* InConstraint)
+		: Constraint(InConstraint)
+		, Handle(InConstraint ? InConstraint->ChildTRSHandle : nullptr)
+	{}
+
+	void ComputeLocalTransforms(
+		UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer,
+		const TArray<FFrameNumber>& InFrames, const bool bToActive)
 	{
-		if (!Constraint)
+		if (InFrames.IsEmpty())
 		{
 			return;
 		}
 		
-		const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(Constraint->ChildTRSHandle);
-		if (!ControlHandle)
+		const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
+		if (Constraints.IsEmpty())
 		{
 			return;
 		}
 
-		// todo: compute child, parent and component in one single pass for faster computation
-		FConstraintBaker::GetHandleTransforms(
-		   ControlHandle->ControlRig->GetWorld(),
-		   InSequencer,
-		   ControlHandle,
-		   InFrames,
-		   bLocal,
-		   ChildTransforms);
-	
-		FConstraintBaker::GetHandleTransforms(
-			ControlHandle->ControlRig->GetWorld(),
-			InSequencer,
-			Constraint->ParentTRSHandle,
-			InFrames,
-			bLocal,
-			ParentGlobalTransforms);
+		// find last active constraint in the list that is different than the on we want to compensate for
+		auto GetLastActiveConstraint = [this, Constraints]()
+		{
+			// find last active constraint in the list that is different than the on we want to compensate for
+			const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
+			{
+				return InConstraint->Active && InConstraint->bDynamicOffset && InConstraint != Constraint;
+			});
 
-		GetComponentGlobalTransforms(
-			ControlHandle,
-			InSequencer,
-			InFrames,
-			ComponentGlobalTransforms);
+			// if found, return its parent global transform
+			return LastActiveIndex > INDEX_NONE ?Constraints[LastActiveIndex] : nullptr;
+		};
+		
+		const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+        const FFrameRate TickResolution = MovieScene->GetTickResolution();
+        const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
+
+		const int32 NumFrames = InFrames.Num();
+
+		// resize arrays to num frames + 1 as we also evaluate at InFrames[0]-1
+		ChildLocals.SetNum(NumFrames+1);
+        ChildGlobals.SetNum(NumFrames+1);
+		SpaceGlobals.SetNum(NumFrames+1);
+
+		const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Constraint->GetType());
+		
+        for (int32 Index = 0; Index < NumFrames+1; ++Index)
+        {
+        	const FFrameNumber FrameNumber = (Index == 0) ? InFrames[0]-1 : InFrames[Index-1];
+        
+        	// evaluate animation
+        	const FMovieSceneEvaluationRange EvaluationRange = FMovieSceneEvaluationRange(FFrameTime(FrameNumber), TickResolution);
+        	const FMovieSceneContext Context = FMovieSceneContext(EvaluationRange, PlaybackStatus).SetHasJumped(true);
+    
+        	InSequencer->GetEvaluationTemplate().Evaluate(Context, *InSequencer);
+        
+        	// evaluate constraints
+        	for (const UTickableTransformConstraint* InConstraint: Constraints)
+        	{
+        		InConstraint->Evaluate();
+        	}
+        
+        	// evaluate ControlRig?
+        	// ControlRig->Evaluate_AnyThread();
+
+        	FTransform& ChildLocal = ChildLocals[Index];
+        	FTransform& ChildGlobal = ChildGlobals[Index];
+        	FTransform& SpaceGlobal = SpaceGlobals[Index];
+
+        	// store child transforms        	
+        	ChildLocal = Handle->GetLocalTransform();
+        	ChildGlobal = Handle->GetGlobalTransform();
+        	
+        	const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint();
+        	const ETransformConstraintType LastConstraintType = LastConstraint ?
+				static_cast<ETransformConstraintType>(LastConstraint->GetType()) : ETransformConstraintType::Parent; 
+
+        	// store constraint/parent space global transform
+        	if (bToActive)
+       		{
+        		// if activating the constraint, store last constraint or parent space at T[0]-1
+        		// and constraint space for all other times
+				if (Index == 0)
+				{
+					if (LastConstraint)
+					{
+						SpaceGlobal = LastConstraint->GetParentGlobalTransform();
+						ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
+							ChildLocal, ChildGlobal, SpaceGlobal, LastConstraintType);
+					}
+				}
+				else
+				{
+					SpaceGlobal = Constraint->GetParentGlobalTransform();
+					ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
+						ChildLocal, ChildGlobal, SpaceGlobal, ConstraintType);
+				}
+       		}
+            else
+            {
+            	// if deactivating the constraint, store constraint space at T[0]-1
+            	// and last constraint or parent space for all other times
+            	if (Index == 0)
+            	{
+            		SpaceGlobal = Constraint->GetParentGlobalTransform();
+            		ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
+            			ChildLocal, ChildGlobal, SpaceGlobal, ConstraintType);
+            	}
+                else
+                {
+                	if (LastConstraint)
+                	{
+                		SpaceGlobal = LastConstraint->GetParentGlobalTransform();
+                		ChildLocal = FTransformConstraintUtils::ComputeRelativeTransform(
+                			ChildLocal, ChildGlobal, SpaceGlobal, LastConstraintType);
+                	}
+                }
+            }
+        }
+	}
+
+	void ComputeCompensation(UWorld* InWorld, const TSharedPtr<ISequencer>& InSequencer, const FFrameNumber& InTime)
+	{
+		const TArray<UTickableTransformConstraint*> Constraints = GetHandleTransformConstraints(InWorld);
+		if (Constraints.IsEmpty())
+		{
+			return;
+		}
+
+		// find last active constraint in the list that is different than the on we want to compensate for
+		auto GetLastActiveConstraint = [this, Constraints]()
+		{
+			// find last active constraint in the list that is different than the on we want to compensate for
+			const int32 LastActiveIndex = Constraints.FindLastByPredicate([this](const UTickableTransformConstraint* InConstraint)
+			{
+				return InConstraint->Active && InConstraint->bDynamicOffset;
+			});
+
+			// if found, return its parent global transform
+			return LastActiveIndex > INDEX_NONE ? Constraints[LastActiveIndex] : nullptr;
+		};
+
+		auto EvaluateAt = [InSequencer, &Constraints](const FFrameNumber InFrame)
+		{
+			const UMovieScene* MovieScene = InSequencer->GetFocusedMovieSceneSequence()->GetMovieScene();
+			const FFrameRate TickResolution = MovieScene->GetTickResolution();
+			const EMovieScenePlayerStatus::Type PlaybackStatus = InSequencer->GetPlaybackStatus();
+
+			const FMovieSceneEvaluationRange EvaluationRange0 = FMovieSceneEvaluationRange(FFrameTime(InFrame), TickResolution);
+			const FMovieSceneContext Context0 = FMovieSceneContext(EvaluationRange0, PlaybackStatus).SetHasJumped(true);
+
+			InSequencer->GetEvaluationTemplate().Evaluate(Context0, *InSequencer);
+
+			for (const UTickableTransformConstraint* InConstraint: Constraints)
+			{
+				InConstraint->Evaluate();
+			}
+
+			// ControlRig->Evaluate_AnyThread();
+		};
+
+		// allocate
+		ChildLocals.SetNum(1);
+		ChildGlobals.SetNum(1);
+		SpaceGlobals.SetNum(1);
+		
+		// evaluate at InTime and store global
+		EvaluateAt(InTime);
+		ChildGlobals[0] = Handle->GetGlobalTransform();
+
+		// evaluate at InTime-1 and store local
+		EvaluateAt(InTime-1);
+        ChildLocals[0] = Handle->GetLocalTransform();
+
+		// if constraint at T-1 then switch to its space
+        if (const UTickableTransformConstraint* LastConstraint = GetLastActiveConstraint())
+        {
+        	SpaceGlobals[0] = LastConstraint->GetParentGlobalTransform();
+        	
+        	const ETransformConstraintType LastConstraintType = static_cast<ETransformConstraintType>(LastConstraint->GetType());
+        	ChildLocals[0] = FTransformConstraintUtils::ComputeRelativeTransform(ChildLocals[0],
+		ChildGlobals[0], SpaceGlobals[0], LastConstraintType);
+        }
+        else // switch to parent space
+        {
+        	const FTransform ChildLocal = ChildLocals[0];
+        	Handle->SetGlobalTransform(ChildGlobals[0]);
+        	ChildLocals[0] = Handle->GetLocalTransform();
+        	Handle->SetLocalTransform(ChildLocal);
+        }
 	}
 	
 private:
-	static constexpr bool bLocal = false; // store global transforms
-	UTickableTransformConstraint* Constraint = nullptr;
-};
 
+	TArray<UTickableTransformConstraint*> GetHandleTransformConstraints(UWorld* InWorld) const
+	{
+		TArray<UTickableTransformConstraint*> TransformConstraints;
+		if (Handle)
+		{
+			// get sorted transform constraints
+			const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(InWorld);
+			static constexpr bool bSorted = true;
+			TArray<TObjectPtr<UTickableConstraint>> Constraints = Controller.GetParentConstraints(Handle->GetHash(), bSorted);
+			for (const TObjectPtr<UTickableConstraint>& InConstraint: Constraints)
+			{
+				if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
+				{
+					TransformConstraints.Add(TransformConstraint);
+				}
+			}
+		}
+		return TransformConstraints;
+	}
+	
+	UTickableTransformConstraint* Constraint = nullptr;
+	UTransformableHandle* Handle = nullptr;
+};
+	
 }
 
 void FConstraintChannelHelper::SmartControlConstraintKey(
@@ -377,6 +526,8 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 			bool ActiveValueToBeSet = false;
 			if (CanAddKey(Channel, Time, ActiveValueToBeSet))
 			{
+				TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+				
 				// set constraint as dynamic
 				InConstraint->bDynamicOffset = true;
 				
@@ -388,13 +539,11 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				TArray<FFrameNumber> FramesToCompensate;
 				GetFramesToCompensate(Channel->ActiveChannel, ActiveValueToBeSet, Time, Channels, FramesToCompensate);
 
-				// store child, parent and component global transforms for these frames
-				FTransformEvaluator Evaluator(InConstraint);
-				Evaluator.ComputeFrames(InSequencer, FramesToCompensate);
-				TArray<FTransform>& ChildTransforms = Evaluator.ChildTransforms;
-				const TArray<FTransform>& ParentTransforms = Evaluator.ParentGlobalTransforms;
-				const TArray<FTransform>& ComponentTransforms = Evaluator.ComponentGlobalTransforms;
-
+				// store child and space transforms for these frames
+				FCompensationEvaluator Evaluator(InConstraint);
+				Evaluator.ComputeLocalTransforms(ControlRig->GetWorld(), InSequencer, FramesToCompensate, ActiveValueToBeSet);
+				TArray<FTransform>& ChildLocals = Evaluator.ChildLocals;
+				
 				// store tangents at this time
 				TArray<FMovieSceneTangentData> Tangents;
 				FControlRigSpaceChannelHelpers::EvaluateTangentAtThisTime(ControlRig, Section, ControlName, Time, Tangents);
@@ -404,14 +553,10 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 				// add child's transform key at Time-1 to keep animation
 				{
 					const FFrameNumber TimeMinusOne(Time -1);
-
-					const bool bPrevAsLocal = !ActiveValueToBeSet;
-					const FTransform& SpaceTransformTime = bPrevAsLocal ? ParentTransforms[0] : // constraint space  
-																		  ComponentTransforms[0]; // component space
-					const FTransform ChildTransformAtMinusOne = ChildTransforms[0].GetRelativeTransform(SpaceTransformTime);
+					
 					FBakingHelper::AddTransformKeys(ControlRig, ControlName, {TimeMinusOne},
-						{ChildTransformAtMinusOne}, ChannelsToKey, TickResolution, bPrevAsLocal);
-				
+					 	{ChildLocals[0]}, ChannelsToKey, TickResolution, true);
+					
 					// set tangents at Time-1
 					FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ControlRig, Section, ControlName, TimeMinusOne, Tangents);
 				}
@@ -425,19 +570,13 @@ void FConstraintChannelHelper::SmartControlConstraintKey(
 
 				// compensate
 				{
-					const bool bNextAsLocal = ActiveValueToBeSet;
-					for (int32 Index = 0; Index < ChildTransforms.Num(); ++Index)
-					{
-						const FTransform& SpaceTransform = bNextAsLocal ? ParentTransforms[Index] : // constraint space 
-																		  ComponentTransforms[Index]; // component space
-						FTransform& ChildTransform = ChildTransforms[Index];
-						ChildTransform = ChildTransform.GetRelativeTransform(SpaceTransform);
-					}
+					// we need to remove the first transforms as we store NumFrames+1 transforms
+					ChildLocals.RemoveAt(0);
 
 					// add keys
 					FBakingHelper::AddTransformKeys( ControlRig, ControlHandle->ControlName, FramesToCompensate,
-						ChildTransforms, ChannelsToKey, TickResolution, bNextAsLocal);
-				
+					 	ChildLocals, ChannelsToKey, TickResolution, true);
+					
 					// set tangents at Time
 					FControlRigSpaceChannelHelpers::SetTangentsAtThisTime(ControlRig, Section, ControlName, Time, Tangents);
 				}
@@ -508,177 +647,110 @@ void FConstraintChannelHelper::GetFramesToCompensate(
 	OutFramesAfter.SetNum(Algo::Unique(OutFramesAfter));
 }
 
-// namespace
-// {
-// 	using IndexRange = ::TRange<int32>;
-// 	IndexRange GetRange(const TArrayView<const bool>& Values, const int32 Offset) 
-// 	{
-// 		IndexRange Range;
-// 			
-// 		int32 FirstActive = INDEX_NONE;
-// 		for (int32 Index = Offset; Index < Values.Num(); ++Index)
-// 		{
-// 			if (Values[Index])
-// 			{
-// 				FirstActive = Index;
-// 				break;
-// 			}
-// 		}
-//
-// 		if (FirstActive == INDEX_NONE)
-// 		{
-// 			return Range;
-// 		}
-//
-// 		Range.SetLowerBound(TRangeBound<int32>(FirstActive));
-// 		Range.SetUpperBound(TRangeBound<int32>(FirstActive));
-//
-// 		for (int32 NextInactive = FirstActive+1; NextInactive < Values.Num(); ++NextInactive)
-// 		{
-// 			if (Values[NextInactive] == false)
-// 			{
-// 				Range.SetUpperBound(TRangeBound<int32>(NextInactive));
-// 				return Range;
-// 			}
-// 		}
-// 			
-// 		return Range;
-// 	};
-//
-// 	TArray<IndexRange> GetIndexRanges(const FMovieSceneConstraintChannel* Channel)
-// 	{
-// 		TArray<IndexRange> Ranges;
-//
-// 		const TMovieSceneChannelData<const bool> ChannelData = Channel->GetData();
-// 		const TArrayView<const bool> Values = ChannelData.GetValues();
-// 		if (Values.Num() == 1)
-// 		{
-// 			if (Values[0] == true)
-// 			{
-// 				Ranges.Emplace(0);
-// 			}
-// 			return Ranges;
-// 		}
-// 		
-// 		int32 Offset = 0;
-// 		while (Values.IsValidIndex(Offset))
-// 		{
-// 			TRange<int32> Range = GetRange(Values, Offset);
-// 			if (!Range.IsEmpty())
-// 			{
-// 				Ranges.Emplace(Range);
-// 				Offset = Range.GetUpperBoundValue()+1;
-// 			}
-// 			else
-// 			{
-// 				Offset = INDEX_NONE;
-// 			}
-// 		}
-// 			
-// 		return Ranges;
-// 	}
-// }
-//
-// void DrawKeys(
-// 	FMovieSceneConstraintChannel* Channel,
-// 	TArrayView<const FKeyHandle> InKeyHandles,
-// 	const UMovieSceneSection* InOwner,
-// 	TArrayView<FKeyDrawParams> OutKeyDrawParams)
-// {
-// 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(InOwner);
-// 	if (!Section)
-// 	{
-// 		return;
-// 	}
-// 	
-// 	static const FName SquareKeyBrushName("Sequencer.KeySquare");
-// 	static const FName FilledBorderBrushName("FilledBorder");
-//
-// 	static FKeyDrawParams Params;
-// 	Params.FillBrush = FAppStyle::GetBrush(FilledBorderBrushName);
-// 	Params.BorderBrush = FAppStyle::GetBrush(SquareKeyBrushName);
-// 	
-// 	for (FKeyDrawParams& Param : OutKeyDrawParams)
-// 	{
-// 		Param = Params;
-// 	}
-// }
-//
-// void DrawExtra(FMovieSceneConstraintChannel* Channel, const UMovieSceneSection* Owner,const FGeometry& AllottedGeometry, FSequencerSectionPainter& Painter)
-// {
-// 	const UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(Owner);
-// 	if (!Section || !Channel)
-// 	{
-// 		return;
-// 	}
-// 	
-// 	// using namespace UE::Sequencer;
-//
-// 	// get index range
-// 	TArray<IndexRange> IndexRanges = GetIndexRanges(Channel);
-// 	if (IndexRanges.IsEmpty())
-// 	{
-// 		return;
-// 	}
-// 	
-// 	// convert to bar range
-// 	TArray<FKeyBarCurveModel::FBarRange> Ranges;
-// 	const TMovieSceneChannelData<const bool> ChannelData = Channel->GetData();
-// 	const TArrayView<const FFrameNumber> Times = ChannelData.GetTimes();
-//
-// 	// const bool IsFirstValueTrue = IndexRanges[0].GetLowerBoundValue() == 0;
-// 	
-// 	for (const IndexRange& ActiveRange: IndexRanges)
-// 	{
-// 		FKeyBarCurveModel::FBarRange BarRange;
-// 		FFrameRate TickResolution = Section->GetTypedOuter<UMovieScene>()->GetTickResolution();
-// 		double LowerValue = Times[ActiveRange.GetLowerBoundValue()] / TickResolution;
-// 		double UpperValue = Times[ActiveRange.GetUpperBoundValue()] / TickResolution;
-// 	
-// 		BarRange.Range.SetLowerBound(TRangeBound<double>(LowerValue));
-// 		BarRange.Range.SetUpperBound(TRangeBound<double>(UpperValue));
-// 	
-// 		BarRange.Name = "Constraint";
-// 		BarRange.Color = FLinearColor(.2, .5, .1);
-// 		static FLinearColor ZebraTint = FLinearColor::White.CopyWithNewOpacity(0.01f);
-// 		BarRange.Color = BarRange.Color * (1.f - ZebraTint.A) + ZebraTint * ZebraTint.A;
-// 		
-// 		Ranges.Add(BarRange);
-// 	}
-//
-// 	// draw bars
-// 	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
-// 	static constexpr ESlateDrawEffect DrawEffects = ESlateDrawEffect::None;
-//
-// 	const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("ToolTip.LargerFont");
-// 	const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
-//
-// 	const FVector2D& LocalSize = AllottedGeometry.GetLocalSize();
-// 	static constexpr float LaneTop = 0;
-//
-// 	const FTimeToPixel& TimeToPixel = Painter.GetTimeConverter();
-// 	const double InputMin = TimeToPixel.PixelToSeconds(0.f);
-// 	const double InputMax = TimeToPixel.PixelToSeconds(Painter.SectionGeometry.GetLocalSize().X);
-//
-// 	for (int32 Index = 0; Index < Ranges.Num(); ++Index)
-// 	{
-// 		const FKeyBarCurveModel::FBarRange& Range = Ranges[Index];
-//
-// 		double LowerSeconds = /*(Index == 0 && IsFirstValueTrue) ? InputMin : */Range.Range.GetLowerBoundValue();
-// 		double UpperSeconds = Range.Range.GetUpperBoundValue();
-// 		if (UpperSeconds == Range.Range.GetLowerBoundValue())
-// 		{
-// 			UpperSeconds = InputMax;
-// 		}
-//
-// 		const double BoxStart = TimeToPixel.SecondsToPixel(LowerSeconds);
-// 		const double BoxEnd = TimeToPixel.SecondsToPixel(UpperSeconds);
-// 		const double BoxSize = BoxEnd - BoxStart;
-//
-// 		const FVector2D Size = FVector2D(BoxSize, LocalSize.Y);
-// 		const FVector2D Translation = FVector2D(BoxStart, LaneTop);
-// 		const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(Translation));
-// 		
-// 		FSlateDrawElement::MakeBox(Painter.DrawElements, Painter.LayerId, BoxGeometry, WhiteBrush, DrawEffects, Range.Color);
-// 	}
-// }
+void FConstraintChannelHelper::Compensate(UTickableTransformConstraint* InConstraint, const bool bAllTimes)
+{
+	const TWeakPtr<ISequencer> WeakSequencer = FBakingHelper::GetSequencer();
+	if (!WeakSequencer.IsValid() || !WeakSequencer.Pin()->GetFocusedMovieSceneSequence())
+	{
+		return;
+	}
+
+	const UTransformableControlHandle* ControlHandle = Cast<UTransformableControlHandle>(InConstraint->ChildTRSHandle);
+	if (!ControlHandle)
+	{
+		return;
+	}
+
+	const TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	if (const UMovieSceneControlRigParameterSection* Section = GetControlSection(ControlHandle, Sequencer))
+	{
+		const FFrameRate TickResolution = Sequencer->GetFocusedTickResolution();
+		const FFrameTime FrameTime = Sequencer->GetLocalTime().ConvertTo(TickResolution);
+		const FFrameNumber Time = FrameTime.GetFrame();
+
+		const TOptional<FFrameNumber> OptTime = bAllTimes ? TOptional<FFrameNumber>() : TOptional<FFrameNumber>(Time);
+		CompensateIfNeeded(ControlHandle->ControlRig.Get(), Sequencer, Section, OptTime);
+	}
+}
+
+void FConstraintChannelHelper::CompensateIfNeeded(
+	const UControlRig* ControlRig,
+	const TSharedPtr<ISequencer>& InSequencer,
+	const UMovieSceneControlRigParameterSection* Section,
+	const TOptional<FFrameNumber>& OptionalTime)
+{
+	if (bDoNotCompensate)
+	{
+		return;
+	}
+
+	TGuardValue<bool> CompensateGuard(bDoNotCompensate, true);
+	
+	// Frames to compensate
+	TArray<FFrameNumber> OptionalTimeArray;
+	if (OptionalTime.IsSet())
+	{
+		OptionalTimeArray.Add(OptionalTime.GetValue());
+	}
+	
+	auto GetSpaceTimesToCompensate = [&OptionalTimeArray](const FConstraintAndActiveChannel& Channel)->TArrayView<const FFrameNumber>
+	{
+		if (OptionalTimeArray.IsEmpty())
+		{
+			return Channel.ActiveChannel.GetData().GetTimes();
+		}
+		return OptionalTimeArray;
+	};
+	
+	// keyframe context
+	FRigControlModifiedContext KeyframeContext;
+	KeyframeContext.SetKey = EControlRigSetKey::Always;
+	const FFrameRate TickResolution = InSequencer->GetFocusedTickResolution();
+	
+	bool bNeedsEvaluation = false;
+
+	// gather all transform constraints
+	TArray<FConstraintAndActiveChannel> TransformConstraintsChannels;
+	Algo::CopyIf(Section->GetConstraintsChannels(), TransformConstraintsChannels,
+		[](const FConstraintAndActiveChannel& InChannel) 
+		{
+			return InChannel.Constraint.IsValid() && InChannel.Constraint->IsA<UTickableTransformConstraint>(); 
+		}
+	);
+	
+	// compensate constraints
+	for (const FConstraintAndActiveChannel& Channel: TransformConstraintsChannels)
+	{
+		const TArrayView<const FFrameNumber> FramesToCompensate = GetSpaceTimesToCompensate(Channel);
+		for (const FFrameNumber& Time : FramesToCompensate)
+		{
+			const FFrameNumber TimeMinusOne(Time-1);
+			
+			bool CurrentValue = false, PreviousValue = false;
+			Channel.ActiveChannel.Evaluate(TimeMinusOne, PreviousValue);
+			Channel.ActiveChannel.Evaluate(Time, CurrentValue);
+
+			if (CurrentValue != PreviousValue) //if they are the same no need to do anything
+			{
+				UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Channel.Constraint.Get()); 
+				
+				// compute transform to set
+				// if switching from active to inactive then we must add a key at T-1 in the constraint space
+				// if switching from inactive to active then we must add a key at T-1 in the previous constraint or parent space
+				FCompensationEvaluator Evaluator(Constraint);
+				Evaluator.ComputeCompensation(ControlRig->GetWorld(), InSequencer, Time);
+				const TArray<FTransform>& LocalTransforms = Evaluator.ChildLocals;
+				
+				const EMovieSceneTransformChannel ChannelsToKey = FConstraintBaker::GetChannelsToKey(Constraint);
+				FConstraintBaker::AddTransformKeys(
+					InSequencer, Constraint->ChildTRSHandle, {TimeMinusOne}, LocalTransforms, ChannelsToKey);
+				bNeedsEvaluation = true;
+			}
+		}
+	}
+	
+	if (bNeedsEvaluation)
+	{
+		InSequencer->ForceEvaluate();
+	}
+}

@@ -61,6 +61,7 @@
 #include "InteractiveToolManager.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "Editor/EditorPerProjectUserSettings.h"
+#include "TransformConstraint.h"
 
 void UControlRigEditModeDelegateHelper::OnPoseInitialized()
 {
@@ -952,7 +953,7 @@ bool FControlRigEditMode::EndTracking(FEditorViewportClient* InViewportClient, F
 	InteractionType = (uint8)EControlRigInteractionType::None;
 	
 	if (InteractionScopes.Num() > 0)
-	{
+	{		
 		if (bManipulatorMadeChange)
 		{
 			bManipulatorMadeChange = false;
@@ -2514,7 +2515,6 @@ void FControlRigEditMode::OpenSpacePickerWidget()
 		{
 			if (WeakSequencer.IsValid())
 			{
-
 				if (const FRigControlElement* ControlElement = InHierarchy->Find<FRigControlElement>(InControlKey))
 				{
 					ISequencer* Sequencer = WeakSequencer.Pin().Get();
@@ -3604,17 +3604,71 @@ bool FControlRigEditMode::CanChangeControlShapeTransform()
 	return false;
 }
 
-void FControlRigEditMode::SetControlShapeTransform(AControlRigShapeActor* ShapeActor, const FTransform& InTransform)
+void FControlRigEditMode::SetControlShapeTransform(
+	const AControlRigShapeActor* InShapeActor,
+	const FTransform& InGlobalTransform,
+	const FTransform& InToWorldTransform,
+	const FRigControlModifiedContext& InContext,
+	const bool bPrintPython) const
 {
-	if (UControlRig* ControlRig = ShapeActor->ControlRig.Get())
+	UControlRig* ControlRig = InShapeActor->ControlRig.Get();
+	if (!ControlRig)
 	{
-		ControlRig->SetControlGlobalTransform(ShapeActor->ControlName, InTransform);
+		return;
 	}
+
+	static constexpr bool bNotify = true, bFixEuler = true, bUndo = false;
+	if (!IsInLevelEditor())
+	{
+		// assumes it's attached to actor
+		ControlRig->SetControlGlobalTransform(
+			InShapeActor->ControlName, InGlobalTransform, bNotify, InContext, bUndo, bPrintPython, bFixEuler);
+		return;
+	}
+	
+	// find the last constraint in the stack (this could be cached on mouse press)
+	TArray< TObjectPtr<UTickableConstraint> > Constraints;
+	FTransformConstraintUtils::GetParentConstraints(ControlRig->GetWorld(), InShapeActor, Constraints);
+	const int32 LastActiveIndex = Constraints.FindLastByPredicate([](const TObjectPtr<UTickableConstraint>& InConstraint)
+	{
+		if (const UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(InConstraint.Get()))
+		{
+			return InConstraint->Active && TransformConstraint->bDynamicOffset;
+		}
+		return false;
+	});
+
+	// set the global space
+	// assumes it's attached to actor
+	ControlRig->SetControlGlobalTransform(
+		InShapeActor->ControlName, InGlobalTransform, bNotify, InContext, bUndo, bPrintPython, bFixEuler);
+
+	if (!Constraints.IsValidIndex(LastActiveIndex))
+	{
+		return;
+	}
+	
+	// switch to constraint space
+	const UTickableTransformConstraint* Constraint = Cast<UTickableTransformConstraint>(Constraints[LastActiveIndex]);
+	const FTransform ParentTransform = Constraint->GetParentGlobalTransform();
+	const FTransform ChildTransform = InGlobalTransform * InToWorldTransform;
+	FTransform LocalTransform = ControlRig->GetControlLocalTransform(InShapeActor->ControlName);
+	
+	const ETransformConstraintType ConstraintType = static_cast<ETransformConstraintType>(Constraint->GetType());
+	LocalTransform = FTransformConstraintUtils::ComputeRelativeTransform(LocalTransform,
+		ChildTransform, ParentTransform, ConstraintType);
+
+	FRigControlModifiedContext Context = InContext;
+	Context.bConstraintUpdate = false;
+	
+	ControlRig->SetControlLocalTransform(InShapeActor->ControlName, LocalTransform, bNotify, Context, bUndo, bFixEuler);
+	
+	Constraint->Evaluate();
 }
 
-FTransform FControlRigEditMode::GetControlShapeTransform(AControlRigShapeActor* ShapeActor) const
+FTransform FControlRigEditMode::GetControlShapeTransform(const AControlRigShapeActor* ShapeActor)
 {
-	if (UControlRig* ControlRig = ShapeActor->ControlRig.Get())
+	if (const UControlRig* ControlRig = ShapeActor->ControlRig.Get())
 	{
 		return ControlRig->GetControlGlobalTransform(ShapeActor->ControlName);
 	}
@@ -3706,6 +3760,7 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 				FTransform NewTransform = CurrentTransform.GetRelativeTransform(ToWorldTransform);
 				FRigControlModifiedContext Context;
 				Context.EventName = FRigUnit_BeginExecution::EventName;
+				Context.bConstraintUpdate = true;
 				if (bCalcLocal)
 				{
 					InOutLocal = ControlRig->GetControlLocalTransform(ShapeActor->ControlName);
@@ -3716,13 +3771,14 @@ void FControlRigEditMode::MoveControlShape(AControlRigShapeActor* ShapeActor, co
 				{
 					bPrintPythonCommands = World->IsPreviewWorld();
 				}
-				ControlRig->SetControlGlobalTransform(ShapeActor->ControlName, NewTransform, true, Context, false, bPrintPythonCommands, true);			// assumes it's attached to actor
+
+				SetControlShapeTransform(ShapeActor, NewTransform, ToWorldTransform, Context, bPrintPythonCommands);			
+				
 				ShapeActor->SetGlobalTransform(CurrentTransform);
 				if (bCalcLocal)
 				{
 					FTransform NewLocal = ControlRig->GetControlLocalTransform(ShapeActor->ControlName);
 					InOutLocal = NewLocal.GetRelativeTransform(InOutLocal);
-
 				}
 
 				ControlRig->Evaluate_AnyThread();

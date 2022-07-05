@@ -16,6 +16,12 @@ UTransformableControlHandle::~UTransformableControlHandle()
 	UnregisterDelegates();
 }
 
+void UTransformableControlHandle::PostLoad()
+{
+	Super::PostLoad();
+	RegisterDelegates();
+}
+
 bool UTransformableControlHandle::IsValid() const
 {
 	if (!ControlRig.IsValid() || ControlName == NAME_None)
@@ -169,6 +175,7 @@ void UTransformableControlHandle::UnregisterDelegates() const
 		{
 			Hierarchy->OnModified().RemoveAll(this);
 		}
+		ControlRig->ControlModified().RemoveAll(this);
 	}
 }
 
@@ -186,6 +193,8 @@ void UTransformableControlHandle::RegisterDelegates()
 		{
 			Hierarchy->OnModified().AddUObject(this, &UTransformableControlHandle::OnHierarchyModified);
 		}
+		
+		ControlRig->ControlModified().AddUObject(this, &UTransformableControlHandle::OnControlModified);
 	}
 }
 
@@ -224,6 +233,30 @@ void UTransformableControlHandle::OnHierarchyModified(
 		}
 		default:
 			break;
+	}
+}
+
+void UTransformableControlHandle::OnControlModified(
+	UControlRig* InControlRig,
+	FRigControlElement* InControl,
+	const FRigControlModifiedContext& InContext)
+{
+	if (!InControlRig || !InControl)
+	{
+		return;
+	}
+
+	if (!ControlRig.IsValid() || ControlName == NAME_None)
+	{
+		return;
+	}
+
+	if (ControlRig == InControlRig && InControl->GetName() == ControlName)
+	{
+		if(OnHandleModified.IsBound())
+		{
+			OnHandleModified.Broadcast(this, InContext.bConstraintUpdate);
+		}
 	}
 }
 

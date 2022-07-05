@@ -11,6 +11,8 @@ class SConstraintsCreationWidget;
 class SConstraintsEditionWidget;
 class UTickableConstraint;
 
+DECLARE_DELEGATE(FOnConstraintCreated);
+
 /**
  * FConstraintInfo
  */
@@ -84,7 +86,7 @@ private:
 	/** Creates the constraint between the current selection and the picked actor. */
 	static void CreateConstraint(
 		AActor* InParent,
-		TSharedPtr<SConstraintsCreationWidget> InConstraints,
+		FOnConstraintCreated InDelegate,
 		const ETransformConstraintType InConstraintType);
 
 	/** TSharedPtr to the tree item. */
@@ -106,8 +108,6 @@ class CONTROLRIGEDITOR_API SConstraintsCreationWidget : public SCompoundWidget
 {
 public:
 
-	DECLARE_DELEGATE(FOnConstraintCreated);
-	
 	SLATE_BEGIN_ARGS(SConstraintsCreationWidget)	{}
 
 		SLATE_EVENT(FOnConstraintCreated, OnConstraintCreated)
@@ -235,6 +235,7 @@ private:
 
 	/** @todo documentation. */
 	TSharedPtr< SWidget > CreateContextMenu();
+	void OnItemDoubleClicked(ItemSharedPtr InItem);
 	
 	void RegisterSelectionChanged();
 	void UnregisterSelectionChanged();

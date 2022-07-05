@@ -7,6 +7,7 @@
 #include "KeyBarCurveModel.h"
 #include "SequencerSectionPainter.h"
 #include "TimeToPixel.h"
+#include "Fonts/FontMeasure.h"
 #include "Styling/AppStyle.h"
 #include "Styling/CoreStyle.h"
 #include "Framework/Application/SlateApplication.h"
@@ -116,8 +117,6 @@ void DrawExtra(
 	{
 		return;
 	}
-	
-	// using namespace UE::Sequencer;
 
 	// get index range
 	TArray<IndexRange> IndexRanges = GetIndexRanges(Channel);
@@ -125,7 +124,7 @@ void DrawExtra(
 	{
 		return;
 	}
-	
+
 	// convert to bar range
 	TArray<FKeyBarCurveModel::FBarRange> Ranges;
 	const TMovieSceneChannelData<const bool> ChannelData = Channel->GetData();
@@ -151,7 +150,7 @@ void DrawExtra(
 		Ranges.Add(BarRange);
 	}
 
-	// draw bars
+	// draw bars + labels
 	const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
 	static constexpr ESlateDrawEffect DrawEffects = ESlateDrawEffect::None;
 
@@ -165,10 +164,34 @@ void DrawExtra(
 	const double InputMin = TimeToPixel.PixelToSeconds(0.f);
 	const double InputMax = TimeToPixel.PixelToSeconds(Painter.SectionGeometry.GetLocalSize().X);
 
+	// label data
+	FText Label;
+	bool bDrawLabel = false;
+	
+	const FMovieSceneChannelProxy& Proxy = Owner->GetChannelProxy();
+	const TArrayView<FMovieSceneConstraintChannel*> ConstraintChannels = Proxy.GetChannels<FMovieSceneConstraintChannel>();
+	const int32 ChannelIndex = ConstraintChannels.IndexOfByKey(Channel);
+	if (ConstraintChannels.IsValidIndex(ChannelIndex))
+	{
+		const TArrayView<const FMovieSceneChannelMetaData> MetaData = Proxy.GetMetaData<FMovieSceneConstraintChannel>();
+		if (MetaData.IsValidIndex(ChannelIndex))
+		{
+			const FName& ConstraintName = MetaData[ChannelIndex].Name;
+			if (ConstraintName != NAME_None)
+			{
+				Label = FText::FromName(ConstraintName);
+				bDrawLabel = true;
+			}
+		}
+	}
+	const FVector2D TextSize = bDrawLabel ? FontMeasure->Measure(Label, FontInfo) : FVector2D::ZeroVector;
+	static constexpr double LabelPixelOffset = 10.0;  
+	
 	for (int32 Index = 0; Index < Ranges.Num(); ++Index)
 	{
 		const FKeyBarCurveModel::FBarRange& Range = Ranges[Index];
 
+		// draw bar
 		double LowerSeconds = /*(Index == 0 && IsFirstValueTrue) ? InputMin : */Range.Range.GetLowerBoundValue();
 		double UpperSeconds = Range.Range.GetUpperBoundValue();
 		if (UpperSeconds == Range.Range.GetLowerBoundValue())
@@ -185,5 +208,28 @@ void DrawExtra(
 		const FPaintGeometry BoxGeometry = AllottedGeometry.ToPaintGeometry(Size, FSlateLayoutTransform(Translation));
 		
 		FSlateDrawElement::MakeBox(Painter.DrawElements, Painter.LayerId, BoxGeometry, WhiteBrush, DrawEffects, Range.Color);
+
+		// draw label
+		if (bDrawLabel)
+		{
+			const double LabelPos = BoxStart + LabelPixelOffset;
+			const FVector2D Position(LabelPos, LaneTop + (LocalSize.Y - TextSize.Y) * .5f);
+			const FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(Position));
+
+			const double LabelMaxSize = BoxSize-LabelPixelOffset;
+			if (TextSize.X < LabelMaxSize)
+			{
+				FSlateDrawElement::MakeText(Painter.DrawElements, Painter.LayerId, LabelGeometry, Label, FontInfo);				
+			}
+			else
+			{
+				// crop
+				const int32 End = FontMeasure->FindLastWholeCharacterIndexBeforeOffset(Label, FontInfo, FMath::RoundToInt(LabelMaxSize));
+				if (End >= 0)
+				{
+					FSlateDrawElement::MakeText(Painter.DrawElements, Painter.LayerId, LabelGeometry, Label.ToString(), 0, End, FontInfo);
+				}
+			}
+		}
 	}
 }

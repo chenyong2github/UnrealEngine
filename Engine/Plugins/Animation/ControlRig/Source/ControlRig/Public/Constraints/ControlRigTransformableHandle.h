@@ -26,32 +26,35 @@ class CONTROLRIG_API UTransformableControlHandle : public UTransformableHandle
 	
 public:
 	virtual ~UTransformableControlHandle();
+
+	virtual void PostLoad() override;
 	
-	/** @todo document */
+	/** Sanity check to ensure that ControlRig and ControlName are safe to use. */
 	virtual bool IsValid() const override;
 
-	/** @todo document */
+	/** Sets the global transform of the control. */
 	virtual void SetGlobalTransform(const FTransform& InGlobal) const override;
-	/** @todo document */
+	/** Sets the local transform of the control. */
 	virtual void SetLocalTransform(const FTransform& InLocal) const override;
-	/** @todo document */
+	/** Gets the global transform of the control. */
 	virtual FTransform GetGlobalTransform() const  override;
-	/** @todo document */
+	/** Sets the local transform of the control. */
 	virtual FTransform GetLocalTransform() const  override;
 
-	/** @todo document */
+	/** Returns the target object containing the tick function (e.i. SkeletalComponent bound to ControlRig). */
 	virtual UObject* GetPrerequisiteObject() const override;
-	/** @todo document */
+	/** Returns ths SkeletalComponent tick function. */
 	virtual FTickFunction* GetTickFunction() const override;
 
-	/** @todo document */
+	/** Generates a hash value based on ControlRig and ControlName. */
 	virtual uint32 GetHash() const override;
 	/** @todo document */
 	virtual TWeakObjectPtr<UObject> GetTarget() const override;
-	/** @todo document */
+
+	/** Returns the skeletal mesh bound to ControlRig. */
 	USkeletalMeshComponent* GetSkeletalMesh() const;
 
-	/** @todo document */
+	/** Registers/Unregisters useful delegates to track changes in the control's transform. */
 	void UnregisterDelegates() const;
 	void RegisterDelegates();
 
@@ -60,13 +63,19 @@ public:
 	virtual FName GetName() const override;
 #endif
 
-	/** @todo document */
+	/** The ControlRig that this handle is pointing at. */
 	UPROPERTY(BlueprintReadOnly, Category = "Object")
 	TSoftObjectPtr<UControlRig> ControlRig;
 
-	/** @todo document */
+	/** The ControlName of the control that this handle is pointing at. */
 	UPROPERTY(BlueprintReadOnly, Category = "Object")
 	FName ControlName;
+
+	/** @todo document */
+	void OnControlModified(
+		UControlRig* InControlRig,
+		FRigControlElement* InControl,
+		const FRigControlModifiedContext& InContext);
 	
 private:
 

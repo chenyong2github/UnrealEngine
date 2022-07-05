@@ -884,8 +884,9 @@ void UMovieSceneControlRigParameterSection::PostEditImport()
 void UMovieSceneControlRigParameterSection::PostLoad()
 {
 	Super::PostLoad();
-
+	RegisterConstraintsHandles();
 }
+
 bool UMovieSceneControlRigParameterSection::HasScalarParameter(FName InParameterName) const
 {
 	for (const FScalarParameterNameAndCurve& ScalarParameterNameAndCurve : ScalarParameterNamesAndCurves)
@@ -1276,6 +1277,34 @@ void UMovieSceneControlRigParameterSection::AddSpaceChannel(FName InControlName,
 	}
 }
 
+void UMovieSceneControlRigParameterSection::RegisterConstraintsHandles()
+{
+	if (OnConstraintRemovedHandle.IsValid())
+	{
+		return;
+	}
+
+	if (!ControlRig)
+	{
+		return;
+	}
+
+	// register constraint deletion handle
+	FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
+	OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
+	{
+		Modify();
+		const int32 NumRemoved = ConstraintsChannels.RemoveAll( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
+		{
+			return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
+		});
+		if (NumRemoved)
+		{
+			ReconstructChannelProxy();
+		}
+	});
+}
+
 bool UMovieSceneControlRigParameterSection::HasConstraintChannel(const FName& InConstraintName) const
 {
 	return ConstraintsChannels.ContainsByPredicate( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
@@ -1308,26 +1337,7 @@ void UMovieSceneControlRigParameterSection::AddConstraintChannel(UTickableConstr
 		{
 			ReconstructChannelProxy();
 		}
-
-		if (!OnConstraintRemovedHandle.IsValid())
-		{
-			if (ControlRig)
-			{
-				FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
-				OnConstraintRemovedHandle = Controller.OnConstraintRemoved().AddLambda([this](FName InConstraintName)
-				{
-					Modify();
-					const int32 NumRemoved = ConstraintsChannels.RemoveAll( [InConstraintName](const FConstraintAndActiveChannel& InChannel)
-					{
-						return InChannel.Constraint.IsValid() ? InChannel.Constraint->GetFName() == InConstraintName : false;
-					});
-					if (NumRemoved)
-					{
-						ReconstructChannelProxy();
-					}
-				});
-			}
-		}
+		RegisterConstraintsHandles();
 	}
 }
 
@@ -1395,7 +1405,7 @@ void UMovieSceneControlRigParameterSection::ReconstructChannelProxy()
 		const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(ControlRig->GetWorld());
 		auto GetConstraints = [&Controller, this](const FName& InControlName)
 		{
-			static constexpr bool bSorted = true;
+			static constexpr bool bSorted = true;			
 			const uint32 ControlHash = HashCombine(GetTypeHash(ControlRig.Get()), GetTypeHash(InControlName));
 			return Controller.GetParentConstraints(ControlHash, bSorted);
 		};

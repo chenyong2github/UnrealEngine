@@ -5,17 +5,25 @@
 
 #include "Components/SceneComponent.h"
 #include "GameFramework/Actor.h"
+#include "Engine/Engine.h"
 
 /**
  * UTransformableHandle
  */
 
 UTransformableHandle::~UTransformableHandle()
-{}
+{
+	OnHandleModified.Clear();
+}
 
 void UTransformableHandle::PostLoad()
 {
 	Super::PostLoad();
+}
+
+UTransformableHandle::FHandleModifiedEvent& UTransformableHandle::HandleModified()
+{
+	return OnHandleModified;
 }
 
 /**
@@ -74,6 +82,88 @@ uint32 UTransformableComponentHandle::GetHash() const
 TWeakObjectPtr<UObject> UTransformableComponentHandle::GetTarget() const
 {
 	return Component;
+}
+
+void UTransformableComponentHandle::UnregisterDelegates() const
+{
+#if WITH_EDITOR
+	FCoreUObjectDelegates::OnObjectPropertyChanged.RemoveAll(this);
+	GEngine->OnActorMoving().RemoveAll(this);
+#endif
+}
+
+void UTransformableComponentHandle::RegisterDelegates()
+{
+	UnregisterDelegates();
+
+#if WITH_EDITOR
+	GEngine->OnActorMoving().AddUObject(this, &UTransformableComponentHandle::OnActorMoving);
+	FCoreUObjectDelegates::OnObjectPropertyChanged.AddUObject(this, &UTransformableComponentHandle::OnPostPropertyChanged);
+#endif
+}
+
+void UTransformableComponentHandle::OnActorMoving(AActor* InActor)
+{
+	if (!Component.IsValid())
+	{
+		return;
+	}
+
+	const USceneComponent* SceneComponent = InActor ? InActor->GetRootComponent() : nullptr;
+	if (SceneComponent != Component)
+	{
+		return;
+	}
+
+	if(OnHandleModified.IsBound())
+	{
+		OnHandleModified.Broadcast(this, true);
+	}
+}
+
+void UTransformableComponentHandle::OnPostPropertyChanged(
+	UObject* InObject,
+	FPropertyChangedEvent& InPropertyChangedEvent)
+{
+	if (!Component.IsValid())
+	{
+		return;
+	}
+
+	USceneComponent* SceneComponent = Cast<USceneComponent>(InObject);
+	if (!SceneComponent)
+	{
+		if (const AActor* Actor = Cast<AActor>(InObject))
+		{
+			SceneComponent = Actor->GetRootComponent();
+		}
+	}
+	
+	if (SceneComponent!= Component)
+	{
+		return;
+	}
+
+	const FProperty* MemberProperty = InPropertyChangedEvent.MemberProperty;
+	if (!MemberProperty)
+	{
+		return;
+	}
+	
+	const FName MemberPropertyName = MemberProperty->GetFName();
+	const bool bTransformationChanged =
+		(MemberPropertyName == USceneComponent::GetRelativeLocationPropertyName() ||
+			MemberPropertyName == USceneComponent::GetRelativeRotationPropertyName() ||
+			MemberPropertyName == USceneComponent::GetRelativeScale3DPropertyName());
+	if (!bTransformationChanged)
+	{
+		return;
+	}
+
+	if(OnHandleModified.IsBound())
+	{
+		OnHandleModified.Broadcast(this, true);
+	}
 }
 
 #if WITH_EDITOR

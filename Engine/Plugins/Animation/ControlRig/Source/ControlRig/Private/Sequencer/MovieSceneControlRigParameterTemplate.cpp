@@ -1786,7 +1786,7 @@ void FMovieSceneControlRigParameterTemplate::EvaluateCurvesWithMasks(const FMovi
 			const FConstraintAndActiveChannel& ConstraintAndActiveChannel = Constraints[Index];
 			ConstraintAndActiveChannel.ActiveChannel.Evaluate(Time, Value);
 			
-			Values.ConstraintsValues.Emplace(ConstraintAndActiveChannel.Constraint, Value);
+			Values.ConstraintsValues.Emplace(ConstraintAndActiveChannel.Constraint.Get(), Value);
 		}
 		
 		for (int32 Index = 0; Index < Bools.Num(); ++Index)

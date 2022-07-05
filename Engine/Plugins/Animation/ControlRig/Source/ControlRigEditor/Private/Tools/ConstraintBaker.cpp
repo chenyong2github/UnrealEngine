@@ -7,6 +7,7 @@
 
 #include "ISequencer.h"
 
+#include "ControlRig.h"
 #include "IKeyArea.h"
 #include "LevelSequence.h"
 #include "MovieSceneToolHelpers.h"
@@ -128,7 +129,7 @@ void FConstraintBaker::DoIt(UTickableTransformConstraint* InConstraint)
 
 	// bake to channel curves
 	const EMovieSceneTransformChannel Channels = GetChannelsToKey(InConstraint);
-	BakeChild(Sequencer, InConstraint->ChildTRSHandle, Frames, Transforms, Channels);
+	AddTransformKeys(Sequencer, InConstraint->ChildTRSHandle, Frames, Transforms, Channels);
 
 	// disable constraint
 	InConstraint->SetActive(false);
@@ -203,7 +204,7 @@ void FConstraintBaker::GetHandleTransforms(
 	}
 }
 
-void FConstraintBaker::BakeChild(
+void FConstraintBaker::AddTransformKeys(
 	const TSharedPtr<ISequencer>& InSequencer,
 	UTransformableHandle* InHandle,
 	const TArray<FFrameNumber>& InFrames,

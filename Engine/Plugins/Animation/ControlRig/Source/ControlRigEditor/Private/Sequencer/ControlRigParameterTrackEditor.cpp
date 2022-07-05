@@ -72,6 +72,7 @@
 #include "Animation/SkeletalMeshActor.h"
 #include "TimerManager.h"
 #include "BakeToControlRigSettings.h"
+#include "ConstraintChannelHelper.h"
 #include "UnrealEdGlobals.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Toolkits/IToolkitHost.h"
@@ -2798,11 +2799,18 @@ FKeyPropertyResult FControlRigParameterTrackEditor::AddKeysToControlRigHandle(US
 		if (KeyPropertyResult.bKeyCreated)
 		{
 			UMovieSceneControlRigParameterSection* ParamSection = Cast<UMovieSceneControlRigParameterSection>(Track->GetSectionToKey());
-			if (ParamSection && ParamSection->GetControlRig())
+			if (UControlRig* SectionControlRig = ParamSection ? ParamSection->GetControlRig() : nullptr)
 			{
 				TOptional<FFrameNumber> OptionalKeyTime = KeyTime;
-				FControlRigSpaceChannelHelpers::CompensateIfNeeded(ParamSection->GetControlRig(), GetSequencer().Get(), ParamSection,
+
+				// compensate spaces
+				FControlRigSpaceChannelHelpers::CompensateIfNeeded(
+					SectionControlRig, GetSequencer().Get(), ParamSection,
 					RigControlName, OptionalKeyTime);
+
+				// compensate constraints
+				FConstraintChannelHelper::CompensateIfNeeded(
+					SectionControlRig, GetSequencer(), ParamSection, OptionalKeyTime);
 			}
 		}
 	}

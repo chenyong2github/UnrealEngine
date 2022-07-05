@@ -1385,7 +1385,7 @@ struct CONTROLRIG_API FRigControlModifiedContext
 	uint32 KeyMask;
 	float LocalTime;
 	FName EventName;
-	
+	bool bConstraintUpdate = false;
 };
 
 /*

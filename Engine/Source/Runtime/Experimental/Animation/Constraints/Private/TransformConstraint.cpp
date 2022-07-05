@@ -45,6 +45,32 @@ void UTickableTransformConstraint::PostEditChangeProperty(FPropertyChangedEvent&
 
 #endif
 
+void UTickableTransformConstraint::UnregisterDelegates() const
+{
+	if (ChildTRSHandle)
+	{
+		ChildTRSHandle->HandleModified().RemoveAll(this);
+	}
+	if (ParentTRSHandle)
+	{
+		ParentTRSHandle->HandleModified().RemoveAll(this);
+	}
+}
+
+void UTickableTransformConstraint::RegisterDelegates()
+{
+	UnregisterDelegates();
+
+	if (ChildTRSHandle)
+	{
+		ChildTRSHandle->HandleModified().AddUObject(this, &UTickableTransformConstraint::OnHandleModified);
+	}
+	if (ParentTRSHandle)
+	{
+		ParentTRSHandle->HandleModified().AddUObject(this, &UTickableTransformConstraint::OnHandleModified);
+	}	
+}
+
 void UTickableTransformConstraint::Setup()
 {
 	if (!ParentTRSHandle->IsValid() || !ChildTRSHandle->IsValid())
@@ -55,6 +81,7 @@ void UTickableTransformConstraint::Setup()
 	
 	ComputeOffset();
 	SetupDependencies();
+	RegisterDelegates();
 }
 
 void UTickableTransformConstraint::SetupDependencies()
@@ -82,12 +109,14 @@ void UTickableTransformConstraint::PostLoad()
 {
 	Super::PostLoad();
 	ConstraintTick.RegisterFunction(GetFunction() );
+	RegisterDelegates();
 }
 
 void UTickableTransformConstraint::PostDuplicate(bool bDuplicateForPIE)
 {
 	Super::PostDuplicate(bDuplicateForPIE);
 	ConstraintTick.RegisterFunction(GetFunction());
+	RegisterDelegates();
 }
 
 uint32 UTickableTransformConstraint::GetTargetHash() const
@@ -148,6 +177,9 @@ FTransform UTickableTransformConstraint::GetParentLocalTransform() const
 	return ParentTRSHandle->IsValid() ? ParentTRSHandle->GetLocalTransform() : FTransform::Identity;
 }
 
+void UTickableTransformConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+{}
+
 /** 
  * UTickableTranslationConstraint
  **/
@@ -157,17 +189,42 @@ UTickableTranslationConstraint::UTickableTranslationConstraint()
 	Type = ETransformConstraintType::Translation;
 }
 
+#if WITH_EDITOR
+
+void UTickableTranslationConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bDynamicOffset))
+	{
+		if (bDynamicOffset)
+		{
+			Cache.CachedInputHash = CalculateInputHash();
+			
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			const FTransform ParentWorldTransform = GetParentGlobalTransform();
+			DynamicOffsetTranslation = ChildGlobalTransform.GetLocation() - ParentWorldTransform.GetLocation();
+			
+			Evaluate();
+		}
+		return;
+	}
+}
+
+#endif
+
 void UTickableTranslationConstraint::ComputeOffset()
 {
-	UClass* StaticClass = UTickableTranslationConstraint::StaticClass();
-	
 	const FTransform InitParentTransform = GetParentGlobalTransform();
 	const FTransform InitChildTransform = GetChildGlobalTransform();
 	
 	OffsetTranslation = FVector::ZeroVector;
+	DynamicOffsetTranslation = FVector::ZeroVector;
 	if (bMaintainOffset)
 	{
 		OffsetTranslation = InitChildTransform.GetLocation() - InitParentTransform.GetLocation();
+		DynamicOffsetTranslation = OffsetTranslation;
 	}	
 }
 
@@ -188,7 +245,9 @@ FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetF
 
 		const FVector ParentTranslation = GetParentGlobalTransform().GetLocation();
 		FTransform Transform = GetChildGlobalTransform();
-		FVector NewTranslation = bMaintainOffset ? ParentTranslation + OffsetTranslation : ParentTranslation;
+		FVector NewTranslation = bDynamicOffset ? ParentTranslation + DynamicOffsetTranslation :
+								bMaintainOffset ? ParentTranslation + OffsetTranslation :
+								ParentTranslation;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
 			NewTranslation = FMath::Lerp<FVector>(Transform.GetLocation(), NewTranslation, ClampedWeight);
@@ -197,6 +256,54 @@ FConstraintTickFunction::ConstraintFunction UTickableTranslationConstraint::GetF
 			
 		SetChildGlobalTransform(Transform);
 	};
+}
+
+void UTickableTranslationConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+{
+	if (!bDynamicOffset)
+	{
+		return;
+	}
+	
+	if (!InHandle || InHandle != ChildTRSHandle)
+	{
+		return;
+	}
+
+	const uint32 InputHash = CalculateInputHash();
+	
+	// update dynamic offset
+	if (InputHash != Cache.CachedInputHash)
+	{
+		Cache.CachedInputHash = InputHash;
+
+		if (bUpdate)
+		{
+			const FTransform ParentWorldTransform = GetParentGlobalTransform();
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			DynamicOffsetTranslation = ChildGlobalTransform.GetLocation() - ParentWorldTransform.GetLocation();
+		}
+		else
+		{
+			const FTransform ChildLocalTransform = GetChildLocalTransform();
+			DynamicOffsetTranslation = ChildLocalTransform.GetTranslation();
+		}
+	}
+}
+
+uint32 UTickableTranslationConstraint::CalculateInputHash() const
+{
+	uint32 Hash = 0;
+
+	// local location hash
+	const FTransform ChildLocalTransform = GetChildLocalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetTranslation() ));
+
+	// global location hash
+	const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetTranslation() ));
+	
+	return Hash;
 }
 
 /** 
@@ -208,16 +315,42 @@ UTickableRotationConstraint::UTickableRotationConstraint()
 	Type = ETransformConstraintType::Rotation;
 }
 
+#if WITH_EDITOR
+
+void UTickableRotationConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bDynamicOffset))
+	{
+		if (bDynamicOffset)
+		{
+			Cache.CachedInputHash = CalculateInputHash();
+			
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			const FTransform ParentWorldTransform = GetParentGlobalTransform();
+			DynamicOffsetRotation = ParentWorldTransform.GetRotation().Inverse() * ChildGlobalTransform.GetRotation();
+			
+			Evaluate();
+		}
+		return;
+	}
+}
+
+#endif
+
 void UTickableRotationConstraint::ComputeOffset()
 {
 	const FTransform InitParentTransform = GetParentGlobalTransform();
 	const FTransform InitChildTransform = GetChildGlobalTransform();
 	
-	OffsetRotation = FQuat::Identity;
+	OffsetRotation = DynamicOffsetRotation = FQuat::Identity;
 	if (bMaintainOffset)
 	{
 		OffsetRotation = InitParentTransform.GetRotation().Inverse() * InitChildTransform.GetRotation();
 		OffsetRotation.Normalize();
+		DynamicOffsetRotation = OffsetRotation; 
 	}
 }
 
@@ -239,7 +372,9 @@ FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunc
 		const FQuat ParentRotation = GetParentGlobalTransform().GetRotation();
 		FTransform Transform = GetChildGlobalTransform();
 
-		FQuat NewRotation = bMaintainOffset ? ParentRotation * OffsetRotation : ParentRotation;
+		FQuat NewRotation = bDynamicOffset ? ParentRotation * DynamicOffsetRotation :
+							bMaintainOffset ? ParentRotation * OffsetRotation :
+							ParentRotation;
 		if (ClampedWeight < 1.0f - KINDA_SMALL_NUMBER)
 		{
 			NewRotation = FQuat::Slerp(Transform.GetRotation(), NewRotation, ClampedWeight);
@@ -248,6 +383,53 @@ FConstraintTickFunction::ConstraintFunction UTickableRotationConstraint::GetFunc
 		
 		SetChildGlobalTransform(Transform);
 	};
+}
+
+void UTickableRotationConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+{
+	if (!bDynamicOffset)
+	{
+		return;
+	}
+	
+	if (!InHandle || InHandle != ChildTRSHandle)
+	{
+		return;
+	}
+
+	const uint32 InputHash = CalculateInputHash();
+	
+	// update dynamic offset
+	if (InputHash != Cache.CachedInputHash)
+	{
+		Cache.CachedInputHash = InputHash;
+
+		if (bUpdate)
+		{
+			const FTransform ParentWorldTransform = GetParentGlobalTransform();
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			DynamicOffsetRotation = ParentWorldTransform.GetRotation().Inverse() * ChildGlobalTransform.GetRotation();
+		}
+		else
+		{
+			DynamicOffsetRotation = GetChildLocalTransform().GetRotation();
+		}
+	}
+}
+
+uint32 UTickableRotationConstraint::CalculateInputHash() const
+{
+	uint32 Hash = 0;
+
+	// local rotation hash
+	const FTransform ChildLocalTransform = GetChildLocalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetRotation().Euler() ));
+
+	// global rotation hash
+	const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetRotation().Euler() ));
+	
+	return Hash;
 }
 
 /** 
@@ -318,23 +500,27 @@ void UTickableParentConstraint::ComputeOffset()
 	const FTransform InitChildTransform = GetChildGlobalTransform();
 	
 	OffsetTransform = FTransform::Identity;
+	DynamicOffsetTransform = FTransform::Identity;
 	if (bMaintainOffset)
 	{
 		OffsetTransform = InitChildTransform.GetRelativeTransform(InitParentTransform);
+		DynamicOffsetTransform = OffsetTransform; 
 	}
 }
 
-uint32 UTickableParentConstraint::CalculateDependenciesHash() const
+uint32 UTickableParentConstraint::CalculateInputHash() const
 {
 	uint32 Hash = 0;
 	
-	Hash = HashCombine(Hash, GetTypeHash(Active));
-	Hash = HashCombine(Hash, GetTypeHash(Weight));
-
-	const FTransform ParentGlobal = GetParentGlobalTransform();
-	Hash = HashCombine(Hash, GetTypeHash(ParentGlobal.GetTranslation()));
-	Hash = HashCombine(Hash, GetTypeHash(ParentGlobal.GetRotation().Euler() ));
-	Hash = HashCombine(Hash, GetTypeHash(ParentGlobal.GetScale3D()));
+	const FTransform ChildLocalTransform = GetChildLocalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetTranslation()));
+	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetRotation().Euler() ));
+	Hash = HashCombine(Hash, GetTypeHash(ChildLocalTransform.GetScale3D()));
+	
+	const FTransform ChildGlobalTransform = GetChildLocalTransform();
+	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetTranslation()));
+	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetRotation().Euler() ));
+	Hash = HashCombine(Hash, GetTypeHash(ChildGlobalTransform.GetScale3D()));
 	
 	return Hash;
 }
@@ -369,49 +555,71 @@ FConstraintTickFunction::ConstraintFunction UTickableParentConstraint::GetFuncti
 
 		const FTransform ParentTransform = GetParentGlobalTransform();
 		
-		// if bDynamicOffset is on, means we assume that the incoming local child transform is coming from the child
-		// TRS animation (for instance) which is local to the constraint's parent
-		if (bDynamicOffset)
-		{
-			const uint32 DependenciesHash = CalculateDependenciesHash();
-
-			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
-			const bool bIsGlobalDirty = !ChildGlobalTransform.Equals(Cache.LastGlobalSet);
-			const bool bIsInputHashDirty = DependenciesHash != Cache.CachedInputHash;
-
-			// we avoid computation if nothing has changed
-			if (!bIsGlobalDirty && !bIsInputHashDirty)
-			{
-				return;
-			}
-
-			FTransform LocalTransform = Cache.LastLocalSet;
-			if (bIsGlobalDirty)
-			{
-				LocalTransform = GetChildLocalTransform();
-			}
-			
-			FTransform TargetTransform = LocalTransform * ParentTransform;
-			//apply weight if needed
-			LerpTransform(ChildGlobalTransform, TargetTransform);
-			
-			SetChildGlobalTransform(TargetTransform);
-
-			// update cache
-			Cache.CachedInputHash = DependenciesHash;
-			Cache.LastGlobalSet = TargetTransform;
-			Cache.LastLocalSet = LocalTransform;
-			
-			return;
-		}
-
-		// static behavior
-		FTransform TargetTransform = bMaintainOffset ? OffsetTransform * ParentTransform : ParentTransform;
+		FTransform TargetTransform = bDynamicOffset ? DynamicOffsetTransform * ParentTransform :
+									bMaintainOffset ? OffsetTransform * ParentTransform :
+									ParentTransform;
 		//apply weight if needed
 		LerpTransform(GetChildGlobalTransform(), TargetTransform);
 		SetChildGlobalTransform(TargetTransform);
 	};
 }
+
+void UTickableParentConstraint::OnHandleModified(UTransformableHandle* InHandle, bool bUpdate)
+{
+	if (!bDynamicOffset)
+	{
+		return;
+	}
+	
+	if (!InHandle || InHandle != ChildTRSHandle)
+	{
+		return;
+	}
+
+	const uint32 InputHash = CalculateInputHash();
+
+	// update dynamic offset
+	if (InputHash != Cache.CachedInputHash)
+	{
+		Cache.CachedInputHash = InputHash;
+		
+		if (bUpdate)
+		{
+			const FTransform ParentWorldTransform = GetParentGlobalTransform();
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			DynamicOffsetTransform = ChildGlobalTransform.GetRelativeTransform(ParentWorldTransform);
+		}
+		else
+		{
+			DynamicOffsetTransform = GetChildLocalTransform();
+		}
+	}
+}
+
+#if WITH_EDITOR
+
+void UTickableParentConstraint::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.GetPropertyName();
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UTickableTransformConstraint, bDynamicOffset))
+	{
+		if(bDynamicOffset)
+		{
+			Cache.CachedInputHash = CalculateInputHash();
+			
+			const FTransform ChildGlobalTransform = GetChildGlobalTransform();
+			const FTransform ParentWorldTransform = GetParentGlobalTransform();
+			DynamicOffsetTransform = ChildGlobalTransform.GetRelativeTransform(ParentWorldTransform);
+			
+			Evaluate();
+		}
+		return;
+	}
+}
+
+#endif
 
 /** 
  * UTickableLookAtConstraint
@@ -440,15 +648,48 @@ FConstraintTickFunction::ConstraintFunction UTickableLookAtConstraint::GetFuncti
 		const FTransform ParentTransform = GetParentGlobalTransform();
 		const FTransform ChildTransform = GetChildGlobalTransform();
 		
-		const FVector LookAtDir = ParentTransform.GetLocation() - ChildTransform.GetLocation();
-		const FRotator LookAtRotation = LookAtDir.Rotation();
+		const FVector LookAtDir = (ParentTransform.GetLocation() - ChildTransform.GetLocation()).GetSafeNormal();
 
-		FTransform Transform = GetChildGlobalTransform();
-		Transform.SetRotation(LookAtRotation.Quaternion());
+		if (!LookAtDir.IsNearlyZero() && !Axis.IsNearlyZero())
+		{
+			const FVector AxisToOrient = ChildTransform.TransformVectorNoScale(Axis).GetSafeNormal();
 		
-		SetChildGlobalTransform(Transform);
+			FQuat Rotation = FindQuatBetweenNormals(AxisToOrient, LookAtDir);
+			Rotation = Rotation * ChildTransform.GetRotation();
+
+			FTransform Transform = ChildTransform;
+			Transform.SetRotation(Rotation.GetNormalized());
+			SetChildGlobalTransform(Transform);
+		}
 	};
 }
+
+FQuat UTickableLookAtConstraint::FindQuatBetweenNormals(const FVector& A, const FVector& B)
+{
+	const FQuat::FReal Dot = FVector::DotProduct(A, B);
+	FQuat::FReal W = 1 + Dot;
+	FQuat Result;
+
+	if (W < SMALL_NUMBER)
+	{
+		// A and B point in opposite directions
+		W = 2 - W;
+		Result = FQuat( -A.Y * B.Z + A.Z * B.Y, -A.Z * B.X + A.X * B.Z, -A.X * B.Y + A.Y * B.X, W).GetNormalized();
+
+		const FVector Normal = FMath::Abs(A.X) > FMath::Abs(A.Y) ? FVector::YAxisVector : FVector::XAxisVector;
+		const FVector BiNormal = FVector::CrossProduct(A, Normal);
+		const FVector TauNormal = FVector::CrossProduct(A, BiNormal);
+		Result = Result * FQuat(TauNormal, PI);
+	}
+	else
+	{
+		//Axis = FVector::CrossProduct(A, B);
+		Result = FQuat( A.Y * B.Z - A.Z * B.Y, A.Z * B.X - A.X * B.Z, A.X * B.Y - A.Y * B.X, W);
+	}
+
+	Result.Normalize();
+	return Result;
+};
 
 /** 
  * FTransformConstraintUtils
@@ -499,6 +740,7 @@ UTransformableComponentHandle* FTransformConstraintUtils::CreateHandleForSceneCo
 		ComponentHandle = NewObject<UTransformableComponentHandle>(Outer);
 		ComponentHandle->Component = InSceneComponent;
 		InSceneComponent->SetMobility(EComponentMobility::Movable);
+		ComponentHandle->RegisterDelegates();
 	}
 	return ComponentHandle;
 }
@@ -647,4 +889,48 @@ bool FTransformConstraintUtils::AddConstraint(
 	SetupConstraint(Constraint);
 
 	return true;
+}
+
+FTransform FTransformConstraintUtils::ComputeRelativeTransform(
+	const FTransform& InChildLocal,
+	const FTransform& InChildWorld,
+	const FTransform& InSpaceWorld,
+	const ETransformConstraintType InType)
+{
+	switch (InType)
+	{
+	case ETransformConstraintType::Translation:
+		{
+			FTransform RelativeTransform = InChildLocal;
+			RelativeTransform.SetLocation(InChildWorld.GetLocation() - InSpaceWorld.GetLocation());
+			return RelativeTransform;
+		}
+	case ETransformConstraintType::Rotation:
+		{
+			FTransform RelativeTransform = InChildLocal;
+			FQuat RelativeRotation = InSpaceWorld.GetRotation().Inverse() * InChildWorld.GetRotation();
+			RelativeRotation.Normalize();
+			RelativeTransform.SetRotation(RelativeRotation);
+			return RelativeTransform;
+		}
+	case ETransformConstraintType::Scale:
+		{
+			FTransform RelativeTransform = InChildLocal;
+			const FVector SpaceScale = InSpaceWorld.GetScale3D();
+			FVector RelativeScale = InChildWorld.GetScale3D();
+			RelativeScale[0] = FMath::Abs(SpaceScale[0]) > KINDA_SMALL_NUMBER ? RelativeScale[0] / SpaceScale[0] : 0.f;
+			RelativeScale[1] = FMath::Abs(SpaceScale[1]) > KINDA_SMALL_NUMBER ? RelativeScale[1] / SpaceScale[1] : 0.f;
+			RelativeScale[2] = FMath::Abs(SpaceScale[2]) > KINDA_SMALL_NUMBER ? RelativeScale[2] / SpaceScale[2] : 0.f;
+			RelativeTransform.SetScale3D(RelativeScale);
+			return RelativeTransform;
+		}
+	case ETransformConstraintType::Parent:
+		return InChildWorld.GetRelativeTransform(InSpaceWorld);
+	case ETransformConstraintType::LookAt:
+		return InChildLocal;
+	default:
+		break;
+	}
+	
+	return InChildWorld.GetRelativeTransform(InSpaceWorld);
 }

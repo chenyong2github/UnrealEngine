@@ -235,6 +235,7 @@ FReply SDroppableConstraintItem::OnDragDetected(const FGeometry& MyGeometry, con
 FReply SDroppableConstraintItem::CreateSelectionPicker() const
 {
 	// FIXME temp approach for selecting the parent
+	FSlateApplication::Get().DismissAllMenus();
 	
 	static const FActorPickerModeModule& ActorPickerMode = FModuleManager::Get().GetModuleChecked<FActorPickerModeModule>("ActorPickerMode");
 
@@ -245,7 +246,9 @@ FReply SDroppableConstraintItem::CreateSelectionPicker() const
 		FOnShouldFilterActor(), 
 		FOnActorSelected::CreateLambda([ConstraintsCreationWidget, ConstraintTypeCopy](AActor* InActor)
 		{
-			SDroppableConstraintItem::CreateConstraint(InActor, ConstraintsCreationWidget, ConstraintTypeCopy);
+			const FOnConstraintCreated CreationDelegate = ConstraintsCreationWidget.IsValid() ?
+				ConstraintsCreationWidget->OnConstraintCreated : FOnConstraintCreated();
+			SDroppableConstraintItem::CreateConstraint(InActor, CreationDelegate, ConstraintTypeCopy);
 		}) );
 
 	
@@ -254,7 +257,7 @@ FReply SDroppableConstraintItem::CreateSelectionPicker() const
 
 void SDroppableConstraintItem::CreateConstraint(
 	AActor* InParent,
-	TSharedPtr<SConstraintsCreationWidget> InCreationWidget,
+	FOnConstraintCreated InCreationDelegate,
 	const ETransformConstraintType InConstraintType)
 {
 	if (!InParent)
@@ -290,10 +293,9 @@ void SDroppableConstraintItem::CreateConstraint(
 	}
 
 	// update list
-	const bool bCreationBound = InCreationWidget.IsValid() ? InCreationWidget->OnConstraintCreated.IsBound() : false;
-	if (bCreated && bCreationBound)
+	if (bCreated && InCreationDelegate.IsBound())
 	{
-		InCreationWidget->OnConstraintCreated.Execute();
+		InCreationDelegate.Execute();
 	}
 }
 
@@ -571,6 +573,7 @@ void SConstraintsEditionWidget::Construct(const FArguments& InArgs)
 				.ListItemsSource( &ListItems )
 				.OnGenerateRow(this, &SConstraintsEditionWidget::OnGenerateWidgetForItem)
 				.OnContextMenuOpening(this, &SConstraintsEditionWidget::CreateContextMenu)
+				.OnMouseButtonDoubleClick(this, &SConstraintsEditionWidget::OnItemDoubleClicked)
 			]
 		]
 	];
@@ -848,11 +851,58 @@ TSharedPtr<SWidget> SConstraintsEditionWidget::CreateContextMenu()
 			}
 		})),
 		NAME_None,
+		
+		EUserInterfaceActionType::Button);
+		MenuBuilder.AddMenuEntry(
+		LOCTEXT("CompensateKeyLabel", "Compensate Key"),
+		FText::Format(LOCTEXT("CompensateKeyTooltip", "Compensate transform key for {0}."), FText::FromName(ListItems[Index]->Name)),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([Constraint]()
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+			{
+				FConstraintChannelHelper::Compensate(TransformConstraint);
+			}
+		})),
+		NAME_None,
+		EUserInterfaceActionType::Button);
+
+		MenuBuilder.AddMenuEntry(
+		LOCTEXT("CompensateAllKeysLabel", "Compensate All Keys"),
+		FText::Format(LOCTEXT("CompensateAllKeysTooltip", "Compensate all transform keys for {0}."), FText::FromName(ListItems[Index]->Name)),
+		FSlateIcon(),
+		FUIAction(FExecuteAction::CreateLambda([Constraint]()
+		{
+			if (UTickableTransformConstraint* TransformConstraint = Cast<UTickableTransformConstraint>(Constraint))
+			{
+				FConstraintChannelHelper::Compensate(TransformConstraint, true);
+			}
+		})),
+		NAME_None,
 		EUserInterfaceActionType::Button);
 	}
 	MenuBuilder.EndSection();
 
 	return MenuBuilder.MakeWidget();
+}
+
+void SConstraintsEditionWidget::OnItemDoubleClicked(ItemSharedPtr InItem)
+{
+	const int32 Index = ListItems.IndexOfByKey(InItem);
+	if (!ListItems.IsValidIndex(Index))
+	{
+		return;
+	}
+
+	UWorld* World = GCurrentLevelEditingViewportClient->GetWorld();
+	const FConstraintsManagerController& Controller = FConstraintsManagerController::Get(World);
+	UTickableConstraint* Constraint = Controller.GetConstraint(InItem->Name);
+	if (!Constraint)
+	{
+		return;
+	}
+
+	Constraint->SetActive(!Constraint->Active);
 }
 
 END_SLATE_FUNCTION_BUILD_OPTIMIZATION
