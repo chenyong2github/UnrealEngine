@@ -50,22 +50,64 @@ void FOptimusDataTypeRefCustomization::CustomizeHeader(
 	IPropertyTypeCustomizationUtils& InCustomizationUtils
 	)
 {
-	EOptimusDataTypeUsageFlags UsageMask = EOptimusDataTypeUsageFlags::None;
+	// Usage mask can change on a per-instance basis when the multi-level data domain field changes in a shader parameter binding
+	auto GetUsageMask = [InPropertyHandle]()
+	{
+		EOptimusDataTypeUsageFlags UsageMask = EOptimusDataTypeUsageFlags::None;
 	
-	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInResource"))))
-	{
-		UsageMask |= EOptimusDataTypeUsageFlags::Resource;
-	}
-	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInVariable"))))
-	{
-		UsageMask |= EOptimusDataTypeUsageFlags::Variable;
-	}
-	if (InPropertyHandle->HasMetaData(FName(TEXT("UseInAnimAttribute"))))
-	{
-		UsageMask |= EOptimusDataTypeUsageFlags::AnimAttributes;
-	}
+		if (InPropertyHandle->HasMetaData(FName(TEXT("UseInResource"))))
+		{
+			UsageMask |= EOptimusDataTypeUsageFlags::Resource;
+		}
+		if (InPropertyHandle->HasMetaData(FName(TEXT("UseInVariable"))))
+		{
+			UsageMask |= EOptimusDataTypeUsageFlags::Variable;
+		}
+		if (InPropertyHandle->HasMetaData(FName(TEXT("UseInAnimAttribute"))))
+		{
+			UsageMask |= EOptimusDataTypeUsageFlags::AnimAttributes;
+		}
+
+		if (const FString* InstanceMetaData = InPropertyHandle->GetInstanceMetaData(FName(TEXT("UseInResource"))))
+		{
+			if (*InstanceMetaData == "True")
+			{
+				UsageMask |= EOptimusDataTypeUsageFlags::Resource;
+			}
+			else
+			{
+				UsageMask &= ~EOptimusDataTypeUsageFlags::Resource;
+			}
+		}
+		if (const FString* InstanceMetaData = InPropertyHandle->GetInstanceMetaData(FName(TEXT("UseInVariable"))))
+		{
+			if (*InstanceMetaData == "True")
+			{
+				UsageMask |= EOptimusDataTypeUsageFlags::Variable;
+			}
+			else
+			{
+				UsageMask &= ~EOptimusDataTypeUsageFlags::Variable;
+			}
+		}
+		if (const FString* InstanceMetaData = InPropertyHandle->GetInstanceMetaData(FName(TEXT("UseInAnimAttribute"))))
+		{
+			if (*InstanceMetaData == "True")
+			{
+				UsageMask |= EOptimusDataTypeUsageFlags::AnimAttributes;
+			}
+			else
+			{
+				UsageMask &= ~EOptimusDataTypeUsageFlags::AnimAttributes;
+			}
+		}
+		
+		return UsageMask;
+	};
+
 
 	TypeNameProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDataTypeRef, TypeName));
+	TypeObjectProperty = InPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusDataTypeRef, TypeObject));
 
 	InHeaderRow
 	.NameContent()
@@ -76,7 +118,7 @@ void FOptimusDataTypeRefCustomization::CustomizeHeader(
 	[
 		SNew(SOptimusDataTypeSelector)
 		.CurrentDataType(this, &FOptimusDataTypeRefCustomization::GetCurrentDataType)
-		.UsageMask(UsageMask)
+		.UsageMask_Lambda(GetUsageMask)
 		.Font(InCustomizationUtils.GetRegularFont())
 		.OnDataTypeChanged(this, &FOptimusDataTypeRefCustomization::OnDataTypeChanged)
 	];
@@ -116,10 +158,22 @@ FOptimusDataTypeHandle FOptimusDataTypeRefCustomization::GetCurrentDataType() co
 }
 
 
+
 void FOptimusDataTypeRefCustomization::OnDataTypeChanged(FOptimusDataTypeHandle InDataType)
 {
+	if (!InDataType.IsValid())
+	{
+		// Do not accept invalid input
+		return;
+	}
 	FScopedTransaction Transaction(LOCTEXT("SetDataType", "Set Data Type"));
 	CurrentDataType = InDataType;
+	
+	// We have to change the object property first
+	// because by the time we change the type name,
+	// owner of the property might use the data type ref to construct the default value container, 
+	// at which point we have to make sure the type ref is complete
+	TypeObjectProperty->SetValue(InDataType.IsValid() ? InDataType->TypeObject.Get() : nullptr);
 	TypeNameProperty->SetValue(InDataType.IsValid() ? InDataType->TypeName : NAME_None);
 }
 
@@ -268,6 +322,11 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 		}
 		return bItemsAreAllSame;
 	};
+
+	TArray<FName> CurrentValue;
+	TryGetSingleValue(CurrentValue);
+	// Broadcast for the initial value, so that outer detail customization can adjust the usage flags accordingly
+	OnMultiLevelDataDomainChangedDelegate.Broadcast(CurrentValue);
 	
 	InHeaderRow.NameContent()
 	[
@@ -288,7 +347,7 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 					.Text(FormatNames(*InNames))
 					.Font(InNames->IsEmpty() ? IPropertyTypeCustomizationUtils::GetBoldFont() : IPropertyTypeCustomizationUtils::GetRegularFont());
 			})
-			.OnSelectionChanged_Lambda([InPropertyHandle](TSharedPtr<TArray<FName>> InNames, ESelectInfo::Type)
+			.OnSelectionChanged_Lambda([InPropertyHandle, this](TSharedPtr<TArray<FName>> InNames, ESelectInfo::Type)
 			{
 				FScopedTransaction Transaction(LOCTEXT("SetResourceContexts", "Set Resource Contexts"));
 				// Ideally we'd like to match up the raw data with the outers, but I'm not
@@ -311,6 +370,7 @@ void FOptimusMultiLevelDataDomainCustomization::CustomizeHeader(
 				}
 
 				InPropertyHandle->NotifyPostChange(EPropertyChangeType::ValueSet);
+				OnMultiLevelDataDomainChangedDelegate.Broadcast(*InNames.Get());
 			})
 			[
 				SNew(STextBlock)
@@ -479,7 +539,7 @@ public:
 		BindingPropertyHandle = InBindingPropertyHandle;
 		CustomizationUtils = &InCustomizationUtils;
 		
-		const TSharedPtr<IPropertyHandle> DataTypeProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, DataType));
+		TSharedPtr<IPropertyHandle> DataTypeProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, DataType));
 		const TSharedPtr<IPropertyHandle> DataDomainProperty = BindingPropertyHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FOptimusParameterBinding, DataDomain));	
 	
 		FDetailWidgetRow DataTypeHeaderRow;
@@ -488,6 +548,22 @@ public:
 
 		FDetailWidgetRow DataDomainHeaderRow;
 		DataDomainCustomizationInstance = FOptimusMultiLevelDataDomainCustomization::MakeInstance();
+		StaticCastSharedPtr<FOptimusMultiLevelDataDomainCustomization>(DataDomainCustomizationInstance)
+			->OnMultiLevelDataDomainChangedDelegate.AddLambda([DataTypeProperty](const TArray<FName>& InDataDomain)
+			{
+				if (InDataDomain.IsEmpty())
+				{
+					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInAnimAttribute")), TEXT("True"));
+					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInVariable")), TEXT("True"));
+					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInResource")), TEXT("False"));
+				}
+				else
+				{
+					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInAnimAttribute")), TEXT("False"));
+					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInVariable")), TEXT("False"));
+					DataTypeProperty->SetInstanceMetaData(FName(TEXT("UseInResource")), TEXT("True"));
+				}
+			});
 		DataDomainCustomizationInstance->CustomizeHeader(DataDomainProperty.ToSharedRef(), DataDomainHeaderRow, InCustomizationUtils);
 		
 		ColumnSizeData = MakeShared<FOptimusParameterBindingCustomization::FColumnSizeData>();
@@ -654,7 +730,14 @@ void FOptimusParameterBindingCustomization::CustomizeChildren(
 				// During drag & reorder, we can have invalid bindings in the property
 				if (Binding->Name != NAME_None)
 				{
-					Declaration = BindingProvider->GetBindingDeclaration(Binding->Name);
+					if (Binding->DataType->ShaderValueType.IsValid())
+					{
+						Declaration = BindingProvider->GetBindingDeclaration(Binding->Name);
+					}
+					else
+					{
+						Declaration = FString::Printf(TEXT("Type is not supported"));
+					}
 				}
 			}
 			break;

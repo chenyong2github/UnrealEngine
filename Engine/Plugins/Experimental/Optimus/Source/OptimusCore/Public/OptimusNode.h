@@ -44,7 +44,7 @@ public:
 	};
 public:
 	UOptimusNode();
-
+	virtual ~UOptimusNode();
 	/** 
 	 * Returns the node class category. This is used for categorizing the node for display.
 	 * @return The node class category.
@@ -195,6 +195,8 @@ protected:
 	virtual void ConstructNode();
 
 	void EnableDynamicPins();
+
+	virtual void OnDataTypeChanged(FName InTypeName) {};
 
 	UOptimusNodePin* AddPin(
 		FName InName,

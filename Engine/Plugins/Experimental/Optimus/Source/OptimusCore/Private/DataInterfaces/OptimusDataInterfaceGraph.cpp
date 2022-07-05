@@ -15,11 +15,17 @@ void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> c
 	Variables = InVariables;
 
 	FShaderParametersMetadataBuilder Builder;
+	TArray<FShaderParametersMetadata*> AllocatedStructMetadatas;
+	TArray<FShaderParametersMetadata*> NestedStructMetadatas; 
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		Optimus::AddParamForType(Builder, *Variable.Name, Variable.ValueType);
+		Optimus::AddParamForType(Builder, *Variable.Name, Variable.ValueType, NestedStructMetadatas);
 	}
-	TSharedPtr<FShaderParametersMetadata> ShaderParameterMetadata(Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UGraphDataInterface")));
+	
+	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UGraphDataInterface"));
+	AllocatedStructMetadatas.Add(ShaderParameterMetadata);
+	AllocatedStructMetadatas.Append(NestedStructMetadatas);
+	
 
 	TArray<FShaderParametersMetadata::FMember> const& Members = ShaderParameterMetadata->GetMembers();
 	for (int32 VariableIndex = 0; VariableIndex < Variables.Num(); ++VariableIndex)
@@ -29,6 +35,11 @@ void UOptimusGraphDataInterface::Init(TArray<FOptimusGraphVariableDescription> c
 	}
 
 	ParameterBufferSize = ShaderParameterMetadata->GetSize();
+
+	for (const FShaderParametersMetadata* AllocatedData : AllocatedStructMetadatas)
+	{
+		delete AllocatedData;
+	}
 }
 
 void UOptimusGraphDataInterface::GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const
@@ -46,14 +57,16 @@ void UOptimusGraphDataInterface::GetShaderParameters(TCHAR const* UID, FShaderPa
 {
 	// Build metadata nested structure containing all variables.
 	FShaderParametersMetadataBuilder Builder;
+	TArray<FShaderParametersMetadata*> NestedStructs;
 	for (FOptimusGraphVariableDescription const& Variable : Variables)
 	{
-		Optimus::AddParamForType(Builder, *Variable.Name, Variable.ValueType);
+		Optimus::AddParamForType(Builder, *Variable.Name, Variable.ValueType, NestedStructs);
 	}
 
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UGraphDataInterface"));
 	// Add the metadata to InOutAllocations so that it is released when we are done.
 	InOutAllocations.ShaderParameterMetadatas.Add(ShaderParameterMetadata);
+	InOutAllocations.ShaderParameterMetadatas.Append(NestedStructs);
 
 	// Add the generated nested struct to our builder.
 	InOutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);

@@ -6,12 +6,15 @@
 #include "OptimusDataTypeRegistry.h"
 #include "OptimusHelpers.h"
 #include "OptimusValueContainer.h"
+#include "RenderGraphBuilder.h"
+#include "RenderGraphResources.h"
 
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ComputeFramework/ShaderParameterMetadataAllocation.h"
 #include "Animation/BuiltInAttributeTypes.h"
 #include "Components/SkeletalMeshComponent.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "Engine/UserDefinedStruct.h"
 
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
@@ -132,20 +135,28 @@ void UOptimusAnimAttributeDataInterface::PostEditChangeChainProperty(FPropertyCh
 	}
 	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayAdd)
 	{
-		const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray));
-		FOptimusAnimAttributeDescription& Attribute = AttributeArray[ChangedIndex];
-		
-		// Default to a float attribute
-		Attribute.Init(this, GetUnusedAttributeName(TEXT("EmptyName")), NAME_None,
-			FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass()));
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray))
+		{
+			const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray));
+			FOptimusAnimAttributeDescription& Attribute = AttributeArray[ChangedIndex];
+			
+			// Default to a float attribute
+			Attribute.Init(this, GetUnusedAttributeName(TEXT("EmptyName")), NAME_None,
+				FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass()));
+		}
 	}
 	else if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Duplicate)
 	{
-		const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray));
-		FOptimusAnimAttributeDescription& Attribute = AttributeArray[ChangedIndex];
-		
-		Attribute.Name = GetUnusedAttributeName(Attribute.Name);
-		Attribute.UpdatePinNameAndHlslId();
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray))
+		{	
+			const int32 ChangedIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray));
+			FOptimusAnimAttributeDescription& Attribute = AttributeArray[ChangedIndex];
+			
+			Attribute.Name = GetUnusedAttributeName(Attribute.Name);
+			Attribute.UpdatePinNameAndHlslId();
+
+			Attribute.DefaultValue = DuplicateObject(Attribute.DefaultValue, this);
+		}
 	}
 }
 #endif
@@ -183,16 +194,18 @@ void UOptimusAnimAttributeDataInterface::GetSupportedInputs(TArray<FShaderFuncti
 void UOptimusAnimAttributeDataInterface::GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const
 {
 	FShaderParametersMetadataBuilder Builder;
-
+	
+	TArray<FShaderParametersMetadata*> NestedStructs;
 	for (int32 Index = 0; Index < AttributeArray.Num(); Index++)
 	{
 		const FOptimusAnimAttributeDescription& Attribute = AttributeArray[Index];
-		Optimus::AddParamForType(Builder, *Attribute.HlslId, Attribute.DataType->ShaderValueType);
+		Optimus::AddParamForType(Builder, *Attribute.HlslId, Attribute.DataType->ShaderValueType, NestedStructs);
 	}
 
 	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UAnimAttributeDataInterface"));
 
 	InOutAllocations.ShaderParameterMetadatas.Add(ShaderParameterMetadata);
+	InOutAllocations.ShaderParameterMetadatas.Append(NestedStructs);
 
 	// Add the generated nested struct to our builder.
 	InOutBuilder.AddNestedStruct(UID, ShaderParameterMetadata);
@@ -208,19 +221,144 @@ void UOptimusAnimAttributeDataInterface::GetHLSL(FString& OutHLSL) const
 		const FOptimusAnimAttributeDescription& Attribute = AttributeArray[Index];
 
 		const FString TypeName = Attribute.DataType->ShaderValueType->ToString();
+		const bool bIsStruct = Attribute.DataType->ShaderValueType->Type == EShaderFundamentalType::Struct;
 
 		if (ensure(!TypeName.IsEmpty()))
 		{
-			// Add uniforms.
-			OutHLSL += FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *TypeName, *Attribute.HlslId);
+			if (!bIsStruct)
+			{
+				// Add uniforms.
+				OutHLSL += FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *TypeName, *Attribute.HlslId);
+					
+				// Add function getters.
+				OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"),
+					*Attribute.HlslId,
+					*TypeName,
+					*Attribute.HlslId);
+			}
+			else if (bIsStruct)
+			{
+				struct FStructParser 
+				{
+					void WalkStruct(FShaderValueTypeHandle ShaderValueTypeHandle, const TArray<FString>& InPrefix)
+					{
+						const TArray<FShaderValueType::FStructElement>& StructElements =
+							ShaderValueTypeHandle->StructElements;
+
+						for (const FShaderValueType::FStructElement& StructElement : StructElements)
+						{
+							FString ElementName = StructElement.Name.ToString();
+
+							TArray<FString> NewPrefix = InPrefix;
+							NewPrefix.Add(ElementName);
+							
+							FString ElementHlslId = FString::Join(NewPrefix, TEXT("_"));
+							FString ElementAccessor = FString::Join(NewPrefix, TEXT("."));
+							
+							if (StructElement.Type->Type == EShaderFundamentalType::Struct && !StructElement.Type->bIsDynamicArray)
+							{
+								WalkStruct(StructElement.Type, NewPrefix);
+							}
+							else
+							{
+								FString ElementType = StructElement.Type.ValueTypePtr->ToString();
+
+								// Add uniforms.
+								MemberHlsl.Add(FString::Printf(TEXT("%s DI_LOCAL(%s);\n"), *ElementType, *ElementHlslId));
+						
+								// Add function getters.
+								MemberHlsl.Add(FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"),
+									*ElementHlslId,
+									*ElementType,
+									*ElementHlslId));
+
+								StructMemberCopyHlsl.Add(FString::Printf(TEXT("%s = DI_LOCAL(%s);\n"), *ElementAccessor, *ElementHlslId));	
+							}
+						}
+					}
+
+					// Top level Hlsl code for flattened list of struct members, they are shown as structname_membername1_....
+					TArray<FString> MemberHlsl;
+					// Statements to copy the list of struct members into a local struct that user can access in a struct-like manner
+					TArray<FString> StructMemberCopyHlsl;
+				};
+			
+				FStructParser Parser;
 				
-			// Add function getters.
-			OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n{\n\treturn DI_LOCAL(%s);\n}\n"),
-				*Attribute.HlslId,
-				*TypeName,
-				*Attribute.HlslId);
+				Parser.WalkStruct(Attribute.DataType->ShaderValueType, {Attribute.HlslId});
+
+				// Top level Hlsl code for flattened list of struct members
+				for (const FString& MemberHlslString : Parser.MemberHlsl)
+				{
+					OutHLSL += MemberHlslString;
+				}
+				
+				// Add final user facing struct getters.
+				OutHLSL += FString::Printf(TEXT("DI_IMPL_READ(Read%s, %s, )\n"),
+					*Attribute.HlslId,
+					*TypeName);
+				
+				OutHLSL += FString::Printf(TEXT("{\n"));
+
+				// Declare a local struct
+				OutHLSL += FString::Printf(TEXT("\t%s %s;\n"), *TypeName, *Attribute.HlslId);
+
+				// Copy each member from their flattened form into the local struct
+				for (const FString& CopyHlsl : Parser.StructMemberCopyHlsl)
+				{
+					OutHLSL += TEXT("\t") + CopyHlsl;
+				}
+				
+				// Return the local struct for easy user access
+				OutHLSL += FString::Printf(TEXT("\treturn %s;\n"), *Attribute.HlslId);
+				
+				OutHLSL += FString::Printf(TEXT("}\n"));
+			}
 		}
 	}
+}
+
+void UOptimusAnimAttributeDataInterface::GetStructDeclarations(TSet<FString>& OutStructsSeen,
+	TArray<FString>& OutStructs) const
+{
+	Super::GetStructDeclarations(OutStructsSeen, OutStructs);
+
+	auto CollectStructs = [&OutStructsSeen, &OutStructs](const FOptimusAnimAttributeArray& InAttributeArray)
+	{
+		for (const FOptimusAnimAttributeDescription &Attribute: InAttributeArray)
+		{
+			const FShaderValueType& ValueType = *Attribute.DataType->ShaderValueType;
+			if (ValueType.Type == EShaderFundamentalType::Struct)
+			{
+				// Collect all unique types used in this type
+				TArray<FShaderValueTypeHandle> StructTypes = Attribute.DataType->ShaderValueType->GetMemberStructTypes();
+				StructTypes.Add(Attribute.DataType->ShaderValueType);
+
+				for (const FShaderValueTypeHandle& TypeHandle : StructTypes )
+				{
+					const FString StructName = TypeHandle->ToString();
+					if (!OutStructsSeen.Contains(StructName))
+					{
+						// Add their declaration from the inner most struct to outer most ones
+						OutStructs.Add(TypeHandle->GetTypeDeclaration() + TEXT(";\n\n"));
+						OutStructsSeen.Add(StructName);
+					}	
+				}
+			}
+		}
+	};
+
+	CollectStructs(AttributeArray);
+}
+
+void UOptimusAnimAttributeDataInterface::GetShaderHash(FString& InOutKey) const
+{
+	FSHA1 HashState;
+	FString HLSL;
+	GetHLSL(HLSL);
+	
+	HashState.UpdateWithString(*HLSL, HLSL.Len());
+	HashState.Finalize().AppendString(InOutKey);
 }
 
 UComputeDataProvider* UOptimusAnimAttributeDataInterface::CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const
@@ -261,6 +399,7 @@ void UOptimusAnimAttributeDataInterface::RecreateValueContainers()
 			
 			UOptimusValueContainer* NewContainer = UOptimusValueContainer::MakeValueContainer(this,Attribute.DefaultValue->GetValueType());
 
+			// Load container data into the new container
 			{
 				FMemoryReader ContainerArchive(ContainerData);
 				FObjectAndNameAsStringProxyArchive ContainerProxyArchive(
@@ -268,16 +407,19 @@ void UOptimusAnimAttributeDataInterface::RecreateValueContainers()
 				NewContainer->SerializeScriptProperties(ContainerProxyArchive);
 			}
 
-			// Load container data into the new container
-			TArray<uint8> ContainerData2;	
-			{
-				FMemoryWriter ContainerArchive(ContainerData2);
-				FObjectAndNameAsStringProxyArchive ContainerProxyArchive(
-						ContainerArchive, /* bInLoadIfFindFails=*/ false);
-				NewContainer->SerializeScriptProperties(ContainerProxyArchive);
-			}
-
 			Attribute.DefaultValue = NewContainer;
+		}
+	}
+}
+
+void UOptimusAnimAttributeDataInterface::OnDataTypeChanged(FName InDataType)
+{
+	for (FOptimusAnimAttributeDescription& AttributeDescription : AttributeArray)
+	{
+		if (AttributeDescription.DataType.TypeName == InDataType)
+		{
+			AttributeDescription.DefaultValue =
+				UOptimusValueContainer::MakeValueContainer(this, AttributeDescription.DataType);
 		}
 	}
 }
@@ -368,15 +510,23 @@ FOptimusAnimAttributeRuntimeData::FOptimusAnimAttributeRuntimeData(
 {
 	Name = *InDescription.Name;
 	BoneName = InDescription.BoneName;
-	DataType = InDescription.DataType;
+	CachedBoneIndex = 0;
+	
+	Offset = 0;
+	Size = InDescription.DataType->ShaderValueSize;
 
-	if (ensure(InDescription.DefaultValue->GetValueType() == DataType))
+	const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
+
+	ConvertFunc = Registry.FindPropertyValueConvertFunc(InDescription.DataType.TypeName);
+
+	ArrayMetadata = Registry.FindArrayMetadata(InDescription.DataType.TypeName);
+
+	AttributeType = Registry.FindAttributeType(InDescription.DataType.TypeName);
+
+	if (ensure(InDescription.DefaultValue->GetValueType() == InDescription.DataType))
 	{
 		CachedDefaultValue = InDescription.DefaultValue->GetShaderValue();
 	}
-
-	Offset = 0;
-	CachedBoneIndex = 0;
 }
 
 void UOptimusAnimAttributeDataProvider::Init(
@@ -413,26 +563,39 @@ void UOptimusAnimAttributeDataProvider::Init(
 	// Compute offset within the shader parameter buffer for each attribute
 	FShaderParametersMetadataBuilder Builder;
 
+	TArray<FShaderParametersMetadata*> AllocatedMetadatas;
+	TArray<FShaderParametersMetadata*> NestedStructs;
 	for (FOptimusAnimAttributeDescription& Attribute : InAttributeArray)
 	{
-		Optimus::AddParamForType(Builder, *Attribute.Name, Attribute.DataType->ShaderValueType);
+		Optimus::AddParamForType(Builder, *Attribute.Name, Attribute.DataType->ShaderValueType, NestedStructs);
 	}
 
-	const FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UAnimAttributeDataInterface"));
+	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("UAnimAttributeDataInterface"));
+	AllocatedMetadatas.Add(ShaderParameterMetadata);
+	AllocatedMetadatas.Append(NestedStructs);
 
-	// Similar to UOptimusGraphDataInterface
+	TotalNumArrays = 0;
 	TArray<FShaderParametersMetadata::FMember> const& Members = ShaderParameterMetadata->GetMembers();
 	for (int32 Index = 0; Index < AttributeRuntimeData.Num(); ++Index)
 	{
-		check(AttributeRuntimeData[Index].Name == Members[Index].GetName());
-		AttributeRuntimeData[Index].Offset = Members[Index].GetOffset();
+		FOptimusAnimAttributeRuntimeData& RuntimeData = AttributeRuntimeData[Index];
+		check(RuntimeData.Name == Members[Index].GetName());
+		
+		RuntimeData.Offset = Members[Index].GetOffset();
+
+		if (RuntimeData.ArrayMetadata)
+		{
+			RuntimeData.ArrayIndexStart = TotalNumArrays;
+			TotalNumArrays += RuntimeData.ArrayMetadata->Num();
+		}
 	}
 
-	// Total Buffer size, used for validation
 	AttributeBufferSize = ShaderParameterMetadata->GetSize();
 
-	// Pre-allocate memory for attribute values
-	AttributeBuffer.AddDefaulted(AttributeBufferSize);
+	for (const FShaderParametersMetadata* AllocatedMetaData : AllocatedMetadatas)
+	{
+		delete AllocatedMetaData;
+	}
 }
 
 bool UOptimusAnimAttributeDataProvider::IsValid() const
@@ -442,90 +605,119 @@ bool UOptimusAnimAttributeDataProvider::IsValid() const
 
 FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderProxy()
 {
-	// AttributeBuffer should have been allocated in UOptimusAnimAttributeDataProvider::Init
-	check(AttributeBuffer.Num() == AttributeBufferSize);
+	FOptimusAnimAttributeDataProviderProxy* Proxy = new FOptimusAnimAttributeDataProviderProxy(AttributeBufferSize, TotalNumArrays);
+	
+	const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
 	
 	const UE::Anim::FMeshAttributeContainer& AttributeContainer = SkeletalMesh->GetCustomAttributes();
 	
 	for (int32 Index = 0; Index < AttributeRuntimeData.Num(); ++Index)
 	{
 		const FOptimusAnimAttributeRuntimeData& AttributeData = AttributeRuntimeData[Index];
+
+		for (int32 ArrayIndex = 0; AttributeData.ArrayMetadata && ArrayIndex < AttributeData.ArrayMetadata->Num(); ArrayIndex++)
+		{
+			int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
+			const FOptimusDataTypeRegistry::FArrayMetadata& Metadata = (*AttributeData.ArrayMetadata)[ArrayIndex];
+			if (ensure(Proxy->AttributeArrayMetadata.IsValidIndex(ToplevelArrayIndex)))
+			{
+				Proxy->AttributeArrayMetadata[ToplevelArrayIndex].Offset = AttributeData.Offset + Metadata.ShaderValueOffset;
+				Proxy->AttributeArrayMetadata[ToplevelArrayIndex].ElementSize = Metadata.ElementShaderValueSize;
+			}
+		}
+
 		const UE::Anim::FAttributeId Id = {AttributeData.Name, FCompactPoseBoneIndex(AttributeData.CachedBoneIndex)} ;
-		const int32 Offset = AttributeData.Offset;
-				
-		bool bIsSupportedType = false;
+
 		bool bIsValueSet = false;
+		
+		FOptimusDataTypeRegistry::PropertyValueConvertFuncT ConvertFunc = AttributeData.ConvertFunc;
 
-		const FShaderValueType& ShaderValueType = *AttributeData.DataType->ShaderValueType;
+		if (ConvertFunc)
+		{
+			UScriptStruct* AttributeType = AttributeData.AttributeType;
+		
+			if (const uint8* Attribute = AttributeContainer.Find(AttributeType, Id))
+			{
+				bIsValueSet = true;
+				
+				const uint8* ValuePtr = Attribute;
+				int32 ValueSize = AttributeType->GetStructureSize();
 
-		if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Int))
-		{
-			bIsSupportedType = true;
-			if (const FIntegerAnimationAttribute* Attribute = AttributeContainer.Find<FIntegerAnimationAttribute>(Id))
-			{
-				bIsValueSet = true;
-				*((int32*)(&AttributeBuffer[Offset])) = Attribute->Value;
+				// TODO: use a specific function to extract the value from the attribute
+				// it works for now because even if the attribute type != actual value type
+				// it should only have a single property, whose type == actual property type
+				
+				ConvertFunc(
+					{ValuePtr, ValueSize},
+					{
+						{Proxy->AttributeBuffer.GetData() + AttributeData.Offset, AttributeData.Size},
+						{Proxy->AttributeArrayData.GetData() + AttributeData.ArrayIndexStart, AttributeData.ArrayMetadata->Num()}	
+					});
 			}
-		}
-		else if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Float))
-		{
-			bIsSupportedType = true;
-			if (const FFloatAnimationAttribute* Attribute = AttributeContainer.Find<FFloatAnimationAttribute>(Id))
+		
+			// Use the default value if the attribute was not found
+			if (!bIsValueSet)
 			{
-				bIsValueSet = true;
-				*((float*)(&AttributeBuffer[Offset])) = Attribute->Value;
-			}
-		}
-		else if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4))
-		{
-			bIsSupportedType = true;
-			if (const FTransformAnimationAttribute* Attribute = AttributeContainer.Find<FTransformAnimationAttribute>(Id))
-			{
-				bIsValueSet = true;
-				*((FMatrix44f*)(&AttributeBuffer[Offset])) = Optimus::ConvertFTransformToFMatrix44f(Attribute->Value);
-			}
-		}
-		else if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Float, 3))
-		{
-			bIsSupportedType = true;
-			if (const FVectorAnimationAttribute* Attribute = AttributeContainer.Find<FVectorAnimationAttribute>(Id))
-			{
-				bIsValueSet = true;
-				*((FVector3f*)(&AttributeBuffer[Offset])) = FVector3f(Attribute->Value);
-			}
-		}
-		else if (ShaderValueType == *FShaderValueType::Get(EShaderFundamentalType::Float, 4))
-		{
-			bIsSupportedType = true;
-			if (const FQuaternionAnimationAttribute* Attribute = AttributeContainer.Find<FQuaternionAnimationAttribute>(Id))
-			{
-				bIsValueSet = true;
-				*((FQuat4f*)(&AttributeBuffer[Offset])) = FQuat4f(Attribute->Value);
-			}
-		}
+				const uint8* DefaultValuePtr = AttributeData.CachedDefaultValue.ShaderValue.GetData();
+				const uint32 DefaultValueSize = AttributeData.CachedDefaultValue.ShaderValue.Num();
 
-		// Use the default value if the attribute was not found
-		if (bIsSupportedType && !bIsValueSet)
-		{
-			const uint8* DefaultValuePtr = AttributeData.CachedDefaultValue.GetData();
-			const uint32 DefaultValueSize = AttributeData.CachedDefaultValue.Num();
-			FMemory::Memcpy(&AttributeBuffer[AttributeData.Offset], DefaultValuePtr, DefaultValueSize);
-		}	
+				FMemory::Memcpy(&Proxy->AttributeBuffer[AttributeData.Offset], DefaultValuePtr, DefaultValueSize);
+
+				if (ensure(AttributeData.ArrayMetadata->Num() == AttributeData.CachedDefaultValue.ArrayList.Num()))
+				{
+					for (int32 ArrayIndex = 0; ArrayIndex < AttributeData.CachedDefaultValue.ArrayList.Num(); ArrayIndex++)
+					{
+						const int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
+						if (ensure(Proxy->AttributeArrayData.IsValidIndex(ToplevelArrayIndex)))
+						{
+							Proxy->AttributeArrayData[ToplevelArrayIndex] = AttributeData.CachedDefaultValue.ArrayList[ArrayIndex];
+						}
+					}
+				}
+			}
+		}
 	}
 	
-	return new FOptimusAnimAttributeDataProviderProxy(AttributeBuffer, AttributeBufferSize);
+	return Proxy;
 }
 
-FOptimusAnimAttributeDataProviderProxy::FOptimusAnimAttributeDataProviderProxy(TArray<uint8> InAttributeBuffer,
-	int32 InAttributeBufferSize) :
-	AttributeBuffer(InAttributeBuffer) ,
-	AttributeBufferSize(InAttributeBufferSize)
+FOptimusAnimAttributeDataProviderProxy::FOptimusAnimAttributeDataProviderProxy(
+	int32 InAttributeBufferSize,
+	int32 InTotalNumArrays)
 {
+	AttributeBuffer.AddDefaulted(InAttributeBufferSize);
+	AttributeArrayMetadata.AddDefaulted(InTotalNumArrays);
+	AttributeArrayData.AddDefaulted(InTotalNumArrays);
+}
+
+void FOptimusAnimAttributeDataProviderProxy::AllocateResources(FRDGBuilder& GraphBuilder)
+{
+	FComputeDataProviderRenderProxy::AllocateResources(GraphBuilder);
+
+	ArrayBuffers.Reset();
+	ArrayBufferSRVs.Reset();
+
+	if (ensure(AttributeArrayData.Num() == AttributeArrayMetadata.Num()))
+	{
+		for (int32 ArrayIndex = 0; ArrayIndex < AttributeArrayMetadata.Num(); ArrayIndex++)
+		{
+			const FArrayMetadata& ArrayMetadata = AttributeArrayMetadata[ArrayIndex];
+			const TArray<uint8>& ArrayData = AttributeArrayData[ArrayIndex];
+			
+			ArrayBuffers.Add(
+				GraphBuilder.CreateBuffer(
+					FRDGBufferDesc::CreateStructuredDesc(
+						ArrayMetadata.ElementSize,
+						FMath::Max(ArrayData.Num() / ArrayMetadata.ElementSize, 1)), TEXT("Optimus.AnimAttributeInnerBuffer")));
+			ArrayBufferSRVs.Add(GraphBuilder.CreateSRV(ArrayBuffers.Last()));
+			GraphBuilder.QueueBufferUpload(ArrayBuffers.Last(), ArrayData.GetData(), ArrayData.Num(), ERDGInitialDataFlags::None);	
+		}
+	}
 }
 
 void FOptimusAnimAttributeDataProviderProxy::GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData)
 {
-	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == AttributeBufferSize))
+	if (!ensure(InDispatchSetup.ParameterStructSizeForValidation == AttributeBuffer.Num()))
 	{
 		return;
 	}
@@ -535,5 +727,15 @@ void FOptimusAnimAttributeDataProviderProxy::GatherDispatchData(FDispatchSetup c
 		uint8* ParameterBuffer = (InOutDispatchData.ParameterBuffer + InDispatchSetup.ParameterBufferOffset + InDispatchSetup.ParameterBufferStride * InvocationIndex);
 		
 		FMemory::Memcpy(ParameterBuffer, AttributeBuffer.GetData(), InDispatchSetup.ParameterStructSizeForValidation);
+
+		if (ensure(AttributeArrayData.Num() == AttributeArrayMetadata.Num()))
+		{
+			for (int32 ArrayIndex = 0; ArrayIndex < AttributeArrayMetadata.Num(); ArrayIndex++)
+			{
+				const FArrayMetadata& ArrayMetadata = AttributeArrayMetadata[ArrayIndex];
+
+				*((FRDGBufferSRV**)(ParameterBuffer + ArrayMetadata.Offset)) = ArrayBufferSRVs[ArrayIndex];
+			}
+		}
 	}
 }

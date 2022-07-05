@@ -4,12 +4,16 @@
 
 #include "OptimusComputeDataInterface.h"
 #include "OptimusDataType.h"
+#include "OptimusDataTypeRegistry.h"
 #include "ComputeFramework/ComputeDataProvider.h"
 
 #include "OptimusDataInterfaceAnimAttribute.generated.h"
 
 class USkeletalMeshComponent;
 class UOptimusValueContainer;
+class FRDGBuilder;
+class FRDGBuffer;
+class FRDGBufferSRV;
 
 USTRUCT()
 struct FOptimusAnimAttributeDescription
@@ -118,6 +122,8 @@ public:
 	virtual void GetSupportedInputs(TArray<FShaderFunctionDefinition>& OutFunctions) const override;
 	void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const override;
 	void GetHLSL(FString& OutHLSL) const override;
+	void GetStructDeclarations(TSet<FString>& OutStructsSeen, TArray<FString>& OutStructs) const override;
+	void GetShaderHash(FString& InOutKey) const override;
 	UComputeDataProvider* CreateDataProvider(TObjectPtr<UObject> InBinding, uint64 InInputMask, uint64 InOutputMask) const override;
 	//~ End UComputeDataInterface Interface
 
@@ -126,6 +132,8 @@ public:
 	// Value containers use generated classes that not duplicated when the asset is duplicated
 	// so they have to be recreated with classes in the current asset
 	void RecreateValueContainers();
+
+	void OnDataTypeChanged(FName InDataType);
 	
 	UPROPERTY(EditAnywhere, Category = "Animation Attribute", meta = (ShowOnlyInnerProperties))
 	FOptimusAnimAttributeArray AttributeArray;
@@ -146,14 +154,21 @@ struct FOptimusAnimAttributeRuntimeData
 
 	FName BoneName;
 
-	FOptimusDataTypeRef DataType;
+	int32 CachedBoneIndex = 0;
 	
-	int32 Offset;
-	
-	int32 CachedBoneIndex;
+	int32 Offset = INDEX_NONE;
 
-	TArray<uint8> CachedDefaultValue;
+	int32 Size = 0;
 
+	int32 ArrayIndexStart = INDEX_NONE;
+
+	FOptimusDataTypeRegistry::PropertyValueConvertFuncT	ConvertFunc = nullptr;
+
+	const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* ArrayMetadata = nullptr;
+
+	UScriptStruct* AttributeType = nullptr;
+
+	FShaderValueType::FValue CachedDefaultValue;
 };
 
 /** Compute Framework Data Provider for reading animation attributes on skeletal mesh. */
@@ -175,9 +190,9 @@ public:
 
 	TArray<FOptimusAnimAttributeRuntimeData> AttributeRuntimeData;
 
-	TArray<uint8> AttributeBuffer;
+	int32 AttributeBufferSize = 0;
 	
-	int32 AttributeBufferSize;
+	int32 TotalNumArrays = 0;
 	
 	//~ Begin UComputeDataProvider Interface
 	bool IsValid() const override;
@@ -188,17 +203,28 @@ public:
 class FOptimusAnimAttributeDataProviderProxy : public FComputeDataProviderRenderProxy
 {
 public:
+	struct FArrayMetadata
+	{
+		int32 Offset;
+		int32 ElementSize;
+	};
+	
 	FOptimusAnimAttributeDataProviderProxy(
-		TArray<uint8> InAttributeBuffer,
-		int32 InAttributeBufferSize
+		int32 InAttributeBufferSize,
+		int32 InTotalNumArrays
 	);
 
 	//~ Begin FComputeDataProviderRenderProxy Interface
+	void AllocateResources(FRDGBuilder& GraphBuilder) override;
 	void GatherDispatchData(FDispatchSetup const& InDispatchSetup, FCollectedDispatchData& InOutDispatchData) override;
 	//~ End FComputeDataProviderRenderProxy Interface
 
-private:
+public:
 	TArray<uint8> AttributeBuffer;
+	TArray<FArrayMetadata> AttributeArrayMetadata;
+	TArray<TArray<uint8>> AttributeArrayData;
 
-	int32 AttributeBufferSize;
+private:
+	TArray<FRDGBuffer*> ArrayBuffers;
+	TArray<FRDGBufferSRV*> ArrayBufferSRVs;
 };

@@ -8,10 +8,21 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 #include "OptimusObjectVersion.h"
+#include "Engine/UserDefinedStruct.h"
 
 static const FName DefaultKernelName = FName("MyKernel");
 static const FName InputBindingsName= GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, InputBindingArray);
 static const FName OutputBindingsName = GET_MEMBER_NAME_STRING_CHECKED(UOptimusNode_CustomComputeKernel, OutputBindingArray);
+
+static FString GetShaderValueTypeFriendlyName(const FOptimusDataTypeRef& InDataType)
+{
+	FName FriendlyName = NAME_None;
+	if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InDataType->TypeObject))
+	{
+		FriendlyName = Optimus::GetTypeName(UserDefinedStruct, false);
+	}
+	return InDataType->ShaderValueType->ToString(FriendlyName);
+}
 
 UOptimusNode_CustomComputeKernel::UOptimusNode_CustomComputeKernel()
 {
@@ -164,6 +175,13 @@ FName UOptimusNode_CustomComputeKernel::GetSanitizedNewPinName(
 	NewName = Optimus::GetUniqueNameForScope(this, NewName);
 
 	return NewName;
+}
+
+void UOptimusNode_CustomComputeKernel::OnDataTypeChanged(FName InTypeName)
+{
+	Super::OnDataTypeChanged(InTypeName);
+	
+	UpdatePreamble();
 }
 
 
@@ -585,14 +603,33 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 	{
 		for (const FOptimusParameterBinding &Binding: BindingArray)
 		{
-			const FShaderValueType& ValueType = *Binding.DataType->ShaderValueType;
-			if (ValueType.Type == EShaderFundamentalType::Struct)
+			if (Binding.DataType.IsValid() && Binding.DataType->ShaderValueType.IsValid())
 			{
-				const FString StructName = ValueType.ToString();
-				if (!StructsSeen.Contains(StructName))
+				const FShaderValueType& ValueType = *Binding.DataType->ShaderValueType;
+				if (ValueType.Type == EShaderFundamentalType::Struct)
 				{
-					Structs.Add(ValueType.GetTypeDeclaration() + TEXT("\n\n"));
-					StructsSeen.Add(StructName);
+					TArray<FShaderValueTypeHandle> StructTypes = Binding.DataType->ShaderValueType->GetMemberStructTypes();
+					StructTypes.Add(Binding.DataType->ShaderValueType);
+
+					TMap<FName, FName> FriendlyNameMap;
+					for (const FShaderValueTypeHandle& TypeHandle : StructTypes )
+					{
+						FOptimusDataTypeHandle DataTypeHandle = FOptimusDataTypeRegistry::Get().FindType(TypeHandle->Name);
+						if (UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(DataTypeHandle->TypeObject))
+						{
+							FriendlyNameMap.Add(TypeHandle->Name) = Optimus::GetTypeName(Struct, false);
+						}
+					}
+
+					for (const FShaderValueTypeHandle& TypeHandle : StructTypes )
+					{
+						const FString StructName = TypeHandle->ToString();
+						if (!StructsSeen.Contains(StructName))
+						{
+							Structs.Add(TypeHandle->GetTypeDeclaration(FriendlyNameMap) + TEXT(";\n\n"));
+							StructsSeen.Add(StructName);
+						}	
+					}
 				}
 			}
 		}
@@ -644,8 +681,15 @@ void UOptimusNode_CustomComputeKernel::UpdatePreamble()
 		{
 			Indexes.Add(FString::Printf(TEXT("uint %s"), *IndexName));
 		}
-		
-		Declarations.Add(GetDeclarationForBinding(Binding, true));
+
+		if (Binding.DataType->ShaderValueType.IsValid())
+		{
+			Declarations.Add(GetDeclarationForBinding(Binding, true));
+		}
+		else
+		{
+			Declarations.Add(FString::Printf(TEXT("// Error: Binding \"%s\" is not supported"), *Binding.Name.ToString()) );
+		}
 	}
 
 	Bindings = OutputBindingArray.InnerArray;
@@ -688,13 +732,13 @@ FString UOptimusNode_CustomComputeKernel::GetDeclarationForBinding(const FOptimu
 
 	if (bIsInput)
 	{
-		return FString::Printf(TEXT("%s Read%s(%s);"),
-				*Binding.DataType->ShaderValueType->ToString(), *Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")));
+		return FString::Printf(TEXT("%s Read%s(%s);"), 
+			*GetShaderValueTypeFriendlyName(Binding.DataType), *Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")));
 	}
 	else
 	{
 		return FString::Printf(TEXT("void Write%s(%s, %s Value);"),
-					*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *Binding.DataType->ShaderValueType->ToString());
+					*Binding.Name.ToString(), *FString::Join(Indexes, TEXT(", ")), *GetShaderValueTypeFriendlyName(Binding.DataType));
 	}
 }
 

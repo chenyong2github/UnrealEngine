@@ -7,7 +7,10 @@
 #include "OptimusDataTypeRegistry.h"
 
 #include "EdGraphSchema_K2.h"
+#include "OptimusHelpers.h"
 #include "SListViewSelectorDropdownMenu.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "Engine/UserDefinedStruct.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SComboBox.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -16,6 +19,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
+#include "UObject/UObjectIterator.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusDataTypeSelector"
@@ -140,12 +144,18 @@ FText SOptimusDataTypeSelector::GetTypeDescription(FOptimusDataTypeHandle InData
 {
 	if (InDataType.IsValid())
 	{
-		return InDataType->DisplayName;
+		if (UsageMask.IsSet())
+		{
+			if (EnumHasAnyFlags(InDataType->UsageFlags, UsageMask.Get()))
+			{
+				return InDataType->DisplayName;
+			}
+		}
+		
+		return FText::FromString(TEXT("<Unsupported> ") + InDataType->DisplayName.ToString());
 	}
-	else
-	{
-		return FText::FromString(TEXT("<None>"));
-	}
+	
+	return FText::FromString(TEXT("<None>"));
 }
 
 
@@ -163,17 +173,16 @@ FText SOptimusDataTypeSelector::GetTypeTooltip() const
 
 TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 {
+	FOptimusDataTypeRegistry::Get().RefreshRegistry();
+
 	AllDataTypeItems.Reset();
 	FOptimusDataTypeHandle SelectedItem;
 	for (FOptimusDataTypeHandle DataType : FOptimusDataTypeRegistry::Get().GetAllTypes())
 	{
-		if (UsageMask == EOptimusDataTypeUsageFlags::None || EnumHasAnyFlags(DataType->UsageFlags, UsageMask))
+		AllDataTypeItems.Add(DataType);
+		if (DataType == CurrentDataType.Get())
 		{
-			AllDataTypeItems.Add(DataType);
-			if (DataType == CurrentDataType.Get())
-			{
-				SelectedItem = AllDataTypeItems.Last();
-			}
+			SelectedItem = AllDataTypeItems.Last();
 		}
 	}
 
@@ -185,7 +194,8 @@ TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 			.ListItemsSource(&ViewDataTypeItems)
 			.SelectionMode(ESelectionMode::Single)
 			.OnGenerateRow(this, &SOptimusDataTypeSelector::GenerateTypeListRow)
-			.OnSelectionChanged(this, &SOptimusDataTypeSelector::OnTypeSelectionChanged);
+			.OnSelectionChanged(this, &SOptimusDataTypeSelector::OnTypeSelectionChanged)
+			.ScrollbarVisibility(EVisibility::Visible);
 
 		FilterBox = SNew(SSearchBox)
 			.OnTextChanged(this, &SOptimusDataTypeSelector::OnFilterTextChanged)
@@ -203,7 +213,7 @@ TSharedRef<SWidget> SOptimusDataTypeSelector::GetMenuContent()
 						FilterBox.ToSharedRef()
 					] 
 					+ SVerticalBox::Slot()
-					.AutoHeight()
+					.MaxHeight(400.0f)
 					.Padding(4.f, 4.f, 4.f, 4.f)
 					[
 						SNew(SBox)

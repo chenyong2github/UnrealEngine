@@ -8,6 +8,7 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 #include "IOptimusNodeAdderPinProvider.h"
+#include "OptimusDataTypeRegistry.h"
 
 
 FOptimusNodeAction_RenameNode::FOptimusNodeAction_RenameNode(
@@ -210,9 +211,8 @@ bool FOptimusNodeAction_SetPinType::SetPinType(
 		return false;
 	}
 
-	FOptimusDataTypeRef DataType;
-	DataType.TypeName = InDataType;
-
+	FOptimusDataTypeRef DataType(FOptimusDataTypeRegistry::Get().FindType(InDataType));
+	
 	return Pin->GetOwningNode()->SetPinDataTypeDirect(Pin, DataType);
 }
 
@@ -390,7 +390,7 @@ bool FOptimusNodeAction_AddRemovePin::AddPin(IOptimusPathResolver* InRoot)
 	}
 
 	FOptimusDataTypeRef TypeRef;
-	TypeRef.TypeName = DataType;
+	TypeRef = FOptimusDataTypeRegistry::Get().FindType(DataType);
 
 	UOptimusNodePin *BeforePin = nullptr;
 	if (!BeforePinPath.IsEmpty())

@@ -59,11 +59,23 @@ struct OPTIMUSCORE_API FOptimusDataType
 	// accommodate the newly converted value.
 	bool ConvertPropertyValueToShader(
 		TArrayView<const uint8> InValue,
-		TArrayView<uint8> OutConvertedValue
+		FShaderValueType::FValueView OutConvertedValue
 		) const;
 
+	// Return a value struct that can hold raw shader value of this type
+	FShaderValueType::FValue MakeShaderValue() const;
+	
 	// Returns true if the data type can create a FProperty object to represent it.
 	bool CanCreateProperty() const;
+
+	// Returns the total number of array members (recursive) in the shader type
+	int32 GetNumArrays() const;
+	
+	// Returns the offset from the beginning of shader type of each array typed shader struct member
+	int32 GetArrayShaderValueOffset(int32 InArrayIndex) const;
+	
+	// Returns the element size of each array typed shader struct member
+	int32 GetArrayElementShaderValueSize(int32 InArrayIndex) const;
 
 	UPROPERTY()
 	FName TypeName;
@@ -137,14 +149,19 @@ struct OPTIMUSCORE_API FOptimusDataTypeRef
 
 	bool operator==(const FOptimusDataTypeRef& InOther) const
 	{
-		return TypeName == InOther.TypeName;
+		return TypeName == InOther.TypeName && TypeObject == InOther.TypeObject;
 	}
 
 	bool operator!=(const FOptimusDataTypeRef& InOther) const
 	{
-		return TypeName != InOther.TypeName;
+		return TypeName != InOther.TypeName || TypeObject != InOther.TypeObject;
 	}
 
 	UPROPERTY(EditAnywhere, Category=Type)
 	FName TypeName;
+
+	// A weak pointer to the type object helps enforce asset dependency
+	UPROPERTY(EditAnywhere, Category=Type)
+	TWeakObjectPtr<UObject> TypeObject;
+	
 };

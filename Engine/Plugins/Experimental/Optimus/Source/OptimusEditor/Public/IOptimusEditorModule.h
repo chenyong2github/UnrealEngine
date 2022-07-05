@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Kismet2/StructureEditorUtils.h"
 #include "Modules/ModuleInterface.h"
 #include "Modules/ModuleManager.h"
 #include "Toolkits/IToolkit.h"
@@ -16,7 +17,8 @@ class UOptimusDeformer;
 class OPTIMUSEDITOR_API IOptimusEditorModule
 	: public IModuleInterface
 //	, public IHasMenuExtensibility
-//	, public IHasToolBarExtensibility
+//	, public IHasToolBarExtensibility,
+	, public FStructureEditorUtils::INotifyOnStructChanged
 {
 public:
 	static IOptimusEditorModule& Get()

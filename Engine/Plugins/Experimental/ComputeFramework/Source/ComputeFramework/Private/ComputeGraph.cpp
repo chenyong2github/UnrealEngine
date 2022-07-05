@@ -447,6 +447,9 @@ FString UComputeGraph::BuildKernelSource(
 	FString HLSL;
 	FSHA1 HashState;
 
+	TSet<FString> StructsSeen;
+	TArray<FString> StructDeclarations;
+
 	// Add virtual source includes from the additional sources.
 	for (TPair<FString, FString> const& AdditionalSource : InAdditionalSources)
 	{
@@ -484,6 +487,8 @@ FString UComputeGraph::BuildKernelSource(
 			DataInterface->GetHLSL(HLSL);
 			HLSL += TEXT("#undef DI_UID\n");
 
+			DataInterface->GetStructDeclarations(StructsSeen, StructDeclarations);
+			
 			// Get define and permutation info for each data provider.
 			DataInterface->GetDefines(OutDefinitionSet);
 			DataInterface->GetPermutations(OutPermutationVector);
@@ -523,6 +528,14 @@ FString UComputeGraph::BuildKernelSource(
 
 	// Add the kernel code.
 	HLSL += InKernelSource.GetSource();
+
+	FString Declaration;
+	for (const FString& StructDeclaration : StructDeclarations)
+	{
+		Declaration += StructDeclaration;
+	}
+
+	HLSL = Declaration + HLSL;
 	
 	// Accumulate the source HLSL to the local hash state.
 	HashState.UpdateWithString(*HLSL, HLSL.Len());

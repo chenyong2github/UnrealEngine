@@ -23,6 +23,8 @@ public:
 #endif
 
 	void RecreateValueContainers();
+
+	virtual void OnDataTypeChanged(FName InTypeName) override;
 	
 private:
 	void UpdatePinTypes();

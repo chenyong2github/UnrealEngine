@@ -11,10 +11,13 @@
 class FFieldClass;
 class UScriptStruct;
 struct FShaderValueTypeHandle;
+class UUserDefinedStruct;
 
 class FOptimusDataTypeRegistry
 {
 public:
+	DECLARE_EVENT_OneParam(FOptimusDataTypeRegistry, FOnDataTypeChanged, FName /* InTypeName */);
+	
 	using PropertyCreateFuncT = TFunction<FProperty *(UStruct *InScope, FName InName)>;
 
 	/** Defines a function that takes an array view on UE property data and converts it to
@@ -22,8 +25,14 @@ public:
 	 *  hold enough data to both read all property data for this type and write out shader values
 	 *  matching these data.
 	  */
-	using PropertyValueConvertFuncT = TFunction<bool(TArrayView<const uint8> InRawValue, TArrayView<uint8> OutShaderValue)>;
+	using PropertyValueConvertFuncT = TFunction<bool(TArrayView<const uint8> InRawValue, FShaderValueType::FValueView OutShaderValue)>;
 
+	struct FArrayMetadata
+	{
+		int32 ElementShaderValueSize;
+		int32 ShaderValueOffset;
+	};
+	
 	~FOptimusDataTypeRegistry();
 
 	/** Get the singleton registry object */
@@ -99,6 +108,22 @@ public:
 	    EOptimusDataTypeUsageFlags InUsageFlags
 		);
 
+	// Register a complex type that has corresponding types on both the UE and HLSL side.
+	OPTIMUSCORE_API bool RegisterStructType(
+		UScriptStruct *InStructType
+		);
+		
+	// Refresh struct type info in case a user defined struct is changed.
+	OPTIMUSCORE_API void RefreshStructType(
+		UUserDefinedStruct *InStructType
+		);
+
+	// Check for new user defined structs and register them
+	OPTIMUSCORE_API void RefreshRegistry();
+
+	// Unregister a type
+	OPTIMUSCORE_API void UnregisterType(FName InTypeName);
+
 	/** Returns all registered types */
 	OPTIMUSCORE_API TArray<FOptimusDataTypeHandle> GetAllTypes() const;
 
@@ -124,6 +149,19 @@ public:
 	// FIXME: We should allow for some kind of type hinting from the HLSL side (e.g. vector4 a color or a vector of four independent scalars).
 	OPTIMUSCORE_API FOptimusDataTypeHandle FindType(FShaderValueTypeHandle InValueType) const;
 
+	/** A helper function to return a property conversion function. The function can be unbound
+	*  and that should be checked prior to calling
+	*/
+	PropertyValueConvertFuncT FindPropertyValueConvertFunc(FName InTypeName) const;
+
+	/** A helper function to return the array metadata. */
+	const TArray<FArrayMetadata>* FindArrayMetadata(FName InTypeName) const;
+
+	/** A helper function to return the corresponding animation attribute type. */
+	UScriptStruct* FindAttributeType(FName InTypeName) const;
+
+	OPTIMUSCORE_API	FOnDataTypeChanged& GetOnDataTypeChanged();
+
 protected:
 	friend class FOptimusCoreModule;
 	friend struct FOptimusDataType;
@@ -134,33 +172,47 @@ protected:
 	/** Call during module shutdown to release memory */
 	static void UnregisterAllTypes();
 
+	/** Call during module init to register asset registry callbacks for struct type registration*/	
+	static void RegisterAssetRegistryCallbacks();
+	
+	/** Call during module shutdown to unregister asset registry callbacks*/	
+	static void UnregisterAssetRegistryCallbacks();
+
 	/** A helper function to return a property create function. The function can be unbound
 	 *  and that should be checked prior to calling
 	 */
 	PropertyCreateFuncT FindPropertyCreateFunc(FName InTypeName) const;
 
-	/** A helper function to return a property create function. The function can be unbound
-	*  and that should be checked prior to calling
-	*/
-	PropertyValueConvertFuncT FindPropertyValueConvertFunc(FName InTypeName) const;
 
 private:
-	FOptimusDataTypeRegistry() = default;
+	FOptimusDataTypeRegistry();
 
+	// Callbacks to update registry when user defined structs are loaded/removed/renamed
+	void OnFilesLoaded();
+	void OnAssetRemoved(const FAssetData& InAssetData);
+	void OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldName);
+	
 	bool RegisterType(
 		FName InTypeName,
 		TFunction<void(FOptimusDataType &)> InFillFunc,
 	    PropertyCreateFuncT InPropertyCreateFunc = {},
-	    PropertyValueConvertFuncT InPropertyValueConvertFunc = {}
+	    PropertyValueConvertFuncT InPropertyValueConvertFunc = {},
+	    TArray<FArrayMetadata> InArrayMetadata = {}
 		);
+
+	/** Check if a type can be registered */
+	static EOptimusDataTypeUsageFlags CanRegisterStructType(UScriptStruct* InStruct);
 
 	struct FTypeInfo
 	{
 		FOptimusDataTypeHandle Handle;
 		PropertyCreateFuncT PropertyCreateFunc;
 		PropertyValueConvertFuncT PropertyValueConvertFunc;
+		TArray<FArrayMetadata> ArrayMetadata;
 	};
 
 	TMap<FName /* TypeName */, FTypeInfo> RegisteredTypes;
 	TArray<FName> RegistrationOrder;
+
+	FOnDataTypeChanged OnDataTypeChanged;
 };

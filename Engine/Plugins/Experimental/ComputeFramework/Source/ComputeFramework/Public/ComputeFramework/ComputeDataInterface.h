@@ -40,6 +40,8 @@ public:
 	virtual void GetShaderParameters(TCHAR const* UID, FShaderParametersMetadataBuilder& InOutBuilder, FShaderParametersMetadataAllocations& InOutAllocations) const {}
 	/** Get a hash that changes on any data interface changes that affect kernel compilation. */
 	virtual void GetShaderHash(FString& InOutKey) const {}
+	/** Gather any extra struct types that this data provider relies on. */
+	virtual void GetStructDeclarations(TSet<FString>& OutStructsSeen, TArray<FString>& OutStructs) const {}
 	/** Gather the shader code for this data provider. */
 	virtual void GetHLSL(FString& OutHLSL) const {}
 	/** Get class of UObject required to instantiate a UComputeDataProvider from this interface. */

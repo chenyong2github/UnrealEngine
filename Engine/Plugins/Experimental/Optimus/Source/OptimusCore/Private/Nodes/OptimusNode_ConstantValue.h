@@ -63,7 +63,7 @@ public:
 	// IOptimusValueProvider overrides 
 	FString GetValueName() const override;
 	FOptimusDataTypeRef GetValueType() const override;
-	TArray<uint8> GetShaderValue() const override;
+	FShaderValueType::FValue GetShaderValue() const override;
 
 protected:
 	void ConstructNode() override;

@@ -27,6 +27,10 @@ public:
 
 	FOptimusEditorClipboard& GetClipboard() const override;
 
+	// FStructureEditorUtils::INotifyOnStructChanged overrides to react to user defined struct member changes
+	virtual void PreChange(const UUserDefinedStruct* Changed, FStructureEditorUtils::EStructureEditorChangeInfo ChangedType) override;
+	virtual void PostChange(const UUserDefinedStruct* Changed, FStructureEditorUtils::EStructureEditorChangeInfo ChangedType) override;
+	
 private:
 	void RegisterPropertyCustomizations();
 	void UnregisterPropertyCustomizations();
@@ -40,4 +44,6 @@ private:
 	TArray<FName> CustomizedClasses;
 
 	TSharedRef<FOptimusEditorClipboard> Clipboard;
+
+	int32 UserDefinedStructsPendingPostChange = 0;
 };

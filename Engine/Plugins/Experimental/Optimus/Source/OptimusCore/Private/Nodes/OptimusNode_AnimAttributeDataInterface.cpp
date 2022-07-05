@@ -51,19 +51,19 @@ void UOptimusNode_AnimAttributeDataInterface::PostEditChangeChainProperty(FPrope
 				GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeDescription, BoneName)
 			);
 		
-		static FProperty* DataTypeProperty =
-			FOptimusAnimAttributeDescription::StaticStruct()->FindPropertyByName(
-				GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeDescription, DataType)
+		static FProperty* DataTypeNameProperty =
+			FOptimusDataTypeRef::StaticStruct()->FindPropertyByName(
+				GET_MEMBER_NAME_STRING_CHECKED(FOptimusDataTypeRef, TypeName)
 			);
 
 		if (PropertyChangedEvent.PropertyChain.Contains(NameProperty)||
 			PropertyChangedEvent.PropertyChain.Contains(BoneNameProperty) || 
-			PropertyChangedEvent.PropertyChain.Contains(DataTypeProperty))
+			PropertyChangedEvent.PropertyChain.Contains(DataTypeNameProperty))
 		{
 			UpdatePinNames();
 		}
 
-		if (PropertyChangedEvent.PropertyChain.Contains(DataTypeProperty))
+		if (PropertyChangedEvent.PropertyChain.Contains(DataTypeNameProperty))
 		{
 			UpdatePinTypes();
 		}
@@ -72,11 +72,17 @@ void UOptimusNode_AnimAttributeDataInterface::PostEditChangeChainProperty(FPrope
 	else if (PropertyChangedEvent.ChangeType & (EPropertyChangeType::ArrayAdd | EPropertyChangeType::Duplicate |
 												EPropertyChangeType::ArrayRemove | EPropertyChangeType::ArrayMove))
 	{
-		RefreshPins();
+		if (PropertyChangedEvent.PropertyChain.GetTail()->GetValue()->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray))
+		{
+			RefreshPins();
+		}
 	}
 	else if(PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear)
 	{
-		ClearPins();
+		if (PropertyChangedEvent.PropertyChain.GetTail()->GetValue()->GetFName() == GET_MEMBER_NAME_STRING_CHECKED(FOptimusAnimAttributeArray, InnerArray))
+		{
+			ClearPins();
+		}
 	}
 }
 
@@ -88,6 +94,14 @@ void UOptimusNode_AnimAttributeDataInterface::RecreateValueContainers()
 	{
 		Interface->RecreateValueContainers();
 	}
+}
+
+void UOptimusNode_AnimAttributeDataInterface::OnDataTypeChanged(FName InTypeName)
+{
+	Super::OnDataTypeChanged(InTypeName);
+
+	UOptimusAnimAttributeDataInterface* Interface = Cast<UOptimusAnimAttributeDataInterface>(DataInterfaceData);
+	Interface->OnDataTypeChanged(InTypeName);
 }
 
 void UOptimusNode_AnimAttributeDataInterface::UpdatePinTypes()

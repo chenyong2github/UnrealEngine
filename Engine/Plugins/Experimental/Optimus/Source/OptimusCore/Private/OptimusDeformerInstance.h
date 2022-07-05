@@ -121,6 +121,8 @@ public:
 	void SetConstantValueDirect(FString const& InVariableName, TArray<uint8> const& InValue);
 
 	FOptimusPersistentBufferPoolPtr GetBufferPool() const { return BufferPool; }
+
+	void SetCanBeActive(bool bInCanBeActive);
 	
 protected:
 	/** Implementation of UMeshDeformerInstance. */
@@ -147,4 +149,6 @@ private:
 	FCriticalSection GraphsToRunOnNextTickLock;
 
 	FOptimusPersistentBufferPoolPtr BufferPool;
+
+	bool bCanBeActive = true;
 };

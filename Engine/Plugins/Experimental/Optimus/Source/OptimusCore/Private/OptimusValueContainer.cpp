@@ -25,7 +25,7 @@ UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UPackage* InPackag
 	{
 		UClass *ParentClass = UOptimusValueContainer::StaticClass();
 		// Construct a value node class for this data type
-		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName, RF_Standalone|RF_Public);
+		TypeClass = NewObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName, RF_Standalone);
 		TypeClass->SetSuperStruct(ParentClass);
 		TypeClass->PropertyLink = ParentClass->PropertyLink;
 
@@ -57,6 +57,24 @@ UClass* UOptimusValueContainerGeneratorClass::GetClassForType(UPackage* InPackag
 	return TypeClass;
 }
 
+UClass* UOptimusValueContainerGeneratorClass::RefreshClassForType(UPackage* InPackage, FOptimusDataTypeRef InDataType)
+{
+	const FString ClassName = TEXT("OptimusValueContainer_") + InDataType.TypeName.ToString();
+
+	// Check if the package already owns this class.
+	UOptimusValueContainerGeneratorClass *TypeClass = FindObject<UOptimusValueContainerGeneratorClass>(InPackage, *ClassName);
+
+	if (TypeClass)
+	{
+		const FString DeprecatedClassName = FString(TEXT("Deprecated_")) + ClassName + FGuid::NewGuid().ToString();
+		TypeClass->Rename(*DeprecatedClassName, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+		// Add in the CLASS_NewerVersionExists class flag to this obliterated class. Just so it won't show up in any global class iteration.
+		TypeClass->ClassFlags |= CLASS_NewerVersionExists;
+	}
+
+	return GetClassForType(InPackage, InDataType);
+}
+
 void UOptimusValueContainer::PostLoad()
 {
 	Super::PostLoad();
@@ -86,7 +104,7 @@ FOptimusDataTypeRef UOptimusValueContainer::GetValueType() const
 	return {};	
 }
 
-TArray<uint8> UOptimusValueContainer::GetShaderValue() const
+FShaderValueType::FValue UOptimusValueContainer::GetShaderValue() const
 {
 	UOptimusValueContainerGeneratorClass* Class = Cast<UOptimusValueContainerGeneratorClass>(GetClass());
 	const FProperty* ValueProperty = Class->PropertyLink;
@@ -95,9 +113,7 @@ TArray<uint8> UOptimusValueContainer::GetShaderValue() const
 	if (ensure(ValueProperty) && ensure(DataType.IsValid()))
 	{
 		TArrayView<const uint8> ValueData(ValueProperty->ContainerPtrToValuePtr<uint8>(this), ValueProperty->GetSize());
-		TArray<uint8> ValueResult;
-		ValueResult.SetNumUninitialized(DataType->ShaderValueSize);
-
+		FShaderValueType::FValue ValueResult = DataType->MakeShaderValue();
 		if (DataType->ConvertPropertyValueToShader(ValueData, ValueResult))
 		{
 			return ValueResult;

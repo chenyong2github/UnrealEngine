@@ -32,7 +32,7 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileBegin, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusCompileEnd, UOptimusDeformer *);
 DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusGraphCompileMessageDelegate, FOptimusCompilerDiagnostic const&);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FOptimusConstantValueUpdate, FString const&, TArray<uint8> const&);
-
+DECLARE_MULTICAST_DELEGATE_OneParam(FOptimusSetAllInstancesCanbeActive, bool);
 
 USTRUCT()
 struct FOptimusComputeGraphInfo
@@ -184,10 +184,13 @@ public:
 	FOptimusCompileEnd& GetCompileEndDelegate() { return CompileEndDelegate; }
 	/** Returns a multicast delegate that can be subscribed to listen compilation results. Note that the shader compilation results are async and can be returned after the CompileEnd delegate. */
 	FOptimusGraphCompileMessageDelegate& GetCompileMessageDelegate() { return CompileMessageDelegate; }
+
+	void SetAllInstancesCanbeActive(bool bInCanBeActive) const;
 	
 	/// UObject overrides
 	void Serialize(FArchive& Ar) override;
 	void PostLoad() override;
+	void BeginDestroy() override;
 	// Whenever the asset is renamed/moved, generated classes parented to the old package
 	// are not moved to the new package automatically (see FAssetRenameManager), so we
 	// have to manually perform the move/rename, to avoid invalid reference to the old package
@@ -352,6 +355,8 @@ private:
 		const UOptimusNodeGraph *InNodeGraph
 		);
 
+	void OnDataTypeChanged(FName InTypeName);
+	
 	UPROPERTY(transient)
 	TObjectPtr<UOptimusActionStack> ActionStack = nullptr;
 
@@ -373,4 +378,6 @@ private:
 	FOptimusGraphCompileMessageDelegate CompileMessageDelegate;
 
 	FOptimusConstantValueUpdate ConstantValueUpdateDelegate;
+
+	FOptimusSetAllInstancesCanbeActive SetAllInstancesCanbeActiveDelegate;
 };

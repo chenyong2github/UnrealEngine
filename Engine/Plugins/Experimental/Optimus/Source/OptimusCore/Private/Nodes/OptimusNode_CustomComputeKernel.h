@@ -34,6 +34,8 @@ public:
 	{
 		return CategoryName::Deformers;
 	}
+	
+	virtual void OnDataTypeChanged(FName InTypeName) override;
 
 	// UOptimusNode_ComputeKernelBase overrides
 	FString GetKernelName() const override { return KernelName.ToString(); }

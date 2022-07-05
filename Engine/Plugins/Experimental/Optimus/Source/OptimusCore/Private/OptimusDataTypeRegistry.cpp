@@ -5,6 +5,13 @@
 #include "OptimusCoreModule.h"
 #include "OptimusHelpers.h"
 
+#include "ShaderParameterMetadata.h"
+#include "Animation/BuiltInAttributeTypes.h"
+
+#include "AssetRegistry/AssetRegistryModule.h"
+
+#include "Engine/Classes/Engine/UserDefinedStruct.h"
+
 #include "UObject/UnrealType.h"
 
 
@@ -33,17 +40,160 @@ static bool IsStructHashable(const UScriptStruct* InStructType)
 
 template<typename SourceT, typename DestT>
 static bool ConvertPropertyValuePOD(
-	TArrayView<const uint8> InRawValue,
-	TArrayView<uint8> OutShaderValue
+		TArrayView<const uint8> InRawValue, FShaderValueType::FValueView OutShaderValue
 	)
 {
 	if (ensure(InRawValue.Num() == sizeof(SourceT)) &&
-		ensure(OutShaderValue.Num() == sizeof(DestT)))
+		ensure(OutShaderValue.ShaderValue.Num() == sizeof(DestT)))
 	{
-		*reinterpret_cast<DestT*>(OutShaderValue.GetData()) = static_cast<DestT>(*reinterpret_cast<const SourceT*>(InRawValue.GetData()));
+		*reinterpret_cast<DestT*>(OutShaderValue.ShaderValue.GetData()) = static_cast<DestT>(*reinterpret_cast<const SourceT*>(InRawValue.GetData()));
 		return true;
 	}
 	return false;
+}
+
+EOptimusDataTypeUsageFlags FOptimusDataTypeRegistry::CanRegisterStructType(UScriptStruct* InStruct)
+{
+	struct FTypeValidator 
+    {
+        EOptimusDataTypeUsageFlags WalkStruct(UScriptStruct* InStruct)
+        {
+        	// Rotator cannot be mapped to a shader struct member at the moment
+        	if (InStruct == TBaseStructure<FRotator>::Get())
+        	{
+        		return EOptimusDataTypeUsageFlags::None;
+        	}
+        	
+        	FOptimusDataTypeHandle DataType = Get().FindType(Optimus::GetTypeName(InStruct));
+        	if (DataType.IsValid())
+        	{
+        		PropertyValueConvertFuncT ConvertFunc = Get().FindPropertyValueConvertFunc(DataType->TypeName);
+        		if (!ConvertFunc)
+        		{
+        			return EOptimusDataTypeUsageFlags::None;
+        		}
+        		
+        		return ApplicableFlags & DataType->UsageFlags;
+        	}
+
+        	if (!InStruct->ChildProperties)
+        	{
+        		// Empty struct is not support
+        		return EOptimusDataTypeUsageFlags::None;
+        	}
+
+        	TSet<FName> PropertyNamesSeen;
+        	
+            for (const FProperty* Property : TFieldRange<FProperty>(InStruct))
+            {
+				if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InStruct))
+				{
+					FName ShaderMemberName = Optimus::GetMemberPropertyShaderName(UserDefinedStruct, Property);
+					if (PropertyNamesSeen.Contains(ShaderMemberName))
+					{
+						return EOptimusDataTypeUsageFlags::None;
+					}
+
+					PropertyNamesSeen.Add(ShaderMemberName);
+				}
+            	
+                if (const FStructProperty* StructProperty = CastField<FStructProperty>(Property))
+                {
+                    if (WalkStruct(StructProperty->Struct) == EOptimusDataTypeUsageFlags::None)
+                    {
+                        return EOptimusDataTypeUsageFlags::None;
+                    }
+                }
+                else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+                {
+                    if (WalkArray(ArrayProperty) == EOptimusDataTypeUsageFlags::None)
+                    {
+                        return EOptimusDataTypeUsageFlags::None;   
+                    }
+                }
+                else if (CheckLeaf(Property) == EOptimusDataTypeUsageFlags::None)
+                {
+                    return EOptimusDataTypeUsageFlags::None;
+                }
+            }
+        	
+            return ApplicableFlags;
+        }
+		
+        EOptimusDataTypeUsageFlags WalkArray(const FArrayProperty* InArrayProperty)
+        {
+        	EnumRemoveFlags(ApplicableFlags, EOptimusDataTypeUsageFlags::Resource);
+        	
+            if (!bFoundArray)
+            {
+            	TGuardValue<bool> NestedArrayGuard(bFoundArray, true);
+            }
+            else
+            {
+                // Nested array is not supported
+                return EOptimusDataTypeUsageFlags::None;
+            }
+            
+            FProperty* Inner = InArrayProperty->Inner;
+            if (const FStructProperty* StructProperty = CastField<FStructProperty>(Inner))
+            {
+            	if (WalkStruct(StructProperty->Struct) == EOptimusDataTypeUsageFlags::None)
+            	{
+            		return EOptimusDataTypeUsageFlags::None;
+            	}
+            }
+            else if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Inner))
+            {
+            	if (WalkArray(ArrayProperty) == EOptimusDataTypeUsageFlags::None)
+            	{
+            		return EOptimusDataTypeUsageFlags::None;   
+            	}
+            }
+                
+        	else if (CheckLeaf(Inner) == EOptimusDataTypeUsageFlags::None)
+        	{
+        		return EOptimusDataTypeUsageFlags::None;
+        	}
+
+        	return ApplicableFlags;
+        }
+		
+        EOptimusDataTypeUsageFlags CheckLeaf(const FProperty* InLeafProperty) const
+        {
+            FOptimusDataTypeHandle DataType = Get().FindType(*InLeafProperty);
+			if (!DataType.IsValid())
+			{
+            	return EOptimusDataTypeUsageFlags::None;
+			}
+        	
+			// Check for special cases that we cannot handle for now
+			if (DataType->TypeName == FBoolProperty::StaticClass()->GetFName())
+			{
+				return EOptimusDataTypeUsageFlags::None;
+			}
+
+			PropertyValueConvertFuncT ConvertFunc = Get().FindPropertyValueConvertFunc(DataType->TypeName);
+			if (!ConvertFunc)
+			{
+				return EOptimusDataTypeUsageFlags::None;
+			}
+            	
+        	return ApplicableFlags & DataType->UsageFlags;
+        }
+		
+        bool bFoundArray = false;
+
+		EOptimusDataTypeUsageFlags ApplicableFlags =
+			EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable | EOptimusDataTypeUsageFlags::AnimAttributes;
+    };
+
+	if (FOptimusDataTypeHandle DataType = Get().FindType(Optimus::GetTypeName(InStruct)))
+	{
+		return DataType->UsageFlags;
+	}
+
+	FTypeValidator Validator;
+	return Validator.WalkStruct(InStruct);
 }
 
 
@@ -252,12 +402,12 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 	    FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4),
 	    [](
 	    	TArrayView<const uint8> InRawValue,
-	    	TArrayView<uint8> OutShaderValue) -> bool
+			FShaderValueType::FValueView OutShaderValue) -> bool
 	    {
 	    	if (ensure(InRawValue.Num() == TBaseStructure<FTransform>::Get()->GetCppStructOps()->GetSize()) &&
-				ensure(OutShaderValue.Num() == FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4)->GetResourceElementSize()))
+				ensure(OutShaderValue.ShaderValue.Num() == FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4)->GetResourceElementSize()))
 	    	{
-				uint8* ShaderValuePtr = OutShaderValue.GetData();
+				uint8* ShaderValuePtr = OutShaderValue.ShaderValue.GetData();
 
 				*((FMatrix44f*)(ShaderValuePtr)) = Optimus::ConvertFTransformToFMatrix44f(*((FTransform*)InRawValue.GetData()));
 				return true;
@@ -282,8 +432,9 @@ void FOptimusDataTypeRegistry::RegisterBuiltinTypes()
 }
 
 
-FOptimusDataTypeRegistry::~FOptimusDataTypeRegistry() = default;
-
+FOptimusDataTypeRegistry::~FOptimusDataTypeRegistry()
+{
+};
 
 FOptimusDataTypeRegistry& FOptimusDataTypeRegistry::Get()
 {
@@ -296,7 +447,8 @@ bool FOptimusDataTypeRegistry::RegisterType(
 	FName InTypeName, 
 	TFunction<void(FOptimusDataType&)> InFillFunc,
 	PropertyCreateFuncT InPropertyCreateFunc,
-	PropertyValueConvertFuncT InPropertyValueConvertFunc
+	PropertyValueConvertFuncT InPropertyValueConvertFunc,
+	TArray<FArrayMetadata> InArrayMetadata
 	)
 {
 	if (InTypeName == NAME_None)
@@ -313,13 +465,334 @@ bool FOptimusDataTypeRegistry::RegisterType(
 
 	auto DataType = MakeShared<FOptimusDataType>();
 
-	FTypeInfo Info{DataType, InPropertyCreateFunc, InPropertyValueConvertFunc};
+	FTypeInfo Info
+	{
+		DataType,
+		InPropertyCreateFunc,
+		InPropertyValueConvertFunc,
+		InArrayMetadata
+	};
+	
 	InFillFunc(*DataType);
 	RegisteredTypes.Add(InTypeName, Info);
 	RegistrationOrder.Add(InTypeName);
 	return true;
 }
 
+bool FOptimusDataTypeRegistry::RegisterStructType(UScriptStruct* InStructType)
+{
+	if (!InStructType)
+	{
+		return false;
+	}
+
+	EOptimusDataTypeUsageFlags UsageFlags = CanRegisterStructType(InStructType);
+
+	// Disable the use of structs in variables and resources for now
+	UsageFlags &= ~EOptimusDataTypeUsageFlags::Variable;
+	UsageFlags &= ~EOptimusDataTypeUsageFlags::Resource;
+
+	FText DisplayName = Optimus::GetTypeDisplayName(InStructType);
+
+	FName TypeName = Optimus::GetTypeName(InStructType);
+
+	const bool bIsHashable = IsStructHashable(InStructType);
+
+	PropertyCreateFuncT PropertyCreateFunc;
+	PropertyCreateFunc = [bIsHashable, InStructType](UStruct* InScope, FName InName) -> FProperty *
+	{
+		auto Property = new FStructProperty(InScope, InName, RF_Public);
+		Property->Struct = InStructType;
+		Property->ElementSize = InStructType->GetStructureSize();
+		if (bIsHashable)
+		{
+			Property->SetPropertyFlags(CPF_HasGetValueTypeHash);
+		}
+		return Property;
+	};
+	
+	if (UsageFlags != EOptimusDataTypeUsageFlags::None)
+	{
+		struct FPropertyInfo
+		{
+			const FProperty* Property;
+			FOptimusDataTypeHandle DataType;
+			PropertyValueConvertFuncT ConvertFunc;
+		};
+
+		int32 NumArrayProperties = 0;
+
+		TArray<FPropertyInfo> PropertyInfos;
+
+		TArray<FShaderValueType::FStructElement> StructMembers;
+		for (const FProperty* Property : TFieldRange<FProperty>(InStructType))
+		{
+			const FProperty* PropertyForValidation = Property;
+
+			bool bIsArrayMember = false;
+
+			if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+			{
+				bIsArrayMember = true;
+				NumArrayProperties++;
+				PropertyForValidation = ArrayProperty->Inner;
+			}
+
+			FOptimusDataTypeHandle DataType = FindType(*PropertyForValidation);
+
+			if (!DataType.IsValid())
+			{
+				const FStructProperty* StructProperty = CastField<FStructProperty>(PropertyForValidation);
+				if (ensure(StructProperty))
+				{
+					RegisterStructType(StructProperty->Struct);
+				}
+			}
+
+			DataType = FindType(*PropertyForValidation);
+			
+			if (DataType->GetNumArrays() > 0)
+			{
+				NumArrayProperties += DataType->GetNumArrays();
+			}
+
+			PropertyValueConvertFuncT ConvertFunc;
+
+			ConvertFunc = FindPropertyValueConvertFunc(DataType->TypeName);
+
+			FName PropertyShaderName = Optimus::GetMemberPropertyShaderName(InStructType, Property);
+			
+			FShaderValueType::FStructElement StructElement(PropertyShaderName, DataType->ShaderValueType);
+			
+			if (bIsArrayMember)
+			{
+				StructElement = {PropertyShaderName, FShaderValueType::MakeDynamicArrayType(DataType->ShaderValueType)};
+			}
+			
+			StructMembers.Add(StructElement);
+			
+			FPropertyInfo PropertyInfo;
+			PropertyInfo.Property = Property;
+			PropertyInfo.DataType = DataType;
+			PropertyInfo.ConvertFunc = ConvertFunc;
+			PropertyInfos.Add(PropertyInfo);
+		}
+		
+		FShaderValueTypeHandle ShaderValueType = FShaderValueType::Get(TypeName, StructMembers);
+
+		
+		PropertyValueConvertFuncT PropertyValueConvertFunc;
+		int32 ExpectedShaderValueSize = 0;
+		TArray<FArrayMetadata> ArrayMetadata;
+		
+
+		Optimus::FTypeMetaData TypeMetaData(ShaderValueType);
+		ExpectedShaderValueSize = TypeMetaData.Metadata->GetSize();
+		int32 ExpectedPropertySize = 
+			InStructType->GetCppStructOps() ? 
+			InStructType->GetCppStructOps()->GetSize() : InStructType->GetStructureSize();
+
+
+		// Cache shader value offsets of all array properties within the type
+		ArrayMetadata.Reserve(NumArrayProperties);
+		for (int32 Index = 0; Index < PropertyInfos.Num(); Index++)
+		{
+			const FProperty* Property = PropertyInfos[Index].Property;
+			const FOptimusDataTypeHandle DataType = PropertyInfos[Index].DataType;
+			const FShaderParametersMetadata::FMember& ShaderStructMember = TypeMetaData.Metadata->GetMembers()[Index];
+
+			if (CastField<FArrayProperty>(Property))
+			{
+				FArrayMetadata Metadata;
+				Metadata.ElementShaderValueSize= DataType->ShaderValueSize;
+				Metadata.ShaderValueOffset = ShaderStructMember.GetOffset();
+				
+				ArrayMetadata.Add(Metadata);
+			}
+			else if (DataType->GetNumArrays() > 0)
+			{
+				for (int32 ArrayIndex = 0; ArrayIndex < DataType->GetNumArrays(); ArrayIndex++)
+				{
+					int32 ArrayOffset = DataType->GetArrayShaderValueOffset(ArrayIndex);
+					
+					FArrayMetadata Metadata;
+					Metadata.ElementShaderValueSize = DataType->GetArrayElementShaderValueSize(ArrayIndex);
+					Metadata.ShaderValueOffset = ShaderStructMember.GetOffset() + ArrayOffset;
+					
+					ArrayMetadata.Add(Metadata);
+				}
+			}
+		}
+
+		struct FPropertyConversionInfo
+		{
+			FPropertyInfo PropertyInfo;
+			int32 ShaderValueOffset;
+			int32 ShaderValueSize;
+			int32 ShaderValueInlineSize;
+			int32 ArrayIndex;
+		};
+		
+		TArray<FPropertyConversionInfo> ConversionEntries;
+
+		// Build conversion info
+		int32 ArrayIndex = 0;
+		for (int32 Index = 0; Index < PropertyInfos.Num(); Index++)
+		{
+			const FProperty* Property = PropertyInfos[Index].Property;
+			const FOptimusDataTypeHandle DataType = PropertyInfos[Index].DataType;
+			const FShaderParametersMetadata::FMember& ShaderStructMember = TypeMetaData.Metadata->GetMembers()[Index];
+
+			FPropertyConversionInfo ConversionInfo;
+			ConversionInfo.PropertyInfo = PropertyInfos[Index];
+			ConversionInfo.ShaderValueOffset = ShaderStructMember.GetOffset();
+			ConversionInfo.ShaderValueSize = DataType->ShaderValueSize;
+			ConversionInfo.ArrayIndex = ArrayIndex;
+			
+			if (CastField<FArrayProperty>(Property))
+			{
+				ArrayIndex++;
+			}
+			else if (DataType->GetNumArrays() > 0)
+			{
+				ArrayIndex += DataType->GetNumArrays();
+			}
+
+			ConversionEntries.Add(ConversionInfo);
+		}
+
+		// Infer inline sizes from offsets
+		for (int32 Index = 0; Index < ConversionEntries.Num(); Index++)
+		{
+			FPropertyConversionInfo& ConversionInfo = ConversionEntries[Index];
+
+			if (Index + 1 < ConversionEntries.Num())
+			{
+				FPropertyConversionInfo& NextInfo = ConversionEntries[Index + 1];
+				ConversionInfo.ShaderValueInlineSize = NextInfo.ShaderValueOffset - ConversionInfo.ShaderValueOffset;
+			}
+			else
+			{
+				ConversionInfo.ShaderValueInlineSize = ExpectedShaderValueSize - ConversionInfo.ShaderValueOffset;
+			}
+		}
+		
+		PropertyValueConvertFunc = [ConversionEntries, ExpectedPropertySize, ExpectedShaderValueSize](
+				TArrayView<const uint8> InRawValue, FShaderValueType::FValueView OutShaderValue
+			) -> bool
+		{
+			if (ensure(InRawValue.Num() == ExpectedPropertySize) &&
+				ensure(OutShaderValue.ShaderValue.Num() == ExpectedShaderValueSize))
+			{
+				for (const FPropertyConversionInfo& ConversionInfo: ConversionEntries)
+				{
+					const FProperty* Property = ConversionInfo.PropertyInfo.Property;
+					const uint8* PropertyRawValue = Property->ContainerPtrToValuePtr<uint8>(InRawValue.GetData());
+					if (const FArrayProperty* ArrayProperty = CastField<FArrayProperty>(Property))
+					{
+						check(ConversionInfo.ArrayIndex != INDEX_NONE);
+						// Memzero the part in the shader struct where the buffer handle will be stored
+						FMemory::Memzero(
+							OutShaderValue.ShaderValue.GetData() + ConversionInfo.ShaderValueOffset,
+							ConversionInfo.ShaderValueInlineSize);
+
+						// Convert each element, store them in a separate buffer that is to be uploaded
+						FScriptArrayHelper ArrayHelper(ArrayProperty, PropertyRawValue);
+						TArray<uint8>& Buffer = OutShaderValue.ArrayList[ConversionInfo.ArrayIndex];
+						Buffer.AddZeroed(ConversionInfo.ShaderValueSize * ArrayHelper.Num());
+						
+						for (int32 Index = 0; Index < ArrayHelper.Num(); Index++)
+						{
+							uint8* ElementPtr = ArrayHelper.GetRawPtr(Index);
+							uint8* ShaderValuePtr = Buffer.GetData() + ConversionInfo.ShaderValueSize * Index;
+
+							// Nested buffer is not possible
+							TArray<TArray<uint8>> DummyBufferList;
+
+							if (!ConversionInfo.PropertyInfo.ConvertFunc(
+									{ElementPtr, ArrayProperty->Inner->GetSize()},
+									{
+										{ShaderValuePtr, ConversionInfo.ShaderValueSize},
+										DummyBufferList
+									}))
+							{
+								return false;
+							}
+						}	
+					}
+					else
+					{
+						
+						const FOptimusDataTypeHandle DataType = ConversionInfo.PropertyInfo.DataType;
+						
+						check(ConversionInfo.ShaderValueSize <= ConversionInfo.ShaderValueInlineSize);
+
+						if (!ConversionInfo.PropertyInfo.ConvertFunc(
+								{
+									PropertyRawValue,
+									Property->GetSize()
+								},
+								{
+									{
+										OutShaderValue.ShaderValue.GetData() + ConversionInfo.ShaderValueOffset,
+										ConversionInfo.ShaderValueSize
+									},
+									{
+										OutShaderValue.ArrayList.GetData() + ConversionInfo.ArrayIndex,
+										DataType->GetNumArrays() 
+									}
+								}))
+						{
+							return false;
+						}
+					}
+				}
+				return true;
+			}
+			return false;
+		};
+
+		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
+			InDataType.TypeName = TypeName;
+			InDataType.DisplayName = DisplayName;
+			InDataType.ShaderValueType = ShaderValueType;
+			InDataType.ShaderValueSize = ExpectedShaderValueSize;
+			InDataType.TypeCategory = FName(TEXT("struct"));
+			InDataType.TypeObject = InStructType;
+			InDataType.UsageFlags = UsageFlags;
+			InDataType.TypeFlags |= EOptimusDataTypeFlags::IsStructType;
+			},
+			PropertyCreateFunc,
+			PropertyValueConvertFunc,
+			ArrayMetadata);
+	}
+
+	// For user defined structs we still register them even if it is unsupported
+	// since they can be changed to be compatible with our type system sometime later
+	if (UUserDefinedStruct* Struct = Cast<UUserDefinedStruct>(InStructType))
+	{
+		return RegisterType(TypeName, [&](FOptimusDataType& InDataType) {
+				InDataType.TypeName = TypeName;
+				InDataType.DisplayName = DisplayName;
+				InDataType.TypeCategory = FName(TEXT("struct"));
+				InDataType.TypeObject = InStructType;
+				InDataType.UsageFlags = UsageFlags;
+				InDataType.TypeFlags |= EOptimusDataTypeFlags::IsStructType;
+				},
+				PropertyCreateFunc
+				);
+	}
+
+	return false;
+}
+
+void FOptimusDataTypeRegistry::RefreshStructType(UUserDefinedStruct* InStructType)
+{
+	FName TypeName = Optimus::GetTypeName(InStructType);
+	UnregisterType(TypeName);
+	RegisterStructType(InStructType);
+	OnDataTypeChanged.Broadcast(TypeName);
+}
 
 bool FOptimusDataTypeRegistry::RegisterType(
 	const FFieldClass &InFieldType,
@@ -392,7 +865,7 @@ bool FOptimusDataTypeRegistry::RegisterType(
 			}
 		}
 
-		FName TypeName(*FString::Printf(TEXT("F%s"), *InStructType->GetName()));
+		FName TypeName = Optimus::GetTypeName(InStructType);
 
 		PropertyCreateFuncT PropertyCreateFunc;
 		PropertyValueConvertFuncT PropertyValueConvertFunc;
@@ -456,13 +929,13 @@ bool FOptimusDataTypeRegistry::RegisterType(
 
 			PropertyValueConvertFunc = [ConversionEntries, ExpectedPropertySize, ExpectedShaderValueSize](
 				TArrayView<const uint8> InRawValue, 
-				TArrayView<uint8> OutShaderValue
+				FShaderValueType::FValueView OutShaderValue
 				) -> bool
 			{
 				if (ensure(InRawValue.Num() == ExpectedPropertySize) &&
-					ensure(OutShaderValue.Num() == ExpectedShaderValueSize))
+					ensure(OutShaderValue.ShaderValue.Num() == ExpectedShaderValueSize))
 				{
-					uint8* ShaderValuePtr = OutShaderValue.GetData();
+					uint8* ShaderValuePtr = OutShaderValue.ShaderValue.GetData();
 					for (const FPropertyConversionInfo& ConversionInfo: ConversionEntries)
 					{
 						TArrayView<const uint8> PropertyData(InRawValue.GetData() + ConversionInfo.PropertyOffset, ConversionInfo.PropertySize);
@@ -687,7 +1160,7 @@ FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(const FProperty& InPro
 {
 	if (const FStructProperty* StructProperty = CastField<const FStructProperty>(&InProperty))
 	{
-		FName TypeName(*FString::Printf(TEXT("F%s"), *StructProperty->Struct->GetName()));
+		FName TypeName = Optimus::GetTypeName(StructProperty->Struct);
 		return FindType(TypeName);
 	}
 	else if (const FObjectProperty* ObjectProperty = CastField<const FObjectProperty>(&InProperty))
@@ -747,6 +1220,7 @@ FOptimusDataTypeHandle FOptimusDataTypeRegistry::FindType(FShaderValueTypeHandle
 			return Handle;
 		}	
 	}
+	
 	return {};
 }
 
@@ -756,6 +1230,26 @@ void FOptimusDataTypeRegistry::UnregisterAllTypes()
 	FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
 
 	Registry.RegisteredTypes.Reset();
+}
+
+void FOptimusDataTypeRegistry::RegisterAssetRegistryCallbacks()
+{
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+	{
+		AssetRegistryModule->Get().OnFilesLoaded().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnFilesLoaded);
+		AssetRegistryModule->Get().OnAssetRemoved().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAssetRemoved);
+		AssetRegistryModule->Get().OnAssetRenamed().AddRaw(&Get(), &FOptimusDataTypeRegistry::OnAssetRenamed);
+	}
+}
+
+void FOptimusDataTypeRegistry::UnregisterAssetRegistryCallbacks()
+{
+	if (FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(TEXT("AssetRegistry")))
+	{
+		AssetRegistryModule->Get().OnFilesLoaded().RemoveAll(&Get());
+		AssetRegistryModule->Get().OnAssetRemoved().RemoveAll(&Get());
+		AssetRegistryModule->Get().OnAssetRenamed().RemoveAll(&Get());
+	}
 }
 
 
@@ -773,6 +1267,84 @@ FOptimusDataTypeRegistry::PropertyCreateFuncT FOptimusDataTypeRegistry::FindProp
 	return InfoPtr->PropertyCreateFunc;
 }
 
+FOptimusDataTypeRegistry::FOptimusDataTypeRegistry()
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+
+	AssetRegistryModule.Get().OnFilesLoaded().AddRaw(this, &FOptimusDataTypeRegistry::OnFilesLoaded);
+	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FOptimusDataTypeRegistry::OnAssetRemoved);
+	AssetRegistryModule.Get().OnAssetRenamed().AddRaw(this, &FOptimusDataTypeRegistry::OnAssetRenamed);
+}
+
+void FOptimusDataTypeRegistry::OnFilesLoaded()
+{
+	TArray<FAssetData> StructAssets;
+	StructAssets.Reset();
+		
+	// Get the loaded ones
+	for (TObjectIterator<UScriptStruct> It; It; ++It)
+	{
+		UScriptStruct* Struct = *It;
+		StructAssets.Add(FAssetData(Struct));
+	}
+
+	// Now get unloaded ones
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	TArray<FAssetData> AssetData;
+	AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), AssetData);
+
+	for (int32 AssetIndex = 0; AssetIndex < AssetData.Num(); ++AssetIndex)
+	{
+		const FAssetData& Asset = AssetData[AssetIndex];
+		if (Asset.IsValid() && !Asset.IsAssetLoaded())
+		{
+			StructAssets.Add(Asset);
+		}
+	}
+
+	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
+
+	for (const FAssetData& StructAsset : StructAssets)
+	{
+		UObject* Struct = StructAsset.GetAsset();
+		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
+		
+		if (ensure(ScriptStruct))
+		{
+			FOptimusDataTypeHandle DataType = FindType(Optimus::GetTypeName(ScriptStruct));
+
+			if (!DataType.IsValid())
+			{
+				RegisterStructType(ScriptStruct);
+			}
+		}
+	}
+}
+
+void FOptimusDataTypeRegistry::OnAssetRemoved(const FAssetData& InAssetData)
+{
+	if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InAssetData.GetAsset()))
+	{
+		FName TypeName = Optimus::GetTypeName(UserDefinedStruct);
+		UnregisterType(TypeName);
+	}
+}
+
+void FOptimusDataTypeRegistry::OnAssetRenamed(const FAssetData& InAssetData, const FString& InOldName)
+{
+	if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InAssetData.GetAsset()))
+	{
+		FName TypeName = Optimus::GetTypeName(UserDefinedStruct);
+
+		if (FOptimusDataTypeHandle DataTypeHandle = FindType(TypeName))
+		{
+			FOptimusDataType* MutableDataType = const_cast<FOptimusDataType*>(DataTypeHandle.Get());
+			MutableDataType->DisplayName = Optimus::GetTypeDisplayName(UserDefinedStruct);
+			
+			OnDataTypeChanged.Broadcast(TypeName);
+		}
+	}
+}
 
 FOptimusDataTypeRegistry::PropertyValueConvertFuncT FOptimusDataTypeRegistry::FindPropertyValueConvertFunc(
 	FName InTypeName
@@ -786,4 +1358,92 @@ FOptimusDataTypeRegistry::PropertyValueConvertFuncT FOptimusDataTypeRegistry::Fi
 	}
 
 	return InfoPtr->PropertyValueConvertFunc;
+}
+
+const TArray<FOptimusDataTypeRegistry::FArrayMetadata>* FOptimusDataTypeRegistry::FindArrayMetadata(
+	FName InTypeName) const
+{
+	const FTypeInfo* InfoPtr = RegisteredTypes.Find(InTypeName);
+	if (!InfoPtr)
+	{
+		UE_LOG(LogOptimusCore, Fatal, TEXT("CreateProperty: Invalid type name."));
+		return nullptr;
+	}
+
+	return &InfoPtr->ArrayMetadata;
+}
+
+UScriptStruct* FOptimusDataTypeRegistry::FindAttributeType(FName InTypeName) const
+{
+	FName TransformTypeName(*FString::Printf(TEXT("F%s"), *TBaseStructure<FTransform>::Get()->GetName()));
+	FName VectorTypeName(*FString::Printf(TEXT("F%s"), *TBaseStructure<FVector>::Get()->GetName()));
+	FName QuatTypeName(*FString::Printf(TEXT("F%s"), *TBaseStructure<FQuat>::Get()->GetName()));
+
+	static TMap<FName, UScriptStruct*> BuiltInAttributeTypes =
+		{
+			{FFloatProperty::StaticClass()->GetFName(), FFloatAnimationAttribute::StaticStruct()},
+			{FIntProperty::StaticClass()->GetFName(), FIntegerAnimationAttribute::StaticStruct()},
+			{TransformTypeName, FTransformAnimationAttribute::StaticStruct()},
+			{VectorTypeName, FVectorAnimationAttribute::StaticStruct()},
+			{QuatTypeName, FQuaternionAnimationAttribute::StaticStruct()},
+		};
+
+	if (UScriptStruct** AttributeType = BuiltInAttributeTypes.Find(InTypeName))
+	{
+		return *AttributeType;
+	}
+	
+	const FTypeInfo* InfoPtr = RegisteredTypes.Find(InTypeName);
+	if (!InfoPtr)
+	{
+		UE_LOG(LogOptimusCore, Fatal, TEXT("CreateProperty: Invalid type name."));
+		return nullptr;
+	}
+
+	if (ensure(EnumHasAnyFlags(InfoPtr->Handle->UsageFlags, EOptimusDataTypeUsageFlags::AnimAttributes)))
+	{
+		return Cast<UScriptStruct>(InfoPtr->Handle->TypeObject);
+	}
+
+	return nullptr;
+}
+
+FOptimusDataTypeRegistry::FOnDataTypeChanged& FOptimusDataTypeRegistry::GetOnDataTypeChanged()
+{
+	return OnDataTypeChanged;
+}
+
+void FOptimusDataTypeRegistry::UnregisterType(FName InTypeName)
+{
+	RegisteredTypes.Remove(InTypeName);
+	RegistrationOrder.Remove(InTypeName);
+}
+
+
+void FOptimusDataTypeRegistry::RefreshRegistry()
+{
+	// Checks for new user defined structs that have been added
+	
+	TArray<FAssetData> StructAssets;
+
+	const FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
+	AssetRegistryModule.Get().GetAssetsByClass(UUserDefinedStruct::StaticClass()->GetClassPathName(), StructAssets);
+
+	StructAssets.Sort([](const FAssetData& A, const FAssetData& B) { return A.AssetName.LexicalLess(B.AssetName); });
+
+	for (const FAssetData& StructAsset : StructAssets)
+	{
+		UObject* Struct = StructAsset.GetAsset();
+		UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Struct);
+		
+		if (ensure(ScriptStruct))
+		{
+			FOptimusDataTypeHandle DataType = FindType(Optimus::GetTypeName(ScriptStruct));
+
+			if (!DataType.IsValid())
+			{
+				RegisterStructType(ScriptStruct);
+			}
+		}
+	}
 }

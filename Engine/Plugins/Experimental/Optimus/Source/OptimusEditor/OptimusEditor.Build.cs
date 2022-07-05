@@ -12,12 +12,6 @@ namespace UnrealBuildTool.Rules
 				}
             );
 
-            PublicDependencyModuleNames.AddRange(
-				new string[]
-				{
-				}
-	        );
-
             PrivateDependencyModuleNames.AddRange(
                 new string[]
                 {

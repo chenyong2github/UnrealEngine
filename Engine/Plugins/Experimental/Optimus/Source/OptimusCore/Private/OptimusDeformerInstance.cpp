@@ -142,6 +142,11 @@ void UOptimusDeformerInstance::SetupFromDeformer(UOptimusDeformer* InDeformer)
 }
 
 
+void UOptimusDeformerInstance::SetCanBeActive(bool bInCanBeActive)
+{
+	bCanBeActive = bInCanBeActive;
+}
+
 void UOptimusDeformerInstance::AllocateResources()
 {
 	
@@ -163,6 +168,11 @@ void UOptimusDeformerInstance::ReleaseResources()
 
 bool UOptimusDeformerInstance::IsActive() const
 {
+	if (!bCanBeActive)
+	{
+		return false;
+	}
+		
 	for (const FOptimusDeformerInstanceExecInfo& Info: ComputeGraphExecInfos)
 	{
 		if (!Info.ComputeGraphInstance.ValidateDataProviders(Info.ComputeGraph))

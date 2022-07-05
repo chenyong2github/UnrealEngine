@@ -2,8 +2,11 @@
 
 #include "OptimusHelpers.h"
 
+#include "OptimusDataTypeRegistry.h"
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 #include "ShaderParameterMetadataBuilder.h"
+#include "ShaderParameterMetadata.h"
+#include "Engine/UserDefinedStruct.h"
 
 FName Optimus::GetUniqueNameForScope(UObject* InScopeObj, FName InName)
 {
@@ -45,7 +48,7 @@ void ParametrizedAddParm(FShaderParametersMetadataBuilder& InOutBuilder, const T
 	InOutBuilder.AddParam<T>(InName);
 }
 
-void Optimus::AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType)
+void Optimus::AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType, TArray<FShaderParametersMetadata*>& OutNestedStructs)
 {
 	using AddParamFuncType = TFunction<void(FShaderParametersMetadataBuilder&, const TCHAR*)>;
 
@@ -66,7 +69,29 @@ void Optimus::AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TC
 		{*FShaderValueType::Get(EShaderFundamentalType::Float, 4, 4), &ParametrizedAddParm<FMatrix44f>},
 	};
 
-	if (const AddParamFuncType* Entry = AddParamFuncs.Find(*InValueType))
+	static TArray<FString> AllElementNames;
+	if (InValueType->bIsDynamicArray)
+	{
+		// both struct array and normal array are treated the same
+		InOutBuilder.AddRDGBufferSRV(InName, TEXT("StructuredBuffer"));
+	}
+	else if (InValueType->Type == EShaderFundamentalType::Struct)
+	{
+		FShaderParametersMetadataBuilder NestedStructBuilder;
+	
+		for (const FShaderValueType::FStructElement& Element : InValueType->StructElements)
+		{
+			AllElementNames.Add(Element.Name.ToString());
+			AddParamForType(NestedStructBuilder, *AllElementNames.Last(), Element.Type, OutNestedStructs);
+		}
+	
+		FShaderParametersMetadata* ShaderParameterMetadata = NestedStructBuilder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, InName);
+	
+		InOutBuilder.AddNestedStruct(InName, ShaderParameterMetadata);
+	
+		OutNestedStructs.Add(ShaderParameterMetadata);
+	}
+	else if (const AddParamFuncType* Entry = AddParamFuncs.Find(*InValueType))
 	{
 		(*Entry)(InOutBuilder, InName);
 	}
@@ -93,3 +118,69 @@ TArray<UClass*> Optimus::GetClassObjectsInPackage(UPackage* InPackage)
 
 	return ClassObjects;
 }
+
+Optimus::FTypeMetaData::FTypeMetaData(FShaderValueTypeHandle InType)
+{
+	FShaderParametersMetadataBuilder Builder;
+	TArray<FShaderParametersMetadata*> NestedStructs;
+	Optimus::AddParamForType(Builder, TEXT("Dummy"), InType, NestedStructs);
+	FShaderParametersMetadata* ShaderParameterMetadata = Builder.Build(FShaderParametersMetadata::EUseCase::ShaderParameterStruct, TEXT("Dummy"));
+	Metadata = ShaderParameterMetadata->GetMembers()[0].GetStructMetadata();
+	AllocatedMetadatas.Add(ShaderParameterMetadata);
+	AllocatedMetadatas.Append(NestedStructs);
+}
+
+Optimus::FTypeMetaData::~FTypeMetaData()
+{
+	for (FShaderParametersMetadata* Allocated: AllocatedMetadatas)
+	{
+		delete Allocated;
+	}
+}
+
+FText Optimus::GetTypeDisplayName(UScriptStruct* InStructType)
+{
+#if WITH_EDITOR
+	FText DisplayName = InStructType->GetDisplayNameText();
+#else
+	FText DisplayName = FText::FromName(InStructType->GetFName());
+#endif
+
+	return DisplayName;
+}
+
+FName Optimus::GetMemberPropertyShaderName(UScriptStruct* InStruct, const FProperty* InMemberProperty)
+{
+	if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InStruct))
+	{
+		// Remove Spaces
+		FString ShaderMemberName = InStruct->GetAuthoredNameForField(InMemberProperty).Replace(TEXT(" "), TEXT(""));
+
+		if (ensure(!ShaderMemberName.IsEmpty()))
+		{
+			// Sanitize the name, user defined struct can have members with names that start with numbers
+			if (!FChar::IsAlpha(ShaderMemberName[0]) && !FChar::IsUnderscore(ShaderMemberName[0]))
+			{
+				ShaderMemberName = FString(TEXT("_")) + ShaderMemberName;
+			}
+		}
+
+		return *ShaderMemberName;
+	}
+
+	return InMemberProperty->GetFName();
+}
+
+FName Optimus::GetTypeName(UScriptStruct* InStructType, bool bInShouldGetUniqueNameForUserDefinedStruct)
+{
+	if (UUserDefinedStruct* UserDefinedStruct = Cast<UUserDefinedStruct>(InStructType))
+	{
+		if (bInShouldGetUniqueNameForUserDefinedStruct)
+		{
+			return FName(*FString::Printf(TEXT("FUserDefinedStruct_%s"), *UserDefinedStruct->GetCustomGuid().ToString()));
+		}
+	}
+	
+	return FName(*FString::Printf(TEXT("F%s"), *InStructType->GetName()));
+}
+

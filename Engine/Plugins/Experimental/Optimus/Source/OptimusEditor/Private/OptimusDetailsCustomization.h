@@ -43,6 +43,7 @@ private:
 	FText GetDeclarationText() const;
 
 	TSharedPtr<IPropertyHandle> TypeNameProperty;
+	TSharedPtr<IPropertyHandle> TypeObjectProperty;
 	TAttribute<FOptimusDataTypeHandle> CurrentDataType;
 
 };
@@ -77,6 +78,8 @@ class FOptimusMultiLevelDataDomainCustomization :
 	public IPropertyTypeCustomization
 {
 public:
+	DECLARE_EVENT_OneParam(FOptimusMultiLevelDataDomainCustomization, FOnMultiLevelDataDomainChanged, const TArray<FName>& )
+	
 	static TSharedRef<IPropertyTypeCustomization> MakeInstance();
 
 	FOptimusMultiLevelDataDomainCustomization();
@@ -95,6 +98,8 @@ public:
 
 	void SetAllowParameters(const bool bInAllowParameters);
 
+	FOnMultiLevelDataDomainChanged OnMultiLevelDataDomainChangedDelegate; 
+	
 private:
 	void GenerateContextNames();
 

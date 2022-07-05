@@ -38,6 +38,11 @@ UOptimusNode::UOptimusNode()
 	// TODO: Clean up properties (i.e. remove EditAnywhere, VisibleAnywhere for outputs).
 }
 
+UOptimusNode::~UOptimusNode()
+{
+	
+}
+
 
 FName UOptimusNode::GetNodeName() const
 {

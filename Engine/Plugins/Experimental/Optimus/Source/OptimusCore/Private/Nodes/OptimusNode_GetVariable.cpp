@@ -52,13 +52,12 @@ FOptimusDataTypeRef UOptimusNode_GetVariable::GetValueType() const
 }
 
 
-TArray<uint8> UOptimusNode_GetVariable::GetShaderValue() const
+FShaderValueType::FValue UOptimusNode_GetVariable::GetShaderValue() const
 {
 	if (const UOptimusVariableDescription* Var = VariableDesc.Get();
 		Var && ensure(Var->DataType.IsValid()) && ensure(GetPins().Num() == 1))
 	{
-		TArray<uint8> ValueResult;
-		ValueResult.SetNumUninitialized(Var->DataType->ShaderValueSize);
+		FShaderValueType::FValue ValueResult = Var->DataType->MakeShaderValue();
 
 		if (Var->DataType->ConvertPropertyValueToShader(Var->ValueData, ValueResult))
 		{

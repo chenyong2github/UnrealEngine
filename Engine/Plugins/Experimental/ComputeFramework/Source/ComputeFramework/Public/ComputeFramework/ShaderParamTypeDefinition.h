@@ -113,6 +113,38 @@ struct COMPUTEFRAMEWORK_API FShaderValueType
 {
 	GENERATED_BODY()
 
+	struct FValue
+	{
+		FValue() = default;
+		FValue(int32 InShaderValueSize, int32 InNumArrays)
+		{
+			ShaderValue.SetNumUninitialized(InShaderValueSize);
+			ArrayList.AddDefaulted(InNumArrays);
+		}
+		
+		TArray<uint8> ShaderValue;
+		TArray<TArray<uint8>> ArrayList;
+	};
+	
+	struct FValueView
+	{
+		FValueView(
+			TArrayView<uint8> InShaderValue,
+			TArrayView<TArray<uint8>> InArrayList) :
+			ShaderValue(InShaderValue),
+			ArrayList(InArrayList) {}
+		
+		FValueView(TArrayView<uint8> InShaderValue) :
+			ShaderValue(InShaderValue) {}
+		
+		FValueView(FValue& InValue) :
+			ShaderValue(InValue.ShaderValue),
+			ArrayList(InValue.ArrayList) {}
+		
+		TArrayView<uint8> ShaderValue;
+		TArrayView<TArray<uint8>> ArrayList;
+	};
+	
 	// A simple container representing a single, named element in a shader value struct.
 	struct FStructElement
 	{
@@ -150,6 +182,12 @@ struct COMPUTEFRAMEWORK_API FShaderValueType
 	/** Constructor for struct types */
 	static FShaderValueTypeHandle Get(FName InName, std::initializer_list<FStructElement> InStructElements);
 
+	/** Constructor for struct types */
+	static FShaderValueTypeHandle Get(FName InName, const TArray<FStructElement>& InStructElements);
+	
+	/** Construct an array type from an existing type */
+	static FShaderValueTypeHandle MakeDynamicArrayType(const FShaderValueTypeHandle& InElementType);
+	
 	/** Parses the given string section and tries to convert to a shader value type.
 	 *  NOTE: Does not work on structs.
 	 */
@@ -168,10 +206,13 @@ struct COMPUTEFRAMEWORK_API FShaderValueType
 
 	/** Returns the type name as a string (e.g. 'vector2', 'matrix2x3' or 'struct_name') for 
 	    use in variable declarations. */
-	FString ToString() const;
+	FString ToString(const FName& InStructTypeNameOverride = {}) const;
 
 	/** Returns the type declaration if this type is a struct, or the empty string if not. */
-	FString GetTypeDeclaration() const;
+	FString GetTypeDeclaration(const TMap<FName, FName>& InNamesToReplace = {}) const;
+
+	/** Returns the all the struct types used in this type if the type is a struct. */
+	TArray<FShaderValueTypeHandle> GetMemberStructTypes() const;
 
 	/** Returns the size in bytes required to hold one element of this type using HLSL sizing
 	  * (which may be different from packed sizing in C++).
@@ -203,6 +244,9 @@ struct COMPUTEFRAMEWORK_API FShaderValueType
 	UPROPERTY()
 	FName Name;
 
+	UPROPERTY()
+	bool bIsDynamicArray = false;
+	
 	TArray<FStructElement> StructElements;
 
 private:

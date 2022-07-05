@@ -22,12 +22,14 @@ void FOptimusCoreModule::StartupModule()
 	AddShaderSourceDirectoryMapping(TEXT("/Plugin/Optimus"), PluginShaderDir);
 
 	// Make sure all our types are known at startup.
-	FOptimusDataTypeRegistry::RegisterBuiltinTypes(); 
+	FOptimusDataTypeRegistry::RegisterBuiltinTypes();
+	FOptimusDataTypeRegistry::RegisterAssetRegistryCallbacks();
 	UOptimusComputeDataInterface::RegisterAllTypes();
 }
 
 void FOptimusCoreModule::ShutdownModule()
 {
+	FOptimusDataTypeRegistry::UnregisterAssetRegistryCallbacks();
 	FOptimusDataTypeRegistry::UnregisterAllTypes();
 }
 

@@ -43,7 +43,7 @@ public:
 		SLATE_ATTRIBUTE( FOptimusDataTypeHandle, CurrentDataType )
 		SLATE_ARGUMENT( EViewType, ViewType )
 		SLATE_ARGUMENT( bool, bViewOnly )
-		SLATE_ARGUMENT( EOptimusDataTypeUsageFlags, UsageMask)
+		SLATE_ATTRIBUTE( EOptimusDataTypeUsageFlags, UsageMask)
 	    SLATE_ATTRIBUTE(FSlateFontInfo, Font)
 	    SLATE_EVENT(FOnDataTypeChanged, OnDataTypeChanged)
 	SLATE_END_ARGS()
@@ -75,7 +75,7 @@ private:
 	TAttribute<FOptimusDataTypeHandle> CurrentDataType;
 	EViewType ViewType;
 	bool bViewOnly;
-	EOptimusDataTypeUsageFlags UsageMask;
+	TAttribute<EOptimusDataTypeUsageFlags> UsageMask;
 	FOnDataTypeChanged OnDataTypeChanged;
 
 	TSharedPtr<SComboButton> TypeComboButton;

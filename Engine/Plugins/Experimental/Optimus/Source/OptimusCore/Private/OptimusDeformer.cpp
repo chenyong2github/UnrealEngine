@@ -34,6 +34,7 @@
 #include "UObject/Package.h"
 
 // FIXME: We should not be accessing nodes directly.
+#include "OptimusValueContainer.h"
 #include "Nodes/OptimusNode_ConstantValue.h"
 #include "Nodes/OptimusNode_GetVariable.h"
 #include "Nodes/OptimusNode_ResourceAccessorBase.h"
@@ -55,6 +56,8 @@ UOptimusDeformer::UOptimusDeformer()
 
 	Variables = CreateDefaultSubobject<UOptimusVariableContainer>(TEXT("@Variables"));
 	Resources = CreateDefaultSubobject<UOptimusResourceContainer>(TEXT("@Resources"));
+
+	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().AddUObject(this, &UOptimusDeformer::OnDataTypeChanged);
 }
 
 
@@ -1086,7 +1089,7 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 
 			if (UOptimusNode_ConstantValue const* ConstantNode = Cast<const UOptimusNode_ConstantValue>(ValueNode))
 			{
-				ValueNodeDescription.Value = ConstantNode->GetShaderValue();
+				ValueNodeDescription.Value = ConstantNode->GetShaderValue().ShaderValue;
 			}
 		}
 	}
@@ -1231,6 +1234,21 @@ UOptimusDeformer::FOptimusCompileResult UOptimusDeformer::CompileNodeGraphToComp
 	return Result;
 }
 
+void UOptimusDeformer::OnDataTypeChanged(FName InTypeName)
+{
+	// Currently only value containers depends on the UDSs,
+	UOptimusValueContainerGeneratorClass::RefreshClassForType(GetPackage(), FOptimusDataTypeRegistry::Get().FindType(InTypeName));
+	
+	for (UOptimusNodeGraph* Graph : Graphs)
+	{
+		for (UOptimusNode* Node: Graph->Nodes)
+		{
+			Node->OnDataTypeChanged(InTypeName);
+		}
+	}
+
+	//TODO: Recreate variables/Resources that uses this type
+}
 
 template<typename Allocator>
 static void StringViewSplit(
@@ -1406,7 +1424,7 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	case EOptimusGlobalNotifyType::ConstantValueChanged:
 		if (UOptimusNode_ConstantValue* ConstantValue = Cast<UOptimusNode_ConstantValue>(InObject))
 		{
-			ConstantValueUpdateDelegate.Broadcast(ConstantValue->GetValueName(), ConstantValue->GetShaderValue());
+			ConstantValueUpdateDelegate.Broadcast(ConstantValue->GetValueName(), ConstantValue->GetShaderValue().ShaderValue);
 		}
 		break;
 	default:
@@ -1417,6 +1435,10 @@ void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* In
 	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
 }
 
+void UOptimusDeformer::SetAllInstancesCanbeActive(bool bInCanBeActive) const
+{
+	SetAllInstancesCanbeActiveDelegate.Broadcast(bInCanBeActive);
+}
 
 void UOptimusDeformer::Serialize(FArchive& Ar)
 {
@@ -1474,6 +1496,25 @@ void UOptimusDeformer::PostLoad()
 	// Fixup any empty array entries.
 	Resources->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusResourceDescription>& Value) { return Value == nullptr; });
 	Variables->Descriptions.RemoveAllSwap([](const TObjectPtr<UOptimusVariableDescription>& Value) { return Value == nullptr; });
+
+	// Fixup any class objects with invalid parents.
+	TArray<UObject*> Objects;
+	GetObjectsWithOuter(this, Objects, false);
+
+	for (UObject* Object : Objects)
+	{
+		if (UClass* ClassObject = Cast<UClass>(Object))
+		{
+			Optimus::RenameObject(ClassObject, nullptr, GetPackage());
+		}
+	}	
+}
+
+void UOptimusDeformer::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().RemoveAll(this);
 }
 
 void UOptimusDeformer::PostRename(UObject* OldOuter, const FName OldName)
@@ -1505,6 +1546,7 @@ UMeshDeformerInstance* UOptimusDeformer::CreateInstance(UMeshComponent* InMeshCo
 	// Make sure all the instances know when we finish compiling so they can update their local state to match.
 	CompileEndDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetupFromDeformer);
 	ConstantValueUpdateDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetConstantValueDirect);
+	SetAllInstancesCanbeActiveDelegate.AddUObject(Instance, &UOptimusDeformerInstance::SetCanBeActive);
 
 	return Instance;
 }

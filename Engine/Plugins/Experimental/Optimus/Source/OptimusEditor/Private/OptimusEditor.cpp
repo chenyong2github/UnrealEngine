@@ -32,6 +32,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Materials/Material.h"
 #include "MessageLogModule.h"
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusEditorGraphCommands.h"
 #include "Misc/UObjectToken.h"
 #include "Modules/ModuleManager.h"
@@ -56,6 +57,8 @@ FOptimusEditor::FOptimusEditor()
 
 FOptimusEditor::~FOptimusEditor()
 {
+	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().RemoveAll(this);
+	
 	if (DeformerObject)
 	{
 		DeformerObject->GetCompileBeginDelegate().RemoveAll(this);
@@ -174,6 +177,8 @@ void FOptimusEditor::Construct(
 	{
 		HandlePreviewMeshChanged(nullptr, PersonaToolkit->GetPreviewMesh());
 	}
+
+	FOptimusDataTypeRegistry::Get().GetOnDataTypeChanged().AddSP(this, &FOptimusEditor::OnDataTypeChanged);
 }
 
 
@@ -1131,6 +1136,14 @@ void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& P
 				}
 			}
 		}
+	}
+}
+
+void FOptimusEditor::OnDataTypeChanged(FName InTypeName)
+{
+	if (PropertyDetailsWidget)
+	{
+		PropertyDetailsWidget->ForceRefresh();
 	}
 }
 

@@ -106,7 +106,9 @@ void UOptimusEditorGraphSchema::GetGraphActions(
 	// Constant Value Nodes
 	for (FOptimusDataTypeHandle DataTypeHandle: FOptimusDataTypeRegistry::Get().GetAllTypes())
 	{
-		if (DataTypeHandle->CanCreateProperty())
+		// For now only allow variable/resource compatible types to spawn constant nodes
+		if (DataTypeHandle->CanCreateProperty() &&
+			EnumHasAnyFlags(DataTypeHandle->UsageFlags, EOptimusDataTypeUsageFlags::Resource | EOptimusDataTypeUsageFlags::Variable))
 		{
 			const FText NodeName = FText::Format(LOCTEXT("ConstantValueNode", "{0} Constant"), DataTypeHandle->DisplayName);
 			const FText NodeCategory = FText::FromName(UOptimusNode::CategoryName::Values);

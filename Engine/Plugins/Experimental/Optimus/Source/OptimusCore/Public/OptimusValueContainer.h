@@ -31,6 +31,11 @@ public:
 		FOptimusDataTypeRef InDataType
 		);
 
+	static UClass *RefreshClassForType(
+		UPackage*InPackage,
+		FOptimusDataTypeRef InDataType
+		);
+
 	UPROPERTY()
 	FOptimusDataTypeRef DataType;
 };
@@ -46,5 +51,5 @@ public:
 	static UOptimusValueContainer* MakeValueContainer(UObject* InOwner, FOptimusDataTypeRef InDataTypeRef);
 
 	FOptimusDataTypeRef GetValueType() const;
-	TArray<uint8> GetShaderValue() const;
+	FShaderValueType::FValue GetShaderValue() const;
 };

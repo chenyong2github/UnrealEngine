@@ -113,7 +113,7 @@ FOptimusDataTypeRef UOptimusNode_ConstantValue::GetValueType() const
 }
 
 
-TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
+FShaderValueType::FValue UOptimusNode_ConstantValue::GetShaderValue() const
 {
 	const UOptimusNodePin *ValuePin = FindPinFromPath({TEXT("Value")});
 	if (ensure(ValuePin))
@@ -123,8 +123,7 @@ TArray<uint8> UOptimusNode_ConstantValue::GetShaderValue() const
 		if (ensure(ValueProperty) && ensure(DataType.IsValid()))
 		{
 			TArrayView<const uint8> ValueData(ValueProperty->ContainerPtrToValuePtr<uint8>(this), ValueProperty->GetSize());
-			TArray<uint8> ValueResult;
-			ValueResult.SetNumUninitialized(DataType->ShaderValueSize);
+			FShaderValueType::FValue ValueResult = DataType->MakeShaderValue();
 
 			if (DataType->ConvertPropertyValueToShader(ValueData, ValueResult))
 			{

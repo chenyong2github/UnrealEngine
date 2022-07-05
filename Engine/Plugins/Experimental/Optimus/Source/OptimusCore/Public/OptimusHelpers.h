@@ -11,6 +11,7 @@
 #include "UObject/Package.h"
 #include "UObject/Class.h"
 
+class FShaderParametersMetadata;
 class FShaderParametersMetadataBuilder;
 struct FShaderValueTypeHandle;
 
@@ -71,7 +72,7 @@ namespace Optimus
 
 	FName GetSanitizedNameForHlsl(FName InName);
 
-	void AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType);
+	void AddParamForType(FShaderParametersMetadataBuilder& InOutBuilder, TCHAR const* InName, FShaderValueTypeHandle const& InValueType, TArray<FShaderParametersMetadata*>& OutNestedStructs);
 
 	FORCEINLINE_DEBUGGABLE FMatrix44f ConvertFTransformToFMatrix44f(const FTransform& InTransform)
 	{
@@ -80,7 +81,30 @@ namespace Optimus
 
 	bool RenameObject(UObject* InObjectToRename, const TCHAR* InNewName, UObject* InNewOuter);
 
-	// Our generated classes are parented to the package, this is a utility function
-	// to collect them
+	/** Our generated classes are parented to the package, this is a utility function
+		to collect them */
 	TArray<UClass*> GetClassObjectsInPackage(UPackage* InPackage);
+
+	/** Helper struct to convert shader value type to shader parameter metadata */
+	struct FTypeMetaData
+	{
+		FTypeMetaData(FShaderValueTypeHandle InType);
+		FTypeMetaData(const FTypeMetaData& InOther) = delete;
+		FTypeMetaData& operator=(const FTypeMetaData& InOther) = delete;
+		~FTypeMetaData();
+
+		const FShaderParametersMetadata* Metadata;
+		
+		TArray<FShaderParametersMetadata*> AllocatedMetadatas;
+	};
+	
+	/** Return the unique type name for registry and kernel code generation if the bInShouldGetUniqueNameForUserDefinedStruct = true
+		Otherise, it returns the friendly name for user-facing shader text display*/
+	OPTIMUSCORE_API FName GetTypeName(UScriptStruct* InStruct, bool bInShouldGetUniqueNameForUserDefinedStruct = true);
+	
+	/** Return the display name for the struct to be shown in type pickers*/
+	OPTIMUSCORE_API FText GetTypeDisplayName(UScriptStruct* InStruct);
+
+	/** Helper function to remove guids from member property names for user defined structs	*/
+	OPTIMUSCORE_API FName GetMemberPropertyShaderName(UScriptStruct* InStruct, const FProperty* InMemberProperty);
 }

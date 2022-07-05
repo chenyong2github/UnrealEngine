@@ -10,6 +10,8 @@
 #include "DataInterfaces/OptimusDataInterfaceGraph.h"
 #include "DataInterfaces/OptimusDataInterfaceRawBuffer.h"
 #include "IOptimusValueProvider.h"
+#include "OptimusDataTypeRegistry.h"
+#include "OptimusHelpers.h"
 #include "OptimusKernelSource.h"
 
 
@@ -51,6 +53,64 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	FOptimus_InterfaceBindingMap& OutOutputDataBindings
 ) const
 {
+	// Maps friendly name to unique name for each struct type
+	TMap<FName, FName> StructTypeDefs;
+
+	for (const UOptimusNodePin* Pin: GetPins())
+	{
+		if (Pin->GetDirection() == EOptimusNodePinDirection::Input ||
+			Pin->GetDirection() == EOptimusNodePinDirection::Output)
+		{
+			FOptimusDataTypeHandle TypeHandle = Pin->GetDataType();
+			if (!TypeHandle.IsValid())
+			{
+				return nullptr;
+			}
+
+			FShaderValueTypeHandle ShaderValueType = TypeHandle->ShaderValueType;
+			if (!ShaderValueType.IsValid())
+			{
+				return nullptr;
+			}
+
+			// Only process shader struct types
+			if (ShaderValueType->Type != EShaderFundamentalType::Struct)
+			{
+				continue;
+			}
+			
+			TArray<FShaderValueTypeHandle> StructTypes = ShaderValueType->GetMemberStructTypes();
+			StructTypes.Add(ShaderValueType);
+
+			for (FShaderValueTypeHandle StructType : StructTypes)
+			{
+				FOptimusDataTypeHandle StructOptimusType = FOptimusDataTypeRegistry::Get().FindType(StructType->Name);
+				if (ensure(StructOptimusType))
+				{
+					if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(StructOptimusType->TypeObject))
+					{
+						const FName UniqueName = StructType->Name;
+						const FName FriendlyNameForKernel = Optimus::GetTypeName(ScriptStruct, false);
+
+						if (FName* FoundUniqueName = StructTypeDefs.Find(FriendlyNameForKernel))
+						{
+							// The same friendly name cannot be claimed by two unique types;
+							if (*FoundUniqueName != UniqueName)
+							{
+								return nullptr;
+							}
+
+							// Type is already in the map, no more actions needed
+							continue;
+						}
+
+						StructTypeDefs.Add(FriendlyNameForKernel) = UniqueName;
+					}
+				}
+			}
+		}
+	}
+
 	UOptimusKernelSource* KernelSource = NewObject<UOptimusKernelSource>(InKernelSourceOuter);
 
 	// Wrap functions for unconnected resource pins (or value pins) that return default values
@@ -98,6 +158,14 @@ UOptimusKernelSource* UOptimusNode_ComputeKernelBase::CreateComputeKernel(
 	KernelSource->EntryPoint = GetKernelName();
 	KernelSource->GroupSize = GetGroupSize();
 	KernelSource->AdditionalSources = GetAdditionalSources();
+
+	for (const TTuple<FName, FName>& NamePair : StructTypeDefs)
+	{
+		if (NamePair.Key != NamePair.Value)
+		{
+			KernelSource->DefinitionsSet.Defines.Add(FComputeKernelDefinition(NamePair.Key.ToString(), NamePair.Value.ToString()));
+		}
+	}
 
 #if 0
 	UE_LOG(LogOptimusCore, Log, TEXT("Kernel: %s [%s]"), *GetNodePath(), *GetNodeName().ToString());
@@ -446,3 +514,4 @@ void UOptimusNode_ComputeKernelBase::ProcessOutputPinForComputeKernel(
 				*InOutputPin->GetName(), *FString::Join(StubIndexes, TEXT(", ")), *ValueType->ToString()));
 	}
 }
+

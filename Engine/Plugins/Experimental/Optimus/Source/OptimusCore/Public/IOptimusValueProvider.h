@@ -28,5 +28,5 @@ public:
 	// Returns the value type.
 	virtual FOptimusDataTypeRef GetValueType() const = 0;
 	// Returns the stored value as a shader-compatible value.
-	virtual TArray<uint8> GetShaderValue() const = 0;
+	virtual FShaderValueType::FValue GetShaderValue() const = 0;
 };

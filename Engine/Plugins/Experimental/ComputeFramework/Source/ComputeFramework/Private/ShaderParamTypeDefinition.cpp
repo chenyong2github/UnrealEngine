@@ -3,6 +3,7 @@
 #include "ComputeFramework/ShaderParamTypeDefinition.h"
 
 #include "Algo/Find.h"
+#include "ComputeFramework/ComputeFrameworkObjectVersion.h"
 #include "Internationalization/Regex.h"
 #include "Misc/DefaultValueHelper.h"
 #include "Serialization/Archive.h"
@@ -130,6 +131,44 @@ FShaderValueTypeHandle FShaderValueType::Get(
 	return GetOrCreate(MoveTemp(ValueType));
 }
 
+FShaderValueTypeHandle FShaderValueType::Get(FName InName, const TArray<FStructElement>& InStructElements)
+{
+	if (InName == NAME_None)
+	{
+		return {};
+	}
+
+	// TODO: Check if the name and the element names are valid HLSL identifiers 
+	// (i.e. identifier characters only, not a reserved keyword, and no duplicates).
+	// TODO: Check if the name matches another struct with a different layout.
+
+	FShaderValueType ValueType;
+	ValueType.Name = InName;
+	ValueType.Type = EShaderFundamentalType::Struct;
+	ValueType.DimensionType = EShaderFundamentalDimensionType::Scalar;
+
+	for (const FStructElement &StructElement : InStructElements)
+	{
+		ValueType.StructElements.Add(StructElement);
+	}
+
+	// We don't allow empty structs.
+	if (ValueType.StructElements.IsEmpty())
+	{
+		return {};
+	}
+
+	return GetOrCreate(MoveTemp(ValueType));
+}
+
+FShaderValueTypeHandle FShaderValueType::MakeDynamicArrayType(const FShaderValueTypeHandle& InElementType)
+{
+	FShaderValueType Type = *InElementType;
+
+	Type.bIsDynamicArray = true;
+
+	return GetOrCreate(MoveTemp(Type));
+}
 
 FShaderValueTypeHandle FShaderValueType::FromString(const FString& InTypeDecl)
 {
@@ -218,6 +257,11 @@ bool FShaderValueType::operator==(const FShaderValueType& InOtherType) const
 		return false;
 	}
 
+	if (bIsDynamicArray != InOtherType.bIsDynamicArray)
+	{
+		return false;
+	}
+	
 	if (Type == EShaderFundamentalType::Struct)
 	{
 		if (Name != InOtherType.Name || StructElements.Num() != InOtherType.StructElements.Num())
@@ -284,10 +328,12 @@ uint32 GetTypeHash(const FShaderValueType& InShaderValueType)
 			Hash = HashCombine(Hash, GetTypeHash(int32(InShaderValueType.MatrixColumnCount)));
 		}
 	}
+	
+	Hash = HashCombine(Hash, GetTypeHash(InShaderValueType.bIsDynamicArray));
 	return Hash;
 }
 
-FString FShaderValueType::ToString() const
+FString FShaderValueType::ToString(const FName& InStructTypeNameOverride) const
 {
 	// FIXME: Cache on create?
 	FString BaseName;
@@ -307,22 +353,31 @@ FString FShaderValueType::ToString() const
 		break;
 
 	case EShaderFundamentalType::Struct:
-		return Name.ToString();
+		BaseName = InStructTypeNameOverride != NAME_None ? InStructTypeNameOverride.ToString() : Name.ToString();
+		break;
 	}
 
-	if (DimensionType == EShaderFundamentalDimensionType::Vector)
+	if (Type != EShaderFundamentalType::Struct)
 	{
-		BaseName.Appendf(TEXT("%d"), VectorElemCount);
-	}
-	else if (DimensionType == EShaderFundamentalDimensionType::Matrix)
-	{
-		BaseName.Appendf(TEXT("%dx%d"), MatrixRowCount, MatrixColumnCount);
+		if (DimensionType == EShaderFundamentalDimensionType::Vector)
+		{
+			BaseName.Appendf(TEXT("%d"), VectorElemCount);
+		}
+		else if (DimensionType == EShaderFundamentalDimensionType::Matrix)
+		{
+			BaseName.Appendf(TEXT("%dx%d"), MatrixRowCount, MatrixColumnCount);
+		}
 	}
 
+	if (bIsDynamicArray)
+	{
+		BaseName = FString::Printf(TEXT("StructuredBuffer<%s>"), *BaseName);
+	}
+	
 	return BaseName;
 }
 
-FString FShaderValueType::GetTypeDeclaration() const
+FString FShaderValueType::GetTypeDeclaration(const TMap<FName, FName>& InTypeNamesToReplace) const
 {
 	// FIXME: Cache on create?
 	if (Type != EShaderFundamentalType::Struct)
@@ -334,12 +389,62 @@ FString FShaderValueType::GetTypeDeclaration() const
 	Elements.Reserve(StructElements.Num());
 	for (const FStructElement& StructElement : StructElements)
 	{
-		Elements.Add(FString::Printf(TEXT("    %s %s;\n"), *StructElement.Type.ValueTypePtr->ToString(), *StructElement.Name.ToString()));
+		FName MemberTypeNameToUse = StructElement.Type->Name;
+		if (const FName* Replacement = InTypeNamesToReplace.Find(StructElement.Type->Name))
+		{
+			MemberTypeNameToUse = *Replacement;
+		}
+		
+		Elements.Add(FString::Printf(TEXT("    %s %s;\n"), *StructElement.Type.ValueTypePtr->ToString(MemberTypeNameToUse), *StructElement.Name.ToString()));
+
+		if (StructElement.Type->bIsDynamicArray)
+		{
+			FString ElementType = StructElement.Type.ValueTypePtr->ToString();
+			ElementType = ElementType.Replace(TEXT("StructuredBuffer"),TEXT("")).Replace(TEXT("<"), TEXT("")).Replace(TEXT(">"), TEXT(""));
+		}
 	}
 
+	FName TypeNameToUse = Name;
+	if (const FName* Replacement = InTypeNamesToReplace.Find(Name))
+	{
+		TypeNameToUse = *Replacement;
+	}	
+
 	return FString::Printf(TEXT("struct %s {\n%s}"), 
-		*Name.ToString(),
+		*TypeNameToUse.ToString(),
 		*FString::Join(Elements, TEXT("")));
+}
+
+TArray<FShaderValueTypeHandle> FShaderValueType::GetMemberStructTypes() const
+{
+	struct FStructCollector
+	{
+		void WalkMembers(const FShaderValueType& InType, TArray<FShaderValueTypeHandle>& OutResults)
+		{
+			for (const FStructElement& StructElement : InType.StructElements)
+			{
+				if (StructElement.Type->Type == EShaderFundamentalType::Struct)
+				{
+					if (!StructsSeen.Contains(StructElement.Type->Name))
+					{
+						WalkMembers(*StructElement.Type, OutResults);
+						OutResults.Add(StructElement.Type);
+						StructsSeen.Add(StructElement.Type->Name);
+					}
+				}
+			}
+		};
+
+		TSet<FName> StructsSeen;
+	};
+
+	TArray<FShaderValueTypeHandle> Results;
+	Results.Reserve(4);
+	
+	FStructCollector Collector;
+	Collector.WalkMembers(*this, Results);
+	
+	return Results;
 }
 
 
@@ -430,6 +535,8 @@ FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle)
 	FShaderValueType ValueTypeTemp;
 	FShaderValueType *ValueTypePtr;
 
+	InArchive.UsingCustomVersion(FComputeFrameworkObjectVersion::GUID);
+	
 	if (InArchive.IsLoading())
 	{
 		ValueTypePtr = &ValueTypeTemp;
@@ -442,6 +549,12 @@ FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle)
 	if (ValueTypePtr)
 	{
 		InArchive << ValueTypePtr->Type;
+
+		// When the object version is added, bIsDynamicArray is also added
+		if (InArchive.CustomVer(FComputeFrameworkObjectVersion::GUID) >= FComputeFrameworkObjectVersion::InitialVersion)
+		{
+			InArchive << ValueTypePtr->bIsDynamicArray;
+		}
 		
 		if (ValueTypePtr->Type == EShaderFundamentalType::Struct)
 		{

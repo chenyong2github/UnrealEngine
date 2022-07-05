@@ -3,10 +3,13 @@
 #include "OptimusEditorModule.h"
 
 #include "AssetToolsModule.h"
+#include "AssetViewUtils.h"
 #include "EdGraphUtilities.h"
 #include "IAssetTools.h"
+#include "ObjectTools.h"
 #include "OptimusBindingTypes.h"
 #include "OptimusDataType.h"
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusDeformerAssetActions.h"
 #include "OptimusDetailsCustomization.h"
 #include "OptimusEditor.h"
@@ -16,6 +19,7 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "OptimusEditorStyle.h"
+#include "OptimusHelpers.h"
 #include "OptimusResourceDescription.h"
 #include "OptimusShaderText.h"
 #include "OptimusSource.h"
@@ -23,8 +27,10 @@
 #include "OptimusValidatedName.h"
 #include "OptimusValueContainer.h"
 #include "PropertyEditorModule.h"
+#include "AssetRegistry/AssetRegistryModule.h"
 #include "Widgets/SOptimusEditorGraphExplorer.h"
 #include "Widgets/SOptimusShaderTextDocumentTextBox.h"
+#include "Algo/Transform.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -95,6 +101,61 @@ TSharedRef<IOptimusEditor> FOptimusEditorModule::CreateEditor(const EToolkitMode
 FOptimusEditorClipboard& FOptimusEditorModule::GetClipboard() const
 {
 	return Clipboard.Get();
+}
+
+void FOptimusEditorModule::PreChange(const UUserDefinedStruct* Changed,
+	FStructureEditorUtils::EStructureEditorChangeInfo ChangedType)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	TArray<FName> Referencers;
+	AssetRegistryModule.Get().GetReferencers(Changed->GetPackage()->GetFName(), Referencers);
+
+	TArray<FString> PackageNames;
+	Algo::Transform(Referencers, PackageNames, [](FName Name) { return Name.ToString(); });
+	TArray<UPackage*> Packages = AssetViewUtils::LoadPackages(PackageNames);
+	
+	for (UPackage* Package : Packages)
+	{
+		UObject* AssetObject = Package->FindAssetInPackage();
+
+		if (UOptimusDeformer* DeformerAsset = Cast<UOptimusDeformer>(AssetObject))
+		{
+			DeformerAsset->SetAllInstancesCanbeActive(false);
+		}
+	}
+
+	UserDefinedStructsPendingPostChange++;
+}
+
+void FOptimusEditorModule::PostChange(const UUserDefinedStruct* Changed,
+	FStructureEditorUtils::EStructureEditorChangeInfo ChangedType)
+{
+	FOptimusDataTypeRegistry::Get().RefreshStructType(const_cast<UUserDefinedStruct*>(Changed));
+
+	UserDefinedStructsPendingPostChange--;
+
+	// Only recompile/reactivate all instances once all struct changes have been processed
+	if (UserDefinedStructsPendingPostChange == 0)
+	{
+		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+		TArray<FName> Referencers;
+		AssetRegistryModule.Get().GetReferencers(Changed->GetPackage()->GetFName(), Referencers);
+
+		TArray<FString> PackageNames;
+		Algo::Transform(Referencers, PackageNames, [](FName Name) { return Name.ToString(); });
+		TArray<UPackage*> Packages = AssetViewUtils::LoadPackages(PackageNames);
+	
+		for (UPackage* Package : Packages)
+		{
+			UObject* AssetObject = Package->FindAssetInPackage();
+
+			if (UOptimusDeformer* DeformerAsset = Cast<UOptimusDeformer>(AssetObject))
+			{
+				DeformerAsset->Compile();
+				DeformerAsset->SetAllInstancesCanbeActive(true);
+			}
+		}	
+	}
 }
 
 void FOptimusEditorModule::RegisterPropertyCustomizations()
