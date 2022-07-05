@@ -1217,25 +1217,24 @@ void FNiagaraGpuComputeDispatch::ExecuteTicks(FRDGBuilder& GraphBuilder, TConstA
 				ComputeContext->SetTranslucentDataToRender(nullptr);
 				ComputeContext->SetDataToRender(CurrentData);
 
-//-TODO:RDG:mGPU:
-//#if WITH_MGPU
-//				if (bAFREnabled)
-//				{
-//					AddAFRBuffer(CurrentData->GetGPUBufferFloat().Buffer);
-//					AddAFRBuffer(CurrentData->GetGPUBufferHalf().Buffer);
-//					AddAFRBuffer(CurrentData->GetGPUBufferInt().Buffer);
-//					if (ComputeContext->MainDataSet->RequiresPersistentIDs())
-//					{
-//						AddAFRBuffer(ComputeContext->MainDataSet->GetGPUFreeIDs().Buffer);
-//					}
-//				}
-//				if (bCrossGPUTransferEnabled)
-//				{
-//					AddCrossGPUTransfer(RHICmdList, CurrentData->GetGPUBufferFloat().Buffer);
-//					AddCrossGPUTransfer(RHICmdList, CurrentData->GetGPUBufferHalf().Buffer);
-//					AddCrossGPUTransfer(RHICmdList, CurrentData->GetGPUBufferInt().Buffer);
-//				}
-//#endif // WITH_MGPU
+#if WITH_MGPU
+				if (bAFREnabled)
+				{
+					AddAFRBuffer(CurrentData->GetGPUBufferFloat().Buffer);
+					AddAFRBuffer(CurrentData->GetGPUBufferHalf().Buffer);
+					AddAFRBuffer(CurrentData->GetGPUBufferInt().Buffer);
+					if (ComputeContext->MainDataSet->RequiresPersistentIDs())
+					{
+						AddAFRBuffer(ComputeContext->MainDataSet->GetGPUFreeIDs().Buffer);
+					}
+				}
+				if (bCrossGPUTransferEnabled)
+				{
+					AddCrossGPUTransfer(GraphBuilder.RHICmdList, CurrentData->GetGPUBufferFloat().Buffer);
+					AddCrossGPUTransfer(GraphBuilder.RHICmdList, CurrentData->GetGPUBufferHalf().Buffer);
+					AddCrossGPUTransfer(GraphBuilder.RHICmdList, CurrentData->GetGPUBufferInt().Buffer);
+				}
+#endif // WITH_MGPU
 			}
 			// If this is not the final tick of the final stage we need set our temporary buffer for data interfaces, etc, that may snoop from CurrentData
 			else
@@ -1684,6 +1683,21 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TArray
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
 		ExecuteTicks(GraphBuilder, Views, ENiagaraGpuComputeTickStage::PostInitViews);
+
+	#if WITH_MGPU
+		// Queue a transfer request
+		if (StageToTransferGPUBuffers == ENiagaraGpuComputeTickStage::PostInitViews)
+		{
+			AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("Niagara::TransferMultiGPUBufers"),
+				[this](FRHICommandListImmediate& RHICmdList)
+				{
+					TransferMultiGPUBufers(RHICmdList, ENiagaraGpuComputeTickStage::PostInitViews);
+				}
+			);
+		}
+	#endif // WITH_MGPU
 	}
 }
 
@@ -2286,6 +2300,16 @@ void FNiagaraGpuComputeDispatch::DrawSceneDebug_RenderThread(class FRDGBuilder& 
 }
 
 #if WITH_MGPU
+void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRDGBuilder& GraphBuilder, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const
+{
+	MultiGPUResourceModified(GraphBuilder.RHICmdList, Buffer, bRequiredForSimulation, bRequiredForRendering);
+}
+
+void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRDGBuilder& GraphBuilder, FRHITexture* Texture, bool bRequiredForSimulation, bool bRequiredForRendering) const
+{
+	MultiGPUResourceModified(GraphBuilder.RHICmdList, Texture, bRequiredForSimulation, bRequiredForRendering);
+}
+
 void FNiagaraGpuComputeDispatch::MultiGPUResourceModified(FRHICommandList& RHICmdList, FRHIBuffer* Buffer, bool bRequiredForSimulation, bool bRequiredForRendering) const
 {
 	if (bAFREnabled && bRequiredForSimulation)

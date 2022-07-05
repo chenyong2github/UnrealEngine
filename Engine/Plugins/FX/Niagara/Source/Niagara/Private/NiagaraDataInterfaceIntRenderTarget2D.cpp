@@ -128,14 +128,13 @@ struct FNDIIntRenderTarget2DProxy : public FNiagaraDataInterfaceProxyRW
 	{
 		FNDIIntRenderTarget2DInstanceData_RenderThread& InstanceData = SystemInstancesToProxyData_RT.FindChecked(Context.GetSystemInstanceID());
 
-//-TODO:RDG:mGPU
-//		// We only need to transfer this frame if it was written to.
-//		// If also read then we need to notify that the texture is important for the simulation
-//		// We also assume the texture is important for rendering, without discovering renderer bindings we don't really know
-//		if (InstanceData->bWroteThisFrame)
-//		{
-//			Context.ComputeDispatchInterface->MultiGPUResourceModified(RHICmdList, InstanceData->TextureRHI, InstanceData->bReadThisFrame, true);
-//		}
+		// We only need to transfer this frame if it was written to.
+		// If also read then we need to notify that the texture is important for the simulation
+		// We also assume the texture is important for rendering, without discovering renderer bindings we don't really know
+		if (InstanceData.bWroteThisFrame)
+		{
+			Context.GetComputeDispatchInterface().MultiGPUResourceModified(Context.GetGraphBuilder(), InstanceData.TextureRHI, InstanceData.bReadThisFrame, true);
+		}
 
 		InstanceData.bWroteThisFrame = true;
 		InstanceData.bReadThisFrame = true;
