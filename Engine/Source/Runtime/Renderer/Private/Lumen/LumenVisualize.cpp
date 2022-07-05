@@ -681,6 +681,7 @@ void FDeferredShadingSceneRenderer::RenderLumenMiscVisualizations(FRDGBuilder& G
 	}
 
 	RenderLumenRadianceCacheVisualization(GraphBuilder, SceneTextures);
+	RenderLumenRadiosityProbeVisualization(GraphBuilder, SceneTextures, FrameTemporaries);
 
 	if (GLumenSceneDumpStats)
 	{

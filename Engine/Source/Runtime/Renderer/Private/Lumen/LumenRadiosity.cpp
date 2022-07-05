@@ -15,7 +15,6 @@
 #include "LumenRadianceCache.h"
 #include "LumenSceneLighting.h"
 #include "LumenTracingUtils.h"
-
 #include "LumenHardwareRayTracingCommon.h"
 
 int32 GLumenRadiosity = 1;
@@ -182,6 +181,20 @@ FAutoConsoleVariableRef CVarLumenRadiosityFixedJitterIndex(
 	GLumenRadiosityFixedJitterIndex,
 	TEXT("If zero or greater, overrides the temporal jitter index with a fixed index.  Useful for debugging and inspecting sampling patterns."),
 	ECVF_Scalability | ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarLumenSceneRadiosityVisualizeProbes(
+	TEXT("r.LumenScene.Radiosity.VisualizeProbes"),
+	0,
+	TEXT("Whether to visualize radiosity probes."),
+	ECVF_RenderThreadSafe
+);
+
+TAutoConsoleVariable<int32> CVarLumenSceneRadiosityVisualizeProbeRadius(
+	TEXT("r.LumenScene.Radiosity.VisualizeProbeRadius"),
+	10.0f,
+	TEXT("Radius of a visualized radiosity probe."),
+	ECVF_RenderThreadSafe
 );
 
 namespace LumenRadiosity
@@ -1051,5 +1064,204 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 	else
 	{
 		AddClearRenderTargetPass(GraphBuilder, RadiosityAtlas);
+	}
+}
+
+class FBuildVisualizeProbesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FBuildVisualizeProbesCS);
+	SHADER_USE_PARAMETER_STRUCT(FBuildVisualizeProbesCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWVisualizeProbeAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWVisualizeProbeData)
+		SHADER_PARAMETER(float, VisualizeProbeRadius)
+		SHADER_PARAMETER(uint32, ProbesPerPhysicalPage)
+		SHADER_PARAMETER(uint32, ProbeTileSize)
+		SHADER_PARAMETER(uint32, MaxVisualizeProbes)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 64;
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FBuildVisualizeProbesCS, "/Engine/Private/Lumen/Radiosity/LumenVisualizeRadiosityProbes.usf", "BuildVisualizeProbesCS", SF_Compute);
+
+class FVisualizeRadiosityProbesVS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVisualizeRadiosityProbesVS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeRadiosityProbesVS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VisualizeProbeAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VisualizeProbeData)
+		SHADER_PARAMETER(float, VisualizeProbeRadius)
+		SHADER_PARAMETER(uint32, ProbesPerPhysicalPage)
+		SHADER_PARAMETER(uint32, ProbeTileSize)
+		SHADER_PARAMETER(uint32, MaxVisualizeProbes)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisualizeRadiosityProbesVS, "/Engine/Private/Lumen/Radiosity/LumenVisualizeRadiosityProbes.usf", "VisualizeRadiosityProbesVS", SF_Vertex);
+
+class FVisualizeRadiosityProbesPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVisualizeRadiosityProbesPS);
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeRadiosityProbesPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FLumenCardScene, LumenCardScene)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityProbeSHRedAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityProbeSHGreenAtlas)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, RadiosityProbeSHBlueAtlas)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FVisualizeRadiosityProbesPS, "/Engine/Private/Lumen/Radiosity/LumenVisualizeRadiosityProbes.usf", "VisualizeRadiosityProbesPS", SF_Pixel);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeRadiosityProbeParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeRadiosityProbesVS::FParameters, VS)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeRadiosityProbesPS::FParameters, PS)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+void FDeferredShadingSceneRenderer::RenderLumenRadiosityProbeVisualization(FRDGBuilder& GraphBuilder, const FMinimalSceneTextures& SceneTextures, const FLumenSceneFrameTemporaries& FrameTemporaries)
+{
+	const FViewInfo& View = Views[0];
+	const FPerViewPipelineState& ViewPipelineState = GetViewPipelineState(View);
+	const bool bAnyLumenActive = ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen || ViewPipelineState.ReflectionsMethod == EReflectionsMethod::Lumen;
+	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+	if (Views.Num() == 1
+		&& View.ViewState
+		&& bAnyLumenActive
+		&& Lumen::IsRadiosityEnabled(ViewFamily)
+		&& LumenSceneData.bFinalLightingAtlasContentsValid
+		&& LumenSceneData.RadiosityProbeSHRedAtlas
+		&& LumenSceneData.RadiosityProbeSHGreenAtlas
+		&& LumenSceneData.RadiosityProbeSHBlueAtlas
+		&& CVarLumenSceneRadiosityVisualizeProbes.GetValueOnRenderThread() != 0)
+	{
+		RDG_EVENT_SCOPE(GraphBuilder, "VisualizeLumenRadiosityProbes");
+
+		FRDGTextureRef SceneColor = SceneTextures.Color.Resolve;
+		FRDGTextureRef SceneDepth = SceneTextures.Depth.Resolve;
+
+		const int32 ProbeSpacing = LumenRadiosity::GetRadiosityProbeSpacing(View);
+		const uint32 ProbesPerPhysicalPage = Lumen::PhysicalPageSize / ProbeSpacing;
+
+		FRDGTextureRef RadiosityProbeSHRedAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityProbeSHRedAtlas);
+		FRDGTextureRef RadiosityProbeSHGreenAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityProbeSHGreenAtlas);
+		FRDGTextureRef RadiosityProbeSHBlueAtlas = GraphBuilder.RegisterExternalTexture(LumenSceneData.RadiosityProbeSHBlueAtlas);
+
+		const uint32 MaxVisualizeProbes = (LumenSceneData.GetPhysicalAtlasSize().X / ProbeSpacing) * (LumenSceneData.GetPhysicalAtlasSize().Y / ProbeSpacing);
+		FRDGBufferRef VisualizeProbeAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(uint32), 1), TEXT("Lumen.RadiosityVisualizeProbeAllocator"));
+		FRDGBufferRef VisualizeProbeData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(4 * sizeof(float), MaxVisualizeProbes), TEXT("Lumen.RadiosityVisualizeProbeData"));
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VisualizeProbeAllocator), 0);
+
+		// Gather and prepare probes for visualization
+		{
+			FBuildVisualizeProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildVisualizeProbesCS::FParameters>();
+			PassParameters->View = GetShaderBinding(View.ViewUniformBuffer);
+			PassParameters->LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
+			PassParameters->VisualizeProbeRadius = CVarLumenSceneRadiosityVisualizeProbeRadius.GetValueOnRenderThread();
+			PassParameters->ProbesPerPhysicalPage = ProbesPerPhysicalPage;
+			PassParameters->ProbeTileSize = ProbeSpacing;
+			PassParameters->MaxVisualizeProbes = MaxVisualizeProbes;
+			PassParameters->MaxVisualizeProbes = MaxVisualizeProbes;
+			PassParameters->RWVisualizeProbeAllocator = GraphBuilder.CreateUAV(VisualizeProbeAllocator);
+			PassParameters->RWVisualizeProbeData = GraphBuilder.CreateUAV(VisualizeProbeData);
+
+			auto ComputeShader = View.ShaderMap->GetShader<FBuildVisualizeProbesCS>();
+
+			const FIntVector GroupSize = FComputeShaderUtils::GetGroupCountWrapped(LumenSceneData.GetNumCardPages() * ProbesPerPhysicalPage * ProbesPerPhysicalPage, FBuildVisualizeProbesCS::GetGroupSize());
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("BuildVisualizeProbes"),
+				ComputeShader,
+				PassParameters,
+				GroupSize);
+		}
+
+		FVisualizeRadiosityProbeParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeRadiosityProbeParameters>();
+		PassParameters->VS.View = GetShaderBinding(View.ViewUniformBuffer);
+		PassParameters->VS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
+		PassParameters->VS.VisualizeProbeRadius = CVarLumenSceneRadiosityVisualizeProbeRadius.GetValueOnRenderThread();
+		PassParameters->VS.ProbesPerPhysicalPage = ProbesPerPhysicalPage;
+		PassParameters->VS.ProbeTileSize = ProbeSpacing;
+		PassParameters->VS.MaxVisualizeProbes = MaxVisualizeProbes;
+		PassParameters->VS.VisualizeProbeAllocator = GraphBuilder.CreateSRV(VisualizeProbeAllocator);
+		PassParameters->VS.VisualizeProbeData = GraphBuilder.CreateSRV(VisualizeProbeData);
+		PassParameters->PS.View = GetShaderBinding(View.ViewUniformBuffer);
+		PassParameters->PS.LumenCardScene = FrameTemporaries.LumenCardSceneUniformBuffer;
+		PassParameters->PS.RadiosityProbeSHRedAtlas = RadiosityProbeSHRedAtlas;
+		PassParameters->PS.RadiosityProbeSHGreenAtlas = RadiosityProbeSHGreenAtlas;
+		PassParameters->PS.RadiosityProbeSHBlueAtlas = RadiosityProbeSHBlueAtlas;
+
+		PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+			SceneDepth,
+			ERenderTargetLoadAction::ENoAction,
+			ERenderTargetLoadAction::ELoad,
+			FExclusiveDepthStencil::DepthWrite_StencilWrite);
+		PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("Visualize Radiosity Probes"),
+			PassParameters,
+			ERDGPassFlags::Raster,
+			[PassParameters, &View, MaxVisualizeProbes](FRHICommandList& RHICmdList)
+			{
+				TShaderMapRef<FVisualizeRadiosityProbesVS> VertexShader(View.ShaderMap);
+				TShaderMapRef<FVisualizeRadiosityProbesPS> PixelShader(View.ShaderMap);
+
+				RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<true, CF_DepthNear>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit, 0);
+
+				SetShaderParameters(RHICmdList, VertexShader, VertexShader.GetVertexShader(), PassParameters->VS);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), PassParameters->PS);
+
+				RHICmdList.SetStreamSource(0, NULL, 0);
+				RHICmdList.DrawIndexedPrimitive(GCubeIndexBuffer.IndexBufferRHI, 0, 0, 8, 0, 2 * 6, MaxVisualizeProbes);
+			});
 	}
 }
