@@ -961,8 +961,6 @@ void FElectraHTTPStreamLibCurl::Close()
 	if (Thread)
 	{
 		Thread->Kill(true);
-		ThreadFinished.Lock();
-		ThreadFinished.Unlock();
 		delete Thread;
 		Thread = nullptr;
 	}
@@ -1065,6 +1063,7 @@ void FElectraHTTPStreamLibCurl::WorkInnerLoop()
 			// User callback
 			{
 			SCOPE_CYCLE_COUNTER(STAT_ElectraHTTPThread_CustomHandler);
+			FScopeLock lock(&CallbackLock);
 			ThreadHandlerCallback.ExecuteIfBound();
 			}
 		}
@@ -1099,6 +1098,7 @@ void FElectraHTTPStreamLibCurl::WorkMultiPoll()
 			// User callback
 			{
 			SCOPE_CYCLE_COUNTER(STAT_ElectraHTTPThread_CustomHandler);
+			FScopeLock lock(&CallbackLock);
 			ThreadHandlerCallback.ExecuteIfBound();
 			}
 		}
@@ -1110,8 +1110,6 @@ void FElectraHTTPStreamLibCurl::WorkMultiPoll()
 uint32 FElectraHTTPStreamLibCurl::Run()
 {
 	LLM_SCOPE(ELLMTag::MediaStreaming);
-
-	ThreadFinished.Lock();
 
 #if ELECTRA_HTTPSTREAM_CURL_USE_MULTIPOLL
 	WorkMultiPoll();
@@ -1135,7 +1133,6 @@ uint32 FElectraHTTPStreamLibCurl::Run()
 	}
 	RequestLock.Unlock();
 	HandleCompletedRequests();
-	ThreadFinished.Unlock();
 
 	return 0;
 }

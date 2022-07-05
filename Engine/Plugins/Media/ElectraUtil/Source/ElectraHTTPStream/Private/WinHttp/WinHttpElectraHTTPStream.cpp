@@ -90,8 +90,17 @@ public:
 	static uint64 GetNewRequestIndex()
 	{ return ++NextRequestIndex; }
 
-	FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() override
-	{ return ThreadHandlerCallback; }
+	void AddThreadHandlerDelegate(FElectraHTTPStreamThreadHandlerDelegate InDelegate) override
+	{
+		FScopeLock lock(&CallbackLock);
+		ThreadHandlerCallback = MoveTemp(InDelegate);
+	}
+	void RemoveThreadHandlerDelegate() override
+	{
+		FScopeLock lock(&CallbackLock);
+		ThreadHandlerCallback.Unbind();
+	}
+
 
 	void Close() override;
 
@@ -127,8 +136,8 @@ private:
 	};
 
 	// Methods from FRunnable
-	virtual uint32 Run() override final;
-	virtual void Stop() override final;
+	uint32 Run() override final;
+	void Stop() override final;
 
 
 	static FRequestPointers GetRequestByIndex(uint64 InRequestIndex)
@@ -183,6 +192,7 @@ private:
 	FRunnableThread* Thread = nullptr;
 	FTimeWaitableSignal HaveWorkSignal;
 
+	FCriticalSection CallbackLock;
 	FElectraHTTPStreamThreadHandlerDelegate ThreadHandlerCallback;
 
 	FCriticalSection RequestLock;
@@ -1361,6 +1371,7 @@ uint32 FElectraHTTPStreamWinHttp::Run()
 		// User callback
 		{
 		SCOPE_CYCLE_COUNTER(STAT_ElectraHTTPThread_CustomHandler);
+		FScopeLock lock(&CallbackLock);
 		ThreadHandlerCallback.ExecuteIfBound();
 		}
 	}

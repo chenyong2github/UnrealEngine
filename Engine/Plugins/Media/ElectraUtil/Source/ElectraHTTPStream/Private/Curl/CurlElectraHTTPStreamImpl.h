@@ -28,14 +28,22 @@ public:
 	FElectraHTTPStreamLibCurl();
 	virtual bool Initialize(const Electra::FParamDict& InOptions);
 
-	virtual FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() override
-	{ return ThreadHandlerCallback; }
+	void AddThreadHandlerDelegate(FElectraHTTPStreamThreadHandlerDelegate InDelegate) override
+	{
+		FScopeLock lock(&CallbackLock);
+		ThreadHandlerCallback = MoveTemp(InDelegate);
+	}
+	void RemoveThreadHandlerDelegate() override
+	{
+		FScopeLock lock(&CallbackLock);
+		ThreadHandlerCallback.Unbind();
+	}
 
-	virtual void Close() override;
+	void Close() override;
 
-	virtual IElectraHTTPStreamRequestPtr CreateRequest() override;
+	IElectraHTTPStreamRequestPtr CreateRequest() override;
 
-	virtual void AddRequest(IElectraHTTPStreamRequestPtr Request) override;
+	void AddRequest(IElectraHTTPStreamRequestPtr Request) override;
 
 #if ELECTRA_HTTPSTREAM_CURL_USE_SHARE
 	CURLSH* GetCurlShareHandle()
@@ -49,8 +57,8 @@ public:
 	{ return ProxyAddressAndPort; }
 
 	void TriggerWorkSignal()
-	{ 
-		HaveWorkSignal.Signal(); 
+	{
+		HaveWorkSignal.Signal();
 #if ELECTRA_HTTPSTREAM_CURL_USE_MULTIPOLL
 		curl_multi_wakeup(CurlMultiHandle);
 #endif
@@ -58,8 +66,8 @@ public:
 
 private:
 	// Methods from FRunnable
-	virtual uint32 Run() override final;
-	virtual void Stop() override final;
+	uint32 Run() override final;
+	void Stop() override final;
 
 	void SetupNewRequests();
 	void UpdateActiveRequests();
@@ -84,8 +92,8 @@ private:
 	FThreadSafeCounter ExitRequest;
 	FRunnableThread* Thread = nullptr;
 	FTimeWaitableSignal HaveWorkSignal;
-	FCriticalSection ThreadFinished;
 
+	FCriticalSection CallbackLock;
 	FElectraHTTPStreamThreadHandlerDelegate ThreadHandlerCallback;
 
 	FCriticalSection RequestLock;

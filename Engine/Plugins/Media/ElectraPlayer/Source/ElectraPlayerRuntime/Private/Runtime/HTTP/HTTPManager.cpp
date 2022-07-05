@@ -11,6 +11,9 @@
 // For base64 encoding/decoding
 #include "Misc/Base64.h"
 
+// Asynchronous termination
+#include "Async/Async.h"
+
 // For file:// scheme archive deserialization
 #include "HAL/FileManager.h"
 #include "Misc/FileHelper.h"
@@ -54,6 +57,19 @@ namespace Electra
 		virtual void RemoveRequest(TSharedPtrTS<FRequest> Request, bool bDoNotWaitForRemoval) override;
 
 	private:
+		class TDeleter
+		{
+		public:
+			void operator()(FElectraHttpManager* InInstanceToDelete)
+			{
+				TFunction<void()> DeleteTask = [InInstanceToDelete]()
+				{
+					delete InInstanceToDelete;
+				};
+				Async(EAsyncExecution::ThreadPool, MoveTemp(DeleteTask));
+			}
+		};
+
 		struct FLocalByteStream
 		{
 			virtual ~FLocalByteStream() = default;
@@ -405,7 +421,11 @@ namespace Electra
 			FElectraHttpManager* Manager = new FElectraHttpManager;
 			if (Manager)
 			{
-				Self = MakeShareable(Manager);
+				// A custom deleter is required to ensure that the destruction will not happen within the enclosing worker thread
+				// due to the shared pointer to ourselves passed as a callback delegate in StartHTTPManager() being released.
+				// If that happens we encounter a deadlock in the worker thread trying to delete itself.
+				// To avoid this the custom deleter moves the final destruction out as a task to the thread pool.
+				Self = MakeShareable(Manager, TDeleter());
 				Manager->Initialize();
 			}
 			SingletonSelf = Self;
@@ -939,7 +959,7 @@ namespace Electra
 		HTTPStreamHandler = IElectraHTTPStream::Create(HttpOptions);
 		if (HTTPStreamHandler.IsValid())
 		{
-			HTTPStreamHandler->ThreadHandlerDelegate().BindThreadSafeSP(AsShared(), &FElectraHttpManager::ProcessHTTPManager);
+			HTTPStreamHandler->AddThreadHandlerDelegate(IElectraHTTPStream::FElectraHTTPStreamThreadHandlerDelegate::CreateThreadSafeSP(AsShared(), &FElectraHttpManager::ProcessHTTPManager));
 			return true;
 		}
 		else
@@ -955,7 +975,7 @@ namespace Electra
 
 		if (HTTPStreamHandler.IsValid())
 		{
-			HTTPStreamHandler->ThreadHandlerDelegate().Unbind();
+			HTTPStreamHandler->RemoveThreadHandlerDelegate();
 		}
 
 		RemoveAllRequests();

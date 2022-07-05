@@ -233,7 +233,8 @@ public:
 	 * The NotificationDelegate() of the IElectraHTTPStreamRequestPtr request object should be all you need.
 	 */
 	DECLARE_DELEGATE(FElectraHTTPStreamThreadHandlerDelegate);
-	virtual FElectraHTTPStreamThreadHandlerDelegate& ThreadHandlerDelegate() = 0;
+	virtual void AddThreadHandlerDelegate(FElectraHTTPStreamThreadHandlerDelegate InDelegate) = 0;
+	virtual void RemoveThreadHandlerDelegate() = 0;
 
 	/**
 	 * Closes this handler and all currently active or pending requests.
