@@ -25,6 +25,8 @@ double GEOMETRYCORE_API Orient2D(double* PA, double* PB, double* PC);
 double GEOMETRYCORE_API Orient3DInexact(double* PA, double* PB, double* PC, double* PD);
 double GEOMETRYCORE_API Orient3D(double* PA, double* PB, double* PC, double* PD);
 
+double GEOMETRYCORE_API Facing3D(double* PA, double* PB, double* PC, double* Direction);
+
 double GEOMETRYCORE_API InCircleInexact(double* PA, double* PB, double* PC, double* PD);
 double GEOMETRYCORE_API InCircle(double* PA, double* PB, double* PC, double* PD);
 
@@ -33,6 +35,8 @@ float GEOMETRYCORE_API Orient2D(float* PA, float* PB, float* PC);
 
 float GEOMETRYCORE_API Orient3DInexact(float* PA, float* PB, float* PC, float* PD);
 float GEOMETRYCORE_API Orient3D(float* PA, float* PB, float* PC, float* PD);
+
+float GEOMETRYCORE_API Facing3D(float* PA, float* PB, float* PC, float* Direction);
 
 float GEOMETRYCORE_API InCircleInexact(float* PA, float* PB, float* PC, float* PD);
 float GEOMETRYCORE_API InCircle(float* PA, float* PB, float* PC, float* PD);
@@ -93,6 +97,20 @@ RealType Orient3(const TVector<RealType>& A, const TVector<RealType>& B, const T
 	RealType PC[3]{ C.X, C.Y, C.Z };
 	RealType PD[3]{ D.X, D.Y, D.Z };
 	return Orient3D(PA, PB, PC, PD);
+}
+
+/**
+ * TVector-only version that can run in float or double
+ * @return value w/ sign indicating whether triangle ABC is facing Direction, or 0 if it is parallel to Direction
+ */
+template<typename RealType>
+RealType Facing3(const TVector<RealType>& A, const TVector<RealType>& B, const TVector<RealType>& C, const TVector<RealType>& Direction)
+{
+	RealType PA[3]{ A.X, A.Y, A.Z };
+	RealType PB[3]{ B.X, B.Y, B.Z };
+	RealType PC[3]{ C.X, C.Y, C.Z };
+	RealType Dir[3]{ Direction.X, Direction.Y, Direction.Z };
+	return Facing3D(PA, PB, PC, Dir);
 }
 
 /**

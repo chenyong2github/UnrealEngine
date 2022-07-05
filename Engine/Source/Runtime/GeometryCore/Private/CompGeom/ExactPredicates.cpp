@@ -41,6 +41,12 @@ double Orient3D(double* PA, double* PB, double* PC, double* PD)
 	return ShewchukExactPredicates::orient3d(PA, PB, PC, PD);
 }
 
+double Facing3D(double* PA, double* PB, double* PC, double* Direction)
+{
+	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
+	return ShewchukExactPredicates::facing3d(PA, PB, PC, Direction);
+}
+
 double InCircleInexact(double* PA, double* PB, double* PC, double* PD)
 {
 	checkSlow(ShewchukExactPredicates::IsExactPredicateDataInitialized());
@@ -73,6 +79,12 @@ float Orient3D(float* PA, float* PB, float* PC, float* PD)
 {
 	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
 	return ShewchukExactPredicatesFloat::orient3d(PA, PB, PC, PD);
+}
+
+float Facing3D(float* PA, float* PB, float* PC, float* Direction)
+{
+	checkSlow(ShewchukExactPredicatesFloat::IsExactPredicateDataInitialized());
+	return ShewchukExactPredicatesFloat::facing3d(PA, PB, PC, Direction);
 }
 
 float InCircleInexact(float* PA, float* PB, float* PC, float* PD)
