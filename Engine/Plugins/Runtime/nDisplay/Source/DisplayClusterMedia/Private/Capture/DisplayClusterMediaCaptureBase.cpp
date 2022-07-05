@@ -75,6 +75,8 @@ void FDisplayClusterMediaCaptureBase::ExportMediaData(FRHICommandListImmediate& 
 
 	if (SrcTexture && DstTexture)
 	{
+		MediaCapture->SetValidSourceGPUMask(RHICmdList.GetGPUMask());
+
 		const FIntPoint SrcRegionSize = TextureInfo.Region.Size();
 
 		if (SrcTexture->GetDesc().Format == DstTexture->GetDesc().Format &&
@@ -116,6 +118,7 @@ void FDisplayClusterMediaCaptureBase::OnPostClusterTick()
 bool FDisplayClusterMediaCaptureBase::StartMediaCapture()
 {
 	FMediaCaptureOptions MediaCaptureOptions;
+
 	MediaCaptureOptions.NumberOfFramesToCapture = -1;
 	MediaCaptureOptions.bResizeSourceBuffer = true;
 	MediaCaptureOptions.bSkipFrameWhenRunningExpensiveTasks = false;

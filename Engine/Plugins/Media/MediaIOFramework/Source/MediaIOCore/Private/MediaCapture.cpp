@@ -662,6 +662,7 @@ FMediaCaptureOptions::FMediaCaptureOptions()
 
 UMediaCapture::UMediaCapture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ValidSourceGPUMask(FRHIGPUMask::All())
 	, bOutputResourcesInitialized(false)
 	, bShouldCaptureRHIResource(false)
 	, WaitingForRenderCommandExecutionCounter(0)
@@ -1146,6 +1147,11 @@ bool UMediaCapture::HasFinishedProcessing() const
 		|| GetState() == EMediaCaptureState::Stopped;
 }
 
+void UMediaCapture::SetValidSourceGPUMask(FRHIGPUMask GPUMask)
+{
+	ValidSourceGPUMask = GPUMask;
+}
+
 void UMediaCapture::InitializeOutputResources(int32 InNumberOfBuffers)
 {
 	using namespace UE::MediaCaptureData;
@@ -1337,10 +1343,13 @@ void UMediaCapture::OnEndFrame_GameThread()
 		{
 			++WaitingForRenderCommandExecutionCounter;
 
+			const FRHIGPUMask SourceGPUMask = ValidSourceGPUMask;
+
 			// RenderCommand to be executed on the RenderThread
 			ENQUEUE_RENDER_COMMAND(FMediaOutputCaptureFrameCreateTexture)(
-				[InMediaCapture, CapturingFrame, ReadyFrame, InCapturingSceneViewport, InTextureRenderTargetResource, InDesiredSize, InOnStateChanged](FRHICommandListImmediate& RHICmdList)
+				[InMediaCapture, CapturingFrame, ReadyFrame, InCapturingSceneViewport, InTextureRenderTargetResource, InDesiredSize, InOnStateChanged, SourceGPUMask](FRHICommandListImmediate& RHICmdList)
 			{
+				SCOPED_GPU_MASK(RHICmdList, SourceGPUMask);
 				InMediaCapture->Capture_RenderThread(RHICmdList, InMediaCapture, CapturingFrame, ReadyFrame, InCapturingSceneViewport, InTextureRenderTargetResource, InDesiredSize, InOnStateChanged);
 			});
 

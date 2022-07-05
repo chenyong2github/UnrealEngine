@@ -254,6 +254,9 @@ public:
 	UPROPERTY(BlueprintAssignable, Category = "Media|Output")
 	FMediaCaptureStateChangedSignature OnStateChanged;
 
+	/** Set the valid GPU mask of the source buffer/texture being captured. Can be called from any thread. */
+	virtual void SetValidSourceGPUMask(FRHIGPUMask GPUMask);
+
 	/**
 	 * Called when the state of the capture changed.
 	 * The callback is called on the game thread. Note that the change may occur on the rendering thread.
@@ -406,6 +409,9 @@ protected:
 	
 	/** Output size of the media capture. If a conversion is done, this resolution might be different than source resolution. i.e. 1080p RGB might be 960x1080 in YUV */
 	FIntPoint DesiredOutputSize = FIntPoint(1920, 1080);
+	
+	/** Valid source gpu mask of the source. */
+	std::atomic<FRHIGPUMask> ValidSourceGPUMask;
 
 private:
 
