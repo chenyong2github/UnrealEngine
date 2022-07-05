@@ -21,9 +21,12 @@
 #include "Editor.h"
 #endif
 
+#define LOCTEXT_NAMESPACE "PCGDeterminism"
+
 namespace PCGDeterminismTests
 {
-	FTestData::FTestData(int32 RandomSeed) :
+	FTestData::FTestData(int32 RandomSeed, UPCGSettings* DefaultSettings) :
+		Settings(DefaultSettings),
 		Seed(RandomSeed),
 		RandomStream(Seed)
 	{
@@ -63,21 +66,119 @@ namespace PCGDeterminismTests
 		Settings = nullptr;
 	}
 
-	PCG_API void RunDeterminismTests(const UPCGNode* PCGNode, FPCGDeterminismResult& Result)
+	bool LogInvalidTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
-		check(PCGNode);
-
-		FTestData TestData(Defaults::Seed);
-		TestData.Settings = PCGNode->DefaultSettings;
-
-		// Generate random input data
-		AddInputDataBasedOnPins(TestData, PCGNode, Result);
-		Result.bIsDeterministic = ExecutionIsDeterministicSameData(TestData, PCGNode);
-
-		// TODO: Add other 4 determinism tests, ex. Order Independence, etc
+		UE_LOG(LogPCG, Warning, TEXT("Attempting to run an invalid determinism test"));
+		OutAdditionalDetails.Add(TEXT("Invalid test"));
+		return false;
 	}
 
-	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* PCGNode, FPCGDeterminismResult& Result)
+	PCG_API void RunDeterminismTest(const UPCGNode* InPCGNode, FNodeTestResult& OutResult, const FNodeTestInfo& TestToRun)
+	{
+		if (!InPCGNode || !InPCGNode->DefaultSettings)
+		{
+			OutResult.DataTypesTested = EPCGDataType::None;
+			OutResult.bFlagRaised = true;
+			OutResult.AdditionalDetails.Add(TEXT("Invalid Node or Settings"));
+			return;
+		}
+
+		bool bTestWasSuccessful = TestToRun.TestDelegate(InPCGNode, InPCGNode->DefaultSettings->Seed, OutResult.DataTypesTested, OutResult.AdditionalDetails);
+		OutResult.TestResults.FindOrAdd(FName(TestToRun.TestLabel.ToString()), bTestWasSuccessful);
+		OutResult.bFlagRaised = OutResult.bFlagRaised && !bTestWasSuccessful;
+	}
+
+	PCG_API void RetrieveBasicTests(TArray<FNodeTestInfo>& OutBasicTests)
+	{
+		OutBasicTests.Emplace(LOCTEXT("SingleSameData", "Single Same Data"), RunSingleSameDataTest);
+		OutBasicTests.Emplace(LOCTEXT("SingleIdenticalData", "Single Identical Data"), RunSingleIdenticalDataTest);
+		OutBasicTests.Emplace(LOCTEXT("MultipleSameData", "Multiple Same Data"), RunMultipleSameDataTest);
+		OutBasicTests.Emplace(LOCTEXT("MultipleIdenticalData", "Multiple Identical Data"), RunMultipleIdenticalDataTest);
+		OutBasicTests.Emplace(LOCTEXT("DataCollectionOrderIndependence", "Shuffle Data Indices"),RunDataCollectionOrderIndependenceTest);
+		OutBasicTests.Emplace(LOCTEXT("AllDataOrderIndependence", "Shuffle Internal Data"), RunAllDataOrderIndependenceTest);
+	}
+
+	bool RunSingleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	{
+		FTestData TestData(Seed, InPCGNode->DefaultSettings);
+
+		// Generate random input data
+		AddInputDataBasedOnPins(TestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+
+		return ExecutionIsDeterministicSameData(TestData, InPCGNode);
+	}
+
+	bool RunSingleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	{
+		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+
+		AddInputDataBasedOnPins(FirstTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+		AddInputDataBasedOnPins(SecondTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+
+		return ExecutionIsDeterministic(FirstTestData, SecondTestData, InPCGNode);
+	}
+
+	bool RunMultipleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	{
+		FTestData TestData(Seed, InPCGNode->DefaultSettings);
+
+		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
+		{
+			AddInputDataBasedOnPins(TestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+		}
+
+		return ExecutionIsDeterministicSameData(TestData, InPCGNode);
+	}
+
+	bool RunMultipleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	{
+		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+
+		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
+		{
+			AddInputDataBasedOnPins(FirstTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+			AddInputDataBasedOnPins(SecondTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+		}
+
+		return ExecutionIsDeterministic(FirstTestData, SecondTestData, InPCGNode);
+	}
+
+	bool RunDataCollectionOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	{
+		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+
+		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
+		{
+			AddInputDataBasedOnPins(FirstTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+			AddInputDataBasedOnPins(SecondTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+		}
+
+		ShuffleInputOrder(SecondTestData);
+
+		return ExecutionIsDeterministic(FirstTestData, SecondTestData, InPCGNode);
+	}
+
+	bool RunAllDataOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
+	{
+		FTestData FirstTestData(Seed, InPCGNode->DefaultSettings);
+		FTestData SecondTestData(Seed, InPCGNode->DefaultSettings);
+
+		for (int32 I = 0; I < Defaults::NumMultipleTestDataSets; ++I)
+		{
+			AddInputDataBasedOnPins(FirstTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+			AddInputDataBasedOnPins(SecondTestData, InPCGNode, OutDataTypesTested, OutAdditionalDetails);
+		}
+
+		ShuffleInputOrder(SecondTestData);
+		ShuffleAllInternalData(SecondTestData);
+
+		return ExecutionIsDeterministic(FirstTestData, SecondTestData, InPCGNode);
+	}
+
+	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* PCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)
 	{
 		check(PCGNode);
 
@@ -89,36 +190,36 @@ namespace PCGDeterminismTests
 			{
 			case EPCGDataType::Point:
 				AddRandomizedMultiplePointInputData(TestData);
-				Result.DataTestedString = TEXT("Point");
+				OutDataTypesTested |= EPCGDataType::Point;
 				break;
 			case EPCGDataType::Volume:
 				AddRandomizedVolumeInputData(TestData);
-				Result.DataTestedString = TEXT("Volume");
+				OutDataTypesTested |= EPCGDataType::Volume;
 				break;
 			case EPCGDataType::PolyLine:
 				AddRandomizedPolyLineInputData(TestData);
-				Result.DataTestedString = TEXT("PolyLine");
+				OutDataTypesTested |= EPCGDataType::PolyLine;
 				break;
 			case EPCGDataType::Primitive:
 				AddRandomizedPrimitiveInputData(TestData);
-				Result.DataTestedString = TEXT("Primitive");
+				OutDataTypesTested |= EPCGDataType::Primitive;
 				break;
 			case EPCGDataType::Surface:
 				AddRandomizedSurfaceInputData(TestData);
-				Result.DataTestedString = TEXT("Surface");
+				OutDataTypesTested |= EPCGDataType::Surface;
 				break;
 			case EPCGDataType::Any:
 			case EPCGDataType::Spatial:
-				AddRandomizedMultiplePointInputData(TestData, 1000);
+				AddRandomizedMultiplePointInputData(TestData, Defaults::NumTestPointsToGenerate);
 				AddRandomizedVolumeInputData(TestData);
-				AddRandomizedPolyLineInputData(TestData);
+				AddRandomizedPolyLineInputData(TestData, Defaults::NumTestPolyLinePointsToGenerate);
 				AddRandomizedPrimitiveInputData(TestData);
 				AddRandomizedSurfaceInputData(TestData);
-				Result.DataTestedString = TEXT("Spatial");
+				OutDataTypesTested |= EPCGDataType::Spatial;
 				break;
 			default:
-				Result.DataTestedString = TEXT("Unknown");
-				Result.AdditionalDetailString = TEXT("Unknown data Input Pin");
+				OutDataTypesTested = EPCGDataType::None;
+				OutAdditionalDetails.Add(TEXT("Unknown InputPin data type to test"));
 				break;
 			}
 		}
@@ -203,7 +304,7 @@ namespace PCGDeterminismTests
 	void AddRandomizedVolumeInputData(FTestData& TestData, const FName& PinName)
 	{
 		AddVolumeInputData(TestData.InputData,
-			Defaults::MediumDistance * TestData.RandomStream.VRand(),
+			TestData.RandomStream.VRand() * Defaults::MediumDistance,
 			Defaults::MediumVector + TestData.RandomStream.VRand() * 0.5f * Defaults::MediumDistance,
 			Defaults::SmallVector + TestData.RandomStream.VRand() * 0.5f * Defaults::SmallDistance,
 			PinName);
@@ -306,6 +407,11 @@ namespace PCGDeterminismTests
 				// Only compare if they are the same type and same pin label
 				if (FirstDataType == SecondDataType && FirstCollection.TaggedData[I].Pin == SecondCollection.TaggedData[I].Pin)
 				{
+					// TODO: Compare in cascading order:
+					// Order independent
+					// Order consistent
+					// Deterministic but not having a predictable order
+					// Non-deterministic
 					if (GetCompareFunction(FirstDataType)(FirstCollection.TaggedData[I].Data, SecondCollection.TaggedData[J].Data))
 					{
 						MatchedIndices.Emplace(J);
@@ -524,7 +630,7 @@ namespace PCGDeterminismTests
 	bool DataTypeIsComparable(EPCGDataType DataType)
 	{
 		// Comparable data types
-		if (DataType == EPCGDataType::Spatial)
+		if (!!(DataType & EPCGDataType::Spatial))
 		{
 			return true;
 		}
@@ -544,16 +650,25 @@ namespace PCGDeterminismTests
 		return Data && DataTypeIsComparable(Data->GetDataType());
 	}
 
+	bool DataCanBeShuffled(const UPCGData* Data)
+	{
+		// TODO: Revisit for other data types that can be shuffled
+		return Data && Data->IsA<UPCGPointData>();
+	}
+
 	void ShuffleInputOrder(FTestData& TestData)
 	{
-		const int32 LastIndex = TestData.InputData.TaggedData.Num() - 1;
-		for (int32 I = 0; I <= LastIndex; ++I)
-		{
-			int32 Index = TestData.RandomStream.RandRange(I, LastIndex);
+		ShuffleArray<FPCGTaggedData>(TestData.InputData.TaggedData, TestData.RandomStream);
+	}
 
-			if (I != Index)
+	void ShuffleAllInternalData(FTestData& TestData)
+	{
+		for (FPCGTaggedData& TaggedData : TestData.InputData.TaggedData)
+		{
+			if (DataCanBeShuffled(TaggedData.Data))
 			{
-				TestData.InputData.TaggedData.Swap(I, Index);
+				UPCGPointData* PointData = CastChecked<UPCGPointData>(TaggedData.Data);
+				ShuffleArray<FPCGPoint>(PointData->GetMutablePoints(), TestData.RandomStream);
 			}
 		}
 	}
@@ -577,7 +692,7 @@ namespace PCGDeterminismTests
 		}
 	}
 
-	bool ExecutionIsDeterministic(FTestData& FirstTestData, FTestData& SecondTestData, const UPCGNode* PCGNode)
+	bool ExecutionIsDeterministic(const FTestData& FirstTestData, const FTestData& SecondTestData, const UPCGNode* PCGNode)
 	{
 		FPCGElementPtr FirstElement = FirstTestData.Settings->GetElement();
 		FPCGElementPtr SecondElement = SecondTestData.Settings->GetElement();
@@ -605,3 +720,5 @@ namespace PCGDeterminismTests
 		return ExecutionIsDeterministic(TestData, TestData, PCGNode);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

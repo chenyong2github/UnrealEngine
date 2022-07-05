@@ -20,8 +20,11 @@ namespace PCGDeterminismTests
 	{
 		constexpr static int32 Seed = 42;
 		constexpr static int32 NumPointsToGenerate = 1;
+		constexpr static int32 NumTestPointsToGenerate = 1000;
 		constexpr static int32 NumPolyLinePointsToGenerate = 6;
+		constexpr static int32 NumTestPolyLinePointsToGenerate = 12;
 		constexpr static int32 NumSamplingStepsPerDimension = 100;
+		constexpr static int32 NumMultipleTestDataSets = 2;
 
 		constexpr static FVector::FReal SmallDistance = 50.0;
 		constexpr static FVector::FReal MediumDistance = 200.0;
@@ -38,7 +41,8 @@ namespace PCGDeterminismTests
 
 	struct FTestData
 	{
-		explicit FTestData(int32 Seed = Defaults::Seed);
+		explicit FTestData(int32 Seed = Defaults::Seed, UPCGSettings* DefaultSettings = nullptr);
+
 		void Reset();
 
 		AActor* TestActor;
@@ -49,21 +53,56 @@ namespace PCGDeterminismTests
 		FRandomStream RandomStream;
 	};
 
-	struct FPCGDeterminismResult
+	struct FNodeTestResult
 	{
-		int32 Index;
-		bool bIsDeterministic;
-		FName NodeTitle;
-		FString NodeNameString;
-		FString DataTestedString;
-		FString AdditionalDetailString;
+		int32 Index = -1;
+		EPCGDataType DataTypesTested = EPCGDataType::None;
+		FName NodeTitle = TEXT("Untitled");
+		FString NodeNameString = TEXT("Unnamed");
+		TMap<FName, bool> TestResults;
+		TArray<FString> AdditionalDetails;
+		bool bFlagRaised = false;
+		// TODO: Chrono Duration of how long the tests took
 	};
 
-	/** Validates if a PCGNode is deterministic, updating the passed in result accordingly */
-	PCG_API void RunDeterminismTests(const UPCGNode* InPCGNode, FPCGDeterminismResult& OutResult);
+	/** A default delegate to report an unset test */
+	bool LogInvalidTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+
+	typedef TFunction<bool(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails)> TestFunction;
+
+	struct FNodeTestInfo
+	{
+		FNodeTestInfo(FText Label, TestFunction Delegate, float LabelWidth = 140.f) :
+			TestLabel(Label),
+			TestDelegate(Delegate),
+			TestLabelWidth(LabelWidth) {}
+
+		FText TestLabel = NSLOCTEXT("PCGDeterminism", "UnnamedTest", "Unnamed Test");
+		TestFunction TestDelegate = LogInvalidTest;
+		float TestLabelWidth = 140.f;
+	};
+
+	/** Validates if a PCGNode is deterministic */
+	PCG_API void RunDeterminismTest(const UPCGNode* InPCGNode, FNodeTestResult& OutResult, const FNodeTestInfo& TestToRun);
+
+	/** Adds the basic set of determinism tests to the passed in array */
+	PCG_API void RetrieveBasicTests(TArray<FNodeTestInfo>& OutBasicTests);
+
+	/** Validates node determinism against the same single test data */
+	bool RunSingleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	/** Validates node determinism against two identical single test data */
+	bool RunSingleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	/** Validates node determinism with the same multiple sets of test data */
+	bool RunMultipleSameDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	/** Validates node determinism with two identical multiple sets of test data */
+	bool RunMultipleIdenticalDataTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	/** Validates node determinism with multiple sets of test data, shuffling the order of the second set's data collection */
+	bool RunDataCollectionOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
+	/** Validates node determinism with multiple sets of test data, shuffling all internal data */
+	bool RunAllDataOrderIndependenceTest(const UPCGNode* InPCGNode, int32 Seed, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
 
 	/** Adds input data to test data, based on input pins' allowed types */
-	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* InPCGNode, FPCGDeterminismResult& OutResult);
+	void AddInputDataBasedOnPins(FTestData& TestData, const UPCGNode* InPCGNode, EPCGDataType& OutDataTypesTested, TArray<FString>& OutAdditionalDetails);
 
 	/** Helper for adding PointData with a single Point to an InputData */
 	void AddSinglePointInputData(FPCGDataCollection& InputData, const FVector& Location, const FName& PinName = Defaults::TestPinName);
@@ -117,24 +156,30 @@ namespace PCGDeterminismTests
 	bool DataTypeIsComparable(EPCGDataType DataType);
 	/** Validates PCGData and if its DataType is comparable */
 	bool DataIsComparable(const UPCGData* Data);
+	/** Validates that the data contains a shuffle-able array of data */
+	bool DataCanBeShuffled(const UPCGData* Data);
 
-	/** Randomizes the order of InputData */
+	/** Randomizes the order of InputData collections */
 	void ShuffleInputOrder(FTestData& TestData);
+	/** Randomizes the order of all internal data */
+	void ShuffleAllInternalData(FTestData& TestData);
 
 	/** Gets a comparison function to compare two of a specific DataType */
 	TFunction<bool(const UPCGData*, const UPCGData*)> GetCompareFunction(EPCGDataType DataType);
 
 	/** Execute the elements for each valid input and compare if all the outputs are identical */
-	bool ExecutionIsDeterministic(FTestData& FirstTestData, FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
+	bool ExecutionIsDeterministic(const FTestData& FirstTestData, const FTestData& SecondTestData, const UPCGNode* PCGNode = nullptr);
 	/** Execute the same element twice compare if all the outputs are identical */
 	bool ExecutionIsDeterministicSameData(FTestData& TestData, const UPCGNode* PCGNode = nullptr);
 
 	/** Generates settings based upon a UPCGSettings subclass */
 	template<typename SettingsType>
-	void GenerateSettings(FTestData& TestData, TFunction<void(FTestData&)> ExtraSettingsDelegate = nullptr)
+	SettingsType* GenerateSettings(FTestData& TestData, TFunction<void(FTestData&)> ExtraSettingsDelegate = nullptr)
 	{
-		TestData.Settings = NewObject<SettingsType>();
-		check(TestData.Settings);
+		SettingsType* TypedSettings = NewObject<SettingsType>();
+		check(TypedSettings);
+
+		TestData.Settings = TypedSettings;
 		TestData.Settings->Seed = TestData.Seed;
 
 		TestData.InputData.TaggedData.Emplace_GetRef().Data = TestData.Settings;
@@ -144,6 +189,8 @@ namespace PCGDeterminismTests
 		{
 			ExtraSettingsDelegate(TestData);
 		}
+
+		return TypedSettings;
 	}
 
 	/** Validates whether both UPCGData can be cast to a specified subclass */
@@ -153,5 +200,20 @@ namespace PCGDeterminismTests
 		check(FirstData && SecondData);
 
 		return (Cast<const DataType>(FirstData) != nullptr && Cast<const DataType>(SecondData) != nullptr);
+	}
+
+	template<typename DataType>
+	void ShuffleArray(TArray<DataType>& Array, FRandomStream& RandomStream)
+	{
+		const int32 LastIndex = Array.Num() - 1;
+		for (int32 I = 0; I <= LastIndex; ++I)
+		{
+			int32 Index = RandomStream.RandRange(I, LastIndex);
+
+			if (I != Index)
+			{
+				Array.Swap(I, Index);
+			}
+		}
 	}
 }

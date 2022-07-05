@@ -283,7 +283,7 @@ void FPCGEditor::OnDeterminismTests()
 {
 	check(GraphEditorWidget.IsValid());
 
-	if (!DeterminismWidget.IsValid() || !DeterminismWidget->IsContructed())
+	if (!DeterminismWidget.IsValid() || !DeterminismWidget->WidgetIsConstructed())
 	{
 		return;
 	}
@@ -302,11 +302,19 @@ void FPCGEditor::OnDeterminismTests()
 				const UPCGNode* PCGNode = PCGEditorGraphNode->GetPCGNode();
 				check(PCGNode);
 
-				TSharedPtr<PCGDeterminismTests::FPCGDeterminismResult> NodeResult = MakeShared<PCGDeterminismTests::FPCGDeterminismResult>();
+				TSharedPtr<PCGDeterminismTests::FNodeTestResult> NodeResult = MakeShared<PCGDeterminismTests::FNodeTestResult>();
+				check(NodeResult.IsValid());
 				NodeResult->Index = Index++;
 				NodeResult->NodeTitle = PCGNode->GetNodeTitle();
 				NodeResult->NodeNameString = PCGNode->GetName();
-				PCGDeterminismTests::RunDeterminismTests(PCGNode, *NodeResult);
+
+				TArray<PCGDeterminismTests::FNodeTestInfo> BasicTests;
+				PCGDeterminismTests::RetrieveBasicTests(BasicTests);
+
+				for (PCGDeterminismTests::FNodeTestInfo TestInfo : BasicTests)
+				{
+					PCGDeterminismTests::RunDeterminismTest(PCGNode, *NodeResult, TestInfo);
+				}
 
 				DeterminismWidget->AddItem(NodeResult);
 			}
@@ -1155,7 +1163,17 @@ TSharedRef<SPCGEditorGraphFind> FPCGEditor::CreateFindWidget()
 
 TSharedRef<SPCGEditorGraphDeterminismListView> FPCGEditor::CreateDeterminismWidget()
 {
-	return SNew(SPCGEditorGraphDeterminismListView, SharedThis(this));
+	TArray<PCGDeterminismTests::FNodeTestInfo> BasicTests;
+	PCGDeterminismTests::RetrieveBasicTests(BasicTests);
+
+	TArray<FTestColumnInfo> TestColumnInfo;
+	for (const PCGDeterminismTests::FNodeTestInfo& TestInfo : BasicTests)
+	{
+		// Build the columns based on the tests to run
+		TestColumnInfo.Emplace(FName(TestInfo.TestLabel.ToString()), TestInfo.TestLabel, TestInfo.TestLabelWidth, HAlign_Center);
+	}
+
+	return SNew(SPCGEditorGraphDeterminismListView, SharedThis(this), TestColumnInfo);
 }
 
 void FPCGEditor::OnSelectedNodesChanged(const TSet<UObject*>& NewSelection)

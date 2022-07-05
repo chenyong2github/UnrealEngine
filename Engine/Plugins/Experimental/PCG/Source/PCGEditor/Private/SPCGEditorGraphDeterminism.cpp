@@ -4,32 +4,35 @@
 
 #include "PCGEditor.h"
 
-#define LOCTEXT_NAMESPACE "SPCGEditorGraphDeterminismListView"
+#define LOCTEXT_NAMESPACE "PCGDeterminism"
 
 namespace
 {
-	const FName NAME_Index(TEXT("IndexColumn"));
-	const FName NAME_NodeTitle(TEXT("NodeTitleColumn"));
-	const FName NAME_NodeName(TEXT("NodeNameColumn"));
-	const FName NAME_Data(TEXT("DataColumn"));
-	const FName NAME_Result(TEXT("ResultColumn"));
-	const FName NAME_AdditionalDetails(TEXT("AdditionalDetailsColumn"));
+	const FName NAME_Index(TEXT("Index_ColumnID"));
+	const FName NAME_NodeTitle(TEXT("NodeTitle_ColumnID"));
+	const FName NAME_NodeName(TEXT("NodeName_ColumnID"));
+	const FName NAME_DataTypesTested(TEXT("DataTypesTested_ColumnID"));
+	const FName NAME_AdditionalDetails(TEXT("AdditionalDetails_ColumnID"));
 
-	const FText TEXT_Index(LOCTEXT("IndexLabel", ""));
-	const FText TEXT_NodeTitle(LOCTEXT("NodeTitleLabel", "Title"));
-	const FText TEXT_NodeName(LOCTEXT("NodeNameLabel", "Name"));
-	const FText TEXT_Data(LOCTEXT("DataLabel", "Input Data"));
-	const FText TEXT_Result(LOCTEXT("ResultLabel", "Deterministic"));
-	const FText TEXT_AdditionalDetails(LOCTEXT("AdditionalDetailsLabel", "Additional Details"));
+	const FText TEXT_Index(LOCTEXT("Index_Label", ""));
+	const FText TEXT_NodeTitle(LOCTEXT("NodeTitle_Label", "Title"));
+	const FText TEXT_NodeName(LOCTEXT("NodeName_Label", "Name"));
+	const FText TEXT_DataTypesTested(LOCTEXT("DataTypesTested_Label", "Input Data"));
+	const FText TEXT_AdditionalDetails(LOCTEXT("AdditionalDetails_Label", "Additional Details"));
 
 	const FText TEXT_Yes(LOCTEXT("Yes", "Yes"));
 	const FText TEXT_No(LOCTEXT("No", "No"));
+
+	constexpr static float SmallManualWidth = 25.f;
+	constexpr static float MediumManualWidth = 70.f;
+	constexpr static float LargeManualWidth = 160.f;
+	constexpr static float ListViewRowHeight = 36.f;
 }
 
-void SPCGEditorGraphDeterminismRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGDeterminismResultPtr& Item)
+void SPCGEditorGraphDeterminismRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGNodeTestResultPtr& Item)
 {
 	CurrentItem = Item;
-	SMultiColumnTableRow<FPCGDeterminismResultPtr>::Construct(SMultiColumnTableRow::FArguments(), InOwnerTableView);
+	SMultiColumnTableRow<FPCGNodeTestResultPtr>::Construct(SMultiColumnTableRow::FArguments(), InOwnerTableView);
 }
 
 TSharedRef<SWidget> SPCGEditorGraphDeterminismRow::GenerateWidgetForColumn(const FName& ColumnId)
@@ -38,109 +41,122 @@ TSharedRef<SWidget> SPCGEditorGraphDeterminismRow::GenerateWidgetForColumn(const
 
 	FText CellText = LOCTEXT("UnknownColumn", "Unknown");
 
+	auto ReturnColorCodedResultBlock = [this](const FText& CellText)
+	{
+		return SNew(STextBlock)
+			.Text(CellText)
+			.ColorAndOpacity(CurrentItem->bFlagRaised ? FColor::Red : FColor::Green);
+	};
+
+	// Permanent columns
 	if (ColumnId == NAME_Index)
 	{
-		CellText = FText::FromString(FString::FromInt(CurrentItem->Index));
+		return ReturnColorCodedResultBlock(FText::FromString(FString::FromInt(CurrentItem->Index)));
 	}
 	else if (ColumnId == NAME_NodeTitle)
 	{
-		CellText = FText::FromString(CurrentItem->NodeTitle.ToString());
+		return ReturnColorCodedResultBlock(FText::FromName(CurrentItem->NodeTitle));
 	}
 	else if (ColumnId == NAME_NodeName)
 	{
 		CellText = FText::FromString(CurrentItem->NodeNameString);
 	}
-	else if (ColumnId == NAME_Data)
+	else if (ColumnId == NAME_DataTypesTested)
 	{
-		CellText = FText::FromString(CurrentItem->DataTestedString);
-	}
-	else if (ColumnId == NAME_Result)
-	{
-		if (CurrentItem->bIsDeterministic)
-		{
-			return SNew(STextBlock)
-					.Text(TEXT_Yes)
-					.ColorAndOpacity(FColor::Green);
-		}
-		else
-		{
-			return SNew(STextBlock)
-					.Text(TEXT_No)
-					.ColorAndOpacity(FColor::Red);
-		}
+		FString DataTypesTestedString = *UEnum::GetValueAsString(CurrentItem->DataTypesTested);
+		DataTypesTestedString.RemoveFromStart("EPCGDataType::");
+		CellText = FText::FromString(DataTypesTestedString);
 	}
 	else if (ColumnId == NAME_AdditionalDetails)
 	{
-		CellText = FText::FromString(CurrentItem->AdditionalDetailString);
+		FString FullDetails = FString::Join(CurrentItem->AdditionalDetails, TEXT(", "));
+		CellText = FText::FromString(FullDetails);
+	}
+	// Test columns
+	else if (bool* bResultPtr = CurrentItem->TestResults.Find(ColumnId))
+	{
+		bool bTestWasSuccessful = bResultPtr && *bResultPtr;
+		return SNew(STextBlock)
+			.Text(bTestWasSuccessful ? TEXT_Yes : TEXT_No)
+			.ColorAndOpacity(bTestWasSuccessful ? FColor::Green : FColor::Red);
 	}
 
-	return SNew(STextBlock).Text(CellText);
+	return SNew(STextBlock)
+		.Text(CellText);
 }
 
-void SPCGEditorGraphDeterminismListView::Construct(const FArguments& InArgs, TWeakPtr<FPCGEditor> InPCGEditor)
+void SPCGEditorGraphDeterminismListView::Construct(const FArguments& InArgs, TWeakPtr<FPCGEditor> InPCGEditor, const TArray<FTestColumnInfo>& InTestColumns)
 {
 	check(InPCGEditor.IsValid() && !bIsConstructed);
 	PCGEditorPtr = InPCGEditor;
 
-	SAssignNew(ListView, SListView<FPCGDeterminismResultPtr>)
+	TSharedRef<SHeaderRow> GeneratedHeaderRow = SNew(SHeaderRow);
+
+	TArray<FTestColumnInfo> TestColumnInfo;
+	// Permanent columns
+	TestColumnInfo.Emplace(NAME_Index, TEXT_Index, SmallManualWidth, HAlign_Center);
+	TestColumnInfo.Emplace(NAME_NodeTitle, TEXT_NodeTitle, LargeManualWidth, HAlign_Left);
+	TestColumnInfo.Emplace(NAME_NodeName, TEXT_NodeName, LargeManualWidth, HAlign_Left);
+	TestColumnInfo.Emplace(NAME_DataTypesTested, TEXT_DataTypesTested, MediumManualWidth, HAlign_Center);
+
+	// Test columns
+	TestColumnInfo.Append(InTestColumns);
+
+	// Final details column
+	TestColumnInfo.Emplace(NAME_AdditionalDetails, TEXT_AdditionalDetails, 0.f, HAlign_Left);
+
+	// Build column arguments for test columns dynamically
+	for (const FTestColumnInfo& ColumnInfo : TestColumnInfo)
+	{
+		SHeaderRow::FColumn::FArguments Arguments;
+		Arguments.ColumnId(ColumnInfo.ColumnID);
+		Arguments.DefaultLabel(ColumnInfo.ColumnLabel);
+		if (ColumnInfo.Width > 0.f)
+		{
+			Arguments.ManualWidth(ColumnInfo.Width);
+		}
+		Arguments.HAlignCell(ColumnInfo.HAlign);
+		GeneratedHeaderRow->AddColumn(Arguments);
+	}
+
+	SAssignNew(ListView, SListView<FPCGNodeTestResultPtr>)
 		.ListItemsSource(&ListViewItems)
-		.ItemHeight(36)
+		.ItemHeight(ListViewRowHeight)
 		.OnGenerateRow(this, &SPCGEditorGraphDeterminismListView::OnGenerateRow)
-		.HeaderRow
-		(
-			SNew(SHeaderRow)
-			+ SHeaderRow::Column(NAME_Index)
-			.DefaultLabel(TEXT_Index)
-			.ManualWidth(25)
-			.HAlignCell(HAlign_Center)
-			+ SHeaderRow::Column(NAME_NodeTitle)
-			.DefaultLabel(TEXT_NodeTitle)
-			.ManualWidth(160)
-			.HAlignCell(HAlign_Left)
-			+ SHeaderRow::Column(NAME_NodeName)
-			.DefaultLabel(TEXT_NodeName)
-			.ManualWidth(160)
-			.HAlignCell(HAlign_Left)
-			+ SHeaderRow::Column(NAME_Data)
-			.DefaultLabel(TEXT_Data)
-			.ManualWidth(70)
-			.HAlignCell(HAlign_Center)
-			+ SHeaderRow::Column(NAME_Result)
-			.DefaultLabel(TEXT_Result)
-			.ManualWidth(90)
-			.HAlignCell(HAlign_Center)
-			+ SHeaderRow::Column(NAME_AdditionalDetails)
-			.DefaultLabel(TEXT_AdditionalDetails)
-			.HAlignCell(HAlign_Left)
-		);
+		.HeaderRow(GeneratedHeaderRow);
 
 	ChildSlot
-		[
-			ListView->AsShared()
-		];
+	[
+		ListView->AsShared()
+	];
 
 	bIsConstructed = true;
 }
 
-void SPCGEditorGraphDeterminismListView::AddItem(const FPCGDeterminismResultPtr Item)
+void SPCGEditorGraphDeterminismListView::AddItem(const FPCGNodeTestResultPtr& Item)
 {
 	check(Item.IsValid());
-	ListViewItems.Add(Item);
-	ListView->RequestListRefresh();
+	ListViewItems.Emplace(Item);
+	Refresh();
 }
 
 void SPCGEditorGraphDeterminismListView::Clear()
 {
 	ListViewItems.Empty();
+	Refresh();
+}
+
+void SPCGEditorGraphDeterminismListView::Refresh()
+{
 	ListView->RequestListRefresh();
 }
 
-bool SPCGEditorGraphDeterminismListView::IsContructed() const
+bool SPCGEditorGraphDeterminismListView::WidgetIsConstructed() const
 {
 	return bIsConstructed;
 }
 
-TSharedRef<ITableRow> SPCGEditorGraphDeterminismListView::OnGenerateRow(const FPCGDeterminismResultPtr Item, const TSharedRef<STableViewBase>& OwnerTable)
+TSharedRef<ITableRow> SPCGEditorGraphDeterminismListView::OnGenerateRow(const FPCGNodeTestResultPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const
 {
 	return SNew(SPCGEditorGraphDeterminismRow, OwnerTable, Item);
 }

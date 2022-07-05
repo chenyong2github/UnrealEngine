@@ -7,46 +7,62 @@
 
 class FPCGEditor;
 
-typedef TSharedPtr<PCGDeterminismTests::FPCGDeterminismResult> FPCGDeterminismResultPtr;
+typedef TSharedPtr<PCGDeterminismTests::FNodeTestResult> FPCGNodeTestResultPtr;
 
-class SPCGEditorGraphDeterminismRow : public SMultiColumnTableRow<FPCGDeterminismResultPtr>
+struct FTestColumnInfo
+{
+	FTestColumnInfo(FName ColumnID, FText ColumnLabel, float Width = 0.f, EHorizontalAlignment HAlign = HAlign_Left) :
+		ColumnID(ColumnID),
+		ColumnLabel(ColumnLabel),
+		Width(Width),
+		HAlign(HAlign) {}
+
+	FName ColumnID = TEXT("UnnamedColumn_ID");
+	FText ColumnLabel = NSLOCTEXT("PCGDeterminism", "Unnamed_Column", "Unnamed Column");
+	float Width = 0.f;
+	EHorizontalAlignment HAlign = HAlign_Left;
+};
+
+class SPCGEditorGraphDeterminismRow final : public SMultiColumnTableRow<FPCGNodeTestResultPtr>
 {
 	SLATE_BEGIN_ARGS(SPCGEditorGraphDeterminismRow) {}
 	SLATE_END_ARGS()
 
 	/** Construct a row of the ListView */
-	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGDeterminismResultPtr& Item);
+	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, const FPCGNodeTestResultPtr& Item);
 
 	/** Generates a column, given the column's ID */
 	virtual TSharedRef<SWidget> GenerateWidgetForColumn(const FName& ColumnId) override;
 
 protected:
-	FPCGDeterminismResultPtr CurrentItem;
+	FPCGNodeTestResultPtr CurrentItem;
 };
 
-class SPCGEditorGraphDeterminismListView : public SCompoundWidget
+class SPCGEditorGraphDeterminismListView final : public SCompoundWidget
 {
 public:
-	SLATE_BEGIN_ARGS(SPCGEditorGraphDeterminismListView) { }
+	SLATE_BEGIN_ARGS(SPCGEditorGraphDeterminismListView) {}
 	SLATE_END_ARGS()
 
 	/** Construct the ListView */
-	void Construct(const FArguments& InArgs, TWeakPtr<FPCGEditor> InPCGEditor);
+	void Construct(const FArguments& InArgs, TWeakPtr<FPCGEditor> InPCGEditor, const TArray<FTestColumnInfo>& InTestColumn);
 	/** Add an item to the ListView */
-	void AddItem(const FPCGDeterminismResultPtr Item);
+	void AddItem(const FPCGNodeTestResultPtr& Item);
 	/** Clear all items from the ListView */
 	void Clear();
+	/** Refreshes the ListView */
+	void Refresh();
 	/** Validates if the ListView has been constructed */
-	bool IsContructed() const;
+	bool WidgetIsConstructed() const;
 
 private:
-	TSharedRef<ITableRow> OnGenerateRow(const FPCGDeterminismResultPtr Item, const TSharedRef<STableViewBase>& OwnerTable);
+	/** Generate the row widget */
+	TSharedRef<ITableRow> OnGenerateRow(const FPCGNodeTestResultPtr Item, const TSharedRef<STableViewBase>& OwnerTable) const;
 
-	/** Weak pointer to the PCGEditor */
 	TWeakPtr<FPCGEditor> PCGEditorPtr;
 
-	TSharedPtr<SListView<FPCGDeterminismResultPtr>> ListView;
-	TArray<FPCGDeterminismResultPtr> ListViewItems;
+	TSharedPtr<SListView<FPCGNodeTestResultPtr>> ListView;
+	TArray<FPCGNodeTestResultPtr> ListViewItems;
 
 	bool bIsConstructed = false;
 };
