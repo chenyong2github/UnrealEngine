@@ -104,7 +104,6 @@ namespace PCGDeterminismTests
 	bool PolyLineDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData);
 	/** Validates whether two PrimitiveData objects are identical */
 	bool PrimitiveDataIsIdentical(const UPCGData* FirstData, const UPCGData* SecondData);
-	
 	/** Validates whether two SpatialData objects are identical via Point Sampling */
 	bool SampledSpatialDataIsIdentical(const UPCGSpatialData* FirstSpatialData, const UPCGSpatialData* SecondSpatialData);
 
@@ -132,7 +131,7 @@ namespace PCGDeterminismTests
 
 	/** Generates settings based upon a UPCGSettings subclass */
 	template<typename SettingsType>
-	void GenerateSettings(FTestData& TestData, TFunction<void(FTestData& TestData)> ExtraSettingsDelegate = nullptr)
+	void GenerateSettings(FTestData& TestData, TFunction<void(FTestData&)> ExtraSettingsDelegate = nullptr)
 	{
 		TestData.Settings = NewObject<SettingsType>();
 		check(TestData.Settings);

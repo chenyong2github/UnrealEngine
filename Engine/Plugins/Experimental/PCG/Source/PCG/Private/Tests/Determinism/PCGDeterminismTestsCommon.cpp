@@ -6,8 +6,6 @@
 #include "PCGGraph.h"
 #include "PCGHelpers.h"
 #include "PCGPoint.h"
-#include "Data/PCGDifferenceData.h"
-#include "Data/PCGIntersectionData.h"
 #include "Data/PCGPointData.h"
 #include "Data/PCGPrimitiveData.h"
 #include "Data/PCGSplineData.h"
@@ -205,7 +203,7 @@ namespace PCGDeterminismTests
 	void AddRandomizedVolumeInputData(FTestData& TestData, const FName& PinName)
 	{
 		AddVolumeInputData(TestData.InputData,
-			TestData.RandomStream.VRand() * Defaults::MediumDistance,
+			Defaults::MediumDistance * TestData.RandomStream.VRand(),
 			Defaults::MediumVector + TestData.RandomStream.VRand() * 0.5f * Defaults::MediumDistance,
 			Defaults::SmallVector + TestData.RandomStream.VRand() * 0.5f * Defaults::SmallDistance,
 			PinName);
@@ -244,7 +242,7 @@ namespace PCGDeterminismTests
 	{
 		check(TestData.TestActor);
 		UPrimitiveComponent* TestPrimitiveComponent = Cast<UPrimitiveComponent>(TestData.TestActor->GetComponentByClass(UPrimitiveComponent::StaticClass()));
-		
+
 		if (TestPrimitiveComponent == nullptr)
 		{
 			// TODO: If it reaches here, this will break, as it has no bounds. Please suggest the best way to give it some bounds?
@@ -599,7 +597,7 @@ namespace PCGDeterminismTests
 		{
 		}
 
-		return PCGDeterminismTests::DataCollectionsAreIdentical(FirstContext->OutputData, SecondContext->OutputData);
+		return DataCollectionsAreIdentical(FirstContext->OutputData, SecondContext->OutputData);
 	}
 
 	bool ExecutionIsDeterministicSameData(FTestData& TestData, const UPCGNode* PCGNode)
