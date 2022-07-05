@@ -483,9 +483,9 @@ void AActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 	}
 }
 
-void AActor::GetExternalActorExtendedAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
+void AActor::GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const
 {
-	Super::GetExternalActorExtendedAssetRegistryTags(OutTags);
+	Super::GetExtendedAssetRegistryTagsForSave(TargetPlatform, OutTags);
 
 	if (IsPackageExternal() && !IsChildActor())
 	{

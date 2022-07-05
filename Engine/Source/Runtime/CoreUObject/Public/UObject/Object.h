@@ -830,12 +830,18 @@ public:
 	 */
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const;
 
-	/**
-	 * Temporary interim solution to gather external actors asset registry data.
-	 *
-	 * @param	OutTags		A list of key-value pairs associated with this object and their types
-	 */
+	UE_DEPRECATED(5.1, "Use the new GetExtendedAssetRegistryTagsForSave that takes a TargetPlatform")
 	virtual void GetExternalActorExtendedAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const {}
+
+#if WITH_EDITOR
+	/**
+	 * Temporary interim solution to gather asset registry data at save time only.  Can depend on the target platform being saved for.
+	 *
+	 * @param	TargetPlatform	The platform that this object is being saved for.
+	 * @param	OutTags			A list of key-value pairs associated with this object and their types
+	 */
+	virtual void GetExtendedAssetRegistryTagsForSave(const ITargetPlatform* TargetPlatform, TArray<FAssetRegistryTag>& OutTags) const;
+#endif // WITH_EDITOR
 
 	/** Gathers a list of asset registry tags for an FAssetData  */
 	void GetAssetRegistryTags(FAssetData& Out) const;

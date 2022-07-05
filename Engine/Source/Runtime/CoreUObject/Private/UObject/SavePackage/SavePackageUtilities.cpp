@@ -2220,7 +2220,7 @@ namespace UE
 namespace AssetRegistry
 {
 	// See the corresponding ReadPackageDataMain and ReadPackageDataDependencies defined in PackageReader.cpp in AssetRegistry module
-	void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package, FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame)
+	void WritePackageData(FStructuredArchiveRecord& ParentRecord, bool bIsCooking, const UPackage* Package, FLinkerSave* Linker, const TSet<UObject*>& ImportsUsedInGame, const TSet<FName>& SoftPackagesUsedInGame, const ITargetPlatform* TargetPlatform)
 	{
 		// To avoid large patch sizes, we have frozen cooked package format at the format before VER_UE4_ASSETREGISTRY_DEPENDENCYFLAGS
 		bool bPreDependencyFormat = bIsCooking;
@@ -2270,7 +2270,9 @@ namespace AssetRegistry
 
 			TArray<UObject::FAssetRegistryTag> SourceTags;
 			Object->GetAssetRegistryTags(SourceTags);
-			Object->GetExternalActorExtendedAssetRegistryTags(SourceTags);
+#if WITH_EDITOR
+			Object->GetExtendedAssetRegistryTagsForSave(TargetPlatform, SourceTags);
+#endif // WITH_EDITOR
 
 			TArray<UObject::FAssetRegistryTag> Tags;
 			for (UObject::FAssetRegistryTag& SourceTag : SourceTags)
