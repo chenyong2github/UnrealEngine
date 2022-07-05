@@ -4,6 +4,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush" 
+#include "../ShaderPrint.ush"
 
 #define INPUT_ROOT_FRAME 0
 #define INPUT_ROOT_TRIANGLE 1
@@ -28,26 +29,15 @@ Buffer<float4>  DeformedPosition2Buffer;
 Buffer<float4> RestSamplePositionsBuffer;
 Buffer<float4> DeformedSamplePositionsBuffer;
 
-void MainVS(
-	uint VertexId : SV_VertexID,
-	out float2 OutVertexUVs : VERTEXUVs,
-	out float3 OutFaceNormal : FACE_NORMAL,
-	out float4 OutPosition : SV_POSITION)
+[numthreads(256, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	ResolvedView = ResolveView();
 
-	float2 UVs = 0;
-
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_FRAME  
-	const uint LineVertex = (VertexId%2);
-	const uint LineIndex = VertexId/2;
+	const uint LineIndex = DispatchThreadId.x;
 
-	OutFaceNormal 	= float3(0,0,1);
-	OutPosition 	= float4(0,0,0,0);
 	if (LineIndex > MaxRootCount) return;
-
-	float3 N;
-	float3 P;
 	{
 		const FHairMeshTriangleWithUVs RestTriangle		= GetTriangleWithUVsTransformation(LineIndex, RestPosition0Buffer, RestPosition1Buffer, RestPosition2Buffer);
 		const FHairMeshTriangleWithUVs DeformedTriangle = GetTriangleWithUVsTransformation(LineIndex, DeformedPosition0Buffer, DeformedPosition1Buffer, DeformedPosition2Buffer);
@@ -62,7 +52,7 @@ void MainVS(
 		float3 P0 = B.x * Tri.P0 + B.y * Tri.P1 + B.z * Tri.P2;
 		float3 P1 = P0 + Tri.N;
 
-		UVs = 
+		const float2 UVs = 
 			B.x * Tri.UV0 +
 			B.y * Tri.UV1 +
 			B.z * Tri.UV2;
@@ -70,14 +60,15 @@ void MainVS(
 		P0 = mul(float4(P0, 1), RootLocalToWorld).xyz;
 		P1 = mul(float4(P1, 1), RootLocalToWorld).xyz;
 
-		N = normalize(P0 - P1);
-		P = LineVertex == 0 ? P0 : P1;
+		const float3 N = normalize(P0 - P1);
+		const float4 Color = float4(UVs, 0, 1);
+		//Color = float4(N* 0.5f + 0.5f, 1);
+		AddLineWS(P0, P1, Color);
 	}
-#endif
+#endif // INPUT_ROOT_FRAME
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_TRIANGLE
-	const uint TriangleVertex = (VertexId % 3);
-	const uint TriangleIndex = VertexId / 3;
+	const uint TriangleIndex = DispatchThreadId.x;
 
 	if (TriangleIndex > MaxRootCount) return;
 
@@ -89,24 +80,7 @@ void MainVS(
 		Tri = DeformedTriangle;
 	else
 		Tri = RestTriangle;
-
-	float3 N = Tri.N;
-	float3 P = 0;
-	if (TriangleVertex == 0)
-	{
-		P = Tri.P0;
-		UVs = Tri.UV0;
-	}
-	if (TriangleVertex == 1)
-	{
-		P = Tri.P1;
-		UVs = Tri.UV1;
-	}
-	if (TriangleVertex == 2)
-	{
-		P = Tri.P2;
-		UVs = Tri.UV2;
-	}
+	
 
 	// Debug: To test if the rest-triangle-to-deformed-triangle transformation works correctly
 	#if 0
@@ -132,52 +106,24 @@ void MainVS(
 	}
 	#endif
 
-	P = mul(float4(P, 1), RootLocalToWorld).xyz;
-#endif
+	float4 Color = float4(Tri.UV0, 0, 1);
+	// Color = float4((Tri.N + 1) * 0.5f, 1);
+
+	AddFilledTriangleWS(
+		mul(float4(Tri.P0, 1), RootLocalToWorld).xyz, 
+		mul(float4(Tri.P1, 1), RootLocalToWorld).xyz, 
+		mul(float4(Tri.P2, 1), RootLocalToWorld).xyz, 
+		Color);
+#endif // INPUT_ROOT_TRIANGLE
 
 #if PERMUTATION_INPUT_TYPE == INPUT_ROOT_SAMPLES 
-
-	const uint LineVertex = (VertexId%2);
-	const uint LineIndex = VertexId/2;
-	const uint PointIndex = VertexId/6;
-	const uint AxisIndex = (LineIndex%3);
+	const uint PointIndex = DispatchThreadId.x;
 	
-	if (LineIndex > MaxRootCount) return;
+	if (PointIndex > MaxRootCount) return;
 
-	float3 N;
-	if(AxisIndex == 0)
-	{
-		N = float3(1,0,0);
-		UVs = float2(1,0);
-	}
-	else if(AxisIndex == 1)
-	{
-		N = float3(0,1,0);
-		UVs = float2(0,1);
-	}
-	else if(AxisIndex == 2)
-	{
-		N = float3(0,0,1);
-		UVs = float2(0.5,0.5);
-	}
 	float3 P = (DeformedFrameEnable > 0) ? DeformedSamplePositionsBuffer[PointIndex].xyz : RestSamplePositionsBuffer[PointIndex].xyz;
-	P = (LineVertex == 0) ? P - 0.5 * N : P + 0.5 * N;
 	P = mul(float4(P, 1), RootLocalToWorld).xyz;
-	
-#endif
-	
-	OutVertexUVs = UVs;
-	OutFaceNormal = N;
-	OutPosition = mul(float4(P,1), LWCHackToFloat(PrimaryView.WorldToClip));
-}
 
-void MainPS(
-	in float2 VertexUVs : VERTEXUVs,
-	in float3 FaceNormal : FACE_NORMAL,
-	out float4 OutColor : SV_Target0)
-{
-	FaceNormal += float3(1,1,1);
-	FaceNormal *= 0.5f;
-	OutColor = float4(FaceNormal,1);
-	OutColor = float4(VertexUVs,0, 1);
+	AddCrossWS(P, 1.f, ColorYellow);
+#endif // INPUT_ROOT_SAMPLES
 }

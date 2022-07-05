@@ -4,6 +4,7 @@
 
 #include "../Common.ush"
 #include "HairStrandsMeshProjectionCommon.ush"
+#include "../ShaderPrint.ush"
 
 float4x4 LocalToWorld;
 uint VertexOffset;
@@ -28,63 +29,37 @@ Buffer<uint> InputIndexBuffer;
 #define SOURCE_MESH 2
 #define TARGET_MESH 3
 
-void MainVS(
-	uint VertexId : SV_VertexID,
-	out float2 OutVertexUV : TRI_UVs,
-	out float3 OutFaceNormal : FACE_NORMAL,
-	out float4 OutPosition : SV_POSITION)
+[numthreads(256, 1, 1)]
+void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	ResolvedView = ResolveView();
 
+	float4 Color = 0;
+	if (MeshType == REST_MESH)		Color = float4(1, 0, 0, 1);
+	if (MeshType == DEFORMED_MESH)	Color = float4(0, 1, 0, 1);
+	if (MeshType == SOURCE_MESH)	Color = float4(0, 0, 1, 1);
+	if (MeshType == TARGET_MESH)	Color = float4(1, 1, 0, 1);
+
 #if PERMUTATION_INPUT_TYPE == 0
-	const uint VertexIndex = min(VertexOffset + VertexId, MaxVertexCount-1);
-	float3 P = InputVertexPositionBuffer[VertexIndex];
-	OutFaceNormal = float3(0,0,1);
-	OutVertexUV = InputVertexUVsBuffer[VertexIndex];
+	const uint VertexId = DispatchThreadId.x * 3;
+	const uint VertexIndex0 = min(VertexOffset + VertexId, MaxVertexCount-1);
+
+	FHairMeshTriangleWithUVs Tri = (FHairMeshTriangleWithUVs)0;
+	Tri.P0 = InputVertexPositionBuffer[VertexIndex0 + 0];
+	Tri.P1 = InputVertexPositionBuffer[VertexIndex0 + 1];
+	Tri.P2 = InputVertexPositionBuffer[VertexIndex0 + 2];
+
+	Tri.UV0 = InputVertexUVsBuffer[VertexIndex0 + 0];
+	Tri.UV1 = InputVertexUVsBuffer[VertexIndex0 + 1];
+	Tri.UV2 = InputVertexUVsBuffer[VertexIndex0 + 2];
+
+	Tri.N = cross(Tri.P1 - Tri.P0, Tri.P2 - Tri.P0);
 #endif
 
 #if PERMUTATION_INPUT_TYPE == 1
-	const uint TriangleVertexIndex = (VertexId%3);
-	const uint TriangleIndex = VertexId / 3;
+	const uint TriangleIndex = DispatchThreadId.x;
 	const FHairMeshTriangleWithUVs Tri = GetTriangleData(TriangleIndex, InputVertexPositionBuffer, InputVertexUVsBuffer, InputIndexBuffer, IndexOffset, MaxIndexCount, MaxVertexCount, MeshUVsChannelOffset, MeshUVsChannelCount);
-	OutFaceNormal = Tri.N;
-
-	float3 P = 0;
-	float2 UV = 0;
-	if (TriangleVertexIndex == 0)
-	{
-		P = Tri.P0;
-		UV = Tri.UV0;
-	}
-	if (TriangleVertexIndex == 1)
-	{
-		P = Tri.P1;
-		UV = Tri.UV1;
-	}
-	if (TriangleVertexIndex == 2)
-	{
-		P = Tri.P2;
-		UV = Tri.UV2;
-	}
-
-	OutVertexUV = UV;
 #endif
-	if (bOutputInUVsSpace)
-	{
-		float2 PixelOffset = 0;
-		//float2 PixelOffset = 1.f / float2(OutputResolution);
-		if (MeshType == REST_MESH)		PixelOffset *= 0;
-		if (MeshType == DEFORMED_MESH)	PixelOffset *= 1;
-		if (MeshType == SOURCE_MESH)	PixelOffset *= 2;
-		if (MeshType == TARGET_MESH)	PixelOffset *= 3;
-
-		OutPosition = float4((PixelOffset + OutVertexUV) * 2 - 1, 0.5, 1);
-	}
-	else
-	{
-		P = mul(float4(P, 1), LocalToWorld).xyz;
-		OutPosition = mul(float4(P, 1), LWCHackToFloat(PrimaryView.WorldToClip));
-	}
 
 	// Quick filter
 #if 0
@@ -94,24 +69,22 @@ void MainVS(
 	//if (MeshType != TARGET_MESH)
 	if (MeshType != SOURCE_MESH && MeshType != TARGET_MESH || SectionIndex != 0)
 	{
-		OutPosition = float4(1.#INF, 1.#INF, 1.#INF, 1.#INF);
-		OutVertexUV = 0;
+		return;
 	}
 #endif
-}
 
-void MainPS(
-	in float2 VertexUV : TRI_UVs,
-	in float3 FaceNormal : FACE_NORMAL,
-	out float4 OutColor : SV_Target0)
-{
-	float3 Color = 0;
-	if (MeshType == REST_MESH)		Color = float3(1, 0, 0);
-	if (MeshType == DEFORMED_MESH)	Color = float3(0, 1, 0);
-	if (MeshType == SOURCE_MESH)	Color = float3(0, 0, 1);
-	if (MeshType == TARGET_MESH)	Color = float3(1, 1, 0);
+	Color.xyz *= Tri.N * 0.5f + 0.5f;
 
-	OutColor = float4((FaceNormal + 1) * 0.5f,1);
-	OutColor = float4(VertexUV, 0, 1);
-	OutColor = float4(Color, 1);
+	if (bOutputInUVsSpace)
+	{
+		AddFilledTriangleWS(float3(Tri.UV0, 0), float3(Tri.UV1, 0), float3(Tri.UV2, 0), Color);
+	}
+	else
+	{
+		AddFilledTriangleWS(
+			mul(float4(Tri.P0, 1), LocalToWorld).xyz, 
+			mul(float4(Tri.P1, 1), LocalToWorld).xyz, 
+			mul(float4(Tri.P2, 1), LocalToWorld).xyz,
+			Color);
+	}
 }
