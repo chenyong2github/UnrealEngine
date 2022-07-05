@@ -241,15 +241,7 @@ FString FOnlineIdentitySteam::GetAuthType() const
 
 void FOnlineIdentitySteam::GetLinkedAccountAuthToken(int32 LocalUserNum, const FOnGetLinkedAccountAuthTokenCompleteDelegate& Delegate) const
 {
-	SteamSubsystem->GetEncryptedAppTicketInterface()->OnEncryptedAppTicketResultDelegate.AddLambda([this, LocalUserNum, OnComplete = FOnGetLinkedAccountAuthTokenCompleteDelegate(Delegate)](bool bEncryptedDataAvailable, int32 ResultCode)
-	{
-		FExternalAuthToken ExternalToken;
-		if (bEncryptedDataAvailable)
-		{
-			SteamSubsystem->GetEncryptedAppTicketInterface()->GetEncryptedAppTicket(ExternalToken.TokenData);
-		}
-		// Pass the info back to the original caller
-		OnComplete.ExecuteIfBound(LocalUserNum, ExternalToken.HasTokenData(), ExternalToken);
-	});
-	SteamSubsystem->GetEncryptedAppTicketInterface()->RequestEncryptedAppTicket(nullptr, 0);
+	FExternalAuthToken AuthToken;
+	AuthToken.TokenString = GetAuthToken(LocalUserNum);
+	Delegate.ExecuteIfBound(LocalUserNum, AuthToken.HasTokenString(), AuthToken);
 }
