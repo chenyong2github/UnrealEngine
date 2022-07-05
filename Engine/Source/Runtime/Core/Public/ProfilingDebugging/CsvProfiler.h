@@ -117,6 +117,7 @@
 class FCsvProfilerFrame;
 class FCsvProfilerThreadData;
 class FCsvProfilerProcessingThread;
+struct FCsvPersistentCustomStats;
 class FName;
 
 enum class ECsvCustomStatOp : uint8
@@ -190,6 +191,115 @@ struct FCsvCaptureCommand
 	TPromise<FString>* Completion;
 	TSharedFuture<FString> Future;
 };
+
+//
+// Persistent custom stats
+// 
+enum class ECsvPersistentCustomStatType : uint8
+{
+	Float,
+	Int,
+	Count
+};
+
+class FCsvPersistentCustomStatBase
+{
+public:
+	FCsvPersistentCustomStatBase(FName InName, uint32 InCategoryIndex, bool bInResetEachFrame, ECsvPersistentCustomStatType InStatType)
+		: Name(InName), CategoryIndex(InCategoryIndex), bResetEachFrame(bInResetEachFrame), StatType(InStatType)
+	{
+	}
+
+	ECsvPersistentCustomStatType GetStatType() const
+	{
+		return StatType;
+	}
+protected:
+	FName Name;
+	uint32 CategoryIndex;
+	bool bResetEachFrame;
+	ECsvPersistentCustomStatType StatType;
+};
+
+
+template <class T> 
+class TCsvPersistentCustomStat : public FCsvPersistentCustomStatBase
+{
+	friend struct FCsvPersistentCustomStats;
+private:
+	std::atomic<T> Value;
+};
+
+
+template <>
+class TCsvPersistentCustomStat<float> : public FCsvPersistentCustomStatBase
+{
+	friend struct FCsvPersistentCustomStats;
+public:
+	TCsvPersistentCustomStat<float>(FName InName, uint32 InCategoryIndex, bool bInResetEachFrame)
+		: FCsvPersistentCustomStatBase(InName, InCategoryIndex, bInResetEachFrame, ECsvPersistentCustomStatType::Float)
+		, Value(0.0f)
+	{}
+
+	float Add(float Rhs)
+	{
+		float Previous = Value.load(std::memory_order_consume);
+		float Desired = Previous + Rhs;
+		while (!Value.compare_exchange_weak(Previous, Desired, std::memory_order_release, std::memory_order_consume))
+		{
+			Desired = Previous + Rhs;
+		}
+		return Desired;
+	}
+	float Sub(float Rhs)
+	{
+		return Add(-Rhs);
+	}
+	void Set(float NewVal)
+	{
+		return Value.store(NewVal, std::memory_order_relaxed);
+	}
+	float GetValue()
+	{
+		return Value.load();
+	}
+	static ECsvPersistentCustomStatType GetClassStatType() { return ECsvPersistentCustomStatType::Float; }
+protected:
+	std::atomic<float> Value;
+};
+
+
+template <>
+class TCsvPersistentCustomStat<int32> : public FCsvPersistentCustomStatBase
+{
+	friend struct FCsvPersistentCustomStats;
+public:
+	TCsvPersistentCustomStat<int32>(FName InName, uint32 InCategoryIndex, bool bInResetEachFrame)
+		: FCsvPersistentCustomStatBase(InName, InCategoryIndex, bInResetEachFrame, ECsvPersistentCustomStatType::Int)
+		, Value(0)
+	{}
+
+	int32 Add(int32 Rhs)
+	{
+		return Value.fetch_add(Rhs, std::memory_order_relaxed);
+	}
+	int32 Sub(int32 Rhs)
+	{
+		return Value.fetch_sub(Rhs, std::memory_order_relaxed);
+	}
+	void Set(int32 NewVal)
+	{
+		Value.store(NewVal, std::memory_order_relaxed);
+	}
+	int32 GetValue()
+	{
+		return Value.load();
+	}
+	static ECsvPersistentCustomStatType GetClassStatType() { return ECsvPersistentCustomStatType::Int; }
+protected:
+	std::atomic<int> Value;
+};
+
 
 /**
 * FCsvProfiler class. This manages recording and reporting all for CSV stats
@@ -312,6 +422,11 @@ public:
 	{
 		RHIThreadId = InRHIThreadId;
 	}
+
+	// Persistent custom stat methods. These are pre-registered custom stats whose value can persist over multiple frames
+	// They are lower overhead than normal custom stats because accumulate ops don't require memory allocation
+	CORE_API TCsvPersistentCustomStat<int32>* GetOrCreatePersistentCustomStatInt(FName Name, int32 CategoryIndex = CSV_CATEGORY_INDEX_GLOBAL, bool bResetEachFrame = false);
+	CORE_API TCsvPersistentCustomStat<float>* GetOrCreatePersistentCustomStatFloat(FName Name, int32 CategoryIndex = CSV_CATEGORY_INDEX_GLOBAL, bool bResetEachFrame = false);
 
 private:
 	CORE_API static void VARARGS RecordEventfInternal(int32 CategoryIndex, const TCHAR* Fmt, ...);
