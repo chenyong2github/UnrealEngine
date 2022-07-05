@@ -76,8 +76,8 @@ private:
 	/** Applies force feedback settings to the controller */
 	void UpdateForceFeedback( const FOculusControllerPair& ControllerPair, const EControllerHand Hand );
 
-	bool OnControllerButtonPressed( const FOculusButtonState& ButtonState, int32 ControllerId, bool IsRepeat );
-	bool OnControllerButtonReleased( const FOculusButtonState& ButtonState, int32 ControllerId, bool IsRepeat );
+	bool OnControllerButtonPressed( const FOculusButtonState& ButtonState, FPlatformUserId UserId, FInputDeviceId DeviceId, bool IsRepeat );
+	bool OnControllerButtonReleased( const FOculusButtonState& ButtonState, FPlatformUserId UserId, FInputDeviceId DeviceId, bool IsRepeat );
 
 private:
 
