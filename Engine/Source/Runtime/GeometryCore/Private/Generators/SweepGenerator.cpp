@@ -94,7 +94,7 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 	}
 
 	// Check that we have our inputs
-	if (ProfileCurve.Num() < 2 || SweepCurve.Num() < 2)
+	if (ProfileCurve.Num() < 2 || SweepCurve.Num() < 2 || (!SweepScaleCurve.IsEmpty() && SweepScaleCurve.Num() != SweepCurve.Num()))
 	{
 		Reset();
 		return *this;;
@@ -221,17 +221,27 @@ FMeshShapeGenerator& FProfileSweepGenerator::Generate()
 	{
 		if (WeldedVertices.Contains(ProfileIndex))
 		{
+			FVector3d FramePoint = ProfileCurve[ProfileIndex];
 			// Position stays locked into the first frame
+			if (!SweepScaleCurve.IsEmpty())
+			{
+				FramePoint *= SweepScaleCurve[0];
+			}
 			SetVertex(GetVertIndex(true, 0, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets), 
-				SweepCurve[0].FromFramePoint(ProfileCurve[ProfileIndex]));
+				SweepCurve[0].FromFramePoint(FramePoint));
 		}
 		else
 		{
 			// Generate copies of the vertex in all the sweep frames.
 			for (int32 SweepIndex = 0; SweepIndex < NumSweepPoints; ++SweepIndex)
 			{
+				FVector3d FramePoint = ProfileCurve[ProfileIndex];
+				if (!SweepScaleCurve.IsEmpty())
+				{
+					FramePoint *= SweepScaleCurve[SweepIndex];
+				}
 				SetVertex(GetVertIndex(false, SweepIndex, ProfileIndex, NumWelded, NumNonWelded, VertPositionOffsets),
-					SweepCurve[SweepIndex].FromFramePoint(ProfileCurve[ProfileIndex]));
+					SweepCurve[SweepIndex].FromFramePoint(FramePoint));
 			}
 		}
 	});

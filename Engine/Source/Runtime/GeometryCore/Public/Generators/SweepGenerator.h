@@ -801,8 +801,11 @@ public:
 	// Curve that will be swept along the curve, given in coordinates of the frames used in the sweep curve.
 	TArray<FVector3d> ProfileCurve;
 
-	// Curve along which to sweep the profile curve
+	// Curve along which to sweep the profile curve.
 	TArray<FFrame3d> SweepCurve;
+
+	// (Optional) Curve along which to scale the profile curve, corresponding to each frame in SweepCurve.
+	TArray<FVector3d> SweepScaleCurve;
 
 	// Indices into ProfileCurve that should not be swept along the curve, instead being instantiated
 	// just once. This is useful for welding vertices on an axis of rotation if the sweep curve denotes
