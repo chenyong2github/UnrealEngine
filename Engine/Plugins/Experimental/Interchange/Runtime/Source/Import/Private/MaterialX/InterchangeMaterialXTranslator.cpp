@@ -4,6 +4,7 @@
 #if WITH_EDITOR
 #include "MaterialXFormat/Util.h"
 #endif
+#include "Engine/Scene.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeLightNode.h"
 #include "InterchangeManager.h"
@@ -25,10 +26,11 @@ namespace UE::Interchange::MaterialX
 	{
 		static const bool bStandardSurfacePackageLoaded = []() -> bool
 		{
-			if (FString FunctionPath = FPackageName::ExportTextPathToObjectPath(TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'"));
-				FPackageName::DoesPackageExist(FunctionPath))
+			const FString TextPath{ TEXT("MaterialFunction'/Interchange/Functions/MX_StandardSurface.MX_StandardSurface'") };
+			const FString FunctionPath{ FPackageName::ExportTextPathToObjectPath(TextPath) };
+			if(FPackageName::DoesPackageExist(FunctionPath))
 			{
-				if (FSoftObjectPath(FunctionPath).TryLoad())
+				if(FSoftObjectPath(FunctionPath).TryLoad())
 				{
 					return true;
 				}
@@ -52,18 +54,17 @@ namespace UE::Interchange::MaterialX
 UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 #if WITH_EDITOR
 	:
-	InputNamesMaterialX2UE{
-		{TEXT("in"),        TEXT("Input")},
-		{TEXT("in1"),       TEXT("A")},
-		{TEXT("in2"),       TEXT("B")},
-		{TEXT("fg"),        TEXT("A")},
-		{TEXT("bg"),        TEXT("B")},
-		{TEXT("mix"),       TEXT("Factor")},
-		{TEXT("low"),       TEXT("Min")},
-		{TEXT("high"),      TEXT("Max")},
-		{TEXT("texcoord"),  UE::Interchange::Materials::Standard::Nodes::TextureSample::Inputs::Coordinates.ToString()} },
-		NodeNamesMaterialX2UE
-{
+InputNamesMaterialX2UE{
+	{TEXT("in"),        TEXT("Input")},
+	{TEXT("in1"),       TEXT("A")},
+	{TEXT("in2"),       TEXT("B")},
+	{TEXT("fg"),        TEXT("A")},
+	{TEXT("bg"),        TEXT("B")},
+	{TEXT("mix"),       TEXT("Factor")},
+	{TEXT("low"),       TEXT("Min")},
+	{TEXT("high"),      TEXT("Max")},
+	{TEXT("texcoord"),  UE::Interchange::Materials::Standard::Nodes::TextureSample::Inputs::Coordinates.ToString()} },
+NodeNamesMaterialX2UE{
 	{MaterialX::Category::Add,      TEXT("Add")},
 	{MaterialX::Category::Sub,      TEXT("Subtract")},
 	{MaterialX::Category::Multiply, TEXT("Multiply")},
@@ -75,21 +76,30 @@ UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 	{MaterialX::Category::Min,      TEXT("Min")},
 	{MaterialX::Category::Combine2, TEXT("AppendVector")},
 	{MaterialX::Category::Combine3, TEXT("AppendVector")},
-	{MaterialX::Category::Combine4, TEXT("AppendVector")}
-},
+	{MaterialX::Category::Combine4, TEXT("AppendVector")}},
 UEInputs{ TEXT("A"), TEXT("B"), TEXT("Input"), TEXT("Factor"), TEXT("Min"), TEXT("Max") }
 #endif // WITH_EDITOR
 {
+}
+
+EInterchangeTranslatorType UInterchangeMaterialXTranslator::GetTranslatorType() const
+{
+	return EInterchangeTranslatorType::Scenes;
+}
+
+bool UInterchangeMaterialXTranslator::DoesSupportAssetType(EInterchangeTranslatorAssetType AssetType) const
+{
+	return AssetType == EInterchangeTranslatorAssetType::Materials;
 }
 
 TArray<FString> UInterchangeMaterialXTranslator::GetSupportedFormats() const
 {
 	// Call to UInterchangeMaterialXTranslator::GetSupportedFormats is not supported out of game thread
 	// A more global solution must be found for translators which require some initialization
-	if (!IsInGameThread())
-		{
+	if(!IsInGameThread())
+	{
 		return TArray<FString>{};
-			}
+	}
 
 	return UE::Interchange::MaterialX::IsStandardSurfacePackageLoaded() ? TArray<FString>{ TEXT("mtlx;MaterialX File Format") } : TArray<FString>{};
 }
@@ -106,83 +116,116 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 	{
 		return false;
 	}
-
-	mx::FileSearchPath MaterialXLibFolder{ TCHAR_TO_UTF8(*FPaths::Combine(
-		FPaths::EngineDir(),
-		TEXT("Binaries"),
-		TEXT("ThirdParty"),
-		TEXT("MaterialX"),
-		TEXT("libraries"))) };
-
-	mx::DocumentPtr MaterialXLibrary = mx::createDocument();
-
-	mx::StringSet LoadedLibs = mx::loadLibraries({ mx::Library::Std, mx::Library::Pbr, mx::Library::Bxdf }, MaterialXLibFolder, MaterialXLibrary);
-	if(LoadedLibs.empty())
+	try
 	{
-		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-		Message->Text = FText::Format(LOCTEXT("MaterialXLibrariesNotFound", "Couldn't load MaterialX libraries from {0}"),
-			FText::FromString(MaterialXLibFolder.asString().c_str()));
-		return false;
-	}
+		mx::FileSearchPath MaterialXLibFolder{ TCHAR_TO_UTF8(*FPaths::Combine(
+			FPaths::EngineDir(),
+			TEXT("Binaries"),
+			TEXT("ThirdParty"),
+			TEXT("MaterialX"),
+			TEXT("libraries"))) };
 
-	mx::DocumentPtr Document = mx::createDocument();
-	mx::readFromXmlFile(Document, TCHAR_TO_UTF8(*Filename));
+		mx::DocumentPtr MaterialXLibrary = mx::createDocument();
 
-	Document->importLibrary(MaterialXLibrary);
-	bIsDocumentValid = Document->validate();
-
-	for(mx::ElementPtr Elem : Document->traverseTree())
-	{
-		//make sure to read only the current file otherwise we'll process the entire library
-		if(Elem->getActiveSourceUri() != Document->getActiveSourceUri())
+		mx::StringSet LoadedLibs = mx::loadLibraries({ mx::Library::Std, mx::Library::Pbr, mx::Library::Bxdf, mx::Library::Lights }, MaterialXLibFolder, MaterialXLibrary);
+		if(LoadedLibs.empty())
 		{
-			continue;
+			UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+			Message->Text = FText::Format(LOCTEXT("MaterialXLibrariesNotFound", "Couldn't load MaterialX libraries from {0}"),
+										  FText::FromString(MaterialXLibFolder.asString().c_str()));
+			return false;
 		}
 
-		mx::NodePtr Node = Elem->asA<mx::Node>();
+		mx::DocumentPtr Document = mx::createDocument();
+		mx::readFromXmlFile(Document, TCHAR_TO_UTF8(*Filename));
+		Document->importLibrary(MaterialXLibrary);
 
-		if(Node)
+		std::string MaterialXMessage;
+		bIsDocumentValid = Document->validate(&MaterialXMessage);
+		if(!bIsDocumentValid)
 		{
-			//The entry point for materials is only on a surfacematerial node
-			if(Node->getType() == mx::MATERIAL_TYPE_STRING && Node->getCategory() == mx::SURFACE_MATERIAL_NODE_STRING)
+			UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+			Message->Text = FText::Format(LOCTEXT("MaterialXDocumentInvalid", "{0}"),
+										  FText::FromString(MaterialXMessage.c_str()));
+			return false;
+		}
+
+		for(mx::ElementPtr Elem : Document->traverseTree())
+		{
+			//make sure to read only the current file otherwise we'll process the entire library
+			if(Elem->getActiveSourceUri() != Document->getActiveSourceUri())
 			{
-				if(!Node->getTypeDef())
+				continue;
+			}
+
+			mx::NodePtr Node = Elem->asA<mx::Node>();
+
+			if(Node)
+			{
+				std::string NameOfNodeDocument = Document->getCategory();
+				std::string NameOfNode = Node->getCategory();
+				printf("%s, %s", NameOfNodeDocument.c_str(), NameOfNode.c_str());
+
+				bool bIsMaterialShader = Node->getType() == mx::MATERIAL_TYPE_STRING;
+				bool bIsLightShader = Node->getType() == mx::LIGHT_SHADER_TYPE_STRING;
+
+				if(bIsMaterialShader || bIsLightShader)
 				{
-					UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-					Message->Text = FText::Format(LOCTEXT("TypeDefNotFound", "<{0}> has no matching TypeDef"),
-						FText::FromString(Node->getName().c_str()));
-
-					bIsReferencesValid = false;
-					break;
-				}
-
-				bool bHasStandardSurface = false;
-
-				for(mx::InputPtr Input : Node->getInputs())
-				{
-					//we only support standard_surface for now
-					mx::NodePtr ConnectedNode = Input->getConnectedNode();
-
-					if(ConnectedNode && ConnectedNode->getCategory() == "standard_surface")
+					if(!Node->getTypeDef())
 					{
-						ProcessStandardSurface(BaseNodeContainer, ConnectedNode, Document);
-						bHasStandardSurface = true;
-					}
-				}
+						UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+						Message->Text = FText::Format(LOCTEXT("TypeDefNotFound", "<{0}> has no matching TypeDef"),
+													  FText::FromString(Node->getName().c_str()));
 
-				if(!bHasStandardSurface)
-				{
-					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
-					Message->Text = FText::Format(LOCTEXT("StandardSurfaceNotFound", "<{0}> has no standard_surface inputs"),
-						FText::FromString(Node->getName().c_str()));
+						bIsReferencesValid = false;
+						break;
+					}
+
+					//The entry point for materials is only on a surfacematerial node
+					if(bIsMaterialShader && Node->getCategory() == mx::SURFACE_MATERIAL_NODE_STRING)
+					{
+						bool bHasStandardSurface = false;
+
+						for(mx::InputPtr Input : Node->getInputs())
+						{
+							//we only support standard_surface for now
+							mx::NodePtr ConnectedNode = Input->getConnectedNode();
+
+							if(ConnectedNode && ConnectedNode->getCategory() == mx::Category::StandardSurface)
+							{
+								ProcessStandardSurface(BaseNodeContainer, ConnectedNode, Document);
+								bHasStandardSurface = true;
+							}
+						}
+
+						if(!bHasStandardSurface)
+						{
+							UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
+							Message->Text = FText::Format(LOCTEXT("StandardSurfaceNotFound", "<{0}> has no standard_surface inputs"),
+														  FText::FromString(Node->getName().c_str()));
+						}
+					}
+					else if(bIsLightShader)
+					{
+						bIsReferencesValid = true;
+						ProcessLightShader(BaseNodeContainer, Node, Document);
+					}
 				}
 			}
 		}
 	}
+	catch(std::exception& Exception)
+	{
+		bIsDocumentValid = false;
+		bIsReferencesValid = false;
+		UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
+		Message->Text = FText::Format(LOCTEXT("MaterialXException", "{0}"),
+									  FText::FromString(Exception.what()));
+	}
 
 #endif // WITH_EDITOR
 
-	if (bIsDocumentValid && bIsReferencesValid)
+	if(bIsDocumentValid && bIsReferencesValid)
 	{
 		UInterchangeSourceNode* SourceNode = UInterchangeSourceNode::FindOrCreateUniqueInstance(&BaseNodeContainer);
 		SourceNode->SetCustomImportUnusedMaterial(true);
@@ -218,9 +261,9 @@ void UInterchangeMaterialXTranslator::ProcessStandardSurface(UInterchangeBaseNod
 {
 	using namespace UE::Interchange::Materials;
 
-	FString StandardSurfaceName{ FPaths::GetBaseFilename(StandardSurfaceNode->getActiveSourceUri().c_str()) };
+	const FString StandardSurfaceName{ StandardSurfaceNode->getName().c_str() };
 	UInterchangeShaderGraphNode* ShaderGraphNode = NewObject<UInterchangeShaderGraphNode>(&NodeContainer);
-	FString ShaderGraphNodeUID = TEXT("\\Material\\") + StandardSurfaceName;
+	const FString ShaderGraphNodeUID = TEXT("\\Material\\") + StandardSurfaceName;
 	ShaderGraphNode->InitializeNode(ShaderGraphNodeUID, StandardSurfaceName, EInterchangeNodeContainerType::TranslatedAsset);
 	NodeContainer.AddNode(ShaderGraphNode);
 	ShaderGraphNode->SetCustomShaderType(StandardSurface::Name.ToString());
@@ -490,6 +533,157 @@ void UInterchangeMaterialXTranslator::ProcessStandardSurface(UInterchangeBaseNod
 	}
 }
 
+void UInterchangeMaterialXTranslator::ProcessLightShader(UInterchangeBaseNodeContainer& NodeContainer, MaterialX::NodePtr LightShaderNode, MaterialX::DocumentPtr Document) const
+{
+	const FString FileName{ FPaths::GetBaseFilename(LightShaderNode->getActiveSourceUri().c_str()) };
+	const FString LightNodeLabel = FString(LightShaderNode->getName().c_str());
+	UInterchangeSceneNode* SceneNode = NewObject<UInterchangeSceneNode>(&NodeContainer);
+	const FString SceneNodeUID = TEXT("\\Light\\") + FileName + TEXT("\\") + FString(LightShaderNode->getName().c_str());
+	SceneNode->InitializeNode(SceneNodeUID, LightNodeLabel, EInterchangeNodeContainerType::TranslatedScene);
+	NodeContainer.AddNode(SceneNode);
+
+	UInterchangeBaseLightNode* LightNode = nullptr;
+	if(LightShaderNode->getCategory() == mx::Category::PointLight)
+	{
+		LightNode = CreatePointLightNode(LightShaderNode, SceneNode, NodeContainer, Document);
+	}
+	else if(LightShaderNode->getCategory() == mx::Category::DirectionalLight)
+	{
+		LightNode = CreateDirectionalLightNode(LightShaderNode, SceneNode, NodeContainer, Document);
+	}
+	else if(LightShaderNode->getCategory() == mx::Category::SpotLight)
+	{
+		LightNode = CreateSpotLightNode(LightShaderNode, SceneNode, NodeContainer, Document);
+	}
+	else // MaterialX has no standardized lights, these 3 are the most common ones though and serves as an example in the format
+	{
+		LightNode = CreatePointLightNode(LightShaderNode, SceneNode, NodeContainer, Document);
+	}
+
+	const FString LightNodeUid = TEXT("\\Light\\") + LightNodeLabel;
+	LightNode->InitializeNode(LightNodeUid, LightNodeLabel, EInterchangeNodeContainerType::TranslatedAsset);
+	NodeContainer.AddNode(LightNode);
+	const FString Uid = LightNode->GetUniqueID();
+	SceneNode->SetCustomAssetInstanceUid(Uid);
+
+	// Color
+	{
+		mx::InputPtr LightColor = LightShaderNode->getInput(mx::Lights::Input::Color);
+		const mx::Color3 Color = mx::fromValueString<mx::Color3>(LightColor->getValueString());
+		LightNode->SetCustomLightColor({ Color[0], Color[1], Color[2] });
+	}
+
+	// Intensity
+	{
+		mx::InputPtr LightIntensity = LightShaderNode->getInput(mx::Lights::Input::Intensity);
+		LightNode->SetCustomIntensity(mx::fromValueString<float>(LightIntensity->getValueString()));
+	}
+}
+
+static void GetLightDirection(mx::InputPtr DirectionInput, FTransform & Transform)
+{
+	mx::Vector3 Direction = mx::fromValueString<mx::Vector3>(DirectionInput->getValueString());
+
+	//Get rotation to go from UE's default direction of directional light and the direction of the MX directional light node
+	const FVector LightDirection{ Direction[2], Direction[0], Direction[1] };
+	const FVector TransformDirection = Transform.GetUnitAxis(EAxis::X); // it's the default direction of a UE directional light
+	Transform.SetRotation(FQuat::FindBetween(LightDirection, TransformDirection));
+}
+
+static void GetLightPosition(mx::InputPtr PositionInput, FTransform& Transform)
+{
+	const mx::Vector3 Position = mx::fromValueString<mx::Vector3>(PositionInput->getValueString());
+	Transform.SetLocation(FVector{ Position[0] * 100, Position[1] * 100, Position[2] * 100 });
+}
+
+UInterchangeBaseLightNode* UInterchangeMaterialXTranslator::CreateDirectionalLightNode(MaterialX::NodePtr DirectionalLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const
+{
+	UInterchangeDirectionalLightNode* LightNode = NewObject<UInterchangeDirectionalLightNode>(&NodeContainer);
+
+	// Direction
+	{
+		mx::InputPtr DirectionInput = GetDirectionalLightInput(DirectionalLightShaderNode, mx::Lights::DirectionalLight::Input::Direction, Document);
+
+		FTransform Transform;
+		GetLightDirection(DirectionInput, Transform);
+
+		SceneNode->SetCustomLocalTransform(&NodeContainer, Transform);
+	}
+
+	return LightNode;
+}
+
+UInterchangeBaseLightNode* UInterchangeMaterialXTranslator::CreatePointLightNode(MaterialX::NodePtr PointLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const
+{
+	UInterchangePointLightNode* LightNode = NewObject<UInterchangePointLightNode>(&NodeContainer);
+	LightNode->SetCustomIntensityUnits(EInterchangeLightUnits::Candelas);
+
+	// Decay rate
+	{
+		mx::InputPtr DecayRateInput = GetPointLightInput(PointLightShaderNode, mx::Lights::PointLight::Input::DecayRate, Document);
+		const float DecayRate = mx::fromValueString<float>(DecayRateInput->getValueString());
+		LightNode->SetCustomUseInverseSquaredFalloff(false);
+		LightNode->SetCustomLightFalloffExponent(DecayRate);
+	}
+
+	// Position
+	{
+		mx::InputPtr PositionInput = GetPointLightInput(PointLightShaderNode, mx::Lights::PointLight::Input::Position, Document);
+		FTransform Transform;
+		GetLightPosition(PositionInput, Transform);
+		SceneNode->SetCustomLocalTransform(&NodeContainer, Transform);
+	}
+
+	return LightNode;
+}
+
+UInterchangeBaseLightNode* UInterchangeMaterialXTranslator::CreateSpotLightNode(MaterialX::NodePtr SpotLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const
+{
+	UInterchangeSpotLightNode* LightNode = NewObject<UInterchangeSpotLightNode>(&NodeContainer);
+
+	LightNode->SetCustomIntensityUnits(EInterchangeLightUnits::Candelas);
+
+	// Decay rate
+	{
+		mx::InputPtr DecayRateInput = GetSpotLightInput(SpotLightShaderNode, mx::Lights::SpotLight::Input::DecayRate, Document);
+		const float DecayRate = mx::fromValueString<float>(DecayRateInput->getValueString());
+		LightNode->SetCustomUseInverseSquaredFalloff(false);
+		LightNode->SetCustomLightFalloffExponent(DecayRate);
+	}
+
+	{
+		FTransform Transform;
+		// Position
+		{
+			mx::InputPtr PositionInput = GetSpotLightInput(SpotLightShaderNode, mx::Lights::SpotLight::Input::Position, Document);
+			GetLightPosition(PositionInput, Transform);
+		}
+
+		// Direction
+		{
+			mx::InputPtr DirectionInput = GetSpotLightInput(SpotLightShaderNode, mx::Lights::DirectionalLight::Input::Direction, Document);
+			GetLightDirection(DirectionInput, Transform);
+		}
+		SceneNode->SetCustomLocalTransform(&NodeContainer, Transform);
+	}
+
+	// Inner angle
+	{
+		mx::InputPtr InnerAngleInput = GetSpotLightInput(SpotLightShaderNode, mx::Lights::SpotLight::Input::InnerAngle, Document);
+		const float InnerAngle = FMath::RadiansToDegrees(mx::fromValueString<float>(InnerAngleInput->getValueString()));
+		LightNode->SetCustomInnerConeAngle(InnerAngle);
+	}
+
+	// Outer angle
+	{
+		mx::InputPtr OuterAngleInput = GetSpotLightInput(SpotLightShaderNode, mx::Lights::SpotLight::Input::OuterAngle, Document);
+		const float OuterAngle = FMath::RadiansToDegrees(mx::fromValueString<float>(OuterAngleInput->getValueString()));
+		LightNode->SetCustomOuterConeAngle(OuterAngle);
+	}
+
+	return LightNode;
+}
+
 bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::InputPtr InputToNodeGraph, UInterchangeShaderNode* ShaderNode, const FString& ParentInputName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
 {
 	using namespace UE::Interchange::Materials::Standard::Nodes;
@@ -506,7 +700,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 		{
 			UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
 			Message->Text = FText::Format(LOCTEXT("OutputNotFound", "Couldn't find a connected output to ({0})"),
-				FText::FromString(InputToNodeGraph->getName().c_str()));
+										  FText::FromString(InputToNodeGraph->getName().c_str()));
 
 			return false;
 		}
@@ -544,8 +738,8 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 					{
 						UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
 						Message->Text = FText::Format(LOCTEXT("InputTypeNotSupported", "<{0}>: \"{1}\" is not supported yet"),
-							FText::FromString(InputConstant->getName().c_str()),
-							FText::FromString(InputConstant->getType().c_str()));
+													  FText::FromString(InputConstant->getName().c_str()),
+													  FText::FromString(InputConstant->getType().c_str()));
 					}
 
 				}
@@ -555,7 +749,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 
 					if(mx::InputPtr InputIndex = UpstreamNode->getInput("index"))
 					{
-						int32 Index = mx::fromValueString<int>(InputIndex->getValueString());
+						const int32 Index = mx::fromValueString<int>(InputIndex->getValueString());
 						switch(Index)
 						{
 						case 0: MaskShaderNode->AddBooleanAttribute(Mask::Attributes::R, true); break;
@@ -608,7 +802,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				{
 					UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
 					Message->Text = FText::Format(LOCTEXT("NodeCategoryNotSupported", "<{0}> is not supported yet"),
-						FText::FromString(UpstreamNode->getCategory().c_str()));
+												  FText::FromString(UpstreamNode->getCategory().c_str()));
 				}
 			}
 		}
@@ -677,11 +871,13 @@ UInterchangeTextureNode* UInterchangeMaterialXTranslator::CreateTextureNode(Mate
 		if(mx::InputPtr InputFile = Node->getInput("file"); InputFile && InputFile->hasValue())
 		{
 			FString Filepath{ InputFile->getValueString().c_str() };
-			FString Filename = FPaths::GetCleanFilename(Filepath);
-			FString TextureNodeUID = TEXT("\\Texture\\") + Filename;
+			const FString FilePrefix = GetFilePrefix(InputFile);
+			Filepath = FPaths::Combine(FilePrefix, Filepath);
+			const FString Filename = FPaths::GetCleanFilename(Filepath);
+			const FString TextureNodeUID = TEXT("\\Texture\\") + Filename;
 
 			//Only add the TextureNode once
-			TextureNode = const_cast<UInterchangeTextureNode *>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureNodeUID)));
+			TextureNode = const_cast<UInterchangeTextureNode*>(Cast<UInterchangeTextureNode>(NodeContainer.GetNode(TextureNodeUID)));
 			if(TextureNode == nullptr)
 			{
 				TextureNode = NewObject<UInterchangeTexture2DNode>(&NodeContainer);
@@ -694,6 +890,10 @@ UInterchangeTextureNode* UInterchangeMaterialXTranslator::CreateTextureNode(Mate
 				}
 
 				TextureNode->SetPayLoadKey(Filepath);
+
+				const FString ColorSpace = GetColorSpace(InputFile);
+				const bool bIsSRGB = ColorSpace == TEXT("srgb_texture");
+				TextureNode->SetCustomSRGB(bIsSRGB);
 			}
 		}
 	}
@@ -758,6 +958,42 @@ MaterialX::InputPtr UInterchangeMaterialXTranslator::GetStandardSurfaceInput(Mat
 	if(!Input)
 	{
 		Input = Document->getNodeDef(mx::NodeDefinition::StandardSurface)->getInput(InputName);
+	}
+
+	return Input;
+}
+
+MaterialX::InputPtr UInterchangeMaterialXTranslator::GetPointLightInput(MaterialX::NodePtr PointLight, const char* InputName, MaterialX::DocumentPtr Document) const
+{
+	mx::InputPtr Input = PointLight->getInput(InputName);
+
+	if(!Input)
+	{
+		Input = Document->getNodeDef(mx::NodeDefinition::PointLight)->getInput(InputName);
+	}
+
+	return Input;
+}
+
+MaterialX::InputPtr UInterchangeMaterialXTranslator::GetDirectionalLightInput(MaterialX::NodePtr DirectionalLight, const char* InputName, MaterialX::DocumentPtr Document) const
+{
+	mx::InputPtr Input = DirectionalLight->getInput(InputName);
+
+	if(!Input)
+	{
+		Input = Document->getNodeDef(mx::NodeDefinition::DirectionalLight)->getInput(InputName);
+	}
+
+	return Input;
+}
+
+MaterialX::InputPtr UInterchangeMaterialXTranslator::GetSpotLightInput(MaterialX::NodePtr SpotLight, const char* InputName, MaterialX::DocumentPtr Document) const
+{
+	mx::InputPtr Input = SpotLight->getInput(InputName);
+
+	if(!Input)
+	{
+		Input = Document->getNodeDef(mx::NodeDefinition::SpotLight)->getInput(InputName);
 	}
 
 	return Input;
@@ -833,6 +1069,44 @@ bool UInterchangeMaterialXTranslator::AddLinearColorAttribute(MaterialX::InputPt
 	}
 
 	return false;
+}
+
+FString UInterchangeMaterialXTranslator::GetFilePrefix(MaterialX::ElementPtr Element) const
+{
+	FString FilePrefix;
+
+	if(Element)
+	{
+		if(Element->hasFilePrefix())
+		{
+			return FString(Element->getFilePrefix().c_str());
+		}
+		else
+		{
+			return GetFilePrefix(Element->getParent());
+		}
+	}
+
+	return FilePrefix;
+}
+
+FString UInterchangeMaterialXTranslator::GetColorSpace(MaterialX::ElementPtr Element) const
+{
+	FString ColorSpace;
+
+	if(Element)
+	{
+		if(Element->hasColorSpace())
+		{
+			return FString(Element->getColorSpace().c_str());
+		}
+		else
+		{
+			return GetColorSpace(Element->getParent());
+		}
+	}
+
+	return ColorSpace;
 }
 #endif //WITH_EDITOR
 
