@@ -58,7 +58,7 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 		{
 			if (Pin->Direction == EEdGraphPinDirection::EGPD_Input)
 			{
-				if (FDataflowConnection* ConnectionInput = DataflowNode->FindInput(FName(Pin->GetName())))
+				if (FDataflowInput* ConnectionInput = DataflowNode->FindInput(FName(Pin->GetName())))
 				{
 					DataflowGraph->ClearConnections(ConnectionInput);
 					for (UEdGraphPin* LinkedCon : Pin->LinkedTo)
@@ -69,7 +69,7 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 							{
 								if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 								{
-									if (FDataflowConnection* LinkedConBase = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
+									if (FDataflowOutput* LinkedConBase = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
 									{
 										DataflowGraph->Connect(ConnectionInput, LinkedConBase);
 									}
@@ -81,23 +81,20 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 			}
 			else if (Pin->Direction == EEdGraphPinDirection::EGPD_Output)
 			{
-				if (FDataflowConnection* Con = DataflowNode->FindOutput(FName(Pin->GetName())))
+				if (FDataflowOutput* ConnectionOutput = DataflowNode->FindOutput(FName(Pin->GetName())))
 				{
-					if (FDataflowConnection* ConnectionOutput = DataflowNode->FindOutput(FName(Pin->GetName())))
+					DataflowGraph->ClearConnections(ConnectionOutput);
+					for (UEdGraphPin* LinkedCon : Pin->LinkedTo)
 					{
-						DataflowGraph->ClearConnections(ConnectionOutput);
-						for (UEdGraphPin* LinkedCon : Pin->LinkedTo)
+						if (UDataflowEdNode* LinkedNode = Cast<UDataflowEdNode>(LinkedCon->GetOwningNode()))
 						{
-							if (UDataflowEdNode* LinkedNode = Cast<UDataflowEdNode>(LinkedCon->GetOwningNode()))
+							if (ensure(LinkedNode->IsBound()))
 							{
-								if (ensure(LinkedNode->IsBound()))
+								if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 								{
-									if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
+									if (FDataflowInput* LinkedConBase = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
 									{
-										if (FDataflowConnection* LinkedConBase = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
-										{
-											DataflowGraph->Connect(LinkedConBase, ConnectionOutput);
-										}
+										DataflowGraph->Connect(LinkedConBase, ConnectionOutput);
 									}
 								}
 							}

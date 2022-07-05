@@ -14,7 +14,7 @@ FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection,
 	, Guid(InGuid)
 {}
 
-
+// @todo(dataflow) check that the return types are all consistent
 uint32 FDataflowConnection::GetOffset() const
 {
 	if (ensure(Property != nullptr))

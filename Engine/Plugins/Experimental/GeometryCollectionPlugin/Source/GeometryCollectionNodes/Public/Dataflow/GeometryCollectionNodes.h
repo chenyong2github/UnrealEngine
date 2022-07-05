@@ -49,14 +49,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Dataflow", meta = (EditCondition = "false", EditConditionHides));
 	float Scale = 1.0;
 
-	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection"))
+	UPROPERTY(meta = (DataflowInput, DataflowOutput, DisplayName = "Collection", Passthrough = "Collection"))
 	FManagedArrayCollection Collection;
 
 	FExampleCollectionEditDataflowNode(const Dataflow::FNodeParameters& InParam, FGuid InGuid = FGuid::NewGuid())
 		: FDataflowNode(InParam, InGuid)
 	{
+		RegisterOutputConnection(&Collection, &Collection);
 		RegisterInputConnection(&Collection);
-		RegisterOutputConnection(&Collection);
 	}
 
 	virtual void Evaluate(Dataflow::FContext& Context, const FDataflowOutput* Out) const override;

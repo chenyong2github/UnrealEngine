@@ -12,13 +12,13 @@
 // Inputs
 //
 
-void FDataflowNode::AddInput(FDataflowConnection* InPtr)
+void FDataflowNode::AddInput(FDataflowInput* InPtr)
 {
 	if (InPtr)
 	{
-		for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
+		for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 		{
-			FDataflowConnection* In = Elem.Value;
+			FDataflowInput* In = Elem.Value;
 			ensureMsgf(!In->GetName().IsEqual(InPtr->GetName()), TEXT("Add Input Failed: Existing Node input already defined with name (%s)"), *InPtr->GetName().ToString());
 		}
 
@@ -35,12 +35,12 @@ void FDataflowNode::AddInput(FDataflowConnection* InPtr)
 
 FDataflowInput* FDataflowNode::FindInput(FName InName)
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
+	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowInput* Con = Elem.Value;
 		if (Con->GetName().IsEqual(InName))
 		{
-			return (FDataflowInput*)Con;
+			return Con;
 		}
 	}
 	return nullptr;
@@ -49,12 +49,12 @@ FDataflowInput* FDataflowNode::FindInput(FName InName)
 
 const FDataflowInput* FDataflowNode::FindInput(const void* Reference) const
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
+	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowInput* Con = Elem.Value;
 		if (Con->RealAddress() == (size_t)Reference)
 		{
-			return (FDataflowInput*)Con;
+			return Con;
 		}
 	}
 	return nullptr;
@@ -62,29 +62,29 @@ const FDataflowInput* FDataflowNode::FindInput(const void* Reference) const
 
 FDataflowInput* FDataflowNode::FindInput(void* Reference)
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
+	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowInput* Con = Elem.Value;
 		if (Con->RealAddress() == (size_t)Reference)
 		{
-			return (FDataflowInput*)Con;
+			return Con;
 		}
 	}
 	return nullptr;
 }
 
-TArray< FDataflowConnection* > FDataflowNode::GetInputs() const
+TArray< FDataflowInput* > FDataflowNode::GetInputs() const
 {
-	TArray< FDataflowConnection* > Result;
+	TArray< FDataflowInput* > Result;
 	Inputs.GenerateValueArray(Result);
 	return Result;
 }
 
 void FDataflowNode::ClearInputs()
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
+	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowInput* Con = Elem.Value;
 		delete Con;
 	}
 	Inputs.Reset();
@@ -96,13 +96,13 @@ void FDataflowNode::ClearInputs()
 //
 
 
-void FDataflowNode::AddOutput(FDataflowConnection* InPtr)
+void FDataflowNode::AddOutput(FDataflowOutput* InPtr)
 {
 	if (InPtr)
 	{
-		for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+		for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 		{
-			FDataflowConnection* Out = Elem.Value;
+			FDataflowOutput* Out = Elem.Value;
 			ensureMsgf(!Out->GetName().IsEqual(InPtr->GetName()), TEXT("Add Output Failed: Existing Node output already defined with name (%s)"), *InPtr->GetName().ToString());
 		}
 
@@ -121,9 +121,9 @@ void FDataflowNode::AddOutput(FDataflowConnection* InPtr)
 
 FDataflowOutput* FDataflowNode::FindOutput(FName InName)
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowOutput* Con = Elem.Value;
 		if (Con->GetName().IsEqual(InName))
 		{
 			return (FDataflowOutput*)Con;
@@ -134,9 +134,9 @@ FDataflowOutput* FDataflowNode::FindOutput(FName InName)
 
 const FDataflowOutput* FDataflowNode::FindOutput(const void* Reference) const
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowOutput* Con = Elem.Value;
 		if (Con->RealAddress() == (size_t)Reference)
 		{
 			return (FDataflowOutput*)Con;
@@ -147,9 +147,9 @@ const FDataflowOutput* FDataflowNode::FindOutput(const void* Reference) const
 
 FDataflowOutput* FDataflowNode::FindOutput(void* Reference)
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowOutput* Con = Elem.Value;
 		if (Con->RealAddress() == (size_t)Reference)
 		{
 			return (FDataflowOutput*)Con;
@@ -158,9 +158,9 @@ FDataflowOutput* FDataflowNode::FindOutput(void* Reference)
 	return nullptr;
 }
 
-TArray< FDataflowConnection* > FDataflowNode::GetOutputs() const
+TArray< FDataflowOutput* > FDataflowNode::GetOutputs() const
 {
-	TArray< FDataflowConnection* > Result;
+	TArray< FDataflowOutput* > Result;
 	Outputs.GenerateValueArray(Result);
 	return Result;
 }
@@ -168,9 +168,9 @@ TArray< FDataflowConnection* > FDataflowNode::GetOutputs() const
 
 void FDataflowNode::ClearOutputs()
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowOutput* Con = Elem.Value;
 		delete Con;
 	}
 	Outputs.Reset();
@@ -180,14 +180,14 @@ void FDataflowNode::ClearOutputs()
 TArray<Dataflow::FPin> FDataflowNode::GetPins() const
 {
 	TArray<Dataflow::FPin> RetVal;
-	for (TPair<uint32, FDataflowConnection*> Elem : Inputs)
+	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowInput* Con = Elem.Value;
 		RetVal.Add({ Dataflow::FPin::EDirection::INPUT,Con->GetType(), Con->GetName() });
 	}
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowOutput* Con = Elem.Value;
 		RetVal.Add({ Dataflow::FPin::EDirection::OUTPUT,Con->GetType(), Con->GetName() });
 	}
 	return RetVal;
@@ -195,14 +195,14 @@ TArray<Dataflow::FPin> FDataflowNode::GetPins() const
 
 void FDataflowNode::InvalidateOutputs()
 {
-	for (TPair<uint32, FDataflowConnection*> Elem : Outputs)
+	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
-		FDataflowConnection* Con = Elem.Value;
+		FDataflowOutput* Con = Elem.Value;
 		Con->Invalidate();
 	}
 }
 
-void FDataflowNode::RegisterInputConnection(const void* Data)
+void FDataflowNode::RegisterInputConnection(const void* InProperty)
 {
 	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
@@ -212,7 +212,7 @@ void FDataflowNode::RegisterInputConnection(const void* Data)
 			{
 				FProperty* Property = *PropertyIt;
 				size_t RealAddress = (size_t)this + Property->GetOffset_ForInternal();
-				if (RealAddress == (size_t)Data)
+				if (RealAddress == (size_t)InProperty)
 				{
 					FName PropName(Property->GetName());
 					FName PropType(Property->GetCPPType());
@@ -223,23 +223,38 @@ void FDataflowNode::RegisterInputConnection(const void* Data)
 	}
 }
 
-void FDataflowNode::RegisterOutputConnection(const void* Data)
+void FDataflowNode::RegisterOutputConnection(const void* InProperty, const void* Passthrough)
 {
 	if (TUniquePtr<FStructOnScope> ScriptOnStruct = TUniquePtr<FStructOnScope>(NewStructOnScope()))
 	{
 		if (const UStruct* Struct = ScriptOnStruct->GetStruct())
 		{
+			FDataflowOutput* OutputConnection = nullptr;
+			size_t PassthroughOffset = INDEX_NONE;
 			for (TFieldIterator<FProperty> PropertyIt(Struct); PropertyIt; ++PropertyIt)
 			{
 				FProperty* Property = *PropertyIt;
 				size_t RealAddress = (size_t)this + Property->GetOffset_ForInternal();
-				if (RealAddress == (size_t)Data)
+				if (RealAddress == (size_t)InProperty)
 				{
 					FName PropName(Property->GetName());
 					FName PropType(Property->GetCPPType());
-					AddOutput(new FDataflowOutput({ PropType, PropName, this, Property }));
+					OutputConnection = new FDataflowOutput({ PropType, PropName, this, Property });
+				}
+				if (RealAddress == (size_t)Passthrough)
+				{
+					PassthroughOffset = (uint32)Property->GetOffset_ForInternal();
 				}
 			}
+			if(OutputConnection != nullptr)
+			{
+				if(PassthroughOffset != INDEX_NONE)
+				{
+					OutputConnection->SetPassthroughOffsetAddress(PassthroughOffset);
+				}
+				AddOutput(OutputConnection);
+			}
+			
 		}
 	}
 }
@@ -267,9 +282,47 @@ bool FDataflowNode::ValidateConnections()
 				}
 				if (Property->HasMetaData(TEXT("DataflowOutput")))
 				{
-					if(!FindOutput(PropName))
+					const FDataflowOutput* OutputConnection = FindOutput(PropName);
+					if(!OutputConnection)
 					{
 						UE_LOG(LogChaos, Warning, TEXT("Missing dataflow RegisterOutputConnection in constructor for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+						bValid = false;
+					}
+
+					// Validate passthrough connections if they exist
+					if (const FString* PassthroughName = Property->FindMetaData(TEXT("Passthrough")))
+					{
+						void* PassthroughConnectionAddress = OutputConnection->GetPassthroughRealAddress();
+						if(PassthroughConnectionAddress == nullptr)
+						{
+							UE_LOG(LogChaos, Warning, TEXT("Missing Passthrough registration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+							bValid = false;
+						}
+
+						const FDataflowInput* PassthroughConnectionInput = FindInput(FName(*PassthroughName));
+						const FDataflowInput* PassthroughConnectionInputFromArg = FindInput(PassthroughConnectionAddress);
+
+						if(PassthroughConnectionInputFromArg != PassthroughConnectionInput)
+						{
+							UE_LOG(LogChaos, Warning, TEXT("Mismatch in declared and registered Passthrough connection; (%s:%s vs %s)"), *GetName().ToString(), *PropName.ToString(), *PassthroughConnectionInputFromArg->GetName().ToString());
+							bValid = false;
+						}
+
+						if(!PassthroughConnectionInput)
+						{
+							UE_LOG(LogChaos, Warning, TEXT("Incorrect Passthrough Connection set for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+							bValid = false;
+						}
+
+						else if(OutputConnection->GetType() != PassthroughConnectionInput->GetType())
+						{
+							UE_LOG(LogChaos, Warning, TEXT("Passthrough connection types mismatch for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
+							bValid = false;
+						}
+					}
+					else if(OutputConnection->GetPassthroughRealAddress()) 
+					{
+						UE_LOG(LogChaos, Warning, TEXT("Missing Passthrough decleration for (%s:%s)"), *GetName().ToString(),*PropName.ToString());
 						bValid = false;
 					}
 				}

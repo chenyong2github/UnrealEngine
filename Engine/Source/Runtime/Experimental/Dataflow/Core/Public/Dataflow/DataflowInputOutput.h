@@ -50,18 +50,13 @@ public:
 	FDataflowOutput* GetConnection() { return Connection; }
 	const FDataflowOutput* GetConnection() const { return Connection; }
 
-	virtual TArray< FDataflowConnection* > GetConnectedOutputs() override;
-	virtual const TArray< const FDataflowConnection* > GetConnectedOutputs() const override;
+	virtual TArray< FDataflowOutput* > GetConnectedOutputs();
+	virtual const TArray< const FDataflowOutput* > GetConnectedOutputs() const;
 
-	template<class T> const T& GetValue(Dataflow::FContext& Context, const T& Default) const
-	{
-		return GetValueAsInput<T>(Context, Default);
-	}
-
+	template<class T> const T& GetValue(Dataflow::FContext& Context, const T& Default) const;
 
 	virtual void Invalidate() override;
 };
-
 
 //
 // Output
@@ -94,6 +89,8 @@ struct DATAFLOWCORE_API FDataflowOutput : public FDataflowConnection
 
 	TArray< FDataflowInput* > Connections;
 
+	size_t PassthroughOffsetAddress = INDEX_NONE;
+
 public:
 	static FDataflowOutput NoOpOutput;
 
@@ -102,13 +99,27 @@ public:
 	TArray<FDataflowInput*>& GetConnections();
 	const TArray<FDataflowInput*>& GetConnections() const;
 
-	virtual TArray<FDataflowConnection*> GetConnectedInputs() override;
-	virtual const TArray<const FDataflowConnection*> GetConnectedInputs() const override;
+	virtual TArray<FDataflowInput*> GetConnectedInputs();
+	virtual const TArray<const FDataflowInput*> GetConnectedInputs() const;
 
 	virtual bool AddConnection(FDataflowConnection* InOutput) override;
 
 	virtual bool RemoveConnection(FDataflowConnection* InInput) override;
 
+	virtual FORCEINLINE void SetPassthroughOffsetAddress(const size_t InPassthroughOffsetAddress)
+	{
+		PassthroughOffsetAddress = InPassthroughOffsetAddress;
+	}
+
+	virtual FORCEINLINE void* GetPassthroughRealAddress() const
+	{
+		if(PassthroughOffsetAddress != INDEX_NONE)
+		{
+			return (void*)((size_t)OwningNode + PassthroughOffsetAddress);
+		}
+		return nullptr;
+	}
+ 
 	template<class T>
 	void SetValue(const T& InVal, Dataflow::FContext& Context) const
 	{
@@ -120,7 +131,7 @@ public:
 
 	template<class T> const T& GetValue(Dataflow::FContext& Context, const T& Default) const
 	{
-		if (!this->Evaluate(Context))
+		if (!this->Evaluate<T>(Context))
 		{
 			Context.SetData(CacheKey(), new Dataflow::ContextCache<T>(Property, new T(Default)));
 		}
@@ -134,8 +145,52 @@ public:
 		return Default;
 	}
 
-		
+	template<class T>
 	bool Evaluate(Dataflow::FContext& Context) const;
 	virtual void Invalidate() override;
 
 };
+ 
+template<class T>
+const T& FDataflowInput::GetValue(Dataflow::FContext& Context, const T& Default) const
+{
+	if (GetConnectedOutputs().Num())
+	{
+		ensure(GetConnectedOutputs().Num() == 1);
+		if (const FDataflowOutput* ConnectionBase = GetConnection())
+		{
+			if (!ConnectionBase->Evaluate<T>(Context))
+			{
+				Context.SetData(ConnectionBase->CacheKey(), new Dataflow::ContextCache<T>(Property, new T(Default)));
+			}
+			if (Context.HasData(ConnectionBase->CacheKey()))
+			{
+				const T& data = Context.GetDataReference<T>(ConnectionBase->CacheKey(), Default);
+				return data;
+			}
+		}
+	}
+	return Default;
+}
+ 
+template<class T>
+bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
+{
+	check(OwningNode);
+ 
+	if (OwningNode->bActive)
+	{
+		OwningNode->Evaluate(Context, this);
+	}
+	else if(const FDataflowInput* PassthroughInput = OwningNode->FindInput(GetPassthroughRealAddress()))
+	{
+		SetValue<T>(PassthroughInput->GetValue<T>(Context, *reinterpret_cast<const T*>(PassthroughInput->RealAddress())), Context);
+	}
+ 
+	// Validation
+	if (!Context.HasData(CacheKey()))
+	{
+		ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
+	}
+	return true;
+}

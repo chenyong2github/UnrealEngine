@@ -85,12 +85,14 @@ namespace Dataflow
 			return TSharedPtr<FDataflowNode>(nullptr);
 		}
 
-
 		void RemoveNode(TSharedPtr<FDataflowNode> Node);
 
-		void ClearConnections(FDataflowConnection*);
-		void Connect(FDataflowConnection* Input, FDataflowConnection* Output);
-		void Disconnect(FDataflowConnection* Input, FDataflowConnection* Output);
+		void ClearConnections(FDataflowConnection* ConnectionBase);
+		void ClearConnections(FDataflowInput* Input);
+		void ClearConnections(FDataflowOutput* Output);
+
+		void Connect(FDataflowInput* InputConnection, FDataflowOutput* OutputConnection);
+		void Disconnect(FDataflowInput* InputConnection, FDataflowOutput* OutputConnection);
 
 		virtual void Serialize(FArchive& Ar);
 		const TSet<FName>& GetDisabledNodes() const { return DisabledNodes; }

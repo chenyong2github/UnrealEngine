@@ -40,20 +40,20 @@ bool FDataflowInput::RemoveConnection(FDataflowConnection* InOutput)
 	return false;
 }
 
-TArray< FDataflowConnection* > FDataflowInput::GetConnectedOutputs()
+TArray< FDataflowOutput* > FDataflowInput::GetConnectedOutputs()
 {
-	TArray<FDataflowConnection* > RetList;
-	if (FDataflowConnection* Conn = GetConnection())
+	TArray<FDataflowOutput* > RetList;
+	if (FDataflowOutput* Conn = GetConnection())
 	{
 		RetList.Add(Conn);
 	}
 	return RetList;
 }
 
-const TArray< const FDataflowConnection* > FDataflowInput::GetConnectedOutputs() const
+const TArray< const FDataflowOutput* > FDataflowInput::GetConnectedOutputs() const
 {
-	TArray<const FDataflowConnection* > RetList;
-	if (const FDataflowConnection* Conn = GetConnection())
+	TArray<const FDataflowOutput* > RetList;
+	if (const FDataflowOutput* Conn = GetConnection())
 	{
 		RetList.Add(Conn);
 	}
@@ -81,9 +81,9 @@ FDataflowOutput::FDataflowOutput(const Dataflow::FOutputParameters& Param, FGuid
 const TArray<FDataflowInput*>& FDataflowOutput::GetConnections() const { return Connections; }
 TArray<FDataflowInput*>& FDataflowOutput::GetConnections() { return Connections; }
 
-const TArray< const FDataflowConnection*> FDataflowOutput::GetConnectedInputs() const
+const TArray< const FDataflowInput*> FDataflowOutput::GetConnectedInputs() const
 {
-	TArray<const FDataflowConnection*> RetList;
+	TArray<const FDataflowInput*> RetList;
 	RetList.Reserve(Connections.Num());
 	for (FDataflowInput* Ptr : Connections) 
 	{ 
@@ -92,9 +92,9 @@ const TArray< const FDataflowConnection*> FDataflowOutput::GetConnectedInputs() 
 	return RetList;
 }
 
-TArray< FDataflowConnection*> FDataflowOutput::GetConnectedInputs()
+TArray< FDataflowInput*> FDataflowOutput::GetConnectedInputs()
 {
-	TArray<FDataflowConnection*> RetList;
+	TArray<FDataflowInput*> RetList;
 	RetList.Reserve(Connections.Num());
 	for (FDataflowInput* Ptr : Connections) 
 	{ 
@@ -116,21 +116,6 @@ bool FDataflowOutput::AddConnection(FDataflowConnection* InOutput)
 bool FDataflowOutput::RemoveConnection(FDataflowConnection* InInput)
 {
 	Connections.RemoveSwap((FDataflowInput*)InInput); return true;
-}
-
-bool FDataflowOutput::Evaluate(Dataflow::FContext& Context) const
-{
-	check(OwningNode);
-
-	if (OwningNode->bActive)
-	{
-		OwningNode->Evaluate(Context, this);
-		if (!Context.HasData(CacheKey()))
-		{
-			ensureMsgf(false, TEXT("Failed to evaluate output (%s:%s)"), *OwningNode->GetName().ToString(), *GetName().ToString());
-		}
-	}
-	return OwningNode->bActive;
 }
 
 void FDataflowOutput::Invalidate()

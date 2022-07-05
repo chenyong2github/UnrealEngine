@@ -40,8 +40,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	FGuid Guid;
 	FName Name;
 
-	TMap< int, FDataflowConnection* > Inputs;
-	TMap< int, FDataflowConnection* > Outputs;
+	TMap< int, FDataflowInput* > Inputs;
+	TMap< int, FDataflowOutput* > Outputs;
 
 	UPROPERTY(EditAnywhere, Category = "Dataflow")
 	bool bActive = true;
@@ -77,8 +77,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	TArray<Dataflow::FPin> GetPins() const;
 
 
-	void AddInput(FDataflowConnection* InPtr);
-	TArray< FDataflowConnection* > GetInputs() const;
+	void AddInput(FDataflowInput* InPtr);
+	TArray< FDataflowInput* > GetInputs() const;
 	void ClearInputs();
 
 	FDataflowInput* FindInput(FName Name);
@@ -86,8 +86,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	const FDataflowInput* FindInput(const void* Reference) const;
 
 
-	void AddOutput(FDataflowConnection* InPtr);
-	TArray< FDataflowConnection* > GetOutputs() const;
+	void AddOutput(FDataflowOutput* InPtr);
+	TArray< FDataflowOutput* > GetOutputs() const;
 	void ClearOutputs();
 
 	FDataflowOutput* FindOutput(FName Name);
@@ -104,8 +104,8 @@ struct DATAFLOWCORE_API FDataflowNode
 	virtual FStructOnScope* NewStructOnScope() { return nullptr; }
 
 	/** Register the Input and Outputs after the creation in the factory */
-	void RegisterInputConnection(const void*);
-	void RegisterOutputConnection(const void*);
+	void RegisterInputConnection(const void* Property);
+	void RegisterOutputConnection(const void* Property, const void* Passthrough = nullptr);
 
 	//
 	// Evaluation
@@ -125,7 +125,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	template<class T> const T& GetValue(Dataflow::FContext& Context, const T* Reference) const
 	{
 		checkSlow(FindInput(Reference));
-		return FindInput(Reference)->template GetValueAsInput<T>(Context, *Reference);
+		return FindInput(Reference)->template GetValue<T>(Context, *Reference);
 	}
 
 	/**
@@ -141,7 +141,7 @@ struct DATAFLOWCORE_API FDataflowNode
 	template<class T> const T& GetValue(Dataflow::FContext& Context, const T* Reference, const T& Default) const
 	{
 		checkSlow(FindInput(Reference));
-		return FindInput(Reference)->template GetValueAsInput<T>(Context, Default);
+		return FindInput(Reference)->template GetValue<T>(Context, Default);
 	}
 
 	/**
