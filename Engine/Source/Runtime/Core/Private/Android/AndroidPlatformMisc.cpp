@@ -173,6 +173,8 @@ static void InitCpuThermalSensor()
 	CVarAndroidCPUThermalSensorFilePath->SetOnChangedCallback(FConsoleVariableDelegate::CreateStatic(&OverrideCpuThermalSensorFileFromCVar));
 
 	uint32 Counter = 0;
+	const uint32 INVALID_INDEX = -1;
+	uint32 CPUSensorIndex = INVALID_INDEX;
 	while (true)
 	{
 		char Buf[256] = "";
@@ -187,6 +189,12 @@ static void InitCpuThermalSensor()
 				++Ptr;
 			}
 			*Ptr = 0;
+
+			if (strstr(Buf, "cpu-") && CPUSensorIndex == INVALID_INDEX)
+			{
+				CPUSensorIndex = Counter;
+				FCStringAnsi::Sprintf(AndroidCpuThermalSensorFileBuf, "/sys/devices/virtual/thermal/thermal_zone%u/temp", Counter);
+			}
 
 			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), ANSI_TO_TCHAR(Buf), Counter);
 			++Counter;
@@ -213,7 +221,14 @@ static void InitCpuThermalSensor()
 		}
 	}
 
-	UE_LOG(LogAndroid, Display, TEXT("No CPU thermal sensor was detected. To manually override the sensor path set android.CPUThermalSensorFilePath CVar."));
+	if (CPUSensorIndex != INVALID_INDEX)
+	{
+		UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), ANSI_TO_TCHAR(AndroidCpuThermalSensorFileBuf));
+	}
+	else
+	{
+		UE_LOG(LogAndroid, Display, TEXT("No CPU thermal sensor was detected. To manually override the sensor path set android.CPUThermalSensorFilePath CVar."));
+	}
 }
 
 void FAndroidMisc::RequestExit( bool Force )

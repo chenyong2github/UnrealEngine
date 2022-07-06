@@ -2077,6 +2077,35 @@ JNI_METHOD void Java_com_epicgames_unreal_NativeCalls_RouteServiceIntent(JNIEnv*
 JNI_METHOD void Java_com_epicgames_unreal_GameActivity_nativeOnThermalStatusChangedListener(JNIEnv* jenv, jobject thiz, jint Status)
 {
 	FAndroidStats::OnThermalStatusChanged(Status);
+
+	FCoreDelegates::ETemperatureSeverity Severity;
+	switch (Status)
+	{
+	case 0:
+	case 1:
+		Severity = FCoreDelegates::ETemperatureSeverity::Good;
+		break;
+
+	case 2:
+		Severity = FCoreDelegates::ETemperatureSeverity::Bad;
+		break;
+
+	case 3:
+	case 4:
+		Severity = FCoreDelegates::ETemperatureSeverity::Serious;
+		break;
+
+	case 5:
+	case 6:
+		Severity = FCoreDelegates::ETemperatureSeverity::Critical;
+		break;
+
+	default:
+		Severity = FCoreDelegates::ETemperatureSeverity::Unknown;
+		break;
+	}
+
+	FCoreDelegates::OnTemperatureChange.Broadcast(Severity);
 }
 
 static void OnTrimMessage(int MemoryTrimValue)
