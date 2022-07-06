@@ -1392,7 +1392,7 @@ void ScreenProbeIntegrateCS(
 
 					// STRATA_TODO: Abstract this more
 				#if STRATA_ENABLED
-					FBxDFSample BxDFSample = StrataImportanceSampleBSDF(BSDFContext, BSDF, E.xy, SHADING_TERM_SPECULAR, Settings);
+					FBxDFSample BxDFSample = StrataImportanceSampleBSDF(BSDFContext, E.xy, SHADING_TERM_SPECULAR, Settings);
 					BxDFSample.Weight = 1.0f;
 				#else
 					FBxDFSample BxDFSample = SampleBxDFWrapper(SHADING_TERM_SPECULAR, Material, V, E);

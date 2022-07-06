@@ -354,7 +354,7 @@ void ReflectionGenerateRaysCS(
 
 				const FStrataBSDFContext Context = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
 				const float2 E = GenerateRandom(ReflectionTracingCoord);
-				const FBxDFSample Sample = StrataImportanceSampleBSDF(Context, BSDF, E, SHADING_TERM_SPECULAR, Settings);
+				const FBxDFSample Sample = StrataImportanceSampleBSDF(Context, E, SHADING_TERM_SPECULAR, Settings);
 
 				RayDirection = normalize(Sample.L);
 				ConeAngle = 1.0f / max(Sample.PDF, 0.0001f);

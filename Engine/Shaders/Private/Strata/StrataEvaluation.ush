@@ -981,10 +981,10 @@ StrataSelectLobe_Type(float)
  * CameraVector: vector from the camera to the considered direction (not V)
  */
 #define FStrataImportanceSampleResult FBxDFSample
-FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDFContext, FStrataBSDF BSDF, float2 E, uint InTermMask, FStrataIntegrationSettings Settings)
+FStrataImportanceSampleResult StrataImportanceSampleBSDF(FStrataBSDFContext BSDFContext, float2 E, uint InTermMask, FStrataIntegrationSettings Settings)
 {
 	FStrataImportanceSampleResult Out = (FStrataImportanceSampleResult)0;
-	switch (BSDF_GETTYPE(BSDF))
+	switch (BSDF_GETTYPE(BSDFContext.BSDF))
 	{
 		case STRATA_BSDF_TYPE_SLAB:
 		{
