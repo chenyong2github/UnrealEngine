@@ -54,6 +54,94 @@ public:
 	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
 	int32 GetNumSections(USkeletalMesh* SkeletalMesh, int32 LODIndex);
 
+	/** Get bRecomputeTangent from a section of a LOD of a Skeletal Mesh
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param bOutRecomputeTangent	The function will set the bRecomputeTangent used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
+	bool GetSectionRecomputeTangent(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, bool& bOutRecomputeTangent);
+
+	/** Set bRecomputeTangent for a section of a LOD of a Skeletal Mesh.
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param bRecomputeTangent	The function will set the bRecomputeTangent used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities")
+	bool SetSectionRecomputeTangent(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, const bool bRecomputeTangent);
+
+	/** Get RecomputeTangentsVertexMaskChannel from a section of a LOD of a Skeletal Mesh
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param OutRecomputeTangentsVertexMaskChannel	The function will set the RecomputeTangentsVertexMaskChannel used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
+	bool GetSectionRecomputeTangentsVertexMaskChannel(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, uint8& OutRecomputeTangentsVertexMaskChannel);
+
+	/** Set RecomputeTangentsVertexMaskChannel for a section of a LOD of a Skeletal Mesh.
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param RecomputeTangentsVertexMaskChannel	The function will set the RecomputeTangentsVertexMaskChannel used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities")
+	bool SetSectionRecomputeTangentsVertexMaskChannel(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, const uint8 RecomputeTangentsVertexMaskChannel);
+
+	/** Get bCastShadow from a section of a LOD of a Skeletal Mesh
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param bOutCastShadow	The function will set the bCastShadow used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
+	bool GetSectionCastShadow(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, bool& bOutCastShadow);
+
+	/** Set bCastShadow for a section of a LOD of a Skeletal Mesh.
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param bCastShadow	The function will set the bCastShadow used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities")
+	bool SetSectionCastShadow(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, const bool bCastShadow);
+
+	/** Get bVisibleInRayTracing from a section of a LOD of a Skeletal Mesh
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param bOutVisibleInRayTracing	The function will set the bVisibleInRayTracing used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintPure, Category = "Skeletal Mesh Utilities")
+	bool GetSectionVisibleInRayTracing(const USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, bool& bOutVisibleInRayTracing);
+
+	/** Set bVisibleInRayTracing for a section of a LOD of a Skeletal Mesh.
+	 *
+	 * @param SkeletalMesh			Mesh to get number of vertices from.
+	 * @param LodIndex				Index of the mesh LOD.
+	 * @param SectionIndex			Index of the LOD section.
+	 * @param bVisibleInRayTracing	The function will set the bVisibleInRayTracing used by the section
+	 * @return false if invalid mesh or LOD index or section index.
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Skeletal Mesh Utilities")
+	bool SetSectionVisibleInRayTracing(USkeletalMesh* SkeletalMesh, const int32 LODIndex, const int32 SectionIndex, const bool bVisibleInRayTracing);
+
 	/**
 	 * Gets the material slot used for a specific LOD section.
 	 * @param	SkeletalMesh		SkeletalMesh to get the material index from.
