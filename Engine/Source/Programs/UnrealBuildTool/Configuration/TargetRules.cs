@@ -197,7 +197,7 @@ namespace UnrealBuildTool
 	/// Output type for the static analyzer. This currently only works for the Clang static analyzer.
 	/// The Clang static analyzer can do either Text, which prints the analysis to stdout, or
 	/// html, where it writes out a navigable HTML page for each issue that it finds, per file.
-	/// The HTML is output in the same directory as the object fil that would otherwise have
+	/// The HTML is output in the same directory as the object file that would otherwise have
 	/// been generated. 
 	/// All other analyzers default automatically to Text. 
 	/// </summary>
@@ -212,6 +212,23 @@ namespace UnrealBuildTool
 		/// Output the analysis to an HTML file in the object folder.
 		/// </summary>
 		Html,
+	}
+
+	/// <summary>
+	/// Output type for the static analyzer. This currently only works for the Clang static analyzer.
+	/// The Clang static analyzer can do a shallow quick analysis. However the default deep is recommended.
+	/// </summary>
+	public enum StaticAnalyzerMode
+	{
+		/// <summary>
+		/// Default deep analysis.
+		/// </summary>
+		Deep,
+
+		/// <summary>
+		/// Quick analysis. Not recommended.
+		/// </summary>
+		Shallow,
 	}
 
 	/// <summary>
@@ -1418,6 +1435,13 @@ namespace UnrealBuildTool
 		[CommandLine("-StaticAnalyzerOutputType")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public StaticAnalyzerOutputType StaticAnalyzerOutputType = StaticAnalyzerOutputType.Text;
+
+		/// <summary>
+		/// The mode to use for the static analyzer.
+		/// </summary>
+		[CommandLine("-StaticAnalyzerMode")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public StaticAnalyzerMode StaticAnalyzerMode = StaticAnalyzerMode.Deep;
 
 		/// <summary>
 		/// The minimum number of files that must use a pre-compiled header before it will be created and used.
@@ -3011,6 +3035,11 @@ namespace UnrealBuildTool
 		public StaticAnalyzerOutputType StaticAnalyzerOutputType
 		{
 			get { return Inner.StaticAnalyzerOutputType; }
+		}
+
+		public StaticAnalyzerMode StaticAnalyzerMode
+		{
+			get { return Inner.StaticAnalyzerMode; }
 		}
 
 		public int MinFilesUsingPrecompiledHeader

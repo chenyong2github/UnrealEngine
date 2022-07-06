@@ -107,11 +107,6 @@ namespace UnrealBuildTool
 		/// Indicates that the target is a moduler build i.e. Target.LinkType == TargetLinkType.Modular
 		/// </summary>
 		ModularBuild = 1 << 16,
-
-		/// <summary>
-		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
-		/// </summary>
-		PreprocessDepends = 1 << 17,
 	}
 
 	abstract class ClangToolChain : ISPCToolChain
@@ -128,6 +123,12 @@ namespace UnrealBuildTool
 		protected static string ClangDummyDefine; 
 		protected const int ClangCmdLineMaxSize = 32 * 1024;
 		protected const int ClangCmdlineDangerZone = 30 * 1024;
+
+		// Target settings
+		protected bool PreprocessDepends = false;
+		protected StaticAnalyzer StaticAnalyzer = StaticAnalyzer.None;
+		protected StaticAnalyzerMode StaticAnalyzerMode = StaticAnalyzerMode.Deep;
+		protected StaticAnalyzerOutputType StaticAnalyzerOutputType = StaticAnalyzerOutputType.Text;
 
 		static ClangToolChain()
 		{
@@ -146,10 +147,10 @@ namespace UnrealBuildTool
 		{
 			base.SetUpGlobalEnvironment(Target);
 
-			if (Target.bPreprocessDepends)
-			{
-				Options |= ClangToolChainOptions.PreprocessDepends;
-			}
+			PreprocessDepends = Target.bPreprocessDepends;
+			StaticAnalyzer = Target.StaticAnalyzer;
+			StaticAnalyzerMode = Target.StaticAnalyzerMode;
+			StaticAnalyzerOutputType = Target.StaticAnalyzerOutputType;
 		}
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
@@ -629,7 +630,15 @@ namespace UnrealBuildTool
 		/// <param name="Arguments"></param>
 		protected virtual void GetCompileArguments_Analyze(CppCompileEnvironment CompileEnvironment, List<string> Arguments)
 		{
+			Arguments.Add("-Wno-unused-command-line-argument");
 			Arguments.Add("--analyze");
+			Arguments.Add($"-Xclang -analyzer-output={StaticAnalyzerOutputType.ToString().ToLowerInvariant()}");
+			Arguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
+			Arguments.Add("-Xclang -analyzer-config -Xclang report-in-main-source-file=true");
+			Arguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
+			Arguments.Add("-Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores");
+			Arguments.Add("-Xclang -analyzer-disable-checker -Xclang security.FloatLoopCounter");
+			if (StaticAnalyzerMode == StaticAnalyzerMode.Shallow) Arguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
 		}
 
 		/// <summary>
@@ -665,6 +674,12 @@ namespace UnrealBuildTool
 
 			// Add sanitizer flags to the argument list.
 			GetCompilerArguments_Sanitizers(CompileEnvironment, Arguments);
+
+			// Add analysis flags to the argument list.
+			if (StaticAnalyzer == StaticAnalyzer.Default)
+			{
+				GetCompileArguments_Analyze(CompileEnvironment, Arguments);
+			}
 
 			// Add additional arguments to the argument list.
 			GetCompileArguments_AdditionalArgs(CompileEnvironment, Arguments);
@@ -759,21 +774,28 @@ namespace UnrealBuildTool
 			// Add the source file path to the command-line.
 			Arguments.Add(GetSourceFileArgument(SourceFile));
 
-			// Generate the timing info
-			if (CompileEnvironment.bPrintTimingInfo)
+			if (StaticAnalyzer != StaticAnalyzer.Default)
 			{
-				FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
-				Arguments.Add("-ftime-trace");
-				CompileAction.ProducedItems.Add(TraceFile);
-			}
+				// Generate the timing info
+				if (CompileEnvironment.bPrintTimingInfo)
+				{
+					FileItem TraceFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".json"));
+					Arguments.Add("-ftime-trace");
+					CompileAction.ProducedItems.Add(TraceFile);
+				}
 
-			// Generate the included header dependency list
-			if (!Options.HasFlag(ClangToolChainOptions.PreprocessDepends) && CompileEnvironment.bGenerateDependenciesFile)
+				// Generate the included header dependency list
+				if (!PreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+				{
+					FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
+					Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
+					CompileAction.DependencyListFile = DependencyListFile;
+					CompileAction.ProducedItems.Add(DependencyListFile);
+				}
+			}
+			else if (StaticAnalyzer == StaticAnalyzer.Default)
 			{
-				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
-				Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
-				CompileAction.DependencyListFile = DependencyListFile;
-				CompileAction.ProducedItems.Add(DependencyListFile);
+				OutputFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".analysis"));
 			}
 
 			// Add the parameters needed to compile the output file to the command-line.
@@ -824,7 +846,7 @@ namespace UnrealBuildTool
 			CompileAction.WorkingDirectory = Unreal.EngineSourceDirectory;
 			CompileAction.CommandPath = CommandPath;
 			CompileAction.CommandVersion = CommandVersion;
-			CompileAction.CommandDescription = "Compile";
+			CompileAction.CommandDescription = StaticAnalyzer == StaticAnalyzer.Default ? "Analyze" : "Compile";
 			CompileAction.StatusDescription = Path.GetFileName(SourceFile.AbsolutePath);
 			CompileAction.bIsGCCCompiler = true;
 
@@ -834,7 +856,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.bAllowRemotelyCompiledPCHs;
 
 			// Two-pass compile where the preprocessor is run first to output the dependency list
-			if (Options.HasFlag(ClangToolChainOptions.PreprocessDepends) && CompileEnvironment.bGenerateDependenciesFile)
+			if (PreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
 			{
 				Action PrepassAction = Graph.CreateAction(ActionType.Compile);
 				PrepassAction.PrerequisiteItems.AddRange(CompileAction.PrerequisiteItems);
@@ -888,70 +910,6 @@ namespace UnrealBuildTool
 				PrepassAction.CommandArguments = GetResponseFileArgument(PreprocessResponseFileItem);
 				CompileAction.DependencyListFile = DependencyListFile;
 				CompileAction.PrerequisiteItems.Add(DependencyListFile);
-			}
-
-			// Special analysis mode which outputs to files. Requires running the compile twice as clang will not emit an object file in this mode.
-			// Generally not recommended as it takes twice as long.
-			string? StaticAnalysisMode = Environment.GetEnvironmentVariable("CLANG_STATIC_ANALYZER_MODE");
-			if (!string.IsNullOrEmpty(StaticAnalysisMode))
-			{
-				string AnalyzerOutput = Environment.GetEnvironmentVariable("CLANG_ANALYZER_OUTPUT") ?? "html";
-
-				List<string> AnalyzeGlobalArguments = new(GlobalArguments);
-				List<string> AnalyzeFileArguments = new(FileArguments);
-
-				AnalyzeFileArguments.Remove("-ftime-trace");
-				AnalyzeFileArguments.Remove(GetOutputFileArgument(CompileAction.ProducedItems.First()));
-				if (CompileAction.DependencyListFile != null)
-				{
-					AnalyzeFileArguments.Remove(GetDepencenciesListFileArgument(CompileAction.DependencyListFile));
-				}
-
-				AnalyzeGlobalArguments.Add("-Wno-unused-command-line-argument");
-				AnalyzeGlobalArguments.Add("--analyze");
-				AnalyzeGlobalArguments.Add($"-Xclang -analyzer-output={AnalyzerOutput}");
-				AnalyzeGlobalArguments.Add("-Xclang -analyzer-config -Xclang stable-report-filename=true");
-				AnalyzeGlobalArguments.Add("-Xclang -analyzer-config -Xclang report-in-main-source-file=true");
-				AnalyzeGlobalArguments.Add("-Xclang -analyzer-config -Xclang path-diagnostics-alternate=true");
-				AnalyzeGlobalArguments.Add("-Xclang -analyzer-disable-checker -Xclang deadcode.DeadStores");
-				if (string.Equals(StaticAnalysisMode, "shallow"))
-				{
-					AnalyzeGlobalArguments.Add("-Xclang -analyzer-config -Xclang mode=shallow");
-				}
-				FileItem AnalyzerOutputDir = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + $".{AnalyzerOutput}"));
-				AnalyzeFileArguments.Add(GetOutputFileArgument(AnalyzerOutputDir));
-
-				// Creates the path to the response file using the name of the output file and creates its contents.
-				FileReference AnalyzeResponseFileName = new FileReference(AnalyzerOutputDir + ".response");
-				List<string> AnalyzeResponseFileContents = new();
-				AnalyzeResponseFileContents.AddRange(AnalyzeGlobalArguments);
-				AnalyzeResponseFileContents.AddRange(AnalyzeFileArguments);
-
-				if (RuntimePlatform.IsWindows)
-				{
-					int CmdLineLength = CommandPath.ToString().Length + string.Join(' ', ResponseFileContents).Length;
-					bool bIsInDangerZone = CmdLineLength >= ClangCmdlineDangerZone && CmdLineLength <= ClangCmdLineMaxSize;
-					if (bIsInDangerZone)
-					{
-						AnalyzeResponseFileContents.Add(ClangDummyDefine);
-					}
-				}
-
-				// Adds the response file to the compiler input.
-				FileItem AnalyzeResponseFileItem = Graph.CreateIntermediateTextFile(AnalyzeResponseFileName, AnalyzeResponseFileContents);
-				CompileAction.PrerequisiteItems.Add(AnalyzeResponseFileItem);
-
-				if (RuntimePlatform.IsWindows)
-				{
-					CompileAction.CommandArguments = $"/c \" \"{CompileAction.CommandPath}\" {GetResponseFileArgument(AnalyzeResponseFileItem)} && \"{CompileAction.CommandPath}\" {CompileAction.CommandArguments} \"";
-					CompileAction.CommandPath = FileReference.Combine(new DirectoryReference(Environment.GetFolderPath(Environment.SpecialFolder.System)), "cmd.exe");
-				}
-				else
-				{
-					CompileAction.CommandArguments = $"-c ' \"{CompileAction.CommandPath}\" {GetResponseFileArgument(AnalyzeResponseFileItem)}; \"{CompileAction.CommandPath}\" {CompileAction.CommandArguments} '";
-					CompileAction.CommandPath = new FileReference("/bin/sh");
-				}
-				CompileAction.bCanExecuteRemotely = false;
 			}
 
 			return CompileAction;
