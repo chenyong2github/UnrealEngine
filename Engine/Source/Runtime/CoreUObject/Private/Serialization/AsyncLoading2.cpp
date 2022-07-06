@@ -914,7 +914,7 @@ public:
 				if (bRemoved)
 				{
 					if (PackageRef.RefCount > 0)
-					{
+		{
 						UE_LOG(LogStreaming, Error,
 							TEXT("RemovePackage: %s %s (0x%llX) - with (ObjectFlags=%x, InternalObjectFlags=%x) - ")
 							TEXT("Package destroyed while still being referenced, RefCount %d > 0."),
@@ -952,14 +952,14 @@ public:
 	}
 
 	uint32 GetStoredScriptObjectsAllocatedSize() const
-	{
+		{
 		return ScriptObjects.GetAllocatedSize();
 	}
 
 	int32 GetStoredPublicExportsCount() const
-	{
+			{
 		return ObjectIndexToPublicExport.Num();
-	}
+			}
 
 	void RemovePublicExports(const FUnreachablePublicExports& PublicExports)
 	{
@@ -1233,9 +1233,9 @@ struct FPackageImportStore
 			// Filter out CDOs that are themselves classes,
 			// like Default__BlueprintGeneratedClass of type UBlueprintGeneratedClass
 			if (Class->HasAnyFlags(RF_ClassDefaultObject))
-			{
+				{
 				continue;
-			}
+				}
 
 			// Add dependency on any script CDO that has not been created and initialized yet
 			UObject* CDO = Class->GetDefaultObject(/*bCreateIfNeeded*/ false);
@@ -2623,7 +2623,7 @@ private:
 			{
 				int32 RequestId = Node->ReferencerRequestId();
 				if (RequestId > MaxRequestId)
-				{
+		{
 					MaxRequestId = RequestId;
 					Class = CurrentClass;
 				}
@@ -3542,7 +3542,7 @@ void FGlobalImportStore::FindAllScriptObjects()
 				FPackageObjectIndex GlobalImportIndex = FPackageObjectIndex::FromScriptPath(Name);
 				if (!ScriptObjects.Contains(GlobalImportIndex))
 				{
-					ScriptObjects.Add(GlobalImportIndex, Object);
+				ScriptObjects.Add(GlobalImportIndex, Object);
 #if !WITH_EDITOR
 					UE_LOG(LogStreaming, Warning, TEXT("Found additional public script object 0x%016llX: %s\r\n"),
 						GlobalImportIndex.Value(),
@@ -4276,7 +4276,7 @@ void FAsyncPackage2::EventDrivenCreateExport(const FAsyncPackageHeaderData& Head
 	bool bIsCompleteyLoaded = false;
 	UClass* LoadClass = Export.ClassIndex.IsNull() ? UClass::StaticClass() : CastEventDrivenIndexToObject<UClass>(Header, Exports, Export.ClassIndex, true);
 	UObject* ThisParent = Export.OuterIndex.IsNull() ? LinkerRoot : EventDrivenIndexToObject(Header, Exports, Export.OuterIndex, false);
-	
+
 	if (!LoadClass)
 	{
 		UE_ASYNC_PACKAGE_LOG(Error, Desc, TEXT("CreateExport"), TEXT("Could not find class object for %s"), *ObjectName.ToString());
@@ -4309,7 +4309,7 @@ void FAsyncPackage2::EventDrivenCreateExport(const FAsyncPackageHeaderData& Head
 		ExportObject.bExportLoadFailed = true;
 		return;
 	}
-	
+
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetLinkerRoot(), ELLMTagSet::Assets);
 	LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(LoadClass, ELLMTagSet::AssetClasses);
     UE_TRACE_METADATA_SCOPE_ASSET(GetLinkerRoot(), LoadClass);
