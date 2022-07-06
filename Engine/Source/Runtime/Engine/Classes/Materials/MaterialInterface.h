@@ -271,8 +271,8 @@ private:
 
 public:
 
-	UMaterialInterface();
-	UMaterialInterface(FVTableHelper& Helper);
+	ENGINE_API UMaterialInterface();
+	ENGINE_API UMaterialInterface(FVTableHelper& Helper);
 	ENGINE_API virtual ~UMaterialInterface();
 
 	//~ Begin IInterface_AssetUserData Interface
