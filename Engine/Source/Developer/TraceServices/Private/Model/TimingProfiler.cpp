@@ -123,12 +123,12 @@ void FTimingProfilerProvider::SetTimerNameAndLocation(uint32 TimerId, FStringVie
 	Timer.Line = Line;
 }
 
-uint32 FTimingProfilerProvider::AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata)
+uint32 FTimingProfilerProvider::AddMetadata(uint32 OriginalTimerId, TArray<uint8>&& Metadata)
 {
 	Session.WriteAccessCheck();
 
 	uint32 MetadataId = Metadatas.Num();
-	Metadatas.Add({MoveTemp(Metadata), MasterTimerId});
+	Metadatas.Add({ MoveTemp(Metadata), OriginalTimerId });
 
 	return ~MetadataId;
 }

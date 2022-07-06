@@ -126,12 +126,12 @@ public:
 	/*
 	* Add metadata to a timer.
 	* 
-	* @param MasterTimerId	The identity of the timer to add metadata to.
-	* @param Metadata		The metadata.
+	* @param OriginalTimerId	The identity of the timer to add metadata to.
+	* @param Metadata			The metadata.
 	* 
 	* @return The identity of the metadata.
 	*/
-	virtual uint32 AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata) = 0;
+	virtual uint32 AddMetadata(uint32 OriginalTimerId, TArray<uint8>&& Metadata) = 0;
 
 	/*
 	* Get metadata for a timer.
