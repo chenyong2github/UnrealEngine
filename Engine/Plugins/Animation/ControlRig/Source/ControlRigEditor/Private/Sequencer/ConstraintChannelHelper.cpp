@@ -14,7 +14,7 @@
 #include "TransformConstraint.h"
 #include "Algo/Copy.h"
 #include "Algo/Unique.h"
-#include "Channels/MovieSceneConstraintChannel.h"
+#include "ConstraintChannel.h"
 
 #include "Tools/BakingHelper.h"
 #include "Tools/ConstraintBaker.h"

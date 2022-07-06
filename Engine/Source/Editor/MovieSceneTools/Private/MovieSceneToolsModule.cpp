@@ -77,7 +77,7 @@
 #include "Channels/EventChannelCurveModel.h"
 #include "Channels/SCurveEditorEventChannelView.h"
 #include "Channels/MovieSceneAudioTriggerChannel.h"
-#include "Channels/MovieSceneConstraintChannel.h"
+#include "ConstraintChannel.h"
 #include "Channels/ConstraintChannelEditor.h"
 #include "Sections/MovieSceneEventSection.h"
 

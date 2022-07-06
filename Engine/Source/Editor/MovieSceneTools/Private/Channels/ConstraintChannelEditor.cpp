@@ -2,7 +2,7 @@
 
 #include "ConstraintChannelEditor.h"
 
-#include "Channels/MovieSceneConstraintChannel.h"
+#include "ConstraintChannel.h"
 
 #include "KeyBarCurveModel.h"
 #include "SequencerSectionPainter.h"

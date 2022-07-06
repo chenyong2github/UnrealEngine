@@ -31,6 +31,7 @@ public class MovieSceneTools : ModuleRules
 				"Sequencer",
                 "EditorWidgets",
 				"SequencerCore",
+				"Constraints"
             }
         );
 

@@ -1,6 +1,6 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Channels/MovieSceneConstraintChannel.h"
+#include "ConstraintChannel.h"
 
 bool FMovieSceneConstraintChannel::Evaluate(FFrameTime InTime, bool& OutValue) const
 {
@@ -9,11 +9,11 @@ bool FMovieSceneConstraintChannel::Evaluate(FFrameTime InTime, bool& OutValue) c
 	{
 		return false;
 	}
-	
+
 	if (InTime.FrameNumber < TimeArray[0])
 	{
 		return false;
-	}	
-	
+	}
+
 	return FMovieSceneBoolChannel::Evaluate(InTime, OutValue);
 }

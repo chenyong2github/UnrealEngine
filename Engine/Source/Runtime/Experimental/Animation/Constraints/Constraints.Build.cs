@@ -16,7 +16,8 @@ public class Constraints : ModuleRules
 				"Core",
 				"CoreUObject",
 				"Engine",
-				"AnimationCore"
+				"AnimationCore",
+				"MovieScene"
 			}
 		);
 	}

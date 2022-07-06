@@ -1,14 +1,14 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
 
 #include "Channels/MovieSceneBoolChannel.h"
 #include "MovieSceneClipboard.h"
-
-#include "MovieSceneConstraintChannel.generated.h"
+#include "ConstraintsManager.h"
+#include "ConstraintChannel.generated.h"
 
 USTRUCT()
-struct MOVIESCENE_API FMovieSceneConstraintChannel : public FMovieSceneBoolChannel
+struct CONSTRAINTS_API FMovieSceneConstraintChannel : public FMovieSceneBoolChannel
 {
 	GENERATED_BODY()
 
@@ -48,3 +48,21 @@ struct TMovieSceneChannelTraits<FMovieSceneConstraintChannel> : TMovieSceneChann
 // 	}
 // }
 // #endif
+
+
+USTRUCT()
+struct CONSTRAINTS_API FConstraintAndActiveChannel
+{
+	GENERATED_USTRUCT_BODY()
+
+	FConstraintAndActiveChannel() {}
+	FConstraintAndActiveChannel(const TObjectPtr<UTickableConstraint>& InConstraint)
+		: Constraint(InConstraint)
+	{};
+
+	UPROPERTY()
+	TSoftObjectPtr<UTickableConstraint> Constraint;
+
+	UPROPERTY()
+	FMovieSceneConstraintChannel ActiveChannel;
+};

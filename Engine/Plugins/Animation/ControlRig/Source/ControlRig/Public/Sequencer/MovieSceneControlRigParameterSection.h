@@ -16,9 +16,8 @@
 #include "Channels/MovieSceneIntegerChannel.h"
 #include "Channels/MovieSceneByteChannel.h"
 #include "Channels/MovieSceneBoolChannel.h"
-#include "Channels/MovieSceneConstraintChannel.h"
 #include "Sequencer/MovieSceneControlRigSpaceChannel.h"
-
+#include "ConstraintChannel.h"
 
 #include "MovieSceneControlRigParameterSection.generated.h"
 
@@ -106,22 +105,6 @@ struct CONTROLRIG_API FSpaceControlNameAndChannel
 	FMovieSceneControlRigSpaceChannel SpaceCurve;
 };
 
-USTRUCT()
-struct CONTROLRIG_API FConstraintAndActiveChannel
-{
-	GENERATED_USTRUCT_BODY()
-
-	FConstraintAndActiveChannel(){}
-	FConstraintAndActiveChannel(const TObjectPtr<UTickableConstraint>& InConstraint)
-		: Constraint(InConstraint)
-	{};
-
-	UPROPERTY()
-	TSoftObjectPtr<UTickableConstraint> Constraint;
-
-	UPROPERTY()
-	FMovieSceneConstraintChannel ActiveChannel;
-};
 
 /**
 *  Data that's queried during an interrogation
