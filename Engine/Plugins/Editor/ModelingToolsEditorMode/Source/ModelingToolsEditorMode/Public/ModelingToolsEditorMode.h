@@ -17,6 +17,8 @@ class FUICommandList;
 class FStylusStateTracker;		// for stylus events
 class FLevelObjectsObserver;
 class UModelingSceneSnappingManager;
+class UModelingSelectionInteraction;
+class UGeometrySelectionManager;
 
 UCLASS(Transient)
 class UModelingToolsEditorMode : public UBaseLegacyWidgetEdMode
@@ -56,18 +58,25 @@ public:
 	// called when we "end" this editor mode (ie switch to another tab)
 	virtual void Exit() override;
 
-
 	virtual bool ShouldToolStartBeAllowed(const FString& ToolIdentifier) const override;
 
 	//////////////////
 	// End of UEdMode interface
 	//////////////////
 
+
+	virtual UGeometrySelectionManager* GetSelectionManager() const
+	{
+		return SelectionManager;
+	}
+
 protected:
 	virtual void BindCommands() override;
 	virtual void CreateToolkit() override;
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	
+	virtual void OnToolPostBuild(UInteractiveToolManager* InToolManager, EToolSide InSide, UInteractiveTool* InBuiltTool, UInteractiveToolBuilder* InToolBuilder, const FToolBuilderState& ToolState);
 
 	FDelegateHandle MeshCreatedEventHandle;
 	FDelegateHandle TextureCreatedEventHandle;
@@ -78,7 +87,22 @@ protected:
 	TSharedPtr<FLevelObjectsObserver> LevelObjectsObserver;
 
 	UPROPERTY()
-	UModelingSceneSnappingManager* SceneSnappingManager;
+	TObjectPtr<UModelingSceneSnappingManager> SceneSnappingManager;
+
+	UPROPERTY()
+	TObjectPtr<UGeometrySelectionManager> SelectionManager;
+
+	UPROPERTY()
+	TObjectPtr<UModelingSelectionInteraction> SelectionInteraction;
+
+	FDelegateHandle SelectionManager_SelectionModifiedHandle;
+
+	bool GetGeometrySelectionChangesAllowed() const;
+	bool TestForEditorGizmoHit(const FInputDeviceRay&) const;
+
+	void UpdateSelectionManagerOnEditorSelectionChange();
+
+	void OnToolsContextRender(IToolsContextRenderAPI* RenderAPI);
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();
@@ -87,6 +111,7 @@ protected:
 	void CancelActiveToolActionOrTool();
 
 	void ConfigureRealTimeViewportsOverride(bool bEnable);
+
 
 	// analytics tracking
 	static FDateTime LastModeStartTimestamp;

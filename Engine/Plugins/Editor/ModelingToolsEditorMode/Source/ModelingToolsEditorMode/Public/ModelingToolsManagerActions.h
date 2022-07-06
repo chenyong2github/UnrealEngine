@@ -141,6 +141,16 @@ public:
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_Outset;
 	TSharedPtr<FUICommandInfo> BeginPolyModelTool_CutFaces;
 
+
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToVertexType;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToEdgeType;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToFaceType;
+
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToObjectType;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToTriangleType;
+	TSharedPtr<FUICommandInfo> BeginSelectionAction_ToPolygroupType;
+
+
 	//
 	// Accept/Cancel/Complete commands are used to end the active Tool via ToolManager
 	//
@@ -157,3 +167,4 @@ public:
 	 */
 	virtual void RegisterCommands() override;
 };
+

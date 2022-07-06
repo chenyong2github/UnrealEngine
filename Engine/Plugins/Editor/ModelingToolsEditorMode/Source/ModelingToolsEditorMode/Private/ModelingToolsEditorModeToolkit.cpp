@@ -5,6 +5,7 @@
 #include "ModelingToolsManagerActions.h"
 #include "ModelingToolsEditorModeSettings.h"
 #include "ModelingToolsEditorModeStyle.h"
+#include "Selection/GeometrySelectionManager.h"
 #include "Engine/Selection.h"
 
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -488,6 +489,9 @@ static const FName LODToolsTabName(TEXT("LODs"));
 static const FName BakingToolsTabName(TEXT("Baking"));
 static const FName ModelingFavoritesTabName(TEXT("Favorites"));
 
+static const FName SelectionModesTabName(TEXT("SelectionModes"));
+static const FName SelectionActionsTabName(TEXT("SelectionActions"));
+
 
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, PolyModelingTabName, TriModelingTabName, DeformTabName, TransformTabName, MeshProcessingTabName, VoxToolsTabName, AttributesTabName, UVTabName, BakingToolsTabName, VolumesTabName, LODToolsTabName };
 
@@ -502,6 +506,18 @@ void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& Palette
 		ExistingNames.Add(Name);
 	}
 
+	const UModelingToolsEditorModeSettings* ModelingModeSettings = GetDefault<UModelingToolsEditorModeSettings>();
+	bool bEnableSelectionUI = ModelingModeSettings && ModelingModeSettings->bEnablePersistentSelections;
+	if (bEnableSelectionUI)
+	{
+		if (bShowActiveSelectionActions)
+		{
+			PaletteNames.Insert(SelectionActionsTabName, 0);
+			ExistingNames.Add(SelectionActionsTabName);
+		}
+
+		PaletteNames.Insert(SelectionModesTabName, 0);
+	}
 
 	bool bEnablePrototypes = (CVarEnablePrototypeModelingTools.GetValueOnGameThread() > 0);
 	if (bEnablePrototypes)
@@ -597,7 +613,22 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette(FName PaletteIndex, class
 			}
 		}
 	}
-	if (PaletteIndex == PrimitiveTabName)
+	else if (PaletteIndex == SelectionModesTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToObjectType);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToTriangleType);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToPolygroupType);
+
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToVertexType);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToEdgeType);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_ToFaceType);
+	}
+	else if (PaletteIndex == SelectionActionsTabName)
+	{
+		//ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Delete);
+		//ToolbarBuilder.AddToolBarButton(Commands.BeginSelectionAction_Extrude);
+	}
+	else if (PaletteIndex == PrimitiveTabName)
 	{
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddBoxPrimitiveTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAddSpherePrimitiveTool);
@@ -921,6 +952,27 @@ void FModelingToolsEditorModeToolkit::InvokeUI()
 	}
 }
 
+
+
+void FModelingToolsEditorModeToolkit::ForceToolPaletteRebuild()
+{
+
+	UGeometrySelectionManager* SelectionManager = Cast<UModelingToolsEditorMode>(GetScriptableEditorMode())->GetSelectionManager();
+	if (SelectionManager)
+	{
+		bool bHasActiveSelection = SelectionManager->HasSelection();
+
+		if (bShowActiveSelectionActions != bHasActiveSelection)
+		{
+			bShowActiveSelectionActions = bHasActiveSelection;
+			this->RebuildModeToolPalette();
+		}
+	}
+	else
+	{
+		bShowActiveSelectionActions = false;
+	}
+}
 
 
 void FModelingToolsEditorModeToolkit::OnToolPaletteChanged(FName PaletteName) 

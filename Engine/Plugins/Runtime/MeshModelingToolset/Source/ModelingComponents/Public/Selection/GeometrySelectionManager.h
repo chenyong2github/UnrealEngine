@@ -253,7 +253,7 @@ protected:
 	EGeometryElementType SelectionElementType = EGeometryElementType::Face;
 	void SetSelectionElementTypeInternal(EGeometryElementType NewElementType);
 
-	EMeshTopologyMode MeshTopologyMode = EMeshTopologyMode::Polygroup;
+	EMeshTopologyMode MeshTopologyMode = EMeshTopologyMode::None;
 	void SetMeshTopologyModeInternal(EMeshTopologyMode NewTopologyMode);
 
 	// ITF references

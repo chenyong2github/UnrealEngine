@@ -46,6 +46,7 @@ public class ModelingToolsEditorMode : ModuleRules
 				"TypedElementRuntime",
 				"InteractiveToolsFramework",
 				"EditorInteractiveToolsFramework",
+				"GeometryFramework",
 				"ModelingComponents",
 				"ModelingComponentsEditorOnly",
 				"MeshModelingTools",
