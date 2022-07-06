@@ -1168,6 +1168,30 @@ void AddQuadTWS(FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, 
 void AddQuadWS (FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)	{ if (Ctx.bIsActive) { AddQuadTWS(Pos0+ShaderPrintData.TranslatedWorldOffset, Pos1+ShaderPrintData.TranslatedWorldOffset, Pos2+ShaderPrintData.TranslatedWorldOffset, Pos3+ShaderPrintData.TranslatedWorldOffset, Color); } }
 void AddQuad   (FShaderPrintContext Ctx, float3 Pos0, float3 Pos1, float3 Pos2, float3 Pos3, float4 Color)	{ if (Ctx.bIsActive) { AddQuadTWS(Pos0+ShaderPrintData.TranslatedWorldOffset, Pos1+ShaderPrintData.TranslatedWorldOffset, Pos2+ShaderPrintData.TranslatedWorldOffset, Pos3+ShaderPrintData.TranslatedWorldOffset, Color); } }
 
+// Draw 2D quad line
+void AddQuadSS(float2 MinPos, float2 MaxPos, float4 Color)
+{
+	uint Offset = 0;
+	if (AllocateLineElement(4, Offset))
+	{
+		MinPos = float2(MinPos) / float2(ShaderPrintData.Resolution);
+		MaxPos = float2(MaxPos) / float2(ShaderPrintData.Resolution);
+
+		float3 Pos0 = float3(MinPos.x, MinPos.y, 0);
+		float3 Pos1 = float3(MaxPos.x, MinPos.y, 0);
+		float3 Pos2 = float3(MaxPos.x, MaxPos.y, 0);
+		float3 Pos3 = float3(MinPos.x, MaxPos.y, 0);
+
+		FLineElement Element;
+		Element.bIsScreenSpace = true;
+		Element.Color0 = Element.Color1 = Color;
+		Element.Pos0 = Pos0; Element.Pos1 = Pos1; AddLineElement(Element, Offset + 0);
+		Element.Pos0 = Pos1; Element.Pos1 = Pos2; AddLineElement(Element, Offset + 1);
+		Element.Pos0 = Pos2; Element.Pos1 = Pos3; AddLineElement(Element, Offset + 2);
+		Element.Pos0 = Pos3; Element.Pos1 = Pos0; AddLineElement(Element, Offset + 3);
+	}
+}
+
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // AABB
 

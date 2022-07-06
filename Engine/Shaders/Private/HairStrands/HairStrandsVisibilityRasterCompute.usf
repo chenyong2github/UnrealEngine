@@ -6,6 +6,30 @@
 #include "HairStrandsVisibilityCommon.ush"
 
 ///////////////////////////////////////////////////////////////////////////
+// Common parameters
+
+uint	TileSizeAsShift;
+uint	TileSize;
+float	RcpTileSize;
+uint	SqrTileSize;
+int2	TileRes;
+
+uint	NumBinners;
+float	RcpNumBinners;
+uint	NumRasterizers;
+float	RcpNumRasterizers;
+
+uint	MaxRasterCount;
+uint	FrameIdMod8;
+uint	ResolutionMultiplier;
+int2	OutputResolution;
+float2	OutputResolutionf;
+
+///////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RASTERCOMPUTE_BINNING || SHADER_RASTERCOMPUTE_RASTER || SHADER_RASTERCOMPUTE_DEPTH_GRID
+
+///////////////////////////////////////////////////////////////////////////
 // 
 // Wave size
 #if SHADER_RASTERCOMPUTE_DEPTH_GRID == 0
@@ -21,15 +45,6 @@
 #endif //SHADER_RASTERCOMPUTE_DEPTH_GRID
 
 ///////////////////////////////////////////////////////////////////////////
-
-uint TileSize;
-float RcpTileSize;
-uint SqrTileSize;
-
-uint NumBinners;
-float RcpNumBinners;
-uint NumRasterizers;
-float RcpNumRasterizers;
 
 /* 
 // use untyped buffer for segment tiles to reduce VGPR usage - 16 bytes
@@ -60,12 +75,7 @@ uint2 UppackVisTileCoord(uint Packed)
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint			MaxRasterCount;
-uint			FrameIdMod8;
 uint			MacroGroupId;
-uint			ResolutionMultiplier;
-int2			OutputResolution;
-float2			OutputResolutionf;
 uint			HairMaterialId;
 uint			HairStrandsVF_bIsCullingEnable;
 float			HairStrandsVF_Radius;
@@ -81,8 +91,6 @@ Buffer<uint4>	HairStrandsVF_PositionBuffer;
 Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
 
 Texture2D<float> SceneDepthTexture;
-
-int2			TileRes;
 
 uint 			VertexCount;
 uint 			VertexStart;
@@ -128,6 +136,8 @@ void CalcScreenPosAndRad(in uint4 PB, in float3 PBO, out float4 SP, out float Ra
 
 	Rad = CP.WorldRadius*2000.0; // OutputResolutionf.x; //TODO: figure this out correctly?
 }
+
+#endif // Common rasetrizer helper function & parameters
 
 ///////////////////////////////////////////////////////////////////////////
 
@@ -659,4 +669,131 @@ void RasterCS(uint DispatchThreadID : SV_DispatchThreadID, uint GroupThreadID : 
 #endif //SHADER_RASTERCOMPUTE_RASTER
 
 ///////////////////////////////////////////////////////////////////////////
+
+#if SHADER_RASTERCOMPUTE_DEBUG
+
+#include "../ShaderPrint.ush"
+void PrintBool(inout FShaderPrintContext Ctx, bool In)
+{
+	if (In)
+	{
+		Print(Ctx, TEXT("Yes"), FontGreen);
+	}
+	else
+	{
+		Print(Ctx, TEXT("No"), FontRed);
+	}
+}
+
+Texture2D<uint>						VisTileDepthGrid;
+Texture3D<uint> 					VisTileBinningGrid;
+//Buffer<uint>						OutVisTilePrims;
+Buffer<uint>						VisTileArgs;
+//ByteAddressBuffer					OutVisTileData;
+
+uint MacroGroupId;
+uint PrimitiveInfoIndex;
+uint TotalPrimitiveInfoCount;
+
+#define TilePrintOffset (TileSize >> 1)
+
+float4 Transparent(float4 Color) { return float4(Color.xyz, 0.5f); }
+
+uint GetTileTotalSegment(uint2 TileCoord, bool bPrintDetails)
+{
+	const float TileDisplayScale = 1.5f;
+	const uint DisplayTileSize = TileSize * TileDisplayScale;
+	uint2 InlinedTileCoord = uint2(0, 0);
+
+	uint TotalSegments = 0;
+	const uint BinCount = NumBinners;// * 2; // Each binner fill in 2 bins, see binning algo.
+	for (uint BinIt = 0; BinIt < BinCount; ++BinIt)
+	{
+		const uint CurrTileSegments = VisTileBinningGrid.Load(uint4(TileCoord, BinIt, 0));
+		TotalSegments += CurrTileSegments;
+
+		if (bPrintDetails)
+		{
+			AddFilledQuadSS(InlinedTileCoord * DisplayTileSize, (InlinedTileCoord + 1) * DisplayTileSize, CurrTileSegments > 0 ? Transparent(ColorLightGreen) : Transparent(ColorLightRed));
+			AddQuadSS(InlinedTileCoord * DisplayTileSize, (InlinedTileCoord + 1) * DisplayTileSize, ColorYellow);
+
+			FShaderPrintContext Context = InitShaderPrintContext(true, InlinedTileCoord * DisplayTileSize + TilePrintOffset);
+			Print(Context, CurrTileSegments, FontWhite);
+			++InlinedTileCoord.x;
+
+			// Span details onto 2 lines
+			if (BinIt == NumBinners-1)
+			{
+				InlinedTileCoord.x = 0;
+				++InlinedTileCoord.y;
+			}
+		}
+	}
+	return TotalSegments;
+}
+
+void PrintTile(uint2 TileCoord, uint TotalSegments, bool bPrintText)
+{
+	AddFilledQuadSS(TileCoord * TileSize, (TileCoord + 1) * TileSize, TotalSegments > 0 ? Transparent(ColorLightGreen) : Transparent(ColorLightRed));
+	if (bPrintText)
+	{
+		FShaderPrintContext Context = InitShaderPrintContext(true, TileCoord * TileSize + uint2(0, TileSize * 1.5f));
+		Print(Context, TotalSegments, FontWhite);
+
+		AddQuadSS(TileCoord * TileSize, (TileCoord + 1) * TileSize, ColorYellow);
+	}
+}
+
+[numthreads(8, 8, 1)]
+void MainCS(uint3 ThreadId : SV_DispatchThreadID)
+{
+	// Info/Stats
+	if (all(ThreadId == 0))
+	{
+		FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 110));
+		Print(Context, TEXT("Raster compute         "), FontYellow); Newline(Context);
+		Print(Context, TEXT("Macro Group Id       : "), FontSilver); Print(Context, MacroGroupId, FontWhite); Newline(Context);
+		Print(Context, TEXT("Primitive Info       : "), FontSilver); Print(Context, PrimitiveInfoIndex, FontWhite, 2, 0); Print(Context, TEXT("/"), FontSilver); Print(Context, TotalPrimitiveInfoCount, FontWhite, 2, 0); Newline(Context);
+		Newline(Context);
+
+		Print(Context, TEXT("Configuration          "), FontYellow); Newline(Context);
+		Print(Context, TEXT("Output Resolution    : "), FontSilver); Print(Context, OutputResolution, FontWhite); Newline(Context);
+		Print(Context, TEXT("Resolution Multiplier: "), FontSilver); Print(Context, ResolutionMultiplier, FontWhite); Newline(Context);
+		Newline(Context);
+		
+		Print(Context, TEXT("Tile Size            : "), FontSilver); Print(Context, TileSize, FontWhite); Newline(Context);
+		Print(Context, TEXT("Tile Res             : "), FontSilver); Print(Context, TileRes.x, FontWhite, 2, 0); Print(Context, TEXT("x"), FontSilver); Print(Context, TileRes.y, FontWhite, 2, 0); Newline(Context);
+		Newline(Context);
+		
+		Print(Context, TEXT("Num Binners          : "), FontSilver); Print(Context, NumBinners, FontWhite); Newline(Context);
+		Print(Context, TEXT("Num Rasterizers      : "), FontSilver); Print(Context, NumRasterizers, FontWhite); Newline(Context);
+		Print(Context, TEXT("Max Raster Count     : "), FontSilver); Print(Context, MaxRasterCount, FontWhite); Newline(Context);
+		Newline(Context);
+
+		Print(Context, TEXT("Allocated Tile Count : "), FontSilver); Print(Context, VisTileArgs[0], FontWhite); Newline(Context);
+		
+
+	}
+
+	// Cursor info	
+	if (all(ThreadId == 0) && all(ShaderPrintData.CursorCoord >= 0))
+	{
+		const uint2 PixelCoord = ShaderPrintData.CursorCoord;
+		const uint2 TileCoord  = PixelCoord >> TileSizeAsShift;
+	
+		const uint TotalSegments = GetTileTotalSegment(TileCoord, true);
+		PrintTile(TileCoord, TotalSegments, true);
+	}
+
+	// All tile
+	{
+		const uint2 TileCoord = ThreadId.xy;
+		const uint TotalSegments = GetTileTotalSegment(TileCoord, false);
+		if (TotalSegments)
+		{
+			PrintTile(TileCoord, TotalSegments, false);
+		}
+	}
+}
+#endif //SHADER_RASTERCOMPUTE_RASTER
 
