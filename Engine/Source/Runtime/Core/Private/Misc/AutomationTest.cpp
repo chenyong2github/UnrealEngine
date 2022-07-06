@@ -823,7 +823,7 @@ bool FAutomationTestFramework::InternalStopTest(FAutomationTestExecutionInfo& Ou
 	CurrentTest->ExpectedErrors.Empty();
 
 	// Set the success state of the test based on the above criteria
-	CurrentTest->SetSuccessState(bTestSuccessful);
+	CurrentTest->InternalSetSuccessState(bTestSuccessful);
 
 	OnTestEndEvent.Broadcast(CurrentTest);
 
@@ -1192,12 +1192,12 @@ bool FAutomationTestBase::HasMetExpectedErrors()
 	return HasMetAllExpectedErrors;
 }
 
-void FAutomationTestBase::SetSuccessState( bool bSuccessful )
+void FAutomationTestBase::InternalSetSuccessState( bool bSuccessful )
 {
 	ExecutionInfo.bSuccessful = bSuccessful;
 }
 
-bool FAutomationTestBase::GetSuccessState()
+bool FAutomationTestBase::GetLastExecutionSuccessState()
 {
 	return ExecutionInfo.bSuccessful;
 }

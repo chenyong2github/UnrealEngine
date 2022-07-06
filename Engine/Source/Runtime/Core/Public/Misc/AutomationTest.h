@@ -1348,16 +1348,21 @@ public:
 	bool HasMetExpectedErrors();
 
 	/**
-	 * Forcibly sets whether the test has succeeded or not
-	 *
-	 * @param	bSuccessful	true to mark the test successful, false to mark the test as failed
+	 * Return the last success state for this test
 	 */
-	void SetSuccessState( bool bSuccessful );
+	bool GetLastExecutionSuccessState();
 
 	/**
-	 * Return the test success state
+	 * [Deprecated] Use AddError(msg) instead to change the state of the test to a failure
 	 */
-	bool GetSuccessState();
+	UE_DEPRECATED(5.1, "Use AddError(msg) instead to change the state of the test to a failure.")
+	void SetSuccessState(bool bSuccessful) { }
+
+	/**
+	 * [Deprecated] Return the last success state for this test
+	 */
+	UE_DEPRECATED(5.1, "Use GetLastExecutionSuccessState instead.")
+	bool GetSuccessState() { return GetLastExecutionSuccessState(); }
 
 	/**
 	 * Populate the provided execution info object with the execution info contained within the test. Not particularly efficient,
@@ -1839,6 +1844,13 @@ private:
 	* @return true if this message matches any of the expected errors
 	*/
 	bool IsExpectedError(const FString& Error);
+
+	/**
+	 * Sets whether the test has succeeded or not
+	 *
+	 * @param	bSuccessful	true to mark the test successful, false to mark the test as failed
+	 */
+	void InternalSetSuccessState(bool bSuccessful);
 
 	/* Errors to be expected while processing this test.*/
 	TArray< FAutomationExpectedError> ExpectedErrors;
