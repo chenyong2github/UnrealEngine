@@ -41,6 +41,10 @@ public:
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< UStaticMesh > > StaticMeshes;
 
+	/** Map of all the cloth related to this Datasmith Scene */
+	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
+	TMap< FName, TSoftObjectPtr< UObject > > Clothes; // UChaosClothAsset
+
 	/** Map of all the textures related to this Datasmith Scene */
 	UPROPERTY(VisibleAnywhere, Category="Datasmith", AdvancedDisplay)
 	TMap< FName, TSoftObjectPtr< UTexture > > Textures;
