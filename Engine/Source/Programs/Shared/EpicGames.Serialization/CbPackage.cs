@@ -20,6 +20,12 @@ namespace EpicGames.Serialization
     /// <remarks>see CbPackage definition in Zen https://github.com/EpicGames/zen/blob/main/zenhttp/include/zenhttp/httpshared.h</remarks>
     public struct CbPackageHeader
     {
+		/// <summary>
+		/// Constructor
+		/// </summary>
+		/// <param name="attachmentCount"></param>
+		/// <param name="reserved1"></param>
+		/// <param name="reserved2"></param>
         public CbPackageHeader(uint attachmentCount, uint reserved1 = 0, uint reserved2 = 0)
         {
             HeaderMagic = CbPackageConstants.CbPackageHeaderMagic;

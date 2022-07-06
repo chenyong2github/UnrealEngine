@@ -89,6 +89,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="file">File to write to</param>
 		/// <param name="data">Data to be written</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static Task WriteAllBytesAsync(FileReference file, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default) => WriteAllBytesAsync(file, new ReadOnlySequence<byte>(data), cancellationToken);
 
 		/// <summary>
@@ -96,6 +97,7 @@ namespace EpicGames.Core
 		/// </summary>
 		/// <param name="file">File to write to</param>
 		/// <param name="data">Data to be written</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		public static async Task WriteAllBytesAsync(FileReference file, ReadOnlySequence<byte> data, CancellationToken cancellationToken = default)
 		{
 			using (FileTransactionStream stream = OpenWrite(file))
