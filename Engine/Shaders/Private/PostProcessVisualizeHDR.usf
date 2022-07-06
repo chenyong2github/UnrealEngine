@@ -22,6 +22,7 @@ Texture2D HistogramTexture;
 SCREEN_PASS_TEXTURE_VIEWPORT(Input)
 SCREEN_PASS_TEXTURE_VIEWPORT(Output)
 
+float IlluminanceMeterEnabled;
 
 float ComputeRgbLuminance(float3 Color)
 {
@@ -292,6 +293,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	}
 
 	// Illuminance meter for the hemisphere in front of the camera
+	if(IlluminanceMeterEnabled > 0.0f)
 	{
 		OutColor = float4(0.0f, 0.0f, 0.0f, 0.0f);
 
