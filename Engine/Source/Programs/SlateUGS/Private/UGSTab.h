@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "Widgets/SEmptyTab.h" 
+#include "Widgets/SEmptyTab.h"
 #include "Widgets/SGameSyncTab.h"
 #include "Widgets/SWorkspaceWindow.h"
 #include "UGSCore/GameSyncController.h"
@@ -18,7 +18,7 @@ public:
 	FSpawnTabArgs GetTabArgs() const;
 
 	// Slate callbacks
-	FReply OnWorkspaceChosen(FString Path);
+	FReply OnWorkspaceChosen(const FString& Path);
 private:
 
 	// Slate Data
@@ -30,5 +30,5 @@ private:
 	TSharedRef<SWorkspaceWindow> WorkspaceWindowView;
 
 	// Controller data
-	GameSyncController SyncController; 
+	GameSyncController SyncController;
 };

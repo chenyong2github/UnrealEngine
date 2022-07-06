@@ -187,7 +187,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("OkText", "Ok"))
-					.OnClicked(FOnClicked::CreateRaw(Tab, &UGSTab::OnWorkspaceChosen, WorkspacePathText))
+					.OnClicked(FOnClicked::CreateRaw<UGSTab, const FString&>(Tab, &UGSTab::OnWorkspaceChosen, WorkspacePathText))
 				]
 				+SHorizontalBox::Slot()
 				.HAlign(HAlign_Fill)

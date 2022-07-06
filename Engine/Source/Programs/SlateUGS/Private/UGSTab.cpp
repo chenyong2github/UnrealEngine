@@ -28,7 +28,7 @@ FSpawnTabArgs UGSTab::GetTabArgs() const
 	return TabArgs; 
 }
 
-FReply UGSTab::OnWorkspaceChosen(FString Path)
+FReply UGSTab::OnWorkspaceChosen(const FString& Path)
 {
 	fprintf(stderr, "Workspace path text received by OnWorkspaceChosen is: %s\n", TCHAR_TO_ANSI(*Path)); // Todo: Actually get the path variable bound
 	bool bIsDataValid = !Path.IsEmpty(); // Todo: Actually validate the data
