@@ -106,7 +106,12 @@ namespace UnrealBuildTool
 		/// <summary>
 		/// Indicates that the target is a moduler build i.e. Target.LinkType == TargetLinkType.Modular
 		/// </summary>
-		ModularBuild = 1 << 16
+		ModularBuild = 1 << 16,
+
+		/// <summary>
+		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
+		/// </summary>
+		PreprocessDepends = 1 << 17,
 	}
 
 	abstract class ClangToolChain : ISPCToolChain
@@ -118,8 +123,6 @@ namespace UnrealBuildTool
 		protected int ClangVersionPatch = -1;
 
 		protected ClangToolChainOptions Options;
-
-		protected bool bPreprocessDepends = false;
 
 		// Dummy define to work around clang compilation related to the windows maximum path length limitation
 		protected static string ClangDummyDefine; 
@@ -137,6 +140,16 @@ namespace UnrealBuildTool
 			: base(InLogger)
 		{
 			Options = InOptions;
+		}
+
+		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
+		{
+			base.SetUpGlobalEnvironment(Target);
+
+			if (Target.bPreprocessDepends)
+			{
+				Options |= ClangToolChainOptions.PreprocessDepends;
+			}
 		}
 
 		public override void FinalizeOutput(ReadOnlyTargetRules Target, TargetMakefileBuilder MakefileBuilder)
@@ -755,7 +768,7 @@ namespace UnrealBuildTool
 			}
 
 			// Generate the included header dependency list
-			if (!bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+			if (!Options.HasFlag(ClangToolChainOptions.PreprocessDepends) && CompileEnvironment.bGenerateDependenciesFile)
 			{
 				FileItem DependencyListFile = FileItem.GetItemByFileReference(FileReference.Combine(OutputDir, Path.GetFileName(SourceFile.AbsolutePath) + ".d"));
 				Arguments.Add(GetDepencenciesListFileArgument(DependencyListFile));
@@ -821,7 +834,7 @@ namespace UnrealBuildTool
 				CompileEnvironment.bAllowRemotelyCompiledPCHs;
 
 			// Two-pass compile where the preprocessor is run first to output the dependency list
-			if (bPreprocessDepends && CompileEnvironment.bGenerateDependenciesFile)
+			if (Options.HasFlag(ClangToolChainOptions.PreprocessDepends) && CompileEnvironment.bGenerateDependenciesFile)
 			{
 				Action PrepassAction = Graph.CreateAction(ActionType.Compile);
 				PrepassAction.PrerequisiteItems.AddRange(CompileAction.PrerequisiteItems);

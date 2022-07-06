@@ -80,13 +80,6 @@ namespace UnrealBuildTool
 		public bool bTuneDebugInfoForLLDB = false;
 
 		/// <summary>
-		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
-		/// </summary>
-		[CommandLine("-PreprocessDepends")]
-		[XmlConfigFile(Category = "BuildConfiguration", Name = "bPreprocessDepends")]
-		public bool bPreprocessDepends = false;
-
-		/// <summary>
 		/// Enables runtime ray tracing support.
 		/// </summary>
 		[ConfigFile(ConfigHierarchyType.Engine, "/Script/LinuxPlatform.LinuxTargetSettings")]
@@ -143,11 +136,6 @@ namespace UnrealBuildTool
 		public bool bTuneDebugInfoForLLDB
 		{
 			get { return Inner.bTuneDebugInfoForLLDB; }
-		}
-
-		public bool bPreprocessDepends
-		{
-			get { return Inner.bPreprocessDepends; }
 		}
 
 		public bool bEnableRayTracing

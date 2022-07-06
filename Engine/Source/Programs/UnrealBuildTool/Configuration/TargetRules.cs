@@ -1345,6 +1345,13 @@ namespace UnrealBuildTool
 		public bool bPreprocessOnly = false;
 
 		/// <summary>
+		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
+		/// </summary>
+		[CommandLine("-PreprocessDepends")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public bool bPreprocessDepends = false;
+
+		/// <summary>
 		/// The minimum number of files that must use a pre-compiled header before it will be created and used.
 		/// </summary>
 		[XmlConfigFile(Category = "BuildConfiguration")]
@@ -2921,6 +2928,11 @@ namespace UnrealBuildTool
 		public bool bPreprocessOnly
 		{
 			get { return Inner.bPreprocessOnly; }
+		}
+
+		public bool bPreprocessDepends
+		{
+			get { return Inner.bPreprocessDepends; }
 		}
 
 		public int MinFilesUsingPrecompiledHeader

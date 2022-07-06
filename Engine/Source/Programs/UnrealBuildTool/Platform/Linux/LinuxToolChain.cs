@@ -126,13 +126,6 @@ namespace UnrealBuildTool
 			BreakpadEncoderPath = FileReference.Combine(Unreal.EngineDirectory, "Binaries", "Linux", $"BreakpadSymbolEncoder{BuildHostPlatform.Current.BinarySuffix}");
 		}
 
-		public override void SetUpGlobalEnvironment(ReadOnlyTargetRules Target)
-		{
-			base.SetUpGlobalEnvironment(Target);
-
-			bPreprocessDepends = Target.LinuxPlatform.bPreprocessDepends;
-		}
-
 		protected virtual bool CrossCompiling()
 		{
 			return bIsCrossCompiling;

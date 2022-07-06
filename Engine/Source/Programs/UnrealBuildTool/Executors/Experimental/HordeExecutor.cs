@@ -23,7 +23,7 @@ namespace UnrealBuildTool
 	/// * Currently only supported for Linux and Mac toolchains.
 	/// 
 	/// Current Requirements:
-	/// * -PreprocessDepends: For Linux and Mac, run a prepass of clang to generate the dependency list. Needed to get all input files required to compile.
+	/// * -PreprocessDepends: Run a prepass of clang to generate the dependency list. Needed to get all input files required to compile.
 	///						  This will add additional overhead to the build and is not recommended unless using Horde compute remote distribution.
 	/// * -NoPCH:			  Cannot build with pch, as absolute paths are embedded into the .gch file for included headers, and these paths must exist exactly.
 	/// * -HordeCompute:	  Flag to enable this executor

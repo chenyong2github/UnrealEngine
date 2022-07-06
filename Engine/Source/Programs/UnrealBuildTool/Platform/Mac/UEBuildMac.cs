@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 
 using System;
@@ -41,13 +41,6 @@ namespace UnrealBuildTool
 		[CommandLine("-NoDSYM", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bUseDSYMFiles")]
 		public bool bUseDSYMFiles = false;
-
-		/// <summary>
-		/// Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
-		/// </summary>
-		[CommandLine("-PreprocessDepends")]
-		[XmlConfigFile(Category = "BuildConfiguration", Name = "bPreprocessDepends")]
-		public bool bPreprocessDepends = false;
 	}
 
 	/// <summary>
@@ -88,11 +81,6 @@ namespace UnrealBuildTool
 		public bool bEnableUndefinedBehaviorSanitizer
 		{
 			get { return Inner.bEnableUndefinedBehaviorSanitizer; }
-		}
-
-		public bool bPreprocessDepends
-		{
-			get { return Inner.bPreprocessDepends; }
 		}
 
 #pragma warning restore CS1591

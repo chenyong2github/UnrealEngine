@@ -121,8 +121,6 @@ namespace UnrealBuildTool
 		{
 			base.SetUpGlobalEnvironment(Target);
 
-			bPreprocessDepends = Target.MacPlatform.bPreprocessDepends;
-
 			// validation, because sometimes this is called from a shell script and quoting messes up		
 			if (!Target.Architecture.All(C => char.IsLetterOrDigit(C) || C == '_' || C == '+'))
 			{
