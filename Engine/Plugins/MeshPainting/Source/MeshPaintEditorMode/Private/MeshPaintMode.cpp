@@ -15,6 +15,7 @@
 #include "Components/StaticMeshComponent.h"
 #include "MeshPaintHelpers.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "GeometryCollection/GeometryCollectionComponent.h"
 #include "ScopedTransaction.h"
 #include "PackageTools.h"
 #include "MeshPaintHelpers.h"
@@ -827,6 +828,7 @@ TArray<ComponentClass*> UMeshPaintMode::GetSelectedComponents() const
 template TArray<UStaticMeshComponent*> UMeshPaintMode::GetSelectedComponents<UStaticMeshComponent>() const;
 template TArray<USkeletalMeshComponent*> UMeshPaintMode::GetSelectedComponents<USkeletalMeshComponent>() const;
 template TArray<UMeshComponent*> UMeshPaintMode::GetSelectedComponents<UMeshComponent>() const;
+template TArray<UGeometryCollectionComponent*> UMeshPaintMode::GetSelectedComponents<UGeometryCollectionComponent>() const;
 
 
 void UMeshPaintMode::UpdateCachedVertexDataSize()

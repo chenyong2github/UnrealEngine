@@ -435,6 +435,15 @@ public:
 
 #if WITH_EDITOR
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent) override;
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+
+	DECLARE_MULTICAST_DELEGATE(FOnGeometryCollectionPropertyChangedMulticaster)
+	FOnGeometryCollectionPropertyChangedMulticaster OnGeometryCollectionPropertyChanged;
+	typedef FOnGeometryCollectionPropertyChangedMulticaster::FDelegate FOnGeometryCollectionPropertyChanged;
+
+	/** Register / Unregister delegates called when the skeletal mesh property is changed */
+	FDelegateHandle RegisterOnGeometryCollectionPropertyChanged(const FOnGeometryCollectionPropertyChanged& Delegate);
+	void UnregisterOnGeometryCollectionPropertyChanged(FDelegateHandle Handle);
 #endif
 	//~ Begin UActorComponent Interface. 
 
@@ -554,6 +563,9 @@ public:
 		int32 Size = RestCollection->NumElements(Group);	//assume rest collection has the group and is connected to dynamic.
 		return Size > 0 ? Size : DynamicCollection->NumElements(Group);	//if not, maybe dynamic has the group
 	}
+
+	// Update cached bounds; used e.g. when updating the exploded view of the geometry collection
+	void UpdateCachedBounds();
 
 	// Vertices Group
 	COPY_ON_WRITE_ATTRIBUTE(FVector3f, Vertex, FGeometryCollection::VerticesGroup) 	//GetVertexArray, GetVertexArrayCopyOnWrite, GetVertexArrayRest
@@ -979,7 +991,6 @@ private:
 	FBox LocalBounds;
 
 	mutable FBoxSphereBounds ComponentSpaceBounds;
-	FBoxSphereBounds WorldBounds;
 
 	float CurrentCacheTime;
 	TArray<bool> EventsPlayed;

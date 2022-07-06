@@ -1784,6 +1784,7 @@ void FFractureEditorModeToolkit::UpdateExplodedVectors(UGeometryCollectionCompon
 	}
 
 	GeometryCollectionComponent->RefreshEmbeddedGeometry();
+	GeometryCollectionComponent->UpdateCachedBounds();
 }
 
 void FFractureEditorModeToolkit::RegenerateOutliner()

@@ -21,6 +21,7 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"MeshDescription",
 					"StaticMeshDescription",
+					"GeometryCollectionEngine",
 					"TypedElementFramework",
 					"TypedElementRuntime",
 					"UnrealEd",

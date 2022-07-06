@@ -836,6 +836,63 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 	if (GetRequiredVertexCount())
 	{
 		const bool bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
+		const bool bProxyIsSelected = IsSelected();
+
+		const FEngineShowFlags& EngineShowFlags = ViewFamily.EngineShowFlags;
+
+		auto SetDebugMaterial = [this, &Collector, &EngineShowFlags, bProxyIsSelected](FMeshBatch& Mesh) -> void
+		{
+#if UE_ENABLE_DEBUG_DRAWING
+
+			// flag to indicate whether we've set a debug material yet
+			// Note: Will be used if we add more debug material options
+			// (compare to variable of same name in StaticMeshRender.cpp)
+			bool bDebugMaterialRenderProxySet = false;
+
+			if (!bDebugMaterialRenderProxySet && bProxyIsSelected && EngineShowFlags.VertexColors && AllowDebugViewmodes())
+			{
+				// Override the mesh's material with our material that draws the vertex colors
+				UMaterial* VertexColorVisualizationMaterial = NULL;
+				switch (GVertexColorViewMode)
+				{
+				case EVertexColorViewMode::Color:
+					VertexColorVisualizationMaterial = GEngine->VertexColorViewModeMaterial_ColorOnly;
+					break;
+
+				case EVertexColorViewMode::Alpha:
+					VertexColorVisualizationMaterial = GEngine->VertexColorViewModeMaterial_AlphaAsColor;
+					break;
+
+				case EVertexColorViewMode::Red:
+					VertexColorVisualizationMaterial = GEngine->VertexColorViewModeMaterial_RedOnly;
+					break;
+
+				case EVertexColorViewMode::Green:
+					VertexColorVisualizationMaterial = GEngine->VertexColorViewModeMaterial_GreenOnly;
+					break;
+
+				case EVertexColorViewMode::Blue:
+					VertexColorVisualizationMaterial = GEngine->VertexColorViewModeMaterial_BlueOnly;
+					break;
+				}
+				check(VertexColorVisualizationMaterial != NULL);
+
+				// Note: static mesh renderer does something more complicated involving per-section selection,
+				// but whole component selection seems ok for now
+				bool bSectionIsSelected = bProxyIsSelected;
+
+				auto VertexColorVisualizationMaterialInstance = new FColoredMaterialRenderProxy(
+					VertexColorVisualizationMaterial->GetRenderProxy(),
+					GetSelectionColor(FLinearColor::White, bSectionIsSelected, IsHovered())
+				);
+
+				Collector.RegisterOneFrameMaterialProxy(VertexColorVisualizationMaterialInstance);
+				Mesh.MaterialRenderProxy = VertexColorVisualizationMaterialInstance;
+
+				bDebugMaterialRenderProxySet = true;
+			}
+#endif
+		};
 
 		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
@@ -905,6 +962,9 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						Mesh.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
 					}
 				#endif
+
+					SetDebugMaterial(Mesh);
+
 					Collector.AddMesh(ViewIndex, Mesh);
 				}
 			}
@@ -954,6 +1014,9 @@ void FGeometryCollectionSceneProxy::GetDynamicMeshElements(const TArray<const FS
 						Mesh.BatchHitProxyId = Section.HitProxy ? Section.HitProxy->Id : FHitProxyId();
 					}
 				#endif
+
+					SetDebugMaterial(Mesh);
+
 					Collector.AddMesh(ViewIndex, Mesh);
 				}
 			}

@@ -274,8 +274,6 @@ UGeometryCollectionComponent::UGeometryCollectionComponent(const FObjectInitiali
 	GlobalNavMeshInvalidationCounter += 3;
 	NavmeshInvalidationTimeSliceIndex = GlobalNavMeshInvalidationCounter;
 
-	WorldBounds = FBoxSphereBounds(FBox(ForceInit));	
-
 	// default current cache time
 	CurrentCacheTime = MAX_flt;
 
@@ -398,6 +396,28 @@ void UGeometryCollectionComponent::GetLifetimeReplicatedProps(TArray<FLifetimePr
 	DOREPLIFETIME(UGeometryCollectionComponent, RepData);
 }
 
+namespace
+{
+void UpdateGlobalMatricesWithExplodedVectors(TArray<FMatrix>& GlobalMatricesIn, FGeometryCollection& GeometryCollection)
+{
+	int32 NumMatrices = GlobalMatricesIn.Num();
+	if (GlobalMatricesIn.Num() > 0)
+	{
+		if (GeometryCollection.HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
+		{
+			const TManagedArray<FVector3f>& ExplodedVectors = GeometryCollection.GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
+
+			check(NumMatrices == ExplodedVectors.Num());
+
+			for (int32 tt = 0, nt = NumMatrices; tt < nt; ++tt)
+			{
+				GlobalMatricesIn[tt] = GlobalMatricesIn[tt].ConcatTranslation((FVector)ExplodedVectors[tt]);
+			}
+		}
+	}
+}
+}
+
 FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWithScale) const
 {
 	FBox BoundingBox(ForceInit);
@@ -443,6 +463,7 @@ FBox UGeometryCollectionComponent::ComputeBounds(const FMatrix& LocalToWorldWith
 			}
 			else
 			{
+				UpdateGlobalMatricesWithExplodedVectors(TmpGlobalMatrices, *(RestCollection->GetGeometryCollection()));
 				for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
 				{
 					const int32 TransformIndex = TransformIndices[BoxIdx];
@@ -530,14 +551,15 @@ FBoxSphereBounds UGeometryCollectionComponent::CalcBounds(const FTransform& Loca
 		return ComponentSpaceBounds.TransformBy(LocalToWorldIn);
 	}
 
-	// non cached bounds path 
-	if (!CachePlayback && WorldBounds.GetSphere().W > 1e-5 && NumTransforms > 0)
-	{
-		return WorldBounds;
-	} 
-
 	const FMatrix LocalToWorldWithScale = LocalToWorldIn.ToMatrixWithScale();
 	return FBoxSphereBounds(ComputeBounds(LocalToWorldWithScale));
+}
+
+void UGeometryCollectionComponent::UpdateCachedBounds()
+{
+	ComponentSpaceBounds = ComputeBounds(FMatrix::Identity);
+	CalculateLocalBounds();
+	UpdateBounds();
 }
 
 void UGeometryCollectionComponent::CreateRenderState_Concurrent(FRegisterComponentContext* Context)
@@ -1199,6 +1221,16 @@ void UGeometryCollectionComponent::InitializeComponent()
 }
 
 #if WITH_EDITOR
+FDelegateHandle UGeometryCollectionComponent::RegisterOnGeometryCollectionPropertyChanged(const FOnGeometryCollectionPropertyChanged& Delegate)
+{
+	return OnGeometryCollectionPropertyChanged.Add(Delegate);
+}
+
+void UGeometryCollectionComponent::UnregisterOnGeometryCollectionPropertyChanged(FDelegateHandle Handle)
+{
+	OnGeometryCollectionPropertyChanged.Remove(Handle);
+}
+
 void UGeometryCollectionComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
@@ -1206,7 +1238,17 @@ void UGeometryCollectionComponent::PostEditChangeChainProperty(FPropertyChangedC
 	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UGeometryCollectionComponent, bShowBoneColors))
 	{
 		FScopedColorEdit EditBoneColor(this, true /*bForceUpdate*/); // the property has already changed; this will trigger the color update + render state updates
-	}					
+	}
+}
+
+void UGeometryCollectionComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	if (OnGeometryCollectionPropertyChanged.IsBound())
+	{
+		OnGeometryCollectionPropertyChanged.Broadcast();
+	}
 }
 #endif
 
@@ -3269,20 +3311,7 @@ AChaosSolverActor* UGeometryCollectionComponent::GetPhysicsSolverActor() const
 void UGeometryCollectionComponent::CalculateLocalBounds()
 {
 	LocalBounds.Init();
-	const TManagedArray<FBox>& BoundingBoxes = GetBoundingBoxArray();
-	const TManagedArray<int32>& TransformIndices = GetTransformIndexArray();
-
-	const int32 NumBoxes = BoundingBoxes.Num();
-
-	for (int32 BoxIdx = 0; BoxIdx < NumBoxes; ++BoxIdx)
-	{
-		const int32 TransformIndex = TransformIndices[BoxIdx];
-
-		if (GetRestCollection()->GetGeometryCollection()->IsGeometry(TransformIndex))
-		{
-			LocalBounds += BoundingBoxes[BoxIdx];
-		}
-	}
+	LocalBounds = ComputeBounds(FMatrix::Identity);
 }
 
 void UGeometryCollectionComponent::CalculateGlobalMatrices()
@@ -3361,20 +3390,7 @@ void UGeometryCollectionComponent::CalculateGlobalMatrices()
 	}
 	
 #if WITH_EDITOR
-	if (GlobalMatrices.Num() > 0)
-	{
-		if (RestCollection->GetGeometryCollection()->HasAttribute("ExplodedVector", FGeometryCollection::TransformGroup))
-		{
-			const TManagedArray<FVector3f>& ExplodedVectors = RestCollection->GetGeometryCollection()->GetAttribute<FVector3f>("ExplodedVector", FGeometryCollection::TransformGroup);
-
-			check(GlobalMatrices.Num() == ExplodedVectors.Num());
-
-			for (int32 tt = 0, nt = GlobalMatrices.Num(); tt < nt; ++tt)
-			{
-				GlobalMatrices[tt] = GlobalMatrices[tt].ConcatTranslation((FVector)ExplodedVectors[tt]);
-			}
-		}
-	}
+	UpdateGlobalMatricesWithExplodedVectors(GlobalMatrices, *(RestCollection->GetGeometryCollection()));
 #endif
 }
 

@@ -27,6 +27,7 @@ namespace UnrealBuildTool.Rules
 					"InteractiveToolsFramework",
 					"EditorInteractiveToolsFramework",
 					"MeshPaintingToolset",
+					"GeometryCollectionEngine",
 					"PropertyEditor",
 					"MainFrame",
 					"DesktopPlatform",
