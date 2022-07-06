@@ -1019,14 +1019,14 @@ class ENGINE_API URendererSettings : public UDeveloperSettings
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.Forward.EnableLocalLights",
 		DisplayName = "Enable local lights support on mobile forward",
-		ToolTip = "Enable local lights support with clustered lighting on mobile forward. 0 is disabled, 1 is enabled (default). Changing this setting requires restarting the editor.",
+		ToolTip = "Enable local lights support for mobile forward shading (including translucency in deferred). 0 is disabled, 1 is enabled (default). Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 		uint32 bMobileForwardEnableLocalLights : 1;
 
 	UPROPERTY(config, EditAnywhere, Category = Mobile, meta = (
 		ConsoleVariable = "r.Mobile.Forward.EnableClusteredReflections",
 		DisplayName = "Enable clustered reflections on mobile forward",
-		ToolTip = "Whether to enable clustered reflections on mobile forward, it's always supported on mobile deferred. Changing this setting requires restarting the editor.",
+		ToolTip = "Whether to enable clustered reflections on mobile forward (including translucency in deferred). Always supported for opaque geometry on mobile deferred. Changing this setting requires restarting the editor.",
 		ConfigRestartRequired = true))
 		uint32 bMobileForwardEnableClusteredReflections : 1;
 

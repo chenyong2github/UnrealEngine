@@ -13,9 +13,15 @@ int32 GMobileUseClusteredDeferredShading = 0;
 static FAutoConsoleVariableRef CVarMobileUseClusteredDeferredShading(
 	TEXT("r.Mobile.UseClusteredDeferredShading"),
 	GMobileUseClusteredDeferredShading,
-	TEXT("Toggle use of clustered deferred shading for lights that support it. 0 is off (default), 1 is on"),
+	TEXT("Toggle use of clustered deferred shading for lights that support it. 0 is off (default), 1 is on. (requires LightGrid: r.Mobile.Forward.EnableLocalLights=1)"),
 	ECVF_RenderThreadSafe
 );
+
+static bool UseClusteredDeferredShading(const FStaticShaderPlatform Platform)
+{
+	// Needs LightGrid to function
+	return GMobileUseClusteredDeferredShading != 0 && MobileForwardEnableLocalLights(Platform);
+}
 
 int32 GMobileUseLightStencilCulling = 1;
 static FAutoConsoleVariableRef CVarMobileUseLightStencilCulling(
@@ -113,7 +119,7 @@ class FMobileDirectionalLightFunctionPS : public FMaterialShader
 
 	static FPermutationDomain BuildPermutationVector(const FViewInfo& View, bool bInlineReflectionAndSky, bool bShadingModelSupport, bool bDynamicShadows, bool bSkyLight, bool bPlanarReflection)
 	{
-		bool bUseClusteredLights = GMobileUseClusteredDeferredShading != 0;
+		bool bUseClusteredLights = UseClusteredDeferredShading(View.GetShaderPlatform());
 		bool bClustredReflection = bInlineReflectionAndSky && (View.NumBoxReflectionCaptures + View.NumSphereReflectionCaptures) > 0;
 		bool bEnableSkyLight = bInlineReflectionAndSky && bSkyLight;
 		const bool bMobileUsesShadowMaskTexture = MobileUsesShadowMaskTexture(View.GetShaderPlatform());
@@ -909,8 +915,9 @@ void MobileDeferredShadingPass(
 	check(DefaultMaterial.Material);
 
 	RenderDirectionalLights(RHICmdList, Scene, View, DefaultMaterial);
-
-	if (GMobileUseClusteredDeferredShading == 0)
+	
+	const bool bMobileUseClusteredDeferredShading = UseClusteredDeferredShading(View.GetShaderPlatform());
+	if (!bMobileUseClusteredDeferredShading)
 	{
 		// Render non-clustered simple lights
 		RenderSimpleLights(RHICmdList, Scene, ViewIndex, NumViews, View, SortedLightSet, DefaultMaterial);
@@ -920,7 +927,7 @@ void MobileDeferredShadingPass(
 	int32 NumLights = SortedLightSet.SortedLights.Num();
 	const int32 UnbatchedLightStart = SortedLightSet.UnbatchedLightStart;
 	int32 StandardDeferredStart = SortedLightSet.SimpleLightsEnd;
-	if (GMobileUseClusteredDeferredShading != 0)
+	if (bMobileUseClusteredDeferredShading)
 	{
 		StandardDeferredStart = SortedLightSet.ClusteredSupportedEnd;
 	}

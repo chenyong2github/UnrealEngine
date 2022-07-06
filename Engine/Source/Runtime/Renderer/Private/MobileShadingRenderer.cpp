@@ -260,8 +260,8 @@ FMobileSceneRenderer::FMobileSceneRenderer(const FSceneViewFamily* InViewFamily,
 	bIsFullDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_AllOpaque;
 	bIsMaskedOnlyDepthPrepassEnabled = Scene->EarlyZPassMode == DDM_MaskedOnly;
 	bRequiresSceneDepthAux = MobileRequiresSceneDepthAux(ShaderPlatform);
-	bEnableClusteredLocalLights = bDeferredShading || MobileForwardEnableLocalLights(ShaderPlatform);
-	bEnableClusteredReflections = MobileEnableClusteredReflections(ShaderPlatform);
+	bEnableClusteredLocalLights = MobileForwardEnableLocalLights(ShaderPlatform);
+	bEnableClusteredReflections = MobileForwardEnableClusteredReflections(ShaderPlatform);
 	
 	StandardTranslucencyPass = ViewFamily.AllowTranslucencyAfterDOF() ? ETranslucencyPass::TPT_StandardTranslucency : ETranslucencyPass::TPT_AllTranslucency;
 	StandardTranslucencyMeshPass = TranslucencyPassToMeshPass(StandardTranslucencyPass);
@@ -595,8 +595,7 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 	{
 		Scene->IndirectLightingCache.FinalizeCacheUpdates(Scene, *this, ILCTaskData);
 	}
-
-	const bool bEnableClusteredShading = bEnableClusteredLocalLights || bEnableClusteredReflections;
+		
 	// initialize per-view uniform buffer.  Pass in shadow info as necessary.
 	for (int32 ViewIndex = Views.Num() - 1; ViewIndex >= 0; --ViewIndex)
 	{
@@ -644,7 +643,9 @@ void FMobileSceneRenderer::InitViews(FRDGBuilder& GraphBuilder, FSceneTexturesCo
 		}
 	}
 
-	if (bEnableClusteredShading)
+	if (bDeferredShading ||
+		bEnableClusteredLocalLights || 
+		bEnableClusteredReflections)
 	{
 		SetupSceneReflectionCaptureBuffer(RHICmdList);
 	}
@@ -829,18 +830,19 @@ void FMobileSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	FSortedLightSetSceneInfo& SortedLightSet = *GraphBuilder.AllocObject<FSortedLightSetSceneInfo>();
 
-	const bool bEnableClusteredShading = bEnableClusteredLocalLights || bEnableClusteredReflections;
-	if (bEnableClusteredShading)
+	if (bDeferredShading ||
+		bEnableClusteredLocalLights || 
+		bEnableClusteredReflections)
 	{
 		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, SortLights);
 		// Shadows are applied in clustered shading on mobile forward and separately on mobile deferred.
 		bool bShadowedLightsInClustered = bRequiresShadowProjections && !bDeferredShading;
 		GatherAndSortLights(SortedLightSet, bShadowedLightsInClustered);
 		int32 NumReflectionCaptures = Views[0].NumBoxReflectionCaptures + Views[0].NumSphereReflectionCaptures;
-		bool bCullLightsToGrid = ((bEnableClusteredReflections && NumReflectionCaptures > 0) || bEnableClusteredLocalLights);
+		bool bCullLightsToGrid = (((bEnableClusteredReflections || bDeferredShading) && NumReflectionCaptures > 0) || bEnableClusteredLocalLights);
 		if (bCullLightsToGrid)
 		{
-			ComputeLightGrid(GraphBuilder, true, SortedLightSet);
+			ComputeLightGrid(GraphBuilder, bEnableClusteredLocalLights, SortedLightSet);
 		}
 	}
 

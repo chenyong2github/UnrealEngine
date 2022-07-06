@@ -1158,7 +1158,8 @@ RENDERCORE_API bool SupportsTextureCubeArray(ERHIFeatureLevel::Type FeatureLevel
 {
 	return FeatureLevel >= ERHIFeatureLevel::SM5 
 		// requries ES3.2 feature set
-		|| MobileEnableClusteredReflections(GetFeatureLevelShaderPlatform(FeatureLevel));
+		|| IsMobileDeferredShadingEnabled(GetFeatureLevelShaderPlatform(FeatureLevel))
+		|| MobileForwardEnableClusteredReflections(GetFeatureLevelShaderPlatform(FeatureLevel));
 }
 
 RENDERCORE_API bool MaskedInEarlyPass(const FStaticShaderPlatform Platform)
@@ -1231,10 +1232,10 @@ RENDERCORE_API bool MobileForwardEnableLocalLights(const FStaticShaderPlatform P
 	return MobileForwardEnableLocalLightsIniValue.Get(Platform);
 }
 
-RENDERCORE_API bool MobileEnableClusteredReflections(const FStaticShaderPlatform Platform)
+RENDERCORE_API bool MobileForwardEnableClusteredReflections(const FStaticShaderPlatform Platform)
 {
 	static FShaderPlatformCachedIniValue<bool> MobileForwardEnableClusteredReflectionsIniValue(TEXT("r.Mobile.Forward.EnableClusteredReflections"));
-	return IsMobileDeferredShadingEnabled(Platform) || MobileForwardEnableClusteredReflectionsIniValue.Get(Platform);
+	return MobileForwardEnableClusteredReflectionsIniValue.Get(Platform);
 }
 
 RENDERCORE_API bool MobileUsesShadowMaskTexture(const FStaticShaderPlatform Platform)

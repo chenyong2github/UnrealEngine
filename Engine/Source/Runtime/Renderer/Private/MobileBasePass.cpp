@@ -666,9 +666,8 @@ bool FMobileBasePassMeshProcessor::Process(
 	bool bEnableLocalLights = false;
 	if (Scene && PrimitiveSceneProxy && ShadingModels.IsLit())
 	{
-		const bool bIsTranslucentMaterialOnDeferred = Scene && bTranslucentBasePass && IsMobileDeferredShadingEnabled(Scene->GetShaderPlatform());
-		// Clustered lighting could only be enabled on mobile forward and always enabled on mobile deferred translucent material
-		if (!bUsesDeferredShading && (MobileForwardEnableLocalLights(Scene->GetShaderPlatform()) || bIsTranslucentMaterialOnDeferred))
+		// Whether material with a forward shading needs clustered lights
+		if (!bUsesDeferredShading && MobileForwardEnableLocalLights(Scene->GetShaderPlatform()))
 		{
 			bEnableLocalLights = PrimitiveSceneProxy->GetPrimitiveSceneInfo()->NumMobileDynamicLocalLights > 0;
 		}
