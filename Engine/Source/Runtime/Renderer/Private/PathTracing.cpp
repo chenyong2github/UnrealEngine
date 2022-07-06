@@ -824,7 +824,225 @@ class FPathTracingBuildAtmosphereOpticalDepthLUTCS : public FGlobalShader
 };
 IMPLEMENT_SHADER_TYPE(, FPathTracingBuildAtmosphereOpticalDepthLUTCS, TEXT("/Engine/Private/PathTracing/PathTracingBuildAtmosphereLUT.usf"), TEXT("PathTracingBuildAtmosphereOpticalDepthLUTCS"), SF_Compute);
 
+// Default miss shader (using the path tracing payload)
+class FPathTracingDefaultMS : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FPathTracingDefaultMS, Global, );
+public:
 
+	FPathTracingDefaultMS() = default;
+	FPathTracingDefaultMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+	}
+};
+IMPLEMENT_SHADER_TYPE(, FPathTracingDefaultMS, TEXT("/Engine/Private/PathTracing/PathTracingMissShader.usf"), TEXT("PathTracingDefaultMS"), SF_RayMiss);
+
+FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetPathTracingDefaultMissShader(const FViewInfo& View)
+{
+	return View.ShaderMap->GetShader<FPathTracingDefaultMS>().GetRayTracingShader();
+}
+
+void FDeferredShadingSceneRenderer::SetupPathTracingDefaultMissShader(FRHICommandListImmediate& RHICmdList, const FViewInfo& View)
+{
+	int32 MissShaderPipelineIndex = FindRayTracingMissShaderIndex(View.RayTracingMaterialPipeline, GetPathTracingDefaultMissShader(View), true);
+
+	RHICmdList.SetRayTracingMissShader(View.GetRayTracingSceneChecked(),
+		RAY_TRACING_MISS_SHADER_SLOT_DEFAULT,
+		View.RayTracingMaterialPipeline,
+		MissShaderPipelineIndex,
+		0, nullptr, 0);
+}
+
+
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLightFunctionParametersPathTracing, )
+	SHADER_PARAMETER(FMatrix44f, LightFunctionTranslatedWorldToLight)
+	SHADER_PARAMETER(FVector4f, LightFunctionParameters)
+	SHADER_PARAMETER(FVector3f, LightFunctionParameters2)
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLightFunctionParametersPathTracing, "PathTracingLightFunctionParameters");
+
+static TUniformBufferRef<FLightFunctionParametersPathTracing> CreateLightFunctionParametersBuffer(
+	const FLightSceneInfo* LightSceneInfo,
+	const FSceneView& View,
+	EUniformBufferUsage Usage)
+{
+	FLightFunctionParametersPathTracing LightFunctionParameters;
+
+	const FVector Scale = LightSceneInfo->Proxy->GetLightFunctionScale();
+	// Switch x and z so that z of the user specified scale affects the distance along the light direction
+	const FVector InverseScale = FVector(1.f / Scale.Z, 1.f / Scale.Y, 1.f / Scale.X);
+	const FMatrix WorldToLight = LightSceneInfo->Proxy->GetWorldToLight() * FScaleMatrix(FVector(InverseScale));
+
+	LightFunctionParameters.LightFunctionTranslatedWorldToLight = FMatrix44f(FTranslationMatrix(-View.ViewMatrices.GetPreViewTranslation()) * WorldToLight);
+
+	const bool bIsSpotLight = LightSceneInfo->Proxy->GetLightType() == LightType_Spot;
+	const bool bIsPointLight = LightSceneInfo->Proxy->GetLightType() == LightType_Point;
+	const float TanOuterAngle = bIsSpotLight ? FMath::Tan(LightSceneInfo->Proxy->GetOuterConeAngle()) : 1.0f;
+
+	const float ShadowFadeFraction = 1.0f;
+
+	LightFunctionParameters.LightFunctionParameters = FVector4f(TanOuterAngle, ShadowFadeFraction, bIsSpotLight ? 1.0f : 0.0f, bIsPointLight ? 1.0f : 0.0f);
+
+	const bool bRenderingPreviewShadowIndicator = false;
+
+	LightFunctionParameters.LightFunctionParameters2 = FVector3f(
+		LightSceneInfo->Proxy->GetLightFunctionFadeDistance(),
+		LightSceneInfo->Proxy->GetLightFunctionDisabledBrightness(),
+		bRenderingPreviewShadowIndicator ? 1.0f : 0.0f);
+
+	return CreateUniformBufferImmediate(LightFunctionParameters, Usage);
+}
+
+// Miss Shader implementing light functions
+class FPathTracingLightingMS : public FMaterialShader
+{
+	DECLARE_SHADER_TYPE(FPathTracingLightingMS, Material);
+	LAYOUT_FIELD(FShaderUniformBufferParameter, LightMaterialsParameter);
+
+public:
+	static bool ShouldCompilePermutation(const FMaterialShaderPermutationParameters& Parameters)
+	{
+		return Parameters.MaterialParameters.MaterialDomain == MD_LightFunction && ShouldCompilePathTracingShadersForProject(Parameters.Platform);
+	}
+
+	FPathTracingLightingMS() {}
+	FPathTracingLightingMS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMaterialShader(Initializer)
+	{
+		LightMaterialsParameter.Bind(Initializer.ParameterMap, TEXT("PathTracingLightFunctionParameters"));
+	}
+
+	void GetShaderBindings(
+		const FScene* Scene,
+		ERHIFeatureLevel::Type FeatureLevel,
+		const FMaterialRenderProxy& MaterialRenderProxy,
+		const FMaterial& Material,
+		const FViewInfo& View,
+		const TUniformBufferRef<FLightFunctionParametersPathTracing>& LightFunctionParameters,
+		FMeshDrawSingleShaderBindings& ShaderBindings) const
+	{
+		FMaterialShader::GetShaderBindings(Scene, FeatureLevel, MaterialRenderProxy, Material, ShaderBindings);
+		ShaderBindings.Add(GetUniformBufferParameter<FViewUniformShaderParameters>(), View.ViewUniformBuffer);
+		ShaderBindings.Add(LightMaterialsParameter, LightFunctionParameters);
+	}
+
+	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		OutEnvironment.SetDefine(TEXT("SUPPORT_LIGHT_FUNCTION"), 1);
+		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FPathTracingLightingMS, TEXT("/Engine/Private/PathTracing/PathTracingLightingMissShader.usf"), TEXT("PathTracingLightingMS"), SF_RayMiss);
+
+
+static void BindLightFunction(
+	FRHICommandList& RHICmdList,
+	const FScene* Scene,
+	const FViewInfo& View,
+	const FMaterial& Material,
+	const FMaterialRenderProxy& MaterialRenderProxy,
+	const TUniformBufferRef<FLightFunctionParametersPathTracing>& LightFunctionParameters,
+	int32 Index
+)
+{
+	FRHIRayTracingScene* RTScene = View.GetRayTracingSceneChecked();
+	FRayTracingPipelineState* Pipeline = View.RayTracingMaterialPipeline;
+	const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+
+
+	auto Shader = MaterialShaderMap->GetShader<FPathTracingLightingMS>();
+
+	TMeshProcessorShaders<
+		FMaterialShader,
+		FMaterialShader,
+		FMaterialShader,
+		FPathTracingLightingMS,
+		FMaterialShader> RayTracingShaders;
+
+	RayTracingShaders.RayTracingShader = Shader;
+
+	FMeshDrawShaderBindings ShaderBindings;
+	ShaderBindings.Initialize(RayTracingShaders.GetUntypedShaders());
+
+	int32 DataOffset = 0;
+	FMeshDrawSingleShaderBindings SingleShaderBindings = ShaderBindings.GetSingleShaderBindings(SF_RayMiss, DataOffset);
+
+	RayTracingShaders.RayTracingShader->GetShaderBindings(Scene, Scene->GetFeatureLevel(), MaterialRenderProxy, Material, View, LightFunctionParameters, SingleShaderBindings);
+
+	int32 MissShaderPipelineIndex = FindRayTracingMissShaderIndex(View.RayTracingMaterialPipeline, Shader.GetRayTracingShader(), true);
+
+	ShaderBindings.SetRayTracingShaderBindingsForMissShader(RHICmdList, RTScene, Pipeline, MissShaderPipelineIndex, Index);
+}
+
+void BindLightFunctionShadersPathTracing(
+	FRHICommandList& RHICmdList,
+	const FScene* Scene,
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap,
+	const class FViewInfo& View)
+{
+	if (RayTracingLightFunctionMap == nullptr)
+	{
+		return;
+	}
+	for (const FRayTracingLightFunctionMap::ElementType& LightAndIndex : *RayTracingLightFunctionMap)
+	{
+		const FLightSceneInfo* LightSceneInfo = LightAndIndex.Key;
+
+		const FMaterialRenderProxy* MaterialProxy = LightSceneInfo->Proxy->GetLightFunctionMaterial();
+		check(MaterialProxy != nullptr);
+		// Catch the fallback material case
+		const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+		const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(Scene->GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
+
+		check(Material.IsLightFunction());
+
+		const FMaterialRenderProxy& MaterialRenderProxy = FallbackMaterialRenderProxyPtr ? *FallbackMaterialRenderProxyPtr : *MaterialProxy;
+
+		TUniformBufferRef<FLightFunctionParametersPathTracing> LightFunctionParameters = CreateLightFunctionParametersBuffer(LightSceneInfo, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+
+		int32 MissIndex = LightAndIndex.Value;
+		BindLightFunction(RHICmdList, Scene, View, Material, MaterialRenderProxy, LightFunctionParameters, MissIndex);
+	}
+}
+
+
+FRayTracingLightFunctionMap GatherLightFunctionLightsPathTracing(FScene* Scene, const FEngineShowFlags EngineShowFlags, ERHIFeatureLevel::Type InFeatureLevel)
+{
+	checkf(EngineShowFlags.LightFunctions, TEXT("This function should not be called if light functions are disabled"));
+	FRayTracingLightFunctionMap RayTracingLightFunctionMap;
+	for (const FLightSceneInfoCompact& Light : Scene->Lights)
+	{
+		FLightSceneInfo* LightSceneInfo = Light.LightSceneInfo;
+		auto MaterialProxy = LightSceneInfo->Proxy->GetLightFunctionMaterial();
+		if (MaterialProxy)
+		{
+			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
+			const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(InFeatureLevel, FallbackMaterialRenderProxyPtr);
+			if (Material.IsLightFunction())
+			{
+				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
+				// Getting the shader here has the side-effect of populating the raytracing miss shader library which is used when building the raytracing pipeline
+				MaterialShaderMap->GetShader<FPathTracingLightingMS>().GetRayTracingShader();
+
+				int32 Index = Scene->RayTracingScene.NumMissShaderSlots;
+				Scene->RayTracingScene.NumMissShaderSlots++;
+				RayTracingLightFunctionMap.Add(LightSceneInfo, Index);
+			}
+		}
+	}
+	return RayTracingLightFunctionMap;
+}
 
 template<bool UseAnyHitShader, bool UseIntersectionShader, bool UseSimplifiedShader>
 class TPathTracingMaterial : public FMeshMaterialShader
@@ -1365,6 +1583,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= Scene->SkyLight->bCastVolumetricShadow ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
 		DestLight.VolumetricScatteringIntensity = Scene->SkyLight->VolumetricScatteringIntensity;
 		DestLight.IESTextureSlice = -1;
+		DestLight.MissShaderIndex = 0;
 		DestLight.TranslatedBoundMin = FVector3f(-Inf, -Inf, -Inf);
 		DestLight.TranslatedBoundMax = FVector3f( Inf,  Inf,  Inf);
 		if (Scene->SkyLight->bRealTimeCaptureEnabled || CVarPathTracingVisibleLights.GetValueOnRenderThread() == 2)
@@ -1405,6 +1624,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 			DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsVolumetricShadow() ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
 			DestLight.IESTextureSlice = -1;
+			DestLight.MissShaderIndex = 0;
 
 			// these mean roughly the same thing across all light types
 			DestLight.Color = FVector3f(LightParameters.Color);
@@ -1439,6 +1659,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 	int32 NextRectTextureIndex = 0;
 
 	TMap<FTexture*, int> IESLightProfilesMap;
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
 	for (auto Light : Scene->Lights)
 	{
 		ELightComponentType LightComponentType = (ELightComponentType)Light.LightSceneInfo->Proxy->GetLightType();
@@ -1470,6 +1691,7 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsDynamicShadow() ? PATHTRACER_FLAG_CAST_SHADOW_MASK : 0;
 		DestLight.Flags |= Light.LightSceneInfo->Proxy->CastsVolumetricShadow() ? PATHTRACER_FLAG_CAST_VOL_SHADOW_MASK : 0;
 		DestLight.IESTextureSlice = -1;
+		DestLight.MissShaderIndex = 0;
 
 		if (View.Family->EngineShowFlags.TexturedLightProfiles)
 		{
@@ -1492,6 +1714,15 @@ void SetLightParameters(FRDGBuilder& GraphBuilder, FPathTracingRG::FParameters* 
 		DestLight.VolumetricScatteringIntensity = Light.LightSceneInfo->Proxy->GetVolumetricScatteringIntensity();
 		DestLight.RectLightAtlasUVOffset = 0;
 		DestLight.RectLightAtlasUVScale = 0;
+
+		if (RayTracingLightFunctionMap)
+		{
+			const int32* LightFunctionIndex = RayTracingLightFunctionMap->Find(Light.LightSceneInfo);
+			if (LightFunctionIndex)
+			{
+				DestLight.MissShaderIndex = *LightFunctionIndex;
+			}
+		}
 
 		switch (LightComponentType)
 		{
@@ -1734,6 +1965,7 @@ void FDeferredShadingSceneRenderer::RenderPathTracing(
 	Config.LightShowFlags |= View.Family->EngineShowFlags.SpotLights            ? 1 << 3 : 0;
 	Config.LightShowFlags |= View.Family->EngineShowFlags.PointLights           ? 1 << 4 : 0;
 	Config.LightShowFlags |= View.Family->EngineShowFlags.TexturedLightProfiles ? 1 << 5 : 0;
+	Config.LightShowFlags |= View.Family->EngineShowFlags.LightFunctions        ? 1 << 6 : 0;
 
 	PreparePathTracingData(Scene, View, Config.PathTracingData);
 

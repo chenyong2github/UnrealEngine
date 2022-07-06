@@ -26,6 +26,7 @@ struct FPathTracingLight {
 	float   VolumetricScatteringIntensity;  // scale for volume contributions
 	int32   IESTextureSlice;
 	uint32  Flags; // see defines PATHTRACER_FLAG_*
+	uint32  MissShaderIndex;  // used to implement light functions
 	FVector3f TranslatedBoundMin;
 	FVector3f TranslatedBoundMax;
 	uint32 RectLightAtlasUVScale;  // Rect. light atlas UV transformation, encoded as f16x2
@@ -33,7 +34,7 @@ struct FPathTracingLight {
 	// keep structure aligned
 };
 
-static_assert(sizeof(FPathTracingLight) == 128, "Path tracing light structure should be aligned to 128 bytes for optimal access on the GPU");
+static_assert(sizeof(FPathTracingLight) == 132, "Path tracing light structure should be kept as small as possible");
 
 struct FPathTracingPackedPathState {
 	uint32    PixelIndex;
@@ -83,6 +84,7 @@ struct FPathTracingLight {
 	float   VolumetricScatteringIntensity;  // scale for volume contributions
 	int     IESTextureSlice;
 	uint    Flags;
+	uint    MissShaderIndex;
 	float3  TranslatedBoundMin;
 	float3  TranslatedBoundMax;
 	uint	RectLightAtlasUVScale;

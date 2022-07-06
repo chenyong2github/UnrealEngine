@@ -1617,7 +1617,7 @@ bool FDeferredShadingSceneRenderer::SetupRayTracingPipelineStates(FRDGBuilder& G
 	return true;
 }
 
-void FDeferredShadingSceneRenderer::SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder, const FRayTracingLightFunctionMap& RayTracingLightFunctionMap)
+void FDeferredShadingSceneRenderer::SetupRayTracingLightDataForViews(FRDGBuilder& GraphBuilder)
 {
 	if (!bAnyRayTracingPassEnabled)
 	{
@@ -1640,7 +1640,7 @@ void FDeferredShadingSceneRenderer::SetupRayTracingLightDataForViews(FRDGBuilder
 		else
 		{
 			// This light data is a function of the camera position, so must be computed per view.
-			View.RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene, View, RayTracingLightFunctionMap, View.ShaderMap, NumOfSkippedRayTracingLights);
+			View.RayTracingLightDataUniformBuffer = CreateRayTracingLightData(GraphBuilder, Scene, View, View.ShaderMap, NumOfSkippedRayTracingLights);
 		}
 	}
 
@@ -1803,7 +1803,7 @@ static void ReleaseRaytracingResources(FRDGBuilder& GraphBuilder, TArrayView<FVi
 	});
 }
 
-void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer, FRayTracingLightFunctionMap& RayTracingLightFunctionMap)
+void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBuilder, FRDGBufferRef DynamicGeometryScratchBuffer)
 {
 	if (!bAnyRayTracingPassEnabled)
 	{
@@ -1838,8 +1838,9 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 	PassParams->DynamicGeometryScratchBuffer = DynamicGeometryScratchBuffer;
 	PassParams->LightDataPacked = bIsPathTracing ? nullptr : ReferenceView.RayTracingLightDataUniformBuffer; // accessed by FRayTracingLightingMS
 
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
 	GraphBuilder.AddPass(RDG_EVENT_NAME("WaitForRayTracingScene"), PassParams, ERDGPassFlags::Compute | ERDGPassFlags::NeverCull,
-		[this, PassParams, bIsPathTracing, &ReferenceView, bAnyLumenHardwareInlineRayTracingPassEnabled, RayTracingLightFunctionMap = MoveTemp(RayTracingLightFunctionMap)](FRHICommandListImmediate& RHICmdList)
+		[this, PassParams, bIsPathTracing, &ReferenceView, bAnyLumenHardwareInlineRayTracingPassEnabled, RayTracingLightFunctionMap](FRHICommandListImmediate& RHICmdList)
 	{
 		check(ReferenceView.RayTracingMaterialPipeline || ReferenceView.RayTracingMaterialBindings.Num() == 0);
 
@@ -1847,10 +1848,15 @@ void FDeferredShadingSceneRenderer::WaitForRayTracingScene(FRDGBuilder& GraphBui
 		{
 			BindRayTracingMaterialPipeline(RHICmdList, ReferenceView, ReferenceView.RayTracingMaterialPipeline);
 
-			SetupRayTracingDefaultMissShader(RHICmdList, ReferenceView);
-
-			if (!bIsPathTracing)
+			if (bIsPathTracing)
 			{
+				SetupPathTracingDefaultMissShader(RHICmdList, ReferenceView);
+
+				BindLightFunctionShadersPathTracing(RHICmdList, Scene, RayTracingLightFunctionMap, ReferenceView);
+			}
+			else
+			{
+				SetupRayTracingDefaultMissShader(RHICmdList, ReferenceView);
 				SetupRayTracingLightingMissShader(RHICmdList, ReferenceView);
 				
 				BindLightFunctionShaders(RHICmdList, Scene, RayTracingLightFunctionMap, ReferenceView);
@@ -2193,7 +2199,6 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 	// Prepare the scene for rendering this frame.
 	FRayTracingScene& RayTracingScene = Scene->RayTracingScene;
-	FRayTracingLightFunctionMap RayTracingLightFunctionMap;
 	RayTracingScene.Reset(); // Resets the internal arrays, but does not release any resources.
 
 	const int32 ReferenceViewIndex = 0;
@@ -2210,16 +2215,35 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		ReferenceView.RayTracingDecalUniformBuffer = CreateNullRayTracingDecalsUniformBuffer(GraphBuilder);
 		ReferenceView.bHasRayTracingDecals = false;
 	}
-	
-	// TODO: currently Path tracing only uses the default miss shader, but future extensions should be handled here
-	if (IsRayTracingEnabled() && !ViewFamily.EngineShowFlags.PathTracing)
-	{
-		// get the default lighting miss shader (to implicitly fill in the MissShader library before the RT pipeline is created)
-		GetRayTracingLightingMissShader(ReferenceView);
-		RayTracingScene.NumMissShaderSlots++;
 
-		// gather all the light functions that may be used (and also count how many miss shaders we will need)
-		RayTracingLightFunctionMap = GatherLightFunctionLights(Scene, ViewFamily.EngineShowFlags, ReferenceView.GetFeatureLevel());
+	if (IsRayTracingEnabled() && RHISupportsRayTracingShaders(ViewFamily.GetShaderPlatform()))
+	{
+		if (!ViewFamily.EngineShowFlags.PathTracing)
+		{
+			// get the default lighting miss shader (to implicitly fill in the MissShader library before the RT pipeline is created)
+			GetRayTracingLightingMissShader(ReferenceView);
+			RayTracingScene.NumMissShaderSlots++;
+		}
+
+		if (ViewFamily.EngineShowFlags.LightFunctions)
+		{
+			// gather all the light functions that may be used (and also count how many miss shaders we will need)
+			FRayTracingLightFunctionMap RayTracingLightFunctionMap;
+			if (ViewFamily.EngineShowFlags.PathTracing)
+			{
+				RayTracingLightFunctionMap = GatherLightFunctionLightsPathTracing(Scene, ViewFamily.EngineShowFlags, ReferenceView.GetFeatureLevel());
+			}
+			else
+			{
+				RayTracingLightFunctionMap = GatherLightFunctionLights(Scene, ViewFamily.EngineShowFlags, ReferenceView.GetFeatureLevel());
+			}
+			if (!RayTracingLightFunctionMap.IsEmpty())
+			{
+				// If we got some light functions in our map, store them in the RDG blackboard so downstream functions can use them.
+				// The map itself will be strictly read-only from this point on.
+				GraphBuilder.Blackboard.Create<FRayTracingLightFunctionMap>(MoveTemp(RayTracingLightFunctionMap));
+			}
+		}
 	}
 
 	// Asynchronously create a list of primitives relevant to ray tracing scene
@@ -2912,7 +2936,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 
 #if RHI_RAYTRACING
 	/** Should be called somewhere before "WaitForRayTracingScene" */
-	SetupRayTracingLightDataForViews(GraphBuilder, RayTracingLightFunctionMap);
+	SetupRayTracingLightDataForViews(GraphBuilder);
 #endif // RHI_RAYTRACING
 
 	// Shadows, lumen and fog after base pass
@@ -2938,7 +2962,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 		// Lumen scene lighting requires ray tracing scene to be ready if HWRT shadows are desired
 		if (!bRayTracingSceneReady && Lumen::UseHardwareRayTracedSceneLighting(ViewFamily))
 		{
-			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer, RayTracingLightFunctionMap);
+			WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
 			bRayTracingSceneReady = true;
 		}
 #endif // RHI_RAYTRACING
@@ -3028,7 +3052,7 @@ void FDeferredShadingSceneRenderer::Render(FRDGBuilder& GraphBuilder)
 	// If Lumen did not force an earlier ray tracing scene sync, we must wait for it here.
 	if (!bRayTracingSceneReady)
 	{
-		WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer, RayTracingLightFunctionMap);
+		WaitForRayTracingScene(GraphBuilder, DynamicGeometryScratchBuffer);
 		bRayTracingSceneReady = true;
 	}
 #endif // RHI_RAYTRACING

@@ -171,7 +171,6 @@ static void SetupRaytracingLightDataPacked(
 	const FScene* Scene,
 	const TArray<int32>& LightIndices,
 	const FSceneView& View,
-	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
 	FRaytracingLightDataPacked& OutLightData,
 	TArrayView<FRTLightingData>& OutLightDataArray)
 {
@@ -201,6 +200,7 @@ static void SetupRaytracingLightDataPacked(
 		OutLightData.IESLightProfileTextureSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	}
 
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap = GraphBuilder.Blackboard.Get<FRayTracingLightFunctionMap>();
 	for (auto LightIndex : LightIndices)
 	{
 		auto Light = Lights[LightIndex];
@@ -277,12 +277,15 @@ static void SetupRaytracingLightDataPacked(
 		}
 
 		// NOTE: This map will be empty if the light functions are disabled for some reason
-		const int32* LightFunctionIndex = RayTracingLightFunctionMap.Find(Light.LightSceneInfo);
-		if (LightFunctionIndex)
+		if (RayTracingLightFunctionMap)
 		{
-			check(uint32(*LightFunctionIndex) > RAY_TRACING_MISS_SHADER_SLOT_LIGHTING);
-			check(uint32(*LightFunctionIndex) < Scene->RayTracingScene.NumMissShaderSlots);
-			LightDataElement.LightMissShaderIndex = *LightFunctionIndex;
+			const int32* LightFunctionIndex = RayTracingLightFunctionMap->Find(Light.LightSceneInfo);
+			if (LightFunctionIndex)
+			{
+				check(uint32(*LightFunctionIndex) > RAY_TRACING_MISS_SHADER_SLOT_LIGHTING);
+				check(uint32(*LightFunctionIndex) < Scene->RayTracingScene.NumMissShaderSlots);
+				LightDataElement.LightMissShaderIndex = *LightFunctionIndex;
+			}
 		}
 
 		OutLightData.Count++;
@@ -310,7 +313,6 @@ TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FSceneView& View,
-	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
 	FGlobalShaderMap* ShaderMap,
 	uint32& NumOfSkippedRayTracingLights)
 {
@@ -327,7 +329,7 @@ TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	CreateRaytracingLightCullingStructure(GraphBuilder, Scene->Lights, View, ShaderMap, LightIndices, LightCullVolume, LightIndicesBuffer);
 
 	FRDGUploadData<FRTLightingData> LightDataArray(GraphBuilder, FMath::Max(LightIndices.Num(), 1));
-	SetupRaytracingLightDataPacked(GraphBuilder, Scene, LightIndices, View, RayTracingLightFunctionMap, *LightData, LightDataArray);
+	SetupRaytracingLightDataPacked(GraphBuilder, Scene, LightIndices, View, *LightData, LightDataArray);
 
 	check(LightData->Count == LightIndices.Num());
 
@@ -478,11 +480,7 @@ IMPLEMENT_MATERIAL_SHADER_TYPE(, FLightFunctionRayTracingShader, TEXT("/Engine/P
 
 FRayTracingLightFunctionMap GatherLightFunctionLights(FScene* Scene, const FEngineShowFlags EngineShowFlags, ERHIFeatureLevel::Type InFeatureLevel)
 {
-	// TODO: implement light functions in the path tracer
-	if (!EngineShowFlags.LightFunctions || EngineShowFlags.PathTracing)
-	{
-		return {};
-	}
+	checkf(EngineShowFlags.LightFunctions, TEXT("This function should not be called if light functions are disabled"));
 
 	// gives control over lighting functions in raytraced effects, independently of the show flag (for performance testing / debug)
 	if (CVarRayTracingLightFunction.GetValueOnRenderThread() == 0)
@@ -559,34 +557,18 @@ FRHIRayTracingShader* FDeferredShadingSceneRenderer::GetRayTracingLightingMissSh
 	return View.ShaderMap->GetShader<FRayTracingLightingMS>().GetRayTracingShader();
 }
 
-void PrepareLightFunctionMissShaders(
-	const TArray<FLightSceneInfo*>& LightFunctionLights,
-	const class FViewInfo& View,
-	TArray<FRHIRayTracingShader*>& OutMissShaders)
-{
-	for (const FLightSceneInfo* LightSceneInfo : LightFunctionLights)
-	{
-		auto MaterialProxy = LightSceneInfo->Proxy->GetLightFunctionMaterial();
-		if (MaterialProxy)
-		{
-			const FMaterialRenderProxy* FallbackMaterialRenderProxyPtr = nullptr;
-			const FMaterial& Material = MaterialProxy->GetMaterialWithFallback(View.GetFeatureLevel(), FallbackMaterialRenderProxyPtr);
-			if (Material.IsLightFunction())
-			{
-				const FMaterialShaderMap* MaterialShaderMap = Material.GetRenderingThreadShaderMap();
-				OutMissShaders.Add(MaterialShaderMap->GetShader<FLightFunctionRayTracingShader>().GetRayTracingShader());
-			}
-		}
-	}
-}
-
 void BindLightFunctionShaders(
 	FRHICommandList& RHICmdList,
 	const FScene* Scene,
-	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap,
 	const class FViewInfo& View)
 {
-	for (const FRayTracingLightFunctionMap::ElementType& LightAndIndex : RayTracingLightFunctionMap)
+	if (RayTracingLightFunctionMap == nullptr)
+	{
+		return;
+	}
+
+	for (const FRayTracingLightFunctionMap::ElementType& LightAndIndex : *RayTracingLightFunctionMap)
 	{
 		const FLightSceneInfo* LightSceneInfo = LightAndIndex.Key;
 

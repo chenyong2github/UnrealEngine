@@ -54,25 +54,30 @@ struct FRTLightingData
 static_assert(sizeof(FRTLightingData) == 128, "Unexpected FRTLightingData size.");
 
 using FRayTracingLightFunctionMap = TMap<const FLightSceneInfo*, int32>;
+
+// Register this in the graph builder so we can easily move it around and access it from both the main rendering thread and RDG passes
+RDG_REGISTER_BLACKBOARD_STRUCT(FRayTracingLightFunctionMap)
+
 FRayTracingLightFunctionMap GatherLightFunctionLights(FScene* Scene, const FEngineShowFlags EngineShowFlags, ERHIFeatureLevel::Type InFeatureLevel);
+FRayTracingLightFunctionMap GatherLightFunctionLightsPathTracing(FScene* Scene, const FEngineShowFlags EngineShowFlags, ERHIFeatureLevel::Type InFeatureLevel);
 
 TRDGUniformBufferRef<FRaytracingLightDataPacked> CreateRayTracingLightData(
 	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const FSceneView& View,
-	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
 	FGlobalShaderMap* ShaderMap,
 	uint32& NumOfSkippedRayTracingLights);
 
 void BindLightFunctionShaders(
 	FRHICommandList& RHICmdList,
 	const FScene* Scene,
-	const FRayTracingLightFunctionMap& RayTracingLightFunctionMap,
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap,
 	const class FViewInfo& View);
 
-void PrepareLightFunctionMissShaders(
-	const TArray<FLightSceneInfo*>& LightFunctionLights,
-	const class FViewInfo& View,
-	TArray<FRHIRayTracingShader*>& OutMissShaders);
+void BindLightFunctionShadersPathTracing(
+	FRHICommandList& RHICmdList,
+	const FScene* Scene,
+	const FRayTracingLightFunctionMap* RayTracingLightFunctionMap,
+	const class FViewInfo& View);
 
 #endif

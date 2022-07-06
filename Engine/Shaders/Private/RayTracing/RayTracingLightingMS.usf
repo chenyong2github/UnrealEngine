@@ -38,7 +38,8 @@
 #include "/Engine/Generated/Material.ush"
 
 // TODO: if we could just bind loose parameters, we could avoid this workaround for getting the shader parameters needed by the routines in LightFunctionCommon.ush
-#define LightFunctionParameters RaytracingLightFunctionParameters.LightFunctionParameters
+#define LightFunctionParameters  RaytracingLightFunctionParameters.LightFunctionParameters
+#define LightFunctionParameters2 RaytracingLightFunctionParameters.LightFunctionParameters2
 #define LightFunctionTranslatedWorldToLight RaytracingLightFunctionParameters.LightFunctionTranslatedWorldToLight
 
 #include "../LightFunctionCommon.ush"

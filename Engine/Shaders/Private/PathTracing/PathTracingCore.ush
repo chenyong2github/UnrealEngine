@@ -460,15 +460,27 @@ FPathTracingPayload TraceTransparentRay(inout FPathState PathState, bool bIsCame
 	return Payload;
 }
 
-float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRoughness, inout RandomSequence RandSequence)
+float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRoughness, uint MissShaderIndex, bool bCastShadows, inout RandomSequence RandSequence)
 {
+	if (!bCastShadows && MissShaderIndex == 0)
+	{
+		// no work to do
+		return 1.0;
+	}
+
 	const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 	const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW | (length2(Ray.Origin) < Pow2(PATH_TRACING_SKIP_HAIR_DISTANCE) ? RAY_TRACING_MASK_THIN_SHADOW : 0);
 	const uint RayContributionToHitGroupIndex = RAY_TRACING_SHADER_SLOT_SHADOW;
 	const uint MultiplierForGeometryContributionToShaderIndex = RAY_TRACING_NUM_SHADER_SLOTS;
-	const uint MissShaderIndex = 0;
 
 	FPackedPathTracingPayload PackedPayload = InitPathTracingVisibilityPayload(PixelCoord, PathRoughness);
+
+	if (!bCastShadows)
+	{
+		// ray should not cast shadows, make it degenerate so we can still run the miss shader
+		Ray.TMin = POSITIVE_INFINITY;
+		Ray.TMax = POSITIVE_INFINITY;
+	}
 
 	// Trace the ray
 	TraceRay(
@@ -483,18 +495,20 @@ float3 TraceTransparentVisibilityRay(RayDesc Ray, uint2 PixelCoord, float PathRo
 
 	if (PackedPayload.IsMiss())
 	{
-		FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
-		if (VolumeIsectList.HitBlocker())
-		{
-			// blockers are opaque -- done!
-			return 0.0;
-		}
 		float3 Throughput = PackedPayload.GetRayThroughput();
-		if (VolumeIsectList.HitVolume())
+		if (bCastShadows)
 		{
-			Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
+			FVolumeIntersectionList VolumeIsectList = VolumeIntersect(Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
+			if (VolumeIsectList.HitBlocker())
+			{
+				// blockers are opaque -- done!
+				return 0.0;
+			}
+			if (VolumeIsectList.HitVolume())
+			{
+				Throughput = VolumeGetTransmittance(Throughput, Ray.Origin, Ray.Direction, VolumeIsectList, RandSequence);
+			}
 		}
-
 		// we didn't hit any geo - just return whatever throughput is left
 		float3 Tau = PackedPayload.GetTau() * AbsorptionScale;
 		return Throughput * exp(-max(Tau, 0.0));
@@ -914,21 +928,20 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 				FPathTracingPayload VolPayload = CreateMediumHitPayload(EquiAngularT, TranslatedWorldPos, Result);
 				float4 LightRandValue = RandomSequence_GenerateSample4D(PathState.RandSequence);
 
+				const bool bCastShadows = CastsVolumeShadow(LightSampleLightId);
+				const uint MissShaderIndex = GetLightMissShaderIndex(LightSampleLightId);
 				// compute direct light sampling?
 				if (MISMode != 0)
 				{
 					FLightSample LightSample = SampleLight(LightSampleLightId, LightRandValue.xy, TranslatedWorldPos, float3(0, 0, 0));
 					if (LightSample.Pdf > 0)
 					{
-						if (CastsVolumeShadow(LightSampleLightId))
-						{
-							RayDesc LightRay;
-							LightRay.Origin = TranslatedWorldPos;
-							LightRay.TMin = 0;
-							LightRay.Direction = LightSample.Direction;
-							LightRay.TMax = LightSample.Distance;
-							LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, 1.0, PathState.RandSequence);
-						}
+						RayDesc LightRay;
+						LightRay.Origin = TranslatedWorldPos;
+						LightRay.TMin = 0;
+						LightRay.Direction = LightSample.Direction;
+						LightRay.TMax = LightSample.Distance;
+						LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, 1.0, MissShaderIndex, bCastShadows, PathState.RandSequence);
 						// #dxr_todo: Is it cheaper to fire the ray first? Or eval the material first?
 						if (any(LightSample.RadianceOverPdf > 0))
 						{
@@ -965,10 +978,7 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 								LightContrib *= MISWeightRobust(MaterialSample.Pdf, LightResult.Pdf);
 							}
 							MaterialRay.TMax = LightResult.HitT;
-							if (CastsVolumeShadow(LightSampleLightId))
-							{
-								LightContrib *= TraceTransparentVisibilityRay(MaterialRay, PathState.PixelIndex, MaterialSample.Roughness, PathState.RandSequence);
-							}
+							LightContrib *= TraceTransparentVisibilityRay(MaterialRay, PathState.PixelIndex, MaterialSample.Roughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 							AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
 						}
 					}
@@ -1089,22 +1099,21 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 			LightSample.Pdf *= LightPickPdf;
 			if (LightSample.Pdf > 0)
 			{
-				if (CastsShadow(LightId))
-				{
-					// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
-					const float SignedPositionBias = bIsTransmissiveMaterial ? sign(dot(Payload.WorldGeoNormal, LightSample.Direction)) : 1.0;
-					const bool bEnableShadowTermFix = Payload.ShadingModelID != SHADINGMODELID_HAIR && Payload.ShadingModelID != SHADINGMODELID_MEDIUM;
-					RayDesc LightRay;
-					LightRay.Origin = TranslatedWorldPos;
-					LightRay.TMin = 0;
-					LightRay.Direction = LightSample.Direction;
-					LightRay.TMax = LightSample.Distance;
-					ApplyRayBias(LightRay, Payload.HitT, SignedPositionBias * Payload.WorldGeoNormal, bEnableShadowTermFix);
+				// for transmissive materials, bias the position to the other side of the surface if the light is coming from behind
+				const float SignedPositionBias = bIsTransmissiveMaterial ? sign(dot(Payload.WorldGeoNormal, LightSample.Direction)) : 1.0;
+				const bool bEnableShadowTermFix = Payload.ShadingModelID != SHADINGMODELID_HAIR && Payload.ShadingModelID != SHADINGMODELID_MEDIUM;
+				RayDesc LightRay;
+				LightRay.Origin = TranslatedWorldPos;
+				LightRay.TMin = 0;
+				LightRay.Direction = LightSample.Direction;
+				LightRay.TMax = LightSample.Distance;
+				ApplyRayBias(LightRay, Payload.HitT, SignedPositionBias * Payload.WorldGeoNormal, bEnableShadowTermFix);
 
-					float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
+				float AvgRoughness = ApproximateCaustics ? GetAverageRoughness(Payload) : 0.0;
 
-					LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, AvgRoughness, PathState.RandSequence);
-				}
+				const bool bCastShadows = CastsShadow(LightId);
+				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
+				LightSample.RadianceOverPdf *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, AvgRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 
 				if (bIsVolumeSample)
 				{
@@ -1267,12 +1276,11 @@ bool PathTracingKernel(inout FPathState PathState, int Bounce)
 
 			if (any(LightContrib > 0))
 			{
-				if (CastsShadow(LightId))
-				{
-					RayDesc LightRay = PathState.Ray;
-					LightRay.TMax = LightResult.HitT;
-					LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, ShadowRayRoughness, PathState.RandSequence);
-				}
+				RayDesc LightRay = PathState.Ray;
+				LightRay.TMax = LightResult.HitT;
+				const bool bCastShadows = CastsShadow(LightId);
+				const uint MissShaderIndex = GetLightMissShaderIndex(LightId);
+				LightContrib *= TraceTransparentVisibilityRay(LightRay, PathState.PixelIndex, ShadowRayRoughness, MissShaderIndex, bCastShadows, PathState.RandSequence);
 				// the light made some contribution, and there was nothing along the shadow ray
 				AccumulateRadiance(PathState.Radiance, LightContrib, bIsCameraRay);
 			}

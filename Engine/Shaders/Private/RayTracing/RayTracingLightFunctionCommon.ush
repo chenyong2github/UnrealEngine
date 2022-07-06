@@ -18,12 +18,12 @@ float3 GetRayTracingLightFunction(float3 TranslatedWorldPosition)
 
 	float3 Color = GetLightFunctionColor(LightVector, TranslatedWorldPosition);
 
-	float DistanceFadeAlpha = saturate((RaytracingLightFunctionParameters.LightFunctionParameters2.x - ViewDistance) / (RaytracingLightFunctionParameters.LightFunctionParameters2.x * .2f));
+	float DistanceFadeAlpha = saturate((LightFunctionParameters2.x - ViewDistance) / (LightFunctionParameters2.x * .2f));
 	// Fade to disabled based on LightFunctionFadeDistance
-	Color = lerp(RaytracingLightFunctionParameters.LightFunctionParameters2.y, Color, DistanceFadeAlpha);
+	Color = lerp(LightFunctionParameters2.y, Color, DistanceFadeAlpha);
 
 	// Fade to disabled based on ShadowFadeFraction
-	Color = lerp(RaytracingLightFunctionParameters.LightFunctionParameters2.y, Color, LightFunctionParameters.y);
+	Color = lerp(LightFunctionParameters2.y, Color, LightFunctionParameters.y);
 
 	return Color;
 }
