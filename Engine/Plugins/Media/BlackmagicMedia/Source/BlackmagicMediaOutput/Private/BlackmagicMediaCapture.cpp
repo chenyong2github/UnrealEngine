@@ -624,6 +624,7 @@ void UBlackmagicMediaCapture::OnFrameCaptured_RenderingThread(const FCaptureBase
 		Frame.VideoHeight = Height;
 		Frame.Timecode = Timecode;
 		Frame.FrameIdentifier = InBaseData.SourceFrameNumber;
+		Frame.bEvenFrame = GFrameCounterRenderThread % 2 == 0;
 
 		bool bSent = false;
 		{
@@ -703,6 +704,7 @@ void UBlackmagicMediaCapture::OnRHIResourceCaptured_RenderingThread(const FCaptu
 		Frame.RHITexture = InTexture->GetTexture2D()->GetNativeResource();
 		Frame.Timecode = Timecode;
 		Frame.FrameIdentifier = InBaseData.SourceFrameNumber;
+		Frame.bEvenFrame = GFrameCounterRenderThread % 2 == 0;
 
 		bool bSent = false;
 		{

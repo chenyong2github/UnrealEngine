@@ -282,22 +282,23 @@ namespace BlackmagicDesign
 		virtual void OnInterlacedOddFieldEvent() = 0;
 	};
 
-	struct UEBLACKMAGICDESIGN_API FFrameDescriptor
+	struct UEBLACKMAGICDESIGN_API FBaseFrameData
+	{
+		FTimecode Timecode;
+		uint32_t FrameIdentifier = 0;
+		bool bEvenFrame = true;
+	};
+
+	struct UEBLACKMAGICDESIGN_API FFrameDescriptor : public FBaseFrameData
 	{
 		uint8_t* VideoBuffer = nullptr;
 		int32_t VideoWidth = 0;
 		int32_t VideoHeight = 0;
-
-		FTimecode Timecode;
-		uint32_t FrameIdentifier = 0;
 	};
 
-	struct UEBLACKMAGICDESIGN_API FFrameDescriptor_GPUDMA
+	struct UEBLACKMAGICDESIGN_API FFrameDescriptor_GPUDMA : public FBaseFrameData
 	{
 		void* RHITexture = nullptr;
-
-		FTimecode Timecode;
-		uint32_t FrameIdentifier = 0;
 	};
 
 	struct UEBLACKMAGICDESIGN_API FAudioSamplesDescriptor
