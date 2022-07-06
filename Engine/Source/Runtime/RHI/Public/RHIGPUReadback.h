@@ -124,5 +124,9 @@ public:
 	UE_DEPRECATED(5.0, "Use FRHIGPUTextureReadback::Lock( int32& OutRowPitchInPixels) instead.")
 	void LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels);
 
-	FTextureRHIRef DestinationStagingTexture;
+#if WITH_MGPU
+	FTextureRHIRef DestinationStagingTextures[MAX_NUM_GPUS];
+#else
+	FTextureRHIRef DestinationStagingTextures[1];
+#endif
 };
