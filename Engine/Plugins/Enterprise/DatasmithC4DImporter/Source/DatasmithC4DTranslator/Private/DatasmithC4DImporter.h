@@ -11,7 +11,6 @@
 #include "UObject/StrongObjectPtr.h"
 
 #include "DatasmithTranslator.h"
-#include "IDatasmithC4DImporter.h"
 #include "DatasmithC4DMelangeSDKEnterGuard.h"
 #include "c4d.h"
 #include "c4d_browsecontainer.h"
@@ -36,27 +35,35 @@ struct FRichCurve;
 
 DECLARE_STATS_GROUP(TEXT("C4DImporter"), STATGROUP_C4DImporter, STATCAT_Advanced);
 
+struct FDatasmithC4DImportOptions
+{
+	bool bImportEmptyMesh = false;
+	bool bOptimizeEmptySingleChildActors = false;
+	bool bAlwaysGenerateNormals = false;
+	float ScaleVertices = 1.0;
+	bool bExportToUDatasmith = false;
+};
 
-class FDatasmithC4DImporter : public IDatasmithC4DImporter
+class FDatasmithC4DImporter
 {
 public:
 	FDatasmithC4DImporter(TSharedRef<IDatasmithScene>& OutScene, FDatasmithC4DImportOptions& InOptions);
-	virtual ~FDatasmithC4DImporter();
+	~FDatasmithC4DImporter();
 
 	/** Updates the used import options to InOptions */
-	virtual void SetImportOptions(FDatasmithC4DImportOptions& InOptions) override;
+	void SetImportOptions(FDatasmithC4DImportOptions& InOptions);
 
 	/** Open and load a .4cd file into C4dDocument */
-	virtual bool OpenFile(const FString& InFilename) override;
+	bool OpenFile(const FString& InFilename);
 
 	/** Parse the scene contained in the previously opened file and process its content according to parameters from incoming context */
-	virtual bool ProcessScene() override;
+	bool ProcessScene();
 
 	/** Unload melange resources after importing */
-	virtual void UnloadScene() override;
+	void UnloadScene();
 
-	virtual void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions) override;
-	virtual TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence() override;
+	void GetGeometriesForMeshElementAndRelease(const TSharedRef<IDatasmithMeshElement> MeshElement, TArray<FMeshDescription>& OutMeshDescriptions);
+	TSharedPtr<IDatasmithLevelSequenceElement> GetLevelSequence();
 
 	/** Finds the most derived cache for a melange object. That will be e.g. a polygon cache or a deformed polygon cache, if it has one */
 	melange::BaseObject* GetBestMelangeCache(melange::BaseObject* Object);
@@ -114,15 +121,15 @@ public:
 	 * from InTextureTag, and adds the new material to the Datasmith scene. This is used because texture tags are closer to material
 	 * instances, and may have different "overrides" for each property
 	 */
-	virtual FString CustomizeMaterial(const FString& InMaterialID, const FString& InMeshID, melange::TextureTag* InTextureTag);
+	FString CustomizeMaterial(const FString& InMaterialID, const FString& InMeshID, melange::TextureTag* InTextureTag);
 
 	/**
 	 * Creates customized materials if necessary, and returns a map from material slot indices to material names
 	 */
-	virtual TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
+	TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Imports a melange actor, which might involve parsing another small hierarchy of subnodes and deformers*/
-	virtual TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
+	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Traverse the melange actor hierarchy importing all nodes */
 	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const TArray<melange::TextureTag*>& TextureTags);

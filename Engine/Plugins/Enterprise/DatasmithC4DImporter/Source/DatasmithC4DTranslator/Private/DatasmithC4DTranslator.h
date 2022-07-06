@@ -6,7 +6,6 @@
 #include "DatasmithC4DImportOptions.h"
 #include "DatasmithTranslator.h"
 #include "DatasmithC4DImporter.h"
-#include "IDatasmithC4DImporter.h"
 
 #include "CoreMinimal.h"
 
@@ -15,7 +14,7 @@ class FDatasmithC4DTranslator : public IDatasmithTranslator
 public:
 	virtual FName GetFName() const override { return "DatasmithC4DTranslator"; };
 
-#if !defined(_MELANGE_SDK_) && !defined(_CINEWARE_SDK_)
+#if !defined(_MELANGE_SDK_)
 	virtual void Initialize(FDatasmithTranslatorCapabilities& OutCapabilities) override { OutCapabilities.bIsEnabled = false; }
 #else
 
@@ -39,6 +38,6 @@ private:
 private:
 	/** -1: try load dynamic initially; 0: dynamic cannot be loaded; 1: dynamic successful loaded */
 	TStrongObjectPtr<UDatasmithC4DImportOptions> ImportOptions;
-	TSharedPtr<class IDatasmithC4DImporter> Importer;
+	TSharedPtr<FDatasmithC4DImporter> Importer;
 #endif
 };

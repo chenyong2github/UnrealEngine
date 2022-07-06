@@ -4,7 +4,6 @@
 
 #ifdef _MELANGE_SDK_
 
-#include "IDatasmithC4DImporter.h"
 #include "DatasmithC4DTranslator.h"
 #include "DatasmithC4DImporterMaterialSelector.h"
 

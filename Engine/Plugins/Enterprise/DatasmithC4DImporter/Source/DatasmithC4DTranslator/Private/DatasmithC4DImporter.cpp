@@ -3,7 +3,6 @@
 #ifdef _MELANGE_SDK_
 
 #include "DatasmithC4DImporter.h"
-#include "IDatasmithC4DImporter.h"
 
 #include "DatasmithAssetImportData.h"
 #include "DatasmithC4DExtraMelangeDefinitions.h"

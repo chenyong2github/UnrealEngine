@@ -1,7 +1,7 @@
 {
 	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
+	"Version" : 2,
+	"VersionName" : "1.1",
 	"FriendlyName" : "Datasmith C4D Importer",
 	"Description" : "Adds support for importing content from Cinema4D applications into Unreal Engine",
 	"Category" : "Importers",
@@ -30,16 +30,7 @@
 				"Win64",
 				"Mac"
 			]
-		},
-		{
-			"Name": "DatasmithC4DDynamicImporter",
-			"Type": "Editor",
-			"LoadingPhase": "PostDefault",
-			"PlatformAllowList": [
-				"Win64",
-				"Mac"
-			]
-		}
+		}		
 	],
 	"Plugins":
 	[
@@ -47,5 +38,5 @@
 			"Name": "DatasmithImporter",
 			"Enabled": true
 		}
-  ]
+	]
 }
