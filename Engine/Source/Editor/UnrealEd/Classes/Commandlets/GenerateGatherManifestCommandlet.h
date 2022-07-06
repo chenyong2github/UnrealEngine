@@ -19,5 +19,8 @@ public:
 	//~ Begin UCommandlet Interface
 	virtual int32 Main( const FString& Params ) override;
 	//~ End UCommandlet Interface
+		//~ Begin UGatherTextCommandletBase  Interface
+	virtual bool ShouldRunInPreview(const TArray<FString>& Switches, const TMap<FString, FString>& ParamVals) const override;
+	//~ End UGatherTextCommandletBase  Interface
 #endif
 };
