@@ -1607,6 +1607,7 @@ void FNiagaraGpuComputeDispatch::DispatchStage(FRDGBuilder& GraphBuilder, const 
 void FNiagaraGpuComputeDispatch::PreInitViews(FRDGBuilder& GraphBuilder, bool bAllowGPUParticleUpdate)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Niagara);
 
 	bRequiresReadback = false;
 	GNiagaraViewDataManager.ClearSceneTextureParameters();
@@ -1682,6 +1683,8 @@ void FNiagaraGpuComputeDispatch::PostInitViews(FRDGBuilder& GraphBuilder, TArray
 
 	if (bAllowGPUParticleUpdate && FNiagaraUtilities::AllowGPUParticles(GetShaderPlatform()))
 	{
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, Niagara);
+
 		ExecuteTicks(GraphBuilder, Views, ENiagaraGpuComputeTickStage::PostInitViews);
 
 	#if WITH_MGPU

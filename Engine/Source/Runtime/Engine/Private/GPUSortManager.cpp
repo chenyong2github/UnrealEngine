@@ -728,6 +728,8 @@ void FGPUSortManager::UpdateSortBuffersPool()
 
 void FGPUSortManager::OnPreRender(FRDGBuilder& GraphBuilder)
 {
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, GPUSort);
+
 	AddPass(
 		GraphBuilder,
 		RDG_EVENT_NAME("FGPUSortManager::OnPreRender"),
@@ -783,6 +785,7 @@ void FGPUSortManager::OnPreRender(FRDGBuilder& GraphBuilder)
 void FGPUSortManager::OnPostRenderOpaque(FRDGBuilder& GraphBuilder)
 {
 	LLM_SCOPE(ELLMTag::GPUSort);
+	RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, GPUSort);
 
 	AddPass(
 		GraphBuilder,

@@ -3964,7 +3964,7 @@ void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediat
 
 	{
 		FRDGBuilder GraphBuilder(RHICmdList);
-		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(PreRender);
+		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, PreRender);
 		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPreRenderView);
 
 		for (int ViewExt = 0; ViewExt < SceneRenderer->ViewFamily.ViewExtensions.Num(); ViewExt++)
