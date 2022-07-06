@@ -122,7 +122,8 @@ protected:
 	void RegisterAssetTools()
 	{
 		IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
-		LevelSequenceTypeActions = MakeShared<FLevelSequenceActions>(FLevelSequenceEditorStyle::Get());
+		EAssetTypeCategories::Type CinematicAssetCategoryBit = AssetTools.RegisterAdvancedAssetCategory(FName(TEXT("Cinematics")), LOCTEXT("CinematicsAssetCategory", "Cinematics"));
+		LevelSequenceTypeActions = MakeShared<FLevelSequenceActions>(FLevelSequenceEditorStyle::Get(), CinematicAssetCategoryBit);
 		AssetTools.RegisterAssetTypeActions(LevelSequenceTypeActions.ToSharedRef());
 	}
 

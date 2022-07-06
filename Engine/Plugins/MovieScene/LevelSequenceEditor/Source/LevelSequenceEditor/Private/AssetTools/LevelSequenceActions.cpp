@@ -12,8 +12,9 @@
 /* FLevelSequenceActions constructors
  *****************************************************************************/
 
-FLevelSequenceActions::FLevelSequenceActions( const TSharedRef<ISlateStyle>& InStyle )
+FLevelSequenceActions::FLevelSequenceActions( const TSharedRef<ISlateStyle>& InStyle, const EAssetTypeCategories::Type InCategory)
 	: Style(InStyle)
+	, AssetCategory(InCategory)
 { }
 
 
@@ -22,17 +23,7 @@ FLevelSequenceActions::FLevelSequenceActions( const TSharedRef<ISlateStyle>& InS
 
 uint32 FLevelSequenceActions::GetCategories()
 {
-	return EAssetTypeCategories::Animation;
-}
-
-
-const TArray<FText>& FLevelSequenceActions::GetSubMenus() const
-{
-	static const TArray<FText> SubMenus
-	{
-		LOCTEXT("AnimSequencerSubMenu", "Sequencer")
-	};
-	return SubMenus;
+	return AssetCategory;
 }
 
 

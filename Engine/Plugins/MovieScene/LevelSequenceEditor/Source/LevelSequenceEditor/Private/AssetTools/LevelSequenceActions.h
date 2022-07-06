@@ -6,6 +6,7 @@
 #include "Styling/ISlateStyle.h"
 #include "Toolkits/IToolkitHost.h"
 #include "AssetTypeActions_Base.h"
+#include "AssetTypeCategories.h"
 
 
 /**
@@ -21,14 +22,13 @@ public:
 	 *
 	 * @param InStyle The style set to use for asset editor toolkits.
 	 */
-	FLevelSequenceActions(const TSharedRef<ISlateStyle>& InStyle);
+	FLevelSequenceActions(const TSharedRef<ISlateStyle>& InStyle, const EAssetTypeCategories::Type InCategory);
 
 public:
 	
 	// IAssetTypeActions interface
 
 	virtual uint32 GetCategories() override;
-	virtual const TArray<FText>& GetSubMenus() const override;
 	virtual FText GetName() const override;
 	virtual UClass* GetSupportedClass() const override;
 	virtual FColor GetTypeColor() const override;
@@ -41,4 +41,6 @@ private:
 
 	/** Pointer to the style set to use for toolkits. */
 	TSharedRef<ISlateStyle> Style;
+
+	const EAssetTypeCategories::Type AssetCategory;
 };

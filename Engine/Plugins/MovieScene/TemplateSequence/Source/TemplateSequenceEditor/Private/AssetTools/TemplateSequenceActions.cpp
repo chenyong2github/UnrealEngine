@@ -8,22 +8,14 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-FTemplateSequenceActions::FTemplateSequenceActions(const TSharedRef<ISlateStyle>& InStyle)
+FTemplateSequenceActions::FTemplateSequenceActions(const TSharedRef<ISlateStyle>& InStyle, const EAssetTypeCategories::Type InAssetCategory)
 	: Style(InStyle)
+	, AssetCategory(InAssetCategory)
 { }
 
 uint32 FTemplateSequenceActions::GetCategories()
 {
-	return EAssetTypeCategories::Animation;
-}
-
-const TArray<FText>& FTemplateSequenceActions::GetSubMenus() const
-{
-	static const TArray<FText> SubMenus
-	{
-		LOCTEXT("AnimSequencerSubMenu", "Sequencer")
-	};
-	return SubMenus;
+	return AssetCategory;
 }
 
 FText FTemplateSequenceActions::GetName() const

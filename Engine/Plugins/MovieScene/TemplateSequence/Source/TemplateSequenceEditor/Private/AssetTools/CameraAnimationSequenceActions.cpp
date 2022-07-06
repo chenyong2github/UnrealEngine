@@ -7,8 +7,8 @@
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
-FCameraAnimationSequenceActions::FCameraAnimationSequenceActions(const TSharedRef<ISlateStyle>& InStyle)
-    : FTemplateSequenceActions(InStyle)
+FCameraAnimationSequenceActions::FCameraAnimationSequenceActions(const TSharedRef<ISlateStyle>& InStyle, const EAssetTypeCategories::Type InAssetCategory)
+    : FTemplateSequenceActions(InStyle, InAssetCategory)
 {
 }
 

@@ -3,12 +3,13 @@
 #pragma once
 
 #include "TemplateSequenceActions.h"
+#include "AssetTypeCategories.h"
 
 class FCameraAnimationSequenceActions : public FTemplateSequenceActions
 {
 public:
     
-    FCameraAnimationSequenceActions(const TSharedRef<ISlateStyle>& InStyle);
+    FCameraAnimationSequenceActions(const TSharedRef<ISlateStyle>& InStyle, const EAssetTypeCategories::Type InAssetCategory);
 
     virtual FText GetName() const override;
     virtual UClass* GetSupportedClass() const override;
