@@ -641,7 +641,7 @@ void UMotionControllerComponent::FViewExtension::BeginRenderViewFamily(FSceneVie
 }
 
 //=============================================================================
-void UMotionControllerComponent::FViewExtension::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void UMotionControllerComponent::FViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
 	if (!MotionControllerComponent)
 	{

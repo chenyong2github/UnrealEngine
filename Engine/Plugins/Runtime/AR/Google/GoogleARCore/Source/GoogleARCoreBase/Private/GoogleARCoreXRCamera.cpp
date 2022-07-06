@@ -5,6 +5,7 @@
 #include "SceneView.h"
 #include "GoogleARCorePassthroughCameraRenderer.h"
 #include "GoogleARCoreAndroidHelper.h"
+#include "RenderGraphUtils.h"
 
 #if PLATFORM_ANDROID
 #include <GLES2/gl2.h>
@@ -38,9 +39,9 @@ void FGoogleARCoreXRCamera::BeginRenderViewFamily(FSceneViewFamily& InViewFamily
 	FDefaultXRCamera::BeginRenderViewFamily(InViewFamily);
 }
 
-void FGoogleARCoreXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void FGoogleARCoreXRCamera::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
-	FDefaultXRCamera::PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
+	FDefaultXRCamera::PreRenderViewFamily_RenderThread(GraphBuilder, InViewFamily);
 
 	FGoogleARCoreXRTrackingSystem& TS = GoogleARCoreTrackingSystem;
 
@@ -61,7 +62,24 @@ void FGoogleARCoreXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImme
 #endif
 }
 
-void FGoogleARCoreXRCamera::PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
+BEGIN_SHADER_PARAMETER_STRUCT(FPostBasePassViewExtensionParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+void FGoogleARCoreXRCamera::PostRenderBasePassDeferred_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView, const FRenderTargetBindingSlots& RenderTargets, TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures)
+{
+	auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
+	PassParameters->RenderTargets = RenderTargets;
+	PassParameters->SceneTextures = SceneTextures;
+
+	GraphBuilder.AddPass(RDG_EVENT_NAME("RenderVideoOverlay_RenderThread"), PassParameters, ERDGPassFlags::Raster, [this, &InView](FRHICommandListImmediate& RHICmdList)
+	{
+		PassthroughRenderer->RenderVideoOverlay_RenderThread(RHICmdList, InView);
+	});
+}
+
+void FGoogleARCoreXRCamera::PostRenderBasePassMobile_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
 {
 	PassthroughRenderer->RenderVideoOverlay_RenderThread(RHICmdList, InView);
 }

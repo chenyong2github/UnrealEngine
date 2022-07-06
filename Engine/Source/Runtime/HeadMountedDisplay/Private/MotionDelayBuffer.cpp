@@ -492,7 +492,7 @@ void FMotionDelayClient::BeginRenderViewFamily(FSceneViewFamily& ViewFamily)
 }
 
 //------------------------------------------------------------------------------
-void FMotionDelayClient::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& /*RHICmdList*/, FSceneViewFamily& ViewFamily)
+void FMotionDelayClient::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 {
 	if (MotionDelayService_Impl::PostRenderCleanupId_RenderThread != ViewFamily.FrameNumber)
 	{

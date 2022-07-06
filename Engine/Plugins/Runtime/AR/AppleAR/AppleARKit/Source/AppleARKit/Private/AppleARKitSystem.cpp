@@ -24,6 +24,7 @@
 #include "Misc/FileHelper.h"
 #include "ARBlueprintLibrary.h"
 #include "ARKitGeoTrackingSupport.h"
+#include "RenderGraphBuilder.h"
 
 // For mesh occlusion
 #include "MRMeshComponent.h"
@@ -154,7 +155,7 @@ private:
 		FDefaultXRCamera::BeginRenderViewFamily(InViewFamily);
 	}
 	
-	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override
+	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) override
 	{
 		// Adjust our thread priority if requested
 		if (LastThreadPriority.GetValue() != ThreadPriority.GetValue())
@@ -162,10 +163,10 @@ private:
 			SetThreadPriority(ThreadPriority.GetValue());
 			LastThreadPriority.Set(ThreadPriority.GetValue());
 		}
-		FDefaultXRCamera::PreRenderView_RenderThread(RHICmdList, InView);
+		FDefaultXRCamera::PreRenderView_RenderThread(GraphBuilder, InView);
 	}
-	
-	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override
+
+	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) override
 	{
 		// Grab the latest frame from ARKit
 		{
@@ -173,10 +174,30 @@ private:
 			ARKitSystem.RenderThreadFrame = ARKitSystem.LastReceivedFrame;
 		}
 
-		FDefaultXRCamera::PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
+		FDefaultXRCamera::PreRenderViewFamily_RenderThread(GraphBuilder, InViewFamily);
 	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FPostBasePassViewExtensionParameters, )
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 	
-	virtual void PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override
+	virtual void PostRenderBasePassDeferred_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView, const FRenderTargetBindingSlots& RenderTargets, TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures) override
+	{
+		if (ARKitSystem.RenderThreadFrame.IsValid())
+		{
+			auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
+			PassParameters->RenderTargets = RenderTargets;
+			PassParameters->SceneTextures = SceneTextures;
+
+			GraphBuilder.AddPass(RDG_EVENT_NAME("RenderVideoOverlay_RenderThread"), PassParameters, ERDGPassFlags::Raster, [this, &InView](FRHICommandListImmediate& RHICmdList)
+			{
+				VideoOverlay.RenderVideoOverlay_RenderThread(RHICmdList, InView, *ARKitSystem.RenderThreadFrame, ARKitSystem.GetWorldToMetersScale());
+			});
+		}
+	}
+
+	virtual void PostRenderBasePassMobile_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override
 	{
 		if (ARKitSystem.RenderThreadFrame.IsValid())
 		{

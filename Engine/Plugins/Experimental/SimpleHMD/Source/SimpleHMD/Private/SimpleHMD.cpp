@@ -295,12 +295,12 @@ void FSimpleHMD::SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView)
 	InView.BaseHmdLocation = FVector(0.f);
 }
 
-void FSimpleHMD::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
+void FSimpleHMD::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
 	check(IsInRenderingThread());
 }
 
-void FSimpleHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
+void FSimpleHMD::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 {
 	check(IsInRenderingThread());
 }

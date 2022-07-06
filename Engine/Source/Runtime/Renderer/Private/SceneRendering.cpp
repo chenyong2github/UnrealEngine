@@ -3955,7 +3955,7 @@ void FSceneRenderer::UpdatePrimitiveIndirectLightingCacheBuffers()
 *
 * @param SceneRenderer	Scene renderer to use for rendering.
 */
-void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneRenderer* SceneRenderer)
+void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRDGBuilder& GraphBuilder, FSceneRenderer* SceneRenderer)
 {
 	if (SceneRenderer->ViewFamily.ViewExtensions.IsEmpty())
 	{
@@ -3963,7 +3963,6 @@ void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediat
 	}
 
 	{
-		FRDGBuilder GraphBuilder(RHICmdList);
 		{
 			RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, PreRender);
 			SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPreRenderView);
@@ -3977,11 +3976,8 @@ void FSceneRenderer::ViewExtensionPreRender_RenderThread(FRHICommandListImmediat
 				}
 			}
 		}
-		GraphBuilder.Execute();
 	}
-	
-	// update any resources that needed a deferred update
-	FDeferredUpdateResource::UpdateResources(RHICmdList);
+	check(!FDeferredUpdateResource::IsUpdateNeeded());
 }
 
 static int32 GSceneRenderCleanUpMode = 2;
@@ -4272,16 +4268,7 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 	// All renderers point to the same Scene (calling code asserts this)
 	FScene* const Scene = SceneRenderers[0]->Scene;
 
-	// We need to execute the pre-render view extensions before we do any view dependent work.
-	for (FSceneRenderer* SceneRenderer : SceneRenderers)
-	{
-		FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
-	}
-
 	FSceneRenderer::RenderThreadBegin(RHICmdList, SceneRenderers);
-
-	// update any resources that needed a deferred update
-	FDeferredUpdateResource::UpdateResources(RHICmdList);
 
 	bool bAnyShowHitProxies = false;
 
@@ -4290,9 +4277,26 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 	bool bUpdatedGPUSkinCacheVisualization = false;
 #endif
 
+	// update any resources that needed a deferred update
+	FDeferredUpdateResource::UpdateResources(RHICmdList);
+
 	for (FSceneRenderer* SceneRenderer : SceneRenderers)
 	{
+		const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
+		
 		FSceneViewFamily& ViewFamily = SceneRenderer->ViewFamily;
+
+		FRDGBuilder GraphBuilder(
+			RHICmdList,
+			RDG_EVENT_NAME("SceneRenderer_%s(ViewFamily=%s)",
+				ViewFamily.EngineShowFlags.HitProxies ? TEXT("RenderHitProxies") : TEXT("Render"),
+				ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")
+			),
+			FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel)
+		);
+
+		// We need to execute the pre-render view extensions before we do any view dependent work.
+		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, SceneRenderer);
 
 		SCOPE_CYCLE_COUNTER_VERBOSE(STAT_TotalSceneRenderingTime, ViewFamily.ProfileDescription.IsEmpty() ? nullptr : *ViewFamily.ProfileDescription);
 		const uint64 FamilyRenderStart = FPlatformTime::Cycles64();
@@ -4322,41 +4326,28 @@ static void RenderViewFamilies_RenderThread(FRHICommandListImmediate& RHICmdList
 		}
 #endif  // WITH_DEBUG_VIEW_MODES
 
-		{
-			const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
-
-			FRDGBuilder GraphBuilder(
-				RHICmdList,
-				RDG_EVENT_NAME("SceneRenderer_%s(ViewFamily=%s)",
-					ViewFamily.EngineShowFlags.HitProxies ? TEXT("RenderHitProxies") : TEXT("Render"),
-					ViewFamily.bResolveScene ? TEXT("Primary") : TEXT("Auxiliary")
-				),
-				FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel)
-			);
-
 #if WITH_MGPU
-			if (ViewFamily.bForceCopyCrossGPU)
-			{
-				GraphBuilder.EnableForceCopyCrossGPU();
-			}
+		if (ViewFamily.bForceCopyCrossGPU)
+		{
+			GraphBuilder.EnableForceCopyCrossGPU();
+		}
 #endif
 
-			if (ViewFamily.EngineShowFlags.HitProxies)
-			{
-				// Render the scene's hit proxies.
-				SceneRenderer->RenderHitProxies(GraphBuilder);
-				bAnyShowHitProxies = true;
-			}
-			else
-			{
-				// Render the scene.
-				SceneRenderer->Render(GraphBuilder);
-			}
-
-			SceneRenderer->FlushCrossGPUFences(GraphBuilder);
-
-			GraphBuilder.Execute();
+		if (ViewFamily.EngineShowFlags.HitProxies)
+		{
+			// Render the scene's hit proxies.
+			SceneRenderer->RenderHitProxies(GraphBuilder);
+			bAnyShowHitProxies = true;
 		}
+		else
+		{
+			// Render the scene.
+			SceneRenderer->Render(GraphBuilder);
+		}
+
+		SceneRenderer->FlushCrossGPUFences(GraphBuilder);
+
+		GraphBuilder.Execute();
 
 		if (SceneRenderer->ViewFamily.ProfileSceneRenderTime)
 		{
@@ -5014,109 +5005,112 @@ static uint32 ComputeScalabilityCVarHash()
 	return Ret;
 }
 
-static void DisplayInternals(FRHICommandListImmediate& RHICmdList, FViewInfo& InView)
+static void DisplayInternals(FRDGBuilder& GraphBuilder, FViewInfo& InView)
 {
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	auto Family = InView.Family;
 	// if r.DisplayInternals != 0
 	if(Family->EngineShowFlags.OnScreenDebug && Family->DisplayInternalsData.IsValid())
 	{
-		// could be 0
-		auto State = InView.ViewState;
-
-		FCanvas Canvas((FRenderTarget*)Family->RenderTarget, NULL, Family->Time, InView.GetFeatureLevel());
-		Canvas.SetRenderTargetRect(FIntRect(0, 0, Family->RenderTarget->GetSizeXY().X, Family->RenderTarget->GetSizeXY().Y));
-
-
-		FRHIRenderPassInfo RenderPassInfo(Family->RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
-		RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("DisplayInternalsRenderPass"));
-
-		// further down to not intersect with "LIGHTING NEEDS TO BE REBUILT"
-		FVector2D Pos(30, 140);
-		const int32 FontSizeY = 14;
-
-		// dark background
-		const uint32 BackgroundHeight = 30;
-		Canvas.DrawTile(Pos.X - 4, Pos.Y - 4, 500 + 8, FontSizeY * BackgroundHeight + 8, 0, 0, 1, 1, FLinearColor(0,0,0,0.6f), 0, true);
-
-		UFont* Font = GEngine->GetSmallFont();
-		FCanvasTextItem SmallTextItem( Pos, FText::GetEmpty(), GEngine->GetSmallFont(), FLinearColor::White );
-
-		SmallTextItem.SetColor(FLinearColor::White);
-		SmallTextItem.Text = FText::FromString(FString::Printf(TEXT("r.DisplayInternals = %d"), Family->DisplayInternalsData.DisplayInternalsCVarValue));
-		Canvas.DrawItem(SmallTextItem, Pos);
-		SmallTextItem.SetColor(FLinearColor::Gray);
-		Pos.Y += 2 * FontSizeY;
-
-		FViewInfo& ViewInfo = (FViewInfo&)InView;
-#define CANVAS_HEADER(txt) \
-		{ \
-			SmallTextItem.SetColor(FLinearColor::Gray); \
-			SmallTextItem.Text = FText::FromString(txt); \
-			Canvas.DrawItem(SmallTextItem, Pos); \
-			Pos.Y += FontSizeY; \
-		}
-#define CANVAS_LINE(bHighlight, txt, ... ) \
-		{ \
-			SmallTextItem.SetColor(bHighlight ? FLinearColor::Red : FLinearColor::Gray); \
-			SmallTextItem.Text = FText::FromString(FString::Printf(txt, __VA_ARGS__)); \
-			Canvas.DrawItem(SmallTextItem, Pos); \
-			Pos.Y += FontSizeY; \
-		}
-
-		CANVAS_HEADER(TEXT("command line options:"))
+		AddPass(GraphBuilder, RDG_EVENT_NAME("DisplayInternals"), [Family, &InView] (FRHICommandListImmediate& RHICmdList)
 		{
-			bool bHighlight = !(FApp::UseFixedTimeStep() && FApp::bUseFixedSeed);
-			CANVAS_LINE(bHighlight, TEXT("  -UseFixedTimeStep: %u"), FApp::UseFixedTimeStep())
-			CANVAS_LINE(bHighlight, TEXT("  -FixedSeed: %u"), FApp::bUseFixedSeed)
-			CANVAS_LINE(false, TEXT("  -gABC= (changelist): %d"), GetChangeListNumberForPerfTesting())
-		}
+			// could be 0
+			auto State = InView.ViewState;
 
-		CANVAS_HEADER(TEXT("Global:"))
-		CANVAS_LINE(false, TEXT("  FrameNumberRT: %u"), GFrameNumberRenderThread)
-		CANVAS_LINE(false, TEXT("  Scalability CVar Hash: %x (use console command \"Scalability\")"), ComputeScalabilityCVarHash())
-		//not really useful as it is non deterministic and should not be used for rendering features:  CANVAS_LINE(false, TEXT("  FrameNumberRT: %u"), GFrameNumberRenderThread)
-		CANVAS_LINE(false, TEXT("  FrameCounter: %llu"), (uint64)GFrameCounter)
-		CANVAS_LINE(false, TEXT("  rand()/SRand: %x/%x"), FMath::Rand(), FMath::GetRandSeed())
-		{
-			bool bHighlight = Family->DisplayInternalsData.NumPendingStreamingRequests != 0;
-			CANVAS_LINE(bHighlight, TEXT("  FStreamAllResourcesLatentCommand: %d"), bHighlight)
-		}
-		{
-			static auto* Var = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Streaming.FramesForFullUpdate"));
-			int32 Value = Var->GetValueOnRenderThread();
-			bool bHighlight = Value != 0;
-			CANVAS_LINE(bHighlight, TEXT("  r.Streaming.FramesForFullUpdate: %u%s"), Value, bHighlight ? TEXT(" (should be 0)") : TEXT(""));
-		}
+			FCanvas Canvas((FRenderTarget*)Family->RenderTarget, NULL, Family->Time, InView.GetFeatureLevel());
+			Canvas.SetRenderTargetRect(FIntRect(0, 0, Family->RenderTarget->GetSizeXY().X, Family->RenderTarget->GetSizeXY().Y));
 
-		if(State)
-		{
-			CANVAS_HEADER(TEXT("State:"))
-			CANVAS_LINE(false, TEXT("  TemporalAASample: %u"), State->GetCurrentTemporalAASampleIndex())
-			CANVAS_LINE(false, TEXT("  FrameIndexMod8: %u"), State->GetFrameIndex(8))
-			CANVAS_LINE(false, TEXT("  LODTransition: %.2f"), State->GetTemporalLODTransition())
-		}
 
-		CANVAS_HEADER(TEXT("Family:"))
-		CANVAS_LINE(false, TEXT("  Time (Real/World/DeltaWorld): %.2f/%.2f/%.2f"), Family->Time.GetRealTimeSeconds(), Family->Time.GetWorldTimeSeconds(), Family->Time.GetDeltaWorldTimeSeconds())
-		CANVAS_LINE(false, TEXT("  FrameNumber: %u"), Family->FrameNumber)
-		CANVAS_LINE(false, TEXT("  ExposureSettings: %s"), *Family->ExposureSettings.ToString())
-		CANVAS_LINE(false, TEXT("  GammaCorrection: %.2f"), Family->GammaCorrection)
+			FRHIRenderPassInfo RenderPassInfo(Family->RenderTarget->GetRenderTargetTexture(), ERenderTargetActions::Load_Store);
+			RHICmdList.BeginRenderPass(RenderPassInfo, TEXT("DisplayInternalsRenderPass"));
 
-		CANVAS_HEADER(TEXT("View:"))
-		CANVAS_LINE(false, TEXT("  TemporalJitter: %.2f/%.2f"), ViewInfo.TemporalJitterPixels.X, ViewInfo.TemporalJitterPixels.Y)
-		CANVAS_LINE(false, TEXT("  ViewProjectionMatrix Hash: %x"), InView.ViewMatrices.GetViewProjectionMatrix().ComputeHash())
-		CANVAS_LINE(false, TEXT("  ViewLocation: %s"), *InView.ViewLocation.ToString())
-		CANVAS_LINE(false, TEXT("  ViewRotation: %s"), *InView.ViewRotation.ToString())
-		CANVAS_LINE(false, TEXT("  ViewRect: %s"), *ViewInfo.ViewRect.ToString())
+			// further down to not intersect with "LIGHTING NEEDS TO BE REBUILT"
+			FVector2D Pos(30, 140);
+			const int32 FontSizeY = 14;
 
-		CANVAS_LINE(false, TEXT("  DynMeshElements/TranslPrim: %d/%d"), ViewInfo.DynamicMeshElements.Num(), ViewInfo.TranslucentPrimCount.NumPrims())
+			// dark background
+			const uint32 BackgroundHeight = 30;
+			Canvas.DrawTile(Pos.X - 4, Pos.Y - 4, 500 + 8, FontSizeY * BackgroundHeight + 8, 0, 0, 1, 1, FLinearColor(0,0,0,0.6f), 0, true);
 
-#undef CANVAS_LINE
-#undef CANVAS_HEADER
+			UFont* Font = GEngine->GetSmallFont();
+			FCanvasTextItem SmallTextItem( Pos, FText::GetEmpty(), GEngine->GetSmallFont(), FLinearColor::White );
 
-		RHICmdList.EndRenderPass();
-		Canvas.Flush_RenderThread(RHICmdList);
+			SmallTextItem.SetColor(FLinearColor::White);
+			SmallTextItem.Text = FText::FromString(FString::Printf(TEXT("r.DisplayInternals = %d"), Family->DisplayInternalsData.DisplayInternalsCVarValue));
+			Canvas.DrawItem(SmallTextItem, Pos);
+			SmallTextItem.SetColor(FLinearColor::Gray);
+			Pos.Y += 2 * FontSizeY;
+
+			FViewInfo& ViewInfo = (FViewInfo&)InView;
+	#define CANVAS_HEADER(txt) \
+			{ \
+				SmallTextItem.SetColor(FLinearColor::Gray); \
+				SmallTextItem.Text = FText::FromString(txt); \
+				Canvas.DrawItem(SmallTextItem, Pos); \
+				Pos.Y += FontSizeY; \
+			}
+	#define CANVAS_LINE(bHighlight, txt, ... ) \
+			{ \
+				SmallTextItem.SetColor(bHighlight ? FLinearColor::Red : FLinearColor::Gray); \
+				SmallTextItem.Text = FText::FromString(FString::Printf(txt, __VA_ARGS__)); \
+				Canvas.DrawItem(SmallTextItem, Pos); \
+				Pos.Y += FontSizeY; \
+			}
+
+			CANVAS_HEADER(TEXT("command line options:"))
+			{
+				bool bHighlight = !(FApp::UseFixedTimeStep() && FApp::bUseFixedSeed);
+				CANVAS_LINE(bHighlight, TEXT("  -UseFixedTimeStep: %u"), FApp::UseFixedTimeStep())
+				CANVAS_LINE(bHighlight, TEXT("  -FixedSeed: %u"), FApp::bUseFixedSeed)
+				CANVAS_LINE(false, TEXT("  -gABC= (changelist): %d"), GetChangeListNumberForPerfTesting())
+			}
+
+			CANVAS_HEADER(TEXT("Global:"))
+			CANVAS_LINE(false, TEXT("  FrameNumberRT: %u"), GFrameNumberRenderThread)
+			CANVAS_LINE(false, TEXT("  Scalability CVar Hash: %x (use console command \"Scalability\")"), ComputeScalabilityCVarHash())
+			//not really useful as it is non deterministic and should not be used for rendering features:  CANVAS_LINE(false, TEXT("  FrameNumberRT: %u"), GFrameNumberRenderThread)
+			CANVAS_LINE(false, TEXT("  FrameCounter: %llu"), (uint64)GFrameCounter)
+			CANVAS_LINE(false, TEXT("  rand()/SRand: %x/%x"), FMath::Rand(), FMath::GetRandSeed())
+			{
+				bool bHighlight = Family->DisplayInternalsData.NumPendingStreamingRequests != 0;
+				CANVAS_LINE(bHighlight, TEXT("  FStreamAllResourcesLatentCommand: %d"), bHighlight)
+			}
+			{
+				static auto* Var = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Streaming.FramesForFullUpdate"));
+				int32 Value = Var->GetValueOnRenderThread();
+				bool bHighlight = Value != 0;
+				CANVAS_LINE(bHighlight, TEXT("  r.Streaming.FramesForFullUpdate: %u%s"), Value, bHighlight ? TEXT(" (should be 0)") : TEXT(""));
+			}
+
+			if(State)
+			{
+				CANVAS_HEADER(TEXT("State:"))
+				CANVAS_LINE(false, TEXT("  TemporalAASample: %u"), State->GetCurrentTemporalAASampleIndex())
+				CANVAS_LINE(false, TEXT("  FrameIndexMod8: %u"), State->GetFrameIndex(8))
+				CANVAS_LINE(false, TEXT("  LODTransition: %.2f"), State->GetTemporalLODTransition())
+			}
+
+			CANVAS_HEADER(TEXT("Family:"))
+			CANVAS_LINE(false, TEXT("  Time (Real/World/DeltaWorld): %.2f/%.2f/%.2f"), Family->Time.GetRealTimeSeconds(), Family->Time.GetWorldTimeSeconds(), Family->Time.GetDeltaWorldTimeSeconds())
+			CANVAS_LINE(false, TEXT("  FrameNumber: %u"), Family->FrameNumber)
+			CANVAS_LINE(false, TEXT("  ExposureSettings: %s"), *Family->ExposureSettings.ToString())
+			CANVAS_LINE(false, TEXT("  GammaCorrection: %.2f"), Family->GammaCorrection)
+
+			CANVAS_HEADER(TEXT("View:"))
+			CANVAS_LINE(false, TEXT("  TemporalJitter: %.2f/%.2f"), ViewInfo.TemporalJitterPixels.X, ViewInfo.TemporalJitterPixels.Y)
+			CANVAS_LINE(false, TEXT("  ViewProjectionMatrix Hash: %x"), InView.ViewMatrices.GetViewProjectionMatrix().ComputeHash())
+			CANVAS_LINE(false, TEXT("  ViewLocation: %s"), *InView.ViewLocation.ToString())
+			CANVAS_LINE(false, TEXT("  ViewRotation: %s"), *InView.ViewRotation.ToString())
+			CANVAS_LINE(false, TEXT("  ViewRect: %s"), *ViewInfo.ViewRect.ToString())
+
+			CANVAS_LINE(false, TEXT("  DynMeshElements/TranslPrim: %d/%d"), ViewInfo.DynamicMeshElements.Num(), ViewInfo.TranslucentPrimCount.NumPrims())
+
+	#undef CANVAS_LINE
+	#undef CANVAS_HEADER
+
+			RHICmdList.EndRenderPass();
+			Canvas.Flush_RenderThread(RHICmdList);
+		});
 	}
 #endif
 
@@ -5130,13 +5124,13 @@ TSharedRef<ISceneViewExtension, ESPMode::ThreadSafe> GetRendererViewExtension()
 		virtual void SetupViewFamily(FSceneViewFamily& InViewFamily) {}
 		virtual void SetupView(FSceneViewFamily& InViewFamily, FSceneView& InView) {}
 		virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) {}
-		virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
-		virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
+		virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) {}
+		virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) {}
 		virtual int32 GetPriority() const { return 0; }
-		virtual void PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
+		virtual void PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 		{
 			FViewInfo& View = static_cast<FViewInfo&>(InView);
-			DisplayInternals(RHICmdList, View);
+			DisplayInternals(GraphBuilder, View);
 		}
 	};
 	TSharedRef<FRendererViewExtension, ESPMode::ThreadSafe> ref(new FRendererViewExtension);

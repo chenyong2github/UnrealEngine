@@ -280,6 +280,11 @@ public:
 		bNeedsUpdate = true;
 	}
 
+	static bool IsUpdateNeeded()
+	{
+		return bNeedsUpdate;
+	}
+
 protected:
 
 	/**

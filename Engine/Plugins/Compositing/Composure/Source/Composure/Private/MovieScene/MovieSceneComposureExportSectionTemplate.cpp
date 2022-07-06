@@ -61,8 +61,8 @@ private:
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) override {}
-	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) override {}
-	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) override {}
+	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& RHICmdList, FSceneViewFamily& InViewFamily) override {}
+	virtual void PreRenderView_RenderThread(FRDGBuilder& RHICmdList, FSceneView& InView) override {}
 
 	/** Makes a new endpoint for an image pixel pipe that just forwards the pixels onto the capture protocol */
 	static TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FCapturedPixelsID& BufferID, const FFrameMetrics& CurrentFrameMetrics);

@@ -397,6 +397,7 @@ static void UpdateWaterInfoRendering_RenderThread(
 	FScopedLandscapeLODOverride ScopedLandscapeLODOverride(Params);
 
 	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
+	FDeferredUpdateResource::UpdateResources(RHICmdList);
 
 	FRenderTarget* RenderTarget = Params.RenderTarget;
 	FTexture* OutputTexture = Params.OutputTexture;
@@ -408,16 +409,14 @@ static void UpdateWaterInfoRendering_RenderThread(
 	{
 		FSceneRenderer* DepthRenderer = Params.DepthRenderer;
 
-		// We need to execute the pre-render view extensions before we do any view dependent work.
-		FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, DepthRenderer);
-
 		DepthRenderer->RenderThreadBegin(RHICmdList);
-		
-		FDeferredUpdateResource::UpdateResources(RHICmdList);
-		
+
 		SCOPED_DRAW_EVENT(RHICmdList, DepthRendering_RT);
-		
+
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
+
+		// We need to execute the pre-render view extensions before we do any view dependent work.
+		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, DepthRenderer);
 		
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterDepthTarget"));
 
@@ -466,16 +465,17 @@ static void UpdateWaterInfoRendering_RenderThread(
 	{
 		FSceneRenderer* ColorRenderer = Params.ColorRenderer;
 
-		// We need to execute the pre-render view extensions before we do any view dependent work.
-		FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, ColorRenderer);
-
 		ColorRenderer->RenderThreadBegin(RHICmdList);
-		SetWaterBodiesWithinWaterInfoPass(ColorRenderer, EWaterInfoPass::Color);
-		
+
 		SCOPED_DRAW_EVENT(RHICmdList, ColorRendering_RT);
-		
+
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
 
+		// We need to execute the pre-render view extensions before we do any view dependent work.
+		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, ColorRenderer);
+
+		SetWaterBodiesWithinWaterInfoPass(ColorRenderer, EWaterInfoPass::Color);
+		
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterColorTarget"));
 
 		FRDGTextureDesc ColorTextureDesc(TargetTexture->Desc);
@@ -520,15 +520,17 @@ static void UpdateWaterInfoRendering_RenderThread(
 	{
 		FSceneRenderer* DilationRenderer = Params.DilationRenderer;
 
-		// We need to execute the pre-render view extensions before we do any view dependent work.
-		FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, DilationRenderer);
-
 		DilationRenderer->RenderThreadBegin(RHICmdList);
-		SetWaterBodiesWithinWaterInfoPass(DilationRenderer, EWaterInfoPass::Dilation);
 
 		SCOPED_DRAW_EVENT(RHICmdList, DilationRendering_RT);
-		
+
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("WaterInfoColorRendering"), ERDGBuilderFlags::AllowParallelExecute);
+
+		// We need to execute the pre-render view extensions before we do any view dependent work.
+		FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, DilationRenderer);
+
+		SetWaterBodiesWithinWaterInfoPass(DilationRenderer, EWaterInfoPass::Dilation);
+
 		FRDGTextureRef TargetTexture = RegisterExternalTexture(GraphBuilder, RenderTarget->GetRenderTargetTexture(), TEXT("WaterDilationTarget"));
 
 		FRDGTextureRef DepthTexture = GraphBuilder.RegisterExternalTexture(ExtractedDepthTexture);

@@ -473,18 +473,19 @@ void CaptureSceneToScratchCubemap(
 	const FLinearColor& LowerHemisphereColor,
 	bool bCapturingForMobile)
 {
-	// We need to execute the pre-render view extensions before we do any view dependent work.
-	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
-
 	SceneRenderer->RenderThreadBegin(RHICmdList);
-
-	// update any resources that needed a deferred update
-	FDeferredUpdateResource::UpdateResources(RHICmdList);
-	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
 
+	// update any resources that needed a deferred update
+	FDeferredUpdateResource::UpdateResources(RHICmdList);
+
 	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("CubeMapCapture"), FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel));
+
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, SceneRenderer);
+
+	FMaterialRenderProxy::UpdateDeferredCachedUniformExpressions();
 
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "CubeMapCapture");

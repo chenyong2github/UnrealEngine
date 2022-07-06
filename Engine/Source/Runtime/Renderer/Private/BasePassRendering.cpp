@@ -709,11 +709,6 @@ static void ClearGBufferAtMaxZ(
 	}
 }
 
-BEGIN_SHADER_PARAMETER_STRUCT(FPostBasePassViewExtensionParameters, )
-	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
-	RENDER_TARGET_BINDING_SLOTS()
-END_SHADER_PARAMETER_STRUCT()
-
 void FDeferredShadingSceneRenderer::RenderBasePass(
 	FRDGBuilder& GraphBuilder,
 	FSceneTextures& SceneTextures,
@@ -904,30 +899,12 @@ void FDeferredShadingSceneRenderer::RenderBasePass(
 	RenderBasePassInternal(GraphBuilder, SceneTextures, BasePassRenderTargets, BasePassDepthStencilAccess, ForwardBasePassTextures, DBufferTextures, bDoParallelBasePass, bRenderLightmapDensity, InstanceCullingManager, bNaniteEnabled, NaniteRasterResults);
 	GraphBuilder.SetCommandListStat(GET_STATID(STAT_CLM_AfterBasePass));
 
-	if (ViewFamily.ViewExtensions.Num() > 0)
+	for (const TSharedRef<ISceneViewExtension>& ViewExtension : ViewFamily.ViewExtensions)
 	{
-		SCOPE_CYCLE_COUNTER(STAT_FDeferredShadingSceneRenderer_ViewExtensionPostRenderBasePass);
-		RDG_CSV_STAT_EXCLUSIVE_SCOPE(GraphBuilder, ViewExtensions);
-		RDG_EVENT_SCOPE(GraphBuilder, "BasePass_ViewExtensions");
-		auto* PassParameters = GraphBuilder.AllocParameters<FPostBasePassViewExtensionParameters>();
-		PassParameters->RenderTargets = BasePassRenderTargets;
-		PassParameters->SceneTextures = CreateSceneTextureUniformBuffer(GraphBuilder, &GetActiveSceneTextures(), FeatureLevel, ESceneTextureSetupMode::None);
-
-		GraphBuilder.AddPass(
-			{},
-			PassParameters,
-			ERDGPassFlags::Raster,
-			[this](FRHICommandListImmediate& RHICmdList)
+		for (FViewInfo& View : Views)
 		{
-			for (auto& ViewExtension : ViewFamily.ViewExtensions)
-			{
-				for (FViewInfo& View : Views)
-				{
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-					ViewExtension->PostRenderBasePass_RenderThread(RHICmdList, View);
-				}
-			}
-		});
+			ViewExtension->PostRenderBasePassDeferred_RenderThread(GraphBuilder, View, BasePassRenderTargets, SceneTextures.UniformBuffer);
+		}
 	}
 
 	if (bRequiresFarZQuadClear)

@@ -103,7 +103,7 @@ void FDefaultXRCamera::CalculateStereoCameraOffset(const int32 ViewIndex, FRotat
 	}
 }
 
-void FDefaultXRCamera::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& View)
+void FDefaultXRCamera::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& View)
 {
 	check(IsInRenderingThread());
 
@@ -153,7 +153,7 @@ void FDefaultXRCamera::BeginRenderViewFamily(FSceneViewFamily& InViewFamily)
 	TrackingSystem->OnBeginRendering_GameThread();
 }
 
-void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
+void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 {
 	check(IsInRenderingThread());
 
@@ -163,7 +163,7 @@ void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate
 		TrackingSystem->RefreshPoses();
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
-	TrackingSystem->OnBeginRendering_RenderThread(RHICmdList, ViewFamily);
+	TrackingSystem->OnBeginRendering_RenderThread(GraphBuilder.RHICmdList, ViewFamily);
 
 	{
 		FQuat CurrentOrientation;
@@ -180,7 +180,7 @@ void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate
 			const FTransform CurrentRelativeTransform(CurrentOrientation, CurrentPosition);
 
 			LateUpdate.Apply_RenderThread(ViewFamily.Scene, OldRelativeTransform, CurrentRelativeTransform);
-			TrackingSystem->OnLateUpdateApplied_RenderThread(RHICmdList, CurrentRelativeTransform);
+			TrackingSystem->OnLateUpdateApplied_RenderThread(GraphBuilder.RHICmdList, CurrentRelativeTransform);
 
 			{
 				// Backwards compatibility during deprecation phase. Remove once IHeadMountedDisplay::BeginRendering_RenderThread has been removed.
@@ -188,7 +188,7 @@ void FDefaultXRCamera::PreRenderViewFamily_RenderThread(FRHICommandListImmediate
 					auto HMD = TrackingSystem->GetHMDDevice();
 				if (HMD)
 				{
-					HMD->BeginRendering_RenderThread(CurrentRelativeTransform, RHICmdList, ViewFamily);
+					HMD->BeginRendering_RenderThread(CurrentRelativeTransform, GraphBuilder.RHICmdList, ViewFamily);
 				}
 				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}

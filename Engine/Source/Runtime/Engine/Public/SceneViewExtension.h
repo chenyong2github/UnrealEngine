@@ -76,6 +76,8 @@
  *
  */
 
+#include "SceneTexturesConfig.h"
+
 class APlayerController;
 class FRHICommandListImmediate;
 class FSceneView;
@@ -141,19 +143,22 @@ public:
     /**
      * Called on render thread at the start of rendering.
      */
-	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {};
-	virtual ENGINE_API void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily);
+	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) {}
 
 	/**
      * Called on render thread at the start of rendering, for each view, after PreRenderViewFamily_RenderThread call.
-     */
-	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {};
-	virtual ENGINE_API void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView);
+	 */
+	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) {}
 
 	/**
-	 * Called right after Base Pass rendering finished
+	 * Called right after Base Pass rendering finished when using the deferred renderer.
 	 */
-	virtual void PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {};
+	virtual void PostRenderBasePassDeferred_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView, const FRenderTargetBindingSlots& RenderTargets, TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTextures) {}
+
+	/**
+	 * Called right after Base Pass rendering finished when using the mobile renderer.
+	 */
+	virtual void PostRenderBasePassMobile_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
 
 	/**
 	 * Called right before Post Processing rendering begins
@@ -168,14 +173,12 @@ public:
 	/**
 	 * Allows to render content after the 3D content scene, useful for debugging
 	 */
-	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
-	virtual ENGINE_API void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily);
+	virtual void PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) {}
 
 	/**
 	 * Allows to render content after the 3D content scene, useful for debugging
 	 */
-	virtual void PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
-	virtual ENGINE_API void PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView);
+	virtual void PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) {}
 
 	/**
      * Called to determine view extensions priority in relation to other view extensions, higher comes first
@@ -183,21 +186,30 @@ public:
 	virtual int32 GetPriority() const { return 0; }
 
 	/**
-	 * Returning false disables the extension for the current frame. This will be queried each frame to determine if the extension wants to run.
-	 */
-	UE_DEPRECATED(4.27, "Deprecated. Please use IsActiveThisFrame by passing an FSceneViewExtensionContext parameter")
-	virtual bool IsActiveThisFrame(class FViewport* InViewport) const { return true; }
-
-	/**
 	 * Returning false disables the extension for the current frame in the given context. This will be queried each frame to determine if the extension wants to run.
 	 */
 	virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const { return IsActiveThisFrame_Internal(Context); }
 
-	/**
-     * Returning false disables the extension for the current frame in the given context. This will be queried each frame to determine if the extension wants to run.
-     */
-	UE_DEPRECATED(4.27, "Deprecated. Please use IsActiveThisFrame_Internal instead.")
-	virtual bool IsActiveThisFrameInContext(FSceneViewExtensionContext& Context) const { return IsActiveThisFrame(Context); }
+	///////////////////////////////////////////////////////////////////////////////////////
+	//! Deprecated APIs - These are no longer called and must be converted to restore functionality.
+
+	UE_DEPRECATED(5.1, "Use PreRenderViewFamily_RenderThread with an RDG builder instead. RHI commands can be enqueued directly using GraphBuilder.RHICmdList or queued onto the graph.")
+	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
+
+	UE_DEPRECATED(5.1, "Use PreRenderView_RenderThread with an RDG builder instead. RHI commands can be enqueued directly using GraphBuilder.RHICmdList or queued onto the graph.")
+	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {};
+
+	UE_DEPRECATED(5.1, "Use PostRePostRenderView_RenderThreadnderViewFamily_RenderThread with an RDG builder instead. RHI commands can be enqueued directly using GraphBuilder.RHICmdList or queued onto the graph.")
+	virtual void PostRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
+
+	UE_DEPRECATED(5.1, "Use PostRenderViewFamily_RenderThread with an RDG builder instead. RHI commands can be enqueued directly using GraphBuilder.RHICmdList or queued onto the graph.")
+	virtual void PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
+
+	UE_DEPRECATED(5.1, "PostRenderBasePass now has a mobile and deferred variant.")
+	virtual void PostRenderBasePass_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {};
+
+	///////////////////////////////////////////////////////////////////////////////////////
+
 protected:
 	/**
 	 * Called if no IsActive functors returned a definitive answer to whether this extension should be active this frame.
@@ -230,9 +242,6 @@ public:
 
 	// Determines if the extension should be active for the current frame and given context.
 	virtual bool IsActiveThisFrame(const FSceneViewExtensionContext& Context) const override final;
-protected:
-	// Temporary override so that old behaviour still functions. Will be removed along with IsActiveThisFrame(FViewport*).
-	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext& Context) const override;
 };
 
 /** Scene View Extension which is enabled for all Viewports/Scenes which have the same world. */

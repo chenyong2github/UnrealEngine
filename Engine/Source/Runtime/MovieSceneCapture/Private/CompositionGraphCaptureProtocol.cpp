@@ -126,8 +126,8 @@ struct FFrameCaptureViewExtension : public FSceneViewExtensionBase
 	}
 
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) {}
-	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
-	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
+	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) {}
+	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) {}
 
 	virtual bool IsActiveThisFrame_Internal(const FSceneViewExtensionContext&) const override { return IsEnabled(); }
 

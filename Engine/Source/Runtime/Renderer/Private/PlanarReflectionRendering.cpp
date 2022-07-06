@@ -276,10 +276,16 @@ static void UpdatePlanarReflectionContents_RenderThread(
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
 
-	// We need to execute the pre-render view extensions before we do any view dependent work.
-	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
-
 	SceneRenderer->RenderThreadBegin(RHICmdList);
+
+	// update any resources that needed a deferred update
+	FDeferredUpdateResource::UpdateResources(RHICmdList);
+
+	const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
+	FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"), FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel));
+
+	// We need to execute the pre-render view extensions before we do any view dependent work.
+	FSceneRenderer::ViewExtensionPreRender_RenderThread(GraphBuilder, SceneRenderer);
 
 	// Make sure we render to the same set of GPUs as the main scene renderer.
 	if (MainSceneRenderer->ViewFamily.RenderTarget != nullptr)
@@ -344,20 +350,14 @@ static void UpdatePlanarReflectionContents_RenderThread(
 
 		if (bIsVisibleInAnyView)
 		{
-			// update any resources that needed a deferred update
-			FDeferredUpdateResource::UpdateResources(RHICmdList);
-
 			{
 #if WANTS_DRAW_MESH_EVENTS
 				FString EventName;
 				OwnerName.ToString(EventName);
-				SCOPED_DRAW_EVENTF(RHICmdList, SceneCapture, TEXT("PlanarReflection %s"), *EventName);
+				RDG_EVENT_SCOPE(GraphBuilder, "PlanarReflection %s", *EventName);
 #else
-				SCOPED_DRAW_EVENT(RHICmdList, UpdatePlanarReflectionContent_RenderThread);
+				RDG_EVENT_SCOPE(GraphBuilder, "UpdatePlanarReflectionContent_RenderThread");
 #endif
-				const ERHIFeatureLevel::Type FeatureLevel = SceneRenderer->FeatureLevel;
-				FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("PlanarReflection"), FSceneRenderer::GetRDGParalelExecuteFlags(FeatureLevel));
-
 				// Reflection view late update
 				if (SceneRenderer->Views.Num() > 1)
 				{
@@ -406,11 +406,11 @@ static void UpdatePlanarReflectionContents_RenderThread(
 						PrefilterPlanarReflection<false>(GraphBuilder, View, SceneTextureParameters, SceneProxy, SceneTextures.Color.Resolve, ReflectionOutputTexture);
 					}
 				}
-
-				GraphBuilder.Execute();
 			}
 		}
 	}
+
+	GraphBuilder.Execute();
 
 	SceneRenderer->RenderThreadEnd(RHICmdList);
 }
@@ -426,9 +426,6 @@ static void UpdatePlanarReflectionContentsWithoutRendering_RenderThread(
 	const FName OwnerName)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
-
-	// We need to execute the pre-render view extensions before we do any view dependent work.
-	FSceneRenderer::ViewExtensionPreRender_RenderThread(RHICmdList, SceneRenderer);
 
 	SceneRenderer->RenderThreadBegin(RHICmdList);
 

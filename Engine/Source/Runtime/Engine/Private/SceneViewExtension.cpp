@@ -2,6 +2,7 @@
 
 #include "SceneViewExtension.h"
 #include "RenderGraphUtils.h"
+#include "SceneTexturesConfig.h"
 
 //
 // FSceneViewExtensionBase
@@ -11,14 +12,6 @@ FSceneViewExtensionBase::~FSceneViewExtensionBase()
 {
 	// The engine stores view extensions by TWeakPtr<ISceneViewExtension>,
 	// so they will be automatically unregistered when removed.
-}
-
-// Temporary override so that old behaviour still functions. Will be removed along with IsActiveThisFrame(FViewport*).
-bool FSceneViewExtensionBase::IsActiveThisFrame_Internal(const FSceneViewExtensionContext & Context) const
-{
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	return ISceneViewExtension::IsActiveThisFrame(Context.Viewport);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 bool FSceneViewExtensionBase::IsActiveThisFrame(const FSceneViewExtensionContext& Context) const
@@ -37,38 +30,6 @@ bool FSceneViewExtensionBase::IsActiveThisFrame(const FSceneViewExtensionContext
 
 	// Fall back to the validation based on the viewport.
 	return IsActiveThisFrame_Internal(Context);
-}
-
-void ISceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("PreRenderViewFamily_RenderThread"), [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
-	{
-		PreRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
-	});
-}
-
-void ISceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("PreRenderView_RenderThread"), [this, &InView](FRHICommandListImmediate& RHICmdList)
-	{
-		PreRenderView_RenderThread(RHICmdList, InView);
-	});
-}
-
-void ISceneViewExtension::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("PostRenderViewFamily_RenderThread"), [this, &InViewFamily](FRHICommandListImmediate& RHICmdList)
-	{
-		PostRenderViewFamily_RenderThread(RHICmdList, InViewFamily);
-	});
-}
-
-void ISceneViewExtension::PostRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
-{
-	AddPass(GraphBuilder, RDG_EVENT_NAME("PostRenderView_RenderThread"), [this, &InView](FRHICommandListImmediate& RHICmdList)
-	{
-		PostRenderView_RenderThread(RHICmdList, InView);
-	});
 }
 
 //

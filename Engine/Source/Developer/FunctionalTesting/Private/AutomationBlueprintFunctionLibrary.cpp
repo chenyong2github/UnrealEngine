@@ -226,8 +226,8 @@ public:
 		}
 
 	virtual void BeginRenderViewFamily(FSceneViewFamily& InViewFamily) {}
-	virtual void PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily) {}
-	virtual void PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView) {}
+	virtual void PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily) {}
+	virtual void PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView) {}
 
 	/** We always want to go last. */
 	virtual int32 GetPriority() const override { return MIN_int32; }

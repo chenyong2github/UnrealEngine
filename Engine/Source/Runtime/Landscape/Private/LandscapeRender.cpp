@@ -965,7 +965,7 @@ FLandscapeSceneViewExtension::~FLandscapeSceneViewExtension()
 	FCoreDelegates::OnEndFrameRT.RemoveAll(this);
 }
 
-void FLandscapeSceneViewExtension::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void FLandscapeSceneViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
 	for (auto& Pair : LandscapeRenderSystems)
 	{
@@ -974,7 +974,7 @@ void FLandscapeSceneViewExtension::PreRenderViewFamily_RenderThread(FRHICommandL
 	}
 }
 
-void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
+void FLandscapeSceneViewExtension::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 {
 	FShaderResourceViewRHIRef LODDataSRV;
 	FShaderResourceViewRHIRef IndirectionSRV;

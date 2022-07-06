@@ -34,7 +34,7 @@ void FWaterViewExtension::SetupViewFamily(FSceneViewFamily& InViewFamily)
 	}
 }
 
-void FWaterViewExtension::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+void FWaterViewExtension::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 {
 }
 

@@ -1915,7 +1915,7 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::PreRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& ViewFamily)
+	void FOculusHMD::PreRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& ViewFamily)
 	{
 		CheckInRenderThread();
 
@@ -1979,16 +1979,16 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::PreRenderView_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneView& InView)
+	void FOculusHMD::PreRenderView_RenderThread(FRDGBuilder& GraphBuilder, FSceneView& InView)
 	{
 	}
 
 
-	void FOculusHMD::PostRenderViewFamily_RenderThread(FRHICommandListImmediate& RHICmdList, FSceneViewFamily& InViewFamily)
+	void FOculusHMD::PostRenderViewFamily_RenderThread(FRDGBuilder& GraphBuilder, FSceneViewFamily& InViewFamily)
 	{
 		CheckInRenderThread();
 
-		FinishRenderFrame_RenderThread(RHICmdList);
+		FinishRenderFrame_RenderThread(GraphBuilder);
 	}
 
 
@@ -3431,7 +3431,7 @@ namespace OculusHMD
 	}
 
 
-	void FOculusHMD::FinishRenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
+	void FOculusHMD::FinishRenderFrame_RenderThread(FRDGBuilder& GraphBuilder)
 	{
 		CheckInRenderThread();
 
@@ -3439,30 +3439,32 @@ namespace OculusHMD
 		{
 			UE_LOG(LogHMD, VeryVerbose, TEXT("FinishRenderFrame %u"), Frame_RenderThread->FrameNumber);
 
-			if (Frame_RenderThread->ShowFlags.Rendering)
+			AddPass(GraphBuilder, RDG_EVENT_NAME("FinishRenderFrame"), [this](FRHICommandListImmediate& RHICmdList)
 			{
-				for (int32 LayerIndex = 0; LayerIndex < Layers_RenderThread.Num(); LayerIndex++)
+				if (Frame_RenderThread->ShowFlags.Rendering)
 				{
-					Layers_RenderThread[LayerIndex]->UpdateTexture_RenderThread(CustomPresent, RHICmdList);
-				}
-			}
-
-			if (GRHISupportsLateVariableRateShadingUpdate && CVarOculusEnableLowLatencyVRS.GetValueOnAnyThread() == 1)
-			{
-				// late-update foveation if supported and needed
-				ExecuteOnRHIThread_DoNotWait([this]()
-				{
-					ovrpResult Result;
-					if (Frame_RHIThread && OVRP_FAILURE(Result = FOculusHMDModule::GetPluginWrapper().UpdateFoveation(Frame_RHIThread->FrameNumber)))
+					for (int32 LayerIndex = 0; LayerIndex < Layers_RenderThread.Num(); LayerIndex++)
 					{
-						UE_LOG(LogHMD, Error, TEXT("FOculusHMDModule::GetPluginWrapper().UpdateFoveation %u failed (%d)"), Frame_RHIThread->FrameNumber, Result);
+						Layers_RenderThread[LayerIndex]->UpdateTexture_RenderThread(CustomPresent, RHICmdList);
 					}
-				});
-			}
+				}
 
+				if (GRHISupportsLateVariableRateShadingUpdate && CVarOculusEnableLowLatencyVRS.GetValueOnAnyThread() == 1)
+				{
+					// late-update foveation if supported and needed
+					RHICmdList.EnqueueLambda([this](FRHICommandListImmediate&)
+					{
+						ovrpResult Result;
+						if (Frame_RHIThread && OVRP_FAILURE(Result = FOculusHMDModule::GetPluginWrapper().UpdateFoveation(Frame_RHIThread->FrameNumber)))
+						{
+							UE_LOG(LogHMD, Error, TEXT("FOculusHMDModule::GetPluginWrapper().UpdateFoveation %u failed (%d)"), Frame_RHIThread->FrameNumber, Result);
+						}
+					});
+				}
+
+				Frame_RenderThread.Reset();
+			});
 		}
-
-		Frame_RenderThread.Reset();
 	}
 
 
