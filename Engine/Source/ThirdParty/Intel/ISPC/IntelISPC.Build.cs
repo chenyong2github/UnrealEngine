@@ -9,8 +9,8 @@ public class IntelISPC : ModuleRules
 		Type = ModuleType.External;
 
 		if (Target.bCompileISPC == true &&
-            (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.PVSStudio &&
-            Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.VisualCpp))
+            (Target.StaticAnalyzer != StaticAnalyzer.PVSStudio &&
+            Target.StaticAnalyzer != StaticAnalyzer.VisualCpp))
         {
             // For Android, ISPC is on for some archs, off for others. Decide which in the tool chain.
             if (Target.Platform != UnrealTargetPlatform.Android)

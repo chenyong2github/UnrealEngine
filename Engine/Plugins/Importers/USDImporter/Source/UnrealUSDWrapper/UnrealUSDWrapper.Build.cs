@@ -162,7 +162,7 @@ namespace UnrealBuildTool.Rules
 
 			bool bEnableUsdSdk = (
 				Target.WindowsPlatform.Compiler != WindowsCompiler.Clang &&
-				Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None
+				Target.StaticAnalyzer == StaticAnalyzer.None
 			);
 
 			// Don't enable USD when running the include tool because it has issues parsing Boost headers

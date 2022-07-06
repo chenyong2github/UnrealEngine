@@ -76,6 +76,7 @@ namespace UnrealBuildTool
 	/// <summary>
 	/// Which static analyzer to use
 	/// </summary>
+	[Obsolete("Replace with StaticAnalyzer. Will be removed in 5.2")]
 	public enum WindowsStaticAnalyzer
 	{
 		/// <summary>
@@ -114,6 +115,7 @@ namespace UnrealBuildTool
 	/// been generated. 
 	/// All other analyzers default automatically to Text. 
 	/// </summary>
+	[Obsolete("Replace with StaticAnalyzerOutputType. Will be removed in 5.2")]
 	public enum WindowsStaticAnalyzerOutputType
 	{
 		/// <summary>
@@ -234,6 +236,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-StaticAnalyzer")]
+		[Obsolete("Replace with TargetRuies.StaticAnalyzer (Xml Category BuildConfiguration). Will be removed in 5.2")]
 		public WindowsStaticAnalyzer StaticAnalyzer = WindowsStaticAnalyzer.None;
 
 		/// <summary>
@@ -241,6 +244,7 @@ namespace UnrealBuildTool
 		/// </summary>
 		[XmlConfigFile(Category = "WindowsPlatform")]
 		[CommandLine("-StaticAnalyzerOutputType")]
+		[Obsolete("Replace with TargetRuies.StaticAnalyzerOutputType (Xml Category BuildConfiguration). Will be removed in 5.2")]
 		public WindowsStaticAnalyzerOutputType StaticAnalyzerOutputType = WindowsStaticAnalyzerOutputType.Text;
 
 		/// <summary>
@@ -567,11 +571,13 @@ namespace UnrealBuildTool
 			get { return Inner.ProductName; }
 		}
 
+		[Obsolete("Replace with TargetRuies.StaticAnalyzer (Xml Category BuildConfiguration). Will be removed in 5.2")]
 		public WindowsStaticAnalyzer StaticAnalyzer
 		{
 			get { return Inner.StaticAnalyzer; }
 		}
-		
+
+		[Obsolete("Replace with TargetRuies.StaticAnalyzerOutputType (Xml Category BuildConfiguration). Will be removed in 5.2")]
 		public WindowsStaticAnalyzerOutputType StaticAnalyzerOutputType
 		{
 			get { return Inner.StaticAnalyzerOutputType; }
@@ -835,13 +841,13 @@ namespace UnrealBuildTool
 			
 			// If clang is selected for static analysis, switch compiler to clang and proceed
 			// as normal.
-			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Clang)
+			if (Target.StaticAnalyzer == StaticAnalyzer.Clang)
 			{
 				Target.WindowsPlatform.Compiler = WindowsCompiler.Clang;
-				Target.WindowsPlatform.StaticAnalyzer = WindowsStaticAnalyzer.Default;
+				Target.StaticAnalyzer = StaticAnalyzer.Default;
 			}
-			else if (Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.None && 
-			         Target.WindowsPlatform.StaticAnalyzerOutputType != WindowsStaticAnalyzerOutputType.Text)
+			else if (Target.StaticAnalyzer != StaticAnalyzer.None && 
+			         Target.StaticAnalyzerOutputType != StaticAnalyzerOutputType.Text)
 			{
 				Logger.LogInformation("Defaulting static analyzer output type to text");
 			}
@@ -849,11 +855,11 @@ namespace UnrealBuildTool
 			// Set the compiler version if necessary
 			if (Target.WindowsPlatform.Compiler == WindowsCompiler.Default)
 			{
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2019, Target.WindowsPlatform.Architecture, Logger))
+				if (Target.StaticAnalyzer == StaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2019, Target.WindowsPlatform.Architecture, Logger))
 				{
 					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2019;
 				}
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2022, Target.WindowsPlatform.Architecture, Logger))
+				if (Target.StaticAnalyzer == StaticAnalyzer.PVSStudio && HasCompiler(WindowsCompiler.VisualStudio2022, Target.WindowsPlatform.Architecture, Logger))
 				{
 					Target.WindowsPlatform.Compiler = WindowsCompiler.VisualStudio2022;
 				}
@@ -864,17 +870,17 @@ namespace UnrealBuildTool
 			}
 
 			// Disable linking if we're using a static analyzer
-			if(Target.WindowsPlatform.StaticAnalyzer != WindowsStaticAnalyzer.None)
+			if(Target.StaticAnalyzer != StaticAnalyzer.None)
 			{
 				Target.bDisableLinking = true;
 			}
 
 			 // Disable PCHs for PVS studio and clang static analyzer.
-			if(Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
+			if(Target.StaticAnalyzer == StaticAnalyzer.PVSStudio)
 			{
 				Target.bUsePCHFiles = false;
 			}
-			else if (Target.WindowsPlatform.Compiler.IsClang() && Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+			else if (Target.WindowsPlatform.Compiler.IsClang() && Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Target.bUsePCHFiles = false;
 			}
@@ -1477,7 +1483,7 @@ namespace UnrealBuildTool
 		/// <returns>New toolchain instance.</returns>
 		public override UEToolChain CreateToolChain(ReadOnlyTargetRules Target)
 		{
-			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
+			if (Target.StaticAnalyzer == StaticAnalyzer.PVSStudio)
 			{
 				return new PVSToolChain(Target, Logger);
 			}

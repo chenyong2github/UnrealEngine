@@ -267,7 +267,7 @@ namespace UnrealBuildTool
 				// compiler version of 19.xx).
 				Arguments.Add($"-fms-compatibility-version=19.{EnvVars.ToolChainVersion.GetComponent(1)}");
 				
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+				if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 				{
 					// Enable the static analyzer but only via the backend. Using the frontend
 					// flag ('--analyze') will enable a suite of default checkers, some of which
@@ -275,7 +275,7 @@ namespace UnrealBuildTool
 					Arguments.Add("-Xclang -analyze");
 
 					// Make sure we get textual output and not XML.
-					if (Target.WindowsPlatform.StaticAnalyzerOutputType == WindowsStaticAnalyzerOutputType.Html)
+					if (Target.StaticAnalyzerOutputType == StaticAnalyzerOutputType.Html)
 					{
 						// Write out a pretty web page with navigation to understand how the analysis was derived.
 						Arguments.Add("-Xclang -analyzer-output=html");
@@ -329,7 +329,7 @@ namespace UnrealBuildTool
 					}
 				}
 			}
-			else if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+			else if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 			{
 				Arguments.Add("/analyze");
 
@@ -394,7 +394,7 @@ namespace UnrealBuildTool
 			// Allow 750% of the default memory allocation limit when using the static analyzer, and 1000% at other times.
 			if(Target.WindowsPlatform.PCHMemoryAllocationFactor == 0)
 			{
-				if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.Default)
+				if (Target.StaticAnalyzer == StaticAnalyzer.Default)
 				{
 					Arguments.Add("/Zm750");
 				}

@@ -1,4 +1,4 @@
-﻿// Copyright Epic Games, Inc. All Rights Reserved.
+// Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 using System;
@@ -65,7 +65,7 @@ public class Core : ModuleRules
 				);
 
 			// We do not want the static analyzer to run on thirdparty code
-			if (Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.None) 
+			if (Target.StaticAnalyzer == StaticAnalyzer.None) 
 			{
 				PublicSystemIncludePaths.Add(Path.Combine(Target.UEThirdPartySourceDirectory, "mimalloc/include"));
 				PrivateDefinitions.Add("PLATFORM_BUILDS_MIMALLOC=1");

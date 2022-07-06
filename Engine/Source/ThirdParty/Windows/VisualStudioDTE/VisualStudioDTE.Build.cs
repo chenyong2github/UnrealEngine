@@ -17,7 +17,7 @@ namespace UnrealBuildTool.Rules
 
 			if (Target.Platform != UnrealBuildTool.UnrealTargetPlatform.Win64 ||
 				Target.WindowsPlatform.Compiler == WindowsCompiler.Clang ||
-				Target.WindowsPlatform.StaticAnalyzer == WindowsStaticAnalyzer.PVSStudio)
+				Target.StaticAnalyzer == StaticAnalyzer.PVSStudio)
 			{
 				PublicDefinitions.Add("WITH_VISUALSTUDIO_DTE=0");
 			}

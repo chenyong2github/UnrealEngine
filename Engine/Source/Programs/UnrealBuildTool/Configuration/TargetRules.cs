@@ -161,6 +161,60 @@ namespace UnrealBuildTool
 	}
 
 	/// <summary>
+	/// Which static analyzer to use
+	/// </summary>
+	public enum StaticAnalyzer
+	{
+		/// <summary>
+		/// Do not perform static analysis
+		/// </summary>
+		None,
+
+		/// <summary>
+		/// Use the default static analyzer for the selected compiler, if it has one. For
+		/// Visual Studio and Clang, this means using their built-in static analysis tools.
+		/// Any compiler that doesn't support static analysis will ignore this option.
+		/// </summary>
+		Default,
+
+		/// <summary>
+		/// Use the built-in Visual C++ static analyzer
+		/// </summary>
+		VisualCpp = Default,
+
+		/// <summary>
+		/// Use PVS-Studio for static analysis
+		/// </summary>
+		PVSStudio,
+
+		/// <summary>
+		/// Use clang for static analysis. This forces the compiler to clang.
+		/// </summary>
+		Clang,
+	}
+
+	/// <summary>
+	/// Output type for the static analyzer. This currently only works for the Clang static analyzer.
+	/// The Clang static analyzer can do either Text, which prints the analysis to stdout, or
+	/// html, where it writes out a navigable HTML page for each issue that it finds, per file.
+	/// The HTML is output in the same directory as the object fil that would otherwise have
+	/// been generated. 
+	/// All other analyzers default automatically to Text. 
+	/// </summary>
+	public enum StaticAnalyzerOutputType
+	{
+		/// <summary>
+		/// Output the analysis to stdout.
+		/// </summary>
+		Text,
+
+		/// <summary>
+		/// Output the analysis to an HTML file in the object folder.
+		/// </summary>
+		Html,
+	}
+
+	/// <summary>
 	/// Utility class for EngineIncludeOrderVersion defines
 	/// </summary>
 	public class EngineIncludeOrderHelper
@@ -1350,6 +1404,20 @@ namespace UnrealBuildTool
 		[CommandLine("-PreprocessDepends")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bPreprocessDepends = false;
+
+		/// <summary>
+		/// Whether static code analysis should be enabled.
+		/// </summary>
+		[CommandLine("-StaticAnalyzer")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public StaticAnalyzer StaticAnalyzer = StaticAnalyzer.None;
+
+		/// <summary>
+		/// The output type to use for the static analyzer.
+		/// </summary>
+		[CommandLine("-StaticAnalyzerOutputType")]
+		[XmlConfigFile(Category = "BuildConfiguration")]
+		public StaticAnalyzerOutputType StaticAnalyzerOutputType = StaticAnalyzerOutputType.Text;
 
 		/// <summary>
 		/// The minimum number of files that must use a pre-compiled header before it will be created and used.
@@ -2933,6 +3001,16 @@ namespace UnrealBuildTool
 		public bool bPreprocessDepends
 		{
 			get { return Inner.bPreprocessDepends; }
+		}
+
+		public StaticAnalyzer StaticAnalyzer
+		{
+			get { return Inner.StaticAnalyzer; }
+		}
+
+		public StaticAnalyzerOutputType StaticAnalyzerOutputType
+		{
+			get { return Inner.StaticAnalyzerOutputType; }
 		}
 
 		public int MinFilesUsingPrecompiledHeader
