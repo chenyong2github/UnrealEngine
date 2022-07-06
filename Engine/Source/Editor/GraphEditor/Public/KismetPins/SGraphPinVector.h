@@ -7,6 +7,7 @@
 #include "Widgets/SWidget.h"
 #include "SGraphPin.h"
 #include "SVectorTextBox.h"
+#include "ScopedTransaction.h"
 
 template <typename NumericType>
 class SGraphPinVector : public SGraphPin
