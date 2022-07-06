@@ -130,6 +130,8 @@ void FAjaMediaPlayer::Close()
 {
 	AjaThreadNewState = EMediaState::Closed;
 
+	DeviceProvider->EndAutoDetectConfiguration();
+
 	if (InputChannel)
 	{
 		InputChannel->Uninitialize(); // this may block, until the completion of a callback from IAJAChannelCallbackInterface

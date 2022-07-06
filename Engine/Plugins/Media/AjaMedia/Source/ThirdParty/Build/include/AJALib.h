@@ -275,6 +275,7 @@ namespace AJA
 		uint32_t ChannelIndex; // [1...x]
 		FAJAVideoFormat VideoFormatIndex;
 		ETimecodeFormat TimecodeFormat;
+		bool bAutoDetectFormat;
 	};
 
 	class AJA_API AJATimecodeChannel

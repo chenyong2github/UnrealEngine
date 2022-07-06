@@ -260,6 +260,7 @@ bool UAjaTimecodeProvider::Initialize_Internal(class UEngine* InEngine, AJA::AJA
 
 	InOptions.CallbackInterface = SyncCallback;
 	InOptions.bUseDedicatedPin = bUseDedicatedPin;
+	InOptions.bAutoDetectFormat = bAutoDetectTimecode;
 
 	if (bUseDedicatedPin)
 	{
