@@ -18,7 +18,7 @@ public:
 	FSpawnTabArgs GetTabArgs() const;
 
 	// Slate callbacks
-	FReply OnWorkspaceChosen(const FString& Path);
+	bool OnWorkspaceChosen(const FString& Path);
 private:
 
 	// Slate Data
@@ -27,7 +27,6 @@ private:
 
 	TSharedRef<SEmptyTab> EmptyTabView;
 	TSharedRef<SGameSyncTab> GameSyncTabView;
-	TSharedRef<SWorkspaceWindow> WorkspaceWindowView;
 
 	// Controller data
 	GameSyncController SyncController;

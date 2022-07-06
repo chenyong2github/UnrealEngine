@@ -71,7 +71,7 @@ FReply SEmptyTab::OnOpenProjectClicked()
 	.Title(LOCTEXT("WindowTitle", "Open Project"))
 	.SizingRule(ESizingRule::Autosized)
 	[
-		SNew(SWorkspaceWindow)
+		SNew(SWorkspaceWindow).Tab(Tab)
 	];
 
 	FSlateApplication& SlateApplication = FSlateApplication::Get();
