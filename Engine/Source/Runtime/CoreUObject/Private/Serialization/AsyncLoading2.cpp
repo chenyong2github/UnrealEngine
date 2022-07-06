@@ -557,8 +557,8 @@ private:
 			if (Index > 0)
 			{
 				// Move items down
-				FMemory::Memcpy(Keys.GetData(), Keys.GetData() + 1, Index * sizeof(uint64));
-				FMemory::Memcpy(Values.GetData(), Values.GetData() + 1, Index * sizeof(int32));
+				FMemory::Memmove(Keys.GetData(), Keys.GetData() + 1, Index * sizeof(uint64));
+				FMemory::Memmove(Values.GetData(), Values.GetData() + 1, Index * sizeof(int32));
 			}
 			Keys[Index] = ExportHash;
 			Values[Index] = GUObjectArray.ObjectToIndex(Object);
