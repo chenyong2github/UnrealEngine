@@ -116,7 +116,7 @@ struct CONTROLRIGDEVELOPER_API FRigGraphDisplaySettings
 		: bShowNodeInstructionIndex(false)
 		, bShowNodeRunCounts(false)
 		, NodeRunLowerBound(1)
-		, NodeRunLimit(64)
+		, NodeRunLimit(256)
 		, MinMicroSeconds(0.0)
 		, MaxMicroSeconds(1.0)
 		, TotalMicroSeconds(0.0)
