@@ -64,6 +64,9 @@ class MEDIAIOCORE_API FMediaIOCorePlayerBase
 	, public TSharedFromThis<FMediaIOCorePlayerBase>
 {
 public:
+	static TAutoConsoleVariable<int32> CVarFlipInterlaceFields;
+	static TAutoConsoleVariable<int32> CVarExperimentalFieldFlipFix;
+public:
 
 	/**
 	 * Create and initialize a new instance.
@@ -251,9 +254,6 @@ protected:
 
 	/** Pool of textures registerd with GPU Texture transfer. */
 	TArray<TRefCountPtr<FRHITexture>> Textures;
-
-	static TAutoConsoleVariable<int32> CVarFlipInterlaceFields;
-	static TAutoConsoleVariable<int32> CVarExperimentalFieldFlipFix;
 
 private:
 	/** GPU Texture transfer object */
