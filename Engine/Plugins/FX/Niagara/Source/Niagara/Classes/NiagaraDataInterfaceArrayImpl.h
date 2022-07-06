@@ -90,16 +90,6 @@ struct FNiagaraDataInterfaceArrayImplHelper
 };
 
 //////////////////////////////////////////////////////////////////////////
-// Compute Shader Impl
-struct FNiagaraDataInterfaceParametersCS_ArrayImpl : public FNiagaraDataInterfaceParametersCS
-{
-	DECLARE_TYPE_LAYOUT(FNiagaraDataInterfaceParametersCS_ArrayImpl, NonVirtual);
-
-	LAYOUT_FIELD(FShaderResourceParameter, BufferParam);
-	LAYOUT_FIELD(FShaderParameter, BufferParamsParam);
-};
-
-//////////////////////////////////////////////////////////////////////////
 // Instance Data, Proxy with Impl
 
 template<typename TArrayType>
@@ -924,75 +914,20 @@ struct FNDIArrayProxyImpl : public INDIArrayProxyBase
 		InstanceData_GT->~FNDIArrayInstanceData_GameThread<TArrayType>();
 	}
 
-	FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const
+	virtual void SetShaderParameters(FShaderParameters* ShaderParameters, FNiagaraSystemInstanceID SystemInstanceID) const override
 	{
-		if (FNDIArrayImplHelper<TArrayType>::bSupportsGPU)
-		{
-			return new FNiagaraDataInterfaceParametersCS_ArrayImpl();
-		}
-		return nullptr;
-	}
-
-	const FTypeLayoutDesc* GetComputeParametersTypeDesc() const
-	{
-		if (FNDIArrayImplHelper<TArrayType>::bSupportsGPU)
-		{
-			return &StaticGetTypeLayoutDesc<FNiagaraDataInterfaceParametersCS_ArrayImpl>();
-		}
-		return nullptr;
-	}
-
-	void BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap)
-	{
-		check(FNDIArrayImplHelper<TArrayType>::bSupportsGPU);
-
-		FNiagaraDataInterfaceParametersCS_ArrayImpl* TypedCS = static_cast<FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base);
-		TypedCS->BufferParam.Bind(ParameterMap, *(TEXT("ArrayBuffer_") + ParameterInfo.DataInterfaceHLSLSymbol));
-		TypedCS->BufferParamsParam.Bind(ParameterMap, *(TEXT("ArrayBufferParams_") + ParameterInfo.DataInterfaceHLSLSymbol));
-	}
-
-	void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(FNDIArrayImplHelper<TArrayType>::bSupportsGPU);
-
-		const FNiagaraDataInterfaceParametersCS_ArrayImpl* TypedCS = static_cast<const FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base);
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-
-		const auto* ArrayProxy = static_cast<const FNDIArrayProxyImpl<TArrayType, TOwnerType>*>(Context.DataInterface);
-		const auto* InstanceData_RT = &ArrayProxy->PerInstanceData_RenderThread.FindChecked(Context.SystemInstanceID);
-
+		const auto* InstanceData_RT = &PerInstanceData_RenderThread.FindChecked(SystemInstanceID);
 		if ( InstanceData_RT->IsReadOnly() )
 		{
-			SetSRVParameter(RHICmdList, ComputeShaderRHI, TypedCS->BufferParam, InstanceData_RT->ArraySRV);
-
-			// Where x=Length & y=max(Length-1,0)
-			const int32 BufferParams[] = { InstanceData_RT->NumElements, FMath::Max(0, InstanceData_RT->NumElements - 1) };
-			SetShaderValue(RHICmdList, ComputeShaderRHI, TypedCS->BufferParamsParam, BufferParams);
+			ShaderParameters->ArrayBufferParams.X	= InstanceData_RT->NumElements;
+			ShaderParameters->ArrayBufferParams.Y	= FMath::Max(0, InstanceData_RT->NumElements - 1);
+			ShaderParameters->ArrayReadBuffer		= InstanceData_RT->ArraySRV;
 		}
 		else
 		{
-			SetUAVParameter(RHICmdList, ComputeShaderRHI, TypedCS->BufferParam, InstanceData_RT->ArrayUAV);
-
-			// Where x=CountOffset & y=BufferCapacity
-			const int32 BufferParams[] = { (int32)InstanceData_RT->CountOffset, InstanceData_RT->NumElements };
-			SetShaderValue(RHICmdList, ComputeShaderRHI, TypedCS->BufferParamsParam, BufferParams);
-		}
-	}
-
-	void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
-	{
-		check(FNDIArrayImplHelper<TArrayType>::bSupportsGPU);
-
-		const FNiagaraDataInterfaceParametersCS_ArrayImpl* TypedCS = static_cast<const FNiagaraDataInterfaceParametersCS_ArrayImpl*>(Base);
-		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
-		const auto* ArrayProxy = static_cast<const FNDIArrayProxyImpl<TArrayType, TOwnerType>*>(Context.DataInterface);
-		const auto* InstanceData_RT = &ArrayProxy->PerInstanceData_RenderThread.FindChecked(Context.SystemInstanceID);
-
-		if ( !InstanceData_RT->IsReadOnly() )
-		{
-			SetUAVParameter(RHICmdList, ComputeShaderRHI, TypedCS->BufferParam, nullptr);
-			//-OPT: Should be batched
-			RHICmdList.Transition(FRHITransitionInfo(InstanceData_RT->ArrayUAV, ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
+			ShaderParameters->ArrayBufferParams.X	= (int32)InstanceData_RT->CountOffset;
+			ShaderParameters->ArrayBufferParams.Y	= InstanceData_RT->NumElements;
+			ShaderParameters->ArrayRWBuffer			= InstanceData_RT->ArrayUAV;
 		}
 	}
 

@@ -5,11 +5,11 @@
 // RWBufferRead		- Hlsl code to read from the buffer, i.e Value = BUFFER_NAME[Index]
 // RWBufferWrite	- Hlsl code to write to the buffer, i.e BUFFER_NAME[Index] = Value
 
-RWBuffer<{RWBufferType}> ArrayBuffer_{ParameterName};
-int2 ArrayBufferParams_{ParameterName};				// Where x=CountOffset & y=BufferCapacity
+RWBuffer<{RWBufferType}>	{ParameterName}_ArrayRWBuffer;
+int2						{ParameterName}_ArrayBufferParams;				// Where x=CountOffset & y=BufferCapacity
 
-int GetCountOffset_{ParameterName}() { return ArrayBufferParams_{ParameterName}.x; }
-int GetCapacity_{ParameterName}() { return ArrayBufferParams_{ParameterName}.y; }
+int GetCountOffset_{ParameterName}() { return {ParameterName}_ArrayBufferParams.x; }
+int GetCapacity_{ParameterName}() { return {ParameterName}_ArrayBufferParams.y; }
 int GetLength_{ParameterName}() { return RWInstanceCounts[GetCountOffset_{ParameterName}()]; }
 
 void Length_{ParameterName}(out int ArrayLength)
@@ -31,7 +31,7 @@ void Get_{ParameterName}(int Index, out {VariableType} Value)
 {
 	int Length = GetLength_{ParameterName}();
 	Index = Length > 0 ? clamp(Index, 0, Length - 1) : GetCapacity_{ParameterName}();
-	#define BUFFER_NAME ArrayBuffer_{ParameterName}
+	#define BUFFER_NAME {ParameterName}_ArrayRWBuffer
 	{RWBufferRead}
 	#undef BUFFER_NAME
 }
@@ -42,7 +42,7 @@ void SetArrayElem_{ParameterName}_UEImpureCall(bool bSkip, int Index, {VariableT
 	IsValidIndex_{ParameterName}(Index, bIsValidIndex);
 	if ( !bSkip && bIsValidIndex )
 	{
-		#define BUFFER_NAME ArrayBuffer_{ParameterName}
+		#define BUFFER_NAME {ParameterName}_ArrayRWBuffer
 		{RWBufferWrite}
 		#undef BUFFER_NAME
 	}
@@ -59,7 +59,7 @@ void Add_{ParameterName}_UEImpureCall(bool bSkip, {VariableType} Value)
 	InterlockedAdd(RWInstanceCounts[GetCountOffset_{ParameterName}()], 1, Index);
 	if ( Index < GetCapacity_{ParameterName}() )
 	{
-		#define BUFFER_NAME ArrayBuffer_{ParameterName}
+		#define BUFFER_NAME {ParameterName}_ArrayRWBuffer
 		{RWBufferWrite}
 		#undef BUFFER_NAME
 	}
@@ -86,7 +86,7 @@ void RemoveLastElem_{ParameterName}_UEImpureCall(bool bSkip, out {VariableType} 
 	}
 
 	Index = bOutValid ? Index : GetCapacity_{ParameterName}();
-	#define BUFFER_NAME ArrayBuffer_{ParameterName}
+	#define BUFFER_NAME {ParameterName}_ArrayRWBuffer
 	{RWBufferRead}
 	#undef BUFFER_NAME
 }

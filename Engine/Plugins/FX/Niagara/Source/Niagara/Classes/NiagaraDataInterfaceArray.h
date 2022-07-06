@@ -13,6 +13,12 @@
 
 struct INDIArrayProxyBase : public FNiagaraDataInterfaceProxyRW
 {
+	BEGIN_SHADER_PARAMETER_STRUCT(FShaderParameters,)
+		SHADER_PARAMETER(FIntPoint,		ArrayBufferParams)
+		SHADER_PARAMETER_SRV(Buffer,	ArrayReadBuffer)
+		SHADER_PARAMETER_UAV(RWBuffer,	ArrayRWBuffer)
+	END_SHADER_PARAMETER_STRUCT()
+
 	virtual ~INDIArrayProxyBase() {}
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) const = 0;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) = 0;
@@ -31,11 +37,7 @@ struct INDIArrayProxyBase : public FNiagaraDataInterfaceProxyRW
 	virtual bool InitPerInstanceData(UNiagaraDataInterface* DataInterface, void* InPerInstanceData, FNiagaraSystemInstance* SystemInstance) = 0;
 	virtual void DestroyPerInstanceData(void* InPerInstanceData, FNiagaraSystemInstance* SystemInstance) = 0;
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) = 0;
-	virtual FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const = 0;
-	virtual const FTypeLayoutDesc* GetComputeParametersTypeDesc() const = 0;
-	virtual void BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap) = 0;
-	virtual void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const = 0;
-	virtual void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const = 0;
+	virtual void SetShaderParameters(FShaderParameters* ShaderParameters, FNiagaraSystemInstanceID SystemInstanceID) const = 0;
 };
 
 UCLASS(abstract, EditInlineNew)
@@ -58,7 +60,7 @@ public:
 #if WITH_EDITORONLY_DATA
 	virtual void GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL) override { GetProxyAs<INDIArrayProxyBase>()->GetParameterDefinitionHLSL(ParamInfo, OutHLSL); }
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override { return GetProxyAs<INDIArrayProxyBase>()->GetFunctionHLSL(ParamInfo, FunctionInfo, FunctionInstanceIndex, OutHLSL); }
-	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override { return GetProxyAs<INDIArrayProxyBase>()->AppendCompileHash(InVisitor); }
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override { return GetProxyAs<INDIArrayProxyBase>()->UpgradeFunctionCall(FunctionSignature); }
 #endif
 	virtual bool CanExecuteOnTarget(ENiagaraSimTarget Target) const override { return true; }
@@ -76,11 +78,9 @@ public:
 
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override { GetProxyAs<INDIArrayProxyBase>()->ProvidePerInstanceDataForRenderThread(DataForRenderThread, PerInstanceData, SystemInstance); }
 
-	virtual FNiagaraDataInterfaceParametersCS* CreateComputeParameters() const override { return GetProxyAs<INDIArrayProxyBase>()->CreateComputeParameters(); }
-	virtual const FTypeLayoutDesc* GetComputeParametersTypeDesc() const override { return GetProxyAs<INDIArrayProxyBase>()->GetComputeParametersTypeDesc(); }
-	virtual void BindParameters(FNiagaraDataInterfaceParametersCS* Base, const FNiagaraDataInterfaceGPUParamInfo& ParameterInfo, const class FShaderParameterMap& ParameterMap) override { GetProxyAs<INDIArrayProxyBase>()->BindParameters(Base, ParameterInfo, ParameterMap); }
-	virtual void SetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override { return GetProxyAs<INDIArrayProxyBase>()->SetParameters(Base, RHICmdList, Context); }
-	virtual void UnsetParameters(const FNiagaraDataInterfaceParametersCS* Base, FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const override { return GetProxyAs<INDIArrayProxyBase>()->UnsetParameters(Base, RHICmdList, Context); }
+	virtual bool UseLegacyShaderBindings() const  override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 	//UNiagaraDataInterface Interface
 
 	/** ReadWrite lock to ensure safe access to the underlying array. */

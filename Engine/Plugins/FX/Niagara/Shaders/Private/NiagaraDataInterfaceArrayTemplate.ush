@@ -4,11 +4,11 @@
 // ReadBufferType	- Read Buffer Type, i.e. float, float2, etc
 // ReadBufferRead	- Hlsl code to read from the buffer, i.e Value = BUFFER_NAME[Index]
 
-Buffer<{ReadBufferType}> ArrayBuffer_{ParameterName};
-int2 ArrayBufferParams_{ParameterName};				// Where x=Length & y=max(Length-1,0)
+Buffer<{ReadBufferType}>	{ParameterName}_ArrayReadBuffer;
+int2						{ParameterName}_ArrayBufferParams;				// Where x=Length & y=max(Length-1,0)
 
-int GetLength_{ParameterName}() { return ArrayBufferParams_{ParameterName}.x; }
-int GetLengthMinusOne_{ParameterName}() { return ArrayBufferParams_{ParameterName}.y; }
+int GetLength_{ParameterName}() { return {ParameterName}_ArrayBufferParams.x; }
+int GetLengthMinusOne_{ParameterName}() { return {ParameterName}_ArrayBufferParams.y; }
 
 void Length_{ParameterName}(out int ArrayLength)
 {
@@ -28,7 +28,7 @@ void LastIndex_{ParameterName}(out int Index)
 void Get_{ParameterName}(int Index, out {VariableType} Value)
 {
 	Index = clamp(Index, 0, GetLengthMinusOne_{ParameterName}());
-	#define BUFFER_NAME ArrayBuffer_{ParameterName}
+	#define BUFFER_NAME {ParameterName}_ArrayReadBuffer
 	{ReadBufferRead}
 	#undef BUFFER_NAME
 }
