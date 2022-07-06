@@ -35,6 +35,8 @@ class UChaosPhysicalMaterial;
 class AChaosSolverActor;
 struct FGeometryCollectionEmbeddedExemplar;
 class UInstancedStaticMeshComponent;
+class FGeometryCollectionDecayDynamicFacade;
+struct FGeometryCollectionDecayContext;
 struct FDamageCollector;
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnChaosBreakEvent, const FChaosBreakEvent&, BreakEvent);
@@ -166,42 +168,6 @@ namespace GeometryCollection
 	};
 	ENUM_CLASS_FLAGS(EEditUpdate);
 }
-
-// this class helps reading and writing the packed data used in the managed array
-struct FRemoveOnBreakData
-{
-public:
-	inline static const FVector4f DisabledPackedData{ -1, 0, 0, 0 };   
-	
-	FRemoveOnBreakData()
-		: PackedData(FRemoveOnBreakData::DisabledPackedData)
-	{}
-
-	FRemoveOnBreakData(const FVector4f& InPackedData)
-		: PackedData(InPackedData)
-	{}
-
-	FRemoveOnBreakData(bool bEnable, const FVector2f& BreakTimer, bool bClusterCrumbling, const FVector2f& RemovalTimer)
-	{
-		PackedData.X = FMath::Min(FMath::Abs(BreakTimer.X), FMath::Abs(BreakTimer.Y)); // Min break timer
-		PackedData.Y = FMath::Max(FMath::Abs(BreakTimer.X), FMath::Abs(BreakTimer.Y)); // Min break timer
-		PackedData.Z = FMath::Min(FMath::Abs(RemovalTimer.X), FMath::Abs(RemovalTimer.Y)); // Min removal timer
-		PackedData.W = FMath::Max(FMath::Abs(RemovalTimer.X), FMath::Abs(RemovalTimer.Y)); // Max removal timer
-
-		PackedData.X *= bEnable? +1: -1;
-		PackedData.Z *= bClusterCrumbling? -1: +1;
-	}
-	
-	bool IsEnabled() const { return PackedData.X >= 0; }
-	bool GetClusterCrumbling() const { return IsEnabled() && (PackedData.Z < 0); } 
-	FVector2f GetBreakTimer() const	{ return FVector2f(FMath::Abs(PackedData.X), FMath::Abs(PackedData.Y)); }
-	FVector2f GetRemovalTimer() const { return FVector2f(FMath::Abs(PackedData.Z), FMath::Abs(PackedData.W)); }
-
-	const FVector4f& GetPackedData() const { return PackedData; }
-
-private:
-	FVector4f PackedData;
-};
 
 /**
 *	FGeometryCollectionEdit
@@ -1035,6 +1001,7 @@ private:
 
 	void IncrementSleepTimer(float DeltaTime);
 	void IncrementBreakTimer(float DeltaTime);
+	void UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool UseClusterCrumbling, bool HasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut);
 	bool CalculateInnerSphere(int32 TransformIndex, FSphere& SphereOut) const;
 	void ProcessRepData();
 

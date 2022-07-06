@@ -16,6 +16,7 @@
 
 #include "GeometryCollection/GeometryCollection.h"
 #include "GeometryCollection/GeometryCollectionComponent.h"
+#include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 
 #include "SGeometryCollectionOutliner.generated.h"
 

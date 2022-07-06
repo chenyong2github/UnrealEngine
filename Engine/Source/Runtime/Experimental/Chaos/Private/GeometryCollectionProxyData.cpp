@@ -65,3 +65,54 @@ FGeometryDynamicCollection::FGeometryDynamicCollection()
 	AddExternalAttribute(SimulatableParticlesAttribute, FGeometryCollection::TransformGroup, SimulatableParticles);
 
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+FGeometryCollectionDynamicStateFacade::FGeometryCollectionDynamicStateFacade(FManagedArrayCollection& InCollection)
+	: ActiveAttribute(InCollection, FGeometryDynamicCollection::ActiveAttribute,  FTransformCollection::TransformGroup)
+	, DynamicStateAttribute(InCollection, FGeometryDynamicCollection::DynamicStateAttribute,  FTransformCollection::TransformGroup)
+	, ChildrenAttribute(InCollection, "Children",  FTransformCollection::TransformGroup)
+	, ParentAttribute(InCollection, "Parent",  FTransformCollection::TransformGroup)
+	, InternalClusterParentTypeAttribute(InCollection, "InternalClusterParentTypeArray", FGeometryCollection::TransformGroup)
+{
+}
+
+bool FGeometryCollectionDynamicStateFacade::IsValid() const
+{
+	return ActiveAttribute.IsValid()
+		&& DynamicStateAttribute.IsValid()
+		&& ChildrenAttribute.IsValid()
+		&& ParentAttribute.IsValid()
+		&& InternalClusterParentTypeAttribute.IsValid()
+		;
+}
+
+bool FGeometryCollectionDynamicStateFacade::IsDynamicOrSleeping(int32 TransformIndex) const
+{
+	const int32 State = DynamicStateAttribute.Get()[TransformIndex];
+	return (State == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) || (State == (int)EObjectStateTypeEnum::Chaos_Object_Dynamic);
+}
+
+bool FGeometryCollectionDynamicStateFacade::IsSleeping(int32 TransformIndex) const
+{
+	const int32 State = DynamicStateAttribute.Get()[TransformIndex];
+	return (State == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping);
+}
+
+bool FGeometryCollectionDynamicStateFacade::HasChildren(int32 TransformIndex) const
+{
+	return (ChildrenAttribute.Get()[TransformIndex].Num() > 0);
+}
+
+bool FGeometryCollectionDynamicStateFacade::HasBrokenOff(int32 TransformIndex) const
+{
+	const bool IsActive = ActiveAttribute.Get()[TransformIndex];
+	const bool HasParent = (ParentAttribute.Get()[TransformIndex] != INDEX_NONE);
+	return IsActive && (!HasParent) && IsDynamicOrSleeping(TransformIndex);
+}
+
+bool FGeometryCollectionDynamicStateFacade::HasDynamicInternalClusterParent(int32 TransformIndex) const
+{
+	const uint8 InternalParenttype = InternalClusterParentTypeAttribute.Get()[TransformIndex];
+	return InternalParenttype == (uint8)Chaos::EInternalClusterType::Dynamic;
+}

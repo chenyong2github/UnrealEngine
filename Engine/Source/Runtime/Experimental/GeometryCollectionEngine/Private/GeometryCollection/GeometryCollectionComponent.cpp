@@ -44,6 +44,7 @@
 
 #include "Rendering/NaniteResources.h"
 #include "PrimitiveSceneInfo.h"
+#include "GeometryCollection/GeometryCollectionEngineRemoval.h"
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 #include "Logging/MessageLog.h"
@@ -2087,106 +2088,24 @@ void UGeometryCollectionComponent::ResetDynamicCollection()
 		GetSimulationTypeArrayCopyOnWrite();
 		GetStatusFlagsArrayCopyOnWrite();
 
+		FGeometryCollectionDecayDynamicFacade DecayDynamicFacade(*DynamicCollection);
+		
 		// we are not testing for bAllowRemovalOnSleep, so that we can enable it at runtime if necessary
 		if (RestCollection->bRemoveOnMaxSleep)
 		{
-			if (!DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<float>& SleepTimer = DynamicCollection->AddAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
-				SleepTimer.Fill(0.f);
-			}
+			DecayDynamicFacade.AddAttributes();
 
-			if (!DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<float>& Decay = DynamicCollection->AddAttribute<float>("Decay", FGeometryCollection::TransformGroup);
-				Decay.Fill(0);
-			}
-
-			if (!DynamicCollection->HasAttribute("LastPosition", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<FVector>& LastPosition = DynamicCollection->AddAttribute<FVector>("LastPosition", FGeometryCollection::TransformGroup);
-				LastPosition.Fill(FVector::Zero());
-			}
-			
-			if (!DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<FTransform>& UniformScale = DynamicCollection->AddAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
-				UniformScale.Fill(FTransform::Identity);
-			}
-
-			if (!DynamicCollection->HasAttribute("MaxSleepTime", FGeometryCollection::TransformGroup))
-			{
-				float MinTime = FMath::Max(0.0f, RestCollection->MaximumSleepTime.X);
-				float MaxTime = FMath::Max(MinTime, RestCollection->MaximumSleepTime.Y);
-				TManagedArray<float>& MaxSleepTime = DynamicCollection->AddAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
-				for (int32 Idx = 0; Idx < MaxSleepTime.Num(); ++Idx)
-				{
-					MaxSleepTime[Idx] = FMath::RandRange(MinTime, MaxTime);
-				}
-			}
-
-			if (!DynamicCollection->HasAttribute("SleepRemovalDuration", FGeometryCollection::TransformGroup))
-			{
-				float MinTime = FMath::Max(0.0f, RestCollection->RemovalDuration.X);
-				float MaxTime = FMath::Max(MinTime, RestCollection->RemovalDuration.Y);
-				TManagedArray<float>& SleepRemovalDuration = DynamicCollection->AddAttribute<float>("SleepRemovalDuration", FGeometryCollection::TransformGroup);
-				for (int32 Idx = 0; Idx < SleepRemovalDuration.Num(); ++Idx)
-				{
-					SleepRemovalDuration[Idx] = FMath::RandRange(MinTime, MaxTime);
-				}
-			}
+			FGeometryCollectionRemoveOnSleepDynamicFacade RemoveOnSleepDynamicFacade(*DynamicCollection);
+			RemoveOnSleepDynamicFacade.AddAttributes(RestCollection->MaximumSleepTime, RestCollection->RemovalDuration);
 		}
 		
 		// Remove on break feature related dynamic attribute arrays
 		if (const TManagedArray<FVector4f>* RemoveOnBreak = RestCollection->GetGeometryCollection()->FindAttribute<FVector4f>("RemoveOnBreak", FGeometryCollection::TransformGroup))
 		{
-			// Needs to be checked here too because remove on sleep and remove on break features are orthogonal
-			if (!DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<float>& Decay = DynamicCollection->AddAttribute<float>("Decay", FGeometryCollection::TransformGroup);
-				Decay.Fill(0);
-			}
+			DecayDynamicFacade.AddAttributes();
 
-			if (!DynamicCollection->HasAttribute("UniformScale", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<FTransform>& UniformScale = DynamicCollection->AddAttribute<FTransform>("UniformScale", FGeometryCollection::TransformGroup);
-				UniformScale.Fill(FTransform::Identity);
-			}
-		
-			if (!DynamicCollection->HasAttribute("BreakTimer", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<float>& BreakTimer = DynamicCollection->AddAttribute<float>("BreakTimer", FGeometryCollection::TransformGroup);
-				BreakTimer.Fill(-1); // disabled timer , waiting for the break event
-			}
-			
-			if (!DynamicCollection->HasAttribute("PostBreakDuration", FGeometryCollection::TransformGroup))
-			{
-				TManagedArray<float>& PostBreakDuration = DynamicCollection->AddAttribute<float>("PostBreakDuration", FGeometryCollection::TransformGroup);
-				for (int32 Idx = 0; Idx < PostBreakDuration.Num(); ++Idx)
-				{
-					const FRemoveOnBreakData RemoveOnBreakData{ (*RemoveOnBreak)[Idx] };
-					const FVector2f PostBreakTimer = RemoveOnBreakData.GetBreakTimer();
-					const float MinTime = FMath::Max(0.0f, PostBreakTimer.X);
-					const float MaxTime = FMath::Max(MinTime, PostBreakTimer.Y);
-					PostBreakDuration[Idx] = RemoveOnBreakData.IsEnabled()? FMath::RandRange(MinTime, MaxTime): -1;
-				}
-			}
-
-			if (!DynamicCollection->HasAttribute("BreakRemovalDuration", FGeometryCollection::TransformGroup))
-			{
-				const TManagedArray<TSet<int32>>& Children = DynamicCollection->Children;
-				TManagedArray<float>& BreakRemovalDuration = DynamicCollection->AddAttribute<float>("BreakRemovalDuration", FGeometryCollection::TransformGroup);
-				for (int32 Idx = 0; Idx < BreakRemovalDuration.Num(); ++Idx)
-				{
-					const FRemoveOnBreakData RemoveOnBreakData{ (*RemoveOnBreak)[Idx] };
-					const FVector2f RemovalTimer = RemoveOnBreakData.GetRemovalTimer();
-					const float MinTime = FMath::Max(0.0f, RemovalTimer.X);
-					const float MaxTime = FMath::Max(MinTime, RemovalTimer.Y);
-					const bool bIsCluster = (Children[Idx].Num() > 0);
-					const bool bUseClusterCrumbling = (bIsCluster && RemoveOnBreakData.GetClusterCrumbling());
-					BreakRemovalDuration[Idx] = bUseClusterCrumbling? -1: FMath::RandRange(MinTime, MaxTime);
-				}
-			}
+			FGeometryCollectionRemoveOnBreakDynamicFacade RemoveOnBreakDynamicFacade(*DynamicCollection);
+			RemoveOnBreakDynamicFacade.AddAttributes(*RemoveOnBreak, DynamicCollection->Children);
 		}
 
 		SetRenderStateDirty();
@@ -3584,6 +3503,72 @@ void UGeometryCollectionComponent::InitializeEmbeddedGeometry()
 	}
 }
 
+struct FGeometryCollectionDecayContext
+{
+	FGeometryCollectionDecayContext(FGeometryCollectionPhysicsProxy& PhysicsProxyIn, FGeometryCollectionDecayDynamicFacade& DecayFacadeIn)
+		: PhysicsProxy(PhysicsProxyIn)
+		, DecayFacade(DecayFacadeIn)
+		, DirtyDynamicCollection(false)
+	{}
+
+	FGeometryCollectionPhysicsProxy& PhysicsProxy;
+	FGeometryCollectionDecayDynamicFacade& DecayFacade;
+	
+	bool DirtyDynamicCollection;
+	TArray<int32> ToDisable;
+	TArray<FGeometryCollectionItemIndex> ToCrumble;
+
+	void Process(FGeometryDynamicCollection& DynamicCollection)
+	{
+		if (DirtyDynamicCollection)
+		{
+			DynamicCollection.MakeDirty();
+		}
+		if (ToCrumble.Num())
+		{
+			PhysicsProxy.BreakClusters_External(MoveTemp(ToCrumble));
+		}
+		if (ToDisable.Num())
+		{
+			PhysicsProxy.DisableParticles_External(MoveTemp(ToDisable));
+		}
+	}
+};
+
+void UGeometryCollectionComponent::UpdateDecay(int32 TransformIdx, float UpdatedDecay, bool bUseClusterCrumbling, bool bHasDynamicInternalClusterParent, FGeometryCollectionDecayContext& ContextInOut)
+{
+	TManagedArray<float>& Decay = ContextInOut.DecayFacade.DecayAttribute.Modify();
+	if (UpdatedDecay > Decay[TransformIdx])
+	{
+		ContextInOut.DirtyDynamicCollection = true;
+		Decay[TransformIdx] = UpdatedDecay;
+
+		if (bUseClusterCrumbling)
+		{
+			if (bHasDynamicInternalClusterParent)
+			{
+				FGeometryCollectionItemIndex InternalClusterItemindex = ContextInOut.PhysicsProxy.GetInternalClusterParentItemIndex_External(TransformIdx);
+				if (InternalClusterItemindex.IsValid())
+				{
+					ContextInOut.ToCrumble.AddUnique(InternalClusterItemindex);
+					Decay[TransformIdx] = 0.0f;
+				}
+			}
+			else
+			{
+				ContextInOut.ToCrumble.AddUnique(FGeometryCollectionItemIndex::CreateTransformItemIndex(TransformIdx));
+				Decay[TransformIdx] = 0.0f;
+			}
+		}
+		else if (Decay[TransformIdx] >= 1.0f)
+		{
+			// Disable the particle if it has decayed the requisite time
+			Decay[TransformIdx] = 1.0f;
+			ContextInOut.ToDisable.Add(TransformIdx);
+		}
+	}
+}
+
 void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 {
 	if (DeltaTime <= 0 || !RestCollection->bRemoveOnMaxSleep || !bAllowRemovalOnSleep)
@@ -3592,86 +3577,46 @@ void UGeometryCollectionComponent::IncrementSleepTimer(float DeltaTime)
 	}
 	
 	// If a particle is sleeping, increment its sleep timer, otherwise reset it.
-	if (DynamicCollection && PhysicsProxy 
-		&& DynamicCollection->HasAttribute("SleepTimer", FGeometryCollection::TransformGroup) 
-		&& DynamicCollection->HasAttribute("MaxSleepTime", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("SleepRemovalDuration", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("LastPosition", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("InternalClusterParentTypeArray", FGeometryCollection::TransformGroup))
+	if (DynamicCollection && PhysicsProxy)
 	{
-		TManagedArray<float>& SleepTimer = DynamicCollection->ModifyAttribute<float>("SleepTimer", FGeometryCollection::TransformGroup);
-		const TManagedArray<float>& SleepRemovalDuration = DynamicCollection->GetAttribute<float>("SleepRemovalDuration", FGeometryCollection::TransformGroup);
-		const TManagedArray<float>& MaxSleepTime = DynamicCollection->GetAttribute<float>("MaxSleepTime", FGeometryCollection::TransformGroup);
-		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
-		TManagedArray<FVector>& LastPosition = DynamicCollection->ModifyAttribute<FVector>("LastPosition", FGeometryCollection::TransformGroup);
-		const TManagedArray<uint8>& InternalClusterParentType = DynamicCollection->GetAttribute<uint8>("InternalClusterParentTypeArray", FGeometryCollection::TransformGroup);
-		const TManagedArray<int32>& Parents = DynamicCollection->Parent;
-		
-		TArray<int32> ToDisable;
-		TArray<FGeometryCollectionItemIndex> ToCrumbleParent;
-		for (int32 TransformIdx = 0; TransformIdx < SleepTimer.Num(); ++TransformIdx)
+		FGeometryCollectionRemoveOnSleepDynamicFacade RemoveOnSleepFacade(*DynamicCollection);
+		FGeometryCollectionDecayDynamicFacade DecayFacade(*DynamicCollection);
+		FGeometryCollectionDynamicStateFacade DynamicStateFacade(*DynamicCollection);
+
+		if (RemoveOnSleepFacade.IsValid()
+			&& DecayFacade.IsValid()
+			&& DynamicStateFacade.IsValid())
 		{
-			// update the sleeping timer accordingly
-			const int32 State = DynamicCollection->DynamicState[TransformIdx];
-			const bool bIsDynamicOrSleeping = (State == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) || (State == (int)EObjectStateTypeEnum::Chaos_Object_Dynamic);
-			const bool bNoParent = Parents[TransformIdx] == INDEX_NONE;
-			const bool bHasKinematicOrStaticInternalClusterParent = (InternalClusterParentType[TransformIdx] == (uint8)Chaos::EInternalClusterType::KinematicOrStatic);
-			const bool IsRemovalActive = (MaxSleepTime[TransformIdx] >= 0) && bIsDynamicOrSleeping && bNoParent && !bHasKinematicOrStaticInternalClusterParent;
-			if (IsRemovalActive)
-			{
-				bool bIsNotMoving = false;
-				if (RestCollection->bSlowMovingAsSleeping)
-				{
-					const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
-					LastPosition[TransformIdx] = CurrentPosition;
-					
-					const FVector::FReal InstantVelocity = (CurrentPosition-LastPosition[TransformIdx]).Size() / (FVector::FReal)DeltaTime; 
-					bIsNotMoving = (InstantVelocity < RestCollection->SlowMovingVelocityThreshold);
-				}
-				
-				const bool IsSleeping = (DynamicCollection->DynamicState[TransformIdx] == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping);
-				const bool HasStartedDecaying = (Decay[TransformIdx] > 0); 
-				if (IsSleeping || bIsNotMoving || HasStartedDecaying)
-				{
-					SleepTimer[TransformIdx] += DeltaTime;
-				}
+			FGeometryCollectionDecayContext DecayContext(*PhysicsProxy, DecayFacade);
 			
-				// update the decay and disable the particle when decay has completed 
-				const bool bZeroRemovalDuration = (SleepRemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
-				const float UpdatedDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((SleepTimer[TransformIdx] - MaxSleepTime[TransformIdx]) / SleepRemovalDuration[TransformIdx], 0.f, 1.f);
-				if (UpdatedDecay > Decay[TransformIdx])
+			TManagedArray<float>& Decay = DecayFacade.DecayAttribute.Modify();
+			for (int32 TransformIdx = 0; TransformIdx < Decay.Num(); ++TransformIdx)
+			{
+				// update the sleeping timer accordingly
+				const bool IsRemovalActive = RemoveOnSleepFacade.IsRemovalActive(TransformIdx);
+				const bool HasBrokenOff = DynamicStateFacade.HasBrokenOff(TransformIdx);
+				const bool HasDynamicInternalClusterParent = DynamicStateFacade.HasDynamicInternalClusterParent(TransformIdx);
+				if (IsRemovalActive && (HasBrokenOff || HasDynamicInternalClusterParent))
 				{
-					// if parent is internal and dynamic we need to break it before decaying 
-					if (InternalClusterParentType[TransformIdx] == (uint8)Chaos::EInternalClusterType::Dynamic)
+					// if decay has started we do not need to check slow moving or sleeping state anymore  
+					bool ShouldUpdateTimer = (Decay[TransformIdx] > 0);
+					if (!ShouldUpdateTimer && RestCollection->bSlowMovingAsSleeping)
 					{
-						FGeometryCollectionItemIndex InternalClusterItemindex = PhysicsProxy->GetInternalClusterParentItemIndex_External(TransformIdx);
-						if (InternalClusterItemindex.IsValid())
-						{
-							ToCrumbleParent.AddUnique(InternalClusterItemindex);
-						}
+						const FVector CurrentPosition = DynamicCollection->Transform[TransformIdx].GetTranslation();
+						ShouldUpdateTimer |= RemoveOnSleepFacade.ComputeSlowMovingState(TransformIdx, CurrentPosition, DeltaTime, RestCollection->SlowMovingVelocityThreshold);
 					}
-
-					DynamicCollection->MakeDirty();
-					Decay[TransformIdx] = UpdatedDecay;
-
-					if (Decay[TransformIdx] >= 1.0f)
+					if (ShouldUpdateTimer || DynamicStateFacade.IsSleeping(TransformIdx))
 					{
-						// Disable the particle if it has been asleep for the requisite time
-						Decay[TransformIdx] = 1.0f;
-						ToDisable.Add(TransformIdx);
+						RemoveOnSleepFacade.UpdateSleepTimer(TransformIdx, DeltaTime);
 					}
+			 
+					// update the decay and disable the particle when decay has completed 
+					const float UpdatedDecay = RemoveOnSleepFacade.ComputeDecay(TransformIdx);
+					UpdateDecay(TransformIdx, UpdatedDecay, DynamicStateFacade.HasChildren(TransformIdx), HasDynamicInternalClusterParent, DecayContext);
 				}
 			}
-		}
 
-		if (ToCrumbleParent.Num())
-		{
-			PhysicsProxy->BreakClusters_External(MoveTemp(ToCrumbleParent));
-		}
-		if (ToDisable.Num())
-		{
-			PhysicsProxy->DisableParticles_External(MoveTemp(ToDisable));
+			DecayContext.Process(*DynamicCollection);
 		}
 	}
 }
@@ -3683,69 +3628,38 @@ void UGeometryCollectionComponent::IncrementBreakTimer(float DeltaTime)
 		return;
 	}
 	
-	if (DynamicCollection && PhysicsProxy 
-		&& DynamicCollection->HasAttribute("BreakTimer", FGeometryCollection::TransformGroup) 
-		&& DynamicCollection->HasAttribute("PostBreakDuration", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("BreakRemovalDuration", FGeometryCollection::TransformGroup)
-		&& DynamicCollection->HasAttribute("Decay", FGeometryCollection::TransformGroup)
-		)
+	if (DynamicCollection && PhysicsProxy)
 	{
-		TManagedArray<float>& BreakTimer = DynamicCollection->ModifyAttribute<float>("BreakTimer", FGeometryCollection::TransformGroup);
-		const TManagedArray<float>& PostBreakDuration = DynamicCollection->GetAttribute<float>("PostBreakDuration", FGeometryCollection::TransformGroup);
-		const TManagedArray<float>& BreakRemovalDuration = DynamicCollection->GetAttribute<float>("BreakRemovalDuration", FGeometryCollection::TransformGroup);
-		TManagedArray<float>& Decay = DynamicCollection->ModifyAttribute<float>("Decay", FGeometryCollection::TransformGroup);
-		
-		TArray<int32> ToDisable;
-		TArray<FGeometryCollectionItemIndex> ToCrumble;
-		for (int32 TransformIdx = 0; TransformIdx < BreakTimer.Num(); ++TransformIdx)
-		{
-			const bool bIsBroken = DynamicCollection->Active[TransformIdx];
-			const bool bIsRemovedFromBreakEnabled = (PostBreakDuration[TransformIdx] >= 0);
-			
-			const int32 State = DynamicCollection->DynamicState[TransformIdx];
-			const bool bIsDynamicOrSleeping = (State == (int)EObjectStateTypeEnum::Chaos_Object_Sleeping) || (State == (int)EObjectStateTypeEnum::Chaos_Object_Dynamic);
-			
-			if (bIsBroken && bIsRemovedFromBreakEnabled && bIsDynamicOrSleeping)
-			{
-				BreakTimer[TransformIdx] += DeltaTime;
-				const bool bPostBreakTimeExpired = (BreakTimer[TransformIdx] >= PostBreakDuration[TransformIdx]);
-				const bool bZeroRemovalDuration = (BreakRemovalDuration[TransformIdx] < UE_SMALL_NUMBER);
-				float UpdatedBreakDecay = 0;
-				if (bPostBreakTimeExpired)
-				{
-					UpdatedBreakDecay = bZeroRemovalDuration? 1.f: FMath::Clamp<float>((BreakTimer[TransformIdx] - PostBreakDuration[TransformIdx]) / BreakRemovalDuration[TransformIdx], 0.f, 1.f);
-				}
-				if (UpdatedBreakDecay > Decay[TransformIdx])
-				{
-					DynamicCollection->MakeDirty();
-					Decay[TransformIdx] = UpdatedBreakDecay;
+		FGeometryCollectionRemoveOnBreakDynamicFacade RemoveOnBreakFacade(*DynamicCollection);
+		FGeometryCollectionDecayDynamicFacade DecayFacade(*DynamicCollection);
+		FGeometryCollectionDynamicStateFacade DynamicStateFacade(*DynamicCollection);
 
-					const bool bUseClusterCrumbling = (BreakRemovalDuration[TransformIdx] < 0);
-					if (bUseClusterCrumbling)
+		if (RemoveOnBreakFacade.IsValid()
+			&& DecayFacade.IsValid()
+			&& DynamicStateFacade.IsValid())
+		{
+			FGeometryCollectionDecayContext DecayContext(*PhysicsProxy, DecayFacade);
+			
+			TManagedArray<float>& Decay = DecayFacade.DecayAttribute.Modify();
+			for (int32 TransformIdx = 0; TransformIdx < Decay.Num(); ++TransformIdx)
+			{
+				const bool HasDynamicInternalClusterParent = DynamicStateFacade.HasDynamicInternalClusterParent(TransformIdx);
+				if (RemoveOnBreakFacade.IsRemovalActive(TransformIdx)
+					&& (DynamicStateFacade.HasBrokenOff(TransformIdx) || HasDynamicInternalClusterParent))
+				{
+					bool UseClusterCrumbling = RemoveOnBreakFacade.UseClusterCrumbling(TransformIdx);
+					if (HasDynamicInternalClusterParent && DynamicCollection->Parent[TransformIdx] > INDEX_NONE)
 					{
-						ToCrumble.AddUnique(FGeometryCollectionItemIndex::CreateTransformItemIndex(TransformIdx));
-						Decay[TransformIdx] = 0;
+						// look up the state of the original parent to decide if the internal cluster parent should cumble 
+						UseClusterCrumbling = RemoveOnBreakFacade.UseClusterCrumbling(DynamicCollection->Parent[TransformIdx]);
 					}
-					else
-					{
-						if (Decay[TransformIdx] >= 1.0f)
-						{
-							// Disable the particle if it has decayed  the requisite time
-							Decay[TransformIdx] = 1.0f;
-							ToDisable.Add(TransformIdx);
-						}
-					}
+					
+					const float UpdatedBreakDecay = RemoveOnBreakFacade.UpdateBreakTimerAndComputeDecay(TransformIdx, DeltaTime);
+					UpdateDecay(TransformIdx, UpdatedBreakDecay, UseClusterCrumbling, HasDynamicInternalClusterParent, DecayContext);
 				}
 			}
-		}
 
-		if (ToCrumble.Num())
-		{
-			PhysicsProxy->BreakClusters_External(MoveTemp(ToCrumble));
-		}
-		if (ToDisable.Num())
-		{
-			PhysicsProxy->DisableParticles_External(MoveTemp(ToDisable));
+			DecayContext.Process(*DynamicCollection);
 		}
 	}
 }

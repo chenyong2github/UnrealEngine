@@ -88,6 +88,50 @@ public:
 	TManagedArray<bool> SimulatableParticles;
 };
 
+/**
+ * Provides an API for dynamic state related attributes
+ * physics state , broken state, current parent (normal or internal clusters )
+ * To be used with the dynamic collection
+ */
+class CHAOS_API FGeometryCollectionDynamicStateFacade
+{
+public:
+	FGeometryCollectionDynamicStateFacade(FManagedArrayCollection& InCollection);
+
+	/** returns true if all the necessary attributes are present */
+	bool IsValid() const;
+
+	/** return true if the transform is in a dynamic or sleeping state */
+	bool IsDynamicOrSleeping(int32 TransformIndex) const;
+
+	/** return true if the transform is in a sleeping state */
+	bool IsSleeping(int32 TransformIndex) const;
+
+	/** whether there's children attached to this transfom (Cluster) */
+	bool HasChildren(int32 TransformIndex) const;
+	
+	/** return true if the transform has broken off its parent */
+	bool HasBrokenOff(int32 TransformIndex) const;
+
+	/** return true if the transform has an internal cluster parent */
+	bool HasDynamicInternalClusterParent(int32 TransformIndex) const;
+	
+private:
+	/** Active state, true means that the transform is active or broken off from its parent */
+	TManagedArrayAccessor<bool> ActiveAttribute;
+
+	/** physics state of the transform (Dynamic, kinematic, static, sleeping) */
+	TManagedArrayAccessor<int32> DynamicStateAttribute;
+
+	/** currently attached children (potentially different from the initial children setup) */
+	TManagedArrayAccessor<TSet<int32>> ChildrenAttribute;
+	
+	/** Current parent (potentially different from the initial parent) */
+	TManagedArrayAccessor<int32> ParentAttribute;
+
+	/** type of internal state parent */
+	TManagedArrayAccessor<uint8> InternalClusterParentTypeAttribute;
+};
 
 class FGeometryCollectioPerFrameData
 {
