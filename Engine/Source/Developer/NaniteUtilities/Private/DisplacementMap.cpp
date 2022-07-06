@@ -3,7 +3,6 @@
 #pragma once
 
 #include "DisplacementMap.h"
-#include "Engine/Texture.h"
 
 namespace Nanite
 {

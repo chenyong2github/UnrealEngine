@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Engine/Texture.h"
+
 
 namespace Nanite
 {
