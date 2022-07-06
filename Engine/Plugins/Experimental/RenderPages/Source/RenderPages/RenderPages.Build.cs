@@ -29,6 +29,7 @@ public class RenderPages : ModuleRules
 				"MovieRenderPipelineRenderPasses",
 				"MovieScene",
 				"Serialization",
+				"UnrealEd",
 			}
 		);
 	}

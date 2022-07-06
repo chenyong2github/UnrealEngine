@@ -63,16 +63,10 @@ void UE::RenderPages::Private::SRenderPagesPropsRemoteControl::Refresh()
 	{
 		return;
 	}
-	RowWidgetsContainer->ClearChildren();
 
 	if (const TSharedPtr<IRenderPageCollectionEditor> BlueprintEditor = BlueprintEditorWeakPtr.Pin())
 	{
-		if (BlueprintEditor->IsCurrentlyRenderingOrPlaying())
-		{
-			return;
-		}
-
-		TArray<TSharedRef<SWidget>> RowWidgets;
+		TArray<FRenderPagesRemoteControlGenerateWidgetArgs> NewRowWidgetsArgs;
 		if (IsValid(PropsSource))
 		{
 			URenderPagePropsRemoteControl* Props = PropsSource->GetProps();
@@ -83,31 +77,54 @@ void UE::RenderPages::Private::SRenderPagesPropsRemoteControl::Refresh()
 				{
 					continue;
 				}
-				if (!Prop->SetValue(PropData))
+
+				if (!BlueprintEditor->IsCurrentlyRenderingOrPlaying())
+				{
+					if (!Prop->SetValue(PropData))
+					{
+						continue;
+					}
+				}
+				else if (!Prop->CanSetValue(PropData))
 				{
 					continue;
 				}
 
-				if (URemoteControlPreset* Preset = Props->GetRemoteControlPreset())
+				if (URemoteControlPreset* Preset = Props->GetRemoteControlPreset(); IsValid(Preset))
 				{
 					FRenderPagesRemoteControlGenerateWidgetArgs Args;
 					Args.Preset = Preset;
 					Args.Entity = Prop->GetRemoteControlEntity();
 					Args.ColumnSizeData.LeftColumnWidth = 0.3;
 					Args.ColumnSizeData.RightColumnWidth = 0.7;
-					RowWidgets.Add(SRenderPagesRemoteControlField::MakeInstance(Args).ToSharedRef());
+					NewRowWidgetsArgs.Add(Args);
 				}
 			}
 		}
 
-		for (TSharedRef<SWidget> RowWidget : RowWidgets)
+		if (RowWidgetsArgs != NewRowWidgetsArgs)
 		{
-			RowWidgetsContainer->AddSlot()
-				.Padding(0.0f)
-				.AutoHeight()
-				[
-					RowWidget
-				];
+			RowWidgetsArgs = NewRowWidgetsArgs;
+			RowWidgetsContainer->ClearChildren();
+			RowWidgets.Empty();
+			for (const FRenderPagesRemoteControlGenerateWidgetArgs& RowWidgetArgs : RowWidgetsArgs)
+			{
+				TSharedPtr<SRenderPagesRemoteControlTreeNode> RowWidget = SRenderPagesRemoteControlField::MakeInstance(RowWidgetArgs);
+				RowWidgets.Add(RowWidget);
+				RowWidgetsContainer->AddSlot()
+					.Padding(0.0f)
+					.AutoHeight()
+					[
+						RowWidget.ToSharedRef()
+					];
+			}
+		}
+		else
+		{
+			for (const TSharedPtr<SRenderPagesRemoteControlTreeNode>& RowWidget : RowWidgets)
+			{
+				RowWidget->RefreshValue();
+			}
 		}
 	}
 }

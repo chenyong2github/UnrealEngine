@@ -7,6 +7,7 @@
 #include "IImageWrapper.h"
 #include "IImageWrapperModule.h"
 #include "ImageUtils.h"
+#include "Editor/EditorPerformanceSettings.h"
 #include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
@@ -247,4 +248,51 @@ FString UE::RenderPages::Private::FRenderPagesUtils::NormalizeOutputDirectory(co
 		NewOutputDirectory += TEXT("/");
 	}
 	return NewOutputDirectory;
+}
+
+
+FRenderPagePreviousEngineFpsSettings UE::RenderPages::Private::FRenderPagesUtils::DisableFpsLimit()
+{
+	FRenderPagePreviousEngineFpsSettings Settings;
+	if (GEngine)
+	{
+		static IConsoleVariable* VSync = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"));
+		static IConsoleVariable* VSyncEditor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSyncEditor"));
+		UEditorPerformanceSettings* EditorPerformanceSettings = GetMutableDefault<UEditorPerformanceSettings>();
+
+		Settings.bHasBeenSet = true;
+		Settings.bUseFixedFrameRate = GEngine->bUseFixedFrameRate;
+		Settings.bForceDisableFrameRateSmoothing = GEngine->bForceDisableFrameRateSmoothing;
+		Settings.MaxFps = GEngine->GetMaxFPS();
+		Settings.bVSync = VSync->GetBool();
+		Settings.bVSyncEditor = VSyncEditor->GetBool();
+		Settings.bThrottleCPUWhenNotForeground = EditorPerformanceSettings->bThrottleCPUWhenNotForeground;
+
+		GEngine->bUseFixedFrameRate = false;
+		GEngine->bForceDisableFrameRateSmoothing = true;
+		GEngine->SetMaxFPS(10000);
+		VSync->Set(false);
+		VSyncEditor->Set(false);
+		EditorPerformanceSettings->bThrottleCPUWhenNotForeground = false;
+		EditorPerformanceSettings->PostEditChange();
+	}
+	return Settings;
+}
+
+void UE::RenderPages::Private::FRenderPagesUtils::RestoreFpsLimit(const FRenderPagePreviousEngineFpsSettings& Settings)
+{
+	if (GEngine && Settings.bHasBeenSet)
+	{
+		static IConsoleVariable* VSync = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSync"));
+		static IConsoleVariable* VSyncEditor = IConsoleManager::Get().FindConsoleVariable(TEXT("r.VSyncEditor"));
+		UEditorPerformanceSettings* EditorPerformanceSettings = GetMutableDefault<UEditorPerformanceSettings>();
+
+		GEngine->bUseFixedFrameRate = Settings.bUseFixedFrameRate;
+		GEngine->bForceDisableFrameRateSmoothing = Settings.bForceDisableFrameRateSmoothing;
+		GEngine->SetMaxFPS(Settings.MaxFps);
+		VSync->Set(Settings.bVSync);
+		VSyncEditor->Set(Settings.bVSyncEditor);
+		EditorPerformanceSettings->bThrottleCPUWhenNotForeground = Settings.bThrottleCPUWhenNotForeground;
+		EditorPerformanceSettings->PostEditChange();
+	}
 }

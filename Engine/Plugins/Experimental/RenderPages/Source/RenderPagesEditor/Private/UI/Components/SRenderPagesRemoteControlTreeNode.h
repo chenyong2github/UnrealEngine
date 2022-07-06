@@ -21,13 +21,19 @@ namespace UE::RenderPages::Private
 	 */
 	struct FRenderPagesRemoteControlColumnSizeData
 	{
-		TAttribute<float> LeftColumnWidth;
-		TAttribute<float> RightColumnWidth;
+		TAttribute<float> LeftColumnWidth = 0.0f;
+		TAttribute<float> RightColumnWidth = 0.0f;
 		SSplitter::FOnSlotResized OnWidthChanged;
 
 		void SetColumnWidth(const float InWidth)
 		{
 			OnWidthChanged.ExecuteIfBound(InWidth);
+		}
+
+		bool operator!=(const FRenderPagesRemoteControlColumnSizeData& RHS) const { return !(*this == RHS); }
+		bool operator==(const FRenderPagesRemoteControlColumnSizeData& RHS) const
+		{
+			return LeftColumnWidth.IdenticalTo(RHS.LeftColumnWidth) && RightColumnWidth.IdenticalTo(RHS.RightColumnWidth);
 		}
 	};
 
@@ -36,9 +42,15 @@ namespace UE::RenderPages::Private
 	 */
 	struct FRenderPagesRemoteControlGenerateWidgetArgs
 	{
-		URemoteControlPreset* Preset = nullptr;
+		TObjectPtr<URemoteControlPreset> Preset = nullptr;
 		FRenderPagesRemoteControlColumnSizeData ColumnSizeData;
-		TSharedPtr<FRemoteControlEntity> Entity;
+		TSharedPtr<FRemoteControlEntity> Entity = nullptr;
+
+		bool operator!=(const FRenderPagesRemoteControlGenerateWidgetArgs& RHS) const { return !(*this == RHS); }
+		bool operator==(const FRenderPagesRemoteControlGenerateWidgetArgs& RHS) const
+		{
+			return (Preset == RHS.Preset) && (ColumnSizeData == RHS.ColumnSizeData) && (Entity == RHS.Entity);
+		}
 	};
 
 
@@ -61,12 +73,18 @@ namespace UE::RenderPages::Private
 
 		/** Get this tree node's children. */
 		virtual void GetNodeChildren(TArray<TSharedPtr<SRenderPagesRemoteControlTreeNode>>& OutChildren) const {}
+
 		/** Get this node's ID if any. */
 		virtual FGuid GetRCId() const { return FGuid(); }
+
 		/** Get get this node's type. */
 		virtual ENodeType GetRCType() const { return ENodeType::Invalid; }
+
 		/** Refresh the node. */
 		virtual void Refresh() {}
+
+		/** Refreshes the value of the node, without replacing the node. */
+		virtual void RefreshValue() {}
 
 	protected:
 		struct FRenderPagesMakeNodeWidgetArgs
@@ -80,6 +98,7 @@ namespace UE::RenderPages::Private
 
 		/** Create a widget that represents a row with a splitter. */
 		TSharedRef<SWidget> MakeSplitRow(TSharedRef<SWidget> LeftColumn, TSharedRef<SWidget> RightColumn);
+
 		/** Create a widget that represents a node in the panel tree hierarchy. */
 		TSharedRef<SWidget> MakeNodeWidget(const FRenderPagesMakeNodeWidgetArgs& Args);
 

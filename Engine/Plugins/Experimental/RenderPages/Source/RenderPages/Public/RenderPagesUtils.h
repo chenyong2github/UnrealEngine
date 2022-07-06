@@ -4,9 +4,49 @@
 
 #include "CoreMinimal.h"
 #include "IImageWrapper.h"
+#include "RenderPagesUtils.generated.h"
 
 
 class UTexture2D;
+
+
+/**
+ * This struct keeps track of the values of the GEngine framerate settings before new values were applied, so we can rollback to the previous state.
+ */
+USTRUCT()
+struct RENDERPAGES_API FRenderPagePreviousEngineFpsSettings
+{
+	GENERATED_BODY()
+
+public:
+	/** Whether the values have been set or not. */
+	UPROPERTY()
+	bool bHasBeenSet = false;
+
+	/** The previous value of GEngine->bUseFixedFrameRate. */
+	UPROPERTY()
+	bool bUseFixedFrameRate = false;
+
+	/** The previous value of GEngine->bForceDisableFrameRateSmoothing. */
+	UPROPERTY()
+	bool bForceDisableFrameRateSmoothing = false;
+
+	/** The previous value of GEngine->GetMaxFPS(). */
+	UPROPERTY()
+	float MaxFps = 0;
+
+	/** The previous value of console variable "r.VSync". */
+	UPROPERTY()
+	bool bVSync = false;
+
+	/** The previous value of console variable "r.VSyncEditor". */
+	UPROPERTY()
+	bool bVSyncEditor = false;
+
+	/** The previous value of UEditorPerformanceSettings->bThrottleCPUWhenNotForeground. */
+	UPROPERTY()
+	bool bThrottleCPUWhenNotForeground = false;
+};
 
 
 namespace UE::RenderPages::Private
@@ -93,5 +133,16 @@ namespace UE::RenderPages::Private
 		 * Returns a normalized directory path.
 		 */
 		static FString NormalizeOutputDirectory(const FString& OutputDirectory);
+
+
+		/**
+		 * Disables the current FPS limiting, returns the previous settings which allow you to revert back to the previous state.
+		 */
+		static FRenderPagePreviousEngineFpsSettings DisableFpsLimit();
+
+		/**
+		 * Reverts back to the previous (given) state.
+		 */
+		static void RestoreFpsLimit(const FRenderPagePreviousEngineFpsSettings& Settings);
 	};
 }

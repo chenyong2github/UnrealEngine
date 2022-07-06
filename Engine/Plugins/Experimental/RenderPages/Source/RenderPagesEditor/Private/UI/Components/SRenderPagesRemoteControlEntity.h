@@ -33,8 +33,10 @@ namespace UE::RenderPages::Private
 	protected:
 		/** Id of the entity. */
 		FGuid EntityId;
+		
 		/** The underlying preset. */
 		TWeakObjectPtr<URemoteControlPreset> PresetWeakPtr;
+		
 		/** Display name of the entity. */
 		FName CachedLabel;
 	};

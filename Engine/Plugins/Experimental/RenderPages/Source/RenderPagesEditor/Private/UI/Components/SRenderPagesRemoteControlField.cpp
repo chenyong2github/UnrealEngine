@@ -17,10 +17,8 @@
 
 namespace ExposedFieldUtils
 {
-	TSharedRef<SWidget> CreateNodeValueWidget(const TSharedPtr<IDetailTreeNode>& Node)
+	TSharedRef<SWidget> CreateNodeValueWidget(const FNodeWidgets& NodeWidgets)
 	{
-		FNodeWidgets NodeWidgets = Node->CreateNodeWidgets();
-
 		TSharedRef<SHorizontalBox> FieldWidget = SNew(SHorizontalBox);
 
 		if (NodeWidgets.ValueWidget)
@@ -108,6 +106,47 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlField::Refresh()
 	}
 }
 
+void UE::RenderPages::Private::SRenderPagesRemoteControlField::RefreshValue()
+{
+	if (!Generator.IsValid() || (GetFieldType() != EExposedFieldType::Property))
+	{
+		Refresh();
+		return;
+	}
+
+	if (const TSharedPtr<FRemoteControlField> Field = FieldWeakPtr.Pin())
+	{
+		TArray<UObject*> Objects = Field->GetBoundObjects();
+		if (Objects.Num() <= 0)
+		{
+			Generator->SetObjects({});
+			ChildSlot.AttachWidget(MakeFieldWidget(SNullWidget::NullWidget));
+			return;
+		}
+
+		Generator->SetObjects({Objects[0]});
+
+		if (TSharedPtr<IDetailTreeNode> Node = RenderPagesWidgetUtils::FindNode(Generator->GetRootTreeNodes(), Field->FieldPathInfo.ToPathPropertyString(), RenderPagesWidgetUtils::ERenderPagesFindNodeMethod::Path))
+		{
+			TArray<TSharedRef<IDetailTreeNode>> ChildNodes;
+			Node->GetChildren(ChildNodes);
+			ChildWidgets.Reset(ChildNodes.Num());
+
+			for (const TSharedRef<IDetailTreeNode>& ChildNode : ChildNodes)
+			{
+				ChildWidgets.Add(SNew(SRenderPagesRemoteControlFieldChildNode, ChildNode, ColumnSizeData));
+			}
+
+			//TODO:  still causes the value widgets (like the color wheel) to disconnect when this function is called,  maybe Node->CreateNodeWidgets() should be cached
+			ChildSlot.AttachWidget(MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(Node->CreateNodeWidgets())));
+		}
+		else
+		{
+			ChildSlot.AttachWidget(MakeFieldWidget(SNullWidget::NullWidget));
+		}
+	}
+}
+
 void UE::RenderPages::Private::SRenderPagesRemoteControlField::GetBoundObjects(TSet<UObject*>& OutBoundObjects) const
 {
 	if (const TSharedPtr<FRemoteControlField> Field = FieldWeakPtr.Pin())
@@ -139,7 +178,7 @@ TSharedRef<SWidget> UE::RenderPages::Private::SRenderPagesRemoteControlField::Co
 					ChildWidgets.Add(SNew(SRenderPagesRemoteControlFieldChildNode, ChildNode, ColumnSizeData));
 				}
 
-				return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(MoveTemp(Node)));
+				return MakeFieldWidget(ExposedFieldUtils::CreateNodeValueWidget(Node->CreateNodeWidgets()));
 			}
 		}
 	}
@@ -170,7 +209,7 @@ void UE::RenderPages::Private::SRenderPagesRemoteControlFieldChildNode::Construc
 	FNodeWidgets Widgets = InNode->CreateNodeWidgets();
 	FRenderPagesMakeNodeWidgetArgs Args;
 	Args.NameWidget = Widgets.NameWidget;
-	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(InNode);
+	Args.ValueWidget = ExposedFieldUtils::CreateNodeValueWidget(InNode->CreateNodeWidgets());
 
 	ChildSlot
 	[

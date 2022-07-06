@@ -15,6 +15,12 @@ namespace UE::RenderPages
 	class IRenderPageCollectionEditor;
 }
 
+namespace UE::RenderPages::Private
+{
+	struct SRenderPagesRemoteControlTreeNode;
+	struct FRenderPagesRemoteControlGenerateWidgetArgs;
+}
+
 
 namespace UE::RenderPages::Private
 {
@@ -60,5 +66,11 @@ namespace UE::RenderPages::Private
 
 		/** The widget that lists the property rows. */
 		TSharedPtr<SVerticalBox> RowWidgetsContainer;
+
+		/** The current property rows, needed to be able to refresh them, as well as to prevent garbage collection. */
+		TArray<TSharedPtr<SRenderPagesRemoteControlTreeNode>> RowWidgets;
+
+		/** The arguments that were used to create the current property rows, needed to not recreate the property rows unnecessarily. */
+		TArray<FRenderPagesRemoteControlGenerateWidgetArgs> RowWidgetsArgs;
 	};
 }

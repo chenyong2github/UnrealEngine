@@ -13,6 +13,7 @@
 
 URenderPage::URenderPage()
 	: Id(FGuid::NewGuid())
+	, WaitFramesBeforeRendering(0)
 	, Sequence(nullptr)
 	, bOverrideStartFrame(false)
 	, CustomStartFrame(0)

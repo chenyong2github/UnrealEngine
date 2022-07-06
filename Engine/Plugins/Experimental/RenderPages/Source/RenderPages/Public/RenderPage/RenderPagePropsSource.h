@@ -133,6 +133,9 @@ public:
 	/** Set the value (as bytes) of the given property (remote control entity). Returns true if the operation was successful, false otherwise. */
 	static bool SetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray);
 
+	/** Tests if it can set the value (as bytes) of the given property (remote control entity). Returns true if the set operation would likely be successful, false otherwise. */
+	static bool CanSetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray);
+
 public:
 	/** Sets the initial values of this instance. */
 	void Initialize(const TSharedPtr<FRemoteControlEntity>& InRemoteControlEntity);
@@ -145,6 +148,9 @@ public:
 
 	/** Set the value (as bytes) of this property. Returns true if the operation was successful, false otherwise. */
 	bool SetValue(const TArray<uint8>& BinaryArray) { return SetValueOfEntity(RemoteControlEntity, BinaryArray); }
+
+	/** Tests if it can set the value (as bytes) of this property. Returns true if the set operation would likely be successful, false otherwise. */
+	bool CanSetValue(const TArray<uint8>& BinaryArray) { return CanSetValueOfEntity(RemoteControlEntity, BinaryArray); }
 
 protected:
 	/** The property, which is a remote control entity (which can be a field or a function). */

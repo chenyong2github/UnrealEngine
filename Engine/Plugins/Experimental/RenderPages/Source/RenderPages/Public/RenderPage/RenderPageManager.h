@@ -15,7 +15,7 @@ class UTexture2D;
 
 
 /**
- * This struct keeps track of the values of the properties before new ones were applied, so we can rollback to the previous state.
+ * This struct keeps track of the values of the properties before new values were applied, so we can rollback to the previous state.
  */
 USTRUCT()
 struct RENDERPAGES_API FRenderPageManagerPreviousPagePropValues

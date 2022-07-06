@@ -88,6 +88,9 @@ public:
 	FGuid GetId() const { return Id; }
 	void GenerateNewId() { Id = FGuid::NewGuid(); }
 
+	uint32 GetWaitFramesBeforeRendering() const { return WaitFramesBeforeRendering; }
+	void SetWaitFramesBeforeRendering(const uint32 NewWaitFramesBeforeRendering) { WaitFramesBeforeRendering = NewWaitFramesBeforeRendering; }
+
 	ULevelSequence* GetSequence() const { return Sequence; }
 	void SetSequence(ULevelSequence* NewSequence) { Sequence = NewSequence; }
 
@@ -142,6 +145,10 @@ private:
 	/** The unique ID of this render page. */
 	UPROPERTY()
 	FGuid Id;
+
+	/** Waits the given number of frames before it will render this page. This can be set to a higher amount when the renderer has to wait for your code to complete (such as construction scripts etc). Try increasing this value when rendering doesn't produce the output you expect it to. */
+	UPROPERTY(EditInstanceOnly, Category="Render Pages|Page", Meta=(AllowPrivateAccess="true"))
+	uint32 WaitFramesBeforeRendering;
 
 	/** The level sequence, this is what will be rendered during rendering. A render page without a level sequence can't be rendered. */
 	UPROPERTY(EditInstanceOnly, Category="Render Pages|Page", Meta=(AllowPrivateAccess="true"))
@@ -299,7 +306,7 @@ private:
 	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the PropsSourceType last used in that function. */
 	UPROPERTY(Transient)
 	mutable ERenderPagePropsSourceType CachedPropsSourceType;
-	
+
 	/** GetPropsSource calls are somewhat expensive, we speed that up by caching the PropsSourceOrigin last used in that function. */
 	UPROPERTY(Transient)
 	mutable TWeakObjectPtr<UObject> CachedPropsSourceOriginWeakPtr;

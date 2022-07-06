@@ -58,6 +58,7 @@ namespace UE::RenderPages::Private
 		virtual void GetNodeChildren(TArray<TSharedPtr<SRenderPagesRemoteControlTreeNode>>& OutChildren) const override;
 		virtual ENodeType GetRCType() const override;
 		virtual void Refresh() override;
+		virtual void RefreshValue() override;
 		//~ End SRenderPagesTreeNode Interface
 
 		/** Get a weak pointer to the underlying remote control field. */
@@ -69,22 +70,26 @@ namespace UE::RenderPages::Private
 		/** Get this field's type. */
 		EExposedFieldType GetFieldType() const;
 
-
 		/** Returns this widget's underlying objects. */
 		void GetBoundObjects(TSet<UObject*>& OutBoundObjects) const;
 
 	private:
 		/** Construct a property widget. */
 		TSharedRef<SWidget> ConstructWidget();
+		
 		/** Create the wrapper around the field value widget. */
 		TSharedRef<SWidget> MakeFieldWidget(const TSharedRef<SWidget>& InWidget);
+		
 		/** Construct this field widget as a property widget. */
 		void ConstructPropertyWidget();
+		
 	private:
 		/** Weak pointer to the underlying RC Field. */
 		TWeakPtr<FRemoteControlField> FieldWeakPtr;
+		
 		/** This exposed field's child widgets (ie. An array's rows) */
 		TArray<TSharedPtr<SRenderPagesRemoteControlFieldChildNode>> ChildWidgets;
+		
 		/** The property row generator. */
 		TSharedPtr<IPropertyRowGenerator> Generator;
 	};

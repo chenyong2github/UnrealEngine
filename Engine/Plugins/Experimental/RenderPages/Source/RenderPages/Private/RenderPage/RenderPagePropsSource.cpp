@@ -78,7 +78,67 @@ bool URenderPagePropRemoteControl::SetValueOfEntity(const TSharedPtr<FRemoteCont
 	}
 	FMemoryReader Reader = FMemoryReader(BinaryArray);
 	FJsonStructDeserializerBackend ReaderBackend = FJsonStructDeserializerBackend(Reader);
-	return IRemoteControlModule::Get().SetObjectProperties(ObjectRefWrite, ReaderBackend, ERCPayloadType::Json);
+	if (!IRemoteControlModule::Get().SetObjectProperties(ObjectRefWrite, ReaderBackend, ERCPayloadType::Json))
+	{
+		return false;
+	}
+
+	{
+		/**
+		 * Work-around.
+		 * 
+		 * Remote control doesn't fire the PreEditChange and PostEditChangeProperty functions right away,
+		 * causing construction scripts to not fire right away,
+		 * which causes changes made in construction scripts to not be rendered when using MRQ.
+		 * 
+		 * The work-around is to call the functions manually.
+		 */
+
+		if (UObject* Object = ObjectRefWrite.Object.Get(); IsValid(Object))
+		{
+			FEditPropertyChain PreEditChain;
+			ObjectRefWrite.PropertyPathInfo.ToEditPropertyChain(PreEditChain);
+			Object->PreEditChange(PreEditChain);
+
+			FPropertyChangedEvent PropertyEvent = ObjectRefWrite.PropertyPathInfo.ToPropertyChangedEvent();
+			PropertyEvent.ChangeType = EPropertyChangeType::ValueSet;
+			Object->PostEditChangeProperty(PropertyEvent);
+		}
+	}
+
+	return true;
+}
+
+bool URenderPagePropRemoteControl::CanSetValueOfEntity(const TSharedPtr<FRemoteControlEntity>& RemoteControlEntity, const TArray<uint8>& BinaryArray)
+{
+	TSharedPtr<FRemoteControlProperty> Field = StaticCastSharedPtr<FRemoteControlProperty>(RemoteControlEntity);
+	if (!Field.IsValid())
+	{
+		return false;
+	}
+
+	FRCObjectReference ObjectRefRead;
+	if (GetObjectRef(Field, ERCAccess::READ_ACCESS, ObjectRefRead))
+	{
+		TArray<uint8> CurrentBinaryArray;
+		FMemoryWriter Writer = FMemoryWriter(CurrentBinaryArray);
+		FJsonStructSerializerBackend WriterBackend = FJsonStructSerializerBackend(Writer, EStructSerializerBackendFlags::Default);
+		if (IRemoteControlModule::Get().GetObjectProperties(ObjectRefRead, WriterBackend))
+		{
+			if (CurrentBinaryArray == BinaryArray)
+			{
+				// if the given value is already set, don't do anything
+				return true;
+			}
+		}
+	}
+
+	FRCObjectReference ObjectRefWrite;
+	if (!GetObjectRef(Field, ERCAccess::WRITE_ACCESS, ObjectRefWrite))
+	{
+		return false;
+	}
+	return true;
 }
 
 void URenderPagePropRemoteControl::Initialize(const TSharedPtr<FRemoteControlEntity>& InRemoteControlEntity)

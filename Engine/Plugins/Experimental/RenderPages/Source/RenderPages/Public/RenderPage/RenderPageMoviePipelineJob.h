@@ -3,6 +3,7 @@
 #pragma once
 
 #include "RenderPageManager.h"
+#include "RenderPagesUtils.h"
 #include "RenderPageMoviePipelineJob.generated.h"
 
 
@@ -15,6 +16,11 @@ class UMoviePipelineExecutorBase;
 class UMoviePipelineQueue;
 class UMoviePipelineExecutorJob;
 class URenderPagesMoviePipelineRenderJob;
+
+namespace UE::RenderPages::Private
+{
+	class FRenderPageQueue;
+}
 
 
 namespace UE::RenderPages
@@ -62,7 +68,67 @@ namespace UE::RenderPages
 
 
 /**
- * This class is responsible for rendering render pages.
+ * This class is responsible for the MRQ part of the rendering of the given render page.
+ */
+UCLASS()
+class RENDERPAGES_API URenderPagesMoviePipelineRenderJobEntry : public UObject
+{
+	GENERATED_BODY()
+
+public:
+	/** Creates a new render job instance, it won't be started right away. */
+	static URenderPagesMoviePipelineRenderJobEntry* Create(URenderPagesMoviePipelineRenderJob* Job, URenderPage* Page, const UE::RenderPages::FRenderPagesMoviePipelineRenderJobCreateArgs& Args);
+
+	/** The destructor, cleans up the TPromise (if it's set). */
+	virtual void BeginDestroy() override;
+
+	/** Starts this render job. */
+	TSharedFuture<void> Execute();
+
+	/** Cancels this render job. Relies on the internal MRQ implementation of job canceling on whether this will do anything or not. */
+	void Cancel();
+
+	/** Retrieves the rendering status of the given render page. */
+	FString GetStatus() const;
+
+	/** Retrieves the "Engine Warm Up Count" value from the AntiAliasingSettings from the render preset that this render page uses. */
+	int32 GetEngineWarmUpCount() const;
+
+private:
+	void ComputePlaybackContext(bool& bOutAllowBinding);
+	void ExecuteFinished(UMoviePipelineExecutorBase* PipelineExecutor, const bool bSuccess);
+
+protected:
+	/** The MRQ queue. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMoviePipelineQueue> RenderQueue;
+
+	/** The MRQ pipeline executor. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMoviePipelineExecutorBase> Executor;
+
+	/** The MRQ job of the given render page. */
+	UPROPERTY(Transient)
+	TObjectPtr<UMoviePipelineExecutorJob> ExecutorJob;
+
+	/** The TPromise of the rendering process. */
+	TSharedPtr<TPromise<void>> Promise;
+
+	/** The TFuture of the rendering process. */
+	TSharedFuture<void> PromiseFuture;
+
+	/** The rendering status of the given render page. */
+	UPROPERTY(Transient)
+	FString Status;
+
+	/** Whether the entry can execute, or whether it should just skip execution. */
+	UPROPERTY(Transient)
+	bool bCanExecute;
+};
+
+
+/**
+ * This class is responsible for rendering the given render pages.
  */
 UCLASS()
 class RENDERPAGES_API URenderPagesMoviePipelineRenderJob : public UObject
@@ -76,44 +142,35 @@ public:
 	/** Starts this render job. */
 	void Execute();
 
-	/** Cancels this render job. Relies on the internal MRQ implementation of job canceling on whether this will do anything or not. */
+	/** Cancels this render job. Relies on the internal MRQ implementation of job canceling on whether this will stop the current page from rendering or not. Will always prevent new pages from rendering. */
 	void Cancel();
 
 	/** Retrieves the rendering status of the given render page. */
 	FString GetPageStatus(URenderPage* Page) const;
 
-private:
-	void ComputePlaybackContext(bool& bOutAllowBinding);
-	void ExecutePageStarted(UMoviePipelineExecutorJob* JobToStart);
-	void ExecutePageFinished(FMoviePipelineOutputData PipelineOutputData);
-	void ExecuteFinished(UMoviePipelineExecutorBase* PipelineExecutor, const bool bSuccess);
-
-
 protected:
-	/** The MRQ queue. */
-	UPROPERTY(Transient)
-	TObjectPtr<UMoviePipelineQueue> RenderQueue;
+	/** The queue containing the render actions. */
+	TSharedPtr<UE::RenderPages::Private::FRenderPageQueue> Queue;
 
-	/** The MRQ pipeline executor. */
+	/** The render pages that are to be rendered, mapped to the rendering job of each specific render page. */
 	UPROPERTY(Transient)
-	TObjectPtr<UMoviePipelineExecutorBase> ActiveExecutor;
+	TMap<TObjectPtr<const URenderPage>, TObjectPtr<URenderPagesMoviePipelineRenderJobEntry>> Entries;
 
-	/** The render page collection of the given render pages that will be rendered. */
+	/** The render page collection of the given render page that will be rendered. */
 	UPROPERTY(Transient)
 	TObjectPtr<URenderPageCollection> PageCollection;
 
-	/** The render pages that are to be rendered, mapped to the job of each specific render page. */
+	/** Whether the remaining pages should be prevented from rendering. */
 	UPROPERTY(Transient)
-	TMap<TObjectPtr<const URenderPage>, TObjectPtr<UMoviePipelineExecutorJob>> PageExecutorJobs;
+	bool bCanceled;
 
-	/** The render pages that are to be rendered, mapped to the rendering status of each specific render page. */
-	UPROPERTY(Transient)
-	TMap<TObjectPtr<const URenderPage>, FString> PageStatuses;
-
-	/** The render page properties that have been overwritten by the currently applied page properties. */
+	/** The render page property values that have been overwritten by the currently applied page property values. */
 	UPROPERTY(Transient)
 	FRenderPageManagerPreviousPagePropValues PreviousPageProps;
 
+	/** The engine framerate settings values that have been overwritten by the currently applied engine framerate settings values. */
+	UPROPERTY(Transient)
+	FRenderPagePreviousEngineFpsSettings PreviousFrameLimitSettings;
 
 public:
 	/** A delegate for when the render job is about to start. */
