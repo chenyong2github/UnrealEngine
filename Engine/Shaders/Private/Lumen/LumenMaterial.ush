@@ -178,6 +178,7 @@ struct FLumenMaterialData
 	float  Anisotropy;
 
 #if STRATA_ENABLED
+	bool bHasSecondSpecularLobe;
 	float3x3 TangentBasis;
 #elif !FRONT_LAYER_TRANSLUCENCY
 	FGBufferData GBufferData;
@@ -213,8 +214,6 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 
 	Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InPixelPos, 0)).r);
 	Out.WorldNormal						= TopLayerData.WorldNormal;
-	Out.Roughness						= TopLayerData.Roughness;
-	Out.TopLayerRoughness				= TopLayerData.Roughness;
 	Out.MaterialAO						= StrataGetIrradianceAndAO(StrataPixelHeader).MaterialAO;
 	Out.ShadingID						= StrataHeaderIsValid(StrataPixelHeader) ? SHADINGMODELID_STRATA : SHADINGMODELID_UNLIT;
 	Out.DiffuseIndirectSampleOcclusion	= StrataGetIrradianceAndAO(StrataPixelHeader).DiffuseIndirectSampleOcclusion;
@@ -224,6 +223,10 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 	Out.bIsFoliage						= false; // STRATA_TODO: this is used as a mean to identified 'high frequency alpha-masked'
 	Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 	Out.bIsFrontLayerTranslucency		= false;
+
+	Out.Roughness						= TopLayerData.Roughness;
+	Out.TopLayerRoughness				= TopLayerData.Roughness;
+	Out.bHasSecondSpecularLobe			= false;
 
 	Out.Anisotropy		= 0;
 	Out.TangentBasis	= (float3x3)0;
@@ -242,7 +245,7 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InPixelPos)
 }
 
 // Strata material internal read function - Per-BSDF data
-FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFIndex, uint InBSDFCount)
+FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFIndex, uint InBSDFCount, float MaxRoughnessToTraceSmoothReflection)
 {
 	FLumenMaterialData Out = (FLumenMaterialData)0;
 #if STRATA_ENABLED && STRATA_USES_RESOURCE_MATERIALCONTAINER
@@ -267,7 +270,6 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 			Out.SceneDepth						= ConvertFromDeviceZ(SceneTexturesStruct.SceneDepthTexture.Load(int3(InCoord, 0)).r);
 			Out.TangentBasis					= StrataGetBSDFSharedBasis(StrataPixelHeader, BSDF, StrataAddressing);
 			Out.WorldNormal						= Out.TangentBasis[2];
-			Out.Roughness						= StrataGetBSDFRoughness(BSDF);
 			Out.TopLayerRoughness				= Out.Roughness;
 			Out.MaterialAO						= IrradianceAO.MaterialAO;
 			Out.ShadingID						= SHADINGMODELID_STRATA;
@@ -279,6 +281,27 @@ FLumenMaterialData InternalReadMaterialData_Strata(uint2 InCoord, uint InBSDFInd
 			Out.bRequiresBxDFImportanceSampling = Out.bIsHair;
 			Out.bIsFrontLayerTranslucency		= false;
 			Out.Anisotropy						= StrataGetBSDFAnisotropy(BSDF);
+
+
+			Out.Roughness				= StrataGetBSDFRoughness(BSDF);
+			Out.TopLayerRoughness		= Out.Roughness;
+			Out.bHasSecondSpecularLobe	= false;
+			const bool bHasHaziness = BSDF_GETHASHAZINESS(BSDF);
+			if (bHasHaziness)
+			{
+				FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
+				if (Haziness.Weight > 0.0)
+				{
+					// Roughness receive the roughest lobes while TopLayerRoughness receive the smoothest
+					// We can do that because lumen do not account for any roughness on the diffuse component and only account Lambert here.
+					// The TopLayer and base roughnesses as setup in a way to allow lob to always lerp between smooth and sharp contiunously, 
+					// even if both are smooth (both < MaxRoughnessToTraceSmoothReflection) or rough (both > MaxRoughnessToTraceSmoothReflection).
+					Out.TopLayerRoughness		= min(min(Out.Roughness, Haziness.Roughness), MaxRoughnessToTraceSmoothReflection);
+					Out.Roughness				= max(max(Out.Roughness, Haziness.Roughness), MaxRoughnessToTraceSmoothReflection);
+					Out.bHasSecondSpecularLobe	= true;
+				}
+
+			}
 		}
 	}
 #endif
@@ -361,12 +384,12 @@ FLumenMaterialData ReadMaterialData(uint2 InPixelPos, float2 InBufferUV)
 #endif
 }
 
-FLumenMaterialData ReadMaterialData(FLumenMaterialCoord InCoord)
+FLumenMaterialData ReadMaterialData(FLumenMaterialCoord InCoord, float MaxRoughnessToTraceSmoothReflection)
 {
 #if FRONT_LAYER_TRANSLUCENCY
 	return InternalReadMaterialData_FrontLayerTranslucency(InCoord.SvPosition);
 #elif STRATA_ENABLED
-	return InternalReadMaterialData_Strata(InCoord.SvPosition, InCoord.TileBSDFIndex, InCoord.TileBSDFCount);
+	return InternalReadMaterialData_Strata(InCoord.SvPosition, InCoord.TileBSDFIndex, InCoord.TileBSDFCount, MaxRoughnessToTraceSmoothReflection);
 #else
 	return InternalReadMaterialData_GBuffer(InCoord.SvPosition);
 #endif
@@ -391,7 +414,11 @@ bool IsFoliage(FLumenMaterialData In)
 
 bool IsClearCoat(FLumenMaterialData In)
 {
+#if STRATA_ENABLED
+	return In.bHasSecondSpecularLobe;
+#else
 	return In.ShadingID == SHADINGMODELID_CLEAR_COAT;
+#endif
 }
 
 bool IsSingleLayerWater(FLumenMaterialData In)

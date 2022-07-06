@@ -109,7 +109,7 @@ void ReflectionTileClassificationMarkCS(
 
 	if (bIsValid)
 	{
-		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord), false /*bTopLayerRoughness*/);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), false /*bTopLayerRoughness*/);
 		if (NeedRayTracedReflections(Material.Roughness, Material))
 		{
 			// Metal compiler issue: it requires `+=` instead of `=` to record the tile as of UE 5.0
@@ -314,7 +314,7 @@ void ReflectionGenerateRaysCS(
 	{
 
 		const FLumenMaterialCoord Coord = GetLumenMaterialCoord(SvPositionForMaterialCoord, bIsOverflow);
-		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord), true /*bTopLayerRoughness*/);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
 
 		float DownsampledDepth = Material.SceneDepth;
 
@@ -333,7 +333,6 @@ void ReflectionGenerateRaysCS(
 			// When FontLayerTranslucency is enable, LumenMaterial is built from custom packed data (i.e., non-Strata)
 		#if STRATA_ENABLED && !FRONT_LAYER_TRANSLUCENCY
 			{
-				const float2 E = GenerateRandom(ReflectionTracingCoord);
 				FStrataAddressing StrataAddressing = GetStrataPixelDataByteOffset(Coord.SvPosition, uint2(View.BufferSizeAndInvSize.xy), Strata.MaxBytesPerPixel);
 				const FStrataPixelHeader StrataPixelHeader = UnpackStrataHeaderIn(Strata.MaterialTextureArray, StrataAddressing, Strata.TopLayerTexture);
 				const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
@@ -343,9 +342,18 @@ void ReflectionGenerateRaysCS(
 					const uint OffsetAddress = UnpackBSDFOffsetAtIndex(Strata.BSDFOffsetTexture[Coord.SvPosition], Coord.TileBSDFIndex, Coord.TileBSDFCount);
 					StrataSeekBSDF(StrataAddressing, OffsetAddress);
 				}
+				FStrataBSDF BSDF = UnpackStrataBSDF(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
 
-				const FStrataBSDF BSDF = UnpackStrataBSDF(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+				// We set slabs BSDFs as having a single specular lob without haziness.
+				// This is to ensure the pdf is computed from a single lobe in order to be able to compute a matching cone angle.
+				StrataSetBSDFRoughness(BSDF, Material.TopLayerRoughness);
+				if (StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SLAB)
+				{
+					BSDF_SETHASHAZINESS(BSDF, 0);
+				}
+
 				const FStrataBSDFContext Context = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
+				const float2 E = GenerateRandom(ReflectionTracingCoord);
 				const FBxDFSample Sample = StrataImportanceSampleBSDF(Context, BSDF, E, SHADING_TERM_SPECULAR, Settings);
 
 				RayDirection = normalize(Sample.L);
@@ -459,7 +467,7 @@ void ReflectionResolveCS(
 	const bool bUseCenterSample = ReflectionDownsampleFactor == 1;
 
 	{
-		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord), true /*bTopLayerRoughness*/);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
 		DepthForReprojection = Material.SceneDepth;
 
 		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
@@ -917,7 +925,7 @@ void ReflectionTemporalReprojectionCS(
 	float4 HistoryDepthDeviceZ = DepthHistory.GatherRed(GlobalPointClampedSampler, HistoryDepthGatherUV).wzxy;
 	float4 HistorySceneDepth = float4(ConvertFromDeviceZ(HistoryDepthDeviceZ.x), ConvertFromDeviceZ(HistoryDepthDeviceZ.y), ConvertFromDeviceZ(HistoryDepthDeviceZ.z), ConvertFromDeviceZ(HistoryDepthDeviceZ.w));
 
-	const FLumenMaterialData Material = ReadMaterialData(Coord);
+	const FLumenMaterialData Material = ReadMaterialData(Coord, MaxRoughnessToTrace);
 	float Noise = InterleavedGradientNoise(ReflectionScreenCoord.xy, SCREEN_TEMPORAL_INDEX);
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
 	float PrevSceneDepth = ConvertFromDeviceZ(HistoryScreenPosition.z);
@@ -1067,7 +1075,7 @@ void ReflectionBilateralFilterCS(
 
 	if (SceneDepth < 1000000.0f)
 	{
-		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord), true /*bTopLayerRoughness*/);
+		const FLumenMaterialData Material = ApplySmoothBias(ReadMaterialData(Coord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
 
 		if (NeedRayTracedReflections(Material.TopLayerRoughness, Material))
 		{
@@ -1102,7 +1110,7 @@ void ReflectionBilateralFilterCS(
 						const FLumenMaterialCoord NeighborCoord = GetLumenMaterialCoord(NeighborSvPosition, Coord.TileBSDFIndex);
 
 						float2 NeighborScreenUV = (NeighborCoord.SvPosition + 0.5f) * View.BufferSizeAndInvSize.zw;
-						const FLumenMaterialData NeighborMaterial = ApplySmoothBias(ReadMaterialData(NeighborCoord), true /*bTopLayerRoughness*/);
+						const FLumenMaterialData NeighborMaterial = ApplySmoothBias(ReadMaterialData(NeighborCoord, MaxRoughnessToTrace), true /*bTopLayerRoughness*/);
 						const float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborMaterial.SceneDepth);
 
 						// Avoid reading from unprocessed tiles

@@ -264,11 +264,10 @@ FStrataDeferredLighting StrataIndirectLighting(
 		OutBSDF.Specular += BSDFThroughput * InGlossyLighting  * StrataEnvLight.SpecularWeight * Occlusion.SpecularOcclusion;
 
 		#if STRATA_FASTPATH==0
-		if (BSDF_GETHASHAZINESS(BSDF))
+		if (any(StrataEnvLight.SpecularHazeWeight > 0.0f))
 		{
-			FHaziness Haziness = UnpackHaziness(SLAB_HAZINESS(BSDF));
-			const float3 InHazeGlossyLighting = MixSpecularAndRoughReflections(Haziness.Roughness, InSpecularLighting, InRoughSpecularLighting);
-			OutBSDF.Specular += BSDFThroughput * InHazeGlossyLighting * Haziness.Weight * Occlusion.SpecularOcclusion;
+			const float3 InHazeGlossyLighting = MixSpecularAndRoughReflections(StrataEnvLight.SpecularHazeSafeRoughness, InSpecularLighting, InRoughSpecularLighting);
+			OutBSDF.Specular += BSDFThroughput * StrataEnvLight.SpecularHazeWeight * InHazeGlossyLighting * Occlusion.SpecularOcclusion;
 		}
 		#endif 
 

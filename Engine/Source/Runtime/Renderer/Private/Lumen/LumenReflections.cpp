@@ -461,6 +461,7 @@ class FReflectionTemporalReprojectionCS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, VelocityTextureSampler)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolvedReflections)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenReflectionTileParameters, ReflectionTileParameters)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenNeedRayTracedReflectionsParameters, NeedRayTracedReflectionsParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FBilateralFilter : SHADER_PERMUTATION_BOOL("USE_BILATERAL_FILTER");
@@ -823,6 +824,7 @@ void UpdateHistoryReflections(
 			PassParameters->ResolveVariance = ResolveVariance;
 			PassParameters->ResolveVarianceHistory = ResolveVarianceHistory;
 			PassParameters->ReflectionTileParameters = ReflectionTileParameters;
+			PassParameters->NeedRayTracedReflectionsParameters.MaxRoughnessToTrace = GLumenReflectionMaxRoughnessToTrace;
 
 			FReflectionTemporalReprojectionCS::FPermutationDomain PermutationVector;
 			PermutationVector.Set< FReflectionTemporalReprojectionCS::FBilateralFilter >(bUseBilaterialFilter);

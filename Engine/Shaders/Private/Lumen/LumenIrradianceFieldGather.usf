@@ -119,7 +119,7 @@ void IrradianceFieldGatherCS(
 
 			float MinRoughnessForRoughSpecular = MaxRoughnessToTrace - RoughnessFadeLength;
 
-			if (Material.Roughness >= MinRoughnessForRoughSpecular || IsClearCoat(Material)) // STRATA_TODO: reformulate this for multi-layer
+			if (Material.Roughness >= MinRoughnessForRoughSpecular || IsClearCoat(Material))
 			{
 				//GBufferData.WorldNormal = GetClearCoatBottomNormal(GBufferData, GBufferData.WorldNormal);
 				//float ReflectionVector = reflect(-V, GBufferData.WorldNormal);

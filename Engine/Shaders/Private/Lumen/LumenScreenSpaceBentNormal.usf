@@ -36,7 +36,8 @@ void ScreenSpaceBentNormalCS(uint2 DispatchThreadId : SV_DispatchThreadID)
 	const float2 ScreenUV = (Coord.SvPosition + .5f) * View.BufferSizeAndInvSize.zw;
 	const float SceneDepth = CalcSceneDepth(ScreenUV);
 
-	const FLumenMaterialData Material = ReadMaterialData(Coord);
+	const float DummyMaxRoughnessToTrace = 0.5f;
+	const FLumenMaterialData Material = ReadMaterialData(Coord, DummyMaxRoughnessToTrace);
 
 	if (IsValid(Material))
 	{

@@ -658,7 +658,7 @@ void ScreenProbeTileClassificationMarkCS(
 
 	if (bIsValid)
 	{
-		const FLumenMaterialData Material = ReadMaterialData(Coord);
+		const FLumenMaterialData Material = ReadMaterialData(Coord, MaxRoughnessToTrace);
 
 		if (IsValid(Material))
 		{
@@ -1048,7 +1048,7 @@ void ScreenProbeIntegrateCS(
 #endif
 
 	const FLumenMaterialCoord Coord = GetLumenMaterialCoordForScreenProbeGather(DispatchThreadId, false /* Does not add offset as DispatchThreadId/TileCoord already contains +OverflowTileOffset */);
-	FLumenMaterialData Material = ReadMaterialData(Coord);
+	FLumenMaterialData Material = ReadMaterialData(Coord, MaxRoughnessToTrace);
 	{
 		if (IsValid(Material))
 		{
@@ -1357,11 +1357,17 @@ void ScreenProbeIntegrateCS(
 				const uint OffsetAddress = UnpackBSDFOffsetAtIndex(Strata.BSDFOffsetTexture[Coord.SvPosition], Coord.TileBSDFIndex, Coord.TileBSDFCount);
 				StrataSeekBSDF(StrataAddressing, OffsetAddress);
 				FStrataBSDF BSDF = UnpackStrataBSDFIn(Strata.MaterialTextureArray, StrataAddressing, StrataPixelHeader);
+
+				// We set slabs BSDFs as having a single specular lob without haziness.
+				// This is to ensure the pdf is computed from a single lobe in order to be able to compute a matching cone angle.
+				StrataSetBSDFRoughness(BSDF, Material.Roughness);
+				if (StrataGetBSDFType(BSDF) == STRATA_BSDF_TYPE_SLAB)
+				{
+					BSDF_SETHASHAZINESS(BSDF, 0);
+				}
+
 				FStrataBSDFContext BSDFContext = StrataCreateBSDFContext(StrataPixelHeader, BSDF, StrataAddressing, V);
 				const FStrataIntegrationSettings Settings = InitStrataIntegrationSettings(false /*bForceFullyRough*/, Strata.bRoughDiffuse, Strata.PeelLayersAboveDepth);
-
-				// Update/Override the BSDF roughness with clamped value
-				StrataSetBSDFRoughness(BSDF, Material.Roughness);
 			#else
 				// For clear coat materials, screen probes are always providing the bottom layer reflections
 				Material.WorldNormal = GetClearCoatBottomNormal(Material.GBufferData, Material.WorldNormal);
@@ -1629,7 +1635,7 @@ void ScreenProbeTemporalReprojectionCS(
 	float4 HistorySceneDepth = ConvertFromDeviceZ(Texture2DSampleLevel(DiffuseIndirectDepthHistory, GlobalBilinearClampedSampler, HistoryScreenUV, 0).x).xxxx;
 #endif
 
-	const float3 WorldNormal = ReadMaterialData(Coord).WorldNormal;
+	const float3 WorldNormal = ReadMaterialData(Coord, MaxRoughnessToTrace).WorldNormal;
 
 	float Noise = InterleavedGradientNoise(Coord.SvPosition, View.StateFrameIndexMod8);
 	float DisocclusionDistanceThreshold = HistoryDistanceThreshold * lerp(.5f, 1.5f, Noise);
