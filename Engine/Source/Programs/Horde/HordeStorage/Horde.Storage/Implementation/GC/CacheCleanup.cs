@@ -79,7 +79,7 @@ namespace Horde.Storage.Implementation
         {
             int countOfDeletedRecords = 0;
             DateTime cutoffTime = DateTime.Now.AddSeconds(-1 * _settings.CurrentValue.LastAccessCutoff.TotalSeconds);
-            int consideredCount = 0;
+            ulong consideredCount = 0;
             await Parallel.ForEachAsync(_referencesStore.GetRecords(ns), new ParallelOptions {MaxDegreeOfParallelism = _settings.CurrentValue.OrphanRefMaxParallelOperations, CancellationToken = cancellationToken}, async (tuple, token) =>
             {
                 (BucketId bucket, IoHashKey name, DateTime lastAccessTime) = tuple;

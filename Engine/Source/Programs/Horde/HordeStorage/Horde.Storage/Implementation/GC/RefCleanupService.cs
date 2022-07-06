@@ -59,22 +59,25 @@ namespace Horde.Storage.Implementation
                     _logger.Information("Skipped ref cleanup run as this instance was not the leader");
                     return false;
                 }
-                await foreach (NamespaceId ns in state.Refs.GetNamespaces().WithCancellation(cancellationToken))
-                {
-                    _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
-                    try
-                    {
-                        int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, cancellationToken);
-                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns, countOfRemovedRecords);
-                    }
-                    catch (Exception e)
-                    {
-                        _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
-                    }
-                }
-
                 List<NamespaceId>? namespaces = await _referencesStore.GetNamespaces().ToListAsync(cancellationToken);
-                await foreach (NamespaceId ns in namespaces)
+                await Parallel.ForEachAsync(namespaces, cancellationToken, async (ns, token) =>
+                {
+                    _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
+                    try
+                    {
+                        int countOfRemovedRecords = await state.RefCleanup.Cleanup(ns, token);
+                        _logger.Information("Ran Refs Cleanup of {Namespace}. Deleted {CountRefRecords}", ns,
+                            countOfRemovedRecords);
+                    }
+                    catch (Exception e)
+                    {
+                        _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
+                    }
+                });
+
+                // Do not run the cleanup of legacy namespaces as this can take a very long time and we do not care about these anymore
+                /*
+                 await foreach (NamespaceId ns in state.Refs.GetNamespaces().WithCancellation(cancellationToken))
                 {
                     _logger.Information("Attempting to run Refs Cleanup of {Namespace}. ", ns);
                     try
@@ -86,8 +89,7 @@ namespace Horde.Storage.Implementation
                     {
                         _logger.Error("Error running Refs Cleanup of {Namespace}. {Exception}", ns, e);
                     }
-                }
-
+                }*/
                 return true;
 
             }
