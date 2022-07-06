@@ -664,11 +664,28 @@ void VisualizeDomPS(
 
 #include "../ShaderPrint.ush"
 #include "../Matrices.ush"
+#include "../ShadingCommon.ush"
 #include "HairStrandsDeepShadowCommonStruct.ush"
 #include "HairStrandsAABBCommon.ush"
 
+void PrintBool(inout FShaderPrintContext Ctx, bool In)
+{
+	if (In)
+	{
+		Print(Ctx, TEXT("Yes  "), FontGreen);
+	}
+	else
+	{
+		Print(Ctx, TEXT("No   "), FontRed);
+	}
+}
+
 uint AllocatedSlotCount;
 uint MacroGroupCount;
+uint bViewRectOptimizeEnabled;
+uint bVoxelizationEnabled;
+int2 AtlasResolution;
+uint bIsGPUDriven;
 
 Buffer<int>	MacroGroupAABBBuffer;
 StructuredBuffer<FDeepShadowViewInfo> ShadowViewInfoBuffer;
@@ -728,6 +745,28 @@ void MainCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		AddLineTWS(P21.xyz, P31.xyz, FrustumColor, FrustumColor);
 		AddLineTWS(P31.xyz, P01.xyz, FrustumColor, FrustumColor);
 	}
+
+
+	FShaderPrintContext Context = InitShaderPrintContext(true, uint2(50, 40));
+
+	FFontColor FontColor = FontSilver;
+	Print(Context, TEXT("Hair Components "), FontYellow); Newline(Context);
+	Print(Context, TEXT("R                     : "), FontColor); PrintBool(Context, View.HairComponents & HAIR_COMPONENT_R); Newline(Context);
+	Print(Context, TEXT("TT                    : "), FontColor); PrintBool(Context, View.HairComponents & HAIR_COMPONENT_TT); Newline(Context);
+	Print(Context, TEXT("TRT                   : "), FontColor); PrintBool(Context, View.HairComponents & HAIR_COMPONENT_TRT); Newline(Context);
+	Print(Context, TEXT("Global Scatt.         : "), FontColor); PrintBool(Context, View.HairComponents & HAIR_COMPONENT_GS); Newline(Context);
+	Print(Context, TEXT("Local Scatt.          : "), FontColor); PrintBool(Context, View.HairComponents & HAIR_COMPONENT_LS); Newline(Context);
+	Newline(Context);
+
+	Print(Context, TEXT("Misc "), FontYellow); Newline(Context); 
+	Print(Context, TEXT("Voxelization          : "), FontColor); PrintBool(Context, bVoxelizationEnabled); Newline(Context);
+	Print(Context, TEXT("View rect optim.      : "), FontColor); PrintBool(Context, bViewRectOptimizeEnabled); Newline(Context);
+	Newline(Context);
+
+	Print(Context, TEXT("DOM "), FontYellow); Newline(Context);
+	Print(Context, TEXT("Atlas resolution      : "), FontColor); Print(Context, AtlasResolution.x, FontColor, 4, 0); Print(Context, TEXT(" x "), FontColor); Print(Context, AtlasResolution.y, FontColor, 4, 0); Newline(Context);
+	Print(Context, TEXT("Atlas slots           : "), FontColor); Print(Context, AllocatedSlotCount, FontColor); Newline(Context);
+	Print(Context, TEXT("GPU driven            : "), FontColor); PrintBool(Context, bIsGPUDriven); Newline(Context);
 }
 #endif // SHADER_DOMINFO
 
