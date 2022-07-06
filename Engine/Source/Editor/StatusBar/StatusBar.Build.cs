@@ -18,7 +18,6 @@ public class StatusBar : ModuleRules
 				"EditorSubsystem",
 				"Engine",
 				"InputCore",
-				"OutputLog",
 				"Slate",
 				"SlateCore",
 				"InputCore",
@@ -32,11 +31,15 @@ public class StatusBar : ModuleRules
 		DynamicallyLoadedModuleNames.AddRange(
 			new string[] {
 				"MainFrame",
+				"OutputLog",
+				"ContentBrowser", 
 			});
 
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"MainFrame",
+				"OutputLog",
+				"ContentBrowser",
 			});
 	}
 }

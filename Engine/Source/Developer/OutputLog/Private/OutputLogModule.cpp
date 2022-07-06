@@ -28,6 +28,10 @@
 #include "Internationalization/Internationalization.h"
 #include "OutputLogStyle.h"
 
+#if WITH_EDITOR
+#include "StatusBarSubsystem.h"
+#endif
+
 IMPLEMENT_MODULE(FOutputLogModule, OutputLog);
 
 namespace OutputLogModule
@@ -287,7 +291,7 @@ void FOutputLogModule::ClearOnPIE(const bool bIsSimulating)
 
 	if (bClearOnPIEEnabled)
 	{
-		if(TSharedPtr<SOutputLog> OutputLogPinned = OutputLog.Pin())
+		if (TSharedPtr<SOutputLog> OutputLogPinned = OutputLog.Pin())
 		{
 			if (OutputLogPinned->CanClearLog())
 			{
@@ -322,6 +326,40 @@ const TSharedPtr<SWidget> FOutputLogModule::GetOutputLog() const
 	return OutputLog.Pin();
 }
 
+void FOutputLogModule::FocusOutputLog()
+{
+	// 1. Output log tab is open but not active. 
+	if (OutputLog.IsValid()) 
+	{
+		OutputLogTab.Pin()->DrawAttention(); 
+	}
+#if WITH_EDITOR
+	// 2. Output log tab isn't open and the window directly behind the notification window has a status bar, then open Output Log Drawer. 
+	else if (GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ActiveWindowBehindNotificationHasStatusBar())
+	{
+		TSharedRef<SWindow> ParentWindow = FSlateApplication::Get().GetActiveTopLevelRegularWindow().ToSharedRef(); 
+
+		// try toggle the console to open the Output Log Drawer
+		if (GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->ToggleDebugConsole(ParentWindow, true))
+		{
+			OutputLogDrawer.Pin()->FocusConsoleCommandBox(); 
+		}
+		// if unable to open the drawer, invoke a new Output Log tab. 
+		else 
+		{ 
+			OpenOutputLog(); 
+			OutputLogTab.Pin()->DrawAttention();
+		}
+	}
+#endif
+	// 3. The parent window has no status bar, then invoke a new Output Log tab.  
+	else
+	{
+		OpenOutputLog(); 
+		OutputLogTab.Pin()->DrawAttention(); 
+	}
+}
+
 void FOutputLogModule::UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors, TOptional<bool> bShowWarnings, TOptional<bool> bShowLogs)
 {
 	if (TSharedPtr<SOutputLog> SharedOutputLog = OutputLog.Pin())
@@ -333,4 +371,9 @@ void FOutputLogModule::UpdateOutputLogFilter(const TArray<FName>& CategoriesToSh
 void FOutputLogModule::OpenOutputLog() const
 {
 	FGlobalTabmanager::Get()->TryInvokeTab(OutputLogModule::OutputLogTabName);
+}
+
+bool FOutputLogModule::ShouldCycleToOutputLogDrawer() const 
+{
+	return GetDefault<UOutputLogSettings>()->bCycleToOutputLogDrawer; 
 }
