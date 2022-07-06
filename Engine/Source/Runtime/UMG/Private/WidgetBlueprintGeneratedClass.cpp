@@ -218,10 +218,6 @@ void UWidgetBlueprintGeneratedClass::InitializeWidgetStatic(UUserWidget* UserWid
 		CreatedWidgetTree = UserWidget->WidgetTree;
 	}
 
-#if !WITH_EDITOR && UE_BUILD_DEBUG
-	UE_LOG(LogUMG, Warning, TEXT("Widget Class %s - Slow Static Duplicate Object."), *InClass->GetName());
-#endif
-
 #if WITH_EDITOR
 	UserWidget->WidgetGeneratedBy = InClass->ClassGeneratedBy;
 #endif
