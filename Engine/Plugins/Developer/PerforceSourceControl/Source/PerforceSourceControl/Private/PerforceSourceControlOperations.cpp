@@ -2302,7 +2302,6 @@ bool FPerforceCopyWorker::Execute(FPerforceSourceControlCommand& InCommand)
 
 		AppendChangelistParameter(GetSCCProvider(), Parameters);
 
-		FP4RecordSet Records;
 		Parameters.Append(InCommand.Files);
 		Parameters.Add(DestinationPath);
 
