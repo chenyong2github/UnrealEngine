@@ -128,4 +128,12 @@ public:
 		bool bCheckVertexPositionsEqual = true,
 		bool bCheckNormalsEqual = true
 	);
+
+	/** Check whether the mesh source model has the expected build settings */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckBuildSettings(UStaticMesh* Mesh, int32 LodIndex, const FMeshBuildSettings& ExpectedBuildSettings);
+
+	/** Check whether the mesh has the expected Nanite settings */
+	UFUNCTION(Exec)
+	static FInterchangeTestFunctionResult CheckNaniteSettings(UStaticMesh* Mesh, const FMeshNaniteSettings& ExpectedNaniteSettings);
 };
