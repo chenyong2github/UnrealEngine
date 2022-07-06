@@ -4009,9 +4009,8 @@ void FOnlineSessionEOS::AddLobbySearchResult(const TSharedRef<FLobbyDetailsEOS>&
 		SearchResult.Session.SessionInfo = MakeShareable(new FOnlineSessionInfoEOS(HostAddr, FUniqueNetIdEOSLobby::Create(LobbyDetailsInfo->LobbyId), nullptr));
 
 		// We copy the lobby data and settings
-		CopyLobbyData(LobbyDetails, LobbyDetailsInfo, SearchResult.Session, Callback);
-
 		LobbySearchResultsCache.Add(FString(LobbyDetailsInfo->LobbyId), LobbyDetails);
+		CopyLobbyData(LobbyDetails, LobbyDetailsInfo, SearchResult.Session, Callback);
 
 		EOS_LobbyDetails_Info_Release(LobbyDetailsInfo);
 
