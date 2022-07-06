@@ -203,7 +203,8 @@ void UMoviePipelineEditorBlueprintLibrary::EnsureJobHasDefaultSettings(UMoviePip
 			continue;
 		}
 
-		UMoviePipelineSetting* ExistingSetting = NewJob->GetConfiguration()->FindSettingByClass(SettingClass);
+		const bool bIncludeDisabledSettings = true;
+		UMoviePipelineSetting* ExistingSetting = NewJob->GetConfiguration()->FindSettingByClass(SettingClass, bIncludeDisabledSettings);
 		if (!ExistingSetting)
 		{
 			NewJob->GetConfiguration()->FindOrAddSettingByClass(SettingClass);
