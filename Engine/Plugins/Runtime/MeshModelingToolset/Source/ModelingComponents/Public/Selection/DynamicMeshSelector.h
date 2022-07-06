@@ -28,7 +28,7 @@ class MODELINGCOMPONENTS_API FDynamicMeshSelector : public IGeometrySelector
 public:
 	virtual ~FDynamicMeshSelector()
 	{
-		Shutdown();
+		FDynamicMeshSelector::Shutdown();
 	}
 
 	/**
