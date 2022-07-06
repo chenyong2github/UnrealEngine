@@ -56,6 +56,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "PCG|Metadata|Advanced")
 	void CopyAttribute(const UPCGMetadata* InOther, FName AttributeToCopy, FName NewAttributeName);
 
+	/** Copies another attribute, with options to keep its parent and copy entries/values */
+	FPCGMetadataAttributeBase* CopyAttribute(const FPCGMetadataAttributeBase* OriginalAttribute, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
+
 	/** Returns this metadata's parent */
 	const UPCGMetadata* GetParent() const { return Parent.Get(); }
 	const UPCGMetadata* GetRoot() const;
@@ -177,7 +180,6 @@ protected:
 	FPCGMetadataAttributeBase* CreateAttribute(FName AttributeName, const T& DefaultValue, bool bAllowsInterpolation, bool bOverrideParent);
 
 	FPCGMetadataAttributeBase* CopyAttribute(FName AttributeToCopy, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
-	FPCGMetadataAttributeBase* CopyAttribute(const FPCGMetadataAttributeBase* OriginalAttribute, FName NewAttributeName, bool bKeepParent, bool bCopyEntries, bool bCopyValues);
 
 	bool ParentHasAttribute(FName AttributeName) const;
 	int64 GetItemCountForChild() const;

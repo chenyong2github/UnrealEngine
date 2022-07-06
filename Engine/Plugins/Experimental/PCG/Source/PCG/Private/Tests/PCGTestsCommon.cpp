@@ -2,6 +2,7 @@
 
 #include "Tests/PCGTestsCommon.h"
 
+#include "PCGHelpers.h"
 #include "PCGParamData.h"
 #include "PCGSettings.h"
 #include "Data/PCGPointData.h"
@@ -45,6 +46,30 @@ namespace PCGTestsCommon
 		SinglePointData->GetMutablePoints()[0].Transform.SetLocation(InLocation);
 
 		return SinglePointData;
+	}
+
+	/** Creates a point data with PointCount many points, and randomizes the Transform and Color */
+	UPCGPointData* CreateRandomPointData(int32 PointCount, int32 Seed)
+	{
+		TObjectPtr<UPCGPointData> PointData = PCGTestsCommon::CreateEmptyPointData();
+		TArray<FPCGPoint>& Points = PointData->GetMutablePoints();
+
+		Points.Reserve(PointCount);
+	
+		FRandomStream RandomSource(Seed);
+		for (int I = 0; I < PointCount; ++I)
+		{
+			FQuat Rotation(FRotator(RandomSource.FRandRange(0.f, 360.f)).Quaternion()); 
+			FVector Scale(RandomSource.VRand());
+			FVector Location(RandomSource.VRand());
+
+			FPCGPoint& Point = Points.Emplace_GetRef(FTransform(Rotation, Location, Scale), 1.f, I);
+			Point.Color = RandomSource.VRand();
+			Point.Density = 1.f;
+			Point.Seed = I;
+		}
+
+		return PointData;
 	}
 
 	UPCGPolyLineData* CreatePolyLineData()

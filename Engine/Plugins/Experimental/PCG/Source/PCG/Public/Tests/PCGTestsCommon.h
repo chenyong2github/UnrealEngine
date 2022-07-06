@@ -30,6 +30,9 @@ namespace PCGTestsCommon
 	/** Creates a PointData with a single point at the provided location */
 	UPCGPointData* CreatePointData(const FVector& InLocation);
 
+	/** Creates a PointData with PointCount many points, and randomizes the Transform and Color */
+	UPCGPointData* CreateRandomPointData(int32 PointCount, int32 Seed);
+
 	UPCGPolyLineData* CreatePolyLineData();
 	UPCGSurfaceData* CreateSurfaceData();
 	UPCGVolumeData* CreateVolumeData(const FBox& InBounds = FBox::BuildAABB(FVector::ZeroVector, FVector::OneVector * 100));
