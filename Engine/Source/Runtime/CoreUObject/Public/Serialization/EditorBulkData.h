@@ -349,6 +349,8 @@ private:
 		ReferencesWorkspaceDomain	= 1 << 8,
 		/** The payload is stored in a package trailer, so the bulkdata object will have to poll the trailer to find the payload offset */
 		StoredInPackageTrailer		= 1 << 9,
+		/** The bulkdata object was cooked. */
+		IsCooked					= 1 << 10,
 
 		TransientFlags				= HasRegistered | IsTornOff,
 	};

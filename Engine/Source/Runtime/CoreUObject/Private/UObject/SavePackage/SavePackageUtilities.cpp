@@ -2103,15 +2103,16 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 			}
 			if (OptionalBulkArchive && OptionalBulkArchive->TotalSize())
 			{
-				checkf(!bIsOptionalRealm, TEXT("OptionalBulkData is currently unsupported with optional package multi output"));
-				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::OptionalBulkData);
+				// @note FH: temporarily comment assert for not supporting optional bulk data into editor optional packages
+				//checkf(!bIsOptionalRealm, TEXT("OptionalBulkData is currently unsupported with optional package multi output for %s"), *InOuter->GetName());
+				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), BulkInfo.MultiOutputIndex, EIoChunkType::OptionalBulkData);
 				BulkInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Optional;
 				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(BulkInfo.LooseFilePath, LexToString(EPackageExtension::BulkDataOptional));
 				PackageWriter->WriteBulkData(BulkInfo, AddSizeAndConvertToIoBuffer(OptionalBulkArchive.Get()), OptionalBulkArchive->FileRegions);
 			}
 			if (MappedBulkArchive && MappedBulkArchive->TotalSize())
 			{
-				checkf(!bIsOptionalRealm, TEXT("MemoryMappedBulkData is currently unsupported with optional package multi output"));
+				checkf(!bIsOptionalRealm, TEXT("MemoryMappedBulkData is currently unsupported with optional package multi output for %s"), *InOuter->GetName());
 				BulkInfo.ChunkId = CreateIoChunkId(PackageId.Value(), 0, EIoChunkType::MemoryMappedBulkData);
 				BulkInfo.BulkDataType = IPackageWriter::FBulkDataInfo::Mmap;
 				BulkInfo.LooseFilePath = FPathViews::ChangeExtension(BulkInfo.LooseFilePath, LexToString(EPackageExtension::BulkDataMemoryMapped));
@@ -2120,7 +2121,7 @@ ESavePackageResult SaveBulkData(FLinkerSave* Linker, int64& InOutStartOffset, co
 		}
 		else
 		{
-			checkf(!bIsOptionalRealm, TEXT("Package optional package multi output is unsupported without a PackageWriter"));
+			checkf(!bIsOptionalRealm, TEXT("Package optional package multi output is unsupported without a PackageWriter for %s"), *InOuter->GetName());
 			auto WriteBulkData = [&](FLargeMemoryWriterWithRegions* Archive, const TCHAR* BulkFileExtension)
 			{
 				if (const int64 DataSize = Archive ? Archive->TotalSize() : 0)
