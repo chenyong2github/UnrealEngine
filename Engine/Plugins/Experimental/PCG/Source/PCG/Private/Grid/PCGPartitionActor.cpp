@@ -24,6 +24,11 @@ void APCGPartitionActor::PostLoad()
 	{
 		PCGGridSize = APCGWorldActor::DefaultPartitionGridSize;
 	}
+
+#if WITH_EDITOR
+	// Make sure that we don't track objects that do not exist anymore
+	CleanupDeadGraphInstances();
+#endif // WITH_EDITOR
 }
 
 void APCGPartitionActor::BeginPlay()
@@ -203,7 +208,7 @@ bool APCGPartitionActor::IsSafeForDeletion() const
 	ensure(IsInGameThread());
 	for (TObjectPtr<UPCGComponent> PCGComponent : GetAllOriginalPCGComponents())
 	{
-		if (PCGComponent->IsGenerating())
+		if (PCGComponent && PCGComponent->IsGenerating())
 		{
 			return false;
 		}
