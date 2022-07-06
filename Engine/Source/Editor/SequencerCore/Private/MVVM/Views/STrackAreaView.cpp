@@ -426,7 +426,7 @@ void STrackAreaView::Tick( const FGeometry& AllottedGeometry, const double InCur
 {
 	FVector2D Size = AllottedGeometry.GetLocalSize();
 
-	if (!IsSlave() && SizeLastFrame.IsSet() && Size.X != SizeLastFrame->X)
+	if (!IsPinned() && SizeLastFrame.IsSet() && Size.X != SizeLastFrame->X)
 	{
 		OnResized(SizeLastFrame.GetValue(), Size);
 	}

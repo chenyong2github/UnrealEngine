@@ -273,7 +273,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	PinnedTrackArea->SetOutliner(PinnedTreeView);
 	PinnedTrackArea->SetShowPinned(true);
-	PinnedTrackArea->SetIsSlave(true);
+	PinnedTrackArea->SetIsPinned(true);
 	PinnedTreeView->SetShowPinned(true);
 
 	SAssignNew(TrackArea, SSequencerTrackAreaView, InSequencer->GetViewModel()->GetTrackArea(), TimeSliderControllerRef);
@@ -284,7 +284,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 	TrackArea->SetOutliner(TreeView);
 
-	TreeView->AddSlaveTreeView(PinnedTreeView);
+	TreeView->AddPinnedTreeView(PinnedTreeView);
 
 	TAttribute<FAnimatedRange> ViewRangeAttribute = InArgs._ViewRange;
 

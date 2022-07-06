@@ -89,9 +89,9 @@ public:
 	void SetShowPinned(bool bShowPinned) { bShowPinnedNodes = bShowPinned; }
 	bool ShowPinned() const { return bShowPinnedNodes; }
 
-	/** Set whether this TrackArea is slaved to a master TrackArea and should skip updating external controls */
-	void SetIsSlave(bool bInIsSlave) { bIsSlave = bInIsSlave; }
-	bool IsSlave() const { return bIsSlave; }
+	/** Set whether this TrackArea is pinned to another TrackArea and should skip updating external controls */
+	void SetIsPinned(bool bInIsPinned) { bIsPinned = bInIsPinned; }
+	bool IsPinned() const { return bIsPinned; }
 
 	static FLinearColor BlendDefaultTrackColor(FLinearColor InColor);
 
@@ -162,8 +162,8 @@ protected:
 	/** Whether this TrackArea is for pinned nodes or non-pinned nodes */
 	bool bShowPinnedNodes;
 
-	/** Whether this TrackArea is slaved to a master TrackArea and should skip updating external controls */
-	bool bIsSlave;
+	/** Whether this TrackArea is pinned to another TrackArea and should skip updating external controls */
+	bool bIsPinned;
 };
 
 } // namespace Sequencer

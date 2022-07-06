@@ -256,7 +256,7 @@ void SOutlinerView::Construct(const FArguments& InArgs, TWeakPtr<FOutlinerViewMo
 SOutlinerView::~SOutlinerView()
 {
 	TrackArea.Reset();
-	SlaveTreeViews.Empty();
+	PinnedTreeViews.Empty();
 }
 
 void SOutlinerView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
@@ -465,10 +465,10 @@ void SOutlinerView::UpdateTrackArea()
 	}
 }
 
-void SOutlinerView::AddSlaveTreeView(TSharedPtr<SOutlinerView> SlaveTreeView)
+void SOutlinerView::AddPinnedTreeView(TSharedPtr<SOutlinerView> PinnedTreeView)
 {
-	SlaveTreeViews.Add(SlaveTreeView);
-	SlaveTreeView->SetMasterTreeView(SharedThis(this));
+	PinnedTreeViews.Add(PinnedTreeView);
+	PinnedTreeView->SetPrimaryTreeView(SharedThis(this));
 }
 
 void SOutlinerView::OnRightMouseButtonDown(const FPointerEvent& MouseEvent)
@@ -847,9 +847,9 @@ void SOutlinerView::Refresh()
 	RebuildList();
 	//RequestTreeRefresh();
 
-	for (TSharedPtr<SOutlinerView> SlaveTreeView : SlaveTreeViews)
+	for (TSharedPtr<SOutlinerView> PinnedTreeView : PinnedTreeViews)
 	{
-		SlaveTreeView->Refresh();
+		PinnedTreeView->Refresh();
 	}
 }
 

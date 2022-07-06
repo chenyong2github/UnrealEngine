@@ -182,10 +182,10 @@ public:
 	void UpdateTrackArea();
 
 	/** Add a SOutlinerView object that should be modified or updated when this Treeview is updated */
-	void AddSlaveTreeView(TSharedPtr<SOutlinerView> SlaveTreeView);
+	void AddPinnedTreeView(TSharedPtr<SOutlinerView> PinnedTreeView);
 
-	/** Set a SOutlinerView object this Treeview is slaved to, for operations that should happen on the master */
-	void SetMasterTreeView(TSharedPtr<SOutlinerView> InMasterTreeView) { MasterTreeView = InMasterTreeView; }
+	/** Set a SOutlinerView object this Treeview is pinned to, for operations that should happen on the primary */
+	void SetPrimaryTreeView(TSharedPtr<SOutlinerView> InPrimaryTreeView) { PrimaryTreeView = InPrimaryTreeView; }
 
 	/** Set whether this TreeView should show only pinned nodes or only non-pinned nodes  */
 	void SetShowPinned(bool bShowPinned) { bShowPinnedNodes = bShowPinned; }
@@ -224,10 +224,10 @@ private:
 	TSharedPtr<STrackAreaView> TrackArea;
 
 	/** SOutlinerView objects that should be modified or updated when this Treeview is updated */
-	TArray<TSharedPtr<SOutlinerView>> SlaveTreeViews;
+	TArray<TSharedPtr<SOutlinerView>> PinnedTreeViews;
 
-	/** The SOutlinerView object this SOutlinerView is slave to, or nullptr if not a slave */
-	TWeakPtr<SOutlinerView> MasterTreeView;
+	/** The SOutlinerView object this SOutlinerView is pinned to, or nullptr if not pinned */
+	TWeakPtr<SOutlinerView> PrimaryTreeView;
 
 	float VirtualTop;
 
