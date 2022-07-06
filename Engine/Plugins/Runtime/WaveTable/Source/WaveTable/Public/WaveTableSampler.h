@@ -12,17 +12,26 @@ namespace WaveTable
 	class WAVETABLE_API FWaveTableSampler
 	{
 	public:
-		enum class EInterpolationMode : uint8
+		// Interpolation mode when sampling values between indices
+		enum class EInterpolationMode
 		{
+			// No interpolation (Stepped)
 			None,
+
+			// Linear interpolation
 			Linear,
+
+			// Cubic interpolation
 			Cubic,
+
+			// Takes the maximum value between two points (EXPENSIVE, but good for caching/drawn curves).
+			MaxValue,
 
 			COUNT
 		};
 
-		// Mode of interpolation between last value in table and subsequent input index.
-		enum class ESingleSampleMode : uint8
+		// Mode of interpolation between last value in table and subsequent input index when sampling single values.
+		enum class ESingleSampleMode
 		{
 			// Interpolates last value to zero (0.0f) in table if sampled index is beyond last position
 			Zero = 0,

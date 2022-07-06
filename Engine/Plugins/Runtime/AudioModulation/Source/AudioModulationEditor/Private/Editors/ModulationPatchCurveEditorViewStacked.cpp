@@ -97,17 +97,6 @@ const USoundModulationPatch* FModPatchCurveEditorModel::GetPatch() const
 	return nullptr;
 }
 
-FWaveTableTransform* FModPatchCurveEditorModel::GetTransform()
-{
-	if (USoundModulationPatch* Patch = GetPatch())
-	{
-		FSoundControlModulationInput& Input = Patch->PatchSettings.Inputs[GetCurveIndex()];
-		return &Input.Transform;
-	}
-
-	return nullptr;
-}
-
 void FModPatchCurveEditorModel::RefreshCurveDescriptorText(const FWaveTableTransform& InTransform, FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName)
 {
 	OutShortDisplayName = LOCTEXT("ModulationCurveDisplayTitle_BusUnset", "Bus (Unset)");

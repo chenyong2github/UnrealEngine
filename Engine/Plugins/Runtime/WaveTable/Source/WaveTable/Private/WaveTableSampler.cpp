@@ -23,6 +23,39 @@ namespace WaveTable
 			return FVector2f(2.0f, NextValue - LastValue).GetSafeNormal();
 		};
 
+		auto MaxValueIndexInterpolator = [](TArrayView<const float> InTableView, TArrayView<float> InOutIndicesToValues)
+		{
+			int32 LastIndex = 0;
+			const float* TableData = InTableView.GetData();
+			float* IndexValueData = InOutIndicesToValues.GetData();
+			for (int32 i = 0; i < InOutIndicesToValues.Num(); ++i)
+			{
+				int32 Index = FMath::TruncToInt32(InTableView.Num() * IndexValueData[i]) % InTableView.Num();
+				bool bSwapped = false;
+				if (Index < LastIndex)
+				{
+					bSwapped = true;
+					::Swap(LastIndex, Index);
+				}
+
+				int32 MaxAbs = 0.0f;
+				for (int32 j = LastIndex; j <= Index; ++j)
+				{
+					float IndexAbs = FMath::Abs(TableData[j]);
+					if (IndexAbs > MaxAbs)
+					{
+						MaxAbs = IndexAbs;
+						IndexValueData[i] = TableData[j];
+					}
+				}
+
+				if (!bSwapped)
+				{
+					LastIndex = Index;
+				}
+			}
+		};
+
 		auto CubicIndexInterpolator = [](TArrayView<const float> InTableView, TArrayView<float> InOutIndicesToValues)
 		{
 			const int32 NumTableSamples = InTableView.Num();
@@ -32,7 +65,7 @@ namespace WaveTable
 				float& IndexToOutput = InOutIndicesToValues[i];
 				const int32 LastIndexInt = FMath::TruncToInt32(IndexToOutput);
 
-				const FVector2f P0 = { (float)LastIndexInt, InTableView[LastIndexInt % NumTableSamples] };
+				const FVector2f P0 = { (float)LastIndexInt, InTable[LastIndexInt % NumTableSamples] };
 				const FVector2f P1 = { (float)(LastIndexInt + 1), InTable[(LastIndexInt + 1) % NumTableSamples] };
 				const FVector2f TangentP0 = GetTangentP0(InTable, P1.Y, IndexToOutput, NumTableSamples);
 				const FVector2f TangentP1 = GetTangentP1(InTable, P0.Y, IndexToOutput, NumTableSamples);
@@ -106,9 +139,15 @@ namespace WaveTable
 			}
 			break;
 
+			case EInterpolationMode::MaxValue:
+			{
+				MaxValueIndexInterpolator(InTableView, InOutIndexToSamplesView);
+			}
+			break;
+
 			default:
 			{
-				static_assert(static_cast<int32>(EInterpolationMode::COUNT) == 3, "Possible missing switch coverage for EInterpolationMode");
+				static_assert(static_cast<int32>(EInterpolationMode::COUNT) == 4, "Possible missing switch coverage for EInterpolationMode");
 				checkNoEntry();
 			}
 			break;
@@ -209,7 +248,6 @@ namespace WaveTable
 
 		return Index;
 	}
-
 
 	float FWaveTableSampler::Process(TArrayView<const float> InTableView, TArrayView<float> OutSamplesView)
 	{

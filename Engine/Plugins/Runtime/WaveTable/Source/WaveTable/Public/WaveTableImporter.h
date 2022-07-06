@@ -11,14 +11,13 @@ namespace WaveTable
 	class WAVETABLE_API FImporter
 	{
 	public:
-		FImporter(const FWaveTableSettings& InSettings, EWaveTableResolution InResolution, bool bInBipolar);
+		FImporter(const FWaveTableSettings& InSettings, bool bInBipolar);
 
 		void Process(TArray<float>& OutWaveTable);
 
 	private:
 		const FWaveTableSettings& Settings;
 
-		EWaveTableResolution Resolution;
 		bool bBipolar = false;
 
 		FWaveTableSampler Sampler;

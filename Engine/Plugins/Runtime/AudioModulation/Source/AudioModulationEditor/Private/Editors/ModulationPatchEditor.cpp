@@ -20,16 +20,6 @@ TUniquePtr<WaveTable::Editor::FWaveTableCurveModel> FModulationPatchEditor::Cons
 	return TUniquePtr<FWaveTableCurveModel>(new FModPatchCurveEditorModel(InRichCurve, GetEditingObject(), InSource));
 }
 
-EWaveTableResolution FModulationPatchEditor::GetBankResolution() const
-{
-	if (USoundModulationPatch* Patch = Cast<USoundModulationPatch>(GetEditingObject()))
-	{
-		return Patch->PatchSettings.WaveTableResolution;
-	}
-
-	return EWaveTableResolution::None;
-}
-
 bool FModulationPatchEditor::GetIsPropertyEditorDisabled() const
 {
 	return GetIsBypassed();

@@ -48,15 +48,19 @@ struct WAVETABLE_API FWaveTableTransform
 	FWaveTableSettings WaveTableSettings;
 #endif // WITH_EDITORONLY_DATA
 
+	// Applies transform to provided index value, setting it to the corresponding value.
 	void Apply(float& InOutValue, bool bInBipolar = false) const;
 
-	// Builds a single period of a WaveTable using this transform in place of the provided ArrayView.
-	// Size of the WaveTable is dictated by the provided ArrayView's size.
-	void BuildWaveTable(TArrayView<float> InOutTable, bool bInBipolar) const;
-
 #if WITH_EDITOR
-	// No-ops if curve is set to WaveTable.
-	void CacheWaveTable(EWaveTableResolution InResolution, bool bInBipolar);
+	// Copies a single, period [0.0, 1.0] to a WaveTable using this transform's curve. The
+	// size of the resulting WaveTable is the provided ArrayView's size. If curve is itself
+	// set to 'File' and internally cached as WaveTable, will re-sample using max value
+	// interpolation. Does *not* apply destructive edits for using WaveTableSettings PCM data.
+	void CopyToWaveTable(TArrayView<float> InOutTable, bool bInBipolar) const;
+
+	// Caches WaveTable for curve using the provided array length as resolution.
+	// Applies destructive edits as provided by WaveTableSettings if curve set to 'File'.
+	void CreateWaveTable(TArray<float>& InOutTable, bool bInBipolar) const;
 #endif // WITH_EDITOR
 
 	/** Caches curve data.  Should a shared curve be selected, curve points are copied locally

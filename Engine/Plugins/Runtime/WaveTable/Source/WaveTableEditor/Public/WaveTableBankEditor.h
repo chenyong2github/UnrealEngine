@@ -45,10 +45,19 @@ namespace WaveTable
 			/** FNotifyHook interface */
 			virtual void NotifyPostChange(const FPropertyChangedEvent& PropertyChangedEvent, FProperty* PropertyThatChanged) override;
 
+			// Regenerates curves set to "file" without refreshing whole stack view
+			void RegenerateFileCurves();
+
+			/** Updates & redraws curves. */
+			void RefreshCurves();
+
 		protected:
 			struct FCurveData
 			{
 				FCurveModelID ModelID;
+
+				/* Curve used purely for display.  May be down-sampled from
+				 * asset's curve for performance while editing */
 				TSharedPtr<FRichCurve> ExpressionCurve;
 
 				FCurveData()
@@ -62,27 +71,33 @@ namespace WaveTable
 
 			virtual bool GetIsPropertyEditorDisabled() const { return false; }
 
-			virtual EWaveTableResolution GetBankResolution() const = 0;
-			virtual bool GetBankIsBipolar() const = 0;
+			// Returns resolution of bank being editor. By default, bank does not support WaveTable generation
+			// by being set to no resolution.
+			virtual EWaveTableResolution GetBankResolution() const { return EWaveTableResolution::None; }
 
+			// Returns whether or not bank is bipolar.  By default, returns false (bank is unipolar), functionally
+			// operating as a unipolar envelope editor.
+			virtual bool GetBankIsBipolar() const { return false; }
+
+			// Construct a new curve model for the given FRichCurve.  Allows for editor implementation to construct custom curve model types.
 			virtual TUniquePtr<FWaveTableCurveModel> ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource) = 0;
 
+			// Returns the transform associated with the given index
 			virtual FWaveTableTransform* GetTransform (int32 InIndex) const = 0;
 
+			// Returns the number of transforms associated with the given bank.
 			virtual int32 GetNumTransforms() const = 0;
 
 			void SetCurve(int32 InTransformIndex, FRichCurve& InRichCurve, EWaveTableCurveSource InSource);
 
 		private:
-			/** Generates expression curve at the given index. */
-			void GenerateExpressionCurve(FCurveData& OutCurveData, int32 InTransformIndex, EWaveTableCurveSource InSource, bool bInIsUnset = false);
+			// Regenerates expression curve at the given index. If curve is a 'File' and source PCM data in Transform
+			// is too long, inline edits are not included in recalculation for better interact performance.
+			void GenerateExpressionCurve(FCurveData& OutCurveData, int32 InTransformIndex, bool bInIsUnset = false);
 
 			void InitCurves();
 
 			void ResetCurves();
-
-			/** Updates & redraws curves. */
-			void RefreshCurves();
 
 			/**	Spawns the tab allowing for editing/viewing the output curve(s) */
 			TSharedRef<SDockTab> SpawnTab_OutputCurve(const FSpawnTabArgs& Args);
@@ -117,7 +132,7 @@ namespace WaveTable
 			static const FName PropertiesTabId;
 		};
 
-		class FBankEditor : public WaveTable::Editor::FBankEditorBase
+		class WAVETABLEEDITOR_API FBankEditor : public FBankEditorBase
 		{
 		public:
 			FBankEditor() = default;
@@ -129,7 +144,7 @@ namespace WaveTable
 			virtual int32 GetNumTransforms() const override;
 			virtual FWaveTableTransform* GetTransform(int32 InIndex) const override;
 
-			virtual TUniquePtr<WaveTable::Editor::FWaveTableCurveModel> ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource) override;
+			virtual TUniquePtr<FWaveTableCurveModel> ConstructCurveModel(FRichCurve& InRichCurve, UObject* InParentObject, EWaveTableCurveSource InSource) override;
 		};
 	} // namespace Editor
 } // namespace WaveTable

@@ -72,7 +72,6 @@ void FSoundControlModulationPatchLayoutCustomization::CustomizeChildren(TSharedR
 	AudioModulationEditorUtils::GetPropertyHandleMap(StructPropertyHandle, PropertyHandles);
 
 	TSharedRef<IPropertyHandle> BypassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, bBypass)).ToSharedRef();
-	TSharedRef<IPropertyHandle> WaveTableResolutionHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, WaveTableResolution)).ToSharedRef();
 	TSharedRef<IPropertyHandle> InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, Inputs)).ToSharedRef();
 	TSharedRef<IPropertyHandle> ParameterHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, OutputParameter)).ToSharedRef();
 
@@ -84,7 +83,6 @@ void FSoundControlModulationPatchLayoutCustomization::CustomizeChildren(TSharedR
 	});
 
 	ChildBuilder.AddProperty(BypassHandle);
-	ChildBuilder.AddProperty(WaveTableResolutionHandle);
 	ChildBuilder.AddProperty(ParameterHandle).EditCondition(EditCondition, nullptr);
 	ChildBuilder.AddProperty(InputsHandle).EditCondition(EditCondition, nullptr);
 }

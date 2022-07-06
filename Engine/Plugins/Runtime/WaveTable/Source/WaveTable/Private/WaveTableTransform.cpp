@@ -22,17 +22,6 @@ void FWaveTableTransform::Apply(float& InOutValue, bool bInBipolar) const
 
 }
 
-void FWaveTableTransform::BuildWaveTable(TArrayView<float> InOutTable, bool bInBipolar) const
-{
-	const float Delta = 1.0f / InOutTable.Num();
-	for (int32 i = 0; i < InOutTable.Num(); ++i)
-	{
-		InOutTable[i] = i * Delta;
-	}
-
-	bInBipolar ? SampleCurveBipolar(InOutTable) : SampleCurveUnipolar(InOutTable);
-}
-
 void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 {
 	// Clamp the input
@@ -148,11 +137,8 @@ void FWaveTableTransform::SampleCurveBipolar(TArrayView<float> InOutTable) const
 			}
 			else
 			{
-				for (int32 i = 0; i < InOutTable.Num(); ++i)
-				{
-					const int32 Index = FMath::TruncToInt32(WaveTable.Num() * ValueData[i]);
-					ValueData[i] = WaveTable[Index % WaveTable.Num()];
-				}
+				constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
+				WaveTable::FWaveTableSampler::Interpolate(WaveTable, InOutTable, InterpMode);
 			}
 		}
 		break;
@@ -277,11 +263,8 @@ void FWaveTableTransform::SampleCurveUnipolar(TArrayView<float> InOutTable) cons
 			}
 			else
 			{
-				for (int32 i = 0; i < InOutTable.Num(); ++i)
-				{
-					const int32 Index = FMath::TruncToInt32(WaveTable.Num() * ValueData[i]);
-					ValueData[i] = WaveTable[Index % WaveTable.Num()];
-				}
+				constexpr auto InterpMode = WaveTable::FWaveTableSampler::EInterpolationMode::MaxValue;
+				WaveTable::FWaveTableSampler::Interpolate(WaveTable, InOutTable, InterpMode);
 			}
 		}
 		break;
@@ -310,17 +293,25 @@ void FWaveTableTransform::CacheCurve()
 }
 
 #if WITH_EDITOR
-void FWaveTableTransform::CacheWaveTable(EWaveTableResolution InResolution, bool bInBipolar)
+void FWaveTableTransform::CopyToWaveTable(TArrayView<float> InOutTable, bool bInBipolar) const
 {
-	WaveTable.Empty();
+	const float Delta = 1.0f / InOutTable.Num();
+	for (int32 i = 0; i < InOutTable.Num(); ++i)
+	{
+		InOutTable[i] = i * Delta;
+	}
 
-	// If not wavetable, just sample using apply function.
+	bInBipolar ? SampleCurveBipolar(InOutTable) : SampleCurveUnipolar(InOutTable);
+}
+
+void FWaveTableTransform::CreateWaveTable(TArray<float>& InOutTable, bool bInBipolar) const
+{
 	switch (Curve)
 	{
 		case EWaveTableCurve::File:
 		{
-			WaveTable::FImporter Importer(WaveTableSettings, InResolution, bInBipolar);
-			Importer.Process(WaveTable);
+			WaveTable::FImporter Importer(WaveTableSettings, bInBipolar);
+			Importer.Process(InOutTable);
 		}
 		break;
 
@@ -336,8 +327,7 @@ void FWaveTableTransform::CacheWaveTable(EWaveTableResolution InResolution, bool
 		case EWaveTableCurve::Sin_Full:
 		default:
 		{
-			WaveTable.AddZeroed(WaveTable::ResolutionToInt32(InResolution));
-			BuildWaveTable(WaveTable, bInBipolar);
+			CopyToWaveTable(InOutTable, bInBipolar);
 		}
 		break;
 	}

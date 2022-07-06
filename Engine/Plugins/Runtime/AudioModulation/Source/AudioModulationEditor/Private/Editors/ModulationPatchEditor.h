@@ -15,8 +15,6 @@ public:
 protected:
 	virtual bool GetIsBypassed() const;
 	virtual bool GetIsPropertyEditorDisabled() const override;
-	virtual EWaveTableResolution GetBankResolution() const override;
-	virtual bool GetBankIsBipolar() const override { return false; }
 	virtual FWaveTableTransform* GetTransform(int32 InIndex) const override;
 	virtual int32 GetNumTransforms() const override;
 

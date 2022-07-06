@@ -59,9 +59,6 @@ struct AUDIOMODULATION_API FSoundControlModulationPatch
 	/** Modulation inputs */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
 	TArray<FSoundControlModulationInput> Inputs;
-
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Inputs)
-	EWaveTableResolution WaveTableResolution = EWaveTableResolution::None;
 };
 
 UCLASS(config = Engine, editinlinenew, BlueprintType)

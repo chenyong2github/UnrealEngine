@@ -42,17 +42,21 @@ namespace WaveTable
 			const FText& GetAxesDescriptor() const;
 			const UObject* GetParentObject() const;
 			EWaveTableCurveSource GetSource() const;
-			void Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex);
+			void Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex, bool bInIsBipolar);
 
 			virtual ECurveEditorViewID GetViewId() const { return WaveTableViewId; }
 			virtual bool IsReadOnly() const override;
 			virtual FLinearColor GetColor() const override;
+			virtual void GetValueRange(double& MinValue, double& MaxValue) const override;
 
 			int32 GetCurveIndex() const { return CurveIndex; }
+			bool GetIsBipolar() const { return bIsBipolar; }
+			float GetFadeInRatio() const { return FadeInRatio; }
+			float GetFadeOutRatio() const { return FadeOutRatio; }
+			int32 GetNumSamples() const { return NumSamples; }
 
 		protected:
 			virtual void RefreshCurveDescriptorText(const FWaveTableTransform& InTransform, FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName);
-			virtual FWaveTableTransform* GetTransform();
 			virtual FColor GetCurveColor() const;
 			virtual bool GetPropertyEditorDisabled() const;
 			virtual FText GetPropertyEditorDisabledText() const;
@@ -61,7 +65,14 @@ namespace WaveTable
 
 		private:
 			int32 CurveIndex = INDEX_NONE;
+			int32 NumSamples = 0;
+
 			EWaveTableCurveSource Source = EWaveTableCurveSource::Unset;
+
+			bool bIsBipolar = false;
+
+			float FadeInRatio = 0.0f;
+			float FadeOutRatio = 0.0f;
 
 			FText InputAxisName;
 			FText AxesDescriptor;
@@ -85,7 +96,7 @@ namespace WaveTable
 			virtual void DrawViewGrids(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const override;
 			virtual void DrawLabels(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 BaseLayerId, ESlateDrawEffect DrawEffects) const override;
 
-			virtual void FormatInputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
+			virtual void FormatInputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const;
 			virtual void FormatOutputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const { }
 
 		private:

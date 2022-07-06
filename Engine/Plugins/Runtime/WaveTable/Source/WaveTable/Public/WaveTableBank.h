@@ -27,16 +27,25 @@ class WAVETABLE_API UWaveTableBank : public UObject, public IAudioProxyDataFacto
 	GENERATED_BODY()
 
 public:
-	// If set to 'None', WaveTable is not cached.  If set to
-	// value, caches a sampled wavetable for all curves.
+	// Number of sampled cached for each curve in the given bank.
 	UPROPERTY(EditAnywhere, Category = Options)
-	EWaveTableResolution Resolution;
+	EWaveTableResolution Resolution = EWaveTableResolution::Res_256;
 
 	// Determines if output from curve/wavetable are to be clamped between [-1.0f, 1.0f]
 	// (i.e. for waveform generation, oscillation, etc.) or between [0.0f, 1.0f]
 	// (i.e. for enveloping) when sampling curve/wavetable
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bBipolar = true;
+
+#if WITH_EDITORONLY_DATA
+	// Sum total size of all WaveTable data within the given bank
+	UPROPERTY(VisibleAnywhere, Category = Options, meta = (DisplayName = "WaveTable Size (MB)"))
+	float WaveTableSizeMB = 0.0f;
+
+	// Length of all WaveTable samples in bank in seconds (at 48kHz)
+	UPROPERTY(VisibleAnywhere, Category = Options, meta = (DisplayName = "WaveTable Length (sec)"))
+	float WaveTableLengthSec = 0.0f;
+#endif // WITH_EDITORONLY_DATA
 
 	/** Tables within the given bank */
 	UPROPERTY(EditAnywhere, Category = Options)
@@ -46,6 +55,8 @@ public:
 	virtual TUniquePtr<Audio::IProxyData> CreateNewProxyData(const Audio::FProxyDataInitParams& InitParams) override;
 
 #if WITH_EDITOR
+	void RefreshWaveTables();
+
 	virtual void PreSave(FObjectPreSaveContext InSaveContext) override;
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
 	virtual void PostEditChangeChainProperty(FPropertyChangedChainEvent& InPropertyChangedEvent) override;

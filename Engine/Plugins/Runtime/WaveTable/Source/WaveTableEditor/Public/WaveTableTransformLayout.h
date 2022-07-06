@@ -1,10 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "Containers/Map.h"
 #include "Curves/SimpleCurve.h"
 #include "IPropertyTypeCustomization.h"
 #include "Layout/Visibility.h"
 #include "Misc/Attribute.h"
+#include "PropertyCustomizationHelpers.h"
 #include "PropertyHandle.h"
 #include "SCurveEditor.h"
 #include "WaveTableSettings.h"
@@ -24,22 +26,24 @@ namespace WaveTable
 			//~ End IPropertyTypeCustomization
 
 		protected:
-			EWaveTableCurve GetCurve() const;
-
-			virtual const EWaveTableResolution* GetResolution() const = 0;
+			virtual TSet<EWaveTableCurve> GetSupportedCurves() const;
 			virtual FWaveTableTransform* GetTransform() const = 0;
 			virtual bool IsBipolar() const = 0;
 
 			void CachePCMFromFile();
+			EWaveTableCurve GetCurve() const;
 			int32 GetOwningArrayIndex() const;
-
 			bool IsScaleableCurve() const;
-			void RefreshWaveTable() const;
 
 			TSharedPtr<IPropertyHandle> CurveHandle;
 			TSharedPtr<IPropertyHandle> ChannelIndexHandle;
 			TSharedPtr<IPropertyHandle> FilePathHandle;
 			TSharedPtr<IPropertyHandle> WaveTableOptionsHandle;
+
+		private:
+			void CustomizeCurveSelector(IDetailChildrenBuilder& ChildBuilder);
+
+			TMap<FString, FName> CurveDisplayStringToNameMap;
 		};
 
 		class WAVETABLEEDITOR_API FTransformLayoutCustomization : public FTransformLayoutCustomizationBase
@@ -50,7 +54,6 @@ namespace WaveTable
 				return MakeShared<FTransformLayoutCustomization>();
 			}
 
-			virtual const EWaveTableResolution* GetResolution() const override;
 			virtual bool IsBipolar() const override;
 			virtual FWaveTableTransform* GetTransform() const override;
 		};

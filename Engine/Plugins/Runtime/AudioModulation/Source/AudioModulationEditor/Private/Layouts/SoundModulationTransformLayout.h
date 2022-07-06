@@ -25,7 +25,7 @@ public:
 
 protected:
 	//~ Begin FTransformLayoutCustomizationBase
-	virtual const EWaveTableResolution* GetResolution() const override;
+	virtual TSet<EWaveTableCurve> GetSupportedCurves() const override;
 	virtual FWaveTableTransform* GetTransform() const override;
 	virtual bool IsBipolar() const override;
 	//~ End FTransformLayoutCustomizationBase

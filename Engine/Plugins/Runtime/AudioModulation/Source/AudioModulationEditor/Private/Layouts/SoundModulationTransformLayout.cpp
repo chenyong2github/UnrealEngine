@@ -6,23 +6,11 @@
 #include "UObject/NoExportTypes.h"
 
 
-const EWaveTableResolution* FSoundModulationTransformLayoutCustomization::GetResolution() const
+TSet<EWaveTableCurve> FSoundModulationTransformLayoutCustomization::GetSupportedCurves() const
 {
-	if (ensure(WaveTableOptionsHandle.IsValid()))
-	{
-		TArray<UObject*> OuterObjects;
-		WaveTableOptionsHandle->GetOuterObjects(OuterObjects);
-		if (OuterObjects.Num() == 1)
-		{
-			if (USoundModulationPatch* Patch = Cast<USoundModulationPatch>(OuterObjects.Last()))
-			{
-				FSoundControlModulationPatch& PatchSettings = Patch->PatchSettings;
-				return &PatchSettings.WaveTableResolution;
-			}
-		}
-	}
-
-	return nullptr;
+	TSet<EWaveTableCurve> Curves = WaveTable::Editor::FTransformLayoutCustomizationBase::GetSupportedCurves();
+	Curves.Remove(EWaveTableCurve::File);
+	return Curves;
 }
 
 FWaveTableTransform* FSoundModulationTransformLayoutCustomization::GetTransform() const

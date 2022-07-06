@@ -36,8 +36,6 @@ public:
 
 	virtual void RefreshCurveDescriptorText(const FWaveTableTransform& InTransform, FText& OutShortDisplayName, FText& OutInputAxisName, FText& OutOutputAxisName) override;
 
-	virtual FWaveTableTransform* GetTransform() override;
-
 	virtual ECurveEditorViewID GetViewId() const override { return ModPatchViewId; }
 	virtual FColor GetCurveColor() const override { return UAudioModulationStyle::GetControlBusColor(); }
 	virtual bool GetPropertyEditorDisabled() const override { return GetIsBypassed(); }

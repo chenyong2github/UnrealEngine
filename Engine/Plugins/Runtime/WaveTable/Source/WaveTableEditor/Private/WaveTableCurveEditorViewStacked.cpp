@@ -10,6 +10,7 @@
 #include "SCurveEditorPanel.h"
 #include "SGraphActionMenu.h"
 #include "Styling/AppStyle.h"
+#include "Views/SInteractiveCurveEditorView.h"
 #include "WaveTableTransform.h"
 #include "Widgets/Text/STextBlock.h"
 
@@ -28,7 +29,7 @@ namespace WaveTable
 			check(InOwner);
 		}
 
-		void FWaveTableCurveModel::Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex)
+		void FWaveTableCurveModel::Refresh(const FWaveTableTransform& InTransform, int32 InCurveIndex, bool bInIsBipolar)
 		{
 			// Must be set prior to remainder of refresh to avoid
 			// child class implementation acting on incorrect cached index
@@ -42,11 +43,25 @@ namespace WaveTable
 
 			AxesDescriptor = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_AxesFormat", "X = {0}, Y = {1}"), InputAxisName, OutputAxisName);
 
-			bKeyDrawEnabled = true;
 			IntentionName = TEXT("AudioControlValue");
 			SupportedViews = GetViewId();
 
 			bKeyDrawEnabled = false;
+
+			bIsBipolar = bInIsBipolar;
+
+			if (InTransform.Curve == EWaveTableCurve::File)
+			{
+				NumSamples = InTransform.WaveTable.Num();
+				FadeInRatio = InTransform.WaveTableSettings.FadeIn;
+				FadeOutRatio = InTransform.WaveTableSettings.FadeOut;
+			}
+			else
+			{
+				NumSamples = 0;
+				FadeInRatio = 0.0f;
+				FadeOutRatio = 0.0f;
+			}
 
 			const bool bIsDisabled = GetPropertyEditorDisabled();
 			if (bIsDisabled)
@@ -55,9 +70,6 @@ namespace WaveTable
 			}
 			else
 			{
-				UEnum* Enum = StaticEnum<EWaveTableCurveSource>();
-				check(Enum);
-
 				LongDisplayName = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_NameFormat", "{0}: {1}"), FText::AsNumber(CurveIndex), ShortDisplayName);
 
 				if (Source == EWaveTableCurveSource::Custom)
@@ -68,16 +80,12 @@ namespace WaveTable
 				{
 					bKeyDrawEnabled = true;
 
-					if (FWaveTableTransform* Transform = GetTransform())
+					if (const UCurveFloat* SharedCurve = InTransform.CurveShared)
 					{
-						if (const UCurveFloat* SharedCurve = Transform->CurveShared)
-						{
-							const FText CurveSourceText = FText::FromString(SharedCurve->GetName());
-							LongDisplayName = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_NameSharedFormat", "{0}: {1}, Shared Curve '{2}'"), FText::AsNumber(CurveIndex), ShortDisplayName, CurveSourceText);
-						}
+						const FText CurveSourceText = FText::FromString(SharedCurve->GetName());
+						LongDisplayName = FText::Format(LOCTEXT("WaveTableCurveDisplayTitle_NameSharedFormat", "{0}: {1}, Shared Curve '{2}'"), FText::AsNumber(CurveIndex), ShortDisplayName, CurveSourceText);
 					}
 				}
-
 			}
 		}
 
@@ -86,6 +94,20 @@ namespace WaveTable
 			return !GetPropertyEditorDisabled() && (Source == EWaveTableCurveSource::Custom)
 				? Color
 				: Color.Desaturate(0.35f);
+		}
+
+		void FWaveTableCurveModel::GetValueRange(double& MinValue, double& MaxValue) const
+		{
+			if (FadeInRatio > 0.0f || FadeOutRatio > 0.0f)
+			{
+				MaxValue = 1.0f;
+
+				MinValue = bIsBipolar ? -1.0f : 0.0f;
+			}
+			else
+			{
+				FRichCurveEditorModelRaw::GetValueRange(MinValue, MaxValue);
+			}
 		}
 
 		const FText& FWaveTableCurveModel::GetAxesDescriptor() const
@@ -101,11 +123,6 @@ namespace WaveTable
 		const UObject* FWaveTableCurveModel::GetParentObject() const
 		{
 			return ParentObject.Get();
-		}
-
-		FWaveTableTransform* FWaveTableCurveModel::GetTransform()
-		{
-			return nullptr;
 		}
 
 		bool FWaveTableCurveModel::IsReadOnly() const
@@ -170,8 +187,6 @@ namespace WaveTable
 				return;
 			}
 
-			const int32 LabelLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::Labels;
-
 			const double ValuePerPixel = 1.0 / StackedHeight;
 			const double ValueSpacePadding = StackedPadding * ValuePerPixel;
 
@@ -210,6 +225,7 @@ namespace WaveTable
 				FPaintGeometry LabelGeometry = AllottedGeometry.ToPaintGeometry(FSlateLayoutTransform(LabelPosition));
 				const FVector2D LabelSize = FontMeasure->Measure(Label, FontInfo);
 
+				const uint32 LabelLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::GridLabels;
 				FSlateDrawElement::MakeText(OutDrawElements, LabelLayerId + 1, LabelGeometry, Label, FontInfo, DrawEffects, Curve->GetColor());
 
 				// Render axes descriptor
@@ -251,10 +267,16 @@ namespace WaveTable
 			const double ValuePerPixel = 1.0 / StackedHeight;
 			const double ValueSpacePadding = StackedPadding * ValuePerPixel;
 
+			if (CurveInfoByID.IsEmpty())
+			{
+				return;
+			}
+
 			for (auto It = CurveInfoByID.CreateConstIterator(); It; ++It)
 			{
 				DrawInfo.SetCurveModel(CurveEditor->FindCurve(It.Key()));
-				if (!ensureAlways(DrawInfo.GetCurveModel()))
+				const FCurveModel* CurveModel = DrawInfo.GetCurveModel();
+				if (!ensureAlways(CurveModel))
 				{
 					continue;
 				}
@@ -262,7 +284,7 @@ namespace WaveTable
 				TArray<FText> CurveModelGridLabelsX = MajorGridLabelsX;
 				check(MajorGridLinesX.Num() == CurveModelGridLabelsX.Num());
 
-				if (const FWaveTableCurveModel* EditorModel = static_cast<const FWaveTableCurveModel*>(DrawInfo.GetCurveModel()))
+				if (const FWaveTableCurveModel* EditorModel = static_cast<const FWaveTableCurveModel*>(CurveModel))
 				{
 					for (int32 i = 0; i < CurveModelGridLabelsX.Num(); ++i)
 					{
@@ -324,16 +346,66 @@ namespace WaveTable
 						DrawViewGridLineY(VerticalLine, OutDrawElements, DrawInfo, DrawEffects, nullptr /* Label */, false /* bIsMajor */);
 					}
 				}
+
+				if (const FWaveTableCurveModel* EditorModel = static_cast<const FWaveTableCurveModel*>(CurveModel))
+				{
+					auto DrawFade = [this, &CurveEditor, &DrawInfo, &OutDrawElements, DrawEffects, BaseLayerId, ModelID = It.Key()](float StartPosX, float EndPosX, bool bFadeIn, bool bIsBipolar)
+					{
+						const SCurveEditorView* View = CurveEditor->FindFirstInteractiveView(ModelID);
+						FCurveEditorScreenSpace CurveSpace = View->GetCurveSpace(ModelID);
+
+						StartPosX = CurveSpace.SecondsToScreen(StartPosX);
+						EndPosX = CurveSpace.SecondsToScreen(EndPosX);
+						static const FLinearColor FadeColor = FLinearColor::White.CopyWithNewOpacity(0.75f);
+
+						DrawInfo.LinePoints[0].X = StartPosX;
+						DrawInfo.LinePoints[0].Y = CurveSpace.ValueToScreen(0.0f);
+						DrawInfo.LinePoints[1].X = EndPosX;
+						DrawInfo.LinePoints[1].Y = CurveSpace.ValueToScreen(1.0f);
+						const int32 FadeLayerId = BaseLayerId + CurveViewConstants::ELayerOffset::Curves;
+
+						FSlateDrawElement::MakeLines(OutDrawElements, FadeLayerId, DrawInfo.PaintGeometry, DrawInfo.LinePoints, DrawEffects, FadeColor, false);
+
+						if (bIsBipolar)
+						{
+							DrawInfo.LinePoints[1].Y = CurveSpace.ValueToScreen(-1.0f);
+							FSlateDrawElement::MakeLines(OutDrawElements, FadeLayerId, DrawInfo.PaintGeometry, DrawInfo.LinePoints, DrawEffects, FadeColor, false);
+						}
+
+						const FSlateBrush* WhiteBrush = FAppStyle::GetBrush("WhiteBrush");
+
+						const float Width = FMath::Abs(DrawInfo.LinePoints[1].X - DrawInfo.LinePoints[0].X);
+						const float BoxStart = bFadeIn ? StartPosX : StartPosX - Width;
+						const FPaintGeometry BoxGeometry = DrawInfo.AllottedGeometry->ToPaintGeometry(
+							FVector2D(Width, StackedHeight),
+							FSlateLayoutTransform(FVector2D(BoxStart, DrawInfo.GetPixelTop()))
+						);
+
+						const int32 GridOverlayLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridOverlays;
+						FSlateDrawElement::MakeBox(OutDrawElements, GridOverlayLayerId, BoxGeometry, WhiteBrush, DrawEffects, FadeColor.CopyWithNewOpacity(0.15f));
+					};
+
+					const bool bIsBipolar = EditorModel->GetIsBipolar();
+					float FadeInRatio = EditorModel->GetFadeInRatio();
+					if (FadeInRatio > 0.0f)
+					{
+						DrawFade(0.0f, FadeInRatio, true, bIsBipolar);
+					}
+
+					float FadeOutRatio = EditorModel->GetFadeOutRatio();
+					if (FadeOutRatio > 0.0f)
+					{
+						DrawFade(1.0f, 1.0f - FadeOutRatio, false, bIsBipolar);
+					}
+				}
 			}
 		}
 
 		void SViewStacked::DrawViewGridLineX(FSlateWindowElementList& OutDrawElements, FGridDrawInfo& DrawInfo, ESlateDrawEffect DrawEffects, double OffsetAlpha, bool bIsMajor) const
 		{
-			double ValueMin;
-			double ValueMax;
+			double ValueMin = 0.0f;
+			double ValueMax = 0.0f;
 			DrawInfo.GetCurveModel()->GetValueRange(ValueMin, ValueMax);
-
-			const int32 GridLineLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLines;
 
 			const double LowerValue = DrawInfo.GetLowerValue();
 			const double PixelBottom = DrawInfo.GetPixelBottom();
@@ -342,10 +414,12 @@ namespace WaveTable
 			const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 			const FSlateFontInfo FontInfo = FCoreStyle::Get().GetFontStyle("CurveEd.InfoFont");
 
+			const uint32 LineLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLines;
+
 			FLinearColor Color = bIsMajor ? DrawInfo.GetMajorGridColor() : DrawInfo.GetMinorGridColor();
 
 			DrawInfo.LinePoints[0].Y = DrawInfo.LinePoints[1].Y = DrawInfo.ScreenSpace.ValueToScreen(LowerValue + OffsetAlpha);
-			FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, DrawInfo.PaintGeometry, DrawInfo.LinePoints, DrawEffects, Color, false);
+			FSlateDrawElement::MakeLines(OutDrawElements, LineLayerId, DrawInfo.PaintGeometry, DrawInfo.LinePoints, DrawEffects, Color, false);
 
 			FText Label = FText::AsNumber(FMath::Lerp(ValueMin, ValueMax, OffsetAlpha), &DrawInfo.LabelFormat);
 
@@ -369,10 +443,11 @@ namespace WaveTable
 			}
 
 			const FPaintGeometry LabelGeometry = DrawInfo.AllottedGeometry->ToPaintGeometry(FSlateLayoutTransform(FVector2D(CurveViewConstants::CurveLabelOffsetX, LabelY)));
+			const uint32 LabelLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLabels;
 
 			FSlateDrawElement::MakeText(
 				OutDrawElements,
-				DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLabels,
+				LabelLayerId,
 				LabelGeometry,
 				Label,
 				FontInfo,
@@ -386,12 +461,11 @@ namespace WaveTable
 			const float Width = DrawInfo.AllottedGeometry->GetLocalSize().X;
 			if (VerticalLine >= 0 || VerticalLine <= FMath::RoundToFloat(Width))
 			{
-				const int32 GridLineLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLines;
-
 				const FLinearColor LineColor = bIsMajor ? DrawInfo.GetMajorGridColor() : DrawInfo.GetMinorGridColor();
 
 				DrawInfo.LinePoints[0].X = DrawInfo.LinePoints[1].X = VerticalLine;
-				FSlateDrawElement::MakeLines(OutDrawElements, GridLineLayerId, DrawInfo.PaintGeometry, DrawInfo.LinePoints, DrawEffects, LineColor, false);
+				const uint32 LineLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLines;
+				FSlateDrawElement::MakeLines(OutDrawElements, LineLayerId, DrawInfo.PaintGeometry, DrawInfo.LinePoints, DrawEffects, LineColor, false);
 
 				if (Label)
 				{
@@ -400,16 +474,31 @@ namespace WaveTable
 					const TSharedRef<FSlateFontMeasure> FontMeasure = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 					const FVector2D LabelSize = FontMeasure->Measure(*Label, FontInfo);
 					const FPaintGeometry LabelGeometry = DrawInfo.AllottedGeometry->ToPaintGeometry(FSlateLayoutTransform(FVector2D(VerticalLine, DrawInfo.LinePoints[0].Y - LabelSize.Y * 1.2f)));
+					const uint32 LabelLayerId = DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLabels;
 
 					FSlateDrawElement::MakeText(
 						OutDrawElements,
-						DrawInfo.GetBaseLayerId() + CurveViewConstants::ELayerOffset::GridLabels,
+						LabelLayerId,
 						LabelGeometry,
 						*Label,
 						FontInfo,
 						DrawEffects,
 						DrawInfo.GetLabelColor()
 					);
+				}
+			}
+		}
+
+		void SViewStacked::FormatInputLabel(const FWaveTableCurveModel& EditorModel, const FNumberFormattingOptions& InLabelFormat, FText& InOutLabel) const
+		{
+			const int32 NumSamples = EditorModel.GetNumSamples();
+			if (NumSamples != 0)
+			{
+				const float Value = FCString::Atof(*InOutLabel.ToString());
+				if (Value >= 0 && Value <= 1.0f)
+				{
+					const int32 ValueTrunc = FMath::FloorToInt32(NumSamples * Value);
+					InOutLabel = FText::Format(LOCTEXT("WaveTableCurveEditor_InputLabelFormat", "{0} ({1})"), InOutLabel, FText::AsNumber(ValueTrunc));
 				}
 			}
 		}

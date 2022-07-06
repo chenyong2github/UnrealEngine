@@ -11,7 +11,9 @@
 #include "SCurveEditor.h"
 #include "ScopedTransaction.h"
 #include "Styling/AppStyle.h"
+#include "Subsystems/AssetEditorSubsystem.h"
 #include "WaveTableBank.h"
+#include "WaveTableBankEditor.h"
 #include "WaveTableFileUtilities.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SEditableTextBox.h"
@@ -19,11 +21,12 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "Widgets/SToolTip.h"
 #include "Widgets/Text/SRichTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Widgets/Views/SListView.h"
 
-#define LOCTEXT_NAMESPACE "WaveTable"
+#define LOCTEXT_NAMESPACE "WaveTableEditor"
 
 
 namespace WaveTable
@@ -52,7 +55,7 @@ namespace WaveTable
 			}
 
 			CurveHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FWaveTableTransform, Curve)).ToSharedRef();
-			ChildBuilder.AddProperty(CurveHandle->AsShared());
+			CustomizeCurveSelector(ChildBuilder);
 
 			TSharedRef<IPropertyHandle> ScalarHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FWaveTableTransform, Scalar)).ToSharedRef();
 
@@ -75,18 +78,6 @@ namespace WaveTable
 			uint32 NumWaveTableOptions = 0;
 			if (WaveTableOptionsHandle->GetNumChildren(NumWaveTableOptions))
 			{
-				for (int32 i = 0; i < static_cast<int32>(NumWaveTableOptions); ++i)
-				{
-					TSharedPtr<IPropertyHandle> ChildProperty = WaveTableOptionsHandle->GetChildHandle(i);
-					if (ChildProperty->GetProperty()->GetFName() != GET_MEMBER_NAME_CHECKED(FWaveTableSettings, FilePath))
-					{
-						ChildProperty->SetOnPropertyValueChanged(FSimpleDelegate::CreateLambda([this]
-						{
-							RefreshWaveTable();
-						}));
-					}
-				}
-
 				ChannelIndexHandle = WaveTableOptionsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FWaveTableSettings, ChannelIndex));
 
 				FilePathHandle = WaveTableOptionsHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FWaveTableSettings, FilePath));
@@ -97,6 +88,83 @@ namespace WaveTable
 			ChildBuilder.AddProperty(WaveTableOptionsHandle->AsShared())
 				.EditCondition(TAttribute<bool>::Create([this]() { return GetCurve() == EWaveTableCurve::File; }), nullptr)
 				.Visibility(IsWaveTableVisibilityAttribute);
+		}
+
+		void FTransformLayoutCustomizationBase::CustomizeCurveSelector(IDetailChildrenBuilder& ChildBuilder)
+		{
+			check(CurveHandle.IsValid());
+
+			auto GetAll = [this, SupportedCurves = GetSupportedCurves()](TArray<TSharedPtr<FString>>& OutNames, TArray<TSharedPtr<SToolTip>>& OutTooltips, TArray<bool>&)
+			{
+				CurveDisplayStringToNameMap.Reset();
+				UEnum* Enum = StaticEnum<EWaveTableCurve>();
+				check(Enum);
+
+				static const int64 MaxValue = static_cast<int64>(EWaveTableCurve::Count);
+				for (int32 i = 0; i < Enum->NumEnums(); ++i)
+				{
+					EWaveTableCurve Curve = static_cast<EWaveTableCurve>(Enum->GetValueByIndex(i));
+					if (SupportedCurves.Contains(Curve))
+					{
+						TSharedPtr<FString> DisplayString = MakeShared<FString>(Enum->GetDisplayNameTextByIndex(i).ToString());
+
+						const FName Name = Enum->GetNameByIndex(i);
+						CurveDisplayStringToNameMap.Add(*DisplayString.Get(), Name);
+
+						OutTooltips.Emplace(SNew(SToolTip).Text(Enum->GetToolTipTextByIndex(i)));
+						OutNames.Emplace(MoveTemp(DisplayString));
+					}
+				}
+			};
+
+			auto GetValue = [this]()
+			{
+				UEnum* Enum = StaticEnum<EWaveTableCurve>();
+				check(Enum);
+
+				uint8 IntValue;
+				if (CurveHandle->GetValue(IntValue) == FPropertyAccess::Success)
+				{
+					return Enum->GetDisplayNameTextByValue(IntValue).ToString();
+				}
+
+				return Enum->GetDisplayNameTextByValue(static_cast<int32>(EWaveTableCurve::Count)).ToString();
+			};
+
+			auto SelectedValue = [this](const FString& InSelected)
+			{
+				UEnum* Enum = StaticEnum<EWaveTableCurve>();
+				check(Enum);
+
+				const FName& Name = CurveDisplayStringToNameMap.FindChecked(InSelected);
+				const uint8 Value = static_cast<uint8>(Enum->GetValueByName(Name, EGetByNameFlags::ErrorIfNotFound));
+				ensure(CurveHandle->SetValue(Value) == FPropertyAccess::Success);
+			};
+
+			static const FText CurveDisplayName = LOCTEXT("WaveTableTransformCurveProperty", "Curve");
+			ChildBuilder.AddCustomRow(CurveDisplayName)
+				.NameContent()
+				[
+					CurveHandle->CreatePropertyNameWidget()
+				]
+				.ValueContent()
+				.MinDesiredWidth(150.0f)
+				[
+					SNew(SHorizontalBox)
+					+ SHorizontalBox::Slot()
+					.VAlign(VAlign_Center)
+				[
+					SNew(SBox)
+					[
+						PropertyCustomizationHelpers::MakePropertyComboBox(
+							CurveHandle,
+							FOnGetPropertyComboBoxStrings::CreateLambda(GetAll),
+							FOnGetPropertyComboBoxValue::CreateLambda(GetValue),
+							FOnPropertyComboBoxValueSelected::CreateLambda(SelectedValue)
+						)
+					]
+				]
+			];
 		}
 
 		void FTransformLayoutCustomizationBase::CachePCMFromFile()
@@ -122,17 +190,19 @@ namespace WaveTable
 				}
 			}
 
-			RefreshWaveTable();
-		}
-
-		void FTransformLayoutCustomizationBase::RefreshWaveTable() const
-		{
-			if (FWaveTableTransform* Transform = GetTransform())
+			if (GEditor)
 			{
-				if (const EWaveTableResolution* Resolution = GetResolution())
+				if (UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>())
 				{
-					const bool bBipolar = IsBipolar();
-					Transform->CacheWaveTable(*Resolution, bBipolar);
+					TArray<UObject*> OuterObjects;
+					WaveTableOptionsHandle->GetOuterObjects(OuterObjects);
+					for (UObject* Object : OuterObjects)
+					{
+						if (UWaveTableBank* Bank = Cast<UWaveTableBank>(Object))
+						{
+							Bank->RefreshWaveTables();
+						}
+					}
 				}
 			}
 		}
@@ -172,22 +242,25 @@ namespace WaveTable
 			return TableIndex;
 		}
 
-		const EWaveTableResolution* FTransformLayoutCustomization::GetResolution() const
+		TSet<EWaveTableCurve> FTransformLayoutCustomizationBase::GetSupportedCurves() const
 		{
-			if (ensure(WaveTableOptionsHandle.IsValid()))
+			UEnum* Enum = StaticEnum<EWaveTableCurve>();
+			check(Enum);
+
+			TSet<EWaveTableCurve> Curves;
+			static const int64 MaxValue = static_cast<int64>(EWaveTableCurve::Count);
+			for (int32 i = 0; i < Enum->NumEnums(); ++i)
 			{
-				TArray<UObject*> OuterObjects;
-				WaveTableOptionsHandle->GetOuterObjects(OuterObjects);
-				if (OuterObjects.Num() == 1)
+				if (Enum->GetValueByIndex(i) < MaxValue)
 				{
-					if (UWaveTableBank* Bank = Cast<UWaveTableBank>(OuterObjects.Last()))
+					if (!Enum->HasMetaData(TEXT("Hidden"), i))
 					{
-						return &Bank->Resolution;
+						Curves.Add(static_cast<EWaveTableCurve>(Enum->GetValueByIndex(i)));
 					}
 				}
 			}
 
-			return nullptr;
+			return Curves;
 		}
 
 		bool FTransformLayoutCustomization::IsBipolar() const
@@ -234,4 +307,4 @@ namespace WaveTable
 		}
 	} // namespace Editor
 } // namespace WaveTable
-#undef LOCTEXT_NAMESPACE // AudioModulation
+#undef LOCTEXT_NAMESPACE // WaveTableEditor

@@ -16,7 +16,8 @@ namespace UnrealBuildTool.Rules
 				new string[]
 				{
 					"AudioExtensions",
-					"Core"
+					"Core",
+					"WaveTable"
 				}
 			);
 
@@ -27,8 +28,7 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"DeveloperSettings",
 					"Engine",
-					"SignalProcessing",
-					"WaveTable"
+					"SignalProcessing"
 				}
 			);
 
