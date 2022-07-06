@@ -455,7 +455,7 @@ namespace UnrealBuildTool
 
 			if (PreCompileActions.Any())
 			{
-				bool bResult = LocalExecutor.ExecuteActions(PreCompileActions, Logger);
+				bool bResult = LocalExecutor.ExecuteActions(PreCompileActions.Distinct().ToList(), Logger);
 
 				if (!bResult)
 					return false;
