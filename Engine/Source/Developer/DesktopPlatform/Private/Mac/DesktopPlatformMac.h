@@ -28,6 +28,9 @@ public:
 
 	virtual FString GetUserTempPath() override;
 
+protected:
+	virtual FString GetOidcTokenExecutableFilename(const FString& RootDir) const override;
+
 private:
 	bool FileDialogShared(bool bSave, const void* ParentWindowHandle, const FString& DialogTitle, const FString& DefaultPath, const FString& DefaultFile, const FString& FileTypes, uint32 Flags, TArray<FString>& OutFilenames, int32& OutFilterIndex);
 };

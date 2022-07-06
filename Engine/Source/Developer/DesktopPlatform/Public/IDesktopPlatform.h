@@ -456,4 +456,30 @@ public:
 	* @return Path to the folder
 	*/
 	virtual FString GetDefaultProjectCreationPath() = 0;
+
+	/**
+	* Get a Access token for use by OIDC compliant Identity Providers
+
+	* @param RootDir			Engine root directory for the project to use.
+	* @param ProjectFileName	Filename of the current project
+	* @param ProviderIdentifier	The identifier for the provider as configured in oidc-token.json
+	* @param Unattended			True to indicate that no user interaction should be assumed
+	* @param Warn				Feedback context to use for progress updates
+	* @param OutToken			The allocated access token
+	* @param OutTokenExpiresAt	When the token expires
+	* @return true if the task completed successfully.
+	*/
+	virtual bool GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt) = 0;
+
+	/**
+	* Get the status of a access token for use by OIDC compliant Identity Providers
+
+	* @param RootDir			Engine root directory for the project to use.
+	* @param ProjectFileName	Filename of the current project
+	* @param ProviderIdentifier	The identifier for the provider as configured in oidc-token.json
+	* @param Warn				Feedback context to use for progress updates
+	* @param OutStatus			The allocated access token
+	* @return true if the task completed successfully.
+	*/
+	virtual bool GetOidcTokenStatus(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, FFeedbackContext* Warn, int& OutStatus) = 0;
 };

@@ -54,6 +54,9 @@ public:
 	virtual FProcHandle InvokeUnrealBuildToolAsync(const FString& InCmdLineParams, FOutputDevice &Ar, void*& OutReadPipe, void*& OutWritePipe, bool bSkipBuildUBT = false) override;
 	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn) override final;
 
+    virtual bool GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt) override;
+	virtual bool GetOidcTokenStatus(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, FFeedbackContext* Warn, int& OutStatus) override;
+
 	virtual const TArray<FTargetInfo>& GetTargetsForProject(const FString& ProjectFile) const override;
 	virtual const TArray<FTargetInfo>& GetTargetsForCurrentProject() const override;
 
@@ -79,6 +82,9 @@ private:
 	void GetProjectBuildProducts(const FString& ProjectFileName, TArray<FString> &OutFileNames, TArray<FString> &OutDirectoryNames);
 	bool BuildUnrealBuildTool(const FString& RootDir, FOutputDevice &Ar);
 
+	bool InvokeOidcTokenToolSync(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutReturnCode, FString& OutProcOutput);
+	FProcHandle InvokeOidcTokenToolAsync(const FString& InArguments, void*& OutReadPipe, void*& OutWritePipe);
+
 	static bool ReadTargetInfo(const FString& FileName, TArray<FTargetInfo>& Targets);
 
 	FString GetUserDir(const FString& Identifier);
@@ -89,6 +95,7 @@ protected:
 
 	FString GetUnrealBuildToolProjectFileName(const FString& RootDir) const;
 	FString GetUnrealBuildToolExecutableFilename(const FString& RootDir) const;	
+	virtual FString GetOidcTokenExecutableFilename(const FString& RootDir) const = 0;
 };
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS

@@ -514,4 +514,9 @@ FString FDesktopPlatformLinux::GetUserTempPath()
 	return FString(FPlatformProcess::UserTempDir());
 }
 
+FString FDesktopPlatformLinux::GetOidcTokenExecutableFilename(const FString& RootDir) const
+{	
+	return FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Binaries/DotNET/OidcToken/linux-x64/OidcToken.exe"));
+}
+
 #undef LOCTEXT_NAMESPACE

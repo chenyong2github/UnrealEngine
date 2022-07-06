@@ -15,6 +15,7 @@
 #include "DerivedDataChunk.h"
 #include "DerivedDataRequestOwner.h"
 #include "DerivedDataValue.h"
+#include "DesktopPlatformModule.h"
 #include "Dom/JsonObject.h"
 #include "HAL/IConsoleManager.h"
 #include "Http/HttpClient.h"
@@ -53,6 +54,13 @@
 
 namespace UE::DerivedData
 {
+
+static bool bHttpEnableOidc = false;
+static FAutoConsoleVariableRef CVarHttpEnableOidc(
+	TEXT("DDC.Http.EnableOidc"),
+	bHttpEnableOidc,
+	TEXT("If true, Oidc tokens are used, otherwise legacy shared credentials are used."),
+	ECVF_Default);
 
 TRACE_DECLARE_INT_COUNTER(HttpDDC_Get, TEXT("HttpDDC Get"));
 TRACE_DECLARE_INT_COUNTER(HttpDDC_GetHit, TEXT("HttpDDC Get Hit"));
@@ -110,6 +118,8 @@ struct FHttpCacheStoreParams
 	FString OAuthClientId;
 	FString OAuthSecret;
 	FString OAuthScope;
+	FString OAuthProviderIdentifier;
+	FString OAuthAccessToken;
 	bool bResolveHostCanonicalName = true;
 	bool bReadOnly = false;
 
@@ -176,6 +186,8 @@ public:
 	const FString& GetOAuthClientId() const { return OAuthClientId; }
 	const FString& GetOAuthSecret() const { return OAuthSecret; }
 	const FString& GetOAuthScope() const { return OAuthScope; }
+	const FString& GetOAuthProviderIdentifier() const { return OAuthProviderIdentifier; }
+	const FString& GetOAuthAccessToken() const { return OAuthAccessToken; }
 
 private:
 	FString Domain;
@@ -187,6 +199,9 @@ private:
 	FString OAuthClientId;
 	FString OAuthSecret;
 	FString OAuthScope;
+	FString OAuthProviderIdentifier;
+	FString OAuthAccessToken;
+
 	FCriticalSection AccessCs;
 	FDerivedDataCacheUsageStats UsageStats;
 	FBackendDebugOptions DebugOptions;
@@ -1180,6 +1195,8 @@ FHttpCacheStore::FHttpCacheStore(const FHttpCacheStoreParams& Params)
 	, OAuthClientId(Params.OAuthClientId)
 	, OAuthSecret(Params.OAuthSecret)
 	, OAuthScope(Params.OAuthScope)
+	, OAuthProviderIdentifier(Params.OAuthProviderIdentifier)
+	, OAuthAccessToken(Params.OAuthAccessToken)
 	, Access(nullptr)
 	, bIsUsable(false)
 	, bReadOnly(Params.bReadOnly)
@@ -1301,6 +1318,66 @@ bool FHttpCacheStore::AcquireAccessToken()
 	// get the current serial while we wait to take the CS.
 	const uint32 WantsToUpdateTokenSerial = Access.IsValid() ? Access->GetSerial() : 0u;
 
+	if (bHttpEnableOidc && !OAuthProviderIdentifier.IsEmpty())
+	{
+		FString AccessTokenString;
+		FDateTime TokenExpiresAt;
+		
+		{
+			FScopeLock Lock(&AccessCs);
+
+			// Check if someone has beaten us to update the token, then it 
+			// should now be valid.
+			if (Access.IsValid() && Access->GetSerial() > WantsToUpdateTokenSerial)
+			{
+				return true;
+			}
+
+			if (!OAuthAccessToken.IsEmpty())
+			{
+				if (!Access)
+				{
+					Access = MakeUnique<FHttpAccessToken>();
+				}
+				Access->SetToken(OAuthAccessToken);
+				FailedLoginAttempts = 0;
+				return true;
+			}
+
+			if (FDesktopPlatformModule::Get()->GetOidcAccessToken(FPaths::RootDir(), FPaths::GetProjectFilePath(), OAuthProviderIdentifier, /* Unattended */ true, GWarn, AccessTokenString, TokenExpiresAt))
+			{
+				int32 ExpiryTimeSeconds = (TokenExpiresAt - FDateTime::UtcNow()).GetTotalSeconds();
+				if (!Access)
+				{
+					Access = MakeUnique<FHttpAccessToken>();
+				}
+				Access->SetToken(AccessTokenString);
+				UE_LOG(LogDerivedDataCache, Display, TEXT("OidcToken: Logged in to HTTP DDC services. Expires at %s which is in %d seconds."), *TokenExpiresAt.ToString(), ExpiryTimeSeconds);
+
+				//Schedule a refresh of the token ahead of expiry time (this will not work in commandlets)
+				if (!IsRunningCommandlet())
+				{
+					FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(
+						[this](float DeltaTime)
+						{
+							this->AcquireAccessToken();
+							return false;
+						}
+					), ExpiryTimeSeconds - 20.0f);
+				}
+				// Reset failed login attempts, the service is indeed alive.
+				FailedLoginAttempts = 0;
+				return true;
+			}
+			else
+			{
+				UE_LOG(LogDerivedDataCache, Error, TEXT("OidcToken: Failed to log in to HTTP services. "));
+				FailedLoginAttempts++;
+			}
+		}
+		
+	}
+	else // oidc not enabled or not configured
 	{
 		FScopeLock Lock(&AccessCs);
 
@@ -2330,6 +2407,19 @@ void FHttpCacheStoreParams::Parse(const TCHAR* NodeName, const TCHAR* Config)
 
 	FParse::Value(Config, TEXT("OAuthScope="), OAuthScope);
 
+	FParse::Value(Config, TEXT("OAuthProviderIdentifier="), OAuthProviderIdentifier);
+
+	if (FParse::Value(Config, TEXT("OAuthAccessTokenEnvOverride="), OverrideName))
+	{
+		FString AccessToken = FPlatformMisc::GetEnvironmentVariable(*OverrideName);
+		if (!AccessToken.IsEmpty())
+		{
+			OAuthAccessToken = AccessToken;
+			// we do not echo the access token as its sensitive information
+			UE_LOG(LogDerivedDataCache, Log, TEXT("%s: Found oauth access token in %s ."), NodeName, *OverrideName);
+		}
+	}
+
 	// Cache Params
 
 	FParse::Bool(Config, TEXT("ReadOnly="), bReadOnly);
@@ -2419,6 +2509,8 @@ ILegacyCacheStore* GetAnyHttpCacheStore(
 	FString& OutOAuthClientId,
 	FString& OutOAuthSecret,
 	FString& OutOAuthScope,
+	FString& OAuthProviderIdentifier,
+	FString& OAuthAccessToken,
 	FString& OutNamespace,
 	FString& OutStructuredNamespace)
 {
@@ -2430,6 +2522,8 @@ ILegacyCacheStore* GetAnyHttpCacheStore(
 		OutOAuthClientId = HttpBackend->GetOAuthClientId();
 		OutOAuthSecret = HttpBackend->GetOAuthSecret();
 		OutOAuthScope = HttpBackend->GetOAuthScope();
+		OAuthProviderIdentifier = HttpBackend->GetOAuthProviderIdentifier();
+		OAuthAccessToken = HttpBackend->GetOAuthAccessToken();
 		OutNamespace = HttpBackend->GetNamespace();
 		OutStructuredNamespace = HttpBackend->GetStructuredNamespace();
 

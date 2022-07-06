@@ -661,4 +661,9 @@ int32 FDesktopPlatformWindows::GetShellIntegrationVersion(const FString &FileNam
 	return 0;
 }
 
+FString FDesktopPlatformWindows::GetOidcTokenExecutableFilename(const FString& RootDir) const
+{
+	return FPaths::ConvertRelativePathToFull(RootDir / TEXT("Engine/Binaries/DotNET/OidcToken/win-x64/OidcToken.exe"));
+}
+
 #undef LOCTEXT_NAMESPACE

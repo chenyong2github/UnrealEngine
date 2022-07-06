@@ -26,6 +26,8 @@ public:
 	virtual bool RunUnrealBuildTool(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutExitCode) override { OutExitCode = 1;  return false; }
 	virtual bool IsUnrealBuildToolRunning() override { return false; }
 
+	virtual FString GetOidcTokenExecutableFilename(const FString& RootDir) const override { return ""; }
+
 	virtual FFeedbackContext* GetNativeFeedbackContext() override { return nullptr; }
 
 	virtual FString GetUserTempPath() override { return FPaths::ProjectIntermediateDir() + TEXT("UserTemp/"); }

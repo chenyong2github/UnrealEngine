@@ -44,6 +44,8 @@ ILegacyCacheStore* GetAnyHttpCacheStore(
 	FString& OutOAuthClientId,
 	FString& OutOAuthSecret,
 	FString& OutOAuthScope,
+	FString& OAuthProviderIdentifier,
+	FString& OAuthAccessToken,
 	FString& OutNamespace,
 	FString& OutStructuredNamespace);
 
@@ -158,7 +160,7 @@ protected:
 	static ILegacyCacheStore* GetTestBackend()
 	{
 		static ILegacyCacheStore* CachedBackend = GetAnyHttpCacheStore(
-			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestOAuthScope, TestNamespace, TestStructuredNamespace);
+			TestDomain, TestOAuthProvider, TestOAuthClientId, TestOAuthSecret, TestOAuthScope, TestOAuthProviderIdentifier, TestOAuthAccessToken, TestNamespace, TestStructuredNamespace);
 		return CachedBackend;
 	}
 
@@ -488,6 +490,8 @@ protected:
 	static inline FString TestOAuthClientId;
 	static inline FString TestOAuthSecret;
 	static inline FString TestOAuthScope;
+	static inline FString TestOAuthProviderIdentifier;
+	static inline FString TestOAuthAccessToken;
 	static inline FString TestNamespace;
 	static inline FString TestStructuredNamespace;
 };

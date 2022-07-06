@@ -751,6 +751,180 @@ bool FDesktopPlatformBase::RunUnrealBuildTool(const FText& Description, const FS
 	return static_cast<IDesktopPlatform*>(this)->RunUnrealBuildTool(Description, RootDir, Arguments, Warn, ExitCode);
 }
 
+bool FDesktopPlatformBase::GetOidcAccessToken(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, bool Unattended, FFeedbackContext* Warn, FString& OutToken, FDateTime& OutTokenExpiresAt)
+{
+	FString ResultFilePath = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir(), TEXT("oidcToken.json"));
+
+	FString Arguments = TEXT(" ");
+	Arguments += FString::Printf(TEXT(" --Service=\"%s\""), *ProviderIdentifier);
+	Arguments += FString::Printf(TEXT(" --OutFile=\"%s\""), *ResultFilePath);
+	if (Unattended)
+	{
+		Arguments += TEXT(" --Unattended=true");
+	}
+
+	// Determine if we need to hint which game project to read configs from
+	if ( !ProjectFileName.IsEmpty() && GetCachedProjectDictionary(RootDir).IsForeignProject(ProjectFileName) )
+	{
+		// Figure out whether it's a foreign project
+		const FUProjectDictionary &ProjectDictionary = GetCachedProjectDictionary(RootDir);
+		if(ProjectDictionary.IsForeignProject(ProjectFileName))
+		{
+			Arguments += FString::Printf(TEXT(" --project=\"%s\""), *IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFileName));
+		}
+	}
+
+	bool bRes = true;
+	int32 ExitCode;
+	FString ProcessStdout;
+	bRes = InvokeOidcTokenToolSync(LOCTEXT("GetOidcAccessToken", "Fetching OIDC Access Token..."), RootDir, Arguments, Warn, ExitCode, ProcessStdout);
+
+	if (ExitCode == -1337)
+	{
+		UE_LOG(LogDesktopPlatform, Error, TEXT("Unable to allocate a access token. Make sure you are logged in using UGS or using the UGS cli command 'login'. Provider used: '%s'. Ran OidcToken (project file is '%s', exe path is '%s')"), *ProviderIdentifier, *ProjectFileName, *GetOidcTokenExecutableFilename(RootDir));
+		return false;
+	}
+
+	if (!bRes)
+	{
+		UE_LOG(LogDesktopPlatform, Warning, TEXT("Failed to run OidcToken (project file is '%s', exe path is '%s')"), *ProjectFileName, *GetOidcTokenExecutableFilename(RootDir));
+		return false;
+	}
+	
+	// Read the file to a string
+	FString TokenText;
+	if(FFileHelper::LoadFileToString(TokenText, *ResultFilePath))
+	{
+		// deserialize the json file
+		TSharedPtr< FJsonObject > Object;
+		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(TokenText);
+		if(FJsonSerializer::Deserialize(Reader, Object) && Object.IsValid())
+		{
+			FString Token;
+			FString ExpiresAt;
+			if(Object->TryGetStringField(TEXT("Token"), Token) && Object->TryGetStringField(TEXT("ExpiresAt"), ExpiresAt))
+			{
+				OutToken = Token;
+
+				FDateTime::ParseIso8601(*ExpiresAt, OutTokenExpiresAt);
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+
+bool FDesktopPlatformBase::GetOidcTokenStatus(const FString& RootDir, const FString& ProjectFileName, const FString& ProviderIdentifier, FFeedbackContext* Warn, int& OutStatus)
+{
+	FString ResultFilePath = FPaths::CreateTempFilename(*FPaths::ProjectIntermediateDir(), TEXT("oidcToken-status.json"));
+
+	FString Arguments = TEXT(" ");
+	Arguments += FString::Printf(TEXT(" --Service=\"%s\""), *ProviderIdentifier);
+	Arguments += FString::Printf(TEXT(" --OutFile=\"%s\""), *ResultFilePath);
+
+	// Determine if we need to hint which game project to read configs from
+	if ( !ProjectFileName.IsEmpty() && GetCachedProjectDictionary(RootDir).IsForeignProject(ProjectFileName) )
+	{
+		// Figure out whether it's a foreign project
+		const FUProjectDictionary &ProjectDictionary = GetCachedProjectDictionary(RootDir);
+		if(ProjectDictionary.IsForeignProject(ProjectFileName))
+		{
+			Arguments += FString::Printf(TEXT(" --project=\"%s\""), *IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*ProjectFileName));
+		}
+	}
+
+	bool bRes = true;
+	int32 ExitCode;
+	FString ProcessStdout;
+	bRes = InvokeOidcTokenToolSync(LOCTEXT("GetOidcAccessToken", "Fetching OIDC Access Token Status..."), RootDir, Arguments, Warn, ExitCode, ProcessStdout);
+
+	if (!bRes)
+	{
+		UE_LOG(LogDesktopPlatform, Warning, TEXT("Failed to run OidcToken to determine token status (project file is '%s', exe path is '%s')"), *ProjectFileName, *GetOidcTokenExecutableFilename(RootDir));
+		return false;
+	}
+	
+	// Read the file to a string
+	FString TokenText;
+	if(FFileHelper::LoadFileToString(TokenText, *ResultFilePath))
+	{
+		// deserialize the json file
+		TSharedPtr< FJsonObject > Object;
+		TSharedRef< TJsonReader<> > Reader = TJsonReaderFactory<>::Create(TokenText);
+		if(FJsonSerializer::Deserialize(Reader, Object) && Object.IsValid())
+		{
+			int Status;
+			if(Object->TryGetNumberField(TEXT("Status"), Status))
+			{
+				OutStatus = Status;
+
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
+bool FDesktopPlatformBase::InvokeOidcTokenToolSync(const FText& Description, const FString& RootDir, const FString& Arguments, FFeedbackContext* Warn, int32& OutReturnCode, FString& OutProcOutput)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FDesktopPlatformBase::InvokeOidcTokenToolSync);
+	OutReturnCode = 1;
+
+	void* PipeRead = nullptr;
+	void* PipeWrite = nullptr;
+
+	verify(FPlatformProcess::CreatePipe(PipeRead, PipeWrite));
+
+	bool bInvoked = false;
+	FProcHandle ProcHandle = InvokeOidcTokenToolAsync(Arguments, PipeRead, PipeWrite);
+	if (ProcHandle.IsValid())
+	{
+		// rather than waiting, we must flush the read pipe or UBT will stall if it writes out a ton of text to the console.
+		while (FPlatformProcess::IsProcRunning(ProcHandle))
+		{
+			OutProcOutput += FPlatformProcess::ReadPipe(PipeRead);
+			FPlatformProcess::Sleep(0.1f);
+		}		
+		bInvoked = true;
+		bool bGotReturnCode = FPlatformProcess::GetProcReturnCode(ProcHandle, &OutReturnCode);		
+		check(bGotReturnCode);
+	}
+	else
+	{
+		bInvoked = false;
+		OutReturnCode = -1;
+		OutProcOutput = TEXT("");
+	}
+
+
+	FPlatformProcess::ClosePipe(PipeRead, PipeWrite);
+
+	return bInvoked;
+}
+
+FProcHandle FDesktopPlatformBase::InvokeOidcTokenToolAsync(const FString& InArguments, void*& OutReadPipe, void*& OutWritePipe)
+{
+	FString CmdLineParams = InArguments;
+	FString ExecutableFileName = GetOidcTokenExecutableFilename(FPaths::RootDir());
+	UE_LOG(LogDesktopPlatform, Display, TEXT("Launching OidcToken... [%s %s]"), *ExecutableFileName, *CmdLineParams);
+
+	const bool bLaunchDetached = false;
+	const bool bLaunchHidden = true;
+	const bool bLaunchReallyHidden = bLaunchHidden;
+
+	FProcHandle ProcHandle = FPlatformProcess::CreateProc(*ExecutableFileName, *CmdLineParams, bLaunchDetached, bLaunchHidden, bLaunchReallyHidden, NULL, 0, NULL, OutWritePipe, OutReadPipe);
+	if (!ProcHandle.IsValid())
+	{
+		UE_LOG(LogDesktopPlatform, Warning, TEXT("Failed to launch OidcToken (exe path is '%s')"), *ExecutableFileName);
+	}
+
+	return ProcHandle;
+}
+
 struct FTargetFileVisitor : IPlatformFile::FDirectoryStatVisitor
 {
 	TSet<FString>& RemainingTargetNames;
