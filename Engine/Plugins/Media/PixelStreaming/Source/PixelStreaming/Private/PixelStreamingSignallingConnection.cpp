@@ -231,7 +231,7 @@ void FPixelStreamingSignallingConnection::OnConnected()
 
 void FPixelStreamingSignallingConnection::OnConnectionError(const FString& Error)
 {
-	UE_LOG(LogPixelStreamingSS, Warning, TEXT("Failed to connect to SS - signalling server may not be up yet. Message: \"%s\""), *Error);
+	UE_LOG(LogPixelStreamingSS, Log, TEXT("Failed to connect to SS - signalling server may not be up yet. Message: \"%s\""), *Error);
 
 	Observer.OnSignallingError(Error);
 

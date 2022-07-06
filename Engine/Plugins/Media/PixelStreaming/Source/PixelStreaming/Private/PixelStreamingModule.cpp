@@ -373,7 +373,7 @@ namespace UE::PixelStreaming
 			else
 			{
 				SignallingServerURL = Settings::GetDefaultSignallingURL();
-				UE_LOG(LogPixelStreaming, Warning, TEXT("-PixelStreamingURL was not specified on the command line, using the default connection url: %s"), *SignallingServerURL);
+				UE_LOG(LogPixelStreaming, Log, TEXT("-PixelStreamingURL was not specified on the command line, using the default connection url: %s"), *SignallingServerURL);
 			}
 		}
 
