@@ -189,7 +189,7 @@ namespace Horde.Storage.Implementation
                 using IScope _ = Tracer.Instance.StartActive("ObjectService.ResolveReferences");
                 try
                 {
-                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, payload);
+                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, payload);
                     BlobIdentifier[] referencesArray = await references.ToArrayAsync();
                     Task addRefsTask = _blobIndex.AddRefToBlobs(ns, bucket, key, referencesArray);
                     missingBlobs = await _blobService.FilterOutKnownBlobs(ns, referencesArray);

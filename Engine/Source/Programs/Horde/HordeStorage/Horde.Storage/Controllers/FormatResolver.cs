@@ -16,7 +16,11 @@ namespace Horde.Storage.Controllers
         private readonly IOptionsMonitor<MvcOptions> _mvcOptions;
 
         private readonly string[] _validContentTypes = {
-            MediaTypeNames.Application.Octet, MediaTypeNames.Application.Json, CustomMediaTypeNames.UnrealCompactBinary, CustomMediaTypeNames.JupiterInlinedPayload
+            MediaTypeNames.Application.Octet, 
+            MediaTypeNames.Application.Json, 
+            CustomMediaTypeNames.UnrealCompactBinary, 
+            CustomMediaTypeNames.JupiterInlinedPayload,
+			CustomMediaTypeNames.UnrealCompactBinaryPackage
         };
 
         public FormatResolver(IOptionsMonitor<MvcOptions> mvcOptions)

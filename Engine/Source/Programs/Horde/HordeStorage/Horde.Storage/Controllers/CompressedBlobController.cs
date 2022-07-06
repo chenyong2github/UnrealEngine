@@ -4,18 +4,15 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
-using Datadog.Trace;
 using EpicGames.Horde.Storage;
 using EpicGames.Serialization;
 using Horde.Storage.Implementation;
 using Jupiter;
 using Jupiter.Common.Implementation;
 using Jupiter.Implementation;
-using Jupiter.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Primitives;
@@ -64,7 +61,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                (BlobContents blobContents, string mediaType) = await GetImpl(ns, id);
+                (BlobContents blobContents, string mediaType) = await _storage.GetCompressedObject(ns, id, _contentIdStore);
 
                 StringValues acceptHeader = Request.Headers["Accept"];
                 if (!acceptHeader.Contains("*/*") && acceptHeader.Count != 0 && !acceptHeader.Contains(mediaType))
@@ -204,50 +201,6 @@ namespace Horde.Storage.Controllers
             return Ok(new ExistCheckMultipleContentIdResponse { Needs = needs.ToArray()});
         }
 
-        private async Task<(BlobContents, string)> GetImpl(NamespaceId ns, ContentId contentId)
-        {
-            BlobIdentifier[]? chunks = await _contentIdStore.Resolve(ns, contentId, mustBeContentId: false);
-            if (chunks == null || chunks.Length == 0)
-            {
-                throw new ContentIdResolveException(contentId);
-            }
-
-            // single chunk, we just return that chunk
-            if (chunks.Length == 1)
-            {
-                BlobIdentifier blobToReturn = chunks[0];
-                string mimeType = CustomMediaTypeNames.UnrealCompressedBuffer;
-                if (contentId.Equals(blobToReturn))
-                {
-                    // this was actually the unmapped blob, meaning its not a compressed buffer
-                    mimeType = MediaTypeNames.Application.Octet;
-                }
-
-                return (await _storage.GetObject(ns, blobToReturn), mimeType);
-            }
-
-            // chunked content, combine the chunks into a single stream
-            using IScope _ = Tracer.Instance.StartActive("blob.combine");
-            Task<BlobContents>[] tasks = new Task<BlobContents>[chunks.Length];
-            for (int i = 0; i < chunks.Length; i++)
-            {
-                tasks[i] = _storage.GetObject(ns, chunks[i]);
-            }
-
-            MemoryStream ms = new MemoryStream();
-            foreach (Task<BlobContents> task in tasks)
-            {
-                BlobContents blob = await task;
-                await using Stream s = blob.Stream;
-                await s.CopyToAsync(ms);
-            }
-
-            ms.Seek(0, SeekOrigin.Begin);
-
-            // chunking could not have happened for a non compressed buffer so assume it is compressed
-            return (new BlobContents(ms, ms.Length), CustomMediaTypeNames.UnrealCompressedBuffer);
-        }
-
         [HttpPut("{ns}/{id}")]
         [DisableRequestSizeLimit]
         [RequiredContentType(CustomMediaTypeNames.UnrealCompressedBuffer)]
@@ -267,7 +220,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                ContentId identifier = await PutImpl(ns, id, payload);
+                ContentId identifier = await _storage.PutCompressedObject(ns, payload, id, _contentIdStore, _compressedBufferUtils);
 
                 return Ok(new
                 {
@@ -301,7 +254,7 @@ namespace Horde.Storage.Controllers
 
             try
             {
-                ContentId identifier = await PutImpl(ns, null, payload);
+                ContentId identifier = await _storage.PutCompressedObject(ns, payload, null, _contentIdStore, _compressedBufferUtils);
 
                 return Ok(new
                 {
@@ -315,52 +268,6 @@ namespace Horde.Storage.Controllers
                     Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
                 });
             }
-        }
-
-        private async Task<ContentId> PutImpl(NamespaceId ns, ContentId? id, IBufferedPayload payload)
-        {
-            // decompress the content and generate a identifier from it to verify the identifier we got if we got one
-            await using Stream decompressStream = payload.GetStream();
-            // TODO: we should add a overload for decompress content that can work on streams, otherwise we are still limited to 2GB compressed blobs
-            byte[] decompressedContent = _compressedBufferUtils.DecompressContent(await decompressStream.ToByteArray());
-
-            await using MemoryStream decompressedStream = new MemoryStream(decompressedContent);
-            ContentId identifierDecompressedPayload;
-            if (id != null)
-            {
-                identifierDecompressedPayload = ContentId.FromContentHash(await _storage.VerifyContentMatchesHash(decompressedStream, id));
-            }
-            else
-            {
-                ContentHash blobHash;
-                {
-                    using IScope _ = Tracer.Instance.StartActive("web.hash");
-                    blobHash = await BlobIdentifier.FromStream(decompressedStream);
-                }
-
-                identifierDecompressedPayload = ContentId.FromContentHash(blobHash);
-            }
-
-            BlobIdentifier identifierCompressedPayload;
-            {
-                using IScope _ = Tracer.Instance.StartActive("web.hash");
-                await using Stream hashStream = payload.GetStream();
-                identifierCompressedPayload = await BlobIdentifier.FromStream(hashStream);
-            }
-
-            // commit the mapping from the decompressed hash to the compressed hash, we run this in parallel with the blob store submit
-            // TODO: let users specify weight of the blob compared to previously submitted content ids
-            int contentIdWeight = (int)payload.Length;
-            Task contentIdStoreTask = _contentIdStore.Put(ns, identifierDecompressedPayload, identifierCompressedPayload, contentIdWeight);
-
-            // we still commit the compressed buffer to the object store using the hash of the compressed content
-            {
-                await _storage.PutObjectKnownHash(ns, payload, identifierCompressedPayload);
-            }
-
-            await contentIdStoreTask;
-
-            return identifierDecompressedPayload;
         }
 
         /*[HttpDelete("{ns}/{id}")]

@@ -13,9 +13,61 @@ using Jupiter.Utils;
 
 namespace Horde.Storage.Implementation
 {
+    public abstract class Attachment
+    {
+        public abstract IoHash AsIoHash();
+    }
+
+    public class BlobAttachment : Attachment
+    {
+        public BlobIdentifier Identifier { get; }
+
+        public BlobAttachment(BlobIdentifier blobIdentifier)
+        {
+            Identifier = blobIdentifier;
+        }
+
+        public override IoHash AsIoHash()
+        {
+            return Identifier.AsIoHash();
+        }
+    }
+
+    public class ObjectAttachment : Attachment
+    {
+        public BlobIdentifier Identifier { get; }
+
+        public ObjectAttachment(BlobIdentifier blobIdentifier)
+        {
+            Identifier = blobIdentifier;
+        }
+
+        public override IoHash AsIoHash()
+        {
+            return Identifier.AsIoHash();
+        }
+    }
+
+    public class ContentIdAttachment : Attachment
+    {
+        public ContentId Identifier { get; }
+
+        public ContentIdAttachment(ContentId contentId)
+        {
+            Identifier = contentId;
+        }
+
+        public override IoHash AsIoHash()
+        {
+            return Identifier.AsIoHash();
+        }
+    }
+
     public interface IReferenceResolver
     {
-        IAsyncEnumerable<BlobIdentifier> ResolveReferences(NamespaceId ns, CbObject cb);
+
+        IAsyncEnumerable<BlobIdentifier> GetReferencedBlobs(NamespaceId ns, CbObject cb);
+        IAsyncEnumerable<Attachment> GetAttachments(NamespaceId ns, CbObject cb);
     }
 
     public class ReferenceResolver : IReferenceResolver
@@ -29,76 +81,68 @@ namespace Horde.Storage.Implementation
             _contentIdStore = contentIdStore;
         }
 
-        public async IAsyncEnumerable<BlobIdentifier> ResolveReferences(NamespaceId ns, CbObject cb)
+        public async IAsyncEnumerable<Attachment> GetAttachments(NamespaceId ns, CbObject cb)
         {
             // TODO: This is cacheable and we should store the result somewhere
             Queue<CbObject> objectsToVisit = new Queue<CbObject>();
             objectsToVisit.Enqueue(cb);
-            List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
             List<BlobIdentifier> unresolvedBlobReferences = new List<BlobIdentifier>();
 
-            List<Task<(ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
             List<Task<CbObject>> pendingCompactBinaryAttachments = new();
 
-            while(pendingCompactBinaryAttachments.Count != 0 || pendingContentIdResolves.Count != 0 || objectsToVisit.Count != 0)
+            while (pendingCompactBinaryAttachments.Count != 0 || objectsToVisit.Count != 0)
             {
                 if (objectsToVisit.TryDequeue(out CbObject? parent))
                 {
-                    List<BlobIdentifier> blobIdentifiers = new List<BlobIdentifier>();
+                    List<Attachment> attachments = new List<Attachment>();
 
                     parent.IterateAttachments(field =>
                     {
                         IoHash attachmentHash = field.AsAttachment();
 
                         BlobIdentifier blobIdentifier = BlobIdentifier.FromIoHash(attachmentHash);
+                        ContentId contentId = ContentId.FromIoHash(attachmentHash);
+
                         if (field.IsBinaryAttachment())
                         {
-                            pendingContentIdResolves.Add(ResolveContentId(ns, ContentId.FromIoHash(attachmentHash)));
+                            bool isContentId = false;
+                            try
+                            {
+                                // TODO: Having to do a proper resolve here is not good as its quite expensive
+                                // it would be much better if the attachment type indicated if it was a content id or not
+                                Task<BlobIdentifier[]?> resolveContentId = _contentIdStore.Resolve(ns, contentId, mustBeContentId: true);
+                                resolveContentId.Wait();
+                                isContentId = resolveContentId.Result != null;
+                            }
+                            catch (InvalidContentIdException)
+                            {
+                                isContentId = false;
+                            }
+                            
+                            if (isContentId)
+                            {
+                                attachments.Add(new ContentIdAttachment(contentId));
+                            }
+                            else
+                            {
+                                attachments.Add(new BlobAttachment(blobIdentifier));
+                            }
                         }
                         else if (field.IsObjectAttachment())
                         {
-                            blobIdentifiers.Add(blobIdentifier);
+                            attachments.Add(new ObjectAttachment(blobIdentifier));
                             pendingCompactBinaryAttachments.Add(ParseCompactBinaryAttachment(ns, blobIdentifier));
                         }
                         else
-                        { 
+                        {
                             throw new NotImplementedException($"Unknown attachment type for field {field}");
                         }
                     });
 
-                    foreach (BlobIdentifier blobIdentifier in blobIdentifiers)
+                    foreach (Attachment attachment in attachments)
                     {
-                        yield return blobIdentifier;
+                        yield return attachment;
                     }
-                }
-
-                List<Task<(ContentId, BlobIdentifier[]?)>> contentIdResolvesToRemove = new();
-
-                foreach (Task<(ContentId, BlobIdentifier[]?)> pendingContentIdResolveTask in pendingContentIdResolves)
-                {
-                    // check for any content id resolve that has finished and return those blobs it found
-                    if (pendingContentIdResolveTask.IsCompleted)
-                    {
-                        (ContentId contentId, BlobIdentifier[]? resolvedBlobs) = await pendingContentIdResolveTask;
-                        if (resolvedBlobs != null)
-                        {
-                            foreach (BlobIdentifier b in resolvedBlobs)
-                            {
-                                yield return b;
-                            }
-                        }
-                        else
-                        {
-                            unresolvedContentIdReferences.Add(contentId);
-                        }
-                        contentIdResolvesToRemove.Add(pendingContentIdResolveTask);
-                    }
-                }
-
-                // cleanup finished tasks
-                foreach (Task<(ContentId, BlobIdentifier[]?)> finishedTask in contentIdResolvesToRemove)
-                {
-                    pendingContentIdResolves.Remove(finishedTask);
                 }
 
                 // check for any compact binary attachment fetches and add those to the objects we are handling
@@ -127,20 +171,67 @@ namespace Horde.Storage.Implementation
                 }
 
                 // if there are pending resolves left, wait for one of them to finish to avoid busy waiting
-                if (pendingContentIdResolves.Any() || pendingCompactBinaryAttachments.Any())
+                if (pendingCompactBinaryAttachments.Any())
                 {
-                    await Task.WhenAny(pendingContentIdResolves.Concat<Task>(pendingCompactBinaryAttachments));
+                    await Task.WhenAny(pendingCompactBinaryAttachments);
                 }
-            }
-
-            if (unresolvedContentIdReferences.Count != 0)
-            {
-                throw new PartialReferenceResolveException(unresolvedContentIdReferences);
             }
 
             if (unresolvedBlobReferences.Count != 0)
             {
                 throw new ReferenceIsMissingBlobsException(unresolvedBlobReferences);
+            }
+        }
+
+        public async IAsyncEnumerable<BlobIdentifier> GetReferencedBlobs(NamespaceId ns, CbObject cb)
+        {
+            List<Task<(ContentId, BlobIdentifier[]?)>> pendingContentIdResolves = new();
+            List<ContentId> unresolvedContentIdReferences = new List<ContentId>();
+
+            // Resolve all the attachments
+            await foreach (Attachment attachment in GetAttachments(ns, cb))
+            {
+                if (attachment is BlobAttachment blobAttachment)
+                {
+                    yield return blobAttachment.Identifier;
+                }
+                else if (attachment is ContentIdAttachment contentIdAttachment)
+                {
+                    // If we find a content id we resolve that into the actual blobs it references
+                    pendingContentIdResolves.Add(ResolveContentId(ns, contentIdAttachment.Identifier));
+                }
+                else if (attachment is ObjectAttachment objectAttachment)
+                {
+                    // a object just references the same blob, traversing the object attachment is done in GetAttachments
+                    yield return objectAttachment.Identifier;
+                }
+                else
+                {
+                    throw new NotSupportedException($"Unknown attachment type {attachment.GetType()}");
+                }
+            }
+
+            // Return the results of all the content id resolves
+            foreach (Task<(ContentId, BlobIdentifier[]?)> pendingContentIdResolveTask in pendingContentIdResolves)
+            {
+                (ContentId contentId, BlobIdentifier[]? resolvedBlobs) =  await pendingContentIdResolveTask;
+                if (resolvedBlobs != null)
+                {
+                    foreach (BlobIdentifier b in resolvedBlobs)
+                    {
+                        yield return b;
+                    }
+                }
+                else
+                {
+                    unresolvedContentIdReferences.Add(contentId);
+                }
+            }
+
+            // if there were any content ids we did not recognize we throw a partial reference exception
+            if (unresolvedContentIdReferences.Count != 0)
+            {
+                throw new PartialReferenceResolveException(unresolvedContentIdReferences);
             }
         }
 

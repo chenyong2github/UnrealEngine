@@ -47,24 +47,28 @@ namespace Horde.Storage.Controllers
     public class ReferencesController : ControllerBase
     {
         private readonly IDiagnosticContext _diagnosticContext;
+        private readonly IContentIdStore _contentIdStore;
         private readonly FormatResolver _formatResolver;
         private readonly BufferedPayloadFactory _bufferedPayloadFactory;
         private readonly IReferenceResolver _referenceResolver;
         private readonly RequestHelper _requestHelper;
+        private readonly CompressedBufferUtils _compressedBufferUtils;
 
         private readonly ILogger _logger = Log.ForContext<ReferencesController>();
         private readonly IObjectService _objectService;
         private readonly IBlobService _blobStore;
 
-        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper)
+        public ReferencesController(IObjectService objectService, IBlobService blobStore, IDiagnosticContext diagnosticContext, IContentIdStore contentIdStore, FormatResolver formatResolver, BufferedPayloadFactory bufferedPayloadFactory, IReferenceResolver referenceResolver, RequestHelper requestHelper, CompressedBufferUtils compressedBufferUtils)
         {
             _objectService = objectService;
             _blobStore = blobStore;
             _diagnosticContext = diagnosticContext;
+            _contentIdStore = contentIdStore;
             _formatResolver = formatResolver;
             _bufferedPayloadFactory = bufferedPayloadFactory;
             _referenceResolver = referenceResolver;
             _requestHelper = requestHelper;
+            _compressedBufferUtils = compressedBufferUtils;
         }
 
         /// <summary>
@@ -100,7 +104,7 @@ namespace Horde.Storage.Controllers
         /// <param name="key">The unique name of this particular key. `iAmAVeryValidKey`</param>
         /// <param name="format">Optional specifier to set which output format is used json/raw/cb</param>
         [HttpGet("{ns}/{bucket}/{key}.{format?}", Order = 500)]
-        [Produces(MediaTypeNames.Application.Json, MediaTypeNames.Application.Octet, CustomMediaTypeNames.UnrealCompactBinary, CustomMediaTypeNames.JupiterInlinedPayload)]
+        [Produces(MediaTypeNames.Application.Json, MediaTypeNames.Application.Octet, CustomMediaTypeNames.UnrealCompactBinary, CustomMediaTypeNames.JupiterInlinedPayload, CustomMediaTypeNames.UnrealCompactBinaryPackage)]
         public async Task<IActionResult> Get(
             [FromRoute] [Required] NamespaceId ns,
             [FromRoute] [Required] BucketId bucket,
@@ -213,6 +217,76 @@ namespace Horde.Storage.Controllers
                         break;
 
                     }
+                    case CustomMediaTypeNames.UnrealCompactBinaryPackage:
+                    {
+                        byte[] blobMemory = await blob.Stream.ToByteArray();
+                        CbObject cb = new CbObject(blobMemory);
+
+                        IAsyncEnumerable<Attachment> attachments = _referenceResolver.GetAttachments(ns, cb);
+
+                        CbPackageBuilder writer = new CbPackageBuilder();
+                        await writer.AddAttachment(objectRecord.BlobIdentifier.AsIoHash(), CbPackageAttachmentFlags.IsObject, blobMemory);
+
+                        List<Task> fetchBlobTasks = new List<Task>();
+                        await foreach (Attachment attachment in attachments)
+                        {
+                            Task blobTask = Task.Run(async () =>
+                            {
+                                IoHash attachmentHash = attachment.AsIoHash();
+                                BlobContents contents;
+                                CbPackageAttachmentFlags flags = 0;
+
+                                try
+                                {
+                                    if (attachment is BlobAttachment blobAttachment)
+                                    {
+                                        BlobIdentifier referencedBlob = blobAttachment.Identifier;
+                                        contents = await _blobStore.GetObject(ns, referencedBlob);
+                                    }
+                                    else if (attachment is ObjectAttachment objectAttachment)
+                                    {
+                                        flags &= CbPackageAttachmentFlags.IsObject;
+                                        BlobIdentifier referencedBlob = objectAttachment.Identifier;
+                                        contents = await _blobStore.GetObject(ns, referencedBlob);
+                                    }
+                                    else if (attachment is ContentIdAttachment contentIdAttachment)
+                                    {
+
+                                        ContentId contentId = contentIdAttachment.Identifier;
+                                        (contents, string mime) = await _blobStore.GetCompressedObject(ns, contentId, _contentIdStore);
+                                        if (mime == CustomMediaTypeNames.UnrealCompressedBuffer)
+                                        {
+                                            flags &= CbPackageAttachmentFlags.IsCompressed;
+                                        }
+                                        else
+                                        {
+                                            // this resolved to a uncompressed blob, the content id existed the the compressed blob didn't
+                                            // so resetting flags to indicate this.
+                                            flags = 0;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        throw new NotSupportedException($"Unknown attachment type {attachment.GetType()}");
+                                    }
+                                }
+                                catch (Exception e)
+                                {
+                                    (CbObject errorObject, HttpStatusCode _) = ToErrorResult(e);
+                                    await writer.AddAttachment(attachmentHash, CbPackageAttachmentFlags.IsError | CbPackageAttachmentFlags.IsObject, errorObject.GetView().ToArray());
+                                    return;
+                                }
+                                await writer.AddAttachment(attachmentHash, flags, contents.Stream, (ulong)contents.Length);
+                            });
+
+                            fetchBlobTasks.Add(blobTask);
+
+                        }
+                        await Task.WhenAll(fetchBlobTasks);
+                        await using BlobContents contents = new BlobContents(writer.ToByteArray());
+                        await WriteBody(contents, CustomMediaTypeNames.UnrealCompactBinaryPackage);
+                        break;
+                    }
                     case CustomMediaTypeNames.JupiterInlinedPayload:
                     {
                         byte[] blobMemory = await blob.Stream.ToByteArray();
@@ -248,7 +322,7 @@ namespace Horde.Storage.Controllers
                             List<BlobIdentifier> referencedBlobs;
                             try
                             {
-                                IAsyncEnumerable<BlobIdentifier> referencedBlobsEnumerable = _referenceResolver.ResolveReferences(ns, cb);
+                                IAsyncEnumerable<BlobIdentifier> referencedBlobsEnumerable = _referenceResolver.GetReferencedBlobs(ns, cb);
                                 referencedBlobs = await referencedBlobsEnumerable.ToListAsync();
                             }
                             catch (PartialReferenceResolveException)
@@ -408,7 +482,7 @@ namespace Horde.Storage.Controllers
                 byte[] blobContents = await blob.Stream.ToByteArray();
                 CbObject compactBinaryObject = new CbObject(blobContents);
                 // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
-                IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, compactBinaryObject);
+                IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, compactBinaryObject);
                 List<BlobIdentifier>? _ = await references.ToListAsync();
 
                 // we have to verify the blobs are available locally, as the record of the key is replicated a head of the content
@@ -486,7 +560,7 @@ namespace Horde.Storage.Controllers
                     byte[] blobContents = await blob.Stream.ToByteArray();
                     CbObject cb = new CbObject(blobContents);
                     // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
-                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
+                    IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, cb);
                     List<BlobIdentifier>? _ = await references.ToListAsync();
                 }
                 catch (ObjectNotFoundException)
@@ -602,6 +676,67 @@ namespace Horde.Storage.Controllers
             return Ok(new PutObjectResponse(missingHashes.ToArray()));
         }
 
+        [HttpPut("{ns}/{bucket}/{key}", Order = 300)]
+        [DisableRequestSizeLimit]
+        [RequiredContentType(CustomMediaTypeNames.UnrealCompactBinaryPackage)]
+        [Authorize("Object.write")]
+        public async Task<IActionResult> PutPackage(
+            [FromRoute][Required] NamespaceId ns,
+            [FromRoute][Required] BucketId bucket,
+            [FromRoute][Required] IoHashKey key)
+        {
+            ActionResult? accessResult = await _requestHelper.HasAccessToNamespace(User, Request, ns, new [] { AclAction.WriteObject });
+            if (accessResult != null)
+            {
+                return accessResult;
+            }
+
+            _diagnosticContext.Set("Content-Length", Request.ContentLength ?? -1);
+
+            CbPackageReader packageReader = await CbPackageReader.Create(Request.Body);
+
+            try
+            {
+                await foreach ((CbPackageAttachmentEntry entry, byte[] blob) in packageReader.IterateAttachments())
+                {
+                    if (entry.Flags.HasFlag(CbPackageAttachmentFlags.IsError))
+                    {
+                        return BadRequest(new ProblemDetails
+                        {
+                            Title = $"Package contained attachment with error {entry.AttachmentHash}\""
+                        });
+                    }
+                    if (entry.Flags.HasFlag(CbPackageAttachmentFlags.IsCompressed))
+                    {
+                        using MemoryBufferedPayload payload = new MemoryBufferedPayload(blob);
+                        await _blobStore.PutCompressedObject(
+                            ns, payload, ContentId.FromIoHash(entry.AttachmentHash),
+                            _contentIdStore, _compressedBufferUtils);
+                    }
+                    else
+                    {
+                        await _blobStore.PutObject(ns, blob, BlobIdentifier.FromIoHash(entry.AttachmentHash));
+                    }
+                }
+            }
+            catch (HashMismatchException e)
+            {
+                return BadRequest(new ProblemDetails
+                {
+                    Title = $"Incorrect hash, got hash \"{e.SuppliedHash}\" but hash of content was determined to be \"{e.ContentHash}\""
+                });
+            }
+            
+            CbObject rootObject = packageReader.RootObject;
+            BlobIdentifier rootObjectHash = BlobIdentifier.FromIoHash(packageReader.RootHash);
+
+            (ContentId[] missingReferences, BlobIdentifier[] missingBlobs) = await _objectService.Put(ns, bucket, key, rootObjectHash, rootObject);
+
+            List<ContentHash> missingHashes = new List<ContentHash>(missingReferences);
+            missingHashes.AddRange(missingBlobs);
+            return Ok(new PutObjectResponse(missingHashes.ToArray()));
+        }
+
         [HttpPost("{ns}/{bucket}/{key}/finalize/{hash}.{format?}")]
         public async Task<IActionResult> FinalizeObject(
             [FromRoute] [Required] NamespaceId ns,
@@ -674,7 +809,7 @@ namespace Horde.Storage.Controllers
 
                     if (op.ResolveAttachments ?? false)
                     {
-                        IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
+                        IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, cb);
                         List<BlobIdentifier>? _ = await references.ToListAsync();
                     }
 
@@ -708,7 +843,7 @@ namespace Horde.Storage.Controllers
                         byte[] blobContents = await blob.Stream.ToByteArray();
                         CbObject cb = new CbObject(blobContents);
                         // the reference resolver will throw if any blob is missing, so no need to do anything other then process each reference
-                        IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.ResolveReferences(ns, cb);
+                        IAsyncEnumerable<BlobIdentifier> references = _referenceResolver.GetReferencedBlobs(ns, cb);
                         List<BlobIdentifier>? _ = await references.ToListAsync();
                     }
 
