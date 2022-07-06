@@ -1282,8 +1282,9 @@ void FVirtualShadowMapArray::BuildPageAllocations(
 					static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");
 					const FIntPoint GridSize = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVirtualPageManagementShader::DefaultCSGroupXY);
 
-					if (InputType == EVirtualShadowMapProjectionInputType::HairStrands && View.HairStrandsViewData.VisibilityData.TileData.IsValid())
+					if (InputType == EVirtualShadowMapProjectionInputType::HairStrands)
 					{
+						check(View.HairStrandsViewData.VisibilityData.TileData.IsValid());
 						PassParameters->IndirectBufferArgs = View.HairStrandsViewData.VisibilityData.TileData.TileIndirectDispatchBuffer;
 						FComputeShaderUtils::AddPass(
 							GraphBuilder,

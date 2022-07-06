@@ -768,8 +768,7 @@ class FMarkRadianceProbesUsedByHairStrandsCS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByHairStrandsCS)
 	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByHairStrandsCS, FGlobalShader);
 
-	class FUseTile : SHADER_PERMUTATION_BOOL("PERMUTATION_USETILE");
-	using FPermutationDomain = TShaderPermutationDomain<FUseTile>;
+	using FPermutationDomain = TShaderPermutationDomain<>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntPoint, HairStrandsResolution)
@@ -1635,8 +1634,8 @@ static void HairStrandsMarkUsedProbes(
 	const FViewInfo& View,
 	const LumenRadianceCache::FRadianceCacheMarkParameters& RadianceCacheMarkParameters)
 {
-	const bool bUseTile = View.HairStrandsViewData.VisibilityData.TileData.IsValid();
-	const uint32 TileMip = bUseTile ? 3u : 4u; // 8x8 tiles or 16x16 tiles
+	check(View.HairStrandsViewData.VisibilityData.TileData.IsValid());
+	const uint32 TileMip = 3u; // 8x8 tiles
 	const int32 TileSize = 1u<<TileMip;
 	const FIntPoint Resolution(View.ViewRect.Width(), View.ViewRect.Height());
 	const FIntPoint TileResolution = FIntPoint(
@@ -1652,34 +1651,14 @@ static void HairStrandsMarkUsedProbes(
 	PassParameters->RadianceCacheMarkParameters = RadianceCacheMarkParameters;
 	PassParameters->IndirectBufferArgs = View.HairStrandsViewData.VisibilityData.TileData.TilePerThreadIndirectDispatchBuffer;
 
-	FMarkRadianceProbesUsedByHairStrandsCS::FPermutationDomain PermutationVector;
-	PermutationVector.Set< FMarkRadianceProbesUsedByHairStrandsCS::FUseTile>(bUseTile);
-	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByHairStrandsCS>(PermutationVector);
-	if (bUseTile)
-	{
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("MarkRadianceProbes(HairStrands,Tile)"),
-			ComputeShader,
-			PassParameters,
-			View.HairStrandsViewData.VisibilityData.TileData.TilePerThreadIndirectDispatchBuffer,
-			0);
-	}
-	else
-	{
-		const int32 GroupSize = 8;
-		const FIntVector GroupCount = FIntVector(
-			FMath::DivideAndRoundUp(TileResolution.X, FMarkRadianceProbesUsedByHairStrandsCS::GetGroupSize()),
-			FMath::DivideAndRoundUp(TileResolution.Y, FMarkRadianceProbesUsedByHairStrandsCS::GetGroupSize()),
-			1);
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("MarkRadianceProbes(HairStrands,Screen) %ux%u", TileResolution.X, TileResolution.Y),
-			ComputeShader,
-			PassParameters,
-			GroupCount);
-	}
+	auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByHairStrandsCS>();
+	FComputeShaderUtils::AddPass(
+		GraphBuilder,
+		RDG_EVENT_NAME("MarkRadianceProbes(HairStrands,Tile)"),
+		ComputeShader,
+		PassParameters,
+		View.HairStrandsViewData.VisibilityData.TileData.TilePerThreadIndirectDispatchBuffer,
+		0);
 }
 
 DECLARE_GPU_STAT(LumenScreenProbeGather);

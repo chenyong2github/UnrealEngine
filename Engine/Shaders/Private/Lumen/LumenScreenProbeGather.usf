@@ -436,16 +436,11 @@ int2 HairStrandsResolution;
 float2 HairStrandsInvResolution;
 uint HairStrandsMip;
 
-#if PERMUTATION_USETILE
 #include "../HairStrands/HairStrandsTileCommon.ush"
 [numthreads(64, 1, 1)]
-#else
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-#endif
 void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 {
 	uint2 PixelCoords = 0;
-	#if PERMUTATION_USETILE
 	{
 		const uint TileLinearIndex = DispatchThreadId.x;
 		const uint TileCount = HairStrands.HairTileCount[HAIRTILE_HAIR_ALL];
@@ -455,13 +450,6 @@ void MarkRadianceProbesUsedByHairStrandsCS(uint3 DispatchThreadId : SV_DispatchT
 		// Position of a 8x8 tile
 		PixelCoords = HairStrands.HairTileData[TileLinearIndex];
 	}
-	#else
-	{
-		PixelCoords = DispatchThreadId.xy;
-		if (any(PixelCoords >= uint2(HairStrandsResolution)))
-			return;
-	}
-	#endif  // PERMUTATION_USETILE
 
 	// HZB starts at MIP1
 	const float SceneDepth = ConvertFromDeviceZ(HairStrands.HairOnlyDepthClosestHZBTexture.Load(uint3(PixelCoords, HairStrandsMip - 1)).r);

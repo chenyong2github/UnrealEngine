@@ -83,9 +83,6 @@ static FAutoConsoleVariableRef CVarHairStrandsHairCountToTransmittance(TEXT("r.H
 static int32 GHairStrandsDebugPPLL = 0;
 static FAutoConsoleVariableRef CVarHairStrandsDebugPPLL(TEXT("r.HairStrands.Visibility.PPLL.Debug"), GHairStrandsDebugPPLL, TEXT("Draw debug per pixel light list rendering."));
 
-static int32 GHairStrandsTile = 1;
-static FAutoConsoleVariableRef CVarHairStrandsTile(TEXT("r.HairStrands.Tile"), GHairStrandsTile, TEXT("Enable tile generation & usage for hair strands."));
-
 static int32 GHairStrandsLightSampleFormat = 1;
 static FAutoConsoleVariableRef CVarHairStrandsLightSampleFormat(TEXT("r.HairStrands.LightSampleFormat"), GHairStrandsLightSampleFormat, TEXT("Define the format used for storing the lighting of hair samples (0: RGBA-16bits, 1: RGB-11.11.10bits)"));
 
@@ -3768,8 +3765,6 @@ void RenderHairStrandsVisibilityBuffer(
 	check(View.Family);
 	check(MacroGroupDatas.Num() > 0);
 
-	const bool bGenerateTile = GHairStrandsTile > 0;
-
 	const FIntRect HairRect = ComputeVisibleHairStrandsMacroGroupsRect(View.ViewRect, MacroGroupDatas);
 	const int32 HairPixelCount = HairRect.Width() * HairRect.Height();
 	if (HairPixelCount <= 0)
@@ -3814,10 +3809,8 @@ void RenderHairStrandsVisibilityBuffer(
 					SceneDepthTexture);
 
 				// Generate Tile data
-				if (RasterOutput.PrimMatTexture && bGenerateTile)
-				{
-					VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, RasterOutput.HairCountTexture);
-				}
+				check(RasterOutput.PrimMatTexture);
+				VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, RasterOutput.HairCountTexture);
 
 				{
 					{
@@ -3952,10 +3945,8 @@ void RenderHairStrandsVisibilityBuffer(
 				}
 
 				// Generate Tile data
-				if (ViewTransmittance.TransmittanceTexture && bGenerateTile)
-				{
-					VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, ViewTransmittance.TransmittanceTexture);
-				}
+				check (ViewTransmittance.TransmittanceTexture);
+				VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, ViewTransmittance.TransmittanceTexture);
 
 				struct FRDGMsaaVisibilityResources
 				{
@@ -4136,10 +4127,8 @@ void RenderHairStrandsVisibilityBuffer(
 				AddHairVisibilityPPLLPass(GraphBuilder, Scene, &View, MacroGroupDatas, Resolution, InstanceCullingManager, ViewZDepthTexture, PPLLNodeCounterTexture, PPLLNodeIndexTexture, PPLLNodeDataBuffer);
 
 				// Generate Tile data
-				if (PPLLNodeIndexTexture && bGenerateTile)
-				{
-					VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, PPLLNodeIndexTexture); 
-				}
+				check(PPLLNodeIndexTexture)
+				VisibilityData.TileData = AddHairStrandsGenerateTilesPass(GraphBuilder, View, PPLLNodeIndexTexture);
 
 				// Linked list sorting pass and compaction into common representation
 				{
