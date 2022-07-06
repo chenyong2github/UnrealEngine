@@ -7,31 +7,13 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace EpicGames.Horde.Storage.Impl
+namespace EpicGames.Horde.Storage.Backends
 {
 	/// <summary>
 	/// Implementation of <see cref="IBlobStore"/> which stores data in memory. Not intended for production use.
 	/// </summary>
 	public class InMemoryBlobStore : IBlobStore
 	{
-		class Blob : IBlob
-		{
-			readonly ReadOnlyMemory<byte> _data;
-			readonly IReadOnlyList<BlobId> _references;
-
-			public Blob(ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references)
-			{
-				_data = data;
-				_references = references;
-			}
-
-			/// <inheritdoc/>
-			public ValueTask<ReadOnlyMemory<byte>> GetDataAsync() => new ValueTask<ReadOnlyMemory<byte>>(_data);
-
-			/// <inheritdoc/>
-			public ValueTask<IReadOnlyList<BlobId>> GetReferencesAsync() => new ValueTask<IReadOnlyList<BlobId>>(_references);
-		}
-
 		/// <summary>
 		/// Map of blob id to blob data
 		/// </summary>
@@ -51,14 +33,17 @@ namespace EpicGames.Horde.Storage.Impl
 		#region Blobs
 
 		/// <inheritdoc/>
-		public Task<IBlob> ReadBlobAsync(BlobId blobId, CancellationToken cancellationToken = default) => Task.FromResult(_blobs[blobId]);
+		public Task<IBlob?> TryReadBlobAsync(BlobId blobId, CancellationToken cancellationToken = default)
+		{
+			_blobs.TryGetValue(blobId, out IBlob? blob);
+			return Task.FromResult(blob);
+		}
 
 		/// <inheritdoc/>
 		public Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 		{
 			BlobId blobId = new BlobId(Guid.NewGuid().ToString());
-			Blob blob = new Blob(data.ToArray(), references);
-			_blobs[blobId] = blob;
+			_blobs[blobId] = BlobUtils.FromMemory(data.ToArray(), references);
 			return Task.FromResult(blobId);
 		}
 
@@ -73,12 +58,16 @@ namespace EpicGames.Horde.Storage.Impl
 		public Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken) => Task.FromResult(_refs.ContainsKey(id));
 
 		/// <inheritdoc/>
-		public Task<IBlob> ReadRefAsync(RefId id, CancellationToken cancellationToken) => Task.FromResult(_refs[id]);
+		public Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken)
+		{
+			_refs.TryGetValue(id, out IBlob? blob);
+			return Task.FromResult(blob);
+		}
 
 		/// <inheritdoc/>
 		public Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken)
 		{
-			_refs[id] = new Blob(data.ToArray(), references);
+			_refs[id] = BlobUtils.FromMemory(data.ToArray(), references);
 			return Task.CompletedTask;
 		}
 

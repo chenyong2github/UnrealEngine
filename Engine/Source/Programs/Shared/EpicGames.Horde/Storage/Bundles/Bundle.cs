@@ -348,7 +348,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		public static async Task<Bundle> ReadBundleAsync(this IBlobStore store, BlobId id, CancellationToken cancellationToken)
 		{
 			IBlob blob = await store.ReadBlobAsync(id, cancellationToken);
-			return await ReadBundleAsync(blob);
+			return ReadBundle(blob);
 		}
 
 		/// <summary>
@@ -361,7 +361,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		public static async Task<Bundle> ReadBundleAsync(this IBlobStore store, RefId id, CancellationToken cancellationToken)
 		{
 			IBlob blob = await store.ReadRefAsync(id, cancellationToken);
-			return await ReadBundleAsync(blob);
+			return ReadBundle(blob);
 		}
 
 		/// <summary>
@@ -392,9 +392,9 @@ namespace EpicGames.Horde.Storage.Bundles
 			return store.WriteBlobAsync(data, imports, cancellationToken);
 		}
 
-		static async Task<Bundle> ReadBundleAsync(IBlob blob)
+		static Bundle ReadBundle(IBlob blob)
 		{
-			ReadOnlyMemory<byte> data = await blob.GetDataAsync();
+			ReadOnlyMemory<byte> data = blob.Data;
 			MemoryReader reader = new MemoryReader(data);
 			Bundle bundle = new Bundle(reader);
 			reader.CheckEmpty();

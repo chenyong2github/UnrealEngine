@@ -5,6 +5,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using EpicGames.Core;
 
 namespace EpicGames.Horde.Storage
 {
@@ -17,13 +18,13 @@ namespace EpicGames.Horde.Storage
 		/// Gets the data for this blob
 		/// </summary>
 		/// <returns></returns>
-		ValueTask<ReadOnlyMemory<byte>> GetDataAsync();
+		ReadOnlyMemory<byte> Data { get; }
 
 		/// <summary>
 		/// Find the outward references for a node
 		/// </summary>
 		/// <returns></returns>
-		ValueTask<IReadOnlyList<BlobId>> GetReferencesAsync();
+		IReadOnlyList<BlobId> References { get; }
 	}
 
 	/// <summary>
@@ -39,7 +40,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="id">The blob identifier</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<IBlob> ReadBlobAsync(BlobId id, CancellationToken cancellationToken = default);
+		Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new object to the store
@@ -68,7 +69,7 @@ namespace EpicGames.Horde.Storage
 		/// <param name="id">The blob identifier</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<IBlob> ReadRefAsync(RefId id, CancellationToken cancellationToken = default);
+		Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a new blob to the store
@@ -89,5 +90,136 @@ namespace EpicGames.Horde.Storage
 		Task<bool> DeleteRefAsync(RefId id, CancellationToken cancellationToken = default);
 
 		#endregion
+	}
+
+	/// <summary>
+	/// Extension methods for <see cref="IBlobStore"/>
+	/// </summary>
+	static class BlobStoreExtensions
+	{
+		/// <summary>
+		/// Reads a blob from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="id">Id for the blob</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static async Task<IBlob> ReadBlobAsync(this IBlobStore store, BlobId id, CancellationToken cancellationToken = default)
+		{
+			IBlob? blob = await store.TryReadBlobAsync(id, cancellationToken);
+			if (blob == null)
+			{
+				throw new KeyNotFoundException($"Unable to find blob {id}");
+			}
+			return blob;
+		}
+
+		/// <summary>
+		/// Reads a ref from the store, throwing an exception if it does not exist
+		/// </summary>
+		/// <param name="store">The store instance to read from</param>
+		/// <param name="id">Id for the ref</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>The blob instance</returns>
+		public static async Task<IBlob> ReadRefAsync(this IBlobStore store, RefId id, CancellationToken cancellationToken = default)
+		{
+			IBlob? blob = await store.TryReadRefAsync(id, cancellationToken);
+			if (blob == null)
+			{
+				throw new KeyNotFoundException($"Unable to find ref {id}");
+			}
+			return blob;
+		}
+	}
+
+	/// <summary>
+	/// Utility methods for blobs
+	/// </summary>
+	static class BlobUtils
+	{
+		class InMemoryBlob : IBlob
+		{
+			/// <inheritdoc/>
+			public ReadOnlyMemory<byte> Data { get; }
+
+			/// <inheritdoc/>
+			public IReadOnlyList<BlobId> References { get; }
+
+			public InMemoryBlob(ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references)
+			{
+				Data = data;
+				References = references;
+			}
+		}
+
+		/// <summary>
+		/// Create a blob from memory
+		/// </summary>
+		/// <param name="data">Payload for the blob</param>
+		/// <param name="references">References to other blobs</param>
+		/// <returns>Blob instance</returns>
+		public static IBlob FromMemory(ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references) => new InMemoryBlob(data, references);
+
+		/// <summary>
+		/// Serialize a blob into a flat memory buffer
+		/// </summary>
+		/// <param name="blob">The blob to serialize</param>
+		/// <returns>Serialized data</returns>
+		public static ReadOnlySequence<byte> Serialize(IBlob blob)
+		{
+			return Serialize(blob.Data, blob.References);
+		}
+
+		/// <summary>
+		/// Serialize a blob into a flat memory buffer
+		/// </summary>
+		/// <param name="data">Data for the blob</param>
+		/// <param name="references">List of references to other blobs</param>
+		/// <returns>Serialized data</returns>
+		public static ReadOnlySequence<byte> Serialize(ReadOnlyMemory<byte> data, IReadOnlyList<BlobId> references)
+		{
+			return Serialize(new ReadOnlySequence<byte>(data), references);
+		}
+
+		/// <summary>
+		/// Serialize a blob into a flat memory buffer
+		/// </summary>
+		/// <param name="data">Data for the blob</param>
+		/// <param name="references">List of references to other blobs</param>
+		/// <returns>Serialized data</returns>
+		public static ReadOnlySequence<byte> Serialize(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references)
+		{
+			ByteArrayBuilder writer = new ByteArrayBuilder();
+			writer.WriteVariableLengthArray(references, x => writer.WriteBlobId(x));
+			writer.WriteUnsignedVarInt((ulong)data.Length);
+
+			ReadOnlySequenceBuilder<byte> builder = new ReadOnlySequenceBuilder<byte>();
+			builder.Append(writer.ToByteArray());
+			builder.Append(data);
+
+			return builder.Construct();
+		}
+
+		/// <summary>
+		/// Deserialize a blob from a block of memory
+		/// </summary>
+		/// <param name="memory">Memory to deserialize from</param>
+		/// <returns>Deserialized blob data. May reference the supplied memory.</returns>
+		public static IBlob Deserialize(ReadOnlyMemory<byte> memory) => Deserialize(new ReadOnlySequence<byte>(memory));
+
+		/// <summary>
+		/// Deserialize a blob from a block of memory
+		/// </summary>
+		/// <param name="sequence">Sequence to deserialize from</param>
+		/// <returns>Deserialized blob data. May reference the supplied memory.</returns>
+		public static IBlob Deserialize(ReadOnlySequence<byte> sequence)
+		{
+			MemoryReader reader = new MemoryReader(sequence.First);
+			IReadOnlyList<BlobId> references = reader.ReadVariableLengthArray(() => reader.ReadBlobId());
+			long length = (long)reader.ReadUnsignedVarInt();
+
+			ReadOnlyMemory<byte> data = sequence.Slice(sequence.First.Length - reader.Memory.Length).AsSingleSegment();
+			return new InMemoryBlob(data, references);
+		}
 	}
 }
