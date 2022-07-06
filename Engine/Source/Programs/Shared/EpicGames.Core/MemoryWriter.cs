@@ -180,6 +180,17 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Writes a DateTime to the memory writer
+		/// </summary>
+		/// <param name="writer">Writer to serialize to</param>
+		/// <param name="value">Value to write</param>
+		public static void WriteDateTime(this IMemoryWriter writer, DateTime value)
+		{
+			ulong encoded = ((ulong)value.Ticks << 2) | (ulong)value.Kind;
+			writer.WriteUnsignedVarInt(encoded);
+		}
+
+		/// <summary>
 		/// Appends a sequence of bytes to the buffer
 		/// </summary>
 		/// <param name="writer">Writer to serialize to</param>

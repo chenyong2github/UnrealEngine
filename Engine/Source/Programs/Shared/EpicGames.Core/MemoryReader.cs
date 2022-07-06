@@ -189,6 +189,16 @@ namespace EpicGames.Core
 		}
 
 		/// <summary>
+		/// Reads a DateTime from the memory buffer
+		/// </summary>
+		/// <param name="reader">Reader to deserialize from</param>
+		public static DateTime ReadDateTime(this IMemoryReader reader)
+		{
+			ulong encoded = reader.ReadUnsignedVarInt();
+			return new DateTime((long)encoded >> 2, (DateTimeKind)(encoded & 3UL));
+		}
+
+		/// <summary>
 		/// Reads a sequence of bytes from the buffer
 		/// </summary>
 		/// <param name="reader">Reader to deserialize from</param>
