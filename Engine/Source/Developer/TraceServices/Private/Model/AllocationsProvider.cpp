@@ -2084,8 +2084,7 @@ void FAllocationsProvider::DebugPrint() const
 
 IAllocationsProvider::FQueryHandle FAllocationsProvider::StartQuery(const IAllocationsProvider::FQueryParams& Params) const
 {
-	const FCallstacksProvider* CallstacksProvider = Session.ReadProvider<FCallstacksProvider>(FName("CallstacksProvider"));
-	auto* Inner = new FAllocationsQuery(*this, *CallstacksProvider, Params);
+	auto* Inner = new FAllocationsQuery(*this, Params);
 	return IAllocationsProvider::FQueryHandle(Inner);
 }
 

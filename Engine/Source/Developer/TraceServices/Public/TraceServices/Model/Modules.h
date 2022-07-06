@@ -154,7 +154,7 @@ struct FModule
 };
 
 ////////////////////////////////////////////////////////////////////////////////
-class IModuleProvider : public IProvider
+class IModuleProvider : public IEditableProvider
 {
 public:
 	struct FStats
@@ -174,7 +174,6 @@ public:
 	 * all calls to this function happens before analysis has ended.
 	 */
 	virtual const FResolvedSymbol* GetSymbol(uint64 Address) = 0;
-
 
 	/**
 	 * Gets the number of discovered modules.

@@ -26,7 +26,7 @@ class FAllocationsQuery
 	friend class FAllocationsQueryAsyncTask;
 
 public:
-	FAllocationsQuery(const FAllocationsProvider& InAllocationsProvider, const FCallstacksProvider& InCallstacksProvider, const IAllocationsProvider::FQueryParams& InParams);
+	FAllocationsQuery(const FAllocationsProvider& InAllocationsProvider, const IAllocationsProvider::FQueryParams& InParams);
 
 	void Cancel();
 	IAllocationsProvider::FQueryStatus Poll();
@@ -37,7 +37,6 @@ private:
 
 private:
 	const FAllocationsProvider& AllocationsProvider;
-	const FCallstacksProvider& CallstacksProvider;
 
 	IAllocationsProvider::FQueryParams Params;
 

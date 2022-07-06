@@ -67,7 +67,7 @@ bool FModuleAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContex
 					TSharedPtr<IModuleAnalysisProvider> ModuleProvider = CreateModuleProvider(Session, SymbolFormat);
 					if (ModuleProvider)
 					{
-						Session.AddProvider(GetModuleProviderName(), ModuleProvider);
+						Session.AddProvider(GetModuleProviderName(), ModuleProvider, ModuleProvider);
 						Provider = ModuleProvider.Get();
 					}
 				}

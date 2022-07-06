@@ -30,6 +30,7 @@ void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 	Session.AddAnalyzer(new FMemoryAnalyzer(Session, MemoryProvider.Get()));
 
 	// Module
+	// The Module provider is created and registered by FModuleAnalyzer when the ModuleInit event is detected.
 	Session.AddAnalyzer(new FModuleAnalyzer(Session));
 
 	// Callstack
@@ -41,12 +42,11 @@ void FMemoryModule::OnAnalysisBegin(IAnalysisSession& Session)
 	TSharedPtr<FMetadataProvider> MetadataProvider = MakeShared<FMetadataProvider>(Session);
 	Session.AddProvider(GetMetadataProviderName(), MetadataProvider);
 	Session.AddAnalyzer(new FMetadataAnalysis(Session, MetadataProvider.Get()));
-	
+
 	// Allocations
 	TSharedPtr<FAllocationsProvider> AllocationsProvider = MakeShared<FAllocationsProvider>(Session, *MetadataProvider);
 	Session.AddProvider(GetAllocationsProviderName(), AllocationsProvider);
 	Session.AddAnalyzer(new FAllocationsAnalyzer(Session, *AllocationsProvider, *MetadataProvider));
-
 }
 
 void FMemoryModule::GetLoggers(TArray<const TCHAR*>& OutLoggers)

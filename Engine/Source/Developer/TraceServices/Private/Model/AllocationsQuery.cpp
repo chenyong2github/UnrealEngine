@@ -43,9 +43,8 @@ private:
 // FAllocationsQuery
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FAllocationsQuery::FAllocationsQuery(const FAllocationsProvider& InAllocationProvider, const FCallstacksProvider& InCallstacksProvider, const IAllocationsProvider::FQueryParams& InParams)
+FAllocationsQuery::FAllocationsQuery(const FAllocationsProvider& InAllocationProvider, const IAllocationsProvider::FQueryParams& InParams)
 	: AllocationsProvider(InAllocationProvider)
-	, CallstacksProvider(InCallstacksProvider)
 	, Params(InParams)
 	, IsWorking(true)
 	, IsCanceling(false)
@@ -143,7 +142,7 @@ void FAllocationsQuery::Run()
 			SbTree->Query(Cells, Params);
 		}
 	}
-		
+
 	CellCount += Cells.Num();
 
 	UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] %d cells to process"), Cells.Num());
@@ -160,7 +159,7 @@ void FAllocationsQuery::Run()
 		UE_LOG(LogTraceServices, Log, TEXT("[MemAlloc] Processing cell %u (%u allocs)..."), CellIndex, Cell->GetAllocCount());
 
 		FAllocationsImpl* CellResult = new FAllocationsImpl();
-			
+
 		Cell->Query(CellResult->Items, Params);
 
 		const uint32 NumAllocs = static_cast<uint32>(CellResult->Items.Num());
