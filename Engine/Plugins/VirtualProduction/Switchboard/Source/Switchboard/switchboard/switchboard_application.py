@@ -2,10 +2,12 @@
 
 import os
 import pathlib
+import re
 import subprocess
 import sys
 import tempfile
 import threading
+
 from typing import Dict, List, NamedTuple, Optional
 
 import pythonosc.dispatcher
@@ -14,7 +16,6 @@ import pythonosc.osc_server
 from .config import CONFIG, SETTINGS
 from .switchboard_logging import LOGGER
 from . import switchboard_utils as sb_utils
-
 
 class OscServer:
     def __init__(self):
@@ -90,6 +91,7 @@ class MultiUserApplication:
 
         # Application Options
         self.concert_ignore_cl = False
+        self.clear_process_info()
 
     def exe_path(self):
         return CONFIG.multiuser_server_path()
@@ -104,10 +106,8 @@ class MultiUserApplication:
         return ''
 
     def get_mu_server_endpoint_arg(self):
-        endpoint_setting = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
-        if endpoint_setting:
-            addr_setting = SETTINGS.ADDRESS.get_value().strip()
-            endpoint = sb_utils.expand_endpoint(endpoint_setting, addr_setting)
+        endpoint = self.endpoint_address()
+        if endpoint:
             return f'-UDPMESSAGING_TRANSPORT_UNICAST="{endpoint}"'
         return ''
 
@@ -171,12 +171,67 @@ class MultiUserApplication:
         else:
             self.poll_process().kill()
 
-    def is_running(self):
-        if self.process and (self.process.poll() is None):
-            return True
-        elif self.poll_process().poll() is None:
+    def extract_process_info(self):
+        pid = self.poll_process().get_pid()
+        command_line = self.poll_process().get_command_line()
+        if command_line == '' or pid == self._running_pid:
+            return
+
+        find_ip_re =  re.compile( r'-UDPMESSAGING_TRANSPORT_UNICAST="(\d+.\d+.\d+.\d+:\d+)"')
+        find_name_re = re.compile(r'-CONCERTSERVER="([A-Za-z0-9_]+)"')
+
+        self.clear_process_info()
+        self._running_pid = pid
+        try:
+            ip_match = find_ip_re.search(command_line)
+            name_match = find_name_re.search(command_line)
+            if ip_match:
+                self._running_endpoint = ip_match.group(1)
+            if name_match:
+                self._running_name = name_match.group(1)
+        except:
+            pass
+
+
+    def validate_process(self):
+        if self._running_pid is None:
+            return False
+
+        endpoint = self.endpoint_address()
+        server_name = CONFIG.MUSERVER_SERVER_NAME.get_value()
+        if endpoint == self._running_endpoint and server_name == self._running_name:
             return True
 
+        return False
+
+    def running_server_name(self):
+        return self._running_name
+
+    def running_endpoint(self):
+        return self._running_endpoint
+
+    def endpoint_address(self):
+        endpoint_setting = CONFIG.MUSERVER_ENDPOINT.get_value().strip()
+        endpoint = ""
+        if endpoint_setting:
+            addr_setting = SETTINGS.ADDRESS.get_value().strip()
+            endpoint = sb_utils.expand_endpoint(endpoint_setting, addr_setting)
+        return endpoint
+
+    def server_name(self):
+        return CONFIG.MUSERVER_SERVER_NAME.get_value()
+
+    def clear_process_info(self):
+        self._running_endpoint = ""
+        self._running_name = ""
+        self._running_pid = None
+
+    def is_running(self):
+        if self.poll_process().poll() is None:
+            self.extract_process_info()
+            return True
+
+        self.clear_process_info()
         return False
 
 

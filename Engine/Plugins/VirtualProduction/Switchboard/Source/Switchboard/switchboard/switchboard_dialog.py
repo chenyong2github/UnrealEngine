@@ -169,6 +169,25 @@ class DeviceAdditionalSettingsUI(QtCore.QObject):
         self.assign_button(button,parent)
         return button
 
+class PeriodicRunnable(QtCore.QRunnable):
+    ''' Performs periodic tasks on the switchboard dialog. '''
+
+    def __init__(self, switchboard):
+        super().__init__()
+        self._switchboard = switchboard
+        self._exiting = False
+
+    def exit(self):
+        self._exiting = True
+
+    def run(self):
+        while not self._exiting:
+            self._switchboard.update_muserver_button()
+            self._switchboard.update_locallistener_menuitem()
+            self._switchboard.update_insights_menuitem()
+
+            time.sleep(1.0)
+
 class SwitchboardDialog(QtCore.QObject):
 
     STYLESHEET_PATH = os.path.join(RELATIVE_PATH, 'ui/switchboard.qss')
@@ -227,7 +246,7 @@ class SwitchboardDialog(QtCore.QObject):
 
         self.init_stylesheet_watcher()
 
-        self._exiting = False
+        self._periodic_runner = None
         self._shoot = None
         self._sequence = None
         self._slate = None
@@ -434,6 +453,7 @@ class SwitchboardDialog(QtCore.QObject):
         self.refresh_window_title()
 
         self.script_manager.on_postinit(self)
+        self.have_warned_about_muserver = False
         
     def _try_change_address(self):
         new_value = self.window.current_address_value.text()
@@ -454,15 +474,30 @@ class SwitchboardDialog(QtCore.QObject):
             SETTINGS.ADDRESS.update_value(old_address)
             SETTINGS.save()
             self.osc_server.launch(SETTINGS.ADDRESS.get_value(), CONFIG.OSC_SERVER_PORT.get_value())
-            
 
-    def _poll_muserver_status(self):
-        '''
-        Poll the status of the Multi-user server on a 1 second timer.
-        '''
-        while not self._exiting:
-            self.update_muserver_button()
-            time.sleep(1.0)
+    def warn_user_about_muserver(self):
+        if self.have_warned_about_muserver:
+            return
+
+        ServerInstance = switchboard_application.get_multi_user_server_instance()
+        expected_server = ServerInstance.server_name()
+        expected_endpoint = ServerInstance.endpoint_address()
+        actual_server = ServerInstance.running_server_name()
+        actual_endpoint = ServerInstance.running_endpoint()
+        LOGGER.warning(f'The running Multi-user server does not match Switchboard configuration. Expected "{expected_server}" with "{expected_endpoint}" but found "{actual_server}" with "{actual_endpoint}". Please restart the multi-user server.')
+
+        self.have_warned_about_muserver = True
+
+    def get_muserver_label(self, is_running, is_valid):
+        ServerInstance = switchboard_application.get_multi_user_server_instance()
+        if is_running and is_valid:
+            actual_server = ServerInstance.running_server_name()
+            actual_endpoint = ServerInstance.running_endpoint()
+            return f'Multi-user Server ({actual_server} {actual_endpoint})'
+        elif is_running and not is_valid:
+            return 'Multi-user Server (WARNING: RUNNING SERVER DOES NOT MATCH CONFIGURATION)'
+        else:
+            return 'Multi-user Server'
 
     def update_muserver_button(self):
         '''
@@ -471,10 +506,17 @@ class SwitchboardDialog(QtCore.QObject):
         ServerInstance = switchboard_application.get_multi_user_server_instance()
         is_checked = self.window.muserver_start_stop_button.isChecked()
         is_running = ServerInstance.is_running()
+        is_valid =  ServerInstance.validate_process()
         if  (is_running or self._started_mu_server) and not is_checked:
             self.window.muserver_start_stop_button.setChecked( True )
         elif not is_running and is_checked:
             self.window.muserver_start_stop_button.setChecked( False )
+            self.have_warned_about_muserver = False
+
+        label = self.get_muserver_label(is_running or self._started_mu_server,is_valid)
+        self.window.muserver_label.setText(label)
+        if is_running and not is_valid:
+            self.warn_user_about_muserver()
 
         if is_running and self._started_mu_server:
             # Server has finished starting so reset our start flag.
@@ -484,19 +526,8 @@ class SwitchboardDialog(QtCore.QObject):
         '''
         Sets up a thread for performing maintenance tasks
         '''
-        thread = threading.Thread(target=self._do_periodic_tasks, args=[], kwargs={})
-        thread.start()
-
-    def _do_periodic_tasks(self):
-        ''' Performs periodic tasks, like updating certain parts of the UI '''
-
-        while not self._exiting:
-
-            self.update_muserver_button()
-            self.update_locallistener_menuitem()
-            self.update_insights_menuitem()
-
-            time.sleep(1.0)
+        self._periodic_runner = PeriodicRunnable(self)
+        QtCore.QThreadPool.globalInstance().start(self._periodic_runner)
 
     def update_locallistener_menuitem(self):
         ''' 
@@ -695,7 +726,8 @@ class SwitchboardDialog(QtCore.QObject):
                    for device in self.device_manager.devices())
 
     def on_exit(self):
-        self._exiting = True
+        if self._periodic_runner:
+            self._periodic_runner.exit()
         self.osc_server.close()
         for device in self.device_manager.devices():
             device.disconnect_listener()
