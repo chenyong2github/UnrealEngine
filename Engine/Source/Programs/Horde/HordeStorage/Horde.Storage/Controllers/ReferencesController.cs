@@ -679,7 +679,6 @@ namespace Horde.Storage.Controllers
         [HttpPut("{ns}/{bucket}/{key}", Order = 300)]
         [DisableRequestSizeLimit]
         [RequiredContentType(CustomMediaTypeNames.UnrealCompactBinaryPackage)]
-        [Authorize("Object.write")]
         public async Task<IActionResult> PutPackage(
             [FromRoute][Required] NamespaceId ns,
             [FromRoute][Required] BucketId bucket,
