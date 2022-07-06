@@ -633,6 +633,7 @@ public:
 		if (GzipInst && mode == FOM_WRITE && GzipInst->os > Buffer)
 		{
 			FFileSys::Write(Buffer, (int)(GzipInst->os - Buffer), e);
+			GzipInst->os = Buffer;
 		}
 
 		FFileSys::Close(e);
