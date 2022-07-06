@@ -16,6 +16,13 @@ RAY_TRACING_ENTRY_MISS(PathTracingLightingMS, FPackedPathTracingPayload, Payload
 	Payload.SetMiss();
 	float3 TranslatedWorldPosition = WorldRayOrigin(); // Shadow ray is traced from the shaded point
 	float3 Throughput = Payload.GetRayThroughput();
-	Throughput *= GetRayTracingLightFunction(TranslatedWorldPosition);
+	float3 LightFunctionMult = GetRayTracingLightFunction(TranslatedWorldPosition);
+
+	if (PathTracingLightFunctionParameters.EnableColoredLightFunctions == 0)
+	{
+		// convert to greyscale for compatibility with the main engine (optionally)
+		LightFunctionMult = dot(LightFunctionMult, .3333f);
+	}
+	Throughput *= LightFunctionMult;
 	Payload.SetRayThroughput(Throughput);
 }
