@@ -637,7 +637,7 @@ void SFilterList::SaveSettings()
 	SaveConfig();
 }
 
-void SFilterList::LoadSettings()
+void SFilterList::LoadSettings(const FName& InInstanceName)
 {
 	// If this instance doesn't want to use the shared settings, load the settings normally
 	if(!bUseSharedSettings)
@@ -646,14 +646,14 @@ void SFilterList::LoadSettings()
 		return;
 	}
 
-	if(FilterBarIdentifier.IsNone())
+	if(InInstanceName.IsNone())
 	{
 		UE_LOG(LogSlate, Error, TEXT("SFilterList Requires that you specify a FilterBarIdentifier to load settings"));
 		return;
 	}
 
 	// Get the settings unique to this instance and the common settings
-	const FFilterBarSettings* InstanceSettings = UFilterBarConfig::Get()->FilterBars.Find(FilterBarIdentifier);
+	const FFilterBarSettings* InstanceSettings = UFilterBarConfig::Get()->FilterBars.Find(InInstanceName);
 	const FFilterBarSettings* SharedSettings = UFilterBarConfig::Get()->FilterBars.Find(SharedIdentifier);
 
 	// Load the filters specified programatically normally
@@ -677,6 +677,11 @@ void SFilterList::LoadSettings()
 	SetFilterLayout(FilterBarLayout);
 	
 	this->OnFilterChanged.ExecuteIfBound();
+}
+
+void SFilterList::LoadSettings()
+{
+	LoadSettings(FilterBarIdentifier);
 }
 
 void SFilterList::LoadCustomTextFilters(const FFilterBarSettings* FilterBarConfig)
@@ -721,17 +726,21 @@ void SFilterList::AddWidgetToCurrentLayout(TSharedRef<SWidget> InWidget)
 void SFilterList::SetFilterLayout(EFilterBarLayout InFilterBarLayout)
 {
 	FilterBarLayout = InFilterBarLayout;
+
+	/* Clear both layouts, because for SFilterList it is valid to call SetFilterLayout with InFilterBarLayout being the
+	 * same as the current layout just to fire OnFilterBarLayoutChanging.
+	 * Unlike the parent class SBasicFilterBar which guards against that. If we don't clear both child widgets you can
+	 * end up with duplicate widgets.
+	 */
+	HorizontalFilterBox->ClearChildren();
+	VerticalFilterBox->ClearChildren();
  		
 	if(FilterBarLayout == EFilterBarLayout::Horizontal)
 	{
-		VerticalFilterBox->ClearChildren();
- 			
 		FilterBox->SetActiveWidget(HorizontalFilterBox.ToSharedRef());
 	}
 	else
 	{
-		HorizontalFilterBox->ClearChildren();
-        	
 		FilterBox->SetActiveWidget(VerticalFilterBox.ToSharedRef());
 	}
 

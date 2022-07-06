@@ -840,6 +840,8 @@ protected:
 	{
 		for (const TSharedRef<SFilter>& Filter : Filters)
 		{
+			RemoveWidgetFromLayout(Filter);
+			
 			if (Filter == FilterToKeep)
 			{
 				continue;

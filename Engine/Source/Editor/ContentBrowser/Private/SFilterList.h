@@ -120,8 +120,11 @@ public:
 	/** Add a custom widget to the filter bar alongside the filters */
 	void AddWidgetToCurrentLayout(TSharedRef<SWidget> InWidget);
 
-	virtual void SaveSettings()override;
+	virtual void SaveSettings() override;
 	virtual void LoadSettings() override;
+
+	/* Copy the settings from a specific instance name */
+	void LoadSettings(const FName& InInstanceName);
 
 	virtual void SetFilterLayout(EFilterBarLayout InFilterBarLayout) override;
 
