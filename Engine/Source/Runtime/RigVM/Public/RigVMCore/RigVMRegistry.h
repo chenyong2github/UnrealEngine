@@ -30,7 +30,7 @@ public:
 	void Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionPtr, UScriptStruct* InStruct = nullptr, const TArray<FRigVMFunctionArgument>& InArguments = TArray<FRigVMFunctionArgument>());
 
 	// Registers a dispatch factory given its struct.
-	void RegisterFactory(UScriptStruct* InFactoryStruct);
+	const FRigVMDispatchFactory* RegisterFactory(UScriptStruct* InFactoryStruct);
 
 	// Initializes the registry by storing the defaults
 	void InitializeIfNeeded();

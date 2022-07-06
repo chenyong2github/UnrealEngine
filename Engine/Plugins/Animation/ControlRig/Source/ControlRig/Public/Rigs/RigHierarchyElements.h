@@ -671,7 +671,7 @@ protected:
 
 	friend class URigHierarchy;
 	friend class URigHierarchyController;
-	friend struct FRigUnit_SetMetadataBase;
+	friend struct FRigDispatch_SetMetadata;
 };
 
 USTRUCT(BlueprintType)

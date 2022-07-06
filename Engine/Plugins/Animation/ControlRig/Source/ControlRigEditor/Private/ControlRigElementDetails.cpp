@@ -635,6 +635,14 @@ void FRigBaseElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 	}
 
 	DetailBuilder.HideCategory(TEXT("RigElement"));
+
+	// if we are not a bone, control or null
+	if(!IsAnyElementOfType(ERigElementType::Bone) &&
+		!IsAnyElementOfType(ERigElementType::Control) &&
+		!IsAnyElementOfType(ERigElementType::Null))
+	{
+		CustomizeMetadata(DetailBuilder);
+	}
 }
 
 FRigElementKey FRigBaseElementDetails::GetElementKey() const
@@ -861,6 +869,8 @@ void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& Prop
 
 void FRigBaseElementDetails::RegisterSectionMappings(FPropertyEditorModule& PropertyEditorModule, UClass* InClass)
 {
+	TSharedRef<FPropertySection> MetadataSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Metadata", LOCTEXT("Metadata", "Metadata"));
+	MetadataSection->AddCategory("Metadata");
 }
 
 FReply FRigBaseElementDetails::OnSelectParentElementInHierarchyClicked()
@@ -890,6 +900,38 @@ FReply FRigBaseElementDetails::OnSelectElementClicked(const FRigElementKey& InKe
 		}	
 	}
 	return FReply::Handled();
+}
+
+void FRigBaseElementDetails::CustomizeMetadata(IDetailLayoutBuilder& DetailBuilder)
+{
+	if(PerElementInfos.Num() != 1)
+	{
+		return;
+	}
+	const FRigBaseElement* Element = PerElementInfos[0].Element.Get();
+	if(Element->NumMetadata() == 0)
+	{
+		return;
+	}
+
+	IDetailCategoryBuilder& MetadataCategory = DetailBuilder.EditCategory(TEXT("Metadata"), LOCTEXT("Metadata", "Metadata"));
+	for(int32 Index=0;Index<Element->NumMetadata();Index++)
+	{
+		FRigBaseMetadata* Metadata = Element->GetMetadata(Index);
+		TSharedPtr<FStructOnScope> StructOnScope = MakeShareable(new FStructOnScope(Metadata->GetMetadataStruct(), (uint8*)Metadata));
+
+		FAddPropertyParams Params;
+		Params.CreateCategoryNodes(false);
+		Params.ForceShowProperty();
+		
+		IDetailPropertyRow* Row = MetadataCategory.AddExternalStructureProperty(StructOnScope, TEXT("Value"), EPropertyLocation::Default, Params);
+		if(Row)
+		{
+			(*Row)
+			.DisplayName(FText::FromName(Metadata->GetName()))
+			.IsEnabled(false);
+		}
+	}
 }
 
 TSharedPtr<TArray<ERigTransformElementDetailsTransform::Type>> FRigTransformElementDetails::PickedTransforms;
@@ -2247,6 +2289,7 @@ void FRigBoneElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 {
 	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
 	CustomizeTransform(DetailBuilder);
+	CustomizeMetadata(DetailBuilder);
 }
 
 void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
@@ -2258,6 +2301,7 @@ void FRigControlElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 	CustomizeTransform(DetailBuilder);
 	CustomizeShape(DetailBuilder);
 	CustomizeAnimationChannels(DetailBuilder);
+	CustomizeMetadata(DetailBuilder);
 }
 
 void FRigControlElementDetails::CustomizeValue(IDetailLayoutBuilder& DetailBuilder)
@@ -3703,7 +3747,7 @@ void FRigControlElementDetails::RegisterSectionMappings(FPropertyEditorModule& P
 	ShapeSection->AddCategory("Shape");
 
 	TSharedRef<FPropertySection> ChannelsSection = PropertyEditorModule.FindOrCreateSection(InClass->GetFName(), "Channels", LOCTEXT("Channels", "Channels"));
-	ShapeSection->AddCategory("AnimationChannels");
+	ChannelsSection->AddCategory("AnimationChannels");
 }
 
 bool FRigControlElementDetails::IsShapeEnabled() const
@@ -4487,6 +4531,7 @@ void FRigNullElementDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilde
 {
 	FRigTransformElementDetails::CustomizeDetails(DetailBuilder);
 	CustomizeTransform(DetailBuilder);
+	CustomizeMetadata(DetailBuilder);
 }
 
 #undef LOCTEXT_NAMESPACE

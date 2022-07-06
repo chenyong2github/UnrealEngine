@@ -62,6 +62,8 @@ enum class ERigMetadataType : uint8
 	QuatArray,
 	Transform,
 	TransformArray,
+	LinearColor,
+	LinearColorArray,
 	RigElementKey,
 	RigElementKeyArray,
 

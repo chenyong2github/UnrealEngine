@@ -761,26 +761,32 @@ void FRigVMRegistry::Register(const TCHAR* InName, FRigVMFunctionPtr InFunctionP
 #endif
 }
 
-void FRigVMRegistry::RegisterFactory(UScriptStruct* InFactoryStruct)
+const FRigVMDispatchFactory* FRigVMRegistry::RegisterFactory(UScriptStruct* InFactoryStruct)
 {
 	check(InFactoryStruct);
 	check(InFactoryStruct != FRigVMDispatchFactory::StaticStruct());
 	check(InFactoryStruct->IsChildOf(FRigVMDispatchFactory::StaticStruct()));
 
 	// ensure to register factories only once
-	const bool bFactoryAlreadyRegistered = Factories.ContainsByPredicate([InFactoryStruct](const FRigVMDispatchFactory* Factory)
+	const FRigVMDispatchFactory* ExistingFactory = nullptr;
+	const bool bFactoryAlreadyRegistered = Factories.ContainsByPredicate([InFactoryStruct, &ExistingFactory](const FRigVMDispatchFactory* Factory)
 	{
-		return Factory->GetScriptStruct() == InFactoryStruct;
+		if(Factory->GetScriptStruct() == InFactoryStruct)
+		{
+			ExistingFactory = Factory;
+			return true;
+		}
+		return false;
 	});
 	if(bFactoryAlreadyRegistered)
 	{
-		return;
+		return ExistingFactory;
 	}
 
 #if WITH_EDITOR
 	if(InFactoryStruct->HasMetaData(TEXT("Abstract")))
 	{
-		return;
+		return nullptr;
 	}
 #endif
 	
@@ -789,6 +795,7 @@ void FRigVMRegistry::RegisterFactory(UScriptStruct* InFactoryStruct)
 	Factory->FactoryScriptStruct = InFactoryStruct;
 	Factories.Add(Factory);
 	Factory->RegisterDependencyTypes();
+	return Factory;
 }
 
 const FRigVMFunction* FRigVMRegistry::FindFunction(const TCHAR* InName) const

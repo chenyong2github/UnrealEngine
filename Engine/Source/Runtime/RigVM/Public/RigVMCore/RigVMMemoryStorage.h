@@ -128,7 +128,8 @@ public:
 	>
 	FORCEINLINE bool IsType(bool bIsHiddenArgument = false) const
 	{
-		return IsTypeArray<T::ElementType>(bIsHiddenArgument);
+		typedef typename T::ElementType ElementType;
+		return IsTypeArray<ElementType>(bIsHiddenArgument);
 	}
 
 	// returns true if the handle is of the given type

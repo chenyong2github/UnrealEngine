@@ -82,6 +82,14 @@ UScriptStruct* FRigBaseMetadata::GetMetadataStruct(const ERigMetadataType& InTyp
 		{
 			return FRigTransformArrayMetadata::StaticStruct();
 		}
+		case ERigMetadataType::LinearColor:
+		{
+			return FRigLinearColorMetadata::StaticStruct();
+		}
+		case ERigMetadataType::LinearColorArray:
+		{
+			return FRigLinearColorArrayMetadata::StaticStruct();
+		}
 		case ERigMetadataType::RigElementKey:
 		{
 			return FRigElementKeyMetadata::StaticStruct();

@@ -700,6 +700,71 @@ protected:
 };
 
 USTRUCT()
+struct CONTROLRIG_API FRigLinearColorMetadata : public FRigBaseMetadata
+{
+public:
+	
+	GENERATED_BODY()
+	DECLARE_RIG_METADATA_METHODS(FRigLinearColorMetadata)
+
+	FRigLinearColorMetadata()
+		: FRigBaseMetadata()
+		, Value(FLinearColor::White)
+	{}
+	virtual ~FRigLinearColorMetadata() override {}
+	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	{
+		Super::Serialize(Ar, bIsLoading);
+		Ar << Value;
+	}
+	FORCEINLINE const FLinearColor& GetValue() const { return Value; } 
+	FORCEINLINE FLinearColor& GetValue() { return Value; }
+	FORCEINLINE bool SetValue(const FLinearColor& InValue) { return SetValueData(&InValue, sizeof(FLinearColor)); }
+
+	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	{
+		return InMetadata->GetType() == ERigMetadataType::LinearColor;
+	}
+
+protected:
+
+	UPROPERTY()
+	FLinearColor Value;
+};
+
+USTRUCT()
+struct CONTROLRIG_API FRigLinearColorArrayMetadata : public FRigBaseMetadata
+{
+public:
+	
+	GENERATED_BODY()
+	DECLARE_RIG_METADATA_METHODS(FRigLinearColorArrayMetadata)
+
+	FRigLinearColorArrayMetadata()
+		: FRigBaseMetadata()
+	{}
+	virtual ~FRigLinearColorArrayMetadata() override {}
+	FORCEINLINE virtual void Serialize(FArchive& Ar, bool bIsLoading) override
+	{
+		Super::Serialize(Ar, bIsLoading);
+		Ar << Value;
+	}
+	FORCEINLINE const TArray<FLinearColor>& GetValue() const { return Value; }
+	FORCEINLINE TArray<FLinearColor>& GetValue() { return Value; }
+	FORCEINLINE bool SetValue(const TArray<FLinearColor>& InValue) { return SetValueData(&InValue, sizeof(TArray<FLinearColor>)); }
+
+	FORCEINLINE static bool IsClassOf(const FRigBaseMetadata* InMetadata)
+	{
+		return InMetadata->GetType() == ERigMetadataType::LinearColorArray;
+	}
+
+protected:
+
+	UPROPERTY()
+	TArray<FLinearColor> Value;
+};
+
+USTRUCT()
 struct CONTROLRIG_API FRigElementKeyMetadata : public FRigBaseMetadata
 {
 public:

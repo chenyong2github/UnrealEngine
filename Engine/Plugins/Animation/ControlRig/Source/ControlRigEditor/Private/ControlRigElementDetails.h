@@ -215,7 +215,10 @@ public:
 
 protected:
 
+	void CustomizeMetadata(IDetailLayoutBuilder& DetailBuilder);
+
 	TArray<FPerElementInfo> PerElementInfos;
+	TArray<TStrongObjectPtr<UDetailsViewWrapperObject>> MetadataWrappers;
 	
 	TSharedPtr<SButton> SelectParentElementButton;
 };
