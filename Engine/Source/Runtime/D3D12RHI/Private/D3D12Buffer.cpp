@@ -197,7 +197,7 @@ void FD3D12Buffer::UploadResourceData(FRHICommandListBase& RHICmdList, FResource
 	}
 	else
 	{
-		const bool bOnAsyncThread = !IsInRHIThread() && !IsInRenderingThread();
+		const bool bOnAsyncThread = !IsInRHIThread() && !IsInParallelRenderingThread();
 
 		// Get an upload heap and initialize data
 		FD3D12ResourceLocation SrcResourceLoc(GetParentDevice());
