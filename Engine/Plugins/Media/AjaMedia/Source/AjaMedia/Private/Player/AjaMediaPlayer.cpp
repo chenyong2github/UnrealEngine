@@ -604,9 +604,9 @@ bool FAjaMediaPlayer::OnInputFrameReceived(const AJA::AJAInputFrameData& InInput
 			{
 				bool bEven = true;
 
-				if (CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
+				if (FMediaIOCorePlayerBase::CVarExperimentalFieldFlipFix.GetValueOnAnyThread())
 				{
-					bEven = GFrameCounterRenderThread % 2 != CVarFlipInterlaceFields.GetValueOnAnyThread();
+					bEven = GFrameCounterRenderThread % 2 != FMediaIOCorePlayerBase::CVarFlipInterlaceFields.GetValueOnAnyThread();
 				}
 
 				if (TextureSample->InitializeInterlaced_Halfed(InVideoFrame, VideoSampleFormat, DecodedTime, VideoFrameRate, DecodedTimecode, bEven, bIsSRGBInput))

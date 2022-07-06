@@ -74,6 +74,16 @@ const FName FMediaIOCoreMediaOption::ResolutionWidth("ResolutionWidth");
 const FName FMediaIOCoreMediaOption::ResolutionHeight("ResolutionHeight");
 const FName FMediaIOCoreMediaOption::VideoModeName("VideoModeName");
 
+TAutoConsoleVariable<int32> FMediaIOCorePlayerBase::CVarFlipInterlaceFields(
+	TEXT("MediaIO.FlipInputInterlaceFields"), 0,
+	TEXT("Whether to flip input interlace fields. (Experimental)"),
+	ECVF_RenderThreadSafe);
+
+TAutoConsoleVariable<int32> FMediaIOCorePlayerBase::CVarExperimentalFieldFlipFix(
+	TEXT("MediaIO.PreventFieldFlipping"), 1,
+	TEXT("Whether to attempt fixing field flipping on input. (Experimental)"),
+	ECVF_RenderThreadSafe);
+
 /* FMediaIOCorePlayerBase structors
  *****************************************************************************/
 
