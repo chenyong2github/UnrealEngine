@@ -54,6 +54,10 @@ public:
 	//Whether FocusDistance in frame data can be used
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
 	bool bIsFocusDistanceSupported = false;
+
+	//Set to false to force the camera to disable depth of field
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "LiveLink")
+	bool bIsDepthOfFieldSupported = true;
 };
 
 /**
