@@ -122,6 +122,7 @@ public class Engine : ModuleRules
 			new string[] {
 				"AnimationCore",
 				"AppFramework",
+				"BuildSettings",
 				"Networking",
 				"Landscape",
 				"UMG",

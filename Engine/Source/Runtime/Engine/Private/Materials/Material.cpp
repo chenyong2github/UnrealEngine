@@ -86,6 +86,10 @@
 #include "Materials/MaterialExpressionConstant.h"
 #include "Materials/MaterialExpressionBreakMaterialAttributes.h"
 #include "MaterialCachedData.h"
+#include "Misc/OutputDeviceArchiveWrapper.h"
+#include "Misc/OutputDeviceFile.h"
+#include "HAL/FileManager.h"
+#include "BuildSettings.h"
 
 #if WITH_EDITOR
 #include "MaterialCachedHLSLTree.h"
@@ -3768,23 +3772,25 @@ void UMaterial::PostLoad()
 		UpdateLightmassTextureTracking();
 	}
 
-	//DumpDebugInfo();
+	//DumpDebugInfo(*GLog);
 }
 
-void UMaterial::DumpDebugInfo() const
+void UMaterial::DumpDebugInfo(FOutputDevice& OutputDevice) const
 {
-	UE_LOG(LogConsoleResponse, Display, TEXT("----------------------------- %s"), *GetFullName());
-
-	{
-		static const UEnum* Enum = StaticEnum<EMaterialDomain>();
-		check(Enum);
-		UE_LOG(LogConsoleResponse, Display, TEXT("  MaterialDomain %s"), *Enum->GetNameStringByValue(int64(MaterialDomain)));
-	}
-
 	for (FMaterialResource* Resource : MaterialResources)
 	{
-		Resource->DumpDebugInfo();
+		Resource->DumpDebugInfo(OutputDevice);
 	}
+
+#if WITH_EDITOR
+	for (auto& It : CachedMaterialResourcesForCooking)
+	{
+		for (FMaterialResource* Resource : It.Value)
+		{
+			Resource->DumpDebugInfo(OutputDevice);
+		}
+	}
+#endif
 }
 
 void UMaterial::SaveShaderStableKeys(const class ITargetPlatform* TP)
@@ -3950,6 +3956,30 @@ bool UMaterial::IsCachedCookedPlatformDataLoaded( const ITargetPlatform* TargetP
 
 void UMaterial::ClearCachedCookedPlatformData( const ITargetPlatform *TargetPlatform )
 {
+#if WITH_EDITOR
+	if (GIsBuildMachine)
+	{
+		// Dump debug info for the DefaultMaterial.
+		TRACE_CPUPROFILER_EVENT_SCOPE(DumpDebugShaderInfoDefaultMaterial);
+
+		UMaterial* DefaultMaterial = GDefaultMaterials[EMaterialDomain::MD_Surface];
+		if (this == DefaultMaterial)
+		{
+			// Make the file in the automation directory so it will be uploaded as a build artifact.
+			const FString Filename = FString::Printf(TEXT("%s%s-%s-%s.csv"), FApp::GetProjectName(), BuildSettings::GetBuildVersion(), *GetName(), *FDateTime::Now().ToString());
+			const FString FilenameFull = FPaths::Combine(*FPaths::EngineDir(), TEXT("Programs"), TEXT("AutomationTool"), TEXT("Saved"), TEXT("Logs"), Filename);
+
+			if (FArchive* FileArchive = IFileManager::Get().CreateDebugFileWriter(*FilenameFull))
+			{
+				FOutputDeviceArchiveWrapper Wrapper(FileArchive);
+				DumpDebugInfo(Wrapper);
+				FileArchive->Close();
+				delete FileArchive;
+			}
+		}
+	}
+#endif
+
 	TArray<FMaterialResource*>* CachedMaterialResourcesForPlatform = CachedMaterialResourcesForCooking.Find( TargetPlatform );
 	if ( CachedMaterialResourcesForPlatform != nullptr)
 	{

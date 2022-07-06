@@ -3262,46 +3262,54 @@ void FMaterialShaderMapContent::RemoveMeshShaderMap(const FHashedName& VertexFac
 	}
 }
 
-void FMaterialShaderMap::DumpDebugInfo() const
+void FMaterialShaderMap::DumpDebugInfo(FOutputDevice& OutputDevice) const
 {
-	const FString& FriendlyNameS = GetFriendlyName();
-	UE_LOG(LogConsoleResponse, Display, TEXT("FMaterialShaderMap:  FriendlyName %s"), *FriendlyNameS);
-	const FString& DebugDescriptionS = GetDebugDescription();
-	UE_LOG(LogConsoleResponse, Display, TEXT("  DebugDescription %s"), *DebugDescriptionS);
+	// Turn off as it makes diffing hard
+	TGuardValue<ELogTimes::Type> DisableLogTimes(GPrintLogTimes, ELogTimes::None);
+
+	OutputDevice.Logf(TEXT("Frequency, Target, VFType, ShaderType, SourceHash, VFSourceHash, OutputHash, IsShaderPipeline"));
 
 	{
 		TMap<FShaderId, TShaderRef<FShader>> ShadersL;
 		GetShaderList(ShadersL);
-		UE_LOG(LogConsoleResponse, Display, TEXT("  --- %d shaders"), ShadersL.Num());
-		int32 Index = 0;
 		for (auto& KeyValue : ShadersL)
 		{
-			UE_LOG(LogConsoleResponse, Display, TEXT("    --- shader %d"), Index);
 			FShader* Shader = KeyValue.Value.GetShader();
-			Shader->DumpDebugInfo(GetPointerTable());
-			Index++;
+			const FVertexFactoryType* VertexFactoryType = Shader->GetVertexFactoryType(GetPointerTable());
+			OutputDevice.Logf(TEXT("%s, %s, %s, %s, %s, %s, %s, %s"),
+				GetShaderFrequencyString(Shader->GetFrequency()),
+				*LegacyShaderPlatformToShaderFormat(GetShaderPlatform()).ToString(),
+				VertexFactoryType ? VertexFactoryType->GetName() : TEXT("null"),
+				Shader->GetType(GetPointerTable())->GetName(),
+				*Shader->GetHash().ToString(),
+				*Shader->GetVertexFactoryHash().ToString(),
+				*Shader->GetOutputHash().ToString(),
+				TEXT("false")
+				);
 		}
 	}
 
 	{
 		TArray<FShaderPipelineRef> ShaderPipelinesL;
 		GetShaderPipelineList(ShaderPipelinesL);
-		UE_LOG(LogConsoleResponse, Display, TEXT("  --- %d shaderpipelines"), ShaderPipelinesL.Num());
-		int32 Index = 0;
 		for (FShaderPipelineRef Value : ShaderPipelinesL)
 		{
 			FShaderPipeline* ShaderPipeline = Value.GetPipeline();
-			UE_LOG(LogConsoleResponse, Display, TEXT("    --- shaderpipeline %d"), Index);
 			TArray<TShaderRef<FShader>> ShadersL = ShaderPipeline->GetShaders(*this);
-			UE_LOG(LogConsoleResponse, Display, TEXT("    --- %d shaders"), ShadersL.Num());
-			int32 ShaderIdx = 0;
 			for (TShaderRef<FShader>& Shader : ShadersL)
 			{
-				UE_LOG(LogConsoleResponse, Display, TEXT("      --- shader %d"), ShaderIdx);
-				Shader->DumpDebugInfo(GetPointerTable());
-				++ShaderIdx;
+				const FVertexFactoryType* VertexFactoryType = Shader->GetVertexFactoryType(GetPointerTable());
+				OutputDevice.Logf(TEXT("%s, %s, %s, %s, %s, %s, %s, %s"),
+					GetShaderFrequencyString(Shader->GetFrequency()),
+					*LegacyShaderPlatformToShaderFormat(GetShaderPlatform()).ToString(),
+					VertexFactoryType ? VertexFactoryType->GetName() : TEXT("null"),
+					Shader->GetType(GetPointerTable())->GetName(),
+					*Shader->GetHash().ToString(),
+					*Shader->GetVertexFactoryHash().ToString(),
+					*Shader->GetOutputHash().ToString(),
+					TEXT("true")
+					);
 			}
-			Index++;
 		}
 	}
 }

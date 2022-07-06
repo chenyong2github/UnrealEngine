@@ -2873,7 +2873,7 @@ void UMaterialInstance::PostLoad()
 
 		LightingGuidFixupMap.Add(GetLightingGuid(), this);
 	}
-	//DumpDebugInfo();
+	//DumpDebugInfo(*GLog);
 }
 
 void UMaterialInstance::BeginDestroy()
@@ -4228,29 +4228,26 @@ static FAutoConsoleCommand FindRedundantMICSCmd(
 
 #endif
 
-void UMaterialInstance::DumpDebugInfo() const
+void UMaterialInstance::DumpDebugInfo(FOutputDevice& OutputDevice) const
 {
-	UE_LOG(LogConsoleResponse, Display, TEXT("----------------------------- %s"), *GetFullName());
-
-	UE_LOG(LogConsoleResponse, Display, TEXT("  Parent %s"), Parent ? *Parent->GetFullName() : TEXT("null"));
-
 	if (Parent)
 	{
-		const UMaterial* Base = GetMaterial();
-		UE_LOG(LogConsoleResponse, Display, TEXT("  Base %s"), Base ? *Base->GetFullName() : TEXT("null"));
-
-		if (Base)
-		{
-			static const UEnum* Enum = StaticEnum<EMaterialDomain>();
-			check(Enum);
-			UE_LOG(LogConsoleResponse, Display, TEXT("  MaterialDomain %s"), *Enum->GetNameStringByValue(int64(Base->MaterialDomain)));
-		}
 		if (bHasStaticPermutationResource)
 		{
 			for (FMaterialResource* CurrentResource : StaticPermutationMaterialResources)
 			{
-				CurrentResource->DumpDebugInfo();
+				CurrentResource->DumpDebugInfo(OutputDevice);
 			}
+
+#if WITH_EDITOR
+			for (auto& It : CachedMaterialResourcesForCooking)
+			{
+				for (FMaterialResource* CurrentResource : It.Value)
+				{
+					CurrentResource->DumpDebugInfo(OutputDevice);
+				}
+			}
+#endif // WITH_EDITOR
 		}
 		else
 		{

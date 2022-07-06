@@ -596,6 +596,8 @@ public:
 	ENGINE_API virtual void LogMaterialsAndTextures(FOutputDevice& Ar, int32 Indent) const {}
 #endif
 
+	ENGINE_API virtual void DumpDebugInfo(FOutputDevice& OutputDevice) const {}
+
 private:
 	// might get called from game or render thread
 	FMaterialRelevance GetRelevance_Internal(const UMaterial* Material, ERHIFeatureLevel::Type InFeatureLevel) const;

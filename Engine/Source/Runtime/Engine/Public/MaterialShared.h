@@ -1400,7 +1400,7 @@ public:
 			}
 		}
 	}
-	void DumpDebugInfo() const;
+	void DumpDebugInfo(FOutputDevice& OutputDevice) const;
 
 #if WITH_EDITOR
 	void InitalizeForODSC(EShaderPlatform TargetShaderPlatform, const FMaterialCompilationOutput& NewCompilationOutput);
@@ -2151,7 +2151,7 @@ public:
 	virtual void SetupExtaCompilationSettings(const EShaderPlatform Platform, FExtraShaderCompilerSettings& Settings) const
 	{}
 
-	void DumpDebugInfo();
+	void DumpDebugInfo(FOutputDevice& OutputDevice);
 	void SaveShaderStableKeys(EShaderPlatform TargetShaderPlatform, struct FStableShaderKeyAndValue& SaveKeyVal); // arg is non-const, we modify it as we go
 
 #if WITH_EDITOR

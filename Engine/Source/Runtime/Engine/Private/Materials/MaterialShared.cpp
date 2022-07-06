@@ -129,6 +129,37 @@ static FAutoConsoleCommand GFlushMaterialUniforms(
 })
 );
 
+#if WITH_EDITOR
+class FMaterialDumpDebugInfoExecHelper : public FSelfRegisteringExec
+{
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar)
+	{
+		if (FParse::Command(&Cmd, TEXT("material dumpdebuginfo")))
+		{
+			FString RequestedMaterialName(FParse::Token(Cmd, 0));
+
+			if (RequestedMaterialName.Len() > 0)
+			{
+				for (TObjectIterator<UMaterialInterface> It; It; ++It)
+				{
+					UMaterialInterface* Material = *It;
+					if (Material && Material->GetName() == RequestedMaterialName)
+					{
+						Material->DumpDebugInfo(Ar);
+						break;
+					}
+				}
+				return true;
+			}
+
+			TODO: PRINT WARNING
+		}
+		return false;
+	}
+};
+static FMaterialDumpDebugInfoExecHelper GMaterialDumpDebugInfoExecHelper;
+#endif
+
 // defined in the same module (Material.cpp)
 bool PoolSpecialMaterialsCompileJobs();
 
@@ -4245,18 +4276,11 @@ void FMaterial::RestoreEditorLoadedMaterialShadersFromMemory(const TMap<FMateria
 }
 #endif // WITH_EDITOR
 
-void FMaterial::DumpDebugInfo()
+void FMaterial::DumpDebugInfo(FOutputDevice& OutputDevice)
 {
 	if (GameThreadShaderMap)
 	{
-		FString FeatureLevelName;
-		GetFeatureLevelName(FeatureLevel, FeatureLevelName);
-		FString QualityLevelString;
-		GetMaterialQualityLevelName(QualityLevel, QualityLevelString);
-
-		UE_LOG(LogConsoleResponse, Display, TEXT("FMaterial:  FeatureLevel %s     Quality Level %s"), *FeatureLevelName, *QualityLevelString);
-
-		GameThreadShaderMap->DumpDebugInfo();
+		GameThreadShaderMap->DumpDebugInfo(OutputDevice);
 	}
 }
 
