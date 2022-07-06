@@ -832,7 +832,6 @@ namespace UnrealBuildTool
 		/// Tracks that information about used C++ library is only printed once
 		/// </summary>
 		private bool bHasPrintedBuildDetails = false;
-
 		protected void PrintBuildDetails(CppCompileEnvironment CompileEnvironment, ILogger Logger)
 		{
 			Logger.LogInformation("------- Build details --------");
