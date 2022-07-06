@@ -103,9 +103,6 @@ void MainCS(
 
 	FSampleSetDesc SampleDesc;
 
-	const float OpaqueDepth = SceneTexturesStruct.SceneDepthTexture.Load(uint3(PixelCoord, 0)).r;
-
-
 	const uint VisData0 = DepthCovTexture.Load(uint3(PixelCoord, 0));
 	const uint VisData1 = PrimMatTexture.Load(uint3(PixelCoord, 0));
 

@@ -1581,17 +1581,19 @@ bool NeedsPatchAttributeBuffer(EHairStrandsDebugMode DebugMode)
 
 static void ConvertHairStrandsVFParameters(
 	FRDGBuilder* GraphBuilder,
-	FRDGImportedBuffer& Buffer,
-	FShaderResourceViewRHIRef& BufferRHISRV,
+	FRDGImportedBuffer& OutBuffer,
+	FRDGExternalBuffer& OutExternalBuffer,
+	FShaderResourceViewRHIRef& OutBufferRHISRV,
 	const FRDGExternalBuffer& ExternalBuffer)
 {
 	if (GraphBuilder)
 	{
-		Buffer = Register(*GraphBuilder, ExternalBuffer, ERDGImportedBufferFlags::CreateSRV);
+		OutBuffer = Register(*GraphBuilder, ExternalBuffer, ERDGImportedBufferFlags::CreateSRV);
 	}
-	BufferRHISRV = ExternalBuffer.SRV;
+	OutBufferRHISRV = ExternalBuffer.SRV;
+	OutExternalBuffer = ExternalBuffer;
 }
-#define CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutName, ExternalBuffer) ConvertHairStrandsVFParameters(GraphBuilder, OutName, OutName##RHISRV, ExternalBuffer);
+#define CONVERT_HAIRSSTRANDS_VF_PARAMETERS(OutName, ExternalBuffer) ConvertHairStrandsVFParameters(GraphBuilder, OutName, OutName##External, OutName##RHISRV, ExternalBuffer);
 
 // Compute/Update the hair strands description which will be used for rendering (VF) / voxelization & co.
 static FHairGroupPublicData::FVertexFactoryInput InternalComputeHairStrandsVertexInputData(FRDGBuilder* GraphBuilder, const FHairGroupInstance* Instance)

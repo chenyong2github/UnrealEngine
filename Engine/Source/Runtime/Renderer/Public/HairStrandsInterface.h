@@ -261,6 +261,15 @@ public:
 			FRDGImportedBuffer PositionOffsetBuffer;
 			FRDGImportedBuffer PrevPositionOffsetBuffer;
 
+			FRDGExternalBuffer PositionBufferExternal;
+			FRDGExternalBuffer PrevPositionBufferExternal;
+			FRDGExternalBuffer TangentBufferExternal;
+			FRDGExternalBuffer MaterialBufferExternal;
+			FRDGExternalBuffer Attribute0BufferExternal;
+			FRDGExternalBuffer Attribute1BufferExternal;
+			FRDGExternalBuffer PositionOffsetBufferExternal;
+			FRDGExternalBuffer PrevPositionOffsetBufferExternal;
+
 			FShaderResourceViewRHIRef PositionBufferRHISRV				= nullptr;
 			FShaderResourceViewRHIRef PrevPositionBufferRHISRV			= nullptr;
 			FShaderResourceViewRHIRef TangentBufferRHISRV				= nullptr;
