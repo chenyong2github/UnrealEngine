@@ -651,7 +651,7 @@ FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderPro
 					{ValuePtr, ValueSize},
 					{
 						{Proxy->AttributeBuffer.GetData() + AttributeData.Offset, AttributeData.Size},
-						{Proxy->AttributeArrayData.GetData() + AttributeData.ArrayIndexStart, AttributeData.ArrayMetadata->Num()}	
+						{Proxy->AttributeArrayData.GetData() + AttributeData.ArrayIndexStart, AttributeData.ArrayMetadata ? AttributeData.ArrayMetadata->Num() : 0}	
 					});
 			}
 		
@@ -663,16 +663,19 @@ FComputeDataProviderRenderProxy* UOptimusAnimAttributeDataProvider::GetRenderPro
 
 				FMemory::Memcpy(&Proxy->AttributeBuffer[AttributeData.Offset], DefaultValuePtr, DefaultValueSize);
 
-				if (ensure(AttributeData.ArrayMetadata->Num() == AttributeData.CachedDefaultValue.ArrayList.Num()))
+				if (AttributeData.ArrayMetadata)
 				{
-					for (int32 ArrayIndex = 0; ArrayIndex < AttributeData.CachedDefaultValue.ArrayList.Num(); ArrayIndex++)
+					if (ensure(AttributeData.ArrayMetadata->Num() == AttributeData.CachedDefaultValue.ArrayList.Num()))
 					{
-						const int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
-						if (ensure(Proxy->AttributeArrayData.IsValidIndex(ToplevelArrayIndex)))
+						for (int32 ArrayIndex = 0; ArrayIndex < AttributeData.CachedDefaultValue.ArrayList.Num(); ArrayIndex++)
 						{
-							Proxy->AttributeArrayData[ToplevelArrayIndex] = AttributeData.CachedDefaultValue.ArrayList[ArrayIndex];
+							const int32 ToplevelArrayIndex = AttributeData.ArrayIndexStart + ArrayIndex;
+							if (ensure(Proxy->AttributeArrayData.IsValidIndex(ToplevelArrayIndex)))
+							{
+								Proxy->AttributeArrayData[ToplevelArrayIndex] = AttributeData.CachedDefaultValue.ArrayList[ArrayIndex];
+							}
 						}
-					}
+					}	
 				}
 			}
 		}

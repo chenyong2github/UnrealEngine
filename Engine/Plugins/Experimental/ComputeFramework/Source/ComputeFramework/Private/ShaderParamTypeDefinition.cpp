@@ -353,7 +353,7 @@ FString FShaderValueType::ToString(const FName& InStructTypeNameOverride) const
 		break;
 
 	case EShaderFundamentalType::Struct:
-		BaseName = InStructTypeNameOverride != NAME_None ? InStructTypeNameOverride.ToString() : Name.ToString();
+		BaseName = (InStructTypeNameOverride != NAME_None) ? InStructTypeNameOverride.ToString() : Name.ToString();
 		break;
 	}
 
