@@ -494,6 +494,15 @@ protected:
 #if D3D12_MAX_DEVICE_INTERFACE >= 7
 	TRefCountPtr<ID3D12Device7> RootDevice7;
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 8
+	TRefCountPtr<ID3D12Device8> RootDevice8;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 9
+	TRefCountPtr<ID3D12Device9> RootDevice9;
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 10
+	TRefCountPtr<ID3D12Device10> RootDevice10;
+#endif
 
 	TRefCountPtr<IDXGIFactory2> DxgiFactory2;
 #if DXGI_MAX_FACTORY_INTERFACE >= 3

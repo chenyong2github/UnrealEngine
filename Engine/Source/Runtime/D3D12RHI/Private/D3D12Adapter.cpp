@@ -538,19 +538,6 @@ void FD3D12Adapter::CreateRootDevice(bool bWithDebug)
 	}
 #endif // ENABLE_RESIDENCY_MANAGEMENT
 
-#if PLATFORM_WINDOWS
-	{
-		D3D12_FEATURE_DATA_D3D12_OPTIONS7 Features = {};
-		if (SUCCEEDED(RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS7, &Features, sizeof(Features))))
-		{
-			bHeapNotZeroedSupported = true;
-
-			GRHISupportsMeshShadersTier1 = (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM6) && (Features.MeshShaderTier == D3D12_MESH_SHADER_TIER_1);
-			GRHISupportsMeshShadersTier0 = GRHISupportsMeshShadersTier1;
-		}
-	}
-#endif
-
 #if NV_AFTERMATH
 	// Enable aftermath when GPU crash debugging is enabled
 	if (EnumHasAnyFlags(GPUCrashDebuggingModes, ED3D12GPUCrashDebuggingModes::NvAftermath) && GDX12NVAfterMathEnabled)
@@ -926,6 +913,27 @@ void FD3D12Adapter::InitializeDevices()
 				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device7 is supported."));
 			}
 #endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 8
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice8.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device8 is supported."));
+
+				// D3D12_HEAP_FLAG_CREATE_NOT_ZEROED is supported
+				bHeapNotZeroedSupported = true;
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 9
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice9.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device9 is supported."));
+			}
+#endif
+#if D3D12_MAX_DEVICE_INTERFACE >= 10
+			if (SUCCEEDED(RootDevice->QueryInterface(IID_PPV_ARGS(RootDevice10.GetInitReference()))))
+			{
+				UE_LOG(LogD3D12RHI, Log, TEXT("ID3D12Device10 is supported."));
+			}
+#endif
 
 			const bool bRenderDocPresent = D3D12RHI_IsRenderDocPresent(RootDevice);
 
@@ -1071,6 +1079,11 @@ void FD3D12Adapter::InitializeDevices()
 
 				D3D12_FEATURE_DATA_D3D12_OPTIONS11 D3D12Caps11 = {};
 				RootDevice->CheckFeatureSupport(D3D12_FEATURE_D3D12_OPTIONS11, &D3D12Caps11, sizeof(D3D12Caps11));
+
+				if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM6)
+				{
+					GRHISupportsMeshShadersTier0 = GRHISupportsMeshShadersTier1 = (D3D12Caps7.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1);
+				}
 
 				if (D3D12Caps7.MeshShaderTier >= D3D12_MESH_SHADER_TIER_1)
 				{

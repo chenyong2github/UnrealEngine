@@ -55,9 +55,14 @@ static inline bool ReadShaderOptionalData(FShaderCodeReader& InShaderCode, TShad
 	return true;
 }
 
-static bool ValidateShaderIsUsable(FD3D12ShaderData* InShader)
+static bool ValidateShaderIsUsable(FD3D12ShaderData* InShader, EShaderFrequency InFrequency)
 {
 #if D3D12RHI_NEEDS_SHADER_FEATURE_CHECKS
+	if ((InFrequency == SF_Mesh || InFrequency == SF_Amplification) && !GRHISupportsMeshShadersTier0)
+	{
+		return false;
+	}
+
 	if (EnumHasAnyFlags(InShader->Features, EShaderCodeFeatures::WaveOps) && !GRHISupportsWaveOperations)
 	{
 		return false;
@@ -80,7 +85,7 @@ bool InitShaderCommon(FShaderCodeReader& ShaderCode, int32 Offset, TShaderType* 
 		return false;
 	}
 
-	if (!ValidateShaderIsUsable(InShader))
+	if (!ValidateShaderIsUsable(InShader, InShader->GetFrequency()))
 	{
 		return false;
 	}
