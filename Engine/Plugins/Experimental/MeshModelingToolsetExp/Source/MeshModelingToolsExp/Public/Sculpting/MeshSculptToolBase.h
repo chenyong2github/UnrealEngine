@@ -466,7 +466,7 @@ protected:
 	FSculptBrushStamp HoverStamp;
 	FSculptBrushStamp CurrentStamp;
 	FSculptBrushStamp LastStamp;
-	virtual void UpdateHoverStamp(const FFrame3d& StampFrame);
+	virtual void UpdateHoverStamp(const FFrame3d& StampFrameWorld);
 	virtual bool IsStampPending() const { return bIsStampPending; }
 	virtual const FRay& GetPendingStampRayWorld() const { return PendingStampRay;  }
 

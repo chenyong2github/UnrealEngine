@@ -17,12 +17,13 @@
 #include "Image/ImageBuilder.h"
 #include "Util/UniqueIndexSet.h"
 #include "Polygroups/PolygroupSet.h"
+#include "Templates/PimplPtr.h"
 #include "MeshVertexSculptTool.generated.h"
 
 class UMaterialInstanceDynamic;
 class FMeshVertexChangeBuilder;
 class UPreviewMesh;
-
+PREDECLARE_GEOMETRY(class FMeshPlanarSymmetry);
 
 
 
@@ -172,6 +173,21 @@ public:
 
 
 
+UCLASS()
+class MESHMODELINGTOOLSEXP_API UMeshSymmetryProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+public:
+	/** Enable/Disable symmetric sculpting. This option will not be available if symmetry cannot be detected, or a non-symmetric edit has been made */
+	UPROPERTY(EditAnywhere, Category = Symmetry, meta = (HideEditConditionToggle, EditCondition = bSymmetryCanBeEnabled))
+	bool bEnableSymmetry = true;
+
+	// this flag is set/updated by the Tool to enable/disable the bEnableSymmetry toggle
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bSymmetryCanBeEnabled = false;
+};
+
+
 
 /**
  * Mesh Vertex Sculpt Tool Class
@@ -183,6 +199,7 @@ class MESHMODELINGTOOLSEXP_API UMeshVertexSculptTool : public UMeshSculptToolBas
 public:
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
+	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void OnTick(float DeltaTime) override;
 
@@ -204,6 +221,9 @@ public:
 
 	UPROPERTY()
 	TObjectPtr<UTexture2D> BrushAlpha;
+
+	UPROPERTY()
+	TObjectPtr<UMeshSymmetryProperties> SymmetryProperties;
 
 public:
 	virtual void IncreaseBrushSpeedAction() override;
@@ -228,7 +248,7 @@ protected:
 	virtual int32 FindHitTargetMeshTriangle(const FRay3d& LocalRay) override;
 	bool IsHitTriangleBackFacing(int32 TriangleID, const FDynamicMesh3* QueryMesh);
 
-	virtual void UpdateHoverStamp(const FFrame3d& StampFrame) override;
+	virtual void UpdateHoverStamp(const FFrame3d& StampFrameWorld) override;
 
 	virtual void OnBeginStroke(const FRay& WorldRay) override;
 	virtual void OnEndStroke() override;
@@ -311,6 +331,17 @@ protected:
 	TArray<FVector3d> ROIPositionBuffer;
 	TArray<FVector3d> ROIPrevPositionBuffer;
 
+	TPimplPtr<UE::Geometry::FMeshPlanarSymmetry> Symmetry;
+	bool bMeshSymmetryIsValid = false;
+	void TryToInitializeSymmetry();
+	friend class FVertexSculptNonSymmetricChange;
+	virtual void UndoRedo_RestoreSymmetryPossibleState(bool bSetToValue);
+
+	bool bApplySymmetry = false;
+	TArray<int> SymmetricVertexROI;
+	TArray<FVector3d> SymmetricROIPositionBuffer;
+	TArray<FVector3d> SymmetricROIPrevPositionBuffer;
+
 	FMeshVertexChangeBuilder* ActiveVertexChange = nullptr;
 	void BeginChange();
 	void EndChange();
@@ -319,6 +350,5 @@ protected:
 protected:
 	virtual bool ShowWorkPlane() const override { return SculptProperties->PrimaryBrushType == EMeshVertexSculptBrushType::FixedPlane; }
 };
-
 
 

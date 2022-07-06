@@ -252,7 +252,7 @@ void UMeshSculptToolBase::OnTick(float DeltaTime)
 	if (bInStroke)
 	{
 		BrushIndicator->Update((float)GetCurrentBrushRadius(),
-			CurrentStamp.WorldFrame.ToFTransform(), 1.0f - (float)GetCurrentBrushFalloff());
+			HoverStamp.WorldFrame.ToFTransform(), 1.0f - (float)GetCurrentBrushFalloff());
 	}
 	else
 	{
@@ -734,9 +734,11 @@ void UMeshSculptToolBase::SaveActiveStrokeModifiers()
 }
 
 
-void UMeshSculptToolBase::UpdateHoverStamp(const FFrame3d& StampFrame)
+void UMeshSculptToolBase::UpdateHoverStamp(const FFrame3d& StampFrameWorld)
 {
-	HoverStamp.WorldFrame = StampFrame;
+	HoverStamp.WorldFrame = StampFrameWorld;
+	HoverStamp.LocalFrame = HoverStamp.WorldFrame;
+	HoverStamp.LocalFrame.Transform(CurTargetTransform.InverseUnsafe());
 }
 
 void UMeshSculptToolBase::UpdateStampPendingState()
