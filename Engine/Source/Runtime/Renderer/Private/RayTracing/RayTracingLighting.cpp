@@ -378,7 +378,7 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
 IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLightFunctionParametersRayTracing, "RaytracingLightFunctionParameters");
 
-static TUniformBufferRef<FLightFunctionParametersRayTracing> CreateLightFunctionParametersBuffer(
+static TUniformBufferRef<FLightFunctionParametersRayTracing> CreateLightFunctionParametersBufferRT(
 	const FLightSceneInfo* LightSceneInfo,
 	const FSceneView& View,
 	EUniformBufferUsage Usage)
@@ -584,7 +584,7 @@ void BindLightFunctionShaders(
 
 		//create the uniform buffers we need
 		TUniformBufferRef<FDeferredLightUniformStruct> DeferredLightBuffer = CreateUniformBufferImmediate(GetDeferredLightParameters(View, *LightSceneInfo), EUniformBufferUsage::UniformBuffer_SingleFrame);
-		TUniformBufferRef<FLightFunctionParametersRayTracing> LightFunctionParameters = CreateLightFunctionParametersBuffer(LightSceneInfo, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
+		TUniformBufferRef<FLightFunctionParametersRayTracing> LightFunctionParameters = CreateLightFunctionParametersBufferRT(LightSceneInfo, View, EUniformBufferUsage::UniformBuffer_SingleFrame);
 
 		int32 MissIndex = LightAndIndex.Value;
 		BindLightFunction(RHICmdList, Scene, View, Material, MaterialRenderProxy, DeferredLightBuffer, LightFunctionParameters, MissIndex);
