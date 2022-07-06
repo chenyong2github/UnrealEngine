@@ -151,8 +151,6 @@ class FMaterialDumpDebugInfoExecHelper : public FSelfRegisteringExec
 				}
 				return true;
 			}
-
-			TODO: PRINT WARNING
 		}
 		return false;
 	}
