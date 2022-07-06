@@ -3578,12 +3578,9 @@ void FNDIHairStrandsProxy::PostSimulate(const FNDIGpuComputePostSimulateContext&
 		Context.GetComputeDispatchInterface().MultiGPUResourceModified(Context.GetGraphBuilder(), DeformedPositionBuffer, false, true);
 	}
 
-	if (Context.IsFinalPostSimulate())
+	if (bIsHairValid && Context.IsFinalPostSimulate())
 	{
-		if (ProxyData->HairStrandsBuffer->IsInitialized())
-		{
-			ProxyData->HairStrandsBuffer->BoundingBoxBuffer.EndGraphUsage();
-		}
+		ProxyData->HairStrandsBuffer->BoundingBoxBuffer.EndGraphUsage();
 	}
 }
 
