@@ -69,9 +69,9 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 							{
 								if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 								{
-									if (FDataflowOutput* LinkedConBase = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
+									if (FDataflowOutput* LinkedConOutput = LinkedDataflowNode->FindOutput(FName(LinkedCon->GetName())))
 									{
-										DataflowGraph->Connect(ConnectionInput, LinkedConBase);
+										DataflowGraph->Connect(LinkedConOutput, ConnectionInput);
 									}
 								}
 							}
@@ -92,9 +92,9 @@ void UDataflowEdNode::PinConnectionListChanged(UEdGraphPin* Pin)
 							{
 								if (TSharedPtr<FDataflowNode> LinkedDataflowNode = DataflowGraph->FindBaseNode(LinkedNode->GetDataflowNodeGuid()))
 								{
-									if (FDataflowInput* LinkedConBase = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
+									if (FDataflowInput* LinkedConInput = LinkedDataflowNode->FindInput(FName(LinkedCon->GetName())))
 									{
-										DataflowGraph->Connect(LinkedConBase, ConnectionOutput);
+										DataflowGraph->Connect(ConnectionOutput, LinkedConInput);
 									}
 								}
 							}

@@ -29,7 +29,7 @@ namespace Dataflow
 				{
 					if (Input)
 					{
-						Disconnect(Input, Output);
+						Disconnect(Output, Input);
 					}
 				}
 			}
@@ -43,7 +43,7 @@ namespace Dataflow
 				{
 					if (Output)
 					{
-						Disconnect(Input, Output);
+						Disconnect(Output, Input);
 					}
 				}
 			}
@@ -57,20 +57,20 @@ namespace Dataflow
 		//            or implement a better sync for the EdGraph and DataflowGraph
 		if (Connection->GetDirection() == FPin::EDirection::INPUT)
 		{
-			FDataflowInput* ConnectionIn = reinterpret_cast<FDataflowInput*>(Connection);
+			FDataflowInput* ConnectionIn = static_cast<FDataflowInput*>(Connection);
 			TArray<FDataflowOutput*> BaseOutputs = ConnectionIn->GetConnectedOutputs();
 			for (FDataflowOutput* Output : BaseOutputs)
 			{
-				Disconnect(ConnectionIn, Output);
+				Disconnect(Output, ConnectionIn);
 			}
 		}
 		else if (Connection->GetDirection() == FPin::EDirection::OUTPUT)
 		{
-			FDataflowOutput* ConnectionOut = reinterpret_cast<FDataflowOutput*>(Connection);
+			FDataflowOutput* ConnectionOut = static_cast<FDataflowOutput*>(Connection);
 			TArray<FDataflowInput*> BaseInputs = ConnectionOut->GetConnectedInputs();
 			for (FDataflowInput* Input : BaseInputs)
 			{
-				Disconnect(Input, ConnectionOut);
+				Disconnect(ConnectionOut, Input);
 			}
 		}
 	}
@@ -79,7 +79,7 @@ namespace Dataflow
 	{
 		for (FDataflowOutput* Output : InConnection->GetConnectedOutputs())
 		{
-			Disconnect(InConnection, Output);
+			Disconnect(Output, InConnection);
 		}
 	}
 
@@ -87,30 +87,30 @@ namespace Dataflow
 	{
 		for (FDataflowInput* Input : OutConnection->GetConnectedInputs())
 		{
-			Disconnect(Input, OutConnection);
+			Disconnect(OutConnection, Input);
 		}
 	}
 
 
-	void FGraph::Connect(FDataflowInput* InputConnection, FDataflowOutput* OutputConnection)
+	void FGraph::Connect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection)
 	{
-		if (ensure(InputConnection && OutputConnection))
+		if (ensure(OutputConnection && InputConnection))
 		{
-			InputConnection->AddConnection(OutputConnection);
 			OutputConnection->AddConnection(InputConnection);
+			InputConnection->AddConnection(OutputConnection);
 			Connections.Add(FLink(
-				InputConnection->GetOwningNode()->GetGuid(), InputConnection->GetGuid(), 
-				OutputConnection->GetOwningNode()->GetGuid(), OutputConnection->GetGuid()));
+				OutputConnection->GetOwningNode()->GetGuid(), OutputConnection->GetGuid(),
+				InputConnection->GetOwningNode()->GetGuid(), InputConnection->GetGuid()));
 		}
 	}
 
-	void FGraph::Disconnect(FDataflowInput* InputConnection, FDataflowOutput* OutputConnection)
+	void FGraph::Disconnect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection)
 	{
-		InputConnection->RemoveConnection(OutputConnection);
 		OutputConnection->RemoveConnection(InputConnection);
+		InputConnection->RemoveConnection(OutputConnection);
 		Connections.RemoveSwap(FLink(
-			InputConnection->GetOwningNode()->GetGuid(), InputConnection->GetGuid(),
-			OutputConnection->GetOwningNode()->GetGuid(), OutputConnection->GetGuid()));
+			OutputConnection->GetOwningNode()->GetGuid(), OutputConnection->GetGuid(),
+			InputConnection->GetOwningNode()->GetGuid(), InputConnection->GetGuid()));
 
 	}
 
@@ -212,7 +212,7 @@ namespace Dataflow
 					{
 						if (ConnectionGuidMap[Con.Input]->GetType() == ConnectionGuidMap[Con.Output]->GetType())
 						{
-							Connect(reinterpret_cast<FDataflowInput*>(ConnectionGuidMap[Con.Input]), reinterpret_cast<FDataflowOutput*>(ConnectionGuidMap[Con.Output]));
+							Connect(static_cast<FDataflowOutput*>(ConnectionGuidMap[Con.Output]), static_cast<FDataflowInput*>(ConnectionGuidMap[Con.Input]));
 						}
 					}
 				}

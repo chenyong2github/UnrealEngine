@@ -91,8 +91,8 @@ namespace Dataflow
 		void ClearConnections(FDataflowInput* Input);
 		void ClearConnections(FDataflowOutput* Output);
 
-		void Connect(FDataflowInput* InputConnection, FDataflowOutput* OutputConnection);
-		void Disconnect(FDataflowInput* InputConnection, FDataflowOutput* OutputConnection);
+		void Connect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection);
+		void Disconnect(FDataflowOutput* OutputConnection, FDataflowInput* InputConnection);
 
 		virtual void Serialize(FArchive& Ar);
 		const TSet<FName>& GetDisabledNodes() const { return DisabledNodes; }
