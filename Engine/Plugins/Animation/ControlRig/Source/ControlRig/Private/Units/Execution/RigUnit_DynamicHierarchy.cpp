@@ -718,6 +718,44 @@ FRigUnit_HierarchyAddAnimationChannelFloat_Execute()
 	}
 }
 
+FRigUnit_HierarchyAddAnimationChannelInteger_Execute()
+{
+	FString ErrorMessage;
+	if(!FRigUnit_DynamicHierarchyBase::IsValidToRunInContext(Context, ExecuteContext, true, &ErrorMessage))
+	{
+		if(!ErrorMessage.IsEmpty())
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("%s"), *ErrorMessage);
+		}
+		return;
+	}
+
+	Item.Reset();
+
+	if(URigHierarchyController* Controller = ExecuteContext.Hierarchy->GetController(true))
+	{
+		FRigControlSettings ControlSettings;
+		ControlSettings.ControlType = ERigControlType::Integer;
+		ControlSettings.SetupLimitArrayForType(true, true, true);
+		ControlSettings.MinimumValue = FRigControlValue::Make<int32>(MinimumValue);
+		ControlSettings.MaximumValue = FRigControlValue::Make<int32>(MaximumValue);
+		const FRigControlValue Value = FRigControlValue::Make<int32>(InitialValue);
+		
+		FRigHierarchyControllerInstructionBracket InstructionBracket(Controller, RigVMExecuteContext.GetInstructionIndex());
+		Item = Controller->AddAnimationChannel(Name, Parent, ControlSettings, false, false);
+
+		if(Item.IsValid())
+		{
+			ExecuteContext.Hierarchy->SetControlValue(Item, Value, ERigControlValueType::Initial, false, false);
+			ExecuteContext.Hierarchy->SetControlValue(Item, Value, ERigControlValueType::Current, false, false);
+		}
+		else
+		{
+			UE_CONTROLRIG_RIGUNIT_REPORT_ERROR(TEXT("Animation Channel could not be added. Is Parent valid?"));
+		}
+	}
+}
+
 FRigUnit_HierarchyAddAnimationChannelVector2D_Execute()
 {
 	FString ErrorMessage;

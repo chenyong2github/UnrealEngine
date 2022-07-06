@@ -1054,6 +1054,45 @@ struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelFloat : public FRigUn
  * Adds a new animation channel to the hierarchy
  * Note: This node only runs as part of the construction event.
  */
+USTRUCT(meta=(DisplayName="Spawn Integer Animation Channel", TemplateName="SpawnAnimationChannel", Keywords="Construction,Create,New,AddAnimationChannel,NewAnimationChannel,CreateAnimationChannel,AddChannel,NewChannel,CreateChannel,SpawnChannel", Varying))
+struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelInteger : public FRigUnit_HierarchyAddElement
+{
+	GENERATED_BODY()
+
+	FRigUnit_HierarchyAddAnimationChannelInteger()
+	{
+		Name = TEXT("NewChannel");
+		InitialValue = 0;
+		MinimumValue = 0;
+		MaximumValue = 100;
+	}
+
+	/*
+	 * The initial value of the new animation channel
+	 */
+	UPROPERTY(meta = (Input))
+	int32 InitialValue;
+
+	/*
+	 * The initial value of the new animation channel
+	 */
+	UPROPERTY(meta = (Input))
+	int32 MinimumValue;
+
+	/*
+	 * The maximum value for the animation channel
+	 */
+	UPROPERTY(meta = (Input))
+	int32 MaximumValue;
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+};
+
+/**
+ * Adds a new animation channel to the hierarchy
+ * Note: This node only runs as part of the construction event.
+ */
 USTRUCT(meta=(DisplayName="Spawn Vector2D Animation Channel", TemplateName="SpawnAnimationChannel", Keywords="Construction,Create,New,AddAnimationChannel,NewAnimationChannel,CreateAnimationChannel,AddChannel,NewChannel,CreateChannel,SpawnChannel", Varying))
 struct CONTROLRIG_API FRigUnit_HierarchyAddAnimationChannelVector2D : public FRigUnit_HierarchyAddElement
 {
