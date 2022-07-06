@@ -596,6 +596,30 @@ struct FLobbyInvitationRemoved
 
 };
 
+/** Lobby join requested source */
+enum class EUILobbyJoinRequestedSource : uint8
+{
+	/** Unspecified by the online service */
+	Unspecified,
+	/** From an invitation */
+	FromInvitation,
+};
+ONLINESERVICESINTERFACE_API const TCHAR* LexToString(EUILobbyJoinRequestedSource UILobbyJoinRequestedSource);
+ONLINESERVICESINTERFACE_API void LexFromString(EUILobbyJoinRequestedSource& OutUILobbyJoinRequestedSource, const TCHAR* InStr);
+
+/** Struct for UILobbyJoinedRequested event */
+struct FUILobbyJoinRequested
+{
+	/** The local user associated with the join request. */
+	FOnlineAccountIdHandle LocalUserId;
+
+	/** The lobby the local user requested to join, or the online error if there was a failure */
+	TResult<TSharedRef<const FLobby>, FOnlineError> Result;
+
+	/** Join request source */
+	EUILobbyJoinRequestedSource JoinRequestedSource = EUILobbyJoinRequestedSource::Unspecified;
+};
+
 class ILobbies
 {
 public:
@@ -811,6 +835,13 @@ public:
 	 * @return Event that can be bound to
 	 */
 	virtual TOnlineEvent<void(const FLobbyInvitationRemoved&)> OnLobbyInvitationRemoved() = 0;
+
+	/**
+	 * Get the event that is triggered when a join is requested through an external mechanism.
+	 *
+	 * @return Event that can be bound to
+	 */
+	virtual TOnlineEvent<void(const FUILobbyJoinRequested&)> OnUILobbyJoinRequested() = 0;
 };
 
 namespace Meta {
@@ -926,10 +957,64 @@ BEGIN_ONLINE_STRUCT_META(FGetJoinedLobbies::Result)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetReceivedInvitations::Params)
+	ONLINE_STRUCT_FIELD(FGetReceivedInvitations::Params, LocalUserId)
 END_ONLINE_STRUCT_META()
 
 BEGIN_ONLINE_STRUCT_META(FGetReceivedInvitations::Result)
 END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyJoined)
+	ONLINE_STRUCT_FIELD(FLobbyJoined, Lobby)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyLeft)
+	ONLINE_STRUCT_FIELD(FLobbyLeft, Lobby)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyMemberJoined)
+	ONLINE_STRUCT_FIELD(FLobbyMemberJoined, Lobby),
+	ONLINE_STRUCT_FIELD(FLobbyMemberJoined, Member)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyMemberLeft)
+	ONLINE_STRUCT_FIELD(FLobbyMemberLeft, Lobby),
+	ONLINE_STRUCT_FIELD(FLobbyMemberLeft, Member),
+	ONLINE_STRUCT_FIELD(FLobbyMemberLeft, Reason)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyLeaderChanged)
+	ONLINE_STRUCT_FIELD(FLobbyLeaderChanged, Lobby),
+	ONLINE_STRUCT_FIELD(FLobbyLeaderChanged, Leader)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyAttributesChanged)
+	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, Lobby),
+	ONLINE_STRUCT_FIELD(FLobbyAttributesChanged, ChangedAttributes)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyMemberAttributesChanged)
+	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, Lobby),
+	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, Member),
+	ONLINE_STRUCT_FIELD(FLobbyMemberAttributesChanged, ChangedAttributes)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyInvitationAdded)
+	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, SenderId),
+	ONLINE_STRUCT_FIELD(FLobbyInvitationAdded, Lobby)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FLobbyInvitationRemoved)
+	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, LocalUserId),
+	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, SenderId),
+	ONLINE_STRUCT_FIELD(FLobbyInvitationRemoved, Lobby)
+END_ONLINE_STRUCT_META()
+
+BEGIN_ONLINE_STRUCT_META(FUILobbyJoinRequested)
+	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, LocalUserId),
+	ONLINE_STRUCT_FIELD(FUILobbyJoinRequested, Result)
+END_ONLINE_STRUCT_META()
+
 
 /* Meta*/ }
 

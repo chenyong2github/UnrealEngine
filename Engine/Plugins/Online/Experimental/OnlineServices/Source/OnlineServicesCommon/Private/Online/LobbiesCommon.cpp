@@ -222,6 +222,11 @@ TOnlineEvent<void(const FLobbyInvitationRemoved&)> FLobbiesCommon::OnLobbyInvita
 	return LobbyEvents.OnLobbyInvitationRemoved;
 }
 
+TOnlineEvent<void(const FUILobbyJoinRequested&)> FLobbiesCommon::OnUILobbyJoinRequested()
+{
+	return LobbyEvents.OnUILobbyJoinRequested;
+}
+
 #if LOBBIES_FUNCTIONAL_TEST_ENABLED
 TOnlineAsyncOpHandle<FFunctionalTestLobbies> FLobbiesCommon::FunctionalTest(FFunctionalTestLobbies::Params&& Params)
 {

@@ -978,42 +978,63 @@ void FLobbiesEOSGS::HandleLobbyInviteReceived(const EOS_Lobby_LobbyInviteReceive
 
 void FLobbiesEOSGS::HandleLobbyInviteAccepted(const EOS_Lobby_LobbyInviteAcceptedCallbackInfo* Data)
 {
-#if 0
-	EOS_STRUCT(EOS_Lobby_LobbyInviteAcceptedCallbackInfo, (
-		/** Context that was passed into EOS_Lobby_AddNotifyLobbyInviteAccepted */
-		void* ClientData;
-		/** The invite ID */
-		const char* InviteId;
-		/** The Product User ID of the local user who received the invitation */
-		EOS_ProductUserId LocalUserId;
-		/** The Product User ID of the user who sent the invitation */
-		EOS_ProductUserId TargetUserId;
-		/** Lobby ID that the user has been invited to */
-		const char* LobbyId;
-	));
-#endif
+	// Todo: Queue this like an operation.
+	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	if (LocalUserId.IsValid())
+	{
+		FLobbyInviteDataEOS::CreateFromInviteId(LobbyPrerequisites.ToSharedRef(), LobbyDataRegistry.ToSharedRef(), LocalUserId, Data->InviteId, Data->TargetUserId)
+			.Then([this](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyInviteDataEOS>>>&& Future)
+				{
+					if (Future.Get().IsError())
+					{
+						// Todo: Log / queue a manual fetch of invitations.
+						UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOSGS::HandleLobbyInviteReceived] Failed to receive invite. Error: %s"),
+							*Future.Get().GetErrorValue().GetLogString());
+					}
+					else
+					{
+						UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOSGS::HandleLobbyInviteReceived] Received invite. Id: %s, Lobby: %s, Receiver: %s, Sender: %s"),
+							*Future.Get().GetOkValue()->GetInviteId(),
+							*Future.Get().GetOkValue()->GetLobbyData()->GetLobbyId(),
+							*ToLogString(Future.Get().GetOkValue()->GetReceiver()),
+							*ToLogString(Future.Get().GetOkValue()->GetSender()));
+						const TSharedRef<FLobbyInviteDataEOS>& Invite = Future.Get().GetOkValue();
 
-	// Todo: handle catalog of sent invitations.
+						LobbyEvents.OnUILobbyJoinRequested.Broadcast(
+							FUILobbyJoinRequested{
+								Invite->GetReceiver(),
+								TResult<TSharedRef<const FLobby>, FOnlineError>(Invite->GetLobbyData()->GetClientLobbyData()->GetPublicDataPtr()),
+								EUILobbyJoinRequestedSource::FromInvitation
+							});
+					}
+				});
+	}
 }
 
 void FLobbiesEOSGS::HandleJoinLobbyAccepted(const EOS_Lobby_JoinLobbyAcceptedCallbackInfo* Data)
 {
-#if 0
-	EOS_STRUCT(EOS_Lobby_JoinLobbyAcceptedCallbackInfo, (
-		/** Context that was passed into EOS_Lobby_AddNotifyJoinLobbyAccepted */
-		void* ClientData;
-		/** The Product User ID of the local user who is joining */
-		EOS_ProductUserId LocalUserId;
-		/** 
-		 * The UI Event associated with this Join Game event.
-		 * This should be used with EOS_Lobby_CopyLobbyDetailsHandleByUiEventId to get a handle to be used
-		 * when calling EOS_Lobby_JoinLobby.
-		 */
-		EOS_UI_EventId UiEventId;
-	));
-#endif
-
-	// Todo: handle UI events.
+	// Todo: Queue this like an operation.
+	const FOnlineAccountIdHandle LocalUserId = FindAccountId(Data->LocalUserId);
+	if (LocalUserId.IsValid())
+	{
+		TDefaultErrorResultInternal<TSharedRef<FLobbyDetailsEOS>> LobbyDetailsResult = 
+			FLobbyDetailsEOS::CreateFromUiEventId(LobbyPrerequisites.ToSharedRef(), LocalUserId, Data->UiEventId);
+		if (LobbyDetailsResult.IsError())
+		{
+			// Todo: Log / queue a manual fetch of invitations.
+			UE_LOG(LogTemp, Warning, TEXT("[FLobbiesEOSGS::HandleJoinLobbyAccepted] Failed to receive invite. Error: %s"),
+				*LobbyDetailsResult.GetErrorValue().GetLogString());
+		}
+		LobbyDataRegistry->FindOrCreateFromLobbyDetails(LocalUserId, LobbyDetailsResult.GetOkValue()).Then([this, LocalUserId](TFuture<TDefaultErrorResultInternal<TSharedRef<FLobbyDataEOS>>> && Result)
+		{
+			LobbyEvents.OnUILobbyJoinRequested.Broadcast(
+				FUILobbyJoinRequested{
+					LocalUserId,
+					TResult<TSharedRef<const FLobby>, FOnlineError>(Result.Get().GetOkValue()->GetClientLobbyData()->GetPublicDataPtr()),
+					EUILobbyJoinRequestedSource::Unspecified
+				});
+		});
+	}
 }
 
 void FLobbiesEOSGS::RegisterHandlers()
@@ -1058,7 +1079,7 @@ void FLobbiesEOSGS::RegisterHandlers()
 	OnLobbyInviteAcceptedEOSEventRegistration = EOS_RegisterComponentEventHandler(
 		this,
 		LobbyPrerequisites->LobbyInterfaceHandle,
-		EOS_LOBBY_ADDNOTIFYLOBBYINVITERECEIVED_API_LATEST,
+		EOS_LOBBY_ADDNOTIFYLOBBYINVITEACCEPTED_API_LATEST,
 		&EOS_Lobby_AddNotifyLobbyInviteAccepted,
 		&EOS_Lobby_RemoveNotifyLobbyInviteAccepted,
 		&FLobbiesEOSGS::HandleLobbyInviteAccepted);
@@ -1272,7 +1293,7 @@ TOnlineAsyncOpHandle<FLobbiesEOSGS::FJoinLobbyMemberImpl> FLobbiesEOSGS::JoinLob
 		JoinLobbyOptions.ApiVersion = EOS_LOBBY_JOINLOBBY_API_LATEST;
 		JoinLobbyOptions.LobbyDetailsHandle = LobbyDetails->GetEOSHandle();
 		JoinLobbyOptions.LocalUserId = GetProductUserIdChecked(Params.LocalUserId);
-		JoinLobbyOptions.bPresenceEnabled = false;
+		JoinLobbyOptions.bPresenceEnabled = false; // todo
 		JoinLobbyOptions.LocalRTCOptions = nullptr;
 		EOS_Async(EOS_Lobby_JoinLobby, LobbyPrerequisites->LobbyInterfaceHandle, JoinLobbyOptions, MoveTemp(Promise));
 	})

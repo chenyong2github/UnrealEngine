@@ -209,6 +209,33 @@ void LexFromString(ELobbyComparisonOp& OutComparison, const TCHAR* InStr)
 	}
 }
 
+const TCHAR* LexToString(EUILobbyJoinRequestedSource UILobbyJoinRequestedSource)
+{
+	switch (UILobbyJoinRequestedSource)
+	{
+	case EUILobbyJoinRequestedSource::FromInvitation:	return TEXT("FromInvitation");
+	default:											checkNoEntry(); // Intentional fallthrough
+	case EUILobbyJoinRequestedSource::Unspecified:		return TEXT("Unspecified");
+	}
+}
+
+void LexFromString(EUILobbyJoinRequestedSource& OutUILobbyJoinRequestedSource, const TCHAR* InStr)
+{
+	if (FCString::Stricmp(InStr, TEXT("FromInvitation")) == 0)
+	{
+		OutUILobbyJoinRequestedSource = EUILobbyJoinRequestedSource::FromInvitation;
+	}
+	else if (FCString::Stricmp(InStr, TEXT("Unspecified")) == 0)
+	{
+		OutUILobbyJoinRequestedSource = EUILobbyJoinRequestedSource::Unspecified;
+	}
+	else
+	{
+		checkNoEntry();
+		OutUILobbyJoinRequestedSource = EUILobbyJoinRequestedSource::Unspecified;
+	}
+}
+
 void SortLobbies(const TArray<FFindLobbySearchFilter>& Filters, TArray<TSharedRef<const FLobby>>& Lobbies)
 {
 	// todo
