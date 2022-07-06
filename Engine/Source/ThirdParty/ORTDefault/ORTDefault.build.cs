@@ -54,7 +54,6 @@ public class ORTDefault : ModuleRules
 			PublicDefinitions.Add("WITH_ONNXRUNTIME");
 			PublicDefinitions.Add("ONNXRUNTIME_PLATFORM_PATH=bin/" + PlatformDir);
 			PublicDefinitions.Add("ONNXRUNTIME_DLL_NAME=" + "onnxruntime.dll");
-			PublicDefinitions.Add("ORT_API_MANUAL_INIT");
 			PublicDefinitions.Add("WIN32_LEAN_AND_MEAN");
 		}
 	}
