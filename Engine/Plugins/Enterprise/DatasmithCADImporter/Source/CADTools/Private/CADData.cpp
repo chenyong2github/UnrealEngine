@@ -227,7 +227,7 @@ ECADFormat FileFormat(const FString& Extension)
 	{
 		return ECADFormat::JT;
 	}
-	else if (Extension == TEXT("model"))
+	else if (Extension == TEXT("model") || Extension == TEXT("exp") || Extension == TEXT("session") || Extension == TEXT("dlv"))
 	{
 		return ECADFormat::CATIAV4;
 	}
@@ -242,7 +242,7 @@ ECADFormat FileFormat(const FString& Extension)
 	{
 		return ECADFormat::NX;
 	}
-	else if (Extension == TEXT("sat"))
+	else if (Extension == TEXT("sat") || Extension == TEXT("sab"))
 	{
 		return ECADFormat::ACIS;
 	}
