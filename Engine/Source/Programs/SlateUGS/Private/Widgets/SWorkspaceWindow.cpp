@@ -3,16 +3,18 @@
 #include "SWorkspaceWindow.h"
 
 #include "Styling/AppStyle.h"
-
 #include "DesktopPlatformModule.h"
 
-#include "../HordeBuildRowInfo.h"
+#include "UGSTab.h"
+#include "HordeBuildRowInfo.h"
 #include "SGameSyncTab.h"
 
 #define LOCTEXT_NAMESPACE "UGSWorkspaceWindow"
 
 void SWorkspaceWindow::Construct(const FArguments& InArgs)
 {
+	Tab = InArgs._Tab;
+
 	this->ChildSlot
 	[
 		SNew(SBox)
@@ -60,6 +62,11 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 					[
 						SAssignNew(LocalFileText, SEditableTextBox)
 						.HintText(LOCTEXT("FilePathHint", "Path/To/ProjectFile.uproject")) // Todo: Make hint text use backslash for Windows, forward slash for Unix
+			 			.OnTextChanged_Lambda([this](const FText& InText)
+						{
+							WorkspacePathText = InText.ToString();
+							fprintf(stderr, "Workspace path text changed to: %s\n", TCHAR_TO_ANSI(*WorkspacePathText));
+						})
 					]
 					+SHorizontalBox::Slot()
 					.FillWidth(2)
@@ -180,7 +187,7 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 					SNew(SButton)
 					.HAlign(HAlign_Center)
 					.Text(LOCTEXT("OkText", "Ok"))
-					.OnClicked(this, &SWorkspaceWindow::OnOkClicked)
+					.OnClicked(FOnClicked::CreateRaw(Tab, &UGSTab::OnWorkspaceChosen, WorkspacePathText))
 				]
 				+SHorizontalBox::Slot()
 				.HAlign(HAlign_Fill)
@@ -195,26 +202,6 @@ void SWorkspaceWindow::Construct(const FArguments& InArgs)
 			]
 		]
 	];
-}
-
-FReply SWorkspaceWindow::OnOkClicked()
-{
-	// Todo: Validate data
-	bool bIsDataValid = true;
-	if (bIsDataValid)
-	{
-		const TSharedRef<FGlobalTabmanager> TabManager = FGlobalTabmanager::Get();
-		
-		TabManager->SetActiveTab(TabManager->TryInvokeTab(FName("ActiveTab"))); // Todo: Pipe data into next window
-		TabManager->FindExistingLiveTab(FName("EmptyTab"))->RequestCloseTab();
-		FSlateApplication::Get().FindWidgetWindow(AsShared())->RequestDestroyWindow();
-	}
-	else
-	{
-		// Todo: Spawn error window telling user which data was invalid
-	}
-
-	return FReply::Handled();
 }
 
 FReply SWorkspaceWindow::OnCancelClicked()

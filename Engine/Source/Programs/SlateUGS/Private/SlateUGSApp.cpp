@@ -4,69 +4,16 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "Widgets/Docking/SDockTab.h"
-
+#include "UGSCore/GameSyncController.h"
 #include "Widgets/SGameSyncTab.h"
 #include "Widgets/SWorkspaceWindow.h"
 #include "Widgets/SEmptyTab.h"
 
+#include "UGSTabManager.h"
 
 IMPLEMENT_APPLICATION(SlateUGS, "SlateUGS");
 
 #define LOCTEXT_NAMESPACE "SlateUGS"
-
-namespace
-{
-	TSharedRef<SDockTab> SpawnEmptyTab(const FSpawnTabArgs& Arguments)
-	{
-		return SNew(SDockTab).TabRole(ETabRole::MajorTab)
-			[
-				SNew(SEmptyTab)
-			];
-	}
-	TSharedRef<SDockTab> SpawnActiveTab(const FSpawnTabArgs& Arguments)
-	{
-		// Todo: replace with real Horde build data (or gather this in the SGameSyncTab construct)
-		TArray<TSharedPtr<HordeBuildRowInfo>> HordeBuilds;
-		for (int i = 0; i < 35; i++)
-		{
-			TSharedPtr<HordeBuildRowInfo> Row = MakeShared<HordeBuildRowInfo>();
-			Row->bBuildStatus = !!(i % 2);
-			Row->Changelist   = FText::FromString("12345678");
-			Row->Time         = FText::FromString("11:48 AM");
-			Row->Author       = FText::FromString("Robert Seiver");
-			Row->Description  = FText::FromString("Fixed the thing");
-			Row->Status       = FText::FromString("Used by Brandon Schaefer, Michael Sartain, ...");
-
-			HordeBuilds.Add(Row);
-		}
-
-		return SNew(SDockTab).TabRole(ETabRole::MajorTab)
-			[
-				SNew(SGameSyncTab)
-					.HordeBuilds(HordeBuilds)
-			];
-	}
-	
-	void BuildWindow()
-	{
-		FGlobalTabmanager::Get()->RegisterTabSpawner("EmptyTab", FOnSpawnTab::CreateStatic(SpawnEmptyTab));
-		FGlobalTabmanager::Get()->RegisterTabSpawner("ActiveTab", FOnSpawnTab::CreateStatic(SpawnActiveTab));
-		TSharedRef<FTabManager::FLayout> Layout = FTabManager::NewLayout("UGS_Layout")
-		->AddArea
-		(
-			FTabManager::NewArea(1230, 900)
-			->Split
-			(
-				FTabManager::NewStack()
-				->AddTab("EmptyTab", ETabState::OpenedTab)
-				->AddTab("ActiveTab", ETabState::ClosedTab) // Todo: seems to be only one tab per ID, need several tabs all with UGSActiveTab contents
-				->SetForegroundTab(FName("EmptyTab"))
-			)
-		);
-		FGlobalTabmanager::Get()->RestoreFrom(Layout, TSharedPtr<SWindow>());
-	}
-}
 
 int RunSlateUGS(const TCHAR* CommandLine)
 {
@@ -92,7 +39,8 @@ int RunSlateUGS(const TCHAR* CommandLine)
 	FAppStyle::SetAppStyleSetName(FAppStyle::GetAppStyleSetName());
 
 	// Build the slate UI for the program window
-	BuildWindow();
+	UGSTabManager TabManager; 
+	TabManager.ConstructTabs();
 
 	// loop while the server does the rest
 	while (!IsEngineExitRequested())

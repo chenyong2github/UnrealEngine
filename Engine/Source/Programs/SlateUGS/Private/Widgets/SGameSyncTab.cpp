@@ -17,7 +17,7 @@
 
 TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<HordeBuildRowInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable)
 {
-	return SNew(STableRow<TSharedPtr<HordeBuildRowInfo>>, InOwnerTable)
+	return SNew(STableRow<TSharedPtr<HordeBuildRowInfo>>, InOwnerTable) // Todo: Maybe replace with SMultiColumnTableRow
 	[
 		SNew(SHorizontalBox)
 		// Build status
@@ -107,8 +107,7 @@ TSharedRef<ITableRow> SGameSyncTab::GenerateHordeBuildTableRow(TSharedPtr<HordeB
 
 void SGameSyncTab::Construct(const FArguments& InArgs)
 {
-	// Todo: Get horde builds from querying Perforce
-	SHordeBuilds = InArgs._HordeBuilds;
+	HordeBuilds = InArgs._HordeBuilds;
 
 	this->ChildSlot
 	[
@@ -404,8 +403,8 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 		+SVerticalBox::Slot()
 		.Padding(20.0f, 5.0f)
 		[
-			SAssignNew(SHordeBuildsView, SListView<TSharedPtr<HordeBuildRowInfo>>)
-			.ListItemsSource(&SHordeBuilds)
+			SAssignNew(HordeBuildsView, SListView<TSharedPtr<HordeBuildRowInfo>>)
+			.ListItemsSource(&HordeBuilds)
 			.OnGenerateRow(this, &SGameSyncTab::GenerateHordeBuildTableRow)
 		]
 		// Console window

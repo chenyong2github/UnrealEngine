@@ -5,10 +5,14 @@
 #include "SWorkspaceWindow.h"
 #include "Styling/AppStyle.h"
 
+#include "UGSTab.h"
+
 #define LOCTEXT_NAMESPACE "UGSEmptyTab"
 
 void SEmptyTab::Construct(const FArguments& InArgs)
 {
+	Tab = InArgs._Tab;
+
 	this->ChildSlot
 	[
 		SNew(SBox)
@@ -71,7 +75,7 @@ FReply SEmptyTab::OnOpenProjectClicked()
 	];
 
 	FSlateApplication& SlateApplication = FSlateApplication::Get();
-	SlateApplication.AddModalWindow(Window, SlateApplication.FindBestParentWindowForDialogs(nullptr), false);
+	SlateApplication.AddModalWindow(Window, Tab->GetTabArgs().GetOwnerWindow(), false);
 
 	return FReply::Handled();
 }
