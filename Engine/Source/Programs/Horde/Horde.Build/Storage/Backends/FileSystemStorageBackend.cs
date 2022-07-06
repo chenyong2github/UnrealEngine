@@ -51,7 +51,7 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public Task<Stream?> ReadAsync(string path)
+		public Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
 		{
 			FileReference location = FileReference.Combine(_baseDir, path);
 			if (!FileReference.Exists(location))
@@ -74,7 +74,7 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteAsync(string path, Stream stream)
+		public async Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken)
 		{
 			FileReference finalLocation = FileReference.Combine(_baseDir, path);
 			if (!FileReference.Exists(finalLocation))
@@ -87,7 +87,7 @@ namespace Horde.Build.Storage.Backends
 
 				using (Stream outputStream = FileReference.Open(tempLocation, FileMode.Create, FileAccess.Write, FileShare.Read))
 				{
-					await stream.CopyToAsync(outputStream);
+					await stream.CopyToAsync(outputStream, cancellationToken);
 				}
 
 				// Move the temp file into place
@@ -110,14 +110,14 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> ExistsAsync(string path)
+		public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
 		{
 			FileReference location = FileReference.Combine(_baseDir, path);
 			return Task.FromResult(FileReference.Exists(location));
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteAsync(string path)
+		public Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
 			FileReference location = FileReference.Combine(_baseDir, path);
 			FileReference.Delete(location);

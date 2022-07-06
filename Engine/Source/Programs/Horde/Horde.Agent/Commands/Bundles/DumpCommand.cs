@@ -37,7 +37,7 @@ namespace Horde.Agent.Commands.Bundles
 				logger.LogInformation("Summary for ref {RefId}", RefId);
 			}
 
-			IReadOnlyList<BlobId> references = await blob.GetReferencesAsync();
+			IReadOnlyList<BlobId> references = blob.References;
 			logger.LogInformation("");
 			logger.LogInformation("BlobRefs: {NumRefs}", references.Count);
 			foreach (BlobId reference in references)
@@ -45,7 +45,7 @@ namespace Horde.Agent.Commands.Bundles
 				logger.LogInformation("  {BlobId}", reference);
 			}
 
-			ReadOnlyMemory<byte> data = await blob.GetDataAsync();
+			ReadOnlyMemory<byte> data = blob.Data;
 			MemoryReader reader = new MemoryReader(data);
 			BundleHeader header = new BundleHeader(reader);
 			int packetStart = data.Length - reader.Memory.Length;

@@ -4,6 +4,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Net.Http.Headers;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Options;
 
@@ -65,21 +66,21 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<Stream?> ReadAsync(string path)
+		public async Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
 		{
-			Stream? localResult = await _localStorage.ReadAsync(path);
+			Stream? localResult = await _localStorage.ReadAsync(path, cancellationToken);
 			if (localResult != null)
 			{
 				return localResult;
 			}
 
 			Uri url = new Uri(_serverUrl, $"api/v1/debug/storage?path={path}");
-			using (HttpResponseMessage response = await _client.GetAsync(url))
+			using (HttpResponseMessage response = await _client.GetAsync(url, cancellationToken))
 			{
 				if (response.IsSuccessStatusCode)
 				{
-					byte[] responseData = await response.Content.ReadAsByteArrayAsync();
-					await _localStorage.WriteBytesAsync(path, responseData);
+					byte[] responseData = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+					await _localStorage.WriteBytesAsync(path, responseData, cancellationToken);
 					return new MemoryStream(responseData);
 				}
 			}
@@ -88,19 +89,19 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public Task WriteAsync(string path, Stream stream)
+		public Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken)
 		{
-			return _localStorage.WriteAsync(path, stream);
+			return _localStorage.WriteAsync(path, stream, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> ExistsAsync(string path)
+		public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
 		{
 			throw new NotSupportedException();
 		}
 
 		/// <inheritdoc/>
-		public Task DeleteAsync(string path)
+		public Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
 			throw new NotImplementedException();
 		}

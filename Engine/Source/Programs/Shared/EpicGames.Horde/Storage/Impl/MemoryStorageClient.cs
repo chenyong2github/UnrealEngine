@@ -44,12 +44,16 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public Dictionary<(NamespaceId, BucketId, RefId), IRef> Refs { get; } = new Dictionary<(NamespaceId, BucketId, RefId), IRef>();
 
-		private FakeCompressor _compressor = new FakeCompressor();
+		private readonly FakeCompressor _compressor = new FakeCompressor();
 
 		/// <inheritdoc/>
 		public Task<Stream> ReadBlobAsync(NamespaceId namespaceId, IoHash hash, CancellationToken cancellationToken = default)
 		{
-			ReadOnlyMemory<byte> data = Blobs[(namespaceId, hash)];
+			ReadOnlyMemory<byte> data;
+			if(!Blobs.TryGetValue((namespaceId, hash), out data))
+			{
+				throw new BlobNotFoundException(namespaceId, hash);
+			}
 			return Task.FromResult<Stream>(new ReadOnlyMemoryStream(data));
 		}
 		
@@ -145,7 +149,12 @@ namespace EpicGames.Horde.Storage.Impl
 		/// <inheritdoc/>
 		public Task<IRef> GetRefAsync(NamespaceId namespaceId, BucketId bucketId, RefId refId, CancellationToken cancellationToken = default)
 		{
-			return Task.FromResult(Refs[(namespaceId, bucketId, refId)]);
+			IRef? result;
+			if(!Refs.TryGetValue((namespaceId, bucketId, refId), out result))
+			{
+				throw new RefNotFoundException(namespaceId, bucketId, refId);
+			}
+			return Task.FromResult(result);
 		}
 
 		/// <inheritdoc/>

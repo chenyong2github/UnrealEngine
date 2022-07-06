@@ -307,7 +307,7 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> DeleteTreeAsync(RefId id, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(id, cancellationToken);
+		public Task DeleteTreeAsync(RefId id, CancellationToken cancellationToken) => _blobStore.DeleteRefAsync(id, cancellationToken);
 
 		/// <summary>
 		/// Gets the data for a given node

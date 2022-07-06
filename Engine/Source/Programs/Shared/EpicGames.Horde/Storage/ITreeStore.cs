@@ -62,8 +62,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="id">Name of the ref used to store the tree</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Tree writer instance</returns>
-		Task<bool> DeleteTreeAsync(RefId id, CancellationToken cancellationToken = default);
+		Task DeleteTreeAsync(RefId id, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Reads the root blob from a tree in storage

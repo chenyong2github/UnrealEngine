@@ -3,6 +3,7 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
@@ -16,41 +17,6 @@ namespace Horde.Agent.Commands.Bundles
 {
 	abstract class BundleCommandBase : Command
 	{
-		class FileBlob : IBlob
-		{
-			readonly IReadOnlyList<BlobId> _references;
-			readonly ReadOnlyMemory<byte> _data;
-
-			public FileBlob(IReadOnlyList<BlobId> references, ReadOnlyMemory<byte> data)
-			{
-				_references = references;
-				_data = data;
-			}
-
-			public static async Task<FileBlob> ReadAsync(FileReference file, CancellationToken cancellationToken)
-			{
-				byte[] bytes = await FileReference.ReadAllBytesAsync(file, cancellationToken);
-				MemoryReader reader = new MemoryReader(bytes);
-				IReadOnlyList<BlobId> references = reader.ReadVariableLengthArray(() => new BlobId(reader.ReadUtf8String()));
-				ReadOnlyMemory<byte> data = reader.ReadVariableLengthBytes();
-				return new FileBlob(references, data);
-			}
-
-			public async Task WriteAsync(FileReference file, CancellationToken cancellationToken)
-			{
-				ByteArrayBuilder writer = new ByteArrayBuilder();
-				writer.WriteVariableLengthArray(_references, x => writer.WriteUtf8String(x.Inner));
-				writer.WriteVariableLengthBytes(_data.Span);
-				await FileReference.WriteAllBytesAsync(file, writer.ToByteArray(), cancellationToken);
-			}
-
-			/// <inheritdoc/>
-			public ValueTask<ReadOnlyMemory<byte>> GetDataAsync() => new ValueTask<ReadOnlyMemory<byte>>(_data);
-
-			/// <inheritdoc/>
-			public ValueTask<IReadOnlyList<BlobId>> GetReferencesAsync() => new ValueTask<IReadOnlyList<BlobId>>(_references);
-		}
-
 		class FileBlobStore : IBlobStore
 		{
 			readonly DirectoryReference _rootDir;
@@ -67,14 +33,41 @@ namespace Horde.Agent.Commands.Bundles
 			FileReference GetRefFile(RefId id) => FileReference.Combine(_rootDir, id.Hash.ToString() + ".ref");
 			FileReference GetBlobFile(BlobId id) => FileReference.Combine(_rootDir, id.Inner.ToString() + ".blob");
 
-			public async Task<IBlob> ReadBlobAsync(BlobId id, CancellationToken cancellationToken = default)
+			static async Task WriteAsync(FileReference file, ReadOnlySequence<byte> sequence, CancellationToken cancellationToken)
+			{
+				using (FileStream stream = FileReference.Open(file, FileMode.Create, FileAccess.Write, FileShare.ReadWrite))
+				{
+					foreach (ReadOnlyMemory<byte> memory in sequence)
+					{
+						await stream.WriteAsync(memory, cancellationToken);
+					}
+				}
+			}
+
+			#region Blobs
+
+			public async Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetBlobFile(id);
 				_logger.LogInformation("Reading {File}", file);
-				return await FileBlob.ReadAsync(file, cancellationToken);
+				byte[] bytes = await FileReference.ReadAllBytesAsync(file, cancellationToken);
+				return BlobUtils.Deserialize(bytes);
 			}
 
-			public Task<bool> DeleteRefAsync(RefId id, CancellationToken cancellationToken = default)
+			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+			{
+				BlobId id = new BlobId(Guid.NewGuid().ToString());
+				FileReference file = GetBlobFile(id);
+				_logger.LogInformation("Writing {File}", file);
+				await WriteAsync(file, BlobUtils.Serialize(data, references), cancellationToken);
+				return id;
+			}
+
+			#endregion
+
+			#region Refs
+
+			public Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default)
 			{
 				throw new NotImplementedException();
 			}
@@ -84,28 +77,22 @@ namespace Horde.Agent.Commands.Bundles
 				throw new NotImplementedException();
 			}
 
-			public async Task<IBlob> ReadRefAsync(RefId id, CancellationToken cancellationToken = default)
+			public async Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(id);
 				_logger.LogInformation("Reading {File}", file);
-				return await FileBlob.ReadAsync(file, cancellationToken);
-			}
-
-			public async Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
-			{
-				BlobId id = new BlobId(Guid.NewGuid().ToString());
-				FileReference file = GetBlobFile(id);
-				_logger.LogInformation("Writing {File}", file);
-				await new FileBlob(references, data.AsSingleSegment()).WriteAsync(file, cancellationToken);
-				return id;
+				byte[] bytes = await FileReference.ReadAllBytesAsync(file, cancellationToken);
+				return BlobUtils.Deserialize(bytes);
 			}
 
 			public async Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 			{
 				FileReference file = GetRefFile(id);
 				_logger.LogInformation("Writing {File}", file);
-				await new FileBlob(references, data.AsSingleSegment()).WriteAsync(file, cancellationToken);
+				await WriteAsync(file, BlobUtils.Serialize(data, references), cancellationToken);
 			}
+
+			#endregion
 		}
 
 		public static RefId DefaultRefId { get; } = new RefId("default-ref");

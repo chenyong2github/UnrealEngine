@@ -86,8 +86,7 @@ namespace EpicGames.Horde.Storage
 		/// </summary>
 		/// <param name="id">The ref identifier</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns></returns>
-		Task<bool> DeleteRefAsync(RefId id, CancellationToken cancellationToken = default);
+		Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default);
 
 		#endregion
 	}
@@ -95,7 +94,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Extension methods for <see cref="IBlobStore"/>
 	/// </summary>
-	static class BlobStoreExtensions
+	public static class BlobStoreExtensions
 	{
 		/// <summary>
 		/// Reads a blob from the store, throwing an exception if it does not exist
@@ -135,7 +134,7 @@ namespace EpicGames.Horde.Storage
 	/// <summary>
 	/// Utility methods for blobs
 	/// </summary>
-	static class BlobUtils
+	public static class BlobUtils
 	{
 		class InMemoryBlob : IBlob
 		{

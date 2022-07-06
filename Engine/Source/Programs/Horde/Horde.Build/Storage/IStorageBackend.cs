@@ -1,7 +1,9 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
+using System.Buffers;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
 
@@ -16,29 +18,33 @@ namespace Horde.Build.Storage
 		/// Opens a read stream for the given path.
 		/// </summary>
 		/// <param name="path">Relative path within the bucket</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<Stream?> ReadAsync(string path);
+		Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Writes a stream to the given path. If the stream throws an exception during read, the write will be aborted.
 		/// </summary>
 		/// <param name="path">Relative path within the bucket</param>
 		/// <param name="stream">Stream to write</param>
-		Task WriteAsync(string path, Stream stream);
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Tests whether the given path exists
 		/// </summary>
 		/// <param name="path">Relative path within the bucket</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns></returns>
-		Task<bool> ExistsAsync(string path);
+		Task<bool> ExistsAsync(string path, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Deletes a file with the given path
 		/// </summary>
 		/// <param name="path">Relative path within the bucket</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
-		Task DeleteAsync(string path);
+		Task DeleteAsync(string path, CancellationToken cancellationToken = default);
 	}
 
 	/// <summary>
@@ -69,16 +75,16 @@ namespace Horde.Build.Storage
 			public StorageBackend(IStorageBackend inner) => _inner = inner;
 
 			/// <inheritdoc/>
-			public Task<Stream?> ReadAsync(string path) => _inner.ReadAsync(path);
+			public Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken) => _inner.ReadAsync(path, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task WriteAsync(string path, Stream stream) => _inner.WriteAsync(path, stream);
+			public Task WriteAsync(string path, Stream stream, CancellationToken cancellationToken) => _inner.WriteAsync(path, stream, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task DeleteAsync(string path) => _inner.DeleteAsync(path);
+			public Task DeleteAsync(string path, CancellationToken cancellationToken) => _inner.DeleteAsync(path, cancellationToken);
 
 			/// <inheritdoc/>
-			public Task<bool> ExistsAsync(string path) => _inner.ExistsAsync(path);
+			public Task<bool> ExistsAsync(string path, CancellationToken cancellationToken) => _inner.ExistsAsync(path, cancellationToken);
 		}
 
 		/// <summary>
@@ -97,10 +103,11 @@ namespace Horde.Build.Storage
 		/// </summary>
 		/// <param name="storageBackend"></param>
 		/// <param name="path"></param>
+		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task<ReadOnlyMemory<byte>?> ReadBytesAsync(this IStorageBackend storageBackend, string path)
+		public static async Task<ReadOnlyMemory<byte>?> ReadBytesAsync(this IStorageBackend storageBackend, string path, CancellationToken cancellationToken = default)
 		{
-			using (Stream? inputStream = await storageBackend.ReadAsync(path))
+			using (Stream? inputStream = await storageBackend.ReadAsync(path, cancellationToken))
 			{
 				if (inputStream == null)
 				{
@@ -109,7 +116,7 @@ namespace Horde.Build.Storage
 
 				using (MemoryStream outputStream = new MemoryStream())
 				{
-					await inputStream.CopyToAsync(outputStream);
+					await inputStream.CopyToAsync(outputStream, cancellationToken);
 					return outputStream.ToArray();
 				}
 			}
@@ -121,12 +128,13 @@ namespace Horde.Build.Storage
 		/// <param name="storageBackend"></param>
 		/// <param name="path"></param>
 		/// <param name="data"></param>
+		/// <param name="cancellationToken"></param>
 		/// <returns></returns>
-		public static async Task WriteBytesAsync(this IStorageBackend storageBackend, string path, ReadOnlyMemory<byte> data)
+		public static async Task WriteBytesAsync(this IStorageBackend storageBackend, string path, ReadOnlyMemory<byte> data, CancellationToken cancellationToken = default)
 		{
 			using (ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(data))
 			{
-				await storageBackend.WriteAsync(path, stream);
+				await storageBackend.WriteAsync(path, stream, cancellationToken);
 			}
 		}
 	}

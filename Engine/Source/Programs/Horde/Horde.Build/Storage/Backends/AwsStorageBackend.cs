@@ -161,7 +161,7 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task<Stream?> ReadAsync(string path)
+		public async Task<Stream?> ReadAsync(string path, CancellationToken cancellationToken)
 		{
 			string fullPath = GetFullPath(path);
 
@@ -169,13 +169,13 @@ namespace Horde.Build.Storage.Backends
 			GetObjectResponse? response = null;
 			try
 			{
-				semaLock = await _semaphore.UseWaitAsync();
+				semaLock = await _semaphore.UseWaitAsync(cancellationToken);
 
 				GetObjectRequest newGetRequest = new GetObjectRequest();
 				newGetRequest.BucketName = _options.BucketName;
 				newGetRequest.Key = fullPath;
 
-				response = await _client.GetObjectAsync(newGetRequest);
+				response = await _client.GetObjectAsync(newGetRequest, cancellationToken);
 
 				return new WrappedResponseStream(semaLock, response);
 			}
@@ -191,7 +191,7 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteAsync(string path, Stream inputStream)
+		public async Task WriteAsync(string path, Stream inputStream, CancellationToken cancellationToken)
 		{
 			TimeSpan[] retryTimes =
 			{
@@ -205,8 +205,8 @@ namespace Horde.Build.Storage.Backends
 			{
 				try
 				{
-					using IDisposable semaLock = await _semaphore.UseWaitAsync();
-					await WriteInternalAsync(fullPath, inputStream);
+					using IDisposable semaLock = await _semaphore.UseWaitAsync(cancellationToken);
+					await WriteInternalAsync(fullPath, inputStream, cancellationToken);
 					_logger.LogDebug("Written data to {Path}", path);
 					break;
 				}
@@ -224,7 +224,7 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task WriteInternalAsync(string fullPath, Stream stream)
+		public async Task WriteInternalAsync(string fullPath, Stream stream, CancellationToken cancellationToken)
 		{
 			const int MinPartSize = 5 * 1024 * 1024;
 
@@ -233,7 +233,7 @@ namespace Horde.Build.Storage.Backends
 			{
 				// Read the data into memory. Errors with hash value not matching if we don't do this (?)
 				byte[] buffer = new byte[streamLen];
-				await ReadExactLengthAsync(stream, buffer, (int)streamLen);
+				await ReadExactLengthAsync(stream, buffer, (int)streamLen, cancellationToken);
 
 				// Upload it to S3
 				using (MemoryStream inputStream = new MemoryStream(buffer))
@@ -243,7 +243,7 @@ namespace Horde.Build.Storage.Backends
 					uploadRequest.Key = fullPath;
 					uploadRequest.InputStream = inputStream;
 					uploadRequest.Metadata.Add("bytes-written", streamLen.ToString(CultureInfo.InvariantCulture));
-					await _client.PutObjectAsync(uploadRequest);
+					await _client.PutObjectAsync(uploadRequest, cancellationToken);
 				}
 			}
 			else
@@ -253,7 +253,7 @@ namespace Horde.Build.Storage.Backends
 				initiateRequest.BucketName = _options.BucketName;
 				initiateRequest.Key = fullPath;
 
-				InitiateMultipartUploadResponse initiateResponse = await _client.InitiateMultipartUploadAsync(initiateRequest);
+				InitiateMultipartUploadResponse initiateResponse = await _client.InitiateMultipartUploadAsync(initiateRequest, cancellationToken);
 				try
 				{
 					// Buffer for reading the data
@@ -265,7 +265,7 @@ namespace Horde.Build.Storage.Backends
 					{
 						// Read the next chunk of data into the buffer
 						int bufferLen = (int)Math.Min((long)MinPartSize, streamLen - streamPos);
-						await ReadExactLengthAsync(stream, buffer, bufferLen);
+						await ReadExactLengthAsync(stream, buffer, bufferLen, cancellationToken);
 						streamPos += bufferLen;
 
 						// Upload the part
@@ -280,7 +280,7 @@ namespace Horde.Build.Storage.Backends
 							partRequest.PartNumber = partTags.Count + 1;
 							partRequest.IsLastPart = (streamPos == streamLen);
 
-							UploadPartResponse partResponse = await _client.UploadPartAsync(partRequest);
+							UploadPartResponse partResponse = await _client.UploadPartAsync(partRequest, cancellationToken);
 							partTags.Add(new PartETag(partResponse.PartNumber, partResponse.ETag));
 						}
 					}
@@ -291,7 +291,7 @@ namespace Horde.Build.Storage.Backends
 					completeRequest.Key = fullPath;
 					completeRequest.UploadId = initiateResponse.UploadId;
 					completeRequest.PartETags = partTags;
-					await _client.CompleteMultipartUploadAsync(completeRequest);
+					await _client.CompleteMultipartUploadAsync(completeRequest, cancellationToken);
 				}
 				catch
 				{
@@ -300,7 +300,7 @@ namespace Horde.Build.Storage.Backends
 					abortRequest.BucketName = _options.BucketName;
 					abortRequest.Key = fullPath;
 					abortRequest.UploadId = initiateResponse.UploadId;
-					await _client.AbortMultipartUploadAsync(abortRequest);
+					await _client.AbortMultipartUploadAsync(abortRequest, cancellationToken);
 
 					throw;
 				}
@@ -313,13 +313,14 @@ namespace Horde.Build.Storage.Backends
 		/// <param name="stream">The stream to read from</param>
 		/// <param name="buffer">The buffer to read into</param>
 		/// <param name="length">Length of the data to read</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Async task</returns>
-		static async Task ReadExactLengthAsync(System.IO.Stream stream, byte[] buffer, int length)
+		static async Task ReadExactLengthAsync(System.IO.Stream stream, byte[] buffer, int length, CancellationToken cancellationToken)
 		{
 			int bufferPos = 0;
 			while (bufferPos < length)
 			{
-				int bytesRead = await stream.ReadAsync(buffer, bufferPos, length - bufferPos);
+				int bytesRead = await stream.ReadAsync(buffer, bufferPos, length - bufferPos, cancellationToken);
 				if (bytesRead == 0)
 				{
 					throw new InvalidOperationException("Unexpected end of stream");
@@ -329,23 +330,23 @@ namespace Horde.Build.Storage.Backends
 		}
 
 		/// <inheritdoc/>
-		public async Task DeleteAsync(string path)
+		public async Task DeleteAsync(string path, CancellationToken cancellationToken)
 		{
 			DeleteObjectRequest newDeleteRequest = new DeleteObjectRequest();
 			newDeleteRequest.BucketName = _options.BucketName;
 			newDeleteRequest.Key = GetFullPath(path);
-			await _client.DeleteObjectAsync(newDeleteRequest);
+			await _client.DeleteObjectAsync(newDeleteRequest, cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public async Task<bool> ExistsAsync(string path)
+		public async Task<bool> ExistsAsync(string path, CancellationToken cancellationToken)
 		{
 			try
 			{
 				GetObjectMetadataRequest request = new GetObjectMetadataRequest();
 				request.BucketName = _options.BucketName;
 				request.Key = GetFullPath(path);
-				await _client.GetObjectMetadataAsync(request);
+				await _client.GetObjectMetadataAsync(request, cancellationToken);
 				return true;
 			}
 			catch (AmazonS3Exception ex) when (ex.StatusCode == System.Net.HttpStatusCode.NotFound)
