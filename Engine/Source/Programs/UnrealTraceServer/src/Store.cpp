@@ -257,6 +257,8 @@ FStore::FTrace* FStore::FMount::AddTrace(const FPath& Path)
 ////////////////////////////////////////////////////////////////////////////////
 uint32 FStore::FMount::Refresh()
 {
+	Traces.Empty();
+
 	uint32 ChangeSerial = 0;
 	for (auto& DirItem : std::filesystem::directory_iterator(Dir))
 	{
