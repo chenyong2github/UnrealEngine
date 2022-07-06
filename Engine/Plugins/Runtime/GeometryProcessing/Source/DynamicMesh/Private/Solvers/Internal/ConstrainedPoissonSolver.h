@@ -7,6 +7,7 @@
 
 #include "FSparseMatrixD.h"
 #include "MatrixSolver.h"
+#include "Math/NumericLimits.h"
 
 // only needed if you enable logging by changing the typedef for FConstrainedSolverTimeLogger
 //#include "ProfilingDebugging/ScopedTimers.h"
@@ -56,8 +57,9 @@ public:
 
 
 	FConstrainedSolver(TUniquePtr<FSparseMatrixD>& SymmatrixMatrixOperator, const EMatrixSolverType MatrixSolverType)
-		: ConstraintPositions(SymmatrixMatrixOperator->cols())
+		: ConstraintPositions((int32)SymmatrixMatrixOperator->cols())
 	{
+		checkSlow(SymmatrixMatrixOperator->cols() <= MAX_int32);
 		SymmetricMatrixPtr.Reset(SymmatrixMatrixOperator.Release());
 
 		bMatrixSolverDirty = true;
@@ -201,7 +203,7 @@ public:
 
 		FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
 		// Set up the source vector
-		FSOAPositions RHSVector(SymmetricMatrix.cols());
+		FSOAPositions RHSVector((int32)SymmetricMatrix.cols());
 		for (int32 Dir = 0; Dir < 3; ++Dir) 
 		{
 			RHSVector.Array(Dir) = SourceVector.Array(Dir) + WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
@@ -226,7 +228,7 @@ public:
 		FConstrainedSolverTimeLogger Timmer(TEXT("Post-setup solve time"));
 
 		FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
-		FSOAPositions RHSVector(SymmetricMatrix.cols());
+		FSOAPositions RHSVector((int32)SymmetricMatrix.cols());
 		for (int32 Dir = 0; Dir < 3; ++Dir)
 		{
 			RHSVector.Array(Dir) = WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
@@ -255,7 +257,7 @@ public:
 			FConstrainedSolverTimeLogger Timmer(TEXT("Post-setup solve time"));
 
 			FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
-			FSOAPositions RHSVector(SymmetricMatrix.cols());
+			FSOAPositions RHSVector((int32)SymmetricMatrix.cols());
 			for (int32 Dir = 0; Dir < 3; ++Dir)
 			{
 				RHSVector.Array(Dir) = WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
@@ -290,7 +292,7 @@ public:
 
 			FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
 			// Set up the source vector
-			FSOAPositions RHSVector(SymmetricMatrix.cols());
+			FSOAPositions RHSVector((int32)SymmetricMatrix.cols());
 			for (int32 Dir = 0; Dir < 3; ++Dir)
 			{
 				RHSVector.Array(Dir) = SourceVector.Array(Dir) + WeightsSqrdMatrix * ConstraintPositions.Array(Dir);
@@ -324,7 +326,7 @@ protected:
 	void ClearConstraintPositions()
 	{
 		const FSparseMatrixD& SymmetricMatrix = *SymmetricMatrixPtr;
-		const int32 NumColumns = SymmetricMatrix.cols();
+		const int32 NumColumns = (int32)SymmetricMatrix.cols();
 
 		ConstraintPositions.SetZero(NumColumns);
 

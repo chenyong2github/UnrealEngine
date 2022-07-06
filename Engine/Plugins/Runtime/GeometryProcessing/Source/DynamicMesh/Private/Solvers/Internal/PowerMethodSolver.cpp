@@ -2,6 +2,7 @@
 
 #include "PowerMethodSolver.h"
 #include "DenseMatrix.h"
+#include "Math/NumericLimits.h"
 
 using namespace UE::Geometry;
 
@@ -231,6 +232,8 @@ void FSparsePowerMethod::CreateSparseMatrixOperator(const FSparseMatrixD& InMatr
                                                     const FMatrixHints& InMatrixHints,
                                                     MatrixOperator& OutMatrixOp) 
 {
+	checkSlow(InMatrix.rows() <= MAX_int32);
+
     EMatrixSolverType MatrixSolverType = InMatrixHints.bIsPSD ? EMatrixSolverType::FastestPSD : EMatrixSolverType::LU;
     bool bIsSymmetric = InMatrixHints.bIsSymmetric || InMatrixHints.bIsPSD;
     
@@ -254,6 +257,6 @@ void FSparsePowerMethod::CreateSparseMatrixOperator(const FSparseMatrixD& InMatr
 
     OutMatrixOp.Rows = [&InMatrix]() 
     {
-        return InMatrix.rows();
+        return (int32)InMatrix.rows();
     };
 }

@@ -138,7 +138,7 @@ double ConstructScaledCotangentLaplacian(const FDynamicMesh3& DynamicMesh, FVert
 	ConstructCotangentLaplacian(DynamicMesh, VertexMap, AreaMatrix, CotangentInterior, CotangentBoundary);
 
 	// Find average entry in the area matrix
-	const int32 Rank = AreaMatrix.cols();
+	const int32 Rank = (int32)AreaMatrix.cols();
 	double AveArea = 0.;
 	for (int32 i = 0; i < Rank; ++i)
 	{

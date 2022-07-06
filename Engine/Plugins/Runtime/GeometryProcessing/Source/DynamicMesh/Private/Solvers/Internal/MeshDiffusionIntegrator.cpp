@@ -54,7 +54,7 @@ void FMeshDiffusionIntegrator::Initialize(const FDynamicMesh3& DynamicMesh, cons
 	const FSparseMatrixD& M = DiffusionOperator;
 
 	// Find the min diagonal entry (all should be negative).
-	int32 Rank = M.rows();
+	int32 Rank = (int32)M.rows();
 	MinDiagonalValue = FSparseMatrixD::Scalar(0);
 	for (int32 i = 0; i < Rank; ++i)
 	{
