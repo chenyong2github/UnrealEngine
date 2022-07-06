@@ -23,5 +23,5 @@
 #endif
 
 #ifndef UE_RIGVM_DEBUG_TYPEINDEX
-#define UE_RIGVM_DEBUG_TYPEINDEX 1
+#define UE_RIGVM_DEBUG_TYPEINDEX 0
 #endif
