@@ -2564,9 +2564,9 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 	}
 #endif
 
-	ExecutePassPrologue(RHICmdListPass, Pass);
-
 	Pass->GPUScopeOpsPrologue.Execute(RHICmdListPass);
+
+	ExecutePassPrologue(RHICmdListPass, Pass);
 
 #if RDG_DUMP_RESOURCES_AT_EACH_DRAW
 	BeginPassDump(Pass);
@@ -2578,9 +2578,11 @@ void FRDGBuilder::ExecutePass(FRDGPass* Pass, FRHIComputeCommandList& RHICmdList
 	EndPassDump(Pass);
 #endif
 
+	ExecutePassEpilogue(RHICmdListPass, Pass);
+	
 	Pass->GPUScopeOpsEpilogue.Execute(RHICmdListPass);
 
-	ExecutePassEpilogue(RHICmdListPass, Pass);
+
 
 	if (!Pass->bParallelExecute && Pass->bDispatchAfterExecute)
 	{
