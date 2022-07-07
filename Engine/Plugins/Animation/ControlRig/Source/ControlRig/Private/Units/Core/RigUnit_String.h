@@ -13,54 +13,6 @@ struct CONTROLRIG_API FRigUnit_StringBase : public FRigUnit
 };
 
 /**
-* Makes a name from a string
-*/
-USTRUCT(meta=(DisplayName="To Name", TemplateName="Cast", Keywords="Make,Construct"))
-struct CONTROLRIG_API FRigUnit_StringToName : public FRigUnit_StringBase
-{
-	GENERATED_BODY()
-
-	FRigUnit_StringToName()
-	{
-		Value = FString();
-		Result = NAME_None;
-	}
-
-	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
-
-	UPROPERTY(meta=(Input))
-	FString Value;
-
-	UPROPERTY(meta=(Output))
-	FName Result;
-};
-
-/**
-* Makes a string from a name
-*/
-USTRUCT(meta=(DisplayName="To Name", TemplateName="Cast", Keywords="Make,Construct"))
-struct CONTROLRIG_API FRigUnit_NameToString : public FRigUnit_StringBase
-{
-	GENERATED_BODY()
-
-	FRigUnit_NameToString()
-	{
-		Value = NAME_None;
-		Result = FString();
-	}
-
-	RIGVM_METHOD()
-	virtual void Execute(const FRigUnitContext& Context) override;
-
-	UPROPERTY(meta=(Input))
-	FName Value;
-
-	UPROPERTY(meta=(Output))
-	FString Result;
-};
-
-/**
  * Concatenates two strings together to make a new string
  */
 USTRUCT(meta = (DisplayName = "Concat", TemplateName = "Concat", Keywords = "Add,+,Combine,Merge,Append"))
@@ -438,6 +390,33 @@ struct CONTROLRIG_API FRigUnit_StringMiddle : public FRigUnit_StringBase
 };
 
 /**
+ * Compares two strings (case sensitive)
+ */
+USTRUCT(meta = (DisplayName = "Equals", TemplateName = "Equals", Keywords = "Same,Match"))
+struct CONTROLRIG_API FRigUnit_StringEquals : public FRigUnit_StringBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_StringEquals()
+	{
+		A = B = FString();
+		Result = false;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta = (Input))
+	FString A;
+
+	UPROPERTY(meta = (Input))
+	FString B;
+
+	UPROPERTY(meta = (Output))
+	bool Result;
+};
+
+/**
  * Finds a string within another string
  */
 USTRUCT(meta = (DisplayName = "Find", Keywords = "IndexOf"))
@@ -563,10 +542,7 @@ public:
 
 protected:
 
-	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override
-	{
-		return &FRigDispatch_ToString::Execute;
-	}
+	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override;
 	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
 };
 
@@ -585,9 +561,6 @@ public:
 
 protected:
 
-	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override
-	{
-		return &FRigDispatch_FromString::Execute;
-	}
+	virtual FRigVMFunctionPtr GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const override;
 	static void Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles);
 };

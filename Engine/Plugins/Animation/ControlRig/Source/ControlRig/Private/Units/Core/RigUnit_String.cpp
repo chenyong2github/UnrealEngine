@@ -3,16 +3,6 @@
 #include "Units/Core/RigUnit_String.h"
 #include "Units/RigUnitContext.h"
 
-FRigUnit_StringToName_Execute()
-{
-	Result = *Value;
-}
-
-FRigUnit_NameToString_Execute()
-{
-	Result = Value.ToString();
-}
-
 FRigUnit_StringConcat_Execute()
 {
 	Result = A + B;
@@ -106,6 +96,11 @@ FRigUnit_StringMiddle_Execute()
 	{
 		Result = Value.Mid(Start, Count);
 	}
+}
+
+FRigUnit_StringEquals_Execute()
+{
+	Result = A.Equals(B, ESearchCase::CaseSensitive);
 }
 
 FRigUnit_StringFind_Execute()
@@ -280,6 +275,38 @@ FRigVMTemplateTypeMap FRigDispatch_ToString::OnNewArgumentType(const FName& InAr
 	return Types;
 }
 
+FRigVMFunctionPtr FRigDispatch_ToString::GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const
+{
+	// treat name and string special
+	const TRigVMTypeIndex& ValueTypeIndex = InTypes.FindChecked(TEXT("Value"));
+	if(ValueTypeIndex == RigVMTypeUtils::TypeIndex::FName)
+	{
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		{
+			check(Handles[0].IsName());
+			check(Handles[1].IsString());
+
+			const FName& Value = *(const FName*)Handles[0].GetData();
+			FString& Result = *(FString*)Handles[1].GetData();
+			Result = Value.ToString();
+		};
+	}
+	if(ValueTypeIndex == RigVMTypeUtils::TypeIndex::FString)
+	{
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		{
+			check(Handles[0].IsString());
+			check(Handles[1].IsString());
+
+			const FString& Value = *(const FString*)Handles[0].GetData();
+			FString& Result = *(FString*)Handles[1].GetData();
+			Result = Value;
+		};
+	}
+	
+	return &FRigDispatch_ToString::Execute;
+}
+
 void FRigDispatch_ToString::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
 {
 	const FProperty* ValueProperty = Handles[0].GetResolvedProperty(); 
@@ -311,6 +338,38 @@ FRigVMTemplateTypeMap FRigDispatch_FromString::OnNewArgumentType(const FName& In
 	Types.Add(TEXT("String"), RigVMTypeUtils::TypeIndex::FString);
 	Types.Add(TEXT("Result"), InTypeIndex);
 	return Types;
+}
+
+FRigVMFunctionPtr FRigDispatch_FromString::GetDispatchFunctionImpl(const FRigVMTemplateTypeMap& InTypes) const
+{
+	// treat name and string special
+	const TRigVMTypeIndex& ResultTypeIndex = InTypes.FindChecked(TEXT("Result"));
+	if(ResultTypeIndex == RigVMTypeUtils::TypeIndex::FName)
+	{
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		{
+			check(Handles[0].IsString());
+			check(Handles[1].IsName());
+
+			const FString& String = *(FString*)Handles[0].GetData();
+			FName& Result = *(FName*)Handles[1].GetData();
+			Result = *String;
+		};
+	}
+	if(ResultTypeIndex == RigVMTypeUtils::TypeIndex::FString)
+	{
+		return [](FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
+		{
+			check(Handles[0].IsString());
+			check(Handles[1].IsString());
+
+			const FString& String = *(FString*)Handles[0].GetData();
+			FString& Result = *(FString*)Handles[1].GetData();
+			Result = String;
+		};
+	}
+
+	return &FRigDispatch_FromString::Execute;
 }
 
 void FRigDispatch_FromString::Execute(FRigVMExtendedExecuteContext& InContext, FRigVMMemoryHandleArray Handles)
