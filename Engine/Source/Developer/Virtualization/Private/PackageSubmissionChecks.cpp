@@ -10,6 +10,7 @@
 #include "Misc/PackageName.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopedSlowTask.h"
+#include "PackageUtils.h"
 #include "Serialization/EditorBulkData.h"
 #include "UObject/Linker.h"
 #include "UObject/Package.h"
@@ -19,12 +20,8 @@
 #include "Virtualization/VirtualizationSystem.h"
 #include "VirtualizationManager.h"
 
-#define LOCTEXT_NAMESPACE "Virtualization"
 
-// When enabled we will validate truncated packages right after the truncation process to 
-// make sure that the package format is still correct once the package trailer has been 
-// removed.
-#define UE_VALIDATE_TRUNCATED_PACKAGE 1
+#define LOCTEXT_NAMESPACE "Virtualization"
 
 // When enabled we will check the payloads to see if they already exist in the persistent storage
 // backends before trying to push them.
@@ -200,106 +197,6 @@ private:
 };
 #endif //ENABLE_FILTERING_HACK
 
-/**
- * Check that the given package ends with PACKAGE_FILE_TAG. Intended to be used to make sure that
- * we have truncated a package correctly when removing the trailers.
- * 
- * @param PackagePath	The path of the package that should be checked
- * @param Errors [out] 	Errors created by the function will be added here
- * 
- * @return	True if the package is correctly terminated with a PACKAGE_FILE_TAG, false if the tag
- *			was not found or if we were unable to read the file's contents.
- */
-bool ValidatePackage(const FString& PackagePath, TArray<FText>& Errors)
-{
-	TUniquePtr<IFileHandle> TempFileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenRead(*PackagePath));
-	if (!TempFileHandle.IsValid())
-	{
-		FText ErrorMsg = FText::Format(LOCTEXT("Virtualization_OpenValidationFailed", "Unable to open '{0}' so that it can be validated"),
-			FText::FromString(PackagePath));
-		Errors.Add(ErrorMsg);
-		return false;
-	}
-
-	TempFileHandle->SeekFromEnd(-4);
-
-	uint32 PackageTag = INDEX_NONE;
-	if (!TempFileHandle->Read((uint8*)&PackageTag, 4) || PackageTag != PACKAGE_FILE_TAG)
-	{
-		FText ErrorMsg = FText::Format(LOCTEXT("Virtualization_ValidationFailed", "The package '{0}' does not end with a valid tag, the file is considered corrupt"),
-			FText::FromString(PackagePath));
-		Errors.Add(ErrorMsg);
-		return false;
-	}
-
-
-	return true;
-}
-
-/** 
- * Creates a copy of the given package but the copy will not include the FPackageTrailer.
- * 
- * @param PackagePath	The path of the package to copy
- * @param CopyPath		The path where the copy should be created
- * @param Trailer		The trailer found in 'PackagePath' that is already loaded
- * @param Errors [out]	Errors created by the function will be added here
- * 
- * @return Returns true if the package was copied correctly, false otherwise. Note even when returning false a file might have been created at 'CopyPath'
- */
-bool TryCopyPackageWithoutTrailer(const FPackagePath PackagePath, const FString& CopyPath, const FPackageTrailer& Trailer, TArray<FText>& Errors)
-{
-	// TODO: Consider adding a custom copy routine to only copy the data we want, rather than copying the full file then truncating
-
-	const FString PackageFilePath = PackagePath.GetLocalFullPath();
-
-	if (IFileManager::Get().Copy(*CopyPath, *PackageFilePath) != ECopyResult::COPY_OK)
-	{
-		FText Message = FText::Format(	LOCTEXT("Virtualization_CopyFailed", "Unable to copy package file '{0}' for virtualization"),
-										FText::FromString(PackagePath.GetDebugName()));
-		Errors.Add(Message);
-		return false;
-	}
-
-	const int64 PackageSizeWithoutTrailer = IFileManager::Get().FileSize(*PackageFilePath) - Trailer.GetTrailerLength();
-
-	{
-		TUniquePtr<IFileHandle> TempFileHandle(FPlatformFileManager::Get().GetPlatformFile().OpenWrite(*CopyPath, true));
-		if (!TempFileHandle.IsValid())
-		{
-			FText Message = FText::Format(LOCTEXT("Virtualization_TruncOpenFailed", "Failed to open package file for truncation'{0}' when virtualizing"),
-				FText::FromString(CopyPath));
-			Errors.Add(Message);
-			return false;
-		}
-
-		if (!TempFileHandle->Truncate(PackageSizeWithoutTrailer))
-		{
-			FText Message = FText::Format(LOCTEXT("Virtualization_TruncFailed", "Failed to truncate '{0}' when virtualizing"),
-				FText::FromString(CopyPath));
-			Errors.Add(Message);
-			return false;
-		}
-	}
-
-#if UE_VALIDATE_TRUNCATED_PACKAGE
-	// Validate we didn't break the package
-	if (!ValidatePackage(CopyPath, Errors))
-	{
-		return false;
-	}
-#endif //UE_VALIDATE_TRUNCATED_PACKAGE
-
-	return true;
-}
-
-/** Tests if we would be able to write to the given file if we wanted to */
-bool CanWriteToFile(const FString& FilePath)
-{
-	TUniquePtr<FArchive> FileHandle(IFileManager::Get().CreateFileWriter(*FilePath, FILEWRITE_Append | FILEWRITE_Silent));
-
-	return FileHandle.IsValid();
-}
-
 void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UE::Virtualization::VirtualizePackages);
@@ -413,7 +310,7 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 		}
 	}
 
-	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " package(s)9, %" INT64_FMT " of which had payload trailers"), TotalPackagesFound, TotalPackageTrailersFound);
+	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " package(s), %" INT64_FMT " of which had payload trailers"), TotalPackagesFound, TotalPackageTrailersFound);
 	UE_LOG(LogVirtualization, Display, TEXT("Found %" INT64_FMT " payload(s) in %d package(s) that need to be examined for virtualization"), TotalPayloadsToCheck, Packages.Num());
 
 	Progress.EnterProgressFrame(1.0f);
@@ -572,49 +469,19 @@ void VirtualizePackages(const TArray<FString>& FilesToSubmit, TArray<FText>& Out
 
 		const FPackagePath& PackagePath = PackageInfo.Path; // No need to validate path, we checked this earlier
 
-		const FString PackageFilePath = PackagePath.GetLocalFullPath();
-		const FString BaseName = FPaths::GetBaseFilename(PackagePath.GetPackageName());
-		const FString TempFilePath = FPaths::CreateTempFilename(*FPaths::ProjectSavedDir(), *BaseName.Left(32));
+		FString NewPackagePath = DuplicatePackageWithUpdatedTrailer(PackagePath.GetLocalFullPath(), PackageInfo.Trailer, OutErrors);
 
-		// TODO Optimization: Combine TryCopyPackageWithoutTrailer with the appending of the new trailer to avoid opening multiple handles
-
-		// Create copy of package minus the trailer the trailer
-		if (!TryCopyPackageWithoutTrailer(PackagePath, TempFilePath, PackageInfo.Trailer, OutErrors))
+		if (!NewPackagePath.IsEmpty())
 		{
-			return;
-		}			
-
-		TUniquePtr<FArchive> PackageAr = IPackageResourceManager::Get().OpenReadExternalResource(EPackageExternalResource::WorkspaceDomainFile, PackagePath.GetPackageName());
-
-		if (!PackageAr.IsValid())
+			// Now that we have successfully created a new version of the package with an updated trailer 
+			// we need to mark that it should replace the original package.
+			PackagesToReplace.Emplace(PackagePath, MoveTemp(NewPackagePath));
+		}
+		else
 		{
-			FText Message = FText::Format(	LOCTEXT("Virtualization_PkgOpen", "Failed to open the package '{1}' for reading"),
-											FText::FromString(PackagePath.GetDebugName()));
-			OutErrors.Add(Message);
 			return;
 		}
 
-		TUniquePtr<FArchive> CopyAr(IFileManager::Get().CreateFileWriter(*TempFilePath, EFileWrite::FILEWRITE_Append));
-		if (!CopyAr.IsValid())
-		{
-			FText Message = FText::Format(	LOCTEXT("Virtualization_TrailerAppendOpen", "Unable to open '{0}' to append the trailer'"),
-											FText::FromString(TempFilePath));
-			OutErrors.Add(Message);
-			return;
-		}
-
-		FPackageTrailerBuilder TrailerBuilder = FPackageTrailerBuilder::CreateFromTrailer(PackageInfo.Trailer, *PackageAr, PackagePath.GetPackageName());
-		if (!TrailerBuilder.BuildAndAppendTrailer(nullptr, *CopyAr))
-		{
-			FText Message = FText::Format(	LOCTEXT("Virtualization_TrailerAppend", "Failed to append the trailer to '{0}'"),
-											FText::FromString(TempFilePath));
-			OutErrors.Add(Message);
-			return;
-		}
-
-		// Now that we have successfully created a new version of the package with an updated trailer 
-		// we need to mark that it should replace the original package.
-		PackagesToReplace.Emplace(PackagePath, TempFilePath);
 	}
 
 	UE_LOG(LogVirtualization, Display, TEXT("%d package(s) had their trailer container modified and need to be updated"), PackagesToReplace.Num());

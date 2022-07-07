@@ -201,7 +201,7 @@ FPackageTrailerBuilder::FPackageTrailerBuilder(const FName& PackageName)
 }
 
 FPackageTrailerBuilder::FPackageTrailerBuilder(FString&& InDebugContext)
-	: DebugContext(InDebugContext)
+	: DebugContext(MoveTemp(InDebugContext))
 {
 }
 
@@ -233,6 +233,21 @@ void FPackageTrailerBuilder::AddVirtualizedPayload(const FIoHash& Identifier, in
 	{
 		VirtualizedEntries.FindOrAdd(Identifier, VirtualizedEntry(RawSize));
 	}
+}
+
+bool FPackageTrailerBuilder::UpdatePayloadAsLocal(const FIoHash& Identifier, FCompressedBuffer Payload)
+{
+	check(ReferencedEntries.IsEmpty());
+
+	if (!Identifier.IsZero() && VirtualizedEntries.Remove(Identifier) > 0)
+	{
+		check(LocalEntries.Find(Identifier) == nullptr);
+		LocalEntries.Add(Identifier, LocalEntry(MoveTemp(Payload), EPayloadFilterReason::None));
+
+		return true;
+	}
+
+	return false;
 }
 
 bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive& DataArchive)
@@ -329,9 +344,12 @@ bool FPackageTrailerBuilder::BuildAndAppendTrailer(FLinkerSave* Linker, FArchive
 
 	// Invoke any registered callbacks and pass in the trailer, this allows the callbacks to poll where 
 	// in the output archive the payload has been stored.
-	for (const AdditionalDataCallback& Callback : Callbacks)
+	if (Linker != nullptr)
 	{
-		Callback(*Linker, Trailer);
+		for (const AdditionalDataCallback& Callback : Callbacks)
+		{
+			Callback(*Linker, Trailer);
+		}
 	}
 
 	return !DataArchive.IsError();

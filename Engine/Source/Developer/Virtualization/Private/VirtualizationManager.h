@@ -139,6 +139,7 @@ private:
 	virtual EQueryResult QueryPayloadStatuses(TArrayView<const FIoHash> Ids, EStorageType StorageType, TArray<EPayloadStatus>& OutStatuses) override;
 
 	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) override;
+	virtual bool TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) override;
 
 	virtual void DumpStats() const override;
 

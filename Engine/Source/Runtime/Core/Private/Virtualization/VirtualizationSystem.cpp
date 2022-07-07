@@ -79,6 +79,15 @@ public:
 		return false;
 	}
 
+	virtual bool TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) override
+	{
+		OutErrors.Reset();
+
+		OutErrors.Add(FText::FromString(TEXT("Calling ::TryRehydratePackages on FNullVirtualizationSystem")));
+
+		return false;
+	}
+
 	virtual void DumpStats() const override
 	{
 		// The null implementation will have no stats and nothing to log

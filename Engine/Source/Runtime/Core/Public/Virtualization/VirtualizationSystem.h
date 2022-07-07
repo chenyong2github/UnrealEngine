@@ -418,6 +418,20 @@ public:
 	 * @return True if the process succeeded and false if it did not. If this returns false then OutErrors should contain at least one entry
 	 */
 	virtual bool TryVirtualizePackages(const TArray<FString>& FilesToVirtualize, TArray<FText>& OutDescriptionTags, TArray<FText>& OutErrors) = 0;
+	
+	/**
+	 * Runs the re-hydration process on a set of packages. This involves downloading virtualized payloads and placing them back in the trailer of
+	 * the given packages.
+	 * 
+	 * @param Packages	An array containing the absolute file paths of packages. It is assumed that the packages have already been checked out
+	 *					of source control (if applicable) and will be writable.
+	 * @param OutErrors	Any error encountered during the process will be added here. If any error is added to the array then it
+	 *					can be assumed that the process will return false. Note that the array will be emptied before the process
+	 *					is run and will not contain any pre-existing entries.
+	 * 
+	 * @return True if the process succeeded and false if it did not. If this returns false then OutErrors should contain at least one entry
+	 */
+	virtual bool TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors) = 0;
 
 	/** When called the system should write any performance stats that it has been gathering to the log file */
 	virtual void DumpStats() const = 0;

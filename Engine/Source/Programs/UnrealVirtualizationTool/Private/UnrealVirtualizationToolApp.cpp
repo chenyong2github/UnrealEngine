@@ -2,6 +2,8 @@
 
 #include "UnrealVirtualizationToolApp.h"
 
+#include "Commands/CommandBase.h"
+#include "Commands/RehydrateCommand.h"
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
 #include "HAL/FeedbackContextAnsi.h"
 #include "HAL/FileManager.h"
@@ -35,15 +37,6 @@ bool IsPackageFile(const FString FilePath)
 	return FPackageName::IsPackageExtension(*Extension);
 }
 
-/** Utility to find the two string values we need for a mount point based on the project file path */
-void ConvertToMountPoint(const FString& ProjectFilePath, FString& OutRootPath, FString& OutContentPath)
-{
-	FStringView BaseFilename = FPathViews::GetBaseFilename(ProjectFilePath);
-
-	OutRootPath = *WriteToString<260>(TEXT("/"), BaseFilename, TEXT("/"));
-	OutContentPath = FPaths::GetPath(ProjectFilePath) / TEXT("Content");
-}
-
 /** 
  * Utility to clean up the tags we got from the virtualization system. Convert the FText to FString and
  * discard any duplicate entries. 
@@ -61,82 +54,6 @@ TArray<FString> BuildFinalTagDescriptions(TArray<FText>& DescriptionTags)
 	return CleanedDescriptions;
 }
 
-/** 
- * Utility taken from UGameFeatureData::ReloadConfigs that allows us to apply changes to the ini files (after
- * loading them from game feature plugins for example) and have the changes applied to UObjects.
- * For our use case we need this so that optin/optout settings for UVirtualizationFilterSettings are applied.
- * 
- * This is required because we perform filtering at payload submission time. If we change filtering to be 
- * applied when a package is saved (i.e. when the package trailer is created) then we can remove this.
- * If we opt to keep the current strategy then this code should be moved to a location where it can be shared
- * by both this tool and the game feature plugin system rather than maintaining two copies.
- */
-void ReloadConfigs(FConfigFile& PluginConfig)
-{
-	// Reload configs so objects get the changes
-	for (const auto& ConfigEntry : PluginConfig)
-	{
-		// Skip out if someone put a config section in the INI without any actual data
-		if (ConfigEntry.Value.Num() == 0)
-		{
-			continue;
-		}
-
-		const FString& SectionName = ConfigEntry.Key;
-
-		// @todo: This entire overarching process is very similar in its goals as that of UOnlineHotfixManager::HotfixIniFile.
-		// Could consider a combined refactor of the hotfix manager, the base config cache system, etc. to expose an easier way to support this pattern
-
-		// INI files might be handling per-object config items, so need to handle them specifically
-		const int32 PerObjConfigDelimIdx = SectionName.Find(" ");
-		if (PerObjConfigDelimIdx != INDEX_NONE)
-		{
-			const FString ObjectName = SectionName.Left(PerObjConfigDelimIdx);
-			const FString ClassName = SectionName.Mid(PerObjConfigDelimIdx + 1);
-
-			// Try to find the class specified by the per-object config
-			UClass* ObjClass = UClass::TryFindTypeSlow<UClass>(*ClassName, EFindFirstObjectOptions::NativeFirst | EFindFirstObjectOptions::EnsureIfAmbiguous);
-			if (ObjClass)
-			{
-				// Now try to actually find the object it's referencing specifically and update it
-				// @note: Choosing not to warn on not finding it for now, as Fortnite has transient uses instantiated at run-time (might not be constructed yet)
-				UObject* PerObjConfigObj = StaticFindFirstObject(ObjClass, *ObjectName, EFindFirstObjectOptions::ExactClass, ELogVerbosity::Warning, TEXT("UGameFeatureData::ReloadConfigs"));
-				if (PerObjConfigObj)
-				{
-					// Intentionally using LoadConfig instead of ReloadConfig, since we do not want to call modify/preeditchange/posteditchange on the objects changed when GIsEditor
-					PerObjConfigObj->LoadConfig(nullptr, nullptr, UE::LCPF_ReloadingConfigData | UE::LCPF_ReadParentSections, nullptr);
-				}
-			}
-			else
-			{
-				PLATFORM_BREAK();
-				//	UE_LOG(LogGameFeatures, Warning, TEXT("[GameFeatureData %s]: Couldn't find PerObjectConfig class %s for %s while processing %s, config changes won't be reloaded."), *GetPathNameSafe(this), *ClassName, *ObjectName, *PluginConfig.Name.ToString());
-			}
-		}
-		// Standard INI section case
-		else
-		{
-			// Find the affected class and push updates to all instances of it, including children
-			// @note:	Intentionally not using the propagation flags inherent in ReloadConfig to handle this, as it utilizes a naive complete object iterator
-			//			and tanks performance pretty badly
-			UClass* ObjClass = FindFirstObject<UClass>(*SectionName, EFindFirstObjectOptions::ExactClass | EFindFirstObjectOptions::EnsureIfAmbiguous | EFindFirstObjectOptions::NativeFirst);
-			if (ObjClass)
-			{
-				TArray<UObject*> FoundObjects;
-				GetObjectsOfClass(ObjClass, FoundObjects, true, RF_NoFlags);
-				for (UObject* CurFoundObj : FoundObjects)
-				{
-					if (IsValid(CurFoundObj))
-					{
-						// Intentionally using LoadConfig instead of ReloadConfig, since we do not want to call modify/preeditchange/posteditchange on the objects changed when GIsEditor
-						CurFoundObj->LoadConfig(nullptr, nullptr, UE::LCPF_ReloadingConfigData | UE::LCPF_ReadParentSections, nullptr);
-					}
-				}
-			}
-		}
-	}
-}
-
 /** Utility to get EMode from a string */
 void LexFromString(EMode& OutValue, const FStringView& InString)
 {
@@ -148,9 +65,30 @@ void LexFromString(EMode& OutValue, const FStringView& InString)
 	{
 		OutValue = EMode::PackageList;
 	}
+	else if (InString == TEXT("Rehydrate"))
+	{
+		OutValue = EMode::Rehydrate;
+	}
 	else
 	{
 		OutValue = EMode::Unknown;
+	}
+}
+
+/** Utility for creating a new command */
+template<typename CommandType>
+TUniquePtr<FCommand> CreateCommand(const FString& ModeName, const TCHAR* CmdLine)
+{
+	UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to initialize command '%s'..."), *ModeName);
+
+	TUniquePtr<FCommand> Command = MakeUnique<CommandType>(ModeName);
+	if (Command->Initialize(CmdLine))
+	{
+		return Command;
+	}
+	else
+	{
+		return TUniquePtr<FCommand>();
 	}
 }
 
@@ -212,12 +150,6 @@ EInitResult FUnrealVirtualizationToolApp::Initialize()
 
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Logging process to '%s'"), *LogFilePath);
 
-	EInitResult CmdLineResult = TryParseCmdLine();
-	if (CmdLineResult != EInitResult::Success)
-	{
-		return CmdLineResult;
-	}
-
 	if (!TryLoadModules())
 	{
 		return EInitResult::Error;
@@ -228,28 +160,44 @@ EInitResult FUnrealVirtualizationToolApp::Initialize()
 		return EInitResult::Error;
 	}
 
-	TArray<FString> Packages;
-	switch (Mode)
+	EInitResult CmdLineResult = TryParseCmdLine();
+	if (CmdLineResult != EInitResult::Success)
 	{
-		case EMode::Changelist:
-			if (!TryParseChangelist(Packages))
-			{
-				return EInitResult::Error;
-			}
-			break;
-
-		case EMode::PackageList:
-			if (!TryParsePackageList(Packages))
-			{
-				return EInitResult::Error;
-			}
-			break;
-
-		default:
-			UE_LOG(LogVirtualizationTool, Display, TEXT("Unknown mode, cannot find packages!"));
-			return EInitResult::Error;
-			break;
+		return CmdLineResult;
 	}
+
+	TArray<FString> Packages;
+	if (!CurrentCommand.IsValid())
+	{
+		// Legacy code path for virtualization (which has not yet been ported to a command)	
+		switch (Mode)
+		{
+			case EMode::Changelist:
+				if (!TryParseChangelist(Packages))
+				{
+					return EInitResult::Error;
+				}
+				break;
+
+			case EMode::PackageList:
+				if (!TryParsePackageList(Packages))
+				{
+					return EInitResult::Error;
+				}
+				break;
+
+			default:
+				UE_LOG(LogVirtualizationTool, Display, TEXT("Unknown mode, cannot find packages!"));
+				return EInitResult::Error;
+				break;
+		}
+	}
+	else
+	{
+		Packages = CurrentCommand->GetPackages();
+	}
+
+	UE_LOG(LogVirtualizationTool, Display, TEXT("\tFound '%d' package file(s)"), Packages.Num());
 
 	if (!TrySortFilesByProject(Packages))
 	{
@@ -265,69 +213,88 @@ bool FUnrealVirtualizationToolApp::Run()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Run);
 
-	TArray<FString> FinalDescriptionTags;
-
-	if (EnumHasAllFlags(ProcessOptions, EProcessOptions::Virtualize))
+	if (!CurrentCommand.IsValid())
 	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Running the virtualization process..."));
+		// Legacy code path for virtualization (which has not yet been ported to a command)	
+		TArray<FString> FinalDescriptionTags;
 
-		TArray<FText> DescriptionTags;
-
-		for (const FProject& Project : Projects)
+		if (EnumHasAllFlags(ProcessOptions, EProcessOptions::Virtualize))
 		{
-			TStringBuilder<128> ProjectName;
-			ProjectName  << Project.GetProjectName();
+			UE_LOG(LogVirtualizationTool, Display, TEXT("Running the virtualization process..."));
 
-			UE_LOG(LogVirtualizationTool, Display, TEXT("\tChecking package(s) for the project '%s'..."), ProjectName.ToString());
+			TArray<FText> DescriptionTags;
 
-			FConfigFile EngineConfigWithProject;
-			if (!Project.TryLoadConfig(EngineConfigWithProject))
+			for (const FProject& Project : Projects)
 			{
-				return false;
-			}
+				TStringBuilder<128> ProjectName;
+				ProjectName << Project.GetProjectName();
 
-			Project.RegisterMountPoints();
+				UE_LOG(LogVirtualizationTool, Display, TEXT("\tChecking package(s) for the project '%s'..."), ProjectName.ToString());
 
-			UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
-			UE::Virtualization::Initialize(InitParams);
-
-			TArray<FString> Packages = Project.GetAllPackages();
-
-			TArray<FText> Errors;
-			UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(Packages, DescriptionTags, Errors);
-
-			if (!Errors.IsEmpty())
-			{
-				UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
-				for (const FText& Error : Errors)
+				FConfigFile EngineConfigWithProject;
+				if (!Project.TryLoadConfig(EngineConfigWithProject))
 				{
-					UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
+					return false;
 				}
-				return false;
+
+				Project.RegisterMountPoints();
+
+				UE::Virtualization::FInitParams InitParams(ProjectName, EngineConfigWithProject);
+				UE::Virtualization::Initialize(InitParams);
+
+				TArray<FString> Packages = Project.GetAllPackages();
+
+				TArray<FText> Errors;
+				UE::Virtualization::IVirtualizationSystem::Get().TryVirtualizePackages(Packages, DescriptionTags, Errors);
+
+				if (!Errors.IsEmpty())
+				{
+					UE_LOG(LogVirtualizationTool, Error, TEXT("The virtualization process failed with the following errors:"));
+					for (const FText& Error : Errors)
+					{
+						UE_LOG(LogVirtualizationTool, Error, TEXT("\t%s"), *Error.ToString());
+					}
+					return false;
+				}
+
+				UE_LOG(LogVirtualizationTool, Display, TEXT("\tCheck complete"));
+
+				UE::Virtualization::Shutdown();
+				Project.UnRegisterMountPoints();
 			}
 
-			UE_LOG(LogVirtualizationTool, Display, TEXT("\tCheck complete"));
-
-			UE::Virtualization::Shutdown();
-			Project.UnRegisterMountPoints();
+			FinalDescriptionTags = BuildFinalTagDescriptions(DescriptionTags);
+		}
+		else
+		{
+			UE_LOG(LogVirtualizationTool, Display, TEXT("Skipping the virtualization process"));
 		}
 
-		FinalDescriptionTags = BuildFinalTagDescriptions(DescriptionTags);
+		if (Mode == EMode::Changelist)
+		{
+			if (!TrySubmitChangelist(FinalDescriptionTags))
+			{
+				return false;
+			}
+		}
+
+		return true;
 	}
 	else
 	{
-		UE_LOG(LogVirtualizationTool, Display, TEXT("Skipping the virtualization process"));
-	}
+		UE_LOG(LogVirtualizationTool, Display, TEXT("Running the '%s' command..."), *CurrentCommand->GetName());
 
-	if (Mode == EMode::Changelist)
-	{
-		if (!TrySubmitChangelist(FinalDescriptionTags))
+		if (CurrentCommand->Run(Projects))
 		{
+			UE_LOG(LogVirtualizationTool, Display, TEXT("Command '%s' suceeeded!"), *CurrentCommand->GetName());
+			return true;
+		}
+		else
+		{
+			UE_LOG(LogVirtualizationTool, Error, TEXT("Command '%s' failed!"), *CurrentCommand->GetName());
 			return false;
 		}
 	}
-
-	return true;
 }
 
 void FUnrealVirtualizationToolApp::PrintCmdLineHelp() const
@@ -336,6 +303,10 @@ void FUnrealVirtualizationToolApp::PrintCmdLineHelp() const
 	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> -Mode=Changelist -Changelist=<number> [-nosubmit] [global options]"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\t[optional]-nosubmit (the changelist will be virtualized but not submitted)"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("UnrealVirtualizationTool -ClientSpecName=<name> -Mode=PackageList -Path=<string> [global options]"));
+
+	// TODO: If the commands were registered in some way we could automate this
+	FRehydrateCommand::PrintCmdLineHelp();
+
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Global Options:"));
 	UE_LOG(LogVirtualizationTool, Display, TEXT("\t-verbose (all log messages with display verbosity will be displayed, not just LogVirtualizationTool)"));
 }
@@ -350,13 +321,10 @@ bool FUnrealVirtualizationToolApp::TrySubmitChangelist(const TArray<FString>& De
 
 	UE_LOG(LogVirtualizationTool, Display, TEXT("Attempting to submit the changelist '%s'"), *ChangelistNumber);
 
-	if (!SCCProvider.IsValid())
+	if (!TryConnectToSourceControl())
 	{
-		if (!TryConnectToSourceControl())
-		{
-			UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, cannot find a valid source control provider"));
-			return false;
-		}
+		UE_LOG(LogVirtualizationTool, Error, TEXT("Submit failed, cannot find a valid source control provider"));
+		return false;
 	}
 
 	if (!ChangelistToSubmit.IsValid())
@@ -446,6 +414,12 @@ bool FUnrealVirtualizationToolApp::TryConnectToSourceControl()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(TryConnectToSourceControl);
 
+	if (SCCProvider.IsValid())
+	{
+		// Already connected so just return
+		return true;
+	}
+
 	UE_LOG(LogVirtualizationTool, Log, TEXT("Trying to connect to source control..."));
 
 	FSourceControlInitSettings SCCSettings(FSourceControlInitSettings::EBehavior::OverrideAll);
@@ -497,6 +471,7 @@ EInitResult FUnrealVirtualizationToolApp::TryParseCmdLine()
 	if (FParse::Param(CmdLine, TEXT("Verbose")))
 	{
 		UE_LOG(LogVirtualizationTool, Display, TEXT("Cmdline parameter '-Verbose' found, no longer supressing Display log messages!"));
+		OutputDeviceOverride.Reset();
 	}
 	else
 	{
@@ -522,6 +497,10 @@ EInitResult FUnrealVirtualizationToolApp::TryParseCmdLine()
 			break;
 		case EMode::PackageList:
 			return TryParsePackageListCmdLine(CmdLine);
+			break;
+		case EMode::Rehydrate:
+			CurrentCommand = CreateCommand<FRehydrateCommand>(ModeAsString, CmdLine);
+			return CurrentCommand.IsValid() ? EInitResult::Success : EInitResult::Error;
 			break;
 		case EMode::Unknown:
 		default:
@@ -652,8 +631,6 @@ bool FUnrealVirtualizationToolApp::TryParseChangelist(TArray<FString>& OutPackag
 
 			ChangelistToSubmit = Changelist;
 
-			UE_LOG(LogVirtualizationTool, Display, TEXT("Found '%d' package file(s)"), OutPackages.Num());
-
 			return true;
 		}
 	}
@@ -683,7 +660,6 @@ bool FUnrealVirtualizationToolApp::TryParsePackageList(TArray<FString>& OutPacka
 			FPaths::NormalizeFilename(PackagePath);
 		}
 
-		UE_LOG(LogVirtualizationTool, Display, TEXT("\tFound '%d' package file(s)"), OutPackages.Num());
 		return true;
 	}
 	else
@@ -706,14 +682,14 @@ bool FUnrealVirtualizationToolApp::TrySortFilesByProject(const TArray<FString>& 
 
 		if (TryFindProject(PackagePath, ProjectFilePath, PluginFilePath))
 		{
-			FProject& Project = FindOrAddProject(ProjectFilePath);
+			FProject& Project = FindOrAddProject(MoveTemp(ProjectFilePath));
 			if (PluginFilePath.IsEmpty())
 			{
 				Project.AddFile(PackagePath);
 			}
 			else
 			{
-				Project.AddPluginFile(PackagePath, PluginFilePath);
+				Project.AddPluginFile(PackagePath, MoveTemp(PluginFilePath));
 			}
 		}
 	}
@@ -795,11 +771,11 @@ bool FUnrealVirtualizationToolApp::TryFindProject(const FString& PackagePath, FS
 	return false;
 }
 
-FProject& FUnrealVirtualizationToolApp::FindOrAddProject(const FString& ProjectFilePath)
+FProject& FUnrealVirtualizationToolApp::FindOrAddProject(FString&& ProjectFilePath)
 {
 	FProject* Project = Projects.FindByPredicate([&ProjectFilePath](const FProject& Project)->bool
 	{
-		return Project.ProjectFilePath == ProjectFilePath;
+		return Project.GetProjectFilePath() == ProjectFilePath;
 	});
 
 	if (Project != nullptr)
@@ -808,135 +784,9 @@ FProject& FUnrealVirtualizationToolApp::FindOrAddProject(const FString& ProjectF
 	}
 	else
 	{
-		FProject& NewProject = Projects.AddDefaulted_GetRef();
-		NewProject.ProjectFilePath = ProjectFilePath;
-
-		return NewProject;
+		int32 Index = Projects.Emplace(MoveTemp(ProjectFilePath));
+		return Projects[Index];
 	}
-}
-
-void FProject::AddFile(const FString& PackagePath)
-{
-	PackagePaths.Add(PackagePath);
-}
-
-void FProject::AddPluginFile(const FString& PackagePath, const FString& PluginFilePath)
-{
-	FPlugin* Plugin = Plugins.FindByPredicate([&PluginFilePath](const FPlugin& Plugin)->bool
-	{
-		return Plugin.PluginFilePath == PluginFilePath;
-	});
-
-	if (Plugin == nullptr)
-	{
-		Plugin = &Plugins.AddDefaulted_GetRef();
-		Plugin->PluginFilePath = PluginFilePath;
-	}
-
-	check(Plugin != nullptr);
-	Plugin->PackagePaths.Add(PackagePath);
-};
-
-FStringView FProject::GetProjectName() const
-{
-	return FPathViews::GetBaseFilename(ProjectFilePath);
-}
-
-TArray<FString> FProject::GetAllPackages() const
-{
-	TArray<FString> Packages = PackagePaths;
-	for (const FPlugin& Plugin : Plugins)
-	{
-		Packages.Append(Plugin.PackagePaths);
-	}
-
-	return Packages;
-}
-
-void FProject::RegisterMountPoints() const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FProject::RegisterMountPoints);
-
-	FString ProjectRootPath;
-	FString ProjectContentPath;
-
-	ConvertToMountPoint(ProjectFilePath, ProjectRootPath, ProjectContentPath);
-	FPackageName::RegisterMountPoint(ProjectRootPath, ProjectContentPath);
-
-	for (const FPlugin& Plugin : Plugins)
-	{
-		FString PluginRootPath;
-		FString PluginContentPath;
-
-		ConvertToMountPoint(Plugin.PluginFilePath, PluginRootPath, PluginContentPath);
-		FPackageName::RegisterMountPoint(PluginRootPath, PluginContentPath);
-	}
-}
-
-void FProject::UnRegisterMountPoints() const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FProject::UnRegisterMountPoints);
-
-	for (const FPlugin& Plugin : Plugins)
-	{
-		FString PluginRootPath;
-		FString PluginContentPath;
-
-		ConvertToMountPoint(Plugin.PluginFilePath, PluginRootPath, PluginContentPath);
-		FPackageName::UnRegisterMountPoint(PluginRootPath, PluginContentPath);
-	}
-
-	FString ProjectRootPath;
-	FString ProjectContentPath;
-
-	ConvertToMountPoint(ProjectFilePath, ProjectRootPath, ProjectContentPath);
-	FPackageName::UnRegisterMountPoint(ProjectRootPath, ProjectContentPath);
-}
-
-bool FProject::TryLoadConfig(FConfigFile& OutConfig) const
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(FProject::TryLoadConfig);
-
-	const FString ProjectPath = FPaths::GetPath(ProjectFilePath);
-	const FString EngineConfigPath = FPaths::Combine(FPaths::EngineDir(), TEXT("Config/"));
-	const FString ProjectConfigPath = FPaths::Combine(ProjectPath, TEXT("Config/"));
-
-	OutConfig.Reset();
-
-	if (!FConfigCacheIni::LoadExternalIniFile(OutConfig, TEXT("Engine"), *EngineConfigPath, *ProjectConfigPath, true))
-	{
-		UE_LOG(LogVirtualizationTool, Error, TEXT("Failed to load config files for the project '%s"), *ProjectFilePath);
-		return false;
-	}
-
-	//  Note that the following is taken from UGameFeatureData::InitializeHierarchicalPluginIniFiles as with
-	// ReloadConfigs if we decide to keep filtering at submission time, rather than save time then we should
-	// probably move this code to a shared location rather than the copy/paste.
-	for (const FPlugin& Plugin : Plugins)
-	{
-		const FString PluginName = FPaths::GetBaseFilename(Plugin.PluginFilePath);
-		const FString PluginIniName = PluginName + TEXT("Engine");
-
-		const FString PluginPath = FPaths::GetPath(Plugin.PluginFilePath);
-		const FString PluginConfigPath = FPaths::Combine(PluginPath, TEXT("Config/"));
-
-		FConfigFile PluginConfig;
-		if (FConfigCacheIni::LoadExternalIniFile(PluginConfig, *PluginIniName, *EngineConfigPath, *PluginConfigPath, false) && (PluginConfig.Num() > 0))
-		{
-			const FString IniFile = GConfig->GetConfigFilename(TEXT("Engine"));
-
-			if (FConfigFile* ExistingConfig = GConfig->FindConfigFile(IniFile))
-			{
-				const FString PluginIniPath = FString::Printf(TEXT("%s%s.ini"), *PluginConfigPath, *PluginIniName);
-				if (ExistingConfig->Combine(PluginIniPath))
-				{
-					ReloadConfigs(PluginConfig);
-				}
-			}
-		}
-	}
-
-	return true;
 }
 
 } // namespace UE::Virtualization

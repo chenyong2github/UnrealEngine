@@ -272,6 +272,17 @@ public:
 	 * @param RawSize		The size of the payload (in bytes) when uncompressed
 	 */
 	void AddVirtualizedPayload(const FIoHash& Identifier, int64 RawSize);
+
+	/** 
+	 * Allows the caller to replace a payload in the builder that is already marked as virtualized and replace it
+	 * with one that will be stored locally.
+	 * 
+	 * @param Identifier	The identifier of the payload
+	 * @param Payload		The content of the payload
+	 * 
+	 * @return true if a virtualized payload was replaced, false if the payload was not in the builder at all
+	 */
+	bool UpdatePayloadAsLocal(const FIoHash& Identifier, FCompressedBuffer Payload);
 	
 	/**
 	 * @param ExportsArchive	The linker associated with the package being written to disk.

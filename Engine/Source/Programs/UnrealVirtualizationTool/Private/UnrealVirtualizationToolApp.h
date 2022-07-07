@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "ISourceControlChangelist.h" // TODO
+#include "ProjectFiles.h"
 #include "Templates/UniquePtr.h"
 
 class ISourceControlProvider;
@@ -12,41 +13,25 @@ class ISourceControlProvider;
 namespace UE::Virtualization
 {
 
-struct FPlugin
-{
-	FString PluginFilePath;
-
-	TArray<FString> PackagePaths;
-};
-
-struct FProject
-{
-	FString ProjectFilePath;
-
-	TArray<FPlugin> Plugins;
-	TArray<FString> PackagePaths;
-
-	void AddFile(const FString& FilePath);
-	void AddPluginFile(const FString& FilePath, const FString& PluginFilePath);
-
-	FStringView GetProjectName() const;
-	TArray<FString> GetAllPackages() const;
-
-	void RegisterMountPoints() const;
-	void UnRegisterMountPoints() const;
-
-	bool TryLoadConfig(FConfigFile& OutConfig) const;
-};
+class FCommand;
 
 /** The mode of the application to run */
 enum class EMode :uint32
 {
 	/** Error condition */
 	Unknown = 0,
+
+	/// Virtualization
+
 	/** Virtualize and submit a given changelist */
 	Changelist,
 	/** Virtualize a list of packages provided by text file */
-	PackageList
+	PackageList,
+
+	/// Rehydration
+
+	/** Rehydrate one or more packages */
+	Rehydrate,
 };
 
 // Note that the enum doesn't give us huge value right now, it has been provided
@@ -105,7 +90,7 @@ private:
 
 	bool TryFindProject(const FString& PackagePath, FString& ProjectFilePath, FString& PluginFilePath) const;
 
-	FProject& FindOrAddProject(const FString& ProjectFilePath);
+	FProject& FindOrAddProject(FString&& ProjectFilePath);
 
 private:
 
@@ -135,6 +120,8 @@ private:
 
 	/** The path to the list of packages to virtualized, used with EMode::PackageList */
 	FString PackageListPath;
+
+	TUniquePtr<FCommand> CurrentCommand;
 };
 
 } //namespace UE::Virtualization

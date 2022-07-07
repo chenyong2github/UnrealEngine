@@ -13,6 +13,7 @@
 #include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
+#include "PackageRehydrationProcess.h"
 #include "Misc/ScopedSlowTask.h"
 #include "PackageSubmissionChecks.h"
 #include "ProfilingDebugging/CookStats.h"
@@ -632,6 +633,15 @@ bool FVirtualizationManager::TryVirtualizePackages(const TArray<FString>& FilesT
 	OutErrors.Reset();
 
 	UE::Virtualization::VirtualizePackages(FilesToVirtualize, OutDescriptionTags, OutErrors);
+
+	return OutErrors.IsEmpty();
+}
+
+bool FVirtualizationManager::TryRehydratePackages(const TArray<FString>& Packages, TArray<FText>& OutErrors)
+{
+	OutErrors.Reset();
+
+	UE::Virtualization::RehydratePackages(Packages, OutErrors);
 
 	return OutErrors.IsEmpty();
 }
