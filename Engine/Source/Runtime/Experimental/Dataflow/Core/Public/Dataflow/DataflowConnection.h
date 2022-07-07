@@ -56,7 +56,7 @@ public:
 	const FDataflowNode* GetOwningNode() const { return OwningNode; }
 
 	Dataflow::FPin::EDirection GetDirection() const { return Direction; }
-	uint32 GetOffset( ) const;
+	int32 GetOffset( ) const;
 
 	FName GetType() const { return Type; }
 
@@ -66,8 +66,8 @@ public:
 	FName GetName() const { return Name; }
 	void SetName(FName InName) { Name = InName; }
 
-	size_t RealAddress() const { ensure(OwningNode);  return (size_t)OwningNode + (size_t)GetOffset(); };
-	size_t CacheKey() const { return RealAddress(); };
+	void* RealAddress() const { ensure(OwningNode);  return (void*)((size_t)OwningNode + (size_t)GetOffset()); };
+	size_t CacheKey() const { return (size_t)RealAddress(); };
 
 	virtual bool AddConnection(FDataflowConnection* In) { return false; };
 	virtual bool RemoveConnection(FDataflowConnection* In) { return false; }

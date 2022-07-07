@@ -52,7 +52,7 @@ const FDataflowInput* FDataflowNode::FindInput(const void* Reference) const
 	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
 		FDataflowInput* Con = Elem.Value;
-		if (Con->RealAddress() == (size_t)Reference)
+		if (Con->RealAddress() == Reference)
 		{
 			return Con;
 		}
@@ -65,7 +65,7 @@ FDataflowInput* FDataflowNode::FindInput(void* Reference)
 	for (TPair<uint32, FDataflowInput*> Elem : Inputs)
 	{
 		FDataflowInput* Con = Elem.Value;
-		if (Con->RealAddress() == (size_t)Reference)
+		if (Con->RealAddress() == Reference)
 		{
 			return Con;
 		}
@@ -137,7 +137,7 @@ const FDataflowOutput* FDataflowNode::FindOutput(const void* Reference) const
 	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
 		FDataflowOutput* Con = Elem.Value;
-		if (Con->RealAddress() == (size_t)Reference)
+		if (Con->RealAddress() == Reference)
 		{
 			return (FDataflowOutput*)Con;
 		}
@@ -150,7 +150,7 @@ FDataflowOutput* FDataflowNode::FindOutput(void* Reference)
 	for (TPair<uint32, FDataflowOutput*> Elem : Outputs)
 	{
 		FDataflowOutput* Con = Elem.Value;
-		if (Con->RealAddress() == (size_t)Reference)
+		if (Con->RealAddress() == Reference)
 		{
 			return (FDataflowOutput*)Con;
 		}

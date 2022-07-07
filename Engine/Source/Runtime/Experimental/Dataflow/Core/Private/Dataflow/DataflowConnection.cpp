@@ -14,14 +14,13 @@ FDataflowConnection::FDataflowConnection(Dataflow::FPin::EDirection InDirection,
 	, Guid(InGuid)
 {}
 
-// @todo(dataflow) check that the return types are all consistent
-uint32 FDataflowConnection::GetOffset() const
+int32 FDataflowConnection::GetOffset() const
 {
 	if (ensure(Property != nullptr))
 	{
 		return Property->GetOffset_ForInternal();
 	}
-	return (uint32)INDEX_NONE;
+	return INDEX_NONE;
 }
 
 
