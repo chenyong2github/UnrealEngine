@@ -15,8 +15,7 @@ public class OutputLog : ModuleRules
 				"SlateCore",
                 "TargetPlatform",
                 "DesktopPlatform",
-				"ToolWidgets", 
-				"Engine", 
+				"ToolWidgets"
 			}
 		);
 
@@ -24,9 +23,8 @@ public class OutputLog : ModuleRules
         {
             PrivateDependencyModuleNames.AddRange(
 				new string[] {
-					"EditorFramework",
-					"UnrealEd",
-					"StatusBar",
+						"EditorFramework",
+                        "UnrealEd"
 				}
 			);
         }

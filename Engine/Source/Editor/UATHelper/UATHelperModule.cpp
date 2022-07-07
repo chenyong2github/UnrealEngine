@@ -36,7 +36,6 @@
 #include "AnalyticsEventAttribute.h"
 
 #include "ShaderCompiler.h"
-#include "Developer/OutputLog/Public/OutputLogModule.h"
 
 #define LOCTEXT_NAMESPACE "UATHelper"
 
@@ -488,8 +487,7 @@ public:
 
 	static void HandleUatHyperlinkNavigate()
 	{
-		FOutputLogModule& OutputLogModule = FOutputLogModule::Get();
-		OutputLogModule.FocusOutputLog();
+		FGlobalTabmanager::Get()->TryInvokeTab(FName("OutputLog"));
 	}
 
 	static void HandleUatResultHyperlinkNavigate(FString ResultLocation)

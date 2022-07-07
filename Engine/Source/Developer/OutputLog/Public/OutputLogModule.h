@@ -61,20 +61,12 @@ public:
 	virtual void FocusOutputLogConsoleBox(const TSharedRef<SWidget> OutputLogToFocus);
 
 	virtual const TSharedPtr<SWidget> GetOutputLog() const;
-
-	/** Opens and focuses on the Output Log Drawer if the status bar exists, otherwise opens and focuses on the Output Log Tab. */
-	void OUTPUTLOG_API FocusOutputLog();
-
 	const TSharedPtr<SDockTab> GetOutputLogTab() const { return OutputLogTab.Pin(); }
 
 	/** Change the output log's filter. If CategoriesToShow is empty, all categories will be shown. */
 	void OUTPUTLOG_API UpdateOutputLogFilter(const TArray<FName>& CategoriesToShow, TOptional<bool> bShowErrors = TOptional<bool>(), TOptional<bool> bShowWarnings = TOptional<bool>(), TOptional<bool> bShowLogs = TOptional<bool>());
 	/** Opens the output log tab, or brings it to front if it's already open */
 	void OUTPUTLOG_API OpenOutputLog() const;
-
-	/** Returns the value of bCycleToOutputLogDrawer from the module OutputLogSettings. This function helps StatusBar to access properties in OutputLogSetting 
-	through OutputLogModule to avoid dependencies. */
-	virtual bool ShouldCycleToOutputLogDrawer() const;
 
 private:
 	TSharedRef<SDockTab> SpawnOutputLogTab(const FSpawnTabArgs& Args);

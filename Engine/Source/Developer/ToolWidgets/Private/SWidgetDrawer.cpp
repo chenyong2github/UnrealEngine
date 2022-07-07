@@ -353,7 +353,7 @@ void SWidgetDrawer::Construct(const FArguments& InArgs, FName InStatusBarName)
 void SWidgetDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const FWeakWidgetPath& OldFocusedWidgetPath, const TSharedPtr<SWidget>& OldFocusedWidget, const FWidgetPath& NewFocusedWidgetPath, const TSharedPtr<SWidget>& NewFocusedWidget)
 {
 	// Sometimes when dismissing focus can change which will trigger this again
-	static bool bIsRentrant = false; 
+	static bool bIsRentrant = false;
 
 	if(!bIsRentrant)
 	{
@@ -388,10 +388,7 @@ void SWidgetDrawer::OnGlobalFocusChanging(const FFocusEvent& FocusEvent, const F
 					bShouldDismiss = true;
 				}
 			}
-			// When the focus change is initiated by the window, don't dismiss the drawer. 
-			// Scenario: when users try to open the Output Log Drawer via the "View Output Log" hyperlink, and the Output Log Drawer 
-			// wasn't in focus already, the window will dismiss the drawer immediately after it's opened due to focus change. 
-			else if (FocusEvent.GetCause() != EFocusCause::WindowActivate)
+			else
 			{
 				bShouldDismiss = true;
 			}
