@@ -72,6 +72,7 @@ namespace Audio
 			}
 		}
 
+
 		// update transport
 		if (ToUpdateBitField & (1 << static_cast<int>(EQuartzCommandQuantization::Bar)))
 		{
@@ -111,12 +112,9 @@ namespace Audio
 		// ratio between new and old rates
 		const double Ratio = InNewTickRate.GetFramesPerTick() / CurrentTickRate.GetFramesPerTick();
 
-		if (NumFramesLeft)
+		for (double& Value : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
 		{
-			for (double& Value : FramesLeftInMusicalDuration.FramesInTimeValueInternal)
-			{
-				Value = NumFramesLeft + Ratio * (Value - NumFramesLeft);
-			}
+			Value = NumFramesLeft + Ratio * (Value - NumFramesLeft);
 		}
 
 		CurrentTickRate = InNewTickRate;
