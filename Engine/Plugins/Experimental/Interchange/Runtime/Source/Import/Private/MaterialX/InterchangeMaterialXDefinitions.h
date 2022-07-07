@@ -23,7 +23,7 @@ namespace MaterialX
 			static constexpr const char* TransmissionScatter = "transmission_scatter";
 			static constexpr const char* TransmissionScatterAnisotropy = "transmission_scatter_anisotropy";
 			static constexpr const char* TransmissionDispersion = "transmission_dispersion";
-			static constexpr const char* TransmissionExtraRoughness= "transmission_extra_roughness";
+			static constexpr const char* TransmissionExtraRoughness = "transmission_extra_roughness";
 			static constexpr const char* Subsurface = "subsurface";
 			static constexpr const char* SubsurfaceColor = "subsurface_color";
 			static constexpr const char* SubsurfaceRadius = "subsurface_radius";
@@ -46,7 +46,7 @@ namespace MaterialX
 			static constexpr const char* Emission = "emission";
 			static constexpr const char* EmissionColor = "emission_color";
 			static constexpr const char* Opacity = "opacity";
-			static constexpr const char* ThinWalled= "thin_walled";
+			static constexpr const char* ThinWalled = "thin_walled";
 			static constexpr const char* Normal = "normal";
 			static constexpr const char* Tangent = "tangent";
 		}
@@ -55,7 +55,7 @@ namespace MaterialX
 		{
 			namespace Float
 			{
-				static float Base = 0.8f;
+				static float Base = 1.f;
 				static float DiffuseRoughness = 0.f;
 				static float Metalness = 0.f;
 				static float Specular = 1.f;
@@ -87,7 +87,7 @@ namespace MaterialX
 
 			namespace Color3
 			{
-				constexpr FLinearColor BaseColor{ 1.0, 1.0, 1.0 };
+				constexpr FLinearColor BaseColor{ 0.8, 0.8, 0.8 };
 				constexpr FLinearColor SpecularColor{ 1, 1, 1 };
 				constexpr FLinearColor TransmissionColor{ 1, 1, 1 };
 				constexpr FLinearColor TransmissionScatter{ 0, 0, 0 };
@@ -121,7 +121,7 @@ namespace MaterialX
 		}
 
 		namespace DirectionalLight
-		{			
+		{
 			namespace Input
 			{
 				using namespace Lights::Input;
@@ -144,7 +144,7 @@ namespace MaterialX
 	namespace Attributes
 	{
 		static constexpr const char* IsVisited = "UE:IsVisited";
-		static constexpr const char* OldName = "UE:OldName";
+		static constexpr const char* OriginalName = "UE:OriginalName";
 	}
 
 	namespace Category
@@ -173,6 +173,10 @@ namespace MaterialX
 		static constexpr const char* DirectionalLight = "directional_light";
 		static constexpr const char* SpotLight = "spot_light";
 		static constexpr const char* StandardSurface = "standard_surface";
+		//static constexpr const char* Convert = "convert";
+		static constexpr const char* Power = "power";
+		static constexpr const char* RgbToHsv = "rgbtohsv";
+		static constexpr const char* HsvToRgb = "hsvtorgb";
 	}
 
 	namespace NodeDefinition
@@ -186,8 +190,82 @@ namespace MaterialX
 	namespace Library
 	{
 		static constexpr const char* Std = "stdlib";
-		static constexpr const char* Pbr= "pbrlib";
+		static constexpr const char* Pbr = "pbrlib";
 		static constexpr const char* Bxdf = "bxdf";
 		static constexpr const char* Lights = "lights";
+	}
+
+	namespace Type
+	{
+		static constexpr const char* Boolean = "boolean";
+		static constexpr const char* Integer = "integer";
+		static constexpr const char* Float = "float";
+		static constexpr const char* Color3 = "color3";
+		static constexpr const char* Color4 = "color4";
+		static constexpr const char* Vector2 = "vector2";
+		static constexpr const char* Vector3 = "vector3";
+		static constexpr const char* Vector4 = "vector4";
+		static constexpr const char* Matrix33 = "matrix33";
+		static constexpr const char* Matrix44 = "matrix44";
+		static constexpr const char* String = "string";
+		static constexpr const char* Filename = "filename";
+		static constexpr const char* GeomName = "geomname";
+		static constexpr const char* SurfaceShader = "surfaceshader";
+		static constexpr const char* DisplacementShader = "displacementshader";
+		static constexpr const char* VolumeShader = "volumeshader";
+		static constexpr const char* LightShader = "lightshader";
+		static constexpr const char* Material = "material";
+		static constexpr const char* None = "none";
+		static constexpr const char* IntegerArray = "integerarray";
+		static constexpr const char* FloatArray = "floatarray";
+		static constexpr const char* Color3Array = "color3array";
+		static constexpr const char* Color4Array = "color4array";
+		static constexpr const char* Vector2Array = "vector2array";
+		static constexpr const char* Vector3Array = "vector3array";
+		static constexpr const char* Vector4Array = "vector4array";
+		static constexpr const char* StringArray = "stringarray";
+		static constexpr const char* GeomNameArray = "geomnamearray";
+	}
+
+	namespace NodeGroup
+	{
+		namespace Texture2D
+		{
+			namespace Inputs
+			{
+				static constexpr const char* File = "file";
+				static constexpr const char* Default = "default";
+				static constexpr const char* TexCoord = "texcoord";
+				static constexpr const char* FilterType = "filtertype";
+				static constexpr const char* FrameRange = "framerange";
+				static constexpr const char* FrameOffset = "frameoffset";
+				static constexpr const char* FrameEndAction = "frameendaction";
+			}
+		}
+	}
+
+	namespace Image
+	{
+		namespace Inputs
+		{
+			using namespace NodeGroup::Texture2D::Inputs;
+
+			static constexpr const char* Layer = "layer";
+			static constexpr const char* UAddressMode = "uaddressmode";
+			static constexpr const char* VAddressMode = "vaddressmode";
+		}
+	}
+
+	namespace TiledImage
+	{
+		namespace Inputs
+		{
+			using namespace NodeGroup::Texture2D::Inputs;
+
+			static constexpr const char* UVTiling = "uvtiling";
+			static constexpr const char* UVOffset = "uvoffset";
+			static constexpr const char* RealWorldImageSize = "realworldimagesize";
+			static constexpr const char* RealWorldTileSize = "realworldtilesize";
+		}
 	}
 }

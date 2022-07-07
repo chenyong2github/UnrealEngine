@@ -4,13 +4,11 @@
 #if WITH_EDITOR
 #include "MaterialXFormat/Util.h"
 #endif
-#include "Engine/Scene.h"
 #include "InterchangeImportLog.h"
 #include "InterchangeLightNode.h"
 #include "InterchangeManager.h"
 #include "InterchangeMaterialDefinitions.h"
 #include "InterchangeSceneNode.h"
-#include "InterchangeShaderGraphNode.h"
 #include "InterchangeMaterialXDefinitions.h"
 #include "InterchangeTexture2DNode.h"
 #include "Nodes/InterchangeSourceNode.h"
@@ -55,15 +53,17 @@ UInterchangeMaterialXTranslator::UInterchangeMaterialXTranslator()
 #if WITH_EDITOR
 	:
 InputNamesMaterialX2UE{
-	{TEXT("in"),        TEXT("Input")},
-	{TEXT("in1"),       TEXT("A")},
-	{TEXT("in2"),       TEXT("B")},
-	{TEXT("fg"),        TEXT("A")},
-	{TEXT("bg"),        TEXT("B")},
-	{TEXT("mix"),       TEXT("Factor")},
-	{TEXT("low"),       TEXT("Min")},
-	{TEXT("high"),      TEXT("Max")},
-	{TEXT("texcoord"),  UE::Interchange::Materials::Standard::Nodes::TextureSample::Inputs::Coordinates.ToString()} },
+	{{TEXT(""),						 TEXT("in")},		TEXT("Input")},
+	{{TEXT(""),						 TEXT("in1")},		TEXT("A")},
+	{{TEXT(""),						 TEXT("in2")},		TEXT("B")},
+	{{TEXT(""),						 TEXT("fg")},		TEXT("A")},
+	{{TEXT(""),						 TEXT("bg")},		TEXT("B")},
+	{{TEXT(""),						 TEXT("mix")},		TEXT("Factor")},
+	{{TEXT(""),						 TEXT("low")},		TEXT("Min")},
+	{{TEXT(""),						 TEXT("high")},		TEXT("Max")},
+	{{TEXT(""),						 TEXT("texcoord")}, TEXT("Coordinates")},
+	{{MaterialX::Category::Power,    TEXT("in1")},		TEXT("Base")},
+	{{MaterialX::Category::Power,	 TEXT("in2")},		TEXT("Exponent")}},
 NodeNamesMaterialX2UE{
 	{MaterialX::Category::Add,      TEXT("Add")},
 	{MaterialX::Category::Sub,      TEXT("Subtract")},
@@ -76,8 +76,9 @@ NodeNamesMaterialX2UE{
 	{MaterialX::Category::Min,      TEXT("Min")},
 	{MaterialX::Category::Combine2, TEXT("AppendVector")},
 	{MaterialX::Category::Combine3, TEXT("AppendVector")},
-	{MaterialX::Category::Combine4, TEXT("AppendVector")}},
-UEInputs{ TEXT("A"), TEXT("B"), TEXT("Input"), TEXT("Factor"), TEXT("Min"), TEXT("Max") }
+	{MaterialX::Category::Combine4, TEXT("AppendVector")},
+	{MaterialX::Category::Power,    TEXT("Power")}},
+UEInputs{ TEXT("A"), TEXT("B"), TEXT("Input"), TEXT("Factor"), TEXT("Min"), TEXT("Max"), TEXT("Base"), TEXT("Exponent") }
 #endif // WITH_EDITOR
 {
 }
@@ -162,21 +163,16 @@ bool UInterchangeMaterialXTranslator::Translate(UInterchangeBaseNodeContainer& B
 
 			if(Node)
 			{
-				std::string NameOfNodeDocument = Document->getCategory();
-				std::string NameOfNode = Node->getCategory();
-				printf("%s, %s", NameOfNodeDocument.c_str(), NameOfNode.c_str());
-
-				bool bIsMaterialShader = Node->getType() == mx::MATERIAL_TYPE_STRING;
-				bool bIsLightShader = Node->getType() == mx::LIGHT_SHADER_TYPE_STRING;
+				bool bIsMaterialShader = Node->getType() == mx::Type::Material;
+				bool bIsLightShader = Node->getType() == mx::Type::LightShader;
 
 				if(bIsMaterialShader || bIsLightShader)
 				{
 					if(!Node->getTypeDef())
 					{
 						UInterchangeResultError_Generic* Message = AddMessage<UInterchangeResultError_Generic>();
-						Message->Text = FText::Format(LOCTEXT("TypeDefNotFound", "<{0}> has no matching TypeDef"),
+						Message->Text = FText::Format(LOCTEXT("TypeDefNotFound", "<{0}> has no matching TypeDef, aborting import..."),
 													  FText::FromString(Node->getName().c_str()));
-
 						bIsReferencesValid = false;
 						break;
 					}
@@ -261,15 +257,9 @@ void UInterchangeMaterialXTranslator::ProcessStandardSurface(UInterchangeBaseNod
 {
 	using namespace UE::Interchange::Materials;
 
-	const FString StandardSurfaceName{ StandardSurfaceNode->getName().c_str() };
-	UInterchangeShaderGraphNode* ShaderGraphNode = NewObject<UInterchangeShaderGraphNode>(&NodeContainer);
-	const FString ShaderGraphNodeUID = TEXT("\\Material\\") + StandardSurfaceName;
-	ShaderGraphNode->InitializeNode(ShaderGraphNodeUID, StandardSurfaceName, EInterchangeNodeContainerType::TranslatedAsset);
-	NodeContainer.AddNode(ShaderGraphNode);
-	ShaderGraphNode->SetCustomShaderType(StandardSurface::Name.ToString());
-
 	TMap<FString, UInterchangeShaderNode*> NamesToShaderNodes;
-	NamesToShaderNodes.Add(StandardSurfaceName, ShaderGraphNode);
+
+	UInterchangeShaderGraphNode* ShaderGraphNode = CreateShaderNode<UInterchangeShaderGraphNode>(StandardSurfaceNode->getName().c_str(), StandardSurface::Name.ToString(), TEXT(""), NamesToShaderNodes, NodeContainer);
 
 	//Base
 	{
@@ -452,6 +442,16 @@ void UInterchangeMaterialXTranslator::ProcessStandardSurface(UInterchangeBaseNod
 			if(!ConnectNodeGraphOutputToInput(InputCoat, ShaderGraphNode, StandardSurface::Parameters::Coat.ToString(), NamesToShaderNodes, NodeContainer))
 			{
 				AddFloatAttribute(InputCoat, StandardSurface::Parameters::Coat.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Float::Coat);
+			}
+		}
+
+		//Color
+		{
+			mx::InputPtr InputCoatColor = GetStandardSurfaceInput(StandardSurfaceNode, mx::StandardSurface::Input::CoatColor, Document);
+
+			if(!ConnectNodeGraphOutputToInput(InputCoatColor, ShaderGraphNode, StandardSurface::Parameters::Coat.ToString(), NamesToShaderNodes, NodeContainer))
+			{
+				AddLinearColorAttribute(InputCoatColor, StandardSurface::Parameters::CoatColor.ToString(), ShaderGraphNode, mx::StandardSurface::DefaultValue::Color3::CoatColor);
 			}
 		}
 
@@ -700,8 +700,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 		{
 			UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
 			Message->Text = FText::Format(LOCTEXT("OutputNotFound", "Couldn't find a connected output to ({0})"),
-										  FText::FromString(InputToNodeGraph->getName().c_str()));
-
+										  FText::FromString(GetInputName(InputToNodeGraph)));
 			return false;
 		}
 
@@ -713,7 +712,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				FString InputChannelName = ParentInputName;
 
 				//Replace the input's name by the one used in UE
-				RenameInputsNames(UpstreamNode);
+				RenameNodeInputs(UpstreamNode);
 
 				if(mx::NodePtr DownstreamNode = Edge.getDownstreamElement()->asA<mx::Node>())
 				{
@@ -724,7 +723,7 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 
 					if(mx::InputPtr ConnectedInput = Edge.getConnectingElement()->asA<mx::Input>())
 					{
-						InputChannelName = ConnectedInput->getName().c_str();
+						InputChannelName = GetInputName(ConnectedInput);
 					}
 				}
 
@@ -738,14 +737,14 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 					{
 						UInterchangeResultWarning_Generic* Message = AddMessage<UInterchangeResultWarning_Generic>();
 						Message->Text = FText::Format(LOCTEXT("InputTypeNotSupported", "<{0}>: \"{1}\" is not supported yet"),
-													  FText::FromString(InputConstant->getName().c_str()),
+													  FText::FromString(GetInputName(InputConstant)),
 													  FText::FromString(InputConstant->getType().c_str()));
 					}
 
 				}
 				else if(UpstreamNode->getCategory() == mx::Category::Extract)
 				{
-					UInterchangeShaderNode* MaskShaderNode = CreateShaderNode(UpstreamNode->getName().c_str(), Mask::Name.ToString(), ParentShaderNode, NamesToShaderNodes, NodeContainer);
+					UInterchangeShaderNode* MaskShaderNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), Mask::Name.ToString(), ParentShaderNode->GetUniqueID(), NamesToShaderNodes, NodeContainer);
 
 					if(mx::InputPtr InputIndex = UpstreamNode->getInput("index"))
 					{
@@ -768,9 +767,9 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 				//dot means identity, input == output
 				else if(UpstreamNode->getCategory() == mx::Category::Dot || UpstreamNode->getCategory() == mx::Category::NormalMap)
 				{
-					if(mx::InputPtr Input = GetInputFromOldName(UpstreamNode, "in"))
+					if(mx::InputPtr Input = GetInputFromOriginalName(UpstreamNode, "in"))
 					{
-						Input->setName(TCHAR_TO_UTF8(*InputChannelName)); //let's take the parent node's input name
+						RenameInput(Input, TCHAR_TO_UTF8(*InputChannelName)); //let's take the parent node's input name
 						NamesToShaderNodes.FindOrAdd(UpstreamNode->getName().c_str(), ParentShaderNode);
 					}
 				}
@@ -781,21 +780,76 @@ bool UInterchangeMaterialXTranslator::ConnectNodeGraphOutputToInput(MaterialX::I
 						//By default set the output of a texture to RGB, if the type is float then it's either up to an extract node or the Material Input to handle it
 						FString OutputChannel{ TEXT("RGB") };
 
-						if(UpstreamNode->getType() == "vector4" || UpstreamNode->getType() == "color4")
+						if(UpstreamNode->getType() == mx::Type::Vector4 || UpstreamNode->getType() == mx::Type::Color4)
 							OutputChannel = TEXT("RGBA");
 
-						UInterchangeShaderNode* TextureShaderNode = CreateShaderNode(UpstreamNode->getName().c_str(), TextureSample::Name.ToString(), ParentShaderNode, NamesToShaderNodes, NodeContainer);
+						UInterchangeShaderNode* TextureShaderNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TextureSample::Name.ToString(), ParentShaderNode->GetUniqueID(), NamesToShaderNodes, NodeContainer);
 						TextureShaderNode->AddStringAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(TextureSample::Inputs::Texture.ToString()), TextureNode->GetUniqueID());
 						UInterchangeShaderPortsAPI::ConnectOuputToInput(ParentShaderNode, InputChannelName, TextureShaderNode->GetUniqueID(), OutputChannel);
+
+						UInterchangeShaderNode* ImageNode = TextureShaderNode;
+						FString ImageNodeInputName{ TextureSample::Inputs::Coordinates.ToString() };
+
+						auto ConnectUVTransformToOutput = [this, UpstreamNode, &NodeContainer, &NamesToShaderNodes](UInterchangeShaderNode*& ImageNode, FString& ImageNodeInputName, const FString& ShaderType, const char* InputName)
+						{
+							if(mx::InputPtr Input = UpstreamNode->getInput(InputName))
+							{
+								const FString ShaderNodeName{ UpstreamNode->getName().c_str() + FString(TEXT("_")) + InputName };
+								UInterchangeShaderNode* ShaderNode = CreateShaderNode<UInterchangeShaderNode>(ShaderNodeName, ShaderType, ImageNode->GetUniqueID(), NamesToShaderNodes, NodeContainer);
+								UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ImageNode, ImageNodeInputName, ShaderNode->GetUniqueID());
+
+								//Vec2
+								if(Input->hasValueString())
+								{
+									const FString MaskNodeName{ UpstreamNode->getName().c_str() + FString(TEXT("_")) + ShaderType+TEXT("MaskNode") };
+									UInterchangeShaderNode* MaskShaderNode = CreateShaderNode<UInterchangeShaderNode>(MaskNodeName, Mask::Name.ToString(), ShaderNode->GetUniqueID(), NamesToShaderNodes, NodeContainer);
+									MaskShaderNode->AddBooleanAttribute(Mask::Attributes::R, true);
+									MaskShaderNode->AddBooleanAttribute(Mask::Attributes::G, true);
+
+									mx::Vector2 Vec2 = mx::fromValueString<mx::Vector2>(Input->getValueString());
+									MaskShaderNode->AddLinearColorAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(Mask::Inputs::Input.ToString()), FLinearColor(Vec2[0], Vec2[1], 0));
+									UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderNode, TEXT("B"), MaskShaderNode->GetUniqueID());
+								}
+								else
+								{
+									RenameInput(Input, "B");
+								}
+
+								//The node will replace the texture node for the input
+								NamesToShaderNodes.Add(UpstreamNode->getName().c_str(), ShaderNode);
+
+								//We also need to replace the name of texcoord input by one of the inputs of this node
+								if(mx::InputPtr InputTexCoord = GetInputFromOriginalName(UpstreamNode, mx::TiledImage::Inputs::TexCoord))
+								{
+									RenameInput(InputTexCoord, "A");
+								}
+								else
+								{
+									//Let's reuse the same texture coordinate node for further use (no need to set a parent)
+									const FString TextureCoordinateName{ FPaths::GetBaseFilename(UpstreamNode->getActiveSourceUri().c_str()) + FString(TEXT("_texcoord")) };
+									UInterchangeShaderNode* TextureCoordinateNode = CreateShaderNode<UInterchangeShaderNode>(TextureCoordinateName, TextureCoordinate::Name.ToString(), TEXT(""), NamesToShaderNodes, NodeContainer);
+									UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ShaderNode, TEXT("A"), TextureCoordinateNode->GetUniqueID());
+								}
+
+								ImageNode = ShaderNode;
+								ImageNodeInputName = TEXT("A");
+							}
+						};
+
+						// UV offset (MaterialX defines it as a substraction)
+						// MaterialX spec: the offset for the given image along the U and V axes. Mathematically
+						// equivalent to subtracting the given vector value from the incoming texture coordinates.
+						ConnectUVTransformToOutput(ImageNode, ImageNodeInputName, TEXT("Subtract"), mx::TiledImage::Inputs::UVOffset);
+						ConnectUVTransformToOutput(ImageNode, ImageNodeInputName, TEXT("Multiply"), mx::TiledImage::Inputs::UVTiling);
 					}
 					else
 					{
-						AddAttribute(UpstreamNode->getInput("default"), InputChannelName, ParentShaderNode);
+						AddAttribute(UpstreamNode->getInput(mx::NodeGroup::Texture2D::Inputs::Default), InputChannelName, ParentShaderNode);
 					}
 				}
 				else if(UpstreamNode->getCategory() == mx::Category::TexCoord)
 				{
-					UInterchangeShaderNode* TextureCoordinateNode = CreateShaderNode(UpstreamNode->getName().c_str(), TextureCoordinate::Name.ToString(), ParentShaderNode, NamesToShaderNodes, NodeContainer);
+					UInterchangeShaderNode* TextureCoordinateNode = CreateShaderNode<UInterchangeShaderNode>(UpstreamNode->getName().c_str(), TextureCoordinate::Name.ToString(), ParentShaderNode->GetUniqueID(), NamesToShaderNodes, NodeContainer);
 					UInterchangeShaderPortsAPI::ConnectDefaultOuputToInput(ParentShaderNode, InputChannelName, TextureCoordinateNode->GetUniqueID());
 				}
 				else
@@ -819,15 +873,27 @@ bool UInterchangeMaterialXTranslator::ConnectNodeOutputToInput(MaterialX::NodePt
 	{
 		UInterchangeShaderNode* OperatorNode = nullptr;
 
-		OperatorNode = CreateShaderNode(Node->getName().c_str(), *ShaderType, ParentShaderNode, NamesToShaderNodes, NodeContainer);
+		OperatorNode = CreateShaderNode<UInterchangeShaderNode>(Node->getName().c_str(), *ShaderType, ParentShaderNode->GetUniqueID(), NamesToShaderNodes, NodeContainer);
 
 		for(mx::InputPtr Input : Node->getInputs())
 		{
 			if(Input->hasValue())
 			{
-				if(const FString* InputNameFound = UEInputs.Find(Input->getName().c_str()))
+				if(const FString* InputNameFound = UEInputs.Find(GetInputName(Input)))
 				{
 					AddAttribute(Input, *InputNameFound, OperatorNode);
+				}
+			}
+			else if(Input->hasInterfaceName())
+			{
+				mx::InputPtr InputInterface = Input->getInterfaceInput();
+				if(InputInterface->hasValue())
+				{
+					// We need to take the input name from the original Input not the Interface
+					if(const FString* InputNameFound = UEInputs.Find(GetInputName( Input)))
+					{
+						AddAttribute(InputInterface, *InputNameFound, OperatorNode);
+					}
 				}
 			}
 		}
@@ -836,29 +902,6 @@ bool UInterchangeMaterialXTranslator::ConnectNodeOutputToInput(MaterialX::NodePt
 	}
 
 	return bIsConnected;
-}
-
-UInterchangeShaderNode* UInterchangeMaterialXTranslator::CreateShaderNode(const FString& NodeName, const FString& ShaderType, UInterchangeShaderNode* ParentNode, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
-{
-	UInterchangeShaderNode* Node;
-
-	if(UInterchangeShaderNode** FoundNode = NamesToShaderNodes.Find(NodeName); !FoundNode)
-	{
-		const FString NodeUID = ParentNode->GetUniqueID() + TEXT("_") + NodeName;
-		Node = NewObject<UInterchangeShaderNode>(&NodeContainer);
-		Node->InitializeNode(NodeUID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
-		NodeContainer.AddNode(Node);
-		NodeContainer.SetNodeParentUid(NodeUID, ParentNode->GetUniqueID());
-		Node->SetCustomShaderType(ShaderType);
-
-		NamesToShaderNodes.Add(NodeName, Node);
-	}
-	else
-	{
-		Node = *FoundNode;
-	}
-
-	return Node;
 }
 
 UInterchangeTextureNode* UInterchangeMaterialXTranslator::CreateTextureNode(MaterialX::NodePtr Node, UInterchangeBaseNodeContainer& NodeContainer) const
@@ -901,22 +944,29 @@ UInterchangeTextureNode* UInterchangeMaterialXTranslator::CreateTextureNode(Mate
 	return TextureNode;
 }
 
-const FString& UInterchangeMaterialXTranslator::GetMatchedInputName(MaterialX::InputPtr Input) const
+const FString& UInterchangeMaterialXTranslator::GetMatchedInputName(MaterialX::NodePtr Node, MaterialX::InputPtr Input) const
 {
-	static FString Empty{ "" };
+	static FString EmptyString;
 
 	if(Input)
 	{
-		if(const FString* Result = InputNamesMaterialX2UE.Find(Input->getName().c_str()))
+		const FString NodeCategory{ Node->getCategory().c_str() };
+		const FString InputName{ GetInputName(Input) };
+		TPair<FString, FString> Pair{ NodeCategory, InputName };
+		if(const FString* Result = InputNamesMaterialX2UE.Find(Pair))
+		{
+			return *Result;
+		}
+		else if((Result = InputNamesMaterialX2UE.Find({ EmptyString, InputName })))
 		{
 			return *Result;
 		}
 	}
 
-	return Empty;
+	return EmptyString;
 }
 
-void UInterchangeMaterialXTranslator::RenameInputsNames(MaterialX::NodePtr Node) const
+void UInterchangeMaterialXTranslator::RenameNodeInputs(MaterialX::NodePtr Node) const
 {
 	if(Node)
 	{
@@ -926,29 +976,62 @@ void UInterchangeMaterialXTranslator::RenameInputsNames(MaterialX::NodePtr Node)
 
 			for(mx::InputPtr Input : Node->getInputs())
 			{
-				if(const FString& Name = GetMatchedInputName(Input); !Name.IsEmpty())
+				if(const FString& Name = GetMatchedInputName(Node, Input); !Name.IsEmpty())
 				{
-					Input->setAttribute(mx::Attributes::OldName, Input->getName()); // keep the old name for further processing
-					Input->setName(TCHAR_TO_UTF8(*Name));
+					RenameInput(Input, TCHAR_TO_UTF8(*Name));
 				}
 			}
 		}
 	}
 }
 
-MaterialX::InputPtr UInterchangeMaterialXTranslator::GetInputFromOldName(MaterialX::NodePtr Node, const char* OldNameAttribute) const
+void UInterchangeMaterialXTranslator::RenameInput(MaterialX::InputPtr Input, const char* NewName) const
+{
+	std::string OriginalName;
+
+	if(!Input->hasAttribute(mx::Attributes::OriginalName))
+	{
+		OriginalName = Input->getName();
+		Input->setAttribute(mx::Attributes::OriginalName, OriginalName); // keep the original name for further processing
+	}
+	else
+	{
+		OriginalName = Input->getAttribute(mx::Attributes::OriginalName);
+	}
+
+	Input->setName(OriginalName + "_" + NewName);
+}
+
+MaterialX::InputPtr UInterchangeMaterialXTranslator::GetInputFromOriginalName(MaterialX::NodePtr Node, const char* OriginalNameAttribute) const
 {
 	mx::InputPtr InputRes{ nullptr };
 
 	for(mx::InputPtr Input : Node->getInputs())
 	{
-		if(Input->getAttribute(mx::Attributes::OldName) == OldNameAttribute)
+		if(Input->getAttribute(mx::Attributes::OriginalName) == OriginalNameAttribute)
 		{
 			InputRes = Input;
+			break;
 		}
 	}
 
 	return InputRes;
+}
+
+FString UInterchangeMaterialXTranslator::GetInputName(MaterialX::InputPtr Input) const
+{
+	std::string Name = Input->getName();
+
+	if(Input->hasAttribute(mx::Attributes::OriginalName))
+	{
+		std::string OriginalName;
+		OriginalName = Input->getAttribute(mx::Attributes::OriginalName);
+		OriginalName += "_";
+		Name.replace(0, OriginalName.size(), "");
+	}
+
+
+	return Name.c_str();
 }
 
 MaterialX::InputPtr UInterchangeMaterialXTranslator::GetStandardSurfaceInput(MaterialX::NodePtr StandardSurface, const char* InputName, MaterialX::DocumentPtr Document) const
@@ -1003,22 +1086,26 @@ bool UInterchangeMaterialXTranslator::AddAttribute(MaterialX::InputPtr Input, co
 {
 	if(Input)
 	{
-		if(Input->getType() == "float")
+		if(Input->getType() == mx::Type::Float)
 		{
 			return ShaderNode->AddFloatAttribute(UInterchangeShaderPortsAPI::MakeInputValueKey(InputChannelName), mx::fromValueString<float>(Input->getValueString()));
+		}
+		else if(Input->getType() == mx::Type::Integer)
+		{
+			printf("");
 		}
 
 		FLinearColor LinearColor;
 
 		bool bIsColor = false;
 
-		if(bool bIsColor3 = (Input->getType() == "color3" || Input->getType() == "vector3"))
+		if(bool bIsColor3 = (Input->getType() == mx::Type::Color3 || Input->getType() == mx::Type::Vector3))
 		{
 			mx::Color3 Color = mx::fromValueString<mx::Color3>(Input->getValueString());
 			LinearColor = FLinearColor{ Color[0], Color[1], Color[2] };
 			bIsColor = true;
 		}
-		else if(bool bIsColor4 = (Input->getType() == "color4" || Input->getType() == "vector4"))
+		else if(bool bIsColor4 = (Input->getType() == mx::Type::Color4|| Input->getType() == mx::Type::Vector4))
 		{
 			mx::Color4 Color = mx::fromValueString<mx::Color4>(Input->getValueString());
 			LinearColor = FLinearColor{ Color[0], Color[1], Color[2], Color[3] };

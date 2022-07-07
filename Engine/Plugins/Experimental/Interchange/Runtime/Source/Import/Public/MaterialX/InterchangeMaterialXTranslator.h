@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
+#include "InterchangeShaderGraphNode.h"
 #include "InterchangeTranslatorBase.h"
 #include "Texture/InterchangeTexturePayloadInterface.h"
 
@@ -17,7 +18,6 @@ PRAGMA_ENABLE_MISSING_BRACES_WARNINGS
 #include "InterchangeMaterialXTranslator.generated.h"
 
 class UInterchangeTextureNode;
-class UInterchangeShaderNode;
 class UInterchangeBaseLightNode;
 class UInterchangeSceneNode;
 
@@ -41,7 +41,7 @@ public:
 	/**
 	 * Translate the associated source data into a node hold by the specified nodes container.
 	 *
-	 * @param BaseNodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param BaseNodeContainer - The container where to add the translated Interchange nodes.
 	 * @return true if the translator can translate the source data, false otherwise.
 	 */
 	virtual bool Translate( UInterchangeBaseNodeContainer& BaseNodeContainer ) const override;
@@ -55,7 +55,7 @@ protected:
 	/**
 	 * Process Autodesk's standard surface shader
 	 * 
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param NodeContainer - The container where to add the translated Interchange nodes.
 	 * @param StandardSurfaceNode - The <standard_surface> in the MaterialX file
 	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
 	 */
@@ -64,7 +64,7 @@ protected:
 	/**
 	 * Process light shader, MaterialX doesn't standardized lights, but defines the 3 common ones, directional, point and spot
 	 * 
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * @param LightShaderNode - a MaterialX light shader node
 	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
 	 */
@@ -75,7 +75,7 @@ protected:
 	 *
 	 * @param DirectionalLightShaderNode - The MaterialX node related to a <directional_light>
 	 * @param SceneNode - The interchange scene node, to which the node will be attached to
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
 	 */
 	UInterchangeBaseLightNode* CreateDirectionalLightNode(MaterialX::NodePtr DirectionalLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const;
@@ -85,7 +85,7 @@ protected:
 	 *
 	 * @param PointLightShaderNode - The MaterialX node related to a <point_light>
 	 * @param SceneNode - The interchange scene node, to which the node will be attached to
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
 	 */
 	UInterchangeBaseLightNode* CreatePointLightNode(MaterialX::NodePtr PointLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const;
@@ -95,7 +95,7 @@ protected:
 	 *
 	 * @param SpotLightShaderNode - The MaterialX node related to a <spot_light>
 	 * @param SceneNode - The interchange scene node, to which the node will be attached to
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * @param Document - The MaterialX Document that contains all the definitions of the loaded libraries
 	 */
 	UInterchangeBaseLightNode* CreateSpotLightNode(MaterialX::NodePtr SpotLightShaderNode, UInterchangeSceneNode* SceneNode, UInterchangeBaseNodeContainer& NodeContainer, MaterialX::DocumentPtr Document) const;
@@ -106,7 +106,7 @@ protected:
 	 * @param ShaderNode - The Interchange shader node to connect the MaterialX's node graph to
 	 * @param ParentInputName - The name of the input of the shader node to which we want the node graph to be connected to
 	 * @param NamesToShaderNodes - Map of the shader nodes already created
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * 
 	 * @return true if the given input is attached to one of the outputs of a node graph
 	 */
@@ -119,60 +119,104 @@ protected:
 	 * @param ParentShaderNode - The shader node to connect to
 	 * @param InputChannelName - The input of the ParentShaderNode to connect to
 	 * @param NamesToShaderNodes - Map of the shader nodes already created
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * 
 	 * @return true if a shader node has been successfully created and is connected to the given input
 	 */
 	bool ConnectNodeOutputToInput(MaterialX::NodePtr Node, UInterchangeShaderNode* ParentShaderNode, const FString& InputChannelName, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const;
 
 	/**
-	 * Helper function to create an InterchangeShaderNode
+	 * Helper template function to create an InterchangeShaderNode
 	 * 
 	 * @param NodeName - The name of the shader node
 	 * @param ShaderType - The shader node's type we want to create
 	 * @param ParentNode - The parent node of the created node
 	 * @param NamesToShaderNodes - Map of the shader nodes already created
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * 
 	 * @return The shader node that was created
 	 */
-	UInterchangeShaderNode* CreateShaderNode(const FString & NodeName, const FString & ShaderType, UInterchangeShaderNode * ParentNode, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer & NodeContainer) const;
+	template<typename ShaderNodeType>
+	ShaderNodeType* CreateShaderNode(const FString& NodeName, const FString& ShaderType, const FString & ParentNodeUID, TMap<FString, UInterchangeShaderNode*>& NamesToShaderNodes, UInterchangeBaseNodeContainer& NodeContainer) const
+	{
+		static_assert(std::is_convertible_v<ShaderNodeType*, UInterchangeShaderNode*>, "CreateShaderNode only accepts type that derived from UInterchangeShaderNode");
+
+		ShaderNodeType* Node;
+
+		const FString NodeUID = UInterchangeShaderNode::MakeNodeUid(NodeName, ParentNodeUID);
+		
+		//Test directly in the NodeContainer, because the NamesToShaderNodes can be altered during the node graph either by the parent (dot/normalmap),
+		//or by putting an intermediary node between the child and the parent (tiledimage)
+		if(Node = const_cast<ShaderNodeType*>(Cast<ShaderNodeType>(NodeContainer.GetNode(NodeUID))); !Node)
+		{
+			Node = NewObject<ShaderNodeType>(&NodeContainer);
+			Node->InitializeNode(NodeUID, NodeName, EInterchangeNodeContainerType::TranslatedAsset);
+			NodeContainer.AddNode(Node);
+			if constexpr(std::is_same_v<ShaderNodeType, UInterchangeShaderGraphNode>)
+			{
+				NodeContainer.SetNodeParentUid(NodeUID, ParentNodeUID);
+			}
+			Node->SetCustomShaderType(ShaderType);
+
+			NamesToShaderNodes.Add(NodeName, Node);
+		}
+
+		return Node;
+	}
 
 	/**
 	 * Helper function to create an InterchangeTextureNode
 	 *
 	 * @param Node - The MaterialX node, it should be of the category <image> no test is done on it
-	 * @param NodeContainer - The unreal objects descriptions container where to put the translated source data.
+	 * @param The container where to add the translated Interchange nodes.
 	 * 
 	 * @return The texture node that was created
 	 */
 	UInterchangeTextureNode* CreateTextureNode(MaterialX::NodePtr Node, UInterchangeBaseNodeContainer& NodeContainer) const;
 
 	/**
-	 * Get the UE corresponding name of MaterialX input of a material
+	 * Get the UE corresponding name of a MaterialX Node category and input for a material
 	 * 
 	 * @param Input - MaterialX input
 	 * 
-	 * @return The matched name of the input else empty string
+	 * @return The matched name of the Node/Input else empty string
 	 */
-	const FString& GetMatchedInputName(MaterialX::InputPtr Input) const;
-
+	const FString& GetMatchedInputName(MaterialX::NodePtr Node, MaterialX::InputPtr Input) const;
+	
 	/**
 	 * Rename the inputs names of a node to correspond to the one used by UE, it will keep the old inputs names under the attribute "oldname"
 	 * 
 	 * @param Node - Look up to all inputs of Node and rename them to match UE names
 	 */
-	void RenameInputsNames(MaterialX::NodePtr Node) const;
+	void RenameNodeInputs(MaterialX::NodePtr Node) const;
 
 	/**
-	 * Helper function to retrieve an Input in a Node from its old name (after a renaming)
+	 * Rename the input name, it will keep the original input name under the attribute MaterialX::Attributes::OriginalName.
+	 * It will keep the uniqueness of the name inside the MaterialX Document
+	 *
+	 * @param Input - The input to rename
+	 * @param NewName - the new name of the input
+	 */
+	void RenameInput(MaterialX::InputPtr Input, const char * NewName) const;
+
+	/**
+	 * Helper function to retrieve an Input in a Node from its original name (after a renaming)
 	 * 
 	 * @param Node - The node with the Inputs to look up
-	 * @param OldNameAttribute - The previous name of an Input
+	 * @param OriginalNameAttribute - The previous name of an Input
 	 * 
 	 * @return The found Input, nullptr otherwise
 	 */
-	MaterialX::InputPtr GetInputFromOldName(MaterialX::NodePtr Node, const char * OldNameAttribute) const;
+	MaterialX::InputPtr GetInputFromOriginalName(MaterialX::NodePtr Node, const char * OriginalNameAttribute) const;
+
+	/**
+	 * Get the input name, use this function instead of getName, because a renaming may have occured and we ensure to have the proper name that will be used by UE inputs
+	 * 
+	 * @param Input - The input to retrieve the name from
+	 * 
+	 * @return The input name
+	 */
+	FString GetInputName(MaterialX::InputPtr Input) const;
 
 	/**
 	 * Retrieve the input from a standard_surface node, or take the default input from the library, 
@@ -283,7 +327,7 @@ protected:
 
 private:
 
-	TMap<FString, FString> InputNamesMaterialX2UE;
+	TMap<TPair<FString, FString>, FString> InputNamesMaterialX2UE; //given a MaterialX node (category - input), return the UE/Interchange input name.
 	TMap<FString, FString> NodeNamesMaterialX2UE; //given a MaterialX node category, return the UE category
 	TSet<FString> UEInputs;
 #endif // WITH_EDITOR
