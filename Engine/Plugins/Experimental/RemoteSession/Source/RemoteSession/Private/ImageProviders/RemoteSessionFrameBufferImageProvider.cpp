@@ -13,9 +13,9 @@
 #include "Widgets/SWindow.h"
 
 
-static int32 FramerateMasterSetting = 0;
+static int32 FramerateSetting = 0;
 static FAutoConsoleVariableRef CVarFramerateOverride(
-	TEXT("remote.framerate"), FramerateMasterSetting,
+	TEXT("remote.framerate"), FramerateSetting,
 	TEXT("Sets framerate"),
 	ECVF_Default);
 
@@ -64,7 +64,7 @@ void FRemoteSessionFrameBufferImageProvider::ReleaseFrameGrabber()
 void FRemoteSessionFrameBufferImageProvider::SetCaptureFrameRate(int32 InFramerate)
 {
 	// Set our framerate and quality cvars, if the user hasn't modified them
-	if (FramerateMasterSetting == 0)
+	if (FramerateSetting == 0)
 	{
 		CVarFramerateOverride->Set(InFramerate);
 	}
@@ -130,7 +130,7 @@ void FRemoteSessionFrameBufferImageProvider::Tick(const float InDeltaTime)
 
 	const double TimeNow = FPlatformTime::Seconds();
 	const double ElapsedImageTimeMS = (TimeNow - LastSentImageTime) * 1000;
-	const int32 DesiredFrameTimeMS = 1000 / FramerateMasterSetting;
+	const int32 DesiredFrameTimeMS = 1000 / FramerateSetting;
 
 	if (ElapsedImageTimeMS < DesiredFrameTimeMS)
 	{

@@ -17,9 +17,9 @@
 
 
 
-static int32 QualityMasterSetting = 0;
+static int32 QualityMainSetting = 0;
 static FAutoConsoleVariableRef CVarQualityOverride(
-	TEXT("remote.quality"), QualityMasterSetting,
+	TEXT("remote.quality"), QualityMainSetting,
 	TEXT("Sets quality (1-100)"),
 	ECVF_Default);
 
@@ -71,7 +71,7 @@ void FRemoteSessionImageChannel::FImageSender::SendRawImageToClients(int32 Width
 
 			ImageWrapper->SetRaw(ImageData, AllocatedImageDataSize, Width, Height, ERGBFormat::BGRA, 8, BytesPerRow);
 
-			const int32 CurrentQuality = QualityMasterSetting > 0 ? QualityMasterSetting : CompressQuality.Load();
+			const int32 CurrentQuality = QualityMainSetting > 0 ? QualityMainSetting : CompressQuality.Load();
 			const TArray64<uint8> JPGData = ImageWrapper->GetCompressed(CurrentQuality);
 
 			TBackChannelSharedPtr<FBackChannelOSCMessage> Msg = MakeShared<FBackChannelOSCMessage, ESPMode::ThreadSafe>(TEXT("/Screen"));

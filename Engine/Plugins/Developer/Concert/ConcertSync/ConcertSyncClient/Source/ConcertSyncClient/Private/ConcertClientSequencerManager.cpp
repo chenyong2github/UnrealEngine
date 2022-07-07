@@ -768,7 +768,7 @@ void FConcertClientSequencerManager::ApplyEventToSequencers(const FConcertSequen
 		check(MovieScene);
 		MovieScene->SetPlaybackRange(EventState.PlaybackRange, false);
 
-		// If the event is coming from a sequencer that is playing back, we are a slave to its updates until it stops
+		// If the event is coming from a sequencer that is playing back, we are an agent to its updates until it stops
 		// We also apply any latency compensation when playing back
 		if (EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Playing)
 		{
@@ -913,7 +913,7 @@ void FConcertClientSequencerManager::ApplyEventToPlayers(const FConcertSequencer
 
 		UE::Private::ConcertClientSequencerManager::ApplyPlayRangeToPlayer(Player, EventState.PlaybackRange);
 
-		// If the event is coming from a sequencer that is playing back, we are a slave to its updates until it stops
+		// If the event is coming from a sequencer that is playing back, we are an agent to its updates until it stops
 		// We also apply any latency compensation when playing back
 		if (EventState.PlayerStatus == EConcertMovieScenePlayerStatus::Playing)
 		{
