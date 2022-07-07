@@ -324,10 +324,6 @@ public:
 #endif
 	virtual void RHISetDepthBounds(float MinDepth, float MaxDepth) final override;
     virtual void RHISetShadingRate(EVRSShadingRate ShadingRate, EVRSRateCombiner Combiner) final override;
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred) final override;
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-
 	virtual void RHIClearMRTImpl(bool* bClearColorArray, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 
 
@@ -843,13 +839,6 @@ public:
 	{
 		ContextRedirect(RHIBindAccelerationStructureMemory(Scene, Buffer, BufferOffset));
 	}
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred) final override
-	{
-		ContextRedirect(RHIBackBufferWaitTrackingBeginFrame(FrameToken, bDeferred));
-	}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 	FORCEINLINE void SetPhysicalContext(FD3D12CommandContext* Context)
 	{

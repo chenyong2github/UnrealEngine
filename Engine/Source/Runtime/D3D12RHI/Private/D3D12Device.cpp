@@ -63,9 +63,6 @@ FD3D12Device::~FD3D12Device()
 	delete CommandListManager;
 	delete CopyCommandListManager;
 	delete AsyncCommandListManager;
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	delete BackBufferWriteBarrierTracker;
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 }
 
 ID3D12Device* FD3D12Device::GetDevice()

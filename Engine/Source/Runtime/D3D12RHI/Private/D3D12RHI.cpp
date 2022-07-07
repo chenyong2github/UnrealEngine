@@ -747,7 +747,7 @@ uint64 FD3D12SubmissionGapRecorder::SubmitSubmissionTimestampsForFrame(uint32 Fr
 	{
 		static TConsoleVariableData<int32>* VSyncIntervalCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("rhi.syncinterval"));
 
-		if (VSyncIntervalCVar && VSyncIntervalCVar->GetValueOnRenderThread() > 0 && !PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING)
+		if (VSyncIntervalCVar && VSyncIntervalCVar->GetValueOnRenderThread() > 0)
 		{
 			int32 offset = PrevFrameBeginSubmissionTimestamps.Num() - (EndFrameSlotIdx - (PresentSlotIdx + 2));
 			if (PrevFrameBeginSubmissionTimestamps.IsValidIndex(offset))

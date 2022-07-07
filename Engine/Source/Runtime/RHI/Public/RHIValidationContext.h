@@ -1088,13 +1088,6 @@ public:
 		RHIContext->RHISetRayTracingMissShader(Scene, ShaderSlotInScene, Pipeline, ShaderIndexInPipeline, NumUniformBuffers, UniformBuffers, UserData);
 	}
 
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	virtual void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred) override final
-	{
-		RHIContext->RHIBackBufferWaitTrackingBeginFrame(FrameToken, bDeferred);
-	}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-
 	void SetupDrawing()
 	{
 		// nothing to validate right now

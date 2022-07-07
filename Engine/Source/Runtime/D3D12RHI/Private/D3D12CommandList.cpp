@@ -197,13 +197,6 @@ void FD3D12CommandListHandle::FD3D12CommandListData::FlushResourceBarriers()
 	{
 		ResourceBarriers.Append(Barriers.GetData(), Barriers.Num());
 	}
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	const TArray<D3D12_RESOURCE_BARRIER>& BackBufferBarriers = ResourceBarrierBatcher.GetBackBufferBarriers();
-	if (BackBufferBarriers.Num())
-	{
-		ResourceBarriers.Append(BackBufferBarriers.GetData(), BackBufferBarriers.Num());
-	}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 #endif // #if DEBUG_RESOURCE_STATES
 
 	ResourceBarrierBatcher.Flush(GetParentDevice(), CommandList, FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit());
@@ -234,9 +227,6 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocato
 
 	// If this fails then some previous resource barriers were never submitted.
 	check(ResourceBarrierBatcher.GetBarriers().Num() == 0);
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	check(ResourceBarrierBatcher.GetBackBufferBarriers().Num() == 0);
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 #if DEBUG_RESOURCE_STATES
 	ResourceBarriers.Reset();

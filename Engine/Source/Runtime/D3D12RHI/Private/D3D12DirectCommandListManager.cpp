@@ -1019,39 +1019,12 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FBarrierDescInfo&
 		LogResourceBarriers(InBarrierDescInfo.BackBufferBarrierDescs.Num(), InBarrierDescInfo.BackBufferBarrierDescs.GetData(), hResourceBarrierList.CommandList());
 #endif // #if DEBUG_RESOURCE_STATES
 
-		const int32 BarrierBatchMax = FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit();
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		if (InBarrierDescInfo.BackBufferBarrierDescs.Num())
-		{
-			FD3D12ScopedTimedIntervalQuery BarrierScopeTimer(GetParentDevice()->GetBackBufferWriteBarrierTracker(), hResourceBarrierList.GraphicsCommandList());
-			if (InBarrierDescInfo.BackBufferBarrierDescs.Num() > BarrierBatchMax)
-			{
-				int Num = InBarrierDescInfo.BackBufferBarrierDescs.Num();
-				D3D12_RESOURCE_BARRIER* Ptr = InBarrierDescInfo.BackBufferBarrierDescs.GetData();
-				while (Num > 0)
-				{
-					const int DispatchNum = FMath::Min(Num, BarrierBatchMax);
-					hResourceBarrierList->ResourceBarrier(DispatchNum, Ptr);
-					Ptr += BarrierBatchMax;
-					Num -= BarrierBatchMax;
-				}
-			}
-			else
-			{
-				hResourceBarrierList->ResourceBarrier(InBarrierDescInfo.BackBufferBarrierDescs.Num(), InBarrierDescInfo.BackBufferBarrierDescs.GetData());
-			}
-		}
-
-		if (InBarrierDescInfo.BarrierDescs.Num())
-#else
 		InBarrierDescInfo.BarrierDescs.Append(InBarrierDescInfo.BackBufferBarrierDescs);
 		InBarrierDescInfo.BackBufferBarrierDescs.Empty();
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		{
-			extern void ResourceBarriersSeparateRTV2SRV(ID3D12GraphicsCommandList*, const TArray<D3D12_RESOURCE_BARRIER>&, int32);
-			ResourceBarriersSeparateRTV2SRV(hResourceBarrierList.GraphicsCommandList(), InBarrierDescInfo.BarrierDescs, BarrierBatchMax);
-		}
+
+		const int32 BarrierBatchMax = FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit();
+		extern void ResourceBarriersSeparateRTV2SRV(ID3D12GraphicsCommandList*, const TArray<D3D12_RESOURCE_BARRIER>&, int32);
+		ResourceBarriersSeparateRTV2SRV(hResourceBarrierList.GraphicsCommandList(), InBarrierDescInfo.BarrierDescs, BarrierBatchMax);
 	}
 
 	return BarrierCount;

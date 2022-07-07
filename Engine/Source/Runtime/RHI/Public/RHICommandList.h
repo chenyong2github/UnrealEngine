@@ -2183,21 +2183,6 @@ FRHICOMMAND_MACRO(FRHICommandUpdateRHIResources)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-FRHICOMMAND_MACRO(FRHICommandBackBufferWaitTrackingBeginFrame)
-{
-	uint64	FrameToken;
-	bool	bDeferred;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandBackBufferWaitTrackingBeginFrame(uint64 FrameTokenIn, bool bDeferredIn)
-		:	FrameToken(FrameTokenIn),
-			bDeferred(bDeferredIn)
-	{}
-	
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-
 FRHICOMMAND_MACRO(FRHICommandCopyBufferRegion)
 {
 	FRHIBuffer* DestBuffer;
@@ -3771,18 +3756,6 @@ public:
 		}
 		ALLOC_COMMAND(FRHICommandDiscardRenderTargets)(Depth, Stencil, ColorBitMask);
 	}
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	FORCEINLINE_DEBUGGABLE void RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
-	{
-		if (Bypass())
-		{
-			GetContext().RHIBackBufferWaitTrackingBeginFrame(FrameToken, bDeferred);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandBackBufferWaitTrackingBeginFrame)(FrameToken, bDeferred);
-	}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	
 	FORCEINLINE_DEBUGGABLE void CopyBufferRegion(FRHIBuffer* DestBuffer, uint64 DstOffset, FRHIBuffer* SourceBuffer, uint64 SrcOffset, uint64 NumBytes)
 	{

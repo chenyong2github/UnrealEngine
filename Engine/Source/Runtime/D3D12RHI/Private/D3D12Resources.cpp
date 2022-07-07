@@ -1267,11 +1267,6 @@ static void RecordResourceBarriersToCommandList(
 	}
 }
 
-#if (PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING == 0) && (PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION == 1)
-#define LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION 1
-#else
-#define LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION 0
-#endif
 
 void ResourceBarriersSeparateRTV2SRV(
 	ID3D12GraphicsCommandList* pCommandList,
@@ -1280,7 +1275,7 @@ void ResourceBarriersSeparateRTV2SRV(
 {
 	if (!GD3D12SeparateRTV2SRVTransitions)
 	{
-#if LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
+#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
 		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> BackBufferBarriers;
 		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<8>> OtherBarriers;
 
@@ -1315,7 +1310,7 @@ void ResourceBarriersSeparateRTV2SRV(
 	else
 	{
 		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> RTV2SRVBarriers;
-#if LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
+#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
 		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<4>> BackBufferBarriers;
 #endif
 		TArray<D3D12_RESOURCE_BARRIER, TInlineAllocator<8>> OtherBarriers;
@@ -1330,7 +1325,7 @@ void ResourceBarriersSeparateRTV2SRV(
 			{
 				RTV2SRVBarriers.Add(Barrier);
 			}
-#if LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
+#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
 			else if (Barrier.Type == D3D12_RESOURCE_BARRIER_TYPE_TRANSITION
 				&& Barrier.Transition.StateBefore == D3D12_RESOURCE_STATE_PRESENT // can also be displayed as D3D12_RESOURCE_STATE_COMMON in pix
 				&& Barrier.Transition.StateAfter == D3D12_RESOURCE_STATE_RENDER_TARGET)
@@ -1349,7 +1344,7 @@ void ResourceBarriersSeparateRTV2SRV(
 			RecordResourceBarriersToCommandList(pCommandList, RTV2SRVBarriers.GetData(), RTV2SRVBarriers.Num(), BarrierBatchMax);
 		}
 
-#if LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
+#if PLATFORM_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
 		if (BackBufferBarriers.Num() > 0)
 		{
 			RecordResourceBarriersToCommandList(pCommandList, BackBufferBarriers.GetData(), BackBufferBarriers.Num(), BarrierBatchMax);
@@ -1361,7 +1356,7 @@ void ResourceBarriersSeparateRTV2SRV(
 		}
 	}
 }
-#undef LOCAL_USE_SEPARATE_BACKBUFFER_WRITE_TRANSITION
+
 
 void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax)
 {
@@ -1370,15 +1365,6 @@ void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCom
 		check(pCommandList);
 		ResourceBarriersSeparateRTV2SRV(pCommandList, Barriers, BarrierBatchMax);
 	}
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	if (BackBufferBarriers.Num())
-	{
-		check(pCommandList);
-		FD3D12ScopedTimedIntervalQuery BarrierScopeTimer(Device->GetBackBufferWriteBarrierTracker(), pCommandList);
-		RecordResourceBarriersToCommandList(pCommandList, BackBufferBarriers.GetData(), BackBufferBarriers.Num(), BarrierBatchMax);
-	}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 	Reset();
 }

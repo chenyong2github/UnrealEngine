@@ -504,11 +504,6 @@ void FD3D12CommandContextBase::RHIBeginFrame()
 		if (ensure(ContextAtIndex))
 		{
 			Device->GetTimestampQueryHeap(CommandQueueType)->EndQueryBatchAndResolveQueryData(*ContextAtIndex);
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-			uint64 TimeStampFrequency = 0;
-			VERIFYD3D12RESULT(Device->GetCommandListManager(CommandQueueType)->GetTimestampFrequency(&TimeStampFrequency));
-			Device->GetBackBufferWriteBarrierTracker()->ResolveBatches(TimeStampFrequency, false);
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 		}
 
 		FD3D12GlobalOnlineSamplerHeap& SamplerHeap = Device->GetGlobalSamplerHeap();
@@ -619,11 +614,6 @@ void FD3D12CommandContextBase::RHIEndFrame()
 
 		FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 		DefaultContext.CommandListHandle.FlushResourceBarriers();
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		Device->GetBackBufferWriteBarrierTracker()->EndBatch(DefaultContext);
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-
 		DefaultContext.ReleaseCommandAllocator();
 		DefaultContext.ClearState();
 		DefaultContext.FlushCommands();
@@ -791,13 +781,6 @@ void FD3D12CommandContext::RHIEndScene()
 	ensure(bDrawingScene);
 	bDrawingScene = false;
 }
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-void FD3D12CommandContext::RHIBackBufferWaitTrackingBeginFrame(uint64 FrameToken, bool bDeferred)
-{
-	GetParentDevice()->GetBackBufferWriteBarrierTracker()->BeginBatch(FrameToken, bDeferred);
-}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 #if D3D12_SUPPORTS_PARALLEL_RHI_EXECUTE
 

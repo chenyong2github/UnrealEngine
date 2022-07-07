@@ -1008,17 +1008,7 @@ public:
 		}
 
 		check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
-
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		if (pResource->IsBackBuffer() && EnumHasAnyFlags(After, BackBufferBarrierWriteTransitionTargets))
-		{
-			AddTransitionBarrier(BackBufferBarriers, pResource, Before, After, Subresource);
-		}
-		else
-#endif
-		{
-			AddTransitionBarrier(Barriers, pResource, Before, After, Subresource);
-		}
+		AddTransitionBarrier(Barriers, pResource, Before, After, Subresource);
 
 		return 1;
 	}
@@ -1042,10 +1032,6 @@ public:
 		// Reset the arrays without shrinking (Does not destruct items, does not de-allocate memory).
 		Barriers.SetNumUnsafeInternal(0);
 		check(Barriers.Num() == 0);
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-		BackBufferBarriers.SetNumUnsafeInternal(0);
-		check(BackBufferBarriers.Num() == 0);
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	}
 
 	const TArray<D3D12_RESOURCE_BARRIER>& GetBarriers() const
@@ -1053,18 +1039,8 @@ public:
 		return Barriers;
 	}
 
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	const TArray<D3D12_RESOURCE_BARRIER>& GetBackBufferBarriers() const
-	{
-		return BackBufferBarriers;
-	}
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-
 private:
 	TArray<D3D12_RESOURCE_BARRIER> Barriers;
-#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-	TArray<D3D12_RESOURCE_BARRIER> BackBufferBarriers;
-#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 };
 
 class FD3D12StagingBuffer final : public FRHIStagingBuffer
