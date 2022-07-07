@@ -1,14 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using System;
-using System.Collections.Generic;
-using System.Text;
-using System.IO;
-using System.Diagnostics;
-using System.Threading;
-using System.Runtime.Serialization;
-using EpicGames.Core;
 using System.Collections.Concurrent;
+using System.Diagnostics;
+using System.IO;
+using System.Threading;
+using EpicGames.Core;
 using Microsoft.Extensions.Logging;
 
 namespace UnrealBuildBase
@@ -32,7 +29,7 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// The information about the file.
 		/// </summary>
-		FileInfo Info;
+		Lazy<FileInfo> Info;
 
 		/// <summary>
 		/// A case-insensitive dictionary that's used to map each unique file name to a single FileItem object.
@@ -47,32 +44,27 @@ namespace UnrealBuildBase
 		private FileItem(FileReference Location, FileInfo Info)
 		{
 			this.Location = Location;
-			this.Info = Info;
+			this.Info = new Lazy<FileInfo>(() =>
+			{
+				Info.Refresh();
+				return Info;
+			});
 		}
 
 		/// <summary>
 		/// Name of this file
 		/// </summary>
-		public string Name
-		{
-			get { return Info.Name; }
-		}
+		public string Name => Info.Value.Name;
 
 		/// <summary>
 		/// Full name of this file
 		/// </summary>
-		public string FullName
-		{
-			get { return Location.FullName; }
-		}
+		public string FullName => Location.FullName;
 
 		/// <summary>
 		/// Accessor for the absolute path to the file
 		/// </summary>
-		public string AbsolutePath
-		{
-			get { return Location.FullName; }
-		}
+		public string AbsolutePath => Location.FullName;
 
 		/// <summary>
 		/// Gets the directory that this file is in
@@ -81,7 +73,7 @@ namespace UnrealBuildBase
 		{
 			get
 			{
-				if(CachedDirectory == null)
+				if (CachedDirectory == null)
 				{
 					CachedDirectory = DirectoryItem.GetItemByDirectoryReference(Location.Directory);
 				}
@@ -92,34 +84,22 @@ namespace UnrealBuildBase
 		/// <summary>
 		/// Whether the file exists.
 		/// </summary>
-		public bool Exists
-		{
-			get { return Info.Exists; }
-		}
+		public bool Exists => Info.Value.Exists;
 
 		/// <summary>
 		/// Size of the file if it exists, otherwise -1
 		/// </summary>
-		public long Length
-		{
-			get { return Info.Length; }
-		}
+		public long Length => Info.Value.Length;
 
 		/// <summary>
 		/// The attributes for this file
 		/// </summary>
-		public FileAttributes Attributes
-		{
-			get { return Info.Attributes; }
-		}
+		public FileAttributes Attributes => Info.Value.Attributes;
 
 		/// <summary>
 		/// The last write time of the file.
 		/// </summary>
-		public DateTime LastWriteTimeUtc
-		{
-			get { return Info.LastWriteTimeUtc; }
-		}
+		public DateTime LastWriteTimeUtc => Info.Value.LastWriteTimeUtc;
 
 		/// <summary>
 		/// Determines if the file has the given extension
@@ -168,21 +148,7 @@ namespace UnrealBuildBase
 		public static FileItem GetItemByFileInfo(FileInfo Info)
 		{
 			FileReference Location = new FileReference(Info);
-
-			FileItem? Result;
-			if (!UniqueSourceFileMap.TryGetValue(Location, out Result))
-			{
-				FileItem NewFileItem = new FileItem(Location, Info);
-				if(UniqueSourceFileMap.TryAdd(Location, NewFileItem))
-				{
-					Result = NewFileItem;
-				}
-				else
-				{
-					Result = UniqueSourceFileMap[Location];
-				}
-			}
-			return Result;
+			return UniqueSourceFileMap.GetOrAdd(Location, _ => new FileItem(Location, Info));
 		}
 
 		/// <summary>
@@ -192,20 +158,7 @@ namespace UnrealBuildBase
 		/// <returns>The FileItem that represents the given a full file path.</returns>
 		public static FileItem GetItemByFileReference(FileReference Location)
 		{
-			FileItem? Result;
-			if (!UniqueSourceFileMap.TryGetValue(Location, out Result))
-			{
-				FileItem NewFileItem = new FileItem(Location, Location.ToFileInfo());
-				if(UniqueSourceFileMap.TryAdd(Location, NewFileItem))
-				{
-					Result = NewFileItem;
-				}
-				else
-				{
-					Result = UniqueSourceFileMap[Location];
-				}
-			}
-			return Result;
+			return UniqueSourceFileMap.GetOrAdd(Location, _ => new FileItem(Location, Location.ToFileInfo()));
 		}
 
 		/// <summary>
@@ -260,7 +213,12 @@ namespace UnrealBuildBase
 		/// </summary>
 		public void ResetCachedInfo()
 		{
-			Info = Location.ToFileInfo();
+			Info = new Lazy<FileInfo>(() =>
+			{
+				FileInfo Info = Location.ToFileInfo();
+				Info.Refresh();
+				return Info;
+			});
 		}
 
 		/// <summary>
@@ -268,7 +226,7 @@ namespace UnrealBuildBase
 		/// </summary>
 		public static void ResetAllCachedInfo_SLOW()
 		{
-			foreach(FileItem Item in UniqueSourceFileMap.Values)
+			foreach (FileItem Item in UniqueSourceFileMap.Values)
 			{
 				Item.ResetCachedInfo();
 			}
@@ -321,8 +279,8 @@ namespace UnrealBuildBase
 			string Name = Reader.ReadString()!;
 
 			FileItem FileItem = FileItem.GetItemByFileReference(FileReference.Combine(Directory.Location, Name));
-            FileItem.UpdateCachedDirectory(Directory);
-            return FileItem;
+			FileItem.UpdateCachedDirectory(Directory);
+			return FileItem;
 		}
 
 		/// <summary>
@@ -344,7 +302,11 @@ namespace UnrealBuildBase
 		public static void WriteCompactFileItem(this BinaryArchiveWriter Writer, FileItem FileItem)
 		{
 			// Use lambda that doesn't require anything to be captured thus eliminating an allocation.
-			Writer.WriteObjectReference<FileItem>(FileItem, (BinaryArchiveWriter Writer, FileItem FileItem) => { Writer.WriteDirectoryItem(FileItem.GetDirectoryItem()); Writer.WriteString(FileItem.Name); });
+			Writer.WriteObjectReference<FileItem>(FileItem, (BinaryArchiveWriter Writer, FileItem FileItem) =>
+			{
+				Writer.WriteDirectoryItem(FileItem.GetDirectoryItem());
+				Writer.WriteString(FileItem.Name);
+			});
 		}
 	}
 }
