@@ -212,8 +212,10 @@ public:
 
 	FMetalTexture Reallocate(FMetalTexture Texture, mtlpp::TextureUsage UsageModifier);
 	void MakeAliasable(void);
-
+	
+	int16 volatile Written;
 	uint8 const FormatKey;
+
 	//texture used for store actions and binding to shader params
 	FMetalTexture Texture;
 	//if surface is MSAA, texture used to bind for RT
@@ -226,17 +228,6 @@ public:
 	// iOS A9+ where depth resolve is available
 	// iOS < A9 where depth resolve is unavailable.
 	FMetalTexture MSAAResolveTexture;
-
-	int16 volatile Written;
-	int16 GPUReadback = 0;
-	enum EMetalGPUReadbackFlags : int16
-	{
-		ReadbackRequestedShift 			= 0,
-		ReadbackFenceCompleteShift  	= 1,
-		ReadbackRequested 				= 1 << ReadbackRequestedShift,
-		ReadbackFenceComplete 			= 1 << ReadbackFenceCompleteShift,
-		ReadbackRequestedAndComplete 	= ReadbackRequested | ReadbackFenceComplete
-	};
 
 	// how much memory is allocated for this texture
 	uint64 TotalTextureSize;

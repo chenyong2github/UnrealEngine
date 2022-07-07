@@ -223,13 +223,6 @@ void FMetalRHICommandContext::ResolveTexture(UE::RHICore::FResolveTextureInfo In
 	for (int32 ArraySlice = ArraySliceBegin; ArraySlice < ArraySliceEnd; ArraySlice++)
 	{
 		Context->CopyFromTextureToTexture(Source->MSAAResolveTexture, ArraySlice, Info.MipLevel, Origin, Size, Destination->Texture, ArraySlice, Info.MipLevel, Origin);
-
-#if PLATFORM_MAC
-		if ((Destination->GPUReadback & FMetalSurface::EMetalGPUReadbackFlags::ReadbackRequested) != 0)
-		{
-			Context->GetCurrentRenderPass().SynchronizeTexture(Destination->Texture, ArraySlice, Info.MipLevel);
-		}
-#endif
 	}
 	}
 }

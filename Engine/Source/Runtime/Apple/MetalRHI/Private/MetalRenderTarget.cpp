@@ -139,14 +139,6 @@ void FMetalRHICommandContext::RHICopyToResolveTarget(FRHITexture* SourceTextureR
 				}
 			}
 		}
-
-#if PLATFORM_MAC
-		if((Destination->GPUReadback & FMetalSurface::EMetalGPUReadbackFlags::ReadbackRequested) != 0)
-		{
-			Context->GetCurrentRenderPass().SynchronizeTexture(Destination->Texture, DestIndex, ResolveParams.MipIndex);
-		}
-#endif
-		
 	}
 	}
 }
@@ -377,21 +369,13 @@ void FMetalDynamicRHI::RHIReadSurfaceData(FRHITexture* TextureRHI, FIntRect Rect
 void FMetalDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFence* FenceRHI, void*& OutData, int32& OutWidth, int32& OutHeight, uint32 GPUIndex)
 {
 	@autoreleasepool {
-    FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
+		FMetalSurface* Surface = GetMetalSurfaceFromRHITexture(TextureRHI);
     
-#if PLATFORM_MAC
-	uint16 FencePoll = FenceRHI && FenceRHI->Poll() ? 1 : 0;
-    Surface->GPUReadback |= FencePoll << FMetalSurface::EMetalGPUReadbackFlags::ReadbackFenceCompleteShift;
-#endif
-    
-    uint32 Stride = 0;
-    OutWidth = Surface->GetSizeX();
-    OutHeight = Surface->GetSizeY();
-    OutData = Surface->Lock(0, 0, RLM_ReadOnly, Stride);
-    
-#if PLATFORM_MAC
-	Surface->GPUReadback = (Surface->Texture.GetPtr() && Surface->Texture.GetStorageMode() == mtlpp::StorageMode::Managed) ? FMetalSurface::EMetalGPUReadbackFlags::ReadbackRequested : 0;
-#endif
+		uint32 Stride = 0;
+		OutWidth = Surface->GetSizeX();
+		OutHeight = Surface->GetSizeY();
+		
+		OutData = Surface->Lock(0, 0, RLM_ReadOnly, Stride);
 	}
 }
 

@@ -460,27 +460,41 @@ FMetalTextureCreateDesc::FMetalTextureCreateDesc(FRHITextureCreateDesc const& In
 
 	{
 		Desc.SetUsage(ConvertFlagsToUsage(InDesc.Flags));
+		
+		const bool bAppleGPU = [GetMetalDeviceContext().GetDevice().GetPtr() supportsFamily:MTLGPUFamilyApple1];
 
 		if (EnumHasAnyFlags(InDesc.Flags, TexCreate_CPUReadback) && !EnumHasAnyFlags(InDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_FastVRAM))
 		{
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
+			
+			if(bAppleGPU)
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Shared);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+			}
 #if PLATFORM_MAC
-			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeManaged));
-#else
-			Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+			else
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Managed);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeManaged));
+			}
 #endif
 		}
 		else if (EnumHasAnyFlags(InDesc.Flags, TexCreate_NoTiling) && !EnumHasAnyFlags(InDesc.Flags, TexCreate_FastVRAM | TexCreate_DepthStencilTargetable | TexCreate_RenderTargetable | TexCreate_UAV))
 		{
 			Desc.SetCpuCacheMode(mtlpp::CpuCacheMode::DefaultCache);
+			
+			if(bAppleGPU)
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Shared);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+			}
 #if PLATFORM_MAC
-			Desc.SetStorageMode(mtlpp::StorageMode::Managed);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeManaged));
-#else
-			Desc.SetStorageMode(mtlpp::StorageMode::Shared);
-			Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeShared));
+			else
+			{
+				Desc.SetStorageMode(mtlpp::StorageMode::Managed);
+				Desc.SetResourceOptions((mtlpp::ResourceOptions)(mtlpp::ResourceOptions::CpuCacheModeDefaultCache | mtlpp::ResourceOptions::StorageModeManaged));
+			}
 #endif
 		}
 		else if (EnumHasAnyFlags(InDesc.Flags, TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable | TexCreate_ResolveTargetable | TexCreate_DepthStencilResolveTarget))
@@ -1151,9 +1165,9 @@ void* FMetalSurface::Lock(uint32 MipIndex, uint32 ArrayIndex, EResourceLockMode 
 			else
 			{
 #if PLATFORM_MAC
-				if((GPUReadback & EMetalGPUReadbackFlags::ReadbackRequestedAndComplete) != EMetalGPUReadbackFlags::ReadbackRequestedAndComplete)
+				if(this->Texture.GetStorageMode() == mtlpp::StorageMode::Managed)
 				{
-					// A previous texture sync has not been done, need the data now, request texture sync and kick the current command buffer.
+					// Managed texture - need to sync GPU -> CPU before access as it could have been written to by the GPU
 					auto SyncReadbackToCPU =
 					[this, &ArrayIndex, &MipIndex](FRHICommandListImmediate& RHICmdList)
 					{
