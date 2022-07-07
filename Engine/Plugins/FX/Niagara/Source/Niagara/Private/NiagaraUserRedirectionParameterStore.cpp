@@ -118,11 +118,9 @@ bool FNiagaraUserRedirectionParameterStore::RemoveParameter(const FNiagaraVariab
 {
 	const FNiagaraVariable* Redirection = UserParameterRedirects.Find(InVar);
 	const FNiagaraVariable& ToRemove = Redirection ? *Redirection : InVar;
+	
+	UserParameterRedirects.Remove(GetUserRedirection(ToRemove));
 	bool Result = Super::RemoveParameter(ToRemove);
-	//if (Result)
-	{
-		UserParameterRedirects.Remove(GetUserRedirection(ToRemove));
-	}
 	return Result;
 }
 
