@@ -212,4 +212,4 @@ bool LexTryParseString(FNumericUnit<T>& OutValue, const TCHAR* String);
 
 
 // Include template definitions
-#include "Math/UnitConversion.inl"
+#include "Math/UnitConversion.inl" // IWYU pragma: export

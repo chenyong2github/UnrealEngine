@@ -15,6 +15,7 @@
 #include "HAL/ThreadSingleton.h"
 #include "Math/Color.h"
 #include "Math/NumericLimits.h"
+#include "Misc/Build.h"
 #include "Misc/EnumClassFlags.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"

@@ -7,6 +7,7 @@
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "HAL/PlatformTime.h"
+#include "Misc/Build.h"
 #include "Misc/DateTime.h"
 
 #ifndef DO_TIMEGUARD

@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "CoreTypes.h"
 #include "Formatters/BinaryArchiveFormatter.h"
+#include "Misc/Build.h"
 #include "Misc/Optional.h"
 #include "Serialization/Archive.h"
 #include "Serialization/StructuredArchiveFwd.h"

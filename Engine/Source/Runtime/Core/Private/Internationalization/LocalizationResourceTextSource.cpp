@@ -2,8 +2,8 @@
 
 #include "Internationalization/LocalizationResourceTextSource.h"
 
+#include "CoreTypes.h"
 #include "HAL/FileManager.h"
-#include "HAL/PlatformProperties.h"
 #include "Internationalization/TextLocalizationResource.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"

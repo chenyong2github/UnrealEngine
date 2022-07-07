@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 /** Inline file for UnitConversion.h to separate the implementation from the header */
 
 

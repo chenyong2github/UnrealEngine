@@ -10,6 +10,7 @@
 #include "Misc/AssertionMacros.h"
 #include "Misc/NamePermissionList.h"
 #include "Misc/PathViews.h"
+#include "Misc/StringBuilder.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"

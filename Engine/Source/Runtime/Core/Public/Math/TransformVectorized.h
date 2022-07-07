@@ -19,6 +19,7 @@
 #include "Math/Vector4.h"
 #include "Math/VectorRegister.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Serialization/Archive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
 #include "Templates/IsFloatingPoint.h"

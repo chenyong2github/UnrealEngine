@@ -3,7 +3,9 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Logging/LogVerbosity.h"
+#include "Misc/Build.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
 #include "Trace/Config.h"
 #include "Trace/Trace.h"

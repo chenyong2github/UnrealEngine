@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/Build.h"
 #include "Trace/Config.h"
 
 #if !UE_BUILD_SHIPPING

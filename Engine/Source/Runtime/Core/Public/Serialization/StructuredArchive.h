@@ -6,6 +6,7 @@
 #include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
 #include "Formatters/BinaryArchiveFormatter.h"
+#include "Misc/Build.h"
 #include "Serialization/Archive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
 #include "Serialization/StructuredArchiveDefines.h"

@@ -10,6 +10,7 @@
 #include "CoreTypes.h"
 #include "HAL/ThreadSingleton.h"
 #include "Math/IntPoint.h"
+#include "Misc/Build.h"
 #include "Misc/Exec.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"

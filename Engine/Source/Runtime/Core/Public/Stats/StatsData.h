@@ -15,6 +15,7 @@
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Misc/Parse.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"

@@ -13,6 +13,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/FeedbackContext.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Trace/Detail/Channel.h"
 
 namespace
 {

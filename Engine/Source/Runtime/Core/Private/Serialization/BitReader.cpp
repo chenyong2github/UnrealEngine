@@ -9,6 +9,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Serialization/Archive.h"
 #include "Templates/UnrealTemplate.h"
+#include "Trace/Detail/Channel.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 

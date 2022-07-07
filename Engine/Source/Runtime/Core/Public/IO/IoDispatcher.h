@@ -19,6 +19,7 @@
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
 #include "Misc/AES.h"
+#include "Misc/Build.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Guid.h"
 #include "Misc/IEngineCrypto.h"

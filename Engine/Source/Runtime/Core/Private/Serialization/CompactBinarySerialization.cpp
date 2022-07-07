@@ -20,6 +20,7 @@
 #include "Serialization/CompactBinaryValidation.h"
 #include "Serialization/CompactBinaryValue.h"
 #include "Serialization/VarInt.h"
+#include "Templates/Function.h"
 #include "Templates/IdentityFunctor.h"
 #include "Templates/Invoke.h"
 #include "Templates/RemoveReference.h"

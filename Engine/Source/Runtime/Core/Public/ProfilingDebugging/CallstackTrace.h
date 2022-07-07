@@ -3,6 +3,7 @@
 #include "HAL/Platform.h"
 #include "HAL/PlatformTLS.h"
 #include "Math/NumericLimits.h"
+#include "Misc/Build.h"
 #include "TraceLog/Public/Trace/Config.h"
 
 ////////////////////////////////////////////////////////////////////////////////

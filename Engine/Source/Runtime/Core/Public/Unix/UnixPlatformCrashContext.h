@@ -2,8 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformCrashContext.h"
+#include "Templates/Atomic.h"
 
 /** Passed in through sigqueue for gathering of a callstack from a signal */
 struct ThreadStackUserData

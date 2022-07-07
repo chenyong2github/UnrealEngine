@@ -4,6 +4,8 @@
 
 #include "Containers/ContainersFwd.h"
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
+#include "Misc/Build.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 #include "Trace/Config.h"
 

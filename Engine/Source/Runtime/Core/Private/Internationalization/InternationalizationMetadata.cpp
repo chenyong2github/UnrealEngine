@@ -13,6 +13,7 @@
 #include "Templates/ChooseClass.h"
 #include "Templates/Less.h"
 #include "Templates/Tuple.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogInternationalizationMetadata, Log, All);
 

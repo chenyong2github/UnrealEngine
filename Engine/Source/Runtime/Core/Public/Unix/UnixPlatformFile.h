@@ -6,11 +6,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
-#include "Misc/DateTime.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformFile.h"
+#include "HAL/PlatformFile.h"
+#include "Misc/DateTime.h"
 
+class IMappedFileHandle;
 template <typename FuncType> class TFunctionRef;
 
 /**

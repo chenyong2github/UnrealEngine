@@ -10,7 +10,9 @@
 #include "Delegates/Delegate.h"
 #include "Delegates/DelegateBase.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/Optional.h"
@@ -24,6 +26,7 @@
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 
+class FArchive;
 class FOutputDevice;
 class UClass;
 class UWorld;

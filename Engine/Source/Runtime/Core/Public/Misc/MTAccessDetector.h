@@ -5,7 +5,9 @@
 #include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "HAL/PlatformTLS.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 
 #define ENABLE_MT_DETECTOR DO_CHECK
 

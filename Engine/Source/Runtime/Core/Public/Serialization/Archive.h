@@ -8,6 +8,7 @@
 #include "Internationalization/TextNamespaceFwd.h"
 #include "Math/MathFwd.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Misc/CompressionFlags.h"
 #include "Misc/EngineVersionBase.h"
 #include "Misc/VarArgs.h"

@@ -15,9 +15,11 @@
 #include "Misc/FileHelper.h"
 #include "Misc/Parse.h"
 #include "Misc/ScopeLock.h"
+#include "Serialization/Archive.h"
 #include "Serialization/Csv/CsvParser.h"
 #include "Templates/ChooseClass.h"
 #include "Templates/Tuple.h"
+#include "Trace/Detail/Channel.h"
 
 class UStringTable;
 

@@ -15,6 +15,7 @@
 #include "Math/IntVector.h"
 #include "Math/MathFwd.h"
 #include "Misc/AES.h"
+#include "Misc/Build.h"
 #include "Templates/SharedPointerInternals.h"
 
 class AActor;

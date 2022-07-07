@@ -7,20 +7,30 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Containers/Queue.h"
-#include "UObject/NameTypes.h"
-#include "Templates/UniquePtr.h"
 #include "Async/Future.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Containers/Queue.h"
+#include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
+#include "HAL/ThreadSafeCounter.h"
 #include "Misc/EnumClassFlags.h"
-#include "ProfilingDebugging/MiscTrace.h"
 #include "ProfilingDebugging/CsvProfilerConfig.h"
 #include "ProfilingDebugging/CsvProfilerTrace.h"
+#include "ProfilingDebugging/MiscTrace.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Templates/IsValidVariadicFunctionArg.h"
+#include "Templates/UniquePtr.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
+#include "UObject/NameTypes.h"
 
 #include <atomic>
+
+class FCsvProfiler;
+class FEvent;
+class FScopedCsvStat;
+class FScopedCsvStatExclusive;
+struct FCsvDeclaredStat;
 
 #if CSV_PROFILER
 
@@ -115,10 +125,10 @@
 #if CSV_PROFILER
 
 class FCsvProfilerFrame;
-class FCsvProfilerThreadData;
 class FCsvProfilerProcessingThread;
-struct FCsvPersistentCustomStats;
+class FCsvProfilerThreadData;
 class FName;
+struct FCsvPersistentCustomStats;
 
 enum class ECsvCustomStatOp : uint8
 {

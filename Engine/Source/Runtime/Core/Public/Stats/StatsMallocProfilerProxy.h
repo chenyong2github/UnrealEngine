@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "HAL/MemoryBase.h"
 #include "HAL/ThreadSafeCounter.h"
+#include "Misc/Build.h"
 
 class FOutputDevice;
 class UWorld;

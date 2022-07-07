@@ -8,6 +8,7 @@
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 #include "Serialization/Archive.h"
+#include "Trace/Detail/Channel.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 

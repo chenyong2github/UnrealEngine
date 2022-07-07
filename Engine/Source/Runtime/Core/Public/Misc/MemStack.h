@@ -11,6 +11,7 @@
 #include "HAL/UnrealMemory.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Misc/NoopCounter.h"
 #include "Templates/AlignmentTemplates.h"
 

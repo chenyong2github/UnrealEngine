@@ -4,6 +4,7 @@
 #include "Containers/Map.h"
 #include "Containers/SparseArray.h"
 #include "Containers/UnrealString.h"
+#include "CoreMinimal.h"
 #include "HAL/CriticalSection.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/LocKeyFuncs.h"

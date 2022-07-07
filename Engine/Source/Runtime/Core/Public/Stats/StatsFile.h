@@ -16,11 +16,13 @@
 #include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Misc/Compression.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"
 #include "Stats/StatsCommon.h"
 #include "Stats/StatsData.h"
+#include "Trace/Detail/Channel.h"
 #include "UObject/NameTypes.h"
 
 class FAsyncStatsWrite;

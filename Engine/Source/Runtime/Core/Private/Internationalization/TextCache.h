@@ -4,6 +4,7 @@
 
 #include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/Platform.h"
 #include "Internationalization/Text.h"
 
 class FTextId;

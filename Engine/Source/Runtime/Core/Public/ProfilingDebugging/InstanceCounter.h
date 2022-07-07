@@ -5,6 +5,8 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/CriticalSection.h"
+#include "HAL/PreprocessorHelpers.h"
+#include "Misc/Build.h"
 #include "UObject/NameTypes.h"
 
 class FOutputDevice;

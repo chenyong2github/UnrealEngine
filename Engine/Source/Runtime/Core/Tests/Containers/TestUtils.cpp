@@ -2,8 +2,6 @@
 
 #include "TestUtils.h"
 
-#include "Math/UnrealMathUtility.h"
-
 #include <numeric>
 
 namespace Test

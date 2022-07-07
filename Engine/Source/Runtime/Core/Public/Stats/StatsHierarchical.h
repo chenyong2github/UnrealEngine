@@ -6,7 +6,9 @@
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Logging/MessageLog.h"
+#include "Misc/Build.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/NameTypes.h"
 

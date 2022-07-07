@@ -27,6 +27,7 @@
 #include "Templates/Tuple.h"
 #include "Templates/UnrealTemplate.h"
 #include "Templates/ValueOrError.h"
+#include "Trace/Detail/Channel.h"
 
 #define LOCTEXT_NAMESPACE "TextFormatter"
 

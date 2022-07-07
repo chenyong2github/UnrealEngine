@@ -9,6 +9,7 @@
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
 #include "HAL/PlatformProcess.h"
+#include "Misc/Build.h"
 #include "Misc/CommandLine.h"
 #include "Misc/CoreMisc.h"
 #include "Misc/FrameRate.h"

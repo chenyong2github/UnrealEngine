@@ -8,6 +8,7 @@
 #include "Math/UnrealMathUtility.h"
 #include "Math/Vector2D.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/LargeWorldCoordinates.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
 #include "Serialization/Archive.h"
 #include "Templates/IsUECoreType.h"

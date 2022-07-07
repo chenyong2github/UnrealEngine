@@ -1,12 +1,15 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Misc/NetworkVersion.h"
-#include "Misc/App.h"
-#include "Misc/EngineVersion.h"
-#include "Runtime/Launch/Resources/Version.h"
-#include "Misc/NetworkGuid.h"
-#include "HAL/IConsoleManager.h"
+
 #include "BuildSettings.h"
+#include "CoreMinimal.h"
+#include "HAL/IConsoleManager.h"
+#include "Misc/App.h"
+#include "Misc/CommandLine.h"
+#include "Misc/EngineVersion.h"
+#include "Misc/NetworkGuid.h" // IWYU pragma: keep
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY( LogNetVersion );
 

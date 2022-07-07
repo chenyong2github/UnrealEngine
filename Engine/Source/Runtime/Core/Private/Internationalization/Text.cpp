@@ -7,6 +7,7 @@
 #include "UObject/DebugSerializationFlags.h"
 #include "Internationalization/Culture.h"
 #include "Internationalization/Internationalization.h"
+#include "Internationalization/ITextGenerator.h"
 #include "Internationalization/StringTableRegistry.h"
 
 #include "Internationalization/TextHistory.h"

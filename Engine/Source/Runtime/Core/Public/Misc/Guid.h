@@ -5,6 +5,7 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Hash/CityHash.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/Crc.h"

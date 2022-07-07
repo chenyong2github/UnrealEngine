@@ -2,7 +2,6 @@
 
 #include "Logging/LogCategory.h"
 
-#include "CoreGlobals.h"
 #include "CoreMinimal.h"
 #include "Logging/LogSuppressionInterface.h"
 #include "Logging/LogTrace.h"

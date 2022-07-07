@@ -6,9 +6,13 @@
 
 #pragma once
 
-#include "CoreTypes.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformOutputDevices.h"
+#include "HAL/PlatformOutputDevices.h"
+
+class FOutputDevice;
+class FOutputDeviceError;
 
 struct CORE_API FUnixOutputDevices : public FGenericPlatformOutputDevices
 {

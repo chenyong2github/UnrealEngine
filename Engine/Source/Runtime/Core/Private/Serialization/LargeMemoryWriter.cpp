@@ -5,6 +5,7 @@
 #include "CoreGlobals.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Trace/Detail/Channel.h"
 
 /*----------------------------------------------------------------------------
 	FLargeMemoryWriter

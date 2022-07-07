@@ -8,6 +8,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryImageWriter.h"

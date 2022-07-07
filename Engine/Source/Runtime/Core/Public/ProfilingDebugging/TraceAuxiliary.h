@@ -8,6 +8,7 @@
 #include "HAL/Platform.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Misc/Build.h"
 
 ////////////////////////////////////////////////////////////////////////////////
 class CORE_API FTraceAuxiliary

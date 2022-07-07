@@ -5,6 +5,7 @@
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "Misc/Build.h"
 
 class FExec;
 class FName;

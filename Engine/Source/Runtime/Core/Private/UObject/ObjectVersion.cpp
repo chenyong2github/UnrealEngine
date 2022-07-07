@@ -6,6 +6,7 @@
 
 #include "UObject/ObjectVersion.h"
 
+#include "Misc/AssertionMacros.h"
 #include "Serialization/Archive.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"

@@ -4,6 +4,7 @@
 
 #include "Logging/LogCategory.h"
 #include "Templates/Function.h"
+#include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY(LogHistograms);
 

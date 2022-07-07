@@ -19,6 +19,8 @@
 #include "Misc/AssertionMacros.h"
 #include "Templates/UnrealTemplate.h"
 
+#include <initializer_list>
+
 struct FAnalyticsEventAttribute;
 struct FHistogramBuilder;
 template <typename FuncType> class TFunctionRef;

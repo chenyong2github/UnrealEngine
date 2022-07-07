@@ -10,6 +10,7 @@
 #include "Containers/Map.h"
 #include "Containers/SparseArray.h"
 #include "CoreTypes.h"
+#include "Misc/Build.h"
 #include "Misc/Optional.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/ScopedTimers.h"

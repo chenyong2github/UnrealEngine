@@ -3,6 +3,7 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Misc/Build.h"
 #include "ProfilingDebugging/FormatArgsTrace.h"
 #include "Trace/Config.h"
 #include "Trace/Trace.h"

@@ -7,10 +7,12 @@
  */
 
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Math/Quat.h"
 #include "Math/ScalarRegister.h"
 #include "Math/TransformNonVectorized.h"
 #include "Math/TransformVectorized.h"
+#include "Misc/LargeWorldCoordinates.h"
 #include "Misc/LargeWorldCoordinatesSerializer.h"
 #include "Serialization/MemoryLayout.h"
 #include "Serialization/StructuredArchiveAdapters.h"

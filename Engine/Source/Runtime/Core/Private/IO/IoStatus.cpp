@@ -4,6 +4,7 @@
 #include "Containers/StringView.h"
 #include "CoreMinimal.h"
 #include "IO/IoDispatcher.h"
+#include "Trace/Detail/Channel.h"
 
 //////////////////////////////////////////////////////////////////////////
 

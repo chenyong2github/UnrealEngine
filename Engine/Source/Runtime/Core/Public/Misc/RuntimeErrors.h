@@ -7,6 +7,7 @@
 #include "HAL/PlatformMisc.h"
 #include "Logging/LogVerbosity.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Misc/CoreDelegates.h"
 
 class FText;

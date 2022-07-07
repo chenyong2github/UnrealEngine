@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Logging/LogVerbosity.h"
+#include "Misc/Build.h"
 
 struct FLogCategoryBase;
 

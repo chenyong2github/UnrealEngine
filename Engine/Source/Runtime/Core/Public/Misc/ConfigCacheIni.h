@@ -20,6 +20,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Misc/AccessDetection.h"
+#include "Misc/Build.h"
 #include "Misc/ConfigTypes.h"
 #include "Misc/Paths.h"
 #include "Serialization/StructuredArchive.h"

@@ -11,6 +11,7 @@
 #include "Delegates/DelegateBase.h"
 #include "Delegates/IDelegateInstance.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "HAL/ThreadSafeCounter64.h"
 #include "Templates/Decay.h"
 #include "Templates/Function.h"

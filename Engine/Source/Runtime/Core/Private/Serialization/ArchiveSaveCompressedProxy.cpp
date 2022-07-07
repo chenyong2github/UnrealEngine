@@ -8,6 +8,7 @@
 #include "Logging/LogMacros.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/Compression.h"
+#include "Trace/Detail/Channel.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 

@@ -1,10 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Math/UnitConversion.h"
+
+#include "HAL/PlatformCrt.h"
 #include "Internationalization/Internationalization.h"
-#include "Misc/ExpressionParserTypes.h"
-#include "Misc/ExpressionParser.h"
+#include "Internationalization/Text.h"
 #include "Math/BasicMathExpressionEvaluator.h"
+#include "Math/UnitConversion.inl"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/ExpressionParser.h"
+#include "Misc/ExpressionParserTypes.h"
+#include "Misc/ExpressionParserTypes.inl"
+#include "Misc/Guid.h"
+#include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 
 PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
 

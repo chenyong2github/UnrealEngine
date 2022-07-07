@@ -8,6 +8,7 @@
 #include "Logging/LogVerbosity.h"
 #include "Misc/OutputDevice.h"
 #include "Serialization/Archive.h"
+#include "UObject/NameTypes.h"
 
 /**
  * Memory output device. Logs only into pre-allocated memory buffer.

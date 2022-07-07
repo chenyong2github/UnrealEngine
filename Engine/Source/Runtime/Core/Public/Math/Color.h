@@ -5,6 +5,7 @@
 #include "Containers/Array.h"
 #include "Containers/UnrealString.h"
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Math/MathFwd.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"

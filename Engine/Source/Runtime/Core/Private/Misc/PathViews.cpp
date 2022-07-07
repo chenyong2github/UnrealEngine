@@ -18,7 +18,6 @@
 #include "String/Find.h"
 #include "String/ParseTokens.h"
 #include "Templates/Function.h"
-#include "Templates/UnrealTemplate.h"
 
 namespace UE4PathViews_Private
 {

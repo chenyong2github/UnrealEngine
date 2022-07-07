@@ -12,6 +12,7 @@
 #include "UObject/PropertyPortFlags.h"
 
 #include "Internationalization/FastDecimalFormat.h"
+#include "Internationalization/ITextGenerator.h"
 #include "Internationalization/TextFormatter.h"
 #include "Internationalization/TextChronoFormatter.h"
 #include "Internationalization/TextTransformer.h"

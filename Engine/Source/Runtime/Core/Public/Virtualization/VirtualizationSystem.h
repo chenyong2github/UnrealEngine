@@ -18,6 +18,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Templates/Function.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 
 class FPackagePath;

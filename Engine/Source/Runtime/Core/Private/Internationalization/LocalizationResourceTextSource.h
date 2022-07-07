@@ -4,7 +4,6 @@
 
 #include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
-#include "CoreTypes.h"
 #include "Internationalization/ILocalizedTextSource.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
 

@@ -10,6 +10,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector4.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/LargeWorldCoordinates.h"
 #include "Serialization/Archive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
 #include "Templates/IsUECoreType.h"

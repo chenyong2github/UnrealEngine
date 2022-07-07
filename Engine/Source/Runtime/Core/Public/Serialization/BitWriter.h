@@ -6,6 +6,7 @@
 #include "CoreTypes.h"
 #include "Math/UnrealMathUtility.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Serialization/BitArchive.h"
 
 class FArchive;

@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "HAL/PlatformTLS.h"
 #include "Logging/LogMacros.h"
+#include "Misc/Build.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/OutputDevice.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"

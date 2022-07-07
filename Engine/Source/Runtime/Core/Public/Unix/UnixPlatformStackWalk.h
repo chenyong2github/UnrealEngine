@@ -8,6 +8,7 @@
 
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformStackWalk.h"
+#include "HAL/PlatformStackWalk.h"
 
 struct FGenericCrashContext;
 

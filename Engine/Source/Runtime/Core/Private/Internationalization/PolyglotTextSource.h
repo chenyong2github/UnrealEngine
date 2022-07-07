@@ -4,8 +4,8 @@
 
 #include "CoreTypes.h"
 #include "Internationalization/ILocalizedTextSource.h"
-#include "Internationalization/PolyglotTextData.h"
 #include "Internationalization/LocKeyFuncs.h"
+#include "Internationalization/PolyglotTextData.h" // IWYU pragma: keep
 
 /**
  * Implementation of a localized text source that stores literal polyglot data registered at runtime.

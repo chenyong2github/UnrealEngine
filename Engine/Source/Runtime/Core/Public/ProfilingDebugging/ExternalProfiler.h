@@ -5,6 +5,7 @@
 #include "Containers/StringConv.h"
 #include "CoreTypes.h"
 #include "Features/IModularFeature.h"
+#include "Misc/Build.h"
 #include "UObject/NameTypes.h"
 
 #ifndef UE_EXTERNAL_PROFILING_ENABLED

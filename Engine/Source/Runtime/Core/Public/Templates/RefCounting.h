@@ -4,8 +4,10 @@
 
 #include "CoreTypes.h"
 #include "HAL/PlatformAtomics.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryLayout.h"
 #include "Templates/TypeHash.h"

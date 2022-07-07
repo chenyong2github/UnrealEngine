@@ -10,6 +10,7 @@
 #include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "HAL/UnrealMemory.h"
 #include "Serialization/BufferReader.h"
 #include "Serialization/MemoryLayout.h"

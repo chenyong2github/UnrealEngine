@@ -12,6 +12,7 @@
 #include "Math/MathFwd.h"
 #include "Math/UnrealMathSSE.h"
 #include "Templates/Models.h"
+#include "Trace/Detail/Channel.h"
 
 /** A concise iteration over the children of an octree node. */
 #define FOREACH_OCTREE_CHILD_NODE(ChildRef) \
