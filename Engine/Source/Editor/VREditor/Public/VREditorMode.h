@@ -76,6 +76,11 @@ protected:
 	//~ End UEditorWorldExtension interface
 
 public:
+	virtual bool NeedsSyntheticDpad()
+	{
+		return false;
+	}
+
 	/** When the user actually enters the VR Editor mode */
 	virtual void Enter();
 

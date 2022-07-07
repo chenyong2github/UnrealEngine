@@ -13,6 +13,10 @@
 #include "HeadMountedDisplayTypes.h"
 #include "VREditorFloatingUI.h"
 
+
+DEFINE_LOG_CATEGORY(LogVREditor);
+
+
 class FVREditorModule : public IVREditorModule
 {
 public:

@@ -93,9 +93,7 @@ public:
 	virtual void PreviewInputKey( class FEditorViewportClient& ViewportClient, FViewportActionKeyInput& Action, const FKey Key, const EInputEvent Event, bool& bOutWasHandled ) override;
 	virtual void HandleInputKey( class FEditorViewportClient& ViewportClient, FViewportActionKeyInput& Action, const FKey Key, const EInputEvent Event, bool& bOutWasHandled ) override;
 	virtual bool GetTransformAndForwardVector( FTransform& OutHandTransform, FVector& OutForwardVector ) const override;
-
-
-	void HandleInputAxis( FEditorViewportClient& ViewportClient, FViewportActionKeyInput& Action, const FKey Key, const float Delta, const float DeltaTime, bool& bOutWasHandled );
+	virtual void HandleInputAxis( FEditorViewportClient& ViewportClient, FViewportActionKeyInput& Action, const FKey Key, const float Delta, const float DeltaTime, bool& bOutWasHandled ) override;
 
 	/** Toggles whether or not this controller is being used to scrub sequencer */
 	void ToggleSequencerScrubbingMode();
@@ -258,6 +256,8 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "VREditorInteractor")
 	void ReplaceHandMeshComponent(UStaticMesh* NewMesh, FVector MeshScale = FVector(1.f, 1.f, 1.f));
 
+	bool IsActionKeyPressed(FName ActionName) const;
+
 protected:
 
 	/** Polls input for the motion controllers transforms */
@@ -330,7 +330,11 @@ private:
 	static const FName MotionController_Left_PressedTriggerAxis;
 	static const FName MotionController_Right_PressedTriggerAxis;
 
+	/** Is the button for the specified action currently held down? */
+	TMap<FName, bool> ActionKeysPressed;
+
 	/** Is the Modifier button held down? */
+	UE_DEPRECATED(5.1, "Use IsActionKeyPressed(VRActionTypes::Modifier) instead.")
 	bool bIsModifierPressed;
 
 	/** Current trigger pressed amount for 'select and move' (0.0 - 1.0) */
@@ -420,9 +424,11 @@ protected:
 	//
 
 	/** True if the trackpad is actively being touched */
+	UE_DEPRECATED(5.1, "Use IsActionKeyPressed(VRActionTypes::Touch) instead.")
 	bool bIsTouchingTrackpad;
 
 	/** True if pressing trackpad button (or analog stick button is down) */
+	UE_DEPRECATED(5.1, "Use IsActionKeyPressed(VRActionTypes::ConfirmRadialSelection) instead.")
 	bool bIsPressingTrackpad;
 
 	/** Position of the touched trackpad */

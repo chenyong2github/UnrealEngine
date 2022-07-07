@@ -13,6 +13,8 @@ class UVirtualScoutingMode : public UVREditorMode
 
 public:
 	//~ Begin UVREditorMode interface
+	virtual bool NeedsSyntheticDpad() override;
+
 	virtual void Enter() override;
 	//~ End UVREditorMode interface
 };

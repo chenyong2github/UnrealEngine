@@ -8,6 +8,7 @@
 #include "Editor.h"
 #endif
 
+#include "IOpenXRHMDModule.h"
 #include "IXRTrackingSystem.h"
 #include "Logging/LogMacros.h"
 #include "Modules/ModuleManager.h"
@@ -18,6 +19,9 @@
 
 DECLARE_LOG_CATEGORY_EXTERN(LogVirtualScouting, Log, All);
 DEFINE_LOG_CATEGORY(LogVirtualScouting);
+
+
+static const FName OpenXRSystemName = FName(TEXT("OpenXR"));
 
 
 class FVirtualScoutingEditorModule : public IModuleInterface
@@ -36,9 +40,20 @@ private:
 IMPLEMENT_MODULE(FVirtualScoutingEditorModule, VirtualScoutingEditor);
 
 
+bool UVirtualScoutingMode::NeedsSyntheticDpad()
+{
+	if (!GEngine->XRSystem.IsValid() || GEngine->XRSystem->GetSystemName() != OpenXRSystemName)
+	{
+		return Super::NeedsSyntheticDpad();
+	}
+
+	return !IOpenXRHMDModule::Get().IsExtensionEnabled("XR_EXT_dpad_binding");
+}
+
+
 void UVirtualScoutingMode::Enter()
 {
-	if (!GEngine->XRSystem.IsValid() || GEngine->XRSystem->GetSystemName() != FName(TEXT("OpenXR")))
+	if (!GEngine->XRSystem.IsValid() || GEngine->XRSystem->GetSystemName() != OpenXRSystemName)
 	{
 		Super::Enter();
 		return;
