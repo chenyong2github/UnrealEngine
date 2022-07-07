@@ -2,16 +2,18 @@
 
 #pragma once
 
-#include "CoreTypes.h"
-#include "Misc/VarArgs.h"
-#include "Misc/AssertionMacros.h"
 #include "Containers/UnrealString.h"
+#include "CoreTypes.h"
+#include "HAL/PreprocessorHelpers.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "Logging/LogTrace.h"
-#include "Templates/IsValidVariadicFunctionArg.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Build.h"
+#include "Misc/VarArgs.h"
 #include "Templates/AndOrNot.h"
 #include "Templates/IsArrayOrRefOfTypeByPredicate.h"
+#include "Templates/IsValidVariadicFunctionArg.h"
 #include "Traits/IsCharEncodingCompatibleWith.h"
 
 

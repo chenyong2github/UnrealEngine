@@ -25,6 +25,7 @@
 #include "Serialization/MemoryWriter.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "Tasks/Task.h"
+#include "IO/IoDirectoryIndex.h"
 
 DEFINE_LOG_CATEGORY(LogIoStore);
 

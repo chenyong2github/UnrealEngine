@@ -2,8 +2,12 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "IO/IoContainerId.h"
 #include "IO/IoDispatcher.h"
-#include "IO/IoDirectoryIndex.h"
+#include "Misc/EnumClassFlags.h"
+#include "Misc/Guid.h"
+#include "Misc/SecureHash.h"
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogIoStore, Log, All);
 

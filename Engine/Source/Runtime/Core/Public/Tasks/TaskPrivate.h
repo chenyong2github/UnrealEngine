@@ -2,20 +2,25 @@
 
 #pragma once
 
-#include "Async/Fundamental/Task.h"
 #include "Async/Fundamental/Scheduler.h"
+#include "Async/Fundamental/Task.h"
 #include "Async/TaskTrace.h"
+#include "Containers/LockFreeFixedSizeAllocator.h"
+#include "Containers/LockFreeList.h"
+#include "CoreTypes.h"
+#include "Experimental/ConcurrentLinearAllocator.h"
+#include "HAL/Event.h"
+#include "HAL/PlatformProcess.h"
+#include "HAL/Thread.h"
+#include "Math/NumericLimits.h"
+#include "Misc/ScopeLock.h"
+#include "Misc/Timeout.h"
+#include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "Templates/Invoke.h"
 #include "Templates/RefCounting.h"
 #include "Templates/TypeCompatibleBytes.h"
-#include "Misc/Timeout.h"
-#include "Containers/LockFreeList.h"
-#include "Containers/LockFreeFixedSizeAllocator.h"
-#include "Experimental/ConcurrentLinearAllocator.h"
 #include "Templates/UnrealTemplate.h"
-#include "Math/NumericLimits.h"
-#include "Misc/ScopeLock.h"
-#include "CoreTypes.h"
+#include "Trace/Detail/Channel.h"
 
 #include <atomic>
 #include <type_traits>

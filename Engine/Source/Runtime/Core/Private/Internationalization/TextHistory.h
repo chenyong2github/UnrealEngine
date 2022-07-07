@@ -1,19 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "Containers/Array.h"
-#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Internationalization/ITextData.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
 #include "Internationalization/StringTableCoreFwd.h"
-#include "Internationalization/Text.h"
 #include "Internationalization/TextKey.h"
-#include "Misc/DateTime.h"
-#include "Misc/Optional.h"
 #include "Serialization/StructuredArchive.h"
-#include "Templates/SharedPointer.h"
 #include "Templates/SharedPointerInternals.h"
 
 class ITextGenerator;
