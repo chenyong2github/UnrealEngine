@@ -2185,6 +2185,9 @@ protected:
 
 private:
 
+	/** Whether the value in HighestPriorityActivatedReverb should be used - Audio Thread owned */
+	uint8 bHasActivatedReverb:1;
+
 	/** Whether or not we're supporting zero volume wave instances */
 	uint8 bAllowPlayWhenSilent:1;
 
