@@ -3,8 +3,9 @@
 #pragma once
 
 #include "Containers/Array.h"
-#include "CoreMinimal.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "CoreTypes.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/OutputDevice.h"
 #include "Templates/PimplPtr.h"

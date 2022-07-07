@@ -2,7 +2,9 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
 #include "Misc/DelayedAutoRegister.h"
 
 class FEvent;

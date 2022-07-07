@@ -2,9 +2,13 @@
 
 #include "Logging/LogCategory.h"
 
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "HAL/PlatformMisc.h"
 #include "Logging/LogSuppressionInterface.h"
 #include "Logging/LogTrace.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/OutputDeviceRedirector.h"
 

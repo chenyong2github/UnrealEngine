@@ -3,6 +3,7 @@
 #include "IO/PackageId.h"
 
 #include "Hash/CityHash.h"
+#include "Misc/Char.h"
 #include "Serialization/StructuredArchiveAdapters.h"
 #include "Serialization/StructuredArchiveSlots.h"
 

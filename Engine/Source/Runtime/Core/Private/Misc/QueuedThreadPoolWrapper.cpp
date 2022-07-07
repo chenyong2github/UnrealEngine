@@ -7,6 +7,8 @@
 #include "Misc/QueuedThreadPool.h"
 #include "ProfilingDebugging/CountersTrace.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
+#include "Templates/Tuple.h"
+#include "Templates/UnrealTemplate.h"
 
 TRACE_DECLARE_INT_COUNTER(QueuedThreadPoolWrapperScheduledWorkAllocs, TEXT("QueuedThreadPoolWrapper/ScheduledWorkAllocs"));
 

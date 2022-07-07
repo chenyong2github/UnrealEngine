@@ -4,34 +4,47 @@
 
 #include "Containers/Array.h"
 #include "Containers/ChunkedArray.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/LockFreeList.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "HAL/CriticalSection.h"
 #include "HAL/LowLevelMemTracker.h"
+#include "HAL/PlatformMemory.h"
+#include "HAL/PlatformMisc.h"
+#include "HAL/PlatformTLS.h"
 #include "HAL/PlatformTime.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/ThreadSingleton.h"
+#include "HAL/UnrealMemory.h"
 #include "Math/Color.h"
 #include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Build.h"
+#include "Misc/CString.h"
 #include "Misc/EnumClassFlags.h"
 #include "ProfilingDebugging/CpuProfilerTrace.h"
 #include "ProfilingDebugging/MiscTrace.h"
 #include "StatsCommon.h"
 #include "StatsTrace.h"
 #include "Templates/Atomic.h"
+#include "Templates/TypeCompatibleBytes.h"
 #include "Templates/UniquePtr.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Detail/Channel.h"
 #include "Trace/Detail/Channel.inl"
 #include "Trace/Trace.h"
 #include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
+class FOutputDevice;
 class FScopeCycleCounter;
 class FThreadStats;
 struct TStatId;
+template <typename T> struct TIsPODType;
 
 /**
 * This is thread-private information about the thread idle stats, which we always collect, even in final builds

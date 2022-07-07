@@ -4,10 +4,17 @@
 
 #include "Containers/ArrayView.h"
 #include "Containers/StringView.h"
+#include "CoreTypes.h"
 #include "IO/IoDispatcher.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/Paths.h"
+#include "Serialization/Archive.h"
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
+#include "Templates/AlignmentTemplates.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace IoDirectoryIndexUtils
 {

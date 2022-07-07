@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Serialization/ArchiveProxy.h"
+
+class FArchive;
 
 struct CORE_API FHierarchicalLogArchive : private FArchiveProxy
 {

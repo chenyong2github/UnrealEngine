@@ -2,8 +2,14 @@
 
 #include "IO/PackageStore.h"
 
+#include "Containers/StringConv.h"
 #include "Containers/StringView.h"
+#include "Containers/UnrealString.h"
+#include "CoreGlobals.h"
+#include "HAL/Platform.h"
 #include "IO/PackageId.h"
+#include "Misc/AssertionMacros.h"
+#include "Serialization/Archive.h"
 #include "Serialization/CompactBinary.h"
 #include "Serialization/CompactBinaryWriter.h"
 

@@ -4,10 +4,12 @@
 
 #include "Async/Fundamental/Scheduler.h"
 #include "Async/Fundamental/Task.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Tasks/Task.h"
 #include "Tasks/TaskPrivate.h"
+#include "Templates/Invoke.h"
+#include "Templates/UnrealTemplate.h"
 
 #include <atomic>
 

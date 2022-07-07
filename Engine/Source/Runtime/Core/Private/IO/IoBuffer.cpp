@@ -1,9 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "HAL/UnrealMemory.h"
 #include "IO/IoDispatcher.h"
 #include "Memory/MemoryFwd.h"
 #include "Memory/MemoryView.h"
+#include "Misc/AssertionMacros.h"
 #include "Templates/RefCounting.h"
 
 //////////////////////////////////////////////////////////////////////////

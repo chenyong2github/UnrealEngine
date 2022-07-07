@@ -4,6 +4,7 @@
 
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformMemory.h"
+#include "Templates/AlignmentTemplates.h"
 
 LLM_DEFINE_TAG(VirtualStackAllocator);
 

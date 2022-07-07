@@ -3,16 +3,21 @@
 #include "Misc/RemoteConfigIni.h"
 
 #include "Async/AsyncWork.h"
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "HAL/FileManager.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/PlatformProcess.h"
 #include "HAL/PlatformTime.h"
+#include "HAL/UnrealMemory.h"
 #include "Misc/App.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/FileHelper.h"
 #include "Misc/Paths.h"
 #include "Misc/ScopeLock.h"
 #include "Stats/Stats.h"
+#include "Templates/TypeHash.h"
 
 // Globals
 FRemoteConfig GRemoteConfig;

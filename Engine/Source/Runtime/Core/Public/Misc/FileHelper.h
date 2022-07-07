@@ -2,18 +2,23 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "HAL/FileManager.h"
 #include "Math/Color.h"
 #include "Math/MathFwd.h"
 #include "Misc/EnumClassFlags.h"
+#include "Templates/UnrealTemplate.h"
 
+class FArchive;
+class FText;
 class IPlatformFile;
+template <typename FuncType> class TFunctionRef;
 
 /*-----------------------------------------------------------------------------
 	FFileHelper

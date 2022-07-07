@@ -3,12 +3,16 @@
 #include "Misc/NetworkVersion.h"
 
 #include "BuildSettings.h"
-#include "CoreMinimal.h"
 #include "HAL/IConsoleManager.h"
+#include "Logging/LogCategory.h"
 #include "Misc/App.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
 #include "Misc/CommandLine.h"
+#include "Misc/Crc.h"
 #include "Misc/EngineVersion.h"
 #include "Misc/NetworkGuid.h" // IWYU pragma: keep
+#include "Misc/Parse.h"
 #include "Trace/Detail/Channel.h"
 
 DEFINE_LOG_CATEGORY( LogNetVersion );

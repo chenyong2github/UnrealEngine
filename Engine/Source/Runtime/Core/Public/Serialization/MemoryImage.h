@@ -3,18 +3,32 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/HashTable.h"
+#include "Containers/Map.h"
 #include "Containers/Set.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformString.h"
 #include "HAL/PreprocessorHelpers.h"
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Misc/Crc.h"
 #include "Misc/SecureHash.h"
 #include "Serialization/Archive.h"
 #include "Serialization/MemoryImageWriter.h"
 #include "Serialization/MemoryLayout.h"
+#include "Templates/AlignmentTemplates.h"
+#include "Templates/EnableIf.h"
 #include "Templates/RefCounting.h"
+#include "Templates/TypeHash.h"
 #include "Traits/IsCharType.h"
+#include "UObject/NameTypes.h"
+
+template <typename T> struct TIsContiguousContainer;
 
 #if defined(WITH_RTTI) || defined(_CPPRTTI) || defined(__GXX_RTTI) || WITH_EDITOR
 #include <typeinfo>

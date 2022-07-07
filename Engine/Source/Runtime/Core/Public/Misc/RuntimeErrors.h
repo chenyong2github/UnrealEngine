@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
 #include "HAL/PlatformMisc.h"
 #include "Logging/LogVerbosity.h"
 #include "Misc/AssertionMacros.h"

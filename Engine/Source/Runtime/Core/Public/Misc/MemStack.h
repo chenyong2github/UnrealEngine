@@ -4,8 +4,10 @@
 
 #include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/LockFreeFixedSizeAllocator.h"
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
+#include "HAL/MemoryBase.h"
+#include "HAL/PlatformCrt.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "HAL/ThreadSingleton.h"
 #include "HAL/UnrealMemory.h"
@@ -14,6 +16,7 @@
 #include "Misc/Build.h"
 #include "Misc/NoopCounter.h"
 #include "Templates/AlignmentTemplates.h"
+#include "Templates/UnrealTemplate.h"
 
 
 // Enums for specifying memory allocation type.

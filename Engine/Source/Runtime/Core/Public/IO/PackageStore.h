@@ -2,11 +2,17 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
 #include "CoreMinimal.h"
+#include "CoreTypes.h"
+#include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
 #include "Misc/EnumClassFlags.h"
 #include "Misc/SecureHash.h"
 #include "PackageId.h"
+#include "Templates/SharedPointer.h"
+#include "UObject/NameTypes.h"
 
 class FArchive;
 class FCbObject;

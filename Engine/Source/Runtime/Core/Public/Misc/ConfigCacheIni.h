@@ -6,31 +6,43 @@
 
 #pragma once
 
+#include "Algo/Reverse.h"
 #include "Containers/Array.h"
 #include "Containers/Map.h"
+#include "Containers/Set.h"
+#include "Containers/SparseArray.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Internationalization/Text.h"
 #include "Logging/LogMacros.h"
 #include "Math/Color.h"
 #include "Math/MathFwd.h"
 #include "Math/Rotator.h"
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
+#include "Math/Vector4.h"
 #include "Misc/AccessDetection.h"
 #include "Misc/Build.h"
 #include "Misc/ConfigTypes.h"
 #include "Misc/Paths.h"
+#include "Serialization/Archive.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
 #include "Serialization/StructuredArchiveSlots.h"
+#include "Templates/ChooseClass.h"
+#include "Templates/Function.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 
 class FConfigCacheIni;
 class FConfigFile;
+class FOutputDevice;
 class IConsoleVariable;
+struct FColor;
 
 CORE_API DECLARE_LOG_CATEGORY_EXTERN(LogConfig, Log, All);
 

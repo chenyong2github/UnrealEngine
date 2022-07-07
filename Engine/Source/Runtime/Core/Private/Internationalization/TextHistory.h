@@ -1,14 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "HAL/CriticalSection.h"
+#include "Internationalization/CulturePointer.h"
 #include "Internationalization/ITextData.h"
 #include "Internationalization/LocalizedTextSourceTypes.h"
 #include "Internationalization/StringTableCoreFwd.h"
 #include "Internationalization/TextKey.h"
 #include "Serialization/StructuredArchive.h"
 #include "Templates/SharedPointerInternals.h"
+#include "Templates/UnrealTemplate.h"
+#include "UObject/NameTypes.h"
 
 class ITextGenerator;
 struct FDecimalNumberFormattingRules;

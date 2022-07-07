@@ -2,9 +2,18 @@
 
 #pragma once
 
+#include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/ContainersFwd.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Math/NumericLimits.h"
+#include "Misc/AssertionMacros.h"
 #include "UObject/NameBatchSerialization.h"
+#include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
+
+class FArchive;
 
 /**
  * Index and name number into a name map.

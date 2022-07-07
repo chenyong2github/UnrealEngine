@@ -2,9 +2,14 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/StringFwd.h"
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
 #include "Misc/AES.h"
+
+class FArchive;
 
 namespace IoDirectoryIndexUtils
 {

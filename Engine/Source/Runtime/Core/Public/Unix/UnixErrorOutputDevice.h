@@ -2,9 +2,10 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/OutputDeviceError.h"
+#include "UObject/NameTypes.h"
 
 class CORE_API FUnixErrorOutputDevice : public FOutputDeviceError
 {

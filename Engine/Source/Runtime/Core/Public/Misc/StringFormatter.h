@@ -2,11 +2,13 @@
 
 #pragma once
 
+#include "Containers/Array.h"
+#include "Containers/Map.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Misc/AssertionMacros.h"
 #include "Misc/ExpressionParserTypes.h"
+#include "Templates/UnrealTemplate.h"
 #include "Templates/ValueOrError.h"
 
 struct FStringFormatArg;

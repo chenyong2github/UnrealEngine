@@ -3,18 +3,21 @@
 #pragma once
 
 #include "Containers/Array.h"
+#include "Containers/ContainerAllocationPolicies.h"
 #include "Containers/Map.h"
 #include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
+#include "HAL/PlatformProperties.h"
 #include "HAL/ThreadSingleton.h"
+#include "Logging/LogVerbosity.h"
 #include "Math/IntPoint.h"
 #include "Misc/Build.h"
 #include "Misc/Exec.h"
 #include "Templates/Function.h"
 #include "UObject/NameTypes.h"
 
+class FOutputDevice;
 class UWorld;
 
 /**

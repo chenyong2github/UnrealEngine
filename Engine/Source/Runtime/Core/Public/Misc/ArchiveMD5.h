@@ -2,8 +2,13 @@
 
 #pragma once
 
+#include "Containers/UnrealString.h"
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/SecureHash.h"
+#include "Serialization/Archive.h"
+#include "UObject/NameTypes.h"
 
 /**
  * FArchive adapter for FMD5

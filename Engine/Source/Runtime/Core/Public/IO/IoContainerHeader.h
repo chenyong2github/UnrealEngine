@@ -2,7 +2,8 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "HAL/Platform.h"
 #include "IO/IoContainerId.h"
 #include "IO/PackageId.h"
 #include "Serialization/MappedName.h"

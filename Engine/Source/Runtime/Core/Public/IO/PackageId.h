@@ -3,6 +3,9 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Misc/AssertionMacros.h"
+#include "UObject/NameTypes.h"
 
 class FArchive;
 class FStructuredArchiveSlot;

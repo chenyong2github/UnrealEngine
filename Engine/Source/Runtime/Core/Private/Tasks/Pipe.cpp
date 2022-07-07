@@ -2,6 +2,7 @@
 
 #include "Tasks/Pipe.h"
 
+#include "Containers/Array.h"
 #include "Misc/ScopeExit.h"
 
 namespace UE::Tasks

@@ -3,7 +3,6 @@
 #include "Internationalization/TextCache.h"
 
 #include "Containers/UnrealString.h"
-#include "CoreTypes.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "Internationalization/TextKey.h"
 #include "Misc/CString.h"

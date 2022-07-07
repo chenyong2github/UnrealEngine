@@ -8,9 +8,12 @@
 #include "Containers/Set.h"
 #include "Containers/StringFwd.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h"
+#include "HAL/PlatformCrt.h"
+#include "HAL/PlatformMemory.h"
 #include "HAL/ThreadSafeCounter.h"
 #include "Math/NumericLimits.h"
 #include "Math/UnrealMathUtility.h"
@@ -22,6 +25,7 @@
 #include "Stats/StatsCommon.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
+#include "UObject/UnrealNames.h"
 
 struct FEventData;
 

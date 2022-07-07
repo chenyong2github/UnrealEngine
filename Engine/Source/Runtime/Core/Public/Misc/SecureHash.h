@@ -3,21 +3,25 @@
 #pragma once
 
 #include "Async/AsyncWork.h"
+#include "Containers/Array.h"
 #include "Containers/Map.h"
 #include "Containers/StringConv.h"
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
 #include "Containers/UnrealString.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "HAL/PreprocessorHelpers.h"
 #include "HAL/UnrealMemory.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/CString.h"
+#include "Serialization/Archive.h"
 #include "Serialization/BufferReader.h"
 #include "Serialization/MemoryLayout.h"
 #include "Stats/Stats.h"
 #include "Stats/Stats2.h"
 #include "String/BytesToHex.h"
 #include "String/HexToBytes.h"
+#include "Templates/UnrealTemplate.h"
 
 class FMemoryImageWriter;
 class FMemoryUnfreezeContent;

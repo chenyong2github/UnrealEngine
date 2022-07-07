@@ -4,6 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Math/MathFwd.h"
+#include "Math/Matrix.h"
+#include "Math/UnrealMathUtility.h"
+#include "Math/Vector.h"
+#include "Math/Vector4.h"
 #include "Misc/LargeWorldCoordinates.h"
 
 struct FLargeWorldRenderScalar

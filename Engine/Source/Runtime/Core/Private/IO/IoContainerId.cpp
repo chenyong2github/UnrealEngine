@@ -3,6 +3,9 @@
 #include "IO/IoContainerId.h"
 
 #include "Hash/CityHash.h"
+#include "Misc/AssertionMacros.h"
+#include "Misc/Char.h"
+#include "Serialization/Archive.h"
 #include "Serialization/StructuredArchiveSlots.h"
 
 FIoContainerId FIoContainerId::FromName(const FName& Name)

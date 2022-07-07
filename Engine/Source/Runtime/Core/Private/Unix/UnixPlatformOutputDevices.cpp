@@ -2,12 +2,14 @@
 
 #include "Unix/UnixPlatformOutputDevices.h"
 
-#include "CoreMinimal.h"
+#include "CoreGlobals.h"
 #include "CoreTypes.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/Build.h"
 #include "Misc/CommandLine.h"
 #include "Misc/OutputDeviceConsole.h"
 #include "Misc/OutputDeviceRedirector.h"
+#include "Misc/Parse.h"
 #include "Misc/Paths.h"
 #include "Unix/UnixErrorOutputDevice.h"
 

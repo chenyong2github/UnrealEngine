@@ -2,13 +2,16 @@
 
 #include "Misc/MessageDialog.h"
 
+#include "Containers/UnrealString.h"
 #include "CoreGlobals.h"
-#include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "Internationalization/Internationalization.h"
 #include "Internationalization/Text.h"
+#include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
+#include "Logging/LogVerbosity.h"
 #include "Misc/App.h"
+#include "Misc/AssertionMacros.h"
 #include "Misc/CString.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/FeedbackContext.h"

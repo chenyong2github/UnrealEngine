@@ -5,6 +5,8 @@
 #include "Containers/StringFwd.h"
 #include "CoreGlobals.h"
 #include "Delegates/Delegate.h"
+#include "Delegates/DelegateBase.h"
+#include "Delegates/IDelegateInstance.h"
 #include "HAL/Platform.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"

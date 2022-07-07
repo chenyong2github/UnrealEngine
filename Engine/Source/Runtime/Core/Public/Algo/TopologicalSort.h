@@ -3,7 +3,8 @@
 #pragma once
 
 #include "Algo/KahnTopologicalSort.h"
-#include "CoreMinimal.h"
+#include "HAL/Platform.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace Algo
 {

@@ -2,8 +2,14 @@
 
 #include "Containers/StringFwd.h"
 #include "Containers/StringView.h"
-#include "CoreMinimal.h"
+#include "Containers/UnrealString.h"
+#include "HAL/Platform.h"
+#include "HAL/PlatformString.h"
+#include "HAL/UnrealMemory.h"
 #include "IO/IoDispatcher.h"
+#include "Logging/LogCategory.h"
+#include "Logging/LogMacros.h"
+#include "Math/UnrealMathUtility.h"
 #include "Trace/Detail/Channel.h"
 
 //////////////////////////////////////////////////////////////////////////

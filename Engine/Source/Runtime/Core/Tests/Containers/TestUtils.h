@@ -2,7 +2,9 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "CoreTypes.h"
+#include "Math/UnrealMathUtility.h"
 
 namespace Test
 {

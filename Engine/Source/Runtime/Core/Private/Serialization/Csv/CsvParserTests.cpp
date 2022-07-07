@@ -1,9 +1,12 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "CoreMinimal.h"
+#include "Containers/Array.h"
+#include "Containers/UnrealString.h"
 #include "CoreTypes.h"
 #include "Misc/AutomationTest.h"
+#include "Misc/CString.h"
 #include "Serialization/Csv/CsvParser.h"
+#include "Templates/UnrealTemplate.h"
 
 namespace CsvParser_Tests
 {

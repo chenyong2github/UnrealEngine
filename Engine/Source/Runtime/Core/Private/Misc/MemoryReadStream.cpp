@@ -2,6 +2,9 @@
 
 #include "Misc/MemoryReadStream.h"
 
+#include "HAL/UnrealMemory.h"
+#include "Math/UnrealMathUtility.h"
+
 class FMemoryReadStreamBuffer : public IMemoryReadStream
 {
 public:
