@@ -3,6 +3,7 @@
 #include "SDMXPatchedUniverse.h"
 
 #include "DMXEditor.h"
+#include "DMXEditorUtils.h"
 #include "DMXFixturePatchEditorDefinitions.h"
 #include "DMXFixturePatchNode.h"
 #include "DMXFixturePatchSharedData.h"
@@ -202,11 +203,11 @@ void SDMXPatchedUniverse::CreateChannelConnectors()
 	{
 		int32 Column = ChannelIndex % FDMXChannelGridSpecs::NumColumns;
 		int32 Row = ChannelIndex / FDMXChannelGridSpecs::NumColumns;
-		int32 ChannelID = ChannelIndex + FDMXChannelGridSpecs::ChannelIDOffset;
+		int32 Channel = ChannelIndex + FDMXChannelGridSpecs::ChannelIDOffset;
 
 		TSharedRef<SDMXChannelConnector> ChannelPatchWidget =
 			SNew(SDMXChannelConnector)
-			.ChannelID(ChannelID)
+			.ChannelID(Channel)
 			.Value(0)
 			.OnMouseButtonDownOnChannel(this, &SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel)
 			.OnMouseButtonUpOnChannel(this, &SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel)
@@ -238,12 +239,6 @@ bool SDMXPatchedUniverse::Patch(const TSharedPtr<FDMXFixturePatchNode>& Node, in
 	}
 
 	const int32 NewChannelSpan = FixturePatch->GetChannelSpan();
-
-	// Auto assign patches that have bAutoAssignAddress set
-	if (FixturePatch->IsAutoAssignAddress())
-	{
-		NewStartingChannel = FixturePatch->GetStartingChannel();
-	}
 
 	// Unpatch from the old universe
 	if (const TSharedPtr<SDMXPatchedUniverse>& OldUniverseWidget = Node->GetUniverseWidget())
@@ -444,11 +439,35 @@ void SDMXPatchedUniverse::RefreshInternal()
 	}
 }
 
-FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent)
+FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 Channel, const FPointerEvent& PointerEvent)
 {
+	if (PointerEvent.GetEffectingButton() == EKeys::RightMouseButton)
+	{
+		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> OldSelection = SharedData->GetSelectedFixturePatches();
+		const TArray<UDMXEntityFixturePatch*> FixturePatchesOnChannel = GetFixturePatchesOnChannel(Channel);
+		const bool bOldSelectionContainsPatchesOnChannel = FixturePatchesOnChannel.ContainsByPredicate([&OldSelection](const UDMXEntityFixturePatch* FixturePatch)
+			{
+				return OldSelection.Contains(FixturePatch);
+			});
+		if (!bOldSelectionContainsPatchesOnChannel)
+		{
+			if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel))
+			{
+				if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
+				{
+					SharedData->AddFixturePatchToSelection(Patch);
+				}
+				else
+				{
+					SharedData->SelectFixturePatch(Patch);
+				}
+			}
+		}
+	}
+
 	if (PointerEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
-		if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannelID(ChannelID))
+		if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel))
 		{
 			if (FSlateApplication::Get().GetModifierKeys().IsControlDown())
 			{
@@ -467,9 +486,9 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 ChannelID, c
 			{
 				Reply.SetUserFocus(WidgetThatWasFocusedBy_SelectFixturePatch.ToSharedRef());
 			}
-			if (ensureMsgf(ChannelConnectors.IsValidIndex(ChannelID - 1), TEXT("Trying to drag Fixture Patch, but the dragged channel is not valid.")))
+			if (ensureMsgf(ChannelConnectors.IsValidIndex(Channel - 1), TEXT("Trying to drag Fixture Patch, but the dragged channel is not valid.")))
 			{
-				return Reply.DetectDrag(ChannelConnectors[ChannelID - 1].ToSharedRef(), EKeys::LeftMouseButton);
+				return Reply.DetectDrag(ChannelConnectors[Channel - 1].ToSharedRef(), EKeys::LeftMouseButton);
 			}
 		}
 	}
@@ -477,13 +496,13 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonDownOnChannel(uint32 ChannelID, c
 	return FReply::Unhandled();
 }
 
-FReply SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent)
+FReply SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel(uint32 Channel, const FPointerEvent& PointerEvent)
 {
 	if (PointerEvent.GetEffectingButton() == EKeys::RightMouseButton)
 	{
 		const FVector2D& SummonLocation = PointerEvent.GetScreenSpacePosition();
 
-		TSharedRef<SWidget> MenuContent = CreateContextMenu(ChannelID);
+		TSharedRef<SWidget> MenuContent = CreateContextMenu(Channel);
 		FWidgetPath WidgetPath = PointerEvent.GetEventPath() ? *PointerEvent.GetEventPath() : FWidgetPath();
 		FSlateApplication::Get().PushMenu(AsShared(), WidgetPath, MenuContent, SummonLocation, FPopupTransitionEffect(FPopupTransitionEffect::ContextMenu));
 
@@ -493,11 +512,11 @@ FReply SDMXPatchedUniverse::HandleOnMouseButtonUpOnChannel(uint32 ChannelID, con
 	return FReply::Unhandled();
 }
 
-FReply SDMXPatchedUniverse::HandleOnDragDetectedOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent)
+FReply SDMXPatchedUniverse::HandleOnDragDetectedOnChannel(uint32 Channel, const FPointerEvent& PointerEvent)
 {
-	if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannelID(ChannelID))
+	if (UDMXEntityFixturePatch* Patch = GetTopmostFixturePatchOnChannel(Channel))
 	{
-		int32 ChannelOffset = ChannelID - Patch->GetStartingChannel();
+		int32 ChannelOffset = Channel - Patch->GetStartingChannel();
 
 		TSharedRef<FDMXEntityFixturePatchDragDropOperation> DragDropOp = MakeShared<FDMXEntityFixturePatchDragDropOperation>(Patch->GetParentLibrary(), TArray<TWeakObjectPtr<UDMXEntity>>{ Patch }, ChannelOffset);
 
@@ -507,19 +526,19 @@ FReply SDMXPatchedUniverse::HandleOnDragDetectedOnChannel(uint32 ChannelID, cons
 	return FReply::Unhandled();
 }
 
-void SDMXPatchedUniverse::HandleDragEnterChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent)
+void SDMXPatchedUniverse::HandleDragEnterChannel(uint32 Channel, const FDragDropEvent& DragDropEvent)
 {
-	OnDragEnterChannel.ExecuteIfBound(UniverseID, ChannelID, DragDropEvent);
+	OnDragEnterChannel.ExecuteIfBound(UniverseID, Channel, DragDropEvent);
 }
 
-void SDMXPatchedUniverse::HandleDragLeaveChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent)
+void SDMXPatchedUniverse::HandleDragLeaveChannel(uint32 Channel, const FDragDropEvent& DragDropEvent)
 {
-	OnDragLeaveChannel.ExecuteIfBound(UniverseID, ChannelID, DragDropEvent);
+	OnDragLeaveChannel.ExecuteIfBound(UniverseID, Channel, DragDropEvent);
 }
 
-FReply SDMXPatchedUniverse::HandleDropOntoChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent)
+FReply SDMXPatchedUniverse::HandleDropOntoChannel(uint32 Channel, const FDragDropEvent& DragDropEvent)
 {
-	return OnDropOntoChannel.Execute(UniverseID, ChannelID, DragDropEvent);
+	return OnDropOntoChannel.Execute(UniverseID, Channel, DragDropEvent);
 }
 
 FText SDMXPatchedUniverse::GetHeaderText() const
@@ -664,17 +683,45 @@ void SDMXPatchedUniverse::OnSelectionChanged()
 	}
 }
 
-UDMXEntityFixturePatch* SDMXPatchedUniverse::GetTopmostFixturePatchOnChannelID(uint32 ChannelID) const
+void SDMXPatchedUniverse::AutoAssignFixturePatches()
+{
+	if (SharedData.IsValid())
+	{
+		TArray<UDMXEntityFixturePatch*> FixturePatchesToAutoAssign;
+		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = SharedData->GetSelectedFixturePatches();
+		for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
+		{
+			if (FixturePatch.IsValid())
+			{
+				FixturePatchesToAutoAssign.Add(FixturePatch.Get());
+			}
+		}
+
+		if (FixturePatchesToAutoAssign.IsEmpty())
+		{
+			return;
+		}
+
+		constexpr bool bAllowDecrementUniverse = false;
+		constexpr bool bAllowDecrementChannels = true;
+		FDMXEditorUtils::AutoAssignedChannels(bAllowDecrementUniverse, bAllowDecrementChannels, FixturePatchesToAutoAssign);
+		SharedData->SelectUniverse(FixturePatchesToAutoAssign[0]->GetUniverseID());
+
+		RequestRefresh();
+	}
+}
+
+UDMXEntityFixturePatch* SDMXPatchedUniverse::GetTopmostFixturePatchOnChannel(uint32 Channel) const
 {
 	TArray<TSharedPtr<FDMXFixturePatchNode>> Nodes(PatchedNodes);
-	Nodes.RemoveAll([ChannelID](const TSharedPtr<FDMXFixturePatchNode>& Node)
+	Nodes.RemoveAll([Channel](const TSharedPtr<FDMXFixturePatchNode>& Node)
 			{
 				if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
 				{
 					const uint32 PatchStartingChannel = FixturePatch->GetStartingChannel();
 					const TRange<uint32> FixturePatchRange(PatchStartingChannel, PatchStartingChannel + FixturePatch->GetChannelSpan());
 
-					return !FixturePatchRange.Contains(ChannelID);
+					return !FixturePatchRange.Contains(Channel);
 				}
 				return true;
 			});
@@ -694,17 +741,17 @@ UDMXEntityFixturePatch* SDMXPatchedUniverse::GetTopmostFixturePatchOnChannelID(u
 	}
 }
 
-TArray<UDMXEntityFixturePatch*> SDMXPatchedUniverse::GetFixturePatchesOnChannelID(uint32 ChannelID) const
+TArray<UDMXEntityFixturePatch*> SDMXPatchedUniverse::GetFixturePatchesOnChannel(uint32 Channel) const
 {
 	TArray<TSharedPtr<FDMXFixturePatchNode>> Nodes(PatchedNodes);
-	Nodes.RemoveAll([ChannelID](const TSharedPtr<FDMXFixturePatchNode>& Node)
+	Nodes.RemoveAll([Channel](const TSharedPtr<FDMXFixturePatchNode>& Node)
 		{
 			if (UDMXEntityFixturePatch* FixturePatch = Node->GetFixturePatch().Get())
 			{
 				const uint32 PatchStartingChannel = FixturePatch->GetStartingChannel();
 				const TRange<uint32> FixturePatchRange(PatchStartingChannel, PatchStartingChannel + FixturePatch->GetChannelSpan());
 
-				return !FixturePatchRange.Contains(ChannelID);
+				return !FixturePatchRange.Contains(Channel);
 			}
 			return true;
 		});
@@ -741,7 +788,7 @@ void SDMXPatchedUniverse::RegisterCommands()
 	CommandList = MakeShared<FUICommandList>();
 }
 
-TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 ChannelID) const
+TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 Channel)
 {
 	UDMXLibrary* DMXLibrary = GetDMXLibrary();
 	if (!DMXLibrary)
@@ -749,8 +796,8 @@ TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 ChannelID) cons
 		return SNullWidget::NullWidget;
 	}
 
-	TArray<UDMXEntityFixturePatch*> FixturePatchesOnChannel = GetFixturePatchesOnChannelID(ChannelID);
-	if (FixturePatchesOnChannel.Num() == 0)
+	TArray<UDMXEntityFixturePatch*> FixturePatchesOnChannel = GetFixturePatchesOnChannel(Channel);
+	if (FixturePatchesOnChannel.IsEmpty())
 	{
 		return SNullWidget::NullWidget;
 	}
@@ -758,65 +805,81 @@ TSharedRef<SWidget> SDMXPatchedUniverse::CreateContextMenu(int32 ChannelID) cons
 	constexpr bool bCloseWindowAfterMenuSelection = true;
 	FMenuBuilder MenuBuilder(bCloseWindowAfterMenuSelection, CommandList);
 
-	// Add a context menu
+	// Auto Assign Section
+	MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignSection", "Auto-Assign"));
+	{
+		const FUIAction Action(FExecuteAction::CreateSP(this, &SDMXPatchedUniverse::AutoAssignFixturePatches));
+
+		const FText AutoAssignText = LOCTEXT("AutoAssignContextMenuEntry", "Auto-Assign Selection");
+		const TSharedRef<SWidget> Widget =
+			SNew(STextBlock)
+			.Text(AutoAssignText);
+
+		MenuBuilder.AddMenuEntry(Action, Widget);
+		MenuBuilder.EndSection();
+	}
+
 	if (FixturePatchesOnChannel.Num() > 1)
 	{
-		// Common interactions
-		MenuBuilder.BeginSection("FixturePatchInteractions");
+		// Select section
+		MenuBuilder.BeginSection("SelectSection", LOCTEXT("SelectSection", "Select"));
 		{
-			// Select All
-			const FUIAction Action(
-				FExecuteAction::CreateLambda([FixturePatchesOnChannel, this]()
-					{
-						if (SharedData.IsValid())
-						{
-							TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> WeakFixturePatchesOnChannel;
-							for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesOnChannel)
-							{
-								WeakFixturePatchesOnChannel.Add(FixturePatch);
-							}
-							SharedData->SelectFixturePatches(WeakFixturePatchesOnChannel);
-						}
-					}));
-
-			const FText SelectAllText = LOCTEXT("SelectAllFixturePatches", "Select all");
-			const TSharedRef<SWidget> Widget =
-				SNew(STextBlock)
-				.Text(SelectAllText);
-
-			MenuBuilder.AddMenuEntry(Action, Widget);
-		}
-		MenuBuilder.EndSection();
-
-		// Single fixture patch selection
-		MenuBuilder.BeginSection("BringFixturePatchForward", LOCTEXT("BringFixturePatchForwardLabel", "Bring Forward"));
-		{
-			const TArray<UDMXEntityFixturePatch*> DMXFixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
-			FixturePatchesOnChannel.Sort([&DMXFixturePatchesInLibrary](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
-				{
-					return DMXFixturePatchesInLibrary.IndexOfByKey(&FixturePatchA) < DMXFixturePatchesInLibrary.IndexOfByKey(&FixturePatchB);
-				});
-
-			for (TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch : FixturePatchesOnChannel)
+			// Select all
 			{
 				const FUIAction Action(
-					FExecuteAction::CreateLambda([this, WeakFixturePatch]()
+					FExecuteAction::CreateLambda([FixturePatchesOnChannel, this]()
 						{
-							if (SharedData.IsValid() && WeakFixturePatch.IsValid())
+							if (SharedData.IsValid())
 							{
-								SharedData->SelectFixturePatch(WeakFixturePatch.Get());
+								TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> WeakFixturePatchesOnChannel;
+								for (UDMXEntityFixturePatch* FixturePatch : FixturePatchesOnChannel)
+								{
+									WeakFixturePatchesOnChannel.Add(FixturePatch);
+								}
+								SharedData->SelectFixturePatches(WeakFixturePatchesOnChannel);
 							}
-						})
-				);
+						}));
 
-				const FText FixturePatchName = FText::FromString(WeakFixturePatch->Name);
+				const FText SelectAllText = LOCTEXT("SelectAllFixturePatchesContextMenuEntry", "Select All");
 				const TSharedRef<SWidget> Widget =
 					SNew(STextBlock)
-					.Text(FixturePatchName);
+					.Text(SelectAllText);
 
 				MenuBuilder.AddMenuEntry(Action, Widget);
 			}
+
+			MenuBuilder.AddSeparator();
+
+			// Select specific patch
+			{
+				const TArray<UDMXEntityFixturePatch*> DMXFixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+				FixturePatchesOnChannel.Sort([&DMXFixturePatchesInLibrary](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+					{
+						return DMXFixturePatchesInLibrary.IndexOfByKey(&FixturePatchA) < DMXFixturePatchesInLibrary.IndexOfByKey(&FixturePatchB);
+					});
+
+				for (TWeakObjectPtr<UDMXEntityFixturePatch> WeakFixturePatch : FixturePatchesOnChannel)
+				{
+					const FUIAction Action(
+						FExecuteAction::CreateLambda([this, WeakFixturePatch]()
+							{
+								if (SharedData.IsValid() && WeakFixturePatch.IsValid())
+								{
+									SharedData->SelectFixturePatch(WeakFixturePatch.Get());
+								}
+							})
+					);
+
+					const FText FixturePatchName = FText::FromString(WeakFixturePatch->Name);
+					const TSharedRef<SWidget> Widget =
+						SNew(STextBlock)
+						.Text(FixturePatchName);
+
+					MenuBuilder.AddMenuEntry(Action, Widget);
+				}
+			}
 		}
+
 		MenuBuilder.EndSection();
 	}
 

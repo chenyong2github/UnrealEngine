@@ -27,6 +27,9 @@ struct FDMXRuntimeMainStreamObjectVersion
 		// Update Fixture Patch to use an MVR UUID
 		DMXFixturePatchHasMVRUUID,
 
+		// Remove auto assign features from fixture patch (instead it's auto assigned via FDMXEditorUtils where required)
+		DMXFixturePatchNoLongerImplementsAutoAssign,
+
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
 	};

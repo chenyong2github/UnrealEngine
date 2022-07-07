@@ -49,9 +49,6 @@ private:
 	/** Called when the ActiveMode property changed */
 	void OnActiveModeChanged(const TSharedPtr<uint32> InSelectedMode, ESelectInfo::Type SelectInfo);
 
-	/** Called when the bAutoAssignAddress property changed */
-	void OnAutoAssignAddressChanged();
-
 	/** Generates the Array of available mode in the ActiveModeSource member array */
 	void GenerateActiveModesSource();
 
@@ -78,9 +75,6 @@ private:
 
 	/** Handle for the ActiveMode property */
 	TSharedPtr<IPropertyHandle> ActiveModeHandle;
-
-	/** Handle for the bAutoAssignAddress property */
-	TSharedPtr<IPropertyHandle> AutoAssignAddressHandle;
 
 	/** ComboBox that displays the ActiveMode property */
 	TSharedPtr<SComboBox<TSharedPtr<uint32>>> ActiveModeComboBox;

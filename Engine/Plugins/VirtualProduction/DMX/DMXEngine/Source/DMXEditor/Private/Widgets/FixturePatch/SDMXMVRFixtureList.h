@@ -105,6 +105,9 @@ private:
 	/** Selects what is selected in Fixture Patch Shared Data */
 	void AdoptSelectionFromFixturePatchSharedData();
 
+	/** Auto assigns selected Fixture Patches */
+	void AutoAssignFixturePatches();
+
 	/** Generates the Header Row of the List */
 	TSharedRef<SHeaderRow> GenerateHeaderRow();
 

@@ -566,13 +566,14 @@ FText FDMXEditorUtils::GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass
 
 bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, const TSet<int32>& AllowedUniverses)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	check(Patch->IsAutoAssignAddress());
-	
+
 	Patch->Modify();
 	const int32 UniverseToRestore = Patch->GetUniverseID();
 	const int32 AutoAddressToRestore = Patch->GetAutoStartingAddress();
-	
-	for(auto UniverseIt = AllowedUniverses.CreateConstIterator(); UniverseIt; ++UniverseIt)
+
+	for (auto UniverseIt = AllowedUniverses.CreateConstIterator(); UniverseIt; ++UniverseIt)
 	{
 		// Don't auto assign to a universe smaller than the initial one
 		if (Patch->GetUniverseID() > *UniverseIt)
@@ -582,9 +583,9 @@ bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, co
 
 		Patch->SetUniverseID(*UniverseIt);
 		const FUnassignedPatchesArray UnassignedPatches = AutoAssignedAddresses({ Patch }, 1, false);
-		
+
 		const bool bWasPatchAssignedToUniverse = UnassignedPatches.Num() == 0;
-		if(bWasPatchAssignedToUniverse)
+		if (bWasPatchAssignedToUniverse)
 		{
 			return true;
 		}
@@ -592,11 +593,14 @@ bool FDMXEditorUtils::TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, co
 
 	Patch->SetUniverseID(UniverseToRestore);
 	Patch->SetAutoStartingAddress(AutoAddressToRestore);
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	return false;
 }
 
 void FDMXEditorUtils::AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParentFixtureType)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (ChangedParentFixtureType)
 	{
 		UDMXLibrary* Library = ChangedParentFixtureType->GetParentLibrary();
@@ -613,6 +617,7 @@ void FDMXEditorUtils::AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParent
 
 		AutoAssignedAddresses(FixturePatches);
 	}
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 }
 
 FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
@@ -620,33 +625,34 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 	int32 MinimumAddress,
 	bool bCanChangePatchUniverses)
 {
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	struct Local
 	{
 		static void AssignAddressesInUniverse(
 			TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress,
-			TArray<UDMXEntityFixturePatch*>& PatchesToAssign, 
+			TArray<UDMXEntityFixturePatch*>& PatchesToAssign,
 			int32 MinimumAddress,
 			const int32 UniverseToAssignTo,
 			TArray<UDMXEntityFixturePatch*>& UnassignedPatches)
 		{
-			if(PatchesToAssign.Num() == 0)
+			if (PatchesToAssign.Num() == 0)
 			{
 				return;
 			}
-			
+
 			int32 IndexOfFirstPatchWithMinAddress =
 				SortedPatchesWithSetAddress.IndexOfByPredicate([MinimumAddress](UDMXEntityFixturePatch* Other)
-				{
-					const int32 ChannelEnd = Other->GetStartingChannel() + Other->GetChannelSpan();
-					return ChannelEnd >= MinimumAddress;
-				});
-			
-			for(UDMXEntityFixturePatch* ToAssign : PatchesToAssign)
+					{
+						const int32 ChannelEnd = Other->GetStartingChannel() + Other->GetChannelSpan();
+						return ChannelEnd >= MinimumAddress;
+					});
+
+			for (UDMXEntityFixturePatch* ToAssign : PatchesToAssign)
 			{
 				const bool bIsUniverseEmpty = IndexOfFirstPatchWithMinAddress == INDEX_NONE;
 				if (bIsUniverseEmpty)
 				{
-					if(HasEnoughSpaceToUniverseEnd(ToAssign, MinimumAddress))
+					if (HasEnoughSpaceToUniverseEnd(ToAssign, MinimumAddress))
 					{
 						IndexOfFirstPatchWithMinAddress = 0;
 						AssignPatchTo(ToAssign, MinimumAddress, UniverseToAssignTo);
@@ -660,10 +666,10 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 				}
 
 				const bool bFoundGap = FillIntoFirstGap(ToAssign, UniverseToAssignTo, MinimumAddress, IndexOfFirstPatchWithMinAddress, SortedPatchesWithSetAddress);
-				if(!bFoundGap)
+				if (!bFoundGap)
 				{
 					UDMXEntityFixturePatch* LastPatchInUniverse = SortedPatchesWithSetAddress[SortedPatchesWithSetAddress.Num() - 1];
-					if(HasEnoughSpaceToUniverseEnd(ToAssign, GetEndAddressOf(LastPatchInUniverse) + 1))
+					if (HasEnoughSpaceToUniverseEnd(ToAssign, GetEndAddressOf(LastPatchInUniverse) + 1))
 					{
 						AssignPatchTo(ToAssign, GetEndAddressOf(LastPatchInUniverse) + 1, UniverseToAssignTo);
 						SortedPatchesWithSetAddress.Add(ToAssign);
@@ -675,13 +681,13 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 				}
 			}
 		}
-		
+
 		static bool HasEnoughSpaceToUniverseEnd(UDMXEntityFixturePatch* Patch, int32 AtAddress)
 		{
 			// + 1 is needed otherwise we're off by one, e.g. when AtAddress=DMX_UNIVERSE_SIZE and ChannelSpan=1
 			return (DMX_UNIVERSE_SIZE + 1) - AtAddress >= Patch->GetChannelSpan();
 		}
-		
+
 		static void AssignPatchTo(UDMXEntityFixturePatch* Patch, int32 ToAddress, int32 UniverseToAssignTo)
 		{
 			Patch->Modify();
@@ -693,7 +699,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			UDMXEntityFixturePatch* ToAssign,
 			int32 UniverseToAssignTo,
 			int32& MinimumAddress,
-			int32& IndexOfFirstPatchWithMinAddress, 
+			int32& IndexOfFirstPatchWithMinAddress,
 			TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress)
 		{
 			const int32 NeededSpan = ToAssign->GetChannelSpan();
@@ -705,7 +711,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			UDMXEntityFixturePatch* FirstPatchWithMinAddress = SortedPatchesWithSetAddress[IndexOfFirstPatchWithMinAddress];
 			const bool bDoesPatchFitBeforeFirstPatchWithMinAddress = FirstPatchWithMinAddress->GetStartingChannel() >= MinimumAddress
 				&& FirstPatchWithMinAddress->GetStartingChannel() - MinimumAddress >= NeededSpan;
-			if(bDoesPatchFitBeforeFirstPatchWithMinAddress)
+			if (bDoesPatchFitBeforeFirstPatchWithMinAddress)
 			{
 				AssignPatchTo(ToAssign, MinimumAddress, UniverseToAssignTo);
 				SortedPatchesWithSetAddress.Insert(ToAssign, 0);
@@ -715,13 +721,13 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 
 				return true;
 			}
-			
+
 			const bool bNoGapsToLookAt = IndexOfFirstPatchWithMinAddress == SortedPatchesWithSetAddress.Num() - 1;
-			if(bNoGapsToLookAt)
+			if (bNoGapsToLookAt)
 			{
 				return false;
 			}
-			
+
 			int32 PrevAvailableAddress = GetEndAddressOf(SortedPatchesWithSetAddress[IndexOfFirstPatchWithMinAddress]) + 1;
 			for (int32 iPatchInUniverse = IndexOfFirstPatchWithMinAddress + 1; iPatchInUniverse < SortedPatchesWithSetAddress.Num(); ++iPatchInUniverse)
 			{
@@ -763,11 +769,11 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 	PatchesToAutoAssign.RemoveAll([](UDMXEntityFixturePatch* Patch) {
 		return !Patch->IsAutoAssignAddress();
 		});
-	
+
 	TArray<UDMXEntityFixturePatch*> AllFixturePatches = Library->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
 	TMap<int32, TArray<UDMXEntityFixturePatch*>> UniverseToAllPatches = FDMXRuntimeUtils::MapToUniverses(AllFixturePatches);
 	TArray<UDMXEntityFixturePatch*> PatchesToAssignInNextUniverse;
-	for(auto UniverseIterator = UniverseToAllPatches.CreateIterator(); UniverseIterator; ++UniverseIterator)
+	for (auto UniverseIterator = UniverseToAllPatches.CreateIterator(); UniverseIterator; ++UniverseIterator)
 	{
 		const int32 CurrentUniverse = UniverseIterator->Key;
 		TArray<UDMXEntityFixturePatch*>& SortedPatchesWithSetAddress = [&UniverseIterator, &PatchesToAutoAssign, CurrentUniverse]() -> TArray<UDMXEntityFixturePatch*>&
@@ -797,7 +803,7 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 			return Result;
 		}();
 
-		if(bCanChangePatchUniverses)
+		if (bCanChangePatchUniverses)
 		{
 			// The patches in PatchesToAssignInNextUniverse are left over from last universe: hence they should ignore the MinimumAddress. 
 			TArray<UDMXEntityFixturePatch*> ToAssignNextUniverse;
@@ -809,9 +815,9 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 	}
 
 	const bool bNeedNewUniverse = PatchesToAssignInNextUniverse.Num() > 0;
-	if(bNeedNewUniverse)
+	if (bNeedNewUniverse)
 	{
-		if(bCanChangePatchUniverses)
+		if (bCanChangePatchUniverses)
 		{
 			const int32 HighestUniverse = [&UniverseToAllPatches]()
 			{
@@ -822,18 +828,143 @@ FDMXEditorUtils::FUnassignedPatchesArray FDMXEditorUtils::AutoAssignedAddresses(
 				}
 				return HighestSoFar;
 			}();
-			for(UDMXEntityFixturePatch* UnassignedPatch : PatchesToAssignInNextUniverse)
+			for (UDMXEntityFixturePatch* UnassignedPatch : PatchesToAssignInNextUniverse)
 			{
 				UnassignedPatch->Modify();
 				UnassignedPatch->SetUniverseID(HighestUniverse + 1);
 			}
 			return AutoAssignedAddresses(PatchesToAssignInNextUniverse, 1, bCanChangePatchUniverses);
 		}
-		
+
 		return PatchesToAssignInNextUniverse;
 	}
-	
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	return {};
+}
+
+void FDMXEditorUtils::AutoAssignedChannels(bool bAllowDecrementUniverse, bool bAllowDecrementChannels, TArray<UDMXEntityFixturePatch*> FixturePatches)
+{
+	if (FixturePatches.IsEmpty())
+	{
+		return;
+	}
+
+	// Ensure patches are of a single DMX Library
+	const UDMXLibrary* DMXLibrary = FixturePatches[0]->GetParentLibrary();
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	{
+		if (!ensureAlwaysMsgf(FixturePatch->GetParentLibrary() == DMXLibrary, TEXT("Trying to auto assign fixture patches from different DMX Libraries at once. This is not supported.")))
+		{
+			return;
+		}
+	}
+
+	TArray<UDMXEntityFixturePatch*> AllFixturePatchesInLibrary = DMXLibrary->GetEntitiesTypeCast<UDMXEntityFixturePatch>();
+	
+	// Sort by Universe and channel
+	FixturePatches.Sort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+		{
+			const bool bUniverseIsSmaller = FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID();
+			const bool bUniverseIsEqual = FixturePatchA.GetUniverseID() == FixturePatchB.GetUniverseID();
+			const bool bChannelIsSmallerOrEqual = FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
+			return bUniverseIsSmaller || (bUniverseIsEqual && bChannelIsSmallerOrEqual);
+		});
+
+	// Using absolute channels (Universe * DMX_UIVERSE_SIZE + Channel)
+	auto FindAbsoluteChannelLambda([bAllowDecrementUniverse, bAllowDecrementChannels, &FixturePatches, &AllFixturePatchesInLibrary](UDMXEntityFixturePatch* FixturePatch, const TArray<UDMXEntityFixturePatch*>& OtherPendingAutoAssignFixturePatches) -> int32
+		{
+			AllFixturePatchesInLibrary.StableSort([](const UDMXEntityFixturePatch& FixturePatchA, const UDMXEntityFixturePatch& FixturePatchB)
+				{
+					const bool bUniverseIsSmaller = FixturePatchA.GetUniverseID() < FixturePatchB.GetUniverseID();
+					const bool bUniverseIsEqual = FixturePatchA.GetUniverseID() == FixturePatchB.GetUniverseID();
+					const bool bChannelIsSmallerOrEqual = FixturePatchA.GetStartingChannel() <= FixturePatchB.GetStartingChannel();
+					return bUniverseIsSmaller || (bUniverseIsEqual && bChannelIsSmallerOrEqual);
+				});
+
+			const int32 OldUniverse = FixturePatch->GetUniverseID();
+			const int32 OldAbsoluteStartingChannel = FixturePatch->GetUniverseID() * DMX_UNIVERSE_SIZE + FixturePatch->GetStartingChannel();
+			const int32 RequiredChannelSpan = FixturePatch->GetChannelSpan();
+			const int32 MinAbsoluteChannel = bAllowDecrementUniverse ? 1 : FixturePatch->GetUniverseID() * DMX_UNIVERSE_SIZE + 1;
+
+			int32 AbsoluteStartOfGap = MinAbsoluteChannel;
+			for (int32 IndexOfFixturePatch = 0; IndexOfFixturePatch < AllFixturePatchesInLibrary.Num(); IndexOfFixturePatch++)
+			{				
+				UDMXEntityFixturePatch* Other = AllFixturePatchesInLibrary[IndexOfFixturePatch];
+				const int32 OtherAbsoluteEndingChannel = Other->GetUniverseID() * DMX_UNIVERSE_SIZE + Other->GetEndingChannel();
+				const int32 GapChannelSpan = Other->GetUniverseID() * DMX_UNIVERSE_SIZE + Other->GetStartingChannel() - AbsoluteStartOfGap;
+
+				// Ignore others that are pending auto-assign
+				if (OtherPendingAutoAssignFixturePatches.Contains(Other))
+				{
+					continue;
+				}
+
+				// Peek ahead when looking at self
+				if (Other == FixturePatch)
+				{
+					UDMXEntityFixturePatch* Next = AllFixturePatchesInLibrary.IsValidIndex(IndexOfFixturePatch + 1) ? AllFixturePatchesInLibrary[IndexOfFixturePatch + 1] : nullptr;
+					if (!Next)
+					{
+						break;
+					}
+
+					const int32 NextAbsoluteStartingChannel = Next->GetUniverseID() * DMX_UNIVERSE_SIZE + Next->GetStartingChannel();
+					const int32 GapToNext = NextAbsoluteStartingChannel - AbsoluteStartOfGap;
+					if (GapToNext >= RequiredChannelSpan)
+					{
+						break;
+					}
+				}
+
+				if (!bAllowDecrementUniverse && OtherAbsoluteEndingChannel + 1 < MinAbsoluteChannel)
+				{
+					AbsoluteStartOfGap = MinAbsoluteChannel;
+					continue;
+				}
+
+				if (!bAllowDecrementChannels && AbsoluteStartOfGap < OldAbsoluteStartingChannel)
+				{
+					AbsoluteStartOfGap = OtherAbsoluteEndingChannel + 1;
+					continue;
+				}
+
+				const bool bGapSizeIsSufficient = GapChannelSpan >= RequiredChannelSpan;
+				const bool bGapSizeDoesNotExceedUniverse = (AbsoluteStartOfGap + GapChannelSpan - 1) % DMX_UNIVERSE_SIZE <= DMX_UNIVERSE_SIZE;
+				if (bGapSizeIsSufficient && bGapSizeDoesNotExceedUniverse)
+				{
+					break;
+				}
+
+				AbsoluteStartOfGap = OtherAbsoluteEndingChannel + 1;
+			}
+
+			int32 Universe = AbsoluteStartOfGap / DMX_UNIVERSE_SIZE;
+			int32 Channel = AbsoluteStartOfGap % DMX_UNIVERSE_SIZE;
+			if (Channel + FixturePatch->GetChannelSpan() - 1 > DMX_UNIVERSE_SIZE)
+			{
+				return (Universe + 1) * DMX_UNIVERSE_SIZE + 1;
+			}
+			else
+			{
+				return AbsoluteStartOfGap;
+			}
+		});
+
+	const FScopedTransaction AutoAssignTransaction(LOCTEXT("AutoAssignTransaction", "Auto Assign Fixture Patch"));
+	TArray<UDMXEntityFixturePatch*> OtherPendingAutoAssignFixturePatches(FixturePatches);
+	for (UDMXEntityFixturePatch* FixturePatch : FixturePatches)
+	{
+		OtherPendingAutoAssignFixturePatches.Remove(FixturePatch);
+		const int32 AutoAssignAbsoluteChannel = FindAbsoluteChannelLambda(FixturePatch, OtherPendingAutoAssignFixturePatches);
+		if (AutoAssignAbsoluteChannel > 0)
+		{
+			FixturePatch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(UDMXEntityFixturePatch::GetStartingChannelPropertyNameChecked()));
+			FixturePatch->SetUniverseID(AutoAssignAbsoluteChannel / DMX_UNIVERSE_SIZE);
+			FixturePatch->SetStartingChannel(AutoAssignAbsoluteChannel % DMX_UNIVERSE_SIZE);
+			FixturePatch->PostEditChange();
+		}
+	}
 }
 
 void FDMXEditorUtils::UpdatePatchColors(UDMXLibrary* Library)

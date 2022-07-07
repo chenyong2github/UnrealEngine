@@ -32,9 +32,6 @@ FDMXOnFixturePatchChangedDelegate UDMXEntityFixturePatch::OnFixturePatchChangedD
 
 UDMXEntityFixturePatch::UDMXEntityFixturePatch()
 	: UniverseID(1)
-	, bAutoAssignAddress(true)
-	, ManualStartingAddress(1)
-	, AutoStartingAddress(1)
 	, ActiveMode(0)
 #if WITH_EDITORONLY_DATA
 	, EditorColor(FLinearColor(1.0f, 0.0f, 1.0f))
@@ -166,6 +163,15 @@ void UDMXEntityFixturePatch::Serialize(FArchive& Ar)
 		{
 			MVRFixtureUUID = FGuid::NewGuid();
 		}
+
+#if WITH_EDITOR
+		if (Ar.CustomVer(FDMXRuntimeMainStreamObjectVersion::GUID) < FDMXRuntimeMainStreamObjectVersion::DMXFixturePatchNoLongerImplementsAutoAssign)
+		{
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			StartingChannel = ManualStartingAddress_DEPRECATED;
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		}
+#endif
 	}
 }
 
@@ -499,45 +505,37 @@ void UDMXEntityFixturePatch::SetUniverseID(int32 NewUniverseID)
 	RebuildCache();
 }
 
+#if WITH_EDITOR
 void UDMXEntityFixturePatch::SetAutoStartingAddress(int32 NewAutoStartingAddress)
 {
-	AutoStartingAddress = NewAutoStartingAddress;
-	ManualStartingAddress = NewAutoStartingAddress;
+	// DEPRECATED 5.1
+	AutoStartingAddress_DEPRECATED = NewAutoStartingAddress;
+	ManualStartingAddress_DEPRECATED = NewAutoStartingAddress;
 
 	RebuildCache();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXEntityFixturePatch::SetManualStartingAddress(int32 NewManualStartingAddress)
 {
-	ManualStartingAddress = NewManualStartingAddress;
+	// DEPRECATED 5.1
+	ManualStartingAddress_DEPRECATED = NewManualStartingAddress;
 
 	RebuildCache();
 }
+#endif // WITH_EDITOR
 
 void UDMXEntityFixturePatch::SetStartingChannel(int32 NewStartingChannel)
 {
-	if (NewStartingChannel == AutoStartingAddress && ManualStartingAddress == NewStartingChannel)
+	if (NewStartingChannel == StartingChannel)
 	{
 		return;
 	}
 
-	bAutoAssignAddress = false;
-	AutoStartingAddress = NewStartingChannel;
-	ManualStartingAddress = NewStartingChannel;
+	StartingChannel = NewStartingChannel;
 
 	RebuildCache();
-}
-
-int32 UDMXEntityFixturePatch::GetStartingChannel() const
-{
-	if (bAutoAssignAddress)
-	{
-		return AutoStartingAddress;
-	}
-	else
-	{
-		return ManualStartingAddress;
-	}
 }
 
 int32 UDMXEntityFixturePatch::GetChannelSpan() const
@@ -566,12 +564,14 @@ bool UDMXEntityFixturePatch::SetActiveModeIndex(int32 NewActiveModeIndex)
 	return false;
 }
 
+#if WITH_EDITOR
 int32 UDMXEntityFixturePatch::GetRemoteUniverse() const
 {	
 	/** DEPRECATED 4.27 */
 	UE_LOG(LogDMXRuntime, Error, TEXT("No clear remote Universe can be deduced in DMXEntityFixturePatch::GetRemoteUniverse. Returning 0."));
 	return 0;
 }
+#endif // WITH_EDITOR
 
 TArray<FDMXAttributeName> UDMXEntityFixturePatch::GetAllAttributesInActiveMode() const
 {

@@ -52,10 +52,10 @@ public:
 	int32 GetUniverseID() const;
 
 	/** Returns the Starting Channel the Node currently resides on */
-	int32 GetStartingChannel() const { return StartingChannel; }
+	int32 GetStartingChannel() const;
 
 	/** Returns the Channel Span the Node currently occupies */
-	int32 GetChannelSpan() const { return ChannelSpan; }
+	int32 GetChannelSpan() const;
 
 	/** Sets the ZOrder of the Node */
 	void SetZOrder(int32 NewZOrder) { ZOrder = NewZOrder; }

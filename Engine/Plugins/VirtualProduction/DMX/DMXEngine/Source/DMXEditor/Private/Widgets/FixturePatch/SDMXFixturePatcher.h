@@ -138,9 +138,6 @@ protected:
 	/** Clamps the starting channel to remain within a valid channel range */
 	int32 ClampStartingChannel(int32 StartingChannel, int32 ChannelSpan) const;
 
-	/** Helper disabling bAutoAssignAdress in fixture patch transacted */
-	void DisableAutoAssignAdress(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch);
-
 	/** Returns the DMXLibrary or nullptr if not available */
 	UDMXLibrary* GetDMXLibrary() const;
 

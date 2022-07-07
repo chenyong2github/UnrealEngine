@@ -28,12 +28,10 @@ void FDMXEntityFixturePatchDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
 {
 	PropertyUtilities = DetailBuilder.GetPropertyUtilities();
 
-	AutoAssignAddressHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked());
 	ParentFixtureTypeHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetParentFixtureTypeTemplatePropertyNameChecked());
 	ActiveModeHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetActiveModePropertyNameChecked());
 
 	// Handle Property changes
-	AutoAssignAddressHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXEntityFixturePatchDetails::OnAutoAssignAddressChanged));
 	UniverseIDHandle = DetailBuilder.GetProperty(UDMXEntityFixturePatch::GetUniverseIDPropertyNameChecked());
 	UniverseIDHandle->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FDMXEntityFixturePatchDetails::OnUniverseIDChanged));
 
@@ -166,28 +164,6 @@ void FDMXEntityFixturePatchDetails::OnActiveModeChanged(const TSharedPtr<uint32>
 	}
 }
 
-void FDMXEntityFixturePatchDetails::OnAutoAssignAddressChanged()
-{
-	bool bAutoAssignAddress;
-	if (ensure(AutoAssignAddressHandle->GetValue(bAutoAssignAddress) == FPropertyAccess::Success))
-	{
-		if (bAutoAssignAddress)
-		{
-			TArray<UObject*> OuterObjects;
-			AutoAssignAddressHandle->GetOuterObjects(OuterObjects);
-
-			TArray<UDMXEntityFixturePatch*> FixturePatches;
-			for (UObject* Object : OuterObjects)
-			{
-				UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(Object);
-				FixturePatches.Add(Patch);
-			}
-
-			FDMXEditorUtils::AutoAssignedAddresses(FixturePatches);
-		}
-	}
-}
-
 void FDMXEntityFixturePatchDetails::GenerateActiveModesSource()
 {
 	ActiveModesSource.Reset();
@@ -215,7 +191,6 @@ TWeakObjectPtr<UDMXEntityFixtureType> FDMXEntityFixturePatchDetails::GetParentFi
 	}
 	return nullptr;
 }
-
 
 bool FDMXEntityFixturePatchDetails::IsParentFixtureTypeMultipleValues() const
 {

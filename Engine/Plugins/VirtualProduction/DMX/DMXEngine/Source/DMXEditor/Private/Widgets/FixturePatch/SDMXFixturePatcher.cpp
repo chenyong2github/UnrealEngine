@@ -371,12 +371,6 @@ TSharedPtr<FDMXFixturePatchNode> SDMXFixturePatcher::GetDraggedNode(const TArray
 				DraggedNode = FDMXFixturePatchNode::Create(DMXEditorPtr, FixturePatch);
 			}
 
-			// Remove auto assign to let drag drop set it
-			if (FixturePatch->IsAutoAssignAddress())
-			{
-				DisableAutoAssignAdress(FixturePatch);
-			}
-
 			return DraggedNode;
 		}
 	}
@@ -770,24 +764,6 @@ int32 SDMXFixturePatcher::ClampStartingChannel(int32 StartingChannel, int32 Chan
 	}
 
 	return StartingChannel;
-}
-
-void SDMXFixturePatcher::DisableAutoAssignAdress(TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch)
-{
-	if (FixturePatch.IsValid())
-	{
-		const FScopedTransaction Transaction = FScopedTransaction(
-			FText::Format(LOCTEXT("AutoAssignAdressChanged", "Disabled Auto Assign Adress for {0}"), 
-				FText::FromString(FixturePatch->GetDisplayName()))
-		);
-
-		FixturePatch->Modify();
-		FixturePatch->PreEditChange(UDMXEntityFixturePatch::StaticClass()->FindPropertyByName(UDMXEntityFixturePatch::GetAutoAssignAddressPropertyNameChecked()));
-
-		FixturePatch->SetAutoAssignAddressUnsafe(false);
-
-		FixturePatch->PostEditChange();
-	}
 }
 
 UDMXLibrary* SDMXFixturePatcher::GetDMXLibrary() const

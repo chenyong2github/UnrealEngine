@@ -40,9 +40,9 @@ enum class EDMXPatchedUniverseReachability
 class SDMXPatchedUniverse
 	: public SCompoundWidget
 {
-	DECLARE_DELEGATE_ThreeParams(FOnDragOverChannel, int32 /** UniverseID */, int32 /** ChannelID */, const FDragDropEvent&);
+	DECLARE_DELEGATE_ThreeParams(FOnDragOverChannel, int32 /** UniverseID */, int32 /** Channel */, const FDragDropEvent&);
 
-	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnDropOntoChannel, int32 /** UniverseID */, int32 /** ChannelID */, const FDragDropEvent&);
+	DECLARE_DELEGATE_RetVal_ThreeParams(FReply, FOnDropOntoChannel, int32 /** UniverseID */, int32 /** Channel */, const FDragDropEvent&);
 
 public:
 	SDMXPatchedUniverse()
@@ -132,22 +132,22 @@ private:
 	FText GetHeaderText() const;
 	
 	/** Handles when a mouse button was pressed on a Channel */
-	FReply HandleOnMouseButtonDownOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent);
+	FReply HandleOnMouseButtonDownOnChannel(uint32 Channel, const FPointerEvent& PointerEvent);
 
 	/** Handles when a mouse button was released on a Channel */
-	FReply HandleOnMouseButtonUpOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent);
+	FReply HandleOnMouseButtonUpOnChannel(uint32 Channel, const FPointerEvent& PointerEvent);
 
 	/** Handles when a Channel was dragged */
-	FReply HandleOnDragDetectedOnChannel(uint32 ChannelID, const FPointerEvent& PointerEvent);
+	FReply HandleOnDragDetectedOnChannel(uint32 Channel, const FPointerEvent& PointerEvent);
 
 	/** Handles when drag enters a channel */
-	void HandleDragEnterChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent);
+	void HandleDragEnterChannel(uint32 Channel, const FDragDropEvent& DragDropEvent);
 
 	/** Handles when drag leaves a channel */
-	void HandleDragLeaveChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent);
+	void HandleDragLeaveChannel(uint32 Channel, const FDragDropEvent& DragDropEvent);
 
 	/** Handles when drag dropped onto a channel */
-	FReply HandleDropOntoChannel(uint32 ChannelID, const FDragDropEvent& DragDropEvent);
+	FReply HandleDropOntoChannel(uint32 Channel, const FDragDropEvent& DragDropEvent);
 
 	/** Updates the ZOrder of all Nodes */
 	void UpdateZOrderOfNodes();
@@ -161,11 +161,14 @@ private:
 	/** Called when selection changed */
 	void OnSelectionChanged();
 
-	/** Returns the Fixture Patch that is topmost under ChannelID */
-	UDMXEntityFixturePatch* GetTopmostFixturePatchOnChannelID(uint32 ChannelID) const;
+	/** Auto assigns selected Fixture Patches */
+	void AutoAssignFixturePatches();
+
+	/** Returns the Fixture Patch that is topmost under Channel */
+	UDMXEntityFixturePatch* GetTopmostFixturePatchOnChannel(uint32 Channel) const;
 
 	/** Returns all Fixture Patches on a Channel ID */
-	TArray<UDMXEntityFixturePatch*> GetFixturePatchesOnChannelID(uint32 ChannelID) const;
+	TArray<UDMXEntityFixturePatch*> GetFixturePatchesOnChannel(uint32 Channel) const;
 
 	/** Returns the DMXLibrary or nullptr if not available */
 	UDMXLibrary* GetDMXLibrary() const;
@@ -217,7 +220,7 @@ private:
 	void RegisterCommands();
 
 	/** Creates the right click context menu */
-	TSharedRef<SWidget> CreateContextMenu(int32 ChannelID) const;
+	TSharedRef<SWidget> CreateContextMenu(int32 Channel);
 
 	/** Command list for this widget */
 	TSharedPtr<FUICommandList> CommandList;

@@ -351,7 +351,7 @@ void FDMXFixturePatchNode::SetAddresses(const TSharedRef<SDMXPatchedUniverse>& O
 		// As we allow the asset to update even when not transacted,
 		// We have to set the last known values to enable proper undo
 		FixturePatch->SetUniverseID(LastTransactedUniverseID);
-		FixturePatch->SetManualStartingAddress(LastTransactedChannelID);
+		FixturePatch->SetStartingChannel(LastTransactedChannelID);
 
 		LastTransactedUniverseID = UniverseWidget->GetUniverseID();
 		LastTransactedChannelID = StartingChannel;
@@ -360,14 +360,14 @@ void FDMXFixturePatchNode::SetAddresses(const TSharedRef<SDMXPatchedUniverse>& O
 		FixturePatch->PreEditChange(nullptr);
 
 		FixturePatch->SetUniverseID(UniverseWidget->GetUniverseID());
-		FixturePatch->SetManualStartingAddress(StartingChannel);
+		FixturePatch->SetStartingChannel(StartingChannel);
 
 		FixturePatch->PostEditChange();
 	}
 	else
 	{
 		FixturePatch->SetUniverseID(UniverseWidget->GetUniverseID());
-		FixturePatch->SetManualStartingAddress(StartingChannel);
+		FixturePatch->SetStartingChannel(StartingChannel);
 	}
 }
 
@@ -424,9 +424,29 @@ bool FDMXFixturePatchNode::IsSelected() const
 
 int32 FDMXFixturePatchNode::GetUniverseID() const
 {
-	if (UniverseWidget.IsValid())
+	if (FixturePatch.IsValid())
 	{
-		return UniverseWidget->GetUniverseID();
+		return FixturePatch->GetUniverseID();
+	}
+
+	return -1;
+}
+
+int32 FDMXFixturePatchNode::GetStartingChannel() const
+{
+	if (FixturePatch.IsValid())
+	{
+		return FixturePatch->GetStartingChannel();
+	}
+
+	return -1;
+}
+
+int32 FDMXFixturePatchNode::GetChannelSpan() const
+{
+	if (FixturePatch.IsValid())
+	{
+		return FixturePatch->GetChannelSpan();
 	}
 
 	return -1;

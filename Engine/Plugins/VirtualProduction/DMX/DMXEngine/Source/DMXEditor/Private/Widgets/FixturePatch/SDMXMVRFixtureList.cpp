@@ -655,6 +655,34 @@ void SDMXMVRFixtureList::AdoptSelectionFromFixturePatchSharedData()
 	}
 }
 
+void SDMXMVRFixtureList::AutoAssignFixturePatches()
+{
+	if (FixturePatchSharedData.IsValid())
+	{
+		TArray<UDMXEntityFixturePatch*> FixturePatchesToAutoAssign;
+		const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+		for (TWeakObjectPtr<UDMXEntityFixturePatch> FixturePatch : SelectedFixturePatches)
+		{
+			if (FixturePatch.IsValid())
+			{
+				FixturePatchesToAutoAssign.Add(FixturePatch.Get());
+			}
+		}
+
+		if (FixturePatchesToAutoAssign.IsEmpty())
+		{
+			return;
+		}
+
+		constexpr bool bAllowDecrementUniverse = false;
+		constexpr bool bAllowDecrementChannels = true;
+		FDMXEditorUtils::AutoAssignedChannels(bAllowDecrementUniverse, bAllowDecrementChannels, FixturePatchesToAutoAssign);
+		FixturePatchSharedData->SelectUniverse(FixturePatchesToAutoAssign[0]->GetUniverseID());
+
+		RequestListRefresh();
+	}
+}
+
 TSharedRef<SHeaderRow> SDMXMVRFixtureList::GenerateHeaderRow()
 {
 	const float StatusColumnWidth = FMath::Max(FAppStyle::GetBrush("Icons.Warning")->GetImageSize().X + 6.f, FAppStyle::GetBrush("Icons.Error")->GetImageSize().X + 6.f);
@@ -866,7 +894,23 @@ TSharedPtr<SWidget> SDMXMVRFixtureList::OnContextMenuOpening()
 
 	if (ListView->GetNumItemsSelected() > 0)
 	{
-		MenuBuilder.BeginSection("BasicOperations");
+		// Auto Assign Section
+		MenuBuilder.BeginSection("AutoAssignSection", LOCTEXT("AutoAssignSection", "Auto-Assign"));
+		{
+			// Auto Assign Entry
+			const FUIAction Action(FExecuteAction::CreateSP(this, &SDMXMVRFixtureList::AutoAssignFixturePatches));
+
+			const FText AutoAssignText = LOCTEXT("AutoAssignContextMenuEntry", "Auto-Assign Selection");
+			const TSharedRef<SWidget> Widget =
+				SNew(STextBlock)
+				.Text(AutoAssignText);
+
+			MenuBuilder.AddMenuEntry(Action, Widget);
+			MenuBuilder.EndSection();
+		}
+
+		// Basic Operations Section
+		MenuBuilder.BeginSection("BasicOperationsSection", LOCTEXT("BasicOperationsSection", "Basic Operations"));
 		{
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);

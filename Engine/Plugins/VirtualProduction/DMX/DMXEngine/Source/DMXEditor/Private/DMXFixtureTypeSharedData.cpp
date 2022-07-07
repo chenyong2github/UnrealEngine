@@ -712,8 +712,6 @@ void FDMXFixtureTypeSharedData::AddFunctionToSelectedMode()
 					FixtureType->UpdateChannelSpan(ModeIndex);
 				}
 
-				FDMXEditorUtils::AutoAssignedAddresses(FixtureType);
-
 				FixtureType->PostEditChange();
 			}
 		}

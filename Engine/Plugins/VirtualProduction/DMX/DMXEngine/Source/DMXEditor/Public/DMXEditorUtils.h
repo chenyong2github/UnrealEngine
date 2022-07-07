@@ -80,25 +80,17 @@ public:
 	/**  Returns the Entity class type name (e.g: Fixture Type for UDMXEntityFixtureType) in singular or plural */
 	static FText GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass, bool bPlural = false);
 
-
-// Auto Assign:
-	
-	/**
-	 * Updates starting address for the patch, if it has bAutoAssignAddress set and only if it can be assigned
-	 * to a universe in AllowedUniverses.
-	 *
-	 * If no universe can be assigned, then this patch is left unmodified.
-	 *
-	 * @return Whether Patch was auto assigned.
-	 */
+	/** DEPRECATED 5.1 */
+	UE_DEPRECATED(5.1, "Simplyifing AutoAssign, just use FDMXEditorUtils::AutoAssignedAddresses instead.")
 	static bool TryAutoAssignToUniverses(UDMXEntityFixturePatch* Patch, const TSet<int32>& AllowedUniverses);
-	
-	/**
-	 * Updates Addresses for Fixture Patches that use specified Parent fixture type and have bAutoAssignAddress set. 
-	 *
-	 * @param ChangedParentFixtureType	The parent fixture type of the patches that want their channels to be auto assigned
-	 */
+
+	/** DEPRECATED 5.1 */
+	UE_DEPRECATED(5.1, "The bAutoAssign property got deprecated in UDMXEntityFixturePatch, so there's no meaning to ever auto assign on Fixture Type changes. So this function is removed without replacement.")
 	static void AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParentFixtureType);
+
+	/** DEPRECATED 5.1 */
+	UE_DEPRECATED(5.1, "Simplyifing AutoAssign, just use FDMXEditorUtils::AutoAssignedChannels instead.")
+	static FUnassignedPatchesArray AutoAssignedAddresses(const TArray<UDMXEntityFixturePatch*>& ChangedFixturePatches, int32 MinimumAddress = 1, bool bCanChangePatchUniverses = true);
 
 	/**
 	 * Updates starting addresses for fixture patches that have bAutoAssignAddress set, ignores others.
@@ -109,13 +101,11 @@ public:
 	 * If bCanChangePatchUniverses = true, this function will assign patches that do not fit into the existing universes to
 	 * the next universe. MinimumAddress is ignored for the new universe, i.e. we start placing remaining patches at position 1.
 	 *
-	 * @param ChangedFixturePatches		The patches that want their channels to be auto assigned
-	 * @param MinimumAddress			All patches must be placed after this address
-	 * @param bCanChangePatchUniverses	Whether we are allowed to move a patch to another universe if the assigned universe has no space.
-	 *
-	 * @result Patches that were not assigned.
+	 * @param bAllowDecrementUniverse	If true, the patches can be assigend to a previous universe
+	 * @param bCanChangePatchUniverses	If true, the patches can lower their absoulte channel
+	 * @param FixturePatches			The patches that want their channels to be auto assigned
 	 */
-	static FUnassignedPatchesArray AutoAssignedAddresses(const TArray<UDMXEntityFixturePatch*>& ChangedFixturePatches, int32 MinimumAddress = 1, bool bCanChangePatchUniverses = true);
+	static void AutoAssignedChannels(bool bAllowDecrementUniverse, bool bAllowDecrementChannels, TArray<UDMXEntityFixturePatch*> FixturePatches);
 	
 	/**
 	 * Creates a unique color for all patches that use the default color FLinearColor(1.0f, 0.0f, 1.0f)
