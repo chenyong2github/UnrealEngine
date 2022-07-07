@@ -6,6 +6,7 @@
 #include "UGSCore/DetectProjectSettingsTask.h"
 #include "UGSCore/Utility.h"
 #include "UGSCore/UserSettings.h"
+#include "Widgets/SModalTaskWindow.h"
 
 #define LOCTEXT_NAMESPACE "UGSTab"
 
@@ -209,12 +210,14 @@ namespace
 void UGSTab::SetupWorkspace()
 {
 	ProjectFileName = FUtility::GetPathWithCorrectCase(ProjectFileName);
-	TSharedPtr<FDetectProjectSettingsTask> DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
+	TSharedRef<FDetectProjectSettingsTask> DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
 
-	// AbortEvent for canceling but honestly not setup well.
-	// Todo: fix this up and likely enable exceptions
-	FEvent* AbortEvent = nullptr;
-	DetectSettings->Run(AbortEvent);
+	TSharedRef<FModalTaskResult> Result = ExecuteModalTask(TabWidget, DetectSettings, LOCTEXT("OpeningProjectTitle", "Opening Project"), LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
+	if(Result->Failed())
+	{
+		FMessageDialog::Open(EAppMsgType::Ok, Result->GetMessage());
+		return;
+	}
 
 	FString DataFolder = FString(FPlatformProcess::UserSettingsDir()) / TEXT("UnrealGameSync");
 	IFileManager::Get().MakeDirectory(*DataFolder);
