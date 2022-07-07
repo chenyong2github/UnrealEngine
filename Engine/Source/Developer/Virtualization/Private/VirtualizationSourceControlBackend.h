@@ -43,6 +43,9 @@ class FSemaphore;
  * BatchCount [int32]			The max number of payloads that can be pushed to source control in a
  *								single submit. If the number of payloads in a request batch exceeds
  *								this size then it will be split into multiple smaller batches. [Default=100]
+ * SuppressNotifications[bool]:	When true the system will not display a pop up notification when a 
+ *								connection error occurs, allowing the user to stay unaware of the error
+ *								unless it actually causes some sort of problem. [Default=false]
  * 
  * Environment Variables:
  * UE-VirtualizationWorkingDir [string]:	This can be set to a valid directory path that the backend
@@ -96,6 +99,10 @@ private:
 	/** Should we try to make the temp client partitioned or not? */
 	bool bUsePartitionedClient = true;
 
+	/** When true, the backend will not raise a pop up notification on connection error */
+	bool bSuppressNotifications = false;
+
+	/** The maximum number of files to send in a single source control operation */
 	int32 MaxBatchCount = 100;
 
 	/** A counted semaphore that will limit the number of concurrent connections that we can make */

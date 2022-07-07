@@ -774,6 +774,20 @@ bool FSourceControlBackend::TryApplySettingsFromConfigFiles(const FString& Confi
 		UE_LOG(LogVirtualization, Log, TEXT("[%s] Will push payloads in batches of up to %d payloads(s) at a time"), *GetDebugName(), MaxBatchCount);
 	}
 
+	// Check to see if connection error notification pop ups should be shown or not
+	{
+		FParse::Bool(*ConfigEntry, TEXT("SuppressNotifications="), bSuppressNotifications);
+
+		if (bSuppressNotifications)
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Connection pop up warnings are supressed"), *GetDebugName());
+		}
+		else
+		{
+			UE_LOG(LogVirtualization, Log, TEXT("[%s] Connection pop up warnings will be shown"), *GetDebugName());
+		}
+	}
+
 	if (!FindSubmissionWorkingDir(ConfigEntry))
 	{
 		return false;
@@ -850,7 +864,10 @@ void FSourceControlBackend::OnConnectionError()
 		return false;
 	};
 
-	FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(Callback));
+	if (!bSuppressNotifications)
+	{
+		FTSTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateLambda(Callback));
+	}
 }
 
 UE_REGISTER_VIRTUALIZATION_BACKEND_FACTORY(FSourceControlBackend, SourceControl);
