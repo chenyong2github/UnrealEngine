@@ -73,6 +73,14 @@ namespace EpicGames.Horde.Storage
 		Task<ITreeBlob> ReadTreeAsync(RefId id, CancellationToken cancellationToken = default);
 
 		/// <summary>
+		/// Reads a root node from the store
+		/// </summary>
+		/// <param name="id">Name of the tree to fetch</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		/// <returns>Deserialized node stored with this name</returns>
+		Task<T> ReadTreeAsync<T>(RefId id, CancellationToken cancellationToken = default) where T : TreeNode;
+
+		/// <summary>
 		/// Creates a writer for a tree with the given name
 		/// </summary>
 		/// <param name="id">Name of the ref used to store the tree</param>
@@ -81,20 +89,6 @@ namespace EpicGames.Horde.Storage
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Tree writer instance</returns>
 		Task WriteTreeAsync(RefId id, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default);
-	}
-
-	/// <summary>
-	/// Interface for a typed tree store
-	/// </summary>
-	public interface ITreeStore<T> : ITreeStore where T : TreeNode
-	{
-		/// <summary>
-		/// Reads a root node from the store
-		/// </summary>
-		/// <param name="id">Name of the tree to fetch</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
-		/// <returns>Deserialized node stored with this name</returns>
-		new Task<T> ReadTreeAsync(RefId id, CancellationToken cancellationToken = default);
 
 		/// <summary>
 		/// Creates a writer for a tree with the given name
@@ -104,6 +98,61 @@ namespace EpicGames.Horde.Storage
 		/// <param name="flush">Whether to flush the complete tree state. If false, an implementation may choose to buffer some writes to allow packing multiple nodes together.</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Tree writer instance</returns>
-		Task WriteTreeAsync(RefId id, T root, bool flush = true, CancellationToken cancellationToken = default);
+		Task WriteTreeAsync<T>(RefId id, T root, bool flush = true, CancellationToken cancellationToken = default) where T : TreeNode;
+	}
+
+	/// <summary>
+	/// Interface for a typed tree store
+	/// </summary>
+	public interface ITreeStore<T> : ITreeStore
+	{
+	}
+
+	/// <summary>
+	/// Extension methods for tree store instances
+	/// </summary>
+	public static class TreeStoreExtensions
+	{
+		sealed class TypedTreeStore<T> : ITreeStore<T>
+		{
+			readonly ITreeStore _inner;
+
+			public TypedTreeStore(ITreeStore inner)
+			{
+				_inner = inner;
+			}
+
+			/// <inheritdoc/>
+			public Task DeleteTreeAsync(RefId id, CancellationToken cancellationToken = default) => _inner.DeleteTreeAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public void Dispose() => _inner.Dispose();
+
+			/// <inheritdoc/>
+			public Task<bool> HasTreeAsync(RefId id, CancellationToken cancellationToken = default) => _inner.HasTreeAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<ITreeBlob> ReadTreeAsync(RefId id, CancellationToken cancellationToken = default) => _inner.ReadTreeAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<TNode> ReadTreeAsync<TNode>(RefId id, CancellationToken cancellationToken = default) where TNode : TreeNode => _inner.ReadTreeAsync<TNode>(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task WriteTreeAsync(RefId id, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default) => _inner.WriteTreeAsync(id, root, flush, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task WriteTreeAsync<TNode>(RefId id, TNode root, bool flush = true, CancellationToken cancellationToken = default) where TNode : TreeNode => _inner.WriteTreeAsync<TNode>(id, root, flush, cancellationToken);
+		}
+
+		/// <summary>
+		/// Wraps an <see cref="ITreeStore"/> interface with a type for dependency injection
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="store">The instance to wrap</param>
+		/// <returns>Wrapped instance of the tree store</returns>
+		public static ITreeStore<T> ForType<T>(this ITreeStore store)
+		{
+			return new TypedTreeStore<T>(store);
+		}
 	}
 }

@@ -11,25 +11,38 @@ using EpicGames.Horde.Storage;
 namespace Horde.Build.Storage
 {
 	/// <summary>
+	/// Options for configuring the default blob store implementation
+	/// </summary>
+	public interface IBlobStoreOptions
+	{
+		/// <summary>
+		/// Prefix for storing blobs
+		/// </summary>
+		string BlobPrefix { get; }
+
+		/// <summary>
+		/// Prefix for storing refs
+		/// </summary>
+		string RefPrefix { get; }
+	}
+
+	/// <summary>
 	/// Implementation of <see cref="IBlobStore"/> for AWS
 	/// </summary>
 	public class BlobStore : IBlobStore
 	{
 		readonly IStorageBackend _backend;
-		readonly string _blobPrefix;
-		readonly string _refPrefix;
+		readonly IBlobStoreOptions _options;
 
 		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="backend">Backend to use for storing data</param>
-		/// <param name="blobPrefix">Prefix to append to any blob ids</param>
-		/// <param name="refPrefix">Prefix to append to any ref ids</param>
-		public BlobStore(IStorageBackend backend, string blobPrefix, string refPrefix)
+		/// <param name="options">Options for the blob store</param>
+		public BlobStore(IStorageBackend backend, IBlobStoreOptions options)
 		{
 			_backend = backend;
-			_blobPrefix = blobPrefix;
-			_refPrefix = refPrefix;
+			_options = options;
 		}
 
 		async Task<IBlob?> TryReadAsync(string path, CancellationToken cancellationToken = default)
@@ -50,7 +63,7 @@ namespace Horde.Build.Storage
 
 		#region Blobs
 
-		string GetBlobPath(BlobId id) => $"{_blobPrefix}{id}";
+		string GetBlobPath(BlobId id) => $"{_options.BlobPrefix}{id}";
 
 		/// <inheritdoc/>
 		public Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default) => TryReadAsync(GetBlobPath(id), cancellationToken);
@@ -67,7 +80,7 @@ namespace Horde.Build.Storage
 
 		#region Refs
 
-		string GetRefPath(RefId id) => $"{_refPrefix}{id}";
+		string GetRefPath(RefId id) => $"{_options.RefPrefix}{id}";
 
 		/// <inheritdoc/>
 		public async Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default)
@@ -76,21 +89,21 @@ namespace Horde.Build.Storage
 		}
 
 		/// <inheritdoc/>
-		public Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default)
+		public async Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default)
 		{
-			throw new System.NotImplementedException();
+			return await _backend.ExistsAsync(GetRefPath(id), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default)
+		public async Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default)
 		{
-			throw new System.NotImplementedException();
+			return await TryReadAsync(GetRefPath(id), cancellationToken);
 		}
 
 		/// <inheritdoc/>
-		public Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
+		public async Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default)
 		{
-			throw new System.NotImplementedException();
+			await WriteAsync(GetRefPath(id), data, references, cancellationToken);
 		}
 
 		#endregion

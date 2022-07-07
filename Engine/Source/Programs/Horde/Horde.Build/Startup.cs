@@ -449,6 +449,7 @@ namespace Horde.Build
 			// Storage providers
 			services.AddSingleton<IStorageBackend<PersistentLogStorage>>(sp => CreateStorageBackend(sp, settings.LogStorage).ForType<PersistentLogStorage>());
 			services.AddSingleton<IStorageBackend<ArtifactCollection>>(sp => CreateStorageBackend(sp, settings.ArtifactStorage).ForType<ArtifactCollection>());
+			services.AddSingleton<ITreeStore<CommitService>>(sp => CreateTreeStore(sp, settings.CommitStorage).ForType<CommitService>());
 
 			services.AddHordeStorage(settings => configSection.GetSection("Storage").Bind(settings));
 

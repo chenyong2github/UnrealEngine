@@ -92,10 +92,57 @@ namespace EpicGames.Horde.Storage
 	}
 
 	/// <summary>
+	/// Typed implementation of <see cref="IBlobStore"/> for use with dependency injection
+	/// </summary>
+	public interface IBlobStore<T> : IBlobStore
+	{
+	}
+
+	/// <summary>
 	/// Extension methods for <see cref="IBlobStore"/>
 	/// </summary>
 	public static class BlobStoreExtensions
 	{
+		class TypedBlobStore<T> : IBlobStore<T>
+		{
+			readonly IBlobStore _inner;
+
+			public TypedBlobStore(IBlobStore inner) => _inner = inner;
+
+			#region Blobs
+
+			/// <inheritdoc/>
+			public Task<IBlob?> TryReadBlobAsync(BlobId id, CancellationToken cancellationToken = default) => _inner.TryReadBlobAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<BlobId> WriteBlobAsync(ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteBlobAsync(data, references, cancellationToken);
+
+			#endregion
+
+			#region Refs
+
+			/// <inheritdoc/>
+			public Task DeleteRefAsync(RefId id, CancellationToken cancellationToken = default) => _inner.DeleteRefAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<bool> HasRefAsync(RefId id, CancellationToken cancellationToken = default) => _inner.HasRefAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task<IBlob?> TryReadRefAsync(RefId id, CancellationToken cancellationToken = default) => _inner.TryReadRefAsync(id, cancellationToken);
+
+			/// <inheritdoc/>
+			public Task WriteRefAsync(RefId id, ReadOnlySequence<byte> data, IReadOnlyList<BlobId> references, CancellationToken cancellationToken = default) => _inner.WriteRefAsync(id, data, references, cancellationToken);
+
+			#endregion
+		}
+
+		/// <summary>
+		/// Wraps a <see cref="IBlobStore"/> interface with a type argument
+		/// </summary>
+		/// <param name="blobStore">Regular blob store instance</param>
+		/// <returns></returns>
+		public static IBlobStore<T> ForType<T>(this IBlobStore blobStore) => new TypedBlobStore<T>(blobStore);
+
 		/// <summary>
 		/// Reads a blob from the store, throwing an exception if it does not exist
 		/// </summary>

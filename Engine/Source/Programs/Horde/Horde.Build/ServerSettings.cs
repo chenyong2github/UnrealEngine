@@ -84,6 +84,46 @@ namespace Horde.Build
 	}
 
 	/// <summary>
+	/// Options for configuring a blob store
+	/// </summary>
+	public class BlobStoreOptions : StorageBackendOptions, IBlobStoreOptions
+	{
+		/// <inheritdoc/>
+		public string BlobPrefix { get; set; } = "blobs/";
+
+		/// <inheritdoc/>
+		public string RefPrefix { get; set; } = "refs/";
+	}
+
+	/// <summary>
+	/// Options for configuring the default tree store implementation
+	/// </summary>
+	public interface ITreeStoreOptions
+	{
+		/// <summary>
+		/// Options for creating bundles
+		/// </summary>
+		BundleOptions Bundle { get; }
+
+		/// <summary>
+		/// Options for chunking content
+		/// </summary>
+		ChunkingOptions Chunking { get; }
+	}
+
+	/// <summary>
+	/// Options for storing trees
+	/// </summary>
+	public class TreeStoreOptions : BlobStoreOptions, ITreeStoreOptions
+	{
+		/// <inheritdoc/>
+		public BundleOptions Bundle { get; set; } = new BundleOptions();
+
+		/// <inheritdoc/>
+		public ChunkingOptions Chunking { get; set; } = new ChunkingOptions();
+	}
+
+	/// <summary>
 	/// Specifies the service to use for controlling the size of the fleet
 	/// </summary>
 	public enum FleetManagerType
@@ -345,6 +385,11 @@ namespace Horde.Build
 		/// Settings for artifact storage
 		/// </summary>
 		public StorageBackendOptions ArtifactStorage { get; set; } = new StorageBackendOptions() { BaseDir = "Artifacts" };
+
+		/// <summary>
+		/// Configuration of tree storage
+		/// </summary>
+		public TreeStoreOptions CommitStorage { get; set; } = new TreeStoreOptions() { BaseDir = "Commits" };
 
 		/// <summary>
 		/// Whether to log json to stdout

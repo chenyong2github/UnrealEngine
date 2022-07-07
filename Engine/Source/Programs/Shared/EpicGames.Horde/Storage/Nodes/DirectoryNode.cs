@@ -99,6 +99,39 @@ namespace EpicGames.Horde.Storage.Nodes
 			_cachedLength = length;
 		}
 
+		/// <summary>
+		/// Appends data to this file
+		/// </summary>
+		/// <param name="data">Data to append to the file</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task AppendAsync(ReadOnlyMemory<byte> data, ChunkingOptions options, CancellationToken cancellationToken)
+		{
+			FileNode node = await ExpandAsync(cancellationToken);
+			Node = node.Append(data, options);
+			MarkAsDirty();
+		}
+
+		/// <summary>
+		/// Appends data to this file
+		/// </summary>
+		/// <param name="stream">Data to append to the file</param>
+		/// <param name="options">Options for chunking the data</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
+		public async Task AppendAsync(Stream stream, ChunkingOptions options, CancellationToken cancellationToken)
+		{
+			byte[] buffer = new byte[4 * 1024];
+			for (; ; )
+			{
+				int numBytes = await stream.ReadAsync(buffer, cancellationToken);
+				if (numBytes == 0)
+				{
+					break;
+				}
+				await AppendAsync(buffer.AsMemory(0, numBytes), options, cancellationToken);
+			}
+		}
+
 		/// <inheritdoc/>
 		protected override void OnCollapse()
 		{
@@ -218,14 +251,21 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="name">Name of the new directory</param>
 		/// <param name="flags">Flags for the new file</param>
-		/// <param name="data">Data for the file</param>
-		/// <param name="options">Options for chunking the data</param>
-		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async Task<FileNode> AddFileAsync(Utf8String name, FileEntryFlags flags, ReadOnlyMemory<byte> data, ChunkingOptions options, CancellationToken cancellationToken)
+		public FileEntry AddFile(Utf8String name, FileEntryFlags flags)
 		{
-			using ReadOnlyMemoryStream stream = new ReadOnlyMemoryStream(data);
-			return await AddFileAsync(name, flags, stream, options, cancellationToken);
+			if(TryGetDirectoryEntry(name, out _))
+			{
+				throw new ArgumentException($"A directory with the name {name} already exists");
+			}
+
+			FileNode newNode = new LeafFileNode();
+
+			FileEntry entry = new FileEntry(this, name, flags, newNode);
+			_nameToFileEntry[name] = entry;
+			MarkAsDirty();
+
+			return entry;
 		}
 
 		/// <summary>
@@ -237,20 +277,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <param name="options">Options for chunking the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async Task<FileNode> AddFileAsync(Utf8String name, FileEntryFlags flags, Stream stream, ChunkingOptions options, CancellationToken cancellationToken)
+		public async Task<FileEntry> AddFileAsync(Utf8String name, FileEntryFlags flags, Stream stream, ChunkingOptions options, CancellationToken cancellationToken = default)
 		{
-			if(TryGetDirectoryEntry(name, out _))
-			{
-				throw new ArgumentException($"A directory with the name {name} already exists");
-			}
-
-			FileNode newNode = await FileNode.CreateAsync(stream, options, cancellationToken);
-
-			FileEntry entry = new FileEntry(this, name, flags, newNode);
-			_nameToFileEntry[name] = entry;
-			MarkAsDirty();
-
-			return newNode;
+			FileEntry entry = AddFile(name, flags);
+			await entry.AppendAsync(stream, options, cancellationToken);
+			return entry;
 		}
 
 		/// <summary>
@@ -258,11 +289,9 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// </summary>
 		/// <param name="path">Path to the file</param>
 		/// <param name="flags">Flags for the new file</param>
-		/// <param name="stream">Stream to add to the file</param>
-		/// <param name="options">Options for chunking the data</param>
 		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>The new directory object</returns>
-		public async ValueTask<FileNode> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, Stream stream, ChunkingOptions options, CancellationToken cancellationToken)
+		public async ValueTask<FileEntry> AddFileByPathAsync(Utf8String path, FileEntryFlags flags, CancellationToken cancellationToken = default)
 		{
 			DirectoryNode directory = this;
 
@@ -279,7 +308,7 @@ namespace EpicGames.Horde.Storage.Nodes
 				{
 					if (length == remainingPath.Length)
 					{
-						return await directory.AddFileAsync(remainingPath, flags, stream, options, cancellationToken);
+						return directory.AddFile(remainingPath, flags);
 					}
 
 					byte character = remainingPath[length];
@@ -596,7 +625,7 @@ namespace EpicGames.Horde.Storage.Nodes
 			{
 				logger.LogInformation("Adding {File}", fileInfo.FullName);
 				using Stream stream = fileInfo.OpenRead();
-				FileNode fileNode = await AddFileAsync(fileInfo.Name, 0, stream, options, cancellationToken);
+				await AddFileAsync(fileInfo.Name, 0, stream, options, cancellationToken);
 			}
 		}
 

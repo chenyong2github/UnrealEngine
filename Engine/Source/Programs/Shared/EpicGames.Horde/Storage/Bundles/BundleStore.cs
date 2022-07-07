@@ -262,6 +262,13 @@ namespace EpicGames.Horde.Storage.Bundles
 		}
 
 		/// <inheritdoc/>
+		public async Task<T> ReadTreeAsync<T>(RefId refName, CancellationToken cancellationToken = default) where T : TreeNode
+		{
+			ITreeBlob node = await ReadTreeAsync(refName, cancellationToken);
+			return await TreeNode.DeserializeAsync<T>(node, cancellationToken);
+		}
+
+		/// <inheritdoc/>
 		public async Task WriteTreeAsync(RefId id, ITreeBlob root, bool flush = true, CancellationToken cancellationToken = default)
 		{
 			// Find all the referenced in-memory nodes from the root
@@ -304,6 +311,13 @@ namespace EpicGames.Horde.Storage.Bundles
 				Stats = _nextStats;
 				_nextStats = new BundleStats();
 			}
+		}
+
+		/// <inheritdoc/>
+		public async Task WriteTreeAsync<T>(RefId refName, T root, bool flush = true, CancellationToken cancellationToken = default) where T : TreeNode
+		{
+			ITreeBlob rootBlob = await TreeNode.SerializeAsync(root, this, cancellationToken);
+			await WriteTreeAsync(refName, rootBlob, flush, cancellationToken);
 		}
 
 		/// <inheritdoc/>
@@ -847,34 +861,6 @@ namespace EpicGames.Horde.Storage.Bundles
 				buffer.AsSpan(0, usedSize).CopyTo(newBuffer);
 				buffer = newBuffer;
 			}
-		}
-	}
-
-	/// <summary>
-	/// Manages a collection of bundles.
-	/// </summary>
-	public class BundleStore<T> : BundleStore, ITreeStore<T> where T : TreeNode
-	{
-		/// <summary>
-		/// Constructor
-		/// </summary>
-		public BundleStore(IBlobStore blobStore, BundleOptions options, IMemoryCache cache)
-			: base(blobStore, options, cache)
-		{
-		}
-
-		/// <inheritdoc/>
-		public new async Task<T> ReadTreeAsync(RefId refName, CancellationToken cancellationToken = default)
-		{
-			ITreeBlob node = await base.ReadTreeAsync(refName, cancellationToken);
-			return await TreeNode.DeserializeAsync<T>(node, cancellationToken);
-		}
-
-		/// <inheritdoc/>
-		public async Task WriteTreeAsync(RefId refName, T root, bool flush = true, CancellationToken cancellationToken = default)
-		{
-			ITreeBlob rootBlob = await TreeNode.SerializeAsync(root, this, cancellationToken);
-			await base.WriteTreeAsync(refName, rootBlob, flush, cancellationToken);
 		}
 	}
 }

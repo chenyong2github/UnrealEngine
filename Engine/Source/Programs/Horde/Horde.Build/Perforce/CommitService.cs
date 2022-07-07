@@ -10,9 +10,9 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using EpicGames.Core;
-using EpicGames.Horde.Bundles;
-using EpicGames.Horde.Bundles.Nodes;
 using EpicGames.Horde.Storage;
+using EpicGames.Horde.Storage.Bundles;
+using EpicGames.Horde.Storage.Nodes;
 using EpicGames.Perforce;
 using EpicGames.Redis;
 using EpicGames.Serialization;
@@ -181,11 +181,10 @@ namespace Horde.Build.Perforce
 
 		// Collections
 		readonly ICommitCollection _commitCollection;
-		readonly IStorageClient _storageClient;
 		readonly IStreamCollection _streamCollection;
 		readonly IPerforceService _perforceService;
 		readonly IUserCollection _userCollection;
-		readonly IMemoryCache _memoryCache;
+		readonly ITreeStore _treeStore;
 		readonly ILogger<CommitService> _logger;
 
 		const int MaxBackgroundTasks = 2;
@@ -193,7 +192,7 @@ namespace Horde.Build.Perforce
 		/// <summary>
 		/// Constructor
 		/// </summary>
-		public CommitService(RedisService redisService, ICommitCollection commitCollection, IStorageClient storageClient, IStreamCollection streamCollection, IPerforceService perforceService, IUserCollection userCollection, IClock clock, IMemoryCache memoryCache, IOptions<CommitServiceOptions> options, ILogger<CommitService> logger)
+		public CommitService(RedisService redisService, ICommitCollection commitCollection, IStreamCollection streamCollection, IPerforceService perforceService, IUserCollection userCollection, ITreeStore<CommitService> treeStore, IClock clock, IOptions<CommitServiceOptions> options, ILogger<CommitService> logger)
 		{
 			Options = options.Value;
 
@@ -202,11 +201,10 @@ namespace Horde.Build.Perforce
 			_redisReservations = new RedisSortedSet<StreamId>(_redis, RedisBaseKey.Append("reservations"));
 
 			_commitCollection = commitCollection;
-			_storageClient = storageClient;
 			_streamCollection = streamCollection;
 			_perforceService = perforceService;
 			_userCollection = userCollection;
-			_memoryCache = memoryCache;
+			_treeStore = treeStore;
 			_logger = logger;
 			_updateMetadataTicker = clock.AddSharedTicker<CommitService>(TimeSpan.FromSeconds(30.0), UpdateMetadataAsync, logger);
 		}
@@ -706,7 +704,7 @@ namespace Horde.Build.Perforce
 						{
 							if (await _redisReservations.AddAsync(checkStream, newScore, When.NotExists))
 							{
-								Task newTask = Task.Run(() => UpdateStreamContentAsync(checkStream));
+								Task newTask = Task.Run(() => UpdateStreamContentAsync(checkStream, CancellationToken.None));
 								backgroundTasks.Add((checkStream, newTask));
 
 								if (backgroundTasks.Count == MaxBackgroundTasks)
@@ -750,7 +748,7 @@ namespace Horde.Build.Perforce
 			}
 		}
 
-		async Task UpdateStreamContentAsync(StreamId streamId)
+		async Task UpdateStreamContentAsync(StreamId streamId, CancellationToken cancellationToken)
 		{
 			Stopwatch timer = Stopwatch.StartNew();
 
@@ -758,7 +756,7 @@ namespace Horde.Build.Perforce
 			for (; ; )
 			{
 				// Update the stream, updating the reservation every 30 seconds
-				Task internalTask = Task.Run(() => UpdateStreamContentInternalAsync(streamId, streamChanges));
+				Task internalTask = Task.Run(() => UpdateStreamContentInternalAsync(streamId, streamChanges, cancellationToken));
 				while (!internalTask.IsCompleted)
 				{
 					Task delayTask = Task.Delay(TimeSpan.FromSeconds(15.0));
@@ -792,7 +790,7 @@ namespace Horde.Build.Perforce
 			await _redisReservations.RemoveAsync(streamId);
 		}
 
-		async Task UpdateStreamContentInternalAsync(StreamId streamId, RedisList<int> changes)
+		async Task UpdateStreamContentInternalAsync(StreamId streamId, RedisList<int> changes, CancellationToken cancellationToken)
 		{
 			IStream? stream = await _streamCollection.GetAsync(streamId);
 			if (stream == null)
@@ -820,11 +818,11 @@ namespace Horde.Build.Perforce
 				// If we don't have a previous commit tree yet, perform a full snapshot of that change
 				if (prevChange == null)
 				{
-					await WriteCommitTreeAsync(stream, values[0], null);
+					await WriteCommitTreeAsync(stream, values[0], null, cancellationToken);
 				}
 
 				// Perform a snapshot of the new change, then remove it from the list
-				await WriteCommitTreeAsync(stream, values[1], prevChange);
+				await WriteCommitTreeAsync(stream, values[1], prevChange, cancellationToken);
 				prevChange = values[1];
 				await changes.LeftPopAsync();
 			}
@@ -836,28 +834,27 @@ namespace Horde.Build.Perforce
 		/// <param name="stream">The stream to replicate</param>
 		/// <param name="change">Commit to store the tree ref</param>
 		/// <param name="baseChange">The base change to update from</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Root tree object</returns>
-		public async Task WriteCommitTreeAsync(IStream stream, int change, int? baseChange)
+		public async Task WriteCommitTreeAsync(IStream stream, int change, int? baseChange, CancellationToken cancellationToken)
 		{
 			if (stream.ReplicationMode != ContentReplicationMode.None)
 			{
-				await WriteCommitTreeAsync(stream, change, baseChange, stream.ReplicationFilter, stream.ReplicationMode == ContentReplicationMode.RevisionsOnly);
+				await WriteCommitTreeAsync(stream, change, baseChange, stream.ReplicationFilter, stream.ReplicationMode == ContentReplicationMode.RevisionsOnly, cancellationToken);
 			}
 		}
 
 		/// <summary>
-		/// Creates a new bundle or reads an existing one
+		/// Gets the ref for a particular change
 		/// </summary>
-		async ValueTask<Bundle<DirectoryNode>> CreateOrReadBundle(StreamId streamId, int? baseChange, string? filter, bool revisionsOnly)
+		/// <param name="streamId"></param>
+		/// <param name="change"></param>
+		/// <param name="filter"></param>
+		/// <param name="revisionsOnly"></param>
+		/// <returns></returns>
+		static RefId GetRefId(StreamId streamId, int change, string? filter, bool revisionsOnly)
 		{
-			if (baseChange == null)
-			{
-				return Bundle.Create<DirectoryNode>(_storageClient, Options.NamespaceId, Options.Bundle, _memoryCache);
-			}
-			else
-			{
-				return await Bundle.ReadAsync<DirectoryNode>(_storageClient, Options.NamespaceId, GetStreamBucketId(streamId), new CommitKey(streamId, baseChange.Value, filter, revisionsOnly).GetRefId(), Options.Bundle, _memoryCache);
-			}
+			return new CommitKey(streamId, change, filter, revisionsOnly).GetRefId();
 		}
 
 		/// <summary>
@@ -868,8 +865,9 @@ namespace Horde.Build.Perforce
 		/// <param name="baseChange">The base change to update from</param>
 		/// <param name="filter">Depot path to query for changes. Will default to the entire depot (but filtered by the workspace)</param>
 		/// <param name="revisionsOnly">Whether to replicate file revisions only</param>
+		/// <param name="cancellationToken">Cancellation token for the operation</param>
 		/// <returns>Root tree object</returns>
-		public async Task WriteCommitTreeAsync(IStream stream, int change, int? baseChange, string? filter, bool revisionsOnly)
+		public async Task WriteCommitTreeAsync(IStream stream, int change, int? baseChange, string? filter, bool revisionsOnly, CancellationToken cancellationToken)
 		{
 			// Create a client to replicate from this stream
 			ReplicationClient clientInfo = await FindOrAddReplicationClientAsync(stream);
@@ -879,7 +877,15 @@ namespace Horde.Build.Perforce
 			await FlushWorkspaceAsync(clientInfo, perforce, baseChange ?? 0);
 
 			// Get the initial bundle state
-			using Bundle<DirectoryNode> commitBundle = await CreateOrReadBundle(stream.Id, baseChange, filter, revisionsOnly);
+			DirectoryNode contents;
+			if (baseChange == null)
+			{
+				contents = new DirectoryNode();
+			}
+			else
+			{
+				contents = await _treeStore.ReadTreeAsync<DirectoryNode>(GetRefId(stream.Id, baseChange.Value, filter, revisionsOnly), cancellationToken);
+			}
 
 			// Apply all the updates
 			_logger.LogInformation("Updating client {Client} to changelist {Change}", clientInfo.Client.Name, change);
@@ -888,11 +894,11 @@ namespace Horde.Build.Perforce
 			Utf8String clientRoot = new Utf8String(clientInfo.Client.Root);
 			string queryPath = $"//{clientInfo.Client.Name}/{filter}";
 
-			DirectoryNode contents = commitBundle.Root;
+			RefId refId = GetRefId(stream.Id, change, filter, revisionsOnly);
 			if (revisionsOnly)
 			{
 				int count = 0;
-				await foreach (PerforceResponse<SyncRecord> record in perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{queryPath}@{change}" }, null, default))
+				await foreach (PerforceResponse<SyncRecord> record in perforce.StreamCommandAsync<SyncRecord>("sync", new[] { "-k", $"{queryPath}@{change}" }, null, default, cancellationToken))
 				{
 					PerforceError? error = record.Error;
 					if (error != null && error.Generic == PerforceGenericCode.Empty)
@@ -907,14 +913,16 @@ namespace Horde.Build.Perforce
 					}
 
 					Utf8String path = syncRecord.Path.Substring(clientRoot.Length);
-					FileNode file = await contents.AddFileByPathAsync(commitBundle, path, FileEntryFlags.PerforceDepotPathAndRevision);
-
 					byte[] data = Encoding.UTF8.GetBytes($"{syncRecord.DepotFile}#{syncRecord.Revision}");
-					file.Append(data, Options.Chunking);
+
+					using ReadOnlyMemoryStream dataStream = new ReadOnlyMemoryStream(data);
+
+					FileEntry entry = await contents.AddFileByPathAsync(path, FileEntryFlags.PerforceDepotPathAndRevision, cancellationToken);
+					await entry.AppendAsync(dataStream, Options.Chunking, cancellationToken);
 
 					if (++count > 1000)
 					{
-						await commitBundle.TrimAsync();
+						await _treeStore.WriteTreeAsync(refId, contents, false, cancellationToken);
 						count = 0;
 					}
 				}
@@ -926,7 +934,7 @@ namespace Horde.Build.Perforce
 				long dataSize = 0;
 				long trimDataSize = TrimInterval;
 
-				Dictionary<int, FileNode> files = new Dictionary<int, FileNode>();
+				Dictionary<int, FileEntry> files = new Dictionary<int, FileEntry>();
 				await foreach (PerforceResponse response in perforce.StreamCommandAsync("sync", Array.Empty<string>(), new string[] { $"{queryPath}@{change}" }, null, typeof(SyncRecord), true, default))
 				{
 					PerforceError? error = response.Error;
@@ -942,12 +950,12 @@ namespace Horde.Build.Perforce
 						if (io.Command == PerforceIoCommand.Open)
 						{
 							Utf8String path = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
-							files[io.File] = await contents.AddFileByPathAsync(commitBundle, path, 0);
+							files[io.File] = await contents.AddFileByPathAsync(path, FileEntryFlags.None, cancellationToken);
 						}
 						else if (io.Command == PerforceIoCommand.Write)
 						{
-							FileNode file = files[io.File];
-							file.Append(io.Payload, Options.Chunking);
+							FileEntry file = files[io.File];
+							await file.AppendAsync(io.Payload, Options.Chunking, cancellationToken);
 							dataSize += io.Payload.Length;
 						}
 						else if (io.Command == PerforceIoCommand.Close)
@@ -957,13 +965,18 @@ namespace Horde.Build.Perforce
 						else if (io.Command == PerforceIoCommand.Unlink)
 						{
 							Utf8String path = GetClientRelativePath(io.Payload, clientInfo.Client.Root);
-							await contents.DeleteFileByPathAsync(commitBundle, path);
+							await contents.DeleteFileByPathAsync(path, cancellationToken);
+						}
+						else
+						{
+							_logger.LogWarning("Unhandled command code {Code}", io.Command);
 						}
 
 						if (dataSize > trimDataSize)
 						{
 							_logger.LogInformation("Trimming working set after receiving {NumBytes:n0}mb...", dataSize / (1024 * 1024));
-							await commitBundle.TrimAsync();
+							await _treeStore.WriteTreeAsync(refId, contents, false, cancellationToken);
+							GC.Collect();
 							trimDataSize = dataSize + TrimInterval;
 							_logger.LogInformation("Trimming complete. Next trim at {NextNumBytes:n0}mb.", trimDataSize / (1024 * 1024));
 						}
@@ -973,18 +986,9 @@ namespace Horde.Build.Perforce
 
 			clientInfo.Change = change;
 
-			// Create the key for this commit
-			CommitKey key = new CommitKey(stream.Id, change, filter, revisionsOnly);
-			CbObject keyObject = CbSerializer.Serialize(key);
-
 			// Return the new root object
-			RefId refId = new RefId(IoHash.Compute(keyObject.GetView().Span));
 			_logger.LogInformation("Writing ref {RefId} for {StreamId} change {Change}", refId, stream.Id, change);
-			await commitBundle.WriteAsync(GetStreamBucketId(stream.Id), refId, keyObject, true);
-
-			// Print out stats for the new data
-			BundleStats stats = commitBundle.Stats;
-			_logger.LogInformation("Written ref {RefId} for {StreamId} change {Change}. Download: {NewBytes:n0} bytes ({NewRefCount} refs => {NewRefBytes:n0} bytes, {NewBlobCount} blobs => {NewBlobBytes:n0} bytes, {NewNodeCount:n0} nodes => {NewNodeBytes:n0} bytes).", refId, stream.Id, change, stats.NewRefBytes + stats.NewBlobBytes, stats.NewRefCount, stats.NewRefBytes, stats.NewBlobCount, stats.NewBlobBytes, stats.NewNodeCount, stats.NewNodeBytes);
+			await _treeStore.WriteTreeAsync(refId, contents, true, cancellationToken);
 		}
 
 		public QualifiedRefId? GetReplicatedContentRef(IStream stream, int change)

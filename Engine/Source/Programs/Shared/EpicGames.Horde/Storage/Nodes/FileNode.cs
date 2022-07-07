@@ -315,6 +315,11 @@ namespace EpicGames.Horde.Storage.Nodes
 		/// <inheritdoc/>
 		public override ReadOnlyMemory<byte> AppendData(ReadOnlyMemory<byte> newData, ChunkingOptions options)
 		{
+			if (_isReadOnly)
+			{
+				return newData;
+			}
+
 			// Fast path for appending data to the buffer up to the chunk window size
 			int windowSize = options.LeafOptions.MinSize;
 			if (Length < windowSize)
