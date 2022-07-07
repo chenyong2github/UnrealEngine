@@ -9,6 +9,7 @@
 #include "Misc/CommandLine.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
@@ -1445,20 +1446,6 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				UE_LOG(LogPluginManager, Log, TEXT("Mounting %s plugin %s"), *EnumToString(Plugin.Type), *Plugin.GetName());
 				UE_LOG(LogPluginManager, Verbose, TEXT("Plugin path: %s"), *Plugin.FileName);
 
-				// Load <PluginName>.ini config file if it exists
-				FString PluginConfigDir = FPaths::GetPath(Plugin.FileName) / TEXT("Config/");
-				FString EngineConfigDir = FPaths::EngineConfigDir();
-				FString SourceConfigDir = FPaths::SourceConfigDir();
-
-				// Load Engine plugins out of BasePluginName.ini and the engine directory, game plugins out of DefaultPluginName.ini
-				if (Plugin.GetLoadedFrom() == EPluginLoadedFrom::Engine)
-				{
-					EngineConfigDir = PluginConfigDir;
-				}
-				else
-				{
-					SourceConfigDir = PluginConfigDir;
-				}
 
 				// Build the config system key for PluginName.ini
 				FString PluginConfigFilename = GConfig->GetConfigFilename(*Plugin.Name);
@@ -1468,26 +1455,22 @@ bool FPluginManager::ConfigureEnabledPlugins()
 
 					FConfigFile& PluginConfig = GConfig->Add(PluginConfigFilename, FConfigFile());
 
-					// We probably *don't* need to set and unset this every time,
-					// but this feels safer in case INI files are added for a plugin and then we try to load it later.
-					// Dynamically added / generated INI files should be irrelevant for the LoadExternalIniFile call.
+					FConfigContext Context = FConfigContext::ReadIntoPluginFile(PluginConfig, FPaths::GetPath(Plugin.FileName));
+
 					if (PluginSystemDefs::IsCachingIniFilesForProcessing())
 					{
-						FConfigCacheIni::SetIniCacheSet(&AllIniFiles);
+						Context.IniCacheSet = &AllIniFiles;
 					}
 
-					// This will write out an ini to PluginConfigFilename
-					if (!FConfigCacheIni::LoadExternalIniFile(PluginConfig, *Plugin.Name, *EngineConfigDir, *SourceConfigDir, true, nullptr, false, true))
+					if (!Context.Load(*Plugin.Name))
 					{
 						// Nothing to add, remove from map
 						GConfig->Remove(PluginConfigFilename);
 					}
-
-					if (PluginSystemDefs::IsCachingIniFilesForProcessing())
-					{
-						FConfigCacheIni::SetIniCacheSet(nullptr);
-					}
 				}
+
+				// Load <PluginName>.ini config file if it exists
+				FString PluginConfigDir = FPaths::GetPath(Plugin.FileName) / TEXT("Config/");
 
 				// override config cache entries with plugin configs (Engine.ini, Game.ini, etc in <PluginDir>\Config\)
 				TArray<FString> PluginConfigs;

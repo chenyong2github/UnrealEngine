@@ -12,6 +12,7 @@
 #include "Logging/LogScopedCategoryAndVerbosityOverride.h"
 #include "Stats/Stats.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/App.h"
 #include "Misc/ITransaction.h"
@@ -1864,22 +1865,8 @@ FString GetConfigFilename( UObject* SourceObject )
 {
 	checkSlow(SourceObject);
 
-#if 0 // If you find that you are sad this code is gone, please contact RobM or JoeG. We could not find a case for its existence
-	// and it broke/made cumbersome perobjectconfig file specification for files that were outside the transient package
-	if (UsesPerObjectConfig(SourceObject) && SourceObject->GetOutermost() != GetTransientPackage())
-	{
-		// if this is a PerObjectConfig object that is not contained by the transient package,
-		// load the class's package's ini file
-		FString PerObjectConfigName;
-		FConfigCacheIni::LoadGlobalIniFile(PerObjectConfigName, *SourceObject->GetOutermost()->GetName());
-		return PerObjectConfigName;
-	}
-	else
-#endif
-	{
-		// otherwise look at the class to get the config name
-		return SourceObject->GetClass()->GetConfigName();
-	}
+	// look at the class to get the config name
+	return SourceObject->GetClass()->GetConfigName();
 }
 
 namespace UE { namespace Object { namespace Private {
@@ -2937,8 +2924,7 @@ void UObject::UpdateSingleSectionOfConfigFile(const FString& ConfigIniName)
 	// then we don't want to touch GConfig
 	if (OverridePlatform.Len() == 0)
 	{
-		FString FinalIniFileName;
-		GConfig->LoadGlobalIniFile(FinalIniFileName, *GetClass()->ClassConfigName.ToString(), NULL, true);
+		FConfigContext::ForceReloadIntoGConfig().Load(*GetClass()->ClassConfigName.ToString());
 	}
 }
 
@@ -3015,8 +3001,7 @@ void UObject::UpdateSinglePropertyInConfigFile(const FProperty* InProperty, cons
 		// then we don't want to touch GConfig
 		if (OverridePlatform.Len() == 0)
 		{
-			FString FinalIniFileName;
-			GConfig->LoadGlobalIniFile(FinalIniFileName, *GetClass()->ClassConfigName.ToString(), NULL, true);
+			FConfigContext::ForceReloadIntoGConfig().Load(*GetClass()->ClassConfigName.ToString());
 		}
 	}
 	else

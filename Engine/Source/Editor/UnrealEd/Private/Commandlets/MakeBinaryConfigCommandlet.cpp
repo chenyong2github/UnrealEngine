@@ -7,6 +7,7 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/CommandLine.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "Misc/FileHelper.h"
 
 UMakeBinaryConfigCommandlet::UMakeBinaryConfigCommandlet(const FObjectInitializer& ObjectInitializer)
@@ -36,7 +37,8 @@ int32 UMakeBinaryConfigCommandlet::Main(const FString& Params)
 	FString PlatformName = Platforms[0]->IniPlatformName();
 
 	FConfigCacheIni Config(EConfigCacheType::Temporary);
-	Config.InitializeKnownConfigFiles(*PlatformName, false);
+	FConfigContext Context = FConfigContext::ReadIntoConfigSystem(&Config, PlatformName);
+	Config.InitializeKnownConfigFiles(Context);
 
 	// removing for now, because this causes issues with some plugins not getting ini files merged in
 //	IPluginManager::Get().IntegratePluginsIntoConfig(Config, *FinalConfigFilenames.EngineIni, *PlatformName, *StagedPluginsFile);

@@ -4,7 +4,7 @@
 #include "ISourceControlState.h"
 #include "HAL/FileManager.h"
 #include "Misc/Paths.h"
-#include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "ISourceControlOperation.h"
 #include "SourceControlOperations.h"
 #include "ISourceControlProvider.h"
@@ -1555,8 +1555,8 @@ const FString& USourceControlHelpers::GetSettingsIni()
 		static FString SourceControlSettingsIni;
 		if (SourceControlSettingsIni.Len() == 0)
 		{
-			const FString SourceControlSettingsDir = FPaths::GeneratedConfigDir();
-			FConfigCacheIni::LoadGlobalIniFile(SourceControlSettingsIni, TEXT("SourceControlSettings"), nullptr, false, false, true, true, *SourceControlSettingsDir);
+			FConfigContext Context = FConfigContext::ReadIntoGConfig();
+			Context.Load(TEXT("SourceControlSettings"), SourceControlSettingsIni);
 		}
 		return SourceControlSettingsIni;
 	}
@@ -1568,8 +1568,9 @@ const FString& USourceControlHelpers::GetGlobalSettingsIni()
 	static FString SourceControlGlobalSettingsIni;
 	if (SourceControlGlobalSettingsIni.Len() == 0)
 	{
-		const FString SourceControlSettingsDir = FPaths::EngineSavedDir() + TEXT("Config/");
-		FConfigCacheIni::LoadGlobalIniFile(SourceControlGlobalSettingsIni, TEXT("SourceControlSettings"), nullptr, false, false, true, true, *SourceControlSettingsDir);
+		FConfigContext Context = FConfigContext::ReadIntoGConfig();
+		Context.GeneratedConfigDir = FPaths::EngineSavedDir() + TEXT("Config/");
+		Context.Load(TEXT("SourceControlSettings"), SourceControlGlobalSettingsIni);
 	}
 	return SourceControlGlobalSettingsIni;
 }

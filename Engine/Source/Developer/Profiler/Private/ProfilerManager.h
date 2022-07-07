@@ -9,6 +9,7 @@
 #include "Misc/Guid.h"
 #include "Framework/Commands/UICommandList.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "IProfilerClient.h"
 #include "ISessionManager.h"
 #include "ProfilerDataSource.h"
@@ -43,7 +44,7 @@ public:
 
 	void LoadFromConfig()
 	{
-		FConfigCacheIni::LoadGlobalIniFile(ProfilerSettingsIni, TEXT("ProfilerSettings"));
+		FConfigContext::ReadIntoGConfig().Load(TEXT("ProfilerSettings"), ProfilerSettingsIni);
 
 		GConfig->GetBool(TEXT("Profiler.ProfilerOptions"), TEXT("bShowCoalescedViewModesInEventGraph"), bShowCoalescedViewModesInEventGraph, ProfilerSettingsIni);
 	}

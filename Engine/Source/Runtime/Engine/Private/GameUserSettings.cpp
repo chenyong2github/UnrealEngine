@@ -3,6 +3,7 @@
 #include "GameFramework/GameUserSettings.h"
 #include "HAL/FileManager.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "Misc/FileHelper.h"
 #include "HAL/IConsoleManager.h"
 #include "GenericPlatform/GenericApplication.h"
@@ -582,8 +583,9 @@ void UGameUserSettings::SaveSettings()
 
 void UGameUserSettings::LoadConfigIni(bool bForceReload/*=false*/)
 {
-	// Load .ini, allowing merging
-	FConfigCacheIni::LoadGlobalIniFile(GGameUserSettingsIni, TEXT("GameUserSettings"), nullptr, bForceReload, false, true, true, *FPaths::GeneratedConfigDir());
+	FConfigContext Context = FConfigContext::ReadIntoGConfig();
+	Context.bForceReload = bForceReload;
+	Context.Load(TEXT("GameUserSettings"), GGameUserSettingsIni);
 }
 
 void UGameUserSettings::PreloadResolutionSettings(bool bAllowCmdLineOverrides /*= true*/)

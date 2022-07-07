@@ -6,6 +6,7 @@
 #include "Misc/MessageDialog.h"
 #include "Internationalization/Culture.h"
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/ConfigContext.h"
 #include "UObject/UnrealType.h"
 #include "DesktopPlatformModule.h"
 #include "Framework/Application/SlateApplication.h"
@@ -672,8 +673,7 @@ void FLocalizationTargetDetailCustomization::SetLoadingPolicy(const ELocalizatio
 		}
 
 		// Reload the updated file into the config system.
-		FString FinalIniFileName;
-		GConfig->LoadGlobalIniFile(FinalIniFileName, *LoadingPolicyConfig.BaseConfigName, nullptr, /*bForceReload*/true);
+		FConfigContext::ForceReloadIntoGConfig().Load(*LoadingPolicyConfig.BaseConfigName);
 	};
 
 	for (const FLocalizationTargetLoadingPolicyConfig& LoadingPolicyConfig : LoadingPolicyConfigs)

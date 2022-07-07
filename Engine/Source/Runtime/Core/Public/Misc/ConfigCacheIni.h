@@ -20,6 +20,7 @@
 #include "Math/Vector.h"
 #include "Math/Vector2D.h"
 #include "Misc/AccessDetection.h"
+#include "Misc/ConfigTypes.h"
 #include "Misc/Paths.h"
 #include "Serialization/StructuredArchive.h"
 #include "Serialization/StructuredArchiveAdapters.h"
@@ -82,6 +83,7 @@ struct FAccessor;
 }
 }
 
+class FConfigContext;
 
 struct FConfigValue
 {
@@ -337,37 +339,6 @@ public:
 
 FArchive& operator<<(FArchive& Ar, FConfigSection& ConfigSection);
 
-/**
- * FIniFilename struct.
- * 
- * Helper struct for generating ini files.
- */
-struct FIniFilename
-{
-	/** Ini filename */
-	FString Filename;
-	/** If true this ini file is required to generate the output ini. */
-	bool bRequired = false;
-	/** Used as ID for looking up an INI Hierarchy */
-	FString CacheKey;
-
-	explicit FIniFilename(const FString& InFilename, bool InIsRequired=false, FString InCacheKey=FString(TEXT("")))
-		: Filename(InFilename)
-		, bRequired(InIsRequired) 
-		, CacheKey(InCacheKey)
-	{}
-
-	FIniFilename() = default;
-
-	friend FArchive& operator<<(FArchive& Ar, FIniFilename& IniFilename)
-	{
-		Ar << IniFilename.Filename;
-		Ar << IniFilename.bRequired;
-		Ar << IniFilename.CacheKey;
-		return Ar;
-	}
-};
-
 
 #if ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 // Options which stemmed from the commandline
@@ -377,30 +348,6 @@ struct FConfigCommandlineOverride
 };
 #endif // ALLOW_INI_OVERRIDE_FROM_COMMANDLINE
 
-
-class FConfigFileHierarchy : public TMap<int32, FIniFilename>
-{
-private:
-	int32 KeyGen = 0;
-
-public:
-	FConfigFileHierarchy();
-
-	friend FArchive& operator<<(FArchive& Ar, FConfigFileHierarchy& ConfigFileHierarchy)
-	{
-		Ar << static_cast<FConfigFileHierarchy::Super&>(ConfigFileHierarchy);
-		Ar << ConfigFileHierarchy.KeyGen;
-		return Ar;
-	}
-
-private:
-	int32 GenerateDynamicKey();
-
-	int32 AddStaticLayer(FIniFilename Filename, int32 LayerIndex, int32 ExpansionIndex=0, int32 PlatformIndex=0);
-	int32 AddDynamicLayer(FIniFilename Filename);
-
-	friend class FConfigFile;
-};
 
 // One config file.
 
@@ -423,9 +370,6 @@ public:
 
 	/** The untainted config file which contains the coalesced base/default options. I.e. No Saved/ options*/
 	FConfigFile* SourceConfigFile;
-
-	/** Key to the cache to speed up ini parsing */
-	FString CacheKey;
 
 	FString PlatformName;
 
@@ -640,9 +584,11 @@ private:
 	 * @param OutHierarchy An array which is to receive the generated hierachy of ini filenames.
 	 */
 	void AddStaticLayersToHierarchy(const TCHAR* InBaseIniName, const TCHAR* InPlatformName, const TCHAR* EngineConfigDir, const TCHAR* SourceConfigDir);
+	static void AddStaticLayersToHierarchy(FConfigContext& Context);
 
 	// for AddStaticLayersToHierarchy
 	friend class FConfigCacheIni;
+	friend FConfigContext;
 };
 
 FArchive& operator<<(FArchive& Ar, FConfigFile& ConfigFile);
@@ -661,26 +607,9 @@ enum class EConfigCacheType : uint8
 };
 
 // Set of all cached config files.
-class CORE_API FConfigCacheIni : private TMap<FString,FConfigFile>
+class CORE_API FConfigCacheIni
 {
 public:
-
-	static void SetIniCacheSet(const TSet<FString>* InIniCacheSet)
-	{
-		IniCacheSet = InIniCacheSet;
-	}
-
-	static const TSet<FString>* GetIniCacheSet()
-	{
-		return IniCacheSet;
-	}
-
-private:
-
-	static const TSet<FString>* IniCacheSet;
-	
-public:
-	
 	// Basic functions.
 	FConfigCacheIni(EConfigCacheType Type);
 
@@ -783,19 +712,19 @@ public:
 	/** Finds Config file that matches the base name such as "Engine" */
 	FConfigFile* FindConfigFileWithBaseName(FName BaseName);
 
-	using Super = TMap<FString, FConfigFile>;
 	FConfigFile& Add(const FString& Filename, const FConfigFile& File)
 	{
-		return Super::Add(Filename, File);
+		return *OtherFiles.Add(Filename, new FConfigFile(File));
 	}
 	int32 Remove(const FString& Filename)
 	{
-		return Super::Remove(Filename);
+		delete OtherFiles.FindRef(Filename);
+		return OtherFiles.Remove(Filename);
 	}
 	TArray<FString> GetFilenames();
 
 
-	void Flush( bool Read, const FString& Filename=TEXT("") );
+	void Flush(bool bRemoveFromCache, const FString& Filename=TEXT(""));
 
 	void LoadFile( const FString& InFilename, const FConfigFile* Fallback = NULL, const TCHAR* PlatformString = NULL );
 	void SetFile( const FString& InFilename, const FConfigFile* NewConfigFile );
@@ -1295,6 +1224,7 @@ public:
 	 * return True if the engine ini was loaded
 	 */
 	bool InitializeKnownConfigFiles(const TCHAR* PlatformName, bool bDefaultEngineIniRequired, const TCHAR* OverrideProjectDir=nullptr);
+	static bool InitializeKnownConfigFiles(FConfigContext& Context);
 
 	/**
 	 * Returns true if the given name is one of the known configs, where the matching G****Ini property is going to match the 
@@ -1338,13 +1268,13 @@ private:
 
 	/** The filenames for the known files in this config */
 	FKnownConfigFiles KnownFiles;
+
+	TMap<FString, FConfigFile*> OtherFiles;
+
+	friend FConfigContext;
 };
 
-UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
-CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, int32 InGroupNumber, const TCHAR* InIniFilename, uint32 SetBy);
 
-UE_DEPRECATED(4.24, "This functionality to generate Scalability@Level section string has been moved to Scalability.cpp. Explictly construct section you need manually.")
-CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, const TCHAR* InSectionTag, const TCHAR* InIniFilename, uint32 SetBy);
 
 /**
  * Helper function to read the contents of an ini file and a specified group of cvar parameters, where sections in the ini file are marked [InName]
@@ -1352,6 +1282,7 @@ CORE_API void ApplyCVarSettingsGroupFromIni(const TCHAR* InSectionBaseName, cons
  * @param InIniFilename - The ini filename
  * @param SetBy anything in ECVF_LastSetMask e.g. ECVF_SetByScalability
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ApplyCVarSettingsFromIni")
 CORE_API void ApplyCVarSettingsFromIni(const TCHAR* InSectionBaseName, const TCHAR* InIniFilename, uint32 SetBy, bool bAllowCheating = false);
 
 /**
@@ -1360,6 +1291,7 @@ CORE_API void ApplyCVarSettingsFromIni(const TCHAR* InSectionBaseName, const TCH
  * @param InIniFilename - The ini filename
  * @param InEvaluationFunction - The evaluation function to be called for each key/value pair
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ForEachCVarInSectionFromIni")
 CORE_API void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHAR* InIniFilename, TFunction<void(IConsoleVariable* CVar, const FString& KeyString, const FString& ValueString)> InEvaluationFunction);
 
 /**
@@ -1370,34 +1302,41 @@ CORE_API void ForEachCVarInSectionFromIni(const TCHAR* InSectionName, const TCHA
  * Helper function to start recording ApplyCVarSettings function calls 
  * uses these to generate a history of applied ini settings sections
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::RecordApplyCVarSettingsFromIni")
 CORE_API void RecordApplyCVarSettingsFromIni();
 
 /**
  * Helper function to reapply inis which have been applied after RecordCVarIniHistory was called
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ReapplyRecordedCVarSettingsFromIni")
 CORE_API void ReapplyRecordedCVarSettingsFromIni();
 
 /**
  * Helper function to clean up ini history
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::DeleteRecordedCVarSettingsFromIni")
 CORE_API void DeleteRecordedCVarSettingsFromIni();
 
 /**
  * Helper function to start recording config reads
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::RecordConfigReadsFromIni")
 CORE_API void RecordConfigReadsFromIni();
 
 /**
  * Helper function to dump config reads to csv after RecordConfigReadsFromIni was called
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::DumpRecordedConfigReadsFromIni")
 CORE_API void DumpRecordedConfigReadsFromIni();
 
 /**
  * Helper function to clean up config read history
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::DeleteRecordedConfigReadsFromIni")
 CORE_API void DeleteRecordedConfigReadsFromIni();
 
 /**
  * Helper function to deal with "True","False","Yes","No","On","Off"
  */
+UE_DEPRECATED(5.1, "Use UE::ConfigUtilities::ConvertValueFromHumanFriendlyValue")
 CORE_API const TCHAR* ConvertValueFromHumanFriendlyValue(const TCHAR* Value);
