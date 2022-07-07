@@ -194,7 +194,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 
 			+SOverlay::Slot()
 			.VAlign(VAlign_Top)
-			.HAlign(HAlign_Left)
+			.HAlign(HAlign_Fill)
 			.Padding(8)
 			[
 				SNew(SHorizontalBox)
