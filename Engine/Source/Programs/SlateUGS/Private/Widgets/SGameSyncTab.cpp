@@ -7,6 +7,8 @@
 #include "SPositiveActionButton.h"
 #include "SSimpleComboButton.h"
 #include "SSimpleButton.h"
+#include "Widgets/SLogWidget.h"
+#include "Widgets/Layout/SHeader.h"
 #include "Widgets/Testing/STestSuite.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "Widgets/Colors/SSimpleGradient.h"
@@ -407,14 +409,35 @@ void SGameSyncTab::Construct(const FArguments& InArgs)
 			.ListItemsSource(&HordeBuilds)
 			.OnGenerateRow(this, &SGameSyncTab::GenerateHordeBuildTableRow)
 		]
-		// Console window
 		+SVerticalBox::Slot()
-		.Padding(20.0f, 5.0f)
 		[
-			SNew(STextBlock)
-			.Text(LOCTEXT("ConsoleArea", "Console Area"))
+			SNew(SVerticalBox)
+			+SVerticalBox::Slot()
+				.AutoHeight()
+				.Padding(0.0f, 4.0f, 0.0f, 8.0f)
+				[
+					SNew(SHeader)
+					[
+						SNew(STextBlock)
+						.Text(LOCTEXT("Log", "Log"))
+					]
+				]
+			+SVerticalBox::Slot()
+				[
+					SAssignNew(SyncLog, SLogWidget)
+				]
 		]
 	];
+}
+
+TSharedPtr<SLogWidget> SGameSyncTab::GetSyncLog() const
+{
+	return SyncLog;
+}
+
+void SGameSyncTab::SetSyncLogLocation(const FString& LogFileName)
+{
+    SyncLog->OpenFile(*LogFileName);
 }
 
 #undef LOCTEXT_NAMESPACE

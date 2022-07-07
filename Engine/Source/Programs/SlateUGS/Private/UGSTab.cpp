@@ -2,11 +2,12 @@
 
 #include "UGSTab.h"
 
+#include "UGSCore/Utility.h"
 #include "UGSCore/BuildStep.h"
 #include "UGSCore/DetectProjectSettingsTask.h"
-#include "UGSCore/Utility.h"
 #include "UGSCore/UserSettings.h"
 #include "Widgets/SModalTaskWindow.h"
+#include "Widgets/SLogWidget.h"
 
 #define LOCTEXT_NAMESPACE "UGSTab"
 
@@ -210,6 +211,8 @@ namespace
 void UGSTab::SetupWorkspace()
 {
 	ProjectFileName = FUtility::GetPathWithCorrectCase(ProjectFileName);
+
+	// TODO likely should also log this on an Empty tab... so we can show logging info when we are loading things
 	TSharedRef<FDetectProjectSettingsTask> DetectSettings = MakeShared<FDetectProjectSettingsTask>(MakeShared<FPerforceConnection>(TEXT(""), TEXT(""), TEXT("")), ProjectFileName, MakeShared<FLineWriter>());
 
 	TSharedRef<FModalTaskResult> Result = ExecuteModalTask(TabWidget, DetectSettings, LOCTEXT("OpeningProjectTitle", "Opening Project"), LOCTEXT("OpeningProjectCaption", "Opening project, please wait..."));
@@ -250,40 +253,45 @@ void UGSTab::SetupWorkspace()
 	FString ProjectLogBaseName = DataFolder / FString::Printf(TEXT("%s@%s"), *PerforceClient->ClientName, *ClientKey.Replace(TEXT("/"), TEXT("$")));
 	FString TelemetryProjectIdentifier = FPerforceUtils::GetClientOrDepotDirectoryName(*SelectedProjectIdentifier);
 
-	Workspace = MakeShared<FWorkspace>(PerforceClient, BranchDirectoryName, ProjectFileName, BranchClientPath, SelectedClientFileName, CurrentChangeNumber, WorkspaceSettings->LastBuiltChangeNumber, TelemetryProjectIdentifier, MakeShared<FLineWriter>());
+	FString LogFileName = DataFolder / FPaths::GetPath(ProjectFileName) + TEXT(".sync.log");
+	GameSyncTabView->SetSyncLogLocation(LogFileName);
+
+	Workspace = MakeShared<FWorkspace>(PerforceClient, BranchDirectoryName, ProjectFileName, BranchClientPath, SelectedClientFileName, CurrentChangeNumber, WorkspaceSettings->LastBuiltChangeNumber, TelemetryProjectIdentifier, MakeShared<FLogWidgetTextWriter>(GameSyncTabView->GetSyncLog().ToSharedRef()));
 
 	// Todo:Move into a sync operation
-	// TArray<FString> CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(Workspace->GetSyncCategories(), Settings->SyncView, Settings->SyncExcludedCategories, WorkspaceSettings->SyncView, WorkspaceSettings->SyncExcludedCategories);
+	/*
+	TArray<FString> CombinedSyncFilter = FUserSettings::GetCombinedSyncFilter(Workspace->GetSyncCategories(), Settings->SyncView, Settings->SyncExcludedCategories, WorkspaceSettings->SyncView, WorkspaceSettings->SyncExcludedCategories);
 
-	// // Options on what to do with workspace when updating it
-	// EWorkspaceUpdateOptions Options = EWorkspaceUpdateOptions::Sync | EWorkspaceUpdateOptions::SyncArchives | EWorkspaceUpdateOptions::GenerateProjectFiles;
-	// if(Settings->bAutoResolveConflicts)
-	// {
-	// 	Options |= EWorkspaceUpdateOptions::AutoResolveChanges;
-	// }
-	// if(Settings->bUseIncrementalBuilds)
-	// {
-	// 	Options |= EWorkspaceUpdateOptions::UseIncrementalBuilds;
-	// }
-	// if(Settings->bBuildAfterSync)
-	// {
-	// 	Options |= EWorkspaceUpdateOptions::Build;
-	// }
-	// if(Settings->bBuildAfterSync && Settings->bRunAfterSync)
-	// {
-	// 	Options |= EWorkspaceUpdateOptions::RunAfterSync; 
-	// }
-	// if(Settings->bOpenSolutionAfterSync)
-	// {
-	// 	Options |= EWorkspaceUpdateOptions::OpenSolutionAfterSync;
-	// }
+	// Options on what to do with workspace when updating it
+	EWorkspaceUpdateOptions Options = EWorkspaceUpdateOptions::Sync | EWorkspaceUpdateOptions::SyncArchives | EWorkspaceUpdateOptions::GenerateProjectFiles;
+	if(Settings->bAutoResolveConflicts)
+	{
+		Options |= EWorkspaceUpdateOptions::AutoResolveChanges;
+	}
+	if(Settings->bUseIncrementalBuilds)
+	{
+		Options |= EWorkspaceUpdateOptions::UseIncrementalBuilds;
+	}
+	if(Settings->bBuildAfterSync)
+	{
+		Options |= EWorkspaceUpdateOptions::Build;
+	}
+	if(Settings->bBuildAfterSync && Settings->bRunAfterSync)
+	{
+		Options |= EWorkspaceUpdateOptions::RunAfterSync;
+	}
+	if(Settings->bOpenSolutionAfterSync)
+	{
+		Options |= EWorkspaceUpdateOptions::OpenSolutionAfterSync;
+	}
 
 	// // Hacking in the CL
-	// int ChangeNumber = 20658981;
-	// TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(ChangeNumber, Options, CombinedSyncFilter, GetDefaultBuildStepObjects(EditorTarget, Settings), ProjectSettings->BuildSteps, TSet<FGuid>(), GetWorkspaceVariables(DetectSettings));
+	int ChangeNumber = 20992206;
+	TSharedRef<FWorkspaceUpdateContext, ESPMode::ThreadSafe> Context = MakeShared<FWorkspaceUpdateContext, ESPMode::ThreadSafe>(ChangeNumber, Options, CombinedSyncFilter, GetDefaultBuildStepObjects(EditorTarget, Settings), ProjectSettings->BuildSteps, TSet<FGuid>(), GetWorkspaceVariables(DetectSettings));
 
 	// // Update the workspace with the Context!
-	// Workspace->Update(Context);
+	Workspace->Update(Context);
+	*/
 }
 
 #undef LOCTEXT_NAMESPACE

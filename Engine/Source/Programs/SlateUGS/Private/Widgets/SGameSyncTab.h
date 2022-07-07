@@ -5,6 +5,8 @@
 #include "Widgets/SCompoundWidget.h"
 #include "HordeBuildRowInfo.h"
 
+class SLogWidget;
+
 class SGameSyncTab : public SCompoundWidget
 {
 public:
@@ -14,11 +16,18 @@ public:
 
 	void Construct(const FArguments& InArgs);
 
+	// We need access to the SyncLog when creating the Workspace
+	// TODO: think of a better way to do this
+	TSharedPtr<SLogWidget> GetSyncLog() const;
+	void SetSyncLogLocation(const FString& LogFileName);
+
 private:
 	TSharedRef<ITableRow> GenerateHordeBuildTableRow(TSharedPtr<HordeBuildRowInfo> InItem, const TSharedRef<STableViewBase>& InOwnerTable);
 
-	TSharedPtr<SListView<TSharedPtr<HordeBuildRowInfo>>> HordeBuildsView; 
+	TSharedPtr<SListView<TSharedPtr<HordeBuildRowInfo>>> HordeBuildsView;
 	TArray<TSharedPtr<HordeBuildRowInfo>> HordeBuilds;
+
+	TSharedPtr<SLogWidget> SyncLog;
 
 	static constexpr float HordeBuildRowHorizontalPadding = 10.0f;
 	static constexpr float HordeBuildRowVerticalPadding = 2.5f;
