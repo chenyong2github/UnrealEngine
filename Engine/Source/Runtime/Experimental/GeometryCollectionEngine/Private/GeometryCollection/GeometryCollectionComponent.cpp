@@ -1411,6 +1411,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 		const FPBDRigidsSolver* Solver = PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>();
 		const FRigidClustering& RigidClustering = Solver->GetEvolution()->GetRigidClustering();
 
+		const TManagedArray<int32>& Levels = PhysicsProxy->GetPhysicsCollection().GetAttribute<int32>("InitialLevel", FGeometryCollection::TransformGroup);
+
 		//see if we have any new clusters that are enabled
 		TSet<FPBDRigidClusteredParticleHandle*> Processed;
 		for (FPBDRigidClusteredParticleHandle* Particle : PhysicsProxy->GetParticles())
@@ -1436,20 +1438,46 @@ void UGeometryCollectionComponent::UpdateRepData()
 
 			if (bProcess && Root->Disabled() == false && ClustersToRep->Find(Root) == nullptr)
 			{
-				//first time in here so needs a new count
-				//TODO: check root needs to replicate if abandon by level is enabled
-				ClustersToRep->Add(Root);
+				const int32 TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Root);
+				int32 Level = INDEX_NONE;
+				if (Root->InternalCluster() == false)
+				{
+					Level = Levels[TransformGroupIdx];
+				}
+				else
+				{
+					// Use internal cluster child's index to compute level.
+					const TArray<FPBDRigidParticleHandle*>& Children = RigidClustering.GetChildrenMap()[Root];
+					const int32 ChildTransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Children[0]);
+					Level = Levels[ChildTransformGroupIdx] - 1;
+				}
+
+				if (!bEnableAbandonAfterLevel|| Level < ReplicationAbandonClusterLevel)
+				{
+					// not already replicated and not abandoned level, start replicating cluster
+					ClustersToRep->Add(Root);
+					bClustersChanged = true;
+				}
+
 				if(Root->InternalCluster() == false && bFirstUpdate == false)	//if bFirstUpdate it must be that these are the initial roots of the GC. These did not break off so no need to replicate
 				{
 					//a one off so record it
-					const int32 TransformGroupIdx = PhysicsProxy->GetTransformGroupIndexFromHandle(Root);
 					ensureMsgf(TransformGroupIdx >= 0, TEXT("Non-internal cluster should always have a group index"));
 					ensureMsgf(TransformGroupIdx < TNumericLimits<uint16>::Max(), TEXT("Trying to replicate GC with more than 65k pieces. We assumed uint16 would suffice"));
-					RepData.OneOffActivated.Add(FGeometryCollectionActivatedCluster(TransformGroupIdx, Root->V(), Root->W()));
-					bClustersChanged = true;
+
+					// Because we cull ClustersToRep with abandoned level, we must make sure we don't add duplicates to one off activated.
+					// TODO: avoid search for entry for perf
+					FGeometryCollectionActivatedCluster OneOffActivated(TransformGroupIdx, Root->V(), Root->W());
+					if(!RepData.OneOffActivated.Contains(OneOffActivated))
+					{
+						bClustersChanged = true;
+						RepData.OneOffActivated.Add(OneOffActivated);
+					}
 				}
 			}
 		}
+		
+		INC_DWORD_STAT_BY(STAT_GCReplicatedFractures, RepData.OneOffActivated.Num());
 
 		//build up clusters to replicate and compare with previous frame
 		TArray<FGeometryCollectionClusterRep> Clusters;
@@ -1511,6 +1539,8 @@ void UGeometryCollectionComponent::UpdateRepData()
 		if (bClustersChanged)
 		{
 			RepData.Clusters = MoveTemp(Clusters);
+
+			INC_DWORD_STAT_BY(STAT_GCReplicatedClusters, RepData.Clusters.Num());
 
 			MARK_PROPERTY_DIRTY_FROM_NAME(UGeometryCollectionComponent, RepData, this);
 			++RepData.Version;

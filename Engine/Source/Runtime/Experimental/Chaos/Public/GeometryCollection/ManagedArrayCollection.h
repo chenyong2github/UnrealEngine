@@ -416,6 +416,14 @@ public:
 	void CopyAttribute(const FManagedArrayCollection& InCollection, FName Name, FName Group);
 
 	/**
+	* Copy an attribute. Will perform an implicit group sync.
+	* @param SrcName - The name of the attribute being copied from
+	* @param DestName - The name of the attribute being copied to
+	* @param Group - The group that manages the attribute
+	*/
+	void CopyAttribute(const FManagedArrayCollection& InCollection, FName SrcName, FName DestName, FName Group);
+
+	/**
 	* Copy attributes that match the input collection. This is a utility to easily sync collections
 	* @param InCollection - All groups from this collection found in the input will be sized accordingly
 	* @param SkipList - Group/Attrs to skip. Keys are group names, values are attributes in those groups.

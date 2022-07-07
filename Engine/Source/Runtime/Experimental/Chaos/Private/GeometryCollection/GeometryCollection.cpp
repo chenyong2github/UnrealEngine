@@ -11,6 +11,7 @@
 #include "GeometryCollection/GeometryCollectionProximityUtility.h"
 #include "GeometryCollection/GeometryCollectionClusteringUtility.h"
 #include "GeometryCollection/GeometryCollectionConvexUtility.h"
+#include "UObject/FortniteNCBranchObjectVersion.h"
 
 #include <iostream>
 #include <fstream>
@@ -953,6 +954,8 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 		FGeometryCollectionConvexPropertiesInterface::CleanInterfaceForCook();
 	}
 
+	Ar.UsingCustomVersion(FFortniteNCBranchObjectVersion::GUID);
+
 	Super::Serialize(Ar);
 
 	if (Ar.IsLoading())
@@ -1209,6 +1212,14 @@ void FGeometryCollection::Serialize(Chaos::FChaosArchive& Ar)
 			}
 			
 			Version = 9;
+		}
+
+		if (Ar.CustomVer(FFortniteNCBranchObjectVersion::GUID) < FFortniteNCBranchObjectVersion::ChaosGeometryCollectionSaveLevelsAttribute)
+		{
+			// Level attribute previously serialized with bSave = false, so was not serializing level data.
+			// We now compute this during cook and need to serialize, so convert attribute to bSave = true.
+			RemoveAttribute("Level", FTransformCollection::TransformGroup);
+			AddAttribute<int32>("Level", FTransformCollection::TransformGroup, FConstructionParameters(FName(), /*bSave=*/true));
 		}
 	}
 }

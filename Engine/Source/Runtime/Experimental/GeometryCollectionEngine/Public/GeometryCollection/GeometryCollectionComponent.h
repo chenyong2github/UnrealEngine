@@ -323,6 +323,11 @@ struct FGeometryCollectionActivatedCluster
 	uint16 ActivatedIndex;
 	FVector_NetQuantize100 InitialLinearVelocity;
 	FVector_NetQuantize100 InitialAngularVelocity;
+
+	bool operator==(const FGeometryCollectionActivatedCluster& Other) const
+	{
+		return ActivatedIndex == Other.ActivatedIndex;
+	}
 };
 
 FORCEINLINE FArchive& operator<<(FArchive& Ar, FGeometryCollectionActivatedCluster& ActivatedCluster)

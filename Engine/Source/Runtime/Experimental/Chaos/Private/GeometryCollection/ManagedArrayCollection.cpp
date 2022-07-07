@@ -371,23 +371,29 @@ void FManagedArrayCollection::CopyMatchingAttributesFrom(
 
 void FManagedArrayCollection::CopyAttribute(const FManagedArrayCollection& InCollection, FName Name, FName Group)
 {
-	SyncGroupSizeFrom(InCollection, Group);
-	FKeyType Key = FManagedArrayCollection::MakeMapKey(Name, Group);
+	CopyAttribute(InCollection, /*SrcName=*/Name, /*DestName=*/Name, Group);
+}
 
-	if (!HasAttribute(Name, Group))
+void FManagedArrayCollection::CopyAttribute(const FManagedArrayCollection& InCollection, FName SrcName, FName DestName, FName Group)
+{
+	SyncGroupSizeFrom(InCollection, Group);
+	FKeyType SrcKey = FManagedArrayCollection::MakeMapKey(SrcName, Group);
+	FKeyType DestKey = FManagedArrayCollection::MakeMapKey(DestName, Group);
+
+	if (!HasAttribute(DestName, Group))
 	{
-		const FValueType& V = InCollection.Map[Key];
+		const FValueType& V = InCollection.Map[SrcKey];
 		EArrayType Type = V.ArrayType;
 		FValueType Value(Type, *NewManagedTypedArray(Type));
 		Value.Value->Resize(NumElements(Group));
 		Value.GroupIndexDependency = V.GroupIndexDependency;
 		Value.Saved = V.Saved;
 		Value.bExternalValue = V.bExternalValue;
-		Map.Add(Key, MoveTemp(Value));
+		Map.Add(DestKey, MoveTemp(Value));
 	}
 
-	const FValueType& OriginalValue = InCollection.Map[Key];
-	const FValueType& DestValue = Map[Key];	
+	const FValueType& OriginalValue = InCollection.Map[SrcKey];
+	const FValueType& DestValue = Map[DestKey];
 	check(OriginalValue.ArrayType == DestValue.ArrayType);
 	DestValue.Value->Init(*OriginalValue.Value);
 }

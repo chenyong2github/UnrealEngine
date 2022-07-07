@@ -609,6 +609,12 @@ void FGeometryCollectionPhysicsProxy::Initialize(Chaos::FPBDRigidsEvolutionBase 
 			}
 		}
 	}
+
+	// Add levels to physics thread collection, rename to make it clear these are initial levels from rest collection and not updated during sim.
+	PhysicsThreadCollection.CopyAttribute(*Parameters.RestCollection, /*SrcName=*/"Level", /*DestName=*/"InitialLevel", FTransformCollection::TransformGroup);
+	GameThreadCollection.CopyAttribute(*Parameters.RestCollection, /*SrcName=*/"Level", /*DestName=*/"InitialLevel", FTransformCollection::TransformGroup);
+
+
 }
 
 
@@ -1767,6 +1773,57 @@ int32 FGeometryCollectionPhysicsProxy::CalculateHierarchyLevel(const FGeometryDy
 		Level++;
 	}
 	return Level;
+}
+
+
+
+int32 FGeometryCollectionPhysicsProxy::CalculateAndSetLevel(int32 TransformGroupIndex, const TManagedArray<int32>& Parent, TManagedArray<int32>& Levels)
+{
+	// Count levels up to root or first parent that has level initialized
+	int32 LevelsFromRoot = 0;
+
+	// Parents up tree from current index that need level initialization, ordered depth first
+	TArray<int32, TInlineAllocator<8>> ParentStack;
+
+	int32 ParentTransformGroupIndex = Parent[TransformGroupIndex];
+	while (ParentTransformGroupIndex != INDEX_NONE)
+	{
+		LevelsFromRoot++;
+
+		int32 ParentLevel = Levels[ParentTransformGroupIndex];
+		if (ParentLevel > 0)
+		{
+			// If parent level is not 0 it has already been computed, 
+			// can early out and not search for true root.
+			Levels[TransformGroupIndex] = ParentLevel + LevelsFromRoot;
+			break;
+		}
+
+		// save this parent so we can set it's level once we determine depth
+		ParentStack.Push(ParentTransformGroupIndex);
+
+		ParentTransformGroupIndex = Parent[ParentTransformGroupIndex];
+	}
+
+	if (LevelsFromRoot > 0) // Not at root, update levels of current particle and uninitialized parents
+	{
+		if (Levels[TransformGroupIndex] == 0)
+		{
+			// If we are uninitialized, we did not early out after finding an initialized parent up the tree, and LevelsFromRoot is new level.
+			Levels[TransformGroupIndex] = LevelsFromRoot;
+		}
+
+		// Initialize newly discovered parent levels
+		for (int32 Idx = 0; Idx < ParentStack.Num(); ++Idx)
+		{
+			int32 ParentTransformGroupIdx = ParentStack[Idx];
+
+			// Level of parent is leaf level minus parent's distance from leaf minus 1.
+			Levels[ParentTransformGroupIdx] = Levels[TransformGroupIndex] - Idx - 1;
+		}
+	}
+
+	return Levels[TransformGroupIndex];
 }
 
 void FGeometryCollectionPhysicsProxy::InitializeRemoveOnFracture(FParticlesType& Particles, const TManagedArray<int32>& DynamicState)
@@ -2972,6 +3029,8 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 	TManagedArray<FRealSingle>& CollectionMass = RestCollection.AddAttribute<FRealSingle>(TEXT("Mass"), FTransformCollection::TransformGroup);
 	TManagedArray<TUniquePtr<FSimplicial>>& CollectionSimplicials =	RestCollection.AddAttribute<TUniquePtr<FSimplicial>>(FGeometryDynamicCollection::SimplicialsAttribute, FTransformCollection::TransformGroup);
 
+	TManagedArray<int32>& Levels = RestCollection.AddAttribute<int32>(TEXT("Level"), FTransformCollection::TransformGroup);
+
 	RestCollection.RemoveAttribute(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 	TManagedArray<FGeometryDynamicCollection::FSharedImplicit>& CollectionImplicits = RestCollection.AddAttribute<FGeometryDynamicCollection::FSharedImplicit>(FGeometryDynamicCollection::ImplicitsAttribute, FTransformCollection::TransformGroup);
 
@@ -3452,6 +3511,9 @@ void FGeometryCollectionPhysicsProxy::InitializeSharedCollisionStructures(
 
 				TriangleMeshesArray[ClusterTransformIdx] = MoveTemp(UnionMesh);
 			}
+
+			// Set level of TransformGroupIndex in Levels attribute.
+			CalculateAndSetLevel(TransformGroupIndex, Parent, Levels);
 		}
 
 		InitRemoveOnFracture(RestCollection, SharedParams);

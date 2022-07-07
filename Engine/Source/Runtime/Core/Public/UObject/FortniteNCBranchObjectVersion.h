@@ -38,6 +38,10 @@ struct CORE_API FFortniteNCBranchObjectVersion
 
 		// Transfer PhysicsAsset SolverSettings (iteration counts etc) to new structure
 		PhysicsAssetNewSolverSettings,
+		
+		// Chaos GeometryCollection now saves levels attribute values
+		ChaosGeometryCollectionSaveLevelsAttribute,
+
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
