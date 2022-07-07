@@ -88,6 +88,7 @@ bool FScreenReaderApplicationMessageHandlerBase::OnCursorSet()
 	return TargetMessageHandler->OnCursorSet();
 }
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 bool FScreenReaderApplicationMessageHandlerBase::OnControllerAnalog(FGamepadKeyNames::Type KeyName, int32 ControllerId, float AnalogValue)
 {
 	return TargetMessageHandler->OnControllerAnalog(KeyName, ControllerId, AnalogValue);
@@ -101,6 +102,22 @@ bool FScreenReaderApplicationMessageHandlerBase::OnControllerButtonPressed(FGame
 bool FScreenReaderApplicationMessageHandlerBase::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, int32 ControllerId, bool IsRepeat)
 {
 	return TargetMessageHandler->OnControllerButtonReleased(KeyName, ControllerId, IsRepeat);
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+bool FScreenReaderApplicationMessageHandlerBase::OnControllerAnalog(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, float AnalogValue)
+{
+	return TargetMessageHandler->OnControllerAnalog(KeyName, PlatformUserId, InputDeviceId, AnalogValue);
+}
+
+bool FScreenReaderApplicationMessageHandlerBase::OnControllerButtonPressed(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	return TargetMessageHandler->OnControllerButtonPressed(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
+}
+
+bool FScreenReaderApplicationMessageHandlerBase::OnControllerButtonReleased(FGamepadKeyNames::Type KeyName, FPlatformUserId PlatformUserId, FInputDeviceId InputDeviceId, bool IsRepeat)
+{
+	return TargetMessageHandler->OnControllerButtonReleased(KeyName, PlatformUserId, InputDeviceId, IsRepeat);
 }
 
 void FScreenReaderApplicationMessageHandlerBase::OnBeginGesture()
