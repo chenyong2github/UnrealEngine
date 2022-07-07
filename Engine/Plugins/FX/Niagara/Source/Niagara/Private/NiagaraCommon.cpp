@@ -977,36 +977,45 @@ FName NIAGARA_API FNiagaraUtilities::GetUniqueName(FName CandidateName, const TS
 
 FString FNiagaraUtilities::CreateRapidIterationConstantName(FName InVariableName, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage)
 {
-	TArray<FString> SplitName;
-	InVariableName.ToString().ParseIntoArray(SplitName, TEXT("."));
-	int32 NumSlots = SplitName.Num();
+	FNameBuilder ConstantName;
+
+	ConstantName.Append(PARAM_MAP_RAPID_ITERATION_BASE_STR);
+	ConstantName.AppendChar(TCHAR('.'));
+
 	if (InEmitterName != nullptr)
 	{
-		for (int32 i = 0; i < NumSlots; i++)
-		{
-			if (SplitName[i] == TEXT("Emitter"))
-			{
-				SplitName[i] = InEmitterName;
-			}
-		}
+		FNameBuilder VariableSource(InVariableName);
+		FStringView VariableView(VariableSource);
 
-		if (NumSlots >= 3 && SplitName[0] == InEmitterName)
+		constexpr TCHAR EmitterNamespace[] = TEXT("Emitter.");
+		constexpr int32 EmitterNamespaceLength = UE_ARRAY_COUNT(EmitterNamespace) - 1;
+
+		const int32 EmitterLocation = VariableView.Find(EmitterNamespace);
+		const bool HasEmitterNamespace = EmitterLocation != INDEX_NONE
+			&& (EmitterLocation == 0 || VariableView[EmitterLocation - 1] == TCHAR('.'))
+			&& (VariableView.Len() > (EmitterLocation + EmitterNamespaceLength));
+
+		ConstantName.Append(InEmitterName);
+		ConstantName.AppendChar(TCHAR('.'));
+
+		if (HasEmitterNamespace)
 		{
-			// Do nothing
-			UE_LOG(LogNiagara, Log, TEXT("ConvertVariableToRapidIterationConstantName Got here!"));
+			ConstantName.Append(VariableView.Left(EmitterLocation));
+			ConstantName.Append(InEmitterName);
+			ConstantName.AppendChar(TCHAR('.'));
+			ConstantName.Append(VariableView.RightChop(EmitterLocation + EmitterNamespaceLength));
 		}
 		else
 		{
-			SplitName.Insert(InEmitterName, 0);
+			ConstantName.Append(VariableView);
 		}
-		SplitName.Insert(TEXT("Constants"), 0);
 	}
 	else
 	{
-		SplitName.Insert(TEXT("Constants"), 0);
+		InVariableName.AppendString(ConstantName);
 	}
 
-	return FString::Join(SplitName, TEXT("."));
+	return ConstantName.ToString();
 }
 
 FNiagaraVariable FNiagaraUtilities::ConvertVariableToRapidIterationConstantName(FNiagaraVariable InVar, const TCHAR* InEmitterName, ENiagaraScriptUsage InUsage)

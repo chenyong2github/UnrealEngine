@@ -16,12 +16,13 @@ class UNiagaraNodeFunctionCall;
 class FNiagaraGraphDataCache
 {
 public:
-	void GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
-	
+	void GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
+	void GetStackFunctionInputPins(UNiagaraNodeFunctionCall& FunctionCallNode, TConstArrayView<FNiagaraVariable> StaticVars, TArray<const UEdGraphPin*>& OutInputPins, TSet<const UEdGraphPin*>& OutHiddenPins, FCompileConstantResolver ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options, bool bIgnoreDisabled);
+
 private:
 	struct FGetStackFunctionInputPinsKey
 	{
-		FGetStackFunctionInputPinsKey(UNiagaraNodeFunctionCall& InFunctionCallNode, const FCompileConstantResolver& InConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions InOptions, bool bInIgnoreDisabled);
+		FGetStackFunctionInputPinsKey(UNiagaraNodeFunctionCall& InFunctionCallNode, const FCompileConstantResolver& InConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions InOptions, bool bInIgnoreDisabled, bool bFilterForCompilation);
 
 		FORCEINLINE bool operator == (const FGetStackFunctionInputPinsKey& Other) const
 		{
@@ -33,7 +34,8 @@ private:
 				ConstantResolverUsage == Other.ConstantResolverUsage &&
 				ConstantResolverDebugState == Other.ConstantResolverDebugState &&
 				Options == Other.Options &&
-				bIgnoreDisabled == Other.bIgnoreDisabled;
+				bIgnoreDisabled == Other.bIgnoreDisabled &&
+				bFilterForCompilation == Other.bFilterForCompilation;
 		}
 
 		friend uint32 GetTypeHash(const FGetStackFunctionInputPinsKey& Key)
@@ -52,6 +54,7 @@ private:
 
 		FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions Options;
 		bool bIgnoreDisabled;
+		bool bFilterForCompilation;
 
 		int32 Hash;
 	};
@@ -64,7 +67,6 @@ private:
 		TWeakObjectPtr<UNiagaraGraph> CalledGraphWeak;
 		FGuid LastCalledGraphChangeId;
 		TArray<const UEdGraphPin*> InputPins;
-		TSet<const UEdGraphPin*> HiddenPins;
 		bool IsValid() const;
 	};
 

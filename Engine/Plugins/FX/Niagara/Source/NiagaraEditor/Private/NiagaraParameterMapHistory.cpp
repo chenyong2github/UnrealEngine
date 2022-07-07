@@ -1806,14 +1806,14 @@ int32 FNiagaraParameterMapHistoryBuilder::HandleVariableRead(int32 ParamMapIdx, 
 	return FoundIdx;
 }
 
-void FNiagaraParameterMapHistoryBuilder::RegisterEncounterableVariables(const TArray<FNiagaraVariable>& Variables)
+void FNiagaraParameterMapHistoryBuilder::RegisterEncounterableVariables(TConstArrayView<FNiagaraVariable> Variables)
 {
-	EncounterableExternalVariables.Append(Variables);
+	EncounterableExternalVariables.Append(Variables.GetData(), Variables.Num());
 }
 
-void FNiagaraParameterMapHistoryBuilder::RegisterExternalStaticVariables(const TArray<FNiagaraVariable>& Variables)
+void FNiagaraParameterMapHistoryBuilder::RegisterExternalStaticVariables(TConstArrayView<FNiagaraVariable> Variables)
 {
-	StaticVariables.Append(Variables);
+	StaticVariables.Append(Variables.GetData(), Variables.Num());
 
 	if (UNiagaraScript::LogCompileStaticVars > 0)
 	{

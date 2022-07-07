@@ -502,10 +502,10 @@ public:
 	bool IsInEncounteredEmitterNamespace(FNiagaraVariable& InVar) const;
 
 	/** Register any user or other external variables that could possibly be encountered but may not be declared explicitly. */
-	void RegisterEncounterableVariables(const TArray<FNiagaraVariable>& Variables);
+	void RegisterEncounterableVariables(TConstArrayView<FNiagaraVariable> Variables);
 	const TArray<FNiagaraVariable>& GetEncounterableVariables() const {	return EncounterableExternalVariables;}
 
-	void RegisterExternalStaticVariables(const TArray<FNiagaraVariable>& Variables);
+	void RegisterExternalStaticVariables(TConstArrayView<FNiagaraVariable> Variables);
 
 	FCompileConstantResolver ConstantResolver;
 

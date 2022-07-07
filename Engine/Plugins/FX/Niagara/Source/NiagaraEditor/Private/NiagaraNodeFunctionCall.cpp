@@ -1053,7 +1053,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		// Looks like this function call is not yet hooked up. Skip it to prevent cascading errors in the compilation
 		return;
 	}
-	
+
 	Super::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
 	if (!IsNodeEnabled() && OutHistory.GetIgnoreDisabled())
 	{
@@ -1061,13 +1061,15 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		return;
 	}
 
-	if (HasValidScriptAndGraph() == false && Signature.IsValid() == false)
+	const bool ValidScriptAndGraph = HasValidScriptAndGraph();
+
+	if (ValidScriptAndGraph == false && Signature.IsValid() == false)
 	{
 		RouteParameterMapAroundMe(OutHistory, bRecursive);
 		return;
 	}
 
-	if (HasValidScriptAndGraph())
+	if (ValidScriptAndGraph)
 	{
 		UNiagaraGraph* FunctionGraph = GetCalledGraph();
 
@@ -1094,7 +1096,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 
 		int32 ParamMapIdx = INDEX_NONE;
 		uint32 NodeIdx = INDEX_NONE;
-		
+
 		if (bHasParamMapPin && bRecursive)
 		{
 			ParamMapIdx = OutHistory.TraceParameterMapOutputPin(UNiagaraNode::TraceOutputPin(GetInputPin(0)->LinkedTo[0]));
@@ -1115,39 +1117,50 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 		TArray<TPair<UEdGraphPin*, int32>, TInlineAllocator<16> > MatchedPairs;
 		TArray<TPair<UEdGraphPin*, int32>, TInlineAllocator<16> > MatchedConstants;
 		TArray<bool, TInlineAllocator<16> > OutputMatched;
-		OutputMatched.AddDefaulted(OutputPins.Num());
+		TArray<FNiagaraVariableBase, TInlineAllocator<16>> OutputVariables;
+
+		const int32 OutputPinCount = OutputPins.Num();
+
+		OutputMatched.AddDefaulted(OutputPinCount);
+		OutputVariables.Reserve(OutputPinCount);
+
+		for (int32 OutputIt = 0; OutputIt < OutputPinCount; ++OutputIt)
+		{
+			OutputVariables.Emplace(Schema->PinToNiagaraVariable(OutputPins[OutputIt]));
+		}
 
 		// Find the matches of names and types of the sub-graph output pins and this function call nodes' outputs.
 		for (UEdGraphPin* ChildOutputNodePin : OutputNode->GetAllPins())
 		{
-			FNiagaraVariable VarChild = Schema->PinToNiagaraVariable(ChildOutputNodePin);
+			if (!ChildOutputNodePin)
+			{
+				continue;
+			}
+
+			const FNiagaraVariableBase VarChild = Schema->PinToNiagaraVariable(ChildOutputNodePin);
 
 			if (ChildOutputNodePin->LinkedTo.Num() > 0 && VarChild.GetType() == FNiagaraTypeDefinition::GetParameterMapDef())
 			{
 				for (int32 i = 0; i < OutputPins.Num(); i++)
 				{
-					FNiagaraVariable OutputVar = Schema->PinToNiagaraVariable(OutputPins[i]);
-					if (OutputVar.IsEquivalent(VarChild))
+					if (OutputVariables[i].IsEquivalent(VarChild))
 					{
-						TPair<UEdGraphPin*, int32> Pair;
+						TPair<UEdGraphPin*, int32>& Pair = MatchedPairs.AddZeroed_GetRef();
 						Pair.Key = OutputPins[i];
 						Pair.Value = OutHistory.TraceParameterMapOutputPin(ChildOutputNodePin->LinkedTo[0]);
-						MatchedPairs.Add(Pair);
 						OutputMatched[i] = true;
 					}
 				}
 			}
-			else if (ChildOutputNodePin && VarChild.GetType().IsStatic())
+			else if (VarChild.GetType().IsStatic())
 			{
 				for (int32 i = 0; i < OutputPins.Num(); i++)
 				{
-					FNiagaraVariable OutputVar = Schema->PinToNiagaraVariable(OutputPins[i]);
-					if (OutputVar.IsEquivalent(VarChild) && OutputMatched[i] == false)
+					if (!OutputMatched[i] && OutputVariables[i].IsEquivalent(VarChild))
 					{
-						TPair<UEdGraphPin*, int32> Pair;
+						TPair<UEdGraphPin*, int32>& Pair = MatchedConstants.AddZeroed_GetRef();
 						Pair.Key = OutputPins[i];
 						Pair.Value = OutHistory.GetConstantFromInputPin(ChildOutputNodePin);
-						MatchedConstants.Add(Pair);
 						OutputMatched[i] = true;
 					}
 				}
@@ -1218,9 +1231,8 @@ void UNiagaraNodeFunctionCall::ChangeScriptVersion(FGuid NewScriptVersion, const
 			OverrideNode->Modify();
 			OverrideNode->GetInputPins(OverridePins);
 			
-			TSet<const UEdGraphPin*> HiddenModulePins;
 			TArray<const UEdGraphPin*> ModuleInputPins;
-			GetStackFunctionInputPins(*this, ModuleInputPins, HiddenModulePins, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
+			FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*this, ModuleInputPins, UpgradeContext.ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 			for (const UEdGraphPin* InputPin : ModuleInputPins)
 			{
 				FunctionInputNames.Add(FNiagaraParameterHandle(InputPin->PinName).GetName(), InputPin->PinType);
@@ -1270,6 +1282,24 @@ UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FNa
 		}
 	}
 	return nullptr;
+}
+
+void UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePins(TConstArrayView<FName> VariableNames, ENiagaraScriptUsage InParentUsage, const FCompileConstantResolver& ConstantResolver, TArrayView<UEdGraphPin*> DefaultPins)
+{
+	if (FunctionScript)
+	{
+		UNiagaraScriptSource* ScriptSource = GetFunctionScriptSource();
+		if (ScriptSource != nullptr && ScriptSource->NodeGraph != nullptr)
+		{
+			// Set the static switch values so we traverse the correct node paths
+			TArray<UEdGraphPin*> InputPins;
+			GetInputPins(InputPins);
+
+			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver.WithDebugState(DebugState));
+
+			ScriptSource->NodeGraph->MultiFindParameterMapDefaultValuePins(VariableNames, FunctionScript->GetUsage(), InParentUsage, DefaultPins);
+		}
+	}
 }
 
 UEdGraphPin* UNiagaraNodeFunctionCall::FindStaticSwitchInputPin(const FName& VariableName) const

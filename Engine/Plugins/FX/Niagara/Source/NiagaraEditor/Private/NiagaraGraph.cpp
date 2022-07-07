@@ -1219,13 +1219,25 @@ void UNiagaraGraph::ForceBaseId(ENiagaraScriptUsage InUsage, const FGuid& InUsag
 
 UEdGraphPin* UNiagaraGraph::FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InUsage, ENiagaraScriptUsage InParentUsage) const
 {
+	TArray<UEdGraphPin*> DefaultInputPin = { nullptr };
+
+	MultiFindParameterMapDefaultValuePins({ VariableName }, InUsage, InParentUsage, { DefaultInputPin });
+
+	return DefaultInputPin[0];
+}
+
+void UNiagaraGraph::MultiFindParameterMapDefaultValuePins(TConstArrayView<FName> VariableNames, ENiagaraScriptUsage InUsage, ENiagaraScriptUsage InParentUsage, TArrayView<UEdGraphPin*> DefaultPins) const
+{
 	TArray<UEdGraphPin*> MatchingDefaultPins;
-	
+
 	TArray<UNiagaraNode*> NodesTraversed;
 	BuildTraversal(NodesTraversed, InUsage, FGuid(), true);
 
-	UEdGraphPin* DefaultInputPin = nullptr;
 	FPinCollectorArray OutputPins;
+
+	const int32 VariableNameCount = VariableNames.Num();
+	int32 DefaultPinsFound = 0;
+
 	for (UNiagaraNode* Node : NodesTraversed)
 	{
 		if (UNiagaraNodeParameterMapGet* GetNode = Cast<UNiagaraNodeParameterMapGet>(Node))
@@ -1234,56 +1246,63 @@ UEdGraphPin* UNiagaraGraph::FindParameterMapDefaultValuePin(const FName Variable
 			GetNode->GetOutputPins(OutputPins);
 			for (UEdGraphPin* OutputPin : OutputPins)
 			{
-				if (VariableName == OutputPin->PinName)
+				int32 NameIndex = VariableNames.IndexOfByKey(OutputPin->PinName);
+				if ((NameIndex != INDEX_NONE) && (DefaultPins[NameIndex] == nullptr))
 				{
 					UEdGraphPin* Pin = GetNode->GetDefaultPin(OutputPin);
 					if (Pin)
 					{
-						DefaultInputPin = Pin;
-						break;
+						++DefaultPinsFound;
+						DefaultPins[NameIndex] = Pin;
+
+						if (DefaultPinsFound == VariableNameCount)
+						{
+							break;
+						}
 					}
 				}
 			}
-			if (DefaultInputPin != nullptr)
-			{
-				break;
-			}
 		}
 	}
 
-
-	// There are some pins 
-	if (DefaultInputPin && DefaultInputPin->LinkedTo.Num() != 0 && DefaultInputPin->LinkedTo[0] != nullptr)
+	auto TraceInputPin = [&](UEdGraphPin* Pin)
 	{
-		UNiagaraNode* Owner = Cast<UNiagaraNode>(DefaultInputPin->LinkedTo[0]->GetOwningNode());
-		UEdGraphPin* PreviousInput = DefaultInputPin;
-		int32 NumIters = 0;
-		while (Owner)
+		if (Pin && Pin->LinkedTo.Num() != 0 && Pin->LinkedTo[0] != nullptr)
 		{
-			// Check to see if there are any reroute or choose by usage nodes involved in this..
-			UEdGraphPin* InputPin = Owner->GetPassThroughPin(PreviousInput->LinkedTo[0], InParentUsage);
-			if (InputPin == nullptr)
+			UNiagaraNode* Owner = Cast<UNiagaraNode>(Pin->LinkedTo[0]->GetOwningNode());
+			UEdGraphPin* PreviousInput = Pin;
+			int32 NumIters = 0;
+			while (Owner)
 			{
-				return PreviousInput;
-			}
-			else if (InputPin->LinkedTo.Num() == 0)
-			{
-				return InputPin;
-			}
+				// Check to see if there are any reroute or choose by usage nodes involved in this..
+				UEdGraphPin* InputPin = Owner->GetPassThroughPin(PreviousInput->LinkedTo[0], InParentUsage);
+				if (InputPin == nullptr)
+				{
+					return PreviousInput;
+				}
+				else if (InputPin->LinkedTo.Num() == 0)
+				{
+					return InputPin;
+				}
 
-			check(InputPin->LinkedTo[0] != nullptr);
-			Owner = Cast<UNiagaraNode>(InputPin->LinkedTo[0]->GetOwningNode());
-			PreviousInput = InputPin;
-			++NumIters;
-			check(NumIters < Nodes.Num()); // If you hit this assert then we have a cycle in our graph somewhere.
+				check(InputPin->LinkedTo[0] != nullptr);
+				Owner = Cast<UNiagaraNode>(InputPin->LinkedTo[0]->GetOwningNode());
+				PreviousInput = InputPin;
+				++NumIters;
+				check(NumIters < Nodes.Num()); // If you hit this assert then we have a cycle in our graph somewhere.
+			}
+		}
+
+		return Pin;
+	};
+
+	if (DefaultPinsFound > 0)
+	{
+		for (UEdGraphPin*& DefaultInputPin : DefaultPins)
+		{
+			DefaultInputPin = TraceInputPin(DefaultInputPin);
 		}
 	}
-	else
-	{
-		return DefaultInputPin;
-	}
-
-	return nullptr;
 }
 
 void UNiagaraGraph::FindOutputNodes(TArray<UNiagaraNodeOutput*>& OutputNodes) const
