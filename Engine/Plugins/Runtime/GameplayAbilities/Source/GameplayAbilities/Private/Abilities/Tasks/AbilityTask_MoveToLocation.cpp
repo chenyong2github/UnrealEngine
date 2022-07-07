@@ -6,6 +6,7 @@
 #include "GameFramework/CharacterMovementComponent.h"
 #include "Curves/CurveVector.h"
 #include "Net/UnrealNetwork.h"
+#include "Engine/World.h"
 
 UAbilityTask_MoveToLocation::UAbilityTask_MoveToLocation(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)

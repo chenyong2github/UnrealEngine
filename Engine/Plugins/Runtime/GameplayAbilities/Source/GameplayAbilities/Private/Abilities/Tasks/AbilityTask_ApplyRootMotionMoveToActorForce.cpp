@@ -10,7 +10,7 @@
 #include "AbilitySystemGlobals.h"
 #include "Net/UnrealNetwork.h"
 #include "Abilities/GameplayAbilityTargetTypes.h"
-
+#include "Engine/World.h"
 
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

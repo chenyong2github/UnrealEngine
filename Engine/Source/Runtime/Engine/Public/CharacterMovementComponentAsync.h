@@ -5,10 +5,10 @@
 #include "Chaos/SimCallbackObject.h"
 #include "CollisionQueryParams.h"
 #include "CollisionShape.h"
+#include "Components/SceneComponent.h"
 #include "Engine/OverlapInfo.h"
 #include "CharacterMovementComponentAsync.generated.h"
 
-enum EMoveComponentFlags;
 struct FCharacterMovementComponentAsyncOutput;
 struct FCharacterMovementComponentAsyncInput;
 

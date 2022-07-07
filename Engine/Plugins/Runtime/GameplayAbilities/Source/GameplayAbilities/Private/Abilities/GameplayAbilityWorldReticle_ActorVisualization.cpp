@@ -3,6 +3,7 @@
 #include "Abilities/GameplayAbilityWorldReticle_ActorVisualization.h"
 #include "Abilities/GameplayAbilityTargetActor.h"
 #include "Components/CapsuleComponent.h"
+#include "Components/MeshComponent.h"
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //

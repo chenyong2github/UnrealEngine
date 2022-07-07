@@ -21,6 +21,7 @@ THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 #endif
 
+class FSkeletalMeshLODModel;
 class UMaterial;
 class UStaticMesh;
 class USkeletalMesh;

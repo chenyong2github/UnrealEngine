@@ -5,11 +5,13 @@
 #include "CoreMinimal.h"
 #include "ContextualAnimTypes.h"
 #include "ActorComponents/IKRigInterface.h"
+#include "Components/PrimitiveComponent.h"
 #include "ContextualAnimSceneActorComponent.generated.h"
 
+class AActor;
+class FPrimitiveSceneProxy;
 class UAnimInstance;
 class UAnimMontage;
-class AActor;
 class UContextualAnimSceneInstance;
 struct FContextualAnimSceneBinding;
 

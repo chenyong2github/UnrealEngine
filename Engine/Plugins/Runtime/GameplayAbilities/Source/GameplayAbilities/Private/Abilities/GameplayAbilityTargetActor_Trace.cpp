@@ -4,6 +4,7 @@
 #include "DrawDebugHelpers.h"
 #include "GameFramework/PlayerController.h"
 #include "Abilities/GameplayAbility.h"
+#include "Engine/World.h"
 
 // --------------------------------------------------------------------------------------------------------------------------------------------------------
 //

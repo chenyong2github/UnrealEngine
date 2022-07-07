@@ -8,6 +8,7 @@
 #include "GeometryCacheTrack.h"
 
 #include "Animation/AnimSequence.h"
+#include "Engine/SkeletalMesh.h"
 #include "Rendering/SkeletalMeshModel.h"
 #include "Rendering/SkeletalMeshLODModel.h"
 

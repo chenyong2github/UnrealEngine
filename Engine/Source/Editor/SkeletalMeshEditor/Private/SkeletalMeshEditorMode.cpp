@@ -8,6 +8,7 @@
 #include "IPersonaToolkit.h"
 #include "SControlRigMappingWindow.h"
 #include "Styling/AppStyle.h"
+#include "Engine/SkeletalMesh.h"
 
 #define LOCTEXT_NAMESPACE "SkeletalMeshEditorMode"
 
