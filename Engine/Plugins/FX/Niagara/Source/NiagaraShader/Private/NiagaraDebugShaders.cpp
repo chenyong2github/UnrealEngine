@@ -86,8 +86,6 @@ class NIAGARASHADER_API FNiagaraClearUAVCS : public FGlobalShader
 
 	static constexpr uint32 ThreadGroupSize = 32;
 
-	//class FUAVType : SHADER_PERMUTATION_INT("TEXTURE_TYPE", 3);
-
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
 		return RHISupportsComputeShaders(Parameters.Platform);
@@ -99,8 +97,6 @@ class NIAGARASHADER_API FNiagaraClearUAVCS : public FGlobalShader
 		OutEnvironment.SetDefine(TEXT("NIAGARA_DEBUGDRAW_CLEARUAV_UINT_CS"), 1);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ThreadGroupSize);
 	}
-
-	//NIAGARA_DEBUGDRAW_CLEARUAV_UINT_CS
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FUintVector4,					ClearValue)
