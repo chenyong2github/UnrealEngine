@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Dataflow/DataflowEditorPlugin.h"
+#include "Dataflow/DataflowEditorStyle.h"
 
 #include "AssetToolsModule.h"
 #include "CoreMinimal.h"
@@ -17,6 +18,8 @@
 
 void IDataflowEditorPlugin::StartupModule()
 {
+	FDataflowEditorStyle::Get();
+
 	DataflowAssetActions = new FDataflowAssetActions();
 
 	FAssetToolsModule& AssetToolsModule = FAssetToolsModule::GetModule();
