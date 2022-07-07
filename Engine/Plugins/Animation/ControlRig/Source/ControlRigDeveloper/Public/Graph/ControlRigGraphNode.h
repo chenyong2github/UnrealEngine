@@ -5,6 +5,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
+#include "UObject/WeakObjectPtrTemplates.h"
 #include "EdGraph/EdGraphNodeUtils.h"
 #include "K2Node.h"
 #include "UObject/SoftObjectPath.h"
@@ -40,10 +41,10 @@ private:
 	FString ModelNodePath;
 
 	UPROPERTY(transient)
-	TObjectPtr<URigVMNode> CachedModelNode;
+	TWeakObjectPtr<URigVMNode> CachedModelNode;
 
 	UPROPERTY(transient)
-	TMap<FString, TObjectPtr<URigVMPin>> CachedModelPins;
+	TMap<FString, TWeakObjectPtr<URigVMPin>> CachedModelPins;
 
 	/** The property we represent. For template nodes this represents the struct/property type name. */
 	UPROPERTY()
