@@ -21,15 +21,36 @@
 #include "StructurePropertyNode.h"
 #include "Styling/StyleColors.h"
  
+static void AddLayoutToList(const FDetailLayoutCustomization& Layout, TArray<FDetailLayoutCustomization>& List)
+{
+	if (Layout.bCustom)
+	{
+		int32 Index = 0;
+		for (; Index < List.Num(); ++Index)
+		{
+			if (!List[Index].bCustom)
+			{
+				break;
+			}
+		}
+
+		List.Insert(Layout, Index);
+	}
+	else
+	{
+		List.Add(Layout);
+	}
+}
+
 void FDetailLayout::AddLayout(const FDetailLayoutCustomization& Layout)
 {
 	if (Layout.bAdvanced)
 	{
-		AdvancedLayouts.Add(Layout);
+		AddLayoutToList(Layout, AdvancedLayouts);
 	}
 	else
 	{
-		SimpleLayouts.Add(Layout);
+		AddLayoutToList(Layout, SimpleLayouts);
 	}
 }
 
