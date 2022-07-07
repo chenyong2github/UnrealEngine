@@ -5,7 +5,8 @@
 #include "Widgets/SEmptyTab.h"
 #include "Widgets/SGameSyncTab.h"
 #include "Widgets/SWorkspaceWindow.h"
-#include "UGSCore/GameSyncController.h"
+
+#include "UGSCore/Workspace.h"
 
 class UGSTab
 {
@@ -18,16 +19,19 @@ public:
 	FSpawnTabArgs GetTabArgs() const;
 
 	// Slate callbacks
-	bool OnWorkspaceChosen(const FString& Path);
+	bool OnWorkspaceChosen(const FString& Project);
 private:
+
+	// Core functions
+	void SetupWorkspace();
 
 	// Slate Data
 	FSpawnTabArgs TabArgs;
 	TSharedRef<SDockTab> TabWidget;
-
 	TSharedRef<SEmptyTab> EmptyTabView;
 	TSharedRef<SGameSyncTab> GameSyncTabView;
 
-	// Controller data
-	GameSyncController SyncController;
+	// Core data
+	TSharedPtr<FWorkspace> Workspace;
+	FString ProjectFileName;
 };
