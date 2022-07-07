@@ -2,6 +2,8 @@
 #pragma once
 #include "OnlineSubsystemTypes.h"
 
+#include <type_traits>
+
 /*
 	BASIC USAGE
 		The multicast adapter maintains the same functionality as a delegate adapter
@@ -10,15 +12,17 @@
 			->
 			MakeMulticastAdapter(this, Identity->OnLoginComplete, [this](int32 UserNum){...});
 
-		This type of adapter will unbind itself immediately after a single execution. 
+		When this adapter unbinds itself depends on the return type of the lambda bound to it:
+		- void - the adapter will unbind itself after a single execution
+		- bool - the adapter will unbind itself when the lambda returns true, and will stay bound when it returns false.
 
 		The lifetime of the adapter is a shared ptr attached to the input delegate and will live as long as that delegate is bound.
 */
 namespace UE::Online {
 
-template<typename ComponentType, typename DelegateType, typename... LambdaArgs>
+template<typename ComponentType, typename DelegateType, typename LambdaRet, typename... LambdaArgs>
 class TMulticastDelegateAdapter
-	: public TSharedFromThis<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaArgs...>>
+	: public TSharedFromThis<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaRet, LambdaArgs...>>
 {
 
 public:
@@ -28,25 +32,36 @@ public:
 	{
 	}
 
-	void SetupDelegate(TUniqueFunction<void(LambdaArgs...)>&& InCallback)
+	void SetupDelegate(TUniqueFunction<LambdaRet(LambdaArgs...)>&& InCallback)
 	{
-		TSharedPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaArgs...>> SharedAnchor = this->AsShared();
+		TSharedPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaRet, LambdaArgs...>> SharedAnchor = this->AsShared();
 
 		// callback exists outside of the delegate's bound lambda since that lambda is not move-only
 		Callback = [this, InCallback = MoveTemp(InCallback)](LambdaArgs... Args)
 		{
-			InCallback(Forward<LambdaArgs>(Args)...);
+			return InCallback(Forward<LambdaArgs>(Args)...);
 		};
 
 		Handle = Delegate.AddLambda([this, SharedAnchor](LambdaArgs... Args) mutable 
 		{
+			bool bUnbind = true;
 			if(Parent.IsValid())
 			{
-				Callback(Forward<LambdaArgs>(Args)...);
+				if constexpr (std::is_void_v<LambdaRet>)
+				{
+					Callback(Forward<LambdaArgs>(Args)...);
+				}
+				else
+				{
+					bUnbind = Callback(Forward<LambdaArgs>(Args)...);
+				}
 			}
 
-			SharedAnchor.Reset();
-			Delegate.Remove(Handle);
+			if (bUnbind)
+			{
+				SharedAnchor.Reset();
+				Delegate.Remove(Handle);
+			}
 		});
 	}
 
@@ -55,14 +70,14 @@ public:
 		return Handle;
 	}
 
-	TWeakPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaArgs...>> AsWeak()
+	TWeakPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaRet, LambdaArgs...>> AsWeak()
 	{
-		return TWeakPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaArgs...>>(this->AsShared());
+		return TWeakPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, LambdaRet, LambdaArgs...>>(this->AsShared());
 	}
 
 private:
 	TWeakPtr<ComponentType> Parent;
-	TUniqueFunction<void(LambdaArgs...)> Callback;
+	TUniqueFunction<LambdaRet(LambdaArgs...)> Callback;
 	DelegateType& Delegate;
 	FDelegateHandle Handle;
 };
@@ -88,9 +103,9 @@ namespace Private
 		}
 
 		template<typename ComponentType, typename DelegateType>
-		TSharedPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, ParamTypes...>> Construct(TSharedRef<ComponentType> Interface, DelegateType& InDelegate, CallableObject&& InCallback)
+		TSharedPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, TResultType, ParamTypes...>> Construct(TSharedRef<ComponentType> Interface, DelegateType& InDelegate, CallableObject&& InCallback)
 		{
-			TSharedPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, ParamTypes...>> Adapter = MakeShared<TMulticastDelegateAdapter<ComponentType, DelegateType, ParamTypes...>>(Interface, InDelegate);
+			TSharedPtr<TMulticastDelegateAdapter<ComponentType, DelegateType, TResultType, ParamTypes...>> Adapter = MakeShared<TMulticastDelegateAdapter<ComponentType, DelegateType, TResultType, ParamTypes...>>(Interface, InDelegate);
 			Adapter->SetupDelegate(GetUniqueFn(MoveTemp(InCallback)));
 			return Adapter;
 		}
