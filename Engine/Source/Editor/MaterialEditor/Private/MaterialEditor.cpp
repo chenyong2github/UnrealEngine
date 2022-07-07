@@ -7115,11 +7115,10 @@ void FMaterialEditor::OnNodeDoubleClicked(class UEdGraphNode* Node)
 		}
 		else if (InputExpression)
 		{
-			// LWC_TODO: FIX THIS. Can't keep a pointer as float to a double type.
-			//ChannelEditStruct.Red = &InputExpression->PreviewValue.X;
-			//ChannelEditStruct.Green = &InputExpression->PreviewValue.Y;
-			//ChannelEditStruct.Blue = &InputExpression->PreviewValue.Z;
-			//ChannelEditStruct.Alpha = &InputExpression->PreviewValue.W;
+			ChannelEditStruct.Red = &InputExpression->PreviewValue.X;
+			ChannelEditStruct.Green = &InputExpression->PreviewValue.Y;
+			ChannelEditStruct.Blue = &InputExpression->PreviewValue.Z;
+			ChannelEditStruct.Alpha = &InputExpression->PreviewValue.W;
 		}
 		else if (VectorExpression)
 		{

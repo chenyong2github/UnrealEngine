@@ -15571,7 +15571,7 @@ bool UMaterialExpressionMaterialFunctionCall::IsInputConnectionRequired(int32 In
 	return true;
 }
 
-static FString GetInputDefaultValueString(EFunctionInputType InputType, const FVector4& PreviewValue)
+static FString GetInputDefaultValueString(EFunctionInputType InputType, const FVector4f& PreviewValue)
 {
 	static_assert(FunctionInput_Scalar < FunctionInput_Vector4, "Enum values out of order.");
 	check(InputType <= FunctionInput_Vector4);

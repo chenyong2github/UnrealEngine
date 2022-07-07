@@ -61,7 +61,7 @@ class UMaterialExpressionFunctionInput : public UMaterialExpression
 
 	/** Value used to preview this input when editing the material function. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionFunctionInput, meta=(OverridingInputProperty = "Preview"))
-	FVector4 PreviewValue;
+	FVector4f PreviewValue;
 
 	/** Whether to use the preview value or texture as the default value for this input. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=MaterialExpressionFunctionInput)
