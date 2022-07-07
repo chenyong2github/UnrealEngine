@@ -46,9 +46,6 @@ enum class EAlShaderModelType : uint8
 
 namespace OpenModelUtils
 {
-	const TCHAR* AlObjectTypeToString(AlObjectType type);
-	const TCHAR* AlShadingFieldToString(AlShadingFields field);
-
 	void SetActorTransform(TSharedPtr<IDatasmithActorElement>& OutActorElement, const AlDagNode& InDagNode);
 
 	bool IsValidActor(const TSharedPtr<IDatasmithActorElement>& ActorElement);
