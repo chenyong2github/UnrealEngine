@@ -10,7 +10,6 @@
 #include "CoreMinimal.h"
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
-#include "HAL/PlatformProcess.h"
 #include "Misc/AssertionMacros.h"
 
 class Error;

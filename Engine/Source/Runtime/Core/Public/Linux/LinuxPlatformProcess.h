@@ -7,7 +7,6 @@
 #pragma once
 
 #include "HAL/Platform.h"
-#include "HAL/PlatformProcess.h"
 #include "Unix/UnixPlatformProcess.h"
 
 /**

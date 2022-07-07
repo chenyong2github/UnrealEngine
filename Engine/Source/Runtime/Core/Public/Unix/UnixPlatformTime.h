@@ -8,7 +8,6 @@
 
 #include "CoreTypes.h"
 #include "GenericPlatform/GenericPlatformTime.h"
-#include "HAL/PlatformTime.h"
 
 /**
  * Unix implementation of the Time OS functions
