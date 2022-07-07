@@ -4,6 +4,35 @@
 #include "UObject/SequencerObjectVersion.h"
 #include "Channels/MovieSceneChannelProxy.h"
 
+#include "Evaluation/MovieSceneEvaluationField.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "MovieSceneTracksComponentTypes.h"
+
+
+namespace UE::MovieScene
+{
+
+/* Entity IDs are an encoded type and index, with the upper 8 bits being the type, and the lower 24 bits as the index */
+uint32 EncodeEntityID(int32 InIndex, uint8 InType)
+{
+	check(InIndex >= 0 && InIndex < int32(0x00FFFFFF));
+	return static_cast<uint32>(InIndex) | (uint32(InType) << 24);
+}
+void DecodeEntityID(uint32 InEntityID, int32& OutIndex, uint8& OutType)
+{
+	// Mask out the type to get the index
+	OutIndex = static_cast<int32>(InEntityID & 0x00FFFFFF);
+	OutType = InEntityID >> 24;
+}
+
+
+}// namespace UE::MovieScene
+
+void IMovieSceneParameterSectionExtender::ExtendEntity(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+{
+	ExtendEntityImpl(EntityLinker, Params, OutImportedEntity);
+}
+
 FScalarParameterNameAndCurve::FScalarParameterNameAndCurve( FName InParameterName )
 {
 	ParameterName = InParameterName;
@@ -566,5 +595,163 @@ void UMovieSceneParameterSection::GetParameterNames( TSet<FName>& ParameterNames
 	for (const FTransformParameterNameAndCurves& TransformParameterNamesAndCurve : TransformParameterNamesAndCurves)
 	{
 		ParameterNames.Add(TransformParameterNamesAndCurve.ParameterName);
+	}
+}
+
+void UMovieSceneParameterSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	IMovieSceneParameterSectionExtender* Extender = GetImplementingOuter<IMovieSceneParameterSectionExtender>();
+	if (!ensureMsgf(Extender, TEXT("It is not valid for a UMovieSceneParameterSection to be used for importing entities outside of an outer chain that implements IMovieSceneParameterSectionExtender")))
+	{
+		return;
+	}
+
+	uint8 ParameterType = 0;
+	int32 EntityIndex = 0;
+	DecodeEntityID(Params.EntityID, EntityIndex, ParameterType);
+
+	FBuiltInComponentTypes* BuiltInComponentTypes = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponentTypes = FMovieSceneTracksComponentTypes::Get();
+
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+
+	TEntityBuilder<TAddConditional<FGuid>> BaseBuilder = FEntityBuilder()
+		.AddConditional(BuiltInComponentTypes->GenericObjectBinding, ObjectBindingID, ObjectBindingID.IsValid());
+
+	switch (ParameterType)
+	{
+		case 0:
+		{
+			const FScalarParameterNameAndCurve& Scalar = ScalarParameterNamesAndCurves[EntityIndex];
+
+			OutImportedEntity->AddBuilder(
+				BaseBuilder
+				.Add(TracksComponentTypes->ScalarParameterName, Scalar.ParameterName)
+				.Add(BuiltInComponentTypes->FloatChannel[0], &Scalar.ParameterCurve)
+			);
+			break;
+		}
+		case 1:
+		{
+			const FBoolParameterNameAndCurve& Bool = BoolParameterNamesAndCurves[EntityIndex];
+
+			OutImportedEntity->AddBuilder(
+				BaseBuilder
+				.Add(TracksComponentTypes->BoolParameterName, Bool.ParameterName)
+				.Add(BuiltInComponentTypes->BoolChannel, &Bool.ParameterCurve)
+			);
+			break;
+		}
+		case 2:
+		{
+			const FVector2DParameterNameAndCurves& Vector2D = Vector2DParameterNamesAndCurves[EntityIndex];
+			OutImportedEntity->AddBuilder(
+				BaseBuilder
+				.Add(TracksComponentTypes->Vector2DParameterName, Vector2D.ParameterName)
+				.Add(BuiltInComponentTypes->FloatChannel[0], &Vector2D.XCurve)
+				.Add(BuiltInComponentTypes->FloatChannel[1], &Vector2D.YCurve)
+			);
+			break;
+		}
+		case 3:
+		{
+			const FVectorParameterNameAndCurves& Vector = VectorParameterNamesAndCurves[EntityIndex];
+			OutImportedEntity->AddBuilder(
+				BaseBuilder
+				.Add(TracksComponentTypes->VectorParameterName, Vector.ParameterName)
+				.Add(BuiltInComponentTypes->FloatChannel[0], &Vector.XCurve)
+				.Add(BuiltInComponentTypes->FloatChannel[1], &Vector.YCurve)
+				.Add(BuiltInComponentTypes->FloatChannel[2], &Vector.ZCurve)
+			);
+			break;
+		}
+		case 4:
+		{
+			const FColorParameterNameAndCurves& Color = ColorParameterNamesAndCurves[EntityIndex];
+			OutImportedEntity->AddBuilder(
+				BaseBuilder
+				.Add(TracksComponentTypes->ColorParameterName, Color.ParameterName)
+				.Add(BuiltInComponentTypes->FloatChannel[0], &Color.RedCurve)
+				.Add(BuiltInComponentTypes->FloatChannel[1], &Color.GreenCurve)
+				.Add(BuiltInComponentTypes->FloatChannel[2], &Color.BlueCurve)
+				.Add(BuiltInComponentTypes->FloatChannel[3], &Color.AlphaCurve)
+			);
+			break;
+		}
+		case 5:
+		{
+			const FTransformParameterNameAndCurves& Transform = TransformParameterNamesAndCurves[EntityIndex];
+			OutImportedEntity->AddBuilder(
+				BaseBuilder
+				.Add(TracksComponentTypes->TransformParameterName, Transform.ParameterName)
+				.Add(BuiltInComponentTypes->FloatChannel[0], &Transform.Translation[0])
+				.Add(BuiltInComponentTypes->FloatChannel[1], &Transform.Translation[1])
+				.Add(BuiltInComponentTypes->FloatChannel[2], &Transform.Translation[2])
+				.Add(BuiltInComponentTypes->FloatChannel[3], &Transform.Rotation[0])
+				.Add(BuiltInComponentTypes->FloatChannel[4], &Transform.Rotation[1])
+				.Add(BuiltInComponentTypes->FloatChannel[5], &Transform.Rotation[2])
+				.Add(BuiltInComponentTypes->FloatChannel[6], &Transform.Scale[0])
+				.Add(BuiltInComponentTypes->FloatChannel[7], &Transform.Scale[1])
+				.Add(BuiltInComponentTypes->FloatChannel[8], &Transform.Scale[2])
+			);
+			break;
+		}
+	}
+
+	Extender->ExtendEntity(EntityLinker, Params, OutImportedEntity);
+}
+
+bool UMovieSceneParameterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	// By default, parameter sections do not populate any evaluation field entries
+	// that is the job of its outer UMovieSceneTrack through a call to ExternalPopulateEvaluationField
+	return true;
+}
+
+void UMovieSceneParameterSection::ExternalPopulateEvaluationField(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	using namespace UE::MovieScene;
+
+	const int32 MetaDataIndex = OutFieldBuilder->AddMetaData(InMetaData);
+
+	// We use the top 8 bits of EntityID to encode the type of parameter
+	const int32 NumScalarID    = ScalarParameterNamesAndCurves.Num();
+	const int32 NumBoolID      = BoolParameterNamesAndCurves.Num();
+	const int32 NumVector2DID  = Vector2DParameterNamesAndCurves.Num();
+	const int32 NumVectorID    = VectorParameterNamesAndCurves.Num();
+	const int32 NumColorID     = ColorParameterNamesAndCurves.Num();
+	const int32 NumTransformID = TransformParameterNamesAndCurves.Num();
+
+	for (int32 Index = 0; Index < NumScalarID; ++Index)
+	{
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, EncodeEntityID(Index, 0));
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	}
+	for (int32 Index = 0; Index < NumBoolID; ++Index)
+	{
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, EncodeEntityID(Index, 1));
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	}
+	for (int32 Index = 0; Index < NumVector2DID; ++Index)
+	{
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, EncodeEntityID(Index, 2));
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	}
+	for (int32 Index = 0; Index < NumVectorID; ++Index)
+	{
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, EncodeEntityID(Index, 3));
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	}
+	for (int32 Index = 0; Index < NumColorID; ++Index)
+	{
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, EncodeEntityID(Index, 4));
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+	}
+	for (int32 Index = 0; Index < NumTransformID; ++Index)
+	{
+		const int32 EntityIndex = OutFieldBuilder->FindOrAddEntity(this, EncodeEntityID(Index, 5));
+		OutFieldBuilder->AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
 	}
 }

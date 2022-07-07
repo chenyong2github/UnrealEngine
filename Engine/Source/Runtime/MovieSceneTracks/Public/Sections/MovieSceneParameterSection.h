@@ -10,10 +10,34 @@
 #include "Channels/MovieSceneFloatChannel.h"
 #include "Channels/MovieSceneBoolChannel.h"
 #include "Sections/MovieScene3DTransformSection.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneParameterSection.generated.h"
 
 struct FMovieSceneParameterPropertyInterface;
 struct FMovieSceneConstParameterPropertyInterface;
+
+
+UINTERFACE()
+class MOVIESCENETRACKS_API UMovieSceneParameterSectionExtender : public UInterface
+{
+public:
+	GENERATED_BODY()
+};
+
+class MOVIESCENETRACKS_API IMovieSceneParameterSectionExtender
+{
+public:
+
+	GENERATED_BODY()
+
+	void ExtendEntity(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity);
+
+private:
+
+	virtual void ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) = 0;
+};
+
+
 
 /**
  * Structure representing the animated value of a scalar parameter.
@@ -308,6 +332,7 @@ struct MOVIESCENETRACKS_API FTransformParameterNameAndCurves
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneParameterSection
 	: public UMovieSceneSection
+	, public IMovieSceneEntityProvider
 {
 	GENERATED_UCLASS_BODY()
 
@@ -417,6 +442,11 @@ public:
 	/** Gets the set of all parameter names used by this section. */
 	UFUNCTION(BlueprintPure, Category = "Sequencer|Section")
 	void GetParameterNames(TSet<FName>& ParameterNames) const;
+
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+
+	void ExternalPopulateEvaluationField(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder);
 
 protected:
 

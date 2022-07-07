@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Tracks/MovieSceneMaterialTrack.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneMaterialParameterCollectionTrack.generated.h"
 
 class UMaterialParameterCollection;
@@ -15,7 +16,8 @@ class UMaterialParameterCollection;
 UCLASS()
 class MOVIESCENETRACKS_API UMovieSceneMaterialParameterCollectionTrack
 	: public UMovieSceneMaterialTrack
-	, public IMovieSceneTrackTemplateProducer
+	, public IMovieSceneEntityProvider
+	, public IMovieSceneParameterSectionExtender
 {
 public:
 
@@ -29,7 +31,14 @@ public:
 
 	virtual bool SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const override;
 	virtual UMovieSceneSection* CreateNewSection() override;
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
+
+	/*~ IMovieSceneEntityProvider */
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
+
+	/*~ IMovieSceneParameterSectionExtender */
+	virtual void ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
+
 #if WITH_EDITORONLY_DATA
 	virtual FText GetDefaultDisplayName() const override;
 #endif

@@ -52,11 +52,11 @@ struct FWidgetMaterialPropertyPath
 namespace WidgetMaterialTrackUtilities
 {
 	/** Gets a material handle from a property on a widget by the properties FName path. */
-	UMG_API FWidgetMaterialHandle GetMaterialHandle(UWidget* Widget, const TArray<FName>& BrushPropertyNamePath);
+	UMG_API FWidgetMaterialHandle GetMaterialHandle(UWidget* Widget, TArrayView<const FName> BrushPropertyNamePath);
 
 	/** Gets the property paths on a widget which are slate brush properties, and who's slate brush has a valid material. */
 	UMG_API void GetMaterialBrushPropertyPaths( UWidget* Widget, TArray<FWidgetMaterialPropertyPath>& MaterialBrushPropertyPaths );
 
 	/** Converts a property name path into a single name which is appropriate for a track name. */
-	UMG_API FName GetTrackNameFromPropertyNamePath( const  TArray<FName>& PropertyNamePath );
+	UMG_API FName GetTrackNameFromPropertyNamePath( TArrayView<const FName> PropertyNamePath );
 }

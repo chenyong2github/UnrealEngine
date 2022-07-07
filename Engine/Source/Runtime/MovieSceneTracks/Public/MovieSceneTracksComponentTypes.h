@@ -15,6 +15,7 @@
 #include "Styling/SlateColor.h"
 #include "MovieSceneTracksComponentTypes.generated.h"
 
+class UMaterialParameterCollection;
 class UMovieSceneDataLayerSection;
 class UMovieSceneLevelVisibilitySection;
 struct FMovieSceneObjectBindingID;
@@ -487,6 +488,18 @@ struct MOVIESCENETRACKS_API FMovieSceneTracksComponentTypes
 	TComponentTypeID<FMovieSceneObjectBindingID> AttachParentBinding;
 	TComponentTypeID<FFloatPerlinNoiseParams> FloatPerlinNoiseChannel;
 	TComponentTypeID<FDoublePerlinNoiseParams> DoublePerlinNoiseChannel;
+
+	TComponentTypeID<int32> ComponentMaterialIndex;
+
+	TComponentTypeID<FName> BoolParameterName;
+	TComponentTypeID<FName> ScalarParameterName;
+	TComponentTypeID<FName> Vector2DParameterName;
+	TComponentTypeID<FName> VectorParameterName;
+	TComponentTypeID<FName> ColorParameterName;
+	TComponentTypeID<FName> TransformParameterName;
+
+	TComponentTypeID<UObject*> BoundMaterial;
+	TComponentTypeID<UMaterialParameterCollection*> MPC;
 
 	struct
 	{

@@ -143,7 +143,7 @@ void FWidgetMaterialHandle::SetMaterial(UMaterialInterface* InMaterial, UWidget*
 }
 
 
-FWidgetMaterialHandle GetPropertyValueByPath(void* DataObject, UStruct* PropertySource, const TArray<FName>& PropertyPath, int32 PathIndex )
+FWidgetMaterialHandle GetPropertyValueByPath(void* DataObject, UStruct* PropertySource, TArrayView<const FName> PropertyPath, int32 PathIndex )
 {
 	if ( DataObject != nullptr && PathIndex < PropertyPath.Num() )
 	{
@@ -184,7 +184,7 @@ FWidgetMaterialHandle GetPropertyValueByPath(void* DataObject, UStruct* Property
 	return FWidgetMaterialHandle();
 }
 
-FWidgetMaterialHandle WidgetMaterialTrackUtilities::GetMaterialHandle(UWidget* Widget, const TArray<FName>& BrushPropertyNamePath)
+FWidgetMaterialHandle WidgetMaterialTrackUtilities::GetMaterialHandle(UWidget* Widget, TArrayView<const FName> BrushPropertyNamePath)
 {
 	return GetPropertyValueByPath(Widget, Widget->GetClass(), BrushPropertyNamePath, 0);
 }
@@ -247,7 +247,7 @@ void WidgetMaterialTrackUtilities::GetMaterialBrushPropertyPaths( UWidget* Widge
 	GetMaterialBrushPropertyPathsRecursive( Widget, Widget->GetClass(), PropertyPath, MaterialBrushPropertyPaths );
 }
 
-FName WidgetMaterialTrackUtilities::GetTrackNameFromPropertyNamePath( const TArray<FName>& PropertyNamePath )
+FName WidgetMaterialTrackUtilities::GetTrackNameFromPropertyNamePath( TArrayView<const FName> PropertyNamePath )
 {
 	if ( PropertyNamePath.Num() == 0 )
 	{

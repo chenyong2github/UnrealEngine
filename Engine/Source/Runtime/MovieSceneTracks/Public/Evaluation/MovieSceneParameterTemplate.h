@@ -6,15 +6,11 @@
 #include "Stats/Stats.h"
 #include "UObject/ObjectMacros.h"
 #include "MovieSceneFwd.h"
-#include "MovieSceneExecutionToken.h"
 #include "Evaluation/MovieSceneEvalTemplate.h"
 #include "Sections/MovieSceneParameterSection.h"
-#include "Materials/MaterialInstanceDynamic.h"
 #include "IMovieScenePlayer.h"
 
 #include "MovieSceneParameterTemplate.generated.h"
-
-class UMovieSceneComponentMaterialTrack;
 
 DECLARE_CYCLE_STAT(TEXT("Parameter Track Token Execute"), MovieSceneEval_ParameterTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
@@ -84,147 +80,4 @@ protected:
 
 	UPROPERTY()
 	TArray<FTransformParameterNameAndCurves> Transforms;
-};
-
-/** Default accessor type for use with TMaterialTrackExecutionToken */
-struct FDefaultMaterialAccessor
-{
-	// Implement in derived classes:
-
-	/** Get the anim type ID for the evaluation token */
-	// FMovieSceneAnimTypeID 	GetAnimTypeID();
-
-	/** Get the material from the specified object */
-	// UMaterialInterface* 		GetMaterialForObject(UObject& Object);
-
-	/** Set the material for the specified object */
-	// void 					SetMaterialForObject(UObject& Object, UMaterialInterface& Material);
-
-	/** Apply the specified values onto the specified material */
-	MOVIESCENETRACKS_API void Apply(UMaterialInstanceDynamic& Material, const FEvaluatedParameterSectionValues& Values);
-};
-
-/**
- * Material track execution token
- * Templated on accessor type to allow for copyable accessors into pre animated state
- */
-template<typename AccessorType>
-struct TMaterialTrackExecutionToken : IMovieSceneExecutionToken
-{
-	TMaterialTrackExecutionToken(AccessorType InAccessor)
-		: Accessor(MoveTemp(InAccessor))
-	{
-	}
-
-	TMaterialTrackExecutionToken(TMaterialTrackExecutionToken&&) = default;
-	TMaterialTrackExecutionToken& operator=(TMaterialTrackExecutionToken&&) = default;
-
-	// Non-copyable
-	TMaterialTrackExecutionToken(const TMaterialTrackExecutionToken&) = delete;
-	TMaterialTrackExecutionToken& operator=(const TMaterialTrackExecutionToken&) = delete;
-
-	virtual void Execute(const FMovieSceneContext& Context, const FMovieSceneEvaluationOperand& Operand, FPersistentEvaluationData& PersistentData, IMovieScenePlayer& Player)
-	{
-		MOVIESCENE_DETAILED_SCOPE_CYCLE_COUNTER(MovieSceneEval_ParameterTrack_TokenExecute)
-		
-		for (TWeakObjectPtr<>& WeakObject : Player.FindBoundObjects(Operand))
-		{
-			UObject* Object = WeakObject.Get();
-			UMaterialInterface* Material = Object ? Accessor.GetMaterialForObject(*Object) : nullptr;
-
-			if (!Material)
-			{
-				continue;
-			}
-
-			// Save the old instance
-			Player.SavePreAnimatedState(*Object, Accessor.GetAnimTypeID(), FPreAnimatedTokenProducer(Accessor));
-
-			UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(Material);
-			if (!DynamicMaterialInstance)
-			{
-				FString DynamicName = Material->GetName() + "_Animated";
-				FName UniqueDynamicName = MakeUniqueObjectName( Object, UMaterialInstanceDynamic::StaticClass() , *DynamicName );
-				DynamicMaterialInstance = Accessor.CreateMaterialInstanceDynamic(*Object, *Material, UniqueDynamicName);
-
-				Accessor.SetMaterialForObject(*Object, *DynamicMaterialInstance);
-			}
-
-			Accessor.Apply(*DynamicMaterialInstance, Values);
-		}
-	}
-
-	AccessorType Accessor;
-	FEvaluatedParameterSectionValues Values;
-
-private:
-
-	struct FPreAnimatedTokenProducer : IMovieScenePreAnimatedTokenProducer
-	{
-		struct FPreAnimatedToken : IMovieScenePreAnimatedToken
-		{
-			FPreAnimatedToken(UObject& Object, const AccessorType& InAccessor)
-				: Accessor(InAccessor)
-				, Material(Accessor.GetMaterialForObject(Object))
-			{
-				// If the current material we're overriding is already a material instance dynamic, copy it since we will be modifying the data. 
-				// The copied material will be used to restore the values in RestoreState.
-				UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(Material);
-				if (DynamicMaterialInstance)
-				{
-					UObject* DuplicatedObject = StaticDuplicateObject(DynamicMaterialInstance, &Object);
-					if (DuplicatedObject)
-					{
-						CopiedDynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(DuplicatedObject);
-					}
-				}
-			}
-
-			virtual void RestoreState(UObject& Object, const UE::MovieScene::FRestoreStateParams& Params) override
-			{
-				if (UMaterialInterface* PinnedMaterial = Material.Get())
-				{
-					// If the original material was a material instance dynamic, copy the material parameters back since we modified it in place.
-					UMaterialInstanceDynamic* DynamicMaterialInstance = Cast<UMaterialInstanceDynamic>(PinnedMaterial);
-					if (DynamicMaterialInstance && CopiedDynamicMaterialInstance.IsValid())
-					{
-						DynamicMaterialInstance->CopyMaterialUniformParameters(CopiedDynamicMaterialInstance.Get());
-					}
-
-					Accessor.SetMaterialForObject(Object, *PinnedMaterial);
-				}
-			}
-
-			AccessorType Accessor;
-			TWeakObjectPtr<UMaterialInterface> Material;
-			TWeakObjectPtr<UMaterialInstanceDynamic> CopiedDynamicMaterialInstance;
-		};
-
-		FPreAnimatedTokenProducer(const AccessorType& InAccessor) : Accessor(InAccessor) {}
-
-		virtual IMovieScenePreAnimatedTokenPtr CacheExistingState(UObject& Object) const override
-		{
-			return FPreAnimatedToken(Object, Accessor);
-		}
-
-		const AccessorType& Accessor;
-	};
-};
-
-/** Evaluation template for primitive component materials */
-USTRUCT()
-struct FMovieSceneComponentMaterialSectionTemplate : public FMovieSceneParameterSectionTemplate
-{
-	GENERATED_BODY()
-
-	FMovieSceneComponentMaterialSectionTemplate() : MaterialIndex(0) {}
-	FMovieSceneComponentMaterialSectionTemplate(const UMovieSceneParameterSection& Section, const UMovieSceneComponentMaterialTrack& Track);
-
-private:
-
-	virtual UScriptStruct& GetScriptStructImpl() const override { return *StaticStruct(); }
-	virtual void Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const override;
-
-	UPROPERTY()
-	int32 MaterialIndex;
 };

@@ -69,6 +69,7 @@ static void SetRenderTransform(UObject* Object, const FIntermediateWidgetTransfo
 	CastChecked<UWidget>(Object)->SetRenderTransform(Transform);
 }
 
+
 FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 {
 	FComponentRegistry* ComponentRegistry = UMovieSceneEntitySystemLinker::GetComponents();
@@ -76,6 +77,8 @@ FMovieSceneUMGComponentTypes::FMovieSceneUMGComponentTypes()
 	ComponentRegistry->NewPropertyType(Margin, TEXT("FMargin Property"));
 
 	ComponentRegistry->NewPropertyType(WidgetTransform, TEXT("FWidgetTransform Property"));
+
+	ComponentRegistry->NewComponentType(&WidgetMaterialPath, TEXT("Widget Material Path"), EComponentTypeFlags::CopyToChildren | EComponentTypeFlags::CopyToOutput);
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 

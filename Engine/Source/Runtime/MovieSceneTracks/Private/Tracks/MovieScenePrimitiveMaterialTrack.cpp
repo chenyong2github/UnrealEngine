@@ -3,7 +3,6 @@
 #include "Tracks/MovieScenePrimitiveMaterialTrack.h"
 #include "Tracks/MovieSceneMaterialTrack.h"
 #include "Sections/MovieScenePrimitiveMaterialSection.h"
-#include "Evaluation/MovieScenePrimitiveMaterialTemplate.h"
 #include "Evaluation/MovieSceneEvaluationTrack.h"
 
 
@@ -24,17 +23,6 @@ UMovieSceneSection* UMovieScenePrimitiveMaterialTrack::CreateNewSection()
 bool UMovieScenePrimitiveMaterialTrack::SupportsType(TSubclassOf<UMovieSceneSection> SectionClass) const
 {
 	return SectionClass == UMovieScenePrimitiveMaterialSection::StaticClass();
-}
-
-FMovieSceneEvalTemplatePtr UMovieScenePrimitiveMaterialTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
-{
-	return FMovieScenePrimitiveMaterialTemplate(*CastChecked<UMovieScenePrimitiveMaterialSection>(&InSection), *this);
-}
-
-void UMovieScenePrimitiveMaterialTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
-{
-	// Must evaluate before material parameter tracks
-	OutTrack.SetEvaluationPriority(UMovieSceneComponentMaterialTrack::EvaluationPriority + 1);
 }
 
 int32 UMovieScenePrimitiveMaterialTrack::GetMaterialIndex() const

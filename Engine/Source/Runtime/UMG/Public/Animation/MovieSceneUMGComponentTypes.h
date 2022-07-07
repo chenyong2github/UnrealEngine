@@ -9,11 +9,23 @@
 #include "EntitySystem/MovieScenePropertyTraits.h"
 #include "EntitySystem/MovieScenePropertyMetaDataTraits.h"
 
+#include "Containers/ArrayView.h"
+
 
 namespace UE
 {
 namespace MovieScene
 {
+
+struct FWidgetMaterialPath
+{
+	FWidgetMaterialPath() = default;
+	FWidgetMaterialPath(TArrayView<const FName> Names)
+		: Path(Names.GetData(), Names.Num())
+	{}
+
+	TArray<FName, TInlineAllocator<2>> Path;
+};
 
 struct FIntermediateWidgetTransform
 {
@@ -37,6 +49,8 @@ struct UMG_API FMovieSceneUMGComponentTypes
 
 	TPropertyComponents<FMarginTraits> Margin;
 	TPropertyComponents<FWidgetTransformPropertyTraits> WidgetTransform;
+
+	TComponentTypeID<FWidgetMaterialPath> WidgetMaterialPath;
 
 	TCustomPropertyRegistration<FWidgetTransformPropertyTraits, 1> CustomWidgetTransformAccessors;
 

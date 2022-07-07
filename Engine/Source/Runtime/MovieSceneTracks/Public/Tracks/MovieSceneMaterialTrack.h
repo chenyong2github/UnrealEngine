@@ -6,7 +6,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Sections/MovieSceneParameterSection.h"
 #include "MovieSceneNameableTrack.h"
-#include "Compilation/IMovieSceneTrackTemplateProducer.h"
+#include "EntitySystem/IMovieSceneEntityProvider.h"
 #include "MovieSceneMaterialTrack.generated.h"
 
 /**
@@ -32,7 +32,8 @@ public:
 	virtual void RemoveSection(UMovieSceneSection& Section) override;
 	virtual void RemoveSectionAt(int32 SectionIndex) override;
 	virtual bool IsEmpty() const override;
-	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;
+	virtual const TArray<UMovieSceneSection*>& GetAllSections() const override;	
+	virtual bool SupportsMultipleRows() const override;
 
 public:
 
@@ -66,18 +67,23 @@ private:
 UCLASS(MinimalAPI)
 class UMovieSceneComponentMaterialTrack
 	: public UMovieSceneMaterialTrack
-	, public IMovieSceneTrackTemplateProducer
+	, public IMovieSceneEntityProvider
+	, public IMovieSceneParameterSectionExtender
 {
 	GENERATED_UCLASS_BODY()
 
 public:
 
 	// UMovieSceneTrack interface
+	virtual void AddSection(UMovieSceneSection& Section) override;
 
-	static const uint16 EvaluationPriority = 1000;
+	/*~ IMovieSceneEntityProvider */
+	virtual void ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity) override;
+	virtual bool PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder) override;
 
-	virtual FMovieSceneEvalTemplatePtr CreateTemplateForSection(const UMovieSceneSection& InSection) const override;
-	virtual void PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const override;
+	/*~ IMovieSceneParameterSectionExtender */
+	virtual void ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity) override;
+
 	virtual FName GetTrackName() const { return FName( *FString::FromInt(MaterialIndex) ); }
 
 #if WITH_EDITORONLY_DATA

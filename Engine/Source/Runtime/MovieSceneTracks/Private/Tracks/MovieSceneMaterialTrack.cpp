@@ -3,8 +3,10 @@
 #include "Tracks/MovieSceneMaterialTrack.h"
 #include "MovieScene.h"
 #include "MovieSceneCommonHelpers.h"
-#include "Evaluation/MovieSceneParameterTemplate.h"
-#include "Evaluation/MovieSceneEvaluationTrack.h"
+#include "Evaluation/MovieSceneEvaluationField.h"
+#include "EntitySystem/MovieSceneEntityBuilder.h"
+#include "EntitySystem/BuiltInComponentTypes.h"
+#include "MovieSceneTracksComponentTypes.h"
 
 UMovieSceneMaterialTrack::UMovieSceneMaterialTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -12,6 +14,8 @@ UMovieSceneMaterialTrack::UMovieSceneMaterialTrack(const FObjectInitializer& Obj
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(64,192,64,65);
 #endif
+
+	SupportedBlendTypes.Add(EMovieSceneBlendType::Absolute);
 }
 
 
@@ -60,6 +64,10 @@ bool UMovieSceneMaterialTrack::IsEmpty() const
 	return Sections.Num() == 0;
 }
 
+bool UMovieSceneMaterialTrack::SupportsMultipleRows() const
+{
+	return true;
+}
 
 const TArray<UMovieSceneSection*>& UMovieSceneMaterialTrack::GetAllSections() const
 {
@@ -111,20 +119,62 @@ void UMovieSceneMaterialTrack::AddColorParameterKey(FName ParameterName, FFrameN
 UMovieSceneComponentMaterialTrack::UMovieSceneComponentMaterialTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	
+	BuiltInTreePopulationMode = ETreePopulationMode::Blended;
 }
 
-
-FMovieSceneEvalTemplatePtr UMovieSceneComponentMaterialTrack::CreateTemplateForSection(const UMovieSceneSection& InSection) const
+void UMovieSceneComponentMaterialTrack::AddSection(UMovieSceneSection& Section)
 {
-	return FMovieSceneComponentMaterialSectionTemplate(*CastChecked<UMovieSceneParameterSection>(&InSection), *this);
+	// Materials are always blendable now
+	Section.SetBlendType(EMovieSceneBlendType::Absolute);
+	Super::AddSection(Section);
 }
 
-void UMovieSceneComponentMaterialTrack::PostCompile(FMovieSceneEvaluationTrack& OutTrack, const FMovieSceneTrackCompilerArgs& Args) const
+void UMovieSceneComponentMaterialTrack::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
-	OutTrack.SetEvaluationPriority(EvaluationPriority);
+	// These tracks don't define any entities for themselves
+	checkf(false, TEXT("This track should never have created entities for itself - this assertion indicates an error in the entity-component field"));
 }
 
+void UMovieSceneComponentMaterialTrack::ExtendEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const UE::MovieScene::FEntityImportParams& Params, UE::MovieScene::FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
+
+	// Material parameters are always absolute blends for the time being
+	OutImportedEntity->AddBuilder(
+		FEntityBuilder()
+		.Add(TracksComponents->ComponentMaterialIndex, MaterialIndex)
+		.AddTag(BuiltInComponents->Tags.AbsoluteBlend)
+	);
+}
+
+bool UMovieSceneComponentMaterialTrack::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
+{
+	const FMovieSceneTrackEvaluationField& LocalEvaluationField = GetEvaluationField();
+
+	// Define entities for every entry in our evaluation field
+	for (const FMovieSceneTrackEvaluationFieldEntry& Entry : LocalEvaluationField.Entries)
+	{
+		UMovieSceneParameterSection* ParameterSection = Cast<UMovieSceneParameterSection>(Entry.Section);
+		if (!ParameterSection || IsRowEvalDisabled(ParameterSection->GetRowIndex()))
+		{
+			continue;
+		}
+
+		TRange<FFrameNumber> SectionEffectiveRange = TRange<FFrameNumber>::Intersection(EffectiveRange, Entry.Range);
+		if (!SectionEffectiveRange.IsEmpty())
+		{
+			FMovieSceneEvaluationFieldEntityMetaData SectionMetaData = InMetaData;
+			SectionMetaData.Flags = Entry.Flags;
+
+			ParameterSection->ExternalPopulateEvaluationField(SectionEffectiveRange, SectionMetaData, OutFieldBuilder);
+		}
+	}
+
+	return true;
+}
 
 #if WITH_EDITORONLY_DATA
 FText UMovieSceneComponentMaterialTrack::GetDefaultDisplayName() const
