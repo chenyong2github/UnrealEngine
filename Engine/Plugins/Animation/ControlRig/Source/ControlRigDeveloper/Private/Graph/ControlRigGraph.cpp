@@ -176,13 +176,14 @@ void UControlRigGraph::CacheNameLists(URigHierarchy* InHierarchy, const FControl
 		TArray<TSharedPtr<FString>>& RigidBodyNameList = ElementNameLists.FindChecked(ERigElementType::RigidBody);
 		TArray<TSharedPtr<FString>>& ReferenceNameList = ElementNameLists.FindChecked(ERigElementType::Reference);
 		
-		CacheNameListForHierarchy<FRigBaseElement>(InHierarchy, AllNameList);
-		CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList);
-		CacheNameListForHierarchy<FRigNullElement>(InHierarchy, NullNameList);
-		CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList);
-		CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList);
-		CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList);
-		CacheNameListForHierarchy<FRigReferenceElement>(InHierarchy, ReferenceNameList);
+		CacheNameListForHierarchy<FRigBaseElement>(InHierarchy, AllNameList, false);
+		CacheNameListForHierarchy<FRigBoneElement>(InHierarchy, BoneNameList, false);
+		CacheNameListForHierarchy<FRigNullElement>(InHierarchy, NullNameList, false);
+		CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameList, false);
+		CacheNameListForHierarchy<FRigControlElement>(InHierarchy, ControlNameListWithoutAnimationChannels, true);
+		CacheNameListForHierarchy<FRigCurveElement>(InHierarchy, CurveNameList, false);
+		CacheNameListForHierarchy<FRigRigidBodyElement>(InHierarchy, RigidBodyNameList, false);
+		CacheNameListForHierarchy<FRigReferenceElement>(InHierarchy, ReferenceNameList, false);
 
 		LastHierarchyTopologyVersion = InHierarchy->GetTopologyVersion();
 	}

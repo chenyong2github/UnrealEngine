@@ -53,6 +53,10 @@ public:
 	{
 		return GetElementNameList(ERigElementType::Control);
 	}
+	FORCEINLINE const TArray<TSharedPtr<FString>>* GetControlNameListWithoutAnimationChannels(URigVMPin* InPin = nullptr) const
+	{
+		return &ControlNameListWithoutAnimationChannels;
+	}
 	FORCEINLINE const TArray<TSharedPtr<FString>>* GetNullNameList(URigVMPin* InPin = nullptr) const
 	{
 		return GetElementNameList(ERigElementType::Null);
@@ -102,14 +106,14 @@ private:
 	}
 
 	template<class T>
-	void CacheNameListForHierarchy(URigHierarchy* InHierarchy, TArray<TSharedPtr<FString>>& OutNameList)
+	void CacheNameListForHierarchy(URigHierarchy* InHierarchy, TArray<TSharedPtr<FString>>& OutNameList, bool bFilter = true)
 	{
         TArray<FString> Names;
 		for (auto Element : *InHierarchy)
 		{
 			if(Element->IsA<T>())
 			{
-				if(IncludeElementInNameList<T>(Cast<T>(Element)))
+				if(!bFilter || IncludeElementInNameList<T>(Cast<T>(Element)))
 				{
 					Names.Add(Element->GetName().ToString());
 				}
@@ -144,6 +148,7 @@ private:
 	}
 
 	TMap<ERigElementType, TArray<TSharedPtr<FString>>> ElementNameLists;
+	TArray<TSharedPtr<FString>>	ControlNameListWithoutAnimationChannels;
 	TArray<TSharedPtr<FString>> DrawingNameList;
 	TArray<TSharedPtr<FString>> EntryNameList;
 	TArray<TSharedPtr<FString>> ShapeNameList;

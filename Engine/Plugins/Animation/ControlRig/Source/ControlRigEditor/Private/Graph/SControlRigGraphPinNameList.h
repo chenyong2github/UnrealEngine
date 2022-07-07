@@ -22,6 +22,7 @@ public:
 
 		SLATE_ARGUMENT(URigVMPin*, ModelPin)
 		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContent)
+		SLATE_EVENT(FOnGetNameListContent, OnGetNameListContentForValidation)
 		SLATE_EVENT(FOnGetNameFromSelection, OnGetNameFromSelection)
 		SLATE_ARGUMENT(bool, MarkupInvalidItems)
 
@@ -34,20 +35,23 @@ protected:
 	virtual TSharedRef<SWidget>	GetDefaultValueWidget() override;
 	//~ End SGraphPin Interface
 
-	const TArray<TSharedPtr<FString>>* GetNameList() const;
+	const TArray<TSharedPtr<FString>>* GetNameList(bool bForContent = true) const;
 	FText GetNameListText() const;
 	FSlateColor GetNameColor() const;
 	virtual void SetNameListText(const FText& NewTypeInValue, ETextCommit::Type CommitInfo);
+	void UpdateNameLists();
 
 	TSharedRef<SWidget> MakeNameListItemWidget(TSharedPtr<FString> InItem);
 	void OnNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OnNameListComboBox();
 
 	FOnGetNameListContent OnGetNameListContent;
+	FOnGetNameListContent OnGetNameListContentForValidation;
 	URigVMPin* ModelPin;
 	TSharedPtr<SControlRigGraphPinNameListValueWidget> NameListComboBox;
 	TArray<TSharedPtr<FString>> EmptyList;
 	const TArray<TSharedPtr<FString>>* CurrentList;
+	const TArray<TSharedPtr<FString>>* ValidationList;
 	bool bMarkupInvalidItems;
 
 	/** Helper buttons. */

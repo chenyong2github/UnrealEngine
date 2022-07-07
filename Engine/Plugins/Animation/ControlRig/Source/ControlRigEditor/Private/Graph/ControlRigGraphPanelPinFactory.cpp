@@ -60,7 +60,8 @@ TSharedPtr<SGraphPin> FControlRigGraphPanelPinFactory::CreatePin(UEdGraphPin* In
 					return SNew(SControlRigGraphPinNameList, InPin)
 						.ModelPin(ModelPin)
 						.OnGetNameFromSelection_UObject(RigGraph, &UControlRigGraph::GetSelectedElementsNameList)
-						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetControlNameList);
+						.OnGetNameListContent_UObject(RigGraph, &UControlRigGraph::GetControlNameListWithoutAnimationChannels)
+						.OnGetNameListContentForValidation_UObject(RigGraph, &UControlRigGraph::GetControlNameList);
 				}
 				else if (CustomWidgetName == TEXT("SpaceName"))
 				{

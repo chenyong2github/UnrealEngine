@@ -1381,7 +1381,7 @@ void FControlRigWrappedNodeDetails::CustomizeDetails(IDetailLayoutBuilder& Detai
         		}
         		else if (CustomWidgetName == TEXT("ControlName"))
         		{
-        			NameList = GraphBeingCustomized->GetControlNameList();
+        			NameList = GraphBeingCustomized->GetControlNameListWithoutAnimationChannels();
         		}
         		else if (CustomWidgetName == TEXT("SpaceName"))
         		{

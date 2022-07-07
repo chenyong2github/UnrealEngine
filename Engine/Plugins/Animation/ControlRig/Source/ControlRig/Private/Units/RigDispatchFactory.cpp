@@ -60,6 +60,11 @@ FString FRigDispatchFactory::GetArgumentDefaultValue(const FName& InArgumentName
 		static FString DefaultValueString = GetDefaultValueForStruct(FEulerTransform::Identity); 
 		return DefaultValueString;
 	}
+	if(InTypeIndex == FRigVMRegistry::Get().GetTypeIndex<FLinearColor>())
+	{
+		static FString DefaultValueString = GetDefaultValueForStruct(FLinearColor::White); 
+		return DefaultValueString;
+	}
 	if(InTypeIndex == FRigVMRegistry::Get().GetTypeIndex<FRigElementKey>())
 	{
 		static FString DefaultValueString = GetDefaultValueForStruct(FRigElementKey(NAME_None, ERigElementType::Bone)); 
