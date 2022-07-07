@@ -47,7 +47,7 @@ namespace Horde.Build.Issues.Handlers
 		/// <returns></returns>
 		static bool IsMaskedEventId(EventId eventId)
 		{
-			return eventId == KnownLogEvents.ExitCode;
+			return eventId == KnownLogEvents.ExitCode || eventId == KnownLogEvents.Systemic_Xge_BuildFailed;
 		}
 
 		/// <summary>
