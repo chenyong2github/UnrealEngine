@@ -10,6 +10,7 @@ class UPersistentMeshSelection;
 class UToolTarget;
 class UInteractiveTool;
 class UInteractiveToolManager;
+struct FGeometrySelection;
 PREDECLARE_USE_GEOMETRY_CLASS(FGroupTopology);
 PREDECLARE_USE_GEOMETRY_CLASS(FCompactMaps);
 
@@ -26,6 +27,14 @@ namespace Geometry
 	 * @return Selection if found, or nullptr if not
 	 */
 	MODELINGCOMPONENTS_API const UPersistentMeshSelection* GetCurrentToolInputSelection(const FToolBuilderState& SceneState, UToolTarget* Target);
+
+	/**
+	* Given a FToolBuilderState, find geometry selection for the given ToolTarget
+	* @param SelectionOut non-empty selection will be returned here
+	* @return true if a non-empty selection was found
+	*/
+	MODELINGCOMPONENTS_API bool GetCurrentGeometrySelectionForTarget(const FToolBuilderState& SceneState, UToolTarget* Target,
+		FGeometrySelection& SelectionOut);
 
 	/**
 	 * Convert the given Seletion to a list of Triangles of the specified Mesh. 

@@ -10,14 +10,17 @@
 
 using namespace UE::Geometry;
 
-#define LOCTEXT_NAMESPACE "UPersistentMeshSelectionManager"
+#define LOCTEXT_NAMESPACE "UDEPRECATED_PersistentMeshSelectionManager"
 
-void UPersistentMeshSelectionManager::Initialize(TObjectPtr<UInteractiveToolsContext> ToolsContext)
+
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
+void UDEPRECATED_PersistentMeshSelectionManager::Initialize(TObjectPtr<UInteractiveToolsContext> ToolsContext)
 {
 	ParentContext = ToolsContext;
 }
 
-void UPersistentMeshSelectionManager::Shutdown()
+void UDEPRECATED_PersistentMeshSelectionManager::Shutdown()
 {
 	if (SelectionDisplay != nullptr)
 	{
@@ -26,17 +29,17 @@ void UPersistentMeshSelectionManager::Shutdown()
 	}
 }
 
-bool UPersistentMeshSelectionManager::HasActiveSelection()
+bool UDEPRECATED_PersistentMeshSelectionManager::HasActiveSelection()
 {
 	return (ActiveSelection != nullptr);
 }
 
-UPersistentMeshSelection* UPersistentMeshSelectionManager::GetActiveSelection()
+UPersistentMeshSelection* UDEPRECATED_PersistentMeshSelectionManager::GetActiveSelection()
 {
 	return ActiveSelection;
 }
 
-void UPersistentMeshSelectionManager::SetNewActiveSelection(UPersistentMeshSelection* Selection)
+void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelection(UPersistentMeshSelection* Selection)
 {
 	TUniquePtr<FPersistentMeshSelectionChange> SelectionChange = MakeUnique<FPersistentMeshSelectionChange>();
 	if (ActiveSelection != nullptr)
@@ -55,14 +58,14 @@ void UPersistentMeshSelectionManager::SetNewActiveSelection(UPersistentMeshSelec
 }
 
 
-void UPersistentMeshSelectionManager::SetNewActiveSelectionInternal(UPersistentMeshSelection* Selection)
+void UDEPRECATED_PersistentMeshSelectionManager::SetNewActiveSelectionInternal(UPersistentMeshSelection* Selection)
 {
 	ActiveSelection = Selection;
 	OnSelectionModified();
 }
 
 
-void UPersistentMeshSelectionManager::ClearActiveSelection()
+void UDEPRECATED_PersistentMeshSelectionManager::ClearActiveSelection()
 {
 	if (ActiveSelection == nullptr)
 	{
@@ -75,7 +78,7 @@ void UPersistentMeshSelectionManager::ClearActiveSelection()
 
 
 
-void UPersistentMeshSelectionManager::OnSelectionModified()
+void UDEPRECATED_PersistentMeshSelectionManager::OnSelectionModified()
 {
 	if (ActiveSelection != nullptr && SelectionDisplay == nullptr)
 	{
@@ -126,10 +129,10 @@ bool UE::Geometry::RegisterPersistentMeshSelectionManager(UInteractiveToolsConte
 {
 	if (ensure(ToolsContext))
 	{
-		UPersistentMeshSelectionManager* Found = ToolsContext->ContextObjectStore->FindContext<UPersistentMeshSelectionManager>();
+		UDEPRECATED_PersistentMeshSelectionManager* Found = ToolsContext->ContextObjectStore->FindContext<UDEPRECATED_PersistentMeshSelectionManager>();
 		if (Found == nullptr)
 		{
-			UPersistentMeshSelectionManager* SelectionManager = NewObject<UPersistentMeshSelectionManager>(ToolsContext->ToolManager);
+			UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = NewObject<UDEPRECATED_PersistentMeshSelectionManager>(ToolsContext->ToolManager);
 			if (ensure(SelectionManager))
 			{
 				SelectionManager->Initialize(ToolsContext);
@@ -152,7 +155,7 @@ bool UE::Geometry::DeregisterPersistentMeshSelectionManager(UInteractiveToolsCon
 {
 	if (ensure(ToolsContext))
 	{
-		UPersistentMeshSelectionManager* Found = ToolsContext->ContextObjectStore->FindContext<UPersistentMeshSelectionManager>();
+		UDEPRECATED_PersistentMeshSelectionManager* Found = ToolsContext->ContextObjectStore->FindContext<UDEPRECATED_PersistentMeshSelectionManager>();
 		if (Found != nullptr)
 		{
 			Found->Shutdown();
@@ -164,11 +167,11 @@ bool UE::Geometry::DeregisterPersistentMeshSelectionManager(UInteractiveToolsCon
 }
 
 
-UPersistentMeshSelectionManager* UE::Geometry::FindPersistentMeshSelectionManager(UInteractiveToolManager* ToolManager)
+UDEPRECATED_PersistentMeshSelectionManager* UE::Geometry::FindPersistentMeshSelectionManager(UInteractiveToolManager* ToolManager)
 {
 	if (ensure(ToolManager))
 	{
-		UPersistentMeshSelectionManager* Found = ToolManager->GetContextObjectStore()->FindContext<UPersistentMeshSelectionManager>();
+		UDEPRECATED_PersistentMeshSelectionManager* Found = ToolManager->GetContextObjectStore()->FindContext<UDEPRECATED_PersistentMeshSelectionManager>();
 		if (Found != nullptr)
 		{
 			return Found;
@@ -182,7 +185,7 @@ UPersistentMeshSelectionManager* UE::Geometry::FindPersistentMeshSelectionManage
 
 void FPersistentMeshSelectionChange::Apply(UObject* Object)
 {
-	UPersistentMeshSelectionManager* SelectionManager = Cast<UPersistentMeshSelectionManager>(Object);
+	UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = Cast<UDEPRECATED_PersistentMeshSelectionManager>(Object);
 	if (SelectionManager)
 	{
 		UPersistentMeshSelection* NewSelection = NewObject<UPersistentMeshSelection>(SelectionManager);
@@ -193,7 +196,7 @@ void FPersistentMeshSelectionChange::Apply(UObject* Object)
 
 void FPersistentMeshSelectionChange::Revert(UObject* Object)
 {
-	UPersistentMeshSelectionManager* SelectionManager = Cast<UPersistentMeshSelectionManager>(Object);
+	UDEPRECATED_PersistentMeshSelectionManager* SelectionManager = Cast<UDEPRECATED_PersistentMeshSelectionManager>(Object);
 	if (SelectionManager)
 	{
 		UPersistentMeshSelection* NewSelection = NewObject<UPersistentMeshSelection>(SelectionManager);
@@ -211,5 +214,9 @@ FString FPersistentMeshSelectionChange::ToString() const
 {
 	return TEXT("PersistentMeshSelectionChange");
 }
+
+
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #undef LOCTEXT_NAMESPACE

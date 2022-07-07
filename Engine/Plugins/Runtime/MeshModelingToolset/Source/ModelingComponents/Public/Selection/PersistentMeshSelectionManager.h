@@ -26,8 +26,8 @@ class UPreviewGeometry;
  * those functions are preferable to directly using the Manager.
  * 
  */
-UCLASS()
-class MODELINGCOMPONENTS_API UPersistentMeshSelectionManager : public UObject
+UCLASS(Deprecated) 
+class MODELINGCOMPONENTS_API UDEPRECATED_PersistentMeshSelectionManager : public UObject
 {
 	GENERATED_BODY()
 
@@ -73,7 +73,9 @@ protected:
  * FPersistentMeshSelectionChange stores a selection change, ie before-and-after states.
  * UPersistentMeshSelectionManager emits these changes on selection modifications.
  */
-class MODELINGCOMPONENTS_API FPersistentMeshSelectionChange : public FToolCommandChange
+class MODELINGCOMPONENTS_API 
+UE_DEPRECATED(5.1, "UPersistentMeshSelectionManager has been deprecated and FPersistentMeshSelectionChange is no longer used") 
+FPersistentMeshSelectionChange : public FToolCommandChange
 {
 public:
 	FGenericMeshSelection From;
@@ -106,12 +108,14 @@ namespace Geometry
 	 * ToolsContext's ContextObjectStore
 	 * @return true if the ContextObjectStore now has a UPersistentMeshSelectionManager (whether it already existed, or was created)
 	 */
+	UE_DEPRECATED(5.1, "UE::Geometry::RegisterPersistentMeshSelectionManager is deprecated")
 	MODELINGCOMPONENTS_API bool RegisterPersistentMeshSelectionManager(UInteractiveToolsContext* ToolsContext);
 
 	/**
 	 * Remove any existing UPersistentMeshSelectionManager from the ToolsContext's ContextObjectStore
 	 * @return true if the ContextObjectStore no longer has a UPersistentMeshSelectionManager (whether it was removed, or did not exist)
 	 */
+	UE_DEPRECATED(5.1, "UE::Geometry::DeregisterPersistentMeshSelectionManager is deprecated")
 	MODELINGCOMPONENTS_API bool DeregisterPersistentMeshSelectionManager(UInteractiveToolsContext* ToolsContext);
 
 
@@ -119,7 +123,8 @@ namespace Geometry
 	 * Find an existing UPersistentMeshSelectionManager in the ToolsContext's ContextObjectStore
 	 * @return SelectionManager pointer or nullptr if not found
 	 */
-	MODELINGCOMPONENTS_API UPersistentMeshSelectionManager* FindPersistentMeshSelectionManager(UInteractiveToolManager* ToolManager);
+	UE_DEPRECATED(5.1, "UE::Geometry::FindPersistentMeshSelectionManager is deprecated")
+	MODELINGCOMPONENTS_API UDEPRECATED_PersistentMeshSelectionManager* FindPersistentMeshSelectionManager(UInteractiveToolManager* ToolManager);
 
 
 }
