@@ -128,6 +128,10 @@ bool UHLODProxyDesc::UpdateFromLODActor(const ALODActor* InLODActor)
 		}
 	}
 
+	// Sort the arrays to ensure a stable order for comparisons
+	SubActors.Sort(FNameLexicalLess());
+	SubHLODDescs.Sort(FSoftObjectPtrLexicalLess());
+
 	StaticMesh = InLODActor->StaticMeshComponent ? InLODActor->StaticMeshComponent->GetStaticMesh() : nullptr;
 
 	const TMap<FHLODInstancingKey, TObjectPtr<UInstancedStaticMeshComponent>>& ISMComponents = InLODActor->InstancedStaticMeshComponents;
@@ -183,6 +187,10 @@ bool UHLODProxyDesc::ShouldUpdateDesc(const ALODActor* InLODActor) const
 			LocalSubActors.Emplace(SubActor->GetFName());
 		}
 	}
+
+	// Sort the arrays to ensure a stable order for the comparisons below
+	LocalSubActors.Sort(FNameLexicalLess());
+	LocalSubHLODDescs.Sort(FSoftObjectPtrLexicalLess());
 
 	if (LocalSubActors != SubActors)
 	{

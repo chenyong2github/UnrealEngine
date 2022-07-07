@@ -113,7 +113,9 @@ void UHLODProxy::Clean()
 	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 	{
 		UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
-		if (World)
+
+		// Don't check HLODs for levels that are not visible, as they haven't got any LODActors yet, which means they'll always get cleaned out and dirtied.
+		if (World && World->PersistentLevel->bIsVisible)
 		{
 			UpdateHLODDescs(World->PersistentLevel);
 		}
