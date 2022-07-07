@@ -162,11 +162,11 @@ void UAudioGameplayVolumeMutator::NotifyDataChanged() const
 	if (IsActive())
 	{
 		TInlineComponentArray<UAudioGameplayVolumeProxyComponent*> VolumeComponents(GetOwner());
-		if (ensureMsgf(VolumeComponents.Num() == 1, TEXT("Expecting exactly one AudioGameplayVolumeProxyComponent on an actor!")))
+		for (UAudioGameplayVolumeProxyComponent* VolumeComponent : VolumeComponents)
 		{
-			if (VolumeComponents[0])
+			if (VolumeComponent != nullptr)
 			{
-				VolumeComponents[0]->OnComponentDataChanged();
+				VolumeComponent->OnComponentDataChanged();
 			}
 		}
 	}

@@ -147,7 +147,14 @@ void UAGVPrimitiveComponentProxy::InitFromComponent(const UAudioGameplayVolumePr
 	if (Component)
 	{
 		TInlineComponentArray<UPrimitiveComponent*> PrimitiveComponents(Component->GetOwner());
-		if (ensureMsgf(PrimitiveComponents.Num() == 1, TEXT("An Audio Gameplay Volume Shape Proxy requires exactly one Primitive Component on the owning actor")))
+		const int32 PrimitiveComponentCount = PrimitiveComponents.Num();
+
+		if (PrimitiveComponentCount != 1)
+		{
+			UE_LOG(AudioGameplayVolumeLog, Warning, TEXT("Was expecting exactly one Primitive Component on the owning actor, found %d - this could cause unexpected behavior"), PrimitiveComponentCount);
+		}
+
+		if (PrimitiveComponents.Num() > 0)
 		{
 			WeakPrimative = PrimitiveComponents[0];
 		}
