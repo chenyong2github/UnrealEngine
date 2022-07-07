@@ -1225,7 +1225,7 @@ FString UMovieSceneSequencePlayer::GetSequenceName(bool bAddClientInfo) const
 		if (bAddClientInfo)
 		{
 			AActor* Actor = GetTypedOuter<AActor>();
-			if (Actor && Actor->GetWorld()->GetNetMode() == NM_Client)
+			if (Actor && Actor->GetWorld() && Actor->GetWorld()->GetNetMode() == NM_Client)
 			{
 				SequenceName += FString::Printf(TEXT(" (client %d)"), GPlayInEditorID - 1);
 			}
