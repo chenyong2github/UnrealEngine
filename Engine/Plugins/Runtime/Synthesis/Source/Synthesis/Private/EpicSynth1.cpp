@@ -59,8 +59,8 @@ namespace Audio
 			OscilPan[i].Init(VoiceId, ModMatrix);
 		}
 
-		// Setup Osc1 to be a master to Osc2 
-		Oscil[0].SetSlaveOsc(&Oscil[1]);
+		// Setup Osc1 to be a leader to Osc2 
+		Oscil[0].SetFollowerOsc(&Oscil[1]);
 
 		Amp.Init(VoiceId, ModMatrix);
 

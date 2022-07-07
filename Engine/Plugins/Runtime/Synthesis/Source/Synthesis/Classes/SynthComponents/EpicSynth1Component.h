@@ -469,7 +469,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
 	void SetEnableUnison(bool EnableUnison);
 
-	// Set whether or not to slave the phase of osc2 to osc1
+	// Set whether or not to follow the phase of osc2 to osc1
 	UFUNCTION(BlueprintCallable, Category = "Synth|Components|Audio")
 	void SetOscSync(const bool bIsSynced);
 

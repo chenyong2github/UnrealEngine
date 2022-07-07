@@ -122,14 +122,14 @@ namespace Audio
 		// Returns whether or not this oscillator is playing
 		bool IsPlaying() const { return bIsPlaying; }
 
-		// Returns if this oscillator should be synced to a master oscillator
+		// Returns if this oscillator should be synced to a leader oscillator
 		bool IsSync() const { return bIsSync; }
 
-		// Sets whether or not this oscillator should be synced to a master oscillator. Master oscillator needs to have set this oscillator as its slave.
+		// Sets whether or not this oscillator should be synced to a leader oscillator. leader oscillator needs to have set this oscillator as its follower.
 		void SetSync(const bool bInSync) { bIsSync = bInSync; }
 
-		// Sets the input oscillator as the slave of this oscillator
-		void SetSlaveOsc(IOscBase* InSlaveOsc);
+		// Sets the input oscillator as the follower of this oscillator
+		void SetFollowerOsc(IOscBase* InFollowerOsc);
 
 		// Return patch destinations for various modulatable parameters
 		FPatchDestination GetModDestFrequency() const { return ModFrequencyDest; }
@@ -161,9 +161,9 @@ namespace Audio
 				Result = true;
 			}
 
-			if (Result && SlaveOsc && SlaveOsc->IsSync())
+			if (Result && FollowerOsc && FollowerOsc->IsSync())
 			{
-				SlaveOsc->ResetPhase();
+				FollowerOsc->ResetPhase();
 			}
 
 			return Result;
@@ -231,8 +231,8 @@ namespace Audio
 		FPatchDestination ModScaleDest;
 		FPatchDestination ModAddDest;
 
-		// Ptr to a slave oscillator that can be triggered to 0 phase if it is synced.
-		IOscBase* SlaveOsc;
+		// Ptr to a follower oscillator that can be triggered to 0 phase if it is synced.
+		IOscBase* FollowerOsc;
 
 		// Whether or not the oscillator is on or off
 		bool bIsPlaying;

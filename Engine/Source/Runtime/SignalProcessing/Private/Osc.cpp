@@ -19,7 +19,7 @@ namespace Audio
 		, PulseWidthMod(0.0f)
 		, PulseWidth(0.0f)
 		, ModMatrix(nullptr)
-		, SlaveOsc(nullptr)
+		, FollowerOsc(nullptr)
 		, bIsPlaying(false)
 		, bChanged(false)
 	{
@@ -182,9 +182,9 @@ namespace Audio
 		Phase = 0.0f;
 	}
 
-	void IOscBase::SetSlaveOsc(IOscBase* InSlaveOsc)
+	void IOscBase::SetFollowerOsc(IOscBase* InFollowerOsc)
 	{
-		SlaveOsc = InSlaveOsc;
+		FollowerOsc = InFollowerOsc;
 	}
 
 	void IOscBase::Reset()
