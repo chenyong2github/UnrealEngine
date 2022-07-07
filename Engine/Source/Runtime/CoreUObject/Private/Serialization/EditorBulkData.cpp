@@ -428,7 +428,7 @@ FEditorBulkData& FEditorBulkData::operator=(const FEditorBulkData& Other)
 	Flags = Other.Flags;
 	CompressionSettings = Other.CompressionSettings;
 
-	EnumRemoveFlags(Flags, EFlags::TransientFlags);
+	EnumRemoveFlags(Flags, TransientFlags);
 
 	if (bTornOff)
 	{
@@ -815,7 +815,7 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 		Ar << Flags;
 		if (Ar.IsLoading())
 		{
-			EnumRemoveFlags(Flags, EFlags::TransientFlags);
+			EnumRemoveFlags(Flags, TransientFlags);
 		}
 
 		// TODO: Can probably remove these checks before UE5 release
@@ -835,14 +835,6 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 			checkf(Ar.IsCooking() == false, TEXT("FEditorBulkData::Serialize should not be called during a cook"));
 
 			EFlags UpdatedFlags = BuildFlagsForSerialization(Ar, bKeepFileDataByReference);
-			EnumRemoveFlags(UpdatedFlags, EFlags::TransientFlags);
-
-			// Go back in the archive and update the flags in the archive, we will only apply the updated flags to the current
-			// object later if we detect that the package saved successfully.
-			// TODO: Not a huge fan of this, might be better to find a way to build the flags during serialization and potential callbacks 
-			// later then go back and update the flags in the Ar. Applying the updated flags only if we are saving a package to disk
-			// and the save succeeds continues to make sense.
-			UpdateArchiveData(Ar, SavedFlagsPos, UpdatedFlags);
 
 			// Write out required extra data if we're saving by reference
 			bool bWriteOutPayload = true;
@@ -912,29 +904,27 @@ void FEditorBulkData::Serialize(FArchive& Ar, UObject* Owner, bool bAllowRegiste
 					UpdateArchiveData(Ar, OffsetPos, DataStartOffset);
 				}
 			}
-
-			// Make sure that the trailer builder is correct (if it is being used)
-			if (IsStoredInPackageTrailer(UpdatedFlags) && !PayloadContentId.IsZero())
-			{
-				check(LinkerSave != nullptr);
-				check(LinkerSave->PackageTrailerBuilder.IsValid());
-				checkf(!(IsDataVirtualized(UpdatedFlags) && IsReferencingByPackagePath(UpdatedFlags)), TEXT("Payload cannot be both virtualized and a reference"));
-
-				if (IsReferencingByPackagePath(UpdatedFlags))
-				{
-					check(LinkerSave->PackageTrailerBuilder->IsReferencedPayloadEntry(PayloadContentId));
-				}
-				else if (IsDataVirtualized(UpdatedFlags))
-				{
-					LinkerSave->PackageTrailerBuilder->AddVirtualizedPayload(PayloadContentId, PayloadSize);
-					check(LinkerSave->PackageTrailerBuilder->IsVirtualizedPayloadEntry(PayloadContentId));
-				}
-				else
-				{
-					check(LinkerSave->PackageTrailerBuilder->IsLocalPayloadEntry(PayloadContentId));
-				}
-			}
 			
+			if (IsStoredInPackageTrailer(UpdatedFlags) && IsDataVirtualized(UpdatedFlags))
+			{
+				LinkerSave->PackageTrailerBuilder->AddVirtualizedPayload(PayloadContentId, PayloadSize);
+			}
+
+			/** Beyond this point UpdatedFlags will be modified to avoid serializing some flags */
+			/** So any code actually using UpdatedFlags should come before this section of code */
+
+			ValidatePackageTrailerBuilder(LinkerSave, PayloadContentId, UpdatedFlags);
+
+			// Remove the IsVirtualized flag if we are storing the payload in a package trailer before we serialize the flags
+			// to the package export data. We will determine if a payload is virtualized or not by checking the package trailer.
+			if (IsStoredInPackageTrailer(UpdatedFlags))
+			{
+				EnumRemoveFlags(UpdatedFlags, EFlags::IsVirtualized);
+			}
+
+			// Replace the flags we wrote out earlier with the updated, final values
+			UpdateArchiveData(Ar, SavedFlagsPos, UpdatedFlags);
+
 			if (CanUnloadData())
 			{
 				this->CompressionSettings.Reset();
@@ -1056,13 +1046,13 @@ void FEditorBulkData::SerializeForRegistry(FArchive& Ar)
 	{
 		check(CanSaveForRegistry());
 		EFlags FlagsForSerialize = Flags;
-		EnumRemoveFlags(FlagsForSerialize, EFlags::TransientFlags);
+		EnumRemoveFlags(FlagsForSerialize, TransientFlags);
 		Ar << FlagsForSerialize;
 	}
 	else
 	{
 		Ar << Flags;
-		EnumRemoveFlags(Flags, EFlags::TransientFlags);
+		EnumRemoveFlags(Flags, TransientFlags);
 		EnumAddFlags(Flags, EFlags::IsTornOff);
 	}
 
@@ -1533,7 +1523,7 @@ void FEditorBulkData::SerializeToLegacyPath(FLinkerSave& LinkerSave, FCompressed
 				this->PackagePath = InPackagePath;
 				check(!this->PackagePath.IsEmpty()); // LinkerSave guarantees a valid PackagePath if we're updating loaded path
 				this->OffsetInFile = DataStartOffset;
-				this->Flags = (this->Flags & EFlags::TransientFlags) | (UpdatedFlags & ~EFlags::TransientFlags);
+				this->Flags = (this->Flags & TransientFlags) | (UpdatedFlags & ~TransientFlags);
 
 				if (CanUnloadData())
 				{
@@ -1579,7 +1569,7 @@ void FEditorBulkData::SerializeToPackageTrailer(FLinkerSave& LinkerSave, FCompre
 				}
 
 				this->OffsetInFile = PayloadOffset;
-				this->Flags = (this->Flags & EFlags::TransientFlags) | (UpdatedFlags & ~EFlags::TransientFlags);
+				this->Flags = (this->Flags & TransientFlags) | (UpdatedFlags & ~TransientFlags);
 	
 				// If the payload is valid we might want to fix up the package path or virtualization flags now
 				// that the package has saved.
@@ -1997,12 +1987,15 @@ FEditorBulkData::EFlags FEditorBulkData::BuildFlagsForSerialization(FArchive& Ar
 			EnumAddFlags(UpdatedFlags, EFlags::StoredInPackageTrailer);
 		}
 
-		// if we are cooking add the cooked flag to the serialized stream
+		// If we are cooking add the cooked flag to the serialized stream
 		// Editor bulk data might be cooked when using editor optional data at runtime
 		if (Ar.IsCooking())
 		{
 			EnumAddFlags(UpdatedFlags, EFlags::IsCooked);
 		}
+		
+		// Transient flags are never serialized
+		EnumRemoveFlags(UpdatedFlags, TransientFlags);
 
 		return UpdatedFlags;
 	}
@@ -2062,6 +2055,29 @@ FText FEditorBulkData::GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) c
 		// We don't know where the payload came from or where it is being saved to.
 		return FText::Format(	NSLOCTEXT("Core", "Serialization_InvalidPayloadPath", "Attempting to save bulkdata {0} with an invalid payload, source unknown"),
 								GuidID);
+	}
+}
+
+void FEditorBulkData::ValidatePackageTrailerBuilder(const FLinkerSave* LinkerSave, const FIoHash& Id, EFlags PayloadFlags)
+{
+	if (IsStoredInPackageTrailer(PayloadFlags) && !Id.IsZero())
+	{
+		check(LinkerSave != nullptr);
+		check(LinkerSave->PackageTrailerBuilder.IsValid());
+		checkf(!(IsDataVirtualized(PayloadFlags) && IsReferencingByPackagePath(PayloadFlags)), TEXT("Payload cannot be both virtualized and a reference"));
+
+		if (IsReferencingByPackagePath(PayloadFlags))
+		{
+			check(LinkerSave->PackageTrailerBuilder->IsReferencedPayloadEntry(Id));
+		}
+		else if (IsDataVirtualized(PayloadFlags))
+		{
+			check(LinkerSave->PackageTrailerBuilder->IsVirtualizedPayloadEntry(Id));
+		}
+		else
+		{
+			check(LinkerSave->PackageTrailerBuilder->IsLocalPayloadEntry(Id));
+		}
 	}
 }
 

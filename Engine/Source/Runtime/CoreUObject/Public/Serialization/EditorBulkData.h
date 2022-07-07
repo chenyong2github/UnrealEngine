@@ -350,12 +350,13 @@ private:
 		/** The payload is stored in a package trailer, so the bulkdata object will have to poll the trailer to find the payload offset */
 		StoredInPackageTrailer		= 1 << 9,
 		/** The bulkdata object was cooked. */
-		IsCooked					= 1 << 10,
-
-		TransientFlags				= HasRegistered | IsTornOff,
+		IsCooked					= 1 << 10
 	};
 
 	FRIEND_ENUM_CLASS_FLAGS(EFlags);
+
+	/** A common grouping of EFlags */
+	static constexpr EFlags TransientFlags = EFlags((uint32)EFlags::HasRegistered | (uint32)EFlags::IsTornOff);
 
 	/** Used to control what level of error reporting we return from some methods */
 	enum ErrorVerbosity
@@ -472,6 +473,20 @@ private:
 	 * @return			The formatted error message.
 	 */
 	FText GetCorruptedPayloadErrorMsgForSave(FLinkerSave* Linker) const;
+
+	/**
+	 * A utility for validating that a package trailer builder was created correctly. If something incorrect is encountered we will assert
+	 * to prevent a corrupted package from being saved.
+	 * The main thing we check is that the payload was added as in the correct list for the correct payload storage type based on the flags 
+	 * we have for the payload.
+	 * Note that it is not expected that we will ever encounter these problems (so asserting is acceptable) and the checks could be considered
+	 * a little over cautious. We should consider just removing this check in 5.2 onwards.
+	 * 
+	 * @param LinkerSave	The linker containing the package trailer builder
+	 * @param Id			The hash of the payload we want to verify
+	 * @param PayloadFlags	The flags for the payload.
+	 */
+	static void ValidatePackageTrailerBuilder(const FLinkerSave* LinkerSave, const FIoHash& Id, EFlags PayloadFlags);
 
 	/** Returns true if we should use legacy serialization instead of the FPackageTrailer system. This can be removed when UE_ENABLE_VIRTUALIZATION_TOGGLE is removed. */
 	bool ShouldUseLegacySerialization(const FLinkerSave* LinkerSave) const;
