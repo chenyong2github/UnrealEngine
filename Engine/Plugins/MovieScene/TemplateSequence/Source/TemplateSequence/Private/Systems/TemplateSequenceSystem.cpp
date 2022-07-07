@@ -172,7 +172,7 @@ void UTemplateSequencePropertyScalingInstantiatorSystem::OnRun(FSystemTaskPrereq
 			const FTemplateSequencePropertyScaleComponentData& PropertyScale)
 	{
 		const FInstanceHandle SubSequenceHandle = InstanceRegistry->FindRelatedInstanceHandle(InstanceHandle, PropertyScale.SubSequenceID);
-		if (ensure(SubSequenceHandle.IsValid()))
+		if (ensure(SubSequenceHandle.IsValid()) && PropertyScaledInstances.Contains(SubSequenceHandle))
 		{
 			FPropertyScaleEntityIDs& PropertyScaleEntities = PropertyScaledInstances.FindChecked(SubSequenceHandle);
 			if (PropertyScaleEntities.Remove(EntityID) > 0)
