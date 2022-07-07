@@ -123,6 +123,10 @@ uint32 ULandscapeHLODBuilder::ComputeHLODHash(const UActorComponent* InSourceCom
 			Ar << UsedTexturesCRC;
 			UE_LOG(LogHLODBuilder, VeryVerbose, TEXT("     - UsedTexturesCRC = %x"), Ar.GetCrc());
 		}
+
+		// Nanite enabled?
+		bool bNaniteEnabled = LSProxy->IsNaniteEnabled();
+		Ar << bNaniteEnabled;
 	}
 
 	return Ar.GetCrc();
