@@ -15,10 +15,8 @@ UCLASS(EditInlineNew, Category = "Collision", meta = (DisplayName = "Async Gpu T
 class NIAGARA_API UNiagaraDataInterfaceAsyncGpuTrace : public UNiagaraDataInterface
 {
 	GENERATED_UCLASS_BODY()
+
 public:
-
-	DECLARE_NIAGARA_DI_PARAMETER();
-
 	/** The maximum number of traces (per particle) that can be created per frame.  Defines the size of the preallocated 
 		buffer that is used to contain the traces. */
 	UPROPERTY(EditAnywhere, Category = "Async GPU Trace")
@@ -58,6 +56,9 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
 #endif
+	virtual bool UseLegacyShaderBindings() const  override { return false; }
+	virtual void BuildShaderParameters(FNiagaraShaderParametersBuilder& ShaderParametersBuilder) const override;
+	virtual void SetShaderParameters(const FNiagaraDataInterfaceSetShaderParametersContext& Context) const override;
 
 private:
 	virtual bool Equals(const UNiagaraDataInterface* Other) const override;

@@ -2207,6 +2207,10 @@ void FNiagaraGpuComputeDispatch::PreStageInterface(FRDGBuilder& GraphBuilder, co
 			FNiagaraDataInterfaceProxy* DataInterfaceProxy = InstanceData.DataInterfaceProxies[iDataInterface];
 			Context.SetDataInterfaceProxy(DataInterfaceProxy);
 			DataInterfaceProxy->PreStage(Context);
+			if (DataInterfaceProxy->RequiresPreStageFinalize())
+			{
+				ProxiesToFinalize.Add(DataInterfaceProxy);
+			}
 		}
 	}
 }
@@ -2231,6 +2235,10 @@ void FNiagaraGpuComputeDispatch::PostStageInterface(FRDGBuilder& GraphBuilder, c
 			FNiagaraDataInterfaceProxy* DataInterfaceProxy = InstanceData.DataInterfaceProxies[iDataInterface];
 			Context.SetDataInterfaceProxy(DataInterfaceProxy);
 			DataInterfaceProxy->PostStage(Context);
+			if (DataInterfaceProxy->RequiresPostStageFinalize())
+			{
+				ProxiesToFinalize.Add(DataInterfaceProxy);
+			}
 		}
 	}
 }
