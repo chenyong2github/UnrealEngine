@@ -10,6 +10,7 @@
 #include "ShaderCore.h"
 #include "GPULightmass.h"
 #include "SceneInterface.h"
+#include "CompactingObjectPool.h"
 
 #define LOCTEXT_NAMESPACE "StaticLightingSystem"
 
@@ -17,8 +18,16 @@ DEFINE_LOG_CATEGORY(LogGPULightmass);
 
 IMPLEMENT_MODULE( FGPULightmassModule, GPULightmass )
 
+void FGPULightmassModule::RunSelfTests()
+{
+	extern void RunCompactingObjectPoolTests();
+	RunCompactingObjectPoolTests();
+}
+
 void FGPULightmassModule::StartupModule()
 {
+	RunSelfTests();
+	
 	UE_LOG(LogGPULightmass, Log, TEXT("GPULightmass module is loaded"));
 	
 	// Maps virtual shader source directory /Plugin/GPULightmass to the plugin's actual Shaders directory.

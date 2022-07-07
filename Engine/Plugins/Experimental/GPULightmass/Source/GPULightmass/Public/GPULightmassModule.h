@@ -42,6 +42,8 @@ public:
 class FGPULightmassModule : public IGPULightmassModule, public IStaticLightingSystemImpl
 {
 public:
+	void RunSelfTests();
+	
 	/** IModuleInterface implementation */
 	virtual void StartupModule() override;
 	virtual void ShutdownModule() override;
