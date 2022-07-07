@@ -188,7 +188,7 @@ bool SAssetSearchBox::HasKeyboardFocus() const
 FReply SAssetSearchBox::OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent )
 {
 	// Forward keyboard focus to our editable text widget
-	return FReply::Handled().SetUserFocus(InputText.ToSharedRef(), InFocusEvent.GetCause());
+	return InputText->OnFocusReceived(MyGeometry, InFocusEvent);
 }
 
 void SAssetSearchBox::HandleTextChanged(const FText& NewText)

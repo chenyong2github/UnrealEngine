@@ -110,10 +110,21 @@ void SFilterSearchBox::Construct( const FArguments& InArgs )
 	];
 }
 
+bool SFilterSearchBox::SupportsKeyboardFocus() const
+{
+	return SearchBox->SupportsKeyboardFocus();
+}
+
 bool SFilterSearchBox::HasKeyboardFocus() const
 {
 	// Since keyboard focus is forwarded to our editable text, we will test it instead
 	return SearchBox->HasKeyboardFocus();
+}
+
+FReply SFilterSearchBox::OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent )
+{
+	// Forward keyboard focus to our editable text widget
+	return FReply::Handled().SetUserFocus(SearchBox.ToSharedRef(), InFocusEvent.GetCause());
 }
 
 /** Handler for when text in the editable text box changed */

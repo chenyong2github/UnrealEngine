@@ -75,6 +75,8 @@ public:
 	/** SWidget interface */
 	void OnFocusLost(const FFocusEvent& InFocusEvent) override;
 	virtual bool HasKeyboardFocus() const override;
+	bool SupportsKeyboardFocus() const;
+	FReply OnFocusReceived( const FGeometry& MyGeometry, const FFocusEvent& InFocusEvent );
 
 	/** Show a + button next to the current search, and set the handler for when that is clicked */
 	void SetOnSaveSearchHandler(FOnSaveSearchClicked InOnSaveSearchHandler);
