@@ -212,6 +212,14 @@ struct TMatrix3
 			Row0.Z, Row1.Z, Row2.Z);
 	}
 
+	UE::Math::TVector<RealType> TransformByTranspose(const UE::Math::TVector<RealType>& V) const
+	{
+		return UE::Math::TVector<RealType>(
+			Row0.X * V.X + Row1.X * V.Y + Row2.X * V.Z,
+			Row0.Y * V.X + Row1.Y * V.Y + Row2.Y * V.Z,
+			Row0.Z * V.X + Row1.Z * V.Y + Row2.Z * V.Z);
+	}
+
 	// Computes |A|(A^-1)^T. 
 	// This value is sometimes useful for computing rotated surface normals from a continuous deformation.
 	// Since computing the 3x3 inverse using Cramer's rule divides by the 3x3 determinant in the final step, this 
