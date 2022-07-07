@@ -265,6 +265,14 @@ void FApplePlatformMemory::NanoMallocInit()
 
 void FApplePlatformMemory::Init()
 {
+	// Only allow this method to be called once
+	{
+		static bool bInitDone = false;
+		if (bInitDone)
+			return;
+		bInitDone = true;
+	}
+
 	FGenericPlatformMemory::Init();
     
 	LLM(AppleLLM::Initialise());

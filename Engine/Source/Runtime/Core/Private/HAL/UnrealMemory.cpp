@@ -332,12 +332,17 @@ FConsoleCommandDelegate::CreateStatic(&FMemory::EnablePoisonTests)
 /** Helper function called on first allocation to create and initialize GMalloc */
 static int FMemory_GCreateMalloc_ThreadUnsafe()
 {
+#if PLATFORM_CONSOLE_DYNAMIC_LINK
+	FPlatformMemory::Init();
+#endif
+
+	GMalloc = FPlatformMemory::BaseAllocator();
+
 #if !PLATFORM_MAC
 	FPlatformMemoryStats Stats = FPlatformMemory::GetStats();
 	uint64 ProgramSize = Stats.UsedPhysical;
 #endif
 
-	GMalloc = FPlatformMemory::BaseAllocator();
 	// Setup malloc crash as soon as possible.
 	FPlatformMallocCrash::Get( GMalloc );
 

@@ -62,6 +62,14 @@ int WindowsAllocHook(int nAllocType, void *pvData,
 
 void FWindowsPlatformMemory::Init()
 {
+	// Only allow this method to be called once
+	{
+		static bool bInitDone = false;
+		if (bInitDone)
+			return;
+		bInitDone = true;
+	}
+
 	FGenericPlatformMemory::Init();
 
 #if PLATFORM_32BITS

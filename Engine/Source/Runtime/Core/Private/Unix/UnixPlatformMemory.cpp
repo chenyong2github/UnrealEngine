@@ -102,6 +102,14 @@ bool GMemoryRangeDecommitIsNoOp = (UE_SERVER == 0);
 
 void FUnixPlatformMemory::Init()
 {
+	// Only allow this method to be called once
+	{
+		static bool bInitDone = false;
+		if (bInitDone)
+			return;
+		bInitDone = true;
+	}
+
 	FGenericPlatformMemory::Init();
 
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();

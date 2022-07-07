@@ -54,6 +54,14 @@ static int64 GetNativeHeapAllocatedSize()
 
 void FAndroidPlatformMemory::Init()
 {
+	// Only allow this method to be called once
+	{
+		static bool bInitDone = false;
+		if (bInitDone)
+			return;
+		bInitDone = true;
+	}
+
 	FGenericPlatformMemory::Init();
 
 	const FPlatformMemoryConstants& MemoryConstants = FPlatformMemory::GetConstants();
