@@ -27,12 +27,12 @@ public:
 #if WITH_EOS_SDK
 
 /** Class to handle all callbacks generically using a lambda to process callback results */
-template<typename CallbackFuncType, typename CallbackParamType, typename OwningType, typename CallbackReturnType = void>
+template<typename CallbackFuncType, typename CallbackParamType, typename OwningType, typename CallbackReturnType = void, typename... CallbackExtraParams>
 class TEOSGlobalCallback :
 	public FCallbackBase
 {
 public:
-	TFunction<CallbackReturnType(const CallbackParamType*)> CallbackLambda;
+	TFunction<CallbackReturnType(const CallbackParamType*, CallbackExtraParams... ExtraParams)> CallbackLambda;
 
 	TEOSGlobalCallback(TWeakPtr<OwningType> InOwner)
 		: FCallbackBase()
@@ -53,7 +53,7 @@ private:
 	/** The object that needs to be checked for lifetime before calling the callback */
 	TWeakPtr<OwningType> Owner;
 
-	static CallbackReturnType EOS_CALL CallbackImpl(const CallbackParamType* Data)
+	static CallbackReturnType EOS_CALL CallbackImpl(const CallbackParamType* Data, CallbackExtraParams... ExtraParams)
 	{
 		TEOSGlobalCallback* CallbackThis = (TEOSGlobalCallback*)Data->ClientData;
 		check(CallbackThis);
@@ -69,11 +69,11 @@ private:
 
 			if constexpr (std::is_void<CallbackReturnType>::value)
 			{
-				CallbackThis->CallbackLambda(Data);
+				CallbackThis->CallbackLambda(Data, ExtraParams...);
 			}
 			else
 			{
-				return CallbackThis->CallbackLambda(Data);
+				return CallbackThis->CallbackLambda(Data, ExtraParams...);
 			}
 		}
 		
