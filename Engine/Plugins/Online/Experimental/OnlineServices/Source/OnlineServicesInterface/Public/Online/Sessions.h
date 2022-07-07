@@ -125,16 +125,16 @@ struct FSessionSettings
 	FName SchemaName;
 
 	/* Maximum number of public slots for session members */
-	int32 NumMaxPublicConnections;
+	uint32 NumMaxPublicConnections;
 
 	/* Number of available public slots for session members */
-	int32 NumOpenPublicConnections;
+	uint32 NumOpenPublicConnections;
 
 	/* Maximum number of private slots for session members */
-	int32 NumMaxPrivateConnections;
+	uint32 NumMaxPrivateConnections;
 
 	/* Number of available private slots for session members */
-	int32 NumOpenPrivateConnections;
+	uint32 NumOpenPrivateConnections;
 
 	/* Enum value describing the level of restriction to join the session */
 	ESessionJoinPolicy JoinPolicy;
@@ -160,8 +160,8 @@ struct FSessionSettings
 	/*Whether this is a secure session protected by anti-cheat services */
 	bool bAntiCheatProtected;
 
-	 /* Whether this session will show its information in presence updates. Can only be set in one session at a time */
-	 bool bPresenceEnabled;
+	/* Whether this session will show its information in presence updates. Can only be set in one session at a time */
+	bool bPresenceEnabled;
   
  	/* Map of user-defined settings to be passed to the platform APIs as additional information for various purposes */
  	FCustomSessionSettingsMap CustomSettings;
@@ -176,10 +176,10 @@ struct FSessionSettings
 struct FSessionSettingsUpdate
 {
 	TOptional<FName> SchemaName;
-	TOptional<int32> NumMaxPublicConnections;
-	TOptional<int32> NumOpenPublicConnections;
-	TOptional<int32> NumMaxPrivateConnections;
-	TOptional<int32> NumOpenPrivateConnections;
+	TOptional<uint32> NumMaxPublicConnections;
+	TOptional<uint32> NumOpenPublicConnections;
+	TOptional<uint32> NumMaxPrivateConnections;
+	TOptional<uint32> NumOpenPrivateConnections;
 	TOptional<ESessionJoinPolicy> JoinPolicy;
 	TOptional<FString> SessionIdOverride;
 	TOptional<bool> IsLANSession;
@@ -216,7 +216,7 @@ struct ONLINESERVICESINTERFACE_API FSession
 	/** The current state of the session */
 	ESessionState CurrentState = ESessionState::Invalid;
 
-	/** Set of session properties */
+	/** Set of session properties that can be altered by the session owner */
 	FSessionSettings SessionSettings;
 };
 
@@ -344,8 +344,8 @@ struct FLeaveSession
 		/* The local name for the session. */
 		FName SessionName;
 
-		/** Ids for local users (other than the main caller) who will also be leaving the session */
-		TArray<FOnlineAccountIdHandle> AdditionalLocalUsers;
+		/** Ids for all local users who will leave the session (includes the main caller) */
+		TArray<FOnlineAccountIdHandle> LocalUsers;
 
 		/* Whether the call should attempt to destroy the session instead of just leave it */
 		bool bDestroySession;
@@ -594,7 +594,7 @@ public:
 	 * @params Parameters for the GetAllSessions call
 	 * return
 	 */
-	virtual TOnlineResult<FGetAllSessions> GetAllSessions(FGetAllSessions::Params&& Params) = 0;
+	virtual TOnlineResult<FGetAllSessions> GetAllSessions(FGetAllSessions::Params&& Params) const = 0;
 
 	/**
 	 * Get the session object with a given local name.
@@ -602,7 +602,7 @@ public:
 	 * @params Parameters for the GetSessionByName call
 	 * return
 	 */
-	virtual TOnlineResult<FGetSessionByName> GetSessionByName(FGetSessionByName::Params&& Params) = 0;
+	virtual TOnlineResult<FGetSessionByName> GetSessionByName(FGetSessionByName::Params&& Params) const = 0;
 
 	/**
 	 * Get the session object with a given id handle.
@@ -610,7 +610,7 @@ public:
 	 * @params Parameters for the GetSessionById call
 	 * return
 	 */
-	virtual TOnlineResult<FGetSessionById> GetSessionById(FGetSessionById::Params&& Params) = 0;
+	virtual TOnlineResult<FGetSessionById> GetSessionById(FGetSessionById::Params&& Params) const = 0;
 
 	/**
 	 * Create and join a new session.
@@ -868,7 +868,7 @@ END_ONLINE_STRUCT_META()
 BEGIN_ONLINE_STRUCT_META(FLeaveSession::Params)
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalUserId),
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, SessionName),
-	ONLINE_STRUCT_FIELD(FLeaveSession::Params, AdditionalLocalUsers),
+	ONLINE_STRUCT_FIELD(FLeaveSession::Params, LocalUsers),
 	ONLINE_STRUCT_FIELD(FLeaveSession::Params, bDestroySession)
 END_ONLINE_STRUCT_META()
 

@@ -80,5 +80,8 @@ private:
 template<typename IdValueType, EOnlineServices OnlineServicesType>
 using TOnlineBasicAccountIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FAccount, IdValueType, OnlineServicesType>;
 
+template<typename IdValueType, EOnlineServices OnlineServicesType>
+using TOnlineBasicSessionIdRegistry = TOnlineBasicIdRegistry<OnlineIdHandleTags::FSession, IdValueType, OnlineServicesType>;
+
 /* UE::Online */ }
 

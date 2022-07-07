@@ -15,37 +15,10 @@ namespace UE::Online {
 
 class FOnlineServicesEOSGS;
 
-/** Session Id Registry */
-
-// TODO: Move to Common since it's in Null too
-class FOnlineSessionIdString
-{
-public:
-	FString Data;
-	FOnlineSessionIdHandle Handle;
-};
-
-class FOnlineSessionIdRegistryEOSGS : public IOnlineSessionIdRegistry
+class FOnlineSessionIdRegistryEOSGS : public TOnlineSessionIdStringRegistry<EOnlineServices::Epic>
 {
 public:
 	static FOnlineSessionIdRegistryEOSGS& Get();
-
-	FOnlineSessionIdHandle Find(const FString& SessionId) const;
-	FOnlineSessionIdHandle FindOrAdd(const FString& SessionId);
-
-	// Begin IOnlineSessionIdRegistry
-	virtual FString ToLogString(const FOnlineSessionIdHandle& Handle) const override;
-	virtual TArray<uint8> ToReplicationData(const FOnlineSessionIdHandle& Handle) const override;
-	virtual FOnlineSessionIdHandle FromReplicationData(const TArray<uint8>& ReplicationString) override;
-	// End IOnlineSessionIdRegistry
-
-	virtual ~FOnlineSessionIdRegistryEOSGS() = default;
-
-private:
-	const FOnlineSessionIdString* GetInternal(const FOnlineSessionIdHandle& Handle) const;
-
-	TArray<FOnlineSessionIdString> Ids;
-	TMap<FString, FOnlineSessionIdString> StringToId;
 };
 
 static FName EOS_SESSIONS_BUCKET_ID = TEXT("EOS_SESSIONS_BUCKET_ID");
@@ -112,6 +85,8 @@ struct FUpdateSessionImpl
 class ONLINESERVICESEOSGS_API FSessionsEOSGS : public FSessionsCommon
 {
 public:
+	friend class FSessionEOSGS;
+
 	using Super = FSessionsCommon;
 
 	FSessionsEOSGS(FOnlineServicesEOSGS& InOwningSubsystem);
@@ -121,9 +96,6 @@ public:
 	void Initialize() override;
 
 	// ISessions
-	virtual TOnlineResult<FGetAllSessions> GetAllSessions(FGetAllSessions::Params&& Params) override;
-	virtual TOnlineResult<FGetSessionByName> GetSessionByName(FGetSessionByName::Params&& Params) override;
-	virtual TOnlineResult<FGetSessionById> GetSessionById(FGetSessionById::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FCreateSession> CreateSession(FCreateSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FUpdateSession> UpdateSession(FUpdateSession::Params&& Params) override;
 	virtual TOnlineAsyncOpHandle<FLeaveSession> LeaveSession(FLeaveSession::Params&& Params) override;
@@ -133,7 +105,7 @@ public:
 protected:
 	void SetPermissionLevel(EOS_HSessionModification& SessionModHandle, const ESessionJoinPolicy& JoinPolicy);
 	void SetBucketId(EOS_HSessionModification& SessionModHandle, const FString& NewBucketId);
-	void SetMaxPlayers(EOS_HSessionModification& SessionModHandle, const int32& NewMaxPlayers);
+	void SetMaxPlayers(EOS_HSessionModification& SessionModHandle, const uint32& NewMaxPlayers);
 
 	/**
 	 * Writes all values in the passed SessionSettings to the SessionModificationHandle
@@ -146,6 +118,8 @@ protected:
 	TFuture<TDefaultErrorResult<FUpdateSessionImpl>> UpdateSessionImpl(FUpdateSessionImpl::Params&& Params);
 
 	void WriteSessionSearchHandle(FSessionSearchHandleEOSGS& SessionSearchHandle, const FFindSessions::Params& Params);
+
+	static FOnlineSessionIdHandle CreateSessionId(const FString& SessionId);
 
 protected:
 	FOnlineServicesEOSGS& Services;

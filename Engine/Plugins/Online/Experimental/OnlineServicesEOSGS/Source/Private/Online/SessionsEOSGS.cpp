@@ -35,74 +35,6 @@ FOnlineSessionIdRegistryEOSGS& FOnlineSessionIdRegistryEOSGS::Get()
 	return Instance;
 }
 
-FOnlineSessionIdHandle FOnlineSessionIdRegistryEOSGS::Find(const FString& SessionId) const
-{
-	if (const FOnlineSessionIdString* Entry = StringToId.Find(SessionId))
-	{
-		return Entry->Handle;
-	}
-	return FOnlineSessionIdHandle();
-}
-
-FOnlineSessionIdHandle FOnlineSessionIdRegistryEOSGS::FindOrAdd(const FString& SessionId)
-{
-	const FOnlineSessionIdString* Entry = StringToId.Find(SessionId);
-	if (Entry)
-	{
-		return Entry->Handle;
-	}
-
-	FOnlineSessionIdString& NewId = Ids.Emplace_GetRef();
-	NewId.Data = SessionId;
-	NewId.Handle = FOnlineSessionIdHandle(EOnlineServices::Epic, Ids.Num());
-
-	StringToId.Add(SessionId, NewId);
-
-	return NewId.Handle;
-}
-
-const FOnlineSessionIdString* FOnlineSessionIdRegistryEOSGS::GetInternal(const FOnlineSessionIdHandle& Handle) const
-{
-	if (Handle.IsValid() && Handle.GetOnlineServicesType() == EOnlineServices::Epic && Handle.GetHandle() <= (uint32)Ids.Num())
-	{
-		return &Ids[Handle.GetHandle() - 1];
-	}
-	return nullptr;
-}
-
-FString FOnlineSessionIdRegistryEOSGS::ToLogString(const FOnlineSessionIdHandle& Handle) const
-{
-	if (const FOnlineSessionIdString* Id = GetInternal(Handle))
-	{
-		return Id->Data;
-	}
-
-	return FString(TEXT("[InvalidSessionID]"));
-}
-
-TArray<uint8> FOnlineSessionIdRegistryEOSGS::ToReplicationData(const FOnlineSessionIdHandle& Handle) const
-{
-	if (const FOnlineSessionIdString* Id = GetInternal(Handle))
-	{
-		TArray<uint8> ReplicationData;
-		ReplicationData.SetNumUninitialized(Id->Data.Len());
-		StringToBytes(Id->Data, ReplicationData.GetData(), Id->Data.Len());
-		return ReplicationData;
-	}
-
-	return TArray<uint8>();;
-}
-
-FOnlineSessionIdHandle FOnlineSessionIdRegistryEOSGS::FromReplicationData(const TArray<uint8>& ReplicationData)
-{
-	FString Result = BytesToString(ReplicationData.GetData(), ReplicationData.Num());
-	if (Result.Len() > 0)
-	{
-		return FindOrAdd(Result);
-	}
-	return FOnlineSessionIdHandle();
-}
-
 /** FSessionEOSGS */
 
 FSessionEOSGS::FSessionEOSGS()
@@ -130,7 +62,7 @@ FSessionEOSGS::FSessionEOSGS(const EOS_HSessionDetails& InSessionDetailsHandle)
 	if (CopyInfoResult == EOS_EResult::EOS_Success)
 	{
 		CurrentState = ESessionState::Valid;
-		SessionId = FOnlineSessionIdRegistryEOSGS::Get().FindOrAdd(FString(SessionDetailsInfo->SessionId));
+		SessionId = FSessionsEOSGS::CreateSessionId(FString(SessionDetailsInfo->SessionId));
 
 		// TODO: Load all session settings after SchemaVariant work
 	}
@@ -165,42 +97,6 @@ void FSessionsEOSGS::Initialize()
 	check(SessionsHandle);
 }
 
-TOnlineResult<FGetAllSessions> FSessionsEOSGS::GetAllSessions(FGetAllSessions::Params&& Params)
-{
-	FGetAllSessions::Result Result;
-
-	for (TMap<FName, TSharedRef<FSessionEOSGS>>::TConstIterator It(SessionsByName); It; ++It)
-	{
-		Result.Sessions.Add(It.Value());
-	}
-
-	return TOnlineResult<FGetAllSessions>(MoveTemp(Result));
-}
-
-TOnlineResult<FGetSessionByName> FSessionsEOSGS::GetSessionByName(FGetSessionByName::Params&& Params)
-{
-	if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsByName.Find(Params.LocalName))
-	{
-		return TOnlineResult<FGetSessionByName>({ *FoundSession });
-	}
-	else
-	{
-		return TOnlineResult<FGetSessionByName>(Errors::NotFound());
-	}
-}
-
-TOnlineResult<FGetSessionById> FSessionsEOSGS::GetSessionById(FGetSessionById::Params&& Params)
-{
-	if (TSharedRef<FSessionEOSGS>* FoundSession = SessionsById.Find(Params.IdHandle))
-	{
-		return TOnlineResult<FGetSessionById>({ *FoundSession });
-	}
-	else
-	{
-		return TOnlineResult<FGetSessionById>(Errors::NotFound());
-	}
-}
-
 TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSession::Params&& Params)
 {
 	TOnlineAsyncOpRef<FCreateSession> Op = GetOp<FCreateSession>(MoveTemp(Params));
@@ -218,7 +114,7 @@ TOnlineAsyncOpHandle<FCreateSession> FSessionsEOSGS::CreateSession(FCreateSessio
 			return MakeFulfilledPromise<TDefaultErrorResult<FUpdateSessionImpl>>().GetFuture();
 		}
 
-		if (OpParams.SessionSettings.NumMaxPrivateConnections <= 0 && OpParams.SessionSettings.NumMaxPublicConnections <= 0)
+		if (OpParams.SessionSettings.NumMaxPrivateConnections == 0 && OpParams.SessionSettings.NumMaxPublicConnections == 0)
 		{
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::CreateSession] Could not create session with no valid NumMaxPrivateConnections [%d] or NumMaxPublicConnections [%d]"), OpParams.SessionSettings.NumMaxPrivateConnections, OpParams.SessionSettings.NumMaxPublicConnections);
 
@@ -390,7 +286,7 @@ void FSessionsEOSGS::SetBucketId(EOS_HSessionModification& SessionModificationHa
 	}
 }
 
-void FSessionsEOSGS::SetMaxPlayers(EOS_HSessionModification& SessionModificationHandle, const int32& NewMaxPlayers)
+void FSessionsEOSGS::SetMaxPlayers(EOS_HSessionModification& SessionModificationHandle, const uint32& NewMaxPlayers)
 {
 	EOS_SessionModification_SetMaxPlayersOptions Options = { };
 	Options.ApiVersion = EOS_SESSIONMODIFICATION_SETMAXPLAYERS_API_LATEST;
@@ -755,7 +651,7 @@ TFuture<TDefaultErrorResult<FUpdateSessionImpl>> FSessionsEOSGS::UpdateSessionIm
 			// In session creation calls, we'll need to set the new id for the session
 			if (!FoundSession->Get().SessionId.IsValid())
 			{
-				FoundSession->Get().SessionId = FOnlineSessionIdRegistryEOSGS::Get().FindOrAdd(FString(Result->SessionId));
+				FoundSession->Get().SessionId = CreateSessionId(FString(Result->SessionId));
 			}
 		}
 
@@ -878,6 +774,11 @@ void FSessionsEOSGS::WriteSessionSearchHandle(FSessionSearchHandleEOSGS& Session
 			UE_LOG(LogTemp, Warning, TEXT("[FSessionsEOSGS::WriteSessionSearchHandle] EOS_SessionSearch_SetTargetUserId failed with result [%s]"), *LexToString(ResultCode));
 		}
 	}
+}
+
+FOnlineSessionIdHandle FSessionsEOSGS::CreateSessionId(const FString& SessionId)
+{
+	return FOnlineSessionIdRegistryEOSGS::Get().BasicRegistry.FindOrAddHandle(SessionId);
 }
 
 TOnlineAsyncOpHandle<FFindSessions> FSessionsEOSGS::FindSessions(FFindSessions::Params&& Params)
