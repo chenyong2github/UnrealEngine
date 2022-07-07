@@ -6,6 +6,7 @@
 #include "ClassViewerModule.h"
 #include "EdGraph/EdGraphPin.h"
 #include "Engine/Engine.h"
+#include "EngineAnalytics.h"
 #include "Kismet2/SClassPickerDialog.h"
 #include "SoundCueGraph/SoundCueGraphNode.h"
 #include "Sound/SoundCue.h"
@@ -89,6 +90,12 @@ UObject* USoundCueTemplateFactory::FactoryCreateNew(UClass* Class, UObject* InPa
 			}
 
 			NewSoundCueTemplate->RebuildGraph(*NewSoundCueTemplate);
+
+			if (FEngineAnalytics::IsAvailable())
+			{
+				FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.SoundCueTemplates.TemplateCreated"));
+			}
+
 			return NewSoundCueTemplate;
 		}
 	}

@@ -4,6 +4,8 @@
 
 #include "ResonanceAudioSpatializationSourceSettingsFactory.h"
 #include "ResonanceAudioSpatializationSourceSettings.h"
+
+#include "EngineAnalytics.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 
@@ -49,6 +51,10 @@ UResonanceAudioSpatializationSourceSettingsFactory::UResonanceAudioSpatializatio
 
 UObject* UResonanceAudioSpatializationSourceSettingsFactory::FactoryCreateNew(UClass* Class, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
 {
+	if (FEngineAnalytics::IsAvailable())
+	{
+		FEngineAnalytics::GetProvider().RecordEvent(TEXT("Audio.Usage.ResonanceAudio.SpatializationSourceSettingsCreated"));
+	}
 	return Cast<UObject>(NewObject<UResonanceAudioSpatializationSourceSettings>(InParent, InName, Flags));
 }
 
