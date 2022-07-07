@@ -234,6 +234,14 @@ $ bUsePCHFiles (Boolean): Whether PCH files should be used.
 
 $ bPreprocessOnly (Boolean): Whether to just preprocess source files for this target, and skip compilation
 
+$ bPreprocessDepends (Boolean): Generate dependency files by preprocessing. This is only recommended when distributing builds as it adds additional overhead.
+
+$ StaticAnalyzer (StaticAnalyzer): Whether static code analysis should be enabled.
+
+$ StaticAnalyzerOutputType (StaticAnalyzerOutputType): The output type to use for the static analyzer.
+
+$ StaticAnalyzerMode (StaticAnalyzerMode): The mode to use for the static analyzer.
+
 $ MinFilesUsingPrecompiledHeader (Int32): The minimum number of files that must use a pre-compiled header before it will be created and used.
 
 $ bForcePrecompiledHeaderForGameModules (Boolean): When enabled, a precompiled header is always generated for game modules, even if there are only a few source files in the module.  This greatly improves compile times for iterative changes on a few files in the project, at the expense of slower full rebuild times for small game projects.  This can be overridden by setting MinFilesUsingPrecompiledHeaderOverride in a module's Build.cs file.
