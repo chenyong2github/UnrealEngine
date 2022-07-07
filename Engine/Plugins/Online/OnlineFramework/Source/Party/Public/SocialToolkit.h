@@ -310,7 +310,7 @@ private:
 	TMap<FUniqueNetIdRepl, TWeakObjectPtr<USocialUser>> UsersBySubsystemIds;
 
 	UPROPERTY()
-	ULocalPlayer* LocalPlayerOwner = nullptr;
+	TWeakObjectPtr<ULocalPlayer> LocalPlayerOwner = nullptr;
 
 	UPROPERTY()
 	USocialChatManager* SocialChatManager;

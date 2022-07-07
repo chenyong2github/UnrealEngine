@@ -324,8 +324,8 @@ USocialManager& USocialToolkit::GetSocialManager() const
 
 ULocalPlayer& USocialToolkit::GetOwningLocalPlayer() const
 {
-	check(LocalPlayerOwner);
-	return *LocalPlayerOwner;
+	check(LocalPlayerOwner.IsValid());
+	return *LocalPlayerOwner.Get();
 }
 
 USocialUser* USocialToolkit::FindUser(const FUniqueNetIdRepl& UserId) const
