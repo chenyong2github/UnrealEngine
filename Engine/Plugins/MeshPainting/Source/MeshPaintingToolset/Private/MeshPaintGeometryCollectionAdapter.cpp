@@ -143,6 +143,8 @@ void FMeshPaintGeometryCollectionComponentAdapter::OnAdded()
 	{
 		return;
 	}
+	bSavedShowBoneColors = GeometryCollectionComponent->GetShowBoneColors();
+	GeometryCollectionComponent->SetShowBoneColors(false);
 
 	checkf(GetGeometryCollectionObject(), TEXT("Geometry Collection Component did not have a valid geometry collection object attached"));
 	checkf(GetGeometryCollectionObject()->GetGeometryCollection(), TEXT("Geometry Collection Component did not have valid geometry collection data attached"));
@@ -150,6 +152,11 @@ void FMeshPaintGeometryCollectionComponentAdapter::OnAdded()
 
 void FMeshPaintGeometryCollectionComponentAdapter::OnRemoved()
 {
+	if (GeometryCollectionComponent.IsValid())
+	{
+		GeometryCollectionComponent->SetShowBoneColors(bSavedShowBoneColors);
+		bSavedShowBoneColors = false;
+	}
 }
 
 bool FMeshPaintGeometryCollectionComponentAdapter::LineTraceComponent(struct FHitResult& OutHit, const FVector Start, const FVector End, const struct FCollisionQueryParams& Params) const
