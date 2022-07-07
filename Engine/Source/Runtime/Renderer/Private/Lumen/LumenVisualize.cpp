@@ -1228,7 +1228,7 @@ void VisualizeCardGeneration(FSceneRenderingBulkObjectAllocator& Allocator, cons
 									FLinearColor CardColor = FLinearColor::MakeFromHSV8(CardHue, CardSaturation, CardValue);
 									CardColor.A = 1.0f;
 
-									DrawSurfels(Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, CardColor, ViewPDI);
+									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Cluster, CardColor, ViewPDI);
 									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Used, FLinearColor::Gray, ViewPDI);
 									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Idle, FLinearColor::Blue, ViewPDI);
 									DrawSurfels(Allocator, Cluster.Surfels, PrimitiveToWorld, FLumenCardBuildDebugData::ESurfelType::Seed, FLinearColor::Yellow, ViewPDI, 10.0f);
