@@ -250,6 +250,8 @@ private:
 
 	int32 TotalDispatchesThisFrame = 0;
 
+	int32 MaxTicksToFlush = TNumericLimits<int32>::Max();
+
 	bool bRequiresReadback = false;
 	TArray<FNiagaraSystemGpuComputeProxy*> ProxiesPerStage[ENiagaraGpuComputeTickStage::Max];
 

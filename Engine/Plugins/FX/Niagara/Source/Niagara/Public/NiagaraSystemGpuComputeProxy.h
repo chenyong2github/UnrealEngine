@@ -25,7 +25,7 @@ public:
 	FNiagaraSystemInstanceID GetSystemInstanceID() const { return SystemInstanceID; }
 	ENiagaraGpuComputeTickStage::Type GetComputeTickStage() const { return ComputeTickStage; }
 	void QueueTick(const FNiagaraGPUSystemTick& Tick);
-	void ReleaseTicks(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager);
+	void ReleaseTicks(FNiagaraGPUInstanceCountManager& GPUInstanceCountManager, int32 NumTicksToRelease);
 
 	bool RequiresDistanceFieldData() const { return bRequiresDistanceFieldData; }
 	bool RequiresDepthBuffer() const { return bRequiresDepthBuffer; }
