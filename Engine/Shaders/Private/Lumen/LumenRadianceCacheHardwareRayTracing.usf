@@ -253,7 +253,7 @@ void LumenRadianceCacheHardwareRayTracingCommon(uint ThreadIndex)
 			{
 				FConeTraceResult TraceResult = (FConeTraceResult)0;
 				TraceResult.Transparency = 1;
-				EvaluateSkyRadianceForCone(Ray.Direction, tan(ConeHalfAngle), TraceResult);
+				ApplySkylightToTraceResult(Ray.Direction, TraceResult);
 				Result.Radiance = TraceResult.Lighting;
 				Result.TraceHitDistance = MaxTraceDistance;
 			}

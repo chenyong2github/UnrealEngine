@@ -1413,7 +1413,7 @@ float TanConeAngleToRoughness(float TanConeAngle)
 	return sqrt(saturate(TanConeAngle / (.5f * PI)));
 }
 
-float3 EvaluateSkyRadiance(float3 Direction, float TanConeAngle)
+float3 EvaluateSkyRadiance(float3 Direction)
 {
 	float3 SkyRadiance = 0.0f;
 
@@ -1421,6 +1421,7 @@ float3 EvaluateSkyRadiance(float3 Direction, float TanConeAngle)
 	if (ReflectionStruct.SkyLightParameters.y > 0)
 	{
 		float SkyAverageBrightness = 1.0f;
+		float TanConeAngle = 0.0f;
 		float Roughness = TanConeAngleToRoughness(TanConeAngle);
 
 		SkyRadiance = GetSkyLightReflection(Direction, Roughness, SkyAverageBrightness);
@@ -1430,15 +1431,13 @@ float3 EvaluateSkyRadiance(float3 Direction, float TanConeAngle)
 	return SkyRadiance;
 }
 
-void EvaluateSkyRadianceForCone(
-	float3 ConeDirection, 
-	float TanConeAngle, 
-	inout FConeTraceResult TraceResult)
+void ApplySkylightToTraceResult(float3 ConeDirection, inout FConeTraceResult TraceResult)
 { 
 #if ENABLE_DYNAMIC_SKY_LIGHT
 	if (ReflectionStruct.SkyLightParameters.y > 0)
 	{
 		float SkyAverageBrightness = 1.0f;
+		float TanConeAngle = 0.0f;
 		float Roughness = TanConeAngleToRoughness(TanConeAngle);
 
 		#if !VISIBILITY_ONLY_TRACE

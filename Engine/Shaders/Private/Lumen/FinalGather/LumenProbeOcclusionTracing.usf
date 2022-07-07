@@ -175,7 +175,7 @@ void TraceRay(
 
 		if (RayInfos.bIsInfinitRay)
 		{
-			EvaluateSkyRadianceForCone(RayInfos.BxDFSample.L, tan(ConeHalfAngle), TraceResult);
+			ApplySkylightToTraceResult(RayInfos.BxDFSample.L, TraceResult);
 		}
 	}
 	#endif

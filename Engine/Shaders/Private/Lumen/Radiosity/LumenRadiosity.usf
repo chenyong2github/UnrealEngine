@@ -139,7 +139,7 @@ void LumenRadiosityDistanceFieldTracingCS(
 			}
 			else
 			{
-				Radiance = EvaluateSkyRadiance(WorldRayDirection, tan(ConeHalfAngle));
+				Radiance = EvaluateSkyRadiance(WorldRayDirection);
 			}
 
 			float MaxLighting = max3(Radiance.x, Radiance.y, Radiance.z);

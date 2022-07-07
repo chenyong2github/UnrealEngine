@@ -140,7 +140,7 @@ void VisualizeQuadsCS(
 		TraceResult.Transparency *= DistantTraceResult.Transparency;
 	#endif
 
-	EvaluateSkyRadianceForCone(CameraVector, TanConeAngle, TraceResult);
+	ApplySkylightToTraceResult(CameraVector, TraceResult);
 #endif
 
 	TraceResult.Lighting *= View.PreExposure;
@@ -282,7 +282,7 @@ void VisualizeLumenVoxelsCS(
 	TraceResult.Lighting = LightingAndAlpha.xyz;
 	TraceResult.Transparency = LightingAndAlpha.w;
 
-	EvaluateSkyRadianceForCone(RayDirection, .01f, TraceResult);
+	ApplySkylightToTraceResult(RayDirection, TraceResult);
 
 	TraceResult.Lighting *= View.PreExposure;
 

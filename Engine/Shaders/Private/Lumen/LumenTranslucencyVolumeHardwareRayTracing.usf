@@ -124,7 +124,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenTranslucencyVolumeHardwareRayTracing)
 					FConeTraceResult TraceResult;
 					TraceResult.Lighting = TraceLightingResult.Radiance;
 					TraceResult.Transparency = Transparency;
-					EvaluateSkyRadianceForCone(WorldConeDirection, tan(ConeHalfAngle), TraceResult);
+					ApplySkylightToTraceResult(WorldConeDirection, TraceResult);
 					TraceLightingResult.Radiance = TraceResult.Lighting;
 				}
 			}

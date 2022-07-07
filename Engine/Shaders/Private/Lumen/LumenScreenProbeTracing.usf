@@ -645,7 +645,7 @@ void TraceVoxels(
 					TraceHitDistance = MaxTraceDistance;
 				}
 
-				EvaluateSkyRadianceForCone(WorldConeDirection, tan(ConeHalfAngle), TraceResult);
+				ApplySkylightToTraceResult(WorldConeDirection, TraceResult);
 
 				if (TraceHitDistance >= GetProbeMaxHitDistance())
 				{

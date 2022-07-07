@@ -197,7 +197,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenReflectionHardwareRayTracing)
 			TraceResult.Lighting = Result.Radiance;
 			TraceResult.Transparency = 1;
 
-			EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+			ApplySkylightToTraceResult(RayData.Direction, TraceResult);
 
 			Result.TraceHitDistance = MaxTraceDistance;
 			Result.Radiance = TraceResult.Lighting;

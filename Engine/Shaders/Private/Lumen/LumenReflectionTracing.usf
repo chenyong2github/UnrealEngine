@@ -575,7 +575,7 @@ void TraceVoxels(
 #endif
 		{
 			TraceHitDistance = MaxTraceDistance;
-			EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+			ApplySkylightToTraceResult(RayData.Direction, TraceResult);
 		}
 	}
 

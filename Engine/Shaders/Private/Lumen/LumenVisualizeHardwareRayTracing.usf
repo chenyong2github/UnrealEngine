@@ -540,7 +540,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenVisualizeHardwareRayTracing)
 		{
 			FConeTraceResult TraceResult = (FConeTraceResult)0;
 			TraceResult.Transparency = 1;
-			EvaluateSkyRadianceForCone(Ray.Direction, 0.0f, TraceResult);
+			ApplySkylightToTraceResult(Ray.Direction, TraceResult);
 			Result.Radiance = TraceResult.Lighting;
 		}
 

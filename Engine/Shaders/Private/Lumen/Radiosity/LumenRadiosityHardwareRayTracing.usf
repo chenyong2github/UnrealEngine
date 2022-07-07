@@ -148,7 +148,7 @@ LUMEN_HARDWARE_RAY_TRACING_ENTRY(LumenRadiosityHardwareRayTracing)
 				}
 				else
 				{
-					Radiance = EvaluateSkyRadiance(WorldRayDirection, tan(ConeHalfAngle));
+					Radiance = EvaluateSkyRadiance(WorldRayDirection);
 				}
 
 				float MaxLighting = max3(Radiance.x, Radiance.y, Radiance.z);
