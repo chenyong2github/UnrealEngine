@@ -231,6 +231,19 @@ protected:
 	 * in a subsytem implementing this interface, then you must call this function.
 	 */
 	void TickForcedInput(float DeltaTime);
+
+	/**
+	 * Called each tick from the Enhanced Input module.
+	 * 
+	 * If bControlMappingsRebuiltThisTick is true this tick, then call the ControlMappingsRebuiltThisFrame
+	 * function and reset the bControlMappingsRebuiltThisTick flag to false.
+	 * 
+	 * This gives an implementor of this interface an oppurtunity to add in a nice blueprint useable delegate.
+	 */
+	void HandleControlMappingRebuildDelegate();
+
+	/** Function that will be called when Control Mappings have been rebuilt this tick. */
+	virtual void ControlMappingsRebuiltThisFrame() {}
 	
 private:
 
@@ -274,6 +287,12 @@ private:
 	bool bIgnoreAllPressedKeysUntilReleaseOnRebuild = true;
 
 	bool bMappingRebuildPending = false;
+
+	/**
+	 * If true then the control mappings have been rebuilt on this frame.
+	 * This is reset to false every tick in the EnhancedInputModule
+	 */
+	bool bControlMappingsRebuiltThisTick = false;
 
 	// Debug visualization implemented in EnhancedInputSubsystemsDebug.cpp
 	void ShowDebugInfo(class UCanvas* Canvas);

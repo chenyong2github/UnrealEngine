@@ -28,3 +28,8 @@ UEnhancedPlayerInput* UEnhancedInputLocalPlayerSubsystem::GetPlayerInput() const
 	}
 	return nullptr;
 }
+
+void UEnhancedInputLocalPlayerSubsystem::ControlMappingsRebuiltThisFrame()
+{
+	ControlMappingsRebuiltDelegate.Broadcast();
+}

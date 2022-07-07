@@ -19,5 +19,15 @@ public:
 
 	// Begin IEnhancedInputSubsystemInterface
 	virtual UEnhancedPlayerInput* GetPlayerInput() const override;
+	virtual void ControlMappingsRebuiltThisFrame() override;
 	// End IEnhancedInputSubsystemInterface
+
+	/** A delegate that will be called when control mappings have been rebuilt this frame. */
+	DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnControlMappingsRebuilt);
+
+	/**
+	 * Blueprint Event that is called at the end of any frame that Control Mappings have been rebuilt.
+	 */
+	UPROPERTY(BlueprintAssignable, DisplayName=OnControlMappingsRebuilt, Category = "Input")
+	FOnControlMappingsRebuilt ControlMappingsRebuiltDelegate;
 };

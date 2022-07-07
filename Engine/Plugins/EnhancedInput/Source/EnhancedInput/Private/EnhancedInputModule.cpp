@@ -294,6 +294,7 @@ void FEnhancedInputModule::Tick(float DeltaTime)
 		{
 			Subsystem->RebuildControlMappings();
 			Subsystem->TickForcedInput(DeltaTime);
+			Subsystem->HandleControlMappingRebuildDelegate();
 		});
 }
 

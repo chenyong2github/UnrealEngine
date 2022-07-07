@@ -733,6 +733,7 @@ void IEnhancedInputSubsystemInterface::RebuildControlMappings()
 	
 	MappingRebuildPending = EInputMappingRebuildType::None;
 	bIgnoreAllPressedKeysUntilReleaseOnRebuild = true;
+	bControlMappingsRebuiltThisTick = true;
 }
 
 template<typename T>
@@ -781,6 +782,16 @@ void IEnhancedInputSubsystemInterface::TickForcedInput(float DeltaTime)
 		{
 			InjectKey(PlayerInput, ForcedKeyPair.Key, ForcedKeyPair.Value, DeltaTime);
 		}
+	}
+}
+
+void IEnhancedInputSubsystemInterface::HandleControlMappingRebuildDelegate()
+{
+	if (bControlMappingsRebuiltThisTick)
+	{
+		ControlMappingsRebuiltThisFrame();
+		
+		bControlMappingsRebuiltThisTick = false;
 	}
 }
 
