@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#define HAIR_STRANDS_PARAMETERS 1
+
 #include "../Common.ush"
 #include "HairStrandsClusterCommon.ush"
 #include "HairStrandsVertexFactoryCommon.ush"
@@ -77,18 +79,7 @@ uint2 UppackVisTileCoord(uint Packed)
 
 uint			MacroGroupId;
 uint			HairMaterialId;
-uint			HairStrandsVF_bIsCullingEnable;
-float			HairStrandsVF_Radius;
-float			HairStrandsVF_RootScale;
-float			HairStrandsVF_TipScale;
-float			HairStrandsVF_Length;
-float			HairStrandsVF_Density;
-uint			HairStrandsVF_bUseStableRasterization;
-float3			HairStrandsVF_PositionOffset;
-uint			HairStrandsVF_VertexCount;
-float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
-Buffer<uint4>	HairStrandsVF_PositionBuffer;
-Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
+
 
 Texture2D<float> SceneDepthTexture;
 
@@ -194,13 +185,6 @@ void PrepareDepthGridCS(uint dId : SV_DispatchThreadID, uint GroupThreadID : SV_
 ///////////////////////////////////////////////////////////////////////////
 
 #if SHADER_RASTERCOMPUTE_BINNING
-
-#if PERMUTATION_CULLING
-Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
-Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
-Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
-Buffer<uint>	IndirectBufferArgs;
-#endif
 
 RWTexture3D<uint> 					OutVisTileBinningGrid;
 Texture2D<uint>						VisTileDepthGrid;

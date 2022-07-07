@@ -82,3 +82,31 @@ FHairAttributes DecodeHairAttribute(float2 Attributes0, uint Attributes1, float 
 	Out.Seed		= Attributes0.y;
 	return Out;
 }
+
+///////////////////////////////////////////////////////////////////////////////////////////////////
+// Hair strands instance parameters
+
+#if defined(HAIR_STRANDS_PARAMETERS) && HAIR_STRANDS_PARAMETERS == 1
+uint			HairStrandsVF_bIsCullingEnable;
+uint			HairStrandsVF_bHasRaytracedGeometry;
+float			HairStrandsVF_Radius;
+float			HairStrandsVF_RootScale;
+float			HairStrandsVF_TipScale;
+float			HairStrandsVF_Length;
+float			HairStrandsVF_Density;
+uint			HairStrandsVF_bUseStableRasterization;
+float3			HairStrandsVF_PositionOffset;
+uint			HairStrandsVF_VertexCount;
+float4x4		HairStrandsVF_LocalToWorldPrimitiveTransform;
+float4x4		HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform;
+Buffer<uint4>	HairStrandsVF_PositionBuffer;
+Buffer<float4>	HairStrandsVF_PositionOffsetBuffer;
+
+#if defined(PERMUTATION_CULLING) && PERMUTATION_CULLING == 1
+Buffer<uint>	HairStrandsVF_CullingIndirectBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndexBuffer;
+Buffer<float>	HairStrandsVF_CullingRadiusScaleBuffer;
+Buffer<uint>	HairStrandsVF_CullingIndirectBufferArgs;
+#endif
+
+#endif // HAIR_STRANDS_PARAMETERS

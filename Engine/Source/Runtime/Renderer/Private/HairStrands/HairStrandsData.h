@@ -16,6 +16,7 @@ class FPrimitiveSceneProxy;
 class FViewInfo;
 class FScene;
 class FInstanceCullingManager;
+class FHairGroupPublicData;
 struct FMeshBatch;
 struct FMeshBatchAndRelevance;
 
@@ -41,6 +42,32 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FHairStrandsViewUniformParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, HairTileData)						// Tile coords (RG16F)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>,  HairTileCount)						// Tile total count (actual number of tiles)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+////////////////////////////////////////////////////////////////////////////////////
+// Hair Instance data
+
+BEGIN_SHADER_PARAMETER_STRUCT(FHairStrandsInstanceParameters, )
+	SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
+	SHADER_PARAMETER(uint32, HairStrandsVF_bHasRaytracedGeometry)
+	SHADER_PARAMETER(float, HairStrandsVF_Density)
+	SHADER_PARAMETER(float, HairStrandsVF_Radius)
+	SHADER_PARAMETER(float, HairStrandsVF_RootScale)
+	SHADER_PARAMETER(float, HairStrandsVF_TipScale)
+	SHADER_PARAMETER(float, HairStrandsVF_Length)
+	SHADER_PARAMETER(uint32, HairStrandsVF_bUseStableRasterization)
+	SHADER_PARAMETER(uint32, HairStrandsVF_VertexCount)
+	SHADER_PARAMETER(FVector3f, HairStrandsVF_PositionOffset)
+	SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToWorldPrimitiveTransform)
+	SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndexBuffer)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingRadiusScaleBuffer)
+	RDG_BUFFER_ACCESS(HairStrandsVF_CullingIndirectBufferArgs, ERHIAccess::IndirectArgs)
+END_SHADER_PARAMETER_STRUCT()
+
+FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, bool bCullingEnable, bool bForceRegister);
 
 ////////////////////////////////////////////////////////////////////////////////////
 // Tile data

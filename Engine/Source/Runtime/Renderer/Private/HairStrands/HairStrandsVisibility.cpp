@@ -2907,6 +2907,61 @@ IMPLEMENT_GLOBAL_SHADER(FVisiblityRasterComputePrepareDepthGridCS, "/Engine/Priv
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
+FHairStrandsInstanceParameters GetHairStrandsInstanceParameters(FRDGBuilder& GraphBuilder, const FViewInfo& ViewInfo, const FHairGroupPublicData* HairGroupPublicData, bool bCullingEnable, bool bForceRegister)
+{
+	check(HairGroupPublicData);
+
+	const FHairGroupPublicData::FVertexFactoryInput& VFInput = HairGroupPublicData->VFInput;
+
+	FHairStrandsInstanceParameters Out;
+	if (bForceRegister)
+	{
+		Out.HairStrandsVF_PositionBuffer		= Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
+		Out.HairStrandsVF_PositionOffsetBuffer	= Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
+
+	}
+	else
+	{
+		Out.HairStrandsVF_PositionBuffer		= VFInput.Strands.PositionBuffer.SRV;
+		Out.HairStrandsVF_PositionOffsetBuffer	= VFInput.Strands.PositionOffsetBuffer.SRV;
+	}
+
+
+	Out.HairStrandsVF_VertexCount						= VFInput.Strands.VertexCount;
+	Out.HairStrandsVF_Radius							= VFInput.Strands.HairRadius;
+	Out.HairStrandsVF_RootScale							= VFInput.Strands.HairRootScale;
+	Out.HairStrandsVF_TipScale							= VFInput.Strands.HairTipScale;
+	Out.HairStrandsVF_Length							= VFInput.Strands.HairLength;
+	Out.HairStrandsVF_bUseStableRasterization			= VFInput.Strands.bUseStableRasterization ? 1 : 0;
+	Out.HairStrandsVF_Density							= VFInput.Strands.HairDensity;
+	Out.HairStrandsVF_bIsCullingEnable					= 0;
+	Out.HairStrandsVF_bHasRaytracedGeometry				= VFInput.Strands.bUseRaytracingGeometry ? 1u : 0u;
+	Out.HairStrandsVF_PositionOffset					= (FVector3f)VFInput.Strands.PositionOffset;
+
+	// Absolute local to world
+	Out.HairStrandsVF_LocalToWorldPrimitiveTransform	= FMatrix44f(VFInput.LocalToWorldTransform.ToMatrixWithScale()); // LWC_TODO: Precision loss
+
+	// Translated local to world
+	const FVector& TranslatedWorldOffset = ViewInfo.ViewMatrices.GetPreViewTranslation();
+	FTransform LocalToTranslatedWorldTransform = VFInput.LocalToWorldTransform;
+	LocalToTranslatedWorldTransform.AddToTranslation(TranslatedWorldOffset);
+	Out.HairStrandsVF_LocalToTranslatedWorldPrimitiveTransform = FMatrix44f(LocalToTranslatedWorldTransform.ToMatrixWithScale());
+
+	//Out.VertexCount = HairGroupPublicData->GetActiveStrandsVertexStart(VFInput.Strands.VertexCount);
+	//Out.VertexStart = HairGroupPublicData->GetActiveStrandsVertexCount(VFInput.Strands.VertexCount, ScreenSize);
+
+	if (bCullingEnable)
+	{
+		FRDGImportedBuffer CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
+		Out.HairStrandsVF_CullingIndirectBuffer = CullingIndirectBuffer.SRV;
+		Out.HairStrandsVF_bIsCullingEnable = 1;
+		Out.HairStrandsVF_CullingIndexBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer());
+		Out.HairStrandsVF_CullingRadiusScaleBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
+		Out.HairStrandsVF_CullingIndirectBufferArgs = CullingIndirectBuffer.Buffer;
+	}
+	return Out;
+}
+
 class FVisiblityRasterComputeBinningCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVisiblityRasterComputeBinningCS);
@@ -2921,21 +2976,7 @@ class FVisiblityRasterComputeBinningCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, HairMaterialId)
-		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
-		SHADER_PARAMETER(float, HairStrandsVF_Density)
-		SHADER_PARAMETER(float, HairStrandsVF_Radius)
-		SHADER_PARAMETER(float, HairStrandsVF_RootScale)
-		SHADER_PARAMETER(float, HairStrandsVF_TipScale)
-		SHADER_PARAMETER(float, HairStrandsVF_Length)
-		SHADER_PARAMETER(uint32, HairStrandsVF_bUseStableRasterization)
-		SHADER_PARAMETER(uint32, HairStrandsVF_VertexCount)
-		SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToWorldPrimitiveTransform)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndexBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingRadiusScaleBuffer)
-		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VisTileBinningGrid)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer, OutVisTilePrims)
@@ -2975,20 +3016,7 @@ class FVisiblityRasterComputeRasterizeCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, MacroGroupId)
 		SHADER_PARAMETER(uint32, DispatchCountX)
 		SHADER_PARAMETER(uint32, HairMaterialId)
-		SHADER_PARAMETER(uint32, HairStrandsVF_bIsCullingEnable)
-		SHADER_PARAMETER(float, HairStrandsVF_Density)
-		SHADER_PARAMETER(float, HairStrandsVF_Radius)
-		SHADER_PARAMETER(float, HairStrandsVF_RootScale)
-		SHADER_PARAMETER(float, HairStrandsVF_TipScale)
-		SHADER_PARAMETER(float, HairStrandsVF_Length)
-		SHADER_PARAMETER(uint32, HairStrandsVF_bUseStableRasterization)
-		SHADER_PARAMETER(uint32, HairStrandsVF_VertexCount)
-		SHADER_PARAMETER(FMatrix44f, HairStrandsVF_LocalToWorldPrimitiveTransform)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_PositionOffsetBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndirectBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingIndexBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer, HairStrandsVF_CullingRadiusScaleBuffer)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FHairStrandsInstanceParameters, HairInstance)
 		RDG_BUFFER_ACCESS(IndirectBufferArgs, ERHIAccess::IndirectArgs)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneDepthTexture)
 		SHADER_PARAMETER(float, SampleWeight)
@@ -3242,42 +3270,12 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 				BinningParameters->VisTileDepthGrid = OutVisTileDepthGrid;
 				BinningParameters->OutVisTileArgs = OutVisTileArgsUAV;
 				BinningParameters->OutVisTileData = OutVisTileDataUAV;
-
-				if (bForceRegister)
-				{
-					BinningParameters->HairStrandsVF_PositionBuffer = Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-					BinningParameters->HairStrandsVF_PositionOffsetBuffer = Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-
-				}
-				else
-				{
-					BinningParameters->HairStrandsVF_PositionBuffer = VFInput.Strands.PositionBuffer.SRV;
-					BinningParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer.SRV;
-				}
-
-				BinningParameters->HairStrandsVF_VertexCount = VFInput.Strands.VertexCount;
-				BinningParameters->HairStrandsVF_Radius = VFInput.Strands.HairRadius;
-				BinningParameters->HairStrandsVF_RootScale = VFInput.Strands.HairRootScale;
-				BinningParameters->HairStrandsVF_TipScale = VFInput.Strands.HairTipScale;
-				BinningParameters->HairStrandsVF_Length = VFInput.Strands.HairLength;
-				BinningParameters->HairStrandsVF_bUseStableRasterization = VFInput.Strands.bUseStableRasterization ? 1 : 0;
-				BinningParameters->HairStrandsVF_Density = VFInput.Strands.HairDensity;
-				BinningParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = FMatrix44f(LocalToWorldPrimitiveTransform); // LWC_TODO: Precision loss
-
+				BinningParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnable, bForceRegister);
+				
 				BinningParameters->VertexCount = VertexCount;
 				BinningParameters->VertexStart = VertexStart;
 				
 				BinningParameters->VisTileBinningGridTex = OutVisTileBinningGrid;
-
-				if (bCullingEnable)
-				{
-					FRDGImportedBuffer CullingIndirectBuffer = Register(GraphBuilder, HairGroupPublicData->GetDrawIndirectRasterComputeBuffer(), ERDGImportedBufferFlags::CreateSRV);
-					BinningParameters->HairStrandsVF_CullingIndirectBuffer = CullingIndirectBuffer.SRV;
-					BinningParameters->HairStrandsVF_bIsCullingEnable = bCullingEnable ? 1 : 0;
-					BinningParameters->HairStrandsVF_CullingIndexBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexIdBuffer());
-					BinningParameters->HairStrandsVF_CullingRadiusScaleBuffer = RegisterAsSRV(GraphBuilder, HairGroupPublicData->GetCulledVertexRadiusScaleBuffer());
-					BinningParameters->IndirectBufferArgs = CullingIndirectBuffer.Buffer;
-				}
 
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("HairStrands::VisibilityComputeRasterBinning(culling=%s)", bCullingEnable ? TEXT("On") : TEXT("Off")), bCullingEnable ? ComputeShaderBinning_CullingOn : ComputeShaderBinning_CullingOff, BinningParameters, FIntVector(NumBinners, 1, 1));
 			}
@@ -3294,30 +3292,7 @@ static FRasterComputeOutput AddVisibilityComputeRasterPass(
 				RasterParameters->OutDepthCovTexture = DepthCovTextureUAV;
 				RasterParameters->OutPrimMatTexture = PrimMatTextureUAV;
 				RasterParameters->SampleWeight = SampleWeight;
-
-				if (bForceRegister)
-				{
-					RasterParameters->HairStrandsVF_PositionBuffer = Register(GraphBuilder, VFInput.Strands.PositionBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-					RasterParameters->HairStrandsVF_PositionOffsetBuffer = Register(GraphBuilder, VFInput.Strands.PositionOffsetBufferExternal, ERDGImportedBufferFlags::CreateSRV).SRV;;
-
-				}
-				else
-				{
-					RasterParameters->HairStrandsVF_PositionBuffer = VFInput.Strands.PositionBuffer.SRV;
-					RasterParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer.SRV;
-				}
-
-//				RasterParameters->HairStrandsVF_PositionBuffer	= VFInput.Strands.PositionBuffer.SRV;
-//				RasterParameters->HairStrandsVF_PositionOffsetBuffer = VFInput.Strands.PositionOffsetBuffer.SRV;
-				RasterParameters->HairStrandsVF_VertexCount		= VFInput.Strands.VertexCount;
-				RasterParameters->HairStrandsVF_Radius			= VFInput.Strands.HairRadius;
-				RasterParameters->HairStrandsVF_RootScale			= VFInput.Strands.HairRootScale;
-				RasterParameters->HairStrandsVF_TipScale			= VFInput.Strands.HairTipScale;
-				RasterParameters->HairStrandsVF_Length			= VFInput.Strands.HairLength;
-				RasterParameters->HairStrandsVF_bUseStableRasterization = VFInput.Strands.bUseStableRasterization ? 1 : 0;
-				RasterParameters->HairStrandsVF_Density			= VFInput.Strands.HairDensity;
-				RasterParameters->HairStrandsVF_LocalToWorldPrimitiveTransform = FMatrix44f(LocalToWorldPrimitiveTransform); // LWC_TODO: Precision loss
-
+				RasterParameters->HairInstance = GetHairStrandsInstanceParameters(GraphBuilder, ViewInfo, HairGroupPublicData, bCullingEnable, bForceRegister);
 				RasterParameters->VisTilePrims = GraphBuilder.CreateSRV(OutVisTilePrims);
 				RasterParameters->RWVisTileDepthGrid = OutVisTileDepthGridUAV;
 				RasterParameters->VisTileArgs = GraphBuilder.CreateSRV(OutVisTileArgs);
