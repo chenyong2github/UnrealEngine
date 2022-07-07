@@ -747,7 +747,7 @@ void FGeometryCollectionPhysicsProxy::CreateNonClusteredParticles(Chaos::FPBDRig
 	}
 }
 
-Chaos::FPBDRigidClusteredParticleHandle* FGeometryCollectionPhysicsProxy::FindClusteredParticleHandleByItemIndex(FGeometryCollectionItemIndex ItemIndex) const
+Chaos::FPBDRigidClusteredParticleHandle* FGeometryCollectionPhysicsProxy::FindClusteredParticleHandleByItemIndex_Internal(FGeometryCollectionItemIndex ItemIndex) const
 {
 	Chaos::FPBDRigidClusteredParticleHandle* ResultHandle = nullptr;;
 	if (ItemIndex.IsInternalCluster())
@@ -1546,7 +1546,7 @@ void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<FGeometryCol
 			Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
 			for (const FGeometryCollectionItemIndex& ItemIndex : IndicesToBreakParent)
 			{
-				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+				if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 				{
 					Clustering.BreakCluster(ClusteredHandle);
 				}
@@ -1555,42 +1555,122 @@ void FGeometryCollectionPhysicsProxy::BreakClusters_External(TArray<FGeometryCol
 	}
 }
 
-void FGeometryCollectionPhysicsProxy::ApplyStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float StrainValue)
+template <typename TAction>
+static void ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
+	Chaos::FRigidClustering& Clustering,
+	Chaos::FPBDRigidClusteredParticleHandle& ClusteredHandle,
+	const FVector& WorldLocation,
+	float Radius,
+	int32 PropagationDepth,
+	float PropagationFactor,
+	TAction Action)
+{
+	const bool bIsCluster = (ClusteredHandle.ClusterIds().NumChildren > 0);
+	if (bIsCluster)
+	{
+		TArray<Chaos::FPBDRigidParticleHandle*> ChildrenHandles = Clustering.FindChildrenWithinRadius(&ClusteredHandle, WorldLocation, Radius, true /* always return closest */ );
+		if (ChildrenHandles.Num())
+		{
+			TArray<Chaos::FPBDRigidParticleHandle*> ProcessedHandles;
+			Chaos::FReal PropagationMultiplier = 1.0f;
+
+			int32 CurrentPropagationDepth = PropagationDepth;
+			while (CurrentPropagationDepth >= 0)
+			{
+				// apply to current
+				for (Chaos::FPBDRigidParticleHandle* ChildHandle: ChildrenHandles)
+				{
+					if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ChildHandle->CastToClustered())
+					{
+						Action(ClusteredChildHandle, PropagationMultiplier);
+//						ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue * PropagationMultiplier));
+					}
+				}
+
+				// find handles to propagate to
+				if (CurrentPropagationDepth > 0)
+				{
+					// only propagate to newly added ( avoids allocating a new temporary array for next level handles )
+					// move the entire ChildrenHandle array to the processed ones so that it also resets it for us
+					const int32 StartIndex = ProcessedHandles.Num(); 
+					ProcessedHandles.Append(MoveTemp(ChildrenHandles));
+					
+					for (int32 ChildIndex = StartIndex; ChildIndex < ProcessedHandles.Num(); ++ChildIndex)
+					{
+						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ProcessedHandles[ChildIndex]->CastToClustered())
+						{
+							for (const Chaos::TConnectivityEdge<Chaos::FReal>& Edge:ClusteredChildHandle->ConnectivityEdges())
+							{
+								if (Edge.Sibling && !ChildrenHandles.Contains(Edge.Sibling))
+								{
+									ChildrenHandles.Add(Edge.Sibling);
+								}
+							}
+						}
+					}
+				}
+				
+				PropagationMultiplier *= static_cast<Chaos::FReal>(PropagationFactor);
+				--CurrentPropagationDepth;
+			}
+		}
+	}
+}
+
+
+void FGeometryCollectionPhysicsProxy::ApplyExternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue)
 {
 	check(IsInGameThread());
 
 	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
 	{
-		RBDSolver->EnqueueCommandImmediate([this, StrainValue, RBDSolver, WorldLocation, ItemIndex]()
+		RBDSolver->EnqueueCommandImmediate([this, Radius, StrainValue, PropagationDepth, PropagationFactor, RBDSolver, WorldLocation, ItemIndex]()
 		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 			{
-				const bool bIsCluster = (ClusteredHandle->ClusterIds().NumChildren > 0);
-				if (bIsCluster)
-				{
-					Chaos::FRigidClustering& Clustering = RBDSolver->GetEvolution()->GetRigidClustering();
-					Chaos::FPBDRigidParticleHandle* ClosestChildHandle = Clustering.FindClosestChild(ClusteredHandle, WorldLocation);
-					if (ClosestChildHandle)
+				ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
+					RBDSolver->GetEvolution()->GetRigidClustering(), *ClusteredHandle,
+					WorldLocation, Radius, PropagationDepth, PropagationFactor,
+					[StrainValue](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle, Chaos::FReal PropagationMultiplier)
 					{
-						if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle = ClosestChildHandle->CastToClustered())
-						{
-							ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue));
-						}
-					}
-				}
+						ClusteredChildHandle->SetExternalStrain(FMath::Max(ClusteredChildHandle->GetExternalStrain(), StrainValue * PropagationMultiplier));
+					});
 			}
 		});
 	}
 }
 
-template <typename TLambda>
-static void ApplyToBreakingChildren_Internal(Chaos::FRigidClustering& Clustering, Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle, TLambda Action)
+void FGeometryCollectionPhysicsProxy::ApplyInternalStrain_External(FGeometryCollectionItemIndex ItemIndex, const FVector& WorldLocation, float Radius, int32 PropagationDepth, float PropagationFactor, float StrainValue)
 {
-	const bool bIsCluster = (ClusteredHandle->ClusterIds().NumChildren > 0);
-	if (bIsCluster && !ClusteredHandle->Disabled())
+	check(IsInGameThread());
+
+	if (Chaos::FPhysicsSolver* RBDSolver = GetSolver<Chaos::FPhysicsSolver>())
+	{
+		RBDSolver->EnqueueCommandImmediate([this, Radius, StrainValue, PropagationDepth, PropagationFactor, RBDSolver, WorldLocation, ItemIndex]()
+		{
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
+			{
+				ApplyToChildrenAtPointWithRadiusAndPropagation_Internal(
+					RBDSolver->GetEvolution()->GetRigidClustering(), *ClusteredHandle,
+					WorldLocation, Radius, PropagationDepth, PropagationFactor,
+					[StrainValue](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle, Chaos::FReal PropagationMultiplier)
+					{
+						const Chaos::FReal NewInternalStrain = ClusteredChildHandle->Strain() - ((Chaos::FReal)StrainValue * PropagationMultiplier);
+						ClusteredChildHandle->SetStrain(FMath::Max(0,NewInternalStrain));
+					});
+			}
+		});
+	}
+}
+
+template <typename TAction>
+static void ApplyToBreakingChildren_Internal(Chaos::FRigidClustering& Clustering, Chaos::FPBDRigidClusteredParticleHandle& ClusteredHandle, TAction Action)
+{
+	const bool bIsCluster = (ClusteredHandle.ClusterIds().NumChildren > 0);
+	if (bIsCluster && !ClusteredHandle.Disabled())
 	{
 		Chaos::FRigidClustering::FClusterMap& ChildrenMap = Clustering.GetChildrenMap();
-		if (const TArray<Chaos::FPBDRigidParticleHandle*>* ChildrenHandles = ChildrenMap.Find(ClusteredHandle))
+		if (const TArray<Chaos::FPBDRigidParticleHandle*>* ChildrenHandles = ChildrenMap.Find(&ClusteredHandle))
 		{
 			for (Chaos::FPBDRigidParticleHandle* ChildHandle: *ChildrenHandles)
 			{
@@ -1614,9 +1694,9 @@ void FGeometryCollectionPhysicsProxy::ApplyBreakingLinearVelocity_External(FGeom
 	{
 		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, ItemIndex, LinearVelocity]()
 		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 			{
-				ApplyToBreakingChildren_Internal(RBDSolver->GetEvolution()->GetRigidClustering(), ClusteredHandle,
+				ApplyToBreakingChildren_Internal(RBDSolver->GetEvolution()->GetRigidClustering(), *ClusteredHandle,
 					[LinearVelocity](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle)
 					{
 						ClusteredChildHandle->V() += LinearVelocity;
@@ -1634,9 +1714,9 @@ void FGeometryCollectionPhysicsProxy::ApplyBreakingAngularVelocity_External(FGeo
 	{
 		RBDSolver->EnqueueCommandImmediate([this, RBDSolver, ItemIndex, AngularVelocity]()
 		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 			{
-				ApplyToBreakingChildren_Internal(RBDSolver->GetEvolution()->GetRigidClustering(), ClusteredHandle,
+				ApplyToBreakingChildren_Internal(RBDSolver->GetEvolution()->GetRigidClustering(), *ClusteredHandle,
 					[AngularVelocity](Chaos::FPBDRigidClusteredParticleHandle* ClusteredChildHandle)
 					{
 						ClusteredChildHandle->W() += AngularVelocity;
@@ -1654,7 +1734,7 @@ void FGeometryCollectionPhysicsProxy::ApplyLinearVelocity_External(FGeometryColl
 	{
 		RBDSolver->EnqueueCommandImmediate([this, ItemIndex, LinearVelocity]()
 		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 			{
 				ClusteredHandle->V() += LinearVelocity;
 			}
@@ -1670,7 +1750,7 @@ void FGeometryCollectionPhysicsProxy::ApplyAngularVelocity_External(FGeometryCol
 	{
 		RBDSolver->EnqueueCommandImmediate([this, ItemIndex, AngularVelocity]()
 		{
-			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex(ItemIndex))
+			if (Chaos::FPBDRigidClusteredParticleHandle* ClusteredHandle = FindClusteredParticleHandleByItemIndex_Internal(ItemIndex))
 			{
 				ClusteredHandle->W() += AngularVelocity;
 			}

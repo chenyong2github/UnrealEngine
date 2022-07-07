@@ -278,7 +278,32 @@ public:
 	*    @param Particles array of clustered particles to select from  
 	*    @param WorldLocation world space location to find the closest particle from   
 	*/
-	FPBDRigidParticleHandle* FindClosestParticle(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation) const;
+	static FPBDRigidParticleHandle* FindClosestParticle(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation);
+
+	/*
+	*  FindChildrenWithinRadius
+	*    Find the children of an active cluster from a world position and a radius
+	*    current implementation will pick the closest based on the distance from the center
+	*    future implementation may expose option for more precise queries
+	*    if bAlwaysReturnClosest is checked this will always return  the closest from the location even if the radius does not encompass any center of mass  
+	*    @param ClusteredParticle active cluster handle to query the children from
+	*    @param WorldLocation world space location to find the closest child from
+	*    @param Radius Radius to use from the WorldLocation
+	*    @param bAlwaysReturnClosest if radius query does not return anything still return the closest from the point
+	*/
+	TArray<FPBDRigidParticleHandle*> FindChildrenWithinRadius(const FPBDRigidClusteredParticleHandle* ClusteredParticle, const FVec3& WorldLocation, FReal Radius, bool bAlwaysReturnClosest) const;
+
+	/*
+	*  FindParticlesWithinRadius
+	*    Find the closest particle from an array of  particle from a world position and a radius 
+	*    current implementation will pick the closest based on the distance from the center
+	*    future implementation may expose option for more precise queries
+	*    if bAlwaysReturnClosest is checked this will always return  the closest from the location even if the radius does not encompass any center of mass
+	*    @param Particles array of clustered particles to select from  
+	*    @param WorldLocation world space location to find the closest particle from
+	*    @param bAlwaysReturnClosest if radius query does not return anything still return the closest from the point
+	*/
+	static TArray<FPBDRigidParticleHandle*> FindParticlesWithinRadius(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation, FReal Radius, bool bAlwaysReturnClosest);
 	
 	/**
 	* GenerateConnectionGraph

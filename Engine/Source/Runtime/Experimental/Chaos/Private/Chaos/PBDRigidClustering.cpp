@@ -952,7 +952,7 @@ namespace Chaos
 		return nullptr;
 	}
 
-	FPBDRigidParticleHandle* FRigidClustering::FindClosestParticle(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation) const
+	FPBDRigidParticleHandle* FRigidClustering::FindClosestParticle(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation)
 	{
 		FPBDRigidParticleHandle* ClosestChildHandle = nullptr;
 		
@@ -970,6 +970,49 @@ namespace Chaos
         return ClosestChildHandle;
 	}
 
+	TArray<FPBDRigidParticleHandle*> FRigidClustering::FindChildrenWithinRadius(const FPBDRigidClusteredParticleHandle* ClusteredParticle, const FVec3& WorldLocation, FReal Radius, bool bAlwaysReturnClosest) const
+	{
+		if (const TArray<FPBDRigidParticleHandle*>* ChildrenHandles = GetChildrenMap().Find(ClusteredParticle))
+		{
+			return FindParticlesWithinRadius(*ChildrenHandles, WorldLocation, Radius, bAlwaysReturnClosest); 
+		}
+		TArray<FPBDRigidParticleHandle*> EmptyArray;
+		return EmptyArray;
+	}
+
+	TArray<FPBDRigidParticleHandle*> FRigidClustering::FindParticlesWithinRadius(const TArray<FPBDRigidParticleHandle*>& Particles, const FVec3& WorldLocation, FReal Radius, bool bAlwaysReturnClosest)
+	{
+		TArray<FPBDRigidParticleHandle*> Result;
+		
+		FPBDRigidParticleHandle* ClosestChildHandle = nullptr;
+		
+		// @todo(chaos) we should offer a more precise way to query than the distance from center of mass
+		FReal ClosestSquaredDist = TNumericLimits<FReal>::Max();
+		
+		const FReal RadiusSquared = Radius * Radius;
+		for (FPBDRigidParticleHandle* ChildHandle: Particles)
+		{
+			const FReal SquaredDist = (ChildHandle->X() - WorldLocation).SizeSquared();
+			if (SquaredDist <= RadiusSquared)
+			{
+				Result.Add(ChildHandle);
+			}
+			if (bAlwaysReturnClosest)
+			{
+				if (SquaredDist < ClosestSquaredDist)
+				{
+					ClosestSquaredDist = SquaredDist;
+					ClosestChildHandle = ChildHandle;
+				}
+			}
+		}
+		if (bAlwaysReturnClosest && ClosestChildHandle && Result.Num() == 0)
+		{
+			Result.Add(ClosestChildHandle);
+		}
+		return Result;
+	}
+	
 	DECLARE_CYCLE_STAT(TEXT("TPBDRigidClustering<>::GenerateConnectionGraph"), STAT_GenerateConnectionGraph, STATGROUP_Chaos);
 	void 
 	FRigidClustering::GenerateConnectionGraph(

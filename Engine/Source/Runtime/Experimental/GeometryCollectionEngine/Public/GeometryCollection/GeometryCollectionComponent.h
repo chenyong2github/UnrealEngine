@@ -453,11 +453,26 @@ public:
 	 * Apply an external strain to specific piece of the geometry collection
 	 * @param ItemIndex item index ( from HitResult) of the piece to apply strain on
 	 * @param Location world location of where to apply the strain
+	 * @param Radius radius from the location point to apply the strain to ( using the center of mass of the pieces )
+	 * @param PropagationDepth How many level of connection to follow to propagate the strain through
+	 * @param PropagationFactor when using propagation, the factor to multiply the strain from one level to the other, allowing falloff effect
 	 * @param Strain strain / damage to apply 
 	 */
 	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
-	void ApplyExternalStrain(int32 ItemIndex, const FVector& Location, float Strain);
+	void ApplyExternalStrain(int32 ItemIndex, const FVector& Location, float Radius = 0, int32 PropagationDepth = 0, float PropagationFactor = 1, float Strain = 0);
 
+	/**
+	 * Apply an internal strain to specific piece of the geometry collection
+	 * @param ItemIndex item index ( from HitResult) of the piece to apply strain on
+	 * @param Location world location of where to apply the strain
+	 * @param Radius radius from the location point to apply the strain to ( using the center of mass of the pieces )
+	 * @param PropagationDepth How many level of connection to follow to propagate the strain through
+	 * @param PropagationFactor when using propagation, the factor to multiply the strain from one level to the other, allowing falloff effect
+	 * @param Strain strain / damage to apply 
+	 */
+	UFUNCTION(BlueprintCallable, Category = "ChaosPhysics")
+	void ApplyInternalStrain(int32 ItemIndex, const FVector& Location, float Radius = 0, int32 PropagationDepth = 0, float PropagationFactor = 1, float Strain = 0);
+	
 	/**
 	 * Crumbe a cluster into all its pieces
 	 * @param ItemIndex item index ( from HitResult) of the cluster to crumble
