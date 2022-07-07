@@ -14,7 +14,7 @@ struct CONTROLRIG_API FRigUnit_NameBase : public FRigUnit
 /**
  * Concatenates two strings together to make a new string
  */
-USTRUCT(meta = (DisplayName = "Concat", Keywords = "Add,+,Combine,Merge,Append"))
+USTRUCT(meta = (DisplayName = "Concat", TemplateName = "Concat", Keywords = "Add,+,Combine,Merge,Append"))
 struct CONTROLRIG_API FRigUnit_NameConcat : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -27,20 +27,20 @@ struct CONTROLRIG_API FRigUnit_NameConcat : public FRigUnit_NameBase
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
-	UPROPERTY(meta=(Input))
+	UPROPERTY(meta=(Input, Aggregate))
 	FName A;
 
-	UPROPERTY(meta=(Input))
+	UPROPERTY(meta=(Input, Aggregate))
 	FName B;
 
-	UPROPERTY(meta=(Output))
+	UPROPERTY(meta=(Output, Aggregate))
 	FName Result;
 };
 
 /**
  * Returns the left or right most characters from the string chopping the given number of characters from the start or the end
  */
-USTRUCT(meta = (DisplayName = "Chop", Keywords = "Truncate,-,Remove,Subtract,Split"))
+USTRUCT(meta = (DisplayName = "Chop", TemplateName = "Chop", Keywords = "Truncate,-,Remove,Subtract,Split"))
 struct CONTROLRIG_API FRigUnit_NameTruncate : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -78,7 +78,7 @@ struct CONTROLRIG_API FRigUnit_NameTruncate : public FRigUnit_NameBase
 /**
  * Replace all occurrences of a substring in this string
  */
-USTRUCT(meta = (DisplayName = "Replace", Keywords = "Search,Emplace,Find"))
+USTRUCT(meta = (DisplayName = "Replace", TemplateName = "Replace", Keywords = "Search,Emplace,Find"))
 struct CONTROLRIG_API FRigUnit_NameReplace : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -107,7 +107,7 @@ struct CONTROLRIG_API FRigUnit_NameReplace : public FRigUnit_NameBase
 /**
  * Tests whether this string ends with given string
  */
-USTRUCT(meta = (DisplayName = "Ends With", Keywords = "Right"))
+USTRUCT(meta = (DisplayName = "Ends With", TemplateName = "EndsWith", Keywords = "Right"))
 struct CONTROLRIG_API FRigUnit_EndsWith : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -134,7 +134,7 @@ struct CONTROLRIG_API FRigUnit_EndsWith : public FRigUnit_NameBase
 /**
  * Tests whether this string starts with given string
  */
-USTRUCT(meta = (DisplayName = "Starts With", Keywords = "Left"))
+USTRUCT(meta = (DisplayName = "Starts With", TemplateName = "StartsWith", Keywords = "Left"))
 struct CONTROLRIG_API FRigUnit_StartsWith : public FRigUnit_NameBase
 {
 	GENERATED_BODY()
@@ -161,7 +161,7 @@ struct CONTROLRIG_API FRigUnit_StartsWith : public FRigUnit_NameBase
 /**
  * Returns true or false if a given name exists in another given name
  */
-USTRUCT(meta = (DisplayName = "Contains", Keywords = "Contains,Find,Has,Search"))
+USTRUCT(meta = (DisplayName = "Contains", TemplateName = "Contains", Keywords = "Contains,Find,Has,Search"))
 struct CONTROLRIG_API FRigUnit_Contains : public FRigUnit_NameBase
 {
 	GENERATED_BODY()

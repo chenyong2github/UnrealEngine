@@ -1019,7 +1019,10 @@ FName URigVMPin::GetCustomWidgetName() const
 					}
 				}
 			}
-			else if(const FRigVMTemplate* Template = UnitNode->GetTemplate())
+		}
+		else if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(GetNode()))
+		{
+			if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
 			{
 				const FString MetaData = Template->GetArgumentMetaData(GetFName(), FRigVMStruct::CustomWidgetMetaName);
 				if(!MetaData.IsEmpty())
@@ -1249,9 +1252,9 @@ bool URigVMPin::CanBeBoundToVariable(const FRigVMExternalVariable& InExternalVar
 bool URigVMPin::ShowInDetailsPanelOnly() const
 {
 #if WITH_EDITOR
-	if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetNode()))
+	if (GetParentPin() == nullptr)
 	{
-		if (GetParentPin() == nullptr)
+		if (URigVMUnitNode* UnitNode = Cast<URigVMUnitNode>(GetNode()))
 		{
 			if (UScriptStruct* ScriptStruct = UnitNode->GetScriptStruct())
 			{
@@ -1262,6 +1265,13 @@ bool URigVMPin::ShowInDetailsPanelOnly() const
 						return true;
 					}
 				}
+			}
+		}
+		else if(const URigVMTemplateNode* TemplateNode = Cast<URigVMTemplateNode>(GetNode()))
+		{
+			if(const FRigVMTemplate* Template = TemplateNode->GetTemplate())
+			{
+				return !Template->GetArgumentMetaData(GetFName(), FRigVMStruct::DetailsOnlyMetaName).IsEmpty();
 			}
 		}
 	}
