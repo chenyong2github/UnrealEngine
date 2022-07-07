@@ -4,7 +4,6 @@
 #include "RequiredProgramMainCPPInclude.h"
 #include "Framework/Application/SlateApplication.h"
 
-#include "UGSCore/GameSyncController.h"
 #include "Widgets/SGameSyncTab.h"
 #include "Widgets/SWorkspaceWindow.h"
 #include "Widgets/SEmptyTab.h"
