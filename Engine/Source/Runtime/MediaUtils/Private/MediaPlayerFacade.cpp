@@ -108,12 +108,12 @@ FMediaPlayerFacade::FMediaPlayerFacade()
 	, bHaveActiveAudio(false)
 	, VideoSampleAvailability(-1)
 	, AudioSampleAvailability(-1)
+	, bIsSinkFlushPending(false)
 	, bAreEventsSafeForAnyThread(false)
 {
 	BlockOnRangeDisabled = false;
 
 	MediaModule = FModuleManager::LoadModulePtr<IMediaModule>("Media");
-	bIsSinkFlushPending = false;
 	bDidRecentPlayerHaveError = false;
 }
 
