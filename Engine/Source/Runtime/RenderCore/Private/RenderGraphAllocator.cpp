@@ -11,8 +11,7 @@ FRDGAllocator& FRDGAllocator::Get()
 
 FRDGAllocator::~FRDGAllocator()
 {
-	Context.ReleaseAll();
-	ContextForTasks.ReleaseAll();
+	ReleaseAll();
 }
 
 void FRDGAllocator::FContext::ReleaseAll()
@@ -32,7 +31,7 @@ void FRDGAllocator::FContext::ReleaseAll()
 	{
 		FMemory::Free(RawAlloc);
 	}
-	RawAllocs.Reset();
+	RawAllocs.Reset();builder.cpp
 #else
 	MemStack.Flush();
 #endif
@@ -50,14 +49,16 @@ FRDGAllocatorScope::~FRDGAllocatorScope()
 {
 	if (AsyncDeleteFunction)
 	{
-		FFunctionGraphTask::CreateAndDispatchWhenReady(
-			[Allocator = MoveTemp(Allocator), AsyncDeleteFunction = MoveTemp(AsyncDeleteFunction)] () mutable
-		{
+		//FFunctionGraphTask::CreateAndDispatchWhenReady(
+		//	[Allocator = MoveTemp(Allocator), AsyncDeleteFunction = MoveTemp(AsyncDeleteFunction)] () mutable
+		//{
+
+		FRDGAllocator LocalAllocator = MoveTemp(Allocator);
 			SCOPED_NAMED_EVENT(FRDGAllocatorScope_AsyncDelete, FColor::Emerald);
 			AsyncDeleteFunction();
 			AsyncDeleteFunction = {};
 
-		}, TStatId(), nullptr, ENamedThreads::AnyThread);
+		//}, TStatId(), nullptr, ENamedThreads::AnyThread);
 	}
 	else
 	{
