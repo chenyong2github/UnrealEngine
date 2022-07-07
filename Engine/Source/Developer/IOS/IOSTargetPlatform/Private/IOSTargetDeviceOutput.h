@@ -26,8 +26,7 @@ static FString GetLibImobileDeviceExe(const FString& ExeName)
 #if PLATFORM_WINDOWS
 	ToReturn += TEXT(".exe");
 #endif
-
-	return ToReturn;
+	return FPaths::FileExists(ToReturn) ? ToReturn : TEXT("");
 }
 
 class FIOSDeviceOutputReaderRunnable : public FRunnable

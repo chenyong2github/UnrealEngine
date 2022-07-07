@@ -305,8 +305,15 @@ private:
     {
         FString OutStdOut;
         FString OutStdErr;
-        FString LibimobileDeviceId = GetLibImobileDeviceExe("idevice_id");
-        int ReturnCode;
+		FString LibimobileDeviceId = GetLibImobileDeviceExe("idevice_id");
+		int ReturnCode;
+		if (LibimobileDeviceId.Len() == 0)
+		{
+			UE_LOG(LogIOSDeviceHelper, Log, TEXT("idevice_id (iOS device detection) executable missing. Turning off iOS/tvOS device detection."));
+			Enable(false);
+			return;
+		}
+
         // get the list of devices UDID
         FPlatformProcess::ExecProcess(*LibimobileDeviceId, TEXT(""), &ReturnCode, &OutStdOut, &OutStdErr, NULL, true);
         if (OutStdOut.Len() == 0)
